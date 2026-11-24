@@ -24,7 +24,11 @@ describe("grok at its login screen", () => {
 
   test("delivery holds with grok's login step", async () => {
     let caught: any;
-    try { await inputGuard(async () => SIGNED_OUT)(); } catch (err) { caught = err; }
+    try {
+      await inputGuard(async () => SIGNED_OUT)();
+    } catch (err) {
+      caught = err;
+    }
     expect(caught?.holdReason).toContain("grok login");
   });
 });

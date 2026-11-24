@@ -8,7 +8,9 @@ import { TriggerHistoryFeed } from "../../components/TriggerHistoryFeed";
 import { useInboxStore } from "../../store/inboxStore";
 
 test("the trigger history feeder keeps cached rows until the last page arrives", async () => {
-  const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "http://localhost/" });
+  const dom = new JSDOM("<!doctype html><div id='root'></div>", {
+    url: "http://localhost/",
+  });
   const restore = replaceGlobals({
     window: dom.window,
     document: dom.window.document,
@@ -25,10 +27,13 @@ test("the trigger history feeder keeps cached rows until the last page arrives",
   let lastResult: typeof last | undefined;
   let notifyLastPage: (() => void) | undefined;
   const client = {
-    watchQuery: (_query: unknown, args: { paginationOpts: { cursor: string | null } }) => {
+    watchQuery: (
+      _query: unknown,
+      args: { paginationOpts: { cursor: string | null } },
+    ) => {
       const firstPage = args.paginationOpts.cursor === null;
       return {
-        localQueryResult: () => firstPage ? first : lastResult,
+        localQueryResult: () => (firstPage ? first : lastResult),
         onUpdate: (notify: () => void) => {
           if (!firstPage) notifyLastPage = notify;
           return () => {};
@@ -42,7 +47,13 @@ test("the trigger history feeder keeps cached rows until the last page arrives",
 
   try {
     store.syncTable("agentTasks", [cached]);
-    await act(async () => root.render(<ConvexProvider client={client}><TriggerHistoryFeed /></ConvexProvider>));
+    await act(async () =>
+      root.render(
+        <ConvexProvider client={client}>
+          <TriggerHistoryFeed />
+        </ConvexProvider>,
+      ),
+    );
     expect(notifyLastPage).toBeDefined();
     expect(ids()).toEqual([cached._id]);
 

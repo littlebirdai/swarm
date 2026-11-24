@@ -22,7 +22,8 @@ function bus(): BroadcastChannel | null {
   try {
     channel = new BroadcastChannel(CHANNEL);
     channel.onmessage = (e) => {
-      if (e.data && typeof e.data === "object") applyVoiceFrames(e.data as Record<string, string | null>);
+      if (e.data && typeof e.data === "object")
+        applyVoiceFrames(e.data as Record<string, string | null>);
     };
   } catch {
     channel = null;
@@ -45,7 +46,9 @@ export function applyVoiceFrames(payload: Record<string, string | null>): void {
 }
 
 /** The host's side: keep them here and hand them to every other window. */
-export function publishVoiceFrames(payload: Record<string, string | null>): void {
+export function publishVoiceFrames(
+  payload: Record<string, string | null>,
+): void {
   applyVoiceFrames(payload);
   bus()?.postMessage(payload);
 }

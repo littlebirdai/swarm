@@ -67,7 +67,11 @@ const PLAN_WIRE: WireTable = {
   owner_role_id: null,
   non_goals: [],
 };
-const PLAN_CLEARS = { acceptance_criteria: [], task_ids: [], context_pointers: [] } as const;
+const PLAN_CLEARS = {
+  acceptance_criteria: [],
+  task_ids: [],
+  context_pointers: [],
+} as const;
 
 // projects.webUpdate: null unsets the nullable fields and the charter; a
 // plain string or list is stored as sent.
@@ -89,7 +93,12 @@ const PROJECT_WIRE: WireTable = {
   risks: [],
   budget: null,
 };
-const PROJECT_CLEARS = { description: "", color: "", icon: "", labels: [] } as const;
+const PROJECT_CLEARS = {
+  description: "",
+  color: "",
+  icon: "",
+  labels: [],
+} as const;
 
 // initiatives.update (fieldsPatch): null unsets every optional field, an
 // empty list unsets labels. project_ids travel through setProjects, and the
@@ -112,8 +121,17 @@ const INITIATIVE_WIRE: WireTable = {
 
 // dispatch.updateDoc stores what it is sent; pinDoc stores a boolean;
 // docs.webMoveDoc unsets an absent parent and stores an absent rank as 0.
-const DOC_FIELDS_WIRE: WireTable = { title: NO_CLEAR, doc_type: "", labels: [] };
-const DOC_CLEARS = { doc_type: "", labels: [], pinned: false, sort_order: 0 } as const;
+const DOC_FIELDS_WIRE: WireTable = {
+  title: NO_CLEAR,
+  doc_type: "",
+  labels: [],
+};
+const DOC_CLEARS = {
+  doc_type: "",
+  labels: [],
+  pinned: false,
+  sort_order: 0,
+} as const;
 
 /** The wire table of every store a writer serves, by store key. */
 export const UNDO_WIRE_TABLES: Record<string, WireTable> = {
@@ -121,7 +139,12 @@ export const UNDO_WIRE_TABLES: Record<string, WireTable> = {
   plans: PLAN_WIRE,
   projects: PROJECT_WIRE,
   initiatives: INITIATIVE_WIRE,
-  docs: { ...DOC_FIELDS_WIRE, pinned: false, parent_id: undefined, sort_order: 0 },
+  docs: {
+    ...DOC_FIELDS_WIRE,
+    pinned: false,
+    parent_id: undefined,
+    sort_order: 0,
+  },
   // workflows.webUpsert takes the whole graph; a row always has one, so there
   // is no "no graph" to go back to.
   workflows: { nodes: NO_CLEAR },
@@ -132,12 +155,17 @@ export const UNDO_WIRE_TABLES: Record<string, WireTable> = {
  * A field that was unset and is unset still (a draft that wrote undefined
  * onto a row without it) has nothing to send.
  */
-function toWire(fields: Record<string, unknown>, table: WireTable, row: any): Record<string, unknown> {
+function toWire(
+  fields: Record<string, unknown>,
+  table: WireTable,
+  row: any,
+): Record<string, unknown> {
   const wire: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(fields)) {
     if (!(field in table)) continue;
     if (value != null) wire[field] = value;
-    else if (row?.[field] != null && table[field] !== NO_CLEAR) wire[field] = table[field];
+    else if (row?.[field] != null && table[field] !== NO_CLEAR)
+      wire[field] = table[field];
   }
   return wire;
 }
@@ -149,17 +177,29 @@ function toWire(fields: Record<string, unknown>, table: WireTable, row: any): Re
  */
 export function undoBlockedByWire(changes: readonly CellChange[]): boolean {
   return changes.some((c) => {
-    if (c.kind !== "protected" || c.field === undefined || c.before != null) return false;
-    return UNDO_WIRE_TABLES[c.store]?.[c.field] === NO_CLEAR && !(c.field in (UNDO_WRITERS[c.store]?.clears ?? {}));
+    if (c.kind !== "protected" || c.field === undefined || c.before != null)
+      return false;
+    return (
+      UNDO_WIRE_TABLES[c.store]?.[c.field] === NO_CLEAR &&
+      !(c.field in (UNDO_WRITERS[c.store]?.clears ?? {}))
+    );
   });
 }
 
-const call = (action: string, ...args: unknown[]): Invocation => ({ action, args });
-const nonEmpty = (wire: Record<string, unknown>) => Object.keys(wire).length > 0;
+const call = (action: string, ...args: unknown[]): Invocation => ({
+  action,
+  args,
+});
+const nonEmpty = (wire: Record<string, unknown>) =>
+  Object.keys(wire).length > 0;
 
 /** A task's short id, from its row id or short id; the server also resolves a raw row id. */
 function taskRef(tasks: Record<string, any> | undefined, id: string): string {
-  const row = tasks?.[id] ?? Object.values(tasks ?? {}).find((t: any) => t?._id === id || t?.short_id === id);
+  const row =
+    tasks?.[id] ??
+    Object.values(tasks ?? {}).find(
+      (t: any) => t?._id === id || t?.short_id === id,
+    );
   return row?.short_id ?? id;
 }
 
@@ -170,11 +210,18 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
     fields: (_id, fields, row, state) => {
       if (!row?.short_id) return [];
       const { parent_id, ...rest } = toWire(fields, TASK_WIRE, row);
-      const wire: Record<string, unknown> = "parent_id" in fields ? { ...rest, parent: parent_id ? taskRef(state?.tasks, String(parent_id)) : "" } : rest;
+      const wire: Record<string, unknown> =
+        "parent_id" in fields
+          ? {
+              ...rest,
+              parent: parent_id ? taskRef(state?.tasks, String(parent_id)) : "",
+            }
+          : rest;
       // The server refuses to close a parent with open subtasks unless told
       // how. Each row is restored by its own call, so only_parent puts back
       // exactly this row's prior state.
-      if (wire.status === "done" || wire.status === "dropped") wire.subtask_resolution = "only_parent";
+      if (wire.status === "done" || wire.status === "dropped")
+        wire.subtask_resolution = "only_parent";
       return nonEmpty(wire) ? [call("updateTask", row.short_id, wire)] : [];
     },
   },
@@ -182,7 +229,9 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
     clears: PLAN_CLEARS,
     fields: (id, fields, row) => {
       const wire = toWire(fields, PLAN_WIRE, row);
-      return nonEmpty(wire) ? [call("updatePlan", row?.short_id ?? id, wire)] : [];
+      return nonEmpty(wire)
+        ? [call("updatePlan", row?.short_id ?? id, wire)]
+        : [];
     },
   },
   projects: {
@@ -195,10 +244,19 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
   initiatives: {
     fields: (id, fields, row) => {
       const wire = toWire(fields, INITIATIVE_WIRE, row);
-      const out: Invocation[] = nonEmpty(wire) ? [call("updateInitiative", id, wire)] : [];
-      if (Array.isArray(fields.project_ids)) out.push(call("setInitiativeProjects", id, fields.project_ids));
+      const out: Invocation[] = nonEmpty(wire)
+        ? [call("updateInitiative", id, wire)]
+        : [];
+      if (Array.isArray(fields.project_ids))
+        out.push(call("setInitiativeProjects", id, fields.project_ids));
       for (const list of INITIATIVE_RECORD_LISTS) {
-        if (list in fields) for (const op of recordOpsBetween(list, row?.[list], fields[list] as any[] | undefined)) out.push(call("recordInitiativeEntry", id, op));
+        if (list in fields)
+          for (const op of recordOpsBetween(
+            list,
+            row?.[list],
+            fields[list] as any[] | undefined,
+          ))
+            out.push(call("recordInitiativeEntry", id, op));
       }
       return out;
     },
@@ -211,10 +269,13 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
       const out: Invocation[] = [];
       const wire = toWire(fields, DOC_FIELDS_WIRE, row);
       if (nonEmpty(wire)) out.push(call("updateDoc", id, wire));
-      if ("pinned" in fields) out.push(call("pinDoc", id, fields.pinned === true));
+      if ("pinned" in fields)
+        out.push(call("pinDoc", id, fields.pinned === true));
       if ("parent_id" in fields || "sort_order" in fields) {
-        const parent = "parent_id" in fields ? fields.parent_id : row?.parent_id;
-        const rank = "sort_order" in fields ? fields.sort_order : row?.sort_order;
+        const parent =
+          "parent_id" in fields ? fields.parent_id : row?.parent_id;
+        const rank =
+          "sort_order" in fields ? fields.sort_order : row?.sort_order;
         out.push(call("moveDoc", id, parent ?? undefined, rank ?? undefined));
       }
       return out;
@@ -230,7 +291,16 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
     fields: (_id, fields, row) => {
       if (!row?.slug || !("nodes" in fields || "edges" in fields)) return [];
       const prior = { ...row, ...fields };
-      return [call("saveLineWorkflow", { slug: row.slug, name: prior.name, goal: prior.goal, source: prior.source, nodes: prior.nodes, edges: prior.edges })];
+      return [
+        call("saveLineWorkflow", {
+          slug: row.slug,
+          name: prior.name,
+          goal: prior.goal,
+          source: prior.source,
+          nodes: prior.nodes,
+          edges: prior.edges,
+        }),
+      ];
     },
   },
   // A conversation's filing: one row per conversation, so the prior bucket
@@ -240,16 +310,25 @@ export const UNDO_WRITERS: Record<string, UndoWriter> = {
   bucketAssignments: {
     fields: (_id, fields, row) =>
       row?.conversation_id && "bucket_id" in fields
-        ? [call("assignSessionToBucket", row.conversation_id, (fields.bucket_id as string | undefined) ?? null)]
+        ? [
+            call(
+              "assignSessionToBucket",
+              row.conversation_id,
+              (fields.bucket_id as string | undefined) ?? null,
+            ),
+          ]
         : [],
   },
 };
 
 /** Local-first keys off the patch rail that need no writer, with the reason. */
 export const LOCAL_ONLY_UNDO_KEYS: Record<string, string> = {
-  anchors: "Written only by setAnchorCleanChat, which re-sends the seat its opening and is never undoable.",
-  capabilityBindings: "Written only by bindCapability, a create; creates are never undoable.",
-  checkouts: "Written only by askCheckout, which sends a message or files a finding and is never undoable.",
+  anchors:
+    "Written only by setAnchorCleanChat, which re-sends the seat its opening and is never undoable.",
+  capabilityBindings:
+    "Written only by bindCapability, a create; creates are never undoable.",
+  checkouts:
+    "Written only by askCheckout, which sends a message or files a finding and is never undoable.",
   decisionStacks:
     "Written by reorderStack and setStackPolicy, whose specs carry an inverse naming the prior order or policy; removeFromStack and the stack creates are never undoable.",
   handledDecisions:
@@ -263,33 +342,50 @@ export const LOCAL_ONLY_UNDO_KEYS: Record<string, string> = {
   projectUpdates:
     "Written by editProjectUpdate, whose spec carries an inverse with the prior body; posts, comments and deletes are never undoable.",
   sessionReads: "Read state; never undoable.",
-  trialCards: "Written only by trialAnswer, which moves a paused trial run on, and trialReask, which has its machine ask it again; like answerDecision, never undoable.",
-  trialRuns: "Written only by trialRerun, which starts a new run, and trialClose, which closes the problem for everyone watching; never undoable.",
-  weeklyCards: "Written only by setWeeklyCardOptions, a setting, and setObjectShareLink, a sharing change; neither is undoable.",
+  trialCards:
+    "Written only by trialAnswer, which moves a paused trial run on, and trialReask, which has its machine ask it again; like answerDecision, never undoable.",
+  trialRuns:
+    "Written only by trialRerun, which starts a new run, and trialClose, which closes the problem for everyone watching; never undoable.",
+  weeklyCards:
+    "Written only by setWeeklyCardOptions, a setting, and setObjectShareLink, a sharing change; neither is undoable.",
   mods: "Written only by setModEnabled and setModLocalDevice, settings; never undoable.",
-  lineLabels: "Written only by labelDecision, the viewer's own label, taken back in the same control; never undoable.",
-  orgTemplateInstances: "Written only by answerOrgTemplateInput, a hire answer that queues the host step on the role's machine; changed back on the same row, never undoable.",
-  lineTries: "Written only by tryLineStep, which has the graph's machine run each case at once; never undoable.",
-  liveFlows: "Written only by setLiveFlowOn and clearLiveFlowHold, which start or stop runs, moveLiveFlow, which picks the graph new runs take, and startLiveFlow, a create; never undoable.",
-  meetingCalendarEvents: "Written only by setCalendarMeetingChoice, the viewer's switch on one meeting, which schedules or takes back a paid bot; changed back with the same switch, never undoable.",
-  meetingBotSettings: "Written only by setMeetingBotJoinAll, a setting that schedules or takes back paid bots; changed back with the same switch, never undoable.",
-  meetingBots: "Written only by sendMeetingBot, a create that sends a paid bot to a meeting, cancelMeetingBot, which takes the bot out of the meeting, and discardMeetingBotStub, which takes back a refused send; never undoable.",
-  sessionFlows: "Written only by saveSessionFlow, which writes a new library version; never undoable.",
+  lineLabels:
+    "Written only by labelDecision, the viewer's own label, taken back in the same control; never undoable.",
+  orgTemplateInstances:
+    "Written only by answerOrgTemplateInput, a hire answer that queues the host step on the role's machine; changed back on the same row, never undoable.",
+  lineTries:
+    "Written only by tryLineStep, which has the graph's machine run each case at once; never undoable.",
+  liveFlows:
+    "Written only by setLiveFlowOn and clearLiveFlowHold, which start or stop runs, moveLiveFlow, which picks the graph new runs take, and startLiveFlow, a create; never undoable.",
+  meetingCalendarEvents:
+    "Written only by setCalendarMeetingChoice, the viewer's switch on one meeting, which schedules or takes back a paid bot; changed back with the same switch, never undoable.",
+  meetingBotSettings:
+    "Written only by setMeetingBotJoinAll, a setting that schedules or takes back paid bots; changed back with the same switch, never undoable.",
+  meetingBots:
+    "Written only by sendMeetingBot, a create that sends a paid bot to a meeting, cancelMeetingBot, which takes the bot out of the meeting, and discardMeetingBotStub, which takes back a refused send; never undoable.",
+  sessionFlows:
+    "Written only by saveSessionFlow, which writes a new library version; never undoable.",
   liveElements:
     "Written only by applyLiveOps and liveDraft, neither undoable here: a board, sheet or dashboard takes an edit back through its own undo stack of inverse ops, which it writes as ordinary applyLiveOps.",
   modObjects:
     "Written by createModObject, a create and never undoable, and updateModObject, whose spec carries an inverse naming the prior fields.",
   agentTasks:
     "Owned triggers. triggerAction pause/resume, setTriggerInterval and editTrigger carry an inverse naming the opposite verb, the prior interval or the prior prompt and schedule; run now, cancel, reactivate and delete are never undoable.",
-  foreignTriggers: "Triggers the viewer manages but does not own; the same verbs and inverses as agentTasks.",
+  foreignTriggers:
+    "Triggers the viewer manages but does not own; the same verbs and inverses as agentTasks.",
   agentDefinitions: "Written only by deletes, which are never undoable.",
-  teamKitItems: "Written only by shareToKit, a publish that creates the item, and removeKitItem, which uninstalls it on every machine; both never undoable.",
+  teamKitItems:
+    "Written only by shareToKit, a publish that creates the item, and removeKitItem, which uninstalls it on every machine; both never undoable.",
   agentChains: "Written only by deletes, which are never undoable.",
-  secrets: "Written by updateSecretMeta, whose spec carries an inverse naming the prior fields; the create stub, removeSecret and setSecretAskFirst (its off direction goes through a confirm) are never undoable.",
-  issueSyncSources: "Integration settings (add, update, remove a source); settings are never undoable.",
+  secrets:
+    "Written by updateSecretMeta, whose spec carries an inverse naming the prior fields; the create stub, removeSecret and setSecretAskFirst (its off direction goes through a confirm) are never undoable.",
+  issueSyncSources:
+    "Integration settings (add, update, remove a source); settings are never undoable.",
   notifications: "Read state (mark read, mark all read); never undoable.",
-  callRooms: "Live call controls (lock, transcription, recording) act on a call in progress; never undoable.",
-  callStagePins: "Pins on a live call's stage are the room's, put up and taken down for everyone with the stage's own controls; never undoable.",
+  callRooms:
+    "Live call controls (lock, transcription, recording) act on a call in progress; never undoable.",
+  callStagePins:
+    "Pins on a live call's stage are the room's, put up and taken down for everyone with the stage's own controls; never undoable.",
   callRecordings:
     "A per-window view of a call's files, each carrying a URL signed for one window; written only by deleteCallRecording, a delete, never undoable.",
   callRecordingCalls:
@@ -299,18 +395,26 @@ export const LOCAL_ONLY_UNDO_KEYS: Record<string, string> = {
   roomKnocks:
     "Who is waiting at the door right now; written only by admitGuestKnock, denyGuestKnock and removeCallGuest, answers to a person at the door that are never undoable.",
   teams: "Team create, delete and membership visibility are never undoable.",
-  teamMembers: "Only the viewer's own presence status writes it, a setting; never undoable.",
-  bookmarks: "toggleBookmark's spec carries an inverse (the same toggle), which reaches the server as the toggle itself.",
-  mcpConnections: "Written only by disconnectAgent, which revokes an outside agent's access (a delete); never undoable.",
-  permissionRules: "Written only by addPermissionRule, a create, and removePermissionRule, a delete; never undoable.",
+  teamMembers:
+    "Only the viewer's own presence status writes it, a setting; never undoable.",
+  bookmarks:
+    "toggleBookmark's spec carries an inverse (the same toggle), which reaches the server as the toggle itself.",
+  mcpConnections:
+    "Written only by disconnectAgent, which revokes an outside agent's access (a delete); never undoable.",
+  permissionRules:
+    "Written only by addPermissionRule, a create, and removePermissionRule, a delete; never undoable.",
   sessionGoals:
     "Written only by setSessionGoal, pauseSessionGoal, resumeSessionGoal and clearSessionGoal, which steer an agent working toward the goal; machine control, never undoable.",
-  pendingPermissions: "Written only by resolvePermission, an answer the agent acts on at once; never undoable.",
+  pendingPermissions:
+    "Written only by resolvePermission, an answer the agent acts on at once; never undoable.",
   guestSuggestions:
     "Written only by sendGuestSuggestion, a send, dismissGuestSuggestion, an answer the author sees at once, withdrawTeamSuggestion and sendTeamSuggestionNow, and proposeAnswer/proposePermission, proposals the owner sees at once; never undoable.",
-  accountPool: "Written only by setAccountShares and setAccountDevices, settings changed back in the same control; never undoable.",
-  workflowRuns: "Written only by respondToGate, a gate answer that resumes the run; never undoable.",
-  currentUser: "Profile and preference settings; never undoable, and the undo binding ignores the key.",
+  accountPool:
+    "Written only by setAccountShares and setAccountDevices, settings changed back in the same control; never undoable.",
+  workflowRuns:
+    "Written only by respondToGate, a gate answer that resumes the run; never undoable.",
+  currentUser:
+    "Profile and preference settings; never undoable, and the undo binding ignores the key.",
   migrationBatches:
     "Written only by startResourceOffload, cancelResourceOffload and retryMigrationBatch, which start, cancel or re-queue a migration batch on hosts; machine control is never undoable.",
   opsSources:

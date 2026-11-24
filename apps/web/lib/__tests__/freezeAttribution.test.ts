@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { LONG_FRAME_MS, summarizeLongFrame, watchLongFrames, watchLongFrameStats, type LongFrameEntry } from "../freezeAttribution";
+import {
+  LONG_FRAME_MS,
+  summarizeLongFrame,
+  watchLongFrames,
+  watchLongFrameStats,
+  type LongFrameEntry,
+} from "../freezeAttribution";
 
 const frame = (over: Partial<LongFrameEntry> = {}): LongFrameEntry => ({
   startTime: 1_000,
@@ -17,16 +23,32 @@ const frame = (over: Partial<LongFrameEntry> = {}): LongFrameEntry => ({
       sourceFunctionName: "",
       sourceCharPosition: 40587,
     },
-    { duration: 140, invoker: "TimerHandler:setTimeout", invokerType: "user-callback", sourceURL: "https://codecast.sh/assets/vendor-CXMc377C.js", sourceFunctionName: "Xs", sourceCharPosition: 9 },
-    { duration: 4, invoker: "https://codecast.sh/conversation/jx7secretconversationid?share=abc", invokerType: "classic-script" },
+    {
+      duration: 140,
+      invoker: "TimerHandler:setTimeout",
+      invokerType: "user-callback",
+      sourceURL: "https://codecast.sh/assets/vendor-CXMc377C.js",
+      sourceFunctionName: "Xs",
+      sourceCharPosition: 9,
+    },
+    {
+      duration: 4,
+      invoker:
+        "https://codecast.sh/conversation/jx7secretconversationid?share=abc",
+      invokerType: "classic-script",
+    },
   ],
   ...over,
 });
 
 describe("summarizeLongFrame", () => {
   test("a frame under the floor is not written down", () => {
-    expect(summarizeLongFrame(frame({ duration: LONG_FRAME_MS - 1 }))).toBeNull();
-    expect(summarizeLongFrame(frame({ duration: LONG_FRAME_MS }))).not.toBeNull();
+    expect(
+      summarizeLongFrame(frame({ duration: LONG_FRAME_MS - 1 })),
+    ).toBeNull();
+    expect(
+      summarizeLongFrame(frame({ duration: LONG_FRAME_MS })),
+    ).not.toBeNull();
   });
 
   test("splits the frame into script, rendering and layout", () => {
@@ -43,8 +65,24 @@ describe("summarizeLongFrame", () => {
   test("lists the scripts that made the frame long, longest first, each by chunk and position", () => {
     const mark = summarizeLongFrame(frame())!;
     expect(mark.scripts).toEqual([
-      { ms: 900, forced: 35, type: "event-listener", by: "IDBRequest.onsuccess", fn: "", src: "dexie-C3W9GgEH.js", at: 40587 },
-      { ms: 140, forced: 0, type: "user-callback", by: "TimerHandler:setTimeout", fn: "Xs", src: "vendor-CXMc377C.js", at: 9 },
+      {
+        ms: 900,
+        forced: 35,
+        type: "event-listener",
+        by: "IDBRequest.onsuccess",
+        fn: "",
+        src: "dexie-C3W9GgEH.js",
+        at: 40587,
+      },
+      {
+        ms: 140,
+        forced: 0,
+        type: "user-callback",
+        by: "TimerHandler:setTimeout",
+        fn: "Xs",
+        src: "vendor-CXMc377C.js",
+        at: 9,
+      },
     ]);
   });
 
@@ -54,7 +92,8 @@ describe("summarizeLongFrame", () => {
         scripts: [
           {
             duration: 300,
-            invoker: "https://codecast.sh/conversation/jx7secretconversationid?share=abc#x",
+            invoker:
+              "https://codecast.sh/conversation/jx7secretconversationid?share=abc#x",
             invokerType: "classic-script",
             sourceURL: "https://codecast.sh/share/tokenabc/page.js?key=secret",
           },
@@ -89,7 +128,9 @@ describe("summarizeLongFrame", () => {
       sourceFunctionName: long,
       sourceCharPosition: 123_456_789,
     }));
-    const mark = summarizeLongFrame(frame({ duration: 9_999_999, blockingDuration: 9_999_999, scripts }))!;
+    const mark = summarizeLongFrame(
+      frame({ duration: 9_999_999, blockingDuration: 9_999_999, scripts }),
+    )!;
     expect(mark.scripts).toHaveLength(5);
     expect(JSON.stringify(mark).length).toBeLessThan(2_000);
   });
@@ -102,14 +143,24 @@ describe("watchLongFrames", () => {
   });
 
   function installObserver(supported: string[]) {
-    const state: { deliver?: (entries: LongFrameEntry[]) => void; disconnected: boolean; observed?: unknown } = { disconnected: false };
+    const state: {
+      deliver?: (entries: LongFrameEntry[]) => void;
+      disconnected: boolean;
+      observed?: unknown;
+    } = { disconnected: false };
     (globalThis as any).PerformanceObserver = class {
       static supportedEntryTypes = supported;
-      constructor(callback: (list: { getEntries(): LongFrameEntry[] }) => void) {
+      constructor(
+        callback: (list: { getEntries(): LongFrameEntry[] }) => void,
+      ) {
         state.deliver = (entries) => callback({ getEntries: () => entries });
       }
-      observe(options: unknown) { state.observed = options; }
-      disconnect() { state.disconnected = true; }
+      observe(options: unknown) {
+        state.observed = options;
+      }
+      disconnect() {
+        state.disconnected = true;
+      }
     };
     return state;
   }
@@ -125,10 +176,19 @@ describe("watchLongFrames", () => {
   test("marks the longest frame of a batch, at most once a second, until stopped", () => {
     const state = installObserver(["long-animation-frame"]);
     const marks: Array<{ name: string; ms: number }> = [];
-    const stop = watchLongFrames((name, data) => marks.push({ name, ms: data.ms as number }));
-    expect(state.observed).toEqual({ type: "long-animation-frame", buffered: false });
+    const stop = watchLongFrames((name, data) =>
+      marks.push({ name, ms: data.ms as number }),
+    );
+    expect(state.observed).toEqual({
+      type: "long-animation-frame",
+      buffered: false,
+    });
 
-    state.deliver!([frame({ startTime: 0, duration: 300 }), frame({ startTime: 400, duration: 800 }), frame({ startTime: 1_300, duration: 100 })]);
+    state.deliver!([
+      frame({ startTime: 0, duration: 300 }),
+      frame({ startTime: 400, duration: 800 }),
+      frame({ startTime: 1_300, duration: 100 }),
+    ]);
     expect(marks).toEqual([{ name: "long_frame", ms: 800 }]);
 
     // 600 ms after the marked frame began: held back.
@@ -136,7 +196,10 @@ describe("watchLongFrames", () => {
     expect(marks).toHaveLength(1);
 
     state.deliver!([frame({ startTime: 1_400, duration: 500 })]);
-    expect(marks).toEqual([{ name: "long_frame", ms: 800 }, { name: "long_frame", ms: 500 }]);
+    expect(marks).toEqual([
+      { name: "long_frame", ms: 800 },
+      { name: "long_frame", ms: 500 },
+    ]);
 
     stop();
     expect(state.disconnected).toBe(true);
@@ -145,7 +208,10 @@ describe("watchLongFrames", () => {
   test("a recorder that throws does not break the observer", () => {
     const state = installObserver(["long-animation-frame"]);
     let calls = 0;
-    const stop = watchLongFrames(() => { calls++; throw new Error("stopped"); });
+    const stop = watchLongFrames(() => {
+      calls++;
+      throw new Error("stopped");
+    });
     expect(() => state.deliver!([frame({ startTime: 0 })])).not.toThrow();
     expect(() => state.deliver!([frame({ startTime: 5_000 })])).not.toThrow();
     expect(calls).toBe(2);
@@ -157,7 +223,10 @@ describe("watchLongFrames", () => {
     const marks: unknown[] = [];
     const stopReplay = watchLongFrames((_, data) => marks.push(data));
     const frames = watchLongFrameStats();
-    state.deliver!([frame({ startTime: 0, duration: 350 }), frame({ startTime: 400, duration: 150 })]);
+    state.deliver!([
+      frame({ startTime: 0, duration: 350 }),
+      frame({ startTime: 400, duration: 150 }),
+    ]);
     state.deliver!([frame({ startTime: 600, duration: 900 })]);
     expect(marks).toHaveLength(1);
     expect(frames.take()).toEqual({ count: 2, worstMs: 900 });

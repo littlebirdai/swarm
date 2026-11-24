@@ -22,39 +22,69 @@
 import { isUsageLimitDialog } from "@codecast/shared/contracts";
 import { isAskUserQuestionMenu } from "./interactivePrompt.js";
 
-type TypedPrompt = { options: Array<{ label: string }>; isConfirmation?: boolean };
+type TypedPrompt = {
+  options: Array<{ label: string }>;
+  isConfirmation?: boolean;
+};
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
-export function typedPollAnswer(prompt: TypedPrompt, content: string): string | null {
+export function typedPollAnswer(
+  prompt: TypedPrompt,
+  content: string,
+): string | null {
   const text = norm(content);
   if (!text || prompt.options.length === 0) return null;
-  if (isUsageLimitDialog(prompt.options.map(o => o.label))) return null;
+  if (isUsageLimitDialog(prompt.options.map((o) => o.label))) return null;
 
   if (prompt.isConfirmation) {
-    const labelHead = (i: number) => prompt.options[i] ? norm(prompt.options[i].label).split(" (")[0] : null;
+    const labelHead = (i: number) =>
+      prompt.options[i] ? norm(prompt.options[i].label).split(" (")[0] : null;
     const confirmHead = labelHead(0);
     const cancelHead = labelHead(1);
-    if (/^(continue|enter|yes|ok|confirm|proceed|accept|y|1)$/.test(text) || (confirmHead && text.includes(confirmHead))) {
-      return JSON.stringify({ __cc_poll: true, keys: ["Enter"], display: "Continue" });
+    if (
+      /^(continue|enter|yes|ok|confirm|proceed|accept|y|1)$/.test(text) ||
+      (confirmHead && text.includes(confirmHead))
+    ) {
+      return JSON.stringify({
+        __cc_poll: true,
+        keys: ["Enter"],
+        display: "Continue",
+      });
     }
-    if (/^(cancel|escape|esc|no|quit|n|2)$/.test(text) || (cancelHead && text.includes(cancelHead))) {
-      return JSON.stringify({ __cc_poll: true, keys: ["Escape"], display: "Cancel" });
+    if (
+      /^(cancel|escape|esc|no|quit|n|2)$/.test(text) ||
+      (cancelHead && text.includes(cancelHead))
+    ) {
+      return JSON.stringify({
+        __cc_poll: true,
+        keys: ["Escape"],
+        display: "Cancel",
+      });
     }
     return null;
   }
 
-  const labels = prompt.options.map(o => norm(o.label));
+  const labels = prompt.options.map((o) => norm(o.label));
   let idx = -1;
   if (/^\d+$/.test(text)) {
     const n = Number(text);
     if (n >= 1 && n <= labels.length) idx = n - 1;
   } else {
     idx = labels.indexOf(text);
-    if (idx < 0) idx = labels.findIndex(l => text.includes(l) || (l.startsWith(text) && /\W/.test(l.charAt(text.length))));
+    if (idx < 0)
+      idx = labels.findIndex(
+        (l) =>
+          text.includes(l) ||
+          (l.startsWith(text) && /\W/.test(l.charAt(text.length))),
+      );
   }
   if (idx < 0) return null;
-  return JSON.stringify({ __cc_poll: true, keys: [String(idx + 1)], display: prompt.options[idx].label });
+  return JSON.stringify({
+    __cc_poll: true,
+    keys: [String(idx + 1)],
+    display: prompt.options[idx].label,
+  });
 }
 
 // A person's message while the agent's question menu is open answers it.
@@ -66,7 +96,10 @@ export function typedPollAnswer(prompt: TypedPrompt, content: string): string | 
 // 2026-10-25, then "Update" and "Latest?" for 17 hours on 2026-10-31). The
 // terminal's own dialogs (a permission confirmation, the safeguards
 // interstitial, a limit park) are not the agent asking, and keep their hold.
-export function typedMenuReply(prompt: TypedPrompt & { unnumbered?: boolean }, content: string): string | null {
+export function typedMenuReply(
+  prompt: TypedPrompt & { unnumbered?: boolean },
+  content: string,
+): string | null {
   if (!isAskUserQuestionMenu(prompt)) return null;
   const named = typedPollAnswer(prompt, content);
   if (named) return named;

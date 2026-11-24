@@ -2,49 +2,108 @@ import { describe, test, expect } from "bun:test";
 import { placeRelocatedThreads, placeSidedThreads } from "./DiffView";
 import { captureAnchor } from "@codecast/shared/comments";
 
-
 describe("placeRelocatedThreads", () => {
-  const ctx = (oldNum: number, newNum: number, content = "x") => ({ type: "context" as const, content, oldNum, newNum });
-  const add = (newNum: number, content = "x") => ({ type: "added" as const, content, newNum });
-  const del = (oldNum: number, content = "x") => ({ type: "removed" as const, content, oldNum });
+  const ctx = (oldNum: number, newNum: number, content = "x") => ({
+    type: "context" as const,
+    content,
+    oldNum,
+    newNum,
+  });
+  const add = (newNum: number, content = "x") => ({
+    type: "added" as const,
+    content,
+    newNum,
+  });
+  const del = (oldNum: number, content = "x") => ({
+    type: "removed" as const,
+    content,
+    oldNum,
+  });
   const place = (items: any[], comment: any) =>
     placeRelocatedThreads(items, items, [{ key: "t", comment }]);
 
   test("a sideless thread without text: new side first, then old", () => {
     const items = [ctx(1, 1), del(2), add(2), ctx(3, 3)];
-    expect(place(items, { line_number: 2 }).get(2)?.[0].placement.side).toBe("RIGHT");
+    expect(place(items, { line_number: 2 }).get(2)?.[0].placement.side).toBe(
+      "RIGHT",
+    );
     const old = [ctx(1, 1), del(3), ctx(4, 3)];
-    expect(place(old, { line_number: 4 }).get(2)?.[0].placement).toMatchObject({ side: "LEFT", state: "current" });
+    expect(place(old, { line_number: 4 }).get(2)?.[0].placement).toMatchObject({
+      side: "LEFT",
+      state: "current",
+    });
   });
 
-  const body = ["function main() {", "  const config = load();", "  const result = run(config);", "  return result;", "}"];
+  const body = [
+    "function main() {",
+    "  const config = load();",
+    "  const result = run(config);",
+    "  return result;",
+    "}",
+  ];
   const anchor = captureAnchor(body, 3);
 
   test("follows the passage when lines were added above it", () => {
-    const items = [add(1, "// header"), add(2, "// more"), ...body.map((line, i) => ctx(i + 1, i + 3, line))];
+    const items = [
+      add(1, "// header"),
+      add(2, "// more"),
+      ...body.map((line, i) => ctx(i + 1, i + 3, line)),
+    ];
     const rows = place(items, { line_number: 3, anchor_lines: anchor });
-    expect(rows.get(4)?.[0].placement).toMatchObject({ state: "moved", line: 5, from: 3, side: "RIGHT" });
+    expect(rows.get(4)?.[0].placement).toMatchObject({
+      state: "moved",
+      line: 5,
+      from: 3,
+      side: "RIGHT",
+    });
   });
 
   test("outdated at its old line when the passage is gone", () => {
-    const items = [ctx(1, 1, body[0]), ctx(2, 2, body[1]), del(3, body[2]), add(3, "  const out = go();"), ctx(4, 4, body[3])];
+    const items = [
+      ctx(1, 1, body[0]),
+      ctx(2, 2, body[1]),
+      del(3, body[2]),
+      add(3, "  const out = go();"),
+      ctx(4, 4, body[3]),
+    ];
     // The text sits on the removed row, so on the old side it is current.
-    expect(place(items, { line_number: 3, anchor_lines: anchor, side: "RIGHT" }).get(3)?.[0].placement)
-      .toMatchObject({ state: "outdated", side: "RIGHT" });
-    expect(place(items, { line_number: 3, anchor_lines: anchor }).get(2)?.[0].placement)
-      .toMatchObject({ state: "current", side: "LEFT" });
+    expect(
+      place(items, { line_number: 3, anchor_lines: anchor, side: "RIGHT" }).get(
+        3,
+      )?.[0].placement,
+    ).toMatchObject({ state: "outdated", side: "RIGHT" });
+    expect(
+      place(items, { line_number: 3, anchor_lines: anchor }).get(2)?.[0]
+        .placement,
+    ).toMatchObject({ state: "current", side: "LEFT" });
   });
 
   test("no row when neither the passage nor its old line is shown", () => {
-    const items = [ctx(40, 40, "a line far away"), ctx(41, 41, "another far line")];
+    const items = [
+      ctx(40, 40, "a line far away"),
+      ctx(41, 41, "another far line"),
+    ];
     expect(place(items, { line_number: 3, anchor_lines: anchor }).size).toBe(0);
   });
 });
 
 describe("placeSidedThreads", () => {
-  const ctx = (oldNum: number, newNum: number) => ({ type: "context" as const, content: "x", oldNum, newNum });
-  const add = (newNum: number) => ({ type: "added" as const, content: "x", newNum });
-  const del = (oldNum: number) => ({ type: "removed" as const, content: "x", oldNum });
+  const ctx = (oldNum: number, newNum: number) => ({
+    type: "context" as const,
+    content: "x",
+    oldNum,
+    newNum,
+  });
+  const add = (newNum: number) => ({
+    type: "added" as const,
+    content: "x",
+    newNum,
+  });
+  const del = (oldNum: number) => ({
+    type: "removed" as const,
+    content: "x",
+    oldNum,
+  });
   const sep = { type: "separator" as const };
 
   test("the two sides of one line land on their own rows", () => {
@@ -59,8 +118,12 @@ describe("placeSidedThreads", () => {
 
   test("a context row carries both of its sides", () => {
     const items = [ctx(7, 4)] as any[];
-    expect(placeSidedThreads(items, new Set(["LEFT:7"])).get(0)).toEqual(["LEFT:7"]);
-    expect(placeSidedThreads(items, new Set(["RIGHT:4"])).get(0)).toEqual(["RIGHT:4"]);
+    expect(placeSidedThreads(items, new Set(["LEFT:7"])).get(0)).toEqual([
+      "LEFT:7",
+    ]);
+    expect(placeSidedThreads(items, new Set(["RIGHT:4"])).get(0)).toEqual([
+      "RIGHT:4",
+    ]);
     // Both anchors point at the same row; the new side is read first, and the
     // loser waits for a row of its own rather than doubling up.
     // The row IS old line 7 and new line 4, so a thread on either side belongs
@@ -85,10 +148,18 @@ describe("placeSidedThreads", () => {
   });
 });
 
-
 describe("placeSidedThreads over a range", () => {
-  const ctx = (oldNum: number, newNum: number) => ({ type: "context" as const, content: "x", oldNum, newNum });
-  const add = (newNum: number) => ({ type: "added" as const, content: "x", newNum });
+  const ctx = (oldNum: number, newNum: number) => ({
+    type: "context" as const,
+    content: "x",
+    oldNum,
+    newNum,
+  });
+  const add = (newNum: number) => ({
+    type: "added" as const,
+    content: "x",
+    newNum,
+  });
 
   test("a range hangs under its LAST line, not its first", () => {
     const items = [ctx(1, 1), ctx(2, 2), ctx(3, 3), ctx(4, 4)] as any[];
@@ -107,7 +178,13 @@ describe("placeSidedThreads over a range", () => {
 
   test("a range keeps to its own side", () => {
     // Old lines 2 and 3 were deleted; new lines 2 and 3 replace them.
-    const items = [ctx(1, 1), { type: "removed" as const, content: "x", oldNum: 2 }, { type: "removed" as const, content: "x", oldNum: 3 }, add(2), add(3)] as any[];
+    const items = [
+      ctx(1, 1),
+      { type: "removed" as const, content: "x", oldNum: 2 },
+      { type: "removed" as const, content: "x", oldNum: 3 },
+      add(2),
+      add(3),
+    ] as any[];
     const rows = placeSidedThreads(items, new Set(["LEFT:2-3", "RIGHT:2-3"]));
     expect(rows.get(2)).toEqual(["LEFT:2-3"]); // the second removed row, old line 3
     expect(rows.get(4)).toEqual(["RIGHT:2-3"]); // the second added row, new line 3

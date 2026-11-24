@@ -31,10 +31,17 @@ export interface CodexSessionMetadata {
   id?: string;
   parentThreadId?: string;
   originator?: string;
-  source?: string | { subagent?: string | { thread_spawn?: CodexThreadSpawn }; custom?: string };
+  source?:
+    | string
+    | {
+        subagent?: string | { thread_spawn?: CodexThreadSpawn };
+        custom?: string;
+      };
 }
 
-export function extractCodexSessionMetadata(content: string): CodexSessionMetadata | undefined {
+export function extractCodexSessionMetadata(
+  content: string,
+): CodexSessionMetadata | undefined {
   for (const line of content.split("\n")) {
     if (!line.trim()) continue;
     try {
@@ -52,7 +59,8 @@ export function extractCodexSessionMetadata(content: string): CodexSessionMetada
 }
 
 const optionalString = (v: unknown) => (typeof v === "string" ? v : undefined);
-const plainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const plainObject = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
 
 // Codex adds fields to session_meta.source between releases (0.167 added
 // thread_spawn.agent_role). The ingest worker's result validator accepts only
@@ -61,7 +69,8 @@ const plainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof 
 function codexSource(raw: unknown): CodexSessionMetadata["source"] {
   if (typeof raw === "string") return raw;
   if (!plainObject(raw)) return undefined;
-  const source: Exclude<CodexSessionMetadata["source"], string | undefined> = {};
+  const source: Exclude<CodexSessionMetadata["source"], string | undefined> =
+    {};
   if (typeof raw.custom === "string") source.custom = raw.custom;
   if (typeof raw.subagent === "string") source.subagent = raw.subagent;
   else if (plainObject(raw.subagent)) {
@@ -69,10 +78,15 @@ function codexSource(raw: unknown): CodexSessionMetadata["source"] {
     if (!plainObject(spawn)) source.subagent = {};
     else {
       const kept: CodexThreadSpawn = {};
-      for (const key of ["parent_thread_id", "agent_path", "agent_nickname"] as const) {
+      for (const key of [
+        "parent_thread_id",
+        "agent_path",
+        "agent_nickname",
+      ] as const) {
         if (typeof spawn[key] === "string") kept[key] = spawn[key] as string;
       }
-      if (Number.isSafeInteger(spawn.depth) && (spawn.depth as number) >= 0) kept.depth = spawn.depth as number;
+      if (Number.isSafeInteger(spawn.depth) && (spawn.depth as number) >= 0)
+        kept.depth = spawn.depth as number;
       source.subagent = { thread_spawn: kept };
     }
   }
@@ -82,8 +96,13 @@ function codexSource(raw: unknown): CodexSessionMetadata["source"] {
 // A Codex thread no person started: `codex exec` (Codex's headless mode, the
 // counterpart of `claude -p`) or a thread Codex spawned itself (a reviewer, an
 // approval assessor). Its user turns are prompts a program wrote.
-export function isCodexProgramLaunch(metadata: CodexSessionMetadata | undefined): boolean {
-  return metadata?.source === "exec" || (typeof metadata?.source === "object" && !!metadata.source.subagent);
+export function isCodexProgramLaunch(
+  metadata: CodexSessionMetadata | undefined,
+): boolean {
+  return (
+    metadata?.source === "exec" ||
+    (typeof metadata?.source === "object" && !!metadata.source.subagent)
+  );
 }
 
 /**
@@ -92,16 +111,22 @@ export function isCodexProgramLaunch(metadata: CodexSessionMetadata | undefined)
  * VS Code extension (originator codex_cli_rs, source cli or vscode). An app-server thread (codecast's own) or
  * anything else carries neither and reads as a program's (convex lib/messageProvenance).
  */
-export function codexLaunchFlags(metadata: CodexSessionMetadata | undefined): string | undefined {
+export function codexLaunchFlags(
+  metadata: CodexSessionMetadata | undefined,
+): string | undefined {
   if (isCodexProgramLaunch(metadata)) return "--print";
-  return (metadata?.source === "cli" || metadata?.source === "vscode") && metadata.originator === "codex_cli_rs" ? "--interactive" : undefined;
+  return (metadata?.source === "cli" || metadata?.source === "vscode") &&
+    metadata.originator === "codex_cli_rs"
+    ? "--interactive"
+    : undefined;
 }
 
 export function isCompletedStandaloneCodexReview(
   metadata: CodexSessionMetadata | undefined,
   content: string,
 ): boolean {
-  if (metadata?.originator !== "codex_exec" || metadata.source !== "exec") return false;
+  if (metadata?.originator !== "codex_exec" || metadata.source !== "exec")
+    return false;
 
   let exitedReviewMode = false;
   let taskComplete = false;
@@ -125,13 +150,15 @@ export function isCompletedNativeCodexReviewChild(
     metadata?.originator !== "codex_exec" ||
     typeof metadata.source !== "object" ||
     metadata.source.subagent !== "review"
-  ) return false;
+  )
+    return false;
 
   for (const line of content.split("\n")) {
     if (!line.trim()) continue;
     try {
       const entry = JSON.parse(line);
-      if (entry.type === "event_msg" && entry.payload?.type === "task_complete") return true;
+      if (entry.type === "event_msg" && entry.payload?.type === "task_complete")
+        return true;
     } catch {}
   }
   return false;
@@ -166,8 +193,13 @@ export function extractCodexForkRoot(content: string): string | undefined {
       const id: string | undefined = entry.payload?.id;
       if (!id) continue;
       if (!ownId) ownId = id; // the file's own session_meta is always first
-      const spawned = !!entry.payload?.parent_thread_id || !!entry.payload?.source?.subagent;
-      if (!parent.has(id)) parent.set(id, spawned ? undefined : entry.payload?.forked_from_id ?? undefined);
+      const spawned =
+        !!entry.payload?.parent_thread_id || !!entry.payload?.source?.subagent;
+      if (!parent.has(id))
+        parent.set(
+          id,
+          spawned ? undefined : (entry.payload?.forked_from_id ?? undefined),
+        );
     } catch {}
   }
   if (!ownId) return undefined;

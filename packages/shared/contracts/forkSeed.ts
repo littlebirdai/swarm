@@ -13,6 +13,11 @@ export function forkSeedClientId(key: string): string {
   return `${FORK_SEED_CLIENT_ID_PREFIX}${key}`;
 }
 
-export function isForkSeedClientId(clientId: string | null | undefined): boolean {
-  return typeof clientId === "string" && clientId.startsWith(FORK_SEED_CLIENT_ID_PREFIX);
+export function isForkSeedClientId(
+  clientId: string | null | undefined,
+): boolean {
+  return (
+    typeof clientId === "string" &&
+    clientId.startsWith(FORK_SEED_CLIENT_ID_PREFIX)
+  );
 }

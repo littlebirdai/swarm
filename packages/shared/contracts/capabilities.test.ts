@@ -49,8 +49,10 @@ describe("capability enums", () => {
 
   it("guards accept their own members and reject neighbours", () => {
     for (const k of CAPABILITY_KINDS) expect(isCapabilityKind(k)).toBe(true);
-    for (const s of CAPABILITY_SOURCES) expect(isCapabilitySource(s)).toBe(true);
-    for (const s of EXECUTION_SURFACES) expect(isExecutionSurface(s)).toBe(true);
+    for (const s of CAPABILITY_SOURCES)
+      expect(isCapabilitySource(s)).toBe(true);
+    for (const s of EXECUTION_SURFACES)
+      expect(isExecutionSurface(s)).toBe(true);
     for (const s of SCOPE_KINDS) expect(isScopeKind(s)).toBe(true);
     for (const s of OBSERVED_SCOPES) expect(isObservedScope(s)).toBe(true);
 
@@ -77,7 +79,9 @@ describe("capability enums", () => {
     expect(new Set(prefixes).size).toBe(prefixes.length);
     for (const source of CAPABILITY_SOURCES) {
       const slug = formatCapabilitySlug(
-        source === "git" ? { source, segments: ["x"], pin: "abc123" } : { source, segments: ["x"] },
+        source === "git"
+          ? { source, segments: ["x"], pin: "abc123" }
+          : { source, segments: ["x"] },
       );
       expect(capabilitySlugSource(slug)).toBe(source);
     }
@@ -88,14 +92,24 @@ describe("scope ladder", () => {
   it("ranks every scope uniquely, narrowest highest", () => {
     const ranks = SCOPE_KINDS.map((s) => SCOPE_PRECEDENCE[s]);
     expect(new Set(ranks).size).toBe(ranks.length);
-    expect(scopePrecedence("session")).toBeGreaterThan(scopePrecedence("project"));
-    expect(scopePrecedence("project")).toBeGreaterThan(scopePrecedence("device"));
+    expect(scopePrecedence("session")).toBeGreaterThan(
+      scopePrecedence("project"),
+    );
+    expect(scopePrecedence("project")).toBeGreaterThan(
+      scopePrecedence("device"),
+    );
     expect(scopePrecedence("device")).toBeGreaterThan(scopePrecedence("user"));
     expect(scopePrecedence("user")).toBeGreaterThan(scopePrecedence("team"));
   });
 
   it("sorts narrowest first with the comparator", () => {
-    const shuffled: ScopeKind[] = ["user", "session", "team", "project", "device"];
+    const shuffled: ScopeKind[] = [
+      "user",
+      "session",
+      "team",
+      "project",
+      "device",
+    ];
     expect([...shuffled].sort(compareScopeNarrowness)).toEqual([
       "session",
       "project",
@@ -111,8 +125,12 @@ describe("observed scope narrowness", () => {
     // The ranking four modules used to keep their own copies of. `local` is a
     // settings file overlay and therefore the most specific answer to "which
     // scope switched this on here?".
-    expect(observedScopeRank("local")).toBeLessThan(observedScopeRank("project"));
-    expect(observedScopeRank("project")).toBeLessThan(observedScopeRank("user"));
+    expect(observedScopeRank("local")).toBeLessThan(
+      observedScopeRank("project"),
+    );
+    expect(observedScopeRank("project")).toBeLessThan(
+      observedScopeRank("user"),
+    );
   });
 
   it("ranks the whole vocabulary — no scope sorts to the end unranked", () => {
@@ -120,8 +138,11 @@ describe("observed scope narrowness", () => {
     // ranking: `indexOf` answers -1, which sorts BELOW `local` and would make an
     // unranked scope win every narrowness contest. The build check catches it at
     // compile time; this catches it if that type is ever loosened.
-    for (const scope of OBSERVED_SCOPES) expect(observedScopeRank(scope)).toBeGreaterThanOrEqual(0);
-    expect(new Set(OBSERVED_SCOPES.map(observedScopeRank)).size).toBe(OBSERVED_SCOPES.length);
+    for (const scope of OBSERVED_SCOPES)
+      expect(observedScopeRank(scope)).toBeGreaterThanOrEqual(0);
+    expect(new Set(OBSERVED_SCOPES.map(observedScopeRank)).size).toBe(
+      OBSERVED_SCOPES.length,
+    );
   });
 });
 
@@ -129,11 +150,26 @@ describe("capability slugs", () => {
   it("round trips every shape", () => {
     const cases = [
       { source: "builtin" as const, segments: ["memory"] },
-      { source: "marketplace" as const, segments: ["claude-plugins-official", "code-simplifier"] },
-      { source: "mcp_registry" as const, segments: ["io.github.foo", "server"] },
+      {
+        source: "marketplace" as const,
+        segments: ["claude-plugins-official", "code-simplifier"],
+      },
+      {
+        source: "mcp_registry" as const,
+        segments: ["io.github.foo", "server"],
+      },
       { source: "authored" as const, segments: ["ashot", "deploy-checklist"] },
-      { source: "git" as const, segments: ["anthropics", "skills"], pin: "30287f5", subpath: "skills/pdf" },
-      { source: "git" as const, segments: ["anthropics", "skills"], pin: "v1.2.0" },
+      {
+        source: "git" as const,
+        segments: ["anthropics", "skills"],
+        pin: "30287f5",
+        subpath: "skills/pdf",
+      },
+      {
+        source: "git" as const,
+        segments: ["anthropics", "skills"],
+        pin: "v1.2.0",
+      },
     ];
     for (const ref of cases) {
       const slug = formatCapabilitySlug(ref);
@@ -144,9 +180,14 @@ describe("capability slugs", () => {
   });
 
   it("renders the documented spellings", () => {
-    expect(formatCapabilitySlug({ source: "builtin", segments: ["memory"] })).toBe("builtin/memory");
     expect(
-      formatCapabilitySlug({ source: "marketplace", segments: ["claude-plugins-official", "code-simplifier"] }),
+      formatCapabilitySlug({ source: "builtin", segments: ["memory"] }),
+    ).toBe("builtin/memory");
+    expect(
+      formatCapabilitySlug({
+        source: "marketplace",
+        segments: ["claude-plugins-official", "code-simplifier"],
+      }),
     ).toBe("mkt/claude-plugins-official/code-simplifier");
     expect(
       formatCapabilitySlug({
@@ -187,7 +228,13 @@ describe("capability slugs", () => {
   it("allows `@` and `#` only on a git slug", () => {
     expect(parseCapabilitySlug("builtin/memory@abc")).toBeNull();
     expect(parseCapabilitySlug("mkt/acme/thing#sub")).toBeNull();
-    expect(formatCapabilitySlug({ source: "builtin", segments: ["memory"], pin: "abc" })).toBeNull();
+    expect(
+      formatCapabilitySlug({
+        source: "builtin",
+        segments: ["memory"],
+        pin: "abc",
+      }),
+    ).toBeNull();
     expect(parseCapabilitySlug("git/a/b@sha#p")).not.toBeNull();
   });
 
@@ -208,13 +255,29 @@ describe("capability slugs", () => {
       expect(parseAnyCapabilitySlug(slug)).toBeNull();
     }
     // The writer refuses what the reader refuses, so no caller can mint one.
-    expect(formatCapabilitySlug({ source: "git", segments: ["a"], pin: "sha", subpath: "p/../q" })).toBeNull();
-    expect(formatCapabilitySlug({ source: "git", segments: ["a"], pin: "sha", subpath: "" })).toBeNull();
+    expect(
+      formatCapabilitySlug({
+        source: "git",
+        segments: ["a"],
+        pin: "sha",
+        subpath: "p/../q",
+      }),
+    ).toBeNull();
+    expect(
+      formatCapabilitySlug({
+        source: "git",
+        segments: ["a"],
+        pin: "sha",
+        subpath: "",
+      }),
+    ).toBeNull();
   });
 
   it("bounds the length", () => {
     const long = "a".repeat(MAX_CAPABILITY_SLUG_LENGTH);
-    expect(formatCapabilitySlug({ source: "builtin", segments: [long] })).toBeNull();
+    expect(
+      formatCapabilitySlug({ source: "builtin", segments: [long] }),
+    ).toBeNull();
     expect(parseCapabilitySlug(`builtin/${long}`)).toBeNull();
   });
 
@@ -224,7 +287,10 @@ describe("capability slugs", () => {
     // every loadout row as malformed; the typed parse has to refuse them or a
     // driver is handed something it cannot materialize.
     for (const slug of ["loadout/lo-12", "connector/slack"]) {
-      expect(parseAnyCapabilitySlug(slug)).toMatchObject({ slug, source: null });
+      expect(parseAnyCapabilitySlug(slug)).toMatchObject({
+        slug,
+        source: null,
+      });
       expect(isWellFormedCapabilitySlug(slug)).toBe(true);
       expect(parseCapabilitySlug(slug)).toBeNull();
       expect(capabilitySlugSource(slug)).toBeNull();
@@ -235,7 +301,12 @@ describe("capability slugs", () => {
       expect(slugMatchesSource("loadout/lo-12", source)).toBe(false);
     }
     // The grammar is the same grammar — no second set of rules crept in.
-    for (const slug of ["loadout/../etc", "connector", "loadout/lo-12@sha", "connector/slack#x"]) {
+    for (const slug of [
+      "loadout/../etc",
+      "connector",
+      "loadout/lo-12@sha",
+      "connector/slack#x",
+    ]) {
       expect(parseAnyCapabilitySlug(slug)).toBeNull();
       expect(isWellFormedCapabilitySlug(slug)).toBe(false);
     }
@@ -251,7 +322,10 @@ describe("capability slugs", () => {
     expect(formatReservedSlug("loadout", [".."])).toBeNull();
     expect(formatReservedSlug("loadout", [])).toBeNull();
     expect(formatReservedSlug("builtin" as never, ["memory"])).toBeNull();
-    for (const slug of [formatReservedSlug("loadout", ["lo-12"]), formatReservedSlug("connector", ["slack"])]) {
+    for (const slug of [
+      formatReservedSlug("loadout", ["lo-12"]),
+      formatReservedSlug("connector", ["slack"]),
+    ]) {
       expect(isWellFormedCapabilitySlug(slug)).toBe(true);
     }
   });
@@ -265,7 +339,15 @@ describe("capability slugs", () => {
     ];
     expect(new Set(prefixes).size).toBe(prefixes.length);
     expect(prefixes.sort()).toEqual(
-      ["authored", "builtin", "connector", "git", "loadout", "mcp", "mkt"].sort(),
+      [
+        "authored",
+        "builtin",
+        "connector",
+        "git",
+        "loadout",
+        "mcp",
+        "mkt",
+      ].sort(),
     );
   });
 
@@ -284,7 +366,8 @@ describe("execution surfaces", () => {
     expect(requiresExplicitConsent(["prose"])).toBe(false);
     expect(requiresExplicitConsent(["prose", "reads_files"])).toBe(false);
     for (const surface of EXECUTION_SURFACES) {
-      if ((BENIGN_EXECUTION_SURFACES as readonly string[]).includes(surface)) continue;
+      if ((BENIGN_EXECUTION_SURFACES as readonly string[]).includes(surface))
+        continue;
       expect(requiresExplicitConsent(["prose", surface])).toBe(true);
     }
   });
@@ -326,14 +409,18 @@ describe("manifestHash", () => {
   it("changes when anything that will run changes", () => {
     const base = { mcp: [{ command: "node server.js" }] };
     const hash = manifestHash(base);
-    expect(manifestHash({ mcp: [{ command: "node other.js" }] })).not.toBe(hash);
+    expect(manifestHash({ mcp: [{ command: "node other.js" }] })).not.toBe(
+      hash,
+    );
     expect(manifestHash({ ...base, hooks: ["PreToolUse"] })).not.toBe(hash);
     expect(manifestHash({ ...base, envKeys: ["API_KEY"] })).not.toBe(hash);
     expect(manifestHash({ ...base, allowedTools: ["Bash"] })).not.toBe(hash);
   });
 
   it("array order is meaningful — arguments are not a set", () => {
-    expect(manifestHash({ bin: ["a", "b"] })).not.toBe(manifestHash({ bin: ["b", "a"] }));
+    expect(manifestHash({ bin: ["a", "b"] })).not.toBe(
+      manifestHash({ bin: ["b", "a"] }),
+    );
   });
 
   it("an absent manifest hashes like an empty one, and never throws", () => {
@@ -345,8 +432,12 @@ describe("manifestHash", () => {
     // grows a hook component is a different thing to approve, even before any
     // scanner fills the dedicated `hooks` field.
     const base = { components: { skill: ["a"] } };
-    expect(manifestHash({ components: { skill: ["a", "b"] } })).not.toBe(manifestHash(base));
-    expect(manifestHash({ components: { skill: ["a"], hook: ["h"] } })).not.toBe(manifestHash(base));
+    expect(manifestHash({ components: { skill: ["a", "b"] } })).not.toBe(
+      manifestHash(base),
+    );
+    expect(
+      manifestHash({ components: { skill: ["a"], hook: ["h"] } }),
+    ).not.toBe(manifestHash(base));
     expect(manifestHash({ components: { hook: ["h"], skill: ["a"] } })).toBe(
       manifestHash({ components: { skill: ["a"], hook: ["h"] } }),
     );
@@ -355,9 +446,9 @@ describe("manifestHash", () => {
   it("separates a local command from a remote endpoint", () => {
     // Same server name, entirely different thing to consent to: one runs a
     // process on this machine, the other talks to somebody else's.
-    expect(manifestHash({ mcp: [{ name: "s", command: "node s.js" }] })).not.toBe(
-      manifestHash({ mcp: [{ name: "s", url: "https://x/mcp" }] }),
-    );
+    expect(
+      manifestHash({ mcp: [{ name: "s", command: "node s.js" }] }),
+    ).not.toBe(manifestHash({ mcp: [{ name: "s", url: "https://x/mcp" }] }));
   });
 
   it("every spelling of 'this field says nothing' hashes alike", () => {
@@ -370,7 +461,14 @@ describe("manifestHash", () => {
     const spellings = [
       { bin: ["x"] },
       { bin: ["x"], scripts: undefined },
-      { bin: ["x"], scripts: [], hooks: [], mcp: [], allowedTools: [], envKeys: [] },
+      {
+        bin: ["x"],
+        scripts: [],
+        hooks: [],
+        mcp: [],
+        allowedTools: [],
+        envKeys: [],
+      },
       // Emptiness one level down must not survive either: this collapses to an
       // empty `components`, which is an absent `components`.
       { bin: ["x"], components: {} },
@@ -380,7 +478,9 @@ describe("manifestHash", () => {
     expect(hashes.size).toBe(1);
     // …and every one of them derives the same surfaces, which is the agreement
     // being pinned: the hash must not be stricter than the semantics.
-    const surfaces = new Set(spellings.map((m) => deriveExecutionSurfaces(m).join(",")));
+    const surfaces = new Set(
+      spellings.map((m) => deriveExecutionSurfaces(m).join(",")),
+    );
     expect(surfaces.size).toBe(1);
   });
 
@@ -389,18 +489,30 @@ describe("manifestHash", () => {
     // whose length is meaningful — an observed server we learned nothing about
     // is still an observed server.
     expect(manifestHash({ mcp: [{}] })).not.toBe(manifestHash({}));
-    expect(manifestHash({ mcp: [{}, {}] })).not.toBe(manifestHash({ mcp: [{}] }));
+    expect(manifestHash({ mcp: [{}, {}] })).not.toBe(
+      manifestHash({ mcp: [{}] }),
+    );
   });
 });
 
 describe("deriveExecutionSurfaces", () => {
   it("reads each surface off the structure that implies it", () => {
     expect(deriveExecutionSurfaces({ bin: ["run"] })).toContain("ships_bin");
-    expect(deriveExecutionSurfaces({ scripts: ["s.sh"] })).toContain("ships_scripts");
-    expect(deriveExecutionSurfaces({ hooks: ["PreToolUse"] })).toContain("declares_hooks");
-    expect(deriveExecutionSurfaces({ allowedTools: ["Bash"] })).toContain("declares_allowed_tools");
-    expect(deriveExecutionSurfaces({ mcp: [{ command: "node s.js" }] })).toContain("mcp_stdio_command");
-    expect(deriveExecutionSurfaces({ mcp: [{ url: "https://x/mcp" }] })).toContain("mcp_remote_url");
+    expect(deriveExecutionSurfaces({ scripts: ["s.sh"] })).toContain(
+      "ships_scripts",
+    );
+    expect(deriveExecutionSurfaces({ hooks: ["PreToolUse"] })).toContain(
+      "declares_hooks",
+    );
+    expect(deriveExecutionSurfaces({ allowedTools: ["Bash"] })).toContain(
+      "declares_allowed_tools",
+    );
+    expect(
+      deriveExecutionSurfaces({ mcp: [{ command: "node s.js" }] }),
+    ).toContain("mcp_stdio_command");
+    expect(
+      deriveExecutionSurfaces({ mcp: [{ url: "https://x/mcp" }] }),
+    ).toContain("mcp_remote_url");
   });
 
   it("an empty list is empty — and that reads as dangerous, not benign", () => {
@@ -425,7 +537,9 @@ describe("deriveExecutionSurfaces", () => {
   });
 
   it("a bogus declared value is ignored rather than trusted", () => {
-    const surfaces = deriveExecutionSurfaces({ bin: ["run"] }, ["totally-made-up" as never]);
+    const surfaces = deriveExecutionSurfaces({ bin: ["run"] }, [
+      "totally-made-up" as never,
+    ]);
     expect(surfaces).toEqual(["ships_bin"]);
   });
 
@@ -440,7 +554,9 @@ describe("deriveExecutionSurfaces", () => {
     // through. Pinned because the quiet failure would be the opposite.
     const componentsOnly = { components: { hook: ["h.sh"], mcp: ["srv"] } };
     expect(deriveExecutionSurfaces(componentsOnly)).toEqual([]);
-    expect(requiresExplicitConsent(deriveExecutionSurfaces(componentsOnly))).toBe(true);
+    expect(
+      requiresExplicitConsent(deriveExecutionSurfaces(componentsOnly)),
+    ).toBe(true);
   });
 
   it("output order is canonical, so equal sets compare equal", () => {
@@ -451,7 +567,10 @@ describe("deriveExecutionSurfaces", () => {
   });
 
   it("one server declaring both a command and a url reports both", () => {
-    expect(deriveExecutionSurfaces({ mcp: [{ command: "node s.js", url: "https://x/mcp" }] }))
-      .toEqual(["mcp_stdio_command", "mcp_remote_url"]);
+    expect(
+      deriveExecutionSurfaces({
+        mcp: [{ command: "node s.js", url: "https://x/mcp" }],
+      }),
+    ).toEqual(["mcp_stdio_command", "mcp_remote_url"]);
   });
 });

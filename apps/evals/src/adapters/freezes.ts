@@ -1,11 +1,11 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
-import type { Freeze, FreezeStore } from '@platform/evals';
-import { fsFreezeStore } from '@platform/evals/fs';
+import type { Freeze, FreezeStore } from "@platform/evals";
+import { fsFreezeStore } from "@platform/evals/fs";
 
-import { containsSecrets } from '../../../../apps/cli/src/secretRedaction';
-import { homePaths, publicFreezesDir } from '../paths';
+import { containsSecrets } from "../../../../apps/cli/src/secretRedaction";
+import { homePaths, publicFreezesDir } from "../paths";
 
 // Two homes for freezes behind one store. A synthetic fixture's pointer is
 // committed (apps/evals/freezes, the repo is public), so it passes through
@@ -16,21 +16,28 @@ const ALLOWED: Record<string, true | string[]> = {
   id: true,
   name: true,
   createdAt: true,
-  anchor: ['kind', 'id'],
-  subject: ['id', 'kind', 'title'],
+  anchor: ["kind", "id"],
+  subject: ["id", "kind", "title"],
   asOf: true,
-  trigger: ['type'],
+  trigger: ["type"],
   judge: true,
   notes: true,
   tags: true,
-  meta: ['surface', 'visibility', 'snapshot'],
+  meta: ["surface", "visibility", "snapshot"],
 };
 
 /** Every string in a value, with its path, for the secret and length checks. */
-export function stringsIn(value: unknown, path = ''): Array<{ path: string; text: string }> {
-  if (typeof value === 'string') return [{ path, text: value }];
-  if (Array.isArray(value)) return value.flatMap((v, i) => stringsIn(v, `${path}[${i}]`));
-  if (value && typeof value === 'object') return Object.entries(value).flatMap(([k, v]) => stringsIn(v, path ? `${path}.${k}` : k));
+export function stringsIn(
+  value: unknown,
+  path = "",
+): Array<{ path: string; text: string }> {
+  if (typeof value === "string") return [{ path, text: value }];
+  if (Array.isArray(value))
+    return value.flatMap((v, i) => stringsIn(v, `${path}[${i}]`));
+  if (value && typeof value === "object")
+    return Object.entries(value).flatMap(([k, v]) =>
+      stringsIn(v, path ? `${path}.${k}` : k),
+    );
   return [];
 }
 
@@ -44,7 +51,10 @@ export function committedFreeze<T extends Partial<Freeze>>(f: T): T {
   for (const [key, value] of Object.entries(f)) {
     if (value === undefined) continue;
     const rule = ALLOWED[key];
-    if (!rule) throw new Error(`a committed freeze cannot carry "${key}": only ${Object.keys(ALLOWED).join(', ')} are allowed`);
+    if (!rule)
+      throw new Error(
+        `a committed freeze cannot carry "${key}": only ${Object.keys(ALLOWED).join(", ")} are allowed`,
+      );
     if (rule === true || value === null) {
       out[key] = value;
       continue;
@@ -52,17 +62,30 @@ export function committedFreeze<T extends Partial<Freeze>>(f: T): T {
     const nested: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (v === undefined) continue;
-      if (key === 'trigger' && k === 'data') continue;
-      if (!rule.includes(k)) throw new Error(`a committed freeze cannot carry "${key}.${k}": ${key} allows ${rule.join(', ')}`);
+      if (key === "trigger" && k === "data") continue;
+      if (!rule.includes(k))
+        throw new Error(
+          `a committed freeze cannot carry "${key}.${k}": ${key} allows ${rule.join(", ")}`,
+        );
       nested[k] = v;
     }
     out[key] = nested;
   }
-  const meta = out.meta as { surface?: string; visibility?: string; snapshot?: string } | undefined;
-  if (meta?.visibility !== 'public') throw new Error('only a public (fixture) freeze can be committed');
-  const subject = out.subject as { id: string; kind: string; title: string } | undefined;
-  if (subject) subject.title = `${meta.surface} ${String(meta.snapshot ?? '').replace(/^.*\/|\.json$/g, '')}`;
-  for (const s of stringsIn(out)) if (containsSecrets(s.text)) throw new Error(`a committed freeze cannot carry a secret (at ${s.path})`);
+  const meta = out.meta as
+    | { surface?: string; visibility?: string; snapshot?: string }
+    | undefined;
+  if (meta?.visibility !== "public")
+    throw new Error("only a public (fixture) freeze can be committed");
+  const subject = out.subject as
+    | { id: string; kind: string; title: string }
+    | undefined;
+  if (subject)
+    subject.title = `${meta.surface} ${String(meta.snapshot ?? "").replace(/^.*\/|\.json$/g, "")}`;
+  for (const s of stringsIn(out))
+    if (containsSecrets(s.text))
+      throw new Error(
+        `a committed freeze cannot carry a secret (at ${s.path})`,
+      );
   return out as T;
 }
 
@@ -70,13 +93,15 @@ export interface CodecastFreezeStoreOptions {
   publicDir?: string;
   privateDir?: string;
   /** The criteria a new freeze gets when none was given. */
-  defaultJudge?(input: Omit<Freeze, 'id' | 'createdAt'>): string | null;
+  defaultJudge?(input: Omit<Freeze, "id" | "createdAt">): string | null;
 }
 
-const visibility = (f: Pick<Freeze, 'meta'>): string | undefined => (f.meta as { visibility?: string } | undefined)?.visibility;
+const visibility = (f: Pick<Freeze, "meta">): string | undefined =>
+  (f.meta as { visibility?: string } | undefined)?.visibility;
 
 /** A fixture freeze, committed to the public repo; anything else is a real moment and stays private. */
-export const isPublicFreeze = (f: Pick<Freeze, 'meta'>): boolean => visibility(f) === 'public';
+export const isPublicFreeze = (f: Pick<Freeze, "meta">): boolean =>
+  visibility(f) === "public";
 
 /**
  * A fixture's `judge` seeds the first freeze made from it and then lives on
@@ -84,22 +109,29 @@ export const isPublicFreeze = (f: Pick<Freeze, 'meta'>): boolean => visibility(f
  * home and `freeze judge` is the one way to change it.
  */
 function moveFixtureJudge(pkgRoot: string, snapshot: string | undefined): void {
-  const path = snapshot ? join(pkgRoot, snapshot) : '';
+  const path = snapshot ? join(pkgRoot, snapshot) : "";
   if (!path || !existsSync(path)) return;
-  const text = readFileSync(path, 'utf8');
+  const text = readFileSync(path, "utf8");
   const fixture = JSON.parse(text) as Record<string, unknown>;
-  if (!('judge' in fixture)) return;
+  if (!("judge" in fixture)) return;
   const { judge: _seed, ...rest } = fixture;
   const indent = /^\{\n( +)"/.exec(text)?.[1]?.length ?? 1;
-  writeFileSync(path, `${JSON.stringify(rest, null, indent)}${text.endsWith('\n') ? '\n' : ''}`);
+  writeFileSync(
+    path,
+    `${JSON.stringify(rest, null, indent)}${text.endsWith("\n") ? "\n" : ""}`,
+  );
 }
 
-export function codecastFreezeStore(opts: CodecastFreezeStoreOptions = {}): FreezeStore {
+export function codecastFreezeStore(
+  opts: CodecastFreezeStoreOptions = {},
+): FreezeStore {
   const publicDir = opts.publicDir ?? publicFreezesDir();
   const pub = fsFreezeStore({ dir: publicDir });
   const priv = fsFreezeStore({ dir: opts.privateDir ?? homePaths().freezes });
 
-  const owner = async (id: string): Promise<{ store: FreezeStore; freeze: Freeze } | null> => {
+  const owner = async (
+    id: string,
+  ): Promise<{ store: FreezeStore; freeze: Freeze } | null> => {
     const p = await pub.get(id);
     if (p?.id === id) return { store: pub, freeze: p };
     const q = await priv.get(id);
@@ -109,10 +141,16 @@ export function codecastFreezeStore(opts: CodecastFreezeStoreOptions = {}): Free
 
   return {
     async create(input) {
-      const withJudge = { ...input, judge: input.judge ?? opts.defaultJudge?.(input) ?? null };
+      const withJudge = {
+        ...input,
+        judge: input.judge ?? opts.defaultJudge?.(input) ?? null,
+      };
       if (!isPublicFreeze(input)) return priv.create(withJudge);
       const created = await pub.create(committedFreeze(withJudge));
-      moveFixtureJudge(dirname(publicDir), (input.meta as { snapshot?: string } | undefined)?.snapshot);
+      moveFixtureJudge(
+        dirname(publicDir),
+        (input.meta as { snapshot?: string } | undefined)?.snapshot,
+      );
       return created;
     },
     async list(filter) {
@@ -125,7 +163,9 @@ export function codecastFreezeStore(opts: CodecastFreezeStoreOptions = {}): Free
       if (p && q) {
         if (p.id === ref) return p;
         if (q.id === ref) return q;
-        throw new Error(`freezes in both homes match ${ref}: ${p.id.slice(0, 8)} (public) and ${q.id.slice(0, 8)} (private); give more of the id`);
+        throw new Error(
+          `freezes in both homes match ${ref}: ${p.id.slice(0, 8)} (public) and ${q.id.slice(0, 8)} (private); give more of the id`,
+        );
       }
       return p ?? q;
     },
@@ -155,14 +195,37 @@ const CONVEX_ID = /\b[a-z0-9]{32}\b/;
  */
 export function auditPublicTree(pkgRoot: string): string[] {
   const problems: string[] = [];
-  const files = (dir: string) => (existsSync(join(pkgRoot, dir)) ? [...new Bun.Glob('**/*').scanSync({ cwd: join(pkgRoot, dir), onlyFiles: true, dot: true })].filter((f) => f !== '.gitkeep' && !f.split('/').includes('__pycache__')).map((f) => `${dir}/${f}`) : []);
-  for (const rel of [...files('freezes'), ...files('fixtures'), ...files('org-comms')]) {
-    if (rel.startsWith('org-comms/') && rel.endsWith('.json')) problems.push(`${rel}: measured data belongs in EVALS_HOME/org-comms, not in git`);
-    const text = readFileSync(join(pkgRoot, rel), 'utf8');
+  const files = (dir: string) =>
+    existsSync(join(pkgRoot, dir))
+      ? [
+          ...new Bun.Glob("**/*").scanSync({
+            cwd: join(pkgRoot, dir),
+            onlyFiles: true,
+            dot: true,
+          }),
+        ]
+          .filter(
+            (f) => f !== ".gitkeep" && !f.split("/").includes("__pycache__"),
+          )
+          .map((f) => `${dir}/${f}`)
+      : [];
+  for (const rel of [
+    ...files("freezes"),
+    ...files("fixtures"),
+    ...files("org-comms"),
+  ]) {
+    if (rel.startsWith("org-comms/") && rel.endsWith(".json"))
+      problems.push(
+        `${rel}: measured data belongs in EVALS_HOME/org-comms, not in git`,
+      );
+    const text = readFileSync(join(pkgRoot, rel), "utf8");
     if (containsSecrets(text)) problems.push(`${rel}: carries a secret`);
     const id = CONVEX_ID.exec(text);
-    if (id) problems.push(`${rel}: looks like a Convex document id (${id[0].slice(0, 6)}…)`);
-    if (!rel.startsWith('freezes/')) continue;
+    if (id)
+      problems.push(
+        `${rel}: looks like a Convex document id (${id[0].slice(0, 6)}…)`,
+      );
+    if (!rel.startsWith("freezes/")) continue;
     let f: Freeze;
     try {
       f = JSON.parse(text) as Freeze;
@@ -175,15 +238,39 @@ export function auditPublicTree(pkgRoot: string): string[] {
     } catch (e) {
       problems.push(`${rel}: ${(e as Error).message}`);
     }
-    if (f.subject?.kind !== 'synthetic') problems.push(`${rel}: subject.kind is ${f.subject?.kind}, not synthetic`);
-    const snapshot = (f.meta as { snapshot?: string } | undefined)?.snapshot ?? '';
-    if (!snapshot.startsWith('fixtures/') || snapshot.includes('..') || !existsSync(join(pkgRoot, snapshot))) problems.push(`${rel}: meta.snapshot "${snapshot}" is not a committed fixture`);
-    if ((f.judge ?? '').length > 1000) problems.push(`${rel}: judge is ${(f.judge ?? '').length} characters (limit 1000)`);
-    for (const s of stringsIn({ ...f, judge: undefined })) if (s.text.length > 300) problems.push(`${rel}: ${s.path} is ${s.text.length} characters (limit 300)`);
+    if (f.subject?.kind !== "synthetic")
+      problems.push(
+        `${rel}: subject.kind is ${f.subject?.kind}, not synthetic`,
+      );
+    const snapshot =
+      (f.meta as { snapshot?: string } | undefined)?.snapshot ?? "";
+    if (
+      !snapshot.startsWith("fixtures/") ||
+      snapshot.includes("..") ||
+      !existsSync(join(pkgRoot, snapshot))
+    )
+      problems.push(
+        `${rel}: meta.snapshot "${snapshot}" is not a committed fixture`,
+      );
+    if ((f.judge ?? "").length > 1000)
+      problems.push(
+        `${rel}: judge is ${(f.judge ?? "").length} characters (limit 1000)`,
+      );
+    for (const s of stringsIn({ ...f, judge: undefined }))
+      if (s.text.length > 300)
+        problems.push(
+          `${rel}: ${s.path} is ${s.text.length} characters (limit 300)`,
+        );
     // A freeze's criterion has one home, the freeze: a fixture's `judge` only seeds a freeze that does not exist yet.
     if (snapshot && existsSync(join(pkgRoot, snapshot))) {
       try {
-        if ('judge' in (JSON.parse(readFileSync(join(pkgRoot, snapshot), 'utf8')) as object)) problems.push(`${snapshot}: carries a judge, but freeze ${f.id.slice(0, 8)} holds its criterion; drop it from the fixture (./evals freeze judge ${f.id.slice(0, 8)} "..." edits the criterion)`);
+        if (
+          "judge" in
+          (JSON.parse(readFileSync(join(pkgRoot, snapshot), "utf8")) as object)
+        )
+          problems.push(
+            `${snapshot}: carries a judge, but freeze ${f.id.slice(0, 8)} holds its criterion; drop it from the fixture (./evals freeze judge ${f.id.slice(0, 8)} "..." edits the criterion)`,
+          );
       } catch {
         // A fixture that is not JSON fails where it is read.
       }

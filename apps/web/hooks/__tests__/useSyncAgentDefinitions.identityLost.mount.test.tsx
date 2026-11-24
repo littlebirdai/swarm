@@ -23,15 +23,30 @@ mock.module("convex/react", () => ({
   ...convexReact,
   useConvexAuth: () => ({ isAuthenticated: authenticated, isLoading: false }),
   useQueries: (queries: Record<string, { query: any }>) =>
-    Object.fromEntries(Object.entries(queries).map(([k, q]) => [k, answers[getFunctionName(q.query)]])),
+    Object.fromEntries(
+      Object.entries(queries).map(([k, q]) => [
+        k,
+        answers[getFunctionName(q.query)],
+      ]),
+    ),
 }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, navigator: dom.window.navigator, localStorage: dom.window.localStorage });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  localStorage: dom.window.localStorage,
+});
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { createRoot } = await import("react-dom/client");
-const { useSyncAgentDefinitions } = await import(`${import.meta.dir}/../useSyncAgentDefinitions.ts?fresh-lost`);
+const { useSyncAgentDefinitions } = await import(
+  `${import.meta.dir}/../useSyncAgentDefinitions.ts?fresh-lost`
+);
 const { useInboxStore } = await import("../../store/inboxStore");
 
 afterAll(() => {
@@ -40,24 +55,46 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const row = (id: string, name: string, extra: Record<string, unknown> = {}) => ({
-  _id: id, short_id: id, name, description: name, workspace: "user:me", created_at: 1, updated_at: 1, ...extra,
+const row = (
+  id: string,
+  name: string,
+  extra: Record<string, unknown> = {},
+) => ({
+  _id: id,
+  short_id: id,
+  name,
+  description: name,
+  workspace: "user:me",
+  created_at: 1,
+  updated_at: 1,
+  ...extra,
 });
 const DEF = row("k97def00000000000000000000000001", "reviewer");
-const CHAIN = row("k97chn00000000000000000000000001", "ship", { steps: [{ agent: "reviewer", prompt: "p" }] });
+const CHAIN = row("k97chn00000000000000000000000001", "ship", {
+  steps: [{ agent: "reviewer", prompt: "p" }],
+});
 const names = (key: "agentDefinitions" | "agentChains") =>
-  Object.values((useInboxStore.getState() as any)[key] ?? {}).map((r: any) => r.name).sort();
+  Object.values((useInboxStore.getState() as any)[key] ?? {})
+    .map((r: any) => r.name)
+    .sort();
 
 describe("useSyncAgentDefinitions while the server identity is lost", () => {
   test("keeps cached agents through an anonymous [] and shows them after auth returns", async () => {
-    const root: Root = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+    const root: Root = createRoot(
+      dom.window.document.body.appendChild(
+        dom.window.document.createElement("div"),
+      ),
+    );
     function Probe() {
       useSyncAgentDefinitions();
       return null;
     }
     const step = async (auth: boolean, defs: unknown[], chains: unknown[]) => {
       authenticated = auth;
-      answers = { "agentDefinitions:list": defs, "agentDefinitions:listChains": chains };
+      answers = {
+        "agentDefinitions:list": defs,
+        "agentDefinitions:listChains": chains,
+      };
       await act(async () => root.render(<Probe />));
     };
 

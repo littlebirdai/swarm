@@ -4,7 +4,13 @@
 import { useRefLifecycle } from "../../hooks/useRefLifecycle";
 import { ChangeSegment } from "./ChangeChip";
 
-export function RefChangeSegment({ type, entity }: { type: "pr" | "commit"; entity: any }) {
+export function RefChangeSegment({
+  type,
+  entity,
+}: {
+  type: "pr" | "commit";
+  entity: any;
+}) {
   const lifecycle = useRefLifecycle(type, entity);
   return lifecycle ? <ChangeSegment lifecycle={lifecycle} /> : null;
 }

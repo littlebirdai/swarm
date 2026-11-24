@@ -1,7 +1,12 @@
 import { useCallback, useRef } from "react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useConvex } from "convex/react";
-import { useInboxStore, InboxSession, claimsViewer, isConvexId } from "../store/inboxStore";
+import {
+  useInboxStore,
+  InboxSession,
+  claimsViewer,
+  isConvexId,
+} from "../store/inboxStore";
 import { batchGet } from "./useSyncChangeFeed";
 import { useConvexSync } from "./useConvexSync";
 import { useIsSyncHost } from "./useSyncRole";
@@ -31,20 +36,38 @@ export function applyLiveInboxIds(sessions: any[], convex?: any) {
 // Leaving says only that the list stopped returning the row: I was removed as
 // an owner (a disown reaches the list as absence), or the row left its scan
 // while I still own it (a kill, the age window, the owner-window cap).
-export function leftClaimingViewer(state: { currentUser?: any; sessions: Record<string, any> }, prev: ReadonlySet<string>, next: ReadonlySet<string>): string[] {
+export function leftClaimingViewer(
+  state: { currentUser?: any; sessions: Record<string, any> },
+  prev: ReadonlySet<string>,
+  next: ReadonlySet<string>,
+): string[] {
   const meId = state.currentUser?._id?.toString?.();
   if (!meId) return [];
-  return [...prev].filter((id) => !next.has(id) && isConvexId(id) && !!state.sessions[id] && claimsViewer(state.sessions[id], meId));
+  return [...prev].filter(
+    (id) =>
+      !next.has(id) &&
+      isConvexId(id) &&
+      !!state.sessions[id] &&
+      claimsViewer(state.sessions[id], meId),
+  );
 }
 
 // byIds settles which: it admits exactly the runner and the owner set, so a
 // returned row lands with the server's stamps (still mine), and an omitted id
 // is no longer mine and only its claim clears. Never a prune: the session may
 // still be on my team board through the team list.
-export async function settleDisownClaims(convex: any, ids: string[]): Promise<void> {
+export async function settleDisownClaims(
+  convex: any,
+  ids: string[],
+): Promise<void> {
   const rows = await batchGet(convex, "sessions", ids);
   const store = useInboxStore.getState();
-  if (rows.length) store.syncTable("sessions", rows as unknown as InboxSession[], { isDelta: true } as any);
+  if (rows.length)
+    store.syncTable(
+      "sessions",
+      rows as unknown as InboxSession[],
+      { isDelta: true } as any,
+    );
   const present = new Set(rows.map((r: any) => String(r._id)));
   store.clearDisownedClaims(ids.filter((id) => !present.has(id)));
 }
@@ -58,7 +81,9 @@ export async function settleDisownClaims(convex: any, ids: string[]): Promise<vo
 export function applyInboxListPayload(data: any, convex?: any): any[] | null {
   const sessions = data?.sessions ?? data;
   if (!Array.isArray(sessions)) return null;
-  useInboxStore.getState().syncTable("sessions", sessions as unknown as InboxSession[]);
+  useInboxStore
+    .getState()
+    .syncTable("sessions", sessions as unknown as InboxSession[]);
   applyLiveInboxIds(sessions, convex);
   return sessions;
 }
@@ -92,21 +117,38 @@ export function applyInboxListPayload(data: any, convex?: any): any[] | null {
 // useSyncInboxSessions spreads THIS constant (plus its cache-busting _probe),
 // so a stalled subscription can never flap the store between two payload
 // shapes — the probe and the subscription are byte-identical requests.
-export const LIST_INBOX_SESSIONS_ARGS = { show_all: false, include_liveness: false, fast_fields_in_overlay: true } as const;
+export const LIST_INBOX_SESSIONS_ARGS = {
+  show_all: false,
+  include_liveness: false,
+  fast_fields_in_overlay: true,
+} as const;
 
-export function useLiveInboxSessions(opts?: { onSync?: (sessions: any[]) => void }) {
+export function useLiveInboxSessions(opts?: {
+  onSync?: (sessions: any[]) => void;
+}) {
   // Follower windows receive `sessions` over replication; only a host feeds it.
   const isSyncHost = useIsSyncHost();
-  const { data: inboxSessions, error } = useSplitQueryNoThrow(api.conversations.listInboxSessions, isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip", "list");
+  const { data: inboxSessions, error } = useSplitQueryNoThrow(
+    api.conversations.listInboxSessions,
+    isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip",
+    "list",
+  );
   useFeederError("conversations.listInboxSessions", error);
   const convex = useConvex();
   const onSyncRef = useRef(opts?.onSync);
   onSyncRef.current = opts?.onSync;
 
-  useConvexSync(inboxSessions, useCallback((data: any) => {
-    const sessions = applyInboxListPayload(data, convex);
-    if (sessions) onSyncRef.current?.(sessions);
-  }, [convex]), { coalesceMs: 300 });
+  useConvexSync(
+    inboxSessions,
+    useCallback(
+      (data: any) => {
+        const sessions = applyInboxListPayload(data, convex);
+        if (sessions) onSyncRef.current?.(sessions);
+      },
+      [convex],
+    ),
+    { coalesceMs: 300 },
+  );
 
   return { data: inboxSessions, error };
 }

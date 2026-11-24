@@ -1,7 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { NOT_CONFIRMED, type LoginPayload, type SecretPayload } from "@codecast/shared/contracts/secrets";
+import {
+  NOT_CONFIRMED,
+  type LoginPayload,
+  type SecretPayload,
+} from "@codecast/shared/contracts/secrets";
 import { useEventListener } from "./useEventListener";
 import { useWatchEffect } from "./useWatchEffect";
 import { usePresence, withPresence } from "../lib/passkeyPresence";
@@ -69,7 +73,11 @@ export function useReveal(id: string, version?: number, askFirst?: boolean) {
     };
     setLoading(true);
     setError(null);
-    inflight.current = (sample ? Promise.resolve(sample.reveal(id)) : withPresence(() => confirm("reveal", id), fetchValue, !!askFirst))
+    inflight.current = (
+      sample
+        ? Promise.resolve(sample.reveal(id))
+        : withPresence(() => confirm("reveal", id), fetchValue, !!askFirst)
+    )
       .then((res: any) => {
         if (res === NOT_CONFIRMED) return null;
         if (res?.error) {
@@ -78,7 +86,8 @@ export function useReveal(id: string, version?: number, askFirst?: boolean) {
         }
         const p = res.payload as SecretPayload;
         // A blur mid-fetch keeps the seed; moving to another secret or value does not.
-        if (shown === shownRef.current) setSeed((p as LoginPayload).totp_seed ?? null);
+        if (shown === shownRef.current)
+          setSeed((p as LoginPayload).totp_seed ?? null);
         if (gen === generation.current) {
           setPayload(p);
           touch();

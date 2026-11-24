@@ -26,5 +26,9 @@ const subscribe = (l: () => void) => {
 
 /** Whether any of a card's changes is lit. */
 export function useChangeLit(ids: readonly string[]): boolean {
-  return useSyncExternalStore(subscribe, () => ids.some((id) => lit.has(id)), () => false);
+  return useSyncExternalStore(
+    subscribe,
+    () => ids.some((id) => lit.has(id)),
+    () => false,
+  );
 }

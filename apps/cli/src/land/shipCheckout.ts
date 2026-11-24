@@ -20,15 +20,32 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileAsync, spawn, type ChildProcess } from "../proc.js";
-import { SESSION_TRAILER_KEY, sessionTrailerValue } from "@codecast/shared/blame";
-import { isCredentialFilePath, liveVendorToken, PRIVATE_KEY_RE } from "../secretPatterns.js";
+import {
+  SESSION_TRAILER_KEY,
+  sessionTrailerValue,
+} from "@codecast/shared/blame";
+import {
+  isCredentialFilePath,
+  liveVendorToken,
+  PRIVATE_KEY_RE,
+} from "../secretPatterns.js";
 import { readSessionLinkCache } from "../localConversationMap.js";
 import { git, gitTry } from "../wipSnapshot.js";
 import { MANIFEST_REL_PATH, parseManifest } from "../workspace/manifest.js";
 import type { ShipDeployStep, ShipSpec } from "../workspace/types.js";
 import { readDeployTargetEntries } from "../workspace/deployTargetsFile.js";
-import { attributeEdits, isMidTurn, type Attribution, type SessionEdits } from "./attribute.js";
-import { buildCommits, freezeWorktree, frozenChanges, type Frozen } from "./commitGroups.js";
+import {
+  attributeEdits,
+  isMidTurn,
+  type Attribution,
+  type SessionEdits,
+} from "./attribute.js";
+import {
+  buildCommits,
+  freezeWorktree,
+  frozenChanges,
+  type Frozen,
+} from "./commitGroups.js";
 import { levelCheckout, treeDiff, type LevelResult } from "./level.js";
 import { isAncestor, linearCommits, replayOnto } from "./replay.js";
 import { readBlobs, type RosterRow } from "./scan.js";
@@ -39,7 +56,13 @@ export const PLAN_VERSION = 1;
 const ATTRIBUTION_HORIZON_MS = 14 * 86_400_000;
 const LAST_TEXT_CHARS = 600;
 
-export const DEFAULT_SHIP: ShipSpec = { mode: "pr", check: "cast check", tests: true, level: false, deploy: [] };
+export const DEFAULT_SHIP: ShipSpec = {
+  mode: "pr",
+  check: "cast check",
+  tests: true,
+  level: false,
+  deploy: [],
+};
 
 export interface ShipSession {
   /** The 7-character codecast id, when the session syncs. */
@@ -85,7 +108,6 @@ export interface ShipPlan {
   attribution: { files: number; attributed: number; took_ms: number };
 }
 
-
 export type Log = (line: string) => void;
 
 // ── plan ─────────────────────────────────────────────────────────────────────
@@ -96,12 +118,19 @@ export function planPath(gitDir: string): string {
 
 /** `origin/main`, or whatever the remote's HEAD names. */
 export async function upstreamRef(root: string): Promise<string> {
-  const head = await gitTry(root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+  const head = await gitTry(root, [
+    "symbolic-ref",
+    "--short",
+    "refs/remotes/origin/HEAD",
+  ]);
   if (head) return head;
   for (const ref of ["origin/main", "origin/master"]) {
-    if (await gitTry(root, ["rev-parse", "--verify", "--quiet", ref])) return ref;
+    if (await gitTry(root, ["rev-parse", "--verify", "--quiet", ref]))
+      return ref;
   }
-  throw new Error("No upstream: this checkout has no origin/main (or origin/HEAD)");
+  throw new Error(
+    "No upstream: this checkout has no origin/main (or origin/HEAD)",
+  );
 }
 
 /**
@@ -115,11 +144,20 @@ export function shipSpec(root: string): ShipSpec {
   const spec = parseManifest(file)?.ship ?? DEFAULT_SHIP;
   let targets: Map<string, string>;
   try {
-    targets = new Map(readDeployTargetEntries(root, spec.deploy).flatMap((e) => (e.ship_step ? [[e.ship_step, e.target.name] as const] : [])));
+    targets = new Map(
+      readDeployTargetEntries(root, spec.deploy).flatMap((e) =>
+        e.ship_step ? [[e.ship_step, e.target.name] as const] : [],
+      ),
+    );
   } catch {
     return spec;
   }
-  return { ...spec, deploy: spec.deploy.map((s) => (targets.has(s.name) ? { ...s, target: targets.get(s.name)! } : s)) };
+  return {
+    ...spec,
+    deploy: spec.deploy.map((s) =>
+      targets.has(s.name) ? { ...s, target: targets.get(s.name)! } : s,
+    ),
+  };
 }
 
 function credentialReason(rel: string, text: string | null): string | null {
@@ -135,50 +173,107 @@ export function defaultMessage(title: string | null, paths: string[]): string {
   const scopes = new Map<string, number>();
   for (const p of paths) {
     const parts = p.split("/");
-    const scope = parts[0] === "packages" && parts[1] ? parts[1] : parts.length > 1 ? parts[0] : "repo";
+    const scope =
+      parts[0] === "packages" && parts[1]
+        ? parts[1]
+        : parts.length > 1
+          ? parts[0]
+          : "repo";
     scopes.set(scope, (scopes.get(scope) ?? 0) + 1);
   }
   const scope = [...scopes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "repo";
   const allDocs = paths.every((p) => /\.(md|mdx|txt)$/i.test(p));
-  const allTests = paths.every((p) => /\.(test|spec)\.[jt]sx?$/.test(p) || p.includes("__fixtures__") || p.includes("__golden__"));
-  const subject = (title ?? "").trim().replace(/\s+/g, " ").replace(/[.!]+$/, "");
-  const type = allDocs ? "docs" : allTests ? "test" : /\b(fix|bug|broken|crash|error|regress|leak)/i.test(subject) ? "fix" : "feat";
+  const allTests = paths.every(
+    (p) =>
+      /\.(test|spec)\.[jt]sx?$/.test(p) ||
+      p.includes("__fixtures__") ||
+      p.includes("__golden__"),
+  );
+  const subject = (title ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.!]+$/, "");
+  const type = allDocs
+    ? "docs"
+    : allTests
+      ? "test"
+      : /\b(fix|bug|broken|crash|error|regress|leak)/i.test(subject)
+        ? "fix"
+        : "feat";
   // Lowercase a capitalized word ("Fix the..." -> "fix the..."), never an acronym ("CI", "API").
-  const text = subject ? (/^[A-Z][^A-Z]/.test(subject) ? subject[0].toLowerCase() + subject.slice(1) : subject) : `changes in ${scope}`;
+  const text = subject
+    ? /^[A-Z][^A-Z]/.test(subject)
+      ? subject[0].toLowerCase() + subject.slice(1)
+      : subject
+    : `changes in ${scope}`;
   return `${type}(${scope}): ${text.length > 72 ? `${text.slice(0, 69).trimEnd()}...` : text}`;
 }
 
-async function numstat(root: string, base: string, tree: string): Promise<Map<string, { added: number; removed: number }>> {
-  const out = (await gitTry(root, ["diff-tree", "-r", "-z", "--numstat", "--no-renames", base, tree])) ?? "";
+async function numstat(
+  root: string,
+  base: string,
+  tree: string,
+): Promise<Map<string, { added: number; removed: number }>> {
+  const out =
+    (await gitTry(root, [
+      "diff-tree",
+      "-r",
+      "-z",
+      "--numstat",
+      "--no-renames",
+      base,
+      tree,
+    ])) ?? "";
   const stats = new Map<string, { added: number; removed: number }>();
   for (const rec of out.split("\0")) {
     const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(rec.trim());
-    if (m) stats.set(m[3], { added: Number(m[1]) || 0, removed: Number(m[2]) || 0 });
+    if (m)
+      stats.set(m[3], { added: Number(m[1]) || 0, removed: Number(m[2]) || 0 });
   }
   return stats;
 }
 
 function mtimeOf(root: string, p: string): number {
-  try { return fs.statSync(path.join(root, p)).mtimeMs; } catch { return 0; }
+  try {
+    return fs.statSync(path.join(root, p)).mtimeMs;
+  } catch {
+    return 0;
+  }
 }
 
 /** Since when a dirty file's writer can be found: its oldest mtime, less a minute, within the attribution horizon. */
-export function attributionSince(root: string, paths: string[], now = Date.now()): number {
-  return Math.max(oldestMtime(root, paths) - 60_000, now - ATTRIBUTION_HORIZON_MS);
+export function attributionSince(
+  root: string,
+  paths: string[],
+  now = Date.now(),
+): number {
+  return Math.max(
+    oldestMtime(root, paths) - 60_000,
+    now - ATTRIBUTION_HORIZON_MS,
+  );
 }
 
 function oldestMtime(root: string, paths: string[]): number {
   let oldest = Date.now();
   for (const p of paths) {
-    try { oldest = Math.min(oldest, fs.statSync(path.join(root, p)).mtimeMs); } catch {}
+    try {
+      oldest = Math.min(oldest, fs.statSync(path.join(root, p)).mtimeMs);
+    } catch {}
   }
   return oldest;
 }
 
-function shipSession(s: SessionEdits, roster: Map<string, RosterRow>): ShipSession {
+function shipSession(
+  s: SessionEdits,
+  roster: Map<string, RosterRow>,
+): ShipSession {
   const id = s.conversationId ? s.conversationId.slice(0, 7) : null;
   const row = id ? roster.get(id) : undefined;
-  const last = s.lastText ? (s.lastText.length > LAST_TEXT_CHARS ? `${s.lastText.slice(0, LAST_TEXT_CHARS)}...` : s.lastText) : null;
+  const last = s.lastText
+    ? s.lastText.length > LAST_TEXT_CHARS
+      ? `${s.lastText.slice(0, LAST_TEXT_CHARS)}...`
+      : s.lastText
+    : null;
   const state = row?.work_state ?? s.status;
   return {
     id,
@@ -198,44 +293,108 @@ function shipSession(s: SessionEdits, roster: Map<string, RosterRow>): ShipSessi
  * (staleCopy.ts). The first half of a ship plan, and what a flow's session
  * freeze reads (workflow/flowChange.ts).
  */
-export async function freezeAndAttribute(root: string, upstream: string, log: Log = () => {}): Promise<{ frozen: Frozen; paths: string[]; attribution: Attribution; credentials: Map<string, string>; stale: Map<string, StaleFile> }> {
+export async function freezeAndAttribute(
+  root: string,
+  upstream: string,
+  log: Log = () => {},
+): Promise<{
+  frozen: Frozen;
+  paths: string[];
+  attribution: Attribution;
+  credentials: Map<string, string>;
+  stale: Map<string, StaleFile>;
+}> {
   const frozen = await freezeWorktree(root);
   const paths = frozen.changes.map((c) => c.path);
   log(`froze ${paths.length} changed file(s) at ${frozen.tree.slice(0, 9)}`);
   const since = attributionSince(root, paths);
   const attribution = attributeEdits(root, paths, { since });
-  log(`attributed ${attribution.owners.size}/${paths.length} to ${attribution.sessions.length} session(s) in ${attribution.tookMs}ms`);
-  const texts = await readBlobs(root, frozen.changes.map((c) => c.blob ?? ""));
+  log(
+    `attributed ${attribution.owners.size}/${paths.length} to ${attribution.sessions.length} session(s) in ${attribution.tookMs}ms`,
+  );
+  const texts = await readBlobs(
+    root,
+    frozen.changes.map((c) => c.blob ?? ""),
+  );
   const credentials = new Map<string, string>();
   for (const change of frozen.changes) {
-    const reason = credentialReason(change.path, change.blob ? texts.get(change.blob) ?? null : null);
+    const reason = credentialReason(
+      change.path,
+      change.blob ? (texts.get(change.blob) ?? null) : null,
+    );
     if (reason) credentials.set(change.path, reason);
   }
-  const stale = await findStaleCopies(root, { base: frozen.base, tree: frozen.tree, upstream, changes: frozen.changes.filter((c) => !credentials.has(c.path)), wroteAt: (p) => attribution.owners.get(p)?.edits.get(p) });
-  if (stale.size) log(`holding ${stale.size} stale cop${stale.size === 1 ? "y" : "ies"} of older versions`);
+  const stale = await findStaleCopies(root, {
+    base: frozen.base,
+    tree: frozen.tree,
+    upstream,
+    changes: frozen.changes.filter((c) => !credentials.has(c.path)),
+    wroteAt: (p) => attribution.owners.get(p)?.edits.get(p),
+  });
+  if (stale.size)
+    log(
+      `holding ${stale.size} stale cop${stale.size === 1 ? "y" : "ies"} of older versions`,
+    );
   return { frozen, paths, attribution, credentials, stale };
 }
 
 export type FrozenAttribution = Awaited<ReturnType<typeof freezeAndAttribute>>;
 
 /** The pass's plan; `frozen` plans a freeze already taken (a flow's checkout change keeps its per-file reasons). */
-export async function makePlan(root: string, opts: { roster?: (ids: string[]) => Promise<RosterRow[] | null>; fetch?: boolean; log?: Log; frozen?: FrozenAttribution } = {}): Promise<ShipPlan> {
+export async function makePlan(
+  root: string,
+  opts: {
+    roster?: (ids: string[]) => Promise<RosterRow[] | null>;
+    fetch?: boolean;
+    log?: Log;
+    frozen?: FrozenAttribution;
+  } = {},
+): Promise<ShipPlan> {
   const log = opts.log ?? (() => {});
   const spec = shipSpec(root);
   const upstream = await upstreamRef(root);
   if (opts.fetch !== false) {
-    const [remote, branch] = [upstream.split("/")[0], upstream.split("/").slice(1).join("/")];
+    const [remote, branch] = [
+      upstream.split("/")[0],
+      upstream.split("/").slice(1).join("/"),
+    ];
     await gitTry(root, ["fetch", "--quiet", remote, branch]);
   }
 
-  const { frozen, paths, attribution, credentials: held, stale } = opts.frozen ?? await freezeAndAttribute(root, upstream, log);
-  const owning = [...new Set([...attribution.owners.values()].map((s) => s.conversationId?.slice(0, 7)).filter((id): id is string => !!id))];
-  const rows = opts.roster && owning.length ? await opts.roster(owning).catch(() => null) : null;
-  const roster = new Map((rows ?? []).filter((r) => r.short_id).map((r) => [r.short_id!, r]));
+  const {
+    frozen,
+    paths,
+    attribution,
+    credentials: held,
+    stale,
+  } = opts.frozen ?? (await freezeAndAttribute(root, upstream, log));
+  const owning = [
+    ...new Set(
+      [...attribution.owners.values()]
+        .map((s) => s.conversationId?.slice(0, 7))
+        .filter((id): id is string => !!id),
+    ),
+  ];
+  const rows =
+    opts.roster && owning.length
+      ? await opts.roster(owning).catch(() => null)
+      : null;
+  const roster = new Map(
+    (rows ?? []).filter((r) => r.short_id).map((r) => [r.short_id!, r]),
+  );
 
   const stats = await numstat(root, frozen.base, frozen.tree);
   const byKey = new Map<string, ShipGroup>();
-  const heldGroup = (id: string): ShipGroup => ({ id, session: null, message: "", paths: [], ship: false, note: "", stat: { files: 0, added: 0, removed: 0 }, last_edit: null });
+  const heldGroup = (id: string): ShipGroup => ({
+    id,
+    session: null,
+    message: "",
+    paths: [],
+    ship: false,
+    note: "",
+    stat: { files: 0, added: 0, removed: 0 },
+    last_edit: null,
+  });
   const credentials = heldGroup("credentials");
   const staleGroup = heldGroup("stale");
   const reasons: string[] = [];
@@ -250,19 +409,37 @@ export async function makePlan(root: string, opts: { roster?: (ids: string[]) =>
     const old = stale.get(change.path);
     if (old) {
       staleGroup.paths.push(change.path);
-      staleReasons.push(`${change.path}: ${old.reason}${old.reverts.length ? `; shipping it reverts ${old.reverts.slice(0, 5).join(", ")}${old.reverts.length > 5 ? ` and ${old.reverts.length - 5} more` : ""}` : ""}`);
+      staleReasons.push(
+        `${change.path}: ${old.reason}${old.reverts.length ? `; shipping it reverts ${old.reverts.slice(0, 5).join(", ")}${old.reverts.length > 5 ? ` and ${old.reverts.length - 5} more` : ""}` : ""}`,
+      );
       continue;
     }
     const owner = attribution.owners.get(change.path);
-    const key = owner ? `s:${owner.conversationId?.slice(0, 7) ?? owner.sessionId.slice(0, 8)}` : "unattributed";
+    const key = owner
+      ? `s:${owner.conversationId?.slice(0, 7) ?? owner.sessionId.slice(0, 8)}`
+      : "unattributed";
     let group = byKey.get(key);
     if (!group) {
-      group = { id: key, session: owner ? shipSession(owner, roster) : null, message: "", paths: [], ship: true, stat: { files: 0, added: 0, removed: 0 }, last_edit: null };
+      group = {
+        id: key,
+        session: owner ? shipSession(owner, roster) : null,
+        message: "",
+        paths: [],
+        ship: true,
+        stat: { files: 0, added: 0, removed: 0 },
+        last_edit: null,
+      };
       byKey.set(key, group);
     }
     group.paths.push(change.path);
   }
-  const groups = [...byKey.values()].sort((a, b) => (a.id === "unattributed" ? 1 : b.id === "unattributed" ? -1 : b.paths.length - a.paths.length));
+  const groups = [...byKey.values()].sort((a, b) =>
+    a.id === "unattributed"
+      ? 1
+      : b.id === "unattributed"
+        ? -1
+        : b.paths.length - a.paths.length,
+  );
   if (credentials.paths.length) {
     credentials.note = `Held: ${reasons.join("; ")}. Move a path to another group only if it holds no live secret.`;
     groups.push(credentials);
@@ -273,15 +450,34 @@ export async function makePlan(root: string, opts: { roster?: (ids: string[]) =>
   }
   for (const g of groups) {
     g.paths.sort();
-    g.stat = g.paths.reduce((acc, p) => ({ files: acc.files + 1, added: acc.added + (stats.get(p)?.added ?? 0), removed: acc.removed + (stats.get(p)?.removed ?? 0) }), { files: 0, added: 0, removed: 0 });
-    if (!g.message) g.message = g.ship ? defaultMessage(g.session?.title ?? null, g.paths) : "";
-    const newest = Math.max(0, ...g.paths.map((p) => attribution.owners.get(p)?.edits.get(p) ?? mtimeOf(root, p)));
+    g.stat = g.paths.reduce(
+      (acc, p) => ({
+        files: acc.files + 1,
+        added: acc.added + (stats.get(p)?.added ?? 0),
+        removed: acc.removed + (stats.get(p)?.removed ?? 0),
+      }),
+      { files: 0, added: 0, removed: 0 },
+    );
+    if (!g.message)
+      g.message = g.ship
+        ? defaultMessage(g.session?.title ?? null, g.paths)
+        : "";
+    const newest = Math.max(
+      0,
+      ...g.paths.map(
+        (p) => attribution.owners.get(p)?.edits.get(p) ?? mtimeOf(root, p),
+      ),
+    );
     g.last_edit = newest ? new Date(newest).toISOString() : null;
   }
 
   const head = frozen.base;
-  const localCommits = (await isAncestor(root, head, upstream)) ? [] : await unlandedCommits(root, upstream, head);
-  const behind = Number((await gitTry(root, ["rev-list", "--count", `${head}..${upstream}`])) ?? 0);
+  const localCommits = (await isAncestor(root, head, upstream))
+    ? []
+    : await unlandedCommits(root, upstream, head);
+  const behind = Number(
+    (await gitTry(root, ["rev-list", "--count", `${head}..${upstream}`])) ?? 0,
+  );
   return {
     version: PLAN_VERSION,
     root,
@@ -293,29 +489,54 @@ export async function makePlan(root: string, opts: { roster?: (ids: string[]) =>
     local_commits: localCommits,
     behind,
     groups,
-    attribution: { files: paths.length, attributed: attribution.owners.size, took_ms: attribution.tookMs },
+    attribution: {
+      files: paths.length,
+      attributed: attribution.owners.size,
+      took_ms: attribution.tookMs,
+    },
   };
 }
 
 /** The branch's commits upstream lacks, leaving out ones it already holds by content (`git cherry` marks them "-"). */
-async function unlandedCommits(root: string, upstream: string, head: string): Promise<Array<{ sha: string; subject: string }>> {
+async function unlandedCommits(
+  root: string,
+  upstream: string,
+  head: string,
+): Promise<Array<{ sha: string; subject: string }>> {
   const out = (await gitTry(root, ["cherry", "-v", upstream, head])) ?? "";
-  return out.split("\n").filter((l) => l.startsWith("+ ")).map((l) => ({ sha: l.slice(2, 42), subject: l.slice(43) }));
+  return out
+    .split("\n")
+    .filter((l) => l.startsWith("+ "))
+    .map((l) => ({ sha: l.slice(2, 42), subject: l.slice(43) }));
 }
 
 /** Check an edited plan against the tree it pins. Returns the problems; empty means runnable. */
-export async function validatePlan(root: string, plan: ShipPlan): Promise<string[]> {
+export async function validatePlan(
+  root: string,
+  plan: ShipPlan,
+): Promise<string[]> {
   const problems: string[] = [];
-  if (plan.version !== PLAN_VERSION) problems.push(`plan version ${plan.version}; this cast reads ${PLAN_VERSION}`);
-  if ((await gitTry(root, ["cat-file", "-e", `${plan.tree}^{tree}`])) === null) problems.push(`frozen tree ${plan.tree.slice(0, 9)} is gone; plan again`);
-  if ((await gitTry(root, ["cat-file", "-e", `${plan.base}^{commit}`])) === null) problems.push(`base ${plan.base.slice(0, 9)} is gone; plan again`);
+  if (plan.version !== PLAN_VERSION)
+    problems.push(
+      `plan version ${plan.version}; this cast reads ${PLAN_VERSION}`,
+    );
+  if ((await gitTry(root, ["cat-file", "-e", `${plan.tree}^{tree}`])) === null)
+    problems.push(`frozen tree ${plan.tree.slice(0, 9)} is gone; plan again`);
+  if (
+    (await gitTry(root, ["cat-file", "-e", `${plan.base}^{commit}`])) === null
+  )
+    problems.push(`base ${plan.base.slice(0, 9)} is gone; plan again`);
   if (problems.length) return problems;
   const changed = new Set((await freezeChanges(root, plan)).map((c) => c.path));
   const seen = new Map<string, string>();
   for (const g of plan.groups) {
-    if (g.ship && !g.message.trim()) problems.push(`group ${g.id} ships without a message`);
+    if (g.ship && !g.message.trim())
+      problems.push(`group ${g.id} ships without a message`);
     for (const p of g.paths) {
-      if (!changed.has(p)) problems.push(`${p} (group ${g.id}) is not a change in the frozen tree`);
+      if (!changed.has(p))
+        problems.push(
+          `${p} (group ${g.id}) is not a change in the frozen tree`,
+        );
       const prior = seen.get(p);
       if (prior) problems.push(`${p} is in both ${prior} and ${g.id}`);
       seen.set(p, g.id);
@@ -324,7 +545,10 @@ export async function validatePlan(root: string, plan: ShipPlan): Promise<string
   return problems;
 }
 
-async function freezeChanges(root: string, plan: Pick<ShipPlan, "base" | "tree">): Promise<Frozen["changes"]> {
+async function freezeChanges(
+  root: string,
+  plan: Pick<ShipPlan, "base" | "tree">,
+): Promise<Frozen["changes"]> {
   return frozenChanges(await treeDiff(root, plan.base, plan.tree));
 }
 
@@ -338,14 +562,26 @@ export interface RunOptions {
   noDeploy?: boolean;
   log?: Log;
   /** Overridable for tests. */
-  exec?: (command: string, cwd: string, log: Log, env?: Record<string, string>) => Promise<{ code: number; output: string }>;
+  exec?: (
+    command: string,
+    cwd: string,
+    log: Log,
+    env?: Record<string, string>,
+  ) => Promise<{ code: number; output: string }>;
   /** The repository's lease (land/repoLease.ts), held from the first before-push deploy through the push, so a Merge
    *  station's deploy and merge, on any machine, never land between them; returns its release. */
   lease?: (log: Log) => Promise<() => Promise<void>>;
 }
 
 /** What a deploy step's push did to its target, as the step reports it (apps/server/deploy.sh writes it). */
-export type PushChanges = { machine?: string; via?: "deploy.sh"; adds?: string[]; drops?: string[]; changes_read_at?: number; pushed_at?: number };
+export type PushChanges = {
+  machine?: string;
+  via?: "deploy.sh";
+  adds?: string[];
+  drops?: string[];
+  changes_read_at?: number;
+  pushed_at?: number;
+};
 
 /**
  * Run a deploy step with a file it may fill with what its push put on its
@@ -354,7 +590,9 @@ export type PushChanges = { machine?: string; via?: "deploy.sh"; adds?: string[]
  * writes nothing reports nothing.
  */
 export async function runDeployStep(
-  run: (env: Record<string, string>) => Promise<{ code: number; output: string }>,
+  run: (
+    env: Record<string, string>,
+  ) => Promise<{ code: number; output: string }>,
 ): Promise<{ code: number; output: string; changes: PushChanges }> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-push-"));
   const file = path.join(dir, "changes.json");
@@ -367,16 +605,31 @@ export async function runDeployStep(
       const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
       if (raw && typeof raw === "object" && !Array.isArray(raw)) {
         // Any object says the step is a push that reports itself: where it came from and when it went out, always.
-        changes = { machine: os.hostname(), via: "deploy.sh", pushed_at: pushedAt };
+        changes = {
+          machine: os.hostname(),
+          via: "deploy.sh",
+          pushed_at: pushedAt,
+        };
         // Both lists, empty or not, only when its diff ran: their presence says so.
         if (Array.isArray(raw.adds) && Array.isArray(raw.drops)) {
-          const names = (v: unknown[]) => v.filter((x): x is string => typeof x === "string");
+          const names = (v: unknown[]) =>
+            v.filter((x): x is string => typeof x === "string");
           // read_at: when the diff read prod, so a later push's record can say what it knew.
-          const readAt = typeof raw.read_at === "number" && Number.isFinite(raw.read_at) ? raw.read_at : undefined;
-          changes = { ...changes, adds: names(raw.adds), drops: names(raw.drops), ...(readAt ? { changes_read_at: readAt } : {}) };
+          const readAt =
+            typeof raw.read_at === "number" && Number.isFinite(raw.read_at)
+              ? raw.read_at
+              : undefined;
+          changes = {
+            ...changes,
+            adds: names(raw.adds),
+            drops: names(raw.drops),
+            ...(readAt ? { changes_read_at: readAt } : {}),
+          };
         }
       }
-    } catch { /* the step wrote nothing */ }
+    } catch {
+      /* the step wrote nothing */
+    }
     return { ...r, changes };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -385,16 +638,38 @@ export async function runDeployStep(
 
 export interface ShipOutcome {
   ok: boolean;
-  stage: "plan" | "commit" | "replay" | "level" | "check" | "deploy" | "push" | "done";
+  stage:
+    | "plan"
+    | "commit"
+    | "replay"
+    | "level"
+    | "check"
+    | "deploy"
+    | "push"
+    | "done";
   reason?: string;
-  commits: Array<{ sha: string; message: string; group: string; files: number }>;
+  commits: Array<{
+    sha: string;
+    message: string;
+    group: string;
+    files: number;
+  }>;
   tip?: string;
   pushed?: string;
   held: Array<{ group: string; paths: string[]; note?: string }>;
   level?: LevelResult;
   check?: { command: string; ok: boolean; ignored?: string[]; output?: string };
   /** Each deploy step's result; a step that names a target records a deploy of it (deploys.md DP11). */
-  deploys: Array<{ name: string; stage: string; ok: boolean; output?: string; target?: string; dirty?: number } & PushChanges>;
+  deploys: Array<
+    {
+      name: string;
+      stage: string;
+      ok: boolean;
+      output?: string;
+      target?: string;
+      dirty?: number;
+    } & PushChanges
+  >;
   /** The upstream commit the pass replayed onto. */
   base?: string;
   import_gaps?: string[];
@@ -403,18 +678,42 @@ export interface ShipOutcome {
 
 /** Run a shell command, streaming nothing, capturing the tail of its output. Given `onChild`, the command runs in a
  *  process group of its own, handed over so a caller can stop the whole group (the Merge station on SIGTERM). */
-export function runShell(command: string, cwd: string, log: Log, env: Record<string, string> = {}, onChild?: (child: ChildProcess) => void): Promise<{ code: number; output: string }> {
+export function runShell(
+  command: string,
+  cwd: string,
+  log: Log,
+  env: Record<string, string> = {},
+  onChild?: (child: ChildProcess) => void,
+): Promise<{ code: number; output: string }> {
   return new Promise((resolve) => {
-    const child = spawn("/bin/bash", ["-c", command], { cwd, env: { ...process.env, CAST_SHIP: "1", ...env }, ...(onChild ? { detached: true } : {}) });
+    const child = spawn("/bin/bash", ["-c", command], {
+      cwd,
+      env: { ...process.env, CAST_SHIP: "1", ...env },
+      ...(onChild ? { detached: true } : {}),
+    });
     onChild?.(child);
     let output = "";
-    const take = (b: Buffer) => { output = (output + b.toString()).slice(-200_000); };
+    const take = (b: Buffer) => {
+      output = (output + b.toString()).slice(-200_000);
+    };
     child.stdout.on("data", take);
     child.stderr.on("data", take);
     const started = Date.now();
-    const tick = setInterval(() => log(`  ... ${command.split(" ")[0]} still running (${Math.round((Date.now() - started) / 1000)}s)`), 60_000);
-    child.on("close", (code) => { clearInterval(tick); resolve({ code: code ?? 1, output }); });
-    child.on("error", (err) => { clearInterval(tick); resolve({ code: 127, output: String(err) }); });
+    const tick = setInterval(
+      () =>
+        log(
+          `  ... ${command.split(" ")[0]} still running (${Math.round((Date.now() - started) / 1000)}s)`,
+        ),
+      60_000,
+    );
+    child.on("close", (code) => {
+      clearInterval(tick);
+      resolve({ code: code ?? 1, output });
+    });
+    child.on("error", (err) => {
+      clearInterval(tick);
+      resolve({ code: 127, output: String(err) });
+    });
   });
 }
 
@@ -423,35 +722,65 @@ export function trailerFor(group: Pick<ShipGroup, "session">): string {
   const conversationId = group.session?.conversation_id;
   if (!conversationId) return "";
   const links = readSessionLinkCache();
-  const visible = Object.values(links).some((l) => l?.conversation_id === conversationId && l.team_visible);
-  return visible ? `\n\n${SESSION_TRAILER_KEY}: ${sessionTrailerValue(conversationId)}` : "";
+  const visible = Object.values(links).some(
+    (l) => l?.conversation_id === conversationId && l.team_visible,
+  );
+  return visible
+    ? `\n\n${SESSION_TRAILER_KEY}: ${sessionTrailerValue(conversationId)}`
+    : "";
 }
 
 /** Relative imports in a shipped file that resolve only to a file the commit lacks. */
-export function importGaps(source: string, file: string, inTree: (p: string) => boolean, onDisk: (p: string) => boolean): string[] {
+export function importGaps(
+  source: string,
+  file: string,
+  inTree: (p: string) => boolean,
+  onDisk: (p: string) => boolean,
+): string[] {
   if (!/\.(m|c)?[jt]sx?$/.test(file)) return [];
   const gaps: string[] = [];
   const dir = path.posix.dirname(file);
-  const specs = [...source.matchAll(/(?:from\s+|import\s*\(\s*|require\(\s*|import\s+)["'](\.{1,2}\/[^"']+)["']/g)].map((m) => m[1]);
+  const specs = [
+    ...source.matchAll(
+      /(?:from\s+|import\s*\(\s*|require\(\s*|import\s+)["'](\.{1,2}\/[^"']+)["']/g,
+    ),
+  ].map((m) => m[1]);
   for (const spec of new Set(specs)) {
     const target = path.posix.normalize(path.posix.join(dir, spec));
     const stem = target.replace(/\.(m|c)?js$/, "");
-    const candidates = [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.js`, `${stem}.jsx`, `${stem}.mjs`, `${stem}.cjs`, `${target}/index.ts`, `${target}/index.tsx`, `${target}/index.js`];
+    const candidates = [
+      target,
+      `${stem}.ts`,
+      `${stem}.tsx`,
+      `${stem}.js`,
+      `${stem}.jsx`,
+      `${stem}.mjs`,
+      `${stem}.cjs`,
+      `${target}/index.ts`,
+      `${target}/index.tsx`,
+      `${target}/index.js`,
+    ];
     if (candidates.some(inTree)) continue;
-    if (candidates.some(onDisk)) gaps.push(`${file} imports ${spec}, which is held back or not committed`);
+    if (candidates.some(onDisk))
+      gaps.push(`${file} imports ${spec}, which is held back or not committed`);
   }
   return gaps;
 }
 
 /** Errors in a check's output that name only files left out of this ship. */
-export function errorsOutsideShip(output: string, unshipped: Set<string>): { ours: string[]; theirs: string[] } {
+export function errorsOutsideShip(
+  output: string,
+  unshipped: Set<string>,
+): { ours: string[]; theirs: string[] } {
   const ours: string[] = [];
   const theirs: string[] = [];
   for (const line of output.split("\n")) {
     const m = /([\w@./()[\]-]+\.(?:m|c)?[jt]sx?)[(:]\d+/.exec(line);
     if (!m || !/error/i.test(line)) continue;
     const file = m[1].replace(/^\.\//, "");
-    const hit = [...unshipped].some((u) => u === file || u.endsWith(`/${file}`) || file.endsWith(`/${u}`));
+    const hit = [...unshipped].some(
+      (u) => u === file || u.endsWith(`/${file}`) || file.endsWith(`/${u}`),
+    );
     (hit ? theirs : ours).push(line.trim());
   }
   return { ours, theirs };
@@ -460,19 +789,40 @@ export function errorsOutsideShip(output: string, unshipped: Set<string>): { our
 function globMatch(pattern: string, file: string): boolean {
   const BunGlob = (globalThis as any).Bun?.Glob;
   if (BunGlob) return new BunGlob(pattern).match(file);
-  const re = new RegExp(`^${pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*").replace(/\?/g, "[^/]")}$`);
+  const re = new RegExp(
+    `^${pattern
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*\*\/?/g, "\u0000")
+      .replace(/\*/g, "[^/]*")
+      .replace(/\u0000/g, ".*")
+      .replace(/\?/g, "[^/]")}$`,
+  );
   return re.test(file);
 }
 
 /** The steps a ship runs: those whose paths the shipped commits touch. */
-export function deploysFor(steps: ShipDeployStep[], shipped: string[]): ShipDeployStep[] {
-  return steps.filter((s) => !s.when.length || shipped.some((p) => s.when.some((g) => globMatch(g, p))));
+export function deploysFor(
+  steps: ShipDeployStep[],
+  shipped: string[],
+): ShipDeployStep[] {
+  return steps.filter(
+    (s) =>
+      !s.when.length ||
+      shipped.some((p) => s.when.some((g) => globMatch(g, p))),
+  );
 }
 
 /** Files left uncommitted in the checkout under a step's paths: they went out with the deploy too. */
 async function dirtyUnder(root: string, when: string[]): Promise<number> {
-  const listed = ((await gitTry(root, ["status", "--porcelain", "--untracked-files=no"])) ?? "").split("\n").filter(Boolean).map((l) => l.slice(3).split(" -> ").pop()!);
-  return listed.filter((p) => !when.length || when.some((g) => globMatch(g, p))).length;
+  const listed = (
+    (await gitTry(root, ["status", "--porcelain", "--untracked-files=no"])) ??
+    ""
+  )
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => l.slice(3).split(" -> ").pop()!);
+  return listed.filter((p) => !when.length || when.some((g) => globMatch(g, p)))
+    .length;
 }
 
 const lockFile = (gitDir: string) => path.join(gitDir, "codecast", "ship.lock");
@@ -501,20 +851,41 @@ function lock(gitDir: string): () => void {
     fs.writeFileSync(file, String(process.pid), { flag: "wx" });
   } catch {
     const holder = lockHolder(gitDir);
-    if (holder !== null && holder !== process.pid) throw new Error(`another cast ship (pid ${holder}) is shipping this checkout; wait for it`);
+    if (holder !== null && holder !== process.pid)
+      throw new Error(
+        `another cast ship (pid ${holder}) is shipping this checkout; wait for it`,
+      );
     fs.writeFileSync(file, String(process.pid));
   }
-  return () => { try { fs.rmSync(file); } catch {} };
+  return () => {
+    try {
+      fs.rmSync(file);
+    } catch {}
+  };
 }
 
-export async function runPlan(plan: ShipPlan, opts: RunOptions = {}): Promise<ShipOutcome> {
+export async function runPlan(
+  plan: ShipPlan,
+  opts: RunOptions = {},
+): Promise<ShipOutcome> {
   const log = opts.log ?? (() => {});
   const exec = opts.exec ?? runShell;
   const root = plan.root;
   const spec = shipSpec(root);
   const gitDir = await git(root, ["rev-parse", "--absolute-git-dir"]);
-  const out: ShipOutcome = { ok: false, stage: "plan", commits: [], held: [], deploys: [] };
-  const fail = (stage: ShipOutcome["stage"], reason: string): ShipOutcome => ({ ...out, ok: false, stage, reason });
+  const out: ShipOutcome = {
+    ok: false,
+    stage: "plan",
+    commits: [],
+    held: [],
+    deploys: [],
+  };
+  const fail = (stage: ShipOutcome["stage"], reason: string): ShipOutcome => ({
+    ...out,
+    ok: false,
+    stage,
+    reason,
+  });
 
   const problems = await validatePlan(root, plan);
   if (problems.length) return fail("plan", problems.join("\n"));
@@ -522,22 +893,48 @@ export async function runPlan(plan: ShipPlan, opts: RunOptions = {}): Promise<Sh
   let leased: (() => Promise<void>) | null = null;
   try {
     const shipping = plan.groups.filter((g) => g.ship && g.paths.length);
-    out.held = plan.groups.filter((g) => !g.ship && g.paths.length).map((g) => ({ group: g.id, paths: g.paths, ...(g.note ? { note: g.note } : {}) }));
+    out.held = plan.groups
+      .filter((g) => !g.ship && g.paths.length)
+      .map((g) => ({
+        group: g.id,
+        paths: g.paths,
+        ...(g.note ? { note: g.note } : {}),
+      }));
 
     // 1. Commits from the frozen tree, on the frozen base.
     out.stage = "commit";
     const changes = await freezeChanges(root, plan);
-    const built = await buildCommits(root, { base: plan.base, tree: plan.tree, changes }, shipping.map((g) => ({ message: g.message.trim() + trailerFor(g), paths: g.paths })));
-    built.commits.forEach((sha, i) => { if (sha) out.commits.push({ sha, message: shipping[i].message.split("\n")[0], group: shipping[i].id, files: shipping[i].paths.length }); });
+    const built = await buildCommits(
+      root,
+      { base: plan.base, tree: plan.tree, changes },
+      shipping.map((g) => ({
+        message: g.message.trim() + trailerFor(g),
+        paths: g.paths,
+      })),
+    );
+    built.commits.forEach((sha, i) => {
+      if (sha)
+        out.commits.push({
+          sha,
+          message: shipping[i].message.split("\n")[0],
+          group: shipping[i].id,
+          files: shipping[i].paths.length,
+        });
+    });
     log(`committed ${out.commits.length} group(s) on ${plan.base.slice(0, 9)}`);
 
     // 2. Replay: the branch's own commits since upstream, then ours, onto upstream.
     out.stage = "replay";
     const head = await git(root, ["rev-parse", "HEAD"]);
-    if (!(await isAncestor(root, plan.base, head))) return fail("replay", `HEAD moved off the frozen base ${plan.base.slice(0, 9)} (history rewritten?); plan again`);
+    if (!(await isAncestor(root, plan.base, head)))
+      return fail(
+        "replay",
+        `HEAD moved off the frozen base ${plan.base.slice(0, 9)} (history rewritten?); plan again`,
+      );
     const upstream = plan.upstream;
     const local = await replayOnto(root, upstream, head, upstream);
-    if (!local.ok) return fail("replay", `this checkout's own commit ${local.reason}`);
+    if (!local.ok)
+      return fail("replay", `this checkout's own commit ${local.reason}`);
     const ours = await replayOnto(root, plan.base, built.tip, local.tip);
     if (!ours.ok) return fail("replay", ours.reason);
     let tip = ours.tip;
@@ -546,105 +943,228 @@ export async function runPlan(plan: ShipPlan, opts: RunOptions = {}): Promise<Sh
     out.base = upstreamSha;
     if (tip === upstreamSha) {
       log("nothing to ship: upstream already holds everything");
-      if (spec.mode === "direct") out.level = await levelCheckout(root, tip, { rewritten: true });
+      if (spec.mode === "direct")
+        out.level = await levelCheckout(root, tip, { rewritten: true });
       return { ...out, ok: true, stage: "done" };
     }
-    log(`replayed ${(await linearCommits(root, upstreamSha, tip)).length} commit(s) onto ${upstream} (${upstreamSha.slice(0, 9)})`);
+    log(
+      `replayed ${(await linearCommits(root, upstreamSha, tip)).length} commit(s) onto ${upstream} (${upstreamSha.slice(0, 9)})`,
+    );
     await relabelCommits(root, upstreamSha, tip, out);
 
     // What the check and deploy commands may read: the upstream commit this
     // pass replayed onto (cast check --changed-since $CAST_SHIP_BASE) and the tip.
     const shipEnv = { CAST_SHIP_BASE: upstreamSha, CAST_SHIP_TIP: tip };
-    const shippedPaths = [...new Set(((await gitTry(root, ["diff-tree", "-r", "--name-only", "--no-commit-id", upstreamSha, tip])) ?? "").split("\n").filter(Boolean))];
+    const shippedPaths = [
+      ...new Set(
+        (
+          (await gitTry(root, [
+            "diff-tree",
+            "-r",
+            "--name-only",
+            "--no-commit-id",
+            upstreamSha,
+            tip,
+          ])) ?? ""
+        )
+          .split("\n")
+          .filter(Boolean),
+      ),
+    ];
 
     // 3. Held files a shipped file imports would break the commit even though the tree typechecks.
     if (out.held.length) {
-      const listing = (await git(root, ["ls-tree", "-r", "-z", tip])).split("\0").filter(Boolean);
-      const blobOf = new Map(listing.map((l) => {
-        const tab = l.indexOf("\t");
-        return [l.slice(tab + 1), l.slice(0, tab).split(" ")[2]] as const;
-      }));
-      const scripts = shippedPaths.filter((p) => blobOf.has(p) && /\.(m|c)?[jt]sx?$/.test(p));
-      const sources = await readBlobs(root, scripts.map((p) => blobOf.get(p)!));
+      const listing = (await git(root, ["ls-tree", "-r", "-z", tip]))
+        .split("\0")
+        .filter(Boolean);
+      const blobOf = new Map(
+        listing.map((l) => {
+          const tab = l.indexOf("\t");
+          return [l.slice(tab + 1), l.slice(0, tab).split(" ")[2]] as const;
+        }),
+      );
+      const scripts = shippedPaths.filter(
+        (p) => blobOf.has(p) && /\.(m|c)?[jt]sx?$/.test(p),
+      );
+      const sources = await readBlobs(
+        root,
+        scripts.map((p) => blobOf.get(p)!),
+      );
       // Work left out of the commit is a held path or a file git would track
       // but has not; a gitignored build output (a native .node addon) is
       // neither, and the shipped tree never carried it.
       const uncommitted = new Set([
         ...out.held.flatMap((h) => h.paths),
-        ...((await gitTry(root, ["ls-files", "--others", "--exclude-standard"])) ?? "").split("\n").filter(Boolean),
+        ...(
+          (await gitTry(root, [
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+          ])) ?? ""
+        )
+          .split("\n")
+          .filter(Boolean),
       ]);
       const gaps: string[] = [];
       for (const p of scripts) {
         const source = sources.get(blobOf.get(p)!);
-        if (source) gaps.push(...importGaps(source, p, (x) => blobOf.has(x), (x) => uncommitted.has(x) && fs.existsSync(path.join(root, x))));
+        if (source)
+          gaps.push(
+            ...importGaps(
+              source,
+              p,
+              (x) => blobOf.has(x),
+              (x) => uncommitted.has(x) && fs.existsSync(path.join(root, x)),
+            ),
+          );
       }
-      if (gaps.length) { out.import_gaps = gaps; return fail("check", `the shipped commits import files held back:\n${gaps.join("\n")}`); }
+      if (gaps.length) {
+        out.import_gaps = gaps;
+        return fail(
+          "check",
+          `the shipped commits import files held back:\n${gaps.join("\n")}`,
+        );
+      }
     }
 
-    if (spec.mode === "pr") return await shipAsPullRequest(root, plan, tip, upstream, out, log);
+    if (spec.mode === "pr")
+      return await shipAsPullRequest(root, plan, tip, upstream, out, log);
 
     // 4. Level the checkout onto the tip: the check below reads these files.
     out.stage = "level";
     const worktreeBase = new Map(changes.map((c) => [c.path, c.blob] as const));
-    const lv = await levelCheckout(root, tip, { rewritten: true, worktreeBase });
+    const lv = await levelCheckout(root, tip, {
+      rewritten: true,
+      worktreeBase,
+    });
     out.level = lv;
-    if (!lv.ok) return fail("level", `${lv.reason}${lv.conflicts.length ? `: ${lv.conflicts.join(", ")}` : ""}`);
-    log(`levelled the checkout to ${tip.slice(0, 9)} (${lv.written.length} written, ${lv.merged.length} merged, ${lv.absorbed.length + lv.kept.length} already here${lv.kept.length ? `, ${lv.kept.length} with newer edits kept` : ""})`);
+    if (!lv.ok)
+      return fail(
+        "level",
+        `${lv.reason}${lv.conflicts.length ? `: ${lv.conflicts.join(", ")}` : ""}`,
+      );
+    log(
+      `levelled the checkout to ${tip.slice(0, 9)} (${lv.written.length} written, ${lv.merged.length} merged, ${lv.absorbed.length + lv.kept.length} already here${lv.kept.length ? `, ${lv.kept.length} with newer edits kept` : ""})`,
+    );
 
     // 5. Check, ignoring errors that live only in files this ship left out.
     if (!opts.noCheck && spec.check.trim()) {
       out.stage = "check";
-      const unshipped = new Set(((await gitTry(root, ["diff", "--name-only", "HEAD"])) ?? "").split("\n").filter(Boolean));
-      for (const u of ((await gitTry(root, ["ls-files", "--others", "--exclude-standard"])) ?? "").split("\n")) if (u) unshipped.add(u);
+      const unshipped = new Set(
+        ((await gitTry(root, ["diff", "--name-only", "HEAD"])) ?? "")
+          .split("\n")
+          .filter(Boolean),
+      );
+      for (const u of (
+        (await gitTry(root, ["ls-files", "--others", "--exclude-standard"])) ??
+        ""
+      ).split("\n"))
+        if (u) unshipped.add(u);
       log(`checking: ${spec.check}`);
       const r = await exec(spec.check, root, log, shipEnv);
       if (r.code !== 0) {
         const { ours: mine, theirs } = errorsOutsideShip(r.output, unshipped);
         if (mine.length || !theirs.length) {
-          out.check = { command: spec.check, ok: false, output: r.output.slice(-6000) };
-          return fail("check", `${spec.check} failed${mine.length ? ` in shipped files:\n${mine.slice(0, 20).join("\n")}` : ""}`);
+          out.check = {
+            command: spec.check,
+            ok: false,
+            output: r.output.slice(-6000),
+          };
+          return fail(
+            "check",
+            `${spec.check} failed${mine.length ? ` in shipped files:\n${mine.slice(0, 20).join("\n")}` : ""}`,
+          );
         }
-        out.check = { command: spec.check, ok: true, ignored: theirs.slice(0, 50) };
-        log(`check passed for the shipped files (${theirs.length} error(s) in files left out)`);
+        out.check = {
+          command: spec.check,
+          ok: true,
+          ignored: theirs.slice(0, 50),
+        };
+        log(
+          `check passed for the shipped files (${theirs.length} error(s) in files left out)`,
+        );
       } else {
         out.check = { command: spec.check, ok: true };
       }
       if (spec.tests) {
-        const tests = shippedPaths.filter((p) => /\.test\.[jt]sx?$/.test(p) && fs.existsSync(path.join(root, p)));
+        const tests = shippedPaths.filter(
+          (p) =>
+            /\.test\.[jt]sx?$/.test(p) && fs.existsSync(path.join(root, p)),
+        );
         const r2 = await runTests(root, tests, exec, log);
-        if (r2) { out.check = { command: r2.command, ok: false, output: r2.output.slice(-6000) }; return fail("check", `${r2.command} failed`); }
+        if (r2) {
+          out.check = {
+            command: r2.command,
+            ok: false,
+            output: r2.output.slice(-6000),
+          };
+          return fail("check", `${r2.command} failed`);
+        }
       }
     }
 
-    if (opts.noPush) return { ...out, ok: true, stage: "done", reason: "built and levelled; nothing pushed (--no-push)" };
+    if (opts.noPush)
+      return {
+        ...out,
+        ok: true,
+        stage: "done",
+        reason: "built and levelled; nothing pushed (--no-push)",
+      };
 
     // 6. Deploys that must precede the push (a backend the pushed client calls).
     const steps = opts.noDeploy ? [] : deploysFor(spec.deploy, shippedPaths);
-    if (opts.lease && steps.some((s) => s.stage === "before_push")) leased = await opts.lease(log);
+    if (opts.lease && steps.some((s) => s.stage === "before_push"))
+      leased = await opts.lease(log);
     for (const step of steps.filter((s) => s.stage === "before_push")) {
       out.stage = "deploy";
       log(`deploying ${step.name}: ${step.run}`);
       const dirty = step.target ? await dirtyUnder(root, step.when) : 0;
-      const r = await runDeployStep((env) => exec(step.run, root, log, { ...shipEnv, CAST_SHIP_TIP: tip, ...env }));
-      out.deploys.push({ name: step.name, stage: step.stage, ok: r.code === 0, ...(step.target ? { target: step.target } : {}), ...(dirty ? { dirty } : {}), ...(r.code === 0 ? r.changes : {}), ...(r.code ? { output: r.output.slice(-6000) } : {}) });
-      if (r.code !== 0) return fail("deploy", `${step.name} failed before the push; nothing was pushed`);
+      const r = await runDeployStep((env) =>
+        exec(step.run, root, log, { ...shipEnv, CAST_SHIP_TIP: tip, ...env }),
+      );
+      out.deploys.push({
+        name: step.name,
+        stage: step.stage,
+        ok: r.code === 0,
+        ...(step.target ? { target: step.target } : {}),
+        ...(dirty ? { dirty } : {}),
+        ...(r.code === 0 ? r.changes : {}),
+        ...(r.code ? { output: r.output.slice(-6000) } : {}),
+      });
+      if (r.code !== 0)
+        return fail(
+          "deploy",
+          `${step.name} failed before the push; nothing was pushed`,
+        );
     }
 
     // 7. Push; when upstream moved, replay onto it and level again.
     out.stage = "push";
-    const [remote, branch] = [upstream.split("/")[0], upstream.split("/").slice(1).join("/")];
+    const [remote, branch] = [
+      upstream.split("/")[0],
+      upstream.split("/").slice(1).join("/"),
+    ];
     for (let attempt = 0; ; attempt++) {
       const pushed = await gitPush(root, remote, `${tip}:refs/heads/${branch}`);
       if (pushed.ok) break;
-      if (attempt >= 4) return fail("push", `push to ${upstream} kept failing (${pushed.error}); the commits are on the local branch and ship next time`);
+      if (attempt >= 4)
+        return fail(
+          "push",
+          `push to ${upstream} kept failing (${pushed.error}); the commits are on the local branch and ship next time`,
+        );
       const before = await git(root, ["rev-parse", upstream]);
       await gitTry(root, ["fetch", "--quiet", remote, branch]);
       const now = await git(root, ["rev-parse", upstream]);
-      if (now === before) return fail("push", `push to ${upstream} failed and upstream did not move: ${pushed.error}`);
+      if (now === before)
+        return fail(
+          "push",
+          `push to ${upstream} failed and upstream did not move: ${pushed.error}`,
+        );
       const again = await replayOnto(root, before, tip, upstream);
-      if (!again.ok) return fail("push", `upstream moved and conflicts: ${again.reason}`);
+      if (!again.ok)
+        return fail("push", `upstream moved and conflicts: ${again.reason}`);
       tip = again.tip;
-      const lv2 = await levelCheckout(root, tip, { rewritten: true });  // the checkout already sits on the shipped content
+      const lv2 = await levelCheckout(root, tip, { rewritten: true }); // the checkout already sits on the shipped content
       if (!lv2.ok) return fail("level", `upstream moved; ${lv2.reason}`);
       log(`upstream moved; replayed onto ${now.slice(0, 9)}`);
     }
@@ -660,9 +1180,24 @@ export async function runPlan(plan: ShipPlan, opts: RunOptions = {}): Promise<Sh
     for (const step of steps.filter((s) => s.stage === "after_push")) {
       out.stage = "deploy";
       log(`deploying ${step.name}: ${step.run}`);
-      const r = await runDeployStep((env) => exec(step.run, root, log, { ...shipEnv, CAST_SHIP_TIP: tip, ...env }));
-      out.deploys.push({ name: step.name, stage: step.stage, ok: r.code === 0, ...(step.target ? { target: step.target } : {}), ...(r.code === 0 ? r.changes : {}), ...(r.code ? { output: r.output.slice(-6000) } : {}) });
-      if (r.code !== 0) return { ...out, ok: false, stage: "deploy", reason: `pushed, but ${step.name} failed` };
+      const r = await runDeployStep((env) =>
+        exec(step.run, root, log, { ...shipEnv, CAST_SHIP_TIP: tip, ...env }),
+      );
+      out.deploys.push({
+        name: step.name,
+        stage: step.stage,
+        ok: r.code === 0,
+        ...(step.target ? { target: step.target } : {}),
+        ...(r.code === 0 ? r.changes : {}),
+        ...(r.code ? { output: r.output.slice(-6000) } : {}),
+      });
+      if (r.code !== 0)
+        return {
+          ...out,
+          ok: false,
+          stage: "deploy",
+          reason: `pushed, but ${step.name} failed`,
+        };
     }
     return { ...out, ok: true, stage: "done" };
   } finally {
@@ -671,19 +1206,52 @@ export async function runPlan(plan: ShipPlan, opts: RunOptions = {}): Promise<Sh
   }
 }
 
-async function gitPush(root: string, remote: string, refspec: string): Promise<{ ok: true } | { ok: false; error: string }> {
+async function gitPush(
+  root: string,
+  remote: string,
+  refspec: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    await execFileAsync("git", ["-C", root, "push", "--quiet", remote, refspec], { encoding: "utf-8" });
+    await execFileAsync(
+      "git",
+      ["-C", root, "push", "--quiet", remote, refspec],
+      { encoding: "utf-8" },
+    );
     return { ok: true };
   } catch (err) {
-    const text = String((err as { stderr?: string })?.stderr || (err as Error)?.message || err).trim();
-    return { ok: false, error: text.split("\n").filter((l) => l.trim() && !l.startsWith("hint:")).slice(-3).join(" ") || "git push failed" };
+    const text = String(
+      (err as { stderr?: string })?.stderr || (err as Error)?.message || err,
+    ).trim();
+    return {
+      ok: false,
+      error:
+        text
+          .split("\n")
+          .filter((l) => l.trim() && !l.startsWith("hint:"))
+          .slice(-3)
+          .join(" ") || "git push failed",
+    };
   }
 }
 
 /** Point each reported commit at its replayed sha (matched in order by subject); a commit the replay dropped leaves the report. */
-async function relabelCommits(root: string, from: string, tip: string, out: ShipOutcome): Promise<void> {
-  const log = ((await gitTry(root, ["log", "--reverse", "--format=%H%x09%s", `${from}..${tip}`])) ?? "").split("\n").filter(Boolean).map((l) => ({ sha: l.slice(0, 40), subject: l.slice(41) }));
+async function relabelCommits(
+  root: string,
+  from: string,
+  tip: string,
+  out: ShipOutcome,
+): Promise<void> {
+  const log = (
+    (await gitTry(root, [
+      "log",
+      "--reverse",
+      "--format=%H%x09%s",
+      `${from}..${tip}`,
+    ])) ?? ""
+  )
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => ({ sha: l.slice(0, 40), subject: l.slice(41) }));
   let at = 0;
   const kept: ShipOutcome["commits"] = [];
   for (const c of out.commits) {
@@ -696,12 +1264,18 @@ async function relabelCommits(root: string, from: string, tip: string, out: Ship
 }
 
 /** Run the changed test files with bun, per package, from inside each package (bun misreads spawns from the repo root). */
-async function runTests(root: string, tests: string[], exec: NonNullable<RunOptions["exec"]>, log: Log): Promise<{ command: string; output: string } | null> {
+async function runTests(
+  root: string,
+  tests: string[],
+  exec: NonNullable<RunOptions["exec"]>,
+  log: Log,
+): Promise<{ command: string; output: string } | null> {
   if (!tests.length || !fs.existsSync(path.join(root, "bun.lock"))) return null;
   const byPkg = new Map<string, string[]>();
   for (const t of tests) {
     let dir = path.posix.dirname(t);
-    while (dir !== "." && !fs.existsSync(path.join(root, dir, "package.json"))) dir = path.posix.dirname(dir);
+    while (dir !== "." && !fs.existsSync(path.join(root, dir, "package.json")))
+      dir = path.posix.dirname(dir);
     const list = byPkg.get(dir) ?? [];
     list.push(path.posix.relative(dir === "." ? "" : dir, t));
     byPkg.set(dir, list);
@@ -710,35 +1284,89 @@ async function runTests(root: string, tests: string[], exec: NonNullable<RunOpti
     const command = `bun test ${files.map((f) => `./${f}`).join(" ")}`;
     log(`testing ${files.length} changed test file(s) in ${dir}`);
     const r = await exec(command, path.join(root, dir), log);
-    if (r.code !== 0) return { command: `(cd ${dir} && ${command})`, output: r.output };
+    if (r.code !== 0)
+      return { command: `(cd ${dir} && ${command})`, output: r.output };
   }
   return null;
 }
 
-async function shipAsPullRequest(root: string, plan: ShipPlan, tip: string, upstream: string, out: ShipOutcome, log: Log): Promise<ShipOutcome> {
+async function shipAsPullRequest(
+  root: string,
+  plan: ShipPlan,
+  tip: string,
+  upstream: string,
+  out: ShipOutcome,
+  log: Log,
+): Promise<ShipOutcome> {
   out.stage = "push";
-  const [remote, base] = [upstream.split("/")[0], upstream.split("/").slice(1).join("/")];
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..*/, "").replace("T", "-");
+  const [remote, base] = [
+    upstream.split("/")[0],
+    upstream.split("/").slice(1).join("/"),
+  ];
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\..*/, "")
+    .replace("T", "-");
   const branch = `cast-ship/${stamp}`;
   const pushed = await gitPush(root, remote, `${tip}:refs/heads/${branch}`);
-  if (!pushed.ok) return { ...out, ok: false, stage: "push", reason: `could not push ${branch}: ${pushed.error}` };
+  if (!pushed.ok)
+    return {
+      ...out,
+      ok: false,
+      stage: "push",
+      reason: `could not push ${branch}: ${pushed.error}`,
+    };
   log(`pushed ${branch}`);
-  const title = out.commits.length === 1 ? out.commits[0].message : `Ship ${out.commits.length} changes from the shared checkout`;
+  const title =
+    out.commits.length === 1
+      ? out.commits[0].message
+      : `Ship ${out.commits.length} changes from the shared checkout`;
   const body = [
     "Shipped by `cast ship checkout` from the shared checkout.",
     "",
-    ...out.commits.map((c) => `- ${c.message} (${c.files} file${c.files === 1 ? "" : "s"})`),
-    ...(out.held.length ? ["", `Held back: ${out.held.map((h) => `${h.group} (${h.paths.length})`).join(", ")}`] : []),
+    ...out.commits.map(
+      (c) => `- ${c.message} (${c.files} file${c.files === 1 ? "" : "s"})`,
+    ),
+    ...(out.held.length
+      ? [
+          "",
+          `Held back: ${out.held.map((h) => `${h.group} (${h.paths.length})`).join(", ")}`,
+        ]
+      : []),
   ].join("\n");
   let url: string | undefined;
   let error = "";
   try {
-    const { stdout } = await execFileAsync("gh", ["pr", "create", "--base", base, "--head", branch, "--title", title, "--body", body], { cwd: root, encoding: "utf-8" });
+    const { stdout } = await execFileAsync(
+      "gh",
+      [
+        "pr",
+        "create",
+        "--base",
+        base,
+        "--head",
+        branch,
+        "--title",
+        title,
+        "--body",
+        body,
+      ],
+      { cwd: root, encoding: "utf-8" },
+    );
     url = /https:\/\/\S+\/pull\/\d+/.exec(String(stdout))?.[0];
   } catch (err) {
-    error = String((err as { stderr?: string })?.stderr || (err as Error)?.message || err).trim();
+    error = String(
+      (err as { stderr?: string })?.stderr || (err as Error)?.message || err,
+    ).trim();
   }
-  if (!url) return { ...out, ok: false, stage: "push", reason: `pushed ${branch}, but gh pr create failed: ${error.slice(-500)}` };
+  if (!url)
+    return {
+      ...out,
+      ok: false,
+      stage: "push",
+      reason: `pushed ${branch}, but gh pr create failed: ${error.slice(-500)}`,
+    };
   log(`opened ${url}`);
   return { ...out, ok: true, stage: "done", pushed: tip, pr: url };
 }

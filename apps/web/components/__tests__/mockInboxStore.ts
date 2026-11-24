@@ -41,24 +41,34 @@ const realHook = real.useInboxStore;
  * replaces further exports of the module (e.g. `useTrackedStore`). Returns the
  * state reader, for a test that needs it directly.
  */
-export function mockInboxStore(overrides: (real: State) => State, extra: State = {}) {
+export function mockInboxStore(
+  overrides: (real: State) => State,
+  extra: State = {},
+) {
   let active = true;
   const getState = () => {
     const base = realHook.getState();
     return active ? { ...base, ...overrides(base) } : base;
   };
-  const install = () => mock.module("../../store/inboxStore", () => ({
-    ...real,
-    useInboxStore: Object.assign(
-      (selector: (s: State) => unknown) => selector(getState()),
-      realHook,
-      { getState },
-    ),
-    ...extra,
-  }));
+  const install = () =>
+    mock.module("../../store/inboxStore", () => ({
+      ...real,
+      useInboxStore: Object.assign(
+        (selector: (s: State) => unknown) => selector(getState()),
+        realHook,
+        { getState },
+      ),
+      ...extra,
+    }));
   install();
-  beforeAll(() => { active = true; install(); });
-  afterAll(() => { active = false; mock.module("../../store/inboxStore", () => real); });
+  beforeAll(() => {
+    active = true;
+    install();
+  });
+  afterAll(() => {
+    active = false;
+    mock.module("../../store/inboxStore", () => real);
+  });
   return getState;
 }
 
@@ -76,5 +86,7 @@ export const realInboxStore = real as State;
  *  hundreds of unrelated ones. Every file that substitutes the store calls
  *  this, and a guard test (mockLeak.guard.test.ts) fails the ones that forget. */
 export function restoreInboxStoreAfterAll() {
-  afterAll(() => { mock.module("../../store/inboxStore", () => real); });
+  afterAll(() => {
+    mock.module("../../store/inboxStore", () => real);
+  });
 }

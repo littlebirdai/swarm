@@ -13,8 +13,12 @@ import { normalizeSourceName } from "@codecast/shared/contracts/ingest";
 // `user_id` is the server acting as a person (a published page's queries run
 // as their publisher): only internal functions take it, so a caller can never
 // name one. Every public door resolves the caller from its session or token.
-export async function scopeOf(ctx: any, args: ScopeArgs & { user_id?: Id<"users"> }) {
-  const userId = args.user_id ?? (await requireUserOrToken(ctx, args.api_token));
+export async function scopeOf(
+  ctx: any,
+  args: ScopeArgs & { user_id?: Id<"users"> },
+) {
+  const userId =
+    args.user_id ?? (await requireUserOrToken(ctx, args.api_token));
   const { db } = await createWorkContext(ctx, {
     userId,
     workspace: args.workspace,
@@ -26,9 +30,19 @@ export async function scopeOf(ctx: any, args: ScopeArgs & { user_id?: Id<"users"
 }
 
 /** A source by short id, Convex id, or name inside the caller's workspace, if the caller may read it. */
-export async function sourceByRef(ctx: any, userId: Id<"users">, workspaceKey: string, ref: string): Promise<Doc<"event_sources">> {
+export async function sourceByRef(
+  ctx: any,
+  userId: Id<"users">,
+  workspaceKey: string,
+  ref: string,
+): Promise<Doc<"event_sources">> {
   return await rowByRef(ctx, "event_sources", userId, ref, "Source", (needle) =>
-    ctx.db.query("event_sources").withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspaceKey).eq("name", normalizeSourceName(needle))).first(),
+    ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q: any) =>
+        q.eq("workspace", workspaceKey).eq("name", normalizeSourceName(needle)),
+      )
+      .first(),
   );
 }
 
@@ -40,7 +54,14 @@ export { scopeArgs, type ScopeArgs } from "./ingestScopeArgs";
  * private to its owner (`team_id: T`, `workspace: user:<owner>`) files into
  * the owner's personal workspace (CLAUDE.md, Workspace access vs routing).
  */
-export function sourceFilingScope(source: Pick<Doc<"event_sources">, "workspace">): { workspace: "team"; team_id: Id<"teams"> } | { workspace: "personal" } {
+export function sourceFilingScope(
+  source: Pick<Doc<"event_sources">, "workspace">,
+): { workspace: "team"; team_id: Id<"teams"> } | { workspace: "personal" } {
   // The team is the one the access key names; `team_id` is routing and is never read here.
-  return source.workspace.startsWith("team:") ? { workspace: "team", team_id: source.workspace.slice("team:".length) as Id<"teams"> } : { workspace: "personal" };
+  return source.workspace.startsWith("team:")
+    ? {
+        workspace: "team",
+        team_id: source.workspace.slice("team:".length) as Id<"teams">,
+      }
+    : { workspace: "personal" };
 }

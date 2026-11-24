@@ -13,19 +13,43 @@ import { git, gitTry } from "../wipSnapshot.js";
 import { spawnSync } from "../proc.js";
 
 export type ReplayResult =
-  | { ok: true; tip: string; replayed: number; unchanged: boolean; dropped: string[] }
-  | { ok: false; commit: string; subject: string; conflicts: string[]; reason: string };
+  | {
+      ok: true;
+      tip: string;
+      replayed: number;
+      unchanged: boolean;
+      dropped: string[];
+    }
+  | {
+      ok: false;
+      commit: string;
+      subject: string;
+      conflicts: string[];
+      reason: string;
+    };
 
 /** The commits in base..tip, oldest first; throws on a merge commit, which a linear replay cannot carry. */
-export async function linearCommits(cwd: string, base: string, tip: string): Promise<string[]> {
+export async function linearCommits(
+  cwd: string,
+  base: string,
+  tip: string,
+): Promise<string[]> {
   const merges = await git(cwd, ["rev-list", "--merges", `${base}..${tip}`]);
-  if (merges) throw new Error(`${base.slice(0, 9)}..${tip.slice(0, 9)} holds merge commit ${merges.split("\n")[0].slice(0, 9)}; replay carries only linear history`);
+  if (merges)
+    throw new Error(
+      `${base.slice(0, 9)}..${tip.slice(0, 9)} holds merge commit ${merges.split("\n")[0].slice(0, 9)}; replay carries only linear history`,
+    );
   const out = await git(cwd, ["rev-list", "--reverse", `${base}..${tip}`]);
   return out ? out.split("\n") : [];
 }
 
 /** Replay base..tip onto `onto`. Commits already sitting on `onto` keep their shas. */
-export async function replayOnto(cwd: string, base: string, tip: string, onto: string): Promise<ReplayResult> {
+export async function replayOnto(
+  cwd: string,
+  base: string,
+  tip: string,
+  onto: string,
+): Promise<ReplayResult> {
   const commits = await linearCommits(cwd, base, tip);
   let current = await git(cwd, ["rev-parse", `${onto}^{commit}`]);
   let rewrote = false;
@@ -40,26 +64,70 @@ export async function replayOnto(cwd: string, base: string, tip: string, onto: s
     const merged = await mergeTree(cwd, parent, current, commit);
     if (!merged.ok) {
       const subject = await git(cwd, ["log", "-1", "--format=%s", commit]);
-      return { ok: false, commit, subject, conflicts: merged.conflicts, reason: `${commit.slice(0, 9)} "${subject}" conflicts with ${onto} in ${merged.conflicts.join(", ")}` };
+      return {
+        ok: false,
+        commit,
+        subject,
+        conflicts: merged.conflicts,
+        reason: `${commit.slice(0, 9)} "${subject}" conflicts with ${onto} in ${merged.conflicts.join(", ")}`,
+      };
     }
     // Already upstream (pushed from elsewhere, or landed by another route):
     // nothing left to say, so it is dropped, as rebase drops it.
-    if (merged.tree === (await git(cwd, ["rev-parse", `${current}^{tree}`]))) { dropped.push(commit); continue; }
+    if (merged.tree === (await git(cwd, ["rev-parse", `${current}^{tree}`]))) {
+      dropped.push(commit);
+      continue;
+    }
     current = await recommit(cwd, commit, merged.tree, current);
   }
-  return { ok: true, tip: current, replayed: commits.length - dropped.length, unchanged: !rewrote, dropped };
+  return {
+    ok: true,
+    tip: current,
+    replayed: commits.length - dropped.length,
+    unchanged: !rewrote,
+    dropped,
+  };
 }
 
-async function mergeTree(cwd: string, base: string, ours: string, theirs: string): Promise<{ ok: true; tree: string } | { ok: false; conflicts: string[] }> {
-  const r = spawnSync("git", ["-C", cwd, "merge-tree", "--write-tree", "--name-only", "--no-messages", `--merge-base=${base}`, ours, theirs], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
-  const lines = String(r.stdout ?? "").split("\n").filter(Boolean);
+async function mergeTree(
+  cwd: string,
+  base: string,
+  ours: string,
+  theirs: string,
+): Promise<{ ok: true; tree: string } | { ok: false; conflicts: string[] }> {
+  const r = spawnSync(
+    "git",
+    [
+      "-C",
+      cwd,
+      "merge-tree",
+      "--write-tree",
+      "--name-only",
+      "--no-messages",
+      `--merge-base=${base}`,
+      ours,
+      theirs,
+    ],
+    { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 },
+  );
+  const lines = String(r.stdout ?? "")
+    .split("\n")
+    .filter(Boolean);
   if (r.status === 0 && lines[0]) return { ok: true, tree: lines[0] };
-  if (r.status === 1) return { ok: false, conflicts: [...new Set(lines.slice(1))] };
-  throw new Error(`git merge-tree failed: ${String(r.stderr ?? "").trim() || `exit ${r.status}`}`);
+  if (r.status === 1)
+    return { ok: false, conflicts: [...new Set(lines.slice(1))] };
+  throw new Error(
+    `git merge-tree failed: ${String(r.stderr ?? "").trim() || `exit ${r.status}`}`,
+  );
 }
 
 /** Commit `tree` on `parent` with `original`'s author, author date and message. */
-async function recommit(cwd: string, original: string, tree: string, parent: string): Promise<string> {
+async function recommit(
+  cwd: string,
+  original: string,
+  tree: string,
+  parent: string,
+): Promise<string> {
   const raw = await git(cwd, ["cat-file", "commit", original]);
   const split = raw.indexOf("\n\n");
   const header = raw.slice(0, split);
@@ -75,6 +143,17 @@ async function recommit(cwd: string, original: string, tree: string, parent: str
 }
 
 /** True when `ancestor` is reachable from `descendant`. */
-export async function isAncestor(cwd: string, ancestor: string, descendant: string): Promise<boolean> {
-  return (await gitTry(cwd, ["merge-base", "--is-ancestor", ancestor, descendant])) !== null;
+export async function isAncestor(
+  cwd: string,
+  ancestor: string,
+  descendant: string,
+): Promise<boolean> {
+  return (
+    (await gitTry(cwd, [
+      "merge-base",
+      "--is-ancestor",
+      ancestor,
+      descendant,
+    ])) !== null
+  );
 }

@@ -17,11 +17,22 @@ export interface PermissionRuleRow {
 }
 
 const ruleSig = (r: any) => `${r.project}|${r.scope}|${r.label}|${r.action}`;
-const newestFirst = (a: PermissionRuleRow, b: PermissionRuleRow) => b.created_at - a.created_at;
+const newestFirst = (a: PermissionRuleRow, b: PermissionRuleRow) =>
+  b.created_at - a.created_at;
 
 /** The viewer's rules, newest first; `ready` once the server has answered. */
-export function usePermissionRules(): { rules: PermissionRuleRow[]; ready: boolean } {
-  const { ready } = useSyncCollection("permissionRules", api.permissionRules.list, {});
-  const rules = useCollectionRows<PermissionRuleRow>("permissionRules", { sig: ruleSig, sort: newestFirst });
+export function usePermissionRules(): {
+  rules: PermissionRuleRow[];
+  ready: boolean;
+} {
+  const { ready } = useSyncCollection(
+    "permissionRules",
+    api.permissionRules.list,
+    {},
+  );
+  const rules = useCollectionRows<PermissionRuleRow>("permissionRules", {
+    sig: ruleSig,
+    sort: newestFirst,
+  });
   return { rules, ready };
 }

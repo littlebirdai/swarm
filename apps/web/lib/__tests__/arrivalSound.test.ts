@@ -13,7 +13,11 @@
 // by a claim that something played.
 
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { createNotificationDelivery, installNotificationDelivery, type ClaimResult } from "../notificationDelivery";
+import {
+  createNotificationDelivery,
+  installNotificationDelivery,
+  type ClaimResult,
+} from "../notificationDelivery";
 import { useInboxStore } from "../../store/inboxStore";
 
 // ── a stand-in AudioContext that counts what a cue builds ──────────────────
@@ -70,13 +74,21 @@ class FakeAudioContext {
     };
   }
   createBiquadFilter() {
-    return { type: "bandpass", frequency: fakeParam(), Q: fakeParam(), connect() {} };
+    return {
+      type: "bandpass",
+      frequency: fakeParam(),
+      Q: fakeParam(),
+      connect() {},
+    };
   }
 }
 
 (globalThis as any).AudioContext = FakeAudioContext;
 // Every recording loads as an opaque buffer; the fake decoder marks it.
-globalThis.fetch = (async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })) as any;
+globalThis.fetch = (async () => ({
+  ok: true,
+  arrayBuffer: async () => new ArrayBuffer(8),
+})) as any;
 
 /** Let a recording's fetch and decode finish, so its start is counted. */
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -92,7 +104,8 @@ mock.module("../desktop", () => ({
 }));
 
 const { soundChatMessage, resetAudioContext } = await import("../sounds");
-const { soundIdle, soundCallRing, soundSend, previewSoundCategory } = await import("../sounds");
+const { soundIdle, soundCallRing, soundSend, previewSoundCategory } =
+  await import("../sounds");
 
 function setWindowRoleForTest(leader: boolean) {
   isLeader = leader;
@@ -117,7 +130,9 @@ describe("one arrival, one sound", () => {
   test("agent tabs create no audio graph until explicitly opted into alert testing", async () => {
     const previous = globalThis.sessionStorage;
     const values = new Map([["codecast-agent-tab", "1"]]);
-    globalThis.sessionStorage = { getItem: (key: string) => values.get(key) ?? null } as Storage;
+    globalThis.sessionStorage = {
+      getItem: (key: string) => values.get(key) ?? null,
+    } as Storage;
     try {
       soundChatMessage("agent-silent");
       soundIdle();
@@ -138,13 +153,20 @@ describe("one arrival, one sound", () => {
 
   test("a ring cancelled while its delivery waits stays silent", async () => {
     const previous = useInboxStore.getState().myCalls;
-    useInboxStore.setState({ myCalls: { ...previous, incoming: [{ _id: "cancelled-invite" }] } });
+    useInboxStore.setState({
+      myCalls: { ...previous, incoming: [{ _id: "cancelled-invite" }] },
+    });
     let resolve!: (result: ClaimResult) => void;
-    const stop = installNotificationDelivery(createNotificationDelivery({
-      remote: () => new Promise((r) => { resolve = r; }),
-      fallback: async () => true,
-      suppressed: () => false,
-    }));
+    const stop = installNotificationDelivery(
+      createNotificationDelivery({
+        remote: () =>
+          new Promise((r) => {
+            resolve = r;
+          }),
+        fallback: async () => true,
+        suppressed: () => false,
+      }),
+    );
     try {
       soundCallRing(0, "cancelled-invite");
       await Promise.resolve();
@@ -165,11 +187,16 @@ describe("one arrival, one sound", () => {
     } as any;
     resetAudioContext();
     let claims = 0;
-    const stop = installNotificationDelivery(createNotificationDelivery({
-      remote: async () => "claimed",
-      fallback: async () => { claims++; return true; },
-      suppressed: () => false,
-    }));
+    const stop = installNotificationDelivery(
+      createNotificationDelivery({
+        remote: async () => "claimed",
+        fallback: async () => {
+          claims++;
+          return true;
+        },
+        suppressed: () => false,
+      }),
+    );
     try {
       soundChatMessage("autoplay-blocked");
       await Promise.resolve();

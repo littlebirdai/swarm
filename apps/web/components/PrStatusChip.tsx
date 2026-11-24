@@ -9,8 +9,20 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { GitPullRequest } from "lucide-react";
-import { accentSoft, accentVar, prPath, shepherdStyle, type ExternalEventAccent } from "../lib/externalEvents";
-import { CI_WORDS, LINKED_PR_LOOK, showsCi, type LinkedPr, type LinkedPrCi } from "../lib/sessionPullRequests";
+import {
+  accentSoft,
+  accentVar,
+  prPath,
+  shepherdStyle,
+  type ExternalEventAccent,
+} from "../lib/externalEvents";
+import {
+  CI_WORDS,
+  LINKED_PR_LOOK,
+  showsCi,
+  type LinkedPr,
+  type LinkedPrCi,
+} from "../lib/sessionPullRequests";
 import type { PrStatus } from "../store/inboxStore";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { KEEP_DRAG_OFF_CARD, KEEP_OFF_CARD } from "../lib/keepOffCard";
@@ -18,7 +30,14 @@ import { repoObjectId } from "../lib/entityLinks";
 import { useDeployReach } from "../hooks/useDeployReach";
 import { REACH_LOOK, type DeployTone } from "../lib/deploys/deployPill";
 
-const TONE_ACCENT: Record<DeployTone, ExternalEventAccent> = { green: "green", yellow: "yellow", red: "red", orange: "orange", muted: "muted", dim: "muted" };
+const TONE_ACCENT: Record<DeployTone, ExternalEventAccent> = {
+  green: "green",
+  yellow: "yellow",
+  red: "red",
+  orange: "orange",
+  muted: "muted",
+  dim: "muted",
+};
 
 export function PrStatusChip({
   status,
@@ -45,14 +64,30 @@ export function PrStatusChip({
   const href = prPath({ repository: status.repository, number: status.number });
   const body = (
     <>
-      <GitPullRequest className={size === "panel" ? "w-3 h-3" : "w-2.5 h-2.5"} />
+      <GitPullRequest
+        className={size === "panel" ? "w-3 h-3" : "w-2.5 h-2.5"}
+      />
       <span className="tabular-nums">#{status.number}</span>
-      {ci && <span data-pr-ci={ci} aria-hidden className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accentVar(CI_WORDS[ci].accent) }} />}
+      {ci && (
+        <span
+          data-pr-ci={ci}
+          aria-hidden
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: accentVar(CI_WORDS[ci].accent) }}
+        />
+      )}
       {label && <span className="opacity-80">{label}</span>}
       {/* The panel above the composer reads a merged pull request's reach live. A card,
           drawn from props alone, shows none: the row it would read can be days old. */}
       {size === "panel" && status.state === "merged" && (
-        <ChipReach refId={repoObjectId({ type: "pr", repository: status.repository, number: status.number })} after={!!label} />
+        <ChipReach
+          refId={repoObjectId({
+            type: "pr",
+            repository: status.repository,
+            number: status.number,
+          })}
+          after={!!label}
+        />
       )}
     </>
   );
@@ -62,7 +97,9 @@ export function PrStatusChip({
     background: accentSoft(accent, 12),
     borderColor: accentSoft(accent, 35),
   };
-  const title = hover ?? `${status.repository} #${status.number}${status.title ? ` — ${status.title}` : ""}`;
+  const title =
+    hover ??
+    `${status.repository} #${status.number}${status.title ? ` — ${status.title}` : ""}`;
   if (!href || plain) {
     return (
       <span className={chip} style={style} title={title}>
@@ -90,17 +127,36 @@ function ChipReach({ refId, after }: { refId: string; after: boolean }) {
   const reach = useDeployReach(refId);
   if (!reach) return null;
   const look = REACH_LOOK[reach.state];
-  return <span data-pr-reach={reach.state} style={{ color: accentVar(TONE_ACCENT[look.tone]) }}>{after ? "· " : ""}{look.word}</span>;
+  return (
+    <span
+      data-pr-reach={reach.state}
+      style={{ color: accentVar(TONE_ACCENT[look.tone]) }}
+    >
+      {after ? "· " : ""}
+      {look.word}
+    </span>
+  );
 }
 
 function linkedPrHover(pr: LinkedPr): string {
   const state = LINKED_PR_LOOK[pr.state].label;
   const ci = showsCi(pr) && pr.ci ? `, ${CI_WORDS[pr.ci].words}` : "";
-  const how = pr.tier === "committed" ? "Has this session's commits" : "This session was on its branch";
+  const how =
+    pr.tier === "committed"
+      ? "Has this session's commits"
+      : "This session was on its branch";
   return `${pr.repository} #${pr.number}${pr.title ? ` — ${pr.title}` : ""}\n${state[0].toUpperCase()}${state.slice(1)}${ci}\n${how}`;
 }
 
-function LinkedChip({ pr, size, plain }: { pr: LinkedPr; size: "card" | "panel"; plain?: boolean }) {
+function LinkedChip({
+  pr,
+  size,
+  plain,
+}: {
+  pr: LinkedPr;
+  size: "card" | "panel";
+  plain?: boolean;
+}) {
   const look = LINKED_PR_LOOK[pr.state];
   // On a card a merged pull request is its number in violet; the word is for
   // the ones still moving, and for a closed one, whose gray says nothing alone.
@@ -110,8 +166,21 @@ function LinkedChip({ pr, size, plain }: { pr: LinkedPr; size: "card" | "panel";
       size={size}
       plain={plain}
       className={`shrink-0 ${pr.tier === "observed" ? "border-dashed opacity-75" : ""}`}
-      status={{ pr_id: pr.id, repository: pr.repository, number: pr.number, title: pr.title, state: pr.state, at: 0 }}
-      look={settled ? { label: "", accent: look.accent } : pr.ci === "failure" && pr.state === "open" ? { label: "failing", accent: "red" } : look}
+      status={{
+        pr_id: pr.id,
+        repository: pr.repository,
+        number: pr.number,
+        title: pr.title,
+        state: pr.state,
+        at: 0,
+      }}
+      look={
+        settled
+          ? { label: "", accent: look.accent }
+          : pr.ci === "failure" && pr.state === "open"
+            ? { label: "failing", accent: "red" }
+            : look
+      }
       ci={showsCi(pr) ? pr.ci : null}
       hover={linkedPrHover(pr)}
     />
@@ -142,7 +211,9 @@ export function LinkedPrChips({
   inCard?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const shown = shepherdedId ? prs.filter((p) => p.id !== String(shepherdedId)) : prs;
+  const shown = shepherdedId
+    ? prs.filter((p) => p.id !== String(shepherdedId))
+    : prs;
   if (!shown.length) return null;
   // Where chips have room (max of two or more), a count that stands for one
   // chip takes the chip's place; a tight row keeps the count.
@@ -150,8 +221,13 @@ export function LinkedPrChips({
   const head = shown.slice(0, limit);
   const rest = shown.slice(limit);
   return (
-    <span data-linked-prs={shown.length} className={`inline-flex items-center gap-1 min-w-0 ${className}`}>
-      {head.map((pr) => <LinkedChip key={pr.id} pr={pr} size={size} />)}
+    <span
+      data-linked-prs={shown.length}
+      className={`inline-flex items-center gap-1 min-w-0 ${className}`}
+    >
+      {head.map((pr) => (
+        <LinkedChip key={pr.id} pr={pr} size={size} />
+      ))}
       {rest.length > 0 && (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -163,24 +239,51 @@ export function LinkedPrChips({
               title={`${shown.length} linked pull requests`}
               className="shrink-0 inline-flex items-center gap-0.5 px-1 rounded text-meta tabular-nums text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-highlight"
             >
-              <GitPullRequest aria-hidden className="w-2.5 h-2.5" />
-              +{rest.length}
+              <GitPullRequest aria-hidden className="w-2.5 h-2.5" />+
+              {rest.length}
             </button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1.5rem))] p-1" {...KEEP_OFF_CARD}>
-            <div className="max-h-[min(22rem,60vh)] overflow-y-auto" data-linked-prs-list>
+          <PopoverContent
+            align="end"
+            className="w-[min(24rem,calc(100vw-1.5rem))] p-1"
+            {...KEEP_OFF_CARD}
+          >
+            <div
+              className="max-h-[min(22rem,60vh)] overflow-y-auto"
+              data-linked-prs-list
+            >
               {shown.map((pr) => {
-                const href = prPath({ repository: pr.repository, number: pr.number });
+                const href = prPath({
+                  repository: pr.repository,
+                  number: pr.number,
+                });
                 const row = "flex items-center gap-2 px-2 py-1 rounded min-w-0";
                 const body = (
                   <>
                     <LinkedChip pr={pr} size="card" plain />
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-sol-text-secondary">{pr.title ?? pr.repository}</span>
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-sol-text-secondary">
+                      {pr.title ?? pr.repository}
+                    </span>
                   </>
                 );
-                return href
-                  ? <Link key={pr.id} href={href} draggable={false} onClick={(e) => { e.stopPropagation(); setOpen(false); }} className={`${row} hover:bg-sol-bg-highlight`}>{body}</Link>
-                  : <div key={pr.id} className={row}>{body}</div>;
+                return href ? (
+                  <Link
+                    key={pr.id}
+                    href={href}
+                    draggable={false}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpen(false);
+                    }}
+                    className={`${row} hover:bg-sol-bg-highlight`}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={pr.id} className={row}>
+                    {body}
+                  </div>
+                );
               })}
             </div>
           </PopoverContent>

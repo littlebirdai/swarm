@@ -5,7 +5,11 @@
 // multiline prompt into multiple submissions. Verified clients receive a
 // bracketed paste, while unverified clients receive one flattened prompt.
 
-import { AGENT_CLIENTS, type AgentClientId, localAgentClient } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  type AgentClientId,
+  localAgentClient,
+} from "@codecast/shared/contracts";
 import * as fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import * as os from "node:os";
@@ -49,8 +53,12 @@ export interface PasteAndSubmitIO {
  * Whether the client running in the pane enables bracketed-paste mode. Unknown
  * or absent type means Claude, matching the daemon's historical default.
  */
-export function clientAcceptsBracketedPaste(agentType?: AgentClientId): boolean {
-  return AGENT_CLIENTS[agentType ?? "claude"].capabilities.bracketedPaste === true;
+export function clientAcceptsBracketedPaste(
+  agentType?: AgentClientId,
+): boolean {
+  return (
+    AGENT_CLIENTS[agentType ?? "claude"].capabilities.bracketedPaste === true
+  );
 }
 
 /**
@@ -70,8 +78,13 @@ function withoutPasteMarkers(text: string): string {
  * trailing newlines are removed so the caller's discrete Enter submits, and
  * unbracketed transports flatten internal newlines to keep the prompt whole.
  */
-export function prepareInjectedContent(content: string, opts: { bracketed: boolean }): string {
-  const normalized = withoutPasteMarkers(content).replace(/\r\n?/g, "\n").replace(/\n+$/, "");
+export function prepareInjectedContent(
+  content: string,
+  opts: { bracketed: boolean },
+): string {
+  const normalized = withoutPasteMarkers(content)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n+$/, "");
   const shaped = opts.bracketed ? normalized : normalized.replace(/\n/g, " ");
   // An empty paste would leave an existing draft untouched; the following Enter
   // could then submit that draft. A single space safely makes the paste explicit.
@@ -88,7 +101,9 @@ export async function pasteAndSubmitText(
   delayMs = 150,
 ): Promise<void> {
   await io.paste();
-  await (io.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(delayMs);
+  await (
+    io.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+  )(delayMs);
   await io.submit();
 }
 
@@ -101,10 +116,18 @@ export async function pasteAndSubmitText(
  * a typed tab, and a lone character is the one write a dialog could take as
  * its answer, so both of those still paste.
  */
-export function typedNewlineKey(agentType: AgentClientId | undefined, text: string, idle: boolean): string | null {
+export function typedNewlineKey(
+  agentType: AgentClientId | undefined,
+  text: string,
+  idle: boolean,
+): string | null {
   const typed = localAgentClient(agentType ?? "claude").typedComposerInput;
   if (!typed) return null;
-  if (typed.idleOnly && (!idle || text.includes("\t") || text.trim().length < 2)) return null;
+  if (
+    typed.idleOnly &&
+    (!idle || text.includes("\t") || text.trim().length < 2)
+  )
+    return null;
   return typed.newlineKey;
 }
 
@@ -130,13 +153,20 @@ const TYPED_ECHO_TAIL_CHARS = 24;
  *  once a draft outgrows it (`█` thumb, `▴`/`▾` ends), one glyph per row. */
 export const stripComposerChrome = (s: string) => s.replace(/[\s─-▟▴▾]+/g, "");
 
-async function awaitTypedEcho(exec: TmuxExec, target: string, typedSoFar: string, budgetMs: number): Promise<void> {
+async function awaitTypedEcho(
+  exec: TmuxExec,
+  target: string,
+  typedSoFar: string,
+  budgetMs: number,
+): Promise<void> {
   const tail = stripComposerChrome(typedSoFar).slice(-TYPED_ECHO_TAIL_CHARS);
   if (!tail) return;
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     try {
-      const out = await exec(["capture-pane", "-p", "-J", "-t", target]) as { stdout?: string } | undefined;
+      const out = (await exec(["capture-pane", "-p", "-J", "-t", target])) as
+        | { stdout?: string }
+        | undefined;
       if (stripComposerChrome(out?.stdout ?? "").includes(tail)) return;
     } catch {
       return;
@@ -168,17 +198,30 @@ export async function typeTextIntoPane(
 ): Promise<void> {
   const prepared = prepareInjectedContent(text, { bracketed: true });
   const literalNewline = LITERAL_NEWLINE[newlineKey];
-  const lines = literalNewline === undefined ? prepared.split("\n") : [prepared.replace(/\n/g, literalNewline)];
+  const lines =
+    literalNewline === undefined
+      ? prepared.split("\n")
+      : [prepared.replace(/\n/g, literalNewline)];
   let typed = "";
   for (const [index, line] of lines.entries()) {
     if (index > 0) await exec(["send-keys", "-t", target, newlineKey]);
     for (let at = 0; at < line.length;) {
       // Never leave a lone character for the last write: that is the one write
       // a dialog could read as a keypress.
-      const end = line.length - (at + TYPED_CHUNK_CHARS) === 1 ? at + TYPED_CHUNK_CHARS - 1 : at + TYPED_CHUNK_CHARS;
+      const end =
+        line.length - (at + TYPED_CHUNK_CHARS) === 1
+          ? at + TYPED_CHUNK_CHARS - 1
+          : at + TYPED_CHUNK_CHARS;
       if (typed) await awaitTypedEcho(exec, target, typed, echoBudgetMs);
       // `--` ends tmux's option parsing, so a chunk that starts with "-" is text.
-      await exec(["send-keys", "-t", target, "-l", "--", tmuxLiteralArg(line.slice(at, end))]);
+      await exec([
+        "send-keys",
+        "-t",
+        target,
+        "-l",
+        "--",
+        tmuxLiteralArg(line.slice(at, end)),
+      ]);
       typed += line.slice(at, end);
       at = end;
     }
@@ -198,10 +241,17 @@ export const TYPED_CHUNK_TIMEOUT_MS = 1_000;
  * flat budget timed out a 7 minute typed write at 3 minutes and started a
  * retry over the live attempt; the second copy then queued behind the first.
  */
-export function deliveryTimeoutMsFor(text: string, agentType: AgentClientId | undefined, baseMs: number): number {
+export function deliveryTimeoutMsFor(
+  text: string,
+  agentType: AgentClientId | undefined,
+  baseMs: number,
+): number {
   const prepared = prepareInjectedContent(text, { bracketed: true });
   if (typedNewlineKey(agentType, prepared, true) === null) return baseMs;
-  return baseMs + Math.ceil(prepared.length / TYPED_CHUNK_CHARS) * TYPED_CHUNK_TIMEOUT_MS;
+  return (
+    baseMs +
+    Math.ceil(prepared.length / TYPED_CHUNK_CHARS) * TYPED_CHUNK_TIMEOUT_MS
+  );
 }
 
 /**
@@ -214,10 +264,16 @@ export async function deliverTextIntoPane(
   exec: TmuxExec,
   target: string,
   text: string,
-  opts: { bracketed?: boolean; agentType?: AgentClientId; idle?: boolean; echoBudgetMs?: number } = {},
+  opts: {
+    bracketed?: boolean;
+    agentType?: AgentClientId;
+    idle?: boolean;
+    echoBudgetMs?: number;
+  } = {},
 ): Promise<void> {
   const newlineKey = typedNewlineKey(opts.agentType, text, opts.idle === true);
-  if (newlineKey) return typeTextIntoPane(exec, target, text, newlineKey, opts.echoBudgetMs);
+  if (newlineKey)
+    return typeTextIntoPane(exec, target, text, newlineKey, opts.echoBudgetMs);
   return pasteTextIntoPane(exec, target, text, opts.bracketed ?? true);
 }
 
@@ -238,11 +294,19 @@ export async function pasteTextIntoPane(
   // the shared server while paste-buffer reached the session's own, and every
   // paste failed with "no buffer" (2026-10-07).
   const session = targetSession(target);
-  if (session) return withTmuxSession(session, () => pasteThroughBuffer(exec, target, text, bracketed));
+  if (session)
+    return withTmuxSession(session, () =>
+      pasteThroughBuffer(exec, target, text, bracketed),
+    );
   return pasteThroughBuffer(exec, target, text, bracketed);
 }
 
-async function pasteThroughBuffer(exec: TmuxExec, target: string, text: string, bracketed: boolean): Promise<void> {
+async function pasteThroughBuffer(
+  exec: TmuxExec,
+  target: string,
+  text: string,
+  bracketed: boolean,
+): Promise<void> {
   const payload = prepareInjectedContent(text, { bracketed });
   const id = `cc-${process.pid}-${randomUUID()}`;
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-paste-"));

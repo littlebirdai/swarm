@@ -3,7 +3,13 @@
 // offer the hire, a routine's title before any answer exists, and its cadence
 // in words.
 import type { OrgTemplate } from "@codecast/shared/contracts/orgTemplateManifest";
-import { EXECUTIVE_ASSISTANT_HANDLE, EXECUTIVE_ASSISTANT_NAME, HEAD_OF_PEOPLE_HANDLE, HEAD_OF_PEOPLE_NAME, isHeadOfPeopleRole } from "@codecast/shared/contracts/orgLead";
+import {
+  EXECUTIVE_ASSISTANT_HANDLE,
+  EXECUTIVE_ASSISTANT_NAME,
+  HEAD_OF_PEOPLE_HANDLE,
+  HEAD_OF_PEOPLE_NAME,
+  isHeadOfPeopleRole,
+} from "@codecast/shared/contracts/orgLead";
 
 /** A role codecast itself offers at the top of the gallery (org-staffing.md
  *  S6, S30): hired through its own path, never a template, and offered only
@@ -21,24 +27,42 @@ export const HEAD_OF_PEOPLE_HIRE: BuiltinHire = {
   id: "head-of-people",
   name: HEAD_OF_PEOPLE_NAME,
   handle: HEAD_OF_PEOPLE_HANDLE,
-  description: "Keeps the structure true to how the work runs: who owns which area, who reports to whom, where each session belongs. Reviews the company weekly and proposes; a person decides.",
-  does: ["Reviews the org weekly", "Proposes, never applies", "Looks after what no lead owns"],
+  description:
+    "Keeps the structure true to how the work runs: who owns which area, who reports to whom, where each session belongs. Reviews the company weekly and proposes; a person decides.",
+  does: [
+    "Reviews the org weekly",
+    "Proposes, never applies",
+    "Looks after what no lead owns",
+  ],
 };
 
 export const EXECUTIVE_ASSISTANT_HIRE: BuiltinHire = {
   id: "executive-assistant",
   name: EXECUTIVE_ASSISTANT_NAME,
   handle: EXECUTIVE_ASSISTANT_HANDLE,
-  description: "Your right hand: answers anything you ask about any part of the work, routes a request in a lead's area to that lead, and brings you decisions with a recommendation. Starts no work and reorganizes nothing.",
-  does: ["Answers you about any area", "Routes requests to the lead", "Keeps your focus in view"],
+  description:
+    "Your right hand: answers anything you ask about any part of the work, routes a request in a lead's area to that lead, and brings you decisions with a recommendation. Starts no work and reorganizes nothing.",
+  does: [
+    "Answers you about any area",
+    "Routes requests to the lead",
+    "Keeps your focus in view",
+  ],
 };
 
 /** The built-in hires this workspace can still make: each hidden once one
  *  stands. The Head of People is a role of this workspace; the Executive
  *  Assistant is the person's, read from the seats they can see. */
-export function builtinHires(roles: ReadonlyArray<{ handle?: string; status?: string }>, standing: { assistant: boolean }): BuiltinHire[] {
-  const head = roles.some((r) => r.status !== "retired" && isHeadOfPeopleRole(r));
-  return [...(head ? [] : [HEAD_OF_PEOPLE_HIRE]), ...(standing.assistant ? [] : [EXECUTIVE_ASSISTANT_HIRE])];
+export function builtinHires(
+  roles: ReadonlyArray<{ handle?: string; status?: string }>,
+  standing: { assistant: boolean },
+): BuiltinHire[] {
+  const head = roles.some(
+    (r) => r.status !== "retired" && isHeadOfPeopleRole(r),
+  );
+  return [
+    ...(head ? [] : [HEAD_OF_PEOPLE_HIRE]),
+    ...(standing.assistant ? [] : [EXECUTIVE_ASSISTANT_HIRE]),
+  ];
 }
 
 export type CatalogTemplate = {
@@ -50,14 +74,25 @@ export type CatalogTemplate = {
   latest: { version: string; digest: string };
   latest_status?: "draft" | "canary" | "stable" | null;
   installable?: boolean;
-  asks: { inputs: number; secrets: number; authority: number; setup: number; routines: number };
+  asks: {
+    inputs: number;
+    secrets: number;
+    authority: number;
+    setup: number;
+    routines: number;
+  };
   manifest: OrgTemplate;
 };
 
 /** Why a card cannot offer the hire, in the words it shows; null when it can. */
-export function cannotHireReason(t: CatalogTemplate, projectCount: number): string | null {
-  if (!t.installable) return "Not ready to hire: its release was published without the files a machine installs. Publish it again.";
-  if (projectCount === 0) return "Create a project in this workspace first: this role leads one project.";
+export function cannotHireReason(
+  t: CatalogTemplate,
+  projectCount: number,
+): string | null {
+  if (!t.installable)
+    return "Not ready to hire: its release was published without the files a machine installs. Publish it again.";
+  if (projectCount === 0)
+    return "Create a project in this workspace first: this role leads one project.";
   return null;
 }
 
@@ -66,7 +101,8 @@ export function displayTitle(m: OrgTemplate, text: string): string {
   const labels = new Map((m.inputs ?? []).map((i) => [i.key, i.label]));
   return text.replace(/\{\{\s*([a-z0-9_.]+)\s*\}\}/gi, (_, token: string) => {
     if (token.startsWith("input.")) return labels.get(token.slice(6)) ?? "…";
-    if (token === "project.name" || token === "project.ref") return "the project";
+    if (token === "project.name" || token === "project.ref")
+      return "the project";
     if (token === "instance") return "the instance";
     return "…";
   });
@@ -86,13 +122,27 @@ export function cadenceWords(every: string): string {
 
 /** The catalog a person picks from: one entry per template, the workspace's own
  *  copy over Codecast's, the same row the server's visibleTemplate reads. */
-export function visibleCatalog(templates: CatalogTemplate[]): CatalogTemplate[] {
-  const own = new Set(templates.filter((t) => t.workspace !== "codecast").map((t) => t.template_id));
-  return templates.filter((t) => t.workspace !== "codecast" || !own.has(t.template_id));
+export function visibleCatalog(
+  templates: CatalogTemplate[],
+): CatalogTemplate[] {
+  const own = new Set(
+    templates
+      .filter((t) => t.workspace !== "codecast")
+      .map((t) => t.template_id),
+  );
+  return templates.filter(
+    (t) => t.workspace !== "codecast" || !own.has(t.template_id),
+  );
 }
 
 /** The tools a release ships, by kind: commands the role runs and skills it reads. */
-export function templateTools(m: Pick<OrgTemplate, "tools">): { commands: string[]; skills: string[] } {
+export function templateTools(m: Pick<OrgTemplate, "tools">): {
+  commands: string[];
+  skills: string[];
+} {
   const tools = m.tools ?? [];
-  return { commands: tools.filter((t) => t.kind === "command").map((t) => t.id), skills: tools.filter((t) => t.kind === "skill").map((t) => t.id) };
+  return {
+    commands: tools.filter((t) => t.kind === "command").map((t) => t.id),
+    skills: tools.filter((t) => t.kind === "skill").map((t) => t.id),
+  };
 }

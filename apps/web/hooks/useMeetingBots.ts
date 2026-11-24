@@ -12,8 +12,10 @@ import { MEETING_BOT_FINAL, type MeetingBot } from "../store/meetingBotsSlice";
 /** How long a bot that ended, failed or was removed stays listed, so a refusal is seen. */
 const FINAL_SHOWN_MS = 60 * 60_000;
 
-const botSig = (b: MeetingBot) => `${b.status}|${b.status_words ?? ""}|${b.transcript_id ?? ""}|${b.platform_name}|${b.meet_id}|${b.join_at ?? ""}`;
-const newestFirst = (a: MeetingBot, b: MeetingBot) => b.created_at - a.created_at;
+const botSig = (b: MeetingBot) =>
+  `${b.status}|${b.status_words ?? ""}|${b.transcript_id ?? ""}|${b.platform_name}|${b.meet_id}|${b.join_at ?? ""}`;
+const newestFirst = (a: MeetingBot, b: MeetingBot) =>
+  b.created_at - a.created_at;
 
 /** Feeds the store and returns the bots still going, plus the ones that
  *  stopped in the last hour, newest first. */
@@ -21,8 +23,13 @@ export function useMeetingBots(): MeetingBot[] {
   useSyncCollection("meetingBots", api.meetingBots.listMine, {});
   const now = useCoarseNow(60_000);
   const where = useCallback(
-    (b: MeetingBot) => !MEETING_BOT_FINAL.has(b.status) || now - b.updated_at < FINAL_SHOWN_MS,
+    (b: MeetingBot) =>
+      !MEETING_BOT_FINAL.has(b.status) || now - b.updated_at < FINAL_SHOWN_MS,
     [now],
   );
-  return useCollectionRows<MeetingBot>("meetingBots", { where, sig: botSig, sort: newestFirst });
+  return useCollectionRows<MeetingBot>("meetingBots", {
+    where,
+    sig: botSig,
+    sort: newestFirst,
+  });
 }

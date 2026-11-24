@@ -11,13 +11,22 @@ function home(): string {
   return h;
 }
 afterEach(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
-function legacySkill(h: string, client: string, name: string, body = "ship it\n"): string {
+function legacySkill(
+  h: string,
+  client: string,
+  name: string,
+  body = "ship it\n",
+): string {
   const dir = path.join(h, client, "skills", name);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "SKILL.md"), `---\nname: ${name}\n---\n${body}`);
+  fs.writeFileSync(
+    path.join(dir, "SKILL.md"),
+    `---\nname: ${name}\n---\n${body}`,
+  );
   return dir;
 }
 
@@ -33,7 +42,9 @@ describe("skill-copies-to-shared-links", () => {
     const shared = path.join(h, ".agents", "skills", "deploy");
     expect(fs.existsSync(path.join(shared, "SKILL.md"))).toBe(true);
     expect(fs.lstatSync(legacy).isSymbolicLink()).toBe(true);
-    expect(fs.readFileSync(path.join(legacy, "SKILL.md"), "utf-8")).toContain("ship it");
+    expect(fs.readFileSync(path.join(legacy, "SKILL.md"), "utf-8")).toContain(
+      "ship it",
+    );
   });
 
   test("idempotent: a second run finds nothing to do", () => {
@@ -51,14 +62,18 @@ describe("skill-copies-to-shared-links", () => {
     const [report] = runMigrations(h, () => {});
     expect(report!.moved).toHaveLength(2);
     for (const client of [".claude", ".cursor"]) {
-      expect(fs.lstatSync(path.join(h, client, "skills", "deploy")).isSymbolicLink()).toBe(true);
+      expect(
+        fs.lstatSync(path.join(h, client, "skills", "deploy")).isSymbolicLink(),
+      ).toBe(true);
     }
   });
 
   test("a DIFFERING legacy copy is left in place and reported, never deleted", () => {
     const h = home();
     legacySkill(h, ".claude", "deploy", "version A\n");
-    fs.mkdirSync(path.join(h, ".agents", "skills", "deploy"), { recursive: true });
+    fs.mkdirSync(path.join(h, ".agents", "skills", "deploy"), {
+      recursive: true,
+    });
     fs.writeFileSync(
       path.join(h, ".agents", "skills", "deploy", "SKILL.md"),
       "---\nname: deploy\n---\nversion B\n",
@@ -68,8 +83,18 @@ describe("skill-copies-to-shared-links", () => {
     expect(report!.skipped[0]).toContain("differs");
     // Both versions still exist — a migration must not resolve a conflict by
     // deletion.
-    expect(fs.readFileSync(path.join(h, ".claude", "skills", "deploy", "SKILL.md"), "utf-8")).toContain("version A");
-    expect(fs.readFileSync(path.join(h, ".agents", "skills", "deploy", "SKILL.md"), "utf-8")).toContain("version B");
+    expect(
+      fs.readFileSync(
+        path.join(h, ".claude", "skills", "deploy", "SKILL.md"),
+        "utf-8",
+      ),
+    ).toContain("version A");
+    expect(
+      fs.readFileSync(
+        path.join(h, ".agents", "skills", "deploy", "SKILL.md"),
+        "utf-8",
+      ),
+    ).toContain("version B");
   });
 
   test("non-skill directories and existing links are untouched", () => {
@@ -79,6 +104,8 @@ describe("skill-copies-to-shared-links", () => {
     fs.writeFileSync(path.join(notSkill, "notes.txt"), "no SKILL.md here");
     expect(skillCopiesToSharedLinks.applies(h)).toBe(false);
     runMigrations(h, () => {});
-    expect(fs.readFileSync(path.join(notSkill, "notes.txt"), "utf-8")).toBe("no SKILL.md here");
+    expect(fs.readFileSync(path.join(notSkill, "notes.txt"), "utf-8")).toBe(
+      "no SKILL.md here",
+    );
   });
 });

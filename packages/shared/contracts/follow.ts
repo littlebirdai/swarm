@@ -29,7 +29,9 @@ export type FollowView = {
 
 /** The view as it may be stored: bounded strings, a whole positive line, an
  *  offset inside 0..1 at three decimals. Undefined when nothing is left. */
-export function clampFollowView(view: FollowView | null | undefined): FollowView | undefined {
+export function clampFollowView(
+  view: FollowView | null | undefined,
+): FollowView | undefined {
   if (!view) return undefined;
   const out: FollowView = {};
   const panel = view.panel?.trim().slice(0, 64);
@@ -38,7 +40,8 @@ export function clampFollowView(view: FollowView | null | undefined): FollowView
   if (file) {
     const diff: NonNullable<FollowView["diff"]> = { file };
     const line = view.diff!.line;
-    if (typeof line === "number" && Number.isFinite(line) && line >= 1) diff.line = Math.floor(line);
+    if (typeof line === "number" && Number.isFinite(line) && line >= 1)
+      diff.line = Math.floor(line);
     const base = view.diff!.base?.trim().slice(0, 128);
     if (base) diff.base = base;
     out.diff = diff;
@@ -46,7 +49,10 @@ export function clampFollowView(view: FollowView | null | undefined): FollowView
   const key = view.scroll?.key?.trim().slice(0, 64);
   const offset = view.scroll?.offset;
   if (key && typeof offset === "number" && Number.isFinite(offset)) {
-    out.scroll = { key, offset: Math.round(Math.min(1, Math.max(0, offset)) * 1000) / 1000 };
+    out.scroll = {
+      key,
+      offset: Math.round(Math.min(1, Math.max(0, offset)) * 1000) / 1000,
+    };
   }
   return out.panel || out.diff || out.scroll ? out : undefined;
 }

@@ -16,13 +16,25 @@ const MATE = "users_m" as any;
 const HIDDEN = "users_h" as any;
 
 function conv(id: string, user: any, updated_at: number, extra: any = {}) {
-  return { _id: id, _creationTime: 1, user_id: user, team_id: TEAM, is_private: false, updated_at, ...extra };
+  return {
+    _id: id,
+    _creationTime: 1,
+    user_id: user,
+    team_id: TEAM,
+    is_private: false,
+    updated_at,
+    ...extra,
+  };
 }
 
 function ctxFor(rows: any[], lastSeen?: number) {
   const db = makeFakeDb({
     users: [
-      { _id: VIEWER, active_team_id: TEAM, team_conversations_last_seen: lastSeen },
+      {
+        _id: VIEWER,
+        active_team_id: TEAM,
+        team_conversations_last_seen: lastSeen,
+      },
       { _id: MATE },
       { _id: HIDDEN },
     ],
@@ -45,42 +57,63 @@ function ctxFor(rows: any[], lastSeen?: number) {
     const rawWithIndex = builder.withIndex.bind(builder);
     builder.withIndex = (name: string, fn?: (q: any) => any) => {
       const eq: Record<string, any> = {};
-      return rawWithIndex(name, fn && ((q: any) => {
-        const spy = new Proxy(q, {
-          get: (t, k) => k === "eq"
-            ? (f: string, v: any) => { eq[f] = v; t.eq(f, v); return spy; }
-            : (...a: any[]) => { (t as any)[k](...a); return spy; },
-        });
-        reads.push({ index: name, eq });
-        return fn(spy);
-      }));
+      return rawWithIndex(
+        name,
+        fn &&
+          ((q: any) => {
+            const spy = new Proxy(q, {
+              get: (t, k) =>
+                k === "eq"
+                  ? (f: string, v: any) => {
+                      eq[f] = v;
+                      t.eq(f, v);
+                      return spy;
+                    }
+                  : (...a: any[]) => {
+                      (t as any)[k](...a);
+                      return spy;
+                    },
+            });
+            reads.push({ index: name, eq });
+            return fn(spy);
+          }),
+      );
     };
     return builder;
   };
   return {
     db,
     reads,
-    auth: { getUserIdentity: async () => ({ subject: `${VIEWER}|sess`, tokenIdentifier: "x" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: `${VIEWER}|sess`,
+        tokenIdentifier: "x",
+      }),
+    },
   };
 }
 
-const handler = (getTeamUnreadCount as any)._handler ?? (getTeamUnreadCount as any).handler;
+const handler =
+  (getTeamUnreadCount as any)._handler ?? (getTeamUnreadCount as any).handler;
 
 describe("getTeamUnreadCount", () => {
   test("counts teammates' visible rows updated after the read mark, nothing else", async () => {
-    const ctx = ctxFor([
-      // Old session (low _creationTime irrelevant to the fake, but it sits
-      // last in table order) with fresh activity: counts.
-      conv("c_fresh", MATE, 600),
-      // Updated before the mark: never read.
-      conv("c_stale", MATE, 400),
-      // Private to its owner: read but not visible.
-      conv("c_private", MATE, 700, { is_private: true }),
-      // Hidden member: skipped entirely.
-      conv("c_hidden", HIDDEN, 700),
-      // The viewer's own work never counts as unread.
-      conv("c_own", VIEWER, 900),
-    ], 500);
+    const ctx = ctxFor(
+      [
+        // Old session (low _creationTime irrelevant to the fake, but it sits
+        // last in table order) with fresh activity: counts.
+        conv("c_fresh", MATE, 600),
+        // Updated before the mark: never read.
+        conv("c_stale", MATE, 400),
+        // Private to its owner: read but not visible.
+        conv("c_private", MATE, 700, { is_private: true }),
+        // Hidden member: skipped entirely.
+        conv("c_hidden", HIDDEN, 700),
+        // The viewer's own work never counts as unread.
+        conv("c_own", VIEWER, 900),
+      ],
+      500,
+    );
     expect(await handler(ctx, { teamId: TEAM })).toBe(1);
     // The read set: one bounded per-member range, never a team-wide scan, and
     // never the viewer's own rows (their heartbeats must not re-run the badge).
@@ -89,7 +122,11 @@ describe("getTeamUnreadCount", () => {
   });
 
   test("no read mark yet: every visible teammate row counts", async () => {
-    const ctx = ctxFor([conv("c1", MATE, 10), conv("c2", MATE, 20), conv("c_own", VIEWER, 30)]);
+    const ctx = ctxFor([
+      conv("c1", MATE, 10),
+      conv("c2", MATE, 20),
+      conv("c_own", VIEWER, 30),
+    ]);
     expect(await handler(ctx, {})).toBe(2);
   });
 

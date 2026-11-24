@@ -6,12 +6,25 @@ const dom = new JSDOM("<!doctype html><body></body>");
 (globalThis as any).window = dom.window;
 const added: string[] = [];
 const realAdd = dom.window.addEventListener.bind(dom.window);
-dom.window.addEventListener = ((type: string, ...rest: any[]) => { added.push(type); return (realAdd as any)(type, ...rest); }) as any;
+dom.window.addEventListener = ((type: string, ...rest: any[]) => {
+  added.push(type);
+  return (realAdd as any)(type, ...rest);
+}) as any;
 const { hoverFocus, keyboardOwnsFocus } = await import("./focusSource");
-afterAll(() => { delete (globalThis as any).window; closeDomWindow(dom); });
+afterAll(() => {
+  delete (globalThis as any).window;
+  closeDomWindow(dom);
+});
 
-const key = (k: string) => dom.window.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: k }));
-const move = (x: number, y: number) => dom.window.dispatchEvent(Object.assign(new dom.window.Event("pointermove"), { screenX: x, screenY: y }));
+const key = (k: string) =>
+  dom.window.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: k }));
+const move = (x: number, y: number) =>
+  dom.window.dispatchEvent(
+    Object.assign(new dom.window.Event("pointermove"), {
+      screenX: x,
+      screenY: y,
+    }),
+  );
 
 // A page that only loads a module with a keyboard list (the homepage hero)
 // takes no page keys: the watch starts with the first row a list renders.

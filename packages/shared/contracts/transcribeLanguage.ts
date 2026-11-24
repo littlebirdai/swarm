@@ -17,7 +17,10 @@ export const FALLBACK_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
  * The session body the mint posts and the live socket updates with.
  * One shape, so the allowlist cannot drift between the two.
  */
-export function asrTranscriptionSession(model: string, languages: string[] = []) {
+export function asrTranscriptionSession(
+  model: string,
+  languages: string[] = [],
+) {
   const transcription: { model: string; languages?: string[] } = { model };
   if (languages.length) transcription.languages = languages;
   return {
@@ -85,11 +88,68 @@ const SCRIPT_OF_LANGUAGE: Record<string, TranscriptScript[]> = {
  *  with no words. Whisper's 57, plus the Chinese region forms and the
  *  two ISO-639-3 tags the live model documents. */
 const TRANSCRIBE_LANGUAGE_CODES = new Set([
-  "af", "ar", "hy", "az", "be", "bs", "bg", "ca", "zh", "zh-cn", "zh-tw", "zh-hk",
-  "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "gl", "de", "el", "he", "hi",
-  "hu", "is", "id", "it", "ja", "kn", "kk", "ko", "lv", "lt", "mk", "ms", "mr",
-  "mi", "ne", "no", "fa", "pl", "pt", "ro", "ru", "sr", "sk", "sl", "es", "sw",
-  "sv", "tl", "ta", "th", "tr", "uk", "ur", "vi", "cy", "yue", "cmn",
+  "af",
+  "ar",
+  "hy",
+  "az",
+  "be",
+  "bs",
+  "bg",
+  "ca",
+  "zh",
+  "zh-cn",
+  "zh-tw",
+  "zh-hk",
+  "hr",
+  "cs",
+  "da",
+  "nl",
+  "en",
+  "et",
+  "fi",
+  "fr",
+  "gl",
+  "de",
+  "el",
+  "he",
+  "hi",
+  "hu",
+  "is",
+  "id",
+  "it",
+  "ja",
+  "kn",
+  "kk",
+  "ko",
+  "lv",
+  "lt",
+  "mk",
+  "ms",
+  "mr",
+  "mi",
+  "ne",
+  "no",
+  "fa",
+  "pl",
+  "pt",
+  "ro",
+  "ru",
+  "sr",
+  "sk",
+  "sl",
+  "es",
+  "sw",
+  "sv",
+  "tl",
+  "ta",
+  "th",
+  "tr",
+  "uk",
+  "ur",
+  "vi",
+  "cy",
+  "yue",
+  "cmn",
 ]);
 
 /** Browser/OS tags that fold onto a code the recognizer actually has. */
@@ -164,7 +224,8 @@ export function scriptsForLanguage(code: string): TranscriptScript[] {
 
 export function letterScript(ch: string): TranscriptScript | null {
   if (/\p{Script=Latin}/u.test(ch)) return "latin";
-  if (/\p{Script=Hiragana}/u.test(ch) || /\p{Script=Katakana}/u.test(ch)) return "kana";
+  if (/\p{Script=Hiragana}/u.test(ch) || /\p{Script=Katakana}/u.test(ch))
+    return "kana";
   if (/\p{Script=Han}/u.test(ch)) return "han";
   if (/\p{Script=Hangul}/u.test(ch)) return "hangul";
   if (/\p{Script=Thai}/u.test(ch)) return "thai";
@@ -177,7 +238,9 @@ export function letterScript(ch: string): TranscriptScript | null {
 }
 
 /** The script most of the letters in `text` belong to, or null if none. */
-export function dominantTranscriptScript(text: string): TranscriptScript | null {
+export function dominantTranscriptScript(
+  text: string,
+): TranscriptScript | null {
   const counts = new Map<TranscriptScript, number>();
   let letters = 0;
   for (const ch of text) {
@@ -205,7 +268,10 @@ export function dominantTranscriptScript(text: string): TranscriptScript | null 
  * in every language we transcribe. An empty allowlist means "do not guess",
  * so nothing is unexpected.
  */
-export function isUnexpectedTranscript(text: string, languages: readonly string[]): boolean {
+export function isUnexpectedTranscript(
+  text: string,
+  languages: readonly string[],
+): boolean {
   if (languages.length === 0) return false;
   const script = dominantTranscriptScript(text);
   if (!script || script === "latin") return false;

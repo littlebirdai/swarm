@@ -4,12 +4,16 @@ import { cleanElement, cleanMessageBody } from "./room";
 
 describe("message bodies", () => {
   test("trims the ends, keeps inner lines, normalizes line endings", () => {
-    expect(cleanMessageBody("  make it blue\r\nand bigger  ")).toBe("make it blue\nand bigger");
+    expect(cleanMessageBody("  make it blue\r\nand bigger  ")).toBe(
+      "make it blue\nand bigger",
+    );
   });
 
   test("empty is null; long is capped", () => {
     expect(cleanMessageBody(" \n\t ")).toBeNull();
-    expect(cleanMessageBody("z".repeat(MESSAGE_BODY_MAX + 50))).toHaveLength(MESSAGE_BODY_MAX);
+    expect(cleanMessageBody("z".repeat(MESSAGE_BODY_MAX + 50))).toHaveLength(
+      MESSAGE_BODY_MAX,
+    );
   });
 });
 
@@ -28,7 +32,10 @@ describe("element references", () => {
   });
 
   test("drops empty optional fields; a reference naming nothing is null", () => {
-    expect(cleanElement({ selector: "#go", tag: "a", text: "  " })).toEqual({ selector: "#go", tag: "a" });
+    expect(cleanElement({ selector: "#go", tag: "a", text: "  " })).toEqual({
+      selector: "#go",
+      tag: "a",
+    });
     expect(cleanElement({ selector: " ", tag: "a" })).toBeNull();
   });
 });

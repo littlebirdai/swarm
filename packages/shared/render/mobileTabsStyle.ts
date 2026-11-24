@@ -33,7 +33,11 @@ export const MOBILE_TAB_BADGE_STYLE = {
   paddingRight: 3,
 } as const;
 
-export const MOBILE_TAB_BADGE_TEXT_STYLE = { color: "#fff", fontSize: 9, fontWeight: "700" } as const;
+export const MOBILE_TAB_BADGE_TEXT_STYLE = {
+  color: "#fff",
+  fontSize: 9,
+  fontWeight: "700",
+} as const;
 
 export const MOBILE_HEADER_STYLE = { borderBottomWidth: 1 } as const;
 
@@ -45,12 +49,19 @@ export const MOBILE_TABS = [
   { name: "chat", title: "Chat", label: "Chat", icon: "comments" },
   { name: "tasks", title: "Tasks", label: "Tasks", icon: "check-square-o" },
   // "Notifications" doesn't fit a 5-tab bar in mono: a short label, the full title on the screen's header.
-  { name: "notifications", title: "Notifications", label: "Alerts", icon: "bell" },
+  {
+    name: "notifications",
+    title: "Notifications",
+    label: "Alerts",
+    icon: "bell",
+  },
   { name: "settings", title: "Settings", label: "Settings", icon: "cog" },
 ] as const;
 
 export type MobileTabName = (typeof MOBILE_TABS)[number]["name"];
 
-export const MOBILE_TAB = Object.fromEntries(MOBILE_TABS.map((t) => [t.name, t])) as {
+export const MOBILE_TAB = Object.fromEntries(
+  MOBILE_TABS.map((t) => [t.name, t]),
+) as {
   [K in MobileTabName]: Extract<(typeof MOBILE_TABS)[number], { name: K }>;
 };

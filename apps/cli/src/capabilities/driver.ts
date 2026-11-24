@@ -11,13 +11,30 @@
 // user can write. A source-supplied writes[] list is kept only to COMPARE, and
 // a mismatch is a conflict and a refusal, never a merge.
 
-import { recordHarnessChange, removeHarnessFile, writeHarnessFile } from "../harness.js";
+import {
+  recordHarnessChange,
+  removeHarnessFile,
+  writeHarnessFile,
+} from "../harness.js";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { findOwnedSections, getProjectSnippetTargets, getSnippetTargets, writeOwnedSection, type SectionSpec } from "../snippets.js";
-import { contentHash, judgeOwnedFile, type OwnedFileRecord } from "./handEdit.js";
-import { checkProjectWrite, type ProjectWritesSetting } from "./projectWrites.js";
+import {
+  findOwnedSections,
+  getProjectSnippetTargets,
+  getSnippetTargets,
+  writeOwnedSection,
+  type SectionSpec,
+} from "../snippets.js";
+import {
+  contentHash,
+  judgeOwnedFile,
+  type OwnedFileRecord,
+} from "./handEdit.js";
+import {
+  checkProjectWrite,
+  type ProjectWritesSetting,
+} from "./projectWrites.js";
 
 /* ==========================================================================
  * The op union — phase 2 arms only
@@ -29,7 +46,14 @@ import { checkProjectWrite, type ProjectWritesSetting } from "./projectWrites.js
 export type PlannedOp =
   /** `bytes`, when present, is what lands on disk: a file that is not text
    *  (an image in a skill), which `content` as a string would corrupt. */
-  | { op: "write_file"; path: string; content: string; bytes?: Uint8Array; mode?: number; slug: string }
+  | {
+      op: "write_file";
+      path: string;
+      content: string;
+      bytes?: Uint8Array;
+      mode?: number;
+      slug: string;
+    }
   | { op: "symlink"; path: string; target: string; slug: string }
   | { op: "remove"; path: string; slug: string }
   /** A file or directory someone else made, renamed to `to` (never deleted)
@@ -38,7 +62,14 @@ export type PlannedOp =
   /** One owned region of a markdown instruction file: `body` written in place
    *  (or appended), or the region cut with `body: null`. `record` is what the
    *  ledger holds for (slug, path) afterwards; absent drops the entry. */
-  | { op: "markdown_section"; path: string; slug: string; spec: SectionSpec; body: string | null; record?: SectionRecord }
+  | {
+      op: "markdown_section";
+      path: string;
+      slug: string;
+      spec: SectionSpec;
+      body: string | null;
+      record?: SectionRecord;
+    }
   | { op: "conflict"; slug: string; reason: string; detail?: string };
 
 /** One capability's desired materialization, already resolved and consented. */
@@ -165,7 +196,9 @@ export function plan(
     }
 
     const abs = realTarget(path.resolve(home, want.relPath));
-    const inRoots = roots.some((root) => abs === root || abs.startsWith(root + path.sep));
+    const inRoots = roots.some(
+      (root) => abs === root || abs.startsWith(root + path.sep),
+    );
     if (!inRoots) {
       ops.push({
         op: "conflict",
@@ -186,7 +219,13 @@ export function plan(
     if (existing !== undefined && contentEqual(existing, want.content, abs)) {
       continue; // steady state: zero ops is the point
     }
-    ops.push({ op: "write_file", path: abs, content: want.content, mode: want.mode, slug: want.slug });
+    ops.push({
+      op: "write_file",
+      path: abs,
+      content: want.content,
+      mode: want.mode,
+      slug: want.slug,
+    });
   }
 
   // Removal: exactly what the ledger records and the desire no longer wants.
@@ -195,7 +234,9 @@ export function plan(
     if (wantedSlugs.has(slug)) continue;
     for (const file of files) {
       const abs = realTarget(path.resolve(file));
-      const inRoots = roots.some((root) => abs === root || abs.startsWith(root + path.sep));
+      const inRoots = roots.some(
+        (root) => abs === root || abs.startsWith(root + path.sep),
+      );
       if (!inRoots) {
         // A ledger entry outside the roots is a corrupted or tampered ledger;
         // refusing loudly beats deleting whatever it points at now.
@@ -256,7 +297,10 @@ const MARKER_SAFE = /^[A-Za-z0-9._:\/-]+$/;
 
 /** The heading line, made safe to own: one line, and a level-2 heading. */
 function headingLine(heading: string): string {
-  const flat = heading.replace(/\s+/g, " ").replace(/^#+\s*/, "").trim();
+  const flat = heading
+    .replace(/\s+/g, " ")
+    .replace(/^#+\s*/, "")
+    .trim();
   return `## ${flat}`;
 }
 
@@ -274,7 +318,11 @@ function regionBody(body: string): string {
 /** The section as the writer receives it: padded with one newline at each
  *  end, the shape every builtin body has (the append path wants the leading
  *  newline; the in-place path trims it). */
-export function renderOwnedSection(heading: string, body: string, slug: string): string {
+export function renderOwnedSection(
+  heading: string,
+  body: string,
+  slug: string,
+): string {
   return `\n${headingLine(heading)}\n\n${regionBody(body)}\n\n${sectionMarker(slug)}\n`;
 }
 
@@ -282,9 +330,14 @@ export function renderOwnedSection(heading: string, body: string, slug: string):
  *  item replaces its old region instead of stacking a second one. */
 function headingsBefore(text: string, marker: string): string[] {
   const out: string[] = [];
-  for (let at = text.indexOf(marker); at !== -1; at = text.indexOf(marker, at + marker.length)) {
+  for (
+    let at = text.indexOf(marker);
+    at !== -1;
+    at = text.indexOf(marker, at + marker.length)
+  ) {
     const start = text.lastIndexOf("\n## ", at);
-    const lineStart = start === -1 ? (text.startsWith("## ") ? 0 : -1) : start + 1;
+    const lineStart =
+      start === -1 ? (text.startsWith("## ") ? 0 : -1) : start + 1;
     if (lineStart === -1) continue;
     const lineEnd = text.indexOf("\n", lineStart);
     out.push(text.slice(lineStart, lineEnd === -1 ? undefined : lineEnd));
@@ -306,18 +359,41 @@ function ownedRegion(text: string | undefined, slug: string, heading?: string) {
   const endMarker = sectionMarker(slug);
   const found = text === undefined ? [] : headingsBefore(text, endMarker);
   const headings = [...new Set([...(heading ? [heading] : []), ...found])];
-  const spec: SectionSpec = { headings: headings.length ? headings : [heading ?? "## "], endMarker };
-  const block = text === undefined ? undefined : findOwnedSections(text, spec)[0];
-  return { spec, region: block ? normalizeText(text!.slice(block.start, block.end)) : undefined };
+  const spec: SectionSpec = {
+    headings: headings.length ? headings : [heading ?? "## "],
+    endMarker,
+  };
+  const block =
+    text === undefined ? undefined : findOwnedSections(text, spec)[0];
+  return {
+    spec,
+    region: block
+      ? normalizeText(text!.slice(block.start, block.end))
+      : undefined,
+  };
 }
 
 /** Every kit region in an instruction file: its slug, heading line, the body
  *  between them, and its [start, end) offsets. For readers (promote) that need
  *  to tell the team's installed sections from the person's own lines. */
-export function findKitSections(text: string): Array<{ slug: string; heading: string; body: string; start: number; end: number }> {
-  const out: Array<{ slug: string; heading: string; body: string; start: number; end: number }> = [];
+export function findKitSections(text: string): Array<{
+  slug: string;
+  heading: string;
+  body: string;
+  start: number;
+  end: number;
+}> {
+  const out: Array<{
+    slug: string;
+    heading: string;
+    body: string;
+    start: number;
+    end: number;
+  }> = [];
   const seen = new Set<string>();
-  for (const m of text.matchAll(/<!-- \/codecast-kit ([A-Za-z0-9._:\/-]+) -->/g)) {
+  for (const m of text.matchAll(
+    /<!-- \/codecast-kit ([A-Za-z0-9._:\/-]+) -->/g,
+  )) {
     const slug = m[1]!;
     if (seen.has(slug)) continue;
     seen.add(slug);
@@ -326,7 +402,11 @@ export function findKitSections(text: string): Array<{ slug: string; heading: st
       const region = text.slice(block.start, block.end);
       const nl = region.indexOf("\n");
       const heading = region.slice(0, nl === -1 ? undefined : nl);
-      const body = region.slice(heading.length).split(spec.endMarker).join("").trim();
+      const body = region
+        .slice(heading.length)
+        .split(spec.endMarker)
+        .join("")
+        .trim();
       out.push({ slug, heading, body, start: block.start, end: block.end });
     }
   }
@@ -347,43 +427,79 @@ export function findKitSections(text: string): Array<{ slug: string; heading: st
  * was edited by hand, which is a conflict instead: the edit is theirs now.
  * Equality is normalizeText, the driver's trailing-whitespace rule.
  */
-export function planSections(desired: DesiredSection[], ledger: DriverLedger, opts: SectionPlanOptions): PlannedOp[] {
+export function planSections(
+  desired: DesiredSection[],
+  ledger: DriverLedger,
+  opts: SectionPlanOptions,
+): PlannedOp[] {
   const ops: PlannedOp[] = [];
   const records = ledger.sections ?? {};
-  const guard = (file: string, projectRoot: string | undefined, slug: string): boolean => {
+  const guard = (
+    file: string,
+    projectRoot: string | undefined,
+    slug: string,
+  ): boolean => {
     if (!projectRoot) return true;
-    const verdict = checkProjectWrite(file, { setting: opts.projectWrites, overrideTracked: opts.overrideTracked, log: opts.log });
+    const verdict = checkProjectWrite(file, {
+      setting: opts.projectWrites,
+      overrideTracked: opts.overrideTracked,
+      log: opts.log,
+    });
     if (verdict.ok) return true;
-    ops.push({ op: "conflict", slug, reason: "project_write_refused", detail: verdict.detail });
+    ops.push({
+      op: "conflict",
+      slug,
+      reason: "project_write_refused",
+      detail: verdict.detail,
+    });
     return false;
   };
 
   for (const want of desired) {
     if (!MARKER_SAFE.test(want.slug)) {
-      ops.push({ op: "conflict", slug: want.slug, reason: "invalid_slug", detail: "a section slug may hold only letters, digits and ._:/-" });
+      ops.push({
+        op: "conflict",
+        slug: want.slug,
+        reason: "invalid_slug",
+        detail: "a section slug may hold only letters, digits and ._:/-",
+      });
       continue;
     }
     const heading = headingLine(want.heading);
     const body = renderOwnedSection(want.heading, want.body, want.slug);
     const desiredRegion = normalizeText(body.replace(/^\n+/, ""));
-    const targets = want.projectRoot ? getProjectSnippetTargets(want.projectRoot, opts.home) : getSnippetTargets(opts.home);
+    const targets = want.projectRoot
+      ? getProjectSnippetTargets(want.projectRoot, opts.home)
+      : getSnippetTargets(opts.home);
 
     for (const target of targets) {
       const text = readText(target.filePath);
       const { spec, region } = ownedRegion(text, want.slug, heading);
-      let record: SectionRecord | undefined = records[want.slug]?.[target.filePath];
+      let record: SectionRecord | undefined =
+        records[want.slug]?.[target.filePath];
       // A missing directory is not a deletion of our region: the whole tree
       // moved or was never there. First-install semantics apply.
-      if (text === undefined && !fs.existsSync(path.dirname(target.filePath))) record = undefined;
+      if (text === undefined && !fs.existsSync(path.dirname(target.filePath)))
+        record = undefined;
 
       const verdict = judgeOwnedFile(record, region, desiredRegion);
       if (verdict.action === "none") continue;
       if (verdict.action === "conflict") {
-        ops.push({ op: "conflict", slug: want.slug, reason: "locally_modified", detail: target.filePath });
+        ops.push({
+          op: "conflict",
+          slug: want.slug,
+          reason: "locally_modified",
+          detail: target.filePath,
+        });
         continue;
       }
       if (verdict.action === "hold") {
-        ops.push({ op: "conflict", slug: want.slug, reason: "locally_removed", detail: target.filePath });
+        ops.push({
+          op: "conflict",
+          slug: want.slug,
+          reason: "locally_removed",
+          detail: target.filePath,
+        });
         continue;
       }
       if (!guard(target.filePath, want.projectRoot, want.slug)) continue;
@@ -395,7 +511,9 @@ export function planSections(desired: DesiredSection[], ledger: DriverLedger, op
         body,
         record: {
           wroteHash: contentHash(desiredRegion),
-          ...(verdict.action === "recreate" || record?.recreatedOnce ? { recreatedOnce: true } : {}),
+          ...(verdict.action === "recreate" || record?.recreatedOnce
+            ? { recreatedOnce: true }
+            : {}),
           ...(want.projectRoot ? { projectRoot: want.projectRoot } : {}),
         },
       });
@@ -408,11 +526,22 @@ export function planSections(desired: DesiredSection[], ledger: DriverLedger, op
     for (const [file, record] of Object.entries(files)) {
       const { spec, region } = ownedRegion(readText(file), slug);
       if (region === undefined) {
-        ops.push({ op: "markdown_section", path: file, slug, spec, body: null }); // already gone: forget it
+        ops.push({
+          op: "markdown_section",
+          path: file,
+          slug,
+          spec,
+          body: null,
+        }); // already gone: forget it
         continue;
       }
       if (contentHash(region) !== record.wroteHash) {
-        ops.push({ op: "conflict", slug, reason: "locally_modified", detail: file });
+        ops.push({
+          op: "conflict",
+          slug,
+          reason: "locally_modified",
+          detail: file,
+        });
         continue;
       }
       if (!guard(file, record.projectRoot, slug)) continue;
@@ -446,9 +575,17 @@ export interface ApplyOutcome {
 export function apply(ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
   const next: DriverLedger = { ...ledger, files: { ...ledger.files } };
   if (ledger.sections) {
-    next.sections = Object.fromEntries(Object.entries(ledger.sections).map(([k, v]) => [k, { ...v }]));
+    next.sections = Object.fromEntries(
+      Object.entries(ledger.sections).map(([k, v]) => [k, { ...v }]),
+    );
   }
-  const outcome: ApplyOutcome = { wrote: [], removed: [], conflicts: [], moved: [], ledger: next };
+  const outcome: ApplyOutcome = {
+    wrote: [],
+    removed: [],
+    conflicts: [],
+    moved: [],
+    ledger: next,
+  };
   // A slug whose move_aside or write failed writes nothing more: its later ops
   // would land on the very file that could not be moved, or pile onto a
   // half-installed item.
@@ -459,22 +596,35 @@ export function apply(ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
   // codecast's own files as `not_ours`. The failure becomes a conflict, the
   // slug stops, and what did land stays in the ledger.
   const writeFailed = (op: { slug: string; path: string }, err: unknown) => {
-    outcome.conflicts.push({ slug: op.slug, reason: "write_failed", detail: `${op.path}: ${String(err).slice(0, 160)}` });
+    outcome.conflicts.push({
+      slug: op.slug,
+      reason: "write_failed",
+      detail: `${op.path}: ${String(err).slice(0, 160)}`,
+    });
     halted.add(op.slug);
   };
 
   for (const op of ops) {
     if (halted.has(op.slug)) continue;
     if (op.op === "conflict") {
-      outcome.conflicts.push({ slug: op.slug, reason: op.reason, detail: op.detail });
+      outcome.conflicts.push({
+        slug: op.slug,
+        reason: op.reason,
+        detail: op.detail,
+      });
       continue;
     }
     if (op.op === "write_file") {
       try {
-        writeHarnessFile(op.path, op.bytes ?? op.content, `capability:${op.slug}`, {
-          mode: op.mode,
-          executable: op.mode !== undefined && (op.mode & 0o111) !== 0,
-        });
+        writeHarnessFile(
+          op.path,
+          op.bytes ?? op.content,
+          `capability:${op.slug}`,
+          {
+            mode: op.mode,
+            executable: op.mode !== undefined && (op.mode & 0o111) !== 0,
+          },
+        );
       } catch (err) {
         writeFailed(op, err);
         continue;
@@ -488,12 +638,18 @@ export function apply(ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
     if (op.op === "markdown_section") {
       let changed: boolean;
       try {
-        changed = writeOwnedSection({ filePath: op.path }, op.spec, op.body, `capability:${op.slug}`);
+        changed = writeOwnedSection(
+          { filePath: op.path },
+          op.spec,
+          op.body,
+          `capability:${op.slug}`,
+        );
       } catch (err) {
         writeFailed(op, err);
         continue;
       }
-      if (changed) (op.body === null ? outcome.removed : outcome.wrote).push(op.path);
+      if (changed)
+        (op.body === null ? outcome.removed : outcome.wrote).push(op.path);
       const sections = (next.sections ??= {});
       const files = (sections[op.slug] ??= {});
       if (op.record) files[op.path] = op.record;
@@ -505,11 +661,23 @@ export function apply(ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
       try {
         fs.mkdirSync(path.dirname(op.to), { recursive: true });
         fs.renameSync(op.path, op.to);
-        recordHarnessChange(op.path, "removed", `capability:${op.slug} (moved aside to ${path.basename(op.to)})`);
-        recordHarnessChange(op.to, "created", `capability:${op.slug} (the original, moved aside)`);
+        recordHarnessChange(
+          op.path,
+          "removed",
+          `capability:${op.slug} (moved aside to ${path.basename(op.to)})`,
+        );
+        recordHarnessChange(
+          op.to,
+          "created",
+          `capability:${op.slug} (the original, moved aside)`,
+        );
         outcome.moved.push({ slug: op.slug, from: op.path, to: op.to });
       } catch (err) {
-        outcome.conflicts.push({ slug: op.slug, reason: "move_aside_failed", detail: `${op.path}: ${String(err).slice(0, 160)}` });
+        outcome.conflicts.push({
+          slug: op.slug,
+          reason: "move_aside_failed",
+          detail: `${op.path}: ${String(err).slice(0, 160)}`,
+        });
         halted.add(op.slug);
       }
       continue;
@@ -536,7 +704,8 @@ export function apply(ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
     }
     // remove
     try {
-      if (!removeHarnessFile(op.path, `capability:${op.slug}`)) fs.unlinkSync(op.path);
+      if (!removeHarnessFile(op.path, `capability:${op.slug}`))
+        fs.unlinkSync(op.path);
       outcome.removed.push(op.path);
     } catch {
       // Already gone: removal is idempotent.

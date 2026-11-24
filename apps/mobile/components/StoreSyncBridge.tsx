@@ -1,27 +1,34 @@
-import { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
-import { useSyncCore } from '@codecast/web/hooks/useSyncCore';
-import { usePendingMessageCoverage } from '@codecast/web/hooks/usePendingMessageCoverage';
-import { useAdoptTimezone } from '@codecast/web/hooks/useAdoptTimezone';
-import { useSessionCommandResults } from '@codecast/web/hooks/useSessionCommands';
-import { useSyncLandedReach } from '@codecast/web/hooks/useSessionShipState';
-import { useSyncDevices } from '@codecast/web/hooks/useSyncDevices';
-import { useRecentProjectsFeed } from '@codecast/web/hooks/useRecentProjectsFeed';
-import { setTriggerFeedArgs, useSyncTriggers } from '@codecast/web/hooks/useSyncTriggers';
-import { useSyncTeams } from '@codecast/web/hooks/useSyncTeams';
-import { useSyncTeamMembers } from '@codecast/web/hooks/useSyncTeamMembers';
-import { useChatChannelsSync } from '@codecast/web/hooks/useChatSync';
-import { ChatPrefetchFeeder } from '@codecast/web/hooks/useChatPrefetch';
-import { useCallBaseFeeds } from '@codecast/web/hooks/useCallBaseFeeds';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { activeTeamIdOf } from '@codecast/web/lib/activeTeam';
-import { useSyncWorkspaceData } from '@/hooks/useSyncWorkspaceData';
-import { useSyncSecrets } from '@codecast/web/hooks/useSyncSecrets';
-import { useFetchUserSkillsOnce } from '@codecast/web/hooks/useSyncUserSkills';
-import { emitSyncWake } from '@codecast/web/hooks/syncWake';
-import { flushPersistence, loadSplitRows, persistSplitRows } from '@codecast/web/store/idbCache';
-import { setSplitPersistence } from '@codecast/web/hooks/useSplitQuery';
-import { bootMark } from '@/lib/bootProfile';
+import { useEffect, useState } from "react";
+import { AppState } from "react-native";
+import { useSyncCore } from "@codecast/web/hooks/useSyncCore";
+import { usePendingMessageCoverage } from "@codecast/web/hooks/usePendingMessageCoverage";
+import { useAdoptTimezone } from "@codecast/web/hooks/useAdoptTimezone";
+import { useSessionCommandResults } from "@codecast/web/hooks/useSessionCommands";
+import { useSyncLandedReach } from "@codecast/web/hooks/useSessionShipState";
+import { useSyncDevices } from "@codecast/web/hooks/useSyncDevices";
+import { useRecentProjectsFeed } from "@codecast/web/hooks/useRecentProjectsFeed";
+import {
+  setTriggerFeedArgs,
+  useSyncTriggers,
+} from "@codecast/web/hooks/useSyncTriggers";
+import { useSyncTeams } from "@codecast/web/hooks/useSyncTeams";
+import { useSyncTeamMembers } from "@codecast/web/hooks/useSyncTeamMembers";
+import { useChatChannelsSync } from "@codecast/web/hooks/useChatSync";
+import { ChatPrefetchFeeder } from "@codecast/web/hooks/useChatPrefetch";
+import { useCallBaseFeeds } from "@codecast/web/hooks/useCallBaseFeeds";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { activeTeamIdOf } from "@codecast/web/lib/activeTeam";
+import { useSyncWorkspaceData } from "@/hooks/useSyncWorkspaceData";
+import { useSyncSecrets } from "@codecast/web/hooks/useSyncSecrets";
+import { useFetchUserSkillsOnce } from "@codecast/web/hooks/useSyncUserSkills";
+import { emitSyncWake } from "@codecast/web/hooks/syncWake";
+import {
+  flushPersistence,
+  loadSplitRows,
+  persistSplitRows,
+} from "@codecast/web/store/idbCache";
+import { setSplitPersistence } from "@codecast/web/hooks/useSplitQuery";
+import { bootMark } from "@/lib/bootProfile";
 
 // The split inbox queries keep their rows in the SQLite cache across launches
 // (hooks/useSplitQuery), so a cold start rebuilds the inbox from disk instead
@@ -58,7 +65,9 @@ export function StoreSyncBridge() {
   // query at once and would steal the JS thread from painting the cached
   // inbox. Arm after commit so first content paint wins.
   const [armed, setArmed] = useState(false);
-  useEffect(() => { setArmed(true); }, []);
+  useEffect(() => {
+    setArmed(true);
+  }, []);
   if (!armed) return null;
   // The prefetch fills the rows behind every room's rail line and every chat
   // notification, so the Chat tab shows only what a room already holds and a
@@ -73,7 +82,7 @@ export function StoreSyncBridge() {
 }
 
 function StoreSyncBridgeInner() {
-  useSyncCore('mobile');
+  useSyncCore("mobile");
   // Settles the sends the server holds and fails the ones it refused, every
   // minute and on wake, as web's DashboardSyncEffects does for each window.
   // A send the server consumes without a transcript row (an approval's answer
@@ -109,11 +118,13 @@ function StoreSyncBridgeInner() {
   // The slash pills' skills catalog: read once per launch and kept on disk.
   // It is large and rarely changes, so a reconnect never downloads it again.
   useFetchUserSkillsOnce();
-  useEffect(() => { bootMark("sync-armed"); }, []);
+  useEffect(() => {
+    bootMark("sync-armed");
+  }, []);
   // eslint-disable-next-line no-restricted-syntax -- platform wake-source wiring
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') emitSyncWake();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") emitSyncWake();
       // Scheduled cache writes (idbCache.native) ride a short delay; iOS may
       // suspend or kill a backgrounded app at any moment, so land them now.
       else void flushPersistence();

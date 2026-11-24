@@ -26,10 +26,25 @@ import { ORG_MEET_TITLE, ORG_MEET_LINES } from "../../lib/orgIntroCard";
 
 // ---------------------------------------------------------------- the card
 
-export function OrgIntroCard({ onSee, onDismiss }: { onSee: () => void; onDismiss: () => void }) {
+export function OrgIntroCard({
+  onSee,
+  onDismiss,
+}: {
+  onSee: () => void;
+  onDismiss: () => void;
+}) {
   return (
     <RisingCard
-      face={<RoleFace role={{ handle: HEAD_OF_PEOPLE_HANDLE, avatar: ORG_INTRO_HEAD_OF_PEOPLE, name: HEAD_OF_PEOPLE_NAME }} size={46} />}
+      face={
+        <RoleFace
+          role={{
+            handle: HEAD_OF_PEOPLE_HANDLE,
+            avatar: ORG_INTRO_HEAD_OF_PEOPLE,
+            name: HEAD_OF_PEOPLE_NAME,
+          }}
+          size={46}
+        />
+      }
       title={ORG_MEET_TITLE}
       lines={ORG_MEET_LINES}
       primaryLabel="See it"

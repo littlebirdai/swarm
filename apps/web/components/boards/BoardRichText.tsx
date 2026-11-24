@@ -20,7 +20,9 @@ function link(href: string, label: ReactNode, key: number): ReactNode {
       tabIndex={-1}
       className="board-a"
       // A press on the canvas selects and drags the element; Cmd/Ctrl-click opens the link.
-      onClick={(e) => { if (!(e.metaKey || e.ctrlKey)) e.preventDefault(); }}
+      onClick={(e) => {
+        if (!(e.metaKey || e.ctrlKey)) e.preventDefault();
+      }}
     >
       {label}
     </a>
@@ -44,10 +46,17 @@ function inlineMarks(text: string): ReactNode[] {
  * Lines with their marks. `titleFirst` draws a sticky's first line bold when
  * more lines follow (a card's title over its body).
  */
-export function RichText({ text, titleFirst }: { text: string; titleFirst?: boolean }) {
+export function RichText({
+  text,
+  titleFirst,
+}: {
+  text: string;
+  titleFirst?: boolean;
+}) {
   const lines = richLines(text);
   // One plain line stays bare text: it is the sticky's title, the one line the far zoom level keeps.
-  if (lines.length === 1 && lines[0].kind === "text") return <>{inlineMarks(lines[0].text)}</>;
+  if (lines.length === 1 && lines[0].kind === "text")
+    return <>{inlineMarks(lines[0].text)}</>;
   return (
     <>
       {lines.map((l, i) => {
@@ -55,13 +64,24 @@ export function RichText({ text, titleFirst }: { text: string; titleFirst?: bool
         if (l.kind !== "text") {
           return (
             <span key={i} className="board-line board-li" style={LI}>
-              <span aria-hidden style={{ flex: "none", opacity: 0.7 }}>{l.kind === "bullet" ? "•" : `${l.n}.`}</span>
+              <span aria-hidden style={{ flex: "none", opacity: 0.7 }}>
+                {l.kind === "bullet" ? "•" : `${l.n}.`}
+              </span>
               <span>{body}</span>
             </span>
           );
         }
-        if (titleFirst && i === 0) return <strong key={i} className="board-line">{body}</strong>;
-        return <span key={i} className="board-line">{l.text ? body : "\u00a0"}</span>;
+        if (titleFirst && i === 0)
+          return (
+            <strong key={i} className="board-line">
+              {body}
+            </strong>
+          );
+        return (
+          <span key={i} className="board-line">
+            {l.text ? body : "\u00a0"}
+          </span>
+        );
       })}
     </>
   );

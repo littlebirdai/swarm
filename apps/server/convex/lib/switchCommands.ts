@@ -18,11 +18,16 @@ import {
 import { fleetHostFollowsSwitch } from "../ccSwitchAhead";
 import { withSafetyBlock } from "@codecast/shared/contracts";
 
-export async function hasUndeliveredContinue(ctx: { db: any }, conversationId: Id<"conversations">): Promise<boolean> {
+export async function hasUndeliveredContinue(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   for (const status of ["pending", "injected"] as const) {
     const rows = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", status))
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conversationId).eq("status", status),
+      )
       .take(50);
     if (rows.some((m: any) => m.content === "continue")) return true;
   }
@@ -101,7 +106,9 @@ export async function insertSwitchCommands(
     if (await hasUndeliveredContinue(ctx, conv._id)) return;
     await enqueuePendingMessage(ctx, conv, userId, {
       content: "continue",
-      client_id: opts.continueClientIds?.[conv._id] ?? blockedContinueClientId(conv._id, opts.now),
+      client_id:
+        opts.continueClientIds?.[conv._id] ??
+        blockedContinueClientId(conv._id, opts.now),
     });
     messaged++;
   };
@@ -130,7 +137,9 @@ export async function insertSwitchCommands(
   // (nothing blocked — the Settings flow), and a fleet with remote-owned
   // sessions (remotes never swap locally; their credential is the primary's
   // push, so the primary must perform the swap for their revive to matter).
-  const hasRemoteGroup = [...groups.keys()].some((id) => runsPushedLogin(deviceFor(id)));
+  const hasRemoteGroup = [...groups.keys()].some((id) =>
+    runsPushedLogin(deviceFor(id)),
+  );
   if (
     switchRequested &&
     opts.primary &&
@@ -142,7 +151,13 @@ export async function insertSwitchCommands(
   if (opts.switchFleetHosts && switchRequested) {
     for (const device of opts.online) {
       if (groups.has(device.device_id) || !runsOwnFleet(device)) continue;
-      if (!fleetHostFollowsSwitch(device, { profile: opts.profile, email: targetEmail })) continue;
+      if (
+        !fleetHostFollowsSwitch(device, {
+          profile: opts.profile,
+          email: targetEmail,
+        })
+      )
+        continue;
       groups.set(device.device_id, []);
     }
   }
@@ -199,7 +214,9 @@ export async function insertSwitchCommands(
     // (continueNeedsRestart); the rest get the message a hand-typed continue
     // would send.
     const onFleetStore = !isRemote && device?.cc_accounts?.fleet_store === true;
-    const restart = switchRequested ? convs : convs.filter((c) => continueNeedsRestart(c, device, opts.now));
+    const restart = switchRequested
+      ? convs
+      : convs.filter((c) => continueNeedsRestart(c, device, opts.now));
     if (!switchRequested && opts.continueBlocked) {
       for (const c of convs) if (!restart.includes(c)) await sendContinue(c);
     }
@@ -210,11 +227,17 @@ export async function insertSwitchCommands(
     // The daemon reads the pin from the row at resume, so it is corrected here,
     // before the kill command exists.
     if (!isRemote) {
-      const pin = switchRequested && !onFleetStore
-        ? tokenBackedProfile(device?.cc_accounts, { profile: localProfile }, opts.now)
-        : continueTargetPin(device, opts.now);
+      const pin =
+        switchRequested && !onFleetStore
+          ? tokenBackedProfile(
+              device?.cc_accounts,
+              { profile: localProfile },
+              opts.now,
+            )
+          : continueTargetPin(device, opts.now);
       for (const c of restart) {
-        if ((c.cc_account ?? undefined) !== pin) await ctx.db.patch(c._id, { cc_account: pin, cc_account_auto: true });
+        if ((c.cc_account ?? undefined) !== pin)
+          await ctx.db.patch(c._id, { cc_account: pin, cc_account_auto: true });
       }
     }
     if (restart.length === 0 && !(switchRequested && !isRemote)) continue;
@@ -228,13 +251,17 @@ export async function insertSwitchCommands(
           // primary's push. They only recycle their blocked sessions.
           profile: isRemote ? undefined : localProfile,
           conversation_ids: restart.map((c) => c._id),
-          session_ids: Object.fromEntries(restart.map((c) => [c._id, c.session_id])),
+          session_ids: Object.fromEntries(
+            restart.map((c) => [c._id, c.session_id]),
+          ),
           continue_blocked: opts.continueBlocked,
           ...(opts.continueClientIds
             ? {
                 client_ids: Object.fromEntries(
                   restart
-                    .map((c) => [c._id, opts.continueClientIds![c._id]] as const)
+                    .map(
+                      (c) => [c._id, opts.continueClientIds![c._id]] as const,
+                    )
                     .filter(([, clientId]) => !!clientId),
                 ),
               }
@@ -252,20 +279,32 @@ export async function insertSwitchCommands(
     const commandId = commandIds[commandIds.length - 1];
     // Callers that drive this with a fake db (the recovery tests) pass no
     // scheduler. A present runAfter is the production mutation ctx.
-    const runAfter = (ctx as { scheduler?: { runAfter?: (delayMs: number, fn: any, args: any) => Promise<unknown> } }).scheduler?.runAfter;
+    const runAfter = (
+      ctx as {
+        scheduler?: {
+          runAfter?: (delayMs: number, fn: any, args: any) => Promise<unknown>;
+        };
+      }
+    ).scheduler?.runAfter;
     if (paced.length > 0 && runAfter && switchRequested) {
-      await runAfter(
-        0,
-        internal.accountSwitch.enqueueSwitchContinue,
-        {
-          user_id: userId,
-          command_id: commandId,
-          conversation_ids: paced.map((c) => c._id),
-          index: 0,
-          ...(opts.continueClientIds ? { client_ids: opts.continueClientIds } : {}),
-        },
-      );
+      await runAfter(0, internal.accountSwitch.enqueueSwitchContinue, {
+        user_id: userId,
+        command_id: commandId,
+        conversation_ids: paced.map((c) => c._id),
+        index: 0,
+        ...(opts.continueClientIds
+          ? { client_ids: opts.continueClientIds }
+          : {}),
+      });
     }
   }
-  return { devices: commandIds.length, routed, restarted, messaged, unswitchable, unswitchableDevices, commandIds };
+  return {
+    devices: commandIds.length,
+    routed,
+    restarted,
+    messaged,
+    unswitchable,
+    unswitchableDevices,
+    commandIds,
+  };
 }

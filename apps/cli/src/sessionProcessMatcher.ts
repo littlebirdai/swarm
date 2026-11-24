@@ -26,7 +26,9 @@ import { tmuxRun } from "./tmux.js";
 // interpreters keep the historic path-tolerant substring match (comm is often a
 // full path like "/opt/homebrew/bin/node").
 const AGENT_BINARY_BASENAMES = new Set(
-  Object.values(LOCAL_AGENT_CLIENTS).map((d) => basename(d.binary).toLowerCase())
+  Object.values(LOCAL_AGENT_CLIENTS).map((d) =>
+    basename(d.binary).toLowerCase(),
+  ),
 );
 const AGENT_INTERPRETERS = ["node", "bun", "deno"];
 
@@ -53,7 +55,11 @@ export function isRecognizedAgentComm(comm: string): boolean {
 /** Flags whose value is free prose (a system prompt, grok's rules). A ps line
  *  joins argv with spaces, so the value's end is unknowable: every token after
  *  one of these may be its text, which quotes commands like `cast feed -p 2`. */
-const PROSE_VALUE_FLAGS = new Set(["--rules", "--append-system-prompt", "--system-prompt"]);
+const PROSE_VALUE_FLAGS = new Set([
+  "--rules",
+  "--append-system-prompt",
+  "--system-prompt",
+]);
 
 /** The agent binary of a headless run (`claude -p`, `codex exec`) from its full
  *  `ps -o command=` line, or null for an interactive agent or any other process.
@@ -62,7 +68,9 @@ const PROSE_VALUE_FLAGS = new Set(["--rules", "--append-system-prompt", "--syste
  *  may be text inside that flag's value. */
 export function headlessAgentOfCommand(command: string): string | null {
   const tokens = command.trim().split(/\s+/);
-  const at = tokens.slice(0, 2).findIndex((t) => AGENT_BINARY_BASENAMES.has(agentBasename(t)));
+  const at = tokens
+    .slice(0, 2)
+    .findIndex((t) => AGENT_BINARY_BASENAMES.has(agentBasename(t)));
   if (at < 0) return null;
   const bin = agentBasename(tokens[at]);
   const args = tokens.slice(at + 1);
@@ -89,17 +97,24 @@ const AGENT_BINARY_ALIASES = new Set(["gemini-cli"]);
  * Exact basename matches only: this names the process, it must not treat a
  * plain interpreter as an agent the way isRecognizedAgentComm does.
  */
-export function agentBinaryFromPsRow(comm: string, args: string): string | null {
+export function agentBinaryFromPsRow(
+  comm: string,
+  args: string,
+): string | null {
   const argv = args.trim().split(/\s+/);
   const candidates = [argv[0] ?? ""];
-  if (AGENT_INTERPRETERS.includes(basename(argv[0] ?? "").toLowerCase()) && argv[1]) {
+  if (
+    AGENT_INTERPRETERS.includes(basename(argv[0] ?? "").toLowerCase()) &&
+    argv[1]
+  ) {
     candidates.push(argv[1]);
   }
   candidates.push(comm);
   for (const c of candidates) {
     const bin = agentBasename(c);
     if (!bin) continue;
-    if (AGENT_BINARY_BASENAMES.has(bin) || AGENT_BINARY_ALIASES.has(bin)) return bin;
+    if (AGENT_BINARY_BASENAMES.has(bin) || AGENT_BINARY_ALIASES.has(bin))
+      return bin;
   }
   return null;
 }
@@ -117,27 +132,37 @@ export interface StartedSessionEntry {
   startedAt: number;
 }
 
-export function isResumeInvocation(agentType: AgentClientId, commandLine: string): boolean {
-  if (agentType === "antigravity") return /\s(?:--conversation|--continue|-c)(\s|=|$)/.test(commandLine); // agy reopens by id or the latest
+export function isResumeInvocation(
+  agentType: AgentClientId,
+  commandLine: string,
+): boolean {
+  if (agentType === "antigravity")
+    return /\s(?:--conversation|--continue|-c)(\s|=|$)/.test(commandLine); // agy reopens by id or the latest
   if (agentType === "codex" || agentType === "gemini" || agentType === "muse") {
-    return /\s--resume(\s|$)/.test(commandLine) || /\sresume(\s|$)/.test(commandLine);
+    return (
+      /\s--resume(\s|$)/.test(commandLine) || /\sresume(\s|$)/.test(commandLine)
+    );
   }
   return /\s--resume(\s|$)/.test(commandLine);
 }
 
-export function hasCodexSessionFileOpen(lsofOutput: string, sessionId: string): boolean {
+export function hasCodexSessionFileOpen(
+  lsofOutput: string,
+  sessionId: string,
+): boolean {
   if (!lsofOutput || !sessionId) return false;
   return lsofOutput
     .split("\n")
-    .some((line) =>
-      line.includes(".codex/sessions/") &&
-      line.includes(sessionId) &&
-      line.includes(".jsonl")
+    .some(
+      (line) =>
+        line.includes(".codex/sessions/") &&
+        line.includes(sessionId) &&
+        line.includes(".jsonl"),
     );
 }
 
 export function choosePreferredCodexCandidate(
-  candidates: CodexProcessCandidate[]
+  candidates: CodexProcessCandidate[],
 ): CodexProcessCandidate | null {
   if (candidates.length === 0) return null;
   return candidates.find((c) => !c.tmuxTarget) || candidates[0];
@@ -180,11 +205,15 @@ export function choosePreferredCodexCandidate(
 // identically). A renamed `thread_spawn` key, or a future nesting we've never
 // seen, must not be read as permission to destroy a process.
 export function classifyProcessOwnership(
-  meta: { parentThreadId?: string; originator?: string; source?: unknown } | undefined,
+  meta:
+    | { parentThreadId?: string; originator?: string; source?: unknown }
+    | undefined,
 ): ProcessOwnership {
   const source = meta?.source;
   const subagent =
-    source && typeof source === "object" ? (source as { subagent?: unknown }).subagent : undefined;
+    source && typeof source === "object"
+      ? (source as { subagent?: unknown }).subagent
+      : undefined;
 
   if (subagent !== undefined && subagent !== null) {
     // An OBJECT carrying thread_spawn is the in-process thread — the borrower.
@@ -231,7 +260,9 @@ export interface SessionTeardownPlan {
  *  process may have it destroyed. "unknown" (an unreadable or half-written
  *  rollout) must not authorize a SIGKILL — the cost of skipping is a card that
  *  retires without reaping, the cost of guessing wrong is a dead parent TUI. */
-export function planSessionTeardown(ownership: ProcessOwnership): SessionTeardownPlan {
+export function planSessionTeardown(
+  ownership: ProcessOwnership,
+): SessionTeardownPlan {
   const owned = ownership === "owned";
   return { reapPidTree: owned, killCachedResumeTmux: owned };
 }
@@ -267,11 +298,13 @@ export function matchStartedConversation(
     projectPath?: string | null;
     now?: number;
     ttlMs?: number;
-  }
+  },
 ): string | null {
   const candidates = Array.isArray(entries) ? entries : [...entries];
   if (sessionId) {
-    const assigned = candidates.filter(([, entry]) => entry.sessionId === sessionId);
+    const assigned = candidates.filter(
+      ([, entry]) => entry.sessionId === sessionId,
+    );
     if (assigned.length) return assigned.length === 1 ? assigned[0][0] : null;
   }
   const startedEntries = sessionId
@@ -292,7 +325,8 @@ export function matchStartedConversation(
 
   if (!projectPath) return null;
   const pathMatches = startedEntries.filter(
-    ([, entry]) => entry.projectPath === projectPath && now - entry.startedAt < ttlMs
+    ([, entry]) =>
+      entry.projectPath === projectPath && now - entry.startedAt < ttlMs,
   );
   if (pathMatches.length === 1) return pathMatches[0][0];
   return null;
@@ -334,7 +368,12 @@ export function collectAncestorPids(
   const ancestors: number[] = [];
   const seen = new Set<number>([startPid]);
   let pid = pidToPpid.get(startPid);
-  while (pid !== undefined && pid > 1 && !seen.has(pid) && ancestors.length < maxDepth) {
+  while (
+    pid !== undefined &&
+    pid > 1 &&
+    !seen.has(pid) &&
+    ancestors.length < maxDepth
+  ) {
     ancestors.push(pid);
     seen.add(pid);
     pid = pidToPpid.get(pid);
@@ -376,7 +415,9 @@ export function resolveSpawnerSessionId(
   return null;
 }
 
-export function matchSingleFreshStartedConversation<T extends { startedAt: number }>(
+export function matchSingleFreshStartedConversation<
+  T extends { startedAt: number },
+>(
   entries: Iterable<[string, T]>,
   {
     now = Date.now(),
@@ -384,10 +425,12 @@ export function matchSingleFreshStartedConversation<T extends { startedAt: numbe
   }: {
     now?: number;
     freshnessMs?: number;
-  } = {}
+  } = {},
 ): string | null {
   const startedEntries = Array.isArray(entries) ? entries : [...entries];
-  const fresh = startedEntries.filter(([, entry]) => now - entry.startedAt < freshnessMs);
+  const fresh = startedEntries.filter(
+    ([, entry]) => now - entry.startedAt < freshnessMs,
+  );
   if (fresh.length !== 1) return null;
   return fresh[0][0];
 }
@@ -465,7 +508,9 @@ export function parsePsEtimeSeconds(etime: string): number | null {
   if (!m) return null;
   const days = m[1] ? parseInt(m[1], 10) : 0;
   const hours = m[2] ? parseInt(m[2], 10) : 0;
-  return ((days * 24 + hours) * 60 + parseInt(m[3], 10)) * 60 + parseInt(m[4], 10);
+  return (
+    ((days * 24 + hours) * 60 + parseInt(m[3], 10)) * 60 + parseInt(m[4], 10)
+  );
 }
 
 /**
@@ -479,7 +524,10 @@ export function parsePsEtimeSeconds(etime: string): number | null {
  * fresh grok pane lost its registry file, the transcript watcher found no pane
  * to match, and minted a second conversation for the same session).
  */
-export function processStartSecFromEtime(etime: string, sampledAtMs: number): number | null {
+export function processStartSecFromEtime(
+  etime: string,
+  sampledAtMs: number,
+): number | null {
   const elapsed = parsePsEtimeSeconds(etime);
   return elapsed === null ? null : Math.floor(sampledAtMs / 1000) - elapsed;
 }
@@ -529,7 +577,11 @@ export function judgeProcessIdentity(args: {
    * process the pane moved on from (ct-49532).
    */
   staleLaunchToken?: (token: string) => boolean;
-}): { verdict: ProcessIdentityVerdict; declared: string | null; reason?: "stale-token" } {
+}): {
+  verdict: ProcessIdentityVerdict;
+  declared: string | null;
+  reason?: "stale-token";
+} {
   const declared = processDeclaredSessionId(args);
   if (!declared) return { verdict: "unknown", declared };
   if (declared !== args.sessionId) return { verdict: "foreign", declared };
@@ -552,8 +604,16 @@ export function judgeProcessIdentity(args: {
  * took the pid at 02:03:34Z, and every delivery to that session for the next
  * fourteen hours was aimed at the fixture. An unknown start time proves nothing.
  */
-export function registrationPredatesProcess(registeredAtSec: unknown, processStartSec: number | null): boolean {
-  if (typeof registeredAtSec !== "number" || !Number.isFinite(registeredAtSec) || processStartSec === null) return false;
+export function registrationPredatesProcess(
+  registeredAtSec: unknown,
+  processStartSec: number | null,
+): boolean {
+  if (
+    typeof registeredAtSec !== "number" ||
+    !Number.isFinite(registeredAtSec) ||
+    processStartSec === null
+  )
+    return false;
   return registeredAtSec < processStartSec - CLAIM_START_SLACK_SEC;
 }
 
@@ -576,11 +636,15 @@ export function registrationPredatesProcess(registeredAtSec: unknown, processSta
 // `term`) are exactly the kind of guess that caused the stale fill, so they
 // never supersede.
 export function registrySupersedesCachedPid(
-  reg: { pid?: unknown; ts?: unknown; term?: unknown; src?: unknown } | null | undefined,
+  reg:
+    | { pid?: unknown; ts?: unknown; term?: unknown; src?: unknown }
+    | null
+    | undefined,
   cachedPid: number,
   cachedFilledAtMs: number,
 ): boolean {
-  if (!reg || typeof reg.pid !== "number" || typeof reg.ts !== "number") return false;
+  if (!reg || typeof reg.pid !== "number" || typeof reg.ts !== "number")
+    return false;
   if (typeof reg.term !== "string" || reg.src === "daemon") return false;
   if (reg.pid === cachedPid) return false;
   // reg.ts is epoch SECONDS (the hook writes seconds); strict "newer than the
@@ -594,11 +658,15 @@ export function registrySupersedesCachedPid(
 // a fill without one is sent down the AppleScript route, which is iTerm2. Only
 // the hook speaks for the process, as in registrySupersedesCachedPid: a daemon
 // write, a different pid or an "unknown" terminal names nothing.
-export function registeredTerminalFor(registration: unknown, pid: number): string | undefined {
+export function registeredTerminalFor(
+  registration: unknown,
+  pid: number,
+): string | undefined {
   if (!registration || typeof registration !== "object") return undefined;
   const reg = registration as { pid?: unknown; term?: unknown; src?: unknown };
   if (reg.pid !== pid || reg.src === "daemon") return undefined;
-  if (typeof reg.term !== "string" || !reg.term || reg.term === "unknown") return undefined;
+  if (typeof reg.term !== "string" || !reg.term || reg.term === "unknown")
+    return undefined;
   return reg.term;
 }
 
@@ -606,7 +674,6 @@ export function registeredTerminalFor(registration: unknown, pid: number): strin
  * The agent processes running on this machine right now (Claude Code and
  * Codex), each matched to its session id, for `cast resume`'s live picker.
  */
-
 
 export interface LiveProcess {
   pid: number;
@@ -624,7 +691,10 @@ function normalizePsTty(tty: string): string {
   return `/dev/${tty}`;
 }
 
-function loadSessionRegistryLookups(): { byPid: Map<number, string>; byTty: Map<string, string> } {
+function loadSessionRegistryLookups(): {
+  byPid: Map<number, string>;
+  byTty: Map<string, string>;
+} {
   const byPid = new Map<number, string>();
   const byTty = new Map<string, string>();
   const registryDir = path.join(defaultConfigDir(), "session-registry");
@@ -637,11 +707,21 @@ function loadSessionRegistryLookups(): { byPid: Map<number, string>; byTty: Map<
     const sessionId = file.slice(0, -5);
     const filePath = path.join(registryDir, file);
     try {
-      const reg = JSON.parse(fs.readFileSync(filePath, "utf-8")) as { pid?: unknown; tty?: unknown; ts?: unknown };
+      const reg = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
+        pid?: unknown;
+        tty?: unknown;
+        ts?: unknown;
+      };
       const ts = typeof reg.ts === "number" ? reg.ts : 0;
       if (!ts || nowSec - ts > 2 * 24 * 60 * 60) continue;
-      if (typeof reg.pid === "number" && reg.pid > 0) byPid.set(reg.pid, sessionId);
-      if (typeof reg.tty === "string" && reg.tty && reg.tty !== "?" && reg.tty !== "??") {
+      if (typeof reg.pid === "number" && reg.pid > 0)
+        byPid.set(reg.pid, sessionId);
+      if (
+        typeof reg.tty === "string" &&
+        reg.tty &&
+        reg.tty !== "?" &&
+        reg.tty !== "??"
+      ) {
         byTty.set(normalizePsTty(reg.tty), sessionId);
       }
     } catch {}
@@ -658,7 +738,10 @@ export function discoverLiveProcesses(): LiveProcess[] {
 
   const tmuxPanes: Record<string, string> = {};
   try {
-    const out = tmuxRun(["list-panes", "-a", "-F", "#{pane_tty} #{session_name}"], { timeout: 10_000 }).stdout;
+    const out = tmuxRun(
+      ["list-panes", "-a", "-F", "#{pane_tty} #{session_name}"],
+      { timeout: 10_000 },
+    ).stdout;
     for (const line of out.trim().split("\n").filter(Boolean)) {
       const i = line.indexOf(" ");
       if (i > 0) tmuxPanes[line.slice(0, i)] = line.slice(i + 1);
@@ -675,7 +758,12 @@ export function discoverLiveProcesses(): LiveProcess[] {
     return `${Math.floor(hours / 24)}d${hours % 24}h`;
   };
 
-  const addProcess = (pid: number, tty: string, sessionId: string, agentType: "claude_code" | "codex") => {
+  const addProcess = (
+    pid: number,
+    tty: string,
+    sessionId: string,
+    agentType: "claude_code" | "codex",
+  ) => {
     const normalTty = normalizePsTty(tty);
     const tmuxSession = tmuxPanes[normalTty] || null;
     if (seen.has(pid) || seenTty.has(normalTty)) return;
@@ -683,23 +771,41 @@ export function discoverLiveProcesses(): LiveProcess[] {
     seenTty.add(normalTty);
 
     let startTime = "";
-    try { startTime = execSync(`ps -o lstart= -p ${pid}`, { encoding: "utf-8" }).trim(); } catch {}
+    try {
+      startTime = execSync(`ps -o lstart= -p ${pid}`, {
+        encoding: "utf-8",
+      }).trim();
+    } catch {}
 
     let label = "iTerm";
     if (tmuxSession) {
       if (tmuxSession.startsWith("codecast-")) label = "managed";
-      else if (tmuxSession.startsWith("cc-resume") || tmuxSession.startsWith("cx-resume")) label = "resumed";
+      else if (
+        tmuxSession.startsWith("cc-resume") ||
+        tmuxSession.startsWith("cx-resume")
+      )
+        label = "resumed";
       else label = "tmux";
     }
 
-    procs.push({ pid, tty: normalTty, sessionId, agentType, tmuxSession, label, uptime: formatUptime(startTime) });
+    procs.push({
+      pid,
+      tty: normalTty,
+      sessionId,
+      agentType,
+      tmuxSession,
+      label,
+      uptime: formatUptime(startTime),
+    });
   };
 
   const findSessionByCwd = (pid: number): string | null => {
     let cwd: string | null = null;
     try {
-      const out = execSync(`lsof -d cwd -a -p ${pid} -F n 2>/dev/null`, { encoding: "utf-8" });
-      const line = out.split("\n").find(l => l.startsWith("n"));
+      const out = execSync(`lsof -d cwd -a -p ${pid} -F n 2>/dev/null`, {
+        encoding: "utf-8",
+      });
+      const line = out.split("\n").find((l) => l.startsWith("n"));
       if (line) cwd = line.slice(1);
     } catch {}
     if (!cwd) return null;
@@ -710,14 +816,26 @@ export function discoverLiveProcesses(): LiveProcess[] {
       if (!fs.existsSync(claudeDir)) continue;
       for (const dir of fs.readdirSync(claudeDir, { withFileTypes: true })) {
         if (!dir.isDirectory()) continue;
-        for (const f of fs.readdirSync(path.join(claudeDir, dir.name)).filter(f => f.endsWith(".jsonl"))) {
+        for (const f of fs
+          .readdirSync(path.join(claudeDir, dir.name))
+          .filter((f) => f.endsWith(".jsonl"))) {
           const fp = path.join(claudeDir, dir.name, f);
           try {
             const stat = fs.statSync(fp);
-            if (stat.mtimeMs <= bestMtime || Date.now() - stat.mtimeMs > 86_400_000) continue;
+            if (
+              stat.mtimeMs <= bestMtime ||
+              Date.now() - stat.mtimeMs > 86_400_000
+            )
+              continue;
             const head = fs.readFileSync(fp, "utf-8").slice(0, 5000);
             const headCwd = extractCwd(head, { quiet: true });
-            if (headCwd && (headCwd === cwd || cwd!.startsWith(headCwd + "/"))) { bestMtime = stat.mtimeMs; best = path.basename(fp, ".jsonl"); }
+            if (
+              headCwd &&
+              (headCwd === cwd || cwd!.startsWith(headCwd + "/"))
+            ) {
+              bestMtime = stat.mtimeMs;
+              best = path.basename(fp, ".jsonl");
+            }
           } catch {}
         }
       }
@@ -728,8 +846,10 @@ export function discoverLiveProcesses(): LiveProcess[] {
   const findCodexSessionByCwd = (pid: number): string | null => {
     let cwd: string | null = null;
     try {
-      const out = execSync(`lsof -d cwd -a -p ${pid} -F n 2>/dev/null`, { encoding: "utf-8" });
-      const line = out.split("\n").find(l => l.startsWith("n"));
+      const out = execSync(`lsof -d cwd -a -p ${pid} -F n 2>/dev/null`, {
+        encoding: "utf-8",
+      });
+      const line = out.split("\n").find((l) => l.startsWith("n"));
       if (line) cwd = line.slice(1);
     } catch {}
     if (!cwd) return null;
@@ -740,16 +860,25 @@ export function discoverLiveProcesses(): LiveProcess[] {
     const walk = (dir: string): string | null => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) { const r = walk(full); if (r) return r; }
-        else if (entry.name.endsWith(".jsonl")) {
+        if (entry.isDirectory()) {
+          const r = walk(full);
+          if (r) return r;
+        } else if (entry.name.endsWith(".jsonl")) {
           try {
             const stat = fs.statSync(full);
             if (Date.now() - stat.mtimeMs > 86_400_000) continue;
             const content = fs.readFileSync(full, "utf-8").slice(0, 2000);
             const fileCwd = extractCodexCwd(content);
-            if (fileCwd && (fileCwd === cwd || cwd!.startsWith(fileCwd + "/"))) {
+            if (
+              fileCwd &&
+              (fileCwd === cwd || cwd!.startsWith(fileCwd + "/"))
+            ) {
               for (const l of content.split("\n")) {
-                try { const e = JSON.parse(l); if (e.type === "session_meta" && e.payload?.id) return e.payload.id; } catch {}
+                try {
+                  const e = JSON.parse(l);
+                  if (e.type === "session_meta" && e.payload?.id)
+                    return e.payload.id;
+                } catch {}
               }
             }
           } catch {}
@@ -762,7 +891,10 @@ export function discoverLiveProcesses(): LiveProcess[] {
 
   // Claude processes
   try {
-    const psOut = execSync("ps aux | grep -w claude | grep -v grep | grep -v 'bash -c' | grep -v codecast | grep -v mcp", { encoding: "utf-8" });
+    const psOut = execSync(
+      "ps aux | grep -w claude | grep -v grep | grep -v 'bash -c' | grep -v codecast | grep -v mcp",
+      { encoding: "utf-8" },
+    );
     for (const line of psOut.trim().split("\n")) {
       if (!line.trim() || line.includes("mcp")) continue;
       const parts = line.trim().split(/\s+/);
@@ -773,15 +905,23 @@ export function discoverLiveProcesses(): LiveProcess[] {
       const normalTty = normalizePsTty(tty);
       const args = parts.slice(10).join(" ");
       const resumeMatch = args.match(/--resume\s+([0-9a-f-]{36})/i);
-      const sidFromRegistry = sessionRegistry.byPid.get(pid) || sessionRegistry.byTty.get(normalTty) || null;
-      const sid = resumeMatch ? resumeMatch[1] : sidFromRegistry || findSessionByCwd(pid);
+      const sidFromRegistry =
+        sessionRegistry.byPid.get(pid) ||
+        sessionRegistry.byTty.get(normalTty) ||
+        null;
+      const sid = resumeMatch
+        ? resumeMatch[1]
+        : sidFromRegistry || findSessionByCwd(pid);
       addProcess(pid, tty, sid || `unknown-${pid}`, "claude_code");
     }
   } catch {}
 
   // Codex processes
   try {
-    const psOut = execSync("ps aux | grep -E 'codex/codex|/codex\\b' | grep -v grep | grep -v 'Codex.app' | grep -v Sparkle | grep -v Autoupdate | grep -v Helper | grep -v Renderer | grep -v Crashpad | grep -v app-server", { encoding: "utf-8" });
+    const psOut = execSync(
+      "ps aux | grep -E 'codex/codex|/codex\\b' | grep -v grep | grep -v 'Codex.app' | grep -v Sparkle | grep -v Autoupdate | grep -v Helper | grep -v Renderer | grep -v Crashpad | grep -v app-server",
+      { encoding: "utf-8" },
+    );
     for (const line of psOut.trim().split("\n")) {
       if (!line.trim()) continue;
       const parts = line.trim().split(/\s+/);
@@ -790,7 +930,10 @@ export function discoverLiveProcesses(): LiveProcess[] {
       const tty = parts[6];
       if (isNaN(pid) || tty === "?" || tty === "??") continue;
       const normalTty = normalizePsTty(tty);
-      const sidFromRegistry = sessionRegistry.byPid.get(pid) || sessionRegistry.byTty.get(normalTty) || null;
+      const sidFromRegistry =
+        sessionRegistry.byPid.get(pid) ||
+        sessionRegistry.byTty.get(normalTty) ||
+        null;
       const sid = sidFromRegistry || findCodexSessionByCwd(pid);
       addProcess(pid, tty, sid || `unknown-codex-${pid}`, "codex");
     }

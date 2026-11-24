@@ -16,7 +16,14 @@ export type Arrival<T> = {
   consume: boolean;
 };
 
-export function linkArrival<T>(linked: T | null | undefined, seen: T | null): Arrival<T> {
+export function linkArrival<T>(
+  linked: T | null | undefined,
+  seen: T | null,
+): Arrival<T> {
   const now = linked ?? null;
-  return { apply: now !== null && now !== seen ? now : null, seen: now, consume: now !== null };
+  return {
+    apply: now !== null && now !== seen ? now : null,
+    seen: now,
+    consume: now !== null,
+  };
 }

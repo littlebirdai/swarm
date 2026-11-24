@@ -1,7 +1,12 @@
 import { useSyncExternalStore } from "react";
 import { Button } from "../ui/button";
 import { Mic, MicOff, Phone } from "lucide-react";
-import { getMicLevel, leaveCall, setMuted, subscribeMicLevel } from "../../lib/calls/callManager";
+import {
+  getMicLevel,
+  leaveCall,
+  setMuted,
+  subscribeMicLevel,
+} from "../../lib/calls/callManager";
 
 // The two controls every call surface shares — pill, mini window and stage —
 // so mute and hang up read the same everywhere.
@@ -20,14 +25,22 @@ const SIZES = {
   regular: { pad: "p-2", icon: "h-[18px] w-[18px]", radius: "rounded-full" },
 } as const;
 
-export function MicButton({ muted, size = "regular" }: { muted: boolean; size?: keyof typeof SIZES }) {
+export function MicButton({
+  muted,
+  size = "regular",
+}: {
+  muted: boolean;
+  size?: keyof typeof SIZES;
+}) {
   const level = useSyncExternalStore(subscribeMicLevel, getMicLevel, () => 0);
   const sz = SIZES[size];
   return (
     <button
       onClick={() => void setMuted(!muted)}
       className={`relative ${sz.radius} ${sz.pad} transition-colors ${
-        muted ? "bg-sol-red/15 text-sol-red hover:bg-sol-red/25" : "text-sol-text-muted hover:bg-sol-bg-highlight hover:text-sol-text"
+        muted
+          ? "bg-sol-red/15 text-sol-red hover:bg-sol-red/25"
+          : "text-sol-text-muted hover:bg-sol-bg-highlight hover:text-sol-text"
       }`}
       title={muted ? "Unmute" : "Mute"}
     >
@@ -42,7 +55,11 @@ export function MicButton({ muted, size = "regular" }: { muted: boolean; size?: 
   );
 }
 
-export function HangUpButton({ size = "regular" }: { size?: keyof typeof SIZES }) {
+export function HangUpButton({
+  size = "regular",
+}: {
+  size?: keyof typeof SIZES;
+}) {
   const sz = SIZES[size];
   return (
     <Button

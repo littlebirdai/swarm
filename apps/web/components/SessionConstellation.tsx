@@ -52,7 +52,7 @@ function layout(
   nodes: GNode[],
   edges: GEdge[],
   W: number,
-  H: number
+  H: number,
 ): Map<string, { x: number; y: number }> {
   const n = nodes.length;
   const pos = new Map<string, { x: number; y: number }>();
@@ -62,7 +62,10 @@ function layout(
   const Ry = H * 0.4;
   nodes.forEach((nd, i) => {
     const a = (i / n) * Math.PI * 2;
-    pos.set(nd.id, { x: W / 2 + Math.cos(a) * Rx, y: H / 2 + Math.sin(a) * Ry });
+    pos.set(nd.id, {
+      x: W / 2 + Math.cos(a) * Rx,
+      y: H / 2 + Math.sin(a) * Ry,
+    });
   });
   if (n === 1) {
     pos.set(nodes[0].id, { x: W / 2, y: H / 2 });
@@ -118,7 +121,8 @@ function layout(
     }
     for (let i = 0; i < n; i++) {
       const p = pos.get(nodes[i].id)!;
-      const dlen = Math.sqrt(disp[i].x * disp[i].x + disp[i].y * disp[i].y) || 0.01;
+      const dlen =
+        Math.sqrt(disp[i].x * disp[i].x + disp[i].y * disp[i].y) || 0.01;
       p.x += (disp[i].x / dlen) * Math.min(dlen, temp);
       p.y += (disp[i].y / dlen) * Math.min(dlen, temp);
     }
@@ -126,10 +130,15 @@ function layout(
   }
 
   // Fit the force result to the canvas FIRST...
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of pos.values()) {
-    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
   }
   const padX = Math.min(80, W * 0.08);
   const padY = Math.min(70, H * 0.07);
@@ -161,8 +170,10 @@ function layout(
           const push = (minD - d) / 2;
           const ux = dx / d;
           const uy = dy / d;
-          pi.x += ux * push; pi.y += uy * push;
-          pj.x -= ux * push; pj.y -= uy * push;
+          pi.x += ux * push;
+          pi.y += uy * push;
+          pj.x -= ux * push;
+          pj.y -= uy * push;
         }
       }
     }
@@ -175,7 +186,11 @@ function layout(
   return pos;
 }
 
-function curve(a: { x: number; y: number }, b: { x: number; y: number }, bend: number) {
+function curve(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  bend: number,
+) {
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2;
   const dx = b.x - a.x;
@@ -211,7 +226,9 @@ export function SessionConstellation({
     const measure = () => {
       const w = Math.max(360, el.clientWidth);
       const h = Math.max(320, el.clientHeight);
-      setDims((d) => (Math.abs(d.w - w) < 8 && Math.abs(d.h - h) < 8 ? d : { w, h }));
+      setDims((d) =>
+        Math.abs(d.w - w) < 8 && Math.abs(d.h - h) < 8 ? d : { w, h },
+      );
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -226,15 +243,24 @@ export function SessionConstellation({
   // live message arriving every few seconds would reshuffle the whole map and yank
   // nodes out from under the cursor. Counts still drive radius/thickness at render.
   const topoSig = useMemo(() => {
-    const ns = nodes.map((n) => n.id).sort().join(",");
-    const es = edges.map((e) => `${e.from}>${e.to}`).sort().join(",");
+    const ns = nodes
+      .map((n) => n.id)
+      .sort()
+      .join(",");
+    const es = edges
+      .map((e) => `${e.from}>${e.to}`)
+      .sort()
+      .join(",");
     return `${ns}|${es}|${W}x${H}`;
   }, [nodes, edges, W, H]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pos = useMemo(() => layout(nodes, edges, W, H), [topoSig]);
   const now = Date.now();
 
-  const reverse = useMemo(() => new Set(edges.map((e) => `${e.from}>${e.to}`)), [edges]);
+  const reverse = useMemo(
+    () => new Set(edges.map((e) => `${e.from}>${e.to}`)),
+    [edges],
+  );
 
   const focus = hover ?? selectedId;
   const neighbors = useMemo(() => {
@@ -259,7 +285,8 @@ export function SessionConstellation({
       if (!p) continue;
       const box = { x0: p.x - 72, x1: p.x + 72, y0: p.y + 6, y1: p.y + 34 };
       const hit = placed.some(
-        (b) => !(box.x1 < b.x0 || box.x0 > b.x1 || box.y1 < b.y0 || box.y0 > b.y1)
+        (b) =>
+          !(box.x1 < b.x0 || box.x0 > b.x1 || box.y1 < b.y0 || box.y0 > b.y1),
       );
       if (hit) continue;
       placed.push(box);
@@ -284,8 +311,19 @@ export function SessionConstellation({
             <stop offset="0%" stopColor="var(--sol-blue)" stopOpacity={0.06} />
             <stop offset="100%" stopColor="var(--sol-blue)" stopOpacity={0} />
           </radialGradient>
-          <pattern id="con-grid" width="34" height="34" patternUnits="userSpaceOnUse">
-            <path d="M 34 0 L 0 0 0 34" fill="none" stroke="var(--sol-border)" strokeOpacity={0.08} strokeWidth={1} />
+          <pattern
+            id="con-grid"
+            width="34"
+            height="34"
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 34 0 L 0 0 0 34"
+              fill="none"
+              stroke="var(--sol-border)"
+              strokeOpacity={0.08}
+              strokeWidth={1}
+            />
           </pattern>
           <filter id="con-glow" x="-60%" y="-60%" width="220%" height="220%">
             <feGaussianBlur stdDeviation="4" result="b" />
@@ -310,25 +348,60 @@ export function SessionConstellation({
             const bidir = reverse.has(`${e.to}>${e.from}`);
             const bend = bidir ? 26 : 10;
             const d = curve(a, b, bend);
-            const active = !neighbors || (neighbors.has(e.from) && neighbors.has(e.to));
+            const active =
+              !neighbors || (neighbors.has(e.from) && neighbors.has(e.to));
             const recent = now - e.lastAt < 1000 * 60 * 30;
             const pulsing = pulseKey === e.key;
             const sw = 1.2 + Math.log2(1 + e.count) * 1.15;
-            const packets = active ? Math.min(3, 1 + Math.floor(e.count / 4)) : 0;
+            const packets = active
+              ? Math.min(3, 1 + Math.floor(e.count / 4))
+              : 0;
             const dur = recent ? 2.4 : 4.2;
             const pid = `edge-${e.key}`;
             const glowy = e.count >= 3 || pulsing;
             return (
-              <g key={e.key} opacity={active ? 1 : 0.1} style={{ transition: "opacity .25s" }}>
+              <g
+                key={e.key}
+                opacity={active ? 1 : 0.1}
+                style={{ transition: "opacity .25s" }}
+              >
                 {glowy && (
-                  <path d={d} fill="none" stroke={hue} strokeOpacity={pulsing ? 0.35 : 0.18}
-                    strokeWidth={sw + 4} strokeLinecap="round" filter="url(#con-glow)" />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={hue}
+                    strokeOpacity={pulsing ? 0.35 : 0.18}
+                    strokeWidth={sw + 4}
+                    strokeLinecap="round"
+                    filter="url(#con-glow)"
+                  />
                 )}
-                <path id={pid} d={d} fill="none" stroke={hue} strokeOpacity={pulsing ? 0.95 : 0.55}
-                  strokeWidth={pulsing ? sw + 1.5 : sw} strokeLinecap="round" />
+                <path
+                  id={pid}
+                  d={d}
+                  fill="none"
+                  stroke={hue}
+                  strokeOpacity={pulsing ? 0.95 : 0.55}
+                  strokeWidth={pulsing ? sw + 1.5 : sw}
+                  strokeLinecap="round"
+                />
                 {Array.from({ length: packets }).map((_, kk) => (
-                  <circle key={kk} r={pulsing ? 3.8 : 2.7} fill="#ffffff" stroke={hue} strokeWidth={1.4} filter="url(#con-glow)">
-                    <animateMotion dur={`${dur}s`} begin={`${(kk * dur) / packets}s`} repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="linear">
+                  <circle
+                    key={kk}
+                    r={pulsing ? 3.8 : 2.7}
+                    fill="#ffffff"
+                    stroke={hue}
+                    strokeWidth={1.4}
+                    filter="url(#con-glow)"
+                  >
+                    <animateMotion
+                      dur={`${dur}s`}
+                      begin={`${(kk * dur) / packets}s`}
+                      repeatCount="indefinite"
+                      keyPoints="0;1"
+                      keyTimes="0;1"
+                      calcMode="linear"
+                    >
                       <mpath href={`#${pid}`} />
                     </animateMotion>
                   </circle>
@@ -347,8 +420,11 @@ export function SessionConstellation({
             const dim = neighbors ? !neighbors.has(nd.id) : false;
             const isFocus = focus === nd.id;
             const labelOn =
-              isFocus || labeledIds.has(nd.id) || (!!neighbors && neighbors.has(nd.id));
-            const title = nd.title || (nd.resolved ? "Untitled session" : nd.shortId);
+              isFocus ||
+              labeledIds.has(nd.id) ||
+              (!!neighbors && neighbors.has(nd.id));
+            const title =
+              nd.title || (nd.resolved ? "Untitled session" : nd.shortId);
             return (
               <g
                 key={nd.id}
@@ -367,12 +443,33 @@ export function SessionConstellation({
                 }}
               >
                 {nd.live && (
-                  <circle r={r + 5} fill="none" stroke={nd.hue} strokeWidth={1.5} opacity={0.5}>
-                    <animate attributeName="r" values={`${r + 3};${r + 12};${r + 3}`} dur="2.4s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.5;0;0.5" dur="2.4s" repeatCount="indefinite" />
+                  <circle
+                    r={r + 5}
+                    fill="none"
+                    stroke={nd.hue}
+                    strokeWidth={1.5}
+                    opacity={0.5}
+                  >
+                    <animate
+                      attributeName="r"
+                      values={`${r + 3};${r + 12};${r + 3}`}
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.5;0;0.5"
+                      dur="2.4s"
+                      repeatCount="indefinite"
+                    />
                   </circle>
                 )}
-                <circle r={r + 3} fill={nd.hue} opacity={0.16} filter="url(#con-glow)" />
+                <circle
+                  r={r + 3}
+                  fill={nd.hue}
+                  opacity={0.16}
+                  filter="url(#con-glow)"
+                />
                 <circle
                   r={r}
                   fill={nd.resolved ? nd.hue : "var(--sol-bg-alt)"}
@@ -381,16 +478,35 @@ export function SessionConstellation({
                   strokeWidth={isFocus ? 2.4 : 1.4}
                   strokeDasharray={nd.resolved ? undefined : "3 3"}
                 />
-                {nd.isSubagent && <circle r={r * 0.42} fill="var(--sol-bg)" fillOpacity={0.55} />}
+                {nd.isSubagent && (
+                  <circle
+                    r={r * 0.42}
+                    fill="var(--sol-bg)"
+                    fillOpacity={0.55}
+                  />
+                )}
                 {labelOn && (
                   <g>
-                    <text y={r + 15} textAnchor="middle" fontSize={12} fontWeight={600}
-                      fill="var(--sol-text)" style={{ paintOrder: "stroke", pointerEvents: "none" }}
-                      stroke="var(--sol-bg)" strokeWidth={3}>
+                    <text
+                      y={r + 15}
+                      textAnchor="middle"
+                      fontSize={12}
+                      fontWeight={600}
+                      fill="var(--sol-text)"
+                      style={{ paintOrder: "stroke", pointerEvents: "none" }}
+                      stroke="var(--sol-bg)"
+                      strokeWidth={3}
+                    >
                       {title.length > 26 ? title.slice(0, 24) + "…" : title}
                     </text>
-                    <text y={r + 29} textAnchor="middle" fontSize={11} fontFamily="var(--font-mono)"
-                      fill="var(--sol-text-dim)" style={{ pointerEvents: "none" }}>
+                    <text
+                      y={r + 29}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fontFamily="var(--font-mono)"
+                      fill="var(--sol-text-dim)"
+                      style={{ pointerEvents: "none" }}
+                    >
                       {nd.shortId}
                     </text>
                   </g>

@@ -53,7 +53,9 @@ const drainListeners = new Set<() => void>();
 // pinned session counts as running on its own store.
 let activeProfileResolver: () => string | undefined = () => undefined;
 
-export function setActiveProfileResolver(resolver: () => string | undefined): void {
+export function setActiveProfileResolver(
+  resolver: () => string | undefined,
+): void {
   activeProfileResolver = resolver;
 }
 
@@ -69,14 +71,18 @@ function gateStatePath(): string {
 
 /** Unpinned, or pinned to the profile that is the machine's login: both run on
  *  the keychain credential the daemon would otherwise rotate. */
-function holdsActiveCredential(entry: GateEntry, activeProfile: string | undefined): boolean {
+function holdsActiveCredential(
+  entry: GateEntry,
+  activeProfile: string | undefined,
+): boolean {
   return !entry.account || entry.account === activeProfile;
 }
 
 function holderCount(): number {
   const activeProfile = activeProfileResolver();
   let n = 0;
-  for (const entry of live.values()) if (holdsActiveCredential(entry, activeProfile)) n++;
+  for (const entry of live.values())
+    if (holdsActiveCredential(entry, activeProfile)) n++;
   return n;
 }
 
@@ -85,7 +91,8 @@ export function liveClaudeProfiles(): Set<string> {
   const activeProfile = activeProfileResolver();
   const held = new Set<string>();
   for (const entry of live.values()) {
-    if (entry.account && entry.account !== activeProfile) held.add(entry.account);
+    if (entry.account && entry.account !== activeProfile)
+      held.add(entry.account);
   }
   return held;
 }
@@ -99,7 +106,10 @@ export function hasLiveClaudeOnActiveCredential(): boolean {
 
 /** Every pane the gate believes is live, newest state first for logging. */
 export function liveClaudeSessions(): LiveClaudeSession[] {
-  return [...live.entries()].map(([id, entry]) => ({ id, ...(entry.account ? { account: entry.account } : {}) }));
+  return [...live.entries()].map(([id, entry]) => ({
+    id,
+    ...(entry.account ? { account: entry.account } : {}),
+  }));
 }
 
 /** Called when the last live claude on the keychain login goes away. The
@@ -144,7 +154,9 @@ export function markClaudeSessionEnded(id: string): void {
  * not evidence of an empty machine, and reconciling on it would open the gate
  * while claude is running.
  */
-export function reconcileLiveClaudeSessions(alive: readonly LiveClaudeSession[]): void {
+export function reconcileLiveClaudeSessions(
+  alive: readonly LiveClaudeSession[],
+): void {
   const hadHolders = holderCount() > 0;
   const seen = new Set<string>();
   for (const session of alive) {
@@ -178,12 +190,20 @@ export function unstampedClaudeHolders(
   const out: LiveClaudeSession[] = [];
   for (const proc of procs) {
     if (uid !== undefined && proc.uid !== uid) continue;
-    if (!isClaudeCommand(proc.command) || stampedPanePids.has(proc.pid)) continue;
+    if (!isClaudeCommand(proc.command) || stampedPanePids.has(proc.pid))
+      continue;
     let covered = false;
     const seen = new Set<number>();
-    for (let parent = byPid.get(proc.ppid); parent && !seen.has(parent.pid); parent = byPid.get(parent.ppid)) {
+    for (
+      let parent = byPid.get(proc.ppid);
+      parent && !seen.has(parent.pid);
+      parent = byPid.get(parent.ppid)
+    ) {
       seen.add(parent.pid);
-      if (stampedPanePids.has(parent.pid) || isClaudeCommand(parent.command)) { covered = true; break; }
+      if (stampedPanePids.has(parent.pid) || isClaudeCommand(parent.command)) {
+        covered = true;
+        break;
+      }
     }
     if (!covered) out.push({ id: `pid:${proc.pid}` });
   }
@@ -195,15 +215,25 @@ export function unstampedClaudeHolders(
 export async function seedLiveClaudeSessions(): Promise<LiveClaudeSession[]> {
   let parsed: GateFile | null = null;
   try {
-    parsed = JSON.parse(await fs.promises.readFile(gateStatePath(), "utf-8")) as GateFile;
+    parsed = JSON.parse(
+      await fs.promises.readFile(gateStatePath(), "utf-8"),
+    ) as GateFile;
   } catch {
     return [];
   }
   const restored: LiveClaudeSession[] = [];
-  for (const session of Array.isArray(parsed?.sessions) ? parsed.sessions : []) {
+  for (const session of Array.isArray(parsed?.sessions)
+    ? parsed.sessions
+    : []) {
     if (!session || typeof session.id !== "string" || !session.id) continue;
-    const account = typeof session.account === "string" && session.account ? session.account : undefined;
-    live.set(session.id, { ...(account ? { account } : {}), unconfirmed: true });
+    const account =
+      typeof session.account === "string" && session.account
+        ? session.account
+        : undefined;
+    live.set(session.id, {
+      ...(account ? { account } : {}),
+      unconfirmed: true,
+    });
     restored.push({ id: session.id, ...(account ? { account } : {}) });
   }
   return restored;
@@ -231,7 +261,9 @@ async function persist(): Promise<void> {
     const temp = `${file}.${process.pid}.tmp`;
     try {
       await fs.promises.mkdir(path.dirname(file), { recursive: true });
-      await fs.promises.writeFile(temp, JSON.stringify(snapshot, null, 2), { mode: 0o644 });
+      await fs.promises.writeFile(temp, JSON.stringify(snapshot, null, 2), {
+        mode: 0o644,
+      });
       await fs.promises.rename(temp, file);
     } catch {
       // The gate still holds in memory; the next mark retries the write.

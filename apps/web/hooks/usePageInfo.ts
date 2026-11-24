@@ -2,7 +2,12 @@ import { useMemo } from "react";
 import { useInboxStore, useTrackedStore } from "../store/inboxStore";
 import { hasStoredAuthToken } from "../lib/localAuth";
 import { useServerAuthSettled } from "./useServerAuthSettled";
-import { pageGateKeys, usePageEmbedQuery, type PageInfo, type PageRef } from "./pageEmbedQuery";
+import {
+  pageGateKeys,
+  usePageEmbedQuery,
+  type PageInfo,
+  type PageRef,
+} from "./pageEmbedQuery";
 
 export type { PageInfo, PageRef };
 
@@ -15,7 +20,16 @@ export function usePageEmbedFeed(pages: PageRef[]) {
   const authSettled = useServerAuthSettled();
   const guest = useMemo(() => !hasStoredAuthToken(), []);
   const args = useMemo(
-    () => (pages.length && (authSettled || guest) ? { pages: pages.map((p) => (p.decision ? { slug: p.slug, decision: p.decision } : { slug: p.slug })) } : "skip"),
+    () =>
+      pages.length && (authSettled || guest)
+        ? {
+            pages: pages.map((p) =>
+              p.decision
+                ? { slug: p.slug, decision: p.decision }
+                : { slug: p.slug },
+            ),
+          }
+        : "skip",
     [key, authSettled, guest], // eslint-disable-line react-hooks/exhaustive-deps
   );
   return usePageEmbedQuery(args);
@@ -33,7 +47,14 @@ export { pageGateKeys };
 
 /** A page's info, fed and read: the row paints at once when this viewer has seen the page before. */
 export function usePageInfo(slug: string, decision?: string | null) {
-  const feed = usePageEmbedFeed(useMemo(() => [{ slug, decision }], [slug, decision]));
+  const feed = usePageEmbedFeed(
+    useMemo(() => [{ slug, decision }], [slug, decision]),
+  );
   const info = usePageInfoRow(slug);
-  return { info, keys: pageGateKeys(info), ready: feed.ready, error: feed.error };
+  return {
+    info,
+    keys: pageGateKeys(info),
+    ready: feed.ready,
+    error: feed.error,
+  };
 }

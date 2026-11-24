@@ -16,29 +16,74 @@ async function seed() {
   const t = convexTest(schema, allModules);
   const ids = await t.run(async (ctx) => {
     const now = Date.now();
-    const user = (name: string) => ctx.db.insert("users", { name, email: `${name.toLowerCase()}@x.com` } as any);
+    const user = (name: string) =>
+      ctx.db.insert("users", {
+        name,
+        email: `${name.toLowerCase()}@x.com`,
+      } as any);
     const viewer = await user("Viewer");
     const full = await user("Fulltm");
     const summary = await user("Summarytm");
     const other = await user("Otheronly");
-    await ctx.db.insert("api_tokens", { user_id: viewer, token_hash: await hashToken(token), name: "cli", created_at: now, last_used_at: now } as any);
-    const T = await ctx.db.insert("teams", { name: "T", created_at: now, invite_code: "t" });
-    const O = await ctx.db.insert("teams", { name: "O", created_at: now, invite_code: "o" });
+    await ctx.db.insert("api_tokens", {
+      user_id: viewer,
+      token_hash: await hashToken(token),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
+    } as any);
+    const T = await ctx.db.insert("teams", {
+      name: "T",
+      created_at: now,
+      invite_code: "t",
+    });
+    const O = await ctx.db.insert("teams", {
+      name: "O",
+      created_at: now,
+      invite_code: "o",
+    });
     const join = (user_id: any, team_id: any, visibility = "full") =>
-      ctx.db.insert("team_memberships", { user_id, team_id, role: "member", joined_at: 0, visibility } as any);
+      ctx.db.insert("team_memberships", {
+        user_id,
+        team_id,
+        role: "member",
+        joined_at: 0,
+        visibility,
+      } as any);
     await join(viewer, T);
     await join(viewer, O);
     await join(full, T);
     await join(summary, T, "summary");
     await join(other, O);
     await ctx.db.patch(viewer, { active_team_id: T });
-    const session = async (user_id: any, team_id: any, label: string, title: string) => {
+    const session = async (
+      user_id: any,
+      team_id: any,
+      label: string,
+      title: string,
+    ) => {
       const conversation_id = await ctx.db.insert("conversations", {
-        user_id, team_id, is_private: false, agent_type: "claude_code", session_id: label, title, subtitle: "", idle_summary: "",
+        user_id,
+        team_id,
+        is_private: false,
+        agent_type: "claude_code",
+        session_id: label,
+        title,
+        subtitle: "",
+        idle_summary: "",
         first_prompt: `quokka opening prompt of ${label}`,
-        started_at: now - 1000, updated_at: now, message_count: 1, status: "active",
+        started_at: now - 1000,
+        updated_at: now,
+        message_count: 1,
+        status: "active",
       } as any);
-      await ctx.db.insert("messages", { conversation_id, message_uuid: label, role: "user", content: `quokka secret text of ${label}`, timestamp: now } as any);
+      await ctx.db.insert("messages", {
+        conversation_id,
+        message_uuid: label,
+        role: "user",
+        content: `quokka secret text of ${label}`,
+        timestamp: now,
+      } as any);
     };
     await session(viewer, T, "mine", "quokka mine");
     await session(full, T, "full", "quokka full");
@@ -53,26 +98,46 @@ async function seed() {
   return { t, ...ids };
 }
 
-const byTitle = (rows: any[]) => Object.fromEntries(rows.map((r) => [r.title, r]));
+const byTitle = (rows: any[]) =>
+  Object.fromEntries(rows.map((r) => [r.title, r]));
 
 test("web search reads the active team, and summary sessions match on their title alone", async () => {
   const { t, viewer, T, O } = await seed();
   const as = t.withIdentity({ subject: viewer });
 
   for (const args of [{}, { activeTeamId: T }]) {
-    const res: any = await as.query(api.conversations.searchConversations, { query: "quokka", ...args });
+    const res: any = await as.query(api.conversations.searchConversations, {
+      query: "quokka",
+      ...args,
+    });
     const rows = byTitle(res.results);
-    expect(Object.keys(rows).sort()).toEqual(["quokka full", "quokka mine", "quokka summary"]);
-    expect(rows["quokka full"].matches.map((m: any) => m.content).join(" ")).toContain("secret text of full");
+    expect(Object.keys(rows).sort()).toEqual([
+      "quokka full",
+      "quokka mine",
+      "quokka summary",
+    ]);
+    expect(
+      rows["quokka full"].matches.map((m: any) => m.content).join(" "),
+    ).toContain("secret text of full");
     expect(rows["quokka summary"].matches).toEqual([]);
     expect(rows["quokka summary"].origin?.started_as).toBeUndefined();
     expect(rows["quokka summary"].workspace).toBe(`team:${T}`);
 
-    const titles: any = await as.query(api.conversations.searchConversationTitles, { query: "quokka", ...args });
-    expect(titles.results.map((r: any) => r.title).sort()).toEqual(["quokka full", "quokka mine", "quokka summary"]);
+    const titles: any = await as.query(
+      api.conversations.searchConversationTitles,
+      { query: "quokka", ...args },
+    );
+    expect(titles.results.map((r: any) => r.title).sort()).toEqual([
+      "quokka full",
+      "quokka mine",
+      "quokka summary",
+    ]);
   }
 
-  const all: any = await as.query(api.conversations.searchConversations, { query: "quokka", allTeams: true });
+  const all: any = await as.query(api.conversations.searchConversations, {
+    query: "quokka",
+    allTeams: true,
+  });
   const allRows = byTitle(all.results);
   expect(allRows["quokka other"]?.teamName).toBe("O");
   expect(allRows["quokka mine in O"]?.teamName).toBe("O");
@@ -86,29 +151,53 @@ test("cast search and the CLI feed read the active team unless asked for every t
   const { t } = await seed();
 
   // A content search never surfaces a summary session by its text.
-  const search: any = await t.query(api.conversations.searchForCLI, { api_token: token, query: "quokka" });
+  const search: any = await t.query(api.conversations.searchForCLI, {
+    api_token: token,
+    query: "quokka",
+  });
   const rows = byTitle(search.conversations);
   expect(Object.keys(rows).sort()).toEqual(["quokka full", "quokka mine"]);
   expect(rows["quokka full"].matches.length).toBeGreaterThan(0);
   expect(rows["quokka full"].workspace).toMatch(/^team:/);
 
   // Its title still finds it, with no text.
-  const titled: any = await t.query(api.conversations.searchForCLI, { api_token: token, query: "quokka", titles_only: true });
+  const titled: any = await t.query(api.conversations.searchForCLI, {
+    api_token: token,
+    query: "quokka",
+    titles_only: true,
+  });
   const titledRows = byTitle(titled.conversations);
-  expect(Object.keys(titledRows).sort()).toEqual(["quokka full", "quokka mine", "quokka summary"]);
+  expect(Object.keys(titledRows).sort()).toEqual([
+    "quokka full",
+    "quokka mine",
+    "quokka summary",
+  ]);
   expect(titledRows["quokka summary"].origin?.started_as).toBeUndefined();
 
-  const global: any = await t.query(api.conversations.searchForCLI, { api_token: token, query: "quokka", all_teams: true });
+  const global: any = await t.query(api.conversations.searchForCLI, {
+    api_token: token,
+    query: "quokka",
+    all_teams: true,
+  });
   expect(byTitle(global.conversations)["quokka other"]?.team).toBe("O");
 
-  const feed: any = await t.query(api.conversations.feedForCLI, { api_token: token });
+  const feed: any = await t.query(api.conversations.feedForCLI, {
+    api_token: token,
+  });
   const cards = byTitle(feed.conversations);
   expect(cards["quokka other"]).toBeUndefined();
-  expect(JSON.stringify(cards["quokka summary"].preview)).not.toContain("secret");
+  expect(JSON.stringify(cards["quokka summary"].preview)).not.toContain(
+    "secret",
+  );
   expect(cards["quokka summary"].tail).toBeUndefined();
-  expect(JSON.stringify(cards["quokka full"].preview)).toContain("secret text of full");
+  expect(JSON.stringify(cards["quokka full"].preview)).toContain(
+    "secret text of full",
+  );
 
-  const feedAll: any = await t.query(api.conversations.feedForCLI, { api_token: token, all_teams: true });
+  const feedAll: any = await t.query(api.conversations.feedForCLI, {
+    api_token: token,
+    all_teams: true,
+  });
   expect(byTitle(feedAll.conversations)["quokka other"]?.team).toBe("O");
 });
 
@@ -116,16 +205,36 @@ test("an all-teams feed never lists a session in a team its owner has left", asy
   const { t, T, O } = await seed();
   // Still in T with the viewer, gone from O, where a session of theirs stays routed.
   await t.run(async (ctx) => {
-    const former = await ctx.db.insert("users", { name: "Formertm", email: "former@x.com" } as any);
-    await ctx.db.insert("team_memberships", { user_id: former, team_id: T, role: "member", joined_at: 0, visibility: "full" } as any);
+    const former = await ctx.db.insert("users", {
+      name: "Formertm",
+      email: "former@x.com",
+    } as any);
+    await ctx.db.insert("team_memberships", {
+      user_id: former,
+      team_id: T,
+      role: "member",
+      joined_at: 0,
+      visibility: "full",
+    } as any);
     const now = Date.now();
     await ctx.db.insert("conversations", {
-      user_id: former, team_id: O, is_private: false, agent_type: "claude_code", session_id: "left-o", title: "quokka left O",
-      started_at: now - 1000, updated_at: now, message_count: 1, status: "active",
+      user_id: former,
+      team_id: O,
+      is_private: false,
+      agent_type: "claude_code",
+      session_id: "left-o",
+      title: "quokka left O",
+      started_at: now - 1000,
+      updated_at: now,
+      message_count: 1,
+      status: "active",
     } as any);
   });
 
-  const feedAll: any = await t.query(api.conversations.feedForCLI, { api_token: token, all_teams: true });
+  const feedAll: any = await t.query(api.conversations.feedForCLI, {
+    api_token: token,
+    all_teams: true,
+  });
   expect(byTitle(feedAll.conversations)["quokka left O"]).toBeUndefined();
   expect(byTitle(feedAll.conversations)["quokka other"]?.team).toBe("O");
 });

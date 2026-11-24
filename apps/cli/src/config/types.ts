@@ -15,7 +15,12 @@
  * present on disk at a given moment.
  */
 
-import type { AgentClientId, CloudSessionSyncField, HeartbeatTeamPolicy, VaultInfo } from "@codecast/shared/contracts";
+import type {
+  AgentClientId,
+  CloudSessionSyncField,
+  HeartbeatTeamPolicy,
+  VaultInfo,
+} from "@codecast/shared/contracts";
 import { policyRefusal } from "./managedPolicy.js";
 
 /** How aggressively a client skips approval prompts. Codex is the only client
@@ -25,10 +30,14 @@ export type AgentPermissionMode = "default" | "full_auto" | "bypass";
 
 /** Per-client permission mode overrides, keyed by client id so an Nth client is a
  *  map entry rather than a new named field. */
-export type AgentPermissionModes = Partial<Record<AgentClientId, AgentPermissionMode>>;
+export type AgentPermissionModes = Partial<
+  Record<AgentClientId, AgentPermissionMode>
+>;
 
 /** Per-client extra default CLI params (flag name → value), keyed by client id. */
-export type AgentDefaultParams = Partial<Record<AgentClientId, Record<string, string>>>;
+export type AgentDefaultParams = Partial<
+  Record<AgentClientId, Record<string, string>>
+>;
 
 /**
  * Mirrored from the server: the account's cloud session sync settings, one
@@ -85,7 +94,14 @@ export interface Config extends CloudSessionSyncSettings {
   /** Mirrored from the heartbeat: the team policy that applies to this device. Absent when none does. */
   team_policy?: HeartbeatTeamPolicy;
   /** Written by `cast mdm enroll` once the server accepts the profile's token; token_prefix tells a rotated token apart. */
-  managed_enrollment?: { enrollment_id: string; team_id: string; team_name: string; token_prefix: string; at: string; sign_in_at?: string };
+  managed_enrollment?: {
+    enrollment_id: string;
+    team_id: string;
+    team_name: string;
+    token_prefix: string;
+    at: string;
+    sign_in_at?: string;
+  };
 
   // --- Stable-context mode ---
   stable_mode?: "solo" | "team";
@@ -342,7 +358,9 @@ export interface Config extends CloudSessionSyncSettings {
 }
 
 /** The mirror is on unless the config says otherwise (the setter stores strings) or policy turns cloud hosts off. */
-export function isCloudMirrorEnabled(config: Config | null | undefined): boolean {
+export function isCloudMirrorEnabled(
+  config: Config | null | undefined,
+): boolean {
   if (policyRefusal("cloud_hosts_disabled", config)) return false;
   const v = config?.cloud_mirror_enabled as boolean | string | undefined;
   return v !== false && v !== "false" && v !== "0";
@@ -375,7 +393,9 @@ export function getAgentArgs(
  * transport disables itself at runtime when the opencode binary is missing, so the
  * only reason to set `enabled: false` is to force the plain DB-polling path.
  */
-export function isOpencodeServerEnabled(config: Config | null | undefined): boolean {
+export function isOpencodeServerEnabled(
+  config: Config | null | undefined,
+): boolean {
   return config?.opencode_server?.enabled !== false;
 }
 

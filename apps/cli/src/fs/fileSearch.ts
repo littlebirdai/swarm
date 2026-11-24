@@ -16,11 +16,21 @@ import { execFile } from "../proc.js";
 const LIST_TTL_MS = 15_000;
 const MAX_FILES = 50_000;
 const DEFAULT_LIMIT = 40;
-const SKIP_DIRS = new Set(["node_modules", "dist", "build", "target", "vendor", "__pycache__"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "build",
+  "target",
+  "vendor",
+  "__pycache__",
+]);
 
 export type ListFiles = (root: string) => Promise<string[] | null>;
 
-const lists = new Map<string, { at: number; files: Promise<string[] | null> }>();
+const lists = new Map<
+  string,
+  { at: number; files: Promise<string[] | null> }
+>();
 
 function gitFiles(root: string): Promise<string[] | null> {
   return new Promise((resolve) => {
@@ -44,7 +54,9 @@ async function walkFiles(root: string): Promise<string[]> {
     const rel = queue.shift()!;
     let entries: fs.Dirent[];
     try {
-      entries = await fs.promises.readdir(path.join(root, rel), { withFileTypes: true });
+      entries = await fs.promises.readdir(path.join(root, rel), {
+        withFileTypes: true,
+      });
     } catch {
       continue;
     }
@@ -68,7 +80,9 @@ export const listProjectFiles: ListFiles = async (root) => {
   } catch {
     return null;
   }
-  return fs.existsSync(path.join(root, ".git")) ? ((await gitFiles(root)) ?? walkFiles(root)) : walkFiles(root);
+  return fs.existsSync(path.join(root, ".git"))
+    ? ((await gitFiles(root)) ?? walkFiles(root))
+    : walkFiles(root);
 };
 
 // A list older than the TTL is still answered from while a fresh one is read,
@@ -80,7 +94,10 @@ function cachedFiles(root: string, list: ListFiles): Promise<string[] | null> {
   // Until the fresh list lands, later calls keep getting the old one.
   lists.set(root, { at: Date.now(), files: hit?.files ?? files });
   files.then(
-    (f) => { if (f) lists.set(root, { at: Date.now(), files }); else lists.delete(root); },
+    (f) => {
+      if (f) lists.set(root, { at: Date.now(), files });
+      else lists.delete(root);
+    },
     () => lists.delete(root),
   );
   return hit?.files ?? files;
@@ -99,7 +116,16 @@ export function fileMatchRank(rel: string, query: string): number {
   const words = q.split(/\s+/);
   if (!words.every((w) => lower.includes(w))) return Infinity;
   const name = lower.slice(lower.lastIndexOf("/") + 1);
-  const tier = name === q ? 0 : name.startsWith(q) ? 1 : name.includes(q) ? 2 : lower.includes(q) ? 3 : 4;
+  const tier =
+    name === q
+      ? 0
+      : name.startsWith(q)
+        ? 1
+        : name.includes(q)
+          ? 2
+          : lower.includes(q)
+            ? 3
+            : 4;
   return tier * 100_000 + rel.length;
 }
 
@@ -117,5 +143,9 @@ export async function searchProjectFiles(
     if (r !== Infinity) ranked.push([r, f]);
   }
   ranked.sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
-  return { root, exists: true, files: ranked.slice(0, limit).map(([, f]) => f) };
+  return {
+    root,
+    exists: true,
+    files: ranked.slice(0, limit).map(([, f]) => f),
+  };
 }

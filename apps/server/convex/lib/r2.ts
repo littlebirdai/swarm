@@ -40,10 +40,22 @@ export type R2Bucket = {
 };
 
 /** codecast-media, or null when media hosting is not configured. */
-export function mediaBucketFromEnv(): (R2Bucket & { publicBase: string }) | null {
-  const endpoint = process.env.R2_ENDPOINT, accessKeyId = process.env.R2_ACCESS_KEY_ID, secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+export function mediaBucketFromEnv():
+  | (R2Bucket & { publicBase: string })
+  | null {
+  const endpoint = process.env.R2_ENDPOINT,
+    accessKeyId = process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
   if (!endpoint || !accessKeyId || !secretAccessKey) return null;
-  return { endpoint, accessKeyId, secretAccessKey, bucket: process.env.R2_BUCKET || "codecast-media", publicBase: (process.env.MEDIA_PUBLIC_BASE || "https://media.codecast.sh").replace(/\/$/, "") };
+  return {
+    endpoint,
+    accessKeyId,
+    secretAccessKey,
+    bucket: process.env.R2_BUCKET || "codecast-media",
+    publicBase: (
+      process.env.MEDIA_PUBLIC_BASE || "https://media.codecast.sh"
+    ).replace(/\/$/, ""),
+  };
 }
 
 /** The private call recordings bucket, or null when recording is not
@@ -82,7 +94,12 @@ export const MOMENTS_30D_ROOT = "moments-30d/";
  *  sequence number zero padded so a recording's chunks list in order.
  *  `replay` is the source's own replay id, already reduced to safe path
  *  characters by safeReplayPathSegment. */
-export function replayChunkKey(opts: { sourceId: string; replay: string; seq: number; sha256: string }): string {
+export function replayChunkKey(opts: {
+  sourceId: string;
+  replay: string;
+  seq: number;
+  sha256: string;
+}): string {
   return `${REPLAYS_ROOT}${opts.sourceId}/${opts.replay}/${String(opts.seq).padStart(4, "0")}-${opts.sha256}.json.gz`;
 }
 
@@ -98,15 +115,24 @@ export function safeReplayPathSegment(id: string): string {
 }
 
 /** The sequence number and sha256 a chunk key names, or null for a key outside the layout. */
-export function parseReplayChunkKey(key: string): { seq: number; sha256: string } | null {
-  const m = key.match(/^replays\/[^/]+\/[^/]+\/(\d{4,})-([0-9a-f]{64})\.json\.gz$/);
+export function parseReplayChunkKey(
+  key: string,
+): { seq: number; sha256: string } | null {
+  const m = key.match(
+    /^replays\/[^/]+\/[^/]+\/(\d{4,})-([0-9a-f]{64})\.json\.gz$/,
+  );
   return m ? { seq: Number(m[1]), sha256: m[2] } : null;
 }
 
 /** One chunk of a recording's DOM capture (raw rrweb events, for the player):
  *  beside its semantic chunks, under `dom/`, content addressed the same way
  *  and expired by the same lifecycle rule. */
-export function replayDomChunkKey(opts: { sourceId: string; replay: string; seq: number; sha256: string }): string {
+export function replayDomChunkKey(opts: {
+  sourceId: string;
+  replay: string;
+  seq: number;
+  sha256: string;
+}): string {
   return `${REPLAYS_ROOT}${opts.sourceId}/${opts.replay}/dom/${String(opts.seq).padStart(4, "0")}-${opts.sha256}.json.gz`;
 }
 
@@ -115,13 +141,21 @@ export function replayDomChunkKey(opts: { sourceId: string; replay: string; seq:
  *  none outlives the bucket's 30 day rule while a recording that names it is still kept. The
  *  `~styles` segment can never be a recording's (safeReplayPathSegment puts "~" only after a
  *  non-empty prefix). */
-export function replayStyleKey(opts: { sourceId: string; day: string; sha256: string }): string {
+export function replayStyleKey(opts: {
+  sourceId: string;
+  day: string;
+  sha256: string;
+}): string {
   return `${REPLAYS_ROOT}${opts.sourceId}/~styles/${opts.day}/${opts.sha256}.css.gz`;
 }
 
 /** The sequence number and sha256 a DOM chunk key names, or null for a key outside that layout. */
-export function parseReplayDomChunkKey(key: string): { seq: number; sha256: string } | null {
-  const m = key.match(/^replays\/[^/]+\/[^/]+\/dom\/(\d{4,})-([0-9a-f]{64})\.json\.gz$/);
+export function parseReplayDomChunkKey(
+  key: string,
+): { seq: number; sha256: string } | null {
+  const m = key.match(
+    /^replays\/[^/]+\/[^/]+\/dom\/(\d{4,})-([0-9a-f]{64})\.json\.gz$/,
+  );
   return m ? { seq: Number(m[1]), sha256: m[2] } : null;
 }
 
@@ -174,9 +208,16 @@ export function r2Presign(
 
 /** The signing moment and lifetime for a URL that stays byte-identical
  *  within `windowMs`, and lives at least `windowMs` after any use of it. */
-export function stableSigningWindow(nowMs: number, windowMs: number): { signedAt: Date; expiresSeconds: number; expiresAt: number } {
+export function stableSigningWindow(
+  nowMs: number,
+  windowMs: number,
+): { signedAt: Date; expiresSeconds: number; expiresAt: number } {
   const start = Math.floor(nowMs / windowMs) * windowMs;
-  return { signedAt: new Date(start), expiresSeconds: Math.round((2 * windowMs) / 1000), expiresAt: start + 2 * windowMs };
+  return {
+    signedAt: new Date(start),
+    expiresSeconds: Math.round((2 * windowMs) / 1000),
+    expiresAt: start + 2 * windowMs,
+  };
 }
 
 /** A GET URL for a private object, stable within its window. `expiresAt` is
@@ -189,7 +230,10 @@ export async function r2StableGetUrl(
   params?: Record<string, string>,
 ): Promise<{ url: string; expiresAt: number }> {
   const w = stableSigningWindow(nowMs, windowMs);
-  return { url: await r2Presign(b, "GET", key, w.expiresSeconds, w.signedAt, params), expiresAt: w.expiresAt };
+  return {
+    url: await r2Presign(b, "GET", key, w.expiresSeconds, w.signedAt, params),
+    expiresAt: w.expiresAt,
+  };
 }
 
 /** What every read of a private recording is signed with: R2 answers the
@@ -201,7 +245,9 @@ export async function r2StableGetUrl(
  *  Never for the media bucket, whose public video is meant to be cached.
  *  Private to this file: a recording is read only through
  *  callRecordingSigner, so no reader can forget it. */
-const PRIVATE_OBJECT_GET_PARAMS: Readonly<Record<string, string>> = { "response-cache-control": "private, no-store" };
+const PRIVATE_OBJECT_GET_PARAMS: Readonly<Record<string, string>> = {
+  "response-cache-control": "private, no-store",
+};
 
 /** A GET URL signed now, for a reader that uses it at once and never needs
  *  the same bytes twice: one ffmpeg seek. Short, so it is
@@ -213,20 +259,36 @@ export async function r2FreshGetUrl(
   nowMs: number = Date.now(),
   params?: Record<string, string>,
 ): Promise<{ url: string; expiresAt: number }> {
-  return { url: await r2Presign(b, "GET", key, FRESH_URL_SECONDS, new Date(nowMs), params), expiresAt: nowMs + FRESH_URL_SECONDS * 1000 };
+  return {
+    url: await r2Presign(
+      b,
+      "GET",
+      key,
+      FRESH_URL_SECONDS,
+      new Date(nowMs),
+      params,
+    ),
+    expiresAt: nowMs + FRESH_URL_SECONDS * 1000,
+  };
 }
 
 /** When a recording's read URL is signed: `stable` within a window (a
  *  reactive query, whose answer must not change every second), or `fresh`
  *  now and short (a reader that uses it at once: one seek, one redirect). */
-export type CallRecordingSignWhen = { stable: { at: number; windowMs: number } } | "fresh";
-export type CallRecordingSigner = (key: string) => Promise<{ url: string; expiresAt: number }>;
+export type CallRecordingSignWhen =
+  | { stable: { at: number; windowMs: number } }
+  | "fresh";
+export type CallRecordingSigner = (
+  key: string,
+) => Promise<{ url: string; expiresAt: number }>;
 
 /** The one way to read a call recording: the recordings bucket, signed with
  *  PRIVATE_OBJECT_GET_PARAMS. Null when the bucket is not configured, so a
  *  caller signing many keys resolves it once. The caller has already passed
  *  the access check (canReadCall, or the public share token rule). */
-export function callRecordingSigner(when: CallRecordingSignWhen): CallRecordingSigner | null {
+export function callRecordingSigner(
+  when: CallRecordingSignWhen,
+): CallRecordingSigner | null {
   const b = callRecordingsBucketFromEnv();
   if (!b) return null;
   return (key) => {
@@ -242,12 +304,17 @@ export function callRecordingSigner(when: CallRecordingSignWhen): CallRecordingS
  *  `video/quicktime`, which Chrome will not play though the bytes are the
  *  same MP4 family (H.264 and AAC). Live frames (JPEG) keep their own type. */
 export function recordingGetParams(key: string): Record<string, string> {
-  return key.endsWith(".mp4") ? { ...PRIVATE_OBJECT_GET_PARAMS, "response-content-type": "video/mp4" } : PRIVATE_OBJECT_GET_PARAMS;
+  return key.endsWith(".mp4")
+    ? { ...PRIVATE_OBJECT_GET_PARAMS, "response-content-type": "video/mp4" }
+    : PRIVATE_OBJECT_GET_PARAMS;
 }
 
 /** One recording object's read URL (callRecordingSigner), or null when the
  *  bucket is not configured. */
-export async function callRecordingGetUrl(key: string, when: CallRecordingSignWhen): Promise<{ url: string; expiresAt: number } | null> {
+export async function callRecordingGetUrl(
+  key: string,
+  when: CallRecordingSignWhen,
+): Promise<{ url: string; expiresAt: number } | null> {
   const sign = callRecordingSigner(when);
   return sign ? sign(key) : null;
 }
@@ -256,17 +323,29 @@ export async function callRecordingGetUrl(key: string, when: CallRecordingSignWh
  *  list is a GET on the bucket, which the recordings token's object read
  *  covers. Throws on a refused or unreadable answer: a caller deleting by
  *  prefix must know it did not see everything. */
-export async function r2ListKeys(b: R2Bucket, prefix: string, maxKeys = 10_000): Promise<string[]> {
+export async function r2ListKeys(
+  b: R2Bucket,
+  prefix: string,
+  maxKeys = 10_000,
+): Promise<string[]> {
   return (await r2ListObjects(b, prefix, maxKeys)).map((o) => o.key);
 }
 
 /** r2ListKeys with each object's last write (ms; NaN when the listing did
  *  not say), for a sweep that must leave alone what was written moments ago. */
-export async function r2ListObjects(b: R2Bucket, prefix: string, maxKeys = 10_000): Promise<Array<{ key: string; lastModified: number }>> {
+export async function r2ListObjects(
+  b: R2Bucket,
+  prefix: string,
+  maxKeys = 10_000,
+): Promise<Array<{ key: string; lastModified: number }>> {
   const keys: Array<{ key: string; lastModified: number }> = [];
   let token: string | null = null;
   do {
-    const params: Record<string, string> = { "list-type": "2", prefix, ...(token ? { "continuation-token": token } : {}) };
+    const params: Record<string, string> = {
+      "list-type": "2",
+      prefix,
+      ...(token ? { "continuation-token": token } : {}),
+    };
     const url = await r2Presign(b, "GET", "", 300, undefined, params);
     const res = await fetch(url);
     if (!res.ok) throw new Error(`R2 list of ${prefix} answered ${res.status}`);
@@ -274,23 +353,37 @@ export async function r2ListObjects(b: R2Bucket, prefix: string, maxKeys = 10_00
     for (const c of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)) {
       const key = c[1].match(/<Key>([^<]*)<\/Key>/);
       const modified = c[1].match(/<LastModified>([^<]*)<\/LastModified>/);
-      if (key) keys.push({ key: xmlText(key[1]), lastModified: modified ? Date.parse(modified[1]) : NaN });
+      if (key)
+        keys.push({
+          key: xmlText(key[1]),
+          lastModified: modified ? Date.parse(modified[1]) : NaN,
+        });
     }
-    const next = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/) : null;
+    const next = /<IsTruncated>true<\/IsTruncated>/.test(xml)
+      ? xml.match(/<NextContinuationToken>([^<]*)<\/NextContinuationToken>/)
+      : null;
     token = next ? xmlText(next[1]) : null;
   } while (token && keys.length < maxKeys);
   return keys;
 }
 
 const xmlText = (s: string) =>
-  s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+  s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
 
 /** Where one run of a call's recording lives: every file of one press, and
  *  anything LiveKit wrote for it, sits under this prefix. Deleting a run
  *  deletes the prefix, so nothing written under a name nobody recorded (a
  *  late upload, a partial file, a live frame) outlives it. The trailing dash
  *  keeps one press's prefix from matching another's longer timestamp. */
-export function callRecordingRunPrefix(opts: { transcriptId: string; requestedAt: number }): string {
+export function callRecordingRunPrefix(opts: {
+  transcriptId: string;
+  requestedAt: number;
+}): string {
   return `${callRecordingCallPrefix(opts.transcriptId)}${opts.requestedAt}-`;
 }
 
@@ -325,7 +418,10 @@ export function callRecordingRunPrefixOfKey(key: string): string | null {
  *  file's own folder (`calls/<call>/EG_x.json`). It sits outside the run
  *  prefix, so a run's delete names it explicitly; null for a key outside the
  *  layout or a row LiveKit never gave an id. */
-export function callRecordingManifestKey(fileKey: string, egressId: string | null | undefined): string | null {
+export function callRecordingManifestKey(
+  fileKey: string,
+  egressId: string | null | undefined,
+): string | null {
   if (!egressId || !/^EG_[A-Za-z0-9]+$/.test(egressId)) return null;
   const m = fileKey.match(/^calls\/[^/]+\//);
   return m ? `${m[0]}${egressId}.json` : null;
@@ -333,7 +429,12 @@ export function callRecordingManifestKey(fileKey: string, egressId: string | nul
 
 /** One file of a run: its call, its kind, the press that started the run,
  *  and for a screen file the shared track it records. */
-export type CallRecordingFileRef = { transcriptId: string; kind: CallRecordingKind; requestedAt: number; trackSid?: string };
+export type CallRecordingFileRef = {
+  transcriptId: string;
+  kind: CallRecordingKind;
+  requestedAt: number;
+  trackSid?: string;
+};
 
 /** Where a call recording's file goes in the recordings bucket: under its
  *  call, named by the press that started its run so a call's files list in
@@ -350,7 +451,9 @@ export function callRecordingKey(opts: CallRecordingFileRef): string {
  *  file and under the same run prefix. It is what "the screen right now"
  *  reads, since the MP4 only reaches the bucket when its egress ends. LiveKit
  *  adds the `.jpeg` to the prefix it is given. */
-export function callRecordingLiveFramePrefix(opts: CallRecordingFileRef): string {
+export function callRecordingLiveFramePrefix(
+  opts: CallRecordingFileRef,
+): string {
   return `${callRecordingFileStem(opts)}-live`;
 }
 export const liveFrameKey = (prefix: string) => `${prefix}.jpeg`;
@@ -366,7 +469,8 @@ function callRecordingFileStem(opts: CallRecordingFileRef): string {
  *  time comfortably. */
 export const R2_COPY_PART_BYTES = 8 * 1024 * 1024;
 
-const xmlField = (xml: string, name: string): string | null => xml.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1] ?? null;
+const xmlField = (xml: string, name: string): string | null =>
+  xml.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1] ?? null;
 
 /** Copy a file another service hosts (a URL that answers Range requests)
  *  into the bucket under `key`, one part at a time, so a meeting's video of
@@ -380,37 +484,67 @@ export async function r2CopyFromUrl(
 ): Promise<{ bytes: number }> {
   const partBytes = opts.partBytes ?? R2_COPY_PART_BYTES;
   const probe = await fetch(sourceUrl, { headers: { Range: "bytes=0-0" } });
-  const total = Number(probe.headers.get("content-range")?.split("/")[1] ?? probe.headers.get("content-length"));
+  const total = Number(
+    probe.headers.get("content-range")?.split("/")[1] ??
+      probe.headers.get("content-length"),
+  );
   await probe.body?.cancel();
-  if (!probe.ok || !Number.isFinite(total) || total <= 0) throw new Error(`source answered ${probe.status} with no size`);
-  const headers = opts.contentType ? { "content-type": opts.contentType } : undefined;
-  const created = await fetch(await r2Presign(b, "POST", key, 600, undefined, { uploads: "" }, headers), {
-    method: "POST",
-    ...(headers ? { headers } : {}),
-  });
+  if (!probe.ok || !Number.isFinite(total) || total <= 0)
+    throw new Error(`source answered ${probe.status} with no size`);
+  const headers = opts.contentType
+    ? { "content-type": opts.contentType }
+    : undefined;
+  const created = await fetch(
+    await r2Presign(b, "POST", key, 600, undefined, { uploads: "" }, headers),
+    {
+      method: "POST",
+      ...(headers ? { headers } : {}),
+    },
+  );
   const uploadId = xmlField(await created.text(), "UploadId");
-  if (!created.ok || !uploadId) throw new Error(`could not start the upload (${created.status})`);
+  if (!created.ok || !uploadId)
+    throw new Error(`could not start the upload (${created.status})`);
   const parts: Array<{ n: number; etag: string }> = [];
   try {
     for (let start = 0, n = 1; start < total; start += partBytes, n++) {
       const end = Math.min(start + partBytes, total) - 1;
-      const piece = await fetch(sourceUrl, { headers: { Range: `bytes=${start}-${end}` } });
-      if (piece.status !== 206 && !(piece.status === 200 && start === 0 && end === total - 1)) {
-        throw new Error(`source answered ${piece.status} for bytes ${start}-${end}`);
+      const piece = await fetch(sourceUrl, {
+        headers: { Range: `bytes=${start}-${end}` },
+      });
+      if (
+        piece.status !== 206 &&
+        !(piece.status === 200 && start === 0 && end === total - 1)
+      ) {
+        throw new Error(
+          `source answered ${piece.status} for bytes ${start}-${end}`,
+        );
       }
       const body = await piece.arrayBuffer();
-      const put = await fetch(await r2Presign(b, "PUT", key, 600, undefined, { partNumber: String(n), uploadId }), { method: "PUT", body });
+      const put = await fetch(
+        await r2Presign(b, "PUT", key, 600, undefined, {
+          partNumber: String(n),
+          uploadId,
+        }),
+        { method: "PUT", body },
+      );
       const etag = put.headers.get("etag");
       if (!put.ok || !etag) throw new Error(`part ${n} answered ${put.status}`);
       parts.push({ n, etag });
     }
     const xml = `<CompleteMultipartUpload>${parts.map((p) => `<Part><PartNumber>${p.n}</PartNumber><ETag>${p.etag}</ETag></Part>`).join("")}</CompleteMultipartUpload>`;
-    const done = await fetch(await r2Presign(b, "POST", key, 600, undefined, { uploadId }), { method: "POST", body: xml });
+    const done = await fetch(
+      await r2Presign(b, "POST", key, 600, undefined, { uploadId }),
+      { method: "POST", body: xml },
+    );
     const answer = await done.text();
-    if (!done.ok || /<Error>/.test(answer)) throw new Error(`could not finish the upload (${done.status})`);
+    if (!done.ok || /<Error>/.test(answer))
+      throw new Error(`could not finish the upload (${done.status})`);
     return { bytes: total };
   } catch (e) {
-    await fetch(await r2Presign(b, "DELETE", key, 600, undefined, { uploadId }), { method: "DELETE" }).catch(() => {});
+    await fetch(
+      await r2Presign(b, "DELETE", key, 600, undefined, { uploadId }),
+      { method: "DELETE" },
+    ).catch(() => {});
     throw e;
   }
 }

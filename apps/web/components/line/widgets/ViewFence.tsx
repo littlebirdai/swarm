@@ -18,7 +18,9 @@ export default function ViewFence({ code }: { code: string }) {
   const fallback = moment ? (
     <MomentView moment={moment} />
   ) : url ? (
-    <a className="pv-open" href={url} target="_blank" rel="noreferrer">{title ?? url}</a>
+    <a className="pv-open" href={url} target="_blank" rel="noreferrer">
+      {title ?? url}
+    </a>
   ) : (
     <code className="pv-ref-text">{formatProductViewRef(ref)}</code>
   );

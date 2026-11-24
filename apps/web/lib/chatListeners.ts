@@ -7,18 +7,33 @@ import type { OrgRole, OrgTree } from "../components/org/orgTypes";
 /** The viewer's admin grant, mirrored from convex/orgChannels.ts
  *  (`userCanAdminRole`): the role's host, a team admin or owner, or the owner
  *  of a personal workspace. */
-export function viewerAdministersRole(tree: OrgTree | null, viewerId: string, role: OrgRole): boolean {
-  const me = tree?.people.find((p) => p.is_me) ?? tree?.people.find((p) => p.user_id === viewerId);
-  const isAdmin = me?.role === "admin" || me?.role === "owner" || tree?.workspace.kind === "user";
+export function viewerAdministersRole(
+  tree: OrgTree | null,
+  viewerId: string,
+  role: OrgRole,
+): boolean {
+  const me =
+    tree?.people.find((p) => p.is_me) ??
+    tree?.people.find((p) => p.user_id === viewerId);
+  const isAdmin =
+    me?.role === "admin" ||
+    me?.role === "owner" ||
+    tree?.workspace.kind === "user";
   return isAdmin || role.host_user_id === (me?.user_id ?? viewerId);
 }
 
 /** Roles following this channel, and the ones the viewer may point at it.
  *  Retired roles are neither. */
-export function channelListeners(tree: OrgTree | null, channelId: string, viewerId: string) {
+export function channelListeners(
+  tree: OrgTree | null,
+  channelId: string,
+  viewerId: string,
+) {
   const roles = (tree?.roles ?? []).filter((r) => r.status !== "retired");
   return {
-    listening: roles.filter((r) => (r.follow_channel_ids ?? []).includes(channelId)),
+    listening: roles.filter((r) =>
+      (r.follow_channel_ids ?? []).includes(channelId),
+    ),
     mine: roles.filter((r) => viewerAdministersRole(tree, viewerId, r)),
   };
 }

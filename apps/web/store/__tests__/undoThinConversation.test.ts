@@ -14,13 +14,18 @@ const META = { _id: ID, title: "Loaded meta", message_count: 4 };
 
 const state = () => useInboxStore.getState() as any;
 const conv = () => state().conversations[ID];
-const convLocks = () => Object.entries(state().pending as Record<string, any>).filter(([k]) => k.startsWith(`conversations:${ID}`));
+const convLocks = () =>
+  Object.entries(state().pending as Record<string, any>).filter(([k]) =>
+    k.startsWith(`conversations:${ID}`),
+  );
 
 const seed = (session = true) => {
   useInboxStore.setState({
     pending: {},
     favorites: [],
-    sessions: (session ? { [ID]: { _id: ID, title: "Twinless", updated_at: 1 } } : {}) as any,
+    sessions: (session
+      ? { [ID]: { _id: ID, title: "Twinless", updated_at: 1 } }
+      : {}) as any,
     conversations: {} as any,
   });
 };
@@ -29,10 +34,13 @@ const seed = (session = true) => {
 const captureUndoPatches = () => {
   const patches: Array<Record<string, any>> = [];
   const owner = {};
-  state()._setDispatch(async (action: string, _args: unknown, sent: any) => {
-    if (action === "applyUndoPatches") patches.push(sent ?? {});
-    return null;
-  }, { owner });
+  state()._setDispatch(
+    async (action: string, _args: unknown, sent: any) => {
+      if (action === "applyUndoPatches") patches.push(sent ?? {});
+      return null;
+    },
+    { owner },
+  );
   // The undo of a thin row writes back less than its forward sent (the spell
   // keeps the row and restores fields), so it waits for that send to settle.
   const until = async (n: number) => {
@@ -49,7 +57,10 @@ const expectMetaLoads = () => {
 };
 
 describe("undo of a gesture on a row whose conversation meta is not loaded", () => {
-  beforeEach(() => { _resetUndoStacks(); seed(); });
+  beforeEach(() => {
+    _resetUndoStacks();
+    seed();
+  });
 
   test("favorite then undo: the meta still loads and no row exclude remains", () => {
     state().toggleFavorite(ID);
@@ -73,7 +84,11 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
     seed(false);
     const sent = captureUndoPatches();
     try {
-      for (const fields of [{ inbox_pinned_at: null }, { inbox_dismissed_at: null, inbox_stashed_at: null }, { inbox_pinned_at: 123 }]) {
+      for (const fields of [
+        { inbox_pinned_at: null },
+        { inbox_dismissed_at: null, inbox_stashed_at: null },
+        { inbox_pinned_at: 123 },
+      ]) {
         seed(false);
         state().patchConversation(ID, fields);
         expect(getUndoHistory().items).toEqual([]);
@@ -100,7 +115,9 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
       state().toggleFavorite(ID);
       expect(performUndo()).toBe(true);
       await sent.until(1);
-      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([{ is_favorite: null }]);
+      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([
+        { is_favorite: null },
+      ]);
     } finally {
       sent.stop();
     }
@@ -110,7 +127,9 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
   // does. Both reach one server row, so the undo must send the prior value.
   test("unfavorite then undo sends the prior value, and loaded meta keeps it", async () => {
     useInboxStore.setState({
-      sessions: { [ID]: { _id: ID, title: "Twinless", updated_at: 1, is_favorite: true } } as any,
+      sessions: {
+        [ID]: { _id: ID, title: "Twinless", updated_at: 1, is_favorite: true },
+      } as any,
       favorites: [{ _id: ID }] as any,
     });
     const sent = captureUndoPatches();
@@ -119,7 +138,9 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
       expect(conv().is_favorite).toBe(false);
       expect(performUndo()).toBe(true);
       await sent.until(1);
-      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([{ is_favorite: true }]);
+      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([
+        { is_favorite: true },
+      ]);
     } finally {
       sent.stop();
     }
@@ -140,7 +161,9 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
       expect(state().sessions[ID].is_favorite).toBe(false);
       expect(performUndo()).toBe(true);
       await sent.until(1);
-      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([{ is_favorite: true }]);
+      expect(sent.patches.map((p) => p.conversations?.[ID])).toEqual([
+        { is_favorite: true },
+      ]);
     } finally {
       sent.stop();
     }
@@ -153,7 +176,10 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
   test("a close through patchConversation is named Closed on the undo bar; a bare dismissal is a Kill", () => {
     const sent = captureUndoPatches();
     try {
-      state().patchConversation(ID, { inbox_dismissed_at: 9, inbox_closed_at: 9 } as any);
+      state().patchConversation(ID, {
+        inbox_dismissed_at: 9,
+        inbox_closed_at: 9,
+      } as any);
       expect(getUndoHistory().items[0]!.label).toStartWith("Closed");
       state().patchConversation(ID, { inbox_dismissed_at: 10 });
       expect(getUndoHistory().items[0]!.label).toStartWith("Killed");
@@ -164,13 +190,24 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
 
   test("unpin and restore through patchConversation undo to the prior stamps", async () => {
     useInboxStore.setState({
-      sessions: { [ID]: { _id: ID, title: "Twinless", updated_at: 1, inbox_pinned_at: 77, inbox_stashed_at: 55 } } as any,
+      sessions: {
+        [ID]: {
+          _id: ID,
+          title: "Twinless",
+          updated_at: 1,
+          inbox_pinned_at: 77,
+          inbox_stashed_at: 55,
+        },
+      } as any,
     });
     const sent = captureUndoPatches();
     try {
       state().patchConversation(ID, { inbox_pinned_at: null });
       expect(performUndo()).toBe(true);
-      state().patchConversation(ID, { inbox_dismissed_at: null, inbox_stashed_at: null });
+      state().patchConversation(ID, {
+        inbox_dismissed_at: null,
+        inbox_stashed_at: null,
+      });
       expect(performUndo()).toBe(true);
       await sent.until(2);
       const [unpin, restore] = sent.patches.map((p) => p.conversations?.[ID]);
@@ -195,21 +232,44 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
   test("redo of a restore keeps a stash made elsewhere since the undo", async () => {
     const HIDES = { inbox_snoozed_until: null, inbox_stashed_at: null };
     useInboxStore.setState({
-      sessions: { [ID]: { _id: ID, title: "Twinless", updated_at: 1, ...HIDES, inbox_snoozed_until: 10 } } as any,
+      sessions: {
+        [ID]: {
+          _id: ID,
+          title: "Twinless",
+          updated_at: 1,
+          ...HIDES,
+          inbox_snoozed_until: 10,
+        },
+      } as any,
     });
-    state().syncRecord("conversations", ID, { ...META, ...HIDES, inbox_snoozed_until: 10 });
+    state().syncRecord("conversations", ID, {
+      ...META,
+      ...HIDES,
+      inbox_snoozed_until: 10,
+    });
     const sent: Array<{ action: string; args: any; patches: any }> = [];
     const owner = {};
-    state()._setDispatch(async (action: string, args: any, patches: any) => {
-      sent.push({ action, args, patches });
-      return null;
-    }, { owner });
+    state()._setDispatch(
+      async (action: string, args: any, patches: any) => {
+        sent.push({ action, args, patches });
+        return null;
+      },
+      { owner },
+    );
     try {
-      state().patchConversation(ID, { inbox_snoozed_until: null, inbox_stashed_at: null } as any);
+      state().patchConversation(ID, {
+        inbox_snoozed_until: null,
+        inbox_stashed_at: null,
+      } as any);
       expect(performUndo()).toBe(true);
       await new Promise((r) => setTimeout(r, 5));
       expect(conv().inbox_snoozed_until).toBe(10);
-      state().syncRecord("conversations", ID, { ...META, ...HIDES, inbox_snoozed_until: 10, inbox_stashed_at: 99 });
+      state().syncRecord("conversations", ID, {
+        ...META,
+        ...HIDES,
+        inbox_snoozed_until: 10,
+        inbox_stashed_at: 99,
+      });
       expect(conv().inbox_stashed_at).toBe(99);
       const from = sent.length;
       expect(performRedo()).toBe(true);
@@ -229,7 +289,9 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
       state().toggleFavorite(ID);
       performUndo();
       await sent.until(1);
-      const fields = sent.patches.map((p) => p.conversations?.[ID]).find(Boolean);
+      const fields = sent.patches
+        .map((p) => p.conversations?.[ID])
+        .find(Boolean);
       expect(fields).toBeDefined();
       expect("is_favorite" in fields!).toBe(true);
       expect(fields!.is_favorite ?? null).toBe(null);
@@ -259,7 +321,17 @@ describe("undo of a gesture on a row whose conversation meta is not loaded", () 
   // The rule is the policy's, not one spec's: every undoable action that
   // writes a twinless row keeps the row on undo.
   test("project switch and privacy keep the row too", () => {
-    useInboxStore.setState({ sessions: { [ID]: { _id: ID, title: "Twinless", project_path: "/a", git_root: "/a", is_private: true } } as any });
+    useInboxStore.setState({
+      sessions: {
+        [ID]: {
+          _id: ID,
+          title: "Twinless",
+          project_path: "/a",
+          git_root: "/a",
+          is_private: true,
+        },
+      } as any,
+    });
     state().switchProject(ID, "/b");
     expect(performUndo()).toBe(true);
     expect(state().sessions[ID].project_path).toBe("/a");
@@ -292,8 +364,22 @@ describe("undo of a gesture whose conversations copy held a stale stamp", () => 
     _resetUndoStacks();
     useInboxStore.setState({
       pending: {},
-      sessions: { [SID]: { _id: SID, title: "Live", updated_at: 1, inbox_dismissed_at: null } } as any,
-      conversations: { [SID]: { _id: SID, _creationTime: 1, title: "Live", inbox_dismissed_at: STALE } } as any,
+      sessions: {
+        [SID]: {
+          _id: SID,
+          title: "Live",
+          updated_at: 1,
+          inbox_dismissed_at: null,
+        },
+      } as any,
+      conversations: {
+        [SID]: {
+          _id: SID,
+          _creationTime: 1,
+          title: "Live",
+          inbox_dismissed_at: STALE,
+        },
+      } as any,
     });
   });
 
@@ -327,7 +413,11 @@ describe("undo of a gesture whose conversations copy held a stale stamp", () => 
   });
 
   test("the meta feeder reads a stamp the server left out as cleared", () => {
-    state().syncRecord("conversations", SID, withClearedInboxStamps({ _id: SID, _creationTime: 1, title: "Live" }));
+    state().syncRecord(
+      "conversations",
+      SID,
+      withClearedInboxStamps({ _id: SID, _creationTime: 1, title: "Live" }),
+    );
     expect(state().conversations[SID].inbox_dismissed_at).toBe(null);
     expect(state().conversations[SID].title).toBe("Live");
   });

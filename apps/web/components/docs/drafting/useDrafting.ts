@@ -22,7 +22,13 @@ const api = _api as any;
 export type LabRun = { kind: LabRequest["tool"]; label: string } | null;
 
 /** What the last trim proposed, for the result bar ("535 -> 480 words"). */
-export type TrimSummary = { level: string; label: string; before: number; after: number; applied: number };
+export type TrimSummary = {
+  level: string;
+  label: string;
+  before: number;
+  after: number;
+  applied: number;
+};
 
 /**
  * The doc page's drafting layer: which panels are open, the live editor they
@@ -45,16 +51,26 @@ export function useDrafting(docId: string) {
     (st) => st.teams,
   ]);
   const enabled = !!s.clientState.ui?.doc_drafting;
-  const overflow: string = (s.docDetails[docId] as any)?.overflow ?? (s.docs[docId] as any)?.overflow ?? "";
+  const overflow: string =
+    (s.docDetails[docId] as any)?.overflow ??
+    (s.docs[docId] as any)?.overflow ??
+    "";
   // The Lab sends the doc to Anthropic: a regulated team's doc gets the line instead (the server refuses it too).
   const workspace: string = (s.docs[docId] as any)?.workspace ?? "";
-  const labTeam = workspace.startsWith("team:") ? (s.teams || []).find((t: any) => `team:${t._id}` === workspace) : null;
+  const labTeam = workspace.startsWith("team:")
+    ? (s.teams || []).find((t: any) => `team:${t._id}` === workspace)
+    : null;
   const labBlock = teamVendorBlock(labTeam as any, "anthropic");
 
   // The editor's plugin carries the flag its decorations read; mirror the
   // preference into it whenever either side changes (a fresh mount included).
   useWatchEffect(() => {
-    if (editor && !editor.isDestroyed && draftingState(editor.state)?.enabled !== enabled) setDraftingEnabled(editor, enabled);
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      draftingState(editor.state)?.enabled !== enabled
+    )
+      setDraftingEnabled(editor, enabled);
   }, [editor, enabled]);
 
   const setEnabled = useCallback((on: boolean) => {
@@ -62,7 +78,8 @@ export function useDrafting(docId: string) {
   }, []);
 
   const setOverflow = useCallback(
-    (text: string) => useInboxStore.getState().updateDoc(docId, { overflow: text }),
+    (text: string) =>
+      useInboxStore.getState().updateDoc(docId, { overflow: text }),
     [docId],
   );
 
@@ -83,7 +100,11 @@ export function useDrafting(docId: string) {
   }, [editor]);
 
   const lab = useCallback(
-    async (req: LabRequest, label: string, target?: Range): Promise<LabResult | null> => {
+    async (
+      req: LabRequest,
+      label: string,
+      target?: Range,
+    ): Promise<LabResult | null> => {
       if (!editor || labRun) return null;
       setLabRun({ kind: req.tool, label });
       try {
@@ -92,11 +113,18 @@ export function useDrafting(docId: string) {
         if (editor.isDestroyed) return null;
         const landed = applyLabResultInEditor(editor.view, result, target);
         if (result.tool !== "alternatives" && result.tool !== "trim") {
-          toast.message(landed.applied ? `${label}: ${landed.applied} marked` : `${label}: nothing to mark`);
+          toast.message(
+            landed.applied
+              ? `${label}: ${landed.applied} marked`
+              : `${label}: nothing to mark`,
+          );
         }
         return result;
       } catch (e: any) {
-        toast.error(e?.message?.replace(/^.*Uncaught Error: /, "").split("\n")[0] || "The Lab failed");
+        toast.error(
+          e?.message?.replace(/^.*Uncaught Error: /, "").split("\n")[0] ||
+            "The Lab failed",
+        );
         return null;
       } finally {
         setLabRun(null);
@@ -113,7 +141,11 @@ export function useDrafting(docId: string) {
       const $from = state.doc.resolve(range.from);
       const target = state.doc.textBetween(range.from, range.to, " ");
       const context = $from.parent.textContent;
-      void lab({ tool: "alternatives", target, context }, "AI alternatives", range);
+      void lab(
+        { tool: "alternatives", target, context },
+        "AI alternatives",
+        range,
+      );
     },
     [editor, lab, openAlternatives],
   );
@@ -121,8 +153,15 @@ export function useDrafting(docId: string) {
   const stash = useCallback(
     (text: string) => {
       const current = useInboxStore.getState().docDetails[docId] as any;
-      const prev: string = current?.overflow ?? (useInboxStore.getState().docs[docId] as any)?.overflow ?? "";
-      setOverflow(prev.trim() ? `${prev.replace(/\s+$/, "")}\n\n${text.trim()}` : text.trim());
+      const prev: string =
+        current?.overflow ??
+        (useInboxStore.getState().docs[docId] as any)?.overflow ??
+        "";
+      setOverflow(
+        prev.trim()
+          ? `${prev.replace(/\s+$/, "")}\n\n${text.trim()}`
+          : text.trim(),
+      );
       setOverflowOpen(true);
     },
     [docId, setOverflow],
@@ -131,7 +170,11 @@ export function useDrafting(docId: string) {
   // The extension's shortcuts call through this ref, so handlers can change
   // without rebuilding the editor's extension list.
   const draftingRef = useRef<DraftingOptions>({});
-  draftingRef.current = { onOpenAlternatives: openAlternatives, onAiAlternatives: aiAlternatives, onStash: stash };
+  draftingRef.current = {
+    onOpenAlternatives: openAlternatives,
+    onAiAlternatives: aiAlternatives,
+    onStash: stash,
+  };
 
   return {
     editor,

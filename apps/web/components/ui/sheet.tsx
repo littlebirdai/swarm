@@ -1,10 +1,10 @@
-import * as React from "react"
-import * as SheetPrimitive from "@radix-ui/react-dialog"
-import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import * as React from "react";
+import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { cva, type VariantProps } from "class-variance-authority";
+import { X } from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { modernFocusRing } from "./styles"
+import { cn } from "@/lib/utils";
+import { modernFocusRing } from "./styles";
 
 // The Modern style (the `modern:` classes) draws a sheet as the dialog's paper
 // sliding in from an edge: rounded on the side that faces the page, the
@@ -13,15 +13,16 @@ import { modernFocusRing } from "./styles"
 // alone so the header and footer stay in view. Classic and Minimal keep their
 // face and get the same cap: a sheet taller than the window scrolls as a
 // whole (a top or bottom sheet stops short of the far edge).
-const MODERN_CLOSE = "modern:right-3 modern:top-3 modern:inline-flex modern:size-7 modern:items-center modern:justify-center modern:rounded-control modern:text-sol-text-dim modern:opacity-100 modern:transition-colors modern:duration-press modern:ease-ui modern:hover:bg-sol-text/[0.06] modern:hover:text-sol-text modern:data-[state=open]:bg-transparent"
+const MODERN_CLOSE =
+  "modern:right-3 modern:top-3 modern:inline-flex modern:size-7 modern:items-center modern:justify-center modern:rounded-control modern:text-sol-text-dim modern:opacity-100 modern:transition-colors modern:duration-press modern:ease-ui modern:hover:bg-sol-text/[0.06] modern:hover:text-sol-text modern:data-[state=open]:bg-transparent";
 
-const Sheet = SheetPrimitive.Root
+const Sheet = SheetPrimitive.Root;
 
-const SheetTrigger = SheetPrimitive.Trigger
+const SheetTrigger = SheetPrimitive.Trigger;
 
-const SheetClose = SheetPrimitive.Close
+const SheetClose = SheetPrimitive.Close;
 
-const SheetPortal = SheetPrimitive.Portal
+const SheetPortal = SheetPrimitive.Portal;
 
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
@@ -32,13 +33,13 @@ const SheetOverlay = React.forwardRef<
       "fixed inset-0 z-[200] bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       // Modern: the page dimmed, not blacked out.
       "modern:bg-black/40 modern:duration-pop modern:ease-ui",
-      className
+      className,
     )}
     {...props}
     ref={ref}
   />
-))
-SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
+));
+SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
   "fixed z-[200] gap-4 overflow-y-auto bg-background p-6 shadow-lg outline-none transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out modern:overflow-y-auto modern:text-sol-text modern:shadow-dialog",
@@ -56,43 +57,62 @@ const sheetVariants = cva(
     defaultVariants: {
       side: "right",
     },
-  }
-)
+  },
+);
 
 interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
+  extends
+    React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
   /** Skip the corner X; the caller renders its own SheetClose (a drawer with a header row). */
-  hideClose?: boolean
+  hideClose?: boolean;
   /** Extra classes for the backdrop behind the content. */
-  overlayClassName?: string
+  overlayClassName?: string;
 }
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", hideClose, overlayClassName, className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay className={overlayClassName} />
-    <SheetPrimitive.Content
-      ref={ref}
-      // Radix does not render aria-modal itself; the shortcut dispatcher's
-      // modal guard (hasOpenModal) keys on it.
-      aria-modal="true"
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      {!hideClose && (
-        <SheetPrimitive.Close className={cn("absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary", MODERN_CLOSE, modernFocusRing)}>
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      )}
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-))
-SheetContent.displayName = SheetPrimitive.Content.displayName
+>(
+  (
+    {
+      side = "right",
+      hideClose,
+      overlayClassName,
+      className,
+      children,
+      ...props
+    },
+    ref,
+  ) => (
+    <SheetPortal>
+      <SheetOverlay className={overlayClassName} />
+      <SheetPrimitive.Content
+        ref={ref}
+        // Radix does not render aria-modal itself; the shortcut dispatcher's
+        // modal guard (hasOpenModal) keys on it.
+        aria-modal="true"
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+      >
+        {!hideClose && (
+          <SheetPrimitive.Close
+            className={cn(
+              "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary",
+              MODERN_CLOSE,
+              modernFocusRing,
+            )}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        )}
+        {children}
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  ),
+);
+SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({
   className,
@@ -101,12 +121,12 @@ const SheetHeader = ({
   <div
     className={cn(
       "flex flex-col space-y-2 text-center sm:text-left",
-      className
+      className,
     )}
     {...props}
   />
-)
-SheetHeader.displayName = "SheetHeader"
+);
+SheetHeader.displayName = "SheetHeader";
 
 // Modern: the part of a sheet that grows; it scrolls alone, edge to edge. In
 // Classic and Minimal it is a plain block.
@@ -115,11 +135,14 @@ const SheetBody = ({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn("modern:-mx-6 modern:min-h-0 modern:flex-1 modern:overflow-y-auto modern:px-6", className)}
+    className={cn(
+      "modern:-mx-6 modern:min-h-0 modern:flex-1 modern:overflow-y-auto modern:px-6",
+      className,
+    )}
     {...props}
   />
-)
-SheetBody.displayName = "SheetBody"
+);
+SheetBody.displayName = "SheetBody";
 
 const SheetFooter = ({
   className,
@@ -128,12 +151,12 @@ const SheetFooter = ({
   <div
     className={cn(
       "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className
+      className,
     )}
     {...props}
   />
-)
-SheetFooter.displayName = "SheetFooter"
+);
+SheetFooter.displayName = "SheetFooter";
 
 const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
@@ -144,8 +167,8 @@ const SheetTitle = React.forwardRef<
     className={cn("text-lg font-semibold text-foreground", className)}
     {...props}
   />
-))
-SheetTitle.displayName = SheetPrimitive.Title.displayName
+));
+SheetTitle.displayName = SheetPrimitive.Title.displayName;
 
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
@@ -156,8 +179,8 @@ const SheetDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-SheetDescription.displayName = SheetPrimitive.Description.displayName
+));
+SheetDescription.displayName = SheetPrimitive.Description.displayName;
 
 export {
   Sheet,
@@ -171,4 +194,4 @@ export {
   SheetFooter,
   SheetTitle,
   SheetDescription,
-}
+};

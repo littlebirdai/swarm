@@ -34,14 +34,20 @@ export function DomainTeams() {
       {open.map((t) => {
         const pending = t.request === "pending" || asked.has(t._id);
         return (
-          <div key={t._id} className="flex items-center gap-3 rounded-xl border border-sol-border bg-sol-bg-alt/40 px-4 py-3">
+          <div
+            key={t._id}
+            className="flex items-center gap-3 rounded-xl border border-sol-border bg-sol-bg-alt/40 px-4 py-3"
+          >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sol-violet/15 text-sol-violet">
               <Users className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-sol-text">{t.name}</span>
+              <span className="block truncate text-sm font-medium text-sol-text">
+                {t.name}
+              </span>
               <span className="block text-xs text-sol-text-dim">
-                <span className="tabular-nums">{t.member_count}</span> from @{found?.domain}
+                <span className="tabular-nums">{t.member_count}</span> from @
+                {found?.domain}
               </span>
             </span>
             {pending ? (

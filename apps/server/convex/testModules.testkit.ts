@@ -16,7 +16,11 @@ export const allModules: Record<string, () => Promise<unknown>> = {
   "./_generated/server.ts": () => import("./_generated/server"),
   ...Object.fromEntries(
     [...new Bun.Glob("**/*.ts").scanSync(convexDir)]
-      .filter((file) => !file.startsWith("_generated/") && (file.split("/").pop()!.match(/\./g) ?? []).length === 1)
+      .filter(
+        (file) =>
+          !file.startsWith("_generated/") &&
+          (file.split("/").pop()!.match(/\./g) ?? []).length === 1,
+      )
       .map((file) => [`./${file}`, () => import(`${convexDir}/${file}`)]),
   ),
 };

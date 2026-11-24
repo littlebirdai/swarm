@@ -5,7 +5,14 @@
 // the frame shows and how much of the page the column leaves to the panel
 // and the dock (useStage), and draws its own parts over the app and in the
 // column through portals into them.
-import { createContext, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { AppFrame, type AppFrameProps } from "./AppFrame";
 import { StuckNote } from "./StuckNote";
 import s from "./AppPage.module.css";
@@ -21,11 +28,23 @@ export type StageControl = {
 /** Where the room draws: over the app, and in its column. */
 type Slots = { area: HTMLDivElement | null; col: HTMLElement | null };
 
-const StageContext = createContext<(Slots & { take: (control: StageControl) => void }) | null>(null);
+const StageContext = createContext<
+  (Slots & { take: (control: StageControl) => void }) | null
+>(null);
 
 /** `onStuck`: while the visitor is not known yet, the way to try again,
  *  offered once that takes a while. */
-export function Stage({ slug, version, onStuck, children }: { slug: string; version: number | null; onStuck: (() => void) | null; children: ReactNode }) {
+export function Stage({
+  slug,
+  version,
+  onStuck,
+  children,
+}: {
+  slug: string;
+  version: number | null;
+  onStuck: (() => void) | null;
+  children: ReactNode;
+}) {
   // Until the room takes over, the frame stays on where it started.
   const [first] = useState(version);
   const [control, take] = useState<StageControl | null>(null);
@@ -36,8 +55,16 @@ export function Stage({ slug, version, onStuck, children }: { slug: string; vers
   return (
     <StageContext.Provider value={stage}>
       <div className={s.page}>
-        <main ref={setCol} className={s.appCol} style={{ right: control?.right ?? 0 }}>
-          <div ref={setArea} className={s.appArea} style={{ bottom: control?.bottom ?? 0 }}>
+        <main
+          ref={setCol}
+          className={s.appCol}
+          style={{ right: control?.right ?? 0 }}
+        >
+          <div
+            ref={setArea}
+            className={s.appArea}
+            style={{ bottom: control?.bottom ?? 0 }}
+          >
             <AppFrame slug={slug} {...frame} />
             {onStuck && <StuckNote onRetry={onStuck} className={s.stuck} />}
           </div>

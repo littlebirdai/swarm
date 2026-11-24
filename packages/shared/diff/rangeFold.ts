@@ -4,7 +4,12 @@
 // changes that carry weight on either side of it (selectRangeFoldInputs), the
 // same economy selectFoldInputs gives the whole-session fold.
 
-import { computeCumulativeDiff, diffFileOf, type CumulativeChange, type DiffFile } from "./index";
+import {
+  computeCumulativeDiff,
+  diffFileOf,
+  type CumulativeChange,
+  type DiffFile,
+} from "./index";
 import { selectFoldInputs, type FoldInputRef } from "./foldInputs";
 
 /** Where the diff starts. `session`: the session's first edit. `branch`: the
@@ -13,7 +18,13 @@ import { selectFoldInputs, type FoldInputRef } from "./foldInputs";
  *  person sent. `review`: per file, the version the reader last marked viewed
  *  (selectReviewFoldInputs); a file never marked starts with the session. */
 export type DiffBase = "session" | "branch" | "commit" | "turn" | "review";
-export const DIFF_BASES: readonly DiffBase[] = ["session", "branch", "commit", "turn", "review"];
+export const DIFF_BASES: readonly DiffBase[] = [
+  "session",
+  "branch",
+  "commit",
+  "turn",
+  "review",
+];
 
 export type DiffBaseInputs = {
   /** When the person last spoke (the last user message's timestamp). */
@@ -26,15 +37,23 @@ export type DiffBaseInputs = {
 
 type BaseRef = FoldInputRef & { timestamp: number; commitBranch?: string };
 
-const isDefaultBranch = (name: string | null | undefined, inputs: DiffBaseInputs) =>
-  !!name && (name === inputs.defaultBranch || name === "main" || name === "master");
+const isDefaultBranch = (
+  name: string | null | undefined,
+  inputs: DiffBaseInputs,
+) =>
+  !!name &&
+  (name === inputs.defaultBranch || name === "main" || name === "master");
 
 /**
  * The index of the first change after the boundary, or null when the base
  * names nothing in this session (no commit yet, no message of the person's).
  * A start equal to `changes.length` is a real answer: nothing changed since.
  */
-export function diffBaseStart(changes: readonly BaseRef[], base: DiffBase, inputs: DiffBaseInputs = {}): number | null {
+export function diffBaseStart(
+  changes: readonly BaseRef[],
+  base: DiffBase,
+  inputs: DiffBaseInputs = {},
+): number | null {
   if (base === "session" || base === "review") return 0;
   if (base === "turn") {
     if (inputs.turnStartedAt === undefined) return null;
@@ -47,7 +66,11 @@ export function diffBaseStart(changes: readonly BaseRef[], base: DiffBase, input
     // The last commit, or the last one that landed on the default branch: the
     // session's commits on a feature branch sit after the merge base, so
     // their edits stay in the diff.
-    if (base === "commit" || isDefaultBranch(c.commitBranch ?? inputs.branch, inputs)) return i + 1;
+    if (
+      base === "commit" ||
+      isDefaultBranch(c.commitBranch ?? inputs.branch, inputs)
+    )
+      return i + 1;
   }
   return base === "commit" ? null : 0;
 }
@@ -57,7 +80,11 @@ export function diffBaseStart(changes: readonly BaseRef[], base: DiffBase, input
  * recovers each touched file's text at the boundary, `head` its text at `to`.
  * Only files with a change inside the range appear. Fetch the union's bodies.
  */
-export function selectRangeFoldInputs<T extends FoldInputRef>(changes: T[], from: number, to: number | null): { base: T[]; head: T[] } {
+export function selectRangeFoldInputs<T extends FoldInputRef>(
+  changes: T[],
+  from: number,
+  to: number | null,
+): { base: T[]; head: T[] } {
   const end = Math.min(to ?? changes.length - 1, changes.length - 1);
   if (from > end) return { base: [], head: [] };
   const touched = new Set<string>();
@@ -73,10 +100,15 @@ export function selectRangeFoldInputs<T extends FoldInputRef>(changes: T[], from
 
 /** Each file's last change at or before `to`: the id a "viewed" mark records
  *  as the version it was made on. */
-export function lastChangeIds<T extends FoldInputRef & { id: string }>(changes: readonly T[], to: number | null): Map<string, string> {
+export function lastChangeIds<T extends FoldInputRef & { id: string }>(
+  changes: readonly T[],
+  to: number | null,
+): Map<string, string> {
   const end = Math.min(to ?? changes.length - 1, changes.length - 1);
   const last = new Map<string, string>();
-  for (let i = 0; i <= end; i++) if (changes[i].changeType !== "commit") last.set(changes[i].filePath, changes[i].id);
+  for (let i = 0; i <= end; i++)
+    if (changes[i].changeType !== "commit")
+      last.set(changes[i].filePath, changes[i].id);
   return last;
 }
 
@@ -100,7 +132,9 @@ export function selectReviewFoldInputs<T extends FoldInputRef & { id: string }>(
     const id = baseIdOf(filePath, lastId);
     const at = id === undefined ? undefined : indexOf.get(id);
     const from = at === undefined ? 0 : at + 1;
-    (byStart.get(from) ?? byStart.set(from, new Set()).get(from)!).add(filePath);
+    (byStart.get(from) ?? byStart.set(from, new Set()).get(from)!).add(
+      filePath,
+    );
   }
   const base: T[] = [];
   const head: T[] = [];
@@ -119,11 +153,18 @@ export function selectReviewFoldInputs<T extends FoldInputRef & { id: string }>(
  * boundary shows the edits inside the range; one first touched inside the
  * range folds exactly as the whole-session fold would.
  */
-export function computeRangeFiles(base: CumulativeChange[], head: CumulativeChange[]): RangeDiffFile[] {
+export function computeRangeFiles(
+  base: CumulativeChange[],
+  head: CumulativeChange[],
+): RangeDiffFile[] {
   const baseSeqs = new Set(base.map((c) => c.sequenceIndex));
   const byFile = <C extends CumulativeChange>(list: C[]) => {
     const map = new Map<string, C[]>();
-    for (const c of list) if (c.changeType !== "commit") (map.get(c.filePath) ?? map.set(c.filePath, []).get(c.filePath)!).push(c);
+    for (const c of list)
+      if (c.changeType !== "commit")
+        (map.get(c.filePath) ?? map.set(c.filePath, []).get(c.filePath)!).push(
+          c,
+        );
     return map;
   };
   const baseByFile = byFile(base);
@@ -138,23 +179,36 @@ export function computeRangeFiles(base: CumulativeChange[], head: CumulativeChan
     if (before.some((c) => c.changeType !== "edit")) {
       const atBoundary = computeCumulativeDiff(before)[0];
       existed = !atBoundary?.deleted;
-      oldStr = existed ? atBoundary?.newContent ?? "" : "";
+      oldStr = existed ? (atBoundary?.newContent ?? "") : "";
     } else if (before.length === 0) {
       oldStr = after.oldContent ?? "";
-      existed = !(headChanges[0].changeType === "write" && headChanges[0].oldContent === undefined);
+      existed = !(
+        headChanges[0].changeType === "write" &&
+        headChanges[0].oldContent === undefined
+      );
     } else {
-      const inRange = computeCumulativeDiff(headChanges.filter((c) => !baseSeqs.has(c.sequenceIndex)))[0];
+      const inRange = computeCumulativeDiff(
+        headChanges.filter((c) => !baseSeqs.has(c.sequenceIndex)),
+      )[0];
       if (!inRange) continue;
       oldStr = inRange.oldContent ?? "";
       existed = true;
       if (!after.deleted) {
-        files.push({ ...diffFileOf(filePath, oldStr, inRange.newContent, "modified"), contentHash: contentHash(newStr), last: lastSeq(headChanges) });
+        files.push({
+          ...diffFileOf(filePath, oldStr, inRange.newContent, "modified"),
+          contentHash: contentHash(newStr),
+          last: lastSeq(headChanges),
+        });
         continue;
       }
     }
     const status = after.deleted ? "deleted" : existed ? "modified" : "added";
     if (status === "modified" && oldStr === newStr) continue;
-    files.push({ ...diffFileOf(filePath, oldStr, newStr, status), contentHash: contentHash(after.deleted ? "\u0000deleted" : newStr), last: lastSeq(headChanges) });
+    files.push({
+      ...diffFileOf(filePath, oldStr, newStr, status),
+      contentHash: contentHash(after.deleted ? "\u0000deleted" : newStr),
+      last: lastSeq(headChanges),
+    });
   }
   files.sort((a, b) => b.last - a.last);
   return files.map(({ last: _last, ...file }) => file);
@@ -175,4 +229,5 @@ export function contentHash(text: string): string {
   return (h >>> 0).toString(16).padStart(8, "0");
 }
 
-const lastSeq = (list: CumulativeChange[]) => Math.max(...list.map((c) => c.sequenceIndex));
+const lastSeq = (list: CumulativeChange[]) =>
+  Math.max(...list.map((c) => c.sequenceIndex));

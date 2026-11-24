@@ -23,10 +23,12 @@ export function readLoopbackIdentity(configDir: string): ProbeIdentity {
     const n = Number.parseInt(raw, 10);
     if (Number.isFinite(n) && n > 0) port = n;
   } catch {}
-  if (port === null) return { port: null, token: null, reason: "hook-port missing" };
+  if (port === null)
+    return { port: null, token: null, reason: "hook-port missing" };
   const identity = readIdentity(configDir);
   if (!identity) return { port, token: null, reason: "missing" };
-  if (identity.port !== port) return { port, token: null, reason: "port mismatch" };
+  if (identity.port !== port)
+    return { port, token: null, reason: "port mismatch" };
   if (identity.pid !== undefined) {
     try {
       process.kill(identity.pid, 0);
@@ -38,8 +40,14 @@ export function readLoopbackIdentity(configDir: string): ProbeIdentity {
 }
 
 /** The envelope authorizeLocalRequest accepts: a loopback origin and the bearer token. */
-export function localAuthHeaders(port: number, token: string): Record<string, string> {
-  return { Origin: `http://127.0.0.1:${port}`, Authorization: `Bearer ${token}` };
+export function localAuthHeaders(
+  port: number,
+  token: string,
+): Record<string, string> {
+  return {
+    Origin: `http://127.0.0.1:${port}`,
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 export interface BenchClock {
@@ -51,34 +59,69 @@ export interface BenchClock {
 export const benchClock: BenchClock = {
   now: () => performance.now(),
   wall: () => Date.now(),
-  sleep: (ms, signal) => new Promise((resolve, reject) => {
-    if (signal?.aborted) { reject(signal.reason); return; }
-    const done = () => { signal?.removeEventListener("abort", aborted); resolve(); };
-    const timer = setTimeout(done, Math.max(0, Math.ceil(ms)));
-    const aborted = () => { clearTimeout(timer); signal?.removeEventListener("abort", aborted); reject(signal?.reason); };
-    signal?.addEventListener("abort", aborted, { once: true });
-  }),
+  sleep: (ms, signal) =>
+    new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      const done = () => {
+        signal?.removeEventListener("abort", aborted);
+        resolve();
+      };
+      const timer = setTimeout(done, Math.max(0, Math.ceil(ms)));
+      const aborted = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", aborted);
+        reject(signal?.reason);
+      };
+      signal?.addEventListener("abort", aborted, { once: true });
+    }),
 };
 
-export function deadlineSignal(clock: BenchClock, end: number, parent?: AbortSignal) {
+export function deadlineSignal(
+  clock: BenchClock,
+  end: number,
+  parent?: AbortSignal,
+) {
   const controller = new AbortController();
   const timer = new AbortController();
   const cancel = () => controller.abort(parent?.reason);
   if (parent?.aborted) cancel();
   else parent?.addEventListener("abort", cancel, { once: true });
-  const settled = clock.sleep(Math.max(0, end - clock.now()), timer.signal).then(
-    () => controller.abort(new DOMException("measurement deadline", "TimeoutError")),
-    () => {},
-  );
+  const settled = clock
+    .sleep(Math.max(0, end - clock.now()), timer.signal)
+    .then(
+      () =>
+        controller.abort(
+          new DOMException("measurement deadline", "TimeoutError"),
+        ),
+      () => {},
+    );
   return {
     signal: controller.signal,
-    async close() { timer.abort(); parent?.removeEventListener("abort", cancel); await settled; },
+    async close() {
+      timer.abort();
+      parent?.removeEventListener("abort", cancel);
+      await settled;
+    },
   };
 }
 
-export type Outcome = "ok" | "error" | "timeout" | "cancelled" | "skipped" | "missing" | "refused";
-export const outcomeFor = (signal: AbortSignal): Outcome => signal.aborted
-  ? signal.reason?.name === "TimeoutError" ? "timeout" : "cancelled" : "error";
+export type Outcome =
+  | "ok"
+  | "error"
+  | "timeout"
+  | "cancelled"
+  | "skipped"
+  | "missing"
+  | "refused";
+export const outcomeFor = (signal: AbortSignal): Outcome =>
+  signal.aborted
+    ? signal.reason?.name === "TimeoutError"
+      ? "timeout"
+      : "cancelled"
+    : "error";
 
 export interface ProbeSample {
   slot: number;
@@ -136,54 +179,114 @@ export interface ProbeOptions {
 export const MAX_BENCH_RECORDS = 100_000;
 export const MAX_BENCH_TIMER_MS = 2_147_483_647;
 
-export async function runLatencyProbe(opts: ProbeOptions): Promise<LatencyProbeResult> {
+export async function runLatencyProbe(
+  opts: ProbeOptions,
+): Promise<LatencyProbeResult> {
   const clock = opts.clock ?? benchClock;
   const intervalMs = opts.intervalMs ?? 1000;
   const maxInFlight = opts.maxInFlight ?? 4;
   const expected = Math.ceil(opts.durationMs / intervalMs);
   const start = opts.startAt ?? clock.now();
   const end = start + opts.durationMs;
-  if ([intervalMs, opts.durationMs, opts.requestTimeoutMs ?? 1].some(value => !Number.isFinite(value) || value <= 0 || value > MAX_BENCH_TIMER_MS)
-    || !Number.isSafeInteger(maxInFlight) || maxInFlight < 1 || maxInFlight > MAX_BENCH_RECORDS
-    || !Number.isSafeInteger(expected) || expected < 1 || expected > MAX_BENCH_RECORDS
-    || !Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - clock.now() > MAX_BENCH_TIMER_MS) throw new Error("invalid probe bounds");
+  if (
+    [intervalMs, opts.durationMs, opts.requestTimeoutMs ?? 1].some(
+      (value) =>
+        !Number.isFinite(value) || value <= 0 || value > MAX_BENCH_TIMER_MS,
+    ) ||
+    !Number.isSafeInteger(maxInFlight) ||
+    maxInFlight < 1 ||
+    maxInFlight > MAX_BENCH_RECORDS ||
+    !Number.isSafeInteger(expected) ||
+    expected < 1 ||
+    expected > MAX_BENCH_RECORDS ||
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    end <= start ||
+    end - clock.now() > MAX_BENCH_TIMER_MS
+  )
+    throw new Error("invalid probe bounds");
   const window = deadlineSignal(clock, end, opts.signal);
   const records: ProbeSample[] = [];
   const pending = new Set<Promise<void>>();
-  const skipped = (slot: number, outcome: Outcome, reason: string) => records.push({
-    slot, scheduledAt: start + slot * intervalMs, startedAt: null, dispatchedAt: null, verificationMs: null, finishedAt: clock.now(),
-    latenessMs: Math.max(0, clock.now() - (start + slot * intervalMs)), ms: null, status: null, outcome, reason,
-  });
+  const skipped = (slot: number, outcome: Outcome, reason: string) =>
+    records.push({
+      slot,
+      scheduledAt: start + slot * intervalMs,
+      startedAt: null,
+      dispatchedAt: null,
+      verificationMs: null,
+      finishedAt: clock.now(),
+      latenessMs: Math.max(0, clock.now() - (start + slot * intervalMs)),
+      ms: null,
+      status: null,
+      outcome,
+      reason,
+    });
   let slot = 0;
   try {
     for (; slot < expected && !window.signal.aborted; slot++) {
       const scheduledAt = start + slot * intervalMs;
-      while (clock.now() < scheduledAt) await clock.sleep(scheduledAt - clock.now(), window.signal);
+      while (clock.now() < scheduledAt)
+        await clock.sleep(scheduledAt - clock.now(), window.signal);
       if (clock.now() >= end) break;
-      if (clock.now() - scheduledAt >= intervalMs) { skipped(slot, "missing", "tester missed scheduled slot"); continue; }
-      if (pending.size >= maxInFlight) { skipped(slot, "skipped", "in-flight cap"); continue; }
-      const record: ProbeSample = { slot, scheduledAt, startedAt: clock.now(), dispatchedAt: null, verificationMs: null, finishedAt: clock.now(), latenessMs: Math.max(0, clock.now() - scheduledAt), ms: null, status: null, outcome: "error" };
+      if (clock.now() - scheduledAt >= intervalMs) {
+        skipped(slot, "missing", "tester missed scheduled slot");
+        continue;
+      }
+      if (pending.size >= maxInFlight) {
+        skipped(slot, "skipped", "in-flight cap");
+        continue;
+      }
+      const record: ProbeSample = {
+        slot,
+        scheduledAt,
+        startedAt: clock.now(),
+        dispatchedAt: null,
+        verificationMs: null,
+        finishedAt: clock.now(),
+        latenessMs: Math.max(0, clock.now() - scheduledAt),
+        ms: null,
+        status: null,
+        outcome: "error",
+      };
       records.push(record);
       const requestSlot = slot;
       const work = (async () => {
-        const request = deadlineSignal(clock, Math.min(end, clock.now() + (opts.requestTimeoutMs ?? 5000)), window.signal);
+        const request = deadlineSignal(
+          clock,
+          Math.min(end, clock.now() + (opts.requestTimeoutMs ?? 5000)),
+          window.signal,
+        );
         try {
-          const url = opts.request ? await opts.request(request.signal, requestSlot) : opts.url;
+          const url = opts.request
+            ? await opts.request(request.signal, requestSlot)
+            : opts.url;
           request.signal.throwIfAborted();
           record.dispatchedAt = clock.now();
           record.verificationMs = record.dispatchedAt - record.startedAt!;
-          const response = await (opts.fetch ?? fetch)(url, { headers: opts.headers, signal: request.signal });
+          const response = await (opts.fetch ?? fetch)(url, {
+            headers: opts.headers,
+            signal: request.signal,
+          });
           record.status = response.status;
           await response.arrayBuffer();
           request.signal.throwIfAborted();
-          record.outcome = response.status === (opts.expectedStatus ?? 200) ? "ok" : "error";
-          if (record.outcome === "error") record.reason = `HTTP ${response.status}`;
+          record.outcome =
+            response.status === (opts.expectedStatus ?? 200) ? "ok" : "error";
+          if (record.outcome === "error")
+            record.reason = `HTTP ${response.status}`;
         } catch {
           record.outcome = outcomeFor(request.signal);
-          record.reason = record.outcome === "error" ? "request or ownership verification failed" : record.outcome;
+          record.reason =
+            record.outcome === "error"
+              ? "request or ownership verification failed"
+              : record.outcome;
         } finally {
           record.finishedAt = clock.now();
-          record.ms = record.dispatchedAt === null ? null : record.finishedAt - record.dispatchedAt;
+          record.ms =
+            record.dispatchedAt === null
+              ? null
+              : record.finishedAt - record.dispatchedAt;
           await request.close();
         }
       })();
@@ -194,26 +297,56 @@ export async function runLatencyProbe(opts: ProbeOptions): Promise<LatencyProbeR
   } catch {
     if (!window.signal.aborted) throw new Error("probe scheduler failed");
   } finally {
-    for (; slot < expected; slot++) skipped(slot, window.signal.aborted ? outcomeFor(window.signal) : "missing", "window ended before slot");
+    for (; slot < expected; slot++)
+      skipped(
+        slot,
+        window.signal.aborted ? outcomeFor(window.signal) : "missing",
+        "window ended before slot",
+      );
     await Promise.all(pending);
     await window.close();
   }
   records.sort((a, b) => a.slot - b.slot);
-  const samples = records.filter(r => r.outcome === "ok").map(r => r.ms!);
-  const count = (o: Outcome) => records.filter(r => r.outcome === o).length;
+  const samples = records.filter((r) => r.outcome === "ok").map((r) => r.ms!);
+  const count = (o: Outcome) => records.filter((r) => r.outcome === o).length;
   const statuses: Record<string, number> = {};
-  for (const r of records) { const key = r.status === null ? r.outcome : String(r.status); statuses[key] = (statuses[key] ?? 0) + 1; }
+  for (const r of records) {
+    const key = r.status === null ? r.outcome : String(r.status);
+    statuses[key] = (statuses[key] ?? 0) + 1;
+  }
   return {
-    url: opts.url, label: opts.label ?? opts.url, summary: summarizeLatency(samples), samples, records, statuses,
-    expected, attempted: records.filter(r => r.startedAt !== null).length,
-    errors: count("error"), skipped: count("skipped"), missing: count("missing"), timeouts: count("timeout"), cancelled: count("cancelled"),
-    lateness: summarizeLatency(records.flatMap(r => r.latenessMs === null ? [] : [r.latenessMs])),
-    intervalMs, durationMs: opts.durationMs, startedAt: start, endedAt: clock.now(),
+    url: opts.url,
+    label: opts.label ?? opts.url,
+    summary: summarizeLatency(samples),
+    samples,
+    records,
+    statuses,
+    expected,
+    attempted: records.filter((r) => r.startedAt !== null).length,
+    errors: count("error"),
+    skipped: count("skipped"),
+    missing: count("missing"),
+    timeouts: count("timeout"),
+    cancelled: count("cancelled"),
+    lateness: summarizeLatency(
+      records.flatMap((r) => (r.latenessMs === null ? [] : [r.latenessMs])),
+    ),
+    intervalMs,
+    durationMs: opts.durationMs,
+    startedAt: start,
+    endedAt: clock.now(),
   };
 }
 
-export function runLoopLagProbe(opts: Omit<ProbeOptions, "url"> & { port: number }): Promise<LoopLagResult> {
-  return runLatencyProbe({ ...opts, url: `http://127.0.0.1:${opts.port}/health`, label: "health HTTP RTT (includes tester scheduling)", intervalMs: opts.intervalMs ?? 100 });
+export function runLoopLagProbe(
+  opts: Omit<ProbeOptions, "url"> & { port: number },
+): Promise<LoopLagResult> {
+  return runLatencyProbe({
+    ...opts,
+    url: `http://127.0.0.1:${opts.port}/health`,
+    label: "health HTTP RTT (includes tester scheduling)",
+    intervalMs: opts.intervalMs ?? 100,
+  });
 }
 
 export interface RouteProbes {
@@ -235,8 +368,24 @@ export async function runRouteProbes(opts: {
   const { port } = opts;
   const [loopLag, hookStatus, termSessions] = await Promise.all([
     runLoopLagProbe(opts),
-    runLatencyProbe({ ...opts, url: `http://127.0.0.1:${port}/hook/status`, request: opts.hookRequest, maxInFlight: 1, expectedStatus: opts.hookRequest ? 200 : 400, label: opts.hookRequest ? "owned hook status" : "invalid hook dispatch only (HTTP 400)" }),
-    opts.authHeaders ? runLatencyProbe({ ...opts, url: `http://127.0.0.1:${port}/term/sessions`, headers: opts.authHeaders, label: "authenticated terminal HTTP RTT" }) : Promise.resolve(null),
+    runLatencyProbe({
+      ...opts,
+      url: `http://127.0.0.1:${port}/hook/status`,
+      request: opts.hookRequest,
+      maxInFlight: 1,
+      expectedStatus: opts.hookRequest ? 200 : 400,
+      label: opts.hookRequest
+        ? "owned hook status"
+        : "invalid hook dispatch only (HTTP 400)",
+    }),
+    opts.authHeaders
+      ? runLatencyProbe({
+          ...opts,
+          url: `http://127.0.0.1:${port}/term/sessions`,
+          headers: opts.authHeaders,
+          label: "authenticated terminal HTTP RTT",
+        })
+      : Promise.resolve(null),
   ]);
   return { loopLag, hookStatus, termSessions };
 }

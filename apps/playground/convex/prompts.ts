@@ -152,12 +152,20 @@ server, secret API keys, email) when nothing close would satisfy it; when a
 close version would, build that instead and say so in the summary.`;
 
 export type PromptMessage = { who: string; body: string };
-export type PromptElement = { selector: string; tag: string; text?: string; snippet?: string };
+export type PromptElement = {
+  selector: string;
+  tag: string;
+  text?: string;
+  snippet?: string;
+};
 
 /** `text` in a code fence no line of it can close: the fence is longer than
  *  any backtick run inside. */
 export function fenced(text: string, language = ""): string {
-  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const longest = Math.max(
+    0,
+    ...(text.match(/`+/g) ?? []).map((run) => run.length),
+  );
   const fence = "`".repeat(Math.max(3, longest + 1));
   return `${fence}${language}\n${text}\n${fence}`;
 }
@@ -170,13 +178,23 @@ function elementBlock(el: PromptElement): string {
     `- selector: ${JSON.stringify(el.selector)}`,
     `- tag: <${el.tag}>`,
     ...(el.text ? [`- text: ${JSON.stringify(el.text)}`] : []),
-    ...(el.snippet ? ["- markup, as the page has it:", fenced(el.snippet, "html")] : []),
+    ...(el.snippet
+      ? ["- markup, as the page has it:", fenced(el.snippet, "html")]
+      : []),
   ].join("\n");
 }
 
-function filesBlock(files: { path: string; text: string }[] | null, listing: string): string {
+function filesBlock(
+  files: { path: string; text: string }[] | null,
+  listing: string,
+): string {
   if (!files) return `# Files (read what you need)\n\n${listing}`;
-  return ["# Files", ...files.map((f) => `## ${f.path}\n\n${fenced(f.text, fenceLanguage(f.path))}`)].join("\n\n");
+  return [
+    "# Files",
+    ...files.map(
+      (f) => `## ${f.path}\n\n${fenced(f.text, fenceLanguage(f.path))}`,
+    ),
+  ].join("\n\n");
 }
 
 function fenceLanguage(path: string): string {
@@ -211,20 +229,32 @@ export function buildPrompt(input: BuildPromptInput): string {
   const parts = [`# The request\n\n${asked}\n\n${quote(input.request)}`];
   if (input.element) parts.push(elementBlock(input.element));
   if (input.room.length) {
-    parts.push(`# The room just before (chat, quoted)\n\n${fenced(roomLines(input.room))}`);
+    parts.push(
+      `# The room just before (chat, quoted)\n\n${fenced(roomLines(input.room))}`,
+    );
   }
   if (input.history.length) {
-    parts.push(`# Versions so far\n\n${fenced(input.history.map((h) => `v${h.number} (${h.who}): ${oneLine(h.summary)}`).join("\n"))}`);
+    parts.push(
+      `# Versions so far\n\n${fenced(input.history.map((h) => `v${h.number} (${h.who}): ${oneLine(h.summary)}`).join("\n"))}`,
+    );
   }
   parts.push(filesBlock(input.files, input.listing));
   return parts.join("\n\n");
 }
 
-const quote = (s: string) => s.split("\n").map((l) => `> ${l}`).join("\n");
-const roomLines = (room: PromptMessage[]) => room.map((m) => `${oneLine(m.who)}: ${oneLine(m.body)}`).join("\n");
+const quote = (s: string) =>
+  s
+    .split("\n")
+    .map((l) => `> ${l}`)
+    .join("\n");
+const roomLines = (room: PromptMessage[]) =>
+  room.map((m) => `${oneLine(m.who)}: ${oneLine(m.body)}`).join("\n");
 
 /** finish's answer to a draft that does not validate yet. */
-export function finishProblems(problems: string[], attemptsLeft: number): string {
+export function finishProblems(
+  problems: string[],
+  attemptsLeft: number,
+): string {
   const list = problems.map((p) => `- ${p}`).join("\n");
   const tail =
     attemptsLeft > 0
@@ -248,11 +278,19 @@ something a change when the person clearly wants the app to change.
 
 Answer with one word: change or chat.`;
 
-export function triagePrompt(input: { body: string; element: PromptElement | null; room: PromptMessage[] }): string {
+export function triagePrompt(input: {
+  body: string;
+  element: PromptElement | null;
+  room: PromptMessage[];
+}): string {
   const parts: string[] = [];
-  if (input.room.length) parts.push(`Earlier in the room:\n${roomLines(input.room)}`);
+  if (input.room.length)
+    parts.push(`Earlier in the room:\n${roomLines(input.room)}`);
   parts.push(`The message to sort:\n${quote(input.body)}`);
-  if (input.element) parts.push(`It points at a <${input.element.tag}> element in the app${input.element.text ? ` reading ${JSON.stringify(input.element.text)}` : ""}.`);
+  if (input.element)
+    parts.push(
+      `It points at a <${input.element.tag}> element in the app${input.element.text ? ` reading ${JSON.stringify(input.element.text)}` : ""}.`,
+    );
   return parts.join("\n\n");
 }
 

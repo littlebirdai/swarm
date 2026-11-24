@@ -18,20 +18,30 @@ export function useEmailProof(conversationId: string | undefined) {
   const send = useMutation(api.assistant.entry.sendEmailProof);
   const [code, setCodeRaw] = useState("");
   const [error, setError] = useState("");
-  const [phase, setPhase] = useState<"idle" | "checking" | "sending" | "sent" | "done">("idle");
+  const [phase, setPhase] = useState<
+    "idle" | "checking" | "sending" | "sent" | "done"
+  >("idle");
 
   const setCode = (value: string) => {
     setCodeRaw(value.replace(/\D/g, "").slice(0, EMAIL_PROOF_DIGITS));
     if (error) setError("");
   };
-  const ready = code.length === EMAIL_PROOF_DIGITS && phase !== "checking" && phase !== "done";
+  const ready =
+    code.length === EMAIL_PROOF_DIGITS &&
+    phase !== "checking" &&
+    phase !== "done";
 
   const submit = async () => {
     if (!ready) return;
     setPhase("checking");
     setError("");
     try {
-      const result = await confirm({ code, ...(conversationId ? { conversation_id: conversationId as Id<"conversations"> } : {}) });
+      const result = await confirm({
+        code,
+        ...(conversationId
+          ? { conversation_id: conversationId as Id<"conversations"> }
+          : {}),
+      });
       // A wrong code is an answer, not a throw (convex/lib/emailProof).
       if (result.error) {
         setError(result.error);
@@ -40,7 +50,12 @@ export function useEmailProof(conversationId: string | undefined) {
       }
       setPhase("done");
     } catch (err) {
-      setError(humanizeConvexError(err, "That code didn't work. Try again or send a new one."));
+      setError(
+        humanizeConvexError(
+          err,
+          "That code didn't work. Try again or send a new one.",
+        ),
+      );
       setPhase("idle");
     }
   };
@@ -54,7 +69,12 @@ export function useEmailProof(conversationId: string | undefined) {
       await send({});
       setPhase("sent");
     } catch (err) {
-      setError(humanizeConvexError(err, "Couldn't send a new code. Try again in a little while."));
+      setError(
+        humanizeConvexError(
+          err,
+          "Couldn't send a new code. Try again in a little while.",
+        ),
+      );
       setPhase("idle");
     }
   };

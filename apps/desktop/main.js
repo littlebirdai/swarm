@@ -1,4 +1,22 @@
-const { app, BrowserWindow, WebContentsView, webContents, Menu, Tray, globalShortcut, ipcMain, nativeImage, shell, screen, Notification, session, powerMonitor, desktopCapturer, systemPreferences, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  webContents,
+  Menu,
+  Tray,
+  globalShortcut,
+  ipcMain,
+  nativeImage,
+  shell,
+  screen,
+  Notification,
+  session,
+  powerMonitor,
+  desktopCapturer,
+  systemPreferences,
+  dialog,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -28,7 +46,10 @@ app.commandLine.appendSwitch("disable-features", "OverscrollHistoryNavigation");
 // The capture itself rides screen capture, so it is gated by the Screen
 // Recording permission, same as screen share.
 if (process.platform === "darwin") {
-  app.commandLine.appendSwitch("enable-features", "MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride");
+  app.commandLine.appendSwitch(
+    "enable-features",
+    "MacLoopbackAudioForScreenShare,MacSckSystemAudioLoopbackOverride",
+  );
 }
 
 // Chrome DevTools Protocol port so agents can drive the desktop app the way
@@ -37,7 +58,8 @@ if (process.platform === "darwin") {
 // (`electron .`), because that process already has the tree it is verifying;
 // a packaged build opens it only when CODECAST_CDP_PORT is set explicitly,
 // since the port hands the signed-in session to any local process.
-const CDP_PORT = process.env.CODECAST_CDP_PORT || (app.isPackaged ? "" : "9333");
+const CDP_PORT =
+  process.env.CODECAST_CDP_PORT || (app.isPackaged ? "" : "9333");
 if (CDP_PORT) {
   app.commandLine.appendSwitch("remote-debugging-port", CDP_PORT);
   app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
@@ -52,12 +74,22 @@ for (const dir of ["downloads", "temp"]) {
   app.setPath(dir, p);
 }
 
-const { pickWindow, chooseLeader, BannerGate, notificationRoute } = require("./notificationRouter");
+const {
+  pickWindow,
+  chooseLeader,
+  BannerGate,
+  notificationRoute,
+} = require("./notificationRouter");
 const { createPaletteFace } = require("./paletteFace");
 const { createRendererLog } = require("./rendererLog");
 // The desktop's apps (Chat, Work): which routes live in a window of their own.
 // An ES module the web bundle imports too, so both sides read one table.
-const { appForRoute, placeRoute, isDesktopApp, DESKTOP_APPS } = require("./appWindows.mjs");
+const {
+  appForRoute,
+  placeRoute,
+  isDesktopApp,
+  DESKTOP_APPS,
+} = require("./appWindows.mjs");
 const {
   shouldHideCallWindow,
   callWindowChrome,
@@ -78,15 +110,35 @@ const {
   decideOffer,
 } = require("./meetingDetector");
 const { mergeAgentDock, placeAgentDock } = require("./agentDock");
-const { createOsPermissions, loadNotificationsAddon } = require("./osPermissions");
+const {
+  createOsPermissions,
+  loadNotificationsAddon,
+} = require("./osPermissions");
 const { createComputerPermissions } = require("./computerPermissions");
 const { createDaemonSetup } = require("./daemonSetup");
-const { createShellAuthority, originOf, trustedShellUrl, installShellCapabilities, shellOrigins, localDevCertVerifier, LOCAL_DEV_URL, LOCAL_DEV_FLAG } = require("./shellAuthority");
+const {
+  createShellAuthority,
+  originOf,
+  trustedShellUrl,
+  installShellCapabilities,
+  shellOrigins,
+  localDevCertVerifier,
+  LOCAL_DEV_URL,
+  LOCAL_DEV_FLAG,
+} = require("./shellAuthority");
 const { createSettingsFile } = require("./settingsFile");
 const { createEditUndo } = require("./editUndo");
 const { createMenuKeys } = require("./menuKeys");
-const { recoveryPageUrl, isRecoveryUrl, attachCrashRecovery, attachGpuRecovery } = require("./shellRecovery");
-const { createBrowserPanes, defaultRegistryPath: defaultPaneRegistryPath } = require("./browserPanes");
+const {
+  recoveryPageUrl,
+  isRecoveryUrl,
+  attachCrashRecovery,
+  attachGpuRecovery,
+} = require("./shellRecovery");
+const {
+  createBrowserPanes,
+  defaultRegistryPath: defaultPaneRegistryPath,
+} = require("./browserPanes");
 const { createShareCursors } = require("./shareCursors");
 const { attachSpellMenu } = require("./spellMenu");
 
@@ -101,18 +153,36 @@ let modernNotify = null;
 // `target` is a banner's click target ({ route, kind }), carried on the banner
 // itself so a click still lands after a relaunch (osPermissions.notify).
 function showNativeNotification(title, body, onClick, target) {
-  if (modernNotify && modernNotify(title, body, onClick, target ? JSON.stringify(target) : undefined)) return;
+  if (
+    modernNotify &&
+    modernNotify(
+      title,
+      body,
+      onClick,
+      target ? JSON.stringify(target) : undefined,
+    )
+  )
+    return;
   if (!Notification.isSupported()) return;
-  const notif = new Notification({ title, body, silent: false, urgency: "critical" });
+  const notif = new Notification({
+    title,
+    body,
+    silent: false,
+    urgency: "critical",
+  });
   if (onClick) notif.on("click", onClick);
-  notif.on("close", () => { notificationRefs = notificationRefs.filter(n => n !== notif); });
+  notif.on("close", () => {
+    notificationRefs = notificationRefs.filter((n) => n !== notif);
+  });
   notificationRefs.push(notif);
   notif.show();
 }
 
 // One cached copy of settings.json and an atomic write (settingsFile.js).
 // Defined here because the base URL just below is the first thing to read it.
-const settingsFile = createSettingsFile(() => path.join(app.getPath("userData"), "settings.json"));
+const settingsFile = createSettingsFile(() =>
+  path.join(app.getPath("userData"), "settings.json"),
+);
 const loadFullSettings = settingsFile.load;
 const updateSettings = settingsFile.update;
 
@@ -135,8 +205,14 @@ else delete process.env[LOCAL_DEV_FLAG];
 // Env is sticky across restarts: the last toggled choice is persisted in
 // settings.json (see toggleEnvironment). An explicit CODECAST_URL still wins.
 const BASE_URL =
-  process.env.CODECAST_URL || (LOCAL_DEV_ALLOWED && loadFullSettings().env === "local" ? LOCAL_URL : PROD_URL);
-const SHELL_ORIGINS = shellOrigins({ localDev: LOCAL_DEV_ALLOWED, baseUrl: BASE_URL });
+  process.env.CODECAST_URL ||
+  (LOCAL_DEV_ALLOWED && loadFullSettings().env === "local"
+    ? LOCAL_URL
+    : PROD_URL);
+const SHELL_ORIGINS = shellOrigins({
+  localDev: LOCAL_DEV_ALLOWED,
+  baseUrl: BASE_URL,
+});
 
 // local.codecast.sh resolves to 127.0.0.1 and is served with a locally
 // generated mkcert dev certificate. mkcert's CA is in the macOS keychain so
@@ -146,9 +222,14 @@ const SHELL_ORIGINS = shellOrigins({ localDev: LOCAL_DEV_ALLOWED, baseUrl: BASE_
 // (localDevCertVerifier, installed in app.whenReady); production validation is
 // left fully intact. A packaged build trusts it only when it was launched at
 // that site on purpose (CODECAST_URL=https://local.codecast.sh).
-const LOCAL_CERT_TRUSTED = LOCAL_DEV_ALLOWED || originOf(process.env.CODECAST_URL) === LOCAL_URL;
+const LOCAL_CERT_TRUSTED =
+  LOCAL_DEV_ALLOWED || originOf(process.env.CODECAST_URL) === LOCAL_URL;
 
-const { DEFAULT_SHORTCUTS, mergeShortcuts, diffOverrides } = require("./shortcutSettings");
+const {
+  DEFAULT_SHORTCUTS,
+  mergeShortcuts,
+  diffOverrides,
+} = require("./shortcutSettings");
 
 let mainWindow = null;
 let paletteWindow = null;
@@ -168,10 +249,18 @@ const shellIpc = shellAuthority.ipc;
 // Edit > Undo/Redo: text undo in a focused field, the web app's undo
 // everywhere else (editUndo.js says why the stock roles cannot do this).
 const menuKeys = createMenuKeys();
-shellIpc.on("set-menu-keys", (_e, keys) => { if (menuKeys.set(keys)) buildAppMenu(); });
+shellIpc.on("set-menu-keys", (_e, keys) => {
+  if (menuKeys.set(keys)) buildAppMenu();
+});
 const editUndo = createEditUndo({
-  keyRunsApp: (command) => menuKeys.chordRuns(command === "undo" ? "ui.undo" : "ui.redo", command === "undo" ? "CmdOrCtrl+Z" : "Shift+CmdOrCtrl+Z"),
-  focusedContents: () => webContents.getFocusedWebContents() ?? BrowserWindow.getFocusedWindow()?.webContents,
+  keyRunsApp: (command) =>
+    menuKeys.chordRuns(
+      command === "undo" ? "ui.undo" : "ui.redo",
+      command === "undo" ? "CmdOrCtrl+Z" : "Shift+CmdOrCtrl+Z",
+    ),
+  focusedContents: () =>
+    webContents.getFocusedWebContents() ??
+    BrowserWindow.getFocusedWindow()?.webContents,
   isShell: (contents) => trustedShellUrl(contents.getURL(), SHELL_ORIGINS),
 });
 // Every Codecast window is built here. A see-through one (the palette, the
@@ -182,7 +271,13 @@ function createShellWindow(options) {
     // Extends the caller's preferences (built from preloadPrefs()) rather than
     // building a window's own.
     const prefs = options.webPreferences ?? {};
-    const webPreferences = { ...prefs, additionalArguments: [...(prefs.additionalArguments ?? []), "--transparent-window"] };
+    const webPreferences = {
+      ...prefs,
+      additionalArguments: [
+        ...(prefs.additionalArguments ?? []),
+        "--transparent-window",
+      ],
+    };
     options = { ...options, webPreferences };
   }
   const win = shellAuthority.register(new BrowserWindow(options));
@@ -208,7 +303,9 @@ function windowLabel(win, url) {
   if (win === mainWindow) return "main";
   if (win === spareTabWindow) return "spare";
   try {
-    return new URL(url ?? win.webContents.getURL()).pathname.split("/")[1] || "root";
+    return (
+      new URL(url ?? win.webContents.getURL()).pathname.split("/")[1] || "root"
+    );
   } catch {
     return "unknown";
   }
@@ -234,8 +331,10 @@ function reportProcessGone(details, window, visible) {
 function flushProcessGone() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const wc = mainWindow.webContents;
-  if (wc.isCrashed() || wc.isLoadingMainFrame() || isRecoveryUrl(wc.getURL())) return;
-  for (const report of pendingProcessGone.splice(0)) wc.send("shell-process-gone", report);
+  if (wc.isCrashed() || wc.isLoadingMainFrame() || isRecoveryUrl(wc.getURL()))
+    return;
+  for (const report of pendingProcessGone.splice(0))
+    wc.send("shell-process-gone", report);
 }
 
 attachGpuRecovery(app, {
@@ -250,11 +349,9 @@ function loadSettings() {
   return mergeShortcuts(loadFullSettings().shortcuts);
 }
 
-
 function saveSettings(shortcuts) {
   updateSettings({ shortcuts: diffOverrides(shortcuts) });
 }
-
 
 // Single instance lock — clear stale locks from crashed/updated processes
 let gotLock = app.requestSingleInstanceLock();
@@ -265,10 +362,15 @@ if (!gotLock) {
     const target = fs.readlinkSync(lockPath);
     const pid = parseInt(target.split("-").pop(), 10);
     let alive = false;
-    try { process.kill(pid, 0); alive = true; } catch {}
+    try {
+      process.kill(pid, 0);
+      alive = true;
+    } catch {}
     if (!alive) {
       for (const f of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
-        try { fs.unlinkSync(path.join(userDataPath, f)); } catch {}
+        try {
+          fs.unlinkSync(path.join(userDataPath, f));
+        } catch {}
       }
       gotLock = app.requestSingleInstanceLock();
     }
@@ -296,7 +398,9 @@ if (app.isPackaged) {
   app.setAsDefaultProtocolClient("codecast");
   reportProtocolOwner();
 } else if (process.env.CODECAST_CLAIM_PROTOCOL) {
-  app.setAsDefaultProtocolClient("codecast", process.execPath, [app.getAppPath()]);
+  app.setAsDefaultProtocolClient("codecast", process.execPath, [
+    app.getAppPath(),
+  ]);
   reportProtocolOwner();
 }
 
@@ -306,7 +410,9 @@ if (app.isPackaged) {
 function reportProtocolOwner() {
   if (app.isDefaultProtocolClient("codecast")) return;
   const owner = app.getApplicationNameForProtocol?.("codecast://") || "unknown";
-  console.warn(`codecast:// links open in "${owner}", not this app (${process.execPath})`);
+  console.warn(
+    `codecast:// links open in "${owner}", not this app (${process.execPath})`,
+  );
 }
 
 app.on("open-url", (e, url) => {
@@ -339,7 +445,10 @@ function handleDeepLink(url) {
     appWin.webContents.send("deep-link", url);
     return;
   }
-  if (!mainWindow) { deepLinkUrl = url; return; }
+  if (!mainWindow) {
+    deepLinkUrl = url;
+    return;
+  }
   mainWindow.show();
   mainWindow.focus();
   // While the main frame is still loading, the renderer (and the preload buffer
@@ -418,7 +527,8 @@ function createWindow() {
     clearTimeout(stallTimer);
     stallTimer = setTimeout(() => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      if (loadAttempts >= MAX_LOAD_ATTEMPTS) return showRecovery("stalled", mainWindow.webContents.getURL());
+      if (loadAttempts >= MAX_LOAD_ATTEMPTS)
+        return showRecovery("stalled", mainWindow.webContents.getURL());
       loadAttempts++;
       mainWindow.webContents.reloadIgnoringCache();
       armStallTimer();
@@ -430,7 +540,10 @@ function createWindow() {
     clearTimeout(stallTimer);
     stallTimer = null;
     loadAttempts = 0;
-    const url = retryUrl && !isRecoveryUrl(retryUrl) ? retryUrl : `${currentBaseUrl}/inbox`;
+    const url =
+      retryUrl && !isRecoveryUrl(retryUrl)
+        ? retryUrl
+        : `${currentBaseUrl}/inbox`;
     mainWindow.loadURL(recoveryPageUrl(reason, url));
   }
 
@@ -442,17 +555,21 @@ function createWindow() {
     mainWindow.loadURL(`${currentBaseUrl}/inbox`);
   }
 
-  mainWindow.webContents.on("did-fail-load", (_e, errorCode, _desc, url, isMainFrame) => {
-    if (!isMainFrame) return;
-    // -3 is ABORTED (intentional nav cancel) — don't retry on that.
-    if (errorCode === -3) return;
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (loadAttempts >= MAX_LOAD_ATTEMPTS) return showRecovery("offline", url);
-    setTimeout(() => {
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_e, errorCode, _desc, url, isMainFrame) => {
+      if (!isMainFrame) return;
+      // -3 is ABORTED (intentional nav cancel) — don't retry on that.
+      if (errorCode === -3) return;
       if (!mainWindow || mainWindow.isDestroyed()) return;
-      startLoad();
-    }, 500);
-  });
+      if (loadAttempts >= MAX_LOAD_ATTEMPTS)
+        return showRecovery("offline", url);
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        startLoad();
+      }, 500);
+    },
+  );
 
   startLoad();
 
@@ -468,7 +585,7 @@ function createWindow() {
     flushProcessGone();
     mainWindow.webContents.setZoomFactor(getAutoZoomFactor());
     mainWindow.webContents.executeJavaScript(
-      "document.documentElement.classList.add('electron-desktop')"
+      "document.documentElement.classList.add('electron-desktop')",
     );
     // The first breakout window boots in the background once the main window
     // is up, so "open in new window" is a navigation rather than a cold load.
@@ -477,7 +594,7 @@ function createWindow() {
     // toggleEnvironment does so it's never mistaken for prod.
     if (currentBaseUrl === LOCAL_URL) {
       mainWindow.webContents.executeJavaScript(
-        "document.title = '[LOCAL] ' + document.title"
+        "document.title = '[LOCAL] ' + document.title",
       );
     }
     // The page is fully loaded, so the preload's deep-link listener and replay
@@ -502,7 +619,6 @@ function createWindow() {
       for (const p of paths) mainWindow.webContents.send("adopt-tab", p);
     }
   });
-
 
   // Every window.open/target=_blank goes to the default browser — the app is a
   // single window that navigates in place, so a same-origin link here (e.g. a
@@ -562,7 +678,11 @@ function buildTabWindow(extraArgs = []) {
     webPreferences: {
       ...preloadPrefs(),
       zoomFactor: zoom,
-      additionalArguments: [`--zoom-factor=${zoom}`, "--tab-window", ...extraArgs],
+      additionalArguments: [
+        `--zoom-factor=${zoom}`,
+        "--tab-window",
+        ...extraArgs,
+      ],
       // Same as the main window: keep live-query WebSockets delivering while
       // the window sits unfocused behind others.
       backgroundThrottling: false,
@@ -575,7 +695,7 @@ function buildTabWindow(extraArgs = []) {
     if (win.isDestroyed()) return;
     win.webContents.setZoomFactor(getAutoZoomFactor());
     win.webContents.executeJavaScript(
-      "document.documentElement.classList.add('electron-desktop')"
+      "document.documentElement.classList.add('electron-desktop')",
     );
     // A reload threw the preload's copy of the role away, and a window that
     // was a claimed spare has nothing else saying it is the Chat window.
@@ -613,7 +733,8 @@ let spareTabTimer = null;
 // Reply even when the sender is rejected so a synchronous preload call can return.
 ipcMain.on("is-warm-spare", (e) => {
   if (!e) return;
-  e.returnValue = shellAuthority.admits(e) && e.sender === spareTabWindow?.webContents;
+  e.returnValue =
+    shellAuthority.admits(e) && e.sender === spareTabWindow?.webContents;
 });
 
 function warmSpareTabWindow(delayMs = SPARE_WARM_DELAY_MS) {
@@ -645,7 +766,11 @@ function dropSpareTabWindow() {
 
 function claimSpareTabWindow() {
   const win = spareTabWindow;
-  if (win && !win.isDestroyed() && (win.webContents.isDestroyed() || win.webContents.isCrashed())) {
+  if (
+    win &&
+    !win.isDestroyed() &&
+    (win.webContents.isDestroyed() || win.webContents.isCrashed())
+  ) {
     dropSpareTabWindow();
     return null;
   }
@@ -669,8 +794,11 @@ function waitForWarmWindowPaint(timeoutMs) {
     };
     const deadline = setTimeout(finish, timeoutMs);
     function checkPaint() {
-      const hydrated = window.__inboxStore?.getState().clientStateInitialized === true;
-      frame = requestAnimationFrame(hydrated && document.title !== title ? finish : checkPaint);
+      const hydrated =
+        window.__inboxStore?.getState().clientStateInitialized === true;
+      frame = requestAnimationFrame(
+        hydrated && document.title !== title ? finish : checkPaint,
+      );
     }
     frame = requestAnimationFrame(checkPaint);
   });
@@ -696,7 +824,7 @@ function openWarmWindow(navPath, place, coldArgs = []) {
     flushWindowRole();
     // Capture the old title before dispatching the in-place navigation.
     const painted = win.webContents.executeJavaScript(
-      `(${waitForWarmWindowPaint})(${SPARE_REVEAL_TIMEOUT_MS})`
+      `(${waitForWarmWindowPaint})(${SPARE_REVEAL_TIMEOUT_MS})`,
     );
     sendNavigate(win, navPath);
     // A reload can strand the page's promise and its timer.
@@ -723,8 +851,13 @@ function openWarmWindow(navPath, place, coldArgs = []) {
 function createTabWindow(navPath) {
   return openWarmWindow(navPath, (win) => {
     // Cascade from the main window so a breakout never opens exactly on top.
-    const base = mainWindow && !mainWindow.isDestroyed() ? mainWindow.getBounds() : null;
-    if (base) win.setPosition(base.x + 40 + tabWindows.size * 24, base.y + 40 + tabWindows.size * 24);
+    const base =
+      mainWindow && !mainWindow.isDestroyed() ? mainWindow.getBounds() : null;
+    if (base)
+      win.setPosition(
+        base.x + 40 + tabWindows.size * 24,
+        base.y + 40 + tabWindows.size * 24,
+      );
     tabWindows.add(win);
   });
 }
@@ -771,7 +904,12 @@ shellIpc.handle("attach-tab", (e, navPath) => {
 // a session always lands in the main window, whatever the entry point.
 // ---------------------------------------------------------------------------
 
-const APP_WINDOW_SIZE = { width: 1100, height: 760, minWidth: 700, minHeight: 500 };
+const APP_WINDOW_SIZE = {
+  width: 1100,
+  height: 760,
+  minWidth: 700,
+  minHeight: 500,
+};
 const appWindowFor = new Map(); // app → BrowserWindow
 
 function loadAppWindowState(app) {
@@ -783,7 +921,12 @@ function loadAppWindowState(app) {
 function saveAppWindowBounds(app, win) {
   if (!win || win.isDestroyed() || win.isMinimized()) return;
   const all = loadFullSettings().appWindows;
-  updateSettings({ appWindows: { ...(all && typeof all === "object" ? all : {}), [app]: { bounds: win.getBounds() } } });
+  updateSettings({
+    appWindows: {
+      ...(all && typeof all === "object" ? all : {}),
+      [app]: { bounds: win.getBounds() },
+    },
+  });
 }
 
 // Dragging and resizing fire continuously; save once the gesture settles, and
@@ -811,7 +954,8 @@ function appOf(win) {
 /** Which app windows exist right now, as the role broadcast and the router see them. */
 function openAppWindows() {
   const out = {};
-  for (const [app, win] of appWindowFor) if (!win.isDestroyed()) out[app] = true;
+  for (const [app, win] of appWindowFor)
+    if (!win.isDestroyed()) out[app] = true;
   return out;
 }
 
@@ -837,9 +981,13 @@ function createAppWindow(app, navPath = null) {
   const win = openWarmWindow(
     navPath || DESKTOP_APPS[app].home,
     (w) => {
-      const bounds = clampToVisibleDisplay(loadAppWindowState(app).bounds, APP_WINDOW_SIZE);
+      const bounds = clampToVisibleDisplay(
+        loadAppWindowState(app).bounds,
+        APP_WINDOW_SIZE,
+      );
       if (bounds) w.setBounds(bounds);
-      else if (mainWindow && !mainWindow.isDestroyed()) w.setPosition(...besideMainWindow(w.getBounds()));
+      else if (mainWindow && !mainWindow.isDestroyed())
+        w.setPosition(...besideMainWindow(w.getBounds()));
       appWindowFor.set(app, w);
     },
     // A cold window knows what it is from its first frame; a claimed spare
@@ -904,16 +1052,22 @@ shellIpc.handle("route-navigate", (e, navPath) => {
 // clicked in; this repeats it from here. Same pid-addressed Apple event as
 // apps/cli/src/browser/raiseApp.ts. Resolves whether the event was sent.
 shellIpc.handle("raise-app", (_e, pid) => {
-  if (process.platform !== "darwin" || !Number.isInteger(pid) || pid <= 1) return false;
+  if (process.platform !== "darwin" || !Number.isInteger(pid) || pid <= 1)
+    return false;
   const jxa =
     'ObjC.import("Foundation");' +
     `const target = $.NSAppleEventDescriptor.descriptorWithProcessIdentifier(${pid});` +
     "const evt = $.NSAppleEventDescriptor.appleEventWithEventClassEventIDTargetDescriptorReturnIDTransactionID(0x6d697363, 0x61637476, target, -1, 0);" +
     "const err = Ref(); evt.sendEventWithOptionsTimeoutError(1, 10, err); !err[0] || err[0].isNil() ? 'ok' : 'failed';";
   return new Promise((resolve) => {
-    execFile("/usr/bin/osascript", ["-l", "JavaScript", "-e", jxa], { timeout: 5_000 }, (err, stdout) => {
-      resolve(!err && `${stdout}`.trim() === "ok");
-    });
+    execFile(
+      "/usr/bin/osascript",
+      ["-l", "JavaScript", "-e", jxa],
+      { timeout: 5_000 },
+      (err, stdout) => {
+        resolve(!err && `${stdout}`.trim() === "ok");
+      },
+    );
   });
 });
 
@@ -949,20 +1103,33 @@ function updatePeopleState(patch) {
 // most (the nearest one when it overlaps none), and we clamp into that display's
 // work area — so a window saved on a monitor that is gone reopens on a real one.
 function clampToVisibleDisplay(saved, size = PEOPLE_SIZE) {
-  if (!saved || typeof saved.x !== "number" || typeof saved.y !== "number") return null;
+  if (!saved || typeof saved.x !== "number" || typeof saved.y !== "number")
+    return null;
   const area = screen.getDisplayMatching({
     x: saved.x,
     y: saved.y,
     width: Math.round(saved.width) || size.width,
     height: Math.round(saved.height) || size.height,
   }).workArea;
-  const width = Math.min(Math.max(size.minWidth, Math.round(saved.width) || size.width), area.width);
-  const height = Math.min(Math.max(size.minHeight, Math.round(saved.height) || size.height), area.height);
+  const width = Math.min(
+    Math.max(size.minWidth, Math.round(saved.width) || size.width),
+    area.width,
+  );
+  const height = Math.min(
+    Math.max(size.minHeight, Math.round(saved.height) || size.height),
+    area.height,
+  );
   return {
     width,
     height,
-    x: Math.min(Math.max(Math.round(saved.x), area.x), area.x + area.width - width),
-    y: Math.min(Math.max(Math.round(saved.y), area.y), area.y + area.height - height),
+    x: Math.min(
+      Math.max(Math.round(saved.x), area.x),
+      area.x + area.width - width,
+    ),
+    y: Math.min(
+      Math.max(Math.round(saved.y), area.y),
+      area.y + area.height - height,
+    ),
   };
 }
 
@@ -1025,7 +1192,7 @@ function createPeopleWindow() {
     if (win.isDestroyed()) return;
     win.webContents.setZoomFactor(getAutoZoomFactor());
     win.webContents.executeJavaScript(
-      "document.documentElement.classList.add('electron-desktop')"
+      "document.documentElement.classList.add('electron-desktop')",
     );
   });
   // Same rule as every window: new-window links open in the default browser.
@@ -1174,7 +1341,12 @@ const CALL_PANEL_PATH = "/call-panel";
 // Born large: a screen share is drawn into this box, and every css pixel it
 // lacks is a pixel of the sharer's text the viewer never sees (at 960x640 a
 // 1440p share shrank about 3.5x on a 1x monitor). Fit to the work area.
-const CALL_PANEL_SIZE = { width: 1280, height: 800, minWidth: 520, minHeight: 380 };
+const CALL_PANEL_SIZE = {
+  width: 1280,
+  height: 800,
+  minWidth: 520,
+  minHeight: 380,
+};
 // What the float is born as: about one face plus the room its ring needs.
 // The renderer reports the true size a frame later
 // (set-call-window-content-size); this only keeps the first frame from being a
@@ -1192,7 +1364,10 @@ const CALL_FLOAT_INSET = 28;
 // ANOTHER app's full-screen space, and that is not worth the app losing the
 // keyboard to its own overlay. `skipTransformProcessType` is the documented
 // way to keep the process what it is.
-const WORKSPACES_OPTS = { visibleOnFullScreen: false, skipTransformProcessType: true };
+const WORKSPACES_OPTS = {
+  visibleOnFullScreen: false,
+  skipTransformProcessType: true,
+};
 
 let callWindow = null;
 let callPlaceTimer = null;
@@ -1242,7 +1417,9 @@ function saveCallPanelBounds(win) {
   if (!win || win.isDestroyed() || win.isMinimized()) return;
   const key = callWindowPlacementKey(callWindowSize);
   if (key === "bounds") {
-    updateSettings({ callPanelWindow: { ...loadCallPanelState(), bounds: win.getBounds() } });
+    updateSettings({
+      callPanelWindow: { ...loadCallPanelState(), bounds: win.getBounds() },
+    });
   } else if (key === "wall") {
     // The people window's own slot, so a wall that used to be a window of its
     // own comes back exactly where the person kept it.
@@ -1262,7 +1439,10 @@ function saveFloatAnchor(win) {
   const bounds = win.getBounds();
   const area = screen.getDisplayMatching(bounds).workArea;
   updateSettings({
-    callPanelWindow: { ...loadCallPanelState(), float: floatAnchorOf(bounds, floatCornerFor(bounds, area)) },
+    callPanelWindow: {
+      ...loadCallPanelState(),
+      float: floatAnchorOf(bounds, floatCornerFor(bounds, area)),
+    },
   });
 }
 
@@ -1294,7 +1474,8 @@ function callPanelUrl(roomKey, opts) {
   if (opts && opts.ring) q.set("ring", "1");
   // The size the window is opening in, so the renderer's first paint is the
   // right shape rather than a stage that snaps to the float a frame later.
-  if (roomKey && isCallSize(callWindowSize) && callWindowSize !== "panel") q.set("size", callWindowSize);
+  if (roomKey && isCallSize(callWindowSize) && callWindowSize !== "panel")
+    q.set("size", callWindowSize);
   const query = q.toString();
   return `${currentBaseUrl}${CALL_PANEL_PATH}${query ? `?${query}` : ""}`;
 }
@@ -1303,7 +1484,11 @@ function callPanelUrl(roomKey, opts) {
 // corner the row grows down and left from.
 function defaultFloatAnchor() {
   const area = screen.getPrimaryDisplay().workArea;
-  return { x: area.x + area.width - CALL_FLOAT_INSET, y: area.y + CALL_FLOAT_INSET, corner: "top-right" };
+  return {
+    x: area.x + area.width - CALL_FLOAT_INSET,
+    y: area.y + CALL_FLOAT_INSET,
+    corner: "top-right",
+  };
 }
 
 const FLOAT_CORNERS = ["top-left", "top-right", "bottom-left", "bottom-right"];
@@ -1311,7 +1496,12 @@ const FLOAT_CORNERS = ["top-left", "top-right", "bottom-left", "bottom-right"];
 /** The remembered anchor, or the default when none was ever written. */
 function floatAnchor() {
   const saved = loadCallPanelState().float;
-  if (!saved || typeof saved.x !== "number" || typeof saved.y !== "number" || !FLOAT_CORNERS.includes(saved.corner)) {
+  if (
+    !saved ||
+    typeof saved.x !== "number" ||
+    typeof saved.y !== "number" ||
+    !FLOAT_CORNERS.includes(saved.corner)
+  ) {
     return defaultFloatAnchor();
   }
   return { x: saved.x, y: saved.y, corner: saved.corner };
@@ -1341,19 +1531,35 @@ let ringBounce = null;
 
 function setRingAttention(on) {
   if (on) {
-    if (app.dock && typeof app.dock.bounce === "function" && ringBounce === null) {
+    if (
+      app.dock &&
+      typeof app.dock.bounce === "function" &&
+      ringBounce === null
+    ) {
       ringBounce = app.dock.bounce("critical");
     }
-    if (mainWindow && !mainWindow.isDestroyed() && typeof mainWindow.flashFrame === "function") {
+    if (
+      mainWindow &&
+      !mainWindow.isDestroyed() &&
+      typeof mainWindow.flashFrame === "function"
+    ) {
       mainWindow.flashFrame(true);
     }
     return;
   }
-  if (app.dock && typeof app.dock.cancelBounce === "function" && ringBounce !== null) {
+  if (
+    app.dock &&
+    typeof app.dock.cancelBounce === "function" &&
+    ringBounce !== null
+  ) {
     app.dock.cancelBounce(ringBounce);
   }
   ringBounce = null;
-  if (mainWindow && !mainWindow.isDestroyed() && typeof mainWindow.flashFrame === "function") {
+  if (
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    typeof mainWindow.flashFrame === "function"
+  ) {
     mainWindow.flashFrame(false);
   }
 }
@@ -1387,7 +1593,10 @@ function applyCallWindowSize(win, size, { reveal = true } = {}) {
   // up whatever the size asks for.
   win.setResizable(true);
   if (size === "panel") {
-    const bounds = clampToVisibleDisplay(loadCallPanelState().bounds, CALL_PANEL_SIZE);
+    const bounds = clampToVisibleDisplay(
+      loadCallPanelState().bounds,
+      CALL_PANEL_SIZE,
+    );
     win.setMinimumSize(CALL_PANEL_SIZE.minWidth, CALL_PANEL_SIZE.minHeight);
     win.setBounds(bounds || defaultPanelBounds());
   } else if (size === "wall") {
@@ -1453,7 +1662,13 @@ function setCallWindowShape(win, size, opts) {
     // Same shape, asked to show itself again: a hidden window, or a stage
     // that is up but behind the app. Expanding a stage that is already open
     // is a request to see it, and only the shell can bring it to the front.
-    if (opts && opts.reveal && next !== "idle" && (!win.isVisible() || next === "panel")) revealCallWindow(win, next);
+    if (
+      opts &&
+      opts.reveal &&
+      next !== "idle" &&
+      (!win.isVisible() || next === "panel")
+    )
+      revealCallWindow(win, next);
     return next;
   }
   rememberCallWindowPlace(win);
@@ -1483,7 +1698,10 @@ function ensureCallWindow(roomKey, opts) {
       : savedCallWindowSize()
     : "idle";
   if (roomKey) rememberCallSize(callWindowSize);
-  const bounds = clampToVisibleDisplay(loadCallPanelState().bounds, CALL_PANEL_SIZE);
+  const bounds = clampToVisibleDisplay(
+    loadCallPanelState().bounds,
+    CALL_PANEL_SIZE,
+  );
   const zoom = getAutoZoomFactor();
   const win = createShellWindow({
     ...(bounds || defaultPanelBounds()),
@@ -1555,7 +1773,7 @@ function ensureCallWindow(roomKey, opts) {
     if (win.isDestroyed()) return;
     win.webContents.setZoomFactor(getAutoZoomFactor());
     win.webContents.executeJavaScript(
-      "document.documentElement.classList.add('electron-desktop')"
+      "document.documentElement.classList.add('electron-desktop')",
     );
   });
   // Same rule as every window: new-window links open in the default browser.
@@ -1648,7 +1866,8 @@ function openCallWindow(roomKey, opts) {
     // above once it has the room, so the window is not moved under it here.
     if (!callWindowHost) {
       if (o.size) setCallWindowShape(win, o.size);
-      else if (!isCallSize(callWindowSize)) setCallWindowShape(win, savedCallWindowSize());
+      else if (!isCallSize(callWindowSize))
+        setCallWindowShape(win, savedCallWindowSize());
       if (!win.isVisible()) revealCallWindow(win, callWindowSize);
     }
   }
@@ -1668,7 +1887,11 @@ function senderIsCallWindow(e) {
 }
 
 function callWindowHostsRoom() {
-  return !!callWindow && !callWindow.isDestroyed() && !!(callWindowState && callWindowState.room);
+  return (
+    !!callWindow &&
+    !callWindow.isDestroyed() &&
+    !!(callWindowState && callWindowState.room)
+  );
 }
 
 function hasVoiceHost() {
@@ -1690,7 +1913,10 @@ function registerSeeThroughIpc(prefix, resolveSender, opts = {}) {
   // methods; a newer one reaches the same three switches through the bridge's
   // generic `call`, which lands on `app:<prefix>.<verb>` and needs no preload.
   const listen = opts.appChannel
-    ? (verb, fn) => shellIpc.handle(`app:${prefix}.${verb}`, (e, arg) => { fn(e, arg); })
+    ? (verb, fn) =>
+        shellIpc.handle(`app:${prefix}.${verb}`, (e, arg) => {
+          fn(e, arg);
+        })
     : (verb, fn) => shellIpc.on(`set-${prefix}-${verb}`, fn);
   let dragTimer = null;
   // The renderer's pin, last time it gave one: the point (window pixels from
@@ -1727,7 +1953,9 @@ function registerSeeThroughIpc(prefix, resolveSender, opts = {}) {
     // sized to 112 would clip its own faces.
     const zoom = win.webContents.getZoomFactor();
     const [w, h] = [Math.round(width * zoom), Math.round(height * zoom)];
-    const pin = Number.isFinite(Number(size.pinY)) ? Math.round(Number(size.pinY) * zoom) : null;
+    const pin = Number.isFinite(Number(size.pinY))
+      ? Math.round(Number(size.pinY) * zoom)
+      : null;
     const [curW, curH] = win.getContentSize();
     const pinMoved = pin !== null && lastPinY !== null && pin !== lastPinY;
     if (curW === w && curH === h && !pinMoved) {
@@ -1754,9 +1982,19 @@ function registerSeeThroughIpc(prefix, resolveSender, opts = {}) {
     const [x, y] = win.getPosition();
     const [av, ah] = anchor().split("-");
     const cx = ah === "right" ? x + (curW - w) : x;
-    const cy = pin !== null && lastPinY !== null ? y + (lastPinY - pin) : av === "bottom" ? y + (curH - h) : y;
+    const cy =
+      pin !== null && lastPinY !== null
+        ? y + (lastPinY - pin)
+        : av === "bottom"
+          ? y + (curH - h)
+          : y;
     if (pin !== null) lastPinY = pin;
-    const area = screen.getDisplayMatching({ x: cx, y: cy, width: w, height: h }).workArea;
+    const area = screen.getDisplayMatching({
+      x: cx,
+      y: cy,
+      width: w,
+      height: h,
+    }).workArea;
     const nx = Math.max(area.x, Math.min(cx, area.x + area.width - w));
     const ny = Math.max(area.y, Math.min(cy, area.y + area.height - h));
     // One setBounds, not a resize and then a move: between the two the old
@@ -1792,7 +2030,8 @@ function registerSeeThroughIpc(prefix, resolveSender, opts = {}) {
     const until = Date.now() + 30_000;
     dragTimer = setInterval(() => {
       const live = getWindow ? getWindow() : win;
-      if (!live || live.isDestroyed() || live !== win || Date.now() > until) return stopDrag();
+      if (!live || live.isDestroyed() || live !== win || Date.now() > until)
+        return stopDrag();
       const p = screen.getCursorScreenPoint();
       live.setPosition(p.x + offset.x, p.y + offset.y);
     }, 16);
@@ -1801,18 +2040,23 @@ function registerSeeThroughIpc(prefix, resolveSender, opts = {}) {
   return { stopDrag };
 }
 
-const { stopDrag: stopCallWindowDrag } = registerSeeThroughIpc("call-window", senderIsCallWindow, {
-  // Only the float has anything to lift or drag; the stage drags by its own
-  // header row and takes every click by construction.
-  mayInteract: () => callWindowChrome(callWindowSize, { pinned: wallPinned() }).clickThrough,
-  // Resizing is refused in the panel and the wall, where the person's own
-  // bounds are the answer and a renderer resizing the window under them
-  // would be the window fighting the hand on its edge.
-  mayResize: () => callWindowSize === "float",
-  // The float grows away from the corner it is anchored to.
-  anchor: () => floatAnchor().corner,
-  getWindow: () => callWindow,
-});
+const { stopDrag: stopCallWindowDrag } = registerSeeThroughIpc(
+  "call-window",
+  senderIsCallWindow,
+  {
+    // Only the float has anything to lift or drag; the stage drags by its own
+    // header row and takes every click by construction.
+    mayInteract: () =>
+      callWindowChrome(callWindowSize, { pinned: wallPinned() }).clickThrough,
+    // Resizing is refused in the panel and the wall, where the person's own
+    // bounds are the answer and a renderer resizing the window under them
+    // would be the window fighting the hand on its edge.
+    mayResize: () => callWindowSize === "float",
+    // The float grows away from the corner it is anchored to.
+    anchor: () => floatAnchor().corner,
+    getWindow: () => callWindow,
+  },
+);
 
 shellIpc.handle("open-call-panel", (_e, roomKey, opts) => {
   openCallWindow(roomKey, opts && typeof opts === "object" ? opts : {});
@@ -1832,7 +2076,9 @@ shellIpc.handle("close-call-panel", (e, opts) => {
 // click. The call already lives here; this only makes the window visible.
 shellIpc.handle("show-call-panel", () => {
   if (!callWindowHostsRoom()) {
-    const owner = routedWindows().find((win) => windowStates.get(win.webContents.id)?.inCall);
+    const owner = routedWindows().find(
+      (win) => windowStates.get(win.webContents.id)?.inCall,
+    );
     if (!owner) return false;
     if (owner.isMinimized()) owner.restore();
     owner.show();
@@ -1843,12 +2089,14 @@ shellIpc.handle("show-call-panel", () => {
   // the call's shape itself. An older renderer is moved by the shell.
   if (callWindowHost) {
     callWindow.webContents.send("call-panel-show");
-    if (isCallSize(callWindowSize)) revealCallWindow(callWindow, callWindowSize);
+    if (isCallSize(callWindowSize))
+      revealCallWindow(callWindow, callWindowSize);
     return true;
   }
   // A hidden window in a shape that shows nothing has nothing to raise; the
   // call's own shape does.
-  if (!isCallSize(callWindowSize)) setCallWindowShape(callWindow, savedCallWindowSize(), { reveal: true });
+  if (!isCallSize(callWindowSize))
+    setCallWindowShape(callWindow, savedCallWindowSize(), { reveal: true });
   else revealCallWindow(callWindow, callWindowSize);
   return true;
 });
@@ -1887,12 +2135,16 @@ shellIpc.handle("set-call-window-size", (e, size) => {
   return setCallWindowShape(win, size, { reveal: true });
 });
 
-shellIpc.handle("get-call-window-size", (e) => (senderIsCallWindow(e) ? callWindowSize : null));
+shellIpc.handle("get-call-window-size", (e) =>
+  senderIsCallWindow(e) ? callWindowSize : null,
+);
 
 // The two facts a host needs to decide its own shape: what it is in now, and
 // which call shape the person last chose — the one a call should open in.
 shellIpc.handle("get-voice-window-state", (e) =>
-  senderIsCallWindow(e) ? { size: callWindowSize, callSize: savedCallWindowSize() } : null,
+  senderIsCallWindow(e)
+    ? { size: callWindowSize, callSize: savedCallWindowSize() }
+    : null,
 );
 
 // ── Remotes ────────────────────────────────────────────────────────────────
@@ -1905,7 +2157,10 @@ shellIpc.handle("get-voice-window-state", (e) =>
 shellIpc.handle("voice-command", (_e, cmd, args) => {
   if (!hasVoiceHost()) return false;
   if (typeof cmd !== "string" || !cmd) return false;
-  callWindow.webContents.send("voice-command", { cmd, args: Array.isArray(args) ? args : [] });
+  callWindow.webContents.send("voice-command", {
+    cmd,
+    args: Array.isArray(args) ? args : [],
+  });
   return true;
 });
 
@@ -1922,7 +2177,6 @@ shellIpc.on("voice-mirror", (e, payload) => {
     win.webContents.send("voice-mirror", payload);
   }
 });
-
 
 // ── The float, popped out ──────────────────────────────────────────────────
 //
@@ -1942,7 +2196,10 @@ function facesOverlayWanted() {
 function setFacesOverlayWanted(open) {
   const saved = loadFullSettings().facesWindow;
   updateSettings({
-    facesWindow: { ...(saved && typeof saved === "object" ? saved : {}), open: open === true },
+    facesWindow: {
+      ...(saved && typeof saved === "object" ? saved : {}),
+      open: open === true,
+    },
   });
   // The faces and the wall are two sizes of one glance at the team: asking for
   // one is putting the other away.
@@ -1969,7 +2226,12 @@ function setWallWanted(open) {
   updatePeopleState({ open: open === true });
   if (open === true) {
     const saved = loadFullSettings().facesWindow;
-    updateSettings({ facesWindow: { ...(saved && typeof saved === "object" ? saved : {}), open: false } });
+    updateSettings({
+      facesWindow: {
+        ...(saved && typeof saved === "object" ? saved : {}),
+        open: false,
+      },
+    });
   }
   broadcastWindowRole();
 }
@@ -2016,12 +2278,13 @@ const lastFocusedAt = new Map();
 // rule, the per-conversation burst cooldown and the completion grace. Policy is
 // in notificationRouter.js; this only says how a banner is actually shown.
 const bannerGate = new BannerGate({
-  deliver: (p) => showNativeNotification(
-    p.title,
-    p.body,
-    () => openNotificationTarget(p.data),
-    { route: notificationRoute(p.data), kind: p.data?.kind || null },
-  ),
+  deliver: (p) =>
+    showNativeNotification(
+      p.title,
+      p.body,
+      () => openNotificationTarget(p.data),
+      { route: notificationRoute(p.data), kind: p.data?.kind || null },
+    ),
 });
 
 // The windows that count for routing: main + detached tab windows + the Chat
@@ -2061,7 +2324,10 @@ function toldWindows() {
 // so the role carries this and the page reports it (web lib/shellVisibility).
 function windowShown(win) {
   if (win === spareTabWindow) return false;
-  return win.isVisible() && !(typeof win.isMinimized === "function" && win.isMinimized());
+  return (
+    win.isVisible() &&
+    !(typeof win.isMinimized === "function" && win.isMinimized())
+  );
 }
 
 function describeWindows() {
@@ -2159,7 +2425,8 @@ function flushWindowRole() {
 // A window shown, hidden, minimized or restored changes what it should do in
 // the background (its `shown` above), so every such change re-tells the roles.
 app.on("browser-window-created", (_e, win) => {
-  for (const ev of ["show", "hide", "minimize", "restore"]) win.on(ev, () => broadcastWindowRole());
+  for (const ev of ["show", "hide", "minimize", "restore"])
+    win.on(ev, () => broadcastWindowRole());
   // A page that loads (or reloads) after the last broadcast has not heard it:
   // the warm spare, hidden from birth, gets no focus or show event to carry one.
   win.webContents.on("did-finish-load", () => broadcastWindowRole());
@@ -2176,7 +2443,10 @@ shellIpc.on("report-window-state", (e, state) => {
   // A window reporting for the first time has not seen the host's mirror yet;
   // without this its talk keys would start blank until the host next moved.
   if (!windowStates.has(e.sender.id)) {
-    if (lastVoiceMirror && !(callWindow && e.sender === callWindow.webContents)) {
+    if (
+      lastVoiceMirror &&
+      !(callWindow && e.sender === callWindow.webContents)
+    ) {
       e.sender.send("voice-mirror", lastVoiceMirror);
     }
     const id = e.sender.id;
@@ -2185,7 +2455,9 @@ shellIpc.on("report-window-state", (e, state) => {
   windowStates.set(e.sender.id, {
     active: typeof state.active === "string" ? state.active : null,
     open: Array.isArray(state.open)
-      ? state.open.filter((t) => t && typeof t.path === "string").map((t) => ({ id: t.id ?? null, path: t.path }))
+      ? state.open
+          .filter((t) => t && typeof t.path === "string")
+          .map((t) => ({ id: t.id ?? null, path: t.path }))
       : [],
     inCall: state.inCall === true,
   });
@@ -2198,7 +2470,7 @@ shellIpc.on("report-window-state", (e, state) => {
 function sendNavigate(win, navPath, tabId) {
   const detail = { path: navPath, tabId: tabId || null, placed: true };
   win.webContents.executeJavaScript(
-    `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify(detail)} }))`
+    `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify(detail)} }))`,
   );
 }
 
@@ -2207,7 +2479,10 @@ function sendNavigate(win, navPath, tabId) {
 // main window and let the deep-link buffer deliver the path on load.
 function openNotificationTarget(data) {
   const route = notificationRoute(data);
-  const pick = pickWindow(describeWindows(), { route, kind: data?.kind || null });
+  const pick = pickWindow(describeWindows(), {
+    route,
+    kind: data?.kind || null,
+  });
   if (!pick) {
     if (route) deepLinkUrl = `codecast://open${route}`;
     createWindow();
@@ -2221,7 +2496,8 @@ function openNotificationTarget(data) {
 }
 
 function createPaletteWindow() {
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
+  const { width: screenWidth, height: screenHeight } =
+    screen.getPrimaryDisplay().workAreaSize;
   // The compose card fills this window (94vw × 88vh), so the window IS the box's
   // size. ~30% wider than the old 740×580, only modestly taller — a proportional
   // bump made the empty new-session state a cavern, so we grow width more.
@@ -2263,7 +2539,7 @@ function createPaletteWindow() {
   win.webContents.on("did-finish-load", () => {
     if (!win.isDestroyed()) {
       win.webContents.executeJavaScript(
-        "document.documentElement.classList.add('electron-desktop')"
+        "document.documentElement.classList.add('electron-desktop')",
       );
     }
   });
@@ -2312,7 +2588,8 @@ function placePaletteWindow() {
   // The agent dock is a panel that holds the keyboard without activating
   // Codecast, so the app in front is still someone else's.
   const focused = BrowserWindow.getFocusedWindow();
-  if (focused !== paletteWindow) paletteSummonedOver = focused === agentDockWindow ? null : focused;
+  if (focused !== paletteWindow)
+    paletteSummonedOver = focused === agentDockWindow ? null : focused;
   // Reposition to center of current display
   const cursor = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursor);
@@ -2321,7 +2598,7 @@ function placePaletteWindow() {
   const [winWidth, winHeight] = paletteWindow.getSize();
   paletteWindow.setPosition(
     Math.round(dx + (sw - winWidth) / 2),
-    Math.round(dy + sh * 0.18)
+    Math.round(dy + sh * 0.18),
   );
 }
 
@@ -2434,7 +2711,7 @@ function createMeetingOfferWindow() {
   win.webContents.on("did-finish-load", () => {
     if (!win.isDestroyed()) {
       win.webContents.executeJavaScript(
-        "document.documentElement.classList.add('electron-desktop')"
+        "document.documentElement.classList.add('electron-desktop')",
       );
     }
   });
@@ -2461,8 +2738,14 @@ function placeMeetingOfferWindow(width, height) {
 shellIpc.on("meeting-offer-size", (e, size) => {
   const win = meetingOfferWindow;
   if (!win || win.isDestroyed() || e.sender !== win.webContents) return;
-  const width = Math.max(60, Math.min(560, Math.round(Number(size?.width) || 360)));
-  const height = Math.max(26, Math.min(480, Math.round(Number(size?.height) || 64)));
+  const width = Math.max(
+    60,
+    Math.min(560, Math.round(Number(size?.width) || 360)),
+  );
+  const height = Math.max(
+    26,
+    Math.min(480, Math.round(Number(size?.height) || 64)),
+  );
   placeMeetingOfferWindow(width, height);
   if (!win.isVisible()) win.showInactive();
 });
@@ -2586,7 +2869,7 @@ function createCallRingWindow() {
   win.webContents.on("did-finish-load", () => {
     if (!win.isDestroyed()) {
       win.webContents.executeJavaScript(
-        "document.documentElement.classList.add('electron-desktop')"
+        "document.documentElement.classList.add('electron-desktop')",
       );
     }
   });
@@ -2645,8 +2928,14 @@ shellIpc.on("call-ring-size", (e, size) => {
   // Wide enough for the card and the glow it is measured with (ringCard.css
   // .ring-card-glow): the window is the halo's box, so a cap at the card's
   // size cut the shadow off square.
-  const width = Math.max(120, Math.min(560, Math.round(Number(size?.width) || 340)));
-  const height = Math.max(48, Math.min(480, Math.round(Number(size?.height) || 96)));
+  const width = Math.max(
+    120,
+    Math.min(560, Math.round(Number(size?.width) || 340)),
+  );
+  const height = Math.max(
+    48,
+    Math.min(480, Math.round(Number(size?.height) || 96)),
+  );
   placeCallRingWindow(width, height);
   // The reveal, and it never takes focus: the person is mid-sentence in
   // another app and a ring is not worth their keystrokes.
@@ -2675,7 +2964,10 @@ shellIpc.on("call-ring-answer", (e, inviteId, roomKey) => {
   if (!call || call.webContents.isDestroyed()) return;
   const accept = () => {
     if (!call.isDestroyed() && !call.webContents.isDestroyed()) {
-      call.webContents.send("call-ring-accept", { inviteId: String(inviteId ?? ""), roomKey });
+      call.webContents.send("call-ring-accept", {
+        inviteId: String(inviteId ?? ""),
+        roomKey,
+      });
     }
   };
   // A window that is still loading has no listener yet; the preload buffers
@@ -2755,7 +3047,9 @@ function createAgentDockWindow() {
   });
   win.webContents.on("did-finish-load", () => {
     if (!win.isDestroyed()) {
-      win.webContents.executeJavaScript("document.documentElement.classList.add('electron-desktop')");
+      win.webContents.executeJavaScript(
+        "document.documentElement.classList.add('electron-desktop')",
+      );
     }
   });
   win.on("closed", () => {
@@ -2774,7 +3068,11 @@ function syncAgentDock() {
 }
 
 const senderIsAgentDock = (e) =>
-  agentDockWindow && !agentDockWindow.isDestroyed() && e.sender === agentDockWindow.webContents ? agentDockWindow : null;
+  agentDockWindow &&
+  !agentDockWindow.isDestroyed() &&
+  e.sender === agentDockWindow.webContents
+    ? agentDockWindow
+    : null;
 
 registerSeeThroughIpc("agentDock", senderIsAgentDock, {
   appChannel: true,
@@ -2785,21 +3083,31 @@ registerSeeThroughIpc("agentDock", senderIsAgentDock, {
   },
 });
 
-shellIpc.handle("app:agentDock.get", () => ({ ...loadAgentDock(), supported: true }));
+shellIpc.handle("app:agentDock.get", () => ({
+  ...loadAgentDock(),
+  supported: true,
+}));
 // Every change to the setting comes through here: Settings → Desktop, the
 // tray's toggle, and the dock's own minimize. The window, the shortcut, the
 // tray's checkmark and the page's layout all follow from the one write.
 function saveAgentDock(patch) {
-  const next = mergeAgentDock({ ...loadAgentDock(), ...(patch && typeof patch === "object" ? patch : {}) });
+  const next = mergeAgentDock({
+    ...loadAgentDock(),
+    ...(patch && typeof patch === "object" ? patch : {}),
+  });
   updateSettings({ agentDock: next });
   syncAgentDock();
   registerShortcuts();
   setTrayMenu();
   if (agentDockWindow && !agentDockWindow.isDestroyed()) {
     const [w, h] = agentDockWindow.getSize();
-    const area = screen.getDisplayMatching(agentDockWindow.getBounds()).workArea;
+    const area = screen.getDisplayMatching(
+      agentDockWindow.getBounds(),
+    ).workArea;
     agentDockWindow.setResizable(true);
-    agentDockWindow.setBounds(placeAgentDock(area, { width: w, height: h }, next));
+    agentDockWindow.setBounds(
+      placeAgentDock(area, { width: w, height: h }, next),
+    );
     agentDockWindow.setResizable(false);
     // The page lays the card out on the side away from the edge; a window
     // moved to the other edge with the page still on the old side opens its
@@ -2850,7 +3158,10 @@ shellIpc.handle("app:agentDock.compose", (e) => {
 // Resolves a PNG data URL, or null when the person pressed Esc.
 shellIpc.handle("app:agentDock.capture", async (e) => {
   if (!senderIsAgentDock(e) || process.platform !== "darwin") return null;
-  const file = path.join(app.getPath("temp"), `codecast-dock-${crypto.randomUUID()}.png`);
+  const file = path.join(
+    app.getPath("temp"),
+    `codecast-dock-${crypto.randomUUID()}.png`,
+  );
   try {
     await execFileP("/usr/sbin/screencapture", ["-i", "-x", file]);
     if (!fs.existsSync(file)) return null;
@@ -2862,7 +3173,8 @@ shellIpc.handle("app:agentDock.capture", async (e) => {
 
 function summonAgentDock() {
   if (!loadAgentDock().enabled) return;
-  if (!agentDockWindow || agentDockWindow.isDestroyed()) createAgentDockWindow();
+  if (!agentDockWindow || agentDockWindow.isDestroyed())
+    createAgentDockWindow();
   const win = agentDockWindow;
   win.webContents.send("app:agentDock.summon", { at: Date.now() });
   // Not drawn yet: the page shows itself when it reports its size.
@@ -2889,7 +3201,7 @@ function openFullSessionInMain() {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.executeJavaScript(
-    "window.__CODECAST_NEW_SESSION && window.__CODECAST_NEW_SESSION()"
+    "window.__CODECAST_NEW_SESSION && window.__CODECAST_NEW_SESSION()",
   );
 }
 
@@ -2899,11 +3211,13 @@ function openFullSessionInMain() {
 // of a detached window), so the shell only asks; the detach itself comes back
 // over the detach-tab IPC.
 function detachFocusedView(win) {
-  const target = win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow();
+  const target =
+    win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow();
   if (!target || target.isDestroyed()) return;
-  if (target !== mainWindow && !tabWindows.has(target) && !appOf(target)) return;
+  if (target !== mainWindow && !tabWindows.has(target) && !appOf(target))
+    return;
   target.webContents.executeJavaScript(
-    "window.__CODECAST_DETACH_VIEW && window.__CODECAST_DETACH_VIEW()"
+    "window.__CODECAST_DETACH_VIEW && window.__CODECAST_DETACH_VIEW()",
   );
 }
 
@@ -2922,7 +3236,7 @@ function navigateMain(navPath) {
   mainWindow.show();
   mainWindow.focus();
   mainWindow.webContents.executeJavaScript(
-    `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify(navPath)} }))`
+    `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify(navPath)} }))`,
   );
 }
 
@@ -2935,10 +3249,10 @@ function toggleEnvironment() {
   mainWindow.webContents.once("did-finish-load", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
     mainWindow.webContents.executeJavaScript(
-      "document.documentElement.classList.add('electron-desktop')"
+      "document.documentElement.classList.add('electron-desktop')",
     );
     mainWindow.webContents.executeJavaScript(
-      `document.title = '[${env.toUpperCase()}] ' + document.title`
+      `document.title = '[${env.toUpperCase()}] ' + document.title`,
     );
   });
   if (paletteWindow) {
@@ -2975,7 +3289,9 @@ function applyTrayState() {
   if (!tray || tray.isDestroyed()) return;
   const state = trayIconState(trayNeedsInput);
   if (state.file !== trayIconFile) {
-    const icon = nativeImage.createFromPath(path.join(__dirname, "assets", state.file));
+    const icon = nativeImage.createFromPath(
+      path.join(__dirname, "assets", state.file),
+    );
     icon.setTemplateImage(state.template);
     tray.setImage(icon);
     trayIconFile = state.file;
@@ -2985,7 +3301,9 @@ function applyTrayState() {
 
 function createTray() {
   const initial = trayIconState(trayNeedsInput);
-  const icon = nativeImage.createFromPath(path.join(__dirname, "assets", initial.file));
+  const icon = nativeImage.createFromPath(
+    path.join(__dirname, "assets", initial.file),
+  );
   icon.setTemplateImage(initial.template);
   trayIconFile = initial.file;
   tray = new Tray(icon);
@@ -2998,7 +3316,13 @@ function setTrayMenu() {
   if (!tray) return;
   const dock = loadAgentDock();
   const menu = Menu.buildFromTemplate([
-    { label: "Show Codecast", click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+    {
+      label: "Show Codecast",
+      click: () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      },
+    },
     { type: "separator" },
     { label: "New Session", click: () => openFullSessionInMain() },
     { label: "New Quick Session", click: () => showCompose() },
@@ -3012,12 +3336,25 @@ function setTrayMenu() {
     // Unreleased: offered only on a machine that turned it on.
     ...(dock.enabled
       ? [
-          { label: "Agent Dock", type: "checkbox", checked: true, click: () => saveAgentDock({ enabled: false }) },
-          { label: "Minimize Agent Dock", type: "checkbox", checked: dock.minimized, click: () => saveAgentDock({ minimized: !dock.minimized }) },
+          {
+            label: "Agent Dock",
+            type: "checkbox",
+            checked: true,
+            click: () => saveAgentDock({ enabled: false }),
+          },
+          {
+            label: "Minimize Agent Dock",
+            type: "checkbox",
+            checked: dock.minimized,
+            click: () => saveAgentDock({ minimized: !dock.minimized }),
+          },
           { type: "separator" },
         ]
       : []),
-    { label: "Check for Updates…", click: () => checkForDesktopUpdate({ manual: true }) },
+    {
+      label: "Check for Updates…",
+      click: () => checkForDesktopUpdate({ manual: true }),
+    },
     { label: `Version ${app.getVersion()}`, enabled: false },
     { type: "separator" },
     { label: "Quit Codecast", click: () => confirmQuit() },
@@ -3065,9 +3402,19 @@ function buildAppMenu() {
       submenu: [
         { role: "about" },
         { type: "separator" },
-        { label: "Check for Updates…", click: () => checkForDesktopUpdate({ manual: true }) },
+        {
+          label: "Check for Updates…",
+          click: () => checkForDesktopUpdate({ manual: true }),
+        },
         { type: "separator" },
-        { label: "Settings…", accelerator: menuKeys.accelerator("ui.openSettings", "CommandOrControl+,"), click: () => navigateMain("/settings") },
+        {
+          label: "Settings…",
+          accelerator: menuKeys.accelerator(
+            "ui.openSettings",
+            "CommandOrControl+,",
+          ),
+          click: () => navigateMain("/settings"),
+        },
         { type: "separator" },
         { role: "services" },
         { type: "separator" },
@@ -3081,7 +3428,11 @@ function buildAppMenu() {
           checked: warnBeforeQuit(),
           click: (item) => updateSettings({ warnBeforeQuit: item.checked }),
         },
-        { label: "Quit Codecast", accelerator: "CommandOrControl+Q", click: () => confirmQuit() },
+        {
+          label: "Quit Codecast",
+          accelerator: "CommandOrControl+Q",
+          click: () => confirmQuit(),
+        },
       ],
     },
     {
@@ -3092,7 +3443,10 @@ function buildAppMenu() {
         // view out into its own window is rarer and takes Cmd+Shift+N.
         {
           label: "New Session",
-          accelerator: menuKeys.accelerator("session.create", "CommandOrControl+N"),
+          accelerator: menuKeys.accelerator(
+            "session.create",
+            "CommandOrControl+N",
+          ),
           click: () => openFullSessionInMain(),
         },
         {
@@ -3146,8 +3500,22 @@ function buildAppMenu() {
         // person's rebinding (menuKeys.js): the page handles the key first and
         // swallows it, so the menu fires only for a window without that
         // handler, or from a click.
-        { label: "Back", accelerator: menuKeys.accelerator("nav.back", process.platform === "darwin" ? "Command+[" : "Alt+Left"), click: () => focusedWindowHistory(-1) },
-        { label: "Forward", accelerator: menuKeys.accelerator("nav.forward", process.platform === "darwin" ? "Command+]" : "Alt+Right"), click: () => focusedWindowHistory(1) },
+        {
+          label: "Back",
+          accelerator: menuKeys.accelerator(
+            "nav.back",
+            process.platform === "darwin" ? "Command+[" : "Alt+Left",
+          ),
+          click: () => focusedWindowHistory(-1),
+        },
+        {
+          label: "Forward",
+          accelerator: menuKeys.accelerator(
+            "nav.forward",
+            process.platform === "darwin" ? "Command+]" : "Alt+Right",
+          ),
+          click: () => focusedWindowHistory(1),
+        },
       ],
     },
     {
@@ -3162,7 +3530,12 @@ function buildAppMenu() {
         // accelerator is Cmd+Plus (Shift+=); the hidden twin takes bare Cmd+=.
         { role: "resetZoom" },
         { role: "zoomIn" },
-        { role: "zoomIn", accelerator: "CommandOrControl+=", visible: false, acceleratorWorksWhenHidden: true },
+        {
+          role: "zoomIn",
+          accelerator: "CommandOrControl+=",
+          visible: false,
+          acceleratorWorksWhenHidden: true,
+        },
         { role: "zoomOut" },
         { type: "separator" },
         { role: "togglefullscreen" },
@@ -3179,7 +3552,9 @@ function buildAppMenu() {
         { label: "Command Palette", click: () => togglePalette() },
         { label: "Chat Window", click: () => createAppWindow("chat") },
         { label: "Work Window", click: () => createAppWindow("work") },
-        ...(LOCAL_DEV_ALLOWED ? [{ label: "Switch Environment", click: () => toggleEnvironment() }] : []),
+        ...(LOCAL_DEV_ALLOWED
+          ? [{ label: "Switch Environment", click: () => toggleEnvironment() }]
+          : []),
         { type: "separator" },
         { role: "front" },
         { type: "separator" },
@@ -3189,12 +3564,24 @@ function buildAppMenu() {
     {
       role: "help",
       submenu: [
-        { label: "Documentation", click: () => shell.openExternal("https://codecast.sh/documentation") },
-        { label: "What's New", click: () => shell.openExternal("https://codecast.sh/changelog") },
+        {
+          label: "Documentation",
+          click: () => shell.openExternal("https://codecast.sh/documentation"),
+        },
+        {
+          label: "What's New",
+          click: () => shell.openExternal("https://codecast.sh/changelog"),
+        },
         { label: "Keyboard Shortcuts", click: () => navigateMain("/settings") },
         { type: "separator" },
-        { label: "Check for Updates…", click: () => checkForDesktopUpdate({ manual: true }) },
-        { label: "Codecast Website", click: () => shell.openExternal("https://codecast.sh") },
+        {
+          label: "Check for Updates…",
+          click: () => checkForDesktopUpdate({ manual: true }),
+        },
+        {
+          label: "Codecast Website",
+          click: () => shell.openExternal("https://codecast.sh"),
+        },
       ],
     },
   ];
@@ -3254,7 +3641,12 @@ function installedBundlePath() {
 
 // Which feed entries and bundles the updater accepts (zip name, version
 // floor, bundle version equal to the feed's) lives in updatePolicy.js.
-const { cmpVersions, parseFeed, plistVersion, bundleRefusal } = require("./updatePolicy");
+const {
+  cmpVersions,
+  parseFeed,
+  plistVersion,
+  bundleRefusal,
+} = require("./updatePolicy");
 
 // Network layer (redirect-following GET, feed fetch, resumable download with
 // inactivity timeouts and abort support) lives in updaterNet.js — pure Node,
@@ -3263,22 +3655,36 @@ const { fetchText, downloadResumable } = require("./updaterNet");
 
 function execFileP(cmd, args) {
   return new Promise((resolve) => {
-    execFile(cmd, args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-      resolve({ ok: !err, stdout: stdout || "", stderr: stderr || "" });
-    });
+    execFile(
+      cmd,
+      args,
+      { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        resolve({ ok: !err, stdout: stdout || "", stderr: stderr || "" });
+      },
+    );
   });
 }
 
 // The extracted bundle must be a valid, untampered signature from our team.
 async function verifyBundleSignature(appPath) {
-  const verify = await execFileP("/usr/bin/codesign", ["--verify", "--strict", "--deep", appPath]);
+  const verify = await execFileP("/usr/bin/codesign", [
+    "--verify",
+    "--strict",
+    "--deep",
+    appPath,
+  ]);
   if (!verify.ok) return false;
   const info = await execFileP("/usr/bin/codesign", ["-dvv", appPath]);
-  return `${info.stdout}${info.stderr}`.includes(`TeamIdentifier=${EXPECTED_TEAM_ID}`);
+  return `${info.stdout}${info.stderr}`.includes(
+    `TeamIdentifier=${EXPECTED_TEAM_ID}`,
+  );
 }
 
 function rmrf(p) {
-  try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(p, { recursive: true, force: true });
+  } catch {}
 }
 
 // Check the feed and, if newer (or forced), download → verify → stage a bundle
@@ -3289,7 +3695,11 @@ function rmrf(p) {
 // silently here is what made the retry button do nothing.
 async function checkForDesktopUpdate(opts = {}) {
   if (process.platform !== "darwin" || !app.isPackaged) {
-    if (opts.manual) showNativeNotification("Updates unavailable", "Auto-update only runs in the installed desktop app.");
+    if (opts.manual)
+      showNativeNotification(
+        "Updates unavailable",
+        "Auto-update only runs in the installed desktop app.",
+      );
     return;
   }
   // An organization that turns automatic updates off ships versions itself;
@@ -3299,7 +3709,11 @@ async function checkForDesktopUpdate(opts = {}) {
   // is updated by whoever installed it; the swap would only fail.
   const bundle = installedBundlePath();
   if (bundle && !isWritable(bundle)) {
-    if (opts.manual) showNativeNotification("Updates come from your organization", "Codecast was installed by your organization and updates when it ships a new version.");
+    if (opts.manual)
+      showNativeNotification(
+        "Updates come from your organization",
+        "Codecast was installed by your organization and updates when it ships a new version.",
+      );
     return;
   }
   if (updateRun) {
@@ -3310,7 +3724,12 @@ async function checkForDesktopUpdate(opts = {}) {
   // Already downloaded and waiting — just re-surface it for a manual check.
   if (stagedUpdate) {
     emitUpdateStatus({ status: "ready", version: stagedUpdate.version });
-    if (opts.manual) showNativeNotification(`Codecast ${stagedUpdate.version} is ready`, "Click to restart and install.", () => installUpdateAndRestart());
+    if (opts.manual)
+      showNativeNotification(
+        `Codecast ${stagedUpdate.version} is ready`,
+        "Click to restart and install.",
+        () => installUpdateAndRestart(),
+      );
     return;
   }
   const run = runDesktopUpdateCheck(opts);
@@ -3318,7 +3737,10 @@ async function checkForDesktopUpdate(opts = {}) {
   try {
     await run;
   } finally {
-    if (updateRun === run) { updateRun = null; updateAbort = null; }
+    if (updateRun === run) {
+      updateRun = null;
+      updateAbort = null;
+    }
   }
 }
 
@@ -3335,9 +3757,12 @@ function isWritable(p) {
 // writeEffectivePolicyFile) so the merge of profile and team policy lives in
 // one place. "on", "off", or undefined when nothing manages updates.
 function managedAutoUpdate() {
-  const dir = process.env.CODECAST_DIR || path.join(app.getPath("home"), ".codecast");
+  const dir =
+    process.env.CODECAST_DIR || path.join(app.getPath("home"), ".codecast");
   try {
-    return JSON.parse(fs.readFileSync(path.join(dir, "managed-policy.json"), "utf-8"))?.values?.auto_update;
+    return JSON.parse(
+      fs.readFileSync(path.join(dir, "managed-policy.json"), "utf-8"),
+    )?.values?.auto_update;
   } catch {
     return undefined;
   }
@@ -3354,7 +3779,11 @@ async function runDesktopUpdateCheck(opts) {
     const { version, zip, sha512 } = parseFeed(await fetchText(DESKTOP_FEED));
     if (!version || !zip || !sha512) throw new Error("could not parse feed");
     if (cmpVersions(version, app.getVersion()) <= 0 && !opts.force) {
-      if (opts.manual) showNativeNotification("Codecast is up to date", `You're on the latest version (${app.getVersion()}).`);
+      if (opts.manual)
+        showNativeNotification(
+          "Codecast is up to date",
+          `You're on the latest version (${app.getVersion()}).`,
+        );
       return;
     }
 
@@ -3366,19 +3795,38 @@ async function runDesktopUpdateCheck(opts) {
     emitUpdateStatus({ status: "downloading", version, percent: 0 });
     const got = await downloadResumable(`${DESKTOP_BASE}/${zip}`, zipPath, {
       signal: abort.signal,
-      onProgress: (percent) => emitUpdateStatus({ status: "downloading", version, percent }),
+      onProgress: (percent) =>
+        emitUpdateStatus({ status: "downloading", version, percent }),
     });
     if (got !== sha512) throw new Error("sha512 mismatch");
 
     const extractDir = path.join(work, "extract");
     fs.mkdirSync(extractDir, { recursive: true });
-    const ex = await execFileP("/usr/bin/ditto", ["-x", "-k", zipPath, extractDir]);
+    const ex = await execFileP("/usr/bin/ditto", [
+      "-x",
+      "-k",
+      zipPath,
+      extractDir,
+    ]);
     if (!ex.ok) throw new Error("extract failed");
     const newApp = path.join(extractDir, "Codecast.app");
-    if (!fs.existsSync(newApp)) throw new Error("Codecast.app missing from archive");
-    if (!(await verifyBundleSignature(newApp))) throw new Error("signature/team verification failed");
-    const plist = await execFileP("/usr/bin/plutil", ["-convert", "xml1", "-o", "-", path.join(newApp, "Contents", "Info.plist")]);
-    const refusal = bundleRefusal({ feedVersion: version, bundleVersion: plist.ok ? plistVersion(plist.stdout) : null, runningVersion: app.getVersion(), force: opts.force });
+    if (!fs.existsSync(newApp))
+      throw new Error("Codecast.app missing from archive");
+    if (!(await verifyBundleSignature(newApp)))
+      throw new Error("signature/team verification failed");
+    const plist = await execFileP("/usr/bin/plutil", [
+      "-convert",
+      "xml1",
+      "-o",
+      "-",
+      path.join(newApp, "Contents", "Info.plist"),
+    ]);
+    const refusal = bundleRefusal({
+      feedVersion: version,
+      bundleVersion: plist.ok ? plistVersion(plist.stdout) : null,
+      runningVersion: app.getVersion(),
+      force: opts.force,
+    });
     if (refusal) throw new Error(refusal);
 
     // Pre-stage a sibling copy on the SAME volume as the running bundle so the
@@ -3403,7 +3851,11 @@ async function runDesktopUpdateCheck(opts) {
     // own statuses immediately, so don't flash a spurious error over them.
     if (!e?.aborted) {
       emitUpdateStatus({ status: "error", version: lastUpdateStatus?.version });
-      if (opts.manual) showNativeNotification("Update check failed", "Couldn't reach the update server. Try again later.");
+      if (opts.manual)
+        showNativeNotification(
+          "Update check failed",
+          "Couldn't reach the update server. Try again later.",
+        );
     }
   }
 }
@@ -3426,7 +3878,10 @@ function spawnUpdateSwap({ relaunch }) {
     ...(relaunch ? [`/usr/bin/open ${sh(bundlePath)}`] : []),
   ].join("\n");
   try {
-    spawn("/bin/sh", ["-c", script], { detached: true, stdio: "ignore" }).unref();
+    spawn("/bin/sh", ["-c", script], {
+      detached: true,
+      stdio: "ignore",
+    }).unref();
   } catch (e) {
     console.error("update swap helper failed to spawn:", e?.message);
   }
@@ -3460,15 +3915,21 @@ shellIpc.handle("set-badge-count", (e, count) => {
 // heartbeat so the server knows a human is at this machine even while
 // Codecast itself is unfocused. powerMonitor is only usable after app ready,
 // which holds whenever this handler runs: renderers exist only post-ready.
-shellIpc.handle("get-system-idle-seconds", () => powerMonitor.getSystemIdleTime());
+shellIpc.handle("get-system-idle-seconds", () =>
+  powerMonitor.getSystemIdleTime(),
+);
 shellIpc.handle("restart-for-update", () => installUpdateAndRestart());
 // Any renderer-invoked check is user-initiated ("Try again" / "Update now"),
 // which lets it supersede a wedged in-flight download (see checkForDesktopUpdate).
 // The asking window hears the outcome directly, whatever list it is on: a
 // window that asked and heard nothing calls a staged update stalled.
 shellIpc.handle("check-for-update", async (e, opts) => {
-  await checkForDesktopUpdate({ manual: opts?.manual === true, userInitiated: true });
-  if (lastUpdateStatus && !e.sender.isDestroyed()) e.sender.send("update-status", lastUpdateStatus);
+  await checkForDesktopUpdate({
+    manual: opts?.manual === true,
+    userInitiated: true,
+  });
+  if (lastUpdateStatus && !e.sender.isDestroyed())
+    e.sender.send("update-status", lastUpdateStatus);
 });
 // Returns { shown } so the renderer knows whether IT announced the event —
 // a promise while a banner waits out the completion grace. Every window reports
@@ -3476,7 +3937,9 @@ shellIpc.handle("check-for-update", async (e, opts) => {
 // into it. The gate holds the rest of the policy (notificationRouter.js): a
 // banner is silent only when a FOCUSED window already shows the conversation it
 // is about, and a burst for one conversation fires once.
-shellIpc.handle("show-notification", (_e, payload) => bannerGate.admit(describeWindows(), payload));
+shellIpc.handle("show-notification", (_e, payload) =>
+  bannerGate.admit(describeWindows(), payload),
+);
 
 // OS-level permissions (notifications, microphone, camera, screen) read from
 // the OS itself — see osPermissions.js. Unpackaged dev runs register with
@@ -3492,12 +3955,19 @@ modernNotify = osPermissions.notify;
 // posted before a relaunch carries its own target and lands through here.
 osPermissions.listenForClicks((payload) => {
   let target = null;
-  try { target = JSON.parse(payload); } catch {}
+  try {
+    target = JSON.parse(payload);
+  } catch {}
   const route = target && sanitizeTabPath(target.route);
-  if (route) app.whenReady().then(() => openNotificationTarget({ route, kind: target.kind || null }));
+  if (route)
+    app
+      .whenReady()
+      .then(() => openNotificationTarget({ route, kind: target.kind || null }));
 });
 shellIpc.handle("get-os-permissions", () => osPermissions.getAll());
-shellIpc.handle("request-os-permission", (_e, kind) => osPermissions.request(String(kind)));
+shellIpc.handle("request-os-permission", (_e, kind) =>
+  osPermissions.request(String(kind)),
+);
 
 // The two grants that belong to the codecast computer helper, not to this app
 // — see computerPermissions.js. They travel through the cast CLI, so nothing
@@ -3513,7 +3983,9 @@ shellIpc.handle("get-daemon-setup", () => daemonSetup.state());
 shellIpc.handle("run-daemon-setup", (_e, token) => daemonSetup.setup(token));
 shellIpc.handle("open-os-permission-settings", (_e, kind) => {
   const k = String(kind);
-  return computerPermissions.owns(k) ? computerPermissions.openSettings(k) : osPermissions.openSettings(k);
+  return computerPermissions.owns(k)
+    ? computerPermissions.openSettings(k)
+    : osPermissions.openSettings(k);
 });
 
 // Hands a URL to the person's real browser. Sign-in sends its OAuth flow
@@ -3522,7 +3994,8 @@ shellIpc.handle("open-os-permission-settings", (_e, kind) => {
 // server. Web origins only: anything else has no business being launched
 // from here.
 shellIpc.handle("open-external", (_e, url) => {
-  if (typeof url === "string" && /^https?:\/\//i.test(url)) shell.openExternal(url);
+  if (typeof url === "string" && /^https?:\/\//i.test(url))
+    shell.openExternal(url);
 });
 
 // Palette IPC
@@ -3555,7 +4028,7 @@ shellIpc.on("compose-submit", (_e, data) => {
     mainWindow.show();
     mainWindow.focus();
     mainWindow.webContents.executeJavaScript(
-      `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify("/conversation/" + data.conversationId)} }))`
+      `window.dispatchEvent(new CustomEvent('codecast-navigate', { detail: ${JSON.stringify("/conversation/" + data.conversationId)} }))`,
     );
   } else if (!data?.navigate) {
     if (paletteSummonedOver && !paletteSummonedOver.isDestroyed()) {
@@ -3681,7 +4154,9 @@ function syncMeetingWatch() {
     return;
   }
   meetingRunning = null;
-  meetingTimer = setInterval(() => { meetingTick(); }, MEETING_POLL_MS);
+  meetingTimer = setInterval(() => {
+    meetingTick();
+  }, MEETING_POLL_MS);
   meetingTick();
 }
 
@@ -3690,7 +4165,9 @@ shellIpc.handle("get-meeting-detect", () => ({
   apps: meetingAppList(),
   supported: canDetectMeetings(),
 }));
-shellIpc.handle("set-meeting-detect", (_e, patch) => saveMeetingDetect(patch || {}));
+shellIpc.handle("set-meeting-detect", (_e, patch) =>
+  saveMeetingDetect(patch || {}),
+);
 
 const SHORTCUT_HANDLERS = {
   toggleWindow: () => {
@@ -3743,7 +4220,13 @@ function registerShortcuts() {
 // leaves its console behind. Pages on other origins are never logged.
 const rendererLog = createRendererLog({
   dir: () => app.getPath("logs"),
-  appOrigin: () => { try { return new URL(currentBaseUrl).origin; } catch { return null; } },
+  appOrigin: () => {
+    try {
+      return new URL(currentBaseUrl).origin;
+    } catch {
+      return null;
+    }
+  },
 });
 // Every window and pane gets the edit menu with spelling suggestions, and the
 // renderer log above. DevTools ("remote") draws its own.
@@ -3762,7 +4245,9 @@ app.whenReady().then(() => {
   // constructor asks for authorization, so an undecided app waits for the
   // first banner's own prompt (claimed again on every post).
   if (osPermissions.readNotificationState() !== "ask") {
-    try { Notification.isSupported(); } catch {}
+    try {
+      Notification.isSupported();
+    } catch {}
     osPermissions.listenForClicks();
   }
 
@@ -3772,10 +4257,12 @@ app.whenReady().then(() => {
   // trust; callback(-3) = defer to Chromium's normal verification, so every
   // other host (production included) stays strict, and so does this one in a
   // packaged build (LOCAL_CERT_TRUSTED) or when DNS points it off this machine.
-  session.defaultSession.setCertificateVerifyProc(localDevCertVerifier({
-    enabled: LOCAL_CERT_TRUSTED,
-    resolve: (host) => session.defaultSession.resolveHost(host),
-  }));
+  session.defaultSession.setCertificateVerifyProc(
+    localDevCertVerifier({
+      enabled: LOCAL_CERT_TRUSTED,
+      resolve: (host) => session.defaultSession.resolveHost(host),
+    }),
+  );
 
   // ── Capability policy ────────────────────────────────────────────────────
   // The shell is a HOST, not a feature: it grants its own trusted origins the
@@ -3793,17 +4280,26 @@ app.whenReady().then(() => {
   // additive only and gated on the caller being a trusted origin — the web
   // cannot open the door for anyone but itself.
   const BASELINE_PERMISSIONS = [
-    "media", "audioCapture", "videoCapture", // huddles: mic + camera
-    "display-capture",                       // screen share
+    "media",
+    "audioCapture",
+    "videoCapture", // huddles: mic + camera
+    "display-capture", // screen share
     "notifications",
-    "clipboard-read", "clipboard-sanitized-write",
+    "clipboard-read",
+    "clipboard-sanitized-write",
     "fullscreen",
-    "speaker-selection",                     // audio output picker
+    "speaker-selection", // audio output picker
   ];
   const trustedPermissions = () =>
-    new Set([...BASELINE_PERMISSIONS, ...(loadFullSettings().hostPolicy?.permissions ?? [])]);
+    new Set([
+      ...BASELINE_PERMISSIONS,
+      ...(loadFullSettings().hostPolicy?.permissions ?? []),
+    ]);
   installShellCapabilities({
-    authority: shellAuthority, session: session.defaultSession, desktopCapturer, permissions: trustedPermissions,
+    authority: shellAuthority,
+    session: session.defaultSession,
+    desktopCapturer,
+    permissions: trustedPermissions,
     onDisplaySource: shareCursors.setSource,
   });
   shareCursors.install(shellIpc);
@@ -3815,8 +4311,13 @@ app.whenReady().then(() => {
   // registry (browserPanes.js, desktop-panes.json) tells it which target is
   // which pane. No port, no registry.
   createBrowserPanes({
-    WebContentsView, session, ipcMain: shellIpc, BrowserWindow, isTrusted: isTrustedOrigin,
-    cdpPort: CDP_PORT, registryPath: defaultPaneRegistryPath(),
+    WebContentsView,
+    session,
+    ipcMain: shellIpc,
+    BrowserWindow,
+    isTrusted: isTrustedOrigin,
+    cdpPort: CDP_PORT,
+    registryPath: defaultPaneRegistryPath(),
   }).install();
 
   // The web layer extends host policy: {permissions?: string[]}.
@@ -3826,10 +4327,21 @@ app.whenReady().then(() => {
     if (!isTrustedOrigin(e.sender)) return null;
     if (patch && typeof patch === "object") {
       const cur = loadFullSettings().hostPolicy ?? {};
-      const permissions = new Set([...(cur.permissions ?? []), ...(Array.isArray(patch.permissions) ? patch.permissions.filter((x) => typeof x === "string") : [])]);
-      updateSettings({ hostPolicy: { permissions: [...permissions], hosts: [] } });
+      const permissions = new Set([
+        ...(cur.permissions ?? []),
+        ...(Array.isArray(patch.permissions)
+          ? patch.permissions.filter((x) => typeof x === "string")
+          : []),
+      ]);
+      updateSettings({
+        hostPolicy: { permissions: [...permissions], hosts: [] },
+      });
     }
-    return { permissions: [...trustedPermissions()], hosts: [], version: app.getVersion() };
+    return {
+      permissions: [...trustedPermissions()],
+      hosts: [],
+      version: app.getVersion(),
+    };
   });
 
   app.setAboutPanelOptions({
@@ -3845,13 +4357,15 @@ app.whenReady().then(() => {
   // burst has a renderer to land in before anybody presses anything.
   createVoiceWindow();
   if (app.dock) {
-    app.dock.setMenu(Menu.buildFromTemplate([
-      { label: "New Session", click: () => openFullSessionInMain() },
-      { label: "Dashboard", click: () => navigateMain("/dashboard") },
-      { label: "Inbox", click: () => navigateMain("/inbox") },
-      { label: "Chat", click: () => routeToWindow("/chat") },
-      { label: "Tasks", click: () => routeToWindow("/tasks") },
-    ]));
+    app.dock.setMenu(
+      Menu.buildFromTemplate([
+        { label: "New Session", click: () => openFullSessionInMain() },
+        { label: "Dashboard", click: () => navigateMain("/dashboard") },
+        { label: "Inbox", click: () => navigateMain("/inbox") },
+        { label: "Chat", click: () => routeToWindow("/chat") },
+        { label: "Tasks", click: () => routeToWindow("/tasks") },
+      ]),
+    );
   }
   registerShortcuts();
   // Starts the meeting poller only if the setting asks for it; off is free.
@@ -3866,8 +4380,15 @@ app.whenReady().then(() => {
   // usually already staged + "ready" by the time the user notices the banner),
   // then re-check hourly. The actual install only happens on a deliberate
   // "Restart now" — see checkForDesktopUpdate / installUpdateAndRestart.
-  setTimeout(() => { checkForDesktopUpdate(); }, 8000);
-  setInterval(() => { checkForDesktopUpdate(); }, 60 * 60 * 1000);
+  setTimeout(() => {
+    checkForDesktopUpdate();
+  }, 8000);
+  setInterval(
+    () => {
+      checkForDesktopUpdate();
+    },
+    60 * 60 * 1000,
+  );
 });
 
 app.on("activate", () => {

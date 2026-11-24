@@ -13,7 +13,12 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { ConvexClient } from "convex/browser";
 import { ConvexError } from "convex/values";
-import { getFunctionName, type FunctionArgs, type FunctionReference, type FunctionReturnType } from "convex/server";
+import {
+  getFunctionName,
+  type FunctionArgs,
+  type FunctionReference,
+  type FunctionReturnType,
+} from "convex/server";
 import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
 import { api } from "../convex/_generated/api";
 import { matchesWhere, type Where } from "../convex/lib/appData";
@@ -25,7 +30,14 @@ import type { PublicVisitor } from "../convex/visitors";
 import { capture } from "./capture";
 import { startPicking } from "./picker";
 import { spotlight } from "./spotlight";
-import { isShellMessage, postToShell, type AppLink, type InitMessage, type PublicVisitorWire, type ShellMessage } from "./protocol";
+import {
+  isShellMessage,
+  postToShell,
+  type AppLink,
+  type InitMessage,
+  type PublicVisitorWire,
+  type ShellMessage,
+} from "./protocol";
 import { updateShared, type SharedState } from "./sharedUpdate";
 
 /** The bundle holds CONVEX_URL_PLACEHOLDER here (scripts/build-sdk.ts); the
@@ -40,8 +52,15 @@ const SHARED_ATTEMPTS = 8;
 const MAX_ERROR_REPORTS = 20;
 
 export type Person = { id: string; name: string; avatar: string };
-export type Doc = Record<string, any> & { _id: string; _by: Person | null; _at: number };
-export type PresentPerson = Person & { isMe: boolean; state: Record<string, unknown> | null };
+export type Doc = Record<string, any> & {
+  _id: string;
+  _by: Person | null;
+  _at: number;
+};
+export type PresentPerson = Person & {
+  isMe: boolean;
+  state: Record<string, unknown> | null;
+};
 
 // ---- Shell link -------------------------------------------------------------
 
@@ -54,7 +73,11 @@ function handshake(): Promise<InitMessage | null> {
   if (window.parent === window) return Promise.resolve(null);
   return new Promise((resolve) => {
     const version = /\/v\/(\d+)\//.exec(location.pathname);
-    const ask = () => postToShell({ type: "ready", version: version ? Number(version[1]) : null });
+    const ask = () =>
+      postToShell({
+        type: "ready",
+        version: version ? Number(version[1]) : null,
+      });
     const resend = setInterval(ask, READY_RESEND_MS);
     const giveUp = setTimeout(() => done(null), HANDSHAKE_MS);
     function onMessage(e: MessageEvent) {
@@ -78,8 +101,15 @@ let stopPicking: (() => void) | null = null;
 window.addEventListener("message", (e) => {
   const message = fromShell(e);
   if (message?.type === "token") return renew(message.token);
-  if (message?.type === "spotlight") return postToShell({ type: "spotlit", found: spotlight(message.selector, message.color) });
-  if (message?.type === "capture") return void capture(message.width, message.height).then((image) => postToShell({ type: "captured", image }));
+  if (message?.type === "spotlight")
+    return postToShell({
+      type: "spotlit",
+      found: spotlight(message.selector, message.color),
+    });
+  if (message?.type === "capture")
+    return void capture(message.width, message.height).then((image) =>
+      postToShell({ type: "captured", image }),
+    );
   if (message?.type !== "pick") return;
   stopPicking?.();
   stopPicking = message.on
@@ -108,8 +138,14 @@ window.addEventListener("error", (e) => reportError(e.error ?? e.message));
 window.addEventListener("unhandledrejection", (e) => reportError(e.reason));
 
 const init = await handshake();
-const client = init ? new ConvexClient(CONVEX_URL, { unsavedChangesWarning: false }) : null;
-const creds = init && { visitor_id: init.visitor_id, app_id: init.app_id as Id<"apps">, token: init.token };
+const client = init
+  ? new ConvexClient(CONVEX_URL, { unsavedChangesWarning: false })
+  : null;
+const creds = init && {
+  visitor_id: init.visitor_id,
+  app_id: init.app_id as Id<"apps">,
+  token: init.token,
+};
 /** Looking only (a past version, a gallery preview): the app shows its data
  *  and writes nothing. It follows the token, so a frame the shell moves
  *  between looking and using changes with its next token. */
@@ -121,7 +157,8 @@ const REFUSAL_GAP_MS = 1_000;
  *  write never settles, so it has no error to print and no success to
  *  claim). The shell is told, once a moment, and says why. */
 function refuse(): Promise<never> {
-  if (Date.now() - lastRefusal > REFUSAL_GAP_MS) postToShell({ type: "refused" });
+  if (Date.now() - lastRefusal > REFUSAL_GAP_MS)
+    postToShell({ type: "refused" });
   lastRefusal = Date.now();
   return new Promise(() => {});
 }
@@ -129,16 +166,26 @@ function refuse(): Promise<never> {
 // ---- People -----------------------------------------------------------------
 
 function person(v: PublicVisitorWire): Person {
-  return { id: v.id, name: v.name, avatar: init?.avatars[v.avatar as AvatarKey] ?? "" };
+  return {
+    id: v.id,
+    name: v.name,
+    avatar: init?.avatars[v.avatar as AvatarKey] ?? "",
+  };
 }
 
 let self: PublicVisitorWire | null = init?.visitor ?? null;
 
 /** The current visitor. Kept live as they rename or change face. */
-export const me: Person = self ? person(self) : { id: "", name: "Guest", avatar: "" };
+export const me: Person = self
+  ? person(self)
+  : { id: "", name: "Guest", avatar: "" };
 
 /** The app's own name and links, for an invite or a share button. */
-export const app: AppLink = init?.app ?? { name: document.title, link: location.href, room: location.href };
+export const app: AppLink = init?.app ?? {
+  name: document.title,
+  link: location.href,
+  room: location.href,
+};
 
 // ---- Live queries -----------------------------------------------------------
 
@@ -170,7 +217,11 @@ function renew(token: string) {
 }
 const RELEASE_MS = 1_000;
 
-function live<Q extends Query, T>(query: Q, args: ArgsOf<Q>, shape: (raw: FunctionReturnType<Q>) => T): Live<T> {
+function live<Q extends Query, T>(
+  query: Q,
+  args: ArgsOf<Q>,
+  shape: (raw: FunctionReturnType<Q>) => T,
+): Live<T> {
   const key = `${getFunctionName(query)}:${JSON.stringify(args)}`;
   const known = lives.get(key);
   if (known) return known as Live<T>;
@@ -193,7 +244,12 @@ function live<Q extends Query, T>(query: Q, args: ArgsOf<Q>, shape: (raw: Functi
   };
   const watch = () => {
     if (!client || !creds) return;
-    const w = client.onUpdate(query, { ...creds, ...args } as FunctionArgs<Q>, accept, (e) => reportError(e));
+    const w = client.onUpdate(
+      query,
+      { ...creds, ...args } as FunctionArgs<Q>,
+      accept,
+      (e) => reportError(e),
+    );
     unsubscribe = w.unsubscribe;
     accept(w.getCurrentValue());
   };
@@ -213,7 +269,11 @@ function live<Q extends Query, T>(query: Q, args: ArgsOf<Q>, shape: (raw: Functi
       if (!unsubscribe) watch();
       return () => {
         listeners.delete(onChange);
-        if (listeners.size === 0) release = setTimeout(() => (unsubscribe?.(), (unsubscribe = null)), RELEASE_MS);
+        if (listeners.size === 0)
+          release = setTimeout(
+            () => (unsubscribe?.(), (unsubscribe = null)),
+            RELEASE_MS,
+          );
       };
     },
   };
@@ -229,10 +289,15 @@ function useLive<T>(entry: Live<T>): T | undefined {
 // ---- Writes -----------------------------------------------------------------
 
 type Mutation = FunctionReference<"mutation">;
-type LocalStore = Parameters<NonNullable<Parameters<ConvexClient["mutation"]>[2]>["optimisticUpdate"] & {}>[0];
+type LocalStore = Parameters<
+  NonNullable<Parameters<ConvexClient["mutation"]>[2]>["optimisticUpdate"] & {}
+>[0];
 
 function connected(): { client: ConvexClient; creds: Creds } {
-  if (!client || !creds) throw new Error("This app is not connected to Clayground. Open it from its Clayground link.");
+  if (!client || !creds)
+    throw new Error(
+      "This app is not connected to Clayground. Open it from its Clayground link.",
+    );
   return { client, creds };
 }
 
@@ -248,14 +313,19 @@ async function write<M extends Mutation>(
   if (watching()) return refuse();
   const { client, creds } = connected();
   try {
-    return await client.mutation(mutation, { ...creds, ...args } as FunctionArgs<M>, {
-      optimisticUpdate: optimistic && ((store) => optimistic(store, creds)),
-    });
+    return await client.mutation(
+      mutation,
+      { ...creds, ...args } as FunctionArgs<M>,
+      {
+        optimisticUpdate: optimistic && ((store) => optimistic(store, creds)),
+      },
+    );
   } catch (e) {
     if (!(e instanceof ConvexError)) throw e;
     const data = e.data as Partial<PlaygroundErrorData>;
     const refused = new Error(data.message ?? "The write failed.");
-    if (data.code === "rate_limited" || data.code === "invalid") reportError(new Error(`A write was refused: ${refused.message}`));
+    if (data.code === "rate_limited" || data.code === "invalid")
+      reportError(new Error(`A write was refused: ${refused.message}`));
     reported.add(refused);
     throw refused;
   }
@@ -265,12 +335,22 @@ let tempIds = 0;
 
 // ---- useCollection ----------------------------------------------------------
 
-const shapeDocs = (docs: DataDoc[]): Doc[] => docs.map((d) => ({ ...d, _by: d._by && person(d._by) }));
+const shapeDocs = (docs: DataDoc[]): Doc[] =>
+  docs.map((d) => ({ ...d, _by: d._by && person(d._by) }));
 
 /** Every live read of `name` this page holds (one per `where`), changed in place. */
-function editLists(store: LocalStore, name: string, change: (docs: DataDoc[], where: Where | null) => DataDoc[]) {
+function editLists(
+  store: LocalStore,
+  name: string,
+  change: (docs: DataDoc[], where: Where | null) => DataDoc[],
+) {
   for (const { args, value } of store.getAllQueries(api.runtime.list)) {
-    if (args.collection === name && value) store.setQuery(api.runtime.list, args, change(value, (args.where as Where | undefined) ?? null));
+    if (args.collection === name && value)
+      store.setQuery(
+        api.runtime.list,
+        args,
+        change(value, (args.where as Where | undefined) ?? null),
+      );
   }
 }
 
@@ -279,38 +359,66 @@ function editLists(store: LocalStore, name: string, change: (docs: DataDoc[], wh
 export function useCollection(name: string, options: { where?: Where } = {}) {
   const whereKey = JSON.stringify(options.where ?? null);
   const entry = useMemo(
-    () => live(api.runtime.list, options.where ? { collection: name, where: options.where } : { collection: name }, shapeDocs),
+    () =>
+      live(
+        api.runtime.list,
+        options.where
+          ? { collection: name, where: options.where }
+          : { collection: name },
+        shapeDocs,
+      ),
     [name, whereKey],
   );
   const answer = useLive(entry);
   const docs = answer ?? EMPTY;
   const ready = answer !== undefined || !client;
   return useMemo(() => {
-    const edit = (store: LocalStore, change: (docs: DataDoc[], where: Where | null) => DataDoc[]) => editLists(store, name, change);
+    const edit = (
+      store: LocalStore,
+      change: (docs: DataDoc[], where: Where | null) => DataDoc[],
+    ) => editLists(store, name, change);
     return {
       docs,
       ready,
       insert: (value: Record<string, unknown>): Promise<string> =>
         write(api.runtime.insert, { collection: name, value }, (store) => {
-          const pending = { ...value, _id: `pending-${++tempIds}` as Id<"app_data">, _by: self as PublicVisitor | null, _at: Date.now() };
-          edit(store, (docs, where) => (matchesWhere(value, where) ? [...docs, pending] : docs));
+          const pending = {
+            ...value,
+            _id: `pending-${++tempIds}` as Id<"app_data">,
+            _by: self as PublicVisitor | null,
+            _at: Date.now(),
+          };
+          edit(store, (docs, where) =>
+            matchesWhere(value, where) ? [...docs, pending] : docs,
+          );
         }),
       update: (id: string, patch: Record<string, unknown>): Promise<void> =>
         write(api.runtime.update, { id, patch }, (store) =>
           edit(store, (docs, where) =>
             docs
-              .map((d) => (d._id === id ? { ...d, ...patch, _id: d._id, _by: d._by, _at: Date.now() } : d))
+              .map((d) =>
+                d._id === id
+                  ? { ...d, ...patch, _id: d._id, _by: d._by, _at: Date.now() }
+                  : d,
+              )
               .filter((d) => d._id !== id || matchesWhere(d, where)),
           ),
         ).then(() => undefined),
       remove: (id: string): Promise<void> =>
-        write(api.runtime.remove, { id }, (store) => edit(store, (docs) => docs.filter((d) => d._id !== id))).then(() => undefined),
+        write(api.runtime.remove, { id }, (store) =>
+          edit(store, (docs) => docs.filter((d) => d._id !== id)),
+        ).then(() => undefined),
       /** Remove every doc matching `where` ({} clears the collection); resolves to how many went. */
       removeWhere: async (where: Where): Promise<number> => {
         let removed = 0;
         for (;;) {
-          const page = await write(api.runtime.removeWhere, { collection: name, where }, (store) =>
-            edit(store, (docs) => docs.filter((d) => !matchesWhere(d, where))),
+          const page = await write(
+            api.runtime.removeWhere,
+            { collection: name, where },
+            (store) =>
+              edit(store, (docs) =>
+                docs.filter((d) => !matchesWhere(d, where)),
+              ),
           );
           removed += page.removed;
           if (!page.more) return removed;
@@ -327,24 +435,56 @@ const EMPTY: Doc[] = [];
 // caller's own (the server scopes a `mine` key to the visitor's token).
 
 type Slot = { key: string; mine?: true };
-const slotOf = (key: string, mine: boolean): Slot => (mine ? { key, mine: true } : { key });
-const shapeShared = (s: SharedView): SharedState => s && { value: s.value, rev: s.rev };
+const slotOf = (key: string, mine: boolean): Slot =>
+  mine ? { key, mine: true } : { key };
+const shapeShared = (s: SharedView): SharedState =>
+  s && { value: s.value, rev: s.rev };
 const keyedLive = (slot: Slot) => live(api.runtime.shared, slot, shapeShared);
 
-function setKeyedLocally(store: LocalStore, c: Creds, slot: Slot, value: unknown, rev: number) {
-  store.setQuery(api.runtime.shared, { ...c, ...slot }, { value, rev, by: self as PublicVisitor | null, at: Date.now() });
+function setKeyedLocally(
+  store: LocalStore,
+  c: Creds,
+  slot: Slot,
+  value: unknown,
+  rev: number,
+) {
+  store.setQuery(
+    api.runtime.shared,
+    { ...c, ...slot },
+    { value, rev, by: self as PublicVisitor | null, at: Date.now() },
+  );
 }
 
-async function setKeyed<T>(slot: Slot, next: T | ((prev: T) => T), initial: T): Promise<void> {
+async function setKeyed<T>(
+  slot: Slot,
+  next: T | ((prev: T) => T),
+  initial: T,
+): Promise<void> {
   if (typeof next !== "function") {
     const rev = (keyedLive(slot).get()?.rev ?? 0) + 1;
-    await write(api.runtime.setShared, { ...slot, value: next }, (store, c) => setKeyedLocally(store, c, slot, next, rev));
+    await write(api.runtime.setShared, { ...slot, value: next }, (store, c) =>
+      setKeyedLocally(store, c, slot, next, rev),
+    );
     return;
   }
   let current: SharedState | undefined = keyedLive(slot).get();
-  if (current === undefined) current = shapeShared(await connected().client.query(api.runtime.shared, { ...connected().creds, ...slot }));
-  await updateShared(current, initial, next as (prev: T) => T, (value, rev) =>
-    write(api.runtime.setShared, { ...slot, value, base_rev: rev }, (store, c) => setKeyedLocally(store, c, slot, value, rev + 1)),
+  if (current === undefined)
+    current = shapeShared(
+      await connected().client.query(api.runtime.shared, {
+        ...connected().creds,
+        ...slot,
+      }),
+    );
+  await updateShared(
+    current,
+    initial,
+    next as (prev: T) => T,
+    (value, rev) =>
+      write(
+        api.runtime.setShared,
+        { ...slot, value, base_rev: rev },
+        (store, c) => setKeyedLocally(store, c, slot, value, rev + 1),
+      ),
     SHARED_ATTEMPTS,
   );
 }
@@ -355,7 +495,10 @@ function useKeyed<T>(key: string, initial: T, mine: boolean): Keyed<T> {
   const slot = useMemo(() => slotOf(key, mine), [key, mine]);
   const current = useLive(useMemo(() => keyedLive(slot), [slot]));
   const value = current ? (current.value as T) : initial;
-  const set = useCallback((next: T | ((prev: T) => T)) => setKeyed(slot, next, initial), [slot, initial]);
+  const set = useCallback(
+    (next: T | ((prev: T) => T)) => setKeyed(slot, next, initial),
+    [slot, initial],
+  );
   return [value, set, current !== undefined || !client];
 }
 
@@ -374,7 +517,11 @@ export function useMine<T>(key: string, initial: T): Keyed<T> {
 // ---- usePresence ------------------------------------------------------------
 
 const shapePeople = (rows: PersonView[]): PresentPerson[] =>
-  rows.map((r) => ({ ...person(r.visitor), isMe: r.visitor.id === self?.id, state: r.state }));
+  rows.map((r) => ({
+    ...person(r.visitor),
+    isMe: r.visitor.id === self?.id,
+    state: r.state,
+  }));
 
 let pendingState: Record<string, unknown> | null = null;
 let stateTimer: ReturnType<typeof setTimeout> | undefined;
@@ -388,7 +535,12 @@ function sendState() {
   if (!state) return;
   write(api.runtime.setState, { state }, (store, c) => {
     const rows = store.getQuery(api.runtime.people, c);
-    if (rows) store.setQuery(api.runtime.people, c, rows.map((r) => (r.visitor.id === self?.id ? { ...r, state } : r)));
+    if (rows)
+      store.setQuery(
+        api.runtime.people,
+        c,
+        rows.map((r) => (r.visitor.id === self?.id ? { ...r, state } : r)),
+      );
   }).catch(reportError);
 }
 
@@ -398,13 +550,19 @@ function setMyState(state: Record<string, unknown>) {
   connected();
   pendingState = state;
   if (stateTimer) return;
-  stateTimer = setTimeout(sendState, Math.max(0, lastStateSent + STATE_SEND_MS - Date.now()));
+  stateTimer = setTimeout(
+    sendState,
+    Math.max(0, lastStateSent + STATE_SEND_MS - Date.now()),
+  );
 }
 
 const NOBODY: PresentPerson[] = [];
 
 /** Who is in the app now, with each person's shared state. */
-export function usePresence(): { people: PresentPerson[]; setMyState: typeof setMyState } {
+export function usePresence(): {
+  people: PresentPerson[];
+  setMyState: typeof setMyState;
+} {
   const people = useLive(live(api.runtime.people, {}, shapePeople)) ?? NOBODY;
   return useMemo(() => ({ people, setMyState }), [people]);
 }
@@ -413,11 +571,19 @@ export function usePresence(): { people: PresentPerson[]; setMyState: typeof set
 
 /** `n` frames from now; a hidden page draws nothing, so there it is now. */
 const frames = (n: number): Promise<void> =>
-  new Promise((done) => (!n || document.hidden ? done() : requestAnimationFrame(() => void frames(n - 1).then(done))));
+  new Promise((done) =>
+    !n || document.hidden
+      ? done()
+      : requestAnimationFrame(() => void frames(n - 1).then(done)),
+  );
 
 /** Resolve once `ready()` holds, checked now and whenever `watch` reports a
  *  change, or at `deadline` (a performance.now() stamp). */
-function once(ready: () => boolean, watch: (check: () => void) => () => void, deadline: number): Promise<void> {
+function once(
+  ready: () => boolean,
+  watch: (check: () => void) => () => void,
+  deadline: number,
+): Promise<void> {
   return new Promise((done) => {
     let finished = false;
     const finish = () => {
@@ -441,16 +607,27 @@ function once(ready: () => boolean, watch: (check: () => void) => () => void, de
 async function announcePainted() {
   const deadline = performance.now() + PAINT_WAIT_MS;
   const root = document.getElementById("root") ?? document.body;
-  await once(() => root.childElementCount > 0, (check) => {
-    const seen = new MutationObserver(check);
-    seen.observe(root, { childList: true });
-    return () => seen.disconnect();
-  }, deadline);
-  await once(() => ![...lives.values()].some((l) => l.waiting()), (check) => {
-    firstAnswers.add(check);
-    return () => firstAnswers.delete(check);
-  }, deadline);
-  await Promise.race([document.fonts.ready, new Promise((done) => setTimeout(done, deadline - performance.now()))]);
+  await once(
+    () => root.childElementCount > 0,
+    (check) => {
+      const seen = new MutationObserver(check);
+      seen.observe(root, { childList: true });
+      return () => seen.disconnect();
+    },
+    deadline,
+  );
+  await once(
+    () => ![...lives.values()].some((l) => l.waiting()),
+    (check) => {
+      firstAnswers.add(check);
+      return () => firstAnswers.delete(check);
+    },
+    deadline,
+  );
+  await Promise.race([
+    document.fonts.ready,
+    new Promise((done) => setTimeout(done, deadline - performance.now())),
+  ]);
   await frames(2);
   postToShell({ type: "painted" });
 }

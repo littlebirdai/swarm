@@ -69,7 +69,9 @@ export function resolveClaudeInstall(
  * no claude on PATH, an install whose path is already stable (npm, homebrew),
  * or a copy that failed (the caller launches the installer's path instead).
  */
-export function stableClaudeBinary(opts: StableClaudeBinaryOptions = {}): string | null {
+export function stableClaudeBinary(
+  opts: StableClaudeBinaryOptions = {},
+): string | null {
   if ((opts.platform ?? process.platform) !== "darwin") return null;
   const source = (opts.resolveClaude ?? resolveClaudeInstall)();
   if (!source || !CLAUDE_VERSIONED_BINARY_RE.test(source)) return null;
@@ -87,7 +89,9 @@ export function stableClaudeBinary(opts: StableClaudeBinaryOptions = {}): string
     fs.writeFileSync(stamp, source);
     return copy;
   } catch (err) {
-    opts.warn?.(`stable claude binary: ${(err as Error).message}; launching ${source} instead`);
+    opts.warn?.(
+      `stable claude binary: ${(err as Error).message}; launching ${source} instead`,
+    );
     return null;
   }
 }

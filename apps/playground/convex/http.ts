@@ -10,7 +10,12 @@ import { runRoute, versionPath } from "./lib/runPaths";
 import { ENTRY_PATH } from "./lib/files";
 import { BOOT_CATCHER } from "./lib/bootCatcher";
 import { servedEntry } from "./lib/entryPage";
-import { CONVEX_URL_PLACEHOLDER, ESM_RESOLVED, RUNTIME_CSP, sdkPathFor } from "./lib/runtime";
+import {
+  CONVEX_URL_PLACEHOLDER,
+  ESM_RESOLVED,
+  RUNTIME_CSP,
+  sdkPathFor,
+} from "./lib/runtime";
 import { SDK_BUNDLE, SDK_BUNDLE_HASH } from "./lib/sdk.generated";
 import { unfurlHtml } from "./lib/unfurl";
 
@@ -23,7 +28,11 @@ const BASE_HEADERS = {
 
 /** Changes with everything an entry page carries besides the app's own
  *  page: the boot catcher, the SDK's build and esm.sh's files. */
-const ENTRY_TAG = [...(BOOT_CATCHER + SDK_BUNDLE_HASH + JSON.stringify(ESM_RESOLVED))].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(36);
+const ENTRY_TAG = [
+  ...(BOOT_CATCHER + SDK_BUNDLE_HASH + JSON.stringify(ESM_RESOLVED)),
+]
+  .reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+  .toString(36);
 
 /** A version never changes, so its files cache forever, as does the SDK at
  *  its build's URL. */
@@ -32,12 +41,22 @@ const IMMUTABLE = "public, max-age=31536000, immutable";
 const SHORT = "public, max-age=60, stale-while-revalidate=600";
 const SDK_URL = sdkPathFor(SDK_BUNDLE_HASH);
 
-function respond(status: number, body: string | null, headers: Record<string, string>): Response {
-  return new Response(body, { status, headers: { ...BASE_HEADERS, ...headers } });
+function respond(
+  status: number,
+  body: string | null,
+  headers: Record<string, string>,
+): Response {
+  return new Response(body, {
+    status,
+    headers: { ...BASE_HEADERS, ...headers },
+  });
 }
 
 function notFound(): Response {
-  return respond(404, "Not found", { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+  return respond(404, "Not found", {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
 }
 
 function redirect(location: string, cache: string, status = 302): Response {
@@ -45,10 +64,18 @@ function redirect(location: string, cache: string, status = 302): Response {
 }
 
 /** A body with an ETag, or 304 when the browser already has it. */
-function cached(request: Request, body: string, type: string, etag: string, cache: string): Response {
+function cached(
+  request: Request,
+  body: string,
+  type: string,
+  etag: string,
+  cache: string,
+): Response {
   const tag = `"${etag}"`;
   const headers = { "Content-Type": type, ETag: tag, "Cache-Control": cache };
-  return request.headers.get("If-None-Match") === tag ? respond(304, null, headers) : respond(200, body, headers);
+  return request.headers.get("If-None-Match") === tag
+    ? respond(304, null, headers)
+    : respond(200, body, headers);
 }
 
 const serveRun = httpAction(async (ctx, request) => {
@@ -58,35 +85,70 @@ const serveRun = httpAction(async (ctx, request) => {
     case "sdk": {
       // A page served before the SDK's last change asks for that build: send
       // it on to this one.
-      if (route.hash && route.hash !== SDK_BUNDLE_HASH) return redirect(SDK_URL, "no-store");
-      const source = SDK_BUNDLE.replace(CONVEX_URL_PLACEHOLDER, process.env.CONVEX_CLOUD_URL!);
-      return cached(request, source, "text/javascript; charset=utf-8", SDK_BUNDLE_HASH, route.hash ? IMMUTABLE : SHORT);
+      if (route.hash && route.hash !== SDK_BUNDLE_HASH)
+        return redirect(SDK_URL, "no-store");
+      const source = SDK_BUNDLE.replace(
+        CONVEX_URL_PLACEHOLDER,
+        process.env.CONVEX_CLOUD_URL!,
+      );
+      return cached(
+        request,
+        source,
+        "text/javascript; charset=utf-8",
+        SDK_BUNDLE_HASH,
+        route.hash ? IMMUTABLE : SHORT,
+      );
     }
     case "folder":
       return redirect(route.location, IMMUTABLE, 301);
     case "live": {
-      const live = await ctx.runQuery(internal.versions.liveNumber, { slug: route.slug });
-      return live ? redirect(versionPath(route.slug, live), "no-store") : notFound();
+      const live = await ctx.runQuery(internal.versions.liveNumber, {
+        slug: route.slug,
+      });
+      return live
+        ? redirect(versionPath(route.slug, live), "no-store")
+        : notFound();
     }
     case "file": {
       if (route.path === ENTRY_PATH) {
-        const entry = await ctx.runQuery(internal.versions.entry, { slug: route.slug, number: route.number });
+        const entry = await ctx.runQuery(internal.versions.entry, {
+          slug: route.slug,
+          number: route.number,
+        });
         if (!entry) return notFound();
-        return cached(request, servedEntry(entry.html, entry.files, SDK_URL), "text/html; charset=utf-8", `${entry.hash}.${ENTRY_TAG}`, IMMUTABLE);
+        return cached(
+          request,
+          servedEntry(entry.html, entry.files, SDK_URL),
+          "text/html; charset=utf-8",
+          `${entry.hash}.${ENTRY_TAG}`,
+          IMMUTABLE,
+        );
       }
-      const file = await ctx.runQuery(internal.versions.served, { slug: route.slug, number: route.number, path: route.path });
+      const file = await ctx.runQuery(internal.versions.served, {
+        slug: route.slug,
+        number: route.number,
+        path: route.path,
+      });
       if (!file) return notFound();
       if (file.text === null) {
-        const url = file.storage_id && (await ctx.storage.getUrl(file.storage_id));
+        const url =
+          file.storage_id && (await ctx.storage.getUrl(file.storage_id));
         return url ? redirect(url, IMMUTABLE) : notFound();
       }
-      return cached(request, file.text, file.content_type, file.hash, IMMUTABLE);
+      return cached(
+        request,
+        file.text,
+        file.content_type,
+        file.hash,
+        IMMUTABLE,
+      );
     }
   }
 });
 
 /** Where the shell lives, for links back to an app. */
-const shellUrl = () => process.env.PLAYGROUND_SHELL_URL ?? "http://localhost:5317";
+const shellUrl = () =>
+  process.env.PLAYGROUND_SHELL_URL ?? "http://localhost:5317";
 
 /** /og/<slug>: an app's link preview (lib/unfurl). */
 const serveUnfurl = httpAction(async (ctx, request) => {

@@ -14,10 +14,19 @@ export function parseSlashCommand(raw: string): SlashCommand | null {
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
     .replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "")
     .trim();
-  const tagged = text.match(/<command-name>([^<]*)<\/command-name>/) ?? text.match(/<command-message>([^<]*)<\/command-message>/);
+  const tagged =
+    text.match(/<command-name>([^<]*)<\/command-name>/) ??
+    text.match(/<command-message>([^<]*)<\/command-message>/);
   if (tagged) {
     const name = tagged[1].replace(/^\//, "").trim();
-    return name ? { name, args: (text.match(/<command-args>([\s\S]*?)<\/command-args>/)?.[1] ?? "").trim() } : null;
+    return name
+      ? {
+          name,
+          args: (
+            text.match(/<command-args>([\s\S]*?)<\/command-args>/)?.[1] ?? ""
+          ).trim(),
+        }
+      : null;
   }
   const typed = text.match(/^\/([A-Za-z][\w:.-]*)(?:\s+([\s\S]*))?$/);
   return typed ? { name: typed[1], args: (typed[2] ?? "").trim() } : null;

@@ -17,7 +17,13 @@ export function colorThemeBootPlugin(): Plugin {
     name: "codecast-color-theme-boot",
     transformIndexHtml: {
       order: "pre",
-      handler: () => [{ tag: "script", children: `window.${DEFAULT_THEME_GLOBAL}=${vars}`, injectTo: "head-prepend" }],
+      handler: () => [
+        {
+          tag: "script",
+          children: `window.${DEFAULT_THEME_GLOBAL}=${vars}`,
+          injectTo: "head-prepend",
+        },
+      ],
     },
   };
 }

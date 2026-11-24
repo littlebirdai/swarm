@@ -9,7 +9,11 @@ import { v } from "convex/values";
 import { internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { KIND_TRANSITIONS, transitionSignalKind, type Transition } from "@codecast/shared/contracts/ingest";
+import {
+  KIND_TRANSITIONS,
+  transitionSignalKind,
+  type Transition,
+} from "@codecast/shared/contracts/ingest";
 
 /** A scheduled promotion that has not settled after this long is taken as failed and scheduled again. */
 export const PROMOTE_RETRY_MS = 10 * 60_000;
@@ -18,22 +22,47 @@ export const PROMOTE_TRIES = 3;
 /** Between the promotions one promoteDue pass schedules, so they do not all contend for the same counters at once. */
 export const PROMOTE_SPACING_MS = 3_000;
 
-type Due = { transition: Transition; fingerprint: string; external_event_id?: Id<"external_events"> };
+type Due = {
+  transition: Transition;
+  fingerprint: string;
+  external_event_id?: Id<"external_events">;
+};
 
 /** Schedule a group's promotion, counting the run on its promotion_due so a run that never settles is tried again. */
-export async function schedulePromotion(ctx: any, groupId: Id<"event_groups">, due: Due, delayMs = 0): Promise<void> {
+export async function schedulePromotion(
+  ctx: any,
+  groupId: Id<"event_groups">,
+  due: Due,
+  delayMs = 0,
+): Promise<void> {
   const prev = (await ctx.db.get(groupId))?.promotion_due;
   const now = Date.now();
   const { transition, fingerprint, external_event_id } = due;
   await ctx.db.patch(groupId, {
-    promotion_due: { transition, fingerprint, ...(external_event_id ? { external_event_id } : {}), at: prev?.at ?? now, scheduled_at: now + delayMs, tries: (prev?.tries ?? 0) + 1 },
+    promotion_due: {
+      transition,
+      fingerprint,
+      ...(external_event_id ? { external_event_id } : {}),
+      at: prev?.at ?? now,
+      scheduled_at: now + delayMs,
+      tries: (prev?.tries ?? 0) + 1,
+    },
   });
-  await ctx.scheduler.runAfter(delayMs, internal.ingest.promote, { group_id: groupId, transition, fingerprint, ...(external_event_id ? { external_event_id } : {}) });
+  await ctx.scheduler.runAfter(delayMs, internal.ingest.promote, {
+    group_id: groupId,
+    transition,
+    fingerprint,
+    ...(external_event_id ? { external_event_id } : {}),
+  });
 }
 
 /** What promoteDue does with a waiting promotion: wait (a run is in flight), let it go (out of tries), or schedule it. */
-export function promotionStep(d: { scheduled_at?: number; tries?: number }, now: number): "in_flight" | "give_up" | "schedule" {
-  if (d.scheduled_at !== undefined && now - d.scheduled_at < PROMOTE_RETRY_MS) return "in_flight";
+export function promotionStep(
+  d: { scheduled_at?: number; tries?: number },
+  now: number,
+): "in_flight" | "give_up" | "schedule" {
+  if (d.scheduled_at !== undefined && now - d.scheduled_at < PROMOTE_RETRY_MS)
+    return "in_flight";
   return (d.tries ?? 0) >= PROMOTE_TRIES ? "give_up" : "schedule";
 }
 
@@ -42,7 +71,8 @@ export const settlePromotion = internalMutation({
   args: { group_id: v.id("event_groups") },
   handler: async (ctx, args) => {
     const group = await ctx.db.get(args.group_id);
-    if (group?.promotion_due) await ctx.db.patch(group._id, { promotion_due: undefined });
+    if (group?.promotion_due)
+      await ctx.db.patch(group._id, { promotion_due: undefined });
   },
 });
 
@@ -58,15 +88,36 @@ export const queuePromotions = internalMutation({
     const queued: string[] = [];
     const skipped: Array<{ short_id: string; why: string }> = [];
     for (const shortId of args.short_ids) {
-      const group = await ctx.db.query("event_groups").withIndex("by_short_id", (q) => q.eq("short_id", shortId)).first();
+      const group = await ctx.db
+        .query("event_groups")
+        .withIndex("by_short_id", (q) => q.eq("short_id", shortId))
+        .first();
       const source = group ? await ctx.db.get(group.source_id) : null;
-      if (!group || !source) { skipped.push({ short_id: shortId, why: "no such group" }); continue; }
-      if (group.signal_task_id) { skipped.push({ short_id: shortId, why: "already filed" }); continue; }
-      const transition = KIND_TRANSITIONS[group.kind].find((t) => transitionSignalKind(t) && source.promote.includes(t));
-      if (!transition) { skipped.push({ short_id: shortId, why: `${source.name} promotes no ${group.kind} transition` }); continue; }
+      if (!group || !source) {
+        skipped.push({ short_id: shortId, why: "no such group" });
+        continue;
+      }
+      if (group.signal_task_id) {
+        skipped.push({ short_id: shortId, why: "already filed" });
+        continue;
+      }
+      const transition = KIND_TRANSITIONS[group.kind].find(
+        (t) => transitionSignalKind(t) && source.promote.includes(t),
+      );
+      if (!transition) {
+        skipped.push({
+          short_id: shortId,
+          why: `${source.name} promotes no ${group.kind} transition`,
+        });
+        continue;
+      }
       const prefix = source.fingerprint_prefix?.trim();
-      const fingerprint = prefix ? `${prefix}:${group.fingerprint}` : group.fingerprint;
-      await ctx.db.patch(group._id, { promotion_due: { transition, fingerprint, at: Date.now() } });
+      const fingerprint = prefix
+        ? `${prefix}:${group.fingerprint}`
+        : group.fingerprint;
+      await ctx.db.patch(group._id, {
+        promotion_due: { transition, fingerprint, at: Date.now() },
+      });
       queued.push(shortId);
     }
     return { queued, skipped };

@@ -14,15 +14,41 @@ function context() {
       conversations: [{ _id: CONV, git_branch: FEATURE }],
       commits: [
         // main's commit, first stored by main's push, claimed later by a merge push.
-        { _id: "c_merged", sha: sha("a"), branch: "main", conversation_id: CONV },
+        {
+          _id: "c_merged",
+          sha: sha("a"),
+          branch: "main",
+          conversation_id: CONV,
+        },
         // The session's own commit, proven by its edit row.
-        { _id: "c_recorded", sha: sha("b"), branch: "main", conversation_id: CONV },
+        {
+          _id: "c_recorded",
+          sha: sha("b"),
+          branch: "main",
+          conversation_id: CONV,
+        },
         // A commit the branch rule linked when it was first pushed.
-        { _id: "c_branch", sha: sha("c"), branch: FEATURE, conversation_id: CONV },
+        {
+          _id: "c_branch",
+          sha: sha("c"),
+          branch: FEATURE,
+          conversation_id: CONV,
+        },
         // A commit the daemon linked after the webhook recorded it unlinked.
-        { _id: "c_daemon", sha: sha("d"), branch: FEATURE, conversation_id: CONV },
+        {
+          _id: "c_daemon",
+          sha: sha("d"),
+          branch: FEATURE,
+          conversation_id: CONV,
+        },
       ],
-      file_changes: [{ _id: "fc_1", conversation_id: CONV, commit_hash: sha("b").slice(0, 7) }],
+      file_changes: [
+        {
+          _id: "fc_1",
+          conversation_id: CONV,
+          commit_hash: sha("b").slice(0, 7),
+        },
+      ],
       external_events: [
         { _id: "e_a", dedupe_key: `commit:${sha("a")}` },
         { _id: "e_b", dedupe_key: `commit:${sha("b")}` },
@@ -34,7 +60,8 @@ function context() {
   } as any;
 }
 
-const linked = (ctx: any, id: string) => ctx.db._tables.commits.find((c: any) => c._id === id).conversation_id;
+const linked = (ctx: any, id: string) =>
+  ctx.db._tables.commits.find((c: any) => c._id === id).conversation_id;
 
 describe("unlinkMergedCommits", () => {
   test("a dry run counts the merged commit and changes nothing", async () => {

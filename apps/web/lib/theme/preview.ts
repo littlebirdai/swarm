@@ -20,7 +20,10 @@ export function subscribeThemePreview(fn: Listener): () => void {
 }
 
 /** Shows `key` for `ms`, or ends the preview when `key` is null. */
-export function setThemePreview(key: string | null, ms = THEME_PREVIEW_MS): void {
+export function setThemePreview(
+  key: string | null,
+  ms = THEME_PREVIEW_MS,
+): void {
   if (timer) clearTimeout(timer);
   timer = key ? setTimeout(() => setThemePreview(null), ms) : null;
   if (previewKey === key) return;

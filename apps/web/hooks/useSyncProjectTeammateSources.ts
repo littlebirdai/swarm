@@ -8,7 +8,17 @@ import { useSyncCollection } from "./useSyncCollection";
 const api = _api as any;
 
 /** Feeder: one project's teammate sources. A row of this project the answer no longer holds is dropped. */
-export function useSyncProjectTeammateSources(projectId: string | null | undefined) {
-  const opts = useMemo(() => ({ dropAbsent: (row: any) => row?.project_id === projectId }), [projectId]);
-  return useSyncCollection("projectTeammateSources", api.projectSources.teammateSources, projectId ? { project_id: projectId } : "skip", opts);
+export function useSyncProjectTeammateSources(
+  projectId: string | null | undefined,
+) {
+  const opts = useMemo(
+    () => ({ dropAbsent: (row: any) => row?.project_id === projectId }),
+    [projectId],
+  );
+  return useSyncCollection(
+    "projectTeammateSources",
+    api.projectSources.teammateSources,
+    projectId ? { project_id: projectId } : "skip",
+    opts,
+  );
 }

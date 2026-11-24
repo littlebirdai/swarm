@@ -42,14 +42,21 @@ export interface SessionEscalationMessage {
   line: string;
 }
 
-export function parseSessionEscalation(rawContent: string | null | undefined): SessionEscalationMessage | null {
+export function parseSessionEscalation(
+  rawContent: string | null | undefined,
+): SessionEscalationMessage | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent);
   // The head alone still parses: a preview slice can tear the tag before its
   // close, and the strip only needs the move and the role.
-  const m = text.match(/^<session-escalation\s+([^>]*)(?:>([\s\S]*?)(?:<\/session-escalation>\s*$|$)|$)/);
+  const m = text.match(
+    /^<session-escalation\s+([^>]*)(?:>([\s\S]*?)(?:<\/session-escalation>\s*$|$)|$)/,
+  );
   if (!m) return null;
-  const attr = (k: string) => { const a = m[1].match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`)); return a ? unescapeTagAttr(a[1]) : ""; };
+  const attr = (k: string) => {
+    const a = m[1].match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`));
+    return a ? unescapeTagAttr(a[1]) : "";
+  };
   const move = attr("move");
   if (move !== "handed" && move !== "direct" && move !== "back") return null;
   const avatar = attr("avatar");
@@ -58,7 +65,12 @@ export function parseSessionEscalation(rawContent: string | null | undefined): S
     move,
     by: attr("by") === "person" ? "person" : "role",
     ...(attr("left") === "1" ? { left: true } : {}),
-    role: { short_id: attr("role"), handle: attr("handle"), name: attr("name") || attr("handle"), ...(avatar ? { avatar } : {}) },
+    role: {
+      short_id: attr("role"),
+      handle: attr("handle"),
+      name: attr("name") || attr("handle"),
+      ...(avatar ? { avatar } : {}),
+    },
     session: { short_id: attr("session"), ...(title ? { title } : {}) },
     to: attr("to"),
     at: Number(attr("at")) || 0,
@@ -68,9 +80,15 @@ export function parseSessionEscalation(rawContent: string | null | undefined): S
 
 /** The caption a divider draws for a move, from the reader's side: the child's
  *  thread names the session by "this session"; the role's thread names it. */
-export function sessionEscalationCaption(m: SessionEscalationMessage, opts: { inChild: boolean }): string {
+export function sessionEscalationCaption(
+  m: SessionEscalationMessage,
+  opts: { inChild: boolean },
+): string {
   const what = opts.inChild ? "this session" : m.session.short_id;
-  if (m.move === "back") return m.left ? `${what} no longer reports to @${m.role.handle}` : `${what} is back with @${m.role.handle}`;
+  if (m.move === "back")
+    return m.left
+      ? `${what} no longer reports to @${m.role.handle}`
+      : `${what} is back with @${m.role.handle}`;
   const who = m.by === "person" ? m.to : `@${m.role.handle}`;
   const verb = m.move === "direct" ? "put" : "handed";
   const where = m.move === "direct" ? `in front of ${m.to}` : `to ${m.to}`;

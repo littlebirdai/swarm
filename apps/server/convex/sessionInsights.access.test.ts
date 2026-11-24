@@ -24,7 +24,13 @@ function tables(convExtra: Record<string, any> = {}): Record<string, any[]> {
       { _id: "m_member", user_id: MEMBER, team_id: TEAM, role: "member" },
     ],
     conversations: [
-      { _id: "conv", user_id: OWNER, team_id: TEAM, is_private: true, ...convExtra },
+      {
+        _id: "conv",
+        user_id: OWNER,
+        team_id: TEAM,
+        is_private: true,
+        ...convExtra,
+      },
     ],
     session_insights: [
       {
@@ -51,7 +57,9 @@ function ctx(userId: string | null, t: Record<string, any[]>) {
 }
 
 const run = (userId: string | null, t: Record<string, any[]>) =>
-  (getSessionInsight as any)._handler(ctx(userId, t), { conversation_id: "conv" });
+  (getSessionInsight as any)._handler(ctx(userId, t), {
+    conversation_id: "conv",
+  });
 
 describe("getSessionInsight access", () => {
   test("owner reads their own insight", async () => {

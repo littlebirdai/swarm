@@ -11,10 +11,14 @@ import { orderSections } from "./placeTestHarness";
 // Fixture ids are Convex-shaped: the chokepoint reads any other id as an
 // optimistic create stub (rendered, never placed), and these tests are about
 // PLACED rows. `tag` reads the short name back off session_id.
-const cid = (t: string) => (/^[a-z0-9]{32}$/.test(t) ? t : `${t}z${t.length}`.padEnd(32, "0"));
+const cid = (t: string) =>
+  /^[a-z0-9]{32}$/.test(t) ? t : `${t}z${t.length}`.padEnd(32, "0");
 const tag = (s: InboxSession) => (s.session_id ?? "").slice("session-".length);
 
-const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
+const session = (
+  id: string,
+  extra: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: cid(id),
   session_id: `session-${id}`,
   // Recent: a working fixture (is_idle:false) must read as genuinely working —
@@ -35,7 +39,11 @@ const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession =>
   // on a daemon that heartbeats. The replica derives the bucket from those
   // facts; the idle bit alone no longer says anything.
   ...(extra.is_idle === false && !extra.agent_status
-    ? { agent_status: "working" as const, last_heartbeat: Date.now() - 5_000, daemon_alive_until: Date.now() + 85_000 }
+    ? {
+        agent_status: "working" as const,
+        last_heartbeat: Date.now() - 5_000,
+        daemon_alive_until: Date.now() + 85_000,
+      }
     : {}),
   ...extra,
 });
@@ -52,13 +60,18 @@ const sessions: Record<string, InboxSession> = byId([
 
 describe("orderSections collapsed sections (grouped view)", () => {
   it("includes every section when nothing is collapsed", () => {
-    const ids = orderSections(sessions, new Set(), null, undefined, {}).map(tag).sort();
+    const ids = orderSections(sessions, new Set(), null, undefined, {})
+      .map(tag)
+      .sort();
     expect(ids).toEqual(["ni1", "ni2", "wk1", "wk2"]);
   });
 
   it("skips a collapsed status section", () => {
-    const ids = orderSections(sessions, new Set(), null, undefined, { collapsedSections: { working: true } })
-      .map(tag).sort();
+    const ids = orderSections(sessions, new Set(), null, undefined, {
+      collapsedSections: { working: true },
+    })
+      .map(tag)
+      .sort();
     expect(ids).toEqual(["ni1", "ni2"]);
   });
 
@@ -74,7 +87,12 @@ describe("orderSections collapsed sections (grouped view)", () => {
 // plan is exclusively the "By plan" view's job. Nav walks a plan-bound session
 // exactly like any other card in its status section (regression ct-37908: the
 // old clustering hid working members from Working).
-const plan = { _id: "pl-1", short_id: "pl-1", title: "Roadmap", status: "active" };
+const plan = {
+  _id: "pl-1",
+  short_id: "pl-1",
+  title: "Roadmap",
+  status: "active",
+};
 const planSessions: Record<string, InboxSession> = byId([
   session("pw1", { is_idle: false, active_plan: plan }),
   session("pw2", { is_idle: false, active_plan: plan }),
@@ -83,22 +101,36 @@ const planSessions: Record<string, InboxSession> = byId([
 
 describe("orderSections plan-bound sessions (status view)", () => {
   it("plan-sharing sessions stay in their status sections — nav walks every one", () => {
-    const ids = orderSections(planSessions, new Set(), null, undefined, { collapsedSections: {} })
-      .map(tag).sort();
+    const ids = orderSections(planSessions, new Set(), null, undefined, {
+      collapsedSections: {},
+    })
+      .map(tag)
+      .sort();
     expect(ids).toEqual(["ni1", "pw1", "pw2"]);
   });
 
   it("collapsing Working hides them like any other working card", () => {
-    const ids = orderSections(planSessions, new Set(), null, undefined, { collapsedSections: { working: true } })
-      .map(tag).sort();
+    const ids = orderSections(planSessions, new Set(), null, undefined, {
+      collapsedSections: { working: true },
+    })
+      .map(tag)
+      .sort();
     expect(ids).toEqual(["ni1"]);
   });
 });
 
 describe("computeVisualOrder plan view walks every member", () => {
   it("plan view dissolves the group — all sessions are reachable", () => {
-    const state = { ...baseState, sessions: planSessions, clientState: { ui: { inbox_view_mode: "plan" as const } } };
-    expect(computeVisualOrder(state).map(tag).sort()).toEqual(["ni1", "pw1", "pw2"]);
+    const state = {
+      ...baseState,
+      sessions: planSessions,
+      clientState: { ui: { inbox_view_mode: "plan" as const } },
+    };
+    expect(computeVisualOrder(state).map(tag).sort()).toEqual([
+      "ni1",
+      "pw1",
+      "pw2",
+    ]);
   });
 });
 
@@ -120,8 +152,12 @@ const baseState = {
 
 describe("computeVisualOrder respects collapse per view mode", () => {
   it("grouped view: Ctrl+J/K skips the collapsed Working section", () => {
-    const order = computeVisualOrder({ ...baseState, collapsedSections: { working: true } })
-      .map(tag).sort();
+    const order = computeVisualOrder({
+      ...baseState,
+      collapsedSections: { working: true },
+    })
+      .map(tag)
+      .sort();
     expect(order).toEqual(["ni1", "ni2"]);
   });
 
@@ -131,13 +167,26 @@ describe("computeVisualOrder respects collapse per view mode", () => {
   });
 
   it("time view: collapsing the single 'All' section empties keyboard nav", () => {
-    const state = { ...baseState, clientState: { ui: { inbox_view_mode: "time" as const } }, collapsedSections: { all: true } };
+    const state = {
+      ...baseState,
+      clientState: { ui: { inbox_view_mode: "time" as const } },
+      collapsedSections: { all: true },
+    };
     expect(computeVisualOrder(state)).toEqual([]);
   });
 
   it("time view: a grouped collapse key ('working') does NOT leak in (time has no status sections)", () => {
-    const state = { ...baseState, clientState: { ui: { inbox_view_mode: "time" as const } }, collapsedSections: { working: true } };
-    expect(computeVisualOrder(state).map(tag).sort()).toEqual(["ni1", "ni2", "wk1", "wk2"]);
+    const state = {
+      ...baseState,
+      clientState: { ui: { inbox_view_mode: "time" as const } },
+      collapsedSections: { working: true },
+    };
+    expect(computeVisualOrder(state).map(tag).sort()).toEqual([
+      "ni1",
+      "ni2",
+      "wk1",
+      "wk2",
+    ]);
   });
 });
 
@@ -145,7 +194,9 @@ describe("computeVisualOrder respects collapse per view mode", () => {
 // build it — trigger rows live in the panel's Convex subscription), then the
 // project fallthrough for unclaimed sessions. No absorption in this mode.
 describe("computeVisualOrder trigger view", () => {
-  const triggerState = (extra: Partial<typeof baseState> & { scheduleNavSets?: any } = {}) => ({
+  const triggerState = (
+    extra: Partial<typeof baseState> & { scheduleNavSets?: any } = {},
+  ) => ({
     ...baseState,
     clientState: { ui: { inbox_view_mode: "trigger" as const } },
     ...extra,
@@ -168,7 +219,9 @@ describe("computeVisualOrder trigger view", () => {
   });
 
   it("falls back to the status order before the panel publishes", () => {
-    const order = computeVisualOrder(triggerState({ scheduleNavSets: null })).map(tag).sort();
+    const order = computeVisualOrder(triggerState({ scheduleNavSets: null }))
+      .map(tag)
+      .sort();
     expect(order).toEqual(["ni1", "ni2", "wk1", "wk2"]);
   });
 
@@ -205,13 +258,21 @@ describe("computeVisualOrder trigger view", () => {
 // collapsed Questions section must skip it like any other section.
 describe("computeVisualOrder lifts questions", () => {
   const decide = {
-    _id: "d1", conversation_id: cid("wk1"), session_id: "session-wk1",
-    question: "q", options: [{ label: "a" }, { label: "b" }],
-    blocking: true, status: "pending" as const, created_at: Date.now(),
+    _id: "d1",
+    conversation_id: cid("wk1"),
+    session_id: "session-wk1",
+    question: "q",
+    options: [{ label: "a" }, { label: "b" }],
+    blocking: true,
+    status: "pending" as const,
+    created_at: Date.now(),
   };
 
   it("a working session with a pending decide walks first, out of Working", () => {
-    const order = computeVisualOrder({ ...baseState, sessionDecisions: { d1: decide } }).map(tag);
+    const order = computeVisualOrder({
+      ...baseState,
+      sessionDecisions: { d1: decide },
+    }).map(tag);
     expect(order[0]).toBe("wk1");
     expect(order.filter((id) => id === "wk1")).toHaveLength(1);
   });
@@ -251,55 +312,111 @@ describe("computeVisualOrder yourMove mirrors the panel's your-move sections", (
   // The status stamp goes back with the row's activity: the queue orders by when
   // the state STARTED (shared inboxSortTime, ct-49550), and a row that has been
   // quiet for two days did not have its status change a minute ago.
-  const staleWorking = session("stale", { is_idle: false, agent_status: "working", updated_at: Date.now() - 2 * DAY, agent_status_updated_at: Date.now() - 2 * DAY });
-  const idleFresh = session("idle", { is_idle: true, updated_at: Date.now() - DAY, agent_status_updated_at: Date.now() - DAY });
+  const staleWorking = session("stale", {
+    is_idle: false,
+    agent_status: "working",
+    updated_at: Date.now() - 2 * DAY,
+    agent_status_updated_at: Date.now() - 2 * DAY,
+  });
+  const idleFresh = session("idle", {
+    is_idle: true,
+    updated_at: Date.now() - DAY,
+    agent_status_updated_at: Date.now() - DAY,
+  });
   const working = session("wk", { is_idle: false, agent_status: "working" });
-  const withStale = { ...baseState, sessions: byId([staleWorking, idleFresh, working]) };
+  const withStale = {
+    ...baseState,
+    sessions: byId([staleWorking, idleFresh, working]),
+  };
 
   it("grouped view: the stale row the panel shows first in NEEDS YOU is the first target", () => {
     expect(yourMove(withStale)).toEqual(["stale", "idle"]);
     // and the plain order keeps walking every card
-    expect(computeVisualOrder(withStale).map(tag)).toEqual(["stale", "idle", "wk"]);
+    expect(computeVisualOrder(withStale).map(tag)).toEqual([
+      "stale",
+      "idle",
+      "wk",
+    ]);
   });
 
   it("flat views: same membership, walked in the flat order", () => {
-    const time = { ...withStale, clientState: { ui: { inbox_view_mode: "time" as const } } };
+    const time = {
+      ...withStale,
+      clientState: { ui: { inbox_view_mode: "time" as const } },
+    };
     // creation order is by started_at, falling back to updated_at: idle (1d) is newer than stale (2d)
     expect(yourMove(time)).toEqual(["idle", "stale"]);
   });
 
   it("an in-flight send lifts a row out (it renders under WORKING with its pending pill)", () => {
-    expect(yourMove({ ...withStale, sessionsWithQueuedMessages: new Set([cid("stale")]) })).toEqual(["idle"]);
+    expect(
+      yourMove({
+        ...withStale,
+        sessionsWithQueuedMessages: new Set([cid("stale")]),
+      }),
+    ).toEqual(["idle"]);
   });
 
   it("a collapsed NEEDS YOU section is not walked, exactly like the plain order", () => {
-    expect(yourMove({ ...withStale, collapsedSections: { needs_input: true } })).toEqual([]);
+    expect(
+      yourMove({ ...withStale, collapsedSections: { needs_input: true } }),
+    ).toEqual([]);
   });
 
   it("with old sessions hidden the folded stale row is off screen, so it is not the target", () => {
     // The 12h fold cut (shared computeFold): with idle 6h behind wk, idle → stale
     // (2d) is the first gap over 12h, so stale is the cut and folds alone.
-    const recentIdle = session("idle", { is_idle: true, updated_at: Date.now() - DAY / 4, agent_status_updated_at: Date.now() - DAY / 4 });
-    const withRecentIdle = { ...baseState, sessions: byId([staleWorking, recentIdle, working]) };
+    const recentIdle = session("idle", {
+      is_idle: true,
+      updated_at: Date.now() - DAY / 4,
+      agent_status_updated_at: Date.now() - DAY / 4,
+    });
+    const withRecentIdle = {
+      ...baseState,
+      sessions: byId([staleWorking, recentIdle, working]),
+    };
     // Shown (the default): the stale row is on screen at the top of NEEDS YOU.
     expect(yourMove(withRecentIdle)).toEqual(["stale", "idle"]);
     // Hidden: it is not rendered, so it is not the target.
-    expect(yourMove({ ...withRecentIdle, clientState: { ui: { inbox_show_old: false } } })).toEqual(["idle"]);
+    expect(
+      yourMove({
+        ...withRecentIdle,
+        clientState: { ui: { inbox_show_old: false } },
+      }),
+    ).toEqual(["idle"]);
   });
 });
 
 // Ctrl+I walks NEEDS YOU only; decisions and DONE have their own jumps.
 describe("computeVisualOrder section walks", () => {
   const DAY = 24 * 60 * 60 * 1000;
-  const idle = session("idle", { is_idle: true, updated_at: Date.now() - DAY, agent_status_updated_at: Date.now() - DAY });
-  const asking = session("ask", { is_idle: true, updated_at: Date.now() - 2 * DAY, agent_status_updated_at: Date.now() - 2 * DAY });
+  const idle = session("idle", {
+    is_idle: true,
+    updated_at: Date.now() - DAY,
+    agent_status_updated_at: Date.now() - DAY,
+  });
+  const asking = session("ask", {
+    is_idle: true,
+    updated_at: Date.now() - 2 * DAY,
+    agent_status_updated_at: Date.now() - 2 * DAY,
+  });
   const decide = {
-    _id: "d1", conversation_id: cid("ask"), session_id: "session-ask",
-    question: "q", options: [{ label: "a" }, { label: "b" }],
-    blocking: true, status: "pending" as const, created_at: Date.now(),
+    _id: "d1",
+    conversation_id: cid("ask"),
+    session_id: "session-ask",
+    question: "q",
+    options: [{ label: "a" }, { label: "b" }],
+    blocking: true,
+    status: "pending" as const,
+    created_at: Date.now(),
   };
-  const state = { ...baseState, sessions: byId([idle, asking]), sessionDecisions: { d1: decide } };
-  const walk = (w: "decisions" | "needsYou" | "yourMove") => computeVisualOrder(state, { walk: w }).map(tag);
+  const state = {
+    ...baseState,
+    sessions: byId([idle, asking]),
+    sessionDecisions: { d1: decide },
+  };
+  const walk = (w: "decisions" | "needsYou" | "yourMove") =>
+    computeVisualOrder(state, { walk: w }).map(tag);
 
   it("needsYou skips a session with a pending decision", () => {
     expect(walk("needsYou")).toEqual(["idle"]);

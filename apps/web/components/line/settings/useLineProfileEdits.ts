@@ -6,17 +6,31 @@
 // only reads: the profile with the travelling edits laid over it, and per
 // key where the newest edit of that key stands.
 import { useCallback, useMemo } from "react";
-import type { LineProfileEdit, PublishedLineProfile } from "@codecast/shared/contracts/lineProfile";
+import type {
+  LineProfileEdit,
+  PublishedLineProfile,
+} from "@codecast/shared/contracts/lineProfile";
 import { useInboxStore } from "../../../store/inboxStore";
 import { newRequestId } from "../../../lib/sessionCommands";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
-import { lineEditRows, lineEditStates, lineWriteGate, liveLineProfile, type LineEditStatus, type RosterDevice } from "../../../lib/lineSettings";
+import {
+  lineEditRows,
+  lineEditStates,
+  lineWriteGate,
+  liveLineProfile,
+  type LineEditStatus,
+  type RosterDevice,
+} from "../../../lib/lineSettings";
 
 export type EditState = LineEditStatus;
 
-const rowSig = (r: any) => `${r._id}|${r.command_id ?? ""}|${r.executed_at ?? ""}|${r.result ?? ""}|${r.error ?? ""}`;
+const rowSig = (r: any) =>
+  `${r._id}|${r.command_id ?? ""}|${r.executed_at ?? ""}|${r.result ?? ""}|${r.error ?? ""}`;
 
-export function useLineProfileEdits(projectId: string | null, published: PublishedLineProfile | null | undefined) {
+export function useLineProfileEdits(
+  projectId: string | null,
+  published: PublishedLineProfile | null | undefined,
+) {
   // A signature of this project's edit rows: a heartbeat on another command
   // row never re-renders the page.
   const sig = useInboxStore((s) => {
@@ -24,7 +38,8 @@ export function useLineProfileEdits(projectId: string | null, published: Publish
     let out = "";
     for (const id in s.sessionCommands) {
       const r = (s.sessionCommands as Record<string, any>)[id];
-      if (r?.kind === "line_edit" && r.project_id === projectId) out += `${rowSig(r)};`;
+      if (r?.kind === "line_edit" && r.project_id === projectId)
+        out += `${rowSig(r)};`;
     }
     return out;
   });
@@ -36,21 +51,36 @@ export function useLineProfileEdits(projectId: string | null, published: Publish
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [projectId, sig],
   );
-  const lp = useMemo(() => liveLineProfile(published, rows, now), [published, rows, now]);
-  const states = useMemo(() => lineEditStates(rows, published, now), [rows, published, now]);
+  const lp = useMemo(
+    () => liveLineProfile(published, rows, now),
+    [published, rows, now],
+  );
+  const states = useMemo(
+    () => lineEditStates(rows, published, now),
+    [rows, published, now],
+  );
 
   /** Send edits that share one fate. */
-  const send = useCallback((edits: LineProfileEdit[]) => {
-    if (!projectId || edits.length === 0) return;
-    // A refusal settles the row (lib/dispatchBinding); the page reads it there.
-    useInboxStore.getState().editLineProfile(newRequestId(), projectId, edits).catch(() => {});
-  }, [projectId]);
+  const send = useCallback(
+    (edits: LineProfileEdit[]) => {
+      if (!projectId || edits.length === 0) return;
+      // A refusal settles the row (lib/dispatchBinding); the page reads it there.
+      useInboxStore
+        .getState()
+        .editLineProfile(newRequestId(), projectId, edits)
+        .catch(() => {});
+    },
+    [projectId],
+  );
 
   /** Forget an edit: a refusal read, or one whose machine never answered, which also stops showing it. */
-  const clear = useCallback((key: string) => {
-    const s = states[key];
-    if (s) useInboxStore.getState().dismissSessionCommand(s.requestId);
-  }, [states]);
+  const clear = useCallback(
+    (key: string) => {
+      const s = states[key];
+      if (s) useInboxStore.getState().dismissSessionCommand(s.requestId);
+    },
+    [states],
+  );
 
   return { lp, states, send, clear, now };
 }
@@ -63,12 +93,32 @@ export function useLineProfileEdits(projectId: string | null, published: Publish
  * panel's values both read it here.
  */
 export function useLineProfileEditor(projectId: string | null) {
-  const published = useInboxStore((s) => (projectId ? ((s.projects as Record<string, { line_profile?: PublishedLineProfile | null }>)[projectId]?.line_profile ?? null) : null));
+  const published = useInboxStore((s) =>
+    projectId
+      ? ((
+          s.projects as Record<
+            string,
+            { line_profile?: PublishedLineProfile | null }
+          >
+        )[projectId]?.line_profile ?? null)
+      : null,
+  );
   // Only a roster this session has heard live says a machine is offline; a
   // cached one from an earlier visit would lock the page on a stale flag.
-  const roster = useInboxStore((s) => (s.machineRosterLive ? (s.machineRoster as RosterDevice[]) : null));
-  const checkout = useInboxStore((s) => (projectId ? ((s.projects as Record<string, { project_path?: string | null }>)[projectId]?.project_path ?? null) : null));
+  const roster = useInboxStore((s) =>
+    s.machineRosterLive ? (s.machineRoster as RosterDevice[]) : null,
+  );
+  const checkout = useInboxStore((s) =>
+    projectId
+      ? ((s.projects as Record<string, { project_path?: string | null }>)[
+          projectId
+        ]?.project_path ?? null)
+      : null,
+  );
   const edits = useLineProfileEdits(projectId, published);
-  const gate = useMemo(() => lineWriteGate(published, roster, checkout), [published, roster, checkout]);
+  const gate = useMemo(
+    () => lineWriteGate(published, roster, checkout),
+    [published, roster, checkout],
+  );
   return { published, edits, gate, device: gate.device ?? "the machine" };
 }

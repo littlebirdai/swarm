@@ -28,14 +28,26 @@ export type MessageSender = {
 // name, with no wrapper, is "Someone": calling it the owner would say the
 // owner wrote it.
 export function resolveMessageSender(
-  msg: { fromUserId?: string | null; wireFrom?: string | null; pending?: boolean },
+  msg: {
+    fromUserId?: string | null;
+    wireFrom?: string | null;
+    pending?: boolean;
+  },
   ctx: SenderContext,
 ): MessageSender {
-  const senderId = msg.fromUserId ?? (msg.pending ? ctx.viewerId : undefined) ?? undefined;
+  const senderId =
+    msg.fromUserId ?? (msg.pending ? ctx.viewerId : undefined) ?? undefined;
   const person = senderId ? ctx.lookup(senderId) : undefined;
-  if (senderId && person?.name) return { key: senderId, name: person.name, image: person.image ?? null };
-  if (msg.wireFrom) return { key: `name:${msg.wireFrom.toLowerCase()}`, name: msg.wireFrom, image: null };
-  if (senderId && senderId !== ctx.ownerId) return { key: senderId, name: "Someone", image: null };
+  if (senderId && person?.name)
+    return { key: senderId, name: person.name, image: person.image ?? null };
+  if (msg.wireFrom)
+    return {
+      key: `name:${msg.wireFrom.toLowerCase()}`,
+      name: msg.wireFrom,
+      image: null,
+    };
+  if (senderId && senderId !== ctx.ownerId)
+    return { key: senderId, name: "Someone", image: null };
   const owner = ctx.ownerId ? ctx.lookup(ctx.ownerId) : undefined;
   return {
     key: ctx.ownerId ?? "owner",

@@ -17,11 +17,18 @@ export interface WaitRow {
  * once). A target status or station ends it when reached; a run that finishes
  * elsewhere first ends it unmet.
  */
-export function runWaitVerdict(start: WaitRow, now: WaitRow, target: string | true): { done: boolean; met: boolean } {
-  const at = (row: WaitRow, station: string) => row.current_node_id === station || row.current_node_label === station;
+export function runWaitVerdict(
+  start: WaitRow,
+  now: WaitRow,
+  target: string | true,
+): { done: boolean; met: boolean } {
+  const at = (row: WaitRow, station: string) =>
+    row.current_node_id === station || row.current_node_label === station;
   if (target === true) {
     if (FINISHED.has(now.status)) return { done: true, met: true };
-    const moved = now.status !== start.status || now.current_node_id !== start.current_node_id;
+    const moved =
+      now.status !== start.status ||
+      now.current_node_id !== start.current_node_id;
     return { done: moved, met: moved };
   }
   if (RUN_STATUSES.includes(target)) {

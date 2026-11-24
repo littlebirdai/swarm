@@ -4,7 +4,13 @@ import { join } from "path";
 import { api } from "../../../apps/server/convex/_generated/api.js";
 import type { Id } from "../../../apps/server/convex/_generated/dataModel";
 import { parseSharePath } from "@codecast/shared/entities";
-import { convex, fetchGuestLink, fetchShared, guestMeetMeta, shareMeta } from "./shareData";
+import {
+  convex,
+  fetchGuestLink,
+  fetchShared,
+  guestMeetMeta,
+  shareMeta,
+} from "./shareData";
 import { seoFor, SITE_URL } from "../lib/seoRoutes";
 
 /**
@@ -24,22 +30,55 @@ import { seoFor, SITE_URL } from "../lib/seoRoutes";
  * SPA shell, which JS-executing crawlers can render.
  */
 const SOCIAL_BOT_PATTERNS = [
-  "Slackbot", "Twitterbot", "facebookexternalhit", "Facebot", "LinkedInBot",
-  "Discordbot", "WhatsApp", "TelegramBot", "Pinterestbot", "redditbot",
-  "Embedly", "Quora Link Preview", "Showyoubot", "outbrain", "rogerbot",
-  "vkShare", "W3C_Validator",
+  "Slackbot",
+  "Twitterbot",
+  "facebookexternalhit",
+  "Facebot",
+  "LinkedInBot",
+  "Discordbot",
+  "WhatsApp",
+  "TelegramBot",
+  "Pinterestbot",
+  "redditbot",
+  "Embedly",
+  "Quora Link Preview",
+  "Showyoubot",
+  "outbrain",
+  "rogerbot",
+  "vkShare",
+  "W3C_Validator",
 ];
 
 const CRAWLER_PATTERNS = [
   // Search engines
-  "Googlebot", "bingbot", "Applebot", "DuckDuckBot", "Baiduspider",
-  "YandexBot", "Yeti", "SeznamBot",
+  "Googlebot",
+  "bingbot",
+  "Applebot",
+  "DuckDuckBot",
+  "Baiduspider",
+  "YandexBot",
+  "Yeti",
+  "SeznamBot",
   // AI / LLM crawlers — none of them execute JavaScript, so the prerendered
   // snapshots are the only codecast content they can ever ingest.
-  "GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-Web",
-  "Claude-User", "Claude-SearchBot", "anthropic-ai", "PerplexityBot",
-  "Perplexity-User", "CCBot", "Amazonbot", "meta-externalagent",
-  "meta-externalfetcher", "Bytespider", "DuckAssistBot", "YouBot", "cohere-ai",
+  "GPTBot",
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "ClaudeBot",
+  "Claude-Web",
+  "Claude-User",
+  "Claude-SearchBot",
+  "anthropic-ai",
+  "PerplexityBot",
+  "Perplexity-User",
+  "CCBot",
+  "Amazonbot",
+  "meta-externalagent",
+  "meta-externalfetcher",
+  "Bytespider",
+  "DuckAssistBot",
+  "YouBot",
+  "cohere-ai",
 ];
 
 function matches(ua: string | undefined, patterns: string[]): boolean {
@@ -77,9 +116,10 @@ async function getSnapshot(path: string): Promise<string | null> {
   const cached = snapshotCache.get(path);
   if (cached) return cached;
   try {
-    const file = path === "/"
-      ? join(PRERENDER_DIR, "index.html")
-      : join(PRERENDER_DIR, ...path.split("/").filter(Boolean), "index.html");
+    const file =
+      path === "/"
+        ? join(PRERENDER_DIR, "index.html")
+        : join(PRERENDER_DIR, ...path.split("/").filter(Boolean), "index.html");
     const html = await readFile(file, "utf-8");
     snapshotCache.set(path, html);
     return html;
@@ -100,9 +140,17 @@ export async function prerenderedRouteCount(): Promise<number> {
 
 // --- Meta-only unfurl pages --------------------------------------------------
 
-function ogHtml(meta: { title: string; description: string; url: string; image?: string; type?: string }) {
+function ogHtml(meta: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  type?: string;
+}) {
   const img = meta.image || `${BASE_URL}/logo-final.png`;
-  const size = meta.image ? `\n  <meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />` : "";
+  const size = meta.image
+    ? `\n  <meta property="og:image:width" content="1200" />\n  <meta property="og:image:height" content="630" />`
+    : "";
   return `<!DOCTYPE html>
 <html><head>
   <meta charset="utf-8" />
@@ -123,7 +171,11 @@ function ogHtml(meta: { title: string; description: string; url: string; image?:
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 const CONVEX_ID_REGEX = /^[a-z0-9]{32}$/;
@@ -140,8 +192,11 @@ async function getConversationMeta(id: string, shareToken?: string) {
     });
     if (!meta) return null;
     const title = meta.title || "Coding Session";
-    const description = meta.description
-      || (meta.author ? `${meta.message_count} messages by ${meta.author}` : `${meta.message_count} messages`);
+    const description =
+      meta.description ||
+      (meta.author
+        ? `${meta.message_count} messages by ${meta.author}`
+        : `${meta.message_count} messages`);
     // Keep the presented token in og:url/canonical: unfurl cards link there,
     // and the tokenless URL would deny the very guest the link was minted for.
     const url = shareToken
@@ -158,8 +213,23 @@ async function getConversationMeta(id: string, shareToken?: string) {
 // Every /share/* kind (conversation, message, doc, plan) goes through
 // parseSharePath + fetchShared, so a new share kind unfurls the moment it is
 // registered in shareData — this table only holds non-share routes.
-const ROUTES: Array<{ pattern: RegExp; handler: (match: RegExpMatchArray, search: URLSearchParams) => Promise<{ title: string; description: string; url: string; type?: string } | null> }> = [
-  { pattern: /^\/conversation\/([a-z0-9]{32})$/, handler: (m, search) => getConversationMeta(m[1], search.get("share") ?? undefined) },
+const ROUTES: Array<{
+  pattern: RegExp;
+  handler: (
+    match: RegExpMatchArray,
+    search: URLSearchParams,
+  ) => Promise<{
+    title: string;
+    description: string;
+    url: string;
+    type?: string;
+  } | null>;
+}> = [
+  {
+    pattern: /^\/conversation\/([a-z0-9]{32})$/,
+    handler: (m, search) =>
+      getConversationMeta(m[1], search.get("share") ?? undefined),
+  },
   // A guest's meeting link: the card says which meeting, who invited them,
   // and whether it is recorded or transcribed (shareData.guestMeetMeta).
   {
@@ -182,14 +252,18 @@ export async function botMetaMiddleware(c: Context, next: Next) {
 
   // Marketing routes: full prerendered documents for every kind of bot. The
   // snapshot carries real body content AND the og tags, so it satisfies both.
-  const snapshot = await getSnapshot(path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path);
+  const snapshot = await getSnapshot(
+    path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path,
+  );
   if (snapshot) return c.html(snapshot);
 
   if (social) {
     const share = parseSharePath(path);
     if (share) {
       const result = await fetchShared(share.kind, share.token);
-      const meta = result ? shareMeta(share.kind, share.token, result.value, BASE_URL) : null;
+      const meta = result
+        ? shareMeta(share.kind, share.token, result.value, BASE_URL)
+        : null;
       if (meta) return c.html(ogHtml(meta));
     } else {
       for (const route of ROUTES) {
@@ -203,7 +277,12 @@ export async function botMetaMiddleware(c: Context, next: Next) {
     }
     const entry = seoFor(path);
     if (entry) {
-      return c.html(ogHtml({ ...entry, url: path === "/" ? BASE_URL : `${BASE_URL}${path}` }));
+      return c.html(
+        ogHtml({
+          ...entry,
+          url: path === "/" ? BASE_URL : `${BASE_URL}${path}`,
+        }),
+      );
     }
   }
 

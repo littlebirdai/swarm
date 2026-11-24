@@ -39,7 +39,10 @@ function parsePid(stdout: string): number | null {
 function frontAsn(): string | null {
   if (process.platform !== "darwin") return null;
   try {
-    const asn = spawnSync("lsappinfo", ["front"], { encoding: "utf-8", timeout: LSAPPINFO_TIMEOUT_MS });
+    const asn = spawnSync("lsappinfo", ["front"], {
+      encoding: "utf-8",
+      timeout: LSAPPINFO_TIMEOUT_MS,
+    });
     return parseAsn(asn.status, asn.stdout ?? "");
   } catch {
     return null;
@@ -49,7 +52,10 @@ function frontAsn(): string | null {
 /** Resolve an ASN key from frontAsn() to its pid. */
 function pidForAsn(key: string): number | null {
   try {
-    const info = spawnSync("lsappinfo", ["info", "-only", "pid", key], { encoding: "utf-8", timeout: LSAPPINFO_TIMEOUT_MS });
+    const info = spawnSync("lsappinfo", ["info", "-only", "pid", key], {
+      encoding: "utf-8",
+      timeout: LSAPPINFO_TIMEOUT_MS,
+    });
     return parsePid(info.stdout ?? "");
   } catch {
     return null;
@@ -60,13 +66,21 @@ function pidForAsn(key: string): number | null {
 // where blocking is the point. A long-lived poller (the daemon's focus
 // sentinel) must not block: `lsappinfo front` takes 1-2s when the machine is
 // busy, and inside the daemon that is 1-2s of no delivery, once a second.
-async function lsappinfo(args: string[]): Promise<{ status: number | null; stdout: string }> {
+async function lsappinfo(
+  args: string[],
+): Promise<{ status: number | null; stdout: string }> {
   try {
-    const { stdout } = await execFileAsync("lsappinfo", args, { encoding: "utf-8", timeout: LSAPPINFO_TIMEOUT_MS });
+    const { stdout } = await execFileAsync("lsappinfo", args, {
+      encoding: "utf-8",
+      timeout: LSAPPINFO_TIMEOUT_MS,
+    });
     return { status: 0, stdout };
   } catch (error) {
     const e = error as { code?: unknown; stdout?: unknown };
-    return { status: typeof e.code === "number" ? e.code : 1, stdout: String(e.stdout ?? "") };
+    return {
+      status: typeof e.code === "number" ? e.code : 1,
+      stdout: String(e.stdout ?? ""),
+    };
   }
 }
 

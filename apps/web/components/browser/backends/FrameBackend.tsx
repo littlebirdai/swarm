@@ -59,10 +59,20 @@ const UNREACHABLE_POLL_MS = 3000;
  *  loopback is the one exception it makes. */
 function blockedAsMixedContent(url: string): boolean {
   if (typeof window === "undefined") return false;
-  return window.location.protocol === "https:" && url.startsWith("http://") && !isLoopbackUrl(url);
+  return (
+    window.location.protocol === "https:" &&
+    url.startsWith("http://") &&
+    !isLoopbackUrl(url)
+  );
 }
 
-export function FrameBackend({ source, reloadToken, onTitle, onUrl, onState }: BackendProps) {
+export function FrameBackend({
+  source,
+  reloadToken,
+  onTitle,
+  onUrl,
+  onState,
+}: BackendProps) {
   const url = source.kind === "url" ? source.url : "";
   const frameRef = useRef<HTMLIFrameElement>(null);
   // A published page in a pane follows the codecast light or dark setting.
@@ -101,7 +111,10 @@ export function FrameBackend({ source, reloadToken, onTitle, onUrl, onState }: B
       if (verdict === "local-network-blocked") {
         report.current.onState({ kind: "blocked", reason: "local-network" });
       } else {
-        report.current.onState({ kind: "unreachable", loopback: isLoopbackUrl(url) });
+        report.current.onState({
+          kind: "unreachable",
+          loopback: isLoopbackUrl(url),
+        });
         setPolling(true);
       }
     });
@@ -118,7 +131,8 @@ export function FrameBackend({ source, reloadToken, onTitle, onUrl, onState }: B
     let timer: ReturnType<typeof setTimeout> | undefined;
     let asking = false;
     const schedule = () => {
-      if (!live || timer || asking || document.visibilityState !== "visible") return;
+      if (!live || timer || asking || document.visibilityState !== "visible")
+        return;
       timer = setTimeout(() => {
         timer = undefined;
         if (document.visibilityState !== "visible") return;
@@ -186,7 +200,11 @@ export function FrameBackend({ source, reloadToken, onTitle, onUrl, onState }: B
       characterData: true,
     });
     titleWatch.current = watch;
-    frame?.contentWindow?.addEventListener("pagehide", () => watch.disconnect(), { once: true });
+    frame?.contentWindow?.addEventListener(
+      "pagehide",
+      () => watch.disconnect(),
+      { once: true },
+    );
     try {
       // Without the flag: it is how the pane asked this page to render, not
       // part of the address the reader is looking at.

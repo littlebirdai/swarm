@@ -2,7 +2,10 @@ import { describe, expect, it } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import { parseOpencodeSessionFile, parseTranscriptFor } from "./parser";
-import { CLIENT_ERROR_BANNER_PREFIX, classifyApiErrorBanner } from "@codecast/shared/contracts";
+import {
+  CLIENT_ERROR_BANNER_PREFIX,
+  classifyApiErrorBanner,
+} from "@codecast/shared/contracts";
 
 // Fixtures are `opencode export --sanitize` output of FRESH synthetic sessions I
 // created in throwaway dirs (a one-word reply, and a trivial `cat` tool use). The
@@ -13,12 +16,21 @@ import { CLIENT_ERROR_BANNER_PREFIX, classifyApiErrorBanner } from "@codecast/sh
 // exactly what assembleOpencodeSession reconstructs from the DB, so these also pin
 // the format the parser must handle.
 const FIX = path.join(__dirname, "__fixtures__", "opencode");
-const toolsExport = fs.readFileSync(path.join(FIX, "session-tools.sanitized.json"), "utf-8");
-const textExport = fs.readFileSync(path.join(FIX, "session-text.sanitized.json"), "utf-8");
+const toolsExport = fs.readFileSync(
+  path.join(FIX, "session-tools.sanitized.json"),
+  "utf-8",
+);
+const textExport = fs.readFileSync(
+  path.join(FIX, "session-text.sanitized.json"),
+  "utf-8",
+);
 // Fully SYNTHETIC session (hand-written to opencode's export shape, /tmp path,
 // fabricated base64 that decodes to "SYNTHETIC-FAKE-IMAGE-DATA") — pins that a
 // `file` part carrying a base64 data URL maps to ParsedMessage.images.
-const imageExport = fs.readFileSync(path.join(FIX, "session-image.sanitized.json"), "utf-8");
+const imageExport = fs.readFileSync(
+  path.join(FIX, "session-image.sanitized.json"),
+  "utf-8",
+);
 
 describe("parseOpencodeSessionFile", () => {
   it("surfaces a failed turn (error field, no body) as a marked banner instead of dropping it", () => {
@@ -29,11 +41,22 @@ describe("parseOpencodeSessionFile", () => {
     const session = JSON.stringify({
       info: { id: "ses_x" },
       messages: [
-        { info: { id: "m1", role: "user" }, parts: [{ type: "text", text: "hi" }] },
+        {
+          info: { id: "m1", role: "user" },
+          parts: [{ type: "text", text: "hi" }],
+        },
         {
           info: {
-            id: "m2", role: "assistant", modelID: "big-pickle",
-            error: { name: "UnknownError", data: { message: "Google Vertex location setting is missing. Pass it using the 'location' parameter or the GOOGLE_VERTEX_LOCATION environment variable." } },
+            id: "m2",
+            role: "assistant",
+            modelID: "big-pickle",
+            error: {
+              name: "UnknownError",
+              data: {
+                message:
+                  "Google Vertex location setting is missing. Pass it using the 'location' parameter or the GOOGLE_VERTEX_LOCATION environment variable.",
+              },
+            },
           },
           parts: [],
         },
@@ -72,7 +95,9 @@ describe("parseOpencodeSessionFile", () => {
     expect(toolTurn.toolCalls?.[0].name).toBe("bash");
     expect(typeof toolTurn.toolCalls?.[0].input).toBe("object");
     expect(toolTurn.toolResults?.length).toBe(1);
-    expect(toolTurn.toolResults?.[0].toolUseId).toBe(toolTurn.toolCalls?.[0].id);
+    expect(toolTurn.toolResults?.[0].toolUseId).toBe(
+      toolTurn.toolCalls?.[0].id,
+    );
     // reasoning part folds into thinking.
     expect((toolTurn.thinking ?? "").length).toBeGreaterThan(0);
 
@@ -104,12 +129,16 @@ describe("parseOpencodeSessionFile", () => {
   });
 
   it("routes through parseTranscriptFor('opencode')", () => {
-    expect(parseTranscriptFor("opencode", toolsExport)).toEqual(parseOpencodeSessionFile(toolsExport));
+    expect(parseTranscriptFor("opencode", toolsExport)).toEqual(
+      parseOpencodeSessionFile(toolsExport),
+    );
   });
 
   it("returns [] for malformed or empty input", () => {
     expect(parseOpencodeSessionFile("not json")).toEqual([]);
-    expect(parseOpencodeSessionFile(JSON.stringify({ info: {}, messages: [] }))).toEqual([]);
+    expect(
+      parseOpencodeSessionFile(JSON.stringify({ info: {}, messages: [] })),
+    ).toEqual([]);
     expect(parseOpencodeSessionFile(JSON.stringify({}))).toEqual([]);
   });
 });
@@ -121,12 +150,38 @@ describe("parseOpencodeSessionFile", () => {
 describe("codecast import message", () => {
   it("is dropped by the opencode parser", () => {
     const exported = JSON.stringify({
-      info: { id: "ses_x", directory: "/tmp/p", title: "t", version: "1", time: { created: 1, updated: 2 } },
+      info: {
+        id: "ses_x",
+        directory: "/tmp/p",
+        title: "t",
+        version: "1",
+        time: { created: 1, updated: 2 },
+      },
       messages: [
-        { info: { id: "msg_import", role: "user", sessionID: "ses_x", time: { created: 1 } },
-          parts: [{ id: "prt_1", type: "text", text: "[Codecast import] This session continues a codecast conversation…\n\n### user\nhello" }] },
-        { info: { id: "msg_real", role: "user", sessionID: "ses_x", time: { created: 2 } },
-          parts: [{ id: "prt_2", type: "text", text: "What word did I say?" }] },
+        {
+          info: {
+            id: "msg_import",
+            role: "user",
+            sessionID: "ses_x",
+            time: { created: 1 },
+          },
+          parts: [
+            {
+              id: "prt_1",
+              type: "text",
+              text: "[Codecast import] This session continues a codecast conversation…\n\n### user\nhello",
+            },
+          ],
+        },
+        {
+          info: {
+            id: "msg_real",
+            role: "user",
+            sessionID: "ses_x",
+            time: { created: 2 },
+          },
+          parts: [{ id: "prt_2", type: "text", text: "What word did I say?" }],
+        },
       ],
     });
     const msgs = parseOpencodeSessionFile(exported);

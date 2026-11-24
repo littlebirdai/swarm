@@ -1,13 +1,23 @@
 import { memo, Suspense, useCallback, useRef } from "react";
 import { Rnd } from "react-rnd";
-import { useWindowManager, type WindowState } from "../store/windowManagerStore";
-import { useTrackedStore, isSessionEffectivelyIdle, getSessionRenderKey } from "../store/inboxStore";
+import {
+  useWindowManager,
+  type WindowState,
+} from "../store/windowManagerStore";
+import {
+  useTrackedStore,
+  isSessionEffectivelyIdle,
+  getSessionRenderKey,
+} from "../store/inboxStore";
 import { lazyNamed } from "../lib/lazyNamed";
 
 // What opening a session renders anywhere (initiatives-projects-role-page.md
 // I3): a role's standing session is the role page in a window too. Loaded on
 // first use, so the inbox page's module is not on this window's import graph.
-const SessionPage = lazyNamed(() => import("../app/inbox/QueuePageClient"), "SessionPage");
+const SessionPage = lazyNamed(
+  () => import("../app/inbox/QueuePageClient"),
+  "SessionPage",
+);
 import { sessionCardTitle } from "../lib/sessionCard";
 import { SessionGlyph } from "./identity";
 import { identityRowOf } from "../lib/sessionIdentity";
@@ -18,13 +28,21 @@ interface SessionWindowProps {
   isFocused: boolean;
 }
 
-export const SessionWindow = memo(function SessionWindow({ win, isFocused }: SessionWindowProps) {
-  const { bringToFront, updateBounds, minimizeWindow, maximizeWindow, restoreWindow, closeWindow } = useWindowManager();
+export const SessionWindow = memo(function SessionWindow({
+  win,
+  isFocused,
+}: SessionWindowProps) {
+  const {
+    bringToFront,
+    updateBounds,
+    minimizeWindow,
+    maximizeWindow,
+    restoreWindow,
+    closeWindow,
+  } = useWindowManager();
   const rndRef = useRef<Rnd>(null);
 
-  const s = useTrackedStore([
-    s => s.sessions[win.sessionId],
-  ]);
+  const s = useTrackedStore([(s) => s.sessions[win.sessionId]]);
   const session = s.sessions[win.sessionId];
   const isIdle = session ? isSessionEffectivelyIdle(session) : true;
   const renderKey = getSessionRenderKey(session);
@@ -100,7 +118,8 @@ export const SessionWindow = memo(function SessionWindow({ win, isFocused }: Ses
             background: isFocused
               ? "color-mix(in srgb, var(--sol-bg-alt) 80%, var(--sol-cyan) 8%)"
               : "var(--sol-bg-alt)",
-            borderBottom: "1px solid color-mix(in srgb, var(--sol-border) 50%, transparent)",
+            borderBottom:
+              "1px solid color-mix(in srgb, var(--sol-border) 50%, transparent)",
           }}
           onDoubleClick={handleMaxToggle}
         >
@@ -109,7 +128,10 @@ export const SessionWindow = memo(function SessionWindow({ win, isFocused }: Ses
             {statusPulse && (
               <span
                 className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
-                style={{ backgroundColor: statusColor, animationDuration: "1.5s" }}
+                style={{
+                  backgroundColor: statusColor,
+                  animationDuration: "1.5s",
+                }}
               />
             )}
             <span
@@ -119,7 +141,11 @@ export const SessionWindow = memo(function SessionWindow({ win, isFocused }: Ses
           </span>
 
           {/* Who the session is (session-characters.md S3), then its title. */}
-          <SessionGlyph row={session ? identityRowOf(session as any) : null} size={14} className="flex-shrink-0" />
+          <SessionGlyph
+            row={session ? identityRowOf(session as any) : null}
+            size={14}
+            className="flex-shrink-0"
+          />
           <span className="flex-1 min-w-0 truncate text-xs font-medium text-sol-text-muted">
             {title}
           </span>
@@ -127,21 +153,34 @@ export const SessionWindow = memo(function SessionWindow({ win, isFocused }: Ses
           {/* Window controls */}
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); minimizeWindow(win.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                minimizeWindow(win.id);
+              }}
               className="p-1 rounded hover:bg-sol-text-dim/15 text-sol-text-dim/60 hover:text-sol-text-muted transition-colors"
               title="Minimize"
             >
               <Minus className="w-3 h-3" />
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); handleMaxToggle(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMaxToggle();
+              }}
               className="p-1 rounded hover:bg-sol-text-dim/15 text-sol-text-dim/60 hover:text-sol-text-muted transition-colors"
               title={maximized ? "Restore" : "Maximize"}
             >
-              {maximized ? <Maximize2 className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+              {maximized ? (
+                <Maximize2 className="w-3 h-3" />
+              ) : (
+                <Square className="w-3 h-3" />
+              )}
             </button>
             <button
-              onClick={(e) => { e.stopPropagation(); closeWindow(win.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                closeWindow(win.id);
+              }}
               className="p-1 rounded hover:bg-red-500/20 text-sol-text-dim/60 hover:text-red-400 transition-colors"
               title="Close"
             >

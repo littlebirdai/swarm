@@ -110,7 +110,12 @@ function Reply({
       onPointerEnter={onHold}
       onPointerLeave={onRelease}
     >
-      <button type="button" className="agent-reply-open" onClick={onOpen} aria-label={`${name}: ${text}. Open the thread`}>
+      <button
+        type="button"
+        className="agent-reply-open"
+        onClick={onOpen}
+        aria-label={`${name}: ${text}. Open the thread`}
+      >
         <span className="agent-reply-head">
           <SessionFace
             row={{
@@ -129,7 +134,12 @@ function Reply({
         </span>
         {text && <span className="agent-reply-text">{text}</span>}
       </button>
-      <button type="button" className="agent-reply-close" onClick={onDismiss} aria-label="Dismiss">
+      <button
+        type="button"
+        className="agent-reply-close"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+      >
         <X className="h-3.5 w-3.5" />
       </button>
     </div>
@@ -137,7 +147,13 @@ function Reply({
 }
 
 /** On the stage: over the bottom of the video, thread open or closed. */
-export function AgentReplyPeek({ row, onOpen }: { row: ThreadRow | null; onOpen: () => void }) {
+export function AgentReplyPeek({
+  row,
+  onOpen,
+}: {
+  row: ThreadRow | null;
+  onOpen: () => void;
+}) {
   const r = useShownReply(row, true);
   if (!r.shown) return null;
   return (
@@ -173,7 +189,11 @@ export function CallCardAgentReply() {
 export function HangingReply({ row }: { row: ThreadRow | null }) {
   const r = useShownReply(row, true);
   const probe = useRef<HTMLSpanElement | null>(null);
-  const [at, setAt] = useState<{ left: number; top: number; notch: number } | null>(null);
+  const [at, setAt] = useState<{
+    left: number;
+    top: number;
+    notch: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     if (!r.shown) return setAt(null);
@@ -184,7 +204,11 @@ export function HangingReply({ row }: { row: ThreadRow | null }) {
       const w = Math.min(BUBBLE_W, window.innerWidth - 16);
       const left = Math.max(8, Math.min(b.left, window.innerWidth - w - 8));
       const notch = Math.max(18, Math.min(b.left + 30 - left, w - 18));
-      setAt((p) => (p && p.left === left && p.top === b.bottom + 10 && p.notch === notch ? p : { left, top: b.bottom + 10, notch }));
+      setAt((p) =>
+        p && p.left === left && p.top === b.bottom + 10 && p.notch === notch
+          ? p
+          : { left, top: b.bottom + 10, notch },
+      );
     };
     return whileWindowVisible(() => {
       measure();
@@ -208,7 +232,14 @@ export function HangingReply({ row }: { row: ThreadRow | null }) {
             row={r.shown}
             variant="bubble"
             leaving={r.leaving}
-            style={{ left: at.left, top: at.top, width: Math.min(BUBBLE_W, window.innerWidth - 16), "--ar-notch": `${at.notch}px` } as React.CSSProperties}
+            style={
+              {
+                left: at.left,
+                top: at.top,
+                width: Math.min(BUBBLE_W, window.innerWidth - 16),
+                "--ar-notch": `${at.notch}px`,
+              } as React.CSSProperties
+            }
             onOpen={() => {
               r.dismiss();
               openTheCall(true);

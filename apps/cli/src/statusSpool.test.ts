@@ -1,4 +1,11 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -53,12 +60,18 @@ afterEach(() => {
 });
 
 function runHook(payload: Record<string, unknown>): void {
-  execFileSync("bash", [hookFile], { input: JSON.stringify(payload), env: { ...process.env, HOME: home } });
+  execFileSync("bash", [hookFile], {
+    input: JSON.stringify(payload),
+    env: { ...process.env, HOME: home },
+  });
 }
 
 function spoolLines(sessionId: string): string[] {
   try {
-    return fs.readFileSync(statusSpoolPath(statusDir, sessionId), "utf8").split("\n").filter(Boolean);
+    return fs
+      .readFileSync(statusSpoolPath(statusDir, sessionId), "utf8")
+      .split("\n")
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -76,12 +89,17 @@ describe("status spool", () => {
       { status: "compacting", ts: 4 },
       { status: "idle", ts: 5 },
     ];
-    for (const record of burst) await appendStatusSpool(statusDir, "burst-1", record);
+    for (const record of burst)
+      await appendStatusSpool(statusDir, "burst-1", record);
 
-    const drained = await drainStatusSpool<Status>(statusSpoolPath(statusDir, "burst-1"));
+    const drained = await drainStatusSpool<Status>(
+      statusSpoolPath(statusDir, "burst-1"),
+    );
     expect(drained).toEqual(burst);
     // Truncated behind the drain, so the next one replays nothing twice.
-    expect(await drainStatusSpool<Status>(statusSpoolPath(statusDir, "burst-1"))).toEqual([]);
+    expect(
+      await drainStatusSpool<Status>(statusSpoolPath(statusDir, "burst-1")),
+    ).toEqual([]);
   });
 
   test("a malformed line is skipped and the records behind it still replay", async () => {
@@ -89,7 +107,9 @@ describe("status spool", () => {
     fs.appendFileSync(statusSpoolPath(statusDir, "bad-1"), "{not json\n");
     await appendStatusSpool(statusDir, "bad-1", { status: "idle", ts: 3 });
 
-    expect(await drainStatusSpool<Status>(statusSpoolPath(statusDir, "bad-1"))).toEqual([
+    expect(
+      await drainStatusSpool<Status>(statusSpoolPath(statusDir, "bad-1")),
+    ).toEqual([
       { status: "thinking", ts: 1 },
       { status: "idle", ts: 3 },
     ]);
@@ -97,12 +117,19 @@ describe("status spool", () => {
 
   test("a half-written trailing line waits for the next drain", async () => {
     const file = statusSpoolPath(statusDir, "partial-1");
-    await appendStatusSpool(statusDir, "partial-1", { status: "thinking", ts: 1 });
+    await appendStatusSpool(statusDir, "partial-1", {
+      status: "thinking",
+      ts: 1,
+    });
     fs.appendFileSync(file, '{"status":"idle","ts":2');
 
-    expect(await drainStatusSpool<Status>(file)).toEqual([{ status: "thinking", ts: 1 }]);
+    expect(await drainStatusSpool<Status>(file)).toEqual([
+      { status: "thinking", ts: 1 },
+    ]);
     fs.appendFileSync(file, "}\n");
-    expect(await drainStatusSpool<Status>(file)).toEqual([{ status: "idle", ts: 2 }]);
+    expect(await drainStatusSpool<Status>(file)).toEqual([
+      { status: "idle", ts: 2 },
+    ]);
   });
 
   test("every session's spool drains, each in write order", async () => {
@@ -112,7 +139,13 @@ describe("status spool", () => {
 
     const all = await drainAllStatusSpools<Status>(statusDir);
     expect(all).toEqual([
-      { sessionId: "sess-a", records: [{ status: "thinking", ts: 1 }, { status: "idle", ts: 3 }] },
+      {
+        sessionId: "sess-a",
+        records: [
+          { status: "thinking", ts: 1 },
+          { status: "idle", ts: 3 },
+        ],
+      },
       { sessionId: "sess-b", records: [{ status: "working", ts: 2 }] },
     ]);
   });
@@ -124,7 +157,10 @@ describe("status spool", () => {
 
   test("a missing directory drains and sweeps to nothing", async () => {
     expect(await drainAllStatusSpools(path.join(home, "nope"))).toEqual([]);
-    expect(await sweepStatusSpools(path.join(home, "nope"))).toEqual({ removed: [], trimmed: [] });
+    expect(await sweepStatusSpools(path.join(home, "nope"))).toEqual({
+      removed: [],
+      trimmed: [],
+    });
   });
 });
 
@@ -155,8 +191,13 @@ describe("status spool retention", () => {
     const stale = new Date(Date.now() - SPOOL_TTL_MS - 60_000);
     fs.utimesSync(statusSpoolPath(statusDir, "old-1"), stale, stale);
 
-    expect(await sweepStatusSpools(statusDir)).toEqual({ removed: ["old-1"], trimmed: [] });
-    expect((await listStatusSpools(statusDir)).map((s) => s.sessionId)).toEqual(["new-1"]);
+    expect(await sweepStatusSpools(statusDir)).toEqual({
+      removed: ["old-1"],
+      trimmed: [],
+    });
+    expect((await listStatusSpools(statusDir)).map((s) => s.sessionId)).toEqual(
+      ["new-1"],
+    );
   });
 });
 
@@ -171,14 +212,26 @@ describe("the hook's fallback write", () => {
   });
 
   test("tool progress stays out of the spool and only the legacy file carries it", () => {
-    runHook({ session_id: "hook-tools", hook_event_name: "PreToolUse", tool_name: "Bash" });
-    runHook({ session_id: "hook-tools", hook_event_name: "PreToolUse", tool_name: "Read" });
+    runHook({
+      session_id: "hook-tools",
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+    });
+    runHook({
+      session_id: "hook-tools",
+      hook_event_name: "PreToolUse",
+      tool_name: "Read",
+    });
     runHook({ session_id: "hook-tools", hook_event_name: "Stop" });
 
-    expect(spoolLines("hook-tools").map((l) => JSON.parse(l).status)).toEqual(["idle"]);
+    expect(spoolLines("hook-tools").map((l) => JSON.parse(l).status)).toEqual([
+      "idle",
+    ]);
     // Kept readable for one release: an older daemon reads only this file, and
     // a newer one replays it after the spool, where the ts guards dedupe it.
-    const legacy = JSON.parse(fs.readFileSync(path.join(statusDir, "hook-tools.json"), "utf8"));
+    const legacy = JSON.parse(
+      fs.readFileSync(path.join(statusDir, "hook-tools.json"), "utf8"),
+    );
     expect(legacy.status).toBe("idle");
   });
 
@@ -192,7 +245,9 @@ describe("the hook's fallback write", () => {
     runHook({ session_id: "../../target/evil", hook_event_name: "Stop" });
 
     expect(fs.readdirSync(escaped)).toEqual([]);
-    expect(fs.existsSync(statusDir) ? fs.readdirSync(statusDir) : []).toEqual([]);
+    expect(fs.existsSync(statusDir) ? fs.readdirSync(statusDir) : []).toEqual(
+      [],
+    );
   });
 
   // The guard runs under whatever shell a machine points at the script, so it
@@ -206,7 +261,10 @@ describe("the hook's fallback write", () => {
     function accepts(sessionId: string): boolean {
       const script = path.join(home, `guard-${shell}.sh`);
       fs.writeFileSync(script, `SESSION_ID="$1"\n${guard}\nprintf accepted\n`);
-      return execFileSync(shell, [script, sessionId], { encoding: "utf8" }) === "accepted";
+      return (
+        execFileSync(shell, [script, sessionId], { encoding: "utf8" }) ===
+        "accepted"
+      );
     }
 
     test("takes exactly the ids the daemon takes", () => {
@@ -225,23 +283,34 @@ describe("the hook's fallback write", () => {
         "x".repeat(129),
         "évil",
       ];
-      for (const id of ids) expect([id, accepts(id)]).toEqual([id, isSafeStatusSessionId(id)]);
+      for (const id of ids)
+        expect([id, accepts(id)]).toEqual([id, isSafeStatusSessionId(id)]);
     });
   });
 
   test("the guard runs before either path is built", () => {
     const guardAt = CODECAST_STATUS_HOOK.lastIndexOf('case "$SESSION_ID" in');
     expect(guardAt).toBeGreaterThan(0);
-    expect(guardAt).toBeLessThan(CODECAST_STATUS_HOOK.indexOf('STATUS_DIR="$CC_DIR'));
-    expect(guardAt).toBeLessThan(CODECAST_STATUS_HOOK.indexOf("$SESSION_ID.json"));
-    expect(guardAt).toBeLessThan(CODECAST_STATUS_HOOK.indexOf(`$SESSION_ID${SPOOL_EXT}`));
+    expect(guardAt).toBeLessThan(
+      CODECAST_STATUS_HOOK.indexOf('STATUS_DIR="$CC_DIR'),
+    );
+    expect(guardAt).toBeLessThan(
+      CODECAST_STATUS_HOOK.indexOf("$SESSION_ID.json"),
+    );
+    expect(guardAt).toBeLessThan(
+      CODECAST_STATUS_HOOK.indexOf(`$SESSION_ID${SPOOL_EXT}`),
+    );
   });
 
   test("the shell's skip rule is the same one the daemon applies", () => {
     expect(isSpoolableStatus(SPOOL_SKIPPED_STATUS)).toBe(false);
     expect(isSpoolableStatus("idle")).toBe(true);
-    expect(CODECAST_STATUS_HOOK).toContain(`"$STATUS" != "${SPOOL_SKIPPED_STATUS}"`);
-    expect(CODECAST_STATUS_HOOK).toContain(`>> "$STATUS_DIR/$SESSION_ID${SPOOL_EXT}"`);
+    expect(CODECAST_STATUS_HOOK).toContain(
+      `"$STATUS" != "${SPOOL_SKIPPED_STATUS}"`,
+    );
+    expect(CODECAST_STATUS_HOOK).toContain(
+      `>> "$STATUS_DIR/$SESSION_ID${SPOOL_EXT}"`,
+    );
   });
 });
 
@@ -260,29 +329,45 @@ describe("the boot gate's deferral", () => {
       { status: "permission_blocked", ts: 11 },
       { status: "idle", ts: 12 },
     ];
-    for (const record of burst) expect(gate.deliver("gate-1", record)).toBe("deferred");
+    for (const record of burst)
+      expect(gate.deliver("gate-1", record)).toBe("deferred");
 
     await chain;
-    expect(await drainStatusSpool<Status>(statusSpoolPath(statusDir, "gate-1"))).toEqual(burst);
+    expect(
+      await drainStatusSpool<Status>(statusSpoolPath(statusDir, "gate-1")),
+    ).toEqual(burst);
   });
 
   test("the daemon defers to the spool and drains it at boot, on the watcher and on the sweep", () => {
-    const src = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), "daemon.ts"), "utf8");
+    const src = fs.readFileSync(
+      path.join(path.dirname(new URL(import.meta.url).pathname), "daemon.ts"),
+      "utf8",
+    );
     // The gate's defer writes both files: the spool for the order, the legacy
     // single-status file for a daemon from before the spool.
-    const defer = src.slice(src.indexOf("new HookStatusGate<HookStatusData>"), src.indexOf("export function setHookStatusSink"));
+    const defer = src.slice(
+      src.indexOf("new HookStatusGate<HookStatusData>"),
+      src.indexOf("export function setHookStatusSink"),
+    );
     expect(defer).toContain("queueAgentStatusWrite(");
     expect(defer).toContain("queueAgentStatusSpoolAppend(");
     const main = src.indexOf("async function main(");
     // Boot: the spools replay before the single-status files, and before the
     // handler the gate has been deferring for registers.
-    const bootReplay = src.indexOf("drainAllStatusSpools<HookStatusData>(AGENT_STATUS_DIR)", main);
+    const bootReplay = src.indexOf(
+      "drainAllStatusSpools<HookStatusData>(AGENT_STATUS_DIR)",
+      main,
+    );
     expect(bootReplay).toBeGreaterThan(0);
-    expect(bootReplay).toBeLessThan(src.indexOf("readAgentStatusFiles().then(", main));
+    expect(bootReplay).toBeLessThan(
+      src.indexOf("readAgentStatusFiles().then(", main),
+    );
     expect(bootReplay).toBeLessThan(src.indexOf("setHookStatusSink(", main));
     // Watcher: a .jsonl event drains that spool through handleStatusData, the
     // same funnel a pushed status goes through.
-    expect(src.slice(main)).toContain("if (filePath.endsWith(SPOOL_EXT)) { handleStatusSpoolFile(filePath); return; }");
+    expect(src.slice(main)).toContain(
+      "if (filePath.endsWith(SPOOL_EXT)) { handleStatusSpoolFile(filePath); return; }",
+    );
     expect(src.slice(main)).toContain("sweepStatusSpools(AGENT_STATUS_DIR)");
   });
 });

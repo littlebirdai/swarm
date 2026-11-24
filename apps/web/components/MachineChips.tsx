@@ -11,7 +11,11 @@
 import { ChevronDown, Users } from "lucide-react";
 import { deviceDisplayName } from "@codecast/shared/contracts";
 import { DeviceDot, DeviceIcon, deviceAccentClasses } from "./DeviceBadge";
-import { machineChipNote, machineChipTitle, type SessionMachine } from "../lib/sessionMachines";
+import {
+  machineChipNote,
+  machineChipTitle,
+  type SessionMachine,
+} from "../lib/sessionMachines";
 import { listedMachines } from "../lib/machinePicker";
 import { formatHostLoad, type HostLoad } from "../lib/hostLoad";
 
@@ -35,25 +39,56 @@ export type MachineChipsProps = {
 /** A machine someone on your team opened to you, or an agent box. */
 const isTeamMachine = (d: SessionMachine) => d.bot_name !== undefined;
 
-function chipLabel(d: SessionMachine, roster: SessionMachine[], load?: HostLoad) {
+function chipLabel(
+  d: SessionMachine,
+  roster: SessionMachine[],
+  load?: HostLoad,
+) {
   const note = machineChipNote(d, roster);
   return (
     <>
       {deviceDisplayName(d)}
-      {d.bot_name !== undefined && ` · ${d.runner_name || d.bot_name || "agent box"}`}
-      {note && <span className={note === "gone" ? "text-sol-red/80" : "opacity-70"}>{` · ${note}`}</span>}
-      {load && <span className={load.tight || load.busy ? "text-sol-yellow" : "opacity-70"} title={formatHostLoad(load)}>{load.busy ? ` · CPU ${load.cpuPct}%` : ` · ${load.freeGb < 10 ? load.freeGb.toFixed(1) : Math.round(load.freeGb)} GB free`}</span>}
+      {d.bot_name !== undefined &&
+        ` · ${d.runner_name || d.bot_name || "agent box"}`}
+      {note && (
+        <span
+          className={note === "gone" ? "text-sol-red/80" : "opacity-70"}
+        >{` · ${note}`}</span>
+      )}
+      {load && (
+        <span
+          className={load.tight || load.busy ? "text-sol-yellow" : "opacity-70"}
+          title={formatHostLoad(load)}
+        >
+          {load.busy
+            ? ` · CPU ${load.cpuPct}%`
+            : ` · ${load.freeGb < 10 ? load.freeGb.toFixed(1) : Math.round(load.freeGb)} GB free`}
+        </span>
+      )}
     </>
   );
 }
 
-export function MachineChips({ machines: roster, selectedDeviceId, open, onOpen, onPick, onShare, loads, joinable = [], onJoin, cloudRefusal }: MachineChipsProps) {
+export function MachineChips({
+  machines: roster,
+  selectedDeviceId,
+  open,
+  onOpen,
+  onPick,
+  onShare,
+  loads,
+  joinable = [],
+  onJoin,
+  cloudRefusal,
+}: MachineChipsProps) {
   // Notes and titles judge each chip against the whole roster (a host is
   // "gone" relative to its siblings); only the row leaves dead machines out.
   const machines = listedMachines(roster, selectedDeviceId);
-  const routedMachine = machines.find((d) => d.device_id === selectedDeviceId) ?? machines[0];
+  const routedMachine =
+    machines.find((d) => d.device_id === selectedDeviceId) ?? machines[0];
   const joins = onJoin ? joinable : [];
-  if ((machines.length <= 1 && joins.length === 0) || !routedMachine) return null;
+  if ((machines.length <= 1 && joins.length === 0) || !routedMachine)
+    return null;
   if (open) {
     const chip = (d: SessionMachine) => {
       const selected = d.device_id === selectedDeviceId;
@@ -71,7 +106,13 @@ export function MachineChips({ machines: roster, selectedDeviceId, open, onOpen,
           }`}
         >
           <DeviceIcon d={d} className="w-3 h-3 shrink-0" />
-          <span className="truncate max-w-[16rem]">{chipLabel(d, roster, d.is_remote ? loads?.get(d.device_id) : undefined)}</span>
+          <span className="truncate max-w-[16rem]">
+            {chipLabel(
+              d,
+              roster,
+              d.is_remote ? loads?.get(d.device_id) : undefined,
+            )}
+          </span>
           <DeviceDot online={d.online} />
         </button>
       );
@@ -104,7 +145,10 @@ export function MachineChips({ machines: roster, selectedDeviceId, open, onOpen,
         {own.map(chip)}
         {(team.length > 0 || joinChips.length > 0) && (
           <div className="flex basis-full flex-wrap items-center justify-end gap-1.5">
-            <span className="inline-flex items-center gap-1 text-meta text-sol-cyan/80" title="Machines your team runs sessions on">
+            <span
+              className="inline-flex items-center gap-1 text-meta text-sol-cyan/80"
+              title="Machines your team runs sessions on"
+            >
               <Users className="w-3 h-3" />
               team
             </span>
@@ -125,10 +169,15 @@ export function MachineChips({ machines: roster, selectedDeviceId, open, onOpen,
       className="group/machine inline-flex items-center gap-1.5 px-2 py-0.5 text-meta rounded-md border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border/70 hover:bg-sol-bg-alt/50 transition-all"
     >
       <DeviceIcon d={routedMachine} className="w-3 h-3 shrink-0" />
-      <span className="truncate max-w-[14rem]">{chipLabel(routedMachine, roster)}</span>
+      <span className="truncate max-w-[14rem]">
+        {chipLabel(routedMachine, roster)}
+      </span>
       <DeviceDot online={routedMachine.online} />
       {teamCount > 0 && !isTeamMachine(routedMachine) && (
-        <span className="inline-flex items-center gap-0.5 text-sol-cyan/80" title={`${teamCount} team machine${teamCount === 1 ? "" : "s"} you can run on`}>
+        <span
+          className="inline-flex items-center gap-0.5 text-sol-cyan/80"
+          title={`${teamCount} team machine${teamCount === 1 ? "" : "s"} you can run on`}
+        >
           <Users className="w-3 h-3" />
           {teamCount}
         </span>

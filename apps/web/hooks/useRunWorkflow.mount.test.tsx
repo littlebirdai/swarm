@@ -6,9 +6,25 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test/", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test/", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const { act } = await import("react");
@@ -20,16 +36,34 @@ let pinnedAnswer: { ready: boolean; error?: Error } = { ready: true };
 const realSyncCollection = { ...(await import("./useSyncCollection")) };
 mock.module("./useSyncCollection", () => ({
   ...realSyncCollection,
-  useSyncCollection: (_key: string, query: any) => (getFunctionName(query) === "workflow_runs:pinnedGraphOfRun" ? pinnedAnswer : { ready: true }),
+  useSyncCollection: (_key: string, query: any) =>
+    getFunctionName(query) === "workflow_runs:pinnedGraphOfRun"
+      ? pinnedAnswer
+      : { ready: true },
 }));
-afterAll(() => { mock.module("./useSyncCollection", () => realSyncCollection); });
+afterAll(() => {
+  mock.module("./useSyncCollection", () => realSyncCollection);
+});
 
 const { useInboxStore } = await import("../store/inboxStore");
 const { useRunWorkflow } = await import("./useSyncWorkflows");
 
 const RUN = { _id: "r1", workflow_id: "wf1", graph_version_id: "v1" };
-const ROW = { _id: "wf1", name: "change", slug: "change", nodes: [{ id: "fix" }], edges: [] };
-const PINNED = { _id: "v1", workflow_id: "wf1", name: "change", slug: "change", nodes: [{ id: "decide__decide" }], edges: [] };
+const ROW = {
+  _id: "wf1",
+  name: "change",
+  slug: "change",
+  nodes: [{ id: "fix" }],
+  edges: [],
+};
+const PINNED = {
+  _id: "v1",
+  workflow_id: "wf1",
+  name: "change",
+  slug: "change",
+  nodes: [{ id: "decide__decide" }],
+  edges: [],
+};
 
 let seen: any = "unset";
 function Probe() {
@@ -44,14 +78,21 @@ async function draw() {
 
 beforeEach(() => {
   seen = "unset";
-  useInboxStore.setState((s: any) => ({ workflows: { ...(s.workflows ?? {}), wf1: ROW }, runGraphs: {} }));
+  useInboxStore.setState((s: any) => ({
+    workflows: { ...(s.workflows ?? {}), wf1: ROW },
+    runGraphs: {},
+  }));
 });
 
 test("the pinned graph, keyed back to its row", async () => {
   pinnedAnswer = { ready: true };
   useInboxStore.setState({ runGraphs: { v1: PINNED } } as any);
   await draw();
-  expect(seen).toMatchObject({ _id: "wf1", version_id: "v1", nodes: [{ id: "decide__decide" }] });
+  expect(seen).toMatchObject({
+    _id: "wf1",
+    version_id: "v1",
+    nodes: [{ id: "decide__decide" }],
+  });
 });
 
 test("still loading while the pinned-graph query has not answered", async () => {
@@ -61,7 +102,12 @@ test("still loading while the pinned-graph query has not answered", async () => 
 });
 
 test("a backend without the pinned-graph query draws the row instead of loading forever", async () => {
-  pinnedAnswer = { ready: false, error: new Error("Could not find public function for 'workflow_runs:pinnedGraphOfRun'") };
+  pinnedAnswer = {
+    ready: false,
+    error: new Error(
+      "Could not find public function for 'workflow_runs:pinnedGraphOfRun'",
+    ),
+  };
   await draw();
   expect(seen).toMatchObject({ _id: "wf1", nodes: [{ id: "fix" }] });
 });

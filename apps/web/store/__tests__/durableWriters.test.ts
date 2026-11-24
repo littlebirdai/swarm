@@ -19,10 +19,13 @@ describe("named durable store writers", () => {
       drafts: {},
       pending: {},
     });
-    useInboxStore.getState()._setDispatch(async (action, args, patches, result) => {
-      calls.push({ action, args, patches, result });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args, patches, result) => {
+        calls.push({ action, args, patches, result });
+        return null;
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -35,7 +38,11 @@ describe("named durable store writers", () => {
     store.updateClientUI({ inbox_scope: "team" });
     // Saved views moved out of the client_state bag into their own server
     // collection so they can be shared; they still dispatch by name.
-    store.createSavedView({ name: "Mine", page: "tasks", prefs: { status: "open" } } as any);
+    store.createSavedView({
+      name: "Mine",
+      page: "tasks",
+      prefs: { status: "open" },
+    } as any);
     const savedViewId = Object.keys(useInboxStore.getState().savedViews)[0];
     store.deleteSavedView(savedViewId);
     store.updateClientLayout("sidebar" as any, { width: 288 });
@@ -69,10 +76,14 @@ describe("named durable store writers", () => {
     expect(calls[1].args?.[0]?.name).toBe("Mine");
     expect(calls[1].result?.client_key).toBeTypeOf("string");
     expect(calls[2].args).toEqual([savedViewId]);
-    expect(calls[3].patches?.client_state?._?.layouts?.sidebar).toEqual({ width: 288 });
+    expect(calls[3].patches?.client_state?._?.layouts?.sidebar).toEqual({
+      width: 288,
+    });
     expect(calls[4].args).toEqual([{ seen: ["first"] }]);
     expect(calls[4].patches).toBeUndefined();
-    expect(useInboxStore.getState().clientState.tips?._inlineSuppressed).toBe(true);
+    expect(useInboxStore.getState().clientState.tips?._inlineSuppressed).toBe(
+      true,
+    );
     expect(calls[5].patches?.client_state?._?.drafts?.conversation).toBeNull();
   });
 
@@ -117,7 +128,10 @@ describe("named durable store writers", () => {
       inbox_scope: "team",
       "inbox_scope:ts": originalStamp,
     } as any);
-    store.updateClientLayout("sidebar" as any, useInboxStore.getState().clientState.layouts?.sidebar);
+    store.updateClientLayout(
+      "sidebar" as any,
+      useInboxStore.getState().clientState.layouts?.sidebar,
+    );
     store.clearDraftFinal("conversation");
 
     expect(calls[0]).toMatchObject({

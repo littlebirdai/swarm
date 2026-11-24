@@ -48,8 +48,19 @@ export type ConversationFieldSpec = {
 
 export const CONVERSATION_FIELDS = {
   // ── Triage stamps ────────────────────────────────────────────────────────
-  inbox_dismissed_at: { send: true, dispatch: true, patch: true, triage: true, visibility: true },
-  inbox_stashed_at: { send: true, dispatch: true, triage: true, visibility: true },
+  inbox_dismissed_at: {
+    send: true,
+    dispatch: true,
+    patch: true,
+    triage: true,
+    visibility: true,
+  },
+  inbox_stashed_at: {
+    send: true,
+    dispatch: true,
+    triage: true,
+    visibility: true,
+  },
   inbox_stash_hidden: { send: true, dispatch: true, visibility: true },
   // A Close (closedSession.ts): written with the dismissed stamp it equals, so a
   // close is a close on any rail (a stub re-key flush, a deferred batch).
@@ -58,20 +69,50 @@ export const CONVERSATION_FIELDS = {
   // clear that is not itself an un-kill, so it is triage-tracked but not
   // dispatchable here.
   inbox_killed_at: { send: true, triage: true, visibility: true },
-  inbox_pinned_at: { send: true, dispatch: true, patch: true, triage: true, twin: "is_pinned", visibility: true },
-  inbox_snoozed_until: { send: true, dispatch: true, patch: true, triage: true, visibility: true },
+  inbox_pinned_at: {
+    send: true,
+    dispatch: true,
+    patch: true,
+    triage: true,
+    twin: "is_pinned",
+    visibility: true,
+  },
+  inbox_snoozed_until: {
+    send: true,
+    dispatch: true,
+    patch: true,
+    triage: true,
+    visibility: true,
+  },
   // The person talked to a nested session (a flow station), so it stands
   // alone in their inbox (inboxProjection isAdoptedChild).
-  inbox_adopted_at: { send: true, dispatch: true, patch: true, triage: true, visibility: true },
+  inbox_adopted_at: {
+    send: true,
+    dispatch: true,
+    patch: true,
+    triage: true,
+    visibility: true,
+  },
   // Defer is the one stamp the client learns only through its twin: the row
   // carries is_deferred, currency-filtered by the server, and the raw stamp
   // stays behind. The rest verdict below deliberately does the opposite.
-  inbox_deferred_at: { dispatch: true, patch: true, triage: true, twin: "is_deferred" },
+  inbox_deferred_at: {
+    dispatch: true,
+    patch: true,
+    triage: true,
+    twin: "is_deferred",
+  },
   // The user's own rest verdict travels RAW as well as derived, because every
   // replica re-checks the stamp against updated_at itself (userRestOf) and two
   // replicas that re-derive from the same two numbers cannot disagree.
   inbox_rest: { send: true, dispatch: true, patch: true, triage: true },
-  inbox_rest_at: { send: true, dispatch: true, patch: true, triage: true, twin: "user_rest" },
+  inbox_rest_at: {
+    send: true,
+    dispatch: true,
+    patch: true,
+    triage: true,
+    twin: "user_rest",
+  },
 
   // ── Plain fields the client may edit ─────────────────────────────────────
   title: { send: true, dispatch: true },
@@ -99,7 +140,9 @@ export const CONVERSATION_FIELDS = {
 
 export type ConversationField = keyof typeof CONVERSATION_FIELDS;
 
-const entries = Object.entries(CONVERSATION_FIELDS) as Array<[ConversationField, ConversationFieldSpec]>;
+const entries = Object.entries(CONVERSATION_FIELDS) as Array<
+  [ConversationField, ConversationFieldSpec]
+>;
 const withFlag = (flag: keyof ConversationFieldSpec): ConversationField[] =>
   entries.filter(([, spec]) => spec[flag]).map(([name]) => name);
 
@@ -116,9 +159,12 @@ export const PATCHABLE_CONVERSATION_FIELDS = withFlag("patch");
 export const VISIBILITY_CONVERSATION_FIELDS = withFlag("visibility");
 
 /** Stamp → the enriched twin that retires with its ack. */
-export const CONVERSATION_FIELD_TWINS: Record<string, string> = Object.fromEntries(
-  entries.filter(([, spec]) => spec.twin).map(([name, spec]) => [name, spec.twin as string]),
-);
+export const CONVERSATION_FIELD_TWINS: Record<string, string> =
+  Object.fromEntries(
+    entries
+      .filter(([, spec]) => spec.twin)
+      .map(([name, spec]) => [name, spec.twin as string]),
+  );
 
 /** Every field whose in-flight write makes a row overlay-affected: the triage
  *  stamps and the twins the same gesture writes beside them. */

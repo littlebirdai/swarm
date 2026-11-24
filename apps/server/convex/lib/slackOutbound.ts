@@ -8,13 +8,21 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { linkSendsOutbound, slackMemberWriter, slackSendAuth } from "./slackMirror";
+import {
+  linkSendsOutbound,
+  slackMemberWriter,
+  slackSendAuth,
+} from "./slackMirror";
 
 export type SlackLink = Doc<"slack_channel_links">;
 // A reader, so a query context and a mutation context both fit.
 type ReadCtx = { db: QueryCtx["db"] };
 
-export async function slackLinksWithSendAuth(ctx: ReadCtx, links: SlackLink[], userId: Id<"users">) {
+export async function slackLinksWithSendAuth(
+  ctx: ReadCtx,
+  links: SlackLink[],
+  userId: Id<"users">,
+) {
   // Per installation, once: the viewer's own token and the app's scopes. A DM
   // link says whether the viewer can post as themselves; a channel link says
   // which token (if any) may invite and remove people on the Slack side.
@@ -22,14 +30,25 @@ export async function slackLinksWithSendAuth(ctx: ReadCtx, links: SlackLink[], u
   const installs = new Map<string, Doc<"slack_installations"> | null>();
   for (const link of links) {
     if (tokens.has(link.installation_id)) continue;
-    tokens.set(link.installation_id, await ctx.db.query("slack_user_tokens")
-      .withIndex("by_installation_user", (q) => q.eq("installation_id", link.installation_id).eq("user_id", userId))
-      .first());
+    tokens.set(
+      link.installation_id,
+      await ctx.db
+        .query("slack_user_tokens")
+        .withIndex("by_installation_user", (q) =>
+          q.eq("installation_id", link.installation_id).eq("user_id", userId),
+        )
+        .first(),
+    );
     installs.set(link.installation_id, await ctx.db.get(link.installation_id));
   }
   return links.map((link) => {
     const token = tokens.get(link.installation_id) ?? null;
-    if (link.kind === "dm") return { ...link, viewer_user_id: userId, viewer_slack_auth: slackSendAuth(token) };
+    if (link.kind === "dm")
+      return {
+        ...link,
+        viewer_user_id: userId,
+        viewer_slack_auth: slackSendAuth(token),
+      };
     return {
       ...link,
       member_writer: slackMemberWriter({
@@ -47,7 +66,9 @@ export async function slackLinkForChannel(
 ): Promise<SlackLink | null> {
   return await ctx.db
     .query("slack_channel_links")
-    .withIndex("by_chat_channel", (q: any) => q.eq("chat_channel_id", chatChannelId))
+    .withIndex("by_chat_channel", (q: any) =>
+      q.eq("chat_channel_id", chatChannelId),
+    )
     .first();
 }
 
@@ -65,7 +86,10 @@ export async function installationsForTeam(
     .query("slack_installations")
     .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
     .collect();
-  return rows.sort((a: Doc<"slack_installations">, b: Doc<"slack_installations">) => b.created_at - a.created_at);
+  return rows.sort(
+    (a: Doc<"slack_installations">, b: Doc<"slack_installations">) =>
+      b.created_at - a.created_at,
+  );
 }
 
 /** One of a team's Slack workspaces: the one named, else the newest. A named
@@ -76,7 +100,8 @@ export async function installationForTeam(
   workspaceId?: string | null,
 ): Promise<Doc<"slack_installations"> | null> {
   const all = await installationsForTeam(ctx, teamId);
-  if (workspaceId) return all.find((i) => i.workspace_id === workspaceId) ?? null;
+  if (workspaceId)
+    return all.find((i) => i.workspace_id === workspaceId) ?? null;
   return all[0] ?? null;
 }
 
@@ -91,16 +116,24 @@ export function isAgentLine(message: Doc<"chat_messages">): boolean {
 
 /** Why a message will not be mirrored, or null when it will. Pure, so the
  *  composer and the message menu can show the same answer the server gives. */
-export function outboundSkipReason(link: SlackLink, message: Doc<"chat_messages">): string | null {
+export function outboundSkipReason(
+  link: SlackLink,
+  message: Doc<"chat_messages">,
+): string | null {
   if (!linkSendsOutbound(link)) return link.paused ? "paused" : "direction";
-  if (message.external) return message.external.direction === "inbound" ? "from_slack" : "already_sent";
+  if (message.external)
+    return message.external.direction === "inbound"
+      ? "from_slack"
+      : "already_sent";
   if (message.sync_local_only) return "local_only";
   if (message.deleted_at) return "deleted";
   if (message.voice || message.call) return "voice";
-  if (message.agent_status && message.agent_status !== "done") return "agent_pending";
+  if (message.agent_status && message.agent_status !== "done")
+    return "agent_pending";
   if (message.thread_root_id && !link.options.threads) return "threads_off";
-  if (isAgentLine(message) && !link.options.agent_lines) return "agent_lines_off";
-  if (!message.content.trim() && !(message.attachments?.length)) return "empty";
+  if (isAgentLine(message) && !link.options.agent_lines)
+    return "agent_lines_off";
+  if (!message.content.trim() && !message.attachments?.length) return "empty";
   return null;
 }
 
@@ -108,18 +141,29 @@ type Op =
   | { op: "message"; message: Doc<"chat_messages"> }
   | { op: "edit"; message: Doc<"chat_messages"> }
   | { op: "delete"; message: Doc<"chat_messages"> }
-  | { op: "reaction"; message: Doc<"chat_messages">; emoji: string; add: boolean; user_id: Id<"users"> };
+  | {
+      op: "reaction";
+      message: Doc<"chat_messages">;
+      emoji: string;
+      add: boolean;
+      user_id: Id<"users">;
+    };
 
 /** Schedule the Slack side of a chat write, when the channel's link says so.
  *  Never throws: the chat write must land whatever Slack's state is. */
-export async function queueSlackOutbound(ctx: MutationCtx, args: Op): Promise<string | null> {
+export async function queueSlackOutbound(
+  ctx: MutationCtx,
+  args: Op,
+): Promise<string | null> {
   try {
     const link = await slackLinkForChannel(ctx, args.message.channel_id);
     if (!link) return "no_link";
     if (args.op === "message") {
       const skip = outboundSkipReason(link, args.message);
       if (skip) return skip;
-      await ctx.scheduler.runAfter(0, internal.slackSync.pushMessage, { message_id: args.message._id });
+      await ctx.scheduler.runAfter(0, internal.slackSync.pushMessage, {
+        message_id: args.message._id,
+      });
       return null;
     }
     if (!linkSendsOutbound(link)) return link.paused ? "paused" : "direction";
@@ -141,7 +185,9 @@ export async function queueSlackOutbound(ctx: MutationCtx, args: Op): Promise<st
     if (!ext || ext.direction !== "outbound") return "not_ours";
     await ctx.scheduler.runAfter(
       0,
-      args.op === "edit" ? internal.slackSync.pushEdit : internal.slackSync.pushDelete,
+      args.op === "edit"
+        ? internal.slackSync.pushEdit
+        : internal.slackSync.pushDelete,
       { message_id: args.message._id },
     );
     return null;

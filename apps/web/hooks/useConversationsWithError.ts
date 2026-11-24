@@ -6,7 +6,9 @@ import { persistentToast } from "../lib/persistentToast";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
 
-type ConversationResult = ReturnType<typeof useQuery<typeof api.conversations.listConversations>>;
+type ConversationResult = ReturnType<
+  typeof useQuery<typeof api.conversations.listConversations>
+>;
 
 export function useConversationsWithError(
   filter: "my" | "team",
@@ -18,28 +20,44 @@ export function useConversationsWithError(
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [allConversations, setAllConversations] = useState<any[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
 
   // A just-created team carries an optimistic stub id until the server
   // echoes; a stub is not an Id<"teams">, so skip the team list for that
   // window rather than throw (the new team has no server rows yet anyway).
-  const stubTeam = filter === "team" && !!activeTeamId && !isConvexId(String(activeTeamId));
-  const result = useQuery(api.conversations.listConversations, stubTeam ? "skip" : {
-    filter,
-    cursor,
-    include_message_previews: true,
-    memberId: memberId ? (memberId as Id<"users">) : undefined,
-    activeTeamId: filter === "team" && activeTeamId ? activeTeamId : undefined,
-    subagentFilter: subagentFilter || undefined,
-    directoryFilter: directoryFilter || undefined,
-    timeFilter: timeFilter || undefined,
-  });
+  const stubTeam =
+    filter === "team" && !!activeTeamId && !isConvexId(String(activeTeamId));
+  const result = useQuery(
+    api.conversations.listConversations,
+    stubTeam
+      ? "skip"
+      : {
+          filter,
+          cursor,
+          include_message_previews: true,
+          memberId: memberId ? (memberId as Id<"users">) : undefined,
+          activeTeamId:
+            filter === "team" && activeTeamId ? activeTeamId : undefined,
+          subagentFilter: subagentFilter || undefined,
+          directoryFilter: directoryFilter || undefined,
+          timeFilter: timeFilter || undefined,
+        },
+  );
   const [hasShownError, setHasShownError] = useState(false);
   const loadingStartTime = useRef<number | null>(null);
   const retryToastId = useRef<string | number | null>(null);
 
   // Reset when any filter changes
-  const [trackedFilters, setTrackedFilters] = useState({ filter, memberId, activeTeamId, subagentFilter, directoryFilter, timeFilter });
+  const [trackedFilters, setTrackedFilters] = useState({
+    filter,
+    memberId,
+    activeTeamId,
+    subagentFilter,
+    directoryFilter,
+    timeFilter,
+  });
   if (
     trackedFilters.filter !== filter ||
     trackedFilters.memberId !== memberId ||
@@ -48,7 +66,14 @@ export function useConversationsWithError(
     trackedFilters.directoryFilter !== directoryFilter ||
     trackedFilters.timeFilter !== timeFilter
   ) {
-    setTrackedFilters({ filter, memberId, activeTeamId, subagentFilter, directoryFilter, timeFilter });
+    setTrackedFilters({
+      filter,
+      memberId,
+      activeTeamId,
+      subagentFilter,
+      directoryFilter,
+      timeFilter,
+    });
     setCursor(undefined);
     setAllConversations([]);
   }
@@ -65,18 +90,22 @@ export function useConversationsWithError(
       if (elapsed > 5000 && !hasShownError) {
         setHasShownError(true);
 
-        retryToastId.current = toast.error("Network error loading conversations", {
-          description: "Unable to connect to the server. Check your connection.",
-          action: {
-            label: "Retry",
-            onClick: () => {
-              setHasShownError(false);
-              loadingStartTime.current = Date.now();
-              window.location.reload();
+        retryToastId.current = toast.error(
+          "Network error loading conversations",
+          {
+            description:
+              "Unable to connect to the server. Check your connection.",
+            action: {
+              label: "Retry",
+              onClick: () => {
+                setHasShownError(false);
+                loadingStartTime.current = Date.now();
+                window.location.reload();
+              },
             },
+            ...persistentToast,
           },
-          ...persistentToast,
-        });
+        );
       }
     } else {
       loadingStartTime.current = null;
@@ -94,9 +123,11 @@ export function useConversationsWithError(
   useEffect(() => {
     if (result?.conversations) {
       if (cursor) {
-        setAllConversations(prev => {
-          const existingIds = new Set(prev.map(c => c._id));
-          const newConvs = result.conversations.filter((c: any) => !existingIds.has(c._id));
+        setAllConversations((prev) => {
+          const existingIds = new Set(prev.map((c) => c._id));
+          const newConvs = result.conversations.filter(
+            (c: any) => !existingIds.has(c._id),
+          );
           return [...prev, ...newConvs];
         });
       } else {

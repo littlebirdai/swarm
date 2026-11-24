@@ -3,7 +3,16 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
-import { archiveRefusal, macosMeetsMinimum, shouldApplyWhileRunning, shouldAttemptDesktopUpdate, stagingPaths, swapInBundle, waitForAppSwap, wantsReinstall } from "./desktopUpdate";
+import {
+  archiveRefusal,
+  macosMeetsMinimum,
+  shouldApplyWhileRunning,
+  shouldAttemptDesktopUpdate,
+  stagingPaths,
+  swapInBundle,
+  waitForAppSwap,
+  wantsReinstall,
+} from "./desktopUpdate";
 
 // Gate at the very top of checkForDesktopUpdate. The dev-mode skip exists so a
 // developer's source checkout (cast/daemon under `bun src/…`) doesn't auto-swap
@@ -40,22 +49,34 @@ describe("shouldApplyWhileRunning", () => {
   it("never applies while running without force or a floor", () => {
     expect(shouldApplyWhileRunning("1.1.76", {})).toBe(false);
     expect(shouldApplyWhileRunning("1.1.76", { minVersion: null })).toBe(false);
-    expect(shouldApplyWhileRunning("1.1.76", { minVersion: undefined })).toBe(false);
+    expect(shouldApplyWhileRunning("1.1.76", { minVersion: undefined })).toBe(
+      false,
+    );
   });
 
   it("manual --force always applies, regardless of versions", () => {
     expect(shouldApplyWhileRunning("9.9.9", { force: true })).toBe(true);
-    expect(shouldApplyWhileRunning("1.1.76", { force: true, minVersion: "1.1.78" })).toBe(true);
+    expect(
+      shouldApplyWhileRunning("1.1.76", { force: true, minVersion: "1.1.78" }),
+    ).toBe(true);
   });
 
   it("applies when the installed app is below the pinned floor", () => {
-    expect(shouldApplyWhileRunning("1.1.76", { minVersion: "1.1.78" })).toBe(true);
-    expect(shouldApplyWhileRunning("1.0.99", { minVersion: "1.1.0" })).toBe(true);
+    expect(shouldApplyWhileRunning("1.1.76", { minVersion: "1.1.78" })).toBe(
+      true,
+    );
+    expect(shouldApplyWhileRunning("1.0.99", { minVersion: "1.1.0" })).toBe(
+      true,
+    );
   });
 
   it("does NOT apply once at or above the floor (no relaunch loop)", () => {
-    expect(shouldApplyWhileRunning("1.1.78", { minVersion: "1.1.78" })).toBe(false);
-    expect(shouldApplyWhileRunning("1.2.0", { minVersion: "1.1.78" })).toBe(false);
+    expect(shouldApplyWhileRunning("1.1.78", { minVersion: "1.1.78" })).toBe(
+      false,
+    );
+    expect(shouldApplyWhileRunning("1.2.0", { minVersion: "1.1.78" })).toBe(
+      false,
+    );
   });
 });
 
@@ -92,12 +113,18 @@ describe("archiveRefusal", () => {
   });
 
   it("never walks the app back to an older signed build, forced or damaged", () => {
-    expect(archiveRefusal("1.1.100", "1.1.100", "1.1.128")).toContain("not newer");
+    expect(archiveRefusal("1.1.100", "1.1.100", "1.1.128")).toContain(
+      "not newer",
+    );
   });
 
   it("refuses an archive that is not the version the feed announced", () => {
-    expect(archiveRefusal("1.1.129", "1.1.100", "1.1.128")).toContain("feed announced");
-    expect(archiveRefusal("1.1.129", null, "1.1.128")).toContain("no readable version");
+    expect(archiveRefusal("1.1.129", "1.1.100", "1.1.128")).toContain(
+      "feed announced",
+    );
+    expect(archiveRefusal("1.1.129", null, "1.1.128")).toContain(
+      "no readable version",
+    );
   });
 });
 
@@ -124,7 +151,13 @@ describe("swap beside the app's own quit helper", () => {
   const bundle = (dir: string, name: string, tag: string) => {
     const app = path.join(dir, name);
     for (let i = 0; i < 400; i++) {
-      const f = path.join(app, "Contents", "Resources", `f${i % 20}`, `file${i}.txt`);
+      const f = path.join(
+        app,
+        "Contents",
+        "Resources",
+        `f${i % 20}`,
+        `file${i}.txt`,
+      );
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, `${tag}:${i}:`.padEnd(4096, "x"));
     }
@@ -132,8 +165,18 @@ describe("swap beside the app's own quit helper", () => {
   };
   const complete = (app: string, tag: string) => {
     for (let i = 0; i < 400; i++) {
-      const f = path.join(app, "Contents", "Resources", `f${i % 20}`, `file${i}.txt`);
-      if (!fs.existsSync(f) || !fs.readFileSync(f, "utf8").startsWith(`${tag}:${i}:`)) return false;
+      const f = path.join(
+        app,
+        "Contents",
+        "Resources",
+        `f${i % 20}`,
+        `file${i}.txt`,
+      );
+      if (
+        !fs.existsSync(f) ||
+        !fs.readFileSync(f, "utf8").startsWith(`${tag}:${i}:`)
+      )
+        return false;
     }
     return true;
   };
@@ -141,10 +184,17 @@ describe("swap beside the app's own quit helper", () => {
   const appHelper = (appPath: string, delayS: number) => {
     const { appIncoming, appOld } = stagingPaths(appPath);
     const q = (p: string) => `'${p}'`;
-    const script = [`sleep ${delayS}`, `rm -rf ${q(appOld)}`,
+    const script = [
+      `sleep ${delayS}`,
+      `rm -rf ${q(appOld)}`,
       `mv ${q(appPath)} ${q(appOld)} && mv ${q(appIncoming)} ${q(appPath)} || { mv ${q(appOld)} ${q(appPath)} 2>/dev/null; exit 1; }`,
-      `rm -rf ${q(appOld)}`].join("\n");
-    return new Promise<void>((resolve) => spawn("/bin/sh", ["-c", script], { stdio: "ignore" }).on("exit", () => resolve()));
+      `rm -rf ${q(appOld)}`,
+    ].join("\n");
+    return new Promise<void>((resolve) =>
+      spawn("/bin/sh", ["-c", script], { stdio: "ignore" }).on("exit", () =>
+        resolve(),
+      ),
+    );
   };
 
   it("stages under names the app's updater never uses", () => {
@@ -152,42 +202,56 @@ describe("swap beside the app's own quit helper", () => {
     expect(new Set([p.incoming, p.old, p.appIncoming, p.appOld]).size).toBe(4);
   });
 
-  it.if(process.platform === "darwin")("ends with a whole bundle whenever the helper lands", async () => {
-    for (const delay of [0, 0.05, 0.15, 0.3]) {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desk-swap-"));
-      const appPath = bundle(dir, "Codecast.app", "old");
-      bundle(dir, ".Codecast.app.incoming", "new"); // the app staged it
-      const fresh = bundle(dir, "fresh.app", "new"); // the daemon's verified copy
-      const helper = appHelper(appPath, delay);
-      await waitForAppSwap(appPath, { pollMs: 20 });
-      if (!complete(appPath, "new")) swapInBundle(fresh, appPath);
-      await helper;
-      expect(complete(appPath, "new")).toBe(true);
-      expect(fs.readdirSync(dir).sort()).toEqual(["Codecast.app", "fresh.app"]);
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }, 60_000);
+  it.if(process.platform === "darwin")(
+    "ends with a whole bundle whenever the helper lands",
+    async () => {
+      for (const delay of [0, 0.05, 0.15, 0.3]) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desk-swap-"));
+        const appPath = bundle(dir, "Codecast.app", "old");
+        bundle(dir, ".Codecast.app.incoming", "new"); // the app staged it
+        const fresh = bundle(dir, "fresh.app", "new"); // the daemon's verified copy
+        const helper = appHelper(appPath, delay);
+        await waitForAppSwap(appPath, { pollMs: 20 });
+        if (!complete(appPath, "new")) swapInBundle(fresh, appPath);
+        await helper;
+        expect(complete(appPath, "new")).toBe(true);
+        expect(fs.readdirSync(dir).sort()).toEqual([
+          "Codecast.app",
+          "fresh.app",
+        ]);
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
 
   it("clears a staged bundle no helper will ever move", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desk-swap-"));
     const appPath = bundle(dir, "Codecast.app", "old");
     bundle(dir, ".Codecast.app.incoming", "new");
-    expect(await waitForAppSwap(appPath, { timeoutMs: 100, pollMs: 20 })).toBe(false);
+    expect(await waitForAppSwap(appPath, { timeoutMs: 100, pollMs: 20 })).toBe(
+      false,
+    );
     expect(fs.existsSync(stagingPaths(appPath).appIncoming)).toBe(false);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
 
 describe("swapInBundle", () => {
-  it.if(process.platform === "darwin")("installs into an empty folder when there is no app yet", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desk-install-"));
-    const fresh = path.join(dir, "fresh.app");
-    fs.mkdirSync(path.join(fresh, "Contents"), { recursive: true });
-    fs.writeFileSync(path.join(fresh, "Contents", "Info.plist"), "new");
-    const appPath = path.join(dir, "Codecast.app");
-    swapInBundle(fresh, appPath);
-    expect(fs.readFileSync(path.join(appPath, "Contents", "Info.plist"), "utf8")).toBe("new");
-    expect(fs.readdirSync(dir).sort()).toEqual(["Codecast.app", "fresh.app"]);
-    fs.rmSync(dir, { recursive: true, force: true });
-  });
+  it.if(process.platform === "darwin")(
+    "installs into an empty folder when there is no app yet",
+    () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desk-install-"));
+      const fresh = path.join(dir, "fresh.app");
+      fs.mkdirSync(path.join(fresh, "Contents"), { recursive: true });
+      fs.writeFileSync(path.join(fresh, "Contents", "Info.plist"), "new");
+      const appPath = path.join(dir, "Codecast.app");
+      swapInBundle(fresh, appPath);
+      expect(
+        fs.readFileSync(path.join(appPath, "Contents", "Info.plist"), "utf8"),
+      ).toBe("new");
+      expect(fs.readdirSync(dir).sort()).toEqual(["Codecast.app", "fresh.app"]);
+      fs.rmSync(dir, { recursive: true, force: true });
+    },
+  );
 });

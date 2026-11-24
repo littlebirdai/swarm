@@ -18,21 +18,33 @@ type Probe = () => boolean | null;
 function loadProbe(): Probe {
   if (process.platform !== "darwin") return () => null;
   try {
-    const { dlopen, FFIType, ptr } = require("bun:ffi") as typeof import("bun:ffi");
-    const sec = dlopen("/System/Library/Frameworks/Security.framework/Security", {
-      SecKeychainCopyDefault: { args: [FFIType.ptr], returns: FFIType.i32 },
-      SecKeychainGetStatus: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.i32 },
-    });
-    const cf = dlopen("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", {
-      CFRelease: { args: [FFIType.ptr], returns: FFIType.void },
-    });
+    const { dlopen, FFIType, ptr } =
+      require("bun:ffi") as typeof import("bun:ffi");
+    const sec = dlopen(
+      "/System/Library/Frameworks/Security.framework/Security",
+      {
+        SecKeychainCopyDefault: { args: [FFIType.ptr], returns: FFIType.i32 },
+        SecKeychainGetStatus: {
+          args: [FFIType.ptr, FFIType.ptr],
+          returns: FFIType.i32,
+        },
+      },
+    );
+    const cf = dlopen(
+      "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+      {
+        CFRelease: { args: [FFIType.ptr], returns: FFIType.void },
+      },
+    );
     return () => {
       const ref = new BigUint64Array(1);
-      if (sec.symbols.SecKeychainCopyDefault(ptr(ref)) !== 0 || !ref[0]) return null;
+      if (sec.symbols.SecKeychainCopyDefault(ptr(ref)) !== 0 || !ref[0])
+        return null;
       const keychain = Number(ref[0]) as import("bun:ffi").Pointer;
       try {
         const status = new Uint32Array(1);
-        if (sec.symbols.SecKeychainGetStatus(keychain, ptr(status)) !== 0) return null;
+        if (sec.symbols.SecKeychainGetStatus(keychain, ptr(status)) !== 0)
+          return null;
         return (status[0] & kSecUnlockStateStatus) === 0;
       } finally {
         cf.symbols.CFRelease(keychain);
@@ -55,6 +67,8 @@ export function loginKeychainLocked(): boolean {
   }
 }
 
-export function setKeychainLockProbeForTests(fake: (() => boolean | null) | null): void {
+export function setKeychainLockProbeForTests(
+  fake: (() => boolean | null) | null,
+): void {
   probe = fake;
 }

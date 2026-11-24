@@ -3,7 +3,19 @@ import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 
 mock.module("sonner", () => {
   const noop = () => 1;
-  return { toast: Object.assign(noop, { error: noop, info: noop, success: noop, warning: noop, dismiss: () => {}, loading: noop, custom: noop, promise: (p: any) => p }), Toaster: () => null };
+  return {
+    toast: Object.assign(noop, {
+      error: noop,
+      info: noop,
+      success: noop,
+      warning: noop,
+      dismiss: () => {},
+      loading: noop,
+      custom: noop,
+      promise: (p: any) => p,
+    }),
+    Toaster: () => null,
+  };
 });
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -44,7 +56,10 @@ beforeEach(() => {
   commands.length = 0;
   (useInboxStore.getState() as any)._setDispatch(async () => undefined);
   useInboxStore.setState({
-    convCommand: async (_id: string, command: string) => { commands.push(command); return undefined; },
+    convCommand: async (_id: string, command: string) => {
+      commands.push(command);
+      return undefined;
+    },
     sessions: {},
     conversations: {},
     pendingMessages: {},
@@ -59,7 +74,16 @@ async function composerStatusFor(status: string): Promise<string> {
   const createdAt = Date.now() - 3 * 60_000;
   useInboxStore.setState({
     pendingMessageStatus: {
-      [CONV_ID]: { _id: CONV_ID, conversation_id: CONV_ID, message_id: "pm_settled_1", client_id: "c1", created_at: createdAt, retry_count: 0, status, content: "hi" },
+      [CONV_ID]: {
+        _id: CONV_ID,
+        conversation_id: CONV_ID,
+        message_id: "pm_settled_1",
+        client_id: "c1",
+        created_at: createdAt,
+        retry_count: 0,
+        status,
+        content: "hi",
+      },
     },
   } as any);
   const { MessageInput } = await import("../MessageInput");
@@ -69,13 +93,25 @@ async function composerStatusFor(status: string): Promise<string> {
   await act(async () => {
     root.render(
       <ConvexProvider client={fakeConvex()}>
-        <MessageInput conversationId={CONV_ID} status="active" sessionId="sess_settled" agentType="claude_code" agentStatus={"idle" as any} isSessionReady />
+        <MessageInput
+          conversationId={CONV_ID}
+          status="active"
+          sessionId="sess_settled"
+          agentType="claude_code"
+          agentStatus={"idle" as any}
+          isSessionReady
+        />
       </ConvexProvider>,
     );
   });
-  await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-  const text = container.querySelector("[data-cc-composer-meta]")?.textContent ?? "";
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 30));
+  });
+  const text =
+    container.querySelector("[data-cc-composer-meta]")?.textContent ?? "";
+  await act(async () => {
+    root.unmount();
+  });
   container.remove();
   return text;
 }

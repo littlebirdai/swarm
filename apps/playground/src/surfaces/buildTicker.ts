@@ -10,12 +10,23 @@ import { buildProgress, type BuildLineState } from "../ui/BuildLine";
 import { useAppState, useStream } from "./appState";
 
 /** "landing": live on the server, on its way to this screen. */
-export type ChangePhase = "starting" | "queued" | "building" | "landing" | "live" | "failed";
+export type ChangePhase =
+  | "starting"
+  | "queued"
+  | "building"
+  | "landing"
+  | "live"
+  | "failed";
 
 /** Where a request's build stands for this screen, or null once a newer
  *  version has landed over it. `busy`: another build is running now. */
-export function changePhase(b: BuildView, landed: number, busy: boolean): ChangePhase | null {
-  if (b.status === "queued") return place(b, busy) === 1 ? "starting" : "queued";
+export function changePhase(
+  b: BuildView,
+  landed: number,
+  busy: boolean,
+): ChangePhase | null {
+  if (b.status === "queued")
+    return place(b, busy) === 1 ? "starting" : "queued";
   if (b.status === "building") return "building";
   if (b.status === "failed") return "failed";
   const n = b.result_version ?? 0;
@@ -23,7 +34,8 @@ export function changePhase(b: BuildView, landed: number, busy: boolean): Change
 }
 
 /** Its place in line, counting the build running ahead of it. */
-const place = (b: BuildView, busy: boolean) => (b.queue_position ?? 1) + (busy ? 1 : 0);
+const place = (b: BuildView, busy: boolean) =>
+  (b.queue_position ?? 1) + (busy ? 1 : 0);
 
 /** A queued request's chip: "Starting" when nothing is ahead, else its place. */
 export function lineLabel(b: BuildView, busy: boolean): string {
@@ -71,12 +83,25 @@ export function useBuildTicker(m: MessageView | null): BuildTicker | null {
       building: `Building v${version}`,
       landing: `v${version} going live`,
       live: `v${version} is live`,
-      failed: b.failure === "declined" ? "Clay left it as is" : "Didn't make it",
+      failed:
+        b.failure === "declined" ? "Clay left it as is" : "Didn't make it",
     }[phase],
-    line: phase === "failed" ? (b.error ?? "Clay couldn't finish this one.") : ((phase === "building" || phase === "landing") && narration.at(-1)?.text) || m.body,
-    lineKey: (phase === "building" || phase === "landing") && narration.length ? narration[narration.length - 1].at : phase,
+    line:
+      phase === "failed"
+        ? (b.error ?? "Clay couldn't finish this one.")
+        : ((phase === "building" || phase === "landing") &&
+            narration.at(-1)?.text) ||
+          m.body,
+    lineKey:
+      (phase === "building" || phase === "landing") && narration.length
+        ? narration[narration.length - 1].at
+        : phase,
     elapsed,
-    progress: done ? 100 : phase === "building" || phase === "failed" ? buildProgress(elapsed) : 0,
+    progress: done
+      ? 100
+      : phase === "building" || phase === "failed"
+        ? buildProgress(elapsed)
+        : 0,
     state: done ? "live" : phase === "failed" ? "failed" : "building",
   };
 }

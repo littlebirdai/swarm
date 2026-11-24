@@ -58,7 +58,10 @@ export type OrgStandingState = {
   state_at?: number | null;
 };
 
-export type OrgStanding = OrgStandingState & { conversation_id?: string; short_id?: string };
+export type OrgStanding = OrgStandingState & {
+  conversation_id?: string;
+  short_id?: string;
+};
 
 export type OrgSuccession = {
   project_id?: string;
@@ -77,7 +80,13 @@ export type OrgHandingOver = {
   deadline: number;
   by: string;
   trigger_id?: string;
-  receivers: Array<{ role_id: string; handle: string; project_ids: string[]; plan_ids: string[]; done_at?: number }>;
+  receivers: Array<{
+    role_id: string;
+    handle: string;
+    project_ids: string[];
+    plan_ids: string[];
+    done_at?: number;
+  }>;
   retire?: { standing_session?: "keep" | "retire" };
 };
 
@@ -109,7 +118,13 @@ export type OrgRole = {
   /** cards: the line's admission slots (LE6), open cards per answering person.
    *  line_on: the line's start switch (learning-loop.md LL5), off when unset.
    *  A daily limit absent (or null, on the way to the server) is no limit. */
-  caps?: { hands_per_day?: number | null; wakes_per_day?: number | null; tokens_per_day?: number | null; cards?: number; line_on?: boolean };
+  caps?: {
+    hands_per_day?: number | null;
+    wakes_per_day?: number | null;
+    tokens_per_day?: number | null;
+    cards?: number;
+    line_on?: boolean;
+  };
   counters?: { day: string; hands: number; wakes: number; tokens: number };
   coalesce_ms?: number;
   review_backend?: string;
@@ -195,10 +210,22 @@ export const ORG_TOP_N = 8;
 /** A parent a session or role can report to. */
 export type OrgParentRef = OrgReportsTo;
 
-export const EMPTY_COUNTS: StateCounts = { working: 0, needs_input: 0, done: 0, dormant: 0, idle: 0 };
+export const EMPTY_COUNTS: StateCounts = {
+  working: 0,
+  needs_input: 0,
+  done: 0,
+  dormant: 0,
+  idle: 0,
+};
 
 /** The order sessions sort in under a parent (S3): who needs a human first. */
-export const ORG_STATE_ORDER: WorkState[] = ["needs_input", "working", "dormant", "done", "idle"];
+export const ORG_STATE_ORDER: WorkState[] = [
+  "needs_input",
+  "working",
+  "dormant",
+  "done",
+  "idle",
+];
 
 export function sortOrgSessions(list: OrgSession[]): OrgSession[] {
   const rank = new Map(ORG_STATE_ORDER.map((s, i) => [s, i]));
@@ -214,7 +241,12 @@ export function countStates(list: OrgSession[]): StateCounts {
   return out;
 }
 
-export function sameParent(a: OrgParentRef | null | undefined, b: OrgParentRef | null | undefined): boolean {
+export function sameParent(
+  a: OrgParentRef | null | undefined,
+  b: OrgParentRef | null | undefined,
+): boolean {
   if (!a || !b || a.kind !== b.kind) return false;
-  return a.kind === "user" ? a.user_id === (b as any).user_id : a.role_id === (b as any).role_id;
+  return a.kind === "user"
+    ? a.user_id === (b as any).user_id
+    : a.role_id === (b as any).role_id;
 }

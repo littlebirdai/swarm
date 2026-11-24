@@ -16,11 +16,20 @@ const DECODED = new Map<string, ImageDims>();
 const DECODED_MAX = 2000;
 
 function valid(d: Partial<ImageDims> | null | undefined): d is ImageDims {
-  return !!d && typeof d.width === "number" && typeof d.height === "number" && d.width > 0 && d.height > 0;
+  return (
+    !!d &&
+    typeof d.width === "number" &&
+    typeof d.height === "number" &&
+    d.width > 0 &&
+    d.height > 0
+  );
 }
 
 /** The size this image is known to have, or null while nobody knows it yet. */
-export function knownImageDims(image: { width?: number; height?: number }, src: string | undefined): ImageDims | null {
+export function knownImageDims(
+  image: { width?: number; height?: number },
+  src: string | undefined,
+): ImageDims | null {
   if (valid(image)) return { width: image.width, height: image.height };
   const seen = src ? DECODED.get(src) : undefined;
   return seen ?? null;
@@ -40,7 +49,10 @@ export function rememberImageDims(src: string, dims: ImageDims): void {
  * The box an image of this size takes: its own aspect ratio, never wider than
  * the column or its natural width, never taller than IMAGE_MAX_REM.
  */
-export function imageBoxStyle(dims: ImageDims): { width: string; aspectRatio: string } {
+export function imageBoxStyle(dims: ImageDims): {
+  width: string;
+  aspectRatio: string;
+} {
   const ratio = dims.width / dims.height;
   return {
     width: `min(100%, ${dims.width}px, ${(IMAGE_MAX_REM * ratio).toFixed(4)}rem)`,

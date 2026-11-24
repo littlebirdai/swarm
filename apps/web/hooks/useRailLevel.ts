@@ -12,7 +12,10 @@ import { useState } from "react";
 // panel keeps them in Chat, until Back or until they arrive in another
 // level's section. Back always returns to the root, whichever opened it.
 
-export function useRailLevel<L extends string>(routeLevel: L | null, available: Record<L, boolean>) {
+export function useRailLevel<L extends string>(
+  routeLevel: L | null,
+  available: Record<L, boolean>,
+) {
   const [s, set] = useState<{
     /** The level the route belongs to, as last rendered. */
     route: L | null;
@@ -29,9 +32,15 @@ export function useRailLevel<L extends string>(routeLevel: L | null, available: 
   // it opened. Render-phase, so the first paint of the new page is right.
   let cur = s;
   if (cur.route !== routeLevel) {
-    cur = { ...cur, route: routeLevel, dismissed: null, byHand: routeLevel && cur.byHand !== routeLevel ? null : cur.byHand };
+    cur = {
+      ...cur,
+      route: routeLevel,
+      dismissed: null,
+      byHand: routeLevel && cur.byHand !== routeLevel ? null : cur.byHand,
+    };
   }
-  const want = cur.byHand ?? (cur.route && cur.route !== cur.dismissed ? cur.route : null);
+  const want =
+    cur.byHand ?? (cur.route && cur.route !== cur.dismissed ? cur.route : null);
   const level = want && available[want] ? want : null;
   if (level && level !== cur.shown) cur = { ...cur, shown: level };
   if (cur !== s) set(cur);
@@ -41,6 +50,7 @@ export function useRailLevel<L extends string>(routeLevel: L | null, available: 
     // The pane keeps its content while it slides out.
     shown: level ?? cur.shown,
     back: () => set((p) => ({ ...p, byHand: null, dismissed: p.route })),
-    open: (l: L) => set((p) => ({ ...p, byHand: l, dismissed: null, shown: l })),
+    open: (l: L) =>
+      set((p) => ({ ...p, byHand: l, dismissed: null, shown: l })),
   };
 }

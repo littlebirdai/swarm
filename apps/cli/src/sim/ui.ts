@@ -36,18 +36,25 @@ export function flattenUi(raw: unknown): UiElement[] {
         value: text(node.AXValue),
         id: text(node.AXUniqueId),
         frame: { x: f.x, y: f.y, width: f.width, height: f.height },
-        center: { x: Math.round(f.x + f.width / 2), y: Math.round(f.y + f.height / 2) },
+        center: {
+          x: Math.round(f.x + f.width / 2),
+          y: Math.round(f.y + f.height / 2),
+        },
         depth,
         enabled: node.enabled !== false,
       });
     }
-    for (const c of Array.isArray(node.children) ? node.children : []) walk(c, depth + 1);
+    for (const c of Array.isArray(node.children) ? node.children : [])
+      walk(c, depth + 1);
   };
   for (const root of Array.isArray(raw) ? raw : [raw]) walk(root, 0);
   return out;
 }
 
-export function describeUi(udid: string): { raw: unknown; elements: UiElement[] } {
+export function describeUi(udid: string): {
+  raw: unknown;
+  elements: UiElement[];
+} {
   const r = axe(["describe-ui", "--udid", udid], { timeoutMs: 60_000 });
   if (!r.ok) throw new Error(`describe-ui failed: ${why(r)}`);
   const raw = JSON.parse(r.stdout);
@@ -55,25 +62,43 @@ export function describeUi(udid: string): { raw: unknown; elements: UiElement[] 
 }
 
 /** The screen size in points: the root application element's frame. */
-export function screenPoints(elements: UiElement[]): { width: number; height: number } | undefined {
+export function screenPoints(
+  elements: UiElement[],
+): { width: number; height: number } | undefined {
   const root = elements.find((e) => e.depth === 0 && e.frame.width > 0);
-  return root ? { width: root.frame.width, height: root.frame.height } : undefined;
+  return root
+    ? { width: root.frame.width, height: root.frame.height }
+    : undefined;
 }
 
 /**
  * Elements whose label, value or id matches `query`: exact (case-insensitive)
  * matches first, then substrings; the root application element never matches.
  */
-export function findElements(elements: UiElement[], query: string): UiElement[] {
+export function findElements(
+  elements: UiElement[],
+  query: string,
+): UiElement[] {
   const q = query.trim().toLowerCase();
-  const fields = (e: UiElement) => [e.label, e.value, e.id].filter(Boolean).map((s) => s!.toLowerCase());
-  const candidates = elements.filter((e) => e.depth > 0 || e.type !== "Application");
+  const fields = (e: UiElement) =>
+    [e.label, e.value, e.id].filter(Boolean).map((s) => s!.toLowerCase());
+  const candidates = elements.filter(
+    (e) => e.depth > 0 || e.type !== "Application",
+  );
   const exact = candidates.filter((e) => fields(e).some((f) => f === q));
-  return exact.length ? exact : candidates.filter((e) => fields(e).some((f) => f.includes(q)));
+  return exact.length
+    ? exact
+    : candidates.filter((e) => fields(e).some((f) => f.includes(q)));
 }
 
 export function formatElement(e: UiElement, index?: number): string {
-  const name = [e.label !== undefined && `"${e.label.replace(/\s*\n\s*/g, " ")}"`, e.value && e.value !== e.label && `value="${e.value}"`, e.id && `id=${e.id}`].filter(Boolean).join(" ");
+  const name = [
+    e.label !== undefined && `"${e.label.replace(/\s*\n\s*/g, " ")}"`,
+    e.value && e.value !== e.label && `value="${e.value}"`,
+    e.id && `id=${e.id}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const pre = index === undefined ? "" : `[${index}] `;
   return `${e.depth === 0 ? "" : "  "}${pre}${e.type}${name ? ` ${name}` : ""}  @${e.center.x},${e.center.y}${e.enabled ? "" : " (disabled)"}`;
 }
@@ -85,7 +110,14 @@ export function formatElement(e: UiElement, index?: number): string {
  * dropped.
  */
 export function formatTree(elements: UiElement[]): string[] {
-  const shown = elements.filter((e) => e.label || e.value || e.id || e.depth === 0 || /Button|Field|Cell|Switch|Link|Tab/.test(e.type));
+  const shown = elements.filter(
+    (e) =>
+      e.label ||
+      e.value ||
+      e.id ||
+      e.depth === 0 ||
+      /Button|Field|Cell|Switch|Link|Tab/.test(e.type),
+  );
   const seen = new Set<string>();
   const out: string[] = [];
   for (const e of shown) {

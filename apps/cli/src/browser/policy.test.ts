@@ -16,7 +16,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   isPrivateHost,
-  checkUrl, denyNavigation, findManifestFile, isInternalUrl, loadMachinePolicy, loadSitePolicy, originOf, parsePattern,
+  checkUrl,
+  denyNavigation,
+  findManifestFile,
+  isInternalUrl,
+  loadMachinePolicy,
+  loadSitePolicy,
+  originOf,
+  parsePattern,
   type SitePolicy,
 } from "./policy.js";
 
@@ -94,14 +101,25 @@ describe("origin matching", () => {
       "http://[::ffff:127.0.0.1]",
       "http://app.localhost",
     ]) {
-      expect({ url, allowed: checkUrl(wild, url).allowed }).toEqual({ url, allowed: false });
+      expect({ url, allowed: checkUrl(wild, url).allowed }).toEqual({
+        url,
+        allowed: false,
+      });
     }
     expect(checkUrl(wild, "http://172.32.0.1").allowed).toBe(true);
     expect(checkUrl(wild, "http://8.8.8.8").allowed).toBe(true);
     // Names are names: a wildcard that names an internal zone opens it.
-    expect(checkUrl(policyOf("*.corp.internal"), "https://wiki.corp.internal/").allowed).toBe(true);
+    expect(
+      checkUrl(policyOf("*.corp.internal"), "https://wiki.corp.internal/")
+        .allowed,
+    ).toBe(true);
     expect(checkUrl(wild, "http://printer.local").allowed).toBe(true);
-    const exact = policyOf("localhost:3200", "169.254.169.254", "printer.local", "[::1]");
+    const exact = policyOf(
+      "localhost:3200",
+      "169.254.169.254",
+      "printer.local",
+      "[::1]",
+    );
     expect(checkUrl(exact, "http://localhost:3200/inbox").allowed).toBe(true);
     expect(checkUrl(exact, "http://169.254.169.254/").allowed).toBe(true);
     expect(checkUrl(exact, "http://printer.local").allowed).toBe(true);
@@ -122,7 +140,9 @@ describe("origin matching", () => {
   test("blank and malformed patterns never match", () => {
     expect(parsePattern("")).toBeNull();
     expect(parsePattern("   ")).toBeNull();
-    expect(checkUrl(policyOf("", "  "), "https://example.com").allowed).toBe(false);
+    expect(checkUrl(policyOf("", "  "), "https://example.com").allowed).toBe(
+      false,
+    );
   });
 });
 
@@ -146,8 +166,16 @@ describe("enforcement decision", () => {
   test("union across sources: either file can allow", () => {
     const p: SitePolicy = {
       sources: [
-        { file: "/proj/workspace.toml", key: "[browser] allow", patterns: ["github.com"] },
-        { file: "/home/config.json", key: "browser_allow", patterns: ["*.google.com"] },
+        {
+          file: "/proj/workspace.toml",
+          key: "[browser] allow",
+          patterns: ["github.com"],
+        },
+        {
+          file: "/home/config.json",
+          key: "browser_allow",
+          patterns: ["*.google.com"],
+        },
       ],
       errors: [],
     };
@@ -157,7 +185,10 @@ describe("enforcement decision", () => {
   });
 
   test("a broken source fails closed and names the file", () => {
-    const p: SitePolicy = { sources: [], errors: [{ file: "/proj/workspace.toml", message: "invalid TOML" }] };
+    const p: SitePolicy = {
+      sources: [],
+      errors: [{ file: "/proj/workspace.toml", message: "invalid TOML" }],
+    };
     const verdict = checkUrl(p, "https://example.com");
     expect(verdict.allowed).toBe(false);
     expect(verdict.reason).toContain("/proj/workspace.toml");
@@ -205,7 +236,9 @@ describe("loading from disk", () => {
     writeManifest(dir, `[browser]\nallow = ["github.com", "*.example.com"]\n`);
     const sub = path.join(dir, "packages", "web");
     fs.mkdirSync(sub, { recursive: true });
-    expect(findManifestFile(sub)).toBe(path.join(dir, ".codecast", "workspace.toml"));
+    expect(findManifestFile(sub)).toBe(
+      path.join(dir, ".codecast", "workspace.toml"),
+    );
     const policy = loadSitePolicy(sub)!;
     expect(policy.sources).toHaveLength(1);
     expect(checkUrl(policy, "https://api.example.com").allowed).toBe(true);
@@ -239,7 +272,10 @@ describe("loading from disk", () => {
 
   test("a malformed global browser_allow blocks rather than vanishing", () => {
     fs.mkdirSync(process.env.CODECAST_DIR!, { recursive: true });
-    fs.writeFileSync(path.join(process.env.CODECAST_DIR!, "config.json"), JSON.stringify({ browser_allow: "github.com" }));
+    fs.writeFileSync(
+      path.join(process.env.CODECAST_DIR!, "config.json"),
+      JSON.stringify({ browser_allow: "github.com" }),
+    );
     const policy = loadSitePolicy(dir)!;
     expect(policy.errors).toHaveLength(1);
     expect(checkUrl(policy, "https://github.com").allowed).toBe(false);
@@ -253,10 +289,29 @@ describe("loading from disk", () => {
     const configFile = path.join(process.env.CODECAST_DIR!, "config.json");
     fs.writeFileSync(configFile, JSON.stringify({ auth_token: "x" }));
     expect(loadMachinePolicy()).toBeNull();
-    fs.writeFileSync(configFile, JSON.stringify({ browser_allow: ["codecast.sh"] }));
-    expect(loadMachinePolicy()).toEqual({ sources: [{ file: configFile, key: "browser_allow", patterns: ["codecast.sh"] }], errors: [] });
-    fs.writeFileSync(configFile, JSON.stringify({ browser_allow: "codecast.sh" }));
-    expect(loadMachinePolicy()).toEqual({ sources: [], errors: [{ file: configFile, message: "browser_allow must be an array of strings" }] });
+    fs.writeFileSync(
+      configFile,
+      JSON.stringify({ browser_allow: ["codecast.sh"] }),
+    );
+    expect(loadMachinePolicy()).toEqual({
+      sources: [
+        { file: configFile, key: "browser_allow", patterns: ["codecast.sh"] },
+      ],
+      errors: [],
+    });
+    fs.writeFileSync(
+      configFile,
+      JSON.stringify({ browser_allow: "codecast.sh" }),
+    );
+    expect(loadMachinePolicy()).toEqual({
+      sources: [],
+      errors: [
+        {
+          file: configFile,
+          message: "browser_allow must be an array of strings",
+        },
+      ],
+    });
   });
 
   test("loadMachinePolicy: a torn config.json keeps the list last read whole (none stays none)", () => {
@@ -266,8 +321,13 @@ describe("loading from disk", () => {
     expect(loadMachinePolicy()).toBeNull();
     fs.writeFileSync(configFile, '{"auth_tok');
     expect(loadMachinePolicy()).toBeNull();
-    expect(checkUrl(loadMachinePolicy(), "https://example.com").allowed).toBe(true);
-    fs.writeFileSync(configFile, JSON.stringify({ browser_allow: ["codecast.sh"] }));
+    expect(checkUrl(loadMachinePolicy(), "https://example.com").allowed).toBe(
+      true,
+    );
+    fs.writeFileSync(
+      configFile,
+      JSON.stringify({ browser_allow: ["codecast.sh"] }),
+    );
     expect(loadMachinePolicy()!.sources[0]!.patterns).toEqual(["codecast.sh"]);
     fs.writeFileSync(configFile, '{"browser_al');
     const torn = loadMachinePolicy()!;
@@ -279,22 +339,32 @@ describe("loading from disk", () => {
   test("loadMachinePolicy never walks up for a project manifest; loadSitePolicy still unions manifest first, machine second", () => {
     writeManifest(dir, `[browser]\nallow = ["github.com"]\n`);
     fs.mkdirSync(process.env.CODECAST_DIR!, { recursive: true });
-    fs.writeFileSync(path.join(process.env.CODECAST_DIR!, "config.json"), JSON.stringify({ browser_allow: ["codecast.sh"] }));
+    fs.writeFileSync(
+      path.join(process.env.CODECAST_DIR!, "config.json"),
+      JSON.stringify({ browser_allow: ["codecast.sh"] }),
+    );
     const prevCwd = process.cwd();
     process.chdir(dir);
     try {
-      expect(loadMachinePolicy()!.sources.map((s) => s.key)).toEqual(["browser_allow"]);
+      expect(loadMachinePolicy()!.sources.map((s) => s.key)).toEqual([
+        "browser_allow",
+      ]);
     } finally {
       process.chdir(prevCwd);
     }
-    expect(loadSitePolicy(dir)!.sources.map((s) => s.key)).toEqual(["[browser] allow", "browser_allow"]);
+    expect(loadSitePolicy(dir)!.sources.map((s) => s.key)).toEqual([
+      "[browser] allow",
+      "browser_allow",
+    ]);
   });
 });
 
 describe("origin labels", () => {
   test("real origins keep scheme, host and explicit port", () => {
     expect(originOf("https://example.com/a?b=1")).toBe("https://example.com");
-    expect(originOf("http://localhost:3200/inbox")).toBe("http://localhost:3200");
+    expect(originOf("http://localhost:3200/inbox")).toBe(
+      "http://localhost:3200",
+    );
   });
   test("originless schemes fall back to a scheme label", () => {
     expect(originOf("file:///etc/hosts")).toBe("file://");

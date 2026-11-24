@@ -5,12 +5,61 @@ import { rootAgentOf, type AnchorRow } from "./useSyncAnchors";
 // Every role's standing session is such a row, so the picker must take the
 // row the server marks as the root (anchors.workspaceAgentRoleOf), never the
 // oldest lead.
-const row = (o: Partial<AnchorRow>): AnchorRow => ({ _id: o._id ?? "a", scope_type: "team", team_id: "t1", bot_user_id: "b", host_user_id: "h", name: o.name ?? "x", bot_name: o.name ?? "x", bot_avatar: null, team_name: "Union", ...o } as AnchorRow);
+const row = (o: Partial<AnchorRow>): AnchorRow =>
+  ({
+    _id: o._id ?? "a",
+    scope_type: "team",
+    team_id: "t1",
+    bot_user_id: "b",
+    host_user_id: "h",
+    name: o.name ?? "x",
+    bot_name: o.name ?? "x",
+    bot_avatar: null,
+    team_name: "Union",
+    ...o,
+  }) as AnchorRow;
 
 describe("rootAgentOf", () => {
-  const infra = row({ _id: "infra", name: "Infra lead", role: { _id: "r6", short_id: "or-6", name: "Infra lead", handle: "infra-lead", avatar: null, status: "paused" } as any });
-  const head = row({ _id: "head", name: "Anchor", is_root: true, role: { _id: "r10", short_id: "or-10", name: "Head of People", handle: "head-of-people", avatar: null, status: "active" } as any });
-  const personal = row({ _id: "me", scope_type: "user", team_id: null, name: "Anchor", is_root: true, role: { _id: "r22", short_id: "or-22", name: "Head of People", handle: "head-of-people", avatar: "snail", status: "active" } as any });
+  const infra = row({
+    _id: "infra",
+    name: "Infra lead",
+    role: {
+      _id: "r6",
+      short_id: "or-6",
+      name: "Infra lead",
+      handle: "infra-lead",
+      avatar: null,
+      status: "paused",
+    } as any,
+  });
+  const head = row({
+    _id: "head",
+    name: "Anchor",
+    is_root: true,
+    role: {
+      _id: "r10",
+      short_id: "or-10",
+      name: "Head of People",
+      handle: "head-of-people",
+      avatar: null,
+      status: "active",
+    } as any,
+  });
+  const personal = row({
+    _id: "me",
+    scope_type: "user",
+    team_id: null,
+    name: "Anchor",
+    is_root: true,
+    role: {
+      _id: "r22",
+      short_id: "or-22",
+      name: "Head of People",
+      handle: "head-of-people",
+      avatar: "snail",
+      status: "active",
+    } as any,
+  });
 
   test("the marked root wins over an older lead in the same team", () => {
     expect(rootAgentOf([infra, head, personal], "t1")?._id).toBe("head");
@@ -25,8 +74,23 @@ describe("rootAgentOf", () => {
   });
 
   test("whichever row the server marks wins, an assistant included", () => {
-    const assistant = row({ _id: "ea", name: "Executive Assistant", is_root: true, role: { _id: "r44", short_id: "or-44", name: "Executive Assistant", handle: "executive-assistant", avatar: "bear", status: "active", assistant: { reach: "team", team_id: "t1" } } as any });
-    expect(rootAgentOf([infra, { ...head, is_root: false }, assistant], "t1")?._id).toBe("ea");
+    const assistant = row({
+      _id: "ea",
+      name: "Executive Assistant",
+      is_root: true,
+      role: {
+        _id: "r44",
+        short_id: "or-44",
+        name: "Executive Assistant",
+        handle: "executive-assistant",
+        avatar: "bear",
+        status: "active",
+        assistant: { reach: "team", team_id: "t1" },
+      } as any,
+    });
+    expect(
+      rootAgentOf([infra, { ...head, is_root: false }, assistant], "t1")?._id,
+    ).toBe("ea");
   });
 
   test("a seat that is no role's yet stands in for a root that is not hired", () => {

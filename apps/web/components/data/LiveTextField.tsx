@@ -20,13 +20,23 @@ const PARTS = [
 ] as const;
 
 /** The text as a reader sees it: each token drawn as its value today, so the box's raw keys are never the only view. */
-function ReadsAs({ text, preview }: { text: string; preview: (key: string, part: dashboard.TokenPart) => string }) {
-  const parts = text.split(/(\{b_[A-Za-z0-9_]+(?:\.(?:value|delta|trend|vs))?\})/);
+function ReadsAs({
+  text,
+  preview,
+}: {
+  text: string;
+  preview: (key: string, part: dashboard.TokenPart) => string;
+}) {
+  const parts = text.split(
+    /(\{b_[A-Za-z0-9_]+(?:\.(?:value|delta|trend|vs))?\})/,
+  );
   if (parts.length < 2) return null;
   return (
     <div className="text-meta text-sol-text-muted break-words" data-reads-as>
       {parts.map((p, i) => {
-        const m = p.match(/^\{(b_[A-Za-z0-9_]+)(?:\.(value|delta|trend|vs))?\}$/);
+        const m = p.match(
+          /^\{(b_[A-Za-z0-9_]+)(?:\.(value|delta|trend|vs))?\}$/,
+        );
         if (!m) return <span key={i}>{p}</span>;
         return (
           <span key={i} className="px-1 rounded bg-sol-blue/10 text-sol-text">
@@ -38,11 +48,34 @@ function ReadsAs({ text, preview }: { text: string; preview: (key: string, part:
   );
 }
 
-export function LiveTextField({ label, value, kpis, multiline, placeholder, onCommit, holdKey, preview }: { label: string; value: unknown; kpis: ArtifactElement[]; multiline?: boolean; placeholder?: string; onCommit: (v: string) => void; holdKey?: string; preview?: (key: string, part: dashboard.TokenPart) => string }) {
+export function LiveTextField({
+  label,
+  value,
+  kpis,
+  multiline,
+  placeholder,
+  onCommit,
+  holdKey,
+  preview,
+}: {
+  label: string;
+  value: unknown;
+  kpis: ArtifactElement[];
+  multiline?: boolean;
+  placeholder?: string;
+  onCommit: (v: string) => void;
+  holdKey?: string;
+  preview?: (key: string, part: dashboard.TokenPart) => string;
+}) {
   const shown = value === undefined || value === null ? "" : String(value);
   const keys = kpis.map((k) => k.key);
   const problem = (v: string) => textRefusal(v, keys);
-  const { draft, setDraft: setDraftRaw, onFocus, onBlur } = useCommittedDraft(shown);
+  const {
+    draft,
+    setDraft: setDraftRaw,
+    onFocus,
+    onBlur,
+  } = useCommittedDraft(shown);
   // Saved after a pause in typing, not only on blur: leaving the page or reloading never drops what was typed. One write per pause keeps typing cheap.
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestCommit = useRef<(v: string) => void>(() => {});
@@ -96,9 +129,12 @@ export function LiveTextField({ label, value, kpis, multiline, placeholder, onCo
     placeholder,
     "aria-label": label,
     "aria-invalid": error ? true : undefined,
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => setDraft(e.target.value),
+    onChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
+      setDraft(e.target.value),
     onFocus,
-    onSelect: (e: React.SyntheticEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    onSelect: (
+      e: React.SyntheticEvent<HTMLTextAreaElement | HTMLInputElement>,
+    ) => {
       caret.current = e.currentTarget.selectionStart;
     },
     onBlur: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => {
@@ -116,22 +152,47 @@ export function LiveTextField({ label, value, kpis, multiline, placeholder, onCo
         {kpis.length ? (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} className="inline-flex items-center gap-1 h-6 px-1.5 rounded text-meta text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                className="inline-flex items-center gap-1 h-6 px-1.5 rounded text-meta text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt"
+              >
                 <Hash className="w-3 h-3" /> Live value
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-1.5" onOpenAutoFocus={(e) => e.preventDefault()}>
+            <PopoverContent
+              align="end"
+              className="w-80 p-1.5"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
               <div className="max-h-72 overflow-y-auto">
                 {kpis.map((k) => (
-                  <div key={k.key} className="px-1 py-1 border-b border-sol-border/30 last:border-0">
-                    <div className="px-1 text-xs font-medium text-sol-text break-words">{String(k.title || k.key)}</div>
+                  <div
+                    key={k.key}
+                    className="px-1 py-1 border-b border-sol-border/30 last:border-0"
+                  >
+                    <div className="px-1 text-xs font-medium text-sol-text break-words">
+                      {String(k.title || k.key)}
+                    </div>
                     <div className="mt-0.5 flex flex-wrap gap-1">
                       {/* A KPI with no comparison has only its value: a change, direction or "compared with" would read empty. */}
                       {(k.compare ? PARTS : PARTS.slice(0, 1)).map((p) => {
                         // Each part shows what it would read as today, so the right one is picked by its words, not its name.
-                        const now = preview?.(k.key, p.part ? (p.part.slice(1) as dashboard.TokenPart) : "value");
+                        const now = preview?.(
+                          k.key,
+                          p.part
+                            ? (p.part.slice(1) as dashboard.TokenPart)
+                            : "value",
+                        );
                         return (
-                          <button key={p.part} type="button" onClick={() => insert(`{${k.key}${p.part}}`)} title={p.label} className="h-6 px-1.5 rounded text-meta text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt max-w-full truncate" data-insert-token={`${k.key}${p.part}`}>
+                          <button
+                            key={p.part}
+                            type="button"
+                            onClick={() => insert(`{${k.key}${p.part}}`)}
+                            title={p.label}
+                            className="h-6 px-1.5 rounded text-meta text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt max-w-full truncate"
+                            data-insert-token={`${k.key}${p.part}`}
+                          >
                             {now || p.label}
                           </button>
                         );
@@ -144,9 +205,20 @@ export function LiveTextField({ label, value, kpis, multiline, placeholder, onCo
           </Popover>
         ) : null}
       </div>
-      {multiline ? <textarea {...props} rows={4} /> : <input {...props} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />}
+      {multiline ? (
+        <textarea {...props} rows={4} />
+      ) : (
+        <input
+          {...props}
+          onKeyDown={(e) =>
+            e.key === "Enter" && (e.target as HTMLInputElement).blur()
+          }
+        />
+      )}
       {preview && !error ? <ReadsAs text={draft} preview={preview} /> : null}
-      {error ? <span className="block text-meta text-sol-red">{error}</span> : null}
+      {error ? (
+        <span className="block text-meta text-sol-red">{error}</span>
+      ) : null}
     </div>
   );
 }

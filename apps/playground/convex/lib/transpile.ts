@@ -4,7 +4,9 @@
 import { transform, type Transform } from "sucrase";
 import { fileExtension } from "./files";
 
-export type TranspileResult = { ok: true; code: string } | { ok: false; error: string };
+export type TranspileResult =
+  | { ok: true; code: string }
+  | { ok: false; error: string };
 
 const TRANSFORMS: Record<string, Transform[]> = {
   jsx: ["jsx"],
@@ -25,7 +27,10 @@ export function transpile(path: string, source: string): TranspileResult {
     });
     return { ok: true, code };
   } catch (e) {
-    const message = (e instanceof Error ? e.message : String(e)).replace(/^Error transforming [^:]*: /, "");
+    const message = (e instanceof Error ? e.message : String(e)).replace(
+      /^Error transforming [^:]*: /,
+      "",
+    );
     return { ok: false, error: `${path}: ${message}` };
   }
 }

@@ -25,12 +25,35 @@ import { useAccountRecoveryToggles } from "../hooks/useAccountRecoveryToggles";
 import { RecoveryModeSelect, RecoveryDecisionNote } from "./RecoveryModeSelect";
 import { useMachineAccountSwitch } from "../hooks/useMachineAccountSwitch";
 import { useTrackedStore } from "../store/inboxStore";
-import { exhaustionBannerCopy, isExhaustionCurrent, profileHasSetupToken, worstUsagePercent, type CcUsage } from "@codecast/convex/convex/ccAccountsShared";
-import { describeLastAction, formatAgo, headroomScore, describeDecision, planTypeLabel, profileLabel } from "@codecast/shared/contracts";
+import {
+  exhaustionBannerCopy,
+  isExhaustionCurrent,
+  profileHasSetupToken,
+  worstUsagePercent,
+  type CcUsage,
+} from "@codecast/convex/convex/ccAccountsShared";
+import {
+  describeLastAction,
+  formatAgo,
+  headroomScore,
+  describeDecision,
+  planTypeLabel,
+  profileLabel,
+} from "@codecast/shared/contracts";
 import { planAgentType, resolveAccountChip } from "../lib/accountUsageChip";
-import { machineSwitchBlock, machineSwitchPendingCopy, profileIsCurrentLogin } from "../lib/machineAccountSwitch";
+import {
+  machineSwitchBlock,
+  machineSwitchPendingCopy,
+  profileIsCurrentLogin,
+} from "../lib/machineAccountSwitch";
 import { usageTone } from "../lib/usageTone";
-import { AccountUsageBars, LoginExpiredBadge, ProfileSignInButton, ReservedBadge, UsageRefreshButton } from "./AccountUsageMeter";
+import {
+  AccountUsageBars,
+  LoginExpiredBadge,
+  ProfileSignInButton,
+  ReservedBadge,
+  UsageRefreshButton,
+} from "./AccountUsageMeter";
 import { MintTokenButton, SetupTokenBadge } from "./MintTokenDialog";
 import { TopbarChip } from "./TopbarButton";
 
@@ -74,14 +97,20 @@ function ClaudeSwitchControl({
   });
   if (blocked?.block === "login_expired") {
     return (
-      <span className="shrink-0 text-meta text-sol-text-dim" title={blocked.label}>
+      <span
+        className="shrink-0 text-meta text-sol-text-dim"
+        title={blocked.label}
+      >
         sign in to switch
       </span>
     );
   }
   if (blocked) {
     return (
-      <span className="shrink-0 cursor-default text-meta text-sol-text-dim" title={blocked.label}>
+      <span
+        className="shrink-0 cursor-default text-meta text-sol-text-dim"
+        title={blocked.label}
+      >
         switch →
       </span>
     );
@@ -133,7 +162,10 @@ function ProviderSegment({
 function AccountChipEmpty({ onManage }: { onManage: () => void }) {
   return (
     <div className="relative hidden md:block">
-      <TopbarChip onClick={onManage} title="Manage accounts by machine in Settings">
+      <TopbarChip
+        onClick={onManage}
+        title="Manage accounts by machine in Settings"
+      >
         <KeyRound className="h-3 w-3 shrink-0" />
         <span className="max-w-[88px] truncate">accounts</span>
       </TopbarChip>
@@ -171,7 +203,9 @@ export function AccountUsageChip() {
     },
   ]);
   const currentId = s.currentSessionId;
-  const currentAgentType = currentId ? planAgentType(s.conversations[currentId] ?? s.sessions[currentId]) : null;
+  const currentAgentType = currentId
+    ? planAgentType(s.conversations[currentId] ?? s.sessions[currentId])
+    : null;
   const lastShownProvider = useRef<"claude" | "codex" | null>(null);
 
   const resolved = resolveAccountChip({
@@ -205,21 +239,30 @@ export function AccountUsageChip() {
   const active = resolved?.active;
   const codexProfiles: ProfileRow[] = device?.codex_accounts?.profiles ?? [];
   const activeCodex = resolved?.activeCodex;
-  if (!resolved || !device) return <AccountChipEmpty onManage={() => router.push("/settings/claude-accounts")} />;
+  if (!resolved || !device)
+    return (
+      <AccountChipEmpty
+        onManage={() => router.push("/settings/claude-accounts")}
+      />
+    );
 
   // Time-aware: a window whose reset has passed contributes 0, so a dormant
   // account's old 100% never keeps the chip pegged red.
   const worst = active ? worstUsagePercent(active.usage, now) : null;
-  const codexWorst = activeCodex ? worstUsagePercent(activeCodex.usage, now) : null;
+  const codexWorst = activeCodex
+    ? worstUsagePercent(activeCodex.usage, now)
+    : null;
   const claudeTone = worst != null ? usageTone(worst) : "var(--sol-text-dim)";
-  const codexTone = codexWorst != null ? usageTone(codexWorst) : "var(--sol-text-dim)";
+  const codexTone =
+    codexWorst != null ? usageTone(codexWorst) : "var(--sol-text-dim)";
   // The segment reads as: account name + worst LIMIT window. (The label used
   // to be the week's dominant model, which made "sol 0%" in the chip
   // contradict the popover's "SOL 100%" token-share row.)
   const codexLabel = activeCodex?.name ?? "codex";
   const claudeUsed = !!active && worst != null && worst > 0;
   const codexUsed =
-    !!activeCodex && ((activeCodex.usage?.models?.length ?? 0) > 0 || (codexWorst ?? 0) > 0);
+    !!activeCodex &&
+    ((activeCodex.usage?.models?.length ?? 0) > 0 || (codexWorst ?? 0) > 0);
   const shown = resolved.shown;
   lastShownProvider.current = shown;
   // The chip border speaks for the shown provider.
@@ -229,14 +272,22 @@ export function AccountUsageChip() {
   // answer. Everything else groups by email below: the same login usually
   // exists on both providers, so one email header covers its Claude and
   // Codex rows.
-  type AccountEntry = { provider: "claude" | "codex"; p: ProfileRow; isActive: boolean };
+  type AccountEntry = {
+    provider: "claude" | "codex";
+    p: ProfileRow;
+    isActive: boolean;
+  };
   const allEntries: AccountEntry[] = [
     ...profiles.map((p) => ({
       provider: "claude" as const,
       p,
       isActive: p === active,
     })),
-    ...codexProfiles.map((p) => ({ provider: "codex" as const, p, isActive: p === activeCodex })),
+    ...codexProfiles.map((p) => ({
+      provider: "codex" as const,
+      p,
+      isActive: p === activeCodex,
+    })),
   ];
   // Most room left first, inside a group and between groups: the top of the
   // "Available" list is then the account a switch would land on. A group's
@@ -267,7 +318,11 @@ export function AccountUsageChip() {
   const awaitingApproval = state?.last_decision?.kind === "propose";
   // Only a re-check clears the stamp, so an old one keeps claiming "everything
   // is spent" after the windows rolled — read it against the clock.
-  const exhausted = isExhaustionCurrent(state?.exhausted_at, [...profiles, ...codexProfiles], now);
+  const exhausted = isExhaustionCurrent(
+    state?.exhausted_at,
+    [...profiles, ...codexProfiles],
+    now,
+  );
   const handleSwitch = (profile: string, email?: string) => {
     setOpen(true);
     void sw.switchTo(profile, email);
@@ -276,24 +331,33 @@ export function AccountUsageChip() {
 
   // One email group card, shared by both panel sections; the active section
   // gets the green treatment.
-  const renderGroup = (g: { email: string; entries: AccountEntry[] }, activeGroup: boolean) => (
+  const renderGroup = (
+    g: { email: string; entries: AccountEntry[] },
+    activeGroup: boolean,
+  ) => (
     <div
       key={g.email}
       className={`rounded-md border p-2 ${
-        activeGroup ? "border-sol-green/30 bg-sol-green/[0.05]" : "border-sol-border/50"
+        activeGroup
+          ? "border-sol-green/30 bg-sol-green/[0.05]"
+          : "border-sol-border/50"
       }`}
     >
       <div className="mb-1 flex items-center gap-1.5">
         <span
           className={`h-1.5 w-1.5 shrink-0 rounded-full ${activeGroup ? "bg-sol-green" : "bg-sol-border"}`}
         />
-        <span className="min-w-0 truncate text-meta font-medium text-sol-text">{g.email}</span>
+        <span className="min-w-0 truncate text-meta font-medium text-sol-text">
+          {g.email}
+        </span>
       </div>
       <div className="space-y-1.5">
         {g.entries.map((e, i) => (
           <div
             key={`${e.provider}:${e.p.name}`}
-            className={i > 0 ? "border-t border-sol-border/40 pt-1.5" : undefined}
+            className={
+              i > 0 ? "border-t border-sol-border/40 pt-1.5" : undefined
+            }
           >
             <div className="mb-1 flex items-center gap-1.5">
               <KeyRound
@@ -310,23 +374,34 @@ export function AccountUsageChip() {
               )}
               <span className="min-w-0 flex-1 truncate text-meta text-sol-text-dim">
                 {profileLabel(e.p.name)}
-                {(e.p.subscription ?? e.p.tier) ? ` · ${e.p.subscription ? planTypeLabel(e.p.subscription) : e.p.tier}` : ""}
+                {(e.p.subscription ?? e.p.tier)
+                  ? ` · ${e.p.subscription ? planTypeLabel(e.p.subscription) : e.p.tier}`
+                  : ""}
               </span>
               {e.provider === "claude" && sw.switching === e.p.name ? (
                 <span className="inline-flex shrink-0 items-center gap-1 text-meta font-medium text-sol-cyan">
-                  <span className="h-2 w-2 animate-spin rounded-full border-2 border-sol-cyan/30 border-t-sol-cyan" aria-hidden />
+                  <span
+                    className="h-2 w-2 animate-spin rounded-full border-2 border-sol-cyan/30 border-t-sol-cyan"
+                    aria-hidden
+                  />
                   switching…
                 </span>
               ) : e.isActive ? (
                 <span
                   className="shrink-0 text-meta font-medium text-sol-green"
                   title={
-                    e.provider === "claude" && device.launch_profile === e.p.name && !device.fleet_store
+                    e.provider === "claude" &&
+                    device.launch_profile === e.p.name &&
+                    !device.fleet_store
                       ? "Sessions run on this account's minted token; the machine's own login is another account"
                       : undefined
                   }
                 >
-                  {e.provider === "claude" && device.launch_profile === e.p.name && !device.fleet_store ? "active · token" : "active"}
+                  {e.provider === "claude" &&
+                  device.launch_profile === e.p.name &&
+                  !device.fleet_store
+                    ? "active · token"
+                    : "active"}
                 </span>
               ) : e.provider === "claude" ? (
                 // Codex rows are display-only for now — switching the
@@ -349,14 +424,17 @@ export function AccountUsageChip() {
             <div className="mb-1 flex flex-wrap items-center gap-1 empty:hidden">
               <LoginExpiredBadge profile={e.p} />
               <ReservedBadge profile={e.p} />
-              {e.provider === "claude" && !!device.launch_profile && !e.isActive && profileIsCurrentLogin(e.p, device.active_email) && (
-                <span
-                  className="rounded bg-sol-bg-alt px-1 py-px text-meta text-sol-text-dim"
-                  title="The machine's keychain login: what a `claude` typed in a terminal runs on"
-                >
-                  machine login
-                </span>
-              )}
+              {e.provider === "claude" &&
+                !!device.launch_profile &&
+                !e.isActive &&
+                profileIsCurrentLogin(e.p, device.active_email) && (
+                  <span
+                    className="rounded bg-sol-bg-alt px-1 py-px text-meta text-sol-text-dim"
+                    title="The machine's keychain login: what a `claude` typed in a terminal runs on"
+                  >
+                    machine login
+                  </span>
+                )}
               {e.provider === "claude" && device && (
                 <ProfileSignInButton
                   device={device}
@@ -368,8 +446,12 @@ export function AccountUsageChip() {
                   }
                 />
               )}
-              {e.provider === "claude" && <SetupTokenBadge profile={e.p} now={now} />}
-              {e.provider === "claude" && device && <MintTokenButton device={device} profile={e.p} />}
+              {e.provider === "claude" && (
+                <SetupTokenBadge profile={e.p} now={now} />
+              )}
+              {e.provider === "claude" && device && (
+                <MintTokenButton device={device} profile={e.p} />
+              )}
             </div>
             <AccountUsageBars usage={e.p.usage} now={now} />
           </div>
@@ -391,10 +473,25 @@ export function AccountUsageChip() {
       onMouseEnter={openNow}
       onMouseLeave={closeSoon}
       onFocus={openNow}
-      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) closeSoon(); }}
-      onKeyDown={(e) => { if (e.key === "Escape" && open) { e.stopPropagation(); pointerInside.current = false; setOpen(false); } }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+          closeSoon();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) {
+          e.stopPropagation();
+          pointerInside.current = false;
+          setOpen(false);
+        }
+      }}
     >
-      <TopbarChip tone={tone} alert={tone !== "var(--sol-green)" && tone !== "var(--sol-text-dim)"} onClick={openNow} aria-haspopup="dialog" aria-expanded={panelOpen}>
+      <TopbarChip
+        tone={tone}
+        alert={tone !== "var(--sol-green)" && tone !== "var(--sol-text-dim)"}
+        onClick={openNow}
+        aria-haspopup="dialog"
+        aria-expanded={panelOpen}
+      >
         {shown === "claude" ? (
           <ProviderSegment
             icon={<ClaudeIcon className="h-3 w-3 shrink-0 text-sol-orange" />}
@@ -425,7 +522,10 @@ export function AccountUsageChip() {
         {awaitingApproval && !sw.switching && (
           <span
             className="shrink-0 rounded bg-sol-yellow/15 px-1 text-meta font-semibold text-sol-yellow modern:rounded-control modern:bg-sol-yellow/10 modern:px-1.5 modern:font-medium"
-            title={describeDecision(state?.last_decision) ?? "An account switch is waiting for your approval"}
+            title={
+              describeDecision(state?.last_decision) ??
+              "An account switch is waiting for your approval"
+            }
           >
             switch?
           </span>
@@ -434,7 +534,11 @@ export function AccountUsageChip() {
           <span
             className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-current/30 border-t-current"
             style={{ color: tone }}
-            aria-label={machineSwitchPendingCopy(sw.phase, sw.label, device.label)}
+            aria-label={machineSwitchPendingCopy(
+              sw.phase,
+              sw.label,
+              device.label,
+            )}
           />
         ) : autoOn ? (
           // Auto-switch on is the default and needs no mark at rest; the bolt
@@ -442,7 +546,9 @@ export function AccountUsageChip() {
           (exhausted || awaitingApproval) && (
             <Zap
               className="h-3 w-3"
-              style={{ color: exhausted ? "var(--sol-red)" : "var(--sol-yellow)" }}
+              style={{
+                color: exhausted ? "var(--sol-red)" : "var(--sol-yellow)",
+              }}
               aria-label={
                 awaitingApproval
                   ? "An account switch is waiting for your approval"
@@ -464,117 +570,142 @@ export function AccountUsageChip() {
       {panelOpen && (
         <div data-flyout className="absolute right-0 top-full z-50 pt-1.5">
           <div className="flex max-h-[calc(100dvh-4rem)] w-[320px] flex-col rounded-md border bg-popover text-popover-foreground shadow-md">
-        <div className="shrink-0 border-b border-sol-border/60 px-3 py-2">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-sol-text">
-            <KeyRound className="h-3.5 w-3.5 text-sol-cyan" />
-            Model usage
-            <span className="ml-auto font-normal text-meta text-sol-text-dim">{device.label}</span>
-            <UsageRefreshButton device={device} />
-          </div>
-        </div>
-
-        {(sw.switching || sw.outcome) && (
-          <div
-            className={`shrink-0 border-b px-3 py-2 text-meta leading-snug ${
-              sw.outcome?.kind === "error"
-                ? "border-sol-red/30 bg-sol-red/10 text-sol-red"
-                : sw.outcome?.kind === "success"
-                  ? "border-sol-green/30 bg-sol-green/10 text-sol-green"
-                  : "border-sol-cyan/30 bg-sol-cyan/10 text-sol-cyan"
-            }`}
-          >
-            {sw.switching ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 shrink-0 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  {machineSwitchPendingCopy(sw.phase, sw.label, device.label)}
+            <div className="shrink-0 border-b border-sol-border/60 px-3 py-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-sol-text">
+                <KeyRound className="h-3.5 w-3.5 text-sol-cyan" />
+                Model usage
+                <span className="ml-auto font-normal text-meta text-sol-text-dim">
+                  {device.label}
                 </span>
-              </span>
-            ) : sw.outcome?.kind === "error" ? (
-              sw.outcome.message
-            ) : (
-              <>
-                Now using {sw.outcome?.profile}. Running sessions keep the account they started on.
-              </>
+                <UsageRefreshButton device={device} />
+              </div>
+            </div>
+
+            {(sw.switching || sw.outcome) && (
+              <div
+                className={`shrink-0 border-b px-3 py-2 text-meta leading-snug ${
+                  sw.outcome?.kind === "error"
+                    ? "border-sol-red/30 bg-sol-red/10 text-sol-red"
+                    : sw.outcome?.kind === "success"
+                      ? "border-sol-green/30 bg-sol-green/10 text-sol-green"
+                      : "border-sol-cyan/30 bg-sol-cyan/10 text-sol-cyan"
+                }`}
+              >
+                {sw.switching ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className="h-2 w-2 shrink-0 animate-spin rounded-full border-2 border-current/30 border-t-current"
+                      aria-hidden
+                    />
+                    <span className="min-w-0 flex-1">
+                      {machineSwitchPendingCopy(
+                        sw.phase,
+                        sw.label,
+                        device.label,
+                      )}
+                    </span>
+                  </span>
+                ) : sw.outcome?.kind === "error" ? (
+                  sw.outcome.message
+                ) : (
+                  <>
+                    Now using {sw.outcome?.profile}. Running sessions keep the
+                    account they started on.
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="max-h-[60rem] min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
-          {activeGroups.length > 0 && (
-            <>
-              <div className="px-0.5 text-mark font-semibold uppercase tracking-wider text-sol-green">
-                Active
-              </div>
-              {activeGroups.map((g) => renderGroup(g, true))}
-            </>
-          )}
-          {otherGroups.length > 0 && (
-            <>
-              <div className="px-0.5 pt-1 text-mark font-semibold uppercase tracking-wider text-sol-text-dim">
-                Available
-              </div>
-              <p className="px-0.5 text-meta leading-snug text-sol-text-dim">
-                Switch changes the default login on this machine. Sessions already running keep the
-                account they started on. An account whose login expired but holds a minted token
-                switches on the token: sessions move, the machine's login stays.
-              </p>
-              {otherGroups.map((g) => renderGroup(g, false))}
-            </>
-          )}
-          {profiles.length === 0 && (
-            <div className="rounded-md border border-dashed border-sol-border/60 p-2">
-              <div className="flex items-center gap-2 text-xs text-sol-text-dim">
-                <KeyRound className="h-3 w-3 opacity-50" />
-                No Claude account connected on this machine — run <span className="font-mono">/login</span> in
-                Claude Code and it appears here.
-              </div>
+            <div className="max-h-[60rem] min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
+              {activeGroups.length > 0 && (
+                <>
+                  <div className="px-0.5 text-mark font-semibold uppercase tracking-wider text-sol-green">
+                    Active
+                  </div>
+                  {activeGroups.map((g) => renderGroup(g, true))}
+                </>
+              )}
+              {otherGroups.length > 0 && (
+                <>
+                  <div className="px-0.5 pt-1 text-mark font-semibold uppercase tracking-wider text-sol-text-dim">
+                    Available
+                  </div>
+                  <p className="px-0.5 text-meta leading-snug text-sol-text-dim">
+                    Switch changes the default login on this machine. Sessions
+                    already running keep the account they started on. An account
+                    whose login expired but holds a minted token switches on the
+                    token: sessions move, the machine's login stays.
+                  </p>
+                  {otherGroups.map((g) => renderGroup(g, false))}
+                </>
+              )}
+              {profiles.length === 0 && (
+                <div className="rounded-md border border-dashed border-sol-border/60 p-2">
+                  <div className="flex items-center gap-2 text-xs text-sol-text-dim">
+                    <KeyRound className="h-3 w-3 opacity-50" />
+                    No Claude account connected on this machine — run{" "}
+                    <span className="font-mono">/login</span> in Claude Code and
+                    it appears here.
+                  </div>
+                </div>
+              )}
+              {codexProfiles.length === 0 && (
+                <div className="rounded-md border border-dashed border-sol-border/60 p-2">
+                  <div className="flex items-center gap-2 text-xs text-sol-text-dim">
+                    <KeyRound className="h-3 w-3 opacity-50" />
+                    Codex not detected on this machine — sign in with the Codex
+                    CLI and its usage appears here.
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-          {codexProfiles.length === 0 && (
-            <div className="rounded-md border border-dashed border-sol-border/60 p-2">
-              <div className="flex items-center gap-2 text-xs text-sol-text-dim">
-                <KeyRound className="h-3 w-3 opacity-50" />
-                Codex not detected on this machine — sign in with the Codex CLI and its usage appears here.
-              </div>
-            </div>
-          )}
-        </div>
 
-        <div className="shrink-0 border-t border-sol-border/60 px-3 py-2.5">
-          {/* Device-level mode — shown even when the current login isn't a
+            <div className="shrink-0 border-t border-sol-border/60 px-3 py-2.5">
+              {/* Device-level mode — shown even when the current login isn't a
               saved profile, so it is always reachable from here. */}
-          <div className="flex items-center gap-2 px-2">
-            <Zap className={`h-3.5 w-3.5 ${recovery.recovery.mode === "off" ? "text-sol-text-dim" : "text-sol-cyan"}`} />
-            <div className="text-xs font-medium text-sol-text">When a session stops on its own</div>
-          </div>
-          <div className="mt-1">
-            <RecoveryModeSelect control={recovery.recovery} compact />
-          </div>
-          {recovery.recovery.mode === "auto" && exhausted && (
-            <div className="mt-1.5 rounded bg-sol-red/10 px-2 py-1 text-meta text-sol-red">
-              {exhaustionBannerCopy([...profiles, ...codexProfiles], now)}
+              <div className="flex items-center gap-2 px-2">
+                <Zap
+                  className={`h-3.5 w-3.5 ${recovery.recovery.mode === "off" ? "text-sol-text-dim" : "text-sol-cyan"}`}
+                />
+                <div className="text-xs font-medium text-sol-text">
+                  When a session stops on its own
+                </div>
+              </div>
+              <div className="mt-1">
+                <RecoveryModeSelect control={recovery.recovery} compact />
+              </div>
+              {recovery.recovery.mode === "auto" && exhausted && (
+                <div className="mt-1.5 rounded bg-sol-red/10 px-2 py-1 text-meta text-sol-red">
+                  {exhaustionBannerCopy([...profiles, ...codexProfiles], now)}
+                </div>
+              )}
+              {!exhausted && state?.last_decision && (
+                <RecoveryDecisionNote
+                  decision={state.last_decision}
+                  now={now}
+                  className="mt-1.5 px-2"
+                />
+              )}
+              {!exhausted &&
+                !state?.last_decision &&
+                state?.last_action &&
+                state.last_action_at && (
+                  <div className="mt-1.5 px-2 text-meta text-sol-text-dim">
+                    Last action:{" "}
+                    {describeLastAction(state.last_action, profiles)}{" "}
+                    {formatAgo(now - state.last_action_at)}
+                  </div>
+                )}
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  router.push("/settings/claude-accounts");
+                }}
+                className="mt-2 text-meta text-sol-cyan hover:underline"
+              >
+                Manage accounts →
+              </button>
             </div>
-          )}
-          {!exhausted && state?.last_decision && (
-            <RecoveryDecisionNote decision={state.last_decision} now={now} className="mt-1.5 px-2" />
-          )}
-          {!exhausted && !state?.last_decision && state?.last_action && state.last_action_at && (
-            <div className="mt-1.5 px-2 text-meta text-sol-text-dim">
-              Last action: {describeLastAction(state.last_action, profiles)}{" "}
-              {formatAgo(now - state.last_action_at)}
-            </div>
-          )}
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings/claude-accounts");
-            }}
-            className="mt-2 text-meta text-sol-cyan hover:underline"
-          >
-            Manage accounts →
-          </button>
-        </div>
           </div>
         </div>
       )}

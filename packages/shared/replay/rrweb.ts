@@ -17,8 +17,18 @@
 //   type 6 Plugin rrweb/network@1     failed and slow requests (rrweb's and PostHog's payload shapes)
 //   type 5 Custom (Sentry)            console breadcrumbs and fetch/xhr performance spans
 // Everything else (pixels, styles, mouse moves) is dropped.
-import { cleanUrl, REPLAY_LIMITS, type ReplayConsoleLevel, type ReplayEvent } from "../contracts/replay";
-import { isFailedRequest, isRecorderNoise, isSlowRequest, sortReplayEvents } from "./events";
+import {
+  cleanUrl,
+  REPLAY_LIMITS,
+  type ReplayConsoleLevel,
+  type ReplayEvent,
+} from "../contracts/replay";
+import {
+  isFailedRequest,
+  isRecorderNoise,
+  isSlowRequest,
+  sortReplayEvents,
+} from "./events";
 
 /** The loose shape of an rrweb event. Vendor payloads are untrusted, so every field is read defensively. */
 export interface RrwebEvent {
@@ -27,8 +37,19 @@ export interface RrwebEvent {
   data?: any;
 }
 
-const EventType = { FullSnapshot: 2, IncrementalSnapshot: 3, Meta: 4, Custom: 5, Plugin: 6 } as const;
-const Source = { Mutation: 0, MouseInteraction: 2, Scroll: 3, Input: 5 } as const;
+const EventType = {
+  FullSnapshot: 2,
+  IncrementalSnapshot: 3,
+  Meta: 4,
+  Custom: 5,
+  Plugin: 6,
+} as const;
+const Source = {
+  Mutation: 0,
+  MouseInteraction: 2,
+  Scroll: 3,
+  Input: 5,
+} as const;
 const MouseClick = 2;
 const NodeType = { Document: 0, Element: 2, Text: 3 } as const;
 
@@ -87,15 +108,26 @@ class NodeIndex {
   }
 
   private copy(node: SNode): SNode {
-    const own: SNode = { id: node.id, type: node.type, ...(node.tagName ? { tagName: node.tagName } : {}), ...(node.attributes ? { attributes: { ...node.attributes } } : {}), ...(typeof node.textContent === "string" ? { textContent: node.textContent } : {}), childNodes: [] };
+    const own: SNode = {
+      id: node.id,
+      type: node.type,
+      ...(node.tagName ? { tagName: node.tagName } : {}),
+      ...(node.attributes ? { attributes: { ...node.attributes } } : {}),
+      ...(typeof node.textContent === "string"
+        ? { textContent: node.textContent }
+        : {}),
+      childNodes: [],
+    };
     this.nodes.set(own.id, own);
-    if (own.tagName === "label" && typeof own.attributes?.for === "string") this.labelsFor.set(own.attributes.for, own.id);
+    if (own.tagName === "label" && typeof own.attributes?.for === "string")
+      this.labelsFor.set(own.attributes.for, own.id);
     for (const child of node.childNodes ?? []) {
       if (!child || typeof child.id !== "number") continue;
       own.childNodes!.push(this.copy(child));
       this.parents.set(child.id, own.id);
     }
-    for (const waiting of this.orphans.get(own.id) ?? []) this.attach(own, waiting);
+    for (const waiting of this.orphans.get(own.id) ?? [])
+      this.attach(own, waiting);
     this.orphans.delete(own.id);
     return own;
   }
@@ -104,7 +136,8 @@ class NodeIndex {
     const kids = (parent.childNodes ??= []);
     const was = kids.findIndex((k) => k.id === child.id);
     if (was >= 0) kids.splice(was, 1);
-    const before = typeof nextId === "number" ? kids.findIndex((k) => k.id === nextId) : -1;
+    const before =
+      typeof nextId === "number" ? kids.findIndex((k) => k.id === nextId) : -1;
     if (before >= 0) kids.splice(before, 0, child);
     else kids.push(child);
   }
@@ -116,7 +149,8 @@ class NodeIndex {
 
   setText(id: number, value: unknown) {
     const n = this.nodes.get(id);
-    if (n && (typeof value === "string" || value === null)) n.textContent = value ?? "";
+    if (n && (typeof value === "string" || value === null))
+      n.textContent = value ?? "";
   }
 
   setAttributes(id: number, attrs: unknown) {
@@ -139,7 +173,10 @@ class NodeIndex {
     return p === undefined ? undefined : this.nodes.get(p);
   }
 
-  text(node: SNode | undefined, max: number = REPLAY_LIMITS.label_max_chars): string {
+  text(
+    node: SNode | undefined,
+    max: number = REPLAY_LIMITS.label_max_chars,
+  ): string {
     if (!node) return "";
     let out = "";
     const walk = (n: SNode) => {
@@ -160,10 +197,18 @@ class NodeIndex {
   readableText(node: SNode | undefined): string {
     if (!node) return "";
     if (FIELD_TAGS.has(node.tagName ?? "")) return "";
-    for (let n: SNode | undefined = node, depth = 0; n && depth < 50; n = this.parent(n.id), depth++) {
+    for (
+      let n: SNode | undefined = node, depth = 0;
+      n && depth < 50;
+      n = this.parent(n.id), depth++
+    ) {
       if (isPrivateNode(n) || isEditableNode(n)) return "";
     }
-    const holds = (n: SNode): boolean => (n.tagName === "textarea" || isPrivateNode(n) || isEditableNode(n)) || (n.childNodes ?? []).some(holds);
+    const holds = (n: SNode): boolean =>
+      n.tagName === "textarea" ||
+      isPrivateNode(n) ||
+      isEditableNode(n) ||
+      (n.childNodes ?? []).some(holds);
     if ((node.childNodes ?? []).some(holds)) return "";
     return this.text(node);
   }
@@ -181,7 +226,8 @@ class NodeIndex {
 
   /** The document's <title>, for the navigation it follows. */
   title(): string | undefined {
-    for (const n of this.nodes.values()) if (n.tagName === "title") return this.text(n) || undefined;
+    for (const n of this.nodes.values())
+      if (n.tagName === "title") return this.text(n) || undefined;
     return undefined;
   }
 }
@@ -192,11 +238,23 @@ const attr = (n: SNode, name: string): string | undefined => {
 };
 
 const FIELD_TAGS = new Set(["input", "textarea", "select", "form"]);
-const hasAttr = (n: SNode, name: string) => n.attributes?.[name] !== undefined && n.attributes?.[name] !== null;
+const hasAttr = (n: SNode, name: string) =>
+  n.attributes?.[name] !== undefined && n.attributes?.[name] !== null;
 const isPrivateNode = (n: SNode) => hasAttr(n, "data-private");
-const isEditableNode = (n: SNode) => hasAttr(n, "contenteditable") && String(n.attributes?.contenteditable).toLowerCase() !== "false";
+const isEditableNode = (n: SNode) =>
+  hasAttr(n, "contenteditable") &&
+  String(n.attributes?.contenteditable).toLowerCase() !== "false";
 
-const INTERACTIVE_TAGS = new Set(["a", "button", "input", "select", "textarea", "summary", "label", "option"]);
+const INTERACTIVE_TAGS = new Set([
+  "a",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  "label",
+  "option",
+]);
 
 function implicitRole(n: SNode): string | undefined {
   const explicit = attr(n, "role");
@@ -216,7 +274,8 @@ function implicitRole(n: SNode): string | undefined {
     case "input": {
       const t = (attr(n, "type") ?? "text").toLowerCase();
       if (t === "checkbox" || t === "radio") return t;
-      if (t === "button" || t === "submit" || t === "reset" || t === "image") return "button";
+      if (t === "button" || t === "submit" || t === "reset" || t === "image")
+        return "button";
       if (t === "range") return "slider";
       if (t === "number") return "spinbutton";
       if (t === "search") return "searchbox";
@@ -233,7 +292,13 @@ function interactiveTarget(index: NodeIndex, id: number): SNode | undefined {
   if (n?.type === NodeType.Text) n = index.parent(id);
   const start = n;
   for (let depth = 0; n && depth < 6; depth++) {
-    if (n.type === NodeType.Element && (INTERACTIVE_TAGS.has(n.tagName ?? "") || attr(n, "role") || attr(n, "onclick") !== undefined)) return n;
+    if (
+      n.type === NodeType.Element &&
+      (INTERACTIVE_TAGS.has(n.tagName ?? "") ||
+        attr(n, "role") ||
+        attr(n, "onclick") !== undefined)
+    )
+      return n;
     n = index.parent(n.id);
   }
   return start;
@@ -247,21 +312,29 @@ function accessibleName(index: NodeIndex, n: SNode): string {
   const forLabel = id ? index.labelElement(id) : undefined;
   if (forLabel) return index.readableText(forLabel);
   // A control wrapped in its <label>.
-  for (let p = index.parent(n.id), depth = 0; p && depth < 3; p = index.parent(p.id), depth++) {
+  for (
+    let p = index.parent(n.id), depth = 0;
+    p && depth < 3;
+    p = index.parent(p.id), depth++
+  ) {
     if (p.tagName === "label") return index.readableText(p);
   }
   if (n.tagName === "input") {
     const t = (attr(n, "type") ?? "text").toLowerCase();
-    if (t === "submit" || t === "button" || t === "reset") return attr(n, "value") ?? t;
+    if (t === "submit" || t === "button" || t === "reset")
+      return attr(n, "value") ?? t;
     return attr(n, "placeholder") ?? attr(n, "name") ?? "";
   }
-  if (n.tagName === "textarea" || n.tagName === "select") return attr(n, "placeholder") ?? attr(n, "name") ?? "";
+  if (n.tagName === "textarea" || n.tagName === "select")
+    return attr(n, "placeholder") ?? attr(n, "name") ?? "";
   return index.readableText(n);
 }
 
 // Icon sets name the glyph in a class (lucide-x, fa-trash, bi-gear, ti-copy, icon-close) or an attribute.
-const ICON_CLASS = /(?:^|\s)(?:lucide|fa|fas|far|bi|ti|tabler-icon|icon|ri|mdi|heroicon|feather)-([a-z][a-z0-9-]*)/i;
-const ICON_NOISE = /^(?:icon|lg|sm|xs|xl|\d+x|fw|solid|regular|light|outline|filled|fill|line|spin|inline)$/i;
+const ICON_CLASS =
+  /(?:^|\s)(?:lucide|fa|fas|far|bi|ti|tabler-icon|icon|ri|mdi|heroicon|feather)-([a-z][a-z0-9-]*)/i;
+const ICON_NOISE =
+  /^(?:icon|lg|sm|xs|xl|\d+x|fw|solid|regular|light|outline|filled|fill|line|spin|inline)$/i;
 
 /** The icon a control shows, from its own markup or a few levels into it: an svg's <title>, an image's alt, an icon class, a sprite's id. */
 function iconName(index: NodeIndex, n: SNode): string | undefined {
@@ -270,13 +343,26 @@ function iconName(index: NodeIndex, n: SNode): string | undefined {
   const walk = (m: SNode, depth: number) => {
     if (found || depth > 4 || ++seen > 40) return;
     if (m.type === NodeType.Element) {
-      if (m.tagName === "title" && depth > 0) found = index.text(m, 40) || undefined;
-      found ??= m !== n ? (attr(m, "aria-label") ?? (m.tagName === "img" ? attr(m, "alt") : undefined)) : undefined;
+      if (m.tagName === "title" && depth > 0)
+        found = index.text(m, 40) || undefined;
+      found ??=
+        m !== n
+          ? (attr(m, "aria-label") ??
+            (m.tagName === "img" ? attr(m, "alt") : undefined))
+          : undefined;
       found ??= attr(m, "data-icon") ?? attr(m, "data-lucide");
       const cls = ICON_CLASS.exec(attr(m, "class") ?? "")?.[1];
-      if (!found && cls && !ICON_NOISE.test(cls)) found = `${cls.replace(/-/g, " ")} icon`;
-      const sprite = m.tagName === "use" ? (attr(m, "href") ?? attr(m, "xlink:href")) : undefined;
-      if (!found && sprite) found = `${sprite.replace(/^.*#/, "").replace(/^(?:icon|i)[-_]/, "").replace(/[-_]+/g, " ")} icon`;
+      if (!found && cls && !ICON_NOISE.test(cls))
+        found = `${cls.replace(/-/g, " ")} icon`;
+      const sprite =
+        m.tagName === "use"
+          ? (attr(m, "href") ?? attr(m, "xlink:href"))
+          : undefined;
+      if (!found && sprite)
+        found = `${sprite
+          .replace(/^.*#/, "")
+          .replace(/^(?:icon|i)[-_]/, "")
+          .replace(/[-_]+/g, " ")} icon`;
     }
     for (const c of m.childNodes ?? []) walk(c, depth + 1);
   };
@@ -302,9 +388,14 @@ function shortPhrase(s: string, max = 40): string {
  * container that holds a field.
  */
 function containerContext(index: NodeIndex, n: SNode): string | undefined {
-  for (let p = index.parent(n.id), depth = 0; p && depth < 6; p = index.parent(p.id), depth++) {
+  for (
+    let p = index.parent(n.id), depth = 0;
+    p && depth < 6;
+    p = index.parent(p.id), depth++
+  ) {
     if (p.tagName === "body" || p.tagName === "html") return undefined;
-    const named = attr(p, "aria-label") ?? attr(p, "title") ?? labelledBy(index, p);
+    const named =
+      attr(p, "aria-label") ?? attr(p, "title") ?? labelledBy(index, p);
     if (named) return shortPhrase(named);
     const text = index.readableText(p);
     if (text) return shortPhrase(text);
@@ -327,7 +418,16 @@ function labelledBy(index: NodeIndex, n: SNode): string | undefined {
   return undefined;
 }
 
-const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6", "legend", "caption"]);
+const HEADING_TAGS = new Set([
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "legend",
+  "caption",
+]);
 
 /** The first heading a few levels into a container, read only if it holds no field. */
 function headingIn(index: NodeIndex, root: SNode): string | undefined {
@@ -335,7 +435,11 @@ function headingIn(index: NodeIndex, root: SNode): string | undefined {
   let found: string | undefined;
   const walk = (m: SNode, depth: number) => {
     if (found || depth > 4 || ++seen > 80) return;
-    if (m !== root && m.type === NodeType.Element && (HEADING_TAGS.has(m.tagName ?? "") || attr(m, "role") === "heading")) {
+    if (
+      m !== root &&
+      m.type === NodeType.Element &&
+      (HEADING_TAGS.has(m.tagName ?? "") || attr(m, "role") === "heading")
+    ) {
       found = index.readableText(m) || undefined;
       if (found) return;
     }
@@ -349,7 +453,9 @@ function headingIn(index: NodeIndex, root: SNode): string | undefined {
 function clickContext(index: NodeIndex, n: SNode): string | undefined {
   const icon = iconName(index, n);
   const where = containerContext(index, n);
-  const out = [icon, where ? `in ${where}` : undefined].filter(Boolean).join(" ");
+  const out = [icon, where ? `in ${where}` : undefined]
+    .filter(Boolean)
+    .join(" ");
   return out ? clipTo(out, REPLAY_LIMITS.label_max_chars) : undefined;
 }
 
@@ -361,11 +467,18 @@ function cssSelector(n: SNode): string {
   if (id && /^[A-Za-z][\w-]*$/.test(id)) return `${tag}#${id}`;
   const name = attr(n, "name");
   if (name) return `${tag}[name=${JSON.stringify(name)}]`;
-  const classes = (attr(n, "class") ?? "").split(/\s+/).filter((c) => /^[A-Za-z][\w-]*$/.test(c)).slice(0, 2);
-  return (classes.length ? `${tag}.${classes.join(".")}` : tag).slice(0, REPLAY_LIMITS.selector_max_chars);
+  const classes = (attr(n, "class") ?? "")
+    .split(/\s+/)
+    .filter((c) => /^[A-Za-z][\w-]*$/.test(c))
+    .slice(0, 2);
+  return (classes.length ? `${tag}.${classes.join(".")}` : tag).slice(
+    0,
+    REPLAY_LIMITS.selector_max_chars,
+  );
 }
 
-const clipTo = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
+const clipTo = (s: string, max: number) =>
+  s.length > max ? s.slice(0, max) : s;
 
 /** rrweb's console plugin stringifies each argument, so a string arrives quoted. */
 function consoleText(args: unknown): string {
@@ -391,13 +504,27 @@ function consoleLevel(level: unknown): ReplayConsoleLevel | undefined {
 }
 
 /** One request from rrweb's network plugin (url, status, startTime/endTime) or PostHog's (name, responseStatus, duration). */
-function networkEvent(r: any, t: number, pageUrl?: string): ReplayEvent | undefined {
+function networkEvent(
+  r: any,
+  t: number,
+  pageUrl?: string,
+): ReplayEvent | undefined {
   if (!r || typeof r !== "object") return undefined;
   // posthog-js lists each Server-Timing metric of a response beside it
   // (entryType "serverTiming", named like "cfEdge" or "total", no status): a
   // performance entry that is not a resource or a navigation is no request.
-  if (typeof r.entryType === "string" && r.entryType !== "resource" && r.entryType !== "navigation") return undefined;
-  const url = typeof r.url === "string" ? r.url : typeof r.name === "string" ? r.name : undefined;
+  if (
+    typeof r.entryType === "string" &&
+    r.entryType !== "resource" &&
+    r.entryType !== "navigation"
+  )
+    return undefined;
+  const url =
+    typeof r.url === "string"
+      ? r.url
+      : typeof r.name === "string"
+        ? r.name
+        : undefined;
   if (!url) return undefined;
   const statusRaw = r.status ?? r.responseStatus ?? r.response?.status;
   const status = typeof statusRaw === "number" ? statusRaw : 0;
@@ -405,25 +532,52 @@ function networkEvent(r: any, t: number, pageUrl?: string): ReplayEvent | undefi
   // means that for a resource but runs to loadEventEnd for a navigation, the
   // whole page's load.
   const start = typeof r.startTime === "number" ? r.startTime : undefined;
-  const msRaw = start !== undefined && typeof r.responseEnd === "number" && r.responseEnd > 0 ? r.responseEnd - start
-    : typeof r.duration === "number" ? r.duration
-    : start !== undefined && typeof r.endTime === "number" ? r.endTime - start : 0;
+  const msRaw =
+    start !== undefined &&
+    typeof r.responseEnd === "number" &&
+    r.responseEnd > 0
+      ? r.responseEnd - start
+      : typeof r.duration === "number"
+        ? r.duration
+        : start !== undefined && typeof r.endTime === "number"
+          ? r.endTime - start
+          : 0;
   const method = typeof r.method === "string" ? r.method.toUpperCase() : "GET";
   // A resource with no status that PostHog reports from the performance API is
   // not a failure: the browser hides cross-origin statuses. Only a fetch or
   // xhr with no status may be.
-  const initiator = typeof r.initiatorType === "string" ? r.initiatorType : undefined;
-  if (status === 0 && initiator && initiator !== "fetch" && initiator !== "xmlhttprequest") return undefined;
+  const initiator =
+    typeof r.initiatorType === "string" ? r.initiatorType : undefined;
+  if (
+    status === 0 &&
+    initiator &&
+    initiator !== "fetch" &&
+    initiator !== "xmlhttprequest"
+  )
+    return undefined;
   // A browser without PerformanceResourceTiming.responseStatus (Safari) leaves
   // the field off every entry, so a missing field says nothing. Such a fetch
   // failed only when its detailed timings are visible (same origin, or
   // Timing-Allow-Origin: requestStart is set) and show no response arrived;
   // a cross-origin entry zeroes them all and cannot be judged.
   if (statusRaw === undefined && r.entryType !== undefined) {
-    const answered = [r.responseStart, r.transferSize, r.encodedBodySize, r.decodedBodySize].some((n) => typeof n === "number" && n > 0);
-    if (answered || !(typeof r.requestStart === "number" && r.requestStart > 0)) return undefined;
+    const answered = [
+      r.responseStart,
+      r.transferSize,
+      r.encodedBodySize,
+      r.decodedBodySize,
+    ].some((n) => typeof n === "number" && n > 0);
+    if (answered || !(typeof r.requestStart === "number" && r.requestStart > 0))
+      return undefined;
   }
-  const e: ReplayEvent = { type: "network", t, method, url: cleanUrl(url, pageUrl), status, ms: Math.max(0, Math.round(msRaw)) };
+  const e: ReplayEvent = {
+    type: "network",
+    t,
+    method,
+    url: cleanUrl(url, pageUrl),
+    status,
+    ms: Math.max(0, Math.round(msRaw)),
+  };
   return isFailedRequest(e) || isSlowRequest(e) ? e : undefined;
 }
 
@@ -452,8 +606,15 @@ export function fromRrweb(input: readonly RrwebEvent[]): ReplayEvent[] {
  * first event is the clock's zero. With it, the part continues where the state
  * left off, on the same clock. Answers the events and where this part stopped.
  */
-export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConverterState | null): { events: ReplayEvent[]; state: RrwebConverterState | null } {
-  const raw = [...input].filter((e) => e && typeof e.type === "number" && typeof e.timestamp === "number").sort((a, b) => a.timestamp - b.timestamp);
+export function fromRrwebPart(
+  input: readonly RrwebEvent[],
+  state?: RrwebConverterState | null,
+): { events: ReplayEvent[]; state: RrwebConverterState | null } {
+  const raw = [...input]
+    .filter(
+      (e) => e && typeof e.type === "number" && typeof e.timestamp === "number",
+    )
+    .sort((a, b) => a.timestamp - b.timestamp);
   if (!raw.length) return { events: [], state: state ?? null };
   const t0 = state?.t0 ?? raw[0].timestamp;
   const index = new NodeIndex();
@@ -481,26 +642,51 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
         index.reset();
         if (d.node) index.add(d.node);
         const title = index.title();
-        if (pendingTitle && title) pendingTitle.title = clipTo(title, REPLAY_LIMITS.label_max_chars);
+        if (pendingTitle && title)
+          pendingTitle.title = clipTo(title, REPLAY_LIMITS.label_max_chars);
         pendingTitle = undefined;
         break;
       }
       case EventType.IncrementalSnapshot: {
         if (d.source === Source.Mutation) {
           // rrweb applies removes, then adds, then text and attribute changes.
-          for (const r of Array.isArray(d.removes) ? d.removes : []) if (typeof r?.id === "number") index.remove(r.id, r.parentId);
-          for (const a of Array.isArray(d.adds) ? d.adds : []) if (a?.node) index.add(a.node, a.parentId, a.nextId);
-          for (const x of Array.isArray(d.texts) ? d.texts : []) if (typeof x?.id === "number") index.setText(x.id, x.value);
-          for (const x of Array.isArray(d.attributes) ? d.attributes : []) if (typeof x?.id === "number") index.setAttributes(x.id, x.attributes);
-        } else if (d.source === Source.MouseInteraction && d.type === MouseClick && typeof d.id === "number") {
+          for (const r of Array.isArray(d.removes) ? d.removes : [])
+            if (typeof r?.id === "number") index.remove(r.id, r.parentId);
+          for (const a of Array.isArray(d.adds) ? d.adds : [])
+            if (a?.node) index.add(a.node, a.parentId, a.nextId);
+          for (const x of Array.isArray(d.texts) ? d.texts : [])
+            if (typeof x?.id === "number") index.setText(x.id, x.value);
+          for (const x of Array.isArray(d.attributes) ? d.attributes : [])
+            if (typeof x?.id === "number")
+              index.setAttributes(x.id, x.attributes);
+        } else if (
+          d.source === Source.MouseInteraction &&
+          d.type === MouseClick &&
+          typeof d.id === "number"
+        ) {
           const n = interactiveTarget(index, d.id);
-          const at = typeof d.x === "number" && typeof d.y === "number" && d.x >= 0 && d.y >= 0 ? { x: Math.round(d.x), y: Math.round(d.y) } : {};
+          const at =
+            typeof d.x === "number" &&
+            typeof d.y === "number" &&
+            d.x >= 0 &&
+            d.y >= 0
+              ? { x: Math.round(d.x), y: Math.round(d.y) }
+              : {};
           if (!n) {
-            out.push({ type: "click", t, label: "", selector: `[rrweb-id=${d.id}]`, ...at });
+            out.push({
+              type: "click",
+              t,
+              label: "",
+              selector: `[rrweb-id=${d.id}]`,
+              ...at,
+            });
             break;
           }
           // A card or a page region clicked as a whole names itself by all of its text: keep the start of it.
-          const name = clipTo(accessibleName(index, n), REPLAY_LIMITS.label_max_chars);
+          const name = clipTo(
+            accessibleName(index, n),
+            REPLAY_LIMITS.label_max_chars,
+          );
           const label = shortPhrase(name, CLICK_LABEL_PHRASE);
           const text = index.readableText(n);
           const role = implicitRole(n);
@@ -511,7 +697,11 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
             label,
             ...(role ? { role } : {}),
             selector: cssSelector(n),
-            ...(text && text !== label && !name.startsWith(text.slice(0, REPLAY_LIMITS.label_max_chars)) ? { text: clipTo(text, REPLAY_LIMITS.label_max_chars) } : {}),
+            ...(text &&
+            text !== label &&
+            !name.startsWith(text.slice(0, REPLAY_LIMITS.label_max_chars))
+              ? { text: clipTo(text, REPLAY_LIMITS.label_max_chars) }
+              : {}),
             ...(context ? { context } : {}),
             ...at,
           });
@@ -520,11 +710,18 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
           const length = typeof d.text === "string" ? d.text.length : 0;
           // A checkbox or radio toggle arrives as an input with isChecked; it is
           // also a click, which the mouse interaction already recorded.
-          if (typeof d.isChecked === "boolean" && n && /checkbox|radio/.test(attr(n, "type") ?? "")) break;
+          if (
+            typeof d.isChecked === "boolean" &&
+            n &&
+            /checkbox|radio/.test(attr(n, "type") ?? "")
+          )
+            break;
           out.push({
             type: "input",
             t,
-            label: n ? clipTo(accessibleName(index, n), REPLAY_LIMITS.label_max_chars) : "",
+            label: n
+              ? clipTo(accessibleName(index, n), REPLAY_LIMITS.label_max_chars)
+              : "",
             selector: n ? cssSelector(n) : `[rrweb-id=${d.id}]`,
             length,
             redacted: true,
@@ -532,7 +729,12 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
         } else if (d.source === Source.Scroll && typeof d.y === "number") {
           if (t - lastScrollAt < REPLAY_LIMITS.scroll_min_interval_ms) break;
           lastScrollAt = t;
-          out.push({ type: "scroll", t, y: Math.round(d.y), of: Math.round(d.y + viewport) });
+          out.push({
+            type: "scroll",
+            t,
+            y: Math.round(d.y),
+            of: Math.round(d.y + viewport),
+          });
         }
         break;
       }
@@ -541,10 +743,19 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
         const payload = d.payload ?? {};
         if (plugin === "rrweb/console@1") {
           const level = consoleLevel(payload.level);
-          const line: ReplayEvent | undefined = level ? { type: "console", t, level, message: consoleText(payload.payload) } : undefined;
+          const line: ReplayEvent | undefined = level
+            ? {
+                type: "console",
+                t,
+                level,
+                message: consoleText(payload.payload),
+              }
+            : undefined;
           if (line && !isRecorderNoise(line)) out.push(line);
         } else if (plugin === "rrweb/network@1") {
-          for (const r of Array.isArray(payload.requests) ? payload.requests : []) {
+          for (const r of Array.isArray(payload.requests)
+            ? payload.requests
+            : []) {
             const n = networkEvent(r, t, pageUrl);
             if (n) out.push(n);
           }
@@ -556,17 +767,49 @@ export function fromRrwebPart(input: readonly RrwebEvent[], state?: RrwebConvert
         const payload = d.payload ?? {};
         if (d.tag === "breadcrumb" && payload.category === "console") {
           const level = consoleLevel(payload.level);
-          const line: ReplayEvent | undefined = level ? { type: "console", t, level, message: consoleText(payload.message ?? payload.data?.arguments) } : undefined;
+          const line: ReplayEvent | undefined = level
+            ? {
+                type: "console",
+                t,
+                level,
+                message: consoleText(
+                  payload.message ?? payload.data?.arguments,
+                ),
+              }
+            : undefined;
           if (line && !isRecorderNoise(line)) out.push(line);
-        } else if (d.tag === "performanceSpan" && /^resource\.(fetch|xhr)$/.test(payload.op ?? "")) {
-          const ms = typeof payload.endTimestamp === "number" && typeof payload.startTimestamp === "number" ? (payload.endTimestamp - payload.startTimestamp) * 1000 : 0;
-          const n = networkEvent({ url: payload.description, method: payload.data?.method, status: payload.data?.statusCode, duration: ms, initiatorType: "fetch" }, t, pageUrl);
+        } else if (
+          d.tag === "performanceSpan" &&
+          /^resource\.(fetch|xhr)$/.test(payload.op ?? "")
+        ) {
+          const ms =
+            typeof payload.endTimestamp === "number" &&
+            typeof payload.startTimestamp === "number"
+              ? (payload.endTimestamp - payload.startTimestamp) * 1000
+              : 0;
+          const n = networkEvent(
+            {
+              url: payload.description,
+              method: payload.data?.method,
+              status: payload.data?.statusCode,
+              duration: ms,
+              initiatorType: "fetch",
+            },
+            t,
+            pageUrl,
+          );
           if (n) out.push(n);
         }
         break;
       }
     }
   }
-  const next: RrwebConverterState = { t0, root: index.root, viewport, last_scroll_at: Number.isFinite(lastScrollAt) ? lastScrollAt : -1e15, ...(pageUrl ? { page_url: pageUrl } : {}) };
+  const next: RrwebConverterState = {
+    t0,
+    root: index.root,
+    viewport,
+    last_scroll_at: Number.isFinite(lastScrollAt) ? lastScrollAt : -1e15,
+    ...(pageUrl ? { page_url: pageUrl } : {}),
+  };
   return { events: sortReplayEvents(out), state: next };
 }

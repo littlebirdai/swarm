@@ -22,7 +22,14 @@ import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 // (lib/passkeyPresence useApproveGate).
 /** The ladder's word on an option: "recommended", or how many leads recommend it when more than one does. */
 export function RecommendedMark({ count = 1 }: { count?: number }) {
-  return <span className="text-meta px-1.5 py-0.5 rounded border border-sol-cyan/40 text-sol-cyan" data-option-recommended={count}>{count > 1 ? `${count} leads recommend` : "recommended"}</span>;
+  return (
+    <span
+      className="text-meta px-1.5 py-0.5 rounded border border-sol-cyan/40 text-sol-cyan"
+      data-option-recommended={count}
+    >
+      {count > 1 ? `${count} leads recommend` : "recommended"}
+    </span>
+  );
 }
 
 export type OptionTone = "primary" | "picked" | "plain";
@@ -83,56 +90,142 @@ export function DecisionOptionRow({
       : "";
   const pad = compact ? "px-3 py-2" : "px-4 py-3";
   const number = position < 9 ? String(position + 1) : "·";
-  const badge = leading ?? (
-    keys ? (
+  const badge =
+    leading ??
+    (keys ? (
       <KeyCap size={compact ? "xs" : "sm"}>{number}</KeyCap>
     ) : (
-      <span className={`flex items-center justify-center rounded-full border font-mono text-sol-text-dim ${compact ? "w-5 h-5 text-meta" : "w-6 h-6 text-meta"} ${tone === "picked" ? "border-sol-green text-sol-green" : "border-sol-border"}`}>
+      <span
+        className={`flex items-center justify-center rounded-full border font-mono text-sol-text-dim ${compact ? "w-5 h-5 text-meta" : "w-6 h-6 text-meta"} ${tone === "picked" ? "border-sol-green text-sol-green" : "border-sol-border"}`}
+      >
         {number}
       </span>
-    )
-  );
-  const extras = (option.cost || option.risk || option.evidence?.length) ? (
-    <div className={`mt-1.5 flex flex-wrap gap-x-4 gap-y-1 ${compact ? "text-meta" : "text-[12px]"}`}>
-      {option.cost && <span><span className="text-sol-text-dim">cost </span><span className="text-sol-text">{option.cost}</span></span>}
-      {option.risk && <span><span className="text-sol-text-dim">risk </span><span className="text-sol-orange">{option.risk}</span></span>}
-      {option.evidence?.map((e, k) => (
-        <a key={k} href={e.url} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()} className="inline-flex items-center gap-1 text-sol-blue hover:underline">
-          {e.label}<ExternalLink className="w-3 h-3" />
-        </a>
-      ))}
-    </div>
-  ) : null;
+    ));
+  const extras =
+    option.cost || option.risk || option.evidence?.length ? (
+      <div
+        className={`mt-1.5 flex flex-wrap gap-x-4 gap-y-1 ${compact ? "text-meta" : "text-[12px]"}`}
+      >
+        {option.cost && (
+          <span>
+            <span className="text-sol-text-dim">cost </span>
+            <span className="text-sol-text">{option.cost}</span>
+          </span>
+        )}
+        {option.risk && (
+          <span>
+            <span className="text-sol-text-dim">risk </span>
+            <span className="text-sol-orange">{option.risk}</span>
+          </span>
+        )}
+        {option.evidence?.map((e, k) => (
+          <a
+            key={k}
+            href={e.url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(ev) => ev.stopPropagation()}
+            className="inline-flex items-center gap-1 text-sol-blue hover:underline"
+          >
+            {e.label}
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        ))}
+      </div>
+    ) : null;
 
   const body = (
     <>
-      <span className={`shrink-0 ${compact ? "mt-[3px]" : "mt-[2px]"}`}>{badge}</span>
+      <span className={`shrink-0 ${compact ? "mt-[3px]" : "mt-[2px]"}`}>
+        {badge}
+      </span>
       <span className="min-w-0 flex-1 text-left [overflow-wrap:anywhere]">
         <span className="flex items-center gap-2 flex-wrap">
-          <span className={`${compact ? "text-[13px]" : "text-[15px]"} leading-snug text-sol-text`}>{label}</span>
+          <span
+            className={`${compact ? "text-[13px]" : "text-[15px]"} leading-snug text-sol-text`}
+          >
+            {label}
+          </span>
           {tags}
         </span>
         {option.description && (
-          <span className={`block mt-0.5 leading-snug text-sol-text-muted ${compact ? "text-[12px]" : "text-sm"}`}>{option.description}</span>
+          <span
+            className={`block mt-0.5 leading-snug text-sol-text-muted ${compact ? "text-[12px]" : "text-sm"}`}
+          >
+            {option.description}
+          </span>
         )}
         {option.body_md && (
-          <span className={`block mt-1.5 text-sol-text-muted decision-option-body ${compact ? "text-[12px]" : "text-sm"}`}><MarkdownRenderer content={option.body_md} /></span>
+          <span
+            className={`block mt-1.5 text-sol-text-muted decision-option-body ${compact ? "text-[12px]" : "text-sm"}`}
+          >
+            <MarkdownRenderer content={option.body_md} />
+          </span>
         )}
         {extras}
       </span>
-      {held && <span data-held className="shrink-0 self-center inline-flex items-center gap-1 text-meta font-medium text-sol-text-dim"><Lock className="w-3 h-3" />{held}</span>}
-      {gated && !held && <Fingerprint data-gated aria-label="Asks for Touch ID" className="shrink-0 self-center w-3.5 h-3.5 text-sol-text-dim" />}
-      {suggested && <span data-cc-suggested className="shrink-0 self-center text-meta font-medium text-sol-text-dim">Suggested</span>}
-      {trailing && <span className="shrink-0 flex items-center gap-0.5 self-center">{trailing}</span>}
+      {held && (
+        <span
+          data-held
+          className="shrink-0 self-center inline-flex items-center gap-1 text-meta font-medium text-sol-text-dim"
+        >
+          <Lock className="w-3 h-3" />
+          {held}
+        </span>
+      )}
+      {gated && !held && (
+        <Fingerprint
+          data-gated
+          aria-label="Asks for Touch ID"
+          className="shrink-0 self-center w-3.5 h-3.5 text-sol-text-dim"
+        />
+      )}
+      {suggested && (
+        <span
+          data-cc-suggested
+          className="shrink-0 self-center text-meta font-medium text-sol-text-dim"
+        >
+          Suggested
+        </span>
+      )}
+      {trailing && (
+        <span className="shrink-0 flex items-center gap-0.5 self-center">
+          {trailing}
+        </span>
+      )}
     </>
   );
   const cls = `decision-option w-full flex items-start gap-3 rounded-lg border transition-colors ${pad} ${border} ${hover}`;
   return held ? (
-    <button type="button" disabled title={held} className={cls} data-option={position} data-suggested={suggested ? "" : undefined}>{body}</button>
+    <button
+      type="button"
+      disabled
+      title={held}
+      className={cls}
+      data-option={position}
+      data-suggested={suggested ? "" : undefined}
+    >
+      {body}
+    </button>
   ) : onPick ? (
-    <button type="button" onClick={onPick} title={gated ? "Confirm with Touch ID" : undefined} className={cls} data-option={position} data-suggested={suggested ? "" : undefined}>{body}</button>
+    <button
+      type="button"
+      onClick={onPick}
+      title={gated ? "Confirm with Touch ID" : undefined}
+      className={cls}
+      data-option={position}
+      data-suggested={suggested ? "" : undefined}
+    >
+      {body}
+    </button>
   ) : (
-    <div className={cls} data-option={position} data-suggested={suggested ? "" : undefined}>{body}</div>
+    <div
+      className={cls}
+      data-option={position}
+      data-suggested={suggested ? "" : undefined}
+    >
+      {body}
+    </div>
   );
 }
 
@@ -186,10 +279,21 @@ export function DecisionOptionList({
 
 // The typed answer affordance under a list: a low key line, not a fourth
 // option. `keys` shows the t key that opens it.
-export function TypeAnswerButton({ onOpen, keys = false }: { onOpen: () => void; keys?: boolean }) {
+export function TypeAnswerButton({
+  onOpen,
+  keys = false,
+}: {
+  onOpen: () => void;
+  keys?: boolean;
+}) {
   return (
-    <button type="button" onClick={onOpen} className="flex items-center gap-1.5 text-[12px] text-sol-text-dim hover:text-sol-text transition-colors">
-      {keys && <KeyCap size="xs">t</KeyCap>}<span>Or answer in your own words</span>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex items-center gap-1.5 text-[12px] text-sol-text-dim hover:text-sol-text transition-colors"
+    >
+      {keys && <KeyCap size="xs">t</KeyCap>}
+      <span>Or answer in your own words</span>
     </button>
   );
 }

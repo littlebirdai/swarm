@@ -6,7 +6,11 @@ import { selfUpdateBlocked } from "@codecast/convex/convex/lib/deviceUpdate";
 import { useInboxStore } from "../../../store/inboxStore";
 import { Switch } from "../../../components/ui/switch";
 import { Button } from "../../../components/ui/button";
-import { SettingsCallout, SettingsRow, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsCallout,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { DeviceSettingsFrame } from "../../../components/settings/DeviceSettingsFrame";
 import { useDeviceSettingsPanel } from "../../../components/settings/useDeviceSettingsPanel";
 import { relativeSeen, type Device } from "../../../components/DeviceBadge";
@@ -22,7 +26,12 @@ import { describeDaemonHealth } from "../../../lib/daemonHealthCopy";
 export default function DaemonPage() {
   const panel = useDeviceSettingsPanel();
   return (
-    <DeviceSettingsFrame panel={panel} title="Daemon" icon={Cpu} reports={(d) => !!d.settings || !!d.cli_version}>
+    <DeviceSettingsFrame
+      panel={panel}
+      title="Daemon"
+      icon={Cpu}
+      reports={(d) => !!d.settings || !!d.cli_version}
+    >
       {(d) => (
         <>
           <StatusSection d={d} />
@@ -37,7 +46,11 @@ function StatusSection({ d }: { d: Device }) {
   const health = useDaemonHealth(d.device_id);
   const problem = describeDaemonHealth(health);
   return (
-    <SettingsSection title="Daemon" icon={Cpu} description="The background process that syncs this machine's sessions and runs what you ask of it.">
+    <SettingsSection
+      title="Daemon"
+      icon={Cpu}
+      description="The background process that syncs this machine's sessions and runs what you ask of it."
+    >
       <SettingsRow
         label="Status"
         description={
@@ -55,12 +68,15 @@ function StatusSection({ d }: { d: Device }) {
       {problem && d.online && (
         <div className="px-4 pb-3 sm:px-5">
           <SettingsCallout tone="warning">
-            {problem.detail} <code className="font-mono">{problem.command}</code>
+            {problem.detail}{" "}
+            <code className="font-mono">{problem.command}</code>
           </SettingsCallout>
         </div>
       )}
       <SettingsRow label="Version" description={versionLine(d)}>
-        <StatePill tone={d.update_required ? "warn" : d.update_available ? "info" : "ok"}>
+        <StatePill
+          tone={d.update_required ? "warn" : d.update_available ? "info" : "ok"}
+        >
           {d.cli_version ? `v${d.cli_version}` : "unknown"}
         </StatePill>
       </SettingsRow>
@@ -69,8 +85,10 @@ function StatusSection({ d }: { d: Device }) {
 }
 
 function versionLine(d: Device): string {
-  if (!d.cli_version) return "This machine's CLI does not report its version. Run cast update there.";
-  if (d.update_required) return `Below the minimum version codecast supports. Update it so every feature keeps working${d.update_available ? `; v${d.update_available} is out` : ""}.`;
+  if (!d.cli_version)
+    return "This machine's CLI does not report its version. Run cast update there.";
+  if (d.update_required)
+    return `Below the minimum version codecast supports. Update it so every feature keeps working${d.update_available ? `; v${d.update_available} is out` : ""}.`;
   if (d.update_available) return `v${d.update_available} is available.`;
   return "Up to date.";
 }
@@ -79,7 +97,13 @@ function versionLine(d: Device): string {
 // button: an older daemon reports no run, and pressing again is the retry.
 const REQUEST_HOLD_MS = 10 * 60 * 1000;
 
-function UpdatesSection({ d, panel }: { d: Device; panel: ReturnType<typeof useDeviceSettingsPanel> }) {
+function UpdatesSection({
+  d,
+  panel,
+}: {
+  d: Device;
+  panel: ReturnType<typeof useDeviceSettingsPanel>;
+}) {
   const { pending, run, setSnippet } = panel;
   const requestUpdate = useInboxStore((s) => s.requestDeviceUpdate);
   // Older daemons report no value; they always update themselves and cannot
@@ -89,10 +113,13 @@ function UpdatesSection({ d, panel }: { d: Device; panel: ReturnType<typeof useD
   const forced = autoUpdateLock(useDevicePolicy(d));
   const auto = forced ? forced.on : d.settings?.auto_update !== false;
   const blocked = selfUpdateBlocked(d);
-  const target = d.update_available ? `v${d.update_available}` : "the latest release";
+  const target = d.update_available
+    ? `v${d.update_available}`
+    : "the latest release";
   const held =
     d.update_state === "installing" ||
-    (d.update_state === "requested" && Date.now() - (d.update_requested_at ?? 0) < REQUEST_HOLD_MS);
+    (d.update_state === "requested" &&
+      Date.now() - (d.update_requested_at ?? 0) < REQUEST_HOLD_MS);
 
   return (
     <SettingsSection title="Updates" icon={RefreshCw}>
@@ -102,17 +129,25 @@ function UpdatesSection({ d, panel }: { d: Device; panel: ReturnType<typeof useD
           forced
             ? forced.message
             : !known
-            ? "This machine's CLI always updates itself. Update it once with cast update to get this switch."
-            : auto
-              ? "On. New releases install on their own, and codecast refreshes its hooks and CLAUDE.md sections to match."
-              : "Off. A new release installs only when you press Update here or run cast update on the machine. Each change it makes still shows in Harness."
+              ? "This machine's CLI always updates itself. Update it once with cast update to get this switch."
+              : auto
+                ? "On. New releases install on their own, and codecast refreshes its hooks and CLAUDE.md sections to match."
+                : "Off. A new release installs only when you press Update here or run cast update on the machine. Each change it makes still shows in Harness."
         }
       >
         <Switch
           checked={auto}
-          disabled={!!forced || !known || !d.online || pending.has("auto_update")}
+          disabled={
+            !!forced || !known || !d.online || pending.has("auto_update")
+          }
           onCheckedChange={(next) =>
-            run("auto_update", () => setSnippet({ device_id: d.device_id, snippet: "auto_update", enabled: next }))
+            run("auto_update", () =>
+              setSnippet({
+                device_id: d.device_id,
+                snippet: "auto_update",
+                enabled: next,
+              }),
+            )
           }
           aria-label="Update automatically"
         />
@@ -121,18 +156,33 @@ function UpdatesSection({ d, panel }: { d: Device; panel: ReturnType<typeof useD
         <SettingsRow
           label="Update now"
           description={
-            blocked
-              ? `${blocked}. Update it on the machine.`
-              : d.update_state === "installing"
-                ? `Installing ${target}.`
-                : d.update_state === "failed"
-                  ? <span className="text-sol-red">Failed: <code className="font-mono">{d.update_error ?? "no error reported"}</code></span>
-                  : d.update_state === "requested"
-                    ? d.online ? `Requested ${relativeSeen(d.update_requested_at ?? Date.now())}.` : "Requested. Installs when this machine reconnects."
-                    : `Install ${target} and restart the daemon. Running agents keep running.`
+            blocked ? (
+              `${blocked}. Update it on the machine.`
+            ) : d.update_state === "installing" ? (
+              `Installing ${target}.`
+            ) : d.update_state === "failed" ? (
+              <span className="text-sol-red">
+                Failed:{" "}
+                <code className="font-mono">
+                  {d.update_error ?? "no error reported"}
+                </code>
+              </span>
+            ) : d.update_state === "requested" ? (
+              d.online ? (
+                `Requested ${relativeSeen(d.update_requested_at ?? Date.now())}.`
+              ) : (
+                "Requested. Installs when this machine reconnects."
+              )
+            ) : (
+              `Install ${target} and restart the daemon. Running agents keep running.`
+            )
           }
         >
-          {d.update_state && !blocked && <StatePill tone={d.update_state === "failed" ? "warn" : "info"}>{d.update_state}</StatePill>}
+          {d.update_state && !blocked && (
+            <StatePill tone={d.update_state === "failed" ? "warn" : "info"}>
+              {d.update_state}
+            </StatePill>
+          )}
           <Button
             size="sm"
             variant="cyan"
@@ -147,7 +197,13 @@ function UpdatesSection({ d, panel }: { d: Device; panel: ReturnType<typeof useD
   );
 }
 
-function StatePill({ tone, children }: { tone: "ok" | "warn" | "info" | "muted"; children: React.ReactNode }) {
+function StatePill({
+  tone,
+  children,
+}: {
+  tone: "ok" | "warn" | "info" | "muted";
+  children: React.ReactNode;
+}) {
   const cls =
     tone === "ok"
       ? "bg-sol-green/10 text-sol-green border-sol-green/30"
@@ -156,5 +212,11 @@ function StatePill({ tone, children }: { tone: "ok" | "warn" | "info" | "muted";
         : tone === "info"
           ? "bg-sol-cyan/10 text-sol-cyan border-sol-cyan/30"
           : "bg-sol-bg-alt text-sol-text-muted border-sol-border";
-  return <span className={`shrink-0 text-meta px-2 py-0.5 rounded-full border tabular-nums ${cls}`}>{children}</span>;
+  return (
+    <span
+      className={`shrink-0 text-meta px-2 py-0.5 rounded-full border tabular-nums ${cls}`}
+    >
+      {children}
+    </span>
+  );
 }

@@ -21,13 +21,19 @@ function formatElapsed(ms: number): string {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
-function sameProgress(a: CompactionProgress | null, b: CompactionProgress | null): boolean {
+function sameProgress(
+  a: CompactionProgress | null,
+  b: CompactionProgress | null,
+): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   return a.elapsed === b.elapsed && a.percent === b.percent && a.tip === b.tip;
 }
 
-function usePolledProgress(tmux: string | null, active: boolean): CompactionProgress | null {
+function usePolledProgress(
+  tmux: string | null,
+  active: boolean,
+): CompactionProgress | null {
   const [progress, setProgress] = useState<CompactionProgress | null>(null);
   useWatchEffect(() => {
     if (!active) {
@@ -67,25 +73,53 @@ export function CompactionProgressCard({
   const percent = progress?.percent ?? null;
   if (!live) {
     return (
-      <div className={`rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 ${className ?? ""}`} data-cc-row="compaction">
+      <div
+        className={`rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 ${className ?? ""}`}
+        data-cc-row="compaction"
+      >
         <div className="flex items-center gap-2 min-w-0" data-cc-row-head>
-          <span data-cc-row-icon className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-          <span data-cc-row-verb className="text-xs font-medium text-amber-500 shrink-0">Compaction</span>
+          <span
+            data-cc-row-icon
+            className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"
+          />
+          <span
+            data-cc-row-verb
+            className="text-xs font-medium text-amber-500 shrink-0"
+          >
+            Compaction
+          </span>
           <span className="flex-1" />
-          {elapsed && <span data-cc-row-meta className="text-meta tabular-nums text-sol-text-dim shrink-0">{elapsed}</span>}
+          {elapsed && (
+            <span
+              data-cc-row-meta
+              className="text-meta tabular-nums text-sol-text-dim shrink-0"
+            >
+              {elapsed}
+            </span>
+          )}
         </div>
       </div>
     );
   }
   return (
-    <div className={`rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 ${className ?? ""}`}>
+    <div
+      className={`rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2 ${className ?? ""}`}
+    >
       <div className="flex items-center gap-2 min-w-0">
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse motion-reduce:animate-none shrink-0" />
-        <span className="text-xs font-medium text-amber-500 shrink-0">Compacting conversation</span>
+        <span className="text-xs font-medium text-amber-500 shrink-0">
+          Compacting conversation
+        </span>
         <span className="flex-1" />
-        {elapsed && <span className="text-meta tabular-nums text-sol-text-dim shrink-0">{elapsed}</span>}
+        {elapsed && (
+          <span className="text-meta tabular-nums text-sol-text-dim shrink-0">
+            {elapsed}
+          </span>
+        )}
         {percent != null && (
-          <span className="text-meta tabular-nums text-amber-500/80 shrink-0">{percent}%</span>
+          <span className="text-meta tabular-nums text-amber-500/80 shrink-0">
+            {percent}%
+          </span>
         )}
       </div>
       <div
@@ -116,21 +150,36 @@ export function CompactionProgressCard({
 
 /** Live row above the composer while this session is compacting. The percent
  *  and tip come from the attached terminal, when one is open. */
-export function LiveCompactionCard({ conversationId, expanded }: { conversationId: string; expanded?: boolean }) {
-  const snap = useInboxStore(useShallow((s) => {
-    const sess = s.sessions[conversationId];
-    if (!sess || agentStatusAt(sess, Date.now()) !== "compacting") return null;
-    return {
-      tmux: sess.tmux_session ?? null,
-      startedAt: sess.agent_status_updated_at ?? null,
-    };
-  }));
+export function LiveCompactionCard({
+  conversationId,
+  expanded,
+}: {
+  conversationId: string;
+  expanded?: boolean;
+}) {
+  const snap = useInboxStore(
+    useShallow((s) => {
+      const sess = s.sessions[conversationId];
+      if (!sess || agentStatusAt(sess, Date.now()) !== "compacting")
+        return null;
+      return {
+        tmux: sess.tmux_session ?? null,
+        startedAt: sess.agent_status_updated_at ?? null,
+      };
+    }),
+  );
   const progress = usePolledProgress(snap?.tmux ?? null, !!snap);
   const now = useCoarseNow(1000);
   if (!snap) return null;
-  const elapsed = progress?.elapsed ? null : snap.startedAt ? formatElapsed(now - snap.startedAt) : null;
+  const elapsed = progress?.elapsed
+    ? null
+    : snap.startedAt
+      ? formatElapsed(now - snap.startedAt)
+      : null;
   return (
-    <div className={`mx-auto px-2 sm:px-4 mb-2 ${expanded ? "conv-col" : "max-w-md"}`}>
+    <div
+      className={`mx-auto px-2 sm:px-4 mb-2 ${expanded ? "conv-col" : "max-w-md"}`}
+    >
       <CompactionProgressCard progress={progress} elapsed={elapsed} live />
     </div>
   );

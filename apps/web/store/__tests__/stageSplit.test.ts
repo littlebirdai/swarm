@@ -21,7 +21,12 @@ const leaf = (path: string, id: string) => leafNode(path, id);
 
 describe("insertLeaf", () => {
   test("splitting a lone leaf right makes a 50/50 row with the newcomer second", () => {
-    const res = insertLeaf(leaf("/tasks", "a"), { leafId: "a" }, "right", "/inbox")!;
+    const res = insertLeaf(
+      leaf("/tasks", "a"),
+      { leafId: "a" },
+      "right",
+      "/inbox",
+    )!;
     expect(res.root.type).toBe("split");
     const b = res.root as StageBranch;
     expect(b.dir).toBe("row");
@@ -31,9 +36,19 @@ describe("insertLeaf", () => {
   });
 
   test("left/top place the newcomer first", () => {
-    const r1 = insertLeaf(leaf("/tasks", "a"), { leafId: "a" }, "left", "/inbox")!;
+    const r1 = insertLeaf(
+      leaf("/tasks", "a"),
+      { leafId: "a" },
+      "left",
+      "/inbox",
+    )!;
     expect(leavesOf(r1.root).map((l) => l.path)).toEqual(["/inbox", "/tasks"]);
-    const r2 = insertLeaf(leaf("/tasks", "a"), { leafId: "a" }, "top", "/inbox")!;
+    const r2 = insertLeaf(
+      leaf("/tasks", "a"),
+      { leafId: "a" },
+      "top",
+      "/inbox",
+    )!;
     expect((r2.root as StageBranch).dir).toBe("col");
     expect(leavesOf(r2.root).map((l) => l.path)).toEqual(["/inbox", "/tasks"]);
   });
@@ -82,7 +97,9 @@ describe("insertLeaf", () => {
   });
 
   test("missing target returns null", () => {
-    expect(insertLeaf(leaf("/a", "a"), { leafId: "zzz" }, "right", "/b")).toBeNull();
+    expect(
+      insertLeaf(leaf("/a", "a"), { leafId: "zzz" }, "right", "/b"),
+    ).toBeNull();
   });
 });
 
@@ -128,7 +145,13 @@ describe("normalize", () => {
       sizes: [60, 40],
       children: [
         leaf("/a", "a"),
-        { type: "split", id: "q", dir: "row", sizes: [50, 50], children: [leaf("/b", "b"), leaf("/c", "c")] },
+        {
+          type: "split",
+          id: "q",
+          dir: "row",
+          sizes: [50, 50],
+          children: [leaf("/b", "b"), leaf("/c", "c")],
+        },
       ],
     };
     const flat = normalize(nested) as StageBranch;
@@ -139,7 +162,13 @@ describe("normalize", () => {
   });
 
   test("single-child branch hoists", () => {
-    const wrapped: StageNode = { type: "split", id: "p", dir: "col", sizes: [100], children: [leaf("/a", "a")] };
+    const wrapped: StageNode = {
+      type: "split",
+      id: "p",
+      dir: "col",
+      sizes: [100],
+      children: [leaf("/a", "a")],
+    };
     expect(normalize(wrapped).type).toBe("leaf");
   });
 });
@@ -166,8 +195,18 @@ describe("stageGeometry", () => {
   test("a 50/50 row yields two half-width cells and one boundary", () => {
     const two = insertLeaf(leaf("/a", "a"), { leafId: "a" }, "right", "/b")!;
     const geo = stageGeometry(two.root);
-    expect(geo.leaves[0].rect).toEqual({ left: 0, top: 0, width: 50, height: 100 });
-    expect(geo.leaves[1].rect).toEqual({ left: 50, top: 0, width: 50, height: 100 });
+    expect(geo.leaves[0].rect).toEqual({
+      left: 0,
+      top: 0,
+      width: 50,
+      height: 100,
+    });
+    expect(geo.leaves[1].rect).toEqual({
+      left: 50,
+      top: 0,
+      width: 50,
+      height: 100,
+    });
     expect(geo.handles).toHaveLength(1);
     expect(geo.handles[0].rect.left).toBe(50);
     expect(geo.handles[0].dir).toBe("row");
@@ -189,29 +228,58 @@ describe("resolveDropZone", () => {
   const stage = { width: 1000, height: 600 };
 
   test("center of a lone pane is center", () => {
-    expect(resolveDropZone(single, stage, 500, 300)).toEqual({ kind: "center", leafId: "a" });
+    expect(resolveDropZone(single, stage, 500, 300)).toEqual({
+      kind: "center",
+      leafId: "a",
+    });
   });
 
   test("near an edge is an edge split", () => {
-    expect(resolveDropZone(single, stage, 60, 300)).toEqual({ kind: "edge", leafId: "a", edge: "left" });
-    expect(resolveDropZone(single, stage, 940, 300)).toEqual({ kind: "edge", leafId: "a", edge: "right" });
-    expect(resolveDropZone(single, stage, 500, 40)).toEqual({ kind: "edge", leafId: "a", edge: "top" });
-    expect(resolveDropZone(single, stage, 500, 560)).toEqual({ kind: "edge", leafId: "a", edge: "bottom" });
+    expect(resolveDropZone(single, stage, 60, 300)).toEqual({
+      kind: "edge",
+      leafId: "a",
+      edge: "left",
+    });
+    expect(resolveDropZone(single, stage, 940, 300)).toEqual({
+      kind: "edge",
+      leafId: "a",
+      edge: "right",
+    });
+    expect(resolveDropZone(single, stage, 500, 40)).toEqual({
+      kind: "edge",
+      leafId: "a",
+      edge: "top",
+    });
+    expect(resolveDropZone(single, stage, 500, 560)).toEqual({
+      kind: "edge",
+      leafId: "a",
+      edge: "bottom",
+    });
   });
 
   test("stage bounds become root splits only when already split", () => {
     expect(resolveDropZone(single, stage, 5, 300)!.kind).toBe("edge");
     const two = insertLeaf(leaf("/a", "a"), { leafId: "a" }, "right", "/b")!;
     const geo = stageGeometry(two.root);
-    expect(resolveDropZone(geo, stage, 5, 300)).toEqual({ kind: "root", edge: "left" });
-    expect(resolveDropZone(geo, stage, 500, 595)).toEqual({ kind: "root", edge: "bottom" });
+    expect(resolveDropZone(geo, stage, 5, 300)).toEqual({
+      kind: "root",
+      edge: "left",
+    });
+    expect(resolveDropZone(geo, stage, 500, 595)).toEqual({
+      kind: "root",
+      edge: "bottom",
+    });
   });
 });
 
 describe("predictDrop", () => {
   test("edge prediction returns the newcomer's cell", () => {
     const root = leaf("/a", "a");
-    const p = predictDrop(root, { kind: "edge", leafId: "a", edge: "right" }, "/b")!;
+    const p = predictDrop(
+      root,
+      { kind: "edge", leafId: "a", edge: "right" },
+      "/b",
+    )!;
     const cell = p.geometry.leaves.find((l) => l.id === p.newLeafId)!;
     expect(cell.rect.left).toBe(50);
     expect(cell.rect.width).toBe(50);
@@ -233,8 +301,12 @@ describe("predictDrop", () => {
       lastId = r.leafId;
     }
     expect(countLeaves(root)).toBe(MAX_STAGE_LEAVES);
-    expect(predictDrop(root, { kind: "edge", leafId: lastId, edge: "right" }, "/x")).toBeNull();
-    expect(predictDrop(root, { kind: "center", leafId: lastId }, "/x")).not.toBeNull();
+    expect(
+      predictDrop(root, { kind: "edge", leafId: lastId, edge: "right" }, "/x"),
+    ).toBeNull();
+    expect(
+      predictDrop(root, { kind: "center", leafId: lastId }, "/x"),
+    ).not.toBeNull();
   });
 });
 
@@ -248,15 +320,26 @@ describe("sanitizeLayout", () => {
 
   test("rejects malformed shapes, duplicate ids, and bad paths", () => {
     expect(sanitizeLayout(null)).toBeUndefined();
-    expect(sanitizeLayout({ type: "leaf", id: "", path: "/a" })).toBeUndefined();
+    expect(
+      sanitizeLayout({ type: "leaf", id: "", path: "/a" }),
+    ).toBeUndefined();
     expect(
       sanitizeLayout({
-        type: "split", id: "p", dir: "row", sizes: [50, 50],
-        children: [{ type: "leaf", id: "x", path: "/a" }, { type: "leaf", id: "x", path: "/b" }],
+        type: "split",
+        id: "p",
+        dir: "row",
+        sizes: [50, 50],
+        children: [
+          { type: "leaf", id: "x", path: "/a" },
+          { type: "leaf", id: "x", path: "/b" },
+        ],
       }),
     ).toBeUndefined();
     expect(
-      sanitizeLayout({ type: "leaf", id: "x", path: "/settings" }, (p) => p !== "/settings"),
+      sanitizeLayout(
+        { type: "leaf", id: "x", path: "/settings" },
+        (p) => p !== "/settings",
+      ),
     ).toBeUndefined();
   });
 
@@ -278,7 +361,8 @@ describe("geometry tiling property", () => {
   // contract the flat renderer and the drop preview both stand on.
   test("random trees tile 100x100 exactly", () => {
     let seed = 42;
-    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const rand = () =>
+      (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
     const edges = ["left", "right", "top", "bottom"] as const;
     for (let trial = 0; trial < 40; trial++) {
       let root: StageNode = leaf("/p0", `t${trial}_0`);
@@ -287,7 +371,12 @@ describe("geometry tiling property", () => {
         const target = targets[Math.floor(rand() * targets.length)];
         const edge = edges[Math.floor(rand() * 4)];
         const useRoot = rand() < 0.25;
-        const res = insertLeaf(root, useRoot ? "root" : { leafId: target.id }, edge, `/p${i}`)!;
+        const res = insertLeaf(
+          root,
+          useRoot ? "root" : { leafId: target.id },
+          edge,
+          `/p${i}`,
+        )!;
         root = res.root;
       }
       const { leaves } = stageGeometry(root);
@@ -302,9 +391,14 @@ describe("geometry tiling property", () => {
       // Pairwise: no two rects overlap (touching edges allowed).
       for (let a = 0; a < leaves.length; a++) {
         for (let b = a + 1; b < leaves.length; b++) {
-          const A = leaves[a].rect, B = leaves[b].rect;
-          const overlapX = Math.min(A.left + A.width, B.left + B.width) - Math.max(A.left, B.left);
-          const overlapY = Math.min(A.top + A.height, B.top + B.height) - Math.max(A.top, B.top);
+          const A = leaves[a].rect,
+            B = leaves[b].rect;
+          const overlapX =
+            Math.min(A.left + A.width, B.left + B.width) -
+            Math.max(A.left, B.left);
+          const overlapY =
+            Math.min(A.top + A.height, B.top + B.height) -
+            Math.max(A.top, B.top);
           expect(Math.min(overlapX, overlapY)).toBeLessThan(0.01);
         }
       }

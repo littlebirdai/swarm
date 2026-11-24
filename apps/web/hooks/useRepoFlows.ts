@@ -9,19 +9,34 @@ import { useCollectionRows } from "./useCollectionRows";
 
 const FOR_CHECKOUT = makeFunctionReference<"query">("repoFlows:forCheckout");
 
-export type RepoFlowsRow = { _id: string; root: string; repository: string; flows: RepoFlow[]; updated_at: number };
+export type RepoFlowsRow = {
+  _id: string;
+  root: string;
+  repository: string;
+  flows: RepoFlow[];
+  updated_at: number;
+};
 
 const NONE: RepoFlow[] = [];
 const rowSig = (r: RepoFlowsRow) => `${r.root}|${r.updated_at}`;
 
 /** The repository an origin remote names, the way a checkout reports its flows under it. */
-export const repositoryOfRemote = (remote: string | null | undefined): string | null => repositoryKeyOfRemote(remote ?? undefined);
+export const repositoryOfRemote = (
+  remote: string | null | undefined,
+): string | null => repositoryKeyOfRemote(remote ?? undefined);
 
-type SessionRows = { sessions?: Record<string, any>; conversations?: Record<string, any> };
+type SessionRows = {
+  sessions?: Record<string, any>;
+  conversations?: Record<string, any>;
+};
 
 /** A session's origin remote. A sessions row can lack it while the conversation row has it, so both are read. */
 export function sessionRemoteOf(s: SessionRows, id: string): string | null {
-  return s.sessions?.[id]?.git_remote_url ?? s.conversations?.[id]?.git_remote_url ?? null;
+  return (
+    s.sessions?.[id]?.git_remote_url ??
+    s.conversations?.[id]?.git_remote_url ??
+    null
+  );
 }
 
 /** A session's checkout: its git top level, the key a checkout reports its flows under. */
@@ -30,18 +45,48 @@ export function sessionRootOf(s: SessionRows, id: string): string | null {
 }
 
 /** Of the rows held for a checkout and its repository: the checkout's own, else the repository's newest report. */
-export function checkoutRow(rows: ReadonlyArray<RepoFlowsRow>, root: string | null): RepoFlowsRow | null {
-  return rows.find((r) => r.root === root) ?? [...rows].sort((a, b) => b.updated_at - a.updated_at)[0] ?? null;
+export function checkoutRow(
+  rows: ReadonlyArray<RepoFlowsRow>,
+  root: string | null,
+): RepoFlowsRow | null {
+  return (
+    rows.find((r) => r.root === root) ??
+    [...rows].sort((a, b) => b.updated_at - a.updated_at)[0] ??
+    null
+  );
 }
 
 /** The flows of the checkout at `root` (of `repository`), as `cast flow run` reads them there; none while unknown. */
-export function useRepoFlows(root: string | null, repository: string | null): RepoFlow[] {
+export function useRepoFlows(
+  root: string | null,
+  repository: string | null,
+): RepoFlow[] {
   // The answer is whole for this checkout: a row of it the answer lacks was pruned on the server, and a row with no
   // root is a cached report from before checkouts were the key. Both leave disk as well as memory (the rows are
   // Convex-keyed, so only pruneAbsentScope reaches IndexedDB); a re-reported checkout comes back under a new _id.
-  const syncOpts = useMemo(() => ({ isDelta: true, pruneAbsentScope: (r: Partial<RepoFlowsRow>) => !r.root || r.root === root }), [root]);
-  useSyncCollection("repoFlows", FOR_CHECKOUT, root || repository ? { root, repository } : "skip", { syncOpts });
-  const where = useMemo(() => (r: RepoFlowsRow) => !!r.root && (r.root === root || (!!repository && r.repository === repository)), [root, repository]);
-  const rows = useCollectionRows<RepoFlowsRow>("repoFlows", { where, sig: rowSig });
+  const syncOpts = useMemo(
+    () => ({
+      isDelta: true,
+      pruneAbsentScope: (r: Partial<RepoFlowsRow>) =>
+        !r.root || r.root === root,
+    }),
+    [root],
+  );
+  useSyncCollection(
+    "repoFlows",
+    FOR_CHECKOUT,
+    root || repository ? { root, repository } : "skip",
+    { syncOpts },
+  );
+  const where = useMemo(
+    () => (r: RepoFlowsRow) =>
+      !!r.root &&
+      (r.root === root || (!!repository && r.repository === repository)),
+    [root, repository],
+  );
+  const rows = useCollectionRows<RepoFlowsRow>("repoFlows", {
+    where,
+    sig: rowSig,
+  });
   return useMemo(() => checkoutRow(rows, root)?.flows ?? NONE, [rows, root]);
 }

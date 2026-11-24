@@ -6,11 +6,14 @@
 // bridges CSS custom properties to those renderers.
 
 /** Read one custom property off an already-computed style declaration. */
-export function cssVar(styles: CSSStyleDeclaration, name: string, fallback: string): string {
+export function cssVar(
+  styles: CSSStyleDeclaration,
+  name: string,
+  fallback: string,
+): string {
   const value = styles.getPropertyValue(name).trim();
   return value || fallback;
 }
-
 
 export function isDarkTheme(): boolean {
   return document.documentElement.classList.contains("dark");
@@ -19,7 +22,10 @@ export function isDarkTheme(): boolean {
 /** Re-run `apply` whenever the html class flips between light/dark. */
 export function observeTheme(apply: () => void): () => void {
   const observer = new MutationObserver(apply);
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
   return () => observer.disconnect();
 }
 

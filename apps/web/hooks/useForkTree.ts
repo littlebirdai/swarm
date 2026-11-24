@@ -61,24 +61,27 @@ export type FlatForkNode = ForkNode & {
 };
 
 // Loose view of the conversation-details payload — only the fork fields.
-export type ForkConversationLike = {
-  _id: { toString(): string } | string;
-  title?: string | null;
-  message_count?: number;
-  started_at?: number;
-  updated_at?: number;
-  agent_type?: string;
-  session_id?: string | null;
-  forked_from?: { toString(): string } | string | null;
-  parent_message_uuid?: string | null;
-  forked_from_details?: {
-    conversation_id?: { toString(): string } | string;
-    title?: string | null;
-    parent_message_uuid?: string;
-  } | null;
-  fork_children?: Array<Record<string, any>>;
-  fork_siblings?: Array<Record<string, any>>;
-} | null | undefined;
+export type ForkConversationLike =
+  | {
+      _id: { toString(): string } | string;
+      title?: string | null;
+      message_count?: number;
+      started_at?: number;
+      updated_at?: number;
+      agent_type?: string;
+      session_id?: string | null;
+      forked_from?: { toString(): string } | string | null;
+      parent_message_uuid?: string | null;
+      forked_from_details?: {
+        conversation_id?: { toString(): string } | string;
+        title?: string | null;
+        parent_message_uuid?: string;
+      } | null;
+      fork_children?: Array<Record<string, any>>;
+      fork_siblings?: Array<Record<string, any>>;
+    }
+  | null
+  | undefined;
 
 type RawRec = Partial<ForkNode> & { id: string; parentId?: string | null };
 
@@ -87,7 +90,10 @@ type RawRec = Partial<ForkNode> & { id: string; parentId?: string | null };
 // deploy-independent for any conversation already in the store. Strips tags and
 // collapses whitespace so slash-command wrappers read as their inner text.
 function cleanPrompt(s: string): string {
-  return s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 export function firstUserPromptOf(msgs: Message[]): string | undefined {
   for (const m of msgs) {
@@ -128,7 +134,11 @@ function liveOf(s: InboxSession): BranchLive {
   // where attention is owed, and a torn-down branch owes none.
   if (s.inbox_killed_at) return "idle";
   if (!isSessionEffectivelyIdle(s)) return "working";
-  if (s.awaiting_input || s.agent_status === "permission_blocked" || s.pending_api_error) {
+  if (
+    s.awaiting_input ||
+    s.agent_status === "permission_blocked" ||
+    s.pending_api_error
+  ) {
     return "needs_input";
   }
   return "idle";
@@ -154,7 +164,10 @@ function recFromSession(s: InboxSession): RawRec {
   };
 }
 
-function recFromDetails(f: Record<string, any>, parentId: string | undefined): RawRec {
+function recFromDetails(
+  f: Record<string, any>,
+  parentId: string | undefined,
+): RawRec {
   return {
     id: f._id?.toString?.() ?? f._id,
     parentId,
@@ -207,9 +220,16 @@ type ServerTreeNode = {
 // the store (which has no after-fork labels of its own).
 const branchInfoCache = new Map<string, { label?: string; count?: number }>();
 
-function collectServerRecs(node: ServerTreeNode, parentId: string | null, out: RawRec[]) {
+function collectServerRecs(
+  node: ServerTreeNode,
+  parentId: string | null,
+  out: RawRec[],
+) {
   if (node.branch_label || typeof node.branch_message_count === "number") {
-    branchInfoCache.set(node.id, { label: node.branch_label, count: node.branch_message_count });
+    branchInfoCache.set(node.id, {
+      label: node.branch_label,
+      count: node.branch_message_count,
+    });
   }
   out.push({
     id: node.id,
@@ -263,9 +283,16 @@ export function buildForkFamily(
   });
   const ffd = conversation.forked_from_details;
   if (parentId && ffd?.conversation_id) {
-    put({ id: parentId, title: ffd.title || "Untitled", parent_message_uuid: ffd.parent_message_uuid, message_count: 0, started_at: 0 });
+    put({
+      id: parentId,
+      title: ffd.title || "Untitled",
+      parent_message_uuid: ffd.parent_message_uuid,
+      message_count: 0,
+      started_at: 0,
+    });
   }
-  for (const f of conversation.fork_children ?? []) put(recFromDetails(f, currentId));
+  for (const f of conversation.fork_children ?? [])
+    put(recFromDetails(f, currentId));
   for (const f of conversation.fork_siblings ?? []) {
     if (parentId) put(recFromDetails(f, parentId));
   }
@@ -280,7 +307,8 @@ export function buildForkFamily(
     seenUp.add(upId);
     const next: string | undefined =
       sessions[upId]?.forked_from ?? recs.get(upId)?.parentId ?? undefined;
-    if (next && sessions[next] && !recs.has(next)) put(recFromSession(sessions[next]));
+    if (next && sessions[next] && !recs.has(next))
+      put(recFromSession(sessions[next]));
     upId = next;
   }
 
@@ -329,7 +357,12 @@ export function buildForkFamily(
 
   // DFS flatten with rail guides.
   const flat: FlatForkNode[] = [];
-  const visit = (r: RawRec, depth: number, guides: boolean[], isLast: boolean) => {
+  const visit = (
+    r: RawRec,
+    depth: number,
+    guides: boolean[],
+    isLast: boolean,
+  ) => {
     if (flat.length > 500) return; // runaway guard
     const kids = childrenOf.get(r.id) ?? [];
     const cached = branchInfoCache.get(r.id);
@@ -367,20 +400,31 @@ export function buildForkFamily(
       isLast,
       childCount: kids.length,
     });
-    kids.forEach((k, i) => visit(k, depth + 1, [...guides, !isLastChild(i, kids)], isLastChild(i, kids)));
+    kids.forEach((k, i) =>
+      visit(
+        k,
+        depth + 1,
+        [...guides, !isLastChild(i, kids)],
+        isLastChild(i, kids),
+      ),
+    );
   };
   const isLastChild = (i: number, kids: RawRec[]) => i === kids.length - 1;
   const root = recs.get(rootId)!;
   visit(root, 0, [], true);
   // An attempt family's lines are named by attempt (isAttemptFamily), everywhere branchDisplayLabel is read.
   if (isAttemptFamily(flat.slice(1))) {
-    flat.forEach((n, i) => { n.branch_label = attemptLineLabel(i === 0, n.title) ?? n.branch_label; });
+    flat.forEach((n, i) => {
+      n.branch_label = attemptLineLabel(i === 0, n.title) ?? n.branch_label;
+    });
   }
   return flat;
 }
 
 // Branch's own size: messages added after the fork point.
-export function branchOwnSize(n: Pick<ForkNode, "message_count" | "fork_copied">): number {
+export function branchOwnSize(
+  n: Pick<ForkNode, "message_count" | "fork_copied">,
+): number {
   const total = n.message_count ?? 0;
   if (typeof n.fork_copied !== "number") return total;
   return Math.max(0, total - n.fork_copied);
@@ -389,7 +433,9 @@ export function branchOwnSize(n: Pick<ForkNode, "message_count" | "fork_copied">
 // What the row shows. Count prefers the server's exact after-fork number, with
 // the locally-derived size as the instant fallback before the tree loads.
 export function branchDisplayCount(n: ForkNode): number {
-  return typeof n.branch_message_count === "number" ? n.branch_message_count : branchOwnSize(n);
+  return typeof n.branch_message_count === "number"
+    ? n.branch_message_count
+    : branchOwnSize(n);
 }
 
 // Label prefers the first-message-after-fork (the prompt that started the
@@ -407,39 +453,76 @@ export function branchDisplayLabel(n: ForkNode): string {
  * counts its lines as attempts. Every surface that names a family's lines
  * (the branch chips, the branch map) asks these.
  */
-export function isAttemptFamily(branches: ReadonlyArray<{ agent_type?: string | null; session_id?: string | null }>): boolean {
-  return branches.length > 0 && branches.every((b) => isCloudAgentBranch(b.agent_type, b.session_id));
+export function isAttemptFamily(
+  branches: ReadonlyArray<{
+    agent_type?: string | null;
+    session_id?: string | null;
+  }>,
+): boolean {
+  return (
+    branches.length > 0 &&
+    branches.every((b) => isCloudAgentBranch(b.agent_type, b.session_id))
+  );
 }
 
 /** A line's name in an attempt family: the origin line is attempt 1, a branch its title. */
-export function attemptLineLabel(origin: boolean, title: string | null | undefined): string | undefined {
+export function attemptLineLabel(
+  origin: boolean,
+  title: string | null | undefined,
+): string | undefined {
   return origin ? "Attempt 1" : title || undefined;
 }
 
 /** An attempt family's heading, counting the origin line; null for any other family. */
-export function attemptsHeading(branches: ReadonlyArray<{ agent_type?: string | null; session_id?: string | null }>): string | null {
+export function attemptsHeading(
+  branches: ReadonlyArray<{
+    agent_type?: string | null;
+    session_id?: string | null;
+  }>,
+): string | null {
   return isAttemptFamily(branches) ? `${branches.length + 1} attempts` : null;
 }
 
 /** A fork family's heading everywhere it is named: its attempts, else `count` branches (by default, the branches given). */
-export function familyHeading(branches: ReadonlyArray<{ agent_type?: string | null; session_id?: string | null }>, count = branches.length): string {
-  return attemptsHeading(branches) ?? `${count} branch${count === 1 ? "" : "es"}`;
+export function familyHeading(
+  branches: ReadonlyArray<{
+    agent_type?: string | null;
+    session_id?: string | null;
+  }>,
+  count = branches.length,
+): string {
+  return (
+    attemptsHeading(branches) ?? `${count} branch${count === 1 ? "" : "es"}`
+  );
 }
 
 /** The fork family a conversation's own details payload names (me, my children, and my parent plus siblings when forked); null when it has no forks. */
 export function forkFamilyOf(conv: {
   forked_from?: unknown;
-  fork_children?: ReadonlyArray<{ agent_type?: string | null; session_id?: string | null }>;
-  fork_siblings?: ReadonlyArray<{ agent_type?: string | null; session_id?: string | null }>;
+  fork_children?: ReadonlyArray<{
+    agent_type?: string | null;
+    session_id?: string | null;
+  }>;
+  fork_siblings?: ReadonlyArray<{
+    agent_type?: string | null;
+    session_id?: string | null;
+  }>;
   agent_type?: string | null;
   session_id?: string | null;
 }): { count: number; heading: string } | null {
   const children = conv.fork_children ?? [];
   if (children.length === 0 && !conv.forked_from) return null;
   const siblings = conv.fork_siblings ?? [];
-  const count = 1 + children.length + (conv.forked_from ? 1 + siblings.length : 0);
+  const count =
+    1 + children.length + (conv.forked_from ? 1 + siblings.length : 0);
   // A cloud agent's attempts count as attempts (the branches off the family's origin line).
-  return { count, heading: familyHeading(conv.forked_from ? [conv, ...siblings] : children, count) };
+  return {
+    count,
+    heading: familyHeading(
+      conv.forked_from ? [conv, ...siblings] : children,
+      count,
+    ),
+  };
 }
 
 // Unread mirror of BranchSelector.unreadOf: baseline is your seen count or the
@@ -455,7 +538,6 @@ export function branchUnread(
   const baseline = Math.max(seenCount ?? floor, floor);
   return Math.max(0, total - baseline);
 }
-
 
 // Stable empty map for the closed state (Object.is-stable → no re-render).
 const EMPTY_FORK_MAP: Record<string, any> = {};
@@ -478,15 +560,20 @@ export function useForkTree(conversation: ForkConversationLike, open: boolean) {
   const queryId =
     conversationId && isConvexId(conversationId)
       ? conversationId
-      : (typeof conversation?.forked_from === "string" && isConvexId(conversation.forked_from)
-          ? conversation.forked_from
-          : conversation?.forked_from?.toString());
+      : typeof conversation?.forked_from === "string" &&
+          isConvexId(conversation.forked_from)
+        ? conversation.forked_from
+        : conversation?.forked_from?.toString();
   const serverRes = useQueryNoThrow(
     api.conversations.getConversationTree,
-    open && queryId && isConvexId(queryId) ? { conversation_id: queryId as any } : "skip",
+    open && queryId && isConvexId(queryId)
+      ? { conversation_id: queryId as any }
+      : "skip",
   ).data;
   const serverTree =
-    serverRes && !("error" in serverRes) ? ((serverRes as any).tree as ServerTreeNode) : null;
+    serverRes && !("error" in serverRes)
+      ? ((serverRes as any).tree as ServerTreeNode)
+      : null;
 
   // Dev diagnostic: if the map opened but the server tree didn't resolve, the
   // family falls back to cached branches only — which reads as "missing
@@ -497,10 +584,18 @@ export function useForkTree(conversation: ForkConversationLike, open: boolean) {
   if (isDev && open) {
     if (serverRes && "error" in (serverRes as any)) {
       // eslint-disable-next-line no-console
-      console.warn("[branch-map] getConversationTree error:", (serverRes as any).error, "for", queryId);
+      console.warn(
+        "[branch-map] getConversationTree error:",
+        (serverRes as any).error,
+        "for",
+        queryId,
+      );
     } else if (!queryId) {
       // eslint-disable-next-line no-console
-      console.warn("[branch-map] no Convex id to query the fork tree; showing cached branches only", { conversationId });
+      console.warn(
+        "[branch-map] no Convex id to query the fork tree; showing cached branches only",
+        { conversationId },
+      );
     }
   }
 

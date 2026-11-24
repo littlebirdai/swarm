@@ -44,6 +44,7 @@ read as "simple, fast, fun, and real software", in that order.
 ## What a visitor can do
 
 ### Land on the home page
+
 - One big input: "Make something". Submitting creates an app and starts the
   first build; the visitor lands in the room watching it build.
 - Below: a gallery of apps, those with people in them first (the most people
@@ -54,6 +55,7 @@ read as "simple, fast, fun, and real software", in that order.
 - A few starter ideas as one-tap prompts.
 
 ### Open an app link `/<slug>`
+
 - The app fills the viewport. It is the live version, and it updates in place
   when a new version goes live (no full reload jank; keep the app's data).
 - A small, beautiful affordance in a corner shows who is here (stacked animal
@@ -63,6 +65,7 @@ read as "simple, fast, fun, and real software", in that order.
 - `/<slug>/v/<n>` shows version n, read-only on the timeline, clearly marked.
 
 ### Use the room
+
 - A chat panel overlaid on the app (side panel on desktop, bottom sheet on
   mobile), resizable and dismissible. The app stays interactive beside it.
 - Presence: who is here now, with faces. Typing indicators.
@@ -79,6 +82,7 @@ read as "simple, fast, fun, and real software", in that order.
 - Everyone in the room sees build cards update in real time.
 
 ### Use the timeline
+
 - A timeline strip (in the room, and reachable from the clean link via the
   affordance) shows every version: number, summary, who asked, when, faces.
 - Scrubbing or clicking a version shows that version to **you only** (a pill
@@ -88,17 +92,20 @@ read as "simple, fast, fun, and real software", in that order.
 - Keyboard: left/right to step through versions while the timeline has focus.
 
 ### Fork
+
 - Fork from any version: name it (prefilled), get a new app with that code and
   a copy of the data, land in its fresh room. The source app's room gets a
   small note ("Raccoon forked v12 into <name>"), and the fork shows its
   lineage ("forked from <app> v12") with a link back.
 
 ### Share
+
 - Copy link buttons for: the clean app link, the room link, a specific version.
 - Each app link has good Open Graph metadata (title, summary, image when we
   have one) so it unfurls well in messages.
 
 ### Identity
+
 - On first visit: mint visitor id + secret, store in localStorage, register.
   Default character from `defaultCharacterFor(visitorId)`
   (`packages/shared/contracts/sessionCharacter.ts`).
@@ -109,6 +116,7 @@ read as "simple, fast, fun, and real software", in that order.
 ## Architecture
 
 ### Packages and reuse
+
 - `apps/playground`: Vite + React 19 app (the shell) and `convex/` (its own
   Convex deployment, project `codecast-playground`, dev deployment in
   `.env.local`). It is a workspace member and imports:
@@ -123,6 +131,7 @@ read as "simple, fast, fun, and real software", in that order.
   except to export something genuinely shared (and then reuse it from both).
 
 ### Convex data model (playground deployment)
+
 `convex/schema.ts` is the source of truth, with the reason for each table and
 field in its comments. The tables, by what they hold:
 
@@ -166,6 +175,7 @@ what anyone can already see, so those pages draw before their visitor is known. 
 visitor id alone.
 
 ### Build queue and the builder agent
+
 - One build at a time per app, FIFO, each based on the live version at the
   moment it starts, and committed only on top of that version: if a restore
   lands meanwhile, the build starts again from the new live version (once;
@@ -192,6 +202,7 @@ visitor id alone.
   maker's first build is v1.
 
 ### Runtime (how an app version runs)
+
 - An app version is a set of static files: `index.html` plus ES modules
   (`.js`, `.jsx`, `.ts`, `.tsx`, `.css`), and assets. JSX/TS is transpiled at
   commit time (e.g. sucrase, pure JS, runs in a Convex action) and the served
@@ -201,7 +212,7 @@ visitor id alone.
   `/run/<slug>/v/<n>/...` on the `.convex.site` origin (a different site from
   the shell), immutable-cached per version, with
   `Content-Security-Policy: sandbox allow-scripts allow-forms allow-modals
-  allow-popups allow-downloads` and no `allow-same-origin`, so an app is an
+allow-popups allow-downloads` and no `allow-same-origin`, so an app is an
   opaque origin with no access to the shell or other apps.
 - The shell embeds the app in a full-viewport iframe pointing at that URL.
   When the live version changes the shell swaps to the new version smoothly
@@ -220,18 +231,19 @@ visitor id alone.
     plus `setMyState(obj)` for cursors/game state,
   - `me` → the current visitor's id, name, avatar URL,
   - `app` → the app's name, clean link and room link, from the shell.
-  A write the backend refuses (rate, size, caps) rejects with a readable
-  message and is reported to the room as an app error.
-  The SDK talks to the playground Convex deployment directly over WebSocket
-  (ConvexClient) using the visitor credentials the shell hands it via
-  postMessage on load. Writes are stamped server-side with the visitor id.
-  Data is scoped to the app (and forks get a copy).
+    A write the backend refuses (rate, size, caps) rejects with a readable
+    message and is reported to the room as an app error.
+    The SDK talks to the playground Convex deployment directly over WebSocket
+    (ConvexClient) using the visitor credentials the shell hands it via
+    postMessage on load. Writes are stamped server-side with the visitor id.
+    Data is scoped to the app (and forks get a copy).
 - The SDK also carries the point-and-talk picker (hover highlight + click →
   element reference posted to the shell), active only when the shell asks.
 - This boundary (static files + SDK + data API) is what a per-app VM replaces
   later; nothing in the shell may assume more about the runtime than this.
 
 ### Safety and limits (v1)
+
 - Becoming a visitor costs a small proof of work over the new secret's hash,
   harder while the deployment sees a flood of newcomers, so per-visitor
   limits cost a script real CPU. No rate limit counts everyone together: a
@@ -273,5 +285,6 @@ visitor id alone.
 - Visual design is distinctive and delightful (see `DESIGN.md`), never generic.
 
 ## Out of scope for v1 (but keep the seams)
+
 Votes, governance tiers, editor roles, feature flags, per-app VMs, custom
 domains, accounts/sign-in, moderation UI, billing.

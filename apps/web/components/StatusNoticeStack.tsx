@@ -1,5 +1,8 @@
 import { X } from "lucide-react";
-import { useStatusNoticeStore, type StatusNotice } from "../hooks/useStatusNotice";
+import {
+  useStatusNoticeStore,
+  type StatusNotice,
+} from "../hooks/useStatusNotice";
 
 const TONE: Record<StatusNotice["tone"], { stripe: string; icon: string }> = {
   yellow: { stripe: "border-l-sol-yellow", icon: "text-sol-yellow" },
@@ -33,7 +36,14 @@ export function StatusNoticeStack() {
   );
 }
 
-function NoticeCard({ tone, icon: Icon, title, detail, action, onDismiss }: StatusNotice) {
+function NoticeCard({
+  tone,
+  icon: Icon,
+  title,
+  detail,
+  action,
+  onDismiss,
+}: StatusNotice) {
   const t = TONE[tone];
   return (
     <div
@@ -43,7 +53,9 @@ function NoticeCard({ tone, icon: Icon, title, detail, action, onDismiss }: Stat
       <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${t.icon}`} />
       <div className="min-w-0 flex-1 text-sm leading-snug text-sol-text">
         <div>{title}</div>
-        {detail && <div className="mt-0.5 text-xs text-sol-text-dim">{detail}</div>}
+        {detail && (
+          <div className="mt-0.5 text-xs text-sol-text-dim">{detail}</div>
+        )}
         {action && <div className="mt-1.5">{action}</div>}
       </div>
       {onDismiss && (

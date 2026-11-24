@@ -25,10 +25,16 @@ export function OpenCallButton() {
           data-open-call
           data-card-action="open"
           className="engagement-card-toggle relative"
-          aria-label={unread > 0 ? `${label}, ${unread} new in its chat` : label}
+          aria-label={
+            unread > 0 ? `${label}, ${unread} new in its chat` : label
+          }
         >
           <Maximize2 className="h-3.5 w-3.5" />
-          <UnreadCount count={unread} agent={!!latest?.agent} className="absolute -right-1.5 -top-1.5" />
+          <UnreadCount
+            count={unread}
+            agent={!!latest?.agent}
+            className="absolute -right-1.5 -top-1.5"
+          />
         </button>
       </span>
     </ShortcutTooltip>

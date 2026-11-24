@@ -56,7 +56,12 @@ export interface QueuedStart {
 }
 
 /** Start a spawned row: the start_session command and its seeded first turn. */
-export async function startSpawnedSession(ctx: any, runnerUserId: Id<"users">, conversationId: Id<"conversations">, start: QueuedStart): Promise<void> {
+export async function startSpawnedSession(
+  ctx: any,
+  runnerUserId: Id<"users">,
+  conversationId: Id<"conversations">,
+  start: QueuedStart,
+): Promise<void> {
   await enqueueStartSession(ctx, runnerUserId, {
     conversationId,
     agentType: start.agentType,
@@ -80,7 +85,9 @@ export async function startSpawnedSession(ctx: any, runnerUserId: Id<"users">, c
   const prompt = (start.prompt ?? "").trim();
   if (prompt) {
     const conversation = await ctx.db.get(conversationId);
-    const author = (start.briefFromUserId ?? start.callerUserId ?? runnerUserId) as Id<"users">;
+    const author = (start.briefFromUserId ??
+      start.callerUserId ??
+      runnerUserId) as Id<"users">;
     await enqueuePendingMessage(ctx, conversation, author, { content: prompt });
   }
 }
@@ -90,7 +97,9 @@ const SLOT_SCAN = 500;
 function slotRowOf(doc: any): SlotRow {
   return {
     id: String(doc._id),
-    parent: doc.parent_conversation_id ? String(doc.parent_conversation_id) : null,
+    parent: doc.parent_conversation_id
+      ? String(doc.parent_conversation_id)
+      : null,
     device: doc.subagent_slot_device ?? null,
     slot: doc.subagent_slot,
     at: doc.subagent_slot_at ?? doc._creationTime ?? 0,
@@ -99,10 +108,16 @@ function slotRowOf(doc: any): SlotRow {
 }
 
 /** One user's running and queued workers. */
-export async function fleetRowsOf(ctx: { db: any }, userId: Id<"users">): Promise<any[]> {
+export async function fleetRowsOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+): Promise<any[]> {
   const read = (slot: "running" | "queued") =>
-    ctx.db.query("conversations")
-      .withIndex("by_user_subagent_slot", (q: any) => q.eq("user_id", userId).eq("subagent_slot", slot))
+    ctx.db
+      .query("conversations")
+      .withIndex("by_user_subagent_slot", (q: any) =>
+        q.eq("user_id", userId).eq("subagent_slot", slot),
+      )
       .take(SLOT_SCAN);
   return [...(await read("running")), ...(await read("queued"))];
 }
@@ -118,8 +133,13 @@ export const queueStatus = query({
     if (!auth) throw new Error("Authentication required");
     const docs = await fleetRowsOf(ctx, auth.userId);
     return docs
-      .map((doc) => ({ ...slotRowOf(doc), title: typeof doc.title === "string" ? doc.title : null }))
-      .sort((a, b) => (a.slot === b.slot ? a.at - b.at : a.slot === "running" ? -1 : 1));
+      .map((doc) => ({
+        ...slotRowOf(doc),
+        title: typeof doc.title === "string" ? doc.title : null,
+      }))
+      .sort((a, b) =>
+        a.slot === b.slot ? a.at - b.at : a.slot === "running" ? -1 : 1,
+      );
   },
 });
 
@@ -136,19 +156,34 @@ const WORKER_START_WINDOW_MS = 15 * 60_000;
 async function atRest(ctx: any, doc: any, now: number): Promise<boolean> {
   const session = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", doc._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", doc._id),
+    )
     .first();
   // No session row once the start window has passed: the daemon reaped it
   // after its heartbeats stopped, so no agent is running there.
-  if (!session) return now - (doc.subagent_slot_at ?? 0) >= WORKER_START_WINDOW_MS;
+  if (!session)
+    return now - (doc.subagent_slot_at ?? 0) >= WORKER_START_WINDOW_MS;
   const status = session.agent_status;
-  if (!status || ACTIVE_AGENT_STATUSES.has(status) || status === "dormant" || status === "waiting") return false;
+  if (
+    !status ||
+    ACTIVE_AGENT_STATUSES.has(status) ||
+    status === "dormant" ||
+    status === "waiting"
+  )
+    return false;
   const since = session.agent_status_updated_at ?? 0;
-  return since > (doc.subagent_slot_at ?? 0) && now - since >= NEEDS_INPUT_IDLE_CHECK_DELAY_MS;
+  return (
+    since > (doc.subagent_slot_at ?? 0) &&
+    now - since >= NEEDS_INPUT_IDLE_CHECK_DELAY_MS
+  );
 }
 
 /** Start every queued worker the limits now admit. Returns the started ids. */
-export async function drainFleet(ctx: any, userId: Id<"users">): Promise<string[]> {
+export async function drainFleet(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<string[]> {
   const now = Date.now();
   const docs: any[] = [];
   for (const doc of await fleetRowsOf(ctx, userId)) {
@@ -163,7 +198,11 @@ export async function drainFleet(ctx: any, userId: Id<"users">): Promise<string[
   for (const id of started) {
     const doc = byId.get(id)!;
     const start = doc.subagent_queued_start as QueuedStart | undefined;
-    await ctx.db.patch(doc._id, { subagent_slot: "running", subagent_slot_at: Date.now(), subagent_queued_start: undefined });
+    await ctx.db.patch(doc._id, {
+      subagent_slot: "running",
+      subagent_slot_at: Date.now(),
+      subagent_queued_start: undefined,
+    });
     // A row queued before this code knew how to start it has nothing to run;
     // it still takes the slot it was given, and its owner sees it idle.
     if (start) await startSpawnedSession(ctx, doc.user_id, doc._id, start);
@@ -197,7 +236,11 @@ export async function admitSubagent(
  * its worktree. Idempotent: a second declaration of the same end finds no
  * slot and no pending merge, and does nothing.
  */
-export async function subagentEnded(ctx: any, conv: any, outcome: SubagentOutcome): Promise<void> {
+export async function subagentEnded(
+  ctx: any,
+  conv: any,
+  outcome: SubagentOutcome,
+): Promise<void> {
   const fresh = await releaseSubagentSlot(ctx, conv);
   if (fresh) await settleWorktree(ctx, fresh, outcome);
 }
@@ -205,12 +248,18 @@ export async function subagentEnded(ctx: any, conv: any, outcome: SubagentOutcom
 /** A worker's process stopped without the worker ending (a Close): free its
  *  slot and start what the queue now admits, settling nothing. Returns the
  *  fresh row, or null when it is not a worker. */
-export async function releaseSubagentSlot(ctx: any, conv: any): Promise<any | null> {
+export async function releaseSubagentSlot(
+  ctx: any,
+  conv: any,
+): Promise<any | null> {
   if (!conv?.parent_conversation_id) return null;
   const fresh = await ctx.db.get(conv._id);
   if (!fresh) return null;
   if (fresh.subagent_slot) {
-    await ctx.db.patch(fresh._id, { subagent_slot: undefined, subagent_queued_start: undefined });
+    await ctx.db.patch(fresh._id, {
+      subagent_slot: undefined,
+      subagent_queued_start: undefined,
+    });
     await drainFleet(ctx, fresh.user_id);
   }
   return fresh;
@@ -230,46 +279,101 @@ export function fleetRowFields(conv: any) {
 }
 
 /** The thread-state and task statuses that end a worker's turn at its slot. */
-export function outcomeOfDeclaration(status: string | null | undefined): SubagentOutcome | null {
+export function outcomeOfDeclaration(
+  status: string | null | undefined,
+): SubagentOutcome | null {
   if (status === "done") return "done";
   if (status === "blocked" || status === "needs_context") return "blocked";
   return null;
 }
 
-async function settleWorktree(ctx: any, worker: any, outcome: SubagentOutcome): Promise<void> {
+async function settleWorktree(
+  ctx: any,
+  worker: any,
+  outcome: SubagentOutcome,
+): Promise<void> {
   if (!worker.merge_back_on_done || !worker.worktree_path) return;
   // A merge already running or finished for this worktree stays as it is.
-  if (worker.merge_back?.state === "pending" || worker.merge_back?.state === "merged") return;
+  if (
+    worker.merge_back?.state === "pending" ||
+    worker.merge_back?.state === "merged"
+  )
+    return;
   const parent = await ctx.db.get(worker.parent_conversation_id);
   if (outcome !== "done") {
-    await recordMergeBack(ctx, worker, parent, { state: "kept", at: Date.now() }, outcome);
+    await recordMergeBack(
+      ctx,
+      worker,
+      parent,
+      { state: "kept", at: Date.now() },
+      outcome,
+    );
     return;
   }
   const target = parent?.git_root || parent?.project_path;
-  const sameMachine = !!parent && !!worker.owner_device_id && parent.owner_device_id === worker.owner_device_id;
+  const sameMachine =
+    !!parent &&
+    !!worker.owner_device_id &&
+    parent.owner_device_id === worker.owner_device_id;
   if (!target || !sameMachine) {
-    const reason = !target ? "the parent session has no checkout" : "the worktree is on another machine than the parent";
-    await recordMergeBack(ctx, worker, parent, { state: "failed", at: Date.now(), reason }, outcome);
+    const reason = !target
+      ? "the parent session has no checkout"
+      : "the worktree is on another machine than the parent";
+    await recordMergeBack(
+      ctx,
+      worker,
+      parent,
+      { state: "failed", at: Date.now(), reason },
+      outcome,
+    );
     return;
   }
-  await ctx.db.patch(worker._id, { merge_back: { state: "pending", at: Date.now() } });
+  await ctx.db.patch(worker._id, {
+    merge_back: { state: "pending", at: Date.now() },
+  });
   await ctx.db.insert("daemon_commands", {
     user_id: worker.user_id,
     command: "merge_back",
-    args: JSON.stringify({ conversation_id: worker._id, worktree_path: worker.worktree_path, target_path: target }),
+    args: JSON.stringify({
+      conversation_id: worker._id,
+      worktree_path: worker.worktree_path,
+      target_path: target,
+    }),
     created_at: Date.now(),
     target_device_id: worker.owner_device_id,
   });
 }
 
-async function recordMergeBack(ctx: any, worker: any, parent: any, status: MergeBackStatus, outcome: SubagentOutcome): Promise<void> {
+async function recordMergeBack(
+  ctx: any,
+  worker: any,
+  parent: any,
+  status: MergeBackStatus,
+  outcome: SubagentOutcome,
+): Promise<void> {
   await ctx.db.patch(worker._id, { merge_back: status });
-  const note = mergeBackNote({ short_id: worker.short_id ?? String(worker._id).slice(0, 7), worktree_path: worker.worktree_path }, status, outcome);
+  const note = mergeBackNote(
+    {
+      short_id: worker.short_id ?? String(worker._id).slice(0, 7),
+      worktree_path: worker.worktree_path,
+    },
+    status,
+    outcome,
+  );
   // A parent that is gone or killed is not woken to read about its workers:
   // the message would bring back a session someone retired.
-  if (!note || !parent || parent.inbox_killed_at || parent.status === "completed") return;
+  if (
+    !note ||
+    !parent ||
+    parent.inbox_killed_at ||
+    parent.status === "completed"
+  )
+    return;
   await enqueuePendingMessage(ctx, parent, parent.user_id, {
-    content: formatSessionMessage(worker.short_id ?? String(worker._id).slice(0, 7), note),
+    content: formatSessionMessage(
+      worker.short_id ?? String(worker._id).slice(0, 7),
+      note,
+    ),
     from_conversation_id: worker._id,
   });
 }
@@ -278,11 +382,19 @@ async function recordMergeBack(ctx: any, worker: any, parent: any, status: Merge
 export async function applyMergeBackReport(
   ctx: any,
   userId: Id<"users">,
-  args: { conversation_id: Id<"conversations">; state: "merged" | "empty" | "conflict" | "failed"; files?: string[]; reason?: string },
+  args: {
+    conversation_id: Id<"conversations">;
+    state: "merged" | "empty" | "conflict" | "failed";
+    files?: string[];
+    reason?: string;
+  },
 ): Promise<void> {
   const worker = await ctx.db.get(args.conversation_id);
-  if (!worker || String(worker.user_id) !== String(userId)) throw new Error("Conversation not found");
-  const parent = worker.parent_conversation_id ? await ctx.db.get(worker.parent_conversation_id) : null;
+  if (!worker || String(worker.user_id) !== String(userId))
+    throw new Error("Conversation not found");
+  const parent = worker.parent_conversation_id
+    ? await ctx.db.get(worker.parent_conversation_id)
+    : null;
   const status: MergeBackStatus = {
     state: args.state,
     at: Date.now(),
@@ -296,7 +408,12 @@ export const reportMergeBack = mutation({
   args: {
     api_token: v.string(),
     conversation_id: v.id("conversations"),
-    state: v.union(v.literal("merged"), v.literal("empty"), v.literal("conflict"), v.literal("failed")),
+    state: v.union(
+      v.literal("merged"),
+      v.literal("empty"),
+      v.literal("conflict"),
+      v.literal("failed"),
+    ),
     files: v.optional(v.array(v.string())),
     reason: v.optional(v.string()),
   },

@@ -15,8 +15,15 @@
  * raises windows.
  */
 
-import type { ComputerPermissionApi, ComputerRunDeps } from "../computer/run.js";
-import type { ComputerPermissionId, ComputerPermissionStatus, ComputerPermissionStatusResult } from "../computer/types.js";
+import type {
+  ComputerPermissionApi,
+  ComputerRunDeps,
+} from "../computer/run.js";
+import type {
+  ComputerPermissionId,
+  ComputerPermissionStatus,
+  ComputerPermissionStatusResult,
+} from "../computer/types.js";
 
 export type GrantState = Record<ComputerPermissionId, ComputerPermissionStatus>;
 
@@ -43,7 +50,10 @@ export interface HarnessOptions {
   helperUnavailableReason?: string;
 }
 
-function statusOf(grants: GrantState, reason: string | null): ComputerPermissionStatusResult {
+function statusOf(
+  grants: GrantState,
+  reason: string | null,
+): ComputerPermissionStatusResult {
   return {
     platform: "darwin",
     helperAppPath: HELPER_APP,
@@ -61,7 +71,11 @@ export function setupHarness(opts: HarnessOptions): SetupHarness {
   let reads = 0;
   let waits = 0;
   let cancelFn: (() => void) | null = null;
-  const at = (i: number) => statusOf(opts.grants[Math.min(i, opts.grants.length - 1)]!, opts.helperUnavailableReason ?? null);
+  const at = (i: number) =>
+    statusOf(
+      opts.grants[Math.min(i, opts.grants.length - 1)]!,
+      opts.helperUnavailableReason ?? null,
+    );
   const read = () => at(reads++);
   // Opening a pane must not consume a scripted read: the script describes what
   // the human has granted, and opening a window grants nothing.
@@ -76,9 +90,17 @@ export function setupHarness(opts: HarnessOptions): SetupHarness {
     },
     openPermissionSettings: async (id?: ComputerPermissionId) => {
       calls.push(`open:${id ?? "both"}`);
-      return { ...peek(), permissionId: id, launchedHelper: true, nextStep: null };
+      return {
+        ...peek(),
+        permissionId: id,
+        launchedHelper: true,
+        nextStep: null,
+      };
     },
-    resetPermissions: async () => ({ ...peek(), bundleId: "sh.codecast.computer" }),
+    resetPermissions: async () => ({
+      ...peek(),
+      bundleId: "sh.codecast.computer",
+    }),
     formatPermissionsReport: (status: ComputerPermissionStatusResult) => [
       "Computer permissions checked.",
       `  Permissions: ${status.permissions.map((p) => `${p.id}=${p.status}`).join(", ")}`,
@@ -119,5 +141,11 @@ export function setupHarness(opts: HarnessOptions): SetupHarness {
   };
 }
 
-export const GRANTED: GrantState = { accessibility: "granted", screenshots: "granted" };
-export const NONE: GrantState = { accessibility: "not-granted", screenshots: "not-granted" };
+export const GRANTED: GrantState = {
+  accessibility: "granted",
+  screenshots: "granted",
+};
+export const NONE: GrantState = {
+  accessibility: "not-granted",
+  screenshots: "not-granted",
+};

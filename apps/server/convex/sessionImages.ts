@@ -41,22 +41,32 @@ type MessageLike = {
   _id?: string;
   content?: string;
   timestamp?: number;
-  images?: Array<{ media_type: string; data?: string; storage_id?: string; tool_use_id?: string }>;
+  images?: Array<{
+    media_type: string;
+    data?: string;
+    storage_id?: string;
+    tool_use_id?: string;
+  }>;
   tool_calls?: Array<{ id: string; input: string }>;
 };
 
 // Where the daemon writes an attachment it delivers to the agent: the file is
 // named by the Convex storage id, the extension by the object's content type.
-export const ATTACHMENT_FILE_RE = /\/codecast\/images\/([^/\s.\]"]+)\.(png|webp|jpe?g|gif)/g;
+export const ATTACHMENT_FILE_RE =
+  /\/codecast\/images\/([^/\s.\]"]+)\.(png|webp|jpe?g|gif)/g;
 
 // tool_use_id -> attachment storage id, for every tool call whose input names
 // exactly one attachment file. Its image result is that attachment.
-export function attachmentViews(messages: readonly Pick<MessageLike, "tool_calls">[]): Map<string, string> {
+export function attachmentViews(
+  messages: readonly Pick<MessageLike, "tool_calls">[],
+): Map<string, string> {
   const views = new Map<string, string>();
   for (const msg of messages) {
     for (const call of msg.tool_calls ?? []) {
       if (!call.input?.includes("/codecast/images/")) continue;
-      const ids = new Set(Array.from(call.input.matchAll(ATTACHMENT_FILE_RE), (m) => m[1]));
+      const ids = new Set(
+        Array.from(call.input.matchAll(ATTACHMENT_FILE_RE), (m) => m[1]),
+      );
       if (ids.size === 1) views.set(call.id, ids.values().next().value!);
     }
   }
@@ -81,12 +91,17 @@ export function extractSessionImages(
     // Per-message ordinal: two images in one message keep their order once the
     // merge re-sorts by (timestamp, seq).
     let seq = 0;
-    const at = () => ({ timestamp: msg.timestamp, seq: seq++, message_id: msg._id });
+    const at = () => ({
+      timestamp: msg.timestamp,
+      seq: seq++,
+      message_id: msg._id,
+    });
     if (msg.images) {
       for (const img of msg.images) {
         if (img.storage_id) {
           // Keep the result's own blob: the key only says which picture it is.
-          const key = (img.tool_use_id && views.get(img.tool_use_id)) || img.storage_id;
+          const key =
+            (img.tool_use_id && views.get(img.tool_use_id)) || img.storage_id;
           push({ key, storage_id: img.storage_id, ...at() });
         } else if (img.data) {
           const src = `data:${img.media_type};base64,${img.data}`;
@@ -124,14 +139,19 @@ export function mergeSessionImages(
   for (const e of clientEntries) byKey.set(e.key, e);
   // A row indexed before attachment views were recognized keys on its own
   // blob; the window scan knows that blob is an attachment's echo.
-  const echoed = new Set(clientEntries.filter((e) => e.storage_id && e.key !== e.storage_id).map((e) => e.storage_id));
+  const echoed = new Set(
+    clientEntries
+      .filter((e) => e.storage_id && e.key !== e.storage_id)
+      .map((e) => e.storage_id),
+  );
   for (const e of serverEntries) if (!echoed.has(e.key)) byKey.set(e.key, e);
   const order = new Map<string, number>();
   let i = 0;
   for (const key of byKey.keys()) order.set(key, i++);
   return Array.from(byKey.values()).sort((a, b) => {
     if (a.timestamp === undefined || b.timestamp === undefined) {
-      if (a.timestamp !== b.timestamp) return a.timestamp === undefined ? 1 : -1;
+      if (a.timestamp !== b.timestamp)
+        return a.timestamp === undefined ? 1 : -1;
       return order.get(a.key)! - order.get(b.key)!;
     }
     return a.timestamp - b.timestamp || (a.seq ?? 0) - (b.seq ?? 0);

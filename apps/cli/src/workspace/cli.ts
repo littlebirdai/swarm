@@ -26,7 +26,11 @@ import {
 import { detectProject } from "./detect.js";
 import { MANIFEST_REL_PATH } from "./resolver.js";
 import { readVerifyCommand, runVerifyCommand } from "./verify.js";
-import { locateWorkspace, readState, recordWorkspaceSession } from "./contract.js";
+import {
+  locateWorkspace,
+  readState,
+  recordWorkspaceSession,
+} from "./contract.js";
 import { publishWorktrees } from "../worktreeMirror.js";
 import { sessionIdFromEnv } from "../sessionIdentity.js";
 import { defaultRegistry } from "./backends/registry.js";
@@ -64,7 +68,11 @@ function findRepoRoot(): string {
 function linkedCheckouts(repoRoot: string): string[] {
   try {
     const self = fs.realpathSync(repoRoot);
-    return execSync("git worktree list --porcelain", { cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] })
+    return execSync("git worktree list --porcelain", {
+      cwd: repoRoot,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    })
       .split("\n")
       .filter((l) => l.startsWith("worktree "))
       .map((l) => l.slice("worktree ".length))
@@ -84,13 +92,17 @@ export function registerWorkspaceCommand(program: Command): void {
   // cast workspace init
   // -----------------------------------------------------------------------
   ws.command("init")
-    .description("Generate .codecast/workspace.toml from project auto-detection")
+    .description(
+      "Generate .codecast/workspace.toml from project auto-detection",
+    )
     .option("--force", "Overwrite existing manifest")
     .action(async (opts: { force?: boolean }) => {
       const repoRoot = findRepoRoot();
       const manifestPath = path.join(repoRoot, MANIFEST_REL_PATH);
       if (fs.existsSync(manifestPath) && !opts.force) {
-        console.error(`Manifest already exists at ${manifestPath}. Use --force to overwrite.`);
+        console.error(
+          `Manifest already exists at ${manifestPath}. Use --force to overwrite.`,
+        );
         process.exit(1);
       }
       const m = detectProject(repoRoot);
@@ -105,17 +117,38 @@ export function registerWorkspaceCommand(program: Command): void {
   ws.command("acquire <name>")
     .description("Create or attach to a workspace by name")
     .option("--branch <branch>", "Override branch name")
-    .option("--start-point <ref>", "Create the branch at this commit-ish instead of the checkout's HEAD (requires --branch); a codecast WIP snapshot commit starts at its parent with the snapshot as uncommitted work")
-    .option("--alt-branch <branch>", "Branch name to use instead when --branch already exists (requires --start-point)")
-    .option("--from <session>", "Pick up a session's working tree: its branch at its base commit, with its uncommitted and untracked files as uncommitted work (from the snapshot its daemon pushed to the remote)")
-    .option("--rewind <session[@line]>", "The files as they stood at a point in a session: its turn snapshot at message <line> (cast read numbering; default: the newest), on a new branch at that snapshot's base commit with the snapshot's edits left uncommitted. Pair with `cast fork --at <line>` to continue the conversation from that tree")
-    .option("--input-root <path>", "Read the manifest and setup copy files from a workspace input snapshot")
+    .option(
+      "--start-point <ref>",
+      "Create the branch at this commit-ish instead of the checkout's HEAD (requires --branch); a codecast WIP snapshot commit starts at its parent with the snapshot as uncommitted work",
+    )
+    .option(
+      "--alt-branch <branch>",
+      "Branch name to use instead when --branch already exists (requires --start-point)",
+    )
+    .option(
+      "--from <session>",
+      "Pick up a session's working tree: its branch at its base commit, with its uncommitted and untracked files as uncommitted work (from the snapshot its daemon pushed to the remote)",
+    )
+    .option(
+      "--rewind <session[@line]>",
+      "The files as they stood at a point in a session: its turn snapshot at message <line> (cast read numbering; default: the newest), on a new branch at that snapshot's base commit with the snapshot's edits left uncommitted. Pair with `cast fork --at <line>` to continue the conversation from that tree",
+    )
+    .option(
+      "--input-root <path>",
+      "Read the manifest and setup copy files from a workspace input snapshot",
+    )
     .option("--backend <name>", "Sandbox backend to use (default: local)")
     .option("--skip-setup", "Skip install/generate/migrate commands")
     .option("--skip-hooks", "Skip before-create/after-create hooks")
-    .option("--no-ports", "Allocate no ports for a worker that runs no dev server")
+    .option(
+      "--no-ports",
+      "Allocate no ports for a worker that runs no dev server",
+    )
     .option("--skip-pool", "Bypass the warm pool and set up from scratch")
-    .option("--json", "Print the workspace as one JSON line (what `cast spawn --cloud` reads over SSH)")
+    .option(
+      "--json",
+      "Print the workspace as one JSON line (what `cast spawn --cloud` reads over SSH)",
+    )
     .action(
       async (
         name: string,
@@ -136,7 +169,9 @@ export function registerWorkspaceCommand(program: Command): void {
       ) => {
         const repoRoot = findRepoRoot();
         if (opts.startPoint && !opts.branch) {
-          console.error("--start-point needs --branch: the branch to create at that commit");
+          console.error(
+            "--start-point needs --branch: the branch to create at that commit",
+          );
           process.exit(1);
         }
         if (opts.altBranch && !opts.startPoint) {
@@ -144,11 +179,15 @@ export function registerWorkspaceCommand(program: Command): void {
           process.exit(1);
         }
         if (opts.from && opts.startPoint) {
-          console.error("--from picks its own start point (the session's snapshot); drop --start-point");
+          console.error(
+            "--from picks its own start point (the session's snapshot); drop --start-point",
+          );
           process.exit(1);
         }
         if (opts.rewind && (opts.startPoint || opts.from)) {
-          console.error("--rewind picks its own start point (the turn snapshot); drop --start-point and --from");
+          console.error(
+            "--rewind picks its own start point (the turn snapshot); drop --start-point and --from",
+          );
           process.exit(1);
         }
         // Backend validation: if user passed --backend, ensure it exists.
@@ -159,11 +198,16 @@ export function registerWorkspaceCommand(program: Command): void {
           process.exit(1);
         }
         try {
-          const pickup = opts.from ? await resolvePickup(repoRoot, opts.from, opts.branch) : undefined;
-          const rewind = opts.rewind ? await resolveRewindFromConfig(repoRoot, opts.rewind, opts.branch) : undefined;
+          const pickup = opts.from
+            ? await resolvePickup(repoRoot, opts.from, opts.branch)
+            : undefined;
+          const rewind = opts.rewind
+            ? await resolveRewindFromConfig(repoRoot, opts.rewind, opts.branch)
+            : undefined;
           const r = await acquireWorkspace(repoRoot, name, {
             branch: rewind?.branch ?? pickup?.branch ?? opts.branch,
-            startPoint: rewind?.startPoint ?? pickup?.snapshot.ref ?? opts.startPoint,
+            startPoint:
+              rewind?.startPoint ?? pickup?.snapshot.ref ?? opts.startPoint,
             altBranch: rewind?.altBranch ?? pickup?.altBranch ?? opts.altBranch,
             inputRoot: opts.inputRoot,
             skipSetup: opts.skipSetup,
@@ -205,40 +249,62 @@ export function registerWorkspaceCommand(program: Command): void {
   // cast workspace root
   // -----------------------------------------------------------------------
   ws.command("root")
-    .description("Prepare the main checkout as a workspace (ports, secret files, install); what a cloud session in shared mode runs in")
-    .option("--input-root <path>", "Read the manifest and setup copy files from a workspace input snapshot (they overwrite the root's copies)")
+    .description(
+      "Prepare the main checkout as a workspace (ports, secret files, install); what a cloud session in shared mode runs in",
+    )
+    .option(
+      "--input-root <path>",
+      "Read the manifest and setup copy files from a workspace input snapshot (they overwrite the root's copies)",
+    )
     .option("--skip-setup", "Skip install/generate/migrate commands")
     // Accepted and ignored: no workspace starts a browser at acquire any more
     // (ct-98941), and a laptop's cloud prepare still passes it to older hosts.
     .addOption(new Option("--skip-browser").hideHelp())
-    .option("--json", "Print the workspace as one JSON line (the same shape as `acquire --json`)")
-    .action(async (opts: { inputRoot?: string; skipSetup?: boolean; json?: boolean }) => {
-      const repoRoot = findRepoRoot();
-      try {
-        const r = await acquireRootCheckout(repoRoot, { inputRoot: opts.inputRoot, skipSetup: opts.skipSetup });
-        const ws = r.workspace;
-        if (opts.json) {
-          printAcquireJson(r);
-          return;
+    .option(
+      "--json",
+      "Print the workspace as one JSON line (the same shape as `acquire --json`)",
+    )
+    .action(
+      async (opts: {
+        inputRoot?: string;
+        skipSetup?: boolean;
+        json?: boolean;
+      }) => {
+        const repoRoot = findRepoRoot();
+        try {
+          const r = await acquireRootCheckout(repoRoot, {
+            inputRoot: opts.inputRoot,
+            skipSetup: opts.skipSetup,
+          });
+          const ws = r.workspace;
+          if (opts.json) {
+            printAcquireJson(r);
+            return;
+          }
+          console.log(`${r.created ? "created" : "refreshed"}: ${ws.name}`);
+          console.log(`  path:    ${ws.path}`);
+          console.log(`  branch:  ${ws.branch}`);
+          console.log(`  state:   ${ws.state}`);
+          if (Object.keys(ws.ports).length > 0) {
+            console.log(
+              `  ports:   ${Object.entries(ws.ports)
+                .map(([n, p]) => `${n}=${p}`)
+                .join(" ")}`,
+            );
+          }
+          for (const notice of r.notices ?? []) console.error(`  ${notice}`);
+          if (ws.contract && !ws.contract.ok) {
+            console.error("\nContract failures:");
+            for (const c of ws.contract.checks)
+              if (!c.ok) console.error(`  ✗ ${c.name}: ${c.reason}`);
+            process.exit(2);
+          }
+        } catch (err) {
+          console.error(`root failed: ${(err as Error).message}`);
+          process.exit(1);
         }
-        console.log(`${r.created ? "created" : "refreshed"}: ${ws.name}`);
-        console.log(`  path:    ${ws.path}`);
-        console.log(`  branch:  ${ws.branch}`);
-        console.log(`  state:   ${ws.state}`);
-        if (Object.keys(ws.ports).length > 0) {
-          console.log(`  ports:   ${Object.entries(ws.ports).map(([n, p]) => `${n}=${p}`).join(" ")}`);
-        }
-        for (const notice of r.notices ?? []) console.error(`  ${notice}`);
-        if (ws.contract && !ws.contract.ok) {
-          console.error("\nContract failures:");
-          for (const c of ws.contract.checks) if (!c.ok) console.error(`  ✗ ${c.name}: ${c.reason}`);
-          process.exit(2);
-        }
-      } catch (err) {
-        console.error(`root failed: ${(err as Error).message}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   // -----------------------------------------------------------------------
   // cast workspace status <name>
@@ -277,12 +343,16 @@ export function registerWorkspaceCommand(program: Command): void {
   // cast workspace check — run the repo's verify command from the manifest
   // -----------------------------------------------------------------------
   ws.command("check")
-    .description("Run the repo's check command ([verify] command in .codecast/workspace.toml) in the current directory; passes with a note when none is configured")
+    .description(
+      "Run the repo's check command ([verify] command in .codecast/workspace.toml) in the current directory; passes with a note when none is configured",
+    )
     .action(() => {
       const repoRoot = findRepoRoot();
       const command = readVerifyCommand(repoRoot);
       if (!command) {
-        console.log(`no verify command configured in ${MANIFEST_REL_PATH} ([verify] command = "..."); nothing to run`);
+        console.log(
+          `no verify command configured in ${MANIFEST_REL_PATH} ([verify] command = "..."); nothing to run`,
+        );
         return;
       }
       console.log(`$ ${command}`);
@@ -290,8 +360,13 @@ export function registerWorkspaceCommand(program: Command): void {
     });
 
   ws.command("path <name>")
-    .description("Print a workspace's absolute worktree path (for `cd \"$(cast ws path <name>)\"`); looks in every worktree of this repository")
-    .option("--repo <path>", "Look in this repository instead of the one the current directory is in")
+    .description(
+      'Print a workspace\'s absolute worktree path (for `cd "$(cast ws path <name>)"`); looks in every worktree of this repository',
+    )
+    .option(
+      "--repo <path>",
+      "Look in this repository instead of the one the current directory is in",
+    )
     .action((name: string, opts: { repo?: string }) => {
       const repoRoot = opts.repo ? path.resolve(opts.repo) : findRepoRoot();
       // A workspace is recorded under the checkout it was acquired from, so
@@ -299,8 +374,13 @@ export function registerWorkspaceCommand(program: Command): void {
       const roots = [repoRoot, ...linkedCheckouts(repoRoot)];
       const hit = locateWorkspace(roots, name);
       if (!hit) {
-        const searched = roots.length > 1 ? ` in ${roots.length} checkouts of ${repoRoot}` : ` in ${repoRoot}`;
-        console.error(`Workspace '${name}' not found${searched}. cast ws ls shows a checkout's workspaces; --repo <path> looks in another repository; cast ws acquire ${name} makes one`);
+        const searched =
+          roots.length > 1
+            ? ` in ${roots.length} checkouts of ${repoRoot}`
+            : ` in ${repoRoot}`;
+        console.error(
+          `Workspace '${name}' not found${searched}. cast ws ls shows a checkout's workspaces; --repo <path> looks in another repository; cast ws acquire ${name} makes one`,
+        );
         process.exit(1);
       }
       if (hit.root !== repoRoot) console.error(`(acquired from ${hit.root})`);
@@ -329,40 +409,58 @@ export function registerWorkspaceCommand(program: Command): void {
   // cast workspace browser [name]
   // -----------------------------------------------------------------------
   ws.command("browser [name]")
-    .description("Start the workspace's own headless Chrome (manifest [browser] enabled) and print its CDP port; it stops when the flow station that started it ends. `cast browser` does not need it")
+    .description(
+      "Start the workspace's own headless Chrome (manifest [browser] enabled) and print its CDP port; it stops when the flow station that started it ends. `cast browser` does not need it",
+    )
     .option("--stop", "Stop it instead")
     .option("--all", "With --stop: stop every workspace Chrome in this repo")
     .option("--json", "Print the binding as JSON")
-    .action(async (name: string | undefined, opts: { stop?: boolean; all?: boolean; json?: boolean }) => {
-      const repoRoot = findRepoRoot();
-      try {
-        if (opts.stop && opts.all) {
-          const stopped = await stopAllWorkspaceBrowsers(repoRoot);
-          if (opts.json) console.log(JSON.stringify({ stopped }));
-          else console.log(stopped.length ? `stopped: ${stopped.join(", ")}` : "no workspace Chrome was running");
-          return;
+    .action(
+      async (
+        name: string | undefined,
+        opts: { stop?: boolean; all?: boolean; json?: boolean },
+      ) => {
+        const repoRoot = findRepoRoot();
+        try {
+          if (opts.stop && opts.all) {
+            const stopped = await stopAllWorkspaceBrowsers(repoRoot);
+            if (opts.json) console.log(JSON.stringify({ stopped }));
+            else
+              console.log(
+                stopped.length
+                  ? `stopped: ${stopped.join(", ")}`
+                  : "no workspace Chrome was running",
+              );
+            return;
+          }
+          if (!name) throw new Error("name a workspace (or --stop --all)");
+          if (opts.stop) {
+            const was = await stopWorkspaceBrowser(repoRoot, name);
+            if (opts.json)
+              console.log(JSON.stringify({ stopped: was ? [name] : [] }));
+            else
+              console.log(
+                was ? `stopped: ${name}` : `${name}: no Chrome was running`,
+              );
+            return;
+          }
+          const chrome = await startWorkspaceBrowser(repoRoot, name);
+          if (opts.json) console.log(JSON.stringify(chrome));
+          else console.log(`CDP_PORT=${chrome.cdpPort}`);
+        } catch (err) {
+          console.error(`browser failed: ${(err as Error).message}`);
+          process.exit(1);
         }
-        if (!name) throw new Error("name a workspace (or --stop --all)");
-        if (opts.stop) {
-          const was = await stopWorkspaceBrowser(repoRoot, name);
-          if (opts.json) console.log(JSON.stringify({ stopped: was ? [name] : [] }));
-          else console.log(was ? `stopped: ${name}` : `${name}: no Chrome was running`);
-          return;
-        }
-        const chrome = await startWorkspaceBrowser(repoRoot, name);
-        if (opts.json) console.log(JSON.stringify(chrome));
-        else console.log(`CDP_PORT=${chrome.cdpPort}`);
-      } catch (err) {
-        console.error(`browser failed: ${(err as Error).message}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   // -----------------------------------------------------------------------
   // cast workspace destroy <name>
   // -----------------------------------------------------------------------
   ws.command("destroy <name>")
-    .description("Tear down a workspace: run teardown, remove worktree, drop state")
+    .description(
+      "Tear down a workspace: run teardown, remove worktree, drop state",
+    )
     .action(async (name: string) => {
       const repoRoot = findRepoRoot();
       await releaseWorkspace(repoRoot, name);
@@ -402,17 +500,29 @@ export function registerWorkspaceCommand(program: Command): void {
  */
 function printAcquireJson(r: AcquireResult): void {
   const ws = r.workspace;
-  console.log(JSON.stringify({
-    name: ws.name, path: ws.path, branch: ws.branch, state: ws.state,
-    ports: ws.ports, created: r.created,
-    ...(ws.noPorts ? { noPorts: true } : {}),
-    ...(r.notices?.length ? { notices: r.notices } : {}),
-    contract: ws.contract ? {
-      ok: ws.contract.ok,
-      failures: ws.contract.checks.filter((c) => !c.ok && !c.name.startsWith("port-free:")),
-      warnings: ws.contract.checks.filter((c) => !c.ok && c.name.startsWith("port-free:")),
-    } : null,
-  }));
+  console.log(
+    JSON.stringify({
+      name: ws.name,
+      path: ws.path,
+      branch: ws.branch,
+      state: ws.state,
+      ports: ws.ports,
+      created: r.created,
+      ...(ws.noPorts ? { noPorts: true } : {}),
+      ...(r.notices?.length ? { notices: r.notices } : {}),
+      contract: ws.contract
+        ? {
+            ok: ws.contract.ok,
+            failures: ws.contract.checks.filter(
+              (c) => !c.ok && !c.name.startsWith("port-free:"),
+            ),
+            warnings: ws.contract.checks.filter(
+              (c) => !c.ok && c.name.startsWith("port-free:"),
+            ),
+          }
+        : null,
+    }),
+  );
   if (ws.contract && !ws.contract.ok) process.exit(2);
 }
 
@@ -430,64 +540,101 @@ function registerPoolCommands(ws: Command): void {
 
   pool
     .command("status")
-    .description("Show pool slots, their staleness fingerprint, and the size recent creates justify")
+    .description(
+      "Show pool slots, their staleness fingerprint, and the size recent creates justify",
+    )
     .option("--json", "Print the pool state as one JSON line")
     .action(async (opts: { json?: boolean }) => {
       const repoRoot = findRepoRoot();
       const { readPoolState } = await import("./pool/state.js");
-      const { readDemand, desiredPoolSize, POOL_MAX_SLOTS } = await import("./pool/demand.js");
+      const { readDemand, desiredPoolSize, POOL_MAX_SLOTS } =
+        await import("./pool/demand.js");
       const state = readPoolState(repoRoot);
       const creates = readDemand(repoRoot);
       const desired = desiredPoolSize(creates);
       if (opts.json) {
-        console.log(JSON.stringify({ repoRoot, desired, cap: POOL_MAX_SLOTS, creates, state }));
+        console.log(
+          JSON.stringify({
+            repoRoot,
+            desired,
+            cap: POOL_MAX_SLOTS,
+            creates,
+            state,
+          }),
+        );
         return;
       }
       const ready = state?.slots.filter((s) => s.state === "ready").length ?? 0;
-      console.log(`pool: ${ready} ready / ${state?.slots.length ?? 0} slots (target ${desired}, cap ${POOL_MAX_SLOTS})`);
+      console.log(
+        `pool: ${ready} ready / ${state?.slots.length ?? 0} slots (target ${desired}, cap ${POOL_MAX_SLOTS})`,
+      );
       console.log(`creates in the burst window: ${creates.length}`);
       if (!state || state.slots.length === 0) {
         console.log("(no slots)");
         return;
       }
-      console.log(`${"SLOT".padEnd(8)}  ${"STATE".padEnd(8)}  ${"HEAD".padEnd(9)}  UPDATED`);
+      console.log(
+        `${"SLOT".padEnd(8)}  ${"STATE".padEnd(8)}  ${"HEAD".padEnd(9)}  UPDATED`,
+      );
       for (const s of state.slots) {
         const head = (s.headSha ?? "-").slice(0, 8);
-        console.log(`${s.slotId.padEnd(8)}  ${s.state.padEnd(8)}  ${head.padEnd(9)}  ${s.updatedAt}${s.lastError ? `  (${s.lastError})` : ""}`);
+        console.log(
+          `${s.slotId.padEnd(8)}  ${s.state.padEnd(8)}  ${head.padEnd(9)}  ${s.updatedAt}${s.lastError ? `  (${s.lastError})` : ""}`,
+        );
       }
     });
 
   pool
     .command("warm")
-    .description("Run one maintenance pass now: recycle stale slots and start warming empty ones")
-    .option("--size <n>", "Slots to hold, up to the cap (default: what recent creates justify)")
+    .description(
+      "Run one maintenance pass now: recycle stale slots and start warming empty ones",
+    )
+    .option(
+      "--size <n>",
+      "Slots to hold, up to the cap (default: what recent creates justify)",
+    )
     .option("--wait", "Block until a slot is ready")
     .option("--timeout <ms>", "How long --wait waits", "600000")
-    .action(async (opts: { size?: string; wait?: boolean; timeout: string }) => {
-      const repoRoot = findRepoRoot();
-      const { maintainPool, waitForReadySlot } = await import("./pool/manager.js");
-      const { desiredPoolSizeForRepo, POOL_MAX_SLOTS } = await import("./pool/demand.js");
-      const requested = opts.size === undefined ? desiredPoolSizeForRepo(repoRoot) : Number(opts.size);
-      if (!Number.isInteger(requested) || requested < 0) {
-        console.error(`--size must be a non-negative integer, got '${opts.size}'`);
-        process.exit(1);
-      }
-      const size = Math.min(requested, POOL_MAX_SLOTS);
-      const state = await maintainPool(repoRoot, size);
-      console.log(`pool: ${size} slot(s) targeted; ${state.slots.filter((s) => s.state === "warming").length} warming, ${state.slots.filter((s) => s.state === "ready").length} ready`);
-      if (!opts.wait) return;
-      if (size === 0) return;
-      const ready = await waitForReadySlot(repoRoot, { timeoutMs: Number(opts.timeout) });
-      if (!ready) {
-        console.error("timed out waiting for a ready slot");
-        process.exit(2);
-      }
-      console.log(`ready: ${ready.slotId}`);
-    });
+    .action(
+      async (opts: { size?: string; wait?: boolean; timeout: string }) => {
+        const repoRoot = findRepoRoot();
+        const { maintainPool, waitForReadySlot } =
+          await import("./pool/manager.js");
+        const { desiredPoolSizeForRepo, POOL_MAX_SLOTS } =
+          await import("./pool/demand.js");
+        const requested =
+          opts.size === undefined
+            ? desiredPoolSizeForRepo(repoRoot)
+            : Number(opts.size);
+        if (!Number.isInteger(requested) || requested < 0) {
+          console.error(
+            `--size must be a non-negative integer, got '${opts.size}'`,
+          );
+          process.exit(1);
+        }
+        const size = Math.min(requested, POOL_MAX_SLOTS);
+        const state = await maintainPool(repoRoot, size);
+        console.log(
+          `pool: ${size} slot(s) targeted; ${state.slots.filter((s) => s.state === "warming").length} warming, ${state.slots.filter((s) => s.state === "ready").length} ready`,
+        );
+        if (!opts.wait) return;
+        if (size === 0) return;
+        const ready = await waitForReadySlot(repoRoot, {
+          timeoutMs: Number(opts.timeout),
+        });
+        if (!ready) {
+          console.error("timed out waiting for a ready slot");
+          process.exit(2);
+        }
+        console.log(`ready: ${ready.slotId}`);
+      },
+    );
 
   pool
     .command("drain")
-    .description("Tear down every pool slot and forget the pool (gives the disk back)")
+    .description(
+      "Tear down every pool slot and forget the pool (gives the disk back)",
+    )
     .action(async () => {
       const repoRoot = findRepoRoot();
       const { drainPool } = await import("./pool/manager.js");
@@ -505,9 +652,9 @@ function renderManifestToml(m: WorkspaceManifest): string {
     ``,
   ];
 
-  const setupKeys = (["copy", "share", "install", "generate", "migrate"] as const).filter(
-    (k) => m.setup[k].length > 0,
-  );
+  const setupKeys = (
+    ["copy", "share", "install", "generate", "migrate"] as const
+  ).filter((k) => m.setup[k].length > 0);
   if (setupKeys.length > 0) {
     lines.push(`[setup]`);
     for (const k of setupKeys) {
@@ -529,8 +676,10 @@ function renderManifestToml(m: WorkspaceManifest): string {
     for (const k of ["start", "stop", "url", "port"] as const) {
       if (spec[k]) lines.push(`${k} = ${JSON.stringify(spec[k])}`);
     }
-    if (spec.readyCheck) lines.push(`ready_check = ${JSON.stringify(spec.readyCheck)}`);
-    if (spec.readyTimeoutSec !== undefined) lines.push(`ready_timeout_sec = ${spec.readyTimeoutSec}`);
+    if (spec.readyCheck)
+      lines.push(`ready_check = ${JSON.stringify(spec.readyCheck)}`);
+    if (spec.readyTimeoutSec !== undefined)
+      lines.push(`ready_timeout_sec = ${spec.readyTimeoutSec}`);
     lines.push(``);
   }
 
@@ -549,7 +698,8 @@ function renderManifestToml(m: WorkspaceManifest): string {
 
   if (m.host) {
     lines.push(`[host]`);
-    for (const k of ["packages", "services", "run"] as const) if (m.host[k].length) lines.push(`${k} = ${JSON.stringify(m.host[k])}`);
+    for (const k of ["packages", "services", "run"] as const)
+      if (m.host[k].length) lines.push(`${k} = ${JSON.stringify(m.host[k])}`);
     lines.push(``);
   } else {
     lines.push(
@@ -565,8 +715,13 @@ function renderManifestToml(m: WorkspaceManifest): string {
   return lines.join("\n");
 }
 
-function describePorts(ws: { ports: Record<string, number>; noPorts?: boolean }): string {
-  const ports = Object.entries(ws.ports).map(([name, port]) => `${name}=${port}`).join(" ");
+function describePorts(ws: {
+  ports: Record<string, number>;
+  noPorts?: boolean;
+}): string {
+  const ports = Object.entries(ws.ports)
+    .map(([name, port]) => `${name}=${port}`)
+    .join(" ");
   return ports || (ws.noPorts ? "none (--no-ports)" : "none");
 }
 
@@ -578,36 +733,76 @@ interface ResolvedPickup {
 }
 
 /** `--from <session>`: the session's snapshot, fetched and checked, plus the branch names to create. */
-async function resolvePickup(repoRoot: string, ref: string, branchOverride?: string): Promise<ResolvedPickup> {
+async function resolvePickup(
+  repoRoot: string,
+  ref: string,
+  branchOverride?: string,
+): Promise<ResolvedPickup> {
   const config = readAuthConfig(defaultConfigDir());
-  if (!config?.auth_token || !config.convex_url) throw new PickupError("not signed in; run: cast auth");
-  const conversation = await fetchPickupConversation(ref, { convexUrl: config.convex_url, authToken: config.auth_token });
+  if (!config?.auth_token || !config.convex_url)
+    throw new PickupError("not signed in; run: cast auth");
+  const conversation = await fetchPickupConversation(ref, {
+    convexUrl: config.convex_url,
+    authToken: config.auth_token,
+  });
   const snapshot = await preparePickup(repoRoot, conversation);
-  return { conversation, snapshot, ...pickupBranches(snapshot, conversation.id, branchOverride) };
+  return {
+    conversation,
+    snapshot,
+    ...pickupBranches(snapshot, conversation.id, branchOverride),
+  };
 }
 
-async function resolveRewindFromConfig(repoRoot: string, ref: string, branchOverride?: string): Promise<ResolvedRewind> {
+async function resolveRewindFromConfig(
+  repoRoot: string,
+  ref: string,
+  branchOverride?: string,
+): Promise<ResolvedRewind> {
   const config = readAuthConfig(defaultConfigDir());
-  if (!config?.auth_token || !config.convex_url) throw new PickupError("not signed in; run: cast auth");
-  return resolveRewind(repoRoot, ref, { convexUrl: config.convex_url, authToken: config.auth_token }, branchOverride);
+  if (!config?.auth_token || !config.convex_url)
+    throw new PickupError("not signed in; run: cast auth");
+  return resolveRewind(
+    repoRoot,
+    ref,
+    { convexUrl: config.convex_url, authToken: config.auth_token },
+    branchOverride,
+  );
 }
 
 function printRewind(r: ResolvedRewind): void {
   const s = r.snapshot;
   const at = r.line !== undefined ? `message ${r.line}` : "its newest turn";
-  console.log(`  rewind:  ${r.conversation.id.slice(0, 7)}${r.conversation.title ? ` (${r.conversation.title})` : ""} at ${at}`);
-  console.log(`  tree:    snapshot ${s.sha.slice(0, 10)}, taken ${formatRelativeTime(new Date(snapshotMoment(s)).toISOString())}, base ${s.base_sha.slice(0, 10)}${s.branch ? ` on ${s.branch}` : ""}`);
-  console.log(`  changes: ${s.dirty ? "the snapshot's edits are left uncommitted" : "the tree equals its base commit"}`);
-  if (r.line !== undefined) console.log(`  next:    cast fork --at ${r.line} ... then run the fork in this worktree to continue the conversation from this tree`);
+  console.log(
+    `  rewind:  ${r.conversation.id.slice(0, 7)}${r.conversation.title ? ` (${r.conversation.title})` : ""} at ${at}`,
+  );
+  console.log(
+    `  tree:    snapshot ${s.sha.slice(0, 10)}, taken ${formatRelativeTime(new Date(snapshotMoment(s)).toISOString())}, base ${s.base_sha.slice(0, 10)}${s.branch ? ` on ${s.branch}` : ""}`,
+  );
+  console.log(
+    `  changes: ${s.dirty ? "the snapshot's edits are left uncommitted" : "the tree equals its base commit"}`,
+  );
+  if (r.line !== undefined)
+    console.log(
+      `  next:    cast fork --at ${r.line} ... then run the fork in this worktree to continue the conversation from this tree`,
+    );
   for (const w of r.warnings) console.error(`  warning: ${w}`);
 }
 
 function printPickup(p: ResolvedPickup): void {
   const { snapshot: s, conversation: c } = p;
-  console.log(`  from:    ${c.id.slice(0, 7)}${c.title ? ` (${c.title})` : ""}, on ${s.branch}`);
-  console.log(`  base:    ${s.base.slice(0, 10)} (committed ${formatRelativeTime(s.baseDate)})`);
-  console.log(`  changes: ${s.files} file${s.files === 1 ? "" : "s"} differ from base, left uncommitted`);
-  console.log(`  taken:   ${s.takenAt ? formatRelativeTime(s.takenAt) : "not recorded by this snapshot"}`);
-  if (c.updatedAt) console.log(`  session: last active ${formatRelativeTime(c.updatedAt)}`);
+  console.log(
+    `  from:    ${c.id.slice(0, 7)}${c.title ? ` (${c.title})` : ""}, on ${s.branch}`,
+  );
+  console.log(
+    `  base:    ${s.base.slice(0, 10)} (committed ${formatRelativeTime(s.baseDate)})`,
+  );
+  console.log(
+    `  changes: ${s.files} file${s.files === 1 ? "" : "s"} differ from base, left uncommitted`,
+  );
+  console.log(
+    `  taken:   ${s.takenAt ? formatRelativeTime(s.takenAt) : "not recorded by this snapshot"}`,
+  );
+  if (c.updatedAt)
+    console.log(`  session: last active ${formatRelativeTime(c.updatedAt)}`);
   for (const w of s.warnings) console.error(`  warning: ${w}`);
 }

@@ -29,7 +29,11 @@ const GATE_RETRY_MS = [4000, 8000, 16000];
  *  ever what the deployment said: a dropped subscription or a failure is no
  *  answer yet, never a no. `late` turns true once the deadline passes without
  *  one, so a screen can stop waiting while the question is asked again. */
-function useGate(query: typeof api.whisk.connectAvailable | typeof api.assistant.incidents.thinkingAvailable): {
+function useGate(
+  query:
+    | typeof api.whisk.connectAvailable
+    | typeof api.assistant.incidents.thinkingAvailable,
+): {
   answer: boolean | undefined;
   late: boolean;
 } {
@@ -38,10 +42,13 @@ function useGate(query: typeof api.whisk.connectAvailable | typeof api.assistant
   const { error, retry } = res;
   useWatchEffect(() => {
     if (!error) return;
-    const timer = setTimeout(() => {
-      setTries((n) => n + 1);
-      retry();
-    }, GATE_RETRY_MS[Math.min(tries, GATE_RETRY_MS.length - 1)]);
+    const timer = setTimeout(
+      () => {
+        setTries((n) => n + 1);
+        retry();
+      },
+      GATE_RETRY_MS[Math.min(tries, GATE_RETRY_MS.length - 1)],
+    );
     return () => clearTimeout(timer);
   }, [error, retry, tries]);
   const answer = error ? undefined : res.data;
@@ -64,7 +71,8 @@ export function useThinkingAvailable(): boolean | undefined {
 /** Said while no provider can serve a turn. Nothing queues meanwhile, so it
  *  promises no answer later; the server probes the provider and this clears
  *  by itself once it serves again (assistant/incidents.ts probe). */
-export const THINKING_DOWN = "I'm having trouble thinking right now. Try again in a few minutes.";
+export const THINKING_DOWN =
+  "I'm having trouble thinking right now. Try again in a few minutes.";
 
 /** The asks the lane suggests, worded once for home and /welcome. */
 export const ASKS = {
@@ -87,7 +95,6 @@ export const ASKS = {
  *  the marketing page's section for people who do not write code. */
 export const ASSISTANT_HEADLINE = "An assistant for the busywork.";
 
-
 /** The one line under the sign in heading, in the assistant's own voice and
  *  ending on the same promise the lane makes. */
 export function assistantPromise(mail: boolean): string {
@@ -107,7 +114,8 @@ export function assistantPrivacy(mail: boolean): string {
 }
 
 /** What the plans count, said once under them: a request is one ask and its answer. */
-export const REQUEST_MEANS = "A request is one thing you ask and the answer you get back.";
+export const REQUEST_MEANS =
+  "A request is one thing you ask and the answer you get back.";
 
 /** Said on the first ask where mail cannot be connected yet, so the gap reads as planned. */
 export const MAIL_COMING = "Mail and calendar are coming soon.";

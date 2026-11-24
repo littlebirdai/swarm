@@ -9,7 +9,11 @@ import { WHISK_RETURN_KEY, isReturnFrom } from "../../lib/connectorReturn";
 import { LANE_COPY } from "./lane";
 
 /** Whisk's name in the connect toast: what it connects, as the lane says it. */
-const WHISK_TOAST = { extra: [WHISK_RETURN_KEY], names: { [WHISK_RETURN_KEY]: LANE_COPY.connections.mail }, toastErrors: true } as const;
+const WHISK_TOAST = {
+  extra: [WHISK_RETURN_KEY],
+  names: { [WHISK_RETURN_KEY]: LANE_COPY.connections.mail },
+  toastErrors: true,
+} as const;
 
 function ConnectToastReader() {
   useConnectorReturn(WHISK_TOAST);
@@ -20,6 +24,14 @@ function ConnectToastReader() {
  *  when the window opened on a Whisk return, so it never takes another
  *  connector's return from the address. */
 export function ConnectToast() {
-  const [returned] = useState(() => typeof window !== "undefined" && isReturnFrom(window.location.hash, window.location.search, WHISK_RETURN_KEY));
+  const [returned] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      isReturnFrom(
+        window.location.hash,
+        window.location.search,
+        WHISK_RETURN_KEY,
+      ),
+  );
   return returned ? <ConnectToastReader /> : null;
 }

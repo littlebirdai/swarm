@@ -23,7 +23,10 @@ function ViewBody() {
         {ref ? (
           <ProductView viewRef={ref} eager foldAt={NO_FOLD} />
         ) : (
-          <div className="pt-16 text-center text-sol-text-dim" data-view-missing>
+          <div
+            className="pt-16 text-center text-sol-text-dim"
+            data-view-missing
+          >
             {raw ? <>"{raw}" does not name a view.</> : "No view was named."}
           </div>
         )}

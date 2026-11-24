@@ -1,9 +1,20 @@
-import { useInboxStore } from '../../store/inboxStore';
-import { getDesktopWindowRole, hasCallPanel, isCallPanelWindow, sendVoiceCommand, showCallPanel, voiceHostElsewhere } from '../desktop';
+import { useInboxStore } from "../../store/inboxStore";
+import {
+  getDesktopWindowRole,
+  hasCallPanel,
+  isCallPanelWindow,
+  sendVoiceCommand,
+  showCallPanel,
+  voiceHostElsewhere,
+} from "../desktop";
 
 export function huddleInOtherWindow(): boolean {
   if (isCallPanelWindow()) return false;
-  return hasCallPanel() || (getDesktopWindowRole().anyInCall && useInboxStore.getState().call.phase === 'idle');
+  return (
+    hasCallPanel() ||
+    (getDesktopWindowRole().anyInCall &&
+      useInboxStore.getState().call.phase === "idle")
+  );
 }
 
 export async function focusExistingHuddle(): Promise<boolean> {
@@ -13,8 +24,12 @@ export async function focusExistingHuddle(): Promise<boolean> {
   // static import here closes a cycle in which whichever of the two loads
   // first sees the other half built (callManager first: walkie's top-level
   // bindWalkieUpgrade hits callManager's `let` before it exists).
-  if (voiceHostElsewhere() && (await import('./walkie')).walkieCallState().phase !== 'idle') return expandCall();
-  return huddleInOtherWindow() && await showCallPanel();
+  if (
+    voiceHostElsewhere() &&
+    (await import("./walkie")).walkieCallState().phase !== "idle"
+  )
+    return expandCall();
+  return huddleInOtherWindow() && (await showCallPanel());
 }
 
 /**
@@ -27,7 +42,10 @@ export async function focusExistingHuddle(): Promise<boolean> {
  * a join from a focus) is what made the expand button do nothing whenever the
  * mirror lagged or the call lived elsewhere. False when nothing took it.
  */
-export async function expandCall(opts: { thread?: boolean } = {}): Promise<boolean> {
-  if (voiceHostElsewhere()) return sendVoiceCommand('expandCall', opts.thread ? ['thread'] : []);
-  return huddleInOtherWindow() && await showCallPanel();
+export async function expandCall(
+  opts: { thread?: boolean } = {},
+): Promise<boolean> {
+  if (voiceHostElsewhere())
+    return sendVoiceCommand("expandCall", opts.thread ? ["thread"] : []);
+  return huddleInOtherWindow() && (await showCallPanel());
 }

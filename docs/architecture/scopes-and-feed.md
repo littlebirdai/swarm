@@ -22,7 +22,7 @@ Large: several projects. The root anchor's scope is the workspace.
   lead that has it on is refused. Sibling overlap is allowed and shown as a
   warning on the org page and the scope page (two roles watch the same project).
 - Scope changes are human only (scope page settings, `cast role scope <h>
-  --add project:<ref> --remove plan:<ref>`), logged as a charter doc entry, and
+--add project:<ref> --remove plan:<ref>`), logged as a charter doc entry, and
   wake the role immediately.
 - A role created from a project page ("Add a lead") starts with that project.
 

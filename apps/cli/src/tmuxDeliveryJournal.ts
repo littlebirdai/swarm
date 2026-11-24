@@ -6,7 +6,10 @@ import { dirname, join } from "node:path";
 import { defaultConfigDir } from "./config/configDir.js";
 import { isTmuxSessionMissingError } from "./tmux.js";
 
-export type TmuxDeliveryIdentity = { messageId: string; conversationId: string };
+export type TmuxDeliveryIdentity = {
+  messageId: string;
+  conversationId: string;
+};
 export type TmuxPasteReceipt = TmuxDeliveryIdentity & {
   generation: string;
   payloadHash: string;
@@ -23,7 +26,9 @@ export class TmuxDeliveryUncertainError extends Error {
   readonly holdReason?: string;
   readonly screen?: string;
   constructor(reason: string, hold?: { holdReason: string; screen?: string }) {
-    super(`INJECT_UNVERIFIED: ${reason}; preserving the original terminal write`);
+    super(
+      `INJECT_UNVERIFIED: ${reason}; preserving the original terminal write`,
+    );
     this.holdReason = hold?.holdReason;
     this.screen = hold?.screen;
   }
@@ -43,8 +48,14 @@ export const TMUX_PASTE_WRITE_CAP = 3;
 /** The cap above is spent: the message is failed, loudly, never re-written. */
 export class TmuxDeliveryExhaustedError extends Error {
   /** submitted: whether any of those writes got an Enter. None did means the agent never had it. */
-  constructor(readonly messageId: string, readonly writes: number, readonly submitted = true) {
-    super(`INJECT_EXHAUSTED: written into the pane ${writes} times and never acknowledged; not writing it again`);
+  constructor(
+    readonly messageId: string,
+    readonly writes: number,
+    readonly submitted = true,
+  ) {
+    super(
+      `INJECT_EXHAUSTED: written into the pane ${writes} times and never acknowledged; not writing it again`,
+    );
   }
 }
 
@@ -54,7 +65,8 @@ export class TmuxDeliveryJournal {
   constructor(file: string) {
     mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
     this.db = new Database(file, { create: true, strict: true });
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
+    this.db
+      .exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS tmux_pastes (
         messageId TEXT PRIMARY KEY, conversationId TEXT NOT NULL,
         generation TEXT NOT NULL, payloadHash TEXT NOT NULL,
@@ -67,21 +79,37 @@ export class TmuxDeliveryJournal {
   }
 
   get(messageId: string): TmuxPasteReceipt | null {
-    return this.db.query<TmuxPasteReceipt, [string]>("SELECT *, EXISTS(SELECT 1 FROM tmux_paste_failures f WHERE f.messageId = p.messageId) AS terminalExited, (SELECT writes FROM tmux_paste_writes w WHERE w.messageId = p.messageId) AS writes FROM tmux_pastes p WHERE messageId = ?").get(messageId);
+    return this.db
+      .query<TmuxPasteReceipt, [string]>(
+        "SELECT *, EXISTS(SELECT 1 FROM tmux_paste_failures f WHERE f.messageId = p.messageId) AS terminalExited, (SELECT writes FROM tmux_paste_writes w WHERE w.messageId = p.messageId) AS writes FROM tmux_pastes p WHERE messageId = ?",
+      )
+      .get(messageId);
   }
 
   /** Writes of this message into a pane so far: a receipt's history survives its release. */
   writesOf(messageId: string): number {
-    return this.db.query<{ writes: number }, [string]>("SELECT writes FROM tmux_paste_writes WHERE messageId = ?").get(messageId)?.writes ?? 0;
+    return (
+      this.db
+        .query<{ writes: number }, [string]>(
+          "SELECT writes FROM tmux_paste_writes WHERE messageId = ?",
+        )
+        .get(messageId)?.writes ?? 0
+    );
   }
 
   /** Whether any write of this message got an Enter: only a submitted write can have reached the agent. */
   submittedOnce(messageId: string): boolean {
-    return !!this.db.query("SELECT 1 FROM tmux_paste_submits WHERE messageId = ?").get(messageId);
+    return !!this.db
+      .query("SELECT 1 FROM tmux_paste_submits WHERE messageId = ?")
+      .get(messageId);
   }
 
   pending(generation: string): TmuxPasteReceipt | null {
-    return this.db.query<TmuxPasteReceipt, [string]>("SELECT * FROM tmux_pastes WHERE generation = ? AND phase != 'verified'").get(generation);
+    return this.db
+      .query<TmuxPasteReceipt, [string]>(
+        "SELECT * FROM tmux_pastes WHERE generation = ? AND phase != 'verified'",
+      )
+      .get(generation);
   }
 
   /**
@@ -92,46 +120,106 @@ export class TmuxDeliveryJournal {
    * up, and the cap then refused the Enter that would have sent it (jx70102,
    * 2026-11-11).
    */
-  begin(identity: TmuxDeliveryIdentity, generation: string, payload: string, opts: { atPrompt?: boolean } = {}): { receipt: TmuxPasteReceipt; fresh: boolean } {
+  begin(
+    identity: TmuxDeliveryIdentity,
+    generation: string,
+    payload: string,
+    opts: { atPrompt?: boolean } = {},
+  ): { receipt: TmuxPasteReceipt; fresh: boolean } {
     // A daemon from before the delivery id typed this message without it; it is still the same payload.
-    const payloadHash = createHash("sha256").update(withoutDeliveryId(payload)).digest("hex");
-    return this.db.transaction(() => {
-      const prior = this.get(identity.messageId);
-      if (prior) {
-        if (prior.payloadHash !== payloadHash || prior.conversationId !== identity.conversationId) {
-          throw new TmuxDeliveryUncertainError("delivery identity changed after a paste");
+    const payloadHash = createHash("sha256")
+      .update(withoutDeliveryId(payload))
+      .digest("hex");
+    return this.db
+      .transaction(() => {
+        const prior = this.get(identity.messageId);
+        if (prior) {
+          if (
+            prior.payloadHash !== payloadHash ||
+            prior.conversationId !== identity.conversationId
+          ) {
+            throw new TmuxDeliveryUncertainError(
+              "delivery identity changed after a paste",
+            );
+          }
+          if (prior.generation !== generation && prior.phase !== "verified") {
+            throw new TmuxDeliveryUncertainError(
+              "the prior terminal write has not been reconciled",
+            );
+          }
+          if (prior.terminalExited && prior.phase !== "verified")
+            throw new TmuxDeliveryUncertainError(
+              "the exited terminal must be replaced before retrying",
+            );
+          return { receipt: prior, fresh: false };
         }
-        if (prior.generation !== generation && prior.phase !== "verified") {
-          throw new TmuxDeliveryUncertainError("the prior terminal write has not been reconciled");
+        if (this.pending(generation))
+          throw new TmuxDeliveryUncertainError(
+            "an earlier message still owns the terminal input",
+          );
+        let writes = this.writesOf(identity.messageId);
+        if (!opts.atPrompt) {
+          if (writes >= TMUX_PASTE_WRITE_CAP)
+            throw new TmuxDeliveryExhaustedError(
+              identity.messageId,
+              writes,
+              this.submittedOnce(identity.messageId),
+            );
+          this.db
+            .query(
+              "INSERT INTO tmux_paste_writes VALUES (?, 1) ON CONFLICT(messageId) DO UPDATE SET writes = writes + 1",
+            )
+            .run(identity.messageId);
+          writes++;
         }
-        if (prior.terminalExited && prior.phase !== "verified") throw new TmuxDeliveryUncertainError("the exited terminal must be replaced before retrying");
-        return { receipt: prior, fresh: false };
-      }
-      if (this.pending(generation)) throw new TmuxDeliveryUncertainError("an earlier message still owns the terminal input");
-      let writes = this.writesOf(identity.messageId);
-      if (!opts.atPrompt) {
-        if (writes >= TMUX_PASTE_WRITE_CAP) throw new TmuxDeliveryExhaustedError(identity.messageId, writes, this.submittedOnce(identity.messageId));
-        this.db.query("INSERT INTO tmux_paste_writes VALUES (?, 1) ON CONFLICT(messageId) DO UPDATE SET writes = writes + 1").run(identity.messageId);
-        writes++;
-      }
-      const receipt: TmuxPasteReceipt = { ...identity, generation, payloadHash, phase: "paste", pasteAt: Date.now(), writes };
-      this.db.query("INSERT INTO tmux_pastes VALUES (?, ?, ?, ?, ?, ?)")
-        .run(receipt.messageId, receipt.conversationId, generation, payloadHash, receipt.phase, receipt.pasteAt);
-      return { receipt, fresh: true };
-    }).immediate();
+        const receipt: TmuxPasteReceipt = {
+          ...identity,
+          generation,
+          payloadHash,
+          phase: "paste",
+          pasteAt: Date.now(),
+          writes,
+        };
+        this.db
+          .query("INSERT INTO tmux_pastes VALUES (?, ?, ?, ?, ?, ?)")
+          .run(
+            receipt.messageId,
+            receipt.conversationId,
+            generation,
+            payloadHash,
+            receipt.phase,
+            receipt.pasteAt,
+          );
+        return { receipt, fresh: true };
+      })
+      .immediate();
   }
 
   advance(messageId: string, phase: "submit" | "verified"): void {
-    this.db.query("UPDATE tmux_pastes SET phase = ? WHERE messageId = ? AND phase != 'verified'").run(phase, messageId);
+    this.db
+      .query(
+        "UPDATE tmux_pastes SET phase = ? WHERE messageId = ? AND phase != 'verified'",
+      )
+      .run(phase, messageId);
     // A verified message spent nothing: its write history guards only the loop.
     if (phase === "verified") {
-      this.db.query("DELETE FROM tmux_paste_writes WHERE messageId = ?").run(messageId);
-      this.db.query("DELETE FROM tmux_paste_submits WHERE messageId = ?").run(messageId);
-    } else this.db.query("INSERT OR IGNORE INTO tmux_paste_submits VALUES (?)").run(messageId);
+      this.db
+        .query("DELETE FROM tmux_paste_writes WHERE messageId = ?")
+        .run(messageId);
+      this.db
+        .query("DELETE FROM tmux_paste_submits WHERE messageId = ?")
+        .run(messageId);
+    } else
+      this.db
+        .query("INSERT OR IGNORE INTO tmux_paste_submits VALUES (?)")
+        .run(messageId);
   }
 
   abandonUnsubmitted(messageId: string): void {
-    this.abandonWhere(messageId, "phase = 'paste' OR messageId IN (SELECT messageId FROM tmux_paste_failures)");
+    this.abandonWhere(
+      messageId,
+      "phase = 'paste' OR messageId IN (SELECT messageId FROM tmux_paste_failures)",
+    );
   }
 
   // The receipt settled and its payload provably never reached the agent: not
@@ -143,22 +231,35 @@ export class TmuxDeliveryJournal {
   }
 
   private abandonWhere(messageId: string, clause: string): void {
-    this.db.transaction(() => {
-      const result = this.db.query(`DELETE FROM tmux_pastes WHERE messageId = ? AND (${clause})`).run(messageId);
-      if (result.changes) this.db.query("DELETE FROM tmux_paste_failures WHERE messageId = ?").run(messageId);
-    }).immediate();
+    this.db
+      .transaction(() => {
+        const result = this.db
+          .query(`DELETE FROM tmux_pastes WHERE messageId = ? AND (${clause})`)
+          .run(messageId);
+        if (result.changes)
+          this.db
+            .query("DELETE FROM tmux_paste_failures WHERE messageId = ?")
+            .run(messageId);
+      })
+      .immediate();
   }
 
   recordTerminalExit(messageId: string): void {
-    this.db.query("INSERT OR IGNORE INTO tmux_paste_failures VALUES (?)").run(messageId);
+    this.db
+      .query("INSERT OR IGNORE INTO tmux_paste_failures VALUES (?)")
+      .run(messageId);
   }
 
-  close(): void { this.db.close(); }
+  close(): void {
+    this.db.close();
+  }
 }
 
 let journal: TmuxDeliveryJournal | undefined;
 export function tmuxDeliveryJournal(): TmuxDeliveryJournal {
-  return journal ??= new TmuxDeliveryJournal(join(defaultConfigDir(), "tmux-delivery.sqlite"));
+  return (journal ??= new TmuxDeliveryJournal(
+    join(defaultConfigDir(), "tmux-delivery.sqlite"),
+  ));
 }
 
 type TmuxQuery = (args: string[]) => Promise<{ stdout: string }>;
@@ -177,7 +278,11 @@ export type TmuxDeliveryPreparation = {
 // Without this bound a paste lost to the terminal held its pane forever.
 export const TMUX_RECEIPT_SETTLE_MS = 120_000;
 
-export function receiptSettled(receipt: TmuxPasteReceipt, settleMs = TMUX_RECEIPT_SETTLE_MS, now = Date.now()): boolean {
+export function receiptSettled(
+  receipt: TmuxPasteReceipt,
+  settleMs = TMUX_RECEIPT_SETTLE_MS,
+  now = Date.now(),
+): boolean {
   return now - receipt.pasteAt >= settleMs;
 }
 
@@ -199,7 +304,11 @@ export async function pendingMessageFinished(
  * back only once its session is up and idle again), or open (pending,
  * injected).
  */
-export type PendingMessageOutcome = "delivered" | "cancelled" | "stalled" | "open";
+export type PendingMessageOutcome =
+  | "delivered"
+  | "cancelled"
+  | "stalled"
+  | "open";
 
 /** A queued message's outcome. Throws when the lookup itself failed. */
 export async function pendingMessageOutcome(
@@ -209,18 +318,35 @@ export async function pendingMessageOutcome(
   try {
     const status = await lookup.getPendingMessageStatus(messageId);
     if (status === "failed" || status === "undeliverable") return "stalled";
-    return status === "delivered" ? "delivered" : status === "cancelled" ? "cancelled" : "open";
+    return status === "delivered"
+      ? "delivered"
+      : status === "cancelled"
+        ? "cancelled"
+        : "open";
   } catch (error) {
     if (/Message not found/.test(String(error))) return "delivered";
     throw error;
   }
 }
 
-async function generationFor(target: string, exec: TmuxQuery, server: string[] = []): Promise<string> {
-  const { stdout } = await exec([...server, "display-message", "-p", "-t", target, "#{pid}|#{socket_path}|#{pane_id}|#{pane_pid}|#{session_created}"]);
+async function generationFor(
+  target: string,
+  exec: TmuxQuery,
+  server: string[] = [],
+): Promise<string> {
+  const { stdout } = await exec([
+    ...server,
+    "display-message",
+    "-p",
+    "-t",
+    target,
+    "#{pid}|#{socket_path}|#{pane_id}|#{pane_pid}|#{session_created}",
+  ]);
   const parts = stdout.trim().split("|");
   if (parts.length !== 5 || !parts.every(Boolean) || !/^%\d+$/.test(parts[2])) {
-    throw new TmuxDeliveryUncertainError("terminal identity could not be verified");
+    throw new TmuxDeliveryUncertainError(
+      "terminal identity could not be verified",
+    );
   }
   return JSON.stringify(parts);
 }
@@ -234,10 +360,20 @@ export async function prepareTmuxDelivery(
   opts?: { settleMs?: number; submitSpent?: () => Promise<boolean> },
 ): Promise<TmuxDeliveryPreparation> {
   try {
-    return await prepareDelivery(target, identity, exec, isDelivered, journal ?? tmuxDeliveryJournal(), opts?.settleMs, opts?.submitSpent);
+    return await prepareDelivery(
+      target,
+      identity,
+      exec,
+      isDelivered,
+      journal ?? tmuxDeliveryJournal(),
+      opts?.settleMs,
+      opts?.submitSpent,
+    );
   } catch (error) {
     if (error instanceof TmuxDeliveryUncertainError) throw error;
-    throw new TmuxDeliveryUncertainError(`receipt reconciliation failed: ${String(error)}`);
+    throw new TmuxDeliveryUncertainError(
+      `receipt reconciliation failed: ${String(error)}`,
+    );
   }
 }
 
@@ -253,24 +389,38 @@ async function prepareDelivery(
   const generation = await generationFor(target, exec);
   const pending = journal.pending(generation);
   if (pending && pending.messageId !== identity.messageId) {
-    if (await isDelivered(pending.messageId)) journal.advance(pending.messageId, "verified");
+    if (await isDelivered(pending.messageId))
+      journal.advance(pending.messageId, "verified");
     // A paste that settled unacknowledged never had Enter pressed on it, so
     // nothing of it can still submit. Its own message may have stopped
     // retrying, and holding the pane for it refused every later message
     // (2026-09-14). The next write drains whatever residue it left.
-    else if (pending.phase === "paste" && receiptSettled(pending, settleMs)) journal.release(pending.messageId);
+    else if (pending.phase === "paste" && receiptSettled(pending, settleMs))
+      journal.release(pending.messageId);
     // A settled submit whose Enter an idle agent has since taken: the prompt
     // is empty and the agent is reading its terminal, so none of the earlier
     // payload is left to submit or to merge with the next one. Its echo can
     // still fail to match (a starved agent drew two sends into one turn), and
     // holding the pane for it refused every later message for hours
     // (jx742pa, 2026-11-11). Its own row stays with the server's healer.
-    else if (pending.phase === "submit" && receiptSettled(pending, settleMs) && await submitSpent?.()) journal.release(pending.messageId);
-    else throw new TmuxDeliveryUncertainError("an earlier message still owns the terminal input");
+    else if (
+      pending.phase === "submit" &&
+      receiptSettled(pending, settleMs) &&
+      (await submitSpent?.())
+    )
+      journal.release(pending.messageId);
+    else
+      throw new TmuxDeliveryUncertainError(
+        "an earlier message still owns the terminal input",
+      );
   }
   let prior = journal.get(identity.messageId);
   let unacknowledged = false;
-  if (prior && prior.phase !== "verified" && await isDelivered(identity.messageId)) {
+  if (
+    prior &&
+    prior.phase !== "verified" &&
+    (await isDelivered(identity.messageId))
+  ) {
     journal.advance(identity.messageId, "verified");
     prior = journal.get(identity.messageId);
   } else if (prior?.phase === "verified" && receiptSettled(prior, settleMs)) {
@@ -281,23 +431,41 @@ async function prepareDelivery(
   // A submit into a pane that is gone replays only after the echo window: the
   // agent that took it would have written it to its transcript by then.
   const settled = !!prior && receiptSettled(prior, settleMs);
-  if (prior && prior.generation !== generation && (prior.phase === "paste" || prior.terminalExited || settled)) {
+  if (
+    prior &&
+    prior.generation !== generation &&
+    (prior.phase === "paste" || prior.terminalExited || settled)
+  ) {
     const oldParts: string[] = JSON.parse(prior.generation);
     const newParts: string[] = JSON.parse(generation);
     const sameServer = oldParts[1] === newParts[1];
-    let oldPaneGone = !!prior.terminalExited || (sameServer && oldParts[0] !== newParts[0]);
+    let oldPaneGone =
+      !!prior.terminalExited || (sameServer && oldParts[0] !== newParts[0]);
     if (!oldPaneGone) {
       // Pane ids are numbered per server, so the old pane is looked up on the
       // socket it lived on: a session that moved to its own server left it on
       // the shared one, which may since have gone.
       const oldServer = ["-S", oldParts[1]];
-      const { stdout } = await exec([...oldServer, "list-panes", "-a", "-F", "#{pane_id}"]).catch((error) => {
-        if (!sameServer && isTmuxSessionMissingError(error)) return { stdout: "" };
+      const { stdout } = await exec([
+        ...oldServer,
+        "list-panes",
+        "-a",
+        "-F",
+        "#{pane_id}",
+      ]).catch((error) => {
+        if (!sameServer && isTmuxSessionMissingError(error))
+          return { stdout: "" };
         throw error;
       });
       const panes = stdout.trim().split("\n");
-      if (sameServer && !panes.includes(newParts[2])) throw new TmuxDeliveryUncertainError("terminal inventory could not be verified");
-      oldPaneGone = !panes.includes(oldParts[2]) || await generationFor(oldParts[2], exec, oldServer) !== prior.generation;
+      if (sameServer && !panes.includes(newParts[2]))
+        throw new TmuxDeliveryUncertainError(
+          "terminal inventory could not be verified",
+        );
+      oldPaneGone =
+        !panes.includes(oldParts[2]) ||
+        (await generationFor(oldParts[2], exec, oldServer)) !==
+          prior.generation;
     }
     if (oldPaneGone) {
       if (settled) journal.release(identity.messageId);
@@ -313,8 +481,15 @@ async function prepareDelivery(
   // resumed session (b5790d19, 2026-11-23). Inside the echo window it holds
   // like a submit; once settled the caller reads the transcript and the old
   // pane's receipt is released above, so the message is written again.
-  if (prior?.phase === "verified" && prior.generation !== generation && !settled && !(await isDelivered(identity.messageId))) {
-    throw new TmuxDeliveryUncertainError("the earlier write was verified in a pane that has since been replaced, and its echo window is still open");
+  if (
+    prior?.phase === "verified" &&
+    prior.generation !== generation &&
+    !settled &&
+    !(await isDelivered(identity.messageId))
+  ) {
+    throw new TmuxDeliveryUncertainError(
+      "the earlier write was verified in a pane that has since been replaced, and its echo window is still open",
+    );
   }
   return { journal, generation, prior, unacknowledged };
 }

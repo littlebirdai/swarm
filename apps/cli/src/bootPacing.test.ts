@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { BOOT_TROUBLE_WINDOW_MS, bootPacingAfter, planBootPacing, type BootPacingPlan } from "./bootPacing.js";
+import {
+  BOOT_TROUBLE_WINDOW_MS,
+  bootPacingAfter,
+  planBootPacing,
+  type BootPacingPlan,
+} from "./bootPacing.js";
 
 const NORMAL: Omit<BootPacingPlan, "reason"> = {
   tier: "normal",
@@ -45,7 +50,12 @@ describe("planBootPacing", () => {
   });
 
   test("a quiet machine with no trouble is normal and names the load", () => {
-    const plan = planBootPacing({ load1: 4, cpuCount: 16, memoryPressure: "normal", crashCount: 0 });
+    const plan = planBootPacing({
+      load1: 4,
+      cpuCount: 16,
+      memoryPressure: "normal",
+      crashCount: 0,
+    });
     expect(bounds(plan)).toEqual(NORMAL);
     expect(plan.reason).toBe("no recent trouble, load 4.0 on 16 cpus");
   });
@@ -55,24 +65,42 @@ describe("planBootPacing", () => {
   });
 
   test("a recent hang alone is cautious", () => {
-    const plan = planBootPacing({ hangAgeMs: 5 * 60_000, load1: 1, cpuCount: 16 });
+    const plan = planBootPacing({
+      hangAgeMs: 5 * 60_000,
+      load1: 1,
+      cpuCount: 16,
+    });
     expect(bounds(plan)).toEqual(CAUTIOUS);
     expect(plan.reason).toBe("hang 5m ago");
   });
 
   test("a watchdog kill names its rule", () => {
-    const plan = planBootPacing({ hangAgeMs: 90_000, watchdogRule: "two-passes" });
+    const plan = planBootPacing({
+      hangAgeMs: 90_000,
+      watchdogRule: "two-passes",
+    });
     expect(plan.tier).toBe("cautious");
-    expect(plan.reason).toBe("watchdog killed the previous daemon 2m ago (two-passes)");
+    expect(plan.reason).toBe(
+      "watchdog killed the previous daemon 2m ago (two-passes)",
+    );
   });
 
   test("a hang older than the trouble window is history", () => {
-    expect(planBootPacing({ hangAgeMs: BOOT_TROUBLE_WINDOW_MS, watchdogRule: "two-passes" }).tier).toBe("normal");
-    expect(planBootPacing({ hangAgeMs: BOOT_TROUBLE_WINDOW_MS - 1 }).tier).toBe("cautious");
+    expect(
+      planBootPacing({
+        hangAgeMs: BOOT_TROUBLE_WINDOW_MS,
+        watchdogRule: "two-passes",
+      }).tier,
+    ).toBe("normal");
+    expect(planBootPacing({ hangAgeMs: BOOT_TROUBLE_WINDOW_MS - 1 }).tier).toBe(
+      "cautious",
+    );
   });
 
   test("crashes in the window are cautious, singular and plural", () => {
-    expect(planBootPacing({ crashCount: 1 }).reason).toBe("1 crash in the last 30m");
+    expect(planBootPacing({ crashCount: 1 }).reason).toBe(
+      "1 crash in the last 30m",
+    );
     const plan = planBootPacing({ crashCount: 3 });
     expect(bounds(plan)).toEqual(CAUTIOUS);
     expect(plan.reason).toBe("3 crashes in the last 30m");
@@ -86,9 +114,16 @@ describe("planBootPacing", () => {
   });
 
   test("trouble plus elevated load is severe", () => {
-    const plan = planBootPacing({ hangAgeMs: 60_000, crashCount: 2, load1: 48, cpuCount: 16 });
+    const plan = planBootPacing({
+      hangAgeMs: 60_000,
+      crashCount: 2,
+      load1: 48,
+      cpuCount: 16,
+    });
     expect(bounds(plan)).toEqual(SEVERE);
-    expect(plan.reason).toBe("hang 1m ago; 2 crashes in the last 30m; load 48.0 on 16 cpus");
+    expect(plan.reason).toBe(
+      "hang 1m ago; 2 crashes in the last 30m; load 48.0 on 16 cpus",
+    );
   });
 
   test("load at or above 6 per cpu alone is severe", () => {
@@ -99,7 +134,11 @@ describe("planBootPacing", () => {
   });
 
   test("critical memory pressure alone is severe", () => {
-    const plan = planBootPacing({ memoryPressure: "critical", load1: 1, cpuCount: 16 });
+    const plan = planBootPacing({
+      memoryPressure: "critical",
+      load1: 1,
+      cpuCount: 16,
+    });
     expect(bounds(plan)).toEqual(SEVERE);
     expect(plan.reason).toBe("memory pressure critical");
   });
@@ -113,7 +152,9 @@ describe("planBootPacing", () => {
     expect(planBootPacing({ load1: NaN, cpuCount: 16 }).tier).toBe("normal");
     expect(planBootPacing({ load1: 250, cpuCount: 0 }).tier).toBe("normal");
     expect(planBootPacing({ load1: 250 }).tier).toBe("normal");
-    expect(planBootPacing({ hangAgeMs: -5, crashCount: -1 }).tier).toBe("normal");
+    expect(planBootPacing({ hangAgeMs: -5, crashCount: -1 }).tier).toBe(
+      "normal",
+    );
     expect(planBootPacing({ hangAgeMs: Infinity }).tier).toBe("normal");
   });
 
@@ -121,19 +162,33 @@ describe("planBootPacing", () => {
     const severe = planBootPacing({ memoryPressure: "critical" });
     expect(bootPacingAfter(severe, 29 * 60_000)).toBe(severe);
     const settled = bootPacingAfter(severe, 30 * 60_000);
-    expect(bounds(settled)).toEqual({ ...NORMAL, tier: "severe", holdMs: 30 * 60_000 });
+    expect(bounds(settled)).toEqual({
+      ...NORMAL,
+      tier: "severe",
+      holdMs: 30 * 60_000,
+    });
     expect(settled.reason).toBe(severe.reason);
     const normal = planBootPacing({});
     expect(bootPacingAfter(normal, 0)).toEqual(normal);
   });
 
   test("the normal tier keeps every bound no stricter than cautious, and cautious than severe", () => {
-    const n = planBootPacing({}), c = planBootPacing({ crashCount: 1 }), s = planBootPacing({ memoryPressure: "critical" });
-    for (const key of ["reattachConcurrency", "startupSyncConcurrency", "watchdogSyncConcurrency"] as const) {
+    const n = planBootPacing({}),
+      c = planBootPacing({ crashCount: 1 }),
+      s = planBootPacing({ memoryPressure: "critical" });
+    for (const key of [
+      "reattachConcurrency",
+      "startupSyncConcurrency",
+      "watchdogSyncConcurrency",
+    ] as const) {
       expect(n[key]).toBeGreaterThan(c[key]);
       expect(c[key]).toBeGreaterThan(s[key]);
     }
-    for (const key of ["promptScanSpacingMs", "schedulerStartDelayMs", "fanoutOffsetScale"] as const) {
+    for (const key of [
+      "promptScanSpacingMs",
+      "schedulerStartDelayMs",
+      "fanoutOffsetScale",
+    ] as const) {
       expect(n[key]).toBeLessThan(c[key]);
       expect(c[key]).toBeLessThan(s[key]);
     }

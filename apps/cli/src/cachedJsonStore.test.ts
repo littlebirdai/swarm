@@ -22,19 +22,25 @@ const read = (): Record<string, unknown> | null =>
 // A debounced flush is a timer plus an async write, so any fixed sleep races it
 // on a loaded machine. Poll for the file instead and let the ceiling be generous:
 // a real regression still fails, only the flake goes away.
-const readFlushed = async (timeoutMs = 2000): Promise<Record<string, unknown>> => {
+const readFlushed = async (
+  timeoutMs = 2000,
+): Promise<Record<string, unknown>> => {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const disk = read();
     if (disk) return disk;
-    if (Date.now() > deadline) throw new Error(`store never flushed to ${file}`);
+    if (Date.now() > deadline)
+      throw new Error(`store never flushed to ${file}`);
     await new Promise((r) => setTimeout(r, 5));
   }
 };
 
 describe("CachedJsonStore", () => {
   it("reads back values written in-memory without touching disk first", () => {
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 10_000 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 10_000,
+    });
     store.set("a", 1);
     store.set("b", 2);
     // Long debounce + no flush yet → disk untouched, but reads hit the cache.
@@ -46,7 +52,10 @@ describe("CachedJsonStore", () => {
   });
 
   it("does NOT rewrite the file synchronously on every mutation", async () => {
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 5 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 5,
+    });
     for (let i = 0; i < 100; i++) store.set(`k${i}`, i);
     // Still nothing on disk synchronously — the whole burst coalesces into one flush.
     expect(read()).toBeNull();
@@ -56,7 +65,10 @@ describe("CachedJsonStore", () => {
   });
 
   it("flushSync persists pending journal and reload sees it", () => {
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 10_000 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 10_000,
+    });
     store.set("a", 1);
     store.set("b", 2);
     store.flushSync();
@@ -69,7 +81,10 @@ describe("CachedJsonStore", () => {
 
   it("delete removes a key and the deletion persists", () => {
     fs.writeFileSync(file, JSON.stringify({ a: 1, b: 2 }));
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 10_000 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 10_000,
+    });
     expect(store.get("a")).toBe(1);
     store.delete("a");
     expect(store.has("a")).toBe(false);
@@ -94,7 +109,10 @@ describe("CachedJsonStore", () => {
 
   it("merge-on-flush preserves a concurrent external write to an untouched key", () => {
     fs.writeFileSync(file, JSON.stringify({ a: 1 }));
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 10_000 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 10_000,
+    });
     store.get("a"); // load
     store.set("b", 2); // our change
 
@@ -108,7 +126,10 @@ describe("CachedJsonStore", () => {
 
   it("survives a corrupt file by starting empty", () => {
     fs.writeFileSync(file, "{ this is not json");
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 10_000 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 10_000,
+    });
     expect(store.get("a")).toBeUndefined();
     store.set("a", 1);
     store.flushSync();
@@ -116,7 +137,10 @@ describe("CachedJsonStore", () => {
   });
 
   it("async debounced flush coalesces a burst into a single durable write", async () => {
-    const store = new CachedJsonStore<number>({ filePath: file, flushDelayMs: 5 });
+    const store = new CachedJsonStore<number>({
+      filePath: file,
+      flushDelayMs: 5,
+    });
     store.set("a", 1);
     await new Promise((r) => setTimeout(r, 20));
     store.set("b", 2);
@@ -135,7 +159,12 @@ describe("CachedJsonStore", () => {
 });
 
 it("asynchronous pruning yields, bounds concurrency, and retains failed checks", async () => {
-  fs.writeFileSync(file, JSON.stringify(Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`k${i}`, i]))));
+  fs.writeFileSync(
+    file,
+    JSON.stringify(
+      Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`k${i}`, i])),
+    ),
+  );
   let active = 0;
   let peak = 0;
   let checked = 0;
@@ -145,7 +174,7 @@ it("asynchronous pruning yields, bounds concurrency, and retains failed checks",
     keepOnLoadAsync: async (key) => {
       active++;
       peak = Math.max(peak, active);
-      await new Promise<void>(resolve => setImmediate(resolve));
+      await new Promise<void>((resolve) => setImmediate(resolve));
       active--;
       checked++;
       if (key === "k1") throw new Error("transient I/O failure");
@@ -163,15 +192,26 @@ it("asynchronous pruning yields, bounds concurrency, and retains failed checks",
 });
 
 it("a delayed prune cannot delete a newer write, even after its journal flushed", async () => {
-  fs.writeFileSync(file, JSON.stringify({ same: 1, changed: 2, deleted: 3, dead: 4 }));
+  fs.writeFileSync(
+    file,
+    JSON.stringify({ same: 1, changed: 2, deleted: 3, dead: 4 }),
+  );
   let release!: () => void;
-  const gate = new Promise<void>(resolve => { release = resolve; });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   let started!: () => void;
-  const begun = new Promise<void>(resolve => { started = resolve; });
+  const begun = new Promise<void>((resolve) => {
+    started = resolve;
+  });
   const store = new CachedJsonStore<number>({
     filePath: file,
     flushDelayMs: 10000,
-    keepOnLoadAsync: async () => { started(); await gate; return false; },
+    keepOnLoadAsync: async () => {
+      started();
+      await gate;
+      return false;
+    },
   });
   store.getAll();
   await begun;

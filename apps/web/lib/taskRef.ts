@@ -2,14 +2,20 @@
 // names, never a list: the workspace enumeration guard allows this file for that shape only.
 type RefRow = { _id: string; short_id?: string };
 
-export function taskByRef<T extends RefRow>(tasks: Record<string, T> | null | undefined, ref: string | null | undefined): T | null {
+export function taskByRef<T extends RefRow>(
+  tasks: Record<string, T> | null | undefined,
+  ref: string | null | undefined,
+): T | null {
   if (!tasks || !ref) return null;
   const byId = tasks[ref];
   if (byId) return byId;
   let refs = refIndexes.get(tasks);
   if (!refs) {
     refs = new Map();
-    for (const id in tasks) { const r = tasks[id]?.short_id; if (r && !refs.has(r)) refs.set(r, tasks[id]); }
+    for (const id in tasks) {
+      const r = tasks[id]?.short_id;
+      if (r && !refs.has(r)) refs.set(r, tasks[id]);
+    }
     refIndexes.set(tasks, refs);
   }
   return (refs.get(ref) as T | undefined) ?? null;

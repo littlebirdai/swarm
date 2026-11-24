@@ -198,7 +198,9 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
   }
 
   function append(pcm: ArrayBuffer) {
-    ws!.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64(pcm) }));
+    ws!.send(
+      JSON.stringify({ type: "input_audio_buffer.append", audio: b64(pcm) }),
+    );
   }
 
   function feed(pcm: ArrayBuffer) {
@@ -232,7 +234,8 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
   function until(pred: () => boolean, deadline: number): Promise<void> {
     return new Promise((resolve) => {
       const tick = () => {
-        if (pred() || closed || hopeless || Date.now() >= deadline) return resolve();
+        if (pred() || closed || hopeless || Date.now() >= deadline)
+          return resolve();
         setTimeout(tick, 20);
       };
       tick();
@@ -287,9 +290,9 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
 
   void (async () => {
     const tryMint = (args: { room_key: string; languages?: string[] }) =>
-      convex
-        .action(api.transcripts.mintAsrToken, args)
-        .catch((err: any) => ({ error: String(err?.message ?? "Could not start transcription") }));
+      convex.action(api.transcripts.mintAsrToken, args).catch((err: any) => ({
+        error: String(err?.message ?? "Could not start transcription"),
+      }));
     // Languages go on the first mint so a mixed room stays constrained. If
     // that payload is refused — an older server that has no field, or OpenAI
     // rejecting one tag — retry unconstrained rather than sit on a live
@@ -337,10 +340,10 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
     // ephemeral secret as a subprotocol.
     // GA subprotocol auth: just "realtime" + the ephemeral key. (Verified
     // against the live API; the old beta subprotocol is gone.)
-    const socket = openWebSocket("wss://api.openai.com/v1/realtime?intent=transcription", [
-      "realtime",
-      `openai-insecure-api-key.${minted.client_secret}`,
-    ]);
+    const socket = openWebSocket(
+      "wss://api.openai.com/v1/realtime?intent=transcription",
+      ["realtime", `openai-insecure-api-key.${minted.client_secret}`],
+    );
     if (!socket) {
       // A secret the browser refuses as a subprotocol throws here: finish the
       // pipe through the same path as a refused mint.
@@ -396,20 +399,34 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
         partialText += msg.delta;
         // A script nobody on the allowlist writes is the language-lock bug;
         // show nothing rather than a flash of the wrong one.
-        events?.onPartial?.(isUnexpectedTranscript(partialText, languages) ? "" : partialText);
-      } else if (msg.type === "conversation.item.input_audio_transcription.completed") {
+        events?.onPartial?.(
+          isUnexpectedTranscript(partialText, languages) ? "" : partialText,
+        );
+      } else if (
+        msg.type === "conversation.item.input_audio_transcription.completed"
+      ) {
         // Whatever the words turn out to be, the commit has been answered.
         transcribedSinceCommit = true;
         partialItem = "";
         partialText = "";
         events?.onPartial?.("");
-        const text = typeof msg.transcript === "string" ? msg.transcript.trim() : "";
+        const text =
+          typeof msg.transcript === "string" ? msg.transcript.trim() : "";
         if (!text) return;
         // Dropped on purpose, but never in silence: the scribe shows the drop.
-        if (isUnexpectedTranscript(text, languages)) return events?.onError?.("Dropped a line outside the call's languages");
+        if (isUnexpectedTranscript(text, languages))
+          return events?.onError?.(
+            "Dropped a line outside the call's languages",
+          );
         const t1 = clock();
-        events?.onUtterance?.({ text, t0: utteranceStart || Math.max(0, t1 - 2000), t1 });
-      } else if (msg.type === "conversation.item.input_audio_transcription.failed") {
+        events?.onUtterance?.({
+          text,
+          t0: utteranceStart || Math.max(0, t1 - 2000),
+          t1,
+        });
+      } else if (
+        msg.type === "conversation.item.input_audio_transcription.failed"
+      ) {
         // The server heard the commit and got nothing out of it. Waiting longer
         // would only delay the release.
         transcribedSinceCommit = true;
@@ -417,7 +434,9 @@ export function openAsrPcmSession(opts: AsrSessionOpts): AsrPcmSession {
       } else if (msg.type === "error") {
         // An error after a commit is the answer to that commit.
         transcribedSinceCommit = true;
-        events?.onError?.(String(msg.error?.message ?? "ASR error").slice(0, 140));
+        events?.onError?.(
+          String(msg.error?.message ?? "ASR error").slice(0, 140),
+        );
       }
     };
 
@@ -502,7 +521,9 @@ export function openAsrPipe(opts: {
     const proc = ac.createScriptProcessor(4096, 1, 1);
     node = proc;
     proc.onaudioprocess = (e) => {
-      session.feedPcm16(floatTo16(e.inputBuffer.getChannelData(0), ac.sampleRate));
+      session.feedPcm16(
+        floatTo16(e.inputBuffer.getChannelData(0), ac.sampleRate),
+      );
     };
     src.connect(proc);
     // A ScriptProcessor only runs when connected toward the destination;

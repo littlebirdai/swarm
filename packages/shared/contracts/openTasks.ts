@@ -15,7 +15,13 @@
 //
 // PURE isomorphic data — consumed by the CLI (producer), Convex (validator +
 // overlay) and the web (renderer).
-export const OPEN_TASK_KINDS = ["background", "promoted", "monitor", "workflow", "agent"] as const;
+export const OPEN_TASK_KINDS = [
+  "background",
+  "promoted",
+  "monitor",
+  "workflow",
+  "agent",
+] as const;
 export type OpenTaskKind = (typeof OPEN_TASK_KINDS)[number];
 
 export type OpenTaskReport = {

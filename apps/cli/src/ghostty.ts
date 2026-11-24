@@ -23,11 +23,23 @@ const OSASCRIPT_TIMEOUT_MS = 15_000;
 
 /** Ghostty's name for a key: W3C key codes in lower camel case. */
 const GHOSTTY_KEY_NAMES: Record<string, string> = {
-  Return: "enter", Enter: "enter", "\r": "enter", "\n": "enter",
-  Escape: "escape", "\x1b": "escape",
-  Up: "arrowUp", Down: "arrowDown", Left: "arrowLeft", Right: "arrowRight",
-  Tab: "tab", "\t": "tab", Space: "space", " ": "space",
-  Backspace: "backspace", "\x7f": "backspace", Delete: "delete",
+  Return: "enter",
+  Enter: "enter",
+  "\r": "enter",
+  "\n": "enter",
+  Escape: "escape",
+  "\x1b": "escape",
+  Up: "arrowUp",
+  Down: "arrowDown",
+  Left: "arrowLeft",
+  Right: "arrowRight",
+  Tab: "tab",
+  "\t": "tab",
+  Space: "space",
+  " ": "space",
+  Backspace: "backspace",
+  "\x7f": "backspace",
+  Delete: "delete",
 };
 
 /** The `send key` name for a poll step's key or one keystroke character. */
@@ -91,7 +103,9 @@ function run(argv) {
 }`;
 
 async function osascript(args: string[]): Promise<string> {
-  return (await execFileAsync("osascript", args, { timeout: OSASCRIPT_TIMEOUT_MS })).stdout;
+  return (
+    await execFileAsync("osascript", args, { timeout: OSASCRIPT_TIMEOUT_MS })
+  ).stdout;
 }
 
 const PROBE_SCRIPT = `on run argv
@@ -107,15 +121,28 @@ end run`;
  * A probe that runs out the clock is a consent prompt still on screen or a
  * Ghostty that stopped answering Apple events.
  */
-export function ghosttyUnscriptableHint(err: { stderr?: string; message?: string; killed?: boolean; signal?: string | null }): string | null {
+export function ghosttyUnscriptableHint(err: {
+  stderr?: string;
+  message?: string;
+  killed?: boolean;
+  signal?: string | null;
+}): string | null {
   const text = `${err.stderr ?? ""}\n${err.message ?? ""}`;
   if (/-1743\b|not authori[sz]ed to send apple events/i.test(text)) {
     return "macOS does not let Codecast control Ghostty on that Mac. Turn on Ghostty under codecast in System Settings, Privacy & Security, Automation";
   }
-  if (err.killed || err.signal === "SIGTERM" || /-1712\b|timed out/i.test(text)) {
+  if (
+    err.killed ||
+    err.signal === "SIGTERM" ||
+    /-1712\b|timed out/i.test(text)
+  ) {
     return "Ghostty did not answer. On that Mac, allow Codecast to control Ghostty if macOS is asking, or restart Ghostty";
   }
-  if (/-1708\b|-2741\b|-1728\b|doesn.t understand|expected .* but found/i.test(text)) {
+  if (
+    /-1708\b|-2741\b|-1728\b|doesn.t understand|expected .* but found/i.test(
+      text,
+    )
+  ) {
     return "that Ghostty has no scripting. Update to Ghostty 1.3 or later with macos-applescript on";
   }
   return null;
@@ -128,24 +155,46 @@ export function ghosttyUnscriptableHint(err: { stderr?: string; message?: string
  * a Ghostty that does not answer. None of those is fixed by retrying, so the
  * caller holds the message instead, with the hint that clears it.
  */
-export async function probeGhostty(tty: string): Promise<{ state: "ok" | "not_found" } | { state: "unscriptable"; detail: string; hint?: string | null }> {
+export async function probeGhostty(
+  tty: string,
+): Promise<
+  | { state: "ok" | "not_found" }
+  | { state: "unscriptable"; detail: string; hint?: string | null }
+> {
   try {
     const count = Number((await osascript(["-e", PROBE_SCRIPT, tty])).trim());
     return { state: count > 0 ? "ok" : "not_found" };
   } catch (err) {
-    const e = err as { stderr?: string; message?: string; killed?: boolean; signal?: string | null };
+    const e = err as {
+      stderr?: string;
+      message?: string;
+      killed?: boolean;
+      signal?: string | null;
+    };
     const detail = (e.stderr || e.message || String(err)).trim();
-    return { state: "unscriptable", detail: e.killed ? `${detail} (no answer in ${OSASCRIPT_TIMEOUT_MS / 1000}s)` : detail, hint: ghosttyUnscriptableHint(e) };
+    return {
+      state: "unscriptable",
+      detail: e.killed
+        ? `${detail} (no answer in ${OSASCRIPT_TIMEOUT_MS / 1000}s)`
+        : detail,
+      hint: ghosttyUnscriptableHint(e),
+    };
   }
 }
 
 /** Paste text into the Ghostty terminal on `tty`. */
-export async function ghosttyInputText(tty: string, text: string): Promise<void> {
+export async function ghosttyInputText(
+  tty: string,
+  text: string,
+): Promise<void> {
   await osascript(["-e", INPUT_TEXT_SCRIPT, tty, text]);
 }
 
 /** Press each named key, in order, in the Ghostty terminal on `tty`. */
-export async function ghosttySendKeys(tty: string, keys: string[]): Promise<void> {
+export async function ghosttySendKeys(
+  tty: string,
+  keys: string[],
+): Promise<void> {
   if (keys.length === 0) return;
   await osascript(["-e", SEND_KEYS_SCRIPT, tty, ...keys.map(ghosttyKeyName)]);
 }
@@ -153,23 +202,34 @@ export async function ghosttySendKeys(tty: string, keys: string[]): Promise<void
 /** A path Ghostty's screen dump writes: `<tmpdir>/<random>/screen.txt`. The
  *  path arrives through the clipboard, so anything else (a copy the person
  *  made in the same instant) is refused rather than read or deleted. */
-export function isGhosttyScreenFile(file: string, tmpDir = os.tmpdir()): boolean {
+export function isGhosttyScreenFile(
+  file: string,
+  tmpDir = os.tmpdir(),
+): boolean {
   if (!file || path.basename(file) !== "screen.txt") return false;
-  const real = (p: string) => p.replace(/^\/private(?=\/)/, "").replace(/\/+$/, "");
+  const real = (p: string) =>
+    p.replace(/^\/private(?=\/)/, "").replace(/\/+$/, "");
   const root = path.dirname(path.dirname(real(file)));
   // Ghostty's TMPDIR is the per-user /var/folders/…/T even when the daemon's is not.
-  return root === real(tmpDir) || /^\/var\/folders\/[^/]+\/[^/]+\/T$/.test(root);
+  return (
+    root === real(tmpDir) || /^\/var\/folders\/[^/]+\/[^/]+\/T$/.test(root)
+  );
 }
 
 /** The visible screen of the Ghostty terminal on `tty`. */
 export async function readGhosttyScreen(tty: string): Promise<string> {
-  const file = (await osascript(["-l", "JavaScript", "-e", READ_SCREEN_SCRIPT, tty])).trim();
-  if (!isGhosttyScreenFile(file)) throw new Error(`Ghostty did not write a screen file for TTY ${tty}`);
+  const file = (
+    await osascript(["-l", "JavaScript", "-e", READ_SCREEN_SCRIPT, tty])
+  ).trim();
+  if (!isGhosttyScreenFile(file))
+    throw new Error(`Ghostty did not write a screen file for TTY ${tty}`);
   try {
     return await fs.promises.readFile(file, "utf-8");
   } finally {
     // Ghostty leaves one temp dir per dump until it quits.
-    await fs.promises.rm(path.dirname(file), { recursive: true, force: true }).catch(() => {});
+    await fs.promises
+      .rm(path.dirname(file), { recursive: true, force: true })
+      .catch(() => {});
   }
 }
 
@@ -179,7 +239,12 @@ export type GhosttyIo = {
   sendKeys: typeof ghosttySendKeys;
   readScreen: typeof readGhosttyScreen;
 };
-const GHOSTTY_IO: GhosttyIo = { probe: probeGhostty, inputText: ghosttyInputText, sendKeys: ghosttySendKeys, readScreen: readGhosttyScreen };
+const GHOSTTY_IO: GhosttyIo = {
+  probe: probeGhostty,
+  inputText: ghosttyInputText,
+  sendKeys: ghosttySendKeys,
+  readScreen: readGhosttyScreen,
+};
 
 /**
  * The pane transport for the Ghostty terminal on `tty`. A Ghostty the daemon
@@ -187,13 +252,19 @@ const GHOSTTY_IO: GhosttyIo = { probe: probeGhostty, inputText: ghosttyInputText
  * rather than failing: retrying never helps, and a failure streak would stop
  * the person's own agent to resume it elsewhere.
  */
-export async function ghosttyPane(tty: string, bracketed: boolean, log: (line: string) => void, io: GhosttyIo = GHOSTTY_IO): Promise<PaneTransport> {
+export async function ghosttyPane(
+  tty: string,
+  bracketed: boolean,
+  log: (line: string) => void,
+  io: GhosttyIo = GHOSTTY_IO,
+): Promise<PaneTransport> {
   const probe = await io.probe(tty);
   if (probe.state === "unscriptable") {
     log(`Ghostty scripting unavailable for TTY ${tty}: ${probe.detail}`);
     throw new TerminalHoldError("Ghostty", probe.hint);
   }
-  if (probe.state === "not_found") throw new Error(`Ghostty terminal not found for TTY ${tty}`);
+  if (probe.state === "not_found")
+    throw new Error(`Ghostty terminal not found for TTY ${tty}`);
   return {
     name: `Ghostty for TTY ${tty}`,
     // `input text` is a paste: Ghostty brackets it when the program asked for

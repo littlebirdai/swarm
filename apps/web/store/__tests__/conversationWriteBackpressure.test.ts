@@ -27,24 +27,38 @@ async function waitFor(check: () => Promise<boolean> | boolean) {
 }
 
 function conversationTable(): Dexie.Table {
-  return (Dexie.connections.find((db) => db.name === "codecast-store") as any).conversationMessageMeta;
+  return (Dexie.connections.find((db) => db.name === "codecast-store") as any)
+    .conversationMessageMeta;
 }
 
 function holdWrites(ids: string[]) {
   const table = conversationTable();
   const put = table.put;
   let release!: () => void;
-  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const writes: any[] = [];
   table.put = function (row: any) {
     if (!ids.includes(row.convId)) return put.call(table, row);
     writes.push(row);
     return Dexie.waitFor(gate).then(() => put.call(table, row));
   };
-  return { table, writes, release, restore: () => { table.put = put; } };
+  return {
+    table,
+    writes,
+    release,
+    restore: () => {
+      table.put = put;
+    },
+  };
 }
 
-const message = (n: number) => ({ _id: `message-${n}`, timestamp: Date.now(), content: `revision ${n}` });
+const message = (n: number) => ({
+  _id: `message-${n}`,
+  timestamp: Date.now(),
+  content: `revision ${n}`,
+});
 
 describe("conversation cache backpressure", () => {
   it("keeps only the newest waiting snapshot while a write is stalled", async () => {
@@ -56,9 +70,13 @@ describe("conversation cache backpressure", () => {
         flushConversationMessages();
       }
       await waitFor(() => held.writes.length === 1);
-      expect((await loadConversationMessages(id))?.messages[0].content).toBe("revision 24");
+      expect((await loadConversationMessages(id))?.messages[0].content).toBe(
+        "revision 24",
+      );
       held.release();
-      await waitFor(async () => (await held.table.get(id))?.pagination.page === 24);
+      await waitFor(
+        async () => (await held.table.get(id))?.pagination.page === 24,
+      );
       expect(held.writes.map((row) => row.pagination.page)).toEqual([0, 24]);
     } finally {
       held.release();
@@ -72,7 +90,9 @@ describe("conversation cache backpressure", () => {
     try {
       writeConversationMessages(id, [message(1)], { page: 1 });
       flushConversationMessages();
-      expect((await loadConversationMessages(id))?.pagination).toEqual({ page: 1 });
+      expect((await loadConversationMessages(id))?.pagination).toEqual({
+        page: 1,
+      });
       held.release();
       await waitFor(async () => !!(await held.table.get(id)));
     } finally {
@@ -93,7 +113,9 @@ describe("conversation cache backpressure", () => {
       flushConversationMessages();
       await waitFor(() => held.writes.length === 1);
       held.release();
-      await waitFor(async () => (await held.table.get(first))?.pagination.page === 2);
+      await waitFor(
+        async () => (await held.table.get(first))?.pagination.page === 2,
+      );
       expect((await held.table.get(second)).pagination.page).toBe(1);
       expect(held.writes).toHaveLength(3);
     } finally {
@@ -119,8 +141,12 @@ describe("conversation cache backpressure", () => {
       flushConversationMessages();
       await Bun.sleep(350);
       expect(attempts).toBe(1);
-      expect(await db.conversationMessageRows.where("convId").equals(id).count()).toBe(0);
-      expect((await loadConversationMessages(id))?.pagination).toEqual({ page: 1 });
+      expect(
+        await db.conversationMessageRows.where("convId").equals(id).count(),
+      ).toBe(0);
+      expect((await loadConversationMessages(id))?.pagination).toEqual({
+        page: 1,
+      });
       flushConversationMessages();
       await waitFor(async () => !!(await table.get(id)));
       expect(attempts).toBe(2);
@@ -131,10 +157,16 @@ describe("conversation cache backpressure", () => {
 
   it("can save a newer snapshot after serialization throws synchronously", async () => {
     const id = `serialization-${crypto.randomUUID()}`;
-    const invalid = { get timestamp(): number { throw new Error("Cannot serialize snapshot"); } };
+    const invalid = {
+      get timestamp(): number {
+        throw new Error("Cannot serialize snapshot");
+      },
+    };
     writeConversationMessages(id, [invalid], { page: 0 });
     expect(() => flushConversationMessages()).not.toThrow();
     writeConversationMessages(id, [message(1)], { page: 1 });
-    await waitFor(async () => (await conversationTable().get(id))?.pagination.page === 1);
+    await waitFor(
+      async () => (await conversationTable().get(id))?.pagination.page === 1,
+    );
   });
 });

@@ -7,19 +7,25 @@ import { watch as chokidarWatch } from "chokidar";
 import { RecursiveWatcher, chokidarIgnored } from "./recursiveWatcher.js";
 import { watchDirFilter } from "./sessionWatcher.js";
 import { transcriptDirWatcherConfig } from "./transcriptDirWatcher.js";
-import { LOOP_HOLD_SLO_MS, loopHoldBoundMs, measureLoopHold } from "./test-helpers/loopHold.js";
+import {
+  LOOP_HOLD_SLO_MS,
+  loopHoldBoundMs,
+  measureLoopHold,
+} from "./test-helpers/loopHold.js";
 
 function tmpDir(prefix: string): string {
   return path.join(
     os.tmpdir(),
-    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   );
 }
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const fn of cleanups) {
-    try { fn(); } catch {}
+    try {
+      fn();
+    } catch {}
   }
   cleanups.length = 0;
 });
@@ -35,11 +41,15 @@ describe("RecursiveWatcher", () => {
     const watcher = new RecursiveWatcher({
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
-      callback: (filePath, eventType) => events.push({ path: filePath, type: eventType }),
+      callback: (filePath, eventType) =>
+        events.push({ path: filePath, type: eventType }),
       debounceMs: 50,
       rescanIntervalMs: 50,
     });
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
     await watcher.whenPrimed();
 
@@ -49,9 +59,11 @@ describe("RecursiveWatcher", () => {
     fs.writeFileSync(transient, "{}\n");
     fs.unlinkSync(transient);
     fs.unlinkSync(known);
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 400));
 
-    expect(events.filter(e => e.type === "unlink").map(e => e.path)).toEqual([known]);
+    expect(
+      events.filter((e) => e.type === "unlink").map((e) => e.path),
+    ).toEqual([known]);
   });
 
   test("detects new file creation", async () => {
@@ -62,24 +74,28 @@ describe("RecursiveWatcher", () => {
     const watcher = new RecursiveWatcher({
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
-      callback: (filePath, eventType) => events.push({ path: filePath, type: eventType }),
+      callback: (filePath, eventType) =>
+        events.push({ path: filePath, type: eventType }),
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
 
     // Wait a bit for watcher to initialize
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     const filePath = path.join(root, "test.jsonl");
     fs.writeFileSync(filePath, '{"test": true}\n');
 
     // Wait for debounce + processing
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events.some(e => e.path === filePath)).toBe(true);
+    expect(events.some((e) => e.path === filePath)).toBe(true);
   });
 
   test("detects file modification", async () => {
@@ -93,19 +109,23 @@ describe("RecursiveWatcher", () => {
     const watcher = new RecursiveWatcher({
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
-      callback: (filePath, eventType) => events.push({ path: filePath, type: eventType }),
+      callback: (filePath, eventType) =>
+        events.push({ path: filePath, type: eventType }),
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     fs.appendFileSync(filePath, '{"line": 2}\n');
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events.some(e => e.path === filePath)).toBe(true);
+    expect(events.some((e) => e.path === filePath)).toBe(true);
   });
 
   test("filters by extension", async () => {
@@ -123,9 +143,12 @@ describe("RecursiveWatcher", () => {
       rescanIntervalMs: 200,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     // Write a .txt file -- should be filtered out
     fs.writeFileSync(path.join(root, "ignore.txt"), "ignored");
@@ -133,10 +156,10 @@ describe("RecursiveWatcher", () => {
     const goodFile = path.join(root, "good.jsonl");
     fs.writeFileSync(goodFile, '{"ok": true}\n');
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
-    expect(events.some(e => e.includes("ignore.txt"))).toBe(false);
-    expect(events.some(e => e.includes("good.jsonl"))).toBe(true);
+    expect(events.some((e) => e.includes("ignore.txt"))).toBe(false);
+    expect(events.some((e) => e.includes("good.jsonl"))).toBe(true);
   });
 
   test("respects maxDepth", async () => {
@@ -152,9 +175,12 @@ describe("RecursiveWatcher", () => {
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     // depth 1: subdir/file.jsonl -- should work
     const shallow = path.join(root, "subdir");
@@ -166,10 +192,10 @@ describe("RecursiveWatcher", () => {
     fs.mkdirSync(deep, { recursive: true });
     fs.writeFileSync(path.join(deep, "deep.jsonl"), "{}");
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
-    expect(events.some(e => e.includes("ok.jsonl"))).toBe(true);
-    expect(events.some(e => e.includes("deep.jsonl"))).toBe(false);
+    expect(events.some((e) => e.includes("ok.jsonl"))).toBe(true);
+    expect(events.some((e) => e.includes("deep.jsonl"))).toBe(false);
   });
 
   test("debounces rapid writes", async () => {
@@ -184,22 +210,25 @@ describe("RecursiveWatcher", () => {
       debounceMs: 200,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     const filePath = path.join(root, "rapid.jsonl");
     // Write rapidly 5 times
     for (let i = 0; i < 5; i++) {
       fs.writeFileSync(filePath, `{"i": ${i}}\n`);
-      await new Promise(r => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 20));
     }
 
     // Wait for debounce to settle
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
     // Should have coalesced into fewer events than 5
-    const rapidEvents = events.filter(e => e.includes("rapid.jsonl"));
+    const rapidEvents = events.filter((e) => e.includes("rapid.jsonl"));
     expect(rapidEvents.length).toBeLessThan(5);
     expect(rapidEvents.length).toBeGreaterThanOrEqual(1);
   });
@@ -216,18 +245,20 @@ describe("RecursiveWatcher", () => {
       debounceMs: 50,
     });
 
-    cleanups.push(() => { fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     watcher.stop();
     expect(watcher.isWatching).toBe(false);
 
     // Write after stop -- should NOT trigger callback
     fs.writeFileSync(path.join(root, "after-stop.jsonl"), "{}");
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 300));
 
-    expect(events.some(e => e.includes("after-stop.jsonl"))).toBe(false);
+    expect(events.some((e) => e.includes("after-stop.jsonl"))).toBe(false);
   });
 
   test("restart works correctly", async () => {
@@ -242,18 +273,21 @@ describe("RecursiveWatcher", () => {
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     await watcher.restart();
     expect(watcher.isWatching).toBe(true);
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     fs.writeFileSync(path.join(root, "after-restart.jsonl"), "{}");
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
-    expect(events.some(e => e.includes("after-restart.jsonl"))).toBe(true);
+    expect(events.some((e) => e.includes("after-restart.jsonl"))).toBe(true);
   });
 
   test("handles deleted files gracefully", async () => {
@@ -264,22 +298,26 @@ describe("RecursiveWatcher", () => {
     const watcher = new RecursiveWatcher({
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
-      callback: (filePath, eventType) => events.push({ path: filePath, type: eventType }),
+      callback: (filePath, eventType) =>
+        events.push({ path: filePath, type: eventType }),
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     const filePath = path.join(root, "ephemeral.jsonl");
     fs.writeFileSync(filePath, "{}");
     // Delete immediately before debounce fires
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
     fs.unlinkSync(filePath);
 
     // Should not crash -- the debounce handler catches the stat error
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 300));
     // No assertion needed -- just verifying no crash
   });
 
@@ -292,7 +330,10 @@ describe("RecursiveWatcher", () => {
       callback: () => {},
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
 
     expect(fs.existsSync(root)).toBe(false);
     watcher.start();
@@ -311,9 +352,12 @@ describe("RecursiveWatcher", () => {
       debounceMs: 50,
     });
 
-    cleanups.push(() => { watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+    cleanups.push(() => {
+      watcher.stop();
+      fs.rmSync(root, { recursive: true, force: true });
+    });
     watcher.start();
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
 
     // Create a new subdirectory and write a file into it
     const subDir = path.join(root, "new-project");
@@ -321,9 +365,9 @@ describe("RecursiveWatcher", () => {
     const filePath = path.join(subDir, "session.jsonl");
     fs.writeFileSync(filePath, '{"msg": "hello"}\n');
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
-    expect(events.some(e => e.includes("session.jsonl"))).toBe(true);
+    expect(events.some((e) => e.includes("session.jsonl"))).toBe(true);
   });
 });
 
@@ -336,17 +380,28 @@ describe("RecursiveWatcher dirFilter", () => {
   function scaffold(prefix: string): string {
     const root = tmpDir(prefix);
     fs.mkdirSync(path.join(root, "notes"), { recursive: true });
-    fs.mkdirSync(path.join(root, "node_modules", "pkg", "deep"), { recursive: true });
+    fs.mkdirSync(path.join(root, "node_modules", "pkg", "deep"), {
+      recursive: true,
+    });
     fs.writeFileSync(path.join(root, "notes", "one.md"), "one");
-    fs.writeFileSync(path.join(root, "node_modules", "pkg", "readme.md"), "dep");
-    fs.writeFileSync(path.join(root, "node_modules", "pkg", "deep", "nested.md"), "deep");
+    fs.writeFileSync(
+      path.join(root, "node_modules", "pkg", "readme.md"),
+      "dep",
+    );
+    fs.writeFileSync(
+      path.join(root, "node_modules", "pkg", "deep", "nested.md"),
+      "deep",
+    );
     cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
     return root;
   }
 
   /** Directories the priming walk actually opened. `filter` only ever sees
    *  files, so the directory a file sits in is one the walk had to read. */
-  async function visitedDirs(root: string, dirFilter?: (rel: string) => boolean): Promise<string[]> {
+  async function visitedDirs(
+    root: string,
+    dirFilter?: (rel: string) => boolean,
+  ): Promise<string[]> {
     const visited: string[] = [];
     const watcher = new RecursiveWatcher({
       path: root,
@@ -371,13 +426,16 @@ describe("RecursiveWatcher dirFilter", () => {
   });
 
   test("a rejected directory is never opened, at any depth", async () => {
-    const visited = await visitedDirs(scaffold("rw-dirfilter"), (rel) =>
-      !rel.split(path.sep).includes("node_modules"),
+    const visited = await visitedDirs(
+      scaffold("rw-dirfilter"),
+      (rel) => !rel.split(path.sep).includes("node_modules"),
     );
     expect(visited).toContain("notes");
     // Not merely "no events from node_modules" — the directory is never read,
     // which is the whole point of the option.
-    expect(visited.some((d) => d.split(path.sep).includes("node_modules"))).toBe(false);
+    expect(
+      visited.some((d) => d.split(path.sep).includes("node_modules")),
+    ).toBe(false);
   });
 
   test("events from a rejected directory cost no rescan", async () => {
@@ -401,7 +459,9 @@ describe("RecursiveWatcher dirFilter", () => {
     fs.writeFileSync(path.join(root, "notes", "two.md"), "signal");
     await new Promise((r) => setTimeout(r, 600));
 
-    expect(events.some((p) => p.endsWith(path.join("notes", "two.md")))).toBe(true);
+    expect(events.some((p) => p.endsWith(path.join("notes", "two.md")))).toBe(
+      true,
+    );
     expect(events.some((p) => p.includes("node_modules"))).toBe(false);
   });
 });
@@ -414,7 +474,8 @@ describe("RecursiveWatcher dirFilter", () => {
 // file gets one stat, and the tree walk that recovers coalesced siblings is
 // throttled and asynchronous.
 describe("RecursiveWatcher native event cost", () => {
-  const isNative = process.platform === "darwin" || process.platform === "win32";
+  const isNative =
+    process.platform === "darwin" || process.platform === "win32";
 
   function scaffold(prefix: string): { root: string; files: string[] } {
     const root = tmpDir(prefix);
@@ -432,43 +493,50 @@ describe("RecursiveWatcher native event cost", () => {
     return { root, files };
   }
 
-  test.skipIf(!isNative)("an append probes only the named file; the tree walk waits for the throttle", async () => {
-    const { root, files } = scaffold("rw-fastpath");
-    const filtered: string[] = [];
-    const events: string[] = [];
-    const watcher = new RecursiveWatcher({
-      path: root,
-      filter: (rel) => { filtered.push(rel); return rel.endsWith(".jsonl"); },
-      callback: (p) => events.push(p),
-      debounceMs: 30,
-      rescanIntervalMs: 1_500,
-    });
-    cleanups.push(() => watcher.stop());
-    watcher.start();
-    await watcher.whenPrimed();
-    // FSEvents replays the scaffold's own creation events just after the
-    // watch opens; let them pass so the append below is not coalesced away.
-    await new Promise((r) => setTimeout(r, 300));
-    filtered.length = 0;
+  test.skipIf(!isNative)(
+    "an append probes only the named file; the tree walk waits for the throttle",
+    async () => {
+      const { root, files } = scaffold("rw-fastpath");
+      const filtered: string[] = [];
+      const events: string[] = [];
+      const watcher = new RecursiveWatcher({
+        path: root,
+        filter: (rel) => {
+          filtered.push(rel);
+          return rel.endsWith(".jsonl");
+        },
+        callback: (p) => events.push(p),
+        debounceMs: 30,
+        rescanIntervalMs: 1_500,
+      });
+      cleanups.push(() => watcher.stop());
+      watcher.start();
+      await watcher.whenPrimed();
+      // FSEvents replays the scaffold's own creation events just after the
+      // watch opens; let them pass so the append below is not coalesced away.
+      await new Promise((r) => setTimeout(r, 300));
+      filtered.length = 0;
 
-    fs.appendFileSync(files[0], '{"more": true}\n');
-    await new Promise((r) => setTimeout(r, 300));
+      fs.appendFileSync(files[0], '{"more": true}\n');
+      await new Promise((r) => setTimeout(r, 300));
 
-    // Emitted through the direct probe…
-    expect(events).toContain(files[0]);
-    // …without the filter (and so the walk) touching the other eight files.
-    const walked = new Set(filtered);
-    for (const other of files.slice(1)) expect(walked.has(path.relative(root, other))).toBe(false);
+      // Emitted through the direct probe…
+      expect(events).toContain(files[0]);
+      // …without the filter (and so the walk) touching the other eight files.
+      const walked = new Set(filtered);
+      for (const other of files.slice(1))
+        expect(walked.has(path.relative(root, other))).toBe(false);
 
-    // The safety-net rescan then walks the whole tree, once.
-    await new Promise((r) => setTimeout(r, 1_600));
-    expect(new Set(filtered).size).toBe(9);
-    // And a change no event carried (mtime bumped in place) surfaces through it.
-    const later = new Date(Date.now() + 5_000);
-    fs.utimesSync(files[3], later, later);
-    await new Promise((r) => setTimeout(r, 1_900));
-    expect(events).toContain(files[3]);
-  });
+      // The safety-net rescan then walks the whole tree, once.
+      await new Promise((r) => setTimeout(r, 1_600));
+      expect(new Set(filtered).size).toBe(9);
+      // And a change no event carried (mtime bumped in place) surfaces through it.
+      const later = new Date(Date.now() + 5_000);
+      fs.utimesSync(files[3], later, later);
+      await new Promise((r) => setTimeout(r, 1_900));
+      expect(events).toContain(files[3]);
+    },
+  );
 
   test("a burst of file events paces rescans from the previous walk's end and recovers missing events", async () => {
     const { root, files } = scaffold("rw-throttle");
@@ -483,8 +551,8 @@ describe("RecursiveWatcher native event cost", () => {
     const watcher = new RecursiveWatcher({
       path: root,
       mode: "native",
-      filter: rel => rel.endsWith(".jsonl"),
-      callback: file => events.push(file),
+      filter: (rel) => rel.endsWith(".jsonl"),
+      callback: (file) => events.push(file),
       debounceMs: 20,
       rescanIntervalMs: 800,
     });
@@ -498,25 +566,38 @@ describe("RecursiveWatcher native event cost", () => {
     };
     const spies = [
       spyOn(Date, "now").mockImplementation(() => now),
-      spyOn(globalThis, "setTimeout").mockImplementation(((callback: () => void, ms = 0) => {
+      spyOn(globalThis, "setTimeout").mockImplementation(((
+        callback: () => void,
+        ms = 0,
+      ) => {
         const id = ++timerId;
         timers.set(id, { at: now + ms, callback });
         return id;
       }) as typeof setTimeout),
-      spyOn(globalThis, "clearTimeout").mockImplementation(((id: number) => { timers.delete(id); }) as typeof clearTimeout),
-      spyOn(fs, "watch").mockImplementation(((_root: string, _opts: unknown, callback: typeof nativeEvent) => {
+      spyOn(globalThis, "clearTimeout").mockImplementation(((id: number) => {
+        timers.delete(id);
+      }) as typeof clearTimeout),
+      spyOn(fs, "watch").mockImplementation(((
+        _root: string,
+        _opts: unknown,
+        callback: typeof nativeEvent,
+      ) => {
         nativeEvent = callback;
         return Object.assign(new EventEmitter(), { close() {} });
       }) as typeof fs.watch),
       spyOn(internal, "runRescan").mockImplementation(() => track(runRescan())),
-      spyOn(internal, "probe").mockImplementation((...args: unknown[]) => track(probe(...args))),
-      spyOn(internal, "walkTree").mockImplementation(async (...args: unknown[]) => {
-        const timing = { start: now - epoch, end: 0 };
-        await walkTree(...args);
-        if (args[1]) now += 125;
-        timing.end = now - epoch;
-        walks.push(timing);
-      }),
+      spyOn(internal, "probe").mockImplementation((...args: unknown[]) =>
+        track(probe(...args)),
+      ),
+      spyOn(internal, "walkTree").mockImplementation(
+        async (...args: unknown[]) => {
+          const timing = { start: now - epoch, end: 0 };
+          await walkTree(...args);
+          if (args[1]) now += 125;
+          timing.end = now - epoch;
+          walks.push(timing);
+        },
+      ),
     ];
     const advanceTo = async (elapsed: number) => {
       const target = epoch + elapsed;
@@ -553,7 +634,10 @@ describe("RecursiveWatcher native event cost", () => {
       expect(walks).toHaveLength(1);
       await advanceTo(800);
       expect(events).toContain(missed);
-      expect(walks).toEqual([{ start: 0, end: 0 }, { start: 800, end: 925 }]);
+      expect(walks).toEqual([
+        { start: 0, end: 0 },
+        { start: 800, end: 925 },
+      ]);
       const secondMissed = files[4];
       const secondStamp = new Date(epoch + 6_000);
       fs.utimesSync(secondMissed, secondStamp, secondStamp);
@@ -562,49 +646,64 @@ describe("RecursiveWatcher native event cost", () => {
       expect(walks).toHaveLength(2);
       await advanceTo(1_725);
       expect(events).toContain(secondMissed);
-      expect(walks).toEqual([{ start: 0, end: 0 }, { start: 800, end: 925 }, { start: 1_725, end: 1_850 }]);
-      expect(walks.slice(1).map((walk, i) => walk.start - walks[i].end)).toEqual([800, 800]);
+      expect(walks).toEqual([
+        { start: 0, end: 0 },
+        { start: 800, end: 925 },
+        { start: 1_725, end: 1_850 },
+      ]);
+      expect(
+        walks.slice(1).map((walk, i) => walk.start - walks[i].end),
+      ).toEqual([800, 800]);
     } finally {
       watcher.stop();
       for (const spy of spies.reverse()) spy.mockRestore();
     }
   });
 
-  test.skipIf(!isNative)("a write that lands while priming is still walking is not lost", async () => {
-    // Big enough that priming outlasts the watch going live (~10ms).
-    const root = tmpDir("rw-prime-race");
-    for (let d = 0; d < 80; d++) {
-      fs.mkdirSync(path.join(root, `p${d}`), { recursive: true });
-      for (let f = 0; f < 40; f++) fs.writeFileSync(path.join(root, `p${d}`, `s${f}.jsonl`), "{}\n");
-    }
-    cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
-    const target = path.join(root, "p79", "s39.jsonl");
-    const events: string[] = [];
-    const watcher = new RecursiveWatcher({
-      path: root,
-      filter: (rel) => {
-        // ~0.1ms per file keeps priming busy for a few hundred ms.
-        const t = performance.now();
-        while (performance.now() - t < 0.1) { /* spin */ }
-        return rel.endsWith(".jsonl");
-      },
-      callback: (p) => events.push(p),
-      debounceMs: 20,
-    });
-    cleanups.push(() => watcher.stop());
-    watcher.start(); // start() creates the priming promise; observe it after
-    let primedAt = 0;
-    watcher.whenPrimed().then(() => { primedAt = Date.now(); });
-    await new Promise((r) => setTimeout(r, 30));
-    // The watch is open before the walk. Whether the walk stats this file
-    // before or after the write, the event must produce an emit.
-    const wroteAt = Date.now();
-    fs.appendFileSync(target, '{"during": "priming"}\n');
-    await watcher.whenPrimed();
-    expect(primedAt).toBeGreaterThanOrEqual(wroteAt); // the race was real
-    await new Promise((r) => setTimeout(r, 300));
-    expect(events).toContain(target);
-  }, 60_000);
+  test.skipIf(!isNative)(
+    "a write that lands while priming is still walking is not lost",
+    async () => {
+      // Big enough that priming outlasts the watch going live (~10ms).
+      const root = tmpDir("rw-prime-race");
+      for (let d = 0; d < 80; d++) {
+        fs.mkdirSync(path.join(root, `p${d}`), { recursive: true });
+        for (let f = 0; f < 40; f++)
+          fs.writeFileSync(path.join(root, `p${d}`, `s${f}.jsonl`), "{}\n");
+      }
+      cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
+      const target = path.join(root, "p79", "s39.jsonl");
+      const events: string[] = [];
+      const watcher = new RecursiveWatcher({
+        path: root,
+        filter: (rel) => {
+          // ~0.1ms per file keeps priming busy for a few hundred ms.
+          const t = performance.now();
+          while (performance.now() - t < 0.1) {
+            /* spin */
+          }
+          return rel.endsWith(".jsonl");
+        },
+        callback: (p) => events.push(p),
+        debounceMs: 20,
+      });
+      cleanups.push(() => watcher.stop());
+      watcher.start(); // start() creates the priming promise; observe it after
+      let primedAt = 0;
+      watcher.whenPrimed().then(() => {
+        primedAt = Date.now();
+      });
+      await new Promise((r) => setTimeout(r, 30));
+      // The watch is open before the walk. Whether the walk stats this file
+      // before or after the write, the event must produce an emit.
+      const wroteAt = Date.now();
+      fs.appendFileSync(target, '{"during": "priming"}\n');
+      await watcher.whenPrimed();
+      expect(primedAt).toBeGreaterThanOrEqual(wroteAt); // the race was real
+      await new Promise((r) => setTimeout(r, 300));
+      expect(events).toContain(target);
+    },
+    60_000,
+  );
 
   test("onExisting receives every primed file with its stat, once", async () => {
     const { root } = scaffold("rw-existing");
@@ -614,7 +713,10 @@ describe("RecursiveWatcher native event cost", () => {
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
       callback: () => {},
-      onExisting: (files) => { calls++; seen = files.map((f) => f.rel).sort(); },
+      onExisting: (files) => {
+        calls++;
+        seen = files.map((f) => f.rel).sort();
+      },
     });
     cleanups.push(() => watcher.stop());
     watcher.start();
@@ -636,12 +738,14 @@ describe("RecursiveWatcher priming a 10k file tree", () => {
     for (let d = 0; d < DIRS; d++) {
       const dir = path.join(root, `proj-${d}`);
       fs.mkdirSync(dir, { recursive: true });
-      for (let f = 0; f < PER_DIR; f++) fs.writeFileSync(path.join(dir, `s${f}.jsonl`), "{}\n");
+      for (let f = 0; f < PER_DIR; f++)
+        fs.writeFileSync(path.join(dir, `s${f}.jsonl`), "{}\n");
     }
     for (let d = 0; d < 40; d++) {
       const dir = path.join(root, "node_modules", `pkg-${d}`);
       fs.mkdirSync(dir, { recursive: true });
-      for (let f = 0; f < PER_DIR; f++) fs.writeFileSync(path.join(dir, `s${f}.jsonl`), "{}\n");
+      for (let f = 0; f < PER_DIR; f++)
+        fs.writeFileSync(path.join(dir, `s${f}.jsonl`), "{}\n");
     }
     cleanups.push(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -653,7 +757,9 @@ describe("RecursiveWatcher priming a 10k file tree", () => {
       path: root,
       filter: (rel) => rel.endsWith(".jsonl"),
       dirFilter: (rel) => !rel.split(path.sep).includes("node_modules"),
-      onExisting: (files) => { existing = files.map((f) => f.rel); },
+      onExisting: (files) => {
+        existing = files.map((f) => f.rel);
+      },
       callback: () => {},
     });
     cleanups.push(() => watcher.stop());
@@ -664,11 +770,17 @@ describe("RecursiveWatcher priming a 10k file tree", () => {
     watcher.stop();
 
     expect(existing.length).toBe(DIRS * PER_DIR);
-    expect(existing.some((rel) => rel.split(path.sep).includes("node_modules"))).toBe(false);
+    expect(
+      existing.some((rel) => rel.split(path.sep).includes("node_modules")),
+    ).toBe(false);
     expect(ticks).toBeGreaterThan(0);
-    expect(maxGapMs).toBeLessThan(loopHoldBoundMs(
-      process.platform === "darwin" || process.platform === "win32" ? 100 : LOOP_HOLD_SLO_MS,
-    ));
+    expect(maxGapMs).toBeLessThan(
+      loopHoldBoundMs(
+        process.platform === "darwin" || process.platform === "win32"
+          ? 100
+          : LOOP_HOLD_SLO_MS,
+      ),
+    );
   }, 60_000);
 });
 
@@ -695,11 +807,41 @@ describe("chokidarIgnored", () => {
 
   // The production layouts, driven through a real chokidar watcher: every
   // transcript add event must arrive, and nothing from a pruned subtree.
-  const layouts: Array<{ name: string; dirFilter: (rel: string) => boolean; depth: number; files: string[]; pruned: string }> = [
-    { name: "claude", dirFilter: watchDirFilter, depth: 6, files: [`slug/${UUID}.jsonl`, `slug/${UUID}/subagents/agent-1.jsonl`], pruned: `slug/${UUID}/tool-results/out.txt` },
-    { name: "codex", dirFilter: transcriptDirWatcherConfig("codex").dirFilter!, depth: transcriptDirWatcherConfig("codex").maxDepth!, files: ["2026/02/25/rollout-x.jsonl"], pruned: "scratch/rollout-y.jsonl" },
-    { name: "gemini", dirFilter: transcriptDirWatcherConfig("gemini").dirFilter!, depth: transcriptDirWatcherConfig("gemini").maxDepth!, files: ["hash/chats/session-1.json"], pruned: "hash/checkpoints/c.json" },
-    { name: "grok", dirFilter: transcriptDirWatcherConfig("grok").dirFilter!, depth: transcriptDirWatcherConfig("grok").maxDepth!, files: [`slug/${UUID}/turn.json`], pruned: "slug/.cwd/x.json" },
+  const layouts: Array<{
+    name: string;
+    dirFilter: (rel: string) => boolean;
+    depth: number;
+    files: string[];
+    pruned: string;
+  }> = [
+    {
+      name: "claude",
+      dirFilter: watchDirFilter,
+      depth: 6,
+      files: [`slug/${UUID}.jsonl`, `slug/${UUID}/subagents/agent-1.jsonl`],
+      pruned: `slug/${UUID}/tool-results/out.txt`,
+    },
+    {
+      name: "codex",
+      dirFilter: transcriptDirWatcherConfig("codex").dirFilter!,
+      depth: transcriptDirWatcherConfig("codex").maxDepth!,
+      files: ["2026/02/25/rollout-x.jsonl"],
+      pruned: "scratch/rollout-y.jsonl",
+    },
+    {
+      name: "gemini",
+      dirFilter: transcriptDirWatcherConfig("gemini").dirFilter!,
+      depth: transcriptDirWatcherConfig("gemini").maxDepth!,
+      files: ["hash/chats/session-1.json"],
+      pruned: "hash/checkpoints/c.json",
+    },
+    {
+      name: "grok",
+      dirFilter: transcriptDirWatcherConfig("grok").dirFilter!,
+      depth: transcriptDirWatcherConfig("grok").maxDepth!,
+      files: [`slug/${UUID}/turn.json`],
+      pruned: "slug/.cwd/x.json",
+    },
   ];
 
   test("every production watcher's transcript files reach chokidar's add event", async () => {
@@ -717,7 +859,9 @@ describe("chokidarIgnored", () => {
         ignored: chokidarIgnored(root, dirFilter),
         awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
       });
-      cleanups.push(() => { void w.close(); });
+      cleanups.push(() => {
+        void w.close();
+      });
       w.on("add", (p) => seen.push(path.relative(root, p)));
       await new Promise<void>((r) => w.once("ready", () => r()));
       // ready fires before the root's own fs.watch is armed; give it a beat.
@@ -727,10 +871,14 @@ describe("chokidarIgnored", () => {
         fs.writeFileSync(path.join(root, rel), "{}\n");
       }
       const deadline = Date.now() + 8000;
-      while (Date.now() < deadline && files.some((f) => !seen.includes(f))) await new Promise((r) => setTimeout(r, 100));
+      while (Date.now() < deadline && files.some((f) => !seen.includes(f)))
+        await new Promise((r) => setTimeout(r, 100));
       await new Promise((r) => setTimeout(r, 300));
       await w.close();
-      expect({ name, seen: seen.sort() }).toEqual({ name, seen: [...files].sort() });
+      expect({ name, seen: seen.sort() }).toEqual({
+        name,
+        seen: [...files].sort(),
+      });
     }
   }, 60_000);
 });

@@ -2,7 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { clearTaskPulseIfBound, readTaskPulseFor, recordTaskFiled, writeTaskPulse } from "./taskPulse.js";
+import {
+  clearTaskPulseIfBound,
+  readTaskPulseFor,
+  recordTaskFiled,
+  writeTaskPulse,
+} from "./taskPulse.js";
 
 function withConfigDir(fn: () => void) {
   const dir = mkdtempSync(join(tmpdir(), "task-pulse-"));

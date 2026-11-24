@@ -14,10 +14,31 @@ import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import { CdpConnection, CdpError, listTargets } from "../cdp.js";
 import { freePort } from "../instance.js";
-import { bridgeHostPlistXml, defaultPort, probeHost, proveBridgeHost, REMOTE_BRIDGE_PORT_BASE, startBridgeHost, type RunningHost } from "./host.js";
-import { CLOSE_EXTENSION_STANDBY, CLOSE_HANDSHAKE_TIMEOUT } from "./protocol.js";
+import {
+  bridgeHostPlistXml,
+  defaultPort,
+  probeHost,
+  proveBridgeHost,
+  REMOTE_BRIDGE_PORT_BASE,
+  startBridgeHost,
+  type RunningHost,
+} from "./host.js";
+import {
+  CLOSE_EXTENSION_STANDBY,
+  CLOSE_HANDSHAKE_TIMEOUT,
+} from "./protocol.js";
 import { dial, FakeExtension, TEST_TOKEN as TOKEN } from "./host.testutil.js";
-import { BRIDGE_DEFAULT_PORT, BRIDGE_PROTOCOL, BRIDGE_STORE_URL, bridgeProof, CLOSE_BAD_TOKEN, randomNonce, secretMatches, tabIdOfTarget, targetIdOfTab } from "./protocol.js";
+import {
+  BRIDGE_DEFAULT_PORT,
+  BRIDGE_PROTOCOL,
+  BRIDGE_STORE_URL,
+  bridgeProof,
+  CLOSE_BAD_TOKEN,
+  randomNonce,
+  secretMatches,
+  tabIdOfTarget,
+  targetIdOfTab,
+} from "./protocol.js";
 
 let host: RunningHost | null = null;
 
@@ -33,7 +54,10 @@ afterEach(async () => {
 
 function closeCode(ws: WebSocket, timeoutMs = 3000): Promise<number> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("did not close within timeout")), timeoutMs);
+    const timer = setTimeout(
+      () => reject(new Error("did not close within timeout")),
+      timeoutMs,
+    );
     ws.once("close", (code) => {
       clearTimeout(timer);
       resolve(code);
@@ -53,7 +77,11 @@ function closeCode(ws: WebSocket, timeoutMs = 3000): Promise<number> {
  * reaches the client as a bare close there. What matters either way is that no
  * 101 is sent.
  */
-function upgradeStatus(port: number, requestPath: string, headers: Record<string, string> = {}): Promise<number | null> {
+function upgradeStatus(
+  port: number,
+  requestPath: string,
+  headers: Record<string, string> = {},
+): Promise<number | null> {
   return new Promise((resolve, reject) => {
     const request = [
       `GET ${requestPath} HTTP/1.1`,
@@ -105,7 +133,13 @@ test("a created tab stays owned when the follow-up tab listing fails", async () 
   extension.ws.on("message", (raw) => {
     const message = JSON.parse(String(raw));
     if (message.op === "tabs.list" && extension.tabs.length && failList) {
-      extension.ws.send(JSON.stringify({ id: message.id, ok: false, error: "listing failed after creation" }));
+      extension.ws.send(
+        JSON.stringify({
+          id: message.id,
+          ok: false,
+          error: "listing failed after creation",
+        }),
+      );
     } else {
       dispatch.call(extension.ws, raw);
     }
@@ -113,9 +147,16 @@ test("a created tab stays owned when the follow-up tab listing fails", async () 
   const endpoint = { ...cdpEndpoint(h.port), session: "env-create-recovery" };
   const conn = await CdpConnection.fromPort(endpoint);
   try {
-    await expect(conn.send("Target.createTarget", { url: "https://requested.example/", background: true })).rejects.toThrow("listing failed after creation");
+    await expect(
+      conn.send("Target.createTarget", {
+        url: "https://requested.example/",
+        background: true,
+      }),
+    ).rejects.toThrow("listing failed after creation");
     failList = false;
-    expect((await listTargets(endpoint)).map((tab) => tab.url)).toEqual(["https://requested.example/"]);
+    expect((await listTargets(endpoint)).map((tab) => tab.url)).toEqual([
+      "https://requested.example/",
+    ]);
     expect(extension.tabs).toHaveLength(1);
   } finally {
     conn.close();
@@ -125,29 +166,35 @@ test("a created tab stays owned when the follow-up tab listing fails", async () 
 
 test("concurrent tab discovery shares one pending query and refreshes after it settles", async () => {
   const h = await freshHost();
-  const extension = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
+  const extension = await new FakeExtension([FakeExtension.tab(7)]).connect(
+    h.port,
+  );
   const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
   await listTargets(cdpEndpoint(h.port));
   const dispatch = extension.ws.listeners("message")[0];
   const held: unknown[] = [];
   extension.ws.removeAllListeners("message");
-  extension.ws.on("message", raw => {
+  extension.ws.on("message", (raw) => {
     if (JSON.parse(String(raw)).op === "tabs.list") held.push(raw);
     else dispatch.call(extension.ws, raw);
   });
   try {
-    const requests = Array.from({ length: 12 }, () => conn.send("Target.getTargets"));
+    const requests = Array.from({ length: 12 }, () =>
+      conn.send("Target.getTargets"),
+    );
     await conn.send("Browser.getVersion");
     await waitUntil(() => held.length > 0);
     await Bun.sleep(30);
     const count = held.length;
     extension.ws.removeAllListeners("message");
-    extension.ws.on("message", raw => dispatch.call(extension.ws, raw));
+    extension.ws.on("message", (raw) => dispatch.call(extension.ws, raw));
     for (const raw of held) dispatch.call(extension.ws, raw);
     await Promise.all(requests);
     expect(count).toBe(1);
     extension.tabs.push(FakeExtension.tab(8));
-    expect((await listTargets(cdpEndpoint(h.port))).map(t => t.targetId)).toEqual([targetIdOfTab(7), targetIdOfTab(8)]);
+    expect(
+      (await listTargets(cdpEndpoint(h.port))).map((t) => t.targetId),
+    ).toEqual([targetIdOfTab(7), targetIdOfTab(8)]);
   } finally {
     conn.close();
     extension.ws.close();
@@ -156,13 +203,18 @@ test("concurrent tab discovery shares one pending query and refreshes after it s
 
 async function waitUntil(cond: () => boolean, timeoutMs = 3000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  while (!cond() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 15));
+  while (!cond() && Date.now() < deadline)
+    await new Promise((r) => setTimeout(r, 15));
 }
 
 describe("bridge host auth", () => {
   test("rejects a missing or wrong token on every CDP socket path", async () => {
     const h = await freshHost();
-    for (const path of ["/devtools/browser", `/devtools/browser/${"x".repeat(64)}`, `/devtools/browser?token=${"x".repeat(64)}`]) {
+    for (const path of [
+      "/devtools/browser",
+      `/devtools/browser/${"x".repeat(64)}`,
+      `/devtools/browser?token=${"x".repeat(64)}`,
+    ]) {
       const ws = new WebSocket(`ws://127.0.0.1:${h.port}${path}`);
       expect(await closeCode(ws)).toBe(CLOSE_BAD_TOKEN);
     }
@@ -170,7 +222,9 @@ describe("bridge host auth", () => {
 
   test("an extension with the wrong token is closed with CLOSE_BAD_TOKEN, and never becomes the extension", async () => {
     const h = await freshHost();
-    await expect(new FakeExtension([], "x".repeat(64)).connect(h.port)).rejects.toThrow(`closed ${CLOSE_BAD_TOKEN}`);
+    await expect(
+      new FakeExtension([], "x".repeat(64)).connect(h.port),
+    ).rejects.toThrow(`closed ${CLOSE_BAD_TOKEN}`);
     expect(h.extensionConnected()).toBe(false);
     // The old protocol (token in the URL, a hello with no proof) is refused the same way.
     const old = await dial(h.port, `/ext?token=${TOKEN}`);
@@ -213,26 +267,53 @@ describe("bridge host auth", () => {
   test("/healthz proves the token to a nonce, and probeHost tells a host from a squatter", async () => {
     const h = await freshHost();
     const nonce = randomNonce();
-    const body = await fetch(`http://127.0.0.1:${h.port}/healthz?nonce=${nonce}`).then((r) => r.text());
-    expect(body).toBe(`cast-bridge protocol=${BRIDGE_PROTOCOL} proof=${bridgeProof(TOKEN, "healthz", nonce)}`);
+    const body = await fetch(
+      `http://127.0.0.1:${h.port}/healthz?nonce=${nonce}`,
+    ).then((r) => r.text());
+    expect(body).toBe(
+      `cast-bridge protocol=${BRIDGE_PROTOCOL} proof=${bridgeProof(TOKEN, "healthz", nonce)}`,
+    );
     // A malformed nonce earns no proof at all; a proof is never minted over attacker-shaped input.
-    expect(await fetch(`http://127.0.0.1:${h.port}/healthz?nonce=ext:abc`).then((r) => r.text())).toBe(`cast-bridge protocol=${BRIDGE_PROTOCOL}`);
+    expect(
+      await fetch(`http://127.0.0.1:${h.port}/healthz?nonce=ext:abc`).then(
+        (r) => r.text(),
+      ),
+    ).toBe(`cast-bridge protocol=${BRIDGE_PROTOCOL}`);
     expect(await probeHost({ port: h.port, token: TOKEN })).toBe("alive");
-    expect(await probeHost({ port: h.port, token: "x".repeat(64) })).toBe("impostor");
-    expect(await probeHost({ port: await freePort(), token: TOKEN })).toBe("down");
+    expect(await probeHost({ port: h.port, token: "x".repeat(64) })).toBe(
+      "impostor",
+    );
+    expect(await probeHost({ port: await freePort(), token: TOKEN })).toBe(
+      "down",
+    );
   });
 
-  test.if(process.platform === "darwin")("the launchd job plist for the host is valid with awkward paths and values", () => {
-    const file = `${fs.mkdtempSync(`${os.tmpdir()}/cast-plist-`)}/host.plist`;
-    fs.writeFileSync(file, bridgeHostPlistXml("sh.codecast.bridge-host.41729", ["/a b/bun", "/x&y/main.ts", "browser", "bridge-host"], { PATH: "/bin:/usr/bin", CODECAST_DIR: "/tmp/<odd> & dir" }, "/tmp/log path.log"));
-    const lint = Bun.spawnSync(["plutil", "-lint", file]);
-    expect(lint.exitCode).toBe(0);
-    const json = JSON.parse(String(Bun.spawnSync(["plutil", "-convert", "json", "-o", "-", file]).stdout));
-    expect(json.ProgramArguments[1]).toBe("/x&y/main.ts");
-    expect(json.EnvironmentVariables.CODECAST_DIR).toBe("/tmp/<odd> & dir");
-    expect(json.ProcessType).toBe("Interactive");
-    expect(json.KeepAlive).toBe(false);
-  });
+  test.if(process.platform === "darwin")(
+    "the launchd job plist for the host is valid with awkward paths and values",
+    () => {
+      const file = `${fs.mkdtempSync(`${os.tmpdir()}/cast-plist-`)}/host.plist`;
+      fs.writeFileSync(
+        file,
+        bridgeHostPlistXml(
+          "sh.codecast.bridge-host.41729",
+          ["/a b/bun", "/x&y/main.ts", "browser", "bridge-host"],
+          { PATH: "/bin:/usr/bin", CODECAST_DIR: "/tmp/<odd> & dir" },
+          "/tmp/log path.log",
+        ),
+      );
+      const lint = Bun.spawnSync(["plutil", "-lint", file]);
+      expect(lint.exitCode).toBe(0);
+      const json = JSON.parse(
+        String(
+          Bun.spawnSync(["plutil", "-convert", "json", "-o", "-", file]).stdout,
+        ),
+      );
+      expect(json.ProgramArguments[1]).toBe("/x&y/main.ts");
+      expect(json.EnvironmentVariables.CODECAST_DIR).toBe("/tmp/<odd> & dir");
+      expect(json.ProcessType).toBe("Interactive");
+      expect(json.KeepAlive).toBe(false);
+    },
+  );
 
   test("a port that accepts but never answers is busy, not down", async () => {
     // A starved host on a loaded machine looks exactly like this: the
@@ -245,7 +326,13 @@ describe("bridge host auth", () => {
       // The error says the host is up and busy, points at the log that names
       // the traffic, and never hands out a pid: agents told "stalled (pid N)"
       // killed the host, which dropped every session's tabs and fixed nothing.
-      const err = await proveBridgeHost({ port, token: TOKEN, hostPid: 4242 }, 300).then(() => null, (e: Error) => e.message);
+      const err = await proveBridgeHost(
+        { port, token: TOKEN, hostPid: 4242 },
+        300,
+      ).then(
+        () => null,
+        (e: Error) => e.message,
+      );
       expect(err).toContain(`on 127.0.0.1:${port} is up but did not answer`);
       expect(err).toContain("bridge-host.log");
       expect(err).toContain("do not kill the host");
@@ -257,23 +344,39 @@ describe("bridge host auth", () => {
 
   test("the extension's own ping is answered, and the log names the worker and the close", async () => {
     const seen: string[] = [];
-    host = await startBridgeHost({ port: await freePort(), token: TOKEN, onExtension: (up, detail) => seen.push(`${up ? "up" : "down"}: ${detail}`) });
-    const ext = await new FakeExtension([]).connect(host.port, { boot: "ab12", bootAt: Date.now() - 4_000, trigger: "alarm" });
+    host = await startBridgeHost({
+      port: await freePort(),
+      token: TOKEN,
+      onExtension: (up, detail) =>
+        seen.push(`${up ? "up" : "down"}: ${detail}`),
+    });
+    const ext = await new FakeExtension([]).connect(host.port, {
+      boot: "ab12",
+      bootAt: Date.now() - 4_000,
+      trigger: "alarm",
+    });
     ext.ws.send(JSON.stringify({ op: "ping" }));
     const deadline = Date.now() + 2000;
-    while (!ext.seen.some((m) => m.op === "pong") && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+    while (!ext.seen.some((m) => m.op === "pong") && Date.now() < deadline)
+      await new Promise((r) => setTimeout(r, 20));
     expect(ext.seen.some((m) => m.op === "pong")).toBe(true);
     ext.ws.close(4000, "worker going away");
     await new Promise((r) => setTimeout(r, 100));
-    expect(seen[0]).toMatch(/^up: worker ab12 \(4s old\) via alarm, v9\.9\.9; profile chrome \(shared token\)$/);
+    expect(seen[0]).toMatch(
+      /^up: worker ab12 \(4s old\) via alarm, v9\.9\.9; profile chrome \(shared token\)$/,
+    );
     expect(seen[1]).toMatch(/^down: close 4000/);
   });
 
   test("a protocol-4 extension (the store build, no iframe sessions) is still accepted and serves tabs", async () => {
     expect(BRIDGE_PROTOCOL).toBe(5);
     host = await startBridgeHost({ port: await freePort(), token: TOKEN });
-    await new FakeExtension([FakeExtension.tab(7, "https://old.example/")]).connect(host.port, { protocol: 4 });
-    expect((await listTargets({ port: host.port, token: TOKEN })).map((t) => t.url)).toEqual(["https://old.example/"]);
+    await new FakeExtension([
+      FakeExtension.tab(7, "https://old.example/"),
+    ]).connect(host.port, { protocol: 4 });
+    expect(
+      (await listTargets({ port: host.port, token: TOKEN })).map((t) => t.url),
+    ).toEqual(["https://old.example/"]);
   });
 
   test("an extension that goes silent is dropped after the silence budget, and a new worker is accepted", async () => {
@@ -286,9 +389,12 @@ describe("bridge host auth", () => {
       token: TOKEN,
       pingIntervalMs: 40,
       extensionSilenceMs: 150,
-      onExtension: (up, detail) => seen.push(`${up ? "up" : "down"}: ${detail}`),
+      onExtension: (up, detail) =>
+        seen.push(`${up ? "up" : "down"}: ${detail}`),
     });
-    const dead = await new FakeExtension([]).connect(host.port, { boot: "dead" });
+    const dead = await new FakeExtension([]).connect(host.port, {
+      boot: "dead",
+    });
     expect(host.extensionConnected()).toBe(true);
     const closed = closeCode(dead.ws, 3000);
     await closed;
@@ -303,7 +409,9 @@ describe("bridge host auth", () => {
   test("a silent hello is closed with the handshake code, never the bad-token code", async () => {
     const h = await freshHost();
     // Not a FakeExtension: a raw socket that never says hello.
-    const ws = await dial(h.port, "/ext", { origin: "chrome-extension://fakeextensionid" });
+    const ws = await dial(h.port, "/ext", {
+      origin: "chrome-extension://fakeextensionid",
+    });
     // HELLO_TIMEOUT_MS is 15 s in production; the assertion is on the code, so
     // it only needs the close, however long the host takes.
     expect(await closeCode(ws, 20_000)).toBe(CLOSE_HANDSHAKE_TIMEOUT);
@@ -315,20 +423,35 @@ describe("bridge host auth", () => {
   // command in flight. A live extension now keeps it; the second stands by.
   test("a second live extension stands by instead of taking the bridge", async () => {
     const standby: string[] = [];
-    host = await startBridgeHost({ port: await freePort(), token: TOKEN, incumbentProbeMs: 500, onStandby: (d) => standby.push(d) });
+    host = await startBridgeHost({
+      port: await freePort(),
+      token: TOKEN,
+      incumbentProbeMs: 500,
+      onStandby: (d) => standby.push(d),
+    });
     const first = new FakeExtension([]);
     first.answersPings = true;
     await first.connect(host.port, { boot: "aaaa" });
     const second = new FakeExtension([]);
-    await expect(second.connect(host.port, { boot: "bbbb" })).rejects.toThrow(`closed ${CLOSE_EXTENSION_STANDBY}`);
+    await expect(second.connect(host.port, { boot: "bbbb" })).rejects.toThrow(
+      `closed ${CLOSE_EXTENSION_STANDBY}`,
+    );
     expect(first.ws.readyState).toBe(WebSocket.OPEN);
     expect(host.extensionConnected()).toBe(true);
-    expect(standby[0]).toMatch(/worker bbbb .* stands by: worker aaaa holds the bridge/);
+    expect(standby[0]).toMatch(
+      /worker bbbb .* stands by: worker aaaa holds the bridge/,
+    );
   });
 
   test("a second extension replaces one that no longer answers", async () => {
-    host = await startBridgeHost({ port: await freePort(), token: TOKEN, incumbentProbeMs: 300 });
-    const first = await new FakeExtension([]).connect(host.port, { boot: "aaaa" });
+    host = await startBridgeHost({
+      port: await freePort(),
+      token: TOKEN,
+      incumbentProbeMs: 300,
+    });
+    const first = await new FakeExtension([]).connect(host.port, {
+      boot: "aaaa",
+    });
     const closed = closeCode(first.ws, 3000);
     await new FakeExtension([]).connect(host.port, { boot: "bbbb" });
     expect(await closed).toBe(1000);
@@ -337,13 +460,28 @@ describe("bridge host auth", () => {
 
   test("a reconnect from the same worker is told apart from a new one", async () => {
     const seen: string[] = [];
-    host = await startBridgeHost({ port: await freePort(), token: TOKEN, onExtension: (up, detail) => seen.push(`${up ? "up" : "down"}: ${detail}`) });
-    const first = await new FakeExtension([]).connect(host.port, { boot: "aaaa", bootAt: Date.now(), trigger: "boot" });
+    host = await startBridgeHost({
+      port: await freePort(),
+      token: TOKEN,
+      onExtension: (up, detail) =>
+        seen.push(`${up ? "up" : "down"}: ${detail}`),
+    });
+    const first = await new FakeExtension([]).connect(host.port, {
+      boot: "aaaa",
+      bootAt: Date.now(),
+      trigger: "boot",
+    });
     first.ws.close();
     await new Promise((r) => setTimeout(r, 100));
-    await new FakeExtension([]).connect(host.port, { boot: "aaaa", bootAt: Date.now(), trigger: "retry" });
+    await new FakeExtension([]).connect(host.port, {
+      boot: "aaaa",
+      bootAt: Date.now(),
+      trigger: "retry",
+    });
     await new Promise((r) => setTimeout(r, 100));
-    expect(seen.at(-1)).toMatch(/^up: worker aaaa \(same worker, \ds old\) via retry/);
+    expect(seen.at(-1)).toMatch(
+      /^up: worker aaaa \(same worker, \ds old\) via retry/,
+    );
   });
 
   // A document's Origin is refused BEFORE the handshake completes, so the
@@ -358,7 +496,9 @@ describe("bridge host auth", () => {
     ["an extension id with a path", "chrome-extension://abcd/evil.html"],
   ])("refuses the upgrade outright for %s", async (_label, origin) => {
     const h = await freshHost();
-    expect(await upgradeStatus(h.port, `/devtools/browser/${TOKEN}`, { origin })).not.toBe(101);
+    expect(
+      await upgradeStatus(h.port, `/devtools/browser/${TOKEN}`, { origin }),
+    ).not.toBe(101);
     expect(await upgradeStatus(h.port, "/ext", { origin })).not.toBe(101);
   });
 
@@ -367,12 +507,18 @@ describe("bridge host auth", () => {
     // No Origin at all: our own CDP clients and the extension worker.
     expect(await upgradeStatus(h.port, `/devtools/browser/${TOKEN}`)).toBe(101);
     // An extension page.
-    expect(await upgradeStatus(h.port, "/ext", { origin: "chrome-extension://fakeextensionid" })).toBe(101);
+    expect(
+      await upgradeStatus(h.port, "/ext", {
+        origin: "chrome-extension://fakeextensionid",
+      }),
+    ).toBe(101);
   });
 
   test("a wrong token on a well-formed client still gets the re-pair code", async () => {
     const h = await freshHost();
-    const ws = new WebSocket(`ws://127.0.0.1:${h.port}/devtools/browser/wrong-token`);
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${h.port}/devtools/browser/wrong-token`,
+    );
     expect(await closeCode(ws)).toBe(CLOSE_BAD_TOKEN);
   });
 
@@ -384,14 +530,16 @@ describe("bridge host auth", () => {
     // extension, which is what makes the size the thing under test rather
     // than the token.
     const nonce = randomNonce();
-    ws.send(JSON.stringify({
-      op: "hello",
-      nonce,
-      auth: bridgeProof(TOKEN, "ext", nonce),
-      version: "1.0.0",
-      protocol: BRIDGE_PROTOCOL,
-      userAgent: "x".repeat(2 * 1024 * 1024),
-    }));
+    ws.send(
+      JSON.stringify({
+        op: "hello",
+        nonce,
+        auth: bridgeProof(TOKEN, "ext", nonce),
+        version: "1.0.0",
+        protocol: BRIDGE_PROTOCOL,
+        userAgent: "x".repeat(2 * 1024 * 1024),
+      }),
+    );
     expect(await closeCode(ws, 8000)).toBe(CLOSE_BAD_TOKEN);
     expect(h.extensionConnected()).toBe(false);
   }, 15_000);
@@ -399,7 +547,9 @@ describe("bridge host auth", () => {
   test("only a handful of unproven extension sockets may wait at once", async () => {
     const h = await freshHost();
     // Each stays silent, so each holds its handshake slot until it times out.
-    const held = await Promise.all([0, 1, 2, 3].map(() => dial(h.port, "/ext")));
+    const held = await Promise.all(
+      [0, 1, 2, 3].map(() => dial(h.port, "/ext")),
+    );
     expect(held.every((ws) => ws.readyState === WebSocket.OPEN)).toBe(true);
     expect(await upgradeStatus(h.port, "/ext")).not.toBe(101);
     for (const ws of held) ws.close();
@@ -409,14 +559,21 @@ describe("bridge host auth", () => {
     const h = await freshHost();
     const noToken = await fetch(`http://127.0.0.1:${h.port}/json/version`);
     expect(noToken.status).toBe(403);
-    const rebound = await fetch(`http://127.0.0.1:${h.port}/json/version?token=${TOKEN}`, {
-      headers: { host: `evil.example:${h.port}` },
-    });
+    const rebound = await fetch(
+      `http://127.0.0.1:${h.port}/json/version?token=${TOKEN}`,
+      {
+        headers: { host: `evil.example:${h.port}` },
+      },
+    );
     expect(rebound.status).toBe(403);
-    const ok = await fetch(`http://127.0.0.1:${h.port}/json/version?token=${TOKEN}`);
+    const ok = await fetch(
+      `http://127.0.0.1:${h.port}/json/version?token=${TOKEN}`,
+    );
     expect(ok.status).toBe(200);
     const body = (await ok.json()) as any;
-    expect(body.webSocketDebuggerUrl).toBe(`ws://127.0.0.1:${h.port}/devtools/browser/${TOKEN}`);
+    expect(body.webSocketDebuggerUrl).toBe(
+      `ws://127.0.0.1:${h.port}/devtools/browser/${TOKEN}`,
+    );
     // healthz stays open and says only our name.
     const hz = await fetch(`http://127.0.0.1:${h.port}/healthz`);
     expect(await hz.text()).toMatch(/^cast-bridge/);
@@ -426,16 +583,31 @@ describe("bridge host auth", () => {
 describe("bridge host as a CDP endpoint", () => {
   test("/json/list names every tab with minted ids; the CDP face discovers only agent tabs", async () => {
     const h = await freshHost();
-    await new FakeExtension([FakeExtension.tab(7), FakeExtension.tab(8)]).connect(h.port);
+    await new FakeExtension([
+      FakeExtension.tab(7),
+      FakeExtension.tab(8),
+    ]).connect(h.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { targetId: mine } = await conn.send("Target.createTarget", { url: "https://agent.example/" });
+    const { targetId: mine } = await conn.send("Target.createTarget", {
+      url: "https://agent.example/",
+    });
 
     // The HTTP face is the whole browser (cast browser tabs --all reads it), flagged.
-    const raw = await (await fetch(`http://127.0.0.1:${h.port}/json/list?token=${TOKEN}`)).json();
-    expect(raw.map((t: any) => [t.id, t.cast])).toEqual([[mine, true], [targetIdOfTab(7), false], [targetIdOfTab(8), false]]);
+    const raw = await (
+      await fetch(`http://127.0.0.1:${h.port}/json/list?token=${TOKEN}`)
+    ).json();
+    expect(raw.map((t: any) => [t.id, t.cast])).toEqual([
+      [mine, true],
+      [targetIdOfTab(7), false],
+      [targetIdOfTab(8), false],
+    ]);
     expect(raw[1].url).toBe("https://example.com/7");
     const listed = await listTargets(cdpEndpoint(h.port));
-    expect(listed.map((t) => t.targetId)).toEqual([mine, targetIdOfTab(7), targetIdOfTab(8)]);
+    expect(listed.map((t) => t.targetId)).toEqual([
+      mine,
+      targetIdOfTab(7),
+      targetIdOfTab(8),
+    ]);
 
     // An engine attaches to everything it discovers, so the human's tabs are
     // never on the CDP face: a frozen tab of theirs must not stall an agent.
@@ -449,22 +621,45 @@ describe("bridge host as a CDP endpoint", () => {
   test("a socket that names a session discovers only that session's tabs; sharing is an explicit grant", async () => {
     const h = await freshHost();
     await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
-    const a = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), session: "env-a" });
-    const b = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), session: "env-b" });
-    const { targetId: ta } = await a.send("Target.createTarget", { url: "https://a.example/" });
-    const { targetId: tb } = await b.send("Target.createTarget", { url: "https://b.example/" });
+    const a = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      session: "env-a",
+    });
+    const b = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      session: "env-b",
+    });
+    const { targetId: ta } = await a.send("Target.createTarget", {
+      url: "https://a.example/",
+    });
+    const { targetId: tb } = await b.send("Target.createTarget", {
+      url: "https://b.example/",
+    });
 
     // Each session sees its own tab and nothing else; a tool socket with no
     // session (cast's own listings, the web's focus route) sees every agent tab.
-    expect((await a.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId)).toEqual([ta]);
-    expect((await b.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId)).toEqual([tb]);
+    expect(
+      (await a.send("Target.getTargets")).targetInfos.map(
+        (t: any) => t.targetId,
+      ),
+    ).toEqual([ta]);
+    expect(
+      (await b.send("Target.getTargets")).targetInfos.map(
+        (t: any) => t.targetId,
+      ),
+    ).toEqual([tb]);
     const tool = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    expect((await tool.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId)).toEqual([ta, tb]);
+    expect(
+      (await tool.send("Target.getTargets")).targetInfos.map(
+        (t: any) => t.targetId,
+      ),
+    ).toEqual([ta, tb]);
 
     // Discovery streams follow the same partition.
     const seenByB: string[] = [];
     b.on((ev) => {
-      if (ev.method === "Target.targetCreated") seenByB.push((ev.params as any).targetInfo.targetId);
+      if (ev.method === "Target.targetCreated")
+        seenByB.push((ev.params as any).targetInfo.targetId);
     });
     await b.send("Target.setDiscoverTargets", { discover: true });
     await new Promise((r) => setTimeout(r, 50));
@@ -479,30 +674,70 @@ describe("bridge host as a CDP endpoint", () => {
     expect((await granted.json()).sessions.sort()).toEqual(["env-a", "env-b"]);
     await new Promise((r) => setTimeout(r, 50));
     expect(seenByB).toEqual([tb, ta]);
-    expect((await b.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId).sort()).toEqual([ta, tb].sort());
+    expect(
+      (await b.send("Target.getTargets")).targetInfos
+        .map((t: any) => t.targetId)
+        .sort(),
+    ).toEqual([ta, tb].sort());
     await fetch(grantUrl("env-b", ta), { method: "POST" });
     await new Promise((r) => setTimeout(r, 30));
     expect(seenByB).toEqual([tb, ta]);
-    const raw = await (await fetch(`http://127.0.0.1:${h.port}/json/list?token=${TOKEN}`)).json();
-    expect(raw.find((t: any) => t.id === ta).sessions.sort()).toEqual(["env-a", "env-b"]);
+    const raw = await (
+      await fetch(`http://127.0.0.1:${h.port}/json/list?token=${TOKEN}`)
+    ).json();
+    expect(raw.find((t: any) => t.id === ta).sessions.sort()).toEqual([
+      "env-a",
+      "env-b",
+    ]);
 
     // The human's tabs cannot be shared, and a tab that does not exist is named as such.
-    expect((await fetch(grantUrl("env-b", targetIdOfTab(7)), { method: "POST" })).status).toBe(403);
-    expect((await fetch(grantUrl("env-d", targetIdOfTab(7)) + "&own=1", { method: "POST" })).status).toBe(403);
-    const d = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), session: "env-d" });
+    expect(
+      (await fetch(grantUrl("env-b", targetIdOfTab(7)), { method: "POST" }))
+        .status,
+    ).toBe(403);
+    expect(
+      (
+        await fetch(grantUrl("env-d", targetIdOfTab(7)) + "&own=1", {
+          method: "POST",
+        })
+      ).status,
+    ).toBe(403);
+    const d = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      session: "env-d",
+    });
     expect((await d.send("Target.getTargets")).targetInfos).toEqual([]);
-    expect((await fetch(grantUrl("env-b", targetIdOfTab(7)), { method: "POST" })).status).toBe(403);
+    expect(
+      (await fetch(grantUrl("env-b", targetIdOfTab(7)), { method: "POST" }))
+        .status,
+    ).toBe(403);
     d.close();
-    expect((await fetch(grantUrl("env-b", targetIdOfTab(4242)), { method: "POST" })).status).toBe(404);
-    expect((await fetch(grantUrl("", ta), { method: "POST" })).status).toBe(400);
+    expect(
+      (await fetch(grantUrl("env-b", targetIdOfTab(4242)), { method: "POST" }))
+        .status,
+    ).toBe(404);
+    expect((await fetch(grantUrl("", ta), { method: "POST" })).status).toBe(
+      400,
+    );
     expect((await fetch(grantUrl("env-b", ta))).status).toBe(405);
 
-    const c = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), session: "env-c" });
+    const c = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      session: "env-c",
+    });
     expect((await c.send("Target.getTargets")).targetInfos).toEqual([]);
-    await expect(c.send("Target.attachToTarget", { targetId: tb, flatten: true })).rejects.toThrow("not granted");
-    expect((await fetch(grantUrl("env-c", tb), { method: "POST" })).status).toBe(200);
+    await expect(
+      c.send("Target.attachToTarget", { targetId: tb, flatten: true }),
+    ).rejects.toThrow("not granted");
+    expect(
+      (await fetch(grantUrl("env-c", tb), { method: "POST" })).status,
+    ).toBe(200);
     await c.send("Target.attachToTarget", { targetId: tb, flatten: true });
-    expect((await c.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId)).toEqual([tb]);
+    expect(
+      (await c.send("Target.getTargets")).targetInfos.map(
+        (t: any) => t.targetId,
+      ),
+    ).toEqual([tb]);
     for (const x of [a, b, c, tool]) x.close();
   });
 
@@ -511,43 +746,90 @@ describe("bridge host as a CDP endpoint", () => {
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
 
-    const attachedEv = conn.waitFor((ev) => ev.method === "Target.attachedToTarget", 3000);
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    const attachedEv = conn.waitFor(
+      (ev) => ev.method === "Target.attachedToTarget",
+      3000,
+    );
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: targetIdOfTab(7), flatten: true },
+    );
     expect(sessionId).toMatch(/^[0-9A-F]{32}$/);
     expect((await attachedEv).params.sessionId).toBe(sessionId);
     expect(ext.attached.has(7)).toBe(true);
 
     const r = await conn.send("DOM.getDocument", { depth: 1 }, sessionId);
-    expect(r.echo).toEqual({ tabId: 7, method: "DOM.getDocument", params: { depth: 1 } });
+    expect(r.echo).toEqual({
+      tabId: 7,
+      method: "DOM.getDocument",
+      params: { depth: 1 },
+    });
 
     // Local no-ops the engines send during setup.
-    expect(await conn.send<object>("Target.setAutoAttach", { autoAttach: true, flatten: true }, sessionId)).toEqual({});
-    expect(await conn.send<object>("Runtime.runIfWaitingForDebugger", {}, sessionId)).toEqual({});
+    expect(
+      await conn.send<object>(
+        "Target.setAutoAttach",
+        { autoAttach: true, flatten: true },
+        sessionId,
+      ),
+    ).toEqual({});
+    expect(
+      await conn.send<object>("Runtime.runIfWaitingForDebugger", {}, sessionId),
+    ).toEqual({});
 
     // Extension-side failures come back as CDP errors, not hangs.
-    await expect(conn.send("Boom.now", {}, sessionId)).rejects.toBeInstanceOf(CdpError);
+    await expect(conn.send("Boom.now", {}, sessionId)).rejects.toBeInstanceOf(
+      CdpError,
+    );
     // Unknown browser-scope methods get Chrome's not-found code.
     await expect(conn.send("Nope.nothing")).rejects.toThrow(/wasn't found/);
     // A made-up session is refused.
-    await expect(conn.send("Runtime.evaluate", { expression: "1" }, "F".repeat(32))).rejects.toThrow(/Session with given id/);
+    await expect(
+      conn.send("Runtime.evaluate", { expression: "1" }, "F".repeat(32)),
+    ).rejects.toThrow(/Session with given id/);
     // CDP's WebAuthn domain never reaches the extension, at either scope.
-    for (const method of ["WebAuthn.enable", "WebAuthn.addVirtualAuthenticator"]) {
-      await expect(conn.send(method, {}, sessionId)).rejects.toThrow(/agents cannot create or use passkeys/);
-      await expect(conn.send(method, {})).rejects.toThrow(/agents cannot create or use passkeys/);
+    for (const method of [
+      "WebAuthn.enable",
+      "WebAuthn.addVirtualAuthenticator",
+    ]) {
+      await expect(conn.send(method, {}, sessionId)).rejects.toThrow(
+        /agents cannot create or use passkeys/,
+      );
+      await expect(conn.send(method, {})).rejects.toThrow(
+        /agents cannot create or use passkeys/,
+      );
     }
-    expect(ext.seen.some((m) => /WebAuthn/i.test(String(m.method)))).toBe(false);
+    expect(ext.seen.some((m) => /WebAuthn/i.test(String(m.method)))).toBe(
+      false,
+    );
     conn.close();
   });
 
   test("events reach only sessions bound to that tab, stamped with each client's own sessionId", async () => {
     const h = await freshHost();
-    const ext = await new FakeExtension([FakeExtension.tab(7), FakeExtension.tab(8)]).connect(h.port);
+    const ext = await new FakeExtension([
+      FakeExtension.tab(7),
+      FakeExtension.tab(8),
+    ]).connect(h.port);
     const a = await CdpConnection.fromPort(cdpEndpoint(h.port));
     const b = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const sa = (await a.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true })).sessionId;
-    const sb = (await b.send("Target.attachToTarget", { targetId: targetIdOfTab(8), flatten: true })).sessionId;
+    const sa = (
+      await a.send("Target.attachToTarget", {
+        targetId: targetIdOfTab(7),
+        flatten: true,
+      })
+    ).sessionId;
+    const sb = (
+      await b.send("Target.attachToTarget", {
+        targetId: targetIdOfTab(8),
+        flatten: true,
+      })
+    ).sessionId;
 
-    const gotA = a.waitFor((ev) => ev.method === "Network.loadingFinished", 2000);
+    const gotA = a.waitFor(
+      (ev) => ev.method === "Network.loadingFinished",
+      2000,
+    );
     let bGotIt = false;
     const offB = b.on((ev) => {
       if (ev.method === "Network.loadingFinished") bGotIt = true;
@@ -567,12 +849,24 @@ describe("bridge host as a CDP endpoint", () => {
     const h = await freshHost();
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const a = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    await a.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    await a.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
     const got: string[] = [];
     const off = a.on((ev) => got.push(ev.method));
-    const after = a.waitFor((ev) => ev.method === "Network.loadingFinished", 2000);
-    ext.event(7, "Network.webSocketFrameReceived", { requestId: "w", response: { payloadData: "x".repeat(1000) } });
-    ext.event(7, "Network.webSocketFrameSent", { requestId: "w", response: { payloadData: "y" } });
+    const after = a.waitFor(
+      (ev) => ev.method === "Network.loadingFinished",
+      2000,
+    );
+    ext.event(7, "Network.webSocketFrameReceived", {
+      requestId: "w",
+      response: { payloadData: "x".repeat(1000) },
+    });
+    ext.event(7, "Network.webSocketFrameSent", {
+      requestId: "w",
+      response: { payloadData: "y" },
+    });
     ext.event(7, "Network.loadingFinished", { requestId: "r1" });
     await after;
     expect(got).toEqual(["Network.loadingFinished"]);
@@ -585,8 +879,14 @@ describe("bridge host as a CDP endpoint", () => {
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const a = await CdpConnection.fromPort(cdpEndpoint(h.port));
     const b = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    await a.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
-    await b.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    await a.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
+    await b.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
     expect(ext.seen.filter((m) => m.op === "attach").length).toBe(2);
 
     a.close();
@@ -616,25 +916,49 @@ describe("bridge host as a CDP endpoint", () => {
       },
       onSessionTabs: (t) => persisted.push(t),
     });
-    const ext = await new FakeExtension([FakeExtension.tab(7), FakeExtension.tab(8)]).connect(host.port);
-    const a = await CdpConnection.fromPort({ ...cdpEndpoint(host.port), session: "env-a" });
-    expect((await a.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId)).toEqual([targetIdOfTab(7)]);
-    expect(persisted.at(-1)).toEqual({ "env-a": [{ tabId: 7, profile: "chrome", url: "https://example.com/7" }] });
+    const ext = await new FakeExtension([
+      FakeExtension.tab(7),
+      FakeExtension.tab(8),
+    ]).connect(host.port);
+    const a = await CdpConnection.fromPort({
+      ...cdpEndpoint(host.port),
+      session: "env-a",
+    });
+    expect(
+      (await a.send("Target.getTargets")).targetInfos.map(
+        (t: any) => t.targetId,
+      ),
+    ).toEqual([targetIdOfTab(7)]);
+    expect(persisted.at(-1)).toEqual({
+      "env-a": [{ tabId: 7, profile: "chrome", url: "https://example.com/7" }],
+    });
 
     // The partition follows the session: a create joins it, a navigation
     // updates the URL it is remembered at, a close drops it.
-    const { targetId } = await a.send("Target.createTarget", { url: "https://new.example/" });
+    const { targetId } = await a.send("Target.createTarget", {
+      url: "https://new.example/",
+    });
     const created = tabIdOfTarget(targetId)!;
     expect(persisted.at(-1)["env-a"]).toEqual([
       { tabId: 7, profile: "chrome", url: "https://example.com/7" },
       { tabId: created, profile: "chrome", url: "https://new.example/" },
     ]);
-    ext.tabEvent("updated", { ...FakeExtension.tab(created, "https://new.example/page2") });
+    ext.tabEvent("updated", {
+      ...FakeExtension.tab(created, "https://new.example/page2"),
+    });
     await new Promise((r) => setTimeout(r, 30));
-    expect(persisted.at(-1)["env-a"][1]).toEqual({ tabId: created, profile: "chrome", url: "https://new.example/page2" });
+    expect(persisted.at(-1)["env-a"][1]).toEqual({
+      tabId: created,
+      profile: "chrome",
+      url: "https://new.example/page2",
+    });
     ext.tabEvent("removed", FakeExtension.tab(7));
     await new Promise((r) => setTimeout(r, 30));
-    expect(persisted.at(-1)).toEqual({ "env-a": [{ tabId: created, profile: "chrome", url: "https://new.example/page2" }] });
+    expect(persisted.at(-1)).toEqual({
+      "env-a": [
+        { tabId: created, profile: "chrome", url: "https://new.example/page2" },
+      ],
+    });
     a.close();
   });
 
@@ -643,22 +967,50 @@ describe("bridge host as a CDP endpoint", () => {
   // held by no session until the idle cleanup (soak ct-87421).
   test("after a Chrome restart a restored agent tab goes back to its session; a human tab at that URL never does", async () => {
     host = await startBridgeHost({
-      port: await freePort(), token: TOKEN,
-      sessionTabs: { "env-a": [{ tabId: 9, url: "https://example.com/9" }, { tabId: 11, url: "https://example.com/11" }] },
+      port: await freePort(),
+      token: TOKEN,
+      sessionTabs: {
+        "env-a": [
+          { tabId: 9, url: "https://example.com/9" },
+          { tabId: 11, url: "https://example.com/11" },
+        ],
+      },
     });
-    const restored = { ...FakeExtension.tab(20, "https://example.com/9"), owned: true };
-    const humans = { ...FakeExtension.tab(21, "https://example.com/11"), owned: false };
-    const otherAgent = { ...FakeExtension.tab(22, "https://example.com/elsewhere"), owned: true };
-    const ext = await new FakeExtension([restored, humans, otherAgent]).connect(host.port);
-    const a = await CdpConnection.fromPort({ ...cdpEndpoint(host.port), session: "env-a" });
+    const restored = {
+      ...FakeExtension.tab(20, "https://example.com/9"),
+      owned: true,
+    };
+    const humans = {
+      ...FakeExtension.tab(21, "https://example.com/11"),
+      owned: false,
+    };
+    const otherAgent = {
+      ...FakeExtension.tab(22, "https://example.com/elsewhere"),
+      owned: true,
+    };
+    const ext = await new FakeExtension([restored, humans, otherAgent]).connect(
+      host.port,
+    );
+    const a = await CdpConnection.fromPort({
+      ...cdpEndpoint(host.port),
+      session: "env-a",
+    });
     try {
-      const targets = async () => (await a.send("Target.getTargets")).targetInfos.map((t: any) => t.targetId).sort();
+      const targets = async () =>
+        (await a.send("Target.getTargets")).targetInfos
+          .map((t: any) => t.targetId)
+          .sort();
       expect(await targets()).toEqual([targetIdOfTab(20)]);
       // The second page comes back a moment later, in the Cast group: it is env-a's again.
-      ext.tabs.push({ ...FakeExtension.tab(23, "https://example.com/11"), owned: true });
+      ext.tabs.push({
+        ...FakeExtension.tab(23, "https://example.com/11"),
+        owned: true,
+      });
       ext.tabEvent("created", ext.tabs.at(-1)!);
       await new Promise((r) => setTimeout(r, 30));
-      expect(await targets()).toEqual([targetIdOfTab(20), targetIdOfTab(23)].sort());
+      expect(await targets()).toEqual(
+        [targetIdOfTab(20), targetIdOfTab(23)].sort(),
+      );
     } finally {
       a.close();
     }
@@ -668,7 +1020,9 @@ describe("bridge host as a CDP endpoint", () => {
     const h = await freshHost();
     const ext = await new FakeExtension([]).connect(h.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { targetId } = await conn.send("Target.createTarget", { url: "https://new.example/" });
+    const { targetId } = await conn.send("Target.createTarget", {
+      url: "https://new.example/",
+    });
     expect(targetId).toBe(targetIdOfTab(100));
     expect(ext.tabs[0].url).toBe("https://new.example/");
     await conn.send("Target.closeTarget", { targetId });
@@ -678,16 +1032,33 @@ describe("bridge host as a CDP endpoint", () => {
 
   test("attach restores known agent ownership without claiming a human tab", async () => {
     host = await startBridgeHost({
-      port: await freePort(), token: TOKEN,
-      sessionTabs: { "env-restored-real": [{ tabId: 7, url: "https://example.com/7" }] },
+      port: await freePort(),
+      token: TOKEN,
+      sessionTabs: {
+        "env-restored-real": [{ tabId: 7, url: "https://example.com/7" }],
+      },
     });
-    const ext = await new FakeExtension([FakeExtension.tab(7), FakeExtension.tab(8)]).connect(host.port);
+    const ext = await new FakeExtension([
+      FakeExtension.tab(7),
+      FakeExtension.tab(8),
+    ]).connect(host.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(host.port));
     try {
-      await conn.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
-      await conn.send("Target.attachToTarget", { targetId: targetIdOfTab(8), flatten: true });
-      expect(ext.seen.filter((m) => m.op === "attach").map(({ tabId, owned }) => ({ tabId, owned }))).toEqual([
-        { tabId: 7, owned: true }, { tabId: 8, owned: false },
+      await conn.send("Target.attachToTarget", {
+        targetId: targetIdOfTab(7),
+        flatten: true,
+      });
+      await conn.send("Target.attachToTarget", {
+        targetId: targetIdOfTab(8),
+        flatten: true,
+      });
+      expect(
+        ext.seen
+          .filter((m) => m.op === "attach")
+          .map(({ tabId, owned }) => ({ tabId, owned })),
+      ).toEqual([
+        { tabId: 7, owned: true },
+        { tabId: 8, owned: false },
       ]);
     } finally {
       conn.close();
@@ -699,10 +1070,20 @@ describe("bridge host as a CDP endpoint", () => {
     const ext = await new FakeExtension([]).connect(h.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
     const group = { title: "cast smoke", color: "blue" };
-    const created = await conn.send("Target.createTarget", { url: "https://a.example/", background: true, castGroup: group });
+    const created = await conn.send("Target.createTarget", {
+      url: "https://a.example/",
+      background: true,
+      castGroup: group,
+    });
     expect(Object.keys(created)).toEqual(["targetId"]);
     const sent = ext.seen.find((m) => m.op === "tabs.create");
-    expect(sent).toEqual({ id: sent.id, op: "tabs.create", url: "https://a.example/", background: true, group });
+    expect(sent).toEqual({
+      id: sent.id,
+      op: "tabs.create",
+      url: "https://a.example/",
+      background: true,
+      group,
+    });
     expect("castGroup" in sent).toBe(false);
 
     // Neither the target list nor the HTTP face mention a group.
@@ -717,16 +1098,29 @@ describe("bridge host as a CDP endpoint", () => {
     // Chrome; an engine that omits the flag must not raise it) and is
     // ungrouped from the extension's point of view of a new socket. Only an
     // explicit `background: false` on a socket that may raise activates it.
-    const other = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), raise: true });
+    const other = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      raise: true,
+    });
     await other.send("Target.createTarget", { url: "https://b.example/" });
     const plain = ext.seen.filter((m) => m.op === "tabs.create")[1];
     expect(plain.background).toBe(true);
     expect("group" in plain).toBe(false);
-    await other.send("Target.createTarget", { url: "https://b2.example/", background: false });
-    expect(ext.seen.filter((m) => m.op === "tabs.create")[2].background).toBe(false);
+    await other.send("Target.createTarget", {
+      url: "https://b2.example/",
+      background: false,
+    });
+    expect(ext.seen.filter((m) => m.op === "tabs.create")[2].background).toBe(
+      false,
+    );
     // A malformed castGroup is ignored rather than forwarded.
-    await other.send("Target.createTarget", { url: "https://c.example/", castGroup: { title: "", color: "red" } });
-    expect("group" in ext.seen.filter((m) => m.op === "tabs.create")[3]).toBe(false);
+    await other.send("Target.createTarget", {
+      url: "https://c.example/",
+      castGroup: { title: "", color: "red" },
+    });
+    expect("group" in ext.seen.filter((m) => m.op === "tabs.create")[3]).toBe(
+      false,
+    );
     conn.close();
     other.close();
   });
@@ -740,7 +1134,10 @@ describe("bridge host as a CDP endpoint", () => {
     const creates = () => ext.seen.filter((m) => m.op === "tabs.create");
 
     // A remembers the group across creates on the same socket.
-    const first = await a.send("Target.createTarget", { url: "https://a1.example/", castGroup: group });
+    const first = await a.send("Target.createTarget", {
+      url: "https://a1.example/",
+      castGroup: group,
+    });
     await a.send("Target.createTarget", { url: "https://a2.example/" });
     expect(creates().map((m) => m.group)).toEqual([group, group]);
 
@@ -749,20 +1146,33 @@ describe("bridge host as a CDP endpoint", () => {
     expect("group" in creates()[2]).toBe(false);
 
     // B attaches to one of A's grouped tabs and adopts the group.
-    await b.send("Target.attachToTarget", { targetId: first.targetId, flatten: true });
+    await b.send("Target.attachToTarget", {
+      targetId: first.targetId,
+      flatten: true,
+    });
     await b.send("Target.createTarget", { url: "https://b2.example/" });
     expect(creates()[3].group).toEqual(group);
 
     // Attaching to an ungrouped tab afterwards does not forget the group.
-    await b.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    await b.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
     await b.send("Target.createTarget", { url: "https://b3.example/" });
     expect(creates()[4].group).toEqual(group);
 
     // An explicit castGroup on a later create switches the socket to that group.
     const second = { title: "session two", color: "red" };
-    await a.send("Target.createTarget", { url: "https://a3.example/", castGroup: second });
+    await a.send("Target.createTarget", {
+      url: "https://a3.example/",
+      castGroup: second,
+    });
     await a.send("Target.createTarget", { url: "https://a4.example/" });
-    expect(creates().slice(5).map((m) => m.group)).toEqual([second, second]);
+    expect(
+      creates()
+        .slice(5)
+        .map((m) => m.group),
+    ).toEqual([second, second]);
 
     // The group is per socket, so a fresh connection starts clean.
     a.close();
@@ -777,11 +1187,14 @@ describe("bridge host as a CDP endpoint", () => {
     const h = await freshHost();
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const maker = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { targetId: agentTab } = await maker.send("Target.createTarget", { url: "https://agent.example/" });
+    const { targetId: agentTab } = await maker.send("Target.createTarget", {
+      url: "https://agent.example/",
+    });
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
     const created: string[] = [];
     conn.on((ev) => {
-      if (ev.method === "Target.targetCreated") created.push((ev.params as any).targetInfo.targetId);
+      if (ev.method === "Target.targetCreated")
+        created.push((ev.params as any).targetInfo.targetId);
     });
     await conn.send("Target.setDiscoverTargets", { discover: true });
     await new Promise((r) => setTimeout(r, 50));
@@ -792,7 +1205,10 @@ describe("bridge host as a CDP endpoint", () => {
     // that never heard of the target ignores it.
     ext.tabEvent("created", FakeExtension.tab(9));
     ext.tabEvent("created", { ...FakeExtension.tab(10), owned: true });
-    const destroyed = conn.waitFor((ev) => ev.method === "Target.targetDestroyed", 2000);
+    const destroyed = conn.waitFor(
+      (ev) => ev.method === "Target.targetDestroyed",
+      2000,
+    );
     ext.tabEvent("removed", FakeExtension.tab(9));
     expect(((await destroyed).params as any).targetId).toBe(targetIdOfTab(9));
     expect(created).toEqual([agentTab, targetIdOfTab(10)]);
@@ -804,11 +1220,22 @@ describe("bridge host as a CDP endpoint", () => {
     const h = await freshHost();
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { sessionId } = await conn.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
-    const detached = conn.waitFor((ev) => ev.method === "Target.detachedFromTarget", 3000);
+    const { sessionId } = await conn.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
+    const detached = conn.waitFor(
+      (ev) => ev.method === "Target.detachedFromTarget",
+      3000,
+    );
     // Extension goes away before answering.
     ext.ws.removeAllListeners("message");
-    const inflight = conn.send("Runtime.evaluate", { expression: "1" }, sessionId, 3000);
+    const inflight = conn.send(
+      "Runtime.evaluate",
+      { expression: "1" },
+      sessionId,
+      3000,
+    );
     await new Promise((r) => setTimeout(r, 30));
     ext.ws.close();
     await expect(inflight).rejects.toThrow(/disconnected/);
@@ -827,7 +1254,10 @@ describe("bridge host as a CDP endpoint", () => {
     const h = await freshHost();
     const ext = await new FakeExtension([FakeExtension.tab(7)]).connect(h.port);
     const holder = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    await holder.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    await holder.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
     const watcher = await CdpConnection.fromPort(cdpEndpoint(h.port));
     await watcher.send("Target.setDiscoverTargets", { discover: true });
     ext.ws.close();
@@ -836,24 +1266,41 @@ describe("bridge host as a CDP endpoint", () => {
     // A socket that held nothing has no dead id to carry; it stays, and hears
     // the setup hint on its next call.
     expect(watcher.isOpen()).toBe(true);
-    await expect(watcher.send("Target.getTargets")).rejects.toThrow(/extension is not connected/);
-    await expect(watcher.send("Target.getTargets")).rejects.toThrow(BRIDGE_STORE_URL);
+    await expect(watcher.send("Target.getTargets")).rejects.toThrow(
+      /extension is not connected/,
+    );
+    await expect(watcher.send("Target.getTargets")).rejects.toThrow(
+      BRIDGE_STORE_URL,
+    );
     watcher.close();
   });
 
   test("Chrome detaching the debugger from a tab disconnects the clients bound to that tab, not the others", async () => {
     const h = await freshHost();
-    const ext = await new FakeExtension([FakeExtension.tab(7), FakeExtension.tab(8)]).connect(h.port);
+    const ext = await new FakeExtension([
+      FakeExtension.tab(7),
+      FakeExtension.tab(8),
+    ]).connect(h.port);
     const onSeven = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    await onSeven.send("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    await onSeven.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(7),
+      flatten: true,
+    });
     const onEight = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const eight = await onEight.send("Target.attachToTarget", { targetId: targetIdOfTab(8), flatten: true });
+    const eight = await onEight.send("Target.attachToTarget", {
+      targetId: targetIdOfTab(8),
+      flatten: true,
+    });
     ext.ws.send(JSON.stringify({ op: "detached", tabId: 7 }));
     await waitUntil(() => !onSeven.isOpen());
     expect(onSeven.isOpen()).toBe(false);
     expect(onEight.isOpen()).toBe(true);
     // The other client's session still reaches its tab.
-    const r = await onEight.send("Runtime.evaluate", { expression: "1" }, eight.sessionId);
+    const r = await onEight.send(
+      "Runtime.evaluate",
+      { expression: "1" },
+      eight.sessionId,
+    );
     expect(r.echo.tabId).toBe(8);
     onEight.close();
   });
@@ -876,55 +1323,150 @@ describe("bridge host as a CDP endpoint", () => {
 });
 
 describe("bridge host guardrails", () => {
-  const agentTab = (tabId: number, url: string) => ({ ...FakeExtension.tab(tabId, url), owned: true });
+  const agentTab = (tabId: number, url: string) => ({
+    ...FakeExtension.tab(tabId, url),
+    owned: true,
+  });
 
   test("storage and cookie calls read the client's hosts from tab events, not a tab listing per call", async () => {
     const h = await freshHost();
-    const ext = await new FakeExtension([agentTab(7, "https://www.example.com/a")]).connect(h.port);
-    ext.cdpResult = (method) => (method === "Network.getAllCookies" ? { cookies: [{ name: "site", domain: ".example.com" }] } : undefined);
+    const ext = await new FakeExtension([
+      agentTab(7, "https://www.example.com/a"),
+    ]).connect(h.port);
+    ext.cdpResult = (method) =>
+      method === "Network.getAllCookies"
+        ? { cookies: [{ name: "site", domain: ".example.com" }] }
+        : undefined;
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: targetIdOfTab(7), flatten: true },
+    );
     const listings = () => ext.seen.filter((m) => m.op === "tabs.list").length;
     const before = listings();
     for (let i = 0; i < 5; i++) {
       await conn.send("DOMStorage.enable", {}, sessionId);
-      await conn.send("IndexedDB.requestDatabaseNames", { securityOrigin: "https://www.example.com" }, sessionId);
+      await conn.send(
+        "IndexedDB.requestDatabaseNames",
+        { securityOrigin: "https://www.example.com" },
+        sessionId,
+      );
       await conn.send("Network.getAllCookies", {}, sessionId);
     }
     expect(listings() - before).toBe(0);
-    await expect(conn.send("IndexedDB.requestDatabaseNames", { securityOrigin: "https://bank.com" }, sessionId)).rejects.toThrow(/refuses IndexedDB/);
+    await expect(
+      conn.send(
+        "IndexedDB.requestDatabaseNames",
+        { securityOrigin: "https://bank.com" },
+        sessionId,
+      ),
+    ).rejects.toThrow(/refuses IndexedDB/);
     conn.close();
   });
 
   test("refuses jar-wide wipes before the extension, and narrows cookie reads to the client's own tab hosts", async () => {
     const h = await freshHost();
-    const ext = await new FakeExtension([agentTab(7, "https://www.example.com/a"), agentTab(8, "https://bank.com/")]).connect(h.port);
+    const ext = await new FakeExtension([
+      agentTab(7, "https://www.example.com/a"),
+      agentTab(8, "https://bank.com/"),
+    ]).connect(h.port);
     ext.cdpResult = (method) =>
-      method === "Network.getAllCookies" || method === "Storage.getCookies" || method === "Network.getCookies"
-        ? { cookies: [{ name: "site", domain: ".example.com" }, { name: "bank", domain: "bank.com" }] }
+      method === "Network.getAllCookies" ||
+      method === "Storage.getCookies" ||
+      method === "Network.getCookies"
+        ? {
+            cookies: [
+              { name: "site", domain: ".example.com" },
+              { name: "bank", domain: "bank.com" },
+            ],
+          }
         : undefined;
     const conn = await CdpConnection.fromPort(cdpEndpoint(h.port));
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: targetIdOfTab(7), flatten: true },
+    );
 
-    for (const method of ["Network.getAllCookies", "Storage.getCookies", "Network.getCookies"]) {
-      const r = await conn.send<{ cookies: Array<{ name: string }> }>(method, {}, sessionId);
-      expect({ method, names: r.cookies.map((c) => c.name) }).toEqual({ method, names: ["site"] });
+    for (const method of [
+      "Network.getAllCookies",
+      "Storage.getCookies",
+      "Network.getCookies",
+    ]) {
+      const r = await conn.send<{ cookies: Array<{ name: string }> }>(
+        method,
+        {},
+        sessionId,
+      );
+      expect({ method, names: r.cookies.map((c) => c.name) }).toEqual({
+        method,
+        names: ["site"],
+      });
     }
-    await expect(conn.send("Network.getCookies", { urls: ["https://bank.com/"] }, sessionId)).rejects.toThrow(/refuses Network.getCookies for https:\/\/bank.com/);
-    await expect(conn.send("Network.setCookie", { name: "x", value: "1", domain: ".bank.com" }, sessionId)).rejects.toThrow(/refuses Network.setCookie/);
-    expect((await conn.send<any>("Network.setCookie", { name: "x", value: "1", url: "https://www.example.com/" }, sessionId)).echo.method).toBe("Network.setCookie");
-    await expect(conn.send("Network.clearBrowserCookies", {}, sessionId)).rejects.toThrow(/refuses Network.clearBrowserCookies/);
-    await expect(conn.send("Storage.clearDataForOrigin", { origin: "https://www.example.com", storageTypes: "all" }, sessionId)).rejects.toThrow(/refuses Storage.clearDataForOrigin/);
-    await expect(conn.send("Page.navigate", { url: "file:///etc/passwd" }, sessionId)).rejects.toThrow(/refuses Page.navigate/);
-    await expect(conn.send("Browser.grantPermissions", { permissions: ["geolocation"] })).rejects.toThrow(/refuses Browser.grantPermissions/);
-    await expect(conn.send("Target.createTarget", { url: "chrome://settings" })).rejects.toThrow(/refuses Target.createTarget/);
+    await expect(
+      conn.send(
+        "Network.getCookies",
+        { urls: ["https://bank.com/"] },
+        sessionId,
+      ),
+    ).rejects.toThrow(/refuses Network.getCookies for https:\/\/bank.com/);
+    await expect(
+      conn.send(
+        "Network.setCookie",
+        { name: "x", value: "1", domain: ".bank.com" },
+        sessionId,
+      ),
+    ).rejects.toThrow(/refuses Network.setCookie/);
+    expect(
+      (
+        await conn.send<any>(
+          "Network.setCookie",
+          { name: "x", value: "1", url: "https://www.example.com/" },
+          sessionId,
+        )
+      ).echo.method,
+    ).toBe("Network.setCookie");
+    await expect(
+      conn.send("Network.clearBrowserCookies", {}, sessionId),
+    ).rejects.toThrow(/refuses Network.clearBrowserCookies/);
+    await expect(
+      conn.send(
+        "Storage.clearDataForOrigin",
+        { origin: "https://www.example.com", storageTypes: "all" },
+        sessionId,
+      ),
+    ).rejects.toThrow(/refuses Storage.clearDataForOrigin/);
+    await expect(
+      conn.send("Page.navigate", { url: "file:///etc/passwd" }, sessionId),
+    ).rejects.toThrow(/refuses Page.navigate/);
+    await expect(
+      conn.send("Browser.grantPermissions", { permissions: ["geolocation"] }),
+    ).rejects.toThrow(/refuses Browser.grantPermissions/);
+    await expect(
+      conn.send("Target.createTarget", { url: "chrome://settings" }),
+    ).rejects.toThrow(/refuses Target.createTarget/);
     // A tab's download behavior is a browser-level command chrome.debugger refuses (rig, 2026-11-07): answered here, in plain words.
-    for (const m of ["Browser.setDownloadBehavior", "Page.setDownloadBehavior"]) {
-      await expect(conn.send(m, { behavior: "allow", downloadPath: "/tmp/x" }, sessionId)).rejects.toThrow(/cannot choose or find the file/);
+    for (const m of [
+      "Browser.setDownloadBehavior",
+      "Page.setDownloadBehavior",
+    ]) {
+      await expect(
+        conn.send(m, { behavior: "allow", downloadPath: "/tmp/x" }, sessionId),
+      ).rejects.toThrow(/cannot choose or find the file/);
     }
-    expect(await conn.send<Record<string, unknown>>("Browser.setDownloadBehavior", { behavior: "allow" })).toEqual({});
+    expect(
+      await conn.send<Record<string, unknown>>("Browser.setDownloadBehavior", {
+        behavior: "allow",
+      }),
+    ).toEqual({});
     const reached = ext.seen.filter((m) => m.op === "cdp").map((m) => m.method);
-    for (const m of ["Network.clearBrowserCookies", "Storage.clearDataForOrigin", "Browser.grantPermissions", "Browser.setDownloadBehavior", "Page.setDownloadBehavior"]) expect(reached).not.toContain(m);
+    for (const m of [
+      "Network.clearBrowserCookies",
+      "Storage.clearDataForOrigin",
+      "Browser.grantPermissions",
+      "Browser.setDownloadBehavior",
+      "Page.setDownloadBehavior",
+    ])
+      expect(reached).not.toContain(m);
     expect(reached.filter((m) => m === "Network.setCookie")).toHaveLength(1);
     expect(reached.filter((m) => m === "Page.navigate")).toHaveLength(0);
     conn.close();
@@ -933,29 +1475,69 @@ describe("bridge host guardrails", () => {
   test("a session's allowlist refuses an off-list navigate and blanks an off-list landing", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-guard-"));
     fs.mkdirSync(path.join(dir, ".codecast"));
-    fs.writeFileSync(path.join(dir, ".codecast", "workspace.toml"), `[browser]\nallow = ["*.example.com"]\n`);
+    fs.writeFileSync(
+      path.join(dir, ".codecast", "workspace.toml"),
+      `[browser]\nallow = ["*.example.com"]\n`,
+    );
     const h = await freshHost();
-    const ext = await new FakeExtension([agentTab(7, "https://www.example.com/a")]).connect(h.port);
-    const grant = await fetch(`http://127.0.0.1:${h.port}/grant?token=${TOKEN}&session=s1&target=${targetIdOfTab(7)}&cwd=${encodeURIComponent(dir)}`, { method: "POST" });
+    const ext = await new FakeExtension([
+      agentTab(7, "https://www.example.com/a"),
+    ]).connect(h.port);
+    const grant = await fetch(
+      `http://127.0.0.1:${h.port}/grant?token=${TOKEN}&session=s1&target=${targetIdOfTab(7)}&cwd=${encodeURIComponent(dir)}`,
+      { method: "POST" },
+    );
     expect(grant.status).toBe(200);
-    const conn = await CdpConnection.fromPort({ ...cdpEndpoint(h.port), session: "s1" });
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: targetIdOfTab(7), flatten: true });
-    await expect(conn.send("Page.navigate", { url: "https://evil.test/" }, sessionId)).rejects.toThrow(/refuses to navigate to https:\/\/evil.test\/: https:\/\/evil.test is not in the site allowlist/);
-    expect((await conn.send<any>("Page.navigate", { url: "https://docs.example.com/" }, sessionId)).echo.params.url).toBe("https://docs.example.com/");
-    await expect(conn.send("Target.createTarget", { url: "http://127.0.0.1:8080" })).rejects.toThrow(/refuses to open/);
+    const conn = await CdpConnection.fromPort({
+      ...cdpEndpoint(h.port),
+      session: "s1",
+    });
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: targetIdOfTab(7), flatten: true },
+    );
+    await expect(
+      conn.send("Page.navigate", { url: "https://evil.test/" }, sessionId),
+    ).rejects.toThrow(
+      /refuses to navigate to https:\/\/evil.test\/: https:\/\/evil.test is not in the site allowlist/,
+    );
+    expect(
+      (
+        await conn.send<any>(
+          "Page.navigate",
+          { url: "https://docs.example.com/" },
+          sessionId,
+        )
+      ).echo.params.url,
+    ).toBe("https://docs.example.com/");
+    await expect(
+      conn.send("Target.createTarget", { url: "http://127.0.0.1:8080" }),
+    ).rejects.toThrow(/refuses to open/);
 
     // A redirect carries the tab off the list: the host sends it to about:blank.
     ext.tabEvent("updated", agentTab(7, "https://evil.test/landing"));
     const deadline = Date.now() + 3000;
-    const blanked = () => ext.seen.some((m) => m.op === "cdp" && m.tabId === 7 && m.method === "Page.navigate" && m.params.url === "about:blank");
-    while (!blanked() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 15));
+    const blanked = () =>
+      ext.seen.some(
+        (m) =>
+          m.op === "cdp" &&
+          m.tabId === 7 &&
+          m.method === "Page.navigate" &&
+          m.params.url === "about:blank",
+      );
+    while (!blanked() && Date.now() < deadline)
+      await new Promise((r) => setTimeout(r, 15));
     expect(blanked()).toBe(true);
     // An in-list landing and the blank page itself are left alone.
     const before = ext.seen.length;
     ext.tabEvent("updated", agentTab(7, "about:blank"));
     ext.tabEvent("updated", agentTab(7, "https://www.example.com/b"));
     await new Promise((r) => setTimeout(r, 100));
-    expect(ext.seen.slice(before).filter((m) => m.op === "cdp" && m.method === "Page.navigate")).toEqual([]);
+    expect(
+      ext.seen
+        .slice(before)
+        .filter((m) => m.op === "cdp" && m.method === "Page.navigate"),
+    ).toEqual([]);
     conn.close();
     fs.rmSync(dir, { recursive: true, force: true });
   });

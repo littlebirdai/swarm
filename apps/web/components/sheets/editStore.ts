@@ -62,7 +62,9 @@ export function wantsReference(text: string, caret: number): boolean {
 /** The function name being typed at the caret ("=SU|" -> "SU"), for autocomplete. */
 export function fnPrefixAt(text: string, caret: number): string | null {
   if (!text.startsWith("=")) return null;
-  const m = text.slice(0, caret).match(/(?:^=|[=+\-*/^&,(<>\s])([A-Za-z][A-Za-z0-9.]*)$/);
+  const m = text
+    .slice(0, caret)
+    .match(/(?:^=|[=+\-*/^&,(<>\s])([A-Za-z][A-Za-z0-9.]*)$/);
   return m ? m[1].toUpperCase() : null;
 }
 
@@ -77,7 +79,8 @@ export function finishInput(text: string): string {
     if (ch === "'" && !inStr) {
       // A quoted tab name ('Costs (draft)'!A1): skip to its closing quote ('' escapes one).
       let j = i + 1;
-      while (j < text.length && !(text[j] === "'" && text[j + 1] !== "'")) j += text[j] === "'" ? 2 : 1;
+      while (j < text.length && !(text[j] === "'" && text[j + 1] !== "'"))
+        j += text[j] === "'" ? 2 : 1;
       i = j;
     } else if (ch === '"') {
       if (inStr && text[i + 1] === '"') i++;
@@ -89,7 +92,10 @@ export function finishInput(text: string): string {
 }
 
 /** F4: the reference at the caret, cycled A1 -> $A$1 -> A$1 -> $A1 -> A1. */
-export function cycleAnchors(text: string, caret: number): { text: string; caret: number } | null {
+export function cycleAnchors(
+  text: string,
+  caret: number,
+): { text: string; caret: number } | null {
   if (!isFormula(text)) return null;
   let toks;
   try {
@@ -98,10 +104,20 @@ export function cycleAnchors(text: string, caret: number): { text: string; caret
     return null;
   }
   const at = caret - 1;
-  const t = toks.find((x) => x.type === "ref" && at >= x.start && at <= x.end) as Extract<ReturnType<typeof tokenize>[number], { type: "ref" }> | undefined;
+  const t = toks.find(
+    (x) => x.type === "ref" && at >= x.start && at <= x.end,
+  ) as
+    | Extract<ReturnType<typeof tokenize>[number], { type: "ref" }>
+    | undefined;
   if (!t || t.shape === "cols" || t.shape === "rows") return null;
   const next = (p: { absCol: boolean; absRow: boolean }) =>
-    !p.absCol && !p.absRow ? { absCol: true, absRow: true } : p.absCol && p.absRow ? { absCol: false, absRow: true } : !p.absCol && p.absRow ? { absCol: true, absRow: false } : { absCol: false, absRow: false };
+    !p.absCol && !p.absRow
+      ? { absCol: true, absRow: true }
+      : p.absCol && p.absRow
+        ? { absCol: false, absRow: true }
+        : !p.absCol && p.absRow
+          ? { absCol: true, absRow: false }
+          : { absCol: false, absRow: false };
   const a = { ...t.a, ...next(t.a) };
   const b = t.b ? { ...t.b, ...next(t.a) } : undefined;
   const body = refText({ ...t, a, b });

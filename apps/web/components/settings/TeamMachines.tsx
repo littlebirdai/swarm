@@ -5,7 +5,13 @@ import { Bot, MonitorSmartphone } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { splitStaleMachines } from "../../lib/staleMachines";
-import { DeviceDot, DeviceIcon, deviceDisplayName, useDevices, type Device } from "../DeviceBadge";
+import {
+  DeviceDot,
+  DeviceIcon,
+  deviceDisplayName,
+  useDevices,
+  type Device,
+} from "../DeviceBadge";
 import { DeviceShareControl } from "./DeviceShareControl";
 import { TeamMachineCard } from "./TeamMachineCard";
 import { ManagedDevicePill } from "./ManagedDevicePill";
@@ -13,7 +19,12 @@ import { SettingsSection } from "./ui";
 import { useSyncTeamMachines } from "../../hooks/useSyncTeamMachines";
 import { teamMachineOfDevice } from "../../lib/teamMachines";
 
-type LentMachine = Device & { team_id: string; bot_name: string | null; runner_name?: string | null; is_bot?: boolean };
+type LentMachine = Device & {
+  team_id: string;
+  bot_name: string | null;
+  runner_name?: string | null;
+  is_bot?: boolean;
+};
 
 /**
  * Settings → Team: the machines this team can run sessions on, and a one-pill
@@ -26,14 +37,23 @@ export function TeamMachines({ teamId }: { teamId: string }) {
   useSyncTeamMachines();
   const allMachines = useInboxStore((s) => s.teamMachines);
   const me = useInboxStore((s) => s.currentUser?._id);
-  const machines = useMemo(() => allMachines.filter((m) => String(m.team_id) === teamId), [allMachines, teamId]);
-  const shared = ((useSettingsData("agentBoxes").data ?? []) as LentMachine[]).filter((m) => String(m.team_id) === teamId);
+  const machines = useMemo(
+    () => allMachines.filter((m) => String(m.team_id) === teamId),
+    [allMachines, teamId],
+  );
+  const shared = (
+    (useSettingsData("agentBoxes").data ?? []) as LentMachine[]
+  ).filter((m) => String(m.team_id) === teamId);
   // A device on a team machine is already the team's: it is listed under its machine, never lent.
   const mine = useMemo(
-    () => splitStaleMachines(devices, Date.now()).current.filter((d) => !teamMachineOfDevice(allMachines, d.device_id, me)),
+    () =>
+      splitStaleMachines(devices, Date.now()).current.filter(
+        (d) => !teamMachineOfDevice(allMachines, d.device_id, me),
+      ),
     [devices, allMachines, me],
   );
-  if (mine.length === 0 && shared.length === 0 && machines.length === 0) return null;
+  if (mine.length === 0 && shared.length === 0 && machines.length === 0)
+    return null;
   return (
     <SettingsSection
       title="Machines"
@@ -49,9 +69,20 @@ export function TeamMachines({ teamId }: { teamId: string }) {
         </button>
       }
     >
-      {machines.map((m) => <TeamMachineCard key={m._id} m={m} />)}
+      {machines.map((m) => (
+        <TeamMachineCard key={m._id} m={m} />
+      ))}
       {shared.map((m) => (
-        <Row key={`${m.team_id}:${m.device_id}`} d={m} note={m.is_bot === false ? `${m.runner_name ?? "A teammate"}'s` : `agent box · ${m.bot_name ?? "bot"}`} bot={m.is_bot !== false} />
+        <Row
+          key={`${m.team_id}:${m.device_id}`}
+          d={m}
+          note={
+            m.is_bot === false
+              ? `${m.runner_name ?? "A teammate"}'s`
+              : `agent box · ${m.bot_name ?? "bot"}`
+          }
+          bot={m.is_bot !== false}
+        />
       ))}
       {mine.map((d) => (
         <Row key={d.device_id} d={d} note="yours">
@@ -62,12 +93,29 @@ export function TeamMachines({ teamId }: { teamId: string }) {
   );
 }
 
-function Row({ d, note, bot, children }: { d: Device; note: string; bot?: boolean; children?: React.ReactNode }) {
+function Row({
+  d,
+  note,
+  bot,
+  children,
+}: {
+  d: Device;
+  note: string;
+  bot?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
-      <span className="text-sol-text-muted">{bot ? <Bot className="h-4 w-4" /> : <DeviceIcon d={d} className="h-4 w-4" />}</span>
+      <span className="text-sol-text-muted">
+        {bot ? (
+          <Bot className="h-4 w-4" />
+        ) : (
+          <DeviceIcon d={d} className="h-4 w-4" />
+        )}
+      </span>
       <span className="min-w-0 flex-1 truncate text-sm text-sol-text">
-        {deviceDisplayName(d)} <span className="text-meta text-sol-text-dim">{note}</span>
+        {deviceDisplayName(d)}{" "}
+        <span className="text-meta text-sol-text-dim">{note}</span>
       </span>
       <ManagedDevicePill d={d} />
       <DeviceDot online={d.online} />

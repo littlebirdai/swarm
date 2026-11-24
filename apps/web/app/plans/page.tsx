@@ -44,11 +44,18 @@ import { planLivenessState } from "../../lib/liveness";
 import { useTitlebarHead } from "../../hooks/useTitlebarHead";
 import { PageHeader } from "../../components/ui/page-header";
 import { Button } from "../../components/ui/button";
-import { modernButton, modernTab, modernTabList } from "../../components/ui/modernLook";
+import {
+  modernButton,
+  modernTab,
+  modernTabList,
+} from "../../components/ui/modernLook";
 
 type PlanStatus = "draft" | "active" | "paused" | "done" | "abandoned";
 
-const STATUS_CONFIG: Record<PlanStatus, { icon: typeof Circle; label: string; color: string }> = {
+const STATUS_CONFIG: Record<
+  PlanStatus,
+  { icon: typeof Circle; label: string; color: string }
+> = {
   draft: { icon: Circle, label: "Draft", color: "text-sol-text-dim" },
   active: { icon: CircleDot, label: "Active", color: "text-sol-cyan" },
   paused: { icon: PauseCircle, label: "Paused", color: "text-sol-yellow" },
@@ -56,9 +63,19 @@ const STATUS_CONFIG: Record<PlanStatus, { icon: typeof Circle; label: string; co
   abandoned: { icon: XCircle, label: "Abandoned", color: "text-sol-text-dim" },
 };
 
-const STATUS_ORDER: PlanStatus[] = ["active", "draft", "paused", "done", "abandoned"];
+const STATUS_ORDER: PlanStatus[] = [
+  "active",
+  "draft",
+  "paused",
+  "done",
+  "abandoned",
+];
 
-function MiniProgressBar({ progress }: { progress?: { total: number; done: number; in_progress: number } }) {
+function MiniProgressBar({
+  progress,
+}: {
+  progress?: { total: number; done: number; in_progress: number };
+}) {
   if (!progress || progress.total === 0) return null;
   const donePct = (progress.done / progress.total) * 100;
   const ipPct = (progress.in_progress / progress.total) * 100;
@@ -67,8 +84,14 @@ function MiniProgressBar({ progress }: { progress?: { total: number; done: numbe
     <div className="flex items-center gap-1.5">
       <div className="w-16 h-1 bg-sol-border/30 rounded-full overflow-hidden">
         <div className="h-full flex">
-          <div className="bg-sol-green transition-all" style={{ width: `${donePct}%` }} />
-          <div className="bg-sol-yellow transition-all" style={{ width: `${ipPct}%` }} />
+          <div
+            className="bg-sol-green transition-all"
+            style={{ width: `${donePct}%` }}
+          />
+          <div
+            className="bg-sol-yellow transition-all"
+            style={{ width: `${ipPct}%` }}
+          />
         </div>
       </div>
       <span className="text-meta text-sol-text-dim tabular-nums">
@@ -99,7 +122,8 @@ function SidebarPlanItem({
   onSelect: () => void;
   onContextMenu: (e: MouseEvent) => void;
 }) {
-  const status = STATUS_CONFIG[plan.status as PlanStatus] || STATUS_CONFIG.draft;
+  const status =
+    STATUS_CONFIG[plan.status as PlanStatus] || STATUS_CONFIG.draft;
   const StatusIcon = status.icon;
   const sessionCount = plan.session_ids?.length || 0;
   const activeAgents = plan.active_agents || 0;
@@ -118,11 +142,15 @@ function SidebarPlanItem({
     >
       <div className="flex items-center gap-2 min-w-0">
         {liveness === "active" ? (
-          <LivePulseHalo><StatusIcon className={`w-3.5 h-3.5 ${status.color}`} /></LivePulseHalo>
+          <LivePulseHalo>
+            <StatusIcon className={`w-3.5 h-3.5 ${status.color}`} />
+          </LivePulseHalo>
         ) : (
           <StatusIcon className={`w-3.5 h-3.5 flex-shrink-0 ${status.color}`} />
         )}
-        <span className={`text-sm truncate ${isSelected ? "text-sol-text font-medium" : "text-sol-text"}`}>
+        <span
+          className={`text-sm truncate ${isSelected ? "text-sol-text font-medium" : "text-sol-text"}`}
+        >
           {plan.title}
         </span>
       </div>
@@ -130,13 +158,19 @@ function SidebarPlanItem({
         <ShortId id={plan.short_id} className="text-meta text-sol-text-dim" />
         <MiniProgressBar progress={plan.progress} />
         {activeAgents > 0 && (
-          <span className="flex items-center gap-0.5 text-meta text-sol-green" title={`${activeAgents} active ${activeAgents === 1 ? "agent" : "agents"}`}>
+          <span
+            className="flex items-center gap-0.5 text-meta text-sol-green"
+            title={`${activeAgents} active ${activeAgents === 1 ? "agent" : "agents"}`}
+          >
             <Zap className="w-2.5 h-2.5" />
             {activeAgents}
           </span>
         )}
         {taskCount > 0 && (
-          <span className="flex items-center gap-0.5 text-meta text-sol-text-dim tabular-nums" title={`${taskCount} ${taskCount === 1 ? "task" : "tasks"}`}>
+          <span
+            className="flex items-center gap-0.5 text-meta text-sol-text-dim tabular-nums"
+            title={`${taskCount} ${taskCount === 1 ? "task" : "tasks"}`}
+          >
             <ListChecks className="w-2.5 h-2.5" />
             {taskCount}
           </span>
@@ -157,9 +191,19 @@ function SidebarPlanItem({
 
 /** Whose plans the list shows: yours (the person glyph) or everyone's, agents'
  *  included. `small`: the desktop list's own head (Classic and Minimal). */
-function PlanSourceToggle({ planSource, setPlanSource, small }: { planSource: string; setPlanSource: (v: string) => void; small?: boolean }) {
+function PlanSourceToggle({
+  planSource,
+  setPlanSource,
+  small,
+}: {
+  planSource: string;
+  setPlanSource: (v: string) => void;
+  small?: boolean;
+}) {
   return (
-    <div className={`flex items-center rounded-md border border-sol-border/40 overflow-hidden ${modernTabList}`}>
+    <div
+      className={`flex items-center rounded-md border border-sol-border/40 overflow-hidden ${modernTabList}`}
+    >
       <button
         onClick={() => setPlanSource("human")}
         aria-pressed={planSource === "human"}
@@ -208,7 +252,9 @@ function StatusGroup({
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center gap-2 px-3 py-1.5 bg-sol-bg-alt/40 border-b border-sol-border/15 hover:bg-sol-bg-alt/60 transition-colors"
       >
-        <ChevronRight className={`w-3 h-3 text-sol-text-dim transition-transform ${collapsed ? "" : "rotate-90"}`} />
+        <ChevronRight
+          className={`w-3 h-3 text-sol-text-dim transition-transform ${collapsed ? "" : "rotate-90"}`}
+        />
         <Icon className={`w-3 h-3 ${config.color}`} />
         <span className="text-mark font-medium text-sol-text-dim uppercase tracking-wide">
           {config.label}
@@ -221,7 +267,9 @@ function StatusGroup({
             <SidebarPlanItem
               key={p._id}
               plan={p}
-              isSelected={selectedPlanId === p._id || selectedPlanId === p.short_id}
+              isSelected={
+                selectedPlanId === p._id || selectedPlanId === p.short_id
+              }
               onSelect={() => onSelectPlan(p.short_id || p._id)}
               onContextMenu={(e) => onPlanContextMenu(e, p)}
             />
@@ -243,9 +291,14 @@ export default function PlansPage() {
   const planView = useInboxStore((s) => s.clientState.ui?.plan_view);
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
   const planSource = planView?.source ?? "";
-  const setPlanSource = useCallback((source: string) => {
-    updateClientUI({ plan_view: { ...planView, source: source || undefined } });
-  }, [updateClientUI, planView]);
+  const setPlanSource = useCallback(
+    (source: string) => {
+      updateClientUI({
+        plan_view: { ...planView, source: source || undefined },
+      });
+    },
+    [updateClientUI, planView],
+  );
 
   // The source toggle is otherwise store-only; honor a shared ?source= deep link
   // once on mount so the copied "link to this view" round-trips back through here.
@@ -289,22 +342,30 @@ export default function PlansPage() {
   useSyncPlansWithArgs(showDone ? workspaceArgs : "skip", "done");
   const wsPlans = useWorkspaceCollection<any>(
     "plans",
-    (p) => `${p.status}|${p.source ?? ""}|${p.updated_at ?? 0}|${p.title ?? ""}|${p.progress?.done ?? 0}/${p.progress?.total ?? 0}`,
+    (p) =>
+      `${p.status}|${p.source ?? ""}|${p.updated_at ?? 0}|${p.title ?? ""}|${p.progress?.done ?? 0}/${p.progress?.total ?? 0}`,
   );
 
   const rawPlans = useMemo(() => {
     // Mirror the server's read-time filter: done/abandoned stay hidden until
     // asked for. The store may hold them from an earlier toggle or another
     // surface's sync; the filter, not the fetch, is what hides them.
-    const rows = showDone ? wsPlans : wsPlans.filter((p: any) => p.status !== "done" && p.status !== "abandoned");
-    return [...rows].sort((a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0));
+    const rows = showDone
+      ? wsPlans
+      : wsPlans.filter(
+          (p: any) => p.status !== "done" && p.status !== "abandoned",
+        );
+    return [...rows].sort(
+      (a: any, b: any) => (b.updated_at || 0) - (a.updated_at || 0),
+    );
   }, [wsPlans, showDone]);
   // Skeleton only for a genuinely cold cache: no cached rows AND the first
   // answer still in flight. A populated store paints instantly.
   const plansLoading = !ready && rawPlans.length === 0;
 
   const allPlans = useMemo(() => {
-    if (planSource === "human") return rawPlans.filter((p: any) => p.source === "human" || !p.source);
+    if (planSource === "human")
+      return rawPlans.filter((p: any) => p.source === "human" || !p.source);
     return rawPlans; // Default: show everything
   }, [rawPlans, planSource]);
 
@@ -313,27 +374,39 @@ export default function PlansPage() {
     return rawPlans.filter((p: any) => p.source && p.source !== "human").length;
   }, [rawPlans, planSource]);
 
-  const grouped = STATUS_ORDER.reduce((acc, status) => {
-    acc[status] = allPlans.filter((p: any) => p.status === status);
-    return acc;
-  }, {} as Record<PlanStatus, any[]>);
+  const grouped = STATUS_ORDER.reduce(
+    (acc, status) => {
+      acc[status] = allPlans.filter((p: any) => p.status === status);
+      return acc;
+    },
+    {} as Record<PlanStatus, any[]>,
+  );
 
-  const handleSelectPlan = useCallback((planId: string) => {
-    router.push(`/plans?plan=${planId}`);
-  }, [router]);
+  const handleSelectPlan = useCallback(
+    (planId: string) => {
+      router.push(`/plans?plan=${planId}`);
+    },
+    [router],
+  );
 
   const ctxMenu = useContextMenu<any>();
-  const handlePlanContextMenu = useCallback((e: MouseEvent, plan: any) => {
-    ctxMenu.open(e, plan);
-  }, [ctxMenu.open]);
+  const handlePlanContextMenu = useCallback(
+    (e: MouseEvent, plan: any) => {
+      ctxMenu.open(e, plan);
+    },
+    [ctxMenu.open],
+  );
 
   const [isMobile, setIsMobile] = useState(false);
   useMountEffect(() => {
     setIsMobile(window.innerWidth < 768);
   });
-  useEventListener("resize", useCallback(() => {
-    setIsMobile(window.innerWidth < 768);
-  }, []));
+  useEventListener(
+    "resize",
+    useCallback(() => {
+      setIsMobile(window.innerWidth < 768);
+    }, []),
+  );
 
   if (isMobile) {
     return (
@@ -361,146 +434,196 @@ export default function PlansPage() {
           closeHref="/plans"
           list={
             <div className="flex flex-col h-full bg-sol-bg">
-            <PageHeader
-              legacy={
-                <div ref={titlebarRef} className="cc-panel__head justify-between">
-                  {/* The tab bar already says "Plans"; repeating it here was the
-                      doubled title. Identity stays as the glyph alone. */}
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-sol-cyan" />
-                    <h2 className="sr-only">Plans</h2>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <PlanSourceToggle planSource={planSource} setPlanSource={setPlanSource} small />
-                    <button
-                      onClick={copyViewLink}
-                      className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
-                      title="Copy link to this view" aria-label="Copy link to this view"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                    </button>
-                    {chatOn && (
-                      <button
-                        onClick={sendView}
-                        className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
-                        title="Send this view to chat" aria-label="Send this view to chat"
-                      >
-                        <Forward className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={toggleCreate}
-                      className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
-                      title="New Plan" aria-label="New plan"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              }
-              title="Plans"
-              icon={Target}
-              count={plansLoading ? null : allPlans.length}
-              tabs={<PlanSourceToggle planSource={planSource} setPlanSource={setPlanSource} />}
-              actions={<>
-                <Button variant="ghost" size="icon-sm" onClick={copyViewLink} title="Copy link to this view" aria-label="Copy link to this view">
-                  <Link2 />
-                </Button>
-                {chatOn && (
-                  <Button variant="ghost" size="icon-sm" onClick={sendView} title="Send this view to chat" aria-label="Send this view to chat">
-                    <Forward />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon-sm" onClick={toggleCreate} title="New Plan" aria-label="New Plan">
-                  <Plus />
-                </Button>
-              </>}
-            />
-
-            {showCreate && (
-              <CreateDocModal onClose={() => setShowCreate(false)} initialType="plan" />
-            )}
-
-            <div className="flex-1 overflow-y-auto">
-              {plansLoading ? (
-                <AppLoader className="min-h-[16rem] h-full" />
-              ) : allPlans.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-32 text-sol-text-dim px-4">
-                  <Target className="w-6 h-6 mb-2 opacity-30" />
-                  <p className="text-xs">No plans yet</p>
-                  <button
-                    onClick={() => setShowCreate(true)}
-                    className="mt-2 flex items-center gap-1 text-xs text-sol-cyan hover:text-sol-text transition-colors"
+              <PageHeader
+                legacy={
+                  <div
+                    ref={titlebarRef}
+                    className="cc-panel__head justify-between"
                   >
-                    <Plus className="w-3 h-3" />
-                    Create your first plan
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {STATUS_ORDER.filter(s => s !== "done" && s !== "abandoned").map(status => (
-                    <StatusGroup
-                      key={status}
-                      status={status}
-                      plans={grouped[status]}
-                      selectedPlanId={selectedPlan}
-                      onSelectPlan={handleSelectPlan}
-                      onPlanContextMenu={handlePlanContextMenu}
-                    />
-                  ))}
-                  {(grouped.done.length > 0 || !showDone) && (
-                    <div>
-                      {showDone ? (
-                        <StatusGroup
-                          status="done"
-                          plans={grouped.done}
-                          selectedPlanId={selectedPlan}
-                          onSelectPlan={handleSelectPlan}
-                          onPlanContextMenu={handlePlanContextMenu}
-                          defaultCollapsed
-                        />
-                      ) : (
+                    {/* The tab bar already says "Plans"; repeating it here was the
+                      doubled title. Identity stays as the glyph alone. */}
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-sol-cyan" />
+                      <h2 className="sr-only">Plans</h2>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <PlanSourceToggle
+                        planSource={planSource}
+                        setPlanSource={setPlanSource}
+                        small
+                      />
+                      <button
+                        onClick={copyViewLink}
+                        className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
+                        title="Copy link to this view"
+                        aria-label="Copy link to this view"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                      {chatOn && (
                         <button
-                          onClick={() => setShowDone(true)}
-                          className="w-full flex items-center gap-2 px-3 py-1.5 bg-sol-bg-alt/20 border-b border-sol-border/15 hover:bg-sol-bg-alt/40 transition-colors text-meta text-sol-text-dim"
+                          onClick={sendView}
+                          className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
+                          title="Send this view to chat"
+                          aria-label="Send this view to chat"
                         >
-                          <CheckCircle2 className="w-3 h-3" />
-                          Show completed plans
+                          <Forward className="w-3.5 h-3.5" />
                         </button>
                       )}
-                    </div>
-                  )}
-                  {grouped.abandoned.length > 0 && (
-                    <StatusGroup
-                      status="abandoned"
-                      plans={grouped.abandoned}
-                      selectedPlanId={selectedPlan}
-                      onSelectPlan={handleSelectPlan}
-                      onPlanContextMenu={handlePlanContextMenu}
-                      defaultCollapsed
-                    />
-                  )}
-                  {hiddenAgentCount > 0 && (
-                    <div className="px-3 py-2 flex items-center gap-1.5 text-meta text-sol-text-dim border-b border-sol-border/15">
-                      <Bot className="w-3 h-3 opacity-40" />
-                      <span>{hiddenAgentCount} agent {hiddenAgentCount === 1 ? "plan" : "plans"} not shown</span>
-                      <button onClick={() => setPlanSource("all")} className="text-sol-cyan hover:underline ml-0.5">
-                        Show
+                      <button
+                        onClick={toggleCreate}
+                        className={`p-1 rounded-md text-sol-text-dim hover:text-sol-cyan hover:bg-sol-bg-alt transition-colors ${modernButton({ variant: "ghost", size: "icon-sm" })}`}
+                        title="New Plan"
+                        aria-label="New plan"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+                  </div>
+                }
+                title="Plans"
+                icon={Target}
+                count={plansLoading ? null : allPlans.length}
+                tabs={
+                  <PlanSourceToggle
+                    planSource={planSource}
+                    setPlanSource={setPlanSource}
+                  />
+                }
+                actions={
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={copyViewLink}
+                      title="Copy link to this view"
+                      aria-label="Copy link to this view"
+                    >
+                      <Link2 />
+                    </Button>
+                    {chatOn && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={sendView}
+                        title="Send this view to chat"
+                        aria-label="Send this view to chat"
+                      >
+                        <Forward />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={toggleCreate}
+                      title="New Plan"
+                      aria-label="New Plan"
+                    >
+                      <Plus />
+                    </Button>
+                  </>
+                }
+              />
 
+              {showCreate && (
+                <CreateDocModal
+                  onClose={() => setShowCreate(false)}
+                  initialType="plan"
+                />
+              )}
+
+              <div className="flex-1 overflow-y-auto">
+                {plansLoading ? (
+                  <AppLoader className="min-h-[16rem] h-full" />
+                ) : allPlans.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 text-sol-text-dim px-4">
+                    <Target className="w-6 h-6 mb-2 opacity-30" />
+                    <p className="text-xs">No plans yet</p>
+                    <button
+                      onClick={() => setShowCreate(true)}
+                      className="mt-2 flex items-center gap-1 text-xs text-sol-cyan hover:text-sol-text transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Create your first plan
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {STATUS_ORDER.filter(
+                      (s) => s !== "done" && s !== "abandoned",
+                    ).map((status) => (
+                      <StatusGroup
+                        key={status}
+                        status={status}
+                        plans={grouped[status]}
+                        selectedPlanId={selectedPlan}
+                        onSelectPlan={handleSelectPlan}
+                        onPlanContextMenu={handlePlanContextMenu}
+                      />
+                    ))}
+                    {(grouped.done.length > 0 || !showDone) && (
+                      <div>
+                        {showDone ? (
+                          <StatusGroup
+                            status="done"
+                            plans={grouped.done}
+                            selectedPlanId={selectedPlan}
+                            onSelectPlan={handleSelectPlan}
+                            onPlanContextMenu={handlePlanContextMenu}
+                            defaultCollapsed
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setShowDone(true)}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 bg-sol-bg-alt/20 border-b border-sol-border/15 hover:bg-sol-bg-alt/40 transition-colors text-meta text-sol-text-dim"
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            Show completed plans
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {grouped.abandoned.length > 0 && (
+                      <StatusGroup
+                        status="abandoned"
+                        plans={grouped.abandoned}
+                        selectedPlanId={selectedPlan}
+                        onSelectPlan={handleSelectPlan}
+                        onPlanContextMenu={handlePlanContextMenu}
+                        defaultCollapsed
+                      />
+                    )}
+                    {hiddenAgentCount > 0 && (
+                      <div className="px-3 py-2 flex items-center gap-1.5 text-meta text-sol-text-dim border-b border-sol-border/15">
+                        <Bot className="w-3 h-3 opacity-40" />
+                        <span>
+                          {hiddenAgentCount} agent{" "}
+                          {hiddenAgentCount === 1 ? "plan" : "plans"} not shown
+                        </span>
+                        <button
+                          onClick={() => setPlanSource("all")}
+                          className="text-sol-cyan hover:underline ml-0.5"
+                        >
+                          Show
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           }
         >
-          {selectedPlan ? <PlanDetailPanel planId={selectedPlan} closeHref="/plans" /> : null}
+          {selectedPlan ? (
+            <PlanDetailPanel planId={selectedPlan} closeHref="/plans" />
+          ) : null}
         </DetailSplitLayout>
         <ContextMenu state={ctxMenu}>
           {(plan) => (
-            <PlanMenuItems plan={plan} onOpen={() => handleSelectPlan(plan.short_id || plan._id)} />
+            <PlanMenuItems
+              plan={plan}
+              onOpen={() => handleSelectPlan(plan.short_id || plan._id)}
+            />
           )}
         </ContextMenu>
       </DashboardLayout>
@@ -528,12 +651,17 @@ function MobileList({
   hiddenAgentCount: number;
 }) {
   const titlebarRef = useTitlebarHead<HTMLDivElement>();
-  const toggle = <PlanSourceToggle planSource={planSource} setPlanSource={setPlanSource} />;
+  const toggle = (
+    <PlanSourceToggle planSource={planSource} setPlanSource={setPlanSource} />
+  );
   return (
     <div className="h-full flex flex-col">
       <PageHeader
         legacy={
-          <div ref={titlebarRef} className="px-4 py-3 border-b border-sol-border/30 flex items-center justify-between">
+          <div
+            ref={titlebarRef}
+            className="px-4 py-3 border-b border-sol-border/30 flex items-center justify-between"
+          >
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-sol-cyan" />
               <h1 className="text-base font-semibold text-sol-text">Plans</h1>
@@ -555,27 +683,42 @@ function MobileList({
           </div>
         ) : (
           <>
-            {STATUS_ORDER.filter(s => s !== "done" && s !== "abandoned").map(status => {
-              if (grouped[status].length === 0) return null;
-              return (
-                <div key={status}>
-                  <div className="px-4 py-1.5 text-mark font-medium text-sol-text-dim uppercase tracking-wide bg-sol-bg-alt/30 border-b border-sol-border/15">
-                    {STATUS_CONFIG[status].label} ({grouped[status].length})
+            {STATUS_ORDER.filter((s) => s !== "done" && s !== "abandoned").map(
+              (status) => {
+                if (grouped[status].length === 0) return null;
+                return (
+                  <div key={status}>
+                    <div className="px-4 py-1.5 text-mark font-medium text-sol-text-dim uppercase tracking-wide bg-sol-bg-alt/30 border-b border-sol-border/15">
+                      {STATUS_CONFIG[status].label} ({grouped[status].length})
+                    </div>
+                    {grouped[status].map((p: any) => (
+                      <Link
+                        key={p._id}
+                        href={`/plans/${p._id}`}
+                        className="block px-4 py-3 border-b border-sol-border/15 hover:bg-sol-bg-alt/30"
+                      >
+                        <div className="text-sm text-sol-text">{p.title}</div>
+                        <ShortId
+                          id={p.short_id}
+                          className="block text-meta text-sol-text-dim mt-0.5"
+                        />
+                      </Link>
+                    ))}
                   </div>
-                  {grouped[status].map((p: any) => (
-                    <Link key={p._id} href={`/plans/${p._id}`} className="block px-4 py-3 border-b border-sol-border/15 hover:bg-sol-bg-alt/30">
-                      <div className="text-sm text-sol-text">{p.title}</div>
-                      <ShortId id={p.short_id} className="block text-meta text-sol-text-dim mt-0.5" />
-                    </Link>
-                  ))}
-                </div>
-              );
-            })}
+                );
+              },
+            )}
             {hiddenAgentCount > 0 && (
               <div className="px-4 py-2.5 flex items-center gap-1.5 text-meta text-sol-text-dim">
                 <Bot className="w-3 h-3 opacity-40" />
-                <span>{hiddenAgentCount} agent {hiddenAgentCount === 1 ? "plan" : "plans"} not shown</span>
-                <button onClick={() => setPlanSource("all")} className="text-sol-cyan hover:underline ml-0.5">
+                <span>
+                  {hiddenAgentCount} agent{" "}
+                  {hiddenAgentCount === 1 ? "plan" : "plans"} not shown
+                </span>
+                <button
+                  onClick={() => setPlanSource("all")}
+                  className="text-sol-cyan hover:underline ml-0.5"
+                >
                   Show
                 </button>
               </div>

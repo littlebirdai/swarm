@@ -14,7 +14,12 @@
 import type { ChildProcess } from "../proc.js";
 import { nextBridgeBackoff, type BridgeBackoff } from "./agentBridge.js";
 
-export interface HeldConnection { child: ChildProcess; address: string; startedAt: number; label: string }
+export interface HeldConnection {
+  child: ChildProcess;
+  address: string;
+  startedAt: number;
+  label: string;
+}
 
 export interface HeldConnectionsOptions {
   /** Log tag, e.g. "[AGENT-BRIDGE]". */
@@ -25,7 +30,16 @@ export interface HeldConnectionsOptions {
   /** Ends a connection on purpose (the bridge closes stdin first; a reach kills its process group). */
   stop: (child: ChildProcess) => void;
   /** Called on every exit, after bookkeeping, with the tail of stderr. */
-  onExit?: (key: string, info: { code: number | null; signal: NodeJS.Signals | null; stderr: string; closedOnPurpose: boolean; refused: string | null }) => void;
+  onExit?: (
+    key: string,
+    info: {
+      code: number | null;
+      signal: NodeJS.Signals | null;
+      stderr: string;
+      closedOnPurpose: boolean;
+      refused: string | null;
+    },
+  ) => void;
   /** The wait after a first failure; it doubles from there to the shared cap. Default: one bridge tick. */
   firstWaitMs?: number;
   now?: () => number;
@@ -37,12 +51,22 @@ export class HeldConnections {
   private readonly refused = new Map<string, string>();
   constructor(private readonly o: HeldConnectionsOptions) {}
 
-  private now(): number { return (this.o.now ?? Date.now)(); }
+  private now(): number {
+    return (this.o.now ?? Date.now)();
+  }
 
-  entries(): IterableIterator<[string, HeldConnection]> { return this.live.entries(); }
-  get(key: string): HeldConnection | undefined { return this.live.get(key); }
-  refusedReason(key: string): string | undefined { return this.refused.get(key); }
-  backoffUntil(key: string): number | undefined { return this.backoff.get(key)?.notBefore; }
+  entries(): IterableIterator<[string, HeldConnection]> {
+    return this.live.entries();
+  }
+  get(key: string): HeldConnection | undefined {
+    return this.live.get(key);
+  }
+  refusedReason(key: string): string | undefined {
+    return this.refused.get(key);
+  }
+  backoffUntil(key: string): number | undefined {
+    return this.backoff.get(key)?.notBefore;
+  }
 
   /** Not live, not refused, and past its backoff. */
   canOpen(key: string): boolean {
@@ -66,12 +90,29 @@ export class HeldConnections {
   }
 
   /** Track a freshly spawned connection: its exit is classified and backed off here. */
-  hold(key: string, label: string, address: string, child: ChildProcess): HeldConnection {
-    const held: HeldConnection = { child, address, startedAt: this.now(), label };
+  hold(
+    key: string,
+    label: string,
+    address: string,
+    child: ChildProcess,
+  ): HeldConnection {
+    const held: HeldConnection = {
+      child,
+      address,
+      startedAt: this.now(),
+      label,
+    };
     this.live.set(key, held);
     let stderr = "";
-    child.stderr?.on("data", (d: Buffer) => { stderr = (stderr + d.toString()).slice(-2000); });
-    child.on("error", (err) => this.o.log(`${this.o.tag} ${label} could not start: ${err.message}`, "warn"));
+    child.stderr?.on("data", (d: Buffer) => {
+      stderr = (stderr + d.toString()).slice(-2000);
+    });
+    child.on("error", (err) =>
+      this.o.log(
+        `${this.o.tag} ${label} could not start: ${err.message}`,
+        "warn",
+      ),
+    );
     child.on("exit", (code, signal) => {
       const mine = this.live.get(key) === held;
       if (mine) this.live.delete(key);
@@ -83,12 +124,25 @@ export class HeldConnections {
       } else if (mine) {
         // The count is only reset by a connection that lived (nextBridgeBackoff),
         // never at spawn: a reset there made every failure the first one.
-        const next = nextBridgeBackoff(this.backoff.get(key), this.now() - held.startedAt, this.now(), this.o.firstWaitMs);
+        const next = nextBridgeBackoff(
+          this.backoff.get(key),
+          this.now() - held.startedAt,
+          this.now(),
+          this.o.firstWaitMs,
+        );
         this.backoff.set(key, next);
         const wait = next.notBefore - this.now();
-        this.o.log(`${this.o.tag} ${label} exited (${signal ?? `exit ${code}`})${tail ? `: ${tail}` : ""} — retrying in ${Math.round(wait / 1000)}s (failure ${next.failures})`);
+        this.o.log(
+          `${this.o.tag} ${label} exited (${signal ?? `exit ${code}`})${tail ? `: ${tail}` : ""} — retrying in ${Math.round(wait / 1000)}s (failure ${next.failures})`,
+        );
       }
-      this.o.onExit?.(key, { code, signal, stderr, closedOnPurpose: !mine, refused: refusal });
+      this.o.onExit?.(key, {
+        code,
+        signal,
+        stderr,
+        closedOnPurpose: !mine,
+        refused: refusal,
+      });
     });
     return held;
   }

@@ -14,7 +14,10 @@ describe("shouldPersistLog", () => {
 
   test("a mixed batch keeps only warn/error", () => {
     const batch = [
-      { level: "info", message: "[HEARTBEAT] session=abc status=idle stuck=0s" },
+      {
+        level: "info",
+        message: "[HEARTBEAT] session=abc status=idle stuck=0s",
+      },
       { level: "debug", message: "watcher tick" },
       { level: "warn", message: "HIGH FD COUNT" },
       { level: "error", message: "DAEMON OFFLINE" },

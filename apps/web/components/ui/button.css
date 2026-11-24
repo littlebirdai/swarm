@@ -18,7 +18,11 @@
  */
 
 html body :where(.cc-btn) {
-  transition: background-color 150ms, box-shadow 150ms, color 150ms, transform 80ms;
+  transition:
+    background-color 150ms,
+    box-shadow 150ms,
+    color 150ms,
+    transform 80ms;
 }
 html body :where(.cc-btn:active:not(:disabled)) {
   transform: translateY(0.5px);
@@ -44,35 +48,53 @@ html body :where(.cc-btn-cyan) {
    --sol-class-* variable bg-sol-<accent> reads). The label is worked out from the tint: light text on a dark fill,
    dark text tinted with the fill's own hue on a light one, so no call site
    picks a text colour for a filled button. */
-html body :where(.cc-btn-violet) { --btn-tint: var(--sol-class-violet); }
-html body :where(.cc-btn-red) { --btn-tint: var(--sol-class-red); }
-html body :where(.cc-btn-green) { --btn-tint: var(--sol-class-green); }
-html body :where(.cc-btn-blue) { --btn-tint: var(--sol-class-blue); }
-html body :where(.cc-btn-amber) { --btn-tint: var(--sol-class-amber); }
-html body :where(.cc-btn-orange) { --btn-tint: var(--sol-class-orange); }
-html body :where(.cc-btn-yellow) { --btn-tint: var(--sol-class-yellow); }
+html body :where(.cc-btn-violet) {
+  --btn-tint: var(--sol-class-violet);
+}
+html body :where(.cc-btn-red) {
+  --btn-tint: var(--sol-class-red);
+}
+html body :where(.cc-btn-green) {
+  --btn-tint: var(--sol-class-green);
+}
+html body :where(.cc-btn-blue) {
+  --btn-tint: var(--sol-class-blue);
+}
+html body :where(.cc-btn-amber) {
+  --btn-tint: var(--sol-class-amber);
+}
+html body :where(.cc-btn-orange) {
+  --btn-tint: var(--sol-class-orange);
+}
+html body :where(.cc-btn-yellow) {
+  --btn-tint: var(--sol-class-yellow);
+}
 html body :where(.cc-btn-tone) {
   --btn-ink: var(--sol-bg);
   color: var(--btn-ink);
 }
 @supports (color: oklch(from red l c h)) {
   html body :where(.cc-btn-tone) {
-    --btn-ink: oklch(from var(--btn-tint) calc(clamp(0, (0.7 - l) * 100, 1) * 0.78 + 0.22) calc(0.03 - clamp(0, (0.7 - l) * 100, 1) * 0.03) h);
+    --btn-ink: oklch(
+      from var(--btn-tint) calc(clamp(0, (0.7 - l) * 100, 1) * 0.78 + 0.22)
+        calc(0.03 - clamp(0, (0.7 - l) * 100, 1) * 0.03) h
+    );
   }
 }
 
 html body :where(.cc-btn-fill) {
   --btn-fill: var(--btn-tint);
   --btn-fill-hover: color-mix(in oklab, var(--btn-fill) 88%, var(--btn-ink));
-  --btn-sheen: linear-gradient(to bottom, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0) 60%);
+  --btn-sheen: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.09),
+    rgb(255 255 255 / 0) 60%
+  );
   --btn-face:
-    inset 0 1px 0 rgb(255 255 255 / 0.16),
-    inset 0 0 0 1px rgb(0 0 0 / 0.1),
-    0 1px 2px rgb(0 0 0 / 0.14),
-    0 3px 8px -4px rgb(0 0 0 / 0.22);
+    inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 0 0 1px rgb(0 0 0 / 0.1),
+    0 1px 2px rgb(0 0 0 / 0.14), 0 3px 8px -4px rgb(0 0 0 / 0.22);
   --btn-face-pressed:
-    inset 0 1px 2px rgb(0 0 0 / 0.2),
-    inset 0 0 0 1px rgb(0 0 0 / 0.12);
+    inset 0 1px 2px rgb(0 0 0 / 0.2), inset 0 0 0 1px rgb(0 0 0 / 0.12);
   background-color: var(--btn-fill);
   background-image: var(--btn-sheen);
   box-shadow: var(--btn-face);
@@ -103,7 +125,12 @@ html body :where(.cc-btn-outline) {
     inset 0 1px 0 rgb(255 255 255 / 0.07),
     0 1px 2px rgb(0 0 0 / 0.06);
 }
-html body :where(.cc-btn-secondary:active:not(:disabled), .cc-btn-outline:active:not(:disabled)) {
+html
+  body
+  :where(
+    .cc-btn-secondary:active:not(:disabled),
+    .cc-btn-outline:active:not(:disabled)
+  ) {
   box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.08);
 }
 
@@ -129,8 +156,12 @@ html body :where(.modern-style .cc-btn) {
 html body :where(.modern-style .cc-btn:active:not(:disabled)) {
   transform: none;
 }
-html body :where(.modern-style .cc-btn-primary, .modern-style .cc-btn-cyan) { --btn-tint: var(--sol-class-cyan); }
-html body :where(.modern-style .cc-btn-destructive) { --btn-tint: var(--sol-class-red); }
+html body :where(.modern-style .cc-btn-primary, .modern-style .cc-btn-cyan) {
+  --btn-tint: var(--sol-class-cyan);
+}
+html body :where(.modern-style .cc-btn-destructive) {
+  --btn-tint: var(--sol-class-red);
+}
 html body :where(.modern-style .cc-btn-fill) {
   --btn-ink: #fff;
   --btn-fill: var(--btn-tint);
@@ -138,21 +169,32 @@ html body :where(.modern-style .cc-btn-fill) {
   --btn-fill-press: color-mix(in oklab, var(--btn-fill) 86%, #000);
   --btn-sheen: none;
   --btn-face: inset 0 0 0 1px rgb(0 0 0 / 0.08);
-  --btn-face-pressed: inset 0 1px 2px rgb(0 0 0 / 0.16), inset 0 0 0 1px rgb(0 0 0 / 0.1);
+  --btn-face-pressed:
+    inset 0 1px 2px rgb(0 0 0 / 0.16), inset 0 0 0 1px rgb(0 0 0 / 0.1);
   color: var(--btn-ink);
 }
 @supports (color: oklch(from red l c h)) {
   html body :where(.modern-style .cc-btn-fill) {
-    --btn-ink: oklch(from var(--btn-tint) calc(clamp(0, (0.62 - l) * 100, 1) * 0.78 + 0.22) calc(0.03 - clamp(0, (0.62 - l) * 100, 1) * 0.03) h);
+    --btn-ink: oklch(
+      from var(--btn-tint) calc(clamp(0, (0.62 - l) * 100, 1) * 0.78 + 0.22)
+        calc(0.03 - clamp(0, (0.62 - l) * 100, 1) * 0.03) h
+    );
     --btn-fill: var(--btn-tint);
   }
 }
 html body :where(.modern-style .cc-btn-fill:active:not(:disabled)) {
   background-color: var(--btn-fill-press);
 }
-html body :where(.modern-style .cc-btn-secondary, .modern-style .cc-btn-outline) {
+html
+  body
+  :where(.modern-style .cc-btn-secondary, .modern-style .cc-btn-outline) {
   box-shadow: none;
 }
-html body :where(.modern-style .cc-btn-secondary:active:not(:disabled), .modern-style .cc-btn-outline:active:not(:disabled)) {
+html
+  body
+  :where(
+    .modern-style .cc-btn-secondary:active:not(:disabled),
+    .modern-style .cc-btn-outline:active:not(:disabled)
+  ) {
   box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.06);
 }

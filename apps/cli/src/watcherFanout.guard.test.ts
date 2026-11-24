@@ -42,8 +42,12 @@ describe("tree watching goes through RecursiveWatcher", () => {
       const rel = path.relative(SRC, file);
       if (ALLOWED.has(rel)) continue;
       for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
-        if (/from\s+["']chokidar["']|require\(\s*["']chokidar["']\s*\)/.test(line)) {
-          offenders.push(`${rel}:${n} imports chokidar — build a RecursiveWatcher instead`);
+        if (
+          /from\s+["']chokidar["']|require\(\s*["']chokidar["']\s*\)/.test(line)
+        ) {
+          offenders.push(
+            `${rel}:${n} imports chokidar — build a RecursiveWatcher instead`,
+          );
         }
       }
     }

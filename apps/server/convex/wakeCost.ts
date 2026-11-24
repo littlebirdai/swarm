@@ -44,7 +44,10 @@ export function wakeFieldsOf(conv: {
   };
 }
 
-export function wakeCost(row: WakeRow, now: number): {
+export function wakeCost(
+  row: WakeRow,
+  now: number,
+): {
   idleMs: number;
   contextTokens: number | null;
   /** Fraction of the model's window those tokens fill, null when unknown. */
@@ -160,7 +163,10 @@ export function restartPlan<T extends { _id: string }>(
     if (!reloads) continue;
     const tokens = fields.context_tokens ?? 0;
     reloadTokens += tokens;
-    const window = contextWindowTokens(fields.model, fields.agent_type ?? undefined);
+    const window = contextWindowTokens(
+      fields.model,
+      fields.agent_type ?? undefined,
+    );
     if (window && tokens) {
       knownTokens += tokens;
       knownWindow += window;

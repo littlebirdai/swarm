@@ -8,8 +8,12 @@
 // scan and the `cast status` stuck-sync report skip these so an app-server rollout
 // (whose file ledger the app-server path never advances) is not mistaken for a
 // wedged file-sync.
-export function isAppServerManagedCodexSessionHead(headContent: string): boolean {
-  const firstLine = headContent.split("\n").find((line) => line.trim().length > 0);
+export function isAppServerManagedCodexSessionHead(
+  headContent: string,
+): boolean {
+  const firstLine = headContent
+    .split("\n")
+    .find((line) => line.trim().length > 0);
   if (!firstLine) return false;
 
   try {
@@ -19,8 +23,14 @@ export function isAppServerManagedCodexSessionHead(headContent: string): boolean
     };
     if (parsed.type !== "session_meta") return false;
     if (parsed.payload?.originator === "codecast") return true;
-    return typeof parsed.payload?.source === "object" && parsed.payload.source?.custom === "codecast";
+    return (
+      typeof parsed.payload?.source === "object" &&
+      parsed.payload.source?.custom === "codecast"
+    );
   } catch {
-    return firstLine.includes('"originator":"codecast"') || firstLine.includes('"source":{"custom":"codecast"}');
+    return (
+      firstLine.includes('"originator":"codecast"') ||
+      firstLine.includes('"source":{"custom":"codecast"}')
+    );
   }
 }

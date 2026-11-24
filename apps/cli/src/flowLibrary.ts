@@ -27,32 +27,63 @@ export type LiveFlow = {
   /** A hold parks every new run until it ends or a team admin clears it. */
   hold?: { why: string; until: number; by?: string | null; at?: number } | null;
   /** Only problems that clear the bar start; the rest wait for another finding and close after quiet_days with none. */
-  bar?: { score: number; findings: number; quiet_days: number; by?: string | null; at?: number } | null;
-  queue?: Array<{ task_id: string; short_id: string; title: string; score: number | null; scored: boolean; findings: number; family: string | null; waiting: string | null }>;
+  bar?: {
+    score: number;
+    findings: number;
+    quiet_days: number;
+    by?: string | null;
+    at?: number;
+  } | null;
+  queue?: Array<{
+    task_id: string;
+    short_id: string;
+    title: string;
+    score: number | null;
+    scored: boolean;
+    findings: number;
+    family: string | null;
+    waiting: string | null;
+  }>;
 };
 
 export type LibraryNode = { flow: PoolFlow; variants: LibraryNode[] };
-export type LibraryTree = { spine: LibraryNode[]; flows: LibraryNode[]; segments: LibraryNode[] };
+export type LibraryTree = {
+  spine: LibraryNode[];
+  flows: LibraryNode[];
+  segments: LibraryNode[];
+};
 
 /**
  * The pool as a tree: each variant under the flow it extends (when the pool holds it), the flows live flows run as
  * the spine, then the other whole flows, then the segments.
  */
-export function libraryTree(pool: ReadonlyArray<PoolFlow>, live: ReadonlyArray<LiveFlow> = []): LibraryTree {
+export function libraryTree(
+  pool: ReadonlyArray<PoolFlow>,
+  live: ReadonlyArray<LiveFlow> = [],
+): LibraryTree {
   const slugs = new Set(pool.map((f) => f.slug));
-  const nodes = new Map(pool.map((f) => [f.slug, { flow: f, variants: [] as LibraryNode[] }]));
+  const nodes = new Map(
+    pool.map((f) => [f.slug, { flow: f, variants: [] as LibraryNode[] }]),
+  );
   const roots: LibraryNode[] = [];
   for (const f of pool) {
     const node = nodes.get(f.slug)!;
-    const base = f.extends && f.extends !== f.slug && slugs.has(f.extends) ? nodes.get(f.extends)! : null;
+    const base =
+      f.extends && f.extends !== f.slug && slugs.has(f.extends)
+        ? nodes.get(f.extends)!
+        : null;
     if (base) base.variants.push(node);
     else roots.push(node);
   }
   const spines = new Set(live.map((l) => l.flow.slug));
   return {
     spine: roots.filter((n) => spines.has(n.flow.slug)),
-    flows: roots.filter((n) => !spines.has(n.flow.slug) && n.flow.kind !== "segment"),
-    segments: roots.filter((n) => !spines.has(n.flow.slug) && n.flow.kind === "segment"),
+    flows: roots.filter(
+      (n) => !spines.has(n.flow.slug) && n.flow.kind !== "segment",
+    ),
+    segments: roots.filter(
+      (n) => !spines.has(n.flow.slug) && n.flow.kind === "segment",
+    ),
   };
 }
 
@@ -71,24 +102,68 @@ export type VariantChanges = {
   graph: Array<{ key: string; from: string | null; to: string | null }>;
 };
 
-const STATION_FIELDS = ["label", "type", "prompt", "script", "model", "backend", "agent", "reasoning_effort", "timeout", "definition", "reviewer", "doc", "card", "max_visits", "max_retries", "goal_gate"] as const satisfies ReadonlyArray<keyof WorkflowNode>;
+const STATION_FIELDS = [
+  "label",
+  "type",
+  "prompt",
+  "script",
+  "model",
+  "backend",
+  "agent",
+  "reasoning_effort",
+  "timeout",
+  "definition",
+  "reviewer",
+  "doc",
+  "card",
+  "max_visits",
+  "max_retries",
+  "goal_gate",
+] as const satisfies ReadonlyArray<keyof WorkflowNode>;
 
 /** What a variant changes from the flow it extends, station by station (a segment's stations count as the segment). */
-export function variantChanges(base: WorkflowGraph, variant: WorkflowGraph): VariantChanges {
-  const tops = (g: WorkflowGraph) => new Set([...g.nodes.keys()].map(segmentTopOf));
+export function variantChanges(
+  base: WorkflowGraph,
+  variant: WorkflowGraph,
+): VariantChanges {
+  const tops = (g: WorkflowGraph) =>
+    new Set([...g.nodes.keys()].map(segmentTopOf));
   const name = (g: WorkflowGraph, id: string) => g.nodes.get(id)?.label || id;
   const b = tops(base);
   const v = tops(variant);
-  const routes = (g: WorkflowGraph, id: string) => g.edges.filter((e) => segmentTopOf(e.from) === id && segmentTopOf(e.to) !== id).map((e) => `${segmentTopOf(e.to)}|${e.condition ?? ""}|${e.label ?? ""}`).sort().join("\n");
-  const label = (id: string) => { const t = segmentTopOf(id); return variant.nodes.get(t)?.label || base.nodes.get(t)?.label || t; };
+  const routes = (g: WorkflowGraph, id: string) =>
+    g.edges
+      .filter((e) => segmentTopOf(e.from) === id && segmentTopOf(e.to) !== id)
+      .map((e) => `${segmentTopOf(e.to)}|${e.condition ?? ""}|${e.label ?? ""}`)
+      .sort()
+      .join("\n");
+  const label = (id: string) => {
+    const t = segmentTopOf(id);
+    return variant.nodes.get(t)?.label || base.nodes.get(t)?.label || t;
+  };
   const edits = variant.edits ?? [];
   // What the edits already say: the stations they add or take off, the prompts they guide, the routes they move.
-  const added = new Set(edits.filter((e) => e.op === "add").map((e) => e.station));
-  const gone = new Set([...(variant.pruned ?? []).map(segmentTopOf), ...edits.filter((e) => e.op === "skip").map((e) => e.station)]);
-  const guided = new Set(edits.filter((e) => e.op === "guide").map((e) => segmentTopOf(e.station)));
-  const moved = new Set([...gone, ...edits.filter((e) => e.op === "when" || e.op === "add").map((e) => e.station), ...edits.flatMap((e) => (e.op === "add" && e.before ? [e.before] : []))]);
+  const added = new Set(
+    edits.filter((e) => e.op === "add").map((e) => e.station),
+  );
+  const gone = new Set([
+    ...(variant.pruned ?? []).map(segmentTopOf),
+    ...edits.filter((e) => e.op === "skip").map((e) => e.station),
+  ]);
+  const guided = new Set(
+    edits.filter((e) => e.op === "guide").map((e) => segmentTopOf(e.station)),
+  );
+  const moved = new Set([
+    ...gone,
+    ...edits
+      .filter((e) => e.op === "when" || e.op === "add")
+      .map((e) => e.station),
+    ...edits.flatMap((e) => (e.op === "add" && e.before ? [e.before] : [])),
+  ]);
   const explained = new Set<string>();
-  for (const e of [...base.edges, ...variant.edges]) if (moved.has(segmentTopOf(e.to)) || added.has(segmentTopOf(e.to))) explained.add(segmentTopOf(e.from));
+  for (const e of [...base.edges, ...variant.edges])
+    if (moved.has(segmentTopOf(e.to)) || added.has(segmentTopOf(e.to)))
+      explained.add(segmentTopOf(e.from));
   const changed: VariantChanges["changed"] = [];
   const rerouted: string[] = [];
   for (const id of v) {
@@ -97,20 +172,39 @@ export function variantChanges(base: WorkflowGraph, variant: WorkflowGraph): Var
     for (const [nid, n] of variant.nodes) {
       if (segmentTopOf(nid) !== id) continue;
       const was = base.nodes.get(nid);
-      if (!was) { fields.add("stations"); continue; }
-      for (const k of STATION_FIELDS) if (String(n[k] ?? "") !== String(was[k] ?? "")) fields.add(k);
+      if (!was) {
+        fields.add("stations");
+        continue;
+      }
+      for (const k of STATION_FIELDS)
+        if (String(n[k] ?? "") !== String(was[k] ?? "")) fields.add(k);
     }
-    for (const nid of base.nodes.keys()) if (segmentTopOf(nid) === id && !variant.nodes.has(nid)) fields.add("stations");
+    for (const nid of base.nodes.keys())
+      if (segmentTopOf(nid) === id && !variant.nodes.has(nid))
+        fields.add("stations");
     if (guided.has(id)) fields.delete("prompt");
-    if (fields.size) changed.push({ id, station: name(variant, id), fields: [...fields] });
-    if (routes(base, id) !== routes(variant, id) && !explained.has(id)) rerouted.push(name(variant, id));
+    if (fields.size)
+      changed.push({ id, station: name(variant, id), fields: [...fields] });
+    if (routes(base, id) !== routes(variant, id) && !explained.has(id))
+      rerouted.push(name(variant, id));
   }
   const addedIds = [...v].filter((id) => !b.has(id) && !added.has(id));
   const removedIds = [...b].filter((id) => !v.has(id) && !gone.has(id));
   const graph: VariantChanges["graph"] = [];
-  for (const key of ["label", "goal", "serves", "takes", "stack", "on_failure"] as const satisfies ReadonlyArray<keyof WorkflowGraph>) {
-    const val = (g: WorkflowGraph) => { const x = g[key]; return x == null ? null : Array.isArray(x) ? x.join(" ") : String(x); };
-    if (val(base) !== val(variant)) graph.push({ key, from: val(base), to: val(variant) });
+  for (const key of [
+    "label",
+    "goal",
+    "serves",
+    "takes",
+    "stack",
+    "on_failure",
+  ] as const satisfies ReadonlyArray<keyof WorkflowGraph>) {
+    const val = (g: WorkflowGraph) => {
+      const x = g[key];
+      return x == null ? null : Array.isArray(x) ? x.join(" ") : String(x);
+    };
+    if (val(base) !== val(variant))
+      graph.push({ key, from: val(base), to: val(variant) });
   }
   return {
     edits: edits.map((e) => flowEditWords(e, label)),
@@ -146,15 +240,25 @@ export function variantChangeLines(c: VariantChanges): string[] {
     ...c.removed.map((s) => `- ${s}`),
     ...c.changed.map((s) => `~ ${s.station}: ${s.fields.join(", ")}`),
     ...c.rerouted.map((s) => `→ ${s}: routes`),
-    ...c.graph.map((g) => `${g.key}: ${g.from ?? "(none)"} → ${g.to ?? "(none)"}`),
+    ...c.graph.map(
+      (g) => `${g.key}: ${g.from ?? "(none)"} → ${g.to ?? "(none)"}`,
+    ),
   ];
 }
 
 /** Whether `name` names this live flow: its flow's slug, label or workflow id, or its own id. */
-export const namesLiveFlow = (l: LiveFlow, name: string) => [l._id, l.flow.id, l.flow.slug, l.flow.label].some((x) => !!x && x === name);
+export const namesLiveFlow = (l: LiveFlow, name: string) =>
+  [l._id, l.flow.id, l.flow.slug, l.flow.label].some((x) => !!x && x === name);
 
 /** A live flow's block: its switch, flow, sources, queue, running and watcher; `top` queue rows by name. */
-export function liveFlowLines(l: LiveFlow, opts: { top: number; bold: (s: string) => string; dim: (s: string) => string }): string[] {
+export function liveFlowLines(
+  l: LiveFlow,
+  opts: {
+    top: number;
+    bold: (s: string) => string;
+    dim: (s: string) => string;
+  },
+): string[] {
   const { bold, dim } = opts;
   const queue = l.queue ?? [];
   const cap = l.load?.cap;
@@ -164,23 +268,48 @@ export function liveFlowLines(l: LiveFlow, opts: { top: number; bold: (s: string
     `       sources  ${l.sources === null ? "every source" : l.sources.length ? l.sources.join(", ") : dim("none")}`,
     `       queue    ${queue.length ? `${queue.length}${queue.length >= 50 ? "+" : ""} waiting` : dim("empty")}`,
     `       running  ${l.load?.working ?? l.running?.length ?? 0}${cap != null ? ` of ${cap}` : ""}${hands != null ? dim(`  · ${l.hands_today ?? 0} of ${hands} sessions today`) : ""}`,
-    ...(l.hold ? [`       held     until ${clock(l.hold.until)}: ${l.hold.why}${l.hold.by ? dim(`  · ${l.hold.by}`) : ""}`] : []),
-    ...(l.bar ? [`       bar      score ${l.bar.score}+ or ${l.bar.findings}+ findings${dim(`  · the rest wait for another finding, ${l.bar.quiet_days} days`)}`] : []),
+    ...(l.hold
+      ? [
+          `       held     until ${clock(l.hold.until)}: ${l.hold.why}${l.hold.by ? dim(`  · ${l.hold.by}`) : ""}`,
+        ]
+      : []),
+    ...(l.bar
+      ? [
+          `       bar      score ${l.bar.score}+ or ${l.bar.findings}+ findings${dim(`  · the rest wait for another finding, ${l.bar.quiet_days} days`)}`,
+        ]
+      : []),
     ...(l.waiting ? [`       ${dim(`waiting: ${l.waiting}`)}`] : []),
     ...(l.watcher ? [`       watcher  @${l.watcher.handle}`] : []),
   ];
   for (const q of queue.slice(0, opts.top)) {
     const score = q.scored && q.score != null ? `score ${q.score}` : "unscored";
-    const title = !q.title?.trim() ? dim("(no title)") : q.title.length > 90 ? `${q.title.slice(0, 89)}…` : q.title;
-    lines.push(`         ${q.short_id}  ${title}  ${dim(`${score} · ${plural(q.findings, "finding")}${q.family ? ` · ${q.family}` : ""}`)}`);
+    const title = !q.title?.trim()
+      ? dim("(no title)")
+      : q.title.length > 90
+        ? `${q.title.slice(0, 89)}…`
+        : q.title;
+    lines.push(
+      `         ${q.short_id}  ${title}  ${dim(`${score} · ${plural(q.findings, "finding")}${q.family ? ` · ${q.family}` : ""}`)}`,
+    );
   }
   // The server sends the queue's first 50 in start order, so a full page means more wait behind it.
-  if (queue.length > opts.top) lines.push(dim(`         and ${queue.length - opts.top}${queue.length >= 50 ? "+" : ""} more`));
+  if (queue.length > opts.top)
+    lines.push(
+      dim(
+        `         and ${queue.length - opts.top}${queue.length >= 50 ? "+" : ""} more`,
+      ),
+    );
   return lines;
 }
 
 /** A time as a person reads it here: "Fri 14:30". */
-const clock = (ms: number) => new Date(ms).toLocaleString("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+const clock = (ms: number) =>
+  new Date(ms).toLocaleString("en-US", {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
 /** The longest a hold may run (convex liveFlows.ts). */
 export const HOLD_MAX_MS = 48 * 3_600_000;
@@ -189,11 +318,26 @@ export const HOLD_MAX_MS = 48 * 3_600_000;
  * When a hold ends, from what a person or agent writes: a duration from now ("90m", "6h", "2d") or a date and time
  * ("2026-10-24T09:00", "2026-10-24 09:00"). An error names what it takes; the server holds the 48h limit too.
  */
-export function holdUntil(raw: string, now = Date.now()): number | { error: string } {
+export function holdUntil(
+  raw: string,
+  now = Date.now(),
+): number | { error: string } {
   const d = raw.trim().match(/^(\d+(?:\.\d+)?)\s*(m|h|d)$/i);
-  const at = d ? now + Number(d[1]) * { m: 60_000, h: 3_600_000, d: 86_400_000 }[d[2].toLowerCase() as "m" | "h" | "d"] : Date.parse(raw.trim().replace(" ", "T"));
-  if (!Number.isFinite(at)) return { error: `"${raw}" is not a time: give a duration (90m, 6h, 2d) or a date and time (2026-10-24T09:00)` };
+  const at = d
+    ? now +
+      Number(d[1]) *
+        { m: 60_000, h: 3_600_000, d: 86_400_000 }[
+          d[2].toLowerCase() as "m" | "h" | "d"
+        ]
+    : Date.parse(raw.trim().replace(" ", "T"));
+  if (!Number.isFinite(at))
+    return {
+      error: `"${raw}" is not a time: give a duration (90m, 6h, 2d) or a date and time (2026-10-24T09:00)`,
+    };
   if (at <= now) return { error: `${clock(at)} has already passed` };
-  if (at - now > HOLD_MAX_MS) return { error: `A hold lasts at most 48 hours; ${clock(at)} is further out` };
+  if (at - now > HOLD_MAX_MS)
+    return {
+      error: `A hold lasts at most 48 hours; ${clock(at)} is further out`,
+    };
   return at;
 }

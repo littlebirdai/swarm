@@ -4,7 +4,10 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/calls" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/calls",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -36,7 +39,10 @@ const turns = [
 ];
 
 function mount() {
-  const seen: { renders: number; hook: ReturnType<typeof useMediaMoment> | null } = { renders: 0, hook: null };
+  const seen: {
+    renders: number;
+    hook: ReturnType<typeof useMediaMoment> | null;
+  } = { renders: 0, hook: null };
   function Probe() {
     seen.renders += 1;
     seen.hook = useMediaMoment(turns);
@@ -44,7 +50,8 @@ function mount() {
   }
   const root = createRoot(document.createElement("div"));
   act(() => root.render(<Probe />));
-  const report = (ms: number, playing: boolean) => act(() => seen.hook!.onTime(ms, playing));
+  const report = (ms: number, playing: boolean) =>
+    act(() => seen.hook!.onTime(ms, playing));
   return { seen, report, unmount: () => act(() => root.unmount()) };
 }
 

@@ -17,15 +17,21 @@ export interface TmuxLivenessFacts {
 
 /** A pane that shows the agent has exited, whatever the process tree says. */
 export function paneShowsAgentExited(pane: string): boolean {
-  return /Resume this session with:/i.test(pane)
-    || /Segmentation fault|panic:|SIGABRT|core dumped|exited with/.test(pane)
-    || /-(?:ba)?sh:.*(?:No such file|command not found)/.test(pane);
+  return (
+    /Resume this session with:/i.test(pane) ||
+    /Segmentation fault|panic:|SIGABRT|core dumped|exited with/.test(pane) ||
+    /-(?:ba)?sh:.*(?:No such file|command not found)/.test(pane)
+  );
 }
 
 export function classifyTmuxLiveness(f: TmuxLivenessFacts): boolean | null {
   if (f.panePid === "gone") return false;
   if (f.panePid === null) return null;
-  if (f.pane !== null && (!f.pane.trim() || paneShowsAgentExited(f.pane.trim()))) return false;
+  if (
+    f.pane !== null &&
+    (!f.pane.trim() || paneShowsAgentExited(f.pane.trim()))
+  )
+    return false;
   if (typeof f.agent === "number") return true;
   // No agent in a tree where every process answered: it exited or crashed.
   if (f.agent === "absent") return false;

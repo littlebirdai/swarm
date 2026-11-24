@@ -35,9 +35,21 @@ function tables() {
     ],
     conversations: [
       // Bob's team-visible session.
-      { _id: SHARED, user_id: BOB, team_id: T1, is_private: false, updated_at: NOW },
+      {
+        _id: SHARED,
+        user_id: BOB,
+        team_id: T1,
+        is_private: false,
+        updated_at: NOW,
+      },
       // Bob's private session: only Bob can open it.
-      { _id: PRIVATE, user_id: BOB, team_id: T1, is_private: true, updated_at: NOW },
+      {
+        _id: PRIVATE,
+        user_id: BOB,
+        team_id: T1,
+        is_private: true,
+        updated_at: NOW,
+      },
     ],
     session_owners: [] as any[],
     call_members: [] as any[],
@@ -50,14 +62,25 @@ function tables() {
 function ctxFor(rows: ReturnType<typeof tables>, user: string) {
   return {
     db: makeFakeDb(rows as any),
-    auth: { getUserIdentity: async () => ({ subject: `${user}|sess`, tokenIdentifier: "x" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: `${user}|sess`,
+        tokenIdentifier: "x",
+      }),
+    },
   };
 }
 
 const handler = (fn: any) => fn._handler ?? fn.handler;
 
-async function rosterRow(rows: ReturnType<typeof tables>, caller: string, member: string) {
-  const members = await handler(getTeamMembers)(ctxFor(rows, caller), { team_id: T1 });
+async function rosterRow(
+  rows: ReturnType<typeof tables>,
+  caller: string,
+  member: string,
+) {
+  const members = await handler(getTeamMembers)(ctxFor(rows, caller), {
+    team_id: T1,
+  });
   return members.find((m: any) => String(m._id) === member);
 }
 
@@ -88,13 +111,20 @@ describe("getTeamMembers viewing_conversation_id", () => {
     rows.user_presence.push(presence(ANN, SHARED));
     const ann = await rosterRow(rows, CY, ANN);
     expect(ann.viewing_conversation_id).toBe(SHARED);
-    expect(ann.viewing_since).toBe(Math.floor((NOW - 5 * 60_000 - 1234) / PRESENCE_BUCKET_MS) * PRESENCE_BUCKET_MS);
+    expect(ann.viewing_since).toBe(
+      Math.floor((NOW - 5 * 60_000 - 1234) / PRESENCE_BUCKET_MS) *
+        PRESENCE_BUCKET_MS,
+    );
   });
 
   test("a private session is hidden from a member without access and shown to its owner", async () => {
     const rows = tables();
     // Ann is Bob's co-owner on the private session and has it open.
-    rows.session_owners.push({ _id: "so1", conversation_id: PRIVATE, user_id: ANN });
+    rows.session_owners.push({
+      _id: "so1",
+      conversation_id: PRIVATE,
+      user_id: ANN,
+    });
     rows.user_presence.push(presence(ANN, PRIVATE));
     const seenByCy = await rosterRow(rows, CY, ANN);
     expect(seenByCy.viewing_conversation_id).toBeUndefined();
@@ -122,8 +152,16 @@ describe("getTeamMembers viewing_conversation_id", () => {
 });
 
 describe("reportPresence viewing fields", () => {
-  const report = (rows: ReturnType<typeof tables>, user: string, args: Record<string, unknown>) =>
-    handler(reportPresence)(ctxFor(rows, user), { focused: true, idle_ms: 0, ...args });
+  const report = (
+    rows: ReturnType<typeof tables>,
+    user: string,
+    args: Record<string, unknown>,
+  ) =>
+    handler(reportPresence)(ctxFor(rows, user), {
+      focused: true,
+      idle_ms: 0,
+      ...args,
+    });
 
   test("a first report inserts the row with the id and a start time", async () => {
     const rows = tables();
@@ -143,7 +181,11 @@ describe("reportPresence viewing fields", () => {
     await report(rows, ANN, { viewing_conversation_id: PRIVATE });
     // Ann cannot open Bob's private session, so the claim is dropped.
     expect(rows.user_presence[0].viewing_conversation_id).toBeUndefined();
-    rows.session_owners.push({ _id: "so1", conversation_id: PRIVATE, user_id: ANN });
+    rows.session_owners.push({
+      _id: "so1",
+      conversation_id: PRIVATE,
+      user_id: ANN,
+    });
     await report(rows, ANN, { viewing_conversation_id: PRIVATE });
     expect(rows.user_presence[0].viewing_conversation_id).toBe(PRIVATE);
     expect(rows.user_presence[0].viewing_since).toBeGreaterThanOrEqual(NOW);
@@ -171,7 +213,11 @@ describe("reportPresence viewing fields", () => {
     const ctx = ctxFor(rows, ANN);
     await handler(reportPresence)(ctx, { focused: true, idle_ms: 0 });
     const [patched] = ctx.db._patched;
-    expect(Object.keys(patched.patch).sort()).toEqual(["last_input_at", "last_seen", "updated_at"]);
+    expect(Object.keys(patched.patch).sort()).toEqual([
+      "last_input_at",
+      "last_seen",
+      "updated_at",
+    ]);
   });
 });
 
@@ -182,20 +228,37 @@ describe("the roster gates the viewed id on the presence row's access copy (ct-9
     const ctx = ctxFor(rows, CY);
     const gets: string[] = [];
     const orig = ctx.db.get.bind(ctx.db);
-    ctx.db.get = (id: any) => { gets.push(String(id)); return orig(id); };
+    ctx.db.get = (id: any) => {
+      gets.push(String(id));
+      return orig(id);
+    };
     const members = await handler(getTeamMembers)(ctx, { team_id: T1 });
-    expect(members.find((m: any) => m._id === ANN).viewing_conversation_id).toBe(SHARED);
+    expect(
+      members.find((m: any) => m._id === ANN).viewing_conversation_id,
+    ).toBe(SHARED);
     expect(gets.filter((id) => id.startsWith("conv-"))).toEqual([]);
   });
 
   test("a row written before the copy existed names nothing until the next report fills it in", async () => {
     const rows = tables();
-    rows.user_presence.push({ ...presence(ANN, SHARED), viewing_access: undefined, viewing_since: 1000 });
-    expect((await rosterRow(rows, CY, ANN)).viewing_conversation_id).toBeUndefined();
-    await handler(reportPresence)(ctxFor(rows, ANN), { focused: true, idle_ms: 0, viewing_conversation_id: SHARED });
+    rows.user_presence.push({
+      ...presence(ANN, SHARED),
+      viewing_access: undefined,
+      viewing_since: 1000,
+    });
+    expect(
+      (await rosterRow(rows, CY, ANN)).viewing_conversation_id,
+    ).toBeUndefined();
+    await handler(reportPresence)(ctxFor(rows, ANN), {
+      focused: true,
+      idle_ms: 0,
+      viewing_conversation_id: SHARED,
+    });
     expect(rows.user_presence[0].viewing_access).toEqual(stampOf(SHARED));
     expect(rows.user_presence[0].viewing_since).toBe(1000);
-    expect((await rosterRow(rows, CY, ANN)).viewing_conversation_id).toBe(SHARED);
+    expect((await rosterRow(rows, CY, ANN)).viewing_conversation_id).toBe(
+      SHARED,
+    );
   });
 
   test("making the viewed session private hides the id at once, through the visibility chokepoint", async () => {
@@ -203,9 +266,15 @@ describe("the roster gates the viewed id on the presence row's access copy (ct-9
     rows.user_presence.push(presence(ANN, SHARED));
     const db = makeFakeDb(rows as any);
     const conv = await db.get(SHARED as any);
-    await patchConversationVisibility({ db } as any, conv, { is_private: true });
+    await patchConversationVisibility({ db } as any, conv, {
+      is_private: true,
+    });
     expect(rows.user_presence[0].viewing_access.is_private).toBe(true);
-    expect((await rosterRow(rows, CY, ANN)).viewing_conversation_id).toBeUndefined();
-    expect((await rosterRow(rows, BOB, ANN)).viewing_conversation_id).toBe(SHARED);
+    expect(
+      (await rosterRow(rows, CY, ANN)).viewing_conversation_id,
+    ).toBeUndefined();
+    expect((await rosterRow(rows, BOB, ANN)).viewing_conversation_id).toBe(
+      SHARED,
+    );
   });
 });

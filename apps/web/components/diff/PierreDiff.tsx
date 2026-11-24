@@ -7,10 +7,28 @@
 // switch instead of the OS. The diff colors themselves (row backgrounds, word
 // emphasis, selection) are set on `diffs-container` in globals.css.
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { getFiletypeFromFileName, preloadHighlighter, processFile, registerCustomCSSVariableTheme, type Virtualizer } from "@pierre/diffs";
-import { FileDiff, VirtualizerContext, useStableCallback, type DiffLineAnnotation, type FileDiffOptions, type SelectedLineRange } from "@pierre/diffs/react";
+import {
+  getFiletypeFromFileName,
+  preloadHighlighter,
+  processFile,
+  registerCustomCSSVariableTheme,
+  type Virtualizer,
+} from "@pierre/diffs";
+import {
+  FileDiff,
+  VirtualizerContext,
+  useStableCallback,
+  type DiffLineAnnotation,
+  type FileDiffOptions,
+  type SelectedLineRange,
+} from "@pierre/diffs/react";
 import { diffPatchText, type DiffModel } from "../../lib/diffModel";
-import { acquireVirtualizer, drawableLines, VIRTUAL_METRICS, VIRTUALIZE_LINE_THRESHOLD } from "./virtualizer";
+import {
+  acquireVirtualizer,
+  drawableLines,
+  VIRTUAL_METRICS,
+  VIRTUALIZE_LINE_THRESHOLD,
+} from "./virtualizer";
 
 export { revealVirtualLine } from "./virtualizer";
 
@@ -18,26 +36,29 @@ const DIFF_THEME = "codecast";
 
 // Once per page: a hot update re-runs this module, and Pierre's registry keeps
 // the theme across it (and logs a second registration as an error).
-if (!import.meta.hot?.data.themeRegistered) registerCustomCSSVariableTheme(DIFF_THEME, {
-  foreground: "var(--sol-text)",
-  background: "transparent",
-  "token-constant": "var(--hljs-number)",
-  "token-string": "var(--hljs-string)",
-  "token-comment": "var(--hljs-comment)",
-  "token-keyword": "var(--hljs-keyword)",
-  "token-parameter": "var(--hljs-variable)",
-  "token-function": "var(--hljs-function)",
-  "token-string-expression": "var(--hljs-string)",
-  "token-punctuation": "var(--sol-text-muted)",
-  "token-link": "var(--hljs-type)",
-});
+if (!import.meta.hot?.data.themeRegistered)
+  registerCustomCSSVariableTheme(DIFF_THEME, {
+    foreground: "var(--sol-text)",
+    background: "transparent",
+    "token-constant": "var(--hljs-number)",
+    "token-string": "var(--hljs-string)",
+    "token-comment": "var(--hljs-comment)",
+    "token-keyword": "var(--hljs-keyword)",
+    "token-parameter": "var(--hljs-variable)",
+    "token-function": "var(--hljs-function)",
+    "token-string-expression": "var(--hljs-string)",
+    "token-punctuation": "var(--sol-text-muted)",
+    "token-link": "var(--hljs-type)",
+  });
 if (import.meta.hot) import.meta.hot.data.themeRegistered = true;
 
 // Fence labels and Prism grammar names that Shiki spells differently.
 const SHIKI_LANGUAGE: Record<string, string> = { markup: "html" };
 
 export function diffLanguage(name: string, language?: string): string {
-  return language ? SHIKI_LANGUAGE[language] ?? language : getFiletypeFromFileName(name);
+  return language
+    ? (SHIKI_LANGUAGE[language] ?? language)
+    : getFiletypeFromFileName(name);
 }
 
 /** Load the theme and a language into the shared highlighter. A language
@@ -88,29 +109,46 @@ export function PierreDiff<A>({
 
   // Pierre re-applies its options whenever their identity changes, so the
   // handlers it holds stay the same functions across renders.
-  const selected = useStableCallback((range: SelectedLineRange | null) => onLineSelected?.(range));
-  const gutterClick = useStableCallback((range: SelectedLineRange) => onGutterUtilityClick?.(range));
+  const selected = useStableCallback((range: SelectedLineRange | null) =>
+    onLineSelected?.(range),
+  );
+  const gutterClick = useStableCallback((range: SelectedLineRange) =>
+    onGutterUtilityClick?.(range),
+  );
   const selectable = !!onLineSelected;
   const interactive = !!onGutterUtilityClick;
 
-  const options = useMemo<FileDiffOptions<A, undefined>>(() => ({
-    theme: DIFF_THEME,
-    themeType: theme,
-    diffStyle: "unified",
-    diffIndicators: "classic",
-    lineDiffType: "word-alt",
-    // A whole file can open what it hides; a snippet or a patch has nothing
-    // beyond its hunks, so its gaps are only marked.
-    hunkSeparators: model.whole ? "line-info" : "simple",
-    expandUnchanged,
-    overflow: wrap ? "wrap" : "scroll",
-    disableLineNumbers: !showLineNumbers,
-    disableFileHeader: true,
-    enableLineSelection: selectable,
-    onLineSelected: selectable ? selected : undefined,
-    enableGutterUtility: interactive,
-    onGutterUtilityClick: interactive ? gutterClick : undefined,
-  }), [theme, model.whole, expandUnchanged, wrap, showLineNumbers, selectable, interactive, selected, gutterClick]);
+  const options = useMemo<FileDiffOptions<A, undefined>>(
+    () => ({
+      theme: DIFF_THEME,
+      themeType: theme,
+      diffStyle: "unified",
+      diffIndicators: "classic",
+      lineDiffType: "word-alt",
+      // A whole file can open what it hides; a snippet or a patch has nothing
+      // beyond its hunks, so its gaps are only marked.
+      hunkSeparators: model.whole ? "line-info" : "simple",
+      expandUnchanged,
+      overflow: wrap ? "wrap" : "scroll",
+      disableLineNumbers: !showLineNumbers,
+      disableFileHeader: true,
+      enableLineSelection: selectable,
+      onLineSelected: selectable ? selected : undefined,
+      enableGutterUtility: interactive,
+      onGutterUtilityClick: interactive ? gutterClick : undefined,
+    }),
+    [
+      theme,
+      model.whole,
+      expandUnchanged,
+      wrap,
+      showLineNumbers,
+      selectable,
+      interactive,
+      selected,
+      gutterClick,
+    ],
+  );
 
   // A long diff draws only the rows near the viewport. Pierre picks windowed
   // drawing when it mounts under a Virtualizer, and the Virtualizer belongs to
@@ -138,7 +176,7 @@ export function PierreDiff<A>({
             fileDiff={fileDiff}
             options={options}
             metrics={virtual ? VIRTUAL_METRICS : undefined}
-            selectedLines={selectable ? selectedLines ?? null : undefined}
+            selectedLines={selectable ? (selectedLines ?? null) : undefined}
             lineAnnotations={lineAnnotations}
             renderAnnotation={renderAnnotation}
           />

@@ -18,9 +18,18 @@ const CANVAS = /```cast-canvas\n[\s\S]*?\n```/g;
 export function mediaOf(body: string | undefined): StoryMedia[] {
   if (!body) return [];
   const found: Array<{ at: number; media: StoryMedia }> = [];
-  for (const m of body.matchAll(IMAGE)) found.push({ at: m.index ?? 0, media: { kind: "image", src: m[2], alt: m[1].trim() } });
-  for (const m of body.matchAll(PAGE)) found.push({ at: m.index ?? 0, media: { kind: "page", url: m[1], slug: m[2] } });
-  for (const m of body.matchAll(CANVAS)) found.push({ at: m.index ?? 0, media: { kind: "canvas", block: m[0] } });
+  for (const m of body.matchAll(IMAGE))
+    found.push({
+      at: m.index ?? 0,
+      media: { kind: "image", src: m[2], alt: m[1].trim() },
+    });
+  for (const m of body.matchAll(PAGE))
+    found.push({
+      at: m.index ?? 0,
+      media: { kind: "page", url: m[1], slug: m[2] },
+    });
+  for (const m of body.matchAll(CANVAS))
+    found.push({ at: m.index ?? 0, media: { kind: "canvas", block: m[0] } });
   return found.sort((a, b) => a.at - b.at).map((f) => f.media);
 }
 
@@ -31,15 +40,29 @@ export type PickedMedia = { story: StoryRow; media: StoryMedia };
  * story's first piece before any story's second, so one busy story cannot
  * fill a summary that covers many. The same picture placed twice shows once.
  */
-export function pickMedia(stories: readonly StoryRow[], max: number): PickedMedia[] {
-  const lists = stories.map((story) => ({ story, media: mediaOf(story.body) })).filter((l) => l.media.length);
+export function pickMedia(
+  stories: readonly StoryRow[],
+  max: number,
+): PickedMedia[] {
+  const lists = stories
+    .map((story) => ({ story, media: mediaOf(story.body) }))
+    .filter((l) => l.media.length);
   const out: PickedMedia[] = [];
   const seen = new Set<string>();
-  for (let round = 0; out.length < max && lists.some((l) => l.media.length > round); round++) {
+  for (
+    let round = 0;
+    out.length < max && lists.some((l) => l.media.length > round);
+    round++
+  ) {
     for (const l of lists) {
       const media = l.media[round];
       if (!media || out.length >= max) continue;
-      const id = media.kind === "image" ? media.src : media.kind === "page" ? media.slug : media.block;
+      const id =
+        media.kind === "image"
+          ? media.src
+          : media.kind === "page"
+            ? media.slug
+            : media.block;
       if (seen.has(id)) continue;
       seen.add(id);
       out.push({ story: l.story, media });

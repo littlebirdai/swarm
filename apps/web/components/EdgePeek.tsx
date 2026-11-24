@@ -61,7 +61,8 @@ export function EdgePeek({
   width?: number;
   children: ReactNode;
 }) {
-  const { open, mounted, onEdgeEnter, onEdgeLeave, onLeave } = useEdgePeek(enabled);
+  const { open, mounted, onEdgeEnter, onEdgeLeave, onLeave } =
+    useEdgePeek(enabled);
   if (!enabled) return null;
   const isLeft = side === "left";
   const edge = isLeft ? "left-0" : "right-0";
@@ -69,7 +70,11 @@ export function EdgePeek({
   const hidden = isLeft ? "-translate-x-full" : "translate-x-full";
   return (
     <>
-      <div className={`absolute inset-y-0 ${edge} w-1 z-[80]`} onMouseEnter={onEdgeEnter} onMouseLeave={onEdgeLeave} />
+      <div
+        className={`absolute inset-y-0 ${edge} w-1 z-[80]`}
+        onMouseEnter={onEdgeEnter}
+        onMouseLeave={onEdgeLeave}
+      />
       <div
         className={`absolute inset-y-0 ${edge} z-[85] ${border} border-sol-border/50 bg-sol-bg-alt shadow-2xl transition-transform duration-200 ease-out ${open ? "translate-x-0" : `${hidden} pointer-events-none`}`}
         style={{ width }}

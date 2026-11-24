@@ -60,13 +60,18 @@ export interface WorktreesPayload {
  * that did not look for sessions names only the ones `cast ws` recorded, so a
  * worktree it names none for keeps the sessions of the last publish that looked.
  */
-export function mergeWorktreesPayload(incoming: WorktreesPayload, previous: WorktreesPayload | null): WorktreesPayload {
+export function mergeWorktreesPayload(
+  incoming: WorktreesPayload,
+  previous: WorktreesPayload | null,
+): WorktreesPayload {
   if (incoming.sessions_live || !previous) return incoming;
   const held = new Map(previous.worktrees.map((w) => [w.path, w.sessions]));
   return {
     ...incoming,
     worktrees: incoming.worktrees.map((w) => {
-      const sessions = [...new Set([...(held.get(w.path) ?? []), ...(w.sessions ?? [])])].sort();
+      const sessions = [
+        ...new Set([...(held.get(w.path) ?? []), ...(w.sessions ?? [])]),
+      ].sort();
       return sessions.length ? { ...w, sessions } : w;
     }),
   };
@@ -78,14 +83,19 @@ export function mergeWorktreesPayload(incoming: WorktreesPayload, previous: Work
  * one, and the root may be empty: agents write `.codecast/worktrees/x` as
  * often as the absolute path.
  */
-const WORKTREE_PATH_RE = /^((.*?)\/?\.(?:codecast\/worktrees|claude\/worktrees|conductor)\/([^/]+))(?:\/.*)?$/;
-const WORKTREE_PATH_DEEPEST_RE = /^((.*)\/\.(?:codecast\/worktrees|claude\/worktrees|conductor)\/([^/]+))(?:\/.*)?$/;
+const WORKTREE_PATH_RE =
+  /^((.*?)\/?\.(?:codecast\/worktrees|claude\/worktrees|conductor)\/([^/]+))(?:\/.*)?$/;
+const WORKTREE_PATH_DEEPEST_RE =
+  /^((.*)\/\.(?:codecast\/worktrees|claude\/worktrees|conductor)\/([^/]+))(?:\/.*)?$/;
 
 /**
  * The worktree a path is in: its folder, its name, and the repository root it
  * hangs off ("" for a relative path). Null outside a managed worktree.
  */
-export function worktreeOfPath(path: string | null | undefined): { path: string; root: string; name: string } | null {
-  const m = path?.match(WORKTREE_PATH_DEEPEST_RE) ?? path?.match(WORKTREE_PATH_RE);
+export function worktreeOfPath(
+  path: string | null | undefined,
+): { path: string; root: string; name: string } | null {
+  const m =
+    path?.match(WORKTREE_PATH_DEEPEST_RE) ?? path?.match(WORKTREE_PATH_RE);
   return m ? { path: m[1], root: m[2], name: m[3] } : null;
 }

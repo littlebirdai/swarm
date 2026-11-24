@@ -9,8 +9,15 @@
 // .tsx file that exports a hook next to a component is a broken Fast Refresh
 // boundary (lib/__tests__/fastRefreshBoundaries.guard.test.ts).
 import { useSyncExternalStore } from "react";
-import { nativeBrowserPaneAvailable, subscribeNativeBrowserPane } from "../lib/desktop";
+import {
+  nativeBrowserPaneAvailable,
+  subscribeNativeBrowserPane,
+} from "../lib/desktop";
 
 export function useNativeBrowserPane(): boolean {
-  return useSyncExternalStore(subscribeNativeBrowserPane, nativeBrowserPaneAvailable, () => false);
+  return useSyncExternalStore(
+    subscribeNativeBrowserPane,
+    nativeBrowserPaneAvailable,
+    () => false,
+  );
 }

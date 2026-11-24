@@ -41,7 +41,13 @@ export const RECORDING_SPEAKER = { id: "mic", name: "Speaker" } as const;
 export function parseTranscriptionSegments(
   payload: unknown,
   fallbackDurationMs: number,
-): { speaker_id: string; speaker_name: string; text: string; t0: number; t1: number }[] {
+): {
+  speaker_id: string;
+  speaker_name: string;
+  text: string;
+  t0: number;
+  t1: number;
+}[] {
   const body = (payload ?? {}) as {
     text?: unknown;
     segments?: unknown;
@@ -70,10 +76,14 @@ export function parseTranscriptionSegments(
   }
   const whole = typeof body.text === "string" ? body.text.trim() : "";
   if (!whole) return [];
-  return [{ ...speaker, text: whole, t0: 0, t1: Math.max(0, fallbackDurationMs) }];
+  return [
+    { ...speaker, text: whole, t0: 0, t1: Math.max(0, fallbackDurationMs) },
+  ];
 }
 
-export type RecordingSegment = ReturnType<typeof parseTranscriptionSegments>[number];
+export type RecordingSegment = ReturnType<
+  typeof parseTranscriptionSegments
+>[number];
 
 /**
  * Read the words out of one audio file: the one request every recording's
@@ -105,8 +115,14 @@ export async function transcribeAudio(
   form.append("file", audio, filename);
   form.append("model", RECORDING_TRANSCRIBE_MODEL);
   form.append("response_format", "verbose_json");
-  const resp = await openaiFetch(gate, "/v1/audio/transcriptions", { method: "POST", body: form });
+  const resp = await openaiFetch(gate, "/v1/audio/transcriptions", {
+    method: "POST",
+    body: form,
+  });
   if (!resp) throw new Error("OPENAI_API_KEY is not set");
-  if (!resp.ok) throw new Error(`OpenAI ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
+  if (!resp.ok)
+    throw new Error(
+      `OpenAI ${resp.status}: ${(await resp.text()).slice(0, 300)}`,
+    );
   return parseTranscriptionSegments(await resp.json(), fallbackDurationMs);
 }

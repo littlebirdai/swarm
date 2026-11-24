@@ -27,10 +27,13 @@ import { execFileAsync } from "../../proc.js";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { acquireWorkspace } from "../lifecycle.js";
 import {
-  acquireWorkspace,
-} from "../lifecycle.js";
-import { deleteState, readState, stateToWorkspace, writeState } from "../contract.js";
+  deleteState,
+  readState,
+  stateToWorkspace,
+  writeState,
+} from "../contract.js";
 import {
   POOL_MAX_AGE_MS,
   initPool,
@@ -96,7 +99,10 @@ export async function maintainPool(
   // Clamped here rather than only in the callers: every warm slot is a full
   // checkout of the repo, and this is the one function that builds them, so
   // the ceiling belongs where nothing can route around it (ct-49540).
-  const size = Math.max(0, Math.min(Math.trunc(requestedSize) || 0, POOL_MAX_SLOTS));
+  const size = Math.max(
+    0,
+    Math.min(Math.trunc(requestedSize) || 0, POOL_MAX_SLOTS),
+  );
   let state = readPoolState(repoRoot);
   if (!state) {
     state = initPool(0);
@@ -120,7 +126,11 @@ export async function maintainPool(
       continue;
     }
     const wsState = readState(repoRoot, slot.workspaceName);
-    if (wsState && wsState.state === "ready" && (await pathExists(wsState.path))) {
+    if (
+      wsState &&
+      wsState.state === "ready" &&
+      (await pathExists(wsState.path))
+    ) {
       // Resume — slot completed on a previous run; mark ready.
       transitionSlot(state, slot.slotId, "ready", {
         headSha,
@@ -149,7 +159,9 @@ export async function maintainPool(
     if (slot.state === "empty") {
       if (opts.skipIfWarming) continue;
       // Mark warming first (synchronous), then kick off the work.
-      transitionSlot(state, slot.slotId, "warming", { workspaceName: slot.slotId });
+      transitionSlot(state, slot.slotId, "warming", {
+        workspaceName: slot.slotId,
+      });
       writePoolState(repoRoot, state);
       // Fire-and-forget; warmSlot writes its own state updates.
       void warmSlot(repoRoot, slot.slotId).catch((err) => {
@@ -250,8 +262,15 @@ export async function claimFromPool(
       }
       // No browser starts on a claim (startWorkspaceBrowser starts one on demand).
       const claimed = readState(repoRoot, desiredName);
-      if (!claimed) throw new Error(`workspace '${desiredName}' vanished after its pool rename`);
-      return { workspace: stateToWorkspace(claimed), fromPool: true, slotId: ready.slotId };
+      if (!claimed)
+        throw new Error(
+          `workspace '${desiredName}' vanished after its pool rename`,
+        );
+      return {
+        workspace: stateToWorkspace(claimed),
+        fromPool: true,
+        slotId: ready.slotId,
+      };
     } catch (err) {
       // Rename failed — restore slot to stale so it's recycled, and rethrow.
       const s2 = readPoolState(repoRoot);
@@ -292,7 +311,11 @@ async function warmSlot(repoRoot: string, slotId: string): Promise<void> {
   const slot = state.slots.find((s) => s.slotId === slotId);
   if (!slot) return;
   if (slot.state !== "warming") return; // raced (stale / claimed / empty)
-  transitionSlot(state, slotId, "ready", { headSha, lockHash, workspaceName: slotName });
+  transitionSlot(state, slotId, "ready", {
+    headSha,
+    lockHash,
+    workspaceName: slotName,
+  });
   writePoolState(repoRoot, state);
 }
 
@@ -318,7 +341,9 @@ const LOCKFILE_CANDIDATES = [
   "go.sum",
 ] as const;
 
-export async function currentRepoFingerprint(repoRoot: string): Promise<RepoFingerprint> {
+export async function currentRepoFingerprint(
+  repoRoot: string,
+): Promise<RepoFingerprint> {
   let headSha = "";
   try {
     const { stdout } = await execFileAsync("git", ["rev-parse", "HEAD"], {
@@ -335,7 +360,11 @@ export async function currentRepoFingerprint(repoRoot: string): Promise<RepoFing
   for (const candidate of LOCKFILE_CANDIDATES) {
     try {
       const body = await fs.promises.readFile(path.join(repoRoot, candidate));
-      lockHash = crypto.createHash("sha256").update(body).digest("hex").slice(0, 16);
+      lockHash = crypto
+        .createHash("sha256")
+        .update(body)
+        .digest("hex")
+        .slice(0, 16);
       break;
     } catch {
       /* absent or unreadable — try the next one */
@@ -359,7 +388,8 @@ async function renameWorkspace(
   toName: string,
 ): Promise<void> {
   const fromState = readState(repoRoot, fromName);
-  if (!fromState) throw new Error(`workspace '${fromName}' has no state to rename`);
+  if (!fromState)
+    throw new Error(`workspace '${fromName}' has no state to rename`);
 
   const fromPath = fromState.path;
   const toPath = path.join(repoRoot, WORKTREES_DIR, toName);
@@ -369,13 +399,17 @@ async function renameWorkspace(
   }
 
   // 1. Move the worktree
-  await execFileAsync("git", ["worktree", "move", fromPath, toPath], { cwd: repoRoot });
+  await execFileAsync("git", ["worktree", "move", fromPath, toPath], {
+    cwd: repoRoot,
+  });
 
   // 2. Rename the branch (inside the new worktree)
   const fromBranch = fromState.branch;
   const toBranch = `codecast/${toName}`;
   if (fromBranch !== toBranch) {
-    await execFileAsync("git", ["branch", "-m", fromBranch, toBranch], { cwd: toPath });
+    await execFileAsync("git", ["branch", "-m", fromBranch, toBranch], {
+      cwd: toPath,
+    });
   }
 
   // 3. Move the state directory and update its contents
@@ -418,7 +452,8 @@ async function teardownSlotArtifacts(
   // branch, and check the slot out at the OLD tip — while the pool records the
   // repo's CURRENT head as its fingerprint. That is a stale tree the staleness
   // check cannot see, handed to an agent as fresh (ct-49540).
-  await execFileAsync("git", ["branch", "-D", state.branch], { cwd: repoRoot })
-    .catch(() => {});
+  await execFileAsync("git", ["branch", "-D", state.branch], {
+    cwd: repoRoot,
+  }).catch(() => {});
   deleteState(repoRoot, slot.workspaceName);
 }

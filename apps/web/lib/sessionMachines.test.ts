@@ -13,14 +13,62 @@ import {
   switchReconfigureArgs,
 } from "./sessionMachines";
 
-const laptop = { device_id: "laptop", label: "My Mac", platform: "darwin", online: true, is_remote: false, last_seen: 1, local_project_roots: ["/Users/me/src/app"] };
-const mini = { ...laptop, device_id: "agent-box", label: "Mac-mini", bot_name: "Mr Bot", local_project_roots: ["/Users/bot/src/app"] };
+const laptop = {
+  device_id: "laptop",
+  label: "My Mac",
+  platform: "darwin",
+  online: true,
+  is_remote: false,
+  last_seen: 1,
+  local_project_roots: ["/Users/me/src/app"],
+};
+const mini = {
+  ...laptop,
+  device_id: "agent-box",
+  label: "Mac-mini",
+  bot_name: "Mr Bot",
+  local_project_roots: ["/Users/bot/src/app"],
+};
 // A host this laptop manages carries its report (cloud_host); a remote without one is a plain machine.
-const hostReport = { managed_by: "laptop", instance_id: "i-1", provider: "aws" as const, state: "stopped" as const, images: [], logins_held: [], at: Date.now() };
-const cloud = { device_id: "cloud", label: "Linux - ip-172-31-40-243", platform: "linux", online: false, is_remote: true, last_seen: 0, local_project_roots: ["/home/ubuntu/work/app"], cloud_host: hostReport };
+const hostReport = {
+  managed_by: "laptop",
+  instance_id: "i-1",
+  provider: "aws" as const,
+  state: "stopped" as const,
+  images: [],
+  logins_held: [],
+  at: Date.now(),
+};
+const cloud = {
+  device_id: "cloud",
+  label: "Linux - ip-172-31-40-243",
+  platform: "linux",
+  online: false,
+  is_remote: true,
+  last_seen: 0,
+  local_project_roots: ["/home/ubuntu/work/app"],
+  cloud_host: hostReport,
+};
 const cloudAwake = { ...cloud, online: true };
-const remoteMac = { device_id: "remote-mac", label: "Remote", platform: "darwin", online: true, is_remote: true, last_seen: 1, local_project_roots: [], cloud_host: hostReport };
-const linuxLaptop = { device_id: "linux-laptop", label: "thinkpad", platform: "linux", online: true, is_remote: false, last_seen: 1, local_project_roots: [] };
+const remoteMac = {
+  device_id: "remote-mac",
+  label: "Remote",
+  platform: "darwin",
+  online: true,
+  is_remote: true,
+  last_seen: 1,
+  local_project_roots: [],
+  cloud_host: hostReport,
+};
+const linuxLaptop = {
+  device_id: "linux-laptop",
+  label: "thinkpad",
+  platform: "linux",
+  online: true,
+  is_remote: false,
+  last_seen: 1,
+  local_project_roots: [],
+};
 const linuxBox = { ...cloud, device_id: "linux-box", bot_name: "Boxy" };
 
 describe("a cloud host whose instance is gone", () => {
@@ -29,32 +77,76 @@ describe("a cloud host whose instance is gone", () => {
   // reporting them days ago. A standing pick of a dead one parked every new
   // session on it, waiting for a host that would never boot.
   const now = Date.now();
-  const report = (at: number, extra = {}) => ({ managed_by: "laptop", instance_id: "i", provider: "aws" as const, state: "stopped" as const, images: [], logins_held: [], at, ...extra });
+  const report = (at: number, extra = {}) => ({
+    managed_by: "laptop",
+    instance_id: "i",
+    provider: "aws" as const,
+    state: "stopped" as const,
+    images: [],
+    logins_held: [],
+    at,
+    ...extra,
+  });
   const live = { ...cloud, device_id: "live", cloud_host: report(now) };
-  const deadA = { ...cloud, device_id: "dead-a", last_seen: now - 14 * 86_400_000, cloud_host: report(now - 14 * 86_400_000) };
-  const deadB = { ...cloud, device_id: "dead-b", last_seen: now - 20 * 86_400_000, cloud_host: undefined };
+  const deadA = {
+    ...cloud,
+    device_id: "dead-a",
+    last_seen: now - 14 * 86_400_000,
+    cloud_host: report(now - 14 * 86_400_000),
+  };
+  const deadB = {
+    ...cloud,
+    device_id: "dead-b",
+    last_seen: now - 20 * 86_400_000,
+    cloud_host: undefined,
+  };
   const roster = [laptop, deadA, deadB, live];
 
   test("a standing pick of a dead host falls through; a sleeping one holds", () => {
-    expect(defaultSessionMachineId(roster, { lastPicked: deadA.device_id })).toBe(laptop.device_id);
-    expect(defaultSessionMachineId(roster, { lastPicked: deadB.device_id })).toBe(laptop.device_id);
-    expect(defaultSessionMachineId(roster, { lastPicked: live.device_id })).toBe(live.device_id);
+    expect(
+      defaultSessionMachineId(roster, { lastPicked: deadA.device_id }),
+    ).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId(roster, { lastPicked: deadB.device_id }),
+    ).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId(roster, { lastPicked: live.device_id }),
+    ).toBe(live.device_id);
   });
 
   test("at a machine, a last pick of a sleeping host yields to it; a saved default still waits for the boot", () => {
     const asleep = { ...live, online: false };
     const r = [laptop, asleep];
-    expect(defaultSessionMachineId(r, { lastPicked: asleep.device_id, localDeviceId: laptop.device_id })).toBe(laptop.device_id);
-    expect(defaultSessionMachineId(r, { defaultDevice: asleep.device_id, localDeviceId: laptop.device_id })).toBe(asleep.device_id);
+    expect(
+      defaultSessionMachineId(r, {
+        lastPicked: asleep.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId(r, {
+        defaultDevice: asleep.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(asleep.device_id);
   });
 
   test("the cloud toggle points at the live host, and at nothing when every host is dead", () => {
     expect(cloudHostOf(roster)).toBe(live);
-    expect(cloudHostOf([laptop, deadA, deadB, { ...live, cloud_host: report(now, { state: "missing" }) }])).toBeNull();
+    expect(
+      cloudHostOf([
+        laptop,
+        deadA,
+        deadB,
+        { ...live, cloud_host: report(now, { state: "missing" }) },
+      ]),
+    ).toBeNull();
   });
 
   test("an online host is never gone, and a remote no laptop reports on is a plain machine, never a host to park on", () => {
-    expect(machineChipNote({ ...deadA, online: true }, roster)).not.toBe("gone");
+    expect(machineChipNote({ ...deadA, online: true }, roster)).not.toBe(
+      "gone",
+    );
     // The server's start chokepoint parks only on a reported host (cloudHostManaged); the composer agrees.
     expect(cloudHostOf([laptop, deadB])).toBeNull();
     expect(isCloudHost(deadB)).toBe(false);
@@ -63,20 +155,46 @@ describe("a cloud host whose instance is gone", () => {
   });
 
   test("two awake unnamed hosts in one region read apart by size and instance, never by the region they share", () => {
-    const a = { ...live, device_id: "a", online: true, cloud_host: report(now, { region: "us-west-2", instance_type: "m7i.4xlarge", instance_id: "i-087c7f5b1c9661f26", state: "running" }) };
-    const b = { ...live, device_id: "b", online: true, cloud_host: report(now, { region: "us-west-2", instance_type: "m7i.4xlarge", instance_id: "i-0b910d09160c158ef", state: "running" }) };
+    const a = {
+      ...live,
+      device_id: "a",
+      online: true,
+      cloud_host: report(now, {
+        region: "us-west-2",
+        instance_type: "m7i.4xlarge",
+        instance_id: "i-087c7f5b1c9661f26",
+        state: "running",
+      }),
+    };
+    const b = {
+      ...live,
+      device_id: "b",
+      online: true,
+      cloud_host: report(now, {
+        region: "us-west-2",
+        instance_type: "m7i.4xlarge",
+        instance_id: "i-0b910d09160c158ef",
+        state: "running",
+      }),
+    };
     expect(machineChipNote(a, [laptop, a, b])).toBe("m7i.4xlarge 1f26");
     expect(machineChipNote(b, [laptop, a, b])).toBe("m7i.4xlarge 58ef");
-    const named = { ...a, cloud_host: { ...a.cloud_host, name: "union-line-1" } };
+    const named = {
+      ...a,
+      cloud_host: { ...a.cloud_host, name: "union-line-1" },
+    };
     expect(machineChipNote(named, [laptop, named, b])).toBeNull();
   });
 });
 
 describe("new-session machines", () => {
   test("a remembered incompatible runtime cannot override the checkout holder", () => {
-    expect(defaultSessionMachineId([linuxLaptop, { ...laptop, online: false }], {
-      projectPath: "/Users/me/src/app", lastPicked: linuxLaptop.device_id,
-    })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([linuxLaptop, { ...laptop, online: false }], {
+        projectPath: "/Users/me/src/app",
+        lastPicked: linuxLaptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
   });
 
   test("adds team agent boxes with their own folders", () => {
@@ -84,54 +202,115 @@ describe("new-session machines", () => {
   });
 
   test("a cloned device id never shadows the viewer's own machine", () => {
-    expect(sessionMachineChoices([laptop], [{ ...mini, device_id: laptop.device_id }])).toEqual([laptop]);
+    expect(
+      sessionMachineChoices(
+        [laptop],
+        [{ ...mini, device_id: laptop.device_id }],
+      ),
+    ).toEqual([laptop]);
   });
 
   test("keeps the normal default until an agent box is explicitly chosen", () => {
     expect(defaultSessionMachineId([mini, laptop], {})).toBe(laptop.device_id);
-    expect(defaultSessionMachineId([mini, laptop], { lastPicked: mini.device_id })).toBe(mini.device_id);
+    expect(
+      defaultSessionMachineId([mini, laptop], { lastPicked: mini.device_id }),
+    ).toBe(mini.device_id);
   });
 
   test("a saved default, then the last hand pick, outrank the machine this client runs on", () => {
     const studio = { ...laptop, device_id: "studio", label: "Mac Studio" };
     // sd-2611: picked the Studio once, so a launch from the laptop opens on it.
-    expect(defaultSessionMachineId([laptop, studio], {
-      projectPath: "/Users/me/src/app", lastPicked: studio.device_id, localDeviceId: laptop.device_id,
-    })).toBe(studio.device_id);
+    expect(
+      defaultSessionMachineId([laptop, studio], {
+        projectPath: "/Users/me/src/app",
+        lastPicked: studio.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(studio.device_id);
     // A saved default beats the last pick; "This device" means the client's machine.
-    expect(defaultSessionMachineId([laptop, studio, linuxLaptop], {
-      defaultDevice: studio.device_id, lastPicked: linuxLaptop.device_id, localDeviceId: laptop.device_id,
-    })).toBe(studio.device_id);
-    expect(defaultSessionMachineId([laptop, studio], {
-      defaultDevice: THIS_DEVICE, lastPicked: studio.device_id, localDeviceId: laptop.device_id,
-    })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([laptop, studio, linuxLaptop], {
+        defaultDevice: studio.device_id,
+        lastPicked: linuxLaptop.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(studio.device_id);
+    expect(
+      defaultSessionMachineId([laptop, studio], {
+        defaultDevice: THIS_DEVICE,
+        lastPicked: studio.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
     // "This device" on a client with no machine (a phone) falls to the last pick.
-    expect(defaultSessionMachineId([laptop, studio], { defaultDevice: THIS_DEVICE, lastPicked: studio.device_id })).toBe(studio.device_id);
+    expect(
+      defaultSessionMachineId([laptop, studio], {
+        defaultDevice: THIS_DEVICE,
+        lastPicked: studio.device_id,
+      }),
+    ).toBe(studio.device_id);
     // Offline default and offline pick fall through, never block.
-    expect(defaultSessionMachineId([laptop, { ...studio, online: false }, linuxLaptop], {
-      defaultDevice: studio.device_id, lastPicked: linuxLaptop.device_id, localDeviceId: laptop.device_id,
-    })).toBe(linuxLaptop.device_id);
-    expect(defaultSessionMachineId([laptop, { ...studio, online: false }], {
-      defaultDevice: studio.device_id, lastPicked: studio.device_id, localDeviceId: laptop.device_id,
-    })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId(
+        [laptop, { ...studio, online: false }, linuxLaptop],
+        {
+          defaultDevice: studio.device_id,
+          lastPicked: linuxLaptop.device_id,
+          localDeviceId: laptop.device_id,
+        },
+      ),
+    ).toBe(linuxLaptop.device_id);
+    expect(
+      defaultSessionMachineId([laptop, { ...studio, online: false }], {
+        defaultDevice: studio.device_id,
+        lastPicked: studio.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
     // A pick that cannot open the folder falls through to the client's machine.
-    expect(defaultSessionMachineId([laptop, linuxLaptop], {
-      projectPath: "/Users/me/src/app", lastPicked: linuxLaptop.device_id, localDeviceId: laptop.device_id,
-    })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([laptop, linuxLaptop], {
+        projectPath: "/Users/me/src/app",
+        lastPicked: linuxLaptop.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
     // A stale roster row does not matter for the client's machine: its daemon answered on loopback.
-    expect(defaultSessionMachineId([{ ...laptop, online: false }, cloudAwake], { localDeviceId: laptop.device_id })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([{ ...laptop, online: false }, cloudAwake], {
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(laptop.device_id);
     // An existing session still stays where it is; a box is never "here".
-    expect(defaultSessionMachineId([laptop, cloudAwake], { ownerDeviceId: cloudAwake.device_id, localDeviceId: laptop.device_id })).toBe(cloudAwake.device_id);
-    expect(defaultSessionMachineId([mini, laptop], { localDeviceId: mini.device_id })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([laptop, cloudAwake], {
+        ownerDeviceId: cloudAwake.device_id,
+        localDeviceId: laptop.device_id,
+      }),
+    ).toBe(cloudAwake.device_id);
+    expect(
+      defaultSessionMachineId([mini, laptop], {
+        localDeviceId: mini.device_id,
+      }),
+    ).toBe(laptop.device_id);
   });
 
   test("an existing box session stays on its machine", () => {
-    expect(defaultSessionMachineId([mini, laptop], { ownerDeviceId: mini.device_id, lastPicked: laptop.device_id })).toBe(mini.device_id);
+    expect(
+      defaultSessionMachineId([mini, laptop], {
+        ownerDeviceId: mini.device_id,
+        lastPicked: laptop.device_id,
+      }),
+    ).toBe(mini.device_id);
   });
 
   test("handles a box-only account and a stale saved pick", () => {
     expect(defaultSessionMachineId([mini], {})).toBe(mini.device_id);
-    expect(defaultSessionMachineId([{ ...mini, online: false }, laptop], { lastPicked: mini.device_id })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([{ ...mini, online: false }, laptop], {
+        lastPicked: mini.device_id,
+      }),
+    ).toBe(laptop.device_id);
   });
 });
 
@@ -155,17 +334,36 @@ describe("isCloudHost / cloudHostOf — the machine the toggle points at", () =>
 
 describe("the ladder honours an asleep cloud host", () => {
   test("an OFFLINE cloud host holds as owner and as the standing pick", () => {
-    expect(defaultSessionMachineId([laptop, cloud], { ownerDeviceId: cloud.device_id })).toBe(cloud.device_id);
-    expect(defaultSessionMachineId([laptop, cloud], { lastPicked: cloud.device_id })).toBe(cloud.device_id);
+    expect(
+      defaultSessionMachineId([laptop, cloud], {
+        ownerDeviceId: cloud.device_id,
+      }),
+    ).toBe(cloud.device_id);
+    expect(
+      defaultSessionMachineId([laptop, cloud], { lastPicked: cloud.device_id }),
+    ).toBe(cloud.device_id);
   });
 
   test("an offline laptop pick and an offline agent box pick are ignored", () => {
-    expect(defaultSessionMachineId([{ ...laptop, online: false }, linuxLaptop], { lastPicked: laptop.device_id })).toBe(linuxLaptop.device_id);
-    expect(defaultSessionMachineId([{ ...linuxBox, online: false }, laptop], { lastPicked: linuxBox.device_id })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([{ ...laptop, online: false }, linuxLaptop], {
+        lastPicked: laptop.device_id,
+      }),
+    ).toBe(linuxLaptop.device_id);
+    expect(
+      defaultSessionMachineId([{ ...linuxBox, online: false }, laptop], {
+        lastPicked: linuxBox.device_id,
+      }),
+    ).toBe(laptop.device_id);
   });
 
   test("owner=laptop outranks lastPicked=cloud host", () => {
-    expect(defaultSessionMachineId([laptop, cloud], { ownerDeviceId: laptop.device_id, lastPicked: cloud.device_id })).toBe(laptop.device_id);
+    expect(
+      defaultSessionMachineId([laptop, cloud], {
+        ownerDeviceId: laptop.device_id,
+        lastPicked: cloud.device_id,
+      }),
+    ).toBe(laptop.device_id);
   });
 
   test("with no owner and no pick the online laptop wins over the host", () => {
@@ -175,7 +373,10 @@ describe("the ladder honours an asleep cloud host", () => {
 
 describe("transitions keep cloudMode === isCloudHost(picked)", () => {
   const devices = [laptop, mini, cloud];
-  const invariant = (sel: { pickedDeviceId: string | null; cloudMode: boolean }, pool = devices) => {
+  const invariant = (
+    sel: { pickedDeviceId: string | null; cloudMode: boolean },
+    pool = devices,
+  ) => {
     if (sel.pickedDeviceId === null) return;
     const picked = pool.find((d) => d.device_id === sel.pickedDeviceId)!;
     expect(picked).toBeDefined();
@@ -198,17 +399,30 @@ describe("transitions keep cloudMode === isCloudHost(picked)", () => {
     const on = machineSelectionAfterCloudToggle(devices, {}, true);
     expect(on).toEqual({ pickedDeviceId: "cloud", cloudMode: true });
     invariant(on);
-    expect(machineSelectionAfterCloudToggle([laptop, mini], {}, true)).toEqual({ pickedDeviceId: null, cloudMode: false });
+    expect(machineSelectionAfterCloudToggle([laptop, mini], {}, true)).toEqual({
+      pickedDeviceId: null,
+      cloudMode: false,
+    });
   });
 
   test("toggle off with the standing pick on the host lands on a non-cloud machine", () => {
-    const off = machineSelectionAfterCloudToggle([laptop, cloudAwake], { lastPicked: cloudAwake.device_id }, false);
+    const off = machineSelectionAfterCloudToggle(
+      [laptop, cloudAwake],
+      { lastPicked: cloudAwake.device_id },
+      false,
+    );
     expect(off).toEqual({ pickedDeviceId: "laptop", cloudMode: false });
     invariant(off, [laptop, cloudAwake]);
   });
 
   test("toggle off on a cloud-only roster yields null and the toggle is unavailable", () => {
-    expect(machineSelectionAfterCloudToggle([cloud], { lastPicked: cloud.device_id }, false)).toEqual({ pickedDeviceId: null, cloudMode: false });
+    expect(
+      machineSelectionAfterCloudToggle(
+        [cloud],
+        { lastPicked: cloud.device_id },
+        false,
+      ),
+    ).toEqual({ pickedDeviceId: null, cloudMode: false });
     expect(cloudToggleAvailable([cloud], true)).toBe(false);
     expect(cloudToggleAvailable([cloud], false)).toBe(true);
     expect(cloudToggleAvailable([laptop, cloud], true)).toBe(true);
@@ -216,53 +430,128 @@ describe("transitions keep cloudMode === isCloudHost(picked)", () => {
   });
 
   test("toggle off for a row parked on the host does not keep the host as owner", () => {
-    const off = machineSelectionAfterCloudToggle(devices, { ownerDeviceId: cloud.device_id }, false);
+    const off = machineSelectionAfterCloudToggle(
+      devices,
+      { ownerDeviceId: cloud.device_id },
+      false,
+    );
     expect(off).toEqual({ pickedDeviceId: "laptop", cloudMode: false });
     invariant(off);
   });
 });
 
 describe("a composer switch: park or plain start, and the payload", () => {
-  const args = (over: Partial<Parameters<typeof switchReconfigureArgs>[0]> = {}) => switchReconfigureArgs({
-    machineOnly: false, path: "/Users/me/src/app", cloudPark: false, targetDeviceId: "laptop",
-    isolated: false, cloudShared: false, cloudStartFrom: "checkout", ...over,
-  });
+  const args = (
+    over: Partial<Parameters<typeof switchReconfigureArgs>[0]> = {},
+  ) =>
+    switchReconfigureArgs({
+      machineOnly: false,
+      path: "/Users/me/src/app",
+      cloudPark: false,
+      targetDeviceId: "laptop",
+      isolated: false,
+      cloudShared: false,
+      cloudStartFrom: "checkout",
+      ...over,
+    });
 
   test("a laptop folder parks on the host; a folder the host already holds starts plainly", () => {
-    expect(cloudParkNeeded({ target: cloud, locals: [laptop], path: "/Users/me/src/app" })).toBe(true);
-    expect(cloudParkNeeded({ target: cloud, locals: [laptop], path: "/home/ubuntu/work/app" })).toBe(false);
+    expect(
+      cloudParkNeeded({
+        target: cloud,
+        locals: [laptop],
+        path: "/Users/me/src/app",
+      }),
+    ).toBe(true);
+    expect(
+      cloudParkNeeded({
+        target: cloud,
+        locals: [laptop],
+        path: "/home/ubuntu/work/app",
+      }),
+    ).toBe(false);
     // A worktree under a folder the host holds is the host's too.
-    expect(cloudParkNeeded({ target: cloud, locals: [laptop], path: "/home/ubuntu/work/app/.codecast/worktrees/x" })).toBe(false);
+    expect(
+      cloudParkNeeded({
+        target: cloud,
+        locals: [laptop],
+        path: "/home/ubuntu/work/app/.codecast/worktrees/x",
+      }),
+    ).toBe(false);
     // A machine-only switch has no folder to judge: the host needs preparing.
-    expect(cloudParkNeeded({ target: cloud, locals: [laptop], path: "" })).toBe(true);
+    expect(cloudParkNeeded({ target: cloud, locals: [laptop], path: "" })).toBe(
+      true,
+    );
     // Every non-cloud target: never a park, whatever the folder.
-    expect(cloudParkNeeded({ target: laptop, locals: [laptop], path: "/Users/me/src/app" })).toBe(false);
-    expect(cloudParkNeeded({ target: mini, locals: [laptop], path: "/Users/me/src/app" })).toBe(false);
-    expect(cloudParkNeeded({ target: undefined, locals: [laptop], path: "/Users/me/src/app" })).toBe(false);
+    expect(
+      cloudParkNeeded({
+        target: laptop,
+        locals: [laptop],
+        path: "/Users/me/src/app",
+      }),
+    ).toBe(false);
+    expect(
+      cloudParkNeeded({
+        target: mini,
+        locals: [laptop],
+        path: "/Users/me/src/app",
+      }),
+    ).toBe(false);
+    expect(
+      cloudParkNeeded({
+        target: undefined,
+        locals: [laptop],
+        path: "/Users/me/src/app",
+      }),
+    ).toBe(false);
   });
 
   test("a park carries the host, the workspace and the seed, and never asks for a local worktree", () => {
-    expect(args({ cloudPark: true, targetDeviceId: "cloud", isolated: true })).toEqual({
-      project_path: "/Users/me/src/app", git_root: "/Users/me/src/app",
+    expect(
+      args({ cloudPark: true, targetDeviceId: "cloud", isolated: true }),
+    ).toEqual({
+      project_path: "/Users/me/src/app",
+      git_root: "/Users/me/src/app",
       isolated: undefined,
-      cloud_device_id: "cloud", cloud_workspace: "isolated", cloud_start_from: "checkout",
+      cloud_device_id: "cloud",
+      cloud_workspace: "isolated",
+      cloud_start_from: "checkout",
     });
     // A shared checkout pins the seed at origin/main whatever was picked.
-    expect(args({ cloudPark: true, targetDeviceId: "cloud", cloudShared: true, cloudStartFrom: "checkout" })).toMatchObject({
-      cloud_workspace: "shared", cloud_start_from: "origin_main",
+    expect(
+      args({
+        cloudPark: true,
+        targetDeviceId: "cloud",
+        cloudShared: true,
+        cloudStartFrom: "checkout",
+      }),
+    ).toMatchObject({
+      cloud_workspace: "shared",
+      cloud_start_from: "origin_main",
     });
   });
 
   test("every other target carries the real toggle and a plain target device", () => {
     expect(args({ isolated: true })).toEqual({
-      project_path: "/Users/me/src/app", git_root: "/Users/me/src/app",
-      isolated: true, target_device_id: "laptop",
+      project_path: "/Users/me/src/app",
+      git_root: "/Users/me/src/app",
+      isolated: true,
+      target_device_id: "laptop",
     });
     // Leaving cloud mode: no cloud field rides along with the un-park.
-    expect(args({ cloudShared: true, cloudStartFrom: "origin_main" })).not.toHaveProperty("cloud_device_id");
+    expect(
+      args({ cloudShared: true, cloudStartFrom: "origin_main" }),
+    ).not.toHaveProperty("cloud_device_id");
     // A machine-only switch leaves the row's folder alone.
-    expect(args({ machineOnly: true })).toEqual({ isolated: undefined, target_device_id: "laptop" });
+    expect(args({ machineOnly: true })).toEqual({
+      isolated: undefined,
+      target_device_id: "laptop",
+    });
     // No target at all: just the folder.
-    expect(args({ targetDeviceId: null })).toEqual({ project_path: "/Users/me/src/app", git_root: "/Users/me/src/app", isolated: undefined });
+    expect(args({ targetDeviceId: null })).toEqual({
+      project_path: "/Users/me/src/app",
+      git_root: "/Users/me/src/app",
+      isolated: undefined,
+    });
   });
 });

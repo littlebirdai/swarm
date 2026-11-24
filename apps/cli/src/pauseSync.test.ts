@@ -22,7 +22,10 @@ describe("Pause sync environment variable", () => {
     process.env.CODE_CHAT_SYNC_PAUSED = "1";
 
     const isSyncPaused = () => {
-      return process.env.CODE_CHAT_SYNC_PAUSED === "1" || process.env.CODECAST_PAUSED === "1";
+      return (
+        process.env.CODE_CHAT_SYNC_PAUSED === "1" ||
+        process.env.CODECAST_PAUSED === "1"
+      );
     };
 
     expect(isSyncPaused()).toBe(true);
@@ -33,7 +36,10 @@ describe("Pause sync environment variable", () => {
     process.env.CODECAST_PAUSED = "1";
 
     const isSyncPaused = () => {
-      return process.env.CODE_CHAT_SYNC_PAUSED === "1" || process.env.CODECAST_PAUSED === "1";
+      return (
+        process.env.CODE_CHAT_SYNC_PAUSED === "1" ||
+        process.env.CODECAST_PAUSED === "1"
+      );
     };
 
     expect(isSyncPaused()).toBe(true);
@@ -44,7 +50,10 @@ describe("Pause sync environment variable", () => {
     delete process.env.CODECAST_PAUSED;
 
     const isSyncPaused = () => {
-      return process.env.CODE_CHAT_SYNC_PAUSED === "1" || process.env.CODECAST_PAUSED === "1";
+      return (
+        process.env.CODE_CHAT_SYNC_PAUSED === "1" ||
+        process.env.CODECAST_PAUSED === "1"
+      );
     };
 
     expect(isSyncPaused()).toBe(false);
@@ -55,7 +64,10 @@ describe("Pause sync environment variable", () => {
     process.env.CODECAST_PAUSED = "false";
 
     const isSyncPaused = () => {
-      return process.env.CODE_CHAT_SYNC_PAUSED === "1" || process.env.CODECAST_PAUSED === "1";
+      return (
+        process.env.CODE_CHAT_SYNC_PAUSED === "1" ||
+        process.env.CODECAST_PAUSED === "1"
+      );
     };
 
     expect(isSyncPaused()).toBe(false);

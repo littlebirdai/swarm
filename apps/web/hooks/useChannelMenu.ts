@@ -1,4 +1,7 @@
-import { useContextMenu, type ContextMenuState } from "../components/ui/context-menu";
+import {
+  useContextMenu,
+  type ContextMenuState,
+} from "../components/ui/context-menu";
 import type { ChatNotifyLevel } from "../store/chatSlice";
 
 export type ChannelMenuPayload = {

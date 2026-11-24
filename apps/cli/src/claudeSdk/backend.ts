@@ -12,11 +12,29 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { stopLaunchdJob } from "../launchdJob.js";
-import { attachSdkHost, cleanupDeadHost, hostProcessAlive, launchSdkHost, readHostState, type SdkHostClient } from "./client.js";
+import {
+  attachSdkHost,
+  cleanupDeadHost,
+  hostProcessAlive,
+  launchSdkHost,
+  readHostState,
+  type SdkHostClient,
+} from "./client.js";
 import type { SdkLaunchSpec } from "./options.js";
 import { sdkHostDir, writeFileAtomic } from "./paths.js";
-import { askAnswerFromPoll, AUTO_ALLOW_TOOLS, planAnswerFromPoll, QUESTION_TOOLS } from "./pollAnswer.js";
-import type { SdkActivity, SdkImage, SdkPermissionAnswer, SdkPermissionRequest, SdkTurnError } from "./protocol.js";
+import {
+  askAnswerFromPoll,
+  AUTO_ALLOW_TOOLS,
+  planAnswerFromPoll,
+  QUESTION_TOOLS,
+} from "./pollAnswer.js";
+import type {
+  SdkActivity,
+  SdkImage,
+  SdkPermissionAnswer,
+  SdkPermissionRequest,
+  SdkTurnError,
+} from "./protocol.js";
 import { parsePollMessage } from "../pollMessage.js";
 import type { LivenessVerdict } from "@codecast/shared/contracts";
 
@@ -25,43 +43,89 @@ export interface ClaudeSdkBackendDeps {
   /** argv that runs cast itself (resolveCastInvocation). */
   castArgv: () => string[];
   /** The account and provider-key prefix a tmux launch line would start with. */
-  shellPrefix: (account: string | undefined, agent: "claude" | "grok") => string;
+  shellPrefix: (
+    account: string | undefined,
+    agent: "claude" | "grok",
+  ) => string;
   /** What the status hook would have posted. */
-  activity: (conversationId: string, sessionId: string, activity: SdkActivity, launchToken: string | undefined) => void;
+  activity: (
+    conversationId: string,
+    sessionId: string,
+    activity: SdkActivity,
+    launchToken: string | undefined,
+  ) => void;
   /**
    * Open the web card for a permission prompt (or bind to `request.cardId`, the
    * card a previous daemon opened) and resolve with the person's answer, or null
    * when the wait ends unanswered. `settled` aborts when the prompt ends without
    * the card; `opened` records the card's id on the host.
    */
-  permission: (conversationId: string, sessionId: string, request: SdkPermissionRequest, settled: AbortSignal, opened: (cardId: string) => void) => Promise<SdkPermissionAnswer | null>;
-  turnError: (conversationId: string, sessionId: string, error: SdkTurnError) => void;
+  permission: (
+    conversationId: string,
+    sessionId: string,
+    request: SdkPermissionRequest,
+    settled: AbortSignal,
+    opened: (cardId: string) => void,
+  ) => Promise<SdkPermissionAnswer | null>;
+  turnError: (
+    conversationId: string,
+    sessionId: string,
+    error: SdkTurnError,
+  ) => void;
   /** The host is gone: Claude exited, or the host died. The binding stays, so the next delivery resumes. `abandonedCards` are cards it left open that nothing can answer now. */
-  stopped: (conversationId: string, sessionId: string, reason: string, abandonedCards?: string[]) => void;
+  stopped: (
+    conversationId: string,
+    sessionId: string,
+    reason: string,
+    abandonedCards?: string[],
+  ) => void;
   /**
    * The account a resume runs on: the server's answer (after a usage limit it re-points a
    * conversation at the account this device continues on), else the one the session started on.
    */
-  resumeAccount: (conversationId: string, saved: string | undefined) => Promise<string | undefined>;
+  resumeAccount: (
+    conversationId: string,
+    saved: string | undefined,
+  ) => Promise<string | undefined>;
   /** May this conversation's session come back in a new host now (the resume gate: lifecycle, owner)? */
-  mayResume: (conversationId: string, sessionId: string, userInitiated: boolean) => Promise<boolean>;
+  mayResume: (
+    conversationId: string,
+    sessionId: string,
+    userInitiated: boolean,
+  ) => Promise<boolean>;
   /**
    * The model and effort a resume continues with, read from the transcript as the tmux resume reads
    * them (a `/model` or effort change made mid-session lives there, not in the start's argv).
    * Each as `["--model", "x"]`, empty when the transcript names none.
    */
-  resumeModelEffort: (sessionId: string, cwd: string) => { model: string[]; effort: string[] };
+  resumeModelEffort: (
+    sessionId: string,
+    cwd: string,
+  ) => { model: string[]; effort: string[] };
   /** Has the agent written a transcript for this session? A session nobody typed into has none, and starts fresh. */
-  transcriptExists: (sessionId: string, cwd: string, agent: "claude" | "grok") => boolean;
+  transcriptExists: (
+    sessionId: string,
+    cwd: string,
+    agent: "claude" | "grok",
+  ) => boolean;
   /** Does the session's transcript already hold this prompt, written since `since` (ms)? Guards a resend of a message already sent. */
   /** Whether Claude already recorded the user line it was sent under `uuid` (a retried delivery after a host death or daemon restart). */
   transcriptHas: (sessionId: string, uuid: string) => Promise<boolean>;
   /** Claude moved to a new session in the same host (a /clear): the conversation now follows `next`. */
-  sessionChanged: (conversationId: string, previous: string, next: string) => void;
+  sessionChanged: (
+    conversationId: string,
+    previous: string,
+    next: string,
+  ) => void;
   /** A new host took the session up again after the old one stopped. The server may have reaped its row in the meantime, so it registers again. */
   resumed: (conversationId: string, sessionId: string) => void;
   /** Claude Code is older than the backend needs; the daemon falls back to tmux. */
-  tooOld: (conversationId: string, sessionId: string, version: string | null, minimum: string) => void;
+  tooOld: (
+    conversationId: string,
+    sessionId: string,
+    version: string | null,
+    minimum: string,
+  ) => void;
 }
 
 interface Binding {
@@ -88,7 +152,13 @@ interface Live {
 
 /** Image tags the daemon writes into a message for each attachment it downloaded: `[Image /path]`. */
 const IMAGE_TAG = /\[Image (\/[^\]\s]+)\]/g;
-const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+const MEDIA_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
 
 /**
  * An image the API takes inline: 5 MB once base64-encoded. A bigger one (a phone photo) or a type
@@ -97,25 +167,36 @@ const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "imag
 const MAX_INLINE_IMAGE_BYTES = 3_500_000;
 
 /** The images a message's tags name, read for the SDK. The text keeps the tags, as the tmux paste does. */
-export function imagesFromTags(text: string, read: (p: string) => Buffer = (p) => fs.readFileSync(p)): SdkImage[] {
+export function imagesFromTags(
+  text: string,
+  read: (p: string) => Buffer = (p) => fs.readFileSync(p),
+): SdkImage[] {
   const out: SdkImage[] = [];
   for (const m of text.matchAll(IMAGE_TAG)) {
     const mediaType = MEDIA_TYPES[path.extname(m[1]).toLowerCase()];
     if (!mediaType) continue;
     try {
       const bytes = read(m[1]);
-      if (bytes.length <= MAX_INLINE_IMAGE_BYTES) out.push({ mediaType, data: bytes.toString("base64") });
+      if (bytes.length <= MAX_INLINE_IMAGE_BYTES)
+        out.push({ mediaType, data: bytes.toString("base64") });
     } catch {}
   }
   return out;
 }
 
 /** `args` with `flag`'s occurrences replaced by `replacement` (a flag and its value); unchanged when it is empty. */
-export function withFlags(args: string[], flag: string, replacement: string[]): string[] {
+export function withFlags(
+  args: string[],
+  flag: string,
+  replacement: string[],
+): string[] {
   if (!replacement.length) return args;
   const out: string[] = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === flag) { i++; continue; }
+    if (args[i] === flag) {
+      i++;
+      continue;
+    }
     if (args[i].startsWith(`${flag}=`)) continue;
     out.push(args[i]);
   }
@@ -151,27 +232,45 @@ export class ClaudeSdkBackend {
   private readonly starting = new Set<string>();
   private readonly registry: string;
 
-  constructor(private readonly deps: ClaudeSdkBackendDeps, private readonly dir: string = sdkHostDir(), private readonly launchOpts: { noLaunchd?: boolean; startTimeoutMs?: number; initTimeoutMs?: number } = {}) {
+  constructor(
+    private readonly deps: ClaudeSdkBackendDeps,
+    private readonly dir: string = sdkHostDir(),
+    private readonly launchOpts: {
+      noLaunchd?: boolean;
+      startTimeoutMs?: number;
+      initTimeoutMs?: number;
+    } = {},
+  ) {
     this.registry = path.join(dir, "conversations.json");
     try {
-      const saved = JSON.parse(fs.readFileSync(this.registry, "utf-8")) as Record<string, Binding>;
-      for (const [conv, b] of Object.entries(saved)) if (b?.sessionId && b.spec) this.bindings.set(conv, { ...b, hostId: b.hostId ?? b.sessionId });
+      const saved = JSON.parse(
+        fs.readFileSync(this.registry, "utf-8"),
+      ) as Record<string, Binding>;
+      for (const [conv, b] of Object.entries(saved))
+        if (b?.sessionId && b.spec)
+          this.bindings.set(conv, { ...b, hostId: b.hostId ?? b.sessionId });
     } catch {}
   }
 
   private save(): void {
     fs.mkdirSync(this.dir, { recursive: true, mode: 0o700 });
-    writeFileAtomic(this.registry, JSON.stringify(Object.fromEntries(this.bindings)));
+    writeFileAtomic(
+      this.registry,
+      JSON.stringify(Object.fromEntries(this.bindings)),
+    );
   }
 
   /** Does this conversation run on the SDK backend? */
   owns(conversationId: string): boolean {
-    return this.bindings.has(conversationId) || this.starting.has(conversationId);
+    return (
+      this.bindings.has(conversationId) || this.starting.has(conversationId)
+    );
   }
 
   /** The conversation an SDK session belongs to. */
   conversationForSession(sessionId: string): string | undefined {
-    for (const [conv, b] of this.bindings) if (b.sessionId === sessionId) return conv;
+    for (const [conv, b] of this.bindings)
+      if (b.sessionId === sessionId) return conv;
     return undefined;
   }
 
@@ -181,7 +280,9 @@ export class ClaudeSdkBackend {
 
   /** The mode the running session last reported. */
   permissionModeFor(conversationId: string): string | null {
-    return this.live.get(conversationId)?.client.state?.init?.permissionMode ?? null;
+    return (
+      this.live.get(conversationId)?.client.state?.init?.permissionMode ?? null
+    );
   }
 
   sessionFor(conversationId: string): string | undefined {
@@ -200,13 +301,14 @@ export class ClaudeSdkBackend {
    */
   async hostVerdict(conversationId: string): Promise<LivenessVerdict> {
     if (this.isRunning(conversationId)) return "live";
-    if (this.locks.has(conversationId) || this.starting.has(conversationId)) return "unverifiable";
+    if (this.locks.has(conversationId) || this.starting.has(conversationId))
+      return "unverifiable";
     const b = this.bindings.get(conversationId);
     if (!b) return "exited";
     const state = readHostState(b.hostId, this.dir);
     // Claude exited inside the host: the host says so and is on its way out.
     if (!state || state.status === "stopped") return "exited";
-    return await hostProcessAlive(state.pid) ? "live" : "exited";
+    return (await hostProcessAlive(state.pid)) ? "live" : "exited";
   }
 
   /**
@@ -215,23 +317,41 @@ export class ClaudeSdkBackend {
    * then waits for that host instead of reading its missing state file as a
    * dead host, and a start never races a resume into two hosts.
    */
-  private withLock<T>(conversationId: string, fn: () => Promise<T>): Promise<T> {
-    const run = (this.locks.get(conversationId) ?? Promise.resolve()).catch(() => {}).then(fn);
+  private withLock<T>(
+    conversationId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const run = (this.locks.get(conversationId) ?? Promise.resolve())
+      .catch(() => {})
+      .then(fn);
     const tail = run.catch(() => {});
     this.locks.set(conversationId, tail);
-    void tail.then(() => { if (this.locks.get(conversationId) === tail) this.locks.delete(conversationId); });
+    void tail.then(() => {
+      if (this.locks.get(conversationId) === tail)
+        this.locks.delete(conversationId);
+    });
     return run;
   }
 
   /** Start a fresh or resumed session for a conversation, replacing any host it had. */
-  start(conversationId: string, launch: SdkLaunchSpec, account?: string): Promise<SdkHostClient> {
+  start(
+    conversationId: string,
+    launch: SdkLaunchSpec,
+    account?: string,
+  ): Promise<SdkHostClient> {
     this.starting.add(conversationId);
     return this.withLock(conversationId, async () => {
       await this.stopHost(conversationId);
       // A start that continues a session Claude already wrote (a switch from tmux, a start naming an
       // old session) keeps the model and effort the session last ran, as every resume does.
       const spec = launch.resume ? this.withResumeModelEffort(launch) : launch;
-      this.bindings.set(conversationId, { sessionId: spec.sessionId, hostId: spec.sessionId, spec, account, sentAt: {} });
+      this.bindings.set(conversationId, {
+        sessionId: spec.sessionId,
+        hostId: spec.sessionId,
+        spec,
+        account,
+        sentAt: {},
+      });
       this.save();
       try {
         return await this.launch(conversationId, spec, account);
@@ -247,49 +367,94 @@ export class ClaudeSdkBackend {
   private withResumeModelEffort(spec: SdkLaunchSpec): SdkLaunchSpec {
     // Grok keeps its model and effort in the session it loads; only Claude's resume reads them back.
     if (spec.agent === "grok") return spec;
-    const { model, effort } = this.deps.resumeModelEffort(spec.sessionId, spec.cwd);
-    return { ...spec, args: withFlags(withFlags(spec.args, "--model", model), "--effort", effort) };
+    const { model, effort } = this.deps.resumeModelEffort(
+      spec.sessionId,
+      spec.cwd,
+    );
+    return {
+      ...spec,
+      args: withFlags(
+        withFlags(spec.args, "--model", model),
+        "--effort",
+        effort,
+      ),
+    };
   }
 
-  private async launch(conversationId: string, spec: SdkLaunchSpec, account?: string): Promise<SdkHostClient> {
-    const client = await launchSdkHost(spec, { castArgv: this.deps.castArgv(), shellPrefix: this.deps.shellPrefix(account, spec.agent ?? "claude"), dir: this.dir, log: this.deps.log, noLaunchd: this.launchOpts.noLaunchd, startTimeoutMs: this.launchOpts.startTimeoutMs });
+  private async launch(
+    conversationId: string,
+    spec: SdkLaunchSpec,
+    account?: string,
+  ): Promise<SdkHostClient> {
+    const client = await launchSdkHost(spec, {
+      castArgv: this.deps.castArgv(),
+      shellPrefix: this.deps.shellPrefix(account, spec.agent ?? "claude"),
+      dir: this.dir,
+      log: this.deps.log,
+      noLaunchd: this.launchOpts.noLaunchd,
+      startTimeoutMs: this.launchOpts.startTimeoutMs,
+    });
     this.adopt(conversationId, client);
     // Up means Claude answered initialize. A Claude that never does (a stuck MCP server, a login
     // wait) is a failed start, so the caller falls back to tmux or retries, instead of every
     // delivery waiting on it forever.
-    const ready = await initialized(client, this.launchOpts.initTimeoutMs ?? 180_000);
+    const ready = await initialized(
+      client,
+      this.launchOpts.initTimeoutMs ?? 180_000,
+    );
     if (!ready) {
       await this.stopHost(conversationId);
-      throw new Error(`${spec.agent === "grok" ? "Grok" : "Claude Code"} did not finish starting in its host`);
+      throw new Error(
+        `${spec.agent === "grok" ? "Grok" : "Claude Code"} did not finish starting in its host`,
+      );
     }
     // The start's own boundary can be reported before this client connected; the snapshot holds it.
     const live = this.live.get(conversationId);
     const snapshot = client.state?.activity;
-    if (live && !live.heard && snapshot) this.deps.activity(conversationId, this.bindings.get(conversationId)?.sessionId ?? client.sessionId, snapshot, spec.env.CODECAST_LAUNCH_TOKEN);
+    if (live && !live.heard && snapshot)
+      this.deps.activity(
+        conversationId,
+        this.bindings.get(conversationId)?.sessionId ?? client.sessionId,
+        snapshot,
+        spec.env.CODECAST_LAUNCH_TOKEN,
+      );
     return client;
   }
 
   /** Wire a connected host's events into the daemon. */
   private adopt(conversationId: string, client: SdkHostClient): void {
     // Read at each event: a /clear moves the conversation to a new session mid-host.
-    const current = () => this.bindings.get(conversationId)?.sessionId ?? client.sessionId;
+    const current = () =>
+      this.bindings.get(conversationId)?.sessionId ?? client.sessionId;
     const follow = (claudeSessionId: string) => {
       const b = this.bindings.get(conversationId);
       if (!b || b.sessionId === claudeSessionId) return;
-      this.bindings.set(conversationId, { ...b, sessionId: claudeSessionId, spec: { ...b.spec, sessionId: claudeSessionId } });
+      this.bindings.set(conversationId, {
+        ...b,
+        sessionId: claudeSessionId,
+        spec: { ...b.spec, sessionId: claudeSessionId },
+      });
       this.save();
-      this.deps.log(`[claude-sdk] ${conversationId.slice(0, 12)} moved from ${b.sessionId.slice(0, 8)} to ${claudeSessionId.slice(0, 8)}`);
+      this.deps.log(
+        `[claude-sdk] ${conversationId.slice(0, 12)} moved from ${b.sessionId.slice(0, 8)} to ${claudeSessionId.slice(0, 8)}`,
+      );
       this.deps.sessionChanged(conversationId, b.sessionId, claudeSessionId);
     };
     client.on("session", follow);
-    client.on("state", (st) => { if (st.claudeSessionId) follow(st.claudeSessionId); });
+    client.on("state", (st) => {
+      if (st.claudeSessionId) follow(st.claudeSessionId);
+    });
     const prompts = new Map<string, AbortController>();
     const previous = this.live.get(conversationId);
     if (previous && previous.client !== client) previous.client.close();
     const live: Live = { client, prompts, heard: false };
     this.live.set(conversationId, live);
     const openPrompt = (request: SdkPermissionRequest) => {
-      if (QUESTION_TOOLS.has(request.toolName) || prompts.has(request.requestId)) return;
+      if (
+        QUESTION_TOOLS.has(request.toolName) ||
+        prompts.has(request.requestId)
+      )
+        return;
       if (AUTO_ALLOW_TOOLS.has(request.toolName)) {
         prompts.set(request.requestId, new AbortController());
         void client.answer(request.requestId, { behavior: "allow" });
@@ -297,18 +462,38 @@ export class ClaudeSdkBackend {
       }
       const settled = new AbortController();
       prompts.set(request.requestId, settled);
-      const opened = (cardId: string) => void client.annotate(request.requestId, cardId);
-      void this.deps.permission(conversationId, current(), request, settled.signal, opened).then(async (answer) => {
-        if (settled.signal.aborted || client.gone) return;
-        // No card and no answer: the session has no terminal dialog to fall back on, so it must not wait forever.
-        const final = answer ?? { behavior: "deny" as const, message: "codecast could not show this permission request; ask again or do it another way." };
-        const r = await client.answer(request.requestId, final);
-        if (!r.ok) this.deps.log(`[claude-sdk] answer for ${request.toolName} ${request.requestId.slice(0, 8)} not taken: ${r.error}`);
-      }).catch((err) => this.deps.log(`[claude-sdk] permission card failed: ${(err as Error).message}`));
+      const opened = (cardId: string) =>
+        void client.annotate(request.requestId, cardId);
+      void this.deps
+        .permission(conversationId, current(), request, settled.signal, opened)
+        .then(async (answer) => {
+          if (settled.signal.aborted || client.gone) return;
+          // No card and no answer: the session has no terminal dialog to fall back on, so it must not wait forever.
+          const final = answer ?? {
+            behavior: "deny" as const,
+            message:
+              "codecast could not show this permission request; ask again or do it another way.",
+          };
+          const r = await client.answer(request.requestId, final);
+          if (!r.ok)
+            this.deps.log(
+              `[claude-sdk] answer for ${request.toolName} ${request.requestId.slice(0, 8)} not taken: ${r.error}`,
+            );
+        })
+        .catch((err) =>
+          this.deps.log(
+            `[claude-sdk] permission card failed: ${(err as Error).message}`,
+          ),
+        );
     };
     client.on("activity", (a) => {
       live.heard = true;
-      this.deps.activity(conversationId, current(), a, this.bindings.get(conversationId)?.spec.env.CODECAST_LAUNCH_TOKEN);
+      this.deps.activity(
+        conversationId,
+        current(),
+        a,
+        this.bindings.get(conversationId)?.spec.env.CODECAST_LAUNCH_TOKEN,
+      );
     });
     client.on("permission", openPrompt);
     // A prompt that ended without its card (the turn was interrupted, Claude moved on) closes the card.
@@ -317,10 +502,13 @@ export class ClaudeSdkBackend {
       prompts.delete(requestId);
     });
     client.on("result", (r) => {
-      if (r.isError && r.error) this.deps.turnError(conversationId, current(), r.error);
+      if (r.isError && r.error)
+        this.deps.turnError(conversationId, current(), r.error);
     });
     client.on("too_old", (version, minimum) => {
-      this.deps.log(`[claude-sdk] Claude Code ${version ?? "?"} is older than ${minimum}; ${conversationId.slice(0, 12)} falls back to tmux`);
+      this.deps.log(
+        `[claude-sdk] Claude Code ${version ?? "?"} is older than ${minimum}; ${conversationId.slice(0, 12)} falls back to tmux`,
+      );
       const sessionId = current();
       void this.stop(conversationId, { forget: true });
       this.deps.tooOld(conversationId, sessionId, version, minimum);
@@ -328,18 +516,26 @@ export class ClaudeSdkBackend {
     client.on("gone", (reason) => {
       for (const c of prompts.values()) c.abort();
       prompts.clear();
-      if (this.live.get(conversationId)?.client === client) this.live.delete(conversationId);
-      this.deps.log(`[claude-sdk] host for ${conversationId.slice(0, 12)} (${current().slice(0, 8)}) gone: ${reason}`);
+      if (this.live.get(conversationId)?.client === client)
+        this.live.delete(conversationId);
+      this.deps.log(
+        `[claude-sdk] host for ${conversationId.slice(0, 12)} (${current().slice(0, 8)}) gone: ${reason}`,
+      );
       this.deps.stopped(conversationId, current(), reason);
     });
     // A reattached host may hold prompts a previous daemon opened cards for; its state lists them.
-    const replay = () => { for (const request of client.state?.pending ?? []) openPrompt(request); };
+    const replay = () => {
+      for (const request of client.state?.pending ?? []) openPrompt(request);
+    };
     replay();
     client.on("state", replay);
   }
 
   /** The running host for a conversation: the live one, a host a previous daemon started, or a resumed one. */
-  async ensure(conversationId: string, opts: { userInitiated?: boolean } = {}): Promise<SdkHostClient | null> {
+  async ensure(
+    conversationId: string,
+    opts: { userInitiated?: boolean } = {},
+  ): Promise<SdkHostClient | null> {
     const l = this.live.get(conversationId);
     if (l && !l.client.gone && !this.locks.has(conversationId)) return l.client;
     return this.withLock(conversationId, async () => {
@@ -353,23 +549,54 @@ export class ClaudeSdkBackend {
         // What happened while no daemon listened (a turn ended, a prompt opened) is in the host's
         // snapshot, not in a frame: report it once, so the session is filed where it stands.
         const activity = attached.state?.activity;
-        if (activity) this.deps.activity(conversationId, this.bindings.get(conversationId)?.sessionId ?? attached.sessionId, activity, binding.spec.env.CODECAST_LAUNCH_TOKEN);
+        if (activity)
+          this.deps.activity(
+            conversationId,
+            this.bindings.get(conversationId)?.sessionId ?? attached.sessionId,
+            activity,
+            binding.spec.env.CODECAST_LAUNCH_TOKEN,
+          );
         return attached;
       }
       // Decided here, under the lock, so a message that queued behind a kill cannot bring the session back.
-      if (!await this.deps.mayResume(conversationId, binding.sessionId, !!opts.userInitiated)) {
-        throw new Error(`the Claude SDK session for ${conversationId} may not be resumed now`);
+      if (
+        !(await this.deps.mayResume(
+          conversationId,
+          binding.sessionId,
+          !!opts.userInitiated,
+        ))
+      ) {
+        throw new Error(
+          `the Claude SDK session for ${conversationId} may not be resumed now`,
+        );
       }
       cleanupDeadHost(binding.hostId, this.dir);
-      const resume = this.deps.transcriptExists(binding.sessionId, binding.spec.cwd, binding.spec.agent ?? "claude");
-      this.deps.log(`[claude-sdk] ${resume ? "resuming" : "starting"} ${binding.sessionId.slice(0, 8)} for ${conversationId.slice(0, 12)} in a new host`);
+      const resume = this.deps.transcriptExists(
+        binding.sessionId,
+        binding.spec.cwd,
+        binding.spec.agent ?? "claude",
+      );
+      this.deps.log(
+        `[claude-sdk] ${resume ? "resuming" : "starting"} ${binding.sessionId.slice(0, 8)} for ${conversationId.slice(0, 12)} in a new host`,
+      );
       const base = { ...binding.spec, sessionId: binding.sessionId, resume };
       const spec = resume ? this.withResumeModelEffort(base) : base;
-      const account = await this.deps.resumeAccount(conversationId, binding.account);
-      this.bindings.set(conversationId, { ...binding, hostId: spec.sessionId, spec, account });
+      const account = await this.deps.resumeAccount(
+        conversationId,
+        binding.account,
+      );
+      this.bindings.set(conversationId, {
+        ...binding,
+        hostId: spec.sessionId,
+        spec,
+        account,
+      });
       this.save();
       const client = await this.launch(conversationId, spec, account);
-      this.deps.resumed(conversationId, this.bindings.get(conversationId)?.sessionId ?? spec.sessionId);
+      this.deps.resumed(
+        conversationId,
+        this.bindings.get(conversationId)?.sessionId ?? spec.sessionId,
+      );
       return client;
     });
   }
@@ -381,52 +608,94 @@ export class ClaudeSdkBackend {
    * while a turn runs). Throws when the host cannot take it, so the daemon retries.
    */
   /** `uuid` is the id Claude records the user line under (deliveryEchoLedger): the echo settles the send by it. */
-  async deliver(conversationId: string, messageId: string, text: string, uuid?: string): Promise<"sent" | "answered" | "dropped"> {
+  async deliver(
+    conversationId: string,
+    messageId: string,
+    text: string,
+    uuid?: string,
+  ): Promise<"sent" | "answered" | "dropped"> {
     const client = await this.ensure(conversationId);
     if (!client) throw new Error(`no Claude SDK session for ${conversationId}`);
-    const question = client.state?.pending.find((p) => QUESTION_TOOLS.has(p.toolName));
+    const question = client.state?.pending.find((p) =>
+      QUESTION_TOOLS.has(p.toolName),
+    );
     const poll = parsePollMessage(text);
     if (question) {
       // Prose instead of an answer closes the question, as typing at the terminal does, and then goes
       // in as the person's own message, so the transcript holds it and the pending row is acknowledged.
       const answer = poll
-        ? question.toolName === "AskUserQuestion" ? askAnswerFromPoll(question.input, poll) : planAnswerFromPoll(poll, question.modeBeforePlan)
-        : { behavior: "deny" as const, message: "The user replied in chat instead of answering; their message follows." };
+        ? question.toolName === "AskUserQuestion"
+          ? askAnswerFromPoll(question.input, poll)
+          : planAnswerFromPoll(poll, question.modeBeforePlan)
+        : {
+            behavior: "deny" as const,
+            message:
+              "The user replied in chat instead of answering; their message follows.",
+          };
       // A pick that names nothing on this question (a stray Enter, the menu's own "type something"
       // row) dismisses it: left open, Claude would wait on it forever.
       const typed = (poll?.text ?? "").trim();
-      const final = answer ?? (poll
-        ? typed
-          ? { behavior: "deny" as const, message: `The user answered in their own words instead of picking an option: ${typed}` }
-          : { behavior: "deny" as const, message: "The user dismissed the question without picking an option." }
-        : null);
+      const final =
+        answer ??
+        (poll
+          ? typed
+            ? {
+                behavior: "deny" as const,
+                message: `The user answered in their own words instead of picking an option: ${typed}`,
+              }
+            : {
+                behavior: "deny" as const,
+                message:
+                  "The user dismissed the question without picking an option.",
+              }
+          : null);
       if (final) {
         const r = await client.answer(question.requestId, final);
         if (r.ok && poll) return "answered";
-        if (!r.ok) this.deps.log(`[claude-sdk] ${question.toolName} answer not taken: ${r.error}`);
+        if (!r.ok)
+          this.deps.log(
+            `[claude-sdk] ${question.toolName} answer not taken: ${r.error}`,
+          );
       }
     }
     // A poll answer for a question that is no longer open delivers its prose, never its keys.
     const body = poll ? (poll.text ?? "").trim() : text;
     if (!body) {
-      this.deps.log(`[claude-sdk] dropped a stale menu answer for ${conversationId.slice(0, 12)}`);
+      this.deps.log(
+        `[claude-sdk] dropped a stale menu answer for ${conversationId.slice(0, 12)}`,
+      );
       return "dropped";
     }
     // Kept in the binding, so the guard outlives a daemon restart as well as a host death.
     const sentAt = { ...(this.bindings.get(conversationId)?.sentAt ?? {}) };
     const triedAt = sentAt[messageId];
-    if (triedAt !== undefined && uuid && await this.deps.transcriptHas(this.bindings.get(conversationId)?.sessionId ?? client.sessionId, uuid)) {
+    if (
+      triedAt !== undefined &&
+      uuid &&
+      (await this.deps.transcriptHas(
+        this.bindings.get(conversationId)?.sessionId ?? client.sessionId,
+        uuid,
+      ))
+    ) {
       this.setSentAt(conversationId, messageId, undefined);
-      this.deps.log(`[claude-sdk] msg ${messageId.slice(0, 8)} already reached Claude; not sending it again`);
+      this.deps.log(
+        `[claude-sdk] msg ${messageId.slice(0, 8)} already reached Claude; not sending it again`,
+      );
       return "sent";
     }
-    if (triedAt === undefined) this.setSentAt(conversationId, messageId, Date.now());
+    if (triedAt === undefined)
+      this.setSentAt(conversationId, messageId, Date.now());
     const r = await client.send(messageId, body, imagesFromTags(body), uuid);
-    if (!r.ok) throw new Error(`Claude SDK host refused the message: ${r.error}`);
+    if (!r.ok)
+      throw new Error(`Claude SDK host refused the message: ${r.error}`);
     return "sent";
   }
 
-  private setSentAt(conversationId: string, messageId: string, at: number | undefined): void {
+  private setSentAt(
+    conversationId: string,
+    messageId: string,
+    at: number | undefined,
+  ): void {
     const b = this.bindings.get(conversationId);
     if (!b) return;
     const sentAt = { ...(b.sentAt ?? {}) };
@@ -439,13 +708,19 @@ export class ClaudeSdkBackend {
   }
 
   /** Change the running session's model. False when no host runs it. */
-  async setModel(conversationId: string, model: string | null): Promise<boolean> {
+  async setModel(
+    conversationId: string,
+    model: string | null,
+  ): Promise<boolean> {
     const l = this.live.get(conversationId);
     return !!l && !l.client.gone && (await l.client.setModel(model)).ok;
   }
 
   /** Change the running session's permission mode. False when no host runs it. */
-  async setPermissionMode(conversationId: string, mode: string): Promise<boolean> {
+  async setPermissionMode(
+    conversationId: string,
+    mode: string,
+  ): Promise<boolean> {
     const l = this.live.get(conversationId);
     return !!l && !l.client.gone && (await l.client.setPermissionMode(mode)).ok;
   }
@@ -478,18 +753,24 @@ export class ClaudeSdkBackend {
     const hostId = this.bindings.get(conversationId)?.hostId;
     const hostState = hostId ? readHostState(hostId, this.dir) : null;
     const pid = hostState?.pid;
-    const alive = async () => !!pid && await hostProcessAlive(pid);
+    const alive = async () => !!pid && (await hostProcessAlive(pid));
     let asked = false;
     if (l && !l.client.gone) asked = (await l.client.stop()).ok;
     const waitGone = async (ms: number) => {
       const deadline = Date.now() + ms;
-      while (await alive() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 300));
+      while ((await alive()) && Date.now() < deadline)
+        await new Promise((r) => setTimeout(r, 300));
     };
     if (asked) await waitGone(15_000);
     if (await alive()) {
-      try { process.kill(pid!, "SIGTERM"); } catch {}
+      try {
+        process.kill(pid!, "SIGTERM");
+      } catch {}
       await waitGone(10_000);
-      if (await alive()) try { process.kill(pid!, "SIGKILL"); } catch {}
+      if (await alive())
+        try {
+          process.kill(pid!, "SIGKILL");
+        } catch {}
       await waitGone(2_000);
       // A host killed outright never unloaded its own job.
       if (hostState?.launchdLabel) stopLaunchdJob(hostState.launchdLabel);
@@ -507,11 +788,13 @@ export class ClaudeSdkBackend {
     // Once nothing will resume it, nothing reads its files either. A host told to stop takes a moment to go.
     const sweep = async () => {
       const state = readHostState(b.hostId, this.dir);
-      if (state && await hostProcessAlive(state.pid)) return false;
+      if (state && (await hostProcessAlive(state.pid))) return false;
       cleanupDeadHost(b.hostId, this.dir, true);
       return true;
     };
-    void sweep().then((done) => { if (!done) setTimeout(() => void sweep(), 5_000).unref?.(); });
+    void sweep().then((done) => {
+      if (!done) setTimeout(() => void sweep(), 5_000).unref?.();
+    });
   }
 
   /** Reattach every host a previous daemon left running. Hosts that died stay bound and resume on demand. */
@@ -523,13 +806,29 @@ export class ClaudeSdkBackend {
         // Died while no daemon listened: say so now (nothing else will), and close the cards it left.
         // What it reported last goes first, as a live attach replays it: a turn
         // that ended before the host died must read as ended.
-        if (state?.activity) this.deps.activity(conv, b.sessionId, state.activity, b.spec.env.CODECAST_LAUNCH_TOKEN);
-        if (state) this.deps.stopped(conv, b.sessionId, "host not running when the daemon started", state.pending.map((p) => p.cardId).filter((id): id is string => !!id));
+        if (state?.activity)
+          this.deps.activity(
+            conv,
+            b.sessionId,
+            state.activity,
+            b.spec.env.CODECAST_LAUNCH_TOKEN,
+          );
+        if (state)
+          this.deps.stopped(
+            conv,
+            b.sessionId,
+            "host not running when the daemon started",
+            state.pending
+              .map((p) => p.cardId)
+              .filter((id): id is string => !!id),
+          );
         continue;
       }
       // Through ensure, so a delivery racing the reattach shares this attach instead of adopting a second client.
       const client = await this.ensure(conv).catch((err) => {
-        this.deps.log(`[claude-sdk] reattach of ${conv.slice(0, 12)} failed: ${(err as Error).message}`);
+        this.deps.log(
+          `[claude-sdk] reattach of ${conv.slice(0, 12)} failed: ${(err as Error).message}`,
+        );
         this.retryAttach(conv, 15_000);
         return null;
       });
@@ -546,7 +845,9 @@ export class ClaudeSdkBackend {
         if (!b || this.isRunning(conversationId)) return;
         const state = readHostState(b.hostId, this.dir);
         if (!state || !(await hostProcessAlive(state.pid))) return;
-        await this.ensure(conversationId).catch(() => this.retryAttach(conversationId, Math.min(delayMs * 2, 5 * 60_000)));
+        await this.ensure(conversationId).catch(() =>
+          this.retryAttach(conversationId, Math.min(delayMs * 2, 5 * 60_000)),
+        );
       })();
     }, delayMs).unref?.();
   }

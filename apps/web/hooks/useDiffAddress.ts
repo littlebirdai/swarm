@@ -13,7 +13,11 @@ import type { DiffFlow } from "../components/FileDiffLayout";
 import { useRepoLocation } from "../components/repo/useRepoFamily";
 import { formatDiffHash, parseDiffHash } from "../lib/prView";
 import { type DiffLineAnchor } from "../lib/patchParser";
-import { diffLineElements, findDiffLine, revealDiffLine } from "../components/diff/pierre";
+import {
+  diffLineElements,
+  findDiffLine,
+  revealDiffLine,
+} from "../components/diff/pierre";
 import { toStandaloneHref } from "../lib/repoView";
 import { sharePageUrl } from "../lib/utils";
 import { copyText } from "../lib/copyText";
@@ -50,16 +54,20 @@ export function useDiffAddress({
 
   /** Move to a file, or lines in it. A fragment changes in place (a bookmark,
    *  not a step back); arriving from another view is a step. */
-  const goTo = useCallback((file: string, anchor?: DiffLineAnchor, opts?: { scroll?: boolean }) => {
-    const hash = formatDiffHash({ file, anchor });
-    if (opts?.scroll === false) quietHash.current = hash;
-    if (here) router.replace(diffHref(hash), { scroll: false });
-    else router.push(diffHref(hash));
-  }, [router, diffHref, here]);
+  const goTo = useCallback(
+    (file: string, anchor?: DiffLineAnchor, opts?: { scroll?: boolean }) => {
+      const hash = formatDiffHash({ file, anchor });
+      if (opts?.scroll === false) quietHash.current = hash;
+      if (here) router.replace(diffHref(hash), { scroll: false });
+      else router.push(diffHref(hash));
+    },
+    [router, diffHref, here],
+  );
 
   /** A link someone else can open: the public form, whatever form this page is in. */
   const shareUrl = useCallback(
-    (href: string) => sharePageUrl(loc.family === "standalone" ? href : toStandaloneHref(href)),
+    (href: string) =>
+      sharePageUrl(loc.family === "standalone" ? href : toStandaloneHref(href)),
     [loc.family],
   );
 
@@ -72,7 +80,10 @@ export function useDiffAddress({
     // bar, so this is how a place in it gets handed to someone.
     if (matchesAction(e, "pr.copyLink")) {
       e.preventDefault();
-      void copyText(shareUrl(`${loc.pathname}${loc.search}${loc.hash}`), target?.anchor ? "Link to the lines copied" : "Link copied");
+      void copyText(
+        shareUrl(`${loc.pathname}${loc.search}${loc.hash}`),
+        target?.anchor ? "Link to the lines copied" : "Link copied",
+      );
       return;
     }
     // Escape lets go of the selected lines, and the address drops them too.
@@ -88,7 +99,10 @@ export function useDiffAddress({
   // is looked at.
   useWatchEffect(() => {
     if (!ready || !here || !target) return;
-    if (quietHash.current && decodeURIComponent(quietHash.current) === decodeURIComponent(loc.hash)) {
+    if (
+      quietHash.current &&
+      decodeURIComponent(quietHash.current) === decodeURIComponent(loc.hash)
+    ) {
       quietHash.current = null;
       return;
     }
@@ -103,15 +117,23 @@ export function useDiffAddress({
         return inner?.closest<HTMLElement>("[data-main-scroll]") ?? inner;
       },
       (root) => {
-        const card = root.querySelector<HTMLElement>(`[id="${CSS.escape(fileId)}"]`);
+        const card = root.querySelector<HTMLElement>(
+          `[id="${CSS.escape(fileId)}"]`,
+        );
         if (!anchor || !card) return card;
         // A long diff draws its line once scrolled near it; look again then.
-        return findDiffLine(card, anchor) ?? (revealDiffLine(card, anchor) ? null : card);
+        return (
+          findDiffLine(card, anchor) ??
+          (revealDiffLine(card, anchor) ? null : card)
+        );
       },
       // A line sits a third of the way down, with the lines before it in view
       // for context; a file starts right under the sticky chrome. A line not
       // on screen yet (its card still arriving) has not landed.
-      (el, root) => (anchor && isLine(el) ? Math.max(stickyTop + 80, root.clientHeight / 3) : stickyTop + 12),
+      (el, root) =>
+        anchor && isLine(el)
+          ? Math.max(stickyTop + 80, root.clientHeight / 3)
+          : stickyTop + 12,
       // Once the file's rows are drawn and the line is not among them (it
       // sits in an unchanged stretch the diff leaves out), it is not coming.
       (el) => !anchor || isLine(el) || diffLineElements(el).length > 0,
@@ -124,11 +146,16 @@ export function useDiffAddress({
   // and the address only marks the lines.
   useFollowSurface(
     {
-      read: () => (target ? { diff: { file: target.file, line: target.anchor?.lineNumber } } : null),
+      read: () =>
+        target
+          ? { diff: { file: target.file, line: target.anchor?.lineNumber } }
+          : null,
       apply: (view) => {
         const want = view.diff;
         if (!want || !here) return [];
-        const anchor: DiffLineAnchor | undefined = want.line ? { side: "RIGHT", lineNumber: want.line } : undefined;
+        const anchor: DiffLineAnchor | undefined = want.line
+          ? { side: "RIGHT", lineNumber: want.line }
+          : undefined;
         goTo(want.file, anchor, { scroll: !view.scroll });
         return ["diff"];
       },
@@ -141,7 +168,8 @@ export function useDiffAddress({
     stickyTop,
     fileId: (path) => formatDiffHash({ file: path }).slice(1),
     fileAnchorHref: (path) => diffHref(formatDiffHash({ file: path })),
-    lineHref: (path, anchor) => diffHref(formatDiffHash({ file: path, anchor })),
+    lineHref: (path, anchor) =>
+      diffHref(formatDiffHash({ file: path, anchor })),
     shareUrl,
     selected: target,
     onSelectLines: (path, anchor) => goTo(path, anchor, { scroll: false }),
@@ -174,31 +202,39 @@ export function landOn(
   let cancelled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let listening: HTMLElement | null = null;
-  const letGo = () => { cancelled = true; };
+  const letGo = () => {
+    cancelled = true;
+  };
   const INTENT = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
   const step = () => {
     const root = getRoot();
     if (cancelled || !root) return;
     if (!listening) {
       listening = root;
-      for (const type of INTENT) root.addEventListener(type, letGo, { passive: true });
+      for (const type of INTENT)
+        root.addEventListener(type, letGo, { passive: true });
     }
     const el = find(root);
     if (el) {
-      const delta = el.getBoundingClientRect().top - root.getBoundingClientRect().top - margin(el, root);
+      const delta =
+        el.getBoundingClientRect().top -
+        root.getBoundingClientRect().top -
+        margin(el, root);
       const before = root.scrollTop;
       if (Math.abs(delta) > 2) root.scrollTop += delta;
       // On the mark, or against the top or bottom of the page.
       if (Math.abs(delta) <= 2 || root.scrollTop === before) {
         if (!stillSince) stillSince = Date.now();
-        else if (Date.now() - stillSince >= SETTLED_MS && final(el)) return cleanup();
+        else if (Date.now() - stillSince >= SETTLED_MS && final(el))
+          return cleanup();
       } else stillSince = 0;
     }
     if (Date.now() < deadline) timer = setTimeout(step, 50);
     else cleanup();
   };
   const cleanup = () => {
-    if (listening) for (const type of INTENT) listening.removeEventListener(type, letGo);
+    if (listening)
+      for (const type of INTENT) listening.removeEventListener(type, letGo);
     listening = null;
   };
   step();

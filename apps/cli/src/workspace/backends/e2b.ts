@@ -71,7 +71,11 @@ interface E2bSandbox {
   commands: {
     run(
       command: string,
-      opts?: { cwd?: string; envs?: Record<string, string>; timeoutMs?: number },
+      opts?: {
+        cwd?: string;
+        envs?: Record<string, string>;
+        timeoutMs?: number;
+      },
     ): Promise<E2bCmdResult>;
   };
   files: {
@@ -98,7 +102,11 @@ async function runCommandNoThrow(
   } catch (err) {
     const e = err as { exitCode?: number; stdout?: string; stderr?: string };
     if (typeof e.exitCode === "number") {
-      return { stdout: e.stdout ?? "", stderr: e.stderr ?? "", exitCode: e.exitCode };
+      return {
+        stdout: e.stdout ?? "",
+        stderr: e.stderr ?? "",
+        exitCode: e.exitCode,
+      };
     }
     throw err; // not a command-exit error (e.g., sandbox gone) — propagate
   }
@@ -139,7 +147,10 @@ interface E2bExtras {
   e2bSandboxId: string;
 }
 
-function readE2bState(repoRoot: string, name: string): (PersistedWorkspaceState & E2bExtras) | null {
+function readE2bState(
+  repoRoot: string,
+  name: string,
+): (PersistedWorkspaceState & E2bExtras) | null {
   const s = readState(repoRoot, name);
   if (!s) return null;
   return s as PersistedWorkspaceState & E2bExtras;
@@ -181,7 +192,10 @@ export const E2bBackend: SandboxBackend = {
     }
 
     const sdk = await loadE2bSdk();
-    const portAlloc = await allocatePorts(manifest, { noProbe: true, startIndex: 0 });
+    const portAlloc = await allocatePorts(manifest, {
+      noProbe: true,
+      startIndex: 0,
+    });
     const env: Record<string, string> = {
       ...manifest.env,
       ...portsToEnv(portAlloc.ports),
@@ -191,7 +205,9 @@ export const E2bBackend: SandboxBackend = {
     // need PORT_<NAME> values that depend on the sandbox's local network.
     const sandbox = await sdk.Sandbox.create({
       apiKey: requireApiKey(),
-      template: opts.branch?.startsWith("e2b/") ? opts.branch.slice(4) : undefined,
+      template: opts.branch?.startsWith("e2b/")
+        ? opts.branch.slice(4)
+        : undefined,
       // E2B caps sandbox lifetime at 1 hour. Sandboxes can be extended via
       // setTimeout() while in use if longer sessions are needed.
       timeoutMs: 60 * 60 * 1000,
@@ -220,7 +236,10 @@ export const E2bBackend: SandboxBackend = {
         ...manifest.setup.generate,
         ...manifest.setup.migrate,
       ]) {
-        const r = await runCommandNoThrow(sandbox, cmd, { cwd: workspacePath, envs: env });
+        const r = await runCommandNoThrow(sandbox, cmd, {
+          cwd: workspacePath,
+          envs: env,
+        });
         if (r.exitCode !== 0) {
           throw new Error(
             `e2b setup '${cmd}' exited ${r.exitCode}\nstderr:\n${r.stderr}`,
@@ -278,11 +297,16 @@ export const E2bBackend: SandboxBackend = {
     if (s.e2bSandboxId) {
       try {
         const sandbox = await getOrConnectSandbox(s.e2bSandboxId);
-        const r = await runCommandNoThrow(sandbox, "test -d " + JSON.stringify(s.path));
+        const r = await runCommandNoThrow(
+          sandbox,
+          "test -d " + JSON.stringify(s.path),
+        );
         checks.push({
           name: "workspace-dir",
           ok: r.exitCode === 0,
-          ...(r.exitCode === 0 ? {} : { reason: "workspace dir missing in sandbox" }),
+          ...(r.exitCode === 0
+            ? {}
+            : { reason: "workspace dir missing in sandbox" }),
         });
       } catch (err) {
         checks.push({
@@ -309,10 +333,16 @@ export const E2bBackend: SandboxBackend = {
     return out;
   },
 
-  async exec(repoRoot, name, command, opts: ExecOptions = {}): Promise<ExecResult> {
+  async exec(
+    repoRoot,
+    name,
+    command,
+    opts: ExecOptions = {},
+  ): Promise<ExecResult> {
     const s = readE2bState(repoRoot, name);
     if (!s) throw new Error(`workspace '${name}' not found`);
-    if (!s.e2bSandboxId) throw new Error(`workspace '${name}' has no sandbox id`);
+    if (!s.e2bSandboxId)
+      throw new Error(`workspace '${name}' has no sandbox id`);
     const sandbox = await getOrConnectSandbox(s.e2bSandboxId);
     const cwd = opts.cwd ? `${s.path}/${opts.cwd}` : s.path;
     const start = Date.now();
@@ -332,16 +362,23 @@ export const E2bBackend: SandboxBackend = {
   async readFile(repoRoot, name, relativePath): Promise<Buffer> {
     const s = readE2bState(repoRoot, name);
     if (!s) throw new Error(`workspace '${name}' not found`);
-    if (!s.e2bSandboxId) throw new Error(`workspace '${name}' has no sandbox id`);
+    if (!s.e2bSandboxId)
+      throw new Error(`workspace '${name}' has no sandbox id`);
     const sandbox = await getOrConnectSandbox(s.e2bSandboxId);
     const content = await sandbox.files.read(`${s.path}/${relativePath}`);
     return Buffer.isBuffer(content) ? content : Buffer.from(content);
   },
 
-  async writeFile(repoRoot, name, relativePath, content: FileContent): Promise<void> {
+  async writeFile(
+    repoRoot,
+    name,
+    relativePath,
+    content: FileContent,
+  ): Promise<void> {
     const s = readE2bState(repoRoot, name);
     if (!s) throw new Error(`workspace '${name}' not found`);
-    if (!s.e2bSandboxId) throw new Error(`workspace '${name}' has no sandbox id`);
+    if (!s.e2bSandboxId)
+      throw new Error(`workspace '${name}' has no sandbox id`);
     const sandbox = await getOrConnectSandbox(s.e2bSandboxId);
     const fullPath = `${s.path}/${relativePath}`;
     // Ensure parent dir exists in the sandbox.
@@ -359,9 +396,13 @@ import { execSync } from "../../proc.js";
 
 function getRepoRemoteUrl(repoRoot: string): string | null {
   try {
-    return execSync("git config --get remote.origin.url", {
-      cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"],
-    }).trim() || null;
+    return (
+      execSync("git config --get remote.origin.url", {
+        cwd: repoRoot,
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || null
+    );
   } catch {
     return null;
   }

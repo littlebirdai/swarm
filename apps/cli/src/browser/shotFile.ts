@@ -33,7 +33,10 @@ export const SHOT_TEMP_KIND = "shots";
  * (tempFiles.ts, ct-49556).
  */
 export function defaultShotPath(ext: "png" | "jpg" = "png"): string {
-  return agentTempPath(SHOT_TEMP_KIND, `cast-shot-${Date.now()}-${process.pid}.${ext}`);
+  return agentTempPath(
+    SHOT_TEMP_KIND,
+    `cast-shot-${Date.now()}-${process.pid}.${ext}`,
+  );
 }
 
 /**
@@ -43,7 +46,9 @@ export function defaultShotPath(ext: "png" | "jpg" = "png"): string {
  * second round trip to the browser. Returns null for a format we cannot read
  * rather than guessing.
  */
-export function imageSize(buf: Buffer): { width: number; height: number } | null {
+export function imageSize(
+  buf: Buffer,
+): { width: number; height: number } | null {
   if (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47) {
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
   }
@@ -56,8 +61,15 @@ export function imageSize(buf: Buffer): { width: number; height: number } | null
       const marker = buf[i + 1];
       const len = buf.readUInt16BE(i + 2);
       // SOF0..SOF15, minus the four markers in that range that are not frames.
-      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc, 0xd8].includes(marker)) {
-        return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        ![0xc4, 0xc8, 0xcc, 0xd8].includes(marker)
+      ) {
+        return {
+          height: buf.readUInt16BE(i + 5),
+          width: buf.readUInt16BE(i + 7),
+        };
       }
       i += 2 + len;
     }
@@ -70,7 +82,11 @@ export function imageSize(buf: Buffer): { width: number; height: number } | null
  * return the absolute path to hand to the conversation — or null when the
  * caller opted out or the picture is still too large to show.
  */
-export function writeShotFile(buf: Buffer, out: string, o: WriteShotOptions): string | null {
+export function writeShotFile(
+  buf: Buffer,
+  out: string,
+  o: WriteShotOptions,
+): string | null {
   fs.mkdirSync(path.dirname(out), { recursive: true });
   return publishShot(buf, out, o, true);
 }
@@ -79,15 +95,26 @@ export function writeShotFile(buf: Buffer, out: string, o: WriteShotOptions): st
  * The same for a picture already on disk (a helper wrote it): rewritten only
  * when it must shrink to reach the conversation.
  */
-export function offerShotFile(file: string, o: WriteShotOptions): string | null {
+export function offerShotFile(
+  file: string,
+  o: WriteShotOptions,
+): string | null {
   return publishShot(fs.readFileSync(file), file, o, false);
 }
 
-function publishShot(buf: Buffer, out: string, o: WriteShotOptions, write: boolean): string | null {
+function publishShot(
+  buf: Buffer,
+  out: string,
+  o: WriteShotOptions,
+  write: boolean,
+): string | null {
   let bytes = buf;
   let shrunk = false;
   if (bytes.length > MAX_IMAGE_SIZE) {
-    const smaller = downscaleWithSips(bytes, o.jpeg ? "image/jpeg" : "image/png");
+    const smaller = downscaleWithSips(
+      bytes,
+      o.jpeg ? "image/jpeg" : "image/png",
+    );
     if (smaller && smaller.length < bytes.length) {
       bytes = smaller;
       shrunk = true;
@@ -104,7 +131,9 @@ function publishShot(buf: Buffer, out: string, o: WriteShotOptions, write: boole
       `${fmt.success(icons.check)} ${out} (${formatBytes(bytes.length)}${shrunk ? `, downscaled from ${formatBytes(buf.length)}` : ""})`,
     );
   }
-  return o.inline !== false && bytes.length <= MAX_IMAGE_SIZE ? path.resolve(out) : null;
+  return o.inline !== false && bytes.length <= MAX_IMAGE_SIZE
+    ? path.resolve(out)
+    : null;
 }
 
 // ---------------------------------------------------------------------------

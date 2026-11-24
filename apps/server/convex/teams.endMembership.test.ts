@@ -32,16 +32,42 @@ function fixtures(extraMemberships: any[] = []) {
       { _id: "c-own", user_id: ANA, team_id: TEAM },
     ],
     session_owners: [
-      { _id: "o1", conversation_id: "c-ben", user_id: ANA, added_by: ANA, added_at: 1 },
-      { _id: "o2", conversation_id: "c-box", user_id: ANA, added_by: ANA, added_at: 1 },
-      { _id: "o3", conversation_id: "c-solo", user_id: ANA, added_by: ANA, added_at: 1 },
-      { _id: "o4", conversation_id: "c-box", user_id: BEN, added_by: BEN, added_at: 2 },
+      {
+        _id: "o1",
+        conversation_id: "c-ben",
+        user_id: ANA,
+        added_by: ANA,
+        added_at: 1,
+      },
+      {
+        _id: "o2",
+        conversation_id: "c-box",
+        user_id: ANA,
+        added_by: ANA,
+        added_at: 1,
+      },
+      {
+        _id: "o3",
+        conversation_id: "c-solo",
+        user_id: ANA,
+        added_by: ANA,
+        added_at: 1,
+      },
+      {
+        _id: "o4",
+        conversation_id: "c-box",
+        user_id: BEN,
+        added_by: BEN,
+        added_at: 2,
+      },
     ],
   });
 }
 
-const owners = (db: any) => db._tables.session_owners.map((r: any) => r._id).sort();
-const conv = (db: any, id: string) => db._tables.conversations.find((c: any) => c._id === id);
+const owners = (db: any) =>
+  db._tables.session_owners.map((r: any) => r._id).sort();
+const conv = (db: any, id: string) =>
+  db._tables.conversations.find((c: any) => c._id === id);
 
 describe("endMembership releases owner rows on sessions others run", () => {
   test("a removed member loses ownership of a teammate's and the team box's sessions", async () => {
@@ -71,7 +97,9 @@ describe("endMembership releases owner rows on sessions others run", () => {
       { _id: "m4", user_id: BEN, team_id: OTHER, role: "member" },
     ]);
     conv(db, "c-ben").owner_device_id = "ben-mini";
-    db._tables.devices = [{ _id: "d1", user_id: BEN, device_id: "ben-mini", last_seen: 1 }];
+    db._tables.devices = [
+      { _id: "d1", user_id: BEN, device_id: "ben-mini", last_seen: 1 },
+    ];
     db._tables.device_shares = [
       { _id: "s1", user_id: BEN, device_id: "ben-mini", team_id: TEAM },
       { _id: "s2", user_id: BEN, device_id: "ben-mini", team_id: OTHER },
@@ -82,7 +110,9 @@ describe("endMembership releases owner rows on sessions others run", () => {
   });
 
   test("leaving an unrelated team touches nothing", async () => {
-    const db = fixtures([{ _id: "m3", user_id: ANA, team_id: OTHER, role: "member" }]);
+    const db = fixtures([
+      { _id: "m3", user_id: ANA, team_id: OTHER, role: "member" },
+    ]);
     await endMembership({ db } as any, ANA as any, OTHER as any, ANA as any);
     expect(owners(db)).toEqual(["o1", "o2", "o3", "o4"]);
   });
@@ -91,14 +121,25 @@ describe("endMembership releases owner rows on sessions others run", () => {
 describe("sweepStaleSessionOwners (one-off, after deploy)", () => {
   const run = (db: any, args: any = {}) => {
     const scheduled: any[] = [];
-    const ctx = { db, scheduler: { async runAfter(_d: number, _f: unknown, a: any) { scheduled.push(a); } } };
-    return (sweepStaleSessionOwners as any)._handler(ctx, args).then((r: any) => ({ ...r, scheduled }));
+    const ctx = {
+      db,
+      scheduler: {
+        async runAfter(_d: number, _f: unknown, a: any) {
+          scheduled.push(a);
+        },
+      },
+    };
+    return (sweepStaleSessionOwners as any)
+      ._handler(ctx, args)
+      .then((r: any) => ({ ...r, scheduled }));
   };
 
   test("drops rows a past removal stranded and keeps the ones still granted", async () => {
     const db = fixtures();
     // Ana was removed before the release existed: her membership is gone, her rows are not.
-    db._tables.team_memberships = db._tables.team_memberships.filter((m: any) => m.user_id !== ANA);
+    db._tables.team_memberships = db._tables.team_memberships.filter(
+      (m: any) => m.user_id !== ANA,
+    );
     const dry = await run(db, { dryRun: true });
     expect(dry.dropped).toBe(2);
     expect(owners(db)).toEqual(["o1", "o2", "o3", "o4"]);

@@ -28,12 +28,33 @@ import * as path from "path";
 import { readProfileIndexFile } from "./readForUpdate.js";
 import { atomicWriteFile } from "./atomicWrite.js";
 import { createMtimeGatedCache } from "./mtimeGatedCache.js";
-import { parseRateLimitFingerprint, parseScopedRateLimitWindow, type RateLimitFingerprint } from "./ccRateLimitHeaders.js";
-export { parseRateLimitFingerprint, parseScopedRateLimitWindow, type RateLimitFingerprint };
-import { renderProviderEnvFile, sourceFilePrefix } from "./providerKeyLaunch.js";
+import {
+  parseRateLimitFingerprint,
+  parseScopedRateLimitWindow,
+  type RateLimitFingerprint,
+} from "./ccRateLimitHeaders.js";
+export {
+  parseRateLimitFingerprint,
+  parseScopedRateLimitWindow,
+  type RateLimitFingerprint,
+};
+import {
+  renderProviderEnvFile,
+  sourceFilePrefix,
+} from "./providerKeyLaunch.js";
 import { defaultConfigDir } from "./config/configDir.js";
-import { fleetStatePath, fleetStoreDir, readFleetState, type FleetState } from "./ccFleetState.js";
-export { fleetStatePath, fleetStoreDir, readFleetState, type FleetState } from "./ccFleetState.js";
+import {
+  fleetStatePath,
+  fleetStoreDir,
+  readFleetState,
+  type FleetState,
+} from "./ccFleetState.js";
+export {
+  fleetStatePath,
+  fleetStoreDir,
+  readFleetState,
+  type FleetState,
+} from "./ccFleetState.js";
 import {
   ccCredentialFile,
   ccKeychainWriteItem,
@@ -97,7 +118,9 @@ export function assertValidProfileName(name: string): void {
 }
 
 export function useFileStore(): boolean {
-  return process.platform !== "darwin" || process.env.CC_ACCOUNTS_FORCE_FILE === "1";
+  return (
+    process.platform !== "darwin" || process.env.CC_ACCOUNTS_FORCE_FILE === "1"
+  );
 }
 
 /** $HOME first (bun's os.homedir() caches at startup and ignores later env
@@ -130,7 +153,11 @@ export function buildProfile(
   } catch {
     throw new CcAccountError("Active Claude Code credential is not valid JSON");
   }
-  if (!credentials || typeof credentials !== "object" || !credentials.claudeAiOauth) {
+  if (
+    !credentials ||
+    typeof credentials !== "object" ||
+    !credentials.claudeAiOauth
+  ) {
     throw new CcAccountError(
       "Active Claude Code credential has no claudeAiOauth block (API-key logins have no profile to save)",
     );
@@ -147,7 +174,9 @@ export function parseProfile(raw: string): CcProfile {
     throw new CcAccountError("Stored profile is not valid JSON");
   }
   if (!parsed?.credentials?.claudeAiOauth) {
-    throw new CcAccountError("Stored profile has no credentials.claudeAiOauth block");
+    throw new CcAccountError(
+      "Stored profile has no credentials.claudeAiOauth block",
+    );
   }
   return {
     credentials: parsed.credentials,
@@ -177,31 +206,65 @@ export interface CredentialHealth {
  * with a refresh token is still usable locally (CC refreshes on first use) but
  * never pushable — a live access token is the only thing worth shipping.
  */
-export function credentialHealth(raw: string | null, now: number = Date.now()): CredentialHealth {
-  if (!raw) return { usable: false, pushable: false, expiresAt: null, reason: "no credential" };
+export function credentialHealth(
+  raw: string | null,
+  now: number = Date.now(),
+): CredentialHealth {
+  if (!raw)
+    return {
+      usable: false,
+      pushable: false,
+      expiresAt: null,
+      reason: "no credential",
+    };
   let oauth: any;
   try {
     oauth = JSON.parse(raw)?.claudeAiOauth;
   } catch {
-    return { usable: false, pushable: false, expiresAt: null, reason: "credential is not valid JSON" };
+    return {
+      usable: false,
+      pushable: false,
+      expiresAt: null,
+      reason: "credential is not valid JSON",
+    };
   }
   if (!oauth || typeof oauth !== "object") {
-    return { usable: false, pushable: false, expiresAt: null, reason: "no claudeAiOauth block (API-key login?)" };
+    return {
+      usable: false,
+      pushable: false,
+      expiresAt: null,
+      reason: "no claudeAiOauth block (API-key login?)",
+    };
   }
-  const accessToken = typeof oauth.accessToken === "string" ? oauth.accessToken : "";
-  const refreshToken = typeof oauth.refreshToken === "string" ? oauth.refreshToken : "";
-  const expiresAt = typeof oauth.expiresAt === "number" ? oauth.expiresAt : null;
+  const accessToken =
+    typeof oauth.accessToken === "string" ? oauth.accessToken : "";
+  const refreshToken =
+    typeof oauth.refreshToken === "string" ? oauth.refreshToken : "";
+  const expiresAt =
+    typeof oauth.expiresAt === "number" ? oauth.expiresAt : null;
   if (!accessToken && !refreshToken) {
-    return { usable: false, pushable: false, expiresAt, reason: "logged-out stub (empty tokens)" };
+    return {
+      usable: false,
+      pushable: false,
+      expiresAt,
+      reason: "logged-out stub (empty tokens)",
+    };
   }
   if (!accessToken || expiresAt == null || expiresAt <= now) {
-    return { usable: true, pushable: false, expiresAt, reason: "access token expired (locally refreshable, not pushable)" };
+    return {
+      usable: true,
+      pushable: false,
+      expiresAt,
+      reason: "access token expired (locally refreshable, not pushable)",
+    };
   }
   return { usable: true, pushable: true, expiresAt };
 }
 
 /** Non-secret metadata for the index / heartbeat / UI. */
-export function profileMeta(profile: CcProfile): Omit<CcProfileMeta, "name" | "active"> {
+export function profileMeta(
+  profile: CcProfile,
+): Omit<CcProfileMeta, "name" | "active"> {
   const oauth = profile.credentials?.claudeAiOauth ?? {};
   return {
     email: profile.oauthAccount?.emailAddress,
@@ -226,16 +289,22 @@ export function readActiveCredential(): string | null {
 
 /** The same read for the daemon's timers, with the keychain call off the loop. */
 export async function readActiveCredentialAsync(): Promise<string | null> {
-  return useFileStore() ? readCredentialFileAsync() : readLocalCredentialAsync();
+  return useFileStore()
+    ? readCredentialFileAsync()
+    : readLocalCredentialAsync();
 }
 
 /** The keychain item's account attribute ("acct"). CC created the item, so
  * match whatever it used; fall back to the unix username (observed value). */
 function keychainAcct(item: CcKeychainItem): string {
   try {
-    const meta = execFileSync("security", ["find-generic-password", "-s", item.service], {
-      encoding: "utf-8",
-    });
+    const meta = execFileSync(
+      "security",
+      ["find-generic-password", "-s", item.service],
+      {
+        encoding: "utf-8",
+      },
+    );
     const m = meta.match(/"acct"<blob>="([^"]*)"/);
     if (m?.[1]) return m[1];
   } catch {}
@@ -288,7 +357,13 @@ export function adoptPushedCredential(now = Date.now()): boolean {
   if (!isRemoteDevice() || useFileStore()) return false;
   const file = readCredentialFile()?.trim() ?? null;
   if (!file || !credentialHealth(file).pushable) return false;
-  return submitAdoptJob(file, ccKeychainWriteItem(), ccCredentialFile(), defaultConfigDir(), now);
+  return submitAdoptJob(
+    file,
+    ccKeychainWriteItem(),
+    ccCredentialFile(),
+    defaultConfigDir(),
+    now,
+  );
 }
 
 function claudeJsonPath(): string {
@@ -348,9 +423,18 @@ export function patchOauthAccount(oauthAccount: Record<string, any>): void {
           `or move the file.`,
       );
     }
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       // `typeof null` is "object", so name the shape rather than report it.
-      const shape = parsed === null ? "null" : Array.isArray(parsed) ? "an array" : typeof parsed;
+      const shape =
+        parsed === null
+          ? "null"
+          : Array.isArray(parsed)
+            ? "an array"
+            : typeof parsed;
       throw new CcAccountError(
         `${p} parsed as ${shape}, not a config object — refusing to rewrite it. ` +
           `Repair or move the file, then re-run the switch.`,
@@ -378,20 +462,36 @@ function readProfileSecretRaw(name: string): string | null {
     return fs.readFileSync(f, "utf-8");
   }
   try {
-    return execFileSync("security", profileSecretArgs(name), { encoding: "utf-8" }).trim();
+    return execFileSync("security", profileSecretArgs(name), {
+      encoding: "utf-8",
+    }).trim();
   } catch {
     return null;
   }
 }
 
 function credentialReadFailed(error: unknown, strict: boolean): null {
-  if (strict && ![44, "ENOENT", "ENOTDIR"].includes((error as { code?: string | number }).code ?? "")) throw error;
+  if (
+    strict &&
+    ![44, "ENOENT", "ENOTDIR"].includes(
+      (error as { code?: string | number }).code ?? "",
+    )
+  )
+    throw error;
   return null;
 }
 
-async function readProfileSecretRawAsync(name: string, strict = false): Promise<string | null> {
-  if (useFileStore()) return fs.promises.readFile(profileSecretFile(name), "utf-8").catch(error => credentialReadFailed(error, strict));
-  return keychainReadAsync(profileSecretArgs(name)).catch(error => credentialReadFailed(error, strict));
+async function readProfileSecretRawAsync(
+  name: string,
+  strict = false,
+): Promise<string | null> {
+  if (useFileStore())
+    return fs.promises
+      .readFile(profileSecretFile(name), "utf-8")
+      .catch((error) => credentialReadFailed(error, strict));
+  return keychainReadAsync(profileSecretArgs(name)).catch((error) =>
+    credentialReadFailed(error, strict),
+  );
 }
 
 /** The profile as this module trusts it: the snapshot, with the store's
@@ -403,14 +503,25 @@ function readProfileSecret(name: string): string | null {
 }
 
 /** The same read for the daemon's timers, with the keychain calls off the loop. */
-export async function readProfileSecretAsync(name: string): Promise<string | null> {
+export async function readProfileSecretAsync(
+  name: string,
+): Promise<string | null> {
   const raw = await readProfileSecretRawAsync(name);
   if (!raw) return null;
-  return overlayProfileStore(name, raw, await readProfileStoreCredentialsAsync(name));
+  return overlayProfileStore(
+    name,
+    raw,
+    await readProfileStoreCredentialsAsync(name),
+  );
 }
 
 function profileSecretArgs(name: string): string[] {
-  return ["find-generic-password", "-s", `${PROFILE_KEYCHAIN_PREFIX}${name}`, "-w"];
+  return [
+    "find-generic-password",
+    "-s",
+    `${PROFILE_KEYCHAIN_PREFIX}${name}`,
+    "-w",
+  ];
 }
 function profileSecretFile(name: string): string {
   return path.join(profileFileDir(), `${name}.json`);
@@ -454,7 +565,8 @@ function writeProfileSecret(name: string, content: string): void {
   }
   try {
     const credentials = JSON.stringify(parseProfile(content).credentials);
-    if (credentialHealth(credentials).usable) writeProfileStoreCredentials(name, credentials);
+    if (credentialHealth(credentials).usable)
+      writeProfileStoreCredentials(name, credentials);
   } catch {
     // An unparseable or logged-out blob never reaches a store: the launch
     // reader would rather find nothing than a stub.
@@ -500,7 +612,8 @@ export function writeProfileIndex(index: ProfileIndex): void {
 // daemon refreshes the cache on the same timer as usage.
 
 const CC_PROFILE_URL =
-  process.env.CODECAST_CC_PROFILE_URL || "https://api.anthropic.com/api/oauth/profile";
+  process.env.CODECAST_CC_PROFILE_URL ||
+  "https://api.anthropic.com/api/oauth/profile";
 
 export interface VerifiedIdentity {
   uuid?: string;
@@ -531,7 +644,9 @@ function readIdentityCache(): IdentityCache {
 }
 
 function writeIdentityCache(cache: IdentityCache): void {
-  atomicWriteFile(identityCachePath(), JSON.stringify(cache, null, 2), { mode: 0o600 });
+  atomicWriteFile(identityCachePath(), JSON.stringify(cache, null, 2), {
+    mode: 0o600,
+  });
 }
 
 /** Ask the account server whose credential this is. Throws on a dead token. */
@@ -557,12 +672,15 @@ export async function fetchAccountIdentity(
   // same field `emailAddress`, so accept either rather than depend on one.
   const rawEmail = acct.email ?? acct.email_address;
   const email = typeof rawEmail === "string" ? rawEmail : undefined;
-  if (!uuid && !email) throw new CcAccountError("profile response carried no account identity");
+  if (!uuid && !email)
+    throw new CcAccountError("profile response carried no account identity");
   return { uuid, email };
 }
 
 /** The cached verdict for a token, or null when it was never verified. */
-export function verifiedIdentityFor(accessToken: string | undefined): VerifiedIdentity | null {
+export function verifiedIdentityFor(
+  accessToken: string | undefined,
+): VerifiedIdentity | null {
   if (!accessToken) return null;
   return readIdentityCache().tokens[tokenKey(accessToken)] ?? null;
 }
@@ -575,7 +693,11 @@ export async function verifyIdentity(
 ): Promise<VerifiedIdentity | null> {
   try {
     const { uuid, email } = await fetchAccountIdentity(accessToken, opts);
-    const entry: VerifiedIdentity = { uuid, email, verified_at: opts.now ?? Date.now() };
+    const entry: VerifiedIdentity = {
+      uuid,
+      email,
+      verified_at: opts.now ?? Date.now(),
+    };
     const cache = readIdentityCache();
     cache.tokens[tokenKey(accessToken)] = entry;
     writeIdentityCache(cache);
@@ -604,7 +726,9 @@ export async function verifyActiveIdentity(
 
 /** Who the machine is logged in as. The credential's own verdict wins over
  *  ~/.claude.json, which is only a label and can name a different account. */
-export function activeAccountSummary(credential: string | null = readActiveCredential()): { email?: string; uuid?: string } | null {
+export function activeAccountSummary(
+  credential: string | null = readActiveCredential(),
+): { email?: string; uuid?: string } | null {
   const verified = verifiedIdentityFor(oauthOf(credential)?.accessToken);
   if (verified) return { email: verified.email, uuid: verified.uuid };
   const acct = readOauthAccount();
@@ -614,9 +738,12 @@ export function activeAccountSummary(credential: string | null = readActiveCrede
 
 /** The same answer, plus whether the credential itself proved it. Destructive
  *  writes need to know: an unverified identity may be naming another account. */
-export function activeAccountIdentity(credential: string | null = readActiveCredential()): { email?: string; uuid?: string; verified: boolean } | null {
+export function activeAccountIdentity(
+  credential: string | null = readActiveCredential(),
+): { email?: string; uuid?: string; verified: boolean } | null {
   const verified = verifiedIdentityFor(oauthOf(credential)?.accessToken);
-  if (verified) return { email: verified.email, uuid: verified.uuid, verified: true };
+  if (verified)
+    return { email: verified.email, uuid: verified.uuid, verified: true };
   const acct = readOauthAccount();
   if (!acct?.accountUuid && !acct?.emailAddress) return null;
   return { email: acct.emailAddress, uuid: acct.accountUuid, verified: false };
@@ -633,10 +760,19 @@ export function activeAccountIdentity(credential: string | null = readActiveCred
  *  first rotation strands the other copy, and a live claude that rotated the
  *  active credential has already made its access token differ from every stored
  *  one while the refresh half still names the duplicate (ct-49526). */
-function assertNotAnotherProfilesCredential(name: string, credentialJson: string): void {
+function assertNotAnotherProfilesCredential(
+  name: string,
+  credentialJson: string,
+): void {
   const oauth = oauthOf(credentialJson);
-  const token = typeof oauth?.accessToken === "string" && oauth.accessToken ? oauth.accessToken : null;
-  const refresh = typeof oauth?.refreshToken === "string" && oauth.refreshToken ? oauth.refreshToken : null;
+  const token =
+    typeof oauth?.accessToken === "string" && oauth.accessToken
+      ? oauth.accessToken
+      : null;
+  const refresh =
+    typeof oauth?.refreshToken === "string" && oauth.refreshToken
+      ? oauth.refreshToken
+      : null;
   if (!token && !refresh) return;
   for (const other of Object.keys(readProfileIndex().profiles)) {
     if (other === name) continue;
@@ -653,11 +789,12 @@ function assertNotAnotherProfilesCredential(name: string, credentialJson: string
     } catch {
       continue;
     }
-    const shared = token && otherOauth?.accessToken === token
-      ? "access token"
-      : refresh && otherOauth?.refreshToken === refresh
-        ? "refresh token"
-        : null;
+    const shared =
+      token && otherOauth?.accessToken === token
+        ? "access token"
+        : refresh && otherOauth?.refreshToken === refresh
+          ? "refresh token"
+          : null;
     if (!shared) continue;
     throw new CcAccountError(
       `Refusing to save "${name}": this machine's credential shares its ${shared} with the login already stored ` +
@@ -694,7 +831,9 @@ export type CredentialProfileMatch =
 /** Identity fields are compared case-insensitively: an email that differs only
  *  in case is the same account. */
 function normalizeField(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : undefined;
+  return typeof value === "string" && value.trim()
+    ? value.trim().toLowerCase()
+    : undefined;
 }
 
 /** A token is compared verbatim — case carries meaning in a secret, and folding
@@ -704,13 +843,21 @@ function tokenField(value: unknown): string | undefined {
 }
 
 /** The identity an oauthAccount block carries, however it spells it. */
-function identityOfOauthAccount(acct: Record<string, any> | null | undefined): CredentialIdentity {
+function identityOfOauthAccount(
+  acct: Record<string, any> | null | undefined,
+): CredentialIdentity {
   return {
     uuid: normalizeField(acct?.accountUuid ?? acct?.account_uuid ?? acct?.uuid),
-    email: normalizeField(acct?.emailAddress ?? acct?.email ?? acct?.email_address),
+    email: normalizeField(
+      acct?.emailAddress ?? acct?.email ?? acct?.email_address,
+    ),
     // The uuid when the blob carries one, else the name: both are stable per
     // organization, and only ever compared against another profile's copy.
-    organization: normalizeField(acct?.organizationUuid ?? acct?.organization_uuid ?? acct?.organizationName),
+    organization: normalizeField(
+      acct?.organizationUuid ??
+        acct?.organization_uuid ??
+        acct?.organizationName,
+    ),
   };
 }
 
@@ -733,7 +880,8 @@ function compareIdentities(
     if (left !== right) return "mismatch";
     agreed = true;
   }
-  if (a.refreshToken && b.refreshToken && a.refreshToken === b.refreshToken) return "token";
+  if (a.refreshToken && b.refreshToken && a.refreshToken === b.refreshToken)
+    return "token";
   return agreed ? "match" : "unverifiable";
 }
 
@@ -771,7 +919,9 @@ export async function matchProfileForCredential(
         const profile = parseProfile(stored);
         storedIdentity = {
           ...identityOfOauthAccount(profile.oauthAccount),
-          refreshToken: tokenField(profile.credentials?.claudeAiOauth?.refreshToken),
+          refreshToken: tokenField(
+            profile.credentials?.claudeAiOauth?.refreshToken,
+          ),
         };
       } catch {
         /* unreadable blob — the index's own labels are all we have */
@@ -802,7 +952,8 @@ export async function matchProfileForCredential(
   // the write that would spread it further.
   if (byToken.length === 1) return { kind: "matched", name: byToken[0] };
   if (byToken.length > 1) return { kind: "ambiguous", names: byToken };
-  if (matched.length === 1 && unverifiable === 0) return { kind: "matched", name: matched[0] };
+  if (matched.length === 1 && unverifiable === 0)
+    return { kind: "matched", name: matched[0] };
   if (matched.length === 0 && unverifiable === 0) return { kind: "none" };
   return { kind: "ambiguous", names: matched };
 }
@@ -810,12 +961,17 @@ export async function matchProfileForCredential(
 /** The identity block to store beside the credential. When the credential has
  *  proved whose it is, that verdict wins over ~/.claude.json's label, which may
  *  still name the account we switched away from. */
-function activeOauthAccountForSave(credential: string): Record<string, any> | null {
+function activeOauthAccountForSave(
+  credential: string,
+): Record<string, any> | null {
   const label = readOauthAccount();
   const verified = verifiedIdentityFor(oauthOf(credential)?.accessToken);
   if (!verified) return label;
   return {
-    ...(verified.uuid && normalizeField(label?.accountUuid) === normalizeField(verified.uuid) ? label : {}),
+    ...(verified.uuid &&
+    normalizeField(label?.accountUuid) === normalizeField(verified.uuid)
+      ? label
+      : {}),
     ...(verified.uuid ? { accountUuid: verified.uuid } : {}),
     ...(verified.email ? { emailAddress: verified.email } : {}),
   };
@@ -832,13 +988,20 @@ export function saveProfile(name: string): CcProfileMeta {
   return saveProfileSnapshot(name, cred, activeOauthAccountForSave(cred));
 }
 
-function saveProfileSnapshot(name: string, cred: string, oauthAccount: Record<string, any> | null): CcProfileMeta {
+function saveProfileSnapshot(
+  name: string,
+  cred: string,
+  oauthAccount: Record<string, any> | null,
+): CcProfileMeta {
   assertValidProfileName(name);
   const existing = readProfileIndex().profiles[name];
   const identity = identityOfOauthAccount(oauthAccount);
-  const differentAccount = existing?.uuid && identity.uuid
-    ? normalizeField(existing.uuid) !== identity.uuid
-    : existing?.email && identity.email && normalizeField(existing.email) !== identity.email;
+  const differentAccount =
+    existing?.uuid && identity.uuid
+      ? normalizeField(existing.uuid) !== identity.uuid
+      : existing?.email &&
+        identity.email &&
+        normalizeField(existing.email) !== identity.email;
   if (differentAccount) {
     throw new CcAccountError(
       `Refusing to save "${name}": the credential identifies a different account ` +
@@ -860,7 +1023,10 @@ function saveProfileSnapshot(name: string, cred: string, oauthAccount: Record<st
   writeProfileSecret(name, JSON.stringify(profile));
   const meta = profileMeta(profile);
   const index = readProfileIndex();
-  index.profiles[name] = !differentAccount && existing?.reserved_for ? { ...meta, reserved_for: existing.reserved_for } : meta;
+  index.profiles[name] =
+    !differentAccount && existing?.reserved_for
+      ? { ...meta, reserved_for: existing.reserved_for }
+      : meta;
   writeProfileIndex(index);
   invalidateAccountsCache();
   return { name, ...meta, active: true };
@@ -872,14 +1038,18 @@ function saveProfileSnapshot(name: string, cred: string, oauthAccount: Record<st
 export function activeProfileName(): string | undefined {
   const key = readActiveStamp()?.key;
   if (key) {
-    const hit = Object.entries(readProfileIndex().profiles).find(([, m]) => m.uuid === key || m.email === key);
+    const hit = Object.entries(readProfileIndex().profiles).find(
+      ([, m]) => m.uuid === key || m.email === key,
+    );
     if (hit) return hit[0];
   }
   return listProfiles().find((p) => p.active)?.name;
 }
 
 /** `credential` is the active login when the caller already read it (the daemon reads it off the loop). */
-export function listProfiles(credential: string | null = readActiveCredential()): CcProfileMeta[] {
+export function listProfiles(
+  credential: string | null = readActiveCredential(),
+): CcProfileMeta[] {
   const index = readProfileIndex();
   const activeUuid = activeAccountSummary(credential)?.uuid;
   return Object.entries(index.profiles)
@@ -906,7 +1076,8 @@ export function deleteProfile(name: string): CcProfileMeta {
   const active = activeAccountSummary();
   if (
     active &&
-    ((active.uuid && meta.uuid === active.uuid) || (active.email && meta.email === active.email))
+    ((active.uuid && meta.uuid === active.uuid) ||
+      (active.email && meta.email === active.email))
   ) {
     throw new CcAccountError(
       `Profile "${name}" covers this machine's active login — switch to another account first ` +
@@ -982,59 +1153,115 @@ interface StoreMeta {
 
 function readStoreMeta(dir: string): StoreMeta | null {
   try {
-    const parsed = JSON.parse(fs.readFileSync(path.join(dir, STORE_META_FILE), "utf-8"));
-    if (typeof parsed?.stored_at === "number" && typeof parsed?.refresh_expires_at === "number") return parsed;
+    const parsed = JSON.parse(
+      fs.readFileSync(path.join(dir, STORE_META_FILE), "utf-8"),
+    );
+    if (
+      typeof parsed?.stored_at === "number" &&
+      typeof parsed?.refresh_expires_at === "number"
+    )
+      return parsed;
   } catch {}
   return null;
 }
 
-function oauthFields(credJson: string | null): { expiresAt: number; refreshToken?: string; refreshExpiresAt?: number } | null {
+function oauthFields(credJson: string | null): {
+  expiresAt: number;
+  refreshToken?: string;
+  refreshExpiresAt?: number;
+} | null {
   const oauth = oauthOf(credJson);
   if (!oauth) return null;
   return {
     expiresAt: typeof oauth.expiresAt === "number" ? oauth.expiresAt : 0,
     refreshToken: tokenField(oauth.refreshToken),
-    refreshExpiresAt: typeof oauth.refreshTokenExpiresAt === "number" ? oauth.refreshTokenExpiresAt : undefined,
+    refreshExpiresAt:
+      typeof oauth.refreshTokenExpiresAt === "number"
+        ? oauth.refreshTokenExpiresAt
+        : undefined,
   };
 }
 
 /** Fresher = a later access expiry, or a rotated refresh token that is not
  *  older. A rotation alone counts: the other copy's refresh token is spent
  *  from that moment. */
-export function credentialIsFresher(candidate: string | null, incumbent: string | null): boolean {
+export function credentialIsFresher(
+  candidate: string | null,
+  incumbent: string | null,
+): boolean {
   const a = oauthFields(candidate);
   if (!a) return false;
   const b = oauthFields(incumbent);
   if (!b) return true;
   if (a.expiresAt > b.expiresAt) return true;
-  return a.expiresAt === b.expiresAt && !!a.refreshToken && a.refreshToken !== b.refreshToken;
+  return (
+    a.expiresAt === b.expiresAt &&
+    !!a.refreshToken &&
+    a.refreshToken !== b.refreshToken
+  );
 }
 
 /** The credential blob in a profile's store, or null when the store is empty. */
 export function readProfileStoreCredentials(name: string): string | null {
   let dir: string;
-  try { dir = profileStoreDir(name); } catch { return null; }
+  try {
+    dir = profileStoreDir(name);
+  } catch {
+    return null;
+  }
   if (useFileStore()) {
-    try { return fs.readFileSync(storeCredentialFile(dir), "utf-8"); } catch { return null; }
+    try {
+      return fs.readFileSync(storeCredentialFile(dir), "utf-8");
+    } catch {
+      return null;
+    }
   }
   try {
-    return execFileSync("security", ["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"], { encoding: "utf-8" }).trim() || null;
+    return (
+      execFileSync(
+        "security",
+        ["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"],
+        { encoding: "utf-8" },
+      ).trim() || null
+    );
   } catch {
     return null;
   }
 }
 
 /** The same read for the daemon's timers, keychain call off the loop. */
-export async function readProfileStoreCredentialsAsync(name: string, strict = false): Promise<string | null> {
+export async function readProfileStoreCredentialsAsync(
+  name: string,
+  strict = false,
+): Promise<string | null> {
   let dir: string;
-  try { dir = profileStoreDir(name); } catch { return null; }
-  if (useFileStore()) return fs.promises.readFile(storeCredentialFile(dir), "utf-8").catch(error => credentialReadFailed(error, strict));
-  return keychainReadAsync(["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"]).then((s) => s || null, error => credentialReadFailed(error, strict));
+  try {
+    dir = profileStoreDir(name);
+  } catch {
+    return null;
+  }
+  if (useFileStore())
+    return fs.promises
+      .readFile(storeCredentialFile(dir), "utf-8")
+      .catch((error) => credentialReadFailed(error, strict));
+  return keychainReadAsync([
+    "find-generic-password",
+    "-s",
+    profileStoreKeychainService(dir),
+    "-w",
+  ]).then(
+    (s) => s || null,
+    (error) => credentialReadFailed(error, strict),
+  );
 }
 
 /** Put a credential blob in a profile's store (0700 dir, keychain item or
  *  0600 file) and record the non-secret facts the launch reader needs. */
-export function writeProfileStoreCredentials(name: string, credentialJson: string, now: number = Date.now()): string {
+export function writeProfileStoreCredentials(
+  name: string,
+  credentialJson: string,
+  now: number = Date.now(),
+): string {
   const dir = profileStoreDir(name);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (useFileStore()) {
@@ -1055,27 +1282,56 @@ export function writeProfileStoreCredentials(name: string, credentialJson: strin
   return dir;
 }
 
-function writeProfileStoreMetadata(name: string, dir: string, credentialJson: string, now: number): void {
+function writeProfileStoreMetadata(
+  name: string,
+  dir: string,
+  credentialJson: string,
+  now: number,
+): void {
   const fields = oauthFields(credentialJson);
   const meta: StoreMeta = {
     stored_at: now,
-    refresh_expires_at: fields?.refreshExpiresAt ?? now + STORE_ASSUMED_LIFETIME_MS,
+    refresh_expires_at:
+      fields?.refreshExpiresAt ?? now + STORE_ASSUMED_LIFETIME_MS,
   };
-  atomicWriteFile(path.join(dir, STORE_META_FILE), JSON.stringify(meta), { mode: 0o600 });
-  atomicWriteFile(accountLaunchFilePath(name), renderProviderEnvFile({ CLAUDE_SECURESTORAGE_CONFIG_DIR: dir }), { mode: 0o600 });
+  atomicWriteFile(path.join(dir, STORE_META_FILE), JSON.stringify(meta), {
+    mode: 0o600,
+  });
+  atomicWriteFile(
+    accountLaunchFilePath(name),
+    renderProviderEnvFile({ CLAUDE_SECURESTORAGE_CONFIG_DIR: dir }),
+    { mode: 0o600 },
+  );
 }
 
-export async function writeProfileStoreCredentialsAsync(name: string, credentialJson: string, now: number = Date.now()): Promise<string> {
+export async function writeProfileStoreCredentialsAsync(
+  name: string,
+  credentialJson: string,
+  now: number = Date.now(),
+): Promise<string> {
   const dir = profileStoreDir(name);
   await fs.promises.mkdir(dir, { recursive: true, mode: 0o700 });
   if (useFileStore()) {
     atomicWriteFile(storeCredentialFile(dir), credentialJson, { mode: 0o600 });
   } else {
-    const { stdout: username } = await execFileAsync("/usr/bin/id", ["-un"], { encoding: "utf-8", timeout: 30_000 });
-    await execFileAsync("/usr/bin/security", [
-      "add-generic-password", "-U", "-a", username.trim(),
-      "-s", profileStoreKeychainService(dir), "-w", credentialJson,
-    ], { encoding: "utf-8", timeout: 30_000 }).then(undefined, () => {
+    const { stdout: username } = await execFileAsync("/usr/bin/id", ["-un"], {
+      encoding: "utf-8",
+      timeout: 30_000,
+    });
+    await execFileAsync(
+      "/usr/bin/security",
+      [
+        "add-generic-password",
+        "-U",
+        "-a",
+        username.trim(),
+        "-s",
+        profileStoreKeychainService(dir),
+        "-w",
+        credentialJson,
+      ],
+      { encoding: "utf-8", timeout: 30_000 },
+    ).then(undefined, () => {
       throw new CcAccountError("Could not write the profile credential store");
     });
   }
@@ -1086,11 +1342,20 @@ export async function writeProfileStoreCredentialsAsync(name: string, credential
 /** Remove a profile's store: keychain item, directory and launch file. */
 export function deleteProfileStore(name: string): boolean {
   let dir: string;
-  try { dir = profileStoreDir(name); } catch { return false; }
-  const existed = fs.existsSync(dir) || fs.existsSync(accountLaunchFilePath(name));
+  try {
+    dir = profileStoreDir(name);
+  } catch {
+    return false;
+  }
+  const existed =
+    fs.existsSync(dir) || fs.existsSync(accountLaunchFilePath(name));
   if (!useFileStore()) {
     try {
-      execFileSync("security", ["delete-generic-password", "-s", profileStoreKeychainService(dir)], { stdio: "ignore" });
+      execFileSync(
+        "security",
+        ["delete-generic-password", "-s", profileStoreKeychainService(dir)],
+        { stdio: "ignore" },
+      );
     } catch {
       // No item — an index-only profile, or a store that was never written.
     }
@@ -1103,10 +1368,21 @@ export function deleteProfileStore(name: string): boolean {
 export async function deleteProfileStoreAsync(name: string): Promise<boolean> {
   const dir = profileStoreDir(name);
   const launchFile = accountLaunchFilePath(name);
-  const existed = await fs.promises.access(dir).then(() => true, () => false)
-    || await fs.promises.access(launchFile).then(() => true, () => false);
+  const existed =
+    (await fs.promises.access(dir).then(
+      () => true,
+      () => false,
+    )) ||
+    (await fs.promises.access(launchFile).then(
+      () => true,
+      () => false,
+    ));
   if (!useFileStore()) {
-    await execFileAsync("/usr/bin/security", ["delete-generic-password", "-s", profileStoreKeychainService(dir)], { timeout: 30_000 }).catch(() => {});
+    await execFileAsync(
+      "/usr/bin/security",
+      ["delete-generic-password", "-s", profileStoreKeychainService(dir)],
+      { timeout: 30_000 },
+    ).catch(() => {});
   }
   await fs.promises.rm(dir, { recursive: true, force: true });
   await fs.promises.rm(launchFile, { force: true });
@@ -1115,13 +1391,26 @@ export async function deleteProfileStoreAsync(name: string): Promise<boolean> {
 
 /** The profile snapshot with the store's credentials substituted when the
  *  store is fresher (a session rotated them). Pure: nothing is written. */
-function overlayProfileStore(name: string, raw: string | null, storeRaw: string | null): string | null {
+function overlayProfileStore(
+  name: string,
+  raw: string | null,
+  storeRaw: string | null,
+): string | null {
   if (!raw || !storeRaw) return raw;
   let profile: CcProfile;
-  try { profile = parseProfile(raw); } catch { return raw; }
-  if (!credentialIsFresher(storeRaw, JSON.stringify(profile.credentials))) return raw;
+  try {
+    profile = parseProfile(raw);
+  } catch {
+    return raw;
+  }
+  if (!credentialIsFresher(storeRaw, JSON.stringify(profile.credentials)))
+    return raw;
   let credentials: any;
-  try { credentials = JSON.parse(storeRaw); } catch { return raw; }
+  try {
+    credentials = JSON.parse(storeRaw);
+  } catch {
+    return raw;
+  }
   if (!credentials?.claudeAiOauth) return raw;
   return JSON.stringify({ ...profile, credentials });
 }
@@ -1130,7 +1419,10 @@ function overlayProfileStore(name: string, raw: string | null, storeRaw: string 
  *  daemon runs this on its usage timer for every profile a session may be
  *  rotating; returns true when the snapshot moved. */
 export async function absorbProfileStore(name: string): Promise<boolean> {
-  const [raw, storeRaw] = await Promise.all([readProfileSecretRawAsync(name), readProfileStoreCredentialsAsync(name)]);
+  const [raw, storeRaw] = await Promise.all([
+    readProfileSecretRawAsync(name),
+    readProfileStoreCredentialsAsync(name),
+  ]);
   const merged = overlayProfileStore(name, raw, storeRaw);
   if (!merged || merged === raw) return false;
   writeProfileSecret(name, merged);
@@ -1139,7 +1431,9 @@ export async function absorbProfileStore(name: string): Promise<boolean> {
 
 /** A profile's credentials as this module trusts them (store overlay applied),
  *  as the {claudeAiOauth} blob string, or null. */
-export async function readProfileSecretCredentialsAsync(name: string): Promise<string | null> {
+export async function readProfileSecretCredentialsAsync(
+  name: string,
+): Promise<string | null> {
   const raw = await readProfileSecretAsync(name);
   if (!raw) return null;
   try {
@@ -1149,35 +1443,58 @@ export async function readProfileSecretCredentialsAsync(name: string): Promise<s
   }
 }
 
-export type ProfileStoreState = "ready" | "provisioned" | "unusable" | "login_expired";
+export type ProfileStoreState =
+  | "ready"
+  | "provisioned"
+  | "unusable"
+  | "login_expired";
 
 /** Make sure a profile's store holds a usable credential. Idempotent and
  *  offline: the store is filled from the profile snapshot codecast already
  *  keeps. A profile whose saved login is dead stays that way until a person
  *  signs into it again (signInProfileStore / adoptProfileStoreCredential). */
-export function ensureProfileStore(name: string, now: number = Date.now()): ProfileStoreState {
-  if (readProfileIndex().profiles[name]?.login_expired_at) return "login_expired";
+export function ensureProfileStore(
+  name: string,
+  now: number = Date.now(),
+): ProfileStoreState {
+  if (readProfileIndex().profiles[name]?.login_expired_at)
+    return "login_expired";
   const raw = readProfileSecretRaw(name);
   const storeRaw = readProfileStoreCredentials(name);
-  if (storeRaw && credentialHealth(storeRaw, now).usable && fs.existsSync(accountLaunchFilePath(name))) return "ready";
+  if (
+    storeRaw &&
+    credentialHealth(storeRaw, now).usable &&
+    fs.existsSync(accountLaunchFilePath(name))
+  )
+    return "ready";
   const credentials = profileStoreCredential(name, raw, storeRaw, now);
   if (!credentials) return "unusable";
   writeProfileStoreCredentials(name, credentials, now);
   return "provisioned";
 }
 
-function profileStoreCredential(name: string, raw: string | null, storeRaw: string | null, now: number): string | null {
+function profileStoreCredential(
+  name: string,
+  raw: string | null,
+  storeRaw: string | null,
+  now: number,
+): string | null {
   if (!raw) return null;
   let credentials: string;
   try {
-    credentials = JSON.stringify(parseProfile(overlayProfileStore(name, raw, storeRaw) ?? raw).credentials);
+    credentials = JSON.stringify(
+      parseProfile(overlayProfileStore(name, raw, storeRaw) ?? raw).credentials,
+    );
   } catch {
     return null;
   }
   return credentialHealth(credentials, now).usable ? credentials : null;
 }
 
-export async function ensureProfileStoreAsync(name: string, now: number = Date.now()): Promise<ProfileStoreState> {
+export async function ensureProfileStoreAsync(
+  name: string,
+  now: number = Date.now(),
+): Promise<ProfileStoreState> {
   assertValidProfileName(name);
   const before = readProfileIndex().profiles[name];
   if (before?.login_expired_at) return "login_expired";
@@ -1185,12 +1502,16 @@ export async function ensureProfileStoreAsync(name: string, now: number = Date.n
   const [raw, storeRaw, launchExists] = await Promise.all([
     readProfileSecretRawAsync(name, true),
     readProfileStoreCredentialsAsync(name, true),
-    fs.promises.access(accountLaunchFilePath(name)).then(() => true, () => false),
+    fs.promises.access(accountLaunchFilePath(name)).then(
+      () => true,
+      () => false,
+    ),
   ]);
   const current = readProfileIndex().profiles[name];
   if (current?.login_expired_at) return "login_expired";
   if (JSON.stringify(current) !== JSON.stringify(before)) return "unusable";
-  if (storeRaw && credentialHealth(storeRaw, now).usable && launchExists) return "ready";
+  if (storeRaw && credentialHealth(storeRaw, now).usable && launchExists)
+    return "ready";
   const credentials = profileStoreCredential(name, raw, storeRaw, now);
   if (!credentials) return "unusable";
   await writeProfileStoreCredentialsAsync(name, credentials, now);
@@ -1210,10 +1531,13 @@ export async function adoptProfileStoreCredential(
   const storeRaw = await readProfileStoreCredentialsAsync(name);
   const health = credentialHealth(storeRaw, now);
   if (!storeRaw || !health.usable) {
-    throw new CcAccountError(`the sign-in left no usable credential in the store (${health.reason ?? "empty"})`);
+    throw new CcAccountError(
+      `the sign-in left no usable credential in the store (${health.reason ?? "empty"})`,
+    );
   }
   const token = oauthOf(storeRaw)?.accessToken;
-  if (typeof token !== "string" || !token) throw new CcAccountError("the store credential carries no access token");
+  if (typeof token !== "string" || !token)
+    throw new CcAccountError("the store credential carries no access token");
   const identity = await fetchAccountIdentity(token, opts);
   const meta = readProfileIndex().profiles[name];
   const expectedUuid = normalizeField(meta?.uuid);
@@ -1232,7 +1556,11 @@ export async function adoptProfileStoreCredential(
   }
   const raw = await readProfileSecretRawAsync(name);
   let prior: CcProfile | null = null;
-  try { prior = raw ? parseProfile(raw) : null; } catch { prior = null; }
+  try {
+    prior = raw ? parseProfile(raw) : null;
+  } catch {
+    prior = null;
+  }
   const profile: CcProfile = {
     credentials: JSON.parse(storeRaw),
     oauthAccount: {
@@ -1280,7 +1608,11 @@ export function accountLaunchInfo(name: string): AccountLaunchInfo | null {
   const meta = readStoreMeta(dir);
   if (!meta) return null;
   if (readProfileIndex().profiles[name]?.login_expired_at) return null;
-  return { file, stored_at: meta.stored_at, expires_at: meta.refresh_expires_at };
+  return {
+    file,
+    stored_at: meta.stored_at,
+    expires_at: meta.refresh_expires_at,
+  };
 }
 
 /** Whether Claude Code at `claudeBin` honors CLAUDE_SECURESTORAGE_CONFIG_DIR.
@@ -1300,7 +1632,14 @@ export type SecureStorageVerdict = "supported" | "unsupported" | "unknown";
 
 export async function probeSecureStorageSupport(
   claudeBin: string,
-  opts: { env?: NodeJS.ProcessEnv; execImpl?: (bin: string, args: string[], env: NodeJS.ProcessEnv) => Promise<string> } = {},
+  opts: {
+    env?: NodeJS.ProcessEnv;
+    execImpl?: (
+      bin: string,
+      args: string[],
+      env: NodeJS.ProcessEnv,
+    ) => Promise<string>;
+  } = {},
 ): Promise<SecureStorageVerdict> {
   const cachePath = path.join(defaultConfigDir(), "cc-store", ".support.json");
   let identity = claudeBin;
@@ -1310,14 +1649,20 @@ export async function probeSecureStorageSupport(
   } catch {}
   try {
     const cached = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-    if (cached?.identity === identity && typeof cached.supported === "boolean") {
+    if (
+      cached?.identity === identity &&
+      typeof cached.supported === "boolean"
+    ) {
       return cached.supported ? "supported" : "unsupported";
     }
   } catch {}
   const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-store-probe-"));
   let verdict: SecureStorageVerdict = "unknown";
   try {
-    const env = { ...(opts.env ?? process.env), CLAUDE_SECURESTORAGE_CONFIG_DIR: probeDir };
+    const env = {
+      ...(opts.env ?? process.env),
+      CLAUDE_SECURESTORAGE_CONFIG_DIR: probeDir,
+    };
     const exec =
       opts.execImpl ??
       (async (bin: string, args: string[], e: NodeJS.ProcessEnv) => {
@@ -1325,8 +1670,11 @@ export async function probeSecureStorageSupport(
         // `auth status` exits non-zero when nobody is signed in — which is the
         // answer we are hoping for — so the output is the verdict, not the code.
         return new Promise<string>((resolve, reject) => {
-          execFile(bin, args, { env: e, encoding: "utf-8", timeout: 30_000 }, (err, stdout) =>
-            err && !stdout ? reject(err) : resolve(stdout),
+          execFile(
+            bin,
+            args,
+            { env: e, encoding: "utf-8", timeout: 30_000 },
+            (err, stdout) => (err && !stdout ? reject(err) : resolve(stdout)),
           );
         });
       });
@@ -1344,7 +1692,11 @@ export async function probeSecureStorageSupport(
   if (verdict === "unknown") return verdict;
   try {
     fs.mkdirSync(path.dirname(cachePath), { recursive: true, mode: 0o700 });
-    atomicWriteFile(cachePath, JSON.stringify({ identity, supported: verdict === "supported" }), { mode: 0o600 });
+    atomicWriteFile(
+      cachePath,
+      JSON.stringify({ identity, supported: verdict === "supported" }),
+      { mode: 0o600 },
+    );
   } catch {}
   return verdict;
 }
@@ -1374,13 +1726,24 @@ export function accountTokenFilePath(name: string): string {
 export function writeAccountToken(name: string, token: string): string {
   const t = token.trim();
   const extracted = extractSetupToken(t);
-  const glued = !!extracted && t !== extracted && t.startsWith(extracted) && extracted.length === SETUP_TOKEN_LENGTH && !/\s/.test(t);
+  const glued =
+    !!extracted &&
+    t !== extracted &&
+    t.startsWith(extracted) &&
+    extracted.length === SETUP_TOKEN_LENGTH &&
+    !/\s/.test(t);
   if (!extracted || (t !== extracted && !glued)) {
-    throw new CcAccountError(`Not a Claude setup-token (expected ${SETUP_TOKEN_PREFIX}…) — mint one with: claude setup-token`);
+    throw new CcAccountError(
+      `Not a Claude setup-token (expected ${SETUP_TOKEN_PREFIX}…) — mint one with: claude setup-token`,
+    );
   }
   const file = accountTokenFilePath(name);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  atomicWriteFile(file, renderProviderEnvFile({ CLAUDE_CODE_OAUTH_TOKEN: extracted }), { mode: 0o600 });
+  atomicWriteFile(
+    file,
+    renderProviderEnvFile({ CLAUDE_CODE_OAUTH_TOKEN: extracted }),
+    { mode: 0o600 },
+  );
   invalidateAccountsCache();
   return file;
 }
@@ -1388,7 +1751,9 @@ export function writeAccountToken(name: string, token: string): string {
 export function removeAccountToken(name: string): boolean {
   const file = accountTokenFilePath(name);
   const existed = fs.existsSync(file);
-  try { fs.rmSync(file, { force: true }); } catch {}
+  try {
+    fs.rmSync(file, { force: true });
+  } catch {}
   if (readLaunchRecord()?.profile === name) clearLaunchProfile();
   invalidateAccountsCache();
   return existed;
@@ -1424,7 +1789,10 @@ export interface LaunchRecord {
   since: number;
 }
 
-type ActiveIdentity = { email?: string; uuid?: string; verified?: boolean } | null | undefined;
+type ActiveIdentity =
+  | { email?: string; uuid?: string; verified?: boolean }
+  | null
+  | undefined;
 
 function launchRecordPath(): string {
   return path.join(defaultConfigDir(), "cc-launch.json");
@@ -1433,14 +1801,27 @@ function launchRecordPath(): string {
 export function readLaunchRecord(): LaunchRecord | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(launchRecordPath(), "utf-8"));
-    if (parsed && typeof parsed.profile === "string" && typeof parsed.since === "number") return parsed;
+    if (
+      parsed &&
+      typeof parsed.profile === "string" &&
+      typeof parsed.since === "number"
+    )
+      return parsed;
   } catch {}
   return null;
 }
 
-export function setLaunchProfile(name: string, keychainKey: string | undefined, now = Date.now()): LaunchRecord {
+export function setLaunchProfile(
+  name: string,
+  keychainKey: string | undefined,
+  now = Date.now(),
+): LaunchRecord {
   assertValidProfileName(name);
-  const record: LaunchRecord = { profile: name, ...(keychainKey ? { keychain_key: keychainKey } : {}), since: now };
+  const record: LaunchRecord = {
+    profile: name,
+    ...(keychainKey ? { keychain_key: keychainKey } : {}),
+    since: now,
+  };
   atomicWriteFile(launchRecordPath(), JSON.stringify(record), { mode: 0o644 });
   invalidateAccountsCache();
   return record;
@@ -1448,7 +1829,9 @@ export function setLaunchProfile(name: string, keychainKey: string | undefined, 
 
 export function clearLaunchProfile(): boolean {
   const existed = fs.existsSync(launchRecordPath());
-  try { fs.rmSync(launchRecordPath(), { force: true }); } catch {}
+  try {
+    fs.rmSync(launchRecordPath(), { force: true });
+  } catch {}
   if (existed) invalidateAccountsCache();
   return existed;
 }
@@ -1459,7 +1842,10 @@ export function clearLaunchProfile(): boolean {
  *  `active` is the keychain identity when the caller has one (the inventory
  *  publisher, a switch); a launch never reads the keychain for this, so it
  *  passes nothing and only the token and profile rules apply. */
-export function launchRecordInEffect(active?: ActiveIdentity, now = Date.now()): LaunchRecord | null {
+export function launchRecordInEffect(
+  active?: ActiveIdentity,
+  now = Date.now(),
+): LaunchRecord | null {
   const record = readLaunchRecord();
   if (!record) return null;
   // A host with no pool copies runs its laptop's pushed login; a launch
@@ -1480,8 +1866,13 @@ export function launchRecordInEffect(active?: ActiveIdentity, now = Date.now()):
     return null;
   }
   const token = meta ? accountTokenInfo(record.profile) : null;
-  const keychainKey = active?.verified ? active.uuid || active.email : undefined;
-  const identityMoved = !!record.keychain_key && !!keychainKey && record.keychain_key !== keychainKey;
+  const keychainKey = active?.verified
+    ? active.uuid || active.email
+    : undefined;
+  const identityMoved =
+    !!record.keychain_key &&
+    !!keychainKey &&
+    record.keychain_key !== keychainKey;
   const holds = !!token && token.expires_at > now && !identityMoved;
   if (!holds) {
     clearLaunchProfile();
@@ -1516,7 +1907,10 @@ function fleetLaunchFile(): string {
 
 /** A cloud host holding pool copies (ccPool.ts, accountPool.deviceMayHold). */
 export function drawsPool(): boolean {
-  return isRemoteDevice() && Object.values(readProfileIndex().profiles).some((m) => !!m.pool_share_id);
+  return (
+    isRemoteDevice() &&
+    Object.values(readProfileIndex().profiles).some((m) => !!m.pool_share_id)
+  );
 }
 
 /** Sessions on this machine launch on the fleet store. A remote runs a pushed
@@ -1559,7 +1953,14 @@ export function fleetBearer(
   if (token) {
     const expires_at = accountTokenInfo(name)!.expires_at;
     return {
-      blob: JSON.stringify({ claudeAiOauth: { accessToken: token, expiresAt: expires_at, scopes: ["user:inference"], ...identity } }),
+      blob: JSON.stringify({
+        claudeAiOauth: {
+          accessToken: token,
+          expiresAt: expires_at,
+          scopes: ["user:inference"],
+          ...identity,
+        },
+      }),
       via: "token",
       expires_at,
     };
@@ -1576,7 +1977,9 @@ export function fleetBearer(
         expiresAt,
         ...(Array.isArray(oauth?.scopes) ? { scopes: oauth!.scopes } : {}),
         ...identity,
-        ...(oauth?.subscriptionType ? { subscriptionType: oauth.subscriptionType } : {}),
+        ...(oauth?.subscriptionType
+          ? { subscriptionType: oauth.subscriptionType }
+          : {}),
         ...(oauth?.rateLimitTier ? { rateLimitTier: oauth.rateLimitTier } : {}),
       },
     }),
@@ -1590,7 +1993,9 @@ export function fleetBearer(
  *  profile with its store overlaid. A keychain holding the logged-out stub says
  *  nothing about the account: its sessions rotate in the profile's own store,
  *  so the saved profile is read then, and kept fresh as a dormant one is. */
-async function fleetLoginFor(name: string): Promise<{ login: string | null; machine: boolean }> {
+async function fleetLoginFor(
+  name: string,
+): Promise<{ login: string | null; machine: boolean }> {
   if (activeProfileName() === name) {
     const login = await readActiveCredentialAsync();
     if (credentialHealth(login).usable) return { login, machine: true };
@@ -1598,7 +2003,10 @@ async function fleetLoginFor(name: string): Promise<{ login: string | null; mach
   const raw = await readProfileSecretAsync(name);
   if (!raw) return { login: null, machine: false };
   try {
-    return { login: JSON.stringify(parseProfile(raw).credentials), machine: false };
+    return {
+      login: JSON.stringify(parseProfile(raw).credentials),
+      machine: false,
+    };
   } catch {
     return { login: null, machine: false };
   }
@@ -1606,8 +2014,19 @@ async function fleetLoginFor(name: string): Promise<{ login: string | null; mach
 
 async function readFleetStoreBlob(): Promise<string | null> {
   const dir = fleetStoreDir();
-  if (useFileStore()) return fs.promises.readFile(storeCredentialFile(dir), "utf-8").catch(() => null);
-  return keychainReadAsync(["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"]).then((s) => s || null, () => null);
+  if (useFileStore())
+    return fs.promises
+      .readFile(storeCredentialFile(dir), "utf-8")
+      .catch(() => null);
+  return keychainReadAsync([
+    "find-generic-password",
+    "-s",
+    profileStoreKeychainService(dir),
+    "-w",
+  ]).then(
+    (s) => s || null,
+    () => null,
+  );
 }
 
 /** What a host should run on: the fleet store's bearer, the credential this
@@ -1617,14 +2036,23 @@ export function readFleetCredential(now = Date.now()): string | null {
   if (!fleetStoreReady(now)) return null;
   const dir = fleetStoreDir();
   try {
-    if (useFileStore()) return fs.readFileSync(storeCredentialFile(dir), "utf-8") || null;
-    return execFileSync("/usr/bin/security", ["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"], { encoding: "utf-8" }).trim() || null;
+    if (useFileStore())
+      return fs.readFileSync(storeCredentialFile(dir), "utf-8") || null;
+    return (
+      execFileSync(
+        "/usr/bin/security",
+        ["find-generic-password", "-s", profileStoreKeychainService(dir), "-w"],
+        { encoding: "utf-8" },
+      ).trim() || null
+    );
   } catch {
     return null;
   }
 }
 
-export async function readFleetCredentialAsync(now = Date.now()): Promise<string | null> {
+export async function readFleetCredentialAsync(
+  now = Date.now(),
+): Promise<string | null> {
   return fleetStoreReady(now) ? readFleetStoreBlob() : null;
 }
 
@@ -1634,35 +2062,59 @@ async function writeFleetStoreBlob(blob: string): Promise<void> {
   if (useFileStore()) {
     atomicWriteFile(storeCredentialFile(dir), blob, { mode: 0o600 });
   } else {
-    await execFileAsync("/usr/bin/security", [
-      "add-generic-password", "-U", "-a", os.userInfo().username,
-      "-s", profileStoreKeychainService(dir), "-w", blob,
-    ], { encoding: "utf-8", timeout: 30_000 }).then(undefined, () => {
+    await execFileAsync(
+      "/usr/bin/security",
+      [
+        "add-generic-password",
+        "-U",
+        "-a",
+        os.userInfo().username,
+        "-s",
+        profileStoreKeychainService(dir),
+        "-w",
+        blob,
+      ],
+      { encoding: "utf-8", timeout: 30_000 },
+    ).then(undefined, () => {
       throw new CcAccountError("Could not write the fleet credential store");
     });
   }
   if (!fs.existsSync(fleetLaunchFile())) {
-    atomicWriteFile(fleetLaunchFile(), renderProviderEnvFile({ CLAUDE_SECURESTORAGE_CONFIG_DIR: dir }), { mode: 0o600 });
+    atomicWriteFile(
+      fleetLaunchFile(),
+      renderProviderEnvFile({ CLAUDE_SECURESTORAGE_CONFIG_DIR: dir }),
+      { mode: 0o600 },
+    );
   }
 }
 
 /** Put a profile on the fleet store. Every session launched or restarted on
  *  it from now on runs on that account.
  *  Throws when the profile can carry nothing now. */
-export async function putFleetOn(name: string, now = Date.now()): Promise<FleetState> {
+export async function putFleetOn(
+  name: string,
+  now = Date.now(),
+): Promise<FleetState> {
   assertValidProfileName(name);
   const { login, machine } = await fleetLoginFor(name);
   const bearer = fleetBearer(name, login, now);
   if (!bearer) {
-    throw new CcAccountError(`Profile "${name}" has no setup-token and no live login to put on the fleet — sign into it again from Settings`);
+    throw new CcAccountError(
+      `Profile "${name}" has no setup-token and no live login to put on the fleet — sign into it again from Settings`,
+    );
   }
-  if ((await readFleetStoreBlob()) !== bearer.blob) await writeFleetStoreBlob(bearer.blob);
+  if ((await readFleetStoreBlob()) !== bearer.blob)
+    await writeFleetStoreBlob(bearer.blob);
   const state: FleetState = {
-    profile: name, via: bearer.via, expires_at: bearer.expires_at, written_at: now,
+    profile: name,
+    via: bearer.via,
+    expires_at: bearer.expires_at,
+    written_at: now,
     ...(bearer.via === "login" && machine ? { keychain: true as const } : {}),
   };
   atomicWriteFile(fleetStatePath(), JSON.stringify(state), { mode: 0o600 });
-  if (readLaunchRecord()?.profile !== name) setLaunchProfile(name, undefined, now);
+  if (readLaunchRecord()?.profile !== name)
+    setLaunchProfile(name, undefined, now);
   invalidateAccountsCache();
   return state;
 }
@@ -1674,19 +2126,25 @@ export async function putFleetOn(name: string, now = Date.now()): Promise<FleetS
  * refreshed by maintainActiveCcToken), and rewrites the store after any
  * rotation. Returns what it did, for the log.
  */
-export async function maintainFleetStore(now = Date.now()): Promise<string | null> {
+export async function maintainFleetStore(
+  now = Date.now(),
+): Promise<string | null> {
   if (!fleetStoreEnabled()) return null;
   // A host carries only pool copies. Read the launch before launchProfileName
   // drops one whose profile has no share id: the switch meant that email's copy.
   const recorded = isRemoteDevice() ? readLaunchRecord()?.profile : undefined;
-  const name = launchProfileName(now) ?? (isRemoteDevice() ? undefined : activeProfileName());
+  const name =
+    launchProfileName(now) ??
+    (isRemoteDevice() ? undefined : activeProfileName());
   if (!name) {
     if (!isRemoteDevice()) return null;
     const copy = recorded ? poolCopyForAccount(recorded) : null;
     if (copy) {
       try {
         return `moved the ${describeFleetWrite(await putFleetOn(copy, now))} onto its pool copy`;
-      } catch { /* the copy cannot carry; rank the rest */ }
+      } catch {
+        /* the copy cannot carry; rank the rest */
+      }
     }
     const state = await moveFleetToFallback(undefined, now);
     return state && `started the ${describeFleetWrite(state)} from the pool`;
@@ -1696,7 +2154,8 @@ export async function maintainFleetStore(now = Date.now()): Promise<string | nul
     const exp = oauthOf(login)?.expiresAt;
     if (typeof exp === "number" && exp - now < FLEET_REFRESH_AHEAD_MS) {
       const refreshed = await refreshProfileCredential(name, { now });
-      if (refreshed.refreshed) return `refreshed "${name}" and ${describeFleetWrite(await putFleetOn(name, now))}`;
+      if (refreshed.refreshed)
+        return `refreshed "${name}" and ${describeFleetWrite(await putFleetOn(name, now))}`;
     }
   }
   // A refused account mints a good-looking store whose every session dies on
@@ -1708,7 +2167,10 @@ export async function maintainFleetStore(now = Date.now()): Promise<string | nul
   const before = readFleetState();
   try {
     const state = await putFleetOn(name, now);
-    return before?.profile === state.profile && before.expires_at === state.expires_at ? null : describeFleetWrite(state);
+    return before?.profile === state.profile &&
+      before.expires_at === state.expires_at
+      ? null
+      : describeFleetWrite(state);
   } catch (err) {
     const moved = await failFleetOver(name, login, now);
     if (moved) return moved;
@@ -1720,7 +2182,11 @@ export async function maintainFleetStore(now = Date.now()): Promise<string | nul
  *  in: no live setup-token, and its login is dead (the token endpoint refused
  *  the refresh, or the credential is a logged-out stub with no tokens at all).
  *  A login that is merely about to lapse is not dead; the next tick refreshes it. */
-export function fleetLoginDead(name: string, login: string | null, now = Date.now()): boolean {
+export function fleetLoginDead(
+  name: string,
+  login: string | null,
+  now = Date.now(),
+): boolean {
   const meta = readProfileIndex().profiles[name];
   if (meta?.access_refused_at) return true;
   if (!meta || readAccountTokenValue(name)) return false;
@@ -1733,7 +2199,11 @@ export function fleetLoginDead(name: string, login: string | null, now = Date.no
  *  never parks, so the server's auth recovery never sees it. Returns what it
  *  did, naming the sign-in the dead account needs; null when the account is
  *  not dead or nothing else can carry the fleet. */
-async function failFleetOver(dead: string, login: string | null, now: number): Promise<string | null> {
+async function failFleetOver(
+  dead: string,
+  login: string | null,
+  now: number,
+): Promise<string | null> {
   if (!fleetLoginDead(dead, login, now)) return null;
   const state = await moveFleetToFallback(dead, now);
   const why = readProfileIndex().profiles[dead]?.access_refused_at
@@ -1743,13 +2213,22 @@ async function failFleetOver(dead: string, login: string | null, now: number): P
 }
 
 /** Fleet onto auto-switch's pick besides `leaving`, else null. */
-export async function moveFleetToFallback(leaving: string | undefined, now: number): Promise<FleetState | null> {
+export async function moveFleetToFallback(
+  leaving: string | undefined,
+  now: number,
+): Promise<FleetState | null> {
   const { accounts: usage } = readUsageCache();
   const candidates = fallbackProfiles(
     listProfiles()
       // A host's fleet carries only its pool copies (fleetStoreEnabled).
-      .filter((p) => p.name !== leaving && (!isRemoteDevice() || !!p.pool_share_id))
-      .map((p) => ({ ...p, usage: usage[p.uuid || p.email || ""], setup_token: accountTokenInfo(p.name) })),
+      .filter(
+        (p) => p.name !== leaving && (!isRemoteDevice() || !!p.pool_share_id),
+      )
+      .map((p) => ({
+        ...p,
+        usage: usage[p.uuid || p.email || ""],
+        setup_token: accountTokenInfo(p.name),
+      })),
     leaving ? readProfileIndex().profiles[leaving]?.email : undefined,
     now,
   );
@@ -1778,7 +2257,8 @@ export { STORE_OUTRANKING_ENV };
 export const ACCOUNT_LAUNCH_UNSET = `unset ${STORE_OUTRANKING_ENV.join(" ")}; `;
 
 /** A keychain launch where saved profiles exist: Claude bills these ahead of the login. */
-export const SUBSCRIPTION_KEY_UNSET = "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN; ";
+export const SUBSCRIPTION_KEY_UNSET =
+  "unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN; ";
 
 /** Source a credential-store launch file, dropping any credential the shell
  *  inherited that would outrank the store. */
@@ -1791,21 +2271,35 @@ export function storeLaunchPrefix(file: string): string {
  *  kept) sources that profile; no pin runs on the fleet store when it is
  *  ready, else on the launch profile or the keychain. An empty prefix is the
  *  keychain login, attributed as such. */
-export function launchAccountPrefix(pin: string | undefined, warn?: (msg: string) => void): { prefix: string; account?: string } {
+export function launchAccountPrefix(
+  pin: string | undefined,
+  warn?: (msg: string) => void,
+): { prefix: string; account?: string } {
   adoptPushedCredential();
   if (!pin && fleetStoreLaunches() && fs.existsSync(fleetLaunchFile())) {
-    return { prefix: storeLaunchPrefix(fleetLaunchFile()), account: FLEET_GATE_ACCOUNT };
+    return {
+      prefix: storeLaunchPrefix(fleetLaunchFile()),
+      account: FLEET_GATE_ACCOUNT,
+    };
   }
   const account = pin ?? launchProfileName();
   const prefix = accountSourcePrefix(account, warn);
   if (prefix) return { prefix, account };
-  return { prefix: Object.keys(readProfileIndex().profiles).length ? SUBSCRIPTION_KEY_UNSET : "", account: undefined };
+  return {
+    prefix: Object.keys(readProfileIndex().profiles).length
+      ? SUBSCRIPTION_KEY_UNSET
+      : "",
+    account: undefined,
+  };
 }
 
 /** `argv` run under the unpinned launch account (launchAccountPrefix), for a
  *  caller that execs without a shell. Unchanged when the launch is the
  *  keychain login. */
-export function argvOnLaunchAccount(argv: string[], warn?: (msg: string) => void): string[] {
+export function argvOnLaunchAccount(
+  argv: string[],
+  warn?: (msg: string) => void,
+): string[] {
   const { prefix } = launchAccountPrefix(undefined, warn);
   return prefix ? ["bash", "-c", `${prefix}exec "$@"`, "bash", ...argv] : argv;
 }
@@ -1819,7 +2313,11 @@ export interface AccountTokenInfo {
 /** Non-secret facts about a stored token, or null when the profile has none. */
 export function accountTokenInfo(name: string): AccountTokenInfo | null {
   let file: string;
-  try { file = accountTokenFilePath(name); } catch { return null; }
+  try {
+    file = accountTokenFilePath(name);
+  } catch {
+    return null;
+  }
   try {
     const stored_at = fs.statSync(file).mtimeMs;
     return { file, stored_at, expires_at: stored_at + SETUP_TOKEN_LIFETIME_MS };
@@ -1835,7 +2333,8 @@ export function extractSetupToken(text: string): string | null {
   const m = /sk-ant-oat01-[A-Za-z0-9_-]{40,}/.exec(text);
   if (!m) return null;
   const raw = m[0];
-  if (raw.length > SETUP_TOKEN_LENGTH && raw[SETUP_TOKEN_HYPHEN_AT] === "-") return raw.slice(0, SETUP_TOKEN_LENGTH);
+  if (raw.length > SETUP_TOKEN_LENGTH && raw[SETUP_TOKEN_HYPHEN_AT] === "-")
+    return raw.slice(0, SETUP_TOKEN_LENGTH);
   return raw;
 }
 
@@ -1851,7 +2350,10 @@ export function extractSetupToken(text: string): string | null {
 
 /** Same account iff both reset timestamps are known and identical. Utilization
  *  is deliberately ignored — it moves between two probes seconds apart. */
-export function sameAccountFingerprint(a: RateLimitFingerprint, b: RateLimitFingerprint): boolean {
+export function sameAccountFingerprint(
+  a: RateLimitFingerprint,
+  b: RateLimitFingerprint,
+): boolean {
   return (
     a.five_hour_reset != null &&
     a.seven_day_reset != null &&
@@ -1879,21 +2381,34 @@ export function attributeFingerprint(
   for (const [name, meta] of Object.entries(profiles)) {
     const snap = usage[meta.uuid || meta.email || ""];
     if (!snap || !near(snap.weekly?.resets_at, fp.seven_day_reset)) continue;
-    const sessionOpen = snap.session?.resets_at != null && snap.session.resets_at > now;
-    if (sessionOpen && !near(snap.session?.resets_at, fp.five_hour_reset)) continue;
+    const sessionOpen =
+      snap.session?.resets_at != null && snap.session.resets_at > now;
+    if (sessionOpen && !near(snap.session?.resets_at, fp.five_hour_reset))
+      continue;
     hits.push(name);
   }
   return hits.length === 1 ? hits[0] : null;
 }
 
-export function attributeFingerprintToProfile(fp: RateLimitFingerprint, now: number = Date.now()): string | null {
-  return attributeFingerprint(fp, readProfileIndex().profiles, readUsageCache().accounts, now);
+export function attributeFingerprintToProfile(
+  fp: RateLimitFingerprint,
+  now: number = Date.now(),
+): string | null {
+  return attributeFingerprint(
+    fp,
+    readProfileIndex().profiles,
+    readUsageCache().accounts,
+    now,
+  );
 }
 
-const CC_MESSAGES_URL = process.env.CODECAST_CC_MESSAGES_URL || "https://api.anthropic.com/v1/messages";
+const CC_MESSAGES_URL =
+  process.env.CODECAST_CC_MESSAGES_URL ||
+  "https://api.anthropic.com/v1/messages";
 // Haiku 4.5, not 5.5: on a subscription token claude-haiku-5-5 answers a bare
 // call 429 with no window headers (three accounts, 2026-10-07).
-const CC_PROBE_MODEL = process.env.CODECAST_CC_PROBE_MODEL || "claude-haiku-4-5-20251001";
+const CC_PROBE_MODEL =
+  process.env.CODECAST_CC_PROBE_MODEL || "claude-haiku-4-5-20251001";
 
 /** One-token model call whose only purpose is the rate-limit headers. Costs a
  *  handful of input tokens on the account; never touches the credential store. */
@@ -1902,7 +2417,13 @@ async function probeModel(
   model: string,
   fetchImpl: typeof fetch = fetch,
   system?: string,
-): Promise<{ status: number; fp: RateLimitFingerprint; scoped: CcUsageWindow | null; windowed: boolean; body: () => Promise<string> }> {
+): Promise<{
+  status: number;
+  fp: RateLimitFingerprint;
+  scoped: CcUsageWindow | null;
+  windowed: boolean;
+  body: () => Promise<string>;
+}> {
   const res = await fetchImpl(CC_MESSAGES_URL, {
     method: "POST",
     headers: {
@@ -1912,36 +2433,64 @@ async function probeModel(
       "content-type": "application/json",
       "user-agent": "codecast-account-probe",
     },
-    body: JSON.stringify({ model, max_tokens: 1, messages: [{ role: "user", content: "hi" }], ...(system && { system }) }),
+    body: JSON.stringify({
+      model,
+      max_tokens: 1,
+      messages: [{ role: "user", content: "hi" }],
+      ...(system && { system }),
+    }),
     signal: AbortSignal.timeout(20000),
   });
   const fp = parseRateLimitFingerprint(res.headers);
   // A refusal for a spent window names the windows it was judged on. One that
   // names none was refused for another reason and says nothing about them.
-  const windowed = fp.five_hour_reset != null || fp.seven_day_reset != null || !!res.headers.get("anthropic-ratelimit-unified-status");
-  return { status: res.status, fp, scoped: parseScopedRateLimitWindow(res.headers), windowed, body: () => res.text().catch(() => "") };
+  const windowed =
+    fp.five_hour_reset != null ||
+    fp.seven_day_reset != null ||
+    !!res.headers.get("anthropic-ratelimit-unified-status");
+  return {
+    status: res.status,
+    fp,
+    scoped: parseScopedRateLimitWindow(res.headers),
+    windowed,
+    body: () => res.text().catch(() => ""),
+  };
 }
 
-export async function fetchRateLimitFingerprint(bearerToken: string, fetchImpl?: typeof fetch): Promise<RateLimitFingerprint> {
-  const { status, fp, body } = await probeModel(bearerToken, CC_PROBE_MODEL, fetchImpl);
+export async function fetchRateLimitFingerprint(
+  bearerToken: string,
+  fetchImpl?: typeof fetch,
+): Promise<RateLimitFingerprint> {
+  const { status, fp, body } = await probeModel(
+    bearerToken,
+    CC_PROBE_MODEL,
+    fetchImpl,
+  );
   // A limit-parked account answers 429 — with the same window headers, which
   // is all the fingerprint needs (2026-09-01: a mint for an exhausted account
   // was thrown away because the probe treated its 429 as a failure).
-  if ((status < 200 || status >= 300) && !(fp.five_hour_reset != null && fp.seven_day_reset != null)) {
-    throw new CcAccountError(`Account probe failed: HTTP ${status} ${(await body()).slice(0, 160)}`);
+  if (
+    (status < 200 || status >= 300) &&
+    !(fp.five_hour_reset != null && fp.seven_day_reset != null)
+  ) {
+    throw new CcAccountError(
+      `Account probe failed: HTTP ${status} ${(await body()).slice(0, 160)}`,
+    );
   }
   return fp;
 }
 
 // The model whose own weekly window the usage endpoint reports as
 // `weekly_scoped` (the /usage screen's third bar).
-const CC_SCOPED_PROBE_MODEL = process.env.CODECAST_CC_SCOPED_PROBE_MODEL || "claude-fable-5-2";
+const CC_SCOPED_PROBE_MODEL =
+  process.env.CODECAST_CC_SCOPED_PROBE_MODEL || "claude-fable-5-2";
 // A subscription token reaches the scoped model only as Claude Code. Asked
 // bare, the API answers an empty 429 whatever the window holds; with Claude
 // Code's system line it answers with the model's own window headers. Without
 // it six token accounts read no Fable meter while every one was at 100%, and
 // auto-switch hopped a Fable session across all of them (2026-11-21).
-export const CC_SCOPED_PROBE_SYSTEM = "You are Claude Code, Anthropic's official CLI for Claude.";
+export const CC_SCOPED_PROBE_SYSTEM =
+  "You are Claude Code, Anthropic's official CLI for Claude.";
 
 /**
  * A usage reading for an account whose saved login is dead but whose setup
@@ -1975,28 +2524,50 @@ export async function fetchTokenUsageSnapshot(
 ): Promise<CcUsageSnapshot> {
   const now = opts.now ?? Date.now();
   const fp = await fetchRateLimitFingerprint(token, opts.fetchImpl);
-  const window = (util: number | null, reset: number | null): CcUsageWindow | undefined =>
-    util == null ? undefined : { percent: Math.round(util * 100), ...(reset != null && { resets_at: reset * 1000 }) };
+  const window = (
+    util: number | null,
+    reset: number | null,
+  ): CcUsageWindow | undefined =>
+    util == null
+      ? undefined
+      : {
+          percent: Math.round(util * 100),
+          ...(reset != null && { resets_at: reset * 1000 }),
+        };
   const snap: CcUsageSnapshot = { fetched_at: now };
   const session = window(fp.five_hour_utilization, fp.five_hour_reset);
   const weekly = window(fp.seven_day_utilization, fp.seven_day_reset);
   if (session) snap.session = session;
   if (weekly) snap.weekly = weekly;
   const prevScoped = prev?.weekly_scoped;
-  const unifiedOpen = (session?.percent ?? 0) < 100 && (weekly?.percent ?? 0) < 100;
+  const unifiedOpen =
+    (session?.percent ?? 0) < 100 && (weekly?.percent ?? 0) < 100;
   if (!unifiedOpen) {
     if (prevScoped) snap.weekly_scoped = prevScoped;
     return snap;
   }
-  const scoped = await probeModel(token, CC_SCOPED_PROBE_MODEL, opts.fetchImpl, CC_SCOPED_PROBE_SYSTEM);
+  const scoped = await probeModel(
+    token,
+    CC_SCOPED_PROBE_MODEL,
+    opts.fetchImpl,
+    CC_SCOPED_PROBE_SYSTEM,
+  );
   const label = prevScoped?.label ?? "Fable";
-  const liveReset = prevScoped?.resets_at && prevScoped.resets_at > now ? prevScoped.resets_at : undefined;
+  const liveReset =
+    prevScoped?.resets_at && prevScoped.resets_at > now
+      ? prevScoped.resets_at
+      : undefined;
   if (scoped.scoped) {
     snap.weekly_scoped = { ...scoped.scoped, label };
   } else if (scoped.status === 429 && scoped.windowed) {
-    snap.weekly_scoped = { percent: 100, ...(liveReset && { resets_at: liveReset }), label };
+    snap.weekly_scoped = {
+      percent: 100,
+      ...(liveReset && { resets_at: liveReset }),
+      label,
+    };
   } else if (scoped.status === 429) {
-    if (prevScoped && (prevScoped.percent < 100 || liveReset)) snap.weekly_scoped = prevScoped;
+    if (prevScoped && (prevScoped.percent < 100 || liveReset))
+      snap.weekly_scoped = prevScoped;
   } else if (scoped.status >= 200 && scoped.status < 300) {
     if (prevScoped && prevScoped.percent < 100) snap.weekly_scoped = prevScoped;
   } else if (prevScoped) {
@@ -2024,7 +2595,10 @@ export function readAccountTokenValue(name: string): string | null {
  *  name rides along for them, and a dormant profile runs on its own store. A
  *  dormant profile with no launch credential is reported through `warn` and
  *  the session starts on the keychain login rather than not at all. */
-export function accountSourcePrefix(name: string | undefined, warn?: (msg: string) => void): string {
+export function accountSourcePrefix(
+  name: string | undefined,
+  warn?: (msg: string) => void,
+): string {
   if (!name) return "";
   try {
     assertValidProfileName(name);
@@ -2038,18 +2612,26 @@ export function accountSourcePrefix(name: string | undefined, warn?: (msg: strin
   if (readProfileIndex().profiles[name]?.pool_share_id) return "";
   const nameExport = `export CODECAST_CC_ACCOUNT=${name}; `;
   const token = accountTokenInfo(name);
-  if (token && token.expires_at > Date.now()) return `${ACCOUNT_LAUNCH_UNSET}${sourceFilePrefix(token.file)}${nameExport}`;
+  if (token && token.expires_at > Date.now())
+    return `${ACCOUNT_LAUNCH_UNSET}${sourceFilePrefix(token.file)}${nameExport}`;
   if (token) {
-    warn?.(`cc_account "${name}" setup-token is past its one-year lifetime — mint a new one from Settings, or remove it: cast accounts token ${name} --rm`);
+    warn?.(
+      `cc_account "${name}" setup-token is past its one-year lifetime — mint a new one from Settings, or remove it: cast accounts token ${name} --rm`,
+    );
   }
-  if (activeProfileName() === name) return `${ACCOUNT_LAUNCH_UNSET}${nameExport}`;
+  if (activeProfileName() === name)
+    return `${ACCOUNT_LAUNCH_UNSET}${nameExport}`;
   const info = accountLaunchInfo(name);
   if (!info) {
-    warn?.(`cc_account "${name}" requested but its saved login has no launch credential (sign into it again from Settings) — launching on the keychain login`);
+    warn?.(
+      `cc_account "${name}" requested but its saved login has no launch credential (sign into it again from Settings) — launching on the keychain login`,
+    );
     return "";
   }
   if (info.expires_at <= Date.now()) {
-    warn?.(`cc_account "${name}" saved login is past its refresh lifetime — sign into it again from Settings`);
+    warn?.(
+      `cc_account "${name}" saved login is past its refresh lifetime — sign into it again from Settings`,
+    );
   }
   return `${storeLaunchPrefix(info.file)}${nameExport}`;
 }
@@ -2062,7 +2644,9 @@ export function resnapshotActiveProfile(): string | null {
   const activeUuid = activeAccountSummary()?.uuid;
   if (!activeUuid) return null;
   const index = readProfileIndex();
-  const match = Object.entries(index.profiles).find(([, meta]) => meta.uuid === activeUuid);
+  const match = Object.entries(index.profiles).find(
+    ([, meta]) => meta.uuid === activeUuid,
+  );
   if (!match) return null;
   try {
     saveProfile(match[0]);
@@ -2113,7 +2697,8 @@ export function useProfile(name: string): SwitchResult {
     );
   }
   const activeSummary = activeAccountSummary();
-  const targetUuid = target.oauthAccount?.accountUuid || readProfileIndex().profiles[name]?.uuid;
+  const targetUuid =
+    target.oauthAccount?.accountUuid || readProfileIndex().profiles[name]?.uuid;
   // Already this login. The saved snapshot is often an older refresh token.
   // Writing it over the live credential spends the grant: the snapshot's
   // refresh was rotated away, the next probe answers 401, and the account
@@ -2148,9 +2733,16 @@ export function useProfile(name: string): SwitchResult {
   // Stamp the activation here, not at the next usage tick: the daemon's
   // switch_account probes right after this, and `cast accounts use` from a
   // terminal must not let a pre-switch snapshot pass as evidence meanwhile.
-  noteActiveAccount(targetIdentity?.accountUuid || targetIdentity?.emailAddress);
+  noteActiveAccount(
+    targetIdentity?.accountUuid || targetIdentity?.emailAddress,
+  );
   invalidateAccountsCache();
-  return { from, fromEmail, to: name, toEmail: target.oauthAccount?.emailAddress };
+  return {
+    from,
+    fromEmail,
+    to: name,
+    toEmail: target.oauthAccount?.emailAddress,
+  };
 }
 
 export type SwitchMode = "keychain" | "token" | "fleet";
@@ -2160,14 +2752,19 @@ export type SwitchMode = "keychain" | "token" | "fleet";
  *  token is live). Null when neither can carry a session. A usable login wins
  *  even when a token exists: the keychain switch also moves `claude` started
  *  by hand, and pinned sessions ride the token either way (accountSourcePrefix). */
-export function switchModeFor(name: string, now = Date.now()): SwitchMode | null {
+export function switchModeFor(
+  name: string,
+  now = Date.now(),
+): SwitchMode | null {
   assertValidProfileName(name);
   const meta = readProfileIndex().profiles[name];
   const raw = readProfileSecret(name);
   let loginUsable = false;
   if (raw) {
     try {
-      loginUsable = credentialHealth(JSON.stringify(parseProfile(raw).credentials), now).usable && !meta?.login_expired_at;
+      loginUsable =
+        credentialHealth(JSON.stringify(parseProfile(raw).credentials), now)
+          .usable && !meta?.login_expired_at;
     } catch {
       loginUsable = false;
     }
@@ -2181,7 +2778,10 @@ export function switchModeFor(name: string, now = Date.now()): SwitchMode | null
  *  its login is usable (useProfile), else onto its minted setup-token (the
  *  launch record; the keychain login stays put). Throws with the fix in hand
  *  when the profile can carry nothing. */
-export function switchProfile(name: string, now = Date.now()): SwitchResult & { mode: SwitchMode } {
+export function switchProfile(
+  name: string,
+  now = Date.now(),
+): SwitchResult & { mode: SwitchMode } {
   const mode = switchModeFor(name, now);
   if (mode === "keychain") {
     const result = useProfile(name);
@@ -2191,12 +2791,18 @@ export function switchProfile(name: string, now = Date.now()): SwitchResult & { 
   if (mode === "token") {
     const meta = readProfileIndex().profiles[name]!;
     const active = activeAccountIdentity();
-    setLaunchProfile(name, active?.verified ? active.uuid || active.email : undefined, now);
+    setLaunchProfile(
+      name,
+      active?.verified ? active.uuid || active.email : undefined,
+      now,
+    );
     return { from: null, to: name, toEmail: meta.email, mode };
   }
   // Neither: let useProfile name the exact reason (no profile, unusable login).
   useProfile(name);
-  throw new CcAccountError(`Profile "${name}" has no usable login and no live setup-token`);
+  throw new CcAccountError(
+    `Profile "${name}" has no usable login and no live setup-token`,
+  );
 }
 
 /** A remote drawing the pool resolves a profile with no share id to the pool
@@ -2210,23 +2816,40 @@ export function poolCopyForAccount(name: string): string | null {
   if (meta.pool_share_id) return name;
   const want = (meta.email ?? "").trim().toLowerCase();
   if (!want) return null;
-  return Object.keys(profiles).find((n) => {
-    const p = profiles[n];
-    return !!p.pool_share_id && (p.email ?? "").trim().toLowerCase() === want && !!readAccountTokenValue(n);
-  }) ?? null;
+  return (
+    Object.keys(profiles).find((n) => {
+      const p = profiles[n];
+      return (
+        !!p.pool_share_id &&
+        (p.email ?? "").trim().toLowerCase() === want &&
+        !!readAccountTokenValue(n)
+      );
+    }) ?? null
+  );
 }
 
 /** Switch the fleet: on the fleet store the store is rewritten and every
  *  running session follows it (putFleetOn), the keychain login untouched;
  *  otherwise switchProfile. The one entry point for the daemon and the CLI.
  *  On a pool host, a profile with no share id lands on its pool copy. */
-export async function switchFleetTo(name: string, now = Date.now()): Promise<SwitchResult & { mode: SwitchMode }> {
+export async function switchFleetTo(
+  name: string,
+  now = Date.now(),
+): Promise<SwitchResult & { mode: SwitchMode }> {
   if (!fleetStoreEnabled()) return switchProfile(name, now);
   const target = poolCopyForAccount(name);
-  if (!target) throw new CcAccountError(`"${name}" has no pool copy of that account on this host`);
+  if (!target)
+    throw new CcAccountError(
+      `"${name}" has no pool copy of that account on this host`,
+    );
   const from = readFleetState()?.profile ?? null;
   await putFleetOn(target, now);
-  return { from, to: target, toEmail: readProfileIndex().profiles[target]?.email, mode: "fleet" };
+  return {
+    from,
+    to: target,
+    toEmail: readProfileIndex().profiles[target]?.email,
+    mode: "fleet",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -2246,9 +2869,11 @@ export async function switchFleetTo(name: string, now = Date.now()): Promise<Swi
 // Anthropic has moved the endpoint before (console.anthropic.com → platform):
 // a drift becomes a config change, not a code change.
 const CC_OAUTH_CLIENT_ID =
-  process.env.CODECAST_CC_OAUTH_CLIENT_ID || "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+  process.env.CODECAST_CC_OAUTH_CLIENT_ID ||
+  "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 const CC_OAUTH_TOKEN_URL =
-  process.env.CODECAST_CC_OAUTH_TOKEN_URL || "https://platform.claude.com/v1/oauth/token";
+  process.env.CODECAST_CC_OAUTH_TOKEN_URL ||
+  "https://platform.claude.com/v1/oauth/token";
 
 /** The parsed `claudeAiOauth` block of the active credential (null for API-key
  * logins, missing/corrupt credentials). */
@@ -2256,7 +2881,10 @@ export function readActiveOauth(): Record<string, any> | null {
   return oauthOf(readActiveCredential());
 }
 
-export async function readActiveOauthAsync(): Promise<Record<string, any> | null> {
+export async function readActiveOauthAsync(): Promise<Record<
+  string,
+  any
+> | null> {
   return oauthOf(await readActiveCredentialAsync());
 }
 
@@ -2308,7 +2936,8 @@ export async function refreshActiveCredential(
     return { refreshed: false, reason: "active credential is not JSON" };
   }
   const rotated = await rotateOauthCredential(cred, opts);
-  if (!rotated.ok) return { refreshed: false, reason: rotated.reason, dead: rotated.dead };
+  if (!rotated.ok)
+    return { refreshed: false, reason: rotated.reason, dead: rotated.dead };
   writeActiveCredential(JSON.stringify(rotated.cred));
   invalidateAccountsCache();
   return { refreshed: true, expiresAt: rotated.expiresAt };
@@ -2324,13 +2953,20 @@ export async function refreshActiveCredential(
 export async function rotateOauthCredential(
   cred: any,
   opts: { fetchImpl?: typeof fetch; now?: number } = {},
-): Promise<{ ok: true; cred: any; expiresAt: number } | { ok: false; reason: string; dead: boolean }> {
+): Promise<
+  | { ok: true; cred: any; expiresAt: number }
+  | { ok: false; reason: string; dead: boolean }
+> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const now = opts.now ?? Date.now();
   const oauth = cred?.claudeAiOauth;
   const refreshToken = oauth?.refreshToken;
   if (!refreshToken) {
-    return { ok: false, reason: "no refresh token (API-key login?)", dead: false };
+    return {
+      ok: false,
+      reason: "no refresh token (API-key login?)",
+      dead: false,
+    };
   }
 
   let resp: Response;
@@ -2338,7 +2974,10 @@ export async function rotateOauthCredential(
     resp = await fetchImpl(CC_OAUTH_TOKEN_URL, {
       method: "POST",
       // Form-encoded: the endpoint may time out on application/json.
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: refreshToken,
@@ -2347,7 +2986,11 @@ export async function rotateOauthCredential(
       signal: AbortSignal.timeout(20_000),
     });
   } catch (err) {
-    return { ok: false, reason: `request failed: ${err instanceof Error ? err.message : String(err)}`, dead: false };
+    return {
+      ok: false,
+      reason: `request failed: ${err instanceof Error ? err.message : String(err)}`,
+      dead: false,
+    };
   }
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
@@ -2365,8 +3008,16 @@ export async function rotateOauthCredential(
   }
   const accessToken = data?.access_token;
   const expiresInSec = Number(data?.expires_in);
-  if (typeof accessToken !== "string" || !accessToken || !Number.isFinite(expiresInSec)) {
-    return { ok: false, reason: "token response missing access_token/expires_in", dead: false };
+  if (
+    typeof accessToken !== "string" ||
+    !accessToken ||
+    !Number.isFinite(expiresInSec)
+  ) {
+    return {
+      ok: false,
+      reason: "token response missing access_token/expires_in",
+      dead: false,
+    };
   }
   const expiresAt = now + expiresInSec * 1000;
   // A grant we rotated is the same account as the token it rotated from. Carry
@@ -2390,9 +3041,10 @@ export async function rotateOauthCredential(
       claudeAiOauth: {
         ...oauth,
         accessToken,
-        refreshToken: typeof data.refresh_token === "string" && data.refresh_token
-          ? data.refresh_token
-          : refreshToken,
+        refreshToken:
+          typeof data.refresh_token === "string" && data.refresh_token
+            ? data.refresh_token
+            : refreshToken,
         expiresAt,
       },
     },
@@ -2431,14 +3083,23 @@ export async function refreshProfileCredential(
   try {
     profile = parseProfile(raw);
   } catch (err) {
-    return { refreshed: false, reason: err instanceof Error ? err.message : String(err) };
+    return {
+      refreshed: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
   }
-  const rotated = await rotateOauthCredential(profile.credentials, { ...opts, now });
+  const rotated = await rotateOauthCredential(profile.credentials, {
+    ...opts,
+    now,
+  });
   if (!rotated.ok) {
     if (rotated.dead) markLoginExpired(name, now);
     return { refreshed: false, reason: rotated.reason, dead: rotated.dead };
   }
-  writeProfileSecret(name, JSON.stringify({ ...profile, credentials: rotated.cred }));
+  writeProfileSecret(
+    name,
+    JSON.stringify({ ...profile, credentials: rotated.cred }),
+  );
   const index = readProfileIndex();
   if (index.profiles[name]?.login_expired_at) {
     const { login_expired_at: _cleared, ...rest } = index.profiles[name];
@@ -2446,7 +3107,11 @@ export async function refreshProfileCredential(
     writeProfileIndex(index);
     invalidateAccountsCache();
   }
-  return { refreshed: true, expiresAt: rotated.expiresAt, accessToken: rotated.cred.claudeAiOauth.accessToken };
+  return {
+    refreshed: true,
+    expiresAt: rotated.expiresAt,
+    accessToken: rotated.cred.claudeAiOauth.accessToken,
+  };
 }
 
 /**
@@ -2485,7 +3150,13 @@ export async function resnapshotIfActiveFresher(
     ...identityOfOauthAccount(oauthAccount),
     refreshToken: tokenField(activeOauth.refreshToken),
   };
-  if (!identity.uuid && !identity.email && !identity.organization && !identity.refreshToken) return null;
+  if (
+    !identity.uuid &&
+    !identity.email &&
+    !identity.organization &&
+    !identity.refreshToken
+  )
+    return null;
 
   const match = await matchProfileForCredential(identity);
   if (match.kind === "ambiguous") {
@@ -2501,7 +3172,8 @@ export async function resnapshotIfActiveFresher(
   if (match.kind !== "matched") return null;
   const name = match.name;
 
-  const activeExpiry = typeof activeOauth.expiresAt === "number" ? activeOauth.expiresAt : 0;
+  const activeExpiry =
+    typeof activeOauth.expiresAt === "number" ? activeOauth.expiresAt : 0;
   const stored = await readProfileSecretAsync(name);
   let storedExpiry = 0;
   let storedRefresh: string | undefined;
@@ -2515,9 +3187,12 @@ export async function resnapshotIfActiveFresher(
     }
   }
   const refreshTokenRotated =
-    !!identity.refreshToken && !!storedRefresh && identity.refreshToken !== storedRefresh;
+    !!identity.refreshToken &&
+    !!storedRefresh &&
+    identity.refreshToken !== storedRefresh;
   const fresher = activeExpiry > storedExpiry;
-  const rotatedAndNotOlder = refreshTokenRotated && activeExpiry >= storedExpiry;
+  const rotatedAndNotOlder =
+    refreshTokenRotated && activeExpiry >= storedExpiry;
   if (!fresher && !rotatedAndNotOlder) return null;
   try {
     saveProfileSnapshot(name, raw, oauthAccount);
@@ -2525,7 +3200,9 @@ export async function resnapshotIfActiveFresher(
   } catch (err) {
     // assertNotAnotherProfilesCredential refuses a credential a second profile
     // already holds. That refusal is the point — say so rather than swallow it.
-    opts.warn?.(`re-snapshot of profile "${name}" refused: ${err instanceof Error ? err.message : String(err)}`);
+    opts.warn?.(
+      `re-snapshot of profile "${name}" refused: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
@@ -2570,7 +3247,9 @@ export async function auditProfileIdentities(
     const raw = await readProfileSecretAsync(name);
     const token = safeParse(raw ?? "")?.credentials?.claudeAiOauth?.accessToken;
     if (typeof token !== "string" || !token) {
-      row.reason = raw ? "no access token in the stored snapshot" : "no stored credential";
+      row.reason = raw
+        ? "no access token in the stored snapshot"
+        : "no stored credential";
       results.push(row);
       continue;
     }
@@ -2578,7 +3257,8 @@ export async function auditProfileIdentities(
       const actual = await fetchAccountIdentity(token, opts);
       row.actual_email = actual.email;
       row.actual_uuid = actual.uuid;
-      row.verdict = !meta.uuid || meta.uuid === actual.uuid ? "ok" : "mislabeled";
+      row.verdict =
+        !meta.uuid || meta.uuid === actual.uuid ? "ok" : "mislabeled";
     } catch (err) {
       row.reason = err instanceof Error ? err.message : String(err);
     }
@@ -2589,7 +3269,11 @@ export async function auditProfileIdentities(
   for (const row of results) {
     if (row.verdict !== "mislabeled") continue;
     const covered = results.some(
-      (r) => r !== row && r.verdict === "ok" && r.actual_uuid && r.actual_uuid === row.actual_uuid,
+      (r) =>
+        r !== row &&
+        r.verdict === "ok" &&
+        r.actual_uuid &&
+        r.actual_uuid === row.actual_uuid,
     );
     if (covered) row.verdict = "duplicate";
   }
@@ -2627,27 +3311,52 @@ export async function repairProfileIdentities(
       // that is where this login belongs. Relabelling instead would leave the
       // profile's real account with no profile, while its setup token and
       // live sessions still carry the old name.
-      const home = audit.find((r) => r !== row && r.labelled_uuid === row.actual_uuid && r.verdict === "unverifiable");
+      const home = audit.find(
+        (r) =>
+          r !== row &&
+          r.labelled_uuid === row.actual_uuid &&
+          r.verdict === "unverifiable",
+      );
       if (parsed && home) {
-        parsed.oauthAccount = { accountUuid: row.actual_uuid, emailAddress: row.actual_email };
+        parsed.oauthAccount = {
+          accountUuid: row.actual_uuid,
+          emailAddress: row.actual_email,
+        };
         writeProfileSecret(home.name, JSON.stringify(parsed));
-        writeProfileStoreCredentials(home.name, JSON.stringify(parsed.credentials));
-        const { login_expired_at: _revived, ...homeMeta } = index.profiles[home.name];
-        index.profiles[home.name] = { ...homeMeta, ...profileMeta(parseProfile(JSON.stringify(parsed))) };
+        writeProfileStoreCredentials(
+          home.name,
+          JSON.stringify(parsed.credentials),
+        );
+        const { login_expired_at: _revived, ...homeMeta } =
+          index.profiles[home.name];
+        index.profiles[home.name] = {
+          ...homeMeta,
+          ...profileMeta(parseProfile(JSON.stringify(parsed))),
+        };
         // The wrong account must never launch under this profile's name.
         deleteProfileSecret(row.name);
         deleteProfileStore(row.name);
-        index.profiles[row.name] = { ...index.profiles[row.name], login_expired_at: Date.now() };
+        index.profiles[row.name] = {
+          ...index.profiles[row.name],
+          login_expired_at: Date.now(),
+        };
         row.repair = "moved";
         row.moved_to = home.name;
         dirty = true;
         continue;
       }
       if (parsed) {
-        parsed.oauthAccount = { accountUuid: row.actual_uuid, emailAddress: row.actual_email };
+        parsed.oauthAccount = {
+          accountUuid: row.actual_uuid,
+          emailAddress: row.actual_email,
+        };
         writeProfileSecret(row.name, JSON.stringify(parsed));
       }
-      index.profiles[row.name] = { ...index.profiles[row.name], uuid: row.actual_uuid, email: row.actual_email };
+      index.profiles[row.name] = {
+        ...index.profiles[row.name],
+        uuid: row.actual_uuid,
+        email: row.actual_email,
+      };
       row.repair = "relabelled";
       dirty = true;
     }
@@ -2672,7 +3381,8 @@ export async function repairProfileIdentities(
 // ~/.codecast/cc-usage.json caches snapshots — percentages only, non-secret.
 
 const CC_USAGE_URL =
-  process.env.CODECAST_CC_USAGE_URL || "https://api.anthropic.com/api/oauth/usage";
+  process.env.CODECAST_CC_USAGE_URL ||
+  "https://api.anthropic.com/api/oauth/usage";
 
 export interface CcUsageWindow {
   percent: number;
@@ -2718,27 +3428,39 @@ export function parseUsageResponse(data: any, now: number): CcUsageSnapshot {
   };
   for (const lim of Array.isArray(data?.limits) ? data.limits : []) {
     if (typeof lim?.percent !== "number") continue;
-    const w: CcUsageWindow = { percent: lim.percent, resets_at: toMs(lim.resets_at) };
+    const w: CcUsageWindow = {
+      percent: lim.percent,
+      resets_at: toMs(lim.resets_at),
+    };
     if (lim.kind === "session") snap.session = w;
     else if (lim.kind === "weekly_all") snap.weekly = w;
     else if (lim.kind === "weekly_scoped") {
       const label = lim.scope?.model?.display_name;
       if (typeof label === "string" && label) w.label = label;
       // Several scoped windows may exist; keep the most utilized one.
-      if (!snap.weekly_scoped || w.percent > snap.weekly_scoped.percent) snap.weekly_scoped = w;
+      if (!snap.weekly_scoped || w.percent > snap.weekly_scoped.percent)
+        snap.weekly_scoped = w;
     }
   }
   if (!snap.session && typeof data?.five_hour?.utilization === "number") {
-    snap.session = { percent: data.five_hour.utilization, resets_at: toMs(data.five_hour.resets_at) };
+    snap.session = {
+      percent: data.five_hour.utilization,
+      resets_at: toMs(data.five_hour.resets_at),
+    };
   }
   if (!snap.weekly && typeof data?.seven_day?.utilization === "number") {
-    snap.weekly = { percent: data.seven_day.utilization, resets_at: toMs(data.seven_day.resets_at) };
+    snap.weekly = {
+      percent: data.seven_day.utilization,
+      resets_at: toMs(data.seven_day.resets_at),
+    };
   }
   const extra = data?.extra_usage;
   const extraPercent =
     typeof extra?.utilization === "number"
       ? extra.utilization
-      : typeof extra?.monthly_limit === "number" && extra.monthly_limit > 0 && typeof extra.used_credits === "number"
+      : typeof extra?.monthly_limit === "number" &&
+          extra.monthly_limit > 0 &&
+          typeof extra.used_credits === "number"
         ? Math.min(100, (extra.used_credits / extra.monthly_limit) * 100)
         : typeof extra?.monthly_limit === "number"
           ? 0
@@ -2747,8 +3469,12 @@ export function parseUsageResponse(data: any, now: number): CcUsageSnapshot {
     snap.extra = {
       percent: extraPercent,
       enabled: extra.is_enabled === true,
-      ...(typeof extra.monthly_limit === "number" && { limit: extra.monthly_limit }),
-      ...(typeof extra.used_credits === "number" && { used: extra.used_credits }),
+      ...(typeof extra.monthly_limit === "number" && {
+        limit: extra.monthly_limit,
+      }),
+      ...(typeof extra.used_credits === "number" && {
+        used: extra.used_credits,
+      }),
       ...(extra.spend_limit_reached === true && { spend_limit_reached: true }),
     };
   }
@@ -2801,7 +3527,8 @@ export function readUsageCache(): UsageCache {
   try {
     const parsed = JSON.parse(fs.readFileSync(usageCachePath(), "utf-8"));
     if (parsed && typeof parsed.accounts === "object") {
-      if (!parsed.retries || typeof parsed.retries !== "object") delete parsed.retries;
+      if (!parsed.retries || typeof parsed.retries !== "object")
+        delete parsed.retries;
       return parsed;
     }
   } catch {}
@@ -2830,18 +3557,28 @@ function activeStampPath(): string {
 export function readActiveStamp(): ActiveStamp | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(activeStampPath(), "utf-8"));
-    if (parsed && typeof parsed.key === "string" && typeof parsed.since === "number") return parsed;
+    if (
+      parsed &&
+      typeof parsed.key === "string" &&
+      typeof parsed.since === "number"
+    )
+      return parsed;
   } catch {}
   return null;
 }
 
 /** Record `key` as the active account. Returns when it became active: `now`
  * if it just changed, else the stored time. */
-export function noteActiveAccount(key: string | undefined, now = Date.now()): number | undefined {
+export function noteActiveAccount(
+  key: string | undefined,
+  now = Date.now(),
+): number | undefined {
   if (!key) return undefined;
   const prev = readActiveStamp();
   if (prev?.key === key) return prev.since;
-  atomicWriteFile(activeStampPath(), JSON.stringify({ key, since: now }), { mode: 0o644 });
+  atomicWriteFile(activeStampPath(), JSON.stringify({ key, since: now }), {
+    mode: 0o644,
+  });
   return now;
 }
 
@@ -2873,16 +3610,28 @@ const LIVE_USAGE_POLL_FLOOR_MS = 30 * 60 * 1000;
 const LIVE_USAGE_RESTAMP_MS = 60 * 1000;
 
 /** A live reading recent enough to stand in for a usage poll. */
-export function isLiveUsageFresh(snap: CcUsageSnapshot | undefined, now: number): boolean {
-  return snap?.source === "live-session" && now - snap.fetched_at < LIVE_USAGE_FRESH_MS;
+export function isLiveUsageFresh(
+  snap: CcUsageSnapshot | undefined,
+  now: number,
+): boolean {
+  return (
+    snap?.source === "live-session" &&
+    now - snap.fetched_at < LIVE_USAGE_FRESH_MS
+  );
 }
 
 /** The floor above. A live feed keeps `fetched_at` moving, so it holds off the
  *  ordinary throttle just as surely as the live skip — this is the one
  *  condition that overrides both. An account that has never been polled has no
  *  scoped window at all, so it is overdue from the start. */
-export function isLivePollOverdue(snap: CcUsageSnapshot | undefined, now: number): boolean {
-  return snap?.source === "live-session" && now - (snap.polled_at ?? 0) >= LIVE_USAGE_POLL_FLOOR_MS;
+export function isLivePollOverdue(
+  snap: CcUsageSnapshot | undefined,
+  now: number,
+): boolean {
+  return (
+    snap?.source === "live-session" &&
+    now - (snap.polled_at ?? 0) >= LIVE_USAGE_POLL_FLOOR_MS
+  );
 }
 
 /**
@@ -2891,20 +3640,33 @@ export function isLivePollOverdue(snap: CcUsageSnapshot | undefined, now: number
  * `.seven_day`, each `{ used_percentage, resets_at }` with `resets_at` in epoch
  * SECONDS (the usage endpoint answers ISO strings, hence the conversion).
  */
-export function parseStatusLineUsage(payload: unknown, now: number): CcUsageSnapshot | null {
+export function parseStatusLineUsage(
+  payload: unknown,
+  now: number,
+): CcUsageSnapshot | null {
   const limits = (payload as any)?.rate_limits;
   if (!limits || typeof limits !== "object") return null;
   const window = (raw: any): CcUsageWindow | undefined => {
-    if (typeof raw?.used_percentage !== "number" || !Number.isFinite(raw.used_percentage)) return undefined;
+    if (
+      typeof raw?.used_percentage !== "number" ||
+      !Number.isFinite(raw.used_percentage)
+    )
+      return undefined;
     const secs = raw.resets_at;
     const w: CcUsageWindow = { percent: raw.used_percentage };
-    if (typeof secs === "number" && Number.isFinite(secs) && secs > 0) w.resets_at = Math.round(secs * 1000);
+    if (typeof secs === "number" && Number.isFinite(secs) && secs > 0)
+      w.resets_at = Math.round(secs * 1000);
     return w;
   };
   const session = window(limits.five_hour);
   const weekly = window(limits.seven_day);
   if (!session && !weekly) return null;
-  return { fetched_at: now, source: "live-session", ...(session && { session }), ...(weekly && { weekly }) };
+  return {
+    fetched_at: now,
+    source: "live-session",
+    ...(session && { session }),
+    ...(weekly && { weekly }),
+  };
 }
 
 /**
@@ -2936,12 +3698,23 @@ function mergeLiveUsage(
   // Usage only rises inside a window, so a lower reading is an older one: an
   // idle session re-posts the numbers of its last request, hours old. With the
   // machine's sessions on another account, frame read 13% at 44% (2026-11-18).
-  const older = (live: CcUsageWindow | undefined, polled: CcUsageWindow | undefined): boolean =>
-    !!live && !!polled && live.percent < polled.percent &&
-    (polled.resets_at === undefined ? polled.percent >= 100 : polled.resets_at > snap.fetched_at);
+  const older = (
+    live: CcUsageWindow | undefined,
+    polled: CcUsageWindow | undefined,
+  ): boolean =>
+    !!live &&
+    !!polled &&
+    live.percent < polled.percent &&
+    (polled.resets_at === undefined
+      ? polled.percent >= 100
+      : polled.resets_at > snap.fetched_at);
   // A post with nothing newer is dropped whole: filing it would stamp the old
   // numbers as fresh and hold the poll off.
-  if ((!snap.session || older(snap.session, prev?.session)) && (!snap.weekly || older(snap.weekly, prev?.weekly))) return null;
+  if (
+    (!snap.session || older(snap.session, prev?.session)) &&
+    (!snap.weekly || older(snap.weekly, prev?.weekly))
+  )
+    return null;
   const carryReset = (
     live: CcUsageWindow | undefined,
     polled: CcUsageWindow | undefined,
@@ -3011,7 +3784,8 @@ function liveUsageKey(
   accounts: Record<string, CcUsageSnapshot>,
   now: number,
 ): string | undefined {
-  const seconds = (ms: number | undefined): number | null => (ms == null ? null : ms / 1000);
+  const seconds = (ms: number | undefined): number | null =>
+    ms == null ? null : ms / 1000;
   const name = attributeFingerprint(
     {
       five_hour_reset: seconds(snapshot.session?.resets_at),
@@ -3050,10 +3824,12 @@ export async function ingestStatusLineUsage(
   if (!snapshot) return null;
   // A name that could not be a profile name says the environment is not one we
   // understand; its reading is not worth filing anywhere.
-  if (opts.account !== undefined && !VALID_PROFILE_NAME.test(opts.account)) return null;
+  if (opts.account !== undefined && !VALID_PROFILE_NAME.test(opts.account))
+    return null;
   // The index is read for the profiles' identities, so the validating reader
   // (readProfileIndex) would only add a synchronous file read here.
-  const profiles = (await readJsonAsync<ProfileIndex>(indexPath()))?.profiles ?? {};
+  const profiles =
+    (await readJsonAsync<ProfileIndex>(indexPath()))?.profiles ?? {};
 
   let key: string | undefined;
   let wrote = false;
@@ -3084,7 +3860,9 @@ async function readJsonAsync<T>(file: string): Promise<T | null> {
 async function writeJsonAsync(file: string, value: unknown): Promise<void> {
   const temp = `${file}.${process.pid}.${randomUUID()}.tmp`;
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
-  await fs.promises.writeFile(temp, JSON.stringify(value, null, 2), { mode: 0o644 });
+  await fs.promises.writeFile(temp, JSON.stringify(value, null, 2), {
+    mode: 0o644,
+  });
   await fs.promises.rename(temp, file);
 }
 
@@ -3124,7 +3902,9 @@ export interface AccountsHeartbeatPayload {
   }>;
 }
 
-function accountsPayload(active: ReturnType<typeof activeAccountIdentity>): AccountsHeartbeatPayload | null {
+function accountsPayload(
+  active: ReturnType<typeof activeAccountIdentity>,
+): AccountsHeartbeatPayload | null {
   let value: AccountsHeartbeatPayload | null = null;
   try {
     const stamp = readActiveStamp();
@@ -3133,29 +3913,61 @@ function accountsPayload(active: ReturnType<typeof activeAccountIdentity>): Acco
     const launch = launchRecordInEffect(active);
     const activeSince = launch
       ? launch.since
-      : stamp && (active?.uuid || active?.email) === stamp.key ? stamp.since : undefined;
+      : stamp && (active?.uuid || active?.email) === stamp.key
+        ? stamp.since
+        : undefined;
     const usage = readUsageCache().accounts;
-    const profiles = Object.entries(readProfileIndex().profiles).sort(([a], [b]) => a.localeCompare(b)).map(([name, { email, uuid, tier, subscription, login_expired_at: expired, access_refused_at, reserved_for, pool_share_id }]) => {
-      // The server's validator has no field for an org refusal, and its
-      // auto-switch already reads a dead login with no credential behind it as
-      // "never a target, its parks are dead". A refused account is exactly that.
-      const login_expired_at = expired ?? access_refused_at;
-      const tok = access_refused_at ? null : accountLaunchInfo(name);
-      const setup = access_refused_at ? null : accountTokenInfo(name);
-      return {
-        name,
-        email,
-        tier,
-        subscription,
-        // This machine's probe. The server keeps whichever reading is newer, and the holder's when they tie.
-        usage: publishableUsage(usage[uuid || email || ""]),
-        ...(tok ? { token: { stored_at: tok.stored_at, expires_at: tok.expires_at } } : {}),
-        ...(setup ? { setup_token: { stored_at: setup.stored_at, expires_at: setup.expires_at } } : {}),
-        ...(login_expired_at ? { login_expired_at } : {}),
-        ...(reserved_for ? { reserved_for } : {}),
-        ...(pool_share_id ? { pool_share_id } : {}),
-      };
-    });
+    const profiles = Object.entries(readProfileIndex().profiles)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(
+        ([
+          name,
+          {
+            email,
+            uuid,
+            tier,
+            subscription,
+            login_expired_at: expired,
+            access_refused_at,
+            reserved_for,
+            pool_share_id,
+          },
+        ]) => {
+          // The server's validator has no field for an org refusal, and its
+          // auto-switch already reads a dead login with no credential behind it as
+          // "never a target, its parks are dead". A refused account is exactly that.
+          const login_expired_at = expired ?? access_refused_at;
+          const tok = access_refused_at ? null : accountLaunchInfo(name);
+          const setup = access_refused_at ? null : accountTokenInfo(name);
+          return {
+            name,
+            email,
+            tier,
+            subscription,
+            // This machine's probe. The server keeps whichever reading is newer, and the holder's when they tie.
+            usage: publishableUsage(usage[uuid || email || ""]),
+            ...(tok
+              ? {
+                  token: {
+                    stored_at: tok.stored_at,
+                    expires_at: tok.expires_at,
+                  },
+                }
+              : {}),
+            ...(setup
+              ? {
+                  setup_token: {
+                    stored_at: setup.stored_at,
+                    expires_at: setup.expires_at,
+                  },
+                }
+              : {}),
+            ...(login_expired_at ? { login_expired_at } : {}),
+            ...(reserved_for ? { reserved_for } : {}),
+            ...(pool_share_id ? { pool_share_id } : {}),
+          };
+        },
+      );
     if (active?.email || profiles.length > 0) {
       value = {
         active_email: active?.email,
@@ -3172,7 +3984,15 @@ function accountsPayload(active: ReturnType<typeof activeAccountIdentity>): Acco
   return value;
 }
 
-const accountsCachePaths = () => [indexPath(), claudeJsonPath(), usageCachePath(), activeStampPath(), launchRecordPath(), fleetStatePath(), defaultConfigDir()];
+const accountsCachePaths = () => [
+  indexPath(),
+  claudeJsonPath(),
+  usageCachePath(),
+  activeStampPath(),
+  launchRecordPath(),
+  fleetStatePath(),
+  defaultConfigDir(),
+];
 const accountsCache = createMtimeGatedCache(accountsCachePaths, () => {
   try {
     return accountsPayload(activeAccountIdentity());
@@ -3181,7 +4001,9 @@ const accountsCache = createMtimeGatedCache(accountsCachePaths, () => {
   }
 });
 const asyncAccountsCache = createMtimeGatedCache(accountsCachePaths, () =>
-  readActiveCredentialAsync().then(credential => accountsPayload(activeAccountIdentity(credential))).catch(() => null),
+  readActiveCredentialAsync()
+    .then((credential) => accountsPayload(activeAccountIdentity(credential)))
+    .catch(() => null),
 );
 
 export function invalidateAccountsCache(): void {
@@ -3196,7 +4018,9 @@ export function getAccountsHeartbeatPayloadAsync(): Promise<AccountsHeartbeatPay
 /** A cached snapshot as the heartbeat may send it. `source` and `polled_at` are
  *  local markers and Convex's `ccUsageValidator` accepts no unknown field, so a
  *  daemon that sent one would have every heartbeat's inventory rejected. */
-function publishableUsage(snap: CcUsageSnapshot | undefined): CcUsageSnapshot | undefined {
+function publishableUsage(
+  snap: CcUsageSnapshot | undefined,
+): CcUsageSnapshot | undefined {
   if (!snap) return undefined;
   const { source, polled_at, extra, ...base } = snap;
   const rest: CcUsageSnapshot = base;
@@ -3220,8 +4044,12 @@ export function getAccountsHeartbeatPayload(): AccountsHeartbeatPayload | null {
  * domain's org part (ashot@gmail.com → gmail beats ashot-2), then to -2/-3
  * suffixes. Mirrors the web Settings suggestion so auto-saved and hand-saved
  * profiles end up named the same way. */
-export function deriveProfileName(email: string | undefined, taken: string[]): string {
-  const clean = (part: string | undefined) => part?.toLowerCase().replace(/[^a-z0-9._-]/g, "");
+export function deriveProfileName(
+  email: string | undefined,
+  taken: string[],
+): string {
+  const clean = (part: string | undefined) =>
+    part?.toLowerCase().replace(/[^a-z0-9._-]/g, "");
   const [localRaw, domainRaw] = email?.includes("@") ? email.split("@") : [];
   const candidates = [clean(localRaw), clean(domainRaw?.split(".")[0])].filter(
     (c): c is string => !!c && VALID_PROFILE_NAME.test(c),
@@ -3238,19 +4066,30 @@ export function deriveProfileName(email: string | undefined, taken: string[]): s
 /** True when a profile name still looks auto-derived under the old rule (the
  * email domain's org part, optionally -N deduped: claude2@almostcandid.com →
  * almostcandid / almostcandid-2). Hand-picked names don't match. */
-export function isLegacyDerivedName(name: string, email: string | undefined): boolean {
+export function isLegacyDerivedName(
+  name: string,
+  email: string | undefined,
+): boolean {
   if (!email?.includes("@")) return false;
-  const org = email.split("@")[1]?.split(".")[0]?.toLowerCase().replace(/[^a-z0-9._-]/g, "");
+  const org = email
+    .split("@")[1]
+    ?.split(".")[0]
+    ?.toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "");
   return (
     !!org &&
-    (name === org || (name.startsWith(`${org}-`) && /^\d+$/.test(name.slice(org.length + 1))))
+    (name === org ||
+      (name.startsWith(`${org}-`) && /^\d+$/.test(name.slice(org.length + 1))))
   );
 }
 
 /** Rename profiles whose name still carries the old auto-derived form to the
  * current derivation (the email's local part: claude2). Moves the secret
  * snapshot along with the index row; returns the renames performed. */
-export function migrateLegacyProfileNames(): Array<{ from: string; to: string }> {
+export function migrateLegacyProfileNames(): Array<{
+  from: string;
+  to: string;
+}> {
   const index = readProfileIndex();
   const renames: Array<{ from: string; to: string }> = [];
   for (const [name, meta] of Object.entries(index.profiles)) {
@@ -3290,5 +4129,7 @@ export function autoSaveActiveProfile(): CcProfileMeta | null {
       (active.email && meta.email === active.email),
   );
   if (covered) return null;
-  return saveProfile(deriveProfileName(active.email, Object.keys(index.profiles)));
+  return saveProfile(
+    deriveProfileName(active.email, Object.keys(index.profiles)),
+  );
 }

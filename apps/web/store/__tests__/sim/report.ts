@@ -60,9 +60,16 @@ const ABSENT = Symbol("absent");
 
 // The fields where server and replica disagree, minus the table's
 // PAYLOAD_DENYLIST. A field one side lacks is reported as absent there.
-export function fieldDiff(table: string, server: Row | null, replica: Row | null): FieldDelta[] {
+export function fieldDiff(
+  table: string,
+  server: Row | null,
+  replica: Row | null,
+): FieldDelta[] {
   const deny = PAYLOAD_DENYLIST[table];
-  const fields = new Set([...Object.keys(server ?? {}), ...Object.keys(replica ?? {})]);
+  const fields = new Set([
+    ...Object.keys(server ?? {}),
+    ...Object.keys(replica ?? {}),
+  ]);
   const out: FieldDelta[] = [];
   for (const field of [...fields].sort()) {
     if (deny?.has(field)) continue;
@@ -78,8 +85,17 @@ export function fieldDiff(table: string, server: Row | null, replica: Row | null
  * The lines that replay a failure: the trace, the full recorded order, and,
  * once a shrink has run, the minimal order (scripts/sim.ts --shrink).
  */
-export function replayLines(ctx: Pick<FailureContext, "scenario" | "seed" | "order" | "row" | "labels">, minimal?: readonly Channel[]): string[] {
-  return replayCommands(ctx.scenario, ctx.seed, ctx.order, ctx.row ? ctx.labels.label(ctx.row.id) : null, minimal);
+export function replayLines(
+  ctx: Pick<FailureContext, "scenario" | "seed" | "order" | "row" | "labels">,
+  minimal?: readonly Channel[],
+): string[] {
+  return replayCommands(
+    ctx.scenario,
+    ctx.seed,
+    ctx.order,
+    ctx.row ? ctx.labels.label(ctx.row.id) : null,
+    minimal,
+  );
 }
 
 /** replayLines from plain facts, as result.json holds them; built in the dependency-free replay.ts. */
@@ -98,7 +114,13 @@ export function artifactRoot(env: Env = process.env): string {
  * One run's artifact folder. The known check (a scenario's first run again,
  * with nothing left out) gets its own, so it never overwrites that run's.
  */
-export function artifactDir(scenario: string, mode: SimMode, seed: number, root = artifactRoot(), known = false): string {
+export function artifactDir(
+  scenario: string,
+  mode: SimMode,
+  seed: number,
+  root = artifactRoot(),
+  known = false,
+): string {
   return join(root, `${scenario}-${mode}-${seed}${known ? "-known" : ""}`);
 }
 
@@ -112,7 +134,11 @@ function renderValue(v: unknown, labels: SimLabels): string {
 // time, channel, label, producer. Deliveries run out of enqueue order, so the
 // #seq column is not sorted.
 // The DSL's SIM_TRACE stream prints one row at a time through it.
-export function renderDeliveries(ds: readonly DeliveryRecord[], labels: SimLabels, t0: number | undefined): string[] {
+export function renderDeliveries(
+  ds: readonly DeliveryRecord[],
+  labels: SimLabels,
+  t0: number | undefined,
+): string[] {
   const rows = ds.map((d) => [
     `#${d.seq}`,
     t0 === undefined ? `@${d.due}` : `+${d.due - t0}ms`,
@@ -120,8 +146,11 @@ export function renderDeliveries(ds: readonly DeliveryRecord[], labels: SimLabel
     labels.relabel(d.label),
     `by ${labels.relabel(d.producer)}`,
   ]);
-  const widths = rows[0]?.map((_, i) => Math.max(...rows.map((r) => r[i].length))) ?? [];
-  return rows.map((r) => r.map((c, i) => (i === r.length - 1 ? c : c.padEnd(widths[i]))).join("  "));
+  const widths =
+    rows[0]?.map((_, i) => Math.max(...rows.map((r) => r[i].length))) ?? [];
+  return rows.map((r) =>
+    r.map((c, i) => (i === r.length - 1 ? c : c.padEnd(widths[i]))).join("  "),
+  );
 }
 
 export function formatFailure(ctx: FailureContext, artifacts: string): string {
@@ -130,10 +159,18 @@ export function formatFailure(ctx: FailureContext, artifacts: string): string {
     `sim failure${ctx.expected ? ` (expected, red: ${ctx.expected})` : ""}: ${ctx.scenario} [${ctx.mode} seed ${ctx.seed}] at step "${ctx.step}", after ${ctx.delivery} deliveries`,
     `  ${ctx.invariant.id}: ${ctx.invariant.meaning}`,
   ];
-  if (ctx.message) lines.push(...labels.relabel(ctx.message).split("\n").map((l) => `  ${l}`));
+  if (ctx.message)
+    lines.push(
+      ...labels
+        .relabel(ctx.message)
+        .split("\n")
+        .map((l) => `  ${l}`),
+    );
   if (ctx.window) {
     const w = ctx.window;
-    lines.push(`  window ${w.name} (principal ${labels.relabel(w.principal)}, scope ${labels.relabel(w.scope)})`);
+    lines.push(
+      `  window ${w.name} (principal ${labels.relabel(w.principal)}, scope ${labels.relabel(w.scope)})`,
+    );
   }
   if (ctx.row) {
     const { table, id, server, replica } = ctx.row;
@@ -142,16 +179,25 @@ export function formatFailure(ctx: FailureContext, artifacts: string): string {
     if (!replica) lines.push("    absent in the replica");
     if (server && replica) {
       const deltas = fieldDiff(table, server, replica);
-      if (deltas.length === 0) lines.push("    no field differs outside the payload denylist");
+      if (deltas.length === 0)
+        lines.push("    no field differs outside the payload denylist");
       const width = Math.max(0, ...deltas.map((d) => d.field.length));
       for (const d of deltas) {
-        lines.push(`    ${d.field.padEnd(width)}  server ${renderValue(d.server, labels)}  replica ${renderValue(d.replica, labels)}`);
+        lines.push(
+          `    ${d.field.padEnd(width)}  server ${renderValue(d.server, labels)}  replica ${renderValue(d.replica, labels)}`,
+        );
       }
     }
   }
   const shown = ctx.ring.slice(-RING_SHOWN);
-  lines.push(`  last ${shown.length} deliveries, in delivery order (#: enqueue seq):`, ...renderDeliveries(shown, labels, ctx.t0).map((l) => `    ${l}`));
-  lines.push("  replay:", ...(ctx.replay ?? replayLines(ctx)).map((l) => `    ${l}`));
+  lines.push(
+    `  last ${shown.length} deliveries, in delivery order (#: enqueue seq):`,
+    ...renderDeliveries(shown, labels, ctx.t0).map((l) => `    ${l}`),
+  );
+  lines.push(
+    "  replay:",
+    ...(ctx.replay ?? replayLines(ctx)).map((l) => `    ${l}`),
+  );
   lines.push(`  artifacts: ${artifacts}`);
   return lines.join("\n");
 }
@@ -190,7 +236,10 @@ export interface RunArtifacts {
 
 // Delivery rows carry no kind (rows written before step markers existed read
 // the same); step rows carry kind "step".
-export function eventsJsonl(events: readonly DeliveryRecord[], steps: readonly StepRecord[] = []): string {
+export function eventsJsonl(
+  events: readonly DeliveryRecord[],
+  steps: readonly StepRecord[] = [],
+): string {
   const lines: string[] = [];
   let s = 0;
   const stepsUpTo = (at: number) => {
@@ -201,36 +250,79 @@ export function eventsJsonl(events: readonly DeliveryRecord[], steps: readonly S
   };
   events.forEach((d, i) => {
     stepsUpTo(i);
-    lines.push(canonical({ seq: d.seq, channel: d.channel, due: d.due, label: d.label, producer: d.producer }));
+    lines.push(
+      canonical({
+        seq: d.seq,
+        channel: d.channel,
+        due: d.due,
+        label: d.label,
+        producer: d.producer,
+      }),
+    );
   });
   stepsUpTo(Infinity);
   return lines.join("\n") + (lines.length ? "\n" : "");
 }
 
-export function writeArtifacts(dir: string, result: object, run: RunArtifacts): void {
+export function writeArtifacts(
+  dir: string,
+  result: object,
+  run: RunArtifacts,
+): void {
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "result.json"), JSON.stringify({ ...result, ...run.meta }, null, 1));
+  writeFileSync(
+    join(dir, "result.json"),
+    JSON.stringify({ ...result, ...run.meta }, null, 1),
+  );
   writeFileSync(join(dir, "events.jsonl"), eventsJsonl(run.events, run.steps));
   writeFileSync(join(dir, "world.json"), JSON.stringify(run.world, null, 1));
   writeFileSync(join(dir, "final.json"), JSON.stringify(run.final, null, 1));
 }
 
 export class SimFailure extends Error {
-  constructor(message: string, readonly ctx: FailureContext, readonly artifacts: string) {
+  constructor(
+    message: string,
+    readonly ctx: FailureContext,
+    readonly artifacts: string,
+  ) {
     super(message);
     this.name = "SimFailure";
   }
 }
 
 // Writes the artifacts to `dir`, prints the block and throws it.
-export function reportFailure(ctx: FailureContext, run: RunArtifacts, dir = artifactDir(ctx.scenario, ctx.mode, ctx.seed)): never {
+export function reportFailure(
+  ctx: FailureContext,
+  run: RunArtifacts,
+  dir = artifactDir(ctx.scenario, ctx.mode, ctx.seed),
+): never {
   const text = formatFailure(ctx, dir);
   const { labels, ring, order, ...facts } = ctx;
-  const diff = (ctx.row ? fieldDiff(ctx.row.table, ctx.row.server, ctx.row.replica) : [])
-    .map((d) => ({ field: d.field, server: renderValue(d.server, labels), replica: renderValue(d.replica, labels) }));
+  const diff = (
+    ctx.row ? fieldDiff(ctx.row.table, ctx.row.server, ctx.row.replica) : []
+  ).map((d) => ({
+    field: d.field,
+    server: renderValue(d.server, labels),
+    replica: renderValue(d.replica, labels),
+  }));
   // The raw rows stay out of result.json: the rendered diff is what was compared.
-  const row = ctx.row && { table: ctx.row.table, id: ctx.row.id, label: labels.label(ctx.row.id), diff };
-  writeArtifacts(dir, { ...facts, row, order: formatOrder(order), labels: Object.fromEntries(labels.entries()), text }, run);
+  const row = ctx.row && {
+    table: ctx.row.table,
+    id: ctx.row.id,
+    label: labels.label(ctx.row.id),
+    diff,
+  };
+  writeArtifacts(
+    dir,
+    {
+      ...facts,
+      row,
+      order: formatOrder(order),
+      labels: Object.fromEntries(labels.entries()),
+      text,
+    },
+    run,
+  );
   console.error(text);
   throw new SimFailure(text, ctx, dir);
 }

@@ -23,11 +23,17 @@ import type { CallRecordingStatus } from "@codecast/shared/contracts";
 import { signLivekitJwt } from "./livekitJwt";
 import type { R2Bucket } from "./r2";
 
-export type LivekitServerConfig = { url: string; apiKey: string; apiSecret: string };
+export type LivekitServerConfig = {
+  url: string;
+  apiKey: string;
+  apiSecret: string;
+};
 
 /** The project's server credentials, or null when calling is not configured. */
 export function livekitConfigFromEnv(): LivekitServerConfig | null {
-  const url = process.env.LIVEKIT_URL, apiKey = process.env.LIVEKIT_API_KEY, apiSecret = process.env.LIVEKIT_API_SECRET;
+  const url = process.env.LIVEKIT_URL,
+    apiKey = process.env.LIVEKIT_API_KEY,
+    apiSecret = process.env.LIVEKIT_API_SECRET;
   if (!url || !apiKey || !apiSecret) return null;
   return { url, apiKey, apiSecret };
 }
@@ -42,7 +48,12 @@ export type LivekitService = "RoomService" | "Egress" | "AgentDispatchService";
 /** The video grant a server request carries. RoomService methods on one room
  *  want roomAdmin (with that room named), listing rooms wants roomList, and
  *  every Egress method wants roomRecord. */
-export type LivekitServerGrant = { roomAdmin?: boolean; roomRecord?: boolean; roomList?: boolean; roomCreate?: boolean };
+export type LivekitServerGrant = {
+  roomAdmin?: boolean;
+  roomRecord?: boolean;
+  roomList?: boolean;
+  roomCreate?: boolean;
+};
 
 /** An error LiveKit answered with. `code` is Twirp's ("not_found",
  *  "failed_precondition", "invalid_argument"...), so a caller can tell an
@@ -80,12 +91,18 @@ export async function livekitTwirp<T = any>(
   });
   // Bounded: an action waiting on a hung LiveKit holds its run's loop, and a
   // start that never answers must fail (and be looked for) rather than stall.
-  const res = await fetch(`${livekitHttpBase(cfg.url)}/twirp/livekit.${method}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-    signal: AbortSignal.timeout(LIVEKIT_REQUEST_TIMEOUT_MS),
-  });
+  const res = await fetch(
+    `${livekitHttpBase(cfg.url)}/twirp/livekit.${method}`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body ?? {}),
+      signal: AbortSignal.timeout(LIVEKIT_REQUEST_TIMEOUT_MS),
+    },
+  );
   const text = await res.text();
   if (!res.ok) {
     let code: string | null = null;
@@ -145,7 +162,10 @@ export function roomCompositeEgressRequest(opts: {
  *  already holds, which a run's delete would then have to chase. Every
  *  output this module asks for turns it off (DirectFileOutput,
  *  EncodedFileOutput and ImageOutput all carry the field). */
-function mp4Output(filepath: string, upload: ReturnType<typeof egressS3Upload>) {
+function mp4Output(
+  filepath: string,
+  upload: ReturnType<typeof egressS3Upload>,
+) {
   return { file_type: "MP4", filepath, disable_manifest: true, s3: upload };
 }
 
@@ -153,15 +173,25 @@ function mp4Output(filepath: string, upload: ReturnType<typeof egressS3Upload>) 
  *  records: one JPEG at `prefix` + ".jpeg", never a growing series (the
  *  NONE_OVERWRITE suffix), no manifest. An MP4 reaches the bucket only when
  *  its egress ends, so this is the only picture of a call still going on. */
-export type LiveFrameOutput = { prefix: string; intervalSeconds: number; width?: number; height?: number };
+export type LiveFrameOutput = {
+  prefix: string;
+  intervalSeconds: number;
+  width?: number;
+  height?: number;
+};
 
-function liveFrameOutputs(frame: LiveFrameOutput | undefined, upload: ReturnType<typeof egressS3Upload>) {
+function liveFrameOutputs(
+  frame: LiveFrameOutput | undefined,
+  upload: ReturnType<typeof egressS3Upload>,
+) {
   if (!frame) return {};
   return {
     image_outputs: [
       {
         capture_interval: frame.intervalSeconds,
-        ...(frame.width && frame.height ? { width: frame.width, height: frame.height } : {}),
+        ...(frame.width && frame.height
+          ? { width: frame.width, height: frame.height }
+          : {}),
         filename_prefix: frame.prefix,
         filename_suffix: "IMAGE_SUFFIX_NONE_OVERWRITE",
         disable_manifest: true,
@@ -183,14 +213,23 @@ export function trackCompositeEgressRequest(opts: {
   upload: ReturnType<typeof egressS3Upload>;
   preset?: string;
   /** `video_bitrate` is in kbps; LiveKit's default applies without it. */
-  advanced?: { width: number; height: number; framerate?: number; video_codec?: string; key_frame_interval?: number; video_bitrate?: number };
+  advanced?: {
+    width: number;
+    height: number;
+    framerate?: number;
+    video_codec?: string;
+    key_frame_interval?: number;
+    video_bitrate?: number;
+  };
   liveFrame?: LiveFrameOutput;
 }) {
   return {
     room_name: opts.room,
     video_track_id: opts.videoTrackSid,
     ...(opts.audioTrackSid ? { audio_track_id: opts.audioTrackSid } : {}),
-    ...(opts.advanced ? { advanced: opts.advanced } : { preset: opts.preset ?? "H264_1080P_30" }),
+    ...(opts.advanced
+      ? { advanced: opts.advanced }
+      : { preset: opts.preset ?? "H264_1080P_30" }),
     file_outputs: [mp4Output(opts.filepath, opts.upload)],
     ...liveFrameOutputs(opts.liveFrame, opts.upload),
   };
@@ -200,7 +239,9 @@ export function stopEgressRequest(egressId: string) {
   return { egress_id: egressId };
 }
 
-export function listEgressRequest(opts: { room?: string; egressId?: string; active?: boolean } = {}) {
+export function listEgressRequest(
+  opts: { room?: string; egressId?: string; active?: boolean } = {},
+) {
   return {
     ...(opts.room ? { room_name: opts.room } : {}),
     ...(opts.egressId ? { egress_id: opts.egressId } : {}),
@@ -210,7 +251,15 @@ export function listEgressRequest(opts: { room?: string; egressId?: string; acti
 
 // ── Egress: answers ───────────────────────────────────────────────────────
 
-export const LIVEKIT_EGRESS_STATUSES = ["starting", "active", "ending", "complete", "failed", "aborted", "limit_reached"] as const;
+export const LIVEKIT_EGRESS_STATUSES = [
+  "starting",
+  "active",
+  "ending",
+  "complete",
+  "failed",
+  "aborted",
+  "limit_reached",
+] as const;
 export type LivekitEgressStatus = (typeof LIVEKIT_EGRESS_STATUSES)[number];
 
 export type LivekitEgressFile = {
@@ -243,7 +292,8 @@ export type LivekitEgress = {
   paths: string[];
 };
 
-const pick = (o: any, snake: string, camel: string) => (o?.[snake] !== undefined ? o[snake] : o?.[camel]);
+const pick = (o: any, snake: string, camel: string) =>
+  o?.[snake] !== undefined ? o[snake] : o?.[camel];
 
 /** An int64 as JSON gives it (string or number), or undefined for zero and
  *  absent: LiveKit writes 0 for "not yet". */
@@ -259,7 +309,11 @@ const nsToMs = (value: unknown) => {
 
 /** An enum as JSON gives it: its name (with or without the type's prefix) or
  *  its number. Absent is the zero value. */
-function enumOf<T extends string>(value: unknown, names: readonly T[], prefix = ""): T | undefined {
+function enumOf<T extends string>(
+  value: unknown,
+  names: readonly T[],
+  prefix = "",
+): T | undefined {
   if (value === undefined || value === null) return names[0];
   if (typeof value === "number") return names[value];
   const s = String(value).toLowerCase();
@@ -282,7 +336,13 @@ export function parseEgressInfo(raw: any): LivekitEgress {
   // A finished egress lists its files in file_results; older servers and
   // track egress may answer with the single deprecated `file` instead.
   const results = pick(raw, "file_results", "fileResults");
-  const files = (Array.isArray(results) && results.length ? results : raw?.file ? [raw.file] : []).map(parseEgressFile);
+  const files = (
+    Array.isArray(results) && results.length
+      ? results
+      : raw?.file
+        ? [raw.file]
+        : []
+  ).map(parseEgressFile);
   return {
     egressId: String(pick(raw, "egress_id", "egressId") ?? ""),
     roomName: String(pick(raw, "room_name", "roomName") ?? ""),
@@ -297,10 +357,19 @@ export function parseEgressInfo(raw: any): LivekitEgress {
 
 function egressPaths(raw: any, files: LivekitEgressFile[]): string[] {
   const out = new Set<string>(files.map((f) => f.filename).filter(Boolean));
-  for (const req of [pick(raw, "room_composite", "roomComposite"), pick(raw, "track_composite", "trackComposite"), raw?.track, raw?.participant, raw?.web]) {
+  for (const req of [
+    pick(raw, "room_composite", "roomComposite"),
+    pick(raw, "track_composite", "trackComposite"),
+    raw?.track,
+    raw?.participant,
+    raw?.web,
+  ]) {
     if (!req) continue;
     const outputs = pick(req, "file_outputs", "fileOutputs");
-    for (const o of [...(Array.isArray(outputs) ? outputs : []), req.file].filter(Boolean)) {
+    for (const o of [
+      ...(Array.isArray(outputs) ? outputs : []),
+      req.file,
+    ].filter(Boolean)) {
       if (typeof o?.filepath === "string" && o.filepath) out.add(o.filepath);
     }
   }
@@ -309,7 +378,9 @@ function egressPaths(raw: any, files: LivekitEgressFile[]): string[] {
 
 /** What a recording row should say given LiveKit's view of its egress. A
  *  complete egress with no file is a failure: there is nothing to watch. */
-export function recordingStatusFromEgress(e: Pick<LivekitEgress, "status" | "files">): CallRecordingStatus {
+export function recordingStatusFromEgress(
+  e: Pick<LivekitEgress, "status" | "files">,
+): CallRecordingStatus {
   switch (e.status) {
     case "starting":
       return "starting";
@@ -374,17 +445,39 @@ export function revokeParticipantRequest(room: string, identity: string) {
   return {
     room,
     identity,
-    permission: { can_subscribe: false, can_publish: false, can_publish_data: false, can_update_metadata: false },
+    permission: {
+      can_subscribe: false,
+      can_publish: false,
+      can_publish_data: false,
+      can_update_metadata: false,
+    },
   };
 }
 
 const TRACK_TYPES = ["audio", "video", "data"] as const;
-const TRACK_SOURCES = ["unknown", "camera", "microphone", "screen_share", "screen_share_audio"] as const;
-const PARTICIPANT_STATES = ["joining", "joined", "active", "disconnected"] as const;
+const TRACK_SOURCES = [
+  "unknown",
+  "camera",
+  "microphone",
+  "screen_share",
+  "screen_share_audio",
+] as const;
+const PARTICIPANT_STATES = [
+  "joining",
+  "joined",
+  "active",
+  "disconnected",
+] as const;
 // ParticipantInfo.Kind. "egress" is LiveKit's own recorder sitting in the room
 // while a recording runs, and "agent" a server side agent: neither is a
 // person, and a room holding only them is empty.
-const PARTICIPANT_KINDS = ["standard", "ingress", "egress", "sip", "agent"] as const;
+const PARTICIPANT_KINDS = [
+  "standard",
+  "ingress",
+  "egress",
+  "sip",
+  "agent",
+] as const;
 
 export type LivekitTrack = {
   sid: string;
@@ -417,7 +510,8 @@ export function parseParticipant(raw: any): LivekitParticipant {
     name: String(raw?.name ?? ""),
     state: enumOf(raw?.state, PARTICIPANT_STATES),
     kind: enumOf(raw?.kind, PARTICIPANT_KINDS),
-    joinedAtMs: joinedMs ?? (joinedS !== undefined ? joinedS * 1000 : undefined),
+    joinedAtMs:
+      joinedMs ?? (joinedS !== undefined ? joinedS * 1000 : undefined),
     metadata: raw?.metadata || undefined,
     tracks: (Array.isArray(raw?.tracks) ? raw.tracks : []).map(
       (t: any): LivekitTrack => ({
@@ -436,11 +530,25 @@ export function parseParticipant(raw: any): LivekitParticipant {
 
 /** Every screen being shared in a room right now: the tracks a screen
  *  recording follows. Screen audio is not a screen. */
-export function screenShareTracks(participants: readonly LivekitParticipant[]): Array<{ identity: string; name: string; trackSid: string; width?: number; height?: number }> {
+export function screenShareTracks(
+  participants: readonly LivekitParticipant[],
+): Array<{
+  identity: string;
+  name: string;
+  trackSid: string;
+  width?: number;
+  height?: number;
+}> {
   return participants.flatMap((p) =>
     p.tracks
       .filter((t) => t.source === "screen_share" && t.type === "video" && t.sid)
-      .map((t) => ({ identity: p.identity, name: p.name, trackSid: t.sid, width: t.width, height: t.height })),
+      .map((t) => ({
+        identity: p.identity,
+        name: p.name,
+        trackSid: t.sid,
+        width: t.width,
+        height: t.height,
+      })),
   );
 }
 
@@ -448,36 +556,81 @@ export function screenShareTracks(participants: readonly LivekitParticipant[]): 
 
 const RECORD = { roomRecord: true };
 
-export async function startRoomCompositeEgress(cfg: LivekitServerConfig, req: ReturnType<typeof roomCompositeEgressRequest>): Promise<LivekitEgress> {
-  return parseEgressInfo(await livekitTwirp(cfg, "Egress/StartRoomCompositeEgress", req, { room: req.room_name, grant: RECORD }));
+export async function startRoomCompositeEgress(
+  cfg: LivekitServerConfig,
+  req: ReturnType<typeof roomCompositeEgressRequest>,
+): Promise<LivekitEgress> {
+  return parseEgressInfo(
+    await livekitTwirp(cfg, "Egress/StartRoomCompositeEgress", req, {
+      room: req.room_name,
+      grant: RECORD,
+    }),
+  );
 }
 
-export async function startTrackCompositeEgress(cfg: LivekitServerConfig, req: ReturnType<typeof trackCompositeEgressRequest>): Promise<LivekitEgress> {
-  return parseEgressInfo(await livekitTwirp(cfg, "Egress/StartTrackCompositeEgress", req, { room: req.room_name, grant: RECORD }));
+export async function startTrackCompositeEgress(
+  cfg: LivekitServerConfig,
+  req: ReturnType<typeof trackCompositeEgressRequest>,
+): Promise<LivekitEgress> {
+  return parseEgressInfo(
+    await livekitTwirp(cfg, "Egress/StartTrackCompositeEgress", req, {
+      room: req.room_name,
+      grant: RECORD,
+    }),
+  );
 }
 
 /** Stop an egress. One that has already ended answers with an error LiveKit
  *  calls failed_precondition (or not_found once it is forgotten); both mean
  *  the stop already happened, so they return null instead of throwing. */
-export async function stopEgress(cfg: LivekitServerConfig, egressId: string): Promise<LivekitEgress | null> {
+export async function stopEgress(
+  cfg: LivekitServerConfig,
+  egressId: string,
+): Promise<LivekitEgress | null> {
   try {
-    return parseEgressInfo(await livekitTwirp(cfg, "Egress/StopEgress", stopEgressRequest(egressId), { grant: RECORD }));
+    return parseEgressInfo(
+      await livekitTwirp(
+        cfg,
+        "Egress/StopEgress",
+        stopEgressRequest(egressId),
+        { grant: RECORD },
+      ),
+    );
   } catch (e) {
-    if (e instanceof LivekitApiError && (e.code === "failed_precondition" || e.code === "not_found")) return null;
+    if (
+      e instanceof LivekitApiError &&
+      (e.code === "failed_precondition" || e.code === "not_found")
+    )
+      return null;
     throw e;
   }
 }
 
-export async function listEgress(cfg: LivekitServerConfig, opts: { room?: string; egressId?: string; active?: boolean } = {}): Promise<LivekitEgress[]> {
-  const res = await livekitTwirp(cfg, "Egress/ListEgress", listEgressRequest(opts), { room: opts.room, grant: RECORD });
+export async function listEgress(
+  cfg: LivekitServerConfig,
+  opts: { room?: string; egressId?: string; active?: boolean } = {},
+): Promise<LivekitEgress[]> {
+  const res = await livekitTwirp(
+    cfg,
+    "Egress/ListEgress",
+    listEgressRequest(opts),
+    { room: opts.room, grant: RECORD },
+  );
   return (Array.isArray(res?.items) ? res.items : []).map(parseEgressInfo);
 }
 
 /** One egress by id, or null when LiveKit no longer knows it (asked for by
  *  id, an unknown egress is a not_found error rather than an empty list). */
-export async function getEgress(cfg: LivekitServerConfig, egressId: string): Promise<LivekitEgress | null> {
+export async function getEgress(
+  cfg: LivekitServerConfig,
+  egressId: string,
+): Promise<LivekitEgress | null> {
   try {
-    return (await listEgress(cfg, { egressId })).find((e) => e.egressId === egressId) ?? null;
+    return (
+      (await listEgress(cfg, { egressId })).find(
+        (e) => e.egressId === egressId,
+      ) ?? null
+    );
   } catch (e) {
     if (e instanceof LivekitApiError && e.code === "not_found") return null;
     throw e;
@@ -486,10 +639,20 @@ export async function getEgress(cfg: LivekitServerConfig, egressId: string): Pro
 
 /** Who is in a room. A room nobody is in has closed, and LiveKit answers
  *  not_found for it: that is an empty room, not an error. */
-export async function listParticipants(cfg: LivekitServerConfig, room: string): Promise<LivekitParticipant[]> {
+export async function listParticipants(
+  cfg: LivekitServerConfig,
+  room: string,
+): Promise<LivekitParticipant[]> {
   try {
-    const res = await livekitTwirp(cfg, "RoomService/ListParticipants", listParticipantsRequest(room), { room, grant: { roomAdmin: true } });
-    return (Array.isArray(res?.participants) ? res.participants : []).map(parseParticipant);
+    const res = await livekitTwirp(
+      cfg,
+      "RoomService/ListParticipants",
+      listParticipantsRequest(room),
+      { room, grant: { roomAdmin: true } },
+    );
+    return (Array.isArray(res?.participants) ? res.participants : []).map(
+      parseParticipant,
+    );
   } catch (e) {
     if (e instanceof LivekitApiError && e.code === "not_found") return [];
     throw e;
@@ -499,9 +662,18 @@ export async function listParticipants(cfg: LivekitServerConfig, room: string): 
 /** Put a participant out of a room for good: take their rights first
  *  (revokeParticipantRequest), then drop the connection. Someone already
  *  gone is not an error at either step. */
-export async function putOutOfRoom(cfg: LivekitServerConfig, room: string, identity: string): Promise<void> {
+export async function putOutOfRoom(
+  cfg: LivekitServerConfig,
+  room: string,
+  identity: string,
+): Promise<void> {
   try {
-    await livekitTwirp(cfg, "RoomService/UpdateParticipant", revokeParticipantRequest(room, identity), { room, grant: { roomAdmin: true } });
+    await livekitTwirp(
+      cfg,
+      "RoomService/UpdateParticipant",
+      revokeParticipantRequest(room, identity),
+      { room, grant: { roomAdmin: true } },
+    );
   } catch (e) {
     if (!(e instanceof LivekitApiError && e.code === "not_found")) throw e;
   }
@@ -510,9 +682,18 @@ export async function putOutOfRoom(cfg: LivekitServerConfig, room: string, ident
 
 /** Put a participant out of a room. Someone already gone is not an error:
  *  the outcome the caller wanted is true either way. */
-export async function removeParticipant(cfg: LivekitServerConfig, room: string, identity: string): Promise<void> {
+export async function removeParticipant(
+  cfg: LivekitServerConfig,
+  room: string,
+  identity: string,
+): Promise<void> {
   try {
-    await livekitTwirp(cfg, "RoomService/RemoveParticipant", removeParticipantRequest(room, identity), { room, grant: { roomAdmin: true } });
+    await livekitTwirp(
+      cfg,
+      "RoomService/RemoveParticipant",
+      removeParticipantRequest(room, identity),
+      { room, grant: { roomAdmin: true } },
+    );
   } catch (e) {
     if (e instanceof LivekitApiError && e.code === "not_found") return;
     throw e;

@@ -1,7 +1,11 @@
 import { useContext, useMemo, useState, memo } from "react";
 import type { ReactNode } from "react";
 import { getFileStatus } from "../lib/patchParser";
-import { DIFF_FENCE, parseCastDiff, type DiffFileSection } from "../lib/castDiff";
+import {
+  DIFF_FENCE,
+  parseCastDiff,
+  type DiffFileSection,
+} from "../lib/castDiff";
 import { DiffView } from "./DiffView";
 import { CodeBlock } from "./CodeBlock";
 import { MessageIdentity } from "../lib/conversationBlockContexts";
@@ -30,12 +34,22 @@ export function MessageIdentityProvider({
   messageId: string;
   children: ReactNode;
 }) {
-  const value = useMemo(() => ({ conversationId, messageId }), [conversationId, messageId]);
-  return <MessageIdentity.Provider value={value}>{children}</MessageIdentity.Provider>;
+  const value = useMemo(
+    () => ({ conversationId, messageId }),
+    [conversationId, messageId],
+  );
+  return (
+    <MessageIdentity.Provider value={value}>
+      {children}
+    </MessageIdentity.Provider>
+  );
 }
 
 /** Returns a rendered inline diff for a cast-diff fence, else null (caller falls back to CodeBlock). */
-export function tryRenderCastDiff(language: string | undefined, code: string): ReactNode {
+export function tryRenderCastDiff(
+  language: string | undefined,
+  code: string,
+): ReactNode {
   if (language === DIFF_FENCE && code) return <InlineDiff raw={code} />;
   return null;
 }
@@ -96,13 +110,19 @@ function DiffFileCard({
   return (
     <div className="rounded-md border border-sol-border/60 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-sol-bg-highlight/50 border-b border-sol-border/40 text-xs font-mono">
-        <span className={`${statusMeta.color} ${statusMeta.bgColor} rounded px-1 font-semibold select-none`}>
+        <span
+          className={`${statusMeta.color} ${statusMeta.bgColor} rounded px-1 font-semibold select-none`}
+        >
           {statusMeta.label}
         </span>
         <span className="text-sol-text-muted truncate">{file.path}</span>
         <span className="ml-auto flex items-center gap-2 shrink-0">
-          {file.additions > 0 && <span className="text-sol-green">+{file.additions}</span>}
-          {file.deletions > 0 && <span className="text-sol-red">−{file.deletions}</span>}
+          {file.additions > 0 && (
+            <span className="text-sol-green">+{file.additions}</span>
+          )}
+          {file.deletions > 0 && (
+            <span className="text-sol-red">−{file.deletions}</span>
+          )}
           {file.fullContext && (
             <button
               type="button"

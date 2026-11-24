@@ -11,7 +11,14 @@ const original = (globalThis as any).window;
 
 function shell(flags: Record<string, unknown> | null, sent: string[] = []) {
   (globalThis as any).window =
-    flags === null ? {} : { __CODECAST_ELECTRON__: { ...flags, paletteNavigate: (p: string) => sent.push(p) } };
+    flags === null
+      ? {}
+      : {
+          __CODECAST_ELECTRON__: {
+            ...flags,
+            paletteNavigate: (p: string) => sent.push(p),
+          },
+        };
   return sent;
 }
 

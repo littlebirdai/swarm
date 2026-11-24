@@ -4,6 +4,12 @@ export function useMutation(ref: unknown) {
   return async (args: unknown) => {
     console.log("mutation", String(ref), args);
     await new Promise((r) => setTimeout(r, 400));
-    return { batch_id: "mg-preview1", rows: [{}, {}], skipped: [], cancelled: 2, requeued: 1 };
+    return {
+      batch_id: "mg-preview1",
+      rows: [{}, {}],
+      skipped: [],
+      cancelled: 2,
+      requeued: 1,
+    };
   };
 }

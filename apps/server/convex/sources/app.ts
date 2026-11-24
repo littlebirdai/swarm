@@ -29,19 +29,39 @@
 // The pure rules live in @codecast/shared/contracts/appConnector, where the
 // CLI and web read them too.
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "../functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "../functions";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { scopeArgs, scopeOf, sourceByRef, type ScopeArgs } from "../lib/ingestScope";
+import {
+  scopeArgs,
+  scopeOf,
+  sourceByRef,
+  type ScopeArgs,
+} from "../lib/ingestScope";
 import { patchSourceStats } from "../lib/sourceStats";
-import { connectionIdForSource, tokenFor, TOKEN_PROVIDERS, type FetchLike } from "../tokenConnectors";
+import {
+  connectionIdForSource,
+  tokenFor,
+  TOKEN_PROVIDERS,
+  type FetchLike,
+} from "../tokenConnectors";
 import { appHttp, signerOf } from "../lib/appHttp";
 import { isTokenRefusal, markConnectionLost } from "../lib/sourceHealth";
 import { resolveSessionConversation } from "../lib/access";
 import { forbidden, invalidScope, requireUser } from "../lib/auth";
 import { siteUrl } from "../lib/siteUrl";
 import { sha256Hex } from "../lib/hash";
-import { INGEST_LIMITS, validateIngestBatch } from "@codecast/shared/contracts/ingest";
+import {
+  INGEST_LIMITS,
+  validateIngestBatch,
+} from "@codecast/shared/contracts/ingest";
 import { parseDuration } from "@codecast/shared/time";
 import {
   APP_LIMITS,
@@ -64,10 +84,15 @@ import {
   type AppWatch,
 } from "@codecast/shared/contracts/appConnector";
 
-export type RunCtx = { runQuery: (ref: any, args: any) => Promise<any>; runMutation: (ref: any, args: any) => Promise<any> };
+export type RunCtx = {
+  runQuery: (ref: any, args: any) => Promise<any>;
+  runMutation: (ref: any, args: any) => Promise<any>;
+};
 
 /** The cached manifest, or null when none was fetched or it no longer parses. */
-export function cachedManifest(row: Pick<Doc<"event_sources">, "manifest_json">): AppManifest | null {
+export function cachedManifest(
+  row: Pick<Doc<"event_sources">, "manifest_json">,
+): AppManifest | null {
   if (!row.manifest_json) return null;
   try {
     const parsed = parseAppManifest(JSON.parse(row.manifest_json));
@@ -82,19 +107,37 @@ export function cachedManifest(row: Pick<Doc<"event_sources">, "manifest_json">)
  * or the copy a row stored before that table still carries. Code that reads
  * a manifest takes the row through this.
  */
-export async function withManifest<T extends Doc<"event_sources">>(ctx: { db: any }, row: T): Promise<T> {
-  const stored = await ctx.db.query("app_manifests").withIndex("by_source", (q: any) => q.eq("source_id", row._id)).first();
+export async function withManifest<T extends Doc<"event_sources">>(
+  ctx: { db: any },
+  row: T,
+): Promise<T> {
+  const stored = await ctx.db
+    .query("app_manifests")
+    .withIndex("by_source", (q: any) => q.eq("source_id", row._id))
+    .first();
   return stored ? { ...row, manifest_json: stored.manifest_json } : row;
 }
 
-function manifestStale(row: Pick<Doc<"event_sources">, "manifest_fetched_at">, now: number): boolean {
-  return !row.manifest_fetched_at || now - row.manifest_fetched_at > APP_LIMITS.manifest_max_age_ms;
+function manifestStale(
+  row: Pick<Doc<"event_sources">, "manifest_fetched_at">,
+  now: number,
+): boolean {
+  return (
+    !row.manifest_fetched_at ||
+    now - row.manifest_fetched_at > APP_LIMITS.manifest_max_age_ms
+  );
 }
 
-async function appSource(ctx: any, args: ScopeArgs & { source: string; user_id?: Id<"users"> }) {
+async function appSource(
+  ctx: any,
+  args: ScopeArgs & { source: string; user_id?: Id<"users"> },
+) {
   const { userId, workspaceKey } = await scopeOf(ctx, args);
   const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
-  if (row.provider !== "app") invalidScope(`${row.short_id} is a ${row.provider} source, not an app connector`);
+  if (row.provider !== "app")
+    invalidScope(
+      `${row.short_id} is a ${row.provider} source, not an app connector`,
+    );
   return { userId, row };
 }
 
@@ -102,27 +145,38 @@ async function appSource(ctx: any, args: ScopeArgs & { source: string; user_id?:
 async function grantSource(ctx: any, args: ScopeArgs & { source: string }) {
   const { userId, workspaceKey } = await scopeOf(ctx, args);
   const row = await sourceByRef(ctx, userId, workspaceKey, args.source);
-  if (!sourceHasGrants(row.provider)) invalidScope(`${row.short_id} is a ${row.provider} source, which has nothing to grant`);
+  if (!sourceHasGrants(row.provider))
+    invalidScope(
+      `${row.short_id} is a ${row.provider} source, which has nothing to grant`,
+    );
   return { userId, row };
 }
 
 /** Where a person grants this source's actions, for refusals to name. */
-export const grantUrlFor = (source: Pick<Doc<"event_sources">, "short_id">) => `${siteUrl()}${grantPagePath(source.short_id)}`;
+export const grantUrlFor = (source: Pick<Doc<"event_sources">, "short_id">) =>
+  `${siteUrl()}${grantPagePath(source.short_id)}`;
 
 // ── The connection ──
 
-const NO_APP_CONNECTION = "no app connection: connect the app in Settings → Integrations";
+const NO_APP_CONNECTION =
+  "no app connection: connect the app in Settings → Integrations";
 
 /**
  * The secret (empty for a signed connection) and base url a call goes out with, or why there is none. Every
  * call to the product (the manifest, a person's read or action, a watch)
  * resolves its connection through this.
  */
-export async function appCredential(ctx: RunCtx, connectionId: string | null): Promise<{ ok: true; token: string; base_url: string } | { ok: false; error: string }> {
+export async function appCredential(
+  ctx: RunCtx,
+  connectionId: string | null,
+): Promise<
+  { ok: true; token: string; base_url: string } | { ok: false; error: string }
+> {
   if (!connectionId) return { ok: false, error: NO_APP_CONNECTION };
   const cred = await tokenFor(ctx, connectionId, "app");
   if (!cred.ok) return cred;
-  if (!cred.config.base_url) return { ok: false, error: "the connection has no base url" };
+  if (!cred.config.base_url)
+    return { ok: false, error: "the connection has no base url" };
   return { ok: true, token: cred.token, base_url: cred.config.base_url };
 }
 
@@ -140,16 +194,34 @@ export async function refreshManifestFor(
   fetchImpl: FetchLike,
 ): Promise<{ ok: true; manifest: AppManifest } | { ok: false; error: string }> {
   const fail = async (error: string, lost?: boolean) => {
-    await ctx.runMutation(internal.sources.app.storeManifest, { source_id: source._id, error, ...(lost ? { lost } : {}) });
+    await ctx.runMutation(internal.sources.app.storeManifest, {
+      source_id: source._id,
+      error,
+      ...(lost ? { lost } : {}),
+    });
     return { ok: false as const, error };
   };
   const cred = await appCredential(ctx, connectionId);
   if (!cred.ok) return fail(cred.error, true);
-  const res = await appHttp(fetchImpl, { url: TOKEN_PROVIDERS.app.validateUrl({ base_url: cred.base_url }), method: "GET" }, { token: cred.token, actor: formatActorHeader({ watch: "manifest" }), sign: signerOf(source) });
+  const res = await appHttp(
+    fetchImpl,
+    {
+      url: TOKEN_PROVIDERS.app.validateUrl({ base_url: cred.base_url }),
+      method: "GET",
+    },
+    {
+      token: cred.token,
+      actor: formatActorHeader({ watch: "manifest" }),
+      sign: signerOf(source),
+    },
+  );
   if (!res.ok) {
     const refused = isTokenRefusal(res.status);
     // A signed connection the app refuses is almost always an app whose codecast.json does not name this source yet.
-    const why = refused && !cred.token ? `; the app must name ${source.short_id} (${source.workspace}) in its codecast.json, then cast connector refresh` : "";
+    const why =
+      refused && !cred.token
+        ? `; the app must name ${source.short_id} (${source.workspace}) in its codecast.json, then cast connector refresh`
+        : "";
     return fail(`manifest: ${res.error}${why}`, refused);
   }
   let raw: unknown;
@@ -159,8 +231,14 @@ export async function refreshManifestFor(
     return fail("manifest: the answer is not JSON");
   }
   const parsed = parseAppManifest(raw);
-  if (!parsed.ok) return fail(`manifest: ${parsed.errors.slice(0, 5).join("; ")}${parsed.errors.length > 5 ? ` (+${parsed.errors.length - 5} more)` : ""}`);
-  await ctx.runMutation(internal.sources.app.storeManifest, { source_id: source._id, manifest_json: JSON.stringify(parsed.manifest) });
+  if (!parsed.ok)
+    return fail(
+      `manifest: ${parsed.errors.slice(0, 5).join("; ")}${parsed.errors.length > 5 ? ` (+${parsed.errors.length - 5} more)` : ""}`,
+    );
+  await ctx.runMutation(internal.sources.app.storeManifest, {
+    source_id: source._id,
+    manifest_json: JSON.stringify(parsed.manifest),
+  });
   return { ok: true, manifest: parsed.manifest };
 }
 
@@ -180,18 +258,36 @@ export const storeManifest = internalMutation({
       await markConnectionLost(ctx, row, args.error, now);
       return;
     }
-    const stored = await ctx.db.query("app_manifests").withIndex("by_source", (q) => q.eq("source_id", row._id)).first();
+    const stored = await ctx.db
+      .query("app_manifests")
+      .withIndex("by_source", (q) => q.eq("source_id", row._id))
+      .first();
     if (args.manifest_json) {
-      if (stored) await ctx.db.patch(stored._id, { manifest_json: args.manifest_json, fetched_at: now });
-      else await ctx.db.insert("app_manifests", { source_id: row._id, manifest_json: args.manifest_json, fetched_at: now });
+      if (stored)
+        await ctx.db.patch(stored._id, {
+          manifest_json: args.manifest_json,
+          fetched_at: now,
+        });
+      else
+        await ctx.db.insert("app_manifests", {
+          source_id: row._id,
+          manifest_json: args.manifest_json,
+          fetched_at: now,
+        });
       await ctx.db.patch(row._id, {
         // The manifest lives in app_manifests; a copy an older row carried goes.
         manifest_json: undefined,
         manifest_fetched_at: now,
-        next_watch_at: nextWatchAt(cachedManifest({ manifest_json: args.manifest_json }), row.watch_state, now),
+        next_watch_at: nextWatchAt(
+          cachedManifest({ manifest_json: args.manifest_json }),
+          row.watch_state,
+          now,
+        ),
         updated_at: now,
         // A paused source stays paused; one that errored on its manifest recovers.
-        ...(row.status === "error" ? { status: "active" as const, last_error: undefined } : {}),
+        ...(row.status === "error"
+          ? { status: "active" as const, last_error: undefined }
+          : {}),
       });
       return;
     }
@@ -200,17 +296,33 @@ export const storeManifest = internalMutation({
       last_error: args.error,
       updated_at: now,
       // With no manifest there is nothing to poll until the next refresh.
-      ...(hasManifest ? {} : { next_watch_at: now + APP_LIMITS.manifest_max_age_ms }),
-      ...(row.status === "active" && !hasManifest ? { status: "error" as const } : {}),
+      ...(hasManifest
+        ? {}
+        : { next_watch_at: now + APP_LIMITS.manifest_max_age_ms }),
+      ...(row.status === "active" && !hasManifest
+        ? { status: "error" as const }
+        : {}),
     });
   },
 });
 
 /** The manifest a call should use: the cached one, refreshed first when it is absent or a day old. */
-export async function freshManifest(ctx: RunCtx, source: Doc<"event_sources">, connectionId: string | null, fetchImpl: FetchLike, now: number) {
+export async function freshManifest(
+  ctx: RunCtx,
+  source: Doc<"event_sources">,
+  connectionId: string | null,
+  fetchImpl: FetchLike,
+  now: number,
+) {
   const cached = cachedManifest(source);
-  if (cached && !manifestStale(source, now)) return { ok: true as const, manifest: cached };
-  const refreshed = await refreshManifestFor(ctx, source, connectionId, fetchImpl);
+  if (cached && !manifestStale(source, now))
+    return { ok: true as const, manifest: cached };
+  const refreshed = await refreshManifestFor(
+    ctx,
+    source,
+    connectionId,
+    fetchImpl,
+  );
   if (refreshed.ok) return refreshed;
   return cached ? { ok: true as const, manifest: cached } : refreshed;
 }
@@ -224,17 +336,25 @@ export async function freshManifest(ctx: RunCtx, source: Doc<"event_sources">, c
  * other source function makes. Returns the connection id, never a secret.
  */
 export const callContext = internalQuery({
-  args: { ...scopeArgs, source: v.string(), user_id: v.optional(v.id("users")) },
+  args: {
+    ...scopeArgs,
+    source: v.string(),
+    user_id: v.optional(v.id("users")),
+  },
   handler: async (ctx, args) => {
     const { userId, row } = await appSource(ctx, args);
-    const conversation = args.conversation_id ? await resolveSessionConversation(ctx, userId, args.conversation_id) : null;
+    const conversation = args.conversation_id
+      ? await resolveSessionConversation(ctx, userId, args.conversation_id)
+      : null;
     const user = await ctx.db.get(userId);
     return {
       source: await withManifest(ctx, row),
       user_id: userId,
       person: user?.email ?? String(userId),
       conversation_id: conversation?._id,
-      session: conversation ? conversation.short_id ?? String(conversation._id) : undefined,
+      session: conversation
+        ? (conversation.short_id ?? String(conversation._id))
+        : undefined,
       connection_id: await connectionIdForSource(ctx, row),
     };
   },
@@ -289,7 +409,12 @@ export interface OutsideCallOutcome {
 }
 
 /** The app_calls row for an outside call: every writer (app connector, Sentry) audits through this. */
-export async function auditOutsideCall(ctx: Pick<RunCtx, "runMutation">, call: OutsideCall, status: OutsideCallStatus, extra: OutsideCallOutcome = {}) {
+export async function auditOutsideCall(
+  ctx: Pick<RunCtx, "runMutation">,
+  call: OutsideCall,
+  status: OutsideCallStatus,
+  extra: OutsideCallOutcome = {},
+) {
   await ctx.runMutation(internal.sources.app.recordCall, {
     source_id: call.source_id,
     user_id: call.user_id,
@@ -301,7 +426,9 @@ export async function auditOutsideCall(ctx: Pick<RunCtx, "runMutation">, call: O
     status,
     ms: extra.ms ?? 0,
     bytes: extra.bytes ?? 0,
-    ...(extra.http_status !== undefined ? { http_status: extra.http_status } : {}),
+    ...(extra.http_status !== undefined
+      ? { http_status: extra.http_status }
+      : {}),
     ...(extra.error ? { error: extra.error } : {}),
   });
 }
@@ -331,36 +458,67 @@ export interface AppCallInput extends ScopeArgs {
 }
 
 /** `read` and `do` share every step but the grant gate. */
-export async function appCall(ctx: RunCtx, kind: "read" | "do", input: AppCallInput, fetchImpl: FetchLike): Promise<AppCallResult> {
-  const { source: ref, name, args_json, idempotency_key, yes, ...scope } = input;
-  const c = await ctx.runQuery(internal.sources.app.callContext, { ...scope, source: ref });
+export async function appCall(
+  ctx: RunCtx,
+  kind: "read" | "do",
+  input: AppCallInput,
+  fetchImpl: FetchLike,
+): Promise<AppCallResult> {
+  const {
+    source: ref,
+    name,
+    args_json,
+    idempotency_key,
+    yes,
+    ...scope
+  } = input;
+  const c = await ctx.runQuery(internal.sources.app.callContext, {
+    ...scope,
+    source: ref,
+  });
   const source: Doc<"event_sources"> = c.source;
-  if (source.status === "paused") return { ok: false, error: `${source.short_id} is paused` };
+  if (source.status === "paused")
+    return { ok: false, error: `${source.short_id} is paused` };
   const now = Date.now();
   const m = await freshManifest(ctx, source, c.connection_id, fetchImpl, now);
   if (!m.ok) return { ok: false, error: m.error };
 
-  const defs: Array<AppReader | AppAction> = kind === "read" ? m.manifest.readers : m.manifest.actions;
+  const defs: Array<AppReader | AppAction> =
+    kind === "read" ? m.manifest.readers : m.manifest.actions;
   const def = defs.find((d) => d.name === name);
   if (!def) {
     const known = defs.map((d) => d.name).join(", ") || "none";
-    return { ok: false, error: `${source.name} declares no ${kind === "read" ? "reader" : "action"} ${name} (it has: ${known})` };
+    return {
+      ok: false,
+      error: `${source.name} declares no ${kind === "read" ? "reader" : "action"} ${name} (it has: ${known})`,
+    };
   }
 
   let args: Record<string, unknown> = {};
   let argsError: string | undefined;
-  if (args_json && args_json.length > APP_LIMITS.args_bytes) argsError = `args are over ${APP_LIMITS.args_bytes / 1024} KB`;
+  if (args_json && args_json.length > APP_LIMITS.args_bytes)
+    argsError = `args are over ${APP_LIMITS.args_bytes / 1024} KB`;
   else if (args_json) {
     try {
       const parsed = JSON.parse(args_json);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) argsError = "args must be a JSON object";
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        argsError = "args must be a JSON object";
       else args = parsed;
     } catch {
       argsError = "args are not JSON";
     }
   }
-  const call: OutsideCall = { source_id: source._id, user_id: c.user_id, conversation_id: c.conversation_id, kind, name, args, idempotency_key };
-  const audit = (status: OutsideCallStatus, extra: OutsideCallOutcome) => auditOutsideCall(ctx, call, status, extra);
+  const call: OutsideCall = {
+    source_id: source._id,
+    user_id: c.user_id,
+    conversation_id: c.conversation_id,
+    kind,
+    name,
+    args,
+    idempotency_key,
+  };
+  const audit = (status: OutsideCallStatus, extra: OutsideCallOutcome) =>
+    auditOutsideCall(ctx, call, status, extra);
 
   const invalid = argsError ? [argsError] : validateJson(def.input, args);
   if (invalid.length) {
@@ -369,7 +527,13 @@ export async function appCall(ctx: RunCtx, kind: "read" | "do", input: AppCallIn
     return { ok: false, error };
   }
   if (kind === "do") {
-    const refusal = writeRefusal(m.manifest.actions, source.grants, name, { yes, idempotency_key, grantUrl: grantUrlFor(source) }, now);
+    const refusal = writeRefusal(
+      m.manifest.actions,
+      source.grants,
+      name,
+      { yes, idempotency_key, grantUrl: grantUrlFor(source) },
+      now,
+    );
     if (refusal) {
       await audit("denied", { error: refusal });
       return { ok: false, denied: true, error: refusal };
@@ -392,7 +556,12 @@ export async function appCall(ctx: RunCtx, kind: "read" | "do", input: AppCallIn
     idempotency_key: kind === "do" ? idempotency_key : undefined,
     sign: signerOf(source),
   });
-  await audit(res.ok ? "ok" : "error", { http_status: res.status, error: res.error, ms: res.ms, bytes: res.bytes });
+  await audit(res.ok ? "ok" : "error", {
+    http_status: res.status,
+    error: res.error,
+    ms: res.ms,
+    bytes: res.bytes,
+  });
   return {
     ok: res.ok,
     ...(res.status !== undefined ? { status: res.status } : {}),
@@ -415,23 +584,44 @@ const callArgs = {
 /** `cast connector read <source> <reader>`: call a declared reader and hand back its answer. */
 export const read = action({
   args: { ...callArgs, reader: v.string() },
-  handler: async (ctx, { reader, ...args }): Promise<AppCallResult> => appCall(ctx, "read", { ...args, name: reader }, fetch),
+  handler: async (ctx, { reader, ...args }): Promise<AppCallResult> =>
+    appCall(ctx, "read", { ...args, name: reader }, fetch),
 });
 
 /** `cast connector do <source> <action>`: run a granted action. */
 export const doAction = action({
-  args: { ...callArgs, action: v.string(), idempotency_key: v.optional(v.string()), yes: v.optional(v.boolean()) },
-  handler: async (ctx, { action: name, ...args }): Promise<AppCallResult> => appCall(ctx, "do", { ...args, name }, fetch),
+  args: {
+    ...callArgs,
+    action: v.string(),
+    idempotency_key: v.optional(v.string()),
+    yes: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { action: name, ...args }): Promise<AppCallResult> =>
+    appCall(ctx, "do", { ...args, name }, fetch),
 });
 
 /** `cast connector refresh <source>`: refetch the manifest now. */
 export const refresh = action({
   args: { ...scopeArgs, source: v.string() },
-  handler: async (ctx, args): Promise<{ ok: boolean; error?: string; readers?: number; actions?: number; watches?: number }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    ok: boolean;
+    error?: string;
+    readers?: number;
+    actions?: number;
+    watches?: number;
+  }> => {
     const c = await ctx.runQuery(internal.sources.app.callContext, args);
     const out = await refreshManifestFor(ctx, c.source, c.connection_id, fetch);
     if (!out.ok) return out;
-    return { ok: true, readers: out.manifest.readers.length, actions: out.manifest.actions.length, watches: out.manifest.watches.length };
+    return {
+      ok: true,
+      readers: out.manifest.readers.length,
+      actions: out.manifest.actions.length,
+      watches: out.manifest.watches.length,
+    };
   },
 });
 
@@ -450,7 +640,14 @@ export const capabilities = query({
     const manifest = cachedManifest(await withManifest(ctx, row));
     const now = Date.now();
     return {
-      source: { _id: row._id, short_id: row.short_id, name: row.name, provider: row.provider, status: row.status, last_error: row.last_error },
+      source: {
+        _id: row._id,
+        short_id: row.short_id,
+        name: row.name,
+        provider: row.provider,
+        status: row.status,
+        last_error: row.last_error,
+      },
       manifest_json: manifest ? JSON.stringify(manifest) : null,
       manifest_fetched_at: row.manifest_fetched_at ?? null,
       grants: (row.grants ?? []).filter((g) => activeGrant([g], g.action, now)),
@@ -465,7 +662,11 @@ export const listCalls = query({
   handler: async (ctx, args) => {
     const { row } = await grantSource(ctx, args);
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 500);
-    return await ctx.db.query("app_calls").withIndex("by_source_created", (q) => q.eq("source_id", row._id)).order("desc").take(limit);
+    return await ctx.db
+      .query("app_calls")
+      .withIndex("by_source_created", (q) => q.eq("source_id", row._id))
+      .order("desc")
+      .take(limit);
   },
 });
 
@@ -476,8 +677,14 @@ export const listCalls = query({
  * agent runs with, so a call carrying one is refused before anything is read:
  * an agent must never approve its own outside writes.
  */
-async function personGrantSource(ctx: any, args: ScopeArgs & { source: string }) {
-  if (args.api_token) forbidden("Grants are made by a person in the browser, under Ops, Apps; an api token cannot grant or revoke");
+async function personGrantSource(
+  ctx: any,
+  args: ScopeArgs & { source: string },
+) {
+  if (args.api_token)
+    forbidden(
+      "Grants are made by a person in the browser, under Ops, Apps; an api token cannot grant or revoke",
+    );
   await requireUser(ctx);
   return await grantSource(ctx, args);
 }
@@ -488,14 +695,24 @@ async function personGrantSource(ctx: any, args: ScopeArgs & { source: string })
  * app connector, the vendor's writes for a Sentry source.
  */
 export const grant = mutation({
-  args: { ...scopeArgs, source: v.string(), action: v.string(), until: v.optional(v.string()) },
+  args: {
+    ...scopeArgs,
+    source: v.string(),
+    action: v.string(),
+    until: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const { userId, row } = await personGrantSource(ctx, args);
     const manifest = cachedManifest(await withManifest(ctx, row));
-    if (row.provider === "app" && !manifest) invalidScope(`${row.short_id} has no manifest yet: run \`cast connector refresh ${row.name}\` first`);
+    if (row.provider === "app" && !manifest)
+      invalidScope(
+        `${row.short_id} has no manifest yet: run \`cast connector refresh ${row.name}\` first`,
+      );
     const actions = grantableActions(row.provider, manifest);
     if (!actions.some((a) => a.name === args.action)) {
-      invalidScope(`${row.name} declares no action ${args.action} (it has: ${actions.map((a) => a.name).join(", ") || "none"})`);
+      invalidScope(
+        `${row.name} declares no action ${args.action} (it has: ${actions.map((a) => a.name).join(", ") || "none"})`,
+      );
     }
     const now = Date.now();
     let until: number | undefined;
@@ -506,8 +723,17 @@ export const grant = mutation({
         invalidScope(`until: ${e?.message ?? e}`);
       }
     }
-    const entry = { action: args.action, granted_by: userId, granted_at: now, ...(until ? { until } : {}), via: "session" as const };
-    await ctx.db.patch(row._id, { grants: withGrant(row.grants, entry, now), updated_at: now });
+    const entry = {
+      action: args.action,
+      granted_by: userId,
+      granted_at: now,
+      ...(until ? { until } : {}),
+      via: "session" as const,
+    };
+    await ctx.db.patch(row._id, {
+      grants: withGrant(row.grants, entry, now),
+      updated_at: now,
+    });
     return { grant: entry };
   },
 });
@@ -518,7 +744,8 @@ export const revoke = mutation({
     const { row } = await personGrantSource(ctx, args);
     const kept = (row.grants ?? []).filter((g) => g.action !== args.action);
     const revoked = kept.length !== (row.grants ?? []).length;
-    if (revoked) await ctx.db.patch(row._id, { grants: kept, updated_at: Date.now() });
+    if (revoked)
+      await ctx.db.patch(row._id, { grants: kept, updated_at: Date.now() });
     return { revoked };
   },
 });
@@ -528,7 +755,11 @@ export const revoke = mutation({
 /** Cron jitter allowance: a 5m watch polled by a 5m cron must not skip every other tick. */
 const WATCH_SLACK_MS = 60_000;
 
-export function dueWatches(manifest: AppManifest | null, state: Doc<"event_sources">["watch_state"], now: number): AppWatch[] {
+export function dueWatches(
+  manifest: AppManifest | null,
+  state: Doc<"event_sources">["watch_state"],
+  now: number,
+): AppWatch[] {
   return (manifest?.watches ?? []).filter((w) => {
     const s = state?.find((x) => x.key === watchKey(w));
     if (s?.paused) return false;
@@ -540,9 +771,15 @@ export function dueWatches(manifest: AppManifest | null, state: Doc<"event_sourc
  * When the earliest of a manifest's watches is next due under `state`. A
  * manifest with no watches is looked at again after its next refresh.
  */
-export function nextWatchAt(manifest: AppManifest | null, state: Doc<"event_sources">["watch_state"], now: number): number {
+export function nextWatchAt(
+  manifest: AppManifest | null,
+  state: Doc<"event_sources">["watch_state"],
+  now: number,
+): number {
   // A paused watch is never due, so it never holds the next poll.
-  const watches = (manifest?.watches ?? []).filter((w) => !state?.find((x) => x.key === watchKey(w))?.paused);
+  const watches = (manifest?.watches ?? []).filter(
+    (w) => !state?.find((x) => x.key === watchKey(w))?.paused,
+  );
   if (!watches.length) return now + APP_LIMITS.manifest_max_age_ms;
   return Math.min(
     ...watches.map((w) => {
@@ -565,7 +802,12 @@ export const sourcesWithDueWatches = internalQuery({
   handler: async (ctx, args) => {
     const rows = await ctx.db
       .query("event_sources")
-      .withIndex("by_provider_status_next_watch", (q) => q.eq("provider", "app").eq("status", "active").lte("next_watch_at", args.now))
+      .withIndex("by_provider_status_next_watch", (q) =>
+        q
+          .eq("provider", "app")
+          .eq("status", "active")
+          .lte("next_watch_at", args.now),
+      )
       .take(POLL_PAGE);
     return rows.map((row) => row._id);
   },
@@ -574,8 +816,14 @@ export const sourcesWithDueWatches = internalQuery({
 export const pollWatches = internalAction({
   args: {},
   handler: async (ctx) => {
-    const ids: Id<"event_sources">[] = await ctx.runQuery(internal.sources.app.sourcesWithDueWatches, { now: Date.now() });
-    for (const source_id of ids) await ctx.scheduler.runAfter(0, internal.sources.app.pollSource, { source_id });
+    const ids: Id<"event_sources">[] = await ctx.runQuery(
+      internal.sources.app.sourcesWithDueWatches,
+      { now: Date.now() },
+    );
+    for (const source_id of ids)
+      await ctx.scheduler.runAfter(0, internal.sources.app.pollSource, {
+        source_id,
+      });
     return ids.length;
   },
 });
@@ -585,14 +833,24 @@ export const sourceForPoll = internalQuery({
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.source_id);
     if (!row || row.provider !== "app") return null;
-    return { source: await withManifest(ctx, row), connection_id: await connectionIdForSource(ctx, row) };
+    return {
+      source: await withManifest(ctx, row),
+      connection_id: await connectionIdForSource(ctx, row),
+    };
   },
 });
 
 export const recordWatchPolls = internalMutation({
   args: {
     source_id: v.id("event_sources"),
-    states: v.array(v.object({ key: v.string(), polled_at: v.number(), cursor: v.optional(v.number()), last_error: v.optional(v.string()) })),
+    states: v.array(
+      v.object({
+        key: v.string(),
+        polled_at: v.number(),
+        cursor: v.optional(v.number()),
+        last_error: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.source_id);
@@ -602,13 +860,23 @@ export const recordWatchPolls = internalMutation({
       // A failed poll keeps the cursor it had, so the failures it missed still count next time.
       const cursor = s.cursor ?? byKey.get(s.key)?.cursor;
       const paused = byKey.get(s.key)?.paused;
-      byKey.set(s.key, { key: s.key, polled_at: s.polled_at, ...(cursor !== undefined ? { cursor } : {}), ...(s.last_error ? { last_error: s.last_error.slice(0, 500) } : {}), ...(paused ? { paused } : {}) });
+      byKey.set(s.key, {
+        key: s.key,
+        polled_at: s.polled_at,
+        ...(cursor !== undefined ? { cursor } : {}),
+        ...(s.last_error ? { last_error: s.last_error.slice(0, 500) } : {}),
+        ...(paused ? { paused } : {}),
+      });
     }
     const now = Date.now();
     const watchState = [...byKey.values()];
     const manifest = cachedManifest(await withManifest(ctx, row));
-    await ctx.db.patch(row._id, { watch_state: watchState, next_watch_at: nextWatchAt(manifest, watchState, now) });
-    if (args.states.length) await patchSourceStats(ctx, row, () => ({ last_poll_at: now }), now);
+    await ctx.db.patch(row._id, {
+      watch_state: watchState,
+      next_watch_at: nextWatchAt(manifest, watchState, now),
+    });
+    if (args.states.length)
+      await patchSourceStats(ctx, row, () => ({ last_poll_at: now }), now);
   },
 });
 
@@ -619,42 +887,83 @@ export const recordWatchPolls = internalMutation({
  * be. Successful polls write no app_calls row (one every few minutes per
  * watch would bury the people's calls); a failed one does, as the owner.
  */
-export async function pollSourceWatches(ctx: RunCtx, sourceId: Id<"event_sources">, fetchImpl: FetchLike, now = Date.now(), opts: { only?: string } = {}) {
-  const found = await ctx.runQuery(internal.sources.app.sourceForPoll, { source_id: sourceId });
+export async function pollSourceWatches(
+  ctx: RunCtx,
+  sourceId: Id<"event_sources">,
+  fetchImpl: FetchLike,
+  now = Date.now(),
+  opts: { only?: string } = {},
+) {
+  const found = await ctx.runQuery(internal.sources.app.sourceForPoll, {
+    source_id: sourceId,
+  });
   if (!found || found.source.status !== "active") return { polled: 0 };
   const source: Doc<"event_sources"> = found.source;
   // No connection to poll with: the source stops here (lib/sourceHealth)
   // rather than failing and auditing every watch on every tick.
   const lost = async (error: string) => {
-    await ctx.runMutation(internal.ingest.sourceConnectionLost, { source_id: source._id, error });
+    await ctx.runMutation(internal.ingest.sourceConnectionLost, {
+      source_id: source._id,
+      error,
+    });
     return { polled: 0, error };
   };
   const cred = await appCredential(ctx, found.connection_id);
   if (!cred.ok) return lost(cred.error);
-  const m = await freshManifest(ctx, source, found.connection_id, fetchImpl, now);
+  const m = await freshManifest(
+    ctx,
+    source,
+    found.connection_id,
+    fetchImpl,
+    now,
+  );
   if (!m.ok) return { polled: 0, error: m.error };
   // A person's "Run now" polls the one watch they named, due or not, paused or not.
-  const due = opts.only ? m.manifest.watches.filter((w) => watchKey(w) === opts.only) : dueWatches(m.manifest, source.watch_state, now);
+  const due = opts.only
+    ? m.manifest.watches.filter((w) => watchKey(w) === opts.only)
+    : dueWatches(m.manifest, source.watch_state, now);
   if (!due.length) {
     // Nothing due after all (the cron read an unset next_watch_at): record
     // when something will be, so the cron stops reading this source.
-    await ctx.runMutation(internal.sources.app.recordWatchPolls, { source_id: source._id, states: [] });
+    await ctx.runMutation(internal.sources.app.recordWatchPolls, {
+      source_id: source._id,
+      states: [],
+    });
     return { polled: 0 };
   }
 
-  const states: Array<{ key: string; polled_at: number; cursor?: number; last_error?: string }> = [];
+  const states: Array<{
+    key: string;
+    polled_at: number;
+    cursor?: number;
+    last_error?: string;
+  }> = [];
   let accepted = 0;
   let refusedBy: string | undefined;
   for (const watch of due) {
     const key = watchKey(watch);
     const prior = source.watch_state?.find((s) => s.key === key);
-    const failed = async (error: string, http?: { status?: number; ms: number; bytes: number }) => {
+    const failed = async (
+      error: string,
+      http?: { status?: number; ms: number; bytes: number },
+    ) => {
       states.push({ key, polled_at: now, last_error: error });
       await auditOutsideCall(
         ctx,
-        { source_id: source._id, user_id: source.owner_user_id, kind: "read", name: watch.reader, args: {} },
+        {
+          source_id: source._id,
+          user_id: source.owner_user_id,
+          kind: "read",
+          name: watch.reader,
+          args: {},
+        },
         "error",
-        { error: `watch ${key}: ${error}`, ms: http?.ms, bytes: http?.bytes, http_status: http?.status },
+        {
+          error: `watch ${key}: ${error}`,
+          ms: http?.ms,
+          bytes: http?.bytes,
+          http_status: http?.status,
+        },
       );
     };
     const reader = m.manifest.readers.find((r) => r.name === watch.reader)!;
@@ -663,9 +972,17 @@ export async function pollSourceWatches(ctx: RunCtx, sourceId: Id<"event_sources
       await failed(req.error);
       continue;
     }
-    const res = await appHttp(fetchImpl, req, { token: cred.token, actor: formatActorHeader({ watch: key }), sign: signerOf(source) });
+    const res = await appHttp(fetchImpl, req, {
+      token: cred.token,
+      actor: formatActorHeader({ watch: key }),
+      sign: signerOf(source),
+    });
     if (!res.ok) {
-      await failed(res.error ?? "failed", { status: res.status, ms: res.ms, bytes: res.bytes });
+      await failed(res.error ?? "failed", {
+        status: res.status,
+        ms: res.ms,
+        bytes: res.bytes,
+      });
       if (isTokenRefusal(res.status)) {
         refusedBy = cred.token
           ? `the app refused the connection's secret (${res.status}): reconnect the app`
@@ -678,33 +995,62 @@ export async function pollSourceWatches(ctx: RunCtx, sourceId: Id<"event_sources
     try {
       body = JSON.parse(res.text ?? "");
     } catch {
-      await failed("the answer is not JSON", { status: res.status, ms: res.ms, bytes: res.bytes });
+      await failed("the answer is not JSON", {
+        status: res.status,
+        ms: res.ms,
+        bytes: res.bytes,
+      });
       continue;
     }
     const mapped = mapWatchRows(watch, body, { now, since: prior?.cursor });
     if (!mapped.ok) {
-      await failed(mapped.error, { status: res.status, ms: res.ms, bytes: res.bytes });
+      await failed(mapped.error, {
+        status: res.status,
+        ms: res.ms,
+        bytes: res.bytes,
+      });
       continue;
     }
     // The rows go through the door's own limits in door-sized pieces. A piece
     // the door would refuse fails the poll and keeps the cursor, so a job
     // watch counts those failures on the next poll rather than never.
     const pieces = [];
-    for (let i = 0; i < mapped.items.length; i += INGEST_LIMITS.max_items) pieces.push(validateIngestBatch({ items: mapped.items.slice(i, i + INGEST_LIMITS.max_items) }, now));
+    for (let i = 0; i < mapped.items.length; i += INGEST_LIMITS.max_items)
+      pieces.push(
+        validateIngestBatch(
+          { items: mapped.items.slice(i, i + INGEST_LIMITS.max_items) },
+          now,
+        ),
+      );
     const refused = pieces.find((b) => !b.ok);
     if (refused && !refused.ok) {
-      await failed(`the rows do not fit the ingest limits: ${refused.error}`, { status: res.status, ms: res.ms, bytes: res.bytes });
+      await failed(`the rows do not fit the ingest limits: ${refused.error}`, {
+        status: res.status,
+        ms: res.ms,
+        bytes: res.bytes,
+      });
       continue;
     }
     for (const batch of pieces) {
       if (!batch.ok || !batch.items.length) continue;
-      const out = await ctx.runMutation(internal.ingest.applyBatch, { source_id: source._id, items_json: JSON.stringify(batch.items) });
+      const out = await ctx.runMutation(internal.ingest.applyBatch, {
+        source_id: source._id,
+        items_json: JSON.stringify(batch.items),
+      });
       accepted += out.accepted;
     }
-    states.push({ key, polled_at: now, ...(mapped.cursor !== undefined ? { cursor: mapped.cursor } : {}) });
+    states.push({
+      key,
+      polled_at: now,
+      ...(mapped.cursor !== undefined ? { cursor: mapped.cursor } : {}),
+    });
   }
-  await ctx.runMutation(internal.sources.app.recordWatchPolls, { source_id: source._id, states });
-  if (refusedBy) return { ...(await lost(refusedBy)), polled: states.length, accepted };
+  await ctx.runMutation(internal.sources.app.recordWatchPolls, {
+    source_id: source._id,
+    states,
+  });
+  if (refusedBy)
+    return { ...(await lost(refusedBy)), polled: states.length, accepted };
   return { polled: due.length, accepted };
 }
 
@@ -714,12 +1060,19 @@ export const pollSource = internalAction({
 });
 
 /** A watch as a person names it on the Apps tab: the source must hold it in its manifest. */
-async function personWatch(ctx: any, args: ScopeArgs & { source: string; watch: string }) {
-  if (args.api_token) forbidden("Watches are run and paused by a person in the browser, under Signals, Apps");
+async function personWatch(
+  ctx: any,
+  args: ScopeArgs & { source: string; watch: string },
+) {
+  if (args.api_token)
+    forbidden(
+      "Watches are run and paused by a person in the browser, under Signals, Apps",
+    );
   await requireUser(ctx);
   const { row } = await grantSource(ctx, args);
   const manifest = cachedManifest(await withManifest(ctx, row));
-  if (!manifest?.watches.some((w) => watchKey(w) === args.watch)) invalidScope(`${row.name} declares no watch ${args.watch}`);
+  if (!manifest?.watches.some((w) => watchKey(w) === args.watch))
+    invalidScope(`${row.name} declares no watch ${args.watch}`);
   return row;
 }
 
@@ -728,31 +1081,48 @@ export const pollWatchNow = mutation({
   args: { ...scopeArgs, source: v.string(), watch: v.string() },
   handler: async (ctx, args) => {
     const row = await personWatch(ctx, args);
-    if (row.status !== "active") invalidScope(`${row.name} is ${row.status}: resume it first`);
-    await ctx.scheduler.runAfter(0, internal.sources.app.pollWatchOnce, { source_id: row._id, watch: args.watch });
+    if (row.status !== "active")
+      invalidScope(`${row.name} is ${row.status}: resume it first`);
+    await ctx.scheduler.runAfter(0, internal.sources.app.pollWatchOnce, {
+      source_id: row._id,
+      watch: args.watch,
+    });
     return { scheduled: true };
   },
 });
 
 export const pollWatchOnce = internalAction({
   args: { source_id: v.id("event_sources"), watch: v.string() },
-  handler: async (ctx, args) => pollSourceWatches(ctx, args.source_id, fetch, Date.now(), { only: args.watch }),
+  handler: async (ctx, args) =>
+    pollSourceWatches(ctx, args.source_id, fetch, Date.now(), {
+      only: args.watch,
+    }),
 });
 
 /** Pause or resume one watch: a paused watch is never due, so the poller skips it. */
 export const setWatchPaused = mutation({
-  args: { ...scopeArgs, source: v.string(), watch: v.string(), paused: v.boolean() },
+  args: {
+    ...scopeArgs,
+    source: v.string(),
+    watch: v.string(),
+    paused: v.boolean(),
+  },
   handler: async (ctx, args) => {
     const row = await personWatch(ctx, args);
     const state = [...(row.watch_state ?? [])];
     const i = state.findIndex((s) => s.key === args.watch);
-    const { paused: _was, ...prev } = i >= 0 ? state[i] : { key: args.watch, polled_at: 0 };
+    const { paused: _was, ...prev } =
+      i >= 0 ? state[i] : { key: args.watch, polled_at: 0 };
     const next = { ...prev, ...(args.paused ? { paused: true } : {}) };
     if (i >= 0) state[i] = next;
     else state.push(next);
     const manifest = cachedManifest(await withManifest(ctx, row));
     const now = Date.now();
-    await ctx.db.patch(row._id, { watch_state: state, next_watch_at: nextWatchAt(manifest, state, now), updated_at: now });
+    await ctx.db.patch(row._id, {
+      watch_state: state,
+      next_watch_at: nextWatchAt(manifest, state, now),
+      updated_at: now,
+    });
     return { paused: args.paused };
   },
 });
@@ -768,9 +1138,15 @@ export const staleManifestSources = internalQuery({
     for (const status of ["active", "error"] as const) {
       const rows = await ctx.db
         .query("event_sources")
-        .withIndex("by_provider_status_manifest", (q) => q.eq("provider", "app").eq("status", status).lt("manifest_fetched_at", cutoff))
+        .withIndex("by_provider_status_manifest", (q) =>
+          q
+            .eq("provider", "app")
+            .eq("status", status)
+            .lt("manifest_fetched_at", cutoff),
+        )
         .take(POLL_PAGE);
-      for (const row of rows) if (manifestStale(row, args.now + WATCH_SLACK_MS)) out.push(row._id);
+      for (const row of rows)
+        if (manifestStale(row, args.now + WATCH_SLACK_MS)) out.push(row._id);
     }
     return out;
   },
@@ -779,8 +1155,16 @@ export const staleManifestSources = internalQuery({
 export const refreshManifests = internalAction({
   args: {},
   handler: async (ctx) => {
-    const ids: Id<"event_sources">[] = await ctx.runQuery(internal.sources.app.staleManifestSources, { now: Date.now() });
-    for (const source_id of ids) await ctx.scheduler.runAfter(0, internal.sources.app.refreshSourceManifest, { source_id });
+    const ids: Id<"event_sources">[] = await ctx.runQuery(
+      internal.sources.app.staleManifestSources,
+      { now: Date.now() },
+    );
+    for (const source_id of ids)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.sources.app.refreshSourceManifest,
+        { source_id },
+      );
     return ids.length;
   },
 });
@@ -788,7 +1172,9 @@ export const refreshManifests = internalAction({
 export const refreshSourceManifest = internalAction({
   args: { source_id: v.id("event_sources") },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
-    const found = await ctx.runQuery(internal.sources.app.sourceForPoll, { source_id: args.source_id });
+    const found = await ctx.runQuery(internal.sources.app.sourceForPoll, {
+      source_id: args.source_id,
+    });
     if (!found) return { ok: false, error: "source gone" };
     return refreshManifestFor(ctx, found.source, found.connection_id, fetch);
   },

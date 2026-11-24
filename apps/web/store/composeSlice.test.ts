@@ -4,10 +4,17 @@ import { createComposeSlice, type ComposeSliceState } from "./composeSlice";
 type State = ComposeSliceState & { drafts: Record<string, any> };
 function makeStore(): State {
   const state = { drafts: {} } as State;
-  Object.assign(state, createComposeSlice((patch: Partial<State>) => Object.assign(state, patch), () => state));
+  Object.assign(
+    state,
+    createComposeSlice(
+      (patch: Partial<State>) => Object.assign(state, patch),
+      () => state,
+    ),
+  );
   return state;
 }
-const shape = (s: State) => s.composes.map((c) => `${c.id}:${c.mode}${c.collapsed ? ":collapsed" : ""}`);
+const shape = (s: State) =>
+  s.composes.map((c) => `${c.id}:${c.mode}${c.collapsed ? ":collapsed" : ""}`);
 
 describe("compose slice", () => {
   test("the dock shortcut opens docked composers side by side, then minimizes an open modal", () => {
@@ -22,7 +29,8 @@ describe("compose slice", () => {
 
   test("a third docked composer folds the oldest open one", () => {
     const s = makeStore();
-    for (let i = 0; i < 3; i++) s.openCompose(undefined, undefined, { dock: true });
+    for (let i = 0; i < 3; i++)
+      s.openCompose(undefined, undefined, { dock: true });
     expect(shape(s)).toEqual(["1:dock:collapsed", "2:dock", "3:dock"]);
   });
 

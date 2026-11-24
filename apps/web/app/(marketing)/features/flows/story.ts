@@ -37,7 +37,10 @@ export const CHANGE = {
   subject: "fix(web): total of an empty cart is 0",
   files: ["apps/web/lib/cart/total.ts", "apps/server/convex/checkout.ts"],
   /** Lines added and removed per file; total.ts is the diff the trace blames. */
-  diff: { "apps/web/lib/cart/total.ts": { add: 2, del: 4 }, "apps/server/convex/checkout.ts": { add: 3, del: 1 } },
+  diff: {
+    "apps/web/lib/cart/total.ts": { add: 2, del: 4 },
+    "apps/server/convex/checkout.ts": { add: 3, del: 1 },
+  },
   targets: ["web", "backend"] as const,
   deploys: { web: "dp-411", backend: "dp-412" },
   landedOn: "Nov 3",
@@ -76,7 +79,15 @@ export const SOURCES = [
 export const SIGNALS_TODAY = 2276;
 
 /** Triage and the line right now. Queued never exceeds open. */
-export const NOW = { open: 23, queued: 17, running: 2, slots: 4, onPerson: 2, liveToday: 42, watching: 47 } as const;
+export const NOW = {
+  open: 23,
+  queued: 17,
+  running: 2,
+  slots: 4,
+  onPerson: 2,
+  liveToday: 42,
+  watching: 47,
+} as const;
 
 /**
  * Regret-free rates, settled changes only. The Checkout role is part of the
@@ -91,7 +102,13 @@ export const RATES = {
   noFlow: { settled: 912, regretted: 146 }, // 84%
   window: 6,
 } as const;
-export const CHECKOUT = { bar: 0.9, min: 20, before: { settled: 36, regretted: 3 } /* 92% */, after: { settled: 37, regretted: 4 }, dailyLimit: 5 } as const;
+export const CHECKOUT = {
+  bar: 0.9,
+  min: 20,
+  before: { settled: 36, regretted: 3 } /* 92% */,
+  after: { settled: 37, regretted: 4 },
+  dailyLimit: 5,
+} as const;
 /** Roles that merge without a person before the trace; after it Checkout waits, leaving 7. */
 export const ROLES = { merging: 8, total: 17 } as const;
 

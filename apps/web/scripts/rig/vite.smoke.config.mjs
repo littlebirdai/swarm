@@ -5,4 +5,8 @@
 import { mergeConfig } from "vite";
 import base from "../../vite.config";
 
-export default (env) => mergeConfig(base(env), { cacheDir: "node_modules/.vite-smoke", server: { hmr: false } });
+export default (env) =>
+  mergeConfig(base(env), {
+    cacheDir: "node_modules/.vite-smoke",
+    server: { hmr: false },
+  });

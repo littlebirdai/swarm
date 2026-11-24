@@ -25,7 +25,10 @@ const MAX_WALK = 10_000;
 
 /** Every rm in `command`, resolved against `cwd`. Heredoc bodies are skipped:
  *  they are data written to a file, not commands run here. */
-export function describeRemovals(command: string, cwd: string): RemovalPreview[] {
+export function describeRemovals(
+  command: string,
+  cwd: string,
+): RemovalPreview[] {
   const out: RemovalPreview[] = [];
   let dir: string | null = cwd;
   for (const words of commandSegments(command)) {
@@ -33,14 +36,20 @@ export function describeRemovals(command: string, cwd: string): RemovalPreview[]
     const [head, ...args] = words;
     if (head === "cd") {
       const to = args[0] ?? "~";
-      dir = isDynamic(to) || dir === null ? null : path.resolve(dir, expandHome(to));
+      dir =
+        isDynamic(to) || dir === null
+          ? null
+          : path.resolve(dir, expandHome(to));
       continue;
     }
     if (head !== "rm") continue;
     const recursive = args.some((a) => /^--recursive$|^-[a-zA-Z]*[rR]/.test(a));
     let flagsDone = false;
     for (const a of args) {
-      if (!flagsDone && a === "--") { flagsDone = true; continue; }
+      if (!flagsDone && a === "--") {
+        flagsDone = true;
+        continue;
+      }
       if (!flagsDone && a.startsWith("-")) continue;
       if (out.length >= MAX_REMOVALS) break;
       out.push(previewTarget(a, dir, recursive));
@@ -49,18 +58,29 @@ export function describeRemovals(command: string, cwd: string): RemovalPreview[]
   return out;
 }
 
-function previewTarget(word: string, dir: string | null, recursive: boolean): RemovalPreview {
-  if (isDynamic(word)) return { target: word, note: "set by the shell when it runs" };
-  if (dir === null && !path.isAbsolute(expandHome(word))) return { target: word, note: "after a cd that cannot be resolved" };
+function previewTarget(
+  word: string,
+  dir: string | null,
+  recursive: boolean,
+): RemovalPreview {
+  if (isDynamic(word))
+    return { target: word, note: "set by the shell when it runs" };
+  if (dir === null && !path.isAbsolute(expandHome(word)))
+    return { target: word, note: "after a cd that cannot be resolved" };
   const abs = path.resolve(dir ?? "/", expandHome(word));
   const parent = path.dirname(abs);
   const leaf = path.basename(abs);
-  if (hasGlob(parent)) return { target: abs, note: "a pattern in a parent folder" };
+  if (hasGlob(parent))
+    return { target: abs, note: "a pattern in a parent folder" };
   let names: string[];
   if (hasGlob(leaf)) {
     const re = globToRegExp(leaf);
     try {
-      names = fs.readdirSync(parent).filter((n) => re.test(n) && (leaf.startsWith(".") || !n.startsWith(".")));
+      names = fs
+        .readdirSync(parent)
+        .filter(
+          (n) => re.test(n) && (leaf.startsWith(".") || !n.startsWith(".")),
+        );
     } catch {
       return { target: abs, files: 0, dirs: 0 };
     }
@@ -72,19 +92,37 @@ function previewTarget(word: string, dir: string | null, recursive: boolean): Re
   return { target: abs, ...count };
 }
 
-function tally(p: string, recursive: boolean, count: { files: number; dirs: number }): void {
+function tally(
+  p: string,
+  recursive: boolean,
+  count: { files: number; dirs: number },
+): void {
   let st: fs.Stats;
-  try { st = fs.lstatSync(p); } catch { return; }
-  if (!st.isDirectory()) { count.files++; return; }
+  try {
+    st = fs.lstatSync(p);
+  } catch {
+    return;
+  }
+  if (!st.isDirectory()) {
+    count.files++;
+    return;
+  }
   count.dirs++;
   if (!recursive) return;
   const stack = [p];
   while (stack.length && count.files + count.dirs < MAX_WALK) {
     const d = stack.pop()!;
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
     for (const e of entries) {
-      if (e.isDirectory()) { count.dirs++; stack.push(path.join(d, e.name)); } else count.files++;
+      if (e.isDirectory()) {
+        count.dirs++;
+        stack.push(path.join(d, e.name));
+      } else count.files++;
     }
   }
 }
@@ -107,7 +145,8 @@ export function commandSegments(command: string): string[][] {
   const endSegment = () => {
     endWord();
     // `do`, `then` and the like start the command that follows them.
-    while (words.length && /^(do|then|else|elif|!|\{|\()$/.test(words[0])) words.shift();
+    while (words.length && /^(do|then|else|elif|!|\{|\()$/.test(words[0]))
+      words.shift();
     if (words.length) segments.push(words);
     words = [];
   };
@@ -115,16 +154,29 @@ export function commandSegments(command: string): string[][] {
     const c = command[i];
     if (quote) {
       if (c === quote) quote = null;
-      else if (c === "\\" && quote === '"' && i + 1 < command.length) word += command[++i];
+      else if (c === "\\" && quote === '"' && i + 1 < command.length)
+        word += command[++i];
       else word += c;
       continue;
     }
-    if (c === "'" || c === '"') { quote = c; inWord = true; continue; }
-    if (c === "\\" && i + 1 < command.length) { word += command[++i]; inWord = true; continue; }
+    if (c === "'" || c === '"') {
+      quote = c;
+      inWord = true;
+      continue;
+    }
+    if (c === "\\" && i + 1 < command.length) {
+      word += command[++i];
+      inWord = true;
+      continue;
+    }
     if (c === "<" && command[i + 1] === "<" && command[i + 2] !== "<") {
       endWord();
       const m = command.slice(i).match(/^<<-?\s*(['"]?)([A-Za-z_]\w*)\1/);
-      if (m) { heredocs.push(m[2]); i += m[0].length - 1; continue; }
+      if (m) {
+        heredocs.push(m[2]);
+        i += m[0].length - 1;
+        continue;
+      }
     }
     if (c === "\n") {
       endSegment();
@@ -138,8 +190,14 @@ export function commandSegments(command: string): string[][] {
       }
       continue;
     }
-    if (c === ";" || c === "|" || c === "&") { endSegment(); continue; }
-    if (c === " " || c === "\t") { endWord(); continue; }
+    if (c === ";" || c === "|" || c === "&") {
+      endSegment();
+      continue;
+    }
+    if (c === " " || c === "\t") {
+      endWord();
+      continue;
+    }
     word += c;
     inWord = true;
   }
@@ -149,7 +207,12 @@ export function commandSegments(command: string): string[][] {
 
 const isDynamic = (w: string) => /[$`]/.test(w);
 const hasGlob = (s: string) => /[*?[]/.test(s);
-const expandHome = (p: string) => (p === "~" ? os.homedir() : p.startsWith("~/") ? path.join(os.homedir(), p.slice(2)) : p);
+const expandHome = (p: string) =>
+  p === "~"
+    ? os.homedir()
+    : p.startsWith("~/")
+      ? path.join(os.homedir(), p.slice(2))
+      : p;
 
 function globToRegExp(glob: string): RegExp {
   let re = "";
@@ -159,8 +222,17 @@ function globToRegExp(glob: string): RegExp {
     else if (c === "?") re += "[^/]";
     else if (c === "[") {
       const close = glob.indexOf("]", i + 1);
-      if (close < 0) { re += "\\["; continue; }
-      re += "[" + glob.slice(i + 1, close).replace(/^!/, "^").replace(/\\/g, "\\\\") + "]";
+      if (close < 0) {
+        re += "\\[";
+        continue;
+      }
+      re +=
+        "[" +
+        glob
+          .slice(i + 1, close)
+          .replace(/^!/, "^")
+          .replace(/\\/g, "\\\\") +
+        "]";
       i = close;
     } else re += c.replace(/[.+^${}()|\\]/g, "\\$&");
   }

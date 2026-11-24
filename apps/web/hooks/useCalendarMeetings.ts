@@ -9,15 +9,23 @@ import { useSyncCollection } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
 import { useCoarseNow } from "./useCoarseNow";
 import { useWatchEffect } from "./useWatchEffect";
-import { MEETING_BOT_SETTINGS_ID, type CalendarMeeting, type MeetingBotSettings } from "../store/meetingBotsSlice";
+import {
+  MEETING_BOT_SETTINGS_ID,
+  type CalendarMeeting,
+  type MeetingBotSettings,
+} from "../store/meetingBotsSlice";
 
-const meetingSig = (m: CalendarMeeting) => `${m.title}|${m.starts_at}|${m.ends_at}|${m.platform}|${m.choice ?? ""}|${m.meet_id ?? ""}`;
+const meetingSig = (m: CalendarMeeting) =>
+  `${m.title}|${m.starts_at}|${m.ends_at}|${m.platform}|${m.choice ?? ""}|${m.meet_id ?? ""}`;
 const settingsSig = (s: MeetingBotSettings) => `${s.calendar}|${s.join_all}`;
-const soonestFirst = (a: CalendarMeeting, b: CalendarMeeting) => a.starts_at - b.starts_at;
+const soonestFirst = (a: CalendarMeeting, b: CalendarMeeting) =>
+  a.starts_at - b.starts_at;
 
 export function useMeetingBotSettings(): MeetingBotSettings | null {
   useSyncCollection("meetingBotSettings", api.meetingCalendar.getSettings, {});
-  const rows = useCollectionRows<MeetingBotSettings>("meetingBotSettings", { sig: settingsSig });
+  const rows = useCollectionRows<MeetingBotSettings>("meetingBotSettings", {
+    sig: settingsSig,
+  });
   return rows.find((r) => r._id === MEETING_BOT_SETTINGS_ID) ?? null;
 }
 
@@ -25,7 +33,11 @@ export function useMeetingBotSettings(): MeetingBotSettings | null {
  *  Reads the calendar once when it mounts with a connected calendar, so a
  *  meeting added a minute ago is there without waiting for the sweep. */
 export function useCalendarMeetings(connected: boolean): CalendarMeeting[] {
-  useSyncCollection("meetingCalendarEvents", api.meetingCalendar.listUpcoming, {});
+  useSyncCollection(
+    "meetingCalendarEvents",
+    api.meetingCalendar.listUpcoming,
+    {},
+  );
   const refresh = useAction(api.meetingCalendar.refreshMine);
   const asked = useRef(false);
   useWatchEffect(() => {
@@ -35,5 +47,9 @@ export function useCalendarMeetings(connected: boolean): CalendarMeeting[] {
   }, [connected, refresh]);
   const now = useCoarseNow(60_000);
   const where = useCallback((m: CalendarMeeting) => m.ends_at > now, [now]);
-  return useCollectionRows<CalendarMeeting>("meetingCalendarEvents", { where, sig: meetingSig, sort: soonestFirst });
+  return useCollectionRows<CalendarMeeting>("meetingCalendarEvents", {
+    where,
+    sig: meetingSig,
+    sort: soonestFirst,
+  });
 }

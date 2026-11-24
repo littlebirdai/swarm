@@ -26,8 +26,10 @@ import { CORPUS } from "./corpus";
 
 const DEPS = {
   resolveWiki: (parts: { target: string }) => {
-    if (parts.target === "Ambiguous") return { path: "a/Ambiguous.md", ambiguous: true };
-    if (parts.target === "Missing" || parts.target === "") return { path: null };
+    if (parts.target === "Ambiguous")
+      return { path: "a/Ambiguous.md", ambiguous: true };
+    if (parts.target === "Missing" || parts.target === "")
+      return { path: null };
     return { path: `${parts.target}.md` };
   },
   assetUrl: (raw: string) => `https://vault.test/${raw}`,
@@ -65,7 +67,10 @@ function textOf(doc: string, span: LiveSpan): string {
 function marks(doc: string, cursor?: number) {
   return scan(doc, cursor)
     .filter((s) => s.kind === "mark")
-    .map((s) => ({ class: (s as { class: string }).class, text: textOf(doc, s) }));
+    .map((s) => ({
+      class: (s as { class: string }).class,
+      text: textOf(doc, s),
+    }));
 }
 
 function hidden(doc: string, cursor?: number) {
@@ -101,7 +106,11 @@ describe("byte fidelity", () => {
   test("scanning the whole corpus produces only in-bounds spans", () => {
     for (const c of CORPUS) {
       const state = stateFor(c.markdown);
-      const spans = scanLivePreview(state, [{ from: 0, to: c.markdown.length }], DEPS);
+      const spans = scanLivePreview(
+        state,
+        [{ from: 0, to: c.markdown.length }],
+        DEPS,
+      );
       for (const s of spans) {
         expect(s.from).toBeGreaterThanOrEqual(0);
         expect(s.from).toBeLessThanOrEqual(c.markdown.length);
@@ -118,10 +127,16 @@ describe("byte fidelity", () => {
   test("no replaced range ever crosses a line break", () => {
     for (const c of CORPUS) {
       const state = stateFor(c.markdown);
-      const spans = scanLivePreview(state, [{ from: 0, to: c.markdown.length }], DEPS);
+      const spans = scanLivePreview(
+        state,
+        [{ from: 0, to: c.markdown.length }],
+        DEPS,
+      );
       for (const s of spans) {
         if (s.kind !== "hide" && s.kind !== "widget") continue;
-        expect(state.doc.lineAt(s.from).number).toBe(state.doc.lineAt(s.to).number);
+        expect(state.doc.lineAt(s.from).number).toBe(
+          state.doc.lineAt(s.to).number,
+        );
       }
     }
   });
@@ -149,7 +164,11 @@ describe("byte fidelity", () => {
   test("replaced ranges never partially overlap", () => {
     for (const doc of [...CORPUS.map((c) => c.markdown), NESTED]) {
       const state = stateFor(doc);
-      const replaced = scanLivePreview(state, [{ from: 0, to: doc.length }], DEPS)
+      const replaced = scanLivePreview(
+        state,
+        [{ from: 0, to: doc.length }],
+        DEPS,
+      )
         .filter((s) => s.kind === "hide" || s.kind === "widget")
         .map((s) => [s.from, s.to] as [number, number])
         .sort((a, b) => a[0] - b[0]);
@@ -241,7 +260,9 @@ describe("inline constructs", () => {
 
   test("an image whose source cannot be served stays raw", () => {
     const state = stateFor("![a cat](cat.png)");
-    const spans = scanLivePreview(state, [{ from: 0, to: 17 }], { assetUrl: () => null });
+    const spans = scanLivePreview(state, [{ from: 0, to: 17 }], {
+      assetUrl: () => null,
+    });
     expect(spans.filter((s) => s.kind === "widget")).toEqual([]);
   });
 });
@@ -311,8 +332,12 @@ describe("vault syntax", () => {
   });
 
   test("unresolved and ambiguous targets carry the reading view's classes", () => {
-    expect(marks("[[Missing]]")[0].class).toBe("wiki-link wiki-link-unresolved");
-    expect(marks("[[Ambiguous]]")[0].class).toBe("wiki-link wiki-link-ambiguous");
+    expect(marks("[[Missing]]")[0].class).toBe(
+      "wiki-link wiki-link-unresolved",
+    );
+    expect(marks("[[Ambiguous]]")[0].class).toBe(
+      "wiki-link wiki-link-ambiguous",
+    );
   });
 
   test("the raw source rides along so a click can re-parse it", () => {
@@ -349,7 +374,13 @@ describe("vault syntax", () => {
   test("vault syntax inside code is literal, exactly as the reading view has it", () => {
     expect(scan("`[[Not A Link]] and #nottag`")).toEqual([
       { kind: "hide", from: 0, to: 1 },
-      { kind: "mark", from: 1, to: 27, class: "cm-live-code", attrs: undefined },
+      {
+        kind: "mark",
+        from: 1,
+        to: 27,
+        class: "cm-live-code",
+        attrs: undefined,
+      },
       { kind: "hide", from: 27, to: 28 },
     ]);
     const fenced = "```\n[[Not A Link]] #nottag\n```";
@@ -411,7 +442,9 @@ describe("cursor reveal", () => {
   });
 
   test("a tag pill survives the cursor — it hides nothing to begin with", () => {
-    expect(marks("a #tag b", 3)).toEqual([{ class: "vault-tag", text: "#tag" }]);
+    expect(marks("a #tag b", 3)).toEqual([
+      { class: "vault-tag", text: "#tag" },
+    ]);
   });
 });
 
@@ -464,33 +497,57 @@ describe("vault syntax nested inside ordinary constructs", () => {
 
   test("a markdown link containing a tag still live-previews", () => {
     const spans = spansOf("[text with #tag here](https://example.com)");
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-link"))).toBe(true);
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("vault-tag"))).toBe(true);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-link")),
+    ).toBe(true);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("vault-tag")),
+    ).toBe(true);
     expect(spans.some((s) => s.kind === "hide")).toBe(true);
   });
 
   test("bold containing a tag still hides its fences", () => {
     const spans = spansOf("**bold text with #tag inside**");
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-strong"))).toBe(true);
-    expect(spans.filter((s) => s.kind === "hide").length).toBeGreaterThanOrEqual(2);
+    expect(
+      spans.some(
+        (s) => s.kind === "mark" && s.class.includes("cm-live-strong"),
+      ),
+    ).toBe(true);
+    expect(
+      spans.filter((s) => s.kind === "hide").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   test("emphasis containing a tag still hides its fences", () => {
     const spans = spansOf("*plain #tag*");
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-em"))).toBe(true);
-    expect(spans.filter((s) => s.kind === "hide").length).toBeGreaterThanOrEqual(2);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-em")),
+    ).toBe(true);
+    expect(
+      spans.filter((s) => s.kind === "hide").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   test("bold wrapping a wiki link renders both", () => {
     const spans = spansOf("**[[Wiki|alias]]** tail");
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-strong"))).toBe(true);
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("wiki-link"))).toBe(true);
+    expect(
+      spans.some(
+        (s) => s.kind === "mark" && s.class.includes("cm-live-strong"),
+      ),
+    ).toBe(true);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("wiki-link")),
+    ).toBe(true);
   });
 
   test("a wiki link the grammar misreads as a Link is still left to the regex pass", () => {
     const spans = spansOf("see [[Target|shown]] here");
     // The wiki mark must exist and NO cm-live-link mark may be emitted for it.
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("wiki-link"))).toBe(true);
-    expect(spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-link"))).toBe(false);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("wiki-link")),
+    ).toBe(true);
+    expect(
+      spans.some((s) => s.kind === "mark" && s.class.includes("cm-live-link")),
+    ).toBe(false);
   });
 });

@@ -77,24 +77,29 @@ export function PermissionRow({
     onChange();
   };
 
-  const description = awaitingPrompt
-    ? desktop
-      ? `Answer the macOS prompt to finish.${kind === "screen" ? " Codecast may need a restart afterwards." : ""}`
-      : "Answer the browser's permission prompt to finish."
-    : readiness === "off" && hint
-      ? (
-        // A denial is the one state worth alarm: something was turned off
-        // and the button alone doesn't say why. Undecided just gets the
-        // reason and the button.
-        <>
-          {info.why}
-          <span className="mt-1 flex items-start gap-1.5 text-sol-orange">
-            <span aria-hidden className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-sol-orange" />
-            {hint}
-          </span>
-        </>
-      )
-      : info.why;
+  const description = awaitingPrompt ? (
+    desktop ? (
+      `Answer the macOS prompt to finish.${kind === "screen" ? " Codecast may need a restart afterwards." : ""}`
+    ) : (
+      "Answer the browser's permission prompt to finish."
+    )
+  ) : readiness === "off" && hint ? (
+    // A denial is the one state worth alarm: something was turned off
+    // and the button alone doesn't say why. Undecided just gets the
+    // reason and the button.
+    <>
+      {info.why}
+      <span className="mt-1 flex items-start gap-1.5 text-sol-orange">
+        <span
+          aria-hidden
+          className="mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full bg-sol-orange"
+        />
+        {hint}
+      </span>
+    </>
+  ) : (
+    info.why
+  );
 
   const Icon = PERMISSION_ICONS[kind];
 
@@ -112,7 +117,11 @@ export function PermissionRow({
           On
         </span>
       ) : action && !awaitingPrompt ? (
-        <Button size="xs" variant={leavesApp ? "outline" : "blue"} onClick={handle}>
+        <Button
+          size="xs"
+          variant={leavesApp ? "outline" : "blue"}
+          onClick={handle}
+        >
           {action}
           {leavesApp && <ExternalLink aria-hidden />}
         </Button>
@@ -124,7 +133,12 @@ export function PermissionRow({
               : "inline-flex h-7 items-center text-xs text-sol-orange"
           }
         >
-          {awaitingPrompt && <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-sol-blue" />}
+          {awaitingPrompt && (
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 animate-pulse rounded-full bg-sol-blue"
+            />
+          )}
           {awaitingPrompt ? "Waiting" : "Blocked"}
         </span>
       )}

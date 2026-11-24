@@ -13,7 +13,9 @@ import { useWatchEffect } from "./useWatchEffect";
  * element that PAINTS that row's background and border, so the traffic-light
  * inset padding shares its surface instead of exposing a parent's.
  */
-export function useTitlebarHead<T extends HTMLElement = HTMLElement>(): RefCallback<T> {
+export function useTitlebarHead<
+  T extends HTMLElement = HTMLElement,
+>(): RefCallback<T> {
   const zen = useInboxStore((s) => s.clientState.ui?.zen_mode ?? false);
   const [el, setEl] = useState<T | null>(null);
   useWatchEffect(() => {

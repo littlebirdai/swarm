@@ -11,7 +11,10 @@
 
 import { useState } from "react";
 import { AssistantBlock } from "@/components/conversation/blocks/turnBlocks";
-import { FramelessPage, PublishedPageActions } from "@/components/PublishedPageEmbed";
+import {
+  FramelessPage,
+  PublishedPageActions,
+} from "@/components/PublishedPageEmbed";
 import type { PartProps } from "./contract";
 import { fly } from "../filmClock";
 import { FilmSwap } from "../film";
@@ -19,7 +22,16 @@ import { PAGE, PUBLISH, REPLY } from "../fixtures/publish";
 import { SESSIONS } from "../fixtures/story";
 
 const TOOL_ID = "hero-tool-publish";
-const TOOL_CALLS = [{ id: TOOL_ID, name: "Bash", input: JSON.stringify({ command: REPLY.command, description: "Publish the report as a page" }) }];
+const TOOL_CALLS = [
+  {
+    id: TOOL_ID,
+    name: "Bash",
+    input: JSON.stringify({
+      command: REPLY.command,
+      description: "Publish the report as a page",
+    }),
+  },
+];
 const TOOL_RESULTS = [{ tool_use_id: TOOL_ID, content: REPLY.output }];
 
 const RAN = [PUBLISH.command];
@@ -63,8 +75,18 @@ function Page() {
         height={500}
         loaded
       >
-        <span className="relative block h-full w-full" data-hero-live="" onPointerEnter={() => setLive(true)}>
-          <img src="/hero/page.jpg" alt="" className="absolute inset-0 h-full w-full object-cover object-top" decoding="async" draggable={false} />
+        <span
+          className="relative block h-full w-full"
+          data-hero-live=""
+          onPointerEnter={() => setLive(true)}
+        >
+          <img
+            src="/hero/page.jpg"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-top"
+            decoding="async"
+            draggable={false}
+          />
           {live && (
             <iframe
               src="/hero/page.html"

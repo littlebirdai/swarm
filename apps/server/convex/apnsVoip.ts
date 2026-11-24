@@ -59,7 +59,10 @@ export const sendVoipRing = internalAction({
   handler: async (ctx, args): ReturnType<typeof sendVoip> => {
     // The anchor is a session or channel line: content a regulated
     // recipient's ring must not carry to Apple (pushPrivacy.ts).
-    const { strip }: { strip: boolean } = await ctx.runQuery(internal.notifications.pushPrivacyFor, { user_id: args.user_id });
+    const { strip }: { strip: boolean } = await ctx.runQuery(
+      internal.notifications.pushPrivacyFor,
+      { user_id: args.user_id },
+    );
     const anchorTitle = strip ? undefined : args.anchor_title;
     return sendVoip(ctx, {
       token: args.voip_push_token,
@@ -98,4 +101,3 @@ export const clearDeadVoipToken = internalMutation({
     }
   },
 });
-

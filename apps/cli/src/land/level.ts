@@ -46,7 +46,13 @@ export interface LevelResult {
   reason?: string;
 }
 
-export interface DiffEntry { path: string; srcMode: string; dstMode: string; src: string | null; dst: string | null }
+export interface DiffEntry {
+  path: string;
+  srcMode: string;
+  dstMode: string;
+  src: string | null;
+  dst: string | null;
+}
 
 type Action =
   | { kind: "absorb"; entry: DiffEntry }
@@ -58,12 +64,28 @@ type Action =
  * What to do with one path, given what is on disk (`w`) and the content it
  * grew from (`base`); null when only a person can say.
  */
-async function decide(root: string, entry: DiffEntry, w: string | null, base: string | null): Promise<Action | null> {
+async function decide(
+  root: string,
+  entry: DiffEntry,
+  w: string | null,
+  base: string | null,
+): Promise<Action | null> {
   if (w === entry.dst) return { kind: "absorb", entry };
   if (w === base) return { kind: "write", entry, seen: w };
-  if (!w || !base || !entry.dst || entry.dstMode === SYMLINK || entry.srcMode === SYMLINK) return null;
+  if (
+    !w ||
+    !base ||
+    !entry.dst ||
+    entry.dstMode === SYMLINK ||
+    entry.srcMode === SYMLINK
+  )
+    return null;
   let current: Buffer;
-  try { current = fs.readFileSync(path.join(root, entry.path)); } catch { return null; }
+  try {
+    current = fs.readFileSync(path.join(root, entry.path));
+  } catch {
+    return null;
+  }
   const merged = await mergeFile(root, base, current, entry.dst);
   if (!merged) return null;
   // The disk already holds target's change under local edits: nothing to write.
@@ -72,8 +94,20 @@ async function decide(root: string, entry: DiffEntry, w: string | null, base: st
 }
 
 /** `git diff-tree -r -z` between two commits, gitlinks dropped. */
-export async function treeDiff(cwd: string, from: string, to: string): Promise<DiffEntry[]> {
-  const out = await git(cwd, ["diff-tree", "-r", "-z", "--no-renames", "--no-commit-id", from, to]);
+export async function treeDiff(
+  cwd: string,
+  from: string,
+  to: string,
+): Promise<DiffEntry[]> {
+  const out = await git(cwd, [
+    "diff-tree",
+    "-r",
+    "-z",
+    "--no-renames",
+    "--no-commit-id",
+    from,
+    to,
+  ]);
   const parts = out.split("\0");
   const entries: DiffEntry[] = [];
   for (let i = 0; i + 1 < parts.length; i += 2) {
@@ -82,20 +116,42 @@ export async function treeDiff(cwd: string, from: string, to: string): Promise<D
     if (meta.length < 5 || !file) continue;
     const [srcMode, dstMode, src, dst] = meta;
     if (srcMode === GITLINK || dstMode === GITLINK) continue;
-    entries.push({ path: file, srcMode, dstMode, src: src === NULL_SHA ? null : src, dst: dst === NULL_SHA ? null : dst });
+    entries.push({
+      path: file,
+      srcMode,
+      dstMode,
+      src: src === NULL_SHA ? null : src,
+      dst: dst === NULL_SHA ? null : dst,
+    });
   }
   return entries;
 }
 
 /** The blob each path would have if added now, or null when it is not on disk. */
-export async function worktreeBlobs(root: string, paths: string[]): Promise<Map<string, string | null>> {
+export async function worktreeBlobs(
+  root: string,
+  paths: string[],
+): Promise<Map<string, string | null>> {
   const result = new Map<string, string | null>();
   const files: string[] = [];
   for (const p of paths) {
     let st: fs.Stats;
-    try { st = fs.lstatSync(path.join(root, p)); } catch { result.set(p, null); continue; }
+    try {
+      st = fs.lstatSync(path.join(root, p));
+    } catch {
+      result.set(p, null);
+      continue;
+    }
     if (st.isSymbolicLink()) {
-      result.set(p, await git(root, ["hash-object", "--stdin"], undefined, fs.readlinkSync(path.join(root, p))));
+      result.set(
+        p,
+        await git(
+          root,
+          ["hash-object", "--stdin"],
+          undefined,
+          fs.readlinkSync(path.join(root, p)),
+        ),
+      );
     } else if (st.isFile()) {
       files.push(p);
     } else {
@@ -104,7 +160,12 @@ export async function worktreeBlobs(root: string, paths: string[]): Promise<Map<
   }
   if (files.length) {
     // --stdin-paths applies the repo's clean filters, as `git add` would.
-    const out = await git(root, ["hash-object", "--stdin-paths"], undefined, files.join("\n") + "\n");
+    const out = await git(
+      root,
+      ["hash-object", "--stdin-paths"],
+      undefined,
+      files.join("\n") + "\n",
+    );
     const shas = out.split("\n");
     files.forEach((p, i) => result.set(p, shas[i] ?? null));
   }
@@ -117,11 +178,21 @@ export async function worktreeBlobs(root: string, paths: string[]): Promise<Map<
 const BLOB_MAX_BUFFER = 256 * 1024 * 1024;
 
 async function blobContent(cwd: string, sha: string): Promise<Buffer> {
-  return (await execFileAsync("git", ["-C", cwd, "cat-file", "blob", sha], { encoding: "buffer", maxBuffer: BLOB_MAX_BUFFER })).stdout;
+  return (
+    await execFileAsync("git", ["-C", cwd, "cat-file", "blob", sha], {
+      encoding: "buffer",
+      maxBuffer: BLOB_MAX_BUFFER,
+    })
+  ).stdout;
 }
 
 /** Three-way merge of one file's text; null when it conflicts. */
-async function mergeFile(cwd: string, base: string, current: Buffer, other: string): Promise<Buffer | null> {
+async function mergeFile(
+  cwd: string,
+  base: string,
+  current: Buffer,
+  other: string,
+): Promise<Buffer | null> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-level-"));
   try {
     const cur = path.join(dir, "current");
@@ -131,7 +202,14 @@ async function mergeFile(cwd: string, base: string, current: Buffer, other: stri
     fs.writeFileSync(bas, await blobContent(cwd, base));
     fs.writeFileSync(oth, await blobContent(cwd, other));
     // merge-file exits with the conflict count, so any failure means "conflicts".
-    return (await execFileAsync("git", ["merge-file", "-p", cur, bas, oth], { encoding: "buffer", maxBuffer: BLOB_MAX_BUFFER }).catch(() => null))?.stdout ?? null;
+    return (
+      (
+        await execFileAsync("git", ["merge-file", "-p", cur, bas, oth], {
+          encoding: "buffer",
+          maxBuffer: BLOB_MAX_BUFFER,
+        }).catch(() => null)
+      )?.stdout ?? null
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -140,7 +218,9 @@ async function mergeFile(cwd: string, base: string, current: Buffer, other: stri
 function writeAtomic(file: string, content: Buffer, mode: string): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   if (mode === SYMLINK) {
-    try { fs.unlinkSync(file); } catch {}
+    try {
+      fs.unlinkSync(file);
+    } catch {}
     fs.symlinkSync(content.toString(), file);
     return;
   }
@@ -154,24 +234,45 @@ function writeAtomic(file: string, content: Buffer, mode: string): void {
  * target's mode when the disk still has the base's, as a clean file takes target's content. A mode changed here stands.
  */
 function levelMode(file: string, entry: DiffEntry): void {
-  if (!entry.dst || entry.srcMode === entry.dstMode || entry.srcMode === SYMLINK || entry.dstMode === SYMLINK) return;
+  if (
+    !entry.dst ||
+    entry.srcMode === entry.dstMode ||
+    entry.srcMode === SYMLINK ||
+    entry.dstMode === SYMLINK
+  )
+    return;
   let st: fs.Stats;
-  try { st = fs.lstatSync(file); } catch { return; }
+  try {
+    st = fs.lstatSync(file);
+  } catch {
+    return;
+  }
   if (!st.isFile()) return;
   const exec = (st.mode & 0o100) !== 0;
   const wantExec = entry.dstMode === "100755";
   if (exec === wantExec || exec !== (entry.srcMode === "100755")) return;
   const perms = st.mode & 0o777;
-  fs.chmodSync(file, wantExec ? perms | ((perms & 0o444) >> 2) : perms & ~0o111);
+  fs.chmodSync(
+    file,
+    wantExec ? perms | ((perms & 0o444) >> 2) : perms & ~0o111,
+  );
 }
 
 /** Remove a file and the directories it leaves empty, stopping at the root. */
 function removeFile(root: string, rel: string): void {
   const file = path.join(root, rel);
-  try { fs.unlinkSync(file); } catch { return; }
+  try {
+    fs.unlinkSync(file);
+  } catch {
+    return;
+  }
   let dir = path.dirname(file);
   while (dir.startsWith(root) && dir !== root) {
-    try { fs.rmdirSync(dir); } catch { break; }
+    try {
+      fs.rmdirSync(dir);
+    } catch {
+      break;
+    }
     dir = path.dirname(dir);
   }
 }
@@ -186,45 +287,108 @@ function removeFile(root: string, rel: string): void {
  * typing descends from the frozen blob, so the merge must start there or
  * every later keystroke reads as a conflict with the shipped version.
  */
-export async function levelCheckout(cwd: string, target: string, opts: { rewritten?: boolean; dryRun?: boolean; worktreeBase?: Map<string, string | null> } = {}): Promise<LevelResult> {
+export async function levelCheckout(
+  cwd: string,
+  target: string,
+  opts: {
+    rewritten?: boolean;
+    dryRun?: boolean;
+    worktreeBase?: Map<string, string | null>;
+  } = {},
+): Promise<LevelResult> {
   const root = await git(cwd, ["rev-parse", "--show-toplevel"]);
   const from = await git(root, ["rev-parse", "HEAD"]);
   const to = await git(root, ["rev-parse", `${target}^{commit}`]);
-  const empty: LevelResult = { ok: true, from, to, written: [], deleted: [], absorbed: [], merged: [], kept: [], conflicts: [] };
+  const empty: LevelResult = {
+    ok: true,
+    from,
+    to,
+    written: [],
+    deleted: [],
+    absorbed: [],
+    merged: [],
+    kept: [],
+    conflicts: [],
+  };
   if (from === to) return empty;
   const branch = await gitTry(root, ["symbolic-ref", "-q", "HEAD"]);
-  if (!branch) return { ...empty, ok: false, reason: "HEAD is detached: level moves a branch" };
-  if (!opts.rewritten && (await gitTry(root, ["merge-base", "--is-ancestor", from, to])) === null) {
-    return { ...empty, ok: false, reason: `HEAD has commits ${to.slice(0, 9)} lacks: push or replay them first` };
+  if (!branch)
+    return {
+      ...empty,
+      ok: false,
+      reason: "HEAD is detached: level moves a branch",
+    };
+  if (
+    !opts.rewritten &&
+    (await gitTry(root, ["merge-base", "--is-ancestor", from, to])) === null
+  ) {
+    return {
+      ...empty,
+      ok: false,
+      reason: `HEAD has commits ${to.slice(0, 9)} lacks: push or replay them first`,
+    };
   }
 
   const entries = await treeDiff(root, from, to);
-  const baseOf = (e: DiffEntry) => (opts.worktreeBase?.has(e.path) ? opts.worktreeBase.get(e.path)! : e.src);
-  const seen = await worktreeBlobs(root, entries.map((e) => e.path));
+  const baseOf = (e: DiffEntry) =>
+    opts.worktreeBase?.has(e.path) ? opts.worktreeBase.get(e.path)! : e.src;
+  const seen = await worktreeBlobs(
+    root,
+    entries.map((e) => e.path),
+  );
   const actions: Action[] = [];
   const conflicts: string[] = [];
   for (const entry of entries) {
-    const a = await decide(root, entry, seen.get(entry.path) ?? null, baseOf(entry));
+    const a = await decide(
+      root,
+      entry,
+      seen.get(entry.path) ?? null,
+      baseOf(entry),
+    );
     if (a) actions.push(a);
     else conflicts.push(entry.path);
   }
 
   const result: LevelResult = {
     ...empty,
-    written: actions.filter((a) => a.kind === "write" && a.entry.dst).map((a) => a.entry.path),
-    deleted: actions.filter((a) => a.kind === "write" && !a.entry.dst).map((a) => a.entry.path),
-    absorbed: actions.filter((a) => a.kind === "absorb").map((a) => a.entry.path),
+    written: actions
+      .filter((a) => a.kind === "write" && a.entry.dst)
+      .map((a) => a.entry.path),
+    deleted: actions
+      .filter((a) => a.kind === "write" && !a.entry.dst)
+      .map((a) => a.entry.path),
+    absorbed: actions
+      .filter((a) => a.kind === "absorb")
+      .map((a) => a.entry.path),
     kept: actions.filter((a) => a.kind === "keep").map((a) => a.entry.path),
     merged: actions.filter((a) => a.kind === "merge").map((a) => a.entry.path),
     conflicts,
   };
-  if (conflicts.length) return { ...result, ok: false, reason: `${conflicts.length} file(s) changed here and in ${to.slice(0, 9)} without a clean merge` };
+  if (conflicts.length)
+    return {
+      ...result,
+      ok: false,
+      reason: `${conflicts.length} file(s) changed here and in ${to.slice(0, 9)} without a clean merge`,
+    };
   if (opts.dryRun) return result;
 
   // The branch first, by compare-and-swap: a commit made in the checkout since
   // we read HEAD wins, and nothing has been written yet.
-  if ((await gitTry(root, ["update-ref", "-m", `cast land level ${from.slice(0, 9)} -> ${to.slice(0, 9)}`, branch, to, from])) === null) {
-    return { ...empty, ok: false, reason: "HEAD moved while levelling; run again" };
+  if (
+    (await gitTry(root, [
+      "update-ref",
+      "-m",
+      `cast land level ${from.slice(0, 9)} -> ${to.slice(0, 9)}`,
+      branch,
+      to,
+      from,
+    ])) === null
+  ) {
+    return {
+      ...empty,
+      ok: false,
+      reason: "HEAD moved while levelling; run again",
+    };
   }
 
   // Files next. Each is re-hashed right before its write; one edited since
@@ -233,30 +397,60 @@ export async function levelCheckout(cwd: string, target: string, opts: { rewritt
   const raced: string[] = [];
   for (let a of actions) {
     const file = path.join(root, a.entry.path);
-    if (a.kind === "absorb" || a.kind === "keep") { levelMode(file, a.entry); continue; }
+    if (a.kind === "absorb" || a.kind === "keep") {
+      levelMode(file, a.entry);
+      continue;
+    }
     let gaveUp = false;
     for (let attempt = 0; ; attempt++) {
-      const current: string | null = (await worktreeBlobs(root, [a.entry.path])).get(a.entry.path) ?? null;
+      const current: string | null =
+        (await worktreeBlobs(root, [a.entry.path])).get(a.entry.path) ?? null;
       if (current === a.seen) break;
-      const again: Action | null = attempt < 3 ? await decide(root, a.entry, current, baseOf(a.entry)) : null;
-      if (!again) { raced.push(a.entry.path); gaveUp = true; a = { kind: "keep", entry: a.entry, seen: current }; break; }
+      const again: Action | null =
+        attempt < 3
+          ? await decide(root, a.entry, current, baseOf(a.entry))
+          : null;
+      if (!again) {
+        raced.push(a.entry.path);
+        gaveUp = true;
+        a = { kind: "keep", entry: a.entry, seen: current };
+        break;
+      }
       a = again;
       if (a.kind === "absorb" || a.kind === "keep") break;
     }
     if (a.kind === "merge") writeAtomic(file, a.content, a.entry.dstMode);
     else if (a.kind === "write") {
-      if (a.entry.dst) writeAtomic(file, await blobContent(root, a.entry.dst), a.entry.dstMode);
+      if (a.entry.dst)
+        writeAtomic(
+          file,
+          await blobContent(root, a.entry.dst),
+          a.entry.dstMode,
+        );
       else removeFile(root, a.entry.path);
     } else if (!gaveUp) levelMode(file, a.entry);
   }
 
   // The index last: target's entry for every path that moved, the rest of the
   // index (and its stat cache) untouched.
-  const info = entries.map((e) => (e.dst ? `${e.dstMode} ${e.dst}\t${e.path}` : `0 ${NULL_SHA}\t${e.path}`)).join("\n") + "\n";
-  await withIndexLockRetry(() => git(root, ["update-index", "--index-info"], undefined, info));
+  const info =
+    entries
+      .map((e) =>
+        e.dst ? `${e.dstMode} ${e.dst}\t${e.path}` : `0 ${NULL_SHA}\t${e.path}`,
+      )
+      .join("\n") + "\n";
+  await withIndexLockRetry(() =>
+    git(root, ["update-index", "--index-info"], undefined, info),
+  );
   await gitTry(root, ["update-index", "-q", "--refresh"]);
 
-  if (raced.length) return { ...result, ok: false, conflicts: raced, reason: `${raced.length} file(s) kept changing during the level; their edits stand but lack ${to.slice(0, 9)}'s change` };
+  if (raced.length)
+    return {
+      ...result,
+      ok: false,
+      conflicts: raced,
+      reason: `${raced.length} file(s) kept changing during the level; their edits stand but lack ${to.slice(0, 9)}'s change`,
+    };
   return result;
 }
 
@@ -266,7 +460,11 @@ export async function withIndexLockRetry<T>(fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (err) {
-      if (attempt >= 40 || !/index\.lock/.test(String((err as Error)?.message ?? err))) throw err;
+      if (
+        attempt >= 40 ||
+        !/index\.lock/.test(String((err as Error)?.message ?? err))
+      )
+        throw err;
       await new Promise((r) => setTimeout(r, 100 + attempt * 50));
     }
   }

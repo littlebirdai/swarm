@@ -25,7 +25,8 @@ import { COMPUTER_PROTOCOL_VERSION } from "./types.js";
 import { resolveCastInvocation } from "../castInvocation.js";
 
 const HELPER_APP = process.env.CODECAST_COMPUTER_HELPER_APP;
-const enabled = process.platform === "darwin" && !!HELPER_APP && fs.existsSync(HELPER_APP);
+const enabled =
+  process.platform === "darwin" && !!HELPER_APP && fs.existsSync(HELPER_APP);
 const e2e = enabled ? test : test.skip;
 
 const cleanups: Array<() => void> = [];
@@ -48,7 +49,10 @@ function isolatedHomeWithHelper(): void {
     fs.rmSync(dir, { recursive: true, force: true });
   });
   fs.mkdirSync(path.dirname(helperAppPath()), { recursive: true, mode: 0o700 });
-  fs.cpSync(HELPER_APP!, helperAppPath(), { recursive: true, verbatimSymlinks: true });
+  fs.cpSync(HELPER_APP!, helperAppPath(), {
+    recursive: true,
+    verbatimSymlinks: true,
+  });
 }
 
 function realClient(): ComputerClient {
@@ -56,7 +60,16 @@ function realClient(): ComputerClient {
   const client = new ComputerClient({
     helperLaunch: (socketPath, tokenPath) => ({
       cmd: cast.cmd,
-      args: [...cast.prefixArgs, "_disclaimed", "--", helperExecutablePath(), "--agent", socketPath, "--token-file", tokenPath],
+      args: [
+        ...cast.prefixArgs,
+        "_disclaimed",
+        "--",
+        helperExecutablePath(),
+        "--agent",
+        socketPath,
+        "--token-file",
+        tokenPath,
+      ],
     }),
   });
   cleanups.push(() => {
@@ -74,7 +87,10 @@ function realClient(): ComputerClient {
 }
 
 beforeAll(() => {
-  if (!enabled) console.log("computer e2e skipped: set CODECAST_COMPUTER_HELPER_APP to a built `codecast computer.app`");
+  if (!enabled)
+    console.log(
+      "computer e2e skipped: set CODECAST_COMPUTER_HELPER_APP to a built `codecast computer.app`",
+    );
 });
 
 describe("cast computer against the built helper", () => {
@@ -93,7 +109,11 @@ describe("cast computer against the built helper", () => {
     isolatedHomeWithHelper();
     const result = await realClient().listApps();
     expect(result.apps.length).toBeGreaterThan(0);
-    expect(result.apps.some((app) => typeof app.bundleId === "string" && app.pid > 0)).toBe(true);
+    expect(
+      result.apps.some(
+        (app) => typeof app.bundleId === "string" && app.pid > 0,
+      ),
+    ).toBe(true);
   });
 
   e2e("a second client reuses the helper the first one launched", async () => {
@@ -111,9 +131,13 @@ describe("cast computer against the built helper", () => {
     isolatedHomeWithHelper();
     const status = await getPermissionStatus();
     expect(status.helperUnavailableReason).toBeNull();
-    expect(status.permissions.map((p) => p.id)).toEqual(["accessibility", "screenshots"]);
+    expect(status.permissions.map((p) => p.id)).toEqual([
+      "accessibility",
+      "screenshots",
+    ]);
     // Whether they are granted depends on the machine; that both are ANSWERED
     // is what proves the probe read the helper's own identity.
-    for (const p of status.permissions) expect(["granted", "not-granted"]).toContain(p.status);
+    for (const p of status.permissions)
+      expect(["granted", "not-granted"]).toContain(p.status);
   });
 });

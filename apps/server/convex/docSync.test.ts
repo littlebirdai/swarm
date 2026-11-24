@@ -55,7 +55,12 @@ describe("isRacyEmptyOverwrite", () => {
   test("a brand-new empty doc (no existing content) is allowed through", () => {
     for (const existingContent of ["", undefined, null] as const) {
       expect(
-        isRacyEmptyOverwrite({ version: 1, derivedMarkdown: "", existingContent, cliEditedAt: null }),
+        isRacyEmptyOverwrite({
+          version: 1,
+          derivedMarkdown: "",
+          existingContent,
+          cliEditedAt: null,
+        }),
       ).toBe(false);
       expect(
         isRacyEmptyOverwrite({
@@ -165,7 +170,12 @@ describe("toMarkdown entity round-trip", () => {
   test("entityRef mention form writes @[label id]", () => {
     const doc = para({
       type: "entityRef",
-      attrs: { form: "mention", label: "Fix the auth race", refId: "ct-4102", href: null },
+      attrs: {
+        form: "mention",
+        label: "Fix the auth race",
+        refId: "ct-4102",
+        href: null,
+      },
     });
     expect(toMarkdown(doc).trim()).toBe("@[Fix the auth race ct-4102]");
   });
@@ -173,13 +183,22 @@ describe("toMarkdown entity round-trip", () => {
   test("object mentions keep their id; person mentions stay @Name", () => {
     const session = para({
       type: "mention",
-      attrs: { type: "session", id: "jd7abc", shortId: "jx7c6zk", label: "Call brief bug fix" },
+      attrs: {
+        type: "session",
+        id: "jd7abc",
+        shortId: "jx7c6zk",
+        label: "Call brief bug fix",
+      },
     });
     expect(toMarkdown(session).trim()).toBe("@[Call brief bug fix jx7c6zk]");
 
     const docMention = para({
       type: "mention",
-      attrs: { type: "doc", id: "jd7abcdefabcdefabcdefabcdefabcde", label: "Approvals Board" },
+      attrs: {
+        type: "doc",
+        id: "jd7abcdefabcdefabcdefabcdefabcde",
+        label: "Approvals Board",
+      },
     });
     expect(toMarkdown(docMention).trim()).toBe(
       "@[Approvals Board doc:jd7abcdefabcdefabcdefabcdefabcde]",
@@ -201,14 +220,22 @@ describe("toMarkdown date mentions", () => {
     expect(
       toMarkdown({
         type: "dateMention",
-        attrs: { type: "date", id: "2026-08-24", label: "Today", dateValue: "2026-08-24" },
+        attrs: {
+          type: "date",
+          id: "2026-08-24",
+          label: "Today",
+          dateValue: "2026-08-24",
+        },
       }),
     ).toBe("@[Today date:2026-08-24]");
   });
 
   test("label falls back to the iso date when absent", () => {
     expect(
-      toMarkdown({ type: "dateMention", attrs: { type: "date", id: "2026-08-24" } }),
+      toMarkdown({
+        type: "dateMention",
+        attrs: { type: "date", id: "2026-08-24" },
+      }),
     ).toBe("@[2026-08-24 date:2026-08-24]");
   });
 
@@ -217,11 +244,21 @@ describe("toMarkdown date mentions", () => {
       type: "paragraph",
       content: [
         { type: "text", text: "Ship by " },
-        { type: "dateMention", attrs: { type: "date", id: "2026-09-01", label: "Sep 1, 2026", dateValue: "2026-09-01" } },
+        {
+          type: "dateMention",
+          attrs: {
+            type: "date",
+            id: "2026-09-01",
+            label: "Sep 1, 2026",
+            dateValue: "2026-09-01",
+          },
+        },
         { type: "text", text: " at the latest." },
       ],
     });
-    expect(md).toBe("Ship by @[Sep 1, 2026 date:2026-09-01] at the latest.\n\n");
+    expect(md).toBe(
+      "Ship by @[Sep 1, 2026 date:2026-09-01] at the latest.\n\n",
+    );
   });
 });
 
@@ -234,7 +271,13 @@ describe("snapshotDocPatch", () => {
 
   test("an identical body writes nothing", () => {
     expect(snapshotDocPatch("# What breaks\n\nbody", doc, now)).toBeNull();
-    expect(snapshotDocPatch("# What breaks\n\nbody", { ...doc, content: "# What breaks\n\nbody\n" }, now)).toBeNull();
+    expect(
+      snapshotDocPatch(
+        "# What breaks\n\nbody",
+        { ...doc, content: "# What breaks\n\nbody\n" },
+        now,
+      ),
+    ).toBeNull();
   });
 
   test("a changed body stamps updated_at and follows the heading", () => {
@@ -246,6 +289,12 @@ describe("snapshotDocPatch", () => {
   });
 
   test("a stored title that disagrees with an unchanged heading is repaired without an edit stamp", () => {
-    expect(snapshotDocPatch("# What breaks\n\nbody", { ...doc, title: "stale" }, now)).toEqual({ title: "What breaks" });
+    expect(
+      snapshotDocPatch(
+        "# What breaks\n\nbody",
+        { ...doc, title: "stale" },
+        now,
+      ),
+    ).toEqual({ title: "What breaks" });
   });
 });

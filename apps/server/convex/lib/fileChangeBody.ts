@@ -7,7 +7,9 @@ import type { QueryCtx } from "../functions";
 
 type ReadCtx = { db: QueryCtx["db"] };
 
-export function bodyOf(row: { old_content?: string; new_content?: string } | null | undefined): FileChangeBody | null {
+export function bodyOf(
+  row: { old_content?: string; new_content?: string } | null | undefined,
+): FileChangeBody | null {
   if (row?.new_content === undefined) return null;
   return { oldContent: row.old_content, newContent: row.new_content };
 }
@@ -25,15 +27,16 @@ export async function readFileChangeBody(
   const bodyRow = await ctx.db
     .query("file_change_bodies")
     .withIndex("by_conversation_change_key", (q) =>
-      q.eq("conversation_id", conversationId).eq("change_key", changeKey))
+      q.eq("conversation_id", conversationId).eq("change_key", changeKey),
+    )
     .first();
   if (bodyRow) return bodyOf(bodyRow);
   if (indexRow !== undefined) return null;
   const row = await ctx.db
     .query("file_changes")
     .withIndex("by_conversation_change_key", (q) =>
-      q.eq("conversation_id", conversationId).eq("change_key", changeKey))
+      q.eq("conversation_id", conversationId).eq("change_key", changeKey),
+    )
     .first();
   return bodyOf(row);
 }
-

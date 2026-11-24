@@ -1,8 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { mergeChangeFeed } from "./changeFeed";
 
-const row = (entity_id: string, seq: number, op: "upsert" | "delete" = "upsert", entity_type: any = "tasks") =>
-  ({ entity_type, entity_id, op, seq });
+const row = (
+  entity_id: string,
+  seq: number,
+  op: "upsert" | "delete" = "upsert",
+  entity_type: any = "tasks",
+) => ({ entity_type, entity_id, op, seq });
 
 describe("mergeChangeFeed", () => {
   test("no capped source → emits everything, hasMore false, cursor = max seq", () => {
@@ -31,7 +35,9 @@ describe("mergeChangeFeed", () => {
       ],
       0,
     );
-    expect(r.changes).toEqual([{ entity_type: "tasks", entity_id: "a", op: "upsert" }]);
+    expect(r.changes).toEqual([
+      { entity_type: "tasks", entity_id: "a", op: "upsert" },
+    ]);
     expect(r.nextSince).toBe(30);
   });
 
@@ -65,7 +71,12 @@ describe("mergeChangeFeed", () => {
   });
 
   test("delete op is preserved through the merge", () => {
-    const r = mergeChangeFeed([{ rows: [row("a", 5, "delete")], capped: false }], 0);
-    expect(r.changes).toEqual([{ entity_type: "tasks", entity_id: "a", op: "delete" }]);
+    const r = mergeChangeFeed(
+      [{ rows: [row("a", 5, "delete")], capped: false }],
+      0,
+    );
+    expect(r.changes).toEqual([
+      { entity_type: "tasks", entity_id: "a", op: "delete" },
+    ]);
   });
 });

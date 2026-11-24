@@ -13,7 +13,14 @@ import {
 // user's next message and must never be lost.
 
 const CONV = "conv-1";
-const mk = (id: string, body = "") => ({ id, messageId: "m1", blockIndex: 0, quote: "q", body, createdAt: 1 });
+const mk = (id: string, body = "") => ({
+  id,
+  messageId: "m1",
+  blockIndex: 0,
+  quote: "q",
+  body,
+  createdAt: 1,
+});
 
 describe("review comments persistence contract", () => {
   it("is a persisted, per-window meta key hydrated in the critical pass — like drafts", () => {
@@ -26,7 +33,11 @@ describe("review comments persistence contract", () => {
 
 describe("review comments store API", () => {
   beforeEach(() => {
-    useInboxStore.setState({ reviewComments: {}, reviewMessageId: null, reviewEditingId: null } as any);
+    useInboxStore.setState({
+      reviewComments: {},
+      reviewMessageId: null,
+      reviewEditingId: null,
+    } as any);
   });
 
   it("writes go through the draft (persisting) path and round-trip by conversation", () => {
@@ -39,7 +50,9 @@ describe("review comments store API", () => {
     s.commitReviewComment(CONV, "a", "typed while editing");
     unsub();
     expect(seen.length).toBe(2);
-    expect(useInboxStore.getState().getReviewComments(CONV)).toEqual([mk("a", "typed while editing")]);
+    expect(useInboxStore.getState().getReviewComments(CONV)).toEqual([
+      mk("a", "typed while editing"),
+    ]);
     expect(useInboxStore.getState().getReviewComments("other")).toEqual([]);
   });
 
@@ -54,7 +67,10 @@ describe("review comments store API", () => {
   it("removing the last quote drops the entry and closes its editor + target", () => {
     const s = useInboxStore.getState();
     s.addReviewComment(CONV, mk("a"));
-    useInboxStore.setState({ reviewMessageId: "m1", reviewEditingId: "a" } as any);
+    useInboxStore.setState({
+      reviewMessageId: "m1",
+      reviewEditingId: "a",
+    } as any);
     s.removeReviewComment(CONV, "a");
     const st = useInboxStore.getState();
     expect(st.reviewComments).not.toHaveProperty(CONV);

@@ -17,7 +17,12 @@ import { rankPaths } from "../../lib/fuzzyPath";
 import { repoBlobHref, type RepoRouteFamily } from "../../lib/repoView";
 import { hoverFocus } from "../../shortcuts/focusSource";
 
-export function RepoFileFinder({ repository, refName, family, anchorRef }: {
+export function RepoFileFinder({
+  repository,
+  refName,
+  family,
+  anchorRef,
+}: {
   repository: string;
   refName: string | undefined;
   family: RepoRouteFamily;
@@ -45,13 +50,20 @@ export function RepoFileFinder({ repository, refName, family, anchorRef }: {
   const index = useRepoFileIndex(repository, ref, open && !!ref);
 
   const files = useMemo(
-    () => (index.data?.entries ?? []).filter((entry) => entry.type === "blob").map((entry) => entry.path),
+    () =>
+      (index.data?.entries ?? [])
+        .filter((entry) => entry.type === "blob")
+        .map((entry) => entry.path),
     [index.data],
   );
   const hits = useMemo(() => rankPaths(files, query.trim()), [files, query]);
 
-  useWatchEffect(() => { setCursor(0); }, [query]);
-  useWatchEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useWatchEffect(() => {
+    setCursor(0);
+  }, [query]);
+  useWatchEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
 
   useEventListener("keydown", (event: KeyboardEvent) => {
     if (open || event.key !== "t") return;
@@ -63,7 +75,10 @@ export function RepoFileFinder({ repository, refName, family, anchorRef }: {
 
   if (!open) return null;
 
-  const close = () => { setOpen(false); setQuery(""); };
+  const close = () => {
+    setOpen(false);
+    setQuery("");
+  };
   const go = (path: string) => {
     close();
     if (ref) router.push(repoBlobHref(repository, ref, path, family));
@@ -90,10 +105,22 @@ export function RepoFileFinder({ repository, refName, family, anchorRef }: {
             placeholder="Find a file"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Escape") { event.preventDefault(); close(); }
-              if (event.key === "ArrowDown") { event.preventDefault(); setCursor((at) => Math.min(at + 1, hits.length - 1)); }
-              if (event.key === "ArrowUp") { event.preventDefault(); setCursor((at) => Math.max(at - 1, 0)); }
-              if (event.key === "Enter" && hits[cursor]) { event.preventDefault(); go(hits[cursor].path); }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                close();
+              }
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setCursor((at) => Math.min(at + 1, hits.length - 1));
+              }
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setCursor((at) => Math.max(at - 1, 0));
+              }
+              if (event.key === "Enter" && hits[cursor]) {
+                event.preventDefault();
+                go(hits[cursor].path);
+              }
             }}
             className="flex-1 bg-transparent py-3 text-sm outline-none text-sol-text"
           />
@@ -101,31 +128,55 @@ export function RepoFileFinder({ repository, refName, family, anchorRef }: {
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto">
-          {!index.ready && !index.error && <p className="p-6 text-center text-xs text-sol-text-dim">Reading the file list…</p>}
-          {index.error && <p className="p-6 text-center text-xs text-sol-red">The file list could not be read.</p>}
-          {index.data?.truncated && <p className="px-3 py-2 text-meta text-sol-yellow border-b border-sol-border/40">
-            This repository is large enough that GitHub returned only part of its file list, so some files are missing here.
-          </p>}
+          {!index.ready && !index.error && (
+            <p className="p-6 text-center text-xs text-sol-text-dim">
+              Reading the file list…
+            </p>
+          )}
+          {index.error && (
+            <p className="p-6 text-center text-xs text-sol-red">
+              The file list could not be read.
+            </p>
+          )}
+          {index.data?.truncated && (
+            <p className="px-3 py-2 text-meta text-sol-yellow border-b border-sol-border/40">
+              This repository is large enough that GitHub returned only part of
+              its file list, so some files are missing here.
+            </p>
+          )}
 
-          {hits.map((hit, at) => <button
-            key={hit.path}
-            {...hoverFocus(() => setCursor(at))}
-            onClick={() => go(hit.path)}
-            className={`w-full text-left px-3 py-2 flex gap-2 items-center text-xs font-mono ${at === cursor ? "bg-sol-bg-alt text-sol-text" : "text-sol-text-muted"}`}
-          >
-            <FileCode className="size-3.5 shrink-0 text-sol-cyan" />
-            <span className="truncate">{hit.path}</span>
-          </button>)}
+          {hits.map((hit, at) => (
+            <button
+              key={hit.path}
+              {...hoverFocus(() => setCursor(at))}
+              onClick={() => go(hit.path)}
+              className={`w-full text-left px-3 py-2 flex gap-2 items-center text-xs font-mono ${at === cursor ? "bg-sol-bg-alt text-sol-text" : "text-sol-text-muted"}`}
+            >
+              <FileCode className="size-3.5 shrink-0 text-sol-cyan" />
+              <span className="truncate">{hit.path}</span>
+            </button>
+          ))}
 
-          {index.ready && hits.length === 0 && <p className="p-6 text-center text-xs text-sol-text-dim">
-            {query ? "No file matches that." : "This repository has no files at this ref."}
-          </p>}
+          {index.ready && hits.length === 0 && (
+            <p className="p-6 text-center text-xs text-sol-text-dim">
+              {query
+                ? "No file matches that."
+                : "This repository has no files at this ref."}
+            </p>
+          )}
         </div>
 
         <div className="px-3 py-2 border-t border-sol-border/60 flex gap-3 items-center text-meta text-sol-text-dim">
-          <span className="flex gap-1 items-center"><KeyCap size="xs">↑</KeyCap><KeyCap size="xs">↓</KeyCap> move</span>
-          <span className="flex gap-1 items-center"><KeyCap size="xs">↵</KeyCap> open</span>
-          {files.length > 0 && <span className="ml-auto">{files.length} files</span>}
+          <span className="flex gap-1 items-center">
+            <KeyCap size="xs">↑</KeyCap>
+            <KeyCap size="xs">↓</KeyCap> move
+          </span>
+          <span className="flex gap-1 items-center">
+            <KeyCap size="xs">↵</KeyCap> open
+          </span>
+          {files.length > 0 && (
+            <span className="ml-auto">{files.length} files</span>
+          )}
         </div>
       </div>
     </div>

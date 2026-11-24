@@ -12,11 +12,7 @@ import { runNodeCounts, runNodeRows } from "../lib/workflowRun";
 import { WorkflowRunNodes } from "./WorkflowRunNodes";
 import { LivePulseDot } from "./SessionActivityLine";
 import { RailChip, RailDetail, RailProgress } from "./ContextRail";
-import {
-  ExternalLink,
-  GitBranch,
-  Pause,
-} from "lucide-react";
+import { ExternalLink, GitBranch, Pause } from "lucide-react";
 
 const STATUS_COLOR: Record<string, string> = {
   pending: "text-sol-text-dim",
@@ -26,7 +22,11 @@ const STATUS_COLOR: Record<string, string> = {
   failed: "text-sol-red",
 };
 
-export function WorkflowContextPanel({ workflowRunId }: { workflowRunId: Id<"workflow_runs"> }) {
+export function WorkflowContextPanel({
+  workflowRunId,
+}: {
+  workflowRunId: Id<"workflow_runs">;
+}) {
   // Store-fed (hooks/useSyncWorkflows): paints from cached rows on the first
   // frame instead of popping in a round-trip late.
   const run = useWorkflowRun(workflowRunId);
@@ -37,7 +37,15 @@ export function WorkflowContextPanel({ workflowRunId }: { workflowRunId: Id<"wor
 
 /** One run as the context panel draws it, from the rows it is given (the
  *  marketing hero passes fixtures). */
-export function WorkflowRunPanel({ run, workflow, defaultExpanded = false }: { run: any; workflow?: any | null; defaultExpanded?: boolean }) {
+export function WorkflowRunPanel({
+  run,
+  workflow,
+  defaultExpanded = false,
+}: {
+  run: any;
+  workflow?: any | null;
+  defaultExpanded?: boolean;
+}) {
   // Same default as PlanContextPanel: the header already carries the run in
   // aggregate, the session rows come on a click.
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -51,33 +59,81 @@ export function WorkflowRunPanel({ run, workflow, defaultExpanded = false }: { r
   // (L9): its node statuses are the node list then.
   const rows = runNodeRows(run, workflow);
   const counts = runNodeCounts(rows);
-  const name = flowName({ label: workflow?.label ?? run.workflow_label, name: workflow?.name ?? run.workflow_name });
-  const alive = run.status === "running" || run.status === "paused" || run.status === "pending";
+  const name = flowName({
+    label: workflow?.label ?? run.workflow_label,
+    name: workflow?.name ?? run.workflow_name,
+  });
+  const alive =
+    run.status === "running" ||
+    run.status === "paused" ||
+    run.status === "pending";
   const current = alive ? rows.find((r) => r.current) : undefined;
   const age = run.updated_at ? compactAge(now - run.updated_at) : null;
   const runHref = `/workflows/runs/${run._id}`;
 
   return (
     <div data-cc-context-panel className="contents">
-      <RailChip data-cc-rail-item="workflow" floor="!min-w-[11rem]" open={expanded} onToggle={() => setExpanded(!expanded)} title={`${name} · ${run.status}${current ? ` · at ${current.label}` : ""}`}>
+      <RailChip
+        data-cc-rail-item="workflow"
+        floor="!min-w-[11rem]"
+        open={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        title={`${name} · ${run.status}${current ? ` · at ${current.label}` : ""}`}
+      >
         <GitBranch className="w-3.5 h-3.5 text-sol-violet flex-shrink-0" />
-        <span className="min-w-0 truncate font-medium text-sol-violet">{name}</span>
+        <span className="min-w-0 truncate font-medium text-sol-violet">
+          {name}
+        </span>
         {run.status !== "paused" && (
-          <span data-rail-full className={`flex-shrink-0 ${statusColor}`}>{run.status}</span>
+          <span data-rail-full className={`flex-shrink-0 ${statusColor}`}>
+            {run.status}
+          </span>
         )}
-        {current && <span data-rail-full className="min-w-0 truncate text-sol-text-dim">{current.label}</span>}
+        {current && (
+          <span data-rail-full className="min-w-0 truncate text-sol-text-dim">
+            {current.label}
+          </span>
+        )}
         <span className="ml-auto" />
         {run.status === "paused" ? (
-          <span className={`flex items-center gap-1 flex-shrink-0 ${statusColor}`}><Pause className="w-2.5 h-2.5" /> gate</span>
+          <span
+            className={`flex items-center gap-1 flex-shrink-0 ${statusColor}`}
+          >
+            <Pause className="w-2.5 h-2.5" /> gate
+          </span>
         ) : counts.running > 0 ? (
-          <span className="flex items-center gap-1 flex-shrink-0 text-sol-green tabular-nums"><LivePulseDot className="w-1.5 h-1.5" />{counts.running}<span data-rail-full> live</span></span>
+          <span className="flex items-center gap-1 flex-shrink-0 text-sol-green tabular-nums">
+            <LivePulseDot className="w-1.5 h-1.5" />
+            {counts.running}
+            <span data-rail-full> live</span>
+          </span>
         ) : null}
-        {counts.failed > 0 && <span className="flex-shrink-0 text-sol-red tabular-nums">{counts.failed} failed</span>}
-        <RailProgress done={counts.done} total={counts.total} bar="bg-sol-violet" />
-        {counts.sessions > 0 && (
-          <span data-rail-full className="flex-shrink-0 text-sol-text-dim/70 tabular-nums">{counts.sessions} session{counts.sessions === 1 ? "" : "s"}</span>
+        {counts.failed > 0 && (
+          <span className="flex-shrink-0 text-sol-red tabular-nums">
+            {counts.failed} failed
+          </span>
         )}
-        {age && <span data-rail-full className="flex-shrink-0 text-sol-text-dim/70 tabular-nums">{age}</span>}
+        <RailProgress
+          done={counts.done}
+          total={counts.total}
+          bar="bg-sol-violet"
+        />
+        {counts.sessions > 0 && (
+          <span
+            data-rail-full
+            className="flex-shrink-0 text-sol-text-dim/70 tabular-nums"
+          >
+            {counts.sessions} session{counts.sessions === 1 ? "" : "s"}
+          </span>
+        )}
+        {age && (
+          <span
+            data-rail-full
+            className="flex-shrink-0 text-sol-text-dim/70 tabular-nums"
+          >
+            {age}
+          </span>
+        )}
       </RailChip>
       <Link
         data-rail-full
@@ -91,33 +147,43 @@ export function WorkflowRunPanel({ run, workflow, defaultExpanded = false }: { r
 
       {expanded && (
         <RailDetail data-cc-context-panel="">
-        <div className="px-3 py-2 space-y-2">
-          <div className="mx-1 flex items-center gap-2 text-xs">
-            <span className="font-medium text-sol-text">{name}</span>
-            <span className={statusColor}>{run.status}</span>
-            {current && <span className="min-w-0 truncate text-sol-text-muted">at {current.label}</span>}
-            <span className="ml-auto flex items-center gap-2 flex-shrink-0 text-sol-text-dim tabular-nums">
-              {counts.sessions > 0 && <span>{counts.sessions} session{counts.sessions === 1 ? "" : "s"}</span>}
-              {age && <span>{age}</span>}
-            </span>
+          <div className="px-3 py-2 space-y-2">
+            <div className="mx-1 flex items-center gap-2 text-xs">
+              <span className="font-medium text-sol-text">{name}</span>
+              <span className={statusColor}>{run.status}</span>
+              {current && (
+                <span className="min-w-0 truncate text-sol-text-muted">
+                  at {current.label}
+                </span>
+              )}
+              <span className="ml-auto flex items-center gap-2 flex-shrink-0 text-sol-text-dim tabular-nums">
+                {counts.sessions > 0 && (
+                  <span>
+                    {counts.sessions} session{counts.sessions === 1 ? "" : "s"}
+                  </span>
+                )}
+                {age && <span>{age}</span>}
+              </span>
+            </div>
+            {run.fail_reason && (
+              <p className="mx-1 text-meta text-sol-red bg-sol-red/10 rounded px-2 py-1 border border-sol-red/20">
+                {run.fail_reason}
+              </p>
+            )}
+
+            {run.status === "paused" && (
+              <RunGate run={run} className="mx-1 space-y-1.5" />
+            )}
+
+            <WorkflowRunNodes run={run} workflow={workflow} />
+
+            <Link
+              href={runHref}
+              className="block mx-1 text-meta text-sol-violet hover:underline pt-1"
+            >
+              Open the run
+            </Link>
           </div>
-          {run.fail_reason && (
-            <p className="mx-1 text-meta text-sol-red bg-sol-red/10 rounded px-2 py-1 border border-sol-red/20">
-              {run.fail_reason}
-            </p>
-          )}
-
-          {run.status === "paused" && <RunGate run={run} className="mx-1 space-y-1.5" />}
-
-          <WorkflowRunNodes run={run} workflow={workflow} />
-
-          <Link
-            href={runHref}
-            className="block mx-1 text-meta text-sol-violet hover:underline pt-1"
-          >
-            Open the run
-          </Link>
-        </div>
         </RailDetail>
       )}
     </div>
@@ -128,8 +194,16 @@ export function WorkflowRunPanel({ run, workflow, defaultExpanded = false }: { r
 // card for the run's gate_decision_id from the sessionDecisions store; a link
 // to the decision page until the row lands; the stored prompt only for a run
 // that predates gates as decisions.
-export function RunGate({ run, className }: {
-  run: { gate_decision_id?: string; gate_decision_short_id?: string; gate_prompt?: string; gate_response?: string };
+export function RunGate({
+  run,
+  className,
+}: {
+  run: {
+    gate_decision_id?: string;
+    gate_decision_short_id?: string;
+    gate_prompt?: string;
+    gate_response?: string;
+  };
   className?: string;
 }) {
   const gateDecisionId = run.gate_decision_id;
@@ -138,11 +212,20 @@ export function RunGate({ run, className }: {
   useSyncDecisionDetail(gateDecisionId);
   const s = useTrackedStore([
     (st) => (gateDecisionId ? st.sessionDecisions[gateDecisionId] : undefined),
-    (st) => (gateDecisionId ? (st as any).decisionDetails?.[gateDecisionId]?.decision : undefined),
+    (st) =>
+      gateDecisionId
+        ? (st as any).decisionDetails?.[gateDecisionId]?.decision
+        : undefined,
   ]);
-  const gateDecision = gateDecisionId ? (s.sessionDecisions[gateDecisionId] ?? (s as any).decisionDetails?.[gateDecisionId]?.decision) : undefined;
+  const gateDecision = gateDecisionId
+    ? (s.sessionDecisions[gateDecisionId] ??
+      (s as any).decisionDetails?.[gateDecisionId]?.decision)
+    : undefined;
   return (
-    <div className={className ?? "space-y-1.5"} data-run-gate={gateDecisionId ?? ""}>
+    <div
+      className={className ?? "space-y-1.5"}
+      data-run-gate={gateDecisionId ?? ""}
+    >
       {gateDecision ? (
         <DecisionCompactCard decision={gateDecision} showTask={false} />
       ) : gateDecisionId ? (
@@ -151,15 +234,24 @@ export function RunGate({ run, className }: {
           className="inline-flex items-center gap-1.5 px-2 py-1 rounded border border-sol-yellow/40 text-meta text-sol-text hover:bg-sol-yellow/10"
         >
           <Pause className="w-3 h-3 text-sol-orange" />
-          Answer the gate{run.gate_decision_short_id ? ` · ${run.gate_decision_short_id}` : ""}
+          Answer the gate
+          {run.gate_decision_short_id ? ` · ${run.gate_decision_short_id}` : ""}
         </Link>
       ) : run.gate_prompt ? (
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-meta text-sol-magenta font-semibold">Gate</span>
-          <span className="text-meta text-sol-text-muted truncate flex-1">{run.gate_prompt}</span>
-          {run.gate_response
-            ? <span className="text-meta text-sol-green">Responded: {run.gate_response}</span>
-            : <span className="text-meta text-sol-text-dim">· reply in the conversation</span>}
+          <span className="text-meta text-sol-text-muted truncate flex-1">
+            {run.gate_prompt}
+          </span>
+          {run.gate_response ? (
+            <span className="text-meta text-sol-green">
+              Responded: {run.gate_response}
+            </span>
+          ) : (
+            <span className="text-meta text-sol-text-dim">
+              · reply in the conversation
+            </span>
+          )}
         </div>
       ) : null}
     </div>

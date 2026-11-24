@@ -4,7 +4,11 @@ import { mutation, internalMutation } from "./functions";
 import { internal } from "./_generated/api";
 import { requireUser } from "./lib/auth";
 import { parseLinkPreviewUrl } from "@codecast/shared/entities";
-import { linkPreviewStale, parseLinkPreviewMeta, type LinkPreviewMeta } from "./lib/linkPreviewMeta";
+import {
+  linkPreviewStale,
+  parseLinkPreviewMeta,
+  type LinkPreviewMeta,
+} from "./lib/linkPreviewMeta";
 import { fetchPublicPage } from "./lib/publicFetch";
 
 // Link previews: a web link standing alone on its line in a message renders
@@ -21,7 +25,10 @@ export const get = query({
   handler: async (ctx, args) => {
     const url = parseLinkPreviewUrl(args.url);
     if (!url) return null;
-    const row = await ctx.db.query("link_previews").withIndex("by_url", (q) => q.eq("url", url)).first();
+    const row = await ctx.db
+      .query("link_previews")
+      .withIndex("by_url", (q) => q.eq("url", url))
+      .first();
     if (!row) return null;
     const { _id, _creationTime, ...rest } = row;
     return rest;
@@ -37,11 +44,25 @@ export const request = mutation({
     const url = parseLinkPreviewUrl(args.url);
     if (!url) return;
     const now = Date.now();
-    const row = await ctx.db.query("link_previews").withIndex("by_url", (q) => q.eq("url", url)).first();
+    const row = await ctx.db
+      .query("link_previews")
+      .withIndex("by_url", (q) => q.eq("url", url))
+      .first();
     if (!linkPreviewStale(row, now)) return;
-    if (row) await ctx.db.patch(row._id, { status: row.status === "ok" ? "ok" : "pending", requested_at: now });
-    else await ctx.db.insert("link_previews", { url, status: "pending", requested_at: now });
-    await ctx.scheduler.runAfter(0, internal.linkPreviews.fetchPreview, { url });
+    if (row)
+      await ctx.db.patch(row._id, {
+        status: row.status === "ok" ? "ok" : "pending",
+        requested_at: now,
+      });
+    else
+      await ctx.db.insert("link_previews", {
+        url,
+        status: "pending",
+        requested_at: now,
+      });
+    await ctx.scheduler.runAfter(0, internal.linkPreviews.fetchPreview, {
+      url,
+    });
   },
 });
 
@@ -56,7 +77,10 @@ export const record = internalMutation({
     favicon: v.optional(v.string()),
   },
   handler: async (ctx, { url, ok, ...meta }) => {
-    const row = await ctx.db.query("link_previews").withIndex("by_url", (q) => q.eq("url", url)).first();
+    const row = await ctx.db
+      .query("link_previews")
+      .withIndex("by_url", (q) => q.eq("url", url))
+      .first();
     if (!row) return;
     const now = Date.now();
     // A refetch that fails keeps the preview it already had.
@@ -78,14 +102,17 @@ export const record = internalMutation({
 
 /** The page's head. Every redirect hop passes the same public-host check as
  *  the link itself (lib/publicFetch). */
-async function fetchHead(start: string): Promise<{ html: string; url: string } | null> {
+async function fetchHead(
+  start: string,
+): Promise<{ html: string; url: string } | null> {
   const page = await fetchPublicPage(start, {
     maxBytes: MAX_BYTES,
     timeoutMs: FETCH_TIMEOUT_MS,
     maxRedirects: MAX_REDIRECTS,
     headers: {
       // Many sites serve their tags only to a crawler they recognize.
-      "User-Agent": "Mozilla/5.0 (compatible; CodecastBot/1.0; +https://codecast.sh) facebookexternalhit/1.1",
+      "User-Agent":
+        "Mozilla/5.0 (compatible; CodecastBot/1.0; +https://codecast.sh) facebookexternalhit/1.1",
       Accept: "text/html,application/xhtml+xml",
     },
     accept: /html/i,
@@ -105,7 +132,11 @@ export const fetchPreview = internalAction({
       meta = null;
     }
     const ok = !!meta?.title;
-    const fields = ok ? Object.fromEntries(Object.entries(meta!).filter(([, v]) => v !== undefined)) : {};
+    const fields = ok
+      ? Object.fromEntries(
+          Object.entries(meta!).filter(([, v]) => v !== undefined),
+        )
+      : {};
     await ctx.runMutation(internal.linkPreviews.record, { url, ok, ...fields });
   },
 });

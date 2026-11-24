@@ -9,14 +9,20 @@ import type { StagePinShare } from "../../components/calls/stageHost";
 
 /** What a pin's tile may do outside itself: open the thing whole (in the app,
  *  or the main window from a call's own window), and take it off the stage. */
-export type StagePinActions = { roomKey: string; openPath: (path: string) => void };
+export type StagePinActions = {
+  roomKey: string;
+  openPath: (path: string) => void;
+};
 export const StagePinContext = createContext<StagePinActions | null>(null);
 
 /** A pin's name before anything resolves it: its stored title, else its kind. */
 export function pinTitle(row: StagePinRow): string {
   if (row.title) return row.title;
   if (row.kind === "page") return "Published page";
-  if (row.kind === "doc") return row.doc_type ? DOC_TYPE_LABELS[row.doc_type as DocType] ?? "Doc" : "Doc";
+  if (row.kind === "doc")
+    return row.doc_type
+      ? (DOC_TYPE_LABELS[row.doc_type as DocType] ?? "Doc")
+      : "Doc";
   return row.ref;
 }
 
@@ -29,5 +35,12 @@ export function pinPath(row: StagePinRow): string | null {
 
 /** The stage share for a pin row: what the views lay out. */
 export function pinShare(row: StagePinRow): StagePinShare {
-  return { kind: "pin", key: `pin:${row.ref}`, identity: `pin:${row.ref}`, name: pinTitle(row), pin: row, at: row.at };
+  return {
+    kind: "pin",
+    key: `pin:${row.ref}`,
+    identity: `pin:${row.ref}`,
+    name: pinTitle(row),
+    pin: row,
+    at: row.at,
+  };
 }

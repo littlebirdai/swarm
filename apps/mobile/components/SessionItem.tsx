@@ -1,24 +1,55 @@
-import { StyleSheet, TouchableOpacity, View as RNView, Animated as RNAnimated, PanResponder, Image, Pressable } from 'react-native';
-import { probeGesture, probeRender, PERF_PROBE } from '@/lib/perfProbe';
-import { Text as RNText } from '@/components/Themed';
-import { createContext, memo, useContext, useRef, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { cleanUserMessage } from '@codecast/web/components/sessionMessage';
-import { showsBlockedBadge, useInboxStore } from '@codecast/web/store/inboxStore';
-import { apiErrorBadge } from '@codecast/web/lib/apiErrorBadge';
-import { resolveImageThumbs } from '@codecast/web/lib/uiPrefDefaults';
-import { useAckAssignment } from '@codecast/web/hooks/useAckAssignment';
-import { threadStateView } from '@codecast/web/lib/threadState';
-import { gestureHandler } from '@/lib/gestureHandler';
-import { sessionRowPropsEqual } from '@/lib/sessionRowEqual';
-import * as Haptics from 'expo-haptics';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import Feather from '@expo/vector-icons/Feather';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { MOBILE_PULSE, MOBILE_SESSION_STYLE } from '@codecast/shared/render/mobileSessionStyle';
-import { AgentLogoSvg } from '@/components/AgentLogo';
-import { ImageViewer } from '@/components/chat/ImageViewer';
-import { IdentityPrefsOverride, useIdentityPrefs } from '@codecast/web/hooks/useIdentityPrefs';
-import { MobileIdentityFace, MobileSessionIdentityLine, useSessionIdentityRow } from '@/components/identity';
+import {
+  StyleSheet,
+  TouchableOpacity,
+  View as RNView,
+  Animated as RNAnimated,
+  PanResponder,
+  Image,
+  Pressable,
+} from "react-native";
+import { probeGesture, probeRender, PERF_PROBE } from "@/lib/perfProbe";
+import { Text as RNText } from "@/components/Themed";
+import {
+  createContext,
+  memo,
+  useContext,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { cleanUserMessage } from "@codecast/web/components/sessionMessage";
+import {
+  showsBlockedBadge,
+  useInboxStore,
+} from "@codecast/web/store/inboxStore";
+import { apiErrorBadge } from "@codecast/web/lib/apiErrorBadge";
+import { resolveImageThumbs } from "@codecast/web/lib/uiPrefDefaults";
+import { useAckAssignment } from "@codecast/web/hooks/useAckAssignment";
+import { threadStateView } from "@codecast/web/lib/threadState";
+import { gestureHandler } from "@/lib/gestureHandler";
+import { sessionRowPropsEqual } from "@/lib/sessionRowEqual";
+import * as Haptics from "expo-haptics";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import Feather from "@expo/vector-icons/Feather";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  MOBILE_PULSE,
+  MOBILE_SESSION_STYLE,
+} from "@codecast/shared/render/mobileSessionStyle";
+import { AgentLogoSvg } from "@/components/AgentLogo";
+import { ImageViewer } from "@/components/chat/ImageViewer";
+import {
+  IdentityPrefsOverride,
+  useIdentityPrefs,
+} from "@codecast/web/hooks/useIdentityPrefs";
+import {
+  MobileIdentityFace,
+  MobileSessionIdentityLine,
+  useSessionIdentityRow,
+} from "@/components/identity";
 
 export type SessionData = {
   _id: string;
@@ -69,30 +100,64 @@ export type SessionData = {
   role?: { handle: string; name: string; short_id?: string } | null;
 };
 
-export * from '@/components/sessionFormat';
-import { useSessionShip } from '@codecast/web/hooks/useSessionShipState';
-import type { SessionShip } from '@codecast/web/lib/ship/sessionShip';
-import { formatRelativeTime, sessionTitle, projectColor, statusColor, statusLabel, projectName } from '@/components/sessionFormat';
+export * from "@/components/sessionFormat";
+import { useSessionShip } from "@codecast/web/hooks/useSessionShipState";
+import type { SessionShip } from "@codecast/web/lib/ship/sessionShip";
+import {
+  formatRelativeTime,
+  sessionTitle,
+  projectColor,
+  statusColor,
+  statusLabel,
+  projectName,
+} from "@/components/sessionFormat";
 
 /** Where a session's work is on its way to production, as a small tag in its tone. */
 function ShipTag({ ship }: { ship: SessionShip }) {
   const Theme = useTheme();
-  const color = { working: Theme.blue, agent: Theme.orange, session: Theme.violet, you: Theme.yellow, wait: Theme.yellow, ok: Theme.green, bad: Theme.red }[ship.tone];
+  const color = {
+    working: Theme.blue,
+    agent: Theme.orange,
+    session: Theme.violet,
+    you: Theme.yellow,
+    wait: Theme.yellow,
+    ok: Theme.green,
+    bad: Theme.red,
+  }[ship.tone];
   return (
     <RNView style={styles.projectTag}>
       <RNView style={[styles.projectDot, { backgroundColor: color }]} />
-      <RNText style={[styles.projectText, { color, fontWeight: '600' }]} numberOfLines={1}>{ship.words}</RNText>
+      <RNText
+        style={[styles.projectText, { color, fontWeight: "600" }]}
+        numberOfLines={1}
+      >
+        {ship.words}
+      </RNText>
     </RNView>
   );
 }
 
 /** A project's name on a row: its colour as a small dot, the name in quiet
  *  ink. The inbox row and a search hit draw it the same. */
-export function ProjectTag({ name, maxFontSizeMultiplier }: { name: string; maxFontSizeMultiplier?: number }) {
+export function ProjectTag({
+  name,
+  maxFontSizeMultiplier,
+}: {
+  name: string;
+  maxFontSizeMultiplier?: number;
+}) {
   return (
     <RNView style={styles.projectTag}>
-      <RNView style={[styles.projectDot, { backgroundColor: projectColor(name) }]} />
-      <RNText style={styles.projectText} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier}>{name}</RNText>
+      <RNView
+        style={[styles.projectDot, { backgroundColor: projectColor(name) }]}
+      />
+      <RNText
+        style={styles.projectText}
+        numberOfLines={1}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
+      >
+        {name}
+      </RNText>
     </RNView>
   );
 }
@@ -101,7 +166,11 @@ export function ProjectTag({ name, maxFontSizeMultiplier }: { name: string; maxF
 // interpolation, so the loop is a single timing the native driver repeats on
 // its own. A looped sequence restarts each leg from JS.
 const PULSE_IN = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
-const PULSE_OUT = PULSE_IN.map((t) => MOBILE_PULSE.status.low + (1 - MOBILE_PULSE.status.low) * (1 + Math.cos(2 * Math.PI * t)) / 2);
+const PULSE_OUT = PULSE_IN.map(
+  (t) =>
+    MOBILE_PULSE.status.low +
+    ((1 - MOBILE_PULSE.status.low) * (1 + Math.cos(2 * Math.PI * t))) / 2,
+);
 
 /** The one live dot a screen shows beside an agent's status (the composer).
  *  Never in a list row: a pulse per row is a native prop write per row every
@@ -110,19 +179,35 @@ export function PulsingDot({ color }: { color: string }) {
   const phase = useRef(new RNAnimated.Value(0)).current;
   useEffect(() => {
     const animation = RNAnimated.loop(
-      RNAnimated.timing(phase, { toValue: 1, duration: 2 * MOBILE_PULSE.status.leg, easing: (t) => t, useNativeDriver: true }),
+      RNAnimated.timing(phase, {
+        toValue: 1,
+        duration: 2 * MOBILE_PULSE.status.leg,
+        easing: (t) => t,
+        useNativeDriver: true,
+      }),
     );
     animation.start();
     return () => animation.stop();
   }, [phase]);
-  const opacity = phase.interpolate({ inputRange: PULSE_IN, outputRange: PULSE_OUT });
-  return <RNAnimated.View style={[styles.statusDot, { backgroundColor: color, opacity }]} />;
+  const opacity = phase.interpolate({
+    inputRange: PULSE_IN,
+    outputRange: PULSE_OUT,
+  });
+  return (
+    <RNAnimated.View
+      style={[styles.statusDot, { backgroundColor: color, opacity }]}
+    />
+  );
 }
 
 // Rows hold still (web's listRowsHoldStill): the colour says the agent is
 // working.
 function StatusDot({ session }: { session: SessionData }) {
-  return <RNView style={[styles.statusDot, { backgroundColor: statusColor(session) }]} />;
+  return (
+    <RNView
+      style={[styles.statusDot, { backgroundColor: statusColor(session) }]}
+    />
+  );
 }
 
 // What every row of a list reads from the store, read once by the list and
@@ -139,7 +224,9 @@ const InboxRowEnvContext = createContext<InboxRowEnv | null>(null);
 /** Wraps a list of session rows (SwipeableSessionItem). */
 export function InboxRowEnvProvider({ children }: { children: ReactNode }) {
   const projectFilter = useInboxStore((s) => s.activeProjectFilter);
-  const showImageThumb = useInboxStore((s) => resolveImageThumbs(s.clientState?.ui));
+  const showImageThumb = useInboxStore((s) =>
+    resolveImageThumbs(s.clientState?.ui),
+  );
   // The faces and identity lines read this instead of each subscribing.
   const prefs = useIdentityPrefs();
   const env = useMemo(
@@ -148,25 +235,46 @@ export function InboxRowEnvProvider({ children }: { children: ReactNode }) {
   );
   return (
     <IdentityPrefsOverride.Provider value={prefs}>
-      <InboxRowEnvContext.Provider value={env}>{children}</InboxRowEnvContext.Provider>
+      <InboxRowEnvContext.Provider value={env}>
+        {children}
+      </InboxRowEnvContext.Provider>
     </IdentityPrefsOverride.Provider>
   );
 }
 
 function useRowEnv(): InboxRowEnv {
   const env = useContext(InboxRowEnvContext);
-  if (!env) throw new Error('A session row renders inside InboxRowEnvProvider');
+  if (!env) throw new Error("A session row renders inside InboxRowEnvProvider");
   return env;
 }
 
-export function SessionItem({ session, isUnread, selected, onPress, onLongPress, roleSessions, onOpenRole, reviveAt }: { session: SessionData; isUnread?: boolean; selected?: boolean; onPress: () => void; roleSessions?: number; onOpenRole?: () => void; onLongPress?: () => void; reviveAt?: number }) {
-  if (PERF_PROBE) probeRender('SessionItem');
+export function SessionItem({
+  session,
+  isUnread,
+  selected,
+  onPress,
+  onLongPress,
+  roleSessions,
+  onOpenRole,
+  reviveAt,
+}: {
+  session: SessionData;
+  isUnread?: boolean;
+  selected?: boolean;
+  onPress: () => void;
+  roleSessions?: number;
+  onOpenRole?: () => void;
+  onLongPress?: () => void;
+  reviveAt?: number;
+}) {
+  if (PERF_PROBE) probeRender("SessionItem");
   const Theme = useTheme();
   const { projectFilter, showImageThumb } = useRowEnv();
   // The project names itself on the row unless the inbox is already narrowed
   // to it (the title says it then).
   const rowProject = projectName(session);
-  const project = rowProject && rowProject !== projectFilter ? rowProject : null;
+  const project =
+    rowProject && rowProject !== projectFilter ? rowProject : null;
   const sColor = statusColor(session);
   const sLabel = statusLabel(session);
   const showAuthor = session.author_name && session.is_own === false;
@@ -178,12 +286,21 @@ export function SessionItem({ session, isUnread, selected, onPress, onLongPress,
   // agree on the headline and on when a state has gone stale. Read at render
   // rather than on a ticker: a row re-renders on every list update, and the
   // freshness only drives a colour.
-  const stateView = threadStateView(session, session.message_count ?? 0, Date.now());
+  const stateView = threadStateView(
+    session,
+    session.message_count ?? 0,
+    Date.now(),
+  );
   // Where this session's work is on its way to production (web lib/ship/sessionShip): the same words as the web card.
   const ship = useSessionShip(session._id);
   // Parked on an account banner (signed out, out of usage): the same amber
   // pill and rule as web's card. Opening the session offers the fix.
-  const blockedBadge = showsBlockedBadge((session as any).pending_api_error, !!session.has_pending, reviveAt, Date.now())
+  const blockedBadge = showsBlockedBadge(
+    (session as any).pending_api_error,
+    !!session.has_pending,
+    reviveAt,
+    Date.now(),
+  )
     ? apiErrorBadge((session as any).pending_api_error_kind, session.agent_type)
     : null;
   const [thumbZoom, setThumbZoom] = useState(false);
@@ -192,7 +309,8 @@ export function SessionItem({ session, isUnread, selected, onPress, onLongPress,
   // Row thumbnail for sessions that contain images (env.showImageThumb).
   // Tapping it zooms the image in a modal instead of opening the session
   // (the nested Pressable wins the touch over the row's TouchableOpacity).
-  const thumbUrl = showImageThumb && !thumbBroken ? session.image_preview_url : null;
+  const thumbUrl =
+    showImageThumb && !thumbBroken ? session.image_preview_url : null;
   const identityRow = useSessionIdentityRow(session._id, session as any);
   const ackAssignment = useAckAssignment();
   // Handoff note starts clamped; tapping the pill body reveals the full reason.
@@ -202,132 +320,208 @@ export function SessionItem({ session, isUnread, selected, onPress, onLongPress,
   return (
     <TouchableOpacity
       onPress={onPress}
-      onLongPress={onLongPress ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onLongPress(); } : undefined}
+      onLongPress={
+        onLongPress
+          ? () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onLongPress();
+            }
+          : undefined
+      }
       delayLongPress={400}
-      style={[styles.conversationContent, thumbUrl ? styles.contentWithThumb : null, selected ? { backgroundColor: Theme.bgHighlight } : null]}
+      style={[
+        styles.conversationContent,
+        thumbUrl ? styles.contentWithThumb : null,
+        selected ? { backgroundColor: Theme.bgHighlight } : null,
+      ]}
       activeOpacity={0.6}
     >
       <RNView style={thumbUrl ? styles.contentColumn : null}>
-      <RNView style={styles.conversationHeader}>
-        <RNView style={styles.titleRow}>
-          <RNView style={styles.iconWithStatus}>
-            <StatusDot session={session} />
-          </RNView>
-          {session.is_favorite && (
-            <Feather name="star" size={11} color={Theme.accent} style={{ marginRight: 3 }} />
-          )}
-          {/* Unread carries by WEIGHT plus a leading dot — the same two signals
+        <RNView style={styles.conversationHeader}>
+          <RNView style={styles.titleRow}>
+            <RNView style={styles.iconWithStatus}>
+              <StatusDot session={session} />
+            </RNView>
+            {session.is_favorite && (
+              <Feather
+                name="star"
+                size={11}
+                color={Theme.accent}
+                style={{ marginRight: 3 }}
+              />
+            )}
+            {/* Unread carries by WEIGHT plus a leading dot — the same two signals
               the web card and the chat rail use, never a count. */}
-          {isUnread && <RNView style={styles.unreadDot} />}
-          {/* Personified: the face, then the name leading the title (the web
+            {isUnread && <RNView style={styles.unreadDot} />}
+            {/* Personified: the face, then the name leading the title (the web
               card's order). Nobody opted in: the row reads as it always did. */}
-          <MobileIdentityFace
-            row={identityRow}
-            size={18}
-            style={styles.identityFace}
-            badge={session.agent_type ? <AgentLogoSvg agentType={session.agent_type} size={8} /> : undefined}
-          />
-          <MobileSessionIdentityLine
-            row={identityRow}
-            title={title}
-            style={[styles.conversationTitle, isUnread && styles.conversationTitleUnread]}
-          />
-        </RNView>
-        <RNView style={styles.rightMeta}>
-          {sLabel && <RNText style={[styles.statusBadge, { color: sColor }]}>{sLabel}</RNText>}
-          <RNText style={styles.timeText}>
-            {formatRelativeTime(session.updated_at)}
-          </RNText>
-          {session.is_pinned && (
-            <FontAwesome name="thumb-tack" size={10} color={Theme.magenta} />
-          )}
-        </RNView>
-      </RNView>
-
-      {session.assigned_ping && (
-        // Mirror of the web card's handoff pill: who handed this over, their
-        // note, and "Got it" to accept without opening the session. The nested
-        // Pressable wins the touch over the row's TouchableOpacity.
-        <RNView style={styles.assignedPingRow}>
-          <FontAwesome name="user-plus" size={10} color={Theme.violet} style={{ marginTop: 3 }} />
-          {/* The note is the REASON for the handoff — clamped for the list,
-              tap the body to read all of it without opening the session. */}
-          <Pressable
-            style={{ flex: 1, minWidth: 0 }}
-            onPress={session.assigned_ping.note ? () => setPingExpanded((v) => !v) : onPress}
-          >
-            <RNText style={styles.assignedPingTitle} numberOfLines={1}>
-              {session.assigned_ping.by_name} assigned this to you
-            </RNText>
-            {session.assigned_ping.note ? (
-              <RNText style={styles.assignedPingNote} numberOfLines={pingExpanded ? undefined : 2}>
-                “{session.assigned_ping.note}”
+            <MobileIdentityFace
+              row={identityRow}
+              size={18}
+              style={styles.identityFace}
+              badge={
+                session.agent_type ? (
+                  <AgentLogoSvg agentType={session.agent_type} size={8} />
+                ) : undefined
+              }
+            />
+            <MobileSessionIdentityLine
+              row={identityRow}
+              title={title}
+              style={[
+                styles.conversationTitle,
+                isUnread && styles.conversationTitleUnread,
+              ]}
+            />
+          </RNView>
+          <RNView style={styles.rightMeta}>
+            {sLabel && (
+              <RNText style={[styles.statusBadge, { color: sColor }]}>
+                {sLabel}
               </RNText>
-            ) : null}
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              ackAssignment(session._id);
-            }}
-            hitSlop={8}
-            style={styles.assignedPingAck}
-          >
-            <RNText style={styles.assignedPingAckText}>Got it</RNText>
-          </Pressable>
+            )}
+            <RNText style={styles.timeText}>
+              {formatRelativeTime(session.updated_at)}
+            </RNText>
+            {session.is_pinned && (
+              <FontAwesome name="thumb-tack" size={10} color={Theme.magenta} />
+            )}
+          </RNView>
         </RNView>
-      )}
 
-      {/* A role's sessions are the role's (org-staffing.md S23.3): never rows
+        {session.assigned_ping && (
+          // Mirror of the web card's handoff pill: who handed this over, their
+          // note, and "Got it" to accept without opening the session. The nested
+          // Pressable wins the touch over the row's TouchableOpacity.
+          <RNView style={styles.assignedPingRow}>
+            <FontAwesome
+              name="user-plus"
+              size={10}
+              color={Theme.violet}
+              style={{ marginTop: 3 }}
+            />
+            {/* The note is the REASON for the handoff — clamped for the list,
+              tap the body to read all of it without opening the session. */}
+            <Pressable
+              style={{ flex: 1, minWidth: 0 }}
+              onPress={
+                session.assigned_ping.note
+                  ? () => setPingExpanded((v) => !v)
+                  : onPress
+              }
+            >
+              <RNText style={styles.assignedPingTitle} numberOfLines={1}>
+                {session.assigned_ping.by_name} assigned this to you
+              </RNText>
+              {session.assigned_ping.note ? (
+                <RNText
+                  style={styles.assignedPingNote}
+                  numberOfLines={pingExpanded ? undefined : 2}
+                >
+                  “{session.assigned_ping.note}”
+                </RNText>
+              ) : null}
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                ackAssignment(session._id);
+              }}
+              hitSlop={8}
+              style={styles.assignedPingAck}
+            >
+              <RNText style={styles.assignedPingAckText}>Got it</RNText>
+            </Pressable>
+          </RNView>
+        )}
+
+        {/* A role's sessions are the role's (org-staffing.md S23.3): never rows
           in the inbox; the card says how many and opens the role's page. */}
-      {!!roleSessions && roleSessions > 0 && (
-        <Pressable onPress={onOpenRole} hitSlop={6} style={{ alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: Theme.border }} accessibilityRole="button" accessibilityLabel={`${roleSessions} ${roleSessions === 1 ? 'session' : 'sessions'} under this role`}>
-          <RNText maxFontSizeMultiplier={1.2} style={{ fontSize: 11, color: Theme.textSecondary }}>{roleSessions} {roleSessions === 1 ? 'session' : 'sessions'}</RNText>
-        </Pressable>
-      )}
-      {stateView ? (
-        // The agent's pinned "where this stands" line (cast state) replaces the
-        // generated summary, same rule as the web card. It dims once the
-        // thread has run far past the write, so a neglected line stops
-        // reading as current.
-        <RNText style={[styles.stateText, stateView.freshness !== 'fresh' && styles.stateTextStale]} numberOfLines={2}>
-          {stateView.cardLine}
-        </RNText>
-      ) : null}
-      {/* A phone row carries one line of detail: the agent's pinned state,
+        {!!roleSessions && roleSessions > 0 && (
+          <Pressable
+            onPress={onOpenRole}
+            hitSlop={6}
+            style={{
+              alignSelf: "flex-start",
+              marginTop: 4,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 6,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: Theme.border,
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`${roleSessions} ${roleSessions === 1 ? "session" : "sessions"} under this role`}
+          >
+            <RNText
+              maxFontSizeMultiplier={1.2}
+              style={{ fontSize: 11, color: Theme.textSecondary }}
+            >
+              {roleSessions} {roleSessions === 1 ? "session" : "sessions"}
+            </RNText>
+          </Pressable>
+        )}
+        {stateView ? (
+          // The agent's pinned "where this stands" line (cast state) replaces the
+          // generated summary, same rule as the web card. It dims once the
+          // thread has run far past the write, so a neglected line stops
+          // reading as current.
+          <RNText
+            style={[
+              styles.stateText,
+              stateView.freshness !== "fresh" && styles.stateTextStale,
+            ]}
+            numberOfLines={2}
+          >
+            {stateView.cardLine}
+          </RNText>
+        ) : null}
+        {/* A phone row carries one line of detail: the agent's pinned state,
           else the generated summary, else what the person last asked. */}
-      {!stateView && (session.idle_summary || session.subtitle) ? (
-        <RNText style={styles.summaryText} numberOfLines={1}>
-          {(session.idle_summary || session.subtitle)!.replace(/^\s*[-*•]\s+/, '')}
-        </RNText>
-      ) : null}
+        {!stateView && (session.idle_summary || session.subtitle) ? (
+          <RNText style={styles.summaryText} numberOfLines={1}>
+            {(session.idle_summary || session.subtitle)!.replace(
+              /^\s*[-*•]\s+/,
+              "",
+            )}
+          </RNText>
+        ) : null}
 
-      {!stateView && !(session.idle_summary || session.subtitle) && userMessage && (
-        <RNText style={styles.userMessage} numberOfLines={1}>
-          <RNText style={styles.userMessageCaret}>&gt; </RNText>
-          {userMessage}
-        </RNText>
-      )}
+        {!stateView &&
+          !(session.idle_summary || session.subtitle) &&
+          userMessage && (
+            <RNText style={styles.userMessage} numberOfLines={1}>
+              <RNText style={styles.userMessageCaret}>&gt; </RNText>
+              {userMessage}
+            </RNText>
+          )}
 
-      {(project || showAuthor || blockedBadge || ship) ? (
-      <RNView style={styles.conversationMeta}>
-        {ship && <ShipTag ship={ship} />}
-        {project && <ProjectTag name={project} />}
-        {showAuthor && (
-          <RNText style={styles.authorText}>{session.author_name}</RNText>
-        )}
-        {blockedBadge && (
-          <RNText style={styles.blockedBadge}>{blockedBadge.label}</RNText>
-        )}
-      </RNView>
-      ) : null}
+        {project || showAuthor || blockedBadge || ship ? (
+          <RNView style={styles.conversationMeta}>
+            {ship && <ShipTag ship={ship} />}
+            {project && <ProjectTag name={project} />}
+            {showAuthor && (
+              <RNText style={styles.authorText}>{session.author_name}</RNText>
+            )}
+            {blockedBadge && (
+              <RNText style={styles.blockedBadge}>{blockedBadge.label}</RNText>
+            )}
+          </RNView>
+        ) : null}
       </RNView>
       {thumbUrl && (
         <Pressable onPress={() => setThumbZoom(true)} hitSlop={6}>
-          <Image source={{ uri: thumbUrl }} style={styles.imageThumb} resizeMode="cover" onError={() => setThumbBroken(true)} />
+          <Image
+            source={{ uri: thumbUrl }}
+            style={styles.imageThumb}
+            resizeMode="cover"
+            onError={() => setThumbBroken(true)}
+          />
         </Pressable>
       )}
-      {thumbZoom && thumbUrl && <ImageViewer uri={thumbUrl} onClose={() => setThumbZoom(false)} />}
+      {thumbZoom && thumbUrl && (
+        <ImageViewer uri={thumbUrl} onClose={() => setThumbZoom(false)} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -336,7 +530,17 @@ export function SessionItem({ session, isUnread, selected, onPress, onLongPress,
 // only the rows whose props changed, and a heartbeat alone changes none
 // (lib/sessionRowEqual). The callbacks take the row's id (or the
 // row) so the list passes the same functions to every row.
-export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session, isUnread, selected, onPress, onClose, onLongPress, roleSessions, onOpenRole, reviveAt }: {
+export const SwipeableSessionItem = memo(function SwipeableSessionItem({
+  session,
+  isUnread,
+  selected,
+  onPress,
+  onClose,
+  onLongPress,
+  roleSessions,
+  onOpenRole,
+  reviveAt,
+}: {
   session: SessionData;
   isUnread?: boolean;
   /** The row is the conversation on screen (a conversation's inbox panel). */
@@ -358,51 +562,75 @@ export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session
   const translateX = useRef(new RNAnimated.Value(0)).current;
   const didSwipe = useRef(false);
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; }, []);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
 
   // Keep the latest action callbacks reachable from the once-created responder.
   const id = session._id;
   const cb = useRef({ onClose: () => onClose(id) });
   cb.current = { onClose: () => onClose(id) };
-  const press = useCallback(() => { if (!didSwipe.current) onPress(id); }, [onPress, id]);
-  const longPress = useMemo(() => (onLongPress ? () => onLongPress(session) : undefined), [onLongPress, session]);
+  const press = useCallback(() => {
+    if (!didSwipe.current) onPress(id);
+  }, [onPress, id]);
+  const longPress = useMemo(
+    () => (onLongPress ? () => onLongPress(session) : undefined),
+    [onLongPress, session],
+  );
   const roleShortId = session.role?.short_id;
-  const openRole = useMemo(() => (onOpenRole && roleShortId ? () => onOpenRole(roleShortId) : undefined), [onOpenRole, roleShortId]);
+  const openRole = useMemo(
+    () =>
+      onOpenRole && roleShortId ? () => onOpenRole(roleShortId) : undefined,
+    [onOpenRole, roleShortId],
+  );
 
-  const springBack = useCallback((after?: () => void) => {
-    RNAnimated.spring(translateX, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start(after ? () => after() : undefined);
-  }, [translateX]);
+  const springBack = useCallback(
+    (after?: () => void) => {
+      RNAnimated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 10,
+      }).start(after ? () => after() : undefined);
+    },
+    [translateX],
+  );
 
   // Shared release logic for both gesture paths below. vx is px/s: a committed
   // drag (past the distance threshold) OR a flick (shorter drag at speed)
   // triggers the action; anything else springs back.
-  const settle = useCallback((dx: number, vx: number) => {
-    if (dx < -100 || (dx < -48 && vx < -800)) {
-      // tactile confirm at the commit point — a destructive dismiss reads as
-      // accidental without it.
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      RNAnimated.timing(translateX, {
-        toValue: -400,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        if (PERF_PROBE) probeGesture();
-        cb.current.onClose();
-        // A closed row usually leaves the list and unmounts. One that stays (a
-        // question still open keeps it under Decisions) slides back rather than
-        // leaving its swipe background in the list.
-        setTimeout(() => { if (mounted.current) springBack(); }, 350);
+  const settle = useCallback(
+    (dx: number, vx: number) => {
+      if (dx < -100 || (dx < -48 && vx < -800)) {
+        // tactile confirm at the commit point — a destructive dismiss reads as
+        // accidental without it.
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        RNAnimated.timing(translateX, {
+          toValue: -400,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          if (PERF_PROBE) probeGesture();
+          cb.current.onClose();
+          // A closed row usually leaves the list and unmounts. One that stays (a
+          // question still open keeps it under Decisions) slides back rather than
+          // leaving its swipe background in the list.
+          setTimeout(() => {
+            if (mounted.current) springBack();
+          }, 350);
+        });
+      } else {
+        springBack();
+      }
+      requestAnimationFrame(() => {
+        didSwipe.current = false;
       });
-    } else {
-      springBack();
-    }
-    requestAnimationFrame(() => { didSwipe.current = false; });
-  }, [springBack, translateX]);
+    },
+    [springBack, translateX],
+  );
 
   // Gesture-handler pan with NATIVE arbitration. The previous JS PanResponder
   // raced the FlatList's native scroll recognizer and usually lost (the swipe
@@ -425,7 +653,9 @@ export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session
       .activeOffsetX(-10)
       .failOffsetX(10)
       .failOffsetY([-15, 15])
-      .onStart(() => { didSwipe.current = true; })
+      .onStart(() => {
+        didSwipe.current = true;
+      })
       .onUpdate((e: any) => translateX.setValue(Math.min(0, e.translationX)))
       .onEnd((e: any) => settle(e.translationX, e.velocityX))
       .onFinalize((_e: any, success: boolean) => {
@@ -434,7 +664,9 @@ export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session
         // non-swipe touch (taps, scrolls) doesn't spawn no-op springs.
         if (!success && didSwipe.current) {
           springBack();
-          requestAnimationFrame(() => { didSwipe.current = false; });
+          requestAnimationFrame(() => {
+            didSwipe.current = false;
+          });
         }
       })
       .runOnJS(true);
@@ -444,21 +676,25 @@ export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session
   // lib/gestureHandler.tsx): the old JS PanResponder. Worse arbitration, but
   // the feature stays functional. PanResponder vx is px/ms; settle takes px/s.
   const responder = useRef(
-    gestureHandler ? null : PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, gs) =>
-        Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
-      onPanResponderGrant: () => {
-        didSwipe.current = true;
-      },
-      onPanResponderMove: (_e, gs) => {
-        translateX.setValue(Math.min(0, gs.dx));
-      },
-      onPanResponderRelease: (_e, gs) => settle(gs.dx, gs.vx * 1000),
-      onPanResponderTerminate: () => {
-        springBack();
-        requestAnimationFrame(() => { didSwipe.current = false; });
-      },
-    })
+    gestureHandler
+      ? null
+      : PanResponder.create({
+          onMoveShouldSetPanResponder: (_e, gs) =>
+            Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5,
+          onPanResponderGrant: () => {
+            didSwipe.current = true;
+          },
+          onPanResponderMove: (_e, gs) => {
+            translateX.setValue(Math.min(0, gs.dx));
+          },
+          onPanResponderRelease: (_e, gs) => settle(gs.dx, gs.vx * 1000),
+          onPanResponderTerminate: () => {
+            springBack();
+            requestAnimationFrame(() => {
+              didSwipe.current = false;
+            });
+          },
+        }),
   ).current;
 
   const swipeBehindOpacity = translateX.interpolate({
@@ -470,248 +706,265 @@ export const SwipeableSessionItem = memo(function SwipeableSessionItem({ session
       style={[styles.conversationItem, { transform: [{ translateX }] }]}
       {...(responder ? responder.panHandlers : {})}
     >
-      <SessionItem session={session} selected={selected} roleSessions={roleSessions} onOpenRole={openRole} isUnread={isUnread} onPress={press} onLongPress={longPress} reviveAt={reviveAt} />
+      <SessionItem
+        session={session}
+        selected={selected}
+        roleSessions={roleSessions}
+        onOpenRole={openRole}
+        isUnread={isUnread}
+        onPress={press}
+        onLongPress={longPress}
+        reviveAt={reviveAt}
+      />
       <RNView style={styles.separator} />
     </RNAnimated.View>
   );
 
   return (
     <RNView style={styles.swipeContainer}>
-      <RNAnimated.View style={[styles.swipeBehind, { opacity: swipeBehindOpacity }]}>
+      <RNAnimated.View
+        style={[styles.swipeBehind, { opacity: swipeBehindOpacity }]}
+      >
         <FontAwesome name="times" size={16} color="#fff" />
         <RNText style={styles.swipeBehindText}>Close</RNText>
       </RNAnimated.View>
       {panGesture ? (
-        <gestureHandler.GestureDetector gesture={panGesture}>{card}</gestureHandler.GestureDetector>
-      ) : card}
+        <gestureHandler.GestureDetector gesture={panGesture}>
+          {card}
+        </gestureHandler.GestureDetector>
+      ) : (
+        card
+      )}
     </RNView>
   );
 }, sessionRowPropsEqual);
 
-export const styles = themedStyles((Theme) => StyleSheet.create({
-  swipeContainer: {
-    overflow: 'hidden',
-  },
-  // Close is done looking at it (store closeSession: a turn in progress
-  // finishes, triggers stay) — neutral slate, not destructive red.
-  swipeBehind: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    right: 0,
-    left: 0,
-    backgroundColor: Theme.textDim,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingRight: 20,
-    gap: 8,
-  },
-  swipeBehindText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  conversationItem: {
-    backgroundColor: Theme.bg,
-  },
-  // Inset like an iOS list: the rule starts where the text does.
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: Spacing.lg + 14,
-    backgroundColor: Theme.bgHighlight,
-  },
-  conversationContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-  },
-  // Thumb variant: content column + thumbnail side by side.
-  contentWithThumb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  contentColumn: {
-    flex: 1,
-    minWidth: 0,
-  },
-  imageThumb: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border,
-    backgroundColor: Theme.bgAlt,
-  },
-  conversationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 3,
-  },
-  identityFace: { marginRight: 6 },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: Spacing.md,
-  },
-  iconWithStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: Spacing.sm,
-  },
-  statusDot: MOBILE_SESSION_STYLE.dot,
-  conversationTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: Theme.text,
-    flex: 1,
-  },
-  conversationTitleUnread: {
-    fontWeight: '700',
-  },
-  unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Theme.cyan,
-    marginRight: 5,
-  },
-  rightMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusBadge: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  timeText: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontWeight: '400',
-  },
-  // msgs count is sol-orange on web's inbox cards — the one loud meta value.
-  blockedBadge: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Theme.accent,
-    backgroundColor: Theme.accent + '1a',
-    borderColor: Theme.accent + '4d',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    overflow: 'hidden',
-  },
-  userMessage: {
-    fontSize: 13,
-    color: Theme.textMuted,
-    marginLeft: 14,
-    marginBottom: 2,
-    lineHeight: 18,
-  },
-  userMessageCaret: {
-    color: Theme.textMuted0,
-  },
-  summaryText: {
-    fontSize: 13,
-    color: Theme.textMuted,
-    marginLeft: 14,
-    marginBottom: 2,
-    lineHeight: 17,
-  },
-  // Violet like the web card: cyan is the active/selection treatment there, and
-  // the handoff motif stays one color across platforms.
-  assignedPingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginLeft: 14,
-    marginBottom: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: Theme.violet + '22',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.violet + '55',
-  },
-  assignedPingTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Theme.violet,
-    lineHeight: 16,
-  },
-  assignedPingNote: {
-    fontSize: 11,
-    color: Theme.textMuted,
-    lineHeight: 15,
-  },
-  assignedPingAck: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: Theme.violet + '33',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.violet + '66',
-  },
-  assignedPingAckText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Theme.violet,
-  },
-  stateText: {
-    fontSize: 13,
-    color: Theme.textSecondary,
-    lineHeight: 18,
-    marginLeft: 14,
-    marginBottom: 2,
-  },
-  stateTextStale: {
-    color: Theme.textMuted,
-  },
-  conversationMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 14,
-    marginTop: 4,
-    gap: 10,
-  },
-  projectTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    flexShrink: 1,
-  },
-  projectDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  authorText: {
-    fontSize: 12,
-    color: Theme.cyan,
-    fontWeight: '600',
-  },
-  agentBadge: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  metaText: {
-    fontSize: 12,
-    color: Theme.textMuted,
-  },
-  projectText: {
-    fontSize: 12,
-    color: Theme.textMuted0,
-    maxWidth: 160,
-  },
-  metaSeparator: {
-    color: Theme.textMuted0,
-    marginHorizontal: 4,
-    fontSize: 12,
-  },
-}));
+export const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    swipeContainer: {
+      overflow: "hidden",
+    },
+    // Close is done looking at it (store closeSession: a turn in progress
+    // finishes, triggers stay) — neutral slate, not destructive red.
+    swipeBehind: {
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      right: 0,
+      left: 0,
+      backgroundColor: Theme.textDim,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      paddingRight: 20,
+      gap: 8,
+    },
+    swipeBehindText: {
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    conversationItem: {
+      backgroundColor: Theme.bg,
+    },
+    // Inset like an iOS list: the rule starts where the text does.
+    separator: {
+      height: StyleSheet.hairlineWidth,
+      marginLeft: Spacing.lg + 14,
+      backgroundColor: Theme.bgHighlight,
+    },
+    conversationContent: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 12,
+    },
+    // Thumb variant: content column + thumbnail side by side.
+    contentWithThumb: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    contentColumn: {
+      flex: 1,
+      minWidth: 0,
+    },
+    imageThumb: {
+      width: 54,
+      height: 54,
+      borderRadius: 10,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border,
+      backgroundColor: Theme.bgAlt,
+    },
+    conversationHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 3,
+    },
+    identityFace: { marginRight: 6 },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flex: 1,
+      marginRight: Spacing.md,
+    },
+    iconWithStatus: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginRight: Spacing.sm,
+    },
+    statusDot: MOBILE_SESSION_STYLE.dot,
+    conversationTitle: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: Theme.text,
+      flex: 1,
+    },
+    conversationTitleUnread: {
+      fontWeight: "700",
+    },
+    unreadDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: Theme.cyan,
+      marginRight: 5,
+    },
+    rightMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    statusBadge: {
+      fontSize: 10,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.3,
+    },
+    timeText: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontWeight: "400",
+    },
+    // msgs count is sol-orange on web's inbox cards — the one loud meta value.
+    blockedBadge: {
+      fontSize: 10,
+      fontWeight: "600",
+      color: Theme.accent,
+      backgroundColor: Theme.accent + "1a",
+      borderColor: Theme.accent + "4d",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      overflow: "hidden",
+    },
+    userMessage: {
+      fontSize: 13,
+      color: Theme.textMuted,
+      marginLeft: 14,
+      marginBottom: 2,
+      lineHeight: 18,
+    },
+    userMessageCaret: {
+      color: Theme.textMuted0,
+    },
+    summaryText: {
+      fontSize: 13,
+      color: Theme.textMuted,
+      marginLeft: 14,
+      marginBottom: 2,
+      lineHeight: 17,
+    },
+    // Violet like the web card: cyan is the active/selection treatment there, and
+    // the handoff motif stays one color across platforms.
+    assignedPingRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+      marginLeft: 14,
+      marginBottom: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: Theme.violet + "22",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.violet + "55",
+    },
+    assignedPingTitle: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.violet,
+      lineHeight: 16,
+    },
+    assignedPingNote: {
+      fontSize: 11,
+      color: Theme.textMuted,
+      lineHeight: 15,
+    },
+    assignedPingAck: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: Theme.violet + "33",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.violet + "66",
+    },
+    assignedPingAckText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: Theme.violet,
+    },
+    stateText: {
+      fontSize: 13,
+      color: Theme.textSecondary,
+      lineHeight: 18,
+      marginLeft: 14,
+      marginBottom: 2,
+    },
+    stateTextStale: {
+      color: Theme.textMuted,
+    },
+    conversationMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginLeft: 14,
+      marginTop: 4,
+      gap: 10,
+    },
+    projectTag: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      flexShrink: 1,
+    },
+    projectDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    authorText: {
+      fontSize: 12,
+      color: Theme.cyan,
+      fontWeight: "600",
+    },
+    agentBadge: {
+      fontSize: 11,
+      fontWeight: "600",
+      letterSpacing: 0.2,
+    },
+    metaText: {
+      fontSize: 12,
+      color: Theme.textMuted,
+    },
+    projectText: {
+      fontSize: 12,
+      color: Theme.textMuted0,
+      maxWidth: 160,
+    },
+    metaSeparator: {
+      color: Theme.textMuted0,
+      marginHorizontal: 4,
+      fontSize: 12,
+    },
+  }),
+);

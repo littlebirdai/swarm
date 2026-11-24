@@ -18,7 +18,12 @@ import {
 
 // Minimal row shape: the tree builder only reads _id and parent_id, so tests
 // carry a `title` purely to make failures readable.
-type Row = { _id: string; short_id: string; parent_id?: string | null; title?: string };
+type Row = {
+  _id: string;
+  short_id: string;
+  parent_id?: string | null;
+  title?: string;
+};
 const t = (id: string, parent?: string): Row => ({
   _id: id,
   short_id: `ct-${id}`,
@@ -39,7 +44,16 @@ describe("taskOrigin", () => {
   // The huddle's complaint was noise leaking onto the human board, so the
   // default for anything unrecognised is the quiet class, never the loud one.
   test("every other source — including unknown ones — counts as agent", () => {
-    for (const source of ["insight", "import", "plan_mode", "todo_sync", "template", "fork", "brand_new", undefined]) {
+    for (const source of [
+      "insight",
+      "import",
+      "plan_mode",
+      "todo_sync",
+      "template",
+      "fork",
+      "brand_new",
+      undefined,
+    ]) {
       expect(taskOrigin({ source } as any)).toBe("agent");
     }
   });
@@ -63,21 +77,38 @@ describe("taskOrigin", () => {
   // org-roles-run-work.md R5: a task a role holds is the company's work. The
   // assignee is then an org_roles id, and the rule must not care which kind.
   test("isOnHumanBoard: a task an agent filed shows once a role holds it", () => {
-    expect(isOnHumanBoard({ source: "agent", assignee: "ms71rq_role_id" })).toBe(true);
-    expect(isOnHumanBoard({ source: "todo_sync", assignee: "ms71rq_role_id" })).toBe(true);
+    expect(
+      isOnHumanBoard({ source: "agent", assignee: "ms71rq_role_id" }),
+    ).toBe(true);
+    expect(
+      isOnHumanBoard({ source: "todo_sync", assignee: "ms71rq_role_id" }),
+    ).toBe(true);
     expect(isOnHumanBoard({ source: "agent", assignee: "" })).toBe(false);
   });
 
   test("isOnHumanBoard: ephemeral bookkeeping is never on it (TG9)", () => {
     expect(isOnHumanBoard({ source: "human", ephemeral: true })).toBe(false);
-    expect(isOnHumanBoard({ source: "agent", assignee: "user_1", promoted: true, ephemeral: true })).toBe(false);
+    expect(
+      isOnHumanBoard({
+        source: "agent",
+        assignee: "user_1",
+        promoted: true,
+        ephemeral: true,
+      }),
+    ).toBe(false);
     expect(isOnHumanBoard({ source: "human", ephemeral: false })).toBe(true);
   });
 });
 
 describe("buildTaskTree", () => {
   test("children follow their parent, and input order is kept per level", () => {
-    const rows = buildTaskTree([t("a"), t("b"), t("a1", "a"), t("a2", "a"), t("b1", "b")]);
+    const rows = buildTaskTree([
+      t("a"),
+      t("b"),
+      t("a1", "a"),
+      t("a2", "a"),
+      t("b1", "b"),
+    ]);
     expect(order(rows)).toEqual(["a", "a1", "a2", "b", "b1"]);
   });
 
@@ -90,19 +121,33 @@ describe("buildTaskTree", () => {
   // "The UI should emphasise the top two levels" — a deeper task still renders,
   // it just stops marching right.
   test("indent clamps at maxDepth while true depth keeps counting", () => {
-    const rows = buildTaskTree([t("a"), t("b", "a"), t("c", "b"), t("d", "c"), t("e", "d")]);
+    const rows = buildTaskTree([
+      t("a"),
+      t("b", "a"),
+      t("c", "b"),
+      t("d", "c"),
+      t("e", "d"),
+    ]);
     expect(rows.map((r) => r.depth)).toEqual([0, 1, 2, 3, 4]);
     expect(rows.map((r) => r.indent)).toEqual([0, 1, 2, 2, 2]);
     expect(order(rows)).toHaveLength(5);
   });
 
   test("maxDepth is configurable", () => {
-    const rows = buildTaskTree([t("a"), t("b", "a"), t("c", "b")], { maxDepth: 1 });
+    const rows = buildTaskTree([t("a"), t("b", "a"), t("c", "b")], {
+      maxDepth: 1,
+    });
     expect(rows.map((r) => r.indent)).toEqual([0, 1, 1]);
   });
 
   test("counts distinguish direct children from the whole subtree", () => {
-    const rows = buildTaskTree([t("a"), t("b", "a"), t("c", "b"), t("d", "b"), t("e", "a")]);
+    const rows = buildTaskTree([
+      t("a"),
+      t("b", "a"),
+      t("c", "b"),
+      t("d", "b"),
+      t("e", "a"),
+    ]);
     const byId = Object.fromEntries(rows.map((r) => [r.task._id, r]));
     expect(byId.a.childCount).toBe(2);
     expect(byId.a.descendantCount).toBe(4);
@@ -153,7 +198,11 @@ describe("buildTaskTree", () => {
     // Convex hands back id objects that stringify to the document id; the
     // builder compares via String() so a non-string parent_id still matches.
     const parent = { _id: "a", short_id: "ct-a" };
-    const child = { _id: "b", short_id: "ct-b", parent_id: { toString: () => "a" } as any };
+    const child = {
+      _id: "b",
+      short_id: "ct-b",
+      parent_id: { toString: () => "a" } as any,
+    };
     const rows = buildTaskTree([parent, child]);
     expect(order(rows as any)).toEqual(["a", "b"]);
     expect(rows[1].depth).toBe(1);
@@ -218,7 +267,11 @@ type FullRow = {
   source?: string;
   promoted?: boolean;
 };
-const f = (id: string, extra: Partial<FullRow> = {}): FullRow => ({ _id: id, status: "open", ...extra });
+const f = (id: string, extra: Partial<FullRow> = {}): FullRow => ({
+  _id: id,
+  status: "open",
+  ...extra,
+});
 
 describe("isActiveTask / isCountableSubtask", () => {
   test("suggested and dismissed rows are not active", () => {
@@ -230,25 +283,37 @@ describe("isActiveTask / isCountableSubtask", () => {
 
   test("unpromoted insight rows are not active; promotion activates them", () => {
     expect(isActiveTask(f("a", { source: "insight" }))).toBe(false);
-    expect(isActiveTask(f("a", { source: "insight", promoted: true }))).toBe(true);
+    expect(isActiveTask(f("a", { source: "insight", promoted: true }))).toBe(
+      true,
+    );
   });
 
   test("countable = active and unfinished", () => {
     expect(isCountableSubtask(f("a"))).toBe(true);
     expect(isCountableSubtask(f("a", { status: "done" }))).toBe(false);
     expect(isCountableSubtask(f("a", { status: "dropped" }))).toBe(false);
-    expect(isCountableSubtask(f("a", { triage_status: "dismissed" }))).toBe(false);
+    expect(isCountableSubtask(f("a", { triage_status: "dismissed" }))).toBe(
+      false,
+    );
   });
 });
 
 describe("subtaskProgressOf", () => {
   test("dropped children leave the denominator entirely", () => {
-    const p = subtaskProgressOf([f("a", { status: "done" }), f("b", { status: "dropped" }), f("c")]);
+    const p = subtaskProgressOf([
+      f("a", { status: "done" }),
+      f("b", { status: "dropped" }),
+      f("c"),
+    ]);
     expect(p).toEqual({ total: 2, done: 1, inProgress: 0 });
   });
 
   test("in_progress and in_review both count as in progress", () => {
-    const p = subtaskProgressOf([f("a", { status: "in_progress" }), f("b", { status: "in_review" }), f("c")]);
+    const p = subtaskProgressOf([
+      f("a", { status: "in_progress" }),
+      f("b", { status: "in_review" }),
+      f("c"),
+    ]);
     expect(p.inProgress).toBe(2);
     expect(p.total).toBe(3);
   });
@@ -273,7 +338,11 @@ describe("taskFamilyIndex", () => {
     ];
     const idx = taskFamilyIndex(all);
     // Progress on root sees a and b only — the grandchild belongs to a's progress.
-    expect(idx.progress.get("root")).toEqual({ total: 2, done: 1, inProgress: 0 });
+    expect(idx.progress.get("root")).toEqual({
+      total: 2,
+      done: 1,
+      inProgress: 0,
+    });
     expect(idx.progress.get("a")).toEqual({ total: 1, done: 0, inProgress: 1 });
     // Deep count on root: a and a1 (b is done, not countable).
     expect(idx.descendants.get("root")).toBe(2);
@@ -286,7 +355,8 @@ describe("taskFamilyIndex", () => {
 });
 
 describe("write-side guards", () => {
-  const parentOf = (map: Record<string, string | undefined>) => (id: string) => map[id];
+  const parentOf = (map: Record<string, string | undefined>) => (id: string) =>
+    map[id];
 
   test("taskDepth walks the chain and caps on cycles", () => {
     const chain = parentOf({ c: "b", b: "a" });

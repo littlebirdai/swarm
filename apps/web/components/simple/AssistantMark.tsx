@@ -5,12 +5,23 @@
 // glyph that later marks their own work. Light: the public pages import it.
 import { LogoMark } from "../Logo";
 
-export function AssistantMark({ size = 22, className = "" }: { size?: number; className?: string }) {
+export function AssistantMark({
+  size = 22,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
       className={`inline-flex shrink-0 items-center justify-center rounded-full ${className}`}
-      style={{ width: size, height: size, background: "var(--pd-ink, #201c17)", color: "var(--pd-bg-raised, #fdfbf6)" }}
+      style={{
+        width: size,
+        height: size,
+        background: "var(--pd-ink, #201c17)",
+        color: "var(--pd-bg-raised, #fdfbf6)",
+      }}
     >
       <LogoMark monochrome className="h-[62%] w-[62%]" />
     </span>

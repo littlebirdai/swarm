@@ -27,11 +27,15 @@ export function isScopeless(scope: ScopeIds | Scope): boolean {
 // The old name, which read as a claim on the workspace. It stays only until
 // orgInit.ts and org.ts import the new one.
 
-const uniq = <T>(ids: T[]): T[] => Array.from(new Set(ids.map((x) => String(x)))) as unknown as T[];
+const uniq = <T>(ids: T[]): T[] =>
+  Array.from(new Set(ids.map((x) => String(x)))) as unknown as T[];
 
 // Drop duplicates and plans whose project is already named: a scope that says
 // "project P and plan Q of P" is the scope "project P".
-export function normalizeScope(scope: Scope, planProjectOf: PlanProjectOf): Scope {
+export function normalizeScope(
+  scope: Scope,
+  planProjectOf: PlanProjectOf,
+): Scope {
   const projects = new Set(scope.project_ids.map(String));
   const plans = uniq(scope.plan_ids).filter((p) => {
     const project = planProjectOf.get(String(p));
@@ -40,7 +44,11 @@ export function normalizeScope(scope: Scope, planProjectOf: PlanProjectOf): Scop
   return { project_ids: uniq(scope.project_ids), plan_ids: plans };
 }
 
-function planInside(plan: string, scope: ScopeIds, planProjectOf: PlanProjectOf): boolean {
+function planInside(
+  plan: string,
+  scope: ScopeIds,
+  planProjectOf: PlanProjectOf,
+): boolean {
   if (scope.plan_ids.includes(plan)) return true;
   const project = planProjectOf.get(plan);
   return !!project && scope.project_ids.includes(project);
@@ -50,19 +58,32 @@ function planInside(plan: string, scope: ScopeIds, planProjectOf: PlanProjectOf)
 // parent that names no area sets no limit on a child, which is not a claim
 // that it owns the child's work. Returns what falls outside so the refusal
 // can name it.
-export function scopeOutside(parent: ScopeIds, child: ScopeIds, planProjectOf: PlanProjectOf): ScopeIds {
+export function scopeOutside(
+  parent: ScopeIds,
+  child: ScopeIds,
+  planProjectOf: PlanProjectOf,
+): ScopeIds {
   if (isScopeless(parent)) return { project_ids: [], plan_ids: [] };
   return {
-    project_ids: child.project_ids.filter((p) => !parent.project_ids.includes(p)),
-    plan_ids: child.plan_ids.filter((p) => !planInside(p, parent, planProjectOf)),
+    project_ids: child.project_ids.filter(
+      (p) => !parent.project_ids.includes(p),
+    ),
+    plan_ids: child.plan_ids.filter(
+      (p) => !planInside(p, parent, planProjectOf),
+    ),
   };
 }
 
 // Overlap: what two scopes both watch. Shared projects, shared plans, and a
 // plan one side lists whose project the other side names. A scope that names
 // no area overlaps with nothing.
-export function scopeOverlap(a: ScopeIds, b: ScopeIds, planProjectOf: PlanProjectOf): ScopeIds {
-  if (isScopeless(a) || isScopeless(b)) return { project_ids: [], plan_ids: [] };
+export function scopeOverlap(
+  a: ScopeIds,
+  b: ScopeIds,
+  planProjectOf: PlanProjectOf,
+): ScopeIds {
+  if (isScopeless(a) || isScopeless(b))
+    return { project_ids: [], plan_ids: [] };
   const project_ids = a.project_ids.filter((p) => b.project_ids.includes(p));
   const plans = new Set<string>();
   for (const p of a.plan_ids) if (planInside(p, b, planProjectOf)) plans.add(p);
@@ -74,16 +95,24 @@ export { keepsReportsInside };
 
 /** What of `child` falls outside `parent` when the parent holds its reports
  *  inside its area; nothing when it does not. */
-export function outsideKeptArea(parent: { scope: Scope | ScopeIds; keeps_reports_inside?: boolean | null }, child: ScopeIds, planProjectOf: PlanProjectOf): ScopeIds {
+export function outsideKeptArea(
+  parent: { scope: Scope | ScopeIds; keeps_reports_inside?: boolean | null },
+  child: ScopeIds,
+  planProjectOf: PlanProjectOf,
+): ScopeIds {
   if (!keepsReportsInside(parent)) return { project_ids: [], plan_ids: [] };
   return scopeOutside(scopeIds(parent.scope as Scope), child, planProjectOf);
 }
 
 export function scopeIds(scope: Scope): ScopeIds {
-  return { project_ids: scope.project_ids.map(String), plan_ids: scope.plan_ids.map(String) };
+  return {
+    project_ids: scope.project_ids.map(String),
+    plan_ids: scope.plan_ids.map(String),
+  };
 }
 
 export function sameScope(a: ScopeIds, b: ScopeIds): boolean {
-  const key = (s: ScopeIds) => JSON.stringify({ p: [...s.project_ids].sort(), l: [...s.plan_ids].sort() });
+  const key = (s: ScopeIds) =>
+    JSON.stringify({ p: [...s.project_ids].sort(), l: [...s.plan_ids].sort() });
   return key(a) === key(b);
 }

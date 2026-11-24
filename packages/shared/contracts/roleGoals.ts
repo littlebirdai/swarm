@@ -51,7 +51,9 @@ export function parseGoalLine(line: string): ParsedGoal | null {
   const m = line.trim().match(GOAL_LINE);
   if (!m) return null;
   const raw = m[1];
-  const priority = (raw.match(PRIORITY)?.[1]?.toLowerCase() as GoalPriority | undefined) ?? null;
+  const priority =
+    (raw.match(PRIORITY)?.[1]?.toLowerCase() as GoalPriority | undefined) ??
+    null;
   const refs = {
     sessions: uniq(raw.match(SESSION_REF) ?? []),
     tasks: uniq(raw.match(TASK_REF) ?? []),
@@ -61,7 +63,9 @@ export function parseGoalLine(line: string): ParsedGoal | null {
   // dash or comma that joined the refs to the words dropped with them.
   const text = raw
     .replace(PRIORITY, "")
-    .replace(SESSION_REF, "").replace(TASK_REF, "").replace(PLAN_REF, "")
+    .replace(SESSION_REF, "")
+    .replace(TASK_REF, "")
+    .replace(PLAN_REF, "")
     .replace(/[\s,;:·—–-]+$/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,;.])/g, "$1")
@@ -81,7 +85,10 @@ export function parseGoalSections(narrative: string): GoalSection[] {
       out.push(current);
       continue;
     }
-    if (ANY_HEADING.test(line)) { current = null; continue; }
+    if (ANY_HEADING.test(line)) {
+      current = null;
+      continue;
+    }
     if (!current) continue;
     const goal = parseGoalLine(line);
     if (goal) current.goals.push(goal);
@@ -92,7 +99,10 @@ export function parseGoalSections(narrative: string): GoalSection[] {
 /** Two names for one person: the brief says "Ashot", the roster says "Ashot
  *  Petrosian" or the email. The first word wins ties, so a first name in the
  *  brief matches the roster's full name. */
-export function goalSectionMatchesPerson(sectionName: string, person: { name?: string | null; email?: string | null }): boolean {
+export function goalSectionMatchesPerson(
+  sectionName: string,
+  person: { name?: string | null; email?: string | null },
+): boolean {
   const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
   const a = norm(sectionName);
   if (!a) return false;
@@ -100,7 +110,8 @@ export function goalSectionMatchesPerson(sectionName: string, person: { name?: s
   const email = norm(person.email ?? "");
   if (a === name || a === email) return true;
   if (email && a === email.split("@")[0]) return true;
-  if (name && (name.startsWith(a + " ") || a.startsWith(name + " "))) return true;
+  if (name && (name.startsWith(a + " ") || a.startsWith(name + " ")))
+    return true;
   const first = name.split(" ")[0];
   return !!first && a === first;
 }
@@ -108,7 +119,12 @@ export function goalSectionMatchesPerson(sectionName: string, person: { name?: s
 /** A goal's progress as the server reads it off the live rows: the shape the
  *  frame, `cast brief`, the Scope tab and the Brief tab all print one line of. */
 export type GoalProgress = {
-  refs: Array<{ kind: "session" | "task" | "plan"; short_id: string; status: string; updated_at: number }>;
+  refs: Array<{
+    kind: "session" | "task" | "plan";
+    short_id: string;
+    status: string;
+    updated_at: number;
+  }>;
   unresolved?: string[];
   moved_at: number | null;
   stalled: boolean;
@@ -117,17 +133,33 @@ export type GoalProgress = {
 
 const ago = (ms: number): string => {
   const m = Math.max(0, Math.round(ms / 60_000));
-  return m < 60 ? `${m}m` : m < 48 * 60 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
+  return m < 60
+    ? `${m}m`
+    : m < 48 * 60
+      ? `${Math.round(m / 60)}h`
+      : `${Math.round(m / 1440)}d`;
 };
 
 /** "ct-52526 in_progress, pl-711 active · moved 2h ago", "nothing matched ·
  *  stalled", "jx7abcd working · stalled 4d". */
 export function goalStateLine(g: GoalProgress, now: number): string {
   const parts: string[] = [];
-  parts.push(g.refs.length ? g.refs.map((r) => `${r.short_id}${r.status ? ` ${r.status}` : ""}`).join(", ") : "nothing matched");
-  if (g.unresolved?.length) parts.push(`${g.unresolved.length} id${g.unresolved.length === 1 ? "" : "s"} not found`);
+  parts.push(
+    g.refs.length
+      ? g.refs
+          .map((r) => `${r.short_id}${r.status ? ` ${r.status}` : ""}`)
+          .join(", ")
+      : "nothing matched",
+  );
+  if (g.unresolved?.length)
+    parts.push(
+      `${g.unresolved.length} id${g.unresolved.length === 1 ? "" : "s"} not found`,
+    );
   if (g.moved_at !== null) parts.push(`moved ${ago(now - g.moved_at)} ago`);
-  if (g.stalled) parts.push(g.moved_at !== null ? `stalled ${ago(now - g.moved_at)}` : "stalled");
+  if (g.stalled)
+    parts.push(
+      g.moved_at !== null ? `stalled ${ago(now - g.moved_at)}` : "stalled",
+    );
   else if (g.unmatched) parts.push("unmatched for a week");
   return parts.join(" · ");
 }

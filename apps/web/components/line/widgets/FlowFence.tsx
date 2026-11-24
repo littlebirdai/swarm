@@ -15,7 +15,11 @@ import { memo, useMemo, useState } from "react";
 import Link from "next/link";
 import { useWorkspaceFeature } from "../../../lib/teamFeatures";
 import { useWorkflowRun } from "../../../hooks/useSyncWorkflows";
-import { useNamedFlow, useRunFlow, type FlowLibraryState } from "../../../hooks/useFlowObject";
+import {
+  useNamedFlow,
+  useRunFlow,
+  type FlowLibraryState,
+} from "../../../hooks/useFlowObject";
 import { type AppFlow } from "../../../lib/line/flowPool";
 import { takesSessionChange } from "@codecast/shared/contracts/flowPool";
 import { journeyOf, runIsLive } from "../../../lib/ship/journey";
@@ -32,29 +36,75 @@ import { FlowPipelineCard } from "./FlowPipelineCard";
 import { ShipAgainButton } from "./RunThroughFlow";
 import "../workspace/workspace.css";
 
-export default function FlowFence({ code, fallback }: { code: string; fallback?: React.ReactNode }) {
+export default function FlowFence({
+  code,
+  fallback,
+}: {
+  code: string;
+  fallback?: React.ReactNode;
+}) {
   // With Flows off the card is gone with the rest of the feature; the block reads as its source (a reference, as its pill).
   const flowsOn = useWorkspaceFeature("line");
   const read = useMemo(() => readFlowFence(code), [code]);
-  if (!read.ok || !flowsOn) return fallback !== undefined ? <>{fallback}</> : <CodeBlock code={code} language="json" />;
+  if (!read.ok || !flowsOn)
+    return fallback !== undefined ? (
+      <>{fallback}</>
+    ) : (
+      <CodeBlock code={code} language="json" />
+    );
   const { spec } = read;
   if (spec.edit) return <FlowEditCard edit={spec.edit} />;
-  if (spec.pipeline) return <FlowPipelineCard repository={spec.pipeline} title={spec.title} />;
-  return spec.run ? <FlowRunCard runId={spec.run} title={spec.title} /> : <FlowCard slug={spec.flow!} title={spec.title} />;
+  if (spec.pipeline)
+    return <FlowPipelineCard repository={spec.pipeline} title={spec.title} />;
+  return spec.run ? (
+    <FlowRunCard runId={spec.run} title={spec.title} />
+  ) : (
+    <FlowCard slug={spec.flow!} title={spec.title} />
+  );
 }
 
 const KIND_WORD = { line: "Flow", segment: "Segment" } as const;
 
-function FlowHead({ flow, title, library, children }: { flow: AppFlow; title?: string | null; library: FlowLibraryState; children?: React.ReactNode }) {
+function FlowHead({
+  flow,
+  title,
+  library,
+  children,
+}: {
+  flow: AppFlow;
+  title?: string | null;
+  library: FlowLibraryState;
+  children?: React.ReactNode;
+}) {
   const inLibrary = flow.where === "shipped" || flow.where === "team";
   return (
     <div className="lw-flow-head">
-      <span className="lw-flow-kind" data-kind={flow.kind}>{KIND_WORD[flow.kind]}</span>
-      {inLibrary
-        ? <Link className="lw-flow-name" href={lineWorkspaceHref(null, { view: "flows", item: flow.slug })} data-flow-open={flow.slug}>{title ?? flow.label}</Link>
-        : <span className="lw-flow-name">{title ?? flow.label}</span>}
-      {flow.base ? <Link className="lw-flow-base" href={lineWorkspaceHref(null, { view: "flows", item: flow.base })} data-flow-base={flow.base}>on {flow.base}</Link> : null}
-      <span className="lw-flow-path">{flow.base ? null : flow.description}</span>
+      <span className="lw-flow-kind" data-kind={flow.kind}>
+        {KIND_WORD[flow.kind]}
+      </span>
+      {inLibrary ? (
+        <Link
+          className="lw-flow-name"
+          href={lineWorkspaceHref(null, { view: "flows", item: flow.slug })}
+          data-flow-open={flow.slug}
+        >
+          {title ?? flow.label}
+        </Link>
+      ) : (
+        <span className="lw-flow-name">{title ?? flow.label}</span>
+      )}
+      {flow.base ? (
+        <Link
+          className="lw-flow-base"
+          href={lineWorkspaceHref(null, { view: "flows", item: flow.base })}
+          data-flow-base={flow.base}
+        >
+          on {flow.base}
+        </Link>
+      ) : null}
+      <span className="lw-flow-path">
+        {flow.base ? null : flow.description}
+      </span>
       {children}
       <LibraryAction library={library} />
     </div>
@@ -65,21 +115,60 @@ function FlowHead({ flow, title, library, children }: { flow: AppFlow; title?: s
 function LibraryAction({ library }: { library: FlowLibraryState }) {
   if (!library || library.kind === "library") return null;
   if (library.kind === "saved") {
-    return <Link className="lw-flow-saved" href={lineWorkspaceHref(null, { view: "flows", item: library.slug })} data-flow-saved={library.slug}>Saved · {library.slug} v{library.version}</Link>;
+    return (
+      <Link
+        className="lw-flow-saved"
+        href={lineWorkspaceHref(null, { view: "flows", item: library.slug })}
+        data-flow-saved={library.slug}
+      >
+        Saved · {library.slug} v{library.version}
+      </Link>
+    );
   }
   return (
-    <button type="button" className="lw-flow-save" data-flow-save={library.id}
-      onClick={() => useInboxStore.getState().saveSessionFlow(library.id, library.variantOf ? { variant_of: library.variantOf } : undefined)}>
+    <button
+      type="button"
+      className="lw-flow-save"
+      data-flow-save={library.id}
+      onClick={() =>
+        useInboxStore
+          .getState()
+          .saveSessionFlow(
+            library.id,
+            library.variantOf ? { variant_of: library.variantOf } : undefined,
+          )
+      }
+    >
       Save to library
     </button>
   );
 }
 
 /** One flow, by name: the library's, or one this session defined. */
-export const FlowCard = memo(function FlowCard({ slug, title }: { slug: string; title?: string | null }) {
+export const FlowCard = memo(function FlowCard({
+  slug,
+  title,
+}: {
+  slug: string;
+  title?: string | null;
+}) {
   const { flow, library } = useNamedFlow(slug);
-  if (flow === undefined) return <div className="lw-widget lw-flow lw-flow-cold" aria-busy data-flow-card={slug} />;
-  if (!flow) return <div className="lw-widget"><div className="lw-fence-fallback" data-flow-missing={slug}>No flow <b>{slug}</b> in the library.</div></div>;
+  if (flow === undefined)
+    return (
+      <div
+        className="lw-widget lw-flow lw-flow-cold"
+        aria-busy
+        data-flow-card={slug}
+      />
+    );
+  if (!flow)
+    return (
+      <div className="lw-widget">
+        <div className="lw-fence-fallback" data-flow-missing={slug}>
+          No flow <b>{slug}</b> in the library.
+        </div>
+      </div>
+    );
   return (
     <div className="lw-widget lw-flow" data-flow-card={flow.slug}>
       <FlowHead flow={flow} title={title} library={library} />
@@ -90,20 +179,60 @@ export const FlowCard = memo(function FlowCard({ slug, title }: { slug: string; 
 
 /** One run of a flow: the graph it ran, where the change is, the path it took, and how it ended. A session's change
  *  reads as its journey to live (components/ship/Journey), with the graph a press away; any other run draws the graph. */
-export const FlowRunCard = memo(function FlowRunCard({ runId, title }: { runId: string; title?: string | null }) {
+export const FlowRunCard = memo(function FlowRunCard({
+  runId,
+  title,
+}: {
+  runId: string;
+  title?: string | null;
+}) {
   const run = useWorkflowRun(runId);
   const { flow, library } = useRunFlow(run);
-  if (run === undefined || (run && flow === undefined)) return <div className="lw-widget lw-flow lw-flow-cold" aria-busy data-flow-run={runId} />;
-  if (!run || !flow) return <div className="lw-widget"><div className="lw-fence-fallback" data-flow-run-missing={runId}>A flow run you cannot open here.</div></div>;
-  if (flow.kind === "line" && takesSessionChange(flow)) return <ShipRunCard run={run} flow={flow} title={title} library={library} />;
+  if (run === undefined || (run && flow === undefined))
+    return (
+      <div
+        className="lw-widget lw-flow lw-flow-cold"
+        aria-busy
+        data-flow-run={runId}
+      />
+    );
+  if (!run || !flow)
+    return (
+      <div className="lw-widget">
+        <div className="lw-fence-fallback" data-flow-run-missing={runId}>
+          A flow run you cannot open here.
+        </div>
+      </div>
+    );
+  if (flow.kind === "line" && takesSessionChange(flow))
+    return (
+      <ShipRunCard run={run} flow={flow} title={title} library={library} />
+    );
   const state = flowRunState(run, flow);
   return (
-    <div className="lw-widget lw-flow" data-flow-run={runId} data-flow-state={state.tone}>
+    <div
+      className="lw-widget lw-flow"
+      data-flow-run={runId}
+      data-flow-state={state.tone}
+    >
       <FlowHead flow={flow} title={title} library={library}>
-        <span className="lw-flow-state" data-tone={state.tone}>{state.words}</span>
-        {run.task_short_id ? <Link className="lw-flow-task" href={`/tasks/${run.task_short_id}`}>{run.task_short_id}</Link> : null}
+        <span className="lw-flow-state" data-tone={state.tone}>
+          {state.words}
+        </span>
+        {run.task_short_id ? (
+          <Link className="lw-flow-task" href={`/tasks/${run.task_short_id}`}>
+            {run.task_short_id}
+          </Link>
+        ) : null}
         {state.tone === "running" || state.tone === "waiting" ? (
-          <button type="button" className="lw-flow-stop" onClick={() => void useInboxStore.getState().stopLineRun(runId)} data-flow-stop={runId}>Stop</button>
+          <button
+            type="button"
+            className="lw-flow-stop"
+            onClick={() => void useInboxStore.getState().stopLineRun(runId)}
+            data-flow-stop={runId}
+          >
+            Stop
+          </button>
         ) : null}
       </FlowHead>
       <FlowExplorer flow={flow} run={run} />
@@ -113,22 +242,83 @@ export const FlowRunCard = memo(function FlowRunCard({ runId, title }: { runId: 
 });
 
 /** A session's change on its way to live: the stages, who acts now, and the person's part, with the full graph a press away. */
-function ShipRunCard({ run, flow, title, library }: { run: any; flow: AppFlow; title?: string | null; library: FlowLibraryState }) {
+function ShipRunCard({
+  run,
+  flow,
+  title,
+  library,
+}: {
+  run: any;
+  flow: AppFlow;
+  title?: string | null;
+  library: FlowLibraryState;
+}) {
   const [graph, setGraph] = useState(false);
   const now = useCoarseNow(15_000);
   const viewer = useJourneyViewer(run);
-  const journey = useMemo(() => journeyOf(flow, run, [], viewer), [flow, run, viewer]);
+  const journey = useMemo(
+    () => journeyOf(flow, run, [], viewer),
+    [flow, run, viewer],
+  );
   const live = runIsLive(run);
   return (
-    <div className="lw-widget lw-flow" data-flow-run={run._id} data-ship-run-card={journey.now.kind}>
-      <FlowHead flow={flow} title={title ?? run.task_title ?? null} library={library}>
-        {run.task_short_id ? <Link className="lw-flow-task" href={`/tasks/${run.task_short_id}`}>{run.task_short_id}</Link> : null}
-        <button type="button" className="lw-flow-save" onClick={() => setGraph((g) => !g)} aria-pressed={graph} data-flow-graph-toggle>{graph ? "Stages" : "Graph"}</button>
+    <div
+      className="lw-widget lw-flow"
+      data-flow-run={run._id}
+      data-ship-run-card={journey.now.kind}
+    >
+      <FlowHead
+        flow={flow}
+        title={title ?? run.task_title ?? null}
+        library={library}
+      >
+        {run.task_short_id ? (
+          <Link className="lw-flow-task" href={`/tasks/${run.task_short_id}`}>
+            {run.task_short_id}
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          className="lw-flow-save"
+          onClick={() => setGraph((g) => !g)}
+          aria-pressed={graph}
+          data-flow-graph-toggle
+        >
+          {graph ? "Stages" : "Graph"}
+        </button>
       </FlowHead>
       {graph ? <FlowExplorer flow={flow} run={run} /> : null}
-      <JourneyView journey={journey} run={run} now_ms={now} compact={graph} actions={
-        live ? <button type="button" className="sj-btn" data-quiet onClick={() => void useInboxStore.getState().stopLineRun(run._id)} data-flow-stop={run._id}>Stop</button> : null
-      } again={run.spawner_conversation_id ? (primary) => <ShipAgainButton flow={flow} conversationId={String(run.spawner_conversation_id)} sessionTitle={run.task_title ?? "This session"} primary={primary} /> : undefined} />
+      <JourneyView
+        journey={journey}
+        run={run}
+        now_ms={now}
+        compact={graph}
+        actions={
+          live ? (
+            <button
+              type="button"
+              className="sj-btn"
+              data-quiet
+              onClick={() => void useInboxStore.getState().stopLineRun(run._id)}
+              data-flow-stop={run._id}
+            >
+              Stop
+            </button>
+          ) : null
+        }
+        again={
+          run.spawner_conversation_id
+            ? (primary) => (
+                <ShipAgainButton
+                  flow={flow}
+                  conversationId={String(run.spawner_conversation_id)}
+                  sessionTitle={run.task_title ?? "This session"}
+                  primary={primary}
+                />
+              )
+            : undefined
+        }
+      />
     </div>
   );
 }

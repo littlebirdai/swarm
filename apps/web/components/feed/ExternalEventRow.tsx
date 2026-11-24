@@ -60,17 +60,33 @@ export function Pill({
 }) {
   const cls =
     "inline-flex items-center gap-1 px-1.5 h-[18px] rounded border border-sol-border/25 bg-sol-bg-alt/50 text-meta text-sol-text-muted hover:text-sol-text hover:border-sol-border/50 transition-colors max-w-[16rem] truncate";
-  if (!href) return <span className={cls} title={title}>{children}</span>;
+  if (!href)
+    return (
+      <span className={cls} title={title}>
+        {children}
+      </span>
+    );
   if (external) {
     return (
-      <a className={cls} href={href} title={title} target="_blank" rel="noopener noreferrer">
+      <a
+        className={cls}
+        href={href}
+        title={title}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         {children}
       </a>
     );
   }
   if (onNavigate) {
     return (
-      <button type="button" className={cls} title={title} onClick={() => onNavigate(href)}>
+      <button
+        type="button"
+        className={cls}
+        title={title}
+        onClick={() => onNavigate(href)}
+      >
         {children}
       </button>
     );
@@ -82,7 +98,13 @@ export function Pill({
   );
 }
 
-export function ActorFace({ actor, size }: { actor: ExternalEvent["actor"]; size: number }) {
+export function ActorFace({
+  actor,
+  size,
+}: {
+  actor: ExternalEvent["actor"];
+  size: number;
+}) {
   const name = actor?.name || actor?.login || "";
   const px = { width: size, height: size };
   const fallback = (
@@ -106,7 +128,13 @@ export function ActorFace({ actor, size }: { actor: ExternalEvent["actor"]; size
 }
 
 /** A word in its own color: a check conclusion, a review state, a count of failures. */
-export function AccentWord({ accent, children }: { accent: ExternalEventAccent; children: React.ReactNode }) {
+export function AccentWord({
+  accent,
+  children,
+}: {
+  accent: ExternalEventAccent;
+  children: React.ReactNode;
+}) {
   return (
     <span
       className="px-1 rounded text-meta font-medium flex-shrink-0"
@@ -122,11 +150,16 @@ function OutcomeWord({ event }: { event: ExternalEvent }) {
   const meta = event.meta ?? {};
   const word =
     (typeof meta.conclusion === "string" && meta.conclusion) ||
-    (typeof meta.review_state === "string" && meta.review_state.toLowerCase()) ||
+    (typeof meta.review_state === "string" &&
+      meta.review_state.toLowerCase()) ||
     (typeof meta.status === "string" && meta.status) ||
     "";
   if (!word) return null;
-  return <AccentWord accent={eventAccent(event)}>{word.replace(/_/g, " ")}</AccentWord>;
+  return (
+    <AccentWord accent={eventAccent(event)}>
+      {word.replace(/_/g, " ")}
+    </AccentWord>
+  );
 }
 
 export function ExternalEventRow({
@@ -149,26 +182,35 @@ export function ExternalEventRow({
 
   const omitted = useMemo(() => new Set(omitRefs ?? []), [omitRefs]);
   const has = useCallback(
-    (key: keyof ExternalEventRef) => !omitted.has(key) && event.refs[key] !== undefined,
+    (key: keyof ExternalEventRef) =>
+      !omitted.has(key) && event.refs[key] !== undefined,
     [omitted, event.refs],
   );
 
   // The row's own destination: the codecast page for the thing that changed,
   // falling back to the provider's page when we host no view of it.
   const primaryHref =
-    prPath(event.refs.pr) ?? commitPath(event.refs.commit) ?? event.refs.issue?.url ?? event.url ?? null;
+    prPath(event.refs.pr) ??
+    commitPath(event.refs.commit) ??
+    event.refs.issue?.url ??
+    event.url ??
+    null;
   const primaryIsExternal = !primaryHref?.startsWith("/");
 
   const open = useCallback(() => {
     if (!primaryHref) return;
-    if (primaryIsExternal) window.open(primaryHref, "_blank", "noopener,noreferrer");
+    if (primaryIsExternal)
+      window.open(primaryHref, "_blank", "noopener,noreferrer");
     else if (onNavigate) onNavigate(primaryHref);
     else window.location.assign(primaryHref);
   }, [primaryHref, primaryIsExternal, onNavigate]);
 
   const actorName = event.actor?.name || event.actor?.login;
   const summary = event.summary;
-  const showSummary = summary && !compact && (density !== "feed" || expanded || summary.length < 90);
+  const showSummary =
+    summary &&
+    !compact &&
+    (density !== "feed" || expanded || summary.length < 90);
 
   // Push events say how much moved; a check says which check. A title that
   // already says a thing does not get to say it twice: backends write titles
@@ -176,27 +218,37 @@ export function ExternalEventRow({
   // turns one fact into three words of noise.
   const title = event.title;
   const detail = useMemo(() => {
-    const says = (text: string) => title.toLowerCase().includes(text.toLowerCase());
+    const says = (text: string) =>
+      title.toLowerCase().includes(text.toLowerCase());
     const bits: string[] = [];
-    const add = (text: string) => { if (!says(text)) bits.push(text); };
-    if (typeof meta.check_name === "string" && meta.check_name) add(meta.check_name);
+    const add = (text: string) => {
+      if (!says(text)) bits.push(text);
+    };
+    if (typeof meta.check_name === "string" && meta.check_name)
+      add(meta.check_name);
     if (typeof meta.commit_count === "number" && meta.commit_count > 0) {
       add(`${meta.commit_count} commit${meta.commit_count === 1 ? "" : "s"}`);
     }
     if (typeof meta.files_changed === "number" && meta.files_changed > 0) {
       add(`${meta.files_changed} file${meta.files_changed === 1 ? "" : "s"}`);
     }
-    if (typeof meta.behind_by === "number" && meta.behind_by > 0) add(`${meta.behind_by} behind`);
+    if (typeof meta.behind_by === "number" && meta.behind_by > 0)
+      add(`${meta.behind_by} behind`);
     return bits.join(" · ");
   }, [meta, title]);
 
   const branchValue = typeof meta.branch === "string" ? meta.branch : undefined;
-  const branch = branchValue && !title.toLowerCase().includes(branchValue.toLowerCase()) && branchValue !== omitBranch
-    ? branchValue
-    : undefined;
+  const branch =
+    branchValue &&
+    !title.toLowerCase().includes(branchValue.toLowerCase()) &&
+    branchValue !== omitBranch
+      ? branchValue
+      : undefined;
   // The same rule for the commit pill: a title that names the sha already
   // ("updated to 8f7eb2d") has said it.
-  const commitSaid = !!event.refs.commit && title.toLowerCase().includes(shortSha(event.refs.commit.sha).toLowerCase());
+  const commitSaid =
+    !!event.refs.commit &&
+    title.toLowerCase().includes(shortSha(event.refs.commit.sha).toLowerCase());
 
   const visibleRefs = useMemo((): ExternalEventRef => {
     const out: ExternalEventRef = {};
@@ -223,14 +275,19 @@ export function ExternalEventRow({
       className={[
         "group relative flex items-start gap-2 outline-none",
         "focus-visible:ring-1 focus-visible:ring-sol-blue/50 rounded",
-        card ? "border border-sol-border/20 bg-sol-card/60 rounded-md px-2.5 py-2" : "px-1 py-1",
+        card
+          ? "border border-sol-border/20 bg-sol-card/60 rounded-md px-2.5 py-2"
+          : "px-1 py-1",
         className,
       ].join(" ")}
     >
       {/* The rail: a tinted disc carrying the kind's icon. */}
       <span
         className="mt-[1px] w-[17px] h-[17px] rounded-full flex items-center justify-center flex-shrink-0 border"
-        style={{ background: accentSoft(accent), borderColor: accentSoft(accent, 40) }}
+        style={{
+          background: accentSoft(accent),
+          borderColor: accentSoft(accent, 40),
+        }}
       >
         <Icon className="w-2.5 h-2.5" style={{ color: accentVar(accent) }} />
       </span>
@@ -240,7 +297,9 @@ export function ExternalEventRow({
           {showActor && event.actor ? (
             <span className="inline-flex items-center gap-1 flex-shrink-0 self-center">
               <ActorFace actor={event.actor} size={14} />
-              {actorName ? <span className="text-sol-text-muted">{actorName}</span> : null}
+              {actorName ? (
+                <span className="text-sol-text-muted">{actorName}</span>
+              ) : null}
             </span>
           ) : null}
           <span className="text-sol-text-dim flex-shrink-0">{style.verb}</span>
@@ -255,17 +314,26 @@ export function ExternalEventRow({
                 {event.title}
               </a>
             ) : (
-              <Link href={primaryHref} className="text-sol-text hover:text-sol-link truncate min-w-0">
+              <Link
+                href={primaryHref}
+                className="text-sol-text hover:text-sol-link truncate min-w-0"
+              >
                 {event.title}
               </Link>
             )
           ) : (
-            <span className="text-sol-text truncate min-w-0">{event.title}</span>
+            <span className="text-sol-text truncate min-w-0">
+              {event.title}
+            </span>
           )}
           <OutcomeWord event={event} />
-          {detail ? <span className="text-sol-text-dim/80 flex-shrink-0">{detail}</span> : null}
+          {detail ? (
+            <span className="text-sol-text-dim/80 flex-shrink-0">{detail}</span>
+          ) : null}
           {branch ? (
-            <span className="font-mono text-meta text-sol-text-dim/80 flex-shrink-0">{branch}</span>
+            <span className="font-mono text-meta text-sol-text-dim/80 flex-shrink-0">
+              {branch}
+            </span>
           ) : null}
           <span
             className="ml-auto text-meta text-sol-text-dim tabular-nums flex-shrink-0 pl-1"
@@ -280,8 +348,12 @@ export function ExternalEventRow({
             className={`text-meta text-sol-text-muted leading-5 ${showSummary ? "whitespace-pre-wrap" : "truncate"} ${
               density === "feed" ? "cursor-pointer" : ""
             }`}
-            onClick={density === "feed" ? () => setExpanded((v) => !v) : undefined}
-            title={density === "feed" && !expanded ? "Click to expand" : undefined}
+            onClick={
+              density === "feed" ? () => setExpanded((v) => !v) : undefined
+            }
+            title={
+              density === "feed" && !expanded ? "Click to expand" : undefined
+            }
           >
             {summary}
           </div>
@@ -314,27 +386,48 @@ export function EventRefPills({
   onNavigate?: (path: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 flex-wrap mt-1 empty:mt-0 text-meta leading-5" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="flex items-center gap-1 flex-wrap mt-1 empty:mt-0 text-meta leading-5"
+      onClick={(e) => e.stopPropagation()}
+    >
       {sessionIds.map((id) => (
         <EntityIdPill key={id} id={id} type="session" />
       ))}
       {refs.task_id || refs.task_short_id ? (
-        <EntityIdPill shortId={refs.task_short_id} id={refs.task_id} type="task" />
+        <EntityIdPill
+          shortId={refs.task_short_id}
+          id={refs.task_id}
+          type="task"
+        />
       ) : null}
       {refs.plan_id ? <EntityIdPill id={refs.plan_id} type="plan" /> : null}
-      {refs.project_id ? <EntityIdPill id={refs.project_id} type="project" /> : null}
+      {refs.project_id ? (
+        <EntityIdPill id={refs.project_id} type="project" />
+      ) : null}
       {refs.pr ? (
-        <Pill href={prPath(refs.pr)} onNavigate={onNavigate} title={refs.pr.repository}>
+        <Pill
+          href={prPath(refs.pr)}
+          onNavigate={onNavigate}
+          title={refs.pr.repository}
+        >
           #{refs.pr.number}
         </Pill>
       ) : null}
       {refs.commit ? (
-        <Pill href={commitPath(refs.commit)} onNavigate={onNavigate} title={refs.commit.sha}>
+        <Pill
+          href={commitPath(refs.commit)}
+          onNavigate={onNavigate}
+          title={refs.commit.sha}
+        >
           <span className="font-mono">{shortSha(refs.commit.sha)}</span>
         </Pill>
       ) : null}
       {refs.file ? (
-        <Pill href={filePath(refs.file)} onNavigate={onNavigate} title={refs.file.path}>
+        <Pill
+          href={filePath(refs.file)}
+          onNavigate={onNavigate}
+          title={refs.file.path}
+        >
           <span className="font-mono truncate">
             {refs.file.path.split("/").pop()}
             {refs.file.line ? `:${refs.file.line}` : ""}

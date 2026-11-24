@@ -1,6 +1,9 @@
 import { useSyncExternalStore } from "react";
 import { useAuthPrincipal } from "../lib/authPrincipal";
-import { isWindowStoreActive, subscribeWindowStoreStart } from "../lib/windowRole";
+import {
+  isWindowStoreActive,
+  subscribeWindowStoreStart,
+} from "../lib/windowRole";
 import { useInboxStore } from "../store/inboxStore";
 import { startSyncReplication } from "../store/syncReplication";
 

@@ -28,14 +28,17 @@ const web = path.resolve(import.meta.dir, "../../../..");
 const repo = path.resolve(web, "../..");
 const STORE = path.join(web, "store/inboxStore.ts");
 
-const OWN = ["inbox.chapter.ts", "inbox.tsx", "inbox.motion.ts"].map((f) => path.join(import.meta.dir, f))
+const OWN = ["inbox.chapter.ts", "inbox.tsx", "inbox.motion.ts"]
+  .map((f) => path.join(import.meta.dir, f))
   .concat([path.join(import.meta.dir, "../fixtures/desk.ts")]);
 
 function renderPoster(parts: typeof inbox.parts) {
   return renderToString(
     <HeroSandbox>
       <FilmClockContext.Provider value={createFilmClock(POSTER_T)}>
-        {parts.map((p) => <p.Component key={p.key} now={NOW} />)}
+        {parts.map((p) => (
+          <p.Component key={p.key} now={NOW} />
+        ))}
       </FilmClockContext.Provider>
     </HeroSandbox>,
   );
@@ -43,11 +46,15 @@ function renderPoster(parts: typeof inbox.parts) {
 
 describe("the poster chapter", () => {
   test("its own modules have no runtime import of the store", () => {
-    const alias = (spec: string) => (spec.startsWith("@/") ? path.join(web, spec.slice(2)) : null);
+    const alias = (spec: string) =>
+      spec.startsWith("@/") ? path.join(web, spec.slice(2)) : null;
     for (const file of OWN) {
       const graph = buildBootGraph(file, repo, { alias });
       const own = graph.nodes.get(file)!;
-      expect(own.imports.includes(STORE), `${path.basename(file)} imports the store`).toBe(false);
+      expect(
+        own.imports.includes(STORE),
+        `${path.basename(file)} imports the store`,
+      ).toBe(false);
     }
   });
 
@@ -66,7 +73,8 @@ describe("the poster chapter", () => {
     // The poster shows the lead landed and selected, over the six sessions it opens on.
     expect(POSTER_T).toBeGreaterThan(CUES.leadSelected);
     expect(html).toContain(SESSIONS.lead.title);
-    for (const r of inboxRows(NOW)) expect(html).toContain(r.session.title as string);
+    for (const r of inboxRows(NOW))
+      expect(html).toContain(r.session.title as string);
     expect(html).toContain('data-active="true"');
   });
 

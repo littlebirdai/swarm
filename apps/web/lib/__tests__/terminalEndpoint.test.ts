@@ -18,7 +18,8 @@ const session = new Map<string, string>();
   removeItem: (k: string) => void session.delete(k),
 };
 
-const { getTerminalEndpoint, lastDiscoveryFailure } = await import("../terminal/endpoint");
+const { getTerminalEndpoint, lastDiscoveryFailure } =
+  await import("../terminal/endpoint");
 const { useInboxStore } = await import("../../store/inboxStore");
 // Discovery asks only for someone signed in.
 useInboxStore.setState({ currentUser: { _id: "u_me" } } as any);
@@ -29,7 +30,12 @@ function oneDaemon(ep: typeof THIS_MACHINE) {
     mutation: async () => ({ commands: [{ command_id: "cmd-1" }] }),
     query: async () => ({
       executed_at: 1,
-      result: JSON.stringify({ port: ep.port, token: ep.token, device_id: ep.deviceId, tmux: ep.tmux }),
+      result: JSON.stringify({
+        port: ep.port,
+        token: ep.token,
+        device_id: ep.deviceId,
+        tmux: ep.tmux,
+      }),
     }),
   } as any;
 }
@@ -42,13 +48,19 @@ function probeFails(...answers: ("timeout" | "rejected")[]) {
   const queue = [...answers];
   (globalThis as any).fetch = mock(async () => {
     const next = queue.shift();
-    if (next === "timeout") throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
+    if (next === "timeout")
+      throw Object.assign(new Error("timed out"), { name: "TimeoutError" });
     if (next === "rejected") throw new TypeError("Failed to fetch");
     return { ok: true, json: async () => ({ tmux: true, sessions: [] }) };
   });
 }
 
-const THIS_MACHINE = { port: 41234, token: "tok", deviceId: "dev-here", tmux: true };
+const THIS_MACHINE = {
+  port: 41234,
+  token: "tok",
+  deviceId: "dev-here",
+  tmux: true,
+};
 
 /** A loopback probe that answers only for the machine we say is here. */
 function probeAnswers(ok: boolean) {
@@ -64,7 +76,10 @@ function probeAnswers(ok: boolean) {
 
 /** A convex client whose targeted lookup finds nothing — the shape a machine
  *  that is asleep, or simply not this one, produces. */
-const noDevices = { mutation: async () => ({ commands: [] }), query: async () => null } as any;
+const noDevices = {
+  mutation: async () => ({ commands: [] }),
+  query: async () => null,
+} as any;
 
 beforeEach(() => {
   store.clear();
@@ -77,7 +92,13 @@ afterEach(() => {
 describe("getTerminalEndpoint", () => {
   test("nobody signed in: no relay call, and no rejection", async () => {
     let asked = 0;
-    const relay = { mutation: async () => { asked++; throw new Error("Not authenticated"); }, query: async () => null } as any;
+    const relay = {
+      mutation: async () => {
+        asked++;
+        throw new Error("Not authenticated");
+      },
+      query: async () => null,
+    } as any;
     useInboxStore.setState({ currentUser: null } as any);
     expect(await getTerminalEndpoint(relay)).toBeNull();
     expect(asked).toBe(0);
@@ -97,7 +118,9 @@ describe("getTerminalEndpoint", () => {
   test("asking for THIS machine by id hits the cache", async () => {
     session.set("cast_term_endpoint", JSON.stringify(THIS_MACHINE));
     probeAnswers(true);
-    expect(await getTerminalEndpoint(noDevices, { deviceId: "dev-here" })).toEqual(THIS_MACHINE);
+    expect(
+      await getTerminalEndpoint(noDevices, { deviceId: "dev-here" }),
+    ).toEqual(THIS_MACHINE);
   });
 
   test("asking for ANOTHER machine resolves immediately, without discovery", async () => {
@@ -106,8 +129,13 @@ describe("getTerminalEndpoint", () => {
     // delay the relay by seconds every time a remote split opens.
     session.set("cast_term_endpoint", JSON.stringify(THIS_MACHINE));
     probeAnswers(true);
-    const convex = { mutation: mock(async () => ({ commands: [] })), query: async () => null } as any;
-    expect(await getTerminalEndpoint(convex, { deviceId: "dev-elsewhere" })).toBeNull();
+    const convex = {
+      mutation: mock(async () => ({ commands: [] })),
+      query: async () => null,
+    } as any;
+    expect(
+      await getTerminalEndpoint(convex, { deviceId: "dev-elsewhere" }),
+    ).toBeNull();
     expect(lastDiscoveryFailure()).toBe("other-device");
     expect(convex.mutation).not.toHaveBeenCalled();
   });
@@ -115,16 +143,23 @@ describe("getTerminalEndpoint", () => {
   test("a cached endpoint for another machine is never handed back", async () => {
     // The most dangerous failure: probing the cache succeeds, and returning it
     // would attach a shell on the wrong machine.
-    session.set("cast_term_endpoint", JSON.stringify({ ...THIS_MACHINE, deviceId: "dev-other" }));
+    session.set(
+      "cast_term_endpoint",
+      JSON.stringify({ ...THIS_MACHINE, deviceId: "dev-other" }),
+    );
     probeAnswers(true);
-    expect(await getTerminalEndpoint(noDevices, { deviceId: "dev-here" })).toBeNull();
+    expect(
+      await getTerminalEndpoint(noDevices, { deviceId: "dev-here" }),
+    ).toBeNull();
   });
 
   test("a targeted miss reports other-device, not a daemon failure", async () => {
     // Nothing cached, and the one device asked never answers: that is "the
     // pane is elsewhere", which is the relay's cue rather than an error.
     probeAnswers(false);
-    expect(await getTerminalEndpoint(noDevices, { deviceId: "dev-elsewhere" })).toBeNull();
+    expect(
+      await getTerminalEndpoint(noDevices, { deviceId: "dev-elsewhere" }),
+    ).toBeNull();
     expect(lastDiscoveryFailure()).toBe("other-device");
   });
 
@@ -140,7 +175,9 @@ describe("getTerminalEndpoint", () => {
     session.set("cast_term_endpoint", JSON.stringify(THIS_MACHINE));
     probeAnswers(true);
     await getTerminalEndpoint(noDevices, { deviceId: "dev-elsewhere" });
-    expect(session.get("cast_term_endpoint")).toBe(JSON.stringify(THIS_MACHINE));
+    expect(session.get("cast_term_endpoint")).toBe(
+      JSON.stringify(THIS_MACHINE),
+    );
   });
 
   test("the force-relay dev override makes every pane look remote", async () => {
@@ -174,7 +211,9 @@ describe("why a probe missed", () => {
     // A stall of a few seconds is the daemon's normal bad day under load; one
     // patient retry turns that from a dead end into a connection.
     probeFails("timeout");
-    expect(await getTerminalEndpoint(oneDaemon(THIS_MACHINE))).toEqual(THIS_MACHINE);
+    expect(await getTerminalEndpoint(oneDaemon(THIS_MACHINE))).toEqual(
+      THIS_MACHINE,
+    );
     expect(lastDiscoveryFailure()).toBe("none");
     expect((globalThis as any).fetch).toHaveBeenCalledTimes(2);
   });
@@ -188,14 +227,31 @@ describe("why a probe missed", () => {
 
 describe("a pane on a cloud host this laptop manages", () => {
   /** The relay: a targeted ask reaches the host's daemon, a broadcast this machine's. */
-  function hostAndHere(host: { port: number; token: string; deviceId: string }) {
+  function hostAndHere(host: {
+    port: number;
+    token: string;
+    deviceId: string;
+  }) {
     return {
       mutation: async (_fn: unknown, args: { device_id?: string }) => ({
-        commands: [{ command_id: args.device_id === host.deviceId ? "cmd-host" : "cmd-here" }],
+        commands: [
+          {
+            command_id:
+              args.device_id === host.deviceId ? "cmd-host" : "cmd-here",
+          },
+        ],
       }),
       query: async (_fn: unknown, args: { command_id: string }) => {
         const ep = args.command_id === "cmd-host" ? host : THIS_MACHINE;
-        return { executed_at: 1, result: JSON.stringify({ port: ep.port, token: ep.token, device_id: ep.deviceId, tmux: true }) };
+        return {
+          executed_at: 1,
+          result: JSON.stringify({
+            port: ep.port,
+            token: ep.token,
+            device_id: ep.deviceId,
+            tmux: true,
+          }),
+        };
       },
     } as any;
   }
@@ -204,26 +260,35 @@ describe("a pane on a cloud host this laptop manages", () => {
    *  own port is not here, and this daemon forwards (or refuses) the host. */
   function loopback(opts: { hostPort: number; forwardTo: number | null }) {
     const calls: string[] = [];
-    (globalThis as any).fetch = mock(async (url: string, init?: { method?: string }) => {
-      const u = new URL(String(url));
-      calls.push(`${init?.method ?? "GET"} ${u.port}${u.pathname}`);
-      const port = Number(u.port);
-      if (u.pathname === "/term/forward") {
-        return opts.forwardTo === null
-          ? { ok: false, json: async () => ({ error: "not a host" }) }
-          : { ok: true, json: async () => ({ port: opts.forwardTo }) };
-      }
-      if (port === opts.hostPort) throw new TypeError("Failed to fetch");
-      return { ok: true, json: async () => ({ tmux: true, sessions: [] }) };
-    });
+    (globalThis as any).fetch = mock(
+      async (url: string, init?: { method?: string }) => {
+        const u = new URL(String(url));
+        calls.push(`${init?.method ?? "GET"} ${u.port}${u.pathname}`);
+        const port = Number(u.port);
+        if (u.pathname === "/term/forward") {
+          return opts.forwardTo === null
+            ? { ok: false, json: async () => ({ error: "not a host" }) }
+            : { ok: true, json: async () => ({ port: opts.forwardTo }) };
+        }
+        if (port === opts.hostPort) throw new TypeError("Failed to fetch");
+        return { ok: true, json: async () => ({ tmux: true, sessions: [] }) };
+      },
+    );
     return calls;
   }
 
   test("reaches the host's own server through this machine's daemon", async () => {
     const host = { port: 50001, token: "host-tok", deviceId: "cloud-a" };
     const calls = loopback({ hostPort: 50001, forwardTo: 60001 });
-    const ep = await getTerminalEndpoint(hostAndHere(host), { deviceId: "cloud-a" });
-    expect(ep).toEqual({ port: 60001, token: "host-tok", deviceId: "cloud-a", tmux: true });
+    const ep = await getTerminalEndpoint(hostAndHere(host), {
+      deviceId: "cloud-a",
+    });
+    expect(ep).toEqual({
+      port: 60001,
+      token: "host-tok",
+      deviceId: "cloud-a",
+      tmux: true,
+    });
     expect(lastDiscoveryFailure()).toBe("none");
     expect(calls).toContain(`POST ${THIS_MACHINE.port}/term/forward`);
   });
@@ -231,7 +296,9 @@ describe("a pane on a cloud host this laptop manages", () => {
   test("a daemon that cannot reach the host leaves the relay path", async () => {
     const host = { port: 50002, token: "host-tok", deviceId: "cloud-b" };
     loopback({ hostPort: 50002, forwardTo: null });
-    expect(await getTerminalEndpoint(hostAndHere(host), { deviceId: "cloud-b" })).toBeNull();
+    expect(
+      await getTerminalEndpoint(hostAndHere(host), { deviceId: "cloud-b" }),
+    ).toBeNull();
     expect(lastDiscoveryFailure()).toBe("other-device");
   });
 
@@ -240,7 +307,9 @@ describe("a pane on a cloud host this laptop manages", () => {
     const calls = loopback({ hostPort: 50003, forwardTo: 60003 });
     store.set("CAST_TERM_FORCE_RELAY", "1");
     try {
-      expect(await getTerminalEndpoint(hostAndHere(host), { deviceId: "cloud-c" })).toBeNull();
+      expect(
+        await getTerminalEndpoint(hostAndHere(host), { deviceId: "cloud-c" }),
+      ).toBeNull();
       expect(calls.some((c) => c.includes("/term/forward"))).toBe(false);
     } finally {
       store.delete("CAST_TERM_FORCE_RELAY");

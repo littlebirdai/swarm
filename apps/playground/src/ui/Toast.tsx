@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { useLinger } from "../lib/useLinger";
 import { Button } from "./Button";
@@ -20,7 +28,9 @@ export const useToast = () => useContext(ToastContext);
 /** One toast at a time, top center, on glass: drops in, stays (paused while
  *  hovered or focused), fades away. A newer toast replaces the current one. */
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toast, setToast] = useState<(ToastSpec & { key: number }) | null>(null);
+  const [toast, setToast] = useState<(ToastSpec & { key: number }) | null>(
+    null,
+  );
   const [leaving, setLeaving] = useState(false);
   const seq = useRef(0);
 
@@ -29,7 +39,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToast({ ...t, key: ++seq.current });
   }, []);
 
-  const { hold } = useLinger(toast?.key ?? null, toast?.ms ?? 4000, () => setLeaving(true));
+  const { hold } = useLinger(toast?.key ?? null, toast?.ms ?? 4000, () =>
+    setLeaving(true),
+  );
 
   // Unmount on a timer, not animationend: a hidden tab never runs the fade.
   useEffect(() => {
@@ -44,7 +56,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={show}>
       {children}
       {/* Always mounted, so a screen reader hears each toast as it comes. */}
-      {createPortal(<p className="sr-only" role="status">{toast && !leaving ? toast.text : ""}</p>, document.body)}
+      {createPortal(
+        <p className="sr-only" role="status">
+          {toast && !leaving ? toast.text : ""}
+        </p>,
+        document.body,
+      )}
       {toast &&
         createPortal(
           <div
@@ -84,11 +101,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /** The new-version toast's line (DESIGN 6.2): "v15 is live · Juniper:
  *  summary", or for a restore "v8 is live · Peak undid v7: its summary". */
-export function LiveToastText({ version, name, verb, summary }: { version: number; name?: string; verb?: string | null; summary: string }) {
+export function LiveToastText({
+  version,
+  name,
+  verb,
+  summary,
+}: {
+  version: number;
+  name?: string;
+  verb?: string | null;
+  summary: string;
+}) {
   return (
     <>
       <span className={s.version}>v{version} is live</span>
-      {name && <span className={s.who}> · {name}{verb ? ` ${verb}` : ""}:</span>} <span className={s.summary}>{summary}</span>
+      {name && (
+        <span className={s.who}>
+          {" "}
+          · {name}
+          {verb ? ` ${verb}` : ""}:
+        </span>
+      )}{" "}
+      <span className={s.summary}>{summary}</span>
     </>
   );
 }

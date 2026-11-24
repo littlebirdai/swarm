@@ -12,7 +12,10 @@
 import { memo, useMemo } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { FileQuestion, FileWarning } from "lucide-react";
-import { VAULT_MAX_PREVIEW_BYTES, vaultFileKind } from "@codecast/shared/contracts";
+import {
+  VAULT_MAX_PREVIEW_BYTES,
+  vaultFileKind,
+} from "@codecast/shared/contracts";
 import { highlightCode, languageForPath } from "../../lib/codeLanguage";
 import { vaultAssetUrl } from "../../lib/vault/client";
 import { useVaultStore } from "../../store/vaultStore";
@@ -54,7 +57,11 @@ function NoPreview({
       {canReveal && (
         <RevealButton
           path={path}
-          className={buttonVariants({ variant: "outline", size: "xs", className: "mt-2" })}
+          className={buttonVariants({
+            variant: "outline",
+            size: "xs",
+            className: "mt-2",
+          })}
         >
           Show in Finder
         </RevealButton>
@@ -66,7 +73,13 @@ function NoPreview({
 /** Code with a line-number gutter. Prism does the highlighting — the same
  *  grammars the app's code blocks use, so a `.ts` file reads identically here
  *  and in a conversation. */
-const CodeText = memo(function CodeText({ content, path }: { content: string; path: string }) {
+const CodeText = memo(function CodeText({
+  content,
+  path,
+}: {
+  content: string;
+  path: string;
+}) {
   const lines = useMemo(() => content.split("\n"), [content]);
   const html = useMemo(
     () => highlightCode(content, languageForPath(path)),
@@ -87,7 +100,10 @@ const CodeText = memo(function CodeText({ content, path }: { content: string; pa
       </div>
       <pre className="flex-1 min-w-0 py-3 px-3 !m-0 !border-0 !bg-transparent">
         {html ? (
-          <code className="text-sol-text-secondary" dangerouslySetInnerHTML={{ __html: html }} />
+          <code
+            className="text-sol-text-secondary"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
         ) : (
           <code className="text-sol-text-secondary">{content}</code>
         )}
@@ -96,7 +112,11 @@ const CodeText = memo(function CodeText({ content, path }: { content: string; pa
   );
 });
 
-export const VaultFileView = memo(function VaultFileView({ path }: { path: string }) {
+export const VaultFileView = memo(function VaultFileView({
+  path,
+}: {
+  path: string;
+}) {
   const entry = useVaultStore((s) => s.files[path]);
   const entryState = useVaultEntryState(path);
   const body = useVaultStore((s) => s.bodies[path]);
@@ -115,7 +135,8 @@ export const VaultFileView = memo(function VaultFileView({ path }: { path: strin
   // daemon handshake lands, and the store can't fetch without an endpoint —
   // the ask has to repeat once there is one.
   useWatchEffect(() => {
-    if (kind === "text" && !body && endpoint) void useVaultStore.getState().loadTextBody(path);
+    if (kind === "text" && !body && endpoint)
+      void useVaultStore.getState().loadTextBody(path);
   }, [kind, path, !!body, endpoint]);
 
   if (entryState === "missing") {
@@ -128,14 +149,18 @@ export const VaultFileView = memo(function VaultFileView({ path }: { path: strin
   }
 
   const assetSrc =
-    endpoint && vaultId && kind === "asset" ? vaultAssetUrl(endpoint, vaultId, path) : null;
+    endpoint && vaultId && kind === "asset"
+      ? vaultAssetUrl(endpoint, vaultId, path)
+      : null;
 
   const renderBody = () => {
     if (tooLarge) {
       return (
         <NoPreview
           path={path}
-          icon={<FileWarning className="w-8 h-8 text-sol-text-dim opacity-40" />}
+          icon={
+            <FileWarning className="w-8 h-8 text-sol-text-dim opacity-40" />
+          }
           title="Too large to preview"
           detail={`${formatSize(size)} — open it in your editor instead.`}
         />
@@ -145,19 +170,41 @@ export const VaultFileView = memo(function VaultFileView({ path }: { path: strin
     // loopback route serves them from.
     if (assetSrc) {
       if (/\.(png|jpe?g|gif|webp|avif|svg)$/i.test(path)) {
-        return <img src={assetSrc} alt={title} className="max-w-full rounded border border-sol-border/30" />;
+        return (
+          <img
+            src={assetSrc}
+            alt={title}
+            className="max-w-full rounded border border-sol-border/30"
+          />
+        );
       }
       if (/\.(mp4|webm|mov)$/i.test(path)) {
-        return <video src={assetSrc} controls className="max-w-full rounded border border-sol-border/30" />;
+        return (
+          <video
+            src={assetSrc}
+            controls
+            className="max-w-full rounded border border-sol-border/30"
+          />
+        );
       }
-      if (/\.(mp3|wav|m4a)$/i.test(path)) return <audio src={assetSrc} controls className="w-full" />;
+      if (/\.(mp3|wav|m4a)$/i.test(path))
+        return <audio src={assetSrc} controls className="w-full" />;
       if (/\.pdf$/i.test(path)) {
-        return <iframe src={assetSrc} title={title} className="w-full h-[70vh] rounded border border-sol-border/30" />;
+        return (
+          <iframe
+            src={assetSrc}
+            title={title}
+            className="w-full h-[70vh] rounded border border-sol-border/30"
+          />
+        );
       }
     }
     if (kind === "text") {
       if (body) return <CodeText content={body.content} path={path} />;
-      if (loading) return <div className="text-sm text-sol-text-dim py-8">Loading file…</div>;
+      if (loading)
+        return (
+          <div className="text-sm text-sol-text-dim py-8">Loading file…</div>
+        );
       // No body and not loading means the fetch never ran or came back empty.
       // Only the scan's own size can tell "empty" from "we don't have it" —
       // calling a failed read "empty" would be a quiet lie about the file.
@@ -181,7 +228,11 @@ export const VaultFileView = memo(function VaultFileView({ path }: { path: strin
     <div className="h-full overflow-y-auto" data-vault-note-scroll>
       {/* Code fills the pane: lines are wide and nobody reads them as prose.
           Notes (VaultNoteView) keep a measured reading column. */}
-      <div className={kind === "text" ? "px-6 pr-10 py-5" : "max-w-4xl mx-auto px-8 py-6"}>
+      <div
+        className={
+          kind === "text" ? "px-6 pr-10 py-5" : "max-w-4xl mx-auto px-8 py-6"
+        }
+      >
         <VaultFileHeader path={path} title={title} />
 
         {renderBody()}

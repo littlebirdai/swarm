@@ -1,5 +1,12 @@
 import { replaceGlobals } from "../../test-helpers/globals";
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 
 // Two first-run dialogs on the same first visit used to stack: the device
 // setup card opened when the permission read landed, and the inbox tour's
@@ -10,7 +17,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test
 
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/inbox",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -22,14 +31,13 @@ afterAll(() => {
   restoreGlobals();
 });
 
-
-
-
-
 import React, { useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { resetFirstRunDialogsForTests, useFirstRunDialog } from "../firstRunDialogs";
+import {
+  resetFirstRunDialogsForTests,
+  useFirstRunDialog,
+} from "../firstRunDialogs";
 
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
@@ -73,7 +81,12 @@ function mount(el: React.ReactElement) {
 
 describe("first-run dialogs take turns", () => {
   test("both want to open at once: only one does, the other follows when it closes", () => {
-    mount(<><FirstRunDialog id="device-setup" wants /><FirstRunDialog id="tour" wants /></>);
+    mount(
+      <>
+        <FirstRunDialog id="device-setup" wants />
+        <FirstRunDialog id="tour" wants />
+      </>,
+    );
     // Whichever effect ran first holds the turn; exactly one is open.
     expect(Number(opened["device-setup"]) + Number(opened["tour"])).toBe(1);
     expect(container.querySelectorAll("[data-dialog]").length).toBe(1);
@@ -90,7 +103,12 @@ describe("first-run dialogs take turns", () => {
     function Rig() {
       const [tourWants, setTourWants] = useState(false);
       (closers as any).wantTour = () => setTourWants(true);
-      return <><FirstRunDialog id="device-setup" wants /><FirstRunDialog id="tour" wants={tourWants} /></>;
+      return (
+        <>
+          <FirstRunDialog id="device-setup" wants />
+          <FirstRunDialog id="tour" wants={tourWants} />
+        </>
+      );
     }
     mount(<Rig />);
     expect(opened["device-setup"]).toBe(true);
@@ -101,7 +119,12 @@ describe("first-run dialogs take turns", () => {
   });
 
   test("a closed dialog releases the turn for everyone", () => {
-    mount(<><FirstRunDialog id="a" wants /><FirstRunDialog id="b" wants={false} /></>);
+    mount(
+      <>
+        <FirstRunDialog id="a" wants />
+        <FirstRunDialog id="b" wants={false} />
+      </>,
+    );
     expect(opened["a"]).toBe(true);
     act(() => closers["a"]());
     act(() => root.unmount());

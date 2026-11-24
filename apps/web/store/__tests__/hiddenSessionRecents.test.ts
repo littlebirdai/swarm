@@ -35,7 +35,9 @@ describe("viewing a hidden session records the visit", () => {
     useInboxStore.setState({
       sessions: {
         [ACTIVE]: session(ACTIVE),
-        [HIDDEN]: session(HIDDEN, { inbox_stashed_at: 500 } as Partial<InboxSession>),
+        [HIDDEN]: session(HIDDEN, {
+          inbox_stashed_at: 500,
+        } as Partial<InboxSession>),
       },
       conversations: {},
       viewingDismissedId: null,
@@ -60,7 +62,11 @@ describe("viewing a hidden session records the visit", () => {
 
     const s = useInboxStore.getState();
     expect(s.viewingDismissedId).toBe(HIDDEN);
-    expect(s.recentVisits[0]).toMatchObject({ kind: "session", key: HIDDEN, label: "x influence" });
+    expect(s.recentVisits[0]).toMatchObject({
+      kind: "session",
+      key: HIDDEN,
+      label: "x influence",
+    });
     expect(s._lastViewedAt[HIDDEN]).toBe(20_000);
     // Leaving the current session marks it seen, as any other switch does.
     expect(s._seenUpToAt[ACTIVE]).toBe(20_000);

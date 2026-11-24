@@ -15,14 +15,26 @@ export function useHoverCard() {
   const setOpen = useCallback((next: boolean) => setShown(next && !off), [off]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancel = useCallback(() => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
   }, []);
   // Always cancel any pending timer before scheduling the next one: the
   // flicker ("disappears then comes back") was a stale close timer surviving
   // re-entry into the card.
-  const openSoon = useCallback(() => { cancel(); timer.current = setTimeout(() => setOpen(true), HOVER_CARD_OPEN_MS); }, [cancel, setOpen]);
-  const closeSoon = useCallback(() => { cancel(); timer.current = setTimeout(() => setOpen(false), HOVER_CARD_CLOSE_MS); }, [cancel, setOpen]);
-  const closeNow = useCallback(() => { cancel(); setOpen(false); }, [cancel, setOpen]);
+  const openSoon = useCallback(() => {
+    cancel();
+    timer.current = setTimeout(() => setOpen(true), HOVER_CARD_OPEN_MS);
+  }, [cancel, setOpen]);
+  const closeSoon = useCallback(() => {
+    cancel();
+    timer.current = setTimeout(() => setOpen(false), HOVER_CARD_CLOSE_MS);
+  }, [cancel, setOpen]);
+  const closeNow = useCallback(() => {
+    cancel();
+    setOpen(false);
+  }, [cancel, setOpen]);
   // eslint-disable-next-line no-restricted-syntax -- drops the pending open/close timer when the card goes away
   useEffect(() => cancel, [cancel]);
   return { open, setOpen, openSoon, closeSoon, closeNow, cancel };

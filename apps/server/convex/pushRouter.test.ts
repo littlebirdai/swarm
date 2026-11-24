@@ -70,7 +70,7 @@ function createCtx(seed: Record<string, Rec[]> = {}) {
       };
       const run = () =>
         (tables[table] ?? []).filter((r) =>
-          constraints.every((c) => String(r[c.field]) === String(c.val))
+          constraints.every((c) => String(r[c.field]) === String(c.val)),
         );
       const chain: any = {
         withIndex(name: string, builder?: (qq: any) => unknown) {
@@ -117,7 +117,11 @@ function freezeTime(at: number) {
   Date.now = () => at;
 }
 
-const USER = { _id: "users_1", push_token: "ExponentPushToken[x]", notifications_enabled: true };
+const USER = {
+  _id: "users_1",
+  push_token: "ExponentPushToken[x]",
+  notifications_enabled: true,
+};
 
 function activePresence(now: number): Rec {
   return {
@@ -133,19 +137,27 @@ function activePresence(now: number): Rec {
 
 // Pushes recorded by the fake scheduler (the flush's terminal Expo send has
 // delay 0 and a push_token arg; re-flushes have a user_id arg instead).
-const sentPushes = (ctx: any) => ctx.scheduled.filter((s: Rec) => s.args.push_token);
-const reflushes = (ctx: any) => ctx.scheduled.filter((s: Rec) => s.args.user_id);
+const sentPushes = (ctx: any) =>
+  ctx.scheduled.filter((s: Rec) => s.args.push_token);
+const reflushes = (ctx: any) =>
+  ctx.scheduled.filter((s: Rec) => s.args.user_id);
 
 describe("isDesktopActivePresence", () => {
   test("fresh heartbeat + recent input = active", () => {
     expect(isDesktopActivePresence(activePresence(NOW) as any, NOW)).toBe(true);
   });
   test("stale heartbeat (sleep/closed tab) = inactive even with recent input", () => {
-    const p = { last_seen: NOW - PRESENCE_FRESH_MS - 1, last_input_at: NOW - 1000 };
+    const p = {
+      last_seen: NOW - PRESENCE_FRESH_MS - 1,
+      last_input_at: NOW - 1000,
+    };
     expect(isDesktopActivePresence(p, NOW)).toBe(false);
   });
   test("fresh heartbeat but idle human = inactive", () => {
-    const p = { last_seen: NOW - 10_000, last_input_at: NOW - INPUT_ACTIVE_MS - 1 };
+    const p = {
+      last_seen: NOW - 10_000,
+      last_input_at: NOW - INPUT_ACTIVE_MS - 1,
+    };
     expect(isDesktopActivePresence(p, NOW)).toBe(false);
   });
   test("no presence row = inactive", () => {
@@ -157,7 +169,12 @@ describe("enqueuePush routing", () => {
   test("desktop away: short debounce, not deferred", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [USER] });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     const row = ctx.tables.push_outbox[0];
     expect(row.due_at).toBe(NOW + AWAY_DEBOUNCE_MS);
     expect(row.deferred).toBe(false);
@@ -166,8 +183,16 @@ describe("enqueuePush routing", () => {
 
   test("desktop active: held for the escalation window", async () => {
     freezeTime(NOW);
-    const ctx = createCtx({ users: [USER], user_presence: [activePresence(NOW)] });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    const ctx = createCtx({
+      users: [USER],
+      user_presence: [activePresence(NOW)],
+    });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     const row = ctx.tables.push_outbox[0];
     expect(row.due_at).toBe(NOW + HOLD_WHILE_ACTIVE_MS);
     expect(row.deferred).toBe(true);
@@ -176,7 +201,11 @@ describe("enqueuePush routing", () => {
   test("no push token: nothing queued", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [{ _id: "users_1" }] });
-    await enqueuePush(ctx, { user: { _id: "users_1" } as any, title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: { _id: "users_1" } as any,
+      title: "t",
+      body: "b",
+    });
     expect(ctx.tables.push_outbox).toBeUndefined();
   });
 });
@@ -245,8 +274,22 @@ describe("performPushFlush", () => {
   test("a batch drops the subtitle — counts have no one place", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [USER] });
-    await enqueuePush(ctx, { user: USER, type: "chat_mention", title: "A", subtitle: "#team", body: "x", data: {} });
-    await enqueuePush(ctx, { user: USER, type: "chat_mention", title: "B", subtitle: "#ops", body: "y", data: {} });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "chat_mention",
+      title: "A",
+      subtitle: "#team",
+      body: "x",
+      data: {},
+    });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "chat_mention",
+      title: "B",
+      subtitle: "#ops",
+      body: "y",
+      data: {},
+    });
     freezeTime(NOW + AWAY_DEBOUNCE_MS);
     await performPushFlush(ctx, "users_1");
     const pushes = sentPushes(ctx);
@@ -292,14 +335,22 @@ describe("performPushFlush", () => {
     const pushes = sentPushes(ctx);
     expect(pushes.length).toBe(1);
     expect(pushes[0].args.body).toBe(
-      "2 sessions waiting for input · 1 permission request · 1 update"
+      "2 sessions waiting for input · 1 permission request · 1 update",
     );
   });
 
   test("not yet due: flush is a no-op", async () => {
     freezeTime(NOW);
-    const ctx = createCtx({ users: [USER], user_presence: [activePresence(NOW)] });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    const ctx = createCtx({
+      users: [USER],
+      user_presence: [activePresence(NOW)],
+    });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     freezeTime(NOW + AWAY_DEBOUNCE_MS); // held row is due much later
     await performPushFlush(ctx, "users_1");
     expect(sentPushes(ctx).length).toBe(0);
@@ -311,7 +362,9 @@ describe("performPushFlush", () => {
     const ctx = createCtx({
       users: [USER],
       user_presence: [activePresence(NOW)],
-      notifications: [{ _id: "notifications_1", recipient_user_id: "users_1", read: false }],
+      notifications: [
+        { _id: "notifications_1", recipient_user_id: "users_1", read: false },
+      ],
     });
     await enqueuePush(ctx, {
       user: USER,
@@ -332,7 +385,9 @@ describe("performPushFlush", () => {
     const ctx = createCtx({
       users: [USER],
       user_presence: [activePresence(NOW)],
-      notifications: [{ _id: "notifications_1", recipient_user_id: "users_1", read: false }],
+      notifications: [
+        { _id: "notifications_1", recipient_user_id: "users_1", read: false },
+      ],
     });
     await enqueuePush(ctx, {
       user: USER,
@@ -344,7 +399,10 @@ describe("performPushFlush", () => {
     const later = NOW + HOLD_WHILE_ACTIVE_MS;
     freezeTime(later);
     // Still active at flush time — escalation must fire anyway.
-    await ctx.db.patch("user_presence_1", { last_seen: later - 1000, last_input_at: later - 1000 });
+    await ctx.db.patch("user_presence_1", {
+      last_seen: later - 1000,
+      last_input_at: later - 1000,
+    });
     await performPushFlush(ctx, "users_1");
     expect(sentPushes(ctx).length).toBe(1);
   });
@@ -353,7 +411,9 @@ describe("performPushFlush", () => {
     freezeTime(NOW);
     const ctx = createCtx({
       users: [USER],
-      notifications: [{ _id: "notifications_1", recipient_user_id: "users_1", read: false }],
+      notifications: [
+        { _id: "notifications_1", recipient_user_id: "users_1", read: false },
+      ],
     });
     await enqueuePush(ctx, {
       user: USER,
@@ -372,7 +432,12 @@ describe("performPushFlush", () => {
   test("user sits down during the away debounce: one deferral, then send", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [USER] });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     // Presence appears before the debounce elapses.
     await ctx.db.insert("user_presence", {
       user_id: "users_1",
@@ -398,7 +463,12 @@ describe("performPushFlush", () => {
   test("push token revoked while pending: rows dropped silently", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [{ ...USER }] });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     await ctx.db.patch("users_1", { notifications_enabled: false });
     freezeTime(NOW + AWAY_DEBOUNCE_MS);
     await performPushFlush(ctx, "users_1");
@@ -410,9 +480,18 @@ describe("performPushFlush", () => {
 describe("summarizePushBatch", () => {
   test("single row passes through, keeping its deep-link data", () => {
     const out = summarizePushBatch([
-      { type: "session_idle", title: "T", body: "B", data: { conversationId: "c" } },
+      {
+        type: "session_idle",
+        title: "T",
+        body: "B",
+        data: { conversationId: "c" },
+      },
     ]);
-    expect(out).toEqual({ title: "T", body: "B", data: { conversationId: "c" } });
+    expect(out).toEqual({
+      title: "T",
+      body: "B",
+      data: { conversationId: "c" },
+    });
   });
   test("aggregate carries no conversation deep link", () => {
     const out = summarizePushBatch([
@@ -445,7 +524,9 @@ function machineDevice(now: number, over: Rec = {}): Rec {
 
 describe("isMachineActivePresence", () => {
   test("live daemon + recent input = active", () => {
-    expect(isMachineActivePresence([machineDevice(NOW)] as any, NOW)).toBe(true);
+    expect(isMachineActivePresence([machineDevice(NOW)] as any, NOW)).toBe(
+      true,
+    );
   });
   test("no devices = away", () => {
     expect(isMachineActivePresence([], NOW)).toBe(false);
@@ -474,8 +555,15 @@ describe("isMachineActivePresence", () => {
   });
   test("one active machine is enough among idle ones", () => {
     const devices = [
-      machineDevice(NOW, { _id: "d1", last_input_at: NOW - INPUT_ACTIVE_MS - 1 }),
-      machineDevice(NOW, { _id: "d2", is_remote: true, last_input_at: NOW - 1_000 }),
+      machineDevice(NOW, {
+        _id: "d1",
+        last_input_at: NOW - INPUT_ACTIVE_MS - 1,
+      }),
+      machineDevice(NOW, {
+        _id: "d2",
+        is_remote: true,
+        last_input_at: NOW - 1_000,
+      }),
       machineDevice(NOW, { _id: "d3", last_input_at: NOW - 1_000 }),
     ];
     expect(isMachineActivePresence(devices as any, NOW)).toBe(true);
@@ -497,8 +585,15 @@ describe("machine presence routing", () => {
       devices: [machineDevice(NOW)],
     });
     // Sanity: client presence alone would NOT have held this.
-    expect(isDesktopActivePresence(idleClientPresence(NOW) as any, NOW)).toBe(false);
-    await enqueuePush(ctx, { user: MACHINE_USER, type: "session_idle", title: "t", body: "b" });
+    expect(isDesktopActivePresence(idleClientPresence(NOW) as any, NOW)).toBe(
+      false,
+    );
+    await enqueuePush(ctx, {
+      user: MACHINE_USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     const row = ctx.tables.push_outbox[0];
     expect(row.due_at).toBe(NOW + HOLD_WHILE_ACTIVE_MS);
     expect(row.deferred).toBe(true);
@@ -511,7 +606,12 @@ describe("machine presence routing", () => {
       user_presence: [idleClientPresence(NOW)],
       devices: [machineDevice(NOW)],
     });
-    await enqueuePush(ctx, { user: OPTED_OUT_USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: OPTED_OUT_USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     const row = ctx.tables.push_outbox[0];
     expect(row.due_at).toBe(NOW + AWAY_DEBOUNCE_MS);
     expect(row.deferred).toBe(false);
@@ -524,7 +624,12 @@ describe("machine presence routing", () => {
       user_presence: [idleClientPresence(NOW)],
       devices: [machineDevice(NOW)],
     });
-    await enqueuePush(ctx, { user: USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     const row = ctx.tables.push_outbox[0];
     expect(row.due_at).toBe(NOW + HOLD_WHILE_ACTIVE_MS);
     expect(row.deferred).toBe(true);
@@ -616,7 +721,9 @@ describe("machine presence routing", () => {
     freezeTime(later);
     const ctx = createCtx({
       users: [MACHINE_USER],
-      devices: [machineDevice(later, { last_input_at: later - INPUT_ACTIVE_MS - 1 })],
+      devices: [
+        machineDevice(later, { last_input_at: later - INPUT_ACTIVE_MS - 1 }),
+      ],
       push_outbox: [
         {
           _id: "push_outbox_1",
@@ -695,7 +802,9 @@ describe("machine hold safety properties", () => {
       await performPushFlush(ctx, "users_1");
     }
     expect(sentPushes(ctx)).toHaveLength(1);
-    expect(at - NOW).toBeLessThanOrEqual(MAX_MACHINE_HOLD_MS + HOLD_WHILE_ACTIVE_MS);
+    expect(at - NOW).toBeLessThanOrEqual(
+      MAX_MACHINE_HOLD_MS + HOLD_WHILE_ACTIVE_MS,
+    );
     expect(ctx.tables.push_outbox).toHaveLength(0);
   });
 
@@ -737,8 +846,16 @@ describe("machine hold safety properties", () => {
   // out entirely — machine presence requires a running client.
   test("no live Codecast surface: machine presence does not hold", async () => {
     freezeTime(NOW);
-    const ctx = createCtx({ users: [MACHINE_USER], devices: [machineDevice(NOW)] });
-    await enqueuePush(ctx, { user: MACHINE_USER, type: "session_idle", title: "t", body: "b" });
+    const ctx = createCtx({
+      users: [MACHINE_USER],
+      devices: [machineDevice(NOW)],
+    });
+    await enqueuePush(ctx, {
+      user: MACHINE_USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     expect(ctx.tables.push_outbox[0].due_at).toBe(NOW + AWAY_DEBOUNCE_MS);
     expect(ctx.tables.push_outbox[0].deferred).toBe(false);
   });
@@ -756,7 +873,12 @@ describe("machine hold safety properties", () => {
       user_presence: [stalePresence],
       devices: [machineDevice(NOW)],
     });
-    await enqueuePush(ctx, { user: MACHINE_USER, type: "session_idle", title: "t", body: "b" });
+    await enqueuePush(ctx, {
+      user: MACHINE_USER,
+      type: "session_idle",
+      title: "t",
+      body: "b",
+    });
     expect(ctx.tables.push_outbox[0].due_at).toBe(NOW + HOLD_WHILE_ACTIVE_MS);
     expect(ctx.tables.push_outbox[0].deferred).toBe(true);
   });
@@ -768,11 +890,20 @@ describe("machine hold safety properties", () => {
 // caller's seq measured against the counter it came from, and does the ring
 // stay bounded.
 
-const RING_USER = { _id: "users_1", push_token: "ExponentPushToken[x]", notifications_enabled: true };
+const RING_USER = {
+  _id: "users_1",
+  push_token: "ExponentPushToken[x]",
+  notifications_enabled: true,
+};
 
-const ringUser = (ctx: { tables: Record<string, Rec[]> }) => ctx.tables.users[0] as { _id: any };
+const ringUser = (ctx: { tables: Record<string, Rec[]> }) =>
+  ctx.tables.users[0] as { _id: any };
 
-function ringEntry(seq: number, epoch: string, over: Partial<MissedPush> = {}): MissedPush {
+function ringEntry(
+  seq: number,
+  epoch: string,
+  over: Partial<MissedPush> = {},
+): MissedPush {
   return {
     key: pushRingKey(epoch, seq),
     seq,
@@ -788,7 +919,9 @@ describe("selectMissedSince", () => {
   const ring = [ringEntry(1, "e1"), ringEntry(2, "e1"), ringEntry(3, "e1")];
 
   test("matching epoch returns only what is newer than the watermark", () => {
-    expect(selectMissedSince(ring, { seq: 1, epoch: "e1" }).map((e) => e.seq)).toEqual([2, 3]);
+    expect(
+      selectMissedSince(ring, { seq: 1, epoch: "e1" }).map((e) => e.seq),
+    ).toEqual([2, 3]);
   });
 
   test("the same watermark twice returns the same set — replay cannot re-deliver", () => {
@@ -806,16 +939,22 @@ describe("selectMissedSince", () => {
     // The ring IS the counter, so seq 99 under the live epoch means the ring
     // was emptied under this phone. Cutting against it would kill catch-up
     // silently until the counter climbed back past 99.
-    expect(selectMissedSince(ring, { seq: 99, epoch: "e1" }).map((e) => e.seq)).toEqual([1, 2, 3]);
+    expect(
+      selectMissedSince(ring, { seq: 99, epoch: "e1" }).map((e) => e.seq),
+    ).toEqual([1, 2, 3]);
   });
 
   test("mismatched epoch returns the whole ring — a seq from a dead counter cuts nothing", () => {
     // seq 99 would swallow every entry if the epoch were ignored.
-    expect(selectMissedSince(ring, { seq: 99, epoch: "e0" }).map((e) => e.seq)).toEqual([1, 2, 3]);
+    expect(
+      selectMissedSince(ring, { seq: 99, epoch: "e0" }).map((e) => e.seq),
+    ).toEqual([1, 2, 3]);
   });
 
   test("no epoch (a client that predates the field) keeps the seq-only cut", () => {
-    expect(selectMissedSince(ring, { seq: 1 }).map((e) => e.seq)).toEqual([2, 3]);
+    expect(selectMissedSince(ring, { seq: 1 }).map((e) => e.seq)).toEqual([
+      2, 3,
+    ]);
   });
 });
 
@@ -823,8 +962,14 @@ describe("recordRoutedPush", () => {
   test("stamps a monotonic seq, an epoch and the shared key", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    const first = await recordRoutedPush(ctx as any, ringUser(ctx), { title: "a", body: "1" });
-    const second = await recordRoutedPush(ctx as any, ringUser(ctx), { title: "b", body: "2" });
+    const first = await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "a",
+      body: "1",
+    });
+    const second = await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "b",
+      body: "2",
+    });
     expect(first.seq).toBe(1);
     expect(second.seq).toBe(2);
     expect(second.epoch).toBe(first.epoch);
@@ -840,7 +985,10 @@ describe("recordRoutedPush", () => {
   test("writes the recipient's personal workspace key at write time", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "a", body: "1" });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "a",
+      body: "1",
+    });
     expect(ctx.tables.push_ring[0].workspace).toBe("user:users_1");
   });
 
@@ -849,9 +997,14 @@ describe("recordRoutedPush", () => {
     const ctx = createCtx({ users: [RING_USER] });
     const overflow = PUSH_RING_CAPACITY + 12;
     for (let i = 0; i < overflow; i++) {
-      await recordRoutedPush(ctx as any, ringUser(ctx), { title: `n${i}`, body: "b" });
+      await recordRoutedPush(ctx as any, ringUser(ctx), {
+        title: `n${i}`,
+        body: "b",
+      });
     }
-    const seqs = ctx.tables.push_ring.map((r: Rec) => r.seq).sort((a: number, b: number) => a - b);
+    const seqs = ctx.tables.push_ring
+      .map((r: Rec) => r.seq)
+      .sort((a: number, b: number) => a - b);
     expect(seqs.length).toBe(PUSH_RING_CAPACITY);
     expect(seqs[0]).toBe(overflow - PUSH_RING_CAPACITY + 1);
     expect(seqs[seqs.length - 1]).toBe(overflow);
@@ -860,10 +1013,16 @@ describe("recordRoutedPush", () => {
   test("a rotated epoch restarts the counter and drops the dead counter's rows", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "old", body: "b" });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "old",
+      body: "b",
+    });
     const stale = ctx.tables.system_config[0];
     stale.value = "rotated-epoch";
-    const after = await recordRoutedPush(ctx as any, ringUser(ctx), { title: "new", body: "b" });
+    const after = await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "new",
+      body: "b",
+    });
     expect(after.seq).toBe(1);
     expect(after.epoch).toBe("rotated-epoch");
     expect(ctx.tables.push_ring.map((r: Rec) => r.title)).toEqual(["new"]);
@@ -874,9 +1033,18 @@ describe("readMissedSince", () => {
   test("answers a matching epoch with newer entries and names the live epoch", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    const first = await recordRoutedPush(ctx as any, ringUser(ctx), { title: "a", body: "1" });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "b", body: "2" });
-    const missed = await readMissedSince(ctx as any, "users_1", { seq: 1, epoch: first.epoch });
+    const first = await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "a",
+      body: "1",
+    });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "b",
+      body: "2",
+    });
+    const missed = await readMissedSince(ctx as any, "users_1", {
+      seq: 1,
+      epoch: first.epoch,
+    });
     expect(missed.epoch).toBe(first.epoch);
     expect(missed.entries.map((e) => e.title)).toEqual(["b"]);
   });
@@ -884,16 +1052,28 @@ describe("readMissedSince", () => {
   test("answers a stale epoch with everything retained", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "a", body: "1" });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "b", body: "2" });
-    const missed = await readMissedSince(ctx as any, "users_1", { seq: 500, epoch: "gone" });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "a",
+      body: "1",
+    });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "b",
+      body: "2",
+    });
+    const missed = await readMissedSince(ctx as any, "users_1", {
+      seq: 500,
+      epoch: "gone",
+    });
     expect(missed.entries.map((e) => e.title)).toEqual(["a", "b"]);
   });
 
   test("a row stamped to another workspace is not readable, however it was indexed", async () => {
     freezeTime(NOW);
     const ctx = createCtx({ users: [RING_USER] });
-    await recordRoutedPush(ctx as any, ringUser(ctx), { title: "mine", body: "1" });
+    await recordRoutedPush(ctx as any, ringUser(ctx), {
+      title: "mine",
+      body: "1",
+    });
     ctx.tables.push_ring.push({
       _id: "push_ring_smuggled",
       user_id: "users_1",

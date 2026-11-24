@@ -10,7 +10,15 @@ import { codecastPath } from "../codecastDir.js";
 
 export interface RunRecord {
   id: string;
-  host: { id: string; address: string; user: string; keyPath: string; homeDir?: string; proxyCommand?: string; local?: string };
+  host: {
+    id: string;
+    address: string;
+    user: string;
+    keyPath: string;
+    homeDir?: string;
+    proxyCommand?: string;
+    local?: string;
+  };
   repo: string;
   seedCwd: string;
   cwdRel: string;
@@ -28,7 +36,8 @@ export interface RunRecord {
   reason?: string;
 }
 
-export const runsDir = () => process.env.CAST_RUN_LOCAL_DIR || codecastPath("runs");
+export const runsDir = () =>
+  process.env.CAST_RUN_LOCAL_DIR || codecastPath("runs");
 const recordFile = (id: string) => path.join(runsDir(), `${id}.json`);
 
 export function saveRecord(r: RunRecord): void {
@@ -44,13 +53,20 @@ export function dropRecord(id: string): void {
 
 export function readRecord(id: string): RunRecord | undefined {
   if (!/^r[a-z0-9]{6,24}$/.test(id)) return undefined;
-  try { return JSON.parse(fs.readFileSync(recordFile(id), "utf-8")) as RunRecord; } catch { return undefined; }
+  try {
+    return JSON.parse(fs.readFileSync(recordFile(id), "utf-8")) as RunRecord;
+  } catch {
+    return undefined;
+  }
 }
 
 export function listRecords(): RunRecord[] {
   if (!fs.existsSync(runsDir())) return [];
-  return fs.readdirSync(runsDir()).filter((f) => /^r[a-z0-9]+\.json$/.test(f))
-    .map((f) => readRecord(f.slice(0, -5))).filter((r): r is RunRecord => !!r)
+  return fs
+    .readdirSync(runsDir())
+    .filter((f) => /^r[a-z0-9]+\.json$/.test(f))
+    .map((f) => readRecord(f.slice(0, -5)))
+    .filter((r): r is RunRecord => !!r)
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 

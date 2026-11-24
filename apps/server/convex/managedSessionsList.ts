@@ -1,18 +1,31 @@
 import { heartbeatOf } from "./lib/sessionHeartbeat";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { isDaemonManagedRow, listLiveManagedSessions } from "./lib/liveSessions";
+import {
+  isDaemonManagedRow,
+  listLiveManagedSessions,
+} from "./lib/liveSessions";
 
 // The row set behind the /sessions page, which managedSessions.listActiveSessions
 // serves. Split from the query wrapper (like performRegisterManagedSession) so
 // the projection is testable without auth.
-export async function performListActiveSessions(ctx: { db: QueryCtx["db"] }, userId: Id<"users">) {
-  const recent = await listLiveManagedSessions(ctx, userId, { aliveMs: 24 * 60 * 60 * 1000 });
-  const parked = await ctx.db.query("managed_sessions")
-    .withIndex("by_user_status", q => q.eq("user_id", userId).eq("agent_status", "hibernated"))
+export async function performListActiveSessions(
+  ctx: { db: QueryCtx["db"] },
+  userId: Id<"users">,
+) {
+  const recent = await listLiveManagedSessions(ctx, userId, {
+    aliveMs: 24 * 60 * 60 * 1000,
+  });
+  const parked = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_user_status", (q) =>
+      q.eq("user_id", userId).eq("agent_status", "hibernated"),
+    )
     .collect();
   // The process monitor: a hosted row has no process to show or kill.
-  const sessions = [...new Map([...recent, ...parked].map(s => [s._id, s])).values()].filter(isDaemonManagedRow);
+  const sessions = [
+    ...new Map([...recent, ...parked].map((s) => [s._id, s])).values(),
+  ].filter(isDaemonManagedRow);
 
   const results = [];
   for (const session of sessions) {
@@ -43,7 +56,8 @@ export async function performListActiveSessions(ctx: { db: QueryCtx["db"] }, use
         // The 24h last_heartbeat cutoff above is the bound: a session whose
         // teardown succeeded stops beating and ages out on its own.
         isKilled = !!conv.inbox_killed_at;
-        ownerDeviceId = conv.user_id === userId ? conv.owner_device_id : undefined;
+        ownerDeviceId =
+          conv.user_id === userId ? conv.owner_device_id : undefined;
         conversationTitle = conv.title;
         projectPath = conv.project_path;
         agentType = conv.agent_type;
@@ -63,7 +77,9 @@ export async function performListActiveSessions(ctx: { db: QueryCtx["db"] }, use
 
         const insight = await ctx.db
           .query("session_insights")
-          .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", session.conversation_id))
+          .withIndex("by_conversation_id", (q: any) =>
+            q.eq("conversation_id", session.conversation_id),
+          )
           .order("desc")
           .first();
         if (insight) {
@@ -82,7 +98,9 @@ export async function performListActiveSessions(ctx: { db: QueryCtx["db"] }, use
     // inbox subscription the throttle exists to protect.
     const latestMetric = await ctx.db
       .query("session_metrics")
-      .withIndex("by_session_collected", (q: any) => q.eq("session_id", session.session_id))
+      .withIndex("by_session_collected", (q: any) =>
+        q.eq("session_id", session.session_id),
+      )
       .order("desc")
       .first();
 

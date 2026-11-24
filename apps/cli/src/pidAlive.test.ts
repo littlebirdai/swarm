@@ -15,7 +15,17 @@ describe("isPidAlive", () => {
   });
 
   test("values that are not a pid are not alive, and never signal a process group", () => {
-    for (const pid of [0, -1, -process.pid, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31, null, undefined]) {
+    for (const pid of [
+      0,
+      -1,
+      -process.pid,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      2 ** 31,
+      null,
+      undefined,
+    ]) {
       expect(isPidAlive(pid as number)).toBe(false);
     }
   });

@@ -1,16 +1,20 @@
-import {
-  query,
-  internalMutation,
-  type MutationCtx,
-} from "./functions";
+import { query, internalMutation, type MutationCtx } from "./functions";
 import { v } from "convex/values";
 import { roleWorkedFor } from "./lib/actor";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { BLAME_ALGORITHM_VERSION, contentLinesToMatch, MAX_CONTENT_LINES } from "@codecast/shared/blame";
+import {
+  BLAME_ALGORITHM_VERSION,
+  contentLinesToMatch,
+  MAX_CONTENT_LINES,
+} from "@codecast/shared/blame";
 import { checkConversationAccess } from "./privacy";
-import { bodyBytes, readFileChangeBody, writeFileChange } from "./fileChangeBodies";
+import {
+  bodyBytes,
+  readFileChangeBody,
+  writeFileChange,
+} from "./fileChangeBodies";
 import {
   extractCommitHashFromContent,
   extractFileChanges,
@@ -58,7 +62,13 @@ export type SessionRef = {
 // its lines match what the session's edits wrote (shared/blame's gate).
 // `edit`: the line's text found in an edit the session made, which is the
 // authoring session even when a different one committed.
-export type BlameVia = "trailer" | "commit" | "hash" | "subject" | "overlap" | "edit";
+export type BlameVia =
+  | "trailer"
+  | "commit"
+  | "hash"
+  | "subject"
+  | "overlap"
+  | "edit";
 
 export type ResolvedSession = SessionRef & {
   message_id?: Id<"messages">;
@@ -73,7 +83,13 @@ export type ResolvedSession = SessionRef & {
 // session it names onto the commits row.
 // `lines` are the commit's normalized lines in the blamed file, for the
 // overlap match.
-export type CommitDescriptor = { sha: string; summary?: string; author_time?: number; session?: string; lines?: string[] };
+export type CommitDescriptor = {
+  sha: string;
+  summary?: string;
+  author_time?: number;
+  session?: string;
+  lines?: string[];
+};
 
 type FileEditRow = EditRowLite & { message_id: Id<"messages"> };
 
@@ -125,7 +141,10 @@ async function sessionRefFor(
   const userKey = conv.user_id.toString();
   if (!users.has(userKey)) {
     const user = await ctx.db.get(conv.user_id);
-    users.set(userKey, { name: user?.name ?? undefined, image: user?.image ?? undefined });
+    users.set(userKey, {
+      name: user?.name ?? undefined,
+      image: user?.image ?? undefined,
+    });
   }
   const user = users.get(userKey)!;
   // The line run and role the session worked under (fix loop: an introducing
@@ -172,8 +191,16 @@ export async function resolveCommitSessions(
     let messageId: Id<"messages"> | undefined;
     let via: BlameVia = "trailer";
 
-    const trailerId = desc.session ? ctx.db.normalizeId("conversations", desc.session) : null;
-    if (trailerId) conv = await accessibleConversation(ctx, viewer, caches.conversations, trailerId);
+    const trailerId = desc.session
+      ? ctx.db.normalizeId("conversations", desc.session)
+      : null;
+    if (trailerId)
+      conv = await accessibleConversation(
+        ctx,
+        viewer,
+        caches.conversations,
+        trailerId,
+      );
 
     if (!conv) {
       via = "commit";
@@ -183,7 +210,12 @@ export async function resolveCommitSessions(
         .collect();
       for (const row of named) {
         if (!row.conversation_id) continue;
-        conv = await accessibleConversation(ctx, viewer, caches.conversations, row.conversation_id);
+        conv = await accessibleConversation(
+          ctx,
+          viewer,
+          caches.conversations,
+          row.conversation_id,
+        );
         if (conv) break;
       }
     }
@@ -201,12 +233,20 @@ export async function resolveCommitSessions(
         .collect();
       const accessible: CommitRowLite[] = [];
       for (const row of candidates) {
-        if (await accessibleConversation(ctx, viewer, caches.conversations, row.conversation_id))
+        if (
+          await accessibleConversation(
+            ctx,
+            viewer,
+            caches.conversations,
+            row.conversation_id,
+          )
+        )
           accessible.push(row);
       }
       const best = pickRowForSha(sha, accessible);
       if (best) {
-        conv = caches.conversations.get(best.conversation_id.toString()) ?? null;
+        conv =
+          caches.conversations.get(best.conversation_id.toString()) ?? null;
         messageId = best.message_id as Id<"messages">;
         via = "hash";
       }
@@ -223,7 +263,11 @@ export async function resolveCommitSessions(
             .lte("timestamp", desc.author_time! + SUMMARY_MATCH_WINDOW_MS),
         )
         .take(400);
-      for (const row of rankRowsBySummary(desc.summary, desc.author_time, windowRows)) {
+      for (const row of rankRowsBySummary(
+        desc.summary,
+        desc.author_time,
+        windowRows,
+      )) {
         const candidate = await accessibleConversation(
           ctx,
           viewer,
@@ -240,7 +284,11 @@ export async function resolveCommitSessions(
     }
 
     if (conv) {
-      resolved[sha] = { ...(await sessionRefFor(ctx, conv, caches.users)), message_id: messageId, via };
+      resolved[sha] = {
+        ...(await sessionRefFor(ctx, conv, caches.users)),
+        message_id: messageId,
+        via,
+      };
     }
   }
   return resolved;
@@ -295,14 +343,21 @@ export async function inferCommitsByOverlap(
   resolved: Record<string, ResolvedSession>,
   caches: ResolveCaches = newResolveCaches(),
 ): Promise<void> {
-  const open = descriptors.filter((d) => d.lines?.length && !resolved[d.sha.toLowerCase()] && isValidBlameSha(d.sha.toLowerCase()));
+  const open = descriptors.filter(
+    (d) =>
+      d.lines?.length &&
+      !resolved[d.sha.toLowerCase()] &&
+      isValidBlameSha(d.sha.toLowerCase()),
+  );
   if (open.length === 0 || filePaths.length === 0) return;
   const editRows = await fileEditRows(ctx, viewer, filePaths, caches);
   if (editRows.length === 0) return;
   for (const d of open.slice(0, MAX_SHAS)) {
     const match = matchCommitByOverlap(d.lines!, d.author_time, editRows);
     if (!match) continue;
-    const conv = caches.conversations.get(match.row.conversation_id.toString())!;
+    const conv = caches.conversations.get(
+      match.row.conversation_id.toString(),
+    )!;
     resolved[d.sha.toLowerCase()] = {
       ...(await sessionRefFor(ctx, conv, caches.users)),
       message_id: match.row.message_id,
@@ -334,8 +389,21 @@ async function fileEditRows(
     for (const row of recentEdits) {
       if (row.change_type !== "edit" && row.change_type !== "write") continue;
       if (bytes >= MAX_FILE_EDIT_BYTES) break;
-      if (!(await accessibleConversation(ctx, viewer, caches.conversations, row.conversation_id))) continue;
-      const body = await readFileChangeBody(ctx, row.conversation_id, row.change_key, row);
+      if (
+        !(await accessibleConversation(
+          ctx,
+          viewer,
+          caches.conversations,
+          row.conversation_id,
+        ))
+      )
+        continue;
+      const body = await readFileChangeBody(
+        ctx,
+        row.conversation_id,
+        row.change_key,
+        row,
+      );
       if (!body) continue;
       bytes += bodyBytes(body);
       editRows.push({ ...row, new_content: body.newContent });
@@ -393,9 +461,25 @@ export const resolveBlame = query({
     const userId = auth.userId;
     const caches = newResolveCaches();
 
-    const descriptors = [...(args.shas ?? []).map((sha) => ({ sha })), ...(args.commits ?? [])];
-    const resolved = await resolveCommitSessions(ctx, userId, descriptors, caches);
-    if (args.file_path) await inferCommitsByOverlap(ctx, userId, [args.file_path], descriptors, resolved, caches);
+    const descriptors = [
+      ...(args.shas ?? []).map((sha) => ({ sha })),
+      ...(args.commits ?? []),
+    ];
+    const resolved = await resolveCommitSessions(
+      ctx,
+      userId,
+      descriptors,
+      caches,
+    );
+    if (args.file_path)
+      await inferCommitsByOverlap(
+        ctx,
+        userId,
+        [args.file_path],
+        descriptors,
+        resolved,
+        caches,
+      );
 
     const lines: MatchLine[] = [
       ...(args.uncommitted_lines ?? []).map((text) => ({ text })),
@@ -405,7 +489,11 @@ export const resolveBlame = query({
       ? await matchFileLines(ctx, userId, [args.file_path], lines, caches)
       : [];
 
-    return { resolved, line_matches: lineMatches, algorithm_version: BLAME_ALGORITHM_VERSION };
+    return {
+      resolved,
+      line_matches: lineMatches,
+      algorithm_version: BLAME_ALGORITHM_VERSION,
+    };
   },
 });
 
@@ -419,7 +507,13 @@ async function materializeMessagePage(
   ctx: MutationCtx,
   cursor: string | null,
   numItems: number,
-): Promise<{ inserted: number; repaired: number; scanned: number; cursor: string | null; done: boolean }> {
+): Promise<{
+  inserted: number;
+  repaired: number;
+  scanned: number;
+  cursor: string | null;
+  done: boolean;
+}> {
   // Exactly one paginate() per invocation — Convex forbids more. Throughput is
   // tuned via numItems + the scheduler hop, not by looping pages here.
   const page = await ctx.db.query("messages").paginate({ numItems, cursor });
@@ -448,23 +542,30 @@ async function materializeMessagePage(
             fc.commitMessage &&
             existing.commit_message !== fc.commitMessage
           ) {
-            await ctx.db.patch(existing._id, { commit_message: fc.commitMessage });
+            await ctx.db.patch(existing._id, {
+              commit_message: fc.commitMessage,
+            });
             repaired++;
           }
           continue;
         }
-        await writeFileChange(ctx, null, {
-          conversation_id: m.conversation_id,
-          change_key: fc.id,
-          message_id: m._id,
-          tool_call_id: fc.toolCallId,
-          seq: fc.sequenceIndex,
-          file_path: fc.filePath,
-          change_type: fc.changeType,
-          commit_message: fc.commitMessage,
-          commit_hash: fc.commitHash,
-          timestamp: fc.timestamp,
-        }, { oldContent: fc.oldContent, newContent: fc.newContent });
+        await writeFileChange(
+          ctx,
+          null,
+          {
+            conversation_id: m.conversation_id,
+            change_key: fc.id,
+            message_id: m._id,
+            tool_call_id: fc.toolCallId,
+            seq: fc.sequenceIndex,
+            file_path: fc.filePath,
+            change_type: fc.changeType,
+            commit_message: fc.commitMessage,
+            commit_hash: fc.commitHash,
+            timestamp: fc.timestamp,
+          },
+          { oldContent: fc.oldContent, newContent: fc.newContent },
+        );
         inserted++;
       }
     } catch {
@@ -543,8 +644,15 @@ export const backfillMaterialize = internalMutation({
 async function commitHashPage(
   ctx: MutationCtx,
   cursor: string | null,
-): Promise<{ patched: number; scanned: number; cursor: string | null; done: boolean }> {
-  const page = await ctx.db.query("file_changes").paginate({ numItems: 300, cursor });
+): Promise<{
+  patched: number;
+  scanned: number;
+  cursor: string | null;
+  done: boolean;
+}> {
+  const page = await ctx.db
+    .query("file_changes")
+    .paginate({ numItems: 300, cursor });
 
   let patched = 0;
   for (const row of page.page) {
@@ -554,7 +662,9 @@ async function commitHashPage(
       const windowMessages = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q: any) =>
-          q.eq("conversation_id", row.conversation_id).gte("timestamp", row.timestamp),
+          q
+            .eq("conversation_id", row.conversation_id)
+            .gte("timestamp", row.timestamp),
         )
         .take(12);
       for (const message of windowMessages) {
@@ -574,7 +684,12 @@ async function commitHashPage(
     }
   }
 
-  return { patched, scanned: page.page.length, cursor: page.continueCursor, done: page.isDone };
+  return {
+    patched,
+    scanned: page.page.length,
+    cursor: page.continueCursor,
+    done: page.isDone,
+  };
 }
 
 /**
@@ -601,7 +716,9 @@ export const backfillCommitHashes = internalMutation({
         scanned,
       });
     } else {
-      console.log(`backfillCommitHashes done: scanned ${scanned}, patched ${patched}`);
+      console.log(
+        `backfillCommitHashes done: scanned ${scanned}, patched ${patched}`,
+      );
     }
     return { scanned, patched, done: r.done };
   },

@@ -6,7 +6,11 @@ import { describe, expect, test, beforeEach } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { hasBinary, resetBinaryProbeCache, type ProbeResult } from "./binaryProbe.js";
+import {
+  hasBinary,
+  resetBinaryProbeCache,
+  type ProbeResult,
+} from "./binaryProbe.js";
 
 const found = (): ProbeResult => ({ status: 0, stdout: "/usr/bin/tmux\n" });
 const absent = (): ProbeResult => ({ status: 1, stdout: "" });
@@ -36,28 +40,41 @@ describe("hasBinary", () => {
 
   test("a transient spawn failure is retried, not read as absence", () => {
     let attempt = 0;
-    const spawn = (): ProbeResult => (++attempt < 3 ? spawnFailed("EAGAIN") : found());
+    const spawn = (): ProbeResult =>
+      ++attempt < 3 ? spawnFailed("EAGAIN") : found();
     expect(hasBinary("tmux", { spawn, sleep: () => {} })).toBe(true);
     expect(attempt).toBe(3);
   });
 
   test("a persistent spawn failure throws with the errno instead of skipping", () => {
     let attempt = 0;
-    const spawn = (): ProbeResult => { attempt++; return spawnFailed("EAGAIN"); };
-    expect(() => hasBinary("claude", { spawn, sleep: () => {} }))
-      .toThrow(/cannot tell whether `claude` is installed[\s\S]*EAGAIN/);
+    const spawn = (): ProbeResult => {
+      attempt++;
+      return spawnFailed("EAGAIN");
+    };
+    expect(() => hasBinary("claude", { spawn, sleep: () => {} })).toThrow(
+      /cannot tell whether `claude` is installed[\s\S]*EAGAIN/,
+    );
     expect(attempt).toBe(4);
   });
 
   test("a probe killed by a signal is could-not-ask, not absence", () => {
-    const spawn = (): ProbeResult => ({ status: null, stdout: "", signal: "SIGKILL" });
-    expect(() => hasBinary("tmux", { spawn, attempts: 2, sleep: () => {} }))
-      .toThrow(/killed by SIGKILL/);
+    const spawn = (): ProbeResult => ({
+      status: null,
+      stdout: "",
+      signal: "SIGKILL",
+    });
+    expect(() =>
+      hasBinary("tmux", { spawn, attempts: 2, sleep: () => {} }),
+    ).toThrow(/killed by SIGKILL/);
   });
 
   test("an answered probe is resolved once per binary", () => {
     let calls = 0;
-    const spawn = (): ProbeResult => { calls++; return found(); };
+    const spawn = (): ProbeResult => {
+      calls++;
+      return found();
+    };
     expect(hasBinary("tmux", { spawn })).toBe(true);
     expect(hasBinary("tmux", { spawn })).toBe(true);
     expect(calls).toBe(1);
@@ -73,15 +90,20 @@ describe("hasBinary", () => {
     fs.mkdirSync(bin);
     // A `which` that cannot be executed (mode 644) on a PATH holding nothing
     // else: the spawn fails at the OS, which is the "could not ask" class.
-    fs.writeFileSync(path.join(bin, "which"), "#!/bin/sh\nexit 0\n", { mode: 0o644 });
+    fs.writeFileSync(path.join(bin, "which"), "#!/bin/sh\nexit 0\n", {
+      mode: 0o644,
+    });
     const probe = path.resolve(import.meta.dir, "binaryProbe.ts");
-    fs.writeFileSync(path.join(dir, "gate.test.ts"), [
-      `import { describe, test, expect } from "bun:test";`,
-      `import { hasBinary } from ${JSON.stringify(probe)};`,
-      `describe.skipIf(!hasBinary("claude"))("real claude suite", () => {`,
-      `  test("runs", () => { expect(1).toBe(1); });`,
-      `});`,
-    ].join("\n"));
+    fs.writeFileSync(
+      path.join(dir, "gate.test.ts"),
+      [
+        `import { describe, test, expect } from "bun:test";`,
+        `import { hasBinary } from ${JSON.stringify(probe)};`,
+        `describe.skipIf(!hasBinary("claude"))("real claude suite", () => {`,
+        `  test("runs", () => { expect(1).toBe(1); });`,
+        `});`,
+      ].join("\n"),
+    );
 
     // bun by absolute path, because PATH holds only the broken `which`.
     const run = Bun.spawnSync([process.execPath, "test", "gate.test.ts"], {

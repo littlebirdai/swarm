@@ -26,7 +26,11 @@ import { matchRefs, snapshotPage } from "./snapshot.js";
 import { findChromeBinary } from "../workspace/chrome.js";
 
 const chrome = findChromeBinary();
-const FIXTURE = path.join(import.meta.dir, "fixtures", "roleless-controls.html");
+const FIXTURE = path.join(
+  import.meta.dir,
+  "fixtures",
+  "roleless-controls.html",
+);
 
 describe.skipIf(!chrome)("role-less controls in a real page", () => {
   let server: http.Server;
@@ -37,7 +41,13 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
   let pageUrl: string;
 
   const evalPage = async (expression: string): Promise<unknown> =>
-    (await page.conn.send<any>("Runtime.evaluate", { expression, returnByValue: true }, page.sessionId)).result?.value;
+    (
+      await page.conn.send<any>(
+        "Runtime.evaluate",
+        { expression, returnByValue: true },
+        page.sessionId,
+      )
+    ).result?.value;
 
   beforeAll(async () => {
     const html = fs.readFileSync(FIXTURE, "utf-8");
@@ -76,10 +86,14 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
         /* not up yet */
       }
     }
-    if (!port) throw new Error("headless Chrome never reported a debugging port");
+    if (!port)
+      throw new Error("headless Chrome never reported a debugging port");
 
     conn = await CdpConnection.fromPort(port);
-    const { targetId } = await conn.send<{ targetId: string }>("Target.createTarget", { url });
+    const { targetId } = await conn.send<{ targetId: string }>(
+      "Target.createTarget",
+      { url },
+    );
     page = await attachToTarget(conn, targetId);
     await conn.send("Page.navigate", { url }, page.sessionId);
     for (let i = 0; i < 100; i++) {
@@ -97,7 +111,9 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
 
   test("a styled div, a listener span, a tabindex div and an editor all get refs", async () => {
     const snap = await snapshotPage(page, { interactiveOnly: true });
-    const names = snap.refs.filter((r) => r.role === "clickable").map((r) => r.name);
+    const names = snap.refs
+      .filter((r) => r.role === "clickable")
+      .map((r) => r.name);
     expect(names).toContain("Publish");
     expect(names).toContain("Discard");
     expect(names).toContain("Keyboard reachable");
@@ -108,7 +124,8 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
 
   test("the real button and link stay with the accessibility tree, once each", async () => {
     const snap = await snapshotPage(page, { interactiveOnly: true });
-    const roles = (name: string) => snap.refs.filter((r) => r.name === name).map((r) => r.role);
+    const roles = (name: string) =>
+      snap.refs.filter((r) => r.name === name).map((r) => r.role);
     expect(roles("Real button")).toEqual(["button"]);
     expect(roles("Real link")).toEqual(["link"]);
   });
@@ -129,7 +146,9 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
     const [hit] = matchRefs(snap.refs, "Publish");
     expect(hit).toBeDefined();
     await actions.click(page, hit.ref);
-    expect(await evalPage("document.getElementById('log').textContent")).toBe("fired:publish");
+    expect(await evalPage("document.getElementById('log').textContent")).toBe(
+      "fired:publish",
+    );
   });
 
   test("a span with an addEventListener click and no attribute works too", async () => {
@@ -137,14 +156,18 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
     const snap = await snapshotPage(page, { interactiveOnly: true });
     const [hit] = matchRefs(snap.refs, "Discard");
     await actions.click(page, hit.ref);
-    expect(await evalPage("document.getElementById('log').textContent")).toBe("fired:discard");
+    expect(await evalPage("document.getElementById('log').textContent")).toBe(
+      "fired:discard",
+    );
   });
 
   test("typing lands in the contenteditable", async () => {
     const snap = await snapshotPage(page, { interactiveOnly: true });
     const [hit] = matchRefs(snap.refs, "Message body");
     await actions.type(page, hit.ref, "hello there");
-    expect(await evalPage("document.getElementById('editor').textContent")).toBe("hello there");
+    expect(
+      await evalPage("document.getElementById('editor').textContent"),
+    ).toBe("hello there");
   });
 
   test("the scan leaves nothing of its own behind on the page", async () => {
@@ -163,40 +186,61 @@ describe.skipIf(!chrome)("role-less controls in a real page", () => {
     // paired with. Writing the test token there unpairs their Chrome until
     // they re-run `cast browser extension setup` (ct-49554).
     const realHome = process.env.CODECAST_DIR;
-    process.env.CODECAST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "cast-bridge-"));
+    process.env.CODECAST_DIR = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cast-bridge-"),
+    );
     const host = await testBridgeHost();
     const tabId = 4242;
-    const ext = await new FakeExtension([FakeExtension.tab(tabId, pageUrl, "Role-less controls")]).connect(host.port);
+    const ext = await new FakeExtension([
+      FakeExtension.tab(tabId, pageUrl, "Role-less controls"),
+    ]).connect(host.port);
     // Forward what the extension would hand to chrome.debugger into the real
     // page instead of the testutil's echo.
     ext.ws.removeAllListeners("message");
     ext.ws.on("message", async (raw: unknown) => {
       const m = JSON.parse(String(raw));
       if (m.op === "ping") return;
-      const reply = (extra: Record<string, unknown>) => ext.ws.send(JSON.stringify({ id: m.id, ok: true, ...extra }));
+      const reply = (extra: Record<string, unknown>) =>
+        ext.ws.send(JSON.stringify({ id: m.id, ok: true, ...extra }));
       if (m.op === "tabs.list") return reply({ tabs: ext.tabs });
       if (m.op === "attach" || m.op === "detach") return reply({});
       if (m.op === "cdp") {
         try {
-          return reply({ result: await conn.send(m.method, m.params, page.sessionId) });
+          return reply({
+            result: await conn.send(m.method, m.params, page.sessionId),
+          });
         } catch (err) {
-          return ext.ws.send(JSON.stringify({ id: m.id, ok: false, error: (err as Error).message }));
+          return ext.ws.send(
+            JSON.stringify({
+              id: m.id,
+              ok: false,
+              error: (err as Error).message,
+            }),
+          );
         }
       }
-      return ext.ws.send(JSON.stringify({ id: m.id, ok: false, error: `unknown op ${m.op}` }));
+      return ext.ws.send(
+        JSON.stringify({ id: m.id, ok: false, error: `unknown op ${m.op}` }),
+      );
     });
 
     let viaBridge: CdpConnection | undefined;
     try {
-      viaBridge = await CdpConnection.fromPort({ port: host.port, token: host.token });
+      viaBridge = await CdpConnection.fromPort({
+        port: host.port,
+        token: host.token,
+      });
       const bridged = await attachToTarget(viaBridge, targetIdOfTab(tabId));
       const snap = await snapshotPage(bridged, { interactiveOnly: true });
-      const names = snap.refs.filter((r) => r.role === "clickable").map((r) => r.name);
+      const names = snap.refs
+        .filter((r) => r.role === "clickable")
+        .map((r) => r.name);
       expect(names).toContain("Publish");
       expect(names).toContain("Message body");
       // Same node, so the same ref as the direct CDP path minted.
       const direct = await snapshotPage(page, { interactiveOnly: true });
-      const refOf = (s: typeof snap, name: string) => s.refs.find((r) => r.name === name)?.ref;
+      const refOf = (s: typeof snap, name: string) =>
+        s.refs.find((r) => r.name === name)?.ref;
       expect(refOf(snap, "Publish")).toBe(refOf(direct, "Publish"));
     } finally {
       viaBridge?.close();

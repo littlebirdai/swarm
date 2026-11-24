@@ -18,7 +18,9 @@ export function labelSessions(ids: string[], bucketId: string | null) {
     return;
   }
   const name = bucketId ? store.buckets[bucketId]?.name : null;
-  const real = ids.map((id) => store.getConvexId(id) ?? id).filter((id) => isConvexId(id));
+  const real = ids
+    .map((id) => store.getConvexId(id) ?? id)
+    .filter((id) => isConvexId(id));
   const applied = real.length;
   if (applied === 0) {
     toast.error("Session is still being created — try again in a moment");
@@ -26,8 +28,18 @@ export function labelSessions(ids: string[], bucketId: string | null) {
   }
   const sessions = counted(applied, "session");
   const what = applied === 1 ? "" : ` ${applied} sessions`;
-  gestureToast(bucketId ? `Labeled${what}${name ? ` ${name}` : ""}` : `Label removed${what ? ` from${what}` : ""}`, () =>
-    undoAsOne(bucketId ? `Labeled ${sessions}${name ? ` ${name}` : ""}` : `Removed the label from ${sessions}`, () => {
-      for (const id of real) store.assignSessionToBucket(id, bucketId);
-    }));
+  gestureToast(
+    bucketId
+      ? `Labeled${what}${name ? ` ${name}` : ""}`
+      : `Label removed${what ? ` from${what}` : ""}`,
+    () =>
+      undoAsOne(
+        bucketId
+          ? `Labeled ${sessions}${name ? ` ${name}` : ""}`
+          : `Removed the label from ${sessions}`,
+        () => {
+          for (const id of real) store.assignSessionToBucket(id, bucketId);
+        },
+      ),
+  );
 }

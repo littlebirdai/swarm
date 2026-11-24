@@ -11,14 +11,32 @@ import { DiffView } from "../DiffView";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 import { kitRemoveLedger, kitShareLedger } from "../consequential/ledgers";
 import { isBroken, type FleetGridRow } from "./fleetRows";
-import { confidenceFromKind, confidenceFromSurfaces, kindMeta, type CapabilityDevice } from "./kinds";
+import {
+  confidenceFromKind,
+  confidenceFromSurfaces,
+  kindMeta,
+  type CapabilityDevice,
+} from "./kinds";
 import { ReachControl } from "./KitList";
-import { setKitReach, useKitReach, type KitItem, type KitConflict, type KitWorkspace, type PendingConsent } from "./useKit";
+import {
+  setKitReach,
+  useKitReach,
+  type KitItem,
+  type KitConflict,
+  type KitWorkspace,
+  type PendingConsent,
+} from "./useKit";
 import { teamMembersOf } from "../../lib/activeTeam";
 
 export type Selection = { key: string };
 
-const MARKDOWN_KINDS = new Set(["skill", "command", "subagent", "snippet", "instructions"]);
+const MARKDOWN_KINDS = new Set([
+  "skill",
+  "command",
+  "subagent",
+  "snippet",
+  "instructions",
+]);
 
 function withoutFrontmatter(md: string): string {
   if (!md.startsWith("---")) return md;
@@ -59,17 +77,36 @@ export function CapabilityPane({
     <div className="rounded-lg border border-sol-border bg-sol-card overflow-hidden">
       <div className="px-4 pt-3 pb-3 border-b border-sol-border">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-sol-text truncate">{name}</span>
-          <span className="text-meta text-sol-text-dim">{meta?.label ?? kind}</span>
+          <span className="font-mono text-sm text-sol-text truncate">
+            {name}
+          </span>
+          <span className="text-meta text-sol-text-dim">
+            {meta?.label ?? kind}
+          </span>
           <div className="flex-1" />
-          <button type="button" onClick={onClose} className="text-sol-text-dim hover:text-sol-text" aria-label="Close">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sol-text-dim hover:text-sol-text"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
-        {description && <p className="mt-1 text-xs text-sol-text-muted leading-relaxed line-clamp-3">{description}</p>}
+        {description && (
+          <p className="mt-1 text-xs text-sol-text-muted leading-relaxed line-clamp-3">
+            {description}
+          </p>
+        )}
         <div className="mt-3">
           {kitItem ? (
-            <KitAction item={kitItem} ws={ws} devices={devices} pending={pending.filter((p) => p.slug === kitItem.slug)} conflicts={conflicts.filter((c) => c.slug === kitItem.slug)} />
+            <KitAction
+              item={kitItem}
+              ws={ws}
+              devices={devices}
+              pending={pending.filter((p) => p.slug === kitItem.slug)}
+              conflicts={conflicts.filter((c) => c.slug === kitItem.slug)}
+            />
           ) : shareable && row ? (
             <ShareAction row={row} devices={devices} ws={ws} />
           ) : null}
@@ -103,117 +140,157 @@ function KitAction({
   conflicts: KitConflict[];
 }) {
   const slugs = useMemo(() => [item.slug], [item.slug]);
-  const r = useKitReach(slugs)[item.slug] ?? { reach: "off" as const, teamOn: false };
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
-  const members = useInboxStore((s) => (ws.kind === "team" ? teamMembersOf(s).length : 1));
+  const r = useKitReach(slugs)[item.slug] ?? {
+    reach: "off" as const,
+    teamOn: false,
+  };
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
+  const members = useInboxStore((s) =>
+    ws.kind === "team" ? teamMembersOf(s).length : 1,
+  );
   const remove = useInboxStore((s) => s.removeKitItem);
   const allow = useInboxStore((s) => s.grantKitConsent);
   const adopt = useInboxStore((s) => s.adoptKitItem);
   const [allowed, setAllowed] = useState<Set<string>>(() => new Set());
   const canRemove = ws.isAdmin || (!!meId && item.author_user_id === meId);
-  const waiting = pending.filter((p) => !allowed.has(`${p.device_id}|${p.hash}`));
-  const clashing = conflicts.filter((c) => !allowed.has(`${c.device_id}|${c.hash}`));
-  const settle = (c: { device_id: string; hash: string }) => setAllowed((s) => new Set(s).add(`${c.device_id}|${c.hash}`));
+  const waiting = pending.filter(
+    (p) => !allowed.has(`${p.device_id}|${p.hash}`),
+  );
+  const clashing = conflicts.filter(
+    (c) => !allowed.has(`${c.device_id}|${c.hash}`),
+  );
+  const settle = (c: { device_id: string; hash: string }) =>
+    setAllowed((s) => new Set(s).add(`${c.device_id}|${c.hash}`));
   return (
     <div className="space-y-2">
-    <div className="flex items-center gap-3">
-      <ReachControl
-        item={item}
-        value={r.reach}
-        teamOn={r.teamOn}
-        ws={ws}
-        disabled={!!item.publishing}
-        onChange={(next) => setKitReach(item, next, ws, r)}
-      />
-      <span className="text-meta text-sol-text-dim tabular-nums">
-        {item.publishing ? "Uploading from its machine" : `v${item.current_version ?? 1}`}
-      </span>
-      <div className="flex-1" />
-      {canRemove && !item.publishing && (
-        <ConsequentialSwitch
-          on={false}
-          ledger={kitRemoveLedger({ name: item.name, kit: ws.name, members })}
-          onTurnOn={() => remove(item._id)}
-          onTurnOff={() => undefined}
-          trigger={(p) => (
-            <button type="button" onClick={p.press} className="text-meta text-sol-text-dim hover:text-sol-red">
-              Remove from kit
-            </button>
-          )}
+      <div className="flex items-center gap-3">
+        <ReachControl
+          item={item}
+          value={r.reach}
+          teamOn={r.teamOn}
+          ws={ws}
+          disabled={!!item.publishing}
+          onChange={(next) => setKitReach(item, next, ws, r)}
         />
-      )}
-    </div>
-    {clashing.map((c) => {
-      const d = devices.find((x) => x.deviceId === c.device_id);
-      return (
-        <div key={`c|${c.device_id}|${c.hash}`} className="flex items-center gap-2 text-meta">
-          <span className="h-1.5 w-1.5 rounded-full bg-sol-yellow" />
-          <span className="text-sol-text">{d?.name ?? "A machine"}</span>
-          <span className="text-sol-text-dim truncate" title={c.detail}>has its own copy</span>
-          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+        <span className="text-meta text-sol-text-dim tabular-nums">
+          {item.publishing
+            ? "Uploading from its machine"
+            : `v${item.current_version ?? 1}`}
+        </span>
+        <div className="flex-1" />
+        {canRemove && !item.publishing && (
+          <ConsequentialSwitch
+            on={false}
+            ledger={kitRemoveLedger({ name: item.name, kit: ws.name, members })}
+            onTurnOn={() => remove(item._id)}
+            onTurnOff={() => undefined}
+            trigger={(p) => (
+              <button
+                type="button"
+                onClick={p.press}
+                className="text-meta text-sol-text-dim hover:text-sol-red"
+              >
+                Remove from kit
+              </button>
+            )}
+          />
+        )}
+      </div>
+      {clashing.map((c) => {
+        const d = devices.find((x) => x.deviceId === c.device_id);
+        return (
+          <div
+            key={`c|${c.device_id}|${c.hash}`}
+            className="flex items-center gap-2 text-meta"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-sol-yellow" />
+            <span className="text-sol-text">{d?.name ?? "A machine"}</span>
+            <span className="text-sol-text-dim truncate" title={c.detail}>
+              has its own copy
+            </span>
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setKitReach(item, "off", ws, r);
+                  settle(c);
+                }}
+                className="h-6 px-2 rounded border border-sol-border text-sol-text-muted hover:text-sol-text"
+              >
+                Keep mine
+              </button>
+              <button
+                type="button"
+                title="Your copy is moved aside, not deleted"
+                onClick={() => {
+                  adopt(c);
+                  settle(c);
+                }}
+                className="h-6 px-2 rounded border border-sol-blue text-sol-blue hover:bg-sol-bg-alt"
+              >
+                Use the kit's
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      {waiting.map((p) => {
+        const d = devices.find((x) => x.deviceId === p.device_id);
+        return (
+          <div
+            key={`${p.device_id}|${p.hash}`}
+            className="flex items-center gap-2 text-meta"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-sol-orange" />
+            <span className="text-sol-text">{d?.name ?? "A machine"}</span>
+            <span className="text-sol-text-dim">waiting: it runs code</span>
             <button
               type="button"
               onClick={() => {
-                setKitReach(item, "off", ws, r);
-                settle(c);
+                allow(p);
+                setAllowed((s) => new Set(s).add(`${p.device_id}|${p.hash}`));
               }}
-              className="h-6 px-2 rounded border border-sol-border text-sol-text-muted hover:text-sol-text"
+              className="ml-auto h-6 px-2 rounded border border-sol-orange text-sol-orange hover:bg-sol-bg-alt"
             >
-              Keep mine
-            </button>
-            <button
-              type="button"
-              title="Your copy is moved aside, not deleted"
-              onClick={() => {
-                adopt(c);
-                settle(c);
-              }}
-              className="h-6 px-2 rounded border border-sol-blue text-sol-blue hover:bg-sol-bg-alt"
-            >
-              Use the kit's
+              Allow
             </button>
           </div>
-        </div>
-      );
-    })}
-    {waiting.map((p) => {
-      const d = devices.find((x) => x.deviceId === p.device_id);
-      return (
-        <div key={`${p.device_id}|${p.hash}`} className="flex items-center gap-2 text-meta">
-          <span className="h-1.5 w-1.5 rounded-full bg-sol-orange" />
-          <span className="text-sol-text">{d?.name ?? "A machine"}</span>
-          <span className="text-sol-text-dim">waiting: it runs code</span>
-          <button
-            type="button"
-            onClick={() => {
-              allow(p);
-              setAllowed((s) => new Set(s).add(`${p.device_id}|${p.hash}`));
-            }}
-            className="ml-auto h-6 px-2 rounded border border-sol-orange text-sol-orange hover:bg-sol-bg-alt"
-          >
-            Allow
-          </button>
-        </div>
-      );
-    })}
+        );
+      })}
     </div>
   );
 }
 
-function ShareAction({ row, devices, ws }: { row: FleetGridRow; devices: CapabilityDevice[]; ws: KitWorkspace }) {
+function ShareAction({
+  row,
+  devices,
+  ws,
+}: {
+  row: FleetGridRow;
+  devices: CapabilityDevice[];
+  ws: KitWorkspace;
+}) {
   const share = useInboxStore((s) => s.shareToKit);
-  const members = useInboxStore((s) => (ws.kind === "team" ? teamMembersOf(s).length : 1));
+  const members = useInboxStore((s) =>
+    ws.kind === "team" ? teamMembersOf(s).length : 1,
+  );
   // Upload from a machine that has it, preferring one that is online now.
   const source = devices
     .filter((d) => row.byDevice[d.deviceId]?.present)
-    .sort((a, b) => Number(b.online) - Number(a.online) || b.lastSeen - a.lastSeen)[0];
+    .sort(
+      (a, b) => Number(b.online) - Number(a.online) || b.lastSeen - a.lastSeen,
+    )[0];
   const ledger = kitShareLedger({
     name: row.identity,
     kindLabel: kindMeta(String(row.kind))?.label ?? String(row.kind),
     kit: ws.name,
     members,
     runs: confidenceFromKind(String(row.kind)),
-    machine: source ? `${source.name}${source.online ? "" : " (offline, uploads when it wakes)"}` : "No machine has it",
+    machine: source
+      ? `${source.name}${source.online ? "" : " (offline, uploads when it wakes)"}`
+      : "No machine has it",
   });
   if (!ws.key || !ws.ownerId) return null;
   return (
@@ -222,7 +299,15 @@ function ShareAction({ row, devices, ws }: { row: FleetGridRow; devices: Capabil
       ledger={source ? ledger : { ...ledger, blocked: "No machine has it" }}
       onTurnOn={() =>
         source &&
-        share({ kind: String(row.kind), name: row.identity, description: row.description, device_id: source.deviceId, workspace: ws.key!, team_id: ws.teamId, owner_id: ws.ownerId! })
+        share({
+          kind: String(row.kind),
+          name: row.identity,
+          description: row.description,
+          device_id: source.deviceId,
+          workspace: ws.key!,
+          team_id: ws.teamId,
+          owner_id: ws.ownerId!,
+        })
       }
       onTurnOff={() => undefined}
       trigger={(p) => (
@@ -239,8 +324,17 @@ function ShareAction({ row, devices, ws }: { row: FleetGridRow; devices: Capabil
 }
 
 /** Where it is: one line when every machine agrees, otherwise the machines that differ, by state. */
-function Machines({ row, devices }: { row: FleetGridRow | undefined; devices: CapabilityDevice[] }) {
-  const groups: Record<"on" | "missing" | "broken" | "off" | "unknown", CapabilityDevice[]> = {
+function Machines({
+  row,
+  devices,
+}: {
+  row: FleetGridRow | undefined;
+  devices: CapabilityDevice[];
+}) {
+  const groups: Record<
+    "on" | "missing" | "broken" | "off" | "unknown",
+    CapabilityDevice[]
+  > = {
     on: [],
     missing: [],
     broken: [],
@@ -261,11 +355,36 @@ function Machines({ row, devices }: { row: FleetGridRow | undefined; devices: Ca
               : "on";
     groups[state].push(d);
   }
-  const lines: Array<{ key: string; label: string; tone: string; list: CapabilityDevice[] }> = [
-    { key: "missing", label: "Missing on", tone: "text-sol-yellow", list: groups.missing },
-    { key: "broken", label: "Not downloaded on", tone: "text-sol-red", list: groups.broken },
-    { key: "off", label: "Off on", tone: "text-sol-text-muted", list: groups.off },
-    { key: "unknown", label: "Not reported by", tone: "text-sol-text-dim", list: groups.unknown },
+  const lines: Array<{
+    key: string;
+    label: string;
+    tone: string;
+    list: CapabilityDevice[];
+  }> = [
+    {
+      key: "missing",
+      label: "Missing on",
+      tone: "text-sol-yellow",
+      list: groups.missing,
+    },
+    {
+      key: "broken",
+      label: "Not downloaded on",
+      tone: "text-sol-red",
+      list: groups.broken,
+    },
+    {
+      key: "off",
+      label: "Off on",
+      tone: "text-sol-text-muted",
+      list: groups.off,
+    },
+    {
+      key: "unknown",
+      label: "Not reported by",
+      tone: "text-sol-text-dim",
+      list: groups.unknown,
+    },
   ].filter((l) => l.list.length > 0);
   return (
     <div className="px-4 py-3 border-b border-sol-border space-y-1.5 text-meta">
@@ -303,9 +422,14 @@ function Body({ markdown, footer }: { markdown: string; footer?: string }) {
         {raw ? "Rendered" : "Source"}
       </button>
       {raw ? (
-        <pre className="text-meta font-mono text-sol-text whitespace-pre-wrap break-words">{markdown}</pre>
+        <pre className="text-meta font-mono text-sol-text whitespace-pre-wrap break-words">
+          {markdown}
+        </pre>
       ) : (
-        <MarkdownRenderer content={withoutFrontmatter(markdown)} className="!text-[13px]" />
+        <MarkdownRenderer
+          content={withoutFrontmatter(markdown)}
+          className="!text-[13px]"
+        />
       )}
       {footer && <p className="mt-3 text-meta text-sol-text-dim">{footer}</p>}
     </div>
@@ -313,10 +437,22 @@ function Body({ markdown, footer }: { markdown: string; footer?: string }) {
 }
 
 function MachineBody({ kind, name }: { kind: string; name: string }) {
-  const { data } = useQueryNoThrow(api.capabilities.webCapabilityContent, { kind, name });
-  if (data === undefined) return <p className="px-4 py-3 text-xs text-sol-text-dim">Loading file…</p>;
-  if (!data?.body) return <p className="px-4 py-3 text-xs text-sol-text-dim">File not synced yet</p>;
-  return <Body markdown={data.body} footer={data.truncated ? "Cut at 64KB" : undefined} />;
+  const { data } = useQueryNoThrow(api.capabilities.webCapabilityContent, {
+    kind,
+    name,
+  });
+  if (data === undefined)
+    return <p className="px-4 py-3 text-xs text-sol-text-dim">Loading file…</p>;
+  if (!data?.body)
+    return (
+      <p className="px-4 py-3 text-xs text-sol-text-dim">File not synced yet</p>
+    );
+  return (
+    <Body
+      markdown={data.body}
+      footer={data.truncated ? "Cut at 64KB" : undefined}
+    />
+  );
 }
 
 type KitVersion = {
@@ -338,10 +474,19 @@ function KitBody({ item }: { item: KitItem }) {
   const [picked, setPicked] = useState<number | null>(null);
   const [changes, setChanges] = useState(false);
   const shown = versions.find((v) => v.version === picked) ?? versions[0];
-  const previous = shown ? versions.find((v) => v.version === shown.version - 1) : undefined;
-  if (item.publishing) return <p className="px-4 py-3 text-xs text-sol-text-dim">Waiting for the upload…</p>;
-  if (data === undefined) return <p className="px-4 py-3 text-xs text-sol-text-dim">Loading…</p>;
-  if (!shown) return <p className="px-4 py-3 text-xs text-sol-text-dim">No versions</p>;
+  const previous = shown
+    ? versions.find((v) => v.version === shown.version - 1)
+    : undefined;
+  if (item.publishing)
+    return (
+      <p className="px-4 py-3 text-xs text-sol-text-dim">
+        Waiting for the upload…
+      </p>
+    );
+  if (data === undefined)
+    return <p className="px-4 py-3 text-xs text-sol-text-dim">Loading…</p>;
+  if (!shown)
+    return <p className="px-4 py-3 text-xs text-sol-text-dim">No versions</p>;
   const runsCode = confidenceFromSurfaces(shown.surfaces as any) !== "prose";
   return (
     <>
@@ -353,7 +498,9 @@ function KitBody({ item }: { item: KitItem }) {
             onClick={() => setPicked(v.version)}
             title={v.note}
             className={`h-6 px-2 rounded text-meta tabular-nums ${
-              v.version === shown.version ? "bg-sol-bg-alt text-sol-text" : "text-sol-text-dim hover:text-sol-text"
+              v.version === shown.version
+                ? "bg-sol-bg-alt text-sol-text"
+                : "text-sol-text-dim hover:text-sol-text"
             }`}
           >
             v{v.version}
@@ -374,10 +521,17 @@ function KitBody({ item }: { item: KitItem }) {
           {runsCode && <span className="ml-2 text-sol-orange">runs code</span>}
         </span>
       </div>
-      {shown.note && <p className="px-4 pt-3 text-xs text-sol-text-muted">{shown.note}</p>}
+      {shown.note && (
+        <p className="px-4 pt-3 text-xs text-sol-text-muted">{shown.note}</p>
+      )}
       {changes && previous ? (
         <div className="px-4 py-3 max-h-[min(70vh,44rem)] overflow-y-auto">
-          <DiffView oldStr={previous.main_body ?? ""} newStr={shown.main_body ?? ""} fileName={`${item.name}.md`} contextLines={3} />
+          <DiffView
+            oldStr={previous.main_body ?? ""}
+            newStr={shown.main_body ?? ""}
+            fileName={`${item.name}.md`}
+            contextLines={3}
+          />
         </div>
       ) : shown.main_body ? (
         <Body markdown={shown.main_body} />
@@ -387,12 +541,20 @@ function KitBody({ item }: { item: KitItem }) {
 }
 
 function Facts({ row }: { row: FleetGridRow }) {
-  const facts = [row.command, row.url, row.event && `on ${row.event}`, row.source].filter(Boolean) as string[];
+  const facts = [
+    row.command,
+    row.url,
+    row.event && `on ${row.event}`,
+    row.source,
+  ].filter(Boolean) as string[];
   if (facts.length === 0) return null;
   return (
     <div className="px-4 py-3 space-y-1">
       {facts.map((f) => (
-        <pre key={f} className="text-meta font-mono text-sol-text-muted whitespace-pre-wrap break-all">
+        <pre
+          key={f}
+          className="text-meta font-mono text-sol-text-muted whitespace-pre-wrap break-all"
+        >
           {f}
         </pre>
       ))}

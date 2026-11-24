@@ -7,8 +7,18 @@
 import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { ACTIVE_AGENT_STATUSES } from "@codecast/shared/contracts";
-import { AWAY_DEBOUNCE_MS, HOLD_WHILE_ACTIVE_MS, enqueuePush } from "../pushRouter";
-import { DECISION_PUSH_TYPE, decisionPushContent, lineNoticesCard, ringsPhone, sessionLabel } from "./decisionRing";
+import {
+  AWAY_DEBOUNCE_MS,
+  HOLD_WHILE_ACTIVE_MS,
+  enqueuePush,
+} from "../pushRouter";
+import {
+  DECISION_PUSH_TYPE,
+  decisionPushContent,
+  lineNoticesCard,
+  ringsPhone,
+  sessionLabel,
+} from "./decisionRing";
 
 // The decision helpers type the scheduler optional; every mutation ctx has one.
 type Ctx = { db: any; scheduler?: any };
@@ -17,21 +27,36 @@ type Ctx = { db: any; scheduler?: any };
 // write that never lands): the group goes out anyway.
 export const DECISION_TURN_HOLD_MS = 5 * 60_000;
 
-async function inTurn(ctx: Ctx, conversationId: Id<"conversations">): Promise<boolean> {
+async function inTurn(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const managed = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   return ACTIVE_AGENT_STATUSES.has(managed?.agent_status ?? "");
 }
 
 /** The staged card push for this person and session, if one has not gone out yet. */
-async function stagedGroup(ctx: Ctx, userId: Id<"users">, conversationId: Id<"conversations">): Promise<any | null> {
+async function stagedGroup(
+  ctx: Ctx,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<any | null> {
   const rows = await ctx.db
     .query("push_outbox")
     .withIndex("by_user", (q: any) => q.eq("user_id", userId))
     .collect();
-  return rows.find((r: any) => r.type === DECISION_PUSH_TYPE && r.data?.conversationId === String(conversationId)) ?? null;
+  return (
+    rows.find(
+      (r: any) =>
+        r.type === DECISION_PUSH_TYPE &&
+        r.data?.conversationId === String(conversationId),
+    ) ?? null
+  );
 }
 
 /** Rings each person a card just entered the queue of. */
@@ -55,8 +80,12 @@ export async function announceDecisionWaiting(
 
     const staged = await stagedGroup(ctx, userId, decision.conversation_id);
     if (staged) {
-      const ids: string[] = [...new Set([...(staged.data?.decision_ids ?? []), String(decisionId)])];
-      const cards = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(Boolean);
+      const ids: string[] = [
+        ...new Set([...(staged.data?.decision_ids ?? []), String(decisionId)]),
+      ];
+      const cards = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(
+        Boolean,
+      );
       const content = decisionPushContent(conv, cards);
       await ctx.db.patch(staged._id, {
         title: content.title,
@@ -65,7 +94,12 @@ export async function announceDecisionWaiting(
       });
       if (staged.notification_id) {
         const n = await ctx.db.get(staged.notification_id);
-        if (n) await ctx.db.patch(n._id, { message: content.body, link: content.link, read: false });
+        if (n)
+          await ctx.db.patch(n._id, {
+            message: content.body,
+            link: content.link,
+            read: false,
+          });
       }
       continue;
     }
@@ -103,20 +137,37 @@ export async function announceDecisionWaiting(
 }
 
 /** The asking session's turn ended: its staged card pushes go out on the ordinary routing delay. */
-export async function releaseDecisionPushes(ctx: { db: any; scheduler: any }, conversationId: Id<"conversations">, now: number): Promise<void> {
+export async function releaseDecisionPushes(
+  ctx: { db: any; scheduler: any },
+  conversationId: Id<"conversations">,
+  now: number,
+): Promise<void> {
   const open = await ctx.db
     .query("session_decisions")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", "pending"))
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("status", "pending"),
+    )
     .collect();
   if (!open.some(ringsPhone)) return;
-  const people = new Set<string>(open.flatMap((d: any) => (d.asked_user_ids ?? [d.user_id]).map(String)));
+  const people = new Set<string>(
+    open.flatMap((d: any) => (d.asked_user_ids ?? [d.user_id]).map(String)),
+  );
   for (const userId of people) {
-    const staged = await stagedGroup(ctx, userId as Id<"users">, conversationId);
+    const staged = await stagedGroup(
+      ctx,
+      userId as Id<"users">,
+      conversationId,
+    );
     if (!staged) continue;
     // A push staged while the desktop was active keeps its one desk hold.
-    const due = Math.max(now + AWAY_DEBOUNCE_MS, staged.created_at + (staged.deferred ? HOLD_WHILE_ACTIVE_MS : 0));
+    const due = Math.max(
+      now + AWAY_DEBOUNCE_MS,
+      staged.created_at + (staged.deferred ? HOLD_WHILE_ACTIVE_MS : 0),
+    );
     if (staged.due_at <= due) continue;
     await ctx.db.patch(staged._id, { due_at: due });
-    await ctx.scheduler.runAfter(due - now, internal.pushRouter.flush, { user_id: staged.user_id });
+    await ctx.scheduler.runAfter(due - now, internal.pushRouter.flush, {
+      user_id: staged.user_id,
+    });
   }
 }

@@ -16,12 +16,18 @@ let worktree: string;
 let codecastDir: string | undefined;
 
 beforeEach(() => {
-  primary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ws-share-main-")));
-  worktree = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "ws-share-wt-")));
+  primary = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "ws-share-main-")),
+  );
+  worktree = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "ws-share-wt-")),
+  );
   codecastDir = process.env.CODECAST_DIR;
   process.env.CODECAST_DIR = path.join(primary, "host-state");
   execSync("git init -q -b main", { cwd: primary });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: primary });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: primary,
+  });
   fs.writeFileSync(path.join(primary, ".gitignore"), "node_modules/\n.venv\n");
   execSync("git add . && git commit -q -m init", { cwd: primary });
 });
@@ -46,7 +52,12 @@ describe("resolveSharedDirectories", () => {
     fs.writeFileSync(path.join(primary, ".venv"), "a file, not a directory");
 
     expect(
-      resolveSharedDirectories(primary, ["node_modules", ".venv", "vendor", "missing"]),
+      resolveSharedDirectories(primary, [
+        "node_modules",
+        ".venv",
+        "vendor",
+        "missing",
+      ]),
     ).toEqual(["node_modules"]);
   });
 
@@ -72,7 +83,10 @@ describe("resolveSharedDirectories", () => {
     // node_modules into the checkout's own source.
     mkdirIn(primary, "packages/shared");
     mkdirIn(primary, "node_modules/@scope");
-    fs.symlinkSync("../../packages/shared", path.join(primary, "node_modules/@scope/shared"));
+    fs.symlinkSync(
+      "../../packages/shared",
+      path.join(primary, "node_modules/@scope/shared"),
+    );
 
     expect(resolveSharedDirectories(primary, ["node_modules"])).toEqual([]);
   });
@@ -81,9 +95,14 @@ describe("resolveSharedDirectories", () => {
     // `.bin` entries point at siblings; sharing them is harmless.
     mkdirIn(primary, "node_modules/.bin");
     mkdirIn(primary, "node_modules/pkg");
-    fs.symlinkSync("../pkg/cli.js", path.join(primary, "node_modules/.bin/pkg"));
+    fs.symlinkSync(
+      "../pkg/cli.js",
+      path.join(primary, "node_modules/.bin/pkg"),
+    );
 
-    expect(resolveSharedDirectories(primary, ["node_modules"])).toEqual(["node_modules"]);
+    expect(resolveSharedDirectories(primary, ["node_modules"])).toEqual([
+      "node_modules",
+    ]);
   });
 });
 
@@ -99,7 +118,10 @@ describe("detectProject share list", () => {
   test("offers nothing when the workspace-link trap is present", () => {
     mkdirIn(primary, "apps/web");
     mkdirIn(primary, "node_modules/@scope");
-    fs.symlinkSync("../../apps/web", path.join(primary, "node_modules/@scope/web"));
+    fs.symlinkSync(
+      "../../apps/web",
+      path.join(primary, "node_modules/@scope/web"),
+    );
 
     expect(detectProject(primary).setup.share).toEqual([]);
   });
@@ -108,13 +130,20 @@ describe("detectProject share list", () => {
 describe("linkSharedDirectories", () => {
   test("links the primary's directory into the worktree", () => {
     mkdirIn(primary, "node_modules/pkg");
-    fs.writeFileSync(path.join(primary, "node_modules/pkg/index.js"), "module.exports = 1;\n");
+    fs.writeFileSync(
+      path.join(primary, "node_modules/pkg/index.js"),
+      "module.exports = 1;\n",
+    );
 
-    expect(linkSharedDirectories(primary, worktree, ["node_modules"])).toEqual(["node_modules"]);
+    expect(linkSharedDirectories(primary, worktree, ["node_modules"])).toEqual([
+      "node_modules",
+    ]);
     const link = path.join(worktree, "node_modules");
     expect(fs.lstatSync(link).isSymbolicLink()).toBe(true);
     expect(fs.realpathSync(link)).toBe(path.join(primary, "node_modules"));
-    expect(fs.readFileSync(path.join(link, "pkg/index.js"), "utf-8")).toContain("module.exports");
+    expect(fs.readFileSync(path.join(link, "pkg/index.js"), "utf-8")).toContain(
+      "module.exports",
+    );
   });
 
   test("leaves a directory the worktree already has alone", () => {
@@ -122,7 +151,9 @@ describe("linkSharedDirectories", () => {
     const own = mkdirIn(worktree, "node_modules");
     fs.writeFileSync(path.join(own, "marker"), "mine");
 
-    expect(linkSharedDirectories(primary, worktree, ["node_modules"])).toEqual([]);
+    expect(linkSharedDirectories(primary, worktree, ["node_modules"])).toEqual(
+      [],
+    );
     expect(fs.lstatSync(own).isSymbolicLink()).toBe(false);
     expect(fs.readFileSync(path.join(own, "marker"), "utf-8")).toBe("mine");
   });
@@ -133,7 +164,9 @@ describe("unlinkSharedDirectories", () => {
     mkdirIn(primary, "node_modules/pkg");
     linkSharedDirectories(primary, worktree, ["node_modules"]);
 
-    expect(unlinkSharedDirectories(worktree, ["node_modules"])).toEqual(["node_modules"]);
+    expect(unlinkSharedDirectories(worktree, ["node_modules"])).toEqual([
+      "node_modules",
+    ]);
     expect(fs.existsSync(path.join(worktree, "node_modules"))).toBe(false);
     expect(fs.existsSync(path.join(primary, "node_modules/pkg"))).toBe(true);
   });
@@ -147,7 +180,9 @@ describe("unlinkSharedDirectories", () => {
 
   test("never removes a real directory that shares the name", () => {
     const own = mkdirIn(worktree, "node_modules");
-    expect(unlinkSharedDirectories(worktree, ["node_modules", "../escape"])).toEqual([]);
+    expect(
+      unlinkSharedDirectories(worktree, ["node_modules", "../escape"]),
+    ).toEqual([]);
     expect(fs.existsSync(own)).toBe(true);
   });
 
@@ -155,15 +190,28 @@ describe("unlinkSharedDirectories", () => {
     // The primary's `node_modules/` rule matches its real directory but not the
     // worktree's symlink, so git calls the link untracked — and `git worktree
     // remove` refuses a worktree with untracked files.
-    execSync(`git worktree add -q ${JSON.stringify(worktree)} -b shared-branch`, { cwd: primary });
+    execSync(
+      `git worktree add -q ${JSON.stringify(worktree)} -b shared-branch`,
+      { cwd: primary },
+    );
     mkdirIn(primary, "node_modules");
     linkSharedDirectories(primary, worktree, ["node_modules"]);
-    const dirty = execSync("git status --porcelain", { cwd: worktree, encoding: "utf-8" });
+    const dirty = execSync("git status --porcelain", {
+      cwd: worktree,
+      encoding: "utf-8",
+    });
     expect(dirty).toContain("node_modules");
 
     unlinkSharedDirectories(worktree, ["node_modules"]);
-    expect(execSync("git status --porcelain", { cwd: worktree, encoding: "utf-8" }).trim()).toBe("");
-    execSync(`git worktree remove ${JSON.stringify(worktree)}`, { cwd: primary });
+    expect(
+      execSync("git status --porcelain", {
+        cwd: worktree,
+        encoding: "utf-8",
+      }).trim(),
+    ).toBe("");
+    execSync(`git worktree remove ${JSON.stringify(worktree)}`, {
+      cwd: primary,
+    });
     expect(fs.existsSync(worktree)).toBe(false);
     fs.mkdirSync(worktree, { recursive: true });
   });
@@ -174,8 +222,14 @@ describe("a shared node_modules keeps bun test inside the worktree", () => {
     // The trap this guards: a shared node_modules that reaches back into the
     // primary checkout makes a worktree run against two trees at once.
     const pkg = mkdirIn(primary, "node_modules/dep");
-    fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ name: "dep", main: "index.js" }));
-    fs.writeFileSync(path.join(pkg, "index.js"), "module.exports = 'from-shared-install';\n");
+    fs.writeFileSync(
+      path.join(pkg, "package.json"),
+      JSON.stringify({ name: "dep", main: "index.js" }),
+    );
+    fs.writeFileSync(
+      path.join(pkg, "index.js"),
+      "module.exports = 'from-shared-install';\n",
+    );
     // A test file inside the dependency: discovery must not descend into it.
     fs.writeFileSync(
       path.join(pkg, "vendored.test.js"),
@@ -190,7 +244,10 @@ describe("a shared node_modules keeps bun test inside the worktree", () => {
         "test('own', () => { expect(dep).toBe('from-shared-install'); });\n",
     );
 
-    const run = Bun.spawnSync(["bun", "test"], { cwd: worktree, env: process.env });
+    const run = Bun.spawnSync(["bun", "test"], {
+      cwd: worktree,
+      env: process.env,
+    });
     const output = `${run.stdout.toString()}${run.stderr.toString()}`;
     // One file, one test: the runner stayed in the worktree and never walked
     // the link into the shared install.

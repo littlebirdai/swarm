@@ -12,7 +12,10 @@ export function removeStdinTransportNewline(text: string): string {
   return text;
 }
 
-export function prepareSessionSendBody(text: string, fromStdin: boolean): string {
+export function prepareSessionSendBody(
+  text: string,
+  fromStdin: boolean,
+): string {
   return fromStdin ? removeStdinTransportNewline(text) : text;
 }
 
@@ -21,7 +24,10 @@ let stdinRead = false;
 /** Stdin, which one process can read once: a second '-' would get nothing
  *  and file an empty body, so it is refused instead. */
 function readStdinRaw(): string {
-  if (stdinRead) throw new Error("stdin was already read for another '-' value. Pass one '-' per command (several '-' text options split one stdin on lines containing only ---), and give a file path for --body-file");
+  if (stdinRead)
+    throw new Error(
+      "stdin was already read for another '-' value. Pass one '-' per command (several '-' text options split one stdin on lines containing only ---), and give a file path for --body-file",
+    );
   stdinRead = true;
   return fs.readFileSync(0, "utf-8");
 }
@@ -42,7 +48,11 @@ export function readStdinBody(readStdin: () => string = readStdinRaw): string {
  * '-' never splits — a lone `---` line there is content (e.g. a markdown
  * rule), not a separator.
  */
-export function expandStdinArgs(args: string[], readStdin: () => string = readStdinRaw, labels?: string[]): string[] {
+export function expandStdinArgs(
+  args: string[],
+  readStdin: () => string = readStdinRaw,
+  labels?: string[],
+): string[] {
   const dashCount = args.filter((a) => a === "-").length;
   if (dashCount === 0) return args;
 
@@ -58,8 +68,12 @@ export function expandStdinArgs(args: string[], readStdin: () => string = readSt
       const head = named
         ? `${labels.map((l) => `${l} -`).join(" and ")} need ${dashCount} stdin sections, in that order`
         : `${dashCount} '-' arguments need ${dashCount} stdin sections`;
-      const template = named ? `:\n${labels.map((l) => `<${l.replace(/^-+/, "")}>`).join("\n---\n")}` : "";
-      throw new Error(`${head}, separated by lines containing only "---", but stdin has ${sections.length}${template}`);
+      const template = named
+        ? `:\n${labels.map((l) => `<${l.replace(/^-+/, "")}>`).join("\n---\n")}`
+        : "";
+      throw new Error(
+        `${head}, separated by lines containing only "---", but stdin has ${sections.length}${template}`,
+      );
     }
   }
 
@@ -77,14 +91,22 @@ export function expandStdinArgs(args: string[], readStdin: () => string = readSt
  * one stdin body on `---` lines, one section per '-'.
  */
 const STDIN_DASH_NOTE = "'-' reads it from stdin (heredoc-friendly)";
-const STDIN_DASH_MANY_NOTE = "'-' reads it from stdin (several '-' split stdin on lines containing only ---)";
+const STDIN_DASH_MANY_NOTE =
+  "'-' reads it from stdin (several '-' split stdin on lines containing only ---)";
 
-export function stdinText(description: string, opts: { many?: boolean } = {}): string {
+export function stdinText(
+  description: string,
+  opts: { many?: boolean } = {},
+): string {
   return `${description}; ${opts.many ? STDIN_DASH_MANY_NOTE : STDIN_DASH_NOTE}`;
 }
 
 export function takesStdinDash(description: string | undefined): boolean {
-  return !!description && (description.includes(STDIN_DASH_NOTE) || description.includes(STDIN_DASH_MANY_NOTE));
+  return (
+    !!description &&
+    (description.includes(STDIN_DASH_NOTE) ||
+      description.includes(STDIN_DASH_MANY_NOTE))
+  );
 }
 
 /**
@@ -95,24 +117,43 @@ export function takesStdinDash(description: string | undefined): boolean {
  * and before the action sees them, which is why the action handlers never see
  * a bare '-'.
  */
-export function expandCommandStdinDashes(cmd: Command, readStdin: () => string = readStdinRaw): void {
+export function expandCommandStdinDashes(
+  cmd: Command,
+  readStdin: () => string = readStdinRaw,
+): void {
   type Slot = { get: () => unknown; set: (v: unknown) => void; label?: string };
   const slots: Slot[] = [];
   cmd.registeredArguments.forEach((arg, i) => {
     if (!takesStdinDash(arg.description)) return;
-    slots.push({ get: () => cmd.processedArgs[i], set: (v) => { cmd.processedArgs[i] = v; } });
+    slots.push({
+      get: () => cmd.processedArgs[i],
+      set: (v) => {
+        cmd.processedArgs[i] = v;
+      },
+    });
   });
   let root: Command = cmd;
   while (root.parent) root = root.parent;
   const argv: string[] = (root as any).rawArgs ?? [];
   const written = (opt: (typeof cmd.options)[number]) => {
-    const at = argv.findIndex((a) => a === opt.long || a === opt.short || (!!opt.long && a.startsWith(`${opt.long}=`)));
+    const at = argv.findIndex(
+      (a) =>
+        a === opt.long ||
+        a === opt.short ||
+        (!!opt.long && a.startsWith(`${opt.long}=`)),
+    );
     return at < 0 ? Infinity : at;
   };
-  const options = cmd.options.filter((opt) => takesStdinDash(opt.description)).sort((a, b) => written(a) - written(b));
+  const options = cmd.options
+    .filter((opt) => takesStdinDash(opt.description))
+    .sort((a, b) => written(a) - written(b));
   for (const opt of options) {
     const key = opt.attributeName();
-    slots.push({ get: () => cmd.getOptionValue(key), set: (v) => cmd.setOptionValue(key, v), label: opt.long ?? opt.short });
+    slots.push({
+      get: () => cmd.getOptionValue(key),
+      set: (v) => cmd.setOptionValue(key, v),
+      label: opt.long ?? opt.short,
+    });
   }
 
   // Flatten to one arg list (a variadic contributes each element), expand once, write back.
@@ -121,9 +162,14 @@ export function expandCommandStdinDashes(cmd: Command, readStdin: () => string =
   const labels: string[] = [];
   for (const slot of slots) {
     const v = slot.get();
-    if (Array.isArray(v)) { widths.push(v.length); flat.push(...v); }
-    else if (typeof v === "string") { widths.push(-1); flat.push(v); if (v === "-" && slot.label) labels.push(slot.label); }
-    else widths.push(0);
+    if (Array.isArray(v)) {
+      widths.push(v.length);
+      flat.push(...v);
+    } else if (typeof v === "string") {
+      widths.push(-1);
+      flat.push(v);
+      if (v === "-" && slot.label) labels.push(slot.label);
+    } else widths.push(0);
   }
   if (!flat.includes("-")) return;
 
@@ -132,7 +178,10 @@ export function expandCommandStdinDashes(cmd: Command, readStdin: () => string =
   slots.forEach((slot, k) => {
     const width = widths[k];
     if (width === -1) slot.set(expanded[next++]);
-    else if (width > 0) { slot.set(expanded.slice(next, next + width)); next += width; }
+    else if (width > 0) {
+      slot.set(expanded.slice(next, next + width));
+      next += width;
+    }
   });
 }
 
@@ -147,7 +196,7 @@ export function rejectBareDash(body: Record<string, unknown>): void {
   for (const [key, value] of Object.entries(body)) {
     if (value === "-") {
       throw new Error(
-        `${key} is a bare '-', but that flag does not read stdin. Pass the text inline, or describe the flag with stdinText() so '-' reads the heredoc.`
+        `${key} is a bare '-', but that flag does not read stdin. Pass the text inline, or describe the flag with stdinText() so '-' reads the heredoc.`,
       );
     }
   }

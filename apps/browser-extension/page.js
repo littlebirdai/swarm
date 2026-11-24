@@ -41,7 +41,9 @@
       return false;
     }
     if (msg.op === "evict") {
-      sendResponse({ removed: state.state === "waiting" ? 0 : evict(document) });
+      sendResponse({
+        removed: state.state === "waiting" ? 0 : evict(document),
+      });
       return false;
     }
     return false;
@@ -58,7 +60,8 @@
 
   /** One observer for both jobs; it sees only this world's view and the page cannot disconnect it. */
   function watch() {
-    const needed = state.state === "running" || (state.state === "waiting" && host);
+    const needed =
+      state.state === "running" || (state.state === "waiting" && host);
     if (!needed) {
       if (observer) observer.disconnect();
       observer = null;
@@ -69,7 +72,12 @@
       if (state.state === "running") evict(document);
       else if (state.state === "waiting" && host) raise();
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "hidden", "popover", "open"] });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "class", "hidden", "popover", "open"],
+    });
   }
 
   // ------------------------------------------------------------ eviction
@@ -83,8 +91,20 @@
     const own = `chrome-extension://${chrome.runtime.id}`;
     const foreign = (el) => {
       const tag = el.tagName.toLowerCase();
-      if (tag.startsWith("com-1password-") || el.hasAttribute("data-onepassword-extension") || el.hasAttribute("data-lastpass-root") || (el.id || "").startsWith("bitwarden-")) return true;
-      if (tag !== "iframe" && tag !== "frame" && tag !== "object" && tag !== "embed") return false;
+      if (
+        tag.startsWith("com-1password-") ||
+        el.hasAttribute("data-onepassword-extension") ||
+        el.hasAttribute("data-lastpass-root") ||
+        (el.id || "").startsWith("bitwarden-")
+      )
+        return true;
+      if (
+        tag !== "iframe" &&
+        tag !== "frame" &&
+        tag !== "object" &&
+        tag !== "embed"
+      )
+        return false;
       const src = el.getAttribute("src") || el.getAttribute("data") || "";
       return /^chrome-extension:\/\//i.test(src) && !src.startsWith(own);
     };
@@ -110,7 +130,8 @@
       return;
     }
     if (!host) create();
-    root.getElementById("message").textContent = state.handoff.text || "Finish this step, then continue.";
+    root.getElementById("message").textContent =
+      state.handoff.text || "Finish this step, then continue.";
     root.getElementById("origin").textContent = location.host || location.href;
     const button = root.getElementById("continue");
     const busy = completing === state.handoff.id;
@@ -128,9 +149,12 @@
   /** Back in the document and the top layer, with nothing the page set on it. */
   function raise() {
     if (!host || !document.documentElement) return;
-    for (const name of host.getAttributeNames()) if (name !== "popover") host.removeAttribute(name);
-    if (host.getAttribute("popover") !== "manual") host.setAttribute("popover", "manual");
-    if (host.parentNode !== document.documentElement) document.documentElement.append(host);
+    for (const name of host.getAttributeNames())
+      if (name !== "popover") host.removeAttribute(name);
+    if (host.getAttribute("popover") !== "manual")
+      host.setAttribute("popover", "manual");
+    if (host.parentNode !== document.documentElement)
+      document.documentElement.append(host);
     try {
       if (!host.matches(":popover-open")) host.showPopover();
     } catch {

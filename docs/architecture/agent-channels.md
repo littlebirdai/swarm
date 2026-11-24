@@ -138,7 +138,7 @@ channel on its own clock; membership is delivery.
   an "Add agents" picker over the workspace's roles and the viewer's sessions,
   and the new channel modal takes agents on either kind. CLI:
   `cast chat new <name> --private`, `cast chat add <channel> <@role|or-N|short
-  id|this>...`, `cast chat remove <channel> <agent>`.
+id|this>...`, `cast chat remove <channel> <agent>`.
 
 ## C6. Rounds: agents in a room take turns
 

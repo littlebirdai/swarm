@@ -16,7 +16,12 @@ export const findChrome = (): string | null => automationChromeBinary();
  * testable without spawning a browser. The throwaway profile dir keeps the
  * capture off the human's real profile (which a running Chrome holds locked)
  * and, with the keychain flag, off the macOS keychain when the home has none. */
-export function thumbArgs(entryHtmlAbsPath: string, outPng: string, profileDir: string, extraArgs: string[] = []): string[] {
+export function thumbArgs(
+  entryHtmlAbsPath: string,
+  outPng: string,
+  profileDir: string,
+  extraArgs: string[] = [],
+): string[] {
   return [
     "--headless=new",
     `--screenshot=${outPng}`,
@@ -34,7 +39,11 @@ export function thumbArgs(entryHtmlAbsPath: string, outPng: string, profileDir: 
 /** A whole PNG: the signature up front and the IEND chunk closing it, so a
  * screenshot still being written never passes for a finished one. */
 export function isCompletePng(bytes: Buffer): boolean {
-  return bytes.length > 20 && bytes.readUInt32BE(0) === 0x89504e47 && bytes.subarray(-8, -4).toString("latin1") === "IEND";
+  return (
+    bytes.length > 20 &&
+    bytes.readUInt32BE(0) === 0x89504e47 &&
+    bytes.subarray(-8, -4).toString("latin1") === "IEND"
+  );
 }
 
 /** Headless-Chrome 1200x630 screenshot of a local html file → base64 png.
@@ -45,18 +54,34 @@ export function isCompletePng(bytes: Buffer): boolean {
  * Chrome 154 writes the screenshot and then never quits, in every headless
  * mode, so waiting on its exit turned every capture into a timeout. Chrome is
  * killed with SIGKILL either way (SIGTERM is ignored while it starts under load). */
-export async function captureThumb(entryHtmlAbsPath: string, opts: { extraArgs?: string[]; timeoutMs?: number } = {}): Promise<string | null> {
+export async function captureThumb(
+  entryHtmlAbsPath: string,
+  opts: { extraArgs?: string[]; timeoutMs?: number } = {},
+): Promise<string | null> {
   try {
     const chrome = findChrome();
     if (!chrome) return null;
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-thumb-"));
     const outPng = path.join(tmpDir, "thumb.png");
-    const child = spawn(chrome, thumbArgs(entryHtmlAbsPath, outPng, path.join(tmpDir, "profile"), opts.extraArgs), { stdio: "ignore" });
+    const child = spawn(
+      chrome,
+      thumbArgs(
+        entryHtmlAbsPath,
+        outPng,
+        path.join(tmpDir, "profile"),
+        opts.extraArgs,
+      ),
+      { stdio: "ignore" },
+    );
     try {
       const deadline = Date.now() + (opts.timeoutMs ?? THUMB_TIMEOUT_MS);
       let exited = false;
-      child.once("exit", () => { exited = true; });
-      child.once("error", () => { exited = true; });
+      child.once("exit", () => {
+        exited = true;
+      });
+      child.once("error", () => {
+        exited = true;
+      });
       while (Date.now() < deadline) {
         const bytes = fs.existsSync(outPng) ? fs.readFileSync(outPng) : null;
         if (bytes && isCompletePng(bytes)) return bytes.toString("base64");

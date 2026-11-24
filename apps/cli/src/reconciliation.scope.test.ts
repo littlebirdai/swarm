@@ -28,7 +28,9 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
 
   test("a test-scratch transcript is neither queried nor flagged; a normal one is", async () => {
     const realHome = process.env.HOME;
-    const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "cc-reconcile-scope-"));
+    const tmpHome = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cc-reconcile-scope-"),
+    );
     const projects = path.join(tmpHome, ".claude", "projects");
 
     // Normal project: must be reconciled.
@@ -36,12 +38,19 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
     const normalSid = uuid("a");
     // Scratch project: carries the marker → must be skipped, exactly like the
     // real ~/.claude/projects/-private-var-folders-…-codecasttestscratch-… dirs.
-    const scratchDir = path.join(projects, `-private-var-folders-T-${TEST_SCRATCH_DIRNAME}-inject-clear-1-2`);
+    const scratchDir = path.join(
+      projects,
+      `-private-var-folders-T-${TEST_SCRATCH_DIRNAME}-inject-clear-1-2`,
+    );
     const scratchSid = uuid("b");
 
     fs.mkdirSync(normalDir, { recursive: true });
     fs.mkdirSync(scratchDir, { recursive: true });
-    const line = JSON.stringify({ type: "user", message: { role: "user", content: "hi" } }) + "\n";
+    const line =
+      JSON.stringify({
+        type: "user",
+        message: { role: "user", content: "hi" },
+      }) + "\n";
     fs.writeFileSync(path.join(normalDir, `${normalSid}.jsonl`), line);
     fs.writeFileSync(path.join(scratchDir, `${scratchSid}.jsonl`), line);
 
@@ -57,16 +66,25 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
 
     try {
       process.env.HOME = tmpHome;
-      const result = await performReconciliation(fakeSyncService, () => {}, {}, 50);
+      const result = await performReconciliation(
+        fakeSyncService,
+        () => {},
+        {},
+        50,
+      );
 
       // The normal transcript was scanned, queried, and (backend empty) flagged.
       expect(queried).toContain(normalSid);
-      expect(result.discrepancies.some(d => d.sessionId === normalSid)).toBe(true);
+      expect(result.discrepancies.some((d) => d.sessionId === normalSid)).toBe(
+        true,
+      );
 
       // The scratch transcript was skipped before the backend query, so it can
       // never become a discrepancy — and therefore never a zombie ledger entry.
       expect(queried).not.toContain(scratchSid);
-      expect(result.discrepancies.some(d => d.sessionId === scratchSid)).toBe(false);
+      expect(result.discrepancies.some((d) => d.sessionId === scratchSid)).toBe(
+        false,
+      );
     } finally {
       process.env.HOME = realHome;
       fs.rmSync(tmpHome, { recursive: true, force: true });
@@ -75,7 +93,9 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
 
   test("selected mode queries only transcripts whose recorded cwd is selected", async () => {
     const realHome = process.env.HOME;
-    const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "cc-reconcile-selected-"));
+    const tmpHome = fs.mkdtempSync(
+      path.join(os.tmpdir(), "cc-reconcile-selected-"),
+    );
     const projects = path.join(tmpHome, ".claude", "projects");
     const selectedRoot = path.join(tmpHome, "selected");
     const excludedRoot = path.join(tmpHome, "excluded");
@@ -88,12 +108,13 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
     fs.mkdirSync(excludedRoot, { recursive: true });
     fs.mkdirSync(selectedDir, { recursive: true });
     fs.mkdirSync(excludedDir, { recursive: true });
-    const transcript = (cwd: string) => JSON.stringify({
-      type: "user",
-      cwd,
-      sessionId: "session",
-      message: { role: "user", content: "hi" },
-    }) + "\n";
+    const transcript = (cwd: string) =>
+      JSON.stringify({
+        type: "user",
+        cwd,
+        sessionId: "session",
+        message: { role: "user", content: "hi" },
+      }) + "\n";
     const selectedFile = path.join(selectedDir, `${selectedSid}.jsonl`);
     const excludedFile = path.join(excludedDir, `${excludedSid}.jsonl`);
     fs.writeFileSync(selectedFile, transcript(selectedRoot));
@@ -124,7 +145,9 @@ describe("reconciliation honors the sync-scope rule (skips test-scratch transcri
         config,
       );
       expect(queried).toEqual([selectedSid]);
-      expect(result.discrepancies.map((d) => d.sessionId)).toEqual([selectedSid]);
+      expect(result.discrepancies.map((d) => d.sessionId)).toEqual([
+        selectedSid,
+      ]);
     } finally {
       process.env.HOME = realHome;
       fs.rmSync(tmpHome, { recursive: true, force: true });

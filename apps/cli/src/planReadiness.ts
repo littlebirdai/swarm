@@ -6,7 +6,20 @@
 //
 // Backlog counts as `open` (work not started) but is never ready: TG1 readies
 // only `open` tasks, so parked work waits until someone moves it to open.
-import { blockerGatesPickup, failedWaitAdvice, isFailedWait, notReadyLabel, planVerdicts, UNKNOWN_BLOCKER_STATUS, type Blocker, type GraphOutside, type GraphTask, type Readiness, type StatusOf, type WaitLabelOptions } from "@codecast/shared/tasks";
+import {
+  blockerGatesPickup,
+  failedWaitAdvice,
+  isFailedWait,
+  notReadyLabel,
+  planVerdicts,
+  UNKNOWN_BLOCKER_STATUS,
+  type Blocker,
+  type GraphOutside,
+  type GraphTask,
+  type Readiness,
+  type StatusOf,
+  type WaitLabelOptions,
+} from "@codecast/shared/tasks";
 
 export interface PlanReadiness<T> {
   statusOf: StatusOf;
@@ -33,7 +46,9 @@ export interface PlanReadiness<T> {
   ephemeral: T[];
 }
 
-export function planReadiness<T extends GraphTask & { _id?: unknown; short_id?: string }>(tasks: T[], outside?: GraphOutside | null): PlanReadiness<T> {
+export function planReadiness<
+  T extends GraphTask & { _id?: unknown; short_id?: string },
+>(tasks: T[], outside?: GraphOutside | null): PlanReadiness<T> {
   const { statusOf, verdicts } = planVerdicts(tasks, outside);
   const inPlan = new Set<unknown>(tasks);
   // Whether a task gets to ready with nobody touching it. A plan blocker
@@ -44,7 +59,11 @@ export function planReadiness<T extends GraphTask & { _id?: unknown; short_id?: 
     if (moves.has(t)) return moves.get(t)!;
     moves.set(t, false);
     const v = verdicts.get(t)!;
-    const result = v.ready || v.reason === "parent_active" || v.reason === "ephemeral" || (v.reason === "blocked" && (v.blockers ?? []).every(clears));
+    const result =
+      v.ready ||
+      v.reason === "parent_active" ||
+      v.reason === "ephemeral" ||
+      (v.reason === "blocked" && (v.blockers ?? []).every(clears));
     moves.set(t, result);
     return result;
   };
@@ -55,15 +74,24 @@ export function planReadiness<T extends GraphTask & { _id?: unknown; short_id?: 
     const row = statusOf(b.ref);
     return !inPlan.has(row) || willMove(row as T);
   };
-  const notReady = (t: T) => { const v = verdicts.get(t)!; return v.ready ? null : v.reason; };
+  const notReady = (t: T) => {
+    const v = verdicts.get(t)!;
+    return v.ready ? null : v.reason;
+  };
   return {
     statusOf,
     verdicts,
     open: tasks.filter((t) => t.status === "open" || t.status === "backlog"),
     ready: tasks.filter((t) => verdicts.get(t)!.ready),
     blocked: tasks.filter((t) => notReady(t) === "blocked"),
-    waiting: tasks.filter((t) => { const r = notReady(t); return (r === "blocked" || r === "parent_active") && willMove(t); }),
-    stuck: tasks.filter((t) => { const r = notReady(t); return (r === "blocked" || r === "parent_unknown") && !willMove(t); }),
+    waiting: tasks.filter((t) => {
+      const r = notReady(t);
+      return (r === "blocked" || r === "parent_active") && willMove(t);
+    }),
+    stuck: tasks.filter((t) => {
+      const r = notReady(t);
+      return (r === "blocked" || r === "parent_unknown") && !willMove(t);
+    }),
     parked: tasks.filter((t) => t.status === "backlog"),
     ephemeral: tasks.filter((t) => notReady(t) === "ephemeral"),
   };
@@ -71,35 +99,58 @@ export function planReadiness<T extends GraphTask & { _id?: unknown; short_id?: 
 
 /** The line a plan surface prints for work it will not schedule: backlog,
  *  and ephemeral steps left to whoever filed them. */
-export function parkedNote({ parked, ephemeral }: Pick<PlanReadiness<unknown>, "parked" | "ephemeral">): string | null {
+export function parkedNote({
+  parked,
+  ephemeral,
+}: Pick<PlanReadiness<unknown>, "parked" | "ephemeral">): string | null {
   const parts = [
-    parked.length ? `${parked.length} in backlog: move to open to schedule` : "",
-    ephemeral.length ? `${ephemeral.length} ephemeral: left to whoever filed ${ephemeral.length === 1 ? "it" : "them"}` : "",
+    parked.length
+      ? `${parked.length} in backlog: move to open to schedule`
+      : "",
+    ephemeral.length
+      ? `${ephemeral.length} ephemeral: left to whoever filed ${ephemeral.length === 1 ? "it" : "them"}`
+      : "",
   ].filter(Boolean);
   return parts.length ? parts.join("; ") : null;
 }
 
 /** Why each stuck task will not move ("ct-4: blocked by PR #42 merges (failed:
  *  closed without merging)"), for a plan that stalled on them. */
-export function stuckNote<T extends GraphTask & { short_id?: string }>(r: Pick<PlanReadiness<T>, "stuck" | "verdicts">, words: WaitLabelOptions = {}): string | null {
-  const lines = r.stuck.map((t) => {
-    const v = r.verdicts.get(t)!;
-    return v.ready ? "" : `${t.short_id}: ${notReadyLabel(t, v, words)}`;
-  }).filter(Boolean);
+export function stuckNote<T extends GraphTask & { short_id?: string }>(
+  r: Pick<PlanReadiness<T>, "stuck" | "verdicts">,
+  words: WaitLabelOptions = {},
+): string | null {
+  const lines = r.stuck
+    .map((t) => {
+      const v = r.verdicts.get(t)!;
+      return v.ready ? "" : `${t.short_id}: ${notReadyLabel(t, v, words)}`;
+    })
+    .filter(Boolean);
   return lines.length ? lines.join("; ") : null;
 }
 
 /** What to do about each stuck task: remove or replace its failed waits
  *  (failedWaitAdvice, the words the wake and the compaction block use), or
  *  read the blocker it cannot see where its graph is. */
-export function stuckAdvice<T extends GraphTask & { short_id?: string }>(r: Pick<PlanReadiness<T>, "stuck" | "verdicts">): string[] {
+export function stuckAdvice<T extends GraphTask & { short_id?: string }>(
+  r: Pick<PlanReadiness<T>, "stuck" | "verdicts">,
+): string[] {
   return r.stuck.flatMap((t) => {
     const v = r.verdicts.get(t)!;
-    const blockers = v.ready ? [] : v.blockers ?? [];
+    const blockers = v.ready ? [] : (v.blockers ?? []);
     const id = t.short_id ?? "";
     const failed = blockers.filter(isFailedWait);
     if (failed.length) return [`${id}: ${failedWaitAdvice(id, failed)}`];
-    const unread = blockers.some((b) => b.kind === "task" && "status" in b && b.status === UNKNOWN_BLOCKER_STATUS);
-    return unread ? [`${id}: a blocker this workspace cannot read; cast task show ${id} names it`] : [];
+    const unread = blockers.some(
+      (b) =>
+        b.kind === "task" &&
+        "status" in b &&
+        b.status === UNKNOWN_BLOCKER_STATUS,
+    );
+    return unread
+      ? [
+          `${id}: a blocker this workspace cannot read; cast task show ${id} names it`,
+        ]
+      : [];
   });
 }

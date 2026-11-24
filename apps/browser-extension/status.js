@@ -23,7 +23,11 @@ const GROUP_COLOR_HEX = {
 
 /** A typed pairing code in canonical form (I and L read as 1, O as 0), or "". Mirrors normalizePairingCode in the CLI's pairing.ts. */
 function normalizePairingCode(input) {
-  const code = String(input || "").toUpperCase().replace(/[\s-]/g, "").replace(/[IL]/g, "1").replace(/O/g, "0");
+  const code = String(input || "")
+    .toUpperCase()
+    .replace(/[\s-]/g, "")
+    .replace(/[IL]/g, "1")
+    .replace(/O/g, "0");
   return /^[0-9A-HJKMNP-TV-Z]{8}$/.test(code) ? code : "";
 }
 
@@ -35,11 +39,24 @@ function describeBridge(s, port) {
       return { cls: "state-ok", title: "Connected", text: driving };
     case "connecting":
     case "disconnected":
-      return { cls: "state-wait", title: "Paired, waiting for Codecast", text: "Connects when an agent on this computer next uses the browser." };
+      return {
+        cls: "state-wait",
+        title: "Paired, waiting for Codecast",
+        text: "Connects when an agent on this computer next uses the browser.",
+      };
     case "standby":
-      return { cls: "state-wait", title: "Standby", text: "Agents use another Chrome profile where Codecast is connected. This profile takes over if that one closes." };
+      return {
+        cls: "state-wait",
+        title: "Standby",
+        text: "Agents use another Chrome profile where Codecast is connected. This profile takes over if that one closes.",
+      };
     case "bad-token":
-      return { cls: "state-bad", title: "Pairing expired", text: "", pair: true };
+      return {
+        cls: "state-bad",
+        title: "Pairing expired",
+        text: "",
+        pair: true,
+      };
     case "bad-code":
       return { cls: "state-bad", title: "Code expired", text: "", pair: true };
     default:
@@ -83,7 +100,10 @@ async function askWorker(msg) {
 }
 
 function revivedRecently() {
-  return Date.now() - (Number(localStorage.getItem(REVIVED_AT_KEY)) || 0) < REVIVE_GAP_MS;
+  return (
+    Date.now() - (Number(localStorage.getItem(REVIVED_AT_KEY)) || 0) <
+    REVIVE_GAP_MS
+  );
 }
 
 function revive() {
@@ -93,7 +113,12 @@ function revive() {
 
 /** Reload the extension when the worker has refused every message for REVIVE_AFTER_MS. True when it did. */
 function reviveIfRefused() {
-  if (!workerRefusedSince || Date.now() - workerRefusedSince < REVIVE_AFTER_MS || revivedRecently()) return false;
+  if (
+    !workerRefusedSince ||
+    Date.now() - workerRefusedSince < REVIVE_AFTER_MS ||
+    revivedRecently()
+  )
+    return false;
   revive();
   return true;
 }
@@ -112,17 +137,19 @@ async function readBridgeStatus() {
 
 /** Paint one status block: a root with the state class, #dot, #state-title, #state-text. */
 function renderBridgeStatus(root, s, port) {
-  const d = s.state === "dead" || s.state === "reviving"
-    ? {
-      cls: "state-bad",
-      title: "Extension asleep",
-      text: s.state === "reviving"
-        ? "The service worker stopped answering. Restarting the extension."
-        : revivedRecently()
-          ? "The service worker is still not answering after a restart. Reload the extension from chrome://extensions."
-          : "The service worker is not answering. The extension restarts itself if it stays silent.",
-    }
-    : describeBridge(s, port);
+  const d =
+    s.state === "dead" || s.state === "reviving"
+      ? {
+          cls: "state-bad",
+          title: "Extension asleep",
+          text:
+            s.state === "reviving"
+              ? "The service worker stopped answering. Restarting the extension."
+              : revivedRecently()
+                ? "The service worker is still not answering after a restart. Reload the extension from chrome://extensions."
+                : "The service worker is not answering. The extension restarts itself if it stays silent.",
+        }
+      : describeBridge(s, port);
   root.classList.remove("state-ok", "state-wait", "state-bad", "state-none");
   root.classList.add(d.cls);
   root.querySelector("[data-title]").textContent = d.title;

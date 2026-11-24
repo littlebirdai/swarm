@@ -11,7 +11,8 @@ import { runWorkflow, type RunOptions } from "./runner.js";
 import { isolateCodecastDirEachTest } from "../test-helpers/codecastDir.js";
 isolateCodecastDirEachTest("cast-wf-ended-");
 
-const graph = () => parseWorkflowSource(`digraph line {
+const graph = () =>
+  parseWorkflowSource(`digraph line {
   start [shape=Mdiamond]
   hold [label="Hold", shape=parallelogram, script="true"]
   build [label="Build", shape=parallelogram, script="touch built"]
@@ -39,8 +40,19 @@ describe("workflow/runner (a run that ended on the server while its runner waite
       const body = JSON.parse(init?.body || "{}");
       const progress = route === "/cli/workflow-runs/progress";
       calls.push({ route, body, ended: progress && over });
-      if (progress && over) return new Response(JSON.stringify({ ended: { status: "failed", reason: "Cancelled by user" } }), { status: 200 });
-      if (progress && body.node_id === cancelDuring && body.node_status === "running") over = true;
+      if (progress && over)
+        return new Response(
+          JSON.stringify({
+            ended: { status: "failed", reason: "Cancelled by user" },
+          }),
+          { status: 200 },
+        );
+      if (
+        progress &&
+        body.node_id === cancelDuring &&
+        body.node_status === "running"
+      )
+        over = true;
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }) as typeof fetch;
   });
@@ -51,8 +63,15 @@ describe("workflow/runner (a run that ended on the server while its runner waite
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  const options = (): RunOptions => ({ cwd: tmpDir, runId: "run-1", apiToken: "tok", convexSiteUrl: "https://convex.test" } as RunOptions);
-  const reports = () => calls.filter((c) => c.route === "/cli/workflow-runs/progress");
+  const options = (): RunOptions =>
+    ({
+      cwd: tmpDir,
+      runId: "run-1",
+      apiToken: "tok",
+      convexSiteUrl: "https://convex.test",
+    }) as RunOptions;
+  const reports = () =>
+    calls.filter((c) => c.route === "/cli/workflow-runs/progress");
 
   test("a run cancelled while it waited at a hold starts no station after the hold", async () => {
     cancelDuring = "hold";
@@ -60,7 +79,11 @@ describe("workflow/runner (a run that ended on the server while its runner waite
     expect(fs.existsSync(path.join(tmpDir, "built"))).toBe(false);
     expect(reports().some((c) => c.body.node_id === "build")).toBe(false);
     // The hold's end was the one report the server turned away, and the runner sent nothing after it.
-    expect(reports().filter((c) => c.ended).map((c) => [c.body.node_id, c.body.node_status])).toEqual([["hold", "completed"]]);
+    expect(
+      reports()
+        .filter((c) => c.ended)
+        .map((c) => [c.body.node_id, c.body.node_status]),
+    ).toEqual([["hold", "completed"]]);
   });
 
   test("a run nobody stopped goes on through every station", async () => {

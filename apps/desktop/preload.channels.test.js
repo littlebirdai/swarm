@@ -25,7 +25,13 @@ const PRELOAD = readFileSync(join(HERE, "preload.js"), "utf8");
 // (the capability policy, the browser panes) never run in the rig, so those
 // are read from source.
 const SHELL_SOURCE = readdirSync(HERE)
-  .filter((f) => /\.(js|mjs)$/.test(f) && !/\.test\.js$/.test(f) && f !== "mainTestRig.js" && f !== "preload.js")
+  .filter(
+    (f) =>
+      /\.(js|mjs)$/.test(f) &&
+      !/\.test\.js$/.test(f) &&
+      f !== "mainTestRig.js" &&
+      f !== "preload.js",
+  )
   .map((f) => readFileSync(join(HERE, f), "utf8"))
   .join("\n");
 
@@ -42,8 +48,13 @@ function sharedChannels() {
   const ipcRenderer = {
     on() {},
     removeListener() {},
-    invoke: (channel) => { out.set(current, channel); return Promise.resolve(); },
-    send: (channel) => { out.set(current, channel); },
+    invoke: (channel) => {
+      out.set(current, channel);
+      return Promise.resolve();
+    },
+    send: (channel) => {
+      out.set(current, channel);
+    },
   };
   const bridge = createBridge({ ipcRenderer, argv: [] });
   for (const [name, value] of Object.entries(bridge)) {
@@ -57,7 +68,8 @@ function sharedChannels() {
 
 function handledBy(rig) {
   return (channel) =>
-    rig.handlers.has(channel) || new RegExp(`\\.(handle|on)\\(\\s*["']${channel}["']`).test(SHELL_SOURCE);
+    rig.handlers.has(channel) ||
+    new RegExp(`\\.(handle|on)\\(\\s*["']${channel}["']`).test(SHELL_SOURCE);
 }
 
 test("every exposed bridge method has a handler in this shell", () => {
@@ -65,19 +77,33 @@ test("every exposed bridge method has a handler in this shell", () => {
   const removed = new Set(removedSharedMethods());
   const orphans = [];
   for (const [method, channel] of sharedChannels()) {
-    if (!removed.has(method) && !handled(channel)) orphans.push(`${method} → ${channel}`);
+    if (!removed.has(method) && !handled(channel))
+      orphans.push(`${method} → ${channel}`);
   }
-  for (const m of PRELOAD.matchAll(/ipcRenderer\.(?:invoke|send|sendSync)\("([^"]+)"/g)) {
+  for (const m of PRELOAD.matchAll(
+    /ipcRenderer\.(?:invoke|send|sendSync)\("([^"]+)"/g,
+  )) {
     if (!handled(m[1])) orphans.push(`preload.js → ${m[1]}`);
   }
-  assert.deepEqual(orphans, [], "handle these channels in main.js, or take the methods off the bridge in preload.js");
+  assert.deepEqual(
+    orphans,
+    [],
+    "handle these channels in main.js, or take the methods off the bridge in preload.js",
+  );
 });
 
 test("nothing is taken off the bridge that main.js answers, or that the bridge does not have", () => {
   const handled = handledBy(harness.loadShell());
   const channels = sharedChannels();
   for (const method of removedSharedMethods()) {
-    assert.ok(channels.has(method), `${method} is not a method of the shared bridge`);
-    assert.equal(handled(channels.get(method)), false, `${method} has a handler (${channels.get(method)}): expose it`);
+    assert.ok(
+      channels.has(method),
+      `${method} is not a method of the shared bridge`,
+    );
+    assert.equal(
+      handled(channels.get(method)),
+      false,
+      `${method} has a handler (${channels.get(method)}): expose it`,
+    );
   }
 });

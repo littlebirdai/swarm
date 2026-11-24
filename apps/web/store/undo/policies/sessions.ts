@@ -6,7 +6,12 @@
 // hides are the exception: a teammate's row is hidden through inbox_hides,
 // which a patch cannot reach, so their undo names restoreSession per row.
 // Labels read the state before the action, so they name what the user saw.
-import type { CellChange, Invocation, UndoCtx, UndoSpec } from "@platform/engine";
+import type {
+  CellChange,
+  Invocation,
+  UndoCtx,
+  UndoSpec,
+} from "@platform/engine";
 import { isClosePatch, type UserRest } from "@codecast/shared/contracts";
 import type { UndoPolicy } from "../policy";
 import { counted, quoted, sessionTitle } from "../labels";
@@ -19,14 +24,19 @@ export const USER_REST_LABEL: Record<UserRest, string> = {
 };
 
 /** A spec whose label is "<verb> “<title of args[0]>”". */
-const onSession = (verb: string | ((ctx: UndoCtx) => string), extra?: Partial<UndoSpec>): { spec: UndoSpec } => ({
+const onSession = (
+  verb: string | ((ctx: UndoCtx) => string),
+  extra?: Partial<UndoSpec>,
+): { spec: UndoSpec } => ({
   spec: {
-    label: (ctx) => `${typeof verb === "string" ? verb : verb(ctx)} ${sessionTitle(ctx.before, ctx.args[0] as string)}`,
+    label: (ctx) =>
+      `${typeof verb === "string" ? verb : verb(ctx)} ${sessionTitle(ctx.before, ctx.args[0] as string)}`,
     ...extra,
   },
 });
 
-const isSessionCell = (c: CellChange) => c.store === "sessions" || c.store === "conversations";
+const isSessionCell = (c: CellChange) =>
+  c.store === "sessions" || c.store === "conversations";
 
 // One restoreSession per row the hide touched, read from the cells so a
 // partial undo sends none for a row it skipped. Owners land through the
@@ -35,8 +45,13 @@ const isSessionCell = (c: CellChange) => c.store === "sessions" || c.store === "
 // the runner and owners, who never get one).
 function restoreEachHidden(ctx: UndoCtx): Invocation[] {
   const ids: string[] = [];
-  for (const c of ctx.changes) if (isSessionCell(c) && !ids.includes(c.id)) ids.push(c.id);
-  return ids.map((id) => ({ action: "restoreSession", args: [id], runDraft: false }));
+  for (const c of ctx.changes)
+    if (isSessionCell(c) && !ids.includes(c.id)) ids.push(c.id);
+  return ids.map((id) => ({
+    action: "restoreSession",
+    args: [id],
+    runDraft: false,
+  }));
 }
 
 // The server's kill transition also stamps inbox_killed_at (cleanup.ts
@@ -55,10 +70,33 @@ function restoreEachHidden(ctx: UndoCtx): Invocation[] {
 function spellUnkill(cells: CellChange[], ctx?: UndoCtx): CellChange[] {
   const out = [...cells];
   for (const c of cells) {
-    if (!isSessionCell(c) || c.field !== "inbox_dismissed_at" || c.before || !c.after) continue;
-    if (ctx?.before?.conversations?.[c.id]?.inbox_killed_at || ctx?.before?.sessions?.[c.id]?.inbox_killed_at) continue;
-    if (out.some((k) => k.store === c.store && k.id === c.id && k.field === "inbox_killed_at")) continue;
-    out.push({ ...c, field: "inbox_killed_at", before: null, hadBefore: true, after: undefined, hadAfter: false });
+    if (
+      !isSessionCell(c) ||
+      c.field !== "inbox_dismissed_at" ||
+      c.before ||
+      !c.after
+    )
+      continue;
+    if (
+      ctx?.before?.conversations?.[c.id]?.inbox_killed_at ||
+      ctx?.before?.sessions?.[c.id]?.inbox_killed_at
+    )
+      continue;
+    if (
+      out.some(
+        (k) =>
+          k.store === c.store && k.id === c.id && k.field === "inbox_killed_at",
+      )
+    )
+      continue;
+    out.push({
+      ...c,
+      field: "inbox_killed_at",
+      before: null,
+      hadBefore: true,
+      after: undefined,
+      hadAfter: false,
+    });
   }
   return out;
 }
@@ -72,13 +110,25 @@ function spellUnkill(cells: CellChange[], ctx?: UndoCtx): CellChange[] {
  * inbox stamps the stale guard reads. So such a call is never recorded,
  * whichever verb made it (restoreSession, a /sessions patch, a triage verb).
  */
-export const revivesKilledRow = (ctx: Pick<UndoCtx, "changes" | "before">): boolean =>
+export const revivesKilledRow = (
+  ctx: Pick<UndoCtx, "changes" | "before">,
+): boolean =>
   // Read through the thin-conversation rule: a conversations copy can hold a
   // stale stamp the inbox row had already cleared, and clearing that revives
   // nothing.
-  keepConversationRows([...ctx.changes], ctx).some((c) => isSessionCell(c) && (c.field === "inbox_dismissed_at" || c.field === "inbox_killed_at") && !!c.before && !c.after);
+  keepConversationRows([...ctx.changes], ctx).some(
+    (c) =>
+      isSessionCell(c) &&
+      (c.field === "inbox_dismissed_at" || c.field === "inbox_killed_at") &&
+      !!c.before &&
+      !c.after,
+  );
 
-const HIDE: Partial<UndoSpec> = { inverse: restoreEachHidden, restoreView: true, toast: true };
+const HIDE: Partial<UndoSpec> = {
+  inverse: restoreEachHidden,
+  restoreView: true,
+  toast: true,
+};
 const KILL: Partial<UndoSpec> = { ...HIDE, spell: spellUnkill };
 // The server may set a close aside (a stash its own read decided, dispatch.ts),
 // a stamp the close's draft never wrote, so the captured cells cannot clear
@@ -91,10 +141,35 @@ const KILL: Partial<UndoSpec> = { ...HIDE, spell: spellUnkill };
 function spellUnclose(cells: CellChange[], ctx?: UndoCtx): CellChange[] {
   const out = [...cells];
   for (const c of ctx?.changes ?? []) {
-    if (!isSessionCell(c) || c.field !== "inbox_dismissed_at" || c.before || !c.after) continue;
-    if (ctx?.before?.conversations?.[c.id]?.inbox_stashed_at || ctx?.before?.sessions?.[c.id]?.inbox_stashed_at) continue;
-    if (out.some((k) => k.store === c.store && k.id === c.id && k.field === "inbox_stashed_at")) continue;
-    out.push({ ...c, field: "inbox_stashed_at", before: null, hadBefore: true, after: undefined, hadAfter: false });
+    if (
+      !isSessionCell(c) ||
+      c.field !== "inbox_dismissed_at" ||
+      c.before ||
+      !c.after
+    )
+      continue;
+    if (
+      ctx?.before?.conversations?.[c.id]?.inbox_stashed_at ||
+      ctx?.before?.sessions?.[c.id]?.inbox_stashed_at
+    )
+      continue;
+    if (
+      out.some(
+        (k) =>
+          k.store === c.store &&
+          k.id === c.id &&
+          k.field === "inbox_stashed_at",
+      )
+    )
+      continue;
+    out.push({
+      ...c,
+      field: "inbox_stashed_at",
+      before: null,
+      hadBefore: true,
+      after: undefined,
+      hadAfter: false,
+    });
   }
   return out;
 }
@@ -105,10 +180,13 @@ const KILL_NOTE = "(agent stays stopped on undo)";
 // stamps directly; name the gesture the fields describe.
 function patchVerb(ctx: UndoCtx): string {
   const fields = (ctx.args[1] ?? {}) as Record<string, unknown>;
-  if ("inbox_pinned_at" in fields) return fields.inbox_pinned_at ? "Pinned" : "Unpinned";
-  if (fields.inbox_dismissed_at) return isClosePatch(fields) ? "Closed" : "Killed";
+  if ("inbox_pinned_at" in fields)
+    return fields.inbox_pinned_at ? "Pinned" : "Unpinned";
+  if (fields.inbox_dismissed_at)
+    return isClosePatch(fields) ? "Closed" : "Killed";
   if (fields.inbox_stashed_at) return "Stashed";
-  if ("inbox_stashed_at" in fields || "inbox_dismissed_at" in fields) return "Restored";
+  if ("inbox_stashed_at" in fields || "inbox_dismissed_at" in fields)
+    return "Restored";
   return "Edited";
 }
 
@@ -118,15 +196,22 @@ function patchVerb(ctx: UndoCtx): string {
 // unfavorited. The value it stood for is true.
 const spellUnfavorite = (cells: CellChange[]): CellChange[] =>
   cells.map((c) =>
-    isSessionCell(c) && c.field === "is_favorite" && c.after === false && c.before == null ? { ...c, before: true, hadBefore: true } : c,
+    isSessionCell(c) &&
+    c.field === "is_favorite" &&
+    c.after === false &&
+    c.before == null
+      ? { ...c, before: true, hadBefore: true }
+      : c,
   );
 
 function bucketLabel(ctx: UndoCtx): string {
   const [id, fields] = ctx.args as [string, Record<string, unknown>];
   const name = ctx.before?.buckets?.[id]?.name as string | undefined;
   const label = quoted(name, "label");
-  if (fields.name !== undefined && fields.name !== name) return `Renamed label ${label} to ${quoted(fields.name as string, "label")}`;
-  if (fields.archived_at !== undefined) return `${fields.archived_at ? "Deleted" : "Restored"} label ${label}`;
+  if (fields.name !== undefined && fields.name !== name)
+    return `Renamed label ${label} to ${quoted(fields.name as string, "label")}`;
+  if (fields.archived_at !== undefined)
+    return `${fields.archived_at ? "Deleted" : "Restored"} label ${label}`;
   if (fields.color !== undefined) return `Recolored label ${label}`;
   return `Reordered label ${label}`;
 }
@@ -138,7 +223,10 @@ const characters = (ctx: UndoCtx) => {
     : `Changed the characters of ${counted(entries.length, "session")}`;
 };
 
-const LIVE_SWITCH = { never: "the switch is applied to the live agent or daemon, which a field restore cannot reverse" } as const;
+const LIVE_SWITCH = {
+  never:
+    "the switch is applied to the live agent or daemon, which a field restore cannot reverse",
+} as const;
 
 // The UI bag holds preferences, which are never undoable, and one edit: the
 // inbox's manual order, which a drag of cards writes in one call. Only a call
@@ -146,41 +234,64 @@ const LIVE_SWITCH = { never: "the switch is applied to the live agent or daemon,
 const MANUAL_ORDER = "inbox_manual_order";
 function manualOrderLabel(ctx: UndoCtx): string | null {
   const partial = ctx.args[0] as Record<string, unknown> | undefined;
-  if (!partial || Object.keys(partial).some((k) => k !== MANUAL_ORDER)) return null;
-  const before = (ctx.before?.clientState?.ui?.[MANUAL_ORDER] ?? {}) as Record<string, number>;
+  if (!partial || Object.keys(partial).some((k) => k !== MANUAL_ORDER))
+    return null;
+  const before = (ctx.before?.clientState?.ui?.[MANUAL_ORDER] ?? {}) as Record<
+    string,
+    number
+  >;
   const after = (partial[MANUAL_ORDER] ?? {}) as Record<string, number>;
-  if (Object.keys(after).length === 0) return Object.keys(before).length ? "Reset the inbox order" : null;
+  if (Object.keys(after).length === 0)
+    return Object.keys(before).length ? "Reset the inbox order" : null;
   const moved = Object.keys(after).filter((id) => after[id] !== before[id]);
   if (moved.length === 0) return null;
-  return moved.length === 1 ? `Moved ${sessionTitle(ctx.before, moved[0]!)}` : `Moved ${counted(moved.length, "session")}`;
+  return moved.length === 1
+    ? `Moved ${sessionTitle(ctx.before, moved[0]!)}`
+    : `Moved ${counted(moved.length, "session")}`;
 }
 
 export const SESSIONS_UNDO_POLICY: UndoPolicy = {
   // clientState is ignored for every other spec; this one captures it.
-  updateClientUI: { spec: { label: manualOrderLabel, captureKeys: ["clientState"] } },
+  updateClientUI: {
+    spec: { label: manualOrderLabel, captureKeys: ["clientState"] },
+  },
   deferSession: onSession("Deferred"),
   setSessionRest: {
     spec: {
-      label: (ctx) => `Filed ${sessionTitle(ctx.before, ctx.args[0] as string)} as ${USER_REST_LABEL[ctx.args[1] as UserRest] ?? ctx.args[1]}`,
+      label: (ctx) =>
+        `Filed ${sessionTitle(ctx.before, ctx.args[0] as string)} as ${USER_REST_LABEL[ctx.args[1] as UserRest] ?? ctx.args[1]}`,
       toast: true,
     },
   },
-  pinSession: onSession((ctx) => (ctx.before?.sessions?.[ctx.args[0] as string]?.is_pinned ? "Unpinned" : "Pinned")),
+  pinSession: onSession((ctx) =>
+    ctx.before?.sessions?.[ctx.args[0] as string]?.is_pinned
+      ? "Unpinned"
+      : "Pinned",
+  ),
   snoozeSession: onSession("Snoozed"),
   wakeSnoozedSession: onSession("Woke"),
   renameSession: {
     spec: {
-      label: (ctx) => `Renamed ${sessionTitle(ctx.before, ctx.args[0] as string)} to ${quoted(ctx.args[1] as string, "untitled")}`,
+      label: (ctx) =>
+        `Renamed ${sessionTitle(ctx.before, ctx.args[0] as string)} to ${quoted(ctx.args[1] as string, "untitled")}`,
     },
   },
   // The picker writes on every face it lands on (arrow keys, clicks,
   // shuffles), so browsing faces merges into one entry.
-  setSessionCharacter: onSession("Changed the character of", { coalesce: true }),
+  setSessionCharacter: onSession("Changed the character of", {
+    coalesce: true,
+  }),
   setSessionCharacters: { spec: { label: characters, coalesce: true } },
   patchConversation: onSession(patchVerb),
-  toggleFavorite: onSession((ctx) => (ctx.after?.conversations?.[ctx.args[0] as string]?.is_favorite ? "Favorited" : "Unfavorited"), {
-    spell: spellUnfavorite,
-  }),
+  toggleFavorite: onSession(
+    (ctx) =>
+      ctx.after?.conversations?.[ctx.args[0] as string]?.is_favorite
+        ? "Favorited"
+        : "Unfavorited",
+    {
+      spell: spellUnfavorite,
+    },
+  ),
   // The real switch is applied to the live agent or its daemon (a /model
   // message, switchSessionAgent, reconfigureSession), and agent_type is not
   // editable on the server's patch rail at all, so a field restore would leave
@@ -191,10 +302,17 @@ export const SESSIONS_UNDO_POLICY: UndoPolicy = {
   setConversationAgentDefinition: LIVE_SWITCH,
   restoreSession: onSession("Restored"),
   updateBucket: { spec: { label: bucketLabel } },
-  stashSession: onSession((ctx) => ((ctx.args[1] as { hidden?: boolean } | undefined)?.hidden ? "Stashed and hid" : "Stashed"), HIDE),
+  stashSession: onSession(
+    (ctx) =>
+      (ctx.args[1] as { hidden?: boolean } | undefined)?.hidden
+        ? "Stashed and hid"
+        : "Stashed",
+    HIDE,
+  ),
   killSession: {
     spec: {
-      label: (ctx) => `Killed ${sessionTitle(ctx.before, ctx.args[0] as string)} ${KILL_NOTE}`,
+      label: (ctx) =>
+        `Killed ${sessionTitle(ctx.before, ctx.args[0] as string)} ${KILL_NOTE}`,
       ...KILL,
     },
   },
@@ -217,7 +335,9 @@ export const SESSIONS_UNDO_POLICY: UndoPolicy = {
     spec: {
       label: (ctx) => {
         const ids = (ctx.args[0] ?? []) as string[];
-        return ids.length === 1 ? `Closed ${sessionTitle(ctx.before, ids[0]!)}` : `Closed ${counted(ids.length, "session")}`;
+        return ids.length === 1
+          ? `Closed ${sessionTitle(ctx.before, ids[0]!)}`
+          : `Closed ${counted(ids.length, "session")}`;
       },
       ...CLOSE,
     },
@@ -225,6 +345,7 @@ export const SESSIONS_UNDO_POLICY: UndoPolicy = {
   // assignSessionToBucket and switchProject are classified in work.ts, beside
   // the bucketAssignments writer and the other conversation inverses.
   reopenDecision: {
-    never: "Reopening hands a role's answer back to the person; the role's answer cannot be re-given from a patch, and the decision stays answerable",
+    never:
+      "Reopening hands a role's answer back to the person; the role's answer cannot be re-given from a patch, and the decision stays answerable",
   },
 };

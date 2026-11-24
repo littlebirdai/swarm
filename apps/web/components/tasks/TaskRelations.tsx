@@ -15,14 +15,37 @@
  */
 import { useMemo, type ReactNode } from "react";
 import { toast } from "sonner";
-import { CircleDashed, Clock, GitPullRequest, Plus, Replace, X } from "lucide-react";
+import {
+  CircleDashed,
+  Clock,
+  GitPullRequest,
+  Plus,
+  Replace,
+  X,
+} from "lucide-react";
 import { waitStateStyle } from "./TaskBlockedMark";
-import { BLOCKER_NOT_FOUND_WORDS, BLOCKER_UNKNOWN_WORDS, formatWaitTime, isTerminalTaskStatus, waitStateWord, waitWordFails, type TaskWait } from "@codecast/shared/tasks";
+import {
+  BLOCKER_NOT_FOUND_WORDS,
+  BLOCKER_UNKNOWN_WORDS,
+  formatWaitTime,
+  isTerminalTaskStatus,
+  waitStateWord,
+  waitWordFails,
+  type TaskWait,
+} from "@codecast/shared/tasks";
 import { EntityIdPill } from "../EntityIdPill";
 import { useInboxStore, type TaskItem } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useEntityResolution } from "../../lib/entityDisplay";
-import { blockerForms, clauseOf, foundHereOf, parseRelationQuery, storeBlockerLines, type BlockerLine, type RelationMode } from "../../lib/taskRelations";
+import {
+  blockerForms,
+  clauseOf,
+  foundHereOf,
+  parseRelationQuery,
+  storeBlockerLines,
+  type BlockerLine,
+  type RelationMode,
+} from "../../lib/taskRelations";
 import { storeStatusOf } from "../../lib/taskBlockers";
 import { lookup } from "../../lib/liveEntities";
 import { workspaceKeyOfRow } from "../../lib/workspaceScope";
@@ -34,12 +57,19 @@ import type { ShortcutAction } from "../../shortcuts";
 
 // Every line is one 20px box, the label's included, so the label sits level
 // with the first pill and a one-line row keeps the static rows' 28px.
-const ROW = "grid grid-cols-[7rem_1fr] items-start px-4 py-1 hover:bg-sol-bg-alt/30 transition-colors";
+const ROW =
+  "grid grid-cols-[7rem_1fr] items-start px-4 py-1 hover:bg-sol-bg-alt/30 transition-colors";
 const LABEL = "h-5 flex items-center text-xs text-sol-text-dim";
 const LINE_H = "min-h-5";
 const DIM = "text-xs text-sol-text-dim";
 
-function RelationRow({ label, children }: { label: string; children: ReactNode }) {
+function RelationRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <div className={ROW} data-relation={label || "add"}>
       <span className={LABEL}>{label}</span>
@@ -48,7 +78,13 @@ function RelationRow({ label, children }: { label: string; children: ReactNode }
   );
 }
 
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+function RemoveButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -68,18 +104,51 @@ type LineState = "waiting" | "met" | "failed" | "missing";
  *  being worked, because this page is where a person asks why it is not
  *  moving; only on a closed task, which nothing holds, does a waiting or
  *  failed line draw dim, as met ones do. `status` is the task's own. */
-function Line({ state, status, children, detail, onRemove, removeLabel }: { state: LineState; status: string; children: ReactNode; detail?: ReactNode; onRemove: () => void; removeLabel: string }) {
-  const style = state === "missing" ? null : waitStateStyle(state, status, { untilClosed: true });
-  const glyph = style
-    ? <style.icon className={`w-3 h-3 ${style.text}`} role="img" aria-label={state} />
-    : <CircleDashed className="w-3 h-3 text-sol-text-dim" role="img" aria-label={BLOCKER_NOT_FOUND_WORDS} />;
-  const dim = state === "met" || (isTerminalTaskStatus(status) && state !== "missing");
+function Line({
+  state,
+  status,
+  children,
+  detail,
+  onRemove,
+  removeLabel,
+}: {
+  state: LineState;
+  status: string;
+  children: ReactNode;
+  detail?: ReactNode;
+  onRemove: () => void;
+  removeLabel: string;
+}) {
+  const style =
+    state === "missing"
+      ? null
+      : waitStateStyle(state, status, { untilClosed: true });
+  const glyph = style ? (
+    <style.icon
+      className={`w-3 h-3 ${style.text}`}
+      role="img"
+      aria-label={state}
+    />
+  ) : (
+    <CircleDashed
+      className="w-3 h-3 text-sol-text-dim"
+      role="img"
+      aria-label={BLOCKER_NOT_FOUND_WORDS}
+    />
+  );
+  const dim =
+    state === "met" || (isTerminalTaskStatus(status) && state !== "missing");
   return (
-    <div className={`group/line flex items-center gap-1.5 min-w-0 ${LINE_H} ${dim ? "opacity-60" : ""}`} data-blocker-state={state}>
+    <div
+      className={`group/line flex items-center gap-1.5 min-w-0 ${LINE_H} ${dim ? "opacity-60" : ""}`}
+      data-blocker-state={state}
+    >
       <span className="flex-shrink-0 w-3 flex justify-center">{glyph}</span>
       <span className="min-w-0 flex items-center gap-1.5 text-xs">
         {children}
-        {detail && <span className="flex-shrink-0 max-w-[45%] truncate">{detail}</span>}
+        {detail && (
+          <span className="flex-shrink-0 max-w-[45%] truncate">{detail}</span>
+        )}
       </span>
       <RemoveButton label={removeLabel} onClick={onRemove} />
     </div>
@@ -90,17 +159,39 @@ function Line({ state, status, children, detail, onRemove, removeLabel }: { stat
  *  of the server: the store leaves out rows the board never shows. A row in
  *  another workspace is no answer (readiness never reads across), so its
  *  status stays unknown, as the row mark and the CLI say. */
-type TaskLineProps = { line: Extract<BlockerLine, { kind: "task" }>; task: TaskItem; onRemove: () => void };
+type TaskLineProps = {
+  line: Extract<BlockerLine, { kind: "task" }>;
+  task: TaskItem;
+  onRemove: () => void;
+};
 
 function TaskBlockerLine({ line, task, onRemove }: TaskLineProps) {
-  if (line.state === "open" || line.state === "met") return <HeldTaskLine line={line} met={line.state === "met"} task={task} onRemove={onRemove} />;
+  if (line.state === "open" || line.state === "met")
+    return (
+      <HeldTaskLine
+        line={line}
+        met={line.state === "met"}
+        task={task}
+        onRemove={onRemove}
+      />
+    );
   return <UnheldTaskBlockerLine line={line} task={task} onRemove={onRemove} />;
 }
 
 /** A task blocker whose status is known: its pill, met once it closed. */
-function HeldTaskLine({ line, met, task, onRemove }: TaskLineProps & { met: boolean }) {
+function HeldTaskLine({
+  line,
+  met,
+  task,
+  onRemove,
+}: TaskLineProps & { met: boolean }) {
   return (
-    <Line state={met ? "met" : "waiting"} status={task.status} onRemove={onRemove} removeLabel={`Remove blocker ${line.ref}`}>
+    <Line
+      state={met ? "met" : "waiting"}
+      status={task.status}
+      onRemove={onRemove}
+      removeLabel={`Remove blocker ${line.ref}`}
+    >
       <EntityIdPill type="task" shortId={line.ref} wide />
     </Line>
   );
@@ -109,13 +200,29 @@ function HeldTaskLine({ line, met, task, onRemove }: TaskLineProps & { met: bool
 function UnheldTaskBlockerLine({ line, task, onRemove }: TaskLineProps) {
   const { entity, served } = useEntityResolution(line.ref, "task");
   if (entity && workspaceKeyOfRow(entity) === workspaceKeyOfRow(task)) {
-    return <HeldTaskLine line={line} met={isTerminalTaskStatus(entity.status)} task={task} onRemove={onRemove} />;
+    return (
+      <HeldTaskLine
+        line={line}
+        met={isTerminalTaskStatus(entity.status)}
+        task={task}
+        onRemove={onRemove}
+      />
+    );
   }
   const missing = served && !entity;
-  const word = entity ? BLOCKER_UNKNOWN_WORDS : missing ? BLOCKER_NOT_FOUND_WORDS : undefined;
+  const word = entity
+    ? BLOCKER_UNKNOWN_WORDS
+    : missing
+      ? BLOCKER_NOT_FOUND_WORDS
+      : undefined;
   return (
-    <Line state={missing ? "missing" : "waiting"} status={task.status} onRemove={onRemove} removeLabel={`Remove blocker ${line.ref}`}
-      detail={word ? <span className={DIM}>{word}</span> : undefined}>
+    <Line
+      state={missing ? "missing" : "waiting"}
+      status={task.status}
+      onRemove={onRemove}
+      removeLabel={`Remove blocker ${line.ref}`}
+      detail={word ? <span className={DIM}>{word}</span> : undefined}
+    >
       <span className="text-xs font-mono text-sol-text-muted">{line.ref}</span>
     </Line>
   );
@@ -123,9 +230,18 @@ function UnheldTaskBlockerLine({ line, task, onRemove }: TaskLineProps) {
 
 /** A pill for what has no entity of its own (a time, a PR codecast cannot
  *  place yet), in EntityIdPill's chrome so the column stays even. */
-function PlainPill({ title, children }: { title?: string; children: ReactNode }) {
+function PlainPill({
+  title,
+  children,
+}: {
+  title?: string;
+  children: ReactNode;
+}) {
   return (
-    <span title={title} className="inline-flex items-center gap-[0.2em] px-[0.2em] rounded-[0.2em] leading-none font-medium bg-sol-bg-alt text-sol-text-muted">
+    <span
+      title={title}
+      className="inline-flex items-center gap-[0.2em] px-[0.2em] rounded-[0.2em] leading-none font-medium bg-sol-bg-alt text-sol-text-muted"
+    >
       {children}
     </span>
   );
@@ -133,29 +249,93 @@ function PlainPill({ title, children }: { title?: string; children: ReactNode })
 
 /** A checks wait still waiting on its open PR, in the PR's checks: red while
  *  they fail, which keeps it waiting (TG2), so the page says why it is not moving. */
-function ChecksWord({ wait, repository, pr_number }: { wait: TaskWait; repository: string; pr_number: number }) {
-  const checks = useEntityResolution(`${repository}#${pr_number}`, "pr").entity?.checks_state;
+function ChecksWord({
+  wait,
+  repository,
+  pr_number,
+}: {
+  wait: TaskWait;
+  repository: string;
+  pr_number: number;
+}) {
+  const checks = useEntityResolution(`${repository}#${pr_number}`, "pr").entity
+    ?.checks_state;
   return <WaitWord wait={wait} checks={checks} />;
 }
 
 /** A wait's word, red when it reads as a failure (`waitWordFails`), dim otherwise. */
-function WaitWord({ wait, closed, checks, now }: { wait: TaskWait; closed?: boolean; checks?: string; now?: number }) {
+function WaitWord({
+  wait,
+  closed,
+  checks,
+  now,
+}: {
+  wait: TaskWait;
+  closed?: boolean;
+  checks?: string;
+  now?: number;
+}) {
   const word = waitStateWord(wait, { now, closed, checks });
-  return word ? <span className={waitWordFails(wait, { closed, checks }) ? "text-xs text-sol-red" : DIM}>{word}</span> : null;
+  return word ? (
+    <span
+      className={
+        waitWordFails(wait, { closed, checks }) ? "text-xs text-sol-red" : DIM
+      }
+    >
+      {word}
+    </span>
+  ) : null;
 }
 
-function WaitLine({ wait: w, now, status, onRemove }: { wait: TaskWait; now: number; status: string; onRemove: () => void }) {
+function WaitLine({
+  wait: w,
+  now,
+  status,
+  onRemove,
+}: {
+  wait: TaskWait;
+  now: number;
+  status: string;
+  onRemove: () => void;
+}) {
   const closed = isTerminalTaskStatus(status);
   const pill =
-    w.kind === "time" ? <PlainPill title={formatWaitTime(w.at, { absolute: true })}><Clock className="w-[1em] h-[1em]" />{formatWaitTime(w.at, { now })}</PlainPill>
-    : w.kind === "decision" ? <EntityIdPill type="decision" shortId={w.decision} wide />
-    : w.repository ? <EntityIdPill type="pr" id={`${w.repository}#${w.pr_number}`} certain wide />
-    : <PlainPill><GitPullRequest className="w-[1em] h-[1em]" />#{w.pr_number}</PlainPill>;
-  const detail = w.kind === "pr_checks_green" && w.state === "waiting" && !closed && w.repository
-    ? <ChecksWord wait={w} repository={w.repository} pr_number={w.pr_number} />
-    : waitStateWord(w, { now, closed }) ? <WaitWord wait={w} closed={closed} now={now} /> : undefined;
+    w.kind === "time" ? (
+      <PlainPill title={formatWaitTime(w.at, { absolute: true })}>
+        <Clock className="w-[1em] h-[1em]" />
+        {formatWaitTime(w.at, { now })}
+      </PlainPill>
+    ) : w.kind === "decision" ? (
+      <EntityIdPill type="decision" shortId={w.decision} wide />
+    ) : w.repository ? (
+      <EntityIdPill
+        type="pr"
+        id={`${w.repository}#${w.pr_number}`}
+        certain
+        wide
+      />
+    ) : (
+      <PlainPill>
+        <GitPullRequest className="w-[1em] h-[1em]" />#{w.pr_number}
+      </PlainPill>
+    );
+  const detail =
+    w.kind === "pr_checks_green" &&
+    w.state === "waiting" &&
+    !closed &&
+    w.repository ? (
+      <ChecksWord wait={w} repository={w.repository} pr_number={w.pr_number} />
+    ) : waitStateWord(w, { now, closed }) ? (
+      <WaitWord wait={w} closed={closed} now={now} />
+    ) : undefined;
   return (
-    <Line state={w.state} status={status} onRemove={onRemove} removeLabel={`Remove the wait ${clauseOf(w, { now })}`} detail={detail}>
+    <Line
+      state={w.state}
+      status={status}
+      onRemove={onRemove}
+      removeLabel={`Remove the wait ${clauseOf(w, { now })}`}
+      detail={detail}
+    >
       {pill}
     </Line>
   );
@@ -165,22 +345,57 @@ type IsClosed = (ref: string) => boolean;
 
 /** Task links, one titled pill per line as Blocked by lists them, a closed
  *  one dim like a met blocker, each removable when `onRemove` is given. */
-function TaskLinks({ refs, isClosed, onRemove, removeLabel }: { refs: string[]; isClosed: IsClosed; onRemove?: (ref: string) => void; removeLabel?: (ref: string) => string }) {
+function TaskLinks({
+  refs,
+  isClosed,
+  onRemove,
+  removeLabel,
+}: {
+  refs: string[];
+  isClosed: IsClosed;
+  onRemove?: (ref: string) => void;
+  removeLabel?: (ref: string) => string;
+}) {
   return refs.map((ref) => (
-    <div key={ref} className={`group/line flex items-center gap-1.5 min-w-0 ${LINE_H} text-xs ${isClosed(ref) ? "opacity-60" : ""}`}>
+    <div
+      key={ref}
+      className={`group/line flex items-center gap-1.5 min-w-0 ${LINE_H} text-xs ${isClosed(ref) ? "opacity-60" : ""}`}
+    >
       <EntityIdPill type="task" shortId={ref} wide />
-      {onRemove && <RemoveButton label={removeLabel?.(ref) ?? `Remove ${ref}`} onClick={() => onRemove(ref)} />}
+      {onRemove && (
+        <RemoveButton
+          label={removeLabel?.(ref) ?? `Remove ${ref}`}
+          onClick={() => onRemove(ref)}
+        />
+      )}
     </div>
   ));
 }
 
 /** The quiet add control closing a row, with its palette key (if it has one) on hover. */
-function AddButton({ label, hotkey, plus, onClick }: { label: string; hotkey?: ShortcutAction; plus: boolean; onClick: () => void }) {
+function AddButton({
+  label,
+  hotkey,
+  plus,
+  onClick,
+}: {
+  label: string;
+  hotkey?: ShortcutAction;
+  plus: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button onClick={onClick} className="group/add h-5 flex items-center gap-1.5 text-xs text-sol-text-dim hover:text-sol-text text-left transition-colors w-fit">
+    <button
+      onClick={onClick}
+      className="group/add h-5 flex items-center gap-1.5 text-xs text-sol-text-dim hover:text-sol-text text-left transition-colors w-fit"
+    >
       {plus && <Plus className="w-3 h-3" />}
       {label}
-      {hotkey && <span className="opacity-0 group-hover/add:opacity-100 group-focus-visible/add:opacity-100 transition-opacity"><MenuKeyCaps action={hotkey} className="contents" /></span>}
+      {hotkey && (
+        <span className="opacity-0 group-hover/add:opacity-100 group-focus-visible/add:opacity-100 transition-opacity">
+          <MenuKeyCaps action={hotkey} className="contents" />
+        </span>
+      )}
     </button>
   );
 }
@@ -189,8 +404,12 @@ function AddButton({ label, hotkey, plus, onClick }: { label: string; hotkey?: S
  *  left behind would bring the line back. One write, since the server drops
  *  every form of the edge it is named by. A blocker that names no task is
  *  not offered back: the server would refuse to set it again. */
-function removeBlocker(id: string, line: Extract<BlockerLine, { kind: "task" }>) {
-  const write = () => useInboxStore.getState().removeBlocker(id, line.ref, line.raws);
+function removeBlocker(
+  id: string,
+  line: Extract<BlockerLine, { kind: "task" }>,
+) {
+  const write = () =>
+    useInboxStore.getState().removeBlocker(id, line.ref, line.raws);
   if (line.state === "missing") withoutUndo(write);
   else undoAsOne(`Removed blocker ${line.ref} from ${id}`, write);
 }
@@ -201,10 +420,21 @@ function removeParent(id: string) {
   if (!r.ok) toast.error(r.reason);
 }
 
-export function TaskRelations({ task, tasks, onAdd }: { task: TaskItem; tasks: Record<string, TaskItem>; onAdd: (mode: RelationMode | "parent") => void }) {
+export function TaskRelations({
+  task,
+  tasks,
+  onAdd,
+}: {
+  task: TaskItem;
+  tasks: Record<string, TaskItem>;
+  onAdd: (mode: RelationMode | "parent") => void;
+}) {
   const now = useCoarseNow(60_000);
   const lines = useMemo(() => storeBlockerLines(task, tasks), [task, tasks]);
-  const foundHere = useMemo(() => foundHereOf(task, tasks).map((t) => t.short_id), [task, tasks]);
+  const foundHere = useMemo(
+    () => foundHereOf(task, tasks).map((t) => t.short_id),
+    [task, tasks],
+  );
   const isClosed = useMemo<IsClosed>(() => {
     const statusOf = storeStatusOf(tasks, task);
     return (ref) => {
@@ -214,7 +444,9 @@ export function TaskRelations({ task, tasks, onAdd }: { task: TaskItem; tasks: R
   }, [task, tasks]);
   // `parent_id` holds the parent's _id; its pill reads best by short id.
   const parentId = task.parent_id ? String(task.parent_id) : null;
-  const parent = parentId ? (lookup(tasks, parentId)?.short_id ?? parentId) : null;
+  const parent = parentId
+    ? (lookup(tasks, parentId)?.short_id ?? parentId)
+    : null;
   const store = useInboxStore.getState;
   const id = task.short_id;
 
@@ -223,16 +455,37 @@ export function TaskRelations({ task, tasks, onAdd }: { task: TaskItem; tasks: R
       <RelationRow label="Blocked by">
         {lines.map((line) =>
           line.kind === "task" ? (
-            <TaskBlockerLine key={line.key} line={line} task={task} onRemove={() => removeBlocker(id, line)} />
+            <TaskBlockerLine
+              key={line.key}
+              line={line}
+              task={task}
+              onRemove={() => removeBlocker(id, line)}
+            />
           ) : (
-            <WaitLine key={line.key} wait={line.wait} now={now} status={task.status} onRemove={() => store().removeWait(id, line.wait.id)} />
+            <WaitLine
+              key={line.key}
+              wait={line.wait}
+              now={now}
+              status={task.status}
+              onRemove={() => store().removeWait(id, line.wait.id)}
+            />
           ),
         )}
-        <AddButton label="Add blocker…" hotkey="task.blocker" plus={lines.length > 0} onClick={() => onAdd("blocker")} />
+        <AddButton
+          label="Add blocker…"
+          hotkey="task.blocker"
+          plus={lines.length > 0}
+          onClick={() => onAdd("blocker")}
+        />
       </RelationRow>
       {!!task.blocks?.length && (
         <RelationRow label="Blocks">
-          <TaskLinks refs={task.blocks} isClosed={isClosed} onRemove={(ref) => store().removeBlocks(id, ref)} removeLabel={(ref) => `${ref} stops waiting on ${id}`} />
+          <TaskLinks
+            refs={task.blocks}
+            isClosed={isClosed}
+            onRemove={(ref) => store().removeBlocks(id, ref)}
+            removeLabel={(ref) => `${ref} stops waiting on ${id}`}
+          />
         </RelationRow>
       )}
       {task.found_during && (
@@ -247,20 +500,49 @@ export function TaskRelations({ task, tasks, onAdd }: { task: TaskItem; tasks: R
       )}
       {!!task.related?.length && (
         <RelationRow label="Related">
-          <TaskLinks refs={task.related} isClosed={isClosed} onRemove={(ref) => store().unrelateTasks(id, ref)} removeLabel={(ref) => `Unlink ${ref}`} />
-          <AddButton label="Link related…" hotkey="task.related" plus onClick={() => onAdd("related")} />
+          <TaskLinks
+            refs={task.related}
+            isClosed={isClosed}
+            onRemove={(ref) => store().unrelateTasks(id, ref)}
+            removeLabel={(ref) => `Unlink ${ref}`}
+          />
+          <AddButton
+            label="Link related…"
+            hotkey="task.related"
+            plus
+            onClick={() => onAdd("related")}
+          />
         </RelationRow>
       )}
       {parent && (
         <RelationRow label="Parent">
-          <TaskLinks refs={[parent]} isClosed={isClosed} onRemove={() => removeParent(id)} removeLabel={() => "Remove parent"} />
+          <TaskLinks
+            refs={[parent]}
+            isClosed={isClosed}
+            onRemove={() => removeParent(id)}
+            removeLabel={() => "Remove parent"}
+          />
         </RelationRow>
       )}
       {(!task.related?.length || !parent) && (
         <RelationRow label="">
           <div className="flex items-center gap-4">
-            {!task.related?.length && <AddButton label="Link related…" hotkey="task.related" plus={false} onClick={() => onAdd("related")} />}
-            {!parent && <AddButton label="Set parent…" hotkey="task.parent" plus={false} onClick={() => onAdd("parent")} />}
+            {!task.related?.length && (
+              <AddButton
+                label="Link related…"
+                hotkey="task.related"
+                plus={false}
+                onClick={() => onAdd("related")}
+              />
+            )}
+            {!parent && (
+              <AddButton
+                label="Set parent…"
+                hotkey="task.parent"
+                plus={false}
+                onClick={() => onAdd("parent")}
+              />
+            )}
           </div>
         </RelationRow>
       )}
@@ -269,10 +551,17 @@ export function TaskRelations({ task, tasks, onAdd }: { task: TaskItem; tasks: R
 }
 
 /** A replaced task says so at the top of its page, and links the replacement (TG5). */
-export function SupersededBanner({ task }: { task: Pick<TaskItem, "superseded_by"> }) {
+export function SupersededBanner({
+  task,
+}: {
+  task: Pick<TaskItem, "superseded_by">;
+}) {
   if (!task.superseded_by) return null;
   return (
-    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md border border-sol-border/30 bg-sol-bg-alt/40 text-xs text-sol-text-muted" data-superseded>
+    <div
+      className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md border border-sol-border/30 bg-sol-bg-alt/40 text-xs text-sol-text-muted"
+      data-superseded
+    >
       <Replace className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0" />
       <span>Superseded by</span>
       <EntityIdPill type="task" shortId={task.superseded_by} />
@@ -282,7 +571,11 @@ export function SupersededBanner({ task }: { task: Pick<TaskItem, "superseded_by
 
 /** Why the palette's query is no relation: set once it matches no task and
  *  reads as no ref. The hint shows it, in place of the list's "No results". */
-export function relationQueryError(search: string, mode: RelationMode, matched: boolean) {
+export function relationQueryError(
+  search: string,
+  mode: RelationMode,
+  matched: boolean,
+) {
   const parsed = matched ? null : parseRelationQuery(search, mode);
   return parsed && "error" in parsed ? parsed : null;
 }
@@ -290,13 +583,30 @@ export function relationQueryError(search: string, mode: RelationMode, matched: 
 /** Under the palette's field: the refs it reads (TG3). Once the query reads
  *  as none, a short lead says so, then the forms again, or what is wrong
  *  with a ref that has a ref's shape ("is in the past"). */
-export function RelationQueryHint({ mode, search, matched, targets }: { mode: RelationMode; search: string; matched: boolean; targets: TaskItem[] }) {
+export function RelationQueryHint({
+  mode,
+  search,
+  matched,
+  targets,
+}: {
+  mode: RelationMode;
+  search: string;
+  matched: boolean;
+  targets: TaskItem[];
+}) {
   const error = relationQueryError(search, mode, matched);
   const forms = mode === "blocker" ? blockerForms(targets) : ["ct-12"];
   return (
-    <div className="px-4 py-1.5 border-b border-sol-border/30 text-meta text-sol-text-dim" data-relation-hint>
+    <div
+      className="px-4 py-1.5 border-b border-sol-border/30 text-meta text-sol-text-dim"
+      data-relation-hint
+    >
       <span className="flex items-center gap-1 flex-wrap">
-        {error && <span className="text-sol-red">{mode === "blocker" ? "Not a blocker." : "Not a task."}</span>}
+        {error && (
+          <span className="text-sol-red">
+            {mode === "blocker" ? "Not a blocker." : "Not a task."}
+          </span>
+        )}
         {error && !error.unrecognized ? (
           <span className="text-sol-text-muted">{error.error}</span>
         ) : (
@@ -305,7 +615,10 @@ export function RelationQueryHint({ mode, search, matched, targets }: { mode: Re
             {forms.map((f, i) => (
               <span key={f} className="inline-flex items-center gap-1">
                 {i > 0 && <span aria-hidden>·</span>}
-                <span><code className="font-mono text-sol-text-muted">{f}</code>{i === forms.length - 1 && ","}</span>
+                <span>
+                  <code className="font-mono text-sol-text-muted">{f}</code>
+                  {i === forms.length - 1 && ","}
+                </span>
               </span>
             ))}
             then <KeyCap size="xs">↵</KeyCap>

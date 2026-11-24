@@ -27,7 +27,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "../proc.js";
 import { acquireFileLock } from "../lockFile.js";
 import { ComputerError } from "./errors.js";
-import { computerHelperTar, computerLinuxHelperSource } from "./helperPayload.js";
+import {
+  computerHelperTar,
+  computerLinuxHelperSource,
+} from "./helperPayload.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
 /** The one path, forever. A test asserts this string; a future refactor that
@@ -51,8 +54,17 @@ export const HELPER_SIGNING_TEAM = "WRG9THCK9Q";
  *  TCC, so the grants a machine already holds would not cover it. */
 export function keychainSigningIdentity(): string | null {
   if (process.platform !== "darwin") return null;
-  const found = spawnSync("/usr/bin/security", ["find-identity", "-v", "-p", "codesigning"], { encoding: "utf8", timeout: 30_000 }).stdout ?? "";
-  return new RegExp(`"(Developer ID Application: [^"]*\\(${HELPER_SIGNING_TEAM}\\))"`).exec(found)?.[1] ?? null;
+  const found =
+    spawnSync(
+      "/usr/bin/security",
+      ["find-identity", "-v", "-p", "codesigning"],
+      { encoding: "utf8", timeout: 30_000 },
+    ).stdout ?? "";
+  return (
+    new RegExp(
+      `"(Developer ID Application: [^"]*\\(${HELPER_SIGNING_TEAM}\\))"`,
+    ).exec(found)?.[1] ?? null
+  );
 }
 
 export function computerHome(): string {
@@ -65,11 +77,19 @@ export function computerHome(): string {
 const LINUX_HELPER_DIR = "linux";
 const LINUX_HELPER_FILE = `${HELPER_EXECUTABLE_NAME}.py`;
 
-export function helperAppPath(platform: NodeJS.Platform = process.platform): string {
-  return path.join(computerHome(), platform === "linux" ? LINUX_HELPER_DIR : HELPER_APP_BASENAME);
+export function helperAppPath(
+  platform: NodeJS.Platform = process.platform,
+): string {
+  return path.join(
+    computerHome(),
+    platform === "linux" ? LINUX_HELPER_DIR : HELPER_APP_BASENAME,
+  );
 }
 
-export function helperExecutablePath(appPath = helperAppPath(), platform: NodeJS.Platform = process.platform): string {
+export function helperExecutablePath(
+  appPath = helperAppPath(),
+  platform: NodeJS.Platform = process.platform,
+): string {
   if (platform === "linux") return path.join(appPath, LINUX_HELPER_FILE);
   return path.join(appPath, "Contents", "MacOS", HELPER_EXECUTABLE_NAME);
 }
@@ -79,7 +99,9 @@ export function helperExecutablePath(appPath = helperAppPath(), platform: NodeJS
  * differ. A temp file and a rename, so a helper starting at that moment reads
  * the old script or the new one, never half of one.
  */
-export function materializeLinuxHelper(source = computerLinuxHelperSource()): MaterializeResult {
+export function materializeLinuxHelper(
+  source = computerLinuxHelperSource(),
+): MaterializeResult {
   const dir = helperAppPath("linux");
   const file = helperExecutablePath(dir, "linux");
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -89,11 +111,22 @@ export function materializeLinuxHelper(source = computerLinuxHelperSource()): Ma
   } catch {
     /* first run */
   }
-  if (current === source) return { appPath: dir, executablePath: file, installed: false, adopted: false };
+  if (current === source)
+    return {
+      appPath: dir,
+      executablePath: file,
+      installed: false,
+      adopted: false,
+    };
   const temp = `${file}.${randomUUID()}.tmp`;
   fs.writeFileSync(temp, source, { mode: 0o700 });
   fs.renameSync(temp, file);
-  return { appPath: dir, executablePath: file, installed: true, adopted: false };
+  return {
+    appPath: dir,
+    executablePath: file,
+    installed: true,
+    adopted: false,
+  };
 }
 
 function stampPath(): string {
@@ -112,12 +145,15 @@ export interface InstallStamp {
 
 export function readInstallStamp(): InstallStamp | null {
   try {
-    const parsed = JSON.parse(fs.readFileSync(stampPath(), "utf-8")) as Partial<InstallStamp>;
+    const parsed = JSON.parse(
+      fs.readFileSync(stampPath(), "utf-8"),
+    ) as Partial<InstallStamp>;
     if (typeof parsed.sha256 !== "string" || !parsed.sha256) return null;
     return {
       sha256: parsed.sha256,
       version: typeof parsed.version === "string" ? parsed.version : "",
-      installedAt: typeof parsed.installedAt === "number" ? parsed.installedAt : 0,
+      installedAt:
+        typeof parsed.installedAt === "number" ? parsed.installedAt : 0,
     };
   } catch {
     return null;
@@ -138,10 +174,13 @@ function looksLikeBundle(appPath: string): boolean {
  *  serialize on their own start lock, and exclusive is a superset of the
  *  guarantee the design asks for. */
 export async function withPrepareLock<T>(fn: () => Promise<T> | T): Promise<T> {
-  const release = await acquireFileLock(path.join(computerHome(), "prepare.lock"), {
-    waitMs: 120_000,
-    describe: "cast computer",
-  });
+  const release = await acquireFileLock(
+    path.join(computerHome(), "prepare.lock"),
+    {
+      waitMs: 120_000,
+      describe: "cast computer",
+    },
+  );
   try {
     return await fn();
   } finally {
@@ -149,14 +188,29 @@ export async function withPrepareLock<T>(fn: () => Promise<T> | T): Promise<T> {
   }
 }
 
-type SwapJournal = { stagingDir: string; stagedApp: string; oldApp: string; pid: number; startedAt: number };
+type SwapJournal = {
+  stagingDir: string;
+  stagedApp: string;
+  oldApp: string;
+  pid: number;
+  startedAt: number;
+};
 
 function readJournal(): SwapJournal | null {
   try {
-    const parsed = JSON.parse(fs.readFileSync(journalPath(), "utf-8")) as Partial<SwapJournal>;
-    if (typeof parsed.stagedApp !== "string" || typeof parsed.oldApp !== "string") return null;
+    const parsed = JSON.parse(
+      fs.readFileSync(journalPath(), "utf-8"),
+    ) as Partial<SwapJournal>;
+    if (
+      typeof parsed.stagedApp !== "string" ||
+      typeof parsed.oldApp !== "string"
+    )
+      return null;
     return {
-      stagingDir: typeof parsed.stagingDir === "string" ? parsed.stagingDir : path.dirname(parsed.stagedApp),
+      stagingDir:
+        typeof parsed.stagingDir === "string"
+          ? parsed.stagingDir
+          : path.dirname(parsed.stagedApp),
       stagedApp: parsed.stagedApp,
       oldApp: parsed.oldApp,
       pid: typeof parsed.pid === "number" ? parsed.pid : 0,
@@ -248,43 +302,96 @@ export type HelperSignature = "developer-id" | "adhoc" | "invalid";
  * meant for codecast. The team identifier is the half of the TCC key that
  * cannot be forged, so it is what the exception is keyed to.
  */
-export function gradeAssessment(status: number | null, output: string): { ok: boolean; reason: string } {
+export function gradeAssessment(
+  status: number | null,
+  output: string,
+): { ok: boolean; reason: string } {
   if (status === 0) return { ok: true, reason: "accepted" };
   const unnotarized = /^source=Unnotarized Developer ID$/m.test(output);
-  const ours = new RegExp(String.raw`^origin=Developer ID Application:.*\(${HELPER_SIGNING_TEAM}\)\s*$`, "m").test(output);
-  if (unnotarized && ours) return { ok: true, reason: "Developer ID signed, not notarized" };
+  const ours = new RegExp(
+    String.raw`^origin=Developer ID Application:.*\(${HELPER_SIGNING_TEAM}\)\s*$`,
+    "m",
+  ).test(output);
+  if (unnotarized && ours)
+    return { ok: true, reason: "Developer ID signed, not notarized" };
   return { ok: false, reason: output.trim() || "spctl --assess failed" };
 }
 
 /** codesign's own verdict on a bundle. `adhoc` is a from-source build: it
  *  works, and its TCC grant resets on every rebuild, which is what `cast
  *  doctor` warns about rather than treating as fine. */
-export function inspectSignature(appPath: string): { signature: HelperSignature; detail: string; authority: string } {
-  const verify = spawnSync("/usr/bin/codesign", ["--verify", "--strict", appPath], { encoding: "utf8", timeout: 60_000 });
+export function inspectSignature(appPath: string): {
+  signature: HelperSignature;
+  detail: string;
+  authority: string;
+} {
+  const verify = spawnSync(
+    "/usr/bin/codesign",
+    ["--verify", "--strict", appPath],
+    { encoding: "utf8", timeout: 60_000 },
+  );
   if (verify.status !== 0) {
-    return { signature: "invalid", detail: (verify.stderr || verify.stdout || "codesign --verify failed").trim(), authority: "" };
+    return {
+      signature: "invalid",
+      detail: (
+        verify.stderr ||
+        verify.stdout ||
+        "codesign --verify failed"
+      ).trim(),
+      authority: "",
+    };
   }
-  const info = spawnSync("/usr/bin/codesign", ["-dv", "--verbose=4", appPath], { encoding: "utf8", timeout: 60_000 });
+  const info = spawnSync("/usr/bin/codesign", ["-dv", "--verbose=4", appPath], {
+    encoding: "utf8",
+    timeout: 60_000,
+  });
   const text = `${info.stderr ?? ""}${info.stdout ?? ""}`;
   // The leaf certificate, which is the half of the TCC key that a signing
   // identity change resets. `cast doctor` names it so a human can tell a
   // release helper from a from-source one at a glance (ct-49524).
-  const authority = text.split("\n").find((line) => line.startsWith("Authority="))?.slice("Authority=".length).trim() ?? "";
-  if (/Signature\s*=\s*adhoc/i.test(text)) return { signature: "adhoc", detail: "ad-hoc signed", authority: "ad-hoc" };
+  const authority =
+    text
+      .split("\n")
+      .find((line) => line.startsWith("Authority="))
+      ?.slice("Authority=".length)
+      .trim() ?? "";
+  if (/Signature\s*=\s*adhoc/i.test(text))
+    return { signature: "adhoc", detail: "ad-hoc signed", authority: "ad-hoc" };
   // The team identifier, read straight from codesign rather than inferred from
   // spctl's verdict. spctl accepts a NOTARIZED bundle outright (status 0), so
   // grading its output alone would let a foreign notarized app pass; this check
   // does not depend on the verdict and so covers that case too.
-  const team = text.split("\n").find((line) => line.startsWith("TeamIdentifier="))?.slice("TeamIdentifier=".length).trim() ?? "";
+  const team =
+    text
+      .split("\n")
+      .find((line) => line.startsWith("TeamIdentifier="))
+      ?.slice("TeamIdentifier=".length)
+      .trim() ?? "";
   if (team !== HELPER_SIGNING_TEAM) {
-    return { signature: "invalid", detail: `signed by team ${team || "unknown"}, not codecast's ${HELPER_SIGNING_TEAM}`, authority };
+    return {
+      signature: "invalid",
+      detail: `signed by team ${team || "unknown"}, not codecast's ${HELPER_SIGNING_TEAM}`,
+      authority,
+    };
   }
   // -vv: the grader reads `source=` and `origin=`, which spctl prints only when
   // asked to be verbose.
-  const assess = spawnSync("/usr/sbin/spctl", ["--assess", "--type", "execute", "-vv", appPath], { encoding: "utf8", timeout: 60_000 });
-  const graded = gradeAssessment(assess.status, `${assess.stdout ?? ""}${assess.stderr ?? ""}`);
-  if (!graded.ok) return { signature: "invalid", detail: graded.reason, authority };
-  return { signature: "developer-id", detail: "Developer ID signed", authority };
+  const assess = spawnSync(
+    "/usr/sbin/spctl",
+    ["--assess", "--type", "execute", "-vv", appPath],
+    { encoding: "utf8", timeout: 60_000 },
+  );
+  const graded = gradeAssessment(
+    assess.status,
+    `${assess.stdout ?? ""}${assess.stderr ?? ""}`,
+  );
+  if (!graded.ok)
+    return { signature: "invalid", detail: graded.reason, authority };
+  return {
+    signature: "developer-id",
+    detail: "Developer ID signed",
+    authority,
+  };
 }
 
 function chmodTree(root: string): void {
@@ -321,18 +428,36 @@ export interface SwapOptions {
  * deleting) the live bundle is what lets a helper from the previous release
  * keep running off its own bytes.
  */
-export function swapIntoPlace(stagedApp: string, stagingDir: string, opts: SwapOptions): void {
+export function swapIntoPlace(
+  stagedApp: string,
+  stagingDir: string,
+  opts: SwapOptions,
+): void {
   const root = computerHome();
   const live = helperAppPath();
   const oldDir = path.join(root, "old");
   fs.mkdirSync(oldDir, { recursive: true, mode: 0o700 });
   const oldApp = path.join(oldDir, randomUUID());
-  const journal: SwapJournal = { stagingDir, stagedApp, oldApp, pid: process.pid, startedAt: Date.now() };
+  const journal: SwapJournal = {
+    stagingDir,
+    stagedApp,
+    oldApp,
+    pid: process.pid,
+    startedAt: Date.now(),
+  };
   fs.writeFileSync(journalPath(), JSON.stringify(journal), { mode: 0o600 });
   if (fs.existsSync(live)) fs.renameSync(live, oldApp);
   opts.betweenRenames?.();
   fs.renameSync(stagedApp, live);
-  fs.writeFileSync(stampPath(), JSON.stringify({ sha256: opts.sha256, version: opts.version ?? "", installedAt: Date.now() }), { mode: 0o600 });
+  fs.writeFileSync(
+    stampPath(),
+    JSON.stringify({
+      sha256: opts.sha256,
+      version: opts.version ?? "",
+      installedAt: Date.now(),
+    }),
+    { mode: 0o600 },
+  );
   rmQuiet(journalPath());
 }
 
@@ -362,10 +487,15 @@ export interface MaterializeResult {
  * inherits it (ct-49918, ct-49941). A parameter is the same seam with no blast
  * radius.
  */
-export function materializeHelperApp(opts: { version?: string; payload?: Buffer } = {}): MaterializeResult {
+export function materializeHelperApp(
+  opts: { version?: string; payload?: Buffer } = {},
+): MaterializeResult {
   if (process.platform === "linux") return materializeLinuxHelper();
   if (process.platform !== "darwin") {
-    throw new ComputerError("unsupported_capability", `cast computer runs on macOS and on Linux (X11); this is ${process.platform}`);
+    throw new ComputerError(
+      "unsupported_capability",
+      `cast computer runs on macOS and on Linux (X11); this is ${process.platform}`,
+    );
   }
   const payload = opts.payload ?? computerHelperTar();
   if (!payload) {
@@ -390,7 +520,12 @@ export function materializeHelperApp(opts: { version?: string; payload?: Buffer 
   const hash = createHash("sha256").update(payload).digest("hex");
   const stamp = readInstallStamp();
   if (stamp?.sha256 === hash && looksLikeBundle(live)) {
-    return { appPath: live, executablePath: helperExecutablePath(live), installed: false, adopted: false };
+    return {
+      appPath: live,
+      executablePath: helperExecutablePath(live),
+      installed: false,
+      adopted: false,
+    };
   }
 
   const stagingDir = path.join(root, `.staging-${randomUUID()}`);
@@ -398,14 +533,24 @@ export function materializeHelperApp(opts: { version?: string; payload?: Buffer 
   try {
     const tarPath = path.join(stagingDir, "helper.tar");
     fs.writeFileSync(tarPath, payload, { mode: 0o600 });
-    const extract = spawnSync("/usr/bin/tar", ["-xf", tarPath, "-C", stagingDir], { encoding: "utf8", timeout: 120_000 });
+    const extract = spawnSync(
+      "/usr/bin/tar",
+      ["-xf", tarPath, "-C", stagingDir],
+      { encoding: "utf8", timeout: 120_000 },
+    );
     if (extract.status !== 0) {
-      throw new ComputerError("accessibility_error", `could not unpack the computer helper: ${(extract.stderr || "tar failed").trim()}`);
+      throw new ComputerError(
+        "accessibility_error",
+        `could not unpack the computer helper: ${(extract.stderr || "tar failed").trim()}`,
+      );
     }
     fs.rmSync(tarPath, { force: true });
     const stagedApp = path.join(stagingDir, HELPER_APP_BASENAME);
     if (!looksLikeBundle(stagedApp)) {
-      throw new ComputerError("accessibility_error", `the embedded computer helper does not contain ${HELPER_APP_BASENAME}/Contents/MacOS/${HELPER_EXECUTABLE_NAME}`);
+      throw new ComputerError(
+        "accessibility_error",
+        `the embedded computer helper does not contain ${HELPER_APP_BASENAME}/Contents/MacOS/${HELPER_EXECUTABLE_NAME}`,
+      );
     }
     chmodTree(stagedApp);
 
@@ -414,14 +559,25 @@ export function materializeHelperApp(opts: { version?: string; payload?: Buffer 
     // leaves the previous bundle in place.
     const verdict = inspectSignature(stagedApp);
     if (verdict.signature === "invalid") {
-      throw new ComputerError("accessibility_error", `the computer helper failed signature verification (${verdict.detail}); reinstall codecast`);
+      throw new ComputerError(
+        "accessibility_error",
+        `the computer helper failed signature verification (${verdict.detail}); reinstall codecast`,
+      );
     }
-    swapIntoPlace(stagedApp, stagingDir, { sha256: hash, version: opts.version });
+    swapIntoPlace(stagedApp, stagingDir, {
+      sha256: hash,
+      version: opts.version,
+    });
   } finally {
     rmQuiet(stagingDir);
   }
   sweepOldBundles();
-  return { appPath: live, executablePath: helperExecutablePath(live), installed: true, adopted: false };
+  return {
+    appPath: live,
+    executablePath: helperExecutablePath(live),
+    installed: true,
+    adopted: false,
+  };
 }
 
 /**
@@ -450,7 +606,12 @@ function adoptInstalledHelper(): MaterializeResult | null {
       );
     }
   }
-  return { appPath: live, executablePath: helperExecutablePath(live), installed: false, adopted: true };
+  return {
+    appPath: live,
+    executablePath: helperExecutablePath(live),
+    installed: false,
+    adopted: true,
+  };
 }
 
 /**
@@ -467,7 +628,9 @@ function adoptInstalledHelper(): MaterializeResult | null {
  * that errored, keeps every directory. Leaving a stale directory on disk is
  * cheap; killing a live helper is not.
  */
-export function sweepOldBundles(helperAlive: () => boolean = anyHelperRunning): void {
+export function sweepOldBundles(
+  helperAlive: () => boolean = anyHelperRunning,
+): void {
   const oldDir = path.join(computerHome(), "old");
   let entries: string[];
   try {
@@ -484,7 +647,11 @@ export function sweepOldBundles(helperAlive: () => boolean = anyHelperRunning): 
  *  is running, and anything else means the probe itself failed, which reads as
  *  "assume one is". */
 function anyHelperRunning(): boolean {
-  const probe = spawnSync("/usr/bin/pgrep", ["-f", "--", `${HELPER_EXECUTABLE_NAME} --agent`], { encoding: "utf8", timeout: 10_000 });
+  const probe = spawnSync(
+    "/usr/bin/pgrep",
+    ["-f", "--", `${HELPER_EXECUTABLE_NAME} --agent`],
+    { encoding: "utf8", timeout: 10_000 },
+  );
   return probe.status !== 1;
 }
 
@@ -537,12 +704,17 @@ export function helperAvailability(): HelperAvailability {
   let atFixedPath = true;
   if (materialized) {
     try {
-      atFixedPath = fs.realpathSync(appPath) === path.join(fs.realpathSync(computerHome()), HELPER_APP_BASENAME);
+      atFixedPath =
+        fs.realpathSync(appPath) ===
+        path.join(fs.realpathSync(computerHome()), HELPER_APP_BASENAME);
     } catch {
       atFixedPath = false;
     }
   }
-  const verdict = materialized && process.platform === "darwin" ? inspectSignature(appPath) : null;
+  const verdict =
+    materialized && process.platform === "darwin"
+      ? inspectSignature(appPath)
+      : null;
   return {
     embedded: computerHelperTar() !== null,
     materialized,

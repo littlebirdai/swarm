@@ -4,11 +4,7 @@
     "title": "Session titles repeat the first message instead of naming the work",
     "signals": 14,
     "first_seen": 1790604000000,
-    "sources": [
-      "eval drift",
-      "judge finding",
-      "user report"
-    ]
+    "sources": ["eval drift", "judge finding", "user report"]
   },
   "goal": {
     "ref": "in-12.m2",

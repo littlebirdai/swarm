@@ -23,9 +23,21 @@
      fits inside the box, so on a full-screen page (/start) no edge shows. */
   inset: -16rem -2rem auto -34rem;
   height: 36rem;
-  background-color: color-mix(in srgb, var(--team-flow-accent) 36%, transparent);
-  -webkit-mask-image: radial-gradient(36rem 18rem at 36.5rem 18rem, black, transparent 75%);
-  mask-image: radial-gradient(36rem 18rem at 36.5rem 18rem, black, transparent 75%);
+  background-color: color-mix(
+    in srgb,
+    var(--team-flow-accent) 36%,
+    transparent
+  );
+  -webkit-mask-image: radial-gradient(
+    36rem 18rem at 36.5rem 18rem,
+    black,
+    transparent 75%
+  );
+  mask-image: radial-gradient(
+    36rem 18rem at 36.5rem 18rem,
+    black,
+    transparent 75%
+  );
   /* 300ms everywhere the accent lands, matching the crest tile and icon, so a
      new swatch re-tints the whole surface as one move instead of the wash
      trailing the crest it surrounds. */
@@ -38,7 +50,8 @@
 .tf-crest {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--team-flow-accent) 40%, transparent),
-    0 14px 36px -8px color-mix(in srgb, var(--team-flow-accent) 60%, transparent);
+    0 14px 36px -8px
+      color-mix(in srgb, var(--team-flow-accent) 60%, transparent);
   transition: box-shadow 300ms ease;
 }
 
@@ -91,14 +104,36 @@
    (tint + border) and the label stays --sol-text, which keeps contrast high
    in both themes for all seven team colors. */
 .tf-primary {
-  background: color-mix(in srgb, var(--team-flow-accent, var(--sol-cyan)) 34%, var(--sol-bg-alt));
-  border: 1px solid color-mix(in srgb, var(--team-flow-accent, var(--sol-cyan)) 60%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--team-flow-accent, var(--sol-cyan)) 34%,
+    var(--sol-bg-alt)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--team-flow-accent, var(--sol-cyan)) 60%,
+      transparent
+    );
   color: var(--sol-text);
-  box-shadow: 0 1px 8px -2px color-mix(in srgb, var(--team-flow-accent, var(--sol-cyan)) 35%, transparent);
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 1px 8px -2px
+    color-mix(
+      in srgb,
+      var(--team-flow-accent, var(--sol-cyan)) 35%,
+      transparent
+    );
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 .tf-primary:not(:disabled):hover {
-  background: color-mix(in srgb, var(--team-flow-accent, var(--sol-cyan)) 46%, var(--sol-bg-alt));
+  background: color-mix(
+    in srgb,
+    var(--team-flow-accent, var(--sol-cyan)) 46%,
+    var(--sol-bg-alt)
+  );
   border-color: var(--team-flow-accent, var(--sol-cyan));
 }
 .tf-primary:not(:disabled):active {
@@ -110,7 +145,10 @@
 }
 
 .tf-ghost {
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease, color 160ms ease;
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 160ms ease,
+    color 160ms ease;
 }
 .tf-ghost:not(:disabled):active {
   transform: scale(0.97);
@@ -118,12 +156,19 @@
 
 /* Rail step marker. The active one takes the accent; done ones keep a tint. */
 .tf-marker {
-  transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
 }
 /* Same contrast rule as .tf-primary: accent tint + ring, --sol-text numeral,
    so the 11px number stays readable for every team color in both themes. */
 .tf-marker[data-state="active"] {
-  background: color-mix(in srgb, var(--team-flow-accent) 22%, var(--sol-bg-alt));
+  background: color-mix(
+    in srgb,
+    var(--team-flow-accent) 22%,
+    var(--sol-bg-alt)
+  );
   color: var(--sol-text);
   box-shadow:
     inset 0 0 0 1px var(--team-flow-accent),
@@ -155,20 +200,32 @@
 /* A selectable card (visibility levels, workspace rows). The transform in
    the list backs the press feedback (active scale) on the cards. */
 .tf-option {
-  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease,
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
     transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .tf-option[data-selected="true"] {
   border-color: var(--tf-acc, var(--sol-cyan));
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 6%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 30%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 6%,
+    transparent
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 30%, transparent);
 }
 .tf-option:focus-visible {
   outline: 2px solid var(--tf-acc, var(--sol-cyan));
   outline-offset: 2px;
 }
 .tf-option[data-selected="true"] .tf-chip {
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 15%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 15%,
+    transparent
+  );
   color: var(--tf-acc, var(--sol-cyan));
 }
 .tf-option[data-selected="true"] .tf-check {
@@ -191,10 +248,16 @@
 
 /* A selectable tile in the icon grid: accent tint plus ring, not a dark block. */
 .tf-tile {
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 .tf-tile[data-selected="true"] {
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 14%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 14%,
+    transparent
+  );
   box-shadow: inset 0 0 0 1px var(--tf-acc, var(--sol-cyan));
 }
 .tf-tile:focus-visible {
@@ -207,13 +270,23 @@
    ui Button variant classes the same way .tf-primary does. */
 .tf-accent-outline {
   color: var(--tf-acc, var(--sol-cyan));
-  border-color: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 45%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 45%,
+    transparent
+  );
   background: transparent;
-  transition: background-color 150ms ease, border-color 150ms ease,
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
     transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .tf-accent-outline:not(:disabled):hover {
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 10%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 10%,
+    transparent
+  );
   border-color: var(--tf-acc, var(--sol-cyan));
   color: var(--tf-acc, var(--sol-cyan));
 }
@@ -241,8 +314,16 @@
    recipe as the rail's done markers, keyed to --tf-acc so the modal
    fallback stays cyan. */
 .tf-how-num {
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 16%, transparent);
-  color: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 55%, var(--sol-text));
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 16%,
+    transparent
+  );
+  color: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 55%,
+    var(--sol-text)
+  );
 }
 
 /* A completed rail step is a button back to that step. */
@@ -254,13 +335,31 @@
    flow that belong to one team (the feed's share nudge). Set --tf-acc from
    the team's color token on the element; it falls back to cyan. */
 .tf-accent-card {
-  border-color: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 30%, transparent);
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 6%, transparent);
-  transition: background-color 150ms ease, border-color 150ms ease;
+  border-color: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 30%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 6%,
+    transparent
+  );
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 .tf-accent-card:hover {
-  border-color: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 50%, transparent);
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 12%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 50%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 12%,
+    transparent
+  );
 }
 .tf-accent-card:focus-visible {
   outline: 2px solid var(--tf-acc, var(--sol-cyan));
@@ -273,8 +372,16 @@
 }
 .tf-accent-badge {
   color: var(--tf-acc, var(--sol-cyan));
-  border-color: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 30%, transparent);
-  background: color-mix(in srgb, var(--tf-acc, var(--sol-cyan)) 10%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 30%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--tf-acc, var(--sol-cyan)) 10%,
+    transparent
+  );
 }
 
 /* The footer keycaps promise physical keys. A touch screen has none, so
@@ -301,7 +408,11 @@
   /* The wash pools at the top of the surface. Tinting the rule above the
      actions closes the frame, so the team color holds both ends of the step
      instead of fading out halfway down the page. */
-  border-top-color: color-mix(in srgb, var(--team-flow-accent) 32%, var(--sol-border));
+  border-top-color: color-mix(
+    in srgb,
+    var(--team-flow-accent) 32%,
+    var(--sol-border)
+  );
   transition: border-top-color 300ms ease;
 }
 
@@ -360,4 +471,6 @@
 }
 
 /* A footer label stays on one line; a wrapped "Set up later" reads as two buttons. */
-.tf-footer button { white-space: nowrap; }
+.tf-footer button {
+  white-space: nowrap;
+}

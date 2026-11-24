@@ -9,7 +9,10 @@ export const taskStubId = (clientKey: string) => `temp_task_${clientKey}`;
 export const isTaskStubId = (id: string) => id.startsWith("temp_task_");
 
 /** A stub with the defaults a fresh task has; `fields` adds or overrides. */
-export function taskCreateStub(clientKey: string, fields: Record<string, unknown>) {
+export function taskCreateStub(
+  clientKey: string,
+  fields: Record<string, unknown>,
+) {
   const now = Date.now();
   return {
     _id: taskStubId(clientKey),

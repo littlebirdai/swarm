@@ -38,7 +38,10 @@ export function scrollTopFor(
   block: ScrollBlock,
 ): number | null {
   if (block === "center") {
-    const delta = el.height >= view.height ? el.top : el.top - (view.height - el.height) / 2;
+    const delta =
+      el.height >= view.height
+        ? el.top
+        : el.top - (view.height - el.height) / 2;
     return Math.abs(delta) < 1 ? null : view.scrollTop + delta;
   }
   if (block === "reading") {
@@ -47,7 +50,11 @@ export function scrollTopFor(
     return Math.abs(delta) < 1 ? null : view.scrollTop + delta;
   }
   if (el.top < 0) return view.scrollTop + el.top;
-  if (el.top + el.height > view.height) return view.scrollTop + (el.height > view.height ? el.top : el.top + el.height - view.height);
+  if (el.top + el.height > view.height)
+    return (
+      view.scrollTop +
+      (el.height > view.height ? el.top : el.top + el.height - view.height)
+    );
   return null;
 }
 
@@ -66,7 +73,12 @@ export function snapToRowEdge(
 ): number {
   let cut: { top: number; height: number } | null = null;
   for (const r of rows) {
-    if (r.top < top - 0.5 && r.top + r.height > top + 0.5 && (!cut || r.height < cut.height)) cut = r;
+    if (
+      r.top < top - 0.5 &&
+      r.top + r.height > top + 0.5 &&
+      (!cut || r.height < cut.height)
+    )
+      cut = r;
   }
   if (!cut) return top;
   if (el.top + el.height <= cut.top + viewHeight) return cut.top;
@@ -78,17 +90,25 @@ export function snapToRowEdge(
  *  down (`reading`), or the least move (`nearest`). `snap` names the rows the
  *  view's top edge should fall between (snapToRowEdge). `smooth` animates,
  *  unless the person asked their system for less motion. */
-export function scrollIntoContainer(el: HTMLElement, opts: { block?: ScrollBlock; smooth?: boolean; snap?: string } = {}): void {
+export function scrollIntoContainer(
+  el: HTMLElement,
+  opts: { block?: ScrollBlock; smooth?: boolean; snap?: string } = {},
+): void {
   // The root scrolling as an "ancestor" is the document: its rect moves with
   // its own scroll, so it is measured as the viewport instead.
   const parent = scrollParentOf(el);
-  const box = parent && parent !== document.documentElement && parent !== document.body ? parent : null;
+  const box =
+    parent && parent !== document.documentElement && parent !== document.body
+      ? parent
+      : null;
   const doc = document.scrollingElement as HTMLElement | null;
   const surface = box ?? doc;
   if (!surface) return;
   const zoom = cssZoomOf(el);
   const rect = el.getBoundingClientRect();
-  const viewTop = box ? box.getBoundingClientRect().top + box.clientTop * zoom : 0;
+  const viewTop = box
+    ? box.getBoundingClientRect().top + box.clientTop * zoom
+    : 0;
   const height = box ? box.clientHeight : window.innerHeight / zoom;
   const top = scrollTopFor(
     { scrollTop: surface.scrollTop, height },
@@ -99,10 +119,19 @@ export function scrollIntoContainer(el: HTMLElement, opts: { block?: ScrollBlock
   let to = Math.max(0, Math.min(top, surface.scrollHeight - height));
   if (opts.snap) {
     // In content px: where each row and the element sit under the scroller.
-    const at = (r: DOMRect) => ({ top: (r.top - viewTop) / zoom + surface.scrollTop, height: r.height / zoom });
-    const rows = Array.from((box ?? document).querySelectorAll<HTMLElement>(opts.snap), (n) => at(n.getBoundingClientRect()));
+    const at = (r: DOMRect) => ({
+      top: (r.top - viewTop) / zoom + surface.scrollTop,
+      height: r.height / zoom,
+    });
+    const rows = Array.from(
+      (box ?? document).querySelectorAll<HTMLElement>(opts.snap),
+      (n) => at(n.getBoundingClientRect()),
+    );
     to = snapToRowEdge(to, rows, at(rect), height);
   }
   if (Math.abs(to - surface.scrollTop) < 1) return;
-  surface.scrollTo({ top: Math.max(0, to), behavior: opts.smooth && !prefersReducedMotion() ? "smooth" : "auto" });
+  surface.scrollTo({
+    top: Math.max(0, to),
+    behavior: opts.smooth && !prefersReducedMotion() ? "smooth" : "auto",
+  });
 }

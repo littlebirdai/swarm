@@ -45,10 +45,16 @@ export interface ExecutionJournalRecord {
 }
 
 export interface ExecutionOperationJournal {
-  get(conversationId: string, epoch: number): ExecutionJournalRecord | undefined;
+  get(
+    conversationId: string,
+    epoch: number,
+  ): ExecutionJournalRecord | undefined;
   list(): readonly ExecutionJournalRecord[];
   /** Synchronously durable before this method returns. */
-  record(entry: ExecutionJournalRecord, authorization?: ExecutionJournalWriteAuthorization): void;
+  record(
+    entry: ExecutionJournalRecord,
+    authorization?: ExecutionJournalWriteAuthorization,
+  ): void;
 }
 
 export interface ExecutionJournalWriteAuthorization {
@@ -60,7 +66,10 @@ export interface ExecutionJournalWriteAuthorization {
 }
 
 export class ExecutionJournalCorruptError extends Error {
-  constructor(readonly filePath: string, message: string) {
+  constructor(
+    readonly filePath: string,
+    message: string,
+  ) {
     super(`Execution journal is corrupt at ${filePath}: ${message}`);
     this.name = "ExecutionJournalCorruptError";
   }
@@ -74,13 +83,42 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-const ALLOWED_TRANSITIONS: Record<ExecutionJournalPhase, ReadonlySet<ExecutionJournalPhase>> = {
-  claimed: new Set(["claimed", "effect-requested", "handle-recorded", "start-failed-before-effect", "start-ambiguous"]),
-  "effect-requested": new Set(["effect-requested", "handle-recorded", "start-failed-before-effect", "start-ambiguous"]),
-  "handle-recorded": new Set(["effect-requested", "handle-recorded", "ready", "start-ambiguous", "quarantined"]),
+const ALLOWED_TRANSITIONS: Record<
+  ExecutionJournalPhase,
+  ReadonlySet<ExecutionJournalPhase>
+> = {
+  claimed: new Set([
+    "claimed",
+    "effect-requested",
+    "handle-recorded",
+    "start-failed-before-effect",
+    "start-ambiguous",
+  ]),
+  "effect-requested": new Set([
+    "effect-requested",
+    "handle-recorded",
+    "start-failed-before-effect",
+    "start-ambiguous",
+  ]),
+  "handle-recorded": new Set([
+    "effect-requested",
+    "handle-recorded",
+    "ready",
+    "start-ambiguous",
+    "quarantined",
+  ]),
   ready: new Set(["ready", "quarantined", "stopped"]),
-  "start-failed-before-effect": new Set(["effect-requested", "start-failed-before-effect"]),
-  "start-ambiguous": new Set(["effect-requested", "start-ambiguous", "handle-recorded", "quarantined", "stopped"]),
+  "start-failed-before-effect": new Set([
+    "effect-requested",
+    "start-failed-before-effect",
+  ]),
+  "start-ambiguous": new Set([
+    "effect-requested",
+    "start-ambiguous",
+    "handle-recorded",
+    "quarantined",
+    "stopped",
+  ]),
   quarantined: new Set(["quarantined", "stopped"]),
   stopped: new Set(["stopped"]),
 };
@@ -96,7 +134,9 @@ function stableRequestIdentity(record: ExecutionJournalRecord): string {
   });
 }
 
-function stableRequestIdentityWithoutBoot(record: ExecutionJournalRecord): string {
+function stableRequestIdentityWithoutBoot(
+  record: ExecutionJournalRecord,
+): string {
   return JSON.stringify({
     target: record.target,
     configuration: record.configuration,
@@ -108,52 +148,88 @@ function stableRequestIdentityWithoutBoot(record: ExecutionJournalRecord): strin
 
 function assertRecordShape(entry: ExecutionJournalRecord): void {
   if (entry.schemaVersion !== EXECUTION_JOURNAL_SCHEMA_VERSION) {
-    throw new TypeError(`unsupported schema version ${String(entry.schemaVersion)}`);
+    throw new TypeError(
+      `unsupported schema version ${String(entry.schemaVersion)}`,
+    );
   }
-  if (!entry.target || typeof entry.target.conversationId !== "string" || entry.target.conversationId.length === 0) {
+  if (
+    !entry.target ||
+    typeof entry.target.conversationId !== "string" ||
+    entry.target.conversationId.length === 0
+  ) {
     throw new TypeError("missing target conversationId");
   }
   if (!Number.isSafeInteger(entry.target.epoch) || entry.target.epoch < 1) {
     throw new TypeError("invalid target epoch");
   }
-  if (parseExecutionAgentClientId(entry.target.requestedAgent) !== entry.target.requestedAgent) {
+  if (
+    parseExecutionAgentClientId(entry.target.requestedAgent) !==
+    entry.target.requestedAgent
+  ) {
     throw new TypeError("target agent id is not canonical");
   }
   if (!["tmux", "app-server", "external"].includes(entry.target.transport)) {
     throw new TypeError("invalid target transport");
   }
-  if (!agentSupportsExecutionTransport(entry.target.requestedAgent, entry.target.transport)) {
-    throw new TypeError("target transport is not supported by its agent family");
+  if (
+    !agentSupportsExecutionTransport(
+      entry.target.requestedAgent,
+      entry.target.transport,
+    )
+  ) {
+    throw new TypeError(
+      "target transport is not supported by its agent family",
+    );
   }
-  if (!path.isAbsolute(entry.target.projectPath)) throw new TypeError("target project path is not absolute");
-  if (!entry.configuration || !Number.isSafeInteger(entry.configuration.revision) || entry.configuration.revision < 1) {
+  if (!path.isAbsolute(entry.target.projectPath))
+    throw new TypeError("target project path is not absolute");
+  if (
+    !entry.configuration ||
+    !Number.isSafeInteger(entry.configuration.revision) ||
+    entry.configuration.revision < 1
+  ) {
     throw new TypeError("invalid configuration revision");
   }
-  if (typeof entry.ownerDeviceId !== "string" || entry.ownerDeviceId.length === 0) {
+  if (
+    typeof entry.ownerDeviceId !== "string" ||
+    entry.ownerDeviceId.length === 0
+  ) {
     throw new TypeError("missing ownerDeviceId");
   }
-  if (typeof entry.daemonBootId !== "string" || entry.daemonBootId.length === 0) {
+  if (
+    typeof entry.daemonBootId !== "string" ||
+    entry.daemonBootId.length === 0
+  ) {
     throw new TypeError("missing daemonBootId");
   }
-  if (!Number.isSafeInteger(entry.protocolVersion) || entry.protocolVersion < 1) {
+  if (
+    !Number.isSafeInteger(entry.protocolVersion) ||
+    entry.protocolVersion < 1
+  ) {
     throw new TypeError("invalid protocolVersion");
   }
-  if (!Array.isArray(entry.requiredCapabilities)) throw new TypeError("invalid requiredCapabilities");
+  if (!Array.isArray(entry.requiredCapabilities))
+    throw new TypeError("invalid requiredCapabilities");
   if (typeof entry.operationId !== "string" || entry.operationId.length === 0) {
     throw new TypeError("missing operationId");
   }
   if (!(entry.phase in ALLOWED_TRANSITIONS)) {
     throw new TypeError(`invalid phase ${String(entry.phase)}`);
   }
-  if (!Number.isFinite(entry.updatedAt)) throw new TypeError("invalid updatedAt");
+  if (!Number.isFinite(entry.updatedAt))
+    throw new TypeError("invalid updatedAt");
   if (entry.phase === "handle-recorded" && !entry.handle) {
     throw new TypeError("handle-recorded entry has no runtime handle");
   }
   if (entry.phase === "ready" && (!entry.handle || !entry.binding)) {
-    throw new TypeError("ready entry must contain both the runtime handle and ready binding");
+    throw new TypeError(
+      "ready entry must contain both the runtime handle and ready binding",
+    );
   }
   if (
-    (entry.phase === "start-failed-before-effect" || entry.phase === "start-ambiguous" || entry.phase === "quarantined") &&
+    (entry.phase === "start-failed-before-effect" ||
+      entry.phase === "start-ambiguous" ||
+      entry.phase === "quarantined") &&
     !entry.failure
   ) {
     throw new TypeError(`${entry.phase} entry has no failure`);
@@ -183,7 +259,8 @@ function assertTransition(
   }
   if (stableRequestIdentity(previous) !== stableRequestIdentity(next)) {
     const authorizedBootTransfer =
-      stableRequestIdentityWithoutBoot(previous) === stableRequestIdentityWithoutBoot(next) &&
+      stableRequestIdentityWithoutBoot(previous) ===
+        stableRequestIdentityWithoutBoot(next) &&
       authorization?.bootTransfer.fromDaemonBootId === previous.daemonBootId &&
       authorization.bootTransfer.toDaemonBootId === next.daemonBootId &&
       authorization.bootTransfer.previousBootTerminated === true;
@@ -203,7 +280,10 @@ function assertTransition(
   if (
     previous.phase === "start-failed-before-effect" &&
     next.phase === "effect-requested" &&
-    (previous.failure?.retryable !== true || next.handle || next.binding || next.failure)
+    (previous.failure?.retryable !== true ||
+      next.handle ||
+      next.binding ||
+      next.failure)
   ) {
     throw new ExecutionCoordinatorError(
       "JOURNAL_CONFLICT",
@@ -215,7 +295,10 @@ function assertTransition(
 export class InMemoryExecutionOperationJournal implements ExecutionOperationJournal {
   private readonly records = new Map<string, ExecutionJournalRecord>();
 
-  get(conversationId: string, epoch: number): ExecutionJournalRecord | undefined {
+  get(
+    conversationId: string,
+    epoch: number,
+  ): ExecutionJournalRecord | undefined {
     const found = this.records.get(journalKey(conversationId, epoch));
     return found ? clone(found) : undefined;
   }
@@ -224,7 +307,10 @@ export class InMemoryExecutionOperationJournal implements ExecutionOperationJour
     return [...this.records.values()].map(clone);
   }
 
-  record(entry: ExecutionJournalRecord, authorization?: ExecutionJournalWriteAuthorization): void {
+  record(
+    entry: ExecutionJournalRecord,
+    authorization?: ExecutionJournalWriteAuthorization,
+  ): void {
     const key = journalKey(entry.target.conversationId, entry.target.epoch);
     assertTransition(this.records.get(key), entry, authorization);
     this.records.set(key, clone(entry));
@@ -267,10 +353,16 @@ export class FileExecutionOperationJournal implements ExecutionOperationJournal 
     }
   }
 
-  get(conversationId: string, epoch: number): ExecutionJournalRecord | undefined {
+  get(
+    conversationId: string,
+    epoch: number,
+  ): ExecutionJournalRecord | undefined {
     const entry = this.readFile(this.filePath(conversationId, epoch));
     if (!entry) return undefined;
-    if (entry.target.conversationId !== conversationId || entry.target.epoch !== epoch) {
+    if (
+      entry.target.conversationId !== conversationId ||
+      entry.target.epoch !== epoch
+    ) {
       throw new ExecutionJournalCorruptError(
         this.filePath(conversationId, epoch),
         "record identity does not match its file name",
@@ -290,8 +382,14 @@ export class FileExecutionOperationJournal implements ExecutionOperationJournal 
     return entries;
   }
 
-  record(entry: ExecutionJournalRecord, authorization?: ExecutionJournalWriteAuthorization): void {
-    const filePath = this.filePath(entry.target.conversationId, entry.target.epoch);
+  record(
+    entry: ExecutionJournalRecord,
+    authorization?: ExecutionJournalWriteAuthorization,
+  ): void {
+    const filePath = this.filePath(
+      entry.target.conversationId,
+      entry.target.epoch,
+    );
     const previous = this.readFile(filePath);
     assertTransition(previous, entry, authorization);
 

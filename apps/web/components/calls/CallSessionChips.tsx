@@ -50,7 +50,9 @@ export function CallSessionChips({
   const anyExcerpts = sessions.some((s) => s.excerpts.length > 0);
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-      {shown.length > 0 && <span className="text-meta text-sol-text-dim">sent to</span>}
+      {shown.length > 0 && (
+        <span className="text-meta text-sol-text-dim">sent to</span>
+      )}
       {shown.map((s) => (
         <FeedChip
           key={s.conversation_id}
@@ -69,25 +71,45 @@ export function CallSessionChips({
               className="flex items-center gap-0.5 rounded-full bg-sol-bg-highlight px-2 py-0.5 font-mono text-meta leading-4 text-sol-text-muted hover:text-sol-text"
               title={`Every session this call reached (${sessions.length})`}
             >
-              {hidden > 0 ? `+${hidden}` : shown.length > 0 ? "excerpts" : "sent to"}
+              {hidden > 0
+                ? `+${hidden}`
+                : shown.length > 0
+                  ? "excerpts"
+                  : "sent to"}
               <ChevronDown className="h-2.5 w-2.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="max-h-[60vh] max-w-[340px] overflow-y-auto">
+          <DropdownMenuContent
+            align="start"
+            className="max-h-[60vh] max-w-[340px] overflow-y-auto"
+          >
             <DropdownMenuLabel className="text-meta font-normal text-sol-text-dim">
-              This call reached {sessions.length === 1 ? "one session" : `${sessions.length} sessions`}
+              This call reached{" "}
+              {sessions.length === 1
+                ? "one session"
+                : `${sessions.length} sessions`}
             </DropdownMenuLabel>
             {sessions.map((s, i) => (
               <div key={s.conversation_id}>
                 {i > 0 && <DropdownMenuSeparator />}
-                <DropdownMenuItem onSelect={() => openSession(s.conversation_id)} className="items-start gap-2">
+                <DropdownMenuItem
+                  onSelect={() => openSession(s.conversation_id)}
+                  className="items-start gap-2"
+                >
                   <SessionFace
-                    row={{ _id: s.conversation_id, title: s.title, character_avatar: s.character_avatar, character_name: s.character_name }}
+                    row={{
+                      _id: s.conversation_id,
+                      title: s.title,
+                      character_avatar: s.character_avatar,
+                      character_name: s.character_name,
+                    }}
                     size={16}
                     className="mt-0.5 shrink-0"
                   />
                   <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-[12.5px] text-sol-text">{s.name}</span>
+                    <span className="truncate text-[12.5px] text-sol-text">
+                      {s.name}
+                    </span>
                     <span className="truncate text-meta text-sol-text-dim">
                       {s.title} · {callLinkHow(s)}
                     </span>
@@ -101,7 +123,9 @@ export function CallSessionChips({
                     className="pl-[32px] text-meta text-sol-text-muted"
                   >
                     {excerptLabel(e)}
-                    <span className="ml-auto text-sol-text-dim">sent {fmtClock(e.at)}</span>
+                    <span className="ml-auto text-sol-text-dim">
+                      sent {fmtClock(e.at)}
+                    </span>
                   </DropdownMenuItem>
                 ))}
               </div>

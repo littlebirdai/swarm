@@ -8,15 +8,27 @@
 // dock is unreleased, and the web side (AGENT_DOCK_RELEASED in
 // lib/desktopAgentDock.ts) decides whether it is offered at all.
 
-const DEFAULT_AGENT_DOCK = { enabled: false, edge: "right", offset: 0.28, minimized: false };
+const DEFAULT_AGENT_DOCK = {
+  enabled: false,
+  edge: "right",
+  offset: 0.28,
+  minimized: false,
+};
 
 // Persisted `agentDock` (may be undefined or hand-edited) → the effective
 // setting. Unknown keys are dropped so a stale field cannot ride along.
 function mergeAgentDock(persisted) {
   const p = persisted && typeof persisted === "object" ? persisted : {};
   const edge = p.edge === "left" ? "left" : "right";
-  const offset = Number.isFinite(p.offset) ? Math.min(0.9, Math.max(0, p.offset)) : DEFAULT_AGENT_DOCK.offset;
-  return { enabled: p.enabled === true, edge, offset, minimized: p.minimized === true };
+  const offset = Number.isFinite(p.offset)
+    ? Math.min(0.9, Math.max(0, p.offset))
+    : DEFAULT_AGENT_DOCK.offset;
+  return {
+    enabled: p.enabled === true,
+    edge,
+    offset,
+    minimized: p.minimized === true,
+  };
 }
 
 // Where the window goes on a display: flush against the chosen edge, its top

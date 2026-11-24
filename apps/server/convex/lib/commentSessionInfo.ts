@@ -22,23 +22,37 @@ export type CommentSessionInfo = {
 // One lookup per conversation, shared by every comment that names it. It
 // holds the promise, so comments resolved in parallel (and the tasks of one
 // list, which pass one cache) read each conversation once.
-export type CommentSessionCache = Map<string, Promise<CommentSessionInfo | null>>;
+export type CommentSessionCache = Map<
+  string,
+  Promise<CommentSessionInfo | null>
+>;
 
 export async function attachCommentSessionInfo<
-  T extends { conversation_id?: Id<"conversations"> | null; delivered_to_conversation_id?: Id<"conversations"> | null },
+  T extends {
+    conversation_id?: Id<"conversations"> | null;
+    delivered_to_conversation_id?: Id<"conversations"> | null;
+  },
 >(
   ctx: { db: any },
   comments: T[],
   userId: Id<"users">,
   cache: CommentSessionCache = new Map(),
-): Promise<(T & { session_info: CommentSessionInfo | null; delivered_to_info?: CommentSessionInfo | null })[]> {
-  const infoFor = (id: Id<"conversations">): Promise<CommentSessionInfo | null> => {
+): Promise<
+  (T & {
+    session_info: CommentSessionInfo | null;
+    delivered_to_info?: CommentSessionInfo | null;
+  })[]
+> {
+  const infoFor = (
+    id: Id<"conversations">,
+  ): Promise<CommentSessionInfo | null> => {
     const key = id.toString();
     let hit = cache.get(key);
     if (!hit) {
       hit = (async () => {
         const conv = await ctx.db.get(id);
-        if (!conv || !(await canAccessConversation(ctx, userId, conv))) return null;
+        if (!conv || !(await canAccessConversation(ctx, userId, conv)))
+          return null;
         return {
           _id: conv._id,
           session_id: conv.session_id,
@@ -51,20 +65,28 @@ export async function attachCommentSessionInfo<
     }
     return hit;
   };
-  return await Promise.all(comments.map(async (c) => {
-    const session_info = c.conversation_id ? await infoFor(c.conversation_id) : null;
-    // A person's comment the owning session received (tasks.ts
-    // deliverCommentToOwner): the same compact identity, so the thread can
-    // say who it reached. A viewer who cannot read that session sees no mark.
-    const delivered_to_info = c.delivered_to_conversation_id ? await infoFor(c.delivered_to_conversation_id) : null;
-    return {
-      ...c,
-      conversation_id: session_info ? c.conversation_id : undefined,
-      delivered_to_conversation_id: delivered_to_info ? c.delivered_to_conversation_id : undefined,
-      session_info,
-      ...(delivered_to_info ? { delivered_to_info } : {}),
-    };
-  }));
+  return await Promise.all(
+    comments.map(async (c) => {
+      const session_info = c.conversation_id
+        ? await infoFor(c.conversation_id)
+        : null;
+      // A person's comment the owning session received (tasks.ts
+      // deliverCommentToOwner): the same compact identity, so the thread can
+      // say who it reached. A viewer who cannot read that session sees no mark.
+      const delivered_to_info = c.delivered_to_conversation_id
+        ? await infoFor(c.delivered_to_conversation_id)
+        : null;
+      return {
+        ...c,
+        conversation_id: session_info ? c.conversation_id : undefined,
+        delivered_to_conversation_id: delivered_to_info
+          ? c.delivered_to_conversation_id
+          : undefined,
+        session_info,
+        ...(delivered_to_info ? { delivered_to_info } : {}),
+      };
+    }),
+  );
 }
 
 // A task's comments as every web channel ships them: oldest first (the

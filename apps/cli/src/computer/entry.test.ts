@@ -31,7 +31,12 @@ function cast(args: string[], env: Record<string, string> = {}) {
   const r = spawnSync(process.execPath, [MAIN, ...args], {
     encoding: "utf-8",
     timeout: 60_000,
-    env: { ...process.env, CODECAST_DIR: home, CODECAST_MANAGED_PREFS: path.join(home, "none.json"), ...env },
+    env: {
+      ...process.env,
+      CODECAST_DIR: home,
+      CODECAST_MANAGED_PREFS: path.join(home, "none.json"),
+      ...env,
+    },
   });
   return { status: r.status, out: r.stdout, err: r.stderr };
 }
@@ -39,12 +44,23 @@ function cast(args: string[], env: Record<string, string> = {}) {
 test("the computer path evaluates none of the CLI's heavy modules", () => {
   // Every module the verbs reach: the entry, the registration, the action and
   // the client it loads lazily.
-  const modules = ["computer/entry.ts", "computer/cli.ts", "computer/run.ts", "computer/client.ts", "computer/helperPayload.ts"];
+  const modules = [
+    "computer/entry.ts",
+    "computer/cli.ts",
+    "computer/run.ts",
+    "computer/client.ts",
+    "computer/helperPayload.ts",
+  ];
   const script = `for (const m of ${JSON.stringify(modules.map((m) => path.join(SRC, m)))}) await import(m);
 console.log(JSON.stringify(Object.keys(require.cache)));`;
-  const r = spawnSync(process.execPath, ["-e", script], { encoding: "utf-8", timeout: 60_000 });
+  const r = spawnSync(process.execPath, ["-e", script], {
+    encoding: "utf-8",
+    timeout: 60_000,
+  });
   expect(r.status).toBe(0);
-  const loaded = (JSON.parse(r.stdout) as string[]).map((f) => f.split(path.sep).join("/"));
+  const loaded = (JSON.parse(r.stdout) as string[]).map((f) =>
+    f.split(path.sep).join("/"),
+  );
   const forbidden = [
     "/cli/src/index.ts",
     "/cli/src/syncService.ts",
@@ -55,7 +71,9 @@ console.log(JSON.stringify(Object.keys(require.cache)));`;
     "/shared/contracts/index.ts",
     "/node_modules/convex/",
   ];
-  expect(forbidden.filter((needle) => loaded.some((f) => f.includes(needle)))).toEqual([]);
+  expect(
+    forbidden.filter((needle) => loaded.some((f) => f.includes(needle))),
+  ).toEqual([]);
 }, 60_000);
 
 test("help comes from the real group registration", () => {

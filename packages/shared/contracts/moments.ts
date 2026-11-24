@@ -122,14 +122,22 @@ export interface MomentWindow {
   to: number;
 }
 
-export function momentWindow(m: { first_event_at: number; event_at: number }, o: { previous_event_at?: number | null; quiet_ms: number; read_at?: number }): MomentWindow {
-  const from = o.previous_event_at != null && o.previous_event_at < m.first_event_at ? o.previous_event_at + 1 : m.first_event_at - o.quiet_ms;
+export function momentWindow(
+  m: { first_event_at: number; event_at: number },
+  o: { previous_event_at?: number | null; quiet_ms: number; read_at?: number },
+): MomentWindow {
+  const from =
+    o.previous_event_at != null && o.previous_event_at < m.first_event_at
+      ? o.previous_event_at + 1
+      : m.first_event_at - o.quiet_ms;
   return { from, to: Math.max(m.event_at, o.read_at ?? m.event_at) };
 }
 
-export const inWindow = (w: MomentWindow | undefined, at: number) => !!w && at >= w.from && at <= w.to;
+export const inWindow = (w: MomentWindow | undefined, at: number) =>
+  !!w && at >= w.from && at <= w.to;
 
-const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown, max: number): string | undefined => {
   if (typeof v === "number" || typeof v === "boolean") v = String(v);
   if (typeof v !== "string") return undefined;
@@ -137,14 +145,20 @@ const text = (v: unknown, max: number): string | undefined => {
   return t ? t.slice(0, max) : undefined;
 };
 const time = (v: unknown): number | undefined => {
-  const ms = typeof v === "string" ? Date.parse(v) : typeof v === "number" ? v : NaN;
+  const ms =
+    typeof v === "string" ? Date.parse(v) : typeof v === "number" ? v : NaN;
   return Number.isFinite(ms) && ms > 0 ? ms : undefined;
 };
 
 /** The door's check of one moment item: the item, or why it was refused. */
-export function validateMomentEvent(raw: Record<string, unknown>, at: number): MomentEventItem | string {
-  const kind = typeof raw.kind === "string" ? raw.kind.trim().toLowerCase() : "";
-  if (!MOMENT_KIND.test(kind)) return "moment needs a kind: lowercase letters, digits, - and _, starting with a letter";
+export function validateMomentEvent(
+  raw: Record<string, unknown>,
+  at: number,
+): MomentEventItem | string {
+  const kind =
+    typeof raw.kind === "string" ? raw.kind.trim().toLowerCase() : "";
+  if (!MOMENT_KIND.test(kind))
+    return "moment needs a kind: lowercase letters, digits, - and _, starting with a letter";
   const subject = text(raw.subject, MOMENT_LIMITS.subject_chars);
   if (!subject) return "moment needs a subject";
   let refs: Record<string, string> | undefined;
@@ -164,12 +178,22 @@ function block(raw: unknown, i: number): MomentBlock | string {
   const L = MOMENT_LIMITS;
   switch (raw.type) {
     case "message": {
-      if (raw.direction !== "in" && raw.direction !== "out") return `block ${i}: a message's direction is "in" or "out"`;
+      if (raw.direction !== "in" && raw.direction !== "out")
+        return `block ${i}: a message's direction is "in" or "out"`;
       const at = time(raw.at);
       if (!at) return `block ${i}: a message needs its time (at)`;
-      const body = typeof raw.body === "string" ? raw.body.slice(0, L.body_chars) : undefined;
+      const body =
+        typeof raw.body === "string"
+          ? raw.body.slice(0, L.body_chars)
+          : undefined;
       if (body === undefined) return `block ${i}: a message needs a body`;
-      const out: MomentMessage = { type: "message", direction: raw.direction, channel: text(raw.channel, L.label_chars) ?? "unknown", at, body };
+      const out: MomentMessage = {
+        type: "message",
+        direction: raw.direction,
+        channel: text(raw.channel, L.label_chars) ?? "unknown",
+        at,
+        body,
+      };
       const sender = text(raw.sender, L.label_chars);
       const delivery = text(raw.delivery, L.label_chars);
       if (sender) out.sender = sender;
@@ -177,7 +201,8 @@ function block(raw: unknown, i: number): MomentBlock | string {
       return out;
     }
     case "facts": {
-      if (!Array.isArray(raw.facts)) return `block ${i}: facts needs a list of { label, value }`;
+      if (!Array.isArray(raw.facts))
+        return `block ${i}: facts needs a list of { label, value }`;
       const facts: MomentFacts["facts"] = [];
       for (const f of raw.facts) {
         if (!isObject(f)) continue;
@@ -204,10 +229,13 @@ function block(raw: unknown, i: number): MomentBlock | string {
  * than trims a moment past its caps: a judge that reads half a conversation
  * judges a different conversation.
  */
-export function parseExtractorOutput(raw: unknown): ExtractorOutput | { error: string } {
+export function parseExtractorOutput(
+  raw: unknown,
+): ExtractorOutput | { error: string } {
   let value = raw;
   if (typeof raw === "string") {
-    if (new TextEncoder().encode(raw).length > MOMENT_LIMITS.json_bytes) return { error: `the moment is over ${MOMENT_LIMITS.json_bytes} bytes` };
+    if (new TextEncoder().encode(raw).length > MOMENT_LIMITS.json_bytes)
+      return { error: `the moment is over ${MOMENT_LIMITS.json_bytes} bytes` };
     try {
       value = JSON.parse(raw);
     } catch {
@@ -218,8 +246,15 @@ export function parseExtractorOutput(raw: unknown): ExtractorOutput | { error: s
   // A decline: this moment is not one its judges read (a recording of a staff page, say). The reason is all it carries.
   const skip = text(value.skip, 500);
   if (skip) return { blocks: [], refs: [], skip };
-  if (!Array.isArray(value.blocks)) return { error: "the moment needs blocks: a list of message, facts and text blocks" };
-  if (value.blocks.length > MOMENT_LIMITS.blocks) return { error: `the moment has ${value.blocks.length} blocks, at most ${MOMENT_LIMITS.blocks}` };
+  if (!Array.isArray(value.blocks))
+    return {
+      error:
+        "the moment needs blocks: a list of message, facts and text blocks",
+    };
+  if (value.blocks.length > MOMENT_LIMITS.blocks)
+    return {
+      error: `the moment has ${value.blocks.length} blocks, at most ${MOMENT_LIMITS.blocks}`,
+    };
   const blocks: MomentBlock[] = [];
   for (let i = 0; i < value.blocks.length; i++) {
     const b = block(value.blocks[i], i);
@@ -227,21 +262,44 @@ export function parseExtractorOutput(raw: unknown): ExtractorOutput | { error: s
     blocks.push(b);
   }
   const refs: MomentRef[] = [];
-  for (const r of Array.isArray(value.refs) ? value.refs.slice(0, MOMENT_LIMITS.refs) : []) {
+  for (const r of Array.isArray(value.refs)
+    ? value.refs.slice(0, MOMENT_LIMITS.refs)
+    : []) {
     if (!isObject(r)) continue;
     const label = text(r.label, MOMENT_LIMITS.label_chars);
     const id = text(r.id, MOMENT_LIMITS.label_chars);
     if (!label || !id) continue;
     const table = text(r.table, MOMENT_LIMITS.label_chars);
     const url = text(r.url, 2048);
-    refs.push({ label, id, ...(table ? { table } : {}), ...(url && /^https?:\/\//.test(url) ? { url } : {}) });
+    refs.push({
+      label,
+      id,
+      ...(table ? { table } : {}),
+      ...(url && /^https?:\/\//.test(url) ? { url } : {}),
+    });
   }
   const at = time(value.at);
   const who = text(value.who, MOMENT_LIMITS.label_chars);
-  if (value.review !== undefined && typeof value.review !== "string") return { error: "review is the page an agent judge reads, a string" };
-  if (typeof value.review === "string" && value.review.length > MOMENT_LIMITS.review_chars) return { error: `the review page is ${value.review.length} characters, at most ${MOMENT_LIMITS.review_chars}` };
-  const review = typeof value.review === "string" && value.review.trim() ? value.review : undefined;
-  return { blocks, refs, ...(at ? { at } : {}), ...(who ? { who } : {}), ...(review ? { review } : {}) };
+  if (value.review !== undefined && typeof value.review !== "string")
+    return { error: "review is the page an agent judge reads, a string" };
+  if (
+    typeof value.review === "string" &&
+    value.review.length > MOMENT_LIMITS.review_chars
+  )
+    return {
+      error: `the review page is ${value.review.length} characters, at most ${MOMENT_LIMITS.review_chars}`,
+    };
+  const review =
+    typeof value.review === "string" && value.review.trim()
+      ? value.review
+      : undefined;
+  return {
+    blocks,
+    refs,
+    ...(at ? { at } : {}),
+    ...(who ? { who } : {}),
+    ...(review ? { review } : {}),
+  };
 }
 
 /** Labels of a facts block that name the person a moment is about. */
@@ -251,14 +309,25 @@ const PERSON_LABEL = /^(name|contact|who)$/i;
  * Who a moment is about, for a list a person scans: the extractor's own `who`, else the person its first facts block
  * names (a Name or Contact fact), else null. Never an id: a list names a moment by the people in it.
  */
-export function momentWho(m: Pick<ExtractorOutput, "who" | "blocks">): string | null {
+export function momentWho(
+  m: Pick<ExtractorOutput, "who" | "blocks">,
+): string | null {
   if (m.who?.trim()) return m.who.trim();
   const facts = m.blocks.find((b): b is MomentFacts => b.type === "facts");
-  const named = facts?.facts.filter((f) => PERSON_LABEL.test(f.label.trim()) && String(f.value ?? "").trim()).map((f) => String(f.value).trim()) ?? [];
-  return named.length ? [...new Set(named)].join(", ").slice(0, MOMENT_LIMITS.label_chars) : null;
+  const named =
+    facts?.facts
+      .filter(
+        (f) =>
+          PERSON_LABEL.test(f.label.trim()) && String(f.value ?? "").trim(),
+      )
+      .map((f) => String(f.value).trim()) ?? [];
+  return named.length
+    ? [...new Set(named)].join(", ").slice(0, MOMENT_LIMITS.label_chars)
+    : null;
 }
 
-const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
+const iso = (ms: number) =>
+  new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /** A duration in words a person reads: "4 minutes", "2 hours". */
 export function durationWords(ms: number): string {
@@ -286,17 +355,30 @@ export const windowLine = (w: MomentWindow) =>
  * judge cannot tell late from lost without them (the-line-model.md LM8).
  */
 export function renderMoment(m: MomentRecord): string {
-  const out: string[] = [`Moment: ${m.kind} for ${m.subject}, happened ${iso(m.at ?? m.event_at)}.`];
-  if (m.refs.length) out.push(`From: ${m.refs.map((r) => `${r.label} ${r.id}`).join(", ")}`);
+  const out: string[] = [
+    `Moment: ${m.kind} for ${m.subject}, happened ${iso(m.at ?? m.event_at)}.`,
+  ];
+  if (m.refs.length)
+    out.push(`From: ${m.refs.map((r) => `${r.label} ${r.id}`).join(", ")}`);
   let inConversation = false;
   for (const b of m.blocks) {
     if (b.type === "message") {
       if (!inConversation) out.push("", "## Conversation");
       inConversation = true;
-      const who = b.direction === "in" ? `in from ${b.sender ?? "them"}` : `out from ${b.sender ?? "us"}`;
+      const who =
+        b.direction === "in"
+          ? `in from ${b.sender ?? "them"}`
+          : `out from ${b.sender ?? "us"}`;
       const state = b.delivery ? ` [${b.delivery}]` : "";
-      const tag = m.window ? (inWindow(m.window, b.at) ? ` ${UNDER_JUDGMENT}` : ` ${HISTORY}`) : "";
-      out.push(`[${iso(b.at)}]${tag} ${who}, ${b.channel}${state}:`, ...b.body.split("\n").map((l) => `  ${l}`));
+      const tag = m.window
+        ? inWindow(m.window, b.at)
+          ? ` ${UNDER_JUDGMENT}`
+          : ` ${HISTORY}`
+        : "";
+      out.push(
+        `[${iso(b.at)}]${tag} ${who}, ${b.channel}${state}:`,
+        ...b.body.split("\n").map((l) => `  ${l}`),
+      );
       continue;
     }
     inConversation = false;
@@ -308,7 +390,11 @@ export function renderMoment(m: MomentRecord): string {
     }
   }
   // The window is stated only where some entry carries its tags: a moment whose evidence has no dated entries (one call's transcript) is all new.
-  if (m.window && out.some((l) => l.includes(UNDER_JUDGMENT) || l.includes(HISTORY))) out.splice(1, 0, windowLine(m.window));
+  if (
+    m.window &&
+    out.some((l) => l.includes(UNDER_JUDGMENT) || l.includes(HISTORY))
+  )
+    out.splice(1, 0, windowLine(m.window));
   return out.join("\n") + "\n";
 }
 
@@ -318,7 +404,16 @@ export function parseDuration(raw: string): number | null {
   if (!m) return null;
   const n = Number(m[1]);
   const unit = (m[2] ?? "s").toLowerCase();
-  return Math.round(n * (unit === "ms" ? 1 : unit === "s" ? 1000 : unit === "m" ? 60_000 : 3_600_000));
+  return Math.round(
+    n *
+      (unit === "ms"
+        ? 1
+        : unit === "s"
+          ? 1000
+          : unit === "m"
+            ? 60_000
+            : 3_600_000),
+  );
 }
 
 export interface ExtractorHeader {
@@ -333,20 +428,38 @@ export interface ExtractorHeader {
  * file (`// quiet: 10m`, `// timeout: 90s`), so the server learns them without
  * running the file. Unknown keys and bad values are reported, not guessed.
  */
-export function parseExtractorHeader(source: string): ExtractorHeader & { problems: string[] } {
-  const header: ExtractorHeader & { problems: string[] } = { quiet_ms: DEFAULT_QUIET_MS, timeout_ms: DEFAULT_EXTRACT_TIMEOUT_MS, problems: [] };
+export function parseExtractorHeader(
+  source: string,
+): ExtractorHeader & { problems: string[] } {
+  const header: ExtractorHeader & { problems: string[] } = {
+    quiet_ms: DEFAULT_QUIET_MS,
+    timeout_ms: DEFAULT_EXTRACT_TIMEOUT_MS,
+    problems: [],
+  };
   for (const line of source.split("\n")) {
     const t = line.trim();
     if (!t) continue;
     if (!t.startsWith("//")) break;
-    const named = t.slice(2).trim().match(/^source\s*:\s*(\S+)\s*$/i);
-    if (named) { header.source = named[1]; continue; }
-    const kv = t.slice(2).trim().match(/^(quiet|timeout)\s*:\s*(.+)$/i);
+    const named = t
+      .slice(2)
+      .trim()
+      .match(/^source\s*:\s*(\S+)\s*$/i);
+    if (named) {
+      header.source = named[1];
+      continue;
+    }
+    const kv = t
+      .slice(2)
+      .trim()
+      .match(/^(quiet|timeout)\s*:\s*(.+)$/i);
     if (!kv) continue;
     const ms = parseDuration(kv[2]);
     const key = kv[1].toLowerCase() as "quiet" | "timeout";
     const max = key === "quiet" ? MAX_QUIET_MS : MAX_EXTRACT_TIMEOUT_MS;
-    if (ms === null || ms <= 0 || ms > max) header.problems.push(`${key}: "${kv[2]}" is not a duration up to ${durationWords(max)}`);
+    if (ms === null || ms <= 0 || ms > max)
+      header.problems.push(
+        `${key}: "${kv[2]}" is not a duration up to ${durationWords(max)}`,
+      );
     else if (key === "quiet") header.quiet_ms = ms;
     else header.timeout_ms = ms;
   }
@@ -358,10 +471,15 @@ export function parseExtractorHeader(source: string): ExtractorHeader & { proble
  * when none does, those that name no source. So a repo serving two sources
  * names the newer one in its files and the older one's publish is unchanged.
  */
-export function publishedFor<T extends { source?: string }>(files: readonly T[], source: string): T[] {
+export function publishedFor<T extends { source?: string }>(
+  files: readonly T[],
+  source: string,
+): T[] {
   const named = (f: T) => f.source?.trim().toLowerCase();
   const want = source.trim().toLowerCase();
-  return files.some((f) => named(f) === want) ? files.filter((f) => named(f) === want) : files.filter((f) => !named(f));
+  return files.some((f) => named(f) === want)
+    ? files.filter((f) => named(f) === want)
+    : files.filter((f) => !named(f));
 }
 
 /** Where moment bodies live: on the extractor's host (the default, nothing leaves it to storage) or in codecast. */
@@ -403,10 +521,15 @@ export interface ExtractorInput {
  * contact received removes them first, so a card never presents a judge's
  * annotation as words Union sent.
  */
-const MOMENT_MARK = /\[(?:About the match\b|this match\b|another match\b|On the introduction thread\b|On a thread linked\b|NEW\b|history\b|(?:\.{3}|…)\s*truncated|truncated\b)[^\]]*\]/gi;
+const MOMENT_MARK =
+  /\[(?:About the match\b|this match\b|another match\b|On the introduction thread\b|On a thread linked\b|NEW\b|history\b|(?:\.{3}|…)\s*truncated|truncated\b)[^\]]*\]/gi;
 
 export function stripMomentMarkup(text: string): string {
-  return text.replace(MOMENT_MARK, " ").replace(/[ \t]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
+  return text
+    .replace(MOMENT_MARK, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
 }
 
 /** Whether a quote holds words a person received once the extractor's marks are gone (more than a stray word or two). */

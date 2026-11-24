@@ -4,11 +4,20 @@ import { History, ArrowUpRight, ExternalLink, Link2 } from "lucide-react";
 import { TopbarButton } from "./TopbarButton";
 import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
-import { resolveRecentVisits, visitHref, type ResolvedVisit } from "../lib/recentVisits";
+import {
+  resolveRecentVisits,
+  visitHref,
+  type ResolvedVisit,
+} from "../lib/recentVisits";
 import { useOpenRecentVisit } from "../hooks/useOpenRecentVisit";
 import { useTipActions } from "../tips";
 import { copyToClipboard, shareOrigin } from "../lib/utils";
-import { ContextMenu, useContextMenu, CtxItem, CtxHeader } from "./ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxHeader,
+} from "./ui/context-menu";
 import { RecentsPanel } from "./RecentsPanel";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 
@@ -21,7 +30,11 @@ const MENU_LIMIT = 30;
 // search render (RecentsPanel), anchored under the button with the chords in
 // its header.
 // Memo: the shell passes a stable open handle, so its renders skip this.
-export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({ onSelectSession }: { onSelectSession: (id: string) => void }) {
+export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({
+  onSelectSession,
+}: {
+  onSelectSession: (id: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -33,7 +46,8 @@ export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({ onSelectSes
   // subscribing this always-mounted header button to session heartbeats.
   const recentVisits = useInboxStore((s) => s.recentVisits);
   const items = useMemo(
-    () => (open ? resolveRecentVisits(useInboxStore.getState(), MENU_LIMIT) : []),
+    () =>
+      open ? resolveRecentVisits(useInboxStore.getState(), MENU_LIMIT) : [],
     [recentVisits, open],
   );
 
@@ -47,13 +61,22 @@ export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({ onSelectSes
   useWatchEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); setOpen(false); return; }
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+        return;
+      }
       // The keyboard surface is the overlay (hooks/useRecentSwitcher): Ctrl+Tab
       // and the search chord open it, so this one steps aside.
-      if ((e.ctrlKey && e.key === "Tab") || ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "r")) setOpen(false);
+      if (
+        (e.ctrlKey && e.key === "Tab") ||
+        ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "r")
+      )
+        setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey, true);
@@ -72,7 +95,10 @@ export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({ onSelectSes
     <div ref={menuRef} data-cc-recents className="relative">
       <ShortcutTooltip label="Recently viewed" action="recents.open">
         <TopbarButton
-          onClick={(e) => { toggle(); tipActions.whisper("recents.open", e); }}
+          onClick={(e) => {
+            toggle();
+            tipActions.whisper("recents.open", e);
+          }}
           active={open}
           aria-label="Recently viewed"
           aria-expanded={open}
@@ -104,7 +130,10 @@ export const RecentlyViewedMenu = memo(function RecentlyViewedMenu({ onSelectSes
                 Open
               </CtxItem>
               {href && (
-                <CtxItem icon={ExternalLink} onSelect={() => window.open(href, "_blank", "noopener")}>
+                <CtxItem
+                  icon={ExternalLink}
+                  onSelect={() => window.open(href, "_blank", "noopener")}
+                >
                   Open in new tab
                 </CtxItem>
               )}

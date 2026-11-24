@@ -36,7 +36,9 @@ mock.module("../../lib/openIntent", () => ({
 
 const { FrameBackend } = await import("../browser/backends/FrameBackend");
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -53,7 +55,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
@@ -61,7 +63,11 @@ afterAll(() => {
 });
 
 function send(data: unknown, origin: string, source: unknown) {
-  const event = Object.assign(new dom.window.Event("message"), { data, origin, source });
+  const event = Object.assign(new dom.window.Event("message"), {
+    data,
+    origin,
+    source,
+  });
   return act(() => {
     dom.window.dispatchEvent(event);
   });
@@ -89,13 +95,32 @@ test("a pane gesture from the framed page lands on this window's stage", async (
     expect(framed).toBeTruthy();
 
     const source = { kind: "url", url: "http://localhost:8765" };
-    await send({ type: "codecast:open-pane", source }, "https://codecast.sh", framed);
-    await send({ type: "codecast:open-beside", path: "/tasks/ct-1" }, "https://codecast.sh", framed);
-    expect(placed).toEqual([{ pane: source }, { target: "split", path: "/tasks/ct-1" }]);
+    await send(
+      { type: "codecast:open-pane", source },
+      "https://codecast.sh",
+      framed,
+    );
+    await send(
+      { type: "codecast:open-beside", path: "/tasks/ct-1" },
+      "https://codecast.sh",
+      framed,
+    );
+    expect(placed).toEqual([
+      { pane: source },
+      { target: "split", path: "/tasks/ct-1" },
+    ]);
 
     // Not this pane's frame, and not an app origin: neither reaches the stage.
-    await send({ type: "codecast:open-beside", path: "/docs" }, "https://codecast.sh", dom.window);
-    await send({ type: "codecast:open-beside", path: "/docs" }, "https://evil.example", framed);
+    await send(
+      { type: "codecast:open-beside", path: "/docs" },
+      "https://codecast.sh",
+      dom.window,
+    );
+    await send(
+      { type: "codecast:open-beside", path: "/docs" },
+      "https://evil.example",
+      framed,
+    );
     expect(placed).toHaveLength(2);
   } finally {
     await act(() => root.unmount());

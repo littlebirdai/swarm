@@ -11,7 +11,13 @@ import { prViewHref, type PrView } from "../../lib/prView";
 import { PR_TABS, TAB_BAR_PX } from "./prTabs";
 import { PRTabBar } from "./PRTabBar";
 
-type Case = { tab: PrView; files: unknown[]; notes: unknown[]; pr: any; pastHeader: boolean };
+type Case = {
+  tab: PrView;
+  files: unknown[];
+  notes: unknown[];
+  pr: any;
+  pastHeader: boolean;
+};
 
 function InlineNav({ tab, files, notes, pr, pastHeader }: Case) {
   const repository = "acme/billing";
@@ -41,15 +47,23 @@ function InlineNav({ tab, files, notes, pr, pastHeader }: Case) {
             <span className="text-meta text-sol-text-dim">{files.length}</span>
           )}
           {key === "files" && notes.length > 0 && (
-            <span className="rounded-full border border-dashed border-sol-yellow/60 px-1.5 text-meta text-sol-yellow" title="Notes in your review, not sent yet">
+            <span
+              className="rounded-full border border-dashed border-sol-yellow/60 px-1.5 text-meta text-sol-yellow"
+              title="Notes in your review, not sent yet"
+            >
               {notes.length}
             </span>
           )}
-          {key === "commits" && (pr.commits_count ?? pr.commits?.length ?? 0) > 0 && (
-            <span className="text-meta text-sol-text-dim">{pr.commits_count ?? pr.commits.length}</span>
-          )}
+          {key === "commits" &&
+            (pr.commits_count ?? pr.commits?.length ?? 0) > 0 && (
+              <span className="text-meta text-sol-text-dim">
+                {pr.commits_count ?? pr.commits.length}
+              </span>
+            )}
           {key === "checks" && (pr.checks?.length ?? 0) > 0 && (
-            <span className="text-meta text-sol-text-dim">{pr.checks.length}</span>
+            <span className="text-meta text-sol-text-dim">
+              {pr.checks.length}
+            </span>
           )}
           <span className="pr-tab-key opacity-0 group-hover:opacity-100 transition-opacity">
             <KeyCap size="xs">{digit}</KeyCap>
@@ -63,29 +77,64 @@ function InlineNav({ tab, files, notes, pr, pastHeader }: Case) {
         tabIndex={pastHeader ? 0 : -1}
         title="Back to the top"
       >
-        <span className="font-mono text-sol-text-dim">#{number}</span> {pr.title}
+        <span className="font-mono text-sol-text-dim">#{number}</span>{" "}
+        {pr.title}
       </button>
     </nav>
   );
 }
 
 const cases: [string, Case][] = [
-  ["conversation, empty", { tab: "conversation", files: [], notes: [], pr: { title: "Retry webhooks" }, pastHeader: false }],
-  ["files with notes, past header", { tab: "files", files: [1, 2, 3], notes: [1], pr: { title: "Retry webhooks", commits: [1, 2] }, pastHeader: true }],
-  ["checks, counted commits", { tab: "checks", files: [1], notes: [], pr: { title: "Retry webhooks", commits_count: 7, checks: [1, 2, 3, 4] }, pastHeader: false }],
+  [
+    "conversation, empty",
+    {
+      tab: "conversation",
+      files: [],
+      notes: [],
+      pr: { title: "Retry webhooks" },
+      pastHeader: false,
+    },
+  ],
+  [
+    "files with notes, past header",
+    {
+      tab: "files",
+      files: [1, 2, 3],
+      notes: [1],
+      pr: { title: "Retry webhooks", commits: [1, 2] },
+      pastHeader: true,
+    },
+  ],
+  [
+    "checks, counted commits",
+    {
+      tab: "checks",
+      files: [1],
+      notes: [],
+      pr: { title: "Retry webhooks", commits_count: 7, checks: [1, 2, 3, 4] },
+      pastHeader: false,
+    },
+  ],
 ];
 
 for (const [name, c] of cases) {
   test(`PRTabBar matches the inline nav: ${name}`, () => {
     const view = (
       <PRTabBar
-        repository="acme/billing" number={482} title={c.pr.title} tab={c.tab} family="app"
-        filesCount={c.files.length} notesCount={c.notes.length}
-        commitsCount={c.pr.commits_count ?? c.pr.commits?.length ?? 0} checksCount={c.pr.checks?.length ?? 0}
+        repository="acme/billing"
+        number={482}
+        title={c.pr.title}
+        tab={c.tab}
+        family="app"
+        filesCount={c.files.length}
+        notesCount={c.notes.length}
+        commitsCount={c.pr.commits_count ?? c.pr.commits?.length ?? 0}
+        checksCount={c.pr.checks?.length ?? 0}
         pastHeader={c.pastHeader}
       />
     );
-    const html = (el: React.ReactElement) => renderToStaticMarkup(<MemoryRouter>{el}</MemoryRouter>);
+    const html = (el: React.ReactElement) =>
+      renderToStaticMarkup(<MemoryRouter>{el}</MemoryRouter>);
     expect(html(view)).toBe(html(<InlineNav {...c} />));
   });
 }

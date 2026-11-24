@@ -48,7 +48,10 @@ export interface ThreadStateView {
 
 /** Pin colour by freshness, shared by every one-line surface (inbox card,
  * compact subagent row, mobile row) so they can't drift apart. */
-export const THREAD_STATE_PIN_CLASS: Record<ThreadStateView["freshness"], string> = {
+export const THREAD_STATE_PIN_CLASS: Record<
+  ThreadStateView["freshness"],
+  string
+> = {
   fresh: "text-sol-cyan/70",
   aging: "text-sol-yellow/70",
 };
@@ -60,7 +63,14 @@ export const THREAD_STATE_PIN_CLASS: Record<ThreadStateView["freshness"], string
  * accent — both mean "ball in the human's court". */
 export const THREAD_STATE_STATUS_META: Record<
   ThreadStateStatus,
-  { label: string; color: string; dot: string; chip: string; bar: string; row: string }
+  {
+    label: string;
+    color: string;
+    dot: string;
+    chip: string;
+    bar: string;
+    row: string;
+  }
 > = {
   // Working green, done teal — the same colors as their inbox section headers,
   // so a chip and the bucket it files under can't disagree. Green also matches
@@ -102,7 +112,10 @@ export const THREAD_STATE_STATUS_META: Record<
 };
 
 /** The compact age as a phrase: "4m ago", and "just now" on its own (never "just now ago"). */
-export const agoOf = (ms: number): string => { const age = compactAge(ms); return age === "just now" ? age : `${age} ago`; };
+export const agoOf = (ms: number): string => {
+  const age = compactAge(ms);
+  return age === "just now" ? age : `${age} ago`;
+};
 
 /** "4m" / "2h" / "3d" — the compact age used across the inbox chrome. */
 export function compactAge(ms: number): string {
@@ -127,14 +140,22 @@ export function threadStateView(
   const text = fields?.thread_state?.trim();
   if (!text) return null;
 
-  const { freshness, messagesSince, ageMs } = threadStateFreshness(fields!, liveMessageCount, now);
+  const { freshness, messagesSince, ageMs } = threadStateFreshness(
+    fields!,
+    liveMessageCount,
+    now,
+  );
   if (freshness === "stale") return null;
   const age = ageMs == null ? null : agoOf(ageMs);
 
   const parts: string[] = [];
   if (age) parts.push(age);
   if (messagesSince != null && messagesSince > 0) {
-    parts.push(messagesSince === 1 ? "1 message since" : `${messagesSince} messages since`);
+    parts.push(
+      messagesSince === 1
+        ? "1 message since"
+        : `${messagesSince} messages since`,
+    );
   }
   const rows = threadStateRows(text);
   const stamp: string[] = ageMs == null ? [] : [compactAge(ageMs)];

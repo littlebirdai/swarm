@@ -13,15 +13,34 @@
 // client converges on the server's order. Products never see revisions as a
 // conflict to resolve: they write ops and read elements.
 
-export type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | Json[]
+  | { [k: string]: Json };
 
 /** Row fields the sync layer owns. A product's element fields never use these names. */
-export const RESERVED_ELEMENT_FIELDS = ["_id", "doc_id", "layer", "key", "kind", "rev", "by", "at", "deleted", "dead"] as const;
+export const RESERVED_ELEMENT_FIELDS = [
+  "_id",
+  "doc_id",
+  "layer",
+  "key",
+  "kind",
+  "rev",
+  "by",
+  "at",
+  "deleted",
+  "dead",
+] as const;
 export type ReservedElementField = (typeof RESERVED_ELEMENT_FIELDS)[number];
 const RESERVED = new Set<string>(RESERVED_ELEMENT_FIELDS);
 
 /** A product's element fields: any JSON, minus the reserved names. */
-export type ElementFields = { [k: string]: Json | undefined } & { [K in ReservedElementField]?: never };
+export type ElementFields = { [k: string]: Json | undefined } & {
+  [K in ReservedElementField]?: never;
+};
 
 /** What every element carries: its key and kind, who wrote it last, and any JSON fields. */
 export type ElementBase = {
@@ -36,7 +55,11 @@ export type ElementBase = {
 };
 
 /** One element as a product reads it: the base plus the product's own typed fields. */
-export type ArtifactElement<F extends ElementFields = {}> = Omit<F, ReservedElementField> & ElementBase;
+export type ArtifactElement<F extends ElementFields = {}> = Omit<
+  F,
+  ReservedElementField
+> &
+  ElementBase;
 
 export type PutOp = { k: string; put: { kind: string } & Record<string, Json> };
 export type SetOp = { k: string; set: Record<string, Json> };
@@ -59,7 +82,12 @@ export const ARTIFACT_LIMITS = {
 const KEY_RE = /^[A-Za-z0-9_:.!$\-/]+$/;
 
 export function isValidElementKey(k: unknown): k is string {
-  return typeof k === "string" && k.length > 0 && k.length <= ARTIFACT_LIMITS.keyMax && KEY_RE.test(k);
+  return (
+    typeof k === "string" &&
+    k.length > 0 &&
+    k.length <= ARTIFACT_LIMITS.keyMax &&
+    KEY_RE.test(k)
+  );
 }
 
 const utf8 = new TextEncoder();
@@ -72,39 +100,54 @@ export function jsonBytes(value: unknown): number {
 /** Why a batch cannot be written, or null when it can. Run by the server and by clients before sending. */
 export function opsProblem(ops: readonly ArtifactOp[]): string | null {
   if (!Array.isArray(ops)) return "ops must be an array";
-  if (ops.length > ARTIFACT_LIMITS.opsPerBatch) return `at most ${ARTIFACT_LIMITS.opsPerBatch} ops per batch`;
-  if (jsonBytes(ops) > ARTIFACT_LIMITS.batchBytes) return `a batch is at most ${ARTIFACT_LIMITS.batchBytes} bytes; split it`;
+  if (ops.length > ARTIFACT_LIMITS.opsPerBatch)
+    return `at most ${ARTIFACT_LIMITS.opsPerBatch} ops per batch`;
+  if (jsonBytes(ops) > ARTIFACT_LIMITS.batchBytes)
+    return `a batch is at most ${ARTIFACT_LIMITS.batchBytes} bytes; split it`;
   for (const op of ops as any[]) {
-    if (!op || !isValidElementKey(op.k)) return `bad element key ${JSON.stringify(op?.k)}`;
+    if (!op || !isValidElementKey(op.k))
+      return `bad element key ${JSON.stringify(op?.k)}`;
     const body = "put" in op ? op.put : "set" in op ? op.set : null;
     if (body === null) {
       if (op.del !== true) return `op on ${op.k} needs put, set or del`;
       continue;
     }
-    if (!body || typeof body !== "object" || Array.isArray(body)) return `op on ${op.k}: fields must be an object`;
-    if ("put" in op && (typeof op.put.kind !== "string" || !op.put.kind)) return `put on ${op.k} needs a kind`;
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      return `op on ${op.k}: fields must be an object`;
+    if ("put" in op && (typeof op.put.kind !== "string" || !op.put.kind))
+      return `put on ${op.k} needs a kind`;
     for (const f of Object.keys(body)) {
       if (f === "kind" && "put" in op) continue;
       if (RESERVED.has(f)) return `field "${f}" on ${op.k} is reserved`;
     }
-    if (jsonBytes(body) > ARTIFACT_LIMITS.elementBytes) return `element ${op.k} is over ${ARTIFACT_LIMITS.elementBytes} bytes`;
+    if (jsonBytes(body) > ARTIFACT_LIMITS.elementBytes)
+      return `element ${op.k} is over ${ARTIFACT_LIMITS.elementBytes} bytes`;
   }
   return null;
 }
 
 /** An element's stored state: kind + fields, or a tombstone. */
-export type ElementState = { kind: string; fields: Record<string, Json>; deleted?: boolean };
+export type ElementState = {
+  kind: string;
+  fields: Record<string, Json>;
+  deleted?: boolean;
+};
 
 /** Apply one op to an element's state. Pure; used by the server, the web store and the CLI. */
-export function applyOp(prev: ElementState | undefined, op: ArtifactOp): ElementState {
-  if ("del" in op) return { kind: prev?.kind ?? "deleted", fields: {}, deleted: true };
+export function applyOp(
+  prev: ElementState | undefined,
+  op: ArtifactOp,
+): ElementState {
+  if ("del" in op)
+    return { kind: prev?.kind ?? "deleted", fields: {}, deleted: true };
   if ("put" in op) {
     const { kind, ...fields } = op.put;
     return { kind, fields: stripNulls(fields) };
   }
   // A set on a missing or deleted element has nothing to merge into: it
   // resurrects nothing, so the op is a no-op there.
-  if (!prev || prev.deleted) return prev ?? { kind: "deleted", fields: {}, deleted: true };
+  if (!prev || prev.deleted)
+    return prev ?? { kind: "deleted", fields: {}, deleted: true };
   const fields = { ...prev.fields };
   for (const [f, val] of Object.entries(op.set)) {
     if (val === null) delete fields[f];
@@ -115,12 +158,16 @@ export function applyOp(prev: ElementState | undefined, op: ArtifactOp): Element
 
 function stripNulls(fields: Record<string, Json>): Record<string, Json> {
   const out: Record<string, Json> = {};
-  for (const [f, val] of Object.entries(fields)) if (val !== null && val !== undefined) out[f] = val;
+  for (const [f, val] of Object.entries(fields))
+    if (val !== null && val !== undefined) out[f] = val;
   return out;
 }
 
 /** Fold batches of ops over a state map, in order. */
-export function foldOps(state: Map<string, ElementState>, ops: readonly ArtifactOp[]): Map<string, ElementState> {
+export function foldOps(
+  state: Map<string, ElementState>,
+  ops: readonly ArtifactOp[],
+): Map<string, ElementState> {
   for (const op of ops) state.set(op.k, applyOp(state.get(op.k), op));
   return state;
 }
@@ -159,7 +206,10 @@ export function coalesceOps(ops: readonly ArtifactOp[]): ArtifactOp[] {
  * the shared undo stack: undo is just another write, so it syncs and
  * converges like any edit.
  */
-export function invertOps(before: (key: string) => ElementState | undefined, ops: readonly ArtifactOp[]): ArtifactOp[] {
+export function invertOps(
+  before: (key: string) => ElementState | undefined,
+  ops: readonly ArtifactOp[],
+): ArtifactOp[] {
   // Per key, in one pass: every field any set touches, and whether a put or del touches it.
   const touched = new Map<string, { fields: Set<string>; whole: boolean }>();
   for (const op of ops) {
@@ -172,7 +222,8 @@ export function invertOps(before: (key: string) => ElementState | undefined, ops
   for (const [k, t] of touched) {
     const prev = before(k);
     if (!prev || prev.deleted) inverse.push({ k, del: true });
-    else if (t.whole) inverse.push({ k, put: { kind: prev.kind, ...prev.fields } });
+    else if (t.whole)
+      inverse.push({ k, put: { kind: prev.kind, ...prev.fields } });
     else {
       const restore: Record<string, Json> = {};
       for (const f of t.fields) restore[f] = prev.fields[f] ?? null;
@@ -183,7 +234,10 @@ export function invertOps(before: (key: string) => ElementState | undefined, ops
 }
 
 /** The ops that turn `from` into `to` (restore, draft save). */
-export function diffStates(from: Map<string, ElementState>, to: Map<string, ElementState>): ArtifactOp[] {
+export function diffStates(
+  from: Map<string, ElementState>,
+  to: Map<string, ElementState>,
+): ArtifactOp[] {
   const ops: ArtifactOp[] = [];
   for (const [k, next] of to) {
     if (next.deleted) {
@@ -192,10 +246,17 @@ export function diffStates(from: Map<string, ElementState>, to: Map<string, Elem
       continue;
     }
     const cur = from.get(k);
-    if (cur && !cur.deleted && cur.kind === next.kind && sameJson(cur.fields, next.fields)) continue;
+    if (
+      cur &&
+      !cur.deleted &&
+      cur.kind === next.kind &&
+      sameJson(cur.fields, next.fields)
+    )
+      continue;
     ops.push({ k, put: { kind: next.kind, ...next.fields } });
   }
-  for (const [k, cur] of from) if (!cur.deleted && !to.has(k)) ops.push({ k, del: true });
+  for (const [k, cur] of from)
+    if (!cur.deleted && !to.has(k)) ops.push({ k, del: true });
   return ops;
 }
 
@@ -211,7 +272,11 @@ export function sameJson(a: unknown, b: unknown): boolean {
 }
 
 /** Split ops into batches the server takes in one write: by count and by bytes. */
-export function chunkOps(ops: readonly ArtifactOp[], size: number = ARTIFACT_LIMITS.opsPerBatch, bytes: number = ARTIFACT_LIMITS.batchBytes - 1024): ArtifactOp[][] {
+export function chunkOps(
+  ops: readonly ArtifactOp[],
+  size: number = ARTIFACT_LIMITS.opsPerBatch,
+  bytes: number = ARTIFACT_LIMITS.batchBytes - 1024,
+): ArtifactOp[][] {
   const out: ArtifactOp[][] = [];
   let cur: ArtifactOp[] = [];
   let curBytes = 2;
@@ -230,14 +295,26 @@ export function chunkOps(ops: readonly ArtifactOp[], size: number = ARTIFACT_LIM
 }
 
 /** ElementState -> the flat element a product reads. */
-export function toElement(key: string, s: ElementState, meta?: { rev?: number; by?: string; at?: number }): ArtifactElement {
-  return { ...(s.fields as any), key, kind: s.kind, rev: meta?.rev ?? 0, by: meta?.by, at: meta?.at };
+export function toElement(
+  key: string,
+  s: ElementState,
+  meta?: { rev?: number; by?: string; at?: number },
+): ArtifactElement {
+  return {
+    ...(s.fields as any),
+    key,
+    kind: s.kind,
+    rev: meta?.rev ?? 0,
+    by: meta?.by,
+    at: meta?.at,
+  };
 }
 
 /** A flat element (or store row) -> ElementState. */
 export function fromElement(el: Record<string, any>): ElementState {
   const fields: Record<string, Json> = {};
-  for (const [f, val] of Object.entries(el)) if (!RESERVED.has(f) && val !== undefined) fields[f] = val as Json;
+  for (const [f, val] of Object.entries(el))
+    if (!RESERVED.has(f) && val !== undefined) fields[f] = val as Json;
   return { kind: el.kind, fields, ...(el.deleted ? { deleted: true } : {}) };
 }
 
@@ -281,14 +358,19 @@ export type ArtifactPresence = {
 /** How long presence counts as live: a person's tab beats every few seconds, an agent's writes are bursty. */
 export const PRESENCE_TTL_MS = { person: 30_000, agent: 90_000 } as const;
 
-export function isPresenceLive(p: Pick<ArtifactPresence, "kind" | "updated_at">, now: number): boolean {
+export function isPresenceLive(
+  p: Pick<ArtifactPresence, "kind" | "updated_at">,
+  now: number,
+): boolean {
   return now - p.updated_at < PRESENCE_TTL_MS[p.kind];
 }
 
 // ── Ask an agent ────────────────────────────────────────────────────────────
 
 /** Where an ask goes: a new session in the artifact's project, or a live session. */
-export type AskAgentTarget = { kind: "new"; agent?: string } | { kind: "session"; conversation_id: string };
+export type AskAgentTarget =
+  | { kind: "new"; agent?: string }
+  | { kind: "session"; conversation_id: string };
 
 export type AskAgentInput = {
   doc_id: string;
@@ -305,11 +387,21 @@ export type AskAgentInput = {
 // No reds: a red cursor or outline next to an error (a #DIV/0! cell, a failed
 // check) reads as part of it. Agents also skip yellow and orange, so an agent's
 // write region never looks like a warning.
-const PERSON_COLORS = ["#61afef", "#c678dd", "#98c379", "#56b6c2", "#e5c07b", "#d19a66"];
+const PERSON_COLORS = [
+  "#61afef",
+  "#c678dd",
+  "#98c379",
+  "#56b6c2",
+  "#e5c07b",
+  "#d19a66",
+];
 const AGENT_COLORS = ["#61afef", "#c678dd", "#56b6c2", "#98c379"];
 
 /** A participant's color, stable for an id: the same person or session reads as the same color everywhere. */
-export function presenceColor(seed: string, kind: "person" | "agent" = "person"): string {
+export function presenceColor(
+  seed: string,
+  kind: "person" | "agent" = "person",
+): string {
   const palette = kind === "agent" ? AGENT_COLORS : PERSON_COLORS;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -318,7 +410,9 @@ export function presenceColor(seed: string, kind: "person" | "agent" = "person")
 
 /** Text color that reads on a participant's color: dark on light colors, white on dark ones. */
 export function textOnColor(hex: string): string {
-  const m = hex.replace("#", "").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  const m = hex
+    .replace("#", "")
+    .match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
   if (!m) return "#ffffff";
   const lin = (c: string) => {
     const v = parseInt(c, 16) / 255;
@@ -326,5 +420,5 @@ export function textOnColor(hex: string): string {
   };
   const l = 0.2126 * lin(m[1]) + 0.7152 * lin(m[2]) + 0.0722 * lin(m[3]);
   // Contrast against white vs near-black (#1b1f23, luminance ~0.014): pick the larger.
-  return (1.05) / (l + 0.05) >= (l + 0.05) / 0.064 ? "#ffffff" : "#1b1f23";
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.064 ? "#ffffff" : "#1b1f23";
 }

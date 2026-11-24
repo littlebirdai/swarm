@@ -7,19 +7,39 @@
 import { useState } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
-import { useSetupProgress, snoozeSetupMeter } from "../../hooks/useSetupProgress";
-import { METER_SNOOZE_MS, nextStep, stepReady, type SetupStep } from "../../lib/setupProgress";
+import {
+  useSetupProgress,
+  snoozeSetupMeter,
+} from "../../hooks/useSetupProgress";
+import {
+  METER_SNOOZE_MS,
+  nextStep,
+  stepReady,
+  type SetupStep,
+} from "../../lib/setupProgress";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { SetupStepAction } from "./SetupStepAction";
 import { cn } from "../../lib/utils";
 
 /** Progress as segments filled from the left: one per step, done first. */
-export function SetupBar({ steps, className }: { steps: SetupStep[]; className?: string }) {
+export function SetupBar({
+  steps,
+  className,
+}: {
+  steps: SetupStep[];
+  className?: string;
+}) {
   const done = steps.filter((s) => s.done).length;
   return (
     <span className={cn("flex gap-[3px]", className)} aria-hidden>
       {steps.map((s, i) => (
-        <i key={s.key} className={cn("h-1 flex-1 rounded-full", i < done ? "bg-sol-cyan" : "bg-sol-text-dim/25")} />
+        <i
+          key={s.key}
+          className={cn(
+            "h-1 flex-1 rounded-full",
+            i < done ? "bg-sol-cyan" : "bg-sol-text-dim/25",
+          )}
+        />
       ))}
     </span>
   );
@@ -27,14 +47,17 @@ export function SetupBar({ steps, className }: { steps: SetupStep[]; className?:
 
 export function SetupMeter() {
   const { steps, done, total, team, ready } = useSetupProgress();
-  const snoozedAt = useInboxStore((s) => s.clientState.dismissed?.setup_meter ?? 0);
+  const snoozedAt = useInboxStore(
+    (s) => s.clientState.dismissed?.setup_meter ?? 0,
+  );
   const [open, setOpen] = useState(false);
   const next = nextStep(steps);
 
   // A press that finishes the last step leaves the open list up, every row
   // checked, so the person sees it land; the meter goes once they close it.
   if (!ready || (done >= total && !open)) return null;
-  if (!open && snoozedAt > 0 && Date.now() - snoozedAt < METER_SNOOZE_MS) return null;
+  if (!open && snoozedAt > 0 && Date.now() - snoozedAt < METER_SNOOZE_MS)
+    return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -47,7 +70,9 @@ export function SetupMeter() {
           <span className="flex w-full items-center gap-2.5">
             <span className="text-xs font-medium text-sol-text">Setup</span>
             <SetupBar steps={steps} className="min-w-0 flex-1" />
-            <span className="font-mono text-xs tabular-nums text-sol-cyan">{done}/{total}</span>
+            <span className="font-mono text-xs tabular-nums text-sol-cyan">
+              {done}/{total}
+            </span>
           </span>
           {next && (
             <span className="flex w-full items-center gap-1.5 text-meta text-sol-text-muted group-hover:text-sol-text">
@@ -65,16 +90,36 @@ export function SetupMeter() {
         // A review or invite dialog opened from a row lives outside the
         // popover's DOM; pressing inside it must not close the list under it.
         onInteractOutside={(e) => {
-          if ((e.target as Element | null)?.closest?.('[role="dialog"],[role="alertdialog"]')) e.preventDefault();
+          if (
+            (e.target as Element | null)?.closest?.(
+              '[role="dialog"],[role="alertdialog"]',
+            )
+          )
+            e.preventDefault();
         }}
       >
-        <SetupChecklist steps={steps} team={team} done={done} total={total} onHide={() => { snoozeSetupMeter(); setOpen(false); }} />
+        <SetupChecklist
+          steps={steps}
+          team={team}
+          done={done}
+          total={total}
+          onHide={() => {
+            snoozeSetupMeter();
+            setOpen(false);
+          }}
+        />
       </PopoverContent>
     </Popover>
   );
 }
 
-export function SetupChecklist({ steps, team, done, total, onHide }: {
+export function SetupChecklist({
+  steps,
+  team,
+  done,
+  total,
+  onHide,
+}: {
   steps: SetupStep[];
   team: any | null;
   done: number;
@@ -85,8 +130,12 @@ export function SetupChecklist({ steps, team, done, total, onHide }: {
   return (
     <div data-setup-checklist>
       <div className="flex items-baseline justify-between px-4 pt-3.5">
-        <span className="text-sm font-semibold text-sol-text">Set up Codecast</span>
-        <span className="font-mono text-xs tabular-nums text-sol-text-muted">{done} of {total}</span>
+        <span className="text-sm font-semibold text-sol-text">
+          Set up Codecast
+        </span>
+        <span className="font-mono text-xs tabular-nums text-sol-text-muted">
+          {done} of {total}
+        </span>
       </div>
       <SetupBar steps={steps} className="mx-4 mt-2.5" />
       <ol className="mt-2 py-1">
@@ -104,24 +153,42 @@ export function SetupChecklist({ steps, team, done, total, onHide }: {
             <span
               className={cn(
                 "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border",
-                s.done ? "border-sol-cyan/60 bg-sol-cyan/60 text-sol-bg" : s.key === next ? "border-sol-cyan" : "border-sol-text-dim/50",
+                s.done
+                  ? "border-sol-cyan/60 bg-sol-cyan/60 text-sol-bg"
+                  : s.key === next
+                    ? "border-sol-cyan"
+                    : "border-sol-text-dim/50",
               )}
             >
               {s.done && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
             </span>
             {s.done ? (
               <span className="flex min-w-0 flex-1 items-baseline justify-between gap-3">
-                <span className="truncate text-xs text-sol-text-dim">{s.label}</span>
-                <span className="flex-shrink-0 truncate font-mono text-meta text-sol-text-dim/70">{s.state}</span>
+                <span className="truncate text-xs text-sol-text-dim">
+                  {s.label}
+                </span>
+                <span className="flex-shrink-0 truncate font-mono text-meta text-sol-text-dim/70">
+                  {s.state}
+                </span>
               </span>
             ) : (
               <>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] text-sol-text">{s.label}</span>
-                  <span className="block truncate font-mono text-meta text-sol-text-dim">{s.state}</span>
+                  <span className="block truncate text-[13px] text-sol-text">
+                    {s.label}
+                  </span>
+                  <span className="block truncate font-mono text-meta text-sol-text-dim">
+                    {s.state}
+                  </span>
                 </span>
                 <span className="flex-shrink-0">
-                  {stepReady(steps, s) && <SetupStepAction step={s} team={team} look={s.key === next ? "strip" : "row"} />}
+                  {stepReady(steps, s) && (
+                    <SetupStepAction
+                      step={s}
+                      team={team}
+                      look={s.key === next ? "strip" : "row"}
+                    />
+                  )}
                 </span>
               </>
             )}
@@ -130,7 +197,11 @@ export function SetupChecklist({ steps, team, done, total, onHide }: {
       </ol>
       {onHide && (
         <div className="flex justify-end border-t border-sol-border/40 px-2 py-1.5">
-          <button type="button" onClick={onHide} className="inline-flex items-center gap-1 rounded px-2 py-1 text-meta text-sol-text-dim hover:text-sol-text">
+          <button
+            type="button"
+            onClick={onHide}
+            className="inline-flex items-center gap-1 rounded px-2 py-1 text-meta text-sol-text-dim hover:text-sol-text"
+          >
             <X className="h-3 w-3" /> Hide for a week
           </button>
         </div>

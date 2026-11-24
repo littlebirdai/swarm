@@ -56,7 +56,12 @@ function extractTextFromInitText(initText: string): string {
   }
 }
 
-export function parseCursorChatData(jsonStr: string, strict = false, onEmit?: TranscriptEmissionObserver, onExtent?: (rawBubbleCount: number) => void): ParsedMessage[] {
+export function parseCursorChatData(
+  jsonStr: string,
+  strict = false,
+  onEmit?: TranscriptEmissionObserver,
+  onExtent?: (rawBubbleCount: number) => void,
+): ParsedMessage[] {
   try {
     const data: CursorChatData = JSON.parse(jsonStr);
     const messages: ParsedMessage[] = [];
@@ -103,7 +108,10 @@ export function parseCursorChatData(jsonStr: string, strict = false, onEmit?: Tr
             occurrence: bubbleOccurrence,
             timestampPresent: Object.hasOwn(bubble, "contextCacheTimestamp"),
             nativeTimestamp: bubble.contextCacheTimestamp,
-            receiptTimestamp: bubble.type === "user" && bubble.contextCacheTimestamp ? timestamp : 0,
+            receiptTimestamp:
+              bubble.type === "user" && bubble.contextCacheTimestamp
+                ? timestamp
+                : 0,
           });
         }
       }

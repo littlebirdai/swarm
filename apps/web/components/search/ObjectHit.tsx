@@ -11,7 +11,11 @@ import { RoleFace } from "../org/RoleFace";
 import { ShortId } from "../ShortId";
 import { formatSearchTimestamp } from "../../lib/searchTimestamp";
 import { highlightMatch, getSnippet } from "../../lib/searchHighlight";
-import { parseQueryTerms, snippetAround, termSpans } from "@codecast/shared/search";
+import {
+  parseQueryTerms,
+  snippetAround,
+  termSpans,
+} from "@codecast/shared/search";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import type { ObjectHit as Hit } from "../../hooks/useObjectSearch";
 
@@ -23,26 +27,47 @@ const TITLE_WINDOW = 72;
 const WITH_META = new Set(["task", "plan", "doc", "trigger"]);
 
 function Mark({ hit }: { hit: Hit }) {
-  if (hit.kind === "person") return <AuthorAvatar name={hit.title} avatar={memberAvatarUrl(hit.entity)} size={16} />;
+  if (hit.kind === "person")
+    return (
+      <AuthorAvatar
+        name={hit.title}
+        avatar={memberAvatarUrl(hit.entity)}
+        size={16}
+      />
+    );
   if (hit.kind === "role") return <RoleFace role={hit.entity} size={16} />;
   if (!hit.type) return <Globe className="h-3.5 w-3.5 text-sol-cyan" />;
   return <EntityKindIcon type={hit.type} entity={hit.entity} />;
 }
 
-export const ObjectHit = memo(function ObjectHit({ hit, highlight, selected = false, onHover }: {
+export const ObjectHit = memo(function ObjectHit({
+  hit,
+  highlight,
+  selected = false,
+  onHover,
+}: {
   hit: Hit;
   highlight: string;
   selected?: boolean;
   onHover?: () => void;
 }) {
   const shortId = hit.entity?.short_id;
-  const handle = hit.kind === "role" && hit.entity?.handle ? `@${hit.entity.handle}` : null;
+  const handle =
+    hit.kind === "role" && hit.entity?.handle ? `@${hit.entity.handle}` : null;
   // Found by what it is for, not what it is called (a plan's goal, a
   // routine's instruction): the stretch that matched follows the title.
   const terms = parseQueryTerms(highlight);
-  const body: string | undefined = termSpans(hit.title, terms).length === 0 ? hit.entity?.goal || hit.entity?.prompt : undefined;
-  const why = body && termSpans(body, terms).length > 0 ? snippetAround(body.replace(/\s+/g, " "), terms, 90) : undefined;
-  const done = hit.kind === "task" && (hit.entity?.status === "done" || hit.entity?.status === "dropped");
+  const body: string | undefined =
+    termSpans(hit.title, terms).length === 0
+      ? hit.entity?.goal || hit.entity?.prompt
+      : undefined;
+  const why =
+    body && termSpans(body, terms).length > 0
+      ? snippetAround(body.replace(/\s+/g, " "), terms, 90)
+      : undefined;
+  const done =
+    hit.kind === "task" &&
+    (hit.entity?.status === "done" || hit.entity?.status === "dropped");
   return (
     <Link
       href={hit.href}
@@ -51,23 +76,55 @@ export const ObjectHit = memo(function ObjectHit({ hit, highlight, selected = fa
       data-search-object={hit.kind}
       data-selected={selected || undefined}
       className={`flex h-9 min-w-0 items-center gap-2.5 rounded-lg border px-3 no-underline transition-colors ${
-        selected ? "border-sol-border bg-sol-bg-alt shadow-sm" : "border-transparent hover:border-sol-border/60 hover:bg-sol-bg-alt/60"
+        selected
+          ? "border-sol-border bg-sol-bg-alt shadow-sm"
+          : "border-transparent hover:border-sol-border/60 hover:bg-sol-bg-alt/60"
       }`}
     >
-      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center"><Mark hit={hit} /></span>
-      <span className={`min-w-0 truncate text-[14px] ${done ? "text-sol-text-muted" : "text-sol-text"}`}>{highlightMatch(hit.title.length > TITLE_WINDOW ? getSnippet(hit.title, highlight, TITLE_WINDOW) : hit.title, highlight)}</span>
-      {why && <span className="min-w-0 flex-shrink-[3] truncate text-[12px] text-sol-text-dim">{highlightMatch(why, highlight)}</span>}
-      {handle && <span className="flex-shrink-0 font-mono text-meta text-sol-text-dim">{highlightMatch(handle, highlight)}</span>}
+      <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+        <Mark hit={hit} />
+      </span>
+      <span
+        className={`min-w-0 truncate text-[14px] ${done ? "text-sol-text-muted" : "text-sol-text"}`}
+      >
+        {highlightMatch(
+          hit.title.length > TITLE_WINDOW
+            ? getSnippet(hit.title, highlight, TITLE_WINDOW)
+            : hit.title,
+          highlight,
+        )}
+      </span>
+      {why && (
+        <span className="min-w-0 flex-shrink-[3] truncate text-[12px] text-sol-text-dim">
+          {highlightMatch(why, highlight)}
+        </span>
+      )}
+      {handle && (
+        <span className="flex-shrink-0 font-mono text-meta text-sol-text-dim">
+          {highlightMatch(handle, highlight)}
+        </span>
+      )}
       <span className="flex-1" />
       {/* The card's facts line, kept to the row: what state it is in. */}
       {hit.type && WITH_META.has(hit.kind) && hit.entity && (
         <span className="max-w-[40%] flex-shrink-0 overflow-hidden [&>div]:mt-0 [&>div]:flex-nowrap">
           {/* A doc's dates repeat the row's own time column. */}
-          <CardMetaLine type={hit.type} entity={hit.kind === "doc" ? { ...hit.entity, created_at: undefined } : hit.entity} />
+          <CardMetaLine
+            type={hit.type}
+            entity={
+              hit.kind === "doc"
+                ? { ...hit.entity, created_at: undefined }
+                : hit.entity
+            }
+          />
         </span>
       )}
       <ShortId id={shortId} className="text-meta text-sol-text-dim" />
-      {hit.at ? <span className="flex-shrink-0 whitespace-nowrap text-meta tabular-nums text-sol-text-dim">{formatSearchTimestamp(hit.at)}</span> : null}
+      {hit.at ? (
+        <span className="flex-shrink-0 whitespace-nowrap text-meta tabular-nums text-sol-text-dim">
+          {formatSearchTimestamp(hit.at)}
+        </span>
+      ) : null}
     </Link>
   );
 });

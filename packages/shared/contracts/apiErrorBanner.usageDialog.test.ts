@@ -12,7 +12,7 @@ describe("isUsageLimitDialog", () => {
         "Stop and wait for limit to reset",
         "Switch to usage credits",
         "Switch to Team plan",
-      ])
+      ]),
     ).toBe(true);
   });
 
@@ -22,19 +22,25 @@ describe("isUsageLimitDialog", () => {
       isUsageLimitDialog([
         "Stop and wait for limit to reset",
         "Wait here, then continue automatically at Oct 28, 10pm",
-      ])
+      ]),
     ).toBe(true);
   });
 
   it("catches the monthly-spend variant the daemon converts to a banner", () => {
     expect(
-      isUsageLimitDialog(["Adjust monthly spend limit", "Wait for limit to reset"])
+      isUsageLimitDialog([
+        "Adjust monthly spend limit",
+        "Wait for limit to reset",
+      ]),
     ).toBe(true);
   });
 
   it("catches a model-switch-on-limit prompt", () => {
     expect(
-      isUsageLimitDialog(["Switch model to continue", "Wait until the limit resets"])
+      isUsageLimitDialog([
+        "Switch model to continue",
+        "Wait until the limit resets",
+      ]),
     ).toBe(true);
   });
 
@@ -46,7 +52,7 @@ describe("isUsageLimitDialog", () => {
         "Switch model for the summarizer",
         "Keep the current prompt",
         "Rewrite the prompt instead",
-      ])
+      ]),
     ).toBe(false);
   });
 

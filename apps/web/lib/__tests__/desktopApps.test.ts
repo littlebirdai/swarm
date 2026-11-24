@@ -1,8 +1,20 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { installWindowRoleTracker } from "../desktop";
-import { desktopAppWindow, hasAppWindow, routeElsewhere, runPlaced } from "../desktopApps";
-import { divertNavigation, divertSessionOpen, endClickIntent } from "../openIntent";
-import { installAppWindowRegistry, resetAppWindowRegistryForTests } from "../appWindowRegistry";
+import {
+  desktopAppWindow,
+  hasAppWindow,
+  routeElsewhere,
+  runPlaced,
+} from "../desktopApps";
+import {
+  divertNavigation,
+  divertSessionOpen,
+  endClickIntent,
+} from "../openIntent";
+import {
+  installAppWindowRegistry,
+  resetAppWindowRegistryForTests,
+} from "../appWindowRegistry";
 
 // Chat and Work are windows of their own, and a path lands in the window that
 // owns it whatever the entry point. The rule is asked at every navigation
@@ -12,7 +24,14 @@ const original = (globalThis as any).window;
 
 /** Stand a desktop shell up: which app THIS window is, which app windows exist. */
 function shell(
-  opts: { appWindow?: string | null; apps?: Record<string, boolean>; verbs?: boolean; tab?: boolean; path?: string; callPanel?: boolean } | null,
+  opts: {
+    appWindow?: string | null;
+    apps?: Record<string, boolean>;
+    verbs?: boolean;
+    tab?: boolean;
+    path?: string;
+    callPanel?: boolean;
+  } | null,
 ) {
   const sent: string[] = [];
   if (opts === null) {
@@ -28,10 +47,16 @@ function shell(
       isCallPanelWindow: opts.callPanel === true,
       // An older shell has the palette verb and none of the app window ones.
       paletteNavigate: (p: string) => sent.push(`main:${p}`),
-      ...(verbs ? { routeNavigate: (p: string) => (sent.push(p), Promise.resolve(true)), openAppWindow: () => Promise.resolve(true) } : {}),
+      ...(verbs
+        ? {
+            routeNavigate: (p: string) => (sent.push(p), Promise.resolve(true)),
+            openAppWindow: () => Promise.resolve(true),
+          }
+        : {}),
       // A shell with app windows always says which exist; an older one
       // says nothing about them.
-      onWindowRole: (cb: (role: any) => void) => cb(verbs ? { leader: true, apps: opts.apps ?? {} } : { leader: true }),
+      onWindowRole: (cb: (role: any) => void) =>
+        cb(verbs ? { leader: true, apps: opts.apps ?? {} } : { leader: true }),
     },
   };
   installWindowRoleTracker();
@@ -56,7 +81,11 @@ describe("routeElsewhere", () => {
   });
 
   it("hands every link out of the call window to the main window, and keeps its own route", () => {
-    const sent = shell({ callPanel: true, path: "/call-panel", apps: { chat: true } });
+    const sent = shell({
+      callPanel: true,
+      path: "/call-panel",
+      apps: { chat: true },
+    });
     expect(routeElsewhere("/conversation/c1")).toBe(true);
     expect(routeElsewhere("/tasks/ct-1")).toBe(true);
     expect(routeElsewhere("/call-panel?room=r1&mic=1")).toBe(false);
@@ -78,7 +107,12 @@ describe("routeElsewhere", () => {
     expect(routeElsewhere("/conversation/c1")).toBe(true);
     expect(routeElsewhere("/inbox?s=c1")).toBe(true);
     expect(routeElsewhere("/tasks/ct-1")).toBe(true);
-    expect(sent).toEqual(["/threads", "/conversation/c1", "/inbox?s=c1", "/tasks/ct-1"]);
+    expect(sent).toEqual([
+      "/threads",
+      "/conversation/c1",
+      "/inbox?s=c1",
+      "/tasks/ct-1",
+    ]);
   });
 
   it("never hands off a route outside the tab shell: settings opens as a modal where you are", () => {

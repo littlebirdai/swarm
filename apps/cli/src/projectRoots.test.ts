@@ -14,7 +14,9 @@ describe("enumerateAgentHomeDirs", () => {
     fs.mkdirSync(path.join(home, ".claude"));
     fs.mkdirSync(path.join(home, ".codex"));
     expect(enumerateAgentHomeDirs(home).sort()).toEqual(
-      [path.join(home, ".claude"), path.join(home, ".codex")].map((p) => fs.realpathSync(p)).sort(),
+      [path.join(home, ".claude"), path.join(home, ".codex")]
+        .map((p) => fs.realpathSync(p))
+        .sort(),
     );
   });
 
@@ -31,7 +33,9 @@ describe("enumerateAgentHomeDirs", () => {
     const home = tmpHome();
     fs.mkdirSync(path.join(home, ".claude"));
     fs.mkdirSync(path.join(home, "code", "app"), { recursive: true });
-    expect(enumerateProjectRoots(home)).toEqual([path.join(home, "code", "app")]);
+    expect(enumerateProjectRoots(home)).toEqual([
+      path.join(home, "code", "app"),
+    ]);
   });
 });
 

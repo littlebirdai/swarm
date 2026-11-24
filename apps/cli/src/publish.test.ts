@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildPublishPayload, describeEvidence, pathsToUpload, publishRequestBody, showsManageLink, walkBundleDir } from "./publish";
+import {
+  buildPublishPayload,
+  describeEvidence,
+  pathsToUpload,
+  publishRequestBody,
+  showsManageLink,
+  walkBundleDir,
+} from "./publish";
 import { findChrome, thumbArgs } from "./publishThumb";
 
 let dir: string;
@@ -30,7 +37,11 @@ describe("walkBundleDir", () => {
     write(".env", "secret");
     write(".git/config", "git");
     write("node_modules/pkg/index.js", "dep");
-    expect(walkBundleDir(dir)).toEqual(["assets/app.js", "assets/deep/style.css", "index.html"]);
+    expect(walkBundleDir(dir)).toEqual([
+      "assets/app.js",
+      "assets/deep/style.css",
+      "index.html",
+    ]);
   });
 });
 
@@ -65,7 +76,9 @@ describe("buildPublishPayload", () => {
     const paths = p.files!.map((f) => f.path).sort();
     expect(paths).toEqual(["app.js", "index.html"]);
     const appJs = p.files!.find((f) => f.path === "app.js")!;
-    expect(Buffer.from(appJs.content_b64!, "base64").toString("utf-8")).toBe("console.log(1)");
+    expect(Buffer.from(appJs.content_b64!, "base64").toString("utf-8")).toBe(
+      "console.log(1)",
+    );
   });
 
   it("directory without an entry page throws the entry error", () => {
@@ -80,22 +93,37 @@ describe("buildPublishPayload", () => {
   });
 
   it("sends video and audio to media hosting instead of the bundle, outside the size cap", () => {
-    write("index.html", "<title>Film</title><cast-player><cast-chapter src='c00.mp4'></cast-chapter></cast-player>");
+    write(
+      "index.html",
+      "<title>Film</title><cast-player><cast-chapter src='c00.mp4'></cast-chapter></cast-player>",
+    );
     write("c00.mp4", Buffer.alloc(20 * 1024 * 1024));
     write("theme.m4a", Buffer.alloc(1024));
     const p = buildPublishPayload(dir);
     expect(p.files!.map((f) => f.path)).toEqual(["index.html"]);
-    expect(p.media!.map((m) => [m.path, m.size])).toEqual([["c00.mp4", 20 * 1024 * 1024], ["theme.m4a", 1024]]);
+    expect(p.media!.map((m) => [m.path, m.size])).toEqual([
+      ["c00.mp4", 20 * 1024 * 1024],
+      ["theme.m4a", 1024],
+    ]);
   });
 
   it("rejects unsupported file types", () => {
     write("data.csv", "a,b");
-    expect(() => buildPublishPayload(path.join(dir, "data.csv"))).toThrow(/\.html or \.md/);
+    expect(() => buildPublishPayload(path.join(dir, "data.csv"))).toThrow(
+      /\.html or \.md/,
+    );
   });
 
   it("a bundle's cast-data.json travels as data, never as a served file", () => {
-    write("index.html", "<title>Dash</title><cast-stat query='spend'></cast-stat>");
-    const decl = { queries: { spend: { reader: "usage", args: { days: 7 }, refresh: "15m" } } };
+    write(
+      "index.html",
+      "<title>Dash</title><cast-stat query='spend'></cast-stat>",
+    );
+    const decl = {
+      queries: {
+        spend: { reader: "usage", args: { days: 7 }, refresh: "15m" },
+      },
+    };
     write("cast-data.json", JSON.stringify(decl));
     const p = buildPublishPayload(dir);
     expect(p.files!.map((f) => f.path)).toEqual(["index.html"]);
@@ -106,10 +134,20 @@ describe("buildPublishPayload", () => {
   it("a malformed cast-data.json stops the publish with what to fix", () => {
     write("index.html", "<title>Dash</title>");
     write("cast-data.json", "{ nope");
-    expect(() => buildPublishPayload(dir)).toThrow(/cast-data\.json is not valid JSON/);
-    write("cast-data.json", JSON.stringify({ queries: { spend: { reader: "nope" } } }));
+    expect(() => buildPublishPayload(dir)).toThrow(
+      /cast-data\.json is not valid JSON/,
+    );
+    write(
+      "cast-data.json",
+      JSON.stringify({ queries: { spend: { reader: "nope" } } }),
+    );
     expect(() => buildPublishPayload(dir)).toThrow(/unknown reader "nope"/);
-    write("cast-data.json", JSON.stringify({ queries: { spend: { reader: "usage", refresh: "10s" } } }));
+    write(
+      "cast-data.json",
+      JSON.stringify({
+        queries: { spend: { reader: "usage", refresh: "10s" } },
+      }),
+    );
     expect(() => buildPublishPayload(dir)).toThrow(/at least 1m/);
   });
 
@@ -157,7 +195,11 @@ describe("thumbArgs", () => {
     const saved = process.env.HOME;
     process.env.HOME = dir;
     try {
-      expect(thumbArgs("/x/index.html", "/x/out.png", "/x/profile").includes("--use-mock-keychain")).toBe(process.platform === "darwin");
+      expect(
+        thumbArgs("/x/index.html", "/x/out.png", "/x/profile").includes(
+          "--use-mock-keychain",
+        ),
+      ).toBe(process.platform === "darwin");
     } finally {
       process.env.HOME = saved;
     }
@@ -167,11 +209,29 @@ describe("thumbArgs", () => {
 // Evidence (docs/architecture/the-line.md L6): --task and --plan ride the
 // publish body, and the result names where the page attached.
 describe("publishRequestBody", () => {
-  const payload = { title: "Report", source_path: "/tmp/report.html", content: "<h1>x</h1>", kind: undefined, files: undefined, entryHtmlPath: "/tmp/report.html" } as any;
+  const payload = {
+    title: "Report",
+    source_path: "/tmp/report.html",
+    content: "<h1>x</h1>",
+    kind: undefined,
+    files: undefined,
+    entryHtmlPath: "/tmp/report.html",
+  } as any;
 
   it("carries --task and --plan only when given", () => {
-    expect(publishRequestBody(payload, { task: "ct-12", plan: "pl-3", sessionRef: "jx1" })).toMatchObject({
-      title: "Report", source_path: "/tmp/report.html", content: "<h1>x</h1>", task: "ct-12", plan: "pl-3", session_ref: "jx1",
+    expect(
+      publishRequestBody(payload, {
+        task: "ct-12",
+        plan: "pl-3",
+        sessionRef: "jx1",
+      }),
+    ).toMatchObject({
+      title: "Report",
+      source_path: "/tmp/report.html",
+      content: "<h1>x</h1>",
+      task: "ct-12",
+      plan: "pl-3",
+      session_ref: "jx1",
     });
     const bare = publishRequestBody(payload, {});
     expect(bare).not.toHaveProperty("task");
@@ -181,14 +241,28 @@ describe("publishRequestBody", () => {
   });
 
   it("keeps the older flags in the same body", () => {
-    expect(publishRequestBody(payload, { forceNew: true, access: { password: "p" }, thumbB64: "AAAA" })).toMatchObject({ force_new: true, access: { password: "p" }, thumb_b64: "AAAA" });
+    expect(
+      publishRequestBody(payload, {
+        forceNew: true,
+        access: { password: "p" },
+        thumbB64: "AAAA",
+      }),
+    ).toMatchObject({
+      force_new: true,
+      access: { password: "p" },
+      thumb_b64: "AAAA",
+    });
   });
 });
 
 describe("describeEvidence", () => {
   it("names the task and station, the plan alone, or nothing", () => {
-    expect(describeEvidence({ task: "ct-12", station: "in_progress" })).toBe("attached to ct-12 at in_progress");
-    expect(describeEvidence({ task: null, plan: "pl-3", station: null })).toBe("attached to pl-3");
+    expect(describeEvidence({ task: "ct-12", station: "in_progress" })).toBe(
+      "attached to ct-12 at in_progress",
+    );
+    expect(describeEvidence({ task: null, plan: "pl-3", station: null })).toBe(
+      "attached to pl-3",
+    );
     expect(describeEvidence({ task: null, plan: null })).toBeNull();
     expect(describeEvidence(undefined)).toBeNull();
   });
@@ -197,7 +271,15 @@ describe("describeEvidence", () => {
 describe("pathsToUpload", () => {
   const MB = 1024 * 1024;
   it("uploads nothing when the bundle fits inline", () => {
-    expect(pathsToUpload([{ path: "index.html", size: MB }, { path: "a.png", size: 2 * MB }], "index.html")).toEqual([]);
+    expect(
+      pathsToUpload(
+        [
+          { path: "index.html", size: MB },
+          { path: "a.png", size: 2 * MB },
+        ],
+        "index.html",
+      ),
+    ).toEqual([]);
   });
 
   it("uploads the biggest files until the rest fits, never the entry", () => {
@@ -207,7 +289,10 @@ describe("pathsToUpload", () => {
       { path: "big.bin", size: 10 * MB },
       { path: "mid.json", size: 3 * MB },
     ];
-    expect(pathsToUpload(files, "index.html", 8 * MB)).toEqual(["big.bin", "mid.json"]);
+    expect(pathsToUpload(files, "index.html", 8 * MB)).toEqual([
+      "big.bin",
+      "mid.json",
+    ]);
   });
 });
 
@@ -215,7 +300,9 @@ describe("showsManageLink", () => {
   const url = "https://codecast.sh/a/abc";
   it("prints the owner link on the first publish only", () => {
     expect(showsManageLink({ url, manage_url: `${url}#o=k` })).toBe(true);
-    expect(showsManageLink({ url, manage_url: `${url}#o=k`, updated: true })).toBe(false);
+    expect(
+      showsManageLink({ url, manage_url: `${url}#o=k`, updated: true }),
+    ).toBe(false);
   });
   it("prints nothing when there is no owner key", () => {
     expect(showsManageLink({ url, manage_url: url })).toBe(false);

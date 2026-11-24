@@ -17,15 +17,32 @@ const ANSWERED_PROMPTS = ["fullscreenUpsellSeenCount"] as const;
 export function machineClaudeFeatureCache(): Record<string, unknown> {
   let machine: Record<string, unknown> = {};
   try {
-    machine = JSON.parse(fs.readFileSync(path.join(process.env.HOME || os.homedir(), ".claude.json"), "utf8"));
-  } catch { /* no machine cache */ }
-  const answered = Object.fromEntries(ANSWERED_PROMPTS.filter((k) => machine[k] !== undefined).map((k) => [k, machine[k]]));
-  return { cachedGrowthBookFeatures: machine.cachedGrowthBookFeatures ?? {}, cachedGrowthBookFeaturesAt: Date.now(), ...answered };
+    machine = JSON.parse(
+      fs.readFileSync(
+        path.join(process.env.HOME || os.homedir(), ".claude.json"),
+        "utf8",
+      ),
+    );
+  } catch {
+    /* no machine cache */
+  }
+  const answered = Object.fromEntries(
+    ANSWERED_PROMPTS.filter((k) => machine[k] !== undefined).map((k) => [
+      k,
+      machine[k],
+    ]),
+  );
+  return {
+    cachedGrowthBookFeatures: machine.cachedGrowthBookFeatures ?? {},
+    cachedGrowthBookFeaturesAt: Date.now(),
+    ...answered,
+  };
 }
 
 // Whether this machine's cached flags turn on the <pasted_content> paste
 // wrapper, so a scratch pane seeded from them wraps a paste the same way.
 export function machinePasteWrapperOn(): boolean {
-  const features = machineClaudeFeatureCache().cachedGrowthBookFeatures as Record<string, unknown>;
+  const features = machineClaudeFeatureCache()
+    .cachedGrowthBookFeatures as Record<string, unknown>;
   return features.tengu_virtual_pancake === true;
 }

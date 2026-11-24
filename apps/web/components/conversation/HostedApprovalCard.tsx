@@ -15,7 +15,10 @@ import { answerKeyAllowed } from "../decisions/ChangeCardView";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { keyBelongsElsewhere } from "../../shortcuts/keyOwnership";
 import { matchesAction } from "../../shortcuts";
-import { APPROVAL_ANSWERS, approvalButtonLabel } from "@codecast/shared/contracts/assistant";
+import {
+  APPROVAL_ANSWERS,
+  approvalButtonLabel,
+} from "@codecast/shared/contracts/assistant";
 import { RoutineNotifyLine } from "./RoutineNotifyLine";
 import type { QueueItem } from "../../lib/decisionQueue";
 import { useDecisionAnswer } from "../../hooks/useDecisionAnswer";
@@ -25,11 +28,19 @@ export { APPROVAL_REFUSED, useOneAnswer } from "../../hooks/useOneAnswer";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { clipFade } from "../CollapsibleBody";
 import { cn } from "@/lib/utils";
-import { approvalSettledWords, isRoutineYes, planForCard, yesWords } from "../../lib/hostedApproval";
-export { approvalSettledWords, isHostedApproval, planForCard } from "../../lib/hostedApproval";
+import {
+  approvalSettledWords,
+  isRoutineYes,
+  planForCard,
+  yesWords,
+} from "../../lib/hostedApproval";
+export {
+  approvalSettledWords,
+  isHostedApproval,
+  planForCard,
+} from "../../lib/hostedApproval";
 
 const APPROVAL_RADIUS = "rounded-[var(--radius,8px)]";
-
 
 /** The plan scrolls past this share of the window; the cut fades while more
  *  of it is below. */
@@ -38,15 +49,28 @@ const PLAN_MAX_VH = 0.4;
 /** An answer the body can draw: its stored label, its note, its index. */
 type ApprovalOption = { label: string; description?: string; index: number };
 
-
 /** The plan an approval shows (approvalContext: "What I'll do", "When").
  *  `clamp` holds it to a share of the window with a fade at the cut, for the
  *  conversation; the Approvals page shows it whole, since the engine keeps
  *  it short. */
-export function HostedApprovalPlan({ contextMd, clamp = true }: { contextMd: string; clamp?: boolean }) {
+export function HostedApprovalPlan({
+  contextMd,
+  clamp = true,
+}: {
+  contextMd: string;
+  clamp?: boolean;
+}) {
   const planRef = useRef<HTMLDivElement>(null);
-  const planMax = !clamp ? undefined : typeof window === "undefined" ? 400 : Math.round(window.innerHeight * PLAN_MAX_VH);
-  const planOverflows = useOverflows(planRef, planMax ?? Number.MAX_SAFE_INTEGER, [contextMd]);
+  const planMax = !clamp
+    ? undefined
+    : typeof window === "undefined"
+      ? 400
+      : Math.round(window.innerHeight * PLAN_MAX_VH);
+  const planOverflows = useOverflows(
+    planRef,
+    planMax ?? Number.MAX_SAFE_INTEGER,
+    [contextMd],
+  );
   const [planAtEnd, setPlanAtEnd] = useState(false);
   return (
     <div
@@ -56,8 +80,18 @@ export function HostedApprovalPlan({ contextMd, clamp = true }: { contextMd: str
         const el = e.currentTarget;
         setPlanAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 2);
       }}
-      className={cn("mt-2 text-[13.5px] leading-relaxed text-sol-text-muted", clamp && "overflow-y-auto")}
-      style={clamp ? { maxHeight: planMax, ...(planOverflows && !planAtEnd ? clipFade(32) : null) } : undefined}
+      className={cn(
+        "mt-2 text-[13.5px] leading-relaxed text-sol-text-muted",
+        clamp && "overflow-y-auto",
+      )}
+      style={
+        clamp
+          ? {
+              maxHeight: planMax,
+              ...(planOverflows && !planAtEnd ? clipFade(32) : null),
+            }
+          : undefined
+      }
     >
       <MarkdownRenderer content={planForCard(contextMd)} />
     </div>
@@ -92,7 +126,8 @@ export function HostedApprovalBody({
   /** Drawn before Yes: a permission ask's fingerprint, since its Yes confirms with Touch ID. */
   yesIcon?: ReactNode;
 }) {
-  const yes = options.find((o) => o.label === APPROVAL_ANSWERS.approve) ?? options[0];
+  const yes =
+    options.find((o) => o.label === APPROVAL_ANSWERS.approve) ?? options[0];
   const always = options.find((o) => o.label === APPROVAL_ANSWERS.always);
   const no = options.find((o) => o.label === APPROVAL_ANSWERS.decline);
   // Any option the engine did not write (a future kind of card) still shows.
@@ -103,7 +138,12 @@ export function HostedApprovalBody({
     const onKey = (e: KeyboardEvent) => {
       if (!answerKeyAllowed(e)) return;
       if (keyBelongsElsewhere(e.target)) return;
-      const pick = matchesAction(e, "permission.approve") || e.key === "Y" ? yes : matchesAction(e, "permission.deny") || e.key === "N" ? no : undefined;
+      const pick =
+        matchesAction(e, "permission.approve") || e.key === "Y"
+          ? yes
+          : matchesAction(e, "permission.deny") || e.key === "N"
+            ? no
+            : undefined;
       if (!pick) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -114,20 +154,52 @@ export function HostedApprovalBody({
   }, [keys, answered, yes, no, onPick]);
   return (
     <>
-      {question && <p className="text-[15px] font-medium leading-snug text-sol-text">{question}</p>}
-      {contextMd && <HostedApprovalPlan contextMd={contextMd} clamp={clampPlan} />}
+      {question && (
+        <p className="text-[15px] font-medium leading-snug text-sol-text">
+          {question}
+        </p>
+      )}
+      {contextMd && (
+        <HostedApprovalPlan contextMd={contextMd} clamp={clampPlan} />
+      )}
       {/* What Yes does sits with the plan it answers, above both buttons,
           so it never reads as describing Not now. */}
-      {yes?.description && <p data-hosted-approval-yes className="mt-2 text-[12.5px] leading-snug text-sol-text-dim">{yesWords(yes.description)}</p>}
-      {yes?.description && isRoutineYes(yes.description) && !answered && <RoutineNotifyLine className="mt-1.5" />}
+      {yes?.description && (
+        <p
+          data-hosted-approval-yes
+          className="mt-2 text-[12.5px] leading-snug text-sol-text-dim"
+        >
+          {yesWords(yes.description)}
+        </p>
+      )}
+      {yes?.description && isRoutineYes(yes.description) && !answered && (
+        <RoutineNotifyLine className="mt-1.5" />
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
         {yes && (
-          <Button type="button" variant="amber" size="sm" data-option={yes.index} disabled={answered} onClick={() => onPick(yes.index)} className={APPROVAL_RADIUS}>
-            {yesIcon}{approvalButtonLabel(yes.label)}
+          <Button
+            type="button"
+            variant="amber"
+            size="sm"
+            data-option={yes.index}
+            disabled={answered}
+            onClick={() => onPick(yes.index)}
+            className={APPROVAL_RADIUS}
+          >
+            {yesIcon}
+            {approvalButtonLabel(yes.label)}
           </Button>
         )}
         {no && (
-          <Button type="button" variant="outline" size="sm" data-option={no.index} disabled={answered} onClick={() => onPick(no.index)} className={APPROVAL_RADIUS}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-option={no.index}
+            disabled={answered}
+            onClick={() => onPick(no.index)}
+            className={APPROVAL_RADIUS}
+          >
             {approvalButtonLabel(no.label)}
           </Button>
         )}
@@ -135,39 +207,95 @@ export function HostedApprovalBody({
             hovered or holds focus, rather than a boxed letter in each button
             or a line under them that the card's edge could cut. */}
         {keys && !answered && (
-          <span data-hosted-approval-keys className="ml-1 hidden items-center gap-1.5 text-meta text-sol-text-dim opacity-0 transition-opacity group-hover/approval:opacity-100 group-focus-within/approval:opacity-100 sm:inline-flex">
-            <MenuKeyCaps action="permission.approve" className="contents" /> yes <MenuKeyCaps action="permission.deny" className="contents" /> not now
+          <span
+            data-hosted-approval-keys
+            className="ml-1 hidden items-center gap-1.5 text-meta text-sol-text-dim opacity-0 transition-opacity group-hover/approval:opacity-100 group-focus-within/approval:opacity-100 sm:inline-flex"
+          >
+            <MenuKeyCaps action="permission.approve" className="contents" /> yes{" "}
+            <MenuKeyCaps action="permission.deny" className="contents" /> not
+            now
           </span>
         )}
         {others.map((o) => (
-          <Button key={o.index} type="button" variant="outline" size="sm" data-option={o.index} disabled={answered} onClick={() => onPick(o.index)} className={APPROVAL_RADIUS} title={o.description}>
+          <Button
+            key={o.index}
+            type="button"
+            variant="outline"
+            size="sm"
+            data-option={o.index}
+            disabled={answered}
+            onClick={() => onPick(o.index)}
+            className={APPROVAL_RADIUS}
+            title={o.description}
+          >
             {o.label}
           </Button>
         ))}
         {later && (
-          <button type="button" data-hosted-approval-later onClick={later.onClick} title={later.title} className={cn("text-[12.5px] text-sol-text-dim underline-offset-2 hover:text-sol-text hover:underline", !always && "ml-auto")}>
+          <button
+            type="button"
+            data-hosted-approval-later
+            onClick={later.onClick}
+            title={later.title}
+            className={cn(
+              "text-[12.5px] text-sol-text-dim underline-offset-2 hover:text-sol-text hover:underline",
+              !always && "ml-auto",
+            )}
+          >
             {later.label}
           </button>
         )}
         {always && (
-          <button type="button" data-option={always.index} disabled={answered} onClick={() => onPick(always.index)} title={always.description} className="ml-auto text-[12.5px] text-sol-text-dim underline-offset-2 hover:text-sol-text hover:underline disabled:opacity-60">
+          <button
+            type="button"
+            data-option={always.index}
+            disabled={answered}
+            onClick={() => onPick(always.index)}
+            title={always.description}
+            className="ml-auto text-[12.5px] text-sol-text-dim underline-offset-2 hover:text-sol-text hover:underline disabled:opacity-60"
+          >
             {approvalButtonLabel(always.label)}
           </button>
         )}
       </div>
-      {refused && <p role="alert" data-hosted-approval-refused className="mt-2 text-[12.5px] text-sol-text-muted">{APPROVAL_REFUSED}</p>}
+      {refused && (
+        <p
+          role="alert"
+          data-hosted-approval-refused
+          className="mt-2 text-[12.5px] text-sol-text-muted"
+        >
+          {APPROVAL_REFUSED}
+        </p>
+      )}
     </>
   );
 }
 
-
-export function HostedApprovalCard({ item, keys = false }: { item: QueueItem; keys?: boolean }) {
+export function HostedApprovalCard({
+  item,
+  keys = false,
+}: {
+  item: QueueItem;
+  keys?: boolean;
+}) {
   const { question, options, answer } = useDecisionAnswer(item);
   const { answered, refused, pick } = useOneAnswer(answer);
   return (
-    <div className="w-full pt-4" data-session-decision={item.conversationId} data-hosted-approval>
+    <div
+      className="w-full pt-4"
+      data-session-decision={item.conversationId}
+      data-hosted-approval
+    >
       <div className="group/approval rounded-[var(--radius,8px)] border border-sol-border bg-sol-card px-4 py-3.5">
-        <HostedApprovalBody question={question} contextMd={item.contextMd} options={options} onPick={pick} answered={answered} refused={refused} keys={keys} />
+        <HostedApprovalBody
+          question={question}
+          contextMd={item.contextMd}
+          options={options}
+          onPick={pick}
+          answered={answered}
+          refused={refused}
+          keys={keys}
+        />
       </div>
     </div>
   );
@@ -179,7 +307,10 @@ export function HostedApprovalCard({ item, keys = false }: { item: QueueItem; ke
 export function HostedApprovalSettled({ label }: { label: string }) {
   return (
     <div className="w-full pt-4" data-hosted-approval-settled>
-      <p role="status" className="flex items-center gap-2 rounded-[var(--radius,8px)] border border-sol-border bg-sol-card px-4 py-3 text-[13px] text-sol-text-muted">
+      <p
+        role="status"
+        className="flex items-center gap-2 rounded-[var(--radius,8px)] border border-sol-border bg-sol-card px-4 py-3 text-[13px] text-sol-text-muted"
+      >
         <Check aria-hidden className="h-3.5 w-3.5 shrink-0 text-sol-text-dim" />
         {approvalSettledWords(label)}
       </p>
@@ -193,7 +324,9 @@ export function HostedApprovalSettled({ label }: { label: string }) {
 export function HostedApprovalPending() {
   return (
     <div className="w-full pt-4" data-hosted-approval-pending>
-      <p className="rounded-[var(--radius,8px)] border border-dashed border-sol-border px-4 py-3 text-[13px] text-sol-text-dim">Getting the card ready…</p>
+      <p className="rounded-[var(--radius,8px)] border border-dashed border-sol-border px-4 py-3 text-[13px] text-sol-text-dim">
+        Getting the card ready…
+      </p>
     </div>
   );
 }

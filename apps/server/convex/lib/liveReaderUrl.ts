@@ -14,7 +14,11 @@ export function liveReaderUrlRefusal(raw: string): string | null {
   } catch {
     return "the live reader url is not a url";
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return "the live reader url must be http or https";
-  if (url.username || url.password) return "the live reader url must not carry credentials";
-  return internalHostRefusal(raw) ? "the live reader url must name a public host" : null;
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    return "the live reader url must be http or https";
+  if (url.username || url.password)
+    return "the live reader url must not carry credentials";
+  return internalHostRefusal(raw)
+    ? "the live reader url must name a public host"
+    : null;
 }

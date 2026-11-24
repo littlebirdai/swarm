@@ -1,7 +1,15 @@
 import { describe, expect, it } from "bun:test";
-import { BYIDS_CHUNK, chunkIds, planFeedApply, type FeedChange } from "./useSyncChangeFeed";
+import {
+  BYIDS_CHUNK,
+  chunkIds,
+  planFeedApply,
+  type FeedChange,
+} from "./useSyncChangeFeed";
 
-const c = (entity_type: string, entity_id: string): FeedChange => ({ entity_type, entity_id });
+const c = (entity_type: string, entity_id: string): FeedChange => ({
+  entity_type,
+  entity_id,
+});
 
 describe("planFeedApply", () => {
   it("routes each entity_type to its store collection", () => {
@@ -20,7 +28,11 @@ describe("planFeedApply", () => {
   });
 
   it("dedupes repeated events for one id — the op never matters, deletion truth is authorized absence", () => {
-    const plan = planFeedApply([c("tasks", "x"), c("tasks", "x"), c("tasks", "y")]);
+    const plan = planFeedApply([
+      c("tasks", "x"),
+      c("tasks", "x"),
+      c("tasks", "y"),
+    ]);
     expect(plan.tasks).toEqual(["x", "y"]);
   });
 

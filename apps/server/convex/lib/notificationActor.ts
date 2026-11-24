@@ -16,40 +16,65 @@ export type NotificationActorFields = {
   actor_avatar?: string;
 };
 
-export type ActorUser = {
-  name?: string;
-  github_username?: string;
-  github_avatar_url?: string;
-  image?: string;
-  bot_kind?: string;
-} | null | undefined;
+export type ActorUser =
+  | {
+      name?: string;
+      github_username?: string;
+      github_avatar_url?: string;
+      image?: string;
+      bot_kind?: string;
+    }
+  | null
+  | undefined;
 
-export type MessageFace = {
-  external_author?: { name?: string; avatar_url?: string } | null;
-  origin?: string;
-  origin_session_id?: string;
-  origin_session_title?: string;
-  origin_agent_type?: string;
-  author_kind?: string;
-} | null | undefined;
+export type MessageFace =
+  | {
+      external_author?: { name?: string; avatar_url?: string } | null;
+      origin?: string;
+      origin_session_id?: string;
+      origin_session_title?: string;
+      origin_agent_type?: string;
+      author_kind?: string;
+    }
+  | null
+  | undefined;
 
 export type NotificationSession = { id: string; agent_type: string };
 
 /** The session that typed a chat line, when one did. An anchor reply
  *  (author_kind "agent") is a bot with its own identity, not a session. */
-export function sessionOfMessage(message: MessageFace): NotificationSession | null {
-  if (!message || message.origin !== "agent" || !message.origin_session_id || message.author_kind === "agent") return null;
-  return { id: message.origin_session_id, agent_type: message.origin_agent_type || "claude_code" };
+export function sessionOfMessage(
+  message: MessageFace,
+): NotificationSession | null {
+  if (
+    !message ||
+    message.origin !== "agent" ||
+    !message.origin_session_id ||
+    message.author_kind === "agent"
+  )
+    return null;
+  return {
+    id: message.origin_session_id,
+    agent_type: message.origin_agent_type || "claude_code",
+  };
 }
 
 export function displayNotificationActor(
   n: NotificationActorFields,
   actor: ActorUser,
   message?: MessageFace,
-): { name: string | undefined; avatar: string | undefined; session: NotificationSession | null } {
+): {
+  name: string | undefined;
+  avatar: string | undefined;
+  session: NotificationSession | null;
+} {
   const session = sessionOfMessage(message);
   if (session) {
-    return { name: n.actor_name || message?.origin_session_title || "Agent session", avatar: undefined, session };
+    return {
+      name: n.actor_name || message?.origin_session_title || "Agent session",
+      avatar: undefined,
+      session,
+    };
   }
   let name = n.actor_name;
   let avatar = n.actor_avatar;

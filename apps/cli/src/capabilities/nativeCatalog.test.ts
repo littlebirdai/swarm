@@ -26,7 +26,8 @@ import {
 } from "./nativeCatalog.js";
 
 const FIXTURES = path.join(import.meta.dir, "__fixtures__");
-const fixture = (name: string) => fs.readFileSync(path.join(FIXTURES, name), "utf-8");
+const fixture = (name: string) =>
+  fs.readFileSync(path.join(FIXTURES, name), "utf-8");
 
 /* ------------------------------------------------------------------ listing */
 
@@ -53,24 +54,32 @@ describe("parsePluginListJson", () => {
   test("keeps the checkout a project scoped install belongs to", () => {
     const playground = list.installed.find((p) => p.name === "playground");
     expect(playground?.scope).toBe("project");
-    expect(playground?.projectPath).toBe("/Users/ashot/src/union-mobile/outreach");
+    expect(playground?.projectPath).toBe(
+      "/Users/ashot/src/union-mobile/outreach",
+    );
   });
 
   test("normalises available rows, including install counts", () => {
     const sdk = list.available.find((p) => p.name === "agent-sdk-dev");
     expect(sdk?.pluginId).toBe("agent-sdk-dev@claude-code-plugins");
     expect(sdk?.marketplace).toBe("claude-code-plugins");
-    expect(sdk?.source).toEqual({ kind: "path", raw: "./plugins/agent-sdk-dev", path: "./plugins/agent-sdk-dev" });
+    expect(sdk?.source).toEqual({
+      kind: "path",
+      raw: "./plugins/agent-sdk-dev",
+      path: "./plugins/agent-sdk-dev",
+    });
 
     const withCount = list.available.find((p) => p.installCount !== undefined);
     expect(typeof withCount?.installCount).toBe("number");
   });
 
   test("accepts the bare array `claude plugin list --json` returns without --available", () => {
-    const bare = parsePluginListJson(JSON.stringify([
-      { id: "a@m", scope: "user", enabled: true },
-      { id: "b@m", scope: "local", enabled: false },
-    ]));
+    const bare = parsePluginListJson(
+      JSON.stringify([
+        { id: "a@m", scope: "user", enabled: true },
+        { id: "b@m", scope: "local", enabled: false },
+      ]),
+    );
     expect(bare.installed.map((p) => p.pluginId)).toEqual(["a@m", "b@m"]);
     expect(bare.installed[1].scope).toBe("local");
     expect(bare.available).toEqual([]);
@@ -82,7 +91,14 @@ describe("parsePluginListJson", () => {
   });
 
   test("malformed input yields empty, never a throw", () => {
-    for (const input of ["", "not json", "{", "null", "[1,2,3]", JSON.stringify({ installed: "nope" })]) {
+    for (const input of [
+      "",
+      "not json",
+      "{",
+      "null",
+      "[1,2,3]",
+      JSON.stringify({ installed: "nope" }),
+    ]) {
       const parsed = parsePluginListJson(input);
       expect(parsed.installed).toEqual([]);
       expect(parsed.available).toEqual([]);
@@ -91,10 +107,12 @@ describe("parsePluginListJson", () => {
   });
 
   test("drops rows with no id rather than inventing one", () => {
-    const parsed = parsePluginListJson(JSON.stringify({
-      installed: [{ version: "1" }, { id: "ok@m" }, null, "x"],
-      available: [{ description: "no name" }, { pluginId: "good@m" }],
-    }));
+    const parsed = parsePluginListJson(
+      JSON.stringify({
+        installed: [{ version: "1" }, { id: "ok@m" }, null, "x"],
+        available: [{ description: "no name" }, { pluginId: "good@m" }],
+      }),
+    );
     expect(parsed.installed.map((p) => p.pluginId)).toEqual(["ok@m"]);
     expect(parsed.available.map((p) => p.pluginId)).toEqual(["good@m"]);
   });
@@ -108,7 +126,12 @@ test("splitPluginId leaves a bare name alone", () => {
 
 describe("isUsablePluginName", () => {
   test("accepts the names real catalogs use, including non-ASCII", () => {
-    for (const ok of ["code-simplifier", "42crunch-api-security-testing", "typescript_lsp", "日本語"]) {
+    for (const ok of [
+      "code-simplifier",
+      "42crunch-api-security-testing",
+      "typescript_lsp",
+      "日本語",
+    ]) {
       expect(isUsablePluginName(ok)).toBe(true);
     }
   });
@@ -150,31 +173,39 @@ describe("a marketplace file cannot smuggle a flag into an argv position", () =>
   });
 
   test("a marketplace that names itself a flag falls back to its directory", () => {
-    const catalog = parseMarketplaceJson(JSON.stringify({ name: "--help", plugins: [{ name: "p" }] }), "cloned-dir");
+    const catalog = parseMarketplaceJson(
+      JSON.stringify({ name: "--help", plugins: [{ name: "p" }] }),
+      "cloned-dir",
+    );
     expect(catalog?.name).toBe("cloned-dir");
     expect(catalog?.plugins[0].pluginId).toBe("p@cloned-dir");
   });
 
   test("the listing parser recomposes the id from validated halves", () => {
-    const parsed = parsePluginListJson(JSON.stringify({
-      installed: [],
-      available: [
-        { pluginId: "a@m@extra", name: "a", marketplaceName: "m" },
-        { pluginId: "-flag@m" },
-        { name: "b", marketplaceName: "--flag" },
-      ],
-    }));
+    const parsed = parsePluginListJson(
+      JSON.stringify({
+        installed: [],
+        available: [
+          { pluginId: "a@m@extra", name: "a", marketplaceName: "m" },
+          { pluginId: "-flag@m" },
+          { name: "b", marketplaceName: "--flag" },
+        ],
+      }),
+    );
     expect(parsed.available.map((p) => p.pluginId)).toEqual(["a@m"]);
   });
 
   test("readPluginDetails refuses the id instead of running the tool", async () => {
     let ran = false;
-    const result = await readPluginDetails("--dangerously-skip-permissions@evil", {
-      run: async () => {
-        ran = true;
-        return { stdout: "" };
+    const result = await readPluginDetails(
+      "--dangerously-skip-permissions@evil",
+      {
+        run: async () => {
+          ran = true;
+          return { stdout: "" };
+        },
       },
-    });
+    );
     expect(ran).toBe(false);
     expect(result.details).toBeNull();
     expect(result.error).toContain("refusing");
@@ -193,7 +224,9 @@ describe("parseMarketplaceJson", () => {
   });
 
   test("keeps the commit sha the catalog already records as the pin", () => {
-    const crunch = catalog?.plugins.find((p) => p.name === "42crunch-api-security-testing");
+    const crunch = catalog?.plugins.find(
+      (p) => p.name === "42crunch-api-security-testing",
+    );
     expect(crunch?.source).toEqual({
       kind: "git-subdir",
       raw: "git-subdir",
@@ -212,38 +245,56 @@ describe("parseMarketplaceJson", () => {
   });
 
   test("names the marketplace from its directory when the file does not", () => {
-    const unnamed = parseMarketplaceJson(JSON.stringify({ plugins: [{ name: "x" }] }), "from-dir");
+    const unnamed = parseMarketplaceJson(
+      JSON.stringify({ plugins: [{ name: "x" }] }),
+      "from-dir",
+    );
     expect(unnamed?.name).toBe("from-dir");
     expect(unnamed?.plugins[0].pluginId).toBe("x@from-dir");
     expect(parseMarketplaceJson(JSON.stringify({ plugins: [] }))).toBeNull();
   });
 
   test("drops rename values it cannot act on", () => {
-    const odd = parseMarketplaceJson(JSON.stringify({
-      name: "m",
-      renames: { gone: null, moved: "here", broken: 7, blank: "  " },
-      plugins: [],
-    }));
+    const odd = parseMarketplaceJson(
+      JSON.stringify({
+        name: "m",
+        renames: { gone: null, moved: "here", broken: 7, blank: "  " },
+        plugins: [],
+      }),
+    );
     expect(odd?.renames).toEqual({ gone: null, moved: "here" });
   });
 
   test("malformed input yields null, never a throw", () => {
-    for (const input of ["", "[]", "null", "not json", JSON.stringify({ name: 5 })]) {
+    for (const input of [
+      "",
+      "[]",
+      "null",
+      "not json",
+      JSON.stringify({ name: 5 }),
+    ]) {
       expect(parseMarketplaceJson(input)).toBeNull();
     }
   });
 
   test("a bare source string is a path or a url, and otherwise stays verbatim", () => {
-    const parsed = parseMarketplaceJson(JSON.stringify({
-      name: "m",
-      plugins: [
-        { name: "rel", source: "./plugins/rel" },
-        { name: "web", source: "https://example.com/p.zip" },
-        { name: "short", source: "owner/repo" },
-      ],
-    }));
-    const source = (n: string) => parsed?.plugins.find((p) => p.name === n)?.source;
-    expect(source("rel")).toEqual({ kind: "path", raw: "./plugins/rel", path: "./plugins/rel" });
+    const parsed = parseMarketplaceJson(
+      JSON.stringify({
+        name: "m",
+        plugins: [
+          { name: "rel", source: "./plugins/rel" },
+          { name: "web", source: "https://example.com/p.zip" },
+          { name: "short", source: "owner/repo" },
+        ],
+      }),
+    );
+    const source = (n: string) =>
+      parsed?.plugins.find((p) => p.name === n)?.source;
+    expect(source("rel")).toEqual({
+      kind: "path",
+      raw: "./plugins/rel",
+      path: "./plugins/rel",
+    });
     expect(source("web")).toEqual({
       kind: "url",
       raw: "https://example.com/p.zip",
@@ -255,7 +306,11 @@ describe("parseMarketplaceJson", () => {
 });
 
 describe("resolvePluginRename", () => {
-  const renames = { formatter: "code-formatter", "code-formatter": "formatter-pro", dropped: null };
+  const renames = {
+    formatter: "code-formatter",
+    "code-formatter": "formatter-pro",
+    dropped: null,
+  };
 
   test("follows a chain to the current name", () => {
     const r = resolvePluginRename(renames, "formatter");
@@ -265,7 +320,10 @@ describe("resolvePluginRename", () => {
   });
 
   test("a null entry means the plugin was removed, which is not the same as unknown", () => {
-    expect(resolvePluginRename(renames, "dropped")).toMatchObject({ name: null, renamed: true });
+    expect(resolvePluginRename(renames, "dropped")).toMatchObject({
+      name: null,
+      renamed: true,
+    });
     expect(resolvePluginRename(renames, "never-heard-of")).toMatchObject({
       name: "never-heard-of",
       renamed: false,
@@ -287,7 +345,11 @@ test("resolveOffer follows renames and reports a removal", () => {
   const catalog: NativeCatalog = {
     installed: [],
     available: [
-      { pluginId: "convex@claude-plugins-official", name: "convex", marketplace: "claude-plugins-official" },
+      {
+        pluginId: "convex@claude-plugins-official",
+        name: "convex",
+        marketplace: "claude-plugins-official",
+      },
     ],
     marketplaces: [
       {
@@ -299,16 +361,24 @@ test("resolveOffer follows renames and reports a removal", () => {
     origin: "disk",
   };
 
-  expect(resolveOffer(catalog, "convex-backend@claude-plugins-official")).toMatchObject({
+  expect(
+    resolveOffer(catalog, "convex-backend@claude-plugins-official"),
+  ).toMatchObject({
     removed: false,
     renamedFrom: "convex-backend",
   });
-  expect(resolveOffer(catalog, "convex-backend@claude-plugins-official").offer?.name).toBe("convex");
-  expect(resolveOffer(catalog, "retired@claude-plugins-official")).toMatchObject({
+  expect(
+    resolveOffer(catalog, "convex-backend@claude-plugins-official").offer?.name,
+  ).toBe("convex");
+  expect(
+    resolveOffer(catalog, "retired@claude-plugins-official"),
+  ).toMatchObject({
     offer: null,
     removed: true,
   });
-  expect(resolveOffer(catalog, "unknown@claude-plugins-official").offer).toBeNull();
+  expect(
+    resolveOffer(catalog, "unknown@claude-plugins-official").offer,
+  ).toBeNull();
 });
 
 /* ------------------------------------------------------------------ details */
@@ -317,7 +387,9 @@ describe("parsePluginDetails", () => {
   test("a skill plugin: components, always-on cost, and the per component table", () => {
     const d = parsePluginDetails(fixture("claude-plugin-details-skill.txt"));
     expect(d?.name).toBe("frontend-design");
-    expect(d?.description).toBe("Frontend design skill for UI/UX implementation");
+    expect(d?.description).toBe(
+      "Frontend design skill for UI/UX implementation",
+    );
     expect(d?.sourceId).toBe("frontend-design@claude-plugins-official");
     expect(d?.components.skills).toEqual(["frontend-design"]);
     expect(d?.components.agents).toEqual([]);
@@ -360,33 +432,54 @@ describe("parsePluginDetails", () => {
     expect(gamma?.alwaysOn).toEqual({ tokens: 20, underBound: true });
     expect(gamma?.onInvoke).toEqual({ tokens: 220, underBound: false });
     // The prose under the table is not a row.
-    expect(d?.perComponent.map((c) => c.name)).toEqual(["gamma", "alpha", "beta-two", "helper"]);
+    expect(d?.perComponent.map((c) => c.name)).toEqual([
+      "gamma",
+      "alpha",
+      "beta-two",
+      "helper",
+    ]);
   });
 
   test("`not found` is an absent plugin, not a parse failure", () => {
-    expect(parsePluginDetails(fixture("claude-plugin-details-notfound.txt"))).toBeNull();
+    expect(
+      parsePluginDetails(fixture("claude-plugin-details-notfound.txt")),
+    ).toBeNull();
   });
 
   test("junk yields null", () => {
-    for (const input of ["", "   ", "some unrelated output\nwith no sections"]) {
+    for (const input of [
+      "",
+      "   ",
+      "some unrelated output\nwith no sections",
+    ]) {
       expect(parsePluginDetails(input)).toBeNull();
     }
   });
 
   test("carriage returns do not defeat the line parser", () => {
-    const crlf = fixture("claude-plugin-details-skill.txt").replace(/\n/g, "\r\n");
+    const crlf = fixture("claude-plugin-details-skill.txt").replace(
+      /\n/g,
+      "\r\n",
+    );
     expect(parsePluginDetails(crlf)?.alwaysOn?.tokens).toBe(86);
   });
 });
 
 describe("readPluginDetails", () => {
   test("reads the cost when the tool answers", async () => {
-    const result = await readPluginDetails("frontend-design@claude-plugins-official", {
-      run: async (args) => {
-        expect(args).toEqual(["plugin", "details", "frontend-design@claude-plugins-official"]);
-        return { stdout: fixture("claude-plugin-details-skill.txt") };
+    const result = await readPluginDetails(
+      "frontend-design@claude-plugins-official",
+      {
+        run: async (args) => {
+          expect(args).toEqual([
+            "plugin",
+            "details",
+            "frontend-design@claude-plugins-official",
+          ]);
+          return { stdout: fixture("claude-plugin-details-skill.txt") };
+        },
       },
-    });
+    );
     expect(result.details?.alwaysOn).toEqual({ tokens: 86, underBound: false });
     expect(result.error).toBeUndefined();
   });
@@ -394,21 +487,32 @@ describe("readPluginDetails", () => {
   test("`not found` is a plugin without a cost badge, not a failure", async () => {
     // The tool prints this on stdout and exits non-zero, so the exit code alone
     // would report an ordinary absence as something being wrong.
-    const result = await readPluginDetails("ralph-loop@claude-plugins-official", {
-      run: async () => ({ stdout: fixture("claude-plugin-details-notfound.txt"), error: "Command failed: claude" }),
-    });
+    const result = await readPluginDetails(
+      "ralph-loop@claude-plugins-official",
+      {
+        run: async () => ({
+          stdout: fixture("claude-plugin-details-notfound.txt"),
+          error: "Command failed: claude",
+        }),
+      },
+    );
     expect(result).toEqual({ details: null });
   });
 
   test("a timeout says so, instead of reading as a plugin with no cost data", async () => {
-    const result = await readPluginDetails("code-simplifier@claude-plugins-official", {
-      run: async () => ({ stdout: "", error: "claude timed out" }),
-    });
+    const result = await readPluginDetails(
+      "code-simplifier@claude-plugins-official",
+      {
+        run: async () => ({ stdout: "", error: "claude timed out" }),
+      },
+    );
     expect(result).toEqual({ details: null, error: "claude timed out" });
   });
 
   test("output that describes nothing, with no error, still names the problem", async () => {
-    const result = await readPluginDetails("x@m", { run: async () => ({ stdout: "surprise!" }) });
+    const result = await readPluginDetails("x@m", {
+      run: async () => ({ stdout: "surprise!" }),
+    });
     expect(result.details).toBeNull();
     expect(result.error).toBe("claude printed no plugin details");
   });
@@ -416,12 +520,30 @@ describe("readPluginDetails", () => {
 
 describe("parseTokenEstimate", () => {
   test("every printed form the tool uses", () => {
-    expect(parseTokenEstimate("~86 tok")).toEqual({ tokens: 86, underBound: false });
-    expect(parseTokenEstimate("~1.4k")).toEqual({ tokens: 1400, underBound: false });
-    expect(parseTokenEstimate("< 20")).toEqual({ tokens: 20, underBound: true });
-    expect(parseTokenEstimate("~0 tok   added to every session")).toEqual({ tokens: 0, underBound: false });
-    expect(parseTokenEstimate("~1.2M")).toEqual({ tokens: 1_200_000, underBound: false });
-    expect(parseTokenEstimate("1,250")).toEqual({ tokens: 1250, underBound: false });
+    expect(parseTokenEstimate("~86 tok")).toEqual({
+      tokens: 86,
+      underBound: false,
+    });
+    expect(parseTokenEstimate("~1.4k")).toEqual({
+      tokens: 1400,
+      underBound: false,
+    });
+    expect(parseTokenEstimate("< 20")).toEqual({
+      tokens: 20,
+      underBound: true,
+    });
+    expect(parseTokenEstimate("~0 tok   added to every session")).toEqual({
+      tokens: 0,
+      underBound: false,
+    });
+    expect(parseTokenEstimate("~1.2M")).toEqual({
+      tokens: 1_200_000,
+      underBound: false,
+    });
+    expect(parseTokenEstimate("1,250")).toEqual({
+      tokens: 1250,
+      underBound: false,
+    });
   });
 
   test("anything unrecognised costs one number, not the whole reading", () => {
@@ -433,9 +555,26 @@ describe("parseTokenEstimate", () => {
 test("sumAlwaysOn keeps a total built from ceilings marked as a ceiling", () => {
   const exact = parsePluginDetails(fixture("claude-plugin-details-skill.txt"));
   const agent = parsePluginDetails(fixture("claude-plugin-details.txt"));
-  expect(sumAlwaysOn([exact, agent, null])).toEqual({ tokens: 150, underBound: false });
-  expect(sumAlwaysOn([{ name: "x", components: { skills: [], agents: [], hooks: [], mcpServers: [], lspServers: [] }, perComponent: [], alwaysOn: { tokens: 20, underBound: true } }]))
-    .toEqual({ tokens: 20, underBound: true });
+  expect(sumAlwaysOn([exact, agent, null])).toEqual({
+    tokens: 150,
+    underBound: false,
+  });
+  expect(
+    sumAlwaysOn([
+      {
+        name: "x",
+        components: {
+          skills: [],
+          agents: [],
+          hooks: [],
+          mcpServers: [],
+          lspServers: [],
+        },
+        perComponent: [],
+        alwaysOn: { tokens: 20, underBound: true },
+      },
+    ]),
+  ).toEqual({ tokens: 20, underBound: true });
   expect(sumAlwaysOn([])).toEqual({ tokens: 0, underBound: false });
 });
 
@@ -443,18 +582,32 @@ test("sumAlwaysOn keeps a total built from ceilings marked as a ceiling", () => 
 
 function makeHome(): string {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-native-"));
-  const dir = path.join(home, ".claude", "plugins", "marketplaces", "claude-plugins-official", ".claude-plugin");
+  const dir = path.join(
+    home,
+    ".claude",
+    "plugins",
+    "marketplaces",
+    "claude-plugins-official",
+    ".claude-plugin",
+  );
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "marketplace.json"), fixture("claude-marketplace.json"));
+  fs.writeFileSync(
+    path.join(dir, "marketplace.json"),
+    fixture("claude-marketplace.json"),
+  );
   return home;
 }
 
 describe("reading the cloned catalogs", () => {
   test("finds a marketplace by directory name", () => {
     const home = makeHome();
-    expect(readMarketplaceCatalog(home, "claude-plugins-official")?.plugins.length).toBe(8);
+    expect(
+      readMarketplaceCatalog(home, "claude-plugins-official")?.plugins.length,
+    ).toBe(8);
     expect(readMarketplaceCatalog(home, "not-cloned")).toBeNull();
-    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual(["claude-plugins-official"]);
+    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual([
+      "claude-plugins-official",
+    ]);
   });
 
   test("a machine with nothing cloned yields nothing", () => {
@@ -466,17 +619,30 @@ describe("reading the cloned catalogs", () => {
     const home = makeHome();
     fs.writeFileSync(
       path.join(home, ".claude", "plugins", "known_marketplaces.json"),
-      JSON.stringify({ "never-cloned": { source: { source: "github", repo: "a/b" } } }),
+      JSON.stringify({
+        "never-cloned": { source: { source: "github", repo: "a/b" } },
+      }),
     );
-    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual(["claude-plugins-official"]);
+    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual([
+      "claude-plugins-official",
+    ]);
   });
 
   test("an unreadable catalog file drops that marketplace only", () => {
     const home = makeHome();
-    const dir = path.join(home, ".claude", "plugins", "marketplaces", "broken", ".claude-plugin");
+    const dir = path.join(
+      home,
+      ".claude",
+      "plugins",
+      "marketplaces",
+      "broken",
+      ".claude-plugin",
+    );
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "marketplace.json"), "{ truncated");
-    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual(["claude-plugins-official"]);
+    expect(readMarketplaceCatalogs(home).map((m) => m.name)).toEqual([
+      "claude-plugins-official",
+    ]);
   });
 });
 
@@ -494,9 +660,13 @@ describe("loadNativeCatalog", () => {
     expect(catalog.degraded).toBeUndefined();
 
     // The listing knows nothing about authors or categories; the cloned file does.
-    const crunch = catalog.available.find((p) => p.name === "42crunch-api-security-testing");
+    const crunch = catalog.available.find(
+      (p) => p.name === "42crunch-api-security-testing",
+    );
     expect(crunch?.publisher).toBe("42Crunch");
-    expect(crunch?.source?.sha).toBe("30287f5e3f122a646d1ac5ca3ab96e130c52a3ad");
+    expect(crunch?.source?.sha).toBe(
+      "30287f5e3f122a646d1ac5ca3ab96e130c52a3ad",
+    );
   });
 
   test("the catalog keeps the plugins the tool withholds because they are installed", async () => {
@@ -517,16 +687,19 @@ describe("loadNativeCatalog", () => {
     expect(catalog.degraded).toBeUndefined();
 
     // And the same plugin resolves, which is what a settings file naming it asks.
-    expect(resolveOffer(catalog, "code-simplifier@claude-plugins-official").offer?.name).toBe(
-      "code-simplifier",
-    );
+    expect(
+      resolveOffer(catalog, "code-simplifier@claude-plugins-official").offer
+        ?.name,
+    ).toBe("code-simplifier");
   });
 
   test("an old binary that ignores --available still yields a catalog, and says why counts are gone", async () => {
     // `claude plugin list --json` without `--available` answers with a bare array
     // of installed rows. The union covers the catalog; the phrase covers the UI.
     const home = makeHome();
-    const listed = JSON.parse(fixture("claude-plugin-list.json")) as { installed: unknown[] };
+    const listed = JSON.parse(fixture("claude-plugin-list.json")) as {
+      installed: unknown[];
+    };
     const catalog = await loadNativeCatalog({
       home,
       run: async () => ({ stdout: JSON.stringify(listed.installed) }),
@@ -545,7 +718,13 @@ describe("loadNativeCatalog", () => {
       run: async () => ({
         stdout: JSON.stringify({
           installed: [],
-          available: [{ pluginId: "semgrep@claude-plugins-official", name: "semgrep", marketplaceName: "claude-plugins-official" }],
+          available: [
+            {
+              pluginId: "semgrep@claude-plugins-official",
+              name: "semgrep",
+              marketplaceName: "claude-plugins-official",
+            },
+          ],
         }),
       }),
     });
@@ -577,7 +756,10 @@ describe("loadNativeCatalog", () => {
 
   test("output that parses to nothing degrades rather than reporting an empty machine", async () => {
     const home = makeHome();
-    const catalog = await loadNativeCatalog({ home, run: async () => ({ stdout: "surprise!" }) });
+    const catalog = await loadNativeCatalog({
+      home,
+      run: async () => ({ stdout: "surprise!" }),
+    });
     expect(catalog.origin).toBe("disk");
     expect(catalog.degraded).toBe("claude returned no plugins");
     expect(catalog.available.length).toBe(8);
@@ -600,14 +782,27 @@ describe("loadNativeCatalog", () => {
 
   test("a marketplace file that lists a name twice offers it once", async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-native-dupe-"));
-    const dir = path.join(home, ".claude", "plugins", "marketplaces", "m", ".claude-plugin");
+    const dir = path.join(
+      home,
+      ".claude",
+      "plugins",
+      "marketplaces",
+      "m",
+      ".claude-plugin",
+    );
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       path.join(dir, "marketplace.json"),
-      JSON.stringify({ name: "m", plugins: [{ name: "dupe" }, { name: "dupe" }, { name: "other" }] }),
+      JSON.stringify({
+        name: "m",
+        plugins: [{ name: "dupe" }, { name: "dupe" }, { name: "other" }],
+      }),
     );
     const catalog = await loadNativeCatalog({ home, preferDisk: true });
-    expect(catalog.available.map((p) => p.pluginId)).toEqual(["dupe@m", "other@m"]);
+    expect(catalog.available.map((p) => p.pluginId)).toEqual([
+      "dupe@m",
+      "other@m",
+    ]);
   });
 
   test("a machine with no claude and no catalogs is empty, not broken", async () => {
@@ -616,14 +811,21 @@ describe("loadNativeCatalog", () => {
       home: empty,
       run: async () => ({ stdout: "", error: "claude is not on PATH" }),
     });
-    expect(catalog).toMatchObject({ origin: "none", installed: [], available: [], marketplaces: [] });
+    expect(catalog).toMatchObject({
+      origin: "none",
+      installed: [],
+      available: [],
+      marketplaces: [],
+    });
   });
 });
 
 test("toInventoryItems produces rows the fleet diff already understands", () => {
   const list = parsePluginListJson(fixture("claude-plugin-list.json"));
   const items = toInventoryItems(list.installed, "claude plugin list");
-  const playground = items.find((i) => i.name === "playground@claude-plugins-official");
+  const playground = items.find(
+    (i) => i.name === "playground@claude-plugins-official",
+  );
   expect(playground).toMatchObject({
     kind: "plugin",
     scope: "project",

@@ -26,11 +26,16 @@ function checkoutRoot(dir: string): string | null {
  * Otherwise the nearest existing codecast.json from `cwd` up to the checkout
  * root, else one at the root; outside a checkout, none.
  */
-export function codecastJsonPath(cwd: string, write: string | boolean | undefined): string | null {
+export function codecastJsonPath(
+  cwd: string,
+  write: string | boolean | undefined,
+): string | null {
   if (write === false) return null;
   if (typeof write === "string" && write.trim()) {
     const target = path.resolve(cwd, write.trim());
-    return fs.existsSync(target) && fs.statSync(target).isDirectory() ? path.join(target, CODECAST_CONFIG_FILE) : target;
+    return fs.existsSync(target) && fs.statSync(target).isDirectory()
+      ? path.join(target, CODECAST_CONFIG_FILE)
+      : target;
   }
   const root = checkoutRoot(cwd);
   if (!root) return null;
@@ -42,12 +47,19 @@ export function codecastJsonPath(cwd: string, write: string | boolean | undefine
   return path.join(root, CODECAST_CONFIG_FILE);
 }
 
-export type WriteOutcome = { path: string; changes: string[] } | { path: string; error: string };
+export type WriteOutcome =
+  | { path: string; changes: string[] }
+  | { path: string; error: string };
 
 /** Merge a source (and a keyed source's key) into the file, creating it if needed. Never overwrites a file it cannot read. */
 export function writeCodecastJson(
   file: string,
-  add: { name: string; source: CodecastConfigSource; ingestKey?: string; endpoint?: string },
+  add: {
+    name: string;
+    source: CodecastConfigSource;
+    ingestKey?: string;
+    endpoint?: string;
+  },
 ): WriteOutcome {
   let existing = null;
   if (fs.existsSync(file)) {
@@ -58,7 +70,11 @@ export function writeCodecastJson(
       return { path: file, error: "is not JSON; left as it is" };
     }
     const parsed = parseCodecastConfig(raw);
-    if (!parsed.ok) return { path: file, error: `${parsed.errors.join("; ")}; left as it is` };
+    if (!parsed.ok)
+      return {
+        path: file,
+        error: `${parsed.errors.join("; ")}; left as it is`,
+      };
     existing = parsed.config;
   }
   const { config, changes } = mergeCodecastConfig(existing, add);
@@ -71,7 +87,9 @@ export function committedIngestKey(cwd: string): string | undefined {
   const file = codecastJsonPath(cwd, undefined);
   if (!file || !fs.existsSync(file)) return undefined;
   try {
-    const parsed = parseCodecastConfig(JSON.parse(fs.readFileSync(file, "utf8")));
+    const parsed = parseCodecastConfig(
+      JSON.parse(fs.readFileSync(file, "utf8")),
+    );
     return parsed.ok ? parsed.config.ingestKey : undefined;
   } catch {
     return undefined;

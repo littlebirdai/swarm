@@ -24,7 +24,9 @@ const SCRAPED_PREFIX = "interactive-prompt-";
 const PROSE_SUFFIX = "-prose";
 
 export function isScrapedProseTwin(uuid: string | null | undefined): boolean {
-  return !!uuid && uuid.startsWith(SCRAPED_PREFIX) && uuid.endsWith(PROSE_SUFFIX);
+  return (
+    !!uuid && uuid.startsWith(SCRAPED_PREFIX) && uuid.endsWith(PROSE_SUFFIX)
+  );
 }
 
 /**
@@ -33,11 +35,16 @@ export function isScrapedProseTwin(uuid: string | null | undefined): boolean {
  * still pending it is the only copy of the reasoning, which is the whole
  * reason the daemon emits it.
  */
-export function dropScrapedProseTwins<T extends ProseCandidate>(messages: T[]): T[] {
+export function dropScrapedProseTwins<T extends ProseCandidate>(
+  messages: T[],
+): T[] {
   let anyTwin = false;
   const realProse = new Set<string>();
   for (const m of messages) {
-    if (isScrapedProseTwin(m.message_uuid)) { anyTwin = true; continue; }
+    if (isScrapedProseTwin(m.message_uuid)) {
+      anyTwin = true;
+      continue;
+    }
     if (m.role !== "assistant") continue;
     const text = (m.content ?? "").trim();
     if (text.length > 0) realProse.add(text);
@@ -46,6 +53,10 @@ export function dropScrapedProseTwins<T extends ProseCandidate>(messages: T[]): 
   // memo above this doesn't hand the message list a new ref every render.
   if (!anyTwin || realProse.size === 0) return messages;
   return messages.filter(
-    (m) => !(isScrapedProseTwin(m.message_uuid) && realProse.has((m.content ?? "").trim()))
+    (m) =>
+      !(
+        isScrapedProseTwin(m.message_uuid) &&
+        realProse.has((m.content ?? "").trim())
+      ),
   );
 }

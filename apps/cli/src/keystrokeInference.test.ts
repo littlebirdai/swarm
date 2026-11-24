@@ -25,8 +25,12 @@ describe("classifyInputBytes", () => {
     expect(classifyInputBytes([0x0d])).toEqual({ kind: "enter" });
     expect(classifyInputBytes([0x0a])).toEqual({ kind: "enter" });
     expect(classifyInputBytes([0x0d, 0x0a])).toEqual({ kind: "enter" });
-    expect(classifyInputBytes(Buffer.from("\x1b[13u"))).toEqual({ kind: "enter" });
-    expect(classifyInputBytes(Buffer.from("\x1b[13;1u"))).toEqual({ kind: "enter" });
+    expect(classifyInputBytes(Buffer.from("\x1b[13u"))).toEqual({
+      kind: "enter",
+    });
+    expect(classifyInputBytes(Buffer.from("\x1b[13;1u"))).toEqual({
+      kind: "enter",
+    });
     expect(classifyInputBytes([0x33])).toEqual({ kind: "digit", value: 3 });
   });
 
@@ -42,12 +46,20 @@ describe("classifyInputBytes", () => {
 
 describe("singleSelectOptionCount", () => {
   it("counts the options of a one-question single select", () => {
-    expect(singleSelectOptionCount([{ options: [{ label: "a" }, { label: "b" }] }])).toBe(2);
+    expect(
+      singleSelectOptionCount([{ options: [{ label: "a" }, { label: "b" }] }]),
+    ).toBe(2);
   });
 
   it("rules digits out for every shape one keystroke cannot finish", () => {
-    expect(singleSelectOptionCount([{ multiSelect: true, options: [{ label: "a" }] }])).toBeNull();
-    expect(singleSelectOptionCount([{ options: [] }, { options: [] }])).toBeNull();
+    expect(
+      singleSelectOptionCount([
+        { multiSelect: true, options: [{ label: "a" }] },
+      ]),
+    ).toBeNull();
+    expect(
+      singleSelectOptionCount([{ options: [] }, { options: [] }]),
+    ).toBeNull();
     expect(singleSelectOptionCount([{ question: "no options" }])).toBeNull();
     expect(singleSelectOptionCount(undefined)).toBeNull();
     expect(singleSelectOptionCount([])).toBeNull();
@@ -87,11 +99,20 @@ function rig(overrides: { optionCount?: number | null } = {}) {
     readBaseline: () => state.baseline,
     isAwaitingQuestion: () => state.awaiting,
     readOptionCount: async () => state.optionCount,
-    writeInterrupted: (sessionId) => { state.interrupted.push(sessionId); },
-    writeQuestionAnswered: (sessionId) => { state.answered.push(sessionId); },
+    writeInterrupted: (sessionId) => {
+      state.interrupted.push(sessionId);
+    },
+    writeQuestionAnswered: (sessionId) => {
+      state.answered.push(sessionId);
+    },
     now: () => state.now,
-    setTimer: (fn) => { armed = fn; return 0 as unknown as ReturnType<typeof setTimeout>; },
-    clearTimer: () => { armed = null; },
+    setTimer: (fn) => {
+      armed = fn;
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    },
+    clearTimer: () => {
+      armed = null;
+    },
   });
   return {
     state,
@@ -104,7 +125,8 @@ function rig(overrides: { optionCount?: number | null } = {}) {
       state.now += INTERRUPT_SETTLE_MS;
       fn?.();
     },
-    observe: (intent: InputIntent): Promise<InferenceOutcome> => inference.observeInput(SID, intent),
+    observe: (intent: InputIntent): Promise<InferenceOutcome> =>
+      inference.observeInput(SID, intent),
   };
 }
 
@@ -128,7 +150,12 @@ describe("interrupt inference", () => {
     const r = rig();
     await r.observe({ kind: "ctrl-c" });
     // The real Stop hook lands inside the settle window.
-    r.state.baseline = { status: "idle", statusSentAt: 1_200, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "idle",
+      statusSentAt: 1_200,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     r.settle();
     expect(r.state.interrupted).toEqual([]);
   });
@@ -136,7 +163,12 @@ describe("interrupt inference", () => {
   it("stands down when a late hook re-asserted working at a new time", async () => {
     const r = rig();
     await r.observe({ kind: "ctrl-c" });
-    r.state.baseline = { status: "working", statusSentAt: 1_250, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "working",
+      statusSentAt: 1_250,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     r.settle();
     expect(r.state.interrupted).toEqual([]);
   });
@@ -144,7 +176,12 @@ describe("interrupt inference", () => {
   it("stands down when a new turn started inside the window", async () => {
     const r = rig();
     await r.observe({ kind: "ctrl-c" });
-    r.state.baseline = { status: "working", statusSentAt: 1_000, turnStartedAt: 1_050, agentType: "claude" };
+    r.state.baseline = {
+      status: "working",
+      statusSentAt: 1_000,
+      turnStartedAt: 1_050,
+      agentType: "claude",
+    };
     r.settle();
     expect(r.state.interrupted).toEqual([]);
   });
@@ -152,14 +189,24 @@ describe("interrupt inference", () => {
   it("stands down when the row was rebuilt under a different agent", async () => {
     const r = rig();
     await r.observe({ kind: "ctrl-c" });
-    r.state.baseline = { status: "working", statusSentAt: 1_000, turnStartedAt: 500, agentType: "codex" };
+    r.state.baseline = {
+      status: "working",
+      statusSentAt: 1_000,
+      turnStartedAt: 500,
+      agentType: "codex",
+    };
     r.settle();
     expect(r.state.interrupted).toEqual([]);
   });
 
   it("does nothing on a session that is not producing", async () => {
     const r = rig();
-    r.state.baseline = { status: "idle", statusSentAt: 1_000, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "idle",
+      statusSentAt: 1_000,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     expect(await r.observe({ kind: "ctrl-c" })).toBe("ignored");
     expect(r.isArmed()).toBe(false);
   });
@@ -192,7 +239,12 @@ describe("AskUserQuestion answer inference", () => {
   function waiting(optionCount: number | null) {
     const r = rig({ optionCount });
     r.state.awaiting = true;
-    r.state.baseline = { status: "permission_blocked", statusSentAt: 1_000, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "permission_blocked",
+      statusSentAt: 1_000,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     return r;
   }
 
@@ -252,7 +304,12 @@ describe("AskUserQuestion answer inference", () => {
   it("stands down when a hook moved the status row during the sidecar read", async () => {
     const r = waiting(3);
     const pending = r.observe({ kind: "digit", value: 1 });
-    r.state.baseline = { status: "working", statusSentAt: 1_090, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "working",
+      statusSentAt: 1_090,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     expect(await pending).toBe("ignored");
     expect(r.state.answered).toEqual([]);
   });
@@ -261,7 +318,12 @@ describe("AskUserQuestion answer inference", () => {
     const r = rig({ optionCount: 2 });
     expect(await r.observe({ kind: "ctrl-c" })).toBe("armed");
     r.state.awaiting = true;
-    r.state.baseline = { status: "permission_blocked", statusSentAt: 1_050, turnStartedAt: 500, agentType: "claude" };
+    r.state.baseline = {
+      status: "permission_blocked",
+      statusSentAt: 1_050,
+      turnStartedAt: 500,
+      agentType: "claude",
+    };
     expect(await r.observe({ kind: "enter" })).toBe("answered");
     expect(r.isArmed()).toBe(false);
     expect(r.state.interrupted).toEqual([]);
@@ -287,7 +349,11 @@ describe("ask-input sidecar", () => {
   }
 
   it("reads the option count the status hook dropped", async () => {
-    const dir = write(SID, { questions: [{ question: "pick", options: [{ label: "a" }, { label: "b" }] }] });
+    const dir = write(SID, {
+      questions: [
+        { question: "pick", options: [{ label: "a" }, { label: "b" }] },
+      ],
+    });
     const sidecar = await readAskInputSidecar(dir, SID, Date.now());
     expect(singleSelectOptionCount(sidecar?.questions)).toBe(2);
   });
@@ -295,12 +361,16 @@ describe("ask-input sidecar", () => {
   it("ignores a sidecar older than the freshness window", async () => {
     const dir = write(SID, { questions: [{ options: [{ label: "a" }] }] });
     // The sidecar is never deleted, so an old one is a question answered long ago.
-    expect(await readAskInputSidecar(dir, SID, Date.now() + 10 * 60_000)).toBeNull();
+    expect(
+      await readAskInputSidecar(dir, SID, Date.now() + 10 * 60_000),
+    ).toBeNull();
   });
 
   it("returns null for a session that never asked", async () => {
     const dir = write(SID, { questions: [{ options: [] }] });
-    expect(await readAskInputSidecar(dir, "other-session", Date.now())).toBeNull();
+    expect(
+      await readAskInputSidecar(dir, "other-session", Date.now()),
+    ).toBeNull();
   });
 
   it("returns null for a malformed sidecar", async () => {
@@ -319,9 +389,18 @@ describe("pane stream input observation", () => {
     let pushes = 0;
     let clock = 0;
     await runPaneStream("cc-claude-abc:0.0", {
-      capture: () => ({ frame: "screen", cols: 80, rows: 24, cursorX: 0, cursorY: 0 }),
-      push: async () => (pushes++ === 0 ? { stop: false, input: hex } : { stop: true }),
-      write: (_target, bytes) => { seen = classifyInputBytes(bytes); },
+      capture: () => ({
+        frame: "screen",
+        cols: 80,
+        rows: 24,
+        cursorX: 0,
+        cursorY: 0,
+      }),
+      push: async () =>
+        pushes++ === 0 ? { stop: false, input: hex } : { stop: true },
+      write: (_target, bytes) => {
+        seen = classifyInputBytes(bytes);
+      },
       now: () => (clock += 100),
       sleep: async () => {},
     });

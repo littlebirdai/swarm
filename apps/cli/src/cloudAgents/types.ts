@@ -7,7 +7,24 @@
  * interrupt, held messages, setup errors) and the daemon's registry
  * (registry.ts). An adapter only speaks its vendor's API.
  */
-import { CLOUD_AGENT_CHANGED_PROBE_MS, CLOUD_AGENT_RETRIED_SUFFIX, cloudAgentCardKey, cloudAgentCardText, cloudAgentChangedProblem, cloudAgentLimitProblem, cloudAgentExpiryDate, cloudAgentSetupRules, cloudAgentSetupSentence, cloudAgentUnsentProblem, isCloudAgentCredentialKind, type CloudAgentActionName, type CloudAgentLoginStateName, type CloudAgentProviderSpec, type CloudAgentSetupKind, type CloudAgentSetupRules } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_CHANGED_PROBE_MS,
+  CLOUD_AGENT_RETRIED_SUFFIX,
+  cloudAgentCardKey,
+  cloudAgentCardText,
+  cloudAgentChangedProblem,
+  cloudAgentLimitProblem,
+  cloudAgentExpiryDate,
+  cloudAgentSetupRules,
+  cloudAgentSetupSentence,
+  cloudAgentUnsentProblem,
+  isCloudAgentCredentialKind,
+  type CloudAgentActionName,
+  type CloudAgentLoginStateName,
+  type CloudAgentProviderSpec,
+  type CloudAgentSetupKind,
+  type CloudAgentSetupRules,
+} from "@codecast/shared/contracts";
 import { githubRepo } from "../cloud/gitOrigin.js";
 import { deviceLabel } from "../remote/device.js";
 import type { ProviderKeyVerdict } from "../providerKeyCrypto.js";
@@ -29,7 +46,12 @@ export interface CloudAgentListItem<A> {
 }
 
 /** The branch (and pull request) an agent last pushed; neither when it pushed none. */
-export interface CloudAgentGit { agentId: string; repoUrl?: string; branch?: string; prUrl?: string }
+export interface CloudAgentGit {
+  agentId: string;
+  repoUrl?: string;
+  branch?: string;
+  prUrl?: string;
+}
 
 /** One mirror pass over an agent, as the adapter read it. */
 export interface CloudAgentMirror {
@@ -96,7 +118,11 @@ export interface CloudAgentHandle<D> {
 }
 
 /** A new agent: its id, its page on the provider's site, and a line its transcript opens with under the first prompt (where the agent works). */
-export interface CloudAgentCreated { agentId: string; url?: string; notice?: string }
+export interface CloudAgentCreated {
+  agentId: string;
+  url?: string;
+  notice?: string;
+}
 
 export interface CloudAgentAdapter<C = unknown, A = unknown, D = unknown> {
   /** Its mirror directory, credential card copy and session id prefix come from here. */
@@ -125,15 +151,26 @@ export interface CloudAgentAdapter<C = unknown, A = unknown, D = unknown> {
    * moved since its last mirror.
    */
   readonly listedByCreation?: boolean;
-  listAgents(client: C, cursor?: string): Promise<{ items: CloudAgentListItem<A>[]; nextCursor?: string }>;
+  listAgents(
+    client: C,
+    cursor?: string,
+  ): Promise<{ items: CloudAgentListItem<A>[]; nextCursor?: string }>;
   /** Read the agent and render its transcript. Null skips this pass; for a child agent, null says its parent no longer has it, and it is forgotten. */
-  mirror(client: C, handle: CloudAgentHandle<D>, known: A | undefined): Promise<CloudAgentMirror | null>;
+  mirror(
+    client: C,
+    handle: CloudAgentHandle<D>,
+    known: A | undefined,
+  ): Promise<CloudAgentMirror | null>;
   /** The live streams it follows (streams.ts): the watcher stops them when it stops. */
   readonly streams?: { stop(): void };
 
   // Drive side.
   /** Start the agent with its first message. */
-  create(client: C, session: CloudAgentSession, content: string): Promise<CloudAgentCreated>;
+  create(
+    client: C,
+    session: CloudAgentSession,
+    content: string,
+  ): Promise<CloudAgentCreated>;
   /** A follow-up message. Throws CloudAgentBusyError while the agent cannot take one yet. */
   followUp(client: C, agentId: string, content: string): Promise<void>;
   /**
@@ -152,7 +189,10 @@ export interface CloudAgentAdapter<C = unknown, A = unknown, D = unknown> {
    * in sessions.ts) and need no case here. No session when the error came
    * from checking the sign-in rather than from one session.
    */
-  setupErrorOf?(err: unknown, session?: CloudAgentSession): CloudAgentSetupError | null;
+  setupErrorOf?(
+    err: unknown,
+    session?: CloudAgentSession,
+  ): CloudAgentSetupError | null;
   /** Check a key before it is stored (Settings, Provider keys), when the credential is one. */
   verifyKey?(key: string): Promise<ProviderKeyVerdict>;
   /**
@@ -162,7 +202,10 @@ export interface CloudAgentAdapter<C = unknown, A = unknown, D = unknown> {
    * requests themselves were rate limited). Without it every 429 reads as a
    * rate limit.
    */
-  usageLimit?(client: C, err: CloudApiError): Promise<{ detail: string; waitMs?: number; resetsAt?: number } | null>;
+  usageLimit?(
+    client: C,
+    err: CloudApiError,
+  ): Promise<{ detail: string; waitMs?: number; resetsAt?: number } | null>;
 
   // Session actions (the header's, CLOUD_AGENT_ACTIONS): each one the spec lists.
   /** Archive the agent on the provider's site, or bring it back. */
@@ -204,10 +247,18 @@ export interface CloudAgentApplyPlan {
  * cloud host: the person opens the link it prints on any device), `missing`
  * when its CLI is not installed.
  */
-export interface CloudAgentLoginCommand { argv: string[]; headlessArgv?: string[]; missing: string; deviceCode?: boolean }
+export interface CloudAgentLoginCommand {
+  argv: string[];
+  headlessArgv?: string[];
+  missing: string;
+  deviceCode?: boolean;
+}
 
 /** A device-code sign-in in progress: the page to open on any device and the code to enter there. */
-export interface CloudAgentDeviceCode { url: string; code: string }
+export interface CloudAgentDeviceCode {
+  url: string;
+  code: string;
+}
 
 /** Where a machine's sign-in stands, checked live with the provider (the registry's checkLogin). */
 export interface CloudAgentLoginState {
@@ -261,7 +312,10 @@ function card(template: string): string {
 }
 
 /** A credential problem's sentence (the one the web's notes say too), naming this machine. */
-function sentence(adapter: Pick<AnyCloudAgentAdapter, "spec">, problem: Parameters<typeof cloudAgentSetupSentence>[1]): string {
+function sentence(
+  adapter: Pick<AnyCloudAgentAdapter, "spec">,
+  problem: Parameters<typeof cloudAgentSetupSentence>[1],
+): string {
   return cloudAgentSetupSentence(adapter.spec, problem, deviceLabel());
 }
 
@@ -282,8 +336,12 @@ const LIMIT_MIN_WAIT_MS = 60_000;
 const LIMIT_MAX_WAIT_MS = 6 * 60 * 60_000;
 
 /** Waits that double each try, from `baseMs` to `maxMs`; a wait the provider named (`named`) comes first. */
-function doubling({ baseMs, maxMs }: { baseMs: number; maxMs: number }, named?: (problem: CloudAgentSetupError) => number | undefined): (problem: CloudAgentSetupError, tries: number) => number {
-  return (problem, tries) => named?.(problem) ?? doublingDelay(baseMs, maxMs, tries);
+function doubling(
+  { baseMs, maxMs }: { baseMs: number; maxMs: number },
+  named?: (problem: CloudAgentSetupError) => number | undefined,
+): (problem: CloudAgentSetupError, tries: number) => number {
+  return (problem, tries) =>
+    named?.(problem) ?? doublingDelay(baseMs, maxMs, tries);
 }
 
 /** The waits one setup kind sets on this machine. */
@@ -297,17 +355,34 @@ interface CloudAgentSetupWaits {
 /** What one setup kind does on this machine: the shared rules (cloudAgentSetupRules) and this machine's waits, the one policy the mirror (watcher.ts), delivery (sessions.ts) and held messages read. */
 export type CloudAgentSetupPolicy = CloudAgentSetupRules & CloudAgentSetupWaits;
 
-const CREDENTIAL_WAITS: CloudAgentSetupWaits = { lane: () => 0, held: () => CREDENTIAL_RECHECK_MS };
-const REFUSAL_WAITS: CloudAgentSetupWaits = { lane: () => 0, held: doubling(PROVIDER_RECHECK) };
-const SETUP_WAITS: Partial<Record<CloudAgentSetupKind, CloudAgentSetupWaits>> = {
-  changed: { lane: () => CLOUD_AGENT_CHANGED_PROBE_MS, held: () => PAUSED_RECHECK_MS },
-  // A read's own 429 waits as long as its Retry-After says (else backing off); a held message waits for the reset.
-  limit: { lane: doubling(LIMIT_RECHECK, (p) => p.retryAfterMs), held: doubling(LIMIT_RECHECK, (p) => p.waitMs) },
+const CREDENTIAL_WAITS: CloudAgentSetupWaits = {
+  lane: () => 0,
+  held: () => CREDENTIAL_RECHECK_MS,
 };
+const REFUSAL_WAITS: CloudAgentSetupWaits = {
+  lane: () => 0,
+  held: doubling(PROVIDER_RECHECK),
+};
+const SETUP_WAITS: Partial<Record<CloudAgentSetupKind, CloudAgentSetupWaits>> =
+  {
+    changed: {
+      lane: () => CLOUD_AGENT_CHANGED_PROBE_MS,
+      held: () => PAUSED_RECHECK_MS,
+    },
+    // A read's own 429 waits as long as its Retry-After says (else backing off); a held message waits for the reset.
+    limit: {
+      lane: doubling(LIMIT_RECHECK, (p) => p.retryAfterMs),
+      held: doubling(LIMIT_RECHECK, (p) => p.waitMs),
+    },
+  };
 
 /** A setup kind's policy: its shared rules, with the waits of a credential, of its own, or of any other refusal. */
-export function cloudAgentSetupPolicy(kind: CloudAgentSetupKind): CloudAgentSetupPolicy {
-  const waits = isCloudAgentCredentialKind(kind) ? CREDENTIAL_WAITS : SETUP_WAITS[kind] ?? REFUSAL_WAITS;
+export function cloudAgentSetupPolicy(
+  kind: CloudAgentSetupKind,
+): CloudAgentSetupPolicy {
+  const waits = isCloudAgentCredentialKind(kind)
+    ? CREDENTIAL_WAITS
+    : (SETUP_WAITS[kind] ?? REFUSAL_WAITS);
   return { ...cloudAgentSetupRules(kind), ...waits };
 }
 
@@ -333,9 +408,17 @@ export class CloudAgentSetupError extends CloudAgentHoldError {
    * the card around it: what the connect dialog shows. `holdReason`: what
    * the held message says, for the kinds that are not about credentials.
    */
-  constructor(readonly adapter: Pick<AnyCloudAgentAdapter, "spec">, readonly kind: CloudAgentSetupKind, message: string, readonly reason?: string, holdReason?: string) {
+  constructor(
+    readonly adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    readonly kind: CloudAgentSetupKind,
+    message: string,
+    readonly reason?: string,
+    holdReason?: string,
+  ) {
     super(message);
-    this.holdReason = isCloudAgentCredentialKind(kind) ? card(adapter.spec.credentialCards.holdReason) : holdReason ?? `waiting for ${adapter.spec.label} setup`;
+    this.holdReason = isCloudAgentCredentialKind(kind)
+      ? card(adapter.spec.credentialCards.holdReason)
+      : (holdReason ?? `waiting for ${adapter.spec.label} setup`);
   }
   /** Set when the provider named how long a held message waits (a limit's reset, else a Retry-After): the next try waits that long. */
   waitMs?: number;
@@ -359,39 +442,91 @@ export class CloudAgentSetupError extends CloudAgentHoldError {
     return this;
   }
   /** No usable credentials on this machine: the spec's card, and `detail` when there is more to say (a login of the wrong kind). */
-  static credentialsMissing(adapter: Pick<AnyCloudAgentAdapter, "spec">, detail?: string): CloudAgentSetupError {
-    return new CloudAgentSetupError(adapter, "key_missing", sentence(adapter, { kind: "key_missing", reason: detail }), detail);
+  static credentialsMissing(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    detail?: string,
+  ): CloudAgentSetupError {
+    return new CloudAgentSetupError(
+      adapter,
+      "key_missing",
+      sentence(adapter, { kind: "key_missing", reason: detail }),
+      detail,
+    );
   }
   /** The provider refused the credentials: the spec's card with the provider's reason. */
-  static credentialsRejected(adapter: Pick<AnyCloudAgentAdapter, "spec">, reason: string): CloudAgentSetupError {
-    return new CloudAgentSetupError(adapter, "key_invalid", sentence(adapter, { kind: "key_invalid", reason }), reason);
+  static credentialsRejected(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    reason: string,
+  ): CloudAgentSetupError {
+    return new CloudAgentSetupError(
+      adapter,
+      "key_invalid",
+      sentence(adapter, { kind: "key_invalid", reason }),
+      reason,
+    );
   }
   /** A sign-in codecast only reads ran out: found here, before the provider was asked. */
-  static credentialsExpired(adapter: Pick<AnyCloudAgentAdapter, "spec">, expiredAt: number): CloudAgentSetupError {
+  static credentialsExpired(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    expiredAt: number,
+  ): CloudAgentSetupError {
     const date = cloudAgentExpiryDate(expiredAt);
-    const reason = adapter.spec.credentialCards.expired ? `expired ${date}` : `it expired ${date}`;
-    return new CloudAgentSetupError(adapter, "key_invalid", sentence(adapter, { kind: "key_invalid", expiredAt }), reason);
+    const reason = adapter.spec.credentialCards.expired
+      ? `expired ${date}`
+      : `it expired ${date}`;
+    return new CloudAgentSetupError(
+      adapter,
+      "key_invalid",
+      sentence(adapter, { kind: "key_invalid", expiredAt }),
+      reason,
+    );
   }
   /**
    * The provider cannot reach the session's repository or branch: "<label>
    * can't reach <repo> (<reason>)", then `fix`, what to do about it (the
    * provider's page where access is given, usually its repoAccessUrl).
    */
-  static repoUnreachable(adapter: Pick<AnyCloudAgentAdapter, "spec">, session: Pick<CloudAgentSession, "repoUrl"> | undefined, reason: string, fix: string): CloudAgentSetupError {
+  static repoUnreachable(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    session: Pick<CloudAgentSession, "repoUrl"> | undefined,
+    reason: string,
+    fix: string,
+  ): CloudAgentSetupError {
     const repo = githubRepo(session?.repoUrl) ?? "this repository";
-    return CloudAgentSetupError.retried(adapter, "repo", `${adapter.spec.label} can't reach ${repo} (${reason}). ${fix}`, `waiting until ${adapter.spec.label} can reach ${repo}`);
+    return CloudAgentSetupError.retried(
+      adapter,
+      "repo",
+      `${adapter.spec.label} can't reach ${repo} (${reason}). ${fix}`,
+      `waiting until ${adapter.spec.label} can reach ${repo}`,
+    );
   }
   /** The provider refuses the account (not its credentials). `problem` is the vendor's sentence (what to fix, no closing period). */
-  static accessDenied(adapter: Pick<AnyCloudAgentAdapter, "spec">, problem: string): CloudAgentSetupError {
-    return CloudAgentSetupError.retried(adapter, "access", problem, `waiting until ${adapter.spec.label} lets this account in`);
+  static accessDenied(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    problem: string,
+  ): CloudAgentSetupError {
+    return CloudAgentSetupError.retried(
+      adapter,
+      "access",
+      problem,
+      `waiting until ${adapter.spec.label} lets this account in`,
+    );
   }
   /**
    * The provider answered in a shape codecast does not read, or kept giving
    * answers it does not expect: its API changed. `detail` names where (never a
    * value), for the daemon's log. Nothing guesses at it: the lane pauses until a check passes.
    */
-  static changed(adapter: Pick<AnyCloudAgentAdapter, "spec">, detail: string): CloudAgentSetupError {
-    const err = CloudAgentSetupError.retried(adapter, "changed", cloudAgentChangedProblem(adapter.spec, deviceLabel()), `waiting until codecast can read ${adapter.spec.label} again`);
+  static changed(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    detail: string,
+  ): CloudAgentSetupError {
+    const err = CloudAgentSetupError.retried(
+      adapter,
+      "changed",
+      cloudAgentChangedProblem(adapter.spec, deviceLabel()),
+      `waiting until codecast can read ${adapter.spec.label} again`,
+    );
     err.detail = detail;
     return err;
   }
@@ -401,19 +536,43 @@ export class CloudAgentSetupError extends CloudAgentHoldError {
    * worth trying again, `resetsAt`: when the limit resets, when the provider
    * said, and `retryAfterMs`: the 429's own Retry-After.
    */
-  static limited(adapter: Pick<AnyCloudAgentAdapter, "spec">, detail: string, wait: { waitMs?: number; resetsAt?: number; retryAfterMs?: number } = {}): CloudAgentSetupError {
-    const err = CloudAgentSetupError.retried(adapter, "limit", cloudAgentLimitProblem(adapter.spec, detail), `waiting for the ${adapter.spec.label} limit to reset`);
-    const within = (ms: number) => Math.min(Math.max(ms, LIMIT_MIN_WAIT_MS), LIMIT_MAX_WAIT_MS);
+  static limited(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    detail: string,
+    wait: { waitMs?: number; resetsAt?: number; retryAfterMs?: number } = {},
+  ): CloudAgentSetupError {
+    const err = CloudAgentSetupError.retried(
+      adapter,
+      "limit",
+      cloudAgentLimitProblem(adapter.spec, detail),
+      `waiting for the ${adapter.spec.label} limit to reset`,
+    );
+    const within = (ms: number) =>
+      Math.min(Math.max(ms, LIMIT_MIN_WAIT_MS), LIMIT_MAX_WAIT_MS);
     const waitMs = wait.waitMs ?? wait.retryAfterMs;
     if (waitMs !== undefined) err.waitMs = within(waitMs);
-    if (wait.retryAfterMs !== undefined) err.retryAfterMs = within(wait.retryAfterMs);
+    if (wait.retryAfterMs !== undefined)
+      err.retryAfterMs = within(wait.retryAfterMs);
     if (wait.resetsAt !== undefined) err.resetsAt = wait.resetsAt;
     return err;
   }
   /** A card that is not about credentials: it opens with the provider's label, and ends saying the message retries. */
-  private static retried(adapter: Pick<AnyCloudAgentAdapter, "spec">, kind: CloudAgentSetupKind, problem: string, holdReason: string): CloudAgentSetupError {
-    const named = problem.startsWith(adapter.spec.label) ? problem : `${adapter.spec.label}: ${problem}`;
-    return new CloudAgentSetupError(adapter, kind, `${named}${CLOUD_AGENT_RETRIED_SUFFIX}`, problem, holdReason);
+  private static retried(
+    adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    kind: CloudAgentSetupKind,
+    problem: string,
+    holdReason: string,
+  ): CloudAgentSetupError {
+    const named = problem.startsWith(adapter.spec.label)
+      ? problem
+      : `${adapter.spec.label}: ${problem}`;
+    return new CloudAgentSetupError(
+      adapter,
+      kind,
+      `${named}${CLOUD_AGENT_RETRIED_SUFFIX}`,
+      problem,
+      holdReason,
+    );
   }
   /** The card's message id (cloudAgentCardKey): one per conversation and kind, and how the web tells the kind. */
   cardKey(conversationId: string): string {
@@ -429,7 +588,11 @@ export interface KeyedCloudAdapterOptions {
 }
 
 /** A key-based provider's API client from the machine's key, or the card that says the machine has none. */
-export function keyedCloudClient<C>(adapter: Pick<AnyCloudAgentAdapter, "spec">, readKey: () => string | null, make: (key: string) => C): C | CloudAgentSetupError {
+export function keyedCloudClient<C>(
+  adapter: Pick<AnyCloudAgentAdapter, "spec">,
+  readKey: () => string | null,
+  make: (key: string) => C,
+): C | CloudAgentSetupError {
   const key = readKey();
   return key ? make(key) : CloudAgentSetupError.credentialsMissing(adapter);
 }
@@ -441,7 +604,10 @@ export function keyedCloudClient<C>(adapter: Pick<AnyCloudAgentAdapter, "spec">,
  * read: the daemon's log names it, the card does not.
  */
 export class CloudAgentUnsentError extends Error {
-  constructor(readonly adapter: Pick<AnyCloudAgentAdapter, "spec">, readonly unreadable: Error) {
+  constructor(
+    readonly adapter: Pick<AnyCloudAgentAdapter, "spec">,
+    readonly unreadable: Error,
+  ) {
     super(cloudAgentUnsentProblem(adapter.spec));
   }
   /** The card's message id (cloudAgentCardKey): one per message that went unread (each is its own). */
@@ -458,7 +624,9 @@ export class CloudAgentBusyError extends CloudAgentHoldError {
   readonly holdReason: string;
   readonly recheckMs = BUSY_RECHECK_MS;
   constructor(label: string) {
-    super(`AGENT_STDIN_NOT_READY: the ${label} agent is still running the previous message`);
+    super(
+      `AGENT_STDIN_NOT_READY: the ${label} agent is still running the previous message`,
+    );
     this.holdReason = `waiting for ${label} to finish the running turn`;
   }
 }

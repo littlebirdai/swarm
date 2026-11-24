@@ -4,7 +4,13 @@
 import type { InboxViewMode } from "./clientPrefsTypes";
 import type { OrgLensMode } from "./orgLens";
 
-export function inboxViewModes({ hasLabels, hasPlans, orgLenses, hasTriggers, hasMachines }: {
+export function inboxViewModes({
+  hasLabels,
+  hasPlans,
+  orgLenses,
+  hasTriggers,
+  hasMachines,
+}: {
   hasLabels: boolean;
   hasPlans: boolean;
   orgLenses: readonly OrgLensMode[];
@@ -13,7 +19,9 @@ export function inboxViewModes({ hasLabels, hasPlans, orgLenses, hasTriggers, ha
   hasMachines: boolean;
 }): InboxViewMode[] {
   return [
-    "grouped", "recent", "time",
+    "grouped",
+    "recent",
+    "time",
     ...(hasLabels ? ["bucket" as const] : []),
     ...(hasPlans ? ["plan" as const] : []),
     ...orgLenses,

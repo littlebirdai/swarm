@@ -11,7 +11,12 @@ export const dataDeletionKindValidator = v.union(
 
 /** One thing the job still has to purge: a conversation's rows, a page, a call, or the whole team from `step` on. */
 export const deletionRootValidator = v.object({
-  plan: v.union(v.literal("conversation"), v.literal("artifact"), v.literal("call"), v.literal("team")),
+  plan: v.union(
+    v.literal("conversation"),
+    v.literal("artifact"),
+    v.literal("call"),
+    v.literal("team"),
+  ),
   id: v.string(),
   step: v.optional(v.number()),
 });

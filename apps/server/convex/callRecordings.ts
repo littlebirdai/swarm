@@ -42,17 +42,46 @@
 
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { CALL_RECORDING_URL_WINDOW_MS, FRAME_SHARE_REFUSED_WORDS, type CallRecordingStopReason, callSpeakerName, guestIdFromIdentity, guestIdentity, isGuestPresent, isRecordingActive, isRecordingFilming, recordingCooling, shareIncludesVideo } from "@codecast/shared/contracts";
+import {
+  CALL_RECORDING_URL_WINDOW_MS,
+  FRAME_SHARE_REFUSED_WORDS,
+  type CallRecordingStopReason,
+  callSpeakerName,
+  guestIdFromIdentity,
+  guestIdentity,
+  isGuestPresent,
+  isRecordingActive,
+  isRecordingFilming,
+  recordingCooling,
+  shareIncludesVideo,
+} from "@codecast/shared/contracts";
 import { callRefId } from "@codecast/shared/entities";
 import { verifyApiToken } from "./apiTokens";
 import { sha256Hex } from "./lib/hash";
-import { authorizeRoom, isRoomTranscribeOff, liveMembers, liveSeat, readRoomState } from "./callRooms";
+import {
+  authorizeRoom,
+  isRoomTranscribeOff,
+  liveMembers,
+  liveSeat,
+  readRoomState,
+} from "./callRooms";
 import { liveTranscriptFor, postEvent } from "./callChat";
 import { guestBySecret } from "./callGuests";
-import { beginCallRecord, canReadCall, HUDDLE_GRACE_MS, resolveCallRef } from "./transcripts";
+import {
+  beginCallRecord,
+  canReadCall,
+  HUDDLE_GRACE_MS,
+  resolveCallRef,
+} from "./transcripts";
 
 /** A recording opens to the doors that outlast the call, never the live walk-in door (canReadCall). */
 const RECORDINGS = { liveDoor: false } as const;
@@ -148,12 +177,18 @@ import {
   runStarterName,
   teammateName,
 } from "./lib/callRecordingRuns";
-import { callRecordingErrorKindValidator, callRecordingStopReasonValidator } from "./lib/callValidators";
+import {
+  callRecordingErrorKindValidator,
+  callRecordingStopReasonValidator,
+} from "./lib/callValidators";
 
 type RecordingRow = Doc<"call_recordings">;
 
 /** Every file of a call, oldest press first. */
-async function callRows(ctx: any, transcriptId: Id<"transcripts">): Promise<RecordingRow[]> {
+async function callRows(
+  ctx: any,
+  transcriptId: Id<"transcripts">,
+): Promise<RecordingRow[]> {
   return await ctx.db
     .query("call_recordings")
     .withIndex("by_transcript", (q: any) => q.eq("transcript_id", transcriptId))
@@ -174,7 +209,14 @@ async function callRows(ctx: any, transcriptId: Id<"transcripts">): Promise<Reco
  */
 export const startRecording = mutation({
   args: { room_key: v.string() },
-  handler: async (ctx, args): Promise<{ recording_id: Id<"call_recordings">; transcript_id: Id<"transcripts">; existing: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    recording_id: Id<"call_recordings">;
+    transcript_id: Id<"transcripts">;
+    existing: boolean;
+  }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const auth = await authorizeRoom(ctx, userId, args.room_key);
@@ -183,20 +225,33 @@ export const startRecording = mutation({
     // A person IN the huddle, deliberately (a prewarm row is not a seat):
     // recording is something the room does to itself, never something done
     // to it from outside.
-    if (!(await liveSeat(ctx, userId, args.room_key, now))) throw new Error("Only someone in the huddle can start recording");
-    if (!recordingConfigured()) throw new Error("Recording is not set up on this server");
+    if (!(await liveSeat(ctx, userId, args.room_key, now)))
+      throw new Error("Only someone in the huddle can start recording");
+    if (!recordingConfigured())
+      throw new Error("Recording is not set up on this server");
 
     const running = await liveRoomRun(ctx, args.room_key);
-    if (running) return { recording_id: running._id, transcript_id: running.transcript_id, existing: true };
+    if (running)
+      return {
+        recording_id: running._id,
+        transcript_id: running.transcript_id,
+        existing: true,
+      };
     // LiveKit refused for spent minutes a moment ago: refuse here, before
     // the room is told anything (lib/callRecordingRuns recordingOutage). The
     // presser reads the reason; nobody else hears a chime for nothing.
     const outage = await recordingOutage(ctx);
-    if (outage && now - outage.since < RECORDING_OUTAGE_TTL_MS) throw new Error(outage.reason);
+    if (outage && now - outage.since < RECORDING_OUTAGE_TTL_MS)
+      throw new Error(outage.reason);
     const justStopped = (await activeRoomRecordings(ctx, args.room_key)).some(
-      (r) => r.kind === "composite" && recordingCooling(r.status, stopRequestedAt(r), now),
+      (r) =>
+        r.kind === "composite" &&
+        recordingCooling(r.status, stopRequestedAt(r), now),
     );
-    if (justStopped) throw new Error("Recording just stopped and is still saving. Try again in a few seconds.");
+    if (justStopped)
+      throw new Error(
+        "Recording just stopped and is still saving. Try again in a few seconds.",
+      );
 
     const record =
       (await liveTranscriptFor(ctx, args.room_key)) ??
@@ -225,7 +280,11 @@ export const startRecording = mutation({
       shortId = await nextShortId(ctx.db, "cl");
       await ctx.db.patch(record._id, { short_id: shortId });
     }
-    const file = { transcriptId: String(record._id), kind: "composite" as const, requestedAt: now };
+    const file = {
+      transcriptId: String(record._id),
+      kind: "composite" as const,
+      requestedAt: now,
+    };
     const id = await ctx.db.insert("call_recordings", {
       transcript_id: record._id,
       room_key: args.room_key,
@@ -253,14 +312,35 @@ export const startRecording = mutation({
         .collect(),
       now,
     );
-    await noteRecordedPeople(ctx, args.room_key, [userId, ...seated.map((m) => m.user_id)], await ctx.db.get(id));
-    await postEvent(ctx, { room_key: args.room_key, team_id: record.team_id, user_id: userId, event: "record_on", run_id: String(id) });
+    await noteRecordedPeople(
+      ctx,
+      args.room_key,
+      [userId, ...seated.map((m) => m.user_id)],
+      await ctx.db.get(id),
+    );
+    await postEvent(ctx, {
+      room_key: args.room_key,
+      team_id: record.team_id,
+      user_id: userId,
+      event: "record_on",
+      run_id: String(id),
+    });
     // The loop starts with the press, not with LiveKit's answer: whatever
     // happens to startRun (it dies, it hangs), the run is looked at within
     // seconds and a start nobody acknowledged is found or failed.
-    await ctx.db.insert("call_recording_loops", { run_id: id, gen: 1, looked_at: now });
-    await ctx.scheduler.runAfter(0, internal.callRecordings.startRun, { run_id: id });
-    await ctx.scheduler.runAfter(RECORDING_POLL_FAST_MS, internal.callRecordings.reconcileRun, { run_id: id, gen: 1 });
+    await ctx.db.insert("call_recording_loops", {
+      run_id: id,
+      gen: 1,
+      looked_at: now,
+    });
+    await ctx.scheduler.runAfter(0, internal.callRecordings.startRun, {
+      run_id: id,
+    });
+    await ctx.scheduler.runAfter(
+      RECORDING_POLL_FAST_MS,
+      internal.callRecordings.reconcileRun,
+      { run_id: id, gen: 1 },
+    );
     return { recording_id: id, transcript_id: record._id, existing: false };
   },
 });
@@ -284,7 +364,12 @@ export const stopRecording = mutation({
     if (!seated && !(run && String(run.started_by) === String(userId))) {
       throw new Error("Only someone in the huddle can stop recording");
     }
-    return await stopRoomRecording(ctx, args.room_key, { reason: "pressed", stoppedBy: String(userId), announceAs: userId, runId: args.run_id });
+    return await stopRoomRecording(ctx, args.room_key, {
+      reason: "pressed",
+      stoppedBy: String(userId),
+      announceAs: userId,
+      runId: args.run_id,
+    });
   },
 });
 
@@ -293,10 +378,18 @@ export const stopRecording = mutation({
  *  secret their browser holds), and only while admitted and present. The
  *  thread names them as the guest they are. */
 export const guestStopRecording = mutation({
-  args: { guest_id: v.string(), secret: v.string(), run_id: v.optional(v.string()) },
+  args: {
+    guest_id: v.string(),
+    secret: v.string(),
+    run_id: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{ stopped: number }> => {
     const guest = await guestBySecret(ctx, args.guest_id, args.secret);
-    if (!guest || guest.status !== "admitted" || !isGuestPresent(guest, Date.now())) {
+    if (
+      !guest ||
+      guest.status !== "admitted" ||
+      !isGuestPresent(guest, Date.now())
+    ) {
       throw new Error("Only someone in the huddle can stop recording");
     }
     return await stopRoomRecording(ctx, guest.room_key, {
@@ -312,12 +405,19 @@ export const guestStopRecording = mutation({
 
 /** Who a LiveKit identity is, as the room knew them: a guest by the name the
  *  room let in (marked as a guest), anyone else by their teammate name. */
-async function identityName(ctx: any, roomKey: string, identity: string): Promise<string> {
+async function identityName(
+  ctx: any,
+  roomKey: string,
+  identity: string,
+): Promise<string> {
   const guestId = guestIdFromIdentity(identity);
   if (!guestId) return await teammateName(ctx, identity);
   const id = ctx.db.normalizeId("call_guests", guestId);
   const guest = id ? await ctx.db.get(id) : null;
-  return callSpeakerName(identity, guest && guest.room_key === roomKey ? guest.name : null);
+  return callSpeakerName(
+    identity,
+    guest && guest.room_key === roomKey ? guest.name : null,
+  );
 }
 
 /** How the room's last run ended: the composite most recently pressed for
@@ -334,10 +434,17 @@ export async function roomRecordingEnd(ctx: any, roomKey: string) {
   for (const status of ["stopping", "ready", "failed"] as const) {
     const rows: RecordingRow[] = await ctx.db
       .query("call_recordings")
-      .withIndex("by_room_status", (q: any) => q.eq("room_key", roomKey).eq("status", status))
+      .withIndex("by_room_status", (q: any) =>
+        q.eq("room_key", roomKey).eq("status", status),
+      )
       .order("desc")
       .take(8);
-    for (const r of rows) if (r.kind === "composite" && (!last || r.requested_at > last.requested_at)) last = r;
+    for (const r of rows)
+      if (
+        r.kind === "composite" &&
+        (!last || r.requested_at > last.requested_at)
+      )
+        last = r;
   }
   if (!last) return null;
   return {
@@ -345,7 +452,12 @@ export async function roomRecordingEnd(ctx: any, roomKey: string) {
     status: last.status as "stopping" | "ready" | "failed",
     stop_reason: last.stop_reason ?? null,
     error: plainStoredError(last.error),
-    stopped_by: last.stopped_by ? { id: last.stopped_by, name: await identityName(ctx, roomKey, last.stopped_by) } : null,
+    stopped_by: last.stopped_by
+      ? {
+          id: last.stopped_by,
+          name: await identityName(ctx, roomKey, last.stopped_by),
+        }
+      : null,
     // Whose recording it was, and whether its video was lost while it saved
     // after a stop the room was already told of: its presser is owed a word
     // that the video is gone (roomRecordingEnd's owedStopNotice).
@@ -353,7 +465,10 @@ export async function roomRecordingEnd(ctx: any, roomKey: string) {
     lost: mayLandLate(last),
     transcript_id: String(last.transcript_id),
     short_id: last.call_short_id ?? null,
-    at_ms: last.started_at != null && last.call_started_at != null ? Math.max(0, last.started_at - last.call_started_at) : null,
+    at_ms:
+      last.started_at != null && last.call_started_at != null
+        ? Math.max(0, last.started_at - last.call_started_at)
+        : null,
   };
 }
 
@@ -394,13 +509,17 @@ export async function callRecordingsCore<K extends boolean = false>(
 ) {
   const rows = await callRows(ctx, call._id);
   const byRun = new Map<string, RecordingRow[]>();
-  for (const r of rows) byRun.set(runIdOf(r), [...(byRun.get(runIdOf(r)) ?? []), r]);
+  for (const r of rows)
+    byRun.set(runIdOf(r), [...(byRun.get(runIdOf(r)) ?? []), r]);
   const admin = await isTeamAdmin(ctx, userId, call.team_id);
   const names = new Map<string, string>();
-  for (const r of rows) if (!names.has(String(r.started_by))) names.set(String(r.started_by), await runStarterName(ctx, r));
+  for (const r of rows)
+    if (!names.has(String(r.started_by)))
+      names.set(String(r.started_by), await runStarterName(ctx, r));
   const recordings = [];
   for (const r of rows) {
-    const signed = r.status === "ready" && opts.sign ? await opts.sign(r.r2_key) : null;
+    const signed =
+      r.status === "ready" && opts.sign ? await opts.sign(r.r2_key) : null;
     const view = {
       _id: String(r._id),
       run_id: runIdOf(r),
@@ -420,12 +539,24 @@ export async function callRecordingsCore<K extends boolean = false>(
       url: signed?.url ?? null,
       url_expires_at: signed?.expiresAt ?? null,
       // The button and the mutation ask the same question of the same rows.
-      can_delete: mayDeleteRun(String(userId), byRun.get(runIdOf(r)) ?? [r], admin).ok,
+      can_delete: mayDeleteRun(
+        String(userId),
+        byRun.get(runIdOf(r)) ?? [r],
+        admin,
+      ).ok,
     };
     // The keys ride only with `keys: true`, and the type says so: a caller
     // that asked for them reads them without a cast, any other cannot.
-    const keys: FileKeys | null = opts.keys ? { r2_key: r.r2_key, live_frame_key: (opts.liveWatch && r.live_frame_key) || null } : null;
-    recordings.push((keys ? { ...view, ...keys } : view) as typeof view & (K extends true ? FileKeys : unknown));
+    const keys: FileKeys | null = opts.keys
+      ? {
+          r2_key: r.r2_key,
+          live_frame_key: (opts.liveWatch && r.live_frame_key) || null,
+        }
+      : null;
+    recordings.push(
+      (keys ? { ...view, ...keys } : view) as typeof view &
+        (K extends true ? FileKeys : unknown),
+    );
   }
   return {
     transcript_id: String(call._id),
@@ -439,10 +570,16 @@ export async function callRecordingsCore<K extends boolean = false>(
     video_shared: shareIncludesVideo(call),
     // Room videos finished after the video was put on the link, which the
     // link does not show until somebody includes them (sharedVideoRuns).
-    video_later: shareIncludesVideo(call) ? sharedVideoRuns(rows, call.share_video_through).later.length : 0,
+    video_later: shareIncludesVideo(call)
+      ? sharedVideoRuns(rows, call.share_video_through).later.length
+      : 0,
     // Whether this viewer may put the video on the link (mayShareVideo), so
     // the switch says who can rather than failing on the press.
-    can_share_video: mayShareVideo(String(userId), publishableComposites(rows), admin),
+    can_share_video: mayShareVideo(
+      String(userId),
+      publishableComposites(rows),
+      admin,
+    ),
     // The pictures of this call on public links, each with a way down.
     frame_shares: await callFrameSharesView(ctx, call, rows),
     // Whether the live frames were handed over (the CLI's refusal says why
@@ -464,7 +601,12 @@ export async function callRecordingsCore<K extends boolean = false>(
  * (call_agent_feeds: an agent the room added, whose answers are in the
  * thread). Everyone else waits for the saved file, like the call page does.
  */
-export async function mayWatchLive(ctx: any, userId: Id<"users">, call: Doc<"transcripts">, now: number = Date.now()): Promise<boolean> {
+export async function mayWatchLive(
+  ctx: any,
+  userId: Id<"users">,
+  call: Doc<"transcripts">,
+  now: number = Date.now(),
+): Promise<boolean> {
   if (await liveSeat(ctx, userId, call.room_key, now)) return true;
   const feeds = await ctx.db
     .query("call_agent_feeds")
@@ -490,7 +632,10 @@ export const SIGNING_LEAD_MS = 60_000;
  *  enough ahead for the bucket to refuse it as not valid yet. */
 export function signingMoment(urlWindow: number, now: number): number {
   const asked = urlWindow * CALL_RECORDING_URL_WINDOW_MS;
-  return Math.min(now + SIGNING_LEAD_MS, Math.max(now - CALL_RECORDING_URL_WINDOW_MS, asked));
+  return Math.min(
+    now + SIGNING_LEAD_MS,
+    Math.max(now - CALL_RECORDING_URL_WINDOW_MS, asked),
+  );
 }
 
 /** The call page's recordings. `call` is a short id (`cl-42`) or full id.
@@ -506,7 +651,11 @@ export const webCallRecordings = query({
     const t = await resolveCallRef(ctx, userId, args.call, RECORDINGS);
     if (!t) return null;
     const at = signingMoment(args.url_window, Date.now());
-    return callRecordingsCore(ctx, t, userId, { sign: callRecordingSigner({ stable: { at, windowMs: CALL_RECORDING_URL_WINDOW_MS } }) });
+    return callRecordingsCore(ctx, t, userId, {
+      sign: callRecordingSigner({
+        stable: { at, windowMs: CALL_RECORDING_URL_WINDOW_MS },
+      }),
+    });
   },
 });
 
@@ -521,7 +670,10 @@ export const cliCallRecordings = internalQuery({
     if (!auth) throw new Error("Unauthorized");
     const t = await resolveCallRef(ctx, auth.userId, args.call, RECORDINGS);
     if (!t) return null;
-    return callRecordingsCore(ctx, t, auth.userId, { keys: true, liveWatch: await mayWatchLive(ctx, auth.userId, t) });
+    return callRecordingsCore(ctx, t, auth.userId, {
+      keys: true,
+      liveWatch: await mayWatchLive(ctx, auth.userId, t),
+    });
   },
 });
 
@@ -532,14 +684,20 @@ export const cliCallRecordings = internalQuery({
  *  watch it live (mayWatchLive; `live_watch` says which). `server_now` lets a
  *  caller on a skewed clock tell "now" from "a moment ago". Keys never leave
  *  the server. */
-export async function signForCli(res: Awaited<ReturnType<typeof callRecordingsCore<true>>>) {
+export async function signForCli(
+  res: Awaited<ReturnType<typeof callRecordingsCore<true>>>,
+) {
   const sign = callRecordingSigner("fresh");
   const now = Date.now();
   const recordings = [];
   for (const r of res.recordings) {
     const { r2_key, live_frame_key, ...rest } = r;
-    const file = sign && r.status === "ready" && r2_key ? await sign(r2_key) : null;
-    const frame = sign && r.status === "recording" && live_frame_key ? await sign(live_frame_key) : null;
+    const file =
+      sign && r.status === "ready" && r2_key ? await sign(r2_key) : null;
+    const frame =
+      sign && r.status === "recording" && live_frame_key
+        ? await sign(live_frame_key)
+        : null;
     recordings.push({
       ...rest,
       url: file?.url ?? null,
@@ -547,7 +705,12 @@ export async function signForCli(res: Awaited<ReturnType<typeof callRecordingsCo
       live_frame_url: frame?.url ?? null,
     });
   }
-  return { ...res, recordings, server_now: now, live_frame_interval_ms: LIVE_FRAME_INTERVAL_S * 1000 };
+  return {
+    ...res,
+    recordings,
+    server_now: now,
+    live_frame_interval_ms: LIVE_FRAME_INTERVAL_S * 1000,
+  };
 }
 
 // ── Public share ──────────────────────────────────────────────────────────
@@ -577,30 +740,69 @@ export const setCallShareVideo = mutation({
     // Putting faces and screens on the open web, or taking them off, is
     // news to the people filmed, the way a picture of them is
     // (cliNoteFrameShare): a line in the room's thread, once per change.
-    const tell = (event: "video_shared" | "video_unshared", span?: { from_ms: number; to_ms: number } | null) =>
-      postEvent(ctx, { room_key: t.room_key, team_id: t.team_id, user_id: userId, event, transcript_id: t._id, ...(span ? { span } : {}) });
+    const tell = (
+      event: "video_shared" | "video_unshared",
+      span?: { from_ms: number; to_ms: number } | null,
+    ) =>
+      postEvent(ctx, {
+        room_key: t.room_key,
+        team_id: t.team_id,
+        user_id: userId,
+        event,
+        transcript_id: t._id,
+        ...(span ? { span } : {}),
+      });
     const wasShared = shareIncludesVideo(t);
     if (!args.include) {
-      await ctx.db.patch(t._id, { share_video_token: undefined, share_video_through: undefined });
-      await restampRunShare(ctx, { ...t, share_video_token: undefined, share_video_through: undefined });
+      await ctx.db.patch(t._id, {
+        share_video_token: undefined,
+        share_video_through: undefined,
+      });
+      await restampRunShare(ctx, {
+        ...t,
+        share_video_token: undefined,
+        share_video_through: undefined,
+      });
       if (wasShared) await tell("video_unshared");
       return { video_shared: false };
     }
     if (!t.share_token) throw new Error("Turn on the share link first");
     const rows = await callRows(ctx, t._id);
     const publishable = publishableComposites(rows);
-    if (!mayShareVideo(String(userId), publishable, await isTeamAdmin(ctx, userId, t.team_id))) {
-      throw new Error("Only whoever recorded this call, or a team admin, can put its video on the public link");
+    if (
+      !mayShareVideo(
+        String(userId),
+        publishable,
+        await isTeamAdmin(ctx, userId, t.team_id),
+      )
+    ) {
+      throw new Error(
+        "Only whoever recorded this call, or a team admin, can put its video on the public link",
+      );
     }
     const through = Date.now();
-    await ctx.db.patch(t._id, { share_video_token: t.share_token, share_video_through: through });
-    await restampRunShare(ctx, { ...t, share_video_token: t.share_token, share_video_through: through });
+    await ctx.db.patch(t._id, {
+      share_video_token: t.share_token,
+      share_video_through: through,
+    });
+    await restampRunShare(ctx, {
+      ...t,
+      share_video_token: t.share_token,
+      share_video_through: through,
+    });
     // Pressed again, it moves the cutoff to now: news only when that puts a
     // run on the link that was not on it (one pressed for since the last
     // choice, finished or still filming).
     const prior = t.share_video_through;
-    const widened = publishable.some((r) => prior != null && r.requested_at >= prior && r.requested_at < through);
-    if (!wasShared || widened) await tell("video_shared", filmedSpan(sharedVideoRuns(rows, through).shared, t.started_at));
+    const widened = publishable.some(
+      (r) =>
+        prior != null && r.requested_at >= prior && r.requested_at < through,
+    );
+    if (!wasShared || widened)
+      await tell(
+        "video_shared",
+        filmedSpan(sharedVideoRuns(rows, through).shared, t.started_at),
+      );
     return { video_shared: true };
   },
 });
@@ -611,10 +813,16 @@ export const setCallShareVideo = mutation({
  *  link stops serving its video at once rather than for the whole restore
  *  window (purgeTeamRecordings removes the files when it ends; a restore
  *  brings the link back as it was). */
-async function sharedVideoRows(ctx: any, call: Doc<"transcripts">): Promise<RecordingRow[]> {
+async function sharedVideoRows(
+  ctx: any,
+  call: Doc<"transcripts">,
+): Promise<RecordingRow[]> {
   if (!shareIncludesVideo(call)) return [];
   if (await callTeamRetired(ctx, call)) return [];
-  return sharedVideoRuns(await callRows(ctx, call._id), call.share_video_through).shared;
+  return sharedVideoRuns(
+    await callRows(ctx, call._id),
+    call.share_video_through,
+  ).shared;
 }
 
 /** Where the redirect lives: under /cli/, the prefix the proxy in front of
@@ -643,8 +851,15 @@ export async function sharedCallVideos(ctx: any, call: Doc<"transcripts">) {
 
 /** The object behind one shared video (the redirect route's lookup): the
  *  finished room recording that began at `at`, under the link's own rule. */
-export async function sharedCallVideoKey(ctx: any, call: Doc<"transcripts">, at: number): Promise<string | null> {
-  return (await sharedVideoRows(ctx, call)).find((r) => r.started_at === at)?.r2_key ?? null;
+export async function sharedCallVideoKey(
+  ctx: any,
+  call: Doc<"transcripts">,
+  at: number,
+): Promise<string | null> {
+  return (
+    (await sharedVideoRows(ctx, call)).find((r) => r.started_at === at)
+      ?.r2_key ?? null
+  );
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────
@@ -672,23 +887,47 @@ export const deleteRecording = mutation({
 
 export type DeleteRecordingOutcome =
   | { ok: true; deleted: number }
-  | { ok: false; code: "NOT_FOUND" | "STILL_RECORDING" | "FORBIDDEN"; message: string };
+  | {
+      ok: false;
+      code: "NOT_FOUND" | "STILL_RECORDING" | "FORBIDDEN";
+      message: string;
+    };
 
 /** deleteRecording's work, its refusals answered rather than thrown, so the
  *  store's receipt-backed delete (dispatch deleteCallRecording) can record a
  *  refusal as the command's outcome and roll the run back on the client. */
-export async function deleteRecordingRun(ctx: any, userId: Id<"users">, recordingId: string): Promise<DeleteRecordingOutcome> {
+export async function deleteRecordingRun(
+  ctx: any,
+  userId: Id<"users">,
+  recordingId: string,
+): Promise<DeleteRecordingOutcome> {
   const id = ctx.db.normalizeId("call_recordings", recordingId);
   const row = id ? await ctx.db.get(id) : null;
   const call = row ? await ctx.db.get(row.transcript_id) : null;
   // One error for "no row" and "not yours to read", so a probe learns nothing.
-  if (!row || !call || !(await canReadCall(ctx, userId, call, RECORDINGS))) return { ok: false, code: "NOT_FOUND", message: "Recording not found" };
-  const runRows = (await callRows(ctx, call._id)).filter((r) => runIdOf(r) === runIdOf(row));
-  const verdict = mayDeleteRun(String(userId), runRows, await isTeamAdmin(ctx, userId, call.team_id));
+  if (!row || !call || !(await canReadCall(ctx, userId, call, RECORDINGS)))
+    return { ok: false, code: "NOT_FOUND", message: "Recording not found" };
+  const runRows = (await callRows(ctx, call._id)).filter(
+    (r) => runIdOf(r) === runIdOf(row),
+  );
+  const verdict = mayDeleteRun(
+    String(userId),
+    runRows,
+    await isTeamAdmin(ctx, userId, call.team_id),
+  );
   if (!verdict.ok) {
     return verdict.reason === "still_recording"
-      ? { ok: false, code: "STILL_RECORDING", message: "Stop the recording before deleting it" }
-      : { ok: false, code: "FORBIDDEN", message: "Only whoever started this recording, or a team admin, can delete it" };
+      ? {
+          ok: false,
+          code: "STILL_RECORDING",
+          message: "Stop the recording before deleting it",
+        }
+      : {
+          ok: false,
+          code: "FORBIDDEN",
+          message:
+            "Only whoever started this recording, or a team admin, can delete it",
+        };
   }
   for (const r of runRows) {
     await deleteFrameShares(ctx, r._id);
@@ -716,14 +955,20 @@ export async function deleteRecordingRun(ctx: any, userId: Id<"users">, recordin
  *  known by its first bytes. The object is served publicly under the type it
  *  is stored with, so nothing else is stored under an image's name. */
 const FRAME_SHARE_TYPES: { type: string; magic: number[] }[] = [
-  { type: "image/png", magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  {
+    type: "image/png",
+    magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  },
   { type: "image/jpeg", magic: [0xff, 0xd8, 0xff] },
 ];
 /** Larger than any frame the CLI sends (it downscales past 5 MB). */
 const FRAME_SHARE_MAX_BYTES = 8 * 1024 * 1024;
 
 export function frameShareType(bytes: Uint8Array): string | null {
-  return FRAME_SHARE_TYPES.find((t) => t.magic.every((b, i) => bytes[i] === b))?.type ?? null;
+  return (
+    FRAME_SHARE_TYPES.find((t) => t.magic.every((b, i) => bytes[i] === b))
+      ?.type ?? null
+  );
 }
 
 /** The recording file a CLI caller may share a frame of: the row and its call,
@@ -733,16 +978,33 @@ export function frameShareType(bytes: Uint8Array): string | null {
  *  putting the video there does, or the screen being the caller's own). A
  *  reader without it is refused in words that say who can (the CLI adds the
  *  access-checked alternative: cite the moment). */
-async function frameShareTarget(ctx: any, apiToken: string, recordingId: string) {
+async function frameShareTarget(
+  ctx: any,
+  apiToken: string,
+  recordingId: string,
+) {
   const auth = await verifyApiToken(ctx, apiToken);
   if (!auth) throw new Error("Unauthorized");
   const id = ctx.db.normalizeId("call_recordings", recordingId);
   const row = id ? await ctx.db.get(id) : null;
   const call = row ? await ctx.db.get(row.transcript_id) : null;
-  if (!row || !call || !(await canReadCall(ctx, auth.userId, call, RECORDINGS))) throw new Error("Recording not found");
-  const runRows = (await callRows(ctx, call._id)).filter((r) => runIdOf(r) === runIdOf(row));
-  if (!mayShareFrame(String(auth.userId), row, runRows, await isTeamAdmin(ctx, auth.userId, call.team_id))) {
-    throw new ConvexError({ code: "FORBIDDEN", message: FRAME_SHARE_REFUSED_WORDS });
+  if (!row || !call || !(await canReadCall(ctx, auth.userId, call, RECORDINGS)))
+    throw new Error("Recording not found");
+  const runRows = (await callRows(ctx, call._id)).filter(
+    (r) => runIdOf(r) === runIdOf(row),
+  );
+  if (
+    !mayShareFrame(
+      String(auth.userId),
+      row,
+      runRows,
+      await isTeamAdmin(ctx, auth.userId, call.team_id),
+    )
+  ) {
+    throw new ConvexError({
+      code: "FORBIDDEN",
+      message: FRAME_SHARE_REFUSED_WORDS,
+    });
   }
   return { row, call, userId: auth.userId as Id<"users"> };
 }
@@ -759,9 +1021,18 @@ async function frameSharesOf(ctx: any, recordingId: Id<"call_recordings">) {
  *  object, so a frame shared twice is one image and one link. */
 export const frameShareCheck = internalQuery({
   args: { api_token: v.string(), recording_id: v.string(), sha256: v.string() },
-  handler: async (ctx, args): Promise<{ storage_id: Id<"_storage"> | null }> => {
-    const { row } = await frameShareTarget(ctx, args.api_token, args.recording_id);
-    const same = (await frameSharesOf(ctx, row._id)).find((s: any) => s.sha256 === args.sha256);
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ storage_id: Id<"_storage"> | null }> => {
+    const { row } = await frameShareTarget(
+      ctx,
+      args.api_token,
+      args.recording_id,
+    );
+    const same = (await frameSharesOf(ctx, row._id)).find(
+      (s: any) => s.sha256 === args.sha256,
+    );
     return { storage_id: same?.storage_id ?? null };
   },
 });
@@ -773,9 +1044,19 @@ export const frameShareCheck = internalQuery({
  *  deleting the run deletes whatever object a row names. Access is asked
  *  again here, since it may have changed while the bytes were stored. */
 export const cliNoteFrameShare = internalMutation({
-  args: { api_token: v.string(), recording_id: v.string(), storage_id: v.id("_storage"), sha256: v.string(), at_ms: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    recording_id: v.string(),
+    storage_id: v.id("_storage"),
+    sha256: v.string(),
+    at_ms: v.optional(v.number()),
+  },
   handler: async (ctx, args): Promise<{ ok: boolean }> => {
-    const { row, call, userId } = await frameShareTarget(ctx, args.api_token, args.recording_id);
+    const { row, call, userId } = await frameShareTarget(
+      ctx,
+      args.api_token,
+      args.recording_id,
+    );
     const existing = await frameSharesOf(ctx, row._id);
     if (!existing.some((s: any) => s.storage_id === args.storage_id)) {
       await ctx.db.insert("call_frame_shares", {
@@ -785,7 +1066,9 @@ export const cliNoteFrameShare = internalMutation({
         sha256: args.sha256,
         user_id: userId,
         created_at: Date.now(),
-        ...(args.at_ms !== undefined ? { at_ms: Math.max(0, Math.round(args.at_ms)) } : {}),
+        ...(args.at_ms !== undefined
+          ? { at_ms: Math.max(0, Math.round(args.at_ms)) }
+          : {}),
       });
       // The room hears that a picture of it went public: a line in its
       // thread, with the moment, so the people in the call (and anyone who
@@ -798,7 +1081,15 @@ export const cliNoteFrameShare = internalMutation({
         event: "frame_shared",
         transcript_id: call._id,
         run_id: runIdOf(row),
-        ...(args.at_ms !== undefined ? { detail: callRefId(call.short_id ?? String(call._id), undefined, Math.max(0, Math.round(args.at_ms))) } : {}),
+        ...(args.at_ms !== undefined
+          ? {
+              detail: callRefId(
+                call.short_id ?? String(call._id),
+                undefined,
+                Math.max(0, Math.round(args.at_ms)),
+              ),
+            }
+          : {}),
       });
     }
     return { ok: true };
@@ -809,7 +1100,11 @@ export const cliNoteFrameShare = internalMutation({
  *  the share control, each with a way to take it down). Each names the
  *  moment and the view it shows, who shared it, and its public URL, which is
  *  what anyone holding the link sees. */
-async function callFrameSharesView(ctx: any, call: Doc<"transcripts">, rows: RecordingRow[]) {
+async function callFrameSharesView(
+  ctx: any,
+  call: Doc<"transcripts">,
+  rows: RecordingRow[],
+) {
   const shares = await ctx.db
     .query("call_frame_shares")
     .withIndex("by_transcript", (q: any) => q.eq("transcript_id", call._id))
@@ -817,9 +1112,12 @@ async function callFrameSharesView(ctx: any, call: Doc<"transcripts">, rows: Rec
   const files = new Map(rows.map((r) => [String(r._id), r]));
   const names = new Map<string, string>();
   const out = [];
-  for (const s of shares.sort((a: any, b: any) => b.created_at - a.created_at)) {
+  for (const s of shares.sort(
+    (a: any, b: any) => b.created_at - a.created_at,
+  )) {
     const file = files.get(String(s.recording_id));
-    if (!names.has(String(s.user_id))) names.set(String(s.user_id), await teammateName(ctx, s.user_id));
+    if (!names.has(String(s.user_id)))
+      names.set(String(s.user_id), await teammateName(ctx, s.user_id));
     out.push({
       _id: String(s._id),
       recording_id: String(s.recording_id),
@@ -840,12 +1138,17 @@ async function callFrameSharesView(ctx: any, call: Doc<"transcripts">, rows: Rec
  *  makes the call less public, as taking the video off the link does. A
  *  picture already gone is acknowledged, so a second press (or another
  *  window's) is not an error. */
-export async function deleteFrameShareFor(ctx: any, userId: Id<"users">, shareId: string): Promise<{ deleted: boolean }> {
+export async function deleteFrameShareFor(
+  ctx: any,
+  userId: Id<"users">,
+  shareId: string,
+): Promise<{ deleted: boolean }> {
   const id = ctx.db.normalizeId("call_frame_shares", shareId);
   const share = id ? await ctx.db.get(id) : null;
   if (!share) return { deleted: false };
   const call = await ctx.db.get(share.transcript_id);
-  if (!call || !(await canReadCall(ctx, userId, call, RECORDINGS))) return { deleted: false };
+  if (!call || !(await canReadCall(ctx, userId, call, RECORDINGS)))
+    return { deleted: false };
   await deleteFrameShare(ctx, share);
   return { deleted: true };
 }
@@ -869,14 +1172,28 @@ export const deleteCallFrameShare = mutation({
  * row can hold is one this action just created.
  */
 export const cliShareFrame = internalAction({
-  args: { api_token: v.string(), recording_id: v.string(), image_base64: v.string(), at_ms: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    recording_id: v.string(),
+    image_base64: v.string(),
+    at_ms: v.optional(v.number()),
+  },
   handler: async (ctx, args): Promise<{ url: string; storage_id: string }> => {
-    const bytes = Uint8Array.from(atob(args.image_base64), (c) => c.charCodeAt(0));
-    if (bytes.length > FRAME_SHARE_MAX_BYTES) throw new Error(`Frame too large to share (${(bytes.length / 1e6).toFixed(1)} MB)`);
+    const bytes = Uint8Array.from(atob(args.image_base64), (c) =>
+      c.charCodeAt(0),
+    );
+    if (bytes.length > FRAME_SHARE_MAX_BYTES)
+      throw new Error(
+        `Frame too large to share (${(bytes.length / 1e6).toFixed(1)} MB)`,
+      );
     const type = frameShareType(bytes);
     if (!type) throw new Error("A shared frame must be a PNG or JPEG");
     const sha256 = await sha256Hex(bytes);
-    const known = await ctx.runQuery(internal.callRecordings.frameShareCheck, { api_token: args.api_token, recording_id: args.recording_id, sha256 });
+    const known = await ctx.runQuery(internal.callRecordings.frameShareCheck, {
+      api_token: args.api_token,
+      recording_id: args.recording_id,
+      sha256,
+    });
     let storageId = known.storage_id;
     if (!storageId) {
       const stored = await ctx.storage.store(new Blob([bytes], { type }));
@@ -909,12 +1226,37 @@ export const cliShareFrame = internalAction({
  *  LiveKit wrote under a name no row holds (an upload that landed after its
  *  row failed, a partial file) goes with them. Deleting a key that is not
  *  there costs nothing (S3 answers 204), so it is never filtered first. */
-async function scheduleObjectDelete(ctx: any, rows: RecordingRow[], opts: { wholeRun: boolean }): Promise<void> {
+async function scheduleObjectDelete(
+  ctx: any,
+  rows: RecordingRow[],
+  opts: { wholeRun: boolean },
+): Promise<void> {
   const keys = [
-    ...new Set(rows.flatMap((r) => [r.r2_key, r.live_frame_key, callRecordingManifestKey(r.r2_key, r.egress_id)].filter((k): k is string => !!k))),
+    ...new Set(
+      rows.flatMap((r) =>
+        [
+          r.r2_key,
+          r.live_frame_key,
+          callRecordingManifestKey(r.r2_key, r.egress_id),
+        ].filter((k): k is string => !!k),
+      ),
+    ),
   ];
-  const prefixes = opts.wholeRun ? [...new Set(rows.map((r) => callRecordingRunPrefixOfKey(r.r2_key)).filter((p): p is string => !!p))] : [];
-  if (keys.length || prefixes.length) await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, { keys, prefixes, attempt: 0 });
+  const prefixes = opts.wholeRun
+    ? [
+        ...new Set(
+          rows
+            .map((r) => callRecordingRunPrefixOfKey(r.r2_key))
+            .filter((p): p is string => !!p),
+        ),
+      ]
+    : [];
+  if (keys.length || prefixes.length)
+    await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, {
+      keys,
+      prefixes,
+      attempt: 0,
+    });
 }
 
 /** Remove files from the bucket: the keys named, and every key under each
@@ -922,11 +1264,19 @@ async function scheduleObjectDelete(ctx: any, rows: RecordingRow[], opts: { whol
  *  retried with backoff, and after the last try reported in the logs rather
  *  than lost silently. */
 export const deleteObjects = internalAction({
-  args: { keys: v.array(v.string()), prefixes: v.optional(v.array(v.string())), attempt: v.number() },
+  args: {
+    keys: v.array(v.string()),
+    prefixes: v.optional(v.array(v.string())),
+    attempt: v.number(),
+  },
   handler: async (ctx, args) => {
     const bucket = callRecordingsBucketFromEnv();
     if (!bucket) {
-      console.error(`[callRecordings] cannot delete ${args.keys.length} object(s): recordings bucket not configured`, args.keys, args.prefixes);
+      console.error(
+        `[callRecordings] cannot delete ${args.keys.length} object(s): recordings bucket not configured`,
+        args.keys,
+        args.prefixes,
+      );
       return;
     }
     const keys = new Set(args.keys);
@@ -942,7 +1292,9 @@ export const deleteObjects = internalAction({
     const failed: string[] = [];
     for (const key of keys) {
       try {
-        const res = await fetch(await r2Presign(bucket, "DELETE", key, 300), { method: "DELETE" });
+        const res = await fetch(await r2Presign(bucket, "DELETE", key, 300), {
+          method: "DELETE",
+        });
         if (!res.ok && res.status !== 404) failed.push(key);
       } catch {
         failed.push(key);
@@ -950,10 +1302,18 @@ export const deleteObjects = internalAction({
     }
     if (failed.length === 0 && unlisted.length === 0) return;
     if (args.attempt >= 4) {
-      console.error(`[callRecordings] gave up deleting ${failed.length} object(s) and ${unlisted.length} prefix(es)`, failed, unlisted);
+      console.error(
+        `[callRecordings] gave up deleting ${failed.length} object(s) and ${unlisted.length} prefix(es)`,
+        failed,
+        unlisted,
+      );
       return;
     }
-    await ctx.scheduler.runAfter(30_000 * 2 ** args.attempt, internal.callRecordings.deleteObjects, { keys: failed, prefixes: unlisted, attempt: args.attempt + 1 });
+    await ctx.scheduler.runAfter(
+      30_000 * 2 ** args.attempt,
+      internal.callRecordings.deleteObjects,
+      { keys: failed, prefixes: unlisted, attempt: args.attempt + 1 },
+    );
   },
 });
 
@@ -984,7 +1344,10 @@ export const purgeTeamRecordings = internalMutation({
     skipped: v.optional(v.boolean()),
     frames: v.optional(v.boolean()),
   },
-  handler: async (ctx, args): Promise<{ purged: number; waiting: number; done: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ purged: number; waiting: number; done: boolean }> => {
     const team = await ctx.db.get(args.team_id);
     if (!team || !team.deleted_at) return { purged: 0, waiting: 0, done: true };
     const page = await ctx.db
@@ -993,13 +1356,19 @@ export const purgeTeamRecordings = internalMutation({
       .paginate({ cursor: args.cursor ?? null, numItems: PURGE_PAGE });
     if (args.frames) {
       let taken = 0;
-      for (const call of page.page) taken += await deleteCallFrameShares(ctx, call._id);
+      for (const call of page.page)
+        taken += await deleteCallFrameShares(ctx, call._id);
       if (!page.isDone) {
-        await ctx.scheduler.runAfter(0, internal.callRecordings.purgeTeamRecordings, { team_id: args.team_id, cursor: page.continueCursor, frames: true });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.callRecordings.purgeTeamRecordings,
+          { team_id: args.team_id, cursor: page.continueCursor, frames: true },
+        );
       }
       return { purged: taken, waiting: 0, done: page.isDone };
     }
-    let purged = 0, waiting = 0;
+    let purged = 0,
+      waiting = 0;
     for (const call of page.page) {
       const n = await purgeCallRecordings(ctx, call._id);
       if (n === null) waiting++;
@@ -1007,11 +1376,19 @@ export const purgeTeamRecordings = internalMutation({
     }
     const skipped = !!args.skipped || waiting > 0;
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.callRecordings.purgeTeamRecordings, { team_id: args.team_id, cursor: page.continueCursor, skipped });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.callRecordings.purgeTeamRecordings,
+        { team_id: args.team_id, cursor: page.continueCursor, skipped },
+      );
     } else if (skipped) {
       // A fresh pass later, rather than one timer per waiting call: calls
       // already purged cost the next pass a read each and nothing more.
-      await ctx.scheduler.runAfter(PURGE_ACTIVE_RETRY_MS, internal.callRecordings.purgeTeamRecordings, { team_id: args.team_id });
+      await ctx.scheduler.runAfter(
+        PURGE_ACTIVE_RETRY_MS,
+        internal.callRecordings.purgeTeamRecordings,
+        { team_id: args.team_id },
+      );
     }
     return { purged, waiting, done: page.isDone };
   },
@@ -1025,10 +1402,17 @@ export const purgeTeamRecordings = internalMutation({
 export const backfillCallVideo = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args): Promise<{ calls: number; done: boolean }> => {
-    const page = await ctx.db.query("call_recordings").paginate({ cursor: args.cursor ?? null, numItems: 200 });
+    const page = await ctx.db
+      .query("call_recordings")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
     const calls = new Set(page.page.map((r) => r.transcript_id));
     for (const id of calls) await syncCallVideo(ctx, id);
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.callRecordings.backfillCallVideo, { cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(
+        0,
+        internal.callRecordings.backfillCallVideo,
+        { cursor: page.continueCursor },
+      );
     return { calls: calls.size, done: page.isDone };
   },
 });
@@ -1042,10 +1426,18 @@ export const runForAction = internalQuery({
   handler: async (ctx, args) => await readRun(ctx, args.run_id),
 });
 
-async function readRun(ctx: any, runId: Id<"call_recordings">): Promise<{ run: RecordingRow; rows: RecordingRow[] } | null> {
+async function readRun(
+  ctx: any,
+  runId: Id<"call_recordings">,
+): Promise<{ run: RecordingRow; rows: RecordingRow[] } | null> {
   const head: RecordingRow | null = await ctx.db.get(runId);
   if (!head) return null;
-  return { run: head, rows: (await callRows(ctx, head.transcript_id)).filter((r) => runIdOf(r) === String(runId)) };
+  return {
+    run: head,
+    rows: (await callRows(ctx, head.transcript_id)).filter(
+      (r) => runIdOf(r) === String(runId),
+    ),
+  };
 }
 
 /** The current loop's look begins: null when this loop has been replaced
@@ -1092,7 +1484,10 @@ export const applyEgress = internalMutation({
      *  saw it close read the room (selfEndReason). */
     ended_because: v.optional(callRecordingStopReasonValidator),
   },
-  handler: async (ctx, args): Promise<{ stop: boolean; status: string | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ stop: boolean; status: string | null }> => {
     const row = await ctx.db.get(args.id);
     if (!row) return { stop: !!args.attach, status: null };
     const egress = args.egress as LivekitEgress;
@@ -1102,7 +1497,8 @@ export const applyEgress = internalMutation({
       return { stop: false, status: null };
     }
     const patch: Partial<RecordingRow> = { ...result.patch };
-    if (args.attach && !row.egress_id && egress.egressId) patch.egress_id = egress.egressId;
+    if (args.attach && !row.egress_id && egress.egressId)
+      patch.egress_id = egress.egressId;
     // LiveKit took an egress: whatever outage was remembered is over.
     if (args.attach && egress.egressId) await forgetRecordingOutage(ctx);
     const status = (patch.status ?? row.status) as RecordingRow["status"];
@@ -1110,26 +1506,49 @@ export const applyEgress = internalMutation({
       // The row carries plain words (plainEgressError); LiveKit's own text,
       // with whatever endpoint or request id it quotes, goes to the logs.
       const raw = egress.error ?? "";
-      console.warn(`[callRecordings] egress ${egress.egressId} for ${row._id} failed: ${raw}`);
+      console.warn(
+        `[callRecordings] egress ${egress.egressId} for ${row._id} failed: ${raw}`,
+      );
       // LiveKit ended a running file because the plan ran out of minutes:
       // every press from now on would meet the same refusal, so it is
       // remembered exactly as a refused start is.
-      if (patch.error_kind === "minutes_spent") await noteRecordingOutage(ctx, patch.error);
+      if (patch.error_kind === "minutes_spent")
+        await noteRecordingOutage(ctx, patch.error);
     }
     const ended = isRecordingActive(row.status) && !isRecordingActive(status);
     if (ended) Object.assign(patch, await retireLiveFrame(ctx, row));
-    if (Object.keys(patch).length) await ctx.db.patch(row._id, { ...patch, updated_at: Date.now() });
-    if ((status === "failed") !== (row.status === "failed")) await syncCallVideo(ctx, row.transcript_id);
+    if (Object.keys(patch).length)
+      await ctx.db.patch(row._id, { ...patch, updated_at: Date.now() });
+    if ((status === "failed") !== (row.status === "failed"))
+      await syncCallVideo(ctx, row.transcript_id);
     // The room stops being filmed on LiveKit's say, not ours (a stop we sent
     // moved the row to "stopping" first, and was told then).
-    if (row.kind === "composite" && isRecordingFilming(row.status) && !isRecordingFilming(status)) {
+    if (
+      row.kind === "composite" &&
+      isRecordingFilming(row.status) &&
+      !isRecordingFilming(status)
+    ) {
       const reason =
-        patch.stop_reason ?? row.stop_reason ?? (egress.status === "limit_reached" ? "limit" : status === "failed" ? "failed" : "ended");
-      await announceRecordEnd(ctx, row, { reason, detail: status === "failed" ? (patch.error ?? row.error) : undefined });
+        patch.stop_reason ??
+        row.stop_reason ??
+        (egress.status === "limit_reached"
+          ? "limit"
+          : status === "failed"
+            ? "failed"
+            : "ended");
+      await announceRecordEnd(ctx, row, {
+        reason,
+        detail: status === "failed" ? (patch.error ?? row.error) : undefined,
+      });
     }
     // A stopped run whose video then failed to save: the room was told it
     // was saving, so it is told again that it is gone.
-    if (row.kind === "composite" && row.status === "stopping" && status === "failed" && (patch.started_at ?? row.started_at) !== undefined) {
+    if (
+      row.kind === "composite" &&
+      row.status === "stopping" &&
+      status === "failed" &&
+      (patch.started_at ?? row.started_at) !== undefined
+    ) {
       await announceRecordLost(ctx, row, patch.error ?? row.error);
     }
     return { stop: !!args.attach && !isRecordingFilming(status), status };
@@ -1142,9 +1561,15 @@ export const applyEgress = internalMutation({
  *  frame. Returns the field to write onto the row; every path that ends a
  *  row (LiveKit's answer, a failure, a file settled from the bucket) takes
  *  it, so none of them can forget the object. */
-async function retireLiveFrame(ctx: any, row: RecordingRow): Promise<Partial<RecordingRow>> {
+async function retireLiveFrame(
+  ctx: any,
+  row: RecordingRow,
+): Promise<Partial<RecordingRow>> {
   if (!row.live_frame_key) return {};
-  await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, { keys: [row.live_frame_key], attempt: 0 });
+  await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, {
+    keys: [row.live_frame_key],
+    attempt: 0,
+  });
   return { live_frame_key: undefined };
 }
 
@@ -1156,28 +1581,49 @@ async function retireLiveFrame(ctx: any, row: RecordingRow): Promise<Partial<Rec
  *  it. Whatever LiveKit may have put in the bucket for a dropped file goes
  *  with it. */
 async function dropUnrecorded(ctx: any, row: RecordingRow): Promise<void> {
-  const runRows = (await callRows(ctx, row.transcript_id)).filter((r) => runIdOf(r) === runIdOf(row));
+  const runRows = (await callRows(ctx, row.transcript_id)).filter(
+    (r) => runIdOf(r) === runIdOf(row),
+  );
   const others = runRows.filter((r) => r._id !== row._id);
   if (row.kind === "composite" && others.some((r) => r.kind === "screen")) {
-    await ctx.db.patch(row._id, { status: "failed", error: "Stopped before the room's video began.", live_frame_key: undefined, updated_at: Date.now() });
+    await ctx.db.patch(row._id, {
+      status: "failed",
+      error: "Stopped before the room's video began.",
+      live_frame_key: undefined,
+      updated_at: Date.now(),
+    });
     await scheduleObjectDelete(ctx, [row], { wholeRun: false });
     await syncCallVideo(ctx, row.transcript_id);
     return;
   }
   await ctx.db.delete(row._id);
   const head = others.find((r) => r.kind === "composite");
-  const placeholderLeft = head && head.status === "failed" && head.started_at === undefined && !others.some((r) => r.kind === "screen");
+  const placeholderLeft =
+    head &&
+    head.status === "failed" &&
+    head.started_at === undefined &&
+    !others.some((r) => r.kind === "screen");
   if (placeholderLeft) await ctx.db.delete(head._id);
   const runGone = row.kind === "composite" || placeholderLeft;
-  await scheduleObjectDelete(ctx, placeholderLeft ? [row, head] : [row], { wholeRun: !!runGone });
+  await scheduleObjectDelete(ctx, placeholderLeft ? [row, head] : [row], {
+    wholeRun: !!runGone,
+  });
   await syncCallVideo(ctx, row.transcript_id);
 }
 
 /** Tell the room a stopped run's video was lost while it saved
  *  (announceRecordEnd `lost`): the presser owns the line, as with any end
  *  nobody pressed, and the plain words say what went wrong. */
-async function announceRecordLost(ctx: any, row: RecordingRow, error: string | undefined): Promise<void> {
-  await announceRecordEnd(ctx, row, { reason: "failed", detail: plainStoredError(error) ?? undefined, lost: true });
+async function announceRecordLost(
+  ctx: any,
+  row: RecordingRow,
+  error: string | undefined,
+): Promise<void> {
+  await announceRecordEnd(ctx, row, {
+    reason: "failed",
+    detail: plainStoredError(error) ?? undefined,
+    lost: true,
+  });
 }
 
 /** A file that cannot be made: LiveKit refused it, never acknowledged it, or
@@ -1189,13 +1635,22 @@ export const failRecording = internalMutation({
   // A "minutes_spent" failure is one every later press would meet too: it is
   // remembered, so they are refused before the room hears. `outage` says the
   // same for an action still running code from before error_kind.
-  args: { id: v.id("call_recordings"), error: v.string(), error_kind: v.optional(callRecordingErrorKindValidator), outage: v.optional(v.boolean()) },
+  args: {
+    id: v.id("call_recordings"),
+    error: v.string(),
+    error_kind: v.optional(callRecordingErrorKindValidator),
+    outage: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const kind = args.error_kind ?? (args.outage ? "minutes_spent" : undefined);
     if (kind === "minutes_spent") await noteRecordingOutage(ctx, args.error);
     const row = await ctx.db.get(args.id);
     if (!row || !isRecordingActive(row.status)) return;
-    if (row.egress_id) await ctx.scheduler.runAfter(0, internal.callRecordings.stopEgresses, { ids: [], egress_ids: [row.egress_id] });
+    if (row.egress_id)
+      await ctx.scheduler.runAfter(0, internal.callRecordings.stopEgresses, {
+        ids: [],
+        egress_ids: [row.egress_id],
+      });
     if (row.status === "stopping" && row.started_at === undefined) {
       await dropUnrecorded(ctx, row);
       return;
@@ -1208,7 +1663,13 @@ export const failRecording = internalMutation({
       stop_reason: row.stop_reason ?? "failed",
       // A stopped file filmed up to its stop, not up to the moment its save
       // was given up on.
-      ended_at: row.ended_at ?? (row.started_at === undefined ? undefined : row.status === "stopping" ? stopRequestedAt(row) : now),
+      ended_at:
+        row.ended_at ??
+        (row.started_at === undefined
+          ? undefined
+          : row.status === "stopping"
+            ? stopRequestedAt(row)
+            : now),
       ...(await retireLiveFrame(ctx, row)),
       updated_at: now,
     });
@@ -1216,8 +1677,13 @@ export const failRecording = internalMutation({
     if (row.kind !== "composite") return;
     // A stopped run was already told as saving (and one with nothing written
     // was dropped above): its loss is a line of its own.
-    if (row.status === "stopping") await announceRecordLost(ctx, row, args.error);
-    else await announceRecordEnd(ctx, row, { reason: "failed", detail: args.error });
+    if (row.status === "stopping")
+      await announceRecordLost(ctx, row, args.error);
+    else
+      await announceRecordEnd(ctx, row, {
+        reason: "failed",
+        detail: args.error,
+      });
   },
 });
 
@@ -1238,25 +1704,40 @@ export const clearRecordingOutage = internalMutation({
  *  file of a row that already gave up on its save (mayLandLate): the upload
  *  outlasted every ceiling, and the video is there after all. */
 export const settleFromObject = internalMutation({
-  args: { id: v.id("call_recordings"), size_bytes: v.optional(v.number()), uploaded_at: v.optional(v.number()), late: v.optional(v.boolean()) },
+  args: {
+    id: v.id("call_recordings"),
+    size_bytes: v.optional(v.number()),
+    uploaded_at: v.optional(v.number()),
+    late: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.id);
-    if (!row || !(isRecordingActive(row.status) || (args.late && mayLandLate(row)))) return;
-    const stopReason = row.stop_reason ?? (row.kind === "screen" ? "share_ended" : "ended");
+    if (
+      !row ||
+      !(isRecordingActive(row.status) || (args.late && mayLandLate(row)))
+    )
+      return;
+    const stopReason =
+      row.stop_reason ?? (row.kind === "screen" ? "share_ended" : "ended");
     await ctx.db.patch(row._id, {
       status: "ready",
       stop_reason: stopReason,
       error: undefined,
       error_kind: undefined,
       ...(args.size_bytes !== undefined ? { size_bytes: args.size_bytes } : {}),
-      ...(row.ended_at === undefined && row.duration_ms === undefined && args.uploaded_at !== undefined ? { ended_at: args.uploaded_at } : {}),
+      ...(row.ended_at === undefined &&
+      row.duration_ms === undefined &&
+      args.uploaded_at !== undefined
+        ? { ended_at: args.uploaded_at }
+        : {}),
       ...(await retireLiveFrame(ctx, row)),
       updated_at: Date.now(),
     });
     // A late landing turns a failed file back into video.
     if (row.status === "failed") await syncCallVideo(ctx, row.transcript_id);
     // Only a run still filming is news to the room: a stop already told it.
-    if (row.kind === "composite" && isRecordingFilming(row.status)) await announceRecordEnd(ctx, row, { reason: stopReason });
+    if (row.kind === "composite" && isRecordingFilming(row.status))
+      await announceRecordEnd(ctx, row, { reason: stopReason });
   },
 });
 
@@ -1267,14 +1748,29 @@ export const settleFromObject = internalMutation({
  *  on its own row, under a new object name, so an egress from the failed try
  *  that turns up late is never taken for this one. */
 export const claimScreen = internalMutation({
-  args: { run_id: v.id("call_recordings"), track_sid: v.string(), identity: v.string(), name: v.string() },
-  handler: async (ctx, args): Promise<{ id: Id<"call_recordings">; r2_key: string } | null> => {
+  args: {
+    run_id: v.id("call_recordings"),
+    track_sid: v.string(),
+    identity: v.string(),
+    name: v.string(),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ id: Id<"call_recordings">; r2_key: string } | null> => {
     const run = await ctx.db.get(args.run_id);
     if (!run || !isRecordingFilming(run.status)) return null;
     const taken = await ctx.db
       .query("call_recordings")
-      .withIndex("by_transcript", (q) => q.eq("transcript_id", run.transcript_id))
-      .filter((q) => q.and(q.eq(q.field("run_id"), run._id), q.eq(q.field("track_sid"), args.track_sid)))
+      .withIndex("by_transcript", (q) =>
+        q.eq("transcript_id", run.transcript_id),
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("run_id"), run._id),
+          q.eq(q.field("track_sid"), args.track_sid),
+        ),
+      )
       .first();
     const now = Date.now();
     if (taken) {
@@ -1300,7 +1796,12 @@ export const claimScreen = internalMutation({
       await syncCallVideo(ctx, run.transcript_id);
       return { id: taken._id, r2_key: retryKey };
     }
-    const file = { transcriptId: String(run.transcript_id), kind: "screen" as const, requestedAt: run.requested_at, trackSid: args.track_sid };
+    const file = {
+      transcriptId: String(run.transcript_id),
+      kind: "screen" as const,
+      requestedAt: run.requested_at,
+      trackSid: args.track_sid,
+    };
     const r2_key = callRecordingKey(file);
     // No live frame for a screen file. LiveKit will not start a track
     // composite asked for an MP4 and pictures together: it sits in
@@ -1341,7 +1842,11 @@ export const deferStart = internalMutation({
     if (!row || row.status !== "starting" || row.egress_id) return false;
     const now = Date.now();
     if ((row.start_attempts ?? 1) >= START_RETRY_LIMIT) return false;
-    if (now + COMPOSITE_RETRY_GAP_MS - row.requested_at >= EGRESS_ACCEPT_TIMEOUT_MS) return false;
+    if (
+      now + COMPOSITE_RETRY_GAP_MS - row.requested_at >=
+      EGRESS_ACCEPT_TIMEOUT_MS
+    )
+      return false;
     // Not a field any reader shows: the row's updated_at stays.
     await ctx.db.patch(row._id, { retry_after: now + COMPOSITE_RETRY_GAP_MS });
     return true;
@@ -1354,9 +1859,21 @@ export const retryStart = internalMutation({
   args: { id: v.id("call_recordings") },
   handler: async (ctx, args): Promise<boolean> => {
     const row = await ctx.db.get(args.id);
-    if (!row || row.status !== "starting" || row.egress_id || row.retry_after === undefined || Date.now() < row.retry_after) return false;
-    await ctx.db.patch(row._id, { retry_after: undefined, start_attempts: (row.start_attempts ?? 1) + 1 });
-    await ctx.scheduler.runAfter(0, internal.callRecordings.startRun, { run_id: row._id });
+    if (
+      !row ||
+      row.status !== "starting" ||
+      row.egress_id ||
+      row.retry_after === undefined ||
+      Date.now() < row.retry_after
+    )
+      return false;
+    await ctx.db.patch(row._id, {
+      retry_after: undefined,
+      start_attempts: (row.start_attempts ?? 1) + 1,
+    });
+    await ctx.scheduler.runAfter(0, internal.callRecordings.startRun, {
+      run_id: row._id,
+    });
     return true;
   },
 });
@@ -1365,9 +1882,16 @@ export const retryStart = internalMutation({
  *  any meeting, or its room video ended while screens still record. Scoped to
  *  the run, so an old run's loop never ends somebody's newer press. */
 export const stopRun = internalMutation({
-  args: { room_key: v.string(), run_id: v.string(), reason: callRecordingStopReasonValidator },
+  args: {
+    room_key: v.string(),
+    run_id: v.string(),
+    reason: callRecordingStopReasonValidator,
+  },
   handler: async (ctx, args) => {
-    return await stopRoomRecording(ctx, args.room_key, { reason: args.reason, runId: args.run_id });
+    return await stopRoomRecording(ctx, args.room_key, {
+      reason: args.reason,
+      runId: args.run_id,
+    });
   },
 });
 
@@ -1380,44 +1904,83 @@ export const stopRun = internalMutation({
 // minute" would send the room round in circles.
 export function startFailure(err: unknown): Required<RecordingFailure> {
   if (err instanceof LivekitApiError) {
-    if (err.status === 401 || err.status === 403) return { error: "LiveKit refused this server's credentials, so the recording could not start.", kind: "credentials" };
-    if (egressMinutesSpent(err)) return { error: RECORDING_MINUTES_SPENT_MESSAGE, kind: "minutes_spent" };
-    if (egressCapacityBusy(err)) return { error: EGRESS_BUSY_MESSAGE, kind: "busy" };
-    return { error: `LiveKit could not start the recording (${err.code ?? err.status}).`, kind: "livekit" };
+    if (err.status === 401 || err.status === 403)
+      return {
+        error:
+          "LiveKit refused this server's credentials, so the recording could not start.",
+        kind: "credentials",
+      };
+    if (egressMinutesSpent(err))
+      return { error: RECORDING_MINUTES_SPENT_MESSAGE, kind: "minutes_spent" };
+    if (egressCapacityBusy(err))
+      return { error: EGRESS_BUSY_MESSAGE, kind: "busy" };
+    return {
+      error: `LiveKit could not start the recording (${err.code ?? err.status}).`,
+      kind: "livekit",
+    };
   }
-  if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) return { error: "LiveKit did not answer the request to start recording.", kind: "livekit" };
+  if (
+    err instanceof Error &&
+    (err.name === "TimeoutError" || err.name === "AbortError")
+  )
+    return {
+      error: "LiveKit did not answer the request to start recording.",
+      kind: "livekit",
+    };
   // Anything else is this server's own fault, and its text (a stack's
   // message, a URL) is for the logs, not the room.
   console.warn("[callRecordings] recording start failed:", err);
-  return { error: "The recording could not start because of an error on this server.", kind: "server" };
+  return {
+    error: "The recording could not start because of an error on this server.",
+    kind: "server",
+  };
 }
 
 /** Is this LiveKit's "egress minutes used up for the billing period"? The
  *  refusal worth remembering (lib/callRecordingRuns recordingOutage): it
  *  holds for every press until someone raises the plan. */
 export function egressMinutesSpent(err: unknown): boolean {
-  return err instanceof LivekitApiError && err.code === "resource_exhausted" && isMinutesSpentText(err.message);
+  return (
+    err instanceof LivekitApiError &&
+    err.code === "resource_exhausted" &&
+    isMinutesSpentText(err.message)
+  );
 }
 
 /** Is this the refusal that passes on its own: no egress worker free this
  *  minute? Worth asking again a little later (START_RETRY_LIMIT), where a
  *  plan out of minutes never is. */
 export function egressCapacityBusy(err: unknown): boolean {
-  return err instanceof LivekitApiError && err.code === "resource_exhausted" && !egressMinutesSpent(err);
+  return (
+    err instanceof LivekitApiError &&
+    err.code === "resource_exhausted" &&
+    !egressMinutesSpent(err)
+  );
 }
 
 /** The live frame output for a file, or nothing for a row without one. */
-function liveFrameFor(row: { live_frame_key?: string | null }): LiveFrameOutput | undefined {
+function liveFrameFor(row: {
+  live_frame_key?: string | null;
+}): LiveFrameOutput | undefined {
   if (!row.live_frame_key) return undefined;
-  return { prefix: row.live_frame_key.replace(/\.jpeg$/, ""), intervalSeconds: LIVE_FRAME_INTERVAL_S };
+  return {
+    prefix: row.live_frame_key.replace(/\.jpeg$/, ""),
+    intervalSeconds: LIVE_FRAME_INTERVAL_S,
+  };
 }
 
 /** The room's running egresses, or null when LiveKit could not be asked. */
-async function roomEgresses(cfg: LivekitServerConfig, roomKey: string): Promise<LivekitEgress[] | null> {
+async function roomEgresses(
+  cfg: LivekitServerConfig,
+  roomKey: string,
+): Promise<LivekitEgress[] | null> {
   try {
     return await listEgress(cfg, { room: roomKey, active: true });
   } catch (err) {
-    console.warn(`[callRecordings] could not list egresses for ${roomKey}:`, err);
+    console.warn(
+      `[callRecordings] could not list egresses for ${roomKey}:`,
+      err,
+    );
     return null;
   }
 }
@@ -1437,11 +2000,25 @@ async function adoptOrFail(
 ): Promise<void> {
   const egress = running?.find((e) => e.paths.includes(row.r2_key));
   if (egress) {
-    const applied = await ctx.runMutation(internal.callRecordings.applyEgress, { id: row._id, egress, attach: true });
-    if (applied.stop) await stopEgress(cfg, egress.egressId).catch((err) => console.warn(`[callRecordings] stop failed for ${egress.egressId}:`, err));
+    const applied = await ctx.runMutation(internal.callRecordings.applyEgress, {
+      id: row._id,
+      egress,
+      attach: true,
+    });
+    if (applied.stop)
+      await stopEgress(cfg, egress.egressId).catch((err) =>
+        console.warn(
+          `[callRecordings] stop failed for ${egress.egressId}:`,
+          err,
+        ),
+      );
     return;
   }
-  await ctx.runMutation(internal.callRecordings.failRecording, { id: row._id, error: failure.error, ...(failure.kind ? { error_kind: failure.kind } : {}) });
+  await ctx.runMutation(internal.callRecordings.failRecording, {
+    id: row._id,
+    error: failure.error,
+    ...(failure.kind ? { error_kind: failure.kind } : {}),
+  });
 }
 
 /** Ask LiveKit for a file for every screen in the room that has none in this
@@ -1456,12 +2033,13 @@ async function recordNewShares(
   participants: Awaited<ReturnType<typeof listParticipants>>,
 ): Promise<void> {
   for (const share of screenSharesToRecord(participants, rows)) {
-    const claim: { id: Id<"call_recordings">; r2_key: string } | null = await ctx.runMutation(internal.callRecordings.claimScreen, {
-      run_id: run._id,
-      track_sid: share.trackSid,
-      identity: share.identity,
-      name: share.name,
-    });
+    const claim: { id: Id<"call_recordings">; r2_key: string } | null =
+      await ctx.runMutation(internal.callRecordings.claimScreen, {
+        run_id: run._id,
+        track_sid: share.trackSid,
+        identity: share.identity,
+        name: share.name,
+      });
     if (!claim) continue;
     const advanced = screenEncoding(share);
     try {
@@ -1475,11 +2053,24 @@ async function recordNewShares(
           ...(advanced ? { advanced } : {}),
         }),
       );
-      const applied = await ctx.runMutation(internal.callRecordings.applyEgress, { id: claim.id, egress, attach: true });
+      const applied = await ctx.runMutation(
+        internal.callRecordings.applyEgress,
+        { id: claim.id, egress, attach: true },
+      );
       if (applied.stop) await stopEgress(cfg, egress.egressId);
     } catch (err) {
-      const row: RecordingRow | null = await ctx.runQuery(internal.callRecordings.getRow, { id: claim.id });
-      if (row) await adoptOrFail(ctx, cfg, row, await roomEgresses(cfg, run.room_key), startFailure(err));
+      const row: RecordingRow | null = await ctx.runQuery(
+        internal.callRecordings.getRow,
+        { id: claim.id },
+      );
+      if (row)
+        await adoptOrFail(
+          ctx,
+          cfg,
+          row,
+          await roomEgresses(cfg, run.room_key),
+          startFailure(err),
+        );
     }
   }
 }
@@ -1490,35 +2081,74 @@ async function recordNewShares(
 export const startRun = internalAction({
   args: { run_id: v.id("call_recordings") },
   handler: async (ctx, args) => {
-    const info = await ctx.runQuery(internal.callRecordings.runForAction, { run_id: args.run_id });
+    const info = await ctx.runQuery(internal.callRecordings.runForAction, {
+      run_id: args.run_id,
+    });
     if (!info || info.run.egress_id) return;
     const { run } = info;
     const cfg = livekitConfigFromEnv();
     const bucket = callRecordingsBucketFromEnv();
     if (!cfg || !bucket) {
-      await ctx.runMutation(internal.callRecordings.failRecording, { id: run._id, error: "Recording is not set up on this server." });
+      await ctx.runMutation(internal.callRecordings.failRecording, {
+        id: run._id,
+        error: "Recording is not set up on this server.",
+      });
       return;
     }
     if (run.status !== "starting") {
       // Stopped before LiveKit was even asked: nothing to start (a stopping
       // row with nothing written is dropped). A failed one is already told.
-      if (run.status === "stopping") await ctx.runMutation(internal.callRecordings.failRecording, { id: run._id, error: "Stopped before it began." });
+      if (run.status === "stopping")
+        await ctx.runMutation(internal.callRecordings.failRecording, {
+          id: run._id,
+          error: "Stopped before it began.",
+        });
       return;
     }
     try {
-      const egress = await startRoomCompositeEgress(cfg, roomCompositeEgressRequest({ room: run.room_key, filepath: run.r2_key, upload: egressS3Upload(bucket), liveFrame: liveFrameFor(run) }));
-      const applied = await ctx.runMutation(internal.callRecordings.applyEgress, { id: run._id, egress, attach: true });
+      const egress = await startRoomCompositeEgress(
+        cfg,
+        roomCompositeEgressRequest({
+          room: run.room_key,
+          filepath: run.r2_key,
+          upload: egressS3Upload(bucket),
+          liveFrame: liveFrameFor(run),
+        }),
+      );
+      const applied = await ctx.runMutation(
+        internal.callRecordings.applyEgress,
+        { id: run._id, egress, attach: true },
+      );
       if (applied.stop) await stopEgress(cfg, egress.egressId);
     } catch (err) {
       // No capacity this minute: the run stays "starting" and its loop asks
       // again shortly (deferStart), so the room hears one "recording" and no
       // failure in between. Spent minutes, or retries used up, fail it.
-      if (egressCapacityBusy(err) && (await ctx.runMutation(internal.callRecordings.deferStart, { id: run._id }))) return;
-      await adoptOrFail(ctx, cfg, run, await roomEgresses(cfg, run.room_key), startFailure(err));
+      if (
+        egressCapacityBusy(err) &&
+        (await ctx.runMutation(internal.callRecordings.deferStart, {
+          id: run._id,
+        }))
+      )
+        return;
+      await adoptOrFail(
+        ctx,
+        cfg,
+        run,
+        await roomEgresses(cfg, run.room_key),
+        startFailure(err),
+      );
       return;
     }
     try {
-      await recordNewShares(ctx, cfg, bucket, run, info.rows, await listParticipants(cfg, run.room_key));
+      await recordNewShares(
+        ctx,
+        cfg,
+        bucket,
+        run,
+        info.rows,
+        await listParticipants(cfg, run.room_key),
+      );
     } catch (err) {
       // The room's video is recording; a screen file missed here is picked
       // up by the loop's next look.
@@ -1530,9 +2160,14 @@ export const startRun = internalAction({
 /** Is a file in the bucket? Its size and upload time when it is (the facts
  *  settleFromObject takes), false when it is not, null when the bucket could
  *  not say. */
-async function objectLanded(bucket: R2Bucket, key: string): Promise<{ size_bytes?: number; uploaded_at?: number } | false | null> {
+async function objectLanded(
+  bucket: R2Bucket,
+  key: string,
+): Promise<{ size_bytes?: number; uploaded_at?: number } | false | null> {
   try {
-    const head = await fetch(await r2Presign(bucket, "HEAD", key, 60), { method: "HEAD" });
+    const head = await fetch(await r2Presign(bucket, "HEAD", key, 60), {
+      method: "HEAD",
+    });
     if (head.status === 404) return false;
     if (!head.ok) return null;
     const size = Number(head.headers.get("content-length"));
@@ -1554,15 +2189,27 @@ async function objectLanded(bucket: R2Bucket, key: string): Promise<{ size_bytes
  *  without LiveKit saying so): settle it as ready. If not, it is lost: stop
  *  it in case LiveKit is still writing it after all, and fail the row with
  *  `error`, words that say which of the two happened. */
-async function settleLost(ctx: any, cfg: LivekitServerConfig, bucket: R2Bucket, row: RecordingRow, error: string): Promise<void> {
+async function settleLost(
+  ctx: any,
+  cfg: LivekitServerConfig,
+  bucket: R2Bucket,
+  row: RecordingRow,
+  error: string,
+): Promise<void> {
   const landed = await objectLanded(bucket, row.r2_key);
   if (landed) {
-    await ctx.runMutation(internal.callRecordings.settleFromObject, { id: row._id, ...landed });
+    await ctx.runMutation(internal.callRecordings.settleFromObject, {
+      id: row._id,
+      ...landed,
+    });
     return;
   }
   if (landed === null) return; // The bucket could not say: ask again next look.
   if (row.egress_id) await stopEgress(cfg, row.egress_id).catch(() => null);
-  await ctx.runMutation(internal.callRecordings.failRecording, { id: row._id, error });
+  await ctx.runMutation(internal.callRecordings.failRecording, {
+    id: row._id,
+    error,
+  });
 }
 
 /**
@@ -1588,14 +2235,22 @@ export const reconcileRun = internalAction({
   handler: async (ctx, args) => {
     const looping = args.gen !== undefined && !args.once;
     const info: { run: RecordingRow; rows: RecordingRow[] } | null = looping
-      ? await ctx.runMutation(internal.callRecordings.beginLook, { run_id: args.run_id, gen: args.gen! })
-      : await ctx.runQuery(internal.callRecordings.runForAction, { run_id: args.run_id });
+      ? await ctx.runMutation(internal.callRecordings.beginLook, {
+          run_id: args.run_id,
+          gen: args.gen!,
+        })
+      : await ctx.runQuery(internal.callRecordings.runForAction, {
+          run_id: args.run_id,
+        });
     if (!info) return;
     const cfg = livekitConfigFromEnv();
     const bucket = callRecordingsBucketFromEnv();
     if (!cfg || !bucket) {
       for (const r of info.rows.filter((r) => isRecordingActive(r.status))) {
-        await ctx.runMutation(internal.callRecordings.failRecording, { id: r._id, error: "Recording is not set up on this server." });
+        await ctx.runMutation(internal.callRecordings.failRecording, {
+          id: r._id,
+          error: "Recording is not set up on this server.",
+        });
       }
       return;
     }
@@ -1603,7 +2258,9 @@ export const reconcileRun = internalAction({
     const active = info.rows.filter((r) => isRecordingActive(r.status));
     // One question answers for every file still running; only a file that
     // has left LiveKit's running list is asked for by id, for its result.
-    const running = active.length ? await roomEgresses(cfg, info.run.room_key) : [];
+    const running = active.length
+      ? await roomEgresses(cfg, info.run.room_key)
+      : [];
     const byId = new Map((running ?? []).map((e) => [e.egressId, e]));
     const missing: string[] = [];
     // Whether this look wrote anything. A run that simply keeps recording
@@ -1617,11 +2274,23 @@ export const reconcileRun = internalAction({
           // it, so there is nothing to wait for (a stopping row with nothing
           // written is dropped).
           wrote = true;
-          await ctx.runMutation(internal.callRecordings.failRecording, { id: row._id, error: "Stopped before it began." });
-        } else if (row.retry_after !== undefined && now >= row.retry_after && now - row.requested_at <= EGRESS_ACCEPT_TIMEOUT_MS) {
+          await ctx.runMutation(internal.callRecordings.failRecording, {
+            id: row._id,
+            error: "Stopped before it began.",
+          });
+        } else if (
+          row.retry_after !== undefined &&
+          now >= row.retry_after &&
+          now - row.requested_at <= EGRESS_ACCEPT_TIMEOUT_MS
+        ) {
           // A room video refused for want of capacity, due to be asked again.
-          await ctx.runMutation(internal.callRecordings.retryStart, { id: row._id });
-        } else if (now - row.requested_at > EGRESS_ACCEPT_TIMEOUT_MS && running) {
+          await ctx.runMutation(internal.callRecordings.retryStart, {
+            id: row._id,
+          });
+        } else if (
+          now - row.requested_at > EGRESS_ACCEPT_TIMEOUT_MS &&
+          running
+        ) {
           wrote = true;
           // Retried and never taken: LiveKit had no capacity all along.
           await adoptOrFail(
@@ -1629,14 +2298,22 @@ export const reconcileRun = internalAction({
             cfg,
             row,
             running,
-            row.start_attempts ? { error: EGRESS_BUSY_MESSAGE, kind: "busy" } : { error: "LiveKit never started this recording.", kind: "livekit" },
+            row.start_attempts
+              ? { error: EGRESS_BUSY_MESSAGE, kind: "busy" }
+              : {
+                  error: "LiveKit never started this recording.",
+                  kind: "livekit",
+                },
           );
         } else if (now - row.requested_at > EGRESS_UNREACHABLE_FAIL_MS) {
           wrote = true;
           // LiveKit cannot even be asked, for long enough that the room must
           // stop being told it is filmed. An egress that did start anyway is
           // stopped by the sweep, which finds it with no live row.
-          await ctx.runMutation(internal.callRecordings.failRecording, { id: row._id, error: "LiveKit could not be reached to start this recording." });
+          await ctx.runMutation(internal.callRecordings.failRecording, {
+            id: row._id,
+            error: "LiveKit could not be reached to start this recording.",
+          });
         }
         continue;
       }
@@ -1647,7 +2324,10 @@ export const reconcileRun = internalAction({
           egress = await getEgress(cfg, row.egress_id);
         } catch (err) {
           // LiveKit unreachable for a moment: the next look tries again.
-          console.warn(`[callRecordings] could not read egress ${row.egress_id}:`, err);
+          console.warn(
+            `[callRecordings] could not read egress ${row.egress_id}:`,
+            err,
+          );
           unasked = true;
         }
       }
@@ -1657,14 +2337,26 @@ export const reconcileRun = internalAction({
       // whether the file landed anyway.
       if (saveOverdue(row, unasked ? undefined : egress, now)) {
         wrote = true;
-        await settleLost(ctx, cfg, bucket, row, "LiveKit never finished saving this recording.");
+        await settleLost(
+          ctx,
+          cfg,
+          bucket,
+          row,
+          "LiveKit never finished saving this recording.",
+        );
         continue;
       }
       if (unasked) continue;
       if (!egress) {
         if (args.missing?.includes(row.egress_id)) {
           wrote = true;
-          await settleLost(ctx, cfg, bucket, row, "LiveKit lost track of this recording before it finished.");
+          await settleLost(
+            ctx,
+            cfg,
+            bucket,
+            row,
+            "LiveKit lost track of this recording before it finished.",
+          );
         } else missing.push(row.egress_id);
         continue;
       }
@@ -1677,31 +2369,68 @@ export const reconcileRun = internalAction({
       // The room's video closed with nobody asking: say why from how the
       // room looks now, so the thread never reads a bare "stopped" when
       // the room had emptied or the huddle had ended.
-      const ended_because = moved && endsByItself(row, egress) ? selfEndReason(await ctx.runQuery(internal.callRecordings.roomSeats, { room_key: row.room_key })) : undefined;
+      const ended_because =
+        moved && endsByItself(row, egress)
+          ? selfEndReason(
+              await ctx.runQuery(internal.callRecordings.roomSeats, {
+                room_key: row.room_key,
+              }),
+            )
+          : undefined;
       const applied = moved
-        ? await ctx.runMutation(internal.callRecordings.applyEgress, { id: row._id, egress, ...(ended_because ? { ended_because } : {}) })
+        ? await ctx.runMutation(internal.callRecordings.applyEgress, {
+            id: row._id,
+            egress,
+            ...(ended_because ? { ended_because } : {}),
+          })
         : { status: row.status };
-      if (applied.status === "starting" && egress.status === "starting" && now - row.requested_at > EGRESS_BEGIN_TIMEOUT_MS) {
+      if (
+        applied.status === "starting" &&
+        egress.status === "starting" &&
+        now - row.requested_at > EGRESS_BEGIN_TIMEOUT_MS
+      ) {
         wrote = true;
-        await ctx.runMutation(internal.callRecordings.failRecording, { id: row._id, error: "LiveKit accepted this recording but never began writing it." });
+        await ctx.runMutation(internal.callRecordings.failRecording, {
+          id: row._id,
+          error: "LiveKit accepted this recording but never began writing it.",
+        });
         continue;
       }
       // A stop that LiveKit has not acted on after a while is asked again.
-      if (applied.status === "stopping" && (egress.status === "starting" || egress.status === "active") && now - row.updated_at > STOP_RETRY_MS) {
-        await stopEgress(cfg, row.egress_id).catch((err) => console.warn(`[callRecordings] stop retry failed for ${row.egress_id}:`, err));
+      if (
+        applied.status === "stopping" &&
+        (egress.status === "starting" || egress.status === "active") &&
+        now - row.updated_at > STOP_RETRY_MS
+      ) {
+        await stopEgress(cfg, row.egress_id).catch((err) =>
+          console.warn(
+            `[callRecordings] stop retry failed for ${row.egress_id}:`,
+            err,
+          ),
+        );
       }
     }
 
     const fresh: { run: RecordingRow; rows: RecordingRow[] } | null = wrote
-      ? await ctx.runQuery(internal.callRecordings.runForAction, { run_id: args.run_id })
+      ? await ctx.runQuery(internal.callRecordings.runForAction, {
+          run_id: args.run_id,
+        })
       : info;
     if (!fresh) {
-      if (looping) await ctx.runMutation(internal.callRecordings.endLoop, { run_id: args.run_id, gen: args.gen! });
+      if (looping)
+        await ctx.runMutation(internal.callRecordings.endLoop, {
+          run_id: args.run_id,
+          gen: args.gen!,
+        });
       return;
     }
     const { run, rows } = fresh;
     const stop = (reason: CallRecordingStopReason) =>
-      ctx.runMutation(internal.callRecordings.stopRun, { room_key: run.room_key, run_id: String(run._id), reason });
+      ctx.runMutation(internal.callRecordings.stopRun, {
+        room_key: run.room_key,
+        run_id: String(run._id),
+        reason,
+      });
     let emptySince: number | undefined;
     let stopped = false;
     if (isRecordingFilming(run.status)) {
@@ -1711,7 +2440,11 @@ export const reconcileRun = internalAction({
         // LiveKit's room, and no teammate's seat lease live. A teammate
         // mid reconnect is gone from the first and still in the second.
         const seats: { held: boolean; emptied_at: number | null } | null =
-          huddleKeepers(participants).length === 0 ? await ctx.runQuery(internal.callRecordings.roomSeats, { room_key: run.room_key }) : null;
+          huddleKeepers(participants).length === 0
+            ? await ctx.runQuery(internal.callRecordings.roomSeats, {
+                room_key: run.room_key,
+              })
+            : null;
         if (seats && !seats.held) {
           emptySince = args.empty_since ?? now;
           if (emptyRoomStopDue(emptySince, now, seats.emptied_at)) {
@@ -1728,9 +2461,15 @@ export const reconcileRun = internalAction({
           await recordNewShares(ctx, cfg, bucket, run, rows, participants);
         }
       } catch (err) {
-        console.warn(`[callRecordings] room look failed for ${run.room_key}:`, err);
+        console.warn(
+          `[callRecordings] room look failed for ${run.room_key}:`,
+          err,
+        );
       }
-    } else if (!isRecordingActive(run.status) && rows.some((r) => r.kind === "screen" && isRecordingFilming(r.status))) {
+    } else if (
+      !isRecordingActive(run.status) &&
+      rows.some((r) => r.kind === "screen" && isRecordingFilming(r.status))
+    ) {
       // The room's video ended on its own (LiveKit's limit, a failure): its
       // screen files end with it.
       await stop(run.stop_reason ?? "failed");
@@ -1738,9 +2477,15 @@ export const reconcileRun = internalAction({
     }
 
     if (!looping) return;
-    const delay = stopped || emptySince !== undefined ? RECORDING_POLL_FAST_MS : nextPollDelayMs(rows, Date.now());
+    const delay =
+      stopped || emptySince !== undefined
+        ? RECORDING_POLL_FAST_MS
+        : nextPollDelayMs(rows, Date.now());
     if (delay === null) {
-      await ctx.runMutation(internal.callRecordings.endLoop, { run_id: args.run_id, gen: args.gen! });
+      await ctx.runMutation(internal.callRecordings.endLoop, {
+        run_id: args.run_id,
+        gen: args.gen!,
+      });
       return;
     }
     await ctx.scheduler.runAfter(delay, internal.callRecordings.reconcileRun, {
@@ -1759,19 +2504,31 @@ export const reconcileRun = internalAction({
  *  stops egresses whose rows failed or went (failRecording): best effort,
  *  nothing to write back. */
 export const stopEgresses = internalAction({
-  args: { ids: v.array(v.id("call_recordings")), egress_ids: v.optional(v.array(v.string())) },
+  args: {
+    ids: v.array(v.id("call_recordings")),
+    egress_ids: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const cfg = livekitConfigFromEnv();
     if (!cfg) return;
     for (const egressId of args.egress_ids ?? []) {
-      await stopEgress(cfg, egressId).catch((err) => console.warn(`[callRecordings] stop failed for ${egressId}:`, err));
+      await stopEgress(cfg, egressId).catch((err) =>
+        console.warn(`[callRecordings] stop failed for ${egressId}:`, err),
+      );
     }
     for (const id of args.ids) {
-      const row: RecordingRow | null = await ctx.runQuery(internal.callRecordings.getRow, { id });
+      const row: RecordingRow | null = await ctx.runQuery(
+        internal.callRecordings.getRow,
+        { id },
+      );
       if (!row?.egress_id) continue;
       try {
         const egress = await stopEgress(cfg, row.egress_id);
-        if (egress) await ctx.runMutation(internal.callRecordings.applyEgress, { id, egress });
+        if (egress)
+          await ctx.runMutation(internal.callRecordings.applyEgress, {
+            id,
+            egress,
+          });
       } catch (err) {
         // Asked again by the loop after STOP_RETRY_MS.
         console.warn(`[callRecordings] stop failed for ${row.egress_id}:`, err);
@@ -1797,26 +2554,45 @@ export const restartStaleLoops = internalMutation({
         .query("call_recordings")
         .withIndex("by_status", (q) => q.eq("status", status))
         .collect();
-      for (const r of rows) runs.set(runIdOf(r), Math.min(runs.get(runIdOf(r)) ?? Infinity, r.requested_at));
+      for (const r of rows)
+        runs.set(
+          runIdOf(r),
+          Math.min(runs.get(runIdOf(r)) ?? Infinity, r.requested_at),
+        );
     }
     let restarted = 0;
     for (const [run, requestedAt] of runs) {
       const id = ctx.db.normalizeId("call_recordings", run);
       if (!id) continue;
       const loop = await recordingLoop(ctx, id);
-      if (now - (loop?.looked_at ?? requestedAt) < RECORDING_LOOP_STALE_MS) continue;
+      if (now - (loop?.looked_at ?? requestedAt) < RECORDING_LOOP_STALE_MS)
+        continue;
       const gen = (loop?.gen ?? 0) + 1;
       if (loop) await ctx.db.patch(loop._id, { gen, looked_at: now });
-      else await ctx.db.insert("call_recording_loops", { run_id: id, gen, looked_at: now });
-      await ctx.scheduler.runAfter(0, internal.callRecordings.reconcileRun, { run_id: id, gen });
+      else
+        await ctx.db.insert("call_recording_loops", {
+          run_id: id,
+          gen,
+          looked_at: now,
+        });
+      await ctx.scheduler.runAfter(0, internal.callRecordings.reconcileRun, {
+        run_id: id,
+        gen,
+      });
       restarted++;
     }
     // Whether LiveKit could be filming something no row tracks: only a live
     // row or a recent press can have left such an egress.
     const newest = runs.size
       ? null
-      : await ctx.db.query("call_recordings").withIndex("by_requested").order("desc").first();
-    const recent = runs.size > 0 || (!!newest && now - newest.requested_at < RECORDING_ORPHAN_WINDOW_MS);
+      : await ctx.db
+          .query("call_recordings")
+          .withIndex("by_requested")
+          .order("desc")
+          .first();
+    const recent =
+      runs.size > 0 ||
+      (!!newest && now - newest.requested_at < RECORDING_ORPHAN_WINDOW_MS);
     return { runs: runs.size, restarted, recent };
   },
 });
@@ -1849,11 +2625,14 @@ export const trackedEgresses = internalQuery({
  *  mistaken for one with no row. */
 export const sweepRecordings = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ runs: number; restarted: number; orphans: number }> => {
-    const { recent, ...loops }: { runs: number; restarted: number; recent: boolean } = await ctx.runMutation(
-      internal.callRecordings.restartStaleLoops,
-      {},
-    );
+  handler: async (
+    ctx,
+  ): Promise<{ runs: number; restarted: number; orphans: number }> => {
+    const {
+      recent,
+      ...loops
+    }: { runs: number; restarted: number; recent: boolean } =
+      await ctx.runMutation(internal.callRecordings.restartStaleLoops, {});
     const cfg = livekitConfigFromEnv();
     // Nothing pressed lately: nothing LiveKit runs can be ours untracked,
     // and an idle deployment spends no LiveKit request every two minutes.
@@ -1865,17 +2644,27 @@ export const sweepRecordings = internalAction({
       console.warn("[callRecordings] sweep could not list egresses:", err);
       return { ...loops, orphans: 0 };
     }
-    const ours = live.filter((e) => e.paths.some((p) => p.startsWith(CALL_RECORDINGS_ROOT)));
+    const ours = live.filter((e) =>
+      e.paths.some((p) => p.startsWith(CALL_RECORDINGS_ROOT)),
+    );
     if (ours.length === 0) return { ...loops, orphans: 0 };
-    const tracked: { egressIds: string[]; paths: string[] } = await ctx.runQuery(internal.callRecordings.trackedEgresses, {});
+    const tracked: { egressIds: string[]; paths: string[] } =
+      await ctx.runQuery(internal.callRecordings.trackedEgresses, {});
     const ids = new Set(tracked.egressIds);
     const paths = new Set(tracked.paths);
     let orphans = 0;
     for (const e of ours) {
       if (ids.has(e.egressId) || e.paths.some((p) => paths.has(p))) continue;
       orphans++;
-      console.warn(`[callRecordings] stopping egress ${e.egressId} in ${e.roomName}: no live recording tracks it`);
-      await stopEgress(cfg, e.egressId).catch((err) => console.warn(`[callRecordings] could not stop orphan ${e.egressId}:`, err));
+      console.warn(
+        `[callRecordings] stopping egress ${e.egressId} in ${e.roomName}: no live recording tracks it`,
+      );
+      await stopEgress(cfg, e.egressId).catch((err) =>
+        console.warn(
+          `[callRecordings] could not stop orphan ${e.egressId}:`,
+          err,
+        ),
+      );
     }
     return { ...loops, orphans };
   },
@@ -1895,7 +2684,13 @@ export const ORPHAN_OBJECT_GRACE_MS = 6 * 60 * 60 * 1000;
 export const ACCOUNTED_PAGE_ROWS = 1000;
 
 type LateFile = { id: Id<"call_recordings">; r2_key: string };
-type AccountedPage = { keys: string[]; prefixes: string[]; late?: LateFile[]; continueCursor: string; isDone: boolean };
+type AccountedPage = {
+  keys: string[];
+  prefixes: string[];
+  late?: LateFile[];
+  continueCursor: string;
+  isDone: boolean;
+};
 
 /** What one page of rows accounts for in the bucket: every row's file and
  *  live frame, and every run prefix that still has a row (a run's other
@@ -1905,7 +2700,9 @@ type AccountedPage = { keys: string[]; prefixes: string[]; late?: LateFile[]; co
 export const accountedRecordingObjects = internalQuery({
   args: { cursor: v.union(v.string(), v.null()), numItems: v.number() },
   handler: async (ctx, args): Promise<AccountedPage> => {
-    const page = await ctx.db.query("call_recordings").paginate({ cursor: args.cursor, numItems: args.numItems });
+    const page = await ctx.db
+      .query("call_recordings")
+      .paginate({ cursor: args.cursor, numItems: args.numItems });
     const keys = new Set<string>();
     const prefixes = new Set<string>();
     const late: LateFile[] = [];
@@ -1916,7 +2713,13 @@ export const accountedRecordingObjects = internalQuery({
       const prefix = callRecordingRunPrefixOfKey(r.r2_key);
       if (prefix) prefixes.add(prefix);
     }
-    return { keys: [...keys], prefixes: [...prefixes], late, continueCursor: page.continueCursor, isDone: page.isDone };
+    return {
+      keys: [...keys],
+      prefixes: [...prefixes],
+      late,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
   },
 });
 
@@ -1926,7 +2729,10 @@ export const accountedRecordingObjects = internalQuery({
  *  after the walk passed its place. `page` runs the query (ctx.runQuery in
  *  the sweep, the test backend in tests). */
 export async function walkAccountedRecordingObjects(
-  page: (args: { cursor: string | null; numItems: number }) => Promise<AccountedPage>,
+  page: (args: {
+    cursor: string | null;
+    numItems: number;
+  }) => Promise<AccountedPage>,
   numItems: number = ACCOUNTED_PAGE_ROWS,
 ): Promise<{ keys: string[]; prefixes: string[]; late: LateFile[] }> {
   const keys = new Set<string>();
@@ -1956,8 +2762,17 @@ export function orphanedRecordingObjects(
   const keys = new Set(accounted.keys);
   const manifest = /^calls\/[^/]+\/EG_[A-Za-z0-9]+\.json$/;
   return objects
-    .filter((o) => Number.isFinite(o.lastModified) && now - o.lastModified >= ORPHAN_OBJECT_GRACE_MS)
-    .filter((o) => manifest.test(o.key) || (!keys.has(o.key) && !accounted.prefixes.some((p) => o.key.startsWith(p))))
+    .filter(
+      (o) =>
+        Number.isFinite(o.lastModified) &&
+        now - o.lastModified >= ORPHAN_OBJECT_GRACE_MS,
+    )
+    .filter(
+      (o) =>
+        manifest.test(o.key) ||
+        (!keys.has(o.key) &&
+          !accounted.prefixes.some((p) => o.key.startsWith(p))),
+    )
     .map((o) => o.key);
 }
 
@@ -1972,23 +2787,38 @@ export function orphanedRecordingObjects(
  *  is what lets a reader see it. */
 export const sweepRecordingObjects = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ listed: number; deleted: number; landed: number }> => {
+  handler: async (
+    ctx,
+  ): Promise<{ listed: number; deleted: number; landed: number }> => {
     const bucket = callRecordingsBucketFromEnv();
     if (!bucket) return { listed: 0, deleted: 0, landed: 0 };
     const objects = await r2ListObjects(bucket, CALL_RECORDINGS_ROOT, 100_000);
-    const accounted = await walkAccountedRecordingObjects((args) => ctx.runQuery(internal.callRecordings.accountedRecordingObjects, args));
+    const accounted = await walkAccountedRecordingObjects((args) =>
+      ctx.runQuery(internal.callRecordings.accountedRecordingObjects, args),
+    );
     const orphans = orphanedRecordingObjects(objects, accounted, Date.now());
     if (orphans.length) {
-      console.warn(`[callRecordings] deleting ${orphans.length} orphaned recording object(s)`);
-      await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, { keys: orphans, attempt: 0 });
+      console.warn(
+        `[callRecordings] deleting ${orphans.length} orphaned recording object(s)`,
+      );
+      await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, {
+        keys: orphans,
+        attempt: 0,
+      });
     }
     const listed = new Set(objects.map((o) => o.key));
     let landed = 0;
     for (const file of accounted.late.filter((f) => listed.has(f.r2_key))) {
       const facts = await objectLanded(bucket, file.r2_key);
       if (!facts) continue;
-      console.warn(`[callRecordings] ${file.r2_key} landed after its save was given up: settling it as ready`);
-      await ctx.runMutation(internal.callRecordings.settleFromObject, { id: file.id, ...facts, late: true });
+      console.warn(
+        `[callRecordings] ${file.r2_key} landed after its save was given up: settling it as ready`,
+      );
+      await ctx.runMutation(internal.callRecordings.settleFromObject, {
+        id: file.id,
+        ...facts,
+        late: true,
+      });
       landed++;
     }
     return { listed: objects.length, deleted: orphans.length, landed };
@@ -2001,16 +2831,28 @@ export const sweepRecordingObjects = internalAction({
  *  (emptyRoomStopDue holds the recording longer for that). */
 export const roomSeats = internalQuery({
   args: { room_key: v.string() },
-  handler: async (ctx, args): Promise<{ held: boolean; emptied_at: number | null; huddle_live: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    held: boolean;
+    emptied_at: number | null;
+    huddle_live: boolean;
+  }> => {
     const now = Date.now();
     const seats = await ctx.db
       .query("call_members")
       .withIndex("by_room", (q) => q.eq("room_key", args.room_key))
       .collect();
-    const emptiedAt: number | undefined = (await readRoomState(ctx, args.room_key))?.emptied_at;
+    const emptiedAt: number | undefined = (
+      await readRoomState(ctx, args.room_key)
+    )?.emptied_at;
     return {
       held: liveMembers(seats, now).length > 0,
-      emptied_at: emptiedAt !== undefined && now - emptiedAt < HUDDLE_GRACE_MS ? emptiedAt : null,
+      emptied_at:
+        emptiedAt !== undefined && now - emptiedAt < HUDDLE_GRACE_MS
+          ? emptiedAt
+          : null,
       // The huddle's call record still open (selfEndReason).
       huddle_live: (await liveTranscriptFor(ctx, args.room_key)) !== null,
     };

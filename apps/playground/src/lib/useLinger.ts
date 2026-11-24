@@ -5,7 +5,12 @@ import { useEffect, useRef } from "react";
  *  null key waits. Real time, so a throttled background tab still lets go,
  *  unless `untilSeen`: then the time counts only while the page is visible,
  *  so whoever was in another tab still gets to read it. */
-export function useLinger(key: string | number | null, ms: number, done: () => void, untilSeen = false) {
+export function useLinger(
+  key: string | number | null,
+  ms: number,
+  done: () => void,
+  untilSeen = false,
+) {
   const held = useRef(false);
   const doneNow = useRef(done);
   doneNow.current = done;

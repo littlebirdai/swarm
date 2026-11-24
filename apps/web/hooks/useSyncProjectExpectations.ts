@@ -3,7 +3,11 @@
 // so a panel paints from cache on the next visit. The feeder returns
 // readiness only; surfaces read the store (useProjectExpectations).
 import { useMemo } from "react";
-import type { Expectation, ExpectationOp, ExpectationsVersion } from "@codecast/shared/contracts/expectations";
+import type {
+  Expectation,
+  ExpectationOp,
+  ExpectationsVersion,
+} from "@codecast/shared/contracts/expectations";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { entityIdArgs, useSyncCollection } from "./useSyncCollection";
@@ -46,7 +50,12 @@ export type ExpectationFinding = {
 };
 
 /** How often findings cite one line: breaks in the last 7 and 30 days, the newest findings. */
-export type ExpectationLineUsage = { d7: number; d30: number; last_at?: number; findings: ExpectationFinding[] };
+export type ExpectationLineUsage = {
+  d7: number;
+  d30: number;
+  last_at?: number;
+  findings: ExpectationFinding[];
+};
 
 export type ExpectationVersionView = {
   version: number;
@@ -81,17 +90,39 @@ export type ProjectExpectationsRow = {
   /** Who said each source's words, keyed `<kind>:<ref>`. */
   sources?: Record<string, { who?: string }>;
   /** The routine that proposes changes from the team's context, when one is installed for the project. */
-  routine?: { trigger_id: string; short_id?: string; status: string; run_at?: number; last_run_at?: number } | null;
+  routine?: {
+    trigger_id: string;
+    short_id?: string;
+    status: string;
+    run_at?: number;
+    last_run_at?: number;
+  } | null;
 };
 
-const selectRow = (row: any) => (row?.project?.id ? [{ _id: row.project.id, ...row }] : []);
+const selectRow = (row: any) =>
+  row?.project?.id ? [{ _id: row.project.id, ...row }] : [];
 
 /** Feeder: one project's expectations. */
-export function useSyncProjectExpectations(projectId: string | null | undefined) {
-  return useSyncCollection("projectExpectations", api.expectations.forProject, entityIdArgs("project_id", projectId ?? undefined), useMemo(() => ({ select: selectRow }), []));
+export function useSyncProjectExpectations(
+  projectId: string | null | undefined,
+) {
+  return useSyncCollection(
+    "projectExpectations",
+    api.expectations.forProject,
+    entityIdArgs("project_id", projectId ?? undefined),
+    useMemo(() => ({ select: selectRow }), []),
+  );
 }
 
 /** Reader: the expectations row for a project's Convex id. */
-export function useProjectExpectations(projectId: string | null | undefined): ProjectExpectationsRow | undefined {
-  return useInboxStore((s) => (projectId ? ((s as any).projectExpectations?.[projectId] as ProjectExpectationsRow | undefined) : undefined));
+export function useProjectExpectations(
+  projectId: string | null | undefined,
+): ProjectExpectationsRow | undefined {
+  return useInboxStore((s) =>
+    projectId
+      ? ((s as any).projectExpectations?.[projectId] as
+          | ProjectExpectationsRow
+          | undefined)
+      : undefined,
+  );
 }

@@ -4,7 +4,8 @@ import React from "react";
 // etc.). Shared by FormattedSummary (bolds them) and ConversationView (detects
 // whether a teammate message is a structured summary). Module-level `g` regex:
 // callers that use `.test()` must reset `.lastIndex` themselves.
-export const SUMMARY_LABELS = /\b(Goal|Status|Next|Blocked|Plan|Result|Outcome|Context|Progress):/g;
+export const SUMMARY_LABELS =
+  /\b(Goal|Status|Next|Blocked|Plan|Result|Outcome|Context|Progress):/g;
 
 // Renders summary text with its "Goal:/Next:/…" section labels bolded and each
 // label starting on a new line. Plain text (no labels) renders verbatim.
@@ -18,10 +19,13 @@ export function FormattedSummary({ text }: { text: string }) {
           // Start each label on its own line — unless the text already broke
           // there, which would otherwise open a blank line between every
           // section (multi-line states written by `cast state` do break there).
-          <span key={i} className="font-semibold text-sol-text-primary">{i > 1 && !/\n\s*$/.test(parts[i - 1] ?? "") ? '\n' : ''}{part}: </span>
+          <span key={i} className="font-semibold text-sol-text-primary">
+            {i > 1 && !/\n\s*$/.test(parts[i - 1] ?? "") ? "\n" : ""}
+            {part}:{" "}
+          </span>
         ) : (
           <span key={i}>{part}</span>
-        )
+        ),
       )}
     </>
   );

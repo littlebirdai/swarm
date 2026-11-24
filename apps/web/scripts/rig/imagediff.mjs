@@ -19,11 +19,18 @@ const MAX_YIQ = 35215; // the largest YIQ distance between two colors
 function yiqDelta(a, i, b, j) {
   // Composite on white, so a transparent pixel reads as the page behind it.
   const blend = (c, alpha) => 255 + ((c - 255) * alpha) / 255;
-  const r1 = blend(a[i], a[i + 3]), g1 = blend(a[i + 1], a[i + 3]), b1 = blend(a[i + 2], a[i + 3]);
-  const r2 = blend(b[j], b[j + 3]), g2 = blend(b[j + 1], b[j + 3]), b2 = blend(b[j + 2], b[j + 3]);
-  const y = (r1 - r2) * 0.29889531 + (g1 - g2) * 0.58662247 + (b1 - b2) * 0.11448223;
-  const iq = (r1 - r2) * 0.59597799 - (g1 - g2) * 0.2741761 - (b1 - b2) * 0.32180189;
-  const q = (r1 - r2) * 0.21147017 - (g1 - g2) * 0.52261711 + (b1 - b2) * 0.31114694;
+  const r1 = blend(a[i], a[i + 3]),
+    g1 = blend(a[i + 1], a[i + 3]),
+    b1 = blend(a[i + 2], a[i + 3]);
+  const r2 = blend(b[j], b[j + 3]),
+    g2 = blend(b[j + 1], b[j + 3]),
+    b2 = blend(b[j + 2], b[j + 3]);
+  const y =
+    (r1 - r2) * 0.29889531 + (g1 - g2) * 0.58662247 + (b1 - b2) * 0.11448223;
+  const iq =
+    (r1 - r2) * 0.59597799 - (g1 - g2) * 0.2741761 - (b1 - b2) * 0.32180189;
+  const q =
+    (r1 - r2) * 0.21147017 - (g1 - g2) * 0.52261711 + (b1 - b2) * 0.31114694;
   return 0.5053 * y * y + 0.299 * iq * iq + 0.1957 * q * q;
 }
 
@@ -32,15 +39,27 @@ function yiqDelta(a, i, b, j) {
  * Returns { ok, ratio, differing, compared, width, height, sizeChanged }, and
  * writes the diff image to `diffPath` when one is given and the shot fails.
  */
-export function diffPng(baselinePath, currentPath, { masks = [], threshold = 0.1, maxRatio = 0.002, diffPath } = {}) {
+export function diffPng(
+  baselinePath,
+  currentPath,
+  { masks = [], threshold = 0.1, maxRatio = 0.002, diffPath } = {},
+) {
   const A = readPng(baselinePath);
   const B = readPng(currentPath);
   const width = Math.max(A.width, B.width);
   const height = Math.max(A.height, B.height);
   const masked = new Uint8Array(width * height);
   for (const m of masks) {
-    for (let y = Math.max(0, Math.floor(m.y)); y < Math.min(height, Math.ceil(m.y + m.height)); y++) {
-      masked.fill(1, y * width + Math.max(0, Math.floor(m.x)), y * width + Math.min(width, Math.ceil(m.x + m.width)));
+    for (
+      let y = Math.max(0, Math.floor(m.y));
+      y < Math.min(height, Math.ceil(m.y + m.height));
+      y++
+    ) {
+      masked.fill(
+        1,
+        y * width + Math.max(0, Math.floor(m.x)),
+        y * width + Math.min(width, Math.ceil(m.x + m.width)),
+      );
     }
   }
   const limit = MAX_YIQ * threshold * threshold;
@@ -57,7 +76,9 @@ export function diffPng(baselinePath, currentPath, { masks = [], threshold = 0.1
       // The faded baseline (or the current shot where the baseline has no pixel).
       const src = inA ? A.data : B.data;
       const si = inA ? ia : (y * B.width + x) * 4;
-      const luma = (src[si] * 0.299 + src[si + 1] * 0.587 + src[si + 2] * 0.114) * 0.1 + 255 * 0.9;
+      const luma =
+        (src[si] * 0.299 + src[si + 1] * 0.587 + src[si + 2] * 0.114) * 0.1 +
+        255 * 0.9;
       out[o] = out[o + 1] = out[o + 2] = luma;
       out[o + 3] = 255;
       if (masked[p]) {
@@ -66,7 +87,10 @@ export function diffPng(baselinePath, currentPath, { masks = [], threshold = 0.1
         continue;
       }
       compared++;
-      const same = inA && inB && yiqDelta(A.data, ia, B.data, (y * B.width + x) * 4) <= limit;
+      const same =
+        inA &&
+        inB &&
+        yiqDelta(A.data, ia, B.data, (y * B.width + x) * 4) <= limit;
       if (!same) {
         differing++;
         out[o] = 230;
@@ -79,5 +103,15 @@ export function diffPng(baselinePath, currentPath, { masks = [], threshold = 0.1
   const ratio = compared ? differing / compared : 0;
   const ok = !sizeChanged && ratio <= maxRatio;
   if (!ok && diffPath) writePng(diffPath, out, width, height);
-  return { ok, ratio, differing, compared, width, height, sizeChanged, baseline: `${A.width}x${A.height}`, current: `${B.width}x${B.height}` };
+  return {
+    ok,
+    ratio,
+    differing,
+    compared,
+    width,
+    height,
+    sizeChanged,
+    baseline: `${A.width}x${A.height}`,
+    current: `${B.width}x${B.height}`,
+  };
 }

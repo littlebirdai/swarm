@@ -23,16 +23,39 @@ const modules = {
 async function setup() {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
-    const team = await ctx.db.insert("teams", { name: "T", created_at: 1, created_by: undefined as any } as any);
-    const owner = await ctx.db.insert("users", { email: "o@x", name: "Owner", team_id: team } as any);
-    const other = await ctx.db.insert("users", { email: "p@x", name: "Other" } as any);
-    await ctx.db.insert("team_memberships", { user_id: owner, team_id: team, role: "admin", joined_at: 1 } as any);
+    const team = await ctx.db.insert("teams", {
+      name: "T",
+      created_at: 1,
+      created_by: undefined as any,
+    } as any);
+    const owner = await ctx.db.insert("users", {
+      email: "o@x",
+      name: "Owner",
+      team_id: team,
+    } as any);
+    const other = await ctx.db.insert("users", {
+      email: "p@x",
+      name: "Other",
+    } as any);
+    await ctx.db.insert("team_memberships", {
+      user_id: owner,
+      team_id: team,
+      role: "admin",
+      joined_at: 1,
+    } as any);
     const conv = await ctx.db.insert("conversations", {
-      session_id: "s1", user_id: owner, team_id: team, is_private: true, title: "x", created_at: 1, updated_at: 1,
+      session_id: "s1",
+      user_id: owner,
+      team_id: team,
+      is_private: true,
+      title: "x",
+      created_at: 1,
+      updated_at: 1,
     } as any);
     return { team, owner, other, conv };
   });
-  const events = () => t.run((ctx) => ctx.db.query("authority_events").collect());
+  const events = () =>
+    t.run((ctx) => ctx.db.query("authority_events").collect());
   return { t, ids, events };
 }
 
@@ -41,12 +64,32 @@ describe("recordAuthorityEvent", () => {
     const { t, ids, events } = await setup();
     await t.run(async (ctx) => {
       const conv = (await ctx.db.get(ids.conv))!;
-      await recordAuthorityEvent(ctx, { kind: "share_link_minted", actor_user_id: ids.owner, conversation: conv, share_token: "tok", share_table: "conversations" });
-      await recordAuthorityEvent(ctx, { kind: "share_link_minted", actor_user_id: ids.owner, conversation: { ...conv, is_private: false }, share_token: "tok" });
-      await recordAuthorityEvent(ctx, { kind: "team_member_added", actor_user_id: ids.owner, team_id: ids.team, target_user_id: ids.other });
+      await recordAuthorityEvent(ctx, {
+        kind: "share_link_minted",
+        actor_user_id: ids.owner,
+        conversation: conv,
+        share_token: "tok",
+        share_table: "conversations",
+      });
+      await recordAuthorityEvent(ctx, {
+        kind: "share_link_minted",
+        actor_user_id: ids.owner,
+        conversation: { ...conv, is_private: false },
+        share_token: "tok",
+      });
+      await recordAuthorityEvent(ctx, {
+        kind: "team_member_added",
+        actor_user_id: ids.owner,
+        team_id: ids.team,
+        target_user_id: ids.other,
+      });
     });
     const rows = await events();
-    expect(rows.map((r) => r.workspace)).toEqual([`user:${ids.owner}`, `team:${ids.team}`, `team:${ids.team}`]);
+    expect(rows.map((r) => r.workspace)).toEqual([
+      `user:${ids.owner}`,
+      `team:${ids.team}`,
+      `team:${ids.team}`,
+    ]);
     expect(rows[0].share_token_hash).toBe(await sha256Hex("tok"));
     expect(JSON.stringify(rows)).not.toContain('"tok"');
     expect(rows[0].team_id).toBe(ids.team);
@@ -58,13 +101,19 @@ describe("chokepoints write their audit row in the same transaction", () => {
   test("patchConversationVisibility records before and after", async () => {
     const { t, ids, events } = await setup();
     await t.run(async (ctx) => {
-      await patchConversationVisibility(ctx, (await ctx.db.get(ids.conv))!, { is_private: false, team_visibility: "full" });
+      await patchConversationVisibility(ctx, (await ctx.db.get(ids.conv))!, {
+        is_private: false,
+        team_visibility: "full",
+      });
     });
     const [row] = await events();
     expect(row.kind).toBe("conversation_visibility_changed");
     expect(row.actor_user_id).toBe(ids.owner);
     expect(row.conversation_id).toBe(ids.conv);
-    expect(row.detail).toEqual({ before: { is_private: true, team_visibility: undefined }, after: { is_private: false, team_visibility: "full" } });
+    expect(row.detail).toEqual({
+      before: { is_private: true, team_visibility: undefined },
+      after: { is_private: false, team_visibility: "full" },
+    });
     expect(row.workspace).toBe(`team:${ids.team}`);
   });
 
@@ -74,15 +123,27 @@ describe("chokepoints write their audit row in the same transaction", () => {
     const asOwner = t.withIdentity({ subject: `${ids.owner}|x` } as any);
     const permission = await t.run((ctx) =>
       ctx.db.insert("pending_permissions", {
-        conversation_id: ids.conv, session_id: "s1", tool_name: "Bash", tool_input: {}, status: "pending", created_at: 1,
-        permission_request_id: "pr1", owner_user_id: ids.owner,
+        conversation_id: ids.conv,
+        session_id: "s1",
+        tool_name: "Bash",
+        tool_input: {},
+        status: "pending",
+        created_at: 1,
+        permission_request_id: "pr1",
+        owner_user_id: ids.owner,
       } as any),
     );
-    await asOwner.mutation(api.permissions.updatePermissionStatus, { permission_id: permission, status: "approved" });
+    await asOwner.mutation(api.permissions.updatePermissionStatus, {
+      permission_id: permission,
+      status: "approved",
+    });
     const [row] = await events();
     expect(row.kind).toBe("permission_answered");
     expect(row.actor_user_id).toBe(ids.owner);
-    expect(row.detail.after).toEqual({ status: "approved", permission_id: permission });
+    expect(row.detail.after).toEqual({
+      status: "approved",
+      permission_id: permission,
+    });
     expect(row.detail.before.tool_name).toBe("Bash");
   });
 
@@ -90,17 +151,41 @@ describe("chokepoints write their audit row in the same transaction", () => {
     const { t, ids, events } = await setup();
     await t.run(async (ctx) => {
       const conv = (await ctx.db.get(ids.conv))!;
-      await claimShareToken(ctx, "conversations", conv, "11111111-1111-4111-8111-111111111111", ids.owner);
-      await claimShareToken(ctx, "conversations", (await ctx.db.get(ids.conv))!, null, ids.owner);
-      await expect(claimShareToken(ctx, "conversations", (await ctx.db.get(ids.conv))!, "22222222-2222-4222-8222-222222222222")).rejects.toThrow(/needs the person/);
+      await claimShareToken(
+        ctx,
+        "conversations",
+        conv,
+        "11111111-1111-4111-8111-111111111111",
+        ids.owner,
+      );
+      await claimShareToken(
+        ctx,
+        "conversations",
+        (await ctx.db.get(ids.conv))!,
+        null,
+        ids.owner,
+      );
+      await expect(
+        claimShareToken(
+          ctx,
+          "conversations",
+          (await ctx.db.get(ids.conv))!,
+          "22222222-2222-4222-8222-222222222222",
+        ),
+      ).rejects.toThrow(/needs the person/);
     });
-    expect((await events()).map((r) => r.kind)).toEqual(["share_link_minted", "share_link_revoked"]);
+    expect((await events()).map((r) => r.kind)).toEqual([
+      "share_link_minted",
+      "share_link_revoked",
+    ]);
   });
 
   test("pinToProfile mints through claimShareToken and audits it", async () => {
     const { t, ids, events } = await setup();
     const { api } = await import("./_generated/api");
-    await t.withIdentity({ subject: `${ids.owner}|x` } as any).mutation(api.conversations.pinToProfile, { conversation_id: ids.conv });
+    await t
+      .withIdentity({ subject: `${ids.owner}|x` } as any)
+      .mutation(api.conversations.pinToProfile, { conversation_id: ids.conv });
     const [row] = await events();
     expect(row.kind).toBe("share_link_minted");
     expect(row.conversation_id).toBe(ids.conv);
@@ -109,10 +194,15 @@ describe("chokepoints write their audit row in the same transaction", () => {
   test("creating a team records the creator's admin membership", async () => {
     const { t, ids, events } = await setup();
     const { api } = await import("./_generated/api");
-    await t.withIdentity({ subject: `${ids.other}|x` } as any).mutation(api.teams.createTeam, { name: "New" } as any);
+    await t
+      .withIdentity({ subject: `${ids.other}|x` } as any)
+      .mutation(api.teams.createTeam, { name: "New" } as any);
     const row = (await events()).find((r) => r.kind === "team_member_added");
     expect(row?.actor_user_id).toBe(ids.other);
-    expect(row?.detail.after).toEqual({ role: "admin", how: "Created the team" });
+    expect(row?.detail.after).toEqual({
+      role: "admin",
+      how: "Created the team",
+    });
   });
 });
 
@@ -121,18 +211,42 @@ describe("authorityEvents.list --kind", () => {
     const { t, ids } = await setup();
     const { api } = await import("./_generated/api");
     await t.run(async (ctx) => {
-      const base = { actor_user_id: ids.owner, team_id: ids.team, detail: {}, workspace: `team:${ids.team}` };
-      await ctx.db.insert("authority_events", { ...base, kind: "team_member_added", target_user_id: ids.other, created_at: 10 } as any);
-      for (let i = 0; i < 8; i++) await ctx.db.insert("authority_events", { ...base, kind: "team_member_role_changed", target_user_id: ids.other, created_at: 100 + i } as any);
+      const base = {
+        actor_user_id: ids.owner,
+        team_id: ids.team,
+        detail: {},
+        workspace: `team:${ids.team}`,
+      };
+      await ctx.db.insert("authority_events", {
+        ...base,
+        kind: "team_member_added",
+        target_user_id: ids.other,
+        created_at: 10,
+      } as any);
+      for (let i = 0; i < 8; i++)
+        await ctx.db.insert("authority_events", {
+          ...base,
+          kind: "team_member_role_changed",
+          target_user_id: ids.other,
+          created_at: 100 + i,
+        } as any);
     });
     const asOwner = t.withIdentity({ subject: `${ids.owner}|x` } as any);
-    const found = await asOwner.query(api.authorityEvents.list, { kind: "team_member_added", limit: 3 });
+    const found = await asOwner.query(api.authorityEvents.list, {
+      kind: "team_member_added",
+      limit: 3,
+    });
     expect(found.map((r: any) => r.kind)).toEqual(["team_member_added"]);
     // Without a kind the cut is still the newest rows of any kind.
     const newest = await asOwner.query(api.authorityEvents.list, { limit: 3 });
     expect(newest.map((r: any) => r.created_at)).toEqual([107, 106, 105]);
     // Someone outside the team reads none of it.
     const asOther = t.withIdentity({ subject: `${ids.other}|x` } as any);
-    expect(await asOther.query(api.authorityEvents.list, { kind: "team_member_added", limit: 3 })).toEqual([]);
+    expect(
+      await asOther.query(api.authorityEvents.list, {
+        kind: "team_member_added",
+        limit: 3,
+      }),
+    ).toEqual([]);
   });
 });

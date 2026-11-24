@@ -9,13 +9,23 @@ import { readerFold } from "../lib/threadCards";
 
 /** Fold `items` (oldest first). `newSince` is the visit's frozen unread
  *  boundary; 0 folds to the newest few with no divider; undefined shows all. */
-export function useReaderFold<T>(items: T[], timeOf: (item: T) => number, newSince: number | undefined) {
+export function useReaderFold<T>(
+  items: T[],
+  timeOf: (item: T) => number,
+  newSince: number | undefined,
+) {
   const [showAll, setShowAll] = useState(false);
   // timeOf is read with the items; callers pass an inline accessor.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fold = useMemo(() => readerFold(items.map(timeOf), newSince), [items, newSince]);
+  const fold = useMemo(
+    () => readerFold(items.map(timeOf), newSince),
+    [items, newSince],
+  );
   const hidden = showAll ? 0 : fold.hidden;
-  const visible = useMemo(() => (hidden > 0 ? items.slice(hidden) : items), [items, hidden]);
+  const visible = useMemo(
+    () => (hidden > 0 ? items.slice(hidden) : items),
+    [items, hidden],
+  );
   return {
     visible,
     hidden,

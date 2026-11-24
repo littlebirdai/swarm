@@ -1,20 +1,33 @@
 import { describe, expect, test } from "bun:test";
 import { chromeStub, loadExtensionScript } from "./extensionStub.testutil";
 
-function optionsPage(hash: string, response: "silent" | "missing" | "connected") {
+function optionsPage(
+  hash: string,
+  response: "silent" | "missing" | "connected",
+) {
   const removed: number[] = [];
   const messages: string[] = [];
   const timers = new Map<number, { fn: () => void; ms: number }>();
   let nextTimer = 0;
   const element = {
-    value: "", hidden: false, textContent: "", style: {},
-    addEventListener() {}, replaceChildren() {}, appendChild() {},
-    querySelector: () => element, classList: { add() {}, remove() {} },
+    value: "",
+    hidden: false,
+    textContent: "",
+    style: {},
+    addEventListener() {},
+    replaceChildren() {},
+    appendChild() {},
+    querySelector: () => element,
+    classList: { add() {}, remove() {} },
   };
   const location = { hash, pathname: "/options.html" };
   // The page's deadline reads the clock; tests move it.
   let now = 1_000_000;
-  const FakeDate = class extends Date { static now() { return now; } };
+  const FakeDate = class extends Date {
+    static now() {
+      return now;
+    }
+  };
   // options.html loads status.js before options.js; the wake loop calls its askWorker and reviveIfRefused.
   loadExtensionScript("options.js", {
     chrome: chromeStub({
@@ -23,51 +36,85 @@ function optionsPage(hash: string, response: "silent" | "missing" | "connected")
         sendMessage: ({ op }: { op: string }) => {
           messages.push(op);
           if (response === "silent") return new Promise(() => {});
-          if (response === "missing") return Promise.reject(new Error("Receiving end does not exist"));
+          if (response === "missing")
+            return Promise.reject(new Error("Receiving end does not exist"));
           return Promise.resolve({ ok: true });
         },
       },
       tabs: {
         getCurrent: async () => ({ id: 7 }),
-        remove: async (id: number) => { removed.push(id); },
+        remove: async (id: number) => {
+          removed.push(id);
+        },
       },
     }),
     globals: {
-      location, Date: FakeDate,
-      history: { replaceState() { location.hash = ""; } },
-      document: { getElementById: () => element, createElement: () => element, querySelectorAll: () => [] },
+      location,
+      Date: FakeDate,
+      history: {
+        replaceState() {
+          location.hash = "";
+        },
+      },
+      document: {
+        getElementById: () => element,
+        createElement: () => element,
+        querySelectorAll: () => [],
+      },
       localStorage: { getItem: () => null, setItem() {} },
-      setTimeout: (fn: () => void, ms: number) => { const id = ++nextTimer; timers.set(id, { fn, ms }); return id; },
+      setTimeout: (fn: () => void, ms: number) => {
+        const id = ++nextTimer;
+        timers.set(id, { fn, ms });
+        return id;
+      },
       clearTimeout: (id: number) => timers.delete(id),
     },
     // The page's status block asks the worker for its state on load; these tests count only the wake asks.
-    beforeMain: 'renderBridgeStatus = () => ({ cls: "state-bad" }); readBridgeStatus = async () => ({ state: "dead", attached: [] });',
+    beforeMain:
+      'renderBridgeStatus = () => ({ cls: "state-bad" }); readBridgeStatus = async () => ({ state: "dead", attached: [] });',
   });
   /** Fire the oldest pending timer, the way the clock would. */
-  const tick = async () => { const [id, t] = [...timers.entries()][0]; timers.delete(id); t.fn(); await settle(); await settle(); };
-  return { removed, messages, timers, tick, advance: (ms: number) => { now += ms; } };
+  const tick = async () => {
+    const [id, t] = [...timers.entries()][0];
+    timers.delete(id);
+    t.fn();
+    await settle();
+    await settle();
+  };
+  return {
+    removed,
+    messages,
+    timers,
+    tick,
+    advance: (ms: number) => {
+      now += ms;
+    },
+  };
 }
 
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 describe("extension wake page", () => {
-  test.each(["silent", "missing"] as const)("a worker that is %s is asked again every two seconds while the page stays, then the page closes at the deadline", async (response) => {
-    const page = optionsPage("#wake", response);
-    await settle();
-    expect(page.messages).toEqual(["wake"]);
-    expect(page.removed).toEqual([]);
-    // A silent worker: the ask's own 2 s clock fires first; a missing one rejected at once. Either way a 2 s pause follows, then the next ask.
-    if (response === "silent") await page.tick();
-    await page.tick();
-    expect(page.messages).toEqual(["wake", "wake"]);
-    expect(page.removed).toEqual([]);
-    // Past the deadline the loop stops and the page closes its own tab.
-    page.advance(180_000);
-    if (response === "silent") await page.tick();
-    await page.tick();
-    expect(page.removed).toEqual([7]);
-    expect(page.timers.size).toBe(0);
-  });
+  test.each(["silent", "missing"] as const)(
+    "a worker that is %s is asked again every two seconds while the page stays, then the page closes at the deadline",
+    async (response) => {
+      const page = optionsPage("#wake", response);
+      await settle();
+      expect(page.messages).toEqual(["wake"]);
+      expect(page.removed).toEqual([]);
+      // A silent worker: the ask's own 2 s clock fires first; a missing one rejected at once. Either way a 2 s pause follows, then the next ask.
+      if (response === "silent") await page.tick();
+      await page.tick();
+      expect(page.messages).toEqual(["wake", "wake"]);
+      expect(page.removed).toEqual([]);
+      // Past the deadline the loop stops and the page closes its own tab.
+      page.advance(180_000);
+      if (response === "silent") await page.tick();
+      await page.tick();
+      expect(page.removed).toEqual([7]);
+      expect(page.timers.size).toBe(0);
+    },
+  );
 
   test("the wake page closes its own tab as soon as the worker answers", async () => {
     const page = optionsPage("#wake", "connected");

@@ -21,8 +21,17 @@ export function dateLabel(spec: string): string {
   if (rel) return `Last ${rel[1]} days`;
   const m = spec.match(/^(\d{4}-\d\d-\d\d)?\.\.(\d{4}-\d\d-\d\d)?$/);
   if (!m) return "All dates";
-  const short = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  return m[1] && m[2] ? `${short(m[1])} – ${short(m[2])}` : m[1] ? `From ${short(m[1])}` : `Until ${short(m[2]!)}`;
+  const short = (d: string) =>
+    new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  return m[1] && m[2]
+    ? `${short(m[1])} – ${short(m[2])}`
+    : m[1]
+      ? `From ${short(m[1])}`
+      : `Until ${short(m[2]!)}`;
 }
 
 /** The URL's filters in words, for a picture of the dashboard that has no filter bar: "Last 7 days · Jason Benn". */
@@ -36,7 +45,11 @@ export function filterWords(search: string): string[] {
     const col = k.slice(2);
     const vals = params.getAll(k).filter(Boolean);
     if (!vals.length) continue;
-    out.push(col === "day" || col === "date" ? dateLabel(vals[0]) : `${col.charAt(0).toUpperCase()}${col.slice(1).replace(/_/g, " ")}: ${vals.join(" or ")}`);
+    out.push(
+      col === "day" || col === "date"
+        ? dateLabel(vals[0])
+        : `${col.charAt(0).toUpperCase()}${col.slice(1).replace(/_/g, " ")}: ${vals.join(" or ")}`,
+    );
   }
   return out;
 }
@@ -46,17 +59,30 @@ export function useDashboardScope(now: number) {
   const router = useRouter();
   const sig = params.toString();
   const today = todayUtc(now);
-  const scope = useMemo(() => dashboard.scopeFromParams(new URLSearchParams(sig).entries(), today), [sig, today]);
-  const value = useCallback((column: string) => new URLSearchParams(sig).get(`f.${column}`) ?? "", [sig]);
+  const scope = useMemo(
+    () => dashboard.scopeFromParams(new URLSearchParams(sig).entries(), today),
+    [sig, today],
+  );
+  const value = useCallback(
+    (column: string) => new URLSearchParams(sig).get(`f.${column}`) ?? "",
+    [sig],
+  );
   /** A category filter's picks, one param each (`f.person=ada&f.person=bo`), so a name with a comma survives and nothing is encoded twice. */
-  const values = useCallback((column: string) => new URLSearchParams(sig).getAll(`f.${column}`).filter(Boolean), [sig]);
+  const values = useCallback(
+    (column: string) =>
+      new URLSearchParams(sig).getAll(`f.${column}`).filter(Boolean),
+    [sig],
+  );
   const set = useCallback(
     (column: string, v: string | readonly string[] | null) => {
       const next = new URLSearchParams(window.location.search);
       next.delete(`f.${column}`);
-      for (const one of typeof v === "string" ? [v] : (v ?? [])) if (one) next.append(`f.${column}`, one);
+      for (const one of typeof v === "string" ? [v] : (v ?? []))
+        if (one) next.append(`f.${column}`, one);
       const q = next.toString();
-      router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, { scroll: false });
+      router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, {
+        scroll: false,
+      });
     },
     [router],
   );
@@ -64,8 +90,9 @@ export function useDashboardScope(now: number) {
     const next = new URLSearchParams(window.location.search);
     for (const k of [...next.keys()]) if (k.startsWith("f.")) next.delete(k);
     const q = next.toString();
-    router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, { scroll: false });
+    router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, {
+      scroll: false,
+    });
   }, [router]);
   return { scope, value, values, set, clear };
 }
-

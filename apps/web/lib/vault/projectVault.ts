@@ -28,7 +28,10 @@ export function shortenVaultRoot(root: string): string {
  * Markdown directly inside `dir`, then anywhere beneath it, in path order.
  * `dir` is "" for the vault root.
  */
-function markdownUnder(paths: string[], dir: string): { direct: string[]; nested: string[] } {
+function markdownUnder(
+  paths: string[],
+  dir: string,
+): { direct: string[]; nested: string[] } {
   const prefix = dir ? `${dir}/` : "";
   const direct: string[] = [];
   const nested: string[] = [];
@@ -46,7 +49,9 @@ function pickLanding(paths: string[], dir: string): string | null {
   const prefix = dir ? `${dir}/` : "";
   const named = (name: string) =>
     direct.find((p) => p.slice(prefix.length).toLowerCase() === name) ?? null;
-  return named("index.md") ?? named("readme.md") ?? direct[0] ?? nested[0] ?? null;
+  return (
+    named("index.md") ?? named("readme.md") ?? direct[0] ?? nested[0] ?? null
+  );
 }
 
 /**
@@ -64,7 +69,10 @@ function pickLanding(paths: string[], dir: string): string | null {
  * to hold nothing falls back to the same search at the root, which is where a
  * repo's README lives.
  */
-export function vaultLandingPath(vault: VaultInfo, paths: string[]): string | null {
+export function vaultLandingPath(
+  vault: VaultInfo,
+  paths: string[],
+): string | null {
   if (!isProjectVault(vault)) return null;
   const home = vault.home ?? "";
   return pickLanding(paths, home) ?? (home ? pickLanding(paths, "") : null);
@@ -114,7 +122,11 @@ export function groupVaultChoices(
   remote: { id: string; name: string; note_count?: number }[],
 ): VaultChoiceGroup[] {
   const localIds = new Set(local.map((v) => v.id));
-  const buckets: Record<VaultSourceKind, VaultChoice[]> = { vault: [], project: [], remote: [] };
+  const buckets: Record<VaultSourceKind, VaultChoice[]> = {
+    vault: [],
+    project: [],
+    remote: [],
+  };
 
   for (const v of local) {
     const kind: VaultSourceKind = isProjectVault(v) ? "project" : "vault";
@@ -129,7 +141,12 @@ export function groupVaultChoices(
   }
   for (const v of remote) {
     if (localIds.has(v.id)) continue;
-    buckets.remote.push({ id: v.id, name: v.name, kind: "remote", noteCount: v.note_count });
+    buckets.remote.push({
+      id: v.id,
+      name: v.name,
+      kind: "remote",
+      noteCount: v.note_count,
+    });
   }
 
   const order: VaultSourceKind[] = ["vault", "project", "remote"];

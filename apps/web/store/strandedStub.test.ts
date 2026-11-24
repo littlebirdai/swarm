@@ -1,6 +1,9 @@
 import { describe, expect, it, beforeEach } from "bun:test";
 import { useInboxStore, isConvexId, retryPendingSend } from "./inboxStore";
-import { DispatchNotWiredError, StaleDispatchBindingError } from "./mutativeMiddleware";
+import {
+  DispatchNotWiredError,
+  StaleDispatchBindingError,
+} from "./mutativeMiddleware";
 
 // Regression coverage for ct-37441 — a "New Session" whose createSession was
 // given up (offline / outage / createConversation rate-limit) strands a stub
@@ -22,7 +25,8 @@ function installFakeDispatch(): { calls: DispatchCall[] } {
     // so ensureSessionCreated can rekey explicitly. forkFromMessage returns
     // { conversation_id } (see convex forkFromMessage) — mirror that too.
     if (action === "createSession") return Promise.resolve(REAL_ID);
-    if (action === "convCommand" && args[1] === "forkFromMessage") return Promise.resolve({ conversation_id: REAL_ID });
+    if (action === "convCommand" && args[1] === "forkFromMessage")
+      return Promise.resolve({ conversation_id: REAL_ID });
     return Promise.resolve(undefined);
   });
   return { calls };
@@ -45,8 +49,26 @@ function seedStrandedStub(stubId: string) {
         updated_at: Date.now() - 5 * 60 * 1000,
       } as any,
     },
-    conversations: { [stubId]: { _id: stubId, session_id: stubId, project_path: "/Users/me/proj", agent_type: "claude_code" } as any },
-    pendingMessages: { [stubId]: [{ _id: "opt1", _clientId: "client-1", role: "user", content: "deliver me", timestamp: Date.now(), _isFailed: true } as any] },
+    conversations: {
+      [stubId]: {
+        _id: stubId,
+        session_id: stubId,
+        project_path: "/Users/me/proj",
+        agent_type: "claude_code",
+      } as any,
+    },
+    pendingMessages: {
+      [stubId]: [
+        {
+          _id: "opt1",
+          _clientId: "client-1",
+          role: "user",
+          content: "deliver me",
+          timestamp: Date.now(),
+          _isFailed: true,
+        } as any,
+      ],
+    },
     pendingSessionCreates: {},
   } as any);
 }
@@ -97,7 +119,9 @@ describe("healStrandedStub", () => {
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
     let resolveInFlight: (id: string) => void = () => {};
-    const inflight = new Promise<string>((r) => { resolveInFlight = r; });
+    const inflight = new Promise<string>((r) => {
+      resolveInFlight = r;
+    });
     useInboxStore.getState().trackSessionCreate(stubId, inflight);
 
     const p = useInboxStore.getState().ensureSessionCreated(stubId);
@@ -129,23 +153,30 @@ describe("healStrandedStub", () => {
       },
     }));
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     const sends = calls.filter((c) => c.action === "sendMessage");
     expect(sends).toHaveLength(1);
-    expect(sends[0]?.args).toEqual([REAL_ID, "deliver me", null, "client-rekey"]);
+    expect(sends[0]?.args).toEqual([
+      REAL_ID,
+      "deliver me",
+      null,
+      "client-rekey",
+    ]);
   });
 
   // ct-46401 — the rekey fallback fired while the first message's image was
@@ -159,29 +190,39 @@ describe("healStrandedStub", () => {
     useInboxStore.setState((s: any) => ({
       pendingMessages: {
         ...s.pendingMessages,
-        [stubId]: [{
-          ...s.pendingMessages[stubId][0],
-          _id: "opt-upload",
-          _clientId: "client-upload",
-          _isFailed: undefined,
-          content: "[Image 1] look at this",
-          images: [{ media_type: "image/png", preview_url: "blob:preview", uploading: true }],
-        }],
+        [stubId]: [
+          {
+            ...s.pendingMessages[stubId][0],
+            _id: "opt-upload",
+            _clientId: "client-upload",
+            _isFailed: undefined,
+            content: "[Image 1] look at this",
+            images: [
+              {
+                media_type: "image/png",
+                preview_url: "blob:preview",
+                uploading: true,
+              },
+            ],
+          },
+        ],
       },
     }));
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(calls.filter((c) => c.action === "sendMessage")).toHaveLength(0);
@@ -189,7 +230,9 @@ describe("healStrandedStub", () => {
     // The upload task captured the STUB key at send time; the row has since
     // moved to the real id. It must still land on the row.
     const resolved = [{ media_type: "image/png", storage_id: "kg2storage" }];
-    useInboxStore.getState().resolvePendingUploads(stubId, "client-upload", resolved);
+    useInboxStore
+      .getState()
+      .resolvePendingUploads(stubId, "client-upload", resolved);
     const row = useInboxStore.getState().pendingMessages[REAL_ID]?.[0] as any;
     expect(row?.images).toEqual(resolved);
 
@@ -198,7 +241,12 @@ describe("healStrandedStub", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     const sends = calls.filter((c) => c.action === "sendMessage");
     expect(sends).toHaveLength(1);
-    expect(sends[0]?.args).toEqual([REAL_ID, "[Image 1] look at this", ["kg2storage"], "client-upload"]);
+    expect(sends[0]?.args).toEqual([
+      REAL_ID,
+      "[Image 1] look at this",
+      ["kg2storage"],
+      "client-upload",
+    ]);
   });
 
   it("coalesces the normal await-and-send path with the rekey fallback", async () => {
@@ -208,30 +256,36 @@ describe("healStrandedStub", () => {
     useInboxStore.setState((s: any) => ({
       pendingMessages: {
         ...s.pendingMessages,
-        [stubId]: [{
-          ...s.pendingMessages[stubId][0],
-          _id: "opt-normal",
-          _clientId: "client-normal",
-          _isFailed: undefined,
-        }],
+        [stubId]: [
+          {
+            ...s.pendingMessages[stubId][0],
+            _id: "opt-normal",
+            _clientId: "client-normal",
+            _isFailed: undefined,
+          },
+        ],
       },
     }));
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     const resolved = await useInboxStore.getState().awaitConvexId(stubId);
-    useInboxStore.getState().sendMessage(resolved, "deliver me", undefined, "client-normal");
+    useInboxStore
+      .getState()
+      .sendMessage(resolved, "deliver me", undefined, "client-normal");
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(calls.filter((c) => c.action === "sendMessage")).toHaveLength(1);
@@ -254,22 +308,28 @@ describe("healStrandedStub", () => {
       },
       conversations: { [REAL_ID]: { _id: REAL_ID } as any },
       pendingMessages: {
-        [REAL_ID]: [{
-          _id: "opt-hydrated",
-          _clientId: "client-hydrated",
-          _isOptimistic: true,
-          role: "user",
-          content: "survived the crash",
-          timestamp: Date.now(),
-        } as any],
+        [REAL_ID]: [
+          {
+            _id: "opt-hydrated",
+            _clientId: "client-hydrated",
+            _isOptimistic: true,
+            role: "user",
+            content: "survived the crash",
+            timestamp: Date.now(),
+          } as any,
+        ],
       },
       pendingSessionCreates: {},
     } as any);
 
     await useInboxStore.getState().redrivePendingMessages();
 
-    expect(calls.find((c) => c.action === "sendMessage")?.args)
-      .toEqual([REAL_ID, "survived the crash", null, "client-hydrated"]);
+    expect(calls.find((c) => c.action === "sendMessage")?.args).toEqual([
+      REAL_ID,
+      "survived the crash",
+      null,
+      "client-hydrated",
+    ]);
   });
 
   // Regression: the server dedupes a send's client id by argument fingerprint.
@@ -286,25 +346,35 @@ describe("healStrandedStub", () => {
       sessions: { [REAL_ID]: { _id: REAL_ID, updated_at: Date.now() } as any },
       conversations: { [REAL_ID]: { _id: REAL_ID } as any },
       pendingMessages: {
-        [REAL_ID]: [{
-          _id: "opt-mention",
-          _clientId: "client-mention",
-          _isOptimistic: true,
-          role: "user",
-          content: raw,
-          timestamp: Date.now(),
-        } as any],
+        [REAL_ID]: [
+          {
+            _id: "opt-mention",
+            _clientId: "client-mention",
+            _isOptimistic: true,
+            role: "user",
+            content: raw,
+            timestamp: Date.now(),
+          } as any,
+        ],
       },
       pendingSessionCreates: {},
     } as any);
 
-    useInboxStore.getState().stampPendingDispatchContent(REAL_ID, "client-mention", expanded);
-    expect(useInboxStore.getState().pendingMessages[REAL_ID][0]._dispatchContent).toBe(expanded);
+    useInboxStore
+      .getState()
+      .stampPendingDispatchContent(REAL_ID, "client-mention", expanded);
+    expect(
+      useInboxStore.getState().pendingMessages[REAL_ID][0]._dispatchContent,
+    ).toBe(expanded);
 
     await useInboxStore.getState().redrivePendingMessages();
 
-    expect(calls.find((c) => c.action === "sendMessage")?.args)
-      .toEqual([REAL_ID, expanded, null, "client-mention"]);
+    expect(calls.find((c) => c.action === "sendMessage")?.args).toEqual([
+      REAL_ID,
+      expanded,
+      null,
+      "client-mention",
+    ]);
   });
 
   it("reconfigures a rekeyed parked create with the latest stub launch preferences", async () => {
@@ -332,18 +402,20 @@ describe("healStrandedStub", () => {
       },
     }));
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     const reconfigure = calls.find(
@@ -383,24 +455,25 @@ describe("healStrandedStub", () => {
       },
     }));
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     const reconfigure = calls.find(
       (call) =>
-        call.action === "convCommand" &&
-        call.args[1] === "reconfigureSession",
+        call.action === "convCommand" && call.args[1] === "reconfigureSession",
     );
     expect(reconfigure?.args[2]).toMatchObject({
       agent_type: "claude_code",
@@ -431,18 +504,20 @@ describe("healStrandedStub", () => {
 
     // Simulate the next launch: the in-memory promise continuation is gone,
     // but by_session_id sync still rekeys the persisted stub.
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: started.stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: started.stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const assignment = calls.find(
@@ -514,12 +589,14 @@ describe("healStrandedStub", () => {
       useInboxStore.getState().sessions[REAL_ID]?._postCreateBucketId,
     ).toBe(bucketId);
 
-    useInboxStore.getState().syncTable("bucketAssignments", [{
-      _id: "assign00000000000000000000000000",
-      conversation_id: REAL_ID,
-      bucket_id: bucketId,
-      updated_at: Date.now() + 1,
-    } as any]);
+    useInboxStore.getState().syncTable("bucketAssignments", [
+      {
+        _id: "assign00000000000000000000000000",
+        conversation_id: REAL_ID,
+        bucket_id: bucketId,
+        updated_at: Date.now() + 1,
+      } as any,
+    ]);
 
     expect(
       useInboxStore.getState().sessions[REAL_ID]?._postCreateBucketId,
@@ -666,18 +743,20 @@ describe("healStrandedStub", () => {
     seedStrandedStub(stubId);
     useInboxStore.getState().updateSessionProject(stubId, "/Users/me/latest");
 
-    useInboxStore.getState().syncTable("sessions", [{
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      agent_type: "claude_code",
-      project_path: "/Users/me/proj",
-      git_root: "/Users/me/proj",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-      updated_at: Date.now(),
-    } as any]);
+    useInboxStore.getState().syncTable("sessions", [
+      {
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        agent_type: "claude_code",
+        project_path: "/Users/me/proj",
+        git_root: "/Users/me/proj",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        updated_at: Date.now(),
+      } as any,
+    ]);
 
     await new Promise((resolve) => setTimeout(resolve, 10));
     const flush = calls.find((c) => c.action === "flushResolvedSessionFields");
@@ -699,20 +778,40 @@ describe("healStrandedStub", () => {
     const parentId = "jx7000000000000000000000000paren";
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
-    useInboxStore.setState((s: any) => ({
-      sessions: { [stubId]: { ...s.sessions[stubId], forked_from: parentId, parent_message_uuid: "uuid-fork-point" } },
-      conversations: { [stubId]: { ...s.conversations[stubId], forked_from: parentId, parent_message_uuid: "uuid-fork-point" } },
-    } as any));
+    useInboxStore.setState(
+      (s: any) =>
+        ({
+          sessions: {
+            [stubId]: {
+              ...s.sessions[stubId],
+              forked_from: parentId,
+              parent_message_uuid: "uuid-fork-point",
+            },
+          },
+          conversations: {
+            [stubId]: {
+              ...s.conversations[stubId],
+              forked_from: parentId,
+              parent_message_uuid: "uuid-fork-point",
+            },
+          },
+        }) as any,
+    );
 
     const realId = await useInboxStore.getState().healStrandedStub(stubId);
     expect(realId).toBe(REAL_ID);
 
     // The heal forked — it did NOT mint an amnesiac plain session.
     expect(calls.filter((c) => c.action === "createSession")).toHaveLength(0);
-    const fork = calls.find((c) => c.action === "convCommand" && c.args[1] === "forkFromMessage");
+    const fork = calls.find(
+      (c) => c.action === "convCommand" && c.args[1] === "forkFromMessage",
+    );
     expect(fork).toBeTruthy();
     expect(fork!.args[0]).toBe(parentId);
-    expect(fork!.args[2]).toEqual({ message_uuid: "uuid-fork-point", session_id: stubId });
+    expect(fork!.args[2]).toEqual({
+      message_uuid: "uuid-fork-point",
+      session_id: stubId,
+    });
 
     // Stub rekeyed to the real fork row; the stuck seed message re-sent to it.
     expect(useInboxStore.getState().sessions[stubId]).toBeUndefined();
@@ -726,28 +825,33 @@ describe("healStrandedStub", () => {
     const parentId = "jx7000000000000000000000000paren";
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
-    useInboxStore.setState((s: any) => ({
-      sessions: {
-        [stubId]: {
-          ...s.sessions[stubId],
-          forked_from: parentId,
-          parent_conversation_id: parentId,
-          parent_message_uuid: "agent-switch",
-          _forkTargetAgentType: "codex",
-        },
-      },
-      conversations: {
-        [stubId]: {
-          ...s.conversations[stubId],
-          forked_from: parentId,
-          parent_conversation_id: parentId,
-          parent_message_uuid: "agent-switch",
-          _forkTargetAgentType: "codex",
-        },
-      },
-    } as any));
+    useInboxStore.setState(
+      (s: any) =>
+        ({
+          sessions: {
+            [stubId]: {
+              ...s.sessions[stubId],
+              forked_from: parentId,
+              parent_conversation_id: parentId,
+              parent_message_uuid: "agent-switch",
+              _forkTargetAgentType: "codex",
+            },
+          },
+          conversations: {
+            [stubId]: {
+              ...s.conversations[stubId],
+              forked_from: parentId,
+              parent_conversation_id: parentId,
+              parent_message_uuid: "agent-switch",
+              _forkTargetAgentType: "codex",
+            },
+          },
+        }) as any,
+    );
 
-    expect(await useInboxStore.getState().healStrandedStub(stubId)).toBe(REAL_ID);
+    expect(await useInboxStore.getState().healStrandedStub(stubId)).toBe(
+      REAL_ID,
+    );
     const fork = calls.find((c) => c.action === "convCommand");
     expect(fork?.args[2]).toEqual({
       target_agent_type: "codex",
@@ -760,12 +864,29 @@ describe("healStrandedStub", () => {
     const stubId = "0f0f0f0f-aaaa-4bbb-8ccc-ddddeeee0000";
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
-    useInboxStore.setState((s: any) => ({
-      sessions: { [stubId]: { ...s.sessions[stubId], forked_from: "someotherstubid", parent_message_uuid: "u1" } },
-      conversations: { [stubId]: { ...s.conversations[stubId], forked_from: "someotherstubid", parent_message_uuid: "u1" } },
-    } as any));
+    useInboxStore.setState(
+      (s: any) =>
+        ({
+          sessions: {
+            [stubId]: {
+              ...s.sessions[stubId],
+              forked_from: "someotherstubid",
+              parent_message_uuid: "u1",
+            },
+          },
+          conversations: {
+            [stubId]: {
+              ...s.conversations[stubId],
+              forked_from: "someotherstubid",
+              parent_message_uuid: "u1",
+            },
+          },
+        }) as any,
+    );
 
-    await expect(useInboxStore.getState().ensureSessionCreated(stubId)).rejects.toThrow(/fork parent unknown/i);
+    await expect(
+      useInboxStore.getState().ensureSessionCreated(stubId),
+    ).rejects.toThrow(/fork parent unknown/i);
     expect(calls.filter((c) => c.action === "createSession")).toHaveLength(0);
   });
 
@@ -774,18 +895,47 @@ describe("healStrandedStub", () => {
     const { calls } = installFakeDispatch();
     // A born-pathless stub (project-less doc → new agent) with a stuck message.
     useInboxStore.setState({
-      sessions: { [stubId]: { _id: stubId, session_id: stubId, agent_type: "claude_code", message_count: 0, started_at: Date.now(), updated_at: Date.now() } as any },
-      conversations: { [stubId]: { _id: stubId, session_id: stubId, agent_type: "claude_code" } as any },
-      pendingMessages: { [stubId]: [{ _id: "o", _clientId: "c", role: "user", content: "hi", timestamp: Date.now() } as any] },
+      sessions: {
+        [stubId]: {
+          _id: stubId,
+          session_id: stubId,
+          agent_type: "claude_code",
+          message_count: 0,
+          started_at: Date.now(),
+          updated_at: Date.now(),
+        } as any,
+      },
+      conversations: {
+        [stubId]: {
+          _id: stubId,
+          session_id: stubId,
+          agent_type: "claude_code",
+        } as any,
+      },
+      pendingMessages: {
+        [stubId]: [
+          {
+            _id: "o",
+            _clientId: "c",
+            role: "user",
+            content: "hi",
+            timestamp: Date.now(),
+          } as any,
+        ],
+      },
       pendingSessionCreates: {},
     } as any);
 
     // ensureSessionCreated rejects rather than spawning in $HOME...
-    await expect(useInboxStore.getState().ensureSessionCreated(stubId)).rejects.toThrow(/pick a folder/i);
+    await expect(
+      useInboxStore.getState().ensureSessionCreated(stubId),
+    ).rejects.toThrow(/pick a folder/i);
     // ...and no createSession was dispatched (no silent $HOME spawn).
     expect(calls.filter((c) => c.action === "createSession")).toHaveLength(0);
     // The user-triggered send surfaces the same actionable error.
-    await expect(useInboxStore.getState().awaitConvexId(stubId)).rejects.toThrow(/pick a folder/i);
+    await expect(
+      useInboxStore.getState().awaitConvexId(stubId),
+    ).rejects.toThrow(/pick a folder/i);
   });
 });
 
@@ -812,16 +962,25 @@ describe("sendMessageWhenReady", () => {
       projectPath: "/Users/me/proj",
       gitRoot: "/Users/me/proj",
       deferCreate: true,
-      create: (stubId) => useInboxStore.getState().createSession({
-        agent_type: "claude_code",
-        project_path: "/Users/me/proj",
-        git_root: "/Users/me/proj",
-        session_id: stubId,
-      }),
+      create: (stubId) =>
+        useInboxStore.getState().createSession({
+          agent_type: "claude_code",
+          project_path: "/Users/me/proj",
+          git_root: "/Users/me/proj",
+          session_id: stubId,
+        }),
     });
     void started.materialize();
-    const clientId = store.addOptimisticMessage(started.stubId, "first message");
-    store.sendMessageWhenReady(started.stubId, "first message", undefined, clientId);
+    const clientId = store.addOptimisticMessage(
+      started.stubId,
+      "first message",
+    );
+    store.sendMessageWhenReady(
+      started.stubId,
+      "first message",
+      undefined,
+      clientId,
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -850,38 +1009,57 @@ describe("sendMessageWhenReady", () => {
         throw new StaleDispatchBindingError();
       },
     });
-    const clientId = store.addOptimisticMessage(started.stubId, "first message");
-    store.sendMessageWhenReady(started.stubId, "first message", undefined, clientId);
+    const clientId = store.addOptimisticMessage(
+      started.stubId,
+      "first message",
+    );
+    store.sendMessageWhenReady(
+      started.stubId,
+      "first message",
+      undefined,
+      clientId,
+    );
     await new Promise((resolve) => setTimeout(resolve, 20));
-    const bubble = (useInboxStore.getState().pendingMessages[started.stubId] ?? [])
-      .find((m: any) => m._clientId === clientId || m._id === clientId) as any;
+    const bubble = (
+      useInboxStore.getState().pendingMessages[started.stubId] ?? []
+    ).find((m: any) => m._clientId === clientId || m._id === clientId) as any;
     expect(bubble).toBeTruthy();
     expect(bubble._isFailed).toBeFalsy();
   });
 
   it("sends at once when the id is already real", () => {
     const { calls } = installFakeDispatch();
-    useInboxStore.getState().sendMessageWhenReady(REAL_ID, "hello", undefined, "client-x");
+    useInboxStore
+      .getState()
+      .sendMessageWhenReady(REAL_ID, "hello", undefined, "client-x");
     const send = calls.find((c) => c.action === "sendMessage");
     expect(send?.args.slice(0, 1)).toEqual([REAL_ID]);
   });
 });
-
 
 // The retry rule both the web's failed bubble and the phone call. A
 // conversation whose create never landed has no server row to retry, so the
 // rule re-creates it (or, for a hosted one, starts it again).
 describe("retryPendingSend on a conversation with no server row", () => {
   beforeEach(() => {
-    useInboxStore.setState({ sessions: {}, conversations: {}, pendingMessages: {}, pendingSessionCreates: {} } as any);
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      pendingMessages: {},
+      pendingSessionCreates: {},
+    } as any);
   });
 
   it("re-creates the stub and replays the failed message", async () => {
     const stubId = "retrystubaaaaaaaaaaaaa";
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
-    expect(await retryPendingSend(stubId, "client-1", "deliver me")).toBe("resent");
-    expect(calls.find((c) => c.action === "createSession")?.args[0].session_id).toBe(stubId);
+    expect(await retryPendingSend(stubId, "client-1", "deliver me")).toBe(
+      "resent",
+    );
+    expect(
+      calls.find((c) => c.action === "createSession")?.args[0].session_id,
+    ).toBe(stubId);
     const send = calls.find((c) => c.action === "sendMessage");
     expect(send?.args[0]).toBe(REAL_ID);
     expect(send?.args[3]).toBe("client-1");
@@ -891,32 +1069,68 @@ describe("retryPendingSend on a conversation with no server row", () => {
     const stubId = "retrystubbbbbbbbbbbbbb";
     seedStrandedStub(stubId);
     // A stub with no folder is one the create refuses outright.
-    useInboxStore.setState((s: any) => ({
-      sessions: { [stubId]: { ...s.sessions[stubId], project_path: undefined, git_root: undefined } },
-      conversations: { [stubId]: { ...s.conversations[stubId], project_path: undefined } },
-    } as any));
+    useInboxStore.setState(
+      (s: any) =>
+        ({
+          sessions: {
+            [stubId]: {
+              ...s.sessions[stubId],
+              project_path: undefined,
+              git_root: undefined,
+            },
+          },
+          conversations: {
+            [stubId]: { ...s.conversations[stubId], project_path: undefined },
+          },
+        }) as any,
+    );
     const done = retryPendingSend(stubId, "client-1", "deliver me");
-    expect(useInboxStore.getState().pendingMessages[stubId][0]._isFailed).toBeUndefined();
+    expect(
+      useInboxStore.getState().pendingMessages[stubId][0]._isFailed,
+    ).toBeUndefined();
     expect(await done).toBe("unavailable");
-    expect(useInboxStore.getState().pendingMessages[stubId][0]._isFailed).toBe(true);
+    expect(useInboxStore.getState().pendingMessages[stubId][0]._isFailed).toBe(
+      true,
+    );
   });
 
   it("starts a hosted conversation again from its first words", async () => {
     const stubId = "retrystubccccccccccccc";
     const { calls } = installFakeDispatch();
     seedStrandedStub(stubId);
-    useInboxStore.setState((s: any) => ({
-      sessions: { [stubId]: { ...s.sessions[stubId], agent_type: "codecast", project_path: undefined, git_root: undefined } },
-      conversations: { [stubId]: { ...s.conversations[stubId], agent_type: "codecast", project_path: undefined } },
-    } as any));
-    expect(await retryPendingSend(stubId, "client-1", "deliver me")).toBe("restarted");
+    useInboxStore.setState(
+      (s: any) =>
+        ({
+          sessions: {
+            [stubId]: {
+              ...s.sessions[stubId],
+              agent_type: "codecast",
+              project_path: undefined,
+              git_root: undefined,
+            },
+          },
+          conversations: {
+            [stubId]: {
+              ...s.conversations[stubId],
+              agent_type: "codecast",
+              project_path: undefined,
+            },
+          },
+        }) as any,
+    );
+    expect(await retryPendingSend(stubId, "client-1", "deliver me")).toBe(
+      "restarted",
+    );
     await new Promise((r) => setTimeout(r, 0));
     const create = calls.find((c) => c.action === "createSession");
     expect(create?.args[0].session_id).toBe(stubId);
     expect(create?.args[0].agent_type).toBe("codecast");
     // The failed bubble went; the new start put one bubble in its place.
     const s = useInboxStore.getState();
-    const rows = [...(s.pendingMessages[stubId] ?? []), ...(s.pendingMessages[REAL_ID] ?? [])];
+    const rows = [
+      ...(s.pendingMessages[stubId] ?? []),
+      ...(s.pendingMessages[REAL_ID] ?? []),
+    ];
     expect(rows.filter((m: any) => m.content === "deliver me")).toHaveLength(1);
     expect(rows[0]._isFailed).toBeUndefined();
   });

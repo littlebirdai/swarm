@@ -29,7 +29,12 @@ describe("filterUserMessages", () => {
     // The user-prompt navigators (message browser, rewind/fork) are user-only.
     // This guard lives at the source so no client has to re-filter by role.
     const out = filterUserMessages([
-      msg({ _id: "a1", role: "assistant", content: "assistant prose here", timestamp: 1 }),
+      msg({
+        _id: "a1",
+        role: "assistant",
+        content: "assistant prose here",
+        timestamp: 1,
+      }),
       msg({ _id: "u1", role: "user", content: "real question", timestamp: 2 }),
     ]);
     expect(out.map((m) => m._id)).toEqual(["u1"]);
@@ -37,7 +42,13 @@ describe("filterUserMessages", () => {
 
   test("drops compact_boundary", () => {
     const out = filterUserMessages([
-      msg({ _id: "u1", role: "user", content: "real", subtype: "compact_boundary", timestamp: 1 }),
+      msg({
+        _id: "u1",
+        role: "user",
+        content: "real",
+        subtype: "compact_boundary",
+        timestamp: 1,
+      }),
     ]);
     expect(out).toEqual([]);
   });
@@ -68,7 +79,8 @@ describe("filterUserMessages", () => {
       msg({
         _id: "u1",
         role: "user",
-        content: "[codecast] Now using Codex (was Claude).\n\nThis session continues here.",
+        content:
+          "[codecast] Now using Codex (was Claude).\n\nThis session continues here.",
         timestamp: 1,
       }),
       msg({ _id: "u2", role: "user", content: "real question", timestamp: 2 }),
@@ -81,7 +93,8 @@ describe("filterUserMessages", () => {
       msg({
         _id: "u1",
         role: "user",
-        content: "[codecast] Now running on Cloud Linux (was MacBook-Pro-168).\n\nThis session continues here.",
+        content:
+          "[codecast] Now running on Cloud Linux (was MacBook-Pro-168).\n\nThis session continues here.",
         timestamp: 1,
       }),
       msg({ _id: "u2", role: "user", content: "real question", timestamp: 2 }),
@@ -104,8 +117,18 @@ describe("filterUserMessages", () => {
 
   test("drops user noise prefixes like <local-command-stdout> and Caveat:", () => {
     const out = filterUserMessages([
-      msg({ _id: "u1", role: "user", content: "<local-command-stdout>ls", timestamp: 1 }),
-      msg({ _id: "u2", role: "user", content: "Caveat: env var changed", timestamp: 2 }),
+      msg({
+        _id: "u1",
+        role: "user",
+        content: "<local-command-stdout>ls",
+        timestamp: 1,
+      }),
+      msg({
+        _id: "u2",
+        role: "user",
+        content: "Caveat: env var changed",
+        timestamp: 2,
+      }),
       msg({ _id: "u3", role: "user", content: "real question", timestamp: 3 }),
     ]);
     expect(out.map((m) => m._id)).toEqual(["u3"]);
@@ -116,7 +139,8 @@ describe("filterUserMessages", () => {
       msg({
         _id: "u1",
         role: "user",
-        content: "Your task is to create a detailed summary of the conversation so far. Please...",
+        content:
+          "Your task is to create a detailed summary of the conversation so far. Please...",
         timestamp: 1,
       }),
     ]);

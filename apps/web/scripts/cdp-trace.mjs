@@ -1,7 +1,11 @@
 const args = process.argv.slice(2);
 const readArg = (name, index, fallback) => {
   const at = args.indexOf(name);
-  return at >= 0 ? args[at + 1] : args[index] && !args[index].startsWith("--") ? args[index] : fallback;
+  return at >= 0
+    ? args[at + 1]
+    : args[index] && !args[index].startsWith("--")
+      ? args[index]
+      : fallback;
 };
 const port = readArg("--port", 0, "9222");
 const targetMatch = readArg("--target", 1, "codecast.sh");
@@ -13,9 +17,15 @@ const navigateUrl = readArg("--navigate", -1, "");
 const storageStatePath = readArg("--storage-state", -1, "");
 const storageOrigin = readArg("--storage-origin", -1, "https://codecast.sh");
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-const target = targets.find((candidate) => candidate.type === "page" && candidate.url.includes(targetMatch));
-if (!target?.webSocketDebuggerUrl) throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
+const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+  (response) => response.json(),
+);
+const target = targets.find(
+  (candidate) =>
+    candidate.type === "page" && candidate.url.includes(targetMatch),
+);
+if (!target?.webSocketDebuggerUrl)
+  throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
 
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
@@ -36,12 +46,17 @@ socket.addEventListener("message", ({ data }) => {
   if (message.method === "Runtime.consoleAPICalled") {
     consoleMessages.push({
       level: message.params.type,
-      text: message.params.args.map((arg) => arg.value ?? arg.description ?? "").join(" "),
+      text: message.params.args
+        .map((arg) => arg.value ?? arg.description ?? "")
+        .join(" "),
     });
   } else if (message.method === "Runtime.exceptionThrown") {
     consoleMessages.push({
       level: "exception",
-      text: message.params.exceptionDetails?.exception?.description ?? message.params.exceptionDetails?.text ?? "",
+      text:
+        message.params.exceptionDetails?.exception?.description ??
+        message.params.exceptionDetails?.text ??
+        "",
     });
   }
   const waiting = listeners.get(message.method);
@@ -63,7 +78,9 @@ const send = (method, params = {}) =>
     socket.send(JSON.stringify({ id, method, params }));
   });
 const once = (method) =>
-  new Promise((resolve) => listeners.set(method, [...(listeners.get(method) ?? []), resolve]));
+  new Promise((resolve) =>
+    listeners.set(method, [...(listeners.get(method) ?? []), resolve]),
+  );
 
 await send("Page.enable");
 console.error("page enabled");
@@ -91,18 +108,26 @@ const observerSource = `(() => {
     window.__codecastPerf.longTasks.push(...entries.map((entry) => ({ startTime: entry.startTime, duration: entry.duration })));
   });
 })()`;
-const { identifier: observerScriptId } = await send("Page.addScriptToEvaluateOnNewDocument", {
-  source: observerSource,
-});
+const { identifier: observerScriptId } = await send(
+  "Page.addScriptToEvaluateOnNewDocument",
+  {
+    source: observerSource,
+  },
+);
 let storageScriptId;
 if (storageStatePath) {
   if (!navigateUrl) throw new Error("--storage-state requires --navigate");
   const state = await Bun.file(storageStatePath).json();
-  const source = state.origins?.find((origin) => origin.origin === storageOrigin);
+  const source = state.origins?.find(
+    (origin) => origin.origin === storageOrigin,
+  );
   if (!source) throw new Error(`No storage state for ${storageOrigin}`);
   const values = Object.fromEntries(
     source.localStorage
-      .filter(({ name }) => name.startsWith("__convexAuth") || name === "codecast-theme")
+      .filter(
+        ({ name }) =>
+          name.startsWith("__convexAuth") || name === "codecast-theme",
+      )
       .map(({ name, value }) => [name, value]),
   );
   const targetOrigin = new URL(navigateUrl).origin;
@@ -158,9 +183,13 @@ for (;;) {
   if (chunk.eof) break;
 }
 await send("IO.close", { handle: stream });
-await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: observerScriptId });
+await send("Page.removeScriptToEvaluateOnNewDocument", {
+  identifier: observerScriptId,
+});
 if (storageScriptId) {
-  await send("Page.removeScriptToEvaluateOnNewDocument", { identifier: storageScriptId });
+  await send("Page.removeScriptToEvaluateOnNewDocument", {
+    identifier: storageScriptId,
+  });
 }
 await Bun.write(output, trace);
 const metrics = await send("Performance.getMetrics");
@@ -185,7 +214,10 @@ const metricMap = (result) =>
 const before = metricMap(metricsBefore);
 const after = metricMap(metrics);
 const delta = Object.fromEntries(
-  Object.entries(after).map(([name, value]) => [name, value - (before[name] ?? 0)]),
+  Object.entries(after).map(([name, value]) => [
+    name,
+    value - (before[name] ?? 0),
+  ]),
 );
 const consoleSummary = Object.entries(
   consoleMessages.reduce((summary, message) => {

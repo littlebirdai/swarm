@@ -10,9 +10,17 @@ const SCALE = 2;
 /** The tallest canvas browsers reliably draw. */
 const MAX_PX = 16_000;
 
-const transparent = (c: string) => !c || c === "transparent" || /rgba\([^)]*,\s*0\)$/.test(c);
+const transparent = (c: string) =>
+  !c || c === "transparent" || /rgba\([^)]*,\s*0\)$/.test(c);
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
   const rr = Math.max(0, Math.min(r, w / 2, h / 2));
   ctx.beginPath();
   ctx.moveTo(x + rr, y);
@@ -25,13 +33,21 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 function visible(el: Element): boolean {
   const anyEl = el as Element & { checkVisibility?: (o: object) => boolean };
-  return anyEl.checkVisibility ? anyEl.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true;
+  return anyEl.checkVisibility
+    ? anyEl.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+    : true;
 }
 
 /** Where the last drawn line ended: punctuation right after a live value is drawn against it, not at the page's x (the canvas may draw the value narrower). */
 type Pen = { top: number; end: number } | null;
 
-type Run = { text: string; left: number; right: number; top: number; height: number };
+type Run = {
+  text: string;
+  left: number;
+  right: number;
+  top: number;
+  height: number;
+};
 
 /** A text node's characters as the browser laid them out: one run per line, each at the page's own x, so spacing matches the screen. */
 function lineRuns(node: Text): Run[] {
@@ -49,13 +65,25 @@ function lineRuns(node: Text): Run[] {
     if (run && Math.abs(run.top - r.top) < 2 && r.left >= run.right - 1) {
       run.text += space ? " " : data[i];
       run.right = Math.max(run.right, r.right);
-    } else if (!space) runs.push({ text: data[i], left: r.left, right: r.right, top: r.top, height: r.height });
+    } else if (!space)
+      runs.push({
+        text: data[i],
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        height: r.height,
+      });
   }
   return runs;
 }
 
 /** Text in a node, drawn run by run at the positions the page gave each line. */
-function drawText(ctx: CanvasRenderingContext2D, node: Text, origin: DOMRect, pen: { at: Pen }) {
+function drawText(
+  ctx: CanvasRenderingContext2D,
+  node: Text,
+  origin: DOMRect,
+  pen: { at: Pen },
+) {
   if (!node.data.trim()) return;
   const parent = node.parentElement;
   if (!parent || !visible(parent)) return;
@@ -64,23 +92,40 @@ function drawText(ctx: CanvasRenderingContext2D, node: Text, origin: DOMRect, pe
   if (!runs.length) return;
   ctx.font = `${st.fontStyle} ${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
   ctx.fillStyle = st.color;
-  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = st.letterSpacing === "normal" ? "0px" : st.letterSpacing;
+  (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
+    st.letterSpacing === "normal" ? "0px" : st.letterSpacing;
   ctx.textBaseline = "middle";
   const caps = st.textTransform === "uppercase";
   for (const run of runs) {
     const text = (caps ? run.text.toUpperCase() : run.text).trimEnd();
     // Punctuation right after a live value sits against what was drawn before it, even when the canvas drew that narrower than the page.
-    const glued = /^[,.;:!?)]/.test(text) && !!pen.at && Math.abs(pen.at.top - run.top) < 4 && pen.at.end <= run.left + 1;
+    const glued =
+      /^[,.;:!?)]/.test(text) &&
+      !!pen.at &&
+      Math.abs(pen.at.top - run.top) < 4 &&
+      pen.at.end <= run.left + 1;
     const x = glued ? pen.at!.end : run.left;
     const room = Math.max(1, run.right - x + 1);
     // Held to its line box: a face the canvas measures wider never runs into the next word.
-    ctx.fillText(text, x - origin.left, run.top + run.height / 2 - origin.top, room);
-    pen.at = { top: run.top, end: x + Math.min(ctx.measureText(text).width, room) };
+    ctx.fillText(
+      text,
+      x - origin.left,
+      run.top + run.height / 2 - origin.top,
+      room,
+    );
+    pen.at = {
+      top: run.top,
+      end: x + Math.min(ctx.measureText(text).width, room),
+    };
   }
 }
 
 /** The box an element is visible in: its scrolling and clipping ancestors (a table that scrolls inside its card) cut it. */
-function clipBox(el: Element, root: HTMLElement, cache: Map<Element, DOMRect | null>): DOMRect | null {
+function clipBox(
+  el: Element,
+  root: HTMLElement,
+  cache: Map<Element, DOMRect | null>,
+): DOMRect | null {
   if (el === root || !el.parentElement) return null;
   if (cache.has(el)) return cache.get(el)!;
   const parent = clipBox(el.parentElement, root, cache);
@@ -88,7 +133,20 @@ function clipBox(el: Element, root: HTMLElement, cache: Map<Element, DOMRect | n
   let box = parent;
   if (st.overflowX !== "visible" || st.overflowY !== "visible") {
     const r = el.getBoundingClientRect();
-    box = parent ? new DOMRect(Math.max(r.left, parent.left), Math.max(r.top, parent.top), Math.max(0, Math.min(r.right, parent.right) - Math.max(r.left, parent.left)), Math.max(0, Math.min(r.bottom, parent.bottom) - Math.max(r.top, parent.top))) : r;
+    box = parent
+      ? new DOMRect(
+          Math.max(r.left, parent.left),
+          Math.max(r.top, parent.top),
+          Math.max(
+            0,
+            Math.min(r.right, parent.right) - Math.max(r.left, parent.left),
+          ),
+          Math.max(
+            0,
+            Math.min(r.bottom, parent.bottom) - Math.max(r.top, parent.top),
+          ),
+        )
+      : r;
   }
   cache.set(el, box);
   return box;
@@ -102,7 +160,9 @@ function svgImage(svg: SVGSVGElement): Promise<HTMLImageElement | null> {
   copy.setAttribute("width", String(r.width));
   copy.setAttribute("height", String(r.height));
   copy.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  const xml = new XMLSerializer().serializeToString(copy).replace(/currentColor/g, color);
+  const xml = new XMLSerializer()
+    .serializeToString(copy)
+    .replace(/currentColor/g, color);
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -114,19 +174,32 @@ function svgImage(svg: SVGSVGElement): Promise<HTMLImageElement | null> {
 const HEAD = 64;
 
 /** Draw `root` (and everything laid out inside it) at twice its size, under a band with the title and when it was taken. */
-export async function renderPng(root: HTMLElement, head: { title: string; note?: string }): Promise<HTMLCanvasElement> {
+export async function renderPng(
+  root: HTMLElement,
+  head: { title: string; note?: string },
+): Promise<HTMLCanvasElement> {
   await document.fonts?.ready;
   // What the picture leaves out (the filter bar, hover buttons, check marks) leaves no hole: it is taken out of the layout while the page is drawn, then put back.
   const tips = clearChartHover();
-  const skipped = [...root.querySelectorAll<HTMLElement>("[data-export-skip]"), ...tips];
+  const skipped = [
+    ...root.querySelectorAll<HTMLElement>("[data-export-skip]"),
+    ...tips,
+  ];
   const before = skipped.map((el) => el.style.display);
   skipped.forEach((el) => (el.style.display = "none"));
   // A table that scrolls inside its card is drawn whole: a picture can't scroll, and rows past the fold would be dropped without a word.
-  const scrollers = [...root.querySelectorAll<HTMLElement>("*")].filter((el) => {
-    const st = getComputedStyle(el);
-    return /auto|scroll/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 1;
-  });
-  const held = scrollers.map((el) => [el.style.maxHeight, el.style.height, el.style.overflowY] as const);
+  const scrollers = [...root.querySelectorAll<HTMLElement>("*")].filter(
+    (el) => {
+      const st = getComputedStyle(el);
+      return (
+        /auto|scroll/.test(st.overflowY) &&
+        el.scrollHeight > el.clientHeight + 1
+      );
+    },
+  );
+  const held = scrollers.map(
+    (el) => [el.style.maxHeight, el.style.height, el.style.overflowY] as const,
+  );
   scrollers.forEach((el) => {
     el.style.maxHeight = "none";
     el.style.height = "auto";
@@ -142,16 +215,29 @@ export async function renderPng(root: HTMLElement, head: { title: string; note?:
   }
 }
 
-async function draw(root: HTMLElement, head: { title: string; note?: string }): Promise<HTMLCanvasElement> {
+async function draw(
+  root: HTMLElement,
+  head: { title: string; note?: string },
+): Promise<HTMLCanvasElement> {
   const box = root.getBoundingClientRect();
   // The picture ends where the content does, not at the page's bottom padding.
-  const content = [...root.children].filter((c) => !(c as HTMLElement).dataset?.exportSkip).reduce((b, c) => Math.max(b, c.getBoundingClientRect().bottom), box.top);
+  const content = [...root.children]
+    .filter((c) => !(c as HTMLElement).dataset?.exportSkip)
+    .reduce((b, c) => Math.max(b, c.getBoundingClientRect().bottom), box.top);
   const height = Math.min(box.height, content - box.top + 28);
   // Everything below draws relative to `origin`: the root's corner, pushed down under the title band.
-  const origin = new DOMRect(box.left, box.top - HEAD, box.width, height + HEAD);
+  const origin = new DOMRect(
+    box.left,
+    box.top - HEAD,
+    box.width,
+    height + HEAD,
+  );
   const canvas = document.createElement("canvas");
   // Browsers cap a canvas near 16,000px a side: a tall dashboard is drawn at 1x instead of failing, and only a page past the cap is refused.
-  if (origin.height > MAX_PX) throw new Error("This dashboard is too tall for one picture; download blocks one at a time");
+  if (origin.height > MAX_PX)
+    throw new Error(
+      "This dashboard is too tall for one picture; download blocks one at a time",
+    );
   const scale = origin.height * SCALE > MAX_PX ? 1 : SCALE;
   canvas.width = Math.ceil(origin.width * scale);
   canvas.height = Math.ceil(origin.height * scale);
@@ -159,7 +245,8 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
   ctx.scale(scale, scale);
   const rootStyle = getComputedStyle(document.documentElement);
   const page = rootStyle.getPropertyValue("--sol-bg").trim();
-  ctx.fillStyle = page || getComputedStyle(document.body).backgroundColor || "#fff";
+  ctx.fillStyle =
+    page || getComputedStyle(document.body).backgroundColor || "#fff";
   ctx.fillRect(0, 0, origin.width, origin.height);
   const bodyFont = getComputedStyle(root).fontFamily;
   const pad = parseFloat(getComputedStyle(root).paddingLeft) || 32;
@@ -168,7 +255,8 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
   ctx.font = `700 22px ${bodyFont}`;
   ctx.fillText(head.title, pad, 36);
   if (head.note) {
-    ctx.fillStyle = rootStyle.getPropertyValue("--sol-text-dim").trim() || "#888";
+    ctx.fillStyle =
+      rootStyle.getPropertyValue("--sol-text-dim").trim() || "#888";
     ctx.font = `400 12px ${bodyFont}`;
     ctx.fillText(head.note, pad, 56);
   }
@@ -183,15 +271,23 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
     }
   };
 
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => {
-      if (n.nodeType !== Node.ELEMENT_NODE) return NodeFilter.FILTER_ACCEPT;
-      const el = n as Element;
-      // An icon draws whole from its <svg>; its paths are not separate boxes.
-      if (el.parentElement instanceof SVGElement) return NodeFilter.FILTER_REJECT;
-      return !visible(el) || (el as HTMLElement).dataset?.exportSkip !== undefined ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    {
+      acceptNode: (n) => {
+        if (n.nodeType !== Node.ELEMENT_NODE) return NodeFilter.FILTER_ACCEPT;
+        const el = n as Element;
+        // An icon draws whole from its <svg>; its paths are not separate boxes.
+        if (el.parentElement instanceof SVGElement)
+          return NodeFilter.FILTER_REJECT;
+        return !visible(el) ||
+          (el as HTMLElement).dataset?.exportSkip !== undefined
+          ? NodeFilter.FILTER_REJECT
+          : NodeFilter.FILTER_ACCEPT;
+      },
     },
-  });
+  );
   const pen: { at: Pen } = { at: null };
   for (let n: Node | null = walker.currentNode; n; n = walker.nextNode()) {
     if (n.nodeType === Node.TEXT_NODE) {
@@ -218,7 +314,11 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
       ctx.restore();
       continue;
     }
-    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+    if (
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLSelectElement
+    ) {
       ctx.restore();
       continue;
     }
@@ -230,15 +330,30 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
       ctx.fill();
     }
     const bw = parseFloat(st.borderTopWidth) || 0;
-    if (bw > 0 && st.borderTopStyle !== "none" && !transparent(st.borderTopColor)) {
+    if (
+      bw > 0 &&
+      st.borderTopStyle !== "none" &&
+      !transparent(st.borderTopColor)
+    ) {
       ctx.strokeStyle = st.borderTopColor;
       ctx.lineWidth = bw;
-      roundRect(ctx, x + bw / 2, y + bw / 2, r.width - bw, r.height - bw, radius);
+      roundRect(
+        ctx,
+        x + bw / 2,
+        y + bw / 2,
+        r.width - bw,
+        r.height - bw,
+        radius,
+      );
       ctx.stroke();
     } else {
       // A row divider is a bottom border alone (a table row, a list item); draw it as the line it is.
       const bb = parseFloat(st.borderBottomWidth) || 0;
-      if (bb > 0 && st.borderBottomStyle !== "none" && !transparent(st.borderBottomColor)) {
+      if (
+        bb > 0 &&
+        st.borderBottomStyle !== "none" &&
+        !transparent(st.borderBottomColor)
+      ) {
         ctx.fillStyle = st.borderBottomColor;
         ctx.fillRect(x, y + r.height - bb, r.width, bb);
       }
@@ -246,16 +361,33 @@ async function draw(root: HTMLElement, head: { title: string; note?: string }): 
     ctx.restore();
   }
   // Where a page may end without cutting through a block: the gap under each block, in canvas pixels.
-  const breaks = [...root.querySelectorAll<HTMLElement>("[data-block]")].map((el) => Math.round((el.getBoundingClientRect().bottom - origin.top + 6) * scale));
-  pageBreaks.set(canvas, [...new Set(breaks)].sort((a, b) => a - b));
+  const breaks = [...root.querySelectorAll<HTMLElement>("[data-block]")].map(
+    (el) =>
+      Math.round((el.getBoundingClientRect().bottom - origin.top + 6) * scale),
+  );
+  pageBreaks.set(
+    canvas,
+    [...new Set(breaks)].sort((a, b) => a - b),
+  );
   return canvas;
 }
 
 /** Where each drawn picture may be cut into pages: the gaps under its blocks. */
 const pageBreaks = new WeakMap<HTMLCanvasElement, number[]>();
 
-export function canvasBlob(canvas: HTMLCanvasElement, type: "image/png" | "image/jpeg", quality?: number): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("The dashboard could not be drawn"))), type, quality));
+export function canvasBlob(
+  canvas: HTMLCanvasElement,
+  type: "image/png" | "image/jpeg",
+  quality?: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (b) =>
+        b ? resolve(b) : reject(new Error("The dashboard could not be drawn")),
+      type,
+      quality,
+    ),
+  );
 }
 
 /**
@@ -272,14 +404,20 @@ export async function pdfFromCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
   // A last page holding only a sliver (the bottom edge of a card) is folded back: the whole picture shrinks a little to need one page fewer.
   const pages = Math.ceil((canvas.height * fit) / availH);
   const tail = canvas.height * fit - (pages - 1) * availH;
-  if (pages > 1 && tail < availH * 0.25) fit = Math.min(fit, (availH * (pages - 1)) / canvas.height);
+  if (pages > 1 && tail < availH * 0.25)
+    fit = Math.min(fit, (availH * (pages - 1)) / canvas.height);
   const sliceH = Math.floor(availH / fit);
   const slices: Array<{ jpeg: Uint8Array; w: number; h: number }> = [];
   // A page ends at the last gap between blocks that fits, so no chart is cut in half; a block taller than a page is cut where it must be.
   const gaps = pageBreaks.get(canvas) ?? [];
-  for (let y = 0; y < canvas.height; ) {
+  for (let y = 0; y < canvas.height;) {
     const limit = y + sliceH;
-    const gap = limit >= canvas.height ? canvas.height : [...gaps].reverse().find((b) => b <= limit && b > y + sliceH * 0.4) ?? limit;
+    const gap =
+      limit >= canvas.height
+        ? canvas.height
+        : ([...gaps]
+            .reverse()
+            .find((b) => b <= limit && b > y + sliceH * 0.4) ?? limit);
     const h = Math.min(gap, canvas.height) - y;
     const at = y;
     y += h;
@@ -288,8 +426,24 @@ export async function pdfFromCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
     const c = document.createElement("canvas");
     c.width = canvas.width;
     c.height = h;
-    c.getContext("2d")!.drawImage(canvas, 0, at, canvas.width, h, 0, 0, canvas.width, h);
-    slices.push({ jpeg: new Uint8Array(await (await canvasBlob(c, "image/jpeg", 0.92)).arrayBuffer()), w: canvas.width, h });
+    c.getContext("2d")!.drawImage(
+      canvas,
+      0,
+      at,
+      canvas.width,
+      h,
+      0,
+      0,
+      canvas.width,
+      h,
+    );
+    slices.push({
+      jpeg: new Uint8Array(
+        await (await canvasBlob(c, "image/jpeg", 0.92)).arrayBuffer(),
+      ),
+      w: canvas.width,
+      h,
+    });
   }
   const enc = new TextEncoder();
   const parts: Uint8Array[] = [];
@@ -310,21 +464,35 @@ export async function pdfFromCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
   const pageId = (k: number) => 3 + k * 3;
   push("%PDF-1.4\n");
   obj(() => push("<< /Type /Catalog /Pages 2 0 R >>"));
-  obj(() => push(`<< /Type /Pages /Kids [${slices.map((_, k) => `${pageId(k)} 0 R`).join(" ")}] /Count ${slices.length} >>`));
+  obj(() =>
+    push(
+      `<< /Type /Pages /Kids [${slices.map((_, k) => `${pageId(k)} 0 R`).join(" ")}] /Count ${slices.length} >>`,
+    ),
+  );
   slices.forEach((sl, k) => {
     const w = sl.w * fit;
     const h = sl.h * fit;
     const draw = `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${MARGIN} ${(PAGE_H - MARGIN - h).toFixed(2)} cm /Im0 Do Q`;
-    obj(() => push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /XObject << /Im0 ${pageId(k) + 1} 0 R >> >> /Contents ${pageId(k) + 2} 0 R >>`));
+    obj(() =>
+      push(
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /XObject << /Im0 ${pageId(k) + 1} 0 R >> >> /Contents ${pageId(k) + 2} 0 R >>`,
+      ),
+    );
     obj(() => {
-      push(`<< /Type /XObject /Subtype /Image /Width ${sl.w} /Height ${sl.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${sl.jpeg.length} >>\nstream\n`);
+      push(
+        `<< /Type /XObject /Subtype /Image /Width ${sl.w} /Height ${sl.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${sl.jpeg.length} >>\nstream\n`,
+      );
       push(sl.jpeg);
       push("\nendstream");
     });
     obj(() => push(`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`));
   });
   const xref = length;
-  push(`xref\n0 ${offsets.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`);
-  push(`trailer\n<< /Size ${offsets.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  push(
+    `xref\n0 ${offsets.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`,
+  );
+  push(
+    `trailer\n<< /Size ${offsets.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`,
+  );
   return new Blob(parts as BlobPart[], { type: "application/pdf" });
 }

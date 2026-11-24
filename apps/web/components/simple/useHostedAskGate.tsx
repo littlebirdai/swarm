@@ -24,11 +24,20 @@ export function useHostedAskGate(enabled = true): HostedAskHold | null {
 
 /** The held sentence, with extra credit offered when the month ran out, so
  *  the line is never a dead end of weeks. */
-export function AskHeldLine({ hold, className }: { hold: HostedAskHold; className?: string }) {
+export function AskHeldLine({
+  hold,
+  className,
+}: {
+  hold: HostedAskHold;
+  className?: string;
+}) {
   return (
     // Wraps rather than truncates: the reset date and the top-up are what
     // make a held ask not a dead end, so neither may be cut.
-    <span data-cc-ask-held className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sol-text-muted ${className ?? ""}`}>
+    <span
+      data-cc-ask-held
+      className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sol-text-muted ${className ?? ""}`}
+    >
       <span className="min-w-0">{hold.words}</span>
       {hold.allowance && <TopUpLink />}
     </span>

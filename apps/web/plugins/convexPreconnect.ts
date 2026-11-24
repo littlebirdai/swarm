@@ -16,13 +16,20 @@ export function convexPreconnectPlugin(): Plugin {
     name: "codecast-convex-preconnect",
     configResolved(config) {
       try {
-        origin = new URL(config.env.VITE_CONVEX_URL || DEFAULT_CONVEX_URL).origin;
+        origin = new URL(config.env.VITE_CONVEX_URL || DEFAULT_CONVEX_URL)
+          .origin;
       } catch {
         // A malformed URL: lib/convexUrl.ts would fail on it too; hint the default.
       }
     },
     transformIndexHtml() {
-      return [{ tag: "link", attrs: { rel: "preconnect", href: origin, crossorigin: "" }, injectTo: "head" }];
+      return [
+        {
+          tag: "link",
+          attrs: { rel: "preconnect", href: origin, crossorigin: "" },
+          injectTo: "head",
+        },
+      ];
     },
   };
 }

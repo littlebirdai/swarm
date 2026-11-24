@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -43,7 +49,9 @@ describe("the job as a whole", () => {
   test("every shell step fails on an unset variable and a broken pipe", () => {
     for (const { name, run } of runs) {
       if (!run.includes("\n")) continue; // single command steps have no prologue
-      expect(run.startsWith("set -euo pipefail\n"), `${name} prologue`).toBe(true);
+      expect(run.startsWith("set -euo pipefail\n"), `${name} prologue`).toBe(
+        true,
+      );
     }
   });
 });
@@ -53,12 +61,16 @@ describe("the release is born a draft", () => {
 
   test("gh release create asks for a draft", () => {
     expect(create.run).toContain("gh release create");
-    expect(create.run).toMatch(/gh release create "\$tag" "\$\{files\[@\]\}" \\\n\s*--draft\b/);
+    expect(create.run).toMatch(
+      /gh release create "\$tag" "\$\{files\[@\]\}" \\\n\s*--draft\b/,
+    );
   });
 
   test("it publishes whether this run created the draft, for the assertion to read", () => {
     expect(create.id).toBe("github_release");
-    expect(create.run).toContain('echo "created_draft=$created_draft" >> "$GITHUB_OUTPUT"');
+    expect(create.run).toContain(
+      'echo "created_draft=$created_draft" >> "$GITHUB_OUTPUT"',
+    );
     expect(step(DRAFT_ASSERTION).env.CREATED_DRAFT).toBe(
       "${{ steps.github_release.outputs.created_draft }}",
     );
@@ -78,9 +90,13 @@ describe("the release is born a draft", () => {
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean);
-      expect(listed.slice(0, required.length), `${name} artifact list`).toEqual(required);
+      expect(listed.slice(0, required.length), `${name} artifact list`).toEqual(
+        required,
+      );
       expect(listed.slice(required.length), `${name} extra artifacts`).toEqual(
-        listed.slice(required.length).filter((extra) => alsoAllowed.includes(extra)),
+        listed
+          .slice(required.length)
+          .filter((extra) => alsoAllowed.includes(extra)),
       );
     }
   });
@@ -94,9 +110,13 @@ describe("nothing publishes the release before the checks", () => {
 
   test("the draft assertion reads the draft-aware list and refuses a foreign publish", () => {
     const assertion = step(DRAFT_ASSERTION);
-    expect(assertion.run).toContain('gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100"');
+    expect(assertion.run).toContain(
+      'gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100"',
+    );
     expect(assertion.run).toContain("select(.tag_name == $tag)");
-    expect(assertion.run).toContain('elif [[ "$CREATED_DRAFT" == "true" ]]; then');
+    expect(assertion.run).toContain(
+      'elif [[ "$CREATED_DRAFT" == "true" ]]; then',
+    );
     expect(assertion.run).toContain("published by something else");
   });
 
@@ -116,18 +136,22 @@ describe("nothing publishes the release before the checks", () => {
 
 describe("step order", () => {
   test("draft assertion, then assets, then publish, then latest.json", () => {
-    expect(at("Create or verify GitHub release")).toBeLessThan(at(DRAFT_ASSERTION));
+    expect(at("Create or verify GitHub release")).toBeLessThan(
+      at(DRAFT_ASSERTION),
+    );
     expect(at(DRAFT_ASSERTION)).toBeLessThan(at(ASSET_CHECK));
     expect(at(ASSET_CHECK)).toBeLessThan(at(PUBLISH));
     expect(at(PUBLISH)).toBeLessThan(at(LATEST_JSON));
   });
 
   test("latest.json is written by one step, after the version commit and the tag", () => {
-    const writers = runs.filter(({ run }) => run.includes('"s3://$R2_BUCKET/latest.json"'));
-    expect(writers.map(({ name }) => name)).toEqual([LATEST_JSON]);
-    expect(at("Revalidate main and atomically publish version commit and tag")).toBeLessThan(
-      at(LATEST_JSON),
+    const writers = runs.filter(({ run }) =>
+      run.includes('"s3://$R2_BUCKET/latest.json"'),
     );
+    expect(writers.map(({ name }) => name)).toEqual([LATEST_JSON]);
+    expect(
+      at("Revalidate main and atomically publish version commit and tag"),
+    ).toBeLessThan(at(LATEST_JSON));
   });
 
   test("a pinned client never sees a signature that does not match the manifest", () => {
@@ -135,8 +159,12 @@ describe("step order", () => {
     // only intermediate state is "unsigned", which a client refuses for that
     // one poll and then updates, never a mismatch that reads as tampering.
     const publish = step(LATEST_JSON).run as string;
-    const removeSig = publish.indexOf('aws s3 rm "s3://$R2_BUCKET/latest.json.sig"');
-    const writeManifest = publish.indexOf('aws s3 cp /tmp/cli-release/latest.json "s3://$R2_BUCKET/latest.json"');
+    const removeSig = publish.indexOf(
+      'aws s3 rm "s3://$R2_BUCKET/latest.json.sig"',
+    );
+    const writeManifest = publish.indexOf(
+      'aws s3 cp /tmp/cli-release/latest.json "s3://$R2_BUCKET/latest.json"',
+    );
     expect(removeSig).toBeGreaterThan(-1);
     expect(writeManifest).toBeGreaterThan(-1);
     expect(removeSig).toBeLessThan(writeManifest);
@@ -144,11 +172,15 @@ describe("step order", () => {
   });
 
   test("the public manifest is verified after it is written", () => {
-    expect(at(LATEST_JSON)).toBeLessThan(at("Verify the exact public manifest and referenced bytes"));
+    expect(at(LATEST_JSON)).toBeLessThan(
+      at("Verify the exact public manifest and referenced bytes"),
+    );
   });
 });
 
-async function runPublicRelease(options: { corruptImmutable?: boolean; failAliasCopy?: boolean } = {}) {
+async function runPublicRelease(
+  options: { corruptImmutable?: boolean; failAliasCopy?: boolean } = {},
+) {
   const root = mkdtempSync(join(tmpdir(), "cli-publication-"));
   const source = "a".repeat(40);
   const prefix = `cli/releases/v1.2.4/${source}`;
@@ -157,18 +189,32 @@ async function runPublicRelease(options: { corruptImmutable?: boolean; failAlias
   const authoritative = join(root, "authoritative-latest.json");
   mkdirSync(local);
   mkdirSync(bin);
-  const artifacts = Object.fromEntries(getRequiredReleaseAssetNames().map((name) => {
-    const bytes = `verified ${name}`;
-    writeFileSync(join(local, name), bytes);
-    return [name, { sha256: createHash("sha256").update(bytes).digest("hex"), size: bytes.length }];
-  }));
-  const expected = JSON.stringify({ version: "1.2.4", source_commit: source, artifacts });
+  const artifacts = Object.fromEntries(
+    getRequiredReleaseAssetNames().map((name) => {
+      const bytes = `verified ${name}`;
+      writeFileSync(join(local, name), bytes);
+      return [
+        name,
+        {
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+          size: bytes.length,
+        },
+      ];
+    }),
+  );
+  const expected = JSON.stringify({
+    version: "1.2.4",
+    source_commit: source,
+    artifacts,
+  });
   writeFileSync(join(root, "release-expected.json"), expected);
   writeFileSync(join(local, "release.json"), expected);
   writeFileSync(join(root, "cli-release-prefix"), prefix);
   writeFileSync(authoritative, JSON.stringify({ version: "1.2.3" }));
   writeFileSync(join(bin, "sleep"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-  writeFileSync(join(bin, "aws"), `#!/bin/bash
+  writeFileSync(
+    join(bin, "aws"),
+    `#!/bin/bash
 set -euo pipefail
 if [[ "$1" == "s3api" ]]; then
   [[ "$ALIAS_COPY_FAIL" == "0" ]]
@@ -181,7 +227,9 @@ elif [[ "$1" == "s3" && "$2" == "cp" ]]; then
 else
   exit 2
 fi
-`, { mode: 0o755 });
+`,
+    { mode: 0o755 },
+  );
   const requests: string[] = [];
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -189,7 +237,8 @@ fi
     fetch(request) {
       const pathname = new URL(request.url).pathname;
       requests.push(pathname);
-      if (pathname === "/latest.json") return new Response(Bun.file(authoritative));
+      if (pathname === "/latest.json")
+        return new Response(Bun.file(authoritative));
       if (pathname.startsWith(`/${prefix}/`)) {
         const name = pathname.slice(prefix.length + 2);
         if (options.corruptImmutable && name === "codecast-windows-x64.exe") {
@@ -200,17 +249,29 @@ fi
       return new Response("stale legacy alias bytes");
     },
   });
-  const selected = steps.filter((s) => [
-    "Verify immutable public release bytes",
-    LATEST_JSON,
-    "Verify the exact public manifest and referenced bytes",
-  ].includes(s.name) || s.name?.includes("legacy stable aliases"));
-  const results: { name: string; code: number; stdout: string; stderr: string }[] = [];
+  const selected = steps.filter(
+    (s) =>
+      [
+        "Verify immutable public release bytes",
+        LATEST_JSON,
+        "Verify the exact public manifest and referenced bytes",
+      ].includes(s.name) || s.name?.includes("legacy stable aliases"),
+  );
+  const results: {
+    name: string;
+    code: number;
+    stdout: string;
+    stderr: string;
+  }[] = [];
   let failed = false;
   try {
     for (const s of selected) {
-      const run = s.run.replaceAll("/tmp/", `${root}/`)
-        .replaceAll("https://dl.codecast.sh", `http://127.0.0.1:${server.port}`);
+      const run = s.run
+        .replaceAll("/tmp/", `${root}/`)
+        .replaceAll(
+          "https://dl.codecast.sh",
+          `http://127.0.0.1:${server.port}`,
+        );
       const child = Bun.spawn(["bash", "-c", run], {
         env: {
           ...process.env,
@@ -238,7 +299,12 @@ fi
         break;
       }
     }
-    return { failed, results, requests, manifest: JSON.parse(readFileSync(authoritative, "utf8")) };
+    return {
+      failed,
+      results,
+      requests,
+      manifest: JSON.parse(readFileSync(authoritative, "utf8")),
+    };
   } finally {
     server.stop(true);
     rmSync(root, { recursive: true, force: true });
@@ -251,18 +317,27 @@ describe("public release publication", () => {
     expect(result.failed, JSON.stringify(result.results)).toBe(false);
     expect(result.manifest.version).toBe("1.2.4");
     expect(result.manifest.sourceCommit).toBe("a".repeat(40));
-    for (const binary of Object.values(result.manifest.binaries) as { url: string; sha256: string }[]) {
+    for (const binary of Object.values(result.manifest.binaries) as {
+      url: string;
+      sha256: string;
+    }[]) {
       expect(binary.url).toContain(`/cli/releases/v1.2.4/${"a".repeat(40)}/`);
       expect(binary.sha256).toHaveLength(64);
     }
-    expect(result.requests.every((url) => url === "/latest.json" || url.startsWith("/cli/releases/"))).toBe(true);
+    expect(
+      result.requests.every(
+        (url) => url === "/latest.json" || url.startsWith("/cli/releases/"),
+      ),
+    ).toBe(true);
   }, 30_000);
 
   test("keeps the predecessor manifest when immutable bytes do not match", async () => {
     const result = await runPublicRelease({ corruptImmutable: true });
     expect(result.failed).toBe(true);
     expect(result.manifest.version).toBe("1.2.3");
-    expect(result.results.at(-1)?.stdout).toContain("immutable public checksum did not converge");
+    expect(result.results.at(-1)?.stdout).toContain(
+      "immutable public checksum did not converge",
+    );
   }, 30_000);
 
   test("a legacy alias copy failure cannot undo a verified publication", async () => {
@@ -272,7 +347,9 @@ describe("public release publication", () => {
     const alias = steps.find((s) => s.name?.includes("legacy stable aliases"));
     expect(alias["continue-on-error"]).toBe(true);
     expect(alias["timeout-minutes"]).toBeLessThanOrEqual(3);
-    expect(at(alias.name)).toBeGreaterThan(at("Verify the exact public manifest and referenced bytes"));
+    expect(at(alias.name)).toBeGreaterThan(
+      at("Verify the exact public manifest and referenced bytes"),
+    );
     expect(result.results.at(-1)?.code).not.toBe(0);
   }, 30_000);
 });

@@ -13,9 +13,15 @@ import { useLineTree } from "../lines/lineTree";
 import type { OrgTree } from "../orgTypes";
 import type { Member } from "./objects";
 
-const projectSig = (p: ProjectItem) => `${p.title}|${p.status}|${p.short_id ?? ""}|${p.owner_role_id ?? ""}|${p.color ?? ""}|${p.target_date ?? ""}|${p.goal ?? ""}|${p.updated_at}`;
+const projectSig = (p: ProjectItem) =>
+  `${p.title}|${p.status}|${p.short_id ?? ""}|${p.owner_role_id ?? ""}|${p.color ?? ""}|${p.target_date ?? ""}|${p.goal ?? ""}|${p.updated_at}`;
 
-export type CompanyRows = { goals: InitiativeRow[]; projects: ProjectItem[]; tree: OrgTree | null; members: Member[] };
+export type CompanyRows = {
+  goals: InitiativeRow[];
+  projects: ProjectItem[];
+  tree: OrgTree | null;
+  members: Member[];
+};
 
 /** Rows that stand in for the store's: the Org screen's dev preview hands its
  *  fixture here, so the pane and every sheet read what the preview map draws. */
@@ -27,6 +33,9 @@ export function useCompanyRows(): CompanyRows {
   const projects = useWorkspaceCollection<ProjectItem>("projects", projectSig);
   const tree = useLineTree();
   const members = useTeamRosterIdentity() as Member[];
-  const live = useMemo(() => ({ goals, projects, tree, members }), [goals, projects, tree, members]);
+  const live = useMemo(
+    () => ({ goals, projects, tree, members }),
+    [goals, projects, tree, members],
+  );
   return override ?? live;
 }

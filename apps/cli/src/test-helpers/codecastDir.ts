@@ -32,7 +32,9 @@ export function realCodecastDir(): string {
   return path.join(os.homedir(), ".codecast");
 }
 
-export function isolateCodecastDir(prefix = "cast-test-home-"): IsolatedCodecastDir {
+export function isolateCodecastDir(
+  prefix = "cast-test-home-",
+): IsolatedCodecastDir {
   const previous = process.env.CODECAST_DIR;
   if (previous && path.resolve(previous) !== realCodecastDir()) {
     return { dir: previous, restore: () => {} };
@@ -57,6 +59,8 @@ export function isolateCodecastDir(prefix = "cast-test-home-"): IsolatedCodecast
  */
 export function isolateCodecastDirEachTest(prefix?: string): void {
   let state: IsolatedCodecastDir | undefined;
-  beforeEach(() => { state = isolateCodecastDir(prefix); });
+  beforeEach(() => {
+    state = isolateCodecastDir(prefix);
+  });
   afterEach(() => state?.restore());
 }

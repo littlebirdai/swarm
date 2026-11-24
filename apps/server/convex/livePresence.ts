@@ -5,7 +5,12 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./functions";
 import { PRESENCE_TTL_MS } from "@codecast/shared/artifacts";
 import { liveArtifactValidators } from "./liveArtifactsSchema";
-import { requireLiveDoc, resolveCaller, upsertPresence, vCaller } from "./lib/liveArtifactAccess";
+import {
+  requireLiveDoc,
+  resolveCaller,
+  upsertPresence,
+  vCaller,
+} from "./lib/liveArtifactAccess";
 import { ensureLiveSearch } from "./liveSearch";
 
 const { vPosition } = liveArtifactValidators;
@@ -23,7 +28,10 @@ export const setPresence = mutation({
   handler: async (ctx, args) => {
     const caller = await resolveCaller(ctx, args);
     await requireLiveDoc(ctx, caller.userId, args.doc_id);
-    const actor = caller.kind === "agent" ? caller.actor : `${caller.actor}:${(args.tab ?? "cli").slice(0, 24)}`;
+    const actor =
+      caller.kind === "agent"
+        ? caller.actor
+        : `${caller.actor}:${(args.tab ?? "cli").slice(0, 24)}`;
     const arrived = await upsertPresence(ctx, args.doc_id, caller, actor, args);
     // Someone just opened it: index it if search has no fresh copy (written before search, renamed, moved).
     if (arrived) await ensureLiveSearch(ctx, args.doc_id);
@@ -35,10 +43,15 @@ export const leave = mutation({
   args: { doc_id: v.id("docs"), tab: v.optional(v.string()), ...vCaller },
   handler: async (ctx, args) => {
     const caller = await resolveCaller(ctx, args);
-    const actor = caller.kind === "agent" ? caller.actor : `${caller.actor}:${(args.tab ?? "cli").slice(0, 24)}`;
+    const actor =
+      caller.kind === "agent"
+        ? caller.actor
+        : `${caller.actor}:${(args.tab ?? "cli").slice(0, 24)}`;
     const row = await ctx.db
       .query("live_presence")
-      .withIndex("by_doc_actor", (q: any) => q.eq("doc_id", args.doc_id).eq("actor", actor))
+      .withIndex("by_doc_actor", (q: any) =>
+        q.eq("doc_id", args.doc_id).eq("actor", actor),
+      )
       .first();
     if (row) await ctx.db.delete(row._id);
     return null;
@@ -58,7 +71,11 @@ export const presence = query({
     const now = Date.now();
     const rows = await ctx.db
       .query("live_presence")
-      .withIndex("by_doc_updated", (q: any) => q.eq("doc_id", args.doc_id).gt("updated_at", now - PRESENCE_TTL_MS.agent))
+      .withIndex("by_doc_updated", (q: any) =>
+        q
+          .eq("doc_id", args.doc_id)
+          .gt("updated_at", now - PRESENCE_TTL_MS.agent),
+      )
       .order("desc")
       .take(100);
     return rows

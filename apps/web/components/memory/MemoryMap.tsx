@@ -6,7 +6,11 @@ import { useMemo, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import type { MemoryAtlas } from "@codecast/shared/memory";
 import { MEMORY_REACH } from "@codecast/shared/memory";
-import { LinkGraphCanvas, matchWithNeighbors, type LinkGraph } from "../graph/LinkGraphCanvas";
+import {
+  LinkGraphCanvas,
+  matchWithNeighbors,
+  type LinkGraph,
+} from "../graph/LinkGraphCanvas";
 import { REACH, TYPE_TONE, toneCss, typeKey } from "./memoryView";
 
 export type MemoryColorBy = "reach" | "type";
@@ -30,18 +34,35 @@ export function MemoryMap({ atlas, visible, active, onOpen }: MemoryMapProps) {
         id: n.file,
         label: n.name.replace(/[_-]+/g, " "),
         degree: n.inbound.length + n.links.length,
-        tone: colorBy === "reach" ? REACH[n.reach].tone : TYPE_TONE[typeKey(n.type)],
+        tone:
+          colorBy === "reach"
+            ? REACH[n.reach].tone
+            : TYPE_TONE[typeKey(n.type)],
       })),
       edges: atlas.edges,
     }),
     [atlas, colorBy],
   );
-  const matched = useMemo(() => (visible ? matchWithNeighbors(graph, (n) => visible.has(n.id)).ids : null), [graph, visible]);
+  const matched = useMemo(
+    () =>
+      visible ? matchWithNeighbors(graph, (n) => visible.has(n.id)).ids : null,
+    [graph, visible],
+  );
 
   const legend =
     colorBy === "reach"
-      ? MEMORY_REACH.map((r) => ({ key: r, label: REACH[r].label, tone: REACH[r].tone, count: atlas.notes.filter((n) => n.reach === r).length }))
-      : Object.entries(TYPE_TONE).map(([t, tone]) => ({ key: t, label: t, tone, count: atlas.notes.filter((n) => typeKey(n.type) === t).length }));
+      ? MEMORY_REACH.map((r) => ({
+          key: r,
+          label: REACH[r].label,
+          tone: REACH[r].tone,
+          count: atlas.notes.filter((n) => n.reach === r).length,
+        }))
+      : Object.entries(TYPE_TONE).map(([t, tone]) => ({
+          key: t,
+          label: t,
+          tone,
+          count: atlas.notes.filter((n) => typeKey(n.type) === t).length,
+        }));
 
   return (
     <div className="relative h-full w-full min-h-0 bg-sol-bg">
@@ -67,7 +88,9 @@ export function MemoryMap({ atlas, visible, active, onOpen }: MemoryMapProps) {
               </button>
             ))}
           </div>
-          {settling && <Loader2 className="w-3 h-3 text-sol-text-dim animate-spin" />}
+          {settling && (
+            <Loader2 className="w-3 h-3 text-sol-text-dim animate-spin" />
+          )}
           <button
             type="button"
             onClick={() => setLayoutNonce((n) => n + 1)}
@@ -80,13 +103,26 @@ export function MemoryMap({ atlas, visible, active, onOpen }: MemoryMapProps) {
         {legend
           .filter((l) => l.count > 0)
           .map((l) => (
-            <div key={l.key} className="flex items-center gap-2 text-sol-text-muted" title={colorBy === "reach" ? REACH[l.key as keyof typeof REACH].why : undefined}>
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: toneCss(l.tone) }} />
+            <div
+              key={l.key}
+              className="flex items-center gap-2 text-sol-text-muted"
+              title={
+                colorBy === "reach"
+                  ? REACH[l.key as keyof typeof REACH].why
+                  : undefined
+              }
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ background: toneCss(l.tone) }}
+              />
               <span className="flex-1 first-letter:uppercase">{l.label}</span>
               <span className="tabular-nums text-sol-text-dim">{l.count}</span>
             </div>
           ))}
-        <div className="text-sol-text-dim pt-0.5">Size is links in and out. Drag to pin, click to edit.</div>
+        <div className="text-sol-text-dim pt-0.5">
+          Size is links in and out. Drag to pin, click to edit.
+        </div>
       </div>
     </div>
   );

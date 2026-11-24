@@ -34,7 +34,11 @@ export function readPins(state: any): SidebarPin[] {
   return Array.isArray(raw) ? (raw as SidebarPin[]) : NO_PINS;
 }
 
-export function isPinned(state: any, kind: SidebarPinKind, id: string): boolean {
+export function isPinned(
+  state: any,
+  kind: SidebarPinKind,
+  id: string,
+): boolean {
   return readPins(state).some((p) => p.kind === kind && p.id === id);
 }
 
@@ -43,20 +47,28 @@ export function isPinned(state: any, kind: SidebarPinKind, id: string): boolean 
  *  and persisted arrays still carry that form. Both resolve to /threads — the
  *  stored array is never rewritten (readPins must hand back a stable ref). */
 export function isThreadsPin(pin: Pick<SidebarPin, "kind" | "id">): boolean {
-  return pin.id === "threads" && (pin.kind === "view" || pin.kind === "channel");
+  return (
+    pin.id === "threads" && (pin.kind === "view" || pin.kind === "channel")
+  );
 }
 
 /** The desktop app a pin belongs to (lib/desktopApps): a channel is chat's;
  *  a project and a saved task or doc view are work's; the threads inbox is
  *  the main window's (null). Each app's own window shows only its own pins. */
-export function pinApp(pin: Pick<SidebarPin, "kind" | "id">): "chat" | "work" | null {
+export function pinApp(
+  pin: Pick<SidebarPin, "kind" | "id">,
+): "chat" | "work" | null {
   if (isThreadsPin(pin)) return null;
   return pin.kind === "channel" ? "chat" : "work";
 }
 
 /** Add or remove one pin. Order is pin order — newest last, no re-sorting:
  *  the user's own sequence IS the arrangement. */
-export function togglePin(kind: SidebarPinKind, id: string, label: string): void {
+export function togglePin(
+  kind: SidebarPinKind,
+  id: string,
+  label: string,
+): void {
   const store = useInboxStore.getState();
   const pins = readPins(store);
   const exists = pins.some((p) => p.kind === kind && p.id === id);

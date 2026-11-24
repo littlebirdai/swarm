@@ -5,9 +5,7 @@
 // holds: the viewer's labels, teammates, the repositories and pull requests in
 // the store, and the files the viewer's recent sessions edited.
 
-import {
-  extractRepoFromRemoteUrl,
-} from "@codecast/shared/contracts";
+import { extractRepoFromRemoteUrl } from "@codecast/shared/contracts";
 import {
   matchingSessionOperators,
   sessionFilter,
@@ -27,7 +25,12 @@ export type QuerySuggestion = {
 export type SuggestionSources = {
   files?: string[];
   labels?: string[];
-  people?: Array<{ name?: string | null; email?: string | null; github_username?: string | null; bot_kind?: string | null }>;
+  people?: Array<{
+    name?: string | null;
+    email?: string | null;
+    github_username?: string | null;
+    bot_kind?: string | null;
+  }>;
   repos?: string[];
   prs?: Array<{ repository: string; number: number; title?: string }>;
   commits?: Array<{ sha: string; message?: string }>;
@@ -44,7 +47,10 @@ const LIMIT = 8;
 
 type Candidate = { value: string; hint?: string; match?: string };
 
-function candidatesFor(op: SessionQueryOperator, src: SuggestionSources): Candidate[] {
+function candidatesFor(
+  op: SessionQueryOperator,
+  src: SuggestionSources,
+): Candidate[] {
   switch (op) {
     case "file":
       return (src.files ?? []).map((value) => ({ value }));
@@ -54,17 +60,37 @@ function candidatesFor(op: SessionQueryOperator, src: SuggestionSources): Candid
       return [
         { value: "me", hint: "your own sessions" },
         // A Slack-bridged member only posts in chat; it never runs a session.
-        ...(src.people ?? []).filter((p) => p.bot_kind !== "slack").flatMap((p) => {
-          const value = p.github_username || p.name || p.email;
-          return value ? [{ value, hint: p.name && p.name !== value ? p.name : undefined, match: [p.name, p.email, p.github_username].filter(Boolean).join(" ") }] : [];
-        }),
+        ...(src.people ?? [])
+          .filter((p) => p.bot_kind !== "slack")
+          .flatMap((p) => {
+            const value = p.github_username || p.name || p.email;
+            return value
+              ? [
+                  {
+                    value,
+                    hint: p.name && p.name !== value ? p.name : undefined,
+                    match: [p.name, p.email, p.github_username]
+                      .filter(Boolean)
+                      .join(" "),
+                  },
+                ]
+              : [];
+          }),
       ];
     case "repo":
       return (src.repos ?? []).map((value) => ({ value }));
     case "pr":
-      return (src.prs ?? []).map((p) => ({ value: `${p.repository}#${p.number}`, hint: p.title, match: `${p.repository}#${p.number} ${p.title ?? ""}` }));
+      return (src.prs ?? []).map((p) => ({
+        value: `${p.repository}#${p.number}`,
+        hint: p.title,
+        match: `${p.repository}#${p.number} ${p.title ?? ""}`,
+      }));
     case "commit":
-      return (src.commits ?? []).map((c) => ({ value: c.sha.slice(0, 7), hint: c.message?.split("\n")[0], match: `${c.sha} ${c.message ?? ""}` }));
+      return (src.commits ?? []).map((c) => ({
+        value: c.sha.slice(0, 7),
+        hint: c.message?.split("\n")[0],
+        match: `${c.sha} ${c.message ?? ""}`,
+      }));
     case "after":
     case "before":
       return TIME_PRESETS.map(([value, hint]) => ({ value, hint }));
@@ -79,24 +105,43 @@ export function sessionQuerySuggestions(
 ): QuerySuggestion[] {
   if (!completion) return [];
   if (completion.kind === "operator") {
-    return matchingSessionOperators(completion.partial).map((o) => ({ text: o.op, label: o.op, hint: o.hint }));
+    return matchingSessionOperators(completion.partial).map((o) => ({
+      text: o.op,
+      label: o.op,
+      hint: o.hint,
+    }));
   }
   const q = completion.partial.trim();
   const seen = new Set<string>();
   const ranked = candidatesFor(completion.op, src)
     .map((c, i) => ({ c, i, s: q ? matchScore(c.match ?? c.value, q) : 0 }))
-    .filter(({ c, s }) => s !== Infinity && !seen.has(c.value) && (seen.add(c.value), true))
+    .filter(
+      ({ c, s }) =>
+        s !== Infinity && !seen.has(c.value) && (seen.add(c.value), true),
+    )
     // The sources arrive newest first; a tie keeps that order.
     .sort((a, b) => a.s - b.s || a.i - b.i)
     .slice(0, limit);
   // A value typed in full is already done; offering it back is noise.
-  if (ranked.length === 1 && ranked[0].c.value.toLowerCase() === q.toLowerCase()) return [];
-  return ranked.map(({ c }) => ({ text: sessionFilter(completion.op, c.value), label: c.value, hint: c.hint }));
+  if (
+    ranked.length === 1 &&
+    ranked[0].c.value.toLowerCase() === q.toLowerCase()
+  )
+    return [];
+  return ranked.map(({ c }) => ({
+    text: sessionFilter(completion.op, c.value),
+    label: c.value,
+    hint: c.hint,
+  }));
 }
 
 /** Repositories named by a set of sessions, most recently active first. */
 export function reposFromSessions(
-  sessions: Iterable<{ git_remote_url?: string | null; git_root?: string | null; updated_at?: number }>,
+  sessions: Iterable<{
+    git_remote_url?: string | null;
+    git_root?: string | null;
+    updated_at?: number;
+  }>,
 ): string[] {
   const latest = new Map<string, number>();
   for (const s of sessions) {
@@ -106,5 +151,7 @@ export function reposFromSessions(
     if (!name) continue;
     latest.set(name, Math.max(latest.get(name) ?? 0, s.updated_at ?? 0));
   }
-  return [...latest.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+  return [...latest.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
 }

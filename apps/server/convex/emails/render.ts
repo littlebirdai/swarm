@@ -25,5 +25,7 @@ export const BRAND = {
 } as const satisfies Brand;
 
 /** The renderer bound to codecast's brand. Templates call this, never the raw one. */
-export const renderEmail: (def: EmailDef, opts?: RenderOptions) => RenderedEmail =
-  createRenderer(BRAND);
+export const renderEmail: (
+  def: EmailDef,
+  opts?: RenderOptions,
+) => RenderedEmail = createRenderer(BRAND);

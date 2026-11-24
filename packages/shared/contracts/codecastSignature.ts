@@ -64,7 +64,16 @@ export interface CanonicalParts {
 
 /** The exact bytes that are signed, as a string (module comment). */
 export function canonicalSignatureString(p: CanonicalParts): string {
-  return [SIGNATURE_SCHEME, p.method.toUpperCase(), p.pathAndQuery, p.bodySha256, p.timestamp, p.source, p.workspace, p.nonce].join("\n");
+  return [
+    SIGNATURE_SCHEME,
+    p.method.toUpperCase(),
+    p.pathAndQuery,
+    p.bodySha256,
+    p.timestamp,
+    p.source,
+    p.workspace,
+    p.nonce,
+  ].join("\n");
 }
 
 /** The path and query of a URL as a server sees it in its request line. */
@@ -81,13 +90,19 @@ function utf8(text: string): Bytes {
 
 function bodyBytes(body: string | Uint8Array | undefined | null): Bytes {
   if (body === undefined || body === null) return new Uint8Array(0);
-  return typeof body === "string" ? utf8(body) : (new Uint8Array(body) as Bytes);
+  return typeof body === "string"
+    ? utf8(body)
+    : (new Uint8Array(body) as Bytes);
 }
 
 /** Lowercase hex sha256 of a body (the empty body when absent). */
-export async function bodySha256Hex(body: string | Uint8Array | undefined | null): Promise<string> {
+export async function bodySha256Hex(
+  body: string | Uint8Array | undefined | null,
+): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bodyBytes(body));
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(new Uint8Array(digest), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 export function base64urlEncode(bytes: Uint8Array): string {
@@ -99,7 +114,10 @@ export function base64urlEncode(bytes: Uint8Array): string {
 export function base64urlDecode(text: string): Bytes | null {
   if (!/^[A-Za-z0-9_-]*$/.test(text)) return null;
   try {
-    const bin = atob(text.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (text.length % 4)) % 4));
+    const bin = atob(
+      text.replace(/-/g, "+").replace(/_/g, "/") +
+        "=".repeat((4 - (text.length % 4)) % 4),
+    );
     const out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out as Bytes;
@@ -130,7 +148,15 @@ const KID_RE = /^[A-Za-z0-9._-]{1,64}$/;
 
 function isEd25519Jwk(value: unknown): value is CodecastJwk {
   const k = value as Partial<CodecastJwk> | null;
-  return !!k && typeof k === "object" && k.kty === "OKP" && k.crv === "Ed25519" && typeof k.x === "string" && typeof k.kid === "string" && KID_RE.test(k.kid);
+  return (
+    !!k &&
+    typeof k === "object" &&
+    k.kty === "OKP" &&
+    k.crv === "Ed25519" &&
+    typeof k.x === "string" &&
+    typeof k.kid === "string" &&
+    KID_RE.test(k.kid)
+  );
 }
 
 /**
@@ -145,14 +171,22 @@ export function parseSigningKeys(raw: string): CodecastJwk[] {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error(`${CODECAST_SIGNING_KEY_ENV} is not JSON: it holds a private Ed25519 JWK or an array of them`);
+    throw new Error(
+      `${CODECAST_SIGNING_KEY_ENV} is not JSON: it holds a private Ed25519 JWK or an array of them`,
+    );
   }
   const list = Array.isArray(parsed) ? parsed : [parsed];
   if (!list.length) throw new Error(`${CODECAST_SIGNING_KEY_ENV} holds no key`);
   const kids = new Set<string>();
   return list.map((k, i) => {
-    if (!isEd25519Jwk(k) || typeof k.d !== "string") throw new Error(`${CODECAST_SIGNING_KEY_ENV}[${i}] is not a private Ed25519 JWK with a kid`);
-    if (kids.has(k.kid)) throw new Error(`${CODECAST_SIGNING_KEY_ENV}: kid ${k.kid} appears twice`);
+    if (!isEd25519Jwk(k) || typeof k.d !== "string")
+      throw new Error(
+        `${CODECAST_SIGNING_KEY_ENV}[${i}] is not a private Ed25519 JWK with a kid`,
+      );
+    if (kids.has(k.kid))
+      throw new Error(
+        `${CODECAST_SIGNING_KEY_ENV}: kid ${k.kid} appears twice`,
+      );
     kids.add(k.kid);
     return { kty: "OKP", crv: "Ed25519", x: k.x, d: k.d, kid: k.kid };
   });
@@ -160,19 +194,40 @@ export function parseSigningKeys(raw: string): CodecastJwk[] {
 
 /** The public key set to publish: every key, without its private half. */
 export function publicJwks(keys: readonly CodecastJwk[]): CodecastJwks {
-  return { keys: keys.map((k) => ({ kty: "OKP", crv: "Ed25519", x: k.x, kid: k.kid, alg: "EdDSA", use: "sig" })) };
+  return {
+    keys: keys.map((k) => ({
+      kty: "OKP",
+      crv: "Ed25519",
+      x: k.x,
+      kid: k.kid,
+      alg: "EdDSA",
+      use: "sig",
+    })),
+  };
 }
 
 /** The keys in a fetched JWKS document that this scheme can use. */
 export function jwksKeys(doc: unknown): CodecastJwk[] {
   const keys = (doc as Partial<CodecastJwks> | null)?.keys;
-  return Array.isArray(keys) ? keys.filter(isEd25519Jwk).map((k) => ({ kty: "OKP", crv: "Ed25519", x: k.x, kid: k.kid })) : [];
+  return Array.isArray(keys)
+    ? keys
+        .filter(isEd25519Jwk)
+        .map((k) => ({ kty: "OKP", crv: "Ed25519", x: k.x, kid: k.kid }))
+    : [];
 }
 
 /** A new private signing key (for `CODECAST_SIGNING_KEY`). The kid defaults to the date it was made. */
-export async function generateSigningKey(kid = `ck-${new Date().toISOString().slice(0, 10)}`): Promise<CodecastJwk> {
-  const pair = (await crypto.subtle.generateKey(ED25519, true, ["sign", "verify"])) as CryptoKeyPair;
-  const jwk = (await crypto.subtle.exportKey("jwk", pair.privateKey)) as JsonWebKey;
+export async function generateSigningKey(
+  kid = `ck-${new Date().toISOString().slice(0, 10)}`,
+): Promise<CodecastJwk> {
+  const pair = (await crypto.subtle.generateKey(ED25519, true, [
+    "sign",
+    "verify",
+  ])) as CryptoKeyPair;
+  const jwk = (await crypto.subtle.exportKey(
+    "jwk",
+    pair.privateKey,
+  )) as JsonWebKey;
   return { kty: "OKP", crv: "Ed25519", x: jwk.x!, d: jwk.d!, kid };
 }
 
@@ -183,7 +238,12 @@ function importKey(k: CodecastJwk, use: "sign" | "verify"): Promise<CryptoKey> {
   const id = `${use}:${k.kid}:${k.x}`;
   let key = imported.get(id);
   if (!key) {
-    const jwk: JsonWebKey = { kty: "OKP", crv: "Ed25519", x: k.x, ...(use === "sign" ? { d: k.d } : {}) };
+    const jwk: JsonWebKey = {
+      kty: "OKP",
+      crv: "Ed25519",
+      x: k.x,
+      ...(use === "sign" ? { d: k.d } : {}),
+    };
     key = crypto.subtle.importKey("jwk", jwk, ED25519, false, [use]);
     // A key that will not import must not stay cached as a rejection.
     key.catch(() => imported.delete(id));
@@ -222,7 +282,11 @@ export async function signCodecastRequest(
     workspace: req.workspace,
     nonce: opts.nonce ?? newNonce(),
   };
-  const signature = await crypto.subtle.sign(ED25519, await importKey(key, "sign"), utf8(canonicalSignatureString(parts)));
+  const signature = await crypto.subtle.sign(
+    ED25519,
+    await importKey(key, "sign"),
+    utf8(canonicalSignatureString(parts)),
+  );
   return {
     [SIGNATURE_HEADERS.signature]: base64urlEncode(new Uint8Array(signature)),
     [SIGNATURE_HEADERS.keyId]: key.kid,
@@ -259,10 +323,14 @@ export interface VerifyInput {
   seenNonce?: (nonce: string, expiresAt: number) => boolean;
 }
 
-export type VerifyResult = { ok: true; kid: string; source: string; workspace: string } | { ok: false; error: string; unknownKid?: string };
+export type VerifyResult =
+  | { ok: true; kid: string; source: string; workspace: string }
+  | { ok: false; error: string; unknownKid?: string };
 
 /** Whether a request was signed by codecast for one of this app's sources. */
-export async function verifyCodecastRequest(input: VerifyInput): Promise<VerifyResult> {
+export async function verifyCodecastRequest(
+  input: VerifyInput,
+): Promise<VerifyResult> {
   const h = (name: string) => input.header(name)?.trim() ?? "";
   const signature = h(SIGNATURE_HEADERS.signature);
   const kid = h(SIGNATURE_HEADERS.keyId);
@@ -270,18 +338,34 @@ export async function verifyCodecastRequest(input: VerifyInput): Promise<VerifyR
   const source = h(SIGNATURE_HEADERS.source);
   const workspace = h(SIGNATURE_HEADERS.workspace);
   const nonce = h(SIGNATURE_HEADERS.nonce);
-  if (!signature || !kid || !timestamp || !source || !workspace || !nonce) return { ok: false, error: "not a codecast-signed request: a signature header is missing" };
-  if (!/^\d{1,12}$/.test(timestamp)) return { ok: false, error: "bad Codecast-Timestamp" };
+  if (!signature || !kid || !timestamp || !source || !workspace || !nonce)
+    return {
+      ok: false,
+      error: "not a codecast-signed request: a signature header is missing",
+    };
+  if (!/^\d{1,12}$/.test(timestamp))
+    return { ok: false, error: "bad Codecast-Timestamp" };
   const now = input.now ?? Date.now();
   const at = Number(timestamp) * 1000;
-  if (Math.abs(now - at) > SIGNATURE_WINDOW_MS) return { ok: false, error: "Codecast-Timestamp is outside the 5 minute window" };
-  if (!input.sources.some((s) => s.id === source && s.workspace === workspace)) {
-    return { ok: false, error: `signed for ${source} in ${workspace}, which is not a source this app is configured for` };
+  if (Math.abs(now - at) > SIGNATURE_WINDOW_MS)
+    return {
+      ok: false,
+      error: "Codecast-Timestamp is outside the 5 minute window",
+    };
+  if (
+    !input.sources.some((s) => s.id === source && s.workspace === workspace)
+  ) {
+    return {
+      ok: false,
+      error: `signed for ${source} in ${workspace}, which is not a source this app is configured for`,
+    };
   }
   const key = input.keys.find((k) => k.kid === kid);
-  if (!key) return { ok: false, error: `no codecast key ${kid}`, unknownKid: kid };
+  if (!key)
+    return { ok: false, error: `no codecast key ${kid}`, unknownKid: kid };
   const sig = base64urlDecode(signature);
-  if (!sig || sig.length !== 64) return { ok: false, error: "bad Codecast-Signature" };
+  if (!sig || sig.length !== 64)
+    return { ok: false, error: "bad Codecast-Signature" };
   const canonical = canonicalSignatureString({
     method: input.method,
     pathAndQuery: input.pathAndQuery,
@@ -293,13 +377,20 @@ export async function verifyCodecastRequest(input: VerifyInput): Promise<VerifyR
   });
   let valid = false;
   try {
-    valid = await crypto.subtle.verify(ED25519, await importKey(key, "verify"), sig, utf8(canonical));
+    valid = await crypto.subtle.verify(
+      ED25519,
+      await importKey(key, "verify"),
+      sig,
+      utf8(canonical),
+    );
   } catch {
     valid = false;
   }
-  if (!valid) return { ok: false, error: "the signature does not match the request" };
+  if (!valid)
+    return { ok: false, error: "the signature does not match the request" };
   // Only a valid signature spends its nonce, so forged requests cannot fill the memory.
-  if (input.seenNonce?.(nonce, at + SIGNATURE_WINDOW_MS)) return { ok: false, error: "replayed request: the nonce was already used" };
+  if (input.seenNonce?.(nonce, at + SIGNATURE_WINDOW_MS))
+    return { ok: false, error: "replayed request: the nonce was already used" };
   return { ok: true, kid, source, workspace };
 }
 
@@ -307,7 +398,10 @@ export async function verifyCodecastRequest(input: VerifyInput): Promise<VerifyR
  * A nonce memory for verifiers: an insertion-ordered map capped at `max`,
  * each entry forgotten once its request's window has passed.
  */
-export function nonceMemory(max = 10_000, now: () => number = Date.now): (nonce: string, expiresAt: number) => boolean {
+export function nonceMemory(
+  max = 10_000,
+  now: () => number = Date.now,
+): (nonce: string, expiresAt: number) => boolean {
   const seen = new Map<string, number>();
   return (nonce, expiresAt) => {
     const t = now();

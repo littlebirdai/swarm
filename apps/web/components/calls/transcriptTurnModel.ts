@@ -8,11 +8,15 @@
 import type { CallAnchor } from "@codecast/shared/contracts";
 
 /** The anchor for a run of turns: first segment of the first to last of the last. */
-export function turnsAnchor(turns: Array<{ segments: Array<{ seq: number }> }>): CallAnchor | null {
+export function turnsAnchor(
+  turns: Array<{ segments: Array<{ seq: number }> }>,
+): CallAnchor | null {
   const first = turns[0]?.segments[0]?.seq;
   const lastTurn = turns[turns.length - 1];
   const last = lastTurn?.segments[lastTurn.segments.length - 1]?.seq;
-  return first === undefined || last === undefined ? null : { kind: "turns", from_seq: first, to_seq: last };
+  return first === undefined || last === undefined
+    ? null
+    : { kind: "turns", from_seq: first, to_seq: last };
 }
 
 export type TranscriptSegment = {

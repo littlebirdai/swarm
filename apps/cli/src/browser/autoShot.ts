@@ -46,8 +46,16 @@ const AUTO_SHOT_JPEG_QUALITY = 60;
 // find, console, network, tabs, eval, shot, wait — only reads, and an auto
 // shot after a read would spam the thread with pictures of nothing happening.
 const MUTATING = new Set([
-  "open", "goto", "back", "forward", "reload",
-  "click", "click-at", "press", "select", "upload",
+  "open",
+  "goto",
+  "back",
+  "forward",
+  "reload",
+  "click",
+  "click-at",
+  "press",
+  "select",
+  "upload",
 ]);
 
 /**
@@ -78,9 +86,15 @@ export function autoShotsEnabled(
   return !agentSession;
 }
 
-export function setAutoShots(on: boolean, configDir = defaultConfigDir()): void {
+export function setAutoShots(
+  on: boolean,
+  configDir = defaultConfigDir(),
+): void {
   const config = readSharedConfig(configDir);
-  writeSharedConfig(configDir, { ...config, browser: { ...config.browser, auto_shots: on } });
+  writeSharedConfig(configDir, {
+    ...config,
+    browser: { ...config.browser, auto_shots: on },
+  });
 }
 
 /** Drop the override and return to the audience default. */
@@ -101,7 +115,9 @@ function hashStorePath(stateDir: string): string {
 
 function readHashes(stateDir: string): Record<string, string> {
   try {
-    const parsed = JSON.parse(fs.readFileSync(hashStorePath(stateDir), "utf-8"));
+    const parsed = JSON.parse(
+      fs.readFileSync(hashStorePath(stateDir), "utf-8"),
+    );
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -113,7 +129,11 @@ function readHashes(stateDir: string): Record<string, string> {
  * it for the next invocation. Last-write-wins under concurrent agents is fine:
  * the worst outcome is one extra screenshot, not a lost one.
  */
-export function recordIfChanged(targetId: string, hash: string, stateDir = browserHome()): boolean {
+export function recordIfChanged(
+  targetId: string,
+  hash: string,
+  stateDir = browserHome(),
+): boolean {
   const map = readHashes(stateDir);
   if (map[targetId] === hash) return false;
   // Re-inserted, so the object's order is oldest write first.
@@ -123,7 +143,8 @@ export function recordIfChanged(targetId: string, hash: string, stateDir = brows
   // there knows the live set to prune by, so the store is capped here: the
   // tabs written longest ago go first. A dropped tab costs one repeat shot.
   const keys = Object.keys(map);
-  for (const stale of keys.slice(0, Math.max(0, keys.length - MAX_HASHES))) delete map[stale];
+  for (const stale of keys.slice(0, Math.max(0, keys.length - MAX_HASHES)))
+    delete map[stale];
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   fs.writeFileSync(hashStorePath(stateDir), JSON.stringify(map));
   return true;
@@ -132,9 +153,14 @@ export function recordIfChanged(targetId: string, hash: string, stateDir = brows
 /** Drop hash entries for tabs that no longer exist. Piggybacks on callers
  *  that already know the live tab set (the built-in driver's `tabs`); the
  *  cap in recordIfChanged bounds the store for the rest. */
-export function pruneHashes(liveTargetIds: Set<string>, stateDir = browserHome()): void {
+export function pruneHashes(
+  liveTargetIds: Set<string>,
+  stateDir = browserHome(),
+): void {
   const map = readHashes(stateDir);
-  const kept = Object.fromEntries(Object.entries(map).filter(([id]) => liveTargetIds.has(id)));
+  const kept = Object.fromEntries(
+    Object.entries(map).filter(([id]) => liveTargetIds.has(id)),
+  );
   if (Object.keys(kept).length !== Object.keys(map).length) {
     fs.writeFileSync(hashStorePath(stateDir), JSON.stringify(kept));
   }
@@ -160,11 +186,12 @@ export interface AutoShotSource {
 export function cdpAutoShotSource(page: PageSession): AutoShotSource {
   return {
     tabKey: page.targetId,
-    capture: () => screenshot(page, {
-      format: "jpeg",
-      quality: AUTO_SHOT_JPEG_QUALITY,
-      maxWidth: AUTO_SHOT_MAX_WIDTH,
-    }),
+    capture: () =>
+      screenshot(page, {
+        format: "jpeg",
+        quality: AUTO_SHOT_JPEG_QUALITY,
+        maxWidth: AUTO_SHOT_MAX_WIDTH,
+      }),
   };
 }
 
@@ -177,7 +204,10 @@ export function cdpAutoShotSource(page: PageSession): AutoShotSource {
  * `shotFlag` is commander's `--no-shot` value: false means the user opted out
  * of this one command; undefined/true mean no opinion.
  */
-export async function maybeAutoShot(source: AutoShotSource, shotFlag?: boolean): Promise<string | null> {
+export async function maybeAutoShot(
+  source: AutoShotSource,
+  shotFlag?: boolean,
+): Promise<string | null> {
   if (shotFlag === false || !autoShotsEnabled()) return null;
   try {
     const buf = await source.capture();
@@ -187,7 +217,10 @@ export async function maybeAutoShot(source: AutoShotSource, shotFlag?: boolean):
     // 0700 directory, 0600 file, swept after a day — an auto shot is the
     // page as it looked, and /tmp made that readable to every account on
     // the machine, forever (tempFiles.ts, ct-49556).
-    const out = agentTempPath(SHOT_TEMP_KIND, `cast-autoshot-${Date.now()}-${process.pid}.jpg`);
+    const out = agentTempPath(
+      SHOT_TEMP_KIND,
+      `cast-autoshot-${Date.now()}-${process.pid}.jpg`,
+    );
     fs.writeFileSync(out, buf, { mode: TEMP_FILE_MODE });
     return out;
   } catch {

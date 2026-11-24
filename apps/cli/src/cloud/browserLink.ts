@@ -31,14 +31,35 @@
 
 import * as os from "node:os";
 import { spawn, type ChildProcess } from "../proc.js";
-import { patchHost, readHosts, reachableRemoteHost, sshReachable, toRemoteHost, type CloudHost } from "../browser/cloudHost.js";
+import {
+  patchHost,
+  readHosts,
+  reachableRemoteHost,
+  sshReachable,
+  toRemoteHost,
+  type CloudHost,
+} from "../browser/cloudHost.js";
 import type { RemoteHost } from "../remote/session-move.js";
 import { bridgeAddressStale, heldSshArgs } from "./agentBridge.js";
 import { HeldConnections } from "./heldConnection.js";
-import { mintHostClientToken, readBridgeState, revokeHostClient, type BridgeState } from "../browser/bridge/host.js";
+import {
+  mintHostClientToken,
+  readBridgeState,
+  revokeHostClient,
+  type BridgeState,
+} from "../browser/bridge/host.js";
 import { hashHostToken } from "../browser/bridge/hostClients.js";
 import { askToRun } from "@codecast/shared/contracts/commandRun";
-import { LAPTOP_LINK_CLOSED_FILE, LAPTOP_LINK_FILE, LAPTOP_LINKS_DIR, isLinkDevice, linkHostPort, ownUserId, type LaptopLink, type LaptopLinkClosed } from "../browser/bridge/laptopLink.js";
+import {
+  LAPTOP_LINK_CLOSED_FILE,
+  LAPTOP_LINK_FILE,
+  LAPTOP_LINKS_DIR,
+  isLinkDevice,
+  linkHostPort,
+  ownUserId,
+  type LaptopLink,
+  type LaptopLinkClosed,
+} from "../browser/bridge/laptopLink.js";
 import { deviceId } from "../remote/device.js";
 
 /** The idle watchdog version that subtracts the link's own connection. */
@@ -67,7 +88,8 @@ export function browserLinkRemote(device: string): string {
   const dir = `~/.codecast/browser/${LAPTOP_LINKS_DIR}`;
   const link = `${dir}/${device}.json`;
   const closed = `${dir}/${device}.closed.json`;
-  return `umask 077; mkdir -p ${dir} || exit ${BROWSER_LINK_REFUSED_EXIT}; ` +
+  return (
+    `umask 077; mkdir -p ${dir} || exit ${BROWSER_LINK_REFUSED_EXIT}; ` +
     `IFS= read -r L || exit ${BROWSER_LINK_REFUSED_EXIT}; ` +
     `rm -f ${closed} ${LEGACY_CLOSED}; ` +
     `printf '%s\\n' "$L" > ${link}.tmp && mv -f ${link}.tmp ${link} || exit ${BROWSER_LINK_REFUSED_EXIT}; ` +
@@ -76,13 +98,23 @@ export function browserLinkRemote(device: string): string {
     `C=$(mktemp) || exit ${BROWSER_LINK_REFUSED_EXIT}; (exec -a ${BROWSER_LINK_ARGV0} cat > "$C"); ` +
     `if [ "$(cat ${LEGACY} 2>/dev/null)" = "$L" ]; then rm -f ${LEGACY}; fi; ` +
     `if [ "$(cat ${link} 2>/dev/null)" = "$L" ]; then rm -f ${link}; [ -s "$C" ] && mv -f "$C" ${closed}; fi; ` +
-    `rm -f "$C"; exit 0`;
+    `rm -f "$C"; exit 0`
+  );
 }
 
 /** The ssh argv for one link: this laptop's bridge port, forwarded to its own port on the host, failing loudly when that port is taken. */
-export function browserLinkArgs(host: RemoteHost, bridgePort: number, device: string): string[] {
+export function browserLinkArgs(
+  host: RemoteHost,
+  bridgePort: number,
+  device: string,
+): string[] {
   return heldSshArgs(host, browserLinkRemote(device), {
-    extra: ["-o", "ExitOnForwardFailure=yes", "-R", `127.0.0.1:${linkHostPort(device)}:127.0.0.1:${bridgePort}`],
+    extra: [
+      "-o",
+      "ExitOnForwardFailure=yes",
+      "-R",
+      `127.0.0.1:${linkHostPort(device)}:127.0.0.1:${bridgePort}`,
+    ],
   });
 }
 
@@ -92,15 +124,26 @@ export function browserLinkArgs(host: RemoteHost, bridgePort: number, device: st
  * records `laptopBrowser: false`; `cast browser extension link --host` turns
  * it back on.
  */
-export function browserLinkRefusal(cloud: CloudHost, bridge: BridgeState | null, opts: { explicit?: boolean } = {}): string | null {
-  if (cloud.shared) return "the host is shared with teammates: their sessions would drive this human's Chrome";
+export function browserLinkRefusal(
+  cloud: CloudHost,
+  bridge: BridgeState | null,
+  opts: { explicit?: boolean } = {},
+): string | null {
+  if (cloud.shared)
+    return "the host is shared with teammates: their sessions would drive this human's Chrome";
   // The link carries the Chrome and, once the person grants it, the apps
   // (computer/remoteGrant.ts): either one is reason to hold it.
   const computer = !!cloud.laptopComputer;
-  if (cloud.laptopBrowser === false && !computer) return `turned off for this host; turning it on is your person's call: ${askToRun("Let this cloud host use your Chrome?", `cast browser extension link --host ${cloud.id}`)}`;
-  if (!bridge?.token) return "this laptop's bridge is not set up: any `cast browser` command here sets it up";
-  if (!bridge.extensionSeenAt && !computer) return "this laptop's Chrome extension was never paired: any `cast browser` command here puts the pairing card in front of your person";
-  if (!opts.explicit && (cloud.watchdogVersion ?? 0) < BROWSER_LINK_MIN_WATCHDOG) {
+  if (cloud.laptopBrowser === false && !computer)
+    return `turned off for this host; turning it on is your person's call: ${askToRun("Let this cloud host use your Chrome?", `cast browser extension link --host ${cloud.id}`)}`;
+  if (!bridge?.token)
+    return "this laptop's bridge is not set up: any `cast browser` command here sets it up";
+  if (!bridge.extensionSeenAt && !computer)
+    return "this laptop's Chrome extension was never paired: any `cast browser` command here puts the pairing card in front of your person";
+  if (
+    !opts.explicit &&
+    (cloud.watchdogVersion ?? 0) < BROWSER_LINK_MIN_WATCHDOG
+  ) {
     return `the host's idle watchdog (version ${cloud.watchdogVersion ?? 1}) would count the link as activity; \`cast hosts provision ${cloud.id}\` installs version ${BROWSER_LINK_MIN_WATCHDOG}`;
   }
   return null;
@@ -116,18 +159,40 @@ const laptopName = (): string => os.hostname().replace(/\.local$/, "");
 export function openBrowserLink(
   cloud: CloudHost,
   remote: RemoteHost,
-  deps: { spawn?: typeof spawn; bridge?: BridgeState | null; laptop?: string; device?: string; owner?: string | null } = {},
+  deps: {
+    spawn?: typeof spawn;
+    bridge?: BridgeState | null;
+    laptop?: string;
+    device?: string;
+    owner?: string | null;
+  } = {},
 ): { child: ChildProcess; tokenHash: string } | { heldBy: number } {
   const bridge = deps.bridge ?? readBridgeState();
   if (!bridge?.token) throw new Error("this laptop's bridge is not set up");
   const laptop = deps.laptop ?? laptopName();
-  const minted = mintHostClientToken(cloud.id, `${cloud.id}${remote.address ? ` (${remote.address})` : ""}`);
+  const minted = mintHostClientToken(
+    cloud.id,
+    `${cloud.id}${remote.address ? ` (${remote.address})` : ""}`,
+  );
   if ("heldBy" in minted) return minted;
   const { token } = minted;
   const device = deps.device ?? deviceId();
   const owner = deps.owner === undefined ? ownUserId() : deps.owner;
-  const link: LaptopLink = { v: 1, port: linkHostPort(device), token, hostId: cloud.id, laptop, linkedAt: Date.now(), device, ...(owner ? { owner } : {}) };
-  const child = (deps.spawn ?? spawn)("ssh", browserLinkArgs(remote, bridge.port, device), { stdio: ["pipe", "ignore", "pipe"], env: process.env });
+  const link: LaptopLink = {
+    v: 1,
+    port: linkHostPort(device),
+    token,
+    hostId: cloud.id,
+    laptop,
+    linkedAt: Date.now(),
+    device,
+    ...(owner ? { owner } : {}),
+  };
+  const child = (deps.spawn ?? spawn)(
+    "ssh",
+    browserLinkArgs(remote, bridge.port, device),
+    { stdio: ["pipe", "ignore", "pipe"], env: process.env },
+  );
   child.stdin?.on("error", () => {});
   child.stdin?.write(`${JSON.stringify(link)}\n`);
   return { child, tokenHash: hashHostToken(token) };
@@ -135,18 +200,39 @@ export function openBrowserLink(
 
 /** End a link on purpose: EOF ends the remote `cat` (and removes the file); the kill is the backstop. */
 export function stopBrowserLink(child: ChildProcess, graceMs = 5_000): void {
-  try { child.stdin?.end(); } catch { /* gone */ }
-  const timer = setTimeout(() => { try { child.kill(); } catch { /* exited */ } }, graceMs);
+  try {
+    child.stdin?.end();
+  } catch {
+    /* gone */
+  }
+  const timer = setTimeout(() => {
+    try {
+      child.kill();
+    } catch {
+      /* exited */
+    }
+  }, graceMs);
   child.once("exit", () => clearTimeout(timer));
 }
 
 /** Before closing a link on purpose, tell the host why, so its sessions can say so. */
-export function tellLinkClosing(child: ChildProcess, closed: LaptopLinkClosed): void {
-  try { child.stdin?.write(`${JSON.stringify(closed)}\n`); } catch { /* gone */ }
+export function tellLinkClosing(
+  child: ChildProcess,
+  closed: LaptopLinkClosed,
+): void {
+  try {
+    child.stdin?.write(`${JSON.stringify(closed)}\n`);
+  } catch {
+    /* gone */
+  }
 }
 
-export const browserLinkRefusalForExit = (code: number | null): string | null =>
-  code === BROWSER_LINK_REFUSED_EXIT ? "the host could not write its link file (~/.codecast/browser): not retried until the link is turned on again" : null;
+export const browserLinkRefusalForExit = (
+  code: number | null,
+): string | null =>
+  code === BROWSER_LINK_REFUSED_EXIT
+    ? "the host could not write its link file (~/.codecast/browser): not retried until the link is turned on again"
+    : null;
 
 /**
  * The links this process holds, one per host. The daemon keeps one for its
@@ -168,47 +254,78 @@ export class BrowserLinks {
   /** Hosts another process holds the link to (the daemon, or a foreground link), by its pid. */
   private readonly elsewhere = new Map<string, number>();
 
-  constructor(private readonly o: {
-    log: (m: string, level?: "warn") => void;
-    only?: string;
-    explicit?: boolean;
-    spawn?: typeof spawn;
-    rewriteWatchdog?: (remote: RemoteHost) => Promise<{ version: number } | { failed: string }>;
-  }) {
+  constructor(
+    private readonly o: {
+      log: (m: string, level?: "warn") => void;
+      only?: string;
+      explicit?: boolean;
+      spawn?: typeof spawn;
+      rewriteWatchdog?: (
+        remote: RemoteHost,
+      ) => Promise<{ version: number } | { failed: string }>;
+    },
+  ) {
     this.held = new HeldConnections({
       tag: "[BROWSER-LINK]",
       log: o.log,
       refusal: (code) => browserLinkRefusalForExit(code),
       stop: (child) => stopBrowserLink(child),
-      onExit: (key, info) => { if (info.refused) this.refusedAt.set(key, Date.now()); },
+      onExit: (key, info) => {
+        if (info.refused) this.refusedAt.set(key, Date.now());
+      },
     });
   }
 
   /** The pid of another process holding this host's link, when that is why this one holds none. */
-  heldBy(id: string): number | null { return this.elsewhere.get(id) ?? null; }
+  heldBy(id: string): number | null {
+    return this.elsewhere.get(id) ?? null;
+  }
 
   /** Hosts with a live link right now. */
-  live(): string[] { return [...this.held.entries()].map(([id]) => id); }
+  live(): string[] {
+    return [...this.held.entries()].map(([id]) => id);
+  }
 
   async tick(): Promise<void> {
     if (this.inFlight) return;
     this.inFlight = true;
     try {
       const bridge = readBridgeState();
-      const hosts = readHosts().filter((h) => !this.o.only || h.id === this.o.only);
+      const hosts = readHosts().filter(
+        (h) => !this.o.only || h.id === this.o.only,
+      );
       for (const [id, at] of [...this.refusedAt]) {
-        if (Date.now() - at >= BROWSER_LINK_REFUSAL_RETRY_MS) { this.refusedAt.delete(id); this.held.forget(id); }
+        if (Date.now() - at >= BROWSER_LINK_REFUSAL_RETRY_MS) {
+          this.refusedAt.delete(id);
+          this.held.forget(id);
+        }
       }
       for (const [id, c] of [...this.held.entries()]) {
         const h = hosts.find((x) => x.id === id);
-        const why = h ? browserLinkRefusal(h, bridge, this.o) : "the host was removed";
+        const why = h
+          ? browserLinkRefusal(h, bridge, this.o)
+          : "the host was removed";
         if (why) {
-          if (h?.laptopBrowser === false) tellLinkClosing(c.child, { v: 1, reason: "revoked", laptop: laptopName(), hostId: id, at: Date.now() });
+          if (h?.laptopBrowser === false)
+            tellLinkClosing(c.child, {
+              v: 1,
+              reason: "revoked",
+              laptop: laptopName(),
+              hostId: id,
+              at: Date.now(),
+            });
           this.held.close(id, why);
           this.held.forget(id);
           continue;
         }
-        if (h!.address && bridgeAddressStale(h!, c.address, toRemoteHost(h!).address)) this.held.close(id, `its address changed ${c.address} -> ${h!.address}`);
+        if (
+          h!.address &&
+          bridgeAddressStale(h!, c.address, toRemoteHost(h!).address)
+        )
+          this.held.close(
+            id,
+            `its address changed ${c.address} -> ${h!.address}`,
+          );
       }
       for (let h of hosts) {
         if (!h.address || !this.held.canOpen(h.id)) continue;
@@ -216,16 +333,25 @@ export class BrowserLinks {
         const rewrite = why !== null && this.watchdogRewritable(h, bridge);
         if (why && !rewrite) continue;
         // Probed, never woken: a sleeping host has no session to serve.
-        const remote = await reachableRemoteHost(h, { toRemoteHost, sshReachable });
+        const remote = await reachableRemoteHost(h, {
+          toRemoteHost,
+          sshReachable,
+        });
         if (!remote) continue;
         if (rewrite) {
           const upgraded = await this.rewriteWatchdog(h, remote);
           if (!upgraded) continue;
           h = upgraded;
         }
-        const opened = openBrowserLink(h, remote, { bridge, spawn: this.o.spawn });
+        const opened = openBrowserLink(h, remote, {
+          bridge,
+          spawn: this.o.spawn,
+        });
         if ("heldBy" in opened) {
-          if (this.elsewhere.get(h.id) !== opened.heldBy) this.o.log(`[BROWSER-LINK] ${h.id} is already linked by another process (pid ${opened.heldBy}); leaving it`);
+          if (this.elsewhere.get(h.id) !== opened.heldBy)
+            this.o.log(
+              `[BROWSER-LINK] ${h.id} is already linked by another process (pid ${opened.heldBy}); leaving it`,
+            );
           this.elsewhere.set(h.id, opened.heldBy);
           continue;
         }
@@ -233,34 +359,67 @@ export class BrowserLinks {
         const { child, tokenHash } = opened;
         // Only this link's token: a newer link to the same host has its own.
         this.tokens.set(h.id, tokenHash);
-        child.once("exit", () => { revokeHostClient(h.id, tokenHash); });
+        child.once("exit", () => {
+          revokeHostClient(h.id, tokenHash);
+        });
         this.held.hold(h.id, `Chrome link to ${h.id}`, remote.address, child);
-        this.o.log(`[BROWSER-LINK] ${h.id} (${remote.address}) reaches this laptop's bridge at its 127.0.0.1:${linkHostPort(deviceId())}`);
+        this.o.log(
+          `[BROWSER-LINK] ${h.id} (${remote.address}) reaches this laptop's bridge at its 127.0.0.1:${linkHostPort(deviceId())}`,
+        );
       }
     } catch (err) {
-      this.o.log(`[BROWSER-LINK] maintenance failed: ${err instanceof Error ? err.message : String(err)}`, "warn");
+      this.o.log(
+        `[BROWSER-LINK] maintenance failed: ${err instanceof Error ? err.message : String(err)}`,
+        "warn",
+      );
     } finally {
       this.inFlight = false;
     }
   }
 
   /** A host refused only for its watchdog version, whose watchdog file alone can be brought up to date. */
-  private watchdogRewritable(h: CloudHost, bridge: BridgeState | null): boolean {
+  private watchdogRewritable(
+    h: CloudHost,
+    bridge: BridgeState | null,
+  ): boolean {
     const v = h.watchdogVersion ?? 0;
-    return h.platform === "linux" && v >= IDLE_WATCHDOG_REWRITE_FROM && v < BROWSER_LINK_MIN_WATCHDOG
-      && !this.rewriteTried.has(h.id) && browserLinkRefusal(h, bridge, { explicit: true }) === null;
+    return (
+      h.platform === "linux" &&
+      v >= IDLE_WATCHDOG_REWRITE_FROM &&
+      v < BROWSER_LINK_MIN_WATCHDOG &&
+      !this.rewriteTried.has(h.id) &&
+      browserLinkRefusal(h, bridge, { explicit: true }) === null
+    );
   }
 
-  private async rewriteWatchdog(h: CloudHost, remote: RemoteHost): Promise<CloudHost | null> {
+  private async rewriteWatchdog(
+    h: CloudHost,
+    remote: RemoteHost,
+  ): Promise<CloudHost | null> {
     this.rewriteTried.add(h.id);
-    const rewrite = this.o.rewriteWatchdog ?? (async (r: RemoteHost) => (await import("../browser/provisionLinux.js")).rewriteHostIdleWatchdog(r));
+    const rewrite =
+      this.o.rewriteWatchdog ??
+      (async (r: RemoteHost) =>
+        (await import("../browser/provisionLinux.js")).rewriteHostIdleWatchdog(
+          r,
+        ));
     const r = await rewrite(remote);
     if ("failed" in r) {
-      this.o.log(`[BROWSER-LINK] no link to ${h.id}: its idle watchdog (version ${h.watchdogVersion}) could not be updated: ${r.failed}; \`cast hosts provision ${h.id}\` updates it`, "warn");
+      this.o.log(
+        `[BROWSER-LINK] no link to ${h.id}: its idle watchdog (version ${h.watchdogVersion}) could not be updated: ${r.failed}; \`cast hosts provision ${h.id}\` updates it`,
+        "warn",
+      );
       return null;
     }
-    this.o.log(`[BROWSER-LINK] ${h.id}'s idle watchdog updated to version ${r.version}, which ignores the link`);
-    return patchHost(h.id, { watchdogVersion: r.version }) ?? { ...h, watchdogVersion: r.version };
+    this.o.log(
+      `[BROWSER-LINK] ${h.id}'s idle watchdog updated to version ${r.version}, which ignores the link`,
+    );
+    return (
+      patchHost(h.id, { watchdogVersion: r.version }) ?? {
+        ...h,
+        watchdogVersion: r.version,
+      }
+    );
   }
 
   /** Close every link (daemon shutdown, Ctrl-C on the foreground command). */
@@ -280,9 +439,16 @@ export class BrowserLinks {
  * BROWSER_LINK_TICK_MS after a first tick at `firstTickMs`. The caller closes
  * it with closeAll on shutdown.
  */
-export function startBrowserLinks(o: { log: (m: string, level?: "warn") => void; firstTickMs: number }): BrowserLinks {
+export function startBrowserLinks(o: {
+  log: (m: string, level?: "warn") => void;
+  firstTickMs: number;
+}): BrowserLinks {
   const links = new BrowserLinks({ log: o.log });
-  setTimeout(() => { void links.tick(); }, o.firstTickMs);
-  setInterval(() => { void links.tick(); }, BROWSER_LINK_TICK_MS);
+  setTimeout(() => {
+    void links.tick();
+  }, o.firstTickMs);
+  setInterval(() => {
+    void links.tick();
+  }, BROWSER_LINK_TICK_MS);
   return links;
 }

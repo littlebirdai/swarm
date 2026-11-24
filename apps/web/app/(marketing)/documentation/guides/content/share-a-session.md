@@ -10,7 +10,7 @@ Open the session and click the share button at the right of its header. In a tea
 - **Summary**: the team feed shows the title and a summary of the work.
 - **Full**: the team can read the whole conversation, live while it runs.
 
-If the session lives in a repository you already share, the popover says *Shared automatically* and links to **Repo settings**. After you set a session to **Full**, the popover offers **Share all new sessions with** your team **in full**, so you don't have to do it one by one. Per-repository sharing lives in **Settings → Sync & Privacy**; [Team sessions](/documentation/team-sessions) covers it.
+If the session lives in a repository you already share, the popover says _Shared automatically_ and links to **Repo settings**. After you set a session to **Full**, the popover offers **Share all new sessions with** your team **in full**, so you don't have to do it one by one. Per-repository sharing lives in **Settings → Sync & Privacy**; [Team sessions](/documentation/team-sessions) covers it.
 
 ## Share a link
 

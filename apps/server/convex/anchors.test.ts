@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { userCanAccessAnchor, userCanAdminAnchor, visibleAnchorsForUser } from "./anchors";
+import {
+  userCanAccessAnchor,
+  userCanAdminAnchor,
+  visibleAnchorsForUser,
+} from "./anchors";
 import { makeFakeDb } from "./testDb";
 
 // These guard the multi-tenant boundary: a regression here re-opens the
@@ -17,25 +21,54 @@ function ctxWith(tables: Record<string, any[]>) {
 describe("userCanAdminAnchor", () => {
   test("the host can admin", async () => {
     const ctx = ctxWith({ team_memberships: [] });
-    expect(await userCanAdminAnchor(ctx, ME, { host_user_id: ME } as any)).toBe(true);
+    expect(await userCanAdminAnchor(ctx, ME, { host_user_id: ME } as any)).toBe(
+      true,
+    );
   });
   test("the personal-anchor owner can admin", async () => {
     const ctx = ctxWith({ team_memberships: [] });
-    expect(await userCanAdminAnchor(ctx, ME, { host_user_id: STRANGER, scope_user_id: ME } as any)).toBe(true);
+    expect(
+      await userCanAdminAnchor(ctx, ME, {
+        host_user_id: STRANGER,
+        scope_user_id: ME,
+      } as any),
+    ).toBe(true);
   });
   test("a team ADMIN can admin", async () => {
-    const ctx = ctxWith({ team_memberships: [{ _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "admin" }] });
-    expect(await userCanAdminAnchor(ctx, TEAMMATE, { host_user_id: ME, team_id: TEAM } as any)).toBe(true);
+    const ctx = ctxWith({
+      team_memberships: [
+        { _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "admin" },
+      ],
+    });
+    expect(
+      await userCanAdminAnchor(ctx, TEAMMATE, {
+        host_user_id: ME,
+        team_id: TEAM,
+      } as any),
+    ).toBe(true);
   });
   test("a plain team MEMBER cannot admin (can only use)", async () => {
-    const ctx = ctxWith({ team_memberships: [{ _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "member" }] });
+    const ctx = ctxWith({
+      team_memberships: [
+        { _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "member" },
+      ],
+    });
     const anchor = { host_user_id: ME, team_id: TEAM } as any;
     expect(await userCanAccessAnchor(ctx, TEAMMATE, anchor)).toBe(true); // may use
     expect(await userCanAdminAnchor(ctx, TEAMMATE, anchor)).toBe(false); // may not retire/rename
   });
   test("a stranger cannot admin", async () => {
-    const ctx = ctxWith({ team_memberships: [{ _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "admin" }] });
-    expect(await userCanAdminAnchor(ctx, STRANGER, { host_user_id: ME, team_id: TEAM } as any)).toBe(false);
+    const ctx = ctxWith({
+      team_memberships: [
+        { _id: "m1", user_id: TEAMMATE, team_id: TEAM, role: "admin" },
+      ],
+    });
+    expect(
+      await userCanAdminAnchor(ctx, STRANGER, {
+        host_user_id: ME,
+        team_id: TEAM,
+      } as any),
+    ).toBe(false);
   });
 });
 
@@ -127,7 +160,9 @@ describe("visibleAnchorsForUser", () => {
         { _id: "m2", user_id: ME, team_id: OTHER },
       ],
     });
-    const ids = (await visibleAnchorsForUser(ctx, ME)).map((a: any) => a._id).sort();
+    const ids = (await visibleAnchorsForUser(ctx, ME))
+      .map((a: any) => a._id)
+      .sort();
     expect(ids).toEqual(["a_personal", "a_team"]);
   });
 

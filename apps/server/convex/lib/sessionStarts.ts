@@ -15,16 +15,44 @@ import { teamVisibleConvTeam } from "../privacy";
 import { daemonDeliveryStateOf } from "./daemonDelivery";
 
 /** The conversation fields a session_starts row derives from. */
-const CARD_FIELDS = ["title", "project_path", "character_avatar", "character_name", "drawn_icon", "org_role_id", "standing_role_id"] as const;
+const CARD_FIELDS = [
+  "title",
+  "project_path",
+  "character_avatar",
+  "character_name",
+  "drawn_icon",
+  "org_role_id",
+  "standing_role_id",
+] as const;
 const DERIVED_FROM = [
-  "user_id", "team_id", "is_private", "auto_shared", "team_visibility", "agent_type",
-  "started_at", "is_subagent", "parent_conversation_id", ...CARD_FIELDS,
-  "owner_device_id", "execution_protocol_state", "cloud_placement", "migration",
-  "pending_api_error_kind", "session_error",
+  "user_id",
+  "team_id",
+  "is_private",
+  "auto_shared",
+  "team_visibility",
+  "agent_type",
+  "started_at",
+  "is_subagent",
+  "parent_conversation_id",
+  ...CARD_FIELDS,
+  "owner_device_id",
+  "execution_protocol_state",
+  "cloud_placement",
+  "migration",
+  "pending_api_error_kind",
+  "session_error",
 ] satisfies (keyof Doc<"conversations">)[];
 
-export function sessionStartOf(db: QueryCtx["db"], conversationId: Id<"conversations">) {
-  return db.query("session_starts").withIndex("by_conversation", (q) => q.eq("conversation_id", conversationId)).first();
+export function sessionStartOf(
+  db: QueryCtx["db"],
+  conversationId: Id<"conversations">,
+) {
+  return db
+    .query("session_starts")
+    .withIndex("by_conversation", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .first();
 }
 
 export function sessionStartFields(conv: Doc<"conversations">) {
@@ -45,12 +73,20 @@ export function sessionStartFields(conv: Doc<"conversations">) {
 // equal to its re-derivation field for field.
 function cardOf(conv: Doc<"conversations">) {
   const card: Record<string, any> = {};
-  for (const f of CARD_FIELDS) if ((conv as any)[f] !== undefined) card[f] = (conv as any)[f];
-  return card as Partial<Pick<Doc<"conversations">, (typeof CARD_FIELDS)[number]>>;
+  for (const f of CARD_FIELDS)
+    if ((conv as any)[f] !== undefined) card[f] = (conv as any)[f];
+  return card as Partial<
+    Pick<Doc<"conversations">, (typeof CARD_FIELDS)[number]>
+  >;
 }
 
 const sameCard = (a: Record<string, any> | undefined, b: Record<string, any>) =>
-  !!a && CARD_FIELDS.every((f) => String(a[f] ?? "") === String(b[f] ?? "") && (a[f] === undefined) === (b[f] === undefined));
+  !!a &&
+  CARD_FIELDS.every(
+    (f) =>
+      String(a[f] ?? "") === String(b[f] ?? "") &&
+      (a[f] === undefined) === (b[f] === undefined),
+  );
 
 const same = (row: any, next: ReturnType<typeof sessionStartFields>) =>
   String(row.user_id) === String(next.user_id) &&
@@ -59,11 +95,15 @@ const same = (row: any, next: ReturnType<typeof sessionStartFields>) =>
   row.started_at === next.started_at &&
   row.subagent === next.subagent &&
   row.daemon_delivery?.blocked === next.daemon_delivery.blocked &&
-  row.daemon_delivery?.owner_device_id === next.daemon_delivery.owner_device_id &&
+  row.daemon_delivery?.owner_device_id ===
+    next.daemon_delivery.owner_device_id &&
   sameCard(row.card, next.card);
 
 /** Re-derive one conversation's row from what it is now: write it, rewrite it, or drop it with the conversation. */
-export async function syncSessionStart(db: any, conversationId: Id<"conversations">): Promise<void> {
+export async function syncSessionStart(
+  db: any,
+  conversationId: Id<"conversations">,
+): Promise<void> {
   const conv = await db.get(conversationId);
   const row = await sessionStartOf(db, conversationId);
   if (!conv) {
@@ -82,7 +122,8 @@ export async function syncSessionStart(db: any, conversationId: Id<"conversation
  */
 export function makeSessionStartsDb(db: any, rawDb: any): any {
   if (typeof rawDb?.normalizeId !== "function") return db;
-  const isConversation = (id: any) => !!rawDb.normalizeId("conversations", String(id));
+  const isConversation = (id: any) =>
+    !!rawDb.normalizeId("conversations", String(id));
   return {
     ...db,
     get: (...args: any[]) => db.get(...args),
@@ -96,7 +137,8 @@ export function makeSessionStartsDb(db: any, rawDb: any): any {
     },
     async patch(id: any, fields: any) {
       const res = await db.patch(id, fields);
-      if (fields && DERIVED_FROM.some((f) => f in fields) && isConversation(id)) await syncSessionStart(rawDb, id);
+      if (fields && DERIVED_FROM.some((f) => f in fields) && isConversation(id))
+        await syncSessionStart(rawDb, id);
       return res;
     },
     async replace(id: any, doc: any) {

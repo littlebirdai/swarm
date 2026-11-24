@@ -1,8 +1,25 @@
 import { useState, type ReactNode } from "react";
 import { useConvex } from "convex/react";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, ArrowRightLeft, ChevronRight, ChevronUp, MoveRight, Send, Split } from "lucide-react";
-import { AGENT_MODEL_CONFIG, cloudAgentLaunch, cloudAgentLaunchWords, findModelOption, isCloudAgentBranch, modelAgentKey, type ConvexAgentType } from "@codecast/shared/contracts";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ArrowRightLeft,
+  ChevronRight,
+  ChevronUp,
+  MoveRight,
+  Send,
+  Split,
+} from "lucide-react";
+import {
+  AGENT_MODEL_CONFIG,
+  cloudAgentLaunch,
+  cloudAgentLaunchWords,
+  findModelOption,
+  isCloudAgentBranch,
+  modelAgentKey,
+  type ConvexAgentType,
+} from "@codecast/shared/contracts";
 import { useShortcuts } from "../shortcuts";
 import { MenuKeyCaps } from "./KeyboardShortcutsHelp";
 import { useWatchEffect } from "../hooks/useWatchEffect";
@@ -10,13 +27,26 @@ import { useLiveSessionMeta } from "../hooks/useLiveSessionMeta";
 import { usePinnedAgentIds } from "../hooks/usePinnedAgents";
 import { useInboxStore, type InboxSession } from "../store/inboxStore";
 import { formatModel } from "../lib/conversationProcessor";
-import { modelOptionKey, modelFitsAgent, effortGlyph, canControlModel } from "../lib/modelSwitch";
+import {
+  modelOptionKey,
+  modelFitsAgent,
+  effortGlyph,
+  canControlModel,
+} from "../lib/modelSwitch";
 import { commitModelChange } from "../lib/modelSwitchWeb";
-import { switchSessionAgent, forkSessionAsAgent, sessionRowFor } from "../lib/sessionAgentActions";
+import {
+  switchSessionAgent,
+  forkSessionAsAgent,
+  sessionRowFor,
+} from "../lib/sessionAgentActions";
 import { startHandoff, HANDOFF_EXPLAINER } from "../lib/handoffWeb";
 import { agentAccent } from "../lib/agentColors";
 import { AgentTypeIcon, formatAgentType } from "./AgentTypeIcon";
-import { EffortMeter, ModelEffortRows, useDefaultModelPin } from "./ModelEffortPicker";
+import {
+  EffortMeter,
+  ModelEffortRows,
+  useDefaultModelPin,
+} from "./ModelEffortPicker";
 import { effortLevelsFor, stepEffort } from "../lib/effortStep";
 import {
   DropdownMenu,
@@ -26,7 +56,11 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import type { AgentOption, MoveVerb } from "../lib/sessionControl";
-import { MOVE_VERBS, moveAgentOptions, sessionMoveVerbs } from "../lib/sessionControl";
+import {
+  MOVE_VERBS,
+  moveAgentOptions,
+  sessionMoveVerbs,
+} from "../lib/sessionControl";
 import { useCloudAgentOfConversation } from "./cloudAgents/sessionAgent";
 import { BackendRunsInRows } from "./ClaudeBackendControl";
 import { useClaudeBackend } from "../hooks/useSessionCommands";
@@ -39,28 +73,53 @@ import { canSwitchClaudeBackend } from "../lib/claudeBackendControl";
 // The overflow menu and the Cmd+K palette point at the same actions; this is
 // the surface designed as one piece.
 
-const SECTION_LABEL = "px-3 pt-2 pb-1 text-mark uppercase tracking-wider text-sol-text-dim";
+const SECTION_LABEL =
+  "px-3 pt-2 pb-1 text-mark uppercase tracking-wider text-sol-text-dim";
 
-const MOVE_VERB_ICON: Record<MoveVerb, typeof Split> = { switch: ArrowRightLeft, fork: Split, handoff: Send };
+const MOVE_VERB_ICON: Record<MoveVerb, typeof Split> = {
+  switch: ArrowRightLeft,
+  fork: Split,
+  handoff: Send,
+};
 
-function modelStampForPick(agentType: string | undefined, key: string): string | undefined {
+function modelStampForPick(
+  agentType: string | undefined,
+  key: string,
+): string | undefined {
   if (key === "default") return undefined;
   return modelAgentKey(agentType) === "claude" ? `claude-${key}` : key;
 }
 
 /** A framed agent icon; the accent ring marks the session's current agent. */
-function AgentMark({ type, current, size = "md" }: { type: string; current?: boolean; size?: "sm" | "md" }) {
-  const box = size === "sm" ? "h-[18px] w-[18px] rounded" : "h-6 w-6 rounded-md";
+function AgentMark({
+  type,
+  current,
+  size = "md",
+}: {
+  type: string;
+  current?: boolean;
+  size?: "sm" | "md";
+}) {
+  const box =
+    size === "sm" ? "h-[18px] w-[18px] rounded" : "h-6 w-6 rounded-md";
   const icon = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
   return (
-    <span className={`flex shrink-0 items-center justify-center border border-sol-border/40 bg-sol-bg-alt ${box} ${current ? `ring-1 ${agentAccent(type).ring}` : ""}`}>
+    <span
+      className={`flex shrink-0 items-center justify-center border border-sol-border/40 bg-sol-bg-alt ${box} ${current ? `ring-1 ${agentAccent(type).ring}` : ""}`}
+    >
       <AgentTypeIcon agentType={type} className={icon} />
     </span>
   );
 }
 
 /** The slide-in header every second step shares: Back, then what this step is. */
-function StepHeader({ onBack, children }: { onBack: () => void; children: ReactNode }) {
+function StepHeader({
+  onBack,
+  children,
+}: {
+  onBack: () => void;
+  children: ReactNode;
+}) {
   return (
     <div className="flex items-center gap-2 border-b border-sol-border/30 px-3 py-2">
       <button
@@ -72,7 +131,9 @@ function StepHeader({ onBack, children }: { onBack: () => void; children: ReactN
         Back
       </button>
       <span className="text-sol-text-dim/50">·</span>
-      <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs text-sol-text">{children}</span>
+      <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs text-sol-text">
+        {children}
+      </span>
     </div>
   );
 }
@@ -94,7 +155,10 @@ function AgentPickStep({
 }) {
   const meta = MOVE_VERBS[verb];
   return (
-    <div data-pick-step={verb} className="animate-in fade-in-0 slide-in-from-right-4 duration-200 motion-reduce:animate-none">
+    <div
+      data-pick-step={verb}
+      className="animate-in fade-in-0 slide-in-from-right-4 duration-200 motion-reduce:animate-none"
+    >
       <StepHeader onBack={onBack}>
         <span className="whitespace-nowrap font-medium">{meta.label}</span>
       </StepHeader>
@@ -105,13 +169,28 @@ function AgentPickStep({
             disabled={!!o.disabledReason}
             data-agent-row={o.type}
             data-current={o.current || undefined}
-            onSelect={(e) => { if (keepOpen) e.preventDefault(); onPick(o.type); }}
+            onSelect={(e) => {
+              if (keepOpen) e.preventDefault();
+              onPick(o.type);
+            }}
             className="mx-1 flex items-center gap-2.5 px-2 py-1.5"
           >
             <AgentMark type={o.type} current={o.current} />
-            <span className={`whitespace-nowrap text-xs ${o.disabledReason ? "text-sol-text-secondary" : "text-sol-text"}`}>{o.label}</span>
-            {o.disabledReason && <span className="ml-auto shrink truncate pl-2 text-meta text-sol-text-dim">{o.disabledReason}</span>}
-            {!o.disabledReason && o.current && <span className="ml-auto text-meta text-sol-text-dim">current</span>}
+            <span
+              className={`whitespace-nowrap text-xs ${o.disabledReason ? "text-sol-text-secondary" : "text-sol-text"}`}
+            >
+              {o.label}
+            </span>
+            {o.disabledReason && (
+              <span className="ml-auto shrink truncate pl-2 text-meta text-sol-text-dim">
+                {o.disabledReason}
+              </span>
+            )}
+            {!o.disabledReason && o.current && (
+              <span className="ml-auto text-meta text-sol-text-dim">
+                current
+              </span>
+            )}
           </DropdownMenuItem>
         ))}
       </div>
@@ -147,7 +226,13 @@ function HandoffStep({
     setBusy(true);
     const s = useInboxStore.getState();
     const real = s.getConvexId(conversationId) ?? conversationId;
-    startHandoff(convex, { conversation_id: real, agent_type: agent, model: modelKey, effort, direction })
+    startHandoff(convex, {
+      conversation_id: real,
+      agent_type: agent,
+      model: modelKey,
+      effort,
+      direction,
+    })
       .then((res) => {
         toast.success(`Handed off to ${res.short_id} on ${label}`);
         useInboxStore.getState().requestNavigate(res.conversation_id);
@@ -155,14 +240,22 @@ function HandoffStep({
       })
       .catch((error) => {
         setBusy(false);
-        toast.error(error instanceof Error ? error.message : "Failed to hand off");
+        toast.error(
+          error instanceof Error ? error.message : "Failed to hand off",
+        );
       });
   };
 
-  const modelLabel = modelKey === "default" ? "default model" : (findModelOption(agent, modelKey)?.label ?? modelKey);
+  const modelLabel =
+    modelKey === "default"
+      ? "default model"
+      : (findModelOption(agent, modelKey)?.label ?? modelKey);
 
   return (
-    <div data-handoff-step={agent} className="animate-in fade-in-0 slide-in-from-right-4 duration-200 motion-reduce:animate-none">
+    <div
+      data-handoff-step={agent}
+      className="animate-in fade-in-0 slide-in-from-right-4 duration-200 motion-reduce:animate-none"
+    >
       <StepHeader onBack={onBack}>
         Hand off to
         <AgentMark type={agent} current size="sm" />
@@ -179,12 +272,15 @@ function HandoffStep({
             keepOpen
             onSelect={(sel) => {
               if (sel.model !== undefined) setModelKey(sel.model);
-              if (sel.effort !== undefined) setEffort(sel.effort === "default" ? undefined : sel.effort);
+              if (sel.effort !== undefined)
+                setEffort(sel.effort === "default" ? undefined : sel.effort);
             }}
           />
         </div>
       ) : (
-        <div className="px-3 py-2 text-meta text-sol-text-dim">{label} launches with its own configured model.</div>
+        <div className="px-3 py-2 text-meta text-sol-text-dim">
+          {label} launches with its own configured model.
+        </div>
       )}
       <DropdownMenuSeparator />
       <div className={SECTION_LABEL}>Direction</div>
@@ -196,13 +292,18 @@ function HandoffStep({
           // Cmd+Enter submits, the way the composer does.
           onKeyDown={(e) => {
             e.stopPropagation();
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); }
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              submit();
+            }
           }}
           rows={3}
           placeholder="What should the next session do first?"
           className="w-full resize-none rounded-md border border-sol-border/40 bg-sol-bg-alt/40 px-2 py-1.5 text-xs text-sol-text placeholder:text-sol-text-dim/60 outline-none transition-colors focus:border-sol-cyan/50"
         />
-        <p className="mt-1.5 text-meta leading-snug text-sol-text-dim">{HANDOFF_EXPLAINER}</p>
+        <p className="mt-1.5 text-meta leading-snug text-sol-text-dim">
+          {HANDOFF_EXPLAINER}
+        </p>
         <button
           type="button"
           onClick={submit}
@@ -238,7 +339,12 @@ export interface SessionControlPanelProps {
  * (canControlModel), the effort glyph (only where it does), and, for a cloud
  * agent's session, its provider and the sentence saying the provider picks.
  */
-function useModelControl(conversationId: string | undefined, agentType: string | undefined, model: string | null | undefined, effort: string | null | undefined) {
+function useModelControl(
+  conversationId: string | undefined,
+  agentType: string | undefined,
+  model: string | null | undefined,
+  effort: string | null | undefined,
+) {
   const sessionId = useLiveSessionMeta(conversationId)?.sessionId;
   const controllable = canControlModel(agentType, sessionId, model);
   const cloud = useCloudAgentOfConversation(conversationId)?.spec;
@@ -247,7 +353,9 @@ function useModelControl(conversationId: string | undefined, agentType: string |
     controllable,
     cloud,
     glyph: controllable ? effortGlyph(effort) : "",
-    cloudNote: cloud ? `Runs on ${cloud.label}, which picks the model` : undefined,
+    cloudNote: cloud
+      ? `Runs on ${cloud.label}, which picks the model`
+      : undefined,
   };
 }
 
@@ -258,7 +366,9 @@ function useModelControl(conversationId: string | undefined, agentType: string |
  */
 function modelLabel(agentType: string | undefined, model: string): string {
   const launch = cloudAgentLaunch(agentType, model);
-  return launch ? cloudAgentLaunchWords(launch).join(" · ") : formatModel(model);
+  return launch
+    ? cloudAgentLaunchWords(launch).join(" · ")
+    : formatModel(model);
 }
 
 export function SessionControlPanel({
@@ -273,9 +383,18 @@ export function SessionControlPanel({
 }: SessionControlPanelProps) {
   // Which second step is showing: an agent list for a verb, or the hand-off
   // configuration once its agent is chosen.
-  const [view, setView] = useState<{ step: "main" } | { step: "pick"; verb: MoveVerb } | { step: "handoff"; agent: ConvexAgentType }>({ step: "main" });
+  const [view, setView] = useState<
+    | { step: "main" }
+    | { step: "pick"; verb: MoveVerb }
+    | { step: "handoff"; agent: ConvexAgentType }
+  >({ step: "main" });
   const blank = (messageCount ?? 0) === 0;
-  const { sessionId, controllable, cloud, glyph, cloudNote } = useModelControl(conversationId, agentType, model, effort);
+  const { sessionId, controllable, cloud, glyph, cloudNote } = useModelControl(
+    conversationId,
+    agentType,
+    model,
+    effort,
+  );
   // A cloud session is named by its provider, and its launch by what it asked for ("2 attempts").
   const agentLabel = cloud?.label ?? formatAgentType(agentType);
   const modelText = model ? modelLabel(agentType, model) : "";
@@ -283,31 +402,53 @@ export function SessionControlPanel({
   const options = moveAgentOptions(agentType, messageCount, pinnedAgents);
   const verbs = sessionMoveVerbs(agentType, sessionId, model);
   // One of a cloud agent's attempts (a best-of-N launch, or a branch of one): switched in the branch map.
-  const attempts = (model ? cloudAgentLaunch(agentType, model)?.attempts ?? 0 : 0) > 1 || isCloudAgentBranch(agentType, sessionId);
+  const attempts =
+    (model ? (cloudAgentLaunch(agentType, model)?.attempts ?? 0) : 0) > 1 ||
+    isCloudAgentBranch(agentType, sessionId);
   const { dispatchAction } = useShortcuts();
-  const showBackend = canSwitchClaudeBackend(agentType, sessionId, messageCount);
+  const showBackend = canSwitchClaudeBackend(
+    agentType,
+    sessionId,
+    messageCount,
+  );
   const { backend } = useClaudeBackend(conversationId);
 
-  const stateLine = cloudNote
-    ?? (!controllable
-    ? `${agentLabel} keeps the model it launched with`
-    : blank
-      ? "Blank session · picks apply at launch"
-      : "Live session · picks apply in place");
+  const stateLine =
+    cloudNote ??
+    (!controllable
+      ? `${agentLabel} keeps the model it launched with`
+      : blank
+        ? "Blank session · picks apply at launch"
+        : "Live session · picks apply in place");
 
   const onSwitch = (type: ConvexAgentType) => {
     onClose();
-    void switchSessionAgent(sessionRowFor(conversationId, agentType), type)
-      .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to switch agent"));
+    void switchSessionAgent(
+      sessionRowFor(conversationId, agentType),
+      type,
+    ).catch((error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Failed to switch agent",
+      ),
+    );
   };
   const onFork = (type: ConvexAgentType) => {
     onClose();
     try {
-      const fork = forkSessionAsAgent(sessionRowFor(conversationId, agentType), type);
+      const fork = forkSessionAsAgent(
+        sessionRowFor(conversationId, agentType),
+        type,
+      );
       useInboxStore.getState().requestNavigate(fork.sessionId);
-      void fork.ready.catch((error) => toast.error(error instanceof Error ? error.message : "Failed to fork session"));
+      void fork.ready.catch((error) =>
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fork session",
+        ),
+      );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to fork session");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to fork session",
+      );
     }
   };
 
@@ -342,16 +483,34 @@ export function SessionControlPanel({
   return (
     <div data-session-control-panel>
       <div className="flex items-center gap-2.5 border-b border-sol-border/30 bg-sol-bg-alt/40 px-3 py-2.5">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-sol-border/40 bg-sol-bg ring-1 ${agentAccent(agentType).ring}`}>
-          <AgentTypeIcon agentType={agentType || "claude_code"} className="h-3.5 w-3.5" />
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-sol-border/40 bg-sol-bg ring-1 ${agentAccent(agentType).ring}`}
+        >
+          <AgentTypeIcon
+            agentType={agentType || "claude_code"}
+            className="h-3.5 w-3.5"
+          />
         </span>
         <div className="flex min-w-0 flex-col">
           <div className="flex min-w-0 items-baseline gap-1.5 text-xs">
             <span className="font-medium text-sol-text">{agentLabel}</span>
-            {modelText && <span className="truncate font-mono text-sol-text-secondary" title={model}>{modelText}</span>}
-            {glyph && <span className="text-sol-text-dim/80" title={`${effort} effort`}>{glyph}</span>}
+            {modelText && (
+              <span
+                className="truncate font-mono text-sol-text-secondary"
+                title={model}
+              >
+                {modelText}
+              </span>
+            )}
+            {glyph && (
+              <span className="text-sol-text-dim/80" title={`${effort} effort`}>
+                {glyph}
+              </span>
+            )}
           </div>
-          <span data-session-state className="text-meta text-sol-text-dim">{stateLine}</span>
+          <span data-session-state className="text-meta text-sol-text-dim">
+            {stateLine}
+          </span>
         </div>
       </div>
 
@@ -373,25 +532,42 @@ export function SessionControlPanel({
         <div className="py-1">
           <DropdownMenuItem
             data-attempts-row
-            onSelect={() => { onClose(); dispatchAction("conv.toggleTree"); }}
+            onSelect={() => {
+              onClose();
+              dispatchAction("conv.toggleTree");
+            }}
             className="group mx-1 flex items-center gap-2.5 px-2 py-1.5"
           >
             <Split className="h-3.5 w-3.5 shrink-0 text-sol-text-dim transition-colors group-focus:text-sol-cyan" />
             <span className="flex min-w-0 flex-col">
               <span className="text-xs text-sol-text">Switch attempt</span>
-              <span className="truncate text-meta text-sol-text-dim">Each attempt is a branch: open the branch map</span>
+              <span className="truncate text-meta text-sol-text-dim">
+                Each attempt is a branch: open the branch map
+              </span>
             </span>
-            <MenuKeyCaps action="conv.toggleTree" className="ml-auto flex shrink-0 gap-0.5" />
+            <MenuKeyCaps
+              action="conv.toggleTree"
+              className="ml-auto flex shrink-0 gap-0.5"
+            />
           </DropdownMenuItem>
         </div>
       )}
 
-      {showBackend && <>
-        <DropdownMenuSeparator className={controllable || attempts ? "" : "hidden"} />
-        <BackendRunsInRows conversationId={conversationId} sectionLabelClassName={SECTION_LABEL} />
-      </>}
+      {showBackend && (
+        <>
+          <DropdownMenuSeparator
+            className={controllable || attempts ? "" : "hidden"}
+          />
+          <BackendRunsInRows
+            conversationId={conversationId}
+            sectionLabelClassName={SECTION_LABEL}
+          />
+        </>
+      )}
 
-      <DropdownMenuSeparator className={controllable || attempts || showBackend ? "" : "hidden"} />
+      <DropdownMenuSeparator
+        className={controllable || attempts || showBackend ? "" : "hidden"}
+      />
       <div className={SECTION_LABEL}>Move this session</div>
       <div className="pb-1">
         {verbs.map((verb) => {
@@ -401,14 +577,21 @@ export function SessionControlPanel({
             <DropdownMenuItem
               key={verb}
               data-move-row={verb}
-              onSelect={(e) => { e.preventDefault(); setView({ step: "pick", verb }); }}
+              onSelect={(e) => {
+                e.preventDefault();
+                setView({ step: "pick", verb });
+              }}
               className="group mx-1 flex items-center gap-2.5 px-2 py-1.5"
             >
               <Icon className="h-3.5 w-3.5 shrink-0 text-sol-text-dim transition-colors group-focus:text-sol-cyan" />
               <span className="flex min-w-0 flex-col">
                 <span className="text-xs text-sol-text">{meta.label}</span>
                 {/* A fork of an SDK session starts in tmux (the SDK path has no fork). */}
-                <span className="truncate text-meta text-sol-text-dim">{verb === "fork" && backend === "sdk" ? "A copy on another agent, in a terminal" : meta.hint}</span>
+                <span className="truncate text-meta text-sol-text-dim">
+                  {verb === "fork" && backend === "sdk"
+                    ? "A copy on another agent, in a terminal"
+                    : meta.hint}
+                </span>
               </span>
               <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-sol-text-dim/60 transition-transform group-focus:translate-x-0.5" />
             </DropdownMenuItem>
@@ -461,45 +644,79 @@ export function HeaderModelControl({
   const storeModel = (live ? live.model : modelProp) ?? undefined;
   const storeEffort = (live ? live.effort : effortProp) ?? undefined;
   const ownerDeviceId = live?.ownerDeviceId;
-  const [picked, setPicked] = useState<{ model?: string; effort?: string } | null>(null);
+  const [picked, setPicked] = useState<{
+    model?: string;
+    effort?: string;
+  } | null>(null);
 
   useWatchEffect(() => {
     if (!picked) return;
-    const modelAck = picked.model === undefined
-      || modelOptionKey(storeModel, agentType) === (picked.model === "default" ? "default" : picked.model);
-    const effortAck = picked.effort === undefined
-      || (picked.effort === "default" ? !storeEffort : storeEffort === picked.effort);
+    const modelAck =
+      picked.model === undefined ||
+      modelOptionKey(storeModel, agentType) ===
+        (picked.model === "default" ? "default" : picked.model);
+    const effortAck =
+      picked.effort === undefined ||
+      (picked.effort === "default"
+        ? !storeEffort
+        : storeEffort === picked.effort);
     if (modelAck && effortAck) setPicked(null);
   }, [picked, storeModel, storeEffort, agentType]);
 
   // Agent switch: drop a pick aimed at the previous agent's catalog.
-  useWatchEffect(() => { setPicked(null); }, [agentType]);
+  useWatchEffect(() => {
+    setPicked(null);
+  }, [agentType]);
 
   const blank = (messageCount ?? 0) === 0;
-  const overlayModel = picked?.model !== undefined
-    ? modelStampForPick(agentType, picked.model)
-    : (modelFitsAgent(storeModel, agentType) ? storeModel : undefined);
-  const overlayEffort = picked?.effort !== undefined
-    ? (picked.effort === "default" ? undefined : picked.effort)
-    : storeEffort;
+  const overlayModel =
+    picked?.model !== undefined
+      ? modelStampForPick(agentType, picked.model)
+      : modelFitsAgent(storeModel, agentType)
+        ? storeModel
+        : undefined;
+  const overlayEffort =
+    picked?.effort !== undefined
+      ? picked.effort === "default"
+        ? undefined
+        : picked.effort
+      : storeEffort;
 
   // The panel is the owner's; a blank session still gets it (switch agent,
   // hand off, launch-rail model), so the only gate is ownership.
   const interactive = !!(canEdit && conversationId);
   // A cloud agent's model and effort are the provider's: the trigger names neither and offers none.
-  const { cloud, glyph, cloudNote } = useModelControl(conversationId, agentType, storeModel, overlayEffort);
+  const { cloud, glyph, cloudNote } = useModelControl(
+    conversationId,
+    agentType,
+    storeModel,
+    overlayEffort,
+  );
 
   // An unstamped session runs the user's default: name it rather than say "model".
   const { defaultKey } = useDefaultModelPin(agentType);
   const label = overlayModel ? modelLabel(agentType, overlayModel) : "";
-  const triggerLabel = label || (defaultKey && !cloud ? (findModelOption(agentType, defaultKey)?.label ?? defaultKey) : "");
+  const triggerLabel =
+    label ||
+    (defaultKey && !cloud
+      ? (findModelOption(agentType, defaultKey)?.label ?? defaultKey)
+      : "");
 
   if (!interactive) {
     if (!label) return null;
     return (
       <div className="hidden sm:flex items-center flex-shrink-0">
-        <span className="font-mono truncate max-w-none" title={overlayModel}>{label}</span>
-        {glyph && <span className="ml-1 text-sol-text-dim/80" title={`${overlayEffort} effort`}>{glyph}</span>}
+        <span className="font-mono truncate max-w-none" title={overlayModel}>
+          {label}
+        </span>
+        {glyph && (
+          <span
+            className="ml-1 text-sol-text-dim/80"
+            title={`${overlayEffort} effort`}
+          >
+            {glyph}
+          </span>
+        )}
       </div>
     );
   }
@@ -510,17 +727,38 @@ export function HeaderModelControl({
     : `Model: ${overlayModel ?? "default"}${overlayEffort ? ` · ${overlayEffort} effort` : ""} · model, agent, fork, hand off`;
   // A cloud launch that asked for nothing more names what the panel does instead: move it (fork or hand off).
   // The effort as a level meter: it lights when Alt+. / Alt+, move it.
-  const effortLevels = overlayEffort ? effortLevelsFor(agentType, storeModel, live?.sessionId, blank) : [];
-  const triggerBody = <>
-    {!triggerLabel && cloud && <MoveRight className="h-2.5 w-2.5 shrink-0" aria-hidden />}
-    <span className="truncate max-w-none">{triggerLabel || (cloud ? "move" : "model")}</span>
-    {effortLevels.length > 0
-      ? <EffortMeter levels={effortLevels} effort={overlayEffort} conversationId={conversationId} className="text-sol-text-dim/80" />
-      : glyph && <span className="text-sol-text-dim/80">{glyph}</span>}
-  </>;
+  const effortLevels = overlayEffort
+    ? effortLevelsFor(agentType, storeModel, live?.sessionId, blank)
+    : [];
+  const triggerBody = (
+    <>
+      {!triggerLabel && cloud && (
+        <MoveRight className="h-2.5 w-2.5 shrink-0" aria-hidden />
+      )}
+      <span className="truncate max-w-none">
+        {triggerLabel || (cloud ? "move" : "model")}
+      </span>
+      {effortLevels.length > 0 ? (
+        <EffortMeter
+          levels={effortLevels}
+          effort={overlayEffort}
+          conversationId={conversationId}
+          className="text-sol-text-dim/80"
+        />
+      ) : (
+        glyph && <span className="text-sol-text-dim/80">{glyph}</span>
+      )}
+    </>
+  );
 
   return (
-    <div className={composer ? "flex items-center flex-shrink-0" : "hidden sm:flex items-center flex-shrink-0"}>
+    <div
+      className={
+        composer
+          ? "flex items-center flex-shrink-0"
+          : "hidden sm:flex items-center flex-shrink-0"
+      }
+    >
       <DropdownMenu open={isOpen} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           {composer ? (
@@ -531,7 +769,10 @@ export function HeaderModelControl({
               className="group -my-0.5 flex items-center gap-1.5 rounded px-1.5 py-0.5 font-mono text-meta text-sol-text-dim transition-colors hover:bg-sol-bg-alt hover:text-sol-text data-[state=open]:bg-sol-bg-alt data-[state=open]:text-sol-text"
               title={title}
             >
-              <AgentTypeIcon agentType={agentType || "claude_code"} className="h-3 w-3" />
+              <AgentTypeIcon
+                agentType={agentType || "claude_code"}
+                className="h-3 w-3"
+              />
               {triggerBody}
               <ChevronUp className="h-2.5 w-2.5 opacity-50 transition-opacity group-hover:opacity-80" />
             </button>
@@ -542,13 +783,27 @@ export function HeaderModelControl({
               title={title}
             >
               {triggerBody}
-              <svg className="w-2.5 h-2.5 opacity-50 group-hover:opacity-80 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <svg
+                className="w-2.5 h-2.5 opacity-50 group-hover:opacity-80 transition-opacity"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side={composer ? "top" : undefined} className="w-[21rem] max-w-[calc(100vw-1rem)] p-0">
+        <DropdownMenuContent
+          align="end"
+          side={composer ? "top" : undefined}
+          className="w-[21rem] max-w-[calc(100vw-1rem)] p-0"
+        >
           <SessionControlPanel
             conversationId={conversationId!}
             agentType={agentType}

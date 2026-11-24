@@ -16,14 +16,29 @@ import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { ToggleLeft } from "lucide-react";
 import { Switch } from "../ui/switch";
 import { SettingsRow, SettingsSection } from "./ui";
-import { featureVendorBlock, TEAM_FEATURES, teamFeatureEnabled } from "@codecast/shared/contracts";
+import {
+  featureVendorBlock,
+  TEAM_FEATURES,
+  teamFeatureEnabled,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../../store/inboxStore";
 import { GUIDE_FOR } from "../../tours/guides";
 import { startTour } from "../../tours/engine";
 
-export function TeamFeaturesEditor({ teamId, isAdmin }: { teamId: Id<"teams">; isAdmin: boolean }) {
-  const team = useInboxStore((s) => (s.teams || []).find((t: any) => String(t._id) === String(teamId)));
-  const staff = useInboxStore((s) => (s.currentUser as { staff?: boolean } | null | undefined)?.staff === true);
+export function TeamFeaturesEditor({
+  teamId,
+  isAdmin,
+}: {
+  teamId: Id<"teams">;
+  isAdmin: boolean;
+}) {
+  const team = useInboxStore((s) =>
+    (s.teams || []).find((t: any) => String(t._id) === String(teamId)),
+  );
+  const staff = useInboxStore(
+    (s) =>
+      (s.currentUser as { staff?: boolean } | null | undefined)?.staff === true,
+  );
 
   return (
     <SettingsSection
@@ -31,7 +46,8 @@ export function TeamFeaturesEditor({ teamId, isAdmin }: { teamId: Id<"teams">; i
       icon={ToggleLeft}
       description={
         <>
-          On shows a feature to everyone on this team and adds its agent commands on their machines.
+          On shows a feature to everyone on this team and adds its agent
+          commands on their machines.
           {!isAdmin && " Only team admins can change these."}
         </>
       }
@@ -41,16 +57,29 @@ export function TeamFeaturesEditor({ teamId, isAdmin }: { teamId: Id<"teams">; i
         const blocked = featureVendorBlock(team, f.key);
         const on = !blocked && teamFeatureEnabled(team, f.key);
         return (
-          <SettingsRow key={f.key} label={f.name} description={blocked ?? f.desc}>
+          <SettingsRow
+            key={f.key}
+            label={f.name}
+            description={blocked ?? f.desc}
+          >
             {GUIDE_FOR[f.key] && (
-              <button type="button" onClick={() => startTour(GUIDE_FOR[f.key]!, { replay: true })} className="mr-3 text-xs text-sol-text-dim hover:text-sol-text transition-colors whitespace-nowrap" data-feature-guide={f.key}>
+              <button
+                type="button"
+                onClick={() => startTour(GUIDE_FOR[f.key]!, { replay: true })}
+                className="mr-3 text-xs text-sol-text-dim hover:text-sol-text transition-colors whitespace-nowrap"
+                data-feature-guide={f.key}
+              >
                 Watch the guide
               </button>
             )}
             <Switch
               checked={on}
-              disabled={!isAdmin || !!blocked || (!on && !!f.inDevelopment && !staff)}
-              onCheckedChange={(v) => useInboxStore.getState().setTeamFeature(teamId, f.key, v)}
+              disabled={
+                !isAdmin || !!blocked || (!on && !!f.inDevelopment && !staff)
+              }
+              onCheckedChange={(v) =>
+                useInboxStore.getState().setTeamFeature(teamId, f.key, v)
+              }
               aria-label={f.name}
             />
           </SettingsRow>

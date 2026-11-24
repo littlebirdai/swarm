@@ -128,7 +128,8 @@ export class VaultWatchHub {
       .then((files) => {
         for (const f of files) {
           if (f.dir) entry.dirs.add(f.path);
-          else if (!entry.files.has(f.path)) entry.files.set(f.path, { mtime: f.mtime, size: f.size });
+          else if (!entry.files.has(f.path))
+            entry.files.set(f.path, { mtime: f.mtime, size: f.size });
         }
       })
       .catch(() => {})
@@ -136,7 +137,9 @@ export class VaultWatchHub {
         try {
           watcher.start();
         } catch (err) {
-          this.opts.log?.(`[VAULT] watch failed for ${vault.root}: ${(err as Error)?.message ?? err}`);
+          this.opts.log?.(
+            `[VAULT] watch failed for ${vault.root}: ${(err as Error)?.message ?? err}`,
+          );
         }
       });
 
@@ -150,7 +153,10 @@ export class VaultWatchHub {
       reconciling: false,
       primed: false,
       ready,
-      reconcileTimer: setInterval(() => void this.reconcile(entry), this.reconcileMs),
+      reconcileTimer: setInterval(
+        () => void this.reconcile(entry),
+        this.reconcileMs,
+      ),
     };
     entry.reconcileTimer.unref?.();
     this.entries.set(vault.id, entry);
@@ -171,9 +177,13 @@ export class VaultWatchHub {
     } catch {
       return;
     }
-    const state: FileState = { mtime: Math.round(stat.mtimeMs), size: stat.size };
+    const state: FileState = {
+      mtime: Math.round(stat.mtimeMs),
+      size: stat.size,
+    };
     const known = entry.files.get(rel);
-    if (known && known.mtime === state.mtime && known.size === state.size) return;
+    if (known && known.mtime === state.mtime && known.size === state.size)
+      return;
     entry.files.set(rel, state);
     this.emit(entry, {
       type: known ? "change" : "add",
@@ -214,18 +224,26 @@ export class VaultWatchHub {
       for (const known of [...entry.files.keys()]) {
         if (seenFiles.has(known)) continue;
         entry.files.delete(known);
-        this.emit(entry, { type: "removed", vault: entry.vault.id, path: known });
+        this.emit(entry, {
+          type: "removed",
+          vault: entry.vault.id,
+          path: known,
+        });
       }
       // Directories carry no per-entry event in the protocol (a client can't tell
       // a folder from a file on an "add"), so a changed folder set asks the client
       // to re-scan instead.
       const dirsChanged =
-        seenDirs.size !== entry.dirs.size || [...seenDirs].some((d) => !entry.dirs.has(d));
+        seenDirs.size !== entry.dirs.size ||
+        [...seenDirs].some((d) => !entry.dirs.has(d));
       entry.dirs = seenDirs;
-      if (dirsChanged && entry.primed) this.emit(entry, { type: "reset", vault: entry.vault.id });
+      if (dirsChanged && entry.primed)
+        this.emit(entry, { type: "reset", vault: entry.vault.id });
       entry.primed = true;
     } catch (err) {
-      this.opts.log?.(`[VAULT] reconcile failed for ${entry.vault.root}: ${(err as Error)?.message ?? err}`);
+      this.opts.log?.(
+        `[VAULT] reconcile failed for ${entry.vault.root}: ${(err as Error)?.message ?? err}`,
+      );
     } finally {
       entry.reconciling = false;
     }
@@ -244,7 +262,8 @@ export class VaultWatchHub {
     this.sweepTimer = setInterval(() => {
       const now = Date.now();
       for (const [id, entry] of this.entries) {
-        if (entry.listeners.size > 0 || now - entry.lastActive < this.idleMs) continue;
+        if (entry.listeners.size > 0 || now - entry.lastActive < this.idleMs)
+          continue;
         clearInterval(entry.reconcileTimer);
         entry.watcher.stop();
         this.entries.delete(id);

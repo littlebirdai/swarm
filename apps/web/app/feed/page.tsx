@@ -6,5 +6,11 @@ import { ActivityPage } from "../../components/activity/ActivityPage";
 // (components/activity): this address opens that tab, whose own toggle says
 // whose messages (yours, or the team's with ?filter=team).
 export default function FeedPage() {
-  return <AuthGuard><DashboardLayout><ActivityPage tab="messages" /></DashboardLayout></AuthGuard>;
+  return (
+    <AuthGuard>
+      <DashboardLayout>
+        <ActivityPage tab="messages" />
+      </DashboardLayout>
+    </AuthGuard>
+  );
 }

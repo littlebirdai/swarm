@@ -18,12 +18,16 @@ describe("isHarnessEmittedUserTurn", () => {
   });
 
   test("tolerates leading whitespace", () => {
-    expect(isHarnessEmittedUserTurn("  \n<task-notification>x</task-notification>")).toBe(true);
+    expect(
+      isHarnessEmittedUserTurn("  \n<task-notification>x</task-notification>"),
+    ).toBe(true);
   });
 
   test("a real user message is not harness-emitted", () => {
     expect(isHarnessEmittedUserTurn("continue")).toBe(false);
-    expect(isHarnessEmittedUserTurn("look at <task-notification> handling")).toBe(false);
+    expect(
+      isHarnessEmittedUserTurn("look at <task-notification> handling"),
+    ).toBe(false);
   });
 
   test("empty and missing content are not harness-emitted", () => {

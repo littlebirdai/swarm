@@ -41,7 +41,8 @@ function titleLineBreak(title: PMNode): { pos: number; size: number } | null {
   let found: { pos: number; size: number } | null = null;
   title.forEach((child, offset) => {
     if (found) return;
-    if (child.type.name === "hardBreak") found = { pos: 1 + offset, size: child.nodeSize };
+    if (child.type.name === "hardBreak")
+      found = { pos: 1 + offset, size: child.nodeSize };
     else if (child.isText && child.text!.includes("\n")) {
       found = { pos: 1 + offset + child.text!.indexOf("\n"), size: 1 };
     }
@@ -54,11 +55,16 @@ function titleLineBreak(title: PMNode): { pos: number; size: number } | null {
  * anything. Safe to call on a doc that predates the schema (first block a
  * paragraph): the steps it builds all leave a valid doc behind.
  */
-export function ensureTitleBlock(tr: Transaction, fallbackTitle: string): boolean {
+export function ensureTitleBlock(
+  tr: Transaction,
+  fallbackTitle: string,
+): boolean {
   const { schema } = tr.doc.type;
   const heading = schema.nodes.heading;
   const first = tr.doc.firstChild;
-  const titleText = fallbackTitle.trim() ? schema.text(fallbackTitle.trim()) : undefined;
+  const titleText = fallbackTitle.trim()
+    ? schema.text(fallbackTitle.trim())
+    : undefined;
 
   if (!first) {
     tr.insert(0, heading.create({ level: 1 }, titleText));
@@ -102,7 +108,8 @@ export const DocTitleExtension = Extension.create<DocTitleOptions>({
     // here. On a legacy snapshot this is the one collaborative step that
     // gives the doc its title block; a current doc dispatches nothing.
     const tr = this.editor.state.tr;
-    if (ensureTitleBlock(tr, this.options.fallbackTitle())) this.editor.view.dispatch(tr);
+    if (ensureTitleBlock(tr, this.options.fallbackTitle()))
+      this.editor.view.dispatch(tr);
   },
 
   addKeyboardShortcuts() {
@@ -114,7 +121,9 @@ export const DocTitleExtension = Extension.create<DocTitleOptions>({
         if ($from.depth !== 1 || $from.index(0) !== 0) return false;
         return editor.commands.command(({ tr, state }) => {
           if (!empty) tr.deleteSelection();
-          tr.split(tr.mapping.map($from.pos), 1, [{ type: state.schema.nodes.paragraph }]);
+          tr.split(tr.mapping.map($from.pos), 1, [
+            { type: state.schema.nodes.paragraph },
+          ]);
           tr.scrollIntoView();
           return true;
         });

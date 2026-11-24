@@ -29,7 +29,8 @@ const GROK_BOT_VM_HOSTNAME = /^grok-bot-vm[-_]/i;
 const HTCH_RUNTIME_HOSTNAME = /^htch-runtime(?:[-_]|$)/i;
 
 /** Scaleway Mac hosts default to a UUID instead of a name a person chose. */
-const MAC_UUID_HOSTNAME = /^[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?$/i;
+const MAC_UUID_HOSTNAME =
+  /^[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?$/i;
 
 function hostnameFromLabel(label: string): string {
   return label.replace(OS_PREFIX, "");
@@ -42,7 +43,11 @@ function hostnameFromLabel(label: string): string {
  */
 export function isCloudAssignedHostname(label: string): boolean {
   const host = hostnameFromLabel(label);
-  return AWS_AUTO_HOSTNAME.test(host) || GROK_BOT_VM_HOSTNAME.test(host) || HTCH_RUNTIME_HOSTNAME.test(host);
+  return (
+    AWS_AUTO_HOSTNAME.test(host) ||
+    GROK_BOT_VM_HOSTNAME.test(host) ||
+    HTCH_RUNTIME_HOSTNAME.test(host)
+  );
 }
 
 /**
@@ -50,7 +55,10 @@ export function isCloudAssignedHostname(label: string): boolean {
  * hostname that never got the flag. The global header chip must not speak
  * for these; the session that runs on the box may.
  */
-export function isRemoteHost(d: { is_remote?: boolean | null; label?: string | null }): boolean {
+export function isRemoteHost(d: {
+  is_remote?: boolean | null;
+  label?: string | null;
+}): boolean {
   if (d.is_remote) return true;
   return !!d.label && isCloudAssignedHostname(d.label);
 }
@@ -65,7 +73,9 @@ export function deviceKindLabel(d: DeviceNameSource): string {
 }
 
 /** A clean display name: chosen names when present, generated hostnames by kind. */
-export function deviceDisplayName(d: DeviceNameSource | undefined | null): string {
+export function deviceDisplayName(
+  d: DeviceNameSource | undefined | null,
+): string {
   if (!d) return "Unknown device";
   // A name typed in Settings wins over every generated one, including a
   // cloud host's AWS Name tag.
@@ -79,10 +89,18 @@ export function deviceDisplayName(d: DeviceNameSource | undefined | null): strin
   // so the name and the placement rule cannot diverge.
   if (deviceWakesOnUse(d) && /linux/i.test(d.platform)) return "Cloud Linux";
   const host = hostnameFromLabel(d.label);
-  if (d.is_remote && (!host.trim() || isCloudAssignedHostname(d.label) || MAC_UUID_HOSTNAME.test(host.replace(/\.local$/i, "")))) return deviceWakesOnUse(d) ? "Cloud Mac" : "Remote Mac";
+  if (
+    d.is_remote &&
+    (!host.trim() ||
+      isCloudAssignedHostname(d.label) ||
+      MAC_UUID_HOSTNAME.test(host.replace(/\.local$/i, "")))
+  )
+    return deviceWakesOnUse(d) ? "Cloud Mac" : "Remote Mac";
   if (AWS_AUTO_HOSTNAME.test(host)) return `AWS ${deviceKindLabel(d)}`;
   // "MacBook-Pro-4.local" → "MacBook-Pro-4"
-  const stripped = host.replace(/\.local$/i, "").replace(/\.([a-z0-9-]+\.)*(compute\.)?internal$/i, "");
+  const stripped = host
+    .replace(/\.local$/i, "")
+    .replace(/\.([a-z0-9-]+\.)*(compute\.)?internal$/i, "");
   return stripped || d.label;
 }
 
@@ -90,16 +108,29 @@ export function deviceDisplayName(d: DeviceNameSource | undefined | null): strin
  * Names for a list of machines: the display name, plus the hostname that tells
  * apart machines that would otherwise read the same (six "Cloud Linux" boxes).
  */
-export function distinctDeviceNames<T extends DeviceNameSource & { device_id: string; hostname?: string | null }>(
-  rows: readonly T[],
-): Map<string, { name: string; host?: string }> {
+export function distinctDeviceNames<
+  T extends DeviceNameSource & { device_id: string; hostname?: string | null },
+>(rows: readonly T[]): Map<string, { name: string; host?: string }> {
   const counts = new Map<string, number>();
-  for (const d of rows) counts.set(deviceDisplayName(d), (counts.get(deviceDisplayName(d)) ?? 0) + 1);
-  return new Map(rows.map((d) => {
-    const name = deviceDisplayName(d);
-    const host = (d.hostname || hostnameFromLabel(d.label)).replace(/\.local$/i, "").replace(/\.([a-z0-9-]+\.)*(compute\.)?internal$/i, "");
-    return [d.device_id, (counts.get(name) ?? 0) > 1 && host && host !== name ? { name, host } : { name }];
-  }));
+  for (const d of rows)
+    counts.set(
+      deviceDisplayName(d),
+      (counts.get(deviceDisplayName(d)) ?? 0) + 1,
+    );
+  return new Map(
+    rows.map((d) => {
+      const name = deviceDisplayName(d);
+      const host = (d.hostname || hostnameFromLabel(d.label))
+        .replace(/\.local$/i, "")
+        .replace(/\.([a-z0-9-]+\.)*(compute\.)?internal$/i, "");
+      return [
+        d.device_id,
+        (counts.get(name) ?? 0) > 1 && host && host !== name
+          ? { name, host }
+          : { name },
+      ];
+    }),
+  );
 }
 
 /**
@@ -114,8 +145,10 @@ export function compareMachineChips(
   a: DeviceNameSource & { online?: boolean; last_seen?: number },
   b: DeviceNameSource & { online?: boolean; last_seen?: number },
 ): number {
-  return Number(isRemoteHost(a)) - Number(isRemoteHost(b))
-    || deviceDisplayName(a).localeCompare(deviceDisplayName(b))
-    || Number(!a.online) - Number(!b.online)
-    || (!a.online && !b.online ? (b.last_seen ?? 0) - (a.last_seen ?? 0) : 0);
+  return (
+    Number(isRemoteHost(a)) - Number(isRemoteHost(b)) ||
+    deviceDisplayName(a).localeCompare(deviceDisplayName(b)) ||
+    Number(!a.online) - Number(!b.online) ||
+    (!a.online && !b.online ? (b.last_seen ?? 0) - (a.last_seen ?? 0) : 0)
+  );
 }

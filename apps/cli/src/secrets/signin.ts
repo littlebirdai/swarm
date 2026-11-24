@@ -13,7 +13,20 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { browserHome } from "../browser/profile.js";
-import { bareSite as bare, inSigninScope, keepsOwnLogin, originInSigninScope, SECRET_APPROVAL_TTL_MS, secretNameProblem, signinCookie, signinScopeSites, signinSite, type SecretMeta, type SigninCookie, type SigninPayload } from "@codecast/shared/contracts/secrets";
+import {
+  bareSite as bare,
+  inSigninScope,
+  keepsOwnLogin,
+  originInSigninScope,
+  SECRET_APPROVAL_TTL_MS,
+  secretNameProblem,
+  signinCookie,
+  signinScopeSites,
+  signinSite,
+  type SecretMeta,
+  type SigninCookie,
+  type SigninPayload,
+} from "@codecast/shared/contracts/secrets";
 
 /** A browser's newer cookies go back to the Vault at most this often per sign-in. */
 export const SIGNIN_REFRESH_EVERY_MS = 30 * 60_000;
@@ -33,17 +46,33 @@ export function coversHost(sites: readonly string[], host: string): boolean {
  * then the person's own over the team's, then the most recently written.
  * Requests (no value yet) and other kinds never match.
  */
-export function pickSignin(rows: readonly SecretMeta[], host: string, now: number = Date.now()): SecretMeta | null {
-  const specificity = (r: SecretMeta) => Math.max(...(r.sites ?? []).filter((s) => coversHost([s], host)).map((s) => bare(s).length));
-  const expired = (r: SecretMeta) => Number(r.signin_expires_at !== undefined && r.signin_expires_at <= now);
+export function pickSignin(
+  rows: readonly SecretMeta[],
+  host: string,
+  now: number = Date.now(),
+): SecretMeta | null {
+  const specificity = (r: SecretMeta) =>
+    Math.max(
+      ...(r.sites ?? [])
+        .filter((s) => coversHost([s], host))
+        .map((s) => bare(s).length),
+    );
+  const expired = (r: SecretMeta) =>
+    Number(r.signin_expires_at !== undefined && r.signin_expires_at <= now);
   return (
     rows
-      .filter((r) => r.kind === "signin" && r.status === "ready" && coversHost(r.sites ?? [], host))
+      .filter(
+        (r) =>
+          r.kind === "signin" &&
+          r.status === "ready" &&
+          coversHost(r.sites ?? [], host),
+      )
       .sort(
         (a, b) =>
           expired(a) - expired(b) ||
           specificity(b) - specificity(a) ||
-          Number(b.workspace.startsWith("user:")) - Number(a.workspace.startsWith("user:")) ||
+          Number(b.workspace.startsWith("user:")) -
+            Number(a.workspace.startsWith("user:")) ||
           b.updated_at - a.updated_at,
       )[0] ?? null
   );
@@ -65,17 +94,43 @@ export function inSiteScope(domain: string, sites: readonly string[]): boolean {
  * Whoever saved the row chose what it holds; this decides what a teammate's
  * browser takes from it.
  */
-export function scopedJar(saved: Pick<SigninPayload, "cookies" | "local_storage">, sites: readonly string[], now: number): { cookies: SigninCookie[]; local_storage: Record<string, Record<string, string>> } {
-  const cookies = aliveCookies(saved.cookies, now).filter((c) => inSiteScope(c.domain, sites)).map(signinCookie);
-  const local_storage = Object.fromEntries(Object.entries(saved.local_storage ?? {}).filter(([origin]) => originInSigninScope(origin, sites) && !keepsOwnLogin(new URL(origin).hostname)));
+export function scopedJar(
+  saved: Pick<SigninPayload, "cookies" | "local_storage">,
+  sites: readonly string[],
+  now: number,
+): {
+  cookies: SigninCookie[];
+  local_storage: Record<string, Record<string, string>>;
+} {
+  const cookies = aliveCookies(saved.cookies, now)
+    .filter((c) => inSiteScope(c.domain, sites))
+    .map(signinCookie);
+  const local_storage = Object.fromEntries(
+    Object.entries(saved.local_storage ?? {}).filter(
+      ([origin]) =>
+        originInSigninScope(origin, sites) &&
+        !keepsOwnLogin(new URL(origin).hostname),
+    ),
+  );
   return { cookies, local_storage };
 }
 
-export const cookieKey = (c: Pick<SigninCookie, "name" | "domain">) => `${c.name}\u0000${c.domain}`;
+export const cookieKey = (c: Pick<SigninCookie, "name" | "domain">) =>
+  `${c.name}\u0000${c.domain}`;
 
 /** Cookies still alive at `now` (ms). A session cookie has no expiry and is alive. */
-export function aliveCookies<T extends Pick<SigninCookie, "expires">>(cookies: readonly T[], now: number): T[] {
-  return cookies.filter((c) => !(typeof c.expires === "number" && c.expires > 0 && c.expires * 1000 <= now));
+export function aliveCookies<T extends Pick<SigninCookie, "expires">>(
+  cookies: readonly T[],
+  now: number,
+): T[] {
+  return cookies.filter(
+    (c) =>
+      !(
+        typeof c.expires === "number" &&
+        c.expires > 0 &&
+        c.expires * 1000 <= now
+      ),
+  );
 }
 
 /**
@@ -101,12 +156,18 @@ export function cookiesToPutIn(
   const have = new Set(present.map(cookieKey));
   if (alive.every((c) => have.has(cookieKey(c)))) return [];
   const ours = new Set(memory?.keys);
-  return alive.filter((c) => !have.has(cookieKey(c)) || !ours.has(cookieKey(c)));
+  return alive.filter(
+    (c) => !have.has(cookieKey(c)) || !ours.has(cookieKey(c)),
+  );
 }
 
 /** A stable fingerprint of a jar, so a later look can tell whether it moved. Order and session-only fields don't count. */
 export function jarDigest(cookies: readonly SigninCookie[]): string {
-  const rows = cookies.map((c) => [c.name, c.domain, c.path, c.value, c.expires ?? 0].join("\u0000")).sort();
+  const rows = cookies
+    .map((c) =>
+      [c.name, c.domain, c.path, c.value, c.expires ?? 0].join("\u0000"),
+    )
+    .sort();
   return crypto.createHash("sha256").update(rows.join("\u0001")).digest("hex");
 }
 
@@ -149,7 +210,10 @@ export function rememberJar(
  * sign-in? A memory of no cookies proves nothing: every browser holds all of
  * none, signed out or not.
  */
-export function stillSignedIn(memory: Pick<SigninMemory, "keys">, present: readonly Pick<SigninCookie, "name" | "domain">[]): boolean {
+export function stillSignedIn(
+  memory: Pick<SigninMemory, "keys">,
+  present: readonly Pick<SigninCookie, "name" | "domain">[],
+): boolean {
   const have = new Set(present.map(cookieKey));
   return memory.keys.length > 0 && memory.keys.every((k) => have.has(k));
 }
@@ -160,7 +224,12 @@ export function stillSignedIn(memory: Pick<SigninMemory, "keys">, present: reado
  * and not sooner than `every` after that write: a session a site rotates on
  * every page view would otherwise rewrite the secret on every `open`.
  */
-export function writeBackJar(memory: SigninMemory, current: readonly SigninCookie[], now: number, every = SIGNIN_REFRESH_EVERY_MS): SigninCookie[] | null {
+export function writeBackJar(
+  memory: SigninMemory,
+  current: readonly SigninCookie[],
+  now: number,
+  every = SIGNIN_REFRESH_EVERY_MS,
+): SigninCookie[] | null {
   if (now - memory.at < every) return null;
   if (!stillSignedIn(memory, current)) return null;
   if (jarDigest(current) === memory.digest) return null;
@@ -174,8 +243,12 @@ export function writeBackJar(memory: SigninMemory, current: readonly SigninCooki
  * later jar is the newer session. A tie, or session cookies only, keeps the
  * saved one.
  */
-export function jarIsNewer(browser: readonly Pick<SigninCookie, "expires">[], saved: readonly Pick<SigninCookie, "expires">[]): boolean {
-  const latest = (cookies: readonly Pick<SigninCookie, "expires">[]) => Math.max(0, ...cookies.map((c) => c.expires ?? 0));
+export function jarIsNewer(
+  browser: readonly Pick<SigninCookie, "expires">[],
+  saved: readonly Pick<SigninCookie, "expires">[],
+): boolean {
+  const latest = (cookies: readonly Pick<SigninCookie, "expires">[]) =>
+    Math.max(0, ...cookies.map((c) => c.expires ?? 0));
   return latest(browser) > latest(saved);
 }
 
@@ -184,7 +257,9 @@ export function jarIsNewer(browser: readonly Pick<SigninCookie, "expires">[], sa
 // name on every page.
 const ACCOUNT_COOKIES = ["dotcom_user"];
 
-export function accountHint(cookies: readonly SigninCookie[]): string | undefined {
+export function accountHint(
+  cookies: readonly SigninCookie[],
+): string | undefined {
   for (const name of ACCOUNT_COOKIES) {
     const v = cookies.find((c) => c.name === name)?.value;
     if (v && v.length <= 100) return decodeURIComponent(v);
@@ -203,12 +278,15 @@ export function mergeStorage(
   read: Record<string, Record<string, string> | null>,
 ): Record<string, Record<string, string>> {
   const out = { ...saved };
-  for (const [origin, items] of Object.entries(read)) if (items) out[origin] = items;
+  for (const [origin, items] of Object.entries(read))
+    if (items) out[origin] = items;
   return out;
 }
 
 /** Origin -> key -> value with empty origins dropped and the whole bounded; null when nothing is left. */
-export function boundedStorage(raw: Record<string, Record<string, string>>): Record<string, Record<string, string>> | null {
+export function boundedStorage(
+  raw: Record<string, Record<string, string>>,
+): Record<string, Record<string, string>> | null {
   const out: Record<string, Record<string, string>> = {};
   let size = 0;
   for (const [origin, items] of Object.entries(raw)) {
@@ -226,7 +304,9 @@ function statePath(): string {
   return path.join(browserHome(), "vault-signins.json");
 }
 
-export function readSigninState(file = statePath()): Record<string, SigninMemory> {
+export function readSigninState(
+  file = statePath(),
+): Record<string, SigninMemory> {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf-8"));
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -235,7 +315,11 @@ export function readSigninState(file = statePath()): Record<string, SigninMemory
   }
 }
 
-export function writeSigninMemory(id: string, memory: SigninMemory, file = statePath()): void {
+export function writeSigninMemory(
+  id: string,
+  memory: SigninMemory,
+  file = statePath(),
+): void {
   const all = readSigninState(file);
   all[id] = memory;
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
@@ -249,7 +333,8 @@ export function writeSigninMemory(id: string, memory: SigninMemory, file = state
 // read. `cast browser` refuses those reads to a session this machine never saw
 // approved (browser/siteGuard.ts vaultJarRefusal).
 
-const approvalLive = (at: number | undefined, now: number) => at !== undefined && now - at < SECRET_APPROVAL_TTL_MS;
+const approvalLive = (at: number | undefined, now: number) =>
+  at !== undefined && now - at < SECRET_APPROVAL_TTL_MS;
 
 /**
  * The Ask first part of a sign-in's memory after `conversation` read it with
@@ -257,8 +342,17 @@ const approvalLive = (at: number | undefined, now: number) => at !== undefined &
  * this session's kept at the time it was first seen, so a later read does not
  * stretch an approval past the backend's own limit.
  */
-export function askFirstMemory(prev: Pick<SigninMemory, "ask_first"> | undefined, sites: readonly string[], conversation: string | null, now: number): Required<Pick<SigninMemory, "ask_first">> {
-  const approved = Object.fromEntries(Object.entries(prev?.ask_first?.approved ?? {}).filter(([, at]) => approvalLive(at, now)));
+export function askFirstMemory(
+  prev: Pick<SigninMemory, "ask_first"> | undefined,
+  sites: readonly string[],
+  conversation: string | null,
+  now: number,
+): Required<Pick<SigninMemory, "ask_first">> {
+  const approved = Object.fromEntries(
+    Object.entries(prev?.ask_first?.approved ?? {}).filter(([, at]) =>
+      approvalLive(at, now),
+    ),
+  );
   if (conversation) approved[conversation] ??= now;
   return { ask_first: { sites: [...sites], approved } };
 }
@@ -268,22 +362,39 @@ export function askFirstMemory(prev: Pick<SigninMemory, "ask_first"> | undefined
  * holds no live approval for: those covering `host`, or every one when `host`
  * is null (a read of the whole cookie jar).
  */
-export function unapprovedSignins(state: Record<string, SigninMemory>, host: string | null, conversation: string | null, now: number): SigninMemory[] {
+export function unapprovedSignins(
+  state: Record<string, SigninMemory>,
+  host: string | null,
+  conversation: string | null,
+  now: number,
+): SigninMemory[] {
   return Object.values(state).filter(
-    (m) => m.ask_first && (host === null || coversHost(m.ask_first.sites, host)) && !approvalLive(conversation ? m.ask_first.approved[conversation] : undefined, now),
+    (m) =>
+      m.ask_first &&
+      (host === null || coversHost(m.ask_first.sites, host)) &&
+      !approvalLive(
+        conversation ? m.ask_first.approved[conversation] : undefined,
+        now,
+      ),
   );
 }
 
 // ── The vault_capture_signin daemon command ─────────────────────────────────
 
-export type CaptureSigninArgs = { site: string; name?: string; where: { team_id: string } | { personal: true } };
+export type CaptureSigninArgs = {
+  site: string;
+  name?: string;
+  where: { team_id: string } | { personal: true };
+};
 
 /**
  * The command's args as the mutation wrote them: a site, an optional name and
  * exactly one of a team or personal. The child validates the same shape again
  * through its own flags.
  */
-export function parseCaptureSigninArgs(json: string | undefined): CaptureSigninArgs {
+export function parseCaptureSigninArgs(
+  json: string | undefined,
+): CaptureSigninArgs {
   let a: any;
   try {
     a = json ? JSON.parse(json) : {};
@@ -298,14 +409,26 @@ export function parseCaptureSigninArgs(json: string | undefined): CaptureSigninA
     if (p) throw new Error(p);
   }
   const team = typeof a.team_id === "string" && a.team_id ? a.team_id : null;
-  if (!!team === (a.personal === true)) throw new Error("name exactly one of team_id, personal");
-  return { site, ...(a.name ? { name: a.name } : {}), where: team ? { team_id: team } : { personal: true } };
+  if (!!team === (a.personal === true))
+    throw new Error("name exactly one of team_id, personal");
+  return {
+    site,
+    ...(a.name ? { name: a.name } : {}),
+    where: team ? { team_id: team } : { personal: true },
+  };
 }
 
 /** The `cast vault save-signin` argv the daemon runs for these args; `check` only counts the cookies (vault_check_signin). */
-export function captureSigninArgv(a: CaptureSigninArgs, check = false): string[] {
+export function captureSigninArgv(
+  a: CaptureSigninArgs,
+  check = false,
+): string[] {
   return [
-    "vault", "save-signin", a.site, "--from-chrome", "--json",
+    "vault",
+    "save-signin",
+    a.site,
+    "--from-chrome",
+    "--json",
     ...(check ? ["--check"] : []),
     ...(a.name ? ["--name", a.name] : []),
     ...("team_id" in a.where ? ["--team", a.where.team_id] : ["--personal"]),

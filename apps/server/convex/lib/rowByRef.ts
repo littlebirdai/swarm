@@ -18,10 +18,18 @@ export async function readableRowByRef(
 ): Promise<any | null> {
   const needle = ref.trim();
   if (!needle) return null;
-  const byShort = await ctx.db.query(table).withIndex("by_short_id", (q: any) => q.eq("short_id", needle)).first();
+  const byShort = await ctx.db
+    .query(table)
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", needle))
+    .first();
   const id = byShort ? null : ctx.db.normalizeId(table, needle);
-  const row = byShort ?? (id ? await ctx.db.get(id) : null) ?? (byName ? await byName(needle) : null);
-  return row && (await workspaceGrantsAccess(ctx as any, userId, row.workspace)) ? row : null;
+  const row =
+    byShort ??
+    (id ? await ctx.db.get(id) : null) ??
+    (byName ? await byName(needle) : null);
+  return row && (await workspaceGrantsAccess(ctx as any, userId, row.workspace))
+    ? row
+    : null;
 }
 
 /** readableRowByRef that refuses a miss with "<label> <ref> not found". */

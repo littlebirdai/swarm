@@ -92,7 +92,8 @@ export function deriveTeamForRoot(
     if (!isAtOrUnder(path, dir)) continue;
     // Depth in directories, not characters: `/w/a/b` sits deeper under `/w`
     // than `/w/abcd` does, even though it is the shorter string.
-    const depth = path === dir ? 0 : path.slice(dir.length + 1).split("/").length;
+    const depth =
+      path === dir ? 0 : path.slice(dir.length + 1).split("/").length;
     if (depth < closest) {
       closest = depth;
       cohort = [e];
@@ -122,10 +123,17 @@ export function deriveTeamForRoot(
   };
 }
 
-type SessionScopeRow = { git_root?: string | null; project_path?: string | null; team_id?: string | null; is_private?: boolean | null };
+type SessionScopeRow = {
+  git_root?: string | null;
+  project_path?: string | null;
+  team_id?: string | null;
+  is_private?: boolean | null;
+};
 
 /** The sessions cache as scope evidence, identical verdicts collapsed into weighted rows. */
-export function sessionScopeEvidence(sessions: Readonly<Record<string, SessionScopeRow | undefined>>): ScopeEvidence[] {
+export function sessionScopeEvidence(
+  sessions: Readonly<Record<string, SessionScopeRow | undefined>>,
+): ScopeEvidence[] {
   const byVerdict = new Map<string, ScopeEvidence>();
   for (const id in sessions) {
     const s = sessions[id];
@@ -142,12 +150,18 @@ export function sessionScopeEvidence(sessions: Readonly<Record<string, SessionSc
 }
 
 /** The team a directory files into per the sessions cache, or null for personal. */
-export function teamIdForPath(path: string, sessions: Readonly<Record<string, SessionScopeRow | undefined>>): string | null {
+export function teamIdForPath(
+  path: string,
+  sessions: Readonly<Record<string, SessionScopeRow | undefined>>,
+): string | null {
   const scope = deriveTeamForRoot(path, sessionScopeEvidence(sessions), {});
   return scope.kind === "team" ? scope.teamId : null;
 }
 
-export function vaultPresence(opts: { remote: boolean; mirror?: boolean }): VaultPresence {
+export function vaultPresence(opts: {
+  remote: boolean;
+  mirror?: boolean;
+}): VaultPresence {
   if (opts.remote) return "other-machine";
   return opts.mirror ? "both" : "this-machine";
 }
@@ -172,7 +186,9 @@ export const PRESENCE_LABELS: Record<VaultPresence, string> = {
  */
 export function teamScopeWords(team: VaultTeamScope): string {
   if (team.kind === "personal") return "personal";
-  return team.shared ? `shared with ${team.teamName}` : `private, filed under ${team.teamName}`;
+  return team.shared
+    ? `shared with ${team.teamName}`
+    : `private, filed under ${team.teamName}`;
 }
 
 export function teamScopeLabel(team: VaultTeamScope): string {
@@ -202,7 +218,9 @@ export function describeVaultScope(opts: {
  * the vault root plus the relative path. This is the one honest answer to
  * "where did I write that?": both places, and here is the other one.
  */
-export function findDocForFile<T extends { _id: string; source_file?: string | null }>(
+export function findDocForFile<
+  T extends { _id: string; source_file?: string | null },
+>(
   root: string | undefined,
   relPath: string | null | undefined,
   docs: Readonly<Record<string, T>>,

@@ -5,7 +5,13 @@ import * as path from "node:path";
 import { ctx } from "./prompt-dry-run-context.ts";
 import { answerFake } from "./prompt-dry-run-fakecall.ts";
 import { cliHelp, cliNoSignIn } from "./prompt-dry-run-realcast.ts";
-import { loggedArgv, markCall, readKey, recordBegin, recordMark } from "./prompt-dry-run-record.ts";
+import {
+  loggedArgv,
+  markCall,
+  readKey,
+  recordBegin,
+  recordMark,
+} from "./prompt-dry-run-record.ts";
 
 /**
  * Where the broker's guard runs: a directory the agent cannot write and that
@@ -22,7 +28,9 @@ function brokerCwd(): string {
   const cwd = fs.realpathSync(agentCwd);
   const run = fs.realpathSync(runDir);
   const agentWritable = cwd === run || cwd.startsWith(`${run}${path.sep}`);
-  const loads = ["bunfig.toml", ".env", ".env.local", ".envrc"].some((f) => fs.existsSync(path.join(cwd, f)));
+  const loads = ["bunfig.toml", ".env", ".env.local", ".envrc"].some((f) =>
+    fs.existsSync(path.join(cwd, f)),
+  );
   return agentWritable || loads ? brokerCwdDefault : cwd;
 }
 
@@ -40,10 +48,35 @@ function brokerCwd(): string {
 export function startBroker(): string {
   const { env, realEnvHome, harnessDir, guardDir } = ctx();
   // The shell's PATH, not the agent's: the agent's leads with the baked guard, which would send the broker's read back to the broker.
-  const brokerEnv: Record<string, string> = { ...env, PATH: process.env.PATH ?? "", HOME: realEnvHome, RUN_DIR: harnessDir, DRY_RUN_LIVE_READ: "1", DRY_RUN_BROKER: "", DRY_RUN_REAL_CODECAST_DIR: process.env.CODECAST_DIR ?? "" };
+  const brokerEnv: Record<string, string> = {
+    ...env,
+    PATH: process.env.PATH ?? "",
+    HOME: realEnvHome,
+    RUN_DIR: harnessDir,
+    DRY_RUN_LIVE_READ: "1",
+    DRY_RUN_BROKER: "",
+    DRY_RUN_REAL_CODECAST_DIR: process.env.CODECAST_DIR ?? "",
+  };
   // The real CLI reads its config where the shell keeps it, not in the agent's home.
-  for (const k of ["DRY_RUN_FAKE", "DRY_RUN_FAKE_SEED", "DRY_RUN_FAKE_VIA_BROKER", "DRY_RUN_SERVE_DIR", "DRY_RUN_TAG", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"]) delete brokerEnv[k];
-  for (const k of ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"]) if (process.env[k]) brokerEnv[k] = process.env[k]!;
+  for (const k of [
+    "DRY_RUN_FAKE",
+    "DRY_RUN_FAKE_SEED",
+    "DRY_RUN_FAKE_VIA_BROKER",
+    "DRY_RUN_SERVE_DIR",
+    "DRY_RUN_TAG",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+  ])
+    delete brokerEnv[k];
+  for (const k of [
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+  ])
+    if (process.env[k]) brokerEnv[k] = process.env[k]!;
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -51,7 +84,12 @@ export function startBroker(): string {
     async fetch(req) {
       const body = Buffer.from(await req.arrayBuffer());
       const route = new URL(req.url).pathname;
-      if (route === "/fake") return await answerFake(body, Number(req.headers.get("x-dry-run-stdin-bytes") ?? 0), req.headers.get("x-dry-run-call"));
+      if (route === "/fake")
+        return await answerFake(
+          body,
+          Number(req.headers.get("x-dry-run-stdin-bytes") ?? 0),
+          req.headers.get("x-dry-run-call"),
+        );
       const callId = req.headers.get("x-dry-run-call");
       if (route === "/begin") return recordBegin(body);
       if (route === "/mark") return recordMark(body);
@@ -63,20 +101,37 @@ export function startBroker(): string {
       if (route === "/tree") return cliNoSignIn(["agent-context", "--json"]);
       const argv = body.toString("utf8").split("\0");
       if (argv[argv.length - 1] === "") argv.pop();
-      const p = Bun.spawn(["bash", path.join(guardDir, "cast"), ...argv], { env: brokerEnv, cwd: brokerCwd(), stdin: "ignore", stdout: "ignore", stderr: "pipe" });
+      const p = Bun.spawn(["bash", path.join(guardDir, "cast"), ...argv], {
+        env: brokerEnv,
+        cwd: brokerCwd(),
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "pipe",
+      });
       const said = await new Response(p.stderr).text();
       await p.exited;
       // The broker's guard reads only what it takes for a read; what it refused (the agent posting a write here) is that.
       const log = path.join(harnessDir, "calls.log");
       const logged = loggedArgv(argv);
-      const refusedHere = fs.existsSync(log) && fs.readFileSync(log, "utf8").split("\n").some((line) => line === `REFUSED ${logged}`);
+      const refusedHere =
+        fs.existsSync(log) &&
+        fs
+          .readFileSync(log, "utf8")
+          .split("\n")
+          .some((line) => line === `REFUSED ${logged}`);
       fs.rmSync(log, { force: true });
       markCall(callId, argv, refusedHere ? "REFUSED" : "LIVE");
       const copy = path.join(harnessDir, "live-reads", readKey(argv));
-      const code = fs.existsSync(`${copy}.exit`) ? fs.readFileSync(`${copy}.exit`, "utf8").trim() || "1" : "1";
-      const out = fs.existsSync(`${copy}.out`) ? fs.readFileSync(`${copy}.out`) : Buffer.alloc(0);
+      const code = fs.existsSync(`${copy}.exit`)
+        ? fs.readFileSync(`${copy}.exit`, "utf8").trim() || "1"
+        : "1";
+      const out = fs.existsSync(`${copy}.out`)
+        ? fs.readFileSync(`${copy}.out`)
+        : Buffer.alloc(0);
       const err = Buffer.from(said);
-      return new Response(Buffer.concat([Buffer.from(`${code}\n${err.length}\n`), err, out]));
+      return new Response(
+        Buffer.concat([Buffer.from(`${code}\n${err.length}\n`), err, out]),
+      );
     },
   });
   return `http://127.0.0.1:${server.port}/read`;

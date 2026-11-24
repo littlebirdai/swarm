@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import { useInboxStore } from "../store/inboxStore";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { Button } from "./ui/button";
-import { pickTeamSharingNudge, teamVisibilityOption } from "../lib/teamVisibility";
+import {
+  pickTeamSharingNudge,
+  teamVisibilityOption,
+} from "../lib/teamVisibility";
 import { ConsequentialSwitch } from "./consequential/ConsequentialSwitch";
 import { shareInFullLedger } from "./consequential/ledgers";
 
@@ -17,12 +20,18 @@ const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000;
  *  raises the level for NEW sessions only, so past sessions stay as they were
  *  and the click is safe to take without reading the settings page first. */
 export function TeamSharingNudgeBanner() {
-  const snoozedAt = useInboxStore((s) => s.clientState.dismissed?.team_sharing_prompt ?? 0);
+  const snoozedAt = useInboxStore(
+    (s) => s.clientState.dismissed?.team_sharing_prompt ?? 0,
+  );
   const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
-  const setTeamMembershipVisibility = useInboxStore((s) => s.setTeamMembershipVisibility);
+  const setTeamMembershipVisibility = useInboxStore(
+    (s) => s.setTeamMembershipVisibility,
+  );
   const teams = useInboxStore((s) => s.teams);
   const [mounted, setMounted] = useState(false);
-  useMountEffect(() => { setMounted(true); });
+  useMountEffect(() => {
+    setMounted(true);
+  });
 
   if (!mounted) return null;
   if (snoozedAt > 0 && Date.now() - snoozedAt < SNOOZE_MS) return null;
@@ -39,13 +48,22 @@ export function TeamSharingNudgeBanner() {
   };
 
   return (
-    <div data-cc-banner data-nudge className="bg-gradient-to-r from-sol-cyan/10 via-sol-cyan/5 to-sol-cyan/10 border-b border-sol-cyan/30">
+    <div
+      data-cc-banner
+      data-nudge
+      className="bg-gradient-to-r from-sol-cyan/10 via-sol-cyan/5 to-sol-cyan/10 border-b border-sol-cyan/30"
+    >
       <div className="px-4 py-2 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Eye className="w-4 h-4 text-sol-cyan flex-shrink-0" />
           <span className="text-sm text-sol-text truncate">
-            {others === 1 ? `Your teammate in ${team.name} sees` : `${others} teammates in ${team.name} see`} only {sees} of your sessions.{" "}
-            <span className="text-sol-text-muted">Share new sessions in full so they can follow along.</span>
+            {others === 1
+              ? `Your teammate in ${team.name} sees`
+              : `${others} teammates in ${team.name} see`}{" "}
+            only {sees} of your sessions.{" "}
+            <span className="text-sol-text-muted">
+              Share new sessions in full so they can follow along.
+            </span>
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -56,7 +74,14 @@ export function TeamSharingNudgeBanner() {
             onTurnOn={shareNew}
             onTurnOff={() => {}}
             trigger={({ press, reviewing }) => (
-              <Button variant="cyan" size="xs" onClick={press} aria-haspopup="dialog" aria-expanded={reviewing} data-share-in-full>
+              <Button
+                variant="cyan"
+                size="xs"
+                onClick={press}
+                aria-haspopup="dialog"
+                aria-expanded={reviewing}
+                data-share-in-full
+              >
                 Share in full
               </Button>
             )}

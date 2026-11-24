@@ -4,14 +4,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { once } from "node:events";
 import { CodexAppServer } from "./codexAppServer.js";
-import { codexResumeParams, recoverCodexTurn, settledCodexRecord, type PersistedCodexThread } from "./codexTurnRecovery.js";
+import {
+  codexResumeParams,
+  recoverCodexTurn,
+  settledCodexRecord,
+  type PersistedCodexThread,
+} from "./codexTurnRecovery.js";
 
 test("a killed app-server resumes persisted work once through JSON-RPC and finishes", async () => {
   const dir = mkdtempSync(join(tmpdir(), "codex-recovery-"));
   const binary = join(dir, "fake-codex.js");
   const state = join(dir, "intent.json");
   const starts = join(dir, "starts.jsonl");
-  writeFileSync(binary, `#!${process.execPath}
+  writeFileSync(
+    binary,
+    `#!${process.execPath}
 import { appendFileSync, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 const send = value => process.stdout.write(JSON.stringify(value)+'\\n');
@@ -38,15 +45,29 @@ createInterface({input:process.stdin}).on('line', line => {
     }
   }
 });
-`, { mode: 0o755 });
+`,
+    { mode: 0o755 },
+  );
   let server: CodexAppServer | undefined;
-  let saved: PersistedCodexThread = { threadId: "thread", updatedAt: 1, cwd: dir, sandbox: "danger-full-access" };
-  const save = (next: PersistedCodexThread) => { saved = next; writeFileSync(state, JSON.stringify(saved)); };
+  let saved: PersistedCodexThread = {
+    threadId: "thread",
+    updatedAt: 1,
+    cwd: dir,
+    sandbox: "danger-full-access",
+  };
+  const save = (next: PersistedCodexThread) => {
+    saved = next;
+    writeFileSync(state, JSON.stringify(saved));
+  };
   const boot = async () => {
     server = new CodexAppServer({ codexBinary: binary, log: () => {} });
     server.on("error", () => {});
-    server.on("turnStarted", (_thread, turnId) => save({ ...saved, activeTurnId: turnId }));
-    server.on("turnCompleted", (_thread, turnId) => save(settledCodexRecord(saved, turnId)));
+    server.on("turnStarted", (_thread, turnId) =>
+      save({ ...saved, activeTurnId: turnId }),
+    );
+    server.on("turnCompleted", (_thread, turnId) =>
+      save(settledCodexRecord(saved, turnId)),
+    );
     const ready = once(server, "ready");
     server.start();
     await ready;
@@ -55,19 +76,31 @@ createInterface({input:process.stdin}).on('line', line => {
   try {
     const first = await boot();
     const died = once(first, "exited");
-    await first.turnStart({ threadId: "thread", input: [{ type: "text", text: "Existing task" }] });
+    await first.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "Existing task" }],
+    });
     await died;
     first.stop();
     saved = JSON.parse(readFileSync(state, "utf8"));
     expect(saved.activeTurnId).toBe("turn");
     const replacement = await boot();
-    const response = await replacement.threadResume(codexResumeParams(saved, "never"));
+    const response = await replacement.threadResume(
+      codexResumeParams(saved, "never"),
+    );
     const complete = once(replacement, "turnCompleted");
-    await recoverCodexTurn({ record: saved, thread: response.thread, save, start: input => replacement.turnStart(input) });
+    await recoverCodexTurn({
+      record: saved,
+      thread: response.thread,
+      save,
+      start: (input) => replacement.turnStart(input),
+    });
     const [, , messages, status] = await complete;
     expect(status).toBe("completed");
     expect(messages[0].content).toBe("Finished the existing task");
-    expect(JSON.parse(readFileSync(state, "utf8")).activeTurnId).toBeUndefined();
+    expect(
+      JSON.parse(readFileSync(state, "utf8")).activeTurnId,
+    ).toBeUndefined();
     expect(readFileSync(starts, "utf8").trim().split("\n")).toHaveLength(2);
   } finally {
     server?.stop();

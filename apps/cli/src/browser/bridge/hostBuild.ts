@@ -31,11 +31,16 @@ export function parseBuild(stamp: string | undefined | null): HostBuild | null {
   if (!stamp) return null;
   const m = /^(\d+(?:\.\d+)*)(?:\+([0-9a-f]{7,40})\.(\d+))?$/.exec(stamp);
   if (!m) return null;
-  return { version: m[1], ...(m[2] ? { commit: m[2], commitTime: parseInt(m[3], 10) } : {}) };
+  return {
+    version: m[1],
+    ...(m[2] ? { commit: m[2], commitTime: parseInt(m[3], 10) } : {}),
+  };
 }
 
 export function formatBuild(b: HostBuild): string {
-  return b.commit && b.commitTime !== undefined ? `${b.version}+${b.commit}.${b.commitTime}` : b.version;
+  return b.commit && b.commitTime !== undefined
+    ? `${b.version}+${b.commit}.${b.commitTime}`
+    : b.version;
 }
 
 /** Is `mine` a newer CLI version than `theirs`? Commits never order builds. */
@@ -51,10 +56,21 @@ function gitDirs(): { gitDir: string; commonDir: string; root: string } | null {
     const dotGit = path.join(dir, ".git");
     try {
       const st = fs.statSync(dotGit);
-      const gitDir = st.isDirectory() ? dotGit : path.resolve(dir, fs.readFileSync(dotGit, "utf-8").replace(/^gitdir:\s*/, "").trim());
+      const gitDir = st.isDirectory()
+        ? dotGit
+        : path.resolve(
+            dir,
+            fs
+              .readFileSync(dotGit, "utf-8")
+              .replace(/^gitdir:\s*/, "")
+              .trim(),
+          );
       let commonDir = gitDir;
       try {
-        commonDir = path.resolve(gitDir, fs.readFileSync(path.join(gitDir, "commondir"), "utf-8").trim());
+        commonDir = path.resolve(
+          gitDir,
+          fs.readFileSync(path.join(gitDir, "commondir"), "utf-8").trim(),
+        );
       } catch {}
       return { gitDir, commonDir, root: dir };
     } catch {}
@@ -68,7 +84,9 @@ function gitDirs(): { gitDir: string; commonDir: string; root: string } | null {
 /** HEAD's sha read straight from the git dir: no git process on every command. */
 function headSha(dirs: { gitDir: string; commonDir: string }): string | null {
   try {
-    const head = fs.readFileSync(path.join(dirs.gitDir, "HEAD"), "utf-8").trim();
+    const head = fs
+      .readFileSync(path.join(dirs.gitDir, "HEAD"), "utf-8")
+      .trim();
     if (/^[0-9a-f]{40}$/.test(head)) return head;
     const ref = /^ref:\s*(.+)$/.exec(head)?.[1];
     if (!ref) return null;
@@ -78,8 +96,16 @@ function headSha(dirs: { gitDir: string; commonDir: string }): string | null {
         if (/^[0-9a-f]{40}$/.test(sha)) return sha;
       } catch {}
     }
-    const packed = fs.readFileSync(path.join(dirs.commonDir, "packed-refs"), "utf-8");
-    return new RegExp(`^([0-9a-f]{40}) ${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "m").exec(packed)?.[1] ?? null;
+    const packed = fs.readFileSync(
+      path.join(dirs.commonDir, "packed-refs"),
+      "utf-8",
+    );
+    return (
+      new RegExp(
+        `^([0-9a-f]{40}) ${ref.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+        "m",
+      ).exec(packed)?.[1] ?? null
+    );
   } catch {
     return null;
   }
@@ -96,9 +122,15 @@ export function currentBuild(): HostBuild {
   const dirs = gitDirs();
   const sha = dirs ? headSha(dirs) : null;
   if (!dirs || !sha) return (cachedFull = { version });
-  const out = spawnSync("git", ["-C", dirs.root, "log", "-1", "--format=%ct", sha], { encoding: "utf-8", timeout: 5_000 });
+  const out = spawnSync(
+    "git",
+    ["-C", dirs.root, "log", "-1", "--format=%ct", sha],
+    { encoding: "utf-8", timeout: 5_000 },
+  );
   const commitTime = parseInt(String(out.stdout ?? "").trim(), 10);
-  return (cachedFull = Number.isFinite(commitTime) ? { version, commit: sha.slice(0, 12), commitTime } : { version });
+  return (cachedFull = Number.isFinite(commitTime)
+    ? { version, commit: sha.slice(0, 12), commitTime }
+    : { version });
 }
 
 /**
@@ -109,5 +141,8 @@ export function currentBuild(): HostBuild {
 export function shouldReplaceHost(stamp: string | undefined): boolean {
   const theirs = parseBuild(stamp);
   if (!theirs) return false;
-  return isNewerBuild(parseBuild(process.env.CAST_BRIDGE_BUILD) ?? { version: getVersion() }, theirs);
+  return isNewerBuild(
+    parseBuild(process.env.CAST_BRIDGE_BUILD) ?? { version: getVersion() },
+    theirs,
+  );
 }

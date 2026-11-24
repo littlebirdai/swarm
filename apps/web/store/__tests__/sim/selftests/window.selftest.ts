@@ -19,7 +19,14 @@ import { REPLICATED_STORE_KEYS } from "../../../clientSyncRegistry";
 import { syncMetaKey } from "../../../../hooks/reconcileCrawl";
 import { inboxCrawlWsKey } from "../../../../hooks/useSyncInboxSessions";
 import { Net, type Delivery } from "../net";
-import { advance, attachRealm, installRealm, now, stream, uninstallRealm } from "../realm";
+import {
+  advance,
+  attachRealm,
+  installRealm,
+  now,
+  stream,
+  uninstallRealm,
+} from "../realm";
 import { SimDevice } from "../device";
 import { windowOnline, type SimWindow, type SimWindowWorld } from "../window";
 
@@ -34,7 +41,13 @@ type Fixture = SimWindowWorld & {
 
 function fixture(seed: number, rows = 24): Fixture {
   installRealm(seed);
-  const gen = genTeamWorld({ users: ["ada"], teams: [], rowsPerUser: rows, seed, epoch: inboxEpoch(now()) });
+  const gen = genTeamWorld({
+    users: ["ada"],
+    teams: [],
+    rowsPerUser: rows,
+    seed,
+    epoch: inboxEpoch(now()),
+  });
   const userId = gen.users[0]._id;
   const tables: Record<string, any[]> = {
     users: gen.users,
@@ -55,7 +68,12 @@ function fixture(seed: number, rows = 24): Fixture {
     rngFor: (seq) => stream(`call:${seq}`),
     mintId: (table, n) => convexIdFor(`${table}:${n}`),
     onSchedule: (job) =>
-      net.enqueue("sched", { due: job.due, label: job.name, producer: `sched ${job.name}`, run: () => backend.runScheduled(job) }),
+      net.enqueue("sched", {
+        due: job.due,
+        label: job.name,
+        producer: `sched ${job.name}`,
+        run: () => backend.runScheduled(job),
+      }),
   });
   const world: Fixture = {
     backend,
@@ -83,14 +101,21 @@ function fixture(seed: number, rows = 24): Fixture {
   return world;
 }
 
-const lockKeys = (w: SimWindow, id: string) => Object.keys(w.store.getState().pending).filter((k) => k.includes(id));
+const lockKeys = (w: SimWindow, id: string) =>
+  Object.keys(w.store.getState().pending).filter((k) => k.includes(id));
 
 // A top-level row the window shows in an active bucket: one a person can act on.
 async function actionable(w: SimWindow): Promise<string[]> {
   const placed = await w.placed();
   const sessions = w.store.getState().sessions as Record<string, any>;
   return [...placed.placements]
-    .filter(([id, p]) => p.bucket !== "dismissed" && p.bucket !== "stashed" && !sessions[id]?.parent_conversation_id && !sessions[id]?.is_subagent)
+    .filter(
+      ([id, p]) =>
+        p.bucket !== "dismissed" &&
+        p.bucket !== "stashed" &&
+        !sessions[id]?.parent_conversation_id &&
+        !sessions[id]?.is_subagent,
+    )
     .map(([id]) => id)
     .sort();
 }
@@ -110,11 +135,16 @@ describe("sim window and device", () => {
 
     // The floor ran after catch-up stamped the log (its gate), and the cursor sits at the head.
     const state = host.store.getState();
-    expect(state.syncMeta[syncMetaKey("sessions", inboxCrawlWsKey(f.userId))]?.backfilledAt).toBeNumber();
+    expect(
+      state.syncMeta[syncMetaKey("sessions", inboxCrawlWsKey(f.userId))]
+        ?.backfilledAt,
+    ).toBeNumber();
     expect(state.syncLogScopeStamps[`user:${f.userId}`]).toBeDefined();
 
     const placed = await host.placed();
-    const canonical = await f.backend.clientFor({ kind: "user", userId: f.userId }).query("conversations:sessionsLiveness", {});
+    const canonical = await f.backend
+      .clientFor({ kind: "user", userId: f.userId })
+      .query("conversations:sessionsLiveness", {});
     expect(placed.placements.size).toBeGreaterThan(0);
     expect(placed.set_digest).toBe(canonical.projection.set_digest);
     expect(placed.tally).toEqual(canonical.projection.tally);
@@ -130,25 +160,38 @@ describe("sim window and device", () => {
     // The moment the first chunk reaches the follower, another device renames a row.
     let wrote = false;
     f.taps.push((d) => {
-      if (wrote || d.channel !== "repl:A-host>A-w1" || !/^snapshotChunk 0 /.test(d.label)) return;
+      if (
+        wrote ||
+        d.channel !== "repl:A-host>A-w1" ||
+        !/^snapshotChunk 0 /.test(d.label)
+      )
+        return;
       wrote = true;
       void f.backend.db.patch(target, { title: "renamed between chunks" });
     });
     const follower = await dev.addWindow("follower");
 
-    const toFollower = f.events.filter((d) => d.channel === "repl:A-host>A-w1").map((d) => d.label);
+    const toFollower = f.events
+      .filter((d) => d.channel === "repl:A-host>A-w1")
+      .map((d) => d.label);
     const first = toFollower.findIndex((l) => /^snapshotChunk 0 /.test(l));
-    const last = toFollower.findIndex((l) => /^snapshotChunk \d+ \(last\)/.test(l));
+    const last = toFollower.findIndex((l) =>
+      /^snapshotChunk \d+ \(last\)/.test(l),
+    );
     expect(first).toBeGreaterThanOrEqual(0);
     expect(last).toBeGreaterThan(first + 1); // more than one chunk
-    expect(toFollower.slice(first, last).some((l) => l.startsWith("update "))).toBe(true);
+    expect(
+      toFollower.slice(first, last).some((l) => l.startsWith("update ")),
+    ).toBe(true);
 
     expect(dev.synced(follower)).toBe(true);
     expect(follower.errors).toEqual([]);
-    expect((follower.store.getState().sessions as any)[target].title).toBe("renamed between chunks");
-    expect(snapshotEntries(follower.store.getState(), REPLICATED_STORE_KEYS)).toEqual(
-      snapshotEntries(host.store.getState(), REPLICATED_STORE_KEYS),
+    expect((follower.store.getState().sessions as any)[target].title).toBe(
+      "renamed between chunks",
     );
+    expect(
+      snapshotEntries(follower.store.getState(), REPLICATED_STORE_KEYS),
+    ).toEqual(snapshotEntries(host.store.getState(), REPLICATED_STORE_KEYS));
   });
 
   test("a follower's kill replicates to the host, reaches dispatch:dispatch, and the ack retires the lock", async () => {
@@ -163,18 +206,35 @@ describe("sim window and device", () => {
     for (;;) {
       const d = await f.net.step();
       if (!d) throw new Error("the kill never got a response");
-      if (d.channel === follower.conn && d.label.startsWith("res dispatch:dispatch")) break;
+      if (
+        d.channel === follower.conn &&
+        d.label.startsWith("res dispatch:dispatch")
+      )
+        break;
     }
-    const lock = (follower.store.getState().pending as Record<string, any>)[`conversations:${id}:inbox_dismissed_at`];
-    const receipt = f.backend.db._tables.sync_outbox.find((r: any) =>
-      r.scope_key === `user:${f.userId}` && r.entity_id === id);
-    expect(lock?.ack).toEqual([{ s: `outbox:${receipt._id}`, p: receipt.revision }]);
+    const lock = (follower.store.getState().pending as Record<string, any>)[
+      `conversations:${id}:inbox_dismissed_at`
+    ];
+    const receipt = f.backend.db._tables.sync_outbox.find(
+      (r: any) => r.scope_key === `user:${f.userId}` && r.entity_id === id,
+    );
+    expect(lock?.ack).toEqual([
+      { s: `outbox:${receipt._id}`, p: receipt.revision },
+    ]);
     await f.net.drain();
 
-    expect(sentOn(f, "repl:A-w1>A-host", /^mut from A-w1/).length).toBeGreaterThan(0);
-    expect(sentOn(f, "conn:A-w1", /^req mutation dispatch:dispatch/).length).toBe(1);
-    expect(f.backend.calls.filter((c) => c.name === "dispatch:dispatch" && c.ok)).toHaveLength(1);
-    const row = f.backend.db._tables.conversations.find((c: any) => c._id === id);
+    expect(
+      sentOn(f, "repl:A-w1>A-host", /^mut from A-w1/).length,
+    ).toBeGreaterThan(0);
+    expect(
+      sentOn(f, "conn:A-w1", /^req mutation dispatch:dispatch/).length,
+    ).toBe(1);
+    expect(
+      f.backend.calls.filter((c) => c.name === "dispatch:dispatch" && c.ok),
+    ).toHaveLength(1);
+    const row = f.backend.db._tables.conversations.find(
+      (c: any) => c._id === id,
+    );
     expect(row.inbox_killed_at).toBeNumber();
 
     // The acting window's locks retire through its acknowledgement.
@@ -188,7 +248,10 @@ describe("sim window and device", () => {
     const hostPending = host.store.getState().pending as Record<string, any>;
     expect(lockKeys(host, id).filter((k) => hostPending[k]?.ack)).toEqual([]);
     for (const w of [host, follower]) {
-      expect({ window: w.name, shown: (await actionable(w)).includes(id) }).toEqual({ window: w.name, shown: false });
+      expect({
+        window: w.name,
+        shown: (await actionable(w)).includes(id),
+      }).toEqual({ window: w.name, shown: false });
       expect(w.outbox.size).toBe(0);
       expect(w.errors).toEqual([]);
     }
@@ -204,7 +267,9 @@ describe("sim window and device", () => {
     await follower.run(() => useInboxStore.getState().pinSession(a));
     await f.net.drain();
     expect(follower.outbox.size).toBe(1);
-    expect(f.backend.calls.filter((c) => c.name === "dispatch:dispatch")).toHaveLength(0);
+    expect(
+      f.backend.calls.filter((c) => c.name === "dispatch:dispatch"),
+    ).toHaveLength(0);
 
     // The host's engine is its own: wired, nothing parked, and its writes land.
     expect((host.store.getState() as any)._isDispatchWired()).toBe(true);
@@ -213,7 +278,8 @@ describe("sim window and device", () => {
     await f.net.drain();
     expect(host.outbox.size).toBe(0);
     expect(follower.outbox.size).toBe(1);
-    const conv = (id: string) => f.backend.db._tables.conversations.find((c: any) => c._id === id);
+    const conv = (id: string) =>
+      f.backend.db._tables.conversations.find((c: any) => c._id === id);
     expect(conv(b).inbox_pinned_at).toBeNumber();
     expect(conv(a).inbox_pinned_at ?? null).not.toBe(conv(b).inbox_pinned_at);
 
@@ -230,21 +296,34 @@ describe("sim window and device", () => {
     const host = dev.host;
     const id = (await actionable(host))[0];
     const clientId = "sim-send-1";
-    const rows = () => f.backend.db._tables.pending_messages.filter((m: any) => m.client_id === clientId);
+    const rows = () =>
+      f.backend.db._tables.pending_messages.filter(
+        (m: any) => m.client_id === clientId,
+      );
 
     host.dropResponse(1);
-    await host.run(() => useInboxStore.getState().sendMessage(id, "hello from the sim", undefined, clientId));
+    await host.run(() =>
+      useInboxStore
+        .getState()
+        .sendMessage(id, "hello from the sim", undefined, clientId),
+    );
     // Run until the first response arrives (and is dropped), then lose the connection.
     for (;;) {
       const d = await f.net.step();
       if (!d) throw new Error("the send never got a response");
-      if (d.channel === host.conn && d.label.startsWith("res dispatch:dispatch")) break;
+      if (
+        d.channel === host.conn &&
+        d.label.startsWith("res dispatch:dispatch")
+      )
+        break;
     }
     expect(rows()).toHaveLength(1);
     f.net.offline(host.name);
     await f.net.drain(); // the retry ladder re-sends; the request waits on the dead connection
     expect(host.outbox.size).toBe(1);
-    expect(sentOn(f, host.conn, /^req mutation dispatch:dispatch/)).toHaveLength(1);
+    expect(
+      sentOn(f, host.conn, /^req mutation dispatch:dispatch/),
+    ).toHaveLength(1);
 
     f.net.online(host.name);
     await f.net.drain();

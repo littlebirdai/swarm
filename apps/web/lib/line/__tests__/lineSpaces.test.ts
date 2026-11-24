@@ -1,16 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import { lineSpaces, pickLineSpace } from "../lineSpaces";
 
-const teams = [{ _id: "u1", name: "Union" }, { _id: "c1", name: "Codecast" }, { _id: "f1", name: "Footage" }];
-const cause = (workspace: string, status = "open") => ({ cause: {}, status, workspace });
+const teams = [
+  { _id: "u1", name: "Union" },
+  { _id: "c1", name: "Codecast" },
+  { _id: "f1", name: "Footage" },
+];
+const cause = (workspace: string, status = "open") => ({
+  cause: {},
+  status,
+  workspace,
+});
 
 describe("the workspace /line reads", () => {
   // The founder's app sat on Personal (1 open test problem) while his lines ran in Union: /line read Personal and
   // showed nothing waiting on him.
   const tasks = [
-    cause("user:me"), cause("user:me", "done"),
-    cause("team:u1"), cause("team:u1"), cause("team:u1", "done"),
-    cause("team:c1"), cause("team:c1", "done"),
+    cause("user:me"),
+    cause("user:me", "done"),
+    cause("team:u1"),
+    cause("team:u1"),
+    cause("team:u1", "done"),
+    cause("team:c1"),
+    cause("team:c1", "done"),
     { status: "open", workspace: "team:f1" },
     cause("team:gone"),
   ];
@@ -24,7 +36,11 @@ describe("the workspace /line reads", () => {
       { key: "team:f1", name: "Footage", open: 0, problems: 0 },
       { key: "user:me", name: "Personal", open: 1, problems: 2 },
     ]);
-    expect(lineSpaces([], teams, "me").map((s) => s.key)).toEqual(["team:c1", "team:f1", "team:u1"]);
+    expect(lineSpaces([], teams, "me").map((s) => s.key)).toEqual([
+      "team:c1",
+      "team:f1",
+      "team:u1",
+    ]);
   });
 
   test("a cached row of a team the viewer is not in is not offered", () => {

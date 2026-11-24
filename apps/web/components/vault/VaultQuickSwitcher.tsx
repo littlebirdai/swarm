@@ -25,7 +25,7 @@ import { modernDialog, modernScrim } from "../ui/modernLook";
 
 interface SwitchTarget {
   path: string;
-  name: string;          // display name (no .md)
+  name: string; // display name (no .md)
   prepName: Fuzzysort.Prepared;
   prepPath: Fuzzysort.Prepared;
   /** Frontmatter aliases — Obsidian's switcher matches them like names. */
@@ -53,11 +53,19 @@ function useSwitchTargets(open: boolean): SwitchTarget[] {
       .filter((p) => !files[p].dir && isVaultMarkdownPath(p))
       .map((path) => {
         const name = noteDisplayName(path.split("/").pop()!);
-        const aliases = (vaultIndex.note(path)?.parsed?.aliases ?? []).map((a) => ({
-          text: a,
-          prep: fuzzysort.prepare(a),
-        }));
-        return { path, name, aliases, prepName: fuzzysort.prepare(name), prepPath: fuzzysort.prepare(path) };
+        const aliases = (vaultIndex.note(path)?.parsed?.aliases ?? []).map(
+          (a) => ({
+            text: a,
+            prep: fuzzysort.prepare(a),
+          }),
+        );
+        return {
+          path,
+          name,
+          aliases,
+          prepName: fuzzysort.prepare(name),
+          prepPath: fuzzysort.prepare(path),
+        };
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, files, indexVersion]);
@@ -74,8 +82,14 @@ interface RankedResult {
   score: number;
 }
 
-function rank(targets: SwitchTarget[], query: string, recents: string[]): RankedResult[] {
-  const recentBoost = new Map(recents.map((p, i) => [p, (RECENT_CAP - Math.min(i, RECENT_CAP)) / 100]));
+function rank(
+  targets: SwitchTarget[],
+  query: string,
+  recents: string[],
+): RankedResult[] {
+  const recentBoost = new Map(
+    recents.map((p, i) => [p, (RECENT_CAP - Math.min(i, RECENT_CAP)) / 100]),
+  );
   const out: RankedResult[] = [];
   for (const t of targets) {
     const nameResult = fuzzysort.single(query, t.prepName);
@@ -83,7 +97,8 @@ function rank(targets: SwitchTarget[], query: string, recents: string[]): Ranked
     let aliasBest: { text: string; result: Fuzzysort.Result } | null = null;
     for (const a of t.aliases) {
       const r = fuzzysort.single(query, a.prep);
-      if (r && (!aliasBest || r.score > aliasBest.result.score)) aliasBest = { text: a.text, result: r };
+      if (r && (!aliasBest || r.score > aliasBest.result.score))
+        aliasBest = { text: a.text, result: r };
     }
     const nameScore = nameResult?.score ?? 0;
     const pathScore = (pathResult?.score ?? 0) * 0.9;
@@ -94,7 +109,8 @@ function rank(targets: SwitchTarget[], query: string, recents: string[]): Ranked
       target: t,
       nameResult,
       pathResult,
-      aliasResult: aliasScore > nameScore && aliasScore >= pathScore ? aliasBest : null,
+      aliasResult:
+        aliasScore > nameScore && aliasScore >= pathScore ? aliasBest : null,
       score: base + (recentBoost.get(t.path) ?? 0),
     });
   }
@@ -102,7 +118,13 @@ function rank(targets: SwitchTarget[], query: string, recents: string[]): Ranked
   return out.slice(0, RESULT_CAP);
 }
 
-function Highlighted({ result, fallback }: { result: Fuzzysort.Result | null; fallback: string }) {
+function Highlighted({
+  result,
+  fallback,
+}: {
+  result: Fuzzysort.Result | null;
+  fallback: string;
+}) {
   if (!result) return <>{fallback}</>;
   return (
     <>
@@ -150,16 +172,26 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
       const rest = targets
         .filter((t) => !recentPaths.includes(t.path))
         .slice(0, RESULT_CAP - recent.length);
-      return [...recent, ...rest].map((t) => ({ target: t, nameResult: null, pathResult: null, aliasResult: null, score: 0 }));
+      return [...recent, ...rest].map((t) => ({
+        target: t,
+        nameResult: null,
+        pathResult: null,
+        aliasResult: null,
+        score: 0,
+      }));
     }
     return rank(targets, query.trim(), recentPaths);
   }, [query, targets, recentPaths]);
 
   const exactMatch = useMemo(
-    () => results.some((r) => r.target.name.toLowerCase() === query.trim().toLowerCase()),
+    () =>
+      results.some(
+        (r) => r.target.name.toLowerCase() === query.trim().toLowerCase(),
+      ),
     [results, query],
   );
-  const showCreate = query.trim().length > 0 && !exactMatch && connection === "connected";
+  const showCreate =
+    query.trim().length > 0 && !exactMatch && connection === "connected";
   const rowCount = results.length + (showCreate ? 1 : 0);
 
   const openPath = (path: string, newTab: boolean) => {
@@ -167,7 +199,9 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
     noteOpened(path);
     const url = filesHref({ path });
     if (newTab) {
-      useInboxStore.getState().openTab({ path: url, title: noteDisplayName(path.split("/").pop()!) });
+      useInboxStore
+        .getState()
+        .openTab({ path: url, title: noteDisplayName(path.split("/").pop()!) });
     } else {
       router.push(url);
     }
@@ -223,7 +257,9 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
       }}
     >
       <div className={`absolute inset-0 bg-black/25 ${modernScrim}`} />
-      <div className={`relative w-[560px] max-w-[92vw] rounded-lg border border-sol-border/50 bg-sol-card shadow-2xl overflow-hidden ${modernDialog({ scroll: false })}`}>
+      <div
+        className={`relative w-[560px] max-w-[92vw] rounded-lg border border-sol-border/50 bg-sol-card shadow-2xl overflow-hidden ${modernDialog({ scroll: false })}`}
+      >
         <input
           ref={inputRef}
           value={query}
@@ -245,7 +281,9 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
               onClick={(e) => activate(i, e.metaKey || e.ctrlKey)}
               {...hoverFocus(() => setSelected(i))}
               className={`w-full flex items-center gap-2.5 px-4 py-1.5 text-left text-[13px] ${
-                i === selected ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted"
+                i === selected
+                  ? "bg-sol-bg-highlight text-sol-text"
+                  : "text-sol-text-muted"
               }`}
             >
               {!query && recentPaths.includes(r.target.path) ? (
@@ -257,7 +295,11 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
                 <Highlighted result={r.nameResult} fallback={r.target.name} />
                 {r.aliasResult && (
                   <span className="ml-1.5 text-meta text-sol-text-dim">
-                    via <Highlighted result={r.aliasResult.result} fallback={r.aliasResult.text} />
+                    via{" "}
+                    <Highlighted
+                      result={r.aliasResult.result}
+                      fallback={r.aliasResult.text}
+                    />
                   </span>
                 )}
               </span>
@@ -275,17 +317,24 @@ export const VaultQuickSwitcher = memo(function VaultQuickSwitcher() {
               onClick={createAndOpen}
               {...hoverFocus(() => setSelected(results.length))}
               className={`w-full flex items-center gap-2.5 px-4 py-1.5 text-left text-[13px] ${
-                selected === results.length ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted"
+                selected === results.length
+                  ? "bg-sol-bg-highlight text-sol-text"
+                  : "text-sol-text-muted"
               }`}
             >
               <FilePlus2 className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
               <span>
-                Create <span className="text-sol-text font-medium">{query.trim()}</span>
+                Create{" "}
+                <span className="text-sol-text font-medium">
+                  {query.trim()}
+                </span>
               </span>
             </button>
           )}
           {rowCount === 0 && (
-            <div className="px-4 py-6 text-center text-xs text-sol-text-dim">No matching notes.</div>
+            <div className="px-4 py-6 text-center text-xs text-sol-text-dim">
+              No matching notes.
+            </div>
           )}
         </div>
         <div className="flex items-center gap-3 px-4 py-2 border-t border-sol-border/30 text-meta text-sol-text-dim">

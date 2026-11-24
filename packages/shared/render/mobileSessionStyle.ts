@@ -36,24 +36,73 @@ export const MOBILE_CHIP_STYLE = {
 const DOT = { width: 6, height: 6, borderRadius: 3 } as const;
 
 export const MOBILE_SESSION_STYLE = {
-  pinnedHeader: { flexDirection: "row", alignItems: "center", paddingLeft: 6, paddingRight: 6, gap: 2 },
-  headerIconBtn: { width: 34, height: 34, justifyContent: "center", alignItems: "center" },
+  pinnedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 6,
+    paddingRight: 6,
+    gap: 2,
+  },
+  headerIconBtn: {
+    width: 34,
+    height: 34,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   headerTitleText: { flex: 1, fontSize: 15, fontWeight: "600" },
-  floatingSessionCard: { paddingLeft: 12, paddingRight: 12, paddingTop: 4, paddingBottom: 4 },
-  sessionMeta: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "nowrap", paddingRight: 8 },
+  floatingSessionCard: {
+    paddingLeft: 12,
+    paddingRight: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+  },
+  sessionMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "nowrap",
+    paddingRight: 8,
+  },
   metaBadgeIcon: { flexDirection: "row", alignItems: "center", gap: 4 },
   messageCountText: { fontSize: 11, fontWeight: "500", letterSpacing: 0.2 },
   dot: DOT,
   messageList: { padding: 16 },
   messageBubble: { marginBottom: 2, borderRadius: 12, overflow: "hidden" },
   // The person's turn is a filled bubble on the right with its tail corner squared, as in Messages.
-  userBubble: { alignSelf: "flex-end", maxWidth: "84%", borderRadius: 18, borderBottomRightRadius: 5, marginTop: 12, marginBottom: 6 },
-  userBubbleContent: { paddingLeft: 13, paddingRight: 13, paddingTop: 8, paddingBottom: 8 },
+  userBubble: {
+    alignSelf: "flex-end",
+    maxWidth: "84%",
+    borderRadius: 18,
+    borderBottomRightRadius: 5,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  userBubbleContent: {
+    paddingLeft: 13,
+    paddingRight: 13,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
   /** Who sent it, above a bubble from someone other than the session's owner. */
-  userBubbleSender: { alignSelf: "flex-end", fontSize: 11, marginTop: 12, marginBottom: -8, marginRight: 6 },
+  userBubbleSender: {
+    alignSelf: "flex-end",
+    fontSize: 11,
+    marginTop: 12,
+    marginBottom: -8,
+    marginRight: 6,
+  },
   assistantBubble: { alignSelf: "stretch" },
   assistantBubbleFirst: { marginTop: 8 },
-  bubbleHeader: { flexDirection: "row", justifyContent: "flex-start", alignItems: "center", gap: 8, paddingLeft: 14, paddingRight: 14, paddingTop: 10, paddingBottom: 4 },
+  bubbleHeader: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    gap: 8,
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
   bubbleRole: { fontSize: 12, fontWeight: "500" },
   bubbleTime: { fontSize: 11 },
   bubbleContent: { paddingLeft: 14, paddingRight: 14, paddingBottom: 10 },
@@ -61,33 +110,94 @@ export const MOBILE_SESSION_STYLE = {
   agentDot: { ...DOT, marginRight: 4 },
   modelBadge: { fontSize: 9, marginLeft: 4 },
   toolCallOnlyBubble: { marginBottom: 1 },
-  toolCallsCompact: { paddingLeft: 14, paddingRight: 14, paddingTop: 2, paddingBottom: 2, gap: 1 },
-  toolCallsContainer: { paddingLeft: 14, paddingRight: 14, paddingBottom: 8, gap: 2 },
+  toolCallsCompact: {
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingTop: 2,
+    paddingBottom: 2,
+    gap: 1,
+  },
+  toolCallsContainer: {
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingBottom: 8,
+    gap: 2,
+  },
   /** A folded run of tool calls: one quiet line, a chevron and what the run did. */
-  toolRunRow: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", maxWidth: "100%", marginLeft: 14, marginRight: 14, marginTop: 2, marginBottom: 6, paddingTop: 3, paddingBottom: 3 },
+  toolRunRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    marginLeft: 14,
+    marginRight: 14,
+    marginTop: 2,
+    marginBottom: 6,
+    paddingTop: 3,
+    paddingBottom: 3,
+  },
   toolRunText: { fontSize: 12, lineHeight: 17, flexShrink: 1 },
   toolCallHeader: { fontSize: 12, lineHeight: 18 },
   toolCallName: { fontSize: 12, fontWeight: "600" },
   toolCallSummary: { fontSize: 12 },
   toolCallResultHint: { fontSize: 11 },
-  composerCard: { marginLeft: 10, marginRight: 10, marginTop: 6, borderRadius: 20 },
-  composerActions: { flexDirection: "row", alignItems: "center", paddingLeft: 8, paddingRight: 8, paddingBottom: 8, paddingTop: 2 },
+  composerCard: {
+    marginLeft: 10,
+    marginRight: 10,
+    marginTop: 6,
+    borderRadius: 20,
+  },
+  composerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 8,
+    paddingRight: 8,
+    paddingBottom: 8,
+    paddingTop: 2,
+  },
   composerSpacer: { flex: 1, alignItems: "center", justifyContent: "center" },
   composerStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
-  textInput: { paddingLeft: 14, paddingRight: 14, paddingTop: 10, paddingBottom: 4, fontSize: 15, minHeight: 38 },
-  imageButton: { width: 32, height: 32, justifyContent: "center", alignItems: "center" },
-  sendButton: { minWidth: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", paddingLeft: 12, paddingRight: 12 },
+  textInput: {
+    paddingLeft: 14,
+    paddingRight: 14,
+    paddingTop: 10,
+    paddingBottom: 4,
+    fontSize: 15,
+    minHeight: 38,
+  },
+  imageButton: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendButton: {
+    minWidth: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingLeft: 12,
+    paddingRight: 12,
+  },
 } as const;
 
 /** The composer's placeholder, live and resumable. */
-export const MOBILE_COMPOSER_PLACEHOLDER = { active: "Type a message...", idle: "Send to resume session..." } as const;
+export const MOBILE_COMPOSER_PLACEHOLDER = {
+  active: "Type a message...",
+  idle: "Send to resume session...",
+} as const;
 
 /**
  * Agent statuses the composer shows between its buttons, with their tint and
  * label. Statuses not listed (idle, disconnected) show nothing. The tints are
  * the same in the app's light and dark palettes.
  */
-export const MOBILE_COMPOSER_STATUS: Record<string, { color: string; label: string }> = {
+export const MOBILE_COMPOSER_STATUS: Record<
+  string,
+  { color: string; label: string }
+> = {
   working: { color: "#10b981", label: "Working" },
   thinking: { color: "#6c71c4", label: "Thinking" },
   compacting: { color: "#f59e0b", label: "Compacting" },
@@ -123,7 +233,8 @@ export const MOBILE_AGENT_LOGO_BG: Record<string, string> = {
 
 /** Antigravity's mark: an arch, after the arch the CLI draws in block
  *  characters on its splash (24x24, filled), on web and mobile alike. */
-export const ANTIGRAVITY_MARK_PATH = "M3 21v-9a9 9 0 0 1 18 0v9h-4.5v-9a4.5 4.5 0 0 0-9 0v9z";
+export const ANTIGRAVITY_MARK_PATH =
+  "M3 21v-9a9 9 0 0 1 18 0v9h-4.5v-9a4.5 4.5 0 0 0-9 0v9z";
 
 /** Muse Spark's mark: Meta's infinity logo (24x24, evenodd), on web and mobile alike. */
 export const MUSE_MARK_PATH =

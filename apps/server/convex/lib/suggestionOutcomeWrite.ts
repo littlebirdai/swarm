@@ -18,7 +18,12 @@ export const outcomeArgs = {
   conversation_id: v.id("conversations"),
   anchor_message_uuid: v.string(),
   suggestion: v.string(),
-  outcome: v.union(v.literal("sent"), v.literal("edited"), v.literal("ignored"), v.literal("dismissed")),
+  outcome: v.union(
+    v.literal("sent"),
+    v.literal("edited"),
+    v.literal("ignored"),
+    v.literal("dismissed"),
+  ),
   // What was on show for the turn (absent from clients built before it).
   shown: v.optional(v.array(v.string())),
   // How many characters of the sent message the person typed: the composer
@@ -38,7 +43,10 @@ type OutcomeArgs = {
 };
 
 /** Owner-gated, append-only: suggestions are shown to a session's owner only, so only the owner reports on them. */
-export async function writeSuggestionOutcome(ctx: any, args: OutcomeArgs): Promise<void> {
+export async function writeSuggestionOutcome(
+  ctx: any,
+  args: OutcomeArgs,
+): Promise<void> {
   const userId = await getAuthUserId(ctx);
   if (!userId) return;
   const conv = await ctx.db.get(args.conversation_id);
@@ -50,8 +58,12 @@ export async function writeSuggestionOutcome(ctx: any, args: OutcomeArgs): Promi
     anchor_message_uuid: args.anchor_message_uuid,
     suggestion: cap(args.suggestion),
     outcome: args.outcome,
-    ...(args.shown ? { shown: args.shown.slice(0, MAX_SUGGESTIONS).map(cap) } : {}),
-    ...(typeof args.typed_length === "number" && args.typed_length > 0 ? { typed_length: Math.round(args.typed_length) } : {}),
+    ...(args.shown
+      ? { shown: args.shown.slice(0, MAX_SUGGESTIONS).map(cap) }
+      : {}),
+    ...(typeof args.typed_length === "number" && args.typed_length > 0
+      ? { typed_length: Math.round(args.typed_length) }
+      : {}),
     created_at: Date.now(),
   });
 }

@@ -6,7 +6,17 @@ import * as path from "node:path";
 import { sweepHostDisk } from "./hostDiskSweep.js";
 import { LANDED_REF } from "./remote/session-move.js";
 
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@t",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@t",
+    },
+  }).trim();
 
 function world() {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "host-sweep-"));
@@ -42,12 +52,25 @@ test("move clones: an unused clean one goes; in use, dirty, stashed or host-comm
   const unrecorded = path.join(work, "repo-mv-ffff");
   execFileSync("git", ["clone", "-q", repo, unrecorded]);
 
-  const r = await sweepHostDisk({ workDir: work, inUsePaths: [path.join(used, "sub")], log: () => {} });
-  expect(r.released).toEqual([clean]);
-  expect(Object.fromEntries(r.kept.map((k) => [path.basename(k.path), k.reason]))).toEqual({
-    "repo-mv-cccc": "uncommitted changes", "repo-mv-dddd": "commits made on this host", "repo-mv-eeee": "stashed work", "repo-mv-ffff": "no record of what the move landed",
+  const r = await sweepHostDisk({
+    workDir: work,
+    inUsePaths: [path.join(used, "sub")],
+    log: () => {},
   });
-  expect([fs.existsSync(clean), fs.existsSync(used), fs.existsSync(repo)]).toEqual([false, true, true]);
+  expect(r.released).toEqual([clean]);
+  expect(
+    Object.fromEntries(r.kept.map((k) => [path.basename(k.path), k.reason])),
+  ).toEqual({
+    "repo-mv-cccc": "uncommitted changes",
+    "repo-mv-dddd": "commits made on this host",
+    "repo-mv-eeee": "stashed work",
+    "repo-mv-ffff": "no record of what the move landed",
+  });
+  expect([
+    fs.existsSync(clean),
+    fs.existsSync(used),
+    fs.existsSync(repo),
+  ]).toEqual([false, true, true]);
 });
 
 test("worktrees are swept in checkouts kept outside ~/work too", async () => {
@@ -61,7 +84,12 @@ test("worktrees are swept in checkouts kept outside ~/work too", async () => {
   git(checkout, "commit", "-qm", "base");
   const wt = path.join(checkout, ".codecast", "worktrees", "done");
   git(checkout, "worktree", "add", "-q", "-b", "done", wt);
-  const r = await sweepHostDisk({ workDir: work, checkouts: [checkout], inUsePaths: [], log: () => {} });
+  const r = await sweepHostDisk({
+    workDir: work,
+    checkouts: [checkout],
+    inUsePaths: [],
+    log: () => {},
+  });
   expect(r.released.concat(r.kept.map((k) => k.path))).toContain(wt);
 });
 
@@ -74,15 +102,27 @@ test("a line run's worktree goes once no live run works in it, whatever it holds
     git(wt, "add", "-A");
     git(wt, "commit", "-qm", "the run's fix");
     fs.writeFileSync(path.join(wt, "scratch.log"), "left over");
-    fs.mkdirSync(path.join(repo, ".git", "cast-line", name, "runs"), { recursive: true });
-    fs.writeFileSync(path.join(repo, ".git", "cast-line", name, "runs", `${runId}.json`), JSON.stringify({ run_id: runId, context: { worktree: name } }));
+    fs.mkdirSync(path.join(repo, ".git", "cast-line", name, "runs"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(repo, ".git", "cast-line", name, "runs", `${runId}.json`),
+      JSON.stringify({ run_id: runId, context: { worktree: name } }),
+    );
     return wt;
   };
   const failed = tree("agentwatch-ct-1", "run_failed");
   const live = tree("agentwatch-ct-2", "run_live");
   const { runTreesInUseVia } = await import("./worktreeGc.js");
-  const r = await sweepHostDisk({ workDir: work, inUsePaths: [], runTreesInUse: runTreesInUseVia(async () => new Set(["run_live"])), log: () => {} });
+  const r = await sweepHostDisk({
+    workDir: work,
+    inUsePaths: [],
+    runTreesInUse: runTreesInUseVia(async () => new Set(["run_live"])),
+    log: () => {},
+  });
   expect(r.released).toEqual([failed]);
   expect(r.kept).toEqual([{ path: live, reason: "a live run works in it" }]);
-  expect(git(repo, "branch", "--list", "codecast/agentwatch-ct-1")).toContain("codecast/agentwatch-ct-1");
+  expect(git(repo, "branch", "--list", "codecast/agentwatch-ct-1")).toContain(
+    "codecast/agentwatch-ct-1",
+  );
 });

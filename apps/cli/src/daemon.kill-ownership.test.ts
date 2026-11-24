@@ -8,7 +8,12 @@ import { describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { acquireSessionProcessOwnership, primeSessionFileIndexAtBoot, refreshSessionFileIndex, resetSessionFileIndexForTests } from "./daemon.js";
+import {
+  acquireSessionProcessOwnership,
+  primeSessionFileIndexAtBoot,
+  refreshSessionFileIndex,
+  resetSessionFileIndexForTests,
+} from "./daemon.js";
 
 describe("kill_session ownership while the session index refreshes", () => {
   test("a Claude hand reads owned at once, and a Codex rollout under its id still vetoes", async () => {
@@ -17,12 +22,21 @@ describe("kill_session ownership while the session index refreshes", () => {
     const priorConfig = process.env.CODECAST_DIR;
     const id = "9b7cf9bb-5742-4293-82f3-2fe0f799482f";
     const projects = path.join(home, ".claude", "projects");
-    const file = path.join(projects, "-repo-worktrees-agentwatch-trial-ct-59543", `${id}.jsonl`);
+    const file = path.join(
+      projects,
+      "-repo-worktrees-agentwatch-trial-ct-59543",
+      `${id}.jsonl`,
+    );
     let release!: () => void;
-    const held = new Promise<void>((resolve) => { release = resolve; });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     let holding = false;
     const original = fs.promises.readdir;
-    const read = spyOn(fs.promises, "readdir").mockImplementation((async (dir: unknown, ...args: unknown[]) => {
+    const read = spyOn(fs.promises, "readdir").mockImplementation((async (
+      dir: unknown,
+      ...args: unknown[]
+    ) => {
       if (holding && String(dir) === projects) await held;
       return (original as any)(dir, ...args);
     }) as any);
@@ -31,7 +45,17 @@ describe("kill_session ownership while the session index refreshes", () => {
       process.env.HOME = home;
       process.env.CODECAST_DIR = path.join(home, ".codecast");
       fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.writeFileSync(file, JSON.stringify({ type: "user", sessionId: id, message: { role: "user", content: "You are running unattended: the Propose step" } }) + "\n");
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          type: "user",
+          sessionId: id,
+          message: {
+            role: "user",
+            content: "You are running unattended: the Propose step",
+          },
+        }) + "\n",
+      );
       resetSessionFileIndexForTests();
       await primeSessionFileIndexAtBoot();
 
@@ -40,13 +64,18 @@ describe("kill_session ownership while the session index refreshes", () => {
       refresh = refreshSessionFileIndex();
       const verdict = await Promise.race([
         acquireSessionProcessOwnership(id),
-        new Promise<string>((resolve) => setTimeout(() => resolve("still waiting"), 3000)),
+        new Promise<string>((resolve) =>
+          setTimeout(() => resolve("still waiting"), 3000),
+        ),
       ]);
       expect(verdict).toBe("owned");
 
       const codex = path.join(home, ".codex", "sessions", "2026", "10", "16");
       fs.mkdirSync(codex, { recursive: true });
-      fs.symlinkSync(file, path.join(codex, `rollout-2026-10-16T21-29-00-${id}.jsonl`));
+      fs.symlinkSync(
+        file,
+        path.join(codex, `rollout-2026-10-16T21-29-00-${id}.jsonl`),
+      );
       expect(await acquireSessionProcessOwnership(id)).toBe("unknown");
     } finally {
       release();

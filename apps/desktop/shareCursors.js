@@ -36,7 +36,12 @@ function sanitizeCursors(list) {
   for (const c of list.slice(0, MAX_CURSORS)) {
     if (!c || typeof c.id !== "string" || !c.id) continue;
     if (!Number.isFinite(c.nx) || !Number.isFinite(c.ny)) continue;
-    out.push({ id: c.id, name: typeof c.name === "string" ? c.name.slice(0, 80) : "", nx: clamp01(c.nx), ny: clamp01(c.ny) });
+    out.push({
+      id: c.id,
+      name: typeof c.name === "string" ? c.name.slice(0, 80) : "",
+      nx: clamp01(c.nx),
+      ny: clamp01(c.ny),
+    });
   }
   return out;
 }
@@ -51,20 +56,40 @@ function sourceRect(source, { screen, addon }) {
     // display_id is the Electron display id; "screen:<id>:0" carries the same
     // number on macOS, the fallback for a source that came without it.
     const displayId = source.displayId || source.id.split(":")[1];
-    const display = screen.getAllDisplays().find((d) => String(d.id) === String(displayId));
+    const display = screen
+      .getAllDisplays()
+      .find((d) => String(d.id) === String(displayId));
     return display ? { ...display.bounds } : null;
   }
   const m = /^window:(\d+):/.exec(source.id);
   const frame = m ? addon?.windowFrame?.(Number(m[1])) : null;
-  if (!frame || !frame.onscreen || !(frame.width > 0) || !(frame.height > 0)) return null;
-  return { x: Math.round(frame.x), y: Math.round(frame.y), width: Math.round(frame.width), height: Math.round(frame.height) };
+  if (!frame || !frame.onscreen || !(frame.width > 0) || !(frame.height > 0))
+    return null;
+  return {
+    x: Math.round(frame.x),
+    y: Math.round(frame.y),
+    width: Math.round(frame.width),
+    height: Math.round(frame.height),
+  };
 }
 
 function sameRect(a, b) {
-  return !!a && !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+  return (
+    !!a &&
+    !!b &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height
+  );
 }
 
-function createShareCursors({ createGlass, screen, addon, timers = { setInterval, clearInterval } }) {
+function createShareCursors({
+  createGlass,
+  screen,
+  addon,
+  timers = { setInterval, clearInterval },
+}) {
   const sources = new Map();
   let glass = null;
   let owner = null;
@@ -163,7 +188,15 @@ function createShareCursors({ createGlass, screen, addon, timers = { setInterval
     });
   }
 
-  return { setSource, update, forget, install, get glass() { return glass; } };
+  return {
+    setSource,
+    update,
+    forget,
+    install,
+    get glass() {
+      return glass;
+    },
+  };
 }
 
 module.exports = { CHANNEL, sanitizeCursors, sourceRect, createShareCursors };

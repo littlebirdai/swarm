@@ -12,34 +12,54 @@ import { useRouter } from "next/navigation";
 import { useInboxStore } from "../../store/inboxStore";
 import { redoTo, undoTo } from "../../store/undoStack";
 import * as undoTimeline from "../../lib/undoTimelineOpen";
-import { ORG_RECORD_PATH, undoFixtureWalk, undoHistoryFixture, undoObjectsSig, undoTimelineRows } from "../../lib/undoHistory";
+import {
+  ORG_RECORD_PATH,
+  undoFixtureWalk,
+  undoHistoryFixture,
+  undoObjectsSig,
+  undoTimelineRows,
+} from "../../lib/undoHistory";
 import { useUndoHistory } from "../../hooks/useUndoHistory";
 import { useOpenSession } from "../../hooks/useOpenSession";
 import { useOpenRecentVisit } from "../../hooks/useOpenRecentVisit";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
-import { getShortcutsForAction, matchShortcut, useShortcuts } from "../../shortcuts";
+import {
+  getShortcutsForAction,
+  matchShortcut,
+  useShortcuts,
+} from "../../shortcuts";
 import { UNDO_CARD_CHORDS } from "../../shortcuts/keyOwnership";
 import { orgPreviewEnabled } from "../org/staffingModel";
-import { UndoTimelineView, type UndoTimelineViewProps } from "./UndoTimelineView";
+import {
+  UndoTimelineView,
+  type UndoTimelineViewProps,
+} from "./UndoTimelineView";
 import { useUndoWalk } from "../../hooks/useUndoWalk";
 import type { ResolvedVisit } from "../../lib/recentVisits";
 
-
 function useCardChords(): (e: KeyboardEvent) => boolean {
   const { dispatchAction } = useShortcuts();
-  return useCallback((e: KeyboardEvent) => {
-    for (const action of UNDO_CARD_CHORDS) {
-      const def = getShortcutsForAction(action).find((d) => matchShortcut(e, d));
-      if (!def) continue;
-      e.preventDefault();
-      if (!(def.noRepeat && e.repeat)) dispatchAction(action);
-      return true;
-    }
-    return false;
-  }, [dispatchAction]);
+  return useCallback(
+    (e: KeyboardEvent) => {
+      for (const action of UNDO_CARD_CHORDS) {
+        const def = getShortcutsForAction(action).find((d) =>
+          matchShortcut(e, d),
+        );
+        if (!def) continue;
+        e.preventDefault();
+        if (!(def.noRepeat && e.repeat)) dispatchAction(action);
+        return true;
+      }
+      return false;
+    },
+    [dispatchAction],
+  );
 }
 
-type CardActs = Pick<UndoTimelineViewProps, "onOpen" | "onOpenOrg" | "onClose" | "onKey">;
+type CardActs = Pick<
+  UndoTimelineViewProps,
+  "onOpen" | "onOpenOrg" | "onClose" | "onKey"
+>;
 
 /** Opening a place, the org record, closing: shared by the live card and the
  *  preview. Sessions open through the inbox and pages in the tabs; outside
@@ -49,16 +69,26 @@ function useCardActs(): CardActs {
   const openVisit = useOpenRecentVisit(useOpenSession());
   // close() hands focus back to whatever held it before the card opened.
   const onClose = useCallback(() => undoTimeline.close(), []);
-  const onOpen = useCallback((visit: ResolvedVisit) => {
+  const onOpen = useCallback(
+    (visit: ResolvedVisit) => {
+      undoTimeline.close();
+      openVisit(visit);
+    },
+    [openVisit],
+  );
+  const onOpenOrg = useCallback(() => {
     undoTimeline.close();
-    openVisit(visit);
-  }, [openVisit]);
-  const onOpenOrg = useCallback(() => { undoTimeline.close(); router.push(ORG_RECORD_PATH); }, [router]);
+    router.push(ORG_RECORD_PATH);
+  }, [router]);
   const onKey = useCardChords();
   return { onOpen, onOpenOrg, onClose, onKey };
 }
 
-export function UndoTimeline({ mode }: { mode: undoTimeline.UndoTimelineMode }) {
+export function UndoTimeline({
+  mode,
+}: {
+  mode: undoTimeline.UndoTimelineMode;
+}) {
   const { snapshot, now, windowMs } = useUndoHistory();
   // Wake on what the rows paint (each object's presence and name), not on
   // every heartbeat that touches a session row.
@@ -69,10 +99,27 @@ export function UndoTimeline({ mode }: { mode: undoTimeline.UndoTimelineMode }) 
     [snapshot, now, windowMs, objectsSig],
   );
   const acts = useCardActs();
-  const onUndoTo = useCallback((id: string) => { undoTo(id); }, []);
-  const onRedoTo = useCallback((id: string) => { redoTo(id); }, []);
-  const flash = useSyncExternalStore(undoTimeline.subscribeFlash, undoTimeline.getFlash, undoTimeline.getFlash);
-  return <UndoTimelineView model={model} mode={mode} onUndoTo={onUndoTo} onRedoTo={onRedoTo} flash={flash} {...acts} />;
+  const onUndoTo = useCallback((id: string) => {
+    undoTo(id);
+  }, []);
+  const onRedoTo = useCallback((id: string) => {
+    redoTo(id);
+  }, []);
+  const flash = useSyncExternalStore(
+    undoTimeline.subscribeFlash,
+    undoTimeline.getFlash,
+    undoTimeline.getFlash,
+  );
+  return (
+    <UndoTimelineView
+      model={model}
+      mode={mode}
+      onUndoTo={onUndoTo}
+      onRedoTo={onRedoTo}
+      flash={flash}
+      {...acts}
+    />
+  );
 }
 
 /**
@@ -80,36 +127,66 @@ export function UndoTimeline({ mode }: { mode: undoTimeline.UndoTimelineMode }) 
  * `/tasks?preview=1`; `/inbox` redirects and drops it): the fixture's every row state, with the
  * walk kept in local state so Back and Forward move the head with no store.
  */
-export function UndoTimelinePreview({ mode }: { mode: undoTimeline.UndoTimelineMode }) {
+export function UndoTimelinePreview({
+  mode,
+}: {
+  mode: undoTimeline.UndoTimelineMode;
+}) {
   const now = useCoarseNow(60_000);
   const fixture = useMemo(() => undoHistoryFixture(Date.now()), []);
   const [head, setHead] = useState(fixture.snapshot.head);
   // Walk the fixture like the engine walks its stacks; rows off the stacks
   // (an org row, a refusal, a manual entry past the window) never move.
-  const snapshot = useMemo(() => undoFixtureWalk(fixture.snapshot.items, head, Date.now()), [fixture, head]);
-  const model = useMemo(() => undoTimelineRows(snapshot, fixture.state, now), [snapshot, fixture, now]);
+  const snapshot = useMemo(
+    () => undoFixtureWalk(fixture.snapshot.items, head, Date.now()),
+    [fixture, head],
+  );
+  const model = useMemo(
+    () => undoTimelineRows(snapshot, fixture.state, now),
+    [snapshot, fixture, now],
+  );
   const acts = useCardActs();
   // Back to a row makes the next entry down the undo stack the head.
-  const onUndoTo = useCallback((id: string) => {
-    const at = snapshot.undoOrder.indexOf(id);
-    if (at !== -1) setHead(snapshot.undoOrder[at + 1] ?? null);
-  }, [snapshot]);
+  const onUndoTo = useCallback(
+    (id: string) => {
+      const at = snapshot.undoOrder.indexOf(id);
+      if (at !== -1) setHead(snapshot.undoOrder[at + 1] ?? null);
+    },
+    [snapshot],
+  );
   const onRedoTo = useCallback((id: string) => setHead(id), []);
-  return <UndoTimelineView model={model} mode={mode} onUndoTo={onUndoTo} onRedoTo={onRedoTo} {...acts} />;
+  return (
+    <UndoTimelineView
+      model={model}
+      mode={mode}
+      onUndoTo={onUndoTo}
+      onRedoTo={onRedoTo}
+      {...acts}
+    />
+  );
 }
 
 /** Renders nothing until a doorway opens the card. */
 export function UndoTimelineHost() {
-  const state = useSyncExternalStore(undoTimeline.subscribe, undoTimeline.getSnapshot, undoTimeline.getSnapshot);
+  const state = useSyncExternalStore(
+    undoTimeline.subscribe,
+    undoTimeline.getSnapshot,
+    undoTimeline.getSnapshot,
+  );
   if (!state.open) return null;
   // Read per render, so an in-app navigation that drops the flag drops the fixture.
-  const preview = typeof window !== "undefined" && orgPreviewEnabled(window.location.search, !!import.meta.env.DEV);
+  const preview =
+    typeof window !== "undefined" &&
+    orgPreviewEnabled(window.location.search, !!import.meta.env.DEV);
   // Not keyed on the mode: a peek pinned by a press on it turns interactive in
   // place (the view takes focus then), so the press's click still lands on
   // the row button it was aimed at.
-  return preview ? <UndoTimelinePreview mode={state.mode} /> : <UndoTimeline mode={state.mode} />;
+  return preview ? (
+    <UndoTimelinePreview mode={state.mode} />
+  ) : (
+    <UndoTimeline mode={state.mode} />
+  );
 }
-
 
 /** Both halves of a frame's way back to its history, for a frame outside the
  *  dashboard (which mounts them itself): the keys and the held peek

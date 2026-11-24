@@ -27,18 +27,42 @@
 //   - Process liveness (/sessions' "active / idle 2h+ / dead / hibernated") is
 //     a different axis; it stays on that page as process facts, not a status.
 
-import { DEAD_AGENT_STATUSES, deriveLiveAt, isExitAfterDone, type WorkState } from "@codecast/shared/contracts";
+import {
+  DEAD_AGENT_STATUSES,
+  deriveLiveAt,
+  isExitAfterDone,
+  type WorkState,
+} from "@codecast/shared/contracts";
 import type { PlanState } from "@codecast/shared/tasks";
 import { agentStatusAt, liveFactsOf } from "./liveness";
 import { apiErrorBadge } from "./apiErrorBadge";
 import { sessionStartupState } from "./sessionLifecycle";
 
-export const SESSION_STATUSES = ["needs_you", "error", "working", "starting", "done", "dormant", "idle", "stashed", "killed"] as const;
+export const SESSION_STATUSES = [
+  "needs_you",
+  "error",
+  "working",
+  "starting",
+  "done",
+  "dormant",
+  "idle",
+  "stashed",
+  "killed",
+] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
 /** The mark a state draws (components/inbox/SessionStatusMark): a shape, so the
  *  state reads without its colour. Every one is static. */
-export type StatusMarkShape = "dot" | "ask" | "alert" | "dashed" | "check" | "moon" | "ring" | "aside" | "cross";
+export type StatusMarkShape =
+  | "dot"
+  | "ask"
+  | "alert"
+  | "dashed"
+  | "check"
+  | "moon"
+  | "ring"
+  | "aside"
+  | "cross";
 
 export type SessionStatusMeta = {
   word: string;
@@ -52,23 +76,81 @@ export type SessionStatusMeta = {
 };
 
 // Blue-grey, from the two theme tokens it sits between.
-const DORMANT_COLOR = "color-mix(in srgb, var(--sol-class-blue) 55%, var(--sol-text-dim))";
+const DORMANT_COLOR =
+  "color-mix(in srgb, var(--sol-class-blue) 55%, var(--sol-text-dim))";
 
 export const SESSION_STATUS: Record<SessionStatus, SessionStatusMeta> = {
-  working: { word: "Working", text: "text-sol-green", color: "var(--sol-class-green)", mark: "dot", meaning: "The agent is running now" },
-  needs_you: { word: "Needs you", text: "text-sol-yellow", color: "var(--sol-class-yellow)", mark: "ask", meaning: "The agent asked you something" },
-  error: { word: "Error", text: "text-sol-red", color: "var(--sol-class-red)", mark: "alert", meaning: "It stopped on a failure you have to clear" },
-  starting: { word: "Starting", text: "text-sol-green", color: "var(--sol-class-green)", mark: "dashed", meaning: "The agent is starting up" },
-  done: { word: "Done", text: "text-sol-cyan", color: "var(--sol-class-cyan)", mark: "check", meaning: "Finished, waiting for you to review" },
-  dormant: { word: "Dormant", text: "text-[color:color-mix(in_srgb,var(--sol-class-blue)_55%,var(--sol-text-dim))]", color: DORMANT_COLOR, mark: "moon", meaning: "Parked until something wakes it" },
-  idle: { word: "Idle", text: "text-sol-text-dim", color: "var(--sol-text-dim)", mark: "ring", meaning: "Nothing running, nothing asked" },
-  stashed: { word: "Stashed", text: "text-sol-text-dim", color: "var(--sol-text-dim)", mark: "aside", meaning: "Set aside; the agent may still run" },
-  killed: { word: "Closed", text: "text-sol-text-dim", color: "var(--sol-text-dim)", mark: "cross", meaning: "Stopped and filed away" },
+  working: {
+    word: "Working",
+    text: "text-sol-green",
+    color: "var(--sol-class-green)",
+    mark: "dot",
+    meaning: "The agent is running now",
+  },
+  needs_you: {
+    word: "Needs you",
+    text: "text-sol-yellow",
+    color: "var(--sol-class-yellow)",
+    mark: "ask",
+    meaning: "The agent asked you something",
+  },
+  error: {
+    word: "Error",
+    text: "text-sol-red",
+    color: "var(--sol-class-red)",
+    mark: "alert",
+    meaning: "It stopped on a failure you have to clear",
+  },
+  starting: {
+    word: "Starting",
+    text: "text-sol-green",
+    color: "var(--sol-class-green)",
+    mark: "dashed",
+    meaning: "The agent is starting up",
+  },
+  done: {
+    word: "Done",
+    text: "text-sol-cyan",
+    color: "var(--sol-class-cyan)",
+    mark: "check",
+    meaning: "Finished, waiting for you to review",
+  },
+  dormant: {
+    word: "Dormant",
+    text: "text-[color:color-mix(in_srgb,var(--sol-class-blue)_55%,var(--sol-text-dim))]",
+    color: DORMANT_COLOR,
+    mark: "moon",
+    meaning: "Parked until something wakes it",
+  },
+  idle: {
+    word: "Idle",
+    text: "text-sol-text-dim",
+    color: "var(--sol-text-dim)",
+    mark: "ring",
+    meaning: "Nothing running, nothing asked",
+  },
+  stashed: {
+    word: "Stashed",
+    text: "text-sol-text-dim",
+    color: "var(--sol-text-dim)",
+    mark: "aside",
+    meaning: "Set aside; the agent may still run",
+  },
+  killed: {
+    word: "Closed",
+    text: "text-sol-text-dim",
+    color: "var(--sol-text-dim)",
+    mark: "cross",
+    meaning: "Stopped and filed away",
+  },
 };
 
 /** A plan's derived state (shared derivePlanState) in the session vocabulary:
  *  the mark its group header wears and the word beside it. */
-export const PLAN_STATE_STATUS: Record<PlanState, { status: SessionStatus; word: string }> = {
+export const PLAN_STATE_STATUS: Record<
+  PlanState,
+  { status: SessionStatus; word: string }
+> = {
   needs_you: { status: "needs_you", word: "Needs you" },
   moving: { status: "working", word: "Moving" },
   parked: { status: "dormant", word: "Parked" },
@@ -81,24 +163,43 @@ export const PLAN_STATE_STATUS: Record<PlanState, { status: SessionStatus; word:
  *  sections (GlobalSessionPanel renderSection keys and hidden buckets) and the
  *  placement buckets they come from. */
 export type StatusSection =
-  | "questions" | "pinned" | "new" | "needs_input" | "hosted_stopped" | "done" | "working" | "dormant"
-  | "snoozed" | "stashed" | "dismissed";
+  | "questions"
+  | "pinned"
+  | "new"
+  | "needs_input"
+  | "hosted_stopped"
+  | "done"
+  | "working"
+  | "dormant"
+  | "snoozed"
+  | "stashed"
+  | "dismissed";
 
 /** The states a row may wear in each section. The mapping never leaves these. */
-export const SECTION_STATUSES: Record<StatusSection, readonly SessionStatus[]> = {
-  questions: ["needs_you"],
-  needs_input: ["needs_you", "error"],
-  hosted_stopped: ["error"],
-  working: ["working"],
-  done: ["done"],
-  dormant: ["dormant"],
-  snoozed: ["dormant"],
-  new: ["starting", "idle"],
-  stashed: ["stashed"],
-  dismissed: ["killed"],
-  // A pinned row keeps its own verdict: pinned is where, not what.
-  pinned: ["needs_you", "error", "working", "starting", "done", "dormant", "idle", "killed"],
-};
+export const SECTION_STATUSES: Record<StatusSection, readonly SessionStatus[]> =
+  {
+    questions: ["needs_you"],
+    needs_input: ["needs_you", "error"],
+    hosted_stopped: ["error"],
+    working: ["working"],
+    done: ["done"],
+    dormant: ["dormant"],
+    snoozed: ["dormant"],
+    new: ["starting", "idle"],
+    stashed: ["stashed"],
+    dismissed: ["killed"],
+    // A pinned row keeps its own verdict: pinned is where, not what.
+    pinned: [
+      "needs_you",
+      "error",
+      "working",
+      "starting",
+      "done",
+      "dormant",
+      "idle",
+      "killed",
+    ],
+  };
 
 /** The mark a rail section header carries: the state its rows wear. */
 export const SECTION_HEADER_STATUS: Partial<Record<string, SessionStatus>> = {
@@ -114,7 +215,13 @@ export const SECTION_HEADER_STATUS: Partial<Record<string, SessionStatus>> = {
 /** The board's bands in Modern, in reading order: the rail's sections, so a
  *  tile and a card agree. Error rides with Needs you, as it does in the rail. */
 export type StatusBand = "needs_you" | "working" | "done" | "dormant" | "idle";
-export const STATUS_BANDS: readonly StatusBand[] = ["needs_you", "working", "done", "dormant", "idle"];
+export const STATUS_BANDS: readonly StatusBand[] = [
+  "needs_you",
+  "working",
+  "done",
+  "dormant",
+  "idle",
+];
 export function bandOfStatus(status: SessionStatus): StatusBand | null {
   if (status === "needs_you" || status === "error") return "needs_you";
   if (status === "working" || status === "starting") return "working";
@@ -170,53 +277,93 @@ export type StatusLive = {
 export type StatusPlacement = { bucket: string; state: WorkState };
 
 const BUCKET_SECTION: Record<string, StatusSection | undefined> = {
-  questions: "questions", new: "new", needs_input: "needs_input", done: "done", dormant: "dormant",
-  working: "working", snoozed: "snoozed", stashed: "stashed", dismissed: "dismissed",
+  questions: "questions",
+  new: "new",
+  needs_input: "needs_input",
+  done: "done",
+  dormant: "dormant",
+  working: "working",
+  snoozed: "snoozed",
+  stashed: "stashed",
+  dismissed: "dismissed",
 };
 
 /** The section a placement bucket files under; null for the buckets that say
  *  where, not what (pinned, a hidden anchor, a blank or retired idle row). */
-export function sectionOfBucket(bucket: string | null | undefined): StatusSection | null {
+export function sectionOfBucket(
+  bucket: string | null | undefined,
+): StatusSection | null {
   return (bucket && BUCKET_SECTION[bucket]) || null;
 }
 
-const firstLine = (t: string) => (t.split("\n").find((l) => l.trim()) ?? "").trim();
+const firstLine = (t: string) =>
+  (t.split("\n").find((l) => l.trim()) ?? "").trim();
 const capitalize = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 
 /** Why a settled row is Error rather than Needs you, in words, or null when
  *  nothing failed: the hard blocks the placement files under needs_input that
  *  are failures, not asks (isHardBlocked minus the asks). */
-export function statusFailure(row: StatusRow, now: number, live: StatusLive = {}): { label: string; title?: string } | null {
+export function statusFailure(
+  row: StatusRow,
+  now: number,
+  live: StatusLive = {},
+): { label: string; title?: string } | null {
   const blocked = live.blocked ?? !!row.pending_api_error;
   if (blocked && row.pending_api_error) {
     const badge = apiErrorBadge(row.pending_api_error_kind, row.agent_type);
-    return badge ? { label: capitalize(badge.label), title: badge.title } : { label: "API error" };
+    return badge
+      ? { label: capitalize(badge.label), title: badge.title }
+      : { label: "API error" };
   }
-  if (row.session_error && row.pending_api_error_kind !== "safety") return { label: firstLine(row.session_error), title: row.session_error };
+  if (row.session_error && row.pending_api_error_kind !== "safety")
+    return { label: firstLine(row.session_error), title: row.session_error };
   // The rail re-derives unresponsiveness from the row's facts (deriveLiveAt);
   // the shipped flag says the same once the server has settled it.
-  if (row.is_unresponsive || deriveLiveAt(liveFactsOf(row), now).is_unresponsive) return { label: "Unresponsive" };
+  if (
+    row.is_unresponsive ||
+    deriveLiveAt(liveFactsOf(row), now).is_unresponsive
+  )
+    return { label: "Unresponsive" };
   // An exit after the agent parked itself as dormant ended a turn, not the
   // work: a claimed wake the system cannot see is the person's move (Needs
   // you), not a failure to clear.
   const status = agentStatusAt(row, now);
   if (
-    status && DEAD_AGENT_STATUSES.has(status) && (row.message_count ?? 0) > 0 &&
+    status &&
+    DEAD_AGENT_STATUSES.has(status) &&
+    (row.message_count ?? 0) > 0 &&
     row.thread_state_status !== "dormant" &&
-    !isExitAfterDone({ agentStatus: status, declaredStatus: row.thread_state_status ?? null, hasPending: !!row.has_pending, isUnresponsive: !!row.is_unresponsive })
-  ) return { label: "Agent stopped" };
+    !isExitAfterDone({
+      agentStatus: status,
+      declaredStatus: row.thread_state_status ?? null,
+      hasPending: !!row.has_pending,
+      isUnresponsive: !!row.is_unresponsive,
+    })
+  )
+    return { label: "Agent stopped" };
   return null;
 }
 
 /** A blank session the agent is bringing up: running already, a first send in
  *  flight, or inside the start grace (lib/sessionLifecycle) with no
  *  connection yet. A hosted one is starting until its first reply. */
-export function statusStarting(row: StatusRow, now: number, live: StatusLive = {}, hosted = false): boolean {
+export function statusStarting(
+  row: StatusRow,
+  now: number,
+  live: StatusLive = {},
+  hosted = false,
+): boolean {
   if ((row.message_count ?? 0) > 0) return false;
   if (live.pendingSend || hosted) return true;
   const status = agentStatusAt(row, now);
-  if (status && status !== "idle" && !DEAD_AGENT_STATUSES.has(status)) return true;
-  return sessionStartupState({ isConnected: !!row.is_connected, ageMs: now - (row.started_at || row.updated_at || now) }) === "starting";
+  if (status && status !== "idle" && !DEAD_AGENT_STATUSES.has(status))
+    return true;
+  return (
+    sessionStartupState({
+      isConnected: !!row.is_connected,
+      ageMs: now - (row.started_at || row.updated_at || now),
+    }) === "starting"
+  );
 }
 
 export type SessionStatusInput = {
@@ -235,45 +382,97 @@ export type SessionStatusInput = {
  *  are read, the same overlays placeInboxRows applies: a send in flight
  *  (the person already acted), a pending ask, and the clock past a snooze
  *  (sessionPlacement reads time at the row's own last activity). */
-function overlaidBucket(bucket: string, row: StatusRow, now: number, live: StatusLive): string {
+function overlaidBucket(
+  bucket: string,
+  row: StatusRow,
+  now: number,
+  live: StatusLive,
+): string {
   let b = bucket;
-  if (b === "snoozed" && !(row.inbox_snoozed_until && row.inbox_snoozed_until > now)) b = "needs_input";
-  if (live.asking && !row.inbox_killed_at && !row.user_rest && b !== "dismissed" && b !== "stashed" && b !== "snoozed") b = "questions";
-  if (live.pendingSend && !(row.inbox_snoozed_until && row.inbox_snoozed_until > now) && (b === "needs_input" || b === "done" || b === "dormant" || b === "new")) b = "working";
+  if (
+    b === "snoozed" &&
+    !(row.inbox_snoozed_until && row.inbox_snoozed_until > now)
+  )
+    b = "needs_input";
+  if (
+    live.asking &&
+    !row.inbox_killed_at &&
+    !row.user_rest &&
+    b !== "dismissed" &&
+    b !== "stashed" &&
+    b !== "snoozed"
+  )
+    b = "questions";
+  if (
+    live.pendingSend &&
+    !(row.inbox_snoozed_until && row.inbox_snoozed_until > now) &&
+    (b === "needs_input" || b === "done" || b === "dormant" || b === "new")
+  )
+    b = "working";
   return b;
 }
 
 /** The one state a session shows. */
-export function sessionStatusOf({ row, section, placement, now, live = {}, hosted = false }: SessionStatusInput): SessionStatus {
-  const where = section ?? (placement ? sectionOfBucket(overlaidBucket(placement.bucket, row, now, live)) : null);
+export function sessionStatusOf({
+  row,
+  section,
+  placement,
+  now,
+  live = {},
+  hosted = false,
+}: SessionStatusInput): SessionStatus {
+  const where =
+    section ??
+    (placement
+      ? sectionOfBucket(overlaidBucket(placement.bucket, row, now, live))
+      : null);
   switch (where) {
-    case "dismissed": return "killed";
-    case "stashed": return "stashed";
-    case "snoozed": return "dormant";
-    case "hosted_stopped": return "error";
-    case "questions": return "needs_you";
-    case "working": return "working";
-    case "done": return "done";
-    case "dormant": return "dormant";
-    case "needs_input": return live.stopped || statusFailure(row, now, live) ? "error" : "needs_you";
-    case "new": return statusStarting(row, now, live, hosted) ? "starting" : "idle";
+    case "dismissed":
+      return "killed";
+    case "stashed":
+      return "stashed";
+    case "snoozed":
+      return "dormant";
+    case "hosted_stopped":
+      return "error";
+    case "questions":
+      return "needs_you";
+    case "working":
+      return "working";
+    case "done":
+      return "done";
+    case "dormant":
+      return "dormant";
+    case "needs_input":
+      return live.stopped || statusFailure(row, now, live)
+        ? "error"
+        : "needs_you";
+    case "new":
+      return statusStarting(row, now, live, hosted) ? "starting" : "idle";
   }
   // Pinned, an anchor, a list with no sections, a row the inbox does not
   // place: the row's own verdict, the work state the placement stamps.
   if (row.inbox_killed_at) return "killed";
   if (row.inbox_dismissed_at) return "killed";
   if (row.inbox_stashed_at) return "stashed";
-  if (row.inbox_snoozed_until && row.inbox_snoozed_until > now) return "dormant";
+  if (row.inbox_snoozed_until && row.inbox_snoozed_until > now)
+    return "dormant";
   if (live.stopped) return "error";
   if (live.pendingSend) return "working";
   if (live.asking) return "needs_you";
-  if ((row.message_count ?? 0) === 0) return statusStarting(row, now, live, hosted) ? "starting" : "idle";
+  if ((row.message_count ?? 0) === 0)
+    return statusStarting(row, now, live, hosted) ? "starting" : "idle";
   switch (placement?.state ?? workStateOfRow(row, now)) {
-    case "working": return "working";
-    case "needs_input": return statusFailure(row, now, live) ? "error" : "needs_you";
-    case "done": return "done";
-    case "dormant": return "dormant";
-    default: return "idle";
+    case "working":
+      return "working";
+    case "needs_input":
+      return statusFailure(row, now, live) ? "error" : "needs_you";
+    case "done":
+      return "done";
+    case "dormant":
+      return "dormant";
+    default:
+      return "idle";
   }
 }
 
@@ -281,10 +480,14 @@ export function sessionStatusOf({ row, section, placement, now, live = {}, hoste
  *  its live status says, the coarse fallback /sessions always used. */
 function workStateOfRow(row: StatusRow, now: number): WorkState {
   const status = agentStatusAt(row, now);
-  if (row.awaiting_input || status === "permission_blocked") return "needs_input";
-  if (status === "hibernated" || status === "dormant" || status === "waiting") return "dormant";
-  if (status && status !== "idle" && !DEAD_AGENT_STATUSES.has(status)) return "working";
-  if (row.pending_api_error || row.session_error || row.is_unresponsive) return "needs_input";
+  if (row.awaiting_input || status === "permission_blocked")
+    return "needs_input";
+  if (status === "hibernated" || status === "dormant" || status === "waiting")
+    return "dormant";
+  if (status && status !== "idle" && !DEAD_AGENT_STATUSES.has(status))
+    return "working";
+  if (row.pending_api_error || row.session_error || row.is_unresponsive)
+    return "needs_input";
   if (row.thread_state_status === "done") return "done";
   return "idle";
 }
@@ -293,29 +496,51 @@ function workStateOfRow(row: StatusRow, now: number): WorkState {
  *  SessionStanding: the inbox's placement when it holds the row, else its
  *  triage stamps), or null for a row this device holds no live facts for. */
 export function statusOfStanding(
-  standing: { state: WorkState | null; shelf: "stashed" | "snoozed" | "dismissed" | "killed" | null } | undefined,
+  standing:
+    | {
+        state: WorkState | null;
+        shelf: "stashed" | "snoozed" | "dismissed" | "killed" | null;
+      }
+    | undefined,
   row: StatusRow,
   now: number,
 ): SessionStatus | null {
   if (!standing) return null;
-  if (standing.shelf === "killed" || standing.shelf === "dismissed") return "killed";
+  if (standing.shelf === "killed" || standing.shelf === "dismissed")
+    return "killed";
   if (standing.shelf === "stashed") return "stashed";
   if (standing.shelf === "snoozed") return "dormant";
   switch (standing.state) {
-    case "working": return "working";
-    case "needs_input": return statusFailure(row, now) ? "error" : "needs_you";
-    case "done": return "done";
-    case "dormant": return "dormant";
-    case "idle": return "idle";
-    default: return null;
+    case "working":
+      return "working";
+    case "needs_input":
+      return statusFailure(row, now) ? "error" : "needs_you";
+    case "done":
+      return "done";
+    case "dormant":
+      return "dormant";
+    case "idle":
+      return "idle";
+    default:
+      return null;
   }
 }
 
 /** The rail's renderSection key (and hidden-bucket variant) as a section. */
-export function sectionOfRailKey(key: string | null | undefined): StatusSection | null {
+export function sectionOfRailKey(
+  key: string | null | undefined,
+): StatusSection | null {
   switch (key) {
-    case "questions": case "new": case "needs_input": case "hosted_stopped": case "done": case "working": case "dormant":
-    case "snoozed": case "stashed": case "dismissed":
+    case "questions":
+    case "new":
+    case "needs_input":
+    case "hosted_stopped":
+    case "done":
+    case "working":
+    case "dormant":
+    case "snoozed":
+    case "stashed":
+    case "dismissed":
       return key;
     default:
       return null;

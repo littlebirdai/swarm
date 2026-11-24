@@ -16,22 +16,36 @@ export function antigravitySessionIdFromPath(filePath: string): string | null {
   const parts = filePath.split(/[\\/]/);
   const n = parts.length;
   if (n < 4) return null;
-  if (parts[n - 1] !== "transcript_full.jsonl" || parts[n - 2] !== "logs" || parts[n - 3] !== ".system_generated") return null;
+  if (
+    parts[n - 1] !== "transcript_full.jsonl" ||
+    parts[n - 2] !== "logs" ||
+    parts[n - 3] !== ".system_generated"
+  )
+    return null;
   const id = parts[n - 4]!;
   return ANTIGRAVITY_CONVERSATION_ID_RE.test(id) ? id : null;
 }
 
-export const ANTIGRAVITY_CONVERSATION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const ANTIGRAVITY_CONVERSATION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** agy's per-user data directory, from a transcript path: the parent of brain/. */
-export function antigravityDataDirFromTranscript(filePath: string): string | null {
+export function antigravityDataDirFromTranscript(
+  filePath: string,
+): string | null {
   const parts = filePath.split(/[\\/]/);
-  if (!antigravitySessionIdFromPath(filePath) || parts[parts.length - 5] !== "brain") return null;
+  if (
+    !antigravitySessionIdFromPath(filePath) ||
+    parts[parts.length - 5] !== "brain"
+  )
+    return null;
   return parts.slice(0, parts.length - 5).join("/") || null;
 }
 
 /** A workspace_uris value (`["file:///Users/a/My%20Dir"]`) → its first local path. */
-export function antigravityCwdFromWorkspaceUris(raw: unknown): string | undefined {
+export function antigravityCwdFromWorkspaceUris(
+  raw: unknown,
+): string | undefined {
   if (typeof raw !== "string" || !raw.trim()) return undefined;
   let uris: unknown;
   try {

@@ -26,16 +26,29 @@ const Source = { Mutation: 0, Input: 5 } as const;
 const NodeType = { Element: 2, Text: 3, CDATA: 4, Comment: 5 } as const;
 
 const FIELD_TAGS = new Set(["input", "textarea", "select", "option"]);
-const PRIVATE_CLASSES = ["rr-block", "rr-mask", "ph-no-capture", "sentry-block", "sentry-mask"];
+const PRIVATE_CLASSES = [
+  "rr-block",
+  "rr-mask",
+  "ph-no-capture",
+  "sentry-block",
+  "sentry-mask",
+];
 
-const stars = (s: unknown) => (typeof s === "string" ? "*".repeat(s.length) : s);
+const stars = (s: unknown) =>
+  typeof s === "string" ? "*".repeat(s.length) : s;
 
 function isPrivateElement(n: any): boolean {
   const a = n?.attributes;
   if (!a || typeof a !== "object") return false;
-  if (a["data-private"] !== undefined && a["data-private"] !== null && a["data-private"] !== "false") return true;
+  if (
+    a["data-private"] !== undefined &&
+    a["data-private"] !== null &&
+    a["data-private"] !== "false"
+  )
+    return true;
   const editable = a.contenteditable;
-  if (editable !== undefined && editable !== null && editable !== "false") return true;
+  if (editable !== undefined && editable !== null && editable !== "false")
+    return true;
   const cls = typeof a.class === "string" ? a.class.split(/\s+/) : [];
   return PRIVATE_CLASSES.some((c) => cls.includes(c));
 }
@@ -58,7 +71,12 @@ class Scrubber {
   }
 
   save(): DomScrubState {
-    return { private_text: [...this.privateText], private_parents: [...this.privateParents], fields: [...this.fields], textareas: [...this.textareas] };
+    return {
+      private_text: [...this.privateText],
+      private_parents: [...this.privateParents],
+      fields: [...this.fields],
+      textareas: [...this.textareas],
+    };
   }
 
   load(state: DomScrubState) {
@@ -78,33 +96,52 @@ class Scrubber {
       if (priv && id !== undefined) this.privateParents.add(id);
       if (FIELD_TAGS.has(tag)) {
         if (id !== undefined) this.fields.add(id);
-        if (n.attributes && typeof n.attributes === "object" && "value" in n.attributes) n.attributes.value = stars(n.attributes.value);
+        if (
+          n.attributes &&
+          typeof n.attributes === "object" &&
+          "value" in n.attributes
+        )
+          n.attributes.value = stars(n.attributes.value);
       }
       if (tag === "textarea" && id !== undefined) this.textareas.add(id);
-      for (const c of Array.isArray(n.childNodes) ? n.childNodes : []) this.node(c, priv, tag === "textarea");
+      for (const c of Array.isArray(n.childNodes) ? n.childNodes : [])
+        this.node(c, priv, tag === "textarea");
       return;
     }
-    if (n.type === NodeType.Text || n.type === NodeType.CDATA || n.type === NodeType.Comment) {
+    if (
+      n.type === NodeType.Text ||
+      n.type === NodeType.CDATA ||
+      n.type === NodeType.Comment
+    ) {
       if (inPrivate || inTextarea) {
         n.textContent = stars(n.textContent);
         if (id !== undefined) this.privateText.add(id);
       }
       return;
     }
-    for (const c of Array.isArray(n.childNodes) ? n.childNodes : []) this.node(c, inPrivate, inTextarea);
+    for (const c of Array.isArray(n.childNodes) ? n.childNodes : [])
+      this.node(c, inPrivate, inTextarea);
   }
 
   mutation(d: any) {
     for (const add of Array.isArray(d.adds) ? d.adds : []) {
       const parent = typeof add?.parentId === "number" ? add.parentId : -1;
-      this.node(add?.node, this.privateParents.has(parent), this.textareas.has(parent));
+      this.node(
+        add?.node,
+        this.privateParents.has(parent),
+        this.textareas.has(parent),
+      );
     }
     for (const t of Array.isArray(d.texts) ? d.texts : []) {
       if (t && this.privateText.has(t.id)) t.value = stars(t.value);
     }
     for (const a of Array.isArray(d.attributes) ? d.attributes : []) {
       if (!a || typeof a.attributes !== "object" || !a.attributes) continue;
-      if ("value" in a.attributes && (this.fields.has(a.id) || this.privateParents.has(a.id))) a.attributes.value = stars(a.attributes.value);
+      if (
+        "value" in a.attributes &&
+        (this.fields.has(a.id) || this.privateParents.has(a.id))
+      )
+        a.attributes.value = stars(a.attributes.value);
     }
   }
 }
@@ -127,15 +164,26 @@ export interface DomScrubState {
 }
 
 /** prepareDomCapture for one part of a recording, continuing from where the part before left the masking. */
-export function prepareDomCapturePart(input: readonly RrwebEvent[], state?: DomScrubState | null): { events: RrwebEvent[]; state: DomScrubState } {
-  const events = input.filter((e) => e && typeof e === "object" && typeof e.type === "number" && typeof e.timestamp === "number" && Number.isFinite(e.timestamp));
+export function prepareDomCapturePart(
+  input: readonly RrwebEvent[],
+  state?: DomScrubState | null,
+): { events: RrwebEvent[]; state: DomScrubState } {
+  const events = input.filter(
+    (e) =>
+      e &&
+      typeof e === "object" &&
+      typeof e.type === "number" &&
+      typeof e.timestamp === "number" &&
+      Number.isFinite(e.timestamp),
+  );
   events.sort((a, b) => a.timestamp - b.timestamp);
   const s = new Scrubber();
   if (state) s.load(state);
   for (const e of events) {
     const d = e.data;
     if (!d || typeof d !== "object") continue;
-    if (e.type === EventType.Meta && typeof d.href === "string") d.href = cleanUrl(d.href);
+    if (e.type === EventType.Meta && typeof d.href === "string")
+      d.href = cleanUrl(d.href);
     else if (e.type === EventType.FullSnapshot) {
       s.reset();
       s.node(d.node, false, false);

@@ -46,7 +46,11 @@ export const managedDeviceTables = {
     email: v.optional(v.string()),
     hostname: v.optional(v.string()),
     platform: v.optional(v.string()),
-    status: v.union(v.literal("pending"), v.literal("active"), v.literal("revoked")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("revoked"),
+    ),
     user_id: v.optional(v.id("users")),
     created_at: v.number(),
     enrolled_at: v.optional(v.number()),

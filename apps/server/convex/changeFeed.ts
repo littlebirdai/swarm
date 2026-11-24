@@ -19,12 +19,7 @@ import { query } from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 export type FeedChange = {
-  entity_type:
-    | "conversations"
-    | "tasks"
-    | "docs"
-    | "plans"
-    | "projects";
+  entity_type: "conversations" | "tasks" | "docs" | "plans" | "projects";
   entity_id: string;
   op: "upsert" | "delete";
 };
@@ -75,7 +70,11 @@ export function mergeChangeFeed(
       : since;
 
   return {
-    changes: deduped.map((r) => ({ entity_type: r.entity_type, entity_id: r.entity_id, op: r.op })),
+    changes: deduped.map((r) => ({
+      entity_type: r.entity_type,
+      entity_id: r.entity_id,
+      op: r.op,
+    })),
     nextSince,
     hasMore,
   };
@@ -111,7 +110,9 @@ export const getChangesSince = query({
     // Owner scope: everything the user owns, all four entity types.
     const ownerRows = (await ctx.db
       .query("change_log")
-      .withIndex("by_owner_seq", (q: any) => q.eq("owner_user_id", userId).gt("seq", args.since))
+      .withIndex("by_owner_seq", (q: any) =>
+        q.eq("owner_user_id", userId).gt("seq", args.since),
+      )
       .order("asc")
       .take(cap)) as ChangeRow[];
 
@@ -125,7 +126,9 @@ export const getChangesSince = query({
     for (const teamId of teamIds) {
       const rows = (await ctx.db
         .query("change_log")
-        .withIndex("by_team_seq", (q: any) => q.eq("team_id", teamId).gt("seq", args.since))
+        .withIndex("by_team_seq", (q: any) =>
+          q.eq("team_id", teamId).gt("seq", args.since),
+        )
         .order("asc")
         .take(cap)) as ChangeRow[];
       const collab = rows.filter((r) => r.entity_type !== "conversations");

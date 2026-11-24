@@ -81,7 +81,13 @@ function unescapeAttr(value: string): string {
 export function normalizeAlts(raw: unknown): AltOption[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((o: any) => (typeof o === "string" ? { t: o } : o && typeof o.t === "string" ? { t: o.t, ...(o.ai ? { ai: true } : {}) } : null))
+    .map((o: any) =>
+      typeof o === "string"
+        ? { t: o }
+        : o && typeof o.t === "string"
+          ? { t: o.t, ...(o.ai ? { ai: true } : {}) }
+          : null,
+    )
     .filter((o): o is AltOption => !!o && o.t.length > 0);
 }
 
@@ -92,10 +98,13 @@ export function openTag(kind: "flag", attrs: FlagAttrs): string;
 export function openTag(kind: DraftKind, attrs: any): string {
   if (kind === "alts") {
     const a = attrs as AltAttrs;
-    const json = JSON.stringify(normalizeAlts(a.alts).map((o) => (o.ai ? { t: o.t, ai: 1 } : { t: o.t })));
+    const json = JSON.stringify(
+      normalizeAlts(a.alts).map((o) => (o.ai ? { t: o.t, ai: 1 } : { t: o.t })),
+    );
     return `<span data-alts='${escapeAttr(json, "'")}' data-alt-at="${Math.max(0, a.at | 0)}"${a.ai ? ' data-alt-ai="1"' : ""}>`;
   }
-  if (kind === "ghost") return `<span data-ghost="${escapeAttr((attrs as GhostAttrs).reason ?? "")}">`;
+  if (kind === "ghost")
+    return `<span data-ghost="${escapeAttr((attrs as GhostAttrs).reason ?? "")}">`;
   const f = attrs as FlagAttrs;
   return `<span data-flag="${escapeAttr(f.flag)}"${f.note ? ` data-note="${escapeAttr(f.note)}"` : ""}>`;
 }
@@ -109,7 +118,9 @@ function readAttr(tag: string, name: string): string | null {
 }
 
 /** Parse the attributes of a drafting span's opening tag, or null for any other tag. */
-export function parseOpenTag(tag: string):
+export function parseOpenTag(
+  tag: string,
+):
   | { kind: "alts"; attrs: AltAttrs }
   | { kind: "ghost"; attrs: GhostAttrs }
   | { kind: "flag"; attrs: FlagAttrs }
@@ -121,12 +132,28 @@ export function parseOpenTag(tag: string):
       parsed = JSON.parse(alts);
     } catch {}
     const at = Number(readAttr(tag, "data-alt-at") ?? 0);
-    return { kind: "alts", attrs: { alts: normalizeAlts(parsed), at: Number.isFinite(at) ? at : 0, ...(readAttr(tag, "data-alt-ai") ? { ai: true } : {}) } };
+    return {
+      kind: "alts",
+      attrs: {
+        alts: normalizeAlts(parsed),
+        at: Number.isFinite(at) ? at : 0,
+        ...(readAttr(tag, "data-alt-ai") ? { ai: true } : {}),
+      },
+    };
   }
   const ghost = readAttr(tag, "data-ghost");
   if (ghost !== null) return { kind: "ghost", attrs: { reason: ghost } };
   const flag = readAttr(tag, "data-flag");
-  if (flag !== null) return { kind: "flag", attrs: { flag, ...(readAttr(tag, "data-note") ? { note: readAttr(tag, "data-note")! } : {}) } };
+  if (flag !== null)
+    return {
+      kind: "flag",
+      attrs: {
+        flag,
+        ...(readAttr(tag, "data-note")
+          ? { note: readAttr(tag, "data-note")! }
+          : {}),
+      },
+    };
   return null;
 }
 
@@ -139,11 +166,18 @@ export function fullAltList(attrs: AltAttrs, shown: string): AltOption[] {
 }
 
 /** Split a full list back into stored attrs with `index` as the shown version. */
-export function altAttrsFor(full: AltOption[], index: number): { attrs: AltAttrs; shown: string } {
+export function altAttrsFor(
+  full: AltOption[],
+  index: number,
+): { attrs: AltAttrs; shown: string } {
   const i = Math.min(Math.max(0, index), full.length - 1);
   const shown = full[i];
   return {
-    attrs: { alts: full.filter((_, j) => j !== i), at: i, ...(shown.ai ? { ai: true } : {}) },
+    attrs: {
+      alts: full.filter((_, j) => j !== i),
+      at: i,
+      ...(shown.ai ? { ai: true } : {}),
+    },
     shown: shown.t,
   };
 }
@@ -161,7 +195,9 @@ export function agreeArticle(before: string, next: string): string {
   const want = vowel ? "an" : "a";
   if (lower === want) return before;
   const cased = m[2][0] === "A" ? want[0].toUpperCase() + want.slice(1) : want;
-  return before.slice(0, before.length - m[2].length - m[3].length) + cased + m[3];
+  return (
+    before.slice(0, before.length - m[2].length - m[3].length) + cased + m[3]
+  );
 }
 
 const SILENT_H = /^(hour|honest|honor|honour|heir)/i;
@@ -214,19 +250,29 @@ export function findDraftSpans(md: string): DraftSpan[] {
         inner: md.slice(open.innerStart, m.index),
       });
     } else {
-      stack.push({ tag: m[0], start: m.index, innerStart: m.index + m[0].length });
+      stack.push({
+        tag: m[0],
+        start: m.index,
+        innerStart: m.index + m[0].length,
+      });
     }
   }
   return out.sort((a, b) => a.start - b.start || b.end - a.end);
 }
 
 /** Markdown with every drafting span unwrapped (text kept). `dropGhosts` also deletes ghosted text. */
-export function stripDrafting(md: string, opts: { dropGhosts?: boolean } = {}): string {
+export function stripDrafting(
+  md: string,
+  opts: { dropGhosts?: boolean } = {},
+): string {
   let out = md;
   // Innermost first, so offsets of the enclosing spans stay valid as we go.
   const spans = findDraftSpans(md).sort((a, b) => b.start - a.start);
   for (const s of spans) {
-    const replacement = opts.dropGhosts && s.kind === "ghost" ? "" : out.slice(s.innerStart, s.innerEnd);
+    const replacement =
+      opts.dropGhosts && s.kind === "ghost"
+        ? ""
+        : out.slice(s.innerStart, s.innerEnd);
     out = out.slice(0, s.start) + replacement + out.slice(s.end);
   }
   if (opts.dropGhosts) out = tidySpacing(out);
@@ -237,7 +283,12 @@ export function stripDrafting(md: string, opts: { dropGhosts?: boolean } = {}): 
 export function tidySpacing(md: string): string {
   return md
     .split("\n")
-    .map((line) => line.replace(/(\S) {2,}(?=\S)/g, "$1 ").replace(/ +([,.;:!?])/g, "$1").replace(/[ \t]+$/g, ""))
+    .map((line) =>
+      line
+        .replace(/(\S) {2,}(?=\S)/g, "$1 ")
+        .replace(/ +([,.;:!?])/g, "$1")
+        .replace(/[ \t]+$/g, ""),
+    )
     .join("\n");
 }
 
@@ -247,7 +298,11 @@ export class DraftTargetError extends Error {}
  * Find `target` as literal text in the markdown. `occurrence` is 1-based.
  * The match must not cut through a tag, so wrapping it stays well formed.
  */
-export function locate(md: string, target: string, occurrence = 1): { start: number; end: number } {
+export function locate(
+  md: string,
+  target: string,
+  occurrence = 1,
+): { start: number; end: number } {
   if (!target) throw new DraftTargetError("Empty target text");
   let from = 0;
   let found = -1;
@@ -271,15 +326,24 @@ export function locate(md: string, target: string, occurrence = 1): { start: num
     const tStart = t.index;
     const tEnd = t.index + t[0].length;
     if ((tStart < found && tEnd > found) || (tStart < end && tEnd > end)) {
-      throw new DraftTargetError(`"${target}" cuts through drafting markup; pick text inside or around it`);
+      throw new DraftTargetError(
+        `"${target}" cuts through drafting markup; pick text inside or around it`,
+      );
     }
   }
   return { start: found, end };
 }
 
 /** The innermost span of `kind` whose shown text is exactly `target` (or that contains it). */
-function spanAt(md: string, kind: DraftKind, range: { start: number; end: number }): DraftSpan | null {
-  const hits = findDraftSpans(md).filter((s) => s.kind === kind && s.innerStart <= range.start && s.innerEnd >= range.end);
+function spanAt(
+  md: string,
+  kind: DraftKind,
+  range: { start: number; end: number },
+): DraftSpan | null {
+  const hits = findDraftSpans(md).filter(
+    (s) =>
+      s.kind === kind && s.innerStart <= range.start && s.innerEnd >= range.end,
+  );
   return hits.sort((a, b) => b.start - a.start)[0] ?? null;
 }
 
@@ -289,7 +353,9 @@ function count(md: string, target: string): number {
 
 function needUnique(md: string, target: string, occurrence?: number) {
   if (occurrence === undefined && count(md, target) > 1) {
-    throw new DraftTargetError(`"${target}" appears ${count(md, target)} times; pass an occurrence (--nth)`);
+    throw new DraftTargetError(
+      `"${target}" appears ${count(md, target)} times; pass an occurrence (--nth)`,
+    );
   }
 }
 
@@ -312,47 +378,100 @@ export function addAlternatives(
   if (existing && existing.inner === target) {
     const attrs = existing.attrs as AltAttrs;
     const known = new Set([target, ...attrs.alts.map((o) => o.t)]);
-    const added = fresh.filter((t) => !known.has(t)).map((t) => ({ t, ...(opts.ai ? { ai: true } : {}) }));
+    const added = fresh
+      .filter((t) => !known.has(t))
+      .map((t) => ({ t, ...(opts.ai ? { ai: true } : {}) }));
     const next = { ...attrs, alts: [...attrs.alts, ...added] };
-    return md.slice(0, existing.start) + openTag("alts", next) + existing.inner + CLOSE_TAG + md.slice(existing.end);
+    return (
+      md.slice(0, existing.start) +
+      openTag("alts", next) +
+      existing.inner +
+      CLOSE_TAG +
+      md.slice(existing.end)
+    );
   }
-  const alts = [...new Set(fresh.filter((t) => t !== target))].map((t) => ({ t, ...(opts.ai ? { ai: true } : {}) }));
-  return md.slice(0, range.start) + openTag("alts", { alts, at: 0 }) + target + CLOSE_TAG + md.slice(range.end);
+  const alts = [...new Set(fresh.filter((t) => t !== target))].map((t) => ({
+    t,
+    ...(opts.ai ? { ai: true } : {}),
+  }));
+  return (
+    md.slice(0, range.start) +
+    openTag("alts", { alts, at: 0 }) +
+    target +
+    CLOSE_TAG +
+    md.slice(range.end)
+  );
 }
 
 /** Show version `index` (0 = original) of the alternatives span whose shown text is `target`. */
-export function pickAlternative(md: string, target: string, index: number, opts: { occurrence?: number } = {}): string {
+export function pickAlternative(
+  md: string,
+  target: string,
+  index: number,
+  opts: { occurrence?: number } = {},
+): string {
   needUnique(md, target, opts.occurrence);
   const range = locate(md, target, opts.occurrence ?? 1);
   const span = spanAt(md, "alts", range);
-  if (!span || span.inner !== target) throw new DraftTargetError(`"${target}" has no alternatives`);
+  if (!span || span.inner !== target)
+    throw new DraftTargetError(`"${target}" has no alternatives`);
   const full = fullAltList(span.attrs as AltAttrs, span.inner);
-  if (index < 0 || index >= full.length) throw new DraftTargetError(`Pick 0-${full.length - 1}`);
+  if (index < 0 || index >= full.length)
+    throw new DraftTargetError(`Pick 0-${full.length - 1}`);
   const { attrs, shown } = altAttrsFor(full, index);
   const before = agreeArticle(md.slice(0, span.start), shown);
-  return before + openTag("alts", attrs) + shown + CLOSE_TAG + md.slice(span.end);
+  return (
+    before + openTag("alts", attrs) + shown + CLOSE_TAG + md.slice(span.end)
+  );
 }
 
 /** Drop version `index` (never the one showing) from the set whose shown text is `target`. */
-export function dropAlternative(md: string, target: string, index: number, opts: { occurrence?: number } = {}): string {
+export function dropAlternative(
+  md: string,
+  target: string,
+  index: number,
+  opts: { occurrence?: number } = {},
+): string {
   needUnique(md, target, opts.occurrence);
   const range = locate(md, target, opts.occurrence ?? 1);
   const span = spanAt(md, "alts", range);
-  if (!span || span.inner !== target) throw new DraftTargetError(`"${target}" has no alternatives`);
+  if (!span || span.inner !== target)
+    throw new DraftTargetError(`"${target}" has no alternatives`);
   const full = fullAltList(span.attrs as AltAttrs, span.inner);
   const at = Math.min((span.attrs as AltAttrs).at, full.length - 1);
-  if (index === at) throw new DraftTargetError("That version is showing; pick another first");
-  if (index < 0 || index >= full.length) throw new DraftTargetError(`Versions are 0-${full.length - 1}`);
+  if (index === at)
+    throw new DraftTargetError("That version is showing; pick another first");
+  if (index < 0 || index >= full.length)
+    throw new DraftTargetError(`Versions are 0-${full.length - 1}`);
   const rest = full.filter((_, i) => i !== index);
-  if (rest.length < 2) return md.slice(0, span.start) + span.inner + md.slice(span.end);
+  if (rest.length < 2)
+    return md.slice(0, span.start) + span.inner + md.slice(span.end);
   const { attrs } = altAttrsFor(rest, index < at ? at - 1 : at);
-  return md.slice(0, span.start) + openTag("alts", attrs) + span.inner + CLOSE_TAG + md.slice(span.end);
+  return (
+    md.slice(0, span.start) +
+    openTag("alts", attrs) +
+    span.inner +
+    CLOSE_TAG +
+    md.slice(span.end)
+  );
 }
 
 /** Remove the alternatives on `target`, keeping the version shown now (or `keep`). */
-export function settleAlternatives(md: string, target: string, opts: { occurrence?: number; keep?: number } = {}): string {
-  const picked = opts.keep === undefined ? md : pickAlternative(md, target, opts.keep, opts);
-  const shown = opts.keep === undefined ? target : fullAltList(spanAt(md, "alts", locate(md, target, opts.occurrence ?? 1))!.attrs as AltAttrs, target)[opts.keep].t;
+export function settleAlternatives(
+  md: string,
+  target: string,
+  opts: { occurrence?: number; keep?: number } = {},
+): string {
+  const picked =
+    opts.keep === undefined ? md : pickAlternative(md, target, opts.keep, opts);
+  const shown =
+    opts.keep === undefined
+      ? target
+      : fullAltList(
+          spanAt(md, "alts", locate(md, target, opts.occurrence ?? 1))!
+            .attrs as AltAttrs,
+          target,
+        )[opts.keep].t;
   needUnique(picked, shown, opts.occurrence);
   const range = locate(picked, shown, opts.occurrence ?? 1);
   const span = spanAt(picked, "alts", range);
@@ -361,53 +480,108 @@ export function settleAlternatives(md: string, target: string, opts: { occurrenc
 }
 
 /** Wrap `target` in a ghost span (dimmed back). A reason marks a proposed cut. */
-export function ghostText(md: string, target: string, opts: { reason?: string; occurrence?: number } = {}): string {
+export function ghostText(
+  md: string,
+  target: string,
+  opts: { reason?: string; occurrence?: number } = {},
+): string {
   needUnique(md, target, opts.occurrence);
   const range = locate(md, target, opts.occurrence ?? 1);
   const existing = spanAt(md, "ghost", range);
   if (existing && existing.inner === target) return md;
-  return md.slice(0, range.start) + openTag("ghost", { reason: opts.reason ?? "" }) + target + CLOSE_TAG + md.slice(range.end);
+  return (
+    md.slice(0, range.start) +
+    openTag("ghost", { reason: opts.reason ?? "" }) +
+    target +
+    CLOSE_TAG +
+    md.slice(range.end)
+  );
 }
 
 /** Bring ghosted text back: the span around `target`, or every ghost (optionally of one reason). */
-export function reviveText(md: string, target?: string, opts: { reason?: string; occurrence?: number } = {}): string {
+export function reviveText(
+  md: string,
+  target?: string,
+  opts: { reason?: string; occurrence?: number } = {},
+): string {
   if (target) {
     needUnique(md, target, opts.occurrence);
     const span = spanAt(md, "ghost", locate(md, target, opts.occurrence ?? 1));
     if (!span) throw new DraftTargetError(`"${target}" is not ghosted`);
     return md.slice(0, span.start) + span.inner + md.slice(span.end);
   }
-  return rewriteSpans(md, (s) => s.kind === "ghost" && (opts.reason === undefined || (s.attrs as GhostAttrs).reason === opts.reason), "unwrap");
+  return rewriteSpans(
+    md,
+    (s) =>
+      s.kind === "ghost" &&
+      (opts.reason === undefined ||
+        (s.attrs as GhostAttrs).reason === opts.reason),
+    "unwrap",
+  );
 }
 
 /** Delete ghosted text: proposed cuts of `reason` (default trim), or every ghost when reason is "*". */
 export function makeCuts(md: string, reason: string = TRIM_REASON): string {
-  return tidySpacing(rewriteSpans(md, (s) => s.kind === "ghost" && (reason === "*" || (s.attrs as GhostAttrs).reason === reason), "drop"));
+  return tidySpacing(
+    rewriteSpans(
+      md,
+      (s) =>
+        s.kind === "ghost" &&
+        (reason === "*" || (s.attrs as GhostAttrs).reason === reason),
+      "drop",
+    ),
+  );
 }
 
 /** Mark `target` with a Lab finding. */
-export function flagText(md: string, target: string, flag: string, opts: { note?: string; occurrence?: number } = {}): string {
+export function flagText(
+  md: string,
+  target: string,
+  flag: string,
+  opts: { note?: string; occurrence?: number } = {},
+): string {
   needUnique(md, target, opts.occurrence);
   const range = locate(md, target, opts.occurrence ?? 1);
-  return md.slice(0, range.start) + openTag("flag", { flag, note: opts.note }) + target + CLOSE_TAG + md.slice(range.end);
+  return (
+    md.slice(0, range.start) +
+    openTag("flag", { flag, note: opts.note }) +
+    target +
+    CLOSE_TAG +
+    md.slice(range.end)
+  );
 }
 
 /** Remove Lab findings (all, or one kind). */
 export function clearFlags(md: string, flag?: string): string {
-  return rewriteSpans(md, (s) => s.kind === "flag" && (!flag || (s.attrs as FlagAttrs).flag === flag), "unwrap");
+  return rewriteSpans(
+    md,
+    (s) => s.kind === "flag" && (!flag || (s.attrs as FlagAttrs).flag === flag),
+    "unwrap",
+  );
 }
 
-function rewriteSpans(md: string, match: (s: DraftSpan) => boolean, mode: "unwrap" | "drop"): string {
+function rewriteSpans(
+  md: string,
+  match: (s: DraftSpan) => boolean,
+  mode: "unwrap" | "drop",
+): string {
   let out = md;
-  const spans = findDraftSpans(md).filter(match).sort((a, b) => b.start - a.start);
+  const spans = findDraftSpans(md)
+    .filter(match)
+    .sort((a, b) => b.start - a.start);
   for (const s of spans) {
-    out = out.slice(0, s.start) + (mode === "drop" ? "" : out.slice(s.innerStart, s.innerEnd)) + out.slice(s.end);
+    out =
+      out.slice(0, s.start) +
+      (mode === "drop" ? "" : out.slice(s.innerStart, s.innerEnd)) +
+      out.slice(s.end);
   }
   return out;
 }
 
 /** A readable listing of every drafting span, for `cast doc drafts`. */
-export function describeDrafts(md: string): Array<
+export function describeDrafts(
+  md: string,
+): Array<
   | { kind: "alts"; shown: string; at: number; versions: AltOption[] }
   | { kind: "ghost"; text: string; reason: string }
   | { kind: "flag"; text: string; flag: string; note?: string }
@@ -416,11 +590,26 @@ export function describeDrafts(md: string): Array<
     const inner = stripDrafting(s.inner);
     if (s.kind === "alts") {
       const a = s.attrs as AltAttrs;
-      return { kind: "alts" as const, shown: inner, at: Math.min(a.at, a.alts.length), versions: fullAltList(a, inner) };
+      return {
+        kind: "alts" as const,
+        shown: inner,
+        at: Math.min(a.at, a.alts.length),
+        versions: fullAltList(a, inner),
+      };
     }
-    if (s.kind === "ghost") return { kind: "ghost" as const, text: inner, reason: (s.attrs as GhostAttrs).reason };
+    if (s.kind === "ghost")
+      return {
+        kind: "ghost" as const,
+        text: inner,
+        reason: (s.attrs as GhostAttrs).reason,
+      };
     const f = s.attrs as FlagAttrs;
-    return { kind: "flag" as const, text: inner, flag: f.flag, ...(f.note ? { note: f.note } : {}) };
+    return {
+      kind: "flag" as const,
+      text: inner,
+      flag: f.flag,
+      ...(f.note ? { note: f.note } : {}),
+    };
   });
 }
 
@@ -435,8 +624,16 @@ export function wordCount(text: string): number {
 // docs markdownToDoc), so a doc written by the CLI opens with live marks and a
 // doc saved from the editor writes the same spans back.
 
-export const DRAFT_MARKS = { alts: "draftAlts", ghost: "draftGhost", flag: "draftFlag" } as const;
-const MARK_KIND: Record<string, DraftKind> = { draftAlts: "alts", draftGhost: "ghost", draftFlag: "flag" };
+export const DRAFT_MARKS = {
+  alts: "draftAlts",
+  ghost: "draftGhost",
+  flag: "draftFlag",
+} as const;
+const MARK_KIND: Record<string, DraftKind> = {
+  draftAlts: "alts",
+  draftGhost: "ghost",
+  draftFlag: "flag",
+};
 /** Nesting order when several drafting marks cover the same text (outermost first). */
 const KIND_ORDER: DraftKind[] = ["alts", "ghost", "flag"];
 
@@ -460,7 +657,12 @@ export function isDraftMark(mark: { type: string }): boolean {
 export function draftMarkTag(mark: PMMark): string {
   const kind = MARK_KIND[mark.type];
   const a = mark.attrs ?? {};
-  if (kind === "alts") return openTag("alts", { alts: normalizeAlts(a.alts), at: Number(a.at) || 0, ai: !!a.ai });
+  if (kind === "alts")
+    return openTag("alts", {
+      alts: normalizeAlts(a.alts),
+      at: Number(a.at) || 0,
+      ai: !!a.ai,
+    });
   if (kind === "ghost") return openTag("ghost", { reason: a.reason ?? "" });
   return openTag("flag", { flag: a.flag ?? "", note: a.note ?? undefined });
 }
@@ -471,13 +673,20 @@ export function draftMarkTag(mark: PMMark): string {
  * still writes as one span. `inner` serializes a node with its drafting marks
  * already removed.
  */
-export function serializeDraftRuns(nodes: PMNode[], inner: (node: PMNode) => string): string {
+export function serializeDraftRuns(
+  nodes: PMNode[],
+  inner: (node: PMNode) => string,
+): string {
   let out = "";
   const open: string[] = [];
   for (const node of nodes) {
     const marks = (node.marks ?? [])
       .filter(isDraftMark)
-      .sort((x, y) => KIND_ORDER.indexOf(MARK_KIND[x.type]) - KIND_ORDER.indexOf(MARK_KIND[y.type]));
+      .sort(
+        (x, y) =>
+          KIND_ORDER.indexOf(MARK_KIND[x.type]) -
+          KIND_ORDER.indexOf(MARK_KIND[y.type]),
+      );
     const tags = marks.map(draftMarkTag);
     let k = 0;
     while (k < open.length && k < tags.length && open[k] === tags[k]) k++;
@@ -490,7 +699,11 @@ export function serializeDraftRuns(nodes: PMNode[], inner: (node: PMNode) => str
       open.push(tags[j]);
     }
     const rest = (node.marks ?? []).filter((m) => !isDraftMark(m));
-    out += inner(rest.length === (node.marks ?? []).length ? node : { ...node, marks: rest });
+    out += inner(
+      rest.length === (node.marks ?? []).length
+        ? node
+        : { ...node, marks: rest },
+    );
   }
   while (open.length) {
     out += CLOSE_TAG;
@@ -500,14 +713,27 @@ export function serializeDraftRuns(nodes: PMNode[], inner: (node: PMNode) => str
 }
 
 /** The editor mark for a parsed drafting span. */
-export function draftMarkFor(span: { kind: DraftKind; attrs: AltAttrs | GhostAttrs | FlagAttrs }): PMMark {
+export function draftMarkFor(span: {
+  kind: DraftKind;
+  attrs: AltAttrs | GhostAttrs | FlagAttrs;
+}): PMMark {
   if (span.kind === "alts") {
     const a = span.attrs as AltAttrs;
-    return { type: DRAFT_MARKS.alts, attrs: { alts: a.alts, at: a.at, ai: !!a.ai } };
+    return {
+      type: DRAFT_MARKS.alts,
+      attrs: { alts: a.alts, at: a.at, ai: !!a.ai },
+    };
   }
-  if (span.kind === "ghost") return { type: DRAFT_MARKS.ghost, attrs: { reason: (span.attrs as GhostAttrs).reason } };
+  if (span.kind === "ghost")
+    return {
+      type: DRAFT_MARKS.ghost,
+      attrs: { reason: (span.attrs as GhostAttrs).reason },
+    };
   const f = span.attrs as FlagAttrs;
-  return { type: DRAFT_MARKS.flag, attrs: { flag: f.flag, note: f.note ?? null } };
+  return {
+    type: DRAFT_MARKS.flag,
+    attrs: { flag: f.flag, note: f.note ?? null },
+  };
 }
 
 /**
@@ -516,11 +742,15 @@ export function draftMarkFor(span: { kind: DraftKind; attrs: AltAttrs | GhostAtt
  * italic, strike, code, links) becomes the matching editor marks.
  */
 export function draftTextNodes(text: string, marks: PMMark[] = []): PMNode[] {
-  const top = findDraftSpans(text).filter((s, _, all) => !all.some((o) => o !== s && o.start <= s.start && o.end >= s.end));
+  const top = findDraftSpans(text).filter(
+    (s, _, all) =>
+      !all.some((o) => o !== s && o.start <= s.start && o.end >= s.end),
+  );
   const out: PMNode[] = [];
   let at = 0;
   for (const s of top) {
-    if (s.start > at) out.push(...inlineMarkdownNodes(text.slice(at, s.start), marks));
+    if (s.start > at)
+      out.push(...inlineMarkdownNodes(text.slice(at, s.start), marks));
     out.push(...draftTextNodes(s.inner, [...marks, draftMarkFor(s)]));
     at = s.end;
   }
@@ -530,27 +760,41 @@ export function draftTextNodes(text: string, marks: PMMark[] = []): PMNode[] {
 
 // Earliest match wins; code is literal inside. A new mark goes first so the
 // writer, which wraps marks in array order, nests the syntax the same way back.
-const INLINE_MARKS: { re: RegExp; mark: (m: RegExpExecArray) => PMMark; literal?: boolean }[] = [
+const INLINE_MARKS: {
+  re: RegExp;
+  mark: (m: RegExpExecArray) => PMMark;
+  literal?: boolean;
+}[] = [
   { re: /`([^`\n]+)`/, mark: () => ({ type: "code" }), literal: true },
-  { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/, mark: (m) => ({ type: "link", attrs: { href: m[2] } }) },
+  {
+    re: /\[([^\]\n]+)\]\(([^)\s]+)\)/,
+    mark: (m) => ({ type: "link", attrs: { href: m[2] } }),
+  },
   { re: /\*\*(?=\S)(.+?)(?<=\S)\*\*/, mark: () => ({ type: "bold" }) },
   { re: /~~(?=\S)(.+?)(?<=\S)~~/, mark: () => ({ type: "strike" }) },
-  { re: /(?<!\*)\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?!\*)/, mark: () => ({ type: "italic" }) },
+  {
+    re: /(?<!\*)\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?!\*)/,
+    mark: () => ({ type: "italic" }),
+  },
 ];
 
 function inlineMarkdownNodes(text: string, marks: PMMark[]): PMNode[] {
   if (!text) return [];
-  let best: { m: RegExpExecArray; spec: (typeof INLINE_MARKS)[number] } | null = null;
+  let best: { m: RegExpExecArray; spec: (typeof INLINE_MARKS)[number] } | null =
+    null;
   for (const spec of INLINE_MARKS) {
     const m = spec.re.exec(text);
     if (m && (!best || m.index < best.m.index)) best = { m, spec };
   }
-  if (!best) return [{ type: "text", text, ...(marks.length ? { marks } : {}) }];
+  if (!best)
+    return [{ type: "text", text, ...(marks.length ? { marks } : {}) }];
   const { m, spec } = best;
   const inner = [spec.mark(m), ...marks];
   return [
     ...inlineMarkdownNodes(text.slice(0, m.index), marks),
-    ...(spec.literal ? [{ type: "text", text: m[1], marks: inner }] : inlineMarkdownNodes(m[1], inner)),
+    ...(spec.literal
+      ? [{ type: "text", text: m[1], marks: inner }]
+      : inlineMarkdownNodes(m[1], inner)),
     ...inlineMarkdownNodes(text.slice(m.index + m[0].length), marks),
   ];
 }
@@ -586,11 +830,19 @@ export type LabRequest =
 export type LabResult =
   | { tool: "alternatives"; options: string[] }
   | { tool: "trim"; level: TrimLevel; cuts: string[] }
-  | { tool: "flag"; flag: string; items: Array<{ text: string; note?: string }> }
+  | {
+      tool: "flag";
+      flag: string;
+      items: Array<{ text: string; note?: string }>;
+    }
   | { tool: "typos"; fixes: Array<{ old: string; new: string }> };
 
 /** First occurrence of `text` that no drafting span already covers and that cuts through no tag. */
-function locateFree(md: string, text: string, kind: DraftKind): { start: number; end: number } | null {
+function locateFree(
+  md: string,
+  text: string,
+  kind: DraftKind,
+): { start: number; end: number } | null {
   if (!text) return null;
   const spans = findDraftSpans(md).filter((s) => s.kind === kind);
   for (let n = 1; ; n++) {
@@ -598,15 +850,29 @@ function locateFree(md: string, text: string, kind: DraftKind): { start: number;
     try {
       range = locate(md, text, n);
     } catch (e) {
-      if (e instanceof DraftTargetError && /cuts through/.test(e.message)) continue;
+      if (e instanceof DraftTargetError && /cuts through/.test(e.message))
+        continue;
       return null;
     }
-    if (!spans.some((s) => s.innerStart < range.end && s.innerEnd > range.start)) return range;
+    if (
+      !spans.some((s) => s.innerStart < range.end && s.innerEnd > range.start)
+    )
+      return range;
   }
 }
 
-function wrapAt(md: string, range: { start: number; end: number }, open: string): string {
-  return md.slice(0, range.start) + open + md.slice(range.start, range.end) + CLOSE_TAG + md.slice(range.end);
+function wrapAt(
+  md: string,
+  range: { start: number; end: number },
+  open: string,
+): string {
+  return (
+    md.slice(0, range.start) +
+    open +
+    md.slice(range.start, range.end) +
+    CLOSE_TAG +
+    md.slice(range.end)
+  );
 }
 
 /**
@@ -623,15 +889,22 @@ export function applyLabResult(
   let applied = 0;
   let out = md;
   if (result.tool === "alternatives") {
-    if (!opts.target) throw new DraftTargetError("Alternatives need the text they are for");
-    out = addAlternatives(out, opts.target, result.options, { ai: true, occurrence: opts.occurrence });
+    if (!opts.target)
+      throw new DraftTargetError("Alternatives need the text they are for");
+    out = addAlternatives(out, opts.target, result.options, {
+      ai: true,
+      occurrence: opts.occurrence,
+    });
     return { md: out, applied: result.options.length, missed };
   }
   if (result.tool === "trim") {
     out = reviveText(out, undefined, { reason: TRIM_REASON });
     for (const cut of result.cuts) {
       const range = locateFree(out, cut, "ghost");
-      if (!range) { missed.push(cut); continue; }
+      if (!range) {
+        missed.push(cut);
+        continue;
+      }
       out = wrapAt(out, range, openTag("ghost", { reason: TRIM_REASON }));
       applied++;
     }
@@ -641,17 +914,36 @@ export function applyLabResult(
     out = clearFlags(out, result.flag);
     for (const item of result.items) {
       const range = locateFree(out, item.text, "flag");
-      if (!range) { missed.push(item.text); continue; }
-      out = wrapAt(out, range, openTag("flag", { flag: result.flag, note: item.note }));
+      if (!range) {
+        missed.push(item.text);
+        continue;
+      }
+      out = wrapAt(
+        out,
+        range,
+        openTag("flag", { flag: result.flag, note: item.note }),
+      );
       applied++;
     }
     return { md: out, applied, missed };
   }
   for (const fix of result.fixes) {
-    const range = fix.old && fix.old !== fix.new ? locateFree(out, fix.old, "alts") : null;
-    if (!range) { missed.push(fix.old); continue; }
-    const { attrs, shown } = altAttrsFor([{ t: fix.old }, { t: fix.new, ai: true }], 1);
-    out = out.slice(0, range.start) + openTag("alts", attrs) + shown + CLOSE_TAG + out.slice(range.end);
+    const range =
+      fix.old && fix.old !== fix.new ? locateFree(out, fix.old, "alts") : null;
+    if (!range) {
+      missed.push(fix.old);
+      continue;
+    }
+    const { attrs, shown } = altAttrsFor(
+      [{ t: fix.old }, { t: fix.new, ai: true }],
+      1,
+    );
+    out =
+      out.slice(0, range.start) +
+      openTag("alts", attrs) +
+      shown +
+      CLOSE_TAG +
+      out.slice(range.end);
     applied++;
   }
   return { md: out, applied, missed };

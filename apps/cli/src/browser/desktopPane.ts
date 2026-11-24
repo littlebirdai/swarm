@@ -13,14 +13,38 @@
  */
 
 import { CdpConnection, browserSocketUrl } from "./cdp.js";
-import { engineSessionKey, engineStateDir, paneSessionKey, type EngineOptions } from "./engine.js";
-import { attachToTarget, type InstanceState, type PageSession } from "./instance.js";
-import { armRecorder } from "./observe.js";
-import { readBoundTarget, sessionDaemonPid, writeBoundTarget } from "./pinnedTab.js";
-import { detachSessionDaemon } from "./engineReap.js";
-import { explicitTarget, forgetDesktopPane, rememberDesktopPane, rememberedDesktopPane, setStickyTarget } from "./bridge/real.js";
 import {
-  findDesktopPane, liveDesktopPaneRegistry, liveDesktopPanes, paneOwnerIds, type DesktopPaneRegistry, type LiveDesktopPane,
+  engineSessionKey,
+  engineStateDir,
+  paneSessionKey,
+  type EngineOptions,
+} from "./engine.js";
+import {
+  attachToTarget,
+  type InstanceState,
+  type PageSession,
+} from "./instance.js";
+import { armRecorder } from "./observe.js";
+import {
+  readBoundTarget,
+  sessionDaemonPid,
+  writeBoundTarget,
+} from "./pinnedTab.js";
+import { detachSessionDaemon } from "./engineReap.js";
+import {
+  explicitTarget,
+  forgetDesktopPane,
+  rememberDesktopPane,
+  rememberedDesktopPane,
+  setStickyTarget,
+} from "./bridge/real.js";
+import {
+  findDesktopPane,
+  liveDesktopPaneRegistry,
+  liveDesktopPanes,
+  paneOwnerIds,
+  type DesktopPaneRegistry,
+  type LiveDesktopPane,
 } from "./desktopPaneRegistry.js";
 
 /** The one way a session gets a pane, said the same everywhere. */
@@ -86,17 +110,32 @@ export async function resolveDesktopPane(
   try {
     live = await (deps.live ?? liveDesktopPanes)(registry);
   } catch (err) {
-    throw new DesktopPaneUnavailable("no-app", `the desktop app's CDP port ${registry.port} did not answer: ${(err as Error).message}`);
+    throw new DesktopPaneUnavailable(
+      "no-app",
+      `the desktop app's CDP port ${registry.port} did not answer: ${(err as Error).message}`,
+    );
   }
-  const pane = findDesktopPane(live, paneOwnerIds(sessionKey, deps.env), opts.pane);
+  const pane = findDesktopPane(
+    live,
+    paneOwnerIds(sessionKey, deps.env),
+    opts.pane,
+  );
   if (!pane) {
     const before = rememberedDesktopPane(sessionKey);
     if (before) {
       forgetDesktopPane(sessionKey);
-      if (explicitTarget(sessionKey) === "pane") setStickyTarget(sessionKey, "real");
-      throw new DesktopPaneUnavailable("closed", "the pane was closed", PANE_HOW_TO);
+      if (explicitTarget(sessionKey) === "pane")
+        setStickyTarget(sessionKey, "real");
+      throw new DesktopPaneUnavailable(
+        "closed",
+        "the pane was closed",
+        PANE_HOW_TO,
+      );
     }
-    throw new DesktopPaneUnavailable("no-pane", `this session has no desktop pane: ${PANE_HOW_TO}`);
+    throw new DesktopPaneUnavailable(
+      "no-pane",
+      `this session has no desktop pane: ${PANE_HOW_TO}`,
+    );
   }
   rememberDesktopPane(sessionKey, pane.paneId);
   return { registry, pane };
@@ -104,7 +143,10 @@ export async function resolveDesktopPane(
 
 /** The session's pane if it has one right now, else null. Never throws:
  *  for status lines, not for acting. */
-export async function ownedDesktopPane(sessionKey: string | null, deps: DesktopPaneDeps = {}): Promise<ResolvedDesktopPane | null> {
+export async function ownedDesktopPane(
+  sessionKey: string | null,
+  deps: DesktopPaneDeps = {},
+): Promise<ResolvedDesktopPane | null> {
   try {
     return await resolveDesktopPane(sessionKey, {}, deps);
   } catch {
@@ -124,17 +166,31 @@ export async function ownedDesktopPane(sessionKey: string | null, deps: DesktopP
 export async function desktopPaneCtx(
   sessionKey: string | null,
   opts: { pane?: string } = {},
-  deps: DesktopPaneDeps & { detach?: (session: string) => boolean; stateDir?: string; socket?: (port: number) => Promise<string> } = {},
+  deps: DesktopPaneDeps & {
+    detach?: (session: string) => boolean;
+    stateDir?: string;
+    socket?: (port: number) => Promise<string>;
+  } = {},
 ): Promise<EngineOptions & { session: string }> {
   const { registry, pane } = await resolveDesktopPane(sessionKey, opts, deps);
   // The same key engineSession() derives from the owner, with the pane suffix.
-  const session = paneSessionKey(sessionKey ? engineSessionKey(sessionKey) : "default");
+  const session = paneSessionKey(
+    sessionKey ? engineSessionKey(sessionKey) : "default",
+  );
   const stateDir = deps.stateDir ?? engineStateDir();
   if (readBoundTarget(session, stateDir) !== pane.targetId) {
-    if (sessionDaemonPid(session, stateDir)) (deps.detach ?? detachSessionDaemon)(session);
-    writeBoundTarget(session, pane.targetId, stateDir, pane.url ?? "about:blank");
+    if (sessionDaemonPid(session, stateDir))
+      (deps.detach ?? detachSessionDaemon)(session);
+    writeBoundTarget(
+      session,
+      pane.targetId,
+      stateDir,
+      pane.url ?? "about:blank",
+    );
   }
-  const cdp = await (deps.socket ?? ((port: number) => browserSocketUrl(port)))(registry.port);
+  const cdp = await (deps.socket ?? ((port: number) => browserSocketUrl(port)))(
+    registry.port,
+  );
   return { session, cdp };
 }
 
@@ -142,7 +198,11 @@ export async function desktopPaneCtx(
  *  machine without the engine. Throws; the caller renders. */
 export async function withDesktopPanePage<T>(
   opts: { pane?: string },
-  fn: (page: PageSession, state: InstanceState, conn: CdpConnection) => Promise<T>,
+  fn: (
+    page: PageSession,
+    state: InstanceState,
+    conn: CdpConnection,
+  ) => Promise<T>,
   sessionKey: string | null,
 ): Promise<T> {
   const { registry, pane } = await resolveDesktopPane(sessionKey, opts);

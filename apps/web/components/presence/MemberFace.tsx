@@ -46,7 +46,9 @@ export function MemberFace({
   const visual = memberPresenceVisual(member);
   const name = memberDisplayName(member);
   const avatar = member?.image || member?.github_avatar_url;
-  const initial = (member?.name || member?.email || "?").charAt(0).toUpperCase();
+  const initial = (member?.name || member?.email || "?")
+    .charAt(0)
+    .toUpperCase();
   // A SEAT IS NOT A HUDDLE. A walkie burst seats everyone who hears it and
   // holds that seat for half a minute afterwards, so a face wearing the chip
   // off `in_huddle` alone kept claiming a call that had already stopped. The
@@ -57,7 +59,10 @@ export function MemberFace({
   const badge = badgeSize ?? (size >= 36 ? "md" : "sm");
   const silent = title === "";
   return (
-    <span className={`relative block shrink-0 ${className}`} style={{ width: size, height: size }}>
+    <span
+      className={`relative block shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+    >
       <span
         className={`block h-full w-full overflow-hidden rounded-full ${presenceAvatarClass(visual)}`}
         title={title ?? `${name} · ${presenceLabel(visual)}`}

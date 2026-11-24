@@ -16,7 +16,9 @@ export const PREFILL_MAX_LENGTH = 2000;
 // The param value is plain text throughout — URLSearchParams has already
 // percent-decoded it, and it only ever reaches a textarea's value, so there is
 // no markup path to escape.
-export function buildPrefillText(raw: string | null | undefined): string | null {
+export function buildPrefillText(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   const quote = toBlockquote(raw.slice(0, PREFILL_MAX_LENGTH));
   return quote ? `${quote}\n\n` : null;

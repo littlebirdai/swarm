@@ -28,9 +28,15 @@ function useWave(): [(el: HTMLElement | null) => void, Phase] {
     io.current?.disconnect();
     if (!el || typeof IntersectionObserver === "undefined") return;
     setPhase((p) => (p === "idle" ? "armed" : p));
-    io.current = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) { setPhase("on"); io.current?.disconnect(); }
-    }, { rootMargin: "0px 0px -18% 0px" });
+    io.current = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setPhase("on");
+          io.current?.disconnect();
+        }
+      },
+      { rootMargin: "0px 0px -18% 0px" },
+    );
     io.current.observe(el);
   }, []);
   return [ref, phase];
@@ -50,8 +56,10 @@ export function Faces() {
       title="A drawn face for every role"
       lede={
         <p>
-          When you hire a role, codecast draws its icon, a picture of what the role looks after. Three drawers sketch in parallel, then a judge picks
-          one from a contact sheet and turns down any that look like a sibling's. Pick any tile below to see how it is built.
+          When you hire a role, codecast draws its icon, a picture of what the
+          role looks after. Three drawers sketch in parallel, then a judge picks
+          one from a contact sheet and turns down any that look like a
+          sibling's. Pick any tile below to see how it is built.
         </p>
       }
     >
@@ -61,7 +69,8 @@ export function Faces() {
           <div className="og-faces-wall" role="listbox" aria-label="Role icons">
             {WALL.map((k, i) => {
               const c = accentHex(k);
-              const col = i % 8, row = Math.floor(i / 8);
+              const col = i % 8,
+                row = Math.floor(i / 8);
               return (
                 <button
                   key={k}
@@ -72,7 +81,10 @@ export function Faces() {
                   onClick={() => setSel(k)}
                   className="og-faces-tile og-faces-a"
                   data-sel={sel === k ? "" : undefined}
-                  style={{ ["--fc" as string]: c, ["--d" as string]: `${(col + row) * 0.06}s` }}
+                  style={{
+                    ["--fc" as string]: c,
+                    ["--d" as string]: `${(col + row) * 0.06}s`,
+                  }}
                 >
                   <span className="og-faces-face">
                     <Glyph k={k} px={64} />
@@ -85,9 +97,11 @@ export function Faces() {
         </div>
 
         <div ref={panelRef} className="mt-14">
-          <Inspector k={sel} drawKey={`${sel}-${still ? "still" : panelPhase}`} />
+          <Inspector
+            k={sel}
+            drawKey={`${sel}-${still ? "still" : panelPhase}`}
+          />
         </div>
-
       </div>
     </Section>
   );

@@ -26,13 +26,29 @@
 // display=swap, and when that fetch could land, a shot showed the web face or
 // the installed one depending on which arrived first. Fonts come from the
 // system's copies.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { killChrome, launchSignedIn } from "./chrome.mjs";
 import { sleep } from "./cdp.mjs";
 import { diffPng } from "./imagediff.mjs";
-import { SMOKE_CHANNEL, SMOKE_PEOPLE, SMOKE_SESSION, SMOKE_TEAM, seedRun, seedWorld } from "./seed.mjs";
+import {
+  SMOKE_CHANNEL,
+  SMOKE_PEOPLE,
+  SMOKE_SESSION,
+  SMOKE_TEAM,
+  seedRun,
+  seedWorld,
+} from "./seed.mjs";
 import { stackUp } from "./stack.mjs";
 
 const args = process.argv.slice(2);
@@ -42,20 +58,25 @@ const opt = (name, dflt) => {
 };
 const ALL_LEGS = ["inbox", "conversation", "chat", "org"];
 const LEG_NAMES = opt("legs", ALL_LEGS.join(",")).split(",");
-const BASELINES = process.env.RIG_BASELINES || join(homedir(), ".cache/codecast/smoke/baselines");
+const BASELINES =
+  process.env.RIG_BASELINES ||
+  join(homedir(), ".cache/codecast/smoke/baselines");
 const RUNS = "/tmp/codecast-smoke";
 const VIEWPORT = { width: 1280, height: 800 };
 const THRESHOLD = Number(opt("threshold", "0.1"));
 const MAX_RATIO = Number(opt("max-ratio", "0.002"));
 // The first boot of the app on a cold vite runs minutes on a loaded machine.
 const BOOT_MS = Number(process.env.RIG_BOOT_MS || 900_000);
-const CHAT_LINE = "Smoke check: the login redirect fix is in, take a look when you can.";
+const CHAT_LINE =
+  "Smoke check: the login redirect fix is in, take a look when you can.";
 
 // ── accept ──
 
 /** Copy a run's shots (and their masks) into the baselines. */
 function accept(runDir, legs) {
-  const results = JSON.parse(readFileSync(join(runDir, "results.json"), "utf8"));
+  const results = JSON.parse(
+    readFileSync(join(runDir, "results.json"), "utf8"),
+  );
   mkdirSync(BASELINES, { recursive: true });
   const taken = [];
   for (const r of results) {
@@ -66,15 +87,22 @@ function accept(runDir, legs) {
     }
     for (const s of r.shots) {
       copyFileSync(s.file, join(BASELINES, `${s.key}.png`));
-      writeFileSync(join(BASELINES, `${s.key}.json`), JSON.stringify({ masks: s.masks, from: runDir }, null, 2));
+      writeFileSync(
+        join(BASELINES, `${s.key}.json`),
+        JSON.stringify({ masks: s.masks, from: runDir }, null, 2),
+      );
       taken.push(s.key);
     }
   }
-  console.log(`accepted ${taken.length} baselines into ${BASELINES}: ${taken.join(", ")}`);
+  console.log(
+    `accepted ${taken.length} baselines into ${BASELINES}: ${taken.join(", ")}`,
+  );
 }
 
 if (args[0] === "accept") {
-  const runDir = realpathSync(args[1] && !args[1].startsWith("--") ? args[1] : join(RUNS, "latest"));
+  const runDir = realpathSync(
+    args[1] && !args[1].startsWith("--") ? args[1] : join(RUNS, "latest"),
+  );
   accept(runDir, LEG_NAMES);
   process.exit(0);
 }
@@ -82,7 +110,8 @@ if (args[0] === "accept") {
 // ── in the page ──
 
 // Animations, transitions and the caret off, so a shot is the settled frame.
-const STILL_CSS = "*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:0s!important;transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}";
+const STILL_CSS =
+  "*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:0s!important;transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}";
 const INIT = `document.addEventListener("DOMContentLoaded", () => { const s = document.createElement("style"); s.textContent = ${JSON.stringify(STILL_CSS)}; document.head.appendChild(s); });`;
 
 const PAGE_LIB = String.raw`
@@ -185,11 +214,24 @@ async function openSide(who, userId, dep, dir, path) {
     // (127.0.0.1, which `MAP *` would catch too): prod is out of reach
     // whatever the app is configured with, and nothing outside the machine
     // (web fonts, avatars, analytics) can land before or after a shot.
-    extra: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1"],
+    extra: [
+      "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+    ],
     prepare: async (pg) => {
-      await pg.send("Emulation.setDeviceMetricsOverride", { ...VIEWPORT, deviceScaleFactor: 1, mobile: false });
-      await pg.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }, { name: "prefers-color-scheme", value: "dark" }] });
-      await pg.send("Emulation.setTimezoneOverride", { timezoneId: "America/New_York" });
+      await pg.send("Emulation.setDeviceMetricsOverride", {
+        ...VIEWPORT,
+        deviceScaleFactor: 1,
+        mobile: false,
+      });
+      await pg.send("Emulation.setEmulatedMedia", {
+        features: [
+          { name: "prefers-reduced-motion", value: "reduce" },
+          { name: "prefers-color-scheme", value: "dark" },
+        ],
+      });
+      await pg.send("Emulation.setTimezoneOverride", {
+        timezoneId: "America/New_York",
+      });
       await pg.send("Emulation.setLocaleOverride", { locale: "en-US" });
       await pg.addInitScript(INIT);
       // The smoke vite runs without HMR, so when it optimizes a dependency it
@@ -199,40 +241,97 @@ async function openSide(who, userId, dep, dir, path) {
       await pg.send("Network.enable");
       let reloadedAt = 0;
       pg.on((m) => {
-        if (m.method !== "Network.responseReceived" || m.params.response.status !== 504 || !/\/deps\//.test(m.params.response.url)) return;
+        if (
+          m.method !== "Network.responseReceived" ||
+          m.params.response.status !== 504 ||
+          !/\/deps\//.test(m.params.response.url)
+        )
+          return;
         if (Date.now() - reloadedAt < 15_000) return;
         reloadedAt = Date.now();
-        console.log(`        (${who}: vite re-optimized its deps; reloading the page)`);
+        console.log(
+          `        (${who}: vite re-optimized its deps; reloading the page)`,
+        );
         pg.send("Page.reload", {}).catch(() => {});
       });
       await pg.send("Runtime.enable");
       pg.on((m) => {
-        if (m.method === "Runtime.exceptionThrown") errors.push((m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text || "").split("\n")[0].slice(0, 200));
-        if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") errors.push(String(m.params.args?.[0]?.value ?? m.params.args?.[0]?.description ?? "").split("\n")[0].slice(0, 200));
+        if (m.method === "Runtime.exceptionThrown")
+          errors.push(
+            (
+              m.params.exceptionDetails.exception?.description ||
+              m.params.exceptionDetails.text ||
+              ""
+            )
+              .split("\n")[0]
+              .slice(0, 200),
+          );
+        if (
+          m.method === "Runtime.consoleAPICalled" &&
+          m.params.type === "error"
+        )
+          errors.push(
+            String(
+              m.params.args?.[0]?.value ??
+                m.params.args?.[0]?.description ??
+                "",
+            )
+              .split("\n")[0]
+              .slice(0, 200),
+          );
       });
     },
   });
-  const side = { who, userId, name: p.name, email: p.email, child, page, errors, dir };
+  const side = {
+    who,
+    userId,
+    name: p.name,
+    email: p.email,
+    child,
+    page,
+    errors,
+    dir,
+  };
   try {
     // Signed in as the test identity, on the local deployment: the app holds
     // this person only if its token was minted there.
-    const r = await waitIn(side, holds("window.__inboxStore?.getState().currentUser?.email"), BOOT_MS);
-    if (r.value !== p.email) throw new Error(`${who} is signed in as ${r.value}, not ${p.email}`);
+    const r = await waitIn(
+      side,
+      holds("window.__inboxStore?.getState().currentUser?.email"),
+      BOOT_MS,
+    );
+    if (r.value !== p.email)
+      throw new Error(`${who} is signed in as ${r.value}, not ${p.email}`);
     // And the outside is out of reach from this browser: a no-cors fetch
     // resolves (opaque) from any host it can reach, and fails only when it
     // cannot. The same fetch to the local deployment is the control: it must
     // reach. Prod, and the font host whose race made shots flip between two
     // builds of the same face.
-    const probe = (url) => page.evaluate(`fetch(${JSON.stringify(url)}, { mode: "no-cors" }).then(() => "reached", () => "unreachable")`);
-    if ((await probe(`${dep.convexUrl}/version`)) !== "reached") throw new Error(`${who}'s browser cannot reach the local deployment, so the outside probes would prove nothing`);
-    for (const url of ["https://convex.codecast.sh/version", "https://fonts.googleapis.com/css2?family=JetBrains+Mono", "https://fonts.gstatic.com/"]) {
-      if ((await probe(url)) !== "unreachable") throw new Error(`${who}'s browser reached ${new URL(url).host}; the resolver block is not in force`);
+    const probe = (url) =>
+      page.evaluate(
+        `fetch(${JSON.stringify(url)}, { mode: "no-cors" }).then(() => "reached", () => "unreachable")`,
+      );
+    if ((await probe(`${dep.convexUrl}/version`)) !== "reached")
+      throw new Error(
+        `${who}'s browser cannot reach the local deployment, so the outside probes would prove nothing`,
+      );
+    for (const url of [
+      "https://convex.codecast.sh/version",
+      "https://fonts.googleapis.com/css2?family=JetBrains+Mono",
+      "https://fonts.gstatic.com/",
+    ]) {
+      if ((await probe(url)) !== "unreachable")
+        throw new Error(
+          `${who}'s browser reached ${new URL(url).host}; the resolver block is not in force`,
+        );
     }
     return side;
   } catch (e) {
     await page.screenshot(join(dir, `boot-${who}-failed.png`)).catch(() => {});
     killChrome(child);
-    throw new Error(`${who} never signed in: ${e.message}${errors.length ? ` (page errors: ${[...new Set(errors)].slice(0, 4).join(" | ")})` : ""}`);
+    throw new Error(
+      `${who} never signed in: ${e.message}${errors.length ? ` (page errors: ${[...new Set(errors)].slice(0, 4).join(" | ")})` : ""}`,
+    );
   }
 }
 
@@ -262,8 +361,11 @@ async function waitIn(side, expr, timeoutMs) {
  *  each on a loaded machine, and the boot is not what a leg checks. */
 async function go(side, path) {
   await lib(side);
-  const moved = await side.page.evaluate(`import("/lib/tabRoutes.ts").then((m) => m.routerNavigate(${JSON.stringify(path)}))`);
-  if (moved !== true) throw new Error(`routerNavigate(${path}) did not move ${side.who}'s page`);
+  const moved = await side.page.evaluate(
+    `import("/lib/tabRoutes.ts").then((m) => m.routerNavigate(${JSON.stringify(path)}))`,
+  );
+  if (moved !== true)
+    throw new Error(`routerNavigate(${path}) did not move ${side.who}'s page`);
 }
 
 // ── a leg ──
@@ -280,11 +382,17 @@ class Leg {
     try {
       const r = await waitIn(side, expr, timeoutMs);
       this.checks.push({ what: `${what} [${side.who}]`, ok: true, ms: r.ms });
-      console.log(`  ok    ${String(r.ms).padStart(6)} ms  ${what} [${side.who}]`);
+      console.log(
+        `  ok    ${String(r.ms).padStart(6)} ms  ${what} [${side.who}]`,
+      );
       return r;
     } catch (e) {
       const why = e.message.split("\n")[0].replace(/^eval: Error: /, "");
-      this.checks.push({ what: `${what} [${side.who}]`, ok: false, detail: why });
+      this.checks.push({
+        what: `${what} [${side.who}]`,
+        ok: false,
+        detail: why,
+      });
       this.problems.push(`${what} [${side.who}]: ${why}`);
       console.log(`  FAIL           ${what} [${side.who}]: ${why}`);
       throw e;
@@ -293,17 +401,28 @@ class Leg {
   /** Settle, photograph the viewport, compare with the baseline. */
   async shot(side, maskSelectors = []) {
     await side.page.evaluate(`__smoke.quiet()`);
-    const masks = await side.page.evaluate(`__smoke.masks(${JSON.stringify(maskSelectors)})`);
+    const masks = await side.page.evaluate(
+      `__smoke.masks(${JSON.stringify(maskSelectors)})`,
+    );
     const key = `${this.name}-${side.who}`;
     const file = await side.page.screenshot(join(this.dir, `${key}.png`));
     const shot = { key, who: side.who, file, masks };
     const base = join(BASELINES, `${key}.png`);
     if (existsSync(base)) {
-      const baseMasks = existsSync(join(BASELINES, `${key}.json`)) ? JSON.parse(readFileSync(join(BASELINES, `${key}.json`), "utf8")).masks : [];
-      shot.diff = diffPng(base, file, { masks: [...baseMasks, ...masks], threshold: THRESHOLD, maxRatio: MAX_RATIO, diffPath: join(this.dir, `${key}.diff.png`) });
+      const baseMasks = existsSync(join(BASELINES, `${key}.json`))
+        ? JSON.parse(readFileSync(join(BASELINES, `${key}.json`), "utf8")).masks
+        : [];
+      shot.diff = diffPng(base, file, {
+        masks: [...baseMasks, ...masks],
+        threshold: THRESHOLD,
+        maxRatio: MAX_RATIO,
+        diffPath: join(this.dir, `${key}.diff.png`),
+      });
       if (!shot.diff.ok) {
         shot.diffFile = join(this.dir, `${key}.diff.png`);
-        this.problems.push(`${key} differs from its baseline: ${shot.diff.sizeChanged ? `size ${shot.diff.baseline} -> ${shot.diff.current}` : `${(shot.diff.ratio * 100).toFixed(3)}% of pixels`} (diff ${shot.diffFile})`);
+        this.problems.push(
+          `${key} differs from its baseline: ${shot.diff.sizeChanged ? `size ${shot.diff.baseline} -> ${shot.diff.current}` : `${(shot.diff.ratio * 100).toFixed(3)}% of pixels`} (diff ${shot.diffFile})`,
+        );
       }
     }
     this.shots.push(shot);
@@ -311,15 +430,24 @@ class Leg {
   }
   result() {
     const checksOk = this.checks.length > 0 && this.checks.every((c) => c.ok);
-    return { name: this.name, ok: checksOk && this.problems.length === 0, checksOk, checks: this.checks, shots: this.shots, problems: this.problems };
+    return {
+      name: this.name,
+      ok: checksOk && this.problems.length === 0,
+      checksOk,
+      checks: this.checks,
+      shots: this.shots,
+      problems: this.problems,
+    };
   }
 }
 
 const quoteFree = (s) => {
-  if (s.includes('"')) throw new Error(`fixture text may not hold a double quote: ${s}`);
+  if (s.includes('"'))
+    throw new Error(`fixture text may not hold a double quote: ${s}`);
   return s;
 };
-const text = (t, scope) => `__smoke.text(${JSON.stringify(quoteFree(t))}, ${JSON.stringify(scope ?? null)}, %MS%)`;
+const text = (t, scope) =>
+  `__smoke.text(${JSON.stringify(quoteFree(t))}, ${JSON.stringify(scope ?? null)}, %MS%)`;
 const sel = (q) => `__smoke.sel(${JSON.stringify(q)}, %MS%)`;
 const holds = (src) => `__smoke.eval(${JSON.stringify(src)}, %MS%)`;
 
@@ -328,7 +456,13 @@ const holds = (src) => `__smoke.eval(${JSON.stringify(src)}, %MS%)`;
  *  overlay after the row itself; a shot before it shows a finished session
  *  as one that went quiet. */
 const livenessLanded = (leg, R, fixtures) =>
-  leg.check("the session's liveness has arrived", R, holds(`window.__inboxStore.getState().sessions[${JSON.stringify(fixtures.conversationId)}]?.is_idle != null`));
+  leg.check(
+    "the session's liveness has arrived",
+    R,
+    holds(
+      `window.__inboxStore.getState().sessions[${JSON.stringify(fixtures.conversationId)}]?.is_idle != null`,
+    ),
+  );
 
 const LEGS = {
   /** Riley's inbox lists this run's session under its title. */
@@ -336,22 +470,42 @@ const LEGS = {
     await go(R, "/inbox");
     // The board itself ([data-main-scroll]), not the rail beside it, which
     // lists the same session.
-    await leg.check("the board lists the seeded session", R, text(SMOKE_SESSION.title, "[data-main-scroll]"));
+    await leg.check(
+      "the board lists the seeded session",
+      R,
+      text(SMOKE_SESSION.title, "[data-main-scroll]"),
+    );
     await leg.check("the team is the workspace", R, text(SMOKE_TEAM));
     // The seeded session has no agent behind it, so once its idle grace
     // passes it is finished. The board reads the overlay's shipped is_idle
     // rather than re-deriving it, so it shows "went quiet" under Needs you
     // until the server's time flip lands (ct-56701); a person waits for
     // that too, and the shot is of the settled board.
-    await leg.check("the board files the session under Finished", R, text("0 RUNNING · 0 NEED YOU · 1 FINISHED", "[data-main-scroll]"), 240_000);
+    await leg.check(
+      "the board files the session under Finished",
+      R,
+      text("0 RUNNING · 0 NEED YOU · 1 FINISHED", "[data-main-scroll]"),
+      240_000,
+    );
     await leg.shot(R);
   },
   /** The session's page shows both of its messages. */
   async conversation(leg, { R, dep, fixtures }) {
     await go(R, `/conversation/${fixtures.conversationId}`);
     // In the transcript's own rows: the rail beside it quotes the user message too.
-    await leg.check("the user message renders", R, text(SMOKE_SESSION.user.slice(0, 60), '[data-cc-message="user"]'));
-    await leg.check("the assistant message renders", R, text(SMOKE_SESSION.assistant.slice(0, 60), '[data-cc-message="assistant"]'));
+    await leg.check(
+      "the user message renders",
+      R,
+      text(SMOKE_SESSION.user.slice(0, 60), '[data-cc-message="user"]'),
+    );
+    await leg.check(
+      "the assistant message renders",
+      R,
+      text(
+        SMOKE_SESSION.assistant.slice(0, 60),
+        '[data-cc-message="assistant"]',
+      ),
+    );
     await livenessLanded(leg, R, fixtures);
     await leg.shot(R);
   },
@@ -363,28 +517,72 @@ const LEGS = {
       await leg.check("the channel is open", s, text(SMOKE_CHANNEL.name));
       await leg.check("the composer is ready", s, sel(".ch-composer textarea"));
     }
-    await J.page.evaluate(`document.querySelector(".ch-composer textarea").focus(); "ok"`);
+    await J.page.evaluate(
+      `document.querySelector(".ch-composer textarea").focus(); "ok"`,
+    );
     await J.page.send("Input.insertText", { text: CHAT_LINE });
-    const key = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
-    await J.page.send("Input.dispatchKeyEvent", { type: "keyDown", ...key, text: "\r" });
+    const key = {
+      key: "Enter",
+      code: "Enter",
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    };
+    await J.page.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      ...key,
+      text: "\r",
+    });
     await J.page.send("Input.dispatchKeyEvent", { type: "keyUp", ...key });
     const sent = Date.now();
-    await leg.check("the line is in the sender's channel", J, text(CHAT_LINE, "[data-message-id]"), 30_000);
-    await leg.check("the line reaches the other person", R, text(CHAT_LINE, "[data-message-id]"), 60_000);
+    await leg.check(
+      "the line is in the sender's channel",
+      J,
+      text(CHAT_LINE, "[data-message-id]"),
+      30_000,
+    );
+    await leg.check(
+      "the line reaches the other person",
+      R,
+      text(CHAT_LINE, "[data-message-id]"),
+      60_000,
+    );
     const author = `[...document.querySelectorAll("[data-message-id]")].some((m) => m.textContent.includes(${JSON.stringify(CHAT_LINE)}) && m.textContent.includes(${JSON.stringify(SMOKE_PEOPLE.jordan.name)}))`;
-    await leg.check("it is signed with the sender's name", R, holds(author), 10_000);
-    console.log(`        ${Date.now() - sent} ms from Enter on Jordan's side to the checks on Riley's`);
+    await leg.check(
+      "it is signed with the sender's name",
+      R,
+      holds(author),
+      10_000,
+    );
+    console.log(
+      `        ${Date.now() - sent} ms from Enter on Jordan's side to the checks on Riley's`,
+    );
     await J.page.evaluate(`document.activeElement?.blur(); "ok"`);
     await livenessLanded(leg, R, fixtures);
-    for (const s of [R, J]) await leg.shot(s, [".ch-msg-time", ".ch-msg-hovertime"]);
+    for (const s of [R, J])
+      await leg.shot(s, [".ch-msg-time", ".ch-msg-hovertime"]);
   },
   /** The org chart draws, with Riley on it. */
   async org(leg, { R, dep, fixtures }) {
     await go(R, "/org");
-    await leg.check("the chart header renders", R, sel('[data-org-header="chart"]'));
-    const node = (t) => holds(`[...document.querySelectorAll("[data-org-node]")].some((n) => n.textContent.includes(${JSON.stringify(t)}) && __smoke.visible(n))`);
-    await leg.check("Riley has a node on the chart", R, node(SMOKE_PEOPLE.riley.name));
-    await leg.check("her session has a node under her", R, node(SMOKE_SESSION.title.slice(0, 24)));
+    await leg.check(
+      "the chart header renders",
+      R,
+      sel('[data-org-header="chart"]'),
+    );
+    const node = (t) =>
+      holds(
+        `[...document.querySelectorAll("[data-org-node]")].some((n) => n.textContent.includes(${JSON.stringify(t)}) && __smoke.visible(n))`,
+      );
+    await leg.check(
+      "Riley has a node on the chart",
+      R,
+      node(SMOKE_PEOPLE.riley.name),
+    );
+    await leg.check(
+      "her session has a node under her",
+      R,
+      node(SMOKE_SESSION.title.slice(0, 24)),
+    );
     await livenessLanded(leg, R, fixtures);
     await leg.shot(R);
   },
@@ -398,23 +596,33 @@ mkdirSync(dir, { recursive: true });
 console.log(`run ${dir}`);
 const t0 = Date.now();
 const dep = await stackUp({ refresh: args.includes("--refresh") });
-console.log(`stack: ${dep.convexUrl} (${dep.kind}), app ${dep.appUrl} [${Date.now() - t0} ms]`);
+console.log(
+  `stack: ${dep.convexUrl} (${dep.kind}), app ${dep.appUrl} [${Date.now() - t0} ms]`,
+);
 const world = await seedWorld(dep);
 const fixtures = await seedRun(dep, world);
-console.log(`seeded: riley ${world.riley}, jordan ${world.jordan}, team ${world.teamId}, session ${fixtures.conversationId}, channel ${fixtures.channelId} [${Date.now() - t0} ms]`);
+console.log(
+  `seeded: riley ${world.riley}, jordan ${world.jordan}, team ${world.teamId}, session ${fixtures.conversationId}, channel ${fixtures.channelId} [${Date.now() - t0} ms]`,
+);
 
 const sides = [];
 const results = [];
 try {
-  const opened = await Promise.allSettled([openSide("riley", world.riley, dep, dir, "/inbox"), openSide("jordan", world.jordan, dep, dir, "/inbox")]);
+  const opened = await Promise.allSettled([
+    openSide("riley", world.riley, dep, dir, "/inbox"),
+    openSide("jordan", world.jordan, dep, dir, "/inbox"),
+  ]);
   for (const o of opened) if (o.status === "fulfilled") sides.push(o.value);
   const notOpen = opened.find((o) => o.status === "rejected");
   if (notOpen) throw notOpen.reason;
   const [R, J] = sides;
-  console.log(`both signed in on the local deployment, prod unreachable from both browsers [${Date.now() - t0} ms]`);
+  console.log(
+    `both signed in on the local deployment, prod unreachable from both browsers [${Date.now() - t0} ms]`,
+  );
   for (const name of LEG_NAMES) {
     const fn = LEGS[name];
-    if (!fn) throw new Error(`unknown leg ${name} (legs: ${ALL_LEGS.join(", ")})`);
+    if (!fn)
+      throw new Error(`unknown leg ${name} (legs: ${ALL_LEGS.join(", ")})`);
     console.log(`\n== ${name} ==`);
     const leg = new Leg(name, dir);
     const errorsBefore = sides.map((s) => s.errors.length);
@@ -422,10 +630,18 @@ try {
       await fn(leg, { R, J, dep, world, fixtures });
     } catch (e) {
       if (!leg.problems.length) leg.problems.push(e.message);
-      for (const s of sides) await s.page.screenshot(join(dir, `${name}-${s.who}-failed.png`)).catch(() => {});
+      for (const s of sides)
+        await s.page
+          .screenshot(join(dir, `${name}-${s.who}-failed.png`))
+          .catch(() => {});
     }
     const r = leg.result();
-    r.pageErrors = Object.fromEntries(sides.map((s, i) => [s.who, [...new Set(s.errors.slice(errorsBefore[i]))].slice(0, 8)]));
+    r.pageErrors = Object.fromEntries(
+      sides.map((s, i) => [
+        s.who,
+        [...new Set(s.errors.slice(errorsBefore[i]))].slice(0, 8),
+      ]),
+    );
     results.push(r);
   }
 } finally {
@@ -439,13 +655,29 @@ symlinkSync(dir, join(RUNS, "latest"));
 console.log("\n| leg | verdict | shots |");
 console.log("| --- | --- | --- |");
 for (const r of results) {
-  const shots = r.shots.map((s) => `${s.key}: ${!s.diff ? "no baseline" : s.diff.ok ? `matches (${(s.diff.ratio * 100).toFixed(3)}%)` : `DIFFERS ${s.diffFile}`}`).join("; ");
-  console.log(`| ${r.name} | ${r.ok ? "PASS" : "FAIL: " + r.problems.join("; ")} | ${shots || "none"} |`);
+  const shots = r.shots
+    .map(
+      (s) =>
+        `${s.key}: ${!s.diff ? "no baseline" : s.diff.ok ? `matches (${(s.diff.ratio * 100).toFixed(3)}%)` : `DIFFERS ${s.diffFile}`}`,
+    )
+    .join("; ");
+  console.log(
+    `| ${r.name} | ${r.ok ? "PASS" : "FAIL: " + r.problems.join("; ")} | ${shots || "none"} |`,
+  );
 }
 for (const r of results) {
-  for (const [who, errs] of Object.entries(r.pageErrors)) if (errs.length) console.log(`  ${r.name} page errors [${who}]: ${errs.join(" | ")}`);
+  for (const [who, errs] of Object.entries(r.pageErrors))
+    if (errs.length)
+      console.log(`  ${r.name} page errors [${who}]: ${errs.join(" | ")}`);
 }
-console.log(`\nshots and results: ${dir} (also ${RUNS}/latest); baselines: ${BASELINES}`);
+console.log(
+  `\nshots and results: ${dir} (also ${RUNS}/latest); baselines: ${BASELINES}`,
+);
 if (args.includes("--accept")) accept(dir, LEG_NAMES);
-else if (results.some((r) => r.shots.some((s) => !s.diff))) console.log("no baseline for some shots: review them, then `bun scripts/rig/smoke.mjs accept`");
-process.exit(results.length === LEG_NAMES.length && results.every((r) => r.ok) ? 0 : 1);
+else if (results.some((r) => r.shots.some((s) => !s.diff)))
+  console.log(
+    "no baseline for some shots: review them, then `bun scripts/rig/smoke.mjs accept`",
+  );
+process.exit(
+  results.length === LEG_NAMES.length && results.every((r) => r.ok) ? 0 : 1,
+);

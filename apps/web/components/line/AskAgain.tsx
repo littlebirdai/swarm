@@ -10,22 +10,41 @@ import { useLineCauseActions } from "./map/useLineCause";
 import { cn } from "../../lib/utils";
 import "./line.css";
 
-export function AskAgain({ taskId, projectId, className }: { taskId: string; projectId: string | null; className?: string }) {
+export function AskAgain({
+  taskId,
+  projectId,
+  className,
+}: {
+  taskId: string;
+  projectId: string | null;
+  className?: string;
+}) {
   const { start, error } = useLineCauseActions(projectId);
   const [sent, setSent] = useState(false);
   const busy = sent && !error;
   return (
-    <span className={cn("inline-flex items-center gap-2 min-w-0", className)} data-ask-again={taskId}>
+    <span
+      className={cn("inline-flex items-center gap-2 min-w-0", className)}
+      data-ask-again={taskId}
+    >
       <button
         type="button"
         className="line-ask-again"
         disabled={busy}
-        onClick={() => { setSent(true); start(taskId); }}
+        onClick={() => {
+          setSent(true);
+          start(taskId);
+        }}
         title="Starts the flow on this problem again. The fix is saved on its branch, so the new run picks it up and brings you its proposal to answer."
       >
-        <RotateCcw className="w-3 h-3 shrink-0" />{busy ? "Starting" : "Ask for the proposal again"}
+        <RotateCcw className="w-3 h-3 shrink-0" />
+        {busy ? "Starting" : "Ask for the proposal again"}
       </button>
-      {sent && error && <span className="text-[12px] text-sol-red" role="alert">{error}</span>}
+      {sent && error && (
+        <span className="text-[12px] text-sol-red" role="alert">
+          {error}
+        </span>
+      )}
     </span>
   );
 }

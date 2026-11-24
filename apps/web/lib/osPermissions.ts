@@ -26,7 +26,11 @@ import { bridge, isElectron } from "./desktop";
 
 // What the app itself asks macOS for. One cheap read each, so they share one
 // map and one poll.
-export type AppPermissionKind = "notifications" | "microphone" | "camera" | "screen";
+export type AppPermissionKind =
+  | "notifications"
+  | "microphone"
+  | "camera"
+  | "screen";
 // The two grants that belong to `codecast computer`, the small signed helper an
 // agent drives other Mac apps through. Read separately, and only while a
 // surface is showing them: each read launches that helper and can take seconds.
@@ -34,10 +38,21 @@ export type ComputerPermissionKind = "computerAccessibility" | "computerScreen";
 export type OsPermissionKind = AppPermissionKind | ComputerPermissionKind;
 export type PermissionReadiness = "granted" | "ask" | "off" | "unknown" | "n/a";
 export type PermissionMap = Record<AppPermissionKind, PermissionReadiness>;
-export type ComputerPermissionMap = Record<ComputerPermissionKind, PermissionReadiness>;
+export type ComputerPermissionMap = Record<
+  ComputerPermissionKind,
+  PermissionReadiness
+>;
 
-export const OS_PERMISSION_KINDS: AppPermissionKind[] = ["notifications", "microphone", "camera", "screen"];
-export const COMPUTER_PERMISSION_KINDS: ComputerPermissionKind[] = ["computerAccessibility", "computerScreen"];
+export const OS_PERMISSION_KINDS: AppPermissionKind[] = [
+  "notifications",
+  "microphone",
+  "camera",
+  "screen",
+];
+export const COMPUTER_PERMISSION_KINDS: ComputerPermissionKind[] = [
+  "computerAccessibility",
+  "computerScreen",
+];
 
 export type OsPermissionInfo = {
   kind: OsPermissionKind;
@@ -83,14 +98,16 @@ export const OS_PERMISSIONS: Record<OsPermissionKind, OsPermissionInfo> = {
     label: "Computer control",
     why: "An agent can read what a window shows and click in it, in the other apps on this Mac. Granted to codecast computer under Accessibility.",
     required: false,
-    offHint: "codecast computer is not turned on in the Accessibility list yet.",
+    offHint:
+      "codecast computer is not turned on in the Accessibility list yet.",
   },
   computerScreen: {
     kind: "computerScreen",
     label: "Computer screenshots",
     why: "An agent can see the window it is working in, to check that an action landed. Granted to codecast computer under Screen Recording.",
     required: false,
-    offHint: "codecast computer is not turned on in the Screen Recording list yet.",
+    offHint:
+      "codecast computer is not turned on in the Screen Recording list yet.",
   },
 };
 
@@ -102,21 +119,29 @@ export const UNKNOWN_PERMISSIONS: PermissionMap = {
 };
 
 function asReadiness(v: unknown): PermissionReadiness {
-  return v === "granted" || v === "ask" || v === "off" || v === "n/a" ? v : "unknown";
+  return v === "granted" || v === "ask" || v === "off" || v === "n/a"
+    ? v
+    : "unknown";
 }
 
 // Browser Permissions API state → readiness. Absent/throwing (Safari for
 // media kinds, Firefox for some) → unknown.
-export function browserPermissionToReadiness(state: PermissionState | undefined): PermissionReadiness {
+export function browserPermissionToReadiness(
+  state: PermissionState | undefined,
+): PermissionReadiness {
   if (state === "granted") return "granted";
   if (state === "denied") return "off";
   if (state === "prompt") return "ask";
   return "unknown";
 }
 
-async function queryBrowserPermission(name: string): Promise<PermissionReadiness> {
+async function queryBrowserPermission(
+  name: string,
+): Promise<PermissionReadiness> {
   try {
-    const status = await navigator.permissions.query({ name: name as PermissionName });
+    const status = await navigator.permissions.query({
+      name: name as PermissionName,
+    });
     return browserPermissionToReadiness(status.state);
   } catch {
     return "unknown";
@@ -128,7 +153,9 @@ export async function getOsPermissions(): Promise<PermissionMap> {
     const fn = bridge("getOsPermissions");
     if (!fn) return UNKNOWN_PERMISSIONS;
     try {
-      const raw = (await fn()) as Partial<Record<OsPermissionKind, unknown>> | null;
+      const raw = (await fn()) as Partial<
+        Record<OsPermissionKind, unknown>
+      > | null;
       return {
         notifications: asReadiness(raw?.notifications),
         microphone: asReadiness(raw?.microphone),
@@ -161,7 +188,11 @@ export async function getOsPermissions(): Promise<PermissionMap> {
 //   opened-settings — a settings screen was opened; poll on refocus
 //   unsupported     — nothing programmatic exists (a browser's "off"): show
 //                     the manual hint instead
-export type RequestOutcome = "granted" | "requested" | "opened-settings" | "unsupported";
+export type RequestOutcome =
+  | "granted"
+  | "requested"
+  | "opened-settings"
+  | "unsupported";
 
 export async function requestOsPermission(
   kind: OsPermissionKind,
@@ -203,18 +234,25 @@ export async function requestOsPermission(
 
 // Is there a button worth drawing? A browser's "off" has no programmatic
 // path, so the row shows the manual hint and no button.
-export function isPermissionActionable(readiness: PermissionReadiness): boolean {
+export function isPermissionActionable(
+  readiness: PermissionReadiness,
+): boolean {
   return readiness === "ask" || (readiness === "off" && isElectron());
 }
 
-export function permissionActionLabel(readiness: PermissionReadiness): string | null {
+export function permissionActionLabel(
+  readiness: PermissionReadiness,
+): string | null {
   if (!isPermissionActionable(readiness)) return null;
   return readiness === "off" ? "Open System Settings" : "Turn on";
 }
 
 // The sentence for a state that is not granted — used as the row's status
 // text and as the remedy in a media-failure notice.
-export function permissionHint(kind: OsPermissionKind, readiness: PermissionReadiness): string | null {
+export function permissionHint(
+  kind: OsPermissionKind,
+  readiness: PermissionReadiness,
+): string | null {
   const info = OS_PERMISSIONS[kind];
   const label = info.label;
   // "Notifications are", "Microphone is".
@@ -227,7 +265,8 @@ export function permissionHint(kind: OsPermissionKind, readiness: PermissionRead
       ? `${label} ${are} turned off for Codecast in System Settings.`
       : `${label} ${are} blocked for this site — allow ${them} in the site settings (the icon next to the address bar).`;
   }
-  if (readiness === "ask") return `${label} ${plural ? "haven't" : "hasn't"} been allowed on this device yet.`;
+  if (readiness === "ask")
+    return `${label} ${plural ? "haven't" : "hasn't"} been allowed on this device yet.`;
   return null;
 }
 
@@ -270,7 +309,11 @@ export function refreshOsPermissions(): Promise<void> {
 function schedulePoll() {
   if (pollId != null) window.clearTimeout(pollId);
   pollId = null;
-  if (listeners.size === 0 || !OS_PERMISSION_KINDS.some((k) => isPermissionActionable(current[k]))) return;
+  if (
+    listeners.size === 0 ||
+    !OS_PERMISSION_KINDS.some((k) => isPermissionActionable(current[k]))
+  )
+    return;
   pollId = window.setTimeout(() => refreshOsPermissions(), 30_000);
 }
 
@@ -288,7 +331,9 @@ function install() {
     for (const name of ["notifications", "microphone", "camera"]) {
       navigator.permissions
         .query({ name: name as PermissionName })
-        .then((status) => status.addEventListener("change", () => refreshOsPermissions()))
+        .then((status) =>
+          status.addEventListener("change", () => refreshOsPermissions()),
+        )
         .catch(() => {});
     }
   }
@@ -327,11 +372,14 @@ export const UNKNOWN_COMPUTER_PERMISSIONS: ComputerPermissionMap = {
 export async function getComputerPermissions(): Promise<ComputerPermissionMap> {
   // Only the desktop shell can reach the helper; a browser tab has no grant of
   // this kind to show at all.
-  if (!isElectron()) return { computerAccessibility: "n/a", computerScreen: "n/a" };
+  if (!isElectron())
+    return { computerAccessibility: "n/a", computerScreen: "n/a" };
   const fn = bridge("getComputerPermissions");
   if (!fn) return UNKNOWN_COMPUTER_PERMISSIONS;
   try {
-    const raw = (await fn()) as Partial<Record<ComputerPermissionKind, unknown>> | null;
+    const raw = (await fn()) as Partial<
+      Record<ComputerPermissionKind, unknown>
+    > | null;
     return {
       computerAccessibility: asReadiness(raw?.computerAccessibility),
       computerScreen: asReadiness(raw?.computerScreen),
@@ -349,7 +397,9 @@ export function refreshComputerPermissions(): Promise<void> {
   if (computerInflight) return computerInflight;
   computerInflight = getComputerPermissions()
     .then((next) => {
-      if (COMPUTER_PERMISSION_KINDS.some((k) => next[k] !== computerCurrent[k])) {
+      if (
+        COMPUTER_PERMISSION_KINDS.some((k) => next[k] !== computerCurrent[k])
+      ) {
         computerCurrent = next;
         for (const l of computerListeners) l();
       }

@@ -11,16 +11,49 @@ import { spawnAgentTmux } from "./delivery/spawnAgentTmux.js";
 import { launchTokenLedger } from "./launchToken.js";
 import { launchAccountPrefix } from "./ccAccounts.js";
 import { type Config, getAgentArgs } from "./config/types.js";
-import { appendModelEffortFlags, resolvePrintModelAlias } from "./launchCommand.js";
-import { SAFE_MODE_DENY_RULES, SAFE_MODE_MANDATE, definitionLaunchFlags } from "./agentLaunch.js";
-import { resolveAgentLaunch, type AgentDefinitionSpec } from "@codecast/shared/contracts";
+import {
+  appendModelEffortFlags,
+  resolvePrintModelAlias,
+} from "./launchCommand.js";
+import {
+  SAFE_MODE_DENY_RULES,
+  SAFE_MODE_MANDATE,
+  definitionLaunchFlags,
+} from "./agentLaunch.js";
+import {
+  resolveAgentLaunch,
+  type AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
 import { precheckFingerprint, runTriggerPrecheck } from "./precheckRunner.js";
 import { buildTriggerFrame } from "./triggerFrame.js";
-import { describeTriggerPrecheckFailure, judgeTriggerPrecheck, precheckMessageBlock, triggerFiringContinues, triggerFiringSource, triggerPrecheckApplies, triggerPrecheckMode, triggerLifecycleInstructions, STASHED_RUN_NOTE, TRIGGER_PRECHECK_STATE_ENV } from "@codecast/shared/contracts";
+import {
+  describeTriggerPrecheckFailure,
+  judgeTriggerPrecheck,
+  precheckMessageBlock,
+  triggerFiringContinues,
+  triggerFiringSource,
+  triggerPrecheckApplies,
+  triggerPrecheckMode,
+  triggerLifecycleInstructions,
+  STASHED_RUN_NOTE,
+  TRIGGER_PRECHECK_STATE_ENV,
+} from "@codecast/shared/contracts";
 
-const ENRICHED_PATH = [process.env.PATH, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].filter(Boolean).join(":");
+const ENRICHED_PATH = [
+  process.env.PATH,
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+]
+  .filter(Boolean)
+  .join(":");
 const _execAsync = promisify(exec);
-const execAsync = (cmd: string, opts?: Record<string, any>) => _execAsync(cmd, { timeout: 10_000, env: { ...process.env, PATH: ENRICHED_PATH }, ...opts });
+const execAsync = (cmd: string, opts?: Record<string, any>) =>
+  _execAsync(cmd, {
+    timeout: 10_000,
+    env: { ...process.env, PATH: ENRICHED_PATH },
+    ...opts,
+  });
 
 const POLL_INTERVAL_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 60_000;
@@ -42,9 +75,15 @@ export const TRIGGER_STARVE_MS = 30 * 60_000;
 
 /** The due runs a poll may start: all of them with room; at "over", only the one that has waited longest, once it has
  *  waited TRIGGER_STARVE_MS. A run started so is unattended, so the governor confines it like any other. */
-export function startableDue<T extends { run_at?: number }>(due: readonly T[], admitted: boolean, now: number): T[] {
+export function startableDue<T extends { run_at?: number }>(
+  due: readonly T[],
+  admitted: boolean,
+  now: number,
+): T[] {
   if (admitted) return [...due];
-  const starved = due.filter((t) => t.run_at !== undefined && now - t.run_at >= TRIGGER_STARVE_MS);
+  const starved = due.filter(
+    (t) => t.run_at !== undefined && now - t.run_at >= TRIGGER_STARVE_MS,
+  );
   return starved.sort((a, b) => a.run_at! - b.run_at!).slice(0, 1);
 }
 
@@ -82,7 +121,8 @@ interface SavedRuns {
 function readSavedRuns(file: string): SavedRuns | null {
   try {
     const saved = JSON.parse(fs.readFileSync(file, "utf8"));
-    if (typeof saved?.daemonId !== "string" || !Array.isArray(saved.runs)) return null;
+    if (typeof saved?.daemonId !== "string" || !Array.isArray(saved.runs))
+      return null;
     return saved;
   } catch {
     return null;
@@ -105,11 +145,17 @@ function triggerPromptKey(prompt: string): string {
   return `prompt:${crypto.createHash("sha256").update(prompt).digest("hex")}`;
 }
 
-export function triggerRunTaskId(sessionId: string, prompt?: string): string | undefined {
+export function triggerRunTaskId(
+  sessionId: string,
+  prompt?: string,
+): string | undefined {
   const known = liveRunTasks.get(sessionId);
   if (known) return known.taskId;
-  const receipt = prompt ? liveRunTasks.get(triggerPromptKey(prompt)) : undefined;
-  if (!receipt || Date.now() - receipt.at >= RUN_SESSION_TTL_MS) return undefined;
+  const receipt = prompt
+    ? liveRunTasks.get(triggerPromptKey(prompt))
+    : undefined;
+  if (!receipt || Date.now() - receipt.at >= RUN_SESSION_TTL_MS)
+    return undefined;
   liveRunTasks.set(sessionId, { ...receipt });
   return receipt.taskId;
 }
@@ -137,10 +183,19 @@ export function buildRunLaunch(
   // `cast trigger add --as`: the definition picks the client, model and effort
   // unless the trigger pinned them; its tool policy and prompt are appended
   // below through the same flags safe mode uses.
-  const launch = resolveAgentLaunch(definition, {
-    agent: task.agent_type === "codex" ? "codex" : task.agent_type ? "claude" : undefined,
-    model: task.model || undefined,
-  }, "claude");
+  const launch = resolveAgentLaunch(
+    definition,
+    {
+      agent:
+        task.agent_type === "codex"
+          ? "codex"
+          : task.agent_type
+            ? "claude"
+            : undefined,
+      model: task.model || undefined,
+    },
+    "claude",
+  );
   const agentType = launch.agent === "codex" ? "codex" : "claude";
   // Build agent command args (will be passed to the script, which quotes them via "$(cat promptFile)")
   let extraAgentArgs: string[] = [];
@@ -156,7 +211,14 @@ export function buildRunLaunch(
     if (extraArgs) {
       extraAgentArgs.push(...extraArgs.split(/\s+/).filter(Boolean));
     }
-    if (!extraAgentArgs.some(a => a.includes("--full-auto") || a.includes("--ask-for-approval") || a.includes("--dangerously-bypass"))) {
+    if (
+      !extraAgentArgs.some(
+        (a) =>
+          a.includes("--full-auto") ||
+          a.includes("--ask-for-approval") ||
+          a.includes("--dangerously-bypass"),
+      )
+    ) {
       extraAgentArgs.push("--dangerously-bypass-approvals-and-sandbox");
     }
   } else {
@@ -168,14 +230,25 @@ export function buildRunLaunch(
     // --dangerously-skip-permissions); and the mandate covers what neither can
     // pattern-match. Anything not "apply" fences — fail closed on a bad value.
     if (task.mode !== "apply") {
-      extraAgentArgs.push("--disallowedTools", "Edit", "Write", "NotebookEdit", ...SAFE_MODE_DENY_RULES);
+      extraAgentArgs.push(
+        "--disallowedTools",
+        "Edit",
+        "Write",
+        "NotebookEdit",
+        ...SAFE_MODE_DENY_RULES,
+      );
       extraAgentArgs.push("--append-system-prompt", SAFE_MODE_MANDATE);
     }
     if (definition) {
       const flags = definitionLaunchFlags(launch, "claude");
       extraAgentArgs.push(...flags.args);
-      if (flags.systemPrompt) extraAgentArgs.push("--system-prompt", flags.systemPrompt);
-      else if (flags.appendSystemPrompt && (task.mode === "apply" || flags.appendSystemPrompt !== SAFE_MODE_MANDATE)) {
+      if (flags.systemPrompt)
+        extraAgentArgs.push("--system-prompt", flags.systemPrompt);
+      else if (
+        flags.appendSystemPrompt &&
+        (task.mode === "apply" ||
+          flags.appendSystemPrompt !== SAFE_MODE_MANDATE)
+      ) {
         extraAgentArgs.push("--append-system-prompt", flags.appendSystemPrompt);
       }
     }
@@ -184,7 +257,8 @@ export function buildRunLaunch(
       const skip = new Set(["--dangerously-skip-permissions"]);
       const extra = extraArgs.split(/\s+/).filter(Boolean);
       for (const arg of extra) {
-        if (!skip.has(arg) && !extraAgentArgs.includes(arg)) extraAgentArgs.push(arg);
+        if (!skip.has(arg) && !extraAgentArgs.includes(arg))
+          extraAgentArgs.push(arg);
       }
     }
     // A run parked at a usage limit resumes its own session, so the firing
@@ -232,11 +306,21 @@ export function buildRunScript(input: {
   runSessionUuid?: string;
   accountPrefix?: string;
 }): string {
-  const { agentType, agentBin, extraAgentArgs, promptFile, scriptFile, runSessionUuid } = input;
-  const quotedArgs = extraAgentArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(" ");
-  const agentInvocation = agentType === "codex"
-    ? `${agentBin} "$(cat ${promptFile})" ${quotedArgs}`
-    : `${input.accountPrefix ?? ""}${agentBin} -p "$(cat ${promptFile})" ${quotedArgs}`;
+  const {
+    agentType,
+    agentBin,
+    extraAgentArgs,
+    promptFile,
+    scriptFile,
+    runSessionUuid,
+  } = input;
+  const quotedArgs = extraAgentArgs
+    .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+    .join(" ");
+  const agentInvocation =
+    agentType === "codex"
+      ? `${agentBin} "$(cat ${promptFile})" ${quotedArgs}`
+      : `${input.accountPrefix ?? ""}${agentBin} -p "$(cat ${promptFile})" ${quotedArgs}`;
   return [
     "#!/bin/bash",
     "unset CLAUDECODE",
@@ -244,7 +328,9 @@ export function buildRunScript(input: {
     // Hand the run's session UUID to the agent so a self-report via
     // `cast trigger complete` can link the run's conversation back to the task
     // (the agent's own session_id IS this UUID, assigned via --session-id above).
-    ...(runSessionUuid ? [`export CODECAST_RUN_SESSION_UUID='${runSessionUuid}'`] : []),
+    ...(runSessionUuid
+      ? [`export CODECAST_RUN_SESSION_UUID='${runSessionUuid}'`]
+      : []),
     agentInvocation,
     `rm -f ${promptFile} ${scriptFile}`,
     "",
@@ -262,7 +348,10 @@ export async function runPaneFinished(
   tmuxSession: string,
   childrenOf: (pid: string) => Promise<string | null> = paneChildren,
 ): Promise<boolean> {
-  const panes = await tmuxRunAsync(["list-panes", "-t", tmuxSession, "-F", "#{pane_pid}"], { timeout: 3000 });
+  const panes = await tmuxRunAsync(
+    ["list-panes", "-t", tmuxSession, "-F", "#{pane_pid}"],
+    { timeout: 3000 },
+  );
   if (panes.status !== 0) return isTmuxSessionMissingError(panes);
   const pids = panes.stdout.trim().split(/\s+/).filter(Boolean);
   if (pids.length === 0) return false;
@@ -279,7 +368,10 @@ export async function runPaneFinished(
  * that answer, and reading it as one ended a live run 88 s after its launch
  * at a load of 500 (tr-1474, 2026-10-17).
  */
-export async function paneChildren(pid: string, exec: (cmd: string) => Promise<{ stdout: string }> = execAsync): Promise<string | null> {
+export async function paneChildren(
+  pid: string,
+  exec: (cmd: string) => Promise<{ stdout: string }> = execAsync,
+): Promise<string | null> {
   try {
     return (await exec(`pgrep -P ${pid}`)).stdout;
   } catch (err) {
@@ -312,7 +404,8 @@ export class TaskScheduler {
     this.daemonId = saved?.daemonId ?? crypto.randomUUID();
     this.adoptable = saved?.runs ?? [];
     for (const [uuid, entry] of Object.entries(saved?.sessions ?? {})) {
-      if (Date.now() - entry.at < RUN_SESSION_TTL_MS) liveRunTasks.set(uuid, entry);
+      if (Date.now() - entry.at < RUN_SESSION_TTL_MS)
+        liveRunTasks.set(uuid, entry);
     }
     this.syncService = syncService;
     this.config = config;
@@ -324,7 +417,9 @@ export class TaskScheduler {
    * and its lease renewal still happen now: a run's lease is five minutes, and
    * a delayed renewal would hand the run to reclaimStaleTasks. */
   start(opts: { pollDelayMs?: number } = {}): void {
-    this.log(`Started with daemon_id=${this.daemonId.slice(0, 8)}, polling every ${POLL_INTERVAL_MS / 1000}s`);
+    this.log(
+      `Started with daemon_id=${this.daemonId.slice(0, 8)}, polling every ${POLL_INTERVAL_MS / 1000}s`,
+    );
     // The first heartbeat renews the lease and settles a run whose pane ended
     // while no daemon was watching.
     for (const run of this.adoptable) {
@@ -339,7 +434,9 @@ export class TaskScheduler {
       this.pollTimer = setInterval(() => this.poll(), POLL_INTERVAL_MS);
     };
     if (opts.pollDelayMs && opts.pollDelayMs > 0) {
-      this.log(`First poll held ${Math.round(opts.pollDelayMs / 1000)}s (boot pacing)`);
+      this.log(
+        `First poll held ${Math.round(opts.pollDelayMs / 1000)}s (boot pacing)`,
+      );
       setTimeout(beginPolling, opts.pollDelayMs);
     } else {
       beginPolling();
@@ -362,7 +459,8 @@ export class TaskScheduler {
   private async poll(): Promise<void> {
     if (this.stopped) return;
     const now = Date.now();
-    if (this.pollStartedAt !== null && now - this.pollStartedAt < POLL_STALE_MS) return;
+    if (this.pollStartedAt !== null && now - this.pollStartedAt < POLL_STALE_MS)
+      return;
     const startedAt = (this.pollStartedAt = now);
     const starts: Promise<unknown>[] = [];
 
@@ -373,19 +471,36 @@ export class TaskScheduler {
       if (!dueTasks || dueTasks.length === 0) return;
 
       // At "over" due runs stay due, up to TRIGGER_STARVE_MS (startableDue).
-      const eligible = dueTasks.filter((t) => !this.running.has(t._id) && !this.starting.has(t._id) && this.canServeTask(t));
-      for (const task of startableDue(eligible, governor.admit("trigger"), Date.now())) {
+      const eligible = dueTasks.filter(
+        (t) =>
+          !this.running.has(t._id) &&
+          !this.starting.has(t._id) &&
+          this.canServeTask(t),
+      );
+      for (const task of startableDue(
+        eligible,
+        governor.admit("trigger"),
+        Date.now(),
+      )) {
         // Past the cap a run stays due for the next tick.
         if (this.starting.size >= MAX_STARTING) break;
         this.starting.add(task._id);
         starts.push(
           this.executeTask(task)
-            .catch((err) => this.log(`Run start failed for task ${task._id}: ${err instanceof Error ? err.message : String(err)}`, "warn"))
+            .catch((err) =>
+              this.log(
+                `Run start failed for task ${task._id}: ${err instanceof Error ? err.message : String(err)}`,
+                "warn",
+              ),
+            )
             .finally(() => this.starting.delete(task._id)),
         );
       }
     } catch (err) {
-      this.log(`Poll error: ${err instanceof Error ? err.message : String(err)}`, "warn");
+      this.log(
+        `Poll error: ${err instanceof Error ? err.message : String(err)}`,
+        "warn",
+      );
     } finally {
       // The next tick may read the queue now; only the runs this one started are still in flight.
       if (this.pollStartedAt === startedAt) this.pollStartedAt = null;
@@ -428,7 +543,9 @@ export class TaskScheduler {
     }
     if (!eligible && !this.skipLogged.has(task._id)) {
       this.skipLogged.add(task._id);
-      this.log(`Skipping task "${task.title}" (${task._id}): ${reason} — leaving it due for an eligible device`);
+      this.log(
+        `Skipping task "${task.title}" (${task._id}): ${reason} — leaving it due for an eligible device`,
+      );
     }
     return eligible;
   }
@@ -436,7 +553,9 @@ export class TaskScheduler {
   /** Returns true when it started a fresh agent. */
   private async executeTask(task: any): Promise<boolean> {
     // A claim whose answer was lost may have landed: the server takes a retry from the lease holder as the same claim.
-    const claimed = await this.untilAnswered(`claim task ${task._id}`, () => this.syncService.claimTask(task._id, this.daemonId));
+    const claimed = await this.untilAnswered(`claim task ${task._id}`, () =>
+      this.syncService.claimTask(task._id, this.daemonId),
+    );
     if (!claimed) {
       this.log(`Failed to claim task ${task._id} (already claimed?)`);
       return false;
@@ -472,21 +591,32 @@ export class TaskScheduler {
         // The server builds the frame every trigger path delivers (the role's
         // card, the trigger pill, the stashed note); the local wrap below
         // stands in only when it cannot answer (an older server).
-        const serverFrame = await this.syncService.getInjectFrame?.(task._id.toString());
-        const filing = serverFrame ? null : await this.syncService.getSessionFiling(task.originating_conversation_id.toString());
-        const filingNote = filing === "stashed"
-          ? STASHED_RUN_NOTE
-          : "";
-        const wrappedPrompt = serverFrame
-          ?? `<scheduled-task title="${safeTitle}" task-id="${task._id}">${[task.prompt, precheckMessageBlock(task.precheck_message), triggerLifecycleInstructions(task)].filter(Boolean).join("\n\n")}${filingNote}</scheduled-task>`;
+        const serverFrame = await this.syncService.getInjectFrame?.(
+          task._id.toString(),
+        );
+        const filing = serverFrame
+          ? null
+          : await this.syncService.getSessionFiling(
+              task.originating_conversation_id.toString(),
+            );
+        const filingNote = filing === "stashed" ? STASHED_RUN_NOTE : "";
+        const wrappedPrompt =
+          serverFrame ??
+          `<scheduled-task title="${safeTitle}" task-id="${task._id}">${[task.prompt, precheckMessageBlock(task.precheck_message), triggerLifecycleInstructions(task)].filter(Boolean).join("\n\n")}${filingNote}</scheduled-task>`;
         // The injected message becomes a user-row in the messages table once
         // the agent's JSONL is parsed. The UI detects the <scheduled-task>
         // wrapper and renders it as a ScheduledTaskBlock, so we must not
         // also write a system-subtype row here -- that would double-render.
         // origin "scheduler": a machine wake must not clear the user's stash —
         // a stashed session keeps running out of the active queue.
-        await this.syncService.sendMessageToSession(task.originating_conversation_id, wrappedPrompt, "scheduler");
-        this.log(`Injected prompt into conversation ${task.originating_conversation_id.toString().slice(-8)} for task "${task.title}"`);
+        await this.syncService.sendMessageToSession(
+          task.originating_conversation_id,
+          wrappedPrompt,
+          "scheduler",
+        );
+        this.log(
+          `Injected prompt into conversation ${task.originating_conversation_id.toString().slice(-8)} for task "${task.title}"`,
+        );
         await this.syncService.completeTaskRun(
           task._id,
           this.daemonId,
@@ -495,22 +625,39 @@ export class TaskScheduler {
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        this.log(`Failed to inject into conversation for task "${task.title}": ${msg}`, "error");
-        await this.syncService.failTaskRun(task._id, this.daemonId, `Injection failed: ${msg}`);
+        this.log(
+          `Failed to inject into conversation for task "${task.title}": ${msg}`,
+          "error",
+        );
+        await this.syncService.failTaskRun(
+          task._id,
+          this.daemonId,
+          `Injection failed: ${msg}`,
+        );
       }
       return false;
     }
 
     // The claimed row is current: an event that fired between the poll and
     // the claim is on it, not on the polled copy.
-    const prompt = this.buildPrompt({ ...task, pending_events: claimed.pending_events ?? task.pending_events });
+    const prompt = this.buildPrompt({
+      ...task,
+      pending_events: claimed.pending_events ?? task.pending_events,
+    });
     const agentType = task.agent_type || "claude";
     // canServeTask gated the claim; this catches the checkout vanishing between
     // poll and spawn. Fail loudly — never fall back to $HOME, which runs the
     // agent (possibly apply-mode) blind in an unrelated directory.
     if (task.project_path && !fs.existsSync(task.project_path)) {
-      this.log(`project_path ${task.project_path} missing at spawn time for task "${task.title}"`, "error");
-      await this.syncService.failTaskRun(task._id, this.daemonId, `project_path not found on this device: ${task.project_path}`);
+      this.log(
+        `project_path ${task.project_path} missing at spawn time for task "${task.title}"`,
+        "error",
+      );
+      await this.syncService.failTaskRun(
+        task._id,
+        this.daemonId,
+        `project_path not found on this device: ${task.project_path}`,
+      );
       return false;
     }
     const cwd = task.project_path || process.env.HOME || "/tmp";
@@ -523,10 +670,21 @@ export class TaskScheduler {
 
     let definition: AgentDefinitionSpec | undefined;
     if (task.agent_definition) {
-      definition = (await this.syncService.resolveAgentDefinition(task.agent_definition)) ?? undefined;
-      if (!definition) this.log(`agent definition "${task.agent_definition}" not found; running task "${task.title}" without it`, "warn");
+      definition =
+        (await this.syncService.resolveAgentDefinition(
+          task.agent_definition,
+        )) ?? undefined;
+      if (!definition)
+        this.log(
+          `agent definition "${task.agent_definition}" not found; running task "${task.title}" without it`,
+          "warn",
+        );
     }
-    const { agentBin, extraAgentArgs, runSessionUuid } = buildRunLaunch(task, this.config, definition);
+    const { agentBin, extraAgentArgs, runSessionUuid } = buildRunLaunch(
+      task,
+      this.config,
+      definition,
+    );
 
     const scriptFile = `/tmp/codecast-task-${shortId}.sh`;
     const runAgent = agentType === "codex" ? "codex" : "claude";
@@ -537,13 +695,21 @@ export class TaskScheduler {
       promptFile,
       scriptFile,
       runSessionUuid,
-      accountPrefix: runAgent === "claude" ? launchAccountPrefix(undefined, (msg) => this.log(msg, "warn")).prefix : undefined,
+      accountPrefix:
+        runAgent === "claude"
+          ? launchAccountPrefix(undefined, (msg) => this.log(msg, "warn"))
+              .prefix
+          : undefined,
     });
     fs.writeFileSync(scriptFile, scriptBody, { mode: 0o755 });
 
     if (!hasTmux()) {
       this.log(`tmux not installed, cannot run task "${task.title}"`, "error");
-      await this.syncService.failTaskRun(task._id, this.daemonId, "tmux is not installed");
+      await this.syncService.failTaskRun(
+        task._id,
+        this.daemonId,
+        "tmux is not installed",
+      );
       return false;
     }
 
@@ -559,7 +725,8 @@ export class TaskScheduler {
     // is stamped, which is harmless.
     const promptKey = triggerPromptKey(prompt);
     liveRunTasks.set(promptKey, { taskId: task._id, at: Date.now() });
-    if (runSessionUuid) liveRunTasks.set(runSessionUuid, { taskId: task._id, at: Date.now() });
+    if (runSessionUuid)
+      liveRunTasks.set(runSessionUuid, { taskId: task._id, at: Date.now() });
     this.saveRuns();
     const spawn = await spawnAgentTmux(
       {
@@ -574,8 +741,15 @@ export class TaskScheduler {
       { config: this.config, log: this.log },
     );
     if (!spawn.ok) {
-      this.log(`Failed to spawn tmux for task "${task.title}": ${spawn.reason}`, "error");
-      await this.syncService.failTaskRun(task._id, this.daemonId, `Failed to spawn tmux session: ${spawn.reason}`);
+      this.log(
+        `Failed to spawn tmux for task "${task.title}": ${spawn.reason}`,
+        "error",
+      );
+      await this.syncService.failTaskRun(
+        task._id,
+        this.daemonId,
+        `Failed to spawn tmux session: ${spawn.reason}`,
+      );
       return false;
     }
     this.log(`Spawned tmux session ${tmuxSession} for task "${task.title}"`);
@@ -592,9 +766,14 @@ export class TaskScheduler {
 
   private track(run: TrackedRun): void {
     const heartbeatTimer = setInterval(async () => {
-      const renewed = await this.syncService.renewTaskLease(run.taskId, this.daemonId);
+      const renewed = await this.syncService.renewTaskLease(
+        run.taskId,
+        this.daemonId,
+      );
       if (!renewed) {
-        this.log(`Lease renewal failed for task ${run.taskId}, stopping monitor`);
+        this.log(
+          `Lease renewal failed for task ${run.taskId}, stopping monitor`,
+        );
         this.cleanupTask(run.taskId);
       }
 
@@ -608,7 +787,10 @@ export class TaskScheduler {
     // completed run of a repeating schedule out of the inbox. completeTaskRun
     // backfills the link at run end if every attempt here loses the race.
     if (run.runSessionUuid) {
-      liveRunTasks.set(run.runSessionUuid, { taskId: run.taskId, at: Date.now() });
+      liveRunTasks.set(run.runSessionUuid, {
+        taskId: run.taskId,
+        at: Date.now(),
+      });
       this.scheduleRunLink(run.taskId, run.runSessionUuid);
     }
     this.saveRuns();
@@ -619,15 +801,22 @@ export class TaskScheduler {
     if (this.stopped) return;
     const saved: SavedRuns = {
       daemonId: this.daemonId,
-      runs: [...this.running.values()].map(({ heartbeatTimer: _timer, ...run }) => run),
+      runs: [...this.running.values()].map(
+        ({ heartbeatTimer: _timer, ...run }) => run,
+      ),
       sessions: Object.fromEntries(
-        [...liveRunTasks].filter(([, entry]) => Date.now() - entry.at < RUN_SESSION_TTL_MS),
+        [...liveRunTasks].filter(
+          ([, entry]) => Date.now() - entry.at < RUN_SESSION_TTL_MS,
+        ),
       ),
     };
     try {
       fs.writeFileSync(this.runsFile, JSON.stringify(saved));
     } catch (err) {
-      this.log(`Could not save live runs to ${this.runsFile}: ${err instanceof Error ? err.message : String(err)}`, "warn");
+      this.log(
+        `Could not save live runs to ${this.runsFile}: ${err instanceof Error ? err.message : String(err)}`,
+        "warn",
+      );
     }
   }
 
@@ -652,7 +841,8 @@ export class TaskScheduler {
     // firing kept. An older server returns only part of it; the polled copy fills in.
     const gate = { ...task, ...claimed };
     if (!gate.precheck) return false;
-    const source = claimed?.last_run_source ?? triggerFiringSource(task.schedule_type);
+    const source =
+      claimed?.last_run_source ?? triggerFiringSource(task.schedule_type);
     if (!triggerPrecheckApplies(source)) return false;
 
     // The gate is an optimization, not a fence, so it only speaks where it can
@@ -662,28 +852,52 @@ export class TaskScheduler {
     // loudly; an inject run is delivered by the server, wherever it lives).
     const cwd = task.project_path || process.env.HOME;
     if (!cwd || !fs.existsSync(cwd)) {
-      this.log(`Precheck for task "${task.title}" has no directory to run in (${task.project_path}) — running ungated`, "warn");
+      this.log(
+        `Precheck for task "${task.title}" has no directory to run in (${task.project_path}) — running ungated`,
+        "warn",
+      );
       return false;
     }
     const mode = triggerPrecheckMode(gate.precheck_mode);
     if (mode !== "exit" && triggerFiringContinues(gate)) {
-      this.log(`Running "${task.title}" ungated: it continues a firing its precheck already woke`);
+      this.log(
+        `Running "${task.title}" ungated: it continues a firing its precheck already woke`,
+      );
       return false;
     }
     const previous: string | undefined = gate.precheck_state;
     const result = await runTriggerPrecheck({
       command: gate.precheck,
       cwd,
-      ...(mode === "state" ? { env: { [TRIGGER_PRECHECK_STATE_ENV]: previous ?? "null" } } : {}),
+      ...(mode === "state"
+        ? { env: { [TRIGGER_PRECHECK_STATE_ENV]: previous ?? "null" } }
+        : {}),
     });
-    const verdict = judgeTriggerPrecheck(mode, result, previous, precheckFingerprint);
+    const verdict = judgeTriggerPrecheck(
+      mode,
+      result,
+      previous,
+      precheckFingerprint,
+    );
     if (verdict.wake) {
-      this.log(`Precheck passed for task "${task.title}" in ${result.durationMs}ms`);
+      this.log(
+        `Precheck passed for task "${task.title}" in ${result.durationMs}ms`,
+      );
       // The state and message live on the trigger row: the server builds an
       // inject run's frame from it, so it is written before the run starts.
       if (mode !== "exit") {
-        const kept = await this.syncService.passTaskPrecheck(task._id, this.daemonId, { command: gate.precheck, mode }, verdict.state, verdict.message);
-        if (!kept) this.log(`Could not keep the precheck state for task "${task.title}"; its next firing compares against the old one`, "warn");
+        const kept = await this.syncService.passTaskPrecheck(
+          task._id,
+          this.daemonId,
+          { command: gate.precheck, mode },
+          verdict.state,
+          verdict.message,
+        );
+        if (!kept)
+          this.log(
+            `Could not keep the precheck state for task "${task.title}"; its next firing compares against the old one`,
+            "warn",
+          );
       }
       task.precheck_message = verdict.message;
       return false;
@@ -692,13 +906,24 @@ export class TaskScheduler {
     const reason = verdict.reason ?? describeTriggerPrecheckFailure(result);
     this.log(`Skipping ${source} run of task "${task.title}": ${reason}`);
     await this.untilAnswered(`record the skip of task ${task._id}`, () =>
-      this.syncService.skipTaskRun(task._id, this.daemonId, result, reason, source, verdict.state, mode),
+      this.syncService.skipTaskRun(
+        task._id,
+        this.daemonId,
+        result,
+        reason,
+        source,
+        verdict.state,
+        mode,
+      ),
     ).catch(() => {});
     return true;
   }
 
   /** Runs a trigger write until the backend answers, waiting UNANSWERED_RETRY_MS between tries; throws the last error. */
-  private async untilAnswered<T>(what: string, call: () => Promise<T>): Promise<T> {
+  private async untilAnswered<T>(
+    what: string,
+    call: () => Promise<T>,
+  ): Promise<T> {
     for (let attempt = 0; ; attempt++) {
       try {
         return await call();
@@ -706,10 +931,16 @@ export class TaskScheduler {
         const wait = this.retryDelaysMs[attempt];
         const msg = err instanceof Error ? err.message : String(err);
         if (wait === undefined) {
-          this.log(`Could not ${what} after ${attempt + 1} tries: ${msg}`, "warn");
+          this.log(
+            `Could not ${what} after ${attempt + 1} tries: ${msg}`,
+            "warn",
+          );
           throw err;
         }
-        this.log(`Backend did not answer (${msg}); will ${what} again in ${wait / 1000}s`, "warn");
+        this.log(
+          `Backend did not answer (${msg}); will ${what} again in ${wait / 1000}s`,
+          "warn",
+        );
         await new Promise((r) => setTimeout(r, wait));
       }
     }
@@ -718,12 +949,19 @@ export class TaskScheduler {
   // Bounded retry chain for linkRunConversation; standalone timers (not tied
   // to the RunningTask entry) so a fast run that completes before the first
   // attempt doesn't orphan the link — the mutation is idempotent either way.
-  private scheduleRunLink(taskId: string, runSessionUuid: string, attempt = 0): void {
+  private scheduleRunLink(
+    taskId: string,
+    runSessionUuid: string,
+    attempt = 0,
+  ): void {
     const delaysMs = [10_000, 30_000, 90_000];
     if (attempt >= delaysMs.length) return;
     setTimeout(async () => {
       try {
-        const result = await this.syncService.linkRunConversation(taskId, runSessionUuid);
+        const result = await this.syncService.linkRunConversation(
+          taskId,
+          runSessionUuid,
+        );
         if (result.linked || !result.retry) return;
       } catch {
         // fall through to retry
@@ -736,8 +974,11 @@ export class TaskScheduler {
     const entry = this.running.get(taskId);
     if (!entry) return;
     if (!entry.runSessionUuid) {
-      entry.runSessionUuid = [...liveRunTasks].find(([key, receipt]) =>
-        !key.startsWith("prompt:") && receipt.taskId === taskId && receipt.at >= entry.startedAt - 5_000
+      entry.runSessionUuid = [...liveRunTasks].find(
+        ([key, receipt]) =>
+          !key.startsWith("prompt:") &&
+          receipt.taskId === taskId &&
+          receipt.at >= entry.startedAt - 5_000,
       )?.[0];
       if (entry.runSessionUuid) this.saveRuns();
     }
@@ -745,10 +986,20 @@ export class TaskScheduler {
     // The session is gone only when tmux says so. A probe that timed out or
     // failed to start says nothing (tr-1474 ended a live run that way at a
     // high load); the checks below still run, and the runtime cap bounds it.
-    const session = await tmuxRunAsync(["has-session", "-t", entry.tmuxSession]);
+    const session = await tmuxRunAsync([
+      "has-session",
+      "-t",
+      entry.tmuxSession,
+    ]);
     if (session.status !== 0 && isTmuxSessionMissingError(session)) {
       this.log(`tmux session ${entry.tmuxSession} ended for task ${taskId}`);
-      await this.syncService.completeTaskRun(taskId, this.daemonId, "Agent session ended", undefined, entry.runSessionUuid);
+      await this.syncService.completeTaskRun(
+        taskId,
+        this.daemonId,
+        "Agent session ended",
+        undefined,
+        entry.runSessionUuid,
+      );
       this.cleanupTask(taskId);
       return;
     }
@@ -756,9 +1007,16 @@ export class TaskScheduler {
     // Check max runtime
     const elapsed = Date.now() - entry.startedAt;
     if (elapsed > entry.maxRuntimeMs) {
-      this.log(`Task ${taskId} exceeded max runtime (${entry.maxRuntimeMs}ms), killing`);
+      this.log(
+        `Task ${taskId} exceeded max runtime (${entry.maxRuntimeMs}ms), killing`,
+      );
       await tmuxRunAsync(["kill-session", "-t", entry.tmuxSession]);
-      await this.syncService.failTaskRun(taskId, this.daemonId, `Exceeded max runtime (${Math.round(entry.maxRuntimeMs / 60000)}min)`, entry.runSessionUuid);
+      await this.syncService.failTaskRun(
+        taskId,
+        this.daemonId,
+        `Exceeded max runtime (${Math.round(entry.maxRuntimeMs / 60000)}min)`,
+        entry.runSessionUuid,
+      );
       this.cleanupTask(taskId);
       return;
     }
@@ -767,7 +1025,13 @@ export class TaskScheduler {
     if (await runPaneFinished(entry.tmuxSession)) {
       this.log(`Task ${taskId} returned to shell prompt, cleaning up`);
       await tmuxRunAsync(["kill-session", "-t", entry.tmuxSession]);
-      await this.syncService.completeTaskRun(taskId, this.daemonId, "Agent exited", undefined, entry.runSessionUuid);
+      await this.syncService.completeTaskRun(
+        taskId,
+        this.daemonId,
+        "Agent exited",
+        undefined,
+        entry.runSessionUuid,
+      );
       this.cleanupTask(taskId);
     }
   }

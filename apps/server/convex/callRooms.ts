@@ -71,7 +71,11 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { createTeamFeedFilter, isTeamMember } from "./privacy";
 import { canAccessChannel, isCommunity, isRestricted } from "./chatAccess";
 import { teamFeatureOffMessage, teamHasFeature } from "./teamFeatures";
-import { checkGuestRoster, endGuestAdmissions, roomHasGuestLinks } from "./lib/callGuestAdmission";
+import {
+  checkGuestRoster,
+  endGuestAdmissions,
+  roomHasGuestLinks,
+} from "./lib/callGuestAdmission";
 // Key shapes, builders and lease timings are the shared contract
 // (@codecast/shared/contracts/callRoomKeys) so the web client can build keys
 // and share staleness math without importing server code. This module adds
@@ -119,7 +123,9 @@ export function liveMembers<T extends { last_seen: number; prewarm?: boolean }>(
   rows: T[],
   now: number,
 ): T[] {
-  return rows.filter((m) => isSeat(m) && now - m.last_seen < CALL_MEMBER_STALE_MS);
+  return rows.filter(
+    (m) => isSeat(m) && now - m.last_seen < CALL_MEMBER_STALE_MS,
+  );
 }
 
 /** Is this row a person's seat at all, at any freshness?
@@ -171,7 +177,10 @@ export function isSeat(row: { prewarm?: boolean }): boolean {
  *  LIVE one wins over an older ended row, so a recording in progress can never
  *  have its ownership answered by some earlier transcript that happened to use
  *  the same id. */
-async function roomlessTranscript(ctx: any, roomKey: string): Promise<Doc<"transcripts"> | null> {
+async function roomlessTranscript(
+  ctx: any,
+  roomKey: string,
+): Promise<Doc<"transcripts"> | null> {
   const rows: Doc<"transcripts">[] = await ctx.db
     .query("transcripts")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -194,7 +203,8 @@ export async function recRoutingTeam(
 ): Promise<Id<"teams"> | null> {
   const user = await ctx.db.get(userId);
   for (const candidate of [user?.active_team_id, user?.team_id]) {
-    if (candidate && (await isTeamMember(ctx, userId, candidate))) return candidate;
+    if (candidate && (await isTeamMember(ctx, userId, candidate)))
+      return candidate;
   }
   const firstMembership = await ctx.db
     .query("team_memberships")
@@ -215,14 +225,25 @@ export async function recRoutingTeam(
 export async function canReadRoomlessCall(
   ctx: any,
   userId: Id<"users">,
-  t: Pick<Doc<"transcripts">, "room_key" | "started_by" | "team_id" | "participants" | "rec_shared" | "recorded_people" | "screen_recording">,
+  t: Pick<
+    Doc<"transcripts">,
+    | "room_key"
+    | "started_by"
+    | "team_id"
+    | "participants"
+    | "rec_shared"
+    | "recorded_people"
+    | "screen_recording"
+  >,
 ): Promise<boolean> {
   if (String(t.started_by) === String(userId)) return true;
   // A screen recording is part of the session it was sent to, like an image
   // in a message there: the session's readers read it, and the team's call
   // sharing never reaches it.
   if (t.screen_recording) {
-    const conv = t.screen_recording.conversation_id ? await ctx.db.get(t.screen_recording.conversation_id) : null;
+    const conv = t.screen_recording.conversation_id
+      ? await ctx.db.get(t.screen_recording.conversation_id)
+      : null;
     return !!conv && (await canAccessConversation(ctx, userId, conv));
   }
   const heard =
@@ -230,7 +251,10 @@ export async function canReadRoomlessCall(
     ((t.participants ?? []).some((p) => String(p.id) === String(userId)) ||
       (t.recorded_people ?? []).some((id) => String(id) === String(userId)));
   if (!heard && !t.rec_shared) return false;
-  return (await isTeamMember(ctx, userId, t.team_id)) && (await teamHasFeature(ctx, t.team_id, "calls"));
+  return (
+    (await isTeamMember(ctx, userId, t.team_id)) &&
+    (await teamHasFeature(ctx, t.team_id, "calls"))
+  );
 }
 
 // A team every one of `users` belongs to, walking the first user's
@@ -248,7 +272,10 @@ async function sharedTeam(
   for (const m of memberships) {
     let all = true;
     for (const other of rest) {
-      if (!(await isTeamMember(ctx, other, m.team_id))) { all = false; break; }
+      if (!(await isTeamMember(ctx, other, m.team_id))) {
+        all = false;
+        break;
+      }
     }
     if (all) return m.team_id;
   }
@@ -278,8 +305,9 @@ async function acceptedInviteGrant(
     .collect();
   const accepted = invites
     .filter((i: Doc<"call_invites">) => i.status === "accepted")
-    .sort((a: Doc<"call_invites">, b: Doc<"call_invites">) =>
-      (b.responded_at ?? 0) - (a.responded_at ?? 0),
+    .sort(
+      (a: Doc<"call_invites">, b: Doc<"call_invites">) =>
+        (b.responded_at ?? 0) - (a.responded_at ?? 0),
     )[0];
   if (!accepted) return null;
   if (!(await isTeamMember(ctx, userId, accepted.team_id))) return null;
@@ -302,7 +330,10 @@ async function acceptedInviteGrant(
  *  seat starts a NEW huddle, so every grant issued for the previous one dies
  *  here. Guests still inside a running huddle never hit this — the room is
  *  not empty while they (or anyone) hold a fresh lease. */
-export async function expireRoomGrants(ctx: any, roomKey: string): Promise<void> {
+export async function expireRoomGrants(
+  ctx: any,
+  roomKey: string,
+): Promise<void> {
   const invites = await ctx.db
     .query("call_invites")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -323,7 +354,10 @@ export async function expireRoomGrants(ctx: any, roomKey: string): Promise<void>
   // guest link ever opened this room: a guest put out of an earlier huddle
   // whose client reconnected on a token LiveKit kept refreshing after the
   // roster tail ended would otherwise sit in this one, listening.
-  if ((await endGuestAdmissions(ctx, roomKey)) === 0 && (await roomHasGuestLinks(ctx, roomKey))) {
+  if (
+    (await endGuestAdmissions(ctx, roomKey)) === 0 &&
+    (await roomHasGuestLinks(ctx, roomKey))
+  ) {
     await checkGuestRoster(ctx, roomKey);
   }
   // A guest link made from a SEAT was the seat-holder's standing in that
@@ -336,13 +370,17 @@ export async function expireRoomGrants(ctx: any, roomKey: string): Promise<void>
     .collect();
   const now = Date.now();
   for (const l of seatLinks) {
-    if (l.created_via === "seat" && !l.revoked_at) await ctx.db.patch(l._id, { revoked_at: now });
+    if (l.created_via === "seat" && !l.revoked_at)
+      await ctx.db.patch(l._id, { revoked_at: now });
   }
 }
 
 /** The room's one state row (lock, transcription opt-out), or null for the
  *  ordinary case, so the common path costs one empty index read. */
-export async function readRoomState(ctx: any, roomKey: string): Promise<any | null> {
+export async function readRoomState(
+  ctx: any,
+  roomKey: string,
+): Promise<any | null> {
   return await ctx.db
     .query("call_room_state")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -350,12 +388,18 @@ export async function readRoomState(ctx: any, roomKey: string): Promise<any | nu
 }
 
 /** Is this room's door shut? */
-export async function isRoomLocked(ctx: any, roomKey: string): Promise<boolean> {
+export async function isRoomLocked(
+  ctx: any,
+  roomKey: string,
+): Promise<boolean> {
   return !!(await readRoomState(ctx, roomKey))?.locked;
 }
 
 /** Has this huddle turned transcription off? */
-export async function isRoomTranscribeOff(ctx: any, roomKey: string): Promise<boolean> {
+export async function isRoomTranscribeOff(
+  ctx: any,
+  roomKey: string,
+): Promise<boolean> {
   return !!(await readRoomState(ctx, roomKey))?.transcribe_off;
 }
 
@@ -366,7 +410,14 @@ export async function upsertRoomState(
   ctx: any,
   roomKey: string,
   seat: { team_id: Id<"teams">; user_id: Id<"users"> },
-  patch: { locked?: boolean; private?: boolean; transcribe_off?: boolean; transcribe_off_at?: number; emptied_at?: number; words_public?: boolean },
+  patch: {
+    locked?: boolean;
+    private?: boolean;
+    transcribe_off?: boolean;
+    transcribe_off_at?: number;
+    emptied_at?: number;
+    words_public?: boolean;
+  },
   now: number,
 ): Promise<void> {
   const existing = await readRoomState(ctx, roomKey);
@@ -402,14 +453,25 @@ export async function upsertRoomState(
  *  scribe, the seat a state row bills to. */
 export async function stampRoomWordsPublic(
   ctx: any,
-  call: Pick<Doc<"transcripts">, "room_key" | "team_id" | "started_by" | "status" | "share_token">,
+  call: Pick<
+    Doc<"transcripts">,
+    "room_key" | "team_id" | "started_by" | "status" | "share_token"
+  >,
   opts: { ending?: boolean } = {},
 ): Promise<void> {
   if (isRoomlessKey(call.room_key)) return;
   if (call.status !== "live" && !opts.ending) return;
-  const wordsPublic = call.status === "live" && !opts.ending && !!call.share_token;
-  if (!!(await readRoomState(ctx, call.room_key))?.words_public === wordsPublic) return;
-  await upsertRoomState(ctx, call.room_key, { team_id: call.team_id, user_id: call.started_by }, { words_public: wordsPublic }, Date.now());
+  const wordsPublic =
+    call.status === "live" && !opts.ending && !!call.share_token;
+  if (!!(await readRoomState(ctx, call.room_key))?.words_public === wordsPublic)
+    return;
+  await upsertRoomState(
+    ctx,
+    call.room_key,
+    { team_id: call.team_id, user_id: call.started_by },
+    { words_public: wordsPublic },
+    Date.now(),
+  );
 }
 
 // The open door: a live huddle admits any member of the team it bills to.
@@ -471,7 +533,11 @@ export async function openRoomDoor(
  *  room restarting from empty is a NEW huddle, which starts unlocked with
  *  nobody waiting outside. */
 export async function clearRoomState(ctx: any, roomKey: string): Promise<void> {
-  for (const table of ["call_room_state", "call_knocks", "call_stage_pins"] as const) {
+  for (const table of [
+    "call_room_state",
+    "call_knocks",
+    "call_stage_pins",
+  ] as const) {
     const rows = await ctx.db
       .query(table)
       .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -501,8 +567,12 @@ export async function liveSeat(
 /** Why a team cannot hold calls, or null when it can: the calls feature is
  *  off, or the team holds regulated data and LiveKit, which carries every
  *  call's audio and video, has no BAA with Codecast yet (lib/vendorGuard). */
-export async function callsOffReason(ctx: { db: any }, teamId: Id<"teams">): Promise<string | null> {
-  if (!(await teamHasFeature(ctx, teamId, "calls"))) return teamFeatureOffMessage("calls");
+export async function callsOffReason(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+): Promise<string | null> {
+  if (!(await teamHasFeature(ctx, teamId, "calls")))
+    return teamFeatureOffMessage("calls");
   return featureVendorRefusal(ctx, teamId, "calls");
 }
 
@@ -553,7 +623,9 @@ export async function authorizeRoomInviter(
   const seat = await liveSeat(ctx, userId, roomKey);
   if (!seat) return auth;
   const off = await callsOffReason(ctx, seat.team_id);
-  return off ? { ok: false, reason: off } : { ok: true, teamId: seat.team_id, parsed };
+  return off
+    ? { ok: false, reason: off }
+    : { ok: true, teamId: seat.team_id, parsed };
 }
 
 // May `userId` participate in `roomKey`? Returns the team the room bills its
@@ -576,7 +648,12 @@ export async function authorizeRoom(
   // one at a time and everything else, including whatever is written next, is
   // shut without having to remember.
   if (!opts.rec && isRoomlessKey(roomKey)) {
-    return { ok: false, reason: isRecRoomKey(roomKey) ? "a recording is not a room" : "a meeting on another platform is not a room" };
+    return {
+      ok: false,
+      reason: isRecRoomKey(roomKey)
+        ? "a recording is not a room"
+        : "a meeting on another platform is not a room",
+    };
   }
   let auth = await authorizeRoomMembership(ctx, userId, roomKey);
   if (!auth.ok) {
@@ -643,7 +720,8 @@ export async function authorizeRoomMembership(
       return { ok: true, teamId: t.team_id, parsed };
     }
     const teamId = await recRoutingTeam(ctx, userId);
-    if (!teamId) return { ok: false, reason: "no team to file this recording under" };
+    if (!teamId)
+      return { ok: false, reason: "no team to file this recording under" };
     return { ok: true, teamId, parsed };
   }
 
@@ -652,7 +730,8 @@ export async function authorizeRoomMembership(
     // one, so a key with no transcript is nobody's.
     const t = await roomlessTranscript(ctx, roomKey);
     if (!t) return { ok: false, reason: "meeting not found" };
-    if (String(t.started_by) !== String(userId)) return { ok: false, reason: "not your meeting" };
+    if (String(t.started_by) !== String(userId))
+      return { ok: false, reason: "not your meeting" };
     return { ok: true, teamId: t.team_id, parsed };
   }
 
@@ -668,7 +747,10 @@ export async function authorizeRoomMembership(
     if (!(await canAccessChannel(ctx, userId, channel))) {
       return { ok: false, reason: "not a member of this channel" };
     }
-    if (isCommunity(channel) && !(await isTeamMember(ctx, userId, channel.team_id))) {
+    if (
+      isCommunity(channel) &&
+      !(await isTeamMember(ctx, userId, channel.team_id))
+    ) {
       return { ok: false, reason: "not a member of this channel" };
     }
     return { ok: true, teamId: channel.team_id, parsed };

@@ -37,7 +37,15 @@ export function voiceHostView(input: {
    *  holds the float down only until an app window has focus. */
   dismissed?: boolean;
 }): VoiceWindowShape {
-  const { engaged, inCall, expanded, floating, appFocused, wallWanted, dismissed = false } = input;
+  const {
+    engaged,
+    inCall,
+    expanded,
+    floating,
+    appFocused,
+    wallWanted,
+    dismissed = false,
+  } = input;
   if (inCall && expanded) return "panel";
   if (floating) return "float";
   if (engaged && !appFocused && !dismissed) return "float";

@@ -14,21 +14,34 @@ import { identityRowOf, type IdentityRow } from "../../lib/sessionIdentity";
 
 export type SessionTagSize = "xs" | "sm" | "md" | "lg";
 
-const SIZES: Record<SessionTagSize, { face: number; icon: string; text: string; gap: string }> = {
+const SIZES: Record<
+  SessionTagSize,
+  { face: number; icon: string; text: string; gap: string }
+> = {
   xs: { face: 14, icon: "w-3 h-3", text: "text-meta", gap: "gap-1" },
   sm: { face: 16, icon: "w-3.5 h-3.5", text: "text-xs", gap: "gap-1.5" },
   md: { face: 20, icon: "w-4 h-4", text: "text-xs", gap: "gap-1.5" },
   lg: { face: 28, icon: "w-5 h-5", text: "text-sm", gap: "gap-2" },
 };
 
-type TagRow = IdentityRow & { agent_type?: string | null } & Record<string, unknown>;
+type TagRow = IdentityRow & { agent_type?: string | null } & Record<
+    string,
+    unknown
+  >;
 
 /** A session's one glyph with its agent brand: the face with the brand on its
  *  corner when the session is personified; else, in Modern, its workspace tile
  *  with the agent inside (WorkspaceTile), and the brand alone in Classic and
  *  Minimal. Every list of sessions leads its rows with this, so a session
  *  looks the same on the board, the rail, a task and the org chart. */
-export function SessionMark({ session, size = 16, iconClassName = "w-3.5 h-3.5", className = "flex-shrink-0", showAgent = true, onPick }: {
+export function SessionMark({
+  session,
+  size = 16,
+  iconClassName = "w-3.5 h-3.5",
+  className = "flex-shrink-0",
+  showAgent = true,
+  onPick,
+}: {
   session: TagRow;
   size?: number;
   /** The plain brand's box, sized to sit beside the surface's text. */
@@ -41,18 +54,51 @@ export function SessionMark({ session, size = 16, iconClassName = "w-3.5 h-3.5",
 }) {
   const agent = session.agent_type || "claude_code";
   const modern = useIsModernStyle();
-  const badge = showAgent ? <AgentTypeIcon agentType={agent} className="w-full h-full p-[1px]" /> : undefined;
-  const fallback = modern ? <WorkspaceTile row={session} size={size} showAgent={showAgent} className={className} /> : (
+  const badge = showAgent ? (
+    <AgentTypeIcon agentType={agent} className="w-full h-full p-[1px]" />
+  ) : undefined;
+  const fallback = modern ? (
+    <WorkspaceTile
+      row={session}
+      size={size}
+      showAgent={showAgent}
+      className={className}
+    />
+  ) : (
     <span className={`inline-flex ${className}`} title={agent}>
       <AgentTypeIcon agentType={agent} className={iconClassName} />
     </span>
   );
-  if (onPick) return <IdentityFace row={session} size={size} className={className} badge={badge} onPick={onPick} fallback={fallback} />;
-  return <SessionGlyph row={identityRowOf(session)} size={size} className={className} badge={badge} fallback={fallback} />;
+  if (onPick)
+    return (
+      <IdentityFace
+        row={session}
+        size={size}
+        className={className}
+        badge={badge}
+        onPick={onPick}
+        fallback={fallback}
+      />
+    );
+  return (
+    <SessionGlyph
+      row={identityRowOf(session)}
+      size={size}
+      className={className}
+      badge={badge}
+      fallback={fallback}
+    />
+  );
 }
 
 export function SessionTag({
-  session, title, size = "sm", onClick, className, titleClassName, after,
+  session,
+  title,
+  size = "sm",
+  onClick,
+  className,
+  titleClassName,
+  after,
 }: {
   session: TagRow;
   /** The display title, already cleaned; defaults to the row's own. */
@@ -80,7 +126,11 @@ export function SessionTag({
   );
   const cls = `inline-flex items-center min-w-0 ${s.gap} ${s.text} ${className ?? ""}`;
   return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} text-left hover:opacity-80 transition-opacity`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${cls} text-left hover:opacity-80 transition-opacity`}
+    >
       {content}
     </button>
   ) : (

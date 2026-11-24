@@ -5,7 +5,9 @@
 // graph (and out of the SSR chunks the marketing prerender loads).
 let reader: ((target: string) => string | null) | null = null;
 
-export function setLiveScreenReader(fn: (target: string) => string | null): void {
+export function setLiveScreenReader(
+  fn: (target: string) => string | null,
+): void {
   reader = fn;
 }
 

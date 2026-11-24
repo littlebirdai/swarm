@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { chatSendOrigin, personEnv, sessionIdFromEnv, workOriginStamp } from "./sessionIdentity.js";
+import {
+  chatSendOrigin,
+  personEnv,
+  sessionIdFromEnv,
+  workOriginStamp,
+} from "./sessionIdentity.js";
 
 describe("chatSendOrigin", () => {
   test.each([
@@ -21,47 +26,70 @@ describe("chatSendOrigin", () => {
   });
 
   test("a Grok shell names its own session, not the conversation id beside it", () => {
-    expect(sessionIdFromEnv({
-      GROK_SESSION_ID: "01a1d23a-bcff-7360-8706-704c8fb3fed1",
-      CODECAST_CONVERSATION_ID: "jx75w1xw88hqbkwryzqtt4j2v98j4yyk",
-    })).toBe("01a1d23a-bcff-7360-8706-704c8fb3fed1");
+    expect(
+      sessionIdFromEnv({
+        GROK_SESSION_ID: "01a1d23a-bcff-7360-8706-704c8fb3fed1",
+        CODECAST_CONVERSATION_ID: "jx75w1xw88hqbkwryzqtt4j2v98j4yyk",
+      }),
+    ).toBe("01a1d23a-bcff-7360-8706-704c8fb3fed1");
   });
 
   test("uses the native Codex thread before legacy wrapper identifiers", () => {
-    expect(sessionIdFromEnv({
-      CODEX_THREAD_ID: "current-thread",
-      CODEX_SESSION_ID: "old-thread",
-      CODECAST_SESSION_ID: "wrapper-thread",
-      CODECAST_MANAGED_SESSION: "managed-thread",
-    })).toBe("current-thread");
+    expect(
+      sessionIdFromEnv({
+        CODEX_THREAD_ID: "current-thread",
+        CODEX_SESSION_ID: "old-thread",
+        CODECAST_SESSION_ID: "wrapper-thread",
+        CODECAST_MANAGED_SESSION: "managed-thread",
+      }),
+    ).toBe("current-thread");
   });
 });
 
 describe("workOriginStamp", () => {
   test("a detected session is agent work bound to that conversation, even with --human", () => {
-    expect(workOriginStamp({ sessionId: "sess-1", stdoutIsTTY: true, human: true })).toEqual({
+    expect(
+      workOriginStamp({ sessionId: "sess-1", stdoutIsTTY: true, human: true }),
+    ).toEqual({
       source: "agent",
       conversation_id: "sess-1",
     });
   });
 
   test("a person at a terminal is human", () => {
-    expect(workOriginStamp({ sessionId: null, stdoutIsTTY: true })).toEqual({ source: "human" });
+    expect(workOriginStamp({ sessionId: null, stdoutIsTTY: true })).toEqual({
+      source: "human",
+    });
   });
 
   test("--human is positive evidence without a TTY", () => {
-    expect(workOriginStamp({ sessionId: null, stdoutIsTTY: false, human: true })).toEqual({ source: "human" });
+    expect(
+      workOriginStamp({ sessionId: null, stdoutIsTTY: false, human: true }),
+    ).toEqual({ source: "human" });
   });
 
   test("a missed session with piped output stays off the shelf", () => {
-    expect(workOriginStamp({ sessionId: null, stdoutIsTTY: false })).toEqual({ source: "agent" });
+    expect(workOriginStamp({ sessionId: null, stdoutIsTTY: false })).toEqual({
+      source: "agent",
+    });
     expect(workOriginStamp({ sessionId: null })).toEqual({ source: "agent" });
   });
 });
 
 describe("personEnv", () => {
   test("drops every variable that ties a command to an agent session, and keeps the rest", () => {
-    const env = { CLAUDE_CODE_SESSION_ID: "s1", CODEX_THREAD_ID: "t", CODEX_SESSION_ID: "c", CODECAST_SESSION_ID: "w", CODECAST_MANAGED_SESSION: "m", CODECAST_TASK_ID: "ct-1", CODECAST_PLAN_ID: "pl-1", CODECAST_CWD: "/x", PATH: "/bin", HOME: "/h" };
+    const env = {
+      CLAUDE_CODE_SESSION_ID: "s1",
+      CODEX_THREAD_ID: "t",
+      CODEX_SESSION_ID: "c",
+      CODECAST_SESSION_ID: "w",
+      CODECAST_MANAGED_SESSION: "m",
+      CODECAST_TASK_ID: "ct-1",
+      CODECAST_PLAN_ID: "pl-1",
+      CODECAST_CWD: "/x",
+      PATH: "/bin",
+      HOME: "/h",
+    };
     const out = personEnv(env);
     expect(out).toEqual({ PATH: "/bin", HOME: "/h" });
     expect(sessionIdFromEnv(out)).toBeNull();

@@ -1,6 +1,11 @@
 import { CallsNavRow } from "./sidebar/CallsNav";
 import { workspaceNameOf, workspaceColorOf } from "../lib/projectColors";
-import { useCallsAvailable, useTeamFeature, useWorkspaceFeature, useWorkspaceFeatureState } from "../lib/teamFeatures";
+import {
+  useCallsAvailable,
+  useTeamFeature,
+  useWorkspaceFeature,
+  useWorkspaceFeatureState,
+} from "../lib/teamFeatures";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useState, useMemo, useCallback, useRef, memo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -21,7 +26,12 @@ import { useNeedsInputCount } from "../hooks/useNeedsInputCount";
 import { useDecisionQueue } from "../hooks/useDecisionQueue";
 import { useThreadUnread } from "../hooks/useThreadsSync";
 import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
-import { conversationProjectRoot, foldCheckoutsByRepository, knownCheckoutRoots, type ProjectTally } from "@codecast/convex/convex/projectPaths";
+import {
+  conversationProjectRoot,
+  foldCheckoutsByRepository,
+  knownCheckoutRoots,
+  type ProjectTally,
+} from "@codecast/convex/convex/projectPaths";
 import { readPins, togglePin } from "../lib/sidebarPins";
 import { useConvexSync } from "../hooks/useConvexSync";
 import { useSyncProjects } from "../hooks/useSyncProjects";
@@ -29,21 +39,44 @@ import { useSyncSavedViews } from "../hooks/useSyncSavedViews";
 import { ModSidebarSections } from "./mods/ModSidebarSections";
 import { activeViewId, currentViewId, VIEW_ID_KEY } from "../lib/savedViews";
 import { toast } from "sonner";
-import { Layers, Users, UserMinus, Pin, PinOff, Monitor, Smartphone } from "lucide-react";
-import { NATIVE_APP_COPY, NATIVE_APP_LINKS, nativeAppOffer, trackNativeAppClick } from "../lib/nativeApps";
+import {
+  Layers,
+  Users,
+  UserMinus,
+  Pin,
+  PinOff,
+  Monitor,
+  Smartphone,
+} from "lucide-react";
+import {
+  NATIVE_APP_COPY,
+  NATIVE_APP_LINKS,
+  nativeAppOffer,
+  trackNativeAppClick,
+} from "../lib/nativeApps";
 import { SetupMeter } from "./setup/SetupMeter";
 import { useSyncTeams } from "../hooks/useSyncTeams";
 import { AppPopOutButton } from "./desktop/AppPopOutButton";
 import { WorkbenchSection } from "./WorkbenchSection";
 import { PinnedRail } from "./sidebar/PinnedRail";
-import { RailHeading, SectionRow, NeedsInputCount } from "./sidebar/navPrimitives";
+import {
+  RailHeading,
+  SectionRow,
+  NeedsInputCount,
+} from "./sidebar/navPrimitives";
 import { ChatNavRow, ChatDrillList } from "./sidebar/ChatNav";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useTitlebarHead } from "../hooks/useTitlebarHead";
 import { SidebarDrillStack } from "./sidebar/SidebarDrill";
 import { useSidebarDrill } from "../hooks/useSidebarDrill";
-import { FeedNavRowView, QuestionsNavRowView, SidebarNavView, ThreadsNavRowView, orgRowsActive } from "./sidebar/SidebarNav";
+import {
+  FeedNavRowView,
+  QuestionsNavRowView,
+  SidebarNavView,
+  ThreadsNavRowView,
+  orgRowsActive,
+} from "./sidebar/SidebarNav";
 import { usePoppedOut } from "../hooks/usePoppedOut";
 import { useIsModernStyle, useIsModernFocused } from "../hooks/useVisualStyle";
 import { ModernSidebar } from "./sidebar/ModernSidebar";
@@ -105,7 +138,14 @@ const QuestionsNavRow = memo(function QuestionsNavRow({
   // The decisions waiting on you: the queue the stepper walks and the inbox
   // panel lists, so all three say the same number.
   const pending = useDecisionQueue().length;
-  return <QuestionsNavRowView isActive={isActive} isNarrow={isNarrow} onMobileClose={onMobileClose} pending={pending} />;
+  return (
+    <QuestionsNavRowView
+      isActive={isActive}
+      isNarrow={isNarrow}
+      onMobileClose={onMobileClose}
+      pending={pending}
+    />
+  );
 });
 
 // The Threads inbox's row: every conversation you are in, across chat, session
@@ -124,7 +164,14 @@ const ThreadsNavRow = memo(function ThreadsNavRow({
   onMobileClose?: () => void;
 }) {
   const unread = useThreadUnread();
-  return <ThreadsNavRowView isActive={isActive} isNarrow={isNarrow} onMobileClose={onMobileClose} unread={unread} />;
+  return (
+    <ThreadsNavRowView
+      isActive={isActive}
+      isNarrow={isNarrow}
+      onMobileClose={onMobileClose}
+      unread={unread}
+    />
+  );
 });
 
 // The session fields the directory rail groups by; anything else on the row
@@ -133,25 +180,36 @@ const ThreadsNavRow = memo(function ThreadsNavRow({
 // and streamed token of every live session, and each tick woke the whole
 // Sidebar (measured 13 renders / 25s at idle). Recency order in this list only
 // needs minute resolution.
-const sidebarSessionSig = (r: any) => `${r.git_root ?? ""}|${r.project_path ?? ""}|${r.git_remote_url ?? ""}|${Math.floor((r.updated_at ?? 0) / 60_000)}`;
-const byUpdatedDesc = (a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0);
+const sidebarSessionSig = (r: any) =>
+  `${r.git_root ?? ""}|${r.project_path ?? ""}|${r.git_remote_url ?? ""}|${Math.floor((r.updated_at ?? 0) / 60_000)}`;
+const byUpdatedDesc = (a: any, b: any) =>
+  (b.updated_at ?? 0) - (a.updated_at ?? 0);
 
 // Memo: every prop is a primitive or a stable handle, so a shell render
 // (a navigation, a layout change) does not re-run this rail's hooks. The create
 // dialogs it used to host live in DashboardLayout's CreateModalHost, mounted
 // at every width.
-export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = false, onMobileClose, isNarrow = false, scope, peek = false }: SidebarProps) {
+export const Sidebar = memo(function Sidebar({
+  directoryFilter,
+  isMobileOpen = false,
+  onMobileClose,
+  isNarrow = false,
+  scope,
+  peek = false,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const modern = useIsModernStyle();
   const isSessions = pathname?.startsWith("/sessions");
   const orgRows = orgRowsActive(pathname);
   // A solo account's rail opens on its sessions and work (lib/railFocus.ts).
-  const focusFacts = useInboxStore(useShallow((st) => ({
-    createdAt: st.currentUser?._creationTime as number | undefined,
-    teams: st.teams,
-    everything: st.clientState.ui?.rail_everything,
-  })));
+  const focusFacts = useInboxStore(
+    useShallow((st) => ({
+      createdAt: st.currentUser?._creationTime as number | undefined,
+      teams: st.teams,
+      everything: st.clientState.ui?.rail_everything,
+    })),
+  );
   const railMoreOffered = railFocusOffered(focusFacts);
   const railIsFocused = railFocused(focusFacts);
   // Modern focused opens every rail on its daily pages (Inbox, Decisions, Chat,
@@ -163,7 +221,8 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
     ? { offered: true, focused: focusFacts.everything !== true, daily: true }
     : { offered: railMoreOffered, focused: railIsFocused };
   const isWindows = pathname?.startsWith("/windows");
-  const isTeamActivity = pathname === "/team/activity" || pathname?.startsWith("/team/activity");
+  const isTeamActivity =
+    pathname === "/team/activity" || pathname?.startsWith("/team/activity");
   const isChat = pathname === "/chat" || pathname?.startsWith("/chat/");
   const isCalls = pathname === "/calls" || pathname?.startsWith("/calls/");
   // Per-team opt-in: no chat row (and no create-channel modal) unless the
@@ -182,26 +241,45 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   const isPlans = pathname === "/plans" || pathname?.startsWith("/plans/");
   const isDocs = pathname === "/docs" || pathname?.startsWith("/docs/");
   const isVault = pathname === "/files" || pathname?.startsWith("/files/");
-  const isPages = pathname === "/pages" || pathname?.startsWith("/pages/") ||
-    pathname === "/artifacts" || pathname?.startsWith("/artifacts/"); // /artifacts = pre-rename alias
+  const isPages =
+    pathname === "/pages" ||
+    pathname?.startsWith("/pages/") ||
+    pathname === "/artifacts" ||
+    pathname?.startsWith("/artifacts/"); // /artifacts = pre-rename alias
   // One Workflows entry, at /routines (the-line.md L10); /workflows is the older address of the same page.
-  const isWorkflows = pathname === "/workflows" || pathname?.startsWith("/workflows/") ||
-    pathname === "/routines" || pathname?.startsWith("/routines/");
-  const isTriggers = pathname === "/triggers" || pathname?.startsWith("/triggers/") ||
-    pathname === "/schedules" || pathname?.startsWith("/schedules/"); // /schedules = pre-rename alias
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const isWorkflows =
+    pathname === "/workflows" ||
+    pathname?.startsWith("/workflows/") ||
+    pathname === "/routines" ||
+    pathname?.startsWith("/routines/");
+  const isTriggers =
+    pathname === "/triggers" ||
+    pathname?.startsWith("/triggers/") ||
+    pathname === "/schedules" ||
+    pathname?.startsWith("/schedules/"); // /schedules = pre-rename alias
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const teamsQuery = useSyncTeams();
   const teams = useInboxStore((s) => s.teams);
-  const activeTeam = (teamsQuery ?? teams)?.find((t: any) => t?._id === activeTeamId);
+  const activeTeam = (teamsQuery ?? teams)?.find(
+    (t: any) => t?._id === activeTeamId,
+  );
   const openCompose = useInboxStore((s) => s.openCompose);
-  const hasUsedDesktop = useInboxStore((s) => s.clientState.dismissed?.has_used_desktop ?? false);
+  const hasUsedDesktop = useInboxStore(
+    (s) => s.clientState.dismissed?.has_used_desktop ?? false,
+  );
   // The footer offers the native app for this device (lib/nativeApps); the Mac
   // offer stops once the user runs the desktop app, the iOS one when the phone
   // is the device you're already holding is the point, so it stays.
   const nativeApp = nativeAppOffer();
-  const offerNativeApp = nativeApp !== null && !(nativeApp === "mac" && hasUsedDesktop);
+  const offerNativeApp =
+    nativeApp !== null && !(nativeApp === "mac" && hasUsedDesktop);
 
-  const favoritesQuery = useQueryNoThrow(api.conversations.listFavorites, {}).data;
+  const favoritesQuery = useQueryNoThrow(
+    api.conversations.listFavorites,
+    {},
+  ).data;
   // Read bookmarks straight from the store (synced globally in useSyncInboxSessions)
   // so an optimistic add/remove shows here instantly, with no round-trip.
   const bookmarks = useInboxStore((s) => s.bookmarks);
@@ -212,19 +290,27 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   // requests on click (getMessagesAroundTimestamp with the same 50/50 bounds,
   // plus the header meta), so opening a bookmark jumps to the message with no
   // load spinner. Fires on hover; deduped per bookmark.
-  const prefetchBookmark = useCallback((bm: any) => {
-    if (!bm?.message_timestamp || prefetchedBookmarksRef.current.has(bm._id)) return;
-    prefetchedBookmarksRef.current.add(bm._id);
-    convex
-      .query(api.conversations.getMessagesAroundTimestamp, {
-        conversation_id: bm.conversation_id,
-        center_timestamp: bm.message_timestamp,
-        limit_before: 50,
-        limit_after: 50,
-      })
-      .catch(() => prefetchedBookmarksRef.current.delete(bm._id));
-    convex.query(api.conversations.getConversationWithMeta, { conversation_id: bm.conversation_id }).catch(() => {});
-  }, [convex]);
+  const prefetchBookmark = useCallback(
+    (bm: any) => {
+      if (!bm?.message_timestamp || prefetchedBookmarksRef.current.has(bm._id))
+        return;
+      prefetchedBookmarksRef.current.add(bm._id);
+      convex
+        .query(api.conversations.getMessagesAroundTimestamp, {
+          conversation_id: bm.conversation_id,
+          center_timestamp: bm.message_timestamp,
+          limit_before: 50,
+          limit_after: 50,
+        })
+        .catch(() => prefetchedBookmarksRef.current.delete(bm._id));
+      convex
+        .query(api.conversations.getConversationWithMeta, {
+          conversation_id: bm.conversation_id,
+        })
+        .catch(() => {});
+    },
+    [convex],
+  );
   // Precache the visible bookmarks up front (not just on hover) so the very
   // first click — or keyboard activation — opens straight to the message
   // window with no spinner. Deduped per bookmark, so list churn re-runs are free.
@@ -239,21 +325,35 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   useSyncSavedViews();
   const savedViewRows = useInboxStore((s) => s.savedViews);
   const savedViews = useMemo(
-    () => Object.values(savedViewRows ?? {})
-      .filter((v: any) => inActiveWorkspace(v, activeTeamId))
-      // Yours first, then teammates' shared ones; alphabetical within each, so
-      // the rail is stable rather than reordering as people edit their views.
-      .sort((a: any, b: any) =>
-        Number(!!b.is_mine) - Number(!!a.is_mine) || (a.name || "").localeCompare(b.name || "")),
-    [savedViewRows, activeTeamId]
+    () =>
+      Object.values(savedViewRows ?? {})
+        .filter((v: any) => inActiveWorkspace(v, activeTeamId))
+        // Yours first, then teammates' shared ones; alphabetical within each, so
+        // the rail is stable rather than reordering as people edit their views.
+        .sort(
+          (a: any, b: any) =>
+            Number(!!b.is_mine) - Number(!!a.is_mine) ||
+            (a.name || "").localeCompare(b.name || ""),
+        ),
+    [savedViewRows, activeTeamId],
   );
   const deleteSavedView = useInboxStore((s) => s.deleteSavedView);
   const updateSavedView = useInboxStore((s) => s.updateSavedView);
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
   // Saved views nest under their page's nav row instead of a separate section.
-  const taskViews = useMemo(() => savedViews.filter((v: any) => v.page === "tasks"), [savedViews]);
-  const docViews = useMemo(() => savedViews.filter((v: any) => v.page === "docs" || v.page === "plans"), [savedViews]);
-  const decisionViews = useMemo(() => savedViews.filter((v: any) => v.page === "decisions"), [savedViews]);
+  const taskViews = useMemo(
+    () => savedViews.filter((v: any) => v.page === "tasks"),
+    [savedViews],
+  );
+  const docViews = useMemo(
+    () =>
+      savedViews.filter((v: any) => v.page === "docs" || v.page === "plans"),
+    [savedViews],
+  );
+  const decisionViews = useMemo(
+    () => savedViews.filter((v: any) => v.page === "decisions"),
+    [savedViews],
+  );
   const isDecisions = pathname === "/decisions";
 
   // Which view the list is currently arranged as — a view is a set of prefs, not
@@ -265,109 +365,198 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   // matching would go blank. Matching is the fallback for a list that simply
   // happens to be arranged like a view you never opened.
   const activeTaskViewId = useMemo(
-    () => (isTasks
-      ? currentViewId(taskPrefs) ?? activeViewId(taskViews.map((v: any) => ({ id: v._id, prefs: v.prefs })), taskPrefs)
-      : undefined),
-    [isTasks, taskViews, taskPrefs]
+    () =>
+      isTasks
+        ? (currentViewId(taskPrefs) ??
+          activeViewId(
+            taskViews.map((v: any) => ({ id: v._id, prefs: v.prefs })),
+            taskPrefs,
+          ))
+        : undefined,
+    [isTasks, taskViews, taskPrefs],
   );
   const activeDocViewId = useMemo(
-    () => (isDocs
-      ? currentViewId(docPrefs) ?? activeViewId(docViews.map((v: any) => ({ id: v._id, prefs: v.prefs })), docPrefs)
-      : undefined),
-    [isDocs, docViews, docPrefs]
+    () =>
+      isDocs
+        ? (currentViewId(docPrefs) ??
+          activeViewId(
+            docViews.map((v: any) => ({ id: v._id, prefs: v.prefs })),
+            docPrefs,
+          ))
+        : undefined,
+    [isDocs, docViews, docPrefs],
   );
   // They reveal when you open that page (navigation is the default); the chevron
   // pins a section open or closed regardless of which page you're on. A pin is a
   // durable preference, not a gesture: it lives in the ui bag, so it survives
   // reload and is captured by a saved layout with the rest of the chrome.
-  const viewSectionOverride = useInboxStore((s) => s.clientState.ui?.nav_sections) ?? NO_SECTION_PINS;
+  const viewSectionOverride =
+    useInboxStore((s) => s.clientState.ui?.nav_sections) ?? NO_SECTION_PINS;
   const setViewSectionOverride = useCallback(
     (next: (cur: Record<string, boolean>) => Record<string, boolean>) => {
-      const cur = useInboxStore.getState().clientState.ui?.nav_sections ?? NO_SECTION_PINS;
+      const cur =
+        useInboxStore.getState().clientState.ui?.nav_sections ??
+        NO_SECTION_PINS;
       updateClientUI({ nav_sections: next(cur) });
     },
     [updateClientUI],
   );
-  const applyView = useCallback((view: any) => {
-    const pagePrefsKey = view.page === "tasks" ? "task_view" : view.page === "docs" ? "doc_view" : view.page === "decisions" ? "decision_view" : "plan_view";
-    // Stamp which view this is, so the page can still name it after you change
-    // a filter — the moment matching alone stops being able to answer.
-    updateClientUI({ [pagePrefsKey]: { ...(view.prefs ?? {}), [VIEW_ID_KEY]: view._id } });
-    router.push(`/${view.page}`);
-    onMobileClose?.();
-  }, [updateClientUI, router, onMobileClose]);
+  const applyView = useCallback(
+    (view: any) => {
+      const pagePrefsKey =
+        view.page === "tasks"
+          ? "task_view"
+          : view.page === "docs"
+            ? "doc_view"
+            : view.page === "decisions"
+              ? "decision_view"
+              : "plan_view";
+      // Stamp which view this is, so the page can still name it after you change
+      // a filter — the moment matching alone stops being able to answer.
+      updateClientUI({
+        [pagePrefsKey]: { ...(view.prefs ?? {}), [VIEW_ID_KEY]: view._id },
+      });
+      router.push(`/${view.page}`);
+      onMobileClose?.();
+    },
+    [updateClientUI, router, onMobileClose],
+  );
 
   // "kind:id" keys of current pins — one subscription serves every section's
   // pin/unpin affordance and keeps the memos honest about pin state. Declared
   // before viewItems: its dep array reads `pinned` during render.
-  const pinnedKeys = useInboxStore((s) => readPins(s).map((x) => `${x.kind}:${x.id}`).join(","));
-  const pinned = useCallback((key: string) => pinnedKeys.split(",").includes(key), [pinnedKeys]);
+  const pinnedKeys = useInboxStore((s) =>
+    readPins(s)
+      .map((x) => `${x.kind}:${x.id}`)
+      .join(","),
+  );
+  const pinned = useCallback(
+    (key: string) => pinnedKeys.split(",").includes(key),
+    [pinnedKeys],
+  );
 
-  const viewItems = useCallback((views: any[], activeId?: string) => views.map((v: any) => ({
-    id: v._id,
-    name: v.name,
-    active: v._id === activeId,
-    icon: <Layers className="w-3 h-3 flex-shrink-0 text-sol-text-dim" />,
-    // A shared view is marked, and a teammate's says whose it is — otherwise a
-    // rail of everyone's views is a list of names with no owners.
-    trailing: v.shared ? (
-      <span
-        className="flex items-center flex-shrink-0 mr-0.5"
-        title={v.is_mine ? "Shared with your team" : `Shared by ${v.owner_name ?? "a teammate"}`}
-      >
-        {v.is_mine || !v.owner_image ? (
-          <Users className="w-3 h-3 text-sol-text-dim" />
-        ) : (
-          <AvatarImg
-            src={v.owner_image}
-            alt={v.owner_name ?? ""}
-            className="w-3.5 h-3.5 rounded-full"
-            fallback={<Users className="w-3 h-3 text-sol-text-dim" />}
-          />
-        )}
-      </span>
-    ) : undefined,
-    // Only the author can share or delete: silently rewriting a view other
-    // people rely on is what makes shared views untrustworthy.
-    actions: [
-      {
-        key: "pin",
-        title: pinned(`view:${v._id}`) ? "Unpin from top" : "Pin to top of sidebar",
-        icon: pinned(`view:${v._id}`) ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />,
-        onClick: () => togglePin("view", v._id, v.name || "View"),
-      },
-      ...(v.is_mine === false ? [] : [
-      {
-        key: "share",
-        title: v.shared ? "Stop sharing with your team" : "Share with your team",
-        icon: v.shared ? <UserMinus className="w-3 h-3" /> : <Users className="w-3 h-3" />,
-        onClick: () => {
-          if (!activeTeamId && !v.shared) {
-            toast.error("Pick a team first", { description: "A shared view needs a team to share with." });
-            return;
-          }
-          updateSavedView(v._id, { shared: !v.shared, team_id: v.team_id ?? activeTeamId });
-          toast.success(v.shared ? `"${v.name}" is private again` : `"${v.name}" shared with your team`);
-        },
-      },
-      {
-        key: "remove",
-        title: "Remove saved view",
-        icon: (
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        ),
-        onClick: () => deleteSavedView(v._id),
-      },
-    ]),
-    ],
-    onSelect: () => applyView(v),
-  })), [applyView, deleteSavedView, updateSavedView, activeTeamId, pinned]);
-  const taskViewItems = useMemo(() => viewItems(taskViews, activeTaskViewId), [viewItems, taskViews, activeTaskViewId]);
-  const docViewItems = useMemo(() => viewItems(docViews, activeDocViewId), [viewItems, docViews, activeDocViewId]);
-  const activeDecisionViewId = isDecisions ? currentViewId(decisionPrefs) ?? activeViewId(decisionViews.map((v: any) => ({ id: v._id, prefs: v.prefs })), decisionPrefs) : undefined;
-  const decisionViewItems = useMemo(() => (isDecisions ? viewItems(decisionViews, activeDecisionViewId) : []), [isDecisions, viewItems, decisionViews, activeDecisionViewId]);
+  const viewItems = useCallback(
+    (views: any[], activeId?: string) =>
+      views.map((v: any) => ({
+        id: v._id,
+        name: v.name,
+        active: v._id === activeId,
+        icon: <Layers className="w-3 h-3 flex-shrink-0 text-sol-text-dim" />,
+        // A shared view is marked, and a teammate's says whose it is — otherwise a
+        // rail of everyone's views is a list of names with no owners.
+        trailing: v.shared ? (
+          <span
+            className="flex items-center flex-shrink-0 mr-0.5"
+            title={
+              v.is_mine
+                ? "Shared with your team"
+                : `Shared by ${v.owner_name ?? "a teammate"}`
+            }
+          >
+            {v.is_mine || !v.owner_image ? (
+              <Users className="w-3 h-3 text-sol-text-dim" />
+            ) : (
+              <AvatarImg
+                src={v.owner_image}
+                alt={v.owner_name ?? ""}
+                className="w-3.5 h-3.5 rounded-full"
+                fallback={<Users className="w-3 h-3 text-sol-text-dim" />}
+              />
+            )}
+          </span>
+        ) : undefined,
+        // Only the author can share or delete: silently rewriting a view other
+        // people rely on is what makes shared views untrustworthy.
+        actions: [
+          {
+            key: "pin",
+            title: pinned(`view:${v._id}`)
+              ? "Unpin from top"
+              : "Pin to top of sidebar",
+            icon: pinned(`view:${v._id}`) ? (
+              <PinOff className="w-3 h-3" />
+            ) : (
+              <Pin className="w-3 h-3" />
+            ),
+            onClick: () => togglePin("view", v._id, v.name || "View"),
+          },
+          ...(v.is_mine === false
+            ? []
+            : [
+                {
+                  key: "share",
+                  title: v.shared
+                    ? "Stop sharing with your team"
+                    : "Share with your team",
+                  icon: v.shared ? (
+                    <UserMinus className="w-3 h-3" />
+                  ) : (
+                    <Users className="w-3 h-3" />
+                  ),
+                  onClick: () => {
+                    if (!activeTeamId && !v.shared) {
+                      toast.error("Pick a team first", {
+                        description:
+                          "A shared view needs a team to share with.",
+                      });
+                      return;
+                    }
+                    updateSavedView(v._id, {
+                      shared: !v.shared,
+                      team_id: v.team_id ?? activeTeamId,
+                    });
+                    toast.success(
+                      v.shared
+                        ? `"${v.name}" is private again`
+                        : `"${v.name}" shared with your team`,
+                    );
+                  },
+                },
+                {
+                  key: "remove",
+                  title: "Remove saved view",
+                  icon: (
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  ),
+                  onClick: () => deleteSavedView(v._id),
+                },
+              ]),
+        ],
+        onSelect: () => applyView(v),
+      })),
+    [applyView, deleteSavedView, updateSavedView, activeTeamId, pinned],
+  );
+  const taskViewItems = useMemo(
+    () => viewItems(taskViews, activeTaskViewId),
+    [viewItems, taskViews, activeTaskViewId],
+  );
+  const docViewItems = useMemo(
+    () => viewItems(docViews, activeDocViewId),
+    [viewItems, docViews, activeDocViewId],
+  );
+  const activeDecisionViewId = isDecisions
+    ? (currentViewId(decisionPrefs) ??
+      activeViewId(
+        decisionViews.map((v: any) => ({ id: v._id, prefs: v.prefs })),
+        decisionPrefs,
+      ))
+    : undefined;
+  const decisionViewItems = useMemo(
+    () => (isDecisions ? viewItems(decisionViews, activeDecisionViewId) : []),
+    [isDecisions, viewItems, decisionViews, activeDecisionViewId],
+  );
 
   // Chat and Tasks are doors in the wide rail: their lists are a
   // level of the sidebar of their own (SidebarDrill). A section living in an
@@ -378,18 +567,29 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   const chatDrills = drillOn && chatOn && !chatAway && !peek;
   const tasksDrill = drillOn && !workAway && taskViewItems.length > 0;
   const titlebarStripRef = useTitlebarHead<HTMLDivElement>();
-  const drill = useSidebarDrill(isChat ? "chat" : isTasks ? "tasks" : null, { chat: chatDrills, tasks: tasksDrill });
+  const drill = useSidebarDrill(isChat ? "chat" : isTasks ? "tasks" : null, {
+    chat: chatDrills,
+    tasks: tasksDrill,
+  });
 
   // Pinned projects read their title from the store (PinnedRail).
   useSyncProjects();
 
-  useConvexSync(favoritesQuery, useCallback((d: any) => useInboxStore.getState().syncTable("favorites", d), []));
+  useConvexSync(
+    favoritesQuery,
+    useCallback(
+      (d: any) => useInboxStore.getState().syncTable("favorites", d),
+      [],
+    ),
+  );
   // Local-first: the workspace/directory rail derives from the viewer's own
   // sessions already in the store (the inbox sync + persisted cache), not a
   // second listConversations subscription — which painted the rail silently
   // EMPTY for a beat on every cold boot. Wakes only on the fields the rail
   // groups by (path, recency); the 100 most recent, like the old query.
-  const sidebarViewerId = useInboxStore((st) => (st.currentUser?._id ? String(st.currentUser._id) : ""));
+  const sidebarViewerId = useInboxStore((st) =>
+    st.currentUser?._id ? String(st.currentUser._id) : "",
+  );
   const sidebarOwnSessionWhere = useCallback(
     (row: any) => !!row?._id && String(row.user_id ?? "") === sidebarViewerId,
     [sidebarViewerId],
@@ -421,9 +621,11 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
 
   type ConversationItem = NonNullable<typeof conversations>[number];
 
-  const filteredConversations = useMemo(() =>
-    conversations?.filter((c: ConversationItem) => shouldShowSession(c)) ?? [],
-    [conversations]
+  const filteredConversations = useMemo(
+    () =>
+      conversations?.filter((c: ConversationItem) => shouldShowSession(c)) ??
+      [],
+    [conversations],
   );
 
   // One entry per repository, the same folding the new-session picker gets from
@@ -439,9 +641,15 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
       if (tally) {
         tally.count++;
         tally.lastActive = Math.max(tally.lastActive, c.updated_at);
-        tally.repository ??= repositoryKeyOfRemote(c.git_remote_url) ?? undefined;
+        tally.repository ??=
+          repositoryKeyOfRemote(c.git_remote_url) ?? undefined;
       } else {
-        tallies.set(path, { path, count: 1, lastActive: c.updated_at, repository: repositoryKeyOfRemote(c.git_remote_url) ?? undefined });
+        tallies.set(path, {
+          path,
+          count: 1,
+          lastActive: c.updated_at,
+          repository: repositoryKeyOfRemote(c.git_remote_url) ?? undefined,
+        });
       }
     }
     // The fold keeps one entry per home directory; the same repo on two
@@ -458,7 +666,10 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
 
   const pinnedRail = (
     <PinnedRail
-      onNavigate={(href) => { router.push(href); onMobileClose?.(); }}
+      onNavigate={(href) => {
+        router.push(href);
+        onMobileClose?.();
+      }}
       applyView={applyView}
       activeViewIds={[activeTaskViewId, activeDocViewId]}
       scope={scope}
@@ -468,98 +679,155 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   // Rows shared with the Modern rail (sidebar/ModernSidebar), which heads them its own way.
   const bookmarkRows = (
     <div className="space-y-1">
-      {(showAllBookmarks ? bookmarks : bookmarks.slice(0, 8)).map((bm: any, i: number, arr: any[]) => {
-        const isOpen = bm.conversation_id === openConversationId;
-        // Adjacent bookmarks from the same conversation drop the repeated
-        // conversation line — the row above already named it.
-        const sameConvAsPrev = i > 0 && arr[i - 1].conversation_id === bm.conversation_id;
-        const named = !!bm.name;
-        const primary = bm.name || bm.message_preview || "";
-        const convTitle = cleanTitle(bm.conversation_title || "New Session");
-        const isUser = bm.message_role === "user";
-        // Each workspace gets a stable hashed color so the eye can sort by project.
-        const proj = bm.project_path ? getShortPath(bm.project_path) : "";
-        const projColor = proj ? getLabelColor(proj) : null;
-        return (
-          <div key={bm._id} className="group relative px-1.5" onMouseEnter={() => prefetchBookmark(bm)} onFocus={() => prefetchBookmark(bm)}>
-            <button
-              onClick={() => {
-                const store = useInboxStore.getState();
-                // Pair navigation + scroll target atomically so the inbox's
-                // pendingNavigateId watcher resolves them together (separate sets
-                // raced the cache-hit watcher, pinning scroll to the previous conv).
-                store.requestNavigate(bm.conversation_id, { scrollToMessageId: bm.message_id, scrollToMessageTimestamp: bm.message_timestamp });
-                const activeTab = store.tabs.find((t: any) => t.id === store.activeTabId);
-                if (activeTab) store.updateTab(activeTab.id, { path: "/inbox" });
-                if (!store.tabs.length) router.push("/inbox");
-                onMobileClose?.();
-              }}
-              title={primary || convTitle}
-              aria-label={`Open bookmark ${named ? `"${bm.name}"` : "message"} in ${convTitle}`}
-              className={`flex items-stretch gap-2.5 w-full pl-2 pr-2.5 py-1.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-sol-cyan/60 ${
-                isOpen ? "bg-sol-cyan/10" : "hover:bg-sol-bg-highlight/50"
-              }`}
+      {(showAllBookmarks ? bookmarks : bookmarks.slice(0, 8)).map(
+        (bm: any, i: number, arr: any[]) => {
+          const isOpen = bm.conversation_id === openConversationId;
+          // Adjacent bookmarks from the same conversation drop the repeated
+          // conversation line — the row above already named it.
+          const sameConvAsPrev =
+            i > 0 && arr[i - 1].conversation_id === bm.conversation_id;
+          const named = !!bm.name;
+          const primary = bm.name || bm.message_preview || "";
+          const convTitle = cleanTitle(bm.conversation_title || "New Session");
+          const isUser = bm.message_role === "user";
+          // Each workspace gets a stable hashed color so the eye can sort by project.
+          const proj = bm.project_path ? getShortPath(bm.project_path) : "";
+          const projColor = proj ? getLabelColor(proj) : null;
+          return (
+            <div
+              key={bm._id}
+              className="group relative px-1.5"
+              onMouseEnter={() => prefetchBookmark(bm)}
+              onFocus={() => prefetchBookmark(bm)}
             >
-              {/* A saved excerpt, so a quote-bar spine: role-colored, cyan while its conversation is open.
-                  Held at a visible base opacity so it anchors each row, not just on hover. */}
-              <span
-                aria-hidden
-                className={`flex-shrink-0 w-[3px] self-stretch rounded-full transition-colors ${
-                  isOpen ? "bg-sol-cyan/80" : isUser ? "bg-sol-blue/45 group-hover:bg-sol-blue/80" : "bg-sol-violet/45 group-hover:bg-sol-violet/80"
+              <button
+                onClick={() => {
+                  const store = useInboxStore.getState();
+                  // Pair navigation + scroll target atomically so the inbox's
+                  // pendingNavigateId watcher resolves them together (separate sets
+                  // raced the cache-hit watcher, pinning scroll to the previous conv).
+                  store.requestNavigate(bm.conversation_id, {
+                    scrollToMessageId: bm.message_id,
+                    scrollToMessageTimestamp: bm.message_timestamp,
+                  });
+                  const activeTab = store.tabs.find(
+                    (t: any) => t.id === store.activeTabId,
+                  );
+                  if (activeTab)
+                    store.updateTab(activeTab.id, { path: "/inbox" });
+                  if (!store.tabs.length) router.push("/inbox");
+                  onMobileClose?.();
+                }}
+                title={primary || convTitle}
+                aria-label={`Open bookmark ${named ? `"${bm.name}"` : "message"} in ${convTitle}`}
+                className={`flex items-stretch gap-2.5 w-full pl-2 pr-2.5 py-1.5 rounded-md text-left transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-sol-cyan/60 ${
+                  isOpen ? "bg-sol-cyan/10" : "hover:bg-sol-bg-highlight/50"
                 }`}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline gap-2">
-                  {/* Headline: full-contrast and weighted up for deliberately-named bookmarks so
+              >
+                {/* A saved excerpt, so a quote-bar spine: role-colored, cyan while its conversation is open.
+                  Held at a visible base opacity so it anchors each row, not just on hover. */}
+                <span
+                  aria-hidden
+                  className={`flex-shrink-0 w-[3px] self-stretch rounded-full transition-colors ${
+                    isOpen
+                      ? "bg-sol-cyan/80"
+                      : isUser
+                        ? "bg-sol-blue/45 group-hover:bg-sol-blue/80"
+                        : "bg-sol-violet/45 group-hover:bg-sol-violet/80"
+                  }`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    {/* Headline: full-contrast and weighted up for deliberately-named bookmarks so
                       curated entries out-rank auto-captured previews at a glance. */}
-                  <span className={`min-w-0 flex-1 truncate text-[13px] leading-snug text-sol-text-muted group-hover:text-sol-text-secondary transition-colors ${named ? "font-semibold" : "font-normal"}`}>
-                    {named && (
-                      <svg aria-hidden viewBox="0 0 24 24" className="inline-block w-2.5 h-2.5 mr-1 -mt-px align-middle text-sol-yellow/90" fill="currentColor">
-                        <path d="M6 3a2 2 0 0 0-2 2v15.5a.5.5 0 0 0 .79.407L12 16l7.21 4.907A.5.5 0 0 0 20 20.5V5a2 2 0 0 0-2-2H6z" />
-                      </svg>
-                    )}
-                    {primary || <span className="italic font-normal text-sol-text-dim/60">No preview</span>}
-                  </span>
-                  <span
-                    className="flex-shrink-0 text-meta tabular-nums text-sol-text-dim"
-                    title={new Date(bm.created_at).toLocaleString()}
-                  >
-                    {visitTimeAgo(bm.created_at)}
-                  </span>
-                </span>
-                {!sameConvAsPrev && (
-                  // Source line: deliberately recessed (dimmest text) so it reads as context, not a
-                  // second headline; the project dot carries the only color so the eye groups by project.
-                  <span className="flex items-center gap-1.5 mt-[3px] min-w-0">
-                    {projColor && <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 opacity-75 ${projColor.dot}`} title={proj} />}
-                    <span className="min-w-0 truncate text-meta text-sol-text-dim leading-tight">
-                      {convTitle}
+                    <span
+                      className={`min-w-0 flex-1 truncate text-[13px] leading-snug text-sol-text-muted group-hover:text-sol-text-secondary transition-colors ${named ? "font-semibold" : "font-normal"}`}
+                    >
+                      {named && (
+                        <svg
+                          aria-hidden
+                          viewBox="0 0 24 24"
+                          className="inline-block w-2.5 h-2.5 mr-1 -mt-px align-middle text-sol-yellow/90"
+                          fill="currentColor"
+                        >
+                          <path d="M6 3a2 2 0 0 0-2 2v15.5a.5.5 0 0 0 .79.407L12 16l7.21 4.907A.5.5 0 0 0 20 20.5V5a2 2 0 0 0-2-2H6z" />
+                        </svg>
+                      )}
+                      {primary || (
+                        <span className="italic font-normal text-sol-text-dim/60">
+                          No preview
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className="flex-shrink-0 text-meta tabular-nums text-sol-text-dim"
+                      title={new Date(bm.created_at).toLocaleString()}
+                    >
+                      {visitTimeAgo(bm.created_at)}
                     </span>
                   </span>
-                )}
-              </span>
-            </button>
-            {/* Remove floats over the timestamp on hover so the row never reflows. */}
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleBookmark(bm.conversation_id, bm.message_id); }}
-              className="absolute right-3 top-1.5 p-0.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-sol-bg-highlight text-sol-text-dim hover:text-sol-red transition-opacity"
-              title="Remove bookmark"
-              aria-label="Remove bookmark"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        );
-      })}
+                  {!sameConvAsPrev && (
+                    // Source line: deliberately recessed (dimmest text) so it reads as context, not a
+                    // second headline; the project dot carries the only color so the eye groups by project.
+                    <span className="flex items-center gap-1.5 mt-[3px] min-w-0">
+                      {projColor && (
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 opacity-75 ${projColor.dot}`}
+                          title={proj}
+                        />
+                      )}
+                      <span className="min-w-0 truncate text-meta text-sol-text-dim leading-tight">
+                        {convTitle}
+                      </span>
+                    </span>
+                  )}
+                </span>
+              </button>
+              {/* Remove floats over the timestamp on hover so the row never reflows. */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBookmark(bm.conversation_id, bm.message_id);
+                }}
+                className="absolute right-3 top-1.5 p-0.5 rounded opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-sol-bg-highlight text-sol-text-dim hover:text-sol-red transition-opacity"
+                title="Remove bookmark"
+                aria-label="Remove bookmark"
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+          );
+        },
+      )}
       {bookmarks.length > 8 && (
         <button
-          onClick={() => setShowAllBookmarks(v => !v)}
+          onClick={() => setShowAllBookmarks((v) => !v)}
           className="w-full mt-1 px-4 py-1 flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors"
         >
-          <svg className={`w-2.5 h-2.5 transition-transform ${showAllBookmarks ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          <svg
+            className={`w-2.5 h-2.5 transition-transform ${showAllBookmarks ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
           {showAllBookmarks ? "Show fewer" : `${bookmarks.length - 8} more`}
         </button>
@@ -583,14 +851,36 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
               every session tile from it is drawn in (WorkspaceTile). Wrapped,
               so a rail rule that inks a row's own svg leaves it be. */}
           {modern ? (
-            <span className={`flex flex-shrink-0 ${workspaceColorOf(workspaceNameOf({ project_path: dir })).text}`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <span
+              className={`flex flex-shrink-0 ${workspaceColorOf(workspaceNameOf({ project_path: dir })).text}`}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             </span>
           ) : (
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <svg
+              className="w-4 h-4 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+              />
             </svg>
           )}
           <span className="truncate modern:font-mono">{getShortPath(dir)}</span>
@@ -600,19 +890,23 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
   );
   const appFooter = !isNarrow && (
     <>
-    <SetupMeter />
-    {offerNativeApp && nativeApp && (
-    <a
-      href={NATIVE_APP_LINKS[nativeApp]}
-      target={nativeApp === "ios" ? "_blank" : undefined}
-      rel={nativeApp === "ios" ? "noopener noreferrer" : undefined}
-      onClick={() => trackNativeAppClick(nativeApp, "sidebar")}
-      className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-sol-text-dim hover:text-sol-cyan transition-colors border-t border-sol-border/30 pt-3"
-    >
-      {nativeApp === "mac" ? <Monitor className="w-4 h-4 flex-shrink-0" /> : <Smartphone className="w-4 h-4 flex-shrink-0" />}
-      <span>{NATIVE_APP_COPY[nativeApp].cta}</span>
-    </a>
-    )}
+      <SetupMeter />
+      {offerNativeApp && nativeApp && (
+        <a
+          href={NATIVE_APP_LINKS[nativeApp]}
+          target={nativeApp === "ios" ? "_blank" : undefined}
+          rel={nativeApp === "ios" ? "noopener noreferrer" : undefined}
+          onClick={() => trackNativeAppClick(nativeApp, "sidebar")}
+          className="flex items-center gap-2 px-3 py-2 mt-2 text-sm text-sol-text-dim hover:text-sol-cyan transition-colors border-t border-sol-border/30 pt-3"
+        >
+          {nativeApp === "mac" ? (
+            <Monitor className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <Smartphone className="w-4 h-4 flex-shrink-0" />
+          )}
+          <span>{NATIVE_APP_COPY[nativeApp].cta}</span>
+        </a>
+      )}
     </>
   );
 
@@ -623,7 +917,17 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
         {!isNarrow && pinnedRail}
         <SidebarNavView
           flowsOn={flowsOn}
-          railMore={railMoreOffered ? { focused: railIsFocused, onToggle: () => useInboxStore.getState().updateClientUI({ rail_everything: railIsFocused }) } : undefined}
+          railMore={
+            railMoreOffered
+              ? {
+                  focused: railIsFocused,
+                  onToggle: () =>
+                    useInboxStore
+                      .getState()
+                      .updateClientUI({ rail_everything: railIsFocused }),
+                }
+              : undefined
+          }
           isNarrow={isNarrow}
           scope={scope}
           onMobileClose={onMobileClose}
@@ -634,51 +938,90 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
               onMobileClose={onMobileClose}
             />
           }
-          feed={activeTeam && <FeedNavRowView team={activeTeam} isActive={!!isTeamActivity} isNarrow={isNarrow} onMobileClose={onMobileClose} />}
-          questions={<>
-            <QuestionsNavRow
-              isActive={pathname === "/decisions" || (pathname?.startsWith("/decisions/") ?? false)}
-              isNarrow={isNarrow}
-              onMobileClose={onMobileClose}
-            />
-            {/* The page's saved views, while it is open. */}
-            {!isNarrow && decisionViewItems.map((row) => <SectionRow key={row.id} row={row} className="pl-8" />)}
-          </>}
-          chat={chatOn && !railIsFocused && <ChatNavRow
-            isActive={!!isChat}
-            isNarrow={isNarrow}
-            pathname={pathname}
-            pinsShown={!isNarrow && !scope}
-            expanded={viewSectionOverride.chat ?? !!isChat}
-            onToggle={() => setViewSectionOverride((v) => ({ ...v, chat: !(v.chat ?? !!isChat) }))}
-            onDrill={chatDrills ? () => drill.open("chat") : undefined}
-            onMobileClose={onMobileClose}
-          />}
-          calls={callsOn && !railIsFocused && (<>
-            <CallsNavRow
-              isActive={!!isCalls}
-              isNarrow={isNarrow}
-              onMobileClose={onMobileClose}
-            />
-            {/* The huddles running right now, one row each — an occupied room
+          feed={
+            activeTeam && (
+              <FeedNavRowView
+                team={activeTeam}
+                isActive={!!isTeamActivity}
+                isNarrow={isNarrow}
+                onMobileClose={onMobileClose}
+              />
+            )
+          }
+          questions={
+            <>
+              <QuestionsNavRow
+                isActive={
+                  pathname === "/decisions" ||
+                  (pathname?.startsWith("/decisions/") ?? false)
+                }
+                isNarrow={isNarrow}
+                onMobileClose={onMobileClose}
+              />
+              {/* The page's saved views, while it is open. */}
+              {!isNarrow &&
+                decisionViewItems.map((row) => (
+                  <SectionRow key={row.id} row={row} className="pl-8" />
+                ))}
+            </>
+          }
+          chat={
+            chatOn &&
+            !railIsFocused && (
+              <ChatNavRow
+                isActive={!!isChat}
+                isNarrow={isNarrow}
+                pathname={pathname}
+                pinsShown={!isNarrow && !scope}
+                expanded={viewSectionOverride.chat ?? !!isChat}
+                onToggle={() =>
+                  setViewSectionOverride((v) => ({
+                    ...v,
+                    chat: !(v.chat ?? !!isChat),
+                  }))
+                }
+                onDrill={chatDrills ? () => drill.open("chat") : undefined}
+                onMobileClose={onMobileClose}
+              />
+            )
+          }
+          calls={
+            callsOn &&
+            !railIsFocused && (
+              <>
+                <CallsNavRow
+                  isActive={!!isCalls}
+                  isNarrow={isNarrow}
+                  onMobileClose={onMobileClose}
+                />
+                {/* The huddles running right now, one row each — an occupied room
                 is a door you can walk through from here. Renders nothing when
                 none is live. */}
-            <Suspense fallback={null}>
-              <LiveNowRail isNarrow={isNarrow} onNavigate={onMobileClose} />
-            </Suspense>
-          </>)}
+                <Suspense fallback={null}>
+                  <LiveNowRail isNarrow={isNarrow} onNavigate={onMobileClose} />
+                </Suspense>
+              </>
+            )
+          }
           workAction={<AppPopOutButton app="work" className="-my-1" />}
           active={{
             tasks: isTasks,
             docs: isDocs || isPlans,
-            code: pathname === "/repo" || /^\/(repo|commit|pr)\//.test(pathname || ""),
+            code:
+              pathname === "/repo" ||
+              /^\/(repo|commit|pr)\//.test(pathname || ""),
             files: isVault,
             vault: pathname === "/vault",
             pages: isPages,
             sessions: !!isSessions,
             // A flow's steps are a workflow: every workflow page
             // (definitions, runs, dynamic) lives under Flows.
-            line: pathname === "/flows" || pathname?.startsWith("/flows/") || pathname === "/line" || pathname?.startsWith("/line/") || isWorkflows,
+            line:
+              pathname === "/flows" ||
+              pathname?.startsWith("/flows/") ||
+              pathname === "/line" ||
+              pathname?.startsWith("/line/") ||
+              isWorkflows,
             ops: pathname === "/ops" || pathname?.startsWith("/ops/"),
             triggers: isTriggers,
             ...orgRows,
@@ -686,72 +1029,142 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
             deploys: pathname === "/deploys",
             windows: !!isWindows,
           }}
-          tasks={{ items: taskViewItems, expanded: viewSectionOverride.tasks ?? isTasks, onToggle: () => setViewSectionOverride((o) => ({ ...o, tasks: !(o.tasks ?? isTasks) })), onDrill: tasksDrill ? () => drill.open("tasks") : undefined }}
-          docs={{ items: docViewItems, expanded: viewSectionOverride.docs ?? (isDocs || isPlans), onToggle: () => setViewSectionOverride((o) => ({ ...o, docs: !(o.docs ?? (isDocs || isPlans)) })) }}
+          tasks={{
+            items: taskViewItems,
+            expanded: viewSectionOverride.tasks ?? isTasks,
+            onToggle: () =>
+              setViewSectionOverride((o) => ({
+                ...o,
+                tasks: !(o.tasks ?? isTasks),
+              })),
+            onDrill: tasksDrill ? () => drill.open("tasks") : undefined,
+          }}
+          docs={{
+            items: docViewItems,
+            expanded: viewSectionOverride.docs ?? (isDocs || isPlans),
+            onToggle: () =>
+              setViewSectionOverride((o) => ({
+                ...o,
+                docs: !(o.docs ?? (isDocs || isPlans)),
+              })),
+          }}
           orgOn={orgOn}
           offers={{ org: orgOffer, line: flowsOffer }}
           changesOn={changesOn}
           // A person in no team has one workspace and nothing to switch: no block.
-          workspaceHeader={teams && teams.length > 0 ? (
-            <ErrorBoundary name="TeamSwitcher" level="inline">
-              <TeamSwitcher variant="rail" isNarrow={isNarrow} />
-            </ErrorBoundary>
-          ) : undefined}
+          workspaceHeader={
+            teams && teams.length > 0 ? (
+              <ErrorBoundary name="TeamSwitcher" level="inline">
+                <TeamSwitcher variant="rail" isNarrow={isNarrow} />
+              </ErrorBoundary>
+            ) : undefined
+          }
         />
 
         <ModSidebarSections isNarrow={isNarrow} />
 
-        {scope === "work" ? null : (<>
+        {scope === "work" ? null : (
+          <>
+            {!isNarrow && bookmarks && bookmarks.length > 0 && (
+              <div className="mt-4">
+                <RailHeading
+                  label="Bookmarks"
+                  isNarrow={false}
+                  action={
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sol-bg-highlight/70 text-mark tabular-nums text-sol-text-dim normal-case font-normal">
+                      {bookmarks.length}
+                    </span>
+                  }
+                />
+                {bookmarkRows}
+              </div>
+            )}
 
-        {!isNarrow && bookmarks && bookmarks.length > 0 && (
-          <div className="mt-4">
-            <RailHeading
-              label="Bookmarks"
-              isNarrow={false}
-              action={<span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-sol-bg-highlight/70 text-mark tabular-nums text-sol-text-dim normal-case font-normal">{bookmarks.length}</span>}
-            />
-            {bookmarkRows}
-          </div>
-        )}
-
-        {/* Saved layouts (store/workbench.ts): name the current arrangement,
+            {/* Saved layouts (store/workbench.ts): name the current arrangement,
             switch to it, update it in place. Lives down here with the other
             environment-level sections — it configures the frame, not the work. */}
-        {!railIsFocused && <WorkbenchSection isNarrow={isNarrow} onMobileClose={onMobileClose} />}
+            {!railIsFocused && (
+              <WorkbenchSection
+                isNarrow={isNarrow}
+                onMobileClose={onMobileClose}
+              />
+            )}
 
-        {!isNarrow && computedDirectories.length > 0 && (
-          <div data-rail-group="workspaces" className="mt-4">
-            <RailHeading
-              label="Workspaces"
-              isNarrow={false}
-              action={<button
-                onClick={() => openCompose()}
-                className="text-sol-text-dim hover:text-sol-yellow transition-colors"
-                title="New session"
-                aria-label="New session"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-              </button>}
-            />
-            {folderRows}
-          </div>
+            {!isNarrow && computedDirectories.length > 0 && (
+              <div data-rail-group="workspaces" className="mt-4">
+                <RailHeading
+                  label="Workspaces"
+                  isNarrow={false}
+                  action={
+                    <button
+                      onClick={() => openCompose()}
+                      className="text-sol-text-dim hover:text-sol-yellow transition-colors"
+                      title="New session"
+                      aria-label="New session"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 4v16m8-8H4"
+                        />
+                      </svg>
+                    </button>
+                  }
+                />
+                {folderRows}
+              </div>
+            )}
+          </>
         )}
-
-        </>)}
       </div>
     </>
   );
 
   // The Modern style draws its own rail (lib/navRegistry) from the same data.
-  if (modern) return <ModernSidebar {...{ isMobileOpen, onMobileClose, isNarrow, scope, peek, pathname, titlebarStripRef, pinnedRail, taskViewItems, docViewItems, decisionViewItems, viewSectionOverride, setViewSectionOverride, bookmarkRows, folderRows, appFooter, openCompose }} counts={{ bookmarks: bookmarks?.length ?? 0, folders: computedDirectories.length }} hasTeam={!!activeTeam} hasTeams={!!teams?.length} focus={modernFocus} />;
+  if (modern)
+    return (
+      <ModernSidebar
+        {...{
+          isMobileOpen,
+          onMobileClose,
+          isNarrow,
+          scope,
+          peek,
+          pathname,
+          titlebarStripRef,
+          pinnedRail,
+          taskViewItems,
+          docViewItems,
+          decisionViewItems,
+          viewSectionOverride,
+          setViewSectionOverride,
+          bookmarkRows,
+          folderRows,
+          appFooter,
+          openCompose,
+        }}
+        counts={{
+          bookmarks: bookmarks?.length ?? 0,
+          folders: computedDirectories.length,
+        }}
+        hasTeam={!!activeTeam}
+        hasTeams={!!teams?.length}
+        focus={modernFocus}
+      />
+    );
   return (
     <nav
       data-sv-nav
       className={`
         h-full w-full pb-3 sm:pb-4 flex flex-col bg-sol-bg-alt select-none
-        ${isMobileOpen ? 'shadow-xl' : 'hidden md:flex'}
+        ${isMobileOpen ? "shadow-xl" : "hidden md:flex"}
       `}
     >
       {/* Zen mode on desktop: the sidebar is the leftmost surface, so a lent
@@ -763,12 +1176,18 @@ export const Sidebar = memo(function Sidebar({ directoryFilter, isMobileOpen = f
         label={drill.shown === "tasks" ? "Tasks" : "Chat"}
         peek={<NeedsInputCountBadge />}
         onBack={drill.back}
-        pane={drill.shown === "chat" ? (
-          <ChatDrillList pathname={pathname} onMobileClose={onMobileClose} />
-        ) : drill.shown === "tasks" ? (<>
-          <RailHeading label="Saved views" isNarrow={false} />
-          {taskViewItems.map((row) => <SectionRow key={row.id} row={row} className="pl-2" />)}
-        </>) : null}
+        pane={
+          drill.shown === "chat" ? (
+            <ChatDrillList pathname={pathname} onMobileClose={onMobileClose} />
+          ) : drill.shown === "tasks" ? (
+            <>
+              <RailHeading label="Saved views" isNarrow={false} />
+              {taskViewItems.map((row) => (
+                <SectionRow key={row.id} row={row} className="pl-2" />
+              ))}
+            </>
+          ) : null
+        }
       >
         {sidebarContent}
       </SidebarDrillStack>

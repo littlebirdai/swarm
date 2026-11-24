@@ -26,9 +26,13 @@ export function argumentValidationProblem(err: unknown): string | null {
  * a UI. Returns the actual message; a ConvexError with structured data
  * returns its .message.
  */
-export function humanizeConvexError(err: unknown, fallback = "Something went wrong"): string {
+export function humanizeConvexError(
+  err: unknown,
+  fallback = "Something went wrong",
+): string {
   const data = (err as any)?.data;
-  if (data && typeof data === "object" && typeof data.message === "string") return data.message;
+  if (data && typeof data === "object" && typeof data.message === "string")
+    return data.message;
   const refused = argumentValidationProblem(err);
   if (refused !== null) return refused || fallback;
   let msg = String((err as any)?.message ?? err ?? "");
@@ -44,7 +48,10 @@ export function humanizeConvexError(err: unknown, fallback = "Something went wro
   msg = msg.replace(LEADS, "");
   // The web client tags the call ("[CONVEX M(fn)]"); ConvexHttpClient, the
   // CLI's, starts at the request id.
-  msg = msg.replace(/^(\[CONVEX [^\]]*\]\s*)?(\[Request ID: [^\]]*\]\s*)?Server Error\s*/i, "");
+  msg = msg.replace(
+    /^(\[CONVEX [^\]]*\]\s*)?(\[Request ID: [^\]]*\]\s*)?Server Error\s*/i,
+    "",
+  );
   msg = msg.replace(LEADS, "");
   msg = msg.trim();
   if (msg.startsWith("{")) {
@@ -65,6 +72,9 @@ export function humanizeConvexError(err: unknown, fallback = "Something went wro
  * the line must not carry it into a terminal, a transcript or `cast read`.
  */
 export function cliErrorMessage(raw: unknown): string {
-  const text = String((raw as any)?.message ?? raw ?? "").replace(/("?api_token"?\s*:\s*)"[^"]*"/g, '$1"***"');
+  const text = String((raw as any)?.message ?? raw ?? "").replace(
+    /("?api_token"?\s*:\s*)"[^"]*"/g,
+    '$1"***"',
+  );
   return humanizeConvexError(text, "Unknown error");
 }

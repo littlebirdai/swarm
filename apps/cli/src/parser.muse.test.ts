@@ -15,7 +15,11 @@ import { classifyTranscriptTailFor, computePiSyncDelta } from "./daemon.js";
 const RUN = "0a5a259f-41ac-43a0-88a8-aaca8a4b4f79";
 const MODEL = "muse-spark-1.3-contributor";
 
-function env(kind: string, event: unknown, extra?: Record<string, unknown>): string {
+function env(
+  kind: string,
+  event: unknown,
+  extra?: Record<string, unknown>,
+): string {
   return JSON.stringify({
     schema_version: 1,
     id: "53ed805d-75a0-4549-a84d-5689a6c422b7",
@@ -28,25 +32,39 @@ function env(kind: string, event: unknown, extra?: Record<string, unknown>): str
 
 const FIXTURE = [
   // line-1 style retained permission frame (no payload envelope shape) is skipped
-  JSON.stringify({ retained_frame: "session_permission_transaction", children: [] }),
+  JSON.stringify({
+    retained_frame: "session_permission_transaction",
+    children: [],
+  }),
   JSON.stringify({
     schema_version: 1,
     recorded_at: 1789742894286414,
     payload_type: "runtime.session",
-    payload: { kind: "route_facts", record: { cwd: "/tmp/muse-probe", pid: 1 } },
+    payload: {
+      kind: "route_facts",
+      record: { cwd: "/tmp/muse-probe", pid: 1 },
+    },
   }),
   JSON.stringify({
     schema_version: 1,
     recorded_at: 1789742894286415,
     payload_type: "runtime.session",
-    payload: { kind: "run_model", record: { run_stream: { kind: "run", id: RUN }, model_id: MODEL } },
+    payload: {
+      kind: "run_model",
+      record: { run_stream: { kind: "run", id: RUN }, model_id: MODEL },
+    },
   }),
   env("run", { kind: "started", prompt: "list the workspace root" }),
   env("run", {
     kind: "assistant_tool_calls_committed",
     message_id: "msg-calls",
     tool_calls: [
-      { id: "fc_1", call_id: "call_1", name: "bash", args: JSON.stringify({ command: "ls -la", description: "List root" }) },
+      {
+        id: "fc_1",
+        call_id: "call_1",
+        name: "bash",
+        args: JSON.stringify({ command: "ls -la", description: "List root" }),
+      },
       // non-JSON args degrade to {} instead of failing the parse
       { id: "fc_2", call_id: "call_2", name: "bash", args: "not-json{{{ " },
     ],
@@ -55,14 +73,35 @@ const FIXTURE = [
   env("run", {
     kind: "tool_result_batch_committed",
     batch_id: "msg-calls",
-    results: [{ tool_call_index: 0, tool_call_id: "call_1", text: "total 8\ndrwxr-xr-x 3 staff 96 .\n" }],
+    results: [
+      {
+        tool_call_index: 0,
+        tool_call_id: "call_1",
+        text: "total 8\ndrwxr-xr-x 3 staff 96 .\n",
+      },
+    ],
   }),
-  env("run", { kind: "assistant_message_committed", message_id: "msg-1", text: "The root holds three entries." }),
-  env("run", { kind: "reasoning_summary_committed", message_id: "m1", text: "Listed the directory." }),
-  env("run", { kind: "model_completed", usage: { input_tokens: 100, output_tokens: 20, cached_tokens: 40 } }),
+  env("run", {
+    kind: "assistant_message_committed",
+    message_id: "msg-1",
+    text: "The root holds three entries.",
+  }),
+  env("run", {
+    kind: "reasoning_summary_committed",
+    message_id: "m1",
+    text: "Listed the directory.",
+  }),
+  env("run", {
+    kind: "model_completed",
+    usage: { input_tokens: 100, output_tokens: 20, cached_tokens: 40 },
+  }),
   env("run", { kind: "terminal", terminal: "completed", reason: null }),
   // raw chain-of-thought is skipped, never synced
-  env("run", { kind: "reasoning_committed", message_id: "m2", text: "verbatim internal reasoning" }),
+  env("run", {
+    kind: "reasoning_committed",
+    message_id: "m2",
+    text: "verbatim internal reasoning",
+  }),
   // torn tail line is skipped, never fails
   '{"schema_version": 1, "payload": {"kind": "run", "event": {"kind": "star',
 ].join("\n");
@@ -75,13 +114,21 @@ describe("parseMuseSessionFile", () => {
   });
 
   test("emits the user turn with the run_id as uuid", () => {
-    expect(messages[0]).toMatchObject({ uuid: RUN, role: "user", content: "list the workspace root" });
+    expect(messages[0]).toMatchObject({
+      uuid: RUN,
+      role: "user",
+      content: "list the workspace root",
+    });
   });
 
   test("maps tool calls with parsed JSON args; bad args become {}", () => {
     const withCalls = messages.find((m) => m.toolCalls?.length === 2);
     expect(withCalls).toBeDefined();
-    expect(withCalls!.toolCalls![0]).toEqual({ id: "call_1", name: "bash", input: { command: "ls -la", description: "List root" } });
+    expect(withCalls!.toolCalls![0]).toEqual({
+      id: "call_1",
+      name: "bash",
+      input: { command: "ls -la", description: "List root" },
+    });
     expect(withCalls!.toolCalls![1].input).toEqual({});
   });
 
@@ -90,9 +137,14 @@ describe("parseMuseSessionFile", () => {
     expect(withResults).toHaveLength(1);
     // One message, one uuid: muse reuses the call message's id as the batch
     // id, so a second message under that uuid would collide in the sync delta.
-    expect(withResults[0]).toMatchObject({ role: "assistant", uuid: "msg-calls" });
+    expect(withResults[0]).toMatchObject({
+      role: "assistant",
+      uuid: "msg-calls",
+    });
     expect(withResults[0].toolCalls).toHaveLength(2);
-    expect(withResults[0].toolResults![0]).toMatchObject({ toolUseId: "call_1" });
+    expect(withResults[0].toolResults![0]).toMatchObject({
+      toolUseId: "call_1",
+    });
     expect(withResults[0].toolResults![0].content).toContain("total 8");
   });
 
@@ -103,13 +155,15 @@ describe("parseMuseSessionFile", () => {
   });
 
   test("a batch with no matching call message stands on its own", () => {
-    const orphan = parseMuseSessionFile([
-      env("run", {
-        kind: "tool_result_batch_committed",
-        batch_id: "batch-only",
-        results: [{ tool_call_id: "call_9", text: "output" }],
-      }),
-    ].join("\n"));
+    const orphan = parseMuseSessionFile(
+      [
+        env("run", {
+          kind: "tool_result_batch_committed",
+          batch_id: "batch-only",
+          results: [{ tool_call_id: "call_9", text: "output" }],
+        }),
+      ].join("\n"),
+    );
     expect(orphan).toHaveLength(1);
     expect(orphan[0]).toMatchObject({ uuid: "batch-only", role: "assistant" });
   });
@@ -122,11 +176,17 @@ describe("parseMuseSessionFile", () => {
   test("attaches the reasoning summary as thinking and usage on the turn", () => {
     const assistant = messages.find((m) => m.role === "assistant" && m.content);
     expect(assistant?.thinking).toBe("Listed the directory.");
-    expect(assistant?.usage).toMatchObject({ input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 40 });
+    expect(assistant?.usage).toMatchObject({
+      input_tokens: 100,
+      output_tokens: 20,
+      cache_read_input_tokens: 40,
+    });
   });
 
   test("never surfaces raw chain-of-thought or the torn tail", () => {
-    expect(JSON.stringify(messages)).not.toContain("verbatim internal reasoning");
+    expect(JSON.stringify(messages)).not.toContain(
+      "verbatim internal reasoning",
+    );
     expect(messages.length).toBe(3);
   });
 
@@ -146,15 +206,32 @@ describe("parseMuseSessionFile", () => {
     const retracted = "aaaaaaaa-0000-4000-8000-000000000001";
     const kept = "bbbbbbbb-0000-4000-8000-000000000002";
     const run = (id: string, event: unknown) =>
-      JSON.stringify({ recorded_at: 1789742968906636, payload: { kind: "run", run_id: id, event } });
+      JSON.stringify({
+        recorded_at: 1789742968906636,
+        payload: { kind: "run", run_id: id, event },
+      });
 
-    const messages = parseMuseSessionFile([
-      run(retracted, { kind: "started", prompt: "fix the header" }),
-      run(retracted, { kind: "assistant_tool_calls_committed", message_id: "dead-calls", tool_calls: [{ call_id: "c1", name: "bash", args: "{}" }] }),
-      run(retracted, { kind: "run_retracted", reason: "no_output_interrupt_restore", retracted_prompt_sequence: 1 }),
-      run(kept, { kind: "started", prompt: "fix the header" }),
-      run(kept, { kind: "assistant_message_committed", message_id: "msg-live", text: "Fixed." }),
-    ].join("\n"));
+    const messages = parseMuseSessionFile(
+      [
+        run(retracted, { kind: "started", prompt: "fix the header" }),
+        run(retracted, {
+          kind: "assistant_tool_calls_committed",
+          message_id: "dead-calls",
+          tool_calls: [{ call_id: "c1", name: "bash", args: "{}" }],
+        }),
+        run(retracted, {
+          kind: "run_retracted",
+          reason: "no_output_interrupt_restore",
+          retracted_prompt_sequence: 1,
+        }),
+        run(kept, { kind: "started", prompt: "fix the header" }),
+        run(kept, {
+          kind: "assistant_message_committed",
+          message_id: "msg-live",
+          text: "Fixed.",
+        }),
+      ].join("\n"),
+    );
 
     expect(messages.map((m) => m.uuid)).toEqual([kept, "msg-live"]);
     expect(messages.filter((m) => m.role === "user")).toHaveLength(1);
@@ -164,13 +241,22 @@ describe("parseMuseSessionFile", () => {
 describe("a run that fails outright", () => {
   const RUN2 = "cccccccc-0000-4000-8000-000000000003";
   const run = (id: string, event: unknown) =>
-    JSON.stringify({ recorded_at: 1789742968906636, payload: { kind: "run", run_id: id, event } });
+    JSON.stringify({
+      recorded_at: 1789742968906636,
+      payload: { kind: "run", run_id: id, event },
+    });
 
   test("carries muse's reason, so the re-submitted prompt has an explanation before it", () => {
-    const messages = parseMuseSessionFile([
-      run(RUN2, { kind: "started", prompt: "ship it" }),
-      run(RUN2, { kind: "terminal", terminal: "failed", reason: "missing meta credentials: run `muse login`" }),
-    ].join("\n"));
+    const messages = parseMuseSessionFile(
+      [
+        run(RUN2, { kind: "started", prompt: "ship it" }),
+        run(RUN2, {
+          kind: "terminal",
+          terminal: "failed",
+          reason: "missing meta credentials: run `muse login`",
+        }),
+      ].join("\n"),
+    );
     expect(messages).toHaveLength(2);
     expect(messages[1]).toMatchObject({
       uuid: `${RUN2}:failed`,
@@ -183,7 +269,11 @@ describe("a run that fails outright", () => {
     const quiet = [
       run(RUN2, { kind: "started", prompt: "ship it" }),
       run(RUN2, { kind: "terminal", terminal: "completed", reason: null }),
-      run(RUN2, { kind: "terminal", terminal: "cancelled", reason: "cancelled during model step" }),
+      run(RUN2, {
+        kind: "terminal",
+        terminal: "cancelled",
+        reason: "cancelled during model step",
+      }),
       run(RUN2, { kind: "terminal", terminal: "failed", reason: "  " }),
     ].join("\n");
     expect(parseMuseSessionFile(quiet)).toHaveLength(1);
@@ -193,20 +283,33 @@ describe("a run that fails outright", () => {
 describe("a retracted run already synced", () => {
   const retracted = "aaaaaaaa-0000-4000-8000-000000000001";
   const run = (id: string, event: unknown) =>
-    JSON.stringify({ recorded_at: 1789742968906636, payload: { kind: "run", run_id: id, event } });
+    JSON.stringify({
+      recorded_at: 1789742968906636,
+      payload: { kind: "run", run_id: id, event },
+    });
   const prompt = run(retracted, { kind: "started", prompt: "fix the header" });
 
   test("the delta sweep orphans it, so the daemon deletes the row it wrote", () => {
     // The prompt syncs within a second; the retraction lands seconds later.
     // The pass that sees the retraction must ask for the earlier row back.
-    const { nextSynced } = computePiSyncDelta(parseMuseSessionFile(prompt), new Map());
+    const { nextSynced } = computePiSyncDelta(
+      parseMuseSessionFile(prompt),
+      new Map(),
+    );
     expect(nextSynced.has(retracted)).toBe(true);
 
-    const after = parseMuseSessionFile([
-      prompt,
-      run(retracted, { kind: "run_retracted", reason: "no_output_interrupt_restore" }),
-    ].join("\n"));
-    expect(computePiSyncDelta(after, nextSynced).orphanUuids).toEqual([retracted]);
+    const after = parseMuseSessionFile(
+      [
+        prompt,
+        run(retracted, {
+          kind: "run_retracted",
+          reason: "no_output_interrupt_restore",
+        }),
+      ].join("\n"),
+    );
+    expect(computePiSyncDelta(after, nextSynced).orphanUuids).toEqual([
+      retracted,
+    ]);
   });
 });
 
@@ -216,9 +319,19 @@ describe("classifyMuseTranscriptTail", () => {
 
   test("terminal reads idle; open turns read active", () => {
     expect(classifyMuseTranscriptTail(tail(["started"]))).toBe("active");
-    expect(classifyMuseTranscriptTail(tail(["started", "assistant_message_committed"]))).toBe("active");
-    expect(classifyMuseTranscriptTail(tail(["started", "terminal"]))).toBe("idle");
-    expect(classifyMuseTranscriptTail(tail(["started", "assistant_tool_calls_committed"]))).toBe("active");
+    expect(
+      classifyMuseTranscriptTail(
+        tail(["started", "assistant_message_committed"]),
+      ),
+    ).toBe("active");
+    expect(classifyMuseTranscriptTail(tail(["started", "terminal"]))).toBe(
+      "idle",
+    );
+    expect(
+      classifyMuseTranscriptTail(
+        tail(["started", "assistant_tool_calls_committed"]),
+      ),
+    ).toBe("active");
   });
 
   test("an unresolved approval wait reads active, a resolved one scans past", () => {
@@ -230,14 +343,28 @@ describe("classifyMuseTranscriptTail", () => {
       payload_type: "approval_wait.effect.terminal",
       payload: { kind: "approval_wait", event: { kind: "terminal" } },
     });
-    expect(classifyMuseTranscriptTail(`${tail(["started"])}\n${started}`)).toBe("active");
-    expect(classifyMuseTranscriptTail(`${tail(["started"])}\n${started}\n${terminal}`)).toBe("active");
-    expect(classifyMuseTranscriptTail(`${tail(["started", "terminal"])}\n${started}\n${terminal}`)).toBe("idle");
+    expect(classifyMuseTranscriptTail(`${tail(["started"])}\n${started}`)).toBe(
+      "active",
+    );
+    expect(
+      classifyMuseTranscriptTail(
+        `${tail(["started"])}\n${started}\n${terminal}`,
+      ),
+    ).toBe("active");
+    expect(
+      classifyMuseTranscriptTail(
+        `${tail(["started", "terminal"])}\n${started}\n${terminal}`,
+      ),
+    ).toBe("idle");
   });
 
   test("empty and housekeeping-only tails defer", () => {
     expect(classifyMuseTranscriptTail("")).toBe("unknown");
-    expect(classifyMuseTranscriptTail(tail(["task_stream_linked", "goal_usage_attribution"]))).toBe("unknown");
+    expect(
+      classifyMuseTranscriptTail(
+        tail(["task_stream_linked", "goal_usage_attribution"]),
+      ),
+    ).toBe("unknown");
   });
 
   test("wires into the daemon classifier map", () => {

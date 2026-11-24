@@ -49,22 +49,31 @@ const CLI_HOME_CANDIDATES = [".local/bin/cast", ".codecast/bin/cast"];
 
 // CODECAST_CLI names an executable that behaves like `cast`. It exists for a
 // desktop run from source, where the CLI is a bun entry rather than a binary.
-function resolveCli({ env = process.env, home = os.homedir(), exists = fs.existsSync } = {}) {
+function resolveCli({
+  env = process.env,
+  home = os.homedir(),
+  exists = fs.existsSync,
+} = {}) {
   if (env.CODECAST_CLI) return env.CODECAST_CLI;
   for (const rel of CLI_HOME_CANDIDATES) {
     const candidate = path.join(home, rel);
     if (exists(candidate)) return candidate;
   }
-  for (const candidate of CLI_CANDIDATES) if (exists(candidate)) return candidate;
+  for (const candidate of CLI_CANDIDATES)
+    if (exists(candidate)) return candidate;
   return "cast";
 }
 
 function statusToReadiness(status) {
   switch (status) {
-    case "granted": return "granted";
-    case "not-granted": return "off";
-    case "unsupported": return "n/a";
-    default: return "unknown";
+    case "granted":
+      return "granted";
+    case "not-granted":
+      return "off";
+    case "unsupported":
+      return "n/a";
+    default:
+      return "unknown";
   }
 }
 
@@ -77,20 +86,29 @@ function unknownAll() {
 // answer, and the exit status alone is never the account of what happened.
 function runCli({ cli, args, timeout }) {
   return new Promise((resolve) => {
-    execFile(cli, args, { encoding: "utf8", timeout, maxBuffer: 4 * 1024 * 1024 }, (_err, stdout) => {
-      try {
-        const parsed = JSON.parse(String(stdout));
-        resolve(parsed && typeof parsed === "object" ? parsed : null);
-      } catch {
-        resolve(null);
-      }
-    });
+    execFile(
+      cli,
+      args,
+      { encoding: "utf8", timeout, maxBuffer: 4 * 1024 * 1024 },
+      (_err, stdout) => {
+        try {
+          const parsed = JSON.parse(String(stdout));
+          resolve(parsed && typeof parsed === "object" ? parsed : null);
+        } catch {
+          resolve(null);
+        }
+      },
+    );
   });
 }
 
 // `run` and `platform` are injected so the pure parts stay testable under
 // plain node, the way osPermissions.js does it.
-function createComputerPermissions({ run, platform = process.platform, cli = resolveCli() } = {}) {
+function createComputerPermissions({
+  run,
+  platform = process.platform,
+  cli = resolveCli(),
+} = {}) {
   const invoke = run ?? ((args, timeout) => runCli({ cli, args, timeout }));
 
   function owns(kind) {
@@ -98,10 +116,17 @@ function createComputerPermissions({ run, platform = process.platform, cli = res
   }
 
   async function getAll() {
-    if (platform !== "darwin") return { computerAccessibility: "n/a", computerScreen: "n/a" };
-    const result = await invoke(["computer", "permissions", "--json"], READ_TIMEOUT_MS);
-    if (!result || result.ok === false || !Array.isArray(result.permissions)) return unknownAll();
-    const byId = new Map(result.permissions.map((p) => [p && p.id, p && p.status]));
+    if (platform !== "darwin")
+      return { computerAccessibility: "n/a", computerScreen: "n/a" };
+    const result = await invoke(
+      ["computer", "permissions", "--json"],
+      READ_TIMEOUT_MS,
+    );
+    if (!result || result.ok === false || !Array.isArray(result.permissions))
+      return unknownAll();
+    const byId = new Map(
+      result.permissions.map((p) => [p && p.id, p && p.status]),
+    );
     return {
       computerAccessibility: statusToReadiness(byId.get("accessibility")),
       computerScreen: statusToReadiness(byId.get("screenshots")),
@@ -115,7 +140,10 @@ function createComputerPermissions({ run, platform = process.platform, cli = res
     const id = PERMISSION_ID[kind];
     if (!id || platform !== "darwin") return false;
     await invoke(["computer", "capabilities", "--json"], READ_TIMEOUT_MS);
-    const result = await invoke(["computer", "permissions", "--open-settings", "--id", id, "--json"], READ_TIMEOUT_MS);
+    const result = await invoke(
+      ["computer", "permissions", "--open-settings", "--id", id, "--json"],
+      READ_TIMEOUT_MS,
+    );
     return !!result && result.ok !== false;
   }
 

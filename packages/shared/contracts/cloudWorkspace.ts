@@ -51,13 +51,22 @@ export interface CloudSeedRecord {
 }
 
 /** `feat/x@abc1234+`: branch (or origin/main), the short base, `+` when the laptop tree was dirty. */
-export function cloudSeedLabel(seed: Pick<CloudSeedRecord, "source" | "base" | "branch" | "dirty">): string {
-  const name = seed.source === "checkout" ? (seed.branch || "detached HEAD") : "origin/main";
+export function cloudSeedLabel(
+  seed: Pick<CloudSeedRecord, "source" | "base" | "branch" | "dirty">,
+): string {
+  const name =
+    seed.source === "checkout" ? seed.branch || "detached HEAD" : "origin/main";
   return `${name}@${seed.base.slice(0, 7)}${seed.dirty ? "+" : ""}`;
 }
 
 /** The one-line "Started from …" the header tooltip and the chip title carry. */
-export function cloudSeedTitle(seed: Pick<CloudSeedRecord, "source" | "base" | "branch" | "dirty" | "laptop_root" | "reason">, deviceLabel?: string | null): string {
+export function cloudSeedTitle(
+  seed: Pick<
+    CloudSeedRecord,
+    "source" | "base" | "branch" | "dirty" | "laptop_root" | "reason"
+  >,
+  deviceLabel?: string | null,
+): string {
   const base7 = seed.base.slice(0, 7);
   if (seed.source === "checkout") {
     return `Started from ${seed.branch || "detached HEAD"} @ ${base7}${seed.dirty ? " + uncommitted changes" : ""}${seed.laptop_root ? ` (${seed.laptop_root})` : ""}${deviceLabel ? ` on ${deviceLabel}` : ""}`;
@@ -126,11 +135,20 @@ export function sharedCheckoutOccupant(
       const counts = row.cloud_placement !== "pending" || !row.session_error;
       if (held && counts) {
         if (match.projectPath && held === match.projectPath) return row;
-        if (match.repoBasename && posixRepoBasename(held) === match.repoBasename) return row;
+        if (
+          match.repoBasename &&
+          posixRepoBasename(held) === match.repoBasename
+        )
+          return row;
       }
       continue;
     }
-    if (!match.merging && match.projectPath && row.project_path === match.projectPath) return row;
+    if (
+      !match.merging &&
+      match.projectPath &&
+      row.project_path === match.projectPath
+    )
+      return row;
   }
   return null;
 }
@@ -141,18 +159,37 @@ export function sharedCheckoutOccupant(
  * `<root>/.codecast/`, which is a checkout of its own. Null when the checkout
  * has nobody else, so what a departing session left in it is nobody's work.
  */
-export function otherSessionInCheckout(rows: CheckoutOccupantRow[], root: string, excludeId?: string): CheckoutOccupantRow | null {
+export function otherSessionInCheckout(
+  rows: CheckoutOccupantRow[],
+  root: string,
+  excludeId?: string,
+): CheckoutOccupantRow | null {
   const trimmed = root.replace(/\/+$/, "");
   for (const row of rows) {
-    if (row.conversation_id === excludeId || row.inbox_killed_at || row.status === "completed") continue;
-    const at = (row.cloud_checkout_path ?? row.project_path ?? "").replace(/\/+$/, "");
-    if (at === trimmed || (at.startsWith(`${trimmed}/`) && !at.startsWith(`${trimmed}/.codecast/`))) return row;
+    if (
+      row.conversation_id === excludeId ||
+      row.inbox_killed_at ||
+      row.status === "completed"
+    )
+      continue;
+    const at = (row.cloud_checkout_path ?? row.project_path ?? "").replace(
+      /\/+$/,
+      "",
+    );
+    if (
+      at === trimmed ||
+      (at.startsWith(`${trimmed}/`) && !at.startsWith(`${trimmed}/.codecast/`))
+    )
+      return row;
   }
   return null;
 }
 
 /** The refusal every surface prints for a checkout somebody else holds. */
-export function checkoutInUseMessage(path: string, occupant: CheckoutOccupantRow): string {
+export function checkoutInUseMessage(
+  path: string,
+  occupant: CheckoutOccupantRow,
+): string {
   const id = occupant.short_id ?? occupant.conversation_id.slice(0, 7);
   const title = (occupant.title ?? "").trim() || "untitled";
   return `the host checkout ${path} is in use by session ${id} (${title}) — run this session isolated, or finish/kill that one`;
@@ -168,7 +205,9 @@ export function isHttpOrigin(s: unknown): boolean {
   if (typeof s !== "string") return false;
   try {
     const u = new URL(s);
-    return (u.protocol === "http:" || u.protocol === "https:") && u.origin === s;
+    return (
+      (u.protocol === "http:" || u.protocol === "https:") && u.origin === s
+    );
   } catch {
     return false;
   }

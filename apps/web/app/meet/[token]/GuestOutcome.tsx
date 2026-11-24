@@ -1,7 +1,22 @@
 import { useState, type ReactNode } from "react";
-import { Clock, DoorClosed, Hand, LogOut, MonitorX, PhoneOff, Unlink, UserX, WifiOff } from "lucide-react";
+import {
+  Clock,
+  DoorClosed,
+  Hand,
+  LogOut,
+  MonitorX,
+  PhoneOff,
+  Unlink,
+  UserX,
+  WifiOff,
+} from "lucide-react";
 import { copyToClipboard } from "../../../lib/utils";
-import { guestLinkRefusal, guestLinkRefusalParts, type CallGuestView, type GuestLinkRefusal } from "@codecast/shared/contracts";
+import {
+  guestLinkRefusal,
+  guestLinkRefusalParts,
+  type CallGuestView,
+  type GuestLinkRefusal,
+} from "@codecast/shared/contracts";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { GUEST_PRIMARY } from "./MeetChrome";
 
@@ -22,7 +37,10 @@ const REFUSAL_TITLE: Record<GuestLinkRefusal, string> = {
  *  heading alone does not say it (a link that "no longer works" because its
  *  sender lost the standing to invite). Never the heading again. With the
  *  sender's first name, whom to ask by name. */
-function refusalBody(reason: GuestLinkRefusal, inviter?: string | null): string {
+function refusalBody(
+  reason: GuestLinkRefusal,
+  inviter?: string | null,
+): string {
   const { what, next } = guestLinkRefusalParts(reason, inviter);
   return reason === "inviter_gone" ? `${what} ${next}` : next;
 }
@@ -39,7 +57,11 @@ const CLOSED_WHILE_WAITING: Record<GuestLinkRefusal, string> = {
 /** The page that was waiting at the door says what happened to it, naming
  *  the meeting: "The link to A call with Ashot expired while you were
  *  waiting. Ask Ashot for a new one." */
-function closedWhileWaiting(reason: GuestLinkRefusal, meeting: string | null | undefined, inviter?: string | null): string {
+function closedWhileWaiting(
+  reason: GuestLinkRefusal,
+  meeting: string | null | undefined,
+  inviter?: string | null,
+): string {
   const link = meeting ? `The link to ${meeting}` : "This link";
   return `${link} ${CLOSED_WHILE_WAITING[reason]} while you were waiting. ${refusalBody(reason, inviter)}`;
 }
@@ -50,13 +72,19 @@ function closedWhileWaiting(reason: GuestLinkRefusal, meeting: string | null | u
 type LinkInviter = { name: string | null; image?: string | null };
 type Named = { title?: string | null; inviter?: LinkInviter };
 
-export function linkAsOf<L extends ({ ok: true; expires_at: number } & Named) | ({ ok: false; reason: GuestLinkRefusal } & Named)>(
+export function linkAsOf<
+  L extends
+    | ({ ok: true; expires_at: number } & Named)
+    | ({ ok: false; reason: GuestLinkRefusal } & Named),
+>(
   link: L | undefined,
   now: number,
 ): L | ({ ok: false; reason: GuestLinkRefusal } & Named) | undefined {
   const lapsed = link?.ok ? guestLinkRefusal(link, now) : null;
   // Still named, as the server names a link that closed (describeGuestLink).
-  return lapsed && link ? { ok: false, reason: lapsed, title: link.title, inviter: link.inviter } : link;
+  return lapsed && link
+    ? { ok: false, reason: lapsed, title: link.title, inviter: link.inviter }
+    : link;
 }
 
 /** Who to name in a refusal: the meeting, and the sender's first name. */
@@ -91,18 +119,30 @@ export type Outcome =
  *  into a place still held (`resumable`), or another try for a page that
  *  could not reach the call. A browser that cannot join gets the link to
  *  carry to one that can, which is this component's own to copy. */
-export function GuestOutcome({ outcome, onAskAgain, busy, error }: { outcome: Outcome; onAskAgain: () => void; busy: boolean; error: string | null }) {
+export function GuestOutcome({
+  outcome,
+  onAskAgain,
+  busy,
+  error,
+}: {
+  outcome: Outcome;
+  onAskAgain: () => void;
+  busy: boolean;
+  error: string | null;
+}) {
   const now = useCoarseNow(1000);
   let icon: ReactNode;
   let title: string;
   let text: string;
-  let action: { label: string; disabled?: boolean; busy?: string } | null = null;
+  let action: { label: string; disabled?: boolean; busy?: string } | null =
+    null;
   const [copied, setCopied] = useState<null | "copied" | "failed">(null);
 
   if (outcome.kind === "unreachable") {
     icon = <WifiOff />;
     title = "Couldn't reach the call";
-    text = "The page could not load this meeting. Check your connection, then try again. It also tries by itself when the connection is back.";
+    text =
+      "The page could not load this meeting. Check your connection, then try again. It also tries by itself when the connection is back.";
     action = { label: "Try again" };
   } else if (outcome.kind === "unsupported") {
     icon = <MonitorX />;
@@ -129,7 +169,9 @@ export function GuestOutcome({ outcome, onAskAgain, busy, error }: { outcome: Ou
       title = "You were removed from the call";
       // Only what the server enforces: this visit is over, and the link is
       // closed only when somebody closed it.
-      text = canAskAgain ? "Someone in the call removed you." : "Someone in the call removed you. This link no longer works.";
+      text = canAskAgain
+        ? "Someone in the call removed you."
+        : "Someone in the call removed you. This link no longer works.";
     } else if (view === "ended") {
       icon = <PhoneOff />;
       title = "The call has ended";
@@ -157,14 +199,23 @@ export function GuestOutcome({ outcome, onAskAgain, busy, error }: { outcome: Ou
       } else {
         icon = <LogOut />;
         title = "You left the call";
-        text = canAskAgain ? "Changed your mind? You can ask to join again; someone inside lets you back in." : "Thanks for joining.";
-        if (canAskAgain) action = { label: "Rejoin", disabled: outcome.pending };
+        text = canAskAgain
+          ? "Changed your mind? You can ask to join again; someone inside lets you back in."
+          : "Thanks for joining.";
+        if (canAskAgain)
+          action = { label: "Rejoin", disabled: outcome.pending };
       }
     } else {
       // closed: the link stopped working while they waited at the door.
       icon = <DoorClosed />;
-      title = outcome.reason ? REFUSAL_TITLE[outcome.reason] : "This link was closed";
-      text = closedWhileWaiting(outcome.reason ?? "revoked", outcome.meeting, outcome.inviter);
+      title = outcome.reason
+        ? REFUSAL_TITLE[outcome.reason]
+        : "This link was closed";
+      text = closedWhileWaiting(
+        outcome.reason ?? "revoked",
+        outcome.meeting,
+        outcome.inviter,
+      );
     }
   }
 
@@ -173,8 +224,12 @@ export function GuestOutcome({ outcome, onAskAgain, busy, error }: { outcome: Ou
       <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.04] text-sol-text-muted ring-1 ring-white/[0.07] [&>svg]:h-6 [&>svg]:w-6">
         {icon}
       </span>
-      <h1 className="meet-title text-balance text-[28px] leading-tight text-sol-text">{title}</h1>
-      <p className="text-pretty text-[13px] leading-relaxed text-sol-text-muted">{text}</p>
+      <h1 className="meet-title text-balance text-[28px] leading-tight text-sol-text">
+        {title}
+      </h1>
+      <p className="text-pretty text-[13px] leading-relaxed text-sol-text-muted">
+        {text}
+      </p>
       {action && (
         <button
           type="button"

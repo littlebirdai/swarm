@@ -26,16 +26,25 @@ export type CallMediaTarget = {
  *  line `seq` inside it when it is there, else the turn. One turn can run
  *  for minutes, so a landing and the follow-while-playing scroll both aim at
  *  the line; the call page and the share page find it through this. */
-export function callLineEl(root: ParentNode | null | undefined, turn: number | undefined, seq: number | null): HTMLElement | null {
+export function callLineEl(
+  root: ParentNode | null | undefined,
+  turn: number | undefined,
+  seq: number | null,
+): HTMLElement | null {
   const el = root?.querySelector<HTMLElement>(`[data-turn="${turn}"]`) ?? null;
-  return (seq !== null ? el?.querySelector<HTMLElement>(`[data-seq="${seq}"]`) : null) ?? el;
+  return (
+    (seq !== null
+      ? el?.querySelector<HTMLElement>(`[data-seq="${seq}"]`)
+      : null) ?? el
+  );
 }
 
 /** The rows of a call's thread a landing's top edge falls between
  *  (scrollIntoContainer's `snap`): the thread's own rows, a passage's head,
  *  each turn and each line, so no row is left sliced in half under the
  *  thread's header. */
-export const CALL_THREAD_ROWS = ".rt-list > *, .rt-passage-head, [data-turn], [data-seq]";
+export const CALL_THREAD_ROWS =
+  ".rt-list > *, .rt-passage-head, [data-turn], [data-seq]";
 
 /** Bring the line being said into view the way a reader holds a lyric: a
  *  third of the way down, the edge above it between two rows. */
@@ -50,10 +59,18 @@ export function showCallLine(el: HTMLElement, smooth = false): void {
  * playing video reports its own time; a paused one (a landing) is set here,
  * since the line must light whether or not the picture covers that moment.
  */
-export function seekCallMedia(t: CallMediaTarget, ms: number, opts: { play?: boolean; view?: CallView | null } = {}): void {
+export function seekCallMedia(
+  t: CallMediaTarget,
+  ms: number,
+  opts: { play?: boolean; view?: CallView | null } = {},
+): void {
   const play = opts.play ?? true;
   if (t.hasVideo) {
-    t.setMissed(t.player.current?.seek(ms, { play, view: opts.view }) === false ? ms : null);
+    t.setMissed(
+      t.player.current?.seek(ms, { play, view: opts.view }) === false
+        ? ms
+        : null,
+    );
     if (play) return;
   } else {
     const el = t.audio.current;
@@ -91,7 +108,10 @@ export function useCallMomentLanding({
   scope: string;
   momentMs: number | null;
   view?: CallView | null;
-  turns: ReadonlyArray<{ t0: number; segments: ReadonlyArray<{ seq: number; t0: number; t1?: number }> }>;
+  turns: ReadonlyArray<{
+    t0: number;
+    segments: ReadonlyArray<{ seq: number; t0: number; t1?: number }>;
+  }>;
   ready: boolean;
   target: CallMediaTarget;
   /** The i-th turn's element, or the line `seq` inside it when given. */
@@ -100,7 +120,8 @@ export function useCallMomentLanding({
   const landedMoment = useRef<string | null>(null);
   const landedLine = useRef<string | null>(null);
   useWatchEffect(() => {
-    if (momentMs === null || !ready || (turns.length === 0 && !target.hasVideo)) return;
+    if (momentMs === null || !ready || (turns.length === 0 && !target.hasVideo))
+      return;
     const key = `${scope}@${momentMs}`;
     if (landedMoment.current !== key) {
       landedMoment.current = key;

@@ -9,10 +9,15 @@ import { useInboxStore } from "../store/inboxStore";
 export function followRestoredConversation(res: any, ghostId: string): boolean {
   const targetId = res?.conversation_id;
   if (!res?.restored || !targetId || targetId === ghostId) return false;
-  toast.success("Restored the live session", { description: "This conversation was deleted on the server." });
+  toast.success("Restored the live session", {
+    description: "This conversation was deleted on the server.",
+  });
   // Same logical conversation reborn under a new id — rekey-class, not a jump.
   useInboxStore.getState().requestNavigate(targetId, { source: "rekey" });
   useInboxStore.getState().pruneGhostSessions([ghostId]);
-  setTimeout(() => useInboxStore.getState().pruneGhostSessions([ghostId]), 3000);
+  setTimeout(
+    () => useInboxStore.getState().pruneGhostSessions([ghostId]),
+    3000,
+  );
   return true;
 }

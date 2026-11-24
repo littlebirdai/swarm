@@ -9,11 +9,15 @@ export function sessionCardSummary(s: {
   subtitle?: string | null;
 }): string {
   return (
-    s.idle_summary?.trim()
+    s.idle_summary?.trim() ||
     // Trim before stripping the marker (so "  - x" loses it too) and require
     // whitespace after it (so "**Bold**" isn't mangled). getConversationMeta /
     // getSharedConversationMeta in convex mirror this expression exactly.
-    || s.subtitle?.split("\n").find((l) => l.trim())?.trim().replace(/^[-*]\s+/, "")
-    || ""
+    s.subtitle
+      ?.split("\n")
+      .find((l) => l.trim())
+      ?.trim()
+      .replace(/^[-*]\s+/, "") ||
+    ""
   );
 }

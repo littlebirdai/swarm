@@ -4,17 +4,26 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { GH_WRAPPER_MARKER, GH_WRAPPER_REL, ghWrapperInstallSnippet, ghWrapperScript, REAL_GH_REL } from "./ghWrapper";
+import {
+  GH_WRAPPER_MARKER,
+  GH_WRAPPER_REL,
+  ghWrapperInstallSnippet,
+  ghWrapperScript,
+  REAL_GH_REL,
+} from "./ghWrapper";
 
 let dir: string, home: string, castBin: string, realBin: string, work: string;
 
 beforeEach(() => {
-  dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cast-gh-wrapper-")));
+  dir = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "cast-gh-wrapper-")),
+  );
   home = path.join(dir, "home");
   castBin = path.join(dir, "cast-bin");
   realBin = path.join(dir, "real-bin");
   work = path.join(dir, "work");
-  for (const d of [home, castBin, realBin, work]) fs.mkdirSync(d, { recursive: true });
+  for (const d of [home, castBin, realBin, work])
+    fs.mkdirSync(d, { recursive: true });
 });
 
 afterEach(() => {
@@ -27,13 +36,21 @@ function exe(p: string, body: string): void {
 }
 
 /** A cast that records git's request and answers like the real helper. */
-function fakeCast(body = `printf 'username=x-access-token\\npassword=ghs_fresh\\npassword_expiry_utc=1\\n'`): void {
-  exe(path.join(castBin, "cast"), `echo "$*" > "${dir}/cast-argv"; cat > "${dir}/cast-stdin"\n${body}`);
+function fakeCast(
+  body = `printf 'username=x-access-token\\npassword=ghs_fresh\\npassword_expiry_utc=1\\n'`,
+): void {
+  exe(
+    path.join(castBin, "cast"),
+    `echo "$*" > "${dir}/cast-argv"; cat > "${dir}/cast-stdin"\n${body}`,
+  );
 }
 
 /** The real gh: prints what it was given. */
 function fakeRealGh(at = path.join(realBin, "gh")): void {
-  exe(at, `echo "token=\${GH_TOKEN:-}"; for a in "$@"; do echo "arg=$a"; done; exit 7`);
+  exe(
+    at,
+    `echo "token=\${GH_TOKEN:-}"; for a in "$@"; do echo "arg=$a"; done; exit 7`,
+  );
 }
 
 function installWrapper(): string {
@@ -49,7 +66,11 @@ function runGh(args: string[], env: Record<string, string> = {}) {
     cwd: work,
     encoding: "utf-8",
     timeout: 20_000,
-    env: { HOME: home, PATH: `${path.dirname(wrapper)}:${castBin}:${realBin}:${systemPathWithout("gh")}`, ...env },
+    env: {
+      HOME: home,
+      PATH: `${path.dirname(wrapper)}:${castBin}:${realBin}:${systemPathWithout("gh")}`,
+      ...env,
+    },
   });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
@@ -74,8 +95,12 @@ describe("ghWrapperScript", () => {
     installWrapper();
     const r = runGh(["pr", "create", "--title", "two words"]);
     expect(r.status).toBe(7);
-    expect(r.stdout).toBe("token=ghs_fresh\narg=pr\narg=create\narg=--title\narg=two words\n");
-    expect(fs.readFileSync(path.join(dir, "cast-argv"), "utf-8").trim()).toBe("git-credential get");
+    expect(r.stdout).toBe(
+      "token=ghs_fresh\narg=pr\narg=create\narg=--title\narg=two words\n",
+    );
+    expect(fs.readFileSync(path.join(dir, "cast-argv"), "utf-8").trim()).toBe(
+      "git-credential get",
+    );
     expect(castStdin()).toBe("protocol=https\nhost=github.com\n\n");
   });
 
@@ -116,7 +141,9 @@ describe("ghWrapperScript", () => {
     fakeCast();
     fakeRealGh();
     installWrapper();
-    expect(runGh(["api", "user"], { GH_TOKEN: "mine" }).stdout).toBe("token=mine\narg=api\narg=user\n");
+    expect(runGh(["api", "user"], { GH_TOKEN: "mine" }).stdout).toBe(
+      "token=mine\narg=api\narg=user\n",
+    );
     runGh(["api", "user"], { GITHUB_TOKEN: "mine" });
     runGh(["--version"]);
     runGh(["completion", "-s", "bash"]);
@@ -129,9 +156,17 @@ describe("ghWrapperScript", () => {
     fakeRealGh();
     installWrapper();
     fs.mkdirSync(path.join(home, ".config", "gh"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".config", "gh", "hosts.yml"), "enterprise.example:\n    user: x\n");
-    expect(runGh(["api", "user"]).stdout).toBe("token=ghs_fresh\narg=api\narg=user\n");
-    fs.writeFileSync(path.join(home, ".config", "gh", "hosts.yml"), "github.com:\n    user: human\n    git_protocol: https\n");
+    fs.writeFileSync(
+      path.join(home, ".config", "gh", "hosts.yml"),
+      "enterprise.example:\n    user: x\n",
+    );
+    expect(runGh(["api", "user"]).stdout).toBe(
+      "token=ghs_fresh\narg=api\narg=user\n",
+    );
+    fs.writeFileSync(
+      path.join(home, ".config", "gh", "hosts.yml"),
+      "github.com:\n    user: human\n    git_protocol: https\n",
+    );
     fs.rmSync(path.join(dir, "cast-stdin"), { force: true });
     expect(runGh(["pr", "create"]).stdout).toBe("token=\narg=pr\narg=create\n");
     expect(castCalled()).toBe(false);
@@ -141,7 +176,9 @@ describe("ghWrapperScript", () => {
     fakeCast();
     installWrapper();
     // Another wrapper copy further down PATH is skipped too.
-    fs.writeFileSync(path.join(realBin, "gh"), ghWrapperScript(), { mode: 0o755 });
+    fs.writeFileSync(path.join(realBin, "gh"), ghWrapperScript(), {
+      mode: 0o755,
+    });
     const none = runGh(["pr", "list"]);
     expect(none.status).toBe(127);
     expect(none.stderr).toContain("not installed on this host");
@@ -151,7 +188,12 @@ describe("ghWrapperScript", () => {
 });
 
 describe("ghWrapperInstallSnippet", () => {
-  const install = () => spawnSync("bash", ["-c", ghWrapperInstallSnippet()], { encoding: "utf-8", env: { HOME: home, PATH: systemPathWithout("gh") }, timeout: 20_000 });
+  const install = () =>
+    spawnSync("bash", ["-c", ghWrapperInstallSnippet()], {
+      encoding: "utf-8",
+      env: { HOME: home, PATH: systemPathWithout("gh") },
+      timeout: 20_000,
+    });
   const wrapperPath = () => path.join(home, GH_WRAPPER_REL);
 
   test("moves a real gh at the wrapper's path aside, writes the wrapper 0755, and a rerun changes nothing", () => {
@@ -159,9 +201,13 @@ describe("ghWrapperInstallSnippet", () => {
     expect(install().status).toBe(0);
     expect(fs.readFileSync(wrapperPath(), "utf-8")).toBe(ghWrapperScript());
     expect(fs.statSync(wrapperPath()).mode & 0o777).toBe(0o755);
-    expect(fs.readFileSync(path.join(home, REAL_GH_REL), "utf-8")).toContain("token=");
+    expect(fs.readFileSync(path.join(home, REAL_GH_REL), "utf-8")).toContain(
+      "token=",
+    );
     expect(install().status).toBe(0);
-    expect(fs.readFileSync(path.join(home, REAL_GH_REL), "utf-8")).toContain("token=");
+    expect(fs.readFileSync(path.join(home, REAL_GH_REL), "utf-8")).toContain(
+      "token=",
+    );
     expect(fs.readFileSync(wrapperPath(), "utf-8")).toBe(ghWrapperScript());
     expect(fs.readdirSync(path.dirname(wrapperPath()))).toEqual(["gh"]);
     fakeCast();
@@ -181,6 +227,8 @@ describe("ghWrapperInstallSnippet", () => {
     fs.mkdirSync(path.join(home, ".local", "libexec"), { recursive: true });
     fs.writeFileSync(path.join(home, ".local", "libexec", "codecast"), "");
     install();
-    expect(fs.readFileSync(wrapperPath(), "utf-8")).not.toContain(GH_WRAPPER_MARKER);
+    expect(fs.readFileSync(wrapperPath(), "utf-8")).not.toContain(
+      GH_WRAPPER_MARKER,
+    );
   });
 });

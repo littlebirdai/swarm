@@ -39,10 +39,14 @@ function renderedTasks(content: string) {
       components={{
         li: ({ node, children }: any) => {
           const className = node?.properties?.className;
-          if (Array.isArray(className) && className.includes("task-list-item")) {
+          if (
+            Array.isArray(className) &&
+            className.includes("task-list-item")
+          ) {
             found.push({
               line: node.position.start.line,
-              checked: !!node.children?.find((c: any) => c.tagName === "input")?.properties?.checked,
+              checked: !!node.children?.find((c: any) => c.tagName === "input")
+                ?.properties?.checked,
             });
           }
           return <li>{children}</li>;
@@ -77,7 +81,11 @@ describe("checkbox click → source line", () => {
 
   test("clicking each checkbox flips that line and nothing else", () => {
     for (const task of tasks) {
-      const next = toggleTaskInContent(NOTE, task.line + offset, !task.checked)!;
+      const next = toggleTaskInContent(
+        NOTE,
+        task.line + offset,
+        !task.checked,
+      )!;
       expect(next).not.toBeNull();
       const before = NOTE.split("\n");
       next.split("\n").forEach((line, i) => {

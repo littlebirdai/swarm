@@ -14,9 +14,15 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, findOnPath, TOOL_PATH, execFileAsync } from "./proc.js";
 import { codecastPath } from "./codecastDir.js";
-import { MOMENT_LIMITS, type ExtractorInput } from "@codecast/shared/contracts/moments";
+import {
+  MOMENT_LIMITS,
+  type ExtractorInput,
+} from "@codecast/shared/contracts/moments";
 import type { JudgeHandoff } from "@codecast/shared/contracts/judges";
-import type { ModelCallResult, ModelCallSpec } from "@codecast/shared/contracts/modelCall";
+import type {
+  ModelCallResult,
+  ModelCallSpec,
+} from "@codecast/shared/contracts/modelCall";
 import { subscriptionModelCall } from "./subscriptionCall.js";
 
 export const MOMENTS_DIR = ".codecast/moments";
@@ -29,14 +35,17 @@ export function hostFile(): string {
 
 /** Where host-kept moment bodies live. */
 export function shadowDir(): string {
-  const base = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
+  const base =
+    process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
   return path.join(base, "codecast", "moments-shadow");
 }
 
 export function readHostRoots(): string[] {
   try {
     const parsed = JSON.parse(fs.readFileSync(hostFile(), "utf8"));
-    return Array.isArray(parsed?.roots) ? parsed.roots.filter((r: unknown) => typeof r === "string") : [];
+    return Array.isArray(parsed?.roots)
+      ? parsed.roots.filter((r: unknown) => typeof r === "string")
+      : [];
   } catch {
     return [];
   }
@@ -48,12 +57,18 @@ export function noteHostRoot(root: string, extracts: boolean): void {
   if (extracts) roots.add(root);
   else roots.delete(root);
   fs.mkdirSync(path.dirname(hostFile()), { recursive: true });
-  fs.writeFileSync(hostFile(), JSON.stringify({ roots: [...roots] }, null, 2) + "\n");
+  fs.writeFileSync(
+    hostFile(),
+    JSON.stringify({ roots: [...roots] }, null, 2) + "\n",
+  );
 }
 
 /** The file's git blob sha: the extractor's or judge's version, the same before and after a commit. */
 export async function fileVersion(file: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["hash-object", file], { cwd: path.dirname(file), encoding: "utf8" } as any);
+  const { stdout } = await execFileAsync("git", ["hash-object", file], {
+    cwd: path.dirname(file),
+    encoding: "utf8",
+  } as any);
   return String(stdout).trim();
 }
 
@@ -61,15 +76,29 @@ export type MomentClaim = {
   moment: string;
   source: string;
   input: ExtractorInput;
-  extractor: { path: string; root: string; version: string; timeout_ms: number };
+  extractor: {
+    path: string;
+    root: string;
+    version: string;
+    timeout_ms: number;
+  };
   storage: "host" | "codecast";
 };
 
-export type ExtractResult = { output?: string; error?: string; version: string };
+export type ExtractResult = {
+  output?: string;
+  error?: string;
+  version: string;
+};
 
 /** The bun that runs a product's scripts (an extractor, a judge's gateway, the dry-run harness). */
 export function bunPath(): string {
-  return findOnPath("bun", [TOOL_PATH, path.join(os.homedir(), ".bun", "bin")].join(path.delimiter)) ?? "bun";
+  return (
+    findOnPath(
+      "bun",
+      [TOOL_PATH, path.join(os.homedir(), ".bun", "bin")].join(path.delimiter),
+    ) ?? "bun"
+  );
 }
 
 /**
@@ -77,18 +106,32 @@ export function bunPath(): string {
  * event on stdin. Its stdout is the moment; a non-zero exit, a timeout or
  * output past the moment's size cap is a failure with the reason in words.
  */
-export async function runExtractor(claim: MomentClaim, opts: { bun?: string } = {}): Promise<ExtractResult> {
+export async function runExtractor(
+  claim: MomentClaim,
+  opts: { bun?: string } = {},
+): Promise<ExtractResult> {
   const file = path.join(claim.extractor.root, claim.extractor.path);
-  if (!fs.existsSync(file)) return { error: `${claim.extractor.path} is not in ${claim.extractor.root}`, version: claim.extractor.version };
+  if (!fs.existsSync(file))
+    return {
+      error: `${claim.extractor.path} is not in ${claim.extractor.root}`,
+      version: claim.extractor.version,
+    };
   const version = await fileVersion(file).catch(() => claim.extractor.version);
   return await new Promise<ExtractResult>((resolve) => {
-    const child = spawn(opts.bun ?? bunPath(), [file], { cwd: claim.extractor.root, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, CODECAST_MOMENT: claim.moment } });
+    const child = spawn(opts.bun ?? bunPath(), [file], {
+      cwd: claim.extractor.root,
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, CODECAST_MOMENT: claim.moment },
+    });
     let out = "";
     let err = "";
     let over = false;
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
-      resolve({ error: `the extractor ran past ${Math.round(claim.extractor.timeout_ms / 1000)}s`, version });
+      resolve({
+        error: `the extractor ran past ${Math.round(claim.extractor.timeout_ms / 1000)}s`,
+        version,
+      });
     }, claim.extractor.timeout_ms);
     child.stdout!.on("data", (d: Buffer) => {
       out += d.toString("utf8");
@@ -97,13 +140,32 @@ export async function runExtractor(claim: MomentClaim, opts: { bun?: string } = 
         child.kill("SIGKILL");
       }
     });
-    child.stderr!.on("data", (d: Buffer) => { err = (err + d.toString("utf8")).slice(-4000); });
-    child.on("error", (e: Error) => { clearTimeout(timer); resolve({ error: e.message, version }); });
+    child.stderr!.on("data", (d: Buffer) => {
+      err = (err + d.toString("utf8")).slice(-4000);
+    });
+    child.on("error", (e: Error) => {
+      clearTimeout(timer);
+      resolve({ error: e.message, version });
+    });
     child.on("close", (code: number | null) => {
       clearTimeout(timer);
-      if (over) return resolve({ error: `the moment is over ${MOMENT_LIMITS.json_bytes} bytes`, version });
+      if (over)
+        return resolve({
+          error: `the moment is over ${MOMENT_LIMITS.json_bytes} bytes`,
+          version,
+        });
       // Its own words, not the stack under them: an error's frames ("    at …") say where, its message says what.
-      if (code !== 0) return resolve({ error: `the extractor exited ${code}: ${err.trim().split("\n").filter((l) => !/^\s+at /.test(l)).slice(-3).join(" ").slice(0, 400)}`, version });
+      if (code !== 0)
+        return resolve({
+          error: `the extractor exited ${code}: ${err
+            .trim()
+            .split("\n")
+            .filter((l) => !/^\s+at /.test(l))
+            .slice(-3)
+            .join(" ")
+            .slice(0, 400)}`,
+          version,
+        });
       resolve({ output: out, version });
     });
     child.stdin!.end(JSON.stringify(claim.input));
@@ -111,11 +173,33 @@ export async function runExtractor(claim: MomentClaim, opts: { bun?: string } = 
 }
 
 /** A host-kept body, written where only this machine reads it. */
-export function keepOnHost(claim: MomentClaim, output: string, version: string, now: number): string {
-  const dir = path.join(shadowDir(), claim.source.replace(/[^A-Za-z0-9_-]/g, "_"));
+export function keepOnHost(
+  claim: MomentClaim,
+  output: string,
+  version: string,
+  now: number,
+): string {
+  const dir = path.join(
+    shadowDir(),
+    claim.source.replace(/[^A-Za-z0-9_-]/g, "_"),
+  );
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const file = path.join(dir, `${claim.moment}.json`);
-  fs.writeFileSync(file, JSON.stringify({ moment: claim.moment, input: claim.input, extractor: { path: claim.extractor.path, version }, extracted_at: now, output: JSON.parse(output) }, null, 2) + "\n", { mode: 0o600 });
+  fs.writeFileSync(
+    file,
+    JSON.stringify(
+      {
+        moment: claim.moment,
+        input: claim.input,
+        extractor: { path: claim.extractor.path, version },
+        extracted_at: now,
+        output: JSON.parse(output),
+      },
+      null,
+      2,
+    ) + "\n",
+    { mode: 0o600 },
+  );
   return file;
 }
 
@@ -125,7 +209,9 @@ export function pruneHostMoments(now: number): number {
   const root = shadowDir();
   for (const source of fs.existsSync(root) ? fs.readdirSync(root) : []) {
     const dir = path.join(root, source);
-    for (const name of fs.statSync(dir).isDirectory() ? fs.readdirSync(dir) : []) {
+    for (const name of fs.statSync(dir).isDirectory()
+      ? fs.readdirSync(dir)
+      : []) {
       const file = path.join(dir, name);
       if (now - fs.statSync(file).mtimeMs > MOMENT_LIMITS.retention_ms) {
         fs.rmSync(file, { force: true });
@@ -148,19 +234,44 @@ export async function judgeHere(
   handoff: JudgeHandoff,
   post: (route: string, body: Record<string, unknown>) => Promise<any>,
   scope: Record<string, unknown>,
-  call: (spec: ModelCallSpec) => Promise<ModelCallResult> = (spec) => subscriptionModelCall(spec),
-): Promise<Array<{ judge: string; status: string; findings: number; filed: number; reason?: string; cost_usd: number }>> {
+  call: (spec: ModelCallSpec) => Promise<ModelCallResult> = (spec) =>
+    subscriptionModelCall(spec),
+): Promise<
+  Array<{
+    judge: string;
+    status: string;
+    findings: number;
+    filed: number;
+    reason?: string;
+    cost_usd: number;
+  }>
+> {
   const results = [];
   for (const { judge, request } of handoff.requests) {
     const r = await call(request);
     results.push({
       judge,
       result: r.ok
-        ? { ok: true, text: r.text, input_tokens: r.usage.input_tokens, output_tokens: r.usage.output_tokens, ...(r.stop_reason !== undefined ? { stop_reason: r.stop_reason } : {}) }
+        ? {
+            ok: true,
+            text: r.text,
+            input_tokens: r.usage.input_tokens,
+            output_tokens: r.usage.output_tokens,
+            ...(r.stop_reason !== undefined
+              ? { stop_reason: r.stop_reason }
+              : {}),
+          }
         : { ok: false, error: r.error },
     });
   }
-  const reply = await post("/cli/moments/judged", { ...scope, moment: handoff.moment, clock: handoff.clock, ...(handoff.lines?.length ? { lines: handoff.lines } : {}), record: JSON.stringify(handoff.record), results });
+  const reply = await post("/cli/moments/judged", {
+    ...scope,
+    moment: handoff.moment,
+    clock: handoff.clock,
+    ...(handoff.lines?.length ? { lines: handoff.lines } : {}),
+    record: JSON.stringify(handoff.record),
+    results,
+  });
   return reply?.judged ?? [];
 }
 
@@ -184,20 +295,36 @@ export const EXTRACT_PARALLEL = 4;
  * bodies here, and hand every result back (the server stores and judges).
  * Returns what happened per moment, in claim order.
  */
-export async function tickMoments(deps: MomentsTickDeps): Promise<Array<{ moment: string; status: string; error?: string }>> {
-  const claims: MomentClaim[] = (await deps.post("/cli/moments/claim", { device_id: deps.deviceId, limit: deps.limit ?? EXTRACT_PARALLEL })) ?? [];
-  const out: Array<{ moment: string; status: string; error?: string }> = new Array(claims.length);
+export async function tickMoments(
+  deps: MomentsTickDeps,
+): Promise<Array<{ moment: string; status: string; error?: string }>> {
+  const claims: MomentClaim[] =
+    (await deps.post("/cli/moments/claim", {
+      device_id: deps.deviceId,
+      limit: deps.limit ?? EXTRACT_PARALLEL,
+    })) ?? [];
+  const out: Array<{ moment: string; status: string; error?: string }> =
+    new Array(claims.length);
   // Extractors run side by side: each mostly waits on the product's database.
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(EXTRACT_PARALLEL, claims.length) }, async () => {
-    for (let i = next++; i < claims.length; i = next++) out[i] = await handOne(deps, claims[i]!);
-  }));
+  await Promise.all(
+    Array.from(
+      { length: Math.min(EXTRACT_PARALLEL, claims.length) },
+      async () => {
+        for (let i = next++; i < claims.length; i = next++)
+          out[i] = await handOne(deps, claims[i]!);
+      },
+    ),
+  );
   return out;
 }
 
 let judgingTurn: Promise<unknown> = Promise.resolve();
 
-async function handOne(deps: MomentsTickDeps, claim: MomentClaim): Promise<{ moment: string; status: string; error?: string }> {
+async function handOne(
+  deps: MomentsTickDeps,
+  claim: MomentClaim,
+): Promise<{ moment: string; status: string; error?: string }> {
   const now = deps.now ?? Date.now;
   const result = await (deps.run ?? runExtractor)(claim);
   if (result.output !== undefined && claim.storage === "host") {
@@ -208,21 +335,51 @@ async function handOne(deps: MomentsTickDeps, claim: MomentClaim): Promise<{ mom
       delete result.output;
     }
   }
-  const reply = await deps.post("/cli/moments/complete", {
-    device_id: deps.deviceId,
+  const reply = await deps
+    .post("/cli/moments/complete", {
+      device_id: deps.deviceId,
+      moment: claim.moment,
+      extractor_version: result.version,
+      ...(result.output !== undefined
+        ? { output: result.output }
+        : { error: result.error ?? "the extractor printed nothing" }),
+    })
+    .catch((err: unknown) => ({
+      status: "unreported",
+      error: err instanceof Error ? err.message : String(err),
+    }));
+  const outcome = {
     moment: claim.moment,
-    extractor_version: result.version,
-    ...(result.output !== undefined ? { output: result.output } : { error: result.error ?? "the extractor printed nothing" }),
-  }).catch((err: unknown) => ({ status: "unreported", error: err instanceof Error ? err.message : String(err) }));
-  const outcome = { moment: claim.moment, status: reply?.status ?? "unreported", ...(reply?.error ? { error: reply.error } : {}) };
-  deps.log?.(`[MOMENTS] ${claim.moment} ${claim.input.kind}/${claim.input.subject}: ${reply?.status ?? "unreported"}${reply?.error ? ` (${reply.error})` : ""}`);
+    status: reply?.status ?? "unreported",
+    ...(reply?.error ? { error: reply.error } : {}),
+  };
+  deps.log?.(
+    `[MOMENTS] ${claim.moment} ${claim.input.kind}/${claim.input.subject}: ${reply?.status ?? "unreported"}${reply?.error ? ` (${reply.error})` : ""}`,
+  );
   if (reply?.judge_here) {
     // Extractions run side by side; subscription judging stays one call at a time on the login (judgeHere).
-    const turn = judgingTurn.then(() => judgeHere(reply.judge_here, deps.post, { device_id: deps.deviceId }, deps.judgeCall));
+    const turn = judgingTurn.then(() =>
+      judgeHere(
+        reply.judge_here,
+        deps.post,
+        { device_id: deps.deviceId },
+        deps.judgeCall,
+      ),
+    );
     judgingTurn = turn.catch(() => {});
-    const judged = await turn
-      .catch((err: unknown) => [{ judge: "*", status: "unreported", findings: 0, filed: 0, reason: err instanceof Error ? err.message : String(err), cost_usd: 0 }]);
-    deps.log?.(`[MOMENTS] ${claim.moment} judged on this machine: ${judged.map((j) => `${j.judge} ${j.status}${j.status === "ok" ? ` ${j.findings} found` : j.reason ? ` (${j.reason})` : ""}`).join("; ") || "no judges"}`);
+    const judged = await turn.catch((err: unknown) => [
+      {
+        judge: "*",
+        status: "unreported",
+        findings: 0,
+        filed: 0,
+        reason: err instanceof Error ? err.message : String(err),
+        cost_usd: 0,
+      },
+    ]);
+    deps.log?.(
+      `[MOMENTS] ${claim.moment} judged on this machine: ${judged.map((j) => `${j.judge} ${j.status}${j.status === "ok" ? ` ${j.findings} found` : j.reason ? ` (${j.reason})` : ""}`).join("; ") || "no judges"}`,
+    );
   }
   return outcome;
 }
@@ -235,25 +392,53 @@ let ticking = false;
  * extractors; then prune host bodies once a day and run what is due. One
  * pass at a time, so a slow extractor never stacks claims.
  */
-export async function daemonMomentsTick(opts: { siteUrl: string | null; token: string | null; deviceId: string; log: (line: string) => void }): Promise<void> {
-  if (ticking || !opts.siteUrl || !opts.token || !readHostRoots().length) return;
+export async function daemonMomentsTick(opts: {
+  siteUrl: string | null;
+  token: string | null;
+  deviceId: string;
+  log: (line: string) => void;
+}): Promise<void> {
+  if (ticking || !opts.siteUrl || !opts.token || !readHostRoots().length)
+    return;
   ticking = true;
   try {
     const now = Date.now();
     if (now - lastPrune > 24 * 60 * 60_000) {
       lastPrune = now;
       const removed = pruneHostMoments(now);
-      if (removed) opts.log(`[MOMENTS] removed ${removed} host moment${removed === 1 ? "" : "s"} past 30 days`);
+      if (removed)
+        opts.log(
+          `[MOMENTS] removed ${removed} host moment${removed === 1 ? "" : "s"} past 30 days`,
+        );
     }
     const post = async (route: string, body: Record<string, unknown>) => {
-      const resp = await fetch(`${opts.siteUrl}${route}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ api_token: opts.token, ...body }) });
+      const resp = await fetch(`${opts.siteUrl}${route}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_token: opts.token, ...body }),
+      });
       const data = await resp.json().catch(() => null);
-      if (!resp.ok || (data && typeof data === "object" && "error" in data && !("status" in data))) throw new Error((data as any)?.error ?? `${route} answered ${resp.status}`);
+      if (
+        !resp.ok ||
+        (data &&
+          typeof data === "object" &&
+          "error" in data &&
+          !("status" in data))
+      )
+        throw new Error(
+          (data as any)?.error ?? `${route} answered ${resp.status}`,
+        );
       return data;
     };
     // A full claim means more are due (a bulk start): keep going for the rest of the minute.
     const until = Date.now() + 50_000;
-    while ((await tickMoments({ post, deviceId: opts.deviceId, log: opts.log })).length >= EXTRACT_PARALLEL && Date.now() < until) { /* next claim */ }
+    while (
+      (await tickMoments({ post, deviceId: opts.deviceId, log: opts.log }))
+        .length >= EXTRACT_PARALLEL &&
+      Date.now() < until
+    ) {
+      /* next claim */
+    }
   } finally {
     ticking = false;
   }

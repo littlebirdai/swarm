@@ -9,7 +9,11 @@ import { captureError } from "../lib/analytics";
 import { serverErrorText } from "../lib/errorCause";
 import type { MigrationBatch } from "../lib/migrationPlan";
 import { useHibernationCommands } from "./useHibernationCommands";
-import type { OffloadPlan, ResourceActions, ResourceSession } from "../components/resources/types";
+import type {
+  OffloadPlan,
+  ResourceActions,
+  ResourceSession,
+} from "../components/resources/types";
 import type { RehearsalRow } from "../lib/resourceOffload";
 import { useOffloadCommands } from "./useOffloadCommands";
 
@@ -26,25 +30,45 @@ function report(surface: string) {
 
 const REPORTING = { fail: report, notice: showError };
 
-export function useResourceActions(sessions: ResourceSession[], plans: OffloadPlan[], batches: MigrationBatch[], now: number, rehearsals: RehearsalRow[] = []) {
+export function useResourceActions(
+  sessions: ResourceSession[],
+  plans: OffloadPlan[],
+  batches: MigrationBatch[],
+  now: number,
+  rehearsals: RehearsalRow[] = [],
+) {
   const router = useRouter();
   const { request: requestPark } = useHibernationCommands();
-  const { commands, plans: checkedPlans, byId } = useOffloadCommands(sessions, plans, batches, now, rehearsals, REPORTING);
+  const {
+    commands,
+    plans: checkedPlans,
+    byId,
+  } = useOffloadCommands(sessions, plans, batches, now, rehearsals, REPORTING);
 
   const actions: ResourceActions = {
     ...commands,
-    onOpenSession: (id) => { const c = byId.get(id)?.conversationId; if (c) router.push(`/conversation/${c}`); },
+    onOpenSession: (id) => {
+      const c = byId.get(id)?.conversationId;
+      if (c) router.push(`/conversation/${c}`);
+    },
     onPark: (ids) => {
       for (const id of ids) {
         const s = byId.get(id);
-        if (s?.conversationId && s.deviceId) requestPark(s.conversationId, s.sessionId, s.deviceId);
+        if (s?.conversationId && s.deviceId)
+          requestPark(s.conversationId, s.sessionId, s.deviceId);
       }
-      toast(`Asked to park ${ids.length} session${ids.length === 1 ? "" : "s"}; each machine checks it is safe first`);
+      toast(
+        `Asked to park ${ids.length} session${ids.length === 1 ? "" : "s"}; each machine checks it is safe first`,
+      );
     },
     onResume: (ids) => {
       for (const id of ids) {
         const c = byId.get(id)?.conversationId;
-        if (c) useInboxStore.getState().resumeSession(c).catch(report("resources.resume"));
+        if (c)
+          useInboxStore
+            .getState()
+            .resumeSession(c)
+            .catch(report("resources.resume"));
       }
     },
   };

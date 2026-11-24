@@ -57,27 +57,42 @@ export type DayKey = { team_id: Id<"teams">; repository: string; date: string };
 // transaction (keyed on its db) so a push of 45 commits resolves it once.
 const zones = new WeakMap<object, Map<string, Promise<string | null>>>();
 
-export function changesZone(ctx: { db: any }, teamId: Id<"teams"> | null | undefined): Promise<string | null> {
+export function changesZone(
+  ctx: { db: any },
+  teamId: Id<"teams"> | null | undefined,
+): Promise<string | null> {
   if (!teamId) return Promise.resolve(null);
   let byTeam = zones.get(ctx.db);
   if (!byTeam) zones.set(ctx.db, (byTeam = new Map()));
   let zone = byTeam.get(String(teamId));
   if (!zone) {
-    zone = (async () => ((await teamHasFeature(ctx, teamId, "changes")) ? teamTimezone(ctx, teamId) : null))();
+    zone = (async () =>
+      (await teamHasFeature(ctx, teamId, "changes"))
+        ? teamTimezone(ctx, teamId)
+        : null)();
     byTeam.set(String(teamId), zone);
   }
   return zone;
 }
 
-async function dirtyRow(ctx: { db: any }, key: DayKey): Promise<Doc<"change_dirty"> | null> {
+async function dirtyRow(
+  ctx: { db: any },
+  key: DayKey,
+): Promise<Doc<"change_dirty"> | null> {
   return await ctx.db
     .query("change_dirty")
-    .withIndex("by_key", (q: any) => q.eq("team_id", key.team_id).eq("repository", key.repository).eq("date", key.date))
+    .withIndex("by_key", (q: any) =>
+      q
+        .eq("team_id", key.team_id)
+        .eq("repository", key.repository)
+        .eq("date", key.date),
+    )
     .first();
 }
 
 /** The row's scheduled rebuild while it has not started. */
-const pendingRun = (ctx: { db: any }, row: Doc<"change_dirty"> | null) => pendingJob(ctx, row?.scheduled_id);
+const pendingRun = (ctx: { db: any }, row: Doc<"change_dirty"> | null) =>
+  pendingJob(ctx, row?.scheduled_id);
 
 /**
  * Mark one team day dirty. A pending rebuild that fires within `delay` covers
@@ -85,19 +100,33 @@ const pendingRun = (ctx: { db: any }, row: Doc<"change_dirty"> | null) => pendin
  * commits, so a mark during it schedules another. The caller has checked the
  * team's flag.
  */
-export async function markDayDirty(ctx: DirtyCtx, key: DayKey, delay = REBUILD_DELAY_MS): Promise<void> {
+export async function markDayDirty(
+  ctx: DirtyCtx,
+  key: DayKey,
+  delay = REBUILD_DELAY_MS,
+): Promise<void> {
   const now = Date.now();
   const row = await dirtyRow(ctx, key);
   const pending = await pendingRun(ctx, row);
-  if (pending && (pending.scheduledTime <= now + delay || !ctx.scheduler)) return;
+  if (pending && (pending.scheduledTime <= now + delay || !ctx.scheduler))
+    return;
   if (pending) await ctx.scheduler!.cancel(row!.scheduled_id!);
   const scheduled_id: Id<"_scheduled_functions"> | undefined = ctx.scheduler
-    ? await ctx.scheduler.runAfter(delay, internal.changesSchedule.rebuildDay, key)
+    ? await ctx.scheduler.runAfter(
+        delay,
+        internal.changesSchedule.rebuildDay,
+        key,
+      )
     : undefined;
   // A row with no pending run was claimed by a rebuild (or its run died), so it
   // is dirty again from now.
-  if (!row) await ctx.db.insert("change_dirty", { ...key, since: now, scheduled_id });
-  else await ctx.db.patch(row._id, pending ? { scheduled_id } : { scheduled_id, since: now });
+  if (!row)
+    await ctx.db.insert("change_dirty", { ...key, since: now, scheduled_id });
+  else
+    await ctx.db.patch(
+      row._id,
+      pending ? { scheduled_id } : { scheduled_id, since: now },
+    );
 }
 
 /** Mark the team-local day containing `timestamp` dirty. A no-op unless the team has Changes on. */
@@ -111,15 +140,31 @@ export async function markChangesDirty(
   if (!repository) return false;
   const zone = await changesZone(ctx, teamId);
   if (!zone) return false;
-  await markDayDirty(ctx, { team_id: teamId!, repository: normalizeRepository(repository), date: localDate(timestamp, zone) }, delay);
+  await markDayDirty(
+    ctx,
+    {
+      team_id: teamId!,
+      repository: normalizeRepository(repository),
+      date: localDate(timestamp, zone),
+    },
+    delay,
+  );
   return true;
 }
 
 /** A commit row was inserted, or learned its session or files: its day is dirty. */
-export async function markCommitDirty(ctx: DirtyCtx, commitId: Id<"commits">): Promise<void> {
+export async function markCommitDirty(
+  ctx: DirtyCtx,
+  commitId: Id<"commits">,
+): Promise<void> {
   const commit: Doc<"commits"> | null = await ctx.db.get(commitId);
   if (!commit || isHarnessScratch({ branch: commit.branch })) return;
-  await markChangesDirty(ctx, commit.team_id, commit.repository, commit.timestamp);
+  await markChangesDirty(
+    ctx,
+    commit.team_id,
+    commit.repository,
+    commit.timestamp,
+  );
 }
 
 /** Whether the repository has a day edition for `date`: a day with commits once built. */
@@ -127,7 +172,12 @@ async function hasEdition(ctx: { db: any }, key: DayKey): Promise<boolean> {
   const row = await ctx.db
     .query("digests")
     .withIndex("by_team_repo_scope_date", (q: any) =>
-      q.eq("team_id", key.team_id).eq("repository", key.repository).eq("scope", "day").eq("date", key.date))
+      q
+        .eq("team_id", key.team_id)
+        .eq("repository", key.repository)
+        .eq("scope", "day")
+        .eq("date", key.date),
+    )
     .first();
   return !!row;
 }
@@ -140,10 +190,20 @@ async function hasEdition(ctx: { db: any }, key: DayKey): Promise<boolean> {
  */
 export async function markEventDirty(
   ctx: DirtyCtx,
-  event: { team_id?: Id<"teams">; repository?: string; kind: string; created_at: number },
+  event: {
+    team_id?: Id<"teams">;
+    repository?: string;
+    kind: string;
+    created_at: number;
+  },
 ): Promise<void> {
   if (event.kind === "pr_merged") {
-    await markChangesDirty(ctx, event.team_id, event.repository, event.created_at);
+    await markChangesDirty(
+      ctx,
+      event.team_id,
+      event.repository,
+      event.created_at,
+    );
     return;
   }
   if (event.kind !== "release" && event.kind !== "deploy") return;
@@ -153,25 +213,45 @@ export async function markEventDirty(
   const day = localDate(event.created_at, zone);
   const repository = normalizeRepository(event.repository);
   for (let back = 0; back <= SHIP_LOOKAHEAD_DAYS; back++) {
-    const key = { team_id: event.team_id!, repository, date: addDays(day, -back) };
-    if (back === 0 || (await hasEdition(ctx, key))) await markDayDirty(ctx, key);
+    const key = {
+      team_id: event.team_id!,
+      repository,
+      date: addDays(day, -back),
+    };
+    if (back === 0 || (await hasEdition(ctx, key)))
+      await markDayDirty(ctx, key);
   }
 }
 
-async function inputsOfConversation(ctx: { db: any }, conversationId: Id<"conversations">): Promise<Doc<"change_story_inputs">[]> {
+async function inputsOfConversation(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<Doc<"change_story_inputs">[]> {
   return await ctx.db
     .query("change_story_inputs")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .take(200);
 }
 
 /** Mark the days of the given stories dirty, for teams with the flag on. */
-async function markStoryDays(ctx: DirtyCtx, storyIds: Iterable<Id<"change_stories">>, delay = REBUILD_DELAY_MS): Promise<void> {
+async function markStoryDays(
+  ctx: DirtyCtx,
+  storyIds: Iterable<Id<"change_stories">>,
+  delay = REBUILD_DELAY_MS,
+): Promise<void> {
   const seen = new Set<string>();
   for (const id of new Set([...storyIds].map(String))) {
-    const story: Doc<"change_stories"> | null = await ctx.db.get(id as Id<"change_stories">);
+    const story: Doc<"change_stories"> | null = await ctx.db.get(
+      id as Id<"change_stories">,
+    );
     if (!story || !(await changesZone(ctx, story.team_id))) continue;
-    const key = { team_id: story.team_id, repository: story.repository, date: story.date };
+    const key = {
+      team_id: story.team_id,
+      repository: story.repository,
+      date: story.date,
+    };
     const k = `${key.team_id}|${key.repository}|${key.date}`;
     if (seen.has(k)) continue;
     seen.add(k);
@@ -189,7 +269,11 @@ export async function markInsightDirty(
   if (!(await changesZone(ctx, teamId))) return;
   const rows = await inputsOfConversation(ctx, conversationId);
   const ours = rows.filter((r) => String(r.team_id) === String(teamId));
-  if (ours.length) await markStoryDays(ctx, ours.map((r) => r.story_id));
+  if (ours.length)
+    await markStoryDays(
+      ctx,
+      ours.map((r) => r.story_id),
+    );
 }
 
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
@@ -200,16 +284,33 @@ const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
  * which was made reading the withdrawn text; the heaviest five lead until the
  * week is rebuilt (changesWeek.ts).
  */
-async function resetEditions(ctx: { db: any }, story: Doc<"change_stories">): Promise<void> {
-  for (const [scope, date] of [["day", story.date], ["week", isoWeekOf(story.date)]] as const) {
+async function resetEditions(
+  ctx: { db: any },
+  story: Doc<"change_stories">,
+): Promise<void> {
+  for (const [scope, date] of [
+    ["day", story.date],
+    ["week", isoWeekOf(story.date)],
+  ] as const) {
     const edition: Doc<"digests"> | null = await ctx.db
       .query("digests")
       .withIndex("by_team_repo_scope_date", (q: any) =>
-        q.eq("team_id", story.team_id).eq("repository", story.repository).eq("scope", scope).eq("date", date))
+        q
+          .eq("team_id", story.team_id)
+          .eq("repository", story.repository)
+          .eq("scope", scope)
+          .eq("date", date),
+      )
       .first();
-    if (!edition || (edition.status !== "written" && edition.status !== "final")) continue;
+    if (
+      !edition ||
+      (edition.status !== "written" && edition.status !== "final")
+    )
+      continue;
     await ctx.db.patch(edition._id, {
-      headline: statsHeadline(edition.stats ?? { commits: 0, stories: 0, releases: 0 }),
+      headline: statsHeadline(
+        edition.stats ?? { commits: 0, stories: 0, releases: 0 },
+      ),
       narrative: "",
       status: "facts",
       inputs_hash: undefined,
@@ -226,16 +327,28 @@ async function resetEditions(ctx: { db: any }, story: Doc<"change_stories">): Pr
  * text written from the session is gone before any rebuild runs; layer 0
  * restores the subject-based text when it does. Returns the stories it reset.
  */
-export async function withdrawNarrowedInputs(ctx: DirtyCtx, rows: Doc<"change_story_inputs">[]): Promise<Id<"change_stories">[]> {
+export async function withdrawNarrowedInputs(
+  ctx: DirtyCtx,
+  rows: Doc<"change_story_inputs">[],
+): Promise<Id<"change_stories">[]> {
   const byTeam = new Map<string, Doc<"change_story_inputs">[]>();
-  for (const row of rows) byTeam.set(String(row.team_id), [...(byTeam.get(String(row.team_id)) ?? []), row]);
+  for (const row of rows)
+    byTeam.set(String(row.team_id), [
+      ...(byTeam.get(String(row.team_id)) ?? []),
+      row,
+    ]);
 
   const stories = new Set<string>();
   for (const [teamId, teamRows] of byTeam) {
-    const gate = await teamVisibleInputs(ctx, teamId as Id<"teams">, teamRows.map((r) => r.conversation_id));
+    const gate = await teamVisibleInputs(
+      ctx,
+      teamId as Id<"teams">,
+      teamRows.map((r) => r.conversation_id),
+    );
     for (const row of teamRows) {
       const now = gate.get(String(row.conversation_id));
-      if (now && !(now.mode === "summary" && (row.mode ?? "full") === "full")) continue;
+      if (now && !(now.mode === "summary" && (row.mode ?? "full") === "full"))
+        continue;
       if (now) await ctx.db.patch(row._id, { mode: "summary" });
       else await ctx.db.delete(row._id);
       stories.add(String(row.story_id));
@@ -244,21 +357,32 @@ export async function withdrawNarrowedInputs(ctx: DirtyCtx, rows: Doc<"change_st
 
   const reset: Id<"change_stories">[] = [];
   for (const id of stories) {
-    const story: Doc<"change_stories"> | null = await ctx.db.get(id as Id<"change_stories">);
+    const story: Doc<"change_stories"> | null = await ctx.db.get(
+      id as Id<"change_stories">,
+    );
     if (!story) continue;
     const left: Doc<"change_story_inputs">[] = await ctx.db
       .query("change_story_inputs")
       .withIndex("by_story", (q: any) => q.eq("story_id", story._id))
       .collect();
     const keep = new Set(left.map((r) => String(r.conversation_id)));
-    const gone = new Set(story.conversation_ids.map(String).filter((c) => !keep.has(c)));
+    const gone = new Set(
+      story.conversation_ids.map(String).filter((c) => !keep.has(c)),
+    );
     await ctx.db.patch(story._id, {
-      conversation_ids: story.conversation_ids.filter((c) => keep.has(String(c))),
+      conversation_ids: story.conversation_ids.filter((c) =>
+        keep.has(String(c)),
+      ),
       // A risk read from a withdrawn session (blocked) names it as evidence.
       risks: story.risks
-        .map((r) => ({ ...r, evidence: r.evidence.filter((e) => !gone.has(e)) }))
+        .map((r) => ({
+          ...r,
+          evidence: r.evidence.filter((e) => !gone.has(e)),
+        }))
         .filter((r) => r.evidence.length > 0),
-      actor_user_ids: [...new Map(left.map((r) => [String(r.owner_id), r.owner_id])).values()],
+      actor_user_ids: [
+        ...new Map(left.map((r) => [String(r.owner_id), r.owner_id])).values(),
+      ],
       prose_status: "pending",
       body: undefined,
       why_source: undefined,
@@ -266,7 +390,10 @@ export async function withdrawNarrowedInputs(ctx: DirtyCtx, rows: Doc<"change_st
       // Prose replaced layer 0's text and layer 0's is not stored, so the
       // interim text is built from the row's own facts.
       ...(story.why_source !== undefined
-        ? { headline: `${plural(story.commit_shas.length, "commit")} in ${story.area}`, dek: sliceDek(story.area_counts) }
+        ? {
+            headline: `${plural(story.commit_shas.length, "commit")} in ${story.area}`,
+            dek: sliceDek(story.area_counts),
+          }
         : {}),
     });
     await resetEditions(ctx, story);
@@ -289,16 +416,22 @@ export async function invalidateForConversation(
   const rows = await inputsOfConversation(ctx, conversation._id);
   if (rows.length) {
     const reset = new Set((await withdrawAndMark(ctx, rows)).map(String));
-    await markStoryDays(ctx, rows.map((r) => r.story_id).filter((id) => !reset.has(String(id))));
+    await markStoryDays(
+      ctx,
+      rows.map((r) => r.story_id).filter((id) => !reset.has(String(id))),
+    );
   }
   if (!(await changesZone(ctx, conversation.team_id))) return;
   const commits: Doc<"commits">[] = await ctx.db
     .query("commits")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversation._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversation._id),
+    )
     .order("desc")
     .take(SESSION_COMMITS);
   for (const c of commits) {
-    if (!isHarnessScratch({ branch: c.branch })) await markChangesDirty(ctx, c.team_id, c.repository, c.timestamp);
+    if (!isHarnessScratch({ branch: c.branch }))
+      await markChangesDirty(ctx, c.team_id, c.repository, c.timestamp);
   }
 }
 
@@ -308,13 +441,19 @@ export async function invalidateForConversation(
  * interceptor has no scheduler, so the reset days rebuild from the reconcile's
  * stranded sweep.
  */
-export async function withdrawDeletedConversation(ctx: DirtyCtx, conversationId: Id<"conversations">): Promise<void> {
+export async function withdrawDeletedConversation(
+  ctx: DirtyCtx,
+  conversationId: Id<"conversations">,
+): Promise<void> {
   const rows = await inputsOfConversation(ctx, conversationId);
   if (rows.length) await withdrawAndMark(ctx, rows);
 }
 
 /** Withdraw what `rows` may no longer give, and rebuild the reset stories' days soon. */
-export async function withdrawAndMark(ctx: DirtyCtx, rows: Doc<"change_story_inputs">[]): Promise<Id<"change_stories">[]> {
+export async function withdrawAndMark(
+  ctx: DirtyCtx,
+  rows: Doc<"change_story_inputs">[],
+): Promise<Id<"change_stories">[]> {
   const reset = await withdrawNarrowedInputs(ctx, rows);
   await markStoryDays(ctx, reset, INVALIDATE_DELAY_MS);
   return reset;
@@ -325,15 +464,25 @@ export async function withdrawAndMark(ctx: DirtyCtx, rows: Doc<"change_story_inp
  * sessions' contributions narrow at once, the first page here and the rest in
  * scheduled pages.
  */
-export async function withdrawMember(ctx: DirtyCtx, ownerId: Id<"users">, teamId: Id<"teams">): Promise<void> {
+export async function withdrawMember(
+  ctx: DirtyCtx,
+  ownerId: Id<"users">,
+  teamId: Id<"teams">,
+): Promise<void> {
   const rows: Doc<"change_story_inputs">[] = await ctx.db
     .query("change_story_inputs")
-    .withIndex("by_owner", (q: any) => q.eq("owner_id", ownerId).eq("team_id", teamId))
+    .withIndex("by_owner", (q: any) =>
+      q.eq("owner_id", ownerId).eq("team_id", teamId),
+    )
     .take(MEMBER_PAGE + 1);
   await withdrawAndMark(ctx, rows.slice(0, MEMBER_PAGE));
   // The rest continue in pages (changesSchedule.invalidateForMember), from the start: rows already handled no longer narrow.
   if (rows.length > MEMBER_PAGE && ctx.scheduler) {
-    await ctx.scheduler.runAfter(0, internal.changesSchedule.invalidateForMember, { owner_id: ownerId, team_id: teamId, cursor: null });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.changesSchedule.invalidateForMember,
+      { owner_id: ownerId, team_id: teamId, cursor: null },
+    );
   }
 }
 
@@ -343,21 +492,36 @@ export async function withdrawMember(ctx: DirtyCtx, ownerId: Id<"users">, teamId
  * editions of the last two weeks are marked too, since a raised level lets
  * past sessions join stories they were kept out of.
  */
-export async function invalidateForMember(ctx: DirtyCtx, ownerId: Id<"users">, teamId: Id<"teams">): Promise<void> {
+export async function invalidateForMember(
+  ctx: DirtyCtx,
+  ownerId: Id<"users">,
+  teamId: Id<"teams">,
+): Promise<void> {
   await withdrawMember(ctx, ownerId, teamId);
   const zone = await changesZone(ctx, teamId);
   if (zone) await markRecentEditions(ctx, teamId, zone);
 }
 
 /** Mark the days of the last two weeks that hold a team day edition. */
-async function markRecentEditions(ctx: DirtyCtx, teamId: Id<"teams">, zone: string): Promise<void> {
+async function markRecentEditions(
+  ctx: DirtyCtx,
+  teamId: Id<"teams">,
+  zone: string,
+): Promise<void> {
   const from = addDays(localDate(Date.now(), zone), -(BACKFILL_DAYS - 1));
   const editions: Doc<"digests">[] = await ctx.db
     .query("digests")
-    .withIndex("by_team_scope_date", (q: any) => q.eq("team_id", teamId).eq("scope", "day").gte("date", from))
+    .withIndex("by_team_scope_date", (q: any) =>
+      q.eq("team_id", teamId).eq("scope", "day").gte("date", from),
+    )
     .take(500);
   for (const e of editions) {
-    if (e.repository && !e.user_id) await markDayDirty(ctx, { team_id: teamId, repository: e.repository, date: e.date });
+    if (e.repository && !e.user_id)
+      await markDayDirty(ctx, {
+        team_id: teamId,
+        repository: e.repository,
+        date: e.date,
+      });
   }
 }
 
@@ -366,11 +530,21 @@ async function markRecentEditions(ctx: DirtyCtx, teamId: Id<"teams">, zone: stri
  * (changesZone memoizes per transaction, and this is read on both sides of a
  * write). A non-admin's profile zone never decides a team's day.
  */
-export async function adminChangesZones(ctx: DirtyCtx, userId: Id<"users">): Promise<Map<Id<"teams">, string>> {
+export async function adminChangesZones(
+  ctx: DirtyCtx,
+  userId: Id<"users">,
+): Promise<Map<Id<"teams">, string>> {
   const zones = new Map<Id<"teams">, string>();
-  const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+  const memberships = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   for (const m of memberships) {
-    if (m.role !== "admin" || !(await teamHasFeature(ctx, m.team_id, "changes"))) continue;
+    if (
+      m.role !== "admin" ||
+      !(await teamHasFeature(ctx, m.team_id, "changes"))
+    )
+      continue;
     zones.set(m.team_id, await teamTimezone(ctx, m.team_id));
   }
   return zones;
@@ -382,12 +556,18 @@ export async function adminChangesZones(ctx: DirtyCtx, userId: Id<"users">): Pro
  * so commits that moved out of them leave, and the backfill finds the days
  * they moved into.
  */
-export async function recutChangesDays(ctx: DirtyCtx, before: Map<Id<"teams">, string>): Promise<void> {
+export async function recutChangesDays(
+  ctx: DirtyCtx,
+  before: Map<Id<"teams">, string>,
+): Promise<void> {
   for (const [teamId, zone] of before) {
     const now = await teamTimezone(ctx, teamId);
     if (now === zone) continue;
     await markRecentEditions(ctx, teamId, now);
-    if (ctx.scheduler) await ctx.scheduler.runAfter(0, internal.changesSchedule.backfill, { team_id: teamId });
+    if (ctx.scheduler)
+      await ctx.scheduler.runAfter(0, internal.changesSchedule.backfill, {
+        team_id: teamId,
+      });
   }
 }
 
@@ -399,38 +579,60 @@ export async function changesFlagChanged(
   after: { changes?: boolean } | null | undefined,
 ): Promise<void> {
   if (!before?.changes && after?.changes && ctx.scheduler) {
-    await ctx.scheduler.runAfter(0, internal.changesSchedule.backfill, { team_id: teamId });
+    await ctx.scheduler.runAfter(0, internal.changesSchedule.backfill, {
+      team_id: teamId,
+    });
   }
 }
 
 /** What a rebuild of `key` covers: the day, and yesterday too in the first hours after midnight. */
-export function rebuildDates(date: string, zone: string, now: number): string[] {
+export function rebuildDates(
+  date: string,
+  zone: string,
+  now: number,
+): string[] {
   const today = localDate(now, zone);
-  if (date !== today || now - dayBounds(today, zone).start >= YESTERDAY_GRACE_MS) return [date];
+  if (
+    date !== today ||
+    now - dayBounds(today, zone).start >= YESTERDAY_GRACE_MS
+  )
+    return [date];
   return [date, addDays(today, -1)];
 }
 
 /** A rebuild starts: it owns the marks made so far. Marks during it schedule the next one. */
-export async function claimDirtyDay(ctx: DirtyCtx, key: DayKey): Promise<string | null> {
+export async function claimDirtyDay(
+  ctx: DirtyCtx,
+  key: DayKey,
+): Promise<string | null> {
   const zone = await changesZone(ctx, key.team_id);
   const row = await dirtyRow(ctx, key);
   if (!zone) {
     if (row) await ctx.db.delete(row._id);
     return null;
   }
-  if (row?.scheduled_id) await ctx.db.patch(row._id, { scheduled_id: undefined });
+  if (row?.scheduled_id)
+    await ctx.db.patch(row._id, { scheduled_id: undefined });
   return zone;
 }
 
 /** A rebuild finished: the row goes unless a mark during it scheduled another. */
-export async function finishDirtyDay(ctx: DirtyCtx, key: DayKey): Promise<void> {
+export async function finishDirtyDay(
+  ctx: DirtyCtx,
+  key: DayKey,
+): Promise<void> {
   const row = await dirtyRow(ctx, key);
   if (row && !(await pendingRun(ctx, row))) await ctx.db.delete(row._id);
 }
 
 /** Rows whose rebuild died (no pending run for a while) are scheduled again; rows of teams with the flag off go. */
-export async function rescheduleStranded(ctx: DirtyCtx, now: number): Promise<number> {
-  const rows: Doc<"change_dirty">[] = await ctx.db.query("change_dirty").take(2000);
+export async function rescheduleStranded(
+  ctx: DirtyCtx,
+  now: number,
+): Promise<number> {
+  const rows: Doc<"change_dirty">[] = await ctx.db
+    .query("change_dirty")
+    .take(2000);
   let rescheduled = 0;
   for (const row of rows) {
     if (now - row.since < STRANDED_MS || (await pendingRun(ctx, row))) continue;
@@ -438,7 +640,11 @@ export async function rescheduleStranded(ctx: DirtyCtx, now: number): Promise<nu
       await ctx.db.delete(row._id);
       continue;
     }
-    await markDayDirty(ctx, { team_id: row.team_id, repository: row.repository, date: row.date }, BACKFILL_SPACING_MS * rescheduled);
+    await markDayDirty(
+      ctx,
+      { team_id: row.team_id, repository: row.repository, date: row.date },
+      BACKFILL_SPACING_MS * rescheduled,
+    );
     rescheduled += 1;
   }
   return rescheduled;

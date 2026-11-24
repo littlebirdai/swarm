@@ -47,24 +47,44 @@ const hoverFace = async (page, density, index) => {
     `(() => { const seats = document.querySelectorAll('.face-row[data-density="${density}"] [data-face-id]'); const el = seats[Math.min(${index}, seats.length - 1)]; if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`,
   );
   if (!at) return false;
-  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: at.x, y: at.y });
+  await page.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: at.x,
+    y: at.y,
+  });
   await sleep(450);
   return true;
 };
 const unhover = async (page) => {
-  await page.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 400 });
+  await page.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: 2,
+    y: 400,
+  });
   await sleep(400);
 };
 /** Tab from the first face through the band's controls: each one's focus
  *  outline as the browser computed it, and a shot of the first. A control
  *  the stylesheet forgot wears the browser's own ring here. */
 const focusPass = async (page, file) => {
-  await page.evaluate(`document.querySelector('.people-bar .face')?.focus(); "ok"`);
+  await page.evaluate(
+    `document.querySelector('.people-bar .face')?.focus(); "ok"`,
+  );
   const seen = [];
   let shot = null;
   for (let i = 0; i < 24; i++) {
-    await page.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
-    await page.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+    await page.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
+    await page.send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+    });
     const on = await page.evaluate(
       `(() => { const a = document.activeElement; if (!a || !a.closest('.people-bar .face-row-below')) return null; const cs = getComputedStyle(a); return (a.dataset.cardAction || a.className.trim().split(/\\s+/)[0]) + ' ' + cs.outlineStyle + ' ' + cs.outlineWidth + ' ' + cs.outlineColor; })()`,
     );
@@ -81,18 +101,28 @@ const focusPass = async (page, file) => {
   return seen.length ? [`focus: ${seen.join(" | ")}`, shot] : [];
 };
 const applyMedia = async (page) => {
-  if (MOTION) await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: MOTION }] });
+  if (MOTION)
+    await page.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: MOTION }],
+    });
 };
 const applyTheme = async (page) => {
-  if (THEME) await page.evaluate(`document.documentElement.classList.remove("dark", "light"); document.documentElement.classList.add(${JSON.stringify(THEME)}); "ok"`);
+  if (THEME)
+    await page.evaluate(
+      `document.documentElement.classList.remove("dark", "light"); document.documentElement.classList.add(${JSON.stringify(THEME)}); "ok"`,
+    );
 };
 
-const FLOAT = '.face-row[data-density="float"], .face-row[data-density="float"] .face-row-below';
+const FLOAT =
+  '.face-row[data-density="float"], .face-row[data-density="float"] .face-row-below';
 const errors = [];
 const watch = (page, tag) => {
   page.send("Runtime.enable").catch(() => {});
   page.on((m) => {
-    if (m.method === "Runtime.exceptionThrown") errors.push(`${tag}: ${(m.params.exceptionDetails.exception?.description || "").slice(0, 200)}`);
+    if (m.method === "Runtime.exceptionThrown")
+      errors.push(
+        `${tag}: ${(m.params.exceptionDetails.exception?.description || "").slice(0, 200)}`,
+      );
   });
 };
 
@@ -101,7 +131,10 @@ let child;
 const shots = [];
 try {
   const up = await launchSignedIn({
-    port: PORT, profile: `${DIR}/prof-shots`, dep: DEP, userId: IDENTITIES[WHO].id,
+    port: PORT,
+    profile: `${DIR}/prof-shots`,
+    dep: DEP,
+    userId: IDENTITIES[WHO].id,
     prepare: async (page) => {
       await applyMedia(page);
       watch(page, "bar");
@@ -110,7 +143,9 @@ try {
   child = up.child;
   const bar = up.page;
   await bar.evaluate(PAGE_LIB);
-  await bar.evaluate(`__rig.waitFor("!s.missing && s.entries.length > 0", 240000)`);
+  await bar.evaluate(
+    `__rig.waitFor("!s.missing && s.entries.length > 0", 240000)`,
+  );
   const t = await newTarget(PORT);
   const float = await connectTarget(t);
   await float.send("Emulation.setFocusEmulationEnabled", { enabled: true });
@@ -147,15 +182,26 @@ try {
     }
     if (FOCUS) {
       try {
-        row.push(...(await focusPass(bar, `${DIR}/state-${name}-bar-focus.png`)));
+        row.push(
+          ...(await focusPass(bar, `${DIR}/state-${name}-bar-focus.png`)),
+        );
       } catch (e) {
         row.push(`(focus: ${e.message})`);
       }
     }
     if (CARDS) {
-      for (const [page, density, sel] of [[bar, "bar", BAR], [float, "float", FLOAT]]) {
+      for (const [page, density, sel] of [
+        [bar, "bar", BAR],
+        [float, "float", FLOAT],
+      ]) {
         try {
-          if (await hoverFace(page, density, 1)) row.push(await page.screenshot(`${DIR}/state-${name}-${density}-card.png`, sel));
+          if (await hoverFace(page, density, 1))
+            row.push(
+              await page.screenshot(
+                `${DIR}/state-${name}-${density}-card.png`,
+                sel,
+              ),
+            );
           await unhover(page);
         } catch (e) {
           row.push(`(${density} card: ${e.message})`);
@@ -170,4 +216,5 @@ try {
 } finally {
   if (!KEEP) killChrome(child);
 }
-if (errors.length) console.log(`\npage errors:\n  ${[...new Set(errors)].join("\n  ")}`);
+if (errors.length)
+  console.log(`\npage errors:\n  ${[...new Set(errors)].join("\n  ")}`);

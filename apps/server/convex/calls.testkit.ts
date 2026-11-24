@@ -27,21 +27,43 @@ export function fakeCtx() {
   const inserted: any[] = [];
   const scheduled: any[] = [];
   const ctx: any = {
-    auth: { getUserIdentity: async () => ({ subject: "ua|sess", tokenIdentifier: "x" }) },
-    scheduler: { runAfter: async (_ms: number, fn: any, args: any) => { scheduled.push({ fn, args }); } },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: "ua|sess",
+        tokenIdentifier: "x",
+      }),
+    },
+    scheduler: {
+      runAfter: async (_ms: number, fn: any, args: any) => {
+        scheduled.push({ fn, args });
+      },
+    },
     db: {
       query: (t: string) => ({
         withIndex: (_i: string, builder: any) => {
           const eqs: Array<[string, any]> = [];
           const gtes: Array<[string, number]> = [];
           builder({
-            eq(f: string, v: any) { eqs.push([f, v]); return this; },
-            gte(f: string, v: number) { gtes.push([f, v]); return this; },
+            eq(f: string, v: any) {
+              eqs.push([f, v]);
+              return this;
+            },
+            gte(f: string, v: number) {
+              gtes.push([f, v]);
+              return this;
+            },
           });
           const hit = (rows[t] ?? []).filter(
-            (r) => eqs.every(([f, v]) => String(r[f]) === String(v)) && gtes.every(([f, v]) => (r[f] ?? 0) >= v),
+            (r) =>
+              eqs.every(([f, v]) => String(r[f]) === String(v)) &&
+              gtes.every(([f, v]) => (r[f] ?? 0) >= v),
           );
-          return { collect: async () => hit, take: async (n: number) => hit.slice(0, n), unique: async () => hit[0] ?? null, first: async () => hit[0] ?? null };
+          return {
+            collect: async () => hit,
+            take: async (n: number) => hit.slice(0, n),
+            unique: async () => hit[0] ?? null,
+            first: async () => hit[0] ?? null,
+          };
         },
       }),
       get: async (id: string) => {

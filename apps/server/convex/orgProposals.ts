@@ -1,4 +1,9 @@
-import { openOrgBatch, orgBatchHead, takeOrgRows, type OrgBatchHead } from "./lib/orgChangeLog";
+import {
+  openOrgBatch,
+  orgBatchHead,
+  takeOrgRows,
+  type OrgBatchHead,
+} from "./lib/orgChangeLog";
 import { releaseOf, visibleTemplate } from "./orgTemplates";
 import { missingRequired } from "@codecast/shared/contracts/orgTemplateManifest";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
@@ -7,14 +12,24 @@ import { internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { canSendProductMessage, enqueuePendingMessage, getAuthenticatedUserId, tellRole } from "./pendingMessages";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+  getAuthenticatedUserId,
+  tellRole,
+} from "./pendingMessages";
 import { nextShortId } from "./counters";
 import { resolveSessionConversation, workspaceKey } from "./lib/access";
 import { resolveActor } from "./lib/actor";
 import { computeOrgHealth } from "./orgHealth";
 import { userCanAccessRole, userCanAdminRole } from "./lib/orgAccess";
 import { requireWorkspaceCaller } from "./org";
-import { applyOrgChange, roleByRef, type ApplyResult, type Boundary } from "./orgInit";
+import {
+  applyOrgChange,
+  roleByRef,
+  type ApplyResult,
+  type Boundary,
+} from "./orgInit";
 import { roleStartsOnItsOwn } from "./lib/orgCaps";
 import { filesOnlyOwnSessions } from "./lib/orgSessionFiling";
 import { STABILITY } from "@codecast/shared/contracts/orgCapacity";
@@ -25,7 +40,9 @@ import {
   andList,
   applyCharterEdits,
   changeSentence,
-  describeOrgChange, orgChangeDependencies, orgChangeTakesOver,
+  describeOrgChange,
+  orgChangeDependencies,
+  orgChangeTakesOver,
   editedOrgChange,
   proposalReplyText,
   isOrgChangeDecidable,
@@ -72,40 +89,81 @@ type ChangeRow = any;
 export const PROPOSAL_LIST_CAP = 50;
 export const PROPOSAL_LINK = (shortId: string) => `/org?proposal=${shortId}`;
 
-const hostShape = (p: ProposalRow) => ({ host_user_id: p.created_by, scope_user_id: p.scope_user_id, team_id: p.team_id });
-const boundaryOf = (p: ProposalRow): Boundary => (p.team_id ? { team_id: p.team_id } : { scope_user_id: p.scope_user_id });
+const hostShape = (p: ProposalRow) => ({
+  host_user_id: p.created_by,
+  scope_user_id: p.scope_user_id,
+  team_id: p.team_id,
+});
+const boundaryOf = (p: ProposalRow): Boundary =>
+  p.team_id ? { team_id: p.team_id } : { scope_user_id: p.scope_user_id };
 
-export async function findProposal(ctx: Ctx, ref: string): Promise<ProposalRow | null> {
+export async function findProposal(
+  ctx: Ctx,
+  ref: string,
+): Promise<ProposalRow | null> {
   const trimmed = ref.trim();
-  const byShort = await ctx.db.query("org_proposals").withIndex("by_short_id", (q: any) => q.eq("short_id", trimmed)).first();
+  const byShort = await ctx.db
+    .query("org_proposals")
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", trimmed))
+    .first();
   if (byShort) return byShort;
-  const id = typeof ctx.db.normalizeId === "function" ? ctx.db.normalizeId("org_proposals", trimmed) : trimmed;
+  const id =
+    typeof ctx.db.normalizeId === "function"
+      ? ctx.db.normalizeId("org_proposals", trimmed)
+      : trimmed;
   return id ? await ctx.db.get(id).catch(() => null) : null;
 }
 
-export async function changesOf(ctx: Ctx, proposalId: Id<"org_proposals">): Promise<ChangeRow[]> {
-  return ctx.db.query("org_proposal_changes").withIndex("by_proposal", (q: any) => q.eq("proposal_id", proposalId)).collect();
+export async function changesOf(
+  ctx: Ctx,
+  proposalId: Id<"org_proposals">,
+): Promise<ChangeRow[]> {
+  return ctx.db
+    .query("org_proposal_changes")
+    .withIndex("by_proposal", (q: any) => q.eq("proposal_id", proposalId))
+    .collect();
 }
 
 /** A change by its row id, or "op-N#<seq>". */
-export async function findChange(ctx: Ctx, ref: string): Promise<{ change: ChangeRow; proposal: ProposalRow } | null> {
+export async function findChange(
+  ctx: Ctx,
+  ref: string,
+): Promise<{ change: ChangeRow; proposal: ProposalRow } | null> {
   const m = /^(op-\d+)#(\d+)$/.exec(ref.trim());
   if (m) {
     const proposal = await findProposal(ctx, m[1]);
     if (!proposal) return null;
-    const change = (await changesOf(ctx, proposal._id)).find((c) => c.seq === Number(m[2]));
+    const change = (await changesOf(ctx, proposal._id)).find(
+      (c) => c.seq === Number(m[2]),
+    );
     return change ? { change, proposal } : null;
   }
-  const id = typeof ctx.db.normalizeId === "function" ? ctx.db.normalizeId("org_proposal_changes", ref.trim()) : ref.trim();
+  const id =
+    typeof ctx.db.normalizeId === "function"
+      ? ctx.db.normalizeId("org_proposal_changes", ref.trim())
+      : ref.trim();
   const change = id ? await ctx.db.get(id).catch(() => null) : null;
   if (!change?.proposal_id) return null;
   const proposal = await ctx.db.get(change.proposal_id);
   return proposal ? { change, proposal } : null;
 }
 
-async function requireAdmin(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow): Promise<void> {
+async function requireAdmin(
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+): Promise<void> {
   if (await userCanAdminRole(ctx, userId, hostShape(proposal))) return;
-  if (!(await filesOnlyOwnSessions(ctx, userId, await changesOf(ctx, proposal._id)))) throw new Error(`Only ${proposal.short_id}'s author, the workspace owner or a team admin can decide it`);
+  if (
+    !(await filesOnlyOwnSessions(
+      ctx,
+      userId,
+      await changesOf(ctx, proposal._id),
+    ))
+  )
+    throw new Error(
+      `Only ${proposal.short_id}'s author, the workspace owner or a team admin can decide it`,
+    );
 }
 
 // ── Create ──────────────────────────────────────────────────────────────────
@@ -121,38 +179,85 @@ async function requireAdmin(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow
  * than at accept, where it could only fail; a ref that is not a short id is
  * left as written for the apply step to resolve.
  */
-async function checkedRecordChange<T extends OrgChange>(ctx: Ctx, change: T, seat: Boundary): Promise<T> {
+async function checkedRecordChange<T extends OrgChange>(
+  ctx: Ctx,
+  change: T,
+  seat: Boundary,
+): Promise<T> {
   // A charter edit is checked against the charter as it stands now, so a
   // passage that is missing or an edit that breaks the cap is the author's
   // to fix before the person sees it, not a refusal at their approval. A
   // role this proposal creates has no charter yet; its apply checks it.
   if (change.kind === "charter_edit") {
     const role = roleByRef(await rolesInBoundary(ctx, seat), change.handle);
-    const edited = role ? applyCharterEdits(await roleCharterOf(ctx, role), change.edits) : null;
-    if (edited?.error !== undefined) throw new Error(`@${role.handle}'s charter: ${edited.error}`);
+    const edited = role
+      ? applyCharterEdits(await roleCharterOf(ctx, role), change.edits)
+      : null;
+    if (edited?.error !== undefined)
+      throw new Error(`@${role.handle}'s charter: ${edited.error}`);
     return change;
   }
-  const wsKey = workspaceKey(seat.team_id ? { type: "team", teamId: seat.team_id } : { type: "personal", userId: seat.scope_user_id! });
-  if (change.kind !== "plan_status" && change.kind !== "task_status" && change.kind !== "project_status" && change.kind !== "initiative_projects" && change.kind !== "initiative_owner" && change.kind !== "initiative_shape") return change;
-  const table = change.kind === "plan_status" ? "plans" : change.kind === "task_status" ? "tasks" : change.kind === "project_status" ? "projects" : "initiatives";
-  const ref = (change.kind === "plan_status" ? change.plan : change.kind === "task_status" ? change.task : change.kind === "project_status" ? change.project : change.initiative).trim();
+  const wsKey = workspaceKey(
+    seat.team_id
+      ? { type: "team", teamId: seat.team_id }
+      : { type: "personal", userId: seat.scope_user_id! },
+  );
+  if (
+    change.kind !== "plan_status" &&
+    change.kind !== "task_status" &&
+    change.kind !== "project_status" &&
+    change.kind !== "initiative_projects" &&
+    change.kind !== "initiative_owner" &&
+    change.kind !== "initiative_shape"
+  )
+    return change;
+  const table =
+    change.kind === "plan_status"
+      ? "plans"
+      : change.kind === "task_status"
+        ? "tasks"
+        : change.kind === "project_status"
+          ? "projects"
+          : "initiatives";
+  const ref = (
+    change.kind === "plan_status"
+      ? change.plan
+      : change.kind === "task_status"
+        ? change.task
+        : change.kind === "project_status"
+          ? change.project
+          : change.initiative
+  ).trim();
   if (!/^(pl|ct|pr|in)-\d+$/.test(ref)) return change;
-  const row = await ctx.db.query(table).withIndex("by_short_id", (q: any) => q.eq("short_id", ref)).first();
-  if (row && row.workspace !== wsKey) throw new Error(`${ref} belongs to another workspace; a proposal changes only this workspace's records`);
+  const row = await ctx.db
+    .query(table)
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", ref))
+    .first();
+  if (row && row.workspace !== wsKey)
+    throw new Error(
+      `${ref} belongs to another workspace; a proposal changes only this workspace's records`,
+    );
   if (!row) return change;
   // Where the record sits (its plan, its project), so the proposal groups by
   // it (orgRecordGroups) and a drop its plan's close covers is caught here.
   const under: Record<string, string> = {};
   if (change.kind === "task_status" || change.kind === "plan_status") {
     const project = row.project_id ? await ctx.db.get(row.project_id) : null;
-    if (project?.short_id && !change.project?.trim()) under.project = project.short_id;
+    if (project?.short_id && !change.project?.trim())
+      under.project = project.short_id;
     if (change.kind === "task_status" && row.plan_id && !change.plan?.trim()) {
       const plan = await ctx.db.get(row.plan_id);
       if (plan?.short_id) under.plan = plan.short_id;
-      if (!under.project && plan?.project_id) { const p = await ctx.db.get(plan.project_id); if (p?.short_id) under.project = p.short_id; }
+      if (!under.project && plan?.project_id) {
+        const p = await ctx.db.get(plan.project_id);
+        if (p?.short_id) under.project = p.short_id;
+      }
     }
   }
-  const title = change.title?.trim() || typeof row.title !== "string" || !row.title.trim() ? {} : { title: row.title.trim() };
+  const title =
+    change.title?.trim() || typeof row.title !== "string" || !row.title.trim()
+      ? {}
+      : { title: row.title.trim() };
   return { ...change, ...title, ...under };
 }
 
@@ -162,49 +267,92 @@ async function checkedRecordChange<T extends OrgChange>(ctx: Ctx, change: T, sea
  * as a blank in the role's setup after it is accepted. Read from the release
  * the hire pins; an unknown template is left to the apply step to refuse.
  */
-async function refuseBlankHireAnswers(ctx: Ctx, access: string, spec: OrgProposalSpec): Promise<void> {
+async function refuseBlankHireAnswers(
+  ctx: Ctx,
+  access: string,
+  spec: OrgProposalSpec,
+): Promise<void> {
   for (const { change } of spec.changes) {
     if (change.kind !== "hire") continue;
-    const template = await visibleTemplate(ctx as any, change.template, access as any, { version: change.version, digest: change.digest });
-    const manifest = releaseOf(template, { version: change.version, digest: change.digest })?.manifest;
-    const missing = manifest ? missingRequired(manifest, change.config ?? {}) : [];
-    if (missing.length) throw new Error(`The hire of ${change.template} as ${change.instance} leaves answers it needs blank: ${missing.map((i) => `${i.label} (${i.key})`).join(", ")}. Ask the person for them and put them in the hire's config.`);
+    const template = await visibleTemplate(
+      ctx as any,
+      change.template,
+      access as any,
+      { version: change.version, digest: change.digest },
+    );
+    const manifest = releaseOf(template, {
+      version: change.version,
+      digest: change.digest,
+    })?.manifest;
+    const missing = manifest
+      ? missingRequired(manifest, change.config ?? {})
+      : [];
+    if (missing.length)
+      throw new Error(
+        `The hire of ${change.template} as ${change.instance} leaves answers it needs blank: ${missing.map((i) => `${i.label} (${i.key})`).join(", ")}. Ask the person for them and put them in the hire's config.`,
+      );
   }
 }
 
 export async function performCreateProposal(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { team_id?: Id<"teams">; spec: unknown; from_session?: string; evidence_doc_id?: Id<"docs">; supersedes?: string },
+  args: {
+    team_id?: Id<"teams">;
+    spec: unknown;
+    from_session?: string;
+    evidence_doc_id?: Id<"docs">;
+    supersedes?: string;
+  },
 ): Promise<any> {
   const parsed = parseOrgProposalSpec(args.spec);
-  if (!parsed.spec) throw new Error(`The proposal spec is not valid:\n- ${parsed.errors.join("\n- ")}`);
+  if (!parsed.spec)
+    throw new Error(
+      `The proposal spec is not valid:\n- ${parsed.errors.join("\n- ")}`,
+    );
   const spec: OrgProposalSpec = parsed.spec;
-  await refuseBlankHireAnswers(ctx, args.team_id ? `team:${args.team_id}` : `user:${userId}`, spec);
+  await refuseBlankHireAnswers(
+    ctx,
+    args.team_id ? `team:${args.team_id}` : `user:${userId}`,
+    spec,
+  );
 
   // The author: the role the calling session speaks for, else the session,
   // else the person. Identity follows the token (lib/actor).
-  const conversation = args.from_session ? await resolveSessionConversation(ctx as any, userId, args.from_session) : null;
+  const conversation = args.from_session
+    ? await resolveSessionConversation(ctx as any, userId, args.from_session)
+    : null;
   if (args.from_session && !conversation) throw new Error("Session not found");
   const actor = await resolveActor(ctx as any, userId, conversation);
-  const author = actor.kind === "role" && actor.role
-    ? { kind: "role" as const, id: String(actor.role._id) }
-    : conversation
-      ? { kind: "session" as const, id: String(conversation._id) }
-      : { kind: "user" as const, id: String(userId) };
+  const author =
+    actor.kind === "role" && actor.role
+      ? { kind: "role" as const, id: String(actor.role._id) }
+      : conversation
+        ? { kind: "session" as const, id: String(conversation._id) }
+        : { kind: "user" as const, id: String(userId) };
 
   // Supersession: the older proposal must be open, in the same workspace,
   // and the author's own: the same session, the same role, the role this
   // session speaks for or a session that spoke for this role, or the same
   // person. Anything else is refused, so a review cannot mark down a
   // proposal it did not write.
-  const older = args.supersedes ? await findProposal(ctx, args.supersedes) : null;
+  const older = args.supersedes
+    ? await findProposal(ctx, args.supersedes)
+    : null;
   if (args.supersedes) {
-    if (!older) throw new Error(`supersedes: proposal not found: ${args.supersedes}`);
-    if (older.status !== "open") throw new Error(`supersedes: ${older.short_id} is ${older.status}`);
-    const sameWorkspace = args.team_id ? String(older.team_id) === String(args.team_id) : !older.team_id && String(older.scope_user_id) === String(userId);
-    if (!sameWorkspace) throw new Error(`supersedes: ${older.short_id} is in another workspace`);
-    if (!(await authorOwns(ctx, userId, author, actor, older.author))) throw new Error(`supersedes: ${older.short_id} was not posted by this author, its role or the role's session; only its own author may replace it`);
+    if (!older)
+      throw new Error(`supersedes: proposal not found: ${args.supersedes}`);
+    if (older.status !== "open")
+      throw new Error(`supersedes: ${older.short_id} is ${older.status}`);
+    const sameWorkspace = args.team_id
+      ? String(older.team_id) === String(args.team_id)
+      : !older.team_id && String(older.scope_user_id) === String(userId);
+    if (!sameWorkspace)
+      throw new Error(`supersedes: ${older.short_id} is in another workspace`);
+    if (!(await authorOwns(ctx, userId, author, actor, older.author)))
+      throw new Error(
+        `supersedes: ${older.short_id} was not posted by this author, its role or the role's session; only its own author may replace it`,
+      );
   }
 
   const now = Date.now();
@@ -230,7 +378,11 @@ export async function performCreateProposal(
     created_at: now,
     updated_at: now,
   });
-  if (older) await ctx.db.patch(older._id, { superseded_by: proposalId, updated_at: now });
+  if (older)
+    await ctx.db.patch(older._id, {
+      superseded_by: proposalId,
+      updated_at: now,
+    });
   // A review is the tick of the stability clock: every role flagged
   // overloaded at this review extends its streak, every other role's resets,
   // so the next review can tell a first breach from a second (S2 STABILITY).
@@ -238,17 +390,28 @@ export async function performCreateProposal(
   // runs as a query from a scheduled action, never inside this mutation: a
   // create that read them here could not commit under load.
   if (spec.mode === "review" && ctx.scheduler) {
-    await ctx.scheduler.runAfter(0, internal.orgProposals.recordBreaches, { user_id: userId, team_id: args.team_id });
+    await ctx.scheduler.runAfter(0, internal.orgProposals.recordBreaches, {
+      user_id: userId,
+      team_id: args.team_id,
+    });
   }
 
   const changes = [];
-  const seat: Boundary = args.team_id ? { team_id: args.team_id } : { scope_user_id: userId };
+  const seat: Boundary = args.team_id
+    ? { team_id: args.team_id }
+    : { scope_user_id: userId };
   const checked: OrgChange[] = [];
-  for (const c of spec.changes) checked.push(await checkedRecordChange(ctx, c.change, seat));
+  for (const c of spec.changes)
+    checked.push(await checkedRecordChange(ctx, c.change, seat));
   // A task the author did not place under its plan may still sit under one
   // this proposal closes: the records say so, and the refusal is the parser's.
-  const covered = orgRecordRedundancyErrors(checked.map((change) => ({ change })));
-  if (covered.length) throw new Error(`The proposal spec is not valid:\n- ${covered.join("\n- ")}`);
+  const covered = orgRecordRedundancyErrors(
+    checked.map((change) => ({ change })),
+  );
+  if (covered.length)
+    throw new Error(
+      `The proposal spec is not valid:\n- ${covered.join("\n- ")}`,
+    );
   for (const [i, c] of spec.changes.entries()) {
     const change = checked[i];
     const id = await ctx.db.insert("org_proposal_changes", {
@@ -261,17 +424,54 @@ export async function performCreateProposal(
       risk: c.risk,
       status: "proposed",
     });
-    changes.push({ id, seq: i + 1, change, status: "proposed", line: describeOrgChange(change), depends: orgChangeDependencies(spec.changes.map((x, j) => ({ seq: j + 1, change: x.change })))[i + 1] });
+    changes.push({
+      id,
+      seq: i + 1,
+      change,
+      status: "proposed",
+      line: describeOrgChange(change),
+      depends: orgChangeDependencies(
+        spec.changes.map((x, j) => ({ seq: j + 1, change: x.change })),
+      )[i + 1],
+    });
   }
 
   // No queue card: the proposal lives as a card in the author's conversation
   // (org-staffing.md S24), where the person reads and decides it. A role's
   // hire also reaches the lead above it, or applies at once (routeHire).
-  const hire = { ...(await routeHire(ctx, userId, (await ctx.db.get(proposalId))!, conversation)), ...(await routeFilings(ctx, userId, (await ctx.db.get(proposalId))!)) };
+  const hire = {
+    ...(await routeHire(
+      ctx,
+      userId,
+      (await ctx.db.get(proposalId))!,
+      conversation,
+    )),
+    ...(await routeFilings(ctx, userId, (await ctx.db.get(proposalId))!)),
+  };
   // Routing may have applied the changes just written: report them as they stand.
-  const stood = hire.applied ? new Map((await changesOf(ctx, proposalId)).map((c) => [c.seq, c.status])) : null;
+  const stood = hire.applied
+    ? new Map((await changesOf(ctx, proposalId)).map((c) => [c.seq, c.status]))
+    : null;
   if (stood) for (const c of changes) c.status = stood.get(c.seq) ?? c.status;
-  return { id: proposalId, short_id, status: hire.applied ? (await ctx.db.get(proposalId))!.status : "open", author, changes, link: PROPOSAL_LINK(short_id), ...hire, ...(older ? { supersedes: { id: String(older._id), short_id: older.short_id, status: "open", created_at: older.created_at } } : {}) };
+  return {
+    id: proposalId,
+    short_id,
+    status: hire.applied ? (await ctx.db.get(proposalId))!.status : "open",
+    author,
+    changes,
+    link: PROPOSAL_LINK(short_id),
+    ...hire,
+    ...(older
+      ? {
+          supersedes: {
+            id: String(older._id),
+            short_id: older.short_id,
+            status: "open",
+            created_at: older.created_at,
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -280,29 +480,52 @@ export async function performCreateProposal(
  * spoke for it (the standing session's own earlier review); a session that
  * speaks for a role over that role's proposal.
  */
-async function authorOwns(ctx: Ctx, userId: Id<"users">, author: { kind: string; id: string }, actor: any, olderAuthor: { kind: string; id: string }): Promise<boolean> {
-  if (author.kind === olderAuthor.kind && author.id === olderAuthor.id) return true;
-  const roleId = actor.kind === "role" && actor.role ? String(actor.role._id) : null;
+async function authorOwns(
+  ctx: Ctx,
+  userId: Id<"users">,
+  author: { kind: string; id: string },
+  actor: any,
+  olderAuthor: { kind: string; id: string },
+): Promise<boolean> {
+  if (author.kind === olderAuthor.kind && author.id === olderAuthor.id)
+    return true;
+  const roleId =
+    actor.kind === "role" && actor.role ? String(actor.role._id) : null;
   if (olderAuthor.kind === "role") return !!roleId && roleId === olderAuthor.id;
   if (olderAuthor.kind === "session") {
     if (!roleId) return false;
     const conv: any = await ctx.db.get(olderAuthor.id as Id<"conversations">);
     if (!conv) return false;
     const older = await resolveActor(ctx as any, userId, conv);
-    return older.kind === "role" && !!older.role && String(older.role._id) === roleId;
+    return (
+      older.kind === "role" && !!older.role && String(older.role._id) === roleId
+    );
   }
   return olderAuthor.kind === "user" && olderAuthor.id === String(userId);
 }
 
 /** The two supersession pointers, named: id, short id and when the other
  *  was posted, so the pane can say "Replaced by op-6, posted 2 hours ago". */
-async function enrichSupersession(ctx: Ctx, row: ProposalRow): Promise<Record<string, unknown>> {
+async function enrichSupersession(
+  ctx: Ctx,
+  row: ProposalRow,
+): Promise<Record<string, unknown>> {
   const name = async (id: unknown) => {
     if (!id) return undefined;
     const p: any = await ctx.db.get(id as Id<"org_proposals">);
-    return p ? { id: String(p._id), short_id: p.short_id, status: p.status, created_at: p.created_at } : undefined;
+    return p
+      ? {
+          id: String(p._id),
+          short_id: p.short_id,
+          status: p.status,
+          created_at: p.created_at,
+        }
+      : undefined;
   };
-  return { supersedes: await name(row.supersedes), superseded_by: await name(row.superseded_by) };
+  return {
+    supersedes: await name(row.supersedes),
+    superseded_by: await name(row.superseded_by),
+  };
 }
 
 // ── Read ────────────────────────────────────────────────────────────────────
@@ -313,59 +536,129 @@ async function enrichSupersession(ctx: Ctx, row: ProposalRow): Promise<Record<st
  * role's name, handle, short id and avatar, a person's name. A row whose
  * subject is gone keeps the bare kind and id, so the pill still renders.
  */
-async function enrichAuthor(ctx: Ctx, author: ProposalRow["author"]): Promise<Record<string, unknown>> {
+async function enrichAuthor(
+  ctx: Ctx,
+  author: ProposalRow["author"],
+): Promise<Record<string, unknown>> {
   try {
     if (author.kind === "session") {
       const conv: any = await ctx.db.get(author.id as Id<"conversations">);
-      return conv ? { ...author, title: conv.title ?? undefined, name: conv.title ?? undefined, short_id: conv.short_id ?? undefined } : author;
+      return conv
+        ? {
+            ...author,
+            title: conv.title ?? undefined,
+            name: conv.title ?? undefined,
+            short_id: conv.short_id ?? undefined,
+          }
+        : author;
     }
     if (author.kind === "role") {
       const role: any = await ctx.db.get(author.id as Id<"org_roles">);
-      return role ? { ...author, name: role.name, handle: role.handle, short_id: role.short_id, avatar: role.avatar ?? undefined, icon: role.icon ?? undefined } : author;
+      return role
+        ? {
+            ...author,
+            name: role.name,
+            handle: role.handle,
+            short_id: role.short_id,
+            avatar: role.avatar ?? undefined,
+            icon: role.icon ?? undefined,
+          }
+        : author;
     }
     const user: any = await ctx.db.get(author.id as Id<"users">);
-    return user ? { ...author, name: user.name ?? user.email ?? undefined } : author;
+    return user
+      ? { ...author, name: user.name ?? user.email ?? undefined }
+      : author;
   } catch {
     return author;
   }
 }
 
-export async function readProposal(ctx: Ctx, userId: Id<"users">, ref: string): Promise<any | null> {
+export async function readProposal(
+  ctx: Ctx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<any | null> {
   const proposal = await findProposal(ctx, ref);
-  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal)))) return null;
+  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal))))
+    return null;
   const rows = await changesOf(ctx, proposal._id);
-  const depends = orgChangeDependencies(rows.filter((c) => c.status !== "removed").map((c) => ({ seq: c.seq, change: c.change })));
-  const changes = rows.map((c) => ({ ...c, line: describeOrgChange(c.change), depends: depends[c.seq] }));
-  return { ...proposal, ...(await enrichSupersession(ctx, proposal)), ...(await enrichThread(ctx, proposal)), author: await enrichAuthor(ctx, proposal.author), changes, asks: resolveOrgAsks(proposal.asks, rows), link: PROPOSAL_LINK(proposal.short_id), counts: countsOf(changes) };
+  const depends = orgChangeDependencies(
+    rows
+      .filter((c) => c.status !== "removed")
+      .map((c) => ({ seq: c.seq, change: c.change })),
+  );
+  const changes = rows.map((c) => ({
+    ...c,
+    line: describeOrgChange(c.change),
+    depends: depends[c.seq],
+  }));
+  return {
+    ...proposal,
+    ...(await enrichSupersession(ctx, proposal)),
+    ...(await enrichThread(ctx, proposal)),
+    author: await enrichAuthor(ctx, proposal.author),
+    changes,
+    asks: resolveOrgAsks(proposal.asks, rows),
+    link: PROPOSAL_LINK(proposal.short_id),
+    counts: countsOf(changes),
+  };
 }
 
 /** The conversation bound to a proposal (S18): the stored pointer, else,
  *  for a row from before the field, the posting session or the standing
  *  session of the posting role. Null for a person's proposal. */
-export async function threadOf(ctx: Ctx, proposal: ProposalRow): Promise<any | null> {
+export async function threadOf(
+  ctx: Ctx,
+  proposal: ProposalRow,
+): Promise<any | null> {
   try {
-    if (proposal.thread_conversation_id) return (await ctx.db.get(proposal.thread_conversation_id)) ?? null;
-    if (proposal.author.kind === "session") return (await ctx.db.get(proposal.author.id as Id<"conversations">)) ?? null;
+    if (proposal.thread_conversation_id)
+      return (await ctx.db.get(proposal.thread_conversation_id)) ?? null;
+    if (proposal.author.kind === "session")
+      return (
+        (await ctx.db.get(proposal.author.id as Id<"conversations">)) ?? null
+      );
     if (proposal.author.kind === "role") {
       const role: any = await ctx.db.get(proposal.author.id as Id<"org_roles">);
-      const anchor: any = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-      return anchor?.conversation_id ? (await ctx.db.get(anchor.conversation_id)) ?? null : null;
+      const anchor: any = role?.anchor_id
+        ? await ctx.db.get(role.anchor_id)
+        : null;
+      return anchor?.conversation_id
+        ? ((await ctx.db.get(anchor.conversation_id)) ?? null)
+        : null;
     }
-  } catch { /* a gone row is no thread */ }
+  } catch {
+    /* a gone row is no thread */
+  }
   return null;
 }
 
-async function enrichThread(ctx: Ctx, proposal: ProposalRow): Promise<{ thread: { conversation_id: string; short_id?: string; title?: string } | null; thread_conversation_id?: string }> {
+async function enrichThread(
+  ctx: Ctx,
+  proposal: ProposalRow,
+): Promise<{
+  thread: { conversation_id: string; short_id?: string; title?: string } | null;
+  thread_conversation_id?: string;
+}> {
   const conv = await threadOf(ctx, proposal);
   if (!conv) return { thread: null, thread_conversation_id: undefined };
-  return { thread: { conversation_id: String(conv._id), short_id: conv.short_id ?? undefined, title: conv.title ?? undefined }, thread_conversation_id: String(conv._id) };
+  return {
+    thread: {
+      conversation_id: String(conv._id),
+      short_id: conv.short_id ?? undefined,
+      title: conv.title ?? undefined,
+    },
+    thread_conversation_id: String(conv._id),
+  };
 }
 
 // A removed change (S18) is neither to decide nor decided: the page shows
 // it struck through, and "N of M decided" shrinks by it.
 const countsOf = (all: ChangeRow[]) => ({
   total: all.filter((c) => c.status !== "removed").length,
-  decided: all.filter((c) => c.status !== "proposed" && c.status !== "removed").length,
+  decided: all.filter((c) => c.status !== "proposed" && c.status !== "removed")
+    .length,
   applied: all.filter((c) => c.status === "applied").length,
   failed: all.filter((c) => c.status === "failed").length,
   skipped: all.filter((c) => c.status === "skipped").length,
@@ -375,22 +668,60 @@ const countsOf = (all: ChangeRow[]) => ({
  *  the decision page name the author of a proposal they only link to, and
  *  must not subscribe to its change rows (the first real review had 129) to
  *  do it. Same access rule as the full read; null when unreadable. */
-export async function readProposalOrigin(ctx: Ctx, userId: Id<"users">, ref: string): Promise<{ short_id: string; status: string; author: Record<string, unknown> } | null> {
+export async function readProposalOrigin(
+  ctx: Ctx,
+  userId: Id<"users">,
+  ref: string,
+): Promise<{
+  short_id: string;
+  status: string;
+  author: Record<string, unknown>;
+} | null> {
   const proposal = await findProposal(ctx, ref);
-  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal)))) return null;
-  return { short_id: proposal.short_id, status: proposal.status, author: await enrichAuthor(ctx, proposal.author) };
+  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal))))
+    return null;
+  return {
+    short_id: proposal.short_id,
+    status: proposal.status,
+    author: await enrichAuthor(ctx, proposal.author),
+  };
 }
 
-export async function listProposals(ctx: Ctx, userId: Id<"users">, args: { team_id?: Id<"teams">; status?: string }): Promise<any[]> {
+export async function listProposals(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: { team_id?: Id<"teams">; status?: string },
+): Promise<any[]> {
   const rows: ProposalRow[] = args.team_id
-    ? await ctx.db.query("org_proposals").withIndex("by_team", (q: any) => q.eq("team_id", args.team_id)).order("desc").take(PROPOSAL_LIST_CAP * 2)
-    : await ctx.db.query("org_proposals").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId)).order("desc").take(PROPOSAL_LIST_CAP * 2);
+    ? await ctx.db
+        .query("org_proposals")
+        .withIndex("by_team", (q: any) => q.eq("team_id", args.team_id))
+        .order("desc")
+        .take(PROPOSAL_LIST_CAP * 2)
+    : await ctx.db
+        .query("org_proposals")
+        .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId))
+        .order("desc")
+        .take(PROPOSAL_LIST_CAP * 2);
   const rank = (s: string) => (s === "open" ? 0 : s === "resolved" ? 1 : 2);
-  const kept = rows.filter((p) => !p.archived_at && (!args.status || p.status === args.status)).sort((a, b) => rank(a.status) - rank(b.status) || b.created_at - a.created_at).slice(0, PROPOSAL_LIST_CAP);
+  const kept = rows
+    .filter((p) => !p.archived_at && (!args.status || p.status === args.status))
+    .sort(
+      (a, b) => rank(a.status) - rank(b.status) || b.created_at - a.created_at,
+    )
+    .slice(0, PROPOSAL_LIST_CAP);
   const out = [];
   for (const p of kept) {
     const rows = await changesOf(ctx, p._id);
-    out.push({ ...p, ...(await enrichSupersession(ctx, p)), ...(await enrichThread(ctx, p)), author: await enrichAuthor(ctx, p.author), asks: resolveOrgAsks(p.asks, rows), link: PROPOSAL_LINK(p.short_id), counts: countsOf(rows) });
+    out.push({
+      ...p,
+      ...(await enrichSupersession(ctx, p)),
+      ...(await enrichThread(ctx, p)),
+      author: await enrichAuthor(ctx, p.author),
+      asks: resolveOrgAsks(p.asks, rows),
+      link: PROPOSAL_LINK(p.short_id),
+      counts: countsOf(rows),
+    });
   }
   return out;
 }
@@ -402,20 +733,34 @@ export async function listProposals(ctx: Ctx, userId: Id<"users">, args: { team_
 // shared contract's, so the web's guards and this file cannot disagree.
 const decidable = (c: ChangeRow) => isOrgChangeDecidable(c.status);
 const approvable = (c: ChangeRow) => isOrgChangeApprovable(c.status);
-async function resolveIfDone(ctx: Ctx, proposal: ProposalRow, now: number): Promise<boolean> {
+async function resolveIfDone(
+  ctx: Ctx,
+  proposal: ProposalRow,
+  now: number,
+): Promise<boolean> {
   const rows = await changesOf(ctx, proposal._id);
   if (rows.some((c) => decidable(c) || c.status === "accepted")) return false;
   // Every change removed by its author leaves nothing a person decided: that is
   // the author taking the proposal back, so it reads as withdrawn.
-  const status = rows.some((c) => c.status !== "removed") ? "resolved" : "withdrawn";
-  await ctx.db.patch(proposal._id, { status, resolved_at: now, updated_at: now });
+  const status = rows.some((c) => c.status !== "removed")
+    ? "resolved"
+    : "withdrawn";
+  await ctx.db.patch(proposal._id, {
+    status,
+    resolved_at: now,
+    updated_at: now,
+  });
   await clearDecision(ctx, proposal, now);
   return true;
 }
 
 // Proposals posted before S24 carry a queue card; once the proposal is
 // settled, that card leaves the queue.
-async function clearDecision(ctx: Ctx, proposal: ProposalRow, now: number): Promise<void> {
+async function clearDecision(
+  ctx: Ctx,
+  proposal: ProposalRow,
+  now: number,
+): Promise<void> {
   if (!proposal.decision_id) return;
   const d = await ctx.db.get(proposal.decision_id);
   if (d?.status !== "pending") return;
@@ -430,7 +775,8 @@ async function clearDecision(ctx: Ctx, proposal: ProposalRow, now: number): Prom
  *  cap keeps the others) and check the result is still a change. */
 export function editedChange(change: OrgChange, edits: unknown): OrgChange {
   if (edits === undefined || edits === null) return change;
-  if (typeof edits !== "object" || Array.isArray(edits)) throw new Error("edits is an object patch over the change's own keys");
+  if (typeof edits !== "object" || Array.isArray(edits))
+    throw new Error("edits is an object patch over the change's own keys");
   const merged = editedOrgChange(change, edits);
   const fault = orgChangeError(merged);
   if (fault) throw new Error(`The edited change is not valid: ${fault}`);
@@ -439,13 +785,45 @@ export function editedChange(change: OrgChange, edits: unknown): OrgChange {
 
 // `provision` is a server side option (a created role gets its standing
 // session); tests pass false, the mutations never expose it.
-async function acceptOne(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, change: ChangeRow, edits: unknown, now: number, provision = true) {
-  if (!orgBatchHead(ctx)) openOrgBatch(ctx, { door: "proposal", gesture: "accept_change", proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) } });
+async function acceptOne(
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  change: ChangeRow,
+  edits: unknown,
+  now: number,
+  provision = true,
+) {
+  if (!orgBatchHead(ctx))
+    openOrgBatch(ctx, {
+      door: "proposal",
+      gesture: "accept_change",
+      proposal: {
+        id: proposal._id,
+        short_id: proposal.short_id,
+        ...(proposal.title ? { title: proposal.title } : {}),
+      },
+    });
   const merged = editedChange(change.change, edits);
-  await ctx.db.patch(change._id, { status: "accepted", edits: edits ?? undefined, decided_by: userId, decided_at: now });
+  await ctx.db.patch(change._id, {
+    status: "accepted",
+    edits: edits ?? undefined,
+    decided_by: userId,
+    decided_at: now,
+  });
   await recordAuthorityEvent(ctx, {
-    kind: "org_proposal_accepted", actor_user_id: userId, team_id: proposal.team_id,
-    detail: { before: { status: change.status }, after: { status: "accepted", proposal: proposal.short_id, change_id: change._id, change: merged } },
+    kind: "org_proposal_accepted",
+    actor_user_id: userId,
+    team_id: proposal.team_id,
+    detail: {
+      before: { status: change.status },
+      after: {
+        status: "accepted",
+        proposal: proposal.short_id,
+        change_id: change._id,
+        change: merged,
+      },
+    },
   });
   // A throw escapes the mutation: Convex then discards every write of this
   // call, the accepted stamp included, so a half applied change never
@@ -456,70 +834,158 @@ async function acceptOne(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, c
   let awaitingAdopt: string | undefined;
   if (merged.kind === "role") {
     const handle = merged.handle.trim().replace(/^@/, "").toLowerCase();
-    const sibling = (await changesOf(ctx, proposal._id)).find((c) => c.change.kind === "adopt" && c.change.handle.trim().replace(/^@/, "").toLowerCase() === handle && (decidable(c) || c.status === "accepted"));
-    if (sibling && sibling.change.kind === "adopt") awaitingAdopt = sibling.change.conversation;
+    const sibling = (await changesOf(ctx, proposal._id)).find(
+      (c) =>
+        c.change.kind === "adopt" &&
+        c.change.handle.trim().replace(/^@/, "").toLowerCase() === handle &&
+        (decidable(c) || c.status === "accepted"),
+    );
+    if (sibling && sibling.change.kind === "adopt")
+      awaitingAdopt = sibling.change.conversation;
   }
   // The log hands over the rows this apply writes, from here on: an accept
   // all runs several changes on one ctx and shares one batch between them.
   takeOrgRows(ctx);
   // A refusal leaves as the core wrote it: the failed row stores it, and the
   // card, `cast org proposal` and the log show it to the person as is.
-  const result: ApplyResult = await applyOrgChange(ctx, userId, boundaryOf(proposal), merged, { provision, human_decision: `proposal:${String(change._id)}`, awaiting_adopt: awaitingAdopt, evidence: change.evidence });
+  const result: ApplyResult = await applyOrgChange(
+    ctx,
+    userId,
+    boundaryOf(proposal),
+    merged,
+    {
+      provision,
+      human_decision: `proposal:${String(change._id)}`,
+      awaiting_adopt: awaitingAdopt,
+      evidence: change.evidence,
+    },
+  );
   const ok = result.status === "applied";
-  const note = result.status === "applied" || result.status === "skipped" ? result.note : result.status === "error" ? result.error : "not applied";
+  const note =
+    result.status === "applied" || result.status === "skipped"
+      ? result.note
+      : result.status === "error"
+        ? result.error
+        : "not applied";
   // The stamp (S39): what this accept moved, so the decided card still shows
   // before and after once the record moves on. A limit is never a field a
   // person reads (S23.2), and an apply that moved nothing wrote no row.
-  const applied_diff = ok && !isOrgQuietChange(merged) ? orgAppliedDiff(takeOrgRows(ctx)) : undefined;
-  await ctx.db.patch(change._id, { status: ok ? "applied" : "failed", applied_note: note.slice(0, 500), applied_at: now, ...(applied_diff ? { applied_diff } : {}) });
-  return { change_id: change._id, seq: change.seq, status: ok ? "applied" : "failed", note, role: ok && "role" in result ? result.role : undefined, line: describeOrgChange(merged) };
+  const applied_diff =
+    ok && !isOrgQuietChange(merged)
+      ? orgAppliedDiff(takeOrgRows(ctx))
+      : undefined;
+  await ctx.db.patch(change._id, {
+    status: ok ? "applied" : "failed",
+    applied_note: note.slice(0, 500),
+    applied_at: now,
+    ...(applied_diff ? { applied_diff } : {}),
+  });
+  return {
+    change_id: change._id,
+    seq: change.seq,
+    status: ok ? "applied" : "failed",
+    note,
+    role: ok && "role" in result ? result.role : undefined,
+    line: describeOrgChange(merged),
+  };
 }
 
 /** Skip one change. Skipping the adopt of a role this proposal created
  *  awaiting it would leave that seat with no standing session for ever, and
  *  only the order of two clicks would decide it. The skip provisions the seat
  *  then, and the note says so; the person who wanted no session retires it. */
-async function skipOne(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, change: ChangeRow, now: number, provision: boolean) {
+async function skipOne(
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  change: ChangeRow,
+  now: number,
+  provision: boolean,
+) {
   let note: string | undefined;
   if (change.change.kind === "adopt") {
     const handle = change.change.handle.trim().replace(/^@/, "").toLowerCase();
-    const role = (await rolesInBoundary(ctx, boundaryOf(proposal))).find((r: any) => r.handle === handle);
+    const role = (await rolesInBoundary(ctx, boundaryOf(proposal))).find(
+      (r: any) => r.handle === handle,
+    );
     if (role && !role.anchor_id && provision) {
       await performProvisionRole(ctx, userId, { role_id: String(role._id) });
       note = `skipped; @${role.handle} was created awaiting this adopt, so a fresh standing session was provisioned for it instead`;
     }
   }
-  await ctx.db.patch(change._id, { status: "skipped", decided_by: userId, decided_at: now, ...(note ? { applied_note: note, applied_at: now } : {}) });
+  await ctx.db.patch(change._id, {
+    status: "skipped",
+    decided_by: userId,
+    decided_at: now,
+    ...(note ? { applied_note: note, applied_at: now } : {}),
+  });
   // A role this proposal would create is not coming, so the changes that act
   // on it (its filings, its move, its standing session) cannot apply either.
-  const handle = change.change.kind === "role" ? roleActedOn(change.change) : null;
+  const handle =
+    change.change.kind === "role" ? roleActedOn(change.change) : null;
   if (handle && !(await liveHandle(ctx, proposal, handle))) {
-    for (const rider of (await changesOf(ctx, proposal._id)).filter((r) => r._id !== change._id && decidable(r) && roleActedOn(r.change) === handle)) {
-      await ctx.db.patch(rider._id, { status: "skipped", decided_by: userId, decided_at: now, applied_note: `skipped with @${handle}, which it acts on`, applied_at: now });
+    for (const rider of (await changesOf(ctx, proposal._id)).filter(
+      (r) =>
+        r._id !== change._id &&
+        decidable(r) &&
+        roleActedOn(r.change) === handle,
+    )) {
+      await ctx.db.patch(rider._id, {
+        status: "skipped",
+        decided_by: userId,
+        decided_at: now,
+        applied_note: `skipped with @${handle}, which it acts on`,
+        applied_at: now,
+      });
     }
   }
-  return { change_id: change._id, seq: change.seq, status: "skipped", note, line: describeOrgChange(change.change) };
+  return {
+    change_id: change._id,
+    seq: change.seq,
+    status: "skipped",
+    note,
+    line: describeOrgChange(change.change),
+  };
 }
 
 /** Whether a live role in the proposal's workspace holds the handle. */
-async function liveHandle(ctx: Ctx, proposal: ProposalRow, handle: string): Promise<boolean> {
-  return (await rolesInBoundary(ctx, boundaryOf(proposal))).some((r: any) => r.handle === handle);
+async function liveHandle(
+  ctx: Ctx,
+  proposal: ProposalRow,
+  handle: string,
+): Promise<boolean> {
+  return (await rolesInBoundary(ctx, boundaryOf(proposal))).some(
+    (r: any) => r.handle === handle,
+  );
 }
 
 /** Why a change cannot be accepted on its own yet: it acts on a role this
  *  proposal creates, and that role's change has not applied. Null otherwise. */
-async function waitsOnCreatedRole(ctx: Ctx, proposal: ProposalRow, change: ChangeRow): Promise<string | null> {
+async function waitsOnCreatedRole(
+  ctx: Ctx,
+  proposal: ProposalRow,
+  change: ChangeRow,
+): Promise<string | null> {
   if (change.change.kind === "role") return null;
   const handle = roleActedOn(change.change);
-  if (!handle || await liveHandle(ctx, proposal, handle)) return null;
-  const role = (await changesOf(ctx, proposal._id)).find((r) => r.change.kind === "role" && roleActedOn(r.change) === handle);
-  return role && role.status !== "applied" ? `${proposal.short_id}#${change.seq} acts on @${handle}, which this proposal creates in #${role.seq}: accept #${role.seq} first, or both from the role's card` : null;
+  if (!handle || (await liveHandle(ctx, proposal, handle))) return null;
+  const role = (await changesOf(ctx, proposal._id)).find(
+    (r) => r.change.kind === "role" && roleActedOn(r.change) === handle,
+  );
+  return role && role.status !== "applied"
+    ? `${proposal.short_id}#${change.seq} acts on @${handle}, which this proposal creates in #${role.seq}: accept #${role.seq} first, or both from the role's card`
+    : null;
 }
 
 /** A verdict is read against the proposal as the page showed it (`seen`);
  *  one the author revised since is refused whole, and the page shows the
  *  revised list instead (S18). */
-function refuseIfRevised(proposal: ProposalRow, rows: ChangeRow[], seen: OrgVerdictSeen | undefined, askSeqs?: number[]): void {
+function refuseIfRevised(
+  proposal: ProposalRow,
+  rows: ChangeRow[],
+  seen: OrgVerdictSeen | undefined,
+  askSeqs?: number[],
+): void {
   const fault = orgVerdictSeenFault(proposal.short_id, seen, rows, askSeqs);
   if (fault) throw new Error(fault);
 }
@@ -527,27 +993,63 @@ function refuseIfRevised(proposal: ProposalRow, rows: ChangeRow[], seen: OrgVerd
 export async function performDecideChange(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { change_id: string; verdict: "accept" | "skip"; edits?: unknown; seen?: OrgVerdictSeen; from_session?: string; api_token?: string; provision?: boolean },
+  args: {
+    change_id: string;
+    verdict: "accept" | "skip";
+    edits?: unknown;
+    seen?: OrgVerdictSeen;
+    from_session?: string;
+    api_token?: string;
+    provision?: boolean;
+  },
 ): Promise<any> {
   const found = await findChange(ctx, args.change_id);
   if (!found) throw new Error(`Change not found: ${args.change_id}`);
   const { change, proposal } = found;
   await requireAdmin(ctx, userId, proposal);
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is ${proposal.status}`);
-  if (!decidable(change)) throw new Error(`${proposal.short_id}#${change.seq} is already ${change.status}`);
+  if (proposal.status !== "open")
+    throw new Error(`${proposal.short_id} is ${proposal.status}`);
+  if (!decidable(change))
+    throw new Error(
+      `${proposal.short_id}#${change.seq} is already ${change.status}`,
+    );
   // A failed change applies once it changes: the person's edits here, or its author's revise.
-  if (args.verdict === "accept" && !approvable(change) && args.edits == null) throw new Error(`${proposal.short_id}#${change.seq} failed: ${change.applied_note ?? "the apply was refused"}. It applies once it changes (accept it with edits, or its author revises it); skip it to close it.`);
+  if (args.verdict === "accept" && !approvable(change) && args.edits == null)
+    throw new Error(
+      `${proposal.short_id}#${change.seq} failed: ${change.applied_note ?? "the apply was refused"}. It applies once it changes (accept it with edits, or its author revises it); skip it to close it.`,
+    );
   // An amend keeps the row's id and replaces what it says (S18), so the id
   // alone does not say which content the person read.
   refuseIfRevised(proposal, await changesOf(ctx, proposal._id), args.seen);
-  const waits = args.verdict === "accept" ? await waitsOnCreatedRole(ctx, proposal, change) : null;
+  const waits =
+    args.verdict === "accept"
+      ? await waitsOnCreatedRole(ctx, proposal, change)
+      : null;
   if (waits) throw new Error(waits);
   const now = Date.now();
-  const out = args.verdict === "skip"
-    ? await skipOne(ctx, userId, proposal, change, now, args.provision ?? true)
-    : await acceptOne(ctx, userId, proposal, change, args.edits, now, args.provision ?? true).catch((err) => {
-      throw new Error(`${proposal.short_id}#${change.seq} (${describeOrgChange(change.change)}): ${humanizeConvexError(err)}`);
-    });
+  const out =
+    args.verdict === "skip"
+      ? await skipOne(
+          ctx,
+          userId,
+          proposal,
+          change,
+          now,
+          args.provision ?? true,
+        )
+      : await acceptOne(
+          ctx,
+          userId,
+          proposal,
+          change,
+          args.edits,
+          now,
+          args.provision ?? true,
+        ).catch((err) => {
+          throw new Error(
+            `${proposal.short_id}#${change.seq} (${describeOrgChange(change.change)}): ${humanizeConvexError(err)}`,
+          );
+        });
   await ctx.db.patch(proposal._id, { updated_at: now });
   const resolved = await resolveIfDone(ctx, proposal, now);
   return { ...out, proposal: proposal.short_id, resolved };
@@ -558,8 +1060,16 @@ export async function performDecideChange(
  *  holds (orderOrgChanges); this only moves a child below its parent. */
 export function orderForApply(rows: ChangeRow[]): ChangeRow[] {
   const ordered = orderOrgChanges(rows, (r) => r.change as OrgChange);
-  const handleOf = (r: ChangeRow) => (r.change?.kind === "role" ? String(r.change.handle).replace(/^@/, "").toLowerCase() : null);
-  const parentOf = (r: ChangeRow) => (r.change?.kind === "role" && typeof r.change.reports_to === "string" && r.change.reports_to.startsWith("@") ? r.change.reports_to.slice(1).toLowerCase() : null);
+  const handleOf = (r: ChangeRow) =>
+    r.change?.kind === "role"
+      ? String(r.change.handle).replace(/^@/, "").toLowerCase()
+      : null;
+  const parentOf = (r: ChangeRow) =>
+    r.change?.kind === "role" &&
+    typeof r.change.reports_to === "string" &&
+    r.change.reports_to.startsWith("@")
+      ? r.change.reports_to.slice(1).toLowerCase()
+      : null;
   const out = [...ordered];
   for (let pass = 0; pass < out.length; pass++) {
     let moved = false;
@@ -567,7 +1077,12 @@ export function orderForApply(rows: ChangeRow[]): ChangeRow[] {
       const parent = parentOf(out[i]);
       if (!parent) continue;
       const j = out.findIndex((r) => handleOf(r) === parent);
-      if (j > i) { const [child] = out.splice(i, 1); out.splice(j, 0, child); moved = true; break; }
+      if (j > i) {
+        const [child] = out.splice(i, 1);
+        out.splice(j, 0, child);
+        moved = true;
+        break;
+      }
     }
     if (!moved) break;
   }
@@ -585,13 +1100,31 @@ export function orderForApply(rows: ChangeRow[]): ChangeRow[] {
  * runMutation's writes back); the test harness has no runMutation and runs
  * the change inline, which covers the throws that happen before any write.
  */
-export async function performAcceptAll(ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> }, userId: Id<"users">, args: { proposal: string; from_session?: string; api_token?: string; provision?: boolean; kinds?: string[]; seqs?: number[]; seen?: OrgVerdictSeen; tried?: string[]; continuation?: boolean; leave_sessions?: boolean; log_head?: OrgBatchHead; lead?: boolean }): Promise<any> {
+export async function performAcceptAll(
+  ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
+  userId: Id<"users">,
+  args: {
+    proposal: string;
+    from_session?: string;
+    api_token?: string;
+    provision?: boolean;
+    kinds?: string[];
+    seqs?: number[];
+    seen?: OrgVerdictSeen;
+    tried?: string[];
+    continuation?: boolean;
+    leave_sessions?: boolean;
+    log_head?: OrgBatchHead;
+    lead?: boolean;
+  },
+): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
   // `lead`: a hire a lead above approved (performDecideHire), whose authority
   // is the line, already checked; never set by a client.
   if (!args.lead) await requireAdmin(ctx, userId, proposal);
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is ${proposal.status}`);
+  if (proposal.status !== "open")
+    throw new Error(`${proposal.short_id} is ${proposal.status}`);
   const now = Date.now();
   // `kinds` narrows the sweep ("Accept group" on the pane's records card,
   // S9): only decidable changes of those kinds, still in apply order.
@@ -604,12 +1137,31 @@ export async function performAcceptAll(ctx: Ctx & { runMutation?: (ref: any, arg
   // The person's own call says what it read; a continuation and an ask's
   // accept were checked by the call that started them.
   if (!args.continuation) refuseIfRevised(proposal, rows, args.seen);
-  const batch = rows.filter(approvable).filter((c) => !kinds || kinds.has(c.change.kind)).filter((c) => !seqs || seqs.has(c.seq)).filter((c) => !triedSet.has(String(c._id)));
+  const batch = rows
+    .filter(approvable)
+    .filter((c) => !kinds || kinds.has(c.change.kind))
+    .filter((c) => !seqs || seqs.has(c.seq))
+    .filter((c) => !triedSet.has(String(c._id)));
   // A change on a role this proposal creates goes only with that role (it
   // applies first, by rank) or after it; otherwise it waits, undecided.
-  const live = new Set((await rolesInBoundary(ctx, boundaryOf(proposal))).map((r: any) => r.handle));
-  const roleRow = (h: string | null) => (h && !live.has(h) ? rows.find((r) => r.change.kind === "role" && roleActedOn(r.change) === h) : undefined);
-  const all = orderForApply(batch.filter((c) => { if (c.change.kind === "role") return true; const role = roleRow(roleActedOn(c.change)); return !role || role.status === "applied" || batch.includes(role); }));
+  const live = new Set(
+    (await rolesInBoundary(ctx, boundaryOf(proposal))).map(
+      (r: any) => r.handle,
+    ),
+  );
+  const roleRow = (h: string | null) =>
+    h && !live.has(h)
+      ? rows.find(
+          (r) => r.change.kind === "role" && roleActedOn(r.change) === h,
+        )
+      : undefined;
+  const all = orderForApply(
+    batch.filter((c) => {
+      if (c.change.kind === "role") return true;
+      const role = roleRow(roleActedOn(c.change));
+      return !role || role.status === "applied" || batch.includes(role);
+    }),
+  );
   // One call applies one chunk and hands the rest to its own transaction
   // (acceptAllContinue): a hundred records, each plan close cascading over its
   // tasks, do not fit one read and write budget, and a late failure must not
@@ -618,23 +1170,71 @@ export async function performAcceptAll(ctx: Ctx & { runMutation?: (ref: any, arg
   const pending = (ctx as any).scheduler ? acceptAllChunk(all) : all;
   const remaining = all.length - pending.length;
   const provision = args.provision ?? true;
-  const logHead: OrgBatchHead = args.log_head ?? { door: "proposal", gesture: "accept_all", key: `proposal:${proposal._id}:${now}`, proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) } };
+  const logHead: OrgBatchHead = args.log_head ?? {
+    door: "proposal",
+    gesture: "accept_all",
+    key: `proposal:${proposal._id}:${now}`,
+    proposal: {
+      id: proposal._id,
+      short_id: proposal.short_id,
+      ...(proposal.title ? { title: proposal.title } : {}),
+    },
+  };
   openOrgBatch(ctx, logHead);
   const results = [];
   for (const change of pending) {
     // The person's one edit on the ask they accepted whole (R1): every change
     // in it that would take sessions over leaves them where they are.
-    const edits = args.leave_sessions && orgChangeTakesOver(change.change) ? { leave_sessions: true } : undefined;
+    const edits =
+      args.leave_sessions && orgChangeTakesOver(change.change)
+        ? { leave_sessions: true }
+        : undefined;
     try {
-      results.push(ctx.runMutation
-        ? await ctx.runMutation(internal.orgProposals.acceptOneInTransaction, { user_id: userId, proposal_id: proposal._id, change_id: change._id, now, provision, log_head: logHead, ...(edits ? { leave_sessions: true } : {}) })
-        : await acceptOne(ctx, userId, proposal, change, edits, now, provision));
+      results.push(
+        ctx.runMutation
+          ? await ctx.runMutation(
+              internal.orgProposals.acceptOneInTransaction,
+              {
+                user_id: userId,
+                proposal_id: proposal._id,
+                change_id: change._id,
+                now,
+                provision,
+                log_head: logHead,
+                ...(edits ? { leave_sessions: true } : {}),
+              },
+            )
+          : await acceptOne(
+              ctx,
+              userId,
+              proposal,
+              change,
+              edits,
+              now,
+              provision,
+            ),
+      );
     } catch (err) {
       // The refusal's own sentence: a throw that crossed runMutation carries
       // the runtime's "Uncaught Error:" lead and a stack frame.
-      const note = humanizeConvexError(err, "The apply was refused").slice(0, 500);
-      await ctx.db.patch(change._id, { status: "failed", applied_note: note, applied_at: now, decided_by: userId, decided_at: now });
-      results.push({ change_id: change._id, seq: change.seq, status: "failed", note, line: describeOrgChange(change.change) });
+      const note = humanizeConvexError(err, "The apply was refused").slice(
+        0,
+        500,
+      );
+      await ctx.db.patch(change._id, {
+        status: "failed",
+        applied_note: note,
+        applied_at: now,
+        decided_by: userId,
+        decided_at: now,
+      });
+      results.push({
+        change_id: change._id,
+        seq: change.seq,
+        status: "failed",
+        note,
+        line: describeOrgChange(change.change),
+      });
     }
   }
   await ctx.db.patch(proposal._id, { updated_at: now });
@@ -642,10 +1242,31 @@ export async function performAcceptAll(ctx: Ctx & { runMutation?: (ref: any, arg
   // refused once per accept, never twice.
   const tried = [...(args.tried ?? []), ...pending.map((c) => String(c._id))];
   if (remaining > 0 && (ctx as any).scheduler) {
-    await (ctx as any).scheduler.runAfter(0, internal.orgProposals.acceptAllContinue, { user_id: userId, proposal_id: proposal._id, kinds: args.kinds, seqs: args.seqs, provision, tried, log_head: logHead, ...(args.leave_sessions ? { leave_sessions: true } : {}), ...(args.lead ? { lead: true } : {}) });
+    await (ctx as any).scheduler.runAfter(
+      0,
+      internal.orgProposals.acceptAllContinue,
+      {
+        user_id: userId,
+        proposal_id: proposal._id,
+        kinds: args.kinds,
+        seqs: args.seqs,
+        provision,
+        tried,
+        log_head: logHead,
+        ...(args.leave_sessions ? { leave_sessions: true } : {}),
+        ...(args.lead ? { lead: true } : {}),
+      },
+    );
   }
   const resolved = await resolveIfDone(ctx, proposal, now);
-  return { proposal: proposal.short_id, results, resolved, remaining: (ctx as any).scheduler ? remaining : 0, applied: results.filter((r) => r.status === "applied").length, failed: results.filter((r) => r.status === "failed").length };
+  return {
+    proposal: proposal.short_id,
+    results,
+    resolved,
+    remaining: (ctx as any).scheduler ? remaining : 0,
+    applied: results.filter((r) => r.status === "applied").length,
+    failed: results.filter((r) => r.status === "failed").length,
+  };
 }
 
 /**
@@ -659,11 +1280,25 @@ export async function performAcceptAll(ctx: Ctx & { runMutation?: (ref: any, arg
  * author revised since is refused, never resolved to what sits there now. A change the person already decided inside the
  * fold is left as they decided it.
  */
-export async function performDecideAsk(ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> }, userId: Id<"users">, args: { proposal: string; ask: number; verdict: "accept" | "skip"; seen?: OrgVerdictSeen; from_session?: string; api_token?: string; provision?: boolean; leave_sessions?: boolean }): Promise<any> {
+export async function performDecideAsk(
+  ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
+  userId: Id<"users">,
+  args: {
+    proposal: string;
+    ask: number;
+    verdict: "accept" | "skip";
+    seen?: OrgVerdictSeen;
+    from_session?: string;
+    api_token?: string;
+    provision?: boolean;
+    leave_sessions?: boolean;
+  },
+): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
   await requireAdmin(ctx, userId, proposal);
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is ${proposal.status}`);
+  if (proposal.status !== "open")
+    throw new Error(`${proposal.short_id} is ${proposal.status}`);
   const rows = await changesOf(ctx, proposal._id);
   const asks = resolveOrgAsks(proposal.asks, rows);
   const ask = asks[args.ask];
@@ -671,20 +1306,67 @@ export async function performDecideAsk(ctx: Ctx & { runMutation?: (ref: any, arg
   // so a position that no longer exists is a moved list before it is a bad
   // index, and the seqs the card held say which ask the person read.
   refuseIfRevised(proposal, rows, args.seen, ask?.seqs ?? []);
-  if (!ask) throw new Error(`${proposal.short_id} has ${asks.length} ask${asks.length === 1 ? "" : "s"}; there is no ask ${args.ask}`);
-  if (args.verdict === "accept") return { ask: args.ask, title: ask.title, ...(await performAcceptAll(ctx, userId, { proposal: proposal.short_id, seqs: ask.seqs, provision: args.provision, continuation: true, leave_sessions: args.leave_sessions, log_head: { door: "proposal", gesture: "accept_ask", key: `proposal:${proposal._id}:ask:${args.ask}:${Date.now()}`, proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) }, ask: { index: args.ask, title: ask.title } } })) };
+  if (!ask)
+    throw new Error(
+      `${proposal.short_id} has ${asks.length} ask${asks.length === 1 ? "" : "s"}; there is no ask ${args.ask}`,
+    );
+  if (args.verdict === "accept")
+    return {
+      ask: args.ask,
+      title: ask.title,
+      ...(await performAcceptAll(ctx, userId, {
+        proposal: proposal.short_id,
+        seqs: ask.seqs,
+        provision: args.provision,
+        continuation: true,
+        leave_sessions: args.leave_sessions,
+        log_head: {
+          door: "proposal",
+          gesture: "accept_ask",
+          key: `proposal:${proposal._id}:ask:${args.ask}:${Date.now()}`,
+          proposal: {
+            id: proposal._id,
+            short_id: proposal.short_id,
+            ...(proposal.title ? { title: proposal.title } : {}),
+          },
+          ask: { index: args.ask, title: ask.title },
+        },
+      })),
+    };
   const now = Date.now();
   const inAsk = new Set(ask.seqs);
   const results = [];
   // Fresh reads: skipping a role skips its riders, which may sit in this ask.
   for (const seq of rows.filter((c) => inAsk.has(c.seq)).map((c) => c._id)) {
-    const change = await ctx.db.get(seq) as ChangeRow | null;
-    if (change && decidable(change)) results.push(await skipOne(ctx, userId, proposal, change, now, args.provision ?? true));
+    const change = (await ctx.db.get(seq)) as ChangeRow | null;
+    if (change && decidable(change))
+      results.push(
+        await skipOne(
+          ctx,
+          userId,
+          proposal,
+          change,
+          now,
+          args.provision ?? true,
+        ),
+      );
   }
   await ctx.db.patch(proposal._id, { updated_at: now });
   const resolved = await resolveIfDone(ctx, proposal, now);
-  const skipped = (await changesOf(ctx, proposal._id)).filter((c) => inAsk.has(c.seq) && c.status === "skipped" && c.decided_at === now).length;
-  return { ask: args.ask, title: ask.title, proposal: proposal.short_id, results, resolved, remaining: 0, applied: 0, failed: 0, skipped };
+  const skipped = (await changesOf(ctx, proposal._id)).filter(
+    (c) => inAsk.has(c.seq) && c.status === "skipped" && c.decided_at === now,
+  ).length;
+  return {
+    ask: args.ask,
+    title: ask.title,
+    proposal: proposal.short_id,
+    results,
+    resolved,
+    remaining: 0,
+    applied: 0,
+    failed: 0,
+    skipped,
+  };
 }
 
 // ── Hires: a role's own permanent reports ───────────────────────────────────
@@ -695,10 +1377,17 @@ export async function performDecideAsk(ctx: Ctx & { runMutation?: (ref: any, arg
 
 /** Does this change hire a permanent report under `author`: a new role whose
  *  reports_to names the author by handle or short id. */
-export function isHireUnder(change: OrgChange, author: { handle: string; short_id?: string }): boolean {
-  if (change.kind !== "role" || typeof change.reports_to !== "string") return false;
+export function isHireUnder(
+  change: OrgChange,
+  author: { handle: string; short_id?: string },
+): boolean {
+  if (change.kind !== "role" || typeof change.reports_to !== "string")
+    return false;
   const to = change.reports_to.trim().toLowerCase();
-  return to === `@${author.handle.toLowerCase()}` || (!!author.short_id && to === author.short_id.toLowerCase());
+  return (
+    to === `@${author.handle.toLowerCase()}` ||
+    (!!author.short_id && to === author.short_id.toLowerCase())
+  );
 }
 
 /** The roles above `role`, nearest first, up to the first person. */
@@ -706,7 +1395,10 @@ export async function rolesAbove(ctx: Ctx, role: any): Promise<any[]> {
   const out: any[] = [];
   const seen = new Set([String(role._id)]);
   let at = role;
-  while (at?.reports_to?.kind === "role" && !seen.has(String(at.reports_to.role_id))) {
+  while (
+    at?.reports_to?.kind === "role" &&
+    !seen.has(String(at.reports_to.role_id))
+  ) {
     seen.add(String(at.reports_to.role_id));
     at = await ctx.db.get(at.reports_to.role_id);
     if (at) out.push(at);
@@ -717,12 +1409,18 @@ export async function rolesAbove(ctx: Ctx, role: any): Promise<any[]> {
 /** The hiring role of a proposal and its hires still waiting, or null when
  *  the proposal is not a role's hire: some waiting change is not a role
  *  under its author. */
-async function hireOf(ctx: Ctx, proposal: ProposalRow, rows: ChangeRow[]): Promise<{ author: any; hires: ChangeRow[] } | null> {
+async function hireOf(
+  ctx: Ctx,
+  proposal: ProposalRow,
+  rows: ChangeRow[],
+): Promise<{ author: any; hires: ChangeRow[] } | null> {
   if (proposal.author.kind !== "role") return null;
   const author: any = await ctx.db.get(proposal.author.id as Id<"org_roles">);
   if (!author || author.status === "retired") return null;
   const hires = rows.filter(decidable);
-  return hires.length && hires.every((c) => isHireUnder(c.change, author)) ? { author, hires } : null;
+  return hires.length && hires.every((c) => isHireUnder(c.change, author))
+    ? { author, hires }
+    : null;
 }
 
 /**
@@ -735,44 +1433,122 @@ async function hireOf(ctx: Ctx, proposal: ProposalRow, rows: ChangeRow[]): Promi
 export async function performDecideHire(
   ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
   userId: Id<"users">,
-  args: { proposal: string; verdict: "accept" | "skip"; from_session?: string; text?: string; provision?: boolean },
+  args: {
+    proposal: string;
+    verdict: "accept" | "skip";
+    from_session?: string;
+    text?: string;
+    provision?: boolean;
+  },
 ): Promise<any> {
-  if (!args.from_session) throw new Error("A hire is decided by a lead from its standing session, or by a person on the proposal's card");
-  const conversation = await resolveSessionConversation(ctx as any, userId, args.from_session);
+  if (!args.from_session)
+    throw new Error(
+      "A hire is decided by a lead from its standing session, or by a person on the proposal's card",
+    );
+  const conversation = await resolveSessionConversation(
+    ctx as any,
+    userId,
+    args.from_session,
+  );
   if (!conversation) throw new Error("Session not found");
   const actor = await resolveActor(ctx as any, userId, conversation);
-  if (actor.kind !== "role" || !actor.role) throw new Error("Only a role's standing session decides a hire; a person decides it on the proposal's card");
+  if (actor.kind !== "role" || !actor.role)
+    throw new Error(
+      "Only a role's standing session decides a hire; a person decides it on the proposal's card",
+    );
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is ${proposal.status}`);
+  if (proposal.status !== "open")
+    throw new Error(`${proposal.short_id} is ${proposal.status}`);
   const hire = await hireOf(ctx, proposal, await changesOf(ctx, proposal._id));
-  if (!hire) throw new Error(`${proposal.short_id} is not a hire: a lead decides only a proposal whose every waiting change is a new role under the role that posted it; a person decides the rest`);
+  if (!hire)
+    throw new Error(
+      `${proposal.short_id} is not a hire: a lead decides only a proposal whose every waiting change is a new role under the role that posted it; a person decides the rest`,
+    );
   const self = String(actor.role._id) === String(hire.author._id);
-  if (self ? !hire.author.hires_freely : !(await rolesAbove(ctx, hire.author)).some((r) => String(r._id) === String(actor.role!._id))) {
-    throw new Error(self
-      ? `@${hire.author.handle} does not bring its own hires online: a lead above it or the person at the top of its line decides ${proposal.short_id}`
-      : `@${actor.role.handle} is not above @${hire.author.handle}: its parent, a lead above that, or the person at the top of the line decides ${proposal.short_id}`);
+  if (
+    self
+      ? !hire.author.hires_freely
+      : !(await rolesAbove(ctx, hire.author)).some(
+          (r) => String(r._id) === String(actor.role!._id),
+        )
+  ) {
+    throw new Error(
+      self
+        ? `@${hire.author.handle} does not bring its own hires online: a lead above it or the person at the top of its line decides ${proposal.short_id}`
+        : `@${actor.role.handle} is not above @${hire.author.handle}: its parent, a lead above that, or the person at the top of the line decides ${proposal.short_id}`,
+    );
   }
   return decideHireAs(ctx, userId, proposal, hire, actor.role, args);
 }
 
-async function decideHireAs(ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> }, userId: Id<"users">, proposal: ProposalRow, hire: { author: any; hires: ChangeRow[] }, by: any, args: { verdict: "accept" | "skip"; text?: string; provision?: boolean }): Promise<any> {
+async function decideHireAs(
+  ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  hire: { author: any; hires: ChangeRow[] },
+  by: any,
+  args: { verdict: "accept" | "skip"; text?: string; provision?: boolean },
+): Promise<any> {
   const now = Date.now();
   const self = String(by._id) === String(hire.author._id);
-  const words = args.text?.trim() || (self ? `Brought online by @${by.handle}` : `${args.verdict === "accept" ? "Approved" : "Rejected"} by @${by.handle}`);
-  for (const row of hire.hires) await ctx.db.patch(row._id, { reply: { verdict: args.verdict === "accept" ? "approve" : "reject", text: words, at: now, by: userId } });
+  const words =
+    args.text?.trim() ||
+    (self
+      ? `Brought online by @${by.handle}`
+      : `${args.verdict === "accept" ? "Approved" : "Rejected"} by @${by.handle}`);
+  for (const row of hire.hires)
+    await ctx.db.patch(row._id, {
+      reply: {
+        verdict: args.verdict === "accept" ? "approve" : "reject",
+        text: words,
+        at: now,
+        by: userId,
+      },
+    });
   let out: any;
   if (args.verdict === "accept") {
-    out = await performAcceptAll(ctx, userId, { proposal: proposal.short_id, seqs: hire.hires.map((c) => c.seq), provision: args.provision, continuation: true, lead: true, log_head: { door: "proposal", gesture: "reply", key: `proposal:${proposal._id}:hire:${now}`, proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) } } });
+    out = await performAcceptAll(ctx, userId, {
+      proposal: proposal.short_id,
+      seqs: hire.hires.map((c) => c.seq),
+      provision: args.provision,
+      continuation: true,
+      lead: true,
+      log_head: {
+        door: "proposal",
+        gesture: "reply",
+        key: `proposal:${proposal._id}:hire:${now}`,
+        proposal: {
+          id: proposal._id,
+          short_id: proposal.short_id,
+          ...(proposal.title ? { title: proposal.title } : {}),
+        },
+      },
+    });
   } else {
     const results = [];
-    for (const row of hire.hires) results.push(await skipOne(ctx, userId, proposal, row, now, args.provision ?? true));
+    for (const row of hire.hires)
+      results.push(
+        await skipOne(ctx, userId, proposal, row, now, args.provision ?? true),
+      );
     await ctx.db.patch(proposal._id, { updated_at: now });
-    out = { proposal: proposal.short_id, results, resolved: await resolveIfDone(ctx, proposal, now), applied: 0, failed: 0, remaining: 0 };
+    out = {
+      proposal: proposal.short_id,
+      results,
+      resolved: await resolveIfDone(ctx, proposal, now),
+      applied: 0,
+      failed: 0,
+      remaining: 0,
+    };
   }
   if (!self) {
-    const lines = hire.hires.map((c) => `@${String((c.change as any).handle).replace(/^@/, "")}`).join(", ");
-    await tellRole(ctx, hire.author._id, { content: `${proposal.short_id}: @${by.handle} ${args.verdict === "accept" ? "approved" : "rejected"} your hire of ${lines}.${args.text?.trim() ? ` "${args.text.trim()}"` : ""}`, client_id: `hire-decided:${proposal._id}:${now}` });
+    const lines = hire.hires
+      .map((c) => `@${String((c.change as any).handle).replace(/^@/, "")}`)
+      .join(", ");
+    await tellRole(ctx, hire.author._id, {
+      content: `${proposal.short_id}: @${by.handle} ${args.verdict === "accept" ? "approved" : "rejected"} your hire of ${lines}.${args.text?.trim() ? ` "${args.text.trim()}"` : ""}`,
+      client_id: `hire-decided:${proposal._id}:${now}`,
+    });
   }
   return { ...out, decided_by: { role: by.handle, self } };
 }
@@ -784,18 +1560,27 @@ async function decideHireAs(ctx: Ctx & { runMutation?: (ref: any, args: any) => 
  * may approve sees it; a role that reports to a person posted it in its own
  * thread, which is already that person's card.
  */
-async function routeHire(ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> }, userId: Id<"users">, proposal: ProposalRow, conversation: any): Promise<{ routed_to?: string; applied?: boolean; remaining?: number }> {
+async function routeHire(
+  ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  conversation: any,
+): Promise<{ routed_to?: string; applied?: boolean; remaining?: number }> {
   const hire = await hireOf(ctx, proposal, await changesOf(ctx, proposal._id));
   if (!hire) return {};
   if (hire.author.hires_freely) {
     await ctx.db.patch(proposal._id, { applied_by_author: Date.now() });
-    const out = await decideHireAs(ctx, userId, proposal, hire, hire.author, { verdict: "accept" });
+    const out = await decideHireAs(ctx, userId, proposal, hire, hire.author, {
+      verdict: "accept",
+    });
     return { applied: true, remaining: out.remaining ?? 0 };
   }
   if (hire.author.reports_to?.kind !== "role") return {};
   const lead: any = await ctx.db.get(hire.author.reports_to.role_id);
   if (!lead || lead.status === "retired") return {};
-  const names = hire.hires.map((c) => `@${String((c.change as any).handle).replace(/^@/, "")}`).join(", ");
+  const names = hire.hires
+    .map((c) => `@${String((c.change as any).handle).replace(/^@/, "")}`)
+    .join(", ");
   const sent = await tellRole(ctx, lead._id, {
     content: `@${hire.author.handle} asks to hire ${names} as a permanent report.\n\n${proposal.short_id}\n\nYou lead @${hire.author.handle}, so you may decide it: \`cast org hire ${proposal.short_id} --approve\` or \`--reject\` with a word why. The person at the top of the line may decide it too.`,
     client_id: `hire-routed:${proposal._id}`,
@@ -806,16 +1591,45 @@ async function routeHire(ctx: Ctx & { runMutation?: (ref: any, args: any) => Pro
 
 /** Session filings (S43) from a role a person let start work on its own apply at once, each in the
  *  org log for the person to read and undo; any other author's filings wait on the card. */
-async function routeFilings(ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> }, userId: Id<"users">, proposal: ProposalRow): Promise<{ applied?: boolean; remaining?: number }> {
+async function routeFilings(
+  ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
+  userId: Id<"users">,
+  proposal: ProposalRow,
+): Promise<{ applied?: boolean; remaining?: number }> {
   if (proposal.author.kind !== "role") return {};
   const author: any = await ctx.db.get(proposal.author.id as Id<"org_roles">);
-  if (!author || author.status === "retired" || !roleStartsOnItsOwn(author)) return {};
+  if (!author || author.status === "retired" || !roleStartsOnItsOwn(author))
+    return {};
   const rows = (await changesOf(ctx, proposal._id)).filter(decidable);
-  if (!rows.length || !rows.every((c) => (ORG_SESSION_KINDS as readonly string[]).includes(c.change.kind))) return {};
+  if (
+    !rows.length ||
+    !rows.every((c) =>
+      (ORG_SESSION_KINDS as readonly string[]).includes(c.change.kind),
+    )
+  )
+    return {};
   const now = Date.now();
   await ctx.db.patch(proposal._id, { applied_by_author: now });
-  for (const row of rows) await ctx.db.patch(row._id, { reply: { verdict: "approve", at: now, by: userId } });
-  const out = await performAcceptAll(ctx, userId, { proposal: proposal.short_id, seqs: rows.map((c) => c.seq), continuation: true, lead: true, log_head: { door: "proposal", gesture: "accept_all", key: `proposal:${proposal._id}:filed:${now}`, proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) } } });
+  for (const row of rows)
+    await ctx.db.patch(row._id, {
+      reply: { verdict: "approve", at: now, by: userId },
+    });
+  const out = await performAcceptAll(ctx, userId, {
+    proposal: proposal.short_id,
+    seqs: rows.map((c) => c.seq),
+    continuation: true,
+    lead: true,
+    log_head: {
+      door: "proposal",
+      gesture: "accept_all",
+      key: `proposal:${proposal._id}:filed:${now}`,
+      proposal: {
+        id: proposal._id,
+        short_id: proposal.short_id,
+        ...(proposal.title ? { title: proposal.title } : {}),
+      },
+    },
+  });
   return { applied: true, remaining: out.remaining ?? 0 };
 }
 
@@ -844,16 +1658,43 @@ export function acceptAllChunk<T extends { change: OrgChange }>(all: T[]): T[] {
 
 /** The rest of an accept all, in its own transaction (see performAcceptAll). */
 export const acceptAllContinue = internalMutation({
-  args: { user_id: v.id("users"), proposal_id: v.id("org_proposals"), kinds: v.optional(v.array(v.string())), seqs: v.optional(v.array(v.number())), provision: v.boolean(), tried: v.array(v.string()), leave_sessions: v.optional(v.boolean()), log_head: v.optional(v.any()), lead: v.optional(v.boolean()) },
+  args: {
+    user_id: v.id("users"),
+    proposal_id: v.id("org_proposals"),
+    kinds: v.optional(v.array(v.string())),
+    seqs: v.optional(v.array(v.number())),
+    provision: v.boolean(),
+    tried: v.array(v.string()),
+    leave_sessions: v.optional(v.boolean()),
+    log_head: v.optional(v.any()),
+    lead: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<any> => {
     const proposal = await ctx.db.get(args.proposal_id);
     if (!proposal || proposal.status !== "open") return null;
-    return performAcceptAll(ctx as any, args.user_id, { proposal: proposal.short_id, kinds: args.kinds, seqs: args.seqs, provision: args.provision, tried: args.tried, continuation: true, leave_sessions: args.leave_sessions, log_head: args.log_head, lead: args.lead });
+    return performAcceptAll(ctx as any, args.user_id, {
+      proposal: proposal.short_id,
+      kinds: args.kinds,
+      seqs: args.seqs,
+      provision: args.provision,
+      tried: args.tried,
+      continuation: true,
+      leave_sessions: args.leave_sessions,
+      log_head: args.log_head,
+      lead: args.lead,
+    });
   },
 });
 
 /** The harness's stand-in for acceptOneInTransaction (no runMutation there). */
-export const acceptOneForTest = (ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, change: ChangeRow, now: number, provision: boolean) => acceptOne(ctx, userId, proposal, change, undefined, now, provision);
+export const acceptOneForTest = (
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  change: ChangeRow,
+  now: number,
+  provision: boolean,
+) => acceptOne(ctx, userId, proposal, change, undefined, now, provision);
 
 /** A failure note stored before notes were cleaned at the source: the
  *  runtime's "Uncaught Error:" lead, the change prefix acceptOne added
@@ -867,7 +1708,9 @@ export function cleanFailedNote(note: string): string {
 export const cleanFailedNotes = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("org_proposal_changes").paginate({ cursor: args.cursor ?? null, numItems: 500 });
+    const page = await ctx.db
+      .query("org_proposal_changes")
+      .paginate({ cursor: args.cursor ?? null, numItems: 500 });
     let cleaned = 0;
     for (const row of page.page) {
       if (row.status !== "failed" || !row.applied_note) continue;
@@ -886,15 +1729,22 @@ export const cleanFailedNotes = internalMutation({
 export const backfillAppliedByAuthor = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("org_proposal_changes").paginate({ cursor: args.cursor ?? null, numItems: 500 });
+    const page = await ctx.db
+      .query("org_proposal_changes")
+      .paginate({ cursor: args.cursor ?? null, numItems: 500 });
     let fixed = 0;
     for (const row of page.page) {
       const reply = (row as any).reply;
-      if (!reply?.text || !/^Filed by @\S+, which starts work on its own$/.test(reply.text)) continue;
+      if (
+        !reply?.text ||
+        !/^Filed by @\S+, which starts work on its own$/.test(reply.text)
+      )
+        continue;
       const { text: _drop, ...rest } = reply;
       await ctx.db.patch(row._id, { reply: rest });
       const proposal = await ctx.db.get(row.proposal_id);
-      if (proposal && !proposal.applied_by_author) await ctx.db.patch(proposal._id, { applied_by_author: reply.at });
+      if (proposal && !proposal.applied_by_author)
+        await ctx.db.patch(proposal._id, { applied_by_author: reply.at });
       fixed++;
     }
     return { fixed, cursor: page.isDone ? null : page.continueCursor };
@@ -903,17 +1753,37 @@ export const backfillAppliedByAuthor = internalMutation({
 
 /** One change of an accept all, as its own transaction (see performAcceptAll). */
 export const acceptOneInTransaction = internalMutation({
-  args: { user_id: v.id("users"), proposal_id: v.id("org_proposals"), change_id: v.id("org_proposal_changes"), now: v.number(), provision: v.boolean(), leave_sessions: v.optional(v.boolean()), log_head: v.optional(v.any()) },
+  args: {
+    user_id: v.id("users"),
+    proposal_id: v.id("org_proposals"),
+    change_id: v.id("org_proposal_changes"),
+    now: v.number(),
+    provision: v.boolean(),
+    leave_sessions: v.optional(v.boolean()),
+    log_head: v.optional(v.any()),
+  },
   handler: async (ctx, args) => {
     const proposal = await ctx.db.get(args.proposal_id);
     const change = await ctx.db.get(args.change_id);
     if (!proposal || !change) throw new Error("Change not found");
     if (args.log_head) openOrgBatch(ctx, args.log_head);
-    return acceptOne(ctx as any, args.user_id, proposal, change, args.leave_sessions ? { leave_sessions: true } : undefined, args.now, args.provision);
+    return acceptOne(
+      ctx as any,
+      args.user_id,
+      proposal,
+      change,
+      args.leave_sessions ? { leave_sessions: true } : undefined,
+      args.now,
+      args.provision,
+    );
   },
 });
 
-export async function performWithdrawProposal(ctx: Ctx, userId: Id<"users">, args: { proposal: string; from_session?: string }): Promise<any> {
+export async function performWithdrawProposal(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: { proposal: string; from_session?: string },
+): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
   // A session may withdraw only the proposal it posted itself (the head of
@@ -921,14 +1791,28 @@ export async function performWithdrawProposal(ctx: Ctx, userId: Id<"users">, arg
   // else on the org page or at a plain shell. With no session, the author's
   // account or an admin of the boundary may withdraw.
   if (args.from_session) {
-    if (!(await callerIsAuthor(ctx, userId, proposal, args.from_session))) throw new Error(`A session may withdraw only the proposal it posted; a person decides or withdraws ${proposal.short_id} on the org page or at a plain shell`);
+    if (!(await callerIsAuthor(ctx, userId, proposal, args.from_session)))
+      throw new Error(
+        `A session may withdraw only the proposal it posted; a person decides or withdraws ${proposal.short_id} on the org page or at a plain shell`,
+      );
   } else {
     const isAuthor = String(proposal.created_by) === String(userId);
-    if (!isAuthor && !(await userCanAdminRole(ctx, userId, hostShape(proposal)))) throw new Error(`Only ${proposal.short_id}'s author or a team admin can withdraw it`);
+    if (
+      !isAuthor &&
+      !(await userCanAdminRole(ctx, userId, hostShape(proposal)))
+    )
+      throw new Error(
+        `Only ${proposal.short_id}'s author or a team admin can withdraw it`,
+      );
   }
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is already ${proposal.status}`);
+  if (proposal.status !== "open")
+    throw new Error(`${proposal.short_id} is already ${proposal.status}`);
   const now = Date.now();
-  await ctx.db.patch(proposal._id, { status: "withdrawn", resolved_at: now, updated_at: now });
+  await ctx.db.patch(proposal._id, {
+    status: "withdrawn",
+    resolved_at: now,
+    updated_at: now,
+  });
   await clearDecision(ctx, proposal, now);
   return { proposal: proposal.short_id, status: "withdrawn" };
 }
@@ -939,14 +1823,32 @@ export async function performWithdrawProposal(ctx: Ctx, userId: Id<"users">, arg
  * a standing session resolves to IS the role). With no session: the person
  * who posted a person's proposal. Withdraw and revise share this one reading.
  */
-export async function callerIsAuthor(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, fromSession: string | undefined): Promise<boolean> {
-  if (!fromSession) return proposal.author.kind === "user" && proposal.author.id === String(userId);
-  const conversation = await resolveSessionConversation(ctx as any, userId, fromSession);
+export async function callerIsAuthor(
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  fromSession: string | undefined,
+): Promise<boolean> {
+  if (!fromSession)
+    return (
+      proposal.author.kind === "user" && proposal.author.id === String(userId)
+    );
+  const conversation = await resolveSessionConversation(
+    ctx as any,
+    userId,
+    fromSession,
+  );
   if (!conversation) throw new Error("Session not found");
   const actor = await resolveActor(ctx as any, userId, conversation);
-  return proposal.author.kind === "session" ? proposal.author.id === String(conversation._id)
-    : proposal.author.kind === "role" ? !!(actor.kind === "role" && actor.role && proposal.author.id === String(actor.role._id))
-    : false;
+  return proposal.author.kind === "session"
+    ? proposal.author.id === String(conversation._id)
+    : proposal.author.kind === "role"
+      ? !!(
+          actor.kind === "role" &&
+          actor.role &&
+          proposal.author.id === String(actor.role._id)
+        )
+      : false;
 }
 
 // ── Revise (S18) ────────────────────────────────────────────────────────────
@@ -964,14 +1866,33 @@ export async function callerIsAuthor(ctx: Ctx, userId: Id<"users">, proposal: Pr
  * that leaves nothing to decide settles the proposal (resolveIfDone), or
  * it would sit open on a card that says "Nothing to decide".
  */
-export async function performReviseProposal(ctx: Ctx, userId: Id<"users">, args: { proposal: string; ops: unknown; from_session?: string }): Promise<any> {
+export async function performReviseProposal(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: { proposal: string; ops: unknown; from_session?: string },
+): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
-  if (!(await callerIsAuthor(ctx, userId, proposal, args.from_session))) throw new Error(`Only ${proposal.short_id}'s author may revise it: the session that posted it, or the standing session of the role that posted it`);
-  if (proposal.status !== "open") throw new Error(`${proposal.short_id} is ${proposal.status}; only an open proposal can be revised`);
-  if (!Array.isArray(args.ops) || !args.ops.length) throw new Error('ops is a non-empty list of { op: "remove" | "amend", seq } or { op: "add", change }');
-  const faults = args.ops.map((o, i) => { const f = orgReviseOpError(o); return f ? `ops[${i}]: ${f}` : null; }).filter(Boolean);
-  if (faults.length) throw new Error(`The revise ops are not valid:\n- ${faults.join("\n- ")}`);
+  if (!(await callerIsAuthor(ctx, userId, proposal, args.from_session)))
+    throw new Error(
+      `Only ${proposal.short_id}'s author may revise it: the session that posted it, or the standing session of the role that posted it`,
+    );
+  if (proposal.status !== "open")
+    throw new Error(
+      `${proposal.short_id} is ${proposal.status}; only an open proposal can be revised`,
+    );
+  if (!Array.isArray(args.ops) || !args.ops.length)
+    throw new Error(
+      'ops is a non-empty list of { op: "remove" | "amend", seq } or { op: "add", change }',
+    );
+  const faults = args.ops
+    .map((o, i) => {
+      const f = orgReviseOpError(o);
+      return f ? `ops[${i}]: ${f}` : null;
+    })
+    .filter(Boolean);
+  if (faults.length)
+    throw new Error(`The revise ops are not valid:\n- ${faults.join("\n- ")}`);
   const ops = args.ops as OrgReviseOp[];
 
   const rows = await changesOf(ctx, proposal._id);
@@ -988,21 +1909,35 @@ export async function performReviseProposal(ctx: Ctx, userId: Id<"users">, args:
   // decided row no longer holds its subject: after "trust @growth decide" was
   // skipped, the author may ask again with "trust @growth direct".
   const keys = new Map<string, number>();
-  for (const c of rows) if (c.status === "proposed") { const k = orgChangeKey(c.change); if (k) keys.set(k, c.seq); }
-  const release = (change: OrgChange, seq: number) => { const k = orgChangeKey(change); if (k && keys.get(k) === seq) keys.delete(k); };
+  for (const c of rows)
+    if (c.status === "proposed") {
+      const k = orgChangeKey(c.change);
+      if (k) keys.set(k, c.seq);
+    }
+  const release = (change: OrgChange, seq: number) => {
+    const k = orgChangeKey(change);
+    if (k && keys.get(k) === seq) keys.delete(k);
+  };
   const claim = (change: OrgChange, seq: number, verb: string) => {
     const k = orgChangeKey(change);
     if (!k) return;
     const other = keys.get(k);
-    if (other !== undefined && other !== seq) throw new Error(`${verb}: ${describeOrgChange(change)} repeats #${other}: one change per subject`);
+    if (other !== undefined && other !== seq)
+      throw new Error(
+        `${verb}: ${describeOrgChange(change)} repeats #${other}: one change per subject`,
+      );
     keys.set(k, seq);
   };
   // A failed change is the author's to fix too: the person approved it and
   // the org's rules refused it as written, so only a revise can make it apply.
   const undecided = (seq: number, verb: string): ChangeRow => {
     const c = bySeq.get(seq);
-    if (!c) throw new Error(`${verb}: ${proposal.short_id}#${seq} does not exist`);
-    if (c.status !== "proposed" && c.status !== "failed") throw new Error(`${verb}: ${proposal.short_id}#${seq} (${describeOrgChange(c.change)}) is already ${c.status}; a revise never touches a change a person decided`);
+    if (!c)
+      throw new Error(`${verb}: ${proposal.short_id}#${seq} does not exist`);
+    if (c.status !== "proposed" && c.status !== "failed")
+      throw new Error(
+        `${verb}: ${proposal.short_id}#${seq} (${describeOrgChange(c.change)}) is already ${c.status}; a revise never touches a change a person decided`,
+      );
     return c;
   };
   let nextSeq = rows.reduce((m, c) => Math.max(m, c.seq), 0) + 1;
@@ -1013,7 +1948,10 @@ export async function performReviseProposal(ctx: Ctx, userId: Id<"users">, args:
       // An answer is words, not a revision: it changes nothing the person
       // decides on, so it goes on any change still on the proposal.
       const c = bySeq.get(op.seq);
-      if (!c || c.status === "removed") throw new Error(`answer: ${proposal.short_id}#${op.seq} does not exist`);
+      if (!c || c.status === "removed")
+        throw new Error(
+          `answer: ${proposal.short_id}#${op.seq} does not exist`,
+        );
       const answer = { text: op.text.trim(), at: now };
       answered.push(c.seq);
       writes.push(() => ctx.db.patch(c._id, { answer }));
@@ -1021,53 +1959,134 @@ export async function performReviseProposal(ctx: Ctx, userId: Id<"users">, args:
       const c = undecided(op.seq, "remove");
       release(c.change, c.seq);
       const line = describeOrgChange(c.change);
-      const revision: OrgChangeRevision = { kind: "removed", note: op.note ?? "removed", at: now };
+      const revision: OrgChangeRevision = {
+        kind: "removed",
+        note: op.note ?? "removed",
+        at: now,
+      };
       bySeq.set(c.seq, { ...c, status: "removed", revision });
-      journal.push({ op: "removed", seq: c.seq, at: now, by, line, ...(op.note ? { note: op.note } : {}) });
+      journal.push({
+        op: "removed",
+        seq: c.seq,
+        at: now,
+        by,
+        line,
+        ...(op.note ? { note: op.note } : {}),
+      });
       writes.push(() => ctx.db.patch(c._id, { status: "removed", revision }));
     } else if (op.op === "amend") {
       const c = undecided(op.seq, "amend");
-      const merged = await checkedRecordChange(ctx, editedChange(c.change, op.edits), boundaryOf(proposal));
+      const merged = await checkedRecordChange(
+        ctx,
+        editedChange(c.change, op.edits),
+        boundaryOf(proposal),
+      );
       release(c.change, c.seq);
       claim(merged, c.seq, "amend");
       const was = describeOrgChange(c.change);
       const line = describeOrgChange(merged);
-      const revision: OrgChangeRevision = { kind: "amended", note: op.note ?? (line === was ? "rationale rewritten" : `was: ${was}`), at: now, before: c.revision?.before ?? c.change };
+      const revision: OrgChangeRevision = {
+        kind: "amended",
+        note: op.note ?? (line === was ? "rationale rewritten" : `was: ${was}`),
+        at: now,
+        before: c.revision?.before ?? c.change,
+      };
       // An amended failed change is a new change to decide: its refusal was about the old one.
-      const reopen = c.status === "failed" ? { status: "proposed" as const, applied_note: undefined, applied_at: undefined, decided_by: undefined, decided_at: undefined } : {};
-      const patch = { change: merged, revision, ...(op.rationale ? { rationale: op.rationale } : {}), ...reopen };
+      const reopen =
+        c.status === "failed"
+          ? {
+              status: "proposed" as const,
+              applied_note: undefined,
+              applied_at: undefined,
+              decided_by: undefined,
+              decided_at: undefined,
+            }
+          : {};
+      const patch = {
+        change: merged,
+        revision,
+        ...(op.rationale ? { rationale: op.rationale } : {}),
+        ...reopen,
+      };
       bySeq.set(c.seq, { ...c, ...patch });
-      journal.push({ op: "amended", seq: c.seq, at: now, by, line, was, ...(op.note ? { note: op.note } : {}) });
+      journal.push({
+        op: "amended",
+        seq: c.seq,
+        at: now,
+        by,
+        line,
+        was,
+        ...(op.note ? { note: op.note } : {}),
+      });
       writes.push(() => ctx.db.patch(c._id, patch));
     } else {
       const added = normalizeOrgSpecChange(op.change);
-      added.change = await checkedRecordChange(ctx, added.change, boundaryOf(proposal));
+      added.change = await checkedRecordChange(
+        ctx,
+        added.change,
+        boundaryOf(proposal),
+      );
       const seq = nextSeq++;
       claim(added.change, seq, "add");
       const line = describeOrgChange(added.change);
-      const revision: OrgChangeRevision = { kind: "added", note: op.note ?? "added", at: now };
-      const row = { proposal_id: proposal._id, seq, change: added.change, rationale: added.rationale, evidence: added.evidence ?? [], expected_effect: added.expected_effect, risk: added.risk, status: "proposed", revision };
+      const revision: OrgChangeRevision = {
+        kind: "added",
+        note: op.note ?? "added",
+        at: now,
+      };
+      const row = {
+        proposal_id: proposal._id,
+        seq,
+        change: added.change,
+        rationale: added.rationale,
+        evidence: added.evidence ?? [],
+        expected_effect: added.expected_effect,
+        risk: added.risk,
+        status: "proposed",
+        revision,
+      };
       bySeq.set(seq, row);
-      journal.push({ op: "added", seq, at: now, by, line, ...(op.note ? { note: op.note } : {}) });
+      journal.push({
+        op: "added",
+        seq,
+        at: now,
+        by,
+        line,
+        ...(op.note ? { note: op.note } : {}),
+      });
       writes.push(() => ctx.db.insert("org_proposal_changes", row));
     }
   }
   for (const w of writes) await w();
-  await ctx.db.patch(proposal._id, { revisions: [...(proposal.revisions ?? []), ...journal], updated_at: now });
+  await ctx.db.patch(proposal._id, {
+    revisions: [...(proposal.revisions ?? []), ...journal],
+    updated_at: now,
+  });
   await resolveIfDone(ctx, proposal, now);
   const after = await changesOf(ctx, proposal._id);
-  const depends = orgChangeDependencies(after.filter((c) => c.status !== "removed").map((c) => ({ seq: c.seq, change: c.change })));
+  const depends = orgChangeDependencies(
+    after
+      .filter((c) => c.status !== "removed")
+      .map((c) => ({ seq: c.seq, change: c.change })),
+  );
   return {
     proposal: proposal.short_id,
     status: (await ctx.db.get(proposal._id))!.status,
     revisions: journal,
     ...(answered.length ? { answered } : {}),
-    changes: after.map((c) => ({ id: c._id, seq: c.seq, change: c.change, status: c.status, revision: c.revision, line: describeOrgChange(c.change), depends: depends[c.seq] })),
+    changes: after.map((c) => ({
+      id: c._id,
+      seq: c.seq,
+      change: c.change,
+      status: c.status,
+      revision: c.revision,
+      line: describeOrgChange(c.change),
+      depends: depends[c.seq],
+    })),
     counts: countsOf(after),
     link: PROPOSAL_LINK(proposal.short_id),
   };
 }
-
 
 // ── The thread (S18) ────────────────────────────────────────────────────────
 
@@ -1081,9 +2100,20 @@ export const PROPOSAL_MESSAGE_TAG = "proposal-message";
  * same way. The inner text starts with the shared "About op-N change 3"
  * header when a change is named, which the pane parses back.
  */
-export function formatProposalMessage(o: { short_id: string; title: string; change: { seq: number; line: string } | null; ask?: { index: number; title: string } | null; from: string; body: string }): string {
+export function formatProposalMessage(o: {
+  short_id: string;
+  title: string;
+  change: { seq: number; line: string } | null;
+  ask?: { index: number; title: string } | null;
+  from: string;
+  body: string;
+}): string {
   const q = (x: string) => x.replace(/"/g, "'");
-  const inner = o.change ? withAboutChange(o.body, o.short_id, o.change.seq, o.change.line) : o.ask ? withAboutAsk(o.body, o.short_id, o.ask.index, o.ask.title) : `About ${o.short_id} ("${q(o.title)}"):\n\n${o.body}`;
+  const inner = o.change
+    ? withAboutChange(o.body, o.short_id, o.change.seq, o.change.line)
+    : o.ask
+      ? withAboutAsk(o.body, o.short_id, o.ask.index, o.ask.title)
+      : `About ${o.short_id} ("${q(o.title)}"):\n\n${o.body}`;
   const tail = `(Reply here; the org page shows this thread beside ${o.short_id}. To change the proposal run \`cast org revise ${o.short_id} --remove <n>\`, \`--amend <n> --edits '{...}'\` or \`--add change.json\`; to answer a question on a change so its card shows it, \`--answer <n> --text "..."\`. Applying stays the person's.)`;
   const attrs = `proposal="${o.short_id}"${o.change ? ` change="${o.change.seq}"` : ""}${o.ask ? ` ask="${o.ask.index}"` : ""} from="${q(o.from)}"`;
   return `<${PROPOSAL_MESSAGE_TAG} ${attrs}>\n${inner}\n\n${tail}\n</${PROPOSAL_MESSAGE_TAG}>`;
@@ -1097,29 +2127,59 @@ export function formatProposalMessage(o: { short_id: string; title: string; chan
  * when the proposal has no thread (a person posted it), when the caller
  * cannot send into that thread, or when the change does not exist.
  */
-export async function performSayInThread(ctx: Ctx, userId: Id<"users">, args: { proposal: string; change?: number; ask?: number; body: string; client_id?: string }): Promise<any> {
+export async function performSayInThread(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: {
+    proposal: string;
+    change?: number;
+    ask?: number;
+    body: string;
+    client_id?: string;
+  },
+): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
-  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal)))) throw new Error(`Proposal not found: ${args.proposal}`);
+  if (!proposal || !(await userCanAccessRole(ctx, userId, hostShape(proposal))))
+    throw new Error(`Proposal not found: ${args.proposal}`);
   const body = (args.body ?? "").trim();
   if (!body) throw new Error("Message body is empty");
   const thread = await threadOf(ctx, proposal);
-  if (!thread) throw new Error(`${proposal.short_id} was posted by a person, so there is no agent to talk to about it`);
+  if (!thread)
+    throw new Error(
+      `${proposal.short_id} was posted by a person, so there is no agent to talk to about it`,
+    );
   let change: { seq: number; line: string } | null = null;
   if (args.change !== undefined) {
-    const row = (await changesOf(ctx, proposal._id)).find((c) => c.seq === args.change);
-    if (!row) throw new Error(`${proposal.short_id}#${args.change} does not exist`);
+    const row = (await changesOf(ctx, proposal._id)).find(
+      (c) => c.seq === args.change,
+    );
+    if (!row)
+      throw new Error(`${proposal.short_id}#${args.change} does not exist`);
     change = { seq: row.seq, line: describeOrgChange(row.change) };
   }
   // A reply from an ask's card (S19) names the ask, by the index decideAsk
   // takes, resolved the way the reads resolve it.
   let ask: { index: number; title: string } | null = null;
   if (args.ask !== undefined) {
-    const found = resolveOrgAsks(proposal.asks, await changesOf(ctx, proposal._id))[args.ask];
+    const found = resolveOrgAsks(
+      proposal.asks,
+      await changesOf(ctx, proposal._id),
+    )[args.ask];
     if (!found) throw new Error(`${proposal.short_id} has no ask ${args.ask}`);
     ask = { index: args.ask, title: found.title };
   }
-  const sent = await sendIntoThread(ctx, userId, proposal, thread, { change, ask, body, client_id: args.client_id });
-  return { ...sent, proposal: proposal.short_id, change: change?.seq, ask: ask?.index };
+  const sent = await sendIntoThread(ctx, userId, proposal, thread, {
+    change,
+    ask,
+    body,
+    client_id: args.client_id,
+  });
+  return {
+    ...sent,
+    proposal: proposal.short_id,
+    change: change?.seq,
+    ask: ask?.index,
+  };
 }
 
 /**
@@ -1129,16 +2189,48 @@ export async function performSayInThread(ctx: Ctx, userId: Id<"users">, args: { 
  * words left from. The caller has resolved the thread and decided what a
  * missing one means (say refuses; a reply applies and sends nothing).
  */
-async function sendIntoThread(ctx: Ctx, userId: Id<"users">, proposal: ProposalRow, thread: any, o: { change: { seq: number; line: string } | null; ask: { index: number; title: string } | null; body: string; client_id?: string }): Promise<{ message_id: Id<"pending_messages">; thread: { conversation_id: string; short_id?: string; title?: string } }> {
-  if (!(await canSendProductMessage(ctx, userId, thread))) throw new Error(`You cannot send into the thread of ${proposal.short_id} (${thread.short_id ?? String(thread._id)})`);
-  const from = (await resolveActor(ctx as any, userId, null)).name ?? "A person";
-  const content = formatProposalMessage({ short_id: proposal.short_id, title: proposal.title, change: o.change, ask: o.ask, from, body: o.body });
+async function sendIntoThread(
+  ctx: Ctx,
+  userId: Id<"users">,
+  proposal: ProposalRow,
+  thread: any,
+  o: {
+    change: { seq: number; line: string } | null;
+    ask: { index: number; title: string } | null;
+    body: string;
+    client_id?: string;
+  },
+): Promise<{
+  message_id: Id<"pending_messages">;
+  thread: { conversation_id: string; short_id?: string; title?: string };
+}> {
+  if (!(await canSendProductMessage(ctx, userId, thread)))
+    throw new Error(
+      `You cannot send into the thread of ${proposal.short_id} (${thread.short_id ?? String(thread._id)})`,
+    );
+  const from =
+    (await resolveActor(ctx as any, userId, null)).name ?? "A person";
+  const content = formatProposalMessage({
+    short_id: proposal.short_id,
+    title: proposal.title,
+    change: o.change,
+    ask: o.ask,
+    from,
+    body: o.body,
+  });
   const message_id = await enqueuePendingMessage(ctx, thread, userId, {
     content,
     client_id: o.client_id ?? `proposal-message:${proposal._id}:${Date.now()}`,
     human: true,
   });
-  return { message_id, thread: { conversation_id: String(thread._id), short_id: thread.short_id ?? undefined, title: thread.title ?? undefined } };
+  return {
+    message_id,
+    thread: {
+      conversation_id: String(thread._id),
+      short_id: thread.short_id ?? undefined,
+      title: thread.title ?? undefined,
+    },
+  };
 }
 
 // ── Reply (S39): a card answers the agent ───────────────────────────────────
@@ -1149,15 +2241,37 @@ async function sendIntoThread(ctx: Ctx, userId: Id<"users">, proposal: ProposalR
  *  limit beside a trust change) and carried task rows included, which have
  *  no place in the words. The verdict acts on the union of both. `seqs`
  *  empty with no `change_ids` is a note on the whole proposal. */
-export type OrgReplyArg = { verdict: OrgReplyVerdict; seqs: number[]; change_ids?: string[]; text?: string };
+export type OrgReplyArg = {
+  verdict: OrgReplyVerdict;
+  seqs: number[];
+  change_ids?: string[];
+  text?: string;
+};
 
 /** Every change the answers name already stands as they decide it: an approval applied (or tried), a rejection skipped. A note decides nothing, so it never counts as answered. */
-export function alreadyAnswered(rows: ChangeRow[], items: OrgReplyArg[]): boolean {
-  const done = { approve: ["accepted", "applied", "failed"], reject: ["skipped"] } as Record<string, string[]>;
-  return items.length > 0 && items.every((item) => {
-    const named = rows.filter((c) => item.seqs.includes(c.seq) || (item.change_ids ?? []).includes(String(c._id)));
-    return !!done[item.verdict] && named.length > 0 && named.every((c) => done[item.verdict].includes(c.status));
-  });
+export function alreadyAnswered(
+  rows: ChangeRow[],
+  items: OrgReplyArg[],
+): boolean {
+  const done = {
+    approve: ["accepted", "applied", "failed"],
+    reject: ["skipped"],
+  } as Record<string, string[]>;
+  return (
+    items.length > 0 &&
+    items.every((item) => {
+      const named = rows.filter(
+        (c) =>
+          item.seqs.includes(c.seq) ||
+          (item.change_ids ?? []).includes(String(c._id)),
+      );
+      return (
+        !!done[item.verdict] &&
+        named.length > 0 &&
+        named.every((c) => done[item.verdict].includes(c.status))
+      );
+    })
+  );
 }
 
 /**
@@ -1178,7 +2292,16 @@ export function alreadyAnswered(rows: ChangeRow[], items: OrgReplyArg[]): boolea
 export async function performReply(
   ctx: Ctx & { runMutation?: (ref: any, args: any) => Promise<any> },
   userId: Id<"users">,
-  args: { proposal: string; items: OrgReplyArg[]; seen?: OrgVerdictSeen; say?: { body?: string; client_id?: string }; leave_sessions?: boolean; from_session?: string; api_token?: string; provision?: boolean },
+  args: {
+    proposal: string;
+    items: OrgReplyArg[];
+    seen?: OrgVerdictSeen;
+    say?: { body?: string; client_id?: string };
+    leave_sessions?: boolean;
+    from_session?: string;
+    api_token?: string;
+    provision?: boolean;
+  },
 ): Promise<any> {
   const proposal = await findProposal(ctx, args.proposal);
   if (!proposal) throw new Error(`Proposal not found: ${args.proposal}`);
@@ -1187,7 +2310,17 @@ export async function performReply(
     // The same answers arriving again (a window's outbox replaying a reply
     // whose first delivery closed the proposal) ask for what already
     // happened: delivered, not refused, so the client keeps what it shows.
-    if (alreadyAnswered(await changesOf(ctx, proposal._id), args.items ?? [])) return { proposal: proposal.short_id, results: [], applied: 0, failed: 0, skipped: 0, noted: 0, remaining: 0, resolved: true };
+    if (alreadyAnswered(await changesOf(ctx, proposal._id), args.items ?? []))
+      return {
+        proposal: proposal.short_id,
+        results: [],
+        applied: 0,
+        failed: 0,
+        skipped: 0,
+        noted: 0,
+        remaining: 0,
+        resolved: true,
+      };
     throw new Error(`${proposal.short_id} is ${proposal.status}`);
   }
   const rows = await changesOf(ctx, proposal._id);
@@ -1201,21 +2334,38 @@ export async function performReply(
   const named = new Set<string>();
   const rowsOf: ChangeRow[][] = [];
   for (const [i, item] of (args.items ?? []).entries()) {
-    if (item.verdict !== "approve" && item.verdict !== "reject" && item.verdict !== "note") throw new Error(`items[${i}]: verdict is one of approve, reject, note`);
+    if (
+      item.verdict !== "approve" &&
+      item.verdict !== "reject" &&
+      item.verdict !== "note"
+    )
+      throw new Error(`items[${i}]: verdict is one of approve, reject, note`);
     const mine = new Map<string, ChangeRow>();
     for (const seq of item.seqs) {
       const row = bySeq.get(seq);
-      if (!row || row.status === "removed") throw new Error(`items[${i}]: ${proposal.short_id}#${seq} does not exist`);
+      if (!row || row.status === "removed")
+        throw new Error(
+          `items[${i}]: ${proposal.short_id}#${seq} does not exist`,
+        );
       mine.set(String(row._id), row);
     }
     for (const id of item.change_ids ?? []) {
       const row = byId.get(id);
-      if (!row || row.status === "removed") throw new Error(`items[${i}]: change ${id} is not in ${proposal.short_id}`);
+      if (!row || row.status === "removed")
+        throw new Error(
+          `items[${i}]: change ${id} is not in ${proposal.short_id}`,
+        );
       mine.set(id, row);
     }
-    if (!mine.size && item.verdict !== "note") throw new Error(`items[${i}]: an answer with no changes is a note on the whole proposal; ${item.verdict} names its changes`);
+    if (!mine.size && item.verdict !== "note")
+      throw new Error(
+        `items[${i}]: an answer with no changes is a note on the whole proposal; ${item.verdict} names its changes`,
+      );
     for (const [id, row] of mine) {
-      if (named.has(id)) throw new Error(`items[${i}]: ${proposal.short_id}#${row.seq} is answered twice`);
+      if (named.has(id))
+        throw new Error(
+          `items[${i}]: ${proposal.short_id}#${row.seq} is answered twice`,
+        );
       named.add(id);
     }
     rowsOf.push([...mine.values()].sort((a, b) => a.seq - b.seq));
@@ -1223,7 +2373,12 @@ export async function performReply(
 
   const now = Date.now();
   const provision = args.provision ?? true;
-  const stamp = (text: string | undefined, verdict: OrgReplyVerdict) => ({ verdict, ...(text?.trim() ? { text: text.trim() } : {}), at: now, by: userId });
+  const stamp = (text: string | undefined, verdict: OrgReplyVerdict) => ({
+    verdict,
+    ...(text?.trim() ? { text: text.trim() } : {}),
+    at: now,
+    by: userId,
+  });
   const results: any[] = [];
   let noted = 0;
   const approved: number[] = [];
@@ -1250,14 +2405,34 @@ export async function performReply(
         await ctx.db.patch(row._id, { reply: stamp(item.text, "reject") });
         results.push(await skipOne(ctx, userId, proposal, row, now, provision));
       } else {
-        if (item.text?.trim()) await ctx.db.patch(row._id, { reply: stamp(item.text, "approve") });
+        if (item.text?.trim())
+          await ctx.db.patch(row._id, { reply: stamp(item.text, "approve") });
         approved.push(seq);
       }
     }
   }
-  let applied = 0, failed = 0, remaining = 0, resolved = false;
+  let applied = 0,
+    failed = 0,
+    remaining = 0,
+    resolved = false;
   if (approved.length) {
-    const out = await performAcceptAll(ctx, userId, { proposal: proposal.short_id, seqs: approved, provision, continuation: true, leave_sessions: args.leave_sessions, log_head: { door: "proposal", gesture: "reply", key: `proposal:${proposal._id}:reply:${now}`, proposal: { id: proposal._id, short_id: proposal.short_id, ...(proposal.title ? { title: proposal.title } : {}) } } });
+    const out = await performAcceptAll(ctx, userId, {
+      proposal: proposal.short_id,
+      seqs: approved,
+      provision,
+      continuation: true,
+      leave_sessions: args.leave_sessions,
+      log_head: {
+        door: "proposal",
+        gesture: "reply",
+        key: `proposal:${proposal._id}:reply:${now}`,
+        proposal: {
+          id: proposal._id,
+          short_id: proposal.short_id,
+          ...(proposal.title ? { title: proposal.title } : {}),
+        },
+      },
+    });
     results.push(...out.results);
     ({ applied, failed, remaining, resolved } = out);
   } else {
@@ -1278,25 +2453,66 @@ export async function performReply(
     told = false;
     const thread = await threadOf(ctx, proposal);
     const body = (args.say.body ?? "").trim();
-    const items: OrgReplyItem[] = (args.items ?? []).map((item) => ({ verdict: item.verdict, seqs: item.seqs, ...(item.text?.trim() ? { text: item.text.trim() } : {}), line: andList(item.seqs.map((seq) => changeSentence(bySeq.get(seq).change, { brief: true }))) }));
+    const items: OrgReplyItem[] = (args.items ?? []).map((item) => ({
+      verdict: item.verdict,
+      seqs: item.seqs,
+      ...(item.text?.trim() ? { text: item.text.trim() } : {}),
+      line: andList(
+        item.seqs.map((seq) =>
+          changeSentence(bySeq.get(seq).change, { brief: true }),
+        ),
+      ),
+    }));
     if (body) items.push({ verdict: "note", seqs: [], text: body, line: "" });
     // "and applied" only when every approval landed in this call: a chunked
     // reply's continuation and a failed row are read on the rows.
-    const reply: OrgProposalReply = { proposal: proposal.short_id, title: proposal.title, items, applied: remaining === 0 && failed === 0 };
+    const reply: OrgProposalReply = {
+      proposal: proposal.short_id,
+      title: proposal.title,
+      items,
+      applied: remaining === 0 && failed === 0,
+    };
     const text = proposalReplyText(reply);
     if (thread && text && (await canSendProductMessage(ctx, userId, thread))) {
-      message_id = (await sendIntoThread(ctx, userId, proposal, thread, { change: null, ask: null, body: text, client_id: args.say.client_id })).message_id;
+      message_id = (
+        await sendIntoThread(ctx, userId, proposal, thread, {
+          change: null,
+          ask: null,
+          body: text,
+          client_id: args.say.client_id,
+        })
+      ).message_id;
       told = true;
     }
   }
-  return { proposal: proposal.short_id, results, applied, failed, skipped, noted, remaining, resolved, ...(told !== undefined ? { told } : {}), ...(message_id ? { message_id } : {}) };
+  return {
+    proposal: proposal.short_id,
+    results,
+    applied,
+    failed,
+    skipped,
+    noted,
+    remaining,
+    resolved,
+    ...(told !== undefined ? { told } : {}),
+    ...(message_id ? { message_id } : {}),
+  };
 }
 
 // ── Functions ───────────────────────────────────────────────────────────────
 
-async function requireCaller(ctx: any, apiToken: string | undefined, teamId: Id<"teams"> | undefined): Promise<Id<"users">> {
+async function requireCaller(
+  ctx: any,
+  apiToken: string | undefined,
+  teamId: Id<"teams"> | undefined,
+): Promise<Id<"users">> {
   const userId = await requireWorkspaceCaller(ctx, apiToken, teamId);
-  if (!userId) throw new Error(teamId ? "Not a member of that team" : "Authentication failed: invalid token or session");
+  if (!userId)
+    throw new Error(
+      teamId
+        ? "Not a member of that team"
+        : "Authentication failed: invalid token or session",
+    );
   return userId;
 }
 
@@ -1313,26 +2529,48 @@ async function requireCaller(ctx: any, apiToken: string | undefined, teamId: Id<
  *  consecutive. */
 export const BREACH_WINDOW_MS = STABILITY.move_cooldown_days.value * 86_400_000;
 
-export async function performBreachSnapshot(ctx: any, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number): Promise<Array<{ role_id: Id<"org_roles">; overload_streak: number }>> {
+export async function performBreachSnapshot(
+  ctx: any,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+): Promise<Array<{ role_id: Id<"org_roles">; overload_streak: number }>> {
   const health = await computeOrgHealth(ctx, userId, teamId, now);
   const out: Array<{ role_id: Id<"org_roles">; overload_streak: number }> = [];
   for (const row of health.roles as any[]) {
     const role = await ctx.db.get(row.role_id);
     const earlier = row.breaches ?? 0;
     const at: number | undefined = role?.overload_streak_at;
-    if (!row.overloaded_now) { out.push({ role_id: row.role_id, overload_streak: 0 }); continue; }
-    if (at !== undefined && earlier > 0 && now - at < BREACH_WINDOW_MS) { out.push({ role_id: row.role_id, overload_streak: earlier }); continue; }
-    out.push({ role_id: row.role_id, overload_streak: at !== undefined && now - at > 2 * BREACH_WINDOW_MS ? 1 : earlier + 1 });
+    if (!row.overloaded_now) {
+      out.push({ role_id: row.role_id, overload_streak: 0 });
+      continue;
+    }
+    if (at !== undefined && earlier > 0 && now - at < BREACH_WINDOW_MS) {
+      out.push({ role_id: row.role_id, overload_streak: earlier });
+      continue;
+    }
+    out.push({
+      role_id: row.role_id,
+      overload_streak:
+        at !== undefined && now - at > 2 * BREACH_WINDOW_MS ? 1 : earlier + 1,
+    });
   }
   return out;
 }
 
-export async function performWriteBreaches(ctx: Ctx, rows: Array<{ role_id: Id<"org_roles">; overload_streak: number }>, now = Date.now()): Promise<number> {
+export async function performWriteBreaches(
+  ctx: Ctx,
+  rows: Array<{ role_id: Id<"org_roles">; overload_streak: number }>,
+  now = Date.now(),
+): Promise<number> {
   let written = 0;
   for (const row of rows) {
     const role = await ctx.db.get(row.role_id);
     if (!role || (role.overload_streak ?? 0) === row.overload_streak) continue;
-    await ctx.db.patch(row.role_id, { overload_streak: row.overload_streak, overload_streak_at: row.overload_streak > 0 ? now : undefined });
+    await ctx.db.patch(row.role_id, {
+      overload_streak: row.overload_streak,
+      overload_streak_at: row.overload_streak > 0 ? now : undefined,
+    });
     written++;
   }
   return written;
@@ -1340,11 +2578,16 @@ export async function performWriteBreaches(ctx: Ctx, rows: Array<{ role_id: Id<"
 
 export const breachSnapshot = internalQuery({
   args: { user_id: v.id("users"), team_id: v.optional(v.id("teams")) },
-  handler: async (ctx, args) => performBreachSnapshot(ctx, args.user_id, args.team_id, Date.now()),
+  handler: async (ctx, args) =>
+    performBreachSnapshot(ctx, args.user_id, args.team_id, Date.now()),
 });
 
 export const writeBreaches = internalMutation({
-  args: { rows: v.array(v.object({ role_id: v.id("org_roles"), overload_streak: v.number() })) },
+  args: {
+    rows: v.array(
+      v.object({ role_id: v.id("org_roles"), overload_streak: v.number() }),
+    ),
+  },
   handler: async (ctx, args) => performWriteBreaches(ctx as any, args.rows),
 });
 
@@ -1353,7 +2596,8 @@ export const recordBreaches = internalAction({
   // Annotated: an action that calls its own module's functions through
   // `internal` is a circular type without an explicit return.
   handler: async (ctx, args): Promise<number> => {
-    const rows: Array<{ role_id: Id<"org_roles">; overload_streak: number }> = await ctx.runQuery(internal.orgProposals.breachSnapshot, args);
+    const rows: Array<{ role_id: Id<"org_roles">; overload_streak: number }> =
+      await ctx.runQuery(internal.orgProposals.breachSnapshot, args);
     return await ctx.runMutation(internal.orgProposals.writeBreaches, { rows });
   },
 });
@@ -1373,9 +2617,18 @@ export const create = mutation({
     /** The asks (S19); the parser checks them as a partition of the changes. */
     asks: v.optional(v.array(v.any())),
   },
-  handler: async (ctx, { api_token, team_id, from_session, evidence_doc_id, supersedes, ...spec }) => {
+  handler: async (
+    ctx,
+    { api_token, team_id, from_session, evidence_doc_id, supersedes, ...spec },
+  ) => {
     const userId = await requireCaller(ctx, api_token, team_id);
-    return performCreateProposal(ctx, userId, { team_id, spec, from_session, evidence_doc_id, supersedes });
+    return performCreateProposal(ctx, userId, {
+      team_id,
+      spec,
+      from_session,
+      evidence_doc_id,
+      supersedes,
+    });
   },
 });
 
@@ -1397,16 +2650,26 @@ export const get = query({
 });
 
 export const list = query({
-  args: { api_token: v.optional(v.string()), team_id: v.optional(v.id("teams")), status: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.optional(v.id("teams")),
+    status: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return null;
     return { proposals: await listProposals(ctx, userId, args) };
   },
 });
 
 /** What the page showed when the verdict was pressed (OrgVerdictSeen). */
-const verdictSeen = v.optional(v.object({ revised_at: v.number(), seqs: v.optional(v.array(v.number())) }));
+const verdictSeen = v.optional(
+  v.object({ revised_at: v.number(), seqs: v.optional(v.array(v.number())) }),
+);
 
 export const decide = mutation({
   args: {
@@ -1417,26 +2680,62 @@ export const decide = mutation({
     edits: v.optional(v.any()),
     seen: verdictSeen,
   },
-  handler: async (ctx, { api_token, ...args }) => performDecideChange(ctx, await requireCaller(ctx, api_token, undefined), { ...args, api_token }),
+  handler: async (ctx, { api_token, ...args }) =>
+    performDecideChange(ctx, await requireCaller(ctx, api_token, undefined), {
+      ...args,
+      api_token,
+    }),
 });
 
 export const decideAsk = mutation({
   // `leave_sessions` is the person's one edit on an ask accepted whole (R1).
-  args: { api_token: v.optional(v.string()), from_session: v.optional(v.string()), proposal: v.string(), ask: v.number(), verdict: v.union(v.literal("accept"), v.literal("skip")), seen: verdictSeen, leave_sessions: v.optional(v.boolean()) },
-  handler: async (ctx, { api_token, ...args }) => performDecideAsk(ctx, await requireCaller(ctx, api_token, undefined), { ...args, api_token }),
+  args: {
+    api_token: v.optional(v.string()),
+    from_session: v.optional(v.string()),
+    proposal: v.string(),
+    ask: v.number(),
+    verdict: v.union(v.literal("accept"), v.literal("skip")),
+    seen: verdictSeen,
+    leave_sessions: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performDecideAsk(ctx, await requireCaller(ctx, api_token, undefined), {
+      ...args,
+      api_token,
+    }),
 });
 
 /** A lead decides a hire from its standing session (`cast org hire`). */
 export const decideHire = mutation({
-  args: { api_token: v.optional(v.string()), from_session: v.string(), proposal: v.string(), verdict: v.union(v.literal("accept"), v.literal("skip")), text: v.optional(v.string()) },
-  handler: async (ctx, { api_token, ...args }) => performDecideHire(ctx, await requireCaller(ctx, api_token, undefined), args),
+  args: {
+    api_token: v.optional(v.string()),
+    from_session: v.string(),
+    proposal: v.string(),
+    verdict: v.union(v.literal("accept"), v.literal("skip")),
+    text: v.optional(v.string()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performDecideHire(
+      ctx,
+      await requireCaller(ctx, api_token, undefined),
+      args,
+    ),
 });
 
 export const acceptAll = mutation({
-  args: { api_token: v.optional(v.string()), from_session: v.optional(v.string()), proposal: v.string(), kinds: v.optional(v.array(v.string())), seen: verdictSeen },
-  handler: async (ctx, { api_token, ...args }) => performAcceptAll(ctx, await requireCaller(ctx, api_token, undefined), { ...args, api_token }),
+  args: {
+    api_token: v.optional(v.string()),
+    from_session: v.optional(v.string()),
+    proposal: v.string(),
+    kinds: v.optional(v.array(v.string())),
+    seen: verdictSeen,
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performAcceptAll(ctx, await requireCaller(ctx, api_token, undefined), {
+      ...args,
+      api_token,
+    }),
 });
-
 
 /** One sweep: settle the open proposals a revise emptied before a revise
  *  settled them (op-90, op-98, op-101 and op-114 sat open on "Nothing to
@@ -1449,31 +2748,69 @@ export const settleEmptiedProposals = internalMutation({
     for (const p of await ctx.db.query("org_proposals").collect()) {
       if (p.status !== "open") continue;
       const rows = await changesOf(ctx as any, p._id);
-      if (!rows.length || rows.some((c) => decidable(c) || c.status === "accepted")) continue;
+      if (
+        !rows.length ||
+        rows.some((c) => decidable(c) || c.status === "accepted")
+      )
+        continue;
       if (!args.dry) await resolveIfDone(ctx as any, p as any, now);
-      settled.push({ proposal: p.short_id, status: args.dry ? "would settle" : (await ctx.db.get(p._id))!.status });
+      settled.push({
+        proposal: p.short_id,
+        status: args.dry ? "would settle" : (await ctx.db.get(p._id))!.status,
+      });
     }
     return { settled };
   },
 });
 
 export const withdraw = mutation({
-  args: { api_token: v.optional(v.string()), from_session: v.optional(v.string()), proposal: v.string() },
-  handler: async (ctx, { api_token, ...args }) => performWithdrawProposal(ctx, await requireCaller(ctx, api_token, undefined), args),
+  args: {
+    api_token: v.optional(v.string()),
+    from_session: v.optional(v.string()),
+    proposal: v.string(),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performWithdrawProposal(
+      ctx,
+      await requireCaller(ctx, api_token, undefined),
+      args,
+    ),
 });
 
 /** The author revises its own open proposal (S18): authoring, so no human
  *  gate; the session that posted it or the role's standing session. */
 export const revise = mutation({
-  args: { api_token: v.optional(v.string()), from_session: v.optional(v.string()), proposal: v.string(), ops: v.array(v.any()) },
-  handler: async (ctx, { api_token, ...args }) => performReviseProposal(ctx, await requireCaller(ctx, api_token, undefined), args),
+  args: {
+    api_token: v.optional(v.string()),
+    from_session: v.optional(v.string()),
+    proposal: v.string(),
+    ops: v.array(v.any()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performReviseProposal(
+      ctx,
+      await requireCaller(ctx, api_token, undefined),
+      args,
+    ),
 });
 
 /** A person's words into the proposal's thread (S18), naming the change
  *  they were looking at. */
 export const say = mutation({
-  args: { api_token: v.optional(v.string()), proposal: v.string(), change: v.optional(v.number()), ask: v.optional(v.number()), body: v.string(), client_id: v.optional(v.string()) },
-  handler: async (ctx, { api_token, ...args }) => performSayInThread(ctx, await requireCaller(ctx, api_token, undefined), args),
+  args: {
+    api_token: v.optional(v.string()),
+    proposal: v.string(),
+    change: v.optional(v.number()),
+    ask: v.optional(v.number()),
+    body: v.string(),
+    client_id: v.optional(v.string()),
+  },
+  handler: async (ctx, { api_token, ...args }) =>
+    performSayInThread(
+      ctx,
+      await requireCaller(ctx, api_token, undefined),
+      args,
+    ),
 });
 
 /** A person's answers to a proposal, sent together (S39): approvals applied,
@@ -1485,35 +2822,69 @@ export const reply = mutation({
     api_token: v.optional(v.string()),
     from_session: v.optional(v.string()),
     proposal: v.string(),
-    items: v.array(v.object({ verdict: v.union(v.literal("approve"), v.literal("reject"), v.literal("note")), seqs: v.array(v.number()), change_ids: v.optional(v.array(v.string())), text: v.optional(v.string()) })),
+    items: v.array(
+      v.object({
+        verdict: v.union(
+          v.literal("approve"),
+          v.literal("reject"),
+          v.literal("note"),
+        ),
+        seqs: v.array(v.number()),
+        change_ids: v.optional(v.array(v.string())),
+        text: v.optional(v.string()),
+      }),
+    ),
     seen: verdictSeen,
-    say: v.optional(v.object({ body: v.optional(v.string()), client_id: v.optional(v.string()) })),
+    say: v.optional(
+      v.object({
+        body: v.optional(v.string()),
+        client_id: v.optional(v.string()),
+      }),
+    ),
     leave_sessions: v.optional(v.boolean()),
   },
-  handler: async (ctx, { api_token, ...args }) => performReply(ctx, await requireCaller(ctx, api_token, undefined), { ...args, api_token }),
+  handler: async (ctx, { api_token, ...args }) =>
+    performReply(ctx, await requireCaller(ctx, api_token, undefined), {
+      ...args,
+      api_token,
+    }),
 });
-
 
 /** An org reset (org-staffing.md S27): every proposal of the workspace leaves
  *  every list, and an open one is withdrawn first so no card stays behind.
  *  Called by orgRoles.performResetOrg, which owns the gate. `dry` counts what
  *  would go and writes nothing. */
-export async function performArchiveAll(ctx: { db: any }, boundary: { team_id?: Id<"teams">; scope_user_id?: Id<"users"> }, opts: { dry?: boolean } = {}): Promise<{ archived: number }> {
+export async function performArchiveAll(
+  ctx: { db: any },
+  boundary: { team_id?: Id<"teams">; scope_user_id?: Id<"users"> },
+  opts: { dry?: boolean } = {},
+): Promise<{ archived: number }> {
   const now = Date.now();
   const rows: any[] = boundary.team_id
-    ? await ctx.db.query("org_proposals").withIndex("by_team", (q: any) => q.eq("team_id", boundary.team_id)).collect()
-    : await ctx.db.query("org_proposals").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", boundary.scope_user_id)).collect();
+    ? await ctx.db
+        .query("org_proposals")
+        .withIndex("by_team", (q: any) => q.eq("team_id", boundary.team_id))
+        .collect()
+    : await ctx.db
+        .query("org_proposals")
+        .withIndex("by_scope_user", (q: any) =>
+          q.eq("scope_user_id", boundary.scope_user_id),
+        )
+        .collect();
   let archived = 0;
   for (const p of rows) {
     if (p.archived_at) continue;
     archived++;
     if (opts.dry) continue;
     if (p.status === "open") {
-      await ctx.db.patch(p._id, { status: "withdrawn", resolved_at: now, updated_at: now });
+      await ctx.db.patch(p._id, {
+        status: "withdrawn",
+        resolved_at: now,
+        updated_at: now,
+      });
       await clearDecision(ctx as any, p, now);
     }
     await ctx.db.patch(p._id, { archived_at: now });
   }
   return { archived };
 }
-

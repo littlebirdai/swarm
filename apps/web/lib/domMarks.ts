@@ -12,17 +12,25 @@ export type MarkOptions = {
   attrs?: Record<string, string>;
 };
 
-export function markMatches(root: Node, needles: string[], opts: MarkOptions): HTMLElement[] {
-  const lowers = needles.map((n) => n.toLowerCase()).filter((n) => n.length > 0);
+export function markMatches(
+  root: Node,
+  needles: string[],
+  opts: MarkOptions,
+): HTMLElement[] {
+  const lowers = needles
+    .map((n) => n.toLowerCase())
+    .filter((n) => n.length > 0);
   if (lowers.length === 0) return [];
   const doc = root.ownerDocument ?? (root as Document);
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
       const value = node.nodeValue?.toLowerCase();
-      if (!value || !lowers.some((n) => value.includes(n))) return NodeFilter.FILTER_REJECT;
+      if (!value || !lowers.some((n) => value.includes(n)))
+        return NodeFilter.FILTER_REJECT;
       // A text node straight under a fragment has no parent element; only a
       // node already inside a mark is skipped.
-      if (node.parentElement?.closest(`.${cssEscape(opts.className)}`)) return NodeFilter.FILTER_REJECT;
+      if (node.parentElement?.closest(`.${cssEscape(opts.className)}`))
+        return NodeFilter.FILTER_REJECT;
       return NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -39,17 +47,20 @@ export function markMatches(root: Node, needles: string[], opts: MarkOptions): H
     for (;;) {
       const hit = earliestHit(lower, lowers, cursor);
       if (!hit) break;
-      if (hit.index > cursor) frag.appendChild(doc.createTextNode(value.slice(cursor, hit.index)));
+      if (hit.index > cursor)
+        frag.appendChild(doc.createTextNode(value.slice(cursor, hit.index)));
       const mark = doc.createElement("mark");
       mark.className = opts.className;
-      for (const [k, v] of Object.entries(opts.attrs ?? {})) mark.setAttribute(k, v);
+      for (const [k, v] of Object.entries(opts.attrs ?? {}))
+        mark.setAttribute(k, v);
       mark.textContent = value.slice(hit.index, hit.index + hit.length);
       frag.appendChild(mark);
       marks.push(mark);
       cursor = hit.index + hit.length;
     }
     if (marks.length === 0 || cursor === 0) continue;
-    if (cursor < value.length) frag.appendChild(doc.createTextNode(value.slice(cursor)));
+    if (cursor < value.length)
+      frag.appendChild(doc.createTextNode(value.slice(cursor)));
     text.parentNode?.replaceChild(frag, text);
   }
   return marks;
@@ -70,7 +81,11 @@ export function clearMarks(root: ParentNode, className: string) {
 
 /** Mark matches inside an HTML string (a syntax-highlighted code block) and
  *  hand back the marked HTML. Pure in effect: nothing on the page is touched. */
-export function markMatchesInHtml(html: string, needles: string[], opts: MarkOptions): string {
+export function markMatchesInHtml(
+  html: string,
+  needles: string[],
+  opts: MarkOptions,
+): string {
   if (typeof document === "undefined") return html;
   const tpl = document.createElement("template");
   tpl.innerHTML = html;
@@ -78,12 +93,21 @@ export function markMatchesInHtml(html: string, needles: string[], opts: MarkOpt
   return tpl.innerHTML;
 }
 
-function earliestHit(lower: string, needles: string[], from: number): { index: number; length: number } | null {
+function earliestHit(
+  lower: string,
+  needles: string[],
+  from: number,
+): { index: number; length: number } | null {
   let best: { index: number; length: number } | null = null;
   for (const needle of needles) {
     const idx = lower.indexOf(needle, from);
     if (idx === -1) continue;
-    if (!best || idx < best.index || (idx === best.index && needle.length > best.length)) best = { index: idx, length: needle.length };
+    if (
+      !best ||
+      idx < best.index ||
+      (idx === best.index && needle.length > best.length)
+    )
+      best = { index: idx, length: needle.length };
   }
   return best;
 }

@@ -4,7 +4,11 @@ import { useInboxStore } from "../store/inboxStore";
 import { useMountEffect } from "../hooks/useMountEffect";
 import { useOsPermission } from "../hooks/useOsPermissions";
 import { isElectron } from "../lib/desktop";
-import { permissionActionLabel, permissionHint, requestOsPermission } from "../lib/osPermissions";
+import {
+  permissionActionLabel,
+  permissionHint,
+  requestOsPermission,
+} from "../lib/osPermissions";
 import {
   decideNotificationNudge,
   getLastNotificationMiss,
@@ -18,7 +22,9 @@ import { Button } from "./ui/button";
 // dashboard banners; policy (when to show, when a dismiss holds, when a missed
 // message overrides it) lives in lib/notificationNudge so it's unit-testable.
 export function NotificationNudgeBanner() {
-  const snoozedAt = useInboxStore((s) => s.clientState.dismissed?.notif_nudge ?? 0);
+  const snoozedAt = useInboxStore(
+    (s) => s.clientState.dismissed?.notif_nudge ?? 0,
+  );
   const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
   const [mounted, setMounted] = useState(false);
   const [miss, setMiss] = useState<NotificationMiss | null>(null);
@@ -40,7 +46,12 @@ export function NotificationNudgeBanner() {
   }, [readiness]);
 
   if (!mounted) return null;
-  const verdict = decideNotificationNudge({ readiness, snoozedAt, miss, now: Date.now() });
+  const verdict = decideNotificationNudge({
+    readiness,
+    snoozedAt,
+    miss,
+    now: Date.now(),
+  });
   if (!verdict.show) return null;
 
   const escalated = verdict.escalated;
@@ -69,7 +80,11 @@ export function NotificationNudgeBanner() {
   return (
     // A missed message is news and always shows; the plain ask waits its
     // turn in the shell's nudge slot (DashboardLayout).
-    <div data-cc-banner data-nudge={escalated ? undefined : ""} className={wrap}>
+    <div
+      data-cc-banner
+      data-nudge={escalated ? undefined : ""}
+      className={wrap}
+    >
       <div className="px-4 py-2 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Icon className={`w-4 h-4 ${iconColor} flex-shrink-0`} />
@@ -77,10 +92,14 @@ export function NotificationNudgeBanner() {
             {message}{" "}
             {awaitingPrompt ? (
               <span className="text-sol-text-muted">
-                {isElectron() ? "Answer the macOS Allow prompt to finish." : "Answer the browser's permission prompt to finish."}
+                {isElectron()
+                  ? "Answer the macOS Allow prompt to finish."
+                  : "Answer the browser's permission prompt to finish."}
               </span>
             ) : !action ? (
-              <span className="text-sol-text-muted">{permissionHint("notifications", readiness)}</span>
+              <span className="text-sol-text-muted">
+                {permissionHint("notifications", readiness)}
+              </span>
             ) : null}
           </span>
         </div>

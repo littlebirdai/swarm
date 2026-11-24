@@ -9,16 +9,37 @@
 // uninstall, never by an ordinary command.
 
 import * as path from "path";
-import { HARNESS_HOOKS, harnessHookWanted, snippetBySlug, type HarnessHook } from "@codecast/shared/contracts";
-import { installOwnedHook, removeOwnedHook, installOwnedStatusLine, removeOwnedStatusLine } from "./capabilities/hooks.js";
+import {
+  HARNESS_HOOKS,
+  harnessHookWanted,
+  snippetBySlug,
+  type HarnessHook,
+} from "@codecast/shared/contracts";
+import {
+  installOwnedHook,
+  removeOwnedHook,
+  installOwnedStatusLine,
+  removeOwnedStatusLine,
+} from "./capabilities/hooks.js";
 import { removeHarnessFile, writeHarnessFile } from "./harness.js";
 import { CODECAST_STATUS_HOOK } from "./statusHook.js";
 import { SESSION_REGISTER_HOOK } from "./sessionRegisterHook.js";
 import { THREAD_STATE_HOOK } from "./threadStateHook.js";
-import { TASK_CONTEXT_HOOK, TASK_CONTEXT_HOOK_FILE, installTaskContextHookCodex, removeTaskContextHookCodex } from "./taskContextHook.js";
+import {
+  TASK_CONTEXT_HOOK,
+  TASK_CONTEXT_HOOK_FILE,
+  installTaskContextHookCodex,
+  removeTaskContextHookCodex,
+} from "./taskContextHook.js";
 import { USER_PROMPT_HOOK, USER_PROMPT_HOOK_FILE } from "./userPromptHook.js";
-import { CODECAST_STATUSLINE_HOOK, STATUSLINE_HOOK_FILE } from "./statuslineHook.js";
-import { SESSION_TRAILER_HOOK, SESSION_TRAILER_HOOK_FILE } from "./sessionTrailerHook.js";
+import {
+  CODECAST_STATUSLINE_HOOK,
+  STATUSLINE_HOOK_FILE,
+} from "./statuslineHook.js";
+import {
+  SESSION_TRAILER_HOOK,
+  SESSION_TRAILER_HOOK_FILE,
+} from "./sessionTrailerHook.js";
 import { PERMISSION_HOOK_TIMEOUT_S } from "./permissionHookWait.js";
 import { claudeConfigDirs } from "./claudeConfigDirs.js";
 
@@ -34,15 +55,23 @@ const SCRIPTS: Record<string, string> = {
 
 // Hooks Codex runs too, from ~/.codex/hooks.json: installed and removed with
 // the Claude hook they mirror, and only where Codex hooks are already on.
-const CODEX_TWINS: Record<string, { install: () => void; remove: () => void }> = {
-  [TASK_CONTEXT_HOOK_FILE]: { install: installTaskContextHookCodex, remove: removeTaskContextHookCodex },
-};
+const CODEX_TWINS: Record<string, { install: () => void; remove: () => void }> =
+  {
+    [TASK_CONTEXT_HOOK_FILE]: {
+      install: installTaskContextHookCodex,
+      remove: removeTaskContextHookCodex,
+    },
+  };
 
 // Retired: its Bash edit capture moved into the daemon. The entries come out
 // of settings.json; the script stays as a no-op so an entry some other copy of
 // settings.json still holds finds a file instead of failing the tool call.
 const RETIRED_SHELL_CHANGES = "codecast-shell-changes.sh";
-const RETIRED_SHELL_CHANGES_EVENTS = ["PreToolUse", "PostToolUse", "PostToolUseFailure"];
+const RETIRED_SHELL_CHANGES_EVENTS = [
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure",
+];
 
 // 10s, not 5: these scripts normally finish well under a second, but a loaded
 // machine (dozens of live sessions spawning processes) can stretch interpreter
@@ -51,7 +80,9 @@ const RETIRED_SHELL_CHANGES_EVENTS = ["PreToolUse", "PostToolUse", "PostToolUseF
 const HOOK_TIMEOUT_S = 10;
 // A PermissionRequest hook holds for the web's answer while Claude Code's own
 // dialog stays usable beside it (permissionHookWait.ts).
-const EVENT_TIMEOUT_S: Partial<Record<string, number>> = { PermissionRequest: PERMISSION_HOOK_TIMEOUT_S };
+const EVENT_TIMEOUT_S: Partial<Record<string, number>> = {
+  PermissionRequest: PERMISSION_HOOK_TIMEOUT_S,
+};
 
 /** The hook's events grouped by the timeout each runs under. */
 function eventsByTimeout(events: readonly string[]): Map<number, string[]> {
@@ -71,7 +102,9 @@ function hooksDir(): string {
 // runs under, so every config dir on the machine (claudeConfigDirs.ts) gets the
 // same entries, all pointing at the one copy of each script in ~/.claude/hooks.
 function settingsPaths(): string[] {
-  return claudeConfigDirs(process.env.HOME || "").map((dir) => path.join(dir, "settings.json"));
+  return claudeConfigDirs(process.env.HOME || "").map((dir) =>
+    path.join(dir, "settings.json"),
+  );
 }
 
 // Any config.json shape: the switch and the feature flags are read by key.
@@ -79,7 +112,10 @@ type HookConfig = object | null | undefined;
 
 /** Hooks are on unless the user turned them off. */
 export function hooksEnabled(config: HookConfig): boolean {
-  return (config as Record<string, unknown> | null | undefined)?.hooks_enabled !== false;
+  return (
+    (config as Record<string, unknown> | null | undefined)?.hooks_enabled !==
+    false
+  );
 }
 
 /** Is an Agent Features entry on in this config? */
@@ -91,7 +127,9 @@ function featureOn(config: HookConfig, feature: string): boolean {
 }
 
 function wanted(hook: HarnessHook, config: HookConfig): boolean {
-  return harnessHookWanted(hook, hooksEnabled(config), (f) => featureOn(config, f));
+  return harnessHookWanted(hook, hooksEnabled(config), (f) =>
+    featureOn(config, f),
+  );
 }
 
 /** Bring this machine's hooks in line with its config: the hooks switch, and
@@ -120,7 +158,10 @@ export function syncFeatureHooks(config: HookConfig): void {
   }
 }
 
-export function installHarnessHooks(config: HookConfig = {}, opts: { featuresOnly?: boolean } = {}): void {
+export function installHarnessHooks(
+  config: HookConfig = {},
+  opts: { featuresOnly?: boolean } = {},
+): void {
   const dir = hooksDir();
   const settingsList = settingsPaths();
   for (const hook of HARNESS_HOOKS) {
@@ -138,7 +179,10 @@ export function installHarnessHooks(config: HookConfig = {}, opts: { featuresOnl
       removeHook(hook, dir, settingsList);
       continue;
     }
-    writeHarnessFile(file, SCRIPTS[hook.file], "hooks", { mode: 0o755, executable: true });
+    writeHarnessFile(file, SCRIPTS[hook.file], "hooks", {
+      mode: 0o755,
+      executable: true,
+    });
     for (const settings of settingsList) {
       if (hook.kind === "statusLine") {
         installOwnedStatusLine(file, { settingsPath: settings });
@@ -156,12 +200,22 @@ export function installHarnessHooks(config: HookConfig = {}, opts: { featuresOnl
   for (const settings of settingsList) {
     for (const hook of HARNESS_HOOKS) {
       if (hook.file === USER_PROMPT_HOOK_FILE || hook.kind !== "hook") continue;
-      removeOwnedHook(path.join(dir, hook.file), { settingsPath: settings, events: ["UserPromptSubmit"] });
+      removeOwnedHook(path.join(dir, hook.file), {
+        settingsPath: settings,
+        events: ["UserPromptSubmit"],
+      });
     }
   }
   const retired = path.join(dir, RETIRED_SHELL_CHANGES);
-  writeHarnessFile(retired, "#!/bin/sh\nexit 0\n", "hooks", { mode: 0o755, executable: true });
-  for (const settings of settingsList) removeOwnedHook(retired, { settingsPath: settings, events: RETIRED_SHELL_CHANGES_EVENTS });
+  writeHarnessFile(retired, "#!/bin/sh\nexit 0\n", "hooks", {
+    mode: 0o755,
+    executable: true,
+  });
+  for (const settings of settingsList)
+    removeOwnedHook(retired, {
+      settingsPath: settings,
+      events: RETIRED_SHELL_CHANGES_EVENTS,
+    });
 }
 
 /** Take every codecast hook out of settings.json and delete the scripts.
@@ -173,14 +227,20 @@ export function removeHarnessHooks(): void {
     if (!hook.installedElsewhere) removeHook(hook, dir, settingsList);
   }
   const retired = path.join(dir, RETIRED_SHELL_CHANGES);
-  for (const settings of settingsList) removeOwnedHook(retired, { settingsPath: settings });
+  for (const settings of settingsList)
+    removeOwnedHook(retired, { settingsPath: settings });
   removeHarnessFile(retired, "hooks");
 }
 
-function removeHook(hook: HarnessHook, dir: string, settingsList: string[]): void {
+function removeHook(
+  hook: HarnessHook,
+  dir: string,
+  settingsList: string[],
+): void {
   const file = path.join(dir, hook.file);
   for (const settings of settingsList) {
-    if (hook.kind === "statusLine") removeOwnedStatusLine({ settingsPath: settings });
+    if (hook.kind === "statusLine")
+      removeOwnedStatusLine({ settingsPath: settings });
     else removeOwnedHook(file, { settingsPath: settings });
   }
   removeHarnessFile(file, "hooks");

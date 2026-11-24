@@ -36,14 +36,34 @@ import {
   type ArtifactLsRow,
 } from "./publishCommand.js";
 import { apiPost, apiUpload, type PublishDeps } from "./castApi.js";
-import { CAST_PLAYER_GUIDE, describePageAnchor, pageEmbedUrl, pageIsMotion, pageUsesPlayer, parsePageAnchor } from "@codecast/shared/contracts";
+import {
+  CAST_PLAYER_GUIDE,
+  describePageAnchor,
+  pageEmbedUrl,
+  pageIsMotion,
+  pageUsesPlayer,
+  parsePageAnchor,
+} from "@codecast/shared/contracts";
 import { commandGroup } from "./commandGroups.js";
 import { addVerbHelp, type VerbHelpSpec } from "./verbHelp.js";
 import { verbTypoNextStep } from "./commandSuggestion.js";
 import { runPublishUnwatch, runPublishWatch } from "./publishWatch.js";
-import { jsonText, parseKeyValue, readInlinePageData, readPageData, runPublishData, runPublishState, type StateWrite } from "./publishData.js";
+import {
+  jsonText,
+  parseKeyValue,
+  readInlinePageData,
+  readPageData,
+  runPublishData,
+  runPublishState,
+  type StateWrite,
+} from "./publishData.js";
 import { PAGE_DATA_FILE } from "@codecast/shared/contracts/pageData";
-import { captureMotionThumb, renderMotion, splitMotionOutputs, staleRenderNote } from "./publishMotion.js";
+import {
+  captureMotionThumb,
+  renderMotion,
+  splitMotionOutputs,
+  staleRenderNote,
+} from "./publishMotion.js";
 import { captureThumb } from "./publishThumb.js";
 
 const WATCH_DEBOUNCE_MS = 400;
@@ -54,7 +74,9 @@ const WATCH_DEBOUNCE_MS = 400;
 export function walkBundleDir(dir: string): string[] {
   const out: string[] = [];
   const visit = (rel: string) => {
-    for (const entry of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
+    for (const entry of fs.readdirSync(path.join(dir, rel), {
+      withFileTypes: true,
+    })) {
       const relPath = rel ? `${rel}/${entry.name}` : entry.name;
       if (entry.isDirectory()) visit(relPath);
       else if (entry.isFile()) out.push(relPath);
@@ -71,7 +93,13 @@ interface PublishPayload {
   source_path: string;
   kind?: "markdown" | "bundle";
   content?: string;
-  files?: Array<{ path: string; content_b64?: string; upload_id?: string; media_url?: string; size?: number }>;
+  files?: Array<{
+    path: string;
+    content_b64?: string;
+    upload_id?: string;
+    media_url?: string;
+    size?: number;
+  }>;
   /** Video and audio files, uploaded to media hosting before the publish. */
   media?: Array<{ path: string; abs: string; size: number }>;
   /** Local path of the html document a thumbnail should render. */
@@ -86,7 +114,10 @@ interface PublishPayload {
 
 /** Read the file/dir into the /cli/artifacts/publish payload. Throws with a
  * legible message on anything the user must fix (missing entry, size cap). */
-export function buildPublishPayload(absPath: string, titleOverride?: string): PublishPayload {
+export function buildPublishPayload(
+  absPath: string,
+  titleOverride?: string,
+): PublishPayload {
   const stat = fs.statSync(absPath);
   if (stat.isDirectory()) {
     // cast-data.json declares the page's live queries; it travels as data, not as a served file.
@@ -98,7 +129,9 @@ export function buildPublishPayload(absPath: string, titleOverride?: string): Pu
     // A composition directory holds the render and snapshot output of its own
     // tools; none of it belongs on the page.
     const motion = pageIsMotion(entryHtml);
-    const { keep: relPaths, skipped } = motion ? splitMotionOutputs(absPath, walked) : { keep: walked, skipped: [] };
+    const { keep: relPaths, skipped } = motion
+      ? splitMotionOutputs(absPath, walked)
+      : { keep: walked, skipped: [] };
     const files: NonNullable<PublishPayload["files"]> = [];
     const media: NonNullable<PublishPayload["media"]> = [];
     const sizes: Array<{ path: string; size: number }> = [];
@@ -109,7 +142,8 @@ export function buildPublishPayload(absPath: string, titleOverride?: string): Pu
         continue;
       }
       let bytes = fs.readFileSync(path.join(absPath, rel));
-      if (rel === entry.entry && usesDecisionKit(entryHtml)) bytes = Buffer.from(inlineDecisionKit(entryHtml), "utf-8");
+      if (rel === entry.entry && usesDecisionKit(entryHtml))
+        bytes = Buffer.from(inlineDecisionKit(entryHtml), "utf-8");
       files.push({ path: rel, content_b64: bytes.toString("base64") });
       sizes.push({ path: rel, size: bytes.byteLength });
     }
@@ -140,7 +174,9 @@ export function buildPublishPayload(absPath: string, titleOverride?: string): Pu
     const hint = /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(absPath)
       ? ` (for an inline-shareable image link, use \`cast image ${path.basename(absPath)}\`)`
       : "";
-    throw new Error(`Can't publish ${path.basename(absPath)} — publish an .html or .md file, or a directory bundle${hint}`);
+    throw new Error(
+      `Can't publish ${path.basename(absPath)} — publish an .html or .md file, or a directory bundle${hint}`,
+    );
   }
   // A single file declares its live queries and state inline.
   const data = readInlinePageData(content);
@@ -156,13 +192,23 @@ export function buildPublishPayload(absPath: string, titleOverride?: string): Pu
 
 // ── output ───────────────────────────────────────────────────────────────────
 
-function versionLine(result: { version: number; updated?: boolean; unchanged?: boolean }): string {
+function versionLine(result: {
+  version: number;
+  updated?: boolean;
+  unchanged?: boolean;
+}): string {
   if (result.unchanged) return fmt.muted(`unchanged (v${result.version})`);
   return `${fmt.number(`v${result.version}`)} ${icons.arrow} ${result.updated ? "updated" : "published"}`;
 }
 
 /** "attached to ct-12 at in_progress" (the-line.md L6), or null when unattached. */
-export function describeEvidence(evidence?: { task?: string | null; plan?: string | null; station?: string | null } | null): string | null {
+export function describeEvidence(
+  evidence?: {
+    task?: string | null;
+    plan?: string | null;
+    station?: string | null;
+  } | null,
+): string | null {
   if (!evidence) return null;
   const target = evidence.task ?? evidence.plan;
   if (!target) return null;
@@ -172,22 +218,45 @@ export function describeEvidence(evidence?: { task?: string | null; plan?: strin
 /** The owner's manage link prints once, when the page is first published; a
  *  republish to the same URL leaves it out (`cast publish links <slug>` shows it
  *  again), so the private link is not repeated into every transcript. */
-export function showsManageLink(result: { url: string; updated?: boolean; manage_url?: string }): boolean {
-  return !!result.manage_url && result.manage_url !== result.url && !result.updated;
+export function showsManageLink(result: {
+  url: string;
+  updated?: boolean;
+  manage_url?: string;
+}): boolean {
+  return (
+    !!result.manage_url && result.manage_url !== result.url && !result.updated
+  );
 }
 
 export function printPublishResult(
-  result: { url: string; version: number; updated?: boolean; unchanged?: boolean; manage_url?: string; edit_url?: string | null; evidence?: { task?: string | null; plan?: string | null; station?: string | null }; data?: { workspace: string; queries: number } },
+  result: {
+    url: string;
+    version: number;
+    updated?: boolean;
+    unchanged?: boolean;
+    manage_url?: string;
+    edit_url?: string | null;
+    evidence?: {
+      task?: string | null;
+      plan?: string | null;
+      station?: string | null;
+    };
+    data?: { workspace: string; queries: number };
+  },
   title: string,
   access?: Record<string, unknown>,
   showsVideo?: boolean,
 ): void {
-  console.log(`${fmt.success(icons.check)} ${fmt.highlight(title)}  ${versionLine(result)}`);
+  console.log(
+    `${fmt.success(icons.check)} ${fmt.highlight(title)}  ${versionLine(result)}`,
+  );
   console.log(`  ${fmt.accent(result.url)}`);
   const attached = describeEvidence(result.evidence);
   if (attached) console.log(`  ${fmt.label("evidence:")} ${attached}`);
   if (showsManageLink(result)) {
-    console.log(`  ${fmt.label("manage (owner link, keep private):")} ${result.manage_url}`);
+    console.log(
+      `  ${fmt.label("manage (owner link, keep private):")} ${result.manage_url}`,
+    );
   }
   if (result.edit_url) {
     console.log(`  ${fmt.label("edit:")} ${result.edit_url}`);
@@ -196,10 +265,14 @@ export function printPublishResult(
     console.log(`  ${fmt.label("gates:")} ${describeAccess(access)}`);
   }
   if (result.data) {
-    console.log(`  ${fmt.label("data:")} ${result.data.queries} live quer${result.data.queries === 1 ? "y" : "ies"} in ${result.data.workspace}; check them with \`cast publish data ${result.url.split("/").pop()}\``);
+    console.log(
+      `  ${fmt.label("data:")} ${result.data.queries} live quer${result.data.queries === 1 ? "y" : "ies"} in ${result.data.workspace}; check them with \`cast publish data ${result.url.split("/").pop()}\``,
+    );
   }
   if (showsVideo) {
-    console.log(`  ${fmt.label("video:")} plays in the cast player; \`cast publish video\` covers chapters and styling it to the page`);
+    console.log(
+      `  ${fmt.label("video:")} plays in the cast player; \`cast publish video\` covers chapters and styling it to the page`,
+    );
   }
 }
 
@@ -218,8 +291,10 @@ function accessFromOptions(options: {
   const flags: AccessFlagValues = {};
   // commander: undefined = untouched, string = --password P, false = --no-password.
   // passwordValue (from --password-stdin) wins: it never touches argv.
-  if (options.passwordValue !== undefined) flags.password = options.passwordValue;
-  else if (options.password !== undefined) flags.password = options.password as string | false;
+  if (options.passwordValue !== undefined)
+    flags.password = options.passwordValue;
+  else if (options.password !== undefined)
+    flags.password = options.password as string | false;
   if (options.emailGate !== undefined) flags.emailGate = options.emailGate;
   if (options.expires !== undefined) {
     const parsed = parseExpires(options.expires);
@@ -252,7 +327,11 @@ async function runLs(deps: PublishDeps, json: boolean): Promise<void> {
   for (const line of formatArtifactTable(rows)) console.log(line);
 }
 
-async function runRm(deps: PublishDeps, target: string, json: boolean): Promise<void> {
+async function runRm(
+  deps: PublishDeps,
+  target: string,
+  json: boolean,
+): Promise<void> {
   const abs = fs.existsSync(target) ? path.resolve(target) : target;
   const result = await apiPost(deps, "/cli/artifacts/delete", { target: abs });
   if (json) {
@@ -260,35 +339,61 @@ async function runRm(deps: PublishDeps, target: string, json: boolean): Promise<
     return;
   }
   const deleted = result.deleted;
-  console.log(`${fmt.success(icons.check)} Unpublished ${fmt.highlight(deleted?.title ?? target)} ${fmt.muted(`(${deleted?.slug ?? target})`)}`);
+  console.log(
+    `${fmt.success(icons.check)} Unpublished ${fmt.highlight(deleted?.title ?? target)} ${fmt.muted(`(${deleted?.slug ?? target})`)}`,
+  );
 }
 
-async function runRollback(deps: PublishDeps, target: string, versionArg: string, json: boolean): Promise<void> {
+async function runRollback(
+  deps: PublishDeps,
+  target: string,
+  versionArg: string,
+  json: boolean,
+): Promise<void> {
   const version = parseInt(versionArg, 10);
   if (!Number.isFinite(version) || version < 1) {
-    console.error(fmt.error(`Invalid version "${versionArg}" — pass the version number to restore, e.g. 3`));
+    console.error(
+      fmt.error(
+        `Invalid version "${versionArg}" — pass the version number to restore, e.g. 3`,
+      ),
+    );
     process.exit(1);
   }
   const abs = fs.existsSync(target) ? path.resolve(target) : target;
-  const result = await apiPost(deps, "/cli/artifacts/rollback", { target: abs, version });
+  const result = await apiPost(deps, "/cli/artifacts/rollback", {
+    target: abs,
+    version,
+  });
   if (json) {
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  console.log(`${fmt.success(icons.check)} Rolled back to v${version} — now ${fmt.number(`v${result.version}`)}`);
+  console.log(
+    `${fmt.success(icons.check)} Rolled back to v${version} — now ${fmt.number(`v${result.version}`)}`,
+  );
   console.log(`  ${fmt.accent(result.url)}`);
 }
 
-async function runOpen(deps: PublishDeps, target: string, json: boolean): Promise<void> {
+async function runOpen(
+  deps: PublishDeps,
+  target: string,
+  json: boolean,
+): Promise<void> {
   const result = await apiPost(deps, "/cli/artifacts/list", {}, { read: true });
   const rows: ArtifactLsRow[] = result.artifacts ?? [];
   const abs = fs.existsSync(target) ? path.resolve(target) : null;
   const suffix = target.startsWith("/") ? target : `/${target}`;
   const row = rows.find(
-    (r: any) => r.slug === target || r.source_path === abs || r.source_path === target || r.source_path?.endsWith(suffix),
+    (r: any) =>
+      r.slug === target ||
+      r.source_path === abs ||
+      r.source_path === target ||
+      r.source_path?.endsWith(suffix),
   );
   if (!row) {
-    console.error(fmt.error(`No published page matches "${target}" — see cast publish ls`));
+    console.error(
+      fmt.error(`No published page matches "${target}" — see cast publish ls`),
+    );
     process.exit(1);
   }
   if (json) {
@@ -309,21 +414,34 @@ async function runOpen(deps: PublishDeps, target: string, json: boolean): Promis
 // backend surface.
 
 /** Find one of the caller's artifacts by slug, absolute path, or path suffix. */
-async function resolveRow(deps: PublishDeps, target: string): Promise<ArtifactLsRow> {
+async function resolveRow(
+  deps: PublishDeps,
+  target: string,
+): Promise<ArtifactLsRow> {
   const result = await apiPost(deps, "/cli/artifacts/list", {}, { read: true });
   const rows: ArtifactLsRow[] = result.artifacts ?? [];
   const abs = fs.existsSync(target) ? path.resolve(target) : null;
   const suffix = target.startsWith("/") ? target : `/${target}`;
   const matches = rows.filter(
-    (r: any) => r.slug === target || r.source_path === abs || r.source_path === target || r.source_path?.endsWith(suffix),
+    (r: any) =>
+      r.slug === target ||
+      r.source_path === abs ||
+      r.source_path === target ||
+      r.source_path?.endsWith(suffix),
   );
   if (matches.length > 1) {
-    console.error(fmt.error(`"${target}" matches ${matches.length} published pages — use a slug:`));
+    console.error(
+      fmt.error(
+        `"${target}" matches ${matches.length} published pages — use a slug:`,
+      ),
+    );
     for (const m of matches) console.error(`  ${m.slug}  ${m.title}`);
     process.exit(1);
   }
   if (!matches.length) {
-    console.error(fmt.error(`No published page matches "${target}" — see cast publish ls`));
+    console.error(
+      fmt.error(`No published page matches "${target}" — see cast publish ls`),
+    );
     process.exit(1);
   }
   return matches[0];
@@ -332,14 +450,26 @@ async function resolveRow(deps: PublishDeps, target: string): Promise<ArtifactLs
 function ownerKeyOf(row: ArtifactLsRow): string {
   const key = (row as any).manage_url?.split("#o=")[1];
   if (!key) {
-    console.error(fmt.error(`No owner key for ${row.slug} — it may predate managed pages. Republish to mint one.`));
+    console.error(
+      fmt.error(
+        `No owner key for ${row.slug} — it may predate managed pages. Republish to mint one.`,
+      ),
+    );
     process.exit(1);
   }
   return key;
 }
 
-async function callManage(deps: PublishDeps, row: ArtifactLsRow, payload: Record<string, unknown>): Promise<any> {
-  return await apiPost(deps, "/cli/artifacts/manage", { slug: row.slug, owner_key: ownerKeyOf(row), ...payload });
+async function callManage(
+  deps: PublishDeps,
+  row: ArtifactLsRow,
+  payload: Record<string, unknown>,
+): Promise<any> {
+  return await apiPost(deps, "/cli/artifacts/manage", {
+    slug: row.slug,
+    owner_key: ownerKeyOf(row),
+    ...payload,
+  });
 }
 
 /** formatAgeShort takes a duration, not a timestamp — this is the "how long
@@ -354,7 +484,10 @@ function describeGates(access: any): string {
   bits.push(access.has_password ? "password on" : "no password");
   if (access.email_gate) bits.push("email gate on");
   if (access.expires_at) {
-    const when = access.expires_at < Date.now() ? "EXPIRED" : `expires ${new Date(access.expires_at).toLocaleString()}`;
+    const when =
+      access.expires_at < Date.now()
+        ? "EXPIRED"
+        : `expires ${new Date(access.expires_at).toLocaleString()}`;
     bits.push(when);
   }
   bits.push(`edit: ${access.edit_mode ?? "owner"}`);
@@ -365,11 +498,17 @@ function describeGates(access: any): string {
 
 /** Change access/title on an EXISTING artifact without republishing content —
  * the agent-facing counterpart of the in-page manage sheet. */
-async function runSet(deps: PublishDeps, target: string, options: PublishOptions & { editMode?: string }, json: boolean): Promise<void> {
+async function runSet(
+  deps: PublishDeps,
+  target: string,
+  options: PublishOptions & { editMode?: string },
+  json: boolean,
+): Promise<void> {
   const row = await resolveRow(deps, target);
   const set: Record<string, unknown> = {};
   if (options.passwordValue !== undefined) set.password = options.passwordValue;
-  else if (options.password !== undefined) set.password = options.password === false ? null : options.password;
+  else if (options.password !== undefined)
+    set.password = options.password === false ? null : options.password;
   if (options.emailGate !== undefined) set.email_gate = options.emailGate;
   if (options.editMode !== undefined) set.edit_mode = options.editMode;
   if (options.session !== undefined) set.show_session = options.session;
@@ -384,7 +523,11 @@ async function runSet(deps: PublishDeps, target: string, options: PublishOptions
     set.expires_in_ms = parsed.ms;
   }
   if (!Object.keys(set).length) {
-    console.error(fmt.error("Nothing to set. Pass one or more of: --password-stdin, --no-password, --email-gate, --no-email-gate, --expires 7d|never, --edit-mode owner|link|team, --no-session, --no-comments, --comments, --title T"));
+    console.error(
+      fmt.error(
+        "Nothing to set. Pass one or more of: --password-stdin, --no-password, --email-gate, --no-email-gate, --expires 7d|never, --edit-mode owner|link|team, --no-session, --no-comments, --comments, --title T",
+      ),
+    );
     process.exit(1);
   }
   const result = await callManage(deps, row, { set });
@@ -392,12 +535,21 @@ async function runSet(deps: PublishDeps, target: string, options: PublishOptions
     console.log(JSON.stringify(result, null, 2));
     return;
   }
-  console.log(`${fmt.success(icons.check)} Updated ${fmt.highlight(row.title)} ${fmt.muted(`(${row.slug})`)}`);
-  console.log(`  ${fmt.label("access:")} ${describeGates(result.access ?? {})}`);
-  if (result.edit_url) console.log(`  ${fmt.label("edit link (shareable):")} ${result.edit_url}`);
+  console.log(
+    `${fmt.success(icons.check)} Updated ${fmt.highlight(row.title)} ${fmt.muted(`(${row.slug})`)}`,
+  );
+  console.log(
+    `  ${fmt.label("access:")} ${describeGates(result.access ?? {})}`,
+  );
+  if (result.edit_url)
+    console.log(`  ${fmt.label("edit link (shareable):")} ${result.edit_url}`);
 }
 
-async function runVersions(deps: PublishDeps, target: string, json: boolean): Promise<void> {
+async function runVersions(
+  deps: PublishDeps,
+  target: string,
+  json: boolean,
+): Promise<void> {
   const row = await resolveRow(deps, target);
   const result = await callManage(deps, row, {});
   if (json) {
@@ -413,7 +565,9 @@ async function runVersions(deps: PublishDeps, target: string, json: boolean): Pr
   for (const v of versions) {
     const mark = v.current ? fmt.success(" ← current") : "";
     const who = v.edited_by ? fmt.muted(` by ${v.edited_by}`) : "";
-    console.log(`  ${fmt.number(`v${v.version}`)}  ${ago(v.published_at).padStart(4)}  ${formatBytes(v.size).padStart(7)}${who}${mark}`);
+    console.log(
+      `  ${fmt.number(`v${v.version}`)}  ${ago(v.published_at).padStart(4)}  ${formatBytes(v.size).padStart(7)}${who}${mark}`,
+    );
   }
   console.log(fmt.muted(`  restore: cast publish rollback ${row.slug} <n>`));
   console.log(fmt.muted(`  compare: ${row.url}?diff=<a>..<b>`));
@@ -427,9 +581,15 @@ async function runComments(
   const row = await resolveRow(deps, target);
   if (opts.resolveAll) {
     let panel = await callManage(deps, row, {});
-    const open_ = (panel.comments ?? []).filter((c: any) => c.status === "open");
-    for (const c of open_) panel = await callManage(deps, row, { resolve_comment_id: c.id });
-    if (!opts.json) console.log(`${fmt.success(icons.check)} Resolved ${open_.length} comment${open_.length === 1 ? "" : "s"}`);
+    const open_ = (panel.comments ?? []).filter(
+      (c: any) => c.status === "open",
+    );
+    for (const c of open_)
+      panel = await callManage(deps, row, { resolve_comment_id: c.id });
+    if (!opts.json)
+      console.log(
+        `${fmt.success(icons.check)} Resolved ${open_.length} comment${open_.length === 1 ? "" : "s"}`,
+      );
     if (opts.json) console.log(JSON.stringify(panel.comments ?? [], null, 2));
     return;
   }
@@ -441,15 +601,20 @@ async function runComments(
     console.log(JSON.stringify(comments, null, 2));
     return;
   }
-  if (opts.resolveId) console.log(`${fmt.success(icons.check)} Resolved ${opts.resolveId}`);
+  if (opts.resolveId)
+    console.log(`${fmt.success(icons.check)} Resolved ${opts.resolveId}`);
   const open_ = comments.filter((c) => c.status === "open");
   if (!open_.length) {
     console.log(fmt.muted("No open comments."));
     return;
   }
-  console.log(`${fmt.highlight(row.title)} ${fmt.muted(`(${row.slug})`)} — ${open_.length} open`);
+  console.log(
+    `${fmt.highlight(row.title)} ${fmt.muted(`(${row.slug})`)} — ${open_.length} open`,
+  );
   for (const c of open_) {
-    const who = c.author_email ? `${c.author_name} <${c.author_email}>` : c.author_name;
+    const who = c.author_email
+      ? `${c.author_name} <${c.author_email}>`
+      : c.author_name;
     // role: "owner" | "teammate" may steer the agent; anyone else is a viewer.
     const meta = [who, c.role ?? "viewer", `v${c.version}`, ago(c.created_at)];
     if (c.delivered) meta.push("sent to agent");
@@ -459,10 +624,18 @@ async function runComments(
     const where = describePageAnchor(parsePageAnchor(c.anchor));
     if (where.length) console.log(fmt.muted(`    ↳ ${where.join(", ")}`));
   }
-  console.log(fmt.muted(`  resolve: cast publish comments ${row.slug} --resolve <id>  |  --resolve-all`));
+  console.log(
+    fmt.muted(
+      `  resolve: cast publish comments ${row.slug} --resolve <id>  |  --resolve-all`,
+    ),
+  );
 }
 
-async function runViewers(deps: PublishDeps, target: string, json: boolean): Promise<void> {
+async function runViewers(
+  deps: PublishDeps,
+  target: string,
+  json: boolean,
+): Promise<void> {
   const row = await resolveRow(deps, target);
   const result = await callManage(deps, row, {});
   const viewers: any[] = result.viewers ?? [];
@@ -472,27 +645,46 @@ async function runViewers(deps: PublishDeps, target: string, json: boolean): Pro
   }
   const stats = result.stats ?? {};
   console.log(`${fmt.highlight(row.title)} ${fmt.muted(`(${row.slug})`)}`);
-  console.log(`  ${fmt.label("views:")} ${stats.views ?? 0}${stats.last_viewed_at ? fmt.muted(` · last ${ago(stats.last_viewed_at)}`) : ""}`);
+  console.log(
+    `  ${fmt.label("views:")} ${stats.views ?? 0}${stats.last_viewed_at ? fmt.muted(` · last ${ago(stats.last_viewed_at)}`) : ""}`,
+  );
   if (!viewers.length) {
-    console.log(fmt.muted("  No identified viewers (email gate off, or nobody has entered an address)."));
+    console.log(
+      fmt.muted(
+        "  No identified viewers (email gate off, or nobody has entered an address).",
+      ),
+    );
     return;
   }
   for (const v of viewers) {
-    console.log(`  ${v.email.padEnd(32)} ${fmt.muted(`${v.view_count}x · first ${ago(v.first_seen)} · last ${ago(v.last_seen)}`)}`);
+    console.log(
+      `  ${v.email.padEnd(32)} ${fmt.muted(`${v.view_count}x · first ${ago(v.first_seen)} · last ${ago(v.last_seen)}`)}`,
+    );
   }
 }
 
-async function runLinks(deps: PublishDeps, target: string, json: boolean): Promise<void> {
+async function runLinks(
+  deps: PublishDeps,
+  target: string,
+  json: boolean,
+): Promise<void> {
   const row = await resolveRow(deps, target);
   if (json) {
     console.log(JSON.stringify(row, null, 2));
     return;
   }
   console.log(`${fmt.label("share:")}  ${row.url}`);
-  console.log(`${fmt.label("manage:")} ${(row as any).manage_url} ${fmt.muted("(owner link — keep private)")}`);
-  if ((row as any).edit_url) console.log(`${fmt.label("edit:")}   ${(row as any).edit_url} ${fmt.muted("(anyone with this can publish versions)")}`);
+  console.log(
+    `${fmt.label("manage:")} ${(row as any).manage_url} ${fmt.muted("(owner link — keep private)")}`,
+  );
+  if ((row as any).edit_url)
+    console.log(
+      `${fmt.label("edit:")}   ${(row as any).edit_url} ${fmt.muted("(anyone with this can publish versions)")}`,
+    );
   console.log(`${fmt.label("source:")} ${row.url}?src=1`);
-  console.log(`${fmt.label("live:")}   ${row.url}?live=1 ${fmt.muted("(auto-reloads on new versions)")}`);
+  console.log(
+    `${fmt.label("live:")}   ${row.url}?live=1 ${fmt.muted("(auto-reloads on new versions)")}`,
+  );
 }
 
 // ── publish + watch ──────────────────────────────────────────────────────────
@@ -523,7 +715,14 @@ interface PublishOptions {
 /** The /cli/artifacts/publish body: the payload plus the flags of this publish. */
 export function publishRequestBody(
   payload: PublishPayload,
-  extra: { access?: Record<string, unknown>; sessionRef?: string; forceNew?: boolean; thumbB64?: string; task?: string; plan?: string },
+  extra: {
+    access?: Record<string, unknown>;
+    sessionRef?: string;
+    forceNew?: boolean;
+    thumbB64?: string;
+    task?: string;
+    plan?: string;
+  },
 ): Record<string, unknown> {
   return {
     title: payload.title,
@@ -547,27 +746,48 @@ const uploadedMedia = new Map<string, string>();
 /** Upload one video or audio file to media hosting (R2, keyed by its content
  * hash) and return its public URL; the same bytes already there upload nothing.
  * `label` names the file in progress lines and errors. */
-export async function uploadMediaFile(deps: PublishDeps, abs: string, label: string): Promise<{ url: string; bytes: number; existed: boolean }> {
+export async function uploadMediaFile(
+  deps: PublishDeps,
+  abs: string,
+  label: string,
+): Promise<{ url: string; bytes: number; existed: boolean }> {
   const size = fs.statSync(abs).size;
   const hash = crypto.createHash("sha256");
-  for await (const chunk of fs.createReadStream(abs)) hash.update(chunk as Buffer);
+  for await (const chunk of fs.createReadStream(abs))
+    hash.update(chunk as Buffer);
   const ext = path.extname(abs).slice(1).toLowerCase();
-  const signed = await apiPost(deps, "/cli/media/sign", { sha256: hash.digest("hex"), size, ext }, { exitOnError: false });
+  const signed = await apiPost(
+    deps,
+    "/cli/media/sign",
+    { sha256: hash.digest("hex"), size, ext },
+    { exitOnError: false },
+  );
   if (!signed.exists) {
-    process.stderr.write(fmt.muted(`uploading ${label} (${formatBytes(size)})\n`));
+    process.stderr.write(
+      fmt.muted(`uploading ${label} (${formatBytes(size)})\n`),
+    );
     const put = await fetch(signed.upload_url, {
       method: "PUT",
-      headers: { "Content-Type": signed.content_type ?? "application/octet-stream", "Cache-Control": "public, max-age=31536000, immutable" },
+      headers: {
+        "Content-Type": signed.content_type ?? "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
       body: await fs.openAsBlob(abs),
     });
-    if (!put.ok) throw new Error(`Upload of ${label} failed (${put.status}): ${(await put.text()).slice(0, 200)}`);
+    if (!put.ok)
+      throw new Error(
+        `Upload of ${label} failed (${put.status}): ${(await put.text()).slice(0, 200)}`,
+      );
   }
   return { url: signed.url as string, bytes: size, existed: !!signed.exists };
 }
 
 /** Upload each media file to R2 (skipped when the same bytes are already there)
  * and add it to the bundle as a path that the server redirects to the upload. */
-export async function uploadMedia(deps: PublishDeps, payload: PublishPayload): Promise<void> {
+export async function uploadMedia(
+  deps: PublishDeps,
+  payload: PublishPayload,
+): Promise<void> {
   for (const m of payload.media ?? []) {
     const stat = fs.statSync(m.abs);
     const cacheKey = `${m.abs}:${stat.size}:${stat.mtimeMs}`;
@@ -585,7 +805,11 @@ export async function uploadMedia(deps: PublishDeps, payload: PublishPayload): P
 export const INLINE_BUDGET_BYTES = 4 * 1024 * 1024;
 
 /** Paths to upload ahead of the publish, biggest first, until the inline rest fits the budget. The entry page always stays inline. */
-export function pathsToUpload(files: Array<{ path: string; size: number }>, entryPath: string | null, budget = INLINE_BUDGET_BYTES): string[] {
+export function pathsToUpload(
+  files: Array<{ path: string; size: number }>,
+  entryPath: string | null,
+  budget = INLINE_BUDGET_BYTES,
+): string[] {
   let inline = files.reduce((sum, f) => sum + f.size, 0);
   const out: string[] = [];
   for (const f of [...files].sort((a, b) => b.size - a.size)) {
@@ -597,17 +821,42 @@ export function pathsToUpload(files: Array<{ path: string; size: number }>, entr
   return out;
 }
 
-export async function uploadLargeFiles(deps: PublishDeps, payload: PublishPayload): Promise<void> {
+export async function uploadLargeFiles(
+  deps: PublishDeps,
+  payload: PublishPayload,
+): Promise<void> {
   if (payload.kind !== "bundle" || !payload.files) return;
   const inline = payload.files.filter((f) => f.content_b64 !== undefined);
-  const bytes = new Map(inline.map((f) => [f.path, Buffer.from(f.content_b64!, "base64")]));
-  const entry = payload.entryHtmlPath ? path.relative(payload.source_path, payload.entryHtmlPath).split(path.sep).join("/") : null;
-  const chosen = new Set(pathsToUpload(inline.map((f) => ({ path: f.path, size: bytes.get(f.path)!.byteLength })), entry));
+  const bytes = new Map(
+    inline.map((f) => [f.path, Buffer.from(f.content_b64!, "base64")]),
+  );
+  const entry = payload.entryHtmlPath
+    ? path
+        .relative(payload.source_path, payload.entryHtmlPath)
+        .split(path.sep)
+        .join("/")
+    : null;
+  const chosen = new Set(
+    pathsToUpload(
+      inline.map((f) => ({
+        path: f.path,
+        size: bytes.get(f.path)!.byteLength,
+      })),
+      entry,
+    ),
+  );
   for (const f of payload.files) {
     if (!chosen.has(f.path)) continue;
     const b = bytes.get(f.path)!;
-    process.stderr.write(fmt.muted(`uploading ${f.path} (${formatBytes(b.byteLength)})\n`));
-    const { upload_id } = await apiUpload(deps, `/cli/artifacts/upload?path=${encodeURIComponent(f.path)}`, new Blob([b]), { exitOnError: false });
+    process.stderr.write(
+      fmt.muted(`uploading ${f.path} (${formatBytes(b.byteLength)})\n`),
+    );
+    const { upload_id } = await apiUpload(
+      deps,
+      `/cli/artifacts/upload?path=${encodeURIComponent(f.path)}`,
+      new Blob([b]),
+      { exitOnError: false },
+    );
     delete f.content_b64;
     f.upload_id = upload_id;
   }
@@ -617,23 +866,53 @@ export async function publishOnce(
   deps: PublishDeps,
   absPath: string,
   options: PublishOptions,
-  extra: { access?: Record<string, unknown>; sessionRef?: string; withThumb: boolean; forceNew: boolean; exitOnError: boolean },
-): Promise<{ result: any; title: string; showsVideo: boolean; skipped: NonNullable<PublishPayload["skipped"]> }> {
+  extra: {
+    access?: Record<string, unknown>;
+    sessionRef?: string;
+    withThumb: boolean;
+    forceNew: boolean;
+    exitOnError: boolean;
+  },
+): Promise<{
+  result: any;
+  title: string;
+  showsVideo: boolean;
+  skipped: NonNullable<PublishPayload["skipped"]>;
+}> {
   const payload = buildPublishPayload(absPath, options.title);
   await uploadMedia(deps, payload);
   await uploadLargeFiles(deps, payload);
   let thumbB64: string | undefined;
   if (extra.withThumb && options.thumb !== false && payload.entryHtmlPath) {
-    thumbB64 = (payload.motion ? await captureMotionThumb(payload.entryHtmlPath) : await captureThumb(payload.entryHtmlPath)) ?? undefined;
+    thumbB64 =
+      (payload.motion
+        ? await captureMotionThumb(payload.entryHtmlPath)
+        : await captureThumb(payload.entryHtmlPath)) ?? undefined;
   }
   const result = await apiPost(
     deps,
     "/cli/artifacts/publish",
-    publishRequestBody(payload, { access: extra.access, sessionRef: extra.sessionRef, forceNew: extra.forceNew, thumbB64, task: options.task, plan: options.plan }),
+    publishRequestBody(payload, {
+      access: extra.access,
+      sessionRef: extra.sessionRef,
+      forceNew: extra.forceNew,
+      thumbB64,
+      task: options.task,
+      plan: options.plan,
+    }),
     { exitOnError: extra.exitOnError },
   );
-  const page = payload.content ?? (payload.entryHtmlPath ? fs.readFileSync(payload.entryHtmlPath, "utf-8") : "");
-  return { result, title: payload.title, showsVideo: pageUsesPlayer(page), skipped: payload.skipped ?? [] };
+  const page =
+    payload.content ??
+    (payload.entryHtmlPath
+      ? fs.readFileSync(payload.entryHtmlPath, "utf-8")
+      : "");
+  return {
+    result,
+    title: payload.title,
+    showsVideo: pageUsesPlayer(page),
+    skipped: payload.skipped ?? [],
+  };
 }
 
 const EDGE_WARM_TIMEOUT_MS = 3_000;
@@ -641,21 +920,49 @@ const EDGE_WARM_TIMEOUT_MS = 3_000;
 /** Ask the edge for a page just published, so the first reader's embed is answered from its copy rather than the
  *  origin. Bounded and silent: a publish never waits long on it or fails for it. A gated page is never held at the
  *  edge, so it is not asked for. */
-async function warmEdge(deps: PublishDeps, result: any, access: Record<string, unknown> | undefined): Promise<void> {
+async function warmEdge(
+  deps: PublishDeps,
+  result: any,
+  access: Record<string, unknown> | undefined,
+): Promise<void> {
   if (!result?.slug || !result.version || result.unchanged) return;
   if (access?.password || access?.email_gate) return;
   const { siteUrl } = deps.getCliEndpoint();
   // Pinned to the version (an embed that knew it), and bare (an embed that started before it knew anything).
-  const urls = ["dark", "light"].flatMap((theme) => [pageEmbedUrl(siteUrl, result.slug, theme, "", result.version), pageEmbedUrl(siteUrl, result.slug, theme)]);
-  await Promise.all(urls.map((u) => fetch(u, { signal: AbortSignal.timeout(EDGE_WARM_TIMEOUT_MS) }).then((r) => r.arrayBuffer(), () => undefined).catch(() => undefined)));
+  const urls = ["dark", "light"].flatMap((theme) => [
+    pageEmbedUrl(siteUrl, result.slug, theme, "", result.version),
+    pageEmbedUrl(siteUrl, result.slug, theme),
+  ]);
+  await Promise.all(
+    urls.map((u) =>
+      fetch(u, { signal: AbortSignal.timeout(EDGE_WARM_TIMEOUT_MS) })
+        .then(
+          (r) => r.arrayBuffer(),
+          () => undefined,
+        )
+        .catch(() => undefined),
+    ),
+  );
 }
 
-async function runPublish(deps: PublishDeps, target: string, options: PublishOptions): Promise<void> {
+async function runPublish(
+  deps: PublishDeps,
+  target: string,
+  options: PublishOptions,
+): Promise<void> {
   const absPath = path.resolve(target);
   if (!fs.existsSync(absPath)) {
     // A bare word that is not on disk and sits near a verb is a typo of the verb.
-    const next = /^[a-z]+$/.test(target) ? verbTypoNextStep(["publish"], PUBLISH_VERBS, target) : null;
-    console.error(fmt.error(next ? `No file "${target}" and no subcommand by that name. ${next}` : `No such file or directory: ${target}`));
+    const next = /^[a-z]+$/.test(target)
+      ? verbTypoNextStep(["publish"], PUBLISH_VERBS, target)
+      : null;
+    console.error(
+      fmt.error(
+        next
+          ? `No file "${target}" and no subcommand by that name. ${next}`
+          : `No such file or directory: ${target}`,
+      ),
+    );
     process.exit(1);
   }
   const access = accessFromOptions(options);
@@ -664,15 +971,25 @@ async function runPublish(deps: PublishDeps, target: string, options: PublishOpt
 
   if (options.render) {
     if (!isDir) {
-      console.error(fmt.error("--render publishes a directory: put the composition in its own folder as index.html"));
+      console.error(
+        fmt.error(
+          "--render publishes a directory: put the composition in its own folder as index.html",
+        ),
+      );
       process.exit(1);
     }
     try {
       process.stderr.write(fmt.muted("rendering MP4 (hyperframes render)…\n"));
       const manifest = renderMotion(absPath, walkBundleDir(absPath));
-      process.stderr.write(fmt.muted(`rendered ${manifest.mp4} (${formatBytes(manifest.bytes)})\n`));
+      process.stderr.write(
+        fmt.muted(
+          `rendered ${manifest.mp4} (${formatBytes(manifest.bytes)})\n`,
+        ),
+      );
     } catch (err) {
-      console.error(fmt.error(err instanceof Error ? err.message : String(err)));
+      console.error(
+        fmt.error(err instanceof Error ? err.message : String(err)),
+      );
       process.exit(1);
     }
   } else if (isDir) {
@@ -685,15 +1002,24 @@ async function runPublish(deps: PublishDeps, target: string, options: PublishOpt
   let showsVideo = false;
   try {
     let skipped: NonNullable<PublishPayload["skipped"]>;
-    ({ result, title, showsVideo, skipped } = await publishOnce(deps, absPath, options, {
-      access,
-      sessionRef,
-      withThumb: true,
-      forceNew: !!options.new,
-      exitOnError: false,
-    }));
+    ({ result, title, showsVideo, skipped } = await publishOnce(
+      deps,
+      absPath,
+      options,
+      {
+        access,
+        sessionRef,
+        withThumb: true,
+        forceNew: !!options.new,
+        exitOnError: false,
+      },
+    ));
     for (const s of skipped) {
-      process.stderr.write(fmt.muted(`left out ${s.dir} (${s.files} file${s.files === 1 ? "" : "s"}, ${formatBytes(s.bytes)}): HyperFrames output, not part of the page\n`));
+      process.stderr.write(
+        fmt.muted(
+          `left out ${s.dir} (${s.files} file${s.files === 1 ? "" : "s"}, ${formatBytes(s.bytes)}): HyperFrames output, not part of the page\n`,
+        ),
+      );
     }
   } catch (err) {
     console.error(fmt.error(err instanceof Error ? err.message : String(err)));
@@ -736,7 +1062,9 @@ async function runPublish(deps: PublishDeps, target: string, options: PublishOpt
       });
       console.log(`  ${new Date().toLocaleTimeString()}  ${versionLine(r)}`);
     } catch (err) {
-      console.error(`  ${fmt.error(err instanceof Error ? err.message : String(err))}`);
+      console.error(
+        `  ${fmt.error(err instanceof Error ? err.message : String(err))}`,
+      );
     } finally {
       publishing = false;
       if (dirty) {
@@ -770,180 +1098,385 @@ async function runPublish(deps: PublishDeps, target: string, options: PublishOpt
 
 // ── registration ─────────────────────────────────────────────────────────────
 
-const PUBLISH_VERBS = ["ls", "rm", "rollback", "open", "versions", "comments", "viewers", "links", "set", "data", "state", "watch", "unwatch", "video"];
-const PUBLISH_USAGE = "Usage: cast publish <file.html|file.md|dir> [--title T] [--task ct-N]; or a subcommand: ls | rm | rollback | open | versions | comments | viewers | links | set | data | state | watch | unwatch | video (each takes <slug|path>; cast publish --help)";
+const PUBLISH_VERBS = [
+  "ls",
+  "rm",
+  "rollback",
+  "open",
+  "versions",
+  "comments",
+  "viewers",
+  "links",
+  "set",
+  "data",
+  "state",
+  "watch",
+  "unwatch",
+  "video",
+];
+const PUBLISH_USAGE =
+  "Usage: cast publish <file.html|file.md|dir> [--title T] [--task ct-N]; or a subcommand: ls | rm | rollback | open | versions | comments | viewers | links | set | data | state | watch | unwatch | video (each takes <slug|path>; cast publish --help)";
 
-const GATE_FLAGS = ["--password", "--password-stdin", "--no-password", "--email-gate", "--no-email-gate", "--expires", "--edit-mode", "--session", "--no-session", "--comments", "--no-comments"];
+const GATE_FLAGS = [
+  "--password",
+  "--password-stdin",
+  "--no-password",
+  "--email-gate",
+  "--no-email-gate",
+  "--expires",
+  "--edit-mode",
+  "--session",
+  "--no-session",
+  "--comments",
+  "--no-comments",
+];
 
 /** What `cast publish <verb> --help` prints: each verb's usage and only the flags it reads. */
 export const PUBLISH_VERB_HELP: Record<string, VerbHelpSpec> = {
-  ls: { usage: "cast publish ls [--json]", summary: "Your published pages, newest first", flags: ["--json"] },
-  rm: { usage: "cast publish rm <slug|path> [--json]", summary: "Unpublish a page: its URL stops answering", flags: ["--json"] },
-  rollback: { usage: "cast publish rollback <slug|path> <version> [--json]", summary: "Publish an earlier version again as the newest one", flags: ["--json"] },
-  open: { usage: "cast publish open <slug|path> [--json]", summary: "Print a page's URL (--json for its whole row)", flags: ["--json"] },
-  versions: { usage: "cast publish versions <slug|path> [--json]", summary: "A page's version history, with how to restore and compare", flags: ["--json"] },
-  comments: { usage: "cast publish comments <slug|path> [--resolve <id> | --resolve-all] [--json]", summary: "Viewer comments on a page; revise, republish, then resolve them", flags: ["--resolve", "--resolve-all", "--json"] },
-  viewers: { usage: "cast publish viewers <slug|path> [--json]", summary: "How often a page was viewed, and by which addresses behind an email gate", flags: ["--json"] },
-  links: { usage: "cast publish links <slug|path> [--json]", summary: "A page's share, manage (owner, keep private), edit, source and live links", flags: ["--json"] },
-  set: { usage: "cast publish set <slug|path> [gates]", summary: "Change a page's gates and settings without republishing", flags: [...GATE_FLAGS, "--json"] },
-  data: { usage: "cast publish data <slug|path> [query-id] [--refresh] [--json]", summary: "A page's live queries and their latest rows", flags: ["--refresh", "--json"] },
+  ls: {
+    usage: "cast publish ls [--json]",
+    summary: "Your published pages, newest first",
+    flags: ["--json"],
+  },
+  rm: {
+    usage: "cast publish rm <slug|path> [--json]",
+    summary: "Unpublish a page: its URL stops answering",
+    flags: ["--json"],
+  },
+  rollback: {
+    usage: "cast publish rollback <slug|path> <version> [--json]",
+    summary: "Publish an earlier version again as the newest one",
+    flags: ["--json"],
+  },
+  open: {
+    usage: "cast publish open <slug|path> [--json]",
+    summary: "Print a page's URL (--json for its whole row)",
+    flags: ["--json"],
+  },
+  versions: {
+    usage: "cast publish versions <slug|path> [--json]",
+    summary: "A page's version history, with how to restore and compare",
+    flags: ["--json"],
+  },
+  comments: {
+    usage:
+      "cast publish comments <slug|path> [--resolve <id> | --resolve-all] [--json]",
+    summary: "Viewer comments on a page; revise, republish, then resolve them",
+    flags: ["--resolve", "--resolve-all", "--json"],
+  },
+  viewers: {
+    usage: "cast publish viewers <slug|path> [--json]",
+    summary:
+      "How often a page was viewed, and by which addresses behind an email gate",
+    flags: ["--json"],
+  },
+  links: {
+    usage: "cast publish links <slug|path> [--json]",
+    summary:
+      "A page's share, manage (owner, keep private), edit, source and live links",
+    flags: ["--json"],
+  },
+  set: {
+    usage: "cast publish set <slug|path> [gates]",
+    summary: "Change a page's gates and settings without republishing",
+    flags: [...GATE_FLAGS, "--json"],
+  },
+  data: {
+    usage: "cast publish data <slug|path> [query-id] [--refresh] [--json]",
+    summary: "A page's live queries and their latest rows",
+    flags: ["--refresh", "--json"],
+  },
   state: {
-    usage: "cast publish state <slug|path> [collection] [--set key=<json> | --insert <json> | --patch key=<json> | --delete key | --clear] [--json]",
-    summary: "A page's state collections, their rows and who watches them; one write first when a write flag is given (as your account would in the app, stamped with this session)",
+    usage:
+      "cast publish state <slug|path> [collection] [--set key=<json> | --insert <json> | --patch key=<json> | --delete key | --clear] [--json]",
+    summary:
+      "A page's state collections, their rows and who watches them; one write first when a write flag is given (as your account would in the app, stamped with this session)",
     flags: ["--set", "--insert", "--patch", "--delete", "--clear", "--json"],
   },
   watch: {
-    usage: "cast publish watch <slug|url|path> [collection...] [--prompt <text>] [--spawn]",
-    summary: "Wake this session when people change the page's state: each burst of writes is one turn listing what changed",
+    usage:
+      "cast publish watch <slug|url|path> [collection...] [--prompt <text>] [--spawn]",
+    summary:
+      "Wake this session when people change the page's state: each burst of writes is one turn listing what changed",
     flags: ["--prompt", "--spawn"],
     note: "An event trigger (cast trigger ls shows it). --prompt replaces the default brief; --spawn runs each wake in a fresh session instead.",
   },
-  unwatch: { usage: "cast publish unwatch <slug|url|path> [--all]", summary: "Stop this session's watch of a page (--all: every watch of yours on it)", flags: ["--all"] },
-  video: { usage: "cast publish video", summary: "How a page plays video in the cast player: chapters, styling, and hosting", note: "Run it bare to print the guide. A page with a <video> or <cast-player> publishes like any other." },
+  unwatch: {
+    usage: "cast publish unwatch <slug|url|path> [--all]",
+    summary:
+      "Stop this session's watch of a page (--all: every watch of yours on it)",
+    flags: ["--all"],
+  },
+  video: {
+    usage: "cast publish video",
+    summary:
+      "How a page plays video in the cast player: chapters, styling, and hosting",
+    note: "Run it bare to print the guide. A page with a <video> or <cast-player> publishes like any other.",
+  },
 };
 
-export function registerPublishCommand(program: Command, deps: PublishDeps): void {
+export function registerPublishCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   addVerbHelp(program.command("publish"), PUBLISH_VERB_HELP)
     .description(commandGroup("publish").description)
-    .argument("[target]", "file.html, file.md, or a directory; or a subcommand: ls | rm | rollback | open | versions | comments | viewers | links | set | data | state | watch | unwatch | video")
+    .argument(
+      "[target]",
+      "file.html, file.md, or a directory; or a subcommand: ls | rm | rollback | open | versions | comments | viewers | links | set | data | state | watch | unwatch | video",
+    )
     .argument("[args...]", "subcommand arguments")
-    .option("--title <title>", stdinText("Override the page title (default: <title> tag / first heading / filename)"))
-    .option("--new", "Publish under a fresh URL even if this path was published before")
+    .option(
+      "--title <title>",
+      stdinText(
+        "Override the page title (default: <title> tag / first heading / filename)",
+      ),
+    )
+    .option(
+      "--new",
+      "Publish under a fresh URL even if this path was published before",
+    )
     .option("--json", "Emit the raw JSON response")
-    .option("--url", "Print only the page URL, one line (for scripts and $(...))")
-    .option("--watch", "Keep watching the file/directory and republish on change")
-    .option("--password <password>", "Require a password to view (visible in ps; prefer --password-stdin)")
-    .option("--password-stdin", "Read the view password from stdin (keeps it out of the process list)")
+    .option(
+      "--url",
+      "Print only the page URL, one line (for scripts and $(...))",
+    )
+    .option(
+      "--watch",
+      "Keep watching the file/directory and republish on change",
+    )
+    .option(
+      "--password <password>",
+      "Require a password to view (visible in ps; prefer --password-stdin)",
+    )
+    .option(
+      "--password-stdin",
+      "Read the view password from stdin (keeps it out of the process list)",
+    )
     .option("--no-password", "Clear the password gate")
     .option("--email-gate", "Require an email address to view")
     .option("--no-email-gate", "Clear the email gate")
-    .option("--expires <duration>", "Expire the link after a duration (30m, 24h, 7d) or never")
-    .option("--edit-mode <mode>", "Who can edit in the browser: owner | link | team")
-    .option("--session", "Show the link to the publishing session on the page (default)")
+    .option(
+      "--expires <duration>",
+      "Expire the link after a duration (30m, 24h, 7d) or never",
+    )
+    .option(
+      "--edit-mode <mode>",
+      "Who can edit in the browser: owner | link | team",
+    )
+    .option(
+      "--session",
+      "Show the link to the publishing session on the page (default)",
+    )
     .option("--no-session", "Hide the publishing-session link from the page")
     .option("--comments", "Let viewers discuss the page (default)")
     .option("--no-comments", "Turn off the viewer discussion")
     .option("--no-thumb", "Skip the headless-Chrome thumbnail screenshot")
-    .option("--task <ct-N>", "Attach the page to a task as evidence at its current station (default: the session's active task)")
+    .option(
+      "--task <ct-N>",
+      "Attach the page to a task as evidence at its current station (default: the session's active task)",
+    )
     .option("--plan <pl-N>", "Attach the page to a plan")
     .option("--open", "Open the published URL in the browser")
-    .option("--render", "Render a HyperFrames composition directory to MP4 and offer it on the page (slow; only when an MP4 is wanted)")
+    .option(
+      "--render",
+      "Render a HyperFrames composition directory to MP4 and offer it on the page (slow; only when an MP4 is wanted)",
+    )
     .option("--resolve <id>", "comments: mark one comment resolved")
     .option("--resolve-all", "comments: mark every open comment resolved")
-    .option("--refresh", "data: run the page's queries now and wait for the rows")
+    .option(
+      "--refresh",
+      "data: run the page's queries now and wait for the rows",
+    )
     .option("--set <key=json>", "state: write one row's whole value")
     .option("--insert <json>", "state: add a row under a fresh key")
     .option("--patch <key=json>", "state: merge an object into a row")
     .option("--delete <key>", "state: delete one row")
     .option("--clear", "state: delete every row of the collection")
-    .option("--prompt <text>", stdinText("watch: the brief each wake starts with (default: answer on the page)"))
-    .option("--spawn", "watch: run each wake in a fresh session instead of this one")
-    .option("--all", "unwatch: stop every watch of yours on the page, not only this session's")
-    .action(async (target: string | undefined, args: string[], options: PublishOptions) => {
-      const json = !!options.json;
-      if (!target) {
-        console.error(fmt.error(PUBLISH_USAGE));
-        process.exit(1);
-      }
-      if (target === "ls") return runLs(deps, json);
-      if (target === "video" && !fs.existsSync(target)) return void console.log(CAST_PLAYER_GUIDE);
-      if (target === "rm") {
-        if (!args[0]) {
-          console.error(fmt.error("Usage: cast publish rm <slug|path>"));
+    .option(
+      "--prompt <text>",
+      stdinText(
+        "watch: the brief each wake starts with (default: answer on the page)",
+      ),
+    )
+    .option(
+      "--spawn",
+      "watch: run each wake in a fresh session instead of this one",
+    )
+    .option(
+      "--all",
+      "unwatch: stop every watch of yours on the page, not only this session's",
+    )
+    .action(
+      async (
+        target: string | undefined,
+        args: string[],
+        options: PublishOptions,
+      ) => {
+        const json = !!options.json;
+        if (!target) {
+          console.error(fmt.error(PUBLISH_USAGE));
           process.exit(1);
         }
-        return runRm(deps, args[0], json);
-      }
-      if (target === "rollback") {
-        if (!args[0] || !args[1]) {
-          console.error(fmt.error("Usage: cast publish rollback <slug|path> <version>"));
-          process.exit(1);
+        if (target === "ls") return runLs(deps, json);
+        if (target === "video" && !fs.existsSync(target))
+          return void console.log(CAST_PLAYER_GUIDE);
+        if (target === "rm") {
+          if (!args[0]) {
+            console.error(fmt.error("Usage: cast publish rm <slug|path>"));
+            process.exit(1);
+          }
+          return runRm(deps, args[0], json);
         }
-        return runRollback(deps, args[0], args[1], json);
-      }
-      // Management subcommands. Each is shadowed by a real file/dir of the
-      // same name, so `cast publish set` still publishes ./set if it exists.
-      const MANAGEMENT = ["versions", "comments", "viewers", "links", "set"];
-      if (MANAGEMENT.includes(target) && !fs.existsSync(target)) {
-        if (!args[0]) {
-          console.error(fmt.error(`Usage: cast publish ${target} <slug|path>`));
-          process.exit(1);
+        if (target === "rollback") {
+          if (!args[0] || !args[1]) {
+            console.error(
+              fmt.error("Usage: cast publish rollback <slug|path> <version>"),
+            );
+            process.exit(1);
+          }
+          return runRollback(deps, args[0], args[1], json);
         }
-        const sub = args[0];
-        if (target === "versions") return runVersions(deps, sub, json);
-        if (target === "viewers") return runViewers(deps, sub, json);
-        if (target === "links") return runLinks(deps, sub, json);
-        if (target === "comments") {
-          const o = options as PublishOptions & { resolve?: string; resolveAll?: boolean };
-          return runComments(deps, sub, { resolveId: o.resolve, resolveAll: !!o.resolveAll, json });
+        // Management subcommands. Each is shadowed by a real file/dir of the
+        // same name, so `cast publish set` still publishes ./set if it exists.
+        const MANAGEMENT = ["versions", "comments", "viewers", "links", "set"];
+        if (MANAGEMENT.includes(target) && !fs.existsSync(target)) {
+          if (!args[0]) {
+            console.error(
+              fmt.error(`Usage: cast publish ${target} <slug|path>`),
+            );
+            process.exit(1);
+          }
+          const sub = args[0];
+          if (target === "versions") return runVersions(deps, sub, json);
+          if (target === "viewers") return runViewers(deps, sub, json);
+          if (target === "links") return runLinks(deps, sub, json);
+          if (target === "comments") {
+            const o = options as PublishOptions & {
+              resolve?: string;
+              resolveAll?: boolean;
+            };
+            return runComments(deps, sub, {
+              resolveId: o.resolve,
+              resolveAll: !!o.resolveAll,
+              json,
+            });
+          }
+          return runSet(deps, sub, options, json);
         }
-        return runSet(deps, sub, options, json);
-      }
-      if (target === "data" && !fs.existsSync(target)) {
-        if (!args[0]) {
-          console.error(fmt.error("Usage: cast publish data <slug|path> [query-id] [--refresh] [--json]"));
-          process.exit(1);
+        if (target === "data" && !fs.existsSync(target)) {
+          if (!args[0]) {
+            console.error(
+              fmt.error(
+                "Usage: cast publish data <slug|path> [query-id] [--refresh] [--json]",
+              ),
+            );
+            process.exit(1);
+          }
+          return runPublishData(deps, args[0], args[1], {
+            refresh: !!(options as { refresh?: boolean }).refresh,
+            json,
+          });
         }
-        return runPublishData(deps, args[0], args[1], { refresh: !!(options as { refresh?: boolean }).refresh, json });
-      }
-      if (target === "state" && !fs.existsSync(target)) {
-        if (!args[0]) {
-          console.error(fmt.error(`Usage: ${PUBLISH_VERB_HELP.state.usage}`));
-          process.exit(1);
+        if (target === "state" && !fs.existsSync(target)) {
+          if (!args[0]) {
+            console.error(fmt.error(`Usage: ${PUBLISH_VERB_HELP.state.usage}`));
+            process.exit(1);
+          }
+          const o = options as {
+            set?: string;
+            insert?: string;
+            patch?: string;
+            delete?: string;
+            clear?: boolean;
+          };
+          const given = [o.set, o.insert, o.patch, o.delete, o.clear].filter(
+            (x) => x !== undefined && x !== false,
+          );
+          if (given.length > 1) {
+            console.error(
+              fmt.error(
+                "One write at a time: --set, --insert, --patch, --delete or --clear",
+              ),
+            );
+            process.exit(1);
+          }
+          let write: StateWrite | null = null;
+          try {
+            if (o.set) write = { op: "set", ...parseKeyValue(o.set, "--set") };
+            else if (o.patch)
+              write = { op: "patch", ...parseKeyValue(o.patch, "--patch") };
+            else if (o.insert)
+              write = {
+                op: "insert",
+                value_json: jsonText(o.insert, "--insert"),
+              };
+            else if (o.delete) write = { op: "delete", key: o.delete };
+            else if (o.clear) write = { op: "clear" };
+          } catch (e) {
+            console.error(
+              fmt.error(e instanceof Error ? e.message : String(e)),
+            );
+            process.exit(1);
+          }
+          if (write && !args[1]) {
+            console.error(
+              fmt.error(
+                "A write names its collection: cast publish state <slug|path> <collection> --set key=<json>",
+              ),
+            );
+            process.exit(1);
+          }
+          return runPublishState(deps, args[0], args[1], write, { json });
         }
-        const o = options as { set?: string; insert?: string; patch?: string; delete?: string; clear?: boolean };
-        const given = [o.set, o.insert, o.patch, o.delete, o.clear].filter((x) => x !== undefined && x !== false);
-        if (given.length > 1) {
-          console.error(fmt.error("One write at a time: --set, --insert, --patch, --delete or --clear"));
-          process.exit(1);
+        if (
+          (target === "watch" || target === "unwatch") &&
+          !fs.existsSync(target)
+        ) {
+          if (!args[0]) {
+            console.error(
+              fmt.error(`Usage: ${PUBLISH_VERB_HELP[target].usage}`),
+            );
+            process.exit(1);
+          }
+          const page = fs.existsSync(args[0]) ? path.resolve(args[0]) : args[0];
+          const o = options as {
+            prompt?: string;
+            spawn?: boolean;
+            all?: boolean;
+          };
+          if (target === "watch")
+            return runPublishWatch(program, deps, page, args.slice(1), {
+              prompt: o.prompt,
+              spawn: o.spawn,
+            });
+          return runPublishUnwatch(program, deps, page, { all: o.all });
         }
-        let write: StateWrite | null = null;
-        try {
-          if (o.set) write = { op: "set", ...parseKeyValue(o.set, "--set") };
-          else if (o.patch) write = { op: "patch", ...parseKeyValue(o.patch, "--patch") };
-          else if (o.insert) write = { op: "insert", value_json: jsonText(o.insert, "--insert") };
-          else if (o.delete) write = { op: "delete", key: o.delete };
-          else if (o.clear) write = { op: "clear" };
-        } catch (e) {
-          console.error(fmt.error(e instanceof Error ? e.message : String(e)));
-          process.exit(1);
+        if (target === "open" && !fs.existsSync(target)) {
+          if (!args[0]) {
+            console.error(fmt.error("Usage: cast publish open <slug|path>"));
+            process.exit(1);
+          }
+          return runOpen(deps, args[0], json);
         }
-        if (write && !args[1]) {
-          console.error(fmt.error("A write names its collection: cast publish state <slug|path> <collection> --set key=<json>"));
-          process.exit(1);
+        // --password-stdin keeps the secret out of argv (and out of `ps`).
+        if ((options as { passwordStdin?: boolean }).passwordStdin) {
+          const chunks: Buffer[] = [];
+          for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+          const value = Buffer.concat(chunks)
+            .toString("utf8")
+            .replace(/\r?\n$/, "");
+          if (!value) {
+            console.error(
+              fmt.error("--password-stdin was set but stdin was empty"),
+            );
+            process.exit(1);
+          }
+          options.passwordValue = value;
         }
-        return runPublishState(deps, args[0], args[1], write, { json });
-      }
-      if ((target === "watch" || target === "unwatch") && !fs.existsSync(target)) {
-        if (!args[0]) {
-          console.error(fmt.error(`Usage: ${PUBLISH_VERB_HELP[target].usage}`));
-          process.exit(1);
-        }
-        const page = fs.existsSync(args[0]) ? path.resolve(args[0]) : args[0];
-        const o = options as { prompt?: string; spawn?: boolean; all?: boolean };
-        if (target === "watch") return runPublishWatch(program, deps, page, args.slice(1), { prompt: o.prompt, spawn: o.spawn });
-        return runPublishUnwatch(program, deps, page, { all: o.all });
-      }
-      if (target === "open" && !fs.existsSync(target)) {
-        if (!args[0]) {
-          console.error(fmt.error("Usage: cast publish open <slug|path>"));
-          process.exit(1);
-        }
-        return runOpen(deps, args[0], json);
-      }
-      // --password-stdin keeps the secret out of argv (and out of `ps`).
-      if ((options as { passwordStdin?: boolean }).passwordStdin) {
-        const chunks: Buffer[] = [];
-        for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
-        const value = Buffer.concat(chunks).toString("utf8").replace(/\r?\n$/, "");
-        if (!value) {
-          console.error(fmt.error("--password-stdin was set but stdin was empty"));
-          process.exit(1);
-        }
-        options.passwordValue = value;
-      }
-      return runPublish(deps, target, options);
-    });
+        return runPublish(deps, target, options);
+      },
+    );
 }
 
 // The publish surface still owns these for callers that reach for them here;

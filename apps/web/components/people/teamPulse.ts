@@ -2,9 +2,20 @@
 // person, and how many huddles are open. Read from data the roster already
 // holds, so it costs no subscription and can never disagree with the rows.
 // React-free so it is unit-testable under bun.
-import { presenceBand, type FleetSummary, type PresenceBand } from "../presence/memberPresence";
+import {
+  presenceBand,
+  type FleetSummary,
+  type PresenceBand,
+} from "../presence/memberPresence";
 
-export type PulseTone = "here" | "idle" | "away" | "working" | "needsInput" | "huddle" | "quiet";
+export type PulseTone =
+  | "here"
+  | "idle"
+  | "away"
+  | "working"
+  | "needsInput"
+  | "huddle"
+  | "quiet";
 
 export interface PulseSegment {
   key: PulseTone;
@@ -44,8 +55,14 @@ export function teamPulse<T>(
 ): TeamPulse {
   // The bands are the roster's own sections (presenceBand), counted rather
   // than re-derived, so the pulse can never disagree with the list under it.
-  const bands: Record<PresenceBand, number> = { online: 0, idle: 0, away: 0, offline: 0 };
-  let working = 0, needsInput = 0;
+  const bands: Record<PresenceBand, number> = {
+    online: 0,
+    idle: 0,
+    away: 0,
+    offline: 0,
+  };
+  let working = 0,
+    needsInput = 0;
   for (const m of members) {
     if (!m) continue;
     bands[presenceBand(m)]++;

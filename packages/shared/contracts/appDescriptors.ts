@@ -35,12 +35,25 @@
 // `scopes` names which of the two a connector can bind to; Gmail is personal
 // by nature (mail belongs to a person), the rest take either.
 
-export const APP_IDS = ["slack", "github", "gmail", "linear", "notion", "sentry", "posthog", "app"] as const;
+export const APP_IDS = [
+  "slack",
+  "github",
+  "gmail",
+  "linear",
+  "notion",
+  "sentry",
+  "posthog",
+  "app",
+] as const;
 
 export type AppId = (typeof APP_IDS)[number];
 
 /** Which existing connect flow the card's button runs. */
-export type AppConnectKind = "oauth-popup" | "github-app-install" | "token-paste" | "coming-soon";
+export type AppConnectKind =
+  | "oauth-popup"
+  | "github-app-install"
+  | "token-paste"
+  | "coming-soon";
 
 /**
  * Every app whose connection is a row in convex `app_installations`: the
@@ -48,7 +61,13 @@ export type AppConnectKind = "oauth-popup" | "github-app-install" | "token-paste
  * connection card, the CLI disconnect and the web revoke all find these rows
  * the same way instead of each naming providers.
  */
-export const APP_INSTALLATION_APPS: readonly AppId[] = ["linear", "notion", "sentry", "posthog", "app"];
+export const APP_INSTALLATION_APPS: readonly AppId[] = [
+  "linear",
+  "notion",
+  "sentry",
+  "posthog",
+  "app",
+];
 
 export function isAppInstallationApp(id: AppId): boolean {
   return APP_INSTALLATION_APPS.includes(id);
@@ -75,7 +94,9 @@ export interface TokenConfigField {
 /** Who a connection belongs to once made: the whole team, or one person. */
 export type AppConnectionScope = "team" | "personal";
 
-export function isAppConnectionScope(value: unknown): value is AppConnectionScope {
+export function isAppConnectionScope(
+  value: unknown,
+): value is AppConnectionScope {
   return value === "team" || value === "personal";
 }
 
@@ -117,7 +138,11 @@ export interface AppDescriptor {
 }
 
 /** A tokenHelp url with the config fields filled in: what the person typed, else the field's default; a trailing slash on a host is dropped. */
-export function tokenCreateUrl(template: string, fields: readonly Pick<TokenConfigField, "key" | "default">[], values: Readonly<Record<string, string>>): string {
+export function tokenCreateUrl(
+  template: string,
+  fields: readonly Pick<TokenConfigField, "key" | "default">[],
+  values: Readonly<Record<string, string>>,
+): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => {
     const typed = values[key]?.trim();
     const value = typed || fields.find((f) => f.key === key)?.default || "";
@@ -197,10 +222,24 @@ export const APP_DESCRIPTORS: Record<AppId, AppDescriptor> = {
     connectKind: "token-paste",
     scopes: ["team", "personal"],
     tokenLabel: "Auth token",
-    tokenHelp: { createUrl: "{host}/settings/account/api/auth-tokens/", scopes: ["org:read", "project:read", "event:read", "event:write"] },
+    tokenHelp: {
+      createUrl: "{host}/settings/account/api/auth-tokens/",
+      scopes: ["org:read", "project:read", "event:read", "event:write"],
+    },
     tokenConfig: [
-      { key: "org", label: "Organization slug", flag: "org", placeholder: "acme" },
-      { key: "host", label: "Host", flag: "host", default: "https://sentry.io", placeholder: "https://sentry.io" },
+      {
+        key: "org",
+        label: "Organization slug",
+        flag: "org",
+        placeholder: "acme",
+      },
+      {
+        key: "host",
+        label: "Host",
+        flag: "host",
+        default: "https://sentry.io",
+        placeholder: "https://sentry.io",
+      },
     ],
   },
   posthog: {
@@ -215,16 +254,36 @@ export const APP_DESCRIPTORS: Record<AppId, AppDescriptor> = {
     connectKind: "token-paste",
     scopes: ["team", "personal"],
     tokenLabel: "Personal API key",
-    tokenHelp: { createUrl: "{host}/settings/user-api-keys", scopes: ["project:read", "query:read", "insight:read", "session_recording:read"] },
+    tokenHelp: {
+      createUrl: "{host}/settings/user-api-keys",
+      scopes: [
+        "project:read",
+        "query:read",
+        "insight:read",
+        "session_recording:read",
+      ],
+    },
     tokenConfig: [
-      { key: "project_id", label: "Project id", flag: "project", placeholder: "12345" },
-      { key: "host", label: "Host", flag: "host", default: "https://us.posthog.com", placeholder: "https://us.posthog.com" },
+      {
+        key: "project_id",
+        label: "Project id",
+        flag: "project",
+        placeholder: "12345",
+      },
+      {
+        key: "host",
+        label: "Host",
+        flag: "host",
+        default: "https://us.posthog.com",
+        placeholder: "https://us.posthog.com",
+      },
     ],
   },
   app: {
     id: "app",
     name: "Your app",
-    tagline: "Let agents read and act through the routes your product declares.",
+    tagline:
+      "Let agents read and act through the routes your product declares.",
     bullets: [
       "Call the readers your app's /codecast/manifest lists; responses are not stored",
       "Run a declared action only after a person grants it",
@@ -235,7 +294,12 @@ export const APP_DESCRIPTORS: Record<AppId, AppDescriptor> = {
     tokenLabel: "Connector secret",
     tokenOptional: true,
     tokenConfig: [
-      { key: "base_url", label: "Base URL", flag: "base-url", placeholder: "https://api.example.com" },
+      {
+        key: "base_url",
+        label: "Base URL",
+        flag: "base-url",
+        placeholder: "https://api.example.com",
+      },
     ],
   },
 };

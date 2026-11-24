@@ -16,13 +16,24 @@ const MOVED = "m".repeat(32);
 
 beforeAll(() => {
   const dom = new JSDOM("<!doctype html><html><body></body></html>");
-  for (const key of ["window", "document", "MutationObserver", "Element", "HTMLElement", "Event"] as const) {
+  for (const key of [
+    "window",
+    "document",
+    "MutationObserver",
+    "Element",
+    "HTMLElement",
+    "Event",
+  ] as const) {
     (globalThis as any)[key] = (dom.window as any)[key];
   }
 });
 
 function seed() {
-  const row = (id: string, title: string) => ({ _id: id, title, updated_at: 1 });
+  const row = (id: string, title: string) => ({
+    _id: id,
+    title,
+    updated_at: 1,
+  });
   useInboxStore.setState({
     pending: {},
     sessions: { [PINNED]: row(PINNED, "Ta"), [MOVED]: row(MOVED, "Tb") },
@@ -43,10 +54,26 @@ const row = (id: string) => useInboxStore.getState().sessions[id] as any;
 const statuses = () => getUndoHistory().items.map((i) => i.status);
 
 const GESTURES: Array<[string, () => Promise<unknown>, () => boolean]> = [
-  ["stash", () => animatedHideSessions([MOVED], "stash"), () => !!row(MOVED)?.inbox_stashed_at],
-  ["stash and hide", () => animatedHideSessions([MOVED], "stash", { hidden: true }), () => !!row(MOVED)?.inbox_stashed_at],
-  ["kill", () => animatedHideSessions([MOVED], "kill"), () => !!row(MOVED)?.inbox_killed_at],
-  ["file as rest", () => animatedSetSessionRest(MOVED, "done"), () => row(MOVED)?.user_rest === "done"],
+  [
+    "stash",
+    () => animatedHideSessions([MOVED], "stash"),
+    () => !!row(MOVED)?.inbox_stashed_at,
+  ],
+  [
+    "stash and hide",
+    () => animatedHideSessions([MOVED], "stash", { hidden: true }),
+    () => !!row(MOVED)?.inbox_stashed_at,
+  ],
+  [
+    "kill",
+    () => animatedHideSessions([MOVED], "kill"),
+    () => !!row(MOVED)?.inbox_killed_at,
+  ],
+  [
+    "file as rest",
+    () => animatedSetSessionRest(MOVED, "done"),
+    () => row(MOVED)?.user_rest === "done",
+  ],
 ];
 
 describe("an undo during a gesture's exit animation takes back that gesture", () => {
@@ -84,14 +111,34 @@ describe("a gesture's write after its exit animation is registered before the wa
   const ROOT = join(import.meta.dir, "..", "..");
 
   test("only store/undoActions.ts collapses a row out", () => {
-    const out = Bun.spawnSync(["git", "grep", "-lE", "session-dismissing", "--", "app", "components", "hooks", "store", "lib"], { cwd: ROOT });
-    const files = out.stdout.toString().split("\n").filter((f) => f && !/(__tests__|\.test\.tsx?$|\.css$)/.test(f));
+    const out = Bun.spawnSync(
+      [
+        "git",
+        "grep",
+        "-lE",
+        "session-dismissing",
+        "--",
+        "app",
+        "components",
+        "hooks",
+        "store",
+        "lib",
+      ],
+      { cwd: ROOT },
+    );
+    const files = out.stdout
+      .toString()
+      .split("\n")
+      .filter((f) => f && !/(__tests__|\.test\.tsx?$|\.css$)/.test(f));
     expect(files).toEqual(["store/undoActions.ts"]);
   }, 60_000);
 
   test("every exit is started by afterSessionExits, which defers its write", () => {
     const src = readFileSync(join(ROOT, "store", "undoActions.ts"), "utf8");
-    const helper = src.slice(src.indexOf("function afterSessionExits"), src.indexOf("\n}\n", src.indexOf("function afterSessionExits")));
+    const helper = src.slice(
+      src.indexOf("function afterSessionExits"),
+      src.indexOf("\n}\n", src.indexOf("function afterSessionExits")),
+    );
     expect(helper).toContain("deferUndoGesture(");
     const starts = [...src.matchAll(/startSessionExit\(/g)].length;
     // Its definition, and its one call inside afterSessionExits.
@@ -108,12 +155,25 @@ describe("a kill of thousands goes out in slices the server accepts", () => {
   test("every killSessions call carries at most 500 rows, and the gesture is one undo", async () => {
     _resetUndoStacks();
     document.body.innerHTML = "";
-    const ids = Array.from({ length: 1201 }, (_, i) => i.toString(36).padStart(32, "k"));
-    const rows = Object.fromEntries(ids.map((id) => [id, { _id: id, title: id, updated_at: 1 }]));
-    useInboxStore.setState({ pending: {}, sessions: rows, conversations: structuredClone(rows) } as any);
+    const ids = Array.from({ length: 1201 }, (_, i) =>
+      i.toString(36).padStart(32, "k"),
+    );
+    const rows = Object.fromEntries(
+      ids.map((id) => [id, { _id: id, title: id, updated_at: 1 }]),
+    );
+    useInboxStore.setState({
+      pending: {},
+      sessions: rows,
+      conversations: structuredClone(rows),
+    } as any);
     const real = useInboxStore.getState().killSessions;
     const sizes: number[] = [];
-    useInboxStore.setState({ killSessions: (list: string[]) => { sizes.push(list.length); real(list); } } as any);
+    useInboxStore.setState({
+      killSessions: (list: string[]) => {
+        sizes.push(list.length);
+        real(list);
+      },
+    } as any);
     try {
       await animatedHideSessions(ids, "kill");
     } finally {

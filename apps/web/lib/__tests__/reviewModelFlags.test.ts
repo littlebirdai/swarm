@@ -5,7 +5,10 @@ import { commentsFromReviewOn } from "../commentSource";
 import { quoteDraftsOn } from "../quoteDraftWire";
 
 describe("review model preferences", () => {
-  for (const [name, on, key] of [["quote_drafts", quoteDraftsOn, "quote_drafts"], ["comments_from_review", commentsFromReviewOn, "comments_from_review"]] as const) {
+  for (const [name, on, key] of [
+    ["quote_drafts", quoteDraftsOn, "quote_drafts"],
+    ["comments_from_review", commentsFromReviewOn, "comments_from_review"],
+  ] as const) {
     test(`${name}: on when unset, off only when false`, () => {
       expect(on({})).toBe(true);
       expect(on({ clientState: null })).toBe(true);

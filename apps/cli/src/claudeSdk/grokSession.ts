@@ -10,8 +10,21 @@
 
 import { EventEmitter } from "node:events";
 import * as crypto from "node:crypto";
-import { GrokAcpClient, type GrokPermissionOption, type GrokPermissionRequest, type GrokSessionUpdate } from "../grokAcp.js";
-import type { SdkActivity, SdkHostStatus, SdkImage, SdkInitInfo, SdkPermissionAnswer, SdkPermissionRequest, SdkTurnError } from "./protocol.js";
+import {
+  GrokAcpClient,
+  type GrokPermissionOption,
+  type GrokPermissionRequest,
+  type GrokSessionUpdate,
+} from "../grokAcp.js";
+import type {
+  SdkActivity,
+  SdkHostStatus,
+  SdkImage,
+  SdkInitInfo,
+  SdkPermissionAnswer,
+  SdkPermissionRequest,
+  SdkTurnError,
+} from "./protocol.js";
 import type { ClaudeSdkSessionEvents } from "./session.js";
 import { sdkSessionEnv, type SdkLaunchSpec } from "./options.js";
 
@@ -24,8 +37,10 @@ export interface ParsedGrokArgs {
 }
 
 const GROK_VALUE_FLAGS: Record<string, keyof ParsedGrokArgs> = {
-  "--model": "model", "-m": "model",
-  "--reasoning-effort": "effort", "--effort": "effort",
+  "--model": "model",
+  "-m": "model",
+  "--reasoning-effort": "effort",
+  "--effort": "effort",
   "--permission-mode": "permissionMode",
   "--rules": "rules",
 };
@@ -47,30 +62,47 @@ export function parseGrokArgs(args: string[]): ParsedGrokArgs {
 
 /** The `grok agent` options for a parsed argv: model and effort apply to every session the process runs. */
 export function grokAgentArgs(parsed: ParsedGrokArgs): string[] {
-  return [...(parsed.model ? ["-m", parsed.model] : []), ...(parsed.effort ? ["--reasoning-effort", parsed.effort] : [])];
+  return [
+    ...(parsed.model ? ["-m", parsed.model] : []),
+    ...(parsed.effort ? ["--reasoning-effort", parsed.effort] : []),
+  ];
 }
 
 /** Always-approve is grok's bypassPermissions; auto is its own mode. */
-function permissionMeta(mode: string | undefined): { yoloMode?: boolean; autoMode?: boolean } {
+function permissionMeta(mode: string | undefined): {
+  yoloMode?: boolean;
+  autoMode?: boolean;
+} {
   if (mode === "bypassPermissions") return { yoloMode: true };
   if (mode === "auto") return { autoMode: true, yoloMode: false };
   return { yoloMode: false };
 }
 
 /** The option a codecast answer picks: a remembered allow is grok's allow_always. */
-export function grokOptionFor(answer: SdkPermissionAnswer, options: GrokPermissionOption[]): string | null {
-  const pick = (...kinds: string[]) => kinds.map((k) => options.find((o) => o.kind === k)).find(Boolean)?.optionId ?? null;
-  if (answer.behavior === "allow") return answer.updatedPermissions?.length ? pick("allow_always", "allow_once") : pick("allow_once", "allow_always");
+export function grokOptionFor(
+  answer: SdkPermissionAnswer,
+  options: GrokPermissionOption[],
+): string | null {
+  const pick = (...kinds: string[]) =>
+    kinds.map((k) => options.find((o) => o.kind === k)).find(Boolean)
+      ?.optionId ?? null;
+  if (answer.behavior === "allow")
+    return answer.updatedPermissions?.length
+      ? pick("allow_always", "allow_once")
+      : pick("allow_once", "allow_always");
   return pick("reject_once", "reject_always");
 }
 
 /** A turn's failure from a rejected prompt: grok names the cause in the error text. */
 export function grokTurnError(err: unknown, now = Date.now()): SdkTurnError {
   const message = err instanceof Error ? err.message : String(err);
-  const kind = /auth|sign in|login|token/i.test(message) ? "authentication_failed"
-    : /rate.?limit|quota|usage limit|429/i.test(message) ? "rate_limit"
-    : /billing|credit|payment/i.test(message) ? "billing_error"
-    : "error";
+  const kind = /auth|sign in|login|token/i.test(message)
+    ? "authentication_failed"
+    : /rate.?limit|quota|usage limit|429/i.test(message)
+      ? "rate_limit"
+      : /billing|credit|payment/i.test(message)
+        ? "billing_error"
+        : "error";
   return { kind, message, at: now };
 }
 
@@ -104,7 +136,11 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   private stopping: Promise<void> | null = null;
   readonly ready: Promise<SdkInitInfo>;
 
-  constructor(spec: SdkLaunchSpec, base: Record<string, string | undefined>, opts: GrokSessionOptions = {}) {
+  constructor(
+    spec: SdkLaunchSpec,
+    base: Record<string, string | undefined>,
+    opts: GrokSessionOptions = {},
+  ) {
     super();
     const parsed = parseGrokArgs(spec.args);
     this.sessionId = spec.sessionId;
@@ -112,19 +148,25 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
     this.permissionMode = parsed.permissionMode ?? "default";
     this.cwd = spec.cwd;
     const log = opts.log ?? (() => {});
-    this.client = opts.client ?? new GrokAcpClient({
-      log,
-      grokBinary: spec.executable,
-      agentArgs: grokAgentArgs(parsed),
-      cwd: spec.cwd,
-      env: sdkSessionEnv(base, spec, { effortSet: false }),
-      spawnPrefix: spec.spawnPrefix,
-      onPermission: (_sid, request) => this.ask(request),
-    });
+    this.client =
+      opts.client ??
+      new GrokAcpClient({
+        log,
+        grokBinary: spec.executable,
+        agentArgs: grokAgentArgs(parsed),
+        cwd: spec.cwd,
+        env: sdkSessionEnv(base, spec, { effortSet: false }),
+        spawnPrefix: spec.spawnPrefix,
+        onPermission: (_sid, request) => this.ask(request),
+      });
     this.client.on("update", (u) => this.observe(u));
-    this.client.on("exit", (code) => this.end(`grok exited${code === null ? "" : ` (${code})`}`));
+    this.client.on("exit", (code) =>
+      this.end(`grok exited${code === null ? "" : ` (${code})`}`),
+    );
     this.client.on("error", (err) => log(`[grok] ${err.message}`));
-    const rules = [parsed.rules, spec.appendSystemPrompt].filter(Boolean).join("\n\n") || undefined;
+    const rules =
+      [parsed.rules, spec.appendSystemPrompt].filter(Boolean).join("\n\n") ||
+      undefined;
     this.ready = this.boot(spec, parsed, rules);
     this.ready.catch((err) => {
       log(`[grok] did not start: ${(err as Error).message}`);
@@ -134,22 +176,43 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   }
 
   /** Start grok, then load the session (or create it), and report it ready. */
-  private async boot(spec: SdkLaunchSpec, parsed: ParsedGrokArgs, rules: string | undefined): Promise<SdkInitInfo> {
+  private async boot(
+    spec: SdkLaunchSpec,
+    parsed: ParsedGrokArgs,
+    rules: string | undefined,
+  ): Promise<SdkInitInfo> {
     await this.client.start();
     const meta = permissionMeta(this.permissionMode);
     if (spec.resume) {
       // Rules a session was created with stay with it; a load takes only the permission mode.
-      await this.client.sessionLoad({ sessionId: spec.sessionId, cwd: spec.cwd, meta });
+      await this.client.sessionLoad({
+        sessionId: spec.sessionId,
+        cwd: spec.cwd,
+        meta,
+      });
     } else {
-      const { sessionId } = await this.client.sessionNew({ cwd: spec.cwd, meta: { ...meta, ...(rules ? { rules } : {}) } });
+      const { sessionId } = await this.client.sessionNew({
+        cwd: spec.cwd,
+        meta: { ...meta, ...(rules ? { rules } : {}) },
+      });
       if (sessionId && sessionId !== this._grokSessionId) {
         this._grokSessionId = sessionId;
         this.emit("session", sessionId);
       }
     }
-    const model = (this.client.agentMeta.modelState as { currentModelId?: string } | undefined)?.currentModelId ?? parsed.model ?? null;
+    const model =
+      (
+        this.client.agentMeta.modelState as
+          | { currentModelId?: string }
+          | undefined
+      )?.currentModelId ??
+      parsed.model ??
+      null;
     const info: SdkInitInfo = {
-      version: typeof this.client.agentMeta.agentVersion === "string" ? this.client.agentMeta.agentVersion : null,
+      version:
+        typeof this.client.agentMeta.agentVersion === "string"
+          ? this.client.agentMeta.agentVersion
+          : null,
       model,
       permissionMode: this.permissionMode,
       accountEmail: null,
@@ -196,8 +259,20 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   private report(activity: Omit<SdkActivity, "ts" | "permissionMode">): void {
     if (this.prompts.size && activity.status !== "permission_blocked") return;
     const prev = this._activity;
-    if (prev && prev.status === activity.status && !activity.turnCompletedAt && !activity.dialog && !activity.sessionBoundary && prev.message === activity.message) return;
-    const next: SdkActivity = { ...activity, ts: Math.floor(Date.now() / 1000), permissionMode: this.permissionMode };
+    if (
+      prev &&
+      prev.status === activity.status &&
+      !activity.turnCompletedAt &&
+      !activity.dialog &&
+      !activity.sessionBoundary &&
+      prev.message === activity.message
+    )
+      return;
+    const next: SdkActivity = {
+      ...activity,
+      ts: Math.floor(Date.now() / 1000),
+      permissionMode: this.permissionMode,
+    };
     this._activity = next;
     this.emit("activity", next);
   }
@@ -205,7 +280,9 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   private settleStatus(): void {
     if (this.ended) return this.setStatus("stopped");
     if (this.prompts.size) return this.setStatus("needs_input");
-    this.setStatus(this.outstanding > 0 ? "working" : this._init ? "idle" : "starting");
+    this.setStatus(
+      this.outstanding > 0 ? "working" : this._init ? "idle" : "starting",
+    );
   }
 
   private observe(u: GrokSessionUpdate): void {
@@ -216,16 +293,46 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   /** A tool permission grok asks for: held until the daemon's card answers it. */
   private ask(request: GrokPermissionRequest): Promise<string | null> {
     const call = request.toolCall ?? {};
-    const requestId = typeof call.toolCallId === "string" && call.toolCallId ? call.toolCallId : crypto.randomUUID();
+    const requestId =
+      typeof call.toolCallId === "string" && call.toolCallId
+        ? call.toolCallId
+        : crypto.randomUUID();
     const rawInput = call.rawInput;
-    const input = rawInput && typeof rawInput === "object" && !Array.isArray(rawInput) ? rawInput as Record<string, unknown> : {};
-    const toolName = typeof call.title === "string" && call.title ? call.title : typeof call.kind === "string" ? call.kind : "tool";
-    const sdkRequest: SdkPermissionRequest = { requestId, toolName, toolUseId: requestId, input, createdAt: Date.now() };
+    const input =
+      rawInput && typeof rawInput === "object" && !Array.isArray(rawInput)
+        ? (rawInput as Record<string, unknown>)
+        : {};
+    const toolName =
+      typeof call.title === "string" && call.title
+        ? call.title
+        : typeof call.kind === "string"
+          ? call.kind
+          : "tool";
+    const sdkRequest: SdkPermissionRequest = {
+      requestId,
+      toolName,
+      toolUseId: requestId,
+      input,
+      createdAt: Date.now(),
+    };
     return new Promise((resolve) => {
-      this.prompts.set(requestId, { request: sdkRequest, options: request.options, resolve });
+      this.prompts.set(requestId, {
+        request: sdkRequest,
+        options: request.options,
+        resolve,
+      });
       this.emit("permission", sdkRequest);
-      const command = typeof input.command === "string" ? input.command : typeof input.path === "string" ? input.path : "";
-      this.report({ status: "permission_blocked", message: command ? `${toolName}: ${command.slice(0, 300)}` : toolName, dialog: true });
+      const command =
+        typeof input.command === "string"
+          ? input.command
+          : typeof input.path === "string"
+            ? input.path
+            : "";
+      this.report({
+        status: "permission_blocked",
+        message: command ? `${toolName}: ${command.slice(0, 300)}` : toolName,
+        dialog: true,
+      });
       this.settleStatus();
     });
   }
@@ -260,28 +367,68 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
    * Queue a user message. Grok runs a prompt sent during a turn as the next
    * turn, so a message never interrupts the one running.
    */
-  send(text: string, images: SdkImage[] = [], uuid: string = crypto.randomUUID()): string {
-    if (this.ended || this.stopping) throw new Error("Grok session has stopped");
-    if (this.outstanding === 0 && !this.prompts.size) this.report({ status: "thinking" });
+  send(
+    text: string,
+    images: SdkImage[] = [],
+    uuid: string = crypto.randomUUID(),
+  ): string {
+    if (this.ended || this.stopping)
+      throw new Error("Grok session has stopped");
+    if (this.outstanding === 0 && !this.prompts.size)
+      this.report({ status: "thinking" });
     this.outstanding++;
     this._lastError = null;
     this.settleStatus();
-    void this.client.prompt({ sessionId: this._grokSessionId, text, images }).then(
-      (r) => this.turnEnded(r.stopReason === "refusal" ? { subtype: r.stopReason, isError: true, text: null, error: { kind: "refusal", message: r.text || "Grok refused the request.", at: Date.now() } } : { subtype: r.stopReason, isError: false, text: r.text, error: null }),
-      (err) => {
-        const error = grokTurnError(err);
-        this._lastError = error;
-        this.turnEnded({ subtype: "error", isError: true, text: null, error });
-      },
-    );
+    void this.client
+      .prompt({ sessionId: this._grokSessionId, text, images })
+      .then(
+        (r) =>
+          this.turnEnded(
+            r.stopReason === "refusal"
+              ? {
+                  subtype: r.stopReason,
+                  isError: true,
+                  text: null,
+                  error: {
+                    kind: "refusal",
+                    message: r.text || "Grok refused the request.",
+                    at: Date.now(),
+                  },
+                }
+              : {
+                  subtype: r.stopReason,
+                  isError: false,
+                  text: r.text,
+                  error: null,
+                },
+          ),
+        (err) => {
+          const error = grokTurnError(err);
+          this._lastError = error;
+          this.turnEnded({
+            subtype: "error",
+            isError: true,
+            text: null,
+            error,
+          });
+        },
+      );
     return uuid;
   }
 
-  private turnEnded(result: { subtype: string; isError: boolean; text: string | null; error: SdkTurnError | null }): void {
+  private turnEnded(result: {
+    subtype: string;
+    isError: boolean;
+    text: string | null;
+    error: SdkTurnError | null;
+  }): void {
     this.outstanding = Math.max(0, this.outstanding - 1);
     if (this.outstanding === 0) {
       for (const w of this.drainWaiters.splice(0)) w();
-      this.report({ status: "idle", turnCompletedAt: Math.floor(Date.now() / 1000) });
+      this.report({
+        status: "idle",
+        turnCompletedAt: Math.floor(Date.now() / 1000),
+      });
     }
     this.emit("result", result);
     this.settleStatus();
@@ -290,25 +437,36 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   /** Cancel the running turn and wait until grok has ended it. Prompts queued behind it are cancelled too. */
   async interrupt(): Promise<void> {
     if (this.ended || this.outstanding === 0) return;
-    const drained = new Promise<void>((resolve) => this.drainWaiters.push(resolve));
+    const drained = new Promise<void>((resolve) =>
+      this.drainWaiters.push(resolve),
+    );
     this.abortPrompts();
     this.client.cancel(this._grokSessionId);
     await Promise.race([drained, new Promise((r) => setTimeout(r, 30_000))]);
   }
 
   async setModel(model: string | null): Promise<void> {
-    if (model) await this.client.setConfigOption(this._grokSessionId, "model", model);
+    if (model)
+      await this.client.setConfigOption(this._grokSessionId, "model", model);
   }
 
   /** Reloading a running session with new `_meta` is how grok changes its permission mode. */
   async setPermissionMode(mode: string): Promise<void> {
-    await this.client.sessionLoad({ sessionId: this._grokSessionId, cwd: this.cwd, meta: permissionMeta(mode) });
+    await this.client.sessionLoad({
+      sessionId: this._grokSessionId,
+      cwd: this.cwd,
+      meta: permissionMeta(mode),
+    });
     this.permissionMode = mode;
     if (this._init) {
       this._init = { ...this._init, permissionMode: mode };
       this.emit("init", this._init);
     }
-    if (this._activity) this.report({ status: this._activity.status, ...(this._activity.message && { message: this._activity.message }) });
+    if (this._activity)
+      this.report({
+        status: this._activity.status,
+        ...(this._activity.message && { message: this._activity.message }),
+      });
   }
 
   private end(reason: string): void {
@@ -325,8 +483,15 @@ export class GrokAcpSession extends EventEmitter<ClaudeSdkSessionEvents> {
   stop(): Promise<void> {
     if (!this.stopping) {
       this.stopping = (async () => {
-        if (this.outstanding > 0 && !this.ended) await Promise.race([this.interrupt(), new Promise((r) => setTimeout(r, 10_000))]).catch(() => {});
-        const exited = new Promise<void>((resolve) => { if (this.ended) resolve(); else this.once("exit", () => resolve()); });
+        if (this.outstanding > 0 && !this.ended)
+          await Promise.race([
+            this.interrupt(),
+            new Promise((r) => setTimeout(r, 10_000)),
+          ]).catch(() => {});
+        const exited = new Promise<void>((resolve) => {
+          if (this.ended) resolve();
+          else this.once("exit", () => resolve());
+        });
         this.client.stop();
         await Promise.race([exited, new Promise((r) => setTimeout(r, 10_000))]);
         this.end("stopped");

@@ -2,18 +2,48 @@
 // argument hints, the function list) and agents (the guide). Argument names
 // ending in "?" are optional; one ending in "..." repeats. A test holds this
 // in step with the engine's FUNCTIONS table.
-export type FnCategory = "Math" | "Statistics" | "Lookup" | "Array" | "Logic" | "Text" | "Date" | "Info";
+export type FnCategory =
+  | "Math"
+  | "Statistics"
+  | "Lookup"
+  | "Array"
+  | "Logic"
+  | "Text"
+  | "Date"
+  | "Info";
 
 export type FnDoc = { args: readonly string[]; about: string; cat: FnCategory };
 
-const d = (cat: FnCategory, about: string, ...args: string[]): FnDoc => ({ args, about, cat });
+const d = (cat: FnCategory, about: string, ...args: string[]): FnDoc => ({
+  args,
+  about,
+  cat,
+});
 
 export const FUNCTION_DOCS: Record<string, FnDoc> = {
   // Math
   SUM: d("Math", "Adds numbers and ranges", "value1", "value2..."),
-  SUMIF: d("Math", "Adds the cells that meet a condition", "range", "criterion", "sum_range?"),
-  SUMIFS: d("Math", "Adds the cells that meet every condition", "sum_range", "criteria_range1", "criterion1", "more..."),
-  SUMPRODUCT: d("Math", "Multiplies ranges item by item and adds the products", "range1", "range2..."),
+  SUMIF: d(
+    "Math",
+    "Adds the cells that meet a condition",
+    "range",
+    "criterion",
+    "sum_range?",
+  ),
+  SUMIFS: d(
+    "Math",
+    "Adds the cells that meet every condition",
+    "sum_range",
+    "criteria_range1",
+    "criterion1",
+    "more...",
+  ),
+  SUMPRODUCT: d(
+    "Math",
+    "Multiplies ranges item by item and adds the products",
+    "range1",
+    "range2...",
+  ),
   PRODUCT: d("Math", "Multiplies numbers and ranges", "value1", "value2..."),
   ROUND: d("Math", "Rounds to a number of decimal places", "value", "places?"),
   ROUNDUP: d("Math", "Rounds away from zero", "value", "places?"),
@@ -34,101 +64,459 @@ export const FUNCTION_DOCS: Record<string, FnDoc> = {
   PI: d("Math", "The number pi"),
   // Statistics
   AVERAGE: d("Statistics", "Mean of numbers and ranges", "value1", "value2..."),
-  AVERAGEIF: d("Statistics", "Mean of the cells that meet a condition", "range", "criterion", "average_range?"),
-  AVERAGEIFS: d("Statistics", "Mean of the cells that meet every condition", "average_range", "criteria_range1", "criterion1", "more..."),
+  AVERAGEIF: d(
+    "Statistics",
+    "Mean of the cells that meet a condition",
+    "range",
+    "criterion",
+    "average_range?",
+  ),
+  AVERAGEIFS: d(
+    "Statistics",
+    "Mean of the cells that meet every condition",
+    "average_range",
+    "criteria_range1",
+    "criterion1",
+    "more...",
+  ),
   MEDIAN: d("Statistics", "Middle value", "value1", "value2..."),
   MIN: d("Statistics", "Smallest number", "value1", "value2..."),
-  MINIFS: d("Statistics", "Smallest number that meets every condition", "range", "criteria_range1", "criterion1", "more..."),
+  MINIFS: d(
+    "Statistics",
+    "Smallest number that meets every condition",
+    "range",
+    "criteria_range1",
+    "criterion1",
+    "more...",
+  ),
   MAX: d("Statistics", "Largest number", "value1", "value2..."),
-  MAXIFS: d("Statistics", "Largest number that meets every condition", "range", "criteria_range1", "criterion1", "more..."),
+  MAXIFS: d(
+    "Statistics",
+    "Largest number that meets every condition",
+    "range",
+    "criteria_range1",
+    "criterion1",
+    "more...",
+  ),
   COUNT: d("Statistics", "Counts numbers", "value1", "value2..."),
   COUNTA: d("Statistics", "Counts non-empty cells", "value1", "value2..."),
   COUNTBLANK: d("Statistics", "Counts empty cells", "range"),
-  COUNTIF: d("Statistics", "Counts the cells that meet a condition", "range", "criterion"),
-  COUNTIFS: d("Statistics", "Counts the rows that meet every condition", "criteria_range1", "criterion1", "more..."),
-  STDEV: d("Statistics", "Standard deviation of a sample", "value1", "value2..."),
-  STDEVP: d("Statistics", "Standard deviation of a population", "value1", "value2..."),
+  COUNTIF: d(
+    "Statistics",
+    "Counts the cells that meet a condition",
+    "range",
+    "criterion",
+  ),
+  COUNTIFS: d(
+    "Statistics",
+    "Counts the rows that meet every condition",
+    "criteria_range1",
+    "criterion1",
+    "more...",
+  ),
+  STDEV: d(
+    "Statistics",
+    "Standard deviation of a sample",
+    "value1",
+    "value2...",
+  ),
+  STDEVP: d(
+    "Statistics",
+    "Standard deviation of a population",
+    "value1",
+    "value2...",
+  ),
   VAR: d("Statistics", "Variance of a sample", "value1", "value2..."),
   // Lookup
-  OFFSET: d("Lookup", "The range a number of rows and columns away from a reference", "reference", "rows", "columns", "height?", "width?"),
-  INDIRECT: d("Lookup", "The cell or range a text reference names", "reference_text", "a1?"),
+  OFFSET: d(
+    "Lookup",
+    "The range a number of rows and columns away from a reference",
+    "reference",
+    "rows",
+    "columns",
+    "height?",
+    "width?",
+  ),
+  INDIRECT: d(
+    "Lookup",
+    "The cell or range a text reference names",
+    "reference_text",
+    "a1?",
+  ),
   FORMULATEXT: d("Lookup", "A cell's formula as text", "cell"),
-  LET: d("Logic", "Names values, then calculates with the names", "name1", "value1", "calculation", "more..."),
-  ADDRESS: d("Lookup", "A cell reference as text", "row", "column", "absolute?", "a1?", "sheet?"),
-  XLOOKUP: d("Lookup", "Finds a value in one range and returns the matching item from another", "search_key", "lookup_range", "result_range", "if_not_found?", "match_mode?", "search_mode?"),
-  VLOOKUP: d("Lookup", "Finds a value in a table's first column and returns a column of that row", "search_key", "range", "column", "is_sorted?"),
-  HLOOKUP: d("Lookup", "Finds a value in a table's first row and returns a row of that column", "search_key", "range", "row", "is_sorted?"),
-  INDEX: d("Lookup", "The cell at a row and column of a range", "range", "row", "column?"),
-  MATCH: d("Lookup", "Position of a value in a range", "search_key", "range", "match_type?"),
-  XMATCH: d("Lookup", "Position of a value in a range, exact by default", "search_key", "lookup_range", "match_mode?", "search_mode?"),
-  CHOOSE: d("Lookup", "Picks one of several values by number", "index", "choice1", "choice2..."),
+  LET: d(
+    "Logic",
+    "Names values, then calculates with the names",
+    "name1",
+    "value1",
+    "calculation",
+    "more...",
+  ),
+  ADDRESS: d(
+    "Lookup",
+    "A cell reference as text",
+    "row",
+    "column",
+    "absolute?",
+    "a1?",
+    "sheet?",
+  ),
+  XLOOKUP: d(
+    "Lookup",
+    "Finds a value in one range and returns the matching item from another",
+    "search_key",
+    "lookup_range",
+    "result_range",
+    "if_not_found?",
+    "match_mode?",
+    "search_mode?",
+  ),
+  VLOOKUP: d(
+    "Lookup",
+    "Finds a value in a table's first column and returns a column of that row",
+    "search_key",
+    "range",
+    "column",
+    "is_sorted?",
+  ),
+  HLOOKUP: d(
+    "Lookup",
+    "Finds a value in a table's first row and returns a row of that column",
+    "search_key",
+    "range",
+    "row",
+    "is_sorted?",
+  ),
+  INDEX: d(
+    "Lookup",
+    "The cell at a row and column of a range",
+    "range",
+    "row",
+    "column?",
+  ),
+  MATCH: d(
+    "Lookup",
+    "Position of a value in a range",
+    "search_key",
+    "range",
+    "match_type?",
+  ),
+  XMATCH: d(
+    "Lookup",
+    "Position of a value in a range, exact by default",
+    "search_key",
+    "lookup_range",
+    "match_mode?",
+    "search_mode?",
+  ),
+  CHOOSE: d(
+    "Lookup",
+    "Picks one of several values by number",
+    "index",
+    "choice1",
+    "choice2...",
+  ),
   ROWS: d("Lookup", "Number of rows in a range", "range"),
   COLUMNS: d("Lookup", "Number of columns in a range", "range"),
   // Array: the result fills the cells below and to the right
-  FILTER: d("Array", "The rows of a range that meet every condition", "range", "condition1", "condition2..."),
-  UNIQUE: d("Array", "Each distinct row of a range, once", "range", "by_column?", "exactly_once?"),
-  SORT: d("Array", "A range sorted by one of its columns", "range", "sort_column?", "is_ascending?", "by_column?"),
-  SORTBY: d("Array", "A range sorted by other ranges", "range", "by_range1", "order1?", "more..."),
-  SEQUENCE: d("Array", "A block of numbers counting up", "rows", "columns?", "start?", "step?"),
+  FILTER: d(
+    "Array",
+    "The rows of a range that meet every condition",
+    "range",
+    "condition1",
+    "condition2...",
+  ),
+  UNIQUE: d(
+    "Array",
+    "Each distinct row of a range, once",
+    "range",
+    "by_column?",
+    "exactly_once?",
+  ),
+  SORT: d(
+    "Array",
+    "A range sorted by one of its columns",
+    "range",
+    "sort_column?",
+    "is_ascending?",
+    "by_column?",
+  ),
+  SORTBY: d(
+    "Array",
+    "A range sorted by other ranges",
+    "range",
+    "by_range1",
+    "order1?",
+    "more...",
+  ),
+  SEQUENCE: d(
+    "Array",
+    "A block of numbers counting up",
+    "rows",
+    "columns?",
+    "start?",
+    "step?",
+  ),
   TRANSPOSE: d("Array", "A range with rows and columns swapped", "range"),
   VSTACK: d("Array", "Blocks stacked one under another", "range", "range2..."),
   HSTACK: d("Array", "Blocks placed side by side", "range", "range2..."),
-  TAKE: d("Array", "The first rows or columns of a block (negative: the last)", "range", "rows", "columns?"),
-  DROP: d("Array", "A block without its first rows or columns (negative: the last)", "range", "rows", "columns?"),
-  CHOOSEROWS: d("Array", "The rows picked by number (negative counts from the end)", "range", "row", "row2..."),
-  CHOOSECOLS: d("Array", "The columns picked by number (negative counts from the end)", "range", "column", "column2..."),
-  TOCOL: d("Array", "Every value in one column", "range", "ignore?", "by_column?"),
+  TAKE: d(
+    "Array",
+    "The first rows or columns of a block (negative: the last)",
+    "range",
+    "rows",
+    "columns?",
+  ),
+  DROP: d(
+    "Array",
+    "A block without its first rows or columns (negative: the last)",
+    "range",
+    "rows",
+    "columns?",
+  ),
+  CHOOSEROWS: d(
+    "Array",
+    "The rows picked by number (negative counts from the end)",
+    "range",
+    "row",
+    "row2...",
+  ),
+  CHOOSECOLS: d(
+    "Array",
+    "The columns picked by number (negative counts from the end)",
+    "range",
+    "column",
+    "column2...",
+  ),
+  TOCOL: d(
+    "Array",
+    "Every value in one column",
+    "range",
+    "ignore?",
+    "by_column?",
+  ),
   TOROW: d("Array", "Every value in one row", "range", "ignore?", "by_column?"),
-  ARRAYFORMULA: d("Array", "Spills a formula that works on whole ranges", "formula"),
-  SPLIT: d("Array", "A text split into cells side by side", "text", "delimiter", "split_by_each?"),
+  ARRAYFORMULA: d(
+    "Array",
+    "Spills a formula that works on whole ranges",
+    "formula",
+  ),
+  SPLIT: d(
+    "Array",
+    "A text split into cells side by side",
+    "text",
+    "delimiter",
+    "split_by_each?",
+  ),
   COUNTUNIQUE: d("Statistics", "Counts distinct values", "value1", "value2..."),
-  RANK: d("Statistics", "A number's rank in a list (1 is the largest)", "value", "range", "is_ascending?"),
-  PMT: d("Math", "The payment per period of a loan", "rate", "periods", "present_value", "future_value?", "end_or_beginning?"),
-  WORKDAY: d("Date", "The working day some days away, skipping weekends", "start_date", "days", "holidays?"),
-  REGEXMATCH: d("Text", "TRUE when a text matches a pattern", "text", "pattern"),
-  REGEXEXTRACT: d("Text", "The part of a text a pattern matches", "text", "pattern"),
-  REGEXREPLACE: d("Text", "Replaces every match of a pattern", "text", "pattern", "replacement"),
+  RANK: d(
+    "Statistics",
+    "A number's rank in a list (1 is the largest)",
+    "value",
+    "range",
+    "is_ascending?",
+  ),
+  PMT: d(
+    "Math",
+    "The payment per period of a loan",
+    "rate",
+    "periods",
+    "present_value",
+    "future_value?",
+    "end_or_beginning?",
+  ),
+  WORKDAY: d(
+    "Date",
+    "The working day some days away, skipping weekends",
+    "start_date",
+    "days",
+    "holidays?",
+  ),
+  REGEXMATCH: d(
+    "Text",
+    "TRUE when a text matches a pattern",
+    "text",
+    "pattern",
+  ),
+  REGEXEXTRACT: d(
+    "Text",
+    "The part of a text a pattern matches",
+    "text",
+    "pattern",
+  ),
+  REGEXREPLACE: d(
+    "Text",
+    "Replaces every match of a pattern",
+    "text",
+    "pattern",
+    "replacement",
+  ),
   HYPERLINK: d("Text", "A link, shown as its label", "url", "label?"),
-  TIME: d("Date", "A time of day from hours, minutes and seconds", "hours", "minutes", "seconds"),
+  TIME: d(
+    "Date",
+    "A time of day from hours, minutes and seconds",
+    "hours",
+    "minutes",
+    "seconds",
+  ),
   LARGE: d("Statistics", "The k-th largest number", "range", "k"),
-  FORECAST: d("Statistics", "The y a straight-line fit predicts for x", "x", "known_y", "known_x"),
+  FORECAST: d(
+    "Statistics",
+    "The y a straight-line fit predicts for x",
+    "x",
+    "known_y",
+    "known_x",
+  ),
   SMALL: d("Statistics", "The k-th smallest number", "range", "k"),
-  PERCENTILE: d("Statistics", "The value at a percentile (0 to 1)", "range", "k"),
-  CORREL: d("Statistics", "How closely two ranges move together (-1 to 1)", "range1", "range2"),
-  SUBTOTAL: d("Statistics", "An aggregate by code: 9 sum, 1 average, 2 count, 4 max, 5 min", "code", "range1", "range2..."),
+  PERCENTILE: d(
+    "Statistics",
+    "The value at a percentile (0 to 1)",
+    "range",
+    "k",
+  ),
+  CORREL: d(
+    "Statistics",
+    "How closely two ranges move together (-1 to 1)",
+    "range1",
+    "range2",
+  ),
+  SUBTOTAL: d(
+    "Statistics",
+    "An aggregate by code: 9 sum, 1 average, 2 count, 4 max, 5 min",
+    "code",
+    "range1",
+    "range2...",
+  ),
   MROUND: d("Math", "Rounds to the nearest multiple", "value", "multiple"),
   RANDBETWEEN: d("Math", "A random whole number in a range", "bottom", "top"),
-  FV: d("Math", "The future value of steady payments", "rate", "periods", "payment", "present_value?", "end_or_beginning?"),
-  NPV: d("Math", "The net present value of cash flows", "rate", "value1", "value2..."),
+  FV: d(
+    "Math",
+    "The future value of steady payments",
+    "rate",
+    "periods",
+    "payment",
+    "present_value?",
+    "end_or_beginning?",
+  ),
+  NPV: d(
+    "Math",
+    "The net present value of cash flows",
+    "rate",
+    "value1",
+    "value2...",
+  ),
   IRR: d("Math", "The rate of return of cash flows", "values", "guess?"),
-  WEEKNUM: d("Date", "The week of the year (1 Sunday start, 2 Monday, 21 ISO)", "date", "type?"),
+  WEEKNUM: d(
+    "Date",
+    "The week of the year (1 Sunday start, 2 Monday, 21 ISO)",
+    "date",
+    "type?",
+  ),
   ISOWEEKNUM: d("Date", "The ISO week of the year", "date"),
   TIMEVALUE: d("Date", "Reads a text as a time of day", "text"),
   // Logic
-  IF: d("Logic", "One value if a condition is true, another if false", "condition", "if_true", "if_false?"),
-  IFS: d("Logic", "The value of the first true condition", "condition1", "value1", "more..."),
-  IFERROR: d("Logic", "A fallback when a value is an error", "value", "if_error"),
+  IF: d(
+    "Logic",
+    "One value if a condition is true, another if false",
+    "condition",
+    "if_true",
+    "if_false?",
+  ),
+  IFS: d(
+    "Logic",
+    "The value of the first true condition",
+    "condition1",
+    "value1",
+    "more...",
+  ),
+  IFERROR: d(
+    "Logic",
+    "A fallback when a value is an error",
+    "value",
+    "if_error",
+  ),
   IFNA: d("Logic", "A fallback when a value is #N/A", "value", "if_na"),
-  SWITCH: d("Logic", "Matches a value against cases", "expression", "case1", "value1", "more..."),
-  AND: d("Logic", "TRUE when every condition is true", "condition1", "condition2..."),
-  OR: d("Logic", "TRUE when any condition is true", "condition1", "condition2..."),
-  XOR: d("Logic", "TRUE when an odd number of conditions are true", "condition1", "condition2..."),
+  SWITCH: d(
+    "Logic",
+    "Matches a value against cases",
+    "expression",
+    "case1",
+    "value1",
+    "more...",
+  ),
+  AND: d(
+    "Logic",
+    "TRUE when every condition is true",
+    "condition1",
+    "condition2...",
+  ),
+  OR: d(
+    "Logic",
+    "TRUE when any condition is true",
+    "condition1",
+    "condition2...",
+  ),
+  XOR: d(
+    "Logic",
+    "TRUE when an odd number of conditions are true",
+    "condition1",
+    "condition2...",
+  ),
   NOT: d("Logic", "Flips TRUE and FALSE", "condition"),
   TRUE: d("Logic", "The value TRUE"),
   FALSE: d("Logic", "The value FALSE"),
   // Text
   CONCAT: d("Text", "Joins values into one text", "value1", "value2..."),
   CONCATENATE: d("Text", "Joins values into one text", "value1", "value2..."),
-  TEXTJOIN: d("Text", "Joins values with a delimiter", "delimiter", "ignore_empty", "value1", "value2..."),
+  TEXTJOIN: d(
+    "Text",
+    "Joins values with a delimiter",
+    "delimiter",
+    "ignore_empty",
+    "value1",
+    "value2...",
+  ),
   TEXT: d("Text", "Formats a number as text with a pattern", "value", "format"),
   LEFT: d("Text", "First characters of a text", "text", "count?"),
   RIGHT: d("Text", "Last characters of a text", "text", "count?"),
-  MID: d("Text", "Characters from the middle of a text", "text", "start", "count"),
+  MID: d(
+    "Text",
+    "Characters from the middle of a text",
+    "text",
+    "start",
+    "count",
+  ),
   LEN: d("Text", "Length of a text", "text"),
-  FIND: d("Text", "Position of a text inside another, case-sensitive", "search_for", "text", "start?"),
-  SEARCH: d("Text", "Position of a text inside another, any case, wildcards allowed", "search_for", "text", "start?"),
-  REPLACE: d("Text", "Replaces characters at a position", "text", "start", "count", "new_text"),
-  SUBSTITUTE: d("Text", "Replaces one text with another", "text", "search_for", "replace_with", "occurrence?"),
+  FIND: d(
+    "Text",
+    "Position of a text inside another, case-sensitive",
+    "search_for",
+    "text",
+    "start?",
+  ),
+  SEARCH: d(
+    "Text",
+    "Position of a text inside another, any case, wildcards allowed",
+    "search_for",
+    "text",
+    "start?",
+  ),
+  REPLACE: d(
+    "Text",
+    "Replaces characters at a position",
+    "text",
+    "start",
+    "count",
+    "new_text",
+  ),
+  SUBSTITUTE: d(
+    "Text",
+    "Replaces one text with another",
+    "text",
+    "search_for",
+    "replace_with",
+    "occurrence?",
+  ),
   REPT: d("Text", "Repeats a text", "text", "times"),
   TRIM: d("Text", "Removes extra spaces", "text"),
   UPPER: d("Text", "Upper case", "text"),
@@ -150,10 +538,27 @@ export const FUNCTION_DOCS: Record<string, FnDoc> = {
   HOUR: d("Date", "Hour of a time", "time"),
   MINUTE: d("Date", "Minute of a time", "time"),
   DAYS: d("Date", "Days between two dates", "end_date", "start_date"),
-  DATEDIF: d("Date", "Whole days, months or years between dates", "start_date", "end_date", "unit"),
+  DATEDIF: d(
+    "Date",
+    "Whole days, months or years between dates",
+    "start_date",
+    "end_date",
+    "unit",
+  ),
   EDATE: d("Date", "A date some months away", "start_date", "months"),
-  EOMONTH: d("Date", "Last day of the month some months away", "start_date", "months"),
-  NETWORKDAYS: d("Date", "Working days between two dates", "start_date", "end_date", "holidays?"),
+  EOMONTH: d(
+    "Date",
+    "Last day of the month some months away",
+    "start_date",
+    "months",
+  ),
+  NETWORKDAYS: d(
+    "Date",
+    "Working days between two dates",
+    "start_date",
+    "end_date",
+    "holidays?",
+  ),
   // Info
   ISBLANK: d("Info", "TRUE when a cell is empty", "value"),
   ISNUMBER: d("Info", "TRUE for a number", "value"),
@@ -165,7 +570,16 @@ export const FUNCTION_DOCS: Record<string, FnDoc> = {
   NA: d("Info", "The #N/A error"),
 };
 
-export const FN_CATEGORIES: readonly FnCategory[] = ["Math", "Statistics", "Lookup", "Array", "Logic", "Text", "Date", "Info"];
+export const FN_CATEGORIES: readonly FnCategory[] = [
+  "Math",
+  "Statistics",
+  "Lookup",
+  "Array",
+  "Logic",
+  "Text",
+  "Date",
+  "Info",
+];
 
 /** "XLOOKUP(search_key, lookup_range, result_range, [if_not_found], …)" */
 export function fnSignature(name: string): string {
@@ -206,7 +620,10 @@ export function argIndexFor(name: string, index: number): number {
  * "=ROUND(SUM(A1:A4), |" it is { name: "ROUND", arg: 1 }. Strings and quoted
  * tab names do not count; null outside any call.
  */
-export function callAt(text: string, caret: number): { name: string; arg: number } | null {
+export function callAt(
+  text: string,
+  caret: number,
+): { name: string; arg: number } | null {
   if (!text.startsWith("=")) return null;
   const stack: Array<{ name: string; arg: number }> = [];
   let i = 1;
@@ -232,7 +649,8 @@ export function callAt(text: string, caret: number): { name: string; arg: number
     else if (ch === "," && stack.length) stack[stack.length - 1].arg++;
     i++;
   }
-  for (let k = stack.length - 1; k >= 0; k--) if (stack[k].name) return stack[k];
+  for (let k = stack.length - 1; k >= 0; k--)
+    if (stack[k].name) return stack[k];
   return null;
 }
 
@@ -242,20 +660,53 @@ export type ErrorDoc = { title: string; fix: string };
 
 /** What each error code means and the usual fix, for the error card. */
 export const ERROR_DOCS: Record<string, ErrorDoc> = {
-  "#DIV/0!": { title: "Divided by zero", fix: "Wrap it: =IFERROR(formula, 0), or check the divisor isn't blank" },
-  "#N/A": { title: "Value not found", fix: "Check the lookup value exists, or wrap it: =IFNA(formula, \"\")" },
-  "#NAME?": { title: "Unknown name", fix: "Check the function's spelling, and put text in quotes" },
-  "#REF!": { title: "Reference is gone", fix: "A row, column or tab it pointed at was deleted. Retype the reference" },
-  "#VALUE!": { title: "Wrong kind of value", fix: "An argument is text where a number or date belongs" },
-  "#NUM!": { title: "Number out of range", fix: "The result is too big, or an argument is outside what the function accepts" },
-  "#CIRC!": { title: "Circular reference", fix: "The formula depends on its own cell. Point it elsewhere" },
-  "#SPILL!": { title: "No room for the result", fix: "Clear the cells below and to the right of the formula; its result fills them" },
-  "#NULL!": { title: "Ranges don't meet", fix: "Separate ranges with a comma, not a space" },
-  "#ERROR!": { title: "Formula can't be read", fix: "Check the parentheses, commas and quotes" },
+  "#DIV/0!": {
+    title: "Divided by zero",
+    fix: "Wrap it: =IFERROR(formula, 0), or check the divisor isn't blank",
+  },
+  "#N/A": {
+    title: "Value not found",
+    fix: 'Check the lookup value exists, or wrap it: =IFNA(formula, "")',
+  },
+  "#NAME?": {
+    title: "Unknown name",
+    fix: "Check the function's spelling, and put text in quotes",
+  },
+  "#REF!": {
+    title: "Reference is gone",
+    fix: "A row, column or tab it pointed at was deleted. Retype the reference",
+  },
+  "#VALUE!": {
+    title: "Wrong kind of value",
+    fix: "An argument is text where a number or date belongs",
+  },
+  "#NUM!": {
+    title: "Number out of range",
+    fix: "The result is too big, or an argument is outside what the function accepts",
+  },
+  "#CIRC!": {
+    title: "Circular reference",
+    fix: "The formula depends on its own cell. Point it elsewhere",
+  },
+  "#SPILL!": {
+    title: "No room for the result",
+    fix: "Clear the cells below and to the right of the formula; its result fills them",
+  },
+  "#NULL!": {
+    title: "Ranges don't meet",
+    fix: "Separate ranges with a comma, not a space",
+  },
+  "#ERROR!": {
+    title: "Formula can't be read",
+    fix: "Check the parentheses, commas and quotes",
+  },
 };
 
 /** A corrected function name for a #NAME? typo ("SUMM" → "SUM"), when one is close. */
-export function nearestFunction(name: string, names: readonly string[]): string | null {
+export function nearestFunction(
+  name: string,
+  names: readonly string[],
+): string | null {
   const want = name.toUpperCase();
   let best: string | null = null;
   let bestD = Infinity;
@@ -266,7 +717,9 @@ export function nearestFunction(name: string, names: readonly string[]): string 
       best = n;
     }
   }
-  return best && bestD <= Math.max(1, Math.floor(want.length / 3)) ? best : null;
+  return best && bestD <= Math.max(1, Math.floor(want.length / 3))
+    ? best
+    : null;
 }
 
 function editDistance(a: string, b: string): number {
@@ -277,7 +730,11 @@ function editDistance(a: string, b: string): number {
     prev[0] = i;
     for (let j = 1; j <= b.length; j++) {
       const up = prev[j];
-      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev[j] = Math.min(
+        prev[j] + 1,
+        prev[j - 1] + 1,
+        diag + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
       diag = up;
     }
   }
@@ -289,7 +746,11 @@ function editDistance(a: string, b: string): number {
  * function for a misspelled one, IFERROR / IFNA around a formula that divides
  * by zero or finds nothing. Null when no fix is safe to offer.
  */
-export function errorFix(code: string, message: string | undefined, input: string): { label: string; text: string } | null {
+export function errorFix(
+  code: string,
+  message: string | undefined,
+  input: string,
+): { label: string; text: string } | null {
   if (!input.startsWith("=")) return null;
   const body = input.slice(1);
   if (code === "#NAME?") {
@@ -297,60 +758,191 @@ export function errorFix(code: string, message: string | undefined, input: strin
     if (!m) return null;
     const near = nearestFunction(m[1], Object.keys(FUNCTION_DOCS));
     if (!near) return null;
-    const re = new RegExp(`(^|[^A-Za-z0-9_.])${m[1].replace(/\./g, "\\.")}\\s*\\(`, "i");
-    return { label: `Use ${near}`, text: "=" + body.replace(re, (_s, pre: string) => `${pre}${near}(`) };
+    const re = new RegExp(
+      `(^|[^A-Za-z0-9_.])${m[1].replace(/\./g, "\\.")}\\s*\\(`,
+      "i",
+    );
+    return {
+      label: `Use ${near}`,
+      text: "=" + body.replace(re, (_s, pre: string) => `${pre}${near}(`),
+    };
   }
-  if (code === "#DIV/0!" && !/^IFERROR\(/i.test(body)) return { label: "Show 0 instead", text: `=IFERROR(${body}, 0)` };
-  if (code === "#N/A" && !/^IF(NA|ERROR)\(/i.test(body)) return { label: "Show blank instead", text: `=IFNA(${body}, "")` };
+  if (code === "#DIV/0!" && !/^IFERROR\(/i.test(body))
+    return { label: "Show 0 instead", text: `=IFERROR(${body}, 0)` };
+  if (code === "#N/A" && !/^IF(NA|ERROR)\(/i.test(body))
+    return { label: "Show blank instead", text: `=IFNA(${body}, "")` };
   return null;
 }
 
 /** "#DIV/0! division by zero" → the code and the engine's message. */
 export function splitError(text: string): { code: string; message?: string } {
   const sp = text.indexOf(" ");
-  return sp < 0 ? { code: text } : { code: text.slice(0, sp), message: text.slice(sp + 1) };
+  return sp < 0
+    ? { code: text }
+    : { code: text.slice(0, sp), message: text.slice(sp + 1) };
 }
 
 /** The functions people reach for most, most used first: autocomplete offers these ahead of rarer names ("SU" -> SUM, not SUBSTITUTE). */
-const COMMON = ["SUM", "IF", "COUNT", "AVERAGE", "COUNTIF", "SUMIF", "VLOOKUP", "XLOOKUP", "COUNTA", "MAX", "MIN", "ROUND", "IFERROR", "INDEX", "MATCH", "SUMIFS", "COUNTIFS", "AND", "OR", "TODAY", "TEXT", "LEFT", "RIGHT", "MID", "LEN", "CONCAT", "DATE", "YEAR", "MONTH", "AVERAGEIF", "SUMPRODUCT", "ABS", "TRIM", "UPPER", "LOWER", "NOW", "IFS", "TEXTJOIN", "EOMONTH", "EDATE", "NETWORKDAYS", "MEDIAN"];
+const COMMON = [
+  "SUM",
+  "IF",
+  "COUNT",
+  "AVERAGE",
+  "COUNTIF",
+  "SUMIF",
+  "VLOOKUP",
+  "XLOOKUP",
+  "COUNTA",
+  "MAX",
+  "MIN",
+  "ROUND",
+  "IFERROR",
+  "INDEX",
+  "MATCH",
+  "SUMIFS",
+  "COUNTIFS",
+  "AND",
+  "OR",
+  "TODAY",
+  "TEXT",
+  "LEFT",
+  "RIGHT",
+  "MID",
+  "LEN",
+  "CONCAT",
+  "DATE",
+  "YEAR",
+  "MONTH",
+  "AVERAGEIF",
+  "SUMPRODUCT",
+  "ABS",
+  "TRIM",
+  "UPPER",
+  "LOWER",
+  "NOW",
+  "IFS",
+  "TEXTJOIN",
+  "EOMONTH",
+  "EDATE",
+  "NETWORKDAYS",
+  "MEDIAN",
+];
 const COMMON_RANK = new Map(COMMON.map((n, i) => [n, i]));
 
 /** Function names starting with a prefix, common ones first, then alphabetical. */
-export function functionMatches(prefix: string, names: readonly string[], limit = 8): string[] {
+export function functionMatches(
+  prefix: string,
+  names: readonly string[],
+  limit = 8,
+): string[] {
   const p = prefix.toUpperCase();
   return names
     .filter((n) => n.startsWith(p))
-    .sort((a, b) => (COMMON_RANK.get(a) ?? 999) - (COMMON_RANK.get(b) ?? 999) || a.localeCompare(b))
+    .sort(
+      (a, b) =>
+        (COMMON_RANK.get(a) ?? 999) - (COMMON_RANK.get(b) ?? 999) ||
+        a.localeCompare(b),
+    )
     .slice(0, limit);
 }
 
 /** The usual fix for an error, sharpened by what the engine said ("no tab named X" is a typo, not a deletion). */
 export function errorHint(code: string, message?: string): string | undefined {
-  if (message?.startsWith("no tab named")) return "No tab has that name. Check its spelling, and quote names with spaces: 'Q4 plan'!A1";
-  if (message?.startsWith("unknown name")) return "Put text in quotes, or check the name's spelling";
+  if (message?.startsWith("no tab named"))
+    return "No tab has that name. Check its spelling, and quote names with spaces: 'Q4 plan'!A1";
+  if (message?.startsWith("unknown name"))
+    return "Put text in quotes, or check the name's spelling";
   return ERROR_DOCS[code]?.fix;
 }
 
 /** What the current argument wants, for the functions people use most (the hint shows it under the signature). */
 export const ARG_HELP: Record<string, Record<string, string>> = {
-  IF: { condition: "A test that is TRUE or FALSE, like B2>100", if_true: "What to show when the test is TRUE", if_false: "What to show otherwise (blank if left out)" },
-  SUMIF: { range: "The cells to test", criterion: 'The test, like ">100", "Done" or "a*"', sum_range: "The cells to add (the tested ones if left out)" },
-  SUMIFS: { sum_range: "The cells to add", criteria_range1: "Cells to test", criterion1: 'Their test, like ">100" or "Done"' },
-  COUNTIF: { range: "The cells to test", criterion: 'The test, like ">100", "Done" or "a*"' },
-  COUNTIFS: { criteria_range1: "Cells to test", criterion1: 'Their test, like ">100" or "Done"' },
-  VLOOKUP: { search_key: "The value to find in the table's first column", range: "The table, first column included", column: "Which column of the table to return (1 is the first)", is_sorted: "FALSE for an exact match (the usual choice)" },
-  XLOOKUP: { search_key: "The value to find", lookup_range: "Where to find it (one column or row)", result_range: "What to return from the same position", if_not_found: "Shown when nothing matches (#N/A otherwise)" },
-  INDEX: { range: "The table", row: "Which row of it (1 is the first)", column: "Which column of it" },
-  MATCH: { search_key: "The value to find", range: "One row or column to search", match_type: "0 for an exact match" },
-  ROUND: { value: "The number to round", places: "Decimal places to keep (0 if left out; negative rounds to tens, hundreds)" },
-  IFERROR: { value: "The formula that may fail", if_error: "What to show instead of the error" },
-  TEXT: { value: "The number or date", format: 'A format code, like "0.0%", "$#,##0" or "mmm d"' },
-  DATE: { year: "Four-digit year", month: "1 to 12 (13 rolls into next year)", day: "Day of the month" },
-  FILTER: { range: "The rows to choose from", condition1: 'A column of TRUE/FALSE as tall as the range, like C2:C99="Open"' },
-  UNIQUE: { range: "The values to list once each", by_column: "TRUE to compare columns instead of rows", exactly_once: "TRUE to keep only values that appear once" },
-  SORT: { range: "The rows to sort", sort_column: "Which column of the range to sort by (1 is the first)", is_ascending: "TRUE for A to Z, FALSE for Z to A" },
-  EDATE: { start_date: "The date to start from", months: "Months later (negative for earlier)" },
-  TEXTJOIN: { delimiter: 'What goes between the parts, like ", "', ignore_empty: "TRUE to skip blank cells" },
+  IF: {
+    condition: "A test that is TRUE or FALSE, like B2>100",
+    if_true: "What to show when the test is TRUE",
+    if_false: "What to show otherwise (blank if left out)",
+  },
+  SUMIF: {
+    range: "The cells to test",
+    criterion: 'The test, like ">100", "Done" or "a*"',
+    sum_range: "The cells to add (the tested ones if left out)",
+  },
+  SUMIFS: {
+    sum_range: "The cells to add",
+    criteria_range1: "Cells to test",
+    criterion1: 'Their test, like ">100" or "Done"',
+  },
+  COUNTIF: {
+    range: "The cells to test",
+    criterion: 'The test, like ">100", "Done" or "a*"',
+  },
+  COUNTIFS: {
+    criteria_range1: "Cells to test",
+    criterion1: 'Their test, like ">100" or "Done"',
+  },
+  VLOOKUP: {
+    search_key: "The value to find in the table's first column",
+    range: "The table, first column included",
+    column: "Which column of the table to return (1 is the first)",
+    is_sorted: "FALSE for an exact match (the usual choice)",
+  },
+  XLOOKUP: {
+    search_key: "The value to find",
+    lookup_range: "Where to find it (one column or row)",
+    result_range: "What to return from the same position",
+    if_not_found: "Shown when nothing matches (#N/A otherwise)",
+  },
+  INDEX: {
+    range: "The table",
+    row: "Which row of it (1 is the first)",
+    column: "Which column of it",
+  },
+  MATCH: {
+    search_key: "The value to find",
+    range: "One row or column to search",
+    match_type: "0 for an exact match",
+  },
+  ROUND: {
+    value: "The number to round",
+    places:
+      "Decimal places to keep (0 if left out; negative rounds to tens, hundreds)",
+  },
+  IFERROR: {
+    value: "The formula that may fail",
+    if_error: "What to show instead of the error",
+  },
+  TEXT: {
+    value: "The number or date",
+    format: 'A format code, like "0.0%", "$#,##0" or "mmm d"',
+  },
+  DATE: {
+    year: "Four-digit year",
+    month: "1 to 12 (13 rolls into next year)",
+    day: "Day of the month",
+  },
+  FILTER: {
+    range: "The rows to choose from",
+    condition1:
+      'A column of TRUE/FALSE as tall as the range, like C2:C99="Open"',
+  },
+  UNIQUE: {
+    range: "The values to list once each",
+    by_column: "TRUE to compare columns instead of rows",
+    exactly_once: "TRUE to keep only values that appear once",
+  },
+  SORT: {
+    range: "The rows to sort",
+    sort_column: "Which column of the range to sort by (1 is the first)",
+    is_ascending: "TRUE for A to Z, FALSE for Z to A",
+  },
+  EDATE: {
+    start_date: "The date to start from",
+    months: "Months later (negative for earlier)",
+  },
+  TEXTJOIN: {
+    delimiter: 'What goes between the parts, like ", "',
+    ignore_empty: "TRUE to skip blank cells",
+  },
 };
 
 /** The help line for one argument of a call ("The cells to test"), when known. */

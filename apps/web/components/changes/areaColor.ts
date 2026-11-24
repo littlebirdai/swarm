@@ -21,11 +21,20 @@ const NAMED: Record<string, string> = {
 };
 
 /** Accents an unnamed area draws from, by a stable hash of its name. */
-const PALETTE = ["--sol-blue", "--sol-cyan", "--sol-green", "--sol-violet", "--sol-magenta", "--sol-orange", "--sol-yellow"];
+const PALETTE = [
+  "--sol-blue",
+  "--sol-cyan",
+  "--sol-green",
+  "--sol-violet",
+  "--sol-magenta",
+  "--sol-orange",
+  "--sol-yellow",
+];
 
 const keyOf = (area: string) => area.trim().toLowerCase();
 
-const hashed = (key: string) => parseInt(hash64(["area", key]).slice(0, 8), 16) % PALETTE.length;
+const hashed = (key: string) =>
+  parseInt(hash64(["area", key]).slice(0, 8), 16) % PALETTE.length;
 
 /** The colors a page hands its areas, by lowercased name (`assignAreaColors`). */
 export type AreaColors = ReadonlyMap<string, string>;
@@ -37,8 +46,12 @@ export type AreaColors = ReadonlyMap<string, string>;
  * accent and takes the next one no area holds yet. Past seven accents an area
  * falls back to its plain hash. The same areas always give the same map.
  */
-export function assignAreaColors(first: readonly string[], rest: readonly string[] = []): Map<string, string> {
-  const sorted = (xs: readonly string[]) => [...new Set(xs.map(keyOf))].filter(Boolean).sort();
+export function assignAreaColors(
+  first: readonly string[],
+  rest: readonly string[] = [],
+): Map<string, string> {
+  const sorted = (xs: readonly string[]) =>
+    [...new Set(xs.map(keyOf))].filter(Boolean).sort();
   const keys = [...new Set([...sorted(first), ...sorted(rest)])];
   const out = new Map<string, string>();
   for (const k of keys) if (NAMED[k]) out.set(k, NAMED[k]);
@@ -46,7 +59,9 @@ export function assignAreaColors(first: readonly string[], rest: readonly string
   for (const k of keys) {
     if (out.has(k)) continue;
     const start = hashed(k);
-    const free = PALETTE.map((_, i) => PALETTE[(start + i) % PALETTE.length]).find((v) => !taken.has(v));
+    const free = PALETTE.map(
+      (_, i) => PALETTE[(start + i) % PALETTE.length],
+    ).find((v) => !taken.has(v));
     out.set(k, free ?? PALETTE[start]);
     if (free) taken.add(free);
   }
@@ -65,7 +80,11 @@ export function areaColor(area: string, colors?: AreaColors): string {
 }
 
 /** A soft fill of the area's color (spec 5.2: fills sit at 14%). */
-export function areaFill(area: string, percent = 14, colors?: AreaColors): string {
+export function areaFill(
+  area: string,
+  percent = 14,
+  colors?: AreaColors,
+): string {
   return `color-mix(in srgb, var(${areaVar(area, colors)}) ${percent}%, transparent)`;
 }
 
@@ -82,7 +101,6 @@ export const KIND_COLOR: Partial<Record<string, string>> = {
 
 /** Risk is a texture, never a fill (spec 5.2). Defined once on `.chg-root` in globals.css, with its light theme strength. */
 export const RISK_HATCH = "var(--chg-risk-hatch)";
-
 
 /** The Stuck group's rule. */
 export const STUCK_RULE = "color-mix(in srgb, var(--sol-red) 80%, transparent)";

@@ -4,14 +4,23 @@ const CLAUDE_CODE: Skill[] = [
   { name: "help", description: "Show help and available commands" },
   { name: "login", description: "Sign in to your Anthropic account" },
   { name: "logout", description: "Sign out from your Anthropic account" },
-  { name: "clear", description: "Clear conversation history and free up context" },
-  { name: "compact", description: "Compact conversation with optional focus instructions" },
+  {
+    name: "clear",
+    description: "Clear conversation history and free up context",
+  },
+  {
+    name: "compact",
+    description: "Compact conversation with optional focus instructions",
+  },
   { name: "model", description: "Select or change the AI model" },
   { name: "fast", description: "Toggle fast mode" },
   { name: "diff", description: "Show uncommitted changes" },
   { name: "config", description: "Open settings interface" },
   { name: "cost", description: "Show token usage statistics" },
-  { name: "usage", description: "Show plan usage limits and rate limit status" },
+  {
+    name: "usage",
+    description: "Show plan usage limits and rate limit status",
+  },
   { name: "context", description: "Visualize current context usage" },
   { name: "copy", description: "Copy last response to clipboard" },
   { name: "resume", description: "Resume a conversation by ID or name" },
@@ -24,11 +33,17 @@ const CLAUDE_CODE: Skill[] = [
   { name: "feedback", description: "Submit feedback about Claude Code" },
   { name: "theme", description: "Change the color theme" },
   { name: "vim", description: "Toggle between Vim and Normal editing modes" },
-  { name: "status", description: "Show version, model, account, and connectivity" },
+  {
+    name: "status",
+    description: "Show version, model, account, and connectivity",
+  },
   { name: "rename", description: "Rename the current session" },
   { name: "export", description: "Export the current conversation" },
   { name: "branch", description: "Branch the conversation at this point" },
-  { name: "rewind", description: "Rewind conversation and/or code to a previous point" },
+  {
+    name: "rewind",
+    description: "Rewind conversation and/or code to a previous point",
+  },
   { name: "skills", description: "List available skills" },
   { name: "agents", description: "Manage agent configurations" },
   { name: "hooks", description: "View hook configurations" },
@@ -43,13 +58,19 @@ const CLAUDE_CODE: Skill[] = [
   { name: "tasks", description: "List and manage background tasks" },
   { name: "stats", description: "Visualize daily usage and session history" },
   { name: "plugin", description: "Manage Claude Code plugins" },
-  { name: "security-review", description: "Analyze changes for security vulnerabilities" },
+  {
+    name: "security-review",
+    description: "Analyze changes for security vulnerabilities",
+  },
   { name: "release-notes", description: "View the full changelog" },
   { name: "ide", description: "Manage IDE integrations" },
   { name: "color", description: "Set the prompt bar color" },
   { name: "add-dir", description: "Add a working directory to the session" },
   { name: "statusline", description: "Configure the status line" },
-  { name: "remote-control", description: "Enable remote control from claude.ai" },
+  {
+    name: "remote-control",
+    description: "Enable remote control from claude.ai",
+  },
 ];
 
 const CODEX: Skill[] = [
@@ -85,7 +106,10 @@ const CODEX: Skill[] = [
 const GEMINI: Skill[] = [
   { name: "help", description: "Show usage information about commands" },
   { name: "clear", description: "Clear the terminal screen" },
-  { name: "compress", description: "Condense chat context to reduce token usage" },
+  {
+    name: "compress",
+    description: "Condense chat context to reduce token usage",
+  },
   { name: "copy", description: "Copy last Gemini output to clipboard" },
   { name: "exit", description: "Exit the application" },
   { name: "init", description: "Generate a GEMINI.md context file" },
@@ -124,7 +148,10 @@ export function getBuiltinCommands(agentType?: string): Skill[] {
  *  never sent to the agent. In a conversation's composer it replaces the
  *  agent's command of the same name, whose answer would only show in the
  *  terminal. */
-export const SIDE_QUESTION_COMMAND: Skill = { name: "btw", description: "Ask about this session; the agent never sees it" };
+export const SIDE_QUESTION_COMMAND: Skill = {
+  name: "btw",
+  description: "Ask about this session; the agent never sees it",
+};
 
 const SIDE_QUESTION_RE = /^\/btw(?:\s+([\s\S]*))?$/;
 
@@ -137,8 +164,17 @@ export function parseSideQuestion(text: string): string | null {
 
 /** A slash list with codecast's `/btw` first, in place of any command of that name. */
 export function withSideQuestionCommand(skills: Skill[] | undefined): Skill[] {
-  return [SIDE_QUESTION_COMMAND, ...(skills ?? []).filter((s) => s.name.toLowerCase() !== SIDE_QUESTION_COMMAND.name)];
+  return [
+    SIDE_QUESTION_COMMAND,
+    ...(skills ?? []).filter(
+      (s) => s.name.toLowerCase() !== SIDE_QUESTION_COMMAND.name,
+    ),
+  ];
 }
 
 /** Codecast's own `/goal`, offered only by a composer that runs it itself (ConversationView handleGoalCommand). */
-export const GOAL_COMMAND: Skill = { name: "goal", description: "Keep the agent working until an objective is met [pause|resume|clear]" };
+export const GOAL_COMMAND: Skill = {
+  name: "goal",
+  description:
+    "Keep the agent working until an objective is met [pause|resume|clear]",
+};

@@ -19,11 +19,17 @@ const CODE_STATEMENT = /\w[([{]|\w=/;
 const TOKEN_BREAK_END = /(?:[/?&=#]|\w-)$/;
 /** SGR colors and the other escapes capture-pane -e emits, OSC 8 links included. */
 // eslint-disable-next-line no-control-regex
-const ESCAPE_RE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
+const ESCAPE_RE =
+  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
 
 function codePointWidth(code: number): number {
   if (code === 0 || code < 32 || (code >= 0x7f && code < 0xa0)) return 0;
-  if ((code >= 0x300 && code <= 0x36f) || (code >= 0x200b && code <= 0x200f) || code === 0xfe0f) return 0;
+  if (
+    (code >= 0x300 && code <= 0x36f) ||
+    (code >= 0x200b && code <= 0x200f) ||
+    code === 0xfe0f
+  )
+    return 0;
   if (
     (code >= 0x1100 && code <= 0x115f) ||
     (code >= 0x2e80 && code <= 0xa4cf && code !== 0x303f) ||
@@ -34,7 +40,8 @@ function codePointWidth(code: number): number {
     (code >= 0xffe0 && code <= 0xffe6) ||
     (code >= 0x1f300 && code <= 0x1faff) ||
     (code >= 0x20000 && code <= 0x3fffd)
-  ) return 2;
+  )
+    return 2;
   return 1;
 }
 
@@ -46,26 +53,35 @@ export function displayWidth(text: string): number {
 }
 
 const isOrdinaryRow = (row: string, paneCols: number) =>
-  row.trim() !== '' && !BOX_DRAWING.test(row) && displayWidth(row) <= paneCols;
+  row.trim() !== "" && !BOX_DRAWING.test(row) && displayWidth(row) <= paneCols;
 
 /** The column the app wrapped at, or the pane width when the capture holds no evidence. */
 export function inferWrapWidth(rows: string[], paneCols: number): number {
   let widest = 0;
   for (const row of rows) {
-    if (isOrdinaryRow(row, paneCols)) widest = Math.max(widest, displayWidth(row.trimEnd()));
+    if (isOrdinaryRow(row, paneCols))
+      widest = Math.max(widest, displayWidth(row.trimEnd()));
   }
   return widest >= paneCols - WIDTH_EVIDENCE_SLACK ? widest : paneCols;
 }
 
 /** How rows i and i+1 join: ' ' (wrapped at a space), '' (token broken), or null. */
-export type RowJoin = ' ' | '' | null;
+export type RowJoin = " " | "" | null;
 
-export function findWrappedRows(rows: string[], paneCols: number, wrapWidth = inferWrapWidth(rows, paneCols)): RowJoin[] {
+export function findWrappedRows(
+  rows: string[],
+  paneCols: number,
+  wrapWidth = inferWrapWidth(rows, paneCols),
+): RowJoin[] {
   const joins: RowJoin[] = [];
   for (let i = 0; i + 1 < rows.length; i++) {
     const row = rows[i].trimEnd();
     const next = rows[i + 1];
-    if (!isOrdinaryRow(row, paneCols) || !isOrdinaryRow(next, paneCols) || LIST_ITEM.test(next)) {
+    if (
+      !isOrdinaryRow(row, paneCols) ||
+      !isOrdinaryRow(next, paneCols) ||
+      LIST_ITEM.test(next)
+    ) {
       joins.push(null);
       continue;
     }
@@ -80,15 +96,18 @@ export function findWrappedRows(rows: string[], paneCols: number, wrapWidth = in
       joins.push(null);
       continue;
     }
-    joins.push(brokenToken ? '' : ' ');
+    joins.push(brokenToken ? "" : " ");
   }
   return joins;
 }
 
 /** A relayed frame as plain rows: escapes stripped, trailing blanks dropped. */
 export function frameRows(frame: string): string[] {
-  const rows = frame.replace(ESCAPE_RE, '').split('\n').map((r) => r.trimEnd());
-  while (rows.length && rows[rows.length - 1] === '') rows.pop();
+  const rows = frame
+    .replace(ESCAPE_RE, "")
+    .split("\n")
+    .map((r) => r.trimEnd());
+  while (rows.length && rows[rows.length - 1] === "") rows.pop();
   return rows;
 }
 
@@ -100,16 +119,22 @@ export function frameRows(frame: string): string[] {
 /** A row that is only a rule (a TUI's full-width separator). */
 const RULE_ROW = /^\s*[\u2500-\u257f\-=_]{8,}\s*$/;
 
-export function snapshotText(frame: string, paneCols: number, mode: 'tui' | 'shell'): string {
+export function snapshotText(
+  frame: string,
+  paneCols: number,
+  mode: "tui" | "shell",
+): string {
   // A full-width rule would wrap into rows of dashes on a phone-width sheet:
   // it reads the same short.
-  const rows = frameRows(frame).map((r) => (RULE_ROW.test(r) ? r.trim().slice(0, 12) : r));
-  if (mode === 'shell' || rows.length < 2) return rows.join('\n');
+  const rows = frameRows(frame).map((r) =>
+    RULE_ROW.test(r) ? r.trim().slice(0, 12) : r,
+  );
+  if (mode === "shell" || rows.length < 2) return rows.join("\n");
   const joins = findWrappedRows(rows, paneCols);
   let out = rows[0];
   for (let i = 1; i < rows.length; i++) {
     const join = joins[i - 1];
-    out += join === null ? '\n' + rows[i] : join + rows[i].trimStart();
+    out += join === null ? "\n" + rows[i] : join + rows[i].trimStart();
   }
   return out;
 }
@@ -122,6 +147,6 @@ const TUI_PROMPT = /^\s*[\u276f\u203a>]\s/m;
  * than a bare shell the agent left behind: only a TUI wrapped its own lines.
  */
 export function looksLikeTui(frame: string): boolean {
-  const plain = frameRows(frame).join('\n');
+  const plain = frameRows(frame).join("\n");
   return BOX_DRAWING.test(plain) || TUI_PROMPT.test(plain);
 }

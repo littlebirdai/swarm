@@ -2,9 +2,21 @@ import { dom, w, restoreGlobals } from "./fixtures/composeDom";
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 
 const toasts: string[] = [];
-const record = (kind: string) => (msg: any) => { toasts.push(`${kind}:${String(msg)}`); return 1; };
+const record = (kind: string) => (msg: any) => {
+  toasts.push(`${kind}:${String(msg)}`);
+  return 1;
+};
 mock.module("sonner", () => ({
-  toast: Object.assign(record("toast"), { error: record("error"), info: record("info"), success: record("success"), warning: record("warning"), dismiss: () => {}, loading: record("loading"), custom: record("custom"), promise: (p: any) => p }),
+  toast: Object.assign(record("toast"), {
+    error: record("error"),
+    info: record("info"),
+    success: record("success"),
+    warning: record("warning"),
+    dismiss: () => {},
+    loading: record("loading"),
+    custom: record("custom"),
+    promise: (p: any) => p,
+  }),
   Toaster: () => null,
 }));
 import { act } from "react";
@@ -30,7 +42,11 @@ const FORK_STUB = "fork_stub_images";
 const STORAGE_ID = "kg2forkupload";
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-const flush = async (ms = 20) => { await act(async () => { await tick(ms); }); };
+const flush = async (ms = 20) => {
+  await act(async () => {
+    await tick(ms);
+  });
+};
 const flushUntil = async (ready: () => boolean, budgetMs = 3_000) => {
   const deadline = Date.now() + budgetMs;
   while (!ready() && Date.now() < deadline) await flush(20);
@@ -50,18 +66,35 @@ function fakeConvex() {
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input?.url;
-    if (url === "https://upload.test/storage") return { ok: true, status: 200, json: async () => ({ storageId: STORAGE_ID }) } as any;
+    if (url === "https://upload.test/storage")
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ storageId: STORAGE_ID }),
+      } as any;
     return realFetch(input, init);
   }) as any;
-  return { client, restore: () => { globalThis.fetch = realFetch; } };
+  return {
+    client,
+    restore: () => {
+      globalThis.fetch = realFetch;
+    },
+  };
 }
 
 function setNativeValue(el: HTMLTextAreaElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(w.HTMLTextAreaElement.prototype, "value")!.set!;
+  const setter = Object.getOwnPropertyDescriptor(
+    w.HTMLTextAreaElement.prototype,
+    "value",
+  )!.set!;
   setter.call(el, value);
   const propsKey = Object.keys(el).find((k) => k.startsWith("__reactProps"));
   const props = propsKey ? (el as any)[propsKey] : null;
-  props?.onChange?.({ target: el, currentTarget: el, nativeEvent: new w.Event("input") });
+  props?.onChange?.({
+    target: el,
+    currentTarget: el,
+    nativeEvent: new w.Event("input"),
+  });
 }
 
 beforeEach(() => {
@@ -82,46 +115,88 @@ beforeEach(() => {
 // beginLocalFork registers it.
 function openStubFork() {
   let resolve!: (id: string) => void;
-  const ready = new Promise<string>((r) => { resolve = r; });
+  const ready = new Promise<string>((r) => {
+    resolve = r;
+  });
   useInboxStore.getState().trackSessionCreate(FORK_STUB, ready);
   setTimeout(() => resolve(FORK_REAL_ID), 30);
 }
 
 async function forkSendWithImage(via: "tail" | "selection") {
   const calls: Array<{ action: string; args: any[] }> = [];
-  (useInboxStore.getState() as any)._setDispatch(async (action: string, args: any[]) => { calls.push({ action, args }); return undefined; });
+  (useInboxStore.getState() as any)._setDispatch(
+    async (action: string, args: any[]) => {
+      calls.push({ action, args });
+      return undefined;
+    },
+  );
   const { client, restore } = fakeConvex();
   const { MessageInput } = await import("../MessageInput");
-  const dropFilesRef: { current: ((files: File[]) => void) | null } = { current: null };
+  const dropFilesRef: { current: ((files: File[]) => void) | null } = {
+    current: null,
+  };
   const container = w.document.createElement("div");
   w.document.body.appendChild(container);
   const root: Root = createRoot(container);
-  const render = (selected: boolean) => root.render(
-    <ConvexProvider client={client}>
-      <MessageInput
-        conversationId={PARENT_ID}
-        status="active"
-        agentType="claude_code"
-        agentStatus={"idle" as any}
-        isSessionReady
-        onDropFiles={dropFilesRef as any}
-        onForkTail={async () => { openStubFork(); return FORK_STUB; }}
-        onForkFromMessage={async () => { openStubFork(); useInboxStore.getState().injectSession({ _id: FORK_STUB, session_id: FORK_STUB, title: "Fork", updated_at: Date.now() } as any); }}
-        selectedMessageUuid={selected ? "msg_selected" : null}
-        selectedMessageContent={selected ? "earlier prompt" : null}
-        onClearSelection={() => render(false)}
-      />
-    </ConvexProvider>,
-  );
+  const render = (selected: boolean) =>
+    root.render(
+      <ConvexProvider client={client}>
+        <MessageInput
+          conversationId={PARENT_ID}
+          status="active"
+          agentType="claude_code"
+          agentStatus={"idle" as any}
+          isSessionReady
+          onDropFiles={dropFilesRef as any}
+          onForkTail={async () => {
+            openStubFork();
+            return FORK_STUB;
+          }}
+          onForkFromMessage={async () => {
+            openStubFork();
+            useInboxStore.getState().injectSession({
+              _id: FORK_STUB,
+              session_id: FORK_STUB,
+              title: "Fork",
+              updated_at: Date.now(),
+            } as any);
+          }}
+          selectedMessageUuid={selected ? "msg_selected" : null}
+          selectedMessageContent={selected ? "earlier prompt" : null}
+          onClearSelection={() => render(false)}
+        />
+      </ConvexProvider>,
+    );
   await act(() => render(via === "selection"));
   const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
-  await act(() => { dropFilesRef.current!([new File([new Uint8Array(64)], "shot.png", { type: "image/png" })]); });
+  await act(() => {
+    dropFilesRef.current!([
+      new File([new Uint8Array(64)], "shot.png", { type: "image/png" }),
+    ]);
+  });
   await flushUntil(() => !pendingImageUploads.size);
-  await act(() => { setNativeValue(textarea, textarea.value.replace("earlier prompt", "") + "look at this"); });
+  await act(() => {
+    setNativeValue(
+      textarea,
+      textarea.value.replace("earlier prompt", "") + "look at this",
+    );
+  });
   await flush();
   await act(() => {
-    if (via === "tail") (container.querySelector('button[aria-label="Fork and send"]') as HTMLButtonElement).click();
-    else textarea.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    if (via === "tail")
+      (
+        container.querySelector(
+          'button[aria-label="Fork and send"]',
+        ) as HTMLButtonElement
+      ).click();
+    else
+      textarea.dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
   });
   await flushUntil(() => calls.some((c) => c.action === "sendMessage"));
 
@@ -132,8 +207,12 @@ async function forkSendWithImage(via: "tail" | "selection") {
   expect(sends[0].args[1]).toBe("[Image 1] look at this");
   expect(sends[0].args[2]).toEqual([STORAGE_ID]);
   // Nothing stays behind in the parent: no message, no draft, no thumbnail.
-  expect(useInboxStore.getState().pendingMessages[PARENT_ID] ?? []).toHaveLength(0);
-  expect(useInboxStore.getState().drafts[PARENT_ID]?.draft_image_storage_ids ?? []).toHaveLength(0);
+  expect(
+    useInboxStore.getState().pendingMessages[PARENT_ID] ?? [],
+  ).toHaveLength(0);
+  expect(
+    useInboxStore.getState().drafts[PARENT_ID]?.draft_image_storage_ids ?? [],
+  ).toHaveLength(0);
   expect(container.querySelectorAll('img[alt="Pasted"]').length).toBe(0);
 
   await act(() => root.unmount());

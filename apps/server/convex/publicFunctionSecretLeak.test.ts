@@ -77,12 +77,20 @@ function assertNoSecrets(returned: unknown, label: string) {
   expect(returned).toBeTruthy();
   const keys = Object.keys(returned as Record<string, unknown>);
   for (const field of SECRET_FIELDS) {
-    expect(`${label} leaked ${field}: ${keys.includes(field)}`).toBe(`${label} leaked ${field}: false`);
+    expect(`${label} leaked ${field}: ${keys.includes(field)}`).toBe(
+      `${label} leaked ${field}: false`,
+    );
   }
   // Belt and braces: the literal secret values must not appear anywhere in the
   // serialized payload, even under a renamed or nested key.
   const serialized = JSON.stringify(returned);
-  for (const secret of ["gho_REAL_TOKEN_VALUE", "MASTER_KEY_VALUE", "PUSH_TOKEN_VALUE", "VOIP_TOKEN_VALUE", "UNSUB_TOKEN_VALUE"]) {
+  for (const secret of [
+    "gho_REAL_TOKEN_VALUE",
+    "MASTER_KEY_VALUE",
+    "PUSH_TOKEN_VALUE",
+    "VOIP_TOKEN_VALUE",
+    "UNSUB_TOKEN_VALUE",
+  ]) {
     expect(`${label} contains ${secret}: ${serialized.includes(secret)}`).toBe(
       `${label} contains ${secret}: false`,
     );
@@ -95,14 +103,21 @@ function assertNoSecrets(returned: unknown, label: string) {
 // keep that guard switched on.
 describe("the compile-time guard covers every public function", () => {
   test("it walks the whole generated api and is typechecked", () => {
-    const guard = readFileSync(join(import.meta.dir, "publicFunctionSecretLeak.guard.ts"), "utf8");
+    const guard = readFileSync(
+      join(import.meta.dir, "publicFunctionSecretLeak.guard.ts"),
+      "utf8",
+    );
     expect(guard).toContain("NoneOf<PublicSecretReturns<typeof api>>");
     expect(guard).toContain("GuardSelfTest");
-    const tsconfig = ts.parseConfigFileTextToJson("tsconfig.json", readFileSync(join(import.meta.dir, "tsconfig.json"), "utf8")).config;
+    const tsconfig = ts.parseConfigFileTextToJson(
+      "tsconfig.json",
+      readFileSync(join(import.meta.dir, "tsconfig.json"), "utf8"),
+    ).config;
     expect(tsconfig.include).toContain("./**/*");
     for (const pattern of tsconfig.exclude ?? []) {
-      expect(`excluded by ${pattern}: ${new Bun.Glob(pattern.replace(/^\.\//, "")).match("publicFunctionSecretLeak.guard.ts")}`)
-        .toBe(`excluded by ${pattern}: false`);
+      expect(
+        `excluded by ${pattern}: ${new Bun.Glob(pattern.replace(/^\.\//, "")).match("publicFunctionSecretLeak.guard.ts")}`,
+      ).toBe(`excluded by ${pattern}: false`);
     }
   });
 
@@ -110,16 +125,23 @@ describe("the compile-time guard covers every public function", () => {
     const schema = readFileSync(join(import.meta.dir, "schema.ts"), "utf8");
     for (const [table, fields] of Object.entries(GUARDED)) {
       const start = schema.indexOf(`  ${table}: defineTable(`);
-      expect(`${table} in schema: ${start >= 0}`).toBe(`${table} in schema: true`);
+      expect(`${table} in schema: ${start >= 0}`).toBe(
+        `${table} in schema: true`,
+      );
       const body = schema.slice(start, schema.indexOf("\n  }", start));
-      for (const field of fields) expect(`${table}.${field}: ${body.includes(`${field}:`)}`).toBe(`${table}.${field}: true`);
+      for (const field of fields)
+        expect(`${table}.${field}: ${body.includes(`${field}:`)}`).toBe(
+          `${table}.${field}: true`,
+        );
     }
   });
 });
 
 describe("public functions never return the raw users row", () => {
   test("getUserByUsername by github username withholds every secret", async () => {
-    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), { username: "victim-gh" });
+    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), {
+      username: "victim-gh",
+    });
     assertNoSecrets(r, "getUserByUsername(username)");
     // The profile page still gets what it renders.
     expect(r.name).toBe("Victim");
@@ -128,18 +150,24 @@ describe("public functions never return the raw users row", () => {
   });
 
   test("getUserByUsername by user_id withholds every secret", async () => {
-    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), { user_id: VICTIM });
+    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), {
+      user_id: VICTIM,
+    });
     assertNoSecrets(r, "getUserByUsername(user_id)");
   });
 
   test("getUserByUsername by display-name fallback withholds every secret", async () => {
     // The third lookup path — the take(200) scan matching on `name`.
-    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), { username: "Victim" });
+    const r = await (getUserByUsername as any)._handler(ctx(null, tables()), {
+      username: "Victim",
+    });
     assertNoSecrets(r, "getUserByUsername(name fallback)");
   });
 
   test("getUserByGithubId withholds every secret", async () => {
-    const r = await (getUserByGithubId as any)._handler(ctx(null, tables()), { github_id: "12345" });
+    const r = await (getUserByGithubId as any)._handler(ctx(null, tables()), {
+      github_id: "12345",
+    });
     assertNoSecrets(r, "getUserByGithubId");
     expect(r.github_username).toBe("victim-gh");
   });
@@ -153,21 +181,44 @@ describe("commits are not world-readable or world-destroyable", () => {
 
   test("a commit is not served to a signed-in user with no access to its conversation", async () => {
     const t = tables({
-      commits: [{ _id: "c1", sha: "abc", timestamp: 2, conversation_id: "conv_1", files: [{ patch: "SECRET DIFF" }] }],
+      commits: [
+        {
+          _id: "c1",
+          sha: "abc",
+          timestamp: 2,
+          conversation_id: "conv_1",
+          files: [{ patch: "SECRET DIFF" }],
+        },
+      ],
       conversations: [{ _id: "conv_1", user_id: VICTIM, is_private: true }],
     });
-    const r = await (getCommitBySha as any)._handler(ctx(STRANGER, t), { sha: "abc" });
+    const r = await (getCommitBySha as any)._handler(ctx(STRANGER, t), {
+      sha: "abc",
+    });
     expect(r).toBeNull();
 
-    const own = await (getCommitBySha as any)._handler(ctx(VICTIM, t), { sha: "abc" });
+    const own = await (getCommitBySha as any)._handler(ctx(VICTIM, t), {
+      sha: "abc",
+    });
     expect(own?.sha).toBe("abc");
   });
 
   test("an unattributable commit (no conversation_id) is withheld rather than served", async () => {
     // syncRepositoryCommits creates rows with no conversation_id, so there is
     // nothing to authorize against. Fail closed until `commits` gets an owner.
-    const t = tables({ commits: [{ _id: "c1", sha: "abc", timestamp: 2, files: [{ patch: "SECRET DIFF" }] }] });
-    expect(await (getCommitBySha as any)._handler(ctx(VICTIM, t), { sha: "abc" })).toBeNull();
+    const t = tables({
+      commits: [
+        {
+          _id: "c1",
+          sha: "abc",
+          timestamp: 2,
+          files: [{ patch: "SECRET DIFF" }],
+        },
+      ],
+    });
+    expect(
+      await (getCommitBySha as any)._handler(ctx(VICTIM, t), { sha: "abc" }),
+    ).toBeNull();
   });
 });
 
@@ -199,7 +250,15 @@ describe("token connections never return their secret", () => {
   test("listConnections reports a token connection without its ciphertext or config", async () => {
     const t = tables({
       teams: [{ _id: "team_1", name: "Acme" }],
-      team_memberships: [{ _id: "tm_1", user_id: VICTIM, team_id: "team_1", role: "member", joined_at: 1 }],
+      team_memberships: [
+        {
+          _id: "tm_1",
+          user_id: VICTIM,
+          team_id: "team_1",
+          role: "member",
+          joined_at: 1,
+        },
+      ],
       slack_installations: [],
       github_app_installations: [],
       app_installations: [tokenRow],
@@ -207,12 +266,21 @@ describe("token connections never return their secret", () => {
     });
     t.users[0].team_id = "team_1";
     const r = await (listConnections as any)._handler(ctx(VICTIM, t), {});
-    const sentry = r.apps.find((a: any) => a.id === "sentry" && a.scope === "team");
+    const sentry = r.apps.find(
+      (a: any) => a.id === "sentry" && a.scope === "team",
+    );
     expect(sentry.status).toBe("connected");
     expect(sentry.detail).toBe("Acme");
     const serialized = JSON.stringify(r);
-    for (const leaked of ["access_token_enc", "TOKEN_CIPHERTEXT", "acme-private-org", "config"]) {
-      expect(`listConnections contains ${leaked}: ${serialized.includes(leaked)}`).toBe(`listConnections contains ${leaked}: false`);
+    for (const leaked of [
+      "access_token_enc",
+      "TOKEN_CIPHERTEXT",
+      "acme-private-org",
+      "config",
+    ]) {
+      expect(
+        `listConnections contains ${leaked}: ${serialized.includes(leaked)}`,
+      ).toBe(`listConnections contains ${leaked}: false`);
     }
   });
 
@@ -231,8 +299,15 @@ describe("token connections never return their secret", () => {
   });
 
   test("every function that reads or writes a token credential is internal", () => {
-    for (const name of ["getTokenCredential", "tokenConnectionRow", "tokenConnectionFor", "storeTokenConnection"] as const) {
-      expect(`${name} public: ${!!(tokenConnectors[name] as any).isPublic}`).toBe(`${name} public: false`);
+    for (const name of [
+      "getTokenCredential",
+      "tokenConnectionRow",
+      "tokenConnectionFor",
+      "storeTokenConnection",
+    ] as const) {
+      expect(
+        `${name} public: ${!!(tokenConnectors[name] as any).isPublic}`,
+      ).toBe(`${name} public: false`);
     }
     expect((tokenConnectors.connectWithToken as any).isPublic).toBe(true);
   });
@@ -240,8 +315,18 @@ describe("token connections never return their secret", () => {
   test("the app connector's credential-adjacent functions are internal", () => {
     // callContext and sourceForPoll hand back a connection id that
     // readTokenCredential turns into a secret; recordCall writes the audit.
-    for (const name of ["callContext", "sourceForPoll", "recordCall", "storeManifest", "recordWatchPolls", "pollSource", "refreshSourceManifest"] as const) {
-      expect(`${name} public: ${!!(appConnector[name] as any).isPublic}`).toBe(`${name} public: false`);
+    for (const name of [
+      "callContext",
+      "sourceForPoll",
+      "recordCall",
+      "storeManifest",
+      "recordWatchPolls",
+      "pollSource",
+      "refreshSourceManifest",
+    ] as const) {
+      expect(`${name} public: ${!!(appConnector[name] as any).isPublic}`).toBe(
+        `${name} public: false`,
+      );
     }
   });
 });

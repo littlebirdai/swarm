@@ -21,7 +21,8 @@ export async function conversationMovedAwayFrom(
     .take(16);
   for (const row of rows) {
     if (row.user_id?.toString() === userId) continue;
-    if (row.author_user_id?.toString() === userId || (await isOwner(row))) return row;
+    if (row.author_user_id?.toString() === userId || (await isOwner(row)))
+      return row;
   }
   return null;
 }

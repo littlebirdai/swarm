@@ -12,13 +12,19 @@ import { normalizeRepoName } from "@codecast/shared/search";
 export type Candidates = Map<string, number | undefined>;
 
 /** Keep ids present in both, carrying the newest matched time either side has. */
-export function intersectCandidates(a: Candidates | null, b: Candidates): Candidates {
+export function intersectCandidates(
+  a: Candidates | null,
+  b: Candidates,
+): Candidates {
   if (a === null) return b;
   const out: Candidates = new Map();
   for (const [id, at] of a) {
     if (!b.has(id)) continue;
     const other = b.get(id);
-    out.set(id, at === undefined ? other : other === undefined ? at : Math.max(at, other));
+    out.set(
+      id,
+      at === undefined ? other : other === undefined ? at : Math.max(at, other),
+    );
   }
   return out;
 }
@@ -26,11 +32,15 @@ export function intersectCandidates(a: Candidates | null, b: Candidates): Candid
 /** Record a matched time for an id, keeping the newest. */
 export function addCandidate(map: Candidates, id: string, at?: number): void {
   const prev = map.get(id);
-  if (!map.has(id) || (at !== undefined && (prev === undefined || at > prev))) map.set(id, at);
+  if (!map.has(id) || (at !== undefined && (prev === undefined || at > prev)))
+    map.set(id, at);
 }
 
 export function inWindow(ts: number, after?: number, before?: number): boolean {
-  return (after === undefined || ts >= after) && (before === undefined || ts <= before);
+  return (
+    (after === undefined || ts >= after) &&
+    (before === undefined || ts <= before)
+  );
 }
 
 /**
@@ -75,28 +85,47 @@ function basename(path?: string | null): string {
  * checkout folder's name.
  */
 export function repoMatchesConversation(
-  conv: { git_remote_url?: string | null; git_root?: string | null; project_path?: string | null },
+  conv: {
+    git_remote_url?: string | null;
+    git_root?: string | null;
+    project_path?: string | null;
+  },
   repo: string,
 ): boolean {
-  const slug = conv.git_remote_url ? normalizeRepoName(conv.git_remote_url) : "";
+  const slug = conv.git_remote_url
+    ? normalizeRepoName(conv.git_remote_url)
+    : "";
   if (slug && (slug === repo || slug.endsWith(`/${repo}`))) return true;
   if (repo.includes("/")) return false;
-  return basename(conv.git_root) === repo || basename(conv.project_path) === repo;
+  return (
+    basename(conv.git_root) === repo || basename(conv.project_path) === repo
+  );
 }
 
-export type AuthorLite = { _id: { toString(): string }; name?: string | null; email?: string | null; github_username?: string | null };
+export type AuthorLite = {
+  _id: { toString(): string };
+  name?: string | null;
+  email?: string | null;
+  github_username?: string | null;
+};
 
 /**
  * The user ids an `author:` value names among the people whose sessions the
  * viewer can search. "me" is the viewer; anything else matches a name, email
  * or GitHub login by substring, the same rule as `cast search -m`.
  */
-export function matchAuthorIds(users: AuthorLite[], value: string, viewerId: string): Set<string> {
+export function matchAuthorIds(
+  users: AuthorLite[],
+  value: string,
+  viewerId: string,
+): Set<string> {
   const v = value.toLowerCase();
   if (v === "me") return new Set([viewerId]);
   const ids = new Set<string>();
   for (const u of users) {
-    const fields = [u.name, u.email, u.github_username].map((f) => (f ?? "").toLowerCase());
+    const fields = [u.name, u.email, u.github_username].map((f) =>
+      (f ?? "").toLowerCase(),
+    );
     if (fields.some((f) => f && f.includes(v))) ids.add(u._id.toString());
   }
   return ids;
@@ -120,13 +149,17 @@ export class WalkBudget {
   spendBytes(n: number): boolean {
     this.bytesLeft -= n;
     if (this.bytesLeft >= 0) return true;
-    this.note("stopped at the search's read size budget; narrow with after:, before:, author: or a longer path");
+    this.note(
+      "stopped at the search's read size budget; narrow with after:, before:, author: or a longer path",
+    );
     return false;
   }
   /** Spend n index reads; false once the budget is gone (and says so once). */
   spend(n = 1): boolean {
     if (this.left < n) {
-      this.note("stopped at the search's read budget; narrow with after:, before:, author: or a longer path");
+      this.note(
+        "stopped at the search's read budget; narrow with after:, before:, author: or a longer path",
+      );
       return false;
     }
     this.left -= n;

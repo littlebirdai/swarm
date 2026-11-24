@@ -26,10 +26,17 @@ test("ledger writes and legacy position reads follow CODECAST_DIR after import",
       if (ledger.getSyncRecord(transcript) !== null) throw Error("A leaked into B");
       ledger.updateSyncRecord(transcript, { lastSyncedPosition: 20 });
     `;
-    const child = Bun.spawn([process.execPath, "--eval", script], { env: { ...process.env, CODECAST_DIR: root }, stdout: "pipe", stderr: "pipe" });
+    const child = Bun.spawn([process.execPath, "--eval", script], {
+      env: { ...process.env, CODECAST_DIR: root },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const error = await new Response(child.stderr).text();
     expect(await child.exited, error).toBe(0);
-    const record = (dir: string) => JSON.parse(fs.readFileSync(path.join(root, dir, "sync-ledger.json"), "utf8"))[path.join(root, "session.jsonl")];
+    const record = (dir: string) =>
+      JSON.parse(
+        fs.readFileSync(path.join(root, dir, "sync-ledger.json"), "utf8"),
+      )[path.join(root, "session.jsonl")];
     expect(record("a").lastSyncedPosition).toBe(10);
     expect(record("b").lastSyncedPosition).toBe(20);
   } finally {

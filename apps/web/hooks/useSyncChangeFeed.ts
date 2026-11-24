@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { useInboxStore, syncLogScopeMetaKey, type CargoItem } from "../store/inboxStore";
+import {
+  useInboxStore,
+  syncLogScopeMetaKey,
+  type CargoItem,
+} from "../store/inboxStore";
 import { admitUnheldSessions } from "../store/cacheRetention";
 import { planCargoApply } from "../lib/syncLogCargo";
 import { track } from "../lib/analytics";
@@ -36,12 +40,7 @@ import { beginSyncInflight } from "../store/syncActivity";
 
 const api = _api as any;
 
-type Collection =
-  | "sessions"
-  | "tasks"
-  | "docs"
-  | "plans"
-  | "projects";
+type Collection = "sessions" | "tasks" | "docs" | "plans" | "projects";
 
 const ENTITY_COLLECTION: Record<string, Collection> = {
   conversations: "sessions",
@@ -87,21 +86,36 @@ let cargoSupported = true;
 function cargoEnabled(): boolean {
   if (!cargoSupported) return false;
   try {
-    return typeof localStorage === "undefined" || localStorage.getItem("SYNCLOG_CARGO_OFF") !== "1";
+    return (
+      typeof localStorage === "undefined" ||
+      localStorage.getItem("SYNCLOG_CARGO_OFF") !== "1"
+    );
   } catch {
     return true;
   }
 }
 
-async function queryRange(convex: any, args: Record<string, any>): Promise<any> {
+async function queryRange(
+  convex: any,
+  args: Record<string, any>,
+): Promise<any> {
   const withCargo = cargoEnabled();
   try {
-    return await convex.query(api.syncLog.getRange, { ...args, ...(withCargo ? { cargo: true } : {}) });
+    return await convex.query(api.syncLog.getRange, {
+      ...args,
+      ...(withCargo ? { cargo: true } : {}),
+    });
   } catch (e: any) {
     const msg = String(e?.message ?? e);
-    if (withCargo && /ArgumentValidationError/i.test(msg) && /cargo/.test(msg)) {
+    if (
+      withCargo &&
+      /ArgumentValidationError/i.test(msg) &&
+      /cargo/.test(msg)
+    ) {
       cargoSupported = false;
-      console.warn("[syncLog] server lacks cargo — falling back to thin ranges");
+      console.warn(
+        "[syncLog] server lacks cargo — falling back to thin ranges",
+      );
       return await convex.query(api.syncLog.getRange, args);
     }
     throw e;
@@ -125,7 +139,9 @@ export function emptyIdsByCollection(): Record<Collection, string[]> {
 // authorized absence (the byIds fetch omitting the id), never the event's op,
 // so upserts and deletes take the same path. Used by both the log applier and
 // the legacy bridge; unit-tested.
-export function planFeedApply(changes: FeedChange[]): Record<Collection, string[]> {
+export function planFeedApply(
+  changes: FeedChange[],
+): Record<Collection, string[]> {
   const plan = emptyIdsByCollection();
   const seen = new Set<string>();
   for (const c of changes) {
@@ -145,16 +161,27 @@ export function planFeedApply(changes: FeedChange[]): Record<Collection, string[
 // visible" and would be pruned.
 export const BYIDS_CHUNK = 300;
 
-export function chunkIds(ids: string[], size: number = BYIDS_CHUNK): string[][] {
+export function chunkIds(
+  ids: string[],
+  size: number = BYIDS_CHUNK,
+): string[][] {
   const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  for (let i = 0; i < ids.length; i += size)
+    chunks.push(ids.slice(i, i + size));
   return chunks;
 }
 
-async function batchGetChunk(convex: any, coll: Collection, ids: string[]): Promise<any[]> {
+async function batchGetChunk(
+  convex: any,
+  coll: Collection,
+  ids: string[],
+): Promise<any[]> {
   switch (coll) {
     case "sessions":
-      return (await convex.query(api.conversations.getInboxSessionsByIds, { ids }))?.sessions ?? [];
+      return (
+        (await convex.query(api.conversations.getInboxSessionsByIds, { ids }))
+          ?.sessions ?? []
+      );
     case "tasks":
       return (await convex.query(api.tasks.webGetByIds, { ids }))?.items ?? [];
     case "docs":
@@ -168,7 +195,11 @@ async function batchGetChunk(convex: any, coll: Collection, ids: string[]): Prom
 
 // Per-collection batch fetch of CURRENT state for a set of ids. Each returns rows
 // in the exact shape its live channel syncs, so syncTable merges them cleanly.
-export async function batchGet(convex: any, coll: Collection, ids: string[]): Promise<any[]> {
+export async function batchGet(
+  convex: any,
+  coll: Collection,
+  ids: string[],
+): Promise<any[]> {
   if (!ids.length) return [];
   const rows: any[] = [];
   for (const chunk of chunkIds(ids)) {
@@ -205,13 +236,24 @@ export async function applyEntityIds(
     const state = useInboxStore.getState();
     let admitted = rows;
     if (coll === "sessions" && opts.fromLog) {
-      const unheld = rows.filter((r: any) => heldRow(state, coll, String(r._id)) === undefined);
+      const unheld = rows.filter(
+        (r: any) => heldRow(state, coll, String(r._id)) === undefined,
+      );
       if (unheld.length) {
-        const ok = new Set(admitUnheldSessions(unheld, Object.values(state.sessions), state.liveInboxIdList, state.currentSessionId, Date.now()));
+        const ok = new Set(
+          admitUnheldSessions(
+            unheld,
+            Object.values(state.sessions),
+            state.liveInboxIdList,
+            state.currentSessionId,
+            Date.now(),
+          ),
+        );
         admitted = rows.filter((r: any) => !unheld.includes(r) || ok.has(r));
       }
     }
-    if (admitted.length) store.syncTable(coll, admitted as any, { isDelta: true } as any);
+    if (admitted.length)
+      store.syncTable(coll, admitted as any, { isDelta: true } as any);
     const present = new Set(rows.map((r: any) => String(r._id)));
     for (const id of ids) {
       if (present.has(id)) applied.add(`${coll}:${id}`);
@@ -304,7 +346,8 @@ async function applyLogPage(
   // action per entity (planFeedApply's rule), so a coalesced page applies once.
   const byIds: FeedChange[] = [];
   const latest = new Map<string, LogAction>();
-  for (const a of entityActions) latest.set(`${a.entity_type}:${a.entity_id}`, a);
+  for (const a of entityActions)
+    latest.set(`${a.entity_type}:${a.entity_id}`, a);
   let direct = 0;
   const state = useInboxStore.getState();
   // The page's direct writes are collected and applied in one store action
@@ -312,7 +355,11 @@ async function applyLogPage(
   // O(collection) however few rows it touches, so one per row froze the tab
   // for seconds a page while a restamp backlog drained.
   const seeds = new Map<Collection, any[]>();
-  const merges: Array<{ action: LogAction; refetch: boolean; item: CargoItem }> = [];
+  const merges: Array<{
+    action: LogAction;
+    refetch: boolean;
+    item: CargoItem;
+  }> = [];
   for (const a of latest.values()) {
     const coll = ENTITY_COLLECTION[a.entity_type];
     if (!coll) continue;
@@ -324,12 +371,18 @@ async function applyLogPage(
       if (existing !== undefined) byIds.push(a);
       continue;
     }
-    if (!a.patch) { byIds.push(a); continue; }
+    if (!a.patch) {
+      byIds.push(a);
+      continue;
+    }
     if (a.full && !existing) {
       // A sessions row is never seeded from cargo: an inbox row must carry
       // its triage stamps and liveness facts (the projection strips them),
       // and a stamp-less seed would render as a blank card. byIds only.
-      if (coll === "sessions") { byIds.push(a); continue; }
+      if (coll === "sessions") {
+        byIds.push(a);
+        continue;
+      }
       // A whole raw document with no base: lift any exclude and seed the row,
       // then refetch — a full cargo is the document minus churn/denylisted
       // fields and carries none of the enrichment joins, so the seed makes the
@@ -342,27 +395,41 @@ async function applyLogPage(
       byIds.push(a);
       continue;
     }
-    if (!existing) { byIds.push(a); continue; }
+    if (!existing) {
+      byIds.push(a);
+      continue;
+    }
     // A full cargo WITH a base merges like any patch (review): overlaying it
     // wholesale would drop the row's enrichment and churn fields.
     const plan = planCargoApply(coll, a, existing);
-    merges.push({ action: a, refetch: !!plan.refetch, item: { coll, id: a.entity_id, fields: plan.fields, unset: plan.unset } });
+    merges.push({
+      action: a,
+      refetch: !!plan.refetch,
+      item: { coll, id: a.entity_id, fields: plan.fields, unset: plan.unset },
+    });
   }
   for (const [coll, rows] of seeds) {
-    state.clearFeedExcludes(coll, rows.map((r) => r._id));
+    state.clearFeedExcludes(
+      coll,
+      rows.map((r) => r._id),
+    );
     state.syncTable(coll, rows as any, { isDelta: true } as any);
   }
   if (merges.length) {
     const applied = state.applyCargoBatch(merges.map((m) => m.item));
     merges.forEach((m, i) => {
-      if (!applied[i]) { byIds.push(m.action); return; }
+      if (!applied[i]) {
+        byIds.push(m.action);
+        return;
+      }
       direct++;
       if (m.refetch) byIds.push(m.action);
     });
   }
   state.noteSyncLogApply(direct, byIds.length);
   tallyApply(direct, byIds.length);
-  if (byIds.length) await applyEntityIds(convex, planFeedApply(byIds), { fromLog: true });
+  if (byIds.length)
+    await applyEntityIds(convex, planFeedApply(byIds), { fromLog: true });
   store.recordSyncMeta(scopeMetaKey(scopeKey), { cursor: upTo });
 }
 
@@ -376,14 +443,21 @@ function flushApplyTally(): void {
   const { direct, refetch } = applyTally;
   if (!direct && !refetch) return;
   applyTally = { direct: 0, refetch: 0 };
-  track("synclog_apply", { direct, refetch, ratio: direct / (direct + refetch) });
+  track("synclog_apply", {
+    direct,
+    refetch,
+    ratio: direct / (direct + refetch),
+  });
 }
 function tallyApply(direct: number, refetch: number): void {
   applyTally.direct += direct;
   applyTally.refetch += refetch;
   if (!flushTimer) flushTimer = setTimeout(flushApplyTally, 60_000);
 }
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+if (
+  typeof document !== "undefined" &&
+  typeof document.addEventListener === "function"
+) {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushApplyTally();
   });
@@ -403,7 +477,8 @@ function resetScopeForResync(head: ScopeHead): void {
   // The team feed cache only grows and learns of removals (a member who
   // left) from this scope's rows alone; past retention the log cannot say
   // which rows should have gone, so the cache goes and refills.
-  if (head.scope_key.startsWith("team:")) s.dropTeamFeedCache(head.scope_key.slice(5));
+  if (head.scope_key.startsWith("team:"))
+    s.dropTeamFeedCache(head.scope_key.slice(5));
   s.recordSyncMeta(metaKey, { cursor: head.position });
   // Every write acknowledged at or below the head has landed in the floor
   // the recut cursor stands on; a lock still holding one would re-assert its
@@ -464,15 +539,26 @@ export async function catchUpScope(
       return;
     }
     if (res.actions?.length) {
-      await applyLogPage(convex, head.scope_key, res.actions, res.nextFrom, purgedTeams);
+      await applyLogPage(
+        convex,
+        head.scope_key,
+        res.actions,
+        res.nextFrom,
+        purgedTeams,
+      );
     } else if (typeof res.nextFrom === "number" && res.nextFrom > from) {
-      useInboxStore.getState().recordSyncMeta(scopeMetaKey(head.scope_key), { cursor: res.nextFrom });
+      useInboxStore
+        .getState()
+        .recordSyncMeta(scopeMetaKey(head.scope_key), { cursor: res.nextFrom });
     } else if (!res.hasMore) {
       // Empty range below a moving head (coalescing moved rows past us):
       // nothing left to apply — the head subscription will wake us again.
       return;
     }
-    from = Math.max(from, typeof res.nextFrom === "number" ? res.nextFrom : from);
+    from = Math.max(
+      from,
+      typeof res.nextFrom === "number" ? res.nextFrom : from,
+    );
     if (!res.hasMore) return;
   }
 }
@@ -503,7 +589,9 @@ async function drainLegacyBridge(convex: any): Promise<boolean> {
         await applyEntityIds(convex, planFeedApply(res.changes));
       }
       if (typeof res.nextSince === "number" && res.nextSince > since) {
-        useInboxStore.getState().recordSyncMeta(LEGACY_META_KEY, { cursor: res.nextSince });
+        useInboxStore
+          .getState()
+          .recordSyncMeta(LEGACY_META_KEY, { cursor: res.nextSince });
         since = res.nextSince;
       }
       if (!res.hasMore) return true;
@@ -534,8 +622,11 @@ export async function catchUp(convex: any): Promise<void> {
   // earlier partial run stamped, since the gap behind it was never proven. It
   // stands in for the drain only when there are scopes to resync; an auth blip
   // ({heads: []}) keeps the legacy cursor for the next run.
-  const legacyStale = hadLegacy && runStart - legacyCursor > LEGACY_BRIDGE_MAX_AGE_MS;
-  const drainComplete = legacyStale ? heads.length > 0 : await drainLegacyBridge(convex);
+  const legacyStale =
+    hadLegacy && runStart - legacyCursor > LEGACY_BRIDGE_MAX_AGE_MS;
+  const drainComplete = legacyStale
+    ? heads.length > 0
+    : await drainLegacyBridge(convex);
   // Sequential by design: one serialized apply pipeline (design D7), so a stale
   // stage-two fetch can never land after a fresher one. `purgedTeams` fences a
   // scope revoked mid-run — its stale head must not restamp the cursor the
@@ -546,7 +637,12 @@ export async function catchUp(convex: any): Promise<void> {
   // A cold scope (no cursor) stamps at head and is therefore never "behind".
   for (const head of heads) {
     const cursor = store.syncMeta[scopeMetaKey(head.scope_key)]?.cursor;
-    store.setSyncLogLag(head.scope_key, cursor === undefined || legacyStale ? 0 : Math.max(0, head.position - cursor));
+    store.setSyncLogLag(
+      head.scope_key,
+      cursor === undefined || legacyStale
+        ? 0
+        : Math.max(0, head.position - cursor),
+    );
   }
   // Each scope is isolated (review): one scope whose replay fails every run
   // (a range page the server cannot serve, a poisoned byIds row) must not stop
@@ -555,7 +651,11 @@ export async function catchUp(convex: any): Promise<void> {
   // synchronously before any await, and a warm scope keeps its older, lower
   // cursor — so the scope is stamped whenever it has a cursor after its turn.
   for (const head of heads) {
-    if (head.scope_key.startsWith("team:") && purgedTeams.has(head.scope_key.slice(5))) continue;
+    if (
+      head.scope_key.startsWith("team:") &&
+      purgedTeams.has(head.scope_key.slice(5))
+    )
+      continue;
     try {
       if (legacyStale) resetScopeForResync(head);
       else await catchUpScope(convex, head, purgedTeams);
@@ -571,7 +671,8 @@ export async function catchUp(convex: any): Promise<void> {
     // and is replayed; one before it is in the floor. A revoked scope has no
     // cursor (the purge dropped it) and is not stamped.
     const s = useInboxStore.getState();
-    if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined) s.stampSyncLogScope(head.scope_key);
+    if (s.syncMeta[scopeMetaKey(head.scope_key)]?.cursor !== undefined)
+      s.stampSyncLogScope(head.scope_key);
   }
   // Heads-absence sweep (design D5 backstop): a persisted team cursor whose
   // scope getHeads no longer lists is a revoked membership whose scope_removed
@@ -613,7 +714,10 @@ function noteShadowApplied(keys: Iterable<string>): void {
 }
 function shadowEnabled(): boolean {
   try {
-    return typeof localStorage !== "undefined" && localStorage.getItem("SYNCLOG_SHADOW") === "1";
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("SYNCLOG_SHADOW") === "1"
+    );
   } catch {
     return false;
   }
@@ -632,7 +736,12 @@ export function __changeFeedSimSlots() {
     shadowApplied: Set<string> | null;
   };
   return {
-    fresh: (): Slots => ({ cargoSupported: true, applyTally: { direct: 0, refetch: 0 }, flushTimer: null, shadowApplied: null }),
+    fresh: (): Slots => ({
+      cargoSupported: true,
+      applyTally: { direct: 0, refetch: 0 },
+      flushTimer: null,
+      shadowApplied: null,
+    }),
     get: (): Slots => ({
       cargoSupported,
       applyTally: { ...applyTally },
@@ -669,9 +778,14 @@ async function shadowCompare(convex: any, runStart: number): Promise<void> {
       if (!coll) continue;
       const key = `${coll}:${c.entity_id}`;
       const held = store[coll]?.[c.entity_id] !== undefined;
-      if (!applied.has(key) && (c.op === "upsert") === !held) gaps.push(`${c.op} ${key}`);
+      if (!applied.has(key) && (c.op === "upsert") === !held)
+        gaps.push(`${c.op} ${key}`);
     }
-    if (gaps.length) console.warn("[synclog:shadow] legacy feed ids the log path lacks:", gaps);
+    if (gaps.length)
+      console.warn(
+        "[synclog:shadow] legacy feed ids the log path lacks:",
+        gaps,
+      );
     else console.info("[synclog:shadow] superset check clean");
   } catch {
     // comparator is best-effort; never let it affect the applier
@@ -701,7 +815,9 @@ export function createCatchUpRunner(
     // The digest compare's quiescence gate: a range replay is in flight.
     const release = beginSyncInflight("range");
     catchUp(convex)
-      .catch(opts.onError ?? ((e) => console.warn("[syncLog] catch-up failed", e)))
+      .catch(
+        opts.onError ?? ((e) => console.warn("[syncLog] catch-up failed", e)),
+      )
       .finally(() => {
         release();
         running = false;
@@ -734,7 +850,10 @@ export function useSyncChangeFeed(): void {
   // only; the churn exemption keeps its invalidation rate at semantic-write
   // rate. Never a correctness dependency — any run replays exactly from the
   // persisted cursors.
-  const { data: headsData } = useQueryNoThrow(api.syncLog.getHeads, hydrated ? {} : "skip");
+  const { data: headsData } = useQueryNoThrow(
+    api.syncLog.getHeads,
+    hydrated ? {} : "skip",
+  );
 
   // eslint-disable-next-line no-restricted-syntax -- self-managed wake/interval catch-up
   useEffect(() => {

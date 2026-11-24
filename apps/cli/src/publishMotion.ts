@@ -29,12 +29,24 @@ export const MOTION_OUTPUT_DIRS = ["renders", "snapshots"] as const;
 
 /** A composition directory's files without its tool output, and a count of
  * what was left out per directory so the publisher can be told. */
-export function splitMotionOutputs(dir: string, relPaths: string[]): { keep: string[]; skipped: Array<{ dir: string; files: number; bytes: number }> } {
+export function splitMotionOutputs(
+  dir: string,
+  relPaths: string[],
+): {
+  keep: string[];
+  skipped: Array<{ dir: string; files: number; bytes: number }>;
+} {
   const keep: string[] = [];
-  const skipped = new Map<string, { dir: string; files: number; bytes: number }>();
+  const skipped = new Map<
+    string,
+    { dir: string; files: number; bytes: number }
+  >();
   for (const rel of relPaths) {
     const top = rel.split("/")[0];
-    if (!rel.includes("/") || !(MOTION_OUTPUT_DIRS as readonly string[]).includes(top)) {
+    if (
+      !rel.includes("/") ||
+      !(MOTION_OUTPUT_DIRS as readonly string[]).includes(top)
+    ) {
       keep.push(rel);
       continue;
     }
@@ -50,8 +62,13 @@ export function splitMotionOutputs(dir: string, relPaths: string[]): { keep: str
 export function motionSourceHash(dir: string, relPaths: string[]): string {
   const hash = crypto.createHash("sha256");
   for (const rel of splitMotionOutputs(dir, relPaths).keep) {
-    if (rel === MOTION_RENDER_DIR || rel.startsWith(`${MOTION_RENDER_DIR}/`)) continue;
-    hash.update(rel).update("\0").update(fs.readFileSync(path.join(dir, rel))).update("\0");
+    if (rel === MOTION_RENDER_DIR || rel.startsWith(`${MOTION_RENDER_DIR}/`))
+      continue;
+    hash
+      .update(rel)
+      .update("\0")
+      .update(fs.readFileSync(path.join(dir, rel)))
+      .update("\0");
   }
   return hash.digest("hex");
 }
@@ -60,11 +77,17 @@ export function motionSourceHash(dir: string, relPaths: string[]): string {
 export function motionEntry(dir: string, relPaths: string[]): string | null {
   const { entry } = pickBundleEntry(relPaths);
   if (!entry) return null;
-  return pageIsMotion(fs.readFileSync(path.join(dir, entry), "utf-8")) ? entry : null;
+  return pageIsMotion(fs.readFileSync(path.join(dir, entry), "utf-8"))
+    ? entry
+    : null;
 }
 
 /** The render command line: the same HyperFrames release the page plays on. */
-export function motionRenderArgs(dir: string, entry: string, outFile: string): string[] {
+export function motionRenderArgs(
+  dir: string,
+  entry: string,
+  outFile: string,
+): string[] {
   return [
     "--yes",
     `hyperframes@${HYPERFRAMES_RUNTIME.version}`,
@@ -80,7 +103,10 @@ export function motionRenderArgs(dir: string, entry: string, outFile: string): s
 /** Render the composition in dir to cast-render/motion.mp4 and write its
  * manifest. Progress goes to stderr so --json output stays clean. Throws with
  * the reason when the directory is not a composition or the render fails. */
-export function renderMotion(dir: string, relPaths: string[]): MotionRenderManifest {
+export function renderMotion(
+  dir: string,
+  relPaths: string[],
+): MotionRenderManifest {
   const entry = motionEntry(dir, relPaths);
   if (!entry) {
     throw new Error(
@@ -90,10 +116,14 @@ export function renderMotion(dir: string, relPaths: string[]): MotionRenderManif
   const outDir = path.join(dir, MOTION_RENDER_DIR);
   fs.mkdirSync(outDir, { recursive: true });
   const tmp = path.join(outDir, `.motion-${process.pid}.mp4`);
-  const run = spawnSync("npx", motionRenderArgs(dir, entry, tmp), { stdio: ["ignore", 2, 2] });
+  const run = spawnSync("npx", motionRenderArgs(dir, entry, tmp), {
+    stdio: ["ignore", 2, 2],
+  });
   if (run.status !== 0 || !fs.existsSync(tmp)) {
     fs.rmSync(tmp, { force: true });
-    throw new Error(`hyperframes render failed (exit ${run.status ?? run.signal}); run \`npx hyperframes@${HYPERFRAMES_RUNTIME.version} check ${dir}\` for the findings`);
+    throw new Error(
+      `hyperframes render failed (exit ${run.status ?? run.signal}); run \`npx hyperframes@${HYPERFRAMES_RUNTIME.version} check ${dir}\` for the findings`,
+    );
   }
   fs.renameSync(tmp, path.join(dir, MOTION_RENDER_MP4));
   const manifest: MotionRenderManifest = {
@@ -102,17 +132,25 @@ export function renderMotion(dir: string, relPaths: string[]): MotionRenderManif
     source_sha256: motionSourceHash(dir, relPaths),
     bytes: fs.statSync(path.join(dir, MOTION_RENDER_MP4)).size,
   };
-  fs.writeFileSync(path.join(dir, MOTION_RENDER_MANIFEST), JSON.stringify(manifest, null, 2) + "\n");
+  fs.writeFileSync(
+    path.join(dir, MOTION_RENDER_MANIFEST),
+    JSON.stringify(manifest, null, 2) + "\n",
+  );
   return manifest;
 }
 
 /** A line for the publisher when the directory's MP4 no longer matches its
  * composition, else null. */
-export function staleRenderNote(dir: string, relPaths: string[]): string | null {
+export function staleRenderNote(
+  dir: string,
+  relPaths: string[],
+): string | null {
   const file = path.join(dir, MOTION_RENDER_MANIFEST);
   if (!fs.existsSync(file)) return null;
   try {
-    const manifest = JSON.parse(fs.readFileSync(file, "utf-8")) as MotionRenderManifest;
+    const manifest = JSON.parse(
+      fs.readFileSync(file, "utf-8"),
+    ) as MotionRenderManifest;
     if (manifest.source_sha256 === motionSourceHash(dir, relPaths)) return null;
   } catch {
     // An unreadable manifest is as good as a stale one.
@@ -142,18 +180,36 @@ export function motionThumbHtml(entryHtml: string): string {
   }
   window.addEventListener("load", go);
 })();</script>`;
-  const withRuntime = /<head[^>]*>/i.test(entryHtml) ? entryHtml.replace(/<head[^>]*>/i, (h) => h + runtime) : runtime + entryHtml;
-  return /<\/body>/i.test(withRuntime) ? withRuntime.replace(/<\/body>/i, hold + "</body>") : withRuntime + hold;
+  const withRuntime = /<head[^>]*>/i.test(entryHtml)
+    ? entryHtml.replace(/<head[^>]*>/i, (h) => h + runtime)
+    : runtime + entryHtml;
+  return /<\/body>/i.test(withRuntime)
+    ? withRuntime.replace(/<\/body>/i, hold + "</body>")
+    : withRuntime + hold;
 }
 
 /** A thumbnail of a composition at its poster still, or null on any failure. */
-export async function captureMotionThumb(entryPath: string): Promise<string | null> {
-  const page = path.join(path.dirname(entryPath), `.cast-thumb-${process.pid}.html`);
+export async function captureMotionThumb(
+  entryPath: string,
+): Promise<string | null> {
+  const page = path.join(
+    path.dirname(entryPath),
+    `.cast-thumb-${process.pid}.html`,
+  );
   try {
-    fs.writeFileSync(page, motionThumbHtml(fs.readFileSync(entryPath, "utf-8")));
+    fs.writeFileSync(
+      page,
+      motionThumbHtml(fs.readFileSync(entryPath, "utf-8")),
+    );
     // Virtual time lets the runtime load, fonts settle and the seek land
     // before Chrome takes the shot.
-    return await captureThumb(page, { extraArgs: ["--virtual-time-budget=8000", "--allow-file-access-from-files"], timeoutMs: 25_000 });
+    return await captureThumb(page, {
+      extraArgs: [
+        "--virtual-time-budget=8000",
+        "--allow-file-access-from-files",
+      ],
+      timeoutMs: 25_000,
+    });
   } catch {
     return null;
   } finally {

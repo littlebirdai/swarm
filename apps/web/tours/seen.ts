@@ -11,7 +11,10 @@ import type { ClientTips } from "../store/clientPrefsTypes";
 import type { TourDef } from "./types";
 
 export type TourSeenState = {
-  clientState: { tips?: ClientTips | null; ui?: Record<string, unknown> | null };
+  clientState: {
+    tips?: ClientTips | null;
+    ui?: Record<string, unknown> | null;
+  };
   updateClientTips: (partial: Partial<ClientTips>) => void;
 };
 
@@ -22,16 +25,27 @@ export function tourSeenId(tourId: string): string {
 export type TourOutcome = "finished" | "skipped";
 
 /** Finished or dismissed, by this record or a legacy one. */
-export function isTourSeen(tour: TourDef, state: TourSeenState["clientState"]): boolean {
+export function isTourSeen(
+  tour: TourDef,
+  state: TourSeenState["clientState"],
+): boolean {
   const tips = state.tips;
   const ids = [tourSeenId(tour.id), ...(tour.legacy?.tips ?? [])];
-  if (ids.some((id) => tips?.completed?.includes(id) || tips?.dismissed?.includes(id))) return true;
+  if (
+    ids.some(
+      (id) => tips?.completed?.includes(id) || tips?.dismissed?.includes(id),
+    )
+  )
+    return true;
   const ui = state.ui;
   return (tour.legacy?.ui ?? []).some((key) => !!ui?.[key]);
 }
 
 /** Which record says so: for the panel's "Seen" tag. */
-export function tourOutcome(tour: TourDef, state: TourSeenState["clientState"]): TourOutcome | null {
+export function tourOutcome(
+  tour: TourDef,
+  state: TourSeenState["clientState"],
+): TourOutcome | null {
   const tips = state.tips;
   const ids = [tourSeenId(tour.id), ...(tour.legacy?.tips ?? [])];
   if (ids.some((id) => tips?.completed?.includes(id))) return "finished";
@@ -41,7 +55,11 @@ export function tourOutcome(tour: TourDef, state: TourSeenState["clientState"]):
 
 /** Write the record once. A finish after a skip upgrades the record (the
  *  panel then says Seen, not Skipped); a skip after a finish changes nothing. */
-export function markTourSeen(store: TourSeenState, tourId: string, outcome: TourOutcome): void {
+export function markTourSeen(
+  store: TourSeenState,
+  tourId: string,
+  outcome: TourOutcome,
+): void {
   const id = tourSeenId(tourId);
   const tips = store.clientState.tips;
   const completed = tips?.completed ?? [];

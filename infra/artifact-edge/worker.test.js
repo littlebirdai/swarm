@@ -42,7 +42,8 @@ function stubOrigin(extra = {}) {
 }
 
 const ctx = { waitUntil: (p) => background.push(p) };
-const get = (path) => worker.fetch(new Request(`https://a.codecast.sh${path}`), {}, ctx);
+const get = (path) =>
+  worker.fetch(new Request(`https://a.codecast.sh${path}`), {}, ctx);
 const later = (seconds) => {
   now += seconds * 1000;
 };
@@ -54,7 +55,10 @@ describe("artifact edge cache", () => {
     const first = await get("/abcdefghijkl");
     expect(first.headers.get("X-Edge-Cache")).toBe("MISS");
     expect(first.headers.get("Cache-Control")).toBe(PUBLIC);
-    expect(calls[0]).toEqual({ url: "https://convex.codecast.sh/cli/a/abcdefghijkl", cache: "no-store" });
+    expect(calls[0]).toEqual({
+      url: "https://convex.codecast.sh/cli/a/abcdefghijkl",
+      cache: "no-store",
+    });
 
     later(30);
     const second = await get("/abcdefghijkl");
@@ -84,7 +88,9 @@ describe("artifact edge cache", () => {
     const calls = stubOrigin();
     const origin = globalThis.fetch;
     globalThis.fetch = async (url, init) =>
-      init?.cache !== "no-store" && store.has(String(url)) ? store.get(String(url)).clone() : origin(url, init);
+      init?.cache !== "no-store" && store.has(String(url))
+        ? store.get(String(url)).clone()
+        : origin(url, init);
     await get("/abcdefghijkl");
     for (let i = 0; i < 3; i++) {
       later(61);
@@ -105,18 +111,28 @@ describe("artifact edge cache", () => {
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=160");
     expect(background.length).toBe(0);
     later(161);
-    expect((await get("/abcdefghijkl?theme=dark&embed=1&r=v3")).headers.get("X-Edge-Cache")).toBe("MISS");
+    expect(
+      (await get("/abcdefghijkl?theme=dark&embed=1&r=v3")).headers.get(
+        "X-Edge-Cache",
+      ),
+    ).toBe("MISS");
     expect(calls.length).toBe(2);
   });
 
   test("a pinned gated address is kept privately for the whole bound", async () => {
     stubOrigin();
-    expect((await get("/abcdefghijkl?embed=1&k=tok&r=v2")).headers.get("Cache-Control")).toBe("private, max-age=360");
+    expect(
+      (await get("/abcdefghijkl?embed=1&k=tok&r=v2")).headers.get(
+        "Cache-Control",
+      ),
+    ).toBe("private, max-age=360");
   });
 
   test("only r=v<number> pins: the reload badge's other values stay on the 60s policy", async () => {
     stubOrigin();
-    expect((await get("/abcdefghijkl?r=1700000000")).headers.get("Cache-Control")).toBe(PUBLIC);
+    expect(
+      (await get("/abcdefghijkl?r=1700000000")).headers.get("Cache-Control"),
+    ).toBe(PUBLIC);
   });
 
   test("a copy older than the revocation bound is never served", async () => {
@@ -133,9 +149,13 @@ describe("artifact edge cache", () => {
     stubOrigin();
     await get("/abcdefghijkl");
     later(200);
-    expect((await get("/abcdefghijkl")).headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=100");
+    expect((await get("/abcdefghijkl")).headers.get("Cache-Control")).toBe(
+      "public, max-age=60, stale-while-revalidate=100",
+    );
     for (const age of [0, 59, 60, 200, 330, 359, 360, 4000]) {
-      const [, fresh, stale] = /max-age=(\d+), stale-while-revalidate=(\d+)/.exec(browserPolicy(age)).map(Number);
+      const [, fresh, stale] = /max-age=(\d+), stale-while-revalidate=(\d+)/
+        .exec(browserPolicy(age))
+        .map(Number);
       expect(age + fresh + stale).toBeLessThanOrEqual(Math.max(age, 360));
     }
   });
@@ -151,8 +171,12 @@ describe("artifact edge cache", () => {
   test("both path shapes share one copy", async () => {
     const calls = stubOrigin();
     await get("/abcdefghijkl?theme=dark");
-    expect((await get("/cli/a/abcdefghijkl?theme=dark")).headers.get("X-Edge-Cache")).toBe("HIT");
-    expect((await get("/abcdefghijkl?theme=light")).headers.get("X-Edge-Cache")).toBe("MISS");
+    expect(
+      (await get("/cli/a/abcdefghijkl?theme=dark")).headers.get("X-Edge-Cache"),
+    ).toBe("HIT");
+    expect(
+      (await get("/abcdefghijkl?theme=light")).headers.get("X-Edge-Cache"),
+    ).toBe("MISS");
     expect(calls.length).toBe(2);
   });
 
@@ -160,7 +184,9 @@ describe("artifact edge cache", () => {
     const calls = stubOrigin();
     await get("/cli/player.js");
     expect(calls[0].url).toBe("https://convex.codecast.sh/cli/player.js");
-    expect((await get("/cli/player.js")).headers.get("X-Edge-Cache")).toBe("HIT");
+    expect((await get("/cli/player.js")).headers.get("X-Edge-Cache")).toBe(
+      "HIT",
+    );
     expect((await get("/cli/secrets.js")).status).toBe(404);
   });
 
@@ -181,13 +207,18 @@ describe("artifact edge cache", () => {
       expect(calls[0].cache).toBe("no-store");
       expect(calls[0].url).toBe(`https://convex.codecast.sh/cli/a${path}`);
       expect(store.size).toBe(0);
-      for (const res of [one, two]) expect(res.headers.get("Cache-Control")).toBe("private, max-age=60, stale-while-revalidate=300");
+      for (const res of [one, two])
+        expect(res.headers.get("Cache-Control")).toBe(
+          "private, max-age=60, stale-while-revalidate=300",
+        );
     });
   }
 
   test("a gated answer that failed is not kept even by the browser", async () => {
     stubOrigin({ status: 500 });
-    expect((await get("/abcdefghijkl?k=deadbeef")).headers.get("Cache-Control")).toBe("private, no-store");
+    expect(
+      (await get("/abcdefghijkl?k=deadbeef")).headers.get("Cache-Control"),
+    ).toBe("private, no-store");
   });
 
   // Live reads and single-use answers: fetched past the cache, never stored,
@@ -208,13 +239,16 @@ describe("artifact edge cache", () => {
       expect(calls[0].cache).toBe("no-store");
       expect(calls[0].url).toBe(`https://convex.codecast.sh/cli/a${path}`);
       expect(store.size).toBe(0);
-      for (const res of [one, two]) expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+      for (const res of [one, two])
+        expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     });
   }
 
   test("every answer may be timed by the page that frames it", async () => {
     stubOrigin();
-    expect((await get("/abcdefghijkl")).headers.get("Timing-Allow-Origin")).toBe("*");
+    expect(
+      (await get("/abcdefghijkl")).headers.get("Timing-Allow-Origin"),
+    ).toBe("*");
   });
 
   test("a missing page is not held, so a page published a moment later appears", async () => {
@@ -227,8 +261,13 @@ describe("artifact edge cache", () => {
   });
 
   test("the bundle redirect comes back onto this host and is held", async () => {
-    const calls = stubOrigin({ status: 301, headers: { Location: "/cli/a/abcdefghijkl/?theme=dark" } });
-    expect((await get("/abcdefghijkl?theme=dark")).headers.get("Location")).toBe("/abcdefghijkl/?theme=dark");
+    const calls = stubOrigin({
+      status: 301,
+      headers: { Location: "/cli/a/abcdefghijkl/?theme=dark" },
+    });
+    expect(
+      (await get("/abcdefghijkl?theme=dark")).headers.get("Location"),
+    ).toBe("/abcdefghijkl/?theme=dark");
     const again = await get("/abcdefghijkl?theme=dark");
     expect(again.status).toBe(301);
     expect(again.headers.get("Location")).toBe("/abcdefghijkl/?theme=dark");
@@ -242,7 +281,9 @@ describe("artifact edge cache", () => {
     globalThis.fetch = async () => {
       throw new Error("origin down");
     };
-    expect((await get("/abcdefghijkl")).headers.get("X-Edge-Cache")).toBe("STALE");
+    expect((await get("/abcdefghijkl")).headers.get("X-Edge-Cache")).toBe(
+      "STALE",
+    );
     await Promise.all(background);
     expect(await (await get("/abcdefghijkl")).text()).toBe("body 1");
   });

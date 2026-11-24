@@ -45,19 +45,35 @@ export const SESSION_REPLY_MAX_MS = 6 * 60 * 60_000;
 // A wake the session has not consumed yet: its turn ending says nothing about it.
 const UNREAD_WAKE = new Set(["pending", "injected", "held"]);
 
-async function openRows(ctx: MutationCtx, sessionId: string): Promise<Doc<"chat_messages">[]> {
+async function openRows(
+  ctx: MutationCtx,
+  sessionId: string,
+): Promise<Doc<"chat_messages">[]> {
   return await ctx.db
     .query("chat_messages")
     .withIndex("by_origin_session_status", (q: any) =>
-      q.eq("origin_session_id", sessionId).eq("agent_status", "thinking"))
+      q.eq("origin_session_id", sessionId).eq("agent_status", "thinking"),
+    )
     .take(50);
 }
 
-const samePlace = (row: Doc<"chat_messages">, channelId: Id<"chat_channels">, threadRootId: Id<"chat_messages"> | undefined) =>
-  String(row.channel_id) === String(channelId) && String(row.thread_root_id ?? "") === String(threadRootId ?? "");
+const samePlace = (
+  row: Doc<"chat_messages">,
+  channelId: Id<"chat_channels">,
+  threadRootId: Id<"chat_messages"> | undefined,
+) =>
+  String(row.channel_id) === String(channelId) &&
+  String(row.thread_root_id ?? "") === String(threadRootId ?? "");
 
-async function closeRow(ctx: MutationCtx, row: Doc<"chat_messages">): Promise<void> {
-  await patchChat(ctx, row._id, { agent_status: "passed", deleted_at: Date.now(), agent_deadline_at: undefined });
+async function closeRow(
+  ctx: MutationCtx,
+  row: Doc<"chat_messages">,
+): Promise<void> {
+  await patchChat(ctx, row._id, {
+    agent_status: "passed",
+    deleted_at: Date.now(),
+    agent_deadline_at: undefined,
+  });
 }
 
 /** Open (or refresh) the session's thinking row for a wake just queued into
@@ -87,10 +103,22 @@ export async function openSessionReply(
   const grantThread = opts.grantThreadId ?? opts.threadRootId;
   if (wake && grant && (grant === "room" || grantThread)) {
     const target = await ctx.db.get(wake.conversation_id);
-    if (target) await grantSessionRoom(ctx, opts.channel, grantTargetOf(target), grant === "thread" ? "relay" : "wake", grant === "thread" ? grantThread : undefined);
+    if (target)
+      await grantSessionRoom(
+        ctx,
+        opts.channel,
+        grantTargetOf(target),
+        grant === "thread" ? "relay" : "wake",
+        grant === "thread" ? grantThread : undefined,
+      );
   }
   // A held note is read on the session's next turn, not now: nothing is thinking.
-  if (!wake?.client_id || wake.status === "held" || !UNREAD_WAKE.has(wake.status)) return null;
+  if (
+    !wake?.client_id ||
+    wake.status === "held" ||
+    !UNREAD_WAKE.has(wake.status)
+  )
+    return null;
   const conversation = await ctx.db.get(wake.conversation_id);
   if (!conversation) return null;
   const sessionId = String(conversation._id);
@@ -99,9 +127,14 @@ export async function openSessionReply(
 
   // One row per session per place: a second line into the same thread while
   // the first is unanswered moves the row's wait onto the newer line.
-  const existing = (await openRows(ctx, sessionId)).find((row) => samePlace(row, opts.channel._id, opts.threadRootId));
+  const existing = (await openRows(ctx, sessionId)).find((row) =>
+    samePlace(row, opts.channel._id, opts.threadRootId),
+  );
   if (existing) {
-    await patchChat(ctx, existing._id, { client_id: clientId, agent_deadline_at: now + SESSION_REPLY_CHECK_MS });
+    await patchChat(ctx, existing._id, {
+      client_id: clientId,
+      agent_deadline_at: now + SESSION_REPLY_CHECK_MS,
+    });
     return existing._id;
   }
 
@@ -122,47 +155,73 @@ export async function openSessionReply(
     client_id: clientId,
     origin: "agent",
     origin_session_id: sessionId,
-    origin_session_title: conversation.is_private ? undefined : sessionLineTitle(conversation.title),
+    origin_session_title: conversation.is_private
+      ? undefined
+      : sessionLineTitle(conversation.title),
     origin_agent_type: conversation.agent_type,
     created_at: await nextChatStamp(ctx, opts.channel._id),
     updated_at: now,
   });
-  await ctx.scheduler.runAfter(SESSION_REPLY_CHECK_MS, internal.chatSessionReplies.checkSessionReply, { message_id: id });
+  await ctx.scheduler.runAfter(
+    SESSION_REPLY_CHECK_MS,
+    internal.chatSessionReplies.checkSessionReply,
+    { message_id: id },
+  );
   return id;
 }
 
 /** The session no longer holds this thread (it was handed to another): its thinking row there goes. */
-export async function closeSessionRepliesIn(ctx: MutationCtx, sessionId: string, channelId: Id<"chat_channels">, threadRootId: Id<"chat_messages">): Promise<void> {
+export async function closeSessionRepliesIn(
+  ctx: MutationCtx,
+  sessionId: string,
+  channelId: Id<"chat_channels">,
+  threadRootId: Id<"chat_messages">,
+): Promise<void> {
   for (const row of await openRows(ctx, sessionId)) {
     if (samePlace(row, channelId, threadRootId)) await closeRow(ctx, row);
   }
 }
 
 /** The session just posted `answer`: its thinking row in that place is done. */
-export async function closeSessionReplyOnAnswer(ctx: MutationCtx, answer: Doc<"chat_messages">): Promise<void> {
+export async function closeSessionReplyOnAnswer(
+  ctx: MutationCtx,
+  answer: Doc<"chat_messages">,
+): Promise<void> {
   if (!answer.origin_session_id || answer.agent_status === "thinking") return;
   for (const row of await openRows(ctx, answer.origin_session_id)) {
-    if (samePlace(row, answer.channel_id, answer.thread_root_id)) await closeRow(ctx, row);
+    if (samePlace(row, answer.channel_id, answer.thread_root_id))
+      await closeRow(ctx, row);
   }
 }
 
 // Whether the line a row waits on is still queued for the session. A merged
 // wake lives on in the row it was merged into.
-async function wakeUnread(ctx: MutationCtx, conversationId: Id<"conversations">, row: Doc<"chat_messages">): Promise<boolean> {
+async function wakeUnread(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+  row: Doc<"chat_messages">,
+): Promise<boolean> {
   const key = parseChatWaitClientId(row.client_id);
   if (!key) return false;
   let wake: Doc<"pending_messages"> | null = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_client_id", (q: any) => q.eq("conversation_id", conversationId).eq("client_id", key))
+    .withIndex("by_conversation_client_id", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("client_id", key),
+    )
     .first();
-  for (let hop = 0; wake?.merged_into && hop < 5; hop++) wake = await ctx.db.get(wake.merged_into);
+  for (let hop = 0; wake?.merged_into && hop < 5; hop++)
+    wake = await ctx.db.get(wake.merged_into);
   return !!wake && UNREAD_WAKE.has(wake.status);
 }
 
 /** Whether a wake is still waiting to be read, following merges. */
-export async function wakeIdUnread(ctx: MutationCtx, wakeId: Id<"pending_messages">): Promise<boolean> {
+export async function wakeIdUnread(
+  ctx: MutationCtx,
+  wakeId: Id<"pending_messages">,
+): Promise<boolean> {
   let wake: Doc<"pending_messages"> | null = await ctx.db.get(wakeId);
-  for (let hop = 0; wake?.merged_into && hop < 5; hop++) wake = await ctx.db.get(wake.merged_into);
+  for (let hop = 0; wake?.merged_into && hop < 5; hop++)
+    wake = await ctx.db.get(wake.merged_into);
   return !!wake && UNREAD_WAKE.has(wake.status);
 }
 
@@ -180,16 +239,24 @@ export async function closeSessionReplyIn(
 
 /** A turn of the session just ended. Every row whose line it had already been
  *  handed closes: the session read it and did not answer there. */
-export async function closeSessionRepliesAfterTurn(ctx: MutationCtx, conversationId: Id<"conversations">): Promise<void> {
+export async function closeSessionRepliesAfterTurn(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+): Promise<void> {
   for (const row of await openRows(ctx, String(conversationId))) {
     if (!(await wakeUnread(ctx, conversationId, row))) await closeRow(ctx, row);
   }
 }
 
-export async function agentActive(ctx: MutationCtx, conversationId: Id<"conversations">): Promise<boolean> {
+export async function agentActive(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const session = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   return ACTIVE_AGENT_STATUSES.has(session?.agent_status ?? "");
 }
@@ -198,17 +265,40 @@ export const checkSessionReply = internalMutation({
   args: { message_id: v.id("chat_messages") },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.message_id);
-    if (!row || row.deleted_at || row.agent_status !== "thinking" || !row.origin_session_id) return;
+    if (
+      !row ||
+      row.deleted_at ||
+      row.agent_status !== "thinking" ||
+      !row.origin_session_id
+    )
+      return;
     const now = Date.now();
     // A newer line moved the deadline: check again then.
     if ((row.agent_deadline_at ?? 0) > now) {
-      await ctx.scheduler.runAfter(row.agent_deadline_at! - now, internal.chatSessionReplies.checkSessionReply, args);
+      await ctx.scheduler.runAfter(
+        row.agent_deadline_at! - now,
+        internal.chatSessionReplies.checkSessionReply,
+        args,
+      );
       return;
     }
-    const conversationId = ctx.db.normalizeId("conversations", row.origin_session_id);
-    if (conversationId && now - row.created_at < SESSION_REPLY_MAX_MS && (await agentActive(ctx, conversationId))) {
-      await patchChat(ctx, row._id, { agent_deadline_at: now + SESSION_REPLY_CHECK_MS });
-      await ctx.scheduler.runAfter(SESSION_REPLY_CHECK_MS, internal.chatSessionReplies.checkSessionReply, args);
+    const conversationId = ctx.db.normalizeId(
+      "conversations",
+      row.origin_session_id,
+    );
+    if (
+      conversationId &&
+      now - row.created_at < SESSION_REPLY_MAX_MS &&
+      (await agentActive(ctx, conversationId))
+    ) {
+      await patchChat(ctx, row._id, {
+        agent_deadline_at: now + SESSION_REPLY_CHECK_MS,
+      });
+      await ctx.scheduler.runAfter(
+        SESSION_REPLY_CHECK_MS,
+        internal.chatSessionReplies.checkSessionReply,
+        args,
+      );
       return;
     }
     await closeRow(ctx, row);

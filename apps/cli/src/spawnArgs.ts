@@ -16,9 +16,16 @@ export function recoverSwallowedPrompt(
   subagent: unknown,
   readStdin?: () => string,
 ): { prompts: string[]; subagent: unknown } {
-  if (typeof subagent === "string" && (/\s/.test(subagent) || subagent === "-")) {
+  if (
+    typeof subagent === "string" &&
+    (/\s/.test(subagent) || subagent === "-")
+  ) {
     const recovered = [subagent, ...(prompts ?? [])];
-    return { prompts: subagent === "-" ? expandStdinArgs(recovered, readStdin) : recovered, subagent: true };
+    return {
+      prompts:
+        subagent === "-" ? expandStdinArgs(recovered, readStdin) : recovered,
+      subagent: true,
+    };
   }
   return { prompts: prompts ?? [], subagent };
 }

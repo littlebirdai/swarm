@@ -4,15 +4,58 @@
 // billing-api is the one a share review opens on. Mobile's Metro reaches
 // this file, so imports stay relative.
 
-import { DAY, HOUR, MIN, PEOPLE, TEAMS, TEAM_ID, TEAM_MEMBERS, cid } from "./world";
+import {
+  DAY,
+  HOUR,
+  MIN,
+  PEOPLE,
+  TEAMS,
+  TEAM_ID,
+  TEAM_MEMBERS,
+  cid,
+} from "./world";
 
-type Folder = { path: string; repo?: string; team?: boolean; sessions: number; firstDays: number; lastAgo: number };
+type Folder = {
+  path: string;
+  repo?: string;
+  team?: boolean;
+  sessions: number;
+  firstDays: number;
+  lastAgo: number;
+};
 
 const FOLDERS: Folder[] = [
-  { path: "~/src/acme-api", repo: "github.com/acme/acme-api", team: true, sessions: 48, firstDays: 64, lastAgo: MIN },
-  { path: "~/src/acme-web", repo: "github.com/acme/acme-web", team: true, sessions: 31, firstDays: 58, lastAgo: 6 * MIN },
-  { path: "~/src/webhooks", repo: "github.com/acme/webhooks", team: true, sessions: 23, firstDays: 21, lastAgo: 20 * MIN },
-  { path: "~/src/billing-api", repo: "github.com/acme/billing-api", sessions: 14, firstDays: 12, lastAgo: 3 * HOUR },
+  {
+    path: "~/src/acme-api",
+    repo: "github.com/acme/acme-api",
+    team: true,
+    sessions: 48,
+    firstDays: 64,
+    lastAgo: MIN,
+  },
+  {
+    path: "~/src/acme-web",
+    repo: "github.com/acme/acme-web",
+    team: true,
+    sessions: 31,
+    firstDays: 58,
+    lastAgo: 6 * MIN,
+  },
+  {
+    path: "~/src/webhooks",
+    repo: "github.com/acme/webhooks",
+    team: true,
+    sessions: 23,
+    firstDays: 21,
+    lastAgo: 20 * MIN,
+  },
+  {
+    path: "~/src/billing-api",
+    repo: "github.com/acme/billing-api",
+    sessions: 14,
+    firstDays: 12,
+    lastAgo: 3 * HOUR,
+  },
   { path: "~/src/notes", sessions: 9, firstDays: 40, lastAgo: 2 * DAY },
   { path: "~/src/scratch", sessions: 5, firstDays: 9, lastAgo: DAY },
 ];
@@ -24,7 +67,12 @@ const PROJECTS = (now: number) =>
     session_count: f.sessions,
     first_active: now - f.firstDays * DAY,
     last_active: now - f.lastAgo,
-    ...(f.repo ? { repository: f.repo, git_remote_url: `git@${f.repo.replace("/", ":")}.git` } : {}),
+    ...(f.repo
+      ? {
+          repository: f.repo,
+          git_remote_url: `git@${f.repo.replace("/", ":")}.git`,
+        }
+      : {}),
     team_id: f.team ? TEAM_ID : null,
     mapped_directly: !!f.team,
     auto_share: !!f.team,
@@ -47,7 +95,13 @@ const MAPPINGS = (now: number) =>
 const startTimes = (f: Folder, now: number): number[] =>
   f.path === "~/src/billing-api"
     ? billingRows(now).map((r) => r.started_at)
-    : Array.from({ length: f.sessions }, (_, i) => now - f.lastAgo - ((f.firstDays * DAY - f.lastAgo) * i) / Math.max(1, f.sessions - 1));
+    : Array.from(
+        { length: f.sessions },
+        (_, i) =>
+          now -
+          f.lastAgo -
+          ((f.firstDays * DAY - f.lastAgo) * i) / Math.max(1, f.sessions - 1),
+      );
 
 const IMPACT = (args: any) => {
   const now = Date.now();
@@ -104,7 +158,8 @@ function billingRows(now: number) {
 const SESSIONS_FOR_PATH = (args: any) => {
   const now = Date.now();
   const paths: string[] = args?.path_prefixes ?? [];
-  if (!paths.includes("~/src/billing-api")) return { rows: [], total: 0, truncated: false };
+  if (!paths.includes("~/src/billing-api"))
+    return { rows: [], total: 0, truncated: false };
   const rows = billingRows(now);
   return { rows, total: rows.length, truncated: false };
 };
@@ -118,8 +173,21 @@ export const SHARING_ANSWERS: Record<string, (args: any) => unknown> = {
   "teams:getTeamMembers": () => {
     const now = Date.now();
     // When each member's daemon last checked in (Settings > Team reads it as Online or "N hours ago").
-    const seen: Record<string, number> = { [PEOPLE.me._id]: 10_000, [PEOPLE.sarah._id]: 20_000, [PEOPLE.maya._id]: 30_000, [PEOPLE.jordan._id]: 3 * HOUR, [PEOPLE.priya._id]: DAY };
-    return TEAM_MEMBERS(now).map((m) => ({ ...m, daemon_last_seen: now - seen[m._id] }));
+    const seen: Record<string, number> = {
+      [PEOPLE.me._id]: 10_000,
+      [PEOPLE.sarah._id]: 20_000,
+      [PEOPLE.maya._id]: 30_000,
+      [PEOPLE.jordan._id]: 3 * HOUR,
+      [PEOPLE.priya._id]: DAY,
+    };
+    return TEAM_MEMBERS(now).map((m) => ({
+      ...m,
+      daemon_last_seen: now - seen[m._id],
+    }));
   },
-  "teams:getTeam": () => ({ ...TEAMS[0], created_by: PEOPLE.me._id, created_at: Date.now() - 120 * DAY }),
+  "teams:getTeam": () => ({
+    ...TEAMS[0],
+    created_by: PEOPLE.me._id,
+    created_at: Date.now() - 120 * DAY,
+  }),
 };

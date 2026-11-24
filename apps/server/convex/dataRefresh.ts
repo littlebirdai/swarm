@@ -11,15 +11,31 @@ import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
 import { readLiveElements } from "./liveArtifacts";
 import { dashboardDoc, wantCore } from "./dataQueries";
 
-const vQuery = v.object({ source: v.string(), args: v.optional(v.any()), refresh: v.optional(v.string()) });
+const vQuery = v.object({
+  source: v.string(),
+  args: v.optional(v.any()),
+  refresh: v.optional(v.string()),
+});
 
 export const want = mutation({
   args: { doc_id: v.id("docs"), queries: v.array(vQuery) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new ConvexError({ code: "UNAUTHENTICATED", message: "Not authenticated" });
+    if (!userId)
+      throw new ConvexError({
+        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+      });
     const doc = await dashboardDoc(ctx, userId, args.doc_id);
-    return { leased: await wantCore(ctx, userId, doc, args.queries as dashboard.DataQuery[], Date.now()) };
+    return {
+      leased: await wantCore(
+        ctx,
+        userId,
+        doc,
+        args.queries as dashboard.DataQuery[],
+        Date.now(),
+      ),
+    };
   },
 });
 
@@ -33,8 +49,27 @@ export const wantShared = mutation({
   args: { doc_id: v.id("docs"), share_token: v.string() },
   handler: async (ctx, args) => {
     const doc = await ctx.db.get(args.doc_id);
-    if (!doc || doc.doc_type !== "dashboard" || !doc.share_token || doc.share_token !== args.share_token || doc.archived_at) return { leased: [] };
-    const blocks = (await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[];
-    return { leased: await wantCore(ctx, doc.user_id, doc, [...dashboard.dashboardQueries(blocks).values()], Date.now()) };
+    if (
+      !doc ||
+      doc.doc_type !== "dashboard" ||
+      !doc.share_token ||
+      doc.share_token !== args.share_token ||
+      doc.archived_at
+    )
+      return { leased: [] };
+    const blocks = (await readLiveElements(
+      ctx,
+      doc._id,
+      "main",
+    )) as ArtifactElement[];
+    return {
+      leased: await wantCore(
+        ctx,
+        doc.user_id,
+        doc,
+        [...dashboard.dashboardQueries(blocks).values()],
+        Date.now(),
+      ),
+    };
   },
 });

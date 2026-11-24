@@ -9,15 +9,29 @@ import { ingestTaskDetail } from "../useSyncTasks";
 
 const id = (c: string) => c.repeat(32);
 const task = (c: string, extra: Record<string, unknown> = {}) => ({
-  _id: id(c), short_id: `ct-${c}`, title: `task ${c}`, status: "open", priority: "medium", task_type: "task",
-  user_id: id("u"), created_at: 1, updated_at: 1, ...extra,
+  _id: id(c),
+  short_id: `ct-${c}`,
+  title: `task ${c}`,
+  status: "open",
+  priority: "medium",
+  task_type: "task",
+  user_id: id("u"),
+  created_at: 1,
+  updated_at: 1,
+  ...extra,
 });
 
 afterEach(() => useInboxStore.setState({ tasks: {} } as any));
 
 describe("ingestTaskDetail with subtasks", () => {
   it("files the parent and each child into tasks, without a subtasks field on the parent", () => {
-    ingestTaskDetail({ ...task("p"), subtasks: [task("a", { parent_id: id("p") }), task("b", { parent_id: id("p"), status: "done" })] });
+    ingestTaskDetail({
+      ...task("p"),
+      subtasks: [
+        task("a", { parent_id: id("p") }),
+        task("b", { parent_id: id("p"), status: "done" }),
+      ],
+    });
     const tasks = useInboxStore.getState().tasks as any;
     expect(tasks[id("p")].subtasks).toBeUndefined();
     expect(tasks[id("a")].parent_id).toBe(id("p"));
@@ -25,24 +39,46 @@ describe("ingestTaskDetail with subtasks", () => {
   });
 
   it("merges a child over the list's richer row, keeping its enrichment", () => {
-    useInboxStore.getState().syncRecord("tasks", id("a"), task("a", { parent_id: id("p"), assignee_info: { name: "Ada" } }) as any);
-    ingestTaskDetail({ ...task("p"), subtasks: [task("a", { parent_id: id("p"), status: "in_progress" })] });
+    useInboxStore.getState().syncRecord(
+      "tasks",
+      id("a"),
+      task("a", {
+        parent_id: id("p"),
+        assignee_info: { name: "Ada" },
+      }) as any,
+    );
+    ingestTaskDetail({
+      ...task("p"),
+      subtasks: [task("a", { parent_id: id("p"), status: "in_progress" })],
+    });
     const a = (useInboxStore.getState().tasks as any)[id("a")];
     expect(a.status).toBe("in_progress");
     expect(a.assignee_info).toEqual({ name: "Ada" });
   });
 
   it("files the tasks its graph names, so a finished blocker the list never held reads as done", () => {
-    ingestTaskDetail({ ...task("p", { blocked_by: ["ct-b"] }), graph_tasks: [task("b", { status: "done" })] });
+    ingestTaskDetail({
+      ...task("p", { blocked_by: ["ct-b"] }),
+      graph_tasks: [task("b", { status: "done" })],
+    });
     const tasks = useInboxStore.getState().tasks as any;
     expect(tasks[id("p")].graph_tasks).toBeUndefined();
     expect(tasks[id("b")].status).toBe("done");
   });
 
   it("keeps the refs the detail found missing on the row, through a list delta that lacks them", () => {
-    ingestTaskDetail({ ...task("p", { blocked_by: ["ct-gone"] }), graph_missing: ["ct-gone"] });
-    expect((useInboxStore.getState().tasks as any)[id("p")].graph_missing).toEqual(["ct-gone"]);
-    useInboxStore.getState().syncTable("tasks", [task("p", { blocked_by: ["ct-gone"], title: "renamed" })] as any);
+    ingestTaskDetail({
+      ...task("p", { blocked_by: ["ct-gone"] }),
+      graph_missing: ["ct-gone"],
+    });
+    expect(
+      (useInboxStore.getState().tasks as any)[id("p")].graph_missing,
+    ).toEqual(["ct-gone"]);
+    useInboxStore
+      .getState()
+      .syncTable("tasks", [
+        task("p", { blocked_by: ["ct-gone"], title: "renamed" }),
+      ] as any);
     const p = (useInboxStore.getState().tasks as any)[id("p")];
     expect(p.title).toBe("renamed");
     expect(p.graph_missing).toEqual(["ct-gone"]);

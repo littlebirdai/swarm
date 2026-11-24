@@ -19,13 +19,25 @@
 
 import * as net from "node:net";
 import { spawn } from "../proc.js";
-import { hostForDevice, reachableRemoteHost, sshReachable, toRemoteHost } from "../browser/cloudHost.js";
-import { sshBase, sshDestination, type RemoteHost } from "../remote/session-move.js";
+import {
+  hostForDevice,
+  reachableRemoteHost,
+  sshReachable,
+  toRemoteHost,
+} from "../browser/cloudHost.js";
+import {
+  sshBase,
+  sshDestination,
+  type RemoteHost,
+} from "../remote/session-move.js";
 
 export const FORWARD_IDLE_MS = 10 * 60_000;
 
 export class HostForwardError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
   }
 }
@@ -41,8 +53,16 @@ const forwards = new Map<string, Promise<Forward>>();
 
 /** The `ssh` argv that carries one connection to the host's loopback port. */
 export function forwardSshArgs(host: RemoteHost, remotePort: number): string[] {
-  return [...sshBase(host), "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
-    "-W", `127.0.0.1:${remotePort}`, sshDestination(host)];
+  return [
+    ...sshBase(host),
+    "-o",
+    "IdentitiesOnly=yes",
+    "-o",
+    "BatchMode=yes",
+    "-W",
+    `127.0.0.1:${remotePort}`,
+    sshDestination(host),
+  ];
 }
 
 /**
@@ -62,7 +82,11 @@ export async function forwardToHost(
   remotePort: number,
   deps: HostForwardDeps = {},
 ): Promise<{ port: number }> {
-  if (!Number.isInteger(remotePort) || remotePort < 1024 || remotePort > 65535) {
+  if (
+    !Number.isInteger(remotePort) ||
+    remotePort < 1024 ||
+    remotePort > 65535
+  ) {
     throw new HostForwardError(`not a daemon port: ${remotePort}`, 400);
   }
   const key = `${deviceId}:${remotePort}`;
@@ -75,8 +99,18 @@ export async function forwardToHost(
   const resolve = deps.resolve ?? resolveHost;
   const pending = (async () => {
     const host = await resolve(deviceId);
-    if (!host) throw new HostForwardError("that device is not a cloud host this laptop can reach", 404);
-    return listen(key, host, remotePort, deps.dial ?? ((h, p) => ["ssh", forwardSshArgs(h, p)]), deps.idleMs ?? FORWARD_IDLE_MS);
+    if (!host)
+      throw new HostForwardError(
+        "that device is not a cloud host this laptop can reach",
+        404,
+      );
+    return listen(
+      key,
+      host,
+      remotePort,
+      deps.dial ?? ((h, p) => ["ssh", forwardSshArgs(h, p)]),
+      deps.idleMs ?? FORWARD_IDLE_MS,
+    );
   })();
   forwards.set(key, pending);
   try {
@@ -106,10 +140,17 @@ function listen(
   idleMs: number,
 ): Promise<Forward> {
   return new Promise((resolve, reject) => {
-    const f: Forward = { server: net.createServer(), port: 0, live: 0, idleTimer: null };
+    const f: Forward = {
+      server: net.createServer(),
+      port: 0,
+      live: 0,
+      idleTimer: null,
+    };
     const armIdle = () => {
       if (f.idleTimer) clearTimeout(f.idleTimer);
-      f.idleTimer = setTimeout(() => { if (f.live === 0) close(); }, idleMs);
+      f.idleTimer = setTimeout(() => {
+        if (f.live === 0) close();
+      }, idleMs);
       f.idleTimer.unref?.();
     };
     const close = () => {
@@ -118,7 +159,10 @@ function listen(
     };
     f.server.on("connection", (sock) => {
       f.live++;
-      if (f.idleTimer) { clearTimeout(f.idleTimer); f.idleTimer = null; }
+      if (f.idleTimer) {
+        clearTimeout(f.idleTimer);
+        f.idleTimer = null;
+      }
       const [cmd, args] = dial(host, remotePort);
       const child = spawn(cmd, args, { stdio: ["pipe", "pipe", "ignore"] });
       let done = false;
@@ -127,7 +171,11 @@ function listen(
         done = true;
         f.live--;
         sock.destroy();
-        try { child.kill("SIGTERM"); } catch { /* gone */ }
+        try {
+          child.kill("SIGTERM");
+        } catch {
+          /* gone */
+        }
         if (f.live === 0) armIdle();
       };
       sock.pipe(child.stdin!);

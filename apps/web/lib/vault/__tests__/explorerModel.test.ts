@@ -16,18 +16,24 @@ import {
 } from "../explorerModel";
 
 /** `path: mtime` (a trailing "/" marks a directory) → the store's file table. */
-const table = (spec: Record<string, number>): Record<string, VaultFileEntry> => {
+const table = (
+  spec: Record<string, number>,
+): Record<string, VaultFileEntry> => {
   const files: Record<string, VaultFileEntry> = {};
   for (const [raw, mtime] of Object.entries(spec)) {
     const dir = raw.endsWith("/");
     const path = dir ? raw.slice(0, -1) : raw;
-    files[path] = dir ? { path, mtime, size: 0, dir: true } : { path, mtime, size: 1 };
+    files[path] = dir
+      ? { path, mtime, size: 0, dir: true }
+      : { path, mtime, size: 1 };
   }
   return files;
 };
 
-const order = (files: Record<string, VaultFileEntry>, mode: Parameters<typeof buildVaultTree>[1]) =>
-  flattenTree(buildVaultTree(files, mode), {}).map((r) => r.node.path);
+const order = (
+  files: Record<string, VaultFileEntry>,
+  mode: Parameters<typeof buildVaultTree>[1],
+) => flattenTree(buildVaultTree(files, mode), {}).map((r) => r.node.path);
 
 describe("visibleVaultFiles", () => {
   const mixed = table({
@@ -49,7 +55,11 @@ describe("visibleVaultFiles", () => {
   test("off, it keeps notes and their attachments and drops the rest", () => {
     const visible = visibleVaultFiles(mixed, false);
     expect(Object.keys(visible).sort()).toEqual([
-      "docs", "docs/diagram.png", "docs/guide.md", "empty", "src",
+      "docs",
+      "docs/diagram.png",
+      "docs/guide.md",
+      "empty",
+      "src",
     ]);
     expect(visible["src/index.ts"]).toBeUndefined();
     expect(visible["bun.lock"]).toBeUndefined();
@@ -72,26 +82,61 @@ describe("visibleVaultFiles", () => {
 });
 
 describe("sort order", () => {
-  const files = table({ "notes/": 10, "Zed.md": 300, "apple.md": 100, "beta.md": 200 });
+  const files = table({
+    "notes/": 10,
+    "Zed.md": 300,
+    "apple.md": 100,
+    "beta.md": 200,
+  });
 
   test("folders come before files in every mode", () => {
-    for (const mode of ["name-asc", "name-desc", "mtime-asc", "mtime-desc"] as const) {
+    for (const mode of [
+      "name-asc",
+      "name-desc",
+      "mtime-asc",
+      "mtime-desc",
+    ] as const) {
       expect(order(files, mode)[0]).toBe("notes");
     }
   });
 
   test("name sorts are case-insensitive and reversible", () => {
-    expect(order(files, "name-asc")).toEqual(["notes", "apple.md", "beta.md", "Zed.md"]);
-    expect(order(files, "name-desc")).toEqual(["notes", "Zed.md", "beta.md", "apple.md"]);
+    expect(order(files, "name-asc")).toEqual([
+      "notes",
+      "apple.md",
+      "beta.md",
+      "Zed.md",
+    ]);
+    expect(order(files, "name-desc")).toEqual([
+      "notes",
+      "Zed.md",
+      "beta.md",
+      "apple.md",
+    ]);
   });
 
   test("modified sorts run newest-first and oldest-first", () => {
-    expect(order(files, "mtime-desc")).toEqual(["notes", "Zed.md", "beta.md", "apple.md"]);
-    expect(order(files, "mtime-asc")).toEqual(["notes", "apple.md", "beta.md", "Zed.md"]);
+    expect(order(files, "mtime-desc")).toEqual([
+      "notes",
+      "Zed.md",
+      "beta.md",
+      "apple.md",
+    ]);
+    expect(order(files, "mtime-asc")).toEqual([
+      "notes",
+      "apple.md",
+      "beta.md",
+      "Zed.md",
+    ]);
   });
 
   test("a folder sorts by the newest thing inside it, not its own mtime", () => {
-    const nested = table({ "old/": 1, "old/fresh.md": 900, "new/": 500, "new/stale.md": 2 });
+    const nested = table({
+      "old/": 1,
+      "old/fresh.md": 900,
+      "new/": 500,
+      "new/stale.md": 2,
+    });
     const tree = buildVaultTree(nested, "mtime-desc");
     expect(tree.children.map((c) => c.path)).toEqual(["old", "new"]);
   });
@@ -103,15 +148,21 @@ describe("nextUntitledName", () => {
   });
 
   test("counts up past every taken name", () => {
-    expect(nextUntitledName(["Untitled.md", "Untitled 2.md"], "Untitled", ".md")).toBe("Untitled 3.md");
+    expect(
+      nextUntitledName(["Untitled.md", "Untitled 2.md"], "Untitled", ".md"),
+    ).toBe("Untitled 3.md");
   });
 
   test("a gap is filled rather than skipped", () => {
-    expect(nextUntitledName(["Untitled.md", "Untitled 3.md"], "Untitled", ".md")).toBe("Untitled 2.md");
+    expect(
+      nextUntitledName(["Untitled.md", "Untitled 3.md"], "Untitled", ".md"),
+    ).toBe("Untitled 2.md");
   });
 
   test("collision is case-insensitive — the FS on macOS is too", () => {
-    expect(nextUntitledName(["untitled.MD"], "Untitled", ".md")).toBe("Untitled 2.md");
+    expect(nextUntitledName(["untitled.MD"], "Untitled", ".md")).toBe(
+      "Untitled 2.md",
+    );
   });
 
   test("folders take no extension", () => {
@@ -120,7 +171,13 @@ describe("nextUntitledName", () => {
 });
 
 describe("siblingNames", () => {
-  const paths = ["a.md", "notes", "notes/b.md", "notes/deep", "notes/deep/c.md"];
+  const paths = [
+    "a.md",
+    "notes",
+    "notes/b.md",
+    "notes/deep",
+    "notes/deep/c.md",
+  ];
 
   test("the vault root sees only root entries", () => {
     expect(siblingNames(paths, "").sort()).toEqual(["a.md", "notes"]);
@@ -133,15 +190,24 @@ describe("siblingNames", () => {
 
 describe("splitEntryName", () => {
   test("a note is edited by its stem and gets its extension back", () => {
-    expect(splitEntryName("notes/Ideas.md", false)).toEqual({ stem: "Ideas", suffix: ".md" });
+    expect(splitEntryName("notes/Ideas.md", false)).toEqual({
+      stem: "Ideas",
+      suffix: ".md",
+    });
   });
 
   test("an asset is edited whole, so typing can't change what it is", () => {
-    expect(splitEntryName("img/shot.png", false)).toEqual({ stem: "shot.png", suffix: "" });
+    expect(splitEntryName("img/shot.png", false)).toEqual({
+      stem: "shot.png",
+      suffix: "",
+    });
   });
 
   test("a folder is edited whole even when it looks like a note", () => {
-    expect(splitEntryName("weird.md", true)).toEqual({ stem: "weird.md", suffix: "" });
+    expect(splitEntryName("weird.md", true)).toEqual({
+      stem: "weird.md",
+      suffix: "",
+    });
   });
 });
 
@@ -177,7 +243,13 @@ describe("renameError", () => {
 });
 
 describe("renameMoves", () => {
-  const paths = ["notes", "notes/a.md", "notes/deep/b.md", "notesy.md", "other.md"];
+  const paths = [
+    "notes",
+    "notes/a.md",
+    "notes/deep/b.md",
+    "notesy.md",
+    "other.md",
+  ];
 
   test("a folder carries its whole subtree, and only its subtree", () => {
     expect(renameMoves(paths, "notes", "journal")).toEqual([
@@ -188,7 +260,9 @@ describe("renameMoves", () => {
   });
 
   test("a file moves alone", () => {
-    expect(renameMoves(paths, "other.md", "misc.md")).toEqual([["other.md", "misc.md"]]);
+    expect(renameMoves(paths, "other.md", "misc.md")).toEqual([
+      ["other.md", "misc.md"],
+    ]);
   });
 });
 
@@ -199,7 +273,12 @@ describe("ignored entries (show ignored files)", () => {
     docs: { path: "docs", mtime: 1, size: 0, dir: true },
     "docs/guide.md": { path: "docs/guide.md", mtime: 2, size: 5 },
     dist: { path: "dist", mtime: 3, size: 0, dir: true, ignored: true },
-    "dist/bundle.md": { path: "dist/bundle.md", mtime: 4, size: 9, ignored: true },
+    "dist/bundle.md": {
+      path: "dist/bundle.md",
+      mtime: 4,
+      size: 9,
+      ignored: true,
+    },
     "dist/app.js": { path: "dist/app.js", mtime: 5, size: 9, ignored: true },
   };
 
@@ -222,6 +301,11 @@ describe("ignored entries (show ignored files)", () => {
 
   test("notes-only view still lists an ignored note when the scan supplied it", () => {
     const visible = visibleVaultFiles(files, false);
-    expect(Object.keys(visible).sort()).toEqual(["dist", "dist/bundle.md", "docs", "docs/guide.md"]);
+    expect(Object.keys(visible).sort()).toEqual([
+      "dist",
+      "dist/bundle.md",
+      "docs",
+      "docs/guide.md",
+    ]);
   });
 });

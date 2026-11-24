@@ -2,11 +2,29 @@
 // own local copy of TimelineItem, so the compiler cannot catch a disagreement
 // about the item type string. These tests are what does.
 import { describe, expect, it } from "bun:test";
-import { buildCompositeTimeline, mergeTimelineMessages, type TimelineItem } from "../compositeTimeline";
+import {
+  buildCompositeTimeline,
+  mergeTimelineMessages,
+  type TimelineItem,
+} from "../compositeTimeline";
 
-const msg = (id: string, timestamp: number) => ({ _id: id, role: "user", content: id, timestamp });
-const commit = (id: string, sha: string, timestamp: number) => ({ _id: id, sha, message: id, timestamp });
-const event = (id: string, created_at: number, extra: Record<string, unknown> = {}) => ({
+const msg = (id: string, timestamp: number) => ({
+  _id: id,
+  role: "user",
+  content: id,
+  timestamp,
+});
+const commit = (id: string, sha: string, timestamp: number) => ({
+  _id: id,
+  sha,
+  message: id,
+  timestamp,
+});
+const event = (
+  id: string,
+  created_at: number,
+  extra: Record<string, unknown> = {},
+) => ({
   _id: id,
   kind: "push",
   title: id,
@@ -27,7 +45,10 @@ describe("mergeTimelineMessages", () => {
     const reply = { ...msg("latest-reply", latest), role: "assistant" };
     const base = buildCompositeTimeline([reply], [], []);
     const items = mergeTimelineMessages(base, [interruption]);
-    expect(items.map((item) => item.data._id)).toEqual(["old-interrupt", "latest-reply"]);
+    expect(items.map((item) => item.data._id)).toEqual([
+      "old-interrupt",
+      "latest-reply",
+    ]);
     expect(items.at(-1)?.timestamp).toBe(latest);
     expect(items[0].data).toBe(interruption);
     expect(base).toHaveLength(1);
@@ -48,14 +69,27 @@ describe("mergeTimelineMessages", () => {
     ];
     const items = mergeTimelineMessages(base, pending);
     expect(items.map((item) => item.data._id)).toEqual([
-      "old-interrupt", "commit", "serverpending_1", "pr", "reply", "event", "latest-pending",
+      "old-interrupt",
+      "commit",
+      "serverpending_1",
+      "pr",
+      "reply",
+      "event",
+      "latest-pending",
     ]);
   });
 
   it("preserves arrival order for equal timestamps", () => {
     const base = buildCompositeTimeline([msg("reply", 100)], [], []);
-    const items = mergeTimelineMessages(base, [msg("interrupt", 100), msg("follow-up", 100)]);
-    expect(items.map((item) => item.data._id)).toEqual(["reply", "interrupt", "follow-up"]);
+    const items = mergeTimelineMessages(base, [
+      msg("interrupt", 100),
+      msg("follow-up", 100),
+    ]);
+    expect(items.map((item) => item.data._id)).toEqual([
+      "reply",
+      "interrupt",
+      "follow-up",
+    ]);
   });
 
   it("reuses the base when there are no pending messages", () => {
@@ -69,7 +103,12 @@ describe("buildCompositeTimeline", () => {
     // ConversationView branches on this exact string in four places: the row
     // key, the height estimate, the render branch and the item id. A rename on
     // one side and not the other paints nothing at all.
-    const items = buildCompositeTimeline([msg("m1", 100)], [], [], [event("e1", 200)]);
+    const items = buildCompositeTimeline(
+      [msg("m1", 100)],
+      [],
+      [],
+      [event("e1", 200)],
+    );
     expect(typesOf(items)).toEqual(["message", "external_event"]);
   });
 
@@ -123,27 +162,52 @@ describe("buildCompositeTimeline", () => {
     expect(buildCompositeTimeline(messages, commits, prs, events)).toBe(first);
     // A new events array must not be served the cached result: that was the
     // whole reason the cache had to learn about this fourth input.
-    const second = buildCompositeTimeline(messages, commits, prs, [...events, event("e2", 300)]);
+    const second = buildCompositeTimeline(messages, commits, prs, [
+      ...events,
+      event("e2", 300),
+    ]);
     expect(second).not.toBe(first);
     expect(second).toHaveLength(3);
   });
 
   it("holds back git items past an edge of the loaded window while more pages lie beyond it", () => {
     const messages = [msg("m1", 100), msg("m2", 200)];
-    const commits = [commit("c0", "a", 50), commit("c1", "b", 150), commit("c2", "c", 250)];
-    const prs = [{ _id: "p9", number: 9, title: "late", state: "open", created_at: 300 }];
+    const commits = [
+      commit("c0", "a", 50),
+      commit("c1", "b", 150),
+      commit("c2", "c", 250),
+    ];
+    const prs = [
+      { _id: "p9", number: 9, title: "late", state: "open", created_at: 300 },
+    ];
     const events = [event("e0", 10), event("e9", 400)];
     const ids = (items: TimelineItem[]) => items.map((i) => i.data._id);
-    expect(ids(buildCompositeTimeline(messages, commits, prs, events, { hasMoreAbove: true, hasMoreBelow: true })))
-      .toEqual(["m1", "c1", "m2"]);
-    expect(ids(buildCompositeTimeline(messages, commits, prs, events, { hasMoreBelow: true })))
-      .toEqual(["e0", "c0", "m1", "c1", "m2"]);
-    expect(ids(buildCompositeTimeline(messages, commits, prs, events)))
-      .toEqual(["e0", "c0", "m1", "c1", "m2", "c2", "p9", "e9"]);
+    expect(
+      ids(
+        buildCompositeTimeline(messages, commits, prs, events, {
+          hasMoreAbove: true,
+          hasMoreBelow: true,
+        }),
+      ),
+    ).toEqual(["m1", "c1", "m2"]);
+    expect(
+      ids(
+        buildCompositeTimeline(messages, commits, prs, events, {
+          hasMoreBelow: true,
+        }),
+      ),
+    ).toEqual(["e0", "c0", "m1", "c1", "m2"]);
+    expect(ids(buildCompositeTimeline(messages, commits, prs, events))).toEqual(
+      ["e0", "c0", "m1", "c1", "m2", "c2", "p9", "e9"],
+    );
   });
 
   it("still works for callers that pass no events", () => {
-    const items = buildCompositeTimeline([msg("m1", 100)], [commit("c1", "abc", 150)], []);
+    const items = buildCompositeTimeline(
+      [msg("m1", 100)],
+      [commit("c1", "abc", 150)],
+      [],
+    );
     expect(typesOf(items)).toEqual(["message", "commit"]);
   });
 });

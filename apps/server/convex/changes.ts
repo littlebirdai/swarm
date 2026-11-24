@@ -11,7 +11,12 @@
 // owner, tasks and pull requests are never written here.
 
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, type ActionCtx } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type ActionCtx,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -30,7 +35,11 @@ import {
   clipToSentence,
   pathInArea,
 } from "@codecast/shared/changes";
-import { teamVisibleInputs, teamVisibleRecentInsights, type ChangesInputMode } from "./lib/changesAccess";
+import {
+  teamVisibleInputs,
+  teamVisibleRecentInsights,
+  type ChangesInputMode,
+} from "./lib/changesAccess";
 import { teamDayBounds } from "./lib/teamDay";
 import { SHIP_LOOKAHEAD_DAYS } from "./lib/changesDirty";
 import { isHarnessScratch, normalizeRepository } from "./lib/gitRefs";
@@ -82,14 +91,25 @@ const cursorArg = v.union(v.string(), v.null());
 /** The team-local bounds of the day and the repository's default branch, when a checkout recorded one. */
 export const readDay = internalQuery({
   args: { team_id: v.id("teams"), repository: v.string(), date: v.string() },
-  handler: async (ctx, args): Promise<{ start: number; end: number; default_branch: string | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ start: number; end: number; default_branch: string | null }> => {
     const day = await teamDayBounds(ctx, args.team_id, args.date);
     const sources = await ctx.db
       .query("repo_sources")
-      .withIndex("by_repository", (q) => q.eq("repository", normalizeRepository(args.repository)))
+      .withIndex("by_repository", (q) =>
+        q.eq("repository", normalizeRepository(args.repository)),
+      )
       .take(50);
-    const recorded = sources.find((s) => String(s.team_id) === String(args.team_id) && s.default_branch);
-    return { start: day.start, end: day.end, default_branch: recorded?.default_branch ?? null };
+    const recorded = sources.find(
+      (s) => String(s.team_id) === String(args.team_id) && s.default_branch,
+    );
+    return {
+      start: day.start,
+      end: day.end,
+      default_branch: recorded?.default_branch ?? null,
+    };
   },
 });
 
@@ -120,15 +140,37 @@ export function projectCommit(c: Doc<"commits">): ChangeCommit {
 
 /** One page of the team's commits in [start, end) for one repository. Harness scratch branches are not work. */
 export const readCommitsPage = internalQuery({
-  args: { team_id: v.id("teams"), repository: v.string(), start: v.number(), end: v.number(), cursor: cursorArg },
-  handler: async (ctx, args): Promise<{ commits: ChangeCommit[]; cursor: string; done: boolean }> => {
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    start: v.number(),
+    end: v.number(),
+    cursor: cursorArg,
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ commits: ChangeCommit[]; cursor: string; done: boolean }> => {
     const repository = normalizeRepository(args.repository);
     const page = await ctx.db
       .query("commits")
-      .withIndex("by_team_timestamp", (q) => q.eq("team_id", args.team_id).gte("timestamp", args.start).lt("timestamp", args.end))
-      .paginate({ numItems: COMMIT_PAGE, cursor: args.cursor, maximumBytesRead: COMMIT_PAGE_BYTES });
+      .withIndex("by_team_timestamp", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .gte("timestamp", args.start)
+          .lt("timestamp", args.end),
+      )
+      .paginate({
+        numItems: COMMIT_PAGE,
+        cursor: args.cursor,
+        maximumBytesRead: COMMIT_PAGE_BYTES,
+      });
     const commits = page.page
-      .filter((c) => normalizeRepository(c.repository) === repository && !isHarnessScratch({ branch: c.branch }))
+      .filter(
+        (c) =>
+          normalizeRepository(c.repository) === repository &&
+          !isHarnessScratch({ branch: c.branch }),
+      )
       .map(projectCommit);
     return { commits, cursor: page.continueCursor, done: page.isDone };
   },
@@ -164,12 +206,28 @@ export const readAuthors = internalQuery({
     repository: v.string(),
     since: v.number(),
     until: v.number(),
-    commits: v.array(v.object({ sha: v.string(), timestamp: v.number(), paths: v.array(v.string()) })),
+    commits: v.array(
+      v.object({
+        sha: v.string(),
+        timestamp: v.number(),
+        paths: v.array(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args): Promise<Record<string, CommitAuthor[]>> => {
     const repository = normalizeRepository(args.repository);
-    const candidates = (await teamVisibleRecentInsights(ctx, args.team_id, args.since, AUTHOR_CANDIDATES, args.until)).filter(
-      (c) => !!c.checkout_root && (!c.repository || normalizeRepository(c.repository) === repository),
+    const candidates = (
+      await teamVisibleRecentInsights(
+        ctx,
+        args.team_id,
+        args.since,
+        AUTHOR_CANDIDATES,
+        args.until,
+      )
+    ).filter(
+      (c) =>
+        !!c.checkout_root &&
+        (!c.repository || normalizeRepository(c.repository) === repository),
     );
     // A session that edited the files counts whether or not it has an insight
     // of its own (a subagent, a workflow worker): the caller gates every author.
@@ -177,7 +235,12 @@ export const readAuthors = internalQuery({
     // and what the work was checked with.
     const parentOf = new Map<string, Id<"conversations"> | null>();
     const parent = async (id: Id<"conversations">) => {
-      if (!parentOf.has(String(id))) parentOf.set(String(id), ((await ctx.db.get(id)) as Doc<"conversations"> | null)?.parent_conversation_id ?? null);
+      if (!parentOf.has(String(id)))
+        parentOf.set(
+          String(id),
+          ((await ctx.db.get(id)) as Doc<"conversations"> | null)
+            ?.parent_conversation_id ?? null,
+        );
       return parentOf.get(String(id))!;
     };
     const out: Record<string, CommitAuthor[]> = {};
@@ -185,25 +248,41 @@ export const readAuthors = internalQuery({
       // The checkouts of sessions at work around the commit, busiest first.
       const busy = new Map<string, number>();
       for (const s of candidates) {
-        if (s.started_at > c.timestamp || s.insight.generated_at < c.timestamp - AUTHOR_LOOKBACK_MS) continue;
+        if (
+          s.started_at > c.timestamp ||
+          s.insight.generated_at < c.timestamp - AUTHOR_LOOKBACK_MS
+        )
+          continue;
         const root = s.checkout_root!.replace(/\/+$/, "");
         busy.set(root, (busy.get(root) ?? 0) + 1);
       }
-      const roots = [...busy].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, AUTHOR_ROOTS).map(([root]) => root);
+      const roots = [...busy]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, AUTHOR_ROOTS)
+        .map(([root]) => root);
       const score = new Map<string, CommitAuthor>();
       for (const path of c.paths) {
         const hit = new Set<string>();
         for (const root of roots) {
           const rows: Doc<"file_changes">[] = await ctx.db
             .query("file_changes")
-            .withIndex("by_file_path", (q) => q.eq("file_path", `${root}/${path}`))
+            .withIndex("by_file_path", (q) =>
+              q.eq("file_path", `${root}/${path}`),
+            )
             .order("desc")
             .take(AUTHOR_EDITS_PER_PATH);
           for (const row of rows) {
-            if (row.timestamp > c.timestamp || row.timestamp < c.timestamp - AUTHOR_LOOKBACK_MS) continue;
-            if (row.change_type === "commit" || row.change_type === "delete") continue;
+            if (
+              row.timestamp > c.timestamp ||
+              row.timestamp < c.timestamp - AUTHOR_LOOKBACK_MS
+            )
+              continue;
+            if (row.change_type === "commit" || row.change_type === "delete")
+              continue;
             const up = await parent(row.conversation_id);
-            for (const id of up ? [row.conversation_id, up] : [row.conversation_id]) {
+            for (const id of up
+              ? [row.conversation_id, up]
+              : [row.conversation_id]) {
               if (hit.has(String(id))) continue;
               hit.add(String(id));
               const s = score.get(String(id)) ?? { id, paths: [] };
@@ -213,7 +292,13 @@ export const readAuthors = internalQuery({
           }
         }
       }
-      const top = [...score.values()].sort((a, b) => b.paths.length - a.paths.length || String(a.id).localeCompare(String(b.id))).slice(0, AUTHORS_PER_COMMIT);
+      const top = [...score.values()]
+        .sort(
+          (a, b) =>
+            b.paths.length - a.paths.length ||
+            String(a.id).localeCompare(String(b.id)),
+        )
+        .slice(0, AUTHORS_PER_COMMIT);
       if (top.length) out[c.sha] = top;
     }
     return out;
@@ -222,25 +307,41 @@ export const readAuthors = internalQuery({
 
 /** The sessions among `conversation_ids` the team may draw on, through teamVisibleInputs(). */
 export const readVisible = internalQuery({
-  args: { team_id: v.id("teams"), conversation_ids: v.array(v.id("conversations")) },
+  args: {
+    team_id: v.id("teams"),
+    conversation_ids: v.array(v.id("conversations")),
+  },
   handler: async (ctx, args): Promise<GateRow[]> => {
-    const inputs = await teamVisibleInputs(ctx, args.team_id, args.conversation_ids);
-    return await Promise.all([...inputs.values()].map(async (input) => {
-      const links = await ctx.db
-        .query("pull_request_sessions")
-        .withIndex("by_conversation", (q) => q.eq("conversation_id", input.conversation_id))
-        .take(20);
-      return {
-        conversation_id: input.conversation_id,
-        owner_id: input.owner_id,
-        mode: input.mode,
-        membership_level: input.membership_level,
-        task_ids: input.active_task_id ? [String(input.active_task_id)] : [],
-        outcome_type: input.insight?.outcome_type ?? null,
-        insight: input.insight ? { id: String(input.insight._id), generated_at: input.insight.generated_at } : null,
-        pr_ids: links.map((l) => l.pull_request_id),
-      };
-    }));
+    const inputs = await teamVisibleInputs(
+      ctx,
+      args.team_id,
+      args.conversation_ids,
+    );
+    return await Promise.all(
+      [...inputs.values()].map(async (input) => {
+        const links = await ctx.db
+          .query("pull_request_sessions")
+          .withIndex("by_conversation", (q) =>
+            q.eq("conversation_id", input.conversation_id),
+          )
+          .take(20);
+        return {
+          conversation_id: input.conversation_id,
+          owner_id: input.owner_id,
+          mode: input.mode,
+          membership_level: input.membership_level,
+          task_ids: input.active_task_id ? [String(input.active_task_id)] : [],
+          outcome_type: input.insight?.outcome_type ?? null,
+          insight: input.insight
+            ? {
+                id: String(input.insight._id),
+                generated_at: input.insight.generated_at,
+              }
+            : null,
+          pr_ids: links.map((l) => l.pull_request_id),
+        };
+      }),
+    );
   },
 });
 
@@ -248,28 +349,51 @@ export type PrRow = ChangePr & { updated_at: number };
 
 /** The team's pull requests in this repository among `pr_ids`, as layer 0 joins them. */
 export const readPrs = internalQuery({
-  args: { team_id: v.id("teams"), repository: v.string(), pr_ids: v.array(v.id("pull_requests")) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    pr_ids: v.array(v.id("pull_requests")),
+  },
   handler: async (ctx, args): Promise<PrRow[]> => {
     const repository = normalizeRepository(args.repository);
     const rows = await Promise.all(args.pr_ids.map((id) => ctx.db.get(id)));
     return rows
-      .filter((pr): pr is Doc<"pull_requests"> => !!pr && String(pr.team_id) === String(args.team_id) && normalizeRepository(pr.repository) === repository)
+      .filter(
+        (pr): pr is Doc<"pull_requests"> =>
+          !!pr &&
+          String(pr.team_id) === String(args.team_id) &&
+          normalizeRepository(pr.repository) === repository,
+      )
       .map((pr) => ({
         id: String(pr._id),
         number: pr.number,
         updated_at: pr.updated_at,
         conversation_ids: pr.linked_session_ids.map(String),
-        shas: [...new Set([...(pr.commits ?? []).map((c) => c.sha), ...(pr.head_sha ? [pr.head_sha] : [])])],
+        shas: [
+          ...new Set([
+            ...(pr.commits ?? []).map((c) => c.sha),
+            ...(pr.head_sha ? [pr.head_sha] : []),
+          ]),
+        ],
       }));
   },
 });
 
 /** The ship an external event records: a pushed tag (`release`) or `cast ship mark` (`deploy`). */
-export function shipOf(e: Pick<Doc<"external_events">, "kind" | "sha" | "created_at" | "meta">): ShipEvent | null {
+export function shipOf(
+  e: Pick<Doc<"external_events">, "kind" | "sha" | "created_at" | "meta">,
+): ShipEvent | null {
   if (e.kind !== "release" && e.kind !== "deploy") return null;
   const surface = e.meta?.surface ?? (e.kind === "release" ? "release" : null);
   if (!surface || !e.sha) return null;
-  return { surface, ...(e.meta?.version ? { version: e.meta.version } : {}), sha: e.sha, at: e.created_at, kind: e.kind, ...(e.meta?.deploy ? { deploy: e.meta.deploy } : {}) };
+  return {
+    surface,
+    ...(e.meta?.version ? { version: e.meta.version } : {}),
+    sha: e.sha,
+    at: e.created_at,
+    kind: e.kind,
+    ...(e.meta?.deploy ? { deploy: e.meta.deploy } : {}),
+  };
 }
 
 /** One page of the repository's ship events and merged pull requests in [from, to). */
@@ -282,17 +406,33 @@ export const readEventsPage = internalQuery({
     order: v.union(v.literal("asc"), v.literal("desc")),
     cursor: cursorArg,
   },
-  handler: async (ctx, args): Promise<{ ships: ShipEvent[]; merged: Array<{ pr_id: Id<"pull_requests">; at: number }>; cursor: string; done: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    ships: ShipEvent[];
+    merged: Array<{ pr_id: Id<"pull_requests">; at: number }>;
+    cursor: string;
+    done: boolean;
+  }> => {
     const page = await ctx.db
       .query("external_events")
       .withIndex("by_repository_created", (q) =>
-        q.eq("repository", normalizeRepository(args.repository)).gte("created_at", args.from).lt("created_at", args.to))
+        q
+          .eq("repository", normalizeRepository(args.repository))
+          .gte("created_at", args.from)
+          .lt("created_at", args.to),
+      )
       .order(args.order)
       .paginate({ numItems: EVENT_PAGE, cursor: args.cursor });
-    const ours = page.page.filter((e) => String(e.team_id) === String(args.team_id));
+    const ours = page.page.filter(
+      (e) => String(e.team_id) === String(args.team_id),
+    );
     return {
       ships: ours.map(shipOf).filter((s): s is ShipEvent => !!s),
-      merged: ours.filter((e) => e.kind === "pr_merged" && e.pr_id).map((e) => ({ pr_id: e.pr_id!, at: e.created_at })),
+      merged: ours
+        .filter((e) => e.kind === "pr_merged" && e.pr_id)
+        .map((e) => ({ pr_id: e.pr_id!, at: e.created_at })),
       cursor: page.continueCursor,
       done: page.isDone,
     };
@@ -334,7 +474,13 @@ const storyArg = v.object({
   importance: v.number(),
   inputs_hash: v.string(),
   private_session_count: v.number(),
-  inputs: v.array(v.object({ conversation_id: v.id("conversations"), owner_id: v.id("users"), mode: v.union(v.literal("summary"), v.literal("full")) })),
+  inputs: v.array(
+    v.object({
+      conversation_id: v.id("conversations"),
+      owner_id: v.id("users"),
+      mode: v.union(v.literal("summary"), v.literal("full")),
+    }),
+  ),
 });
 
 export type StoryWrite = typeof storyArg.type;
@@ -350,25 +496,40 @@ const releaseOf = (s: ShipEvent): typeof releaseArg.type => ({
 });
 
 /** The fields prose owns. Cleared when a story loses a session or a session narrows, so text drawn from it cannot outlive its access. */
-const PROSE_CLEARED = { body: undefined, why_source: undefined, risk_lines: undefined } as const;
+const PROSE_CLEARED = {
+  body: undefined,
+  why_source: undefined,
+  risk_lines: undefined,
+} as const;
 
 /** A story whose prose call failed this many times keeps layer 0's text until its inputs move. */
 export const PROSE_ATTEMPTS = 3;
 
 /** A failed story with attempts left: the next rebuild of its day writes it again. */
-export const retriesProse = (s: Pick<Doc<"change_stories">, "prose_status" | "prose_attempts">) =>
-  s.prose_status === "failed" && (s.prose_attempts ?? 1) < PROSE_ATTEMPTS;
+export const retriesProse = (
+  s: Pick<Doc<"change_stories">, "prose_status" | "prose_attempts">,
+) => s.prose_status === "failed" && (s.prose_attempts ?? 1) < PROSE_ATTEMPTS;
 
-const sameValue = (a: unknown, b: unknown) => canonicalCommandArguments({ x: a }) === canonicalCommandArguments({ x: b });
+const sameValue = (a: unknown, b: unknown) =>
+  canonicalCommandArguments({ x: a }) === canonicalCommandArguments({ x: b });
 
 /** Whether prose (or the prose skip path) has written this row's text. */
 const hasProse = (row: Doc<"change_stories">) => row.why_source !== undefined;
 
-const storyInputRows = (ctx: { db: any }, storyId: Id<"change_stories">): Promise<Doc<"change_story_inputs">[]> =>
-  ctx.db.query("change_story_inputs").withIndex("by_story", (q: any) => q.eq("story_id", storyId)).collect();
+const storyInputRows = (
+  ctx: { db: any },
+  storyId: Id<"change_stories">,
+): Promise<Doc<"change_story_inputs">[]> =>
+  ctx.db
+    .query("change_story_inputs")
+    .withIndex("by_story", (q: any) => q.eq("story_id", storyId))
+    .collect();
 
 /** Whether a session the story was built from is gone or now allows less (`full` to `summary`). */
-function inputsNarrowed(rows: Doc<"change_story_inputs">[], inputs: StoryWrite["inputs"]): boolean {
+function inputsNarrowed(
+  rows: Doc<"change_story_inputs">[],
+  inputs: StoryWrite["inputs"],
+): boolean {
   const now = new Map(inputs.map((i) => [String(i.conversation_id), i.mode]));
   return rows.some((row) => {
     const mode = now.get(String(row.conversation_id));
@@ -377,13 +538,24 @@ function inputsNarrowed(rows: Doc<"change_story_inputs">[], inputs: StoryWrite["
 }
 
 /** Bring a story's change_story_inputs rows in line with the sessions it was built from. */
-async function syncStoryInputs(ctx: { db: any }, storyId: Id<"change_stories">, teamId: Id<"teams">, inputs: StoryWrite["inputs"], rows: Doc<"change_story_inputs">[]) {
+async function syncStoryInputs(
+  ctx: { db: any },
+  storyId: Id<"change_stories">,
+  teamId: Id<"teams">,
+  inputs: StoryWrite["inputs"],
+  rows: Doc<"change_story_inputs">[],
+) {
   const want = new Map(inputs.map((i) => [String(i.conversation_id), i]));
   const have = new Set<string>();
   for (const row of rows) {
     const key = String(row.conversation_id);
     const w = want.get(key);
-    if (!w || have.has(key) || String(w.owner_id) !== String(row.owner_id) || String(row.team_id) !== String(teamId)) {
+    if (
+      !w ||
+      have.has(key) ||
+      String(w.owner_id) !== String(row.owner_id) ||
+      String(row.team_id) !== String(teamId)
+    ) {
       await ctx.db.delete(row._id);
       continue;
     }
@@ -391,7 +563,14 @@ async function syncStoryInputs(ctx: { db: any }, storyId: Id<"change_stories">, 
     have.add(key);
   }
   for (const [key, i] of want) {
-    if (!have.has(key)) await ctx.db.insert("change_story_inputs", { story_id: storyId, team_id: teamId, conversation_id: i.conversation_id, owner_id: i.owner_id, mode: i.mode });
+    if (!have.has(key))
+      await ctx.db.insert("change_story_inputs", {
+        story_id: storyId,
+        team_id: teamId,
+        conversation_id: i.conversation_id,
+        owner_id: i.owner_id,
+        mode: i.mode,
+      });
   }
 }
 
@@ -402,7 +581,13 @@ async function syncStoryInputs(ctx: { db: any }, storyId: Id<"change_stories">, 
  * a session, or whose session now allows less, falls back to layer 0's text
  * at once.
  */
-async function writeStory(ctx: { db: any }, teamId: Id<"teams">, repository: string, date: string, s: StoryWrite): Promise<{ id: Id<"change_stories">; pending: boolean; changed: boolean }> {
+async function writeStory(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  repository: string,
+  date: string,
+  s: StoryWrite,
+): Promise<{ id: Id<"change_stories">; pending: boolean; changed: boolean }> {
   const { inputs, headline, dek, kind, importance, release, ...rest } = s;
   const facts = { team_id: teamId, repository, date, ...rest, release };
   const text = { headline, dek, kind, importance };
@@ -411,35 +596,71 @@ async function writeStory(ctx: { db: any }, teamId: Id<"teams">, repository: str
     .withIndex("by_story_key", (q: any) => q.eq("story_key", s.story_key))
     .first();
   if (!existing) {
-    const id = await ctx.db.insert("change_stories", { ...facts, ...text, prose_status: "pending" });
+    const id = await ctx.db.insert("change_stories", {
+      ...facts,
+      ...text,
+      prose_status: "pending",
+    });
     await syncStoryInputs(ctx, id, teamId, inputs, []);
     return { id, pending: true, changed: true };
   }
   const rows = await storyInputRows(ctx, existing._id);
   const kept = new Set(s.conversation_ids.map(String));
-  const narrowed = existing.conversation_ids.some((id) => !kept.has(String(id))) || inputsNarrowed(rows, inputs);
+  const narrowed =
+    existing.conversation_ids.some((id) => !kept.has(String(id))) ||
+    inputsNarrowed(rows, inputs);
   const inputsMoved = existing.inputs_hash !== s.inputs_hash;
   const patch: Record<string, unknown> = { ...facts };
-  if (narrowed) Object.assign(patch, text, PROSE_CLEARED, { prose_status: "pending", prose_attempts: undefined });
+  if (narrowed)
+    Object.assign(patch, text, PROSE_CLEARED, {
+      prose_status: "pending",
+      prose_attempts: undefined,
+    });
   else {
     if (!hasProse(existing)) Object.assign(patch, text);
-    if (inputsMoved) Object.assign(patch, { prose_status: "pending", prose_attempts: undefined });
+    if (inputsMoved)
+      Object.assign(patch, {
+        prose_status: "pending",
+        prose_attempts: undefined,
+      });
     else if (retriesProse(existing)) patch.prose_status = "pending";
   }
-  const diff = Object.fromEntries(Object.entries(patch).filter(([k, val]) => !sameValue((existing as any)[k], val)));
+  const diff = Object.fromEntries(
+    Object.entries(patch).filter(
+      ([k, val]) => !sameValue((existing as any)[k], val),
+    ),
+  );
   if (Object.keys(diff).length) await ctx.db.patch(existing._id, diff);
   await syncStoryInputs(ctx, existing._id, teamId, inputs, rows);
-  return { id: existing._id, pending: (patch.prose_status ?? existing.prose_status) === "pending", changed: Object.keys(diff).length > 0 };
+  return {
+    id: existing._id,
+    pending: (patch.prose_status ?? existing.prose_status) === "pending",
+    changed: Object.keys(diff).length > 0,
+  };
 }
 
 /** Upsert a batch of one day's stories. Returns the ids now waiting on prose. */
 export const writeStories = internalMutation({
-  args: { team_id: v.id("teams"), repository: v.string(), date: v.string(), stories: v.array(storyArg) },
-  handler: async (ctx, args): Promise<{ pending: Id<"change_stories">[]; changed: number }> => {
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    date: v.string(),
+    stories: v.array(storyArg),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ pending: Id<"change_stories">[]; changed: number }> => {
     const pending: Id<"change_stories">[] = [];
     let changed = 0;
     for (const s of args.stories) {
-      const r = await writeStory(ctx, args.team_id, args.repository, args.date, s);
+      const r = await writeStory(
+        ctx,
+        args.team_id,
+        args.repository,
+        args.date,
+        s,
+      );
       if (r.pending) pending.push(r.id);
       if (r.changed) changed += 1;
     }
@@ -449,17 +670,28 @@ export const writeStories = internalMutation({
 
 /** Delete the day's stories whose key layer 0 no longer produces, with their input rows. */
 export const pruneDay = internalMutation({
-  args: { team_id: v.id("teams"), repository: v.string(), date: v.string(), keep: v.array(v.string()) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    date: v.string(),
+    keep: v.array(v.string()),
+  },
   handler: async (ctx, args): Promise<{ deleted: number }> => {
     const keep = new Set(args.keep);
     const rows = await ctx.db
       .query("change_stories")
-      .withIndex("by_team_repo_date", (q) => q.eq("team_id", args.team_id).eq("repository", args.repository).eq("date", args.date))
+      .withIndex("by_team_repo_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("date", args.date),
+      )
       .collect();
     let deleted = 0;
     for (const row of rows) {
       if (keep.has(row.story_key)) continue;
-      for (const i of await storyInputRows(ctx, row._id)) await ctx.db.delete(i._id);
+      for (const i of await storyInputRows(ctx, row._id))
+        await ctx.db.delete(i._id);
       await ctx.db.delete(row._id);
       deleted += 1;
     }
@@ -479,7 +711,8 @@ const statsArg = v.object({
 export type EditionStats = typeof statsArg.type;
 
 /** Whether the edition carries prose. Without it (facts, failed) the headline is the stats line. */
-export const hasEditionProse = (d: Pick<Doc<"digests">, "status">) => d.status === "written" || d.status === "final";
+export const hasEditionProse = (d: Pick<Doc<"digests">, "status">) =>
+  d.status === "written" || d.status === "final";
 
 /**
  * The edition's facts: counts and the day's ships. A day with no edition yet
@@ -487,14 +720,29 @@ export const hasEditionProse = (d: Pick<Doc<"digests">, "status">) => d.status =
  * edition keeps its prose and takes the new counts.
  */
 export const writeEditionFacts = internalMutation({
-  args: { team_id: v.id("teams"), repository: v.string(), date: v.string(), stats: statsArg, releases: v.array(releaseArg) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    date: v.string(),
+    stats: statsArg,
+    releases: v.array(releaseArg),
+  },
   handler: async (ctx, args): Promise<{ id: Id<"digests"> | null }> => {
     const existing = await ctx.db
       .query("digests")
       .withIndex("by_team_repo_scope_date", (q) =>
-        q.eq("team_id", args.team_id).eq("repository", args.repository).eq("scope", "day").eq("date", args.date))
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("scope", "day")
+          .eq("date", args.date),
+      )
       .first();
-    const facts = { stats: args.stats, releases: args.releases, session_count: args.stats.sessions };
+    const facts = {
+      stats: args.stats,
+      releases: args.releases,
+      session_count: args.stats.sessions,
+    };
     if (!existing) {
       if (!args.stats.commits && !args.releases.length) return { id: null };
       const id = await ctx.db.insert("digests", {
@@ -512,7 +760,11 @@ export const writeEditionFacts = internalMutation({
     }
     const patch: Record<string, unknown> = { ...facts };
     if (!hasEditionProse(existing)) patch.headline = statsHeadline(args.stats);
-    const diff = Object.fromEntries(Object.entries(patch).filter(([k, val]) => !sameValue((existing as any)[k], val)));
+    const diff = Object.fromEntries(
+      Object.entries(patch).filter(
+        ([k, val]) => !sameValue((existing as any)[k], val),
+      ),
+    );
     if (Object.keys(diff).length) await ctx.db.patch(existing._id, diff);
     return { id: existing._id };
   },
@@ -533,17 +785,26 @@ export type BuildDayResult = {
   releases: ShipEvent[];
 };
 
-const chunks = <T,>(xs: readonly T[], n: number): T[][] => {
+const chunks = <T>(xs: readonly T[], n: number): T[][] => {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
   return out;
 };
 
-async function readAllCommits(ctx: ActionCtx, args: { team_id: Id<"teams">; repository: string; start: number; end: number }): Promise<ChangeCommit[]> {
+async function readAllCommits(
+  ctx: ActionCtx,
+  args: {
+    team_id: Id<"teams">;
+    repository: string;
+    start: number;
+    end: number;
+  },
+): Promise<ChangeCommit[]> {
   const out: ChangeCommit[] = [];
   let cursor: string | null = null;
   for (;;) {
-    const page: { commits: ChangeCommit[]; cursor: string; done: boolean } = await ctx.runQuery(internal.changes.readCommitsPage, { ...args, cursor });
+    const page: { commits: ChangeCommit[]; cursor: string; done: boolean } =
+      await ctx.runQuery(internal.changes.readCommitsPage, { ...args, cursor });
     out.push(...page.commits);
     if (page.done) return out;
     cursor = page.cursor;
@@ -555,13 +816,32 @@ async function readAllCommits(ctx: ActionCtx, args: { team_id: Id<"teams">; repo
  * day's stories), merged pull requests within the day, and enough history
  * before the day to find the latest backend deploy for the skew risk.
  */
-async function readShips(ctx: ActionCtx, args: { team_id: Id<"teams">; repository: string; start: number; end: number }): Promise<{ ships: ShipEvent[]; merged: Id<"pull_requests">[] }> {
+async function readShips(
+  ctx: ActionCtx,
+  args: {
+    team_id: Id<"teams">;
+    repository: string;
+    start: number;
+    end: number;
+  },
+): Promise<{ ships: ShipEvent[]; merged: Id<"pull_requests">[] }> {
   const ships: ShipEvent[] = [];
   const merged = new Set<Id<"pull_requests">>();
   let cursor: string | null = null;
   for (;;) {
-    const page: { ships: ShipEvent[]; merged: Array<{ pr_id: Id<"pull_requests">; at: number }>; cursor: string; done: boolean } =
-      await ctx.runQuery(internal.changes.readEventsPage, { team_id: args.team_id, repository: args.repository, from: args.start, to: args.end + SHIP_LOOKAHEAD_MS, order: "asc", cursor });
+    const page: {
+      ships: ShipEvent[];
+      merged: Array<{ pr_id: Id<"pull_requests">; at: number }>;
+      cursor: string;
+      done: boolean;
+    } = await ctx.runQuery(internal.changes.readEventsPage, {
+      team_id: args.team_id,
+      repository: args.repository,
+      from: args.start,
+      to: args.end + SHIP_LOOKAHEAD_MS,
+      order: "asc",
+      cursor,
+    });
     ships.push(...page.ships);
     for (const m of page.merged) if (m.at < args.end) merged.add(m.pr_id);
     if (page.done) break;
@@ -570,9 +850,20 @@ async function readShips(ctx: ActionCtx, args: { team_id: Id<"teams">; repositor
   cursor = null;
   for (let i = 0; i < DEPLOY_LOOKBACK_PAGES; i++) {
     const page: { ships: ShipEvent[]; cursor: string; done: boolean } =
-      await ctx.runQuery(internal.changes.readEventsPage, { team_id: args.team_id, repository: args.repository, from: args.start - DEPLOY_LOOKBACK_MS, to: args.start, order: "desc", cursor });
+      await ctx.runQuery(internal.changes.readEventsPage, {
+        team_id: args.team_id,
+        repository: args.repository,
+        from: args.start - DEPLOY_LOOKBACK_MS,
+        to: args.start,
+        order: "desc",
+        cursor,
+      });
     ships.push(...page.ships);
-    if (page.done || page.ships.some((s) => s.surface === "backend" && s.kind === "deploy")) break;
+    if (
+      page.done ||
+      page.ships.some((s) => s.surface === "backend" && s.kind === "deploy")
+    )
+      break;
     cursor = page.cursor;
   }
   return { ships, merged: [...merged] };
@@ -588,15 +879,20 @@ export function editionStats(
   releases: number,
 ): EditionStats {
   const collapsed = new Set(Object.values(twins).flat());
-  const onMain = commits.filter((c) => !collapsed.has(c.sha) && onDefaultBranch(c, defaultBranch));
-  const convs = new Set(onMain.map((c) => c.conversation_id).filter((id): id is string => !!id));
+  const onMain = commits.filter(
+    (c) => !collapsed.has(c.sha) && onDefaultBranch(c, defaultBranch),
+  );
+  const convs = new Set(
+    onMain.map((c) => c.conversation_id).filter((id): id is string => !!id),
+  );
   const sessions = [...convs].filter((id) => visible.has(id)).length;
   return {
     commits: onMain.length,
     stories: stories.filter((s) => s.on_default_branch).length,
     releases,
     // By personKey, the identity the page's person chips and avatars use: one person under two emails is one person.
-    people: new Set(onMain.map((c) => personKey(c.author_name, c.author_email))).size,
+    people: new Set(onMain.map((c) => personKey(c.author_name, c.author_email)))
+      .size,
     sessions,
     private_sessions: convs.size - sessions,
   };
@@ -607,10 +903,18 @@ export function editionStats(
  * write, prune, and refresh the edition's facts. Idempotent: a rerun over the
  * same rows writes nothing.
  */
-export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; repository: string; date: string }): Promise<BuildDayResult> {
+export async function runBuildDay(
+  ctx: ActionCtx,
+  args: { team_id: Id<"teams">; repository: string; date: string },
+): Promise<BuildDayResult> {
   const repository = normalizeRepository(args.repository);
   const team_id = args.team_id;
-  const day: { start: number; end: number; default_branch: string | null } = await ctx.runQuery(internal.changes.readDay, { team_id, repository, date: args.date });
+  const day: { start: number; end: number; default_branch: string | null } =
+    await ctx.runQuery(internal.changes.readDay, {
+      team_id,
+      repository,
+      date: args.date,
+    });
   const window = { team_id, repository, start: day.start, end: day.end };
 
   const commits = await readAllCommits(ctx, window);
@@ -618,36 +922,77 @@ export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; 
 
   // Who wrote each main-branch commit, beside the session its trailer names.
   const authors: Record<string, CommitAuthor[]> = {};
-  const authored = commits.filter((c) => !c.branch || c.branch === day.default_branch || c.branch === "main" || c.branch === "master");
+  const authored = commits.filter(
+    (c) =>
+      !c.branch ||
+      c.branch === day.default_branch ||
+      c.branch === "main" ||
+      c.branch === "master",
+  );
   for (const batch of chunks(authored, AUTHOR_CHUNK)) {
-    Object.assign(authors, await ctx.runQuery(internal.changes.readAuthors, {
-      team_id, repository, since: day.start - AUTHOR_LOOKBACK_MS, until: day.end + AUTHOR_LOOKAHEAD_MS,
-      commits: batch.map((c) => ({ sha: c.sha, timestamp: c.timestamp, paths: c.top_paths ?? [] })),
-    }));
+    Object.assign(
+      authors,
+      await ctx.runQuery(internal.changes.readAuthors, {
+        team_id,
+        repository,
+        since: day.start - AUTHOR_LOOKBACK_MS,
+        until: day.end + AUTHOR_LOOKAHEAD_MS,
+        commits: batch.map((c) => ({
+          sha: c.sha,
+          timestamp: c.timestamp,
+          paths: c.top_paths ?? [],
+        })),
+      }),
+    );
   }
-  const convIds = [...new Set([
-    ...commits.map((c) => c.conversation_id).filter((id): id is string => !!id),
-    ...Object.values(authors).flat().map((a) => String(a.id)),
-  ])] as Id<"conversations">[];
+  const convIds = [
+    ...new Set([
+      ...commits
+        .map((c) => c.conversation_id)
+        .filter((id): id is string => !!id),
+      ...Object.values(authors)
+        .flat()
+        .map((a) => String(a.id)),
+    ]),
+  ] as Id<"conversations">[];
   const gate: GateRow[] = [];
   for (const ids of chunks(convIds, GATE_CHUNK)) {
-    gate.push(...(await ctx.runQuery(internal.changes.readVisible, { team_id, conversation_ids: ids })));
+    gate.push(
+      ...(await ctx.runQuery(internal.changes.readVisible, {
+        team_id,
+        conversation_ids: ids,
+      })),
+    );
   }
   const gateById = new Map(gate.map((g) => [String(g.conversation_id), g]));
 
   // A commit's own pull request is joined only when its session passed (or it has none): layer 0 withholds the rest.
   const prIds = new Set<Id<"pull_requests">>(merged);
-  for (const c of commits) if (c.pr_id && (!c.conversation_id || gateById.has(c.conversation_id))) prIds.add(c.pr_id as Id<"pull_requests">);
+  for (const c of commits)
+    if (c.pr_id && (!c.conversation_id || gateById.has(c.conversation_id)))
+      prIds.add(c.pr_id as Id<"pull_requests">);
   for (const g of gate) for (const id of g.pr_ids) prIds.add(id);
   const prs: PrRow[] = [];
   for (const ids of chunks([...prIds], PR_CHUNK)) {
-    prs.push(...(await ctx.runQuery(internal.changes.readPrs, { team_id, repository, pr_ids: ids })));
+    prs.push(
+      ...(await ctx.runQuery(internal.changes.readPrs, {
+        team_id,
+        repository,
+        pr_ids: ids,
+      })),
+    );
   }
   const prById = new Map(prs.map((p) => [p.id, p]));
   // The sessions a pull request links are its authors (a squash merge's commit names none); they pass the same gate.
-  const prSessions = [...new Set(prs.flatMap((p) => p.conversation_ids ?? []))].filter((id) => !gateById.has(id)) as Id<"conversations">[];
+  const prSessions = [
+    ...new Set(prs.flatMap((p) => p.conversation_ids ?? [])),
+  ].filter((id) => !gateById.has(id)) as Id<"conversations">[];
   for (const ids of chunks(prSessions, GATE_CHUNK)) {
-    for (const g of await ctx.runQuery(internal.changes.readVisible, { team_id, conversation_ids: ids })) gateById.set(String(g.conversation_id), g);
+    for (const g of await ctx.runQuery(internal.changes.readVisible, {
+      team_id,
+      conversation_ids: ids,
+    }))
+      gateById.set(String(g.conversation_id), g);
   }
 
   const result = buildLayerZero({
@@ -671,12 +1016,28 @@ export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; 
     // what the story can tell.
     // A story names a commit's author only for work in it: a slice of a batch commit takes the authors whose edits fall in its areas.
     const areas = Object.keys(s.area_counts);
-    const wrote = (sha: string) => (authors[sha] ?? [])
-      .filter((a) => s.whole_shas.includes(sha) || a.paths.some((p) => areas.some((area) => pathInArea(p, area))))
-      .map((a) => String(a.id));
-    const storyPrs = s.pr_ids.map((id) => prById.get(id)).filter((p): p is PrRow => !!p);
-    const named = [...new Set([...s.conversation_ids, ...storyPrs.flatMap((p) => p.conversation_ids ?? []), ...s.commit_shas.flatMap(wrote)])];
-    const rows = named.filter((id) => gateById.has(id)).slice(0, STORY_SESSIONS).map((id) => gateById.get(id)!);
+    const wrote = (sha: string) =>
+      (authors[sha] ?? [])
+        .filter(
+          (a) =>
+            s.whole_shas.includes(sha) ||
+            a.paths.some((p) => areas.some((area) => pathInArea(p, area))),
+        )
+        .map((a) => String(a.id));
+    const storyPrs = s.pr_ids
+      .map((id) => prById.get(id))
+      .filter((p): p is PrRow => !!p);
+    const named = [
+      ...new Set([
+        ...s.conversation_ids,
+        ...storyPrs.flatMap((p) => p.conversation_ids ?? []),
+        ...s.commit_shas.flatMap(wrote),
+      ]),
+    ];
+    const rows = named
+      .filter((id) => gateById.has(id))
+      .slice(0, STORY_SESSIONS)
+      .map((id) => gateById.get(id)!);
     return {
       story_key: s.story_key,
       area: s.area,
@@ -686,7 +1047,9 @@ export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; 
       conversation_ids: rows.map((g) => g.conversation_id),
       pr_ids: storyPrs.map((p) => p.id as Id<"pull_requests">),
       author_names: s.author_names,
-      actor_user_ids: [...new Map(rows.map((g) => [String(g.owner_id), g.owner_id])).values()],
+      actor_user_ids: [
+        ...new Map(rows.map((g) => [String(g.owner_id), g.owner_id])).values(),
+      ],
       insertions: s.insertions,
       deletions: s.deletions,
       files_changed: s.files_changed,
@@ -703,27 +1066,60 @@ export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; 
         prompt_version: STORY_PROMPT_VERSION,
         shas: s.commit_shas,
         insights: rows.flatMap((g) => (g.insight ? [g.insight] : [])),
-        visibility: rows.map((g) => ({ conversation_id: String(g.conversation_id), mode: g.mode })),
-        membership: rows.map((g) => ({ conversation_id: String(g.conversation_id), level: g.membership_level })),
+        visibility: rows.map((g) => ({
+          conversation_id: String(g.conversation_id),
+          mode: g.mode,
+        })),
+        membership: rows.map((g) => ({
+          conversation_id: String(g.conversation_id),
+          level: g.membership_level,
+        })),
         prs: storyPrs.map((p) => ({ id: p.id, updated_at: p.updated_at })),
         risks: s.risks.map((r) => r.code),
       }),
       private_session_count: s.private_conversation_count,
-      inputs: rows.map((g) => ({ conversation_id: g.conversation_id, owner_id: g.owner_id, mode: g.mode })),
+      inputs: rows.map((g) => ({
+        conversation_id: g.conversation_id,
+        owner_id: g.owner_id,
+        mode: g.mode,
+      })),
     };
   });
 
   const pending: Id<"change_stories">[] = [];
   let changed = 0;
   for (const batch of chunks(writes, WRITE_CHUNK)) {
-    const r: { pending: Id<"change_stories">[]; changed: number } = await ctx.runMutation(internal.changes.writeStories, { team_id, repository, date: args.date, stories: batch });
+    const r: { pending: Id<"change_stories">[]; changed: number } =
+      await ctx.runMutation(internal.changes.writeStories, {
+        team_id,
+        repository,
+        date: args.date,
+        stories: batch,
+      });
     pending.push(...r.pending);
     changed += r.changed;
   }
-  const { deleted }: { deleted: number } = await ctx.runMutation(internal.changes.pruneDay, { team_id, repository, date: args.date, keep: writes.map((w) => w.story_key) });
+  const { deleted }: { deleted: number } = await ctx.runMutation(
+    internal.changes.pruneDay,
+    {
+      team_id,
+      repository,
+      date: args.date,
+      keep: writes.map((w) => w.story_key),
+    },
+  );
 
-  const releases = result.ships.filter((s) => s.at >= day.start && s.at < day.end);
-  const stats = editionStats(commits, result.twins, result.stories, result.default_branch, new Set(gateById.keys()), releases.length);
+  const releases = result.ships.filter(
+    (s) => s.at >= day.start && s.at < day.end,
+  );
+  const stats = editionStats(
+    commits,
+    result.twins,
+    result.stories,
+    result.default_branch,
+    new Set(gateById.keys()),
+    releases.length,
+  );
   await ctx.runMutation(internal.changes.writeEditionFacts, {
     team_id,
     repository,
@@ -732,7 +1128,17 @@ export async function runBuildDay(ctx: ActionCtx, args: { team_id: Id<"teams">; 
     releases: releases.map(releaseOf),
   });
 
-  return { date: args.date, repository, commits: commits.length, stories: writes.length, pending, changed, deleted, stats, releases };
+  return {
+    date: args.date,
+    repository,
+    commits: commits.length,
+    stories: writes.length,
+    pending,
+    changed,
+    deleted,
+    stats,
+    releases,
+  };
 }
 
 export const buildDay = internalAction({

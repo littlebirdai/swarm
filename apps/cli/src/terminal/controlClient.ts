@@ -1,16 +1,32 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "../proc.js";
-import { ControlModeParser, toSendKeysHex, type ControlEvent } from "./controlProtocol.js";
+import {
+  ControlModeParser,
+  toSendKeysHex,
+  type ControlEvent,
+} from "./controlProtocol.js";
 import { tmuxRun, tmuxRunAsync } from "../tmux.js";
 import { routeTmuxArgs } from "../tmuxRoute.js";
 
-const ENRICHED_PATH = [process.env.PATH, "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].filter(Boolean).join(":");
+const ENRICHED_PATH = [
+  process.env.PATH,
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+]
+  .filter(Boolean)
+  .join(":");
 const COMMAND_TIMEOUT_MS = 5000;
 // send-keys arg-list chunking: keeps each control-mode command line small.
 const INPUT_CHUNK_BYTES = 256;
 
 function parseTerminalColors(colors: unknown) {
   if (!colors || typeof colors !== "object") return [];
-  return ([["foreground", 10, "fg"], ["background", 11, "bg"]] as const).flatMap(([key, code, style]) => {
+  return (
+    [
+      ["foreground", 10, "fg"],
+      ["background", 11, "bg"],
+    ] as const
+  ).flatMap(([key, code, style]) => {
     const value = (colors as Record<string, unknown>)[key];
     if (typeof value !== "string" || !/^#[\da-f]{6}$/i.test(value)) return [];
     return [{ value, code, style }];
@@ -19,7 +35,11 @@ function parseTerminalColors(colors: unknown) {
 
 export function terminalColorReports(colors: unknown): string[] {
   return parseTerminalColors(colors).map(({ value, code }) => {
-    const rgb = value.slice(1).match(/../g)!.map((channel) => channel.repeat(2)).join("/");
+    const rgb = value
+      .slice(1)
+      .match(/../g)!
+      .map((channel) => channel.repeat(2))
+      .join("/");
     return `\\033]${code};rgb:${rgb}\\007`;
   });
 }
@@ -38,7 +58,9 @@ export function terminalColorReports(colors: unknown): string[] {
  */
 export function colorReportCommands(paneId: string, colors: unknown): string[] {
   if (!/^%\d+$/.test(paneId)) return [];
-  return terminalColorReports(colors).map((report) => `refresh-client -r "${paneId}:${report}"`);
+  return terminalColorReports(colors).map(
+    (report) => `refresh-client -r "${paneId}:${report}"`,
+  );
 }
 
 export interface ControlClientEvents {
@@ -116,14 +138,21 @@ export interface SeedState {
 
 export function parseSeedState(line: string): SeedState {
   const v = line.split("|").map((x) => parseInt(x, 10) || 0);
-  const at = (f: (typeof SEED_STATE_FIELDS)[number]) => v[SEED_STATE_FIELDS.indexOf(f)] ?? 0;
+  const at = (f: (typeof SEED_STATE_FIELDS)[number]) =>
+    v[SEED_STATE_FIELDS.indexOf(f)] ?? 0;
   return {
     cursorX: at("cursor_x"),
     cursorY: at("cursor_y"),
     // Missing/garbled state (an old tmux, an empty reply) reads as visible.
     cursorVisible: line === "" || at("cursor_flag") !== 0,
     alternate: at("alternate_on") === 1,
-    mouse: at("mouse_any_flag") ? "any" : at("mouse_button_flag") ? "button" : at("mouse_standard_flag") ? "standard" : null,
+    mouse: at("mouse_any_flag")
+      ? "any"
+      : at("mouse_button_flag")
+        ? "button"
+        : at("mouse_standard_flag")
+          ? "standard"
+          : null,
     mouseSgr: at("mouse_sgr_flag") === 1,
     keypadCursor: at("keypad_cursor_flag") === 1,
     keypad: at("keypad_flag") === 1,
@@ -137,7 +166,11 @@ export function parseSeedState(line: string): SeedState {
  * then the modes tmux reports. Pure: what controlClient captures is what
  * this lays out.
  */
-export function buildSeed(captured: string[], paneRows: number, state: SeedState): string {
+export function buildSeed(
+  captured: string[],
+  paneRows: number,
+  state: SeedState,
+): string {
   // Trim trailing blank rows, then pad back to a full screen so the visible
   // area occupies exactly `paneRows` xterm rows and cursor math is absolute.
   let lines = captured;
@@ -154,7 +187,8 @@ export function buildSeed(captured: string[], paneRows: number, state: SeedState
   text += "\x1b[0m\r"; // reset any dangling attributes from the capture
   if (up > 0) text += `\x1b[${up}A`;
   if (state.cursorX > 0) text += `\x1b[${state.cursorX}C`;
-  if (state.mouse) text += `\x1b[?${state.mouse === "any" ? 1003 : state.mouse === "button" ? 1002 : 1000}h`;
+  if (state.mouse)
+    text += `\x1b[?${state.mouse === "any" ? 1003 : state.mouse === "button" ? 1002 : 1000}h`;
   if (state.mouseSgr) text += "\x1b[?1006h";
   if (state.keypadCursor) text += "\x1b[?1h";
   if (state.keypad) text += "\x1b=";
@@ -168,7 +202,12 @@ export class TmuxControlClient {
   // A command that timed out keeps its place: its reply may still come, and
   // must be consumed by it rather than by the next command (every later
   // reply would pair off-by-one, and capture() splices by reply order).
-  private pending: Array<{ resolve: (r: Reply) => void; timer: NodeJS.Timeout | null; onReply?: (r: Reply) => void; expired?: boolean }> = [];
+  private pending: Array<{
+    resolve: (r: Reply) => void;
+    timer: NodeJS.Timeout | null;
+    onReply?: (r: Reply) => void;
+    expired?: boolean;
+  }> = [];
   /** The caller asked for output to stop (a backed-up viewer). */
   private outputHeld = false;
   private paneId: string | null = null;
@@ -202,23 +241,42 @@ export class TmuxControlClient {
    * before any bytes render. Output streams from here on; a viewer that needs
    * the screen as it stands asks capture() for it.
    */
-  async start(cols: number, rows: number, colors?: unknown): Promise<{ cols: number; rows: number; sessionName: string }> {
+  async start(
+    cols: number,
+    rows: number,
+    colors?: unknown,
+  ): Promise<{ cols: number; rows: number; sessionName: string }> {
     const args = ["-u", "-C"]; // -u: force UTF-8 regardless of client locale
     if (this.mode.kind === "create") {
-      args.push("new-session", "-A", "-s", shellSafe(this.mode.sessionName), "-x", String(cols), "-y", String(rows));
+      args.push(
+        "new-session",
+        "-A",
+        "-s",
+        shellSafe(this.mode.sessionName),
+        "-x",
+        String(cols),
+        "-y",
+        String(rows),
+      );
       if (this.mode.cwd) args.push("-c", this.mode.cwd);
       // Session env, not client env: a new session inherits the tmux SERVER's
       // environment (LANG is not in update-environment), and a server first
       // started by the launchd daemon has no locale at all — every multibyte
       // program in the shell then misbehaves (vim E1511, broken box drawing).
-      args.push("-e", `LANG=${process.env.LC_ALL || process.env.LANG || "en_US.UTF-8"}`);
+      args.push(
+        "-e",
+        `LANG=${process.env.LC_ALL || process.env.LANG || "en_US.UTF-8"}`,
+      );
     } else {
       // A watcher must never reshape the pane out from under the agent;
       // setSizing lifts ignore-size once someone takes control.
       args.push("attach-session", "-t", this.mode.target, "-f", "ignore-size");
     }
 
-    const env: Record<string, string | undefined> = { ...process.env, PATH: ENRICHED_PATH };
+    const env: Record<string, string | undefined> = {
+      ...process.env,
+      PATH: ENRICHED_PATH,
+    };
     delete env.TMUX; // allow spawning from inside a tmux session (dev)
     delete env.TMUX_PANE;
     // Daemons under launchd have no locale in their environment, and a shell
@@ -227,7 +285,10 @@ export class TmuxControlClient {
     if (!env.LANG && !env.LC_ALL && !env.LC_CTYPE) env.LANG = "en_US.UTF-8";
 
     // An agent session may live on a tmux server of its own (tmuxRoute.ts).
-    this.child = spawn("tmux", routeTmuxArgs(args, env)[0], { stdio: ["pipe", "pipe", "pipe"], env: env as NodeJS.ProcessEnv });
+    this.child = spawn("tmux", routeTmuxArgs(args, env)[0], {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: env as NodeJS.ProcessEnv,
+    });
 
     this.child.stdout.on("data", (chunk: Buffer) => {
       this.parser.feed(chunk, (ev) => this.handleEvent(ev));
@@ -251,13 +312,18 @@ export class TmuxControlClient {
     // on to a "ready" the client renders as a silently blank pane.
     const startup = await this.expectReply();
     if (!startup.ok) {
-      throw new Error(startup.lines.join(" ").trim() || "tmux did not respond — the tmux server may be hung");
+      throw new Error(
+        startup.lines.join(" ").trim() ||
+          "tmux did not respond — the tmux server may be hung",
+      );
     }
 
     if (this.mode.kind === "create") {
       // No status line for panel terminals: control clients never render it,
       // and without this the window reserves a row for a bar nobody sees.
-      await this.command(`set-option -q -t ${shellSafe(this.mode.sessionName)} status off`);
+      await this.command(
+        `set-option -q -t ${shellSafe(this.mode.sessionName)} status off`,
+      );
       await this.command(`refresh-client -C ${cols}x${rows}`);
     }
 
@@ -272,11 +338,14 @@ export class TmuxControlClient {
     // No pane means the attach didn't take (hung server, vanished session).
     // Resolving anyway would seed nothing and render as a blank pane with a
     // healthy status dot — surface the failure instead.
-    if (!info.ok || !this.paneId) throw new Error("tmux attach failed — could not read the pane");
+    if (!info.ok || !this.paneId)
+      throw new Error("tmux attach failed — could not read the pane");
     await this.setColors(colors);
     const paneCols = parseInt(parts[1] ?? "", 10) || cols;
     const paneRows = parseInt(parts[2] ?? "", 10) || rows;
-    const sessionName = parts[3] || (this.mode.kind === "create" ? this.mode.sessionName : this.mode.target);
+    const sessionName =
+      parts[3] ||
+      (this.mode.kind === "create" ? this.mode.sessionName : this.mode.target);
 
     this.started = true;
     return { cols: paneCols, rows: paneRows, sessionName };
@@ -301,10 +370,13 @@ export class TmuxControlClient {
   }
 
   private async applySizing(on: boolean): Promise<void> {
-    if (this.mode.kind !== "attach" || this.closed || on === this.sizing) return;
+    if (this.mode.kind !== "attach" || this.closed || on === this.sizing)
+      return;
     this.sizing = on;
     if (on) {
-      const size = await this.command("display-message -p -F '#{window_width}x#{window_height}'");
+      const size = await this.command(
+        "display-message -p -F '#{window_width}x#{window_height}'",
+      );
       const found = (size.lines[0] ?? "").trim();
       if (/^\d+x\d+$/.test(found)) this.restoreSize = found;
       await this.command("refresh-client -f !ignore-size");
@@ -331,7 +403,9 @@ export class TmuxControlClient {
     let delivered = false;
     const metaReply = this.enqueue(
       `display-message -p -F '#{pane_id}|#{pane_width}|#{pane_height}|${SEED_STATE_FIELDS.map((f) => `#{${f}}`).join("|")}'`,
-      (r) => { meta = r; },
+      (r) => {
+        meta = r;
+      },
     );
     // `-S -` = from the very start of the pane's history: the pane's own
     // history-limit is the real cap, and xterm's scrollback holds the rest.
@@ -344,7 +418,14 @@ export class TmuxControlClient {
       if (!cols || !rows) return;
       if (pane) this.paneId = pane;
       delivered = true;
-      onCaptured({ cols, rows, seed: Buffer.from(buildSeed(cap.lines, rows, parseSeedState(state.join("|"))), "utf8") });
+      onCaptured({
+        cols,
+        rows,
+        seed: Buffer.from(
+          buildSeed(cap.lines, rows, parseSeedState(state.join("|"))),
+          "utf8",
+        ),
+      });
     });
     await Promise.all([metaReply, capReply]);
     return delivered;
@@ -358,7 +439,11 @@ export class TmuxControlClient {
         // byte, before its pane id is known: a single-pane session has nothing
         // else that could be emitting, and waiting would DROP the shell's
         // first prompt. Anything else that early belongs to no viewer yet.
-        if (this.paneId ? ev.paneId === this.paneId : this.mode.kind === "create" && !!this.mode.fresh) {
+        if (
+          this.paneId
+            ? ev.paneId === this.paneId
+            : this.mode.kind === "create" && !!this.mode.fresh
+        ) {
           this.events.onOutput(ev.data);
         }
         break;
@@ -383,7 +468,11 @@ export class TmuxControlClient {
         }
         break;
       case "notification":
-        if (ev.name === "layout-change" && this.started && this.events.onLayoutChange) {
+        if (
+          ev.name === "layout-change" &&
+          this.started &&
+          this.events.onLayoutChange
+        ) {
           if (this.layoutTimer) clearTimeout(this.layoutTimer);
           this.layoutTimer = setTimeout(() => {
             this.layoutTimer = null;
@@ -404,7 +493,9 @@ export class TmuxControlClient {
     if (this.closed || !this.paneId) return;
     for (let i = 0; i < data.length; i += INPUT_CHUNK_BYTES) {
       const chunk = data.subarray(i, i + INPUT_CHUNK_BYTES);
-      void this.command(`send-keys -t ${this.paneId} -H ${toSendKeysHex(chunk).join(" ")}`);
+      void this.command(
+        `send-keys -t ${this.paneId} -H ${toSendKeysHex(chunk).join(" ")}`,
+      );
     }
   }
 
@@ -413,30 +504,51 @@ export class TmuxControlClient {
     if (this.closed || !this.paneId) return;
     let commands = colorReportCommands(this.paneId, colors);
     if (commands.length === 0) return;
-    const supported = await (this.colorReportSupport ??= this.command("list-commands refresh-client").then((reply) => {
-      if (!reply.ok) throw new Error(`Could not detect tmux color support: ${reply.lines.join(" ") || "tmux did not respond"}`);
+    const supported = await (this.colorReportSupport ??= this.command(
+      "list-commands refresh-client",
+    ).then((reply) => {
+      if (!reply.ok)
+        throw new Error(
+          `Could not detect tmux color support: ${reply.lines.join(" ") || "tmux did not respond"}`,
+        );
       return reply.lines.some((line) => line.includes("[-r pane:report]"));
     }));
     if (!supported) {
       if (this.mode.kind !== "create") {
-        throw new Error("Viewing an existing terminal with theme colors requires tmux 3.5 or newer. Upgrade tmux on the session's machine.");
+        throw new Error(
+          "Viewing an existing terminal with theme colors requires tmux 3.5 or newer. Upgrade tmux on the session's machine.",
+        );
       }
       const channels = parseTerminalColors(colors);
-      commands = channels.map(({ value, style }) =>
-        `set-option -p -t ${this.paneId} @codecast-terminal-${style} '${value}'`,
+      commands = channels.map(
+        ({ value, style }) =>
+          `set-option -p -t ${this.paneId} @codecast-terminal-${style} '${value}'`,
       );
       for (const option of ["window-style", "window-active-style"]) {
-        const reply = await this.command(`show-options -pAv -t ${this.paneId} ${option}`);
-        if (!reply.ok) throw new Error(`Could not read terminal colors: ${reply.lines.join(" ") || "tmux did not respond"}`);
+        const reply = await this.command(
+          `show-options -pAv -t ${this.paneId} ${option}`,
+        );
+        if (!reply.ok)
+          throw new Error(
+            `Could not read terminal colors: ${reply.lines.join(" ") || "tmux did not respond"}`,
+          );
         const current = reply.lines.join("");
-        const additions = channels.map(({ style }) => `${style}=#{@codecast-terminal-${style}}`).filter((style) => !current.includes(style));
-        const style = [current, ...additions].filter(Boolean).join(",").replace(/[\\"$]/g, "\\$&");
+        const additions = channels
+          .map(({ style }) => `${style}=#{@codecast-terminal-${style}}`)
+          .filter((style) => !current.includes(style));
+        const style = [current, ...additions]
+          .filter(Boolean)
+          .join(",")
+          .replace(/[\\"$]/g, "\\$&");
         commands.push(`set-option -p -t ${this.paneId} ${option} "${style}"`);
       }
     }
     for (const cmd of commands) {
       const reply = await this.command(cmd);
-      if (!reply.ok) throw new Error(`Could not set terminal colors: ${reply.lines.join(" ") || "tmux did not respond"}`);
+      if (!reply.ok)
+        throw new Error(
+          `Could not set terminal colors: ${reply.lines.join(" ") || "tmux did not respond"}`,
+        );
     }
   }
 
@@ -444,7 +556,9 @@ export class TmuxControlClient {
     // A created shell is sized like any terminal; an attach only while it
     // holds the pane's size (setSizing).
     if (this.closed || (this.mode.kind === "attach" && !this.sizing)) return;
-    void this.command(`refresh-client -C ${Math.max(2, cols)}x${Math.max(2, rows)}`);
+    void this.command(
+      `refresh-client -C ${Math.max(2, cols)}x${Math.max(2, rows)}`,
+    );
   }
 
   /** Backpressure: stop reading tmux output while the websocket is congested. */
@@ -490,7 +604,9 @@ export class TmuxControlClient {
         // (not resize-window, which flips the window to manual sizing) lets
         // `window-size largest` snap the window back before we go, and a
         // client that attaches later still gets to impose its own size.
-        const restore = this.restoreSize ? `refresh-client -C ${this.restoreSize}\n` : "";
+        const restore = this.restoreSize
+          ? `refresh-client -C ${this.restoreSize}\n`
+          : "";
         this.child.stdin.write(`${restore}detach-client\n`);
       } catch {}
       // detach-client ends the control client by itself; give the commands
@@ -522,10 +638,17 @@ export class TmuxControlClient {
     const pid = this.child?.pid;
     if (pid && this.mode.kind === "attach") {
       try {
-        const r = tmuxRun(["list-clients", "-t", this.mode.target, "-F", "#{client_name}|#{client_pid}"]);
+        const r = tmuxRun([
+          "list-clients",
+          "-t",
+          this.mode.target,
+          "-F",
+          "#{client_name}|#{client_pid}",
+        ]);
         for (const line of r.stdout.split("\n")) {
           const [name, cpid] = line.split("|");
-          if (name && parseInt(cpid ?? "", 10) === pid) tmuxRun(["detach-client", "-t", name]);
+          if (name && parseInt(cpid ?? "", 10) === pid)
+            tmuxRun(["detach-client", "-t", name]);
         }
       } catch {}
     }
@@ -547,13 +670,23 @@ export class TmuxControlClient {
   private restoreProbe(): { target: string; args: string[] } | null {
     if (!this.restoreSize || this.mode.kind !== "attach") return null;
     const target = this.mode.target;
-    return { target, args: ["display-message", "-p", "-t", target, "#{window_width}x#{window_height}|#{session_attached}"] };
+    return {
+      target,
+      args: [
+        "display-message",
+        "-p",
+        "-t",
+        target,
+        "#{window_width}x#{window_height}|#{session_attached}",
+      ],
+    };
   }
 
   private restoreRepairs(target: string, probeOut: string): string[][] {
     const [size, attached] = probeOut.trim().split("|");
     // Another client is attached: the window is theirs to size.
-    if (!size || size === this.restoreSize || parseInt(attached ?? "0", 10) > 0) return [];
+    if (!size || size === this.restoreSize || parseInt(attached ?? "0", 10) > 0)
+      return [];
     const [w, h] = this.restoreSize!.split("x");
     return [
       ["resize-window", "-t", target, "-x", w!, "-y", h!],
@@ -566,7 +699,8 @@ export class TmuxControlClient {
     if (!probe) return;
     try {
       const now = (await tmuxRunAsync(probe.args)).stdout;
-      for (const args of this.restoreRepairs(probe.target, now)) await tmuxRunAsync(args);
+      for (const args of this.restoreRepairs(probe.target, now))
+        await tmuxRunAsync(args);
     } catch {}
   }
 
@@ -586,11 +720,15 @@ export class TmuxControlClient {
     // A tmux client whose server dies can wedge in a busy loop ignoring
     // SIGTERM (see tmux.ts) — escalate to SIGKILL if it lingers.
     const killTimer = setTimeout(() => {
-      try { child.kill("SIGKILL"); } catch {}
+      try {
+        child.kill("SIGKILL");
+      } catch {}
     }, 2000);
     killTimer.unref?.();
     child.once("exit", () => clearTimeout(killTimer));
-    try { child.kill("SIGTERM"); } catch {}
+    try {
+      child.kill("SIGTERM");
+    } catch {}
   }
 
   /** Wait for the next reply block without writing a command (startup guard). */
@@ -602,8 +740,12 @@ export class TmuxControlClient {
     return this.enqueue(cmd);
   }
 
-  private enqueue(cmd: string | null, onReply?: (r: Reply) => void): Promise<Reply> {
-    if (!this.child || this.closed) return Promise.resolve({ ok: false, lines: [] });
+  private enqueue(
+    cmd: string | null,
+    onReply?: (r: Reply) => void,
+  ): Promise<Reply> {
+    if (!this.child || this.closed)
+      return Promise.resolve({ ok: false, lines: [] });
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         const entry = this.pending.find((p) => p.timer === timer);
@@ -636,6 +778,7 @@ export class TmuxControlClient {
 
 /** Names/targets we pass inline in control commands: strict allowlist. */
 export function shellSafe(name: string): string {
-  if (!/^[A-Za-z0-9_@%.:-]+$/.test(name)) throw new Error(`Unsafe tmux name: ${name}`);
+  if (!/^[A-Za-z0-9_@%.:-]+$/.test(name))
+    throw new Error(`Unsafe tmux name: ${name}`);
   return name;
 }

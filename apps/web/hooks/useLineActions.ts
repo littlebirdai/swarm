@@ -16,41 +16,108 @@ const trySig = (r: LineTryRow) =>
   `${r._id}|${r.status}|${r.updated_at}|${r.via ?? ""}|${r.reason ?? ""}|${r.new ? 1 : 0}|${r.cost_usd ?? ""}|${r.pickup ? JSON.stringify(r.pickup) : ""}`;
 
 /** A project's tries (all steps), fed while `projectId` is set; read from the store. */
-export function useLineTries(projectId: string | null | undefined): LineTryRow[] {
-  const args = useMemo(() => (projectId ? { project_id: projectId } : "skip"), [projectId]);
+export function useLineTries(
+  projectId: string | null | undefined,
+): LineTryRow[] {
+  const args = useMemo(
+    () => (projectId ? { project_id: projectId } : "skip"),
+    [projectId],
+  );
   useSyncCollection("lineTries", api.lineActions.tries, args as any);
-  const where = useMemo(() => (r: LineTryRow) => !!projectId && r.project_id === projectId, [projectId]);
+  const where = useMemo(
+    () => (r: LineTryRow) => !!projectId && r.project_id === projectId,
+    [projectId],
+  );
   return useCollectionRows<LineTryRow>("lineTries", { where, sig: trySig });
 }
 
-export type GraphVersionRow = { _id: string; workflow_id: string; pushed_to: string; graph_hash: string; nodes: Array<{ id: string; h: string }>; changed: string[]; by: string; at: number };
+export type GraphVersionRow = {
+  _id: string;
+  workflow_id: string;
+  pushed_to: string;
+  graph_hash: string;
+  nodes: Array<{ id: string; h: string }>;
+  changed: string[];
+  by: string;
+  at: number;
+};
 const versionSig = (r: GraphVersionRow) => `${r._id}|${r.graph_hash}|${r.at}`;
 
 /** Every version of the drawn graph, newest first. */
-export function useGraphVersions(workflowId: string | null | undefined): GraphVersionRow[] {
-  const args = useMemo(() => (workflowId ? { workflow_id: workflowId } : "skip"), [workflowId]);
+export function useGraphVersions(
+  workflowId: string | null | undefined,
+): GraphVersionRow[] {
+  const args = useMemo(
+    () => (workflowId ? { workflow_id: workflowId } : "skip"),
+    [workflowId],
+  );
   useSyncCollection("lineGraphVersions", api.lineActions.versions, args as any);
-  const where = useMemo(() => (r: GraphVersionRow) => !!workflowId && r.workflow_id === workflowId, [workflowId]);
-  const sort = useMemo(() => (a: GraphVersionRow, b: GraphVersionRow) => b.at - a.at, []);
-  return useCollectionRows<GraphVersionRow>("lineGraphVersions", { where, sig: versionSig, sort });
+  const where = useMemo(
+    () => (r: GraphVersionRow) => !!workflowId && r.workflow_id === workflowId,
+    [workflowId],
+  );
+  const sort = useMemo(
+    () => (a: GraphVersionRow, b: GraphVersionRow) => b.at - a.at,
+    [],
+  );
+  return useCollectionRows<GraphVersionRow>("lineGraphVersions", {
+    where,
+    sig: versionSig,
+    sort,
+  });
 }
 
 /** Where a graph lives, for a viewer who may read it: the .cast and step files it was pushed from and the machine that
  *  pushed it, else (pushed from no file, as cast ships its own lines) the machine its newest run ran on. */
-export type GraphHome = { slug: string; file: string | null; files: Array<{ node: string; prompt?: string; script?: string }>; machine: string | null; owner: string | null };
+export type GraphHome = {
+  slug: string;
+  file: string | null;
+  files: Array<{ node: string; prompt?: string; script?: string }>;
+  machine: string | null;
+  owner: string | null;
+};
 
 export type GraphEditability =
-  | { _id: string; editable: true; file: string; files: Array<{ node: string; prompt?: string; script?: string }>; device_id: string; nodes: Array<{ id: string; h: string }>; target: string; home?: GraphHome | null }
+  | {
+      _id: string;
+      editable: true;
+      file: string;
+      files: Array<{ node: string; prompt?: string; script?: string }>;
+      device_id: string;
+      nodes: Array<{ id: string; h: string }>;
+      target: string;
+      home?: GraphHome | null;
+    }
   | { _id: string; editable: false; reason: string; home?: GraphHome | null };
 
 // Module-level: a fresh select per render re-applied the same payload.
-const ONE_EDITABILITY = { select: (row: GraphEditability | null) => (row ? [row] : []) };
+const ONE_EDITABILITY = {
+  select: (row: GraphEditability | null) => (row ? [row] : []),
+};
 
 /** Whether the viewer can save and try the drawn graph's steps, and where; undefined while unread. */
-export function useGraphEditability(workflowId: string | null | undefined): GraphEditability | null | undefined {
-  const args = useMemo(() => (workflowId ? { workflow_id: workflowId } : "skip"), [workflowId]);
-  const { ready } = useSyncCollection("lineGraphEditability", api.lineActions.editability, args as any, ONE_EDITABILITY);
-  const row = useInboxStore((s) => (workflowId ? ((s as unknown as { lineGraphEditability?: Record<string, GraphEditability> }).lineGraphEditability?.[workflowId] ?? null) : null));
+export function useGraphEditability(
+  workflowId: string | null | undefined,
+): GraphEditability | null | undefined {
+  const args = useMemo(
+    () => (workflowId ? { workflow_id: workflowId } : "skip"),
+    [workflowId],
+  );
+  const { ready } = useSyncCollection(
+    "lineGraphEditability",
+    api.lineActions.editability,
+    args as any,
+    ONE_EDITABILITY,
+  );
+  const row = useInboxStore((s) =>
+    workflowId
+      ? ((
+          s as unknown as {
+            lineGraphEditability?: Record<string, GraphEditability>;
+          }
+        ).lineGraphEditability?.[workflowId] ?? null)
+      : null,
+  );
   if (!workflowId) return null;
   if (row) return row;
   return ready ? null : undefined;

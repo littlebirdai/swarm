@@ -8,10 +8,20 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../test-helpers/codecastDir.js";
 import type { PageStamp, SettleProbe } from "./snapshotSettle.js";
 import {
-  isStaleRefFailure, preflightRefPlan, recallSnapshotRef, recoverRefPlan, rememberedSnapshotUrl, rememberSnapshotRefs, SNAPSHOT_AGAIN, type SnapshotRefEntry,
+  isStaleRefFailure,
+  preflightRefPlan,
+  recallSnapshotRef,
+  recoverRefPlan,
+  rememberedSnapshotUrl,
+  rememberSnapshotRefs,
+  SNAPSHOT_AGAIN,
+  type SnapshotRefEntry,
 } from "./refMemory.js";
 
 const rows = (refs: string[]): SnapshotRefEntry[] =>
@@ -19,10 +29,18 @@ const rows = (refs: string[]): SnapshotRefEntry[] =>
 
 describe("recoverRefPlan", () => {
   const url = "https://app.test/list";
-  const was = (nth: number | undefined, of?: number) => ({ role: "button", name: "Delete", nth, of, url });
+  const was = (nth: number | undefined, of?: number) => ({
+    role: "button",
+    name: "Delete",
+    nth,
+    of,
+    url,
+  });
 
   test("takes the namesake at the same ordinal, not the first one", () => {
-    expect(recoverRefPlan(was(3, 3), rows(["e7", "e8", "e9"]), url)).toEqual({ ref: "e9" });
+    expect(recoverRefPlan(was(3, 3), rows(["e7", "e8", "e9"]), url)).toEqual({
+      ref: "e9",
+    });
   });
 
   test("a unique name has no ordinal and takes the only match", () => {
@@ -30,35 +48,58 @@ describe("recoverRefPlan", () => {
       { ref: "e2", role: "button", name: "Save" },
       { ref: "e3", role: "link", name: "Save" },
     ];
-    expect(recoverRefPlan({ role: "link", name: "Save", url }, fresh, url)).toEqual({ ref: "e3" });
+    expect(
+      recoverRefPlan({ role: "link", name: "Save", url }, fresh, url),
+    ).toEqual({ ref: "e3" });
   });
 
   test("a list that got shorter refuses instead of acting on a neighbour", () => {
     // Row 1 deleted: the 3rd namesake is gone and every ordinal after the
     // deleted row moved. The first namesake is a different row.
     const plan = recoverRefPlan(was(3, 3), rows(["e7", "e8"]), url);
-    expect("refused" in plan && plan.refused).toMatch(/now has 2 .* where the snapshot had 3.*snapshot/);
+    expect("refused" in plan && plan.refused).toMatch(
+      /now has 2 .* where the snapshot had 3.*snapshot/,
+    );
   });
 
   test("a list that grew refuses too, even though the nth namesake exists", () => {
     // A row inserted above shifts the ordinal onto the wrong row.
-    const plan = recoverRefPlan(was(2, 3), rows(["e7", "e8", "e9", "e10"]), url);
+    const plan = recoverRefPlan(
+      was(2, 3),
+      rows(["e7", "e8", "e9", "e10"]),
+      url,
+    );
     expect("refused" in plan).toBe(true);
   });
 
   test("a unique name that became ambiguous refuses", () => {
-    const plan = recoverRefPlan({ role: "button", name: "Delete", url }, rows(["e7", "e8"]), url);
+    const plan = recoverRefPlan(
+      { role: "button", name: "Delete", url },
+      rows(["e7", "e8"]),
+      url,
+    );
     expect("refused" in plan).toBe(true);
   });
 
   test("a changed URL refuses, whatever the page now holds", () => {
-    const plan = recoverRefPlan(was(1, 1), rows(["e7"]), "https://app.test/other");
-    expect("refused" in plan && plan.refused).toMatch(/page changed .*app\.test\/list → https:\/\/app\.test\/other/);
+    const plan = recoverRefPlan(
+      was(1, 1),
+      rows(["e7"]),
+      "https://app.test/other",
+    );
+    expect("refused" in plan && plan.refused).toMatch(
+      /page changed .*app\.test\/list → https:\/\/app\.test\/other/,
+    );
   });
 
   test("an unknown URL on either side refuses (old tables carry none)", () => {
-    expect("refused" in recoverRefPlan({ ...was(1, 1), url: null }, rows(["e7"]), url)).toBe(true);
-    expect("refused" in recoverRefPlan(was(1, 1), rows(["e7"]), null)).toBe(true);
+    expect(
+      "refused" in
+        recoverRefPlan({ ...was(1, 1), url: null }, rows(["e7"]), url),
+    ).toBe(true);
+    expect("refused" in recoverRefPlan(was(1, 1), rows(["e7"]), null)).toBe(
+      true,
+    );
   });
 
   test("no namesake at all, and nothing remembered, both refuse", () => {
@@ -68,11 +109,18 @@ describe("recoverRefPlan", () => {
 
   test("role is part of the identity", () => {
     const fresh = [{ ref: "e4", role: "link", name: "Delete" }];
-    expect("refused" in recoverRefPlan({ role: "button", name: "Delete", url }, fresh, url)).toBe(true);
+    expect(
+      "refused" in
+        recoverRefPlan({ role: "button", name: "Delete", url }, fresh, url),
+    ).toBe(true);
   });
 
   test("every refusal tells the agent to snapshot again", () => {
-    for (const plan of [recoverRefPlan(null, [], url), recoverRefPlan(was(1, 1), [], "x"), recoverRefPlan(was(3, 3), rows(["e1"]), url)]) {
+    for (const plan of [
+      recoverRefPlan(null, [], url),
+      recoverRefPlan(was(1, 1), [], "x"),
+      recoverRefPlan(was(3, 3), rows(["e1"]), url),
+    ]) {
       expect("refused" in plan && plan.refused).toContain(SNAPSHOT_AGAIN);
     }
   });
@@ -81,7 +129,11 @@ describe("recoverRefPlan", () => {
 describe("isStaleRefFailure", () => {
   test("recognises the engine's own wording for an unresolvable ref", () => {
     // Verbatim from agent-browser 0.34.0, observed on a re-rendering list.
-    expect(isStaleRefFailure("✗ Could not locate element with role=button name=Delete")).toBe(true);
+    expect(
+      isStaleRefFailure(
+        "✗ Could not locate element with role=button name=Delete",
+      ),
+    ).toBe(true);
     expect(isStaleRefFailure("✗ Unknown ref: e5")).toBe(true);
     expect(isStaleRefFailure("Element not found: @e5")).toBe(true);
     expect(isStaleRefFailure("No objectId for ref e5")).toBe(true);
@@ -106,16 +158,36 @@ describe("the remembered table", () => {
   afterEach(() => home.restore());
 
   test("round-trips a ref's tuple, with or without the @", () => {
-    rememberSnapshotRefs("s1", rows(["e7", "e8", "e9"]), stamp("https://a.test/"));
-    const want = { role: "button", name: "Delete", nth: 2, of: 3, url: "https://a.test/", doc: "d1", at: 1000 };
+    rememberSnapshotRefs(
+      "s1",
+      rows(["e7", "e8", "e9"]),
+      stamp("https://a.test/"),
+    );
+    const want = {
+      role: "button",
+      name: "Delete",
+      nth: 2,
+      of: 3,
+      url: "https://a.test/",
+      doc: "d1",
+      at: 1000,
+    };
     expect(recallSnapshotRef("s1", "e8")).toEqual(want);
     expect(recallSnapshotRef("s1", "@e8")).toEqual(want);
     expect(rememberedSnapshotUrl("s1")).toBe("https://a.test/");
   });
 
   test("a unique name is stored without an ordinal", () => {
-    rememberSnapshotRefs("s1", [{ ref: "e2", role: "button", name: "Save" }], null);
-    expect(recallSnapshotRef("s1", "e2")).toEqual({ role: "button", name: "Save", url: null });
+    rememberSnapshotRefs(
+      "s1",
+      [{ ref: "e2", role: "button", name: "Save" }],
+      null,
+    );
+    expect(recallSnapshotRef("s1", "e2")).toEqual({
+      role: "button",
+      name: "Save",
+      url: null,
+    });
   });
 
   test("each browser session remembers its own page", () => {
@@ -125,8 +197,18 @@ describe("the remembered table", () => {
 
   test("a later snapshot replaces the table outright", () => {
     rememberSnapshotRefs("s1", rows(["e7", "e8"]), stamp("https://a.test/"));
-    rememberSnapshotRefs("s1", [{ ref: "e7", role: "link", name: "Home" }], stamp("https://b.test/"));
-    expect(recallSnapshotRef("s1", "e7")).toEqual({ role: "link", name: "Home", url: "https://b.test/", doc: "d1", at: 1000 });
+    rememberSnapshotRefs(
+      "s1",
+      [{ ref: "e7", role: "link", name: "Home" }],
+      stamp("https://b.test/"),
+    );
+    expect(recallSnapshotRef("s1", "e7")).toEqual({
+      role: "link",
+      name: "Home",
+      url: "https://b.test/",
+      doc: "d1",
+      at: 1000,
+    });
     expect(recallSnapshotRef("s1", "e8")).toBeNull();
   });
 
@@ -139,10 +221,30 @@ describe("checking a ref before acting on it", () => {
   // The engine does not fail on a ref whose node is gone: it acts on whatever
   // holds the ref's position now. On the rig's Delete list that deleted the
   // next row and reported success.
-  const third = { role: "button", name: "Delete", nth: 3, of: 4, url: "https://a.test/list", doc: "d1", at: 1000 };
-  const save = { role: "button", name: "Save", url: "https://a.test/list", doc: "d1", at: 1000 };
+  const third = {
+    role: "button",
+    name: "Delete",
+    nth: 3,
+    of: 4,
+    url: "https://a.test/list",
+    doc: "d1",
+    at: 1000,
+  };
+  const save = {
+    role: "button",
+    name: "Save",
+    url: "https://a.test/list",
+    doc: "d1",
+    at: 1000,
+  };
   const probe = (p: Partial<SettleProbe> = {}): SettleProbe => ({
-    url: "https://a.test/list", sinceLoad: 2000, sinceMutation: 5, doc: "d1", goneAt: -1, hidden: [], ...p,
+    url: "https://a.test/list",
+    sinceLoad: 2000,
+    sinceMutation: 5,
+    doc: "d1",
+    goneAt: -1,
+    hidden: [],
+    ...p,
   });
 
   test("passes on the same document while no element of that name left it", () => {
@@ -151,19 +253,30 @@ describe("checking a ref before acting on it", () => {
   });
 
   test("unrelated churn passes: a tooltip or validation message came and went (another name left)", () => {
-    expect(preflightRefPlan(third, probe({ sinceMutation: 1, goneAt: -1 }))).toBeNull();
+    expect(
+      preflightRefPlan(third, probe({ sinceMutation: 1, goneAt: -1 })),
+    ).toBeNull();
   });
 
   test("a query or fragment change is the same page", () => {
-    expect(preflightRefPlan(third, probe({ url: "https://a.test/list?tab=2#section" }))).toBeNull();
+    expect(
+      preflightRefPlan(
+        third,
+        probe({ url: "https://a.test/list?tab=2#section" }),
+      ),
+    ).toBeNull();
   });
 
   test("refuses a namesake once an element of its name left the page", () => {
-    expect(preflightRefPlan(third, probe({ goneAt: 1500 }))?.refused).toContain(SNAPSHOT_AGAIN);
+    expect(preflightRefPlan(third, probe({ goneAt: 1500 }))?.refused).toContain(
+      SNAPSHOT_AGAIN,
+    );
   });
 
   test("refuses a namesake when the page cannot tell", () => {
-    expect(preflightRefPlan(third, probe({ goneAt: null }))?.refused).toContain(SNAPSHOT_AGAIN);
+    expect(preflightRefPlan(third, probe({ goneAt: null }))?.refused).toContain(
+      SNAPSHOT_AGAIN,
+    );
   });
 
   test("a unique name passes even if it re-rendered: re-resolving it lands on the same control", () => {
@@ -171,19 +284,41 @@ describe("checking a ref before acting on it", () => {
   });
 
   test("refuses any ref after a reload of the same URL, and after the path moved", () => {
-    expect(preflightRefPlan(save, probe({ doc: "d2" }))?.refused).toMatch(/navigated or reloaded/);
-    expect(preflightRefPlan(save, probe({ url: "https://a.test/next" }))?.refused).toMatch(/page changed/);
+    expect(preflightRefPlan(save, probe({ doc: "d2" }))?.refused).toMatch(
+      /navigated or reloaded/,
+    );
+    expect(
+      preflightRefPlan(save, probe({ url: "https://a.test/next" }))?.refused,
+    ).toMatch(/page changed/);
   });
 
   test("an unknown ref, an old table without a stamp, or an unreadable page is left to the engine", () => {
     expect(preflightRefPlan(null, probe())).toBeNull();
-    expect(preflightRefPlan({ role: "button", name: "Delete", nth: 3, of: 4, url: "https://a.test/list" }, probe({ goneAt: 1500 }))).toBeNull();
+    expect(
+      preflightRefPlan(
+        {
+          role: "button",
+          name: "Delete",
+          nth: 3,
+          of: 4,
+          url: "https://a.test/list",
+        },
+        probe({ goneAt: 1500 }),
+      ),
+    ).toBeNull();
     expect(preflightRefPlan(third, null)).toBeNull();
   });
 
   test("recovery accepts a query or fragment change too", () => {
-    const fresh = ["e1", "e2", "e3", "e4"].map((ref, i) => ({ ref, role: "button", name: "Delete", nth: i + 1 }));
-    expect(recoverRefPlan(third, fresh, "https://a.test/list?tab=2")).toEqual({ ref: "e3" });
+    const fresh = ["e1", "e2", "e3", "e4"].map((ref, i) => ({
+      ref,
+      role: "button",
+      name: "Delete",
+      nth: i + 1,
+    }));
+    expect(recoverRefPlan(third, fresh, "https://a.test/list?tab=2")).toEqual({
+      ref: "e3",
+    });
   });
 });
 
@@ -195,7 +330,12 @@ describe("the scope a snapshot was read in", () => {
   afterEach(() => home.restore());
 
   test("is remembered with its refs, so recovery re-reads the same scope", () => {
-    rememberSnapshotRefs("s1", [{ ref: "e1", role: "button", name: "Save" }], stamp("https://a.test/"), "#dialog");
+    rememberSnapshotRefs(
+      "s1",
+      [{ ref: "e1", role: "button", name: "Save" }],
+      stamp("https://a.test/"),
+      "#dialog",
+    );
     expect(recallSnapshotRef("s1", "e1")?.scope).toBe("#dialog");
   });
 });

@@ -9,5 +9,6 @@ import { getConversationCommentSummaryRows } from "./comments";
 
 export const conversationComments = query({
   args: { conversation_id: v.id("conversations") },
-  handler: async (ctx, args) => await getConversationCommentSummaryRows(ctx, args.conversation_id),
+  handler: async (ctx, args) =>
+    await getConversationCommentSummaryRows(ctx, args.conversation_id),
 });

@@ -7,18 +7,30 @@
 // browser pane beside the work, so nothing typed here leaves the app.
 
 import { useSyncExternalStore } from "react";
-import { entityRoute, entityTypeFromId, normalizeEntityType } from "@codecast/shared/entities";
-import { appPathOf, normalizeUrl, pageAddress, parseBrowserRoute } from "./browserPane";
+import {
+  entityRoute,
+  entityTypeFromId,
+  normalizeEntityType,
+} from "@codecast/shared/entities";
+import {
+  appPathOf,
+  normalizeUrl,
+  pageAddress,
+  parseBrowserRoute,
+} from "./browserPane";
 import { typedAddress } from "./browserPaneLinks";
 import { NAV_REGISTRY } from "./navRegistry";
 
-export type AddressTarget = { kind: "app"; path: string } | { kind: "web"; url: string };
+export type AddressTarget =
+  | { kind: "app"; path: string }
+  | { kind: "web"; url: string };
 
 /** Where an address goes, or null when the text is not one. */
 export function resolveAddress(input: string): AddressTarget | null {
   const raw = input.trim();
   if (!raw || /\s/.test(raw)) return null;
-  if (raw.startsWith("/")) return raw.startsWith("//") ? null : { kind: "app", path: raw };
+  if (raw.startsWith("/"))
+    return raw.startsWith("//") ? null : { kind: "app", path: raw };
   // A short id names an object: ct-4102, pl-88, jx7c6zk, sd-12.
   const type = entityTypeFromId(raw);
   const objectPath = type ? entityRoute(type, raw) : null;
@@ -32,14 +44,20 @@ export function resolveAddress(input: string): AddressTarget | null {
   // when it starts at one of the app's pages. Any other word is not an
   // address: the bar reads it as a page title to look for instead.
   const m = raw.match(/^([a-z][\w-]*)(?:[/?#].*)?$/i);
-  return m && isAppSection(m[1].toLowerCase()) ? { kind: "app", path: `/${raw}` } : null;
+  return m && isAppSection(m[1].toLowerCase())
+    ? { kind: "app", path: `/${raw}` }
+    : null;
 }
 
 /** A first path segment that names one of the app's pages or object kinds. */
 function isAppSection(segment: string): boolean {
   if (normalizeEntityType(segment)) return true;
   const base = `/${segment}`;
-  return NAV_REGISTRY.some((row) => [row.path, ...((row as { match?: readonly string[] }).match ?? [])].some((p) => p === base || p.startsWith(`${base}/`)));
+  return NAV_REGISTRY.some((row) =>
+    [row.path, ...((row as { match?: readonly string[] }).match ?? [])].some(
+      (p) => p === base || p.startsWith(`${base}/`),
+    ),
+  );
 }
 
 /**

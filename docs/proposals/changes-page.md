@@ -32,14 +32,14 @@ Three rules hold everywhere:
 
 ## 2. Who it is for and the questions it answers
 
-| Reader | Question | Where the page answers it |
-|---|---|---|
-| Founder or lead, every morning | What did we ship yesterday, and why does it matter? | Edition headline, standfirst, lead story |
-| Anyone about to tell a user "it's fixed" | Is it live? What is waiting behind the last release? | Live strip at the top |
-| Lead before a deploy | Is anything risky right now? | Risk flags on the strip and on stories |
-| Teammate back from a few days off | What happened while I was away? | Week view (phase 2), day navigation with `[` and `]` |
-| Engineer chasing a change | Which session or commit did this, and what was it asked to do? | Evidence drawer: commits, session pill, the session's asks and dids |
-| Anyone | What is still in progress or stuck? | "In the works" column |
+| Reader                                   | Question                                                       | Where the page answers it                                           |
+| ---------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Founder or lead, every morning           | What did we ship yesterday, and why does it matter?            | Edition headline, standfirst, lead story                            |
+| Anyone about to tell a user "it's fixed" | Is it live? What is waiting behind the last release?           | Live strip at the top                                               |
+| Lead before a deploy                     | Is anything risky right now?                                   | Risk flags on the strip and on stories                              |
+| Teammate back from a few days off        | What happened while I was away?                                | Week view (phase 2), day navigation with `[` and `]`                |
+| Engineer chasing a change                | Which session or commit did this, and what was it asked to do? | Evidence drawer: commits, session pill, the session's asks and dids |
+| Anyone                                   | What is still in progress or stuck?                            | "In the works" column                                               |
 
 The page does not measure effort. Messages, durations and per-person output stay on `/team/activity`.
 
@@ -55,6 +55,7 @@ There are four levels. The day is the home level and the story is the core unit.
 Why the story is the unit. A session is the best source of "why", and 79% of codecast commits link to one. A commit carries no single intent often enough (the 10-02 `feat(web): line pages, share pages, org staffing and app updates` holds five stories) that it cannot be the reading unit. A release is the boundary users feel, but most teams have no release signal, so releases are markers on the day, not the unit.
 
 Levels left out:
+
 - **Hour:** noise.
 - **Person:** reads like a performance review and duplicates `/team/activity`. Person is a filter.
 - **Release as the top level:** web and Convex deploys are not recorded today, and most teams never tag. Releases appear as stamps between stories and as tiles in the live strip.
@@ -131,6 +132,7 @@ Full width inside `DashboardLayout` (an `isOnChangesPage` flag), `max-w-[1180px]
 One tile per **surface** that has at least one release signal in the last 30 days. A surface is a product that ships separately: on codecast `cli`, `desktop`, `extension`, `backend`, `web`. Surfaces are detected, not configured (section 7.3). A team with no release signals gets no strip at all, and a one-line hint in the footer: "Tag releases or post deploy markers to see what is live." This fixes ship-log's flaw where most teams would get a hollow version of its signature visual.
 
 Each tile (CSS grid, `auto-fit, minmax(150px, 1fr)`, gap 8px):
+
 - Surface name, `var(--font-ui)` 12px, `text-sol-text/70`.
 - Version (or short sha for deploy-only surfaces), JetBrains Mono 20px `tabular-nums`. This is the one large mono element on the page.
 - Ship time through `formatDateSmart`.
@@ -147,6 +149,7 @@ Written by the edition call. Sentence case, no italics, no accent-colored clause
 ### 4.4 Lead story
 
 `bg-sol-card rounded-lg border border-sol-border/25 px-5 py-4 shadow-sm` with a 2px left rail in the area color.
+
 - Area tag: a 6px square in the area color plus the area name, mono 11px.
 - Release tag when a release in the story's surface followed its last commit: "shipped in cli 1.1.163".
 - Headline 22px semibold, dek 15px/1.6, body at most 3 sentences.
@@ -169,6 +172,7 @@ Stories the edition ranked at importance 1 (docs, tests, chores, small single-co
 ### 4.7 In the works (right column)
 
 Sticky at `top-16`, grid span 4. Five short groups with 13px semibold sentence-case labels:
+
 - **Stuck:** team-visible insights from the last 48 hours with `outcome_type = blocked`, quoting the headline. A 2px rule in `color-mix(in srgb, var(--sol-red) 80%, transparent)`.
 - **Building now:** team-visible insights from the last 48 hours with `outcome_type = progress` whose sessions have no landed commits yet. Headline quoted verbatim.
 - **In review:** open PRs with `PrStatusChip` and checks state, capped at 6.
@@ -190,16 +194,16 @@ Provenance and privacy accounting, generated deterministically: "Written from N 
 - In mono, the edition headline uses `font-variant-ligatures: none` and `letter-spacing: -0.02em`, which reads as a typewriter broadsheet. All text inputs on the page also set `font-variant-ligatures: none` (JetBrains Mono calt trap).
 - Scale:
 
-| Element | Size / line height | Weight | Color |
-|---|---|---|---|
-| Edition headline | 30 / 1.15 | 600 | `text-sol-text` |
-| Lead headline | 22 / 1.25 | 600 | `text-sol-text` |
-| Standfirst, lead dek | 15 / 1.6 | 400 | `text-sol-text/80` |
-| Section header | 15 / 1.3 | 600 | `text-sol-text` |
-| Story row headline | 14 / 1.4 | 500 | `text-sol-text/90` |
-| Section dek, In brief, In the works | 13 / 1.55 | 400 | `text-sol-text/70` |
-| Live strip version | 20 mono | 500 | `text-sol-text` |
-| Meta | 10 to 11 mono | 400 | `text-sol-text/45` to `/55` |
+| Element                             | Size / line height | Weight | Color                       |
+| ----------------------------------- | ------------------ | ------ | --------------------------- |
+| Edition headline                    | 30 / 1.15          | 600    | `text-sol-text`             |
+| Lead headline                       | 22 / 1.25          | 600    | `text-sol-text`             |
+| Standfirst, lead dek                | 15 / 1.6           | 400    | `text-sol-text/80`          |
+| Section header                      | 15 / 1.3           | 600    | `text-sol-text`             |
+| Story row headline                  | 14 / 1.4           | 500    | `text-sol-text/90`          |
+| Section dek, In brief, In the works | 13 / 1.55          | 400    | `text-sol-text/70`          |
+| Live strip version                  | 20 mono            | 500    | `text-sol-text`             |
+| Meta                                | 10 to 11 mono      | 400    | `text-sol-text/45` to `/55` |
 
 No serif anywhere. No italic. No uppercase letterspaced labels.
 
@@ -233,20 +237,20 @@ CSS only (keyframes in `globals.css` plus `tailwindcss-animate`). Nothing measur
 
 Registered through the `shortcuts/` registry. Every hint renders as `<KeyCap>` with `isMac` and `formatShortcutParts`.
 
-| Key | Action |
-|---|---|
-| `[` / `]` | Previous / next day (week in week mode) |
-| `t` | Today |
-| `j` / `k` | Next / previous story in reading order: lead, section blocks, In brief |
-| `Enter` or `e` | Open / close the focused story's evidence drawer |
-| `o` | Open the story's primary session, else its largest commit's `/commit/<sha>` |
-| `u` | Scroll to the live strip and show "waiting" stories only |
-| `r` | Risks only |
-| `b` | Toggle main / all branches |
-| `w` | Toggle Day / Week (phase 2) |
-| `/` | Focus the filter field |
-| `c` | Copy a permalink to the focused story |
-| `Esc` | Close the drawer, then clear filters |
+| Key            | Action                                                                      |
+| -------------- | --------------------------------------------------------------------------- |
+| `[` / `]`      | Previous / next day (week in week mode)                                     |
+| `t`            | Today                                                                       |
+| `j` / `k`      | Next / previous story in reading order: lead, section blocks, In brief      |
+| `Enter` or `e` | Open / close the focused story's evidence drawer                            |
+| `o`            | Open the story's primary session, else its largest commit's `/commit/<sha>` |
+| `u`            | Scroll to the live strip and show "waiting" stories only                    |
+| `r`            | Risks only                                                                  |
+| `b`            | Toggle main / all branches                                                  |
+| `w`            | Toggle Day / Week (phase 2)                                                 |
+| `/`            | Focus the filter field                                                      |
+| `c`            | Copy a permalink to the focused story                                       |
+| `Esc`          | Close the drawer, then clear filters                                        |
 
 No Cmd or Ctrl wheel handling and no pinch handling. Browser zoom stays the browser's.
 
@@ -371,11 +375,11 @@ Adopted from "zoom": a dirty row, debounced, owned by the scheduler. **A page vi
 
 Haiku 4.5 at $1 / $5 per million tokens in / out; Sonnet at about $3 / $15.
 
-| Team | Stories/day | Story calls | Edition | Total/day |
-|---|---|---|---|---|
-| codecast (~20 commits) | 9 to 20 | 20 × (2.5k in, 300 out) × 1.5 rewrites ≈ $0.12 | Haiku, 4 × (6k in, 800 out) ≈ $0.04 | about $0.16 |
-| Littlebird (~760 commits, main only gets prose) | ~40 main | 40 × $0.0045 × 1.5 ≈ $0.27 | Sonnet, 4 × (15k in, 1.2k out) ≈ $0.25 | about $0.52 |
-| Week (phase 2) | | | 1 Sonnet call | about $0.05 / week |
+| Team                                            | Stories/day | Story calls                                    | Edition                                | Total/day          |
+| ----------------------------------------------- | ----------- | ---------------------------------------------- | -------------------------------------- | ------------------ |
+| codecast (~20 commits)                          | 9 to 20     | 20 × (2.5k in, 300 out) × 1.5 rewrites ≈ $0.12 | Haiku, 4 × (6k in, 800 out) ≈ $0.04    | about $0.16        |
+| Littlebird (~760 commits, main only gets prose) | ~40 main    | 40 × $0.0045 × 1.5 ≈ $0.27                     | Sonnet, 4 × (15k in, 1.2k out) ≈ $0.25 | about $0.52        |
+| Week (phase 2)                                  |             |                                                | 1 Sonnet call                          | about $0.05 / week |
 
 - **Per-team daily cap: $2.** Every call writes `model`, `input_tokens`, `output_tokens`, `cost_usd` on its row; `rebuildDay` sums today's cost for the team from `change_stories` and `digests` before calling. At the cap it stops, the deterministic text stays, the day's edition gets `capped_at`, and the footer says "Prose paused for today (daily limit)" whenever `capped_at` is set, whether or not the edition already has prose. The cap counts the spend on rows of one team day (its stories and editions), not calls made on one calendar day, so a 14-day backfill can spend up to the cap on each day it builds, and rows deleted by pruning take their spend with them. The check runs before each call while up to 8 story calls are in flight, so a day can pass the cap by a few cents.
 - Branch-only stories never get prose in MVP; they live in In the works as counts.
@@ -390,34 +394,34 @@ Register `changes-story` and `changes-edition` as surfaces in `packages/evals`. 
 
 **`change_stories` (new)**
 
-| Field | Type | Notes |
-|---|---|---|
-| team_id | id teams | routing |
-| repository | string | |
-| date | string | team-local YYYY-MM-DD |
-| story_key | string | stable hash |
-| area, branch | string | |
-| on_default_branch | boolean | |
-| commit_shas | string[] | deduped |
-| conversation_ids | id conversations[] | passed `teamVisibleInputs()` at build time, by construction |
-| pr_ids | id pull_requests[] | |
-| author_names | string[] | commit authors (already team-readable) |
-| actor_user_ids | id users[] | owners of the visible sessions |
-| insertions, deletions, files_changed | number | |
-| area_counts | record | |
-| release | optional {surface, version?, sha, at} | |
-| risks | {code, evidence: string[]}[] | computed |
-| first_at, last_at | number | |
-| headline, dek | string | deterministic first, replaced by prose |
-| body | optional string | |
-| kind | string | |
-| importance | number | deterministic default 2, prose overrides |
-| why_source | optional "session"\|"commit"\|"pr"\|"none" | |
-| risk_lines | optional record | |
-| prose_status | "pending"\|"written"\|"failed"\|"skipped" | |
-| inputs_hash | string | |
-| generated_at, model, input_tokens, output_tokens, cost_usd | optional | |
-| private_session_count | number | count only |
+| Field                                                      | Type                                       | Notes                                                       |
+| ---------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------- |
+| team_id                                                    | id teams                                   | routing                                                     |
+| repository                                                 | string                                     |                                                             |
+| date                                                       | string                                     | team-local YYYY-MM-DD                                       |
+| story_key                                                  | string                                     | stable hash                                                 |
+| area, branch                                               | string                                     |                                                             |
+| on_default_branch                                          | boolean                                    |                                                             |
+| commit_shas                                                | string[]                                   | deduped                                                     |
+| conversation_ids                                           | id conversations[]                         | passed `teamVisibleInputs()` at build time, by construction |
+| pr_ids                                                     | id pull_requests[]                         |                                                             |
+| author_names                                               | string[]                                   | commit authors (already team-readable)                      |
+| actor_user_ids                                             | id users[]                                 | owners of the visible sessions                              |
+| insertions, deletions, files_changed                       | number                                     |                                                             |
+| area_counts                                                | record                                     |                                                             |
+| release                                                    | optional {surface, version?, sha, at}      |                                                             |
+| risks                                                      | {code, evidence: string[]}[]               | computed                                                    |
+| first_at, last_at                                          | number                                     |                                                             |
+| headline, dek                                              | string                                     | deterministic first, replaced by prose                      |
+| body                                                       | optional string                            |                                                             |
+| kind                                                       | string                                     |                                                             |
+| importance                                                 | number                                     | deterministic default 2, prose overrides                    |
+| why_source                                                 | optional "session"\|"commit"\|"pr"\|"none" |                                                             |
+| risk_lines                                                 | optional record                            |                                                             |
+| prose_status                                               | "pending"\|"written"\|"failed"\|"skipped"  |                                                             |
+| inputs_hash                                                | string                                     |                                                             |
+| generated_at, model, input_tokens, output_tokens, cost_usd | optional                                   |                                                             |
+| private_session_count                                      | number                                     | count only                                                  |
 
 Indexes: `by_team_repo_date [team_id, repository, date]`, `by_story_key [story_key]`.
 
@@ -426,6 +430,7 @@ Indexes: `by_team_repo_date [team_id, repository, date]`, `by_story_key [story_k
 **`change_dirty` (new)**: as in section 7.7.
 
 **`digests` (reshaped; unused today, only `admin_mergeUser.ts` touches it)**:
+
 - `user_id` becomes optional (it is required at schema.ts:3760); `events` becomes optional; `narrative` keeps the standfirst so old rows stay valid.
 - Add optional: `repository`, `headline`, `lead_story_key`, `section_order: string[]`, `brief_story_keys: string[]`, `releases: [{surface, version?, sha, at}]`, `stats: {commits, stories, releases, people, sessions, private_sessions}`, `inputs_hash`, `model`, `input_tokens`, `output_tokens`, `cost_usd`, `status: "facts"|"written"|"final"|"failed"`, `capped_at` (when the daily cap first left prose of the day unwritten, independent of status).
 - Scope stays `day | week | month`; team editions use `day` and `week`.
@@ -450,12 +455,12 @@ Every read uses a team-scoped index window, never the global `by_timestamp` inde
 
 ### 8.3 Web store (`packages/web/store/clientSyncRegistry.ts`, one registration each)
 
-| Key | Kind | Sync | Indexes | Feeds | Replication |
-|---|---|---|---|---|---|
-| `changeStories` | collection, deferred hydration | `isDelta: true` | `_id, team_id, repository, date, area` | `changes.listStories` | shared |
-| `changeEditions` | collection, deferred | `isDelta: true` | `_id, team_id, repository, scope, date` | `changes.listEditions` | shared |
-| `changeLive` | collection, deferred | snapshot | `_id, team_id, repository, surface` | `changes.liveStatus` | shared |
-| `changeWorks` | collection, deferred | snapshot | `_id, team_id, kind` | `changes.inTheWorks` | shared |
+| Key              | Kind                           | Sync            | Indexes                                 | Feeds                  | Replication |
+| ---------------- | ------------------------------ | --------------- | --------------------------------------- | ---------------------- | ----------- |
+| `changeStories`  | collection, deferred hydration | `isDelta: true` | `_id, team_id, repository, date, area`  | `changes.listStories`  | shared      |
+| `changeEditions` | collection, deferred           | `isDelta: true` | `_id, team_id, repository, scope, date` | `changes.listEditions` | shared      |
+| `changeLive`     | collection, deferred           | snapshot        | `_id, team_id, repository, surface`     | `changes.liveStatus`   | shared      |
+| `changeWorks`    | collection, deferred           | snapshot        | `_id, team_id, kind`                    | `changes.inTheWorks`   | shared      |
 
 - Add `changes.storyEvidence` to the existing `commits` entry's `feeds`.
 - Bump `CACHE_SCHEMA_VERSION` in `store/idbCache.ts`.
@@ -477,6 +482,7 @@ Every read uses a team-scoped index window, never the global `by_timestamp` inde
 Turns pass only at mode `full` or `detailed`. A source-level test (`changesAccess.guard.test.ts`) asserts that `buildDay` and the prompt builders read `session_insights` and `conversations` only through this helper.
 
 **Invalidation.**
+
 - `patchConversationVisibility` (lib/access.ts:188) schedules `invalidateForConversation(conversation_id)`. It finds stories through `change_story_inputs.by_conversation`, synchronously resets their prose to the deterministic text (`prose_status: pending`, body and why cleared) and marks their days dirty. The old text disappears in the same transaction, before any regeneration.
 - A membership visibility change schedules `invalidateForMember(owner_id, team_id)` through `change_story_inputs.by_owner`, with the same behavior.
 - The edition for each affected day is reset to its stats headline in the same pass.
@@ -485,21 +491,21 @@ Turns pass only at mode `full` or `detailed`. A source-level test (`changesAcces
 
 ## 9. Empty, loading, error and privacy states
 
-| State | What the page shows |
-|---|---|
-| Cold cache | Skeleton only when `!ready && rows.length === 0`: header lines, one 30px bar, a 22px bar, four section rows. |
-| Facts ready, prose pending | Deterministic headlines and deks render at once; a 1-line shimmer only where a dek is empty. Edition headline is the stats line in large type. A quiet "summarizing" dot in the header. |
-| Prose failed | Deterministic text stays. Footer: "Prose unavailable for this edition; showing commit subjects." No client retry loop. |
-| Daily cap reached | Deterministic text stays. Footer: "Prose paused for today (daily limit)." |
-| Flag off | EmptyState: "Changes is not turned on for this team yet." |
-| No team (personal workspace) | EmptyState: "Changes is written for a team. Join or create one to see it." |
-| No commits ever | EmptyState: "Changes is written from your team's commits. Connect GitHub or run cast in a repo to start the first edition," with the existing GitHub install action. |
-| Quiet day | "Nothing landed on main on Wed 1 Oct." Link to the previous edition. In the works still shows if branches moved. |
-| No release signals | No live strip; footer hint about tags and deploy markers. |
-| Surface with no recorded deploys | Tile reads "no signal yet", never a guessed version. |
-| Private-heavy day | Stories still exist from commits; footer count of sessions not shared. No placeholder ever reveals a hidden session's title. |
-| Filter hides everything | "No stories match these filters," with a clear-filters button. |
-| Viewer filters to a member whose sessions are hidden | Only commit-derived stories appear, by construction. |
+| State                                                | What the page shows                                                                                                                                                                     |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cold cache                                           | Skeleton only when `!ready && rows.length === 0`: header lines, one 30px bar, a 22px bar, four section rows.                                                                            |
+| Facts ready, prose pending                           | Deterministic headlines and deks render at once; a 1-line shimmer only where a dek is empty. Edition headline is the stats line in large type. A quiet "summarizing" dot in the header. |
+| Prose failed                                         | Deterministic text stays. Footer: "Prose unavailable for this edition; showing commit subjects." No client retry loop.                                                                  |
+| Daily cap reached                                    | Deterministic text stays. Footer: "Prose paused for today (daily limit)."                                                                                                               |
+| Flag off                                             | EmptyState: "Changes is not turned on for this team yet."                                                                                                                               |
+| No team (personal workspace)                         | EmptyState: "Changes is written for a team. Join or create one to see it."                                                                                                              |
+| No commits ever                                      | EmptyState: "Changes is written from your team's commits. Connect GitHub or run cast in a repo to start the first edition," with the existing GitHub install action.                    |
+| Quiet day                                            | "Nothing landed on main on Wed 1 Oct." Link to the previous edition. In the works still shows if branches moved.                                                                        |
+| No release signals                                   | No live strip; footer hint about tags and deploy markers.                                                                                                                               |
+| Surface with no recorded deploys                     | Tile reads "no signal yet", never a guessed version.                                                                                                                                    |
+| Private-heavy day                                    | Stories still exist from commits; footer count of sessions not shared. No placeholder ever reveals a hidden session's title.                                                            |
+| Filter hides everything                              | "No stories match these filters," with a clear-filters button.                                                                                                                          |
+| Viewer filters to a member whose sessions are hidden | Only commit-derived stories appear, by construction.                                                                                                                                    |
 
 ## 10. Build breakdown
 
@@ -578,15 +584,18 @@ Accept: 14 days of codecast editions written; total cost under $5; the verificat
 ## 11. Verification plan
 
 **Unit and convex tests** (run per file with `bun test <file>`, not the whole suite):
+
 - T2 layer 0 fixtures, T3 access matrix, T4 idempotence and key stability, T5 debounce and synchronous invalidation, T7 prose fallbacks and cap, T9 cross-team isolation.
 - A leak test end to end in convex-test: a session with a distinctive phrase in its insight summary, made private after its story is written. After `patchConversationVisibility`, no `change_stories` or `digests` row for the team contains the phrase, and the next rebuild still excludes it. Repeat with the owner's membership level set to `hidden`.
 
 **Against prod data** (read-only):
+
 - Dump the 2026-10-02 codecast day and a Littlebird day with `npx convex data` into a scratch dir outside git. Run `buildDay`'s pure core over them locally: codecast yields 6 to 20 stories with the 3 release commits as one burst; Littlebird main yields under 120 stories and branch aggregates for the rest.
 - After T14, compare the written edition against `git log` for the day: every story's shas exist on main, and no story cites a session that `teamVisibleInputs()` rejects (query script asserts this for 14 days).
 - Freeze 5 real stories and 2 editions into `EVALS_HOME`; `./evals check` must pass all gates.
 
 **Browser** (`cast browser` in the human's Chrome, own tab):
+
 - Screenshots of `/changes` for 2026-10-02 in all four themes (Solarized light and dark, minimal light, graphite dark) at 1440px and 900px wide. Check: no hardcoded Solarized hex visible under minimal and graphite, headline and lead above the fold at 900px tall.
 - States: cold cache (cleared IDB), prose pending (a story row with `prose_status: pending` stubbed through `__inboxStore`), quiet day, no-signal team, filter with zero matches.
 - Keyboard: `[`, `]`, `j`, `k`, `e`, `o`, `u`, `r`, `b`, `Esc`, and a pasted `?story=` link opening the drawer at the right story.
@@ -596,6 +605,7 @@ Accept: 14 days of codecast editions written; total cost under $5; the verificat
 ## 12. Out of scope, and later phases
 
 **Phase 2 (next):**
+
 - Week view and its standfirst.
 - All-branches prose lines in In the works.
 - Batch commit attribution through `file_changes` paths of team-visible sessions within the commit's window, shown as "attributed by edits". This needs a **team-scoped** resolver: `blame.resolveCommitSessions` and `matchFileLines` (blame.ts:134, 235) take a viewer and check access per viewer, so the build adds `resolveCommitSessionsForTeam` that only considers conversations passing `teamVisibleInputs()`.
@@ -605,6 +615,7 @@ Accept: 14 days of codecast editions written; total cost under $5; the verificat
 - Squash-merge landing: store `merge_commit_sha` from the `pull_request` closed payload (the schema has none today, and `head_sha` is the PR branch tip, not the merge commit).
 
 **Later:**
+
 - The Why box: `path` or `path:line` through `repos.getBlame`, the team-scoped resolver, landing on the story with its asks quoted.
 - Short ids for stories (`cs-N`) so chat and tasks render them as live pills.
 - A morning one-line post of the edition headline in the team channel, and a `cast changes` CLI command printing the edition.
@@ -613,6 +624,7 @@ Accept: 14 days of codecast editions written; total cost under $5; the verificat
 - Public changelog export from stories marked user-facing, replacing the hand-written `changelogData.ts`.
 
 **Open decisions for the founder:**
+
 - Whether commit bodies from sessions not shared with the team should feed prose (current default: yes, matching commit access; subjects only is a one-line change).
 - Whether Littlebird-scale days use Sonnet for the edition by default.
 
@@ -620,18 +632,18 @@ Accept: 14 days of codecast editions written; total cost under $5; the verificat
 
 ## 13. How each review flaw is resolved
 
-| Flaw | Resolution |
-|---|---|
-| Release wire only knows cli, desktop, extension | Tag pushes and `cast ship mark` from `deploy.sh` (T6); live strip shows "no signal yet" instead of implying web is not live |
-| Day unit cannot say what is live | Live strip with waiting counts on top of the edition |
-| `HEAT_COLOR` and `PROJECT_PALETTE` are hardcoded classes | New `areaColor.ts` returning `var(--sol-*)`; a guard test bans accent classes |
-| CSS columns plus hover dek jump and break j/k order | Grid of independent blocks; dek always rendered in reserved space |
-| Edition on Sonnet every recompose, 30-minute sweep | Dirty-row debounce, Haiku by default, 60-minute recompose cap, $2 daily team cap |
-| Member-level visibility ignored | `teamVisibleInputs()` applies membership level at session start; membership changes invalidate |
-| `resolveCommitSessions` is viewer-scoped | Not used in MVP; phase 2 adds a team-scoped resolver |
-| Pinch and wheel hijack browser zoom | No wheel or pinch handling |
-| Ship-log visuals collapse for single-surface teams | Edition is the main view for every team; strip appears only with signals |
-| Always-on marching dashes | No ambient motion; animate only on change |
-| Squash-merge landing via `head_sha` | Deferred until `merge_commit_sha` is stored |
-| Turns sent at `summary` visibility | Turns pass only at `full` or `detailed` |
-| Private-session commit messages | Explicit decision recorded in 8.4 and 12, counted in the footer |
+| Flaw                                                     | Resolution                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Release wire only knows cli, desktop, extension          | Tag pushes and `cast ship mark` from `deploy.sh` (T6); live strip shows "no signal yet" instead of implying web is not live |
+| Day unit cannot say what is live                         | Live strip with waiting counts on top of the edition                                                                        |
+| `HEAT_COLOR` and `PROJECT_PALETTE` are hardcoded classes | New `areaColor.ts` returning `var(--sol-*)`; a guard test bans accent classes                                               |
+| CSS columns plus hover dek jump and break j/k order      | Grid of independent blocks; dek always rendered in reserved space                                                           |
+| Edition on Sonnet every recompose, 30-minute sweep       | Dirty-row debounce, Haiku by default, 60-minute recompose cap, $2 daily team cap                                            |
+| Member-level visibility ignored                          | `teamVisibleInputs()` applies membership level at session start; membership changes invalidate                              |
+| `resolveCommitSessions` is viewer-scoped                 | Not used in MVP; phase 2 adds a team-scoped resolver                                                                        |
+| Pinch and wheel hijack browser zoom                      | No wheel or pinch handling                                                                                                  |
+| Ship-log visuals collapse for single-surface teams       | Edition is the main view for every team; strip appears only with signals                                                    |
+| Always-on marching dashes                                | No ambient motion; animate only on change                                                                                   |
+| Squash-merge landing via `head_sha`                      | Deferred until `merge_commit_sha` is stored                                                                                 |
+| Turns sent at `summary` visibility                       | Turns pass only at `full` or `detailed`                                                                                     |
+| Private-session commit messages                          | Explicit decision recorded in 8.4 and 12, counted in the footer                                                             |

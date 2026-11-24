@@ -20,7 +20,20 @@ function SignUpForm() {
   // A new account with nowhere else to go starts in the setup flow.
   const redirectTo = safeReturnTo(returnTo, "/start");
 
-  const { email, setEmail, password, setPassword, confirmPassword, setConfirmPassword, error, loading, submit: handleSubmit, pendingVerification, verified, startOver } = useEmailAuth("signUp", redirectTo);
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    error,
+    loading,
+    submit: handleSubmit,
+    pendingVerification,
+    verified,
+    startOver,
+  } = useEmailAuth("signUp", redirectTo);
 
   // Local-first: same instant bounce as the login page for a stored token.
   const localAuthed = useLocalAuth();
@@ -32,14 +45,16 @@ function SignUpForm() {
   }, [localAuthed, isAuthenticated, isLoading, router, redirectTo]);
 
   if (localAuthed || isLoading || isAuthenticated) {
-    return (
-<AppLoader />
-    );
+    return <AppLoader />;
   }
 
   if (pendingVerification) {
     return (
-      <EmailVerificationForm email={email} onVerified={verified} onBack={startOver} />
+      <EmailVerificationForm
+        email={email}
+        onVerified={verified}
+        onBack={startOver}
+      />
     );
   }
 
@@ -61,82 +76,90 @@ function SignUpForm() {
               <div className="w-full border-t border-sol-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-sol-bg-alt text-sol-text-muted">or sign up with email</span>
+              <span className="px-2 bg-sol-bg-alt text-sol-text-muted">
+                or sign up with email
+              </span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit}>
             <div className="space-y-5">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-sol-text-muted mb-2"
-              >
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "auth-error" : undefined}
-                placeholder="you@example.com"
-              />
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-sol-text-muted mb-2"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-sol-text-muted mb-2"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
+                  placeholder="Create a password"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-sol-text-muted mb-2"
+                >
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
+                  placeholder="Confirm your password"
+                />
+              </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-sol-text-muted mb-2"
+            {error && (
+              <p
+                id="auth-error"
+                role="alert"
+                className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
               >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "auth-error" : undefined}
-                placeholder="Create a password"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-sol-text-muted mb-2"
-              >
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-sol-bg/50 border border-sol-border rounded-lg text-sol-text placeholder-sol-text-dim focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:border-transparent transition-all"
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "auth-error" : undefined}
-                placeholder="Confirm your password"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p id="auth-error" role="alert" className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>
-          )}
+                {error}
+              </p>
+            )}
 
             <Button
               variant="amber"
@@ -152,7 +175,11 @@ function SignUpForm() {
           <p className="mt-6 text-center text-sm text-sol-text-muted">
             Already have an account?{" "}
             <Link
-              href={returnTo ? `/login?return_to=${encodeURIComponent(returnTo)}` : "/login"}
+              href={
+                returnTo
+                  ? `/login?return_to=${encodeURIComponent(returnTo)}`
+                  : "/login"
+              }
               className="font-medium text-sol-text-secondary underline decoration-sol-orange/70 underline-offset-2 hover:text-sol-text hover:decoration-sol-orange transition-colors"
             >
               Sign In
@@ -166,9 +193,7 @@ function SignUpForm() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={
-<AppLoader />
-    }>
+    <Suspense fallback={<AppLoader />}>
       <SignUpForm />
     </Suspense>
   );

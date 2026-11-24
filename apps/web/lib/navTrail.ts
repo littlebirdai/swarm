@@ -43,7 +43,12 @@ function depth(path: string): number {
 function siblings(a: string, b: string): boolean {
   if (placeKey(a) === placeKey(b)) return false;
   const pa = parentHref(a);
-  return !!pa && pa === parentHref(b) && depth(a) === depth(b) && placeKey(a) !== placeKey(pa);
+  return (
+    !!pa &&
+    pa === parentHref(b) &&
+    depth(a) === depth(b) &&
+    placeKey(a) !== placeKey(pa)
+  );
 }
 
 /**
@@ -57,29 +62,59 @@ function siblings(a: string, b: string): boolean {
  * - The next item of the list the person came from: replace the entry.
  * - Anything else: push.
  */
-export function stepTrail(trail: readonly TrailEntry[], path: string, move: TrailMove, now: number, title?: string): TrailEntry[] {
+export function stepTrail(
+  trail: readonly TrailEntry[],
+  path: string,
+  move: TrailMove,
+  now: number,
+  title?: string,
+): TrailEntry[] {
   const key = placeKey(path);
   const n = trail.length;
   const top = trail[n - 1];
   const entry: TrailEntry = { path, title: title ?? undefined, ts: now };
   if (top && placeKey(top.path) === key) {
-    if (top.path === path && (title === undefined || top.title === title)) return trail as TrailEntry[];
-    return [...trail.slice(0, n - 1), { ...top, path, title: title ?? top.title, ts: top.ts }];
+    if (top.path === path && (title === undefined || top.title === title))
+      return trail as TrailEntry[];
+    return [
+      ...trail.slice(0, n - 1),
+      { ...top, path, title: title ?? top.title, ts: top.ts },
+    ];
   }
   if (move === "back") {
     for (let i = n - 2; i >= 0; i--) {
-      if (placeKey(trail[i].path) === key) return [...trail.slice(0, i), { ...trail[i], path, title: title ?? trail[i].title }];
+      if (placeKey(trail[i].path) === key)
+        return [
+          ...trail.slice(0, i),
+          { ...trail[i], path, title: title ?? trail[i].title },
+        ];
     }
   }
   // A history step onto the entry below, or a move up from an item to the
   // list it was opened from (the list's own close: space on the open row),
   // is the way back, not a new step.
-  const upToBelow = move === "push" && n >= 2 && parentHref(top.path) != null && placeKey(parentHref(top.path)!) === key;
-  if ((move === "traverse" || move === "back" || upToBelow) && n >= 2 && placeKey(trail[n - 2].path) === key) {
-    return [...trail.slice(0, n - 2), { ...trail[n - 2], path, title: title ?? trail[n - 2].title }];
+  const upToBelow =
+    move === "push" &&
+    n >= 2 &&
+    parentHref(top.path) != null &&
+    placeKey(parentHref(top.path)!) === key;
+  if (
+    (move === "traverse" || move === "back" || upToBelow) &&
+    n >= 2 &&
+    placeKey(trail[n - 2].path) === key
+  ) {
+    return [
+      ...trail.slice(0, n - 2),
+      { ...trail[n - 2], path, title: title ?? trail[n - 2].title },
+    ];
   }
   if (move === "up" && top) return [...trail.slice(0, n - 1), entry];
-  if (top && n >= 2 && siblings(top.path, path) && placeKey(trail[n - 2].path) === placeKey(parentHref(path)!)) {
+  if (
+    top &&
+    n >= 2 &&
+    siblings(top.path, path) &&
+    placeKey(trail[n - 2].path) === placeKey(parentHref(path)!)
+  ) {
     return [...trail.slice(0, n - 1), entry];
   }
   const next = [...trail, entry];
@@ -88,7 +123,10 @@ export function stepTrail(trail: readonly TrailEntry[], path: string, move: Trai
 
 /** Where Back goes from `current`: the entry below it, or (when the trail
  *  has not caught up with the page yet) the top. Null on a cold start. */
-export function backEntry(trail: readonly TrailEntry[], current: string): TrailEntry | null {
+export function backEntry(
+  trail: readonly TrailEntry[],
+  current: string,
+): TrailEntry | null {
   const n = trail.length;
   if (n === 0) return null;
   const key = placeKey(current);
@@ -120,7 +158,11 @@ function load(): Trails {
 
 // The parsed trails and their version, so a render reads memory, not JSON.
 // One per document: a browser tab is one window, and sessionStorage is its own.
-const state: { trails: Trails | null; version: number; listeners: Array<() => void> } = { trails: null, version: 0, listeners: [] };
+const state: {
+  trails: Trails | null;
+  version: number;
+  listeners: Array<() => void>;
+} = { trails: null, version: 0, listeners: [] };
 
 function trails(): Trails {
   return (state.trails ??= load());
@@ -144,11 +186,19 @@ export function trailOf(scope: string): readonly TrailEntry[] {
 
 /** Record that `scope` now shows `path`. `live` names the scopes that still
  *  exist (the open app tabs), so a closed tab's trail is dropped. */
-export function recordTrail(scope: string, path: string, move: TrailMove, title?: string, live?: readonly string[]): void {
+export function recordTrail(
+  scope: string,
+  path: string,
+  move: TrailMove,
+  title?: string,
+  live?: readonly string[],
+): void {
   const all = trails();
   const cur = all[scope] ?? [];
   const next = stepTrail(cur, path, move, Date.now(), title);
-  const stale = live ? Object.keys(all).filter((k) => k !== scope && !live.includes(k)) : [];
+  const stale = live
+    ? Object.keys(all).filter((k) => k !== scope && !live.includes(k))
+    : [];
   if (next === cur && stale.length === 0) return;
   const out: Trails = { ...all, [scope]: next };
   for (const k of stale) delete out[k];

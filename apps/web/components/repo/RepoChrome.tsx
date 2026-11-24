@@ -1,7 +1,13 @@
 // The chrome every repository page shares: the header band with the
 // repository's name, the ref it is showing, a way out to GitHub, a way into a
 // window of its own, and the six tabs with their keyboard shortcuts.
-import { useCallback, useRef, useState, type ReactNode, type RefCallback } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefCallback,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -38,7 +44,15 @@ import { cn, sharePageUrl } from "../../lib/utils";
 import { repoShortcutAllowed } from "../../lib/repoContent";
 import { RepoFileFinder } from "./RepoFileFinder";
 
-export type RepoTab = "code" | "commits" | "branches" | "tags" | "pulls" | "sessions" | "search" | "worktrees";
+export type RepoTab =
+  | "code"
+  | "commits"
+  | "branches"
+  | "tags"
+  | "pulls"
+  | "sessions"
+  | "search"
+  | "worktrees";
 
 export function BranchPicker({
   branches,
@@ -55,8 +69,10 @@ export function BranchPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  const shown = [...branches.map((b) => ({ ...b, tag: false })), ...tags.map((b) => ({ ...b, tag: true }))]
-    .filter((b) => b.name.toLowerCase().includes(filter.trim().toLowerCase()));
+  const shown = [
+    ...branches.map((b) => ({ ...b, tag: false })),
+    ...tags.map((b) => ({ ...b, tag: true })),
+  ].filter((b) => b.name.toLowerCase().includes(filter.trim().toLowerCase()));
 
   return (
     <div className="relative">
@@ -67,7 +83,10 @@ export function BranchPicker({
         title="Switch branch or tag"
         aria-expanded={open}
       >
-        <GitBranch className="w-3.5 h-3.5" style={{ color: "var(--repo-accent)" }} />
+        <GitBranch
+          className="w-3.5 h-3.5"
+          style={{ color: "var(--repo-accent)" }}
+        />
         <span className="max-w-[14rem] truncate modern:font-mono">{value}</span>
         <ChevronDown className="w-3 h-3 text-sol-text-dim" />
       </button>
@@ -75,7 +94,15 @@ export function BranchPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div role="dialog" aria-label="Switch branch or tag" aria-modal="true" className="absolute z-50 mt-1 w-72 rounded-lg border border-sol-border bg-sol-card shadow-lg overflow-hidden" onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
+          <div
+            role="dialog"
+            aria-label="Switch branch or tag"
+            aria-modal="true"
+            className="absolute z-50 mt-1 w-72 rounded-lg border border-sol-border bg-sol-card shadow-lg overflow-hidden"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setOpen(false);
+            }}
+          >
             <input
               autoFocus
               value={filter}
@@ -85,7 +112,9 @@ export function BranchPicker({
             />
             <div className="max-h-72 overflow-y-auto py-1">
               {shown.length === 0 && (
-                <div className="px-2.5 py-3 text-[12px] text-sol-text-dim">No branch or tag matches.</div>
+                <div className="px-2.5 py-3 text-[12px] text-sol-text-dim">
+                  No branch or tag matches.
+                </div>
               )}
               {shown.map((branch) => (
                 <button
@@ -93,18 +122,31 @@ export function BranchPicker({
                   type="button"
                   onClick={() => {
                     setOpen(false);
-                    onPick(branch.tag ? `refs/tags/${branch.name}` : branch.name);
+                    onPick(
+                      branch.tag ? `refs/tags/${branch.name}` : branch.name,
+                    );
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-[12px] text-sol-text hover:bg-sol-bg-alt/60"
                 >
                   <Check
-                    className={cn("w-3 h-3 shrink-0", branch.name === value ? "opacity-100" : "opacity-0")}
+                    className={cn(
+                      "w-3 h-3 shrink-0",
+                      branch.name === value ? "opacity-100" : "opacity-0",
+                    )}
                     style={{ color: "var(--repo-accent)" }}
                   />
-                  <span className="truncate modern:font-mono">{branch.name}</span>
-                  {branch.tag && <span className="ml-auto text-meta text-sol-text-dim">tag</span>}
+                  <span className="truncate modern:font-mono">
+                    {branch.name}
+                  </span>
+                  {branch.tag && (
+                    <span className="ml-auto text-meta text-sol-text-dim">
+                      tag
+                    </span>
+                  )}
                   {!branch.tag && branch.name === defaultBranch && (
-                    <span className="ml-auto text-meta text-sol-text-dim">default</span>
+                    <span className="ml-auto text-meta text-sol-text-dim">
+                      default
+                    </span>
                   )}
                 </button>
               ))}
@@ -165,17 +207,75 @@ export function RepoHeader({
     [headRef],
   );
 
-  const tabs: { key: RepoTab; label: string; href: string; icon: typeof History; digit: string }[] = [
-    { key: "code", label: "Code", href: repoTreeHref(repository, refName, undefined, family), icon: Code2, digit: "1" },
-    { key: "commits", label: "Commits", href: repoCommitsHref(repository, refName, { family }), icon: History, digit: "2" },
-    { key: "branches", label: "Branches", href: repoBranchesHref(repository, family), icon: GitBranch, digit: "3" },
-    { key: "tags", label: "Tags", href: repoTagsHref(repository, family), icon: Tag, digit: "4" },
-    { key: "pulls", label: "Pull requests", href: repoPullsHref(repository, family), icon: GitPullRequest, digit: "5" },
+  const tabs: {
+    key: RepoTab;
+    label: string;
+    href: string;
+    icon: typeof History;
+    digit: string;
+  }[] = [
+    {
+      key: "code",
+      label: "Code",
+      href: repoTreeHref(repository, refName, undefined, family),
+      icon: Code2,
+      digit: "1",
+    },
+    {
+      key: "commits",
+      label: "Commits",
+      href: repoCommitsHref(repository, refName, { family }),
+      icon: History,
+      digit: "2",
+    },
+    {
+      key: "branches",
+      label: "Branches",
+      href: repoBranchesHref(repository, family),
+      icon: GitBranch,
+      digit: "3",
+    },
+    {
+      key: "tags",
+      label: "Tags",
+      href: repoTagsHref(repository, family),
+      icon: Tag,
+      digit: "4",
+    },
+    {
+      key: "pulls",
+      label: "Pull requests",
+      href: repoPullsHref(repository, family),
+      icon: GitPullRequest,
+      digit: "5",
+    },
     // The sessions that shaped the repository: the one tab GitHub has no answer to.
-    { key: "sessions", label: "Sessions", href: repoSessionsHref(repository, family), icon: MessagesSquare, digit: "6" },
-    { key: "search", label: "Search", href: repoSearchHref(repository, undefined, family), icon: Search, digit: "7" },
+    {
+      key: "sessions",
+      label: "Sessions",
+      href: repoSessionsHref(repository, family),
+      icon: MessagesSquare,
+      digit: "6",
+    },
+    {
+      key: "search",
+      label: "Search",
+      href: repoSearchHref(repository, undefined, family),
+      icon: Search,
+      digit: "7",
+    },
     // A fact about someone's machine, so only the signed in form of these pages carries it.
-    ...(family === "app" ? [{ key: "worktrees" as const, label: "Worktrees", href: repoWorktreesHref(repository), icon: FolderGit2, digit: "8" }] : []),
+    ...(family === "app"
+      ? [
+          {
+            key: "worktrees" as const,
+            label: "Worktrees",
+            href: repoWorktreesHref(repository),
+            icon: FolderGit2,
+            digit: "8",
+          },
+        ]
+      : []),
   ];
 
   useEventListener("keydown", (e: KeyboardEvent) => {
@@ -185,13 +285,27 @@ export function RepoHeader({
   });
 
   return (
-    <header ref={setBand} className="repo-band border-b border-sol-border/60 shrink-0">
+    <header
+      ref={setBand}
+      className="repo-band border-b border-sol-border/60 shrink-0"
+    >
       {/* Every repository page carries this header, so mounting the finder here
           is what makes `t` work on all of them, GitHub's own behaviour. */}
-      <RepoFileFinder repository={repository} refName={refName} family={family} anchorRef={bandRef} />
+      <RepoFileFinder
+        repository={repository}
+        refName={refName}
+        family={family}
+        anchorRef={bandRef}
+      />
       <div className="flex items-center gap-3 px-4 pt-3 pb-2 flex-wrap">
-        <h1 className="repo-head-name repo-rise flex items-baseline gap-1 min-w-0" style={{ ["--d" as string]: "0ms" }}>
-          <Link href="/repo" className="text-[13px] text-sol-text-muted hover:text-sol-text transition-colors">
+        <h1
+          className="repo-head-name repo-rise flex items-baseline gap-1 min-w-0"
+          style={{ ["--d" as string]: "0ms" }}
+        >
+          <Link
+            href="/repo"
+            className="text-[13px] text-sol-text-muted hover:text-sol-text transition-colors"
+          >
             {owner}
           </Link>
           <span className="text-sol-text-dim">/</span>
@@ -203,11 +317,18 @@ export function RepoHeader({
           </Link>
         </h1>
 
-        <div className="repo-head-actions repo-rise" style={{ ["--d" as string]: "60ms" }}>
+        <div
+          className="repo-head-actions repo-rise"
+          style={{ ["--d" as string]: "60ms" }}
+        >
           {middle}
           {trailing}
           <RepoWindowControl />
-          <CodeShareMenu url={pageUrl} label="repository" previewTitle={repository} />
+          <CodeShareMenu
+            url={pageUrl}
+            label="repository"
+            previewTitle={repository}
+          />
           <a
             href={`https://github.com/${repository}`}
             target="_blank"
@@ -230,7 +351,9 @@ export function RepoHeader({
             href={href}
             className={cn(
               "group flex items-center gap-2 border-b-2 px-3 py-1.5 text-[12px] whitespace-nowrap transition-colors",
-              tab === key ? "border-current text-sol-text" : "border-transparent text-sol-text-muted hover:text-sol-text",
+              tab === key
+                ? "border-current text-sol-text"
+                : "border-transparent text-sol-text-muted hover:text-sol-text",
             )}
             style={tab === key ? { color: "var(--repo-accent)" } : undefined}
           >

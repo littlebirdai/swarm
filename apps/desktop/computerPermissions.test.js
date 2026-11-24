@@ -50,7 +50,10 @@ test("both grants read from one CLI call", async () => {
     },
   ]);
   const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
-  assert.deepEqual(await p.getAll(), { computerAccessibility: "granted", computerScreen: "off" });
+  assert.deepEqual(await p.getAll(), {
+    computerAccessibility: "granted",
+    computerScreen: "off",
+  });
   assert.deepEqual(cli.calls, [["computer", "permissions", "--json"]]);
 });
 
@@ -64,23 +67,38 @@ test("the read never opens anything", async () => {
 });
 
 test("a CLI that cannot answer reads as unknown, so nothing nags", async () => {
-  for (const answer of [null, { ok: false, code: "accessibility_error" }, { ok: true }]) {
+  for (const answer of [
+    null,
+    { ok: false, code: "accessibility_error" },
+    { ok: true },
+  ]) {
     const cli = fakeCli([answer]);
     const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
-    assert.deepEqual(await p.getAll(), { computerAccessibility: "unknown", computerScreen: "unknown" });
+    assert.deepEqual(await p.getAll(), {
+      computerAccessibility: "unknown",
+      computerScreen: "unknown",
+    });
   }
 });
 
 test("a grant missing from the answer reads as unknown rather than denied", async () => {
-  const cli = fakeCli([{ ok: true, permissions: [{ id: "accessibility", status: "granted" }] }]);
+  const cli = fakeCli([
+    { ok: true, permissions: [{ id: "accessibility", status: "granted" }] },
+  ]);
   const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
-  assert.deepEqual(await p.getAll(), { computerAccessibility: "granted", computerScreen: "unknown" });
+  assert.deepEqual(await p.getAll(), {
+    computerAccessibility: "granted",
+    computerScreen: "unknown",
+  });
 });
 
 test("off macOS there is no such grant, and no CLI is run", async () => {
   const cli = fakeCli([GRANTED]);
   const p = createComputerPermissions({ run: cli.run, platform: "win32" });
-  assert.deepEqual(await p.getAll(), { computerAccessibility: "n/a", computerScreen: "n/a" });
+  assert.deepEqual(await p.getAll(), {
+    computerAccessibility: "n/a",
+    computerScreen: "n/a",
+  });
   assert.equal(await p.openSettings("computerAccessibility"), false);
   assert.deepEqual(cli.calls, []);
 });
@@ -93,7 +111,14 @@ test("opening settings materializes the helper first, then opens its pane", asyn
     // `capabilities` is the CLI's own materialization path; with no helper on
     // disk there is no window for --open-settings to put on screen.
     ["computer", "capabilities", "--json"],
-    ["computer", "permissions", "--open-settings", "--id", "screenshots", "--json"],
+    [
+      "computer",
+      "permissions",
+      "--open-settings",
+      "--id",
+      "screenshots",
+      "--json",
+    ],
   ]);
 });
 
@@ -101,11 +126,21 @@ test("each kind opens its own pane", async () => {
   const cli = fakeCli([{ ok: true }, { ok: true }]);
   const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
   await p.openSettings("computerAccessibility");
-  assert.deepEqual(cli.calls[1], ["computer", "permissions", "--open-settings", "--id", "accessibility", "--json"]);
+  assert.deepEqual(cli.calls[1], [
+    "computer",
+    "permissions",
+    "--open-settings",
+    "--id",
+    "accessibility",
+    "--json",
+  ]);
 });
 
 test("a refused open is reported, not swallowed as success", async () => {
-  const cli = fakeCli([{ ok: true }, { ok: false, code: "accessibility_error" }]);
+  const cli = fakeCli([
+    { ok: true },
+    { ok: false, code: "accessibility_error" },
+  ]);
   const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
   assert.equal(await p.openSettings("computerAccessibility"), false);
 });
@@ -115,16 +150,38 @@ test("a kind this module does not own is left to the shell's own permissions", a
   const p = createComputerPermissions({ run: cli.run, platform: "darwin" });
   assert.deepEqual(COMPUTER_KINDS, ["computerAccessibility", "computerScreen"]);
   for (const kind of COMPUTER_KINDS) assert.ok(p.owns(kind));
-  for (const kind of ["microphone", "camera", "screen", "notifications"]) assert.ok(!p.owns(kind));
+  for (const kind of ["microphone", "camera", "screen", "notifications"])
+    assert.ok(!p.owns(kind));
   assert.equal(await p.openSettings("screen"), false);
   assert.deepEqual(cli.calls, []);
 });
 
 test("the CLI is found where it installs itself, and an override wins", () => {
   const home = "/Users/x";
-  assert.equal(resolveCli({ env: { CODECAST_CLI: "/tmp/cast" }, home, exists: () => true }), "/tmp/cast");
-  assert.equal(resolveCli({ env: {}, home, exists: (p) => p === "/Users/x/.local/bin/cast" }), "/Users/x/.local/bin/cast");
-  assert.equal(resolveCli({ env: {}, home, exists: (p) => p === "/opt/homebrew/bin/cast" }), "/opt/homebrew/bin/cast");
+  assert.equal(
+    resolveCli({
+      env: { CODECAST_CLI: "/tmp/cast" },
+      home,
+      exists: () => true,
+    }),
+    "/tmp/cast",
+  );
+  assert.equal(
+    resolveCli({
+      env: {},
+      home,
+      exists: (p) => p === "/Users/x/.local/bin/cast",
+    }),
+    "/Users/x/.local/bin/cast",
+  );
+  assert.equal(
+    resolveCli({
+      env: {},
+      home,
+      exists: (p) => p === "/opt/homebrew/bin/cast",
+    }),
+    "/opt/homebrew/bin/cast",
+  );
   // The shell is launched from Finder, whose PATH holds none of these — a bare
   // command is the last resort, and its failure reads as unknown.
   assert.equal(resolveCli({ env: {}, home, exists: () => false }), "cast");

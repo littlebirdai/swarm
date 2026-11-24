@@ -12,25 +12,45 @@
 // the server pending_messages rail, never to a lost message. Same-origin only
 // (palette + main share an origin); BroadcastChannel never crosses it.
 
-export type ComposeOptimistic = { conversationId: string; content: string; clientId: string };
+export type ComposeOptimistic = {
+  conversationId: string;
+  content: string;
+  clientId: string;
+};
 
 const CHANNEL = "codecast-compose-optimistic";
 
 function open(): BroadcastChannel | null {
-  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return null;
-  try { return new BroadcastChannel(CHANNEL); } catch { return null; }
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined")
+    return null;
+  try {
+    return new BroadcastChannel(CHANNEL);
+  } catch {
+    return null;
+  }
 }
 
 export function broadcastComposeOptimistic(info: ComposeOptimistic): void {
   const ch = open();
   if (!ch) return;
-  try { ch.postMessage(info); } finally { ch.close(); }
+  try {
+    ch.postMessage(info);
+  } finally {
+    ch.close();
+  }
 }
 
-export function subscribeComposeOptimistic(cb: (info: ComposeOptimistic) => void): () => void {
+export function subscribeComposeOptimistic(
+  cb: (info: ComposeOptimistic) => void,
+): () => void {
   const ch = open();
   if (!ch) return () => {};
-  const handler = (e: MessageEvent) => { if (e.data?.conversationId) cb(e.data as ComposeOptimistic); };
+  const handler = (e: MessageEvent) => {
+    if (e.data?.conversationId) cb(e.data as ComposeOptimistic);
+  };
   ch.addEventListener("message", handler);
-  return () => { ch.removeEventListener("message", handler); ch.close(); };
+  return () => {
+    ch.removeEventListener("message", handler);
+    ch.close();
+  };
 }

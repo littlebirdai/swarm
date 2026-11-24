@@ -26,7 +26,12 @@ const TABLES = ["tasks", "plans", "docs", "projects"] as const;
 
 export const sweepPage = internalMutation({
   args: {
-    table: v.union(v.literal("tasks"), v.literal("plans"), v.literal("docs"), v.literal("projects")),
+    table: v.union(
+      v.literal("tasks"),
+      v.literal("plans"),
+      v.literal("docs"),
+      v.literal("projects"),
+    ),
     cursor: v.optional(v.string()),
     apply: v.optional(v.boolean()),
   },
@@ -50,9 +55,13 @@ export const sweepPage = internalMutation({
     for (const row of page.page as any[]) {
       const conv = await convOf(linkedConversationId(row));
       const expected = computeWorkspaceKey(row, conv);
-      const stored = typeof row.workspace === "string" && row.workspace ? row.workspace : undefined;
+      const stored =
+        typeof row.workspace === "string" && row.workspace
+          ? row.workspace
+          : undefined;
       if (stored === expected) continue;
-      if (stored) stale++; else missing++;
+      if (stored) stale++;
+      else missing++;
       if (stored) {
         findings.push({
           table: args.table,
@@ -60,7 +69,9 @@ export const sweepPage = internalMutation({
           title: row.title,
           stored,
           expected,
-          reason: conv ? "linked conversation visibility" : "raw team tag / owner",
+          reason: conv
+            ? "linked conversation visibility"
+            : "raw team tag / owner",
         });
       }
       if (args.apply) {
@@ -71,7 +82,10 @@ export const sweepPage = internalMutation({
     // A task whose key moved may sit on a dependency edge or parent link into
     // its old workspace, which readiness cannot read across (as in
     // recomputeWorkspaceForConversation).
-    if (movedTasks.length) await ctx.scheduler.runAfter(0, internal.taskLinks.cutCrossedEdges, { task_ids: movedTasks });
+    if (movedTasks.length)
+      await ctx.scheduler.runAfter(0, internal.taskLinks.cutCrossedEdges, {
+        task_ids: movedTasks,
+      });
 
     return {
       findings,
@@ -94,11 +108,14 @@ export const sweep = internalAction({
     for (const table of TABLES) {
       let cursor: string | undefined;
       for (;;) {
-        const res: any = await ctx.runMutation(internal.teamScopeSweep.sweepPage, {
-          table,
-          cursor,
-          apply: args.apply,
-        });
+        const res: any = await ctx.runMutation(
+          internal.teamScopeSweep.sweepPage,
+          {
+            table,
+            cursor,
+            apply: args.apply,
+          },
+        );
         findings.push(...res.findings);
         scanned += res.scanned;
         missing += res.missing;

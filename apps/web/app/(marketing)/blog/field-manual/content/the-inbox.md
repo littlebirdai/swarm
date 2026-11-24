@@ -1,4 +1,4 @@
-Run five agents and a new job appears in your day: cycling through terminals asking each one whether it needs you. Agents do not page you. They finish, or stall on a permission prompt, and wait. The inbox replaces that loop with a single computed answer for every session on every machine: *whose move is it?*
+Run five agents and a new job appears in your day: cycling through terminals asking each one whether it needs you. Agents do not page you. They finish, or stall on a permission prompt, and wait. The inbox replaces that loop with a single computed answer for every session on every machine: _whose move is it?_
 
 Every session, whether it runs Claude Code, Codex, Cursor, OpenCode or pi, on your laptop or a cloud host, lands in one list. The list is not sorted by time. It is grouped by who acts next: you, the agent, a machine, or nobody.
 
@@ -30,7 +30,7 @@ It reads what the agent's process is doing, what the transcript shows, what the 
 
 1. **Killed wins.** A killed session is idle, and nothing but a new message from you makes it look busy again.
 2. **Snooze.** A snoozed session is dormant until its time comes, then needs you.
-3. **Your own verdict.** If you filed the row yourself (dragged it into a section, or chose Mark done, Dormant or Mark needs you), it stays there. This outranks even hard blocks, because you already saw them. It expires on the next activity, so it can never hide a *new* ask.
+3. **Your own verdict.** If you filed the row yourself (dragged it into a section, or chose Mark done, Dormant or Mark needs you), it stays there. This outranks even hard blocks, because you already saw them. It expires on the next activity, so it can never hide a _new_ ask.
 4. **Hard blocks** go to Needs You: an error banner ("Please run /login", a usage limit), an open question, a permission prompt.
 5. **Producing** goes to Working: the agent is thinking, compacting, starting or resuming, or there is queued work a live machine can deliver.
 6. **Dead or unresponsive with output** goes to Needs You: someone has to read it or restart it (unless it exited right after saying it was done, the ordinary end of a scheduled run).
@@ -74,30 +74,30 @@ The parking verbs, lightest first:
 
 Two filing verbs remove nothing: **Pin** (top of the list) and **Label** (one of your personal labels; a session carries at most one, and teammates never see yours). Dragging a card into Needs You, Done or Dormant is the same verdict as the menu item. Working is not a drop target: nobody can declare that an agent is producing. Every action lands in the undo history (`Ctrl/Cmd+Z`); undoing a kill brings the card back, but the agent stays stopped until you restart it.
 
-| Action | Where in the app | Shortcut | On the phone | What happens |
-|---|---|---|---|---|
-| Reply | Composer | `Enter`; `Alt+Enter` sends and advances | Open the session, type | Lands in the agent's terminal as its next turn; card goes to Working |
-| Approve / deny | The permission prompt | `y` / `n` | Buttons on the prompt | Answers the waiting tool |
-| Defer | Triage bar, right-click | `Shift+Backspace` | | Card sinks until its next activity |
-| Dormant | Triage bar "more", right-click | `Alt+Shift+Backspace` | | Files under Dormant until the next wake |
-| Mark done / needs you | Right-click, or drag the card | | | Files the card where you put it, until the next activity |
-| Snooze | Right-click ("Snooze…") | `Alt+Z` | | Dormant until the time you pick; "Move to Needs You now" wakes it early |
-| Stash | Triage bar, right-click | `Ctrl+Backspace` | Swipe left, or long-press | Out of the inbox; agent keeps running |
-| Stash and hide | Triage bar "more", right-click | `Ctrl+Alt+Backspace` | | Stays out until an ask |
-| Kill | Triage bar, right-click | `Ctrl+Shift+Backspace` | Long-press, then confirm | Agent stopped, schedules cancelled, filed under Killed |
-| Restore | Right-click on a stashed or killed card | | | Back in the inbox (a killed agent stays stopped) |
-| Pin | Triage bar "more", right-click | `Ctrl+Shift+P`; jump to pinned with `Ctrl+P` (Mac) | Swipe right, or long-press | Top of the list, state kept underneath |
-| Label | Triage bar "more", right-click | `Ctrl+L` | Long-press, "Label…" | Files under a personal label |
-| Mark unread | Right-click | `Ctrl+Shift+U` | Long-press | Card keeps its dot until you next open it |
-| Rename | Right-click | `Ctrl+Shift+E` | | New title on the card |
-| Hand off | From an open conversation | `Alt+Shift+H` | | Picks a teammate; the session moves into their inbox |
-| Jump to most urgent | | `Ctrl+I` | | Opens the top Needs You card |
-| Cycle the view | | `Ctrl+,` | | Grouped by state, by time, or by label |
-| Everything else | Command palette | `Cmd+K` | | Search plus every verb on the selected session |
+| Action                | Where in the app                        | Shortcut                                           | On the phone               | What happens                                                            |
+| --------------------- | --------------------------------------- | -------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
+| Reply                 | Composer                                | `Enter`; `Alt+Enter` sends and advances            | Open the session, type     | Lands in the agent's terminal as its next turn; card goes to Working    |
+| Approve / deny        | The permission prompt                   | `y` / `n`                                          | Buttons on the prompt      | Answers the waiting tool                                                |
+| Defer                 | Triage bar, right-click                 | `Shift+Backspace`                                  |                            | Card sinks until its next activity                                      |
+| Dormant               | Triage bar "more", right-click          | `Alt+Shift+Backspace`                              |                            | Files under Dormant until the next wake                                 |
+| Mark done / needs you | Right-click, or drag the card           |                                                    |                            | Files the card where you put it, until the next activity                |
+| Snooze                | Right-click ("Snooze…")                 | `Alt+Z`                                            |                            | Dormant until the time you pick; "Move to Needs You now" wakes it early |
+| Stash                 | Triage bar, right-click                 | `Ctrl+Backspace`                                   | Swipe left, or long-press  | Out of the inbox; agent keeps running                                   |
+| Stash and hide        | Triage bar "more", right-click          | `Ctrl+Alt+Backspace`                               |                            | Stays out until an ask                                                  |
+| Kill                  | Triage bar, right-click                 | `Ctrl+Shift+Backspace`                             | Long-press, then confirm   | Agent stopped, schedules cancelled, filed under Killed                  |
+| Restore               | Right-click on a stashed or killed card |                                                    |                            | Back in the inbox (a killed agent stays stopped)                        |
+| Pin                   | Triage bar "more", right-click          | `Ctrl+Shift+P`; jump to pinned with `Ctrl+P` (Mac) | Swipe right, or long-press | Top of the list, state kept underneath                                  |
+| Label                 | Triage bar "more", right-click          | `Ctrl+L`                                           | Long-press, "Label…"       | Files under a personal label                                            |
+| Mark unread           | Right-click                             | `Ctrl+Shift+U`                                     | Long-press                 | Card keeps its dot until you next open it                               |
+| Rename                | Right-click                             | `Ctrl+Shift+E`                                     |                            | New title on the card                                                   |
+| Hand off              | From an open conversation               | `Alt+Shift+H`                                      |                            | Picks a teammate; the session moves into their inbox                    |
+| Jump to most urgent   |                                         | `Ctrl+I`                                           |                            | Opens the top Needs You card                                            |
+| Cycle the view        |                                         | `Ctrl+,`                                           |                            | Grouped by state, by time, or by label                                  |
+| Everything else       | Command palette                         | `Cmd+K`                                            |                            | Search plus every verb on the selected session                          |
 
 The right-click menu also carries a few session-level actions that are not triage: favorite, change the model and effort, move the session to another machine, copy its link, and delete.
 
-> **Why it matters.** The destructive chords are all Backspace variants, and they only fire from an *empty* composer. `Ctrl+Backspace` is also the system "delete previous word" key, and an earlier version stashed the selected session mid-sentence while swallowing the keystroke. Now the chords defer to the editor whenever there is text to delete, so keyboard triage is fast and typing is safe. Plain `Alt+Backspace` is unbound for the same reason; adding Shift makes it a press no editing reflex produces.
+> **Why it matters.** The destructive chords are all Backspace variants, and they only fire from an _empty_ composer. `Ctrl+Backspace` is also the system "delete previous word" key, and an earlier version stashed the selected session mid-sentence while swallowing the keystroke. Now the chords defer to the editor whenever there is text to delete, so keyboard triage is fast and typing is safe. Plain `Alt+Backspace` is unbound for the same reason; adding Shift makes it a press no editing reflex produces.
 
 ### The command palette
 
@@ -107,7 +107,7 @@ The right-click menu also carries a few session-level actions that are not triag
 
 ## Assignment decides whose inbox a session is in
 
-Three things about a session move independently: whose *account* runs it, which *machine* it runs on, and who *owns* it. Ownership is the one that decides inboxes. A session you run but do not own leaves your inbox, takes its open questions with it, and stops ringing your phone. An unowned session (most of them) stays with whoever started it.
+Three things about a session move independently: whose _account_ runs it, which _machine_ it runs on, and who _owns_ it. Ownership is the one that decides inboxes. A session you run but do not own leaves your inbox, takes its open questions with it, and stops ringing your phone. An unowned session (most of them) stays with whoever started it.
 
 - An owned session stays in the owner's inbox with no age limit and no status gate. A handoff nobody has opened in six weeks is exactly the one that must not age out.
 - A handoff clears the previous holder's stash and snooze, so the session lands where the new owner can see it. A kill is left alone; that session is retired.

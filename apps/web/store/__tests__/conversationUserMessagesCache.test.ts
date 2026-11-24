@@ -25,12 +25,21 @@ await stampCacheOwner();
 // by ensureHydrated; these tests pin the disk round-trip.
 
 const cid = (n: number) => `k${String(n).padStart(31, "0")}`;
-const um = (id: string, ts: number) => ({ _id: id, role: "user" as const, content: `msg ${id}`, timestamp: ts });
+const um = (id: string, ts: number) => ({
+  _id: id,
+  role: "user" as const,
+  content: `msg ${id}`,
+  timestamp: ts,
+});
 
 describe("conversation user-message cache", () => {
   it("round-trips the navigator list beside the message pages", async () => {
     const conv = cid(1);
-    writeConversationMessages(conv, [{ _id: "m1", role: "assistant", content: "hi", timestamp: 10 }], { hasMoreAbove: false });
+    writeConversationMessages(
+      conv,
+      [{ _id: "m1", role: "assistant", content: "hi", timestamp: 10 }],
+      { hasMoreAbove: false },
+    );
     writeConversationUserMessages(conv, [um("u1", 5), um("u2", 9)]);
     flushConversationMessages();
     const cached = await loadConversationMessages(conv);
@@ -48,7 +57,11 @@ describe("conversation user-message cache", () => {
 
   it("returns no list for a conversation that never persisted one", async () => {
     const conv = cid(3);
-    writeConversationMessages(conv, [{ _id: "m1", role: "assistant", content: "hi", timestamp: 10 }], {});
+    writeConversationMessages(
+      conv,
+      [{ _id: "m1", role: "assistant", content: "hi", timestamp: 10 }],
+      {},
+    );
     flushConversationMessages();
     const cached = await loadConversationMessages(conv);
     expect(cached?.messages.length).toBe(1);

@@ -46,7 +46,12 @@ function defaultSpawn(name: string): ProbeResult {
     timeout: 5_000,
     killSignal: "SIGKILL",
   });
-  return { status: r.status, stdout: r.stdout ?? "", signal: r.signal, error: r.error as ProbeResult["error"] };
+  return {
+    status: r.status,
+    stdout: r.stdout ?? "",
+    signal: r.signal,
+    error: r.error as ProbeResult["error"],
+  };
 }
 
 function sleepSync(ms: number): void {
@@ -96,8 +101,8 @@ export function hasBinary(name: string, opts: ProbeOptions = {}): boolean {
 
   throw new Error(
     `cannot tell whether \`${name}\` is installed: every probe failed to spawn ` +
-    `(${failures.join("; ")}). Failing instead of skipping — a suite that skips ` +
-    `itself here reports 0 pass 0 fail and reads as green (ct-49770).`,
+      `(${failures.join("; ")}). Failing instead of skipping — a suite that skips ` +
+      `itself here reports 0 pass 0 fail and reads as green (ct-49770).`,
   );
 }
 

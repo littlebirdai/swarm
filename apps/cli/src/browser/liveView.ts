@@ -18,8 +18,17 @@ import * as os from "node:os";
 import * as net from "node:net";
 import * as path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { sshDestination, sshIdentity, type RemoteHost } from "../remote/session-move.js";
-import { HLS_PORT, NOVNC_PORT, RTSP_PORT, SCREEN_DISPLAY } from "./hostScreen.js";
+import {
+  sshDestination,
+  sshIdentity,
+  type RemoteHost,
+} from "../remote/session-move.js";
+import {
+  HLS_PORT,
+  NOVNC_PORT,
+  RTSP_PORT,
+  SCREEN_DISPLAY,
+} from "./hostScreen.js";
 import { SHOT_TEMP_KIND } from "./shotFile.js";
 import { freePort } from "./instance.js";
 import { agentTempPath } from "../tempFiles.js";
@@ -36,7 +45,10 @@ export const TUNNEL_IDLE_SECONDS = 600;
 
 /** The control socket for one kind of tunnel to one host, and the file naming its local ports. */
 export function tunnelSocket(host: RemoteHost, kind: string): string {
-  return path.join(os.tmpdir(), `cast-${kind}-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`);
+  return path.join(
+    os.tmpdir(),
+    `cast-${kind}-${host.user}-${host.address.replace(/[^\w.]/g, "_")}`,
+  );
 }
 
 /**
@@ -54,47 +66,104 @@ export async function ensureHostTunnel(
   const socket = tunnelSocket(host, kind);
   const record = `${socket}.json`;
   const target = sshDestination(host);
-  const alive = spawnSync("ssh", ["-S", socket, "-O", "check", target], { stdio: "ignore", timeout: 5_000 }).status === 0;
+  const alive =
+    spawnSync("ssh", ["-S", socket, "-O", "check", target], {
+      stdio: "ignore",
+      timeout: 5_000,
+    }).status === 0;
   if (alive) {
     try {
-      const ports = JSON.parse(fs.readFileSync(record, "utf-8")).localPorts as number[];
-      if (ports.length === remotePorts.length && (await Promise.all(ports.map((p) => portAnswers(p)))).every(Boolean)) {
+      const ports = JSON.parse(fs.readFileSync(record, "utf-8"))
+        .localPorts as number[];
+      if (
+        ports.length === remotePorts.length &&
+        (await Promise.all(ports.map((p) => portAnswers(p)))).every(Boolean)
+      ) {
         return { localPorts: ports };
       }
-    } catch { /* no record: replace the tunnel */ }
-    spawnSync("ssh", ["-S", socket, "-O", "exit", target], { stdio: "ignore", timeout: 5_000 });
+    } catch {
+      /* no record: replace the tunnel */
+    }
+    spawnSync("ssh", ["-S", socket, "-O", "exit", target], {
+      stdio: "ignore",
+      timeout: 5_000,
+    });
   }
   const localPorts: number[] = [];
-  for (const p of remotePorts) localPorts.push((await portAnswers(p)) ? await freePort() : p);
+  for (const p of remotePorts)
+    localPorts.push((await portAnswers(p)) ? await freePort() : p);
   const r = spawnSync(
     "ssh",
-    [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-     "-o", "ConnectTimeout=20", "-o", "BatchMode=yes",
-     "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3",
-     "-o", "ExitOnForwardFailure=yes",
-     "-o", "ControlMaster=yes", "-o", `ControlPath=${socket}`, "-o", `ControlPersist=${TUNNEL_IDLE_SECONDS}`,
-     "-f", "-N",
-     ...remotePorts.flatMap((p, i) => ["-L", `127.0.0.1:${localPorts[i]}:127.0.0.1:${p}`]),
-     target],
+    [
+      ...sshIdentity(host),
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "ConnectTimeout=20",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ServerAliveInterval=30",
+      "-o",
+      "ServerAliveCountMax=3",
+      "-o",
+      "ExitOnForwardFailure=yes",
+      "-o",
+      "ControlMaster=yes",
+      "-o",
+      `ControlPath=${socket}`,
+      "-o",
+      `ControlPersist=${TUNNEL_IDLE_SECONDS}`,
+      "-f",
+      "-N",
+      ...remotePorts.flatMap((p, i) => [
+        "-L",
+        `127.0.0.1:${localPorts[i]}:127.0.0.1:${p}`,
+      ]),
+      target,
+    ],
     { stdio: ["ignore", "ignore", "pipe"], encoding: "utf-8", timeout: 45_000 },
   );
-  if (r.status !== 0) throw new Error(`could not open the ${kind} tunnel: ${(r.stderr || "ssh failed").trim().split("\n").pop()}`);
+  if (r.status !== 0)
+    throw new Error(
+      `could not open the ${kind} tunnel: ${(r.stderr || "ssh failed").trim().split("\n").pop()}`,
+    );
   fs.writeFileSync(record, JSON.stringify({ localPorts }));
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
-    if ((await Promise.all(localPorts.map((p) => portAnswers(p)))).every(Boolean)) {
-      const pid = Number(spawnSync("ssh", ["-S", socket, "-O", "check", target], { encoding: "utf-8", timeout: 5_000 }).stderr?.match(/pid=(\d+)/)?.[1]);
+    if (
+      (await Promise.all(localPorts.map((p) => portAnswers(p)))).every(Boolean)
+    ) {
+      const pid = Number(
+        spawnSync("ssh", ["-S", socket, "-O", "check", target], {
+          encoding: "utf-8",
+          timeout: 5_000,
+        }).stderr?.match(/pid=(\d+)/)?.[1],
+      );
       return { localPorts, tunnelPid: pid || undefined };
     }
     await sleep(400);
   }
-  spawnSync("ssh", ["-S", socket, "-O", "exit", target], { stdio: "ignore", timeout: 5_000 });
-  throw new Error(`the ${kind} tunnel opened but nothing answered — re-run \`cast hosts provision\` to install the ${kind} service`);
+  spawnSync("ssh", ["-S", socket, "-O", "exit", target], {
+    stdio: "ignore",
+    timeout: 5_000,
+  });
+  throw new Error(
+    `the ${kind} tunnel opened but nothing answered — re-run \`cast hosts provision\` to install the ${kind} service`,
+  );
 }
 
 /** Close this host's tunnel of that kind now, rather than at its idle timeout. */
 export function closeHostTunnel(host: RemoteHost, kind: string): boolean {
-  return spawnSync("ssh", ["-S", tunnelSocket(host, kind), "-O", "exit", sshDestination(host)], { stdio: "ignore", timeout: 5_000 }).status === 0;
+  return (
+    spawnSync(
+      "ssh",
+      ["-S", tunnelSocket(host, kind), "-O", "exit", sshDestination(host)],
+      { stdio: "ignore", timeout: 5_000 },
+    ).status === 0
+  );
 }
 
 /**
@@ -106,7 +175,9 @@ export function closeHostTunnel(host: RemoteHost, kind: string): boolean {
  * websockify on the box proxies to the VNC port there, and forwarding 5900
  * too collided with macOS Screen Sharing, which owns that port locally.
  */
-export async function ensureVncTunnel(host: RemoteHost): Promise<{ url: string; tunnelPid?: number }> {
+export async function ensureVncTunnel(
+  host: RemoteHost,
+): Promise<{ url: string; tunnelPid?: number }> {
   const t = await ensureHostTunnel(host, "vnc", [NOVNC_PORT]);
   return { url: hostScreenUrl(t.localPorts[0]), tunnelPid: t.tunnelPid };
 }
@@ -121,7 +192,10 @@ export interface ViewUrls {
 function portAnswers(port: number, timeoutMs = 1500): Promise<boolean> {
   return new Promise((resolve) => {
     const sock = net.connect({ host: "127.0.0.1", port });
-    const done = (up: boolean) => { sock.destroy(); resolve(up); };
+    const done = (up: boolean) => {
+      sock.destroy();
+      resolve(up);
+    };
     sock.once("connect", () => done(true));
     sock.once("error", () => done(false));
     sock.setTimeout(timeoutMs, () => done(false));
@@ -144,13 +218,28 @@ export async function ensureViewTunnel(host: RemoteHost): Promise<ViewUrls> {
  * ssh call: no stream, no tunnel, and no copy of the screen left on the host,
  * where a fixed path in /tmp was readable by every user of the box.
  */
-export function machineShot(host: RemoteHost, display = SCREEN_DISPLAY): string {
+export function machineShot(
+  host: RemoteHost,
+  display = SCREEN_DISPLAY,
+): string {
   const png = execFileSync(
     "ssh",
-    [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-     "-o", "BatchMode=yes", sshDestination(host),
-     `ffmpeg -loglevel error -f x11grab -i ${display} -frames:v 1 -f image2pipe -c:v png -`],
-    { timeout: 30_000, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 },
+    [
+      ...sshIdentity(host),
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "StrictHostKeyChecking=accept-new",
+      "-o",
+      "BatchMode=yes",
+      sshDestination(host),
+      `ffmpeg -loglevel error -f x11grab -i ${display} -frames:v 1 -f image2pipe -c:v png -`,
+    ],
+    {
+      timeout: 30_000,
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 256 * 1024 * 1024,
+    },
   );
   if (!png.length) throw new Error("the host returned no screenshot");
   const local = agentTempPath(SHOT_TEMP_KIND, `cast-machine-${Date.now()}.png`);

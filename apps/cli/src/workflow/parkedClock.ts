@@ -17,7 +17,11 @@ export class ParkedClock {
   // runs on performance.now(), which stops while the machine is suspended
   // (the daemon's suspend detection rests on the same fact: suspendClock.ts).
   private readonly offsetMs: number;
-  constructor(startMs: number, private readonly awakeNow: () => number = () => performance.now(), wallNow: () => number = Date.now) {
+  constructor(
+    startMs: number,
+    private readonly awakeNow: () => number = () => performance.now(),
+    wallNow: () => number = Date.now,
+  ) {
     // Wall time between startMs and this clock's creation counts as it was.
     this.offsetMs = wallNow() - startMs - awakeNow();
   }
@@ -28,7 +32,11 @@ export class ParkedClock {
 
   elapsed(): number {
     const now = this.now();
-    return now - this.parkedMs - (this.parkedSince === null ? 0 : now - this.parkedSince);
+    return (
+      now -
+      this.parkedMs -
+      (this.parkedSince === null ? 0 : now - this.parkedSince)
+    );
   }
 
   /** At the top of each poll: a park the last poll did not see again has ended. */
@@ -50,7 +58,10 @@ export class ParkedClock {
 }
 
 /** What a run's task waits on while a wait is open (its first one, in words), else null. */
-export async function taskWaiting(call: (route: string, body: Record<string, any>) => Promise<any>, taskId: string | undefined): Promise<string | null> {
+export async function taskWaiting(
+  call: (route: string, body: Record<string, any>) => Promise<any>,
+  taskId: string | undefined,
+): Promise<string | null> {
   if (!taskId) return null;
   const task = await call("/cli/work/get", { short_id: taskId });
   if (!task?.waiting_since) return null;

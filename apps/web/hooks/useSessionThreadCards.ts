@@ -19,12 +19,12 @@ import { useCoarseNow } from "./useCoarseNow";
  *  is off. Dep list mirrors hooks/useNeedsInputCount. */
 export function useSessionThreadCards(enabled: boolean): ThreadCardModel[] {
   const s = useTrackedStore([
-    s => sessionsWakeSig(s.sessions),
-    s => s.sessionsWithQueuedMessages,
-    s => s.blockedReviveRequestedAt,
-    s => pendingSendWakeSig(s.pendingMessages),
-    s => s.currentUser?._id,
-    s => resolveShowOld(s.clientState.ui),
+    (s) => sessionsWakeSig(s.sessions),
+    (s) => s.sessionsWithQueuedMessages,
+    (s) => s.blockedReviveRequestedAt,
+    (s) => pendingSendWakeSig(s.pendingMessages),
+    (s) => s.currentUser?._id,
+    (s) => resolveShowOld(s.clientState.ui),
   ]);
   const meId = s.currentUser?._id;
   // The chokepoint's time-driven flips (trust TTL, revive expiry, the epoch)
@@ -35,5 +35,14 @@ export function useSessionThreadCards(enabled: boolean): ThreadCardModel[] {
     const placed = placeInboxRows(s as any, { scope: "mine", now: coarseNow });
     return sessionCards(placed.needsInput);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, sessionsWakeSig(s.sessions), meId, s.sessionsWithQueuedMessages, s.blockedReviveRequestedAt, pendingSendWakeSig(s.pendingMessages), resolveShowOld(s.clientState.ui), coarseNow]);
+  }, [
+    enabled,
+    sessionsWakeSig(s.sessions),
+    meId,
+    s.sessionsWithQueuedMessages,
+    s.blockedReviveRequestedAt,
+    pendingSendWakeSig(s.pendingMessages),
+    resolveShowOld(s.clientState.ui),
+    coarseNow,
+  ]);
 }

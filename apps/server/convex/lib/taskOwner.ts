@@ -26,7 +26,10 @@ export interface TaskOwnerRef {
 
 /** Sessions bound to `task` (active_task_id), newest first. A session started
  *  to review the task judges the work and never owns it. */
-export async function boundSessionsOf(ctx: { db: any }, task: any): Promise<any[]> {
+export async function boundSessionsOf(
+  ctx: { db: any },
+  task: any,
+): Promise<any[]> {
   const out: any[] = [];
   const seen = new Set<string>();
   for (const id of task.conversation_ids ?? []) {
@@ -43,31 +46,67 @@ export async function boundSessionsOf(ctx: { db: any }, task: any): Promise<any[
 /** The session a change on `task` came from: the live session bound to it, else the newest live session that
  *  handed it off (its HANDOFF_COMMENT review comment), since an implementer often moves to other work once it does.
  *  A session reviewing the task is neither. */
-export async function changeSessionOf(ctx: { db: any }, task: any, comments: { conversation_id?: Id<"conversations">; comment_type: string; text: string; created_at: number }[]): Promise<any | null> {
-  const [bound] = (await boundSessionsOf(ctx, task)).filter((c) => !c.inbox_killed_at);
+export async function changeSessionOf(
+  ctx: { db: any },
+  task: any,
+  comments: {
+    conversation_id?: Id<"conversations">;
+    comment_type: string;
+    text: string;
+    created_at: number;
+  }[],
+): Promise<any | null> {
+  const [bound] = (await boundSessionsOf(ctx, task)).filter(
+    (c) => !c.inbox_killed_at,
+  );
   if (bound) return bound;
-  const handoffs = comments.filter((c) => c.conversation_id && c.comment_type === "review" && HANDOFF_COMMENT.test(c.text));
+  const handoffs = comments.filter(
+    (c) =>
+      c.conversation_id &&
+      c.comment_type === "review" &&
+      HANDOFF_COMMENT.test(c.text),
+  );
   for (const h of handoffs.sort((a, b) => b.created_at - a.created_at)) {
     const conv = await ctx.db.get(h.conversation_id);
-    if (conv && !conv.inbox_killed_at && String(conv.review_of_task_id ?? "") !== String(task._id)) return conv;
+    if (
+      conv &&
+      !conv.inbox_killed_at &&
+      String(conv.review_of_task_id ?? "") !== String(task._id)
+    )
+      return conv;
   }
   return null;
 }
 
 /** Is the session still doing work: a fresh daemon heartbeat, or recent
  *  activity on a row that is neither completed nor killed. */
-export async function isSessionWorking(ctx: { db: any }, conv: any, now: number): Promise<boolean> {
+export async function isSessionWorking(
+  ctx: { db: any },
+  conv: any,
+  now: number,
+): Promise<boolean> {
   if (conv.status === "completed" || conv.inbox_killed_at) return false;
   const managed = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .first();
-  if (managed && managed.agent_status !== "hibernated" && managed.agent_status !== "stopped"
-    && now - await heartbeatOf(ctx, managed) < HEARTBEAT_ALIVE_MS) return true;
+  if (
+    managed &&
+    managed.agent_status !== "hibernated" &&
+    managed.agent_status !== "stopped" &&
+    now - (await heartbeatOf(ctx, managed)) < HEARTBEAT_ALIVE_MS
+  )
+    return true;
   return now - (conv.updated_at ?? 0) < RECENT_ACTIVITY_MS;
 }
 
-async function ownerRef(ctx: { db: any }, conv: any, now: number): Promise<TaskOwnerRef> {
+async function ownerRef(
+  ctx: { db: any },
+  conv: any,
+  now: number,
+): Promise<TaskOwnerRef> {
   return {
     conversation_id: conv._id,
     short_id: conv.short_id ?? String(conv._id).slice(0, 7),
@@ -79,10 +118,18 @@ async function ownerRef(ctx: { db: any }, conv: any, now: number): Promise<TaskO
 
 function ago(ms: number): string {
   const m = Math.max(1, Math.round(ms / 60000));
-  return m < 60 ? `${m}m` : m < 48 * 60 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
+  return m < 60
+    ? `${m}m`
+    : m < 48 * 60
+      ? `${Math.round(m / 60)}h`
+      : `${Math.round(m / 1440)}d`;
 }
 
-export function ownedElsewhereMessage(task: any, owner: TaskOwnerRef, now: number): string {
+export function ownedElsewhereMessage(
+  task: any,
+  owner: TaskOwnerRef,
+  now: number,
+): string {
   const ref = task.short_id ?? String(task._id);
   const title = owner.title ? ` ("${owner.title.slice(0, 60)}")` : "";
   return [
@@ -107,11 +154,15 @@ export async function claimTaskOwnership(
   opts: { take: boolean; now?: number },
 ): Promise<{ released: TaskOwnerRef[] }> {
   const now = opts.now ?? Date.now();
-  const others = (await boundSessionsOf(ctx, task)).filter((c) => String(c._id) !== String(conv._id));
+  const others = (await boundSessionsOf(ctx, task)).filter(
+    (c) => String(c._id) !== String(conv._id),
+  );
   const refs = await Promise.all(others.map((c) => ownerRef(ctx, c, now)));
   const liveOwner = refs.find((r) => r.live);
-  if (liveOwner && !opts.take) throw new Error(ownedElsewhereMessage(task, liveOwner, now));
-  for (const other of others) await ctx.db.patch(other._id, { active_task_id: undefined });
+  if (liveOwner && !opts.take)
+    throw new Error(ownedElsewhereMessage(task, liveOwner, now));
+  for (const other of others)
+    await ctx.db.patch(other._id, { active_task_id: undefined });
   if (String(conv.active_task_id ?? "") !== String(task._id)) {
     await ctx.db.patch(conv._id, { active_task_id: task._id });
   }

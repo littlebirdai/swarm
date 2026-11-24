@@ -17,7 +17,12 @@
 // A leaf: no store, no call manager. The guest page (app/meet) builds its
 // room from these same options without either.
 import type { JoinPrefs } from "./joinPrefs";
-import type { RoomOptions, ScreenShareCaptureOptions, TrackPublishOptions, VideoEncoding } from "livekit-client";
+import type {
+  RoomOptions,
+  ScreenShareCaptureOptions,
+  TrackPublishOptions,
+  VideoEncoding,
+} from "livekit-client";
 
 export const SCREEN_SHARE_ENCODING: VideoEncoding = {
   maxBitrate: 6_000_000,
@@ -58,7 +63,9 @@ export function micConstraints(deviceId?: string): MediaTrackConstraints {
   };
 }
 
-export function huddleRoomOptions(prefs: Pick<JoinPrefs, "micDeviceId" | "cameraDeviceId" | "speakerDeviceId">): RoomOptions {
+export function huddleRoomOptions(
+  prefs: Pick<JoinPrefs, "micDeviceId" | "cameraDeviceId" | "speakerDeviceId">,
+): RoomOptions {
   return {
     adaptiveStream: { pixelDensity: "screen" },
     dynacast: true,
@@ -66,7 +73,9 @@ export function huddleRoomOptions(prefs: Pick<JoinPrefs, "micDeviceId" | "camera
     videoCaptureDefaults: prefs.cameraDeviceId
       ? { deviceId: { ideal: prefs.cameraDeviceId } }
       : {},
-    ...(prefs.speakerDeviceId ? { audioOutput: { deviceId: prefs.speakerDeviceId } } : {}),
+    ...(prefs.speakerDeviceId
+      ? { audioOutput: { deviceId: prefs.speakerDeviceId } }
+      : {}),
     publishDefaults: {
       screenShareEncoding: SCREEN_SHARE_PUBLISH.screenShareEncoding,
       degradationPreference: SCREEN_SHARE_PUBLISH.degradationPreference,

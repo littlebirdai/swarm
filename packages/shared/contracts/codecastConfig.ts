@@ -28,7 +28,8 @@ import { CODECAST_KEYS_PATH } from "./codecastSignature";
 export const CODECAST_CONFIG_FILE = "codecast.json";
 
 /** Codecast's prod ingest door, when a file names no endpoint. */
-export const DEFAULT_CODECAST_ENDPOINT = "https://convex.codecast.sh/cli/ingest";
+export const DEFAULT_CODECAST_ENDPOINT =
+  "https://convex.codecast.sh/cli/ingest";
 
 export interface CodecastConfigSource {
   id: string;
@@ -61,42 +62,74 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** A codecast.json as read, checked, or every problem with it. Unknown keys are refused: a misplaced secret must not ride in quietly. */
-export function parseCodecastConfig(raw: unknown): { ok: true; config: CodecastConfig } | { ok: false; errors: string[] } {
-  if (!isObject(raw)) return { ok: false, errors: ["codecast.json is not a JSON object"] };
+export function parseCodecastConfig(
+  raw: unknown,
+): { ok: true; config: CodecastConfig } | { ok: false; errors: string[] } {
+  if (!isObject(raw))
+    return { ok: false, errors: ["codecast.json is not a JSON object"] };
   const errors: string[] = [];
   for (const key of Object.keys(raw)) {
-    if (!["$schema", "endpoint", "ingestKey", "sources", "replay"].includes(key)) errors.push(`unknown key "${key}"`);
+    if (
+      !["$schema", "endpoint", "ingestKey", "sources", "replay"].includes(key)
+    )
+      errors.push(`unknown key "${key}"`);
   }
   const config: CodecastConfig = { sources: {} };
   if (raw.replay !== undefined) {
-    if (!isObject(raw.replay)) errors.push('replay must be an object { "dom"?, "sampleRate"? }');
+    if (!isObject(raw.replay))
+      errors.push('replay must be an object { "dom"?, "sampleRate"? }');
     else {
       const r = raw.replay;
       const replay: CodecastReplayConfig = {};
-      for (const key of Object.keys(r)) if (key !== "dom" && key !== "sampleRate") errors.push(`unknown key "replay.${key}"`);
+      for (const key of Object.keys(r))
+        if (key !== "dom" && key !== "sampleRate")
+          errors.push(`unknown key "replay.${key}"`);
       if (r.dom !== undefined) {
-        if (!(REPLAY_DOM_MODES as readonly unknown[]).includes(r.dom)) errors.push(`replay.dom must be one of ${REPLAY_DOM_MODES.map((m) => `"${m}"`).join(", ")}`);
+        if (!(REPLAY_DOM_MODES as readonly unknown[]).includes(r.dom))
+          errors.push(
+            `replay.dom must be one of ${REPLAY_DOM_MODES.map((m) => `"${m}"`).join(", ")}`,
+          );
         else replay.dom = r.dom as ReplayDomMode;
       }
       if (r.sampleRate !== undefined) {
-        if (typeof r.sampleRate !== "number" || !(r.sampleRate >= 0 && r.sampleRate <= 1)) errors.push("replay.sampleRate must be a number from 0 to 1");
+        if (
+          typeof r.sampleRate !== "number" ||
+          !(r.sampleRate >= 0 && r.sampleRate <= 1)
+        )
+          errors.push("replay.sampleRate must be a number from 0 to 1");
         else replay.sampleRate = r.sampleRate;
       }
       config.replay = replay;
     }
   }
   if (raw.endpoint !== undefined) {
-    if (typeof raw.endpoint !== "string" || !/^https?:\/\/[^\s]+$/.test(raw.endpoint)) errors.push("endpoint must be an http(s) URL");
+    if (
+      typeof raw.endpoint !== "string" ||
+      !/^https?:\/\/[^\s]+$/.test(raw.endpoint)
+    )
+      errors.push("endpoint must be an http(s) URL");
     else config.endpoint = raw.endpoint.replace(/\/+$/, "");
   }
   if (raw.ingestKey !== undefined) {
-    if (typeof raw.ingestKey !== "string" || !INGEST_KEY.test(raw.ingestKey)) errors.push("ingestKey must be a cc_ing_ key");
+    if (typeof raw.ingestKey !== "string" || !INGEST_KEY.test(raw.ingestKey))
+      errors.push("ingestKey must be a cc_ing_ key");
     else config.ingestKey = raw.ingestKey;
   }
-  if (raw.sources !== undefined && !isObject(raw.sources)) errors.push("sources must be an object of name to { id, workspace }");
-  for (const [name, s] of Object.entries(isObject(raw.sources) ? raw.sources : {})) {
-    if (!isObject(s) || typeof s.id !== "string" || !SOURCE_ID.test(s.id) || typeof s.workspace !== "string" || !WORKSPACE.test(s.workspace)) {
-      errors.push(`sources.${name} must be { "id": "src-N", "workspace": "team:<id>" or "user:<id>" }`);
+  if (raw.sources !== undefined && !isObject(raw.sources))
+    errors.push("sources must be an object of name to { id, workspace }");
+  for (const [name, s] of Object.entries(
+    isObject(raw.sources) ? raw.sources : {},
+  )) {
+    if (
+      !isObject(s) ||
+      typeof s.id !== "string" ||
+      !SOURCE_ID.test(s.id) ||
+      typeof s.workspace !== "string" ||
+      !WORKSPACE.test(s.workspace)
+    ) {
+      errors.push(
+        `sources.${name} must be { "id": "src-N", "workspace": "team:<id>" or "user:<id>" }`,
+      );
       continue;
     }
     config.sources[name] = { id: s.id, workspace: s.workspace };
@@ -112,17 +145,35 @@ export function parseCodecastConfig(raw: unknown): { ok: true; config: CodecastC
  */
 export function mergeCodecastConfig(
   existing: CodecastConfig | null,
-  add: { name: string; source: CodecastConfigSource; ingestKey?: string; endpoint?: string },
+  add: {
+    name: string;
+    source: CodecastConfigSource;
+    ingestKey?: string;
+    endpoint?: string;
+  },
 ): { config: CodecastConfig; changes: string[] } {
-  const config: CodecastConfig = { ...(existing ?? {}), sources: { ...(existing?.sources ?? {}) } };
+  const config: CodecastConfig = {
+    ...(existing ?? {}),
+    sources: { ...(existing?.sources ?? {}) },
+  };
   const changes: string[] = [];
   const prior = config.sources[add.name];
-  if (!prior || prior.id !== add.source.id || prior.workspace !== add.source.workspace) {
+  if (
+    !prior ||
+    prior.id !== add.source.id ||
+    prior.workspace !== add.source.workspace
+  ) {
     config.sources[add.name] = add.source;
-    changes.push(`sources.${add.name} = ${add.source.id} (${add.source.workspace})`);
+    changes.push(
+      `sources.${add.name} = ${add.source.id} (${add.source.workspace})`,
+    );
   }
   if (add.ingestKey && config.ingestKey !== add.ingestKey) {
-    changes.push(config.ingestKey ? `ingestKey replaced (was ${config.ingestKey.slice(0, 12)}...)` : "ingestKey set");
+    changes.push(
+      config.ingestKey
+        ? `ingestKey replaced (was ${config.ingestKey.slice(0, 12)}...)`
+        : "ingestKey set",
+    );
     config.ingestKey = add.ingestKey;
   }
   const endpoint = add.endpoint?.replace(/\/+$/, "");
@@ -134,7 +185,11 @@ export function mergeCodecastConfig(
   const ordered: CodecastConfig = {
     ...(config.endpoint ? { endpoint: config.endpoint } : {}),
     ...(config.ingestKey ? { ingestKey: config.ingestKey } : {}),
-    sources: Object.fromEntries(Object.keys(config.sources).sort().map((k) => [k, config.sources[k]])),
+    sources: Object.fromEntries(
+      Object.keys(config.sources)
+        .sort()
+        .map((k) => [k, config.sources[k]]),
+    ),
     ...(config.replay ? { replay: config.replay } : {}),
   };
   return { config: ordered, changes };
@@ -145,11 +200,15 @@ export function formatCodecastConfig(config: CodecastConfig): string {
 }
 
 /** The ingest door a config posts to. */
-export function codecastEndpointOf(config: Pick<CodecastConfig, "endpoint"> | null | undefined): string {
+export function codecastEndpointOf(
+  config: Pick<CodecastConfig, "endpoint"> | null | undefined,
+): string {
   return (config?.endpoint || DEFAULT_CODECAST_ENDPOINT).replace(/\/+$/, "");
 }
 
 /** Where a config's codecast publishes its signing keys: the endpoint's origin. */
-export function codecastKeysUrlOf(config: Pick<CodecastConfig, "endpoint"> | null | undefined): string {
+export function codecastKeysUrlOf(
+  config: Pick<CodecastConfig, "endpoint"> | null | undefined,
+): string {
   return `${new URL(codecastEndpointOf(config)).origin}${CODECAST_KEYS_PATH}`;
 }

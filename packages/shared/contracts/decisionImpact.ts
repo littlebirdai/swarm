@@ -8,7 +8,10 @@ export const IMPACT_UNSCORED = 3;
 /** Why a proposed impact is unusable, or null when it is a whole number on the scale. */
 export function invalidImpact(impact: unknown): string | null {
   if (impact === undefined) return null;
-  return typeof impact === "number" && Number.isInteger(impact) && impact >= IMPACT_MIN && impact <= IMPACT_MAX
+  return typeof impact === "number" &&
+    Number.isInteger(impact) &&
+    impact >= IMPACT_MIN &&
+    impact <= IMPACT_MAX
     ? null
     : `impact is a whole number from ${IMPACT_MIN} to ${IMPACT_MAX}`;
 }
@@ -19,6 +22,9 @@ export function impactOf(row: { impact?: number | null }): number {
 }
 
 /** Higher impact first; equal impact compares as 0 so the caller's next key decides. */
-export function byImpact(a: { impact?: number | null }, b: { impact?: number | null }): number {
+export function byImpact(
+  a: { impact?: number | null },
+  b: { impact?: number | null },
+): number {
   return impactOf(b) - impactOf(a);
 }

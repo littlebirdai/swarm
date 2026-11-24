@@ -163,7 +163,10 @@ describe("resourceMonitor", () => {
         [SUBAGENT, process.pid],
         [PARENT, process.pid],
       ]);
-      const result = await collectSessionResources(sessionPids, new Set([SUBAGENT]));
+      const result = await collectSessionResources(
+        sessionPids,
+        new Set([SUBAGENT]),
+      );
 
       const parent = result.get(PARENT)!;
       expect(parent.pidCount).toBeGreaterThanOrEqual(1);
@@ -185,8 +188,15 @@ describe("resourceMonitor", () => {
         [SUBAGENT, process.pid],
         [PARENT, process.pid],
       ]);
-      const result = await collectSessionResources(sessionPids, new Set([SUBAGENT, PARENT]));
-      expect([...result.values()].every((r) => r.sharesRootPid === true && r.pidCount === 0)).toBe(true);
+      const result = await collectSessionResources(
+        sessionPids,
+        new Set([SUBAGENT, PARENT]),
+      );
+      expect(
+        [...result.values()].every(
+          (r) => r.sharesRootPid === true && r.pidCount === 0,
+        ),
+      ).toBe(true);
     });
 
     it("picks the same winner regardless of insertion order", async () => {
@@ -195,10 +205,18 @@ describe("resourceMonitor", () => {
       // followed iteration order, the credited session would alternate and both
       // sessions' graphs would flicker.
       const forward = await collectSessionResources(
-        new Map([[PARENT, process.pid], [SUBAGENT, process.pid]]), new Set(),
+        new Map([
+          [PARENT, process.pid],
+          [SUBAGENT, process.pid],
+        ]),
+        new Set(),
       );
       const reverse = await collectSessionResources(
-        new Map([[SUBAGENT, process.pid], [PARENT, process.pid]]), new Set(),
+        new Map([
+          [SUBAGENT, process.pid],
+          [PARENT, process.pid],
+        ]),
+        new Set(),
       );
       const winner = (m: Map<string, SessionResources>) =>
         [...m.values()].find((r) => r.pidCount > 0)!.sessionId;
@@ -225,13 +243,31 @@ describe("resourceMonitor", () => {
 
     it("accumulates idle time across awake ticks", () => {
       let idle = 0;
-      idle = nextAwakeIdleMs({ prevIdleMs: idle, cpu: 0.1, status: "idle", elapsedMs: TICK, sleepSkip: false });
-      idle = nextAwakeIdleMs({ prevIdleMs: idle, cpu: 0.0, status: "connected", elapsedMs: TICK, sleepSkip: false });
+      idle = nextAwakeIdleMs({
+        prevIdleMs: idle,
+        cpu: 0.1,
+        status: "idle",
+        elapsedMs: TICK,
+        sleepSkip: false,
+      });
+      idle = nextAwakeIdleMs({
+        prevIdleMs: idle,
+        cpu: 0.0,
+        status: "connected",
+        elapsedMs: TICK,
+        sleepSkip: false,
+      });
       expect(idle).toBe(2 * TICK);
     });
 
     it("pauses, but does not reset, on a CPU reading above the floor with a resting status", () => {
-      const idle = nextAwakeIdleMs({ prevIdleMs: 5 * TICK, cpu: 25, status: "idle", elapsedMs: TICK, sleepSkip: false });
+      const idle = nextAwakeIdleMs({
+        prevIdleMs: 5 * TICK,
+        cpu: 25,
+        status: "idle",
+        elapsedMs: TICK,
+        sleepSkip: false,
+      });
       expect(idle).toBe(5 * TICK);
     });
 
@@ -245,7 +281,13 @@ describe("resourceMonitor", () => {
       while (ticks < 1200) {
         ticks++;
         const cpu = ticks % 20 === 0 ? 4.9 : 0.3;
-        idle = nextAwakeIdleMs({ prevIdleMs: idle, cpu, status: "idle", elapsedMs: TICK, sleepSkip: false });
+        idle = nextAwakeIdleMs({
+          prevIdleMs: idle,
+          cpu,
+          status: "idle",
+          elapsedMs: TICK,
+          sleepSkip: false,
+        });
       }
       // 1200 ticks, 60 of them paused: 1140 × 30s = 9.5h banked.
       expect(idle).toBe(1140 * TICK);
@@ -253,7 +295,13 @@ describe("resourceMonitor", () => {
     });
 
     it("resets to 0 on a working status even at near-zero CPU (blocked on a tool/network call)", () => {
-      const idle = nextAwakeIdleMs({ prevIdleMs: 5 * TICK, cpu: 0.0, status: "working", elapsedMs: TICK, sleepSkip: false });
+      const idle = nextAwakeIdleMs({
+        prevIdleMs: 5 * TICK,
+        cpu: 0.0,
+        status: "working",
+        elapsedMs: TICK,
+        sleepSkip: false,
+      });
       expect(idle).toBe(0);
     });
 
@@ -266,8 +314,12 @@ describe("resourceMonitor", () => {
       // kept resetting it; nothing would now.
       const banked = 90 * 60 * 1000;
       const after = nextAwakeIdleMs({
-        prevIdleMs: banked, cpu: 0, status: undefined, elapsedMs: TICK,
-        sleepSkip: false, sharesRootPid: true,
+        prevIdleMs: banked,
+        cpu: 0,
+        status: undefined,
+        elapsedMs: TICK,
+        sleepSkip: false,
+        sharesRootPid: true,
       });
       expect(after).toBe(banked);
     });
@@ -276,15 +328,23 @@ describe("resourceMonitor", () => {
       // Order matters: the activity test runs before the carry-forward, so a
       // stale total can't survive on a session the agent says is working.
       const after = nextAwakeIdleMs({
-        prevIdleMs: 90 * 60 * 1000, cpu: 0, status: "working", elapsedMs: TICK,
-        sleepSkip: false, sharesRootPid: true,
+        prevIdleMs: 90 * 60 * 1000,
+        cpu: 0,
+        status: "working",
+        elapsedMs: TICK,
+        sleepSkip: false,
+        sharesRootPid: true,
       });
       expect(after).toBe(0);
     });
 
     it("an ordinary session still accrues normally (sharesRootPid absent)", () => {
       const after = nextAwakeIdleMs({
-        prevIdleMs: TICK, cpu: 0, status: "idle", elapsedMs: TICK, sleepSkip: false,
+        prevIdleMs: TICK,
+        cpu: 0,
+        status: "idle",
+        elapsedMs: TICK,
+        sleepSkip: false,
       });
       expect(after).toBe(2 * TICK);
     });
@@ -292,14 +352,26 @@ describe("resourceMonitor", () => {
     it("does NOT count a sleep gap as idle (laptop closed for 2h)", () => {
       const before = 10 * 60 * 1000; // 10 min of genuine awake-idle already banked
       const twoHourGap = 2 * 60 * 60 * 1000;
-      const after = nextAwakeIdleMs({ prevIdleMs: before, cpu: 0.0, status: "idle", elapsedMs: twoHourGap, sleepSkip: true });
+      const after = nextAwakeIdleMs({
+        prevIdleMs: before,
+        cpu: 0.0,
+        status: "idle",
+        elapsedMs: twoHourGap,
+        sleepSkip: true,
+      });
       // The frozen 2h is excluded — the counter is unchanged, so reopening the
       // lid does not suddenly mark the session killable.
       expect(after).toBe(before);
     });
 
     it("treats undefined status as not-working (idle accrues on low CPU)", () => {
-      const idle = nextAwakeIdleMs({ prevIdleMs: 0, cpu: 0.0, status: undefined, elapsedMs: TICK, sleepSkip: false });
+      const idle = nextAwakeIdleMs({
+        prevIdleMs: 0,
+        cpu: 0.0,
+        status: undefined,
+        elapsedMs: TICK,
+        sleepSkip: false,
+      });
       expect(idle).toBe(TICK);
     });
   });
@@ -307,15 +379,32 @@ describe("resourceMonitor", () => {
   describe("awake idle snapshot", () => {
     const NOW = 1_800_000_000_000;
     const H = 3600_000;
-    const raw = (idle: Record<string, number>, at: number, size: Record<string, number> = {}) => JSON.stringify({ at, idle, size });
+    const raw = (
+      idle: Record<string, number>,
+      at: number,
+      size: Record<string, number> = {},
+    ) => JSON.stringify({ at, idle, size });
 
     it("decodes a snapshot and rejects a future stamp, one past the sanity bound, malformed text and junk values", () => {
-      const snap = decodeAwakeIdleSnapshot(raw({ a: "9" as any, b: -1, c: 0, d: 12 }, NOW, { d: 100, e: -5 as any }), NOW + 40_000);
+      const snap = decodeAwakeIdleSnapshot(
+        raw({ a: "9" as any, b: -1, c: 0, d: 12 }, NOW, {
+          d: 100,
+          e: -5 as any,
+        }),
+        NOW + 40_000,
+      );
       expect(snap?.at).toBe(NOW);
       expect(snap?.idle).toEqual(new Map([["d", 12]]));
       expect(snap?.size).toEqual(new Map([["d", 100]]));
-      expect(decodeAwakeIdleSnapshot(raw({ a: 5 }, NOW + 60_000), NOW)).toBeNull();
-      expect(decodeAwakeIdleSnapshot(raw({ a: 5 }, NOW), NOW + AWAKE_IDLE_SNAPSHOT_MAX_AGE_MS + 1)).toBeNull();
+      expect(
+        decodeAwakeIdleSnapshot(raw({ a: 5 }, NOW + 60_000), NOW),
+      ).toBeNull();
+      expect(
+        decodeAwakeIdleSnapshot(
+          raw({ a: 5 }, NOW),
+          NOW + AWAKE_IDLE_SNAPSHOT_MAX_AGE_MS + 1,
+        ),
+      ).toBeNull();
       expect(decodeAwakeIdleSnapshot("{not json", NOW)).toBeNull();
     });
 
@@ -325,14 +414,32 @@ describe("resourceMonitor", () => {
       // rule dropped 15 of 16 counters at the restart after the next sleep
       // (2026-09-24): something touches every transcript in a batch without
       // adding content, so mtime moved while the tail stayed hours old.
-      const snap = decodeAwakeIdleSnapshot(raw({ slept: 6.6 * H }, NOW, { slept: 4096 }), NOW + 17 * H)!;
+      const snap = decodeAwakeIdleSnapshot(
+        raw({ slept: 6.6 * H }, NOW, { slept: 4096 }),
+        NOW + 17 * H,
+      )!;
       const kept = restorableAwakeIdle(snap, new Map([["slept", 4096]]));
       expect(kept.get("slept")).toBe(6.6 * H);
     });
 
     it("drops a counter whose transcript grew since the snapshot, and one whose size is unknown on either side", () => {
-      const snap = decodeAwakeIdleSnapshot(raw({ worked: 5 * H, unknown: 5 * H, unrecorded: 5 * H, still: 5 * H }, NOW, { worked: 100, unknown: 100, still: 100 }), NOW + 60_000)!;
-      const kept = restorableAwakeIdle(snap, new Map([["worked", 160], ["unknown", undefined], ["unrecorded", 100], ["still", 100]]));
+      const snap = decodeAwakeIdleSnapshot(
+        raw(
+          { worked: 5 * H, unknown: 5 * H, unrecorded: 5 * H, still: 5 * H },
+          NOW,
+          { worked: 100, unknown: 100, still: 100 },
+        ),
+        NOW + 60_000,
+      )!;
+      const kept = restorableAwakeIdle(
+        snap,
+        new Map([
+          ["worked", 160],
+          ["unknown", undefined],
+          ["unrecorded", 100],
+          ["still", 100],
+        ]),
+      );
       expect([...kept.keys()]).toEqual(["still"]);
     });
 
@@ -341,7 +448,16 @@ describe("resourceMonitor", () => {
       clock.restore(new Map([["held", 3 * H]]), NOW);
       clock.set("live", H);
       expect(clock.sessionIds(NOW).sort()).toEqual(["held", "live"]);
-      const snap = JSON.parse(clock.encode(NOW, new Map([["held", 10], ["live", 20], ["stranger", 30]])));
+      const snap = JSON.parse(
+        clock.encode(
+          NOW,
+          new Map([
+            ["held", 10],
+            ["live", 20],
+            ["stranger", 30],
+          ]),
+        ),
+      );
       expect(snap.idle).toEqual({ held: 3 * H, live: H });
       expect(snap.size).toEqual({ held: 10, live: 20 });
     });
@@ -353,7 +469,13 @@ describe("resourceMonitor", () => {
 
     it("carries the counters across a daemon restart", () => {
       const clock = new AwakeIdleClock();
-      clock.restore(new Map([["a", 7 * 3600_000], ["b", 90_000]]), NOW + 40_000);
+      clock.restore(
+        new Map([
+          ["a", 7 * 3600_000],
+          ["b", 90_000],
+        ]),
+        NOW + 40_000,
+      );
       expect(clock.previous("a", NOW + 40_000)).toBe(7 * 3600_000);
       expect(clock.previous("b", NOW + 40_000)).toBe(90_000);
       expect(clock.previous("c", NOW + 40_000)).toBe(0);
@@ -364,7 +486,13 @@ describe("resourceMonitor", () => {
       // pruning on it erased the other sessions' restored counters (2026-09-19,
       // 56 of 96 sessions on the first tick).
       const clock = new AwakeIdleClock();
-      clock.restore(new Map([["seen", 3600_000], ["late", 5 * 3600_000]]), NOW);
+      clock.restore(
+        new Map([
+          ["seen", 3600_000],
+          ["late", 5 * 3600_000],
+        ]),
+        NOW,
+      );
       clock.set("seen", 3600_000 + TICK);
       clock.prune(new Set(["seen"]), NOW + TICK);
       expect(clock.get("late")).toBe(0); // not a live session yet, so nothing reads it as idle
@@ -380,11 +508,29 @@ describe("resourceMonitor", () => {
       // that contract: a restore that precedes the first set is honored.
       const clock = new AwakeIdleClock();
       clock.restore(new Map([["a", 5 * 3600_000]]), NOW);
-      clock.set("a", nextAwakeIdleMs({ prevIdleMs: clock.previous("a", NOW), cpu: 0, status: "idle", elapsedMs: 0, sleepSkip: true }));
+      clock.set(
+        "a",
+        nextAwakeIdleMs({
+          prevIdleMs: clock.previous("a", NOW),
+          cpu: 0,
+          status: "idle",
+          elapsedMs: 0,
+          sleepSkip: true,
+        }),
+      );
       expect(clock.get("a")).toBe(5 * 3600_000);
       // And the failure shape, so the test names what a late restore does.
       const late = new AwakeIdleClock();
-      late.set("a", nextAwakeIdleMs({ prevIdleMs: late.previous("a", NOW), cpu: 0, status: "idle", elapsedMs: 0, sleepSkip: true }));
+      late.set(
+        "a",
+        nextAwakeIdleMs({
+          prevIdleMs: late.previous("a", NOW),
+          cpu: 0,
+          status: "idle",
+          elapsedMs: 0,
+          sleepSkip: true,
+        }),
+      );
       late.restore(new Map([["a", 5 * 3600_000]]), NOW);
       expect(late.previous("a", NOW + TICK)).toBe(0);
     });
@@ -397,12 +543,21 @@ describe("resourceMonitor", () => {
       // across the night gone, on a daemon that never restarted.
       const clock = new AwakeIdleClock();
       clock.set("a", 5 * 3600_000);
-      clock.prune(new Set(), NOW);                      // tick 1: not collected
-      clock.prune(new Set(), NOW + TICK);               // tick 2: still not collected
-      expect(clock.get("a")).toBe(0);                   // nobody reads a held counter as idle
+      clock.prune(new Set(), NOW); // tick 1: not collected
+      clock.prune(new Set(), NOW + TICK); // tick 2: still not collected
+      expect(clock.get("a")).toBe(0); // nobody reads a held counter as idle
       expect(JSON.parse(clock.encode(NOW + TICK)).idle.a).toBe(5 * 3600_000); // but the snapshot keeps it
       const back = NOW + 2 * TICK;
-      clock.set("a", nextAwakeIdleMs({ prevIdleMs: clock.previous("a", back), cpu: 0, status: "idle", elapsedMs: TICK, sleepSkip: false }));
+      clock.set(
+        "a",
+        nextAwakeIdleMs({
+          prevIdleMs: clock.previous("a", back),
+          cpu: 0,
+          status: "idle",
+          elapsedMs: TICK,
+          sleepSkip: false,
+        }),
+      );
       expect(clock.get("a")).toBe(5 * 3600_000 + TICK);
     });
 
@@ -422,11 +577,13 @@ describe("resourceMonitor", () => {
       clock.set("gone", TICK);
       const after = NOW + AWAKE_IDLE_RESTORE_CLAIM_MS;
       clock.prune(new Set(), after);
-      expect(clock.previous("late", after)).toBe(0);      // restored at NOW, never claimed: expired
-      expect(clock.get("gone")).toBe(0);                   // not collected this tick: not live
+      expect(clock.previous("late", after)).toBe(0); // restored at NOW, never claimed: expired
+      expect(clock.get("gone")).toBe(0); // not collected this tick: not live
       expect(JSON.parse(clock.encode(after)).idle).toEqual({ gone: TICK }); // but held for its own window
       clock.prune(new Set(), after + AWAKE_IDLE_RESTORE_CLAIM_MS);
-      expect(JSON.parse(clock.encode(after + AWAKE_IDLE_RESTORE_CLAIM_MS)).idle).toEqual({});
+      expect(
+        JSON.parse(clock.encode(after + AWAKE_IDLE_RESTORE_CLAIM_MS)).idle,
+      ).toEqual({});
     });
   });
 
@@ -438,13 +595,16 @@ describe("resourceMonitor", () => {
 
     it("should format session resources", () => {
       const resources = new Map([
-        ["abcdef12-3456-7890", {
-          sessionId: "abcdef12-3456-7890",
-          cpu: 15.5,
-          memory: 104857600,
-          pidCount: 5,
-          collectedAt: Date.now(),
-        }],
+        [
+          "abcdef12-3456-7890",
+          {
+            sessionId: "abcdef12-3456-7890",
+            cpu: 15.5,
+            memory: 104857600,
+            pidCount: 5,
+            collectedAt: Date.now(),
+          },
+        ],
       ]);
       const result = formatResourcesLog(resources);
       expect(result).toContain("abcdef1");
@@ -459,10 +619,31 @@ describe("resourceMonitor", () => {
       // session, which is exactly what made the live misattribution unreadable.
       const parent = "019fb73a-a85c-7d31-b0a2-3f9c5e2d8a41";
       const subagent = "019fb73a-a740-7c02-9e11-6b4d0a7f3c88";
-      const result = formatResourcesLog(new Map([
-        [parent, { sessionId: parent, cpu: 12, memory: 104857600, pidCount: 10, collectedAt: 1 }],
-        [subagent, { sessionId: subagent, cpu: 0, memory: 0, pidCount: 0, collectedAt: 1, sharesRootPid: true }],
-      ]));
+      const result = formatResourcesLog(
+        new Map([
+          [
+            parent,
+            {
+              sessionId: parent,
+              cpu: 12,
+              memory: 104857600,
+              pidCount: 10,
+              collectedAt: 1,
+            },
+          ],
+          [
+            subagent,
+            {
+              sessionId: subagent,
+              cpu: 0,
+              memory: 0,
+              pidCount: 0,
+              collectedAt: 1,
+              sharesRootPid: true,
+            },
+          ],
+        ]),
+      );
 
       expect(result).toContain("019fb73a-a85c");
       expect(result).toContain("019fb73a-a740");
@@ -475,31 +656,93 @@ describe("resourceMonitor", () => {
   });
 
   describe("shouldReportMetrics", () => {
-    const base: ReportedMetrics = { cpu: 0, memory: 100_000_000, pidCount: 1, agentPid: 42, at: 1_000_000 };
+    const base: ReportedMetrics = {
+      cpu: 0,
+      memory: 100_000_000,
+      pidCount: 1,
+      agentPid: 42,
+      at: 1_000_000,
+    };
     const cur = { cpu: 0, memory: 100_000_000, pidCount: 1, agentPid: 42 };
 
     it("always reports when there is no prior sample", () => {
-      expect(shouldReportMetrics({ cur, prev: undefined, status: "idle", now: base.at })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: undefined,
+          status: "idle",
+          now: base.at,
+        }),
+      ).toBe(true);
     });
 
     it("skips an idle, flat, recently-reported session (the fleet-saturation case)", () => {
-      expect(shouldReportMetrics({ cur, prev: base, status: "idle", now: base.at + 30_000 })).toBe(false);
-      expect(shouldReportMetrics({ cur, prev: base, status: "stopped", now: base.at + 60_000 })).toBe(false);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: base,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(false);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: base,
+          status: "stopped",
+          now: base.at + 60_000,
+        }),
+      ).toBe(false);
     });
 
     it("reports active sessions every tick for full-fidelity graphs", () => {
-      expect(shouldReportMetrics({ cur, prev: base, status: "working", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: base,
+          status: "working",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
       // burning CPU counts as active even with an idle status
-      expect(shouldReportMetrics({ cur: { ...cur, cpu: 25 }, prev: base, status: "idle", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur: { ...cur, cpu: 25 },
+          prev: base,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
     });
 
     it("reports on a meaningful change while idle", () => {
       // ≥10% memory swing
-      expect(shouldReportMetrics({ cur: { ...cur, memory: 115_000_000 }, prev: base, status: "idle", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur: { ...cur, memory: 115_000_000 },
+          prev: base,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
       // process-tree shape change
-      expect(shouldReportMetrics({ cur: { ...cur, pidCount: 3 }, prev: base, status: "idle", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur: { ...cur, pidCount: 3 },
+          prev: base,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
       // agent_pid change (the server snapshot patch keys off this)
-      expect(shouldReportMetrics({ cur: { ...cur, agentPid: 99 }, prev: base, status: "idle", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur: { ...cur, agentPid: 99 },
+          prev: base,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
     });
 
     it("reports a restart immediately, even on an idle session with a reused pid", () => {
@@ -507,14 +750,42 @@ describe("resourceMonitor", () => {
       // idle throttle would leave dead watchers showing as running for minutes.
       const prev: ReportedMetrics = { ...base, agentStartedAt: 900_000 };
       const restarted = { ...cur, agentStartedAt: 999_000 };
-      expect(shouldReportMetrics({ cur: restarted, prev, status: "idle", now: base.at + 30_000 })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur: restarted,
+          prev,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(true);
       // Same process, same everything: still throttled.
-      expect(shouldReportMetrics({ cur: { ...cur, agentStartedAt: 900_000 }, prev, status: "idle", now: base.at + 30_000 })).toBe(false);
+      expect(
+        shouldReportMetrics({
+          cur: { ...cur, agentStartedAt: 900_000 },
+          prev,
+          status: "idle",
+          now: base.at + 30_000,
+        }),
+      ).toBe(false);
     });
 
     it("re-reports an idle session on the slow keep-alive cadence", () => {
-      expect(shouldReportMetrics({ cur, prev: base, status: "idle", now: base.at + IDLE_METRICS_REFRESH_MS - 1 })).toBe(false);
-      expect(shouldReportMetrics({ cur, prev: base, status: "idle", now: base.at + IDLE_METRICS_REFRESH_MS })).toBe(true);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: base,
+          status: "idle",
+          now: base.at + IDLE_METRICS_REFRESH_MS - 1,
+        }),
+      ).toBe(false);
+      expect(
+        shouldReportMetrics({
+          cur,
+          prev: base,
+          status: "idle",
+          now: base.at + IDLE_METRICS_REFRESH_MS,
+        }),
+      ).toBe(true);
     });
 
     it("isSessionActive matches the idle accounting definition", () => {

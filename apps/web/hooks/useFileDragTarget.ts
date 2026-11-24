@@ -35,14 +35,17 @@ export function useFileDragTarget(onFiles: (files: File[]) => void) {
     if (depth.current === 0) setIsOver(false);
   }, []);
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    if (dragCarriesPane(e.dataTransfer)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    depth.current = 0;
-    setIsOver(false);
-    onFiles(Array.from(e.dataTransfer.files));
-  }, [onFiles]);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      if (dragCarriesPane(e.dataTransfer)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      depth.current = 0;
+      setIsOver(false);
+      onFiles(Array.from(e.dataTransfer.files));
+    },
+    [onFiles],
+  );
 
   return { isOver, handlers: { onDragEnter, onDragOver, onDragLeave, onDrop } };
 }

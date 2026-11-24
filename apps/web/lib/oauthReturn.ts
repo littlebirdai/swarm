@@ -16,7 +16,8 @@ export function markOAuthStarted(now = Date.now()): void {
 export function oauthJustFailed(
   search = typeof window === "undefined" ? "" : window.location.search,
   now = Date.now(),
-  store: Pick<Storage, "getItem" | "removeItem"> | null = "sessionStorage" in globalThis
+  store: Pick<Storage, "getItem" | "removeItem"> | null = "sessionStorage" in
+  globalThis
     ? sessionStorage
     : null,
 ): boolean {

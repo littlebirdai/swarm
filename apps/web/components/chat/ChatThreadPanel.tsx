@@ -51,7 +51,8 @@ const WIDTH_KEY = "ch-thread-width";
 
 // As wide as the shell allows while the transcript keeps its column.
 const maxWidth = (handle: HTMLElement) =>
-  (handle.parentElement?.parentElement?.clientWidth ?? Infinity) - MIN_TRANSCRIPT_W;
+  (handle.parentElement?.parentElement?.clientWidth ?? Infinity) -
+  MIN_TRANSCRIPT_W;
 
 export const ChatThreadPanel = memo(function ChatThreadPanel({
   channelName,
@@ -99,7 +100,11 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
    *  the link lands nowhere unless the panel scrolls to it. */
   targetMessageId?: string;
   onClose: () => void;
-  onSend: (content: string, attachments?: ChatAttachment[], opts?: { broadcast?: boolean }) => string | void;
+  onSend: (
+    content: string,
+    attachments?: ChatAttachment[],
+    opts?: { broadcast?: boolean },
+  ) => string | void;
   onReact?: (messageId: string, emoji: string) => void;
   onEdit?: (messageId: string, content: string) => void;
   onDelete?: (messageId: string) => void;
@@ -110,7 +115,12 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
   /** The newest reply is on screen. */
   onReachedBottom?: () => void;
 }) {
-  const { width, onResizeDown } = useEdgeResize({ storageKey: WIDTH_KEY, min: MIN_W, fallback: DEFAULT_W, max: maxWidth });
+  const { width, onResizeDown } = useEdgeResize({
+    storageKey: WIDTH_KEY,
+    min: MIN_W,
+    fallback: DEFAULT_W,
+    max: maxWidth,
+  });
 
   return (
     <aside
@@ -120,7 +130,12 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
     >
       <EdgeResizeHandle onResizeDown={onResizeDown} />
       <div className="ch-thread-head">
-        <button type="button" className="ch-thread-back" title={`Back to #${channelName}`} onClick={onClose}>
+        <button
+          type="button"
+          className="ch-thread-back"
+          title={`Back to #${channelName}`}
+          onClick={onClose}
+        >
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="ch-thread-heading">
@@ -131,7 +146,12 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
           <div className="ch-thread-sub">#{channelName}</div>
         </div>
         {viewerId && <ThreadMuteButton channelId={channelId} rootId={rootId} />}
-        <button type="button" className="ch-tool ch-thread-close" title="Close thread" onClick={onClose}>
+        <button
+          type="button"
+          className="ch-tool ch-thread-close"
+          title="Close thread"
+          onClick={onClose}
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -149,32 +169,34 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
         targetMessageId={targetMessageId}
         canReportRead={canReportRead}
         onReachedBottom={onReachedBottom}
-        header={root && (
-          <>
-            <div className="ch-thread-root">
-              <ChatMessage
-                message={root}
-                channelId={channelId}
-                knownHandles={knownHandles}
-                selfHandles={selfHandles}
-                now={now}
-                mine={root.author.id === viewerId}
-                inThread
-                onReact={onReact}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onRetrySend={onRetrySend}
-                onRetryAgent={onRetryAgent}
-              />
-            </div>
-            <RoundStrip rootId={rootId} round={root.round} />
-            {replies.length > 0 && (
-              <div className="ch-thread-replies-label">
-                {replies.length} {replies.length === 1 ? "reply" : "replies"}
+        header={
+          root && (
+            <>
+              <div className="ch-thread-root">
+                <ChatMessage
+                  message={root}
+                  channelId={channelId}
+                  knownHandles={knownHandles}
+                  selfHandles={selfHandles}
+                  now={now}
+                  mine={root.author.id === viewerId}
+                  inThread
+                  onReact={onReact}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onRetrySend={onRetrySend}
+                  onRetryAgent={onRetryAgent}
+                />
               </div>
-            )}
-          </>
-        )}
+              <RoundStrip rootId={rootId} round={root.round} />
+              {replies.length > 0 && (
+                <div className="ch-thread-replies-label">
+                  {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                </div>
+              )}
+            </>
+          )
+        }
         onReact={onReact}
         onEdit={onEdit}
         onDelete={onDelete}
@@ -182,38 +204,58 @@ export const ChatThreadPanel = memo(function ChatThreadPanel({
         onRetryAgent={onRetryAgent}
       />
 
-      {composer ?? <ChatComposer
-        channelId={channelId}
-        threadRootId={rootId}
-        teamId={teamId}
-        // Where the reply goes, said where the person is about to type: the
-        // room's agents in turn (chatRounds), or the session that started
-        // the thread (chat.ts maybeRelayToOriginSession).
-        placeholder={agentCount >= 2
-          ? "Reply… the room's agents answer one at a time"
-          : root?.author.session ? `Reply to ${root.author.name} — delivered into its session` : "Reply…"}
-        channelName={channelName}
-        onSend={onSend}
-        compact
-      />}
+      {composer ?? (
+        <ChatComposer
+          channelId={channelId}
+          threadRootId={rootId}
+          teamId={teamId}
+          // Where the reply goes, said where the person is about to type: the
+          // room's agents in turn (chatRounds), or the session that started
+          // the thread (chat.ts maybeRelayToOriginSession).
+          placeholder={
+            agentCount >= 2
+              ? "Reply… the room's agents answer one at a time"
+              : root?.author.session
+                ? `Reply to ${root.author.name} — delivered into its session`
+                : "Reply…"
+          }
+          channelName={channelName}
+          onSend={onSend}
+          compact
+        />
+      )}
     </aside>
   );
 });
 
 // Silences this thread's reply notifications for the viewer. Mentions still
 // reach them, and the unread badge stays.
-function ThreadMuteButton({ channelId, rootId }: { channelId: string; rootId: string }) {
+function ThreadMuteButton({
+  channelId,
+  rootId,
+}: {
+  channelId: string;
+  rootId: string;
+}) {
   const muted = useInboxStore((s) => selectThreadMuted(s, channelId, rootId));
   const setMuted = useInboxStore((s) => s.setChatThreadMuted);
   return (
     <button
       type="button"
       className={`ch-tool ch-thread-mute${muted ? " ch-thread-mute-on" : ""}`}
-      title={muted ? "Replies muted. Turn notifications back on" : "Mute notifications for replies"}
+      title={
+        muted
+          ? "Replies muted. Turn notifications back on"
+          : "Mute notifications for replies"
+      }
       aria-pressed={muted}
       onClick={() => setMuted(channelId, rootId, !muted)}
     >
-      {muted ? <BellOff className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+      {muted ? (
+        <BellOff className="w-3.5 h-3.5" />
+      ) : (
+        <Bell className="w-3.5 h-3.5" />
+      )}
     </button>
   );
 }

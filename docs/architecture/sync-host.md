@@ -16,12 +16,14 @@ Exactly one window per origin is the **sync host**. Every other window is a
 **follower**. Both run the same store, the same components, the same actions.
 
 The host:
+
 - mounts the global feeders (`useSyncCore` and the other always-on feeder
   hooks), exactly as every window did before;
 - owns IndexedDB write-through and the storage watchdog;
 - broadcasts every change to replicated keys over a `BroadcastChannel`.
 
 A follower:
+
 - skips every global feeder (they mount inside `HostFeeders` in
   `DashboardLayout`, or gate on `useIsSyncHost()`, both reading `syncRole`);
 - wires `_setIDBWrite` to persist only its per-window `local` keys

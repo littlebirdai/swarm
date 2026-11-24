@@ -5,7 +5,12 @@
 // so a session has the same character on every device and every surface
 // without anyone deciding. A role's standing session wears the role instead:
 // the role is the identity, the session is its current body.
-import { AVATAR_KEYS, defaultAvatarFor, isAvatarKey, type AvatarKey } from "./orgAvatars";
+import {
+  AVATAR_KEYS,
+  defaultAvatarFor,
+  isAvatarKey,
+  type AvatarKey,
+} from "./orgAvatars";
 
 export type Character = {
   avatar: AvatarKey;
@@ -17,7 +22,10 @@ export type Character = {
 /** Six names per face, whimsical and short, none shared between faces, so a
  *  default character is one of 144 rather than one of 24. Order is load
  *  bearing: the hash indexes into it. */
-export const CHARACTER_NAMES: Record<AvatarKey, readonly [string, string, string, string, string, string]> = {
+export const CHARACTER_NAMES: Record<
+  AvatarKey,
+  readonly [string, string, string, string, string, string]
+> = {
   fox: ["Ember", "Sorrel", "Fennel", "Tansy", "Rufus", "Juniper"],
   owl: ["Sage", "Minerva", "Barnaby", "Pip", "Nyx", "Hollis"],
   otter: ["Pebble", "Brook", "Tarka", "Marlow", "Finn", "Ripple"],
@@ -45,19 +53,26 @@ export const CHARACTER_NAMES: Record<AvatarKey, readonly [string, string, string
 };
 
 /** Every name in the bank, for validation and for the picker's suggestions. */
-export const ALL_CHARACTER_NAMES: readonly string[] = AVATAR_KEYS.flatMap((k) => CHARACTER_NAMES[k]);
+export const ALL_CHARACTER_NAMES: readonly string[] = AVATAR_KEYS.flatMap(
+  (k) => CHARACTER_NAMES[k],
+);
 
 /** The hash from orgAvatars, exposed so the name index decorrelates from the face index. */
 function hash(s: string): number {
   let h = 5381;
-  for (const ch of (s ?? "").toLowerCase()) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+  for (const ch of (s ?? "").toLowerCase())
+    h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
   return h;
 }
 
 /** The name a session would wear on a given face: the same hash slice the
  *  default uses, so changing only the face still yields a stable name, and
  *  `nudge` walks the face's six without repeating. */
-export function characterNameFor(sessionId: string, avatar: AvatarKey, nudge = 0): string {
+export function characterNameFor(
+  sessionId: string,
+  avatar: AvatarKey,
+  nudge = 0,
+): string {
   const bank = CHARACTER_NAMES[avatar];
   const base = Math.floor(hash(sessionId) / AVATAR_KEYS.length);
   return bank[(base + nudge) % bank.length];
@@ -71,22 +86,36 @@ export function defaultCharacterFor(sessionId: string): Character {
 }
 
 /** The fields a session row carries; both optional, either may be chosen alone. */
-export type CharacterFields = { character_avatar?: string | null; character_name?: string | null };
+export type CharacterFields = {
+  character_avatar?: string | null;
+  character_name?: string | null;
+};
 
 /** What a row is called in the UI: its chosen parts over the hash defaults. A
  *  chosen name with no chosen face keeps the default face, and the reverse. */
 export function characterOf(row: CharacterFields & { _id: string }): Character {
   const d = defaultCharacterFor(row._id);
-  const chosenAvatar = isAvatarKey(row.character_avatar) ? row.character_avatar : null;
+  const chosenAvatar = isAvatarKey(row.character_avatar)
+    ? row.character_avatar
+    : null;
   const chosenName = cleanCharacterName(row.character_name);
-  return { avatar: chosenAvatar ?? d.avatar, name: chosenName ?? d.name, chosen: chosenAvatar !== null || chosenName !== null };
+  return {
+    avatar: chosenAvatar ?? d.avatar,
+    name: chosenName ?? d.name,
+    chosen: chosenAvatar !== null || chosenName !== null,
+  };
 }
 
 export const CHARACTER_NAME_MAX = 24;
 
 /** A name a person typed: trimmed, one line, capped; null when nothing is left. */
-export function cleanCharacterName(raw: string | null | undefined): string | null {
-  const s = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, CHARACTER_NAME_MAX);
+export function cleanCharacterName(
+  raw: string | null | undefined,
+): string | null {
+  const s = (raw ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, CHARACTER_NAME_MAX);
   return s.length ? s : null;
 }
 
@@ -94,9 +123,17 @@ export function cleanCharacterName(raw: string | null | undefined): string | nul
  *  or an empty name clears the field, a name is cleaned, everything else
  *  passes through untouched. `undefined` is what a Convex patch reads as
  *  "remove the field"; a client clears by sending null, which arrives here. */
-export function normalizeCharacterFields<T extends Record<string, unknown>>(fields: T): T {
+export function normalizeCharacterFields<T extends Record<string, unknown>>(
+  fields: T,
+): T {
   const out: Record<string, unknown> = { ...fields };
-  if ("character_avatar" in out) out.character_avatar = isAvatarKey(out.character_avatar) ? out.character_avatar : undefined;
-  if ("character_name" in out) out.character_name = cleanCharacterName(out.character_name as string | null | undefined) ?? undefined;
+  if ("character_avatar" in out)
+    out.character_avatar = isAvatarKey(out.character_avatar)
+      ? out.character_avatar
+      : undefined;
+  if ("character_name" in out)
+    out.character_name =
+      cleanCharacterName(out.character_name as string | null | undefined) ??
+      undefined;
   return out as T;
 }

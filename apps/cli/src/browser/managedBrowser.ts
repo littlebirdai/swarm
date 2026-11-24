@@ -15,15 +15,34 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { browserSocketUrl } from "./cdp.js";
 import {
-  acquireStartLock, clearState, freePort, killStrayChrome, launchManagedChrome, probeLiveness, readState,
-  waitForStraysGone, writeState, type InstanceState,
+  acquireStartLock,
+  clearState,
+  freePort,
+  killStrayChrome,
+  launchManagedChrome,
+  probeLiveness,
+  readState,
+  waitForStraysGone,
+  writeState,
+  type InstanceState,
 } from "./instance.js";
 import {
-  chromeUserDataRoot, clonePath, cloneProfile, formatBytes, googleSessionSeparated, listRealProfiles, separateGoogleSession,
-  type ChromeChannel, type SeparateReport,
+  chromeUserDataRoot,
+  clonePath,
+  cloneProfile,
+  formatBytes,
+  googleSessionSeparated,
+  listRealProfiles,
+  separateGoogleSession,
+  type ChromeChannel,
+  type SeparateReport,
 } from "./profile.js";
 import { sharesGoogleSession } from "./credentials.js";
-import { recordedRemoteHost, startRemoteBrowser, stopRemoteBrowser } from "./remote.js";
+import {
+  recordedRemoteHost,
+  startRemoteBrowser,
+  stopRemoteBrowser,
+} from "./remote.js";
 import { loadRemoteHost, type RemoteHost } from "../remote/session-move.js";
 import { readHosts, ensureUp, isEc2Host, toRemoteHost } from "./cloudHost.js";
 import { displayRefusal } from "../hosts/providers/registry.js";
@@ -53,7 +72,10 @@ export interface StartOptions {
   remote?: string | boolean;
 }
 
-export const DEFAULT_START: StartOptions = { channel: "chrome", size: "1440x900" };
+export const DEFAULT_START: StartOptions = {
+  channel: "chrome",
+  size: "1440x900",
+};
 
 function die(msg: string, hint?: string): never {
   console.error(`${fmt.error(icons.cross)} ${msg}`);
@@ -64,12 +86,31 @@ function die(msg: string, hint?: string): never {
 /** One line on the clone's Google session being its own, not the human's.
  *  `kept` counts own-login cookies carried across a resync; -1 says the
  *  clone's existing Google login was its own and was left in place. */
-function reportSeparation(d: SeparateReport, kept: number, quiet?: boolean): void {
+function reportSeparation(
+  d: SeparateReport,
+  kept: number,
+  quiet?: boolean,
+): void {
   if (!quiet) {
-    const dropped = d.cookies !== null ? `dropped ${d.cookies} shared Google cookie${d.cookies === 1 ? "" : "s"}` : "no shared cookies";
-    const keptNote = kept > 0 ? `; kept the agent browser's own Google login (${kept} cookies)` : kept < 0 ? "; its Google login was its own and stays" : "";
-    console.log(`${OK} Google session is the agent browser's own (${dropped}${keptNote})`);
-    if (!kept) console.log(fmt.muted("  Chrome signs it in from your account on launch; if a Google page still lands on sign-in, run `cast browser login` yourself"));
+    const dropped =
+      d.cookies !== null
+        ? `dropped ${d.cookies} shared Google cookie${d.cookies === 1 ? "" : "s"}`
+        : "no shared cookies";
+    const keptNote =
+      kept > 0
+        ? `; kept the agent browser's own Google login (${kept} cookies)`
+        : kept < 0
+          ? "; its Google login was its own and stays"
+          : "";
+    console.log(
+      `${OK} Google session is the agent browser's own (${dropped}${keptNote})`,
+    );
+    if (!kept)
+      console.log(
+        fmt.muted(
+          "  Chrome signs it in from your account on launch; if a Google page still lands on sign-in, run `cast browser login` yourself",
+        ),
+      );
   }
   for (const n of d.notes) console.log(`${WARN} ${n}`);
 }
@@ -77,10 +118,11 @@ function reportSeparation(d: SeparateReport, kept: number, quiet?: boolean): voi
 /** Told to the user when a start queues behind another agent's launch. */
 export function waitingOnLaunch(holderPid: number): void {
   console.log(
-    fmt.muted(`  another agent (pid ${holderPid}) is starting the browser — waiting for it, then reusing it`),
+    fmt.muted(
+      `  another agent (pid ${holderPid}) is starting the browser — waiting for it, then reusing it`,
+    ),
   );
 }
-
 
 /**
  * Start (or reuse) the local managed browser. Shared by `start` and by `open`'s
@@ -90,7 +132,9 @@ export function waitingOnLaunch(holderPid: number): void {
  * lines to the winner's singleton and exited, each loser reported a cryptic
  * failure, and their retries restarted the browser under everyone else.
  */
-export async function startLocalBrowser(o: StartOptions): Promise<InstanceState> {
+export async function startLocalBrowser(
+  o: StartOptions,
+): Promise<InstanceState> {
   const release = await acquireStartLock(undefined, waitingOnLaunch);
   try {
     const existing = readState();
@@ -99,8 +143,14 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
     const live = await probeLiveness(existing, 8000);
     if (isReachable(live)) {
       if (!o.quiet) {
-        console.log(`${OK} already running on port ${existing!.port} (pid ${existing!.pid})`);
-        console.log(fmt.muted("  `cast browser stop` first if you want a different profile"));
+        console.log(
+          `${OK} already running on port ${existing!.port} (pid ${existing!.pid})`,
+        );
+        console.log(
+          fmt.muted(
+            "  `cast browser stop` first if you want a different profile",
+          ),
+        );
       }
       if (o.fakeMedia && !existing!.fakeMedia) {
         console.log(
@@ -127,21 +177,35 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
     if (o.fresh) {
       fs.rmSync(userDataDir, { recursive: true, force: true });
       fs.mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
-      if (!o.quiet) console.log(`${OK} fresh profile (logged out of everything)`);
+      if (!o.quiet)
+        console.log(`${OK} fresh profile (logged out of everything)`);
     } else if (hostHasNoHumanChrome()) {
       // A host has no human's Chrome to copy: its profile is its own from the
       // first launch, and logins arrive through `cast browser sync`.
       fs.mkdirSync(userDataDir, { recursive: true, mode: 0o700 });
     } else {
       const profiles = listRealProfiles(o.channel);
-      const pick = o.profile ?? profiles.find((p) => p.lastUsed)?.dir ?? "Default";
+      const pick =
+        o.profile ?? profiles.find((p) => p.lastUsed)?.dir ?? "Default";
       const known = profiles.find((p) => p.dir === pick);
       sourceProfile = pick;
-      const needsClone = o.resync || !fs.existsSync(path.join(userDataDir, "Default", "Cookies"));
+      const needsClone =
+        o.resync ||
+        !fs.existsSync(path.join(userDataDir, "Default", "Cookies"));
       if (needsClone) {
-        if (!o.quiet) console.log(`  cloning ${fmt.highlight(known?.name ?? pick)}${known?.email ? fmt.muted(` <${known.email}>`) : ""}…`);
-        const res = cloneProfile({ sourceDir: pick, destRoot: userDataDir, channel: o.channel });
-        if (!o.quiet) console.log(`${OK} cloned ${res.files} items, ${formatBytes(res.bytes)}`);
+        if (!o.quiet)
+          console.log(
+            `  cloning ${fmt.highlight(known?.name ?? pick)}${known?.email ? fmt.muted(` <${known.email}>`) : ""}…`,
+          );
+        const res = cloneProfile({
+          sourceDir: pick,
+          destRoot: userDataDir,
+          channel: o.channel,
+        });
+        if (!o.quiet)
+          console.log(
+            `${OK} cloned ${res.files} items, ${formatBytes(res.bytes)}`,
+          );
         reportSeparation(res.separate, res.ownLoginsKept, o.quiet);
         if (!res.cookiesFound) {
           console.log(
@@ -150,7 +214,9 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
           );
         }
       } else if (!o.quiet) {
-        console.log(`  reusing existing clone ${fmt.muted(userDataDir)} ${fmt.muted("(--resync re-copies your Chrome's logins; the agent browser's own Google login is kept)")}`);
+        console.log(
+          `  reusing existing clone ${fmt.muted(userDataDir)} ${fmt.muted("(--resync re-copies your Chrome's logins; the agent browser's own Google login is kept)")}`,
+        );
       }
     }
 
@@ -159,7 +225,11 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
     // and the lock keeps another agent's mid-launch Chrome out of this window.
     const strays = killStrayChrome(userDataDir);
     if (strays) {
-      console.log(fmt.muted(`  cleared ${strays} stray Chrome process(es) holding the profile`));
+      console.log(
+        fmt.muted(
+          `  cleared ${strays} stray Chrome process(es) holding the profile`,
+        ),
+      );
       // SIGTERM is not instant; launching while one is still exiting hands our
       // command line to a dying Chrome and nothing ever listens.
       await waitForStraysGone(userDataDir);
@@ -170,8 +240,13 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
     // stamp keeps this from touching a later, own login.
     if (sourceProfile && !googleSessionSeparated(userDataDir)) {
       const realRoot = chromeUserDataRoot(o.channel);
-      const shared = !realRoot || sharesGoogleSession(realRoot, userDataDir, sourceProfile);
-      reportSeparation(separateGoogleSession(userDataDir, { dropCookies: shared }), shared ? 0 : -1, o.quiet);
+      const shared =
+        !realRoot || sharesGoogleSession(realRoot, userDataDir, sourceProfile);
+      reportSeparation(
+        separateGoogleSession(userDataDir, { dropCookies: shared }),
+        shared ? 0 : -1,
+        o.quiet,
+      );
     }
 
     const [w, h] = o.size.split("x").map((n) => parseInt(n, 10));
@@ -193,11 +268,16 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
       die((err as Error).message);
     }
     const hostExtension = hostChrome
-      ? await loadHostExtension(port).then(() => true as const, (err: Error) => err.message)
+      ? await loadHostExtension(port).then(
+          () => true as const,
+          (err: Error) => err.message,
+        )
       : undefined;
 
     const state: InstanceState = {
-      pid, port, userDataDir,
+      pid,
+      port,
+      userDataDir,
       wsUrl: await browserSocketUrl(port).catch(() => undefined),
       headless: !!o.headless,
       sourceProfile,
@@ -208,13 +288,22 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
       ...(hostExtension !== undefined ? { hostExtension } : {}),
     };
     writeState(state);
-    console.log(`${OK} browser up — pid ${pid}, CDP 127.0.0.1:${port}${o.headless ? ", headless" : ""}`);
-    if (typeof hostExtension === "string") console.log(`${WARN} the Codecast extension did not load: ${hostExtension}`);
+    console.log(
+      `${OK} browser up — pid ${pid}, CDP 127.0.0.1:${port}${o.headless ? ", headless" : ""}`,
+    );
+    if (typeof hostExtension === "string")
+      console.log(
+        `${WARN} the Codecast extension did not load: ${hostExtension}`,
+      );
     if (!o.quiet) {
       if (sourceProfile) {
         console.log(
-          fmt.muted("  This is a COPY of your profile. The agent's browsing never touches your real Chrome,\n") +
-            fmt.muted("  and the copy holds live session cookies — `cast browser stop --wipe` removes it."),
+          fmt.muted(
+            "  This is a COPY of your profile. The agent's browsing never touches your real Chrome,\n",
+          ) +
+            fmt.muted(
+              "  and the copy holds live session cookies — `cast browser stop --wipe` removes it.",
+            ),
         );
       }
       console.log(fmt.muted("  next: cast browser open <url>"));
@@ -239,16 +328,26 @@ export async function startLocalBrowser(o: StartOptions): Promise<InstanceState>
  * `ensureUp` hides the difference at the call site — asking for a host is one
  * act whether or not the machine happens to be awake.
  */
-export async function resolveRemote(name: string | boolean): Promise<{ host: RemoteHost; label: string; canSleep: boolean }> {
+export async function resolveRemote(
+  name: string | boolean,
+): Promise<{ host: RemoteHost; label: string; canSleep: boolean }> {
   const wanted = typeof name === "string" ? name.toLowerCase() : "";
   const hosts = readHosts();
 
   // "mac" (or a Scaleway host id) goes to the Apple silicon registry.
-  const wantsMac = wanted === "mac" || wanted === "darwin" || wanted === "scaleway";
-  if (wantsMac || (wanted && hosts.every((h) => h.id !== wanted && h.provider !== wanted))) {
+  const wantsMac =
+    wanted === "mac" || wanted === "darwin" || wanted === "scaleway";
+  if (
+    wantsMac ||
+    (wanted && hosts.every((h) => h.id !== wanted && h.provider !== wanted))
+  ) {
     if (wantsMac || !hosts.length) {
       const host = loadRemoteHost(wantsMac ? undefined : wanted || undefined);
-      return { host, label: `mac ${host.user}@${host.address}`, canSleep: false };
+      return {
+        host,
+        label: `mac ${host.user}@${host.address}`,
+        canSleep: false,
+      };
     }
   }
 
@@ -266,7 +365,11 @@ export async function resolveRemote(name: string | boolean): Promise<{ host: Rem
   const refusal = displayRefusal(picked);
   if (refusal) die(refusal);
   const up = await ensureUp(picked, (m) => console.log(fmt.muted(`  ${m}`)));
-  return { host: toRemoteHost(up), label: `${up.provider} ${up.id}`, canSleep: true };
+  return {
+    host: toRemoteHost(up),
+    label: `${up.provider} ${up.id}`,
+    canSleep: true,
+  };
 }
 
 /**
@@ -274,7 +377,9 @@ export async function resolveRemote(name: string | boolean): Promise<{ host: Rem
  * profile starts empty and gains logins as pages are visited (credentials.ts),
  * so nothing of yours is copied there.
  */
-export async function startRemoteManagedBrowser(o: StartOptions): Promise<InstanceState> {
+export async function startRemoteManagedBrowser(
+  o: StartOptions,
+): Promise<InstanceState> {
   const release = await acquireStartLock(undefined, waitingOnLaunch);
   try {
     const existingRemote = readState();
@@ -292,7 +397,9 @@ export async function startRemoteManagedBrowser(o: StartOptions): Promise<Instan
     const resolved = await resolveRemote(o.remote!);
     const host = resolved.host;
     const [rw, rh] = o.size.split("x").map((n) => parseInt(n, 10));
-    console.log(`  starting Chrome on ${fmt.highlight(`${host.user}@${host.address}`)}…`);
+    console.log(
+      `  starting Chrome on ${fmt.highlight(`${host.user}@${host.address}`)}…`,
+    );
     let rb;
     try {
       rb = await startRemoteBrowser(host, {
@@ -303,16 +410,35 @@ export async function startRemoteManagedBrowser(o: StartOptions): Promise<Instan
       die((err as Error).message);
     }
     writeState({
-      pid: rb.sshPid, port: rb.localPort,
-      userDataDir: clonePath(DEFAULT_CLONE),   // the LOCAL profile we read cookies from
-      headless: true, sourceProfile: null, channel: o.channel,
-      startedAt: Date.now(), activeTargetId: null,
+      pid: rb.sshPid,
+      port: rb.localPort,
+      userDataDir: clonePath(DEFAULT_CLONE), // the LOCAL profile we read cookies from
+      headless: true,
+      sourceProfile: null,
+      channel: o.channel,
+      startedAt: Date.now(),
+      activeTargetId: null,
       // The whole host, so `stop` reaches this machine and no other (stopRemoteManagedBrowser).
-      remote: { host: host.address, user: host.user, sshPid: rb.sshPid, keyPath: host.keyPath, remoteBaseDir: host.remoteBaseDir, ...(host.homeDir ? { homeDir: host.homeDir } : {}) },
+      remote: {
+        host: host.address,
+        user: host.user,
+        sshPid: rb.sshPid,
+        keyPath: host.keyPath,
+        remoteBaseDir: host.remoteBaseDir,
+        ...(host.homeDir ? { homeDir: host.homeDir } : {}),
+      },
     });
     console.log(`${OK} remote browser up — ${rb.chromeVersion.trim()}`);
-    console.log(fmt.muted(`  CDP tunnelled to 127.0.0.1:${rb.localPort}; its profile starts signed out.`));
-    console.log(fmt.muted(`  Logins are carried over per site as you navigate — no list to maintain.`));
+    console.log(
+      fmt.muted(
+        `  CDP tunnelled to 127.0.0.1:${rb.localPort}; its profile starts signed out.`,
+      ),
+    );
+    console.log(
+      fmt.muted(
+        `  Logins are carried over per site as you navigate — no list to maintain.`,
+      ),
+    );
     return readState()!;
   } finally {
     release();
@@ -326,11 +452,15 @@ function knownRemoteHosts(): RemoteHost[] {
     if (!h.address) continue;
     try {
       out.push(toRemoteHost(h), toRemoteHost({ ...h, tailnet: undefined }));
-    } catch { /* a host with no address is not running anything */ }
+    } catch {
+      /* a host with no address is not running anything */
+    }
   }
   try {
     out.push(loadRemoteHost());
-  } catch { /* no Mac registry */ }
+  } catch {
+    /* no Mac registry */
+  }
   return out;
 }
 
@@ -339,15 +469,20 @@ function knownRemoteHosts(): RemoteHost[] {
  * profile on the machine it was started on, and forget it. `wiped` is false
  * when that machine is no longer known, so only the tunnel could be closed.
  */
-export async function stopRemoteManagedBrowser(state: InstanceState): Promise<{ wiped: boolean }> {
-  const host = state.remote ? recordedRemoteHost(state.remote, knownRemoteHosts) : null;
+export async function stopRemoteManagedBrowser(
+  state: InstanceState,
+): Promise<{ wiped: boolean }> {
+  const host = state.remote
+    ? recordedRemoteHost(state.remote, knownRemoteHosts)
+    : null;
   await stopRemoteBrowser(host, state.remote?.sshPid ?? state.pid);
   clearState();
   return { wiped: !!host };
 }
 
 /** Start (or reuse) the managed browser, local or remote. */
-export async function startManagedBrowser(o: StartOptions): Promise<InstanceState> {
+export async function startManagedBrowser(
+  o: StartOptions,
+): Promise<InstanceState> {
   return o.remote ? startRemoteManagedBrowser(o) : startLocalBrowser(o);
 }
-

@@ -12,25 +12,29 @@ function ctx() {
       { _id: ADA, name: "Ada", email: "ada@example.test" },
       { _id: BRIDGE, name: "Union (Slack)", is_bot: true, bot_kind: "slack" },
     ],
-    notifications: [{
-      _id: "notifications_1",
-      recipient_user_id: ADA,
-      type: "chat_post",
-      actor_user_id: BRIDGE,
-      entity_type: "chat_channel",
-      entity_id: "chan",
-      chat_message_id: MSG,
-      message: "Union (Slack) posted in #team: Huddle recap",
-      read: false,
-      created_at: 2,
-    }],
-    chat_messages: [{
-      _id: MSG,
-      user_id: BRIDGE,
-      content: "Huddle recap",
-      external_author: { name: "Aivery", avatar_url: "https://a/aivery.png" },
-      created_at: 1,
-    }],
+    notifications: [
+      {
+        _id: "notifications_1",
+        recipient_user_id: ADA,
+        type: "chat_post",
+        actor_user_id: BRIDGE,
+        entity_type: "chat_channel",
+        entity_id: "chan",
+        chat_message_id: MSG,
+        message: "Union (Slack) posted in #team: Huddle recap",
+        read: false,
+        created_at: 2,
+      },
+    ],
+    chat_messages: [
+      {
+        _id: MSG,
+        user_id: BRIDGE,
+        content: "Huddle recap",
+        external_author: { name: "Aivery", avatar_url: "https://a/aivery.png" },
+        created_at: 1,
+      },
+    ],
   });
   return {
     db,

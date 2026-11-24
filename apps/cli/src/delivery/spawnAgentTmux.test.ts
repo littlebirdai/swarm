@@ -69,7 +69,12 @@ describe("spawnAgentTmux — arg sanitization", () => {
     const { runner, calls } = recordingTmux();
     const evil = `bash /tmp/x.sh"; rm -rf ~ #`;
     const res = await spawnAgentTmux(
-      { tmuxSession: "ct-claude-abc123", cwd: REAL_DIR, agentType: "claude", command: evil },
+      {
+        tmuxSession: "ct-claude-abc123",
+        cwd: REAL_DIR,
+        agentType: "claude",
+        command: evil,
+      },
       baseDeps({ tmux: runner }),
     );
     expect(res.ok).toBe(true);
@@ -80,19 +85,28 @@ describe("spawnAgentTmux — arg sanitization", () => {
     }
     // The command reaches tmux as a single literal arg behind `send-keys ... -l`,
     // so the shell never sees `;` or `"` as syntax.
-    const sendLiteral = calls.find((a) => a[0] === "send-keys" && a.includes("-l"));
+    const sendLiteral = calls.find(
+      (a) => a[0] === "send-keys" && a.includes("-l"),
+    );
     expect(sendLiteral).toBeDefined();
     expect(sendLiteral).toContain(evil);
     // The literal command is the LAST arg, after `-l` — not spliced into a shell line.
     expect(sendLiteral![sendLiteral!.length - 1]).toBe(evil);
     // No argv was ever assembled as a single interpolated shell command.
-    expect(calls.some((a) => a.length === 1 && /rm -rf/.test(a[0]))).toBe(false);
+    expect(calls.some((a) => a.length === 1 && /rm -rf/.test(a[0]))).toBe(
+      false,
+    );
   });
 
   test("refuses an unsafe tmux session name before any spawn", async () => {
     const { runner, calls } = recordingTmux();
     const res = await spawnAgentTmux(
-      { tmuxSession: "ct-claude; rm -rf ~", cwd: REAL_DIR, agentType: "claude", command: "echo hi" },
+      {
+        tmuxSession: "ct-claude; rm -rf ~",
+        cwd: REAL_DIR,
+        agentType: "claude",
+        command: "echo hi",
+      },
       baseDeps({ tmux: runner }),
     );
     expect(res.ok).toBe(false);
@@ -117,13 +131,25 @@ describe("spawnAgentTmux — managed-session tagging", () => {
 
     const setOpts = calls.filter((a) => a[0] === "set-option");
     const flat = setOpts.map((a) => a.join(" "));
-    expect(flat.some((s) => s.includes("@codecast_session_id") && s.includes("sess-1234"))).toBe(true);
-    expect(flat.some((s) => s.includes("@codecast_agent_type") && s.includes("codex"))).toBe(true);
+    expect(
+      flat.some(
+        (s) => s.includes("@codecast_session_id") && s.includes("sess-1234"),
+      ),
+    ).toBe(true);
+    expect(
+      flat.some(
+        (s) => s.includes("@codecast_agent_type") && s.includes("codex"),
+      ),
+    ).toBe(true);
 
     // The new-session is created before the tags and before send-keys.
     const order = calls.map((a) => a[0]);
-    expect(order.indexOf("new-session")).toBeLessThan(order.indexOf("set-option"));
-    expect(order.lastIndexOf("set-option")).toBeLessThan(order.indexOf("send-keys"));
+    expect(order.indexOf("new-session")).toBeLessThan(
+      order.indexOf("set-option"),
+    );
+    expect(order.lastIndexOf("set-option")).toBeLessThan(
+      order.indexOf("send-keys"),
+    );
   });
 });
 
@@ -143,8 +169,12 @@ describe("spawnAgentTmux — launch token", () => {
     );
     expect(res.ok).toBe(true);
 
-    const sendLiteral = calls.find((a) => a[0] === "send-keys" && a.includes("-l"))!;
-    expect(sendLiteral[sendLiteral.length - 1]).toBe(`CODECAST_LAUNCH_TOKEN=${token} bash /tmp/run.sh`);
+    const sendLiteral = calls.find(
+      (a) => a[0] === "send-keys" && a.includes("-l"),
+    )!;
+    expect(sendLiteral[sendLiteral.length - 1]).toBe(
+      `CODECAST_LAUNCH_TOKEN=${token} bash /tmp/run.sh`,
+    );
   });
 
   test("a token that was not minted here never reaches the pane", async () => {
@@ -160,7 +190,9 @@ describe("spawnAgentTmux — launch token", () => {
       baseDeps({ tmux: runner }),
     );
     expect(res.ok).toBe(true);
-    const sendLiteral = calls.find((a) => a[0] === "send-keys" && a.includes("-l"))!;
+    const sendLiteral = calls.find(
+      (a) => a[0] === "send-keys" && a.includes("-l"),
+    )!;
     expect(sendLiteral[sendLiteral.length - 1]).toBe("bash /tmp/run.sh");
   });
 });
@@ -169,7 +201,12 @@ describe("spawnAgentTmux — missing-path refusal", () => {
   test("refuses (does not spawn, no $HOME-fallback) when cwd is absent", async () => {
     const { runner, calls } = recordingTmux();
     const res = await spawnAgentTmux(
-      { tmuxSession: "ct-claude-missing", cwd: "/definitely/not/here-998877", agentType: "claude", command: "echo hi" },
+      {
+        tmuxSession: "ct-claude-missing",
+        cwd: "/definitely/not/here-998877",
+        agentType: "claude",
+        command: "echo hi",
+      },
       baseDeps({ tmux: runner }),
     );
     expect(res.ok).toBe(false);
@@ -205,7 +242,8 @@ describe("spawnAgentTmux — ownership (never auto-own a remote)", () => {
     const { runner, calls } = recordingTmux();
     // Record into an array so TS doesn't control-flow-narrow a `let … | null` to
     // `null` (the mutation happens inside an injected callback it can't see).
-    const registrations: { sessionId: string; tmux: string; conv: string }[] = [];
+    const registrations: { sessionId: string; tmux: string; conv: string }[] =
+      [];
     const res = await spawnAgentTmux(
       {
         tmuxSession: "cc-claude-conv02",
@@ -225,6 +263,10 @@ describe("spawnAgentTmux — ownership (never auto-own a remote)", () => {
     );
     expect(res.ok).toBe(true);
     expect(calls.some((a) => a[0] === "new-session")).toBe(true);
-    expect(registrations[0]).toEqual({ sessionId: "s2", tmux: "cc-claude-conv02", conv: "conv-000000000002" });
+    expect(registrations[0]).toEqual({
+      sessionId: "s2",
+      tmux: "cc-claude-conv02",
+      conv: "conv-000000000002",
+    });
   });
 });

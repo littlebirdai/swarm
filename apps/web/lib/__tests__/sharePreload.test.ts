@@ -15,28 +15,36 @@ describe("readSharePreload", () => {
   });
 
   test("returns the payload only for the matching kind and token", () => {
-    w.window = { __SHARE_PRELOAD__: { kind: "message", token: "tok", data: { a: 1 } } };
+    w.window = {
+      __SHARE_PRELOAD__: { kind: "message", token: "tok", data: { a: 1 } },
+    };
     expect(readSharePreload("message", "tok")).toEqual({ a: 1 });
     expect(readSharePreload("doc", "tok")).toBeUndefined();
     expect(readSharePreload("message", "other")).toBeUndefined();
   });
 
   test("carries the server clock for a matching hydration render", () => {
-    w.window = { __SHARE_PRELOAD__: { kind: "message", token: "tok", data: {}, now: 1234 } };
+    w.window = {
+      __SHARE_PRELOAD__: { kind: "message", token: "tok", data: {}, now: 1234 },
+    };
     expect(readSharePreloadNow()).toBe(1234);
     w.window = {};
     expect(readSharePreloadNow()).toBeUndefined();
   });
 
   test("null is a real answer (unknown share), distinct from absent", () => {
-    w.window = { __SHARE_PRELOAD__: { kind: "plan", token: "tok", data: null } };
+    w.window = {
+      __SHARE_PRELOAD__: { kind: "plan", token: "tok", data: null },
+    };
     expect(readSharePreload("plan", "tok")).toBeNull();
   });
 });
 
 describe("scriptSafeJson", () => {
   test("cannot break out of the inline script tag", () => {
-    const out = scriptSafeJson({ content: "</script><script>alert(1)</script>" })!;
+    const out = scriptSafeJson({
+      content: "</script><script>alert(1)</script>",
+    })!;
     expect(out).not.toContain("</script>");
     expect(JSON.parse(out).content).toBe("</script><script>alert(1)</script>");
   });

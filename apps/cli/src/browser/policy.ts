@@ -94,7 +94,15 @@ interface ParsedPattern {
 export function parsePattern(raw: string): ParsedPattern | null {
   let rest = raw.trim().toLowerCase();
   if (!rest) return null;
-  if (rest === "*") return { raw, scheme: null, host: "", wildcard: false, port: null, matchAll: true };
+  if (rest === "*")
+    return {
+      raw,
+      scheme: null,
+      host: "",
+      wildcard: false,
+      port: null,
+      matchAll: true,
+    };
 
   let scheme: string | null = null;
   const m = /^([a-z][a-z0-9+.-]*):\/\//.exec(rest);
@@ -141,7 +149,15 @@ function ipv4(host: string): number[] | null {
 }
 
 function privateIpv4([a, b]: number[]): boolean {
-  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127)
+  );
 }
 
 /**
@@ -159,7 +175,8 @@ export function isPrivateHost(hostname: string): boolean {
   if (!host.startsWith("[")) return false;
   const v6 = host.slice(1, -1);
   if (v6 === "::1" || v6 === "::") return true;
-  if (/^f[cd][0-9a-f]{0,2}:/.test(v6) || /^fe[89ab][0-9a-f]?:/.test(v6)) return true;
+  if (/^f[cd][0-9a-f]{0,2}:/.test(v6) || /^fe[89ab][0-9a-f]?:/.test(v6))
+    return true;
   const mapped = /^::ffff:(.+)$/.exec(v6);
   if (mapped) {
     const tail = mapped[1];
@@ -179,8 +196,11 @@ function matchesPattern(p: ParsedPattern, u: URL): boolean {
   if ((p.matchAll || p.wildcard) && isPrivateHost(host)) return false;
   if (p.matchAll) return true;
   const proto = u.protocol.replace(/:$/, "");
-  if (p.scheme ? proto !== p.scheme : proto !== "http" && proto !== "https") return false;
-  const hostOk = p.wildcard ? host === p.host || host.endsWith(`.${p.host}`) : host === p.host;
+  if (p.scheme ? proto !== p.scheme : proto !== "http" && proto !== "https")
+    return false;
+  const hostOk = p.wildcard
+    ? host === p.host || host.endsWith(`.${p.host}`)
+    : host === p.host;
   if (!hostOk) return false;
   if (p.port !== null && effectivePort(u) !== p.port) return false;
   return true;
@@ -191,7 +211,9 @@ function matchesPattern(p: ParsedPattern, u: URL): boolean {
  * breaks tab plumbing (every new tab is about:blank first).
  */
 export function isInternalUrl(url: string): boolean {
-  return /^(about|chrome|chrome-extension|chrome-error|devtools):/i.test(url.trim());
+  return /^(about|chrome|chrome-extension|chrome-error|devtools):/i.test(
+    url.trim(),
+  );
 }
 
 /** Origin label for audit rows: real origin when the URL has one, scheme otherwise. */
@@ -234,7 +256,11 @@ export function loadSitePolicy(cwd: string = process.cwd()): SitePolicy | null {
     try {
       const manifest = parseManifest(manifestFile);
       if (manifest?.browser.allow !== undefined) {
-        sources.push({ file: manifestFile, key: "[browser] allow", patterns: manifest.browser.allow });
+        sources.push({
+          file: manifestFile,
+          key: "[browser] allow",
+          patterns: manifest.browser.allow,
+        });
       }
     } catch (err) {
       errors.push({ file: manifestFile, message: (err as Error).message });
@@ -270,18 +296,31 @@ export function loadMachinePolicy(): SitePolicy | null {
       // An unparseable file says nothing about the list: the one this process
       // last read whole still holds (the bridge host reads this on every
       // agent-tab landing). Never read whole, a list cannot be ruled out.
-      if (lastMachineAllow === undefined) errors.push({ file: configFile, message: (err as Error).message });
-      else if (lastMachineAllow) sources.push({ file: configFile, key: "browser_allow", patterns: lastMachineAllow });
+      if (lastMachineAllow === undefined)
+        errors.push({ file: configFile, message: (err as Error).message });
+      else if (lastMachineAllow)
+        sources.push({
+          file: configFile,
+          key: "browser_allow",
+          patterns: lastMachineAllow,
+        });
     }
     if (config) {
       const allow = config.browser_allow;
       lastMachineAllow = null;
       if (allow !== undefined) {
         if (Array.isArray(allow) && allow.every((x) => typeof x === "string")) {
-          sources.push({ file: configFile, key: "browser_allow", patterns: allow });
+          sources.push({
+            file: configFile,
+            key: "browser_allow",
+            patterns: allow,
+          });
           lastMachineAllow = allow;
         } else {
-          errors.push({ file: configFile, message: "browser_allow must be an array of strings" });
+          errors.push({
+            file: configFile,
+            message: "browser_allow must be an array of strings",
+          });
           lastMachineAllow = undefined;
         }
       }
@@ -304,7 +343,10 @@ export function checkUrl(policy: SitePolicy | null, url: string): Verdict {
   if (!policy) return { allowed: true };
   if (policy.errors.length) {
     const e = policy.errors[0];
-    return { allowed: false, reason: `the policy source ${e.file} could not be read (${e.message})` };
+    return {
+      allowed: false,
+      reason: `the policy source ${e.file} could not be read (${e.message})`,
+    };
   }
   let u: URL;
   try {
@@ -318,13 +360,20 @@ export function checkUrl(policy: SitePolicy | null, url: string): Verdict {
       if (p && matchesPattern(p, u)) return { allowed: true, matched: raw };
     }
   }
-  return { allowed: false, reason: `${originOf(url)} is not in the site allowlist` };
+  return {
+    allowed: false,
+    reason: `${originOf(url)} is not in the site allowlist`,
+  };
 }
 
 /** One line naming every policy source, for refusal messages. */
 export function describeSources(policy: SitePolicy): string {
-  const parts = policy.sources.map((s) => `${s.file} ${s.key} (${s.patterns.length} entr${s.patterns.length === 1 ? "y" : "ies"})`);
-  for (const e of policy.errors) parts.push(`${e.file} (unreadable: ${e.message})`);
+  const parts = policy.sources.map(
+    (s) =>
+      `${s.file} ${s.key} (${s.patterns.length} entr${s.patterns.length === 1 ? "y" : "ies"})`,
+  );
+  for (const e of policy.errors)
+    parts.push(`${e.file} (unreadable: ${e.message})`);
   return parts.join(" + ");
 }
 

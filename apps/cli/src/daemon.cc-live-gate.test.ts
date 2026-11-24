@@ -27,10 +27,16 @@ describe("parseLiveClaudeSessions", () => {
   // the pane. Both read as "not stamped", so an unstamped pane is skipped
   // rather than misattributed.
   it("treats an unexpanded tmux placeholder as no stamp at all", () => {
-    expect(parseLiveClaudeSessions("claude|cc-claude-abc|#{@codecast_agent_type}|#{@codecast_cc_account}")).toEqual([]);
-    expect(parseLiveClaudeSessions("claude|cc-claude-abc|claude|#{@codecast_cc_account}")).toEqual([
-      { id: "cc-claude-abc" },
-    ]);
+    expect(
+      parseLiveClaudeSessions(
+        "claude|cc-claude-abc|#{@codecast_agent_type}|#{@codecast_cc_account}",
+      ),
+    ).toEqual([]);
+    expect(
+      parseLiveClaudeSessions(
+        "claude|cc-claude-abc|claude|#{@codecast_cc_account}",
+      ),
+    ).toEqual([{ id: "cc-claude-abc" }]);
   });
 
   it("keeps a session name that contains the field separator", () => {
@@ -43,7 +49,12 @@ describe("parseLiveClaudeSessions", () => {
   // launched. tmux reports a login shell with a leading dash; a node-hosted
   // agent reports "node" and stays.
   it("drops a stamped pane whose foreground process is the shell", () => {
-    const rows = ["zsh|cc-claude-dead|claude|", "-bash|cc-claude-login|claude|", "claude|cc-claude-live|claude|work", "node|cc-claude-node|claude|"].join("\n");
+    const rows = [
+      "zsh|cc-claude-dead|claude|",
+      "-bash|cc-claude-login|claude|",
+      "claude|cc-claude-live|claude|work",
+      "node|cc-claude-node|claude|",
+    ].join("\n");
     expect(parseLiveClaudeSessions(rows)).toEqual([
       { id: "cc-claude-live", account: "work" },
       { id: "cc-claude-node" },
@@ -52,12 +63,19 @@ describe("parseLiveClaudeSessions", () => {
 
   it("ignores blank output and rows with too few fields", () => {
     expect(parseLiveClaudeSessions("")).toEqual([]);
-    expect(parseLiveClaudeSessions("just-a-name\n\ncc-claude-a|claude|\nclaude|cc-claude-a|claude")).toEqual([]);
+    expect(
+      parseLiveClaudeSessions(
+        "just-a-name\n\ncc-claude-a|claude|\nclaude|cc-claude-a|claude",
+      ),
+    ).toEqual([]);
   });
 });
 
 describe("maintainActiveCcToken", () => {
-  const body = functionBlock(readFileSync(new URL("./daemon.ts", import.meta.url), "utf8"), "maintainActiveCcToken").text;
+  const body = functionBlock(
+    readFileSync(new URL("./daemon.ts", import.meta.url), "utf8"),
+    "maintainActiveCcToken",
+  ).text;
 
   // The gate is only a gate if the refresh sits behind it. A refresh that ran
   // beside the check would rotate the single-use refresh token out from under a
@@ -84,6 +102,8 @@ describe("maintainActiveCcToken", () => {
   // Remotes run a pushed COPY of this credential; rotating it there invalidates
   // the primary's. The live gate is a second condition, never a replacement.
   it("keeps the remote device gate", () => {
-    expect(body).toContain("if (isRemoteDevice() || ccTokenMaintInFlight) return;");
+    expect(body).toContain(
+      "if (isRemoteDevice() || ccTokenMaintInFlight) return;",
+    );
   });
 });

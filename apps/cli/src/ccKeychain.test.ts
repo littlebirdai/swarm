@@ -18,7 +18,13 @@ import {
 // Only the ASYNC read may be exercised here: bun's SYNC spawn resolves the
 // binary regardless of PATH, so a sync read would answer from the machine's
 // real keychain (the note in ccAccounts.test.ts records the same trap).
-const ENV_KEYS = ["CLAUDE_CONFIG_DIR", "USER", "USERNAME", "PATH", "HOME"] as const;
+const ENV_KEYS = [
+  "CLAUDE_CONFIG_DIR",
+  "USER",
+  "USERNAME",
+  "PATH",
+  "HOME",
+] as const;
 let saved: Record<string, string | undefined>;
 let tmp: string;
 
@@ -46,14 +52,18 @@ const scoped = (dir: string) =>
 
 describe("ccKeychainReadItems", () => {
   it("is the legacy item alone when no config dir is set", () => {
-    expect(ccKeychainReadItems()).toEqual([{ service: LEGACY_CC_KEYCHAIN_SERVICE, account: "ashot" }]);
+    expect(ccKeychainReadItems()).toEqual([
+      { service: LEGACY_CC_KEYCHAIN_SERVICE, account: "ashot" },
+    ]);
   });
 
   it("names the item Claude Code 2.1 actually reads", () => {
     // Observed live on 2.1.263: with CLAUDE_CONFIG_DIR=/tmp/ccdir.gAP66S, claude
     // authenticated off an item planted at this exact service name and reported
     // "Not logged in" while only the machine item held a login.
-    expect(ccKeychainReadItems("/tmp/ccdir.gAP66S")[0].service).toBe("Claude Code-credentials-d3213560");
+    expect(ccKeychainReadItems("/tmp/ccdir.gAP66S")[0].service).toBe(
+      "Claude Code-credentials-d3213560",
+    );
     expect(ccKeychainReadItems("/private/tmp/ccdir.gAP66S")[0].service).toBe(
       "Claude Code-credentials-cbc4144b",
     );
@@ -97,13 +107,17 @@ describe("ccKeychainReadItems", () => {
     const composed = "/tmp/caf\u00E9-config";
     const decomposed = "/tmp/cafe\u0301-config";
     expect(composed).not.toBe(decomposed);
-    expect(ccKeychainReadItems(decomposed)[0].service).toBe(ccKeychainReadItems(composed)[0].service);
+    expect(ccKeychainReadItems(decomposed)[0].service).toBe(
+      ccKeychainReadItems(composed)[0].service,
+    );
   });
 
   it("reads the config dir from the env", () => {
     process.env.CLAUDE_CONFIG_DIR = "/tmp/ccdir.gAP66S";
     expect(claudeConfigDir()).toBe("/tmp/ccdir.gAP66S");
-    expect(ccKeychainReadItems()[0].service).toBe("Claude Code-credentials-d3213560");
+    expect(ccKeychainReadItems()[0].service).toBe(
+      "Claude Code-credentials-d3213560",
+    );
   });
 
   it("treats a blank CLAUDE_CONFIG_DIR as unset", () => {
@@ -153,13 +167,19 @@ describe("ccKeychainAccount", () => {
 
 describe("ccKeychainWriteItem", () => {
   it("is the legacy item when no config dir is set", () => {
-    expect(ccKeychainWriteItem()).toEqual({ service: LEGACY_CC_KEYCHAIN_SERVICE, account: "ashot" });
+    expect(ccKeychainWriteItem()).toEqual({
+      service: LEGACY_CC_KEYCHAIN_SERVICE,
+      account: "ashot",
+    });
   });
 
   it("writes ONLY the scoped item, never the machine login too", () => {
     const dir = path.join(tmp, "config");
     fs.mkdirSync(dir);
-    expect(ccKeychainWriteItem(dir)).toEqual({ service: scoped(dir), account: "ashot" });
+    expect(ccKeychainWriteItem(dir)).toEqual({
+      service: scoped(dir),
+      account: "ashot",
+    });
   });
 
   it("writes the spelling it was given — that is the one the session set", () => {
@@ -175,7 +195,10 @@ describe("readLocalCredentialAsync", () => {
   it("walks every candidate, then falls back to the file form", async () => {
     process.env.CLAUDE_CONFIG_DIR = path.join(tmp, "config");
     fs.mkdirSync(path.join(tmp, ".claude"), { recursive: true });
-    fs.writeFileSync(path.join(tmp, ".claude", ".credentials.json"), '{"claudeAiOauth":{}}');
+    fs.writeFileSync(
+      path.join(tmp, ".claude", ".credentials.json"),
+      '{"claudeAiOauth":{}}',
+    );
     expect(await readLocalCredentialAsync()).toBe('{"claudeAiOauth":{}}');
   });
 

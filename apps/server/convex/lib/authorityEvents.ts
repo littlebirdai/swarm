@@ -58,21 +58,31 @@ export type AuthorityEventInput = {
   detail?: { before?: unknown; after?: unknown };
 };
 
-export async function recordAuthorityEvent(ctx: { db: any }, ev: AuthorityEventInput): Promise<Id<"authority_events">> {
+export async function recordAuthorityEvent(
+  ctx: { db: any },
+  ev: AuthorityEventInput,
+): Promise<Id<"authority_events">> {
   const conv = ev.conversation ?? null;
   const team_id = ev.team_id ?? conv?.team_id;
   return ctx.db.insert("authority_events", {
     kind: ev.kind,
     actor_user_id: ev.actor_user_id,
-    ...(ev.actor_conversation_id ? { actor_conversation_id: ev.actor_conversation_id } : {}),
+    ...(ev.actor_conversation_id
+      ? { actor_conversation_id: ev.actor_conversation_id }
+      : {}),
     ...(conv ? { conversation_id: conv._id } : {}),
     ...(team_id ? { team_id } : {}),
     ...(ev.target_user_id ? { target_user_id: ev.target_user_id } : {}),
     ...(ev.role_id ? { role_id: ev.role_id } : {}),
     ...(ev.share_table ? { share_table: ev.share_table } : {}),
-    ...(ev.share_token ? { share_token_hash: await sha256Hex(ev.share_token) } : {}),
+    ...(ev.share_token
+      ? { share_token_hash: await sha256Hex(ev.share_token) }
+      : {}),
     detail: ev.detail ?? {},
-    workspace: computeWorkspaceKey({ user_id: ev.actor_user_id, team_id }, conv),
+    workspace: computeWorkspaceKey(
+      { user_id: ev.actor_user_id, team_id },
+      conv,
+    ),
     created_at: Date.now(),
   });
 }

@@ -8,12 +8,21 @@
 import fs from "fs";
 import path from "path";
 import { execFileSync } from "./proc.js";
-import { captureAnchor, placeAnchor, type AnchorPlacement, type CodeAnchorText } from "@codecast/shared/comments";
+import {
+  captureAnchor,
+  placeAnchor,
+  type AnchorPlacement,
+  type CodeAnchorText,
+} from "@codecast/shared/comments";
 
 const LARGEST_FILE = 4 * 1024 * 1024;
 
 /** The file's lines in the working tree, or at `ref` when given. Null when unreadable. */
-export function readFileLines(repoRoot: string, relPath: string, ref?: string | null): string[] | null {
+export function readFileLines(
+  repoRoot: string,
+  relPath: string,
+  ref?: string | null,
+): string[] | null {
   try {
     const text = ref
       ? execFileSync("git", ["show", `${ref}:${relPath}`], {
@@ -32,13 +41,23 @@ export function readFileLines(repoRoot: string, relPath: string, ref?: string | 
 }
 
 /** The anchor to store with a comment on `start..end` of a file in this checkout. */
-export function captureLocalAnchor(repoRoot: string, relPath: string, start?: number, end?: number): CodeAnchorText | undefined {
+export function captureLocalAnchor(
+  repoRoot: string,
+  relPath: string,
+  start?: number,
+  end?: number,
+): CodeAnchorText | undefined {
   if (!start) return undefined;
   const lines = readFileLines(repoRoot, relPath);
   return lines ? captureAnchor(lines, start, end) : undefined;
 }
 
-type Placeable = { file_path?: string | null; line_number?: number | null; line_end?: number | null; anchor_lines?: CodeAnchorText | null };
+type Placeable = {
+  file_path?: string | null;
+  line_number?: number | null;
+  line_end?: number | null;
+  anchor_lines?: CodeAnchorText | null;
+};
 
 /**
  * The comments whose passage moved or is gone in the files as `readLines`
@@ -53,11 +72,13 @@ export function placeComments<T extends Placeable>(
   const placed = new Map<T, AnchorPlacement>();
   for (const comment of comments) {
     if (!comment.file_path || !comment.anchor_lines?.lines.length) continue;
-    if (!files.has(comment.file_path)) files.set(comment.file_path, readLines(comment.file_path));
+    if (!files.has(comment.file_path))
+      files.set(comment.file_path, readLines(comment.file_path));
     const lines = files.get(comment.file_path);
     if (!lines) continue;
     const placement = placeAnchor(comment, lines);
-    if (placement && placement.state !== "current") placed.set(comment, placement);
+    if (placement && placement.state !== "current")
+      placed.set(comment, placement);
   }
   return placed;
 }

@@ -19,7 +19,25 @@ import {
   roomHeldAsBurst,
   callRoomOf,
 } from "./faceRow";
-import { NOW, ME, ANN, BOB, CY, DM_ANN, DM_BOB, member, input, seat, walkie, sendingTo, burstRoom, call, states, order, entry } from "./faceRowFixtures";
+import {
+  NOW,
+  ME,
+  ANN,
+  BOB,
+  CY,
+  DM_ANN,
+  DM_BOB,
+  member,
+  input,
+  seat,
+  walkie,
+  sendingTo,
+  burstRoom,
+  call,
+  states,
+  order,
+  entry,
+} from "./faceRowFixtures";
 
 // ── every state ─────────────────────────────────────────────────────────────
 
@@ -38,7 +56,13 @@ describe("every state in the vocabulary", () => {
       }),
       null,
     );
-    expect(states(row)).toEqual({ [ANN]: "online", [BOB]: "idle", [CY]: "away", "u-di": "offline", "u-ed": "busy" });
+    expect(states(row)).toEqual({
+      [ANN]: "online",
+      [BOB]: "idle",
+      [CY]: "away",
+      "u-di": "offline",
+      "u-ed": "busy",
+    });
     expect(row.me).toBeNull();
     expect(row.links).toEqual([]);
     expect(row.card).toEqual({ kind: "none" });
@@ -47,7 +71,14 @@ describe("every state in the vocabulary", () => {
   test("in-call: a seat in a room the viewer is not in, when the seat is a call", () => {
     const row = deriveFaceRow(
       input({
-        roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true, in_room_key: "channel:c1", seat: "call" })],
+        roster: [
+          member(ME, "Me"),
+          member(ANN, "Ann", {
+            in_huddle: true,
+            in_room_key: "channel:c1",
+            seat: "call",
+          }),
+        ],
       }),
       null,
     );
@@ -60,8 +91,21 @@ describe("every state in the vocabulary", () => {
   test("a third party's walkie seat is presence, not a call (the seat class)", () => {
     const row = deriveFaceRow(
       input({
-        roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true, in_room_key: dmRoomKey(ANN, BOB), seat: "walkie" })],
-        liveRooms: [{ room_key: dmRoomKey(ANN, BOB), seat: "walkie", members: [seat(ANN), seat(BOB)] }],
+        roster: [
+          member(ME, "Me"),
+          member(ANN, "Ann", {
+            in_huddle: true,
+            in_room_key: dmRoomKey(ANN, BOB),
+            seat: "walkie",
+          }),
+        ],
+        liveRooms: [
+          {
+            room_key: dmRoomKey(ANN, BOB),
+            seat: "walkie",
+            members: [seat(ANN), seat(BOB)],
+          },
+        ],
       }),
       null,
     );
@@ -71,7 +115,9 @@ describe("every state in the vocabulary", () => {
 
   test("a viewer the room does not admit sees the bare boolean as a call", () => {
     const row = deriveFaceRow(
-      input({ roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true })] }),
+      input({
+        roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true })],
+      }),
       null,
     );
     expect(states(row)).toEqual({ [ANN]: "in-call" });
@@ -82,12 +128,24 @@ describe("every state in the vocabulary", () => {
       input({
         rings: {
           incoming: [{ from_user: BOB, room_key: DM_BOB, from_name: "Bob" }],
-          outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "ringing" }],
+          outgoing: [
+            {
+              to_user: ANN,
+              room_key: DM_ANN,
+              to_name: "Ann",
+              status: "ringing",
+            },
+          ],
         },
       }),
       null,
     );
-    expect(states(row)).toEqual({ [ME]: "ringing-me", [ANN]: "ringing-them", [BOB]: "ringing-me", [CY]: "online" });
+    expect(states(row)).toEqual({
+      [ME]: "ringing-me",
+      [ANN]: "ringing-them",
+      [BOB]: "ringing-me",
+      [CY]: "online",
+    });
     expect(row.links).toEqual([
       { from: ME, to: ANN, kind: "ring" },
       { from: ME, to: BOB, kind: "ring" },
@@ -97,7 +155,19 @@ describe("every state in the vocabulary", () => {
 
   test("a settled outgoing ring (declined, no answer) is not ringing-them", () => {
     const row = deriveFaceRow(
-      input({ rings: { incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "declined" }] } }),
+      input({
+        rings: {
+          incoming: [],
+          outgoing: [
+            {
+              to_user: ANN,
+              room_key: DM_ANN,
+              to_name: "Ann",
+              status: "declined",
+            },
+          ],
+        },
+      }),
       null,
     );
     expect(states(row)[ANN]).toBe("online");
@@ -107,12 +177,17 @@ describe("every state in the vocabulary", () => {
   test("talking-to-me: their burst is playing here; a voice level drives their ring", () => {
     const row = deriveFaceRow(
       input({
-        walkie: walkie(burstRoom(DM_ANN, "listen"), { incoming: { fromUserId: ANN, roomKey: DM_ANN } }),
+        walkie: walkie(burstRoom(DM_ANN, "listen"), {
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
         occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
       }),
       null,
     );
-    expect(states(row)).toMatchObject({ [ME]: "in-call", [ANN]: "talking-to-me" });
+    expect(states(row)).toMatchObject({
+      [ME]: "in-call",
+      [ANN]: "talking-to-me",
+    });
     expect(entry(row, ANN).level).toBe("voice");
     expect(row.links).toEqual([{ from: ME, to: ANN, kind: "rx" }]);
     expect(isTalking(ANN, row)).toBe(true);
@@ -128,7 +203,10 @@ describe("every state in the vocabulary", () => {
       }),
       null,
     );
-    expect(states(row)).toMatchObject({ [ME]: "speaking", [ANN]: "hearing-me" });
+    expect(states(row)).toMatchObject({
+      [ME]: "speaking",
+      [ANN]: "hearing-me",
+    });
     expect(row.me).toMatchObject({ level: "mic", muted: false });
     expect(row.links).toEqual([{ from: ME, to: ANN, kind: "tx" }]);
     expect(isTalking(ME, row)).toBe(true);
@@ -136,7 +214,11 @@ describe("every state in the vocabulary", () => {
 
   test("my burst before their seat lands: linked (tx) but no claim they hear it", () => {
     const row = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN, false) }) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), {
+          sending: sendingTo(DM_ANN, false),
+        }),
+      }),
       null,
     );
     expect(states(row)[ANN]).toBe("online");
@@ -151,10 +233,16 @@ describe("every state in the vocabulary", () => {
       call: call(DM_ANN),
     });
     const quiet = deriveFaceRow(base, null);
-    expect(states(quiet)).toMatchObject({ [ME]: "in-call", [ANN]: "live-with-me" });
+    expect(states(quiet)).toMatchObject({
+      [ME]: "in-call",
+      [ANN]: "live-with-me",
+    });
     expect(entry(quiet, ANN).muted).toBe(true);
     expect(quiet.links).toEqual([{ from: ME, to: ANN, kind: "call" }]);
-    const loud = deriveFaceRow({ ...base, call: call(DM_ANN, { speaking: [ANN] }) }, quiet);
+    const loud = deriveFaceRow(
+      { ...base, call: call(DM_ANN, { speaking: [ANN] }) },
+      quiet,
+    );
     expect(states(loud)[ANN]).toBe("speaking");
     expect(entry(loud, ANN).level).toBe("voice");
   });
@@ -162,14 +250,21 @@ describe("every state in the vocabulary", () => {
   test("joining: they stepped in on purpose, for the notice's few seconds, then live-with-me", () => {
     const base = input({
       walkie: walkie(burstRoom(DM_ANN, "call")),
-      occupancy: { [DM_ANN]: [seat(ME), seat(ANN, { walkie_joined_at: NOW - 2_000 })] },
+      occupancy: {
+        [DM_ANN]: [seat(ME), seat(ANN, { walkie_joined_at: NOW - 2_000 })],
+      },
       call: call(DM_ANN),
       announcement: { roomKey: DM_ANN, text: "Ann joined", at: NOW - 1_000 },
     });
     const fresh = deriveFaceRow(base, null);
     expect(states(fresh)[ANN]).toBe("joining");
     expect(entry(fresh, ANN).joinedAgo).toBe(2_000);
-    expect(fresh.card).toMatchObject({ kind: "joined-notice", text: "Ann joined", end: true, mute: true });
+    expect(fresh.card).toMatchObject({
+      kind: "joined-notice",
+      text: "Ann joined",
+      end: true,
+      mute: true,
+    });
     const later = deriveFaceRow({ ...base, now: NOW + JOIN_TITLE_MS }, fresh);
     expect(states(later)[ANN]).toBe("live-with-me");
     expect(later.card).toMatchObject({ kind: "live", roomKey: DM_ANN });
@@ -177,9 +272,20 @@ describe("every state in the vocabulary", () => {
 
   test("a Join on its way in says joining until the room is up, then the ordinary live card", () => {
     const seated = { [DM_ANN]: [seat(ANN)] };
-    const joining = deriveFaceRow(input({ call: call(DM_ANN, { phase: "connecting" }), occupancy: seated }), null);
-    expect(joining.card).toMatchObject({ kind: "live", roomKey: DM_ANN, joining: true, end: true });
-    const up = deriveFaceRow(input({ call: call(DM_ANN), occupancy: seated }), joining);
+    const joining = deriveFaceRow(
+      input({ call: call(DM_ANN, { phase: "connecting" }), occupancy: seated }),
+      null,
+    );
+    expect(joining.card).toMatchObject({
+      kind: "live",
+      roomKey: DM_ANN,
+      joining: true,
+      end: true,
+    });
+    const up = deriveFaceRow(
+      input({ call: call(DM_ANN), occupancy: seated }),
+      joining,
+    );
     expect(up.card).toMatchObject({ kind: "live", joining: false });
   });
 
@@ -192,20 +298,52 @@ describe("every state in the vocabulary", () => {
       }),
       null,
     );
-    expect(states(row)).toMatchObject({ [ME]: "in-call", [ANN]: "live-with-me", [BOB]: "live-with-me", [CY]: "online" });
-    expect(row.card).toMatchObject({ kind: "live", title: "#design", words: null, mute: true, private: false });
+    expect(states(row)).toMatchObject({
+      [ME]: "in-call",
+      [ANN]: "live-with-me",
+      [BOB]: "live-with-me",
+      [CY]: "online",
+    });
+    expect(row.card).toMatchObject({
+      kind: "live",
+      title: "#design",
+      words: null,
+      mute: true,
+      private: false,
+    });
   });
 
   test("a private huddle says so on its card until the door opens", () => {
     const occupancy = { "channel:c1": [seat(ME), seat(ANN)] };
-    const row = deriveFaceRow(input({ call: call("channel:c1"), occupancy, roomPrivate: true }), null);
+    const row = deriveFaceRow(
+      input({ call: call("channel:c1"), occupancy, roomPrivate: true }),
+      null,
+    );
     expect(row.card).toMatchObject({ kind: "live", private: true });
 
     const live = [{ room_key: "channel:c1", members: [], private: true }];
-    expect(roomIsPrivate({ liveRooms: live, callRooms: { "channel:c1": { locked: true } } }, "channel:c1")).toBe(true);
+    expect(
+      roomIsPrivate(
+        { liveRooms: live, callRooms: { "channel:c1": { locked: true } } },
+        "channel:c1",
+      ),
+    ).toBe(true);
     // Opening the door (a local flip of the lock) makes it ordinary at once.
-    expect(roomIsPrivate({ liveRooms: live, callRooms: { "channel:c1": { locked: false } } }, "channel:c1")).toBe(false);
-    expect(roomIsPrivate({ liveRooms: [{ ...live[0], private: false }], callRooms: { "channel:c1": { locked: true } } }, "channel:c1")).toBe(false);
+    expect(
+      roomIsPrivate(
+        { liveRooms: live, callRooms: { "channel:c1": { locked: false } } },
+        "channel:c1",
+      ),
+    ).toBe(false);
+    expect(
+      roomIsPrivate(
+        {
+          liveRooms: [{ ...live[0], private: false }],
+          callRooms: { "channel:c1": { locked: true } },
+        },
+        "channel:c1",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -248,7 +386,10 @@ describe("every link kind", () => {
   test("both: two keys down in one room", () => {
     const row = deriveFaceRow(
       input({
-        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN), incoming: { fromUserId: ANN, roomKey: DM_ANN } }),
+        walkie: walkie(burstRoom(DM_ANN), {
+          sending: sendingTo(DM_ANN),
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
         occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
         call: call(DM_ANN),
       }),
@@ -260,7 +401,10 @@ describe("every link kind", () => {
 
   test("a face never in my room and never named by it has no link", () => {
     const row = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] } }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+      }),
       null,
     );
     expect(row.links.map((l) => l.to)).toEqual([ANN]);
@@ -297,12 +441,20 @@ describe("order", () => {
     member(BOB, "Bob", { presence_state: "idle" }),
     member(CY, "Cy"),
     member("u-di", "Di", { presence_state: "offline" }),
-    member("u-ed", "Ed", { in_huddle: true, in_room_key: "channel:c2", seat: "call" }),
+    member("u-ed", "Ed", {
+      in_huddle: true,
+      in_room_key: "channel:c2",
+      seat: "call",
+    }),
   ];
 
   test("me, then linked faces, then calls, then presence bands by name", () => {
     const row = deriveFaceRow(
-      input({ roster, walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] } }),
+      input({
+        roster,
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+      }),
       null,
     );
     expect(order(row)).toEqual([ME, ANN, "u-ed", CY, BOB, "u-di"]);
@@ -311,12 +463,20 @@ describe("order", () => {
 
   test("linked faces keep the order they were linked in; a new link goes after", () => {
     const first = deriveFaceRow(
-      input({ roster, call: call("channel:c1"), occupancy: { "channel:c1": [seat(ME), seat(CY)] } }),
+      input({
+        roster,
+        call: call("channel:c1"),
+        occupancy: { "channel:c1": [seat(ME), seat(CY)] },
+      }),
       null,
     );
     expect(order(first).slice(0, 2)).toEqual([ME, CY]);
     const second = deriveFaceRow(
-      input({ roster, call: call("channel:c1"), occupancy: { "channel:c1": [seat(ME), seat(CY), seat(ANN)] } }),
+      input({
+        roster,
+        call: call("channel:c1"),
+        occupancy: { "channel:c1": [seat(ME), seat(CY), seat(ANN)] },
+      }),
       first,
     );
     // Ann sorts before Cy by name, and still lands after: order is by link.
@@ -324,13 +484,21 @@ describe("order", () => {
   });
 
   test("a heartbeat, a mute, a level or a speaking change moves nobody", () => {
-    const base = input({ roster, call: call("channel:c1"), occupancy: { "channel:c1": [seat(ME), seat(CY), seat(ANN)] } });
+    const base = input({
+      roster,
+      call: call("channel:c1"),
+      occupancy: { "channel:c1": [seat(ME), seat(CY), seat(ANN)] },
+    });
     const before = deriveFaceRow(base, null);
     const after = deriveFaceRow(
       {
         ...base,
-        roster: roster.map((m) => ({ ...m, presence_input_at: NOW } as FaceMember)),
-        occupancy: { "channel:c1": [seat(ME), seat(ANN, { muted: true }), seat(CY)] },
+        roster: roster.map(
+          (m) => ({ ...m, presence_input_at: NOW }) as FaceMember,
+        ),
+        occupancy: {
+          "channel:c1": [seat(ME), seat(ANN, { muted: true }), seat(CY)],
+        },
         call: call("channel:c1", { speaking: [ANN], muted: true }),
       },
       before,
@@ -340,7 +508,14 @@ describe("order", () => {
   });
 
   test("a tier change moves a face: a call ends and the face returns to its band", () => {
-    const during = deriveFaceRow(input({ roster, call: call(DM_BOB), occupancy: { [DM_BOB]: [seat(ME), seat(BOB)] } }), null);
+    const during = deriveFaceRow(
+      input({
+        roster,
+        call: call(DM_BOB),
+        occupancy: { [DM_BOB]: [seat(ME), seat(BOB)] },
+      }),
+      null,
+    );
     expect(order(during).slice(0, 2)).toEqual([ME, BOB]);
     const after = deriveFaceRow(input({ roster }), during);
     expect(order(after)).toEqual(["u-ed", CY, BOB, ANN, "u-di"]);
@@ -352,13 +527,21 @@ describe("order", () => {
 describe("hysteresis: the seams that read off then on", () => {
   test("(1) my linger after Stop keeps me on the row and the far side linked, never online", () => {
     const sending = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       null,
     );
     expect(states(sending)[ANN]).toBe("hearing-me");
     // Key up: the walkie still holds the room, nobody is sending.
     const linger = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN)), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN)),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       sending,
     );
     expect(linger.me).not.toBeNull();
@@ -369,7 +552,9 @@ describe("hysteresis: the seams that read off then on", () => {
     const joined = deriveFaceRow(
       input({
         walkie: walkie(burstRoom(DM_ANN, "call")),
-        occupancy: { [DM_ANN]: [seat(ME), seat(ANN, { walkie_joined_at: NOW })] },
+        occupancy: {
+          [DM_ANN]: [seat(ME), seat(ANN, { walkie_joined_at: NOW })],
+        },
         call: call(DM_ANN),
         announcement: { roomKey: DM_ANN, text: "Ann joined", at: NOW },
       }),
@@ -382,15 +567,27 @@ describe("hysteresis: the seams that read off then on", () => {
 
   test("(1b) their seat lapses for a tick while the walkie holds the room: held, not online", () => {
     const seated = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN)), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] } }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN)),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+      }),
       null,
     );
-    const gap = deriveFaceRow(input({ walkie: walkie(burstRoom(DM_ANN)), occupancy: { [DM_ANN]: [seat(ME)] } }), seated);
+    const gap = deriveFaceRow(
+      input({
+        walkie: walkie(burstRoom(DM_ANN)),
+        occupancy: { [DM_ANN]: [seat(ME)] },
+      }),
+      seated,
+    );
     expect(states(gap)[ANN]).toBe("live-with-me");
     expect(gap.links).toEqual([{ from: ME, to: ANN, kind: "tx" }]);
     // While my key is down again the held face hears me.
     const again = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME)] } }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME)] },
+      }),
       gap,
     );
     expect(states(again)[ANN]).toBe("hearing-me");
@@ -402,7 +599,10 @@ describe("hysteresis: the seams that read off then on", () => {
 
   test("(2) a LiveKit reconnect (phase connecting) keeps the call and the room", () => {
     const row = deriveFaceRow(
-      input({ call: call("channel:c1", { phase: "connecting" }), occupancy: { "channel:c1": [seat(ME), seat(ANN)] } }),
+      input({
+        call: call("channel:c1", { phase: "connecting" }),
+        occupancy: { "channel:c1": [seat(ME), seat(ANN)] },
+      }),
       null,
     );
     expect(row.room).toBe("channel:c1");
@@ -411,8 +611,17 @@ describe("hysteresis: the seams that read off then on", () => {
   });
 
   test("(3) the seat goes when the room does: no held state outlives the end of the engagement", () => {
-    const during = deriveFaceRow(input({ call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] } }), null);
-    const ended = deriveFaceRow(input({ occupancy: { [DM_ANN]: [seat(ANN)] } }), during);
+    const during = deriveFaceRow(
+      input({
+        call: call(DM_ANN),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+      }),
+      null,
+    );
+    const ended = deriveFaceRow(
+      input({ occupancy: { [DM_ANN]: [seat(ANN)] } }),
+      during,
+    );
     expect(ended.me).toBeNull();
     expect(ended.room).toBeNull();
     expect(states(ended)[ANN]).toBe("online");
@@ -421,7 +630,14 @@ describe("hysteresis: the seams that read off then on", () => {
   test("(4) a seat the roster still reports in my room counts before the occupancy feed lands", () => {
     const row = deriveFaceRow(
       input({
-        roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true, in_room_key: DM_ANN, seat: "call" })],
+        roster: [
+          member(ME, "Me"),
+          member(ANN, "Ann", {
+            in_huddle: true,
+            in_room_key: DM_ANN,
+            seat: "call",
+          }),
+        ],
         walkie: walkie(burstRoom(DM_ANN, "call")),
         call: call(DM_ANN),
       }),
@@ -432,42 +648,86 @@ describe("hysteresis: the seams that read off then on", () => {
 
   test("(5) a room the walkie holds is engaged even when the call plane went idle under it", () => {
     const row = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), call: { ...call(DM_ANN), phase: "idle", roomKey: null } }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        call: { ...call(DM_ANN), phase: "idle", roomKey: null },
+      }),
       null,
     );
     expect(row.room).toBe(DM_ANN);
     expect(row.me?.state).toBe("speaking");
-    expect(row.card).toMatchObject({ kind: "live", words: { stage: "dropped" } });
+    expect(row.card).toMatchObject({
+      kind: "live",
+      words: { stage: "dropped" },
+    });
   });
 
   test("(7) they answered my ring: held as ringing them until their seat lands, never online between", () => {
     // Ringing from inside the room: startHuddle seats the caller first.
     const alone = { call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME)] } };
-    const ring = (status: string) => ({ incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status }] });
-    const ringing = deriveFaceRow(input({ ...alone, rings: ring("ringing") }), null);
+    const ring = (status: string) => ({
+      incoming: [],
+      outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status }],
+    });
+    const ringing = deriveFaceRow(
+      input({ ...alone, rings: ring("ringing") }),
+      null,
+    );
     expect(states(ringing)[ANN]).toBe("ringing-them");
     // The ring settles a round trip before the seat: held.
-    const answered = deriveFaceRow(input({ ...alone, rings: ring("accepted") }), ringing);
+    const answered = deriveFaceRow(
+      input({ ...alone, rings: ring("accepted") }),
+      ringing,
+    );
     expect(states(answered)[ANN]).toBe("ringing-them");
     expect(answered.links).toEqual([{ from: ME, to: ANN, kind: "ring" }]);
     // The seat lands: live, and the accepted ring is no card.
-    const seated = deriveFaceRow(input({ call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, rings: ring("accepted") }), answered);
+    const seated = deriveFaceRow(
+      input({
+        call: call(DM_ANN),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        rings: ring("accepted"),
+      }),
+      answered,
+    );
     expect(states(seated)[ANN]).toBe("live-with-me");
     expect(seated.card.kind).toBe("live");
     // Declined, cancelled or gone: not held.
-    expect(states(deriveFaceRow(input({ ...alone, rings: ring("declined") }), ringing))[ANN]).toBe("online");
-    expect(states(deriveFaceRow(input({ ...alone, rings: { incoming: [], outgoing: [] } }), ringing))[ANN]).toBe("online");
+    expect(
+      states(
+        deriveFaceRow(input({ ...alone, rings: ring("declined") }), ringing),
+      )[ANN],
+    ).toBe("online");
+    expect(
+      states(
+        deriveFaceRow(
+          input({ ...alone, rings: { incoming: [], outgoing: [] } }),
+          ringing,
+        ),
+      )[ANN],
+    ).toBe("online");
     // Nothing to hold from cold: an accepted ring with no ringing before it is presence.
-    expect(states(deriveFaceRow(input({ ...alone, rings: ring("accepted") }), null))[ANN]).toBe("online");
+    expect(
+      states(deriveFaceRow(input({ ...alone, rings: ring("accepted") }), null))[
+        ANN
+      ],
+    ).toBe("online");
   });
 
   test("(6) another window is the voice host: my seat in the live rooms list engages me", () => {
     const row = deriveFaceRow(
-      input({ liveRooms: [{ room_key: DM_ANN, seat: "call", members: [seat(ME), seat(ANN)] }] }),
+      input({
+        liveRooms: [
+          { room_key: DM_ANN, seat: "call", members: [seat(ME), seat(ANN)] },
+        ],
+      }),
       null,
     );
     expect(row.room).toBe(DM_ANN);
-    expect(states(row)).toMatchObject({ [ME]: "in-call", [ANN]: "live-with-me" });
+    expect(states(row)).toMatchObject({
+      [ME]: "in-call",
+      [ANN]: "live-with-me",
+    });
   });
 });
 
@@ -476,12 +736,34 @@ describe("hysteresis: the seams that read off then on", () => {
 describe("the card", () => {
   test("incoming while their burst plays, then open with a reply once it stops", () => {
     const playing = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "listen"), { incoming: { fromUserId: ANN, roomKey: DM_ANN } }) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "listen"), {
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
+      }),
       null,
     );
-    expect(playing.card).toMatchObject({ kind: "incoming", from: ANN, name: "Ann", reply: false, join: true, snooze: true, words: { stage: "incoming" } });
-    const stopped = deriveFaceRow(input({ walkie: walkie(burstRoom(DM_ANN, "listen"), { canReply: true }) }), playing);
-    expect(stopped.card).toMatchObject({ kind: "incoming", from: ANN, reply: true, words: { stage: "open" } });
+    expect(playing.card).toMatchObject({
+      kind: "incoming",
+      from: ANN,
+      name: "Ann",
+      reply: false,
+      join: true,
+      snooze: true,
+      words: { stage: "incoming" },
+    });
+    const stopped = deriveFaceRow(
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "listen"), { canReply: true }),
+      }),
+      playing,
+    );
+    expect(stopped.card).toMatchObject({
+      kind: "incoming",
+      from: ANN,
+      reply: true,
+      words: { stage: "open" },
+    });
   });
 
   test("live while I talk: the walkie's words and what the roster says about them", () => {
@@ -501,10 +783,16 @@ describe("the card", () => {
       hearing: { state: "busy" },
     });
     const heard = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       row,
     );
-    expect(heard.card).toMatchObject({ hearing: { state: "hears", text: "Ann hears you" } });
+    expect(heard.card).toMatchObject({
+      hearing: { state: "hears", text: "Ann hears you" },
+    });
   });
 
   test("a ring at me outranks everything; my own ring out shows only when nothing else does", () => {
@@ -512,16 +800,43 @@ describe("the card", () => {
       input({
         call: call(DM_ANN),
         occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
-        rings: { incoming: [{ from_user: BOB, room_key: DM_BOB, from_name: "Bob" }], outgoing: [] },
+        rings: {
+          incoming: [{ from_user: BOB, room_key: DM_BOB, from_name: "Bob" }],
+          outgoing: [],
+        },
       }),
       null,
     );
-    expect(busy.card).toMatchObject({ kind: "ring-in", from: BOB, name: "Bob", answer: true, decline: true });
+    expect(busy.card).toMatchObject({
+      kind: "ring-in",
+      from: BOB,
+      name: "Bob",
+      answer: true,
+      decline: true,
+    });
     const ringing = deriveFaceRow(
-      input({ rings: { incoming: [], outgoing: [{ to_user: CY, room_key: dmRoomKey(ME, CY), to_name: "Cy", status: "ringing" }] } }),
+      input({
+        rings: {
+          incoming: [],
+          outgoing: [
+            {
+              to_user: CY,
+              room_key: dmRoomKey(ME, CY),
+              to_name: "Cy",
+              status: "ringing",
+            },
+          ],
+        },
+      }),
       null,
     );
-    expect(ringing.card).toMatchObject({ kind: "ring-out", to: CY, name: "Cy", cancel: true, status: "ringing" });
+    expect(ringing.card).toMatchObject({
+      kind: "ring-out",
+      to: CY,
+      name: "Cy",
+      cancel: true,
+      status: "ringing",
+    });
     expect(ringing.me?.state).toBe("ringing-them");
   });
 
@@ -531,7 +846,10 @@ describe("the card", () => {
       input({
         call: call(team),
         occupancy: { [team]: [seat(ME), seat(ANN), seat(BOB)] },
-        rings: { incoming: [{ from_user: BOB, room_key: team, from_name: "Bob" }], outgoing: [] },
+        rings: {
+          incoming: [{ from_user: BOB, room_key: team, from_name: "Bob" }],
+          outgoing: [],
+        },
       }),
       null,
     );
@@ -542,7 +860,10 @@ describe("the card", () => {
     const joining = deriveFaceRow(
       input({
         call: call(team, { phase: "connecting" }),
-        rings: { incoming: [{ from_user: BOB, room_key: team, from_name: "Bob" }], outgoing: [] },
+        rings: {
+          incoming: [{ from_user: BOB, room_key: team, from_name: "Bob" }],
+          outgoing: [],
+        },
       }),
       null,
     );
@@ -550,8 +871,13 @@ describe("the card", () => {
     // Only listening to a burst is not the call: a ring into it still asks.
     const listening = deriveFaceRow(
       input({
-        walkie: walkie(burstRoom(DM_ANN, "listen"), { incoming: { fromUserId: ANN, roomKey: DM_ANN } }),
-        rings: { incoming: [{ from_user: ANN, room_key: DM_ANN, from_name: "Ann" }], outgoing: [] },
+        walkie: walkie(burstRoom(DM_ANN, "listen"), {
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
+        rings: {
+          incoming: [{ from_user: ANN, room_key: DM_ANN, from_name: "Ann" }],
+          outgoing: [],
+        },
       }),
       null,
     );
@@ -560,30 +886,78 @@ describe("the card", () => {
 
   test("ringing from inside the room: the card is the ring out until somebody is seated, then live", () => {
     const alone = { call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME)] } };
-    const ring = (status: string) => ({ incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status }] });
-    const ringing = deriveFaceRow(input({ ...alone, rings: ring("ringing") }), null);
-    expect(ringing.card).toMatchObject({ kind: "ring-out", to: ANN, name: "Ann", cancel: true, status: "ringing" });
+    const ring = (status: string) => ({
+      incoming: [],
+      outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status }],
+    });
+    const ringing = deriveFaceRow(
+      input({ ...alone, rings: ring("ringing") }),
+      null,
+    );
+    expect(ringing.card).toMatchObject({
+      kind: "ring-out",
+      to: ANN,
+      name: "Ann",
+      cancel: true,
+      status: "ringing",
+    });
     expect(ringing.me?.state).toBe("in-call");
     // Declined while I sit alone: the card says so, still the ring out.
-    expect(deriveFaceRow(input({ ...alone, rings: ring("declined") }), ringing).card).toMatchObject({ kind: "ring-out", status: "declined" });
+    expect(
+      deriveFaceRow(input({ ...alone, rings: ring("declined") }), ringing).card,
+    ).toMatchObject({ kind: "ring-out", status: "declined" });
     // A ring for another room never speaks for this one.
-    const elsewhere = { incoming: [], outgoing: [{ to_user: BOB, room_key: DM_BOB, to_name: "Bob", status: "ringing" }] };
-    expect(deriveFaceRow(input({ ...alone, rings: elsewhere }), null).card.kind).toBe("live");
+    const elsewhere = {
+      incoming: [],
+      outgoing: [
+        { to_user: BOB, room_key: DM_BOB, to_name: "Bob", status: "ringing" },
+      ],
+    };
+    expect(
+      deriveFaceRow(input({ ...alone, rings: elsewhere }), null).card.kind,
+    ).toBe("live");
     // Somebody seated: live, whatever the ring rows say.
-    const seated = deriveFaceRow(input({ call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, rings: ring("accepted") }), ringing);
+    const seated = deriveFaceRow(
+      input({
+        call: call(DM_ANN),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        rings: ring("accepted"),
+      }),
+      ringing,
+    );
     expect(seated.card.kind).toBe("live");
     // Out of the room, a stale accepted row is no card at all.
-    expect(deriveFaceRow(input({ rings: ring("accepted") }), null).card.kind).toBe("none");
+    expect(
+      deriveFaceRow(input({ rings: ring("accepted") }), null).card.kind,
+    ).toBe("none");
   });
 
   test("a ring out from a room I sit in alone is a hang up; one from outside it is not", () => {
-    const ring = { incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "ringing" }] };
-    const inside = deriveFaceRow(input({ call: call(DM_ANN), occupancy: { [DM_ANN]: [seat(ME)] }, rings: ring }), null);
+    const ring = {
+      incoming: [],
+      outgoing: [
+        { to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "ringing" },
+      ],
+    };
+    const inside = deriveFaceRow(
+      input({
+        call: call(DM_ANN),
+        occupancy: { [DM_ANN]: [seat(ME)] },
+        rings: ring,
+      }),
+      null,
+    );
     expect(inside.card).toMatchObject({ kind: "ring-out", hangUp: true });
     // Still joining (the stub ring is up from the press): Cancel hangs up too.
-    const joining = deriveFaceRow(input({ call: call(DM_ANN, { phase: "ringing_out" }), rings: ring }), null);
+    const joining = deriveFaceRow(
+      input({ call: call(DM_ANN, { phase: "ringing_out" }), rings: ring }),
+      null,
+    );
     expect(joining.card).toMatchObject({ kind: "ring-out", hangUp: true });
-    expect(deriveFaceRow(input({ rings: ring }), null).card).toMatchObject({ kind: "ring-out", hangUp: false });
+    expect(deriveFaceRow(input({ rings: ring }), null).card).toMatchObject({
+      kind: "ring-out",
+      hangUp: false,
+    });
   });
 
   test("a hang up lets go at the press: the server's seat and rings for that room read gone", () => {
@@ -591,32 +965,79 @@ describe("the card", () => {
     const stale = {
       liveRooms: [{ room_key: DM_ANN, members: [seat(ME)] }],
       occupancy: { [DM_ANN]: [seat(ME)] },
-      rings: { incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "ringing" }] },
+      rings: {
+        incoming: [],
+        outgoing: [
+          { to_user: ANN, room_key: DM_ANN, to_name: "Ann", status: "ringing" },
+        ],
+      },
     };
     // Without a press this is a seat that outlived a reloaded window: shown, so End can clear it.
-    expect(deriveFaceRow(input(stale), null).card).toMatchObject({ kind: "ring-out", hangUp: true });
+    expect(deriveFaceRow(input(stale), null).card).toMatchObject({
+      kind: "ring-out",
+      hangUp: true,
+    });
     const left = { roomKey: DM_ANN, at: NOW - 2_000 };
-    const after = deriveFaceRow(input({ ...stale, call: { ...input().call, left } }), null);
+    const after = deriveFaceRow(
+      input({ ...stale, call: { ...input().call, left } }),
+      null,
+    );
     expect(after.card.kind).toBe("none");
     expect(after.me).toBeNull();
     expect(states(after)[ANN]).not.toBe("ringing-them");
     // A ring of my own into another room still shows.
-    const other = { to_user: BOB, room_key: DM_BOB, to_name: "Bob", status: "ringing" };
-    const elsewhere = deriveFaceRow(input({ ...stale, rings: { incoming: [], outgoing: [...stale.rings.outgoing, other] }, call: { ...input().call, left } }), null);
+    const other = {
+      to_user: BOB,
+      room_key: DM_BOB,
+      to_name: "Bob",
+      status: "ringing",
+    };
+    const elsewhere = deriveFaceRow(
+      input({
+        ...stale,
+        rings: { incoming: [], outgoing: [...stale.rings.outgoing, other] },
+        call: { ...input().call, left },
+      }),
+      null,
+    );
     expect(elsewhere.card).toMatchObject({ kind: "ring-out", to: BOB });
     // Back in the same room (a fresh call to Ann): the hang up is over.
-    const back = deriveFaceRow(input({ ...stale, call: { ...call(DM_ANN, { phase: "ringing_out" }), left } }), null);
-    expect(back.card).toMatchObject({ kind: "ring-out", to: ANN, hangUp: true });
+    const back = deriveFaceRow(
+      input({
+        ...stale,
+        call: { ...call(DM_ANN, { phase: "ringing_out" }), left },
+      }),
+      null,
+    );
+    expect(back.card).toMatchObject({
+      kind: "ring-out",
+      to: ANN,
+      hangUp: true,
+    });
     // A seat the server still lists a lease and a sweep later is real again.
-    expect(deriveFaceRow(input({ ...stale, call: { ...input().call, left }, now: NOW + 60_000 }), null).card.kind).not.toBe("none");
+    expect(
+      deriveFaceRow(
+        input({ ...stale, call: { ...input().call, left }, now: NOW + 60_000 }),
+        null,
+      ).card.kind,
+    ).not.toBe("none");
   });
 
   test("a locked walkie call carries the on the line words and a mute", () => {
     const row = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "call")), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN, { muted: true }) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "call")),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN, { muted: true }),
+      }),
       null,
     );
-    expect(row.card).toMatchObject({ kind: "live", mute: true, muted: true, words: { stage: "locked", badge: "ON THE LINE · MUTED" } });
+    expect(row.card).toMatchObject({
+      kind: "live",
+      mute: true,
+      muted: true,
+      words: { stage: "locked", badge: "ON THE LINE · MUTED" },
+    });
     expect(row.me).toMatchObject({ muted: true, level: null });
   });
 });
@@ -627,44 +1048,85 @@ describe("selectors", () => {
   test("isInHuddle: a call anywhere, never a burst with me (memberInHuddle's rule, on the row)", () => {
     // A seat in a call elsewhere wears the chip.
     const elsewhere = deriveFaceRow(
-      input({ roster: [member(ME, "Me"), member(ANN, "Ann", { in_huddle: true, in_room_key: "channel:c1", seat: "call" })] }),
+      input({
+        roster: [
+          member(ME, "Me"),
+          member(ANN, "Ann", {
+            in_huddle: true,
+            in_room_key: "channel:c1",
+            seat: "call",
+          }),
+        ],
+      }),
       null,
     );
     expect(isInHuddle(ANN, elsewhere)).toBe(true);
     // Their burst playing here, or my burst reaching them: a link and a ring, no chip.
     const theirs = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "listen"), { incoming: { fromUserId: ANN, roomKey: DM_ANN } }) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "listen"), {
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
+      }),
       null,
     );
     expect(isInCall(ANN, theirs)).toBe(true);
     expect(isInHuddle(ANN, theirs)).toBe(false);
     const mine = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] } }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+      }),
       null,
     );
     expect(isInHuddle(ANN, mine)).toBe(false);
     // The moment the room is a call, the chip is true again.
     const joined = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "call")), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "call")),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       mine,
     );
     expect(isInHuddle(ANN, joined)).toBe(true);
     // A ring is not a call yet.
-    const ringing = deriveFaceRow(input({ rings: { incoming: [], outgoing: [{ to_user: ANN, room_key: DM_ANN, status: "ringing" }] } }), null);
+    const ringing = deriveFaceRow(
+      input({
+        rings: {
+          incoming: [],
+          outgoing: [{ to_user: ANN, room_key: DM_ANN, status: "ringing" }],
+        },
+      }),
+      null,
+    );
     expect(isInHuddle(ANN, ringing)).toBe(false);
   });
 
   test("roomHeldAsBurst: my room while the links are the walkie's, never once it is a call", () => {
     const listening = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "listen"), { incoming: { fromUserId: ANN, roomKey: DM_ANN } }) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "listen"), {
+          incoming: { fromUserId: ANN, roomKey: DM_ANN },
+        }),
+      }),
       null,
     );
     expect(roomHeldAsBurst(DM_ANN, listening)).toBe(true);
     expect(roomHeldAsBurst("dm:u-bob:u-me", listening)).toBe(false);
-    const talking = deriveFaceRow(input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }) }), null);
+    const talking = deriveFaceRow(
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+      }),
+      null,
+    );
     expect(roomHeldAsBurst(DM_ANN, talking)).toBe(true);
     const joined = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "call")), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "call")),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       talking,
     );
     expect(roomHeldAsBurst(DM_ANN, joined)).toBe(false);
@@ -672,10 +1134,19 @@ describe("selectors", () => {
   });
 
   test("callRoomOf is the call I am on: never a burst, never no room", () => {
-    const talking = deriveFaceRow(input({ walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }) }), null);
+    const talking = deriveFaceRow(
+      input({
+        walkie: walkie(burstRoom(DM_ANN), { sending: sendingTo(DM_ANN) }),
+      }),
+      null,
+    );
     expect(callRoomOf(talking)).toBeNull();
     const joined = deriveFaceRow(
-      input({ walkie: walkie(burstRoom(DM_ANN, "call")), occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] }, call: call(DM_ANN) }),
+      input({
+        walkie: walkie(burstRoom(DM_ANN, "call")),
+        occupancy: { [DM_ANN]: [seat(ME), seat(ANN)] },
+        call: call(DM_ANN),
+      }),
       talking,
     );
     expect(callRoomOf(joined)).toBe(DM_ANN);
@@ -697,7 +1168,13 @@ describe("a guest in my call", () => {
   const inCall = (over: Partial<FaceRowInput> = {}) =>
     input({
       occupancy: { [ROOM]: [seat(ME), seat(ANN)] },
-      liveRooms: [{ room_key: ROOM, members: [seat(ME), seat(ANN)], guests: [{ identity: GUEST, name: "Ada", joined_at: NOW - 60_000 }] }],
+      liveRooms: [
+        {
+          room_key: ROOM,
+          members: [seat(ME), seat(ANN)],
+          guests: [{ identity: GUEST, name: "Ada", joined_at: NOW - 60_000 }],
+        },
+      ],
       call: call(ROOM),
       ...over,
     });
@@ -705,41 +1182,84 @@ describe("a guest in my call", () => {
   test("is a face of their own, linked to me by the call and marked a guest", () => {
     const row = deriveFaceRow(inCall(), null);
     const g = entry(row, GUEST);
-    expect(g).toMatchObject({ name: "Ada", tier: "linked", state: "live-with-me", guest: true, unread: 0 });
+    expect(g).toMatchObject({
+      name: "Ada",
+      tier: "linked",
+      state: "live-with-me",
+      guest: true,
+      unread: 0,
+    });
     expect(g.joinedAgo).toBe(60_000);
     expect(row.links).toContainEqual({ from: ME, to: GUEST, kind: "call" });
   });
 
   test("speaks and shows their camera by their identity", () => {
-    const row = deriveFaceRow(inCall({ call: call(ROOM, { speaking: [GUEST], cameras: [GUEST] }) }), null);
-    expect(entry(row, GUEST)).toMatchObject({ state: "speaking", level: "voice", video: "remote" });
+    const row = deriveFaceRow(
+      inCall({ call: call(ROOM, { speaking: [GUEST], cameras: [GUEST] }) }),
+      null,
+    );
+    expect(entry(row, GUEST)).toMatchObject({
+      state: "speaking",
+      level: "voice",
+      video: "remote",
+    });
   });
 
   test("wears their real microphone once the media says it", () => {
-    const row = deriveFaceRow(inCall({ call: call(ROOM, { guests: [{ identity: GUEST, muted: true }] }) }), null);
+    const row = deriveFaceRow(
+      inCall({
+        call: call(ROOM, { guests: [{ identity: GUEST, muted: true }] }),
+      }),
+      null,
+    );
     expect(entry(row, GUEST)).toMatchObject({ muted: true, guest: true });
   });
 
   test("is not drawn as here when my connected call's media does not have them", () => {
     // Let in by the server's lease, but not in the media: a reload waiting on
     // a press, a dropped page. A face that cannot be heard is no face.
-    const row = deriveFaceRow(inCall({ call: call(ROOM, { guests: [] }) }), null);
+    const row = deriveFaceRow(
+      inCall({ call: call(ROOM, { guests: [] }) }),
+      null,
+    );
     expect(row.entries.some((e) => e.id === GUEST)).toBe(false);
     // A host too old to say draws them from the server's list as before.
-    expect(entry(deriveFaceRow(inCall({ call: call(ROOM, { guests: null }) }), null), GUEST)).toBeTruthy();
+    expect(
+      entry(
+        deriveFaceRow(inCall({ call: call(ROOM, { guests: null }) }), null),
+        GUEST,
+      ),
+    ).toBeTruthy();
   });
 
   test("is nobody to a viewer who is not in that call", () => {
-    const row = deriveFaceRow(inCall({ call: call("people:u-bob,u-me"), occupancy: {} }), null);
+    const row = deriveFaceRow(
+      inCall({ call: call("people:u-bob,u-me"), occupancy: {} }),
+      null,
+    );
     expect(row.entries.some((e) => e.id === GUEST)).toBe(false);
   });
 
   test("a guest arriving or renaming moves the input signature", () => {
-    const idle = { sending: null, incoming: null, liveRoom: null, unavailable: null, canReply: false, asr: "live", error: null } as any;
+    const idle = {
+      sending: null,
+      incoming: null,
+      liveRoom: null,
+      unavailable: null,
+      canReply: false,
+      asr: "live",
+      error: null,
+    } as any;
     const st = (guests: { identity: string; name: string }[]) =>
-      ({ ...useInboxStore.getState(), liveRooms: [{ room_key: ROOM, members: [seat(ME)], guests }] }) as any;
-    const sig = (guests: { identity: string; name: string }[]) => (faceRowInputSig as any)(st(guests), idle, null, [], NOW);
+      ({
+        ...useInboxStore.getState(),
+        liveRooms: [{ room_key: ROOM, members: [seat(ME)], guests }],
+      }) as any;
+    const sig = (guests: { identity: string; name: string }[]) =>
+      (faceRowInputSig as any)(st(guests), idle, null, [], NOW);
     expect(sig([{ identity: GUEST, name: "Ada" }])).not.toBe(sig([]));
-    expect(sig([{ identity: GUEST, name: "Ada L" }])).not.toBe(sig([{ identity: GUEST, name: "Ada" }]));
+    expect(sig([{ identity: GUEST, name: "Ada L" }])).not.toBe(
+      sig([{ identity: GUEST, name: "Ada" }]),
+    );
   });
 });

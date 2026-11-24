@@ -24,14 +24,22 @@ export function PaneControls({
     <>
       {onExpand && (
         <ShortcutTooltip label={expandTitle}>
-          <button onClick={onExpand} className="cc-panel__btn flex-shrink-0" aria-label={expandTitle}>
+          <button
+            onClick={onExpand}
+            className="cc-panel__btn flex-shrink-0"
+            aria-label={expandTitle}
+          >
             <Maximize2 className="w-3 h-3" />
           </button>
         </ShortcutTooltip>
       )}
       {onClose && (
         <ShortcutTooltip label={closeTitle}>
-          <button onClick={onClose} className="cc-panel__btn is-close flex-shrink-0" aria-label={closeTitle}>
+          <button
+            onClick={onClose}
+            className="cc-panel__btn is-close flex-shrink-0"
+            aria-label={closeTitle}
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </ShortcutTooltip>

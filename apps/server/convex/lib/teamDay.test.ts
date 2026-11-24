@@ -4,16 +4,31 @@ import { teamDayBounds, teamDayFor, teamTimezone } from "./teamDay";
 
 describe("teamTimezone", () => {
   const TEAM = "team_1" as any;
-  const seed = (team: Record<string, any>, members: Array<[string, "admin" | "member", number, string | undefined]>) => ({
+  const seed = (
+    team: Record<string, any>,
+    members: Array<[string, "admin" | "member", number, string | undefined]>,
+  ) => ({
     db: makeFakeDb({
       teams: [{ _id: TEAM, name: "T", ...team }],
-      team_memberships: members.map(([user_id, role, joined_at], i) => ({ _id: `m${i}`, team_id: TEAM, user_id, role, joined_at })),
-      users: members.map(([user_id, , , timezone]) => ({ _id: user_id, name: user_id, timezone })),
+      team_memberships: members.map(([user_id, role, joined_at], i) => ({
+        _id: `m${i}`,
+        team_id: TEAM,
+        user_id,
+        role,
+        joined_at,
+      })),
+      users: members.map(([user_id, , , timezone]) => ({
+        _id: user_id,
+        name: user_id,
+        timezone,
+      })),
     }),
   });
 
   test("teams.timezone wins", async () => {
-    const ctx = seed({ timezone: "Asia/Tokyo" }, [["u1", "admin", 1, "America/New_York"]]);
+    const ctx = seed({ timezone: "Asia/Tokyo" }, [
+      ["u1", "admin", 1, "America/New_York"],
+    ]);
     expect(await teamTimezone(ctx, TEAM)).toBe("Asia/Tokyo");
   });
 
@@ -28,7 +43,9 @@ describe("teamTimezone", () => {
   });
 
   test("an unknown teams.timezone falls through to the admins", async () => {
-    const ctx = seed({ timezone: "Nope/Nope" }, [["u1", "admin", 1, "Europe/Paris"]]);
+    const ctx = seed({ timezone: "Nope/Nope" }, [
+      ["u1", "admin", 1, "Europe/Paris"],
+    ]);
     expect(await teamTimezone(ctx, TEAM)).toBe("Europe/Paris");
   });
 

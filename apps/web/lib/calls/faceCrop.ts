@@ -43,7 +43,12 @@ export const FACE_PADDING = 2.1;
  * in, and the frame's dimensions vary per camera; normalizing here means every
  * consumer downstream works in one coordinate system.
  */
-export function cropFromFace(box: FaceBox, videoW: number, videoH: number, pad = FACE_PADDING): Crop {
+export function cropFromFace(
+  box: FaceBox,
+  videoW: number,
+  videoH: number,
+  pad = FACE_PADDING,
+): Crop {
   if (!(videoW > 0) || !(videoH > 0)) return CENTER_CROP;
   return {
     cx: (box.x + box.width / 2) / videoW,
@@ -88,17 +93,32 @@ export function clampCrop(crop: Crop, aspect: number): Crop {
  *
  * Returns the SAME object when nothing moved, so a caller can skip the write.
  */
-export function lerpCrop(cur: Crop, target: Crop, alpha: number, deadzone = 0.004): Crop {
+export function lerpCrop(
+  cur: Crop,
+  target: Crop,
+  alpha: number,
+  deadzone = 0.004,
+): Crop {
   const dx = target.cx - cur.cx;
   const dy = target.cy - cur.cy;
   const ds = target.size - cur.size;
-  if (Math.abs(dx) < deadzone && Math.abs(dy) < deadzone && Math.abs(ds) < deadzone) return cur;
+  if (
+    Math.abs(dx) < deadzone &&
+    Math.abs(dy) < deadzone &&
+    Math.abs(ds) < deadzone
+  )
+    return cur;
   const a = Math.min(Math.max(alpha, 0), 1);
   return { cx: cur.cx + dx * a, cy: cur.cy + dy * a, size: cur.size + ds * a };
 }
 
 /** Where the video element sits inside a circle of `diameter` px. */
-export type CropBox = { width: number; height: number; left: number; top: number };
+export type CropBox = {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+};
 
 /**
  * Place and scale the video so its crop fills the circle.
@@ -135,7 +155,11 @@ export function cropBox(crop: Crop, diameter: number, aspect: number): CropBox {
  * `mirror` is for your own camera. A self-view that is not mirrored reads as
  * somebody else's face doing the opposite of what you do.
  */
-export function cropTransform(box: CropBox, diameter: number, mirror = false): string {
+export function cropTransform(
+  box: CropBox,
+  diameter: number,
+  mirror = false,
+): string {
   const sx = box.width / diameter;
   const sy = box.height / diameter;
   if (!mirror) {
@@ -150,7 +174,12 @@ export function cropTransform(box: CropBox, diameter: number, mirror = false): s
 // ── Who the speaker circle shows ──────────────────────────────────────────
 
 /** The face speaker mode is currently showing, and when it started showing it. */
-export type SpeakerPick = { id: string | null; since: number; candidate?: string; candidateSince?: number };
+export type SpeakerPick = {
+  id: string | null;
+  since: number;
+  candidate?: string;
+  candidateSince?: number;
+};
 
 /** How long a new voice must hold the floor before the circle swaps to it. */
 export const SPEAKER_HOLD_MS = 500;
@@ -178,8 +207,11 @@ export function pickSpeaker(
     return prev.candidate ? { id: prev.id, since: prev.since } : prev;
   }
   if (prev.id === null) return { id: candidate, since: now };
-  if (candidate !== prev.candidate) return { ...prev, candidate, candidateSince: now };
-  return now - (prev.candidateSince ?? now) >= holdMs ? { id: candidate, since: now } : prev;
+  if (candidate !== prev.candidate)
+    return { ...prev, candidate, candidateSince: now };
+  return now - (prev.candidateSince ?? now) >= holdMs
+    ? { id: candidate, since: now }
+    : prev;
 }
 
 // ── Who gets a circle ─────────────────────────────────────────────────────
@@ -198,9 +230,20 @@ export type FacePerson = {
 
 /** An occupancy row (convex `call_members`, or a guest folded in by
  *  roomGuests.rosterWithGuests), loosely typed as the store holds it. */
-export type RosterRow = { user_id?: unknown; user_name?: string; user_image?: string; muted?: boolean; guest?: boolean };
+export type RosterRow = {
+  user_id?: unknown;
+  user_name?: string;
+  user_image?: string;
+  muted?: boolean;
+  guest?: boolean;
+};
 /** A camera tile, as callManager publishes them. */
-export type TileRow = { identity: string; name: string; image?: string; isLocal: boolean };
+export type TileRow = {
+  identity: string;
+  name: string;
+  image?: string;
+  isLocal: boolean;
+};
 
 /**
  * The people in the room, merged from the two sources that each know half.
@@ -214,7 +257,11 @@ export type TileRow = { identity: string; name: string; image?: string; isLocal:
  * Roster order comes first and is kept. A circle that moved when somebody
  * started talking would make a row of faces shuffle all call.
  */
-export function facePeople(roster: RosterRow[], tiles: TileRow[], selfId: string | null): FacePerson[] {
+export function facePeople(
+  roster: RosterRow[],
+  tiles: TileRow[],
+  selfId: string | null,
+): FacePerson[] {
   const withVideo = new Set(tiles.map((t) => t.identity));
   const seen = new Set<string>();
   const out: FacePerson[] = [];
@@ -248,7 +295,10 @@ export function facePeople(roster: RosterRow[], tiles: TileRow[], selfId: string
   return out;
 }
 
-export function facesToShow(people: FacePerson[], mode: FacesMode = "everyone"): FacePerson[] {
+export function facesToShow(
+  people: FacePerson[],
+  mode: FacesMode = "everyone",
+): FacePerson[] {
   if (mode === "everyone") return people;
   const others = people.filter((p) => !p.isLocal);
   return others.length > 0 ? others : people;
@@ -261,11 +311,21 @@ export function facesToShow(people: FacePerson[], mode: FacesMode = "everyone"):
  * is the hover chrome, which is a row of buttons rather than a disc.
  */
 export type HitRegion =
-  | { kind: "circle"; cx: number; cy: number; r: number; /** The face's person, when it has one. */ id?: string }
+  | {
+      kind: "circle";
+      cx: number;
+      cy: number;
+      r: number;
+      /** The face's person, when it has one. */ id?: string;
+    }
   | { kind: "rect"; x: number; y: number; width: number; height: number };
 
 /** The face under the pointer: the person whose circle it is in, or null. */
-export function faceAt(regions: HitRegion[], x: number, y: number): string | null {
+export function faceAt(
+  regions: HitRegion[],
+  x: number,
+  y: number,
+): string | null {
   for (const r of regions) {
     if (r.kind !== "circle" || !r.id) continue;
     const dx = x - r.cx;
@@ -284,13 +344,22 @@ export function faceAt(regions: HitRegion[], x: number, y: number): string | nul
  * are — so the renderer answers it here and tells the shell, which is the
  * ordinary Electron arrangement for a partly transparent window.
  */
-export function hitsInteractive(regions: HitRegion[], x: number, y: number): boolean {
+export function hitsInteractive(
+  regions: HitRegion[],
+  x: number,
+  y: number,
+): boolean {
   for (const r of regions) {
     if (r.kind === "circle") {
       const dx = x - r.cx;
       const dy = y - r.cy;
       if (dx * dx + dy * dy <= r.r * r.r) return true;
-    } else if (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height) {
+    } else if (
+      x >= r.x &&
+      x <= r.x + r.width &&
+      y >= r.y &&
+      y <= r.y + r.height
+    ) {
       return true;
     }
   }
@@ -309,7 +378,11 @@ export function hitsInteractive(regions: HitRegion[], x: number, y: number): boo
  */
 export type FaceTier = "speaker" | "row" | "mini";
 
-export const TIER_DIAMETER: Record<FaceTier, number> = { speaker: 192, row: 128, mini: 40 };
+export const TIER_DIAMETER: Record<FaceTier, number> = {
+  speaker: 192,
+  row: 128,
+  mini: 40,
+};
 
 /** The gap between circles in a row. */
 export const FACE_GAP = 8;
@@ -373,7 +446,11 @@ export function naturalTier(mode: FacesMode): FaceTier {
  * squeezed row is a row of small circles and a squeezed speaker is one small
  * circle, which is the thing the smallest window was always meant to be.
  */
-export function tierForWidth(width: number, mode: FacesMode, faces: number): FaceTier {
+export function tierForWidth(
+  width: number,
+  mode: FacesMode,
+  faces: number,
+): FaceTier {
   const tier = naturalTier(mode);
   return width < facesWindowSize(mode, faces, { tier }).width ? "mini" : tier;
 }
@@ -410,6 +487,8 @@ export function facesWindowSize(
   const width = Math.max(circles, CALL_CHROME_WIDTH);
   return {
     width: Math.round(width + FACES_PADDING * 2),
-    height: Math.round(d + (opts?.hovered ? HOVER_ROWS : 0) + FACES_PADDING * 2),
+    height: Math.round(
+      d + (opts?.hovered ? HOVER_ROWS : 0) + FACES_PADDING * 2,
+    ),
   };
 }

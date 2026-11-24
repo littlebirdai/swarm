@@ -97,18 +97,25 @@ export function placeSections(
       _id: cid,
       updated_at: s.updated_at === undefined ? now : s.updated_at,
     };
-    if (s.parent_conversation_id) row.parent_conversation_id = rk.to(s.parent_conversation_id);
+    if (s.parent_conversation_id)
+      row.parent_conversation_id = rk.to(s.parent_conversation_id);
     if (s.forked_from) row.forked_from = rk.to(s.forked_from);
-    if (s.spawned_by_conversation_id) row.spawned_by_conversation_id = rk.to(s.spawned_by_conversation_id);
+    if (s.spawned_by_conversation_id)
+      row.spawned_by_conversation_id = rk.to(s.spawned_by_conversation_id);
     filled[cid] = row;
   }
   const pendingMessages: Record<string, any[]> = {};
   for (const id of pendingSendIds) {
-    pendingMessages[rk.to(id)] = [{ _id: `pm-${id}`, role: "user", content: "x", timestamp: now }];
+    pendingMessages[rk.to(id)] = [
+      { _id: `pm-${id}`, role: "user", content: "x", timestamp: now },
+    ];
   }
   const pendingCreates: Record<string, unknown> = {};
-  for (const id of opts.pendingCreateIds ?? []) pendingCreates[rk.to(id)] = true;
-  const rekeyRecord = <T,>(rec: Record<string, T> | undefined): Record<string, T> | undefined => {
+  for (const id of opts.pendingCreateIds ?? [])
+    pendingCreates[rk.to(id)] = true;
+  const rekeyRecord = <T>(
+    rec: Record<string, T> | undefined,
+  ): Record<string, T> | undefined => {
     if (!rec) return rec;
     const out: Record<string, T> = {};
     for (const [id, v] of Object.entries(rec)) out[rk.to(id)] = v;
@@ -129,9 +136,18 @@ export function placeSections(
       sessions: filled,
       sessionsWithQueuedMessages: new Set([...queued].map((id) => rk.to(id))),
       pendingMessages,
-      clientState: { ui: { inbox_show_old: opts.showOld ?? true, inbox_scope: opts.scope ?? "mine", modern_style: opts.modern, modern_focused: opts.modern } },
+      clientState: {
+        ui: {
+          inbox_show_old: opts.showOld ?? true,
+          inbox_scope: opts.scope ?? "mine",
+          modern_style: opts.modern,
+          modern_focused: opts.modern,
+        },
+      },
       currentUser: opts.currentUser ?? null,
-      teamInboxIds: opts.teamInboxIds ? new Set([...opts.teamInboxIds].map((id) => rk.to(id))) : undefined,
+      teamInboxIds: opts.teamInboxIds
+        ? new Set([...opts.teamInboxIds].map((id) => rk.to(id)))
+        : undefined,
       sessionDecisions,
       questionResolutions: rekeyRecord(opts.questionResolutions),
       pendingSessionCreates: pendingCreates,
@@ -150,8 +166,12 @@ export function placeSections(
     return out;
   };
   const visibleSessions: Record<string, InboxSession> = {};
-  for (const [id, s] of Object.entries(placed.visibleSessions)) visibleSessions[rk.from(id)] = rowOut(s);
-  const placements = new Map<string, PlacedInbox["placements"] extends Map<string, infer V> ? V : never>();
+  for (const [id, s] of Object.entries(placed.visibleSessions))
+    visibleSessions[rk.from(id)] = rowOut(s);
+  const placements = new Map<
+    string,
+    PlacedInbox["placements"] extends Map<string, infer V> ? V : never
+  >();
   for (const [id, p] of placed.placements) placements.set(rk.from(id), p);
   const questionIds = new Set(placed.questions.map((s) => rk.from(s._id)));
   return {
@@ -171,9 +191,12 @@ export function placeSections(
     dismissed: rows(placed.dismissed),
     subsByParent: rowMap(placed.subsByParent),
     forksByParent: rowMap(placed.forksByParent),
-    workerCountByParent: new Map([...placed.workerCountByParent].map(([k, n]) => [rk.from(k), n])),
+    workerCountByParent: new Map(
+      [...placed.workerCountByParent].map(([k, n]) => [rk.from(k), n]),
+    ),
     workersNeedingYouByParent: rowMap(placed.workersNeedingYouByParent),
-    isQuestion: (s: InboxSession) => questionIds.has(s._id) || placed.isQuestion(s),
+    isQuestion: (s: InboxSession) =>
+      questionIds.has(s._id) || placed.isQuestion(s),
   };
 }
 

@@ -6,10 +6,26 @@
 // project (line-profile.md LP1) it gathers that project's charter and the
 // active initiatives that carry it, and nothing else.
 import { v } from "convex/values";
-import { metricGoalRef, type GoalReadTarget, type GoalsBrief, type GoalsBriefProject } from "@codecast/shared/contracts/goalsBrief";
-import { detectsWords, type PredictionTarget } from "@codecast/shared/contracts/predictedEffect";
-import { DEFAULT_READ_SPAN_MS, envSense, metricSense, recentAttempts } from "./lib/predictionTargets";
-import type { InitiativeMetric, MetricSeries } from "@codecast/shared/contracts/initiative";
+import {
+  metricGoalRef,
+  type GoalReadTarget,
+  type GoalsBrief,
+  type GoalsBriefProject,
+} from "@codecast/shared/contracts/goalsBrief";
+import {
+  detectsWords,
+  type PredictionTarget,
+} from "@codecast/shared/contracts/predictedEffect";
+import {
+  DEFAULT_READ_SPAN_MS,
+  envSense,
+  metricSense,
+  recentAttempts,
+} from "./lib/predictionTargets";
+import type {
+  InitiativeMetric,
+  MetricSeries,
+} from "@codecast/shared/contracts/initiative";
 import { metricDenominatorRef } from "@codecast/shared/contracts/metricStanding";
 import { query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
@@ -21,7 +37,13 @@ import { resolveWorkspaceProject } from "./lib/projectRef";
 
 const LIVE_PROJECT = new Set(["active", "planning"]);
 
-const hasCharter = (p: any) => !!(p.goal?.trim() || p.success_metrics?.length || p.non_goals?.length || p.risks?.length);
+const hasCharter = (p: any) =>
+  !!(
+    p.goal?.trim() ||
+    p.success_metrics?.length ||
+    p.non_goals?.length ||
+    p.risks?.length
+  );
 
 /**
  * The brief's rows for one workspace: active initiatives (those carrying
@@ -29,8 +51,22 @@ const hasCharter = (p: any) => !!(p.goal?.trim() || p.success_metrics?.length ||
  * carrying them (just `only`, when given). `projectRows` are the workspace's
  * projects as the caller may read them; `teamId` names the team for the title.
  */
-const seriesOf = (metrics: InitiativeMetric[], lookup: (ref: string) => MetricSeries | undefined): { series?: Record<string, MetricSeries> } => {
-  const found = Object.fromEntries([...new Set(metrics.flatMap((m) => [m.series, metricDenominatorRef(m)]).filter((r): r is string => !!r))].flatMap((ref) => { const s = lookup(ref); return s ? [[ref, s]] : []; }));
+const seriesOf = (
+  metrics: InitiativeMetric[],
+  lookup: (ref: string) => MetricSeries | undefined,
+): { series?: Record<string, MetricSeries> } => {
+  const found = Object.fromEntries(
+    [
+      ...new Set(
+        metrics
+          .flatMap((m) => [m.series, metricDenominatorRef(m)])
+          .filter((r): r is string => !!r),
+      ),
+    ].flatMap((ref) => {
+      const s = lookup(ref);
+      return s ? [[ref, s]] : [];
+    }),
+  );
   return Object.keys(found).length ? { series: found } : {};
 };
 
@@ -40,56 +76,156 @@ const seriesOf = (metrics: InitiativeMetric[], lookup: (ref: string) => MetricSe
  * its own metrics, the series of the metrics its projects decompose it into,
  * and the environments it lists. What a prediction is checked against when set.
  */
-async function readTargets(ctx: { db: any }, workspace: string, goal: any, lookup: (ref: string) => MetricSeries | undefined, allProjects: any[]): Promise<GoalReadTarget[]> {
+async function readTargets(
+  ctx: { db: any },
+  workspace: string,
+  goal: any,
+  lookup: (ref: string) => MetricSeries | undefined,
+  allProjects: any[],
+): Promise<GoalReadTarget[]> {
   const out: GoalReadTarget[] = [];
-  const detects = (kind: PredictionTarget, mde: number | null) => (mde === null ? null : detectsWords(kind, mde));
-  for (const m of goal.metrics ?? []) out.push({ ref: metricGoalRef(goal.short_id, m.key), name: m.name, detects: detects("metric", (await metricSense(ctx, workspace, m, goal, lookup, DEFAULT_READ_SPAN_MS)).mde) });
-  const carried = allProjects.filter((p: any) => goal.project_ids.some((id: any) => String(id) === String(p._id)) && (p.metrics ?? []).some((m: InitiativeMetric) => m.series));
-  const projectLookup = carried.length ? await seriesLookup(ctx, workspace, carried) : () => undefined;
+  const detects = (kind: PredictionTarget, mde: number | null) =>
+    mde === null ? null : detectsWords(kind, mde);
+  for (const m of goal.metrics ?? [])
+    out.push({
+      ref: metricGoalRef(goal.short_id, m.key),
+      name: m.name,
+      detects: detects(
+        "metric",
+        (
+          await metricSense(
+            ctx,
+            workspace,
+            m,
+            goal,
+            lookup,
+            DEFAULT_READ_SPAN_MS,
+          )
+        ).mde,
+      ),
+    });
+  const carried = allProjects.filter(
+    (p: any) =>
+      goal.project_ids.some((id: any) => String(id) === String(p._id)) &&
+      (p.metrics ?? []).some((m: InitiativeMetric) => m.series),
+  );
+  const projectLookup = carried.length
+    ? await seriesLookup(ctx, workspace, carried)
+    : () => undefined;
   for (const p of carried) {
     for (const m of p.metrics as InitiativeMetric[]) {
       if (!m.series || out.some((t) => t.ref === m.series)) continue;
-      out.push({ ref: m.series, name: `${p.title}: ${m.name}`, detects: detects("series", (await metricSense(ctx, workspace, m, p, projectLookup, DEFAULT_READ_SPAN_MS)).mde) });
+      out.push({
+        ref: m.series,
+        name: `${p.title}: ${m.name}`,
+        detects: detects(
+          "series",
+          (
+            await metricSense(
+              ctx,
+              workspace,
+              m,
+              p,
+              projectLookup,
+              DEFAULT_READ_SPAN_MS,
+            )
+          ).mde,
+        ),
+      });
     }
   }
-  for (const e of goal.envs ?? []) out.push({ ref: `env:${e.env}`, name: e.env, detects: detects("env", envSense(await recentAttempts(ctx, workspace, e.env)).mde) });
+  for (const e of goal.envs ?? [])
+    out.push({
+      ref: `env:${e.env}`,
+      name: e.env,
+      detects: detects(
+        "env",
+        envSense(await recentAttempts(ctx, workspace, e.env)).mde,
+      ),
+    });
   return out;
 }
 
-export async function gatherGoalsBrief(ctx: { db: any }, args: { workspaceKey: string; teamId?: any; only: any | null; projectRows: any[] }): Promise<GoalsBrief> {
+export async function gatherGoalsBrief(
+  ctx: { db: any },
+  args: {
+    workspaceKey: string;
+    teamId?: any;
+    only: any | null;
+    projectRows: any[];
+  },
+): Promise<GoalsBrief> {
   const { workspaceKey, teamId, only } = args;
   const [initiativeRows, team] = await Promise.all([
     readWorkspaceInitiatives(ctx, workspaceKey),
     teamId ? ctx.db.get(teamId) : null,
   ]);
-  const projectRows = only ? args.projectRows.filter((p: any) => String(p._id) === String(only._id)) : args.projectRows;
-  const active = initiativeRows.filter((r: any) => r.status === "active" && (!only || r.project_ids.some((id: any) => String(id) === String(only._id))));
+  const projectRows = only
+    ? args.projectRows.filter((p: any) => String(p._id) === String(only._id))
+    : args.projectRows;
+  const active = initiativeRows.filter(
+    (r: any) =>
+      r.status === "active" &&
+      (!only ||
+        r.project_ids.some((id: any) => String(id) === String(only._id))),
+  );
   const projectsById = new Map(projectRows.map((p: any) => [String(p._id), p]));
   const projectRef = (p: any) => p.short_id ?? String(p._id);
-  const carried = new Set(active.flatMap((r: any) => r.project_ids.map(String)));
+  const carried = new Set(
+    active.flatMap((r: any) => r.project_ids.map(String)),
+  );
   const lookup = await seriesLookup(ctx, workspaceKey, active);
 
-  const initiatives = await Promise.all(active.map(async (r: any) => ({
-    short_id: r.short_id,
-    title: r.title,
-    priority: r.priority,
-    owner: await ownerLabel(ctx as any, r.owner),
-    target_date: r.target_date,
-    health: r.health,
-    description: r.description,
-    metrics: r.metrics ?? [],
-    scoreboard: r.scoreboard,
-    ...seriesOf(r.metrics ?? [], lookup),
-    project_short_ids: r.project_ids.map((id: any) => projectsById.get(String(id))).filter(Boolean).map(projectRef),
-    read_at: await readTargets(ctx, workspaceKey, r, lookup, args.projectRows),
-  })));
+  const initiatives = await Promise.all(
+    active.map(async (r: any) => ({
+      short_id: r.short_id,
+      title: r.title,
+      priority: r.priority,
+      owner: await ownerLabel(ctx as any, r.owner),
+      target_date: r.target_date,
+      health: r.health,
+      description: r.description,
+      metrics: r.metrics ?? [],
+      scoreboard: r.scoreboard,
+      ...seriesOf(r.metrics ?? [], lookup),
+      project_short_ids: r.project_ids
+        .map((id: any) => projectsById.get(String(id)))
+        .filter(Boolean)
+        .map(projectRef),
+      read_at: await readTargets(
+        ctx,
+        workspaceKey,
+        r,
+        lookup,
+        args.projectRows,
+      ),
+    })),
+  );
 
-  const roleIds = [...new Set(projectRows.map((p: any) => p.owner_role_id).filter(Boolean).map(String))];
-  const roles = new Map(await Promise.all(roleIds.map(async (id) => [id, await ctx.db.get(id as any)] as const)));
+  const roleIds = [
+    ...new Set(
+      projectRows
+        .map((p: any) => p.owner_role_id)
+        .filter(Boolean)
+        .map(String),
+    ),
+  ];
+  const roles = new Map(
+    await Promise.all(
+      roleIds.map(async (id) => [id, await ctx.db.get(id as any)] as const),
+    ),
+  );
   const projects: GoalsBriefProject[] = projectRows
-    .filter((p: any) => only || (LIVE_PROJECT.has(p.status) && (hasCharter(p) || carried.has(String(p._id)))))
+    .filter(
+      (p: any) =>
+        only ||
+        (LIVE_PROJECT.has(p.status) &&
+          (hasCharter(p) || carried.has(String(p._id)))),
+    )
     .map((p: any) => {
-      const role: any = p.owner_role_id ? roles.get(String(p.owner_role_id)) : null;
+      const role: any = p.owner_role_id
+        ? roles.get(String(p.owner_role_id))
+        : null;
       return {
         short_id: projectRef(p),
         title: p.title,
@@ -103,7 +239,13 @@ export async function gatherGoalsBrief(ctx: { db: any }, args: { workspaceKey: s
       };
     });
 
-  return { workspace: workspaceKey, workspace_name: (team as any)?.name, ...(only ? { project_title: only.title } : {}), initiatives, projects };
+  return {
+    workspace: workspaceKey,
+    workspace_name: (team as any)?.name,
+    ...(only ? { project_title: only.title } : {}),
+    initiatives,
+    projects,
+  };
 }
 
 /** `cast goals [--project]`: the workspace's goals, or one project's, raw rows the CLI renders. */
@@ -119,20 +261,51 @@ export const brief = query({
   handler: async (ctx, args): Promise<GoalsBrief> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const { db } = await createWorkContext(ctx, { userId: auth.userId, workspace: args.workspace, team_id: args.team_id, project_path: args.project_path, conversation_id: args.conversation_id });
+    const { db } = await createWorkContext(ctx, {
+      userId: auth.userId,
+      workspace: args.workspace,
+      team_id: args.team_id,
+      project_path: args.project_path,
+      conversation_id: args.conversation_id,
+    });
     const ws = db.workspace;
     const teamId = ws.type === "team" ? ws.teamId : undefined;
-    const only = await resolveWorkspaceProject(ctx, db.workspaceKey, args.project);
-    const { records: projectRows } = await scopedFetch(ctx, "projects", { userId: auth.userId, workspace: ws.type, teamId });
-    return gatherGoalsBrief(ctx, { workspaceKey: db.workspaceKey, teamId, only, projectRows });
+    const only = await resolveWorkspaceProject(
+      ctx,
+      db.workspaceKey,
+      args.project,
+    );
+    const { records: projectRows } = await scopedFetch(ctx, "projects", {
+      userId: auth.userId,
+      workspace: ws.type,
+      teamId,
+    });
+    return gatherGoalsBrief(ctx, {
+      workspaceKey: db.workspaceKey,
+      teamId,
+      only,
+      projectRows,
+    });
   },
 });
 
 /** The brief a cause is grounded against: its project's when it names one in its own workspace, else its workspace's. */
-export async function causeBrief(ctx: { db: any }, task: { workspace?: string; project_id?: unknown }): Promise<GoalsBrief> {
+export async function causeBrief(
+  ctx: { db: any },
+  task: { workspace?: string; project_id?: unknown },
+): Promise<GoalsBrief> {
   const workspaceKey = task.workspace!;
-  const teamId = workspaceKey.startsWith("team:") ? workspaceKey.slice("team:".length) : undefined;
-  const projectRows = await ctx.db.query("projects").withIndex("by_workspace", (q: any) => q.eq("workspace", workspaceKey)).take(2000);
-  const only = task.project_id ? projectRows.find((p: any) => String(p._id) === String(task.project_id)) ?? null : null;
+  const teamId = workspaceKey.startsWith("team:")
+    ? workspaceKey.slice("team:".length)
+    : undefined;
+  const projectRows = await ctx.db
+    .query("projects")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", workspaceKey))
+    .take(2000);
+  const only = task.project_id
+    ? (projectRows.find(
+        (p: any) => String(p._id) === String(task.project_id),
+      ) ?? null)
+    : null;
   return gatherGoalsBrief(ctx, { workspaceKey, teamId, only, projectRows });
 }

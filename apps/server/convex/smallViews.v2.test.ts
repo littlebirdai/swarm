@@ -109,7 +109,10 @@ function message(
   };
 }
 
-function context(authenticatedUser: string | null, seed: Record<string, any[]> = {}) {
+function context(
+  authenticatedUser: string | null,
+  seed: Record<string, any[]> = {},
+) {
   const db = makeFakeDb({
     users: [user(OWNER), user(MEMBER), user(OTHER)],
     user_skills: [],
@@ -127,22 +130,34 @@ function context(authenticatedUser: string | null, seed: Record<string, any[]> =
     db,
     auth: {
       async getUserIdentity() {
-        return authenticatedUser ? { subject: `${authenticatedUser}|session` } : null;
+        return authenticatedUser
+          ? { subject: `${authenticatedUser}|session` }
+          : null;
       },
     },
   } as any;
 }
 
-function head(ctx: any, contractId: string, viewKey: string, principalId = OWNER) {
-  return ctx.db._tables.local_view_heads.find((row: any) =>
-    String(row.principal_id) === String(principalId)
-    && row.contract_id === contractId
-    && row.view_key === viewKey);
+function head(
+  ctx: any,
+  contractId: string,
+  viewKey: string,
+  principalId = OWNER,
+) {
+  return ctx.db._tables.local_view_heads.find(
+    (row: any) =>
+      String(row.principal_id) === String(principalId) &&
+      row.contract_id === contractId &&
+      row.view_key === viewKey,
+  );
 }
 
 describe("small v2 complete-view envelopes", () => {
   test("current user is explicit, stable metadata and remains principal-scoped", async () => {
-    const unauthenticated = await (getCurrentUserV2 as any)._handler(context(null), {});
+    const unauthenticated = await (getCurrentUserV2 as any)._handler(
+      context(null),
+      {},
+    );
     expect(unauthenticated).toEqual({
       contractId: CURRENT_CONTRACT,
       viewKey: CURRENT_VIEW,
@@ -159,37 +174,43 @@ describe("small v2 complete-view envelopes", () => {
     });
 
     const ctx = context(OWNER, {
-      users: [user(OWNER, {
-        name: "Owner",
-        theme: "dark",
-        daemon_last_seen: 999,
-        daemon_pending_sync_count: 8,
-        github_access_token: "must-not-persist",
-        push_token: "must-not-persist",
-        encryption_master_key: "must-not-persist",
-        local_project_roots: ["/private/work"],
-        team_conversations_last_seen: 777,
-        cli_version: "9.9.9",
-        cli_platform: "secret-device",
-        autostart_enabled: true,
-        has_tmux: true,
-        available_agents: [{ id: "device-agent", name: "Device Agent" }],
-        available_skills: "legacy",
-      })],
-      user_skills: [{
-        _id: "skills-owner",
-        user_id: OWNER,
-        skills_json: "authoritative-skills",
-        updated_at: 2,
-      }],
-      local_view_heads: [{
-        _id: "head-current",
-        principal_id: OWNER,
-        contract_id: CURRENT_CONTRACT,
-        view_key: CURRENT_VIEW,
-        revision: 4,
-        updated_at: 1,
-      }],
+      users: [
+        user(OWNER, {
+          name: "Owner",
+          theme: "dark",
+          daemon_last_seen: 999,
+          daemon_pending_sync_count: 8,
+          github_access_token: "must-not-persist",
+          push_token: "must-not-persist",
+          encryption_master_key: "must-not-persist",
+          local_project_roots: ["/private/work"],
+          team_conversations_last_seen: 777,
+          cli_version: "9.9.9",
+          cli_platform: "secret-device",
+          autostart_enabled: true,
+          has_tmux: true,
+          available_agents: [{ id: "device-agent", name: "Device Agent" }],
+          available_skills: "legacy",
+        }),
+      ],
+      user_skills: [
+        {
+          _id: "skills-owner",
+          user_id: OWNER,
+          skills_json: "authoritative-skills",
+          updated_at: 2,
+        },
+      ],
+      local_view_heads: [
+        {
+          _id: "head-current",
+          principal_id: OWNER,
+          contract_id: CURRENT_CONTRACT,
+          view_key: CURRENT_VIEW,
+          revision: 4,
+          updated_at: 1,
+        },
+      ],
     });
     const result = await (getCurrentUserV2 as any)._handler(ctx, {});
     expect(result).toMatchObject({
@@ -219,7 +240,8 @@ describe("small v2 complete-view envelopes", () => {
       "has_tmux",
       "available_agents",
       "available_skills",
-    ]) expect(field in result.user).toBe(false);
+    ])
+      expect(field in result.user).toBe(false);
 
     // V1 remains broad, except the skills catalog, which travels on
     // getMySkills so a daemon stamp on the row does not re-send it, and the
@@ -228,7 +250,9 @@ describe("small v2 complete-view envelopes", () => {
     expect(legacy.daemon_last_seen).toBe(999);
     expect("github_access_token" in legacy).toBe(false);
     expect("available_skills" in legacy).toBe(false);
-    expect((await (getMySkills as any)._handler(ctx, {})).skills).toBe("authoritative-skills");
+    expect((await (getMySkills as any)._handler(ctx, {})).skills).toBe(
+      "authoritative-skills",
+    );
   });
 
   test("principal teams is complete-empty and deterministic without leaking invite data", async () => {
@@ -246,29 +270,49 @@ describe("small v2 complete-view envelopes", () => {
     const ctx = context(OWNER, {
       teams: [team("team-z", { name: "Z" }), team("team-a", { name: "A" })],
       team_memberships: [
-        membership("membership-z", OWNER, "team-z", { joined_at: 20, role: "admin" }),
-        membership("membership-a", OWNER, "team-a", { joined_at: 10, visibility: "full" }),
+        membership("membership-z", OWNER, "team-z", {
+          joined_at: 20,
+          role: "admin",
+        }),
+        membership("membership-a", OWNER, "team-a", {
+          joined_at: 10,
+          visibility: "full",
+        }),
       ],
     });
     const result = await (getUserTeamsV2 as any)._handler(ctx, {});
-    expect(result.teams.map((row: any) => row._id)).toEqual(["team-a", "team-z"]);
-    expect(result.teams[0]).toMatchObject({ role: "member", visibility: "full" });
-    expect(result.teams[1]).toMatchObject({ role: "admin", visibility: "full" });
+    expect(result.teams.map((row: any) => row._id)).toEqual([
+      "team-a",
+      "team-z",
+    ]);
+    expect(result.teams[0]).toMatchObject({
+      role: "member",
+      visibility: "full",
+    });
+    expect(result.teams[1]).toMatchObject({
+      role: "admin",
+      visibility: "full",
+    });
     expect(result.teams.some((row: any) => "invite_code" in row)).toBe(false);
 
     const legacy = await (getUserTeams as any)._handler(ctx, {});
     expect(legacy).toHaveLength(2);
-    expect(legacy[0]).toEqual(expect.objectContaining({
-      _id: "team-z",
-      role: "admin",
-      visibility: "full",
-    }));
+    expect(legacy[0]).toEqual(
+      expect.objectContaining({
+        _id: "team-z",
+        role: "admin",
+        visibility: "full",
+      }),
+    );
   });
 
   test("exact-team membership distinguishes missing, forbidden, and revoked access", async () => {
-    const unauthenticated = await (getTeamMembersV2 as any)._handler(context(null), {
-      team_id: TEAM,
-    });
+    const unauthenticated = await (getTeamMembersV2 as any)._handler(
+      context(null),
+      {
+        team_id: TEAM,
+      },
+    );
     expect(unauthenticated).toEqual({
       contractId: MEMBERS_CONTRACT,
       viewKey: MEMBERS_VIEW,
@@ -286,10 +330,13 @@ describe("small v2 complete-view envelopes", () => {
       removals: [],
     });
 
-    const forbidden = await (getTeamMembersV2 as any)._handler(context(OTHER, {
-      teams: [team()],
-      team_memberships: [membership("membership-owner", OWNER)],
-    }), { team_id: TEAM });
+    const forbidden = await (getTeamMembersV2 as any)._handler(
+      context(OTHER, {
+        teams: [team()],
+        team_memberships: [membership("membership-owner", OWNER)],
+      }),
+      { team_id: TEAM },
+    );
     expect(forbidden).toEqual({
       contractId: MEMBERS_CONTRACT,
       viewKey: MEMBERS_VIEW,
@@ -305,25 +352,42 @@ describe("small v2 complete-view envelopes", () => {
       teams: [team()],
       team_memberships: [
         membership("membership-member", MEMBER, TEAM, { joined_at: 2 }),
-        membership("membership-owner", OWNER, TEAM, { joined_at: 1, role: "admin" }),
+        membership("membership-owner", OWNER, TEAM, {
+          joined_at: 1,
+          role: "admin",
+        }),
       ],
-      local_view_heads: [{
-        _id: "head-members",
-        principal_id: OWNER,
-        contract_id: MEMBERS_CONTRACT,
-        view_key: MEMBERS_VIEW,
-        revision: 7,
-        updated_at: 1,
-      }],
+      local_view_heads: [
+        {
+          _id: "head-members",
+          principal_id: OWNER,
+          contract_id: MEMBERS_CONTRACT,
+          view_key: MEMBERS_VIEW,
+          revision: 7,
+          updated_at: 1,
+        },
+      ],
     });
-    const granted = await (getTeamMembersV2 as any)._handler(ctx, { team_id: TEAM });
+    const granted = await (getTeamMembersV2 as any)._handler(ctx, {
+      team_id: TEAM,
+    });
     expect(granted).toMatchObject({
       access: "granted",
       grantKeys: [`team-membership-grant:${TEAM}`],
       viewRevision: 7,
       memberships: [
-        { _id: "membership-owner", user_id: OWNER, role: "admin", visibility: "full" },
-        { _id: "membership-member", user_id: MEMBER, role: "member", visibility: "full" },
+        {
+          _id: "membership-owner",
+          user_id: OWNER,
+          role: "admin",
+          visibility: "full",
+        },
+        {
+          _id: "membership-member",
+          user_id: MEMBER,
+          role: "member",
+          visibility: "full",
+        },
       ],
     });
     expect("name" in granted.memberships[0]).toBe(false);
@@ -333,7 +397,9 @@ describe("small v2 complete-view envelopes", () => {
     ctx.db._tables.team_memberships = ctx.db._tables.team_memberships.filter(
       (row: any) => row.user_id !== OWNER,
     );
-    expect(await (getTeamMembersV2 as any)._handler(ctx, { team_id: TEAM })).toEqual({
+    expect(
+      await (getTeamMembersV2 as any)._handler(ctx, { team_id: TEAM }),
+    ).toEqual({
       contractId: MEMBERS_CONTRACT,
       viewKey: MEMBERS_VIEW,
       access: "forbidden",
@@ -350,27 +416,31 @@ describe("small v2 complete-view envelopes", () => {
         conversation("conversation-foreign", OTHER, { is_favorite: true }),
       ],
       messages: [message(), message(OTHER_MESSAGE, OTHER_CONVERSATION)],
-      bookmarks: [{
-        _id: "bookmark-old",
-        user_id: OWNER,
-        conversation_id: CONVERSATION,
-        message_id: MESSAGE,
-        name: "Old",
-        created_at: 1,
-      }, {
-        _id: "bookmark-new",
-        user_id: OWNER,
-        conversation_id: OTHER_CONVERSATION,
-        message_id: OTHER_MESSAGE,
-        note: "New note",
-        created_at: 2,
-      }, {
-        _id: "bookmark-foreign",
-        user_id: OTHER,
-        conversation_id: OTHER_CONVERSATION,
-        message_id: OTHER_MESSAGE,
-        created_at: 3,
-      }],
+      bookmarks: [
+        {
+          _id: "bookmark-old",
+          user_id: OWNER,
+          conversation_id: CONVERSATION,
+          message_id: MESSAGE,
+          name: "Old",
+          created_at: 1,
+        },
+        {
+          _id: "bookmark-new",
+          user_id: OWNER,
+          conversation_id: OTHER_CONVERSATION,
+          message_id: OTHER_MESSAGE,
+          note: "New note",
+          created_at: 2,
+        },
+        {
+          _id: "bookmark-foreign",
+          user_id: OTHER,
+          conversation_id: OTHER_CONVERSATION,
+          message_id: OTHER_MESSAGE,
+          created_at: 3,
+        },
+      ],
     });
 
     const favorites = await (listFavoritesV2 as any)._handler(ctx, {});
@@ -408,10 +478,16 @@ describe("small v2 complete-view envelopes", () => {
     expect("conversation_title" in bookmarks.bookmarks[0]).toBe(false);
     expect("message_preview" in bookmarks.bookmarks[0]).toBe(false);
 
-    const noAuthFavorites = await (listFavoritesV2 as any)._handler(context(null), {});
+    const noAuthFavorites = await (listFavoritesV2 as any)._handler(
+      context(null),
+      {},
+    );
     expect(noAuthFavorites.access).toBe("unauthenticated");
     expect("favorites" in noAuthFavorites).toBe(false);
-    const noAuthBookmarks = await (listBookmarksV2 as any)._handler(context(null), {});
+    const noAuthBookmarks = await (listBookmarksV2 as any)._handler(
+      context(null),
+      {},
+    );
     expect(noAuthBookmarks.access).toBe("unauthenticated");
     expect("bookmarks" in noAuthBookmarks).toBe(false);
   });
@@ -420,7 +496,9 @@ describe("small v2 complete-view envelopes", () => {
 describe("favorite desired-state commands", () => {
   test("write, exact replay, and no-op each have deterministic positive coverage", async () => {
     const ctx = context(OWNER, {
-      conversations: [conversation(CONVERSATION, OWNER, { is_favorite: false })],
+      conversations: [
+        conversation(CONVERSATION, OWNER, { is_favorite: false }),
+      ],
     });
     const args = {
       command_id: "favorite-once",
@@ -434,16 +512,20 @@ describe("favorite desired-state commands", () => {
       commandName: "favorites.set/v2",
       status: "acknowledged",
       result: { conversationId: CONVERSATION, isFavorite: true },
-      coverage: [{
-        contractId: FAVORITES_CONTRACT,
-        viewKey: FAVORITES_VIEW,
-        revision: 1,
-      }],
+      coverage: [
+        {
+          contractId: FAVORITES_CONTRACT,
+          viewKey: FAVORITES_VIEW,
+          revision: 1,
+        },
+      ],
     });
     expect(ctx.db._tables.conversations[0].is_favorite).toBe(true);
     expect(ctx.db._tables.local_command_receipts).toHaveLength(1);
     expect(head(ctx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(1);
-    expect(ctx.db._patched.filter((write: any) => write._id === CONVERSATION)).toHaveLength(1);
+    expect(
+      ctx.db._patched.filter((write: any) => write._id === CONVERSATION),
+    ).toHaveLength(1);
 
     const noOp = await (setFavoriteV2 as any)._handler(ctx, {
       ...args,
@@ -454,12 +536,16 @@ describe("favorite desired-state commands", () => {
       coverage: [{ revision: 2 }],
     });
     expect(head(ctx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(2);
-    expect(ctx.db._patched.filter((write: any) => write._id === CONVERSATION)).toHaveLength(1);
+    expect(
+      ctx.db._patched.filter((write: any) => write._id === CONVERSATION),
+    ).toHaveLength(1);
 
-    await expect((setFavoriteV2 as any)._handler(ctx, {
-      ...args,
-      is_favorite: false,
-    })).rejects.toThrow("already bound to different intent");
+    await expect(
+      (setFavoriteV2 as any)._handler(ctx, {
+        ...args,
+        is_favorite: false,
+      }),
+    ).rejects.toThrow("already bound to different intent");
     expect(ctx.db._tables.conversations[0].is_favorite).toBe(true);
   });
 
@@ -496,27 +582,39 @@ describe("favorite desired-state commands", () => {
 
   test("legacy and generic-dispatch writes share the owner-derived revision choke", async () => {
     const legacyCtx = context(OWNER, {
-      conversations: [conversation(CONVERSATION, OWNER, { is_favorite: false })],
+      conversations: [
+        conversation(CONVERSATION, OWNER, { is_favorite: false }),
+      ],
     });
-    expect(await (toggleFavorite as any)._handler(legacyCtx, {
-      conversation_id: CONVERSATION,
-    })).toBe(true);
-    expect(head(legacyCtx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(1);
+    expect(
+      await (toggleFavorite as any)._handler(legacyCtx, {
+        conversation_id: CONVERSATION,
+      }),
+    ).toBe(true);
+    expect(head(legacyCtx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(
+      1,
+    );
 
     const dispatchCtx = context(OWNER, {
-      conversations: [conversation(CONVERSATION, OWNER, { is_favorite: false })],
+      conversations: [
+        conversation(CONVERSATION, OWNER, { is_favorite: false }),
+      ],
     });
     await applyPatches(dispatchCtx, OWNER, {
       conversations: { [CONVERSATION]: { is_favorite: true } },
     });
     expect(dispatchCtx.db._tables.conversations[0].is_favorite).toBe(true);
-    expect(head(dispatchCtx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(1);
+    expect(head(dispatchCtx, FAVORITES_CONTRACT, FAVORITES_VIEW).revision).toBe(
+      1,
+    );
 
     const secondaryCtx = context(MEMBER, {
-      conversations: [conversation(CONVERSATION, OWNER, {
-        is_favorite: false,
-        owner_user_id: MEMBER,
-      })],
+      conversations: [
+        conversation(CONVERSATION, OWNER, {
+          is_favorite: false,
+          owner_user_id: MEMBER,
+        }),
+      ],
     });
     await applyPatches(secondaryCtx, MEMBER, {
       conversations: { [CONVERSATION]: { is_favorite: true } },
@@ -529,15 +627,17 @@ describe("favorite desired-state commands", () => {
     const ctx = context(OWNER, {
       conversations: [conversation(CONVERSATION, OWNER, { is_favorite: true })],
     });
-    expect(await (listFavorites as any)._handler(ctx, {})).toEqual([{
-      _id: CONVERSATION,
-      title: `Title ${CONVERSATION}`,
-      session_id: `session-${CONVERSATION}`,
-      updated_at: 10,
-      message_count: 1,
-      agent_type: "claude_code",
-      is_favorite: true,
-    }]);
+    expect(await (listFavorites as any)._handler(ctx, {})).toEqual([
+      {
+        _id: CONVERSATION,
+        title: `Title ${CONVERSATION}`,
+        session_id: `session-${CONVERSATION}`,
+        updated_at: 10,
+        message_count: 1,
+        agent_type: "claude_code",
+        is_favorite: true,
+      },
+    ]);
   });
 });
 
@@ -564,11 +664,13 @@ describe("bookmark desired-state commands and containment", () => {
         messageId: MESSAGE,
         bookmarked: true,
       },
-      coverage: [{
-        contractId: BOOKMARKS_CONTRACT,
-        viewKey: BOOKMARKS_VIEW,
-        revision: 1,
-      }],
+      coverage: [
+        {
+          contractId: BOOKMARKS_CONTRACT,
+          viewKey: BOOKMARKS_VIEW,
+          revision: 1,
+        },
+      ],
     });
     expect(ctx.db._tables.bookmarks).toHaveLength(1);
     expect(ctx.db._tables.local_command_receipts).toHaveLength(1);
@@ -578,7 +680,10 @@ describe("bookmark desired-state commands and containment", () => {
       ...createArgs,
       command_id: "bookmark-already-created",
     });
-    expect(noOp).toMatchObject({ status: "acknowledged", coverage: [{ revision: 2 }] });
+    expect(noOp).toMatchObject({
+      status: "acknowledged",
+      coverage: [{ revision: 2 }],
+    });
     expect(ctx.db._tables.bookmarks).toHaveLength(1);
 
     const removed = await (setBookmarkV2 as any)._handler(ctx, {
@@ -598,13 +703,18 @@ describe("bookmark desired-state commands and containment", () => {
       command_id: "bookmark-already-removed",
       bookmarked: false,
     });
-    expect(removeNoOp).toMatchObject({ status: "acknowledged", coverage: [{ revision: 4 }] });
+    expect(removeNoOp).toMatchObject({
+      status: "acknowledged",
+      coverage: [{ revision: 4 }],
+    });
     expect(head(ctx, BOOKMARKS_CONTRACT, BOOKMARKS_VIEW).revision).toBe(4);
 
-    await expect((setBookmarkV2 as any)._handler(ctx, {
-      ...createArgs,
-      bookmarked: false,
-    })).rejects.toThrow("already bound to different intent");
+    await expect(
+      (setBookmarkV2 as any)._handler(ctx, {
+        ...createArgs,
+        bookmarked: false,
+      }),
+    ).rejects.toThrow("already bound to different intent");
   });
 
   test("message/conversation mismatch and poisoned existing rows fail closed", async () => {
@@ -629,13 +739,15 @@ describe("bookmark desired-state commands and containment", () => {
     const poisonCtx = context(OWNER, {
       conversations: [conversation(), conversation(OTHER_CONVERSATION, OWNER)],
       messages: [message()],
-      bookmarks: [{
-        _id: "bookmark-poison",
-        user_id: OWNER,
-        conversation_id: OTHER_CONVERSATION,
-        message_id: MESSAGE,
-        created_at: 1,
-      }],
+      bookmarks: [
+        {
+          _id: "bookmark-poison",
+          user_id: OWNER,
+          conversation_id: OTHER_CONVERSATION,
+          message_id: MESSAGE,
+          created_at: 1,
+        },
+      ],
     });
     const poisoned = await (setBookmarkV2 as any)._handler(poisonCtx, {
       command_id: "bookmark-poisoned-row",
@@ -650,10 +762,12 @@ describe("bookmark desired-state commands and containment", () => {
     });
     expect(poisonCtx.db._tables.bookmarks).toHaveLength(1);
 
-    await expect((toggleBookmark as any)._handler(mismatchCtx, {
-      conversation_id: CONVERSATION,
-      message_id: OTHER_MESSAGE,
-    })).rejects.toThrow("does not belong to the conversation");
+    await expect(
+      (toggleBookmark as any)._handler(mismatchCtx, {
+        conversation_id: CONVERSATION,
+        message_id: OTHER_MESSAGE,
+      }),
+    ).rejects.toThrow("does not belong to the conversation");
   });
 
   test("missing and foreign targets produce durable terminal receipts", async () => {
@@ -692,32 +806,38 @@ describe("bookmark desired-state commands and containment", () => {
   test("v1 bookmark enrichment remains unchanged", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      messages: [message(MESSAGE, CONVERSATION, { content: "[Image: x] hello" })],
-      bookmarks: [{
+      messages: [
+        message(MESSAGE, CONVERSATION, { content: "[Image: x] hello" }),
+      ],
+      bookmarks: [
+        {
+          _id: "bookmark-v1",
+          user_id: OWNER,
+          conversation_id: CONVERSATION,
+          message_id: MESSAGE,
+          name: "Named",
+          created_at: 1,
+        },
+      ],
+    });
+    expect(await (listBookmarks as any)._handler(ctx, {})).toEqual([
+      {
         _id: "bookmark-v1",
-        user_id: OWNER,
         conversation_id: CONVERSATION,
         message_id: MESSAGE,
-        name: "Named",
         created_at: 1,
-      }],
-    });
-    expect(await (listBookmarks as any)._handler(ctx, {})).toEqual([{
-      _id: "bookmark-v1",
-      conversation_id: CONVERSATION,
-      message_id: MESSAGE,
-      created_at: 1,
-      name: "Named",
-      note: null,
-      conversation_title: `Title ${CONVERSATION}`,
-      conversation_updated_at: 10,
-      conversation_message_count: 1,
-      project_path: undefined,
-      git_root: undefined,
-      message_preview: "hello",
-      message_role: "user",
-      message_timestamp: 1,
-    }]);
+        name: "Named",
+        note: null,
+        conversation_title: `Title ${CONVERSATION}`,
+        conversation_updated_at: 10,
+        conversation_message_count: 1,
+        project_path: undefined,
+        git_root: undefined,
+        message_preview: "hello",
+        message_role: "user",
+        message_timestamp: 1,
+      },
+    ]);
   });
 });
 
@@ -725,12 +845,14 @@ describe("central small-view revision interceptor", () => {
   test("filters operational user patches but advances stable metadata and preferences", async () => {
     const raw = makeFakeDb({
       users: [user(OWNER, { name: "Before", daemon_last_seen: 1 })],
-      user_skills: [{
-        _id: "skills-owner",
-        user_id: OWNER,
-        skills_json: "before",
-        updated_at: 1,
-      }],
+      user_skills: [
+        {
+          _id: "skills-owner",
+          user_id: OWNER,
+          skills_json: "before",
+          updated_at: 1,
+        },
+      ],
       teams: [],
       team_memberships: [],
       conversations: [],
@@ -775,9 +897,15 @@ describe("central small-view revision interceptor", () => {
     expect(raw._tables.local_view_heads).toHaveLength(0);
 
     await db.patch(TEAM, { icon: "star" });
-    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OWNER)?.revision).toBe(1);
-    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, MEMBER)?.revision).toBe(1);
-    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OTHER)).toBeUndefined();
+    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OWNER)?.revision).toBe(
+      1,
+    );
+    expect(
+      head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, MEMBER)?.revision,
+    ).toBe(1);
+    expect(
+      head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OTHER),
+    ).toBeUndefined();
 
     await db.insert("team_memberships", {
       user_id: OTHER,
@@ -785,16 +913,28 @@ describe("central small-view revision interceptor", () => {
       role: "member",
       joined_at: 3,
     });
-    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OTHER)?.revision).toBe(1);
+    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, OTHER)?.revision).toBe(
+      1,
+    );
     for (const principal of [OWNER, MEMBER, OTHER]) {
-      expect(head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, principal)?.revision).toBe(1);
+      expect(
+        head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, principal)?.revision,
+      ).toBe(1);
     }
 
     await db.delete("membership-member");
-    expect(head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, MEMBER)?.revision).toBe(2);
-    expect(head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, MEMBER)?.revision).toBe(2);
-    expect(head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, OWNER)?.revision).toBe(2);
-    expect(head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, OTHER)?.revision).toBe(2);
+    expect(
+      head({ db: raw }, TEAMS_CONTRACT, TEAMS_VIEW, MEMBER)?.revision,
+    ).toBe(2);
+    expect(
+      head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, MEMBER)?.revision,
+    ).toBe(2);
+    expect(
+      head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, OWNER)?.revision,
+    ).toBe(2);
+    expect(
+      head({ db: raw }, MEMBERS_CONTRACT, MEMBERS_VIEW, OTHER)?.revision,
+    ).toBe(2);
   });
 
   test("favorite insert, replace, and delete membership transitions are covered", async () => {
@@ -807,27 +947,47 @@ describe("central small-view revision interceptor", () => {
       local_view_heads: [],
     });
     const db = makePrincipalViewTrackedDb(raw);
-    const { _id: _discardedInsertId, ...insertValue } = conversation("conversation-new", OWNER, {
-      is_favorite: true,
-    });
+    const { _id: _discardedInsertId, ...insertValue } = conversation(
+      "conversation-new",
+      OWNER,
+      {
+        is_favorite: true,
+      },
+    );
     const id = await db.insert("conversations", insertValue);
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision).toBe(1);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision,
+    ).toBe(1);
 
-    const { _id: _discardedReplaceId, ...renamedValue } = conversation(id, OWNER, {
-      is_favorite: true,
-      title: "renamed",
-    });
+    const { _id: _discardedReplaceId, ...renamedValue } = conversation(
+      id,
+      OWNER,
+      {
+        is_favorite: true,
+        title: "renamed",
+      },
+    );
     await db.replace(id, renamedValue);
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision).toBe(1);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision,
+    ).toBe(1);
 
-    const { _id: _discardedOffId, ...offValue } = conversation(id, OWNER, { is_favorite: false });
+    const { _id: _discardedOffId, ...offValue } = conversation(id, OWNER, {
+      is_favorite: false,
+    });
     await db.replace(id, offValue);
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision).toBe(2);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision,
+    ).toBe(2);
 
-    const { _id: _discardedOnId, ...onValue } = conversation(id, OWNER, { is_favorite: true });
+    const { _id: _discardedOnId, ...onValue } = conversation(id, OWNER, {
+      is_favorite: true,
+    });
     await db.replace(id, onValue);
     await db.delete(id);
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision).toBe(4);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW)?.revision,
+    ).toBe(4);
   });
 
   test("moving a favorite conversation advances both principal relations", async () => {
@@ -841,7 +1001,11 @@ describe("central small-view revision interceptor", () => {
     });
     const db = makePrincipalViewTrackedDb(raw);
     await db.patch(CONVERSATION, { user_id: OTHER });
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW, OWNER)?.revision).toBe(1);
-    expect(head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW, OTHER)?.revision).toBe(1);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW, OWNER)?.revision,
+    ).toBe(1);
+    expect(
+      head({ db: raw }, FAVORITES_CONTRACT, FAVORITES_VIEW, OTHER)?.revision,
+    ).toBe(1);
   });
 });

@@ -42,7 +42,9 @@ function registeredGroup(): Command {
 const group = registeredGroup();
 const VERBS = new Set(group.commands.map((c) => c.name()));
 const FLAGS = new Set(
-  group.commands.flatMap((c) => c.options.map((o) => o.long).filter((l): l is string => !!l)),
+  group.commands.flatMap((c) =>
+    c.options.map((o) => o.long).filter((l): l is string => !!l),
+  ),
 );
 
 /**
@@ -53,8 +55,14 @@ const FLAGS = new Set(
  * it keeps this check from needing a new export in a file another task owns.
  */
 function errorCodes(): string[] {
-  const source = fs.readFileSync(path.join(import.meta.dir, "errors.ts"), "utf-8");
-  const table = source.slice(source.indexOf("const RECOVERY"), source.indexOf("const CODES"));
+  const source = fs.readFileSync(
+    path.join(import.meta.dir, "errors.ts"),
+    "utf-8",
+  );
+  const table = source.slice(
+    source.indexOf("const RECOVERY"),
+    source.indexOf("const CODES"),
+  );
   const codes = [...table.matchAll(/^ {2}([a-z_]+): \[/gm)].map((m) => m[1]!);
   expect(codes.length).toBeGreaterThan(10); // a scrape that finds nothing passes everything
   return codes;
@@ -63,30 +71,34 @@ function errorCodes(): string[] {
 describe("the Computer section describes the binary that ships with it", () => {
   // Anchored to a line start or a backtick so it reads COMMANDS, not the prose
   // that names the helper app ("the codecast computer helper").
-  const named = new Set([...BODY.matchAll(/(?:^|`)cast computer ([a-z-]+)/gm)].map((m) => m[1]!));
+  const named = new Set(
+    [...BODY.matchAll(/(?:^|`)cast computer ([a-z-]+)/gm)].map((m) => m[1]!),
+  );
 
   test("names only verbs the CLI registers", () => {
     expect(named.size).toBeGreaterThan(10);
     const unknown = [...named].filter((v) => !VERBS.has(v));
-    expect(`verbs in the snippet with no command: ${unknown.join(", ") || "none"}`).toBe(
-      "verbs in the snippet with no command: none",
-    );
+    expect(
+      `verbs in the snippet with no command: ${unknown.join(", ") || "none"}`,
+    ).toBe("verbs in the snippet with no command: none");
   });
 
   test("shows every verb, so one read is the whole surface", () => {
     const missing = [...VERBS].filter((v) => !named.has(v));
-    expect(`verbs the snippet never shows: ${missing.join(", ") || "none"}`).toBe(
-      "verbs the snippet never shows: none",
-    );
+    expect(
+      `verbs the snippet never shows: ${missing.join(", ") || "none"}`,
+    ).toBe("verbs the snippet never shows: none");
   });
 
   test("names only flags some verb declares", () => {
-    const flags = new Set([...BODY.matchAll(/--[a-z][a-z-]+/g)].map((m) => m[0]));
+    const flags = new Set(
+      [...BODY.matchAll(/--[a-z][a-z-]+/g)].map((m) => m[0]),
+    );
     expect(flags.size).toBeGreaterThan(10);
     const unknown = [...flags].filter((f) => !FLAGS.has(f));
-    expect(`flags in the snippet no verb takes: ${unknown.join(", ") || "none"}`).toBe(
-      "flags in the snippet no verb takes: none",
-    );
+    expect(
+      `flags in the snippet no verb takes: ${unknown.join(", ") || "none"}`,
+    ).toBe("flags in the snippet no verb takes: none");
   });
 
   test("its error table is exactly the set of codes the CLI raises", () => {
@@ -102,11 +114,15 @@ describe("the Computer section describes the binary that ships with it", () => {
     // written before a flag moved, or written for a flag that never existed:
     // the permission rows spent a release telling agents to run a command that
     // could not grant anything (ct-49771).
-    const rows = [...BODY.matchAll(/^\| `[a-z_]+` \| (.+) \|$/gm)].map((m) => m[1]!);
+    const rows = [...BODY.matchAll(/^\| `[a-z_]+` \| (.+) \|$/gm)].map(
+      (m) => m[1]!,
+    );
     expect(rows.length).toBeGreaterThan(10);
     const wrong: string[] = [];
     for (const row of rows) {
-      for (const cmd of row.matchAll(/`cast computer ([a-z-]+)((?: --[a-z-]+(?: [^`\s]+)?)*)`/g)) {
+      for (const cmd of row.matchAll(
+        /`cast computer ([a-z-]+)((?: --[a-z-]+(?: [^`\s]+)?)*)`/g,
+      )) {
         const verb = group.commands.find((c) => c.name() === cmd[1]!);
         if (!verb) {
           wrong.push(`${cmd[1]} is not a verb`);
@@ -114,13 +130,14 @@ describe("the Computer section describes the binary that ships with it", () => {
         }
         const declared = new Set(verb.options.map((o) => o.long));
         for (const flag of cmd[2]!.match(/--[a-z-]+/g) ?? []) {
-          if (!declared.has(flag)) wrong.push(`${verb.name()} does not take ${flag}`);
+          if (!declared.has(flag))
+            wrong.push(`${verb.name()} does not take ${flag}`);
         }
       }
     }
-    expect(`recoveries naming a command the CLI does not have: ${wrong.join("; ") || "none"}`).toBe(
-      "recoveries naming a command the CLI does not have: none",
-    );
+    expect(
+      `recoveries naming a command the CLI does not have: ${wrong.join("; ") || "none"}`,
+    ).toBe("recoveries naming a command the CLI does not have: none");
   });
 
   test("the permission rows teach the raise, not just the read", () => {
@@ -130,13 +147,22 @@ describe("the Computer section describes the binary that ships with it", () => {
     // A row that stops at the read leaves an agent reading `not-granted`
     // forever, so each of the three failures a missing grant produces has to
     // send the agent to that card.
-    for (const code of ["permission_denied", "screenshot_failed", "accessibility_error"]) {
-      const row = BODY.match(new RegExp(`^\\| \`${code}\` \\| (.+) \\|$`, "m"))?.[1] ?? "";
-      expect(`${code} names the setup card: ${row.includes("setup card")}`).toBe(`${code} names the setup card: true`);
-      expect(`${code} says the human grants it: ${/the human/.test(row)}`).toBe(`${code} says the human grants it: true`);
+    for (const code of [
+      "permission_denied",
+      "screenshot_failed",
+      "accessibility_error",
+    ]) {
+      const row =
+        BODY.match(new RegExp(`^\\| \`${code}\` \\| (.+) \\|$`, "m"))?.[1] ??
+        "";
+      expect(
+        `${code} names the setup card: ${row.includes("setup card")}`,
+      ).toBe(`${code} names the setup card: true`);
+      expect(`${code} says the human grants it: ${/the human/.test(row)}`).toBe(
+        `${code} says the human grants it: true`,
+      );
     }
   });
-
 
   test("teaches the rules whose cost lands on the human, not on a retry", () => {
     // Each is a decision the design made that an agent cannot infer from the
@@ -144,15 +170,30 @@ describe("the Computer section describes the binary that ships with it", () => {
     // behaviour rule, the coordinate rule, and the line that keeps this
     // tool off web pages.
     expect(BODY).toContain("never infer an index from `elementCount`");
-    expect(BODY).toContain("none raises one unless you pass `--restore-window`");
-    expect(BODY).toContain("Secrets go through `--text-stdin` or `--value-stdin`, never the command line");
-    expect(BODY).toContain("Do not submit a form, send a message, buy, delete or change settings unless the human asked");
-    expect(BODY).toContain("a position read off one is the coordinate an action takes");
+    expect(BODY).toContain(
+      "none raises one unless you pass `--restore-window`",
+    );
+    expect(BODY).toContain(
+      "Secrets go through `--text-stdin` or `--value-stdin`, never the command line",
+    );
+    expect(BODY).toContain(
+      "Do not submit a form, send a message, buy, delete or change settings unless the human asked",
+    );
+    expect(BODY).toContain(
+      "a position read off one is the coordinate an action takes",
+    );
     expect(BODY).toContain("Inside a web page, `cast browser` stays the tool");
   });
 
   test("the safety rules name the real block list and the real paste cap", () => {
-    for (const manager of ["1Password", "Bitwarden", "Dashlane", "LastPass", "NordPass", "Proton Pass"]) {
+    for (const manager of [
+      "1Password",
+      "Bitwarden",
+      "Dashlane",
+      "LastPass",
+      "NordPass",
+      "Proton Pass",
+    ]) {
       expect(BODY).toContain(manager);
     }
     expect(BODY).toContain("16 MiB");
@@ -163,7 +204,8 @@ describe("the Computer section describes the binary that ships with it", () => {
 describe("cast doctor grades the Computer section like any other", () => {
   const config = { computer_enabled: true };
   const current = renderSectionBody(computer, "full", "1.0.0");
-  const fileWith = (body: string) => `# My own notes\n\nkeep me\n\n${body.replace(/^\n+/, "")}\n`;
+  const fileWith = (body: string) =>
+    `# My own notes\n\nkeep me\n\n${body.replace(/^\n+/, "")}\n`;
 
   test("the section this binary writes reads as current", () => {
     const rows = guidanceSectionStatus({
@@ -172,7 +214,9 @@ describe("cast doctor grades the Computer section like any other", () => {
       version: "1.0.0",
       mode: "full",
     });
-    expect(rows).toEqual([{ slug: "computer", file: "CLAUDE.md", state: "current", stamp: "1.0.0" }]);
+    expect(rows).toEqual([
+      { slug: "computer", file: "CLAUDE.md", state: "current", stamp: "1.0.0" },
+    ]);
   });
 
   test("a body written by an older cast reads as stale, and names it", () => {

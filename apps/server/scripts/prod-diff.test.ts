@@ -2,7 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { defineSchema, defineTable, httpActionGeneric, httpRouter, internalQueryGeneric, mutationGeneric, queryGeneric } from "convex/server";
+import {
+  defineSchema,
+  defineTable,
+  httpActionGeneric,
+  httpRouter,
+  internalQueryGeneric,
+  mutationGeneric,
+  queryGeneric,
+} from "convex/server";
 import { v } from "convex/values";
 import {
   diffNames,
@@ -19,8 +27,28 @@ import {
 
 // Trimmed from prod's `_system/cli/modules:apiSpec` on 2026-11-22.
 const API_SPEC: ApiSpecEntry[] = [
-  { args: { type: "object", value: {} }, functionType: "Mutation", identifier: "emails/send.js:notifyPasswordChanged", returns: null, visibility: { kind: "public" } },
-  { args: { type: "object", value: { task_id: { fieldType: { tableName: "agent_tasks", type: "id" }, optional: false } } }, functionType: "Query", identifier: "agentTasks.js:getTaskForSummary", returns: null, visibility: { kind: "internal" } },
+  {
+    args: { type: "object", value: {} },
+    functionType: "Mutation",
+    identifier: "emails/send.js:notifyPasswordChanged",
+    returns: null,
+    visibility: { kind: "public" },
+  },
+  {
+    args: {
+      type: "object",
+      value: {
+        task_id: {
+          fieldType: { tableName: "agent_tasks", type: "id" },
+          optional: false,
+        },
+      },
+    },
+    functionType: "Query",
+    identifier: "agentTasks.js:getTaskForSummary",
+    returns: null,
+    visibility: { kind: "internal" },
+  },
   { functionType: "HttpAction", method: "GET", path: "/.well-known/jwks.json" },
   { functionType: "HttpAction", method: "POST", path: "/api/ingest/*" },
 ] as ApiSpecEntry[];
@@ -28,9 +56,72 @@ const API_SPEC: ApiSpecEntry[] = [
 // Trimmed from prod's `_system/frontend/getSchemas` `active` (documentType elided).
 const ACTIVE_SCHEMA = JSON.stringify({
   tables: [
-    { tableName: "access_log", indexes: [{ indexDescriptor: "by_repeat_key", fields: ["repeat_key", "at", "_creationTime"] }, { indexDescriptor: "by_team_at", fields: ["team_id", "at", "_creationTime"] }], stagedDbIndexes: [], searchIndexes: [], stagedSearchIndexes: [], vectorIndexes: [], stagedVectorIndexes: [], documentType: { type: "any" }, stagedDocumentType: null },
-    { tableName: "chat_messages", indexes: [{ indexDescriptor: "by_channel_created", fields: ["channel_id", "created_at", "_creationTime"] }], stagedDbIndexes: [], searchIndexes: [{ indexDescriptor: "search_content", searchField: "content", filterFields: ["channel_id", "team_id"] }], stagedSearchIndexes: [], vectorIndexes: [], stagedVectorIndexes: [], documentType: { type: "any" }, stagedDocumentType: null },
-    { tableName: "signal_vectors", indexes: [{ indexDescriptor: "by_signal", fields: ["signal_id", "_creationTime"] }], stagedDbIndexes: [], searchIndexes: [], stagedSearchIndexes: [], vectorIndexes: [{ indexDescriptor: "by_embedding", vectorField: "embedding", dimensions: 1536, dimension: null, filterFields: ["scope"] }], stagedVectorIndexes: [], documentType: { type: "any" }, stagedDocumentType: null },
+    {
+      tableName: "access_log",
+      indexes: [
+        {
+          indexDescriptor: "by_repeat_key",
+          fields: ["repeat_key", "at", "_creationTime"],
+        },
+        {
+          indexDescriptor: "by_team_at",
+          fields: ["team_id", "at", "_creationTime"],
+        },
+      ],
+      stagedDbIndexes: [],
+      searchIndexes: [],
+      stagedSearchIndexes: [],
+      vectorIndexes: [],
+      stagedVectorIndexes: [],
+      documentType: { type: "any" },
+      stagedDocumentType: null,
+    },
+    {
+      tableName: "chat_messages",
+      indexes: [
+        {
+          indexDescriptor: "by_channel_created",
+          fields: ["channel_id", "created_at", "_creationTime"],
+        },
+      ],
+      stagedDbIndexes: [],
+      searchIndexes: [
+        {
+          indexDescriptor: "search_content",
+          searchField: "content",
+          filterFields: ["channel_id", "team_id"],
+        },
+      ],
+      stagedSearchIndexes: [],
+      vectorIndexes: [],
+      stagedVectorIndexes: [],
+      documentType: { type: "any" },
+      stagedDocumentType: null,
+    },
+    {
+      tableName: "signal_vectors",
+      indexes: [
+        {
+          indexDescriptor: "by_signal",
+          fields: ["signal_id", "_creationTime"],
+        },
+      ],
+      stagedDbIndexes: [],
+      searchIndexes: [],
+      stagedSearchIndexes: [],
+      vectorIndexes: [
+        {
+          indexDescriptor: "by_embedding",
+          vectorField: "embedding",
+          dimensions: 1536,
+          dimension: null,
+          filterFields: ["scope"],
+        },
+      ],
+      stagedVectorIndexes: [],
+      documentType: { type: "any" },
+      stagedDocumentType: null,
+    },
   ],
   schemaValidation: false,
 });
@@ -67,19 +158,44 @@ describe("prod side", () => {
 describe("tree side", () => {
   test("a schema's export names the same things prod's active schema does", () => {
     const schema = defineSchema({
-      access_log: defineTable({ repeat_key: v.string(), team_id: v.string(), at: v.number() })
+      access_log: defineTable({
+        repeat_key: v.string(),
+        team_id: v.string(),
+        at: v.number(),
+      })
         .index("by_repeat_key", ["repeat_key", "at"])
         .index("by_team_at", ["team_id", "at"]),
-      chat_messages: defineTable({ channel_id: v.string(), team_id: v.string(), created_at: v.number(), content: v.string() })
+      chat_messages: defineTable({
+        channel_id: v.string(),
+        team_id: v.string(),
+        created_at: v.number(),
+        content: v.string(),
+      })
         .index("by_channel_created", ["channel_id", "created_at"])
-        .searchIndex("search_content", { searchField: "content", filterFields: ["channel_id", "team_id"] }),
-      signal_vectors: defineTable({ signal_id: v.string(), scope: v.string(), embedding: v.array(v.float64()) })
+        .searchIndex("search_content", {
+          searchField: "content",
+          filterFields: ["channel_id", "team_id"],
+        }),
+      signal_vectors: defineTable({
+        signal_id: v.string(),
+        scope: v.string(),
+        embedding: v.array(v.float64()),
+      })
         .index("by_signal", ["signal_id"])
-        .vectorIndex("by_embedding", { vectorField: "embedding", dimensions: 1536, filterFields: ["scope"] }),
+        .vectorIndex("by_embedding", {
+          vectorField: "embedding",
+          dimensions: 1536,
+          filterFields: ["scope"],
+        }),
     });
     // `export()` is what the CLI calls on push; Convex's types mark it internal.
-    const tree = namesFromSchema(JSON.parse((schema as unknown as { export: () => string }).export()));
-    expect(diffNames(tree, namesFromActiveSchema(ACTIVE_SCHEMA))).toEqual({ adds: [], drops: [] });
+    const tree = namesFromSchema(
+      JSON.parse((schema as unknown as { export: () => string }).export()),
+    );
+    expect(diffNames(tree, namesFromActiveSchema(ACTIVE_SCHEMA))).toEqual({
+      adds: [],
+      drops: [],
+    });
   });
 
   test("a module contributes its queries, mutations and actions, nothing else", () => {
@@ -92,7 +208,11 @@ describe("tree side", () => {
       LIMIT: 5,
       nothing: null,
     });
-    expect(names.sort()).toEqual(["fn:agentTasks:bump", "fn:agentTasks:getTaskForSummary", "fn:agentTasks:list"]);
+    expect(names.sort()).toEqual([
+      "fn:agentTasks:bump",
+      "fn:agentTasks:getTaskForSummary",
+      "fn:agentTasks:list",
+    ]);
   });
 
   test("the http router's routes are spelled as prod spells them, prefix routes with *", () => {
@@ -101,8 +221,13 @@ describe("tree side", () => {
     http.route({ path: "/.well-known/jwks.json", method: "GET", handler });
     http.route({ pathPrefix: "/api/ingest/", method: "POST", handler });
     const tree = namesFromModule("http", { default: http });
-    expect(tree.sort()).toEqual(["http:GET /.well-known/jwks.json", "http:POST /api/ingest/*"]);
-    const prodRoutes = namesFromApiSpec(API_SPEC).filter((n) => n.startsWith("http:"));
+    expect(tree.sort()).toEqual([
+      "http:GET /.well-known/jwks.json",
+      "http:POST /api/ingest/*",
+    ]);
+    const prodRoutes = namesFromApiSpec(API_SPEC).filter((n) =>
+      n.startsWith("http:"),
+    );
     expect(diffNames(tree, prodRoutes)).toEqual({ adds: [], drops: [] });
   });
 
@@ -117,7 +242,8 @@ describe("tree side", () => {
   });
 
   test("entry modules follow the bundler's rules", () => {
-    for (const rel of ["apiTokens.ts", "emails/send.ts", "lib/x.tsx", "a.js"]) expect(isEntryModule(rel)).toBe(true);
+    for (const rel of ["apiTokens.ts", "emails/send.ts", "lib/x.tsx", "a.js"])
+      expect(isEntryModule(rel)).toBe(true);
     for (const rel of [
       "schema.ts",
       "_generated/api.ts",
@@ -132,26 +258,43 @@ describe("tree side", () => {
       "lib/node_modules/y.ts",
       "__golden__/ask.json",
       "README.md",
-    ]) expect(isEntryModule(rel)).toBe(false);
+    ])
+      expect(isEntryModule(rel)).toBe(false);
   });
 });
 
 describe("diffNames", () => {
   test("adds are in the tree only, drops in prod only, both sorted", () => {
-    expect(diffNames(["fn:b:x", "index:t.a", "fn:a:y", "table:t"], ["table:t", "index:t.z", "fn:a:y", "http:GET /a"])).toEqual({
+    expect(
+      diffNames(
+        ["fn:b:x", "index:t.a", "fn:a:y", "table:t"],
+        ["table:t", "index:t.z", "fn:a:y", "http:GET /a"],
+      ),
+    ).toEqual({
       adds: ["fn:b:x", "index:t.a"],
       drops: ["http:GET /a", "index:t.z"],
     });
   });
 
   test("duplicates on either side count once", () => {
-    expect(diffNames(["a", "a"], ["b", "b"])).toEqual({ adds: ["a"], drops: ["b"] });
+    expect(diffNames(["a", "a"], ["b", "b"])).toEqual({
+      adds: ["a"],
+      drops: ["b"],
+    });
   });
 });
 
 describe("formatSummary", () => {
   test("counts, then each drop on its own line, then the adds", () => {
-    expect(formatSummary({ adds: ["fn:a:b"], drops: ["index:voiceprints.by_user", "table:voiceprints"] }, { tree_ms: 2100, prod_ms: 1340 })).toBe(
+    expect(
+      formatSummary(
+        {
+          adds: ["fn:a:b"],
+          drops: ["index:voiceprints.by_user", "table:voiceprints"],
+        },
+        { tree_ms: 2100, prod_ms: 1340 },
+      ),
+    ).toBe(
       [
         "prod-diff: 2 drops, 1 add (tree 2.1s, prod 1.3s)",
         "  This push takes these off prod:",
@@ -163,7 +306,10 @@ describe("formatSummary", () => {
   });
 
   test("shows the first ten adds and counts the rest", () => {
-    const adds = Array.from({ length: 13 }, (_, i) => `fn:m:f${String(i).padStart(2, "0")}`);
+    const adds = Array.from(
+      { length: 13 },
+      (_, i) => `fn:m:f${String(i).padStart(2, "0")}`,
+    );
     const text = formatSummary({ adds, drops: [] });
     expect(text.split("\n")).toEqual([
       "prod-diff: 0 drops, 13 adds",
@@ -172,7 +318,9 @@ describe("formatSummary", () => {
   });
 
   test("nothing to change is one line", () => {
-    expect(formatSummary({ adds: [], drops: [] })).toBe("prod-diff: 0 drops, 0 adds");
+    expect(formatSummary({ adds: [], drops: [] })).toBe(
+      "prod-diff: 0 drops, 0 adds",
+    );
   });
 });
 
@@ -184,13 +332,28 @@ describe("readCredentials", () => {
   };
 
   test("env wins over the file", () => {
-    const f = envFile("CONVEX_SELF_HOSTED_URL=https://file.example\nCONVEX_SELF_HOSTED_ADMIN_KEY=file-key\n");
-    expect(readCredentials({ CONVEX_SELF_HOSTED_URL: "https://env.example/", CONVEX_SELF_HOSTED_ADMIN_KEY: "env-key" }, f)).toEqual({ url: "https://env.example", key: "env-key" });
+    const f = envFile(
+      "CONVEX_SELF_HOSTED_URL=https://file.example\nCONVEX_SELF_HOSTED_ADMIN_KEY=file-key\n",
+    );
+    expect(
+      readCredentials(
+        {
+          CONVEX_SELF_HOSTED_URL: "https://env.example/",
+          CONVEX_SELF_HOSTED_ADMIN_KEY: "env-key",
+        },
+        f,
+      ),
+    ).toEqual({ url: "https://env.example", key: "env-key" });
   });
 
   test("falls back to the two keys in the file, quotes stripped, nothing else read", () => {
-    const f = envFile('OTHER=x\nCONVEX_SELF_HOSTED_URL="https://file.example/"\nexport CONVEX_SELF_HOSTED_ADMIN_KEY="file-key"\n');
-    expect(readCredentials({}, f)).toEqual({ url: "https://file.example", key: "file-key" });
+    const f = envFile(
+      'OTHER=x\nCONVEX_SELF_HOSTED_URL="https://file.example/"\nexport CONVEX_SELF_HOSTED_ADMIN_KEY="file-key"\n',
+    );
+    expect(readCredentials({}, f)).toEqual({
+      url: "https://file.example",
+      key: "file-key",
+    });
   });
 
   test("a key alone does not select a production URL", () => {
@@ -199,6 +362,9 @@ describe("readCredentials", () => {
   });
 
   test("no credentials when neither the environment nor the file provides them", () => {
-    expect(readCredentials({}, "/nonexistent/.env.local")).toEqual({ url: undefined, key: undefined });
+    expect(readCredentials({}, "/nonexistent/.env.local")).toEqual({
+      url: undefined,
+      key: undefined,
+    });
   });
 });

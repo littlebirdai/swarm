@@ -21,7 +21,8 @@ export const MANAGED_PROFILE_DOMAIN = "sh.codecast";
 /** Where macOS puts a device-wide managed profile for that domain. */
 export const MANAGED_PREFS_MAC_PATH = `/Library/Managed Preferences/${MANAGED_PROFILE_DOMAIN}.plist`;
 /** The per-user copy macOS writes for a user-scoped profile. */
-export const managedPrefsMacUserPath = (user: string) => `/Library/Managed Preferences/${user}/${MANAGED_PROFILE_DOMAIN}.plist`;
+export const managedPrefsMacUserPath = (user: string) =>
+  `/Library/Managed Preferences/${user}/${MANAGED_PROFILE_DOMAIN}.plist`;
 /** Linux has no profile store; config management drops this file. */
 export const MANAGED_PREFS_LINUX_PATH = "/etc/codecast/managed.json";
 
@@ -37,12 +38,19 @@ export type TeamPolicyKey =
   | "excluded_paths";
 
 /** Keys only a device profile carries: where the device connects and how it enrolls. */
-export type DevicePolicyKey = "web_url" | "convex_url" | "enrollment_token" | "user_email";
+export type DevicePolicyKey =
+  | "web_url"
+  | "convex_url"
+  | "enrollment_token"
+  | "user_email";
 
 export type ManagedPolicyKey = TeamPolicyKey | DevicePolicyKey;
 
 /** The on/off keys: on when any layer turns them on (mergePolicies). */
-export type RestrictionKey = Extract<TeamPolicyKey, `${string}_disabled` | "regulated_data" | "slack_baa_confirmed">;
+export type RestrictionKey = Extract<
+  TeamPolicyKey,
+  `${string}_disabled` | "regulated_data" | "slack_baa_confirmed"
+>;
 
 export interface TeamPolicy {
   /** No published pages and no public share links. */
@@ -100,26 +108,109 @@ export interface ManagedPolicyDescriptor {
 }
 
 export const MANAGED_POLICY: ManagedPolicyDescriptor[] = [
-  { key: "public_sharing_disabled", profileKey: "PublicSharingDisabled", kind: "restriction", team: true, name: "Block public pages and share links", subject: "Public sharing" },
-  { key: "browser_control_disabled", profileKey: "BrowserControlDisabled", kind: "restriction", team: true, name: "Block agent browser control", subject: "Agent browser control", feature: "browser" },
-  { key: "computer_control_disabled", profileKey: "ComputerControlDisabled", kind: "restriction", team: true, name: "Block agent desktop control", subject: "Agent desktop control", feature: "computer" },
-  { key: "cloud_hosts_disabled", profileKey: "CloudHostsDisabled", kind: "restriction", team: true, name: "Block cloud hosts", subject: "Cloud hosting" },
-  { key: "regulated_data", profileKey: "RegulatedData", kind: "restriction", team: true, name: "Regulated health data (HIPAA)" },
-  { key: "slack_baa_confirmed", profileKey: "SlackBAAConfirmed", kind: "restriction", team: true, name: "Slack plan covered by our BAA", requires: "regulated_data" },
-  { key: "auto_update", profileKey: "AutoUpdate", kind: "choice", team: true, name: "Automatic updates" },
-  { key: "excluded_paths", profileKey: "ExcludedPaths", kind: "paths", team: true, name: "Never sync these folders" },
-  { key: "web_url", profileKey: "WebURL", kind: "string", team: false, name: "Web URL" },
-  { key: "convex_url", profileKey: "ServerURL", kind: "string", team: false, name: "Server URL" },
-  { key: "enrollment_token", profileKey: "EnrollmentToken", kind: "string", team: false, name: "Enrollment token" },
-  { key: "user_email", profileKey: "UserEmail", kind: "string", team: false, name: "User email" },
+  {
+    key: "public_sharing_disabled",
+    profileKey: "PublicSharingDisabled",
+    kind: "restriction",
+    team: true,
+    name: "Block public pages and share links",
+    subject: "Public sharing",
+  },
+  {
+    key: "browser_control_disabled",
+    profileKey: "BrowserControlDisabled",
+    kind: "restriction",
+    team: true,
+    name: "Block agent browser control",
+    subject: "Agent browser control",
+    feature: "browser",
+  },
+  {
+    key: "computer_control_disabled",
+    profileKey: "ComputerControlDisabled",
+    kind: "restriction",
+    team: true,
+    name: "Block agent desktop control",
+    subject: "Agent desktop control",
+    feature: "computer",
+  },
+  {
+    key: "cloud_hosts_disabled",
+    profileKey: "CloudHostsDisabled",
+    kind: "restriction",
+    team: true,
+    name: "Block cloud hosts",
+    subject: "Cloud hosting",
+  },
+  {
+    key: "regulated_data",
+    profileKey: "RegulatedData",
+    kind: "restriction",
+    team: true,
+    name: "Regulated health data (HIPAA)",
+  },
+  {
+    key: "slack_baa_confirmed",
+    profileKey: "SlackBAAConfirmed",
+    kind: "restriction",
+    team: true,
+    name: "Slack plan covered by our BAA",
+    requires: "regulated_data",
+  },
+  {
+    key: "auto_update",
+    profileKey: "AutoUpdate",
+    kind: "choice",
+    team: true,
+    name: "Automatic updates",
+  },
+  {
+    key: "excluded_paths",
+    profileKey: "ExcludedPaths",
+    kind: "paths",
+    team: true,
+    name: "Never sync these folders",
+  },
+  {
+    key: "web_url",
+    profileKey: "WebURL",
+    kind: "string",
+    team: false,
+    name: "Web URL",
+  },
+  {
+    key: "convex_url",
+    profileKey: "ServerURL",
+    kind: "string",
+    team: false,
+    name: "Server URL",
+  },
+  {
+    key: "enrollment_token",
+    profileKey: "EnrollmentToken",
+    kind: "string",
+    team: false,
+    name: "Enrollment token",
+  },
+  {
+    key: "user_email",
+    profileKey: "UserEmail",
+    kind: "string",
+    team: false,
+    name: "User email",
+  },
 ];
 
-export const TEAM_POLICY_KEYS = MANAGED_POLICY.filter((d) => d.team).map((d) => d.key as TeamPolicyKey);
+export const TEAM_POLICY_KEYS = MANAGED_POLICY.filter((d) => d.team).map(
+  (d) => d.key as TeamPolicyKey,
+);
 
 const byProfileKey = new Map(MANAGED_POLICY.map((d) => [d.profileKey, d]));
 const byKey = new Map(MANAGED_POLICY.map((d) => [d.key, d]));
 
-export function managedPolicyDescriptor(key: ManagedPolicyKey): ManagedPolicyDescriptor {
+export function managedPolicyDescriptor(
+  key: ManagedPolicyKey,
+): ManagedPolicyDescriptor {
   return byKey.get(key)!;
 }
 
@@ -134,9 +225,13 @@ function coerce(kind: Kind, value: unknown): unknown {
       return value === "on" || value === "off" ? value : undefined;
     case "paths":
       if (!Array.isArray(value)) return undefined;
-      return value.filter((p): p is string => typeof p === "string" && p.trim() !== "").map((p) => p.trim());
+      return value
+        .filter((p): p is string => typeof p === "string" && p.trim() !== "")
+        .map((p) => p.trim());
     case "string":
-      return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+      return typeof value === "string" && value.trim() !== ""
+        ? value.trim()
+        : undefined;
   }
 }
 
@@ -160,14 +255,19 @@ export function parseTeamPolicy(raw: unknown): TeamPolicy {
   const out: Record<string, unknown> = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
   for (const key of TEAM_POLICY_KEYS) {
-    const value = coerce(managedPolicyDescriptor(key).kind, (raw as Record<string, unknown>)[key]);
+    const value = coerce(
+      managedPolicyDescriptor(key).kind,
+      (raw as Record<string, unknown>)[key],
+    );
     if (value !== undefined) out[key] = value;
   }
   return out as TeamPolicy;
 }
 
 /** Where an effective value came from, for "Managed by ..." labels. */
-export type PolicySource = { kind: "profile" } | { kind: "team"; team_id: string; team_name: string };
+export type PolicySource =
+  | { kind: "profile" }
+  | { kind: "team"; team_id: string; team_name: string };
 
 export interface PolicyLayer {
   source: PolicySource;
@@ -193,8 +293,13 @@ export function mergePolicies(layers: PolicyLayer[]): EffectivePolicy {
       const value = (policy as Record<string, unknown>)[d.key];
       if (value === undefined) continue;
       if (d.kind === "restriction") {
-        if (value === true && values[d.key] !== true) { values[d.key] = true; sources[d.key] = source; }
-        else if (values[d.key] === undefined) { values[d.key] = value; sources[d.key] = source; }
+        if (value === true && values[d.key] !== true) {
+          values[d.key] = true;
+          sources[d.key] = source;
+        } else if (values[d.key] === undefined) {
+          values[d.key] = value;
+          sources[d.key] = source;
+        }
       } else if (d.kind === "paths") {
         const prev = (values[d.key] as string[] | undefined) ?? [];
         const added = (value as string[]).filter((p) => !prev.includes(p));
@@ -216,15 +321,21 @@ export function mergePolicies(layers: PolicyLayer[]): EffectivePolicy {
  * routing, stamped even on private sessions; only a team-visible conversation
  * answers to its team (convex privacy.ts re-exports this for work items).
  */
-export function teamVisibleConvTeam<T>(conv: {
-  team_id?: T;
-  is_private?: boolean;
-  auto_shared?: boolean;
-  team_visibility?: string;
-} | null | undefined): T | undefined {
+export function teamVisibleConvTeam<T>(
+  conv:
+    | {
+        team_id?: T;
+        is_private?: boolean;
+        auto_shared?: boolean;
+        team_visibility?: string;
+      }
+    | null
+    | undefined,
+): T | undefined {
   if (!conv?.team_id) return undefined;
   if (!conv.is_private || conv.auto_shared) return conv.team_id;
-  if (conv.team_visibility && conv.team_visibility !== "private") return conv.team_id;
+  if (conv.team_visibility && conv.team_visibility !== "private")
+    return conv.team_id;
   return undefined;
 }
 
@@ -240,27 +351,48 @@ export function policyTeamOf(table: string, row: any): string | null {
     return teamId ? String(teamId) : null;
   }
   if (typeof row.workspace === "string" && row.workspace) {
-    return row.workspace.startsWith("team:") ? row.workspace.slice("team:".length) : null;
+    return row.workspace.startsWith("team:")
+      ? row.workspace.slice("team:".length)
+      : null;
   }
   return row.team_id ? String(row.team_id) : null;
 }
 
 /** Is a restriction on? */
-export function policyBlocks(policy: TeamPolicy | null | undefined, key: RestrictionKey): boolean {
+export function policyBlocks(
+  policy: TeamPolicy | null | undefined,
+  key: RestrictionKey,
+): boolean {
   return policy?.[key] === true;
 }
 
 /** Whether any of a viewer's teams holds regulated health data; null while the list is empty or not yet fed. */
-export function teamsHoldRegulatedData(teams: ReadonlyArray<{ policy?: unknown } | null | undefined> | null | undefined): boolean | null {
+export function teamsHoldRegulatedData(
+  teams:
+    | ReadonlyArray<{ policy?: unknown } | null | undefined>
+    | null
+    | undefined,
+): boolean | null {
   if (!teams?.length) return null;
-  return teams.some((t) => !!t && parseTeamPolicy(t.policy).regulated_data === true);
+  return teams.some(
+    (t) => !!t && parseTeamPolicy(t.policy).regulated_data === true,
+  );
 }
 
 /** The words a refused action shows, on the CLI and the web alike. */
-export function policyBlockedMessage(key: ManagedPolicyKey, source?: PolicySource): string {
-  const who = !source ? "your organization" : source.kind === "profile" ? "your device's management profile" : `${source.team_name}'s admins`;
+export function policyBlockedMessage(
+  key: ManagedPolicyKey,
+  source?: PolicySource,
+): string {
+  const who = !source
+    ? "your organization"
+    : source.kind === "profile"
+      ? "your device's management profile"
+      : `${source.team_name}'s admins`;
   const d = managedPolicyDescriptor(key);
-  return d.subject ? `${d.subject} is turned off by ${who}.` : `${d.name} is set by ${who}.`;
+  return d.subject
+    ? `${d.subject} is turned off by ${who}.`
+    : `${d.name} is set by ${who}.`;
 }
 
 // ── Enrollment wire ────────────────────────────────────────────────────────
@@ -268,11 +400,16 @@ export function policyBlockedMessage(key: ManagedPolicyKey, source?: PolicySourc
 export const ENROLLMENT_TOKEN_PREFIX = "cc_enr_";
 
 export function isEnrollmentToken(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith(ENROLLMENT_TOKEN_PREFIX) && value.length > ENROLLMENT_TOKEN_PREFIX.length + 16;
+  return (
+    typeof value === "string" &&
+    value.startsWith(ENROLLMENT_TOKEN_PREFIX) &&
+    value.length > ENROLLMENT_TOKEN_PREFIX.length + 16
+  );
 }
 
 /** What a person reads about a machine its team's admins removed (CLI status, doctor). */
-export const removedDeviceMessage = (team: string) => `${team}'s admins removed this machine. Ask them to allow it again, then run cast mdm enroll.`;
+export const removedDeviceMessage = (team: string) =>
+  `${team}'s admins removed this machine. Ask them to allow it again, then run cast mdm enroll.`;
 
 /** POST /cli/enroll: a managed device announces itself to its team. */
 export interface EnrollRequest {
@@ -285,8 +422,18 @@ export interface EnrollRequest {
 }
 
 export type EnrollResponse =
-  | { ok: true; enrollment_id: string; team_id: string; team_name: string; policy: TeamPolicy }
-  | { ok: false; error: string; /** The team whose admins took this device out. */ removed_by?: string };
+  | {
+      ok: true;
+      enrollment_id: string;
+      team_id: string;
+      team_name: string;
+      policy: TeamPolicy;
+    }
+  | {
+      ok: false;
+      error: string;
+      /** The team whose admins took this device out. */ removed_by?: string;
+    };
 
 /** What the heartbeat carries for a device: the team policy that applies to it. */
 export interface HeartbeatTeamPolicy {
@@ -300,24 +447,38 @@ export interface HeartbeatTeamPolicy {
 // ── Configuration profile ──────────────────────────────────────────────────
 
 function xmlEscape(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function plistValue(value: unknown, indent: string): string {
   if (typeof value === "boolean") return `${indent}<${value}/>`;
   if (Array.isArray(value)) {
     if (value.length === 0) return `${indent}<array/>`;
-    return [`${indent}<array>`, ...value.map((v) => plistValue(v, indent + "\t")), `${indent}</array>`].join("\n");
+    return [
+      `${indent}<array>`,
+      ...value.map((v) => plistValue(v, indent + "\t")),
+      `${indent}</array>`,
+    ].join("\n");
   }
   if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+      ([, v]) => v !== undefined,
+    );
     return [
       `${indent}<dict>`,
-      ...entries.flatMap(([k, v]) => [`${indent}\t<key>${xmlEscape(k)}</key>`, plistValue(v, indent + "\t")]),
+      ...entries.flatMap(([k, v]) => [
+        `${indent}\t<key>${xmlEscape(k)}</key>`,
+        plistValue(v, indent + "\t"),
+      ]),
       `${indent}</dict>`,
     ].join("\n");
   }
-  if (typeof value === "number") return `${indent}<integer>${Math.trunc(value)}</integer>`;
+  if (typeof value === "number")
+    return `${indent}<integer>${Math.trunc(value)}</integer>`;
   return `${indent}<string>${xmlEscape(String(value))}</string>`;
 }
 

@@ -79,7 +79,7 @@ export const PREFERENCE_MAP: Record<string, string> = {
 
 function isNotificationEnabled(
   prefs: Record<string, any> | undefined,
-  notificationType: string
+  notificationType: string,
 ): boolean {
   if (!prefs) return true;
   const prefKey = PREFERENCE_MAP[notificationType];
@@ -103,7 +103,7 @@ export const ensureSubscribed = internalMutation({
       v.literal("assignee"),
       v.literal("mentioned"),
       v.literal("commenter"),
-      v.literal("watching")
+      v.literal("watching"),
     ),
     via: v.optional(SUBSCRIPTION_VIA),
   },
@@ -114,7 +114,7 @@ export const ensureSubscribed = internalMutation({
         q
           .eq("user_id", args.user_id)
           .eq("entity_type", args.entity_type)
-          .eq("entity_id", args.entity_id)
+          .eq("entity_id", args.entity_id),
       )
       .first();
 
@@ -128,11 +128,14 @@ export const ensureSubscribed = internalMutation({
       // or a mention — whoever typed it. Agent acts never unmute.
       if (
         existing.muted &&
-        (args.via === "human" || args.reason === "assignee" || args.reason === "mentioned")
+        (args.via === "human" ||
+          args.reason === "assignee" ||
+          args.reason === "mentioned")
       ) {
         patch.muted = false;
       }
-      if (Object.keys(patch).length > 0) await ctx.db.patch(existing._id, patch);
+      if (Object.keys(patch).length > 0)
+        await ctx.db.patch(existing._id, patch);
       return existing._id;
     }
 
@@ -168,11 +171,12 @@ export const setSubscriptionMuted = internalMutation({
         q
           .eq("user_id", args.user_id)
           .eq("entity_type", args.entity_type)
-          .eq("entity_id", args.entity_id)
+          .eq("entity_id", args.entity_id),
       )
       .first();
     if (existing) {
-      if (existing.muted !== args.muted) await ctx.db.patch(existing._id, { muted: args.muted });
+      if (existing.muted !== args.muted)
+        await ctx.db.patch(existing._id, { muted: args.muted });
       return existing._id;
     }
     if (!args.muted) return null;
@@ -225,21 +229,33 @@ const EMIT_ARGS = {
 // The one fan-out. Callable inside a mutation's own transaction, so a
 // caller with a plain ctx (sessionDecisions) notifies without a nested
 // runMutation.
-export async function emitNotification(ctx: MutationCtx, args: ObjectType<typeof EMIT_ARGS>) {
+export async function emitNotification(
+  ctx: MutationCtx,
+  args: ObjectType<typeof EMIT_ARGS>,
+) {
   // Ephemeral bookkeeping rings nobody (task-graph.md TG9). A comment on it
   // arrives already narrowed to the people it calls on (commentReaches).
-  if (args.event_type !== "task_commented" && (await isEphemeralTask(ctx, args.entity_type, args.entity_id))) return { notified: 0 };
+  if (
+    args.event_type !== "task_commented" &&
+    (await isEphemeralTask(ctx, args.entity_type, args.entity_id))
+  )
+    return { notified: 0 };
   const now = Date.now();
-  const actor = args.actor_user_id ? await ctx.db.get(args.actor_user_id) : null;
+  const actor = args.actor_user_id
+    ? await ctx.db.get(args.actor_user_id)
+    : null;
   // A snapshot wins: Slack inbound names the person who posted, not the
   // workspace bridge the row is stored under. Same for a session-typed line.
-  const actorName = args.actor_name || actor?.name || actor?.github_username || "Someone";
+  const actorName =
+    args.actor_name || actor?.name || actor?.github_username || "Someone";
 
   type UserDoc = NonNullable<Awaited<ReturnType<typeof ctx.db.get<"users">>>>;
   const recipients: UserDoc[] = [];
 
   const actorId = args.actor_user_id?.toString();
-  const named = args.recipient_ids ?? (args.direct_recipient_id ? [args.direct_recipient_id] : null);
+  const named =
+    args.recipient_ids ??
+    (args.direct_recipient_id ? [args.direct_recipient_id] : null);
   if (named) {
     const seen = new Set<string>();
     for (const id of named) {
@@ -252,9 +268,7 @@ export async function emitNotification(ctx: MutationCtx, args: ObjectType<typeof
     const subs = await ctx.db
       .query("entity_subscriptions")
       .withIndex("by_entity", (q: any) =>
-        q
-          .eq("entity_type", args.entity_type)
-          .eq("entity_id", args.entity_id)
+        q.eq("entity_type", args.entity_type).eq("entity_id", args.entity_id),
       )
       .collect();
 
@@ -299,7 +313,7 @@ export async function emitNotification(ctx: MutationCtx, args: ObjectType<typeof
     if (
       !isNotificationEnabled(
         recipient.notification_preferences as any,
-        args.event_type
+        args.event_type,
       )
     ) {
       continue;
@@ -325,7 +339,12 @@ export async function emitNotification(ctx: MutationCtx, args: ObjectType<typeof
 
     created++;
 
-    if (args.push !== false && !args.quiet && recipient.push_token && recipient.notifications_enabled) {
+    if (
+      args.push !== false &&
+      !args.quiet &&
+      recipient.push_token &&
+      recipient.notifications_enabled
+    ) {
       await enqueuePush(ctx, {
         user: recipient,
         notification_id: notifId,
@@ -342,7 +361,8 @@ export async function emitNotification(ctx: MutationCtx, args: ObjectType<typeof
           // Chat taps route on these ids: mobile opens /chat/<channelId>,
           // or the thread screen when threadRootId is present — a reply's
           // words live in the thread, so that is where the tap must land.
-          channelId: args.entity_type === "chat_channel" ? args.entity_id : undefined,
+          channelId:
+            args.entity_type === "chat_channel" ? args.entity_id : undefined,
           messageId: args.chat_message_id,
           threadRootId: args.chat_thread_root_id,
         },

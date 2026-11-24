@@ -7,7 +7,10 @@ import {
 
 describe("insertImagePlaceholder", () => {
   it("inserts into an empty draft with no leading space", () => {
-    expect(insertImagePlaceholder("", 0, 1)).toEqual({ text: "[Image 1] ", caret: 10 });
+    expect(insertImagePlaceholder("", 0, 1)).toEqual({
+      text: "[Image 1] ",
+      caret: 10,
+    });
   });
 
   it("appends after existing text with one separating space", () => {
@@ -17,7 +20,9 @@ describe("insertImagePlaceholder", () => {
   });
 
   it("does not double the space the user already typed", () => {
-    expect(insertImagePlaceholder("look at ", 8, 2).text).toBe("look at [Image 2] ");
+    expect(insertImagePlaceholder("look at ", 8, 2).text).toBe(
+      "look at [Image 2] ",
+    );
   });
 
   it("inserts at the caret, not the end", () => {
@@ -32,7 +37,9 @@ describe("insertImagePlaceholder", () => {
   });
 
   it("keeps a newline before the token intact", () => {
-    expect(insertImagePlaceholder("line\n", 5, 1).text).toBe("line\n[Image 1] ");
+    expect(insertImagePlaceholder("line\n", 5, 1).text).toBe(
+      "line\n[Image 1] ",
+    );
   });
 
   it("clamps a caret past the end", () => {
@@ -41,7 +48,8 @@ describe("insertImagePlaceholder", () => {
 
   it("numbers by attach order", () => {
     let text = "";
-    for (let n = 1; n <= 3; n++) text = insertImagePlaceholder(text, text.length, n).text;
+    for (let n = 1; n <= 3; n++)
+      text = insertImagePlaceholder(text, text.length, n).text;
     expect(text).toBe("[Image 1] [Image 2] [Image 3] ");
   });
 });
@@ -61,14 +69,14 @@ describe("dropImagePlaceholder", () => {
 
   it("renumbers higher tokens down", () => {
     expect(dropImagePlaceholder("a [Image 1] b [Image 2] c [Image 3]", 1)).toBe(
-      "a b [Image 1] c [Image 2]"
+      "a b [Image 1] c [Image 2]",
     );
   });
 
   it("leaves lower tokens alone", () => {
-    expect(dropImagePlaceholder("[Image 1] and [Image 2] and [Image 3]", 2)).toBe(
-      "[Image 1] and and [Image 2]"
-    );
+    expect(
+      dropImagePlaceholder("[Image 1] and [Image 2] and [Image 3]", 2),
+    ).toBe("[Image 1] and and [Image 2]");
   });
 
   it("removes every occurrence of a token the user duplicated", () => {
@@ -80,7 +88,9 @@ describe("dropImagePlaceholder", () => {
   });
 
   it("does not touch the user's own line breaks", () => {
-    expect(dropImagePlaceholder("first\n[Image 1]\nlast", 1)).toBe("first\n\nlast");
+    expect(dropImagePlaceholder("first\n[Image 1]\nlast", 1)).toBe(
+      "first\n\nlast",
+    );
   });
 
   it("does not renumber a lookalike with a different number width", () => {

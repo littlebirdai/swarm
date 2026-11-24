@@ -4,19 +4,53 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { resolveCreationPrivacy } from "./privacy";
-import { findConversationByAnyRef, findConversationByAnyRefWhere } from "./conversationSessionLookup";
+import {
+  findConversationByAnyRef,
+  findConversationByAnyRefWhere,
+} from "./conversationSessionLookup";
 import { killConversation } from "./conversations";
-import { askCore, finalizeAnswer, joinStack, normalizeVerdict, personMayResolve, refreshHolder, userMayRead, withdrawCore, GATE_PRESENT_AGAIN, type AnsweredBy } from "./sessionDecisions";
+import {
+  askCore,
+  finalizeAnswer,
+  joinStack,
+  normalizeVerdict,
+  personMayResolve,
+  refreshHolder,
+  userMayRead,
+  withdrawCore,
+  GATE_PRESENT_AGAIN,
+  type AnsweredBy,
+} from "./sessionDecisions";
 import { adoptedCategory } from "./lib/decisionCategory";
 import { createStackCore } from "./decisionStacks";
 import { projectLeadRole } from "./lib/orgAccess";
-import { CARD_GATE_NODE_ID, costParts, isLineRun, lineRunOutcome, mergeLeft, type ChangeCard } from "@codecast/shared/contracts/changeCard";
+import {
+  CARD_GATE_NODE_ID,
+  costParts,
+  isLineRun,
+  lineRunOutcome,
+  mergeLeft,
+  type ChangeCard,
+} from "@codecast/shared/contracts/changeCard";
 import { tookPastStart } from "@codecast/shared/contracts/runStart";
 import { sourceTakesSessionChange } from "@codecast/shared/contracts/flowPool";
 import { isTerminalTaskStatus } from "@codecast/shared/tasks";
-import { canAccessConversation, canAccessTask, canAccessPlan, computeWorkspaceKey, requireAccessiblePlan, requireAccessibleTask, resolveWorkspaceKey, workspaceGrantsAccess } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessTask,
+  canAccessPlan,
+  computeWorkspaceKey,
+  requireAccessiblePlan,
+  requireAccessibleTask,
+  resolveWorkspaceKey,
+  workspaceGrantsAccess,
+} from "./lib/access";
 import { patchTask } from "./lib/taskWrite";
-import { repairedClosedAt, repairedLineStatus, statusHistory } from "./lib/lineCauseRepair";
+import {
+  repairedClosedAt,
+  repairedLineStatus,
+  statusHistory,
+} from "./lib/lineCauseRepair";
 import { moveTaskStatus } from "./tasks";
 import { noticeCardWaiting, noticeChangeShipped } from "./lineNotices";
 import { createDataContext } from "./data";
@@ -31,14 +65,24 @@ import { libraryOfRun, runFlowVersions } from "./flowVersions";
 import { ingestSnapshotArgs } from "./lib/workflowGraphValidators";
 import { admitRoleRun, requeueForSweep } from "./orgLine";
 import { flowAgents, missingAgentOn } from "./lib/linePlacement";
-import { agentDisplayName, deviceDisplayName } from "@codecast/shared/contracts";
+import {
+  agentDisplayName,
+  deviceDisplayName,
+} from "@codecast/shared/contracts";
 import { placeName, placeRunOnDevice } from "./lib/runDevicePlace";
 import { navPromptField } from "./userMessagesFilter";
 import { retainSessionCreator } from "./sessionLaunch";
 import { isSessionOwner } from "./sessionOwners";
 import { withAgentSessions } from "./lib/runAgentSessions";
 import { changeSessionOf } from "./lib/taskOwner";
-import { graphOfVersion, pinnedVersionOf, repinToReported, rowAtVersion, runWorkflowOf, versionToPin } from "./lib/runGraph";
+import {
+  graphOfVersion,
+  pinnedVersionOf,
+  repinToReported,
+  rowAtVersion,
+  runWorkflowOf,
+  versionToPin,
+} from "./lib/runGraph";
 
 export { withAgentSessions };
 
@@ -54,13 +98,29 @@ type Ctx = { db: any };
 export async function runScope(
   ctx: Ctx,
   userId: Id<"users">,
-  opts: { task?: any; plan?: any; conversation?: { team_id?: Id<"teams">; is_private?: boolean; auto_shared?: boolean; team_visibility?: string } | null },
+  opts: {
+    task?: any;
+    plan?: any;
+    conversation?: {
+      team_id?: Id<"teams">;
+      is_private?: boolean;
+      auto_shared?: boolean;
+      team_visibility?: string;
+    } | null;
+  },
 ): Promise<{ workspace: string; team_id: Id<"teams"> | undefined }> {
   const item = opts.task ?? opts.plan;
-  if (item) return { workspace: await resolveWorkspaceKey(ctx, item), team_id: item.team_id };
+  if (item)
+    return {
+      workspace: await resolveWorkspaceKey(ctx, item),
+      team_id: item.team_id,
+    };
   const conv = opts.conversation ?? null;
   return {
-    workspace: computeWorkspaceKey({ user_id: userId, team_id: conv?.team_id }, conv),
+    workspace: computeWorkspaceKey(
+      { user_id: userId, team_id: conv?.team_id },
+      conv,
+    ),
     team_id: conv?.team_id,
   };
 }
@@ -68,9 +128,17 @@ export async function runScope(
 // Owner always; otherwise the run's ACCESS key must grant the viewer. The
 // stored key when present, the write-time compute for rows minted before
 // the backfill (they resolve personal to their owner).
-export async function canReadRun(ctx: Ctx, userId: Id<"users">, run: any): Promise<boolean> {
+export async function canReadRun(
+  ctx: Ctx,
+  userId: Id<"users">,
+  run: any,
+): Promise<boolean> {
   if (String(run.user_id) === String(userId)) return true;
-  return workspaceGrantsAccess(ctx, userId, await resolveWorkspaceKey(ctx, run));
+  return workspaceGrantsAccess(
+    ctx,
+    userId,
+    await resolveWorkspaceKey(ctx, run),
+  );
 }
 
 // ── LE16: status follows the line ────────────────────────────────────────────
@@ -98,35 +166,63 @@ export function runEndStatus(
   run: Parameters<typeof lineRunOutcome>[0] & { created_at?: number },
   verdict?: { verdict: string; at: number } | null,
 ): "done" | "open" | "in_review" | null {
-  if (runStatus !== "completed" || isTerminalTaskStatus(taskStatus)) return null;
+  if (runStatus !== "completed" || isTerminalTaskStatus(taskStatus))
+    return null;
   const end = lineRunOutcome(run)?.kind;
   if (end === "shipped" && !mergeLeft(run ?? {})) return "done";
   if (end === "parked") return taskStatus === "in_progress" ? "open" : null;
-  if (!isLineRun(run) && verdict?.verdict === "approve" && verdict.at >= (run?.created_at ?? 0)) return "done";
+  if (
+    !isLineRun(run) &&
+    verdict?.verdict === "approve" &&
+    verdict.at >= (run?.created_at ?? 0)
+  )
+    return "done";
   return taskStatus === "in_progress" ? "in_review" : null;
 }
 
 /** A run ended: its task's status through the one status path, and the ship notice. */
-async function settleRunTask(ctx: Ctx & { runMutation?: any }, run: any, runStatus: "completed" | "failed" | "running", failReason: string | undefined, now: number) {
+async function settleRunTask(
+  ctx: Ctx & { runMutation?: any },
+  run: any,
+  runStatus: "completed" | "failed" | "running",
+  failReason: string | undefined,
+  now: number,
+) {
   const task = await ctx.db.get(run.task_id);
   if (!task) return;
   if (runStatus === "failed") {
     // A closed problem is not blocked: its run was ended by the close (a person's drop, a merge), which stands.
     if (isTerminalTaskStatus(task.status)) return;
-    await patchTask(ctx, task, { execution_status: "blocked", ...(failReason ? { execution_concerns: failReason } : {}), updated_at: now });
+    await patchTask(ctx, task, {
+      execution_status: "blocked",
+      ...(failReason ? { execution_concerns: failReason } : {}),
+      updated_at: now,
+    });
     return;
   }
   const next = runEndStatus(task.status, runStatus, run, task.review_verdict);
   // An approved fix whose merge was left to a person is not live, so the watch its graph's watch station started has
   // nothing to watch: a quiet one would close the problem as resolved, and a new report would reopen it.
-  const unwatch = runStatus === "completed" && mergeLeft(run) && task.watch_until !== undefined ? { watch_from: undefined, watch_until: undefined } : null;
+  const unwatch =
+    runStatus === "completed" &&
+    mergeLeft(run) &&
+    task.watch_until !== undefined
+      ? { watch_from: undefined, watch_until: undefined }
+      : null;
   if (!next) {
-    if (unwatch && !isTerminalTaskStatus(task.status)) await patchTask(ctx, task, { ...unwatch, updated_at: now });
+    if (unwatch && !isTerminalTaskStatus(task.status))
+      await patchTask(ctx, task, { ...unwatch, updated_at: now });
     return;
   }
   const end = lineRunOutcome(run);
-  await moveTaskStatus(ctx, task, next, { actorUserId: run.user_id, now, ...(next === "done" && end ? { closedAt: end.at } : {}), ...(unwatch ? { extra: unwatch } : {}) });
-  if (next === "done" && end?.kind === "shipped") await noticeChangeShipped(ctx, task, run, task.watch_until);
+  await moveTaskStatus(ctx, task, next, {
+    actorUserId: run.user_id,
+    now,
+    ...(next === "done" && end ? { closedAt: end.at } : {}),
+    ...(unwatch ? { extra: unwatch } : {}),
+  });
+  if (next === "done" && end?.kind === "shipped")
+    await noticeChangeShipped(ctx, task, run, task.watch_until);
 }
 
 // ── the-line.md L4: a gate is a decision ─────────────────────────────────────
@@ -139,55 +235,110 @@ function stripGateKey(label: string): string {
 
 // The run panel's free text picks an option when it starts with a gate key
 // (exact, "A:", "A ", "[A]"), the same rule the runner applies to the text.
-export function gateChoiceIndex(choices: Array<{ key: string }> | undefined, response: string): number {
+export function gateChoiceIndex(
+  choices: Array<{ key: string }> | undefined,
+  response: string,
+): number {
   const r = response.trim().toUpperCase();
   return (choices ?? []).findIndex((ch) => {
     const k = ch.key.toUpperCase();
-    return r === k || r.startsWith(k + ":") || r.startsWith(k + " ") || r.startsWith(`[${k}]`);
+    return (
+      r === k ||
+      r.startsWith(k + ":") ||
+      r.startsWith(k + " ") ||
+      r.startsWith(`[${k}]`)
+    );
   });
 }
 
-export type GateChoice = { key: string; label: string; description?: string; target: string };
+export type GateChoice = {
+  key: string;
+  label: string;
+  description?: string;
+  target: string;
+};
 
 // The graph's `stack="Launch checklist"` attribute (the-line.md L4): one
 // stack per run, created on the first gate and appended to by every later
 // gate. The run's previous gate decision still sits on gate_decision_id when
 // the next gate pauses, and its stack_id names the run's stack. A `ds-N`
 // reference is passed through as an existing stack.
-async function gateStackRef(ctx: Ctx, userId: Id<"users">, run: any, stack: string | undefined): Promise<string | undefined> {
+async function gateStackRef(
+  ctx: Ctx,
+  userId: Id<"users">,
+  run: any,
+  stack: string | undefined,
+): Promise<string | undefined> {
   if (!stack) return undefined;
   if (/^ds-\d+$/.test(stack)) return stack;
-  const previous = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
+  const previous = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
   if (previous?.stack_id) {
     const existing = await ctx.db.get(previous.stack_id);
     if (existing) {
       // The gates come one at a time, so answering the last one closed the
       // stack; the next gate reopens it, the way a reopened answer does.
-      if (existing.status === "done") await ctx.db.patch(existing._id, { status: "open", updated_at: Date.now() });
+      if (existing.status === "done")
+        await ctx.db.patch(existing._id, {
+          status: "open",
+          updated_at: Date.now(),
+        });
       return existing.short_id;
     }
   }
-  const created = await createStackCore(ctx, userId, { title: stack, team_id: run.team_id ?? undefined, client_key: `run:${run._id}` });
+  const created = await createStackCore(ctx, userId, {
+    title: stack,
+    team_id: run.team_id ?? undefined,
+    client_key: `run:${run._id}`,
+  });
   return created.error ? undefined : created.short_id;
 }
 
 /** A task's comments, for the handoffs changeSessionOf reads. */
 async function taskCommentsOf(ctx: Ctx, taskId: Id<"tasks">) {
-  return ctx.db.query("task_comments").withIndex("by_task_id", (q: any) => q.eq("task_id", taskId)).collect();
+  return ctx.db
+    .query("task_comments")
+    .withIndex("by_task_id", (q: any) => q.eq("task_id", taskId))
+    .collect();
 }
 
 /** A session's newest decision still waiting and bound to no run: the one it posted for the gate to adopt. */
 /** The session of the station a gate names (`asker=`), by any ref the runner sends (its hand's short id, or a full
  *  session id): the run's own session wins a short-id collision. */
-export async function stationSession(ctx: Ctx, ref: string | undefined, runId: Id<"workflow_runs">): Promise<Doc<"conversations"> | null> {
+export async function stationSession(
+  ctx: Ctx,
+  ref: string | undefined,
+  runId: Id<"workflow_runs">,
+): Promise<Doc<"conversations"> | null> {
   if (!ref) return null;
-  return ((await findConversationByAnyRefWhere(ctx as any, ref, (c: any) => String(c.workflow_run_id ?? "") === String(runId)))
-    ?? (await findConversationByAnyRefWhere(ctx as any, ref, () => true))) as Doc<"conversations"> | null;
+  return ((await findConversationByAnyRefWhere(
+    ctx as any,
+    ref,
+    (c: any) => String(c.workflow_run_id ?? "") === String(runId),
+  )) ??
+    (await findConversationByAnyRefWhere(
+      ctx as any,
+      ref,
+      () => true,
+    ))) as Doc<"conversations"> | null;
 }
 
-export async function openDecisionOf(ctx: Ctx, conversationId: Id<"conversations">) {
-  const rows = await ctx.db.query("session_decisions").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", "pending")).collect();
-  return rows.filter((d: any) => !d.workflow_run_id).sort((a: any, b: any) => b.created_at - a.created_at)[0] ?? null;
+export async function openDecisionOf(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+) {
+  const rows = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("status", "pending"),
+    )
+    .collect();
+  return (
+    rows
+      .filter((d: any) => !d.workflow_run_id)
+      .sort((a: any, b: any) => b.created_at - a.created_at)[0] ?? null
+  );
 }
 
 // Pause the run at a gate and ask the person through the one rail every
@@ -198,10 +349,24 @@ export async function openDecisionOf(ctx: Ctx, conversationId: Id<"conversations
 export async function pauseAtGateCore(
   ctx: Ctx,
   auth: { userId: Id<"users"> },
-  args: { run_id: Id<"workflow_runs">; node_id: string; prompt: string; choices: GateChoice[]; doc_md?: string; category?: string; stack?: string; card?: ChangeCard; proposal?: unknown; judge_fix?: unknown; asker_session_id?: string; asker?: string },
+  args: {
+    run_id: Id<"workflow_runs">;
+    node_id: string;
+    prompt: string;
+    choices: GateChoice[];
+    doc_md?: string;
+    category?: string;
+    stack?: string;
+    card?: ChangeCard;
+    proposal?: unknown;
+    judge_fix?: unknown;
+    asker_session_id?: string;
+    asker?: string;
+  },
 ) {
   const run = await ctx.db.get(args.run_id);
-  if (!run || String(run.user_id) !== String(auth.userId)) return { error: "Not found" };
+  if (!run || String(run.user_id) !== String(auth.userId))
+    return { error: "Not found" };
 
   const now = Date.now();
   // A run that is over asks nobody (runOver). The card its presenting station posted on the way to this gate is the
@@ -209,9 +374,19 @@ export async function pauseAtGateCore(
   const over = runOver(run);
   if (over) {
     const station = await stationSession(ctx, args.asker_session_id, run._id);
-    const card = station && isRunHand(station, run) ? await openDecisionOf(ctx, station._id) : null;
+    const card =
+      station && isRunHand(station, run)
+        ? await openDecisionOf(ctx, station._id)
+        : null;
     const why = over.ended.reason ?? over.ended.status;
-    if (card) await withdrawCore(ctx, card as any, now, undefined, `The run that asked it was over (${why}) before its gate took the question up, so an answer would drive nothing.`);
+    if (card)
+      await withdrawCore(
+        ctx,
+        card as any,
+        now,
+        undefined,
+        `The run that asked it was over (${why}) before its gate took the question up, so an answer would drive nothing.`,
+      );
     return { error: `the run is over (${why})`, ...over };
   }
   // A trial project's run asks nobody (lineTrial.ts): the gate becomes a
@@ -224,18 +399,30 @@ export async function pauseAtGateCore(
       current_node_id: args.node_id,
       gate_node_id: args.node_id,
       gate_prompt: args.prompt,
-      gate_choices: args.choices.map((c) => ({ key: c.key, label: c.label, target: c.target })),
+      gate_choices: args.choices.map((c) => ({
+        key: c.key,
+        label: c.label,
+        target: c.target,
+      })),
       gate_response: undefined,
       gate_decision_id: undefined,
       updated_at: now,
     });
-    if (trialTask.status !== "dropped") await moveTaskStatus(ctx, trialTask, "in_review", { actorUserId: run.user_id, now });
+    if (trialTask.status !== "dropped")
+      await moveTaskStatus(ctx, trialTask, "in_review", {
+        actorUserId: run.user_id,
+        now,
+      });
     return askTrialGate(ctx, run, trialTask, trialProject, args, now);
   }
   // Resolved before the patch below clears the previous gate's decision id.
   const stackRef = await gateStackRef(ctx, auth.userId, run, args.stack);
   // The mirror carries only key, label and target (the stored shape).
-  const mirror = args.choices.map((c) => ({ key: c.key, label: c.label, target: c.target }));
+  const mirror = args.choices.map((c) => ({
+    key: c.key,
+    label: c.label,
+    target: c.target,
+  }));
   await ctx.db.patch(args.run_id, {
     status: "paused",
     current_node_id: args.node_id,
@@ -252,28 +439,53 @@ export async function pauseAtGateCore(
   // task stays dropped: the line decided it (LE16).
   if (run.task_id) {
     const held = await ctx.db.get(run.task_id);
-    if (held && held.status !== "dropped") await moveTaskStatus(ctx, held, "in_review", { actorUserId: run.user_id, now });
+    if (held && held.status !== "dropped")
+      await moveTaskStatus(ctx, held, "in_review", {
+        actorUserId: run.user_id,
+        now,
+      });
   }
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
 
-  let decision: { id: Id<"session_decisions">; short_id?: string } | null = null;
+  let decision: { id: Id<"session_decisions">; short_id?: string } | null =
+    null;
   // The station the gate names (`asker=`) presents the decision from its own session, so it lives in the thread that
   // wrote it and a person can talk to that session before answering. The gate takes the card that session posted and
   // asks nothing of its own: an answered card is the gate's answer at once, and with no card standing nobody is asked
   // and the run goes back to the station to present one.
   const station = await stationSession(ctx, args.asker_session_id, run._id);
-  const own = station ? await standingCard(ctx, run, station._id, args.node_id, args.asker_session_id) : null;
-  if (!own && (station || args.asker)) return { error: `${args.asker ?? "the presenting station"} posted no card for this gate`, present_again: true };
+  const own = station
+    ? await standingCard(
+        ctx,
+        run,
+        station._id,
+        args.node_id,
+        args.asker_session_id,
+      )
+    : null;
+  if (!own && (station || args.asker))
+    return {
+      error: `${args.asker ?? "the presenting station"} posted no card for this gate`,
+      present_again: true,
+    };
   if (own) {
     // A card still waiting joins the gate's stack (a trial's runs gather in one the person opens when they review).
-    const stackRow = stackRef && own.status === "pending" ? await ctx.db.query("decision_stacks").withIndex("by_short_id", (q: any) => q.eq("short_id", stackRef)).first() : null;
+    const stackRow =
+      stackRef && own.status === "pending"
+        ? await ctx.db
+            .query("decision_stacks")
+            .withIndex("by_short_id", (q: any) => q.eq("short_id", stackRef))
+            .first()
+        : null;
     await ctx.db.patch(own._id, {
       workflow_run_id: args.run_id,
       gate_node_id: args.node_id,
       blocking: true,
       // Who may answer: a person's category the station named, else the one the flow declares on the gate, else a person.
       category: adoptedCategory(own.category, args.category),
-      ...(task ? { task_id: task._id, station: task.status_id ?? task.status } : {}),
+      ...(task
+        ? { task_id: task._id, station: task.status_id ?? task.status }
+        : {}),
       ...(stackRow ? await joinStack(ctx, stackRow, own, now) : {}),
       updated_at: now,
     });
@@ -283,18 +495,46 @@ export async function pauseAtGateCore(
     }
     // The session's options in its own order, each keyed to the edge it names (an answer routes by option index).
     const choices = gateMirror(own.options, args.choices);
-    const answered = own.status === "answered" ? { gate_response: gateResponseOf(choices[own.answer_index ?? -1]?.key, own.answer_text, own.options[own.answer_index ?? -1]?.label), status: "running" as const } : {};
-    await ctx.db.patch(args.run_id, { gate_decision_id: own._id, gate_choices: choices, ...answered });
+    const answered =
+      own.status === "answered"
+        ? {
+            gate_response: gateResponseOf(
+              choices[own.answer_index ?? -1]?.key,
+              own.answer_text,
+              own.options[own.answer_index ?? -1]?.label,
+            ),
+            status: "running" as const,
+          }
+        : {};
+    await ctx.db.patch(args.run_id, {
+      gate_decision_id: own._id,
+      gate_choices: choices,
+      ...answered,
+    });
     decision = { id: own._id, short_id: own.short_id };
   }
   // A run no session started (a plain shell, say over ssh on another machine) asks from the session its task's change
   // came from (changeSessionOf, what /cli/work/get names to the CLI), so the card opens where the work is, not on the
   // run's own log. The caller must be able to read it.
-  const made = !run.spawner_conversation_id && task ? await changeSessionOf(ctx, task, await taskCommentsOf(ctx, task._id)) : null;
-  const subject = made && (await canAccessConversation(ctx, auth.userId, made)) ? made._id : null;
-  const askerId = station?._id ?? run.spawner_conversation_id ?? subject ?? run.primary_conversation_id;
+  const made =
+    !run.spawner_conversation_id && task
+      ? await changeSessionOf(ctx, task, await taskCommentsOf(ctx, task._id))
+      : null;
+  const subject =
+    made && (await canAccessConversation(ctx, auth.userId, made))
+      ? made._id
+      : null;
+  const askerId =
+    station?._id ??
+    run.spawner_conversation_id ??
+    subject ??
+    run.primary_conversation_id;
   const asker = decision ? null : askerId ? await ctx.db.get(askerId) : null;
-  if (!decision && !asker) return { error: "the gate could not ask anyone: the run has no session to ask from" };
+  if (!decision && !asker)
+    return {
+      error:
+        "the gate could not ask anyone: the run has no session to ask from",
+    };
   if (asker) {
     const [first, ...rest] = args.prompt.split("\n");
     const question = first.trim() || args.node_id;
@@ -303,22 +543,26 @@ export async function pauseAtGateCore(
     // owns (the project lead's, chosen at create for a run started outside a
     // session): ask as that session's owner, or askCore refuses it as not ours.
     const askAs = { userId: asker.user_id as Id<"users"> };
-    const ask = (card?: ChangeCard) => askCore(ctx, askAs, {
-      session_id: asker.session_id,
-      question,
-      context_md: body || undefined,
-      options: args.choices.map((c) => ({ label: stripGateKey(c.label), ...(c.description ? { description: c.description } : {}) })),
-      doc_md: args.doc_md,
-      // LE11: the change card the gate decides on, drawn natively by the web.
-      card,
-      category: args.category,
-      stack: stackRef,
-      blocking: true,
-      task: task?.short_id,
-      station: task ? task.status_id ?? task.status : undefined,
-      workflow_run_id: args.run_id,
-      gate_node_id: args.node_id,
-    });
+    const ask = (card?: ChangeCard) =>
+      askCore(ctx, askAs, {
+        session_id: asker.session_id,
+        question,
+        context_md: body || undefined,
+        options: args.choices.map((c) => ({
+          label: stripGateKey(c.label),
+          ...(c.description ? { description: c.description } : {}),
+        })),
+        doc_md: args.doc_md,
+        // LE11: the change card the gate decides on, drawn natively by the web.
+        card,
+        category: args.category,
+        stack: stackRef,
+        blocking: true,
+        task: task?.short_id,
+        station: task ? (task.status_id ?? task.status) : undefined,
+        workflow_run_id: args.run_id,
+        gate_node_id: args.node_id,
+      });
     // A card that fails its contract must not cost the run its gate: the
     // question is asked without it and the card's page stays on the task.
     let asked = await ask(args.card);
@@ -327,13 +571,26 @@ export async function pauseAtGateCore(
       decision = { id: asked.id, short_id: asked.short_id };
       await ctx.db.patch(args.run_id, { gate_decision_id: asked.id });
       // A card waits on a person (LE16): the person holding the decision hears.
-      const holder = (asked as { holder?: { kind: string; id: string } }).holder;
-      if (task && holder?.kind === "user" && (args.card || args.node_id === CARD_GATE_NODE_ID)) {
-        await noticeCardWaiting(ctx, task, holder.id as Id<"users">, asked.short_id, args.card?.headline);
+      const holder = (asked as { holder?: { kind: string; id: string } })
+        .holder;
+      if (
+        task &&
+        holder?.kind === "user" &&
+        (args.card || args.node_id === CARD_GATE_NODE_ID)
+      ) {
+        await noticeCardWaiting(
+          ctx,
+          task,
+          holder.id as Id<"users">,
+          asked.short_id,
+          args.card?.headline,
+        );
       }
     } else {
       // A gate nobody was asked must not wait forever in silence.
-      return { error: `the gate could not ask anyone: ${asked?.error ?? "no answer from the decision rail"}` };
+      return {
+        error: `the gate could not ask anyone: ${asked?.error ?? "no answer from the decision rail"}`,
+      };
     }
   }
 
@@ -349,7 +606,9 @@ export async function pauseAtGateCore(
           prompt: args.prompt,
           choices: mirror,
           run_id: args.run_id,
-          ...(decision ? { decision_id: decision.id, decision_short_id: decision.short_id } : {}),
+          ...(decision
+            ? { decision_id: decision.id, decision_short_id: decision.short_id }
+            : {}),
         }),
         subtype: "workflow_event",
         timestamp: now,
@@ -362,7 +621,11 @@ export async function pauseAtGateCore(
     }
   }
 
-  return { ok: true, decision_id: decision?.id, decision_short_id: decision?.short_id };
+  return {
+    ok: true,
+    decision_id: decision?.id,
+    decision_short_id: decision?.short_id,
+  };
 }
 
 // Answer the run's open gate with free text (the-line.md L4): text that
@@ -371,25 +634,40 @@ export async function pauseAtGateCore(
 // through finalizeAnswer (first writer wins; settleGateRun writes
 // gate_response and status running). A run paused before gates were
 // decisions has no decision row and is patched directly, as before.
-export async function answerGateCore(ctx: Ctx, run: any, response: string, by: AnsweredBy): Promise<{ ok: true } | { error: string }> {
+export async function answerGateCore(
+  ctx: Ctx,
+  run: any,
+  response: string,
+  by: AnsweredBy,
+): Promise<{ ok: true } | { error: string }> {
   if (run.status !== "paused") return { error: "Not paused" };
   const now = Date.now();
   const trimmed = response.trim();
-  const decision = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
+  const decision = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
   if (decision && decision.status === "pending") {
     // The run panel answers under the same rule as the decision card: anyone
     // who may read the gate may answer it, and its people hear about it.
-    if (by.user_id && !(await userMayRead(ctx as any, by.user_id, decision))) return { error: "Unauthorized: not your decision" };
+    if (by.user_id && !(await userMayRead(ctx as any, by.user_id, decision)))
+      return { error: "Unauthorized: not your decision" };
     const idx = gateChoiceIndex(run.gate_choices, trimmed);
-    const verdict = normalizeVerdict(decision, idx >= 0
-      ? { status: "answered", answer_index: idx, answer_text: trimmed }
-      : { status: "answered", answer_text: trimmed });
+    const verdict = normalizeVerdict(
+      decision,
+      idx >= 0
+        ? { status: "answered", answer_index: idx, answer_text: trimmed }
+        : { status: "answered", answer_text: trimmed },
+    );
     if ("error" in verdict) return { error: verdict.error };
     await finalizeAnswer(ctx, decision, verdict, by, { deliver: false, now });
     return { ok: true };
   }
   if (decision) return { error: `Gate already ${decision.status}` };
-  await ctx.db.patch(run._id, { gate_response: trimmed, status: "running", updated_at: now });
+  await ctx.db.patch(run._id, {
+    gate_response: trimmed,
+    status: "running",
+    updated_at: now,
+  });
   return { ok: true };
 }
 
@@ -400,24 +678,54 @@ export async function answerGateCore(ctx: Ctx, run: any, response: string, by: A
  * machine of the team's pool runs as that machine's account and is owned by the seat's person (orgLine.startRoleRun),
  * so both may cancel, resume or re-ask it.
  */
-export async function ownsRun(ctx: Ctx, userId: Id<"users">, run: any): Promise<boolean> {
+export async function ownsRun(
+  ctx: Ctx,
+  userId: Id<"users">,
+  run: any,
+): Promise<boolean> {
   if (String(run.user_id) === String(userId)) return true;
-  return !!run.primary_conversation_id && (await isSessionOwner(ctx, run.primary_conversation_id, userId));
+  return (
+    !!run.primary_conversation_id &&
+    (await isSessionOwner(ctx, run.primary_conversation_id, userId))
+  );
 }
 
-async function canCancelRun(ctx: Ctx, userId: Id<"users">, run: any): Promise<boolean> {
+async function canCancelRun(
+  ctx: Ctx,
+  userId: Id<"users">,
+  run: any,
+): Promise<boolean> {
   if (await ownsRun(ctx, userId, run)) return true;
-  const decision = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
-  return !!decision && decision.status === "pending" && personMayResolve(decision, userId);
+  const decision = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
+  return (
+    !!decision &&
+    decision.status === "pending" &&
+    personMayResolve(decision, userId)
+  );
 }
 
 // Cancel a run. Its open gate decision is withdrawn through the shared
 // withdraw path (the-line.md L4) so the queue, the stack and the ladder
 // learn the question is gone.
-export async function cancelCore(ctx: Ctx, run: any, now = Date.now(), reason = "Cancelled by user"): Promise<void> {
+export async function cancelCore(
+  ctx: Ctx,
+  run: any,
+  now = Date.now(),
+  reason = "Cancelled by user",
+): Promise<void> {
   if (run.status === "completed" || run.status === "failed") return;
-  await withdrawOpenGate(ctx, { ...run, status: "failed", fail_reason: reason }, now);
-  await ctx.db.patch(run._id, { status: "failed", fail_reason: reason, updated_at: now });
+  await withdrawOpenGate(
+    ctx,
+    { ...run, status: "failed", fail_reason: reason },
+    now,
+  );
+  await ctx.db.patch(run._id, {
+    status: "failed",
+    fail_reason: reason,
+    updated_at: now,
+  });
   await stopStationHands(ctx, run);
 }
 
@@ -433,17 +741,35 @@ export async function cancelCore(ctx: Ctx, run: any, now = Date.now(), reason = 
 // works in it, and the line releases it (lineTrialBranch.ts). Hands are the
 // node sessions nested under the run's own session (runner spawnHand);
 // `nodeIds` limits the stop to those stations.
-const isRunHand = (conv: { parent_conversation_id?: unknown }, run: { primary_conversation_id?: unknown }): boolean =>
-  String(conv.parent_conversation_id ?? "") === String(run.primary_conversation_id);
+const isRunHand = (
+  conv: { parent_conversation_id?: unknown },
+  run: { primary_conversation_id?: unknown },
+): boolean =>
+  String(conv.parent_conversation_id ?? "") ===
+  String(run.primary_conversation_id);
 
-export async function stopStationHands(ctx: Ctx, run: any, nodeIds?: string[]): Promise<number> {
+export async function stopStationHands(
+  ctx: Ctx,
+  run: any,
+  nodeIds?: string[],
+): Promise<number> {
   if (run.run_kind === "workflow" || !run.primary_conversation_id) return 0;
   let stopped = 0;
   for (const node of run.node_statuses ?? []) {
-    if (!node.session_id || (nodeIds && !nodeIds.includes(node.node_id))) continue;
-    const conv: any = await findConversationByAnyRef(ctx as any, node.session_id, run.user_id);
+    if (!node.session_id || (nodeIds && !nodeIds.includes(node.node_id)))
+      continue;
+    const conv: any = await findConversationByAnyRef(
+      ctx as any,
+      node.session_id,
+      run.user_id,
+    );
     if (!conv || conv.inbox_killed_at || !isRunHand(conv, run)) continue;
-    await killConversation(ctx, run.user_id, { conversation_id: conv._id, mark_completed: true }, { cause: "station_ended", keepWorkspace: true });
+    await killConversation(
+      ctx,
+      run.user_id,
+      { conversation_id: conv._id, mark_completed: true },
+      { cause: "station_ended", keepWorkspace: true },
+    );
     stopped++;
   }
   return stopped;
@@ -456,20 +782,42 @@ export async function stopStationHands(ctx: Ctx, run: any, nodeIds?: string[]): 
 // question exists only for the gate, so an answer would drive nothing
 // (sd-1072 on ct-61115). What other stations post (a proposal for an
 // expectation) is answered on its own and stays.
-async function withdrawOpenGate(ctx: Ctx, run: any, now: number): Promise<void> {
-  const decision = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
-  if (decision && decision.status === "pending") await withdrawCore(ctx, decision, now);
+async function withdrawOpenGate(
+  ctx: Ctx,
+  run: any,
+  now: number,
+): Promise<void> {
+  const decision = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
+  if (decision && decision.status === "pending")
+    await withdrawCore(ctx, decision, now);
   if (!run.primary_conversation_id) return;
   const wf: any = await runWorkflowOf(ctx, run);
-  const askers = new Set<string>(((wf?.nodes ?? []) as Array<{ type?: string; asker?: string }>).filter((n) => n.type === "human" && n.asker).map((n) => n.asker!));
+  const askers = new Set<string>(
+    ((wf?.nodes ?? []) as Array<{ type?: string; asker?: string }>)
+      .filter((n) => n.type === "human" && n.asker)
+      .map((n) => n.asker!),
+  );
   if (!askers.size) return;
   const why = `The run that asked it ${run.status === "failed" && run.fail_reason ? `stopped (${run.fail_reason})` : "ended"} before its gate took the question up, so an answer would drive nothing.`;
   for (const node of run.node_statuses ?? []) {
     if (!node.session_id || !askers.has(node.node_id)) continue;
-    const conv: any = await findConversationByAnyRef(ctx as any, node.session_id, run.user_id);
+    const conv: any = await findConversationByAnyRef(
+      ctx as any,
+      node.session_id,
+      run.user_id,
+    );
     if (!conv || !isRunHand(conv, run)) continue;
-    const open = await ctx.db.query("session_decisions").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conv._id).eq("status", "pending")).collect();
-    for (const d of open) if (!d.workflow_run_id) await withdrawCore(ctx, d as any, now, undefined, why);
+    const open = await ctx.db
+      .query("session_decisions")
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conv._id).eq("status", "pending"),
+      )
+      .collect();
+    for (const d of open)
+      if (!d.workflow_run_id)
+        await withdrawCore(ctx, d as any, now, undefined, why);
   }
 }
 
@@ -480,7 +828,9 @@ async function withdrawOpenGate(ctx: Ctx, run: any, now: number): Promise<void> 
 // back (isStashHidden). A run without a task is someone's own workflow and
 // stays in their inbox.
 function runLogInboxFields(taskBoundAt: number | undefined) {
-  return taskBoundAt ? { inbox_stashed_at: taskBoundAt, inbox_stash_hidden: true } : {};
+  return taskBoundAt
+    ? { inbox_stashed_at: taskBoundAt, inbox_stash_hidden: true }
+    : {};
 }
 
 // Once, for runs created before runLogInboxFields: stash and hide the log
@@ -488,12 +838,21 @@ function runLogInboxFields(taskBoundAt: number | undefined) {
 export const hideTaskRunLogs = internalMutation({
   args: { cursor: v.optional(v.string()), dry: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("workflow_runs").order("desc").paginate({ cursor: args.cursor ?? null, numItems: 200 });
+    const page = await ctx.db
+      .query("workflow_runs")
+      .order("desc")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
     let hidden = 0;
     for (const run of page.page) {
       if (!run.task_id || !run.primary_conversation_id) continue;
       const log = await ctx.db.get(run.primary_conversation_id);
-      if (!log || !log.is_workflow_primary || log.inbox_stashed_at || log.inbox_dismissed_at) continue;
+      if (
+        !log ||
+        !log.is_workflow_primary ||
+        log.inbox_stashed_at ||
+        log.inbox_dismissed_at
+      )
+        continue;
       hidden++;
       if (!args.dry) await ctx.db.patch(log._id, runLogInboxFields(Date.now()));
     }
@@ -517,21 +876,28 @@ export const create = mutation({
     const workflow = await ctx.db.get(args.workflow_id);
     if (!workflow || workflow.user_id !== userId) throw new Error("Not found");
     // A run binds and moves its task and plan, so the caller must be able to read them.
-    const task = args.task_id ? await requireAccessibleTask(ctx, userId, args.task_id) : null;
-    const plan = args.plan_id ? await requireAccessiblePlan(ctx, userId, args.plan_id) : null;
+    const task = args.task_id
+      ? await requireAccessibleTask(ctx, userId, args.task_id)
+      : null;
+    const plan = args.plan_id
+      ? await requireAccessiblePlan(ctx, userId, args.plan_id)
+      : null;
     const refusal = await liveRunRefusal(ctx, task);
     if (refusal) throw new Error(refusal);
 
     const now = Date.now();
     // the-line.md L8: the run lives where its task or plan lives, else where
     // its primary session will (the caller's existing one, or the directory rule).
-    const existingConv = args.existing_conversation_id ? await ctx.db.get(args.existing_conversation_id) : null;
+    const existingConv = args.existing_conversation_id
+      ? await ctx.db.get(args.existing_conversation_id)
+      : null;
     const scope = await runScope(ctx, userId, {
       task,
       plan,
-      conversation: existingConv && existingConv.user_id === userId
-        ? existingConv
-        : await resolveCreationPrivacy(ctx, userId, args.project_path),
+      conversation:
+        existingConv && existingConv.user_id === userId
+          ? existingConv
+          : await resolveCreationPrivacy(ctx, userId, args.project_path),
     });
     const runId = await ctx.db.insert("workflow_runs", {
       user_id: userId,
@@ -549,7 +915,12 @@ export const create = mutation({
       updated_at: now,
     });
 
-    if (task) await moveTaskStatus(ctx, task, "in_progress", { actorUserId: userId, now, extra: { workflow_run_id: runId } });
+    if (task)
+      await moveTaskStatus(ctx, task, "in_progress", {
+        actorUserId: userId,
+        now,
+        extra: { workflow_run_id: runId },
+      });
 
     if (args.plan_id) {
       await ctx.db.patch(args.plan_id, {
@@ -577,7 +948,11 @@ export const create = mutation({
     }
 
     if (!primaryConvId) {
-      const privacy = await resolveCreationPrivacy(ctx, userId, args.project_path);
+      const privacy = await resolveCreationPrivacy(
+        ctx,
+        userId,
+        args.project_path,
+      );
       primaryConvId = await ctx.db.insert("conversations", {
         user_id: userId,
         agent_type: "claude_code",
@@ -597,19 +972,27 @@ export const create = mutation({
 
     await ctx.db.patch(runId, { primary_conversation_id: primaryConvId });
 
-    const existingCount = primaryConvId === args.existing_conversation_id
-      ? (((await ctx.db.get(primaryConvId)) as any)?.message_count || 0)
-      : 0;
+    const existingCount =
+      primaryConvId === args.existing_conversation_id
+        ? ((await ctx.db.get(primaryConvId)) as any)?.message_count || 0
+        : 0;
 
     await ctx.db.insert("messages", {
       conversation_id: primaryConvId,
       role: "assistant",
-      content: JSON.stringify({ __wf: "started", goal: args.goal_override || workflow.goal || "", workflow_name: workflow.name }),
+      content: JSON.stringify({
+        __wf: "started",
+        goal: args.goal_override || workflow.goal || "",
+        workflow_name: workflow.name,
+      }),
       subtype: "workflow_event",
       timestamp: now,
     });
 
-    await ctx.db.patch(primaryConvId, { message_count: existingCount + 1, last_message_role: "assistant" });
+    await ctx.db.patch(primaryConvId, {
+      message_count: existingCount + 1,
+      last_message_role: "assistant",
+    });
 
     await queueRunOnDaemon(ctx, userId, runId, { now });
 
@@ -637,21 +1020,35 @@ export async function queueRunOnDaemon(
   await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "run_workflow",
-    args: JSON.stringify({ workflow_run_id: runId, ...(opts.slug ? { workflow_slug: opts.slug } : {}) }),
+    args: JSON.stringify({
+      workflow_run_id: runId,
+      ...(opts.slug ? { workflow_slug: opts.slug } : {}),
+    }),
     ...(device ? { target_device_id: device } : {}),
     created_at: opts.now ?? Date.now(),
   });
 }
 
-async function runCheckoutDevice(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs">): Promise<string | undefined> {
+async function runCheckoutDevice(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs">,
+): Promise<string | undefined> {
   const run = await ctx.db.get(runId);
   if (!run?.project_path) return undefined;
-  const spawner = run.spawner_conversation_id ? await ctx.db.get(run.spawner_conversation_id) : null;
-  return (await resolveOwnerDevice(ctx, userId, {
-    projectPath: run.project_path,
-    gitRoot: spawner?.project_path === run.project_path ? spawner?.git_root : undefined,
-    ownerDeviceId: spawner?.owner_device_id ?? null,
-  })) ?? undefined;
+  const spawner = run.spawner_conversation_id
+    ? await ctx.db.get(run.spawner_conversation_id)
+    : null;
+  return (
+    (await resolveOwnerDevice(ctx, userId, {
+      projectPath: run.project_path,
+      gitRoot:
+        spawner?.project_path === run.project_path
+          ? spawner?.git_root
+          : undefined,
+      ownerDeviceId: spawner?.owner_device_id ?? null,
+    })) ?? undefined
+  );
 }
 
 // The one insert shape for a run: the run row, the bound task or plan patched
@@ -673,24 +1070,38 @@ export const isLiveRunStatus = (status: string | undefined): boolean =>
  * ct-73543 had two cards and ct-63003 merged. A gate card taken back fails the row only until its runner sends the
  * run back to the presenter (presentAgain), so that run is live.
  */
-export function runOver(run: { status: string; fail_reason?: string | null }): { ended: { status: string; reason: string | null } } | null {
-  if (isLiveRunStatus(run.status) || run.fail_reason === GATE_PRESENT_AGAIN) return null;
+export function runOver(run: {
+  status: string;
+  fail_reason?: string | null;
+}): { ended: { status: string; reason: string | null } } | null {
+  if (isLiveRunStatus(run.status) || run.fail_reason === GATE_PRESENT_AGAIN)
+    return null;
   return { ended: { status: run.status, reason: run.fail_reason ?? null } };
 }
 
 // LE1.4: why a task may not get a new run now, or null when it may. The
 // task's bound run is the one that speaks for it; a second attempt waits for
 // it to end, unless the caller forces it (`cast workflow run --force`).
-export async function liveRunRefusal(ctx: Ctx, task: any, force?: boolean): Promise<string | null> {
+export async function liveRunRefusal(
+  ctx: Ctx,
+  task: any,
+  force?: boolean,
+): Promise<string | null> {
   if (force || !task?.workflow_run_id) return null;
   const run: any = await ctx.db.get(task.workflow_run_id);
   if (!run || !isLiveRunStatus(run.status)) return null;
-  const at = (run.node_statuses ?? []).find((n: any) => n.status === "running")?.node_id;
+  const at = (run.node_statuses ?? []).find(
+    (n: any) => n.status === "running",
+  )?.node_id;
   return `${task.short_id ?? "this task"} already has a live run (${run._id}, ${run.status}${at ? ` at ${at}` : ""}); one problem holds one run at a time. Wait for it to end, cancel it from its run page, or pass --force to start a second.`;
 }
 
 /** The run's pin at its start: a library run reads its flow versions instead, so only another run takes one. */
-async function pinFor(ctx: Ctx, workflowId: Id<"workflows"> | undefined, named: Id<"workflow_versions"> | undefined): Promise<{ graph_version_id?: Id<"workflow_versions"> }> {
+async function pinFor(
+  ctx: Ctx,
+  workflowId: Id<"workflows"> | undefined,
+  named: Id<"workflow_versions"> | undefined,
+): Promise<{ graph_version_id?: Id<"workflow_versions"> }> {
   const row: any = workflowId ? await ctx.db.get(workflowId) : null;
   if (!row || row.runs_from === "library") return {};
   const ver = await versionToPin(ctx, workflowId, named);
@@ -724,14 +1135,26 @@ export async function createRunCore(
     graph_version_id?: Id<"workflow_versions">;
     now?: number;
   },
-): Promise<{ run_id: Id<"workflow_runs">; primary_conversation_id: Id<"conversations"> }> {
+): Promise<{
+  run_id: Id<"workflow_runs">;
+  primary_conversation_id: Id<"conversations">;
+}> {
   const now = opts.now ?? Date.now();
   const refusal = await liveRunRefusal(ctx, opts.task, opts.force);
   if (refusal) throw new Error(refusal);
   // the-line.md L8: stamp the workspace (access) and team (routing) at
   // create, from the bound work item or the primary session's privacy.
-  const privacy = await resolveCreationPrivacy(ctx, userId, opts.project_path, opts.fallback_team_id);
-  const scope = await runScope(ctx, userId, { task: opts.task, plan: opts.plan, conversation: privacy });
+  const privacy = await resolveCreationPrivacy(
+    ctx,
+    userId,
+    opts.project_path,
+    opts.fallback_team_id,
+  );
+  const scope = await runScope(ctx, userId, {
+    task: opts.task,
+    plan: opts.plan,
+    conversation: privacy,
+  });
   const runId: Id<"workflow_runs"> = await ctx.db.insert("workflow_runs", {
     user_id: userId,
     workflow_id: opts.workflow_id,
@@ -741,7 +1164,9 @@ export async function createRunCore(
     task_id: opts.task?._id,
     plan_id: opts.plan?._id,
     ...scope,
-    ...(opts.spawner_conversation_id ? { spawner_conversation_id: opts.spawner_conversation_id } : {}),
+    ...(opts.spawner_conversation_id
+      ? { spawner_conversation_id: opts.spawner_conversation_id }
+      : {}),
     ...(opts.org_role_id ? { org_role_id: opts.org_role_id } : {}),
     status: "pending",
     node_statuses: [],
@@ -759,39 +1184,56 @@ export async function createRunCore(
     if (project?.line_trial) await openRunPrice(ctx, runId, project._id, now);
   }
   if (opts.task) {
-    await moveTaskStatus(ctx, opts.task, "in_progress", { actorUserId: userId, now, extra: { workflow_run_id: runId } });
+    await moveTaskStatus(ctx, opts.task, "in_progress", {
+      actorUserId: userId,
+      now,
+      extra: { workflow_run_id: runId },
+    });
   }
   if (opts.plan) {
-    await ctx.db.patch(opts.plan._id, { workflow_run_id: runId, updated_at: now });
+    await ctx.db.patch(opts.plan._id, {
+      workflow_run_id: runId,
+      updated_at: now,
+    });
   }
 
-  const primaryConvId: Id<"conversations"> = await ctx.db.insert("conversations", {
-    user_id: userId,
-    agent_type: "claude_code",
-    session_id: `wf-${runId}`,
-    title: opts.workflow_name,
-    project_path: opts.project_path,
-    started_at: now,
-    updated_at: now,
-    message_count: 0,
-    ...privacy,
-    status: "active",
-    workflow_run_id: runId,
-    is_workflow_primary: true,
-    ...runLogInboxFields(opts.task ? now : undefined),
-  });
+  const primaryConvId: Id<"conversations"> = await ctx.db.insert(
+    "conversations",
+    {
+      user_id: userId,
+      agent_type: "claude_code",
+      session_id: `wf-${runId}`,
+      title: opts.workflow_name,
+      project_path: opts.project_path,
+      started_at: now,
+      updated_at: now,
+      message_count: 0,
+      ...privacy,
+      status: "active",
+      workflow_run_id: runId,
+      is_workflow_primary: true,
+      ...runLogInboxFields(opts.task ? now : undefined),
+    },
+  );
 
   await ctx.db.patch(runId, { primary_conversation_id: primaryConvId });
 
   await ctx.db.insert("messages", {
     conversation_id: primaryConvId,
     role: "assistant",
-    content: JSON.stringify({ __wf: "started", goal: opts.goal_override || opts.workflow_goal || "", workflow_name: opts.workflow_name }),
+    content: JSON.stringify({
+      __wf: "started",
+      goal: opts.goal_override || opts.workflow_goal || "",
+      workflow_name: opts.workflow_name,
+    }),
     subtype: "workflow_event",
     timestamp: now,
   });
 
-  await ctx.db.patch(primaryConvId, { message_count: 1, last_message_role: "assistant" });
+  await ctx.db.patch(primaryConvId, {
+    message_count: 1,
+    last_message_role: "assistant",
+  });
 
   return { run_id: runId, primary_conversation_id: primaryConvId };
 }
@@ -801,10 +1243,15 @@ export async function createRunCore(
 // way the sweep's runs do (orgLine.startLineRun): its gates climb that role's
 // ladder to the person who answers for the project (line-profile.md LP6).
 // Without it the card asks nobody.
-export async function projectLeadSession(ctx: Ctx, task: any): Promise<any | null> {
+export async function projectLeadSession(
+  ctx: Ctx,
+  task: any,
+): Promise<any | null> {
   const lead = await projectLeadRole(ctx, task);
   const anchor = lead?.anchor_id ? await ctx.db.get(lead.anchor_id) : null;
-  return (anchor as any)?.conversation_id ? await ctx.db.get((anchor as any).conversation_id) : null;
+  return (anchor as any)?.conversation_id
+    ? await ctx.db.get((anchor as any).conversation_id)
+    : null;
 }
 
 export const createFromCli = mutation({
@@ -844,24 +1291,44 @@ export const createFromCli = mutation({
     // Short ids are sequential, so a task or plan the caller cannot read is
     // refused as missing: a run binds it, moves its status and files under its workspace.
     const taskRow: any = args.task_id
-      ? await ctx.db.query("tasks").withIndex("by_short_id", q => q.eq("short_id", args.task_id!)).first()
+      ? await ctx.db
+          .query("tasks")
+          .withIndex("by_short_id", (q) => q.eq("short_id", args.task_id!))
+          .first()
       : null;
-    if (args.task_id && (!taskRow || !(await canAccessTask(ctx, userId, taskRow)))) throw new Error(`Task ${args.task_id} not found`);
+    if (
+      args.task_id &&
+      (!taskRow || !(await canAccessTask(ctx, userId, taskRow)))
+    )
+      throw new Error(`Task ${args.task_id} not found`);
     const planRow: any = args.plan_id
-      ? await ctx.db.query("plans").withIndex("by_short_id", q => q.eq("short_id", args.plan_id!)).first()
+      ? await ctx.db
+          .query("plans")
+          .withIndex("by_short_id", (q) => q.eq("short_id", args.plan_id!))
+          .first()
       : null;
-    if (args.plan_id && (!planRow || !(await canAccessPlan(ctx, userId, planRow)))) throw new Error(`Plan ${args.plan_id} not found`);
+    if (
+      args.plan_id &&
+      (!planRow || !(await canAccessPlan(ctx, userId, planRow)))
+    )
+      throw new Error(`Plan ${args.plan_id} not found`);
     const spawner = args.spawner_session
       ? await findConversationByAnyRef(ctx, args.spawner_session, userId)
       : await projectLeadSession(ctx, taskRow);
 
     // Resolve workflow_id — either passed directly (the caller's own, or one
     // its workspace's library holds) or look up by name
-    let workflowDocId: any = args.workflow_id ? (args.workflow_id as any) : undefined;
+    let workflowDocId: any = args.workflow_id
+      ? (args.workflow_id as any)
+      : undefined;
     if (workflowDocId) {
       const namedId = ctx.db.normalizeId("workflows", workflowDocId);
       const named: any = namedId ? await ctx.db.get(namedId) : null;
-      if (!named || (String(named.user_id) !== String(userId) && !(await workspaceGrantsAccess(ctx, userId, named.workspace)))) {
+      if (
+        !named ||
+        (String(named.user_id) !== String(userId) &&
+          !(await workspaceGrantsAccess(ctx, userId, named.workspace)))
+      ) {
         throw new Error("Workflow not found");
       }
     }
@@ -869,29 +1336,54 @@ export const createFromCli = mutation({
     // A line run the daemon executes takes the problem's line version
     // (workflows.lineRouteFor); a run in the calling process runs the graph
     // that process already chose (cast workflow run asks for the version first).
-    const route = args.detach && isLineRunSlug(args.workflow_name) ? await lineRouteFor(ctx, userId, taskRow) : null;
-    if (route?.waiting) throw new Error(`${taskRow?.short_id ?? "this problem"} waits: ${route.waiting} in its team's live flow`);
+    const route =
+      args.detach && isLineRunSlug(args.workflow_name)
+        ? await lineRouteFor(ctx, userId, taskRow)
+        : null;
+    if (route?.waiting)
+      throw new Error(
+        `${taskRow?.short_id ?? "this problem"} waits: ${route.waiting} in its team's live flow`,
+      );
     const version = route?.workflow ?? null;
-    if (version) { workflowDocId = version._id; workflowName = version.name; }
+    if (version) {
+      workflowDocId = version._id;
+      workflowName = version.name;
+    }
     if (!workflowDocId) {
-      const wf = await ctx.db.query("workflows")
-        .withIndex("by_user_id", q => q.eq("user_id", userId))
+      const wf = await ctx.db
+        .query("workflows")
+        .withIndex("by_user_id", (q) => q.eq("user_id", userId))
         .collect();
-      const match = wf.find(w => w.name === args.workflow_name);
+      const match = wf.find((w) => w.name === args.workflow_name);
       if (match) workflowDocId = match._id;
     }
-    const workflowRow: any = workflowDocId ? await ctx.db.get(workflowDocId) : null;
+    const workflowRow: any = workflowDocId
+      ? await ctx.db.get(workflowDocId)
+      : null;
     // A line run: the shipped line or a role's, or a line version (one that serves a scenario).
-    const lineRun = isLineRunSlug(args.workflow_name) || !!workflowRow?.serves?.length;
+    const lineRun =
+      isLineRunSlug(args.workflow_name) || !!workflowRow?.serves?.length;
     // Every agent its stations start, in the graph it starts on: a machine that cannot start one of them takes no part of the run.
-    const pin = await versionToPin(ctx, workflowDocId, args.workflow_version_id);
-    const needs = flowAgents((await graphOfVersion(ctx, pin))?.nodes ?? workflowRow?.nodes);
+    const pin = await versionToPin(
+      ctx,
+      workflowDocId,
+      args.workflow_version_id,
+    );
+    const needs = flowAgents(
+      (await graphOfVersion(ctx, pin))?.nodes ?? workflowRow?.nodes,
+    );
     // The asking machine, where a detached run stays when no pool takes it: held from line runs by an operator, or
     // without a sign-in one of its agents needs, it is no place for this run.
-    if (args.place_device && !args.detach) throw new Error("A run placed on a machine is handed to its daemon: pass --detach");
+    if (args.place_device && !args.detach)
+      throw new Error(
+        "A run placed on a machine is handed to its daemon: pass --detach",
+      );
     const named = args.place_device
       ? placeRunOnDevice({
-          devices: await ctx.db.query("devices").withIndex("by_user_id", (q) => q.eq("user_id", userId)).collect(),
+          devices: await ctx.db
+            .query("devices")
+            .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+            .collect(),
           target: args.place_device,
           asker: args.run_on_device,
           project_path: args.project_path,
@@ -899,17 +1391,29 @@ export const createFromCli = mutation({
           now,
         })
       : null;
-    if (named && "refusal" in named) throw new Error(`${taskRow?.short_id ?? workflowName} did not start: ${named.refusal}`);
+    if (named && "refusal" in named)
+      throw new Error(
+        `${taskRow?.short_id ?? workflowName} did not start: ${named.refusal}`,
+      );
     const chosen = named && "device" in named ? named : null;
-    const asker: any = chosen ? chosen.row
+    const asker: any = chosen
+      ? chosen.row
       : args.detach && args.run_on_device
-      ? await ctx.db.query("devices").withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", args.run_on_device!)).first()
-      : null;
+        ? await ctx.db
+            .query("devices")
+            .withIndex("by_user_device", (q) =>
+              q.eq("user_id", userId).eq("device_id", args.run_on_device!),
+            )
+            .first()
+        : null;
     const missing = asker ? missingAgentOn(asker, needs) : null;
-    const unfit = !asker ? null
-      : missing ? `${deviceDisplayName(asker)} has no ${agentDisplayName(missing.agent)} sign-in, which ${workflowName} needs (\`${missing.login}\` there)`
-      : lineRun && asker.line_hold ? `${deviceDisplayName(asker)} is held from line runs (${asker.line_hold.why ?? "an operator's hold"})`
-      : null;
+    const unfit = !asker
+      ? null
+      : missing
+        ? `${deviceDisplayName(asker)} has no ${agentDisplayName(missing.agent)} sign-in, which ${workflowName} needs (\`${missing.login}\` there)`
+        : lineRun && asker.line_hold
+          ? `${deviceDisplayName(asker)} is held from line runs (${asker.line_hold.why ?? "an operator's hold"})`
+          : null;
 
     // A detached line run on a problem whose role's runs work on a pool of
     // machines takes the sweep's admission (the-line-end-to-end.md LE6): the
@@ -917,18 +1421,42 @@ export const createFromCli = mutation({
     // machine. With the pool full nothing starts, and the problem goes back to
     // the line's queue for the sweep to start in rank order.
     // A machine named outright (`--device`) wins over the pool.
-    const lead = args.detach && lineRun && taskRow && !chosen ? await projectLeadRole(ctx, taskRow) : null;
-    const room = lead ? await admitRoleRun(ctx, lead, now, undefined, needs) : null;
+    const lead =
+      args.detach && lineRun && taskRow && !chosen
+        ? await projectLeadRole(ctx, taskRow)
+        : null;
+    const room = lead
+      ? await admitRoleRun(ctx, lead, now, undefined, needs)
+      : null;
     // The pool takes the runner's own runs, and anyone's the asking machine cannot run.
-    const pooled = room?.pooled && (room.runner === String(userId) || unfit) ? room : null;
+    const pooled =
+      room?.pooled && (room.runner === String(userId) || unfit) ? room : null;
     if (pooled && "waiting" in pooled) {
       const refusal = await liveRunRefusal(ctx, taskRow, args.force);
       if (refusal) throw new Error(refusal);
-      return { run_id: null, queued: await requeueForSweep(ctx, lead, taskRow, userId, now, pooled.waiting), primary_conversation_id: null, spawner_conversation_id: null };
+      return {
+        run_id: null,
+        queued: await requeueForSweep(
+          ctx,
+          lead,
+          taskRow,
+          userId,
+          now,
+          pooled.waiting,
+        ),
+        primary_conversation_id: null,
+        spawner_conversation_id: null,
+      };
     }
     const place = pooled && "place" in pooled ? pooled.place : undefined;
-    if (chosen && unfit) throw new Error(`${taskRow?.short_id ?? workflowName} did not start: ${unfit}`);
-    if (!place && unfit) throw new Error(`${taskRow?.short_id ?? workflowName} did not start: ${unfit}, and no line machine can take it`);
+    if (chosen && unfit)
+      throw new Error(
+        `${taskRow?.short_id ?? workflowName} did not start: ${unfit}`,
+      );
+    if (!place && unfit)
+      throw new Error(
+        `${taskRow?.short_id ?? workflowName} did not start: ${unfit}, and no line machine can take it`,
+      );
     // A place on the team's pool runs as that machine's account, and the caller owns the run (orgLine.startRoleRun).
     const host = (place?.user ?? userId) as Id<"users">;
 
@@ -939,7 +1467,8 @@ export const createFromCli = mutation({
       task: taskRow,
       plan: planRow,
       goal_override: args.goal_override,
-      project_path: place?.project_path ?? chosen?.project_path ?? args.project_path,
+      project_path:
+        place?.project_path ?? chosen?.project_path ?? args.project_path,
       spawner_conversation_id: spawner?._id,
       ...(place ? { org_role_id: lead._id } : {}),
       force: args.force,
@@ -950,15 +1479,31 @@ export const createFromCli = mutation({
     await retainSessionCreator(ctx, primary_conversation_id, userId, host);
     // A placed run names its machine from the start, so the pool counts it there before a runner claims it.
     if (place) await ctx.db.patch(run_id, { runner_device: place.device });
-    else if (chosen) await ctx.db.patch(run_id, { runner_device: chosen.device, ...(args.placed_change ? { placed_change: args.placed_change } : {}) });
+    else if (chosen)
+      await ctx.db.patch(run_id, {
+        runner_device: chosen.device,
+        ...(args.placed_change ? { placed_change: args.placed_change } : {}),
+      });
     const runnerDevice = place?.device ?? chosen?.device;
-    if (args.detach) await queueRunOnDaemon(ctx, host, run_id, { device: runnerDevice ?? args.run_on_device, ...(version ? { slug: version.slug } : {}), now });
+    if (args.detach)
+      await queueRunOnDaemon(ctx, host, run_id, {
+        device: runnerDevice ?? args.run_on_device,
+        ...(version ? { slug: version.slug } : {}),
+        now,
+      });
     // The session the run speaks as, resolved here when the caller had none,
     // so a runner in the foreground asks its failure decisions through it.
     return {
-      run_id, primary_conversation_id, spawner_conversation_id: spawner?._id ?? null,
+      run_id,
+      primary_conversation_id,
+      spawner_conversation_id: spawner?._id ?? null,
       ...(runnerDevice ? { runner_device: runnerDevice } : {}),
-      ...(chosen ? { runner_device_name: placeName(chosen.row), project_path: chosen.project_path } : {}),
+      ...(chosen
+        ? {
+            runner_device_name: placeName(chosen.row),
+            project_path: chosen.project_path,
+          }
+        : {}),
     };
   },
 });
@@ -983,7 +1528,14 @@ export const listForWorkflow = query({
     const budget = { reads: 200 };
     // Read from the graph each run executes (lib/runGraph.ts), never the row another checkout pushed last.
     const reads = newRunReads();
-    return await Promise.all(runs.map(async (r) => ({ ...(await withAgentSessions(ctx, r, budget)), takes_change: sourceTakesSessionChange((await runWorkflowOf(ctx, r, workflow, reads.line.graph))?.source) })));
+    return await Promise.all(
+      runs.map(async (r) => ({
+        ...(await withAgentSessions(ctx, r, budget)),
+        takes_change: sourceTakesSessionChange(
+          (await runWorkflowOf(ctx, r, workflow, reads.line.graph))?.source,
+        ),
+      })),
+    );
   },
 });
 
@@ -1021,7 +1573,9 @@ export const byIds = query({
       if (!id) continue;
       const run = await ctx.db.get(id);
       if (!run || !(await canReadRun(ctx, userId, run))) continue;
-      out.push(await enrichRun(ctx, await withAgentSessions(ctx, run, budget), reads));
+      out.push(
+        await enrichRun(ctx, await withAgentSessions(ctx, run, budget), reads),
+      );
     }
     return out;
   },
@@ -1041,13 +1595,24 @@ export const liveIds = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { workspaces: [], ids: [], complete: true };
-    const teams = await ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", userId)).collect();
-    const workspaces = [`user:${userId}`, ...teams.map((m: any) => `team:${m.team_id}`)];
+    const teams = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_team", (q: any) => q.eq("user_id", userId))
+      .collect();
+    const workspaces = [
+      `user:${userId}`,
+      ...teams.map((m: any) => `team:${m.team_id}`),
+    ];
     const ids: string[] = [];
     for (const workspace of workspaces) {
       for (const status of LIVE_RUN_STATUSES) {
         if (ids.length >= LIVE_IDS_MAX) break;
-        const rows = await ctx.db.query("workflow_runs").withIndex("by_workspace_status_updated", (q: any) => q.eq("workspace", workspace).eq("status", status)).take(LIVE_IDS_MAX - ids.length);
+        const rows = await ctx.db
+          .query("workflow_runs")
+          .withIndex("by_workspace_status_updated", (q: any) =>
+            q.eq("workspace", workspace).eq("status", status),
+          )
+          .take(LIVE_IDS_MAX - ids.length);
         for (const r of rows) ids.push(String(r._id));
       }
     }
@@ -1070,7 +1635,9 @@ export const listDynamicRuns = query({
     // Shared budget: newest runs claim lookups first (runs are already desc).
     const budget = { reads: 300 };
     return await Promise.all(
-      runs.filter((r) => r.run_kind === "workflow").map((r) => withAgentSessions(ctx, r, budget))
+      runs
+        .filter((r) => r.run_kind === "workflow")
+        .map((r) => withAgentSessions(ctx, r, budget)),
     );
   },
 });
@@ -1084,7 +1651,9 @@ export const getByExternalRun = query({
     if (!auth) return null;
     const run = await ctx.db
       .query("workflow_runs")
-      .withIndex("by_external_run", (q) => q.eq("external_run_id", args.external_run_id))
+      .withIndex("by_external_run", (q) =>
+        q.eq("external_run_id", args.external_run_id),
+      )
       .first();
     if (!run || run.user_id !== auth.userId) return null;
     return await withAgentSessions(ctx, run);
@@ -1100,7 +1669,9 @@ export const getByExternalRunForUser = query({
     if (!userId) return null;
     const run = await ctx.db
       .query("workflow_runs")
-      .withIndex("by_external_run", (q) => q.eq("external_run_id", args.external_run_id))
+      .withIndex("by_external_run", (q) =>
+        q.eq("external_run_id", args.external_run_id),
+      )
       .first();
     if (!run || run.user_id !== userId) return null;
     return await withAgentSessions(ctx, run);
@@ -1116,12 +1687,17 @@ export const respondToGate = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
     const run = await ctx.db.get(args.id);
-    if (!run || !(await canReadRun(ctx, userId, run))) throw new Error("Not found");
+    if (!run || !(await canReadRun(ctx, userId, run)))
+      throw new Error("Not found");
     if (run.status !== "paused") throw new Error("Not paused");
 
     const now = Date.now();
     // the-line.md L4: the response answers the gate's decision.
-    const answered = await answerGateCore(ctx, run, args.response, { kind: "user", id: String(userId), user_id: userId });
+    const answered = await answerGateCore(ctx, run, args.response, {
+      kind: "user",
+      id: String(userId),
+      user_id: userId,
+    });
     if ("error" in answered) throw new Error(answered.error);
 
     // Post the human's response as a user message to the primary conversation
@@ -1146,14 +1722,23 @@ export const respondToGate = mutation({
 });
 
 export const respondToGateFromCli = mutation({
-  args: { api_token: v.string(), run_id: v.id("workflow_runs"), response: v.string() },
+  args: {
+    api_token: v.string(),
+    run_id: v.id("workflow_runs"),
+    response: v.string(),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) return { error: "Unauthorized" };
     const run = await ctx.db.get(args.run_id);
-    if (!run || !(await canReadRun(ctx, auth.userId, run))) return { error: "Not found" };
+    if (!run || !(await canReadRun(ctx, auth.userId, run)))
+      return { error: "Not found" };
     // the-line.md L4: the same answer path as the run panel.
-    return answerGateCore(ctx, run, args.response, { kind: "user", id: String(auth.userId), user_id: auth.userId });
+    return answerGateCore(ctx, run, args.response, {
+      kind: "user",
+      id: String(auth.userId),
+      user_id: auth.userId,
+    });
   },
 });
 
@@ -1180,14 +1765,36 @@ export const getForDaemon = mutation({
     }
 
     // A trial run's gate asks nobody: its card waiting at the gate is what a resumed runner waits on (cli runResume.ts), as a decision is elsewhere.
-    const gateCard = run.status === "paused" && run.gate_node_id
-      ? ((await ctx.db.query("trial_cards").withIndex("by_run", (q: any) => q.eq("run_id", run._id)).collect()) as any[]).find((c) => c.node_id === run.gate_node_id && c.status === "waiting")?.short_id ?? null
-      : null;
+    const gateCard =
+      run.status === "paused" && run.gate_node_id
+        ? ((
+            (await ctx.db
+              .query("trial_cards")
+              .withIndex("by_run", (q: any) => q.eq("run_id", run._id))
+              .collect()) as any[]
+          ).find(
+            (c) => c.node_id === run.gate_node_id && c.status === "waiting",
+          )?.short_id ?? null)
+        : null;
 
-    const gateAnswer = run.gate_response && run.gate_decision_id ? answeredOptionLabel(await ctx.db.get(run.gate_decision_id)) : undefined;
+    const gateAnswer =
+      run.gate_response && run.gate_decision_id
+        ? answeredOptionLabel(await ctx.db.get(run.gate_decision_id))
+        : undefined;
     return {
-      run: { ...run, task_short_id: taskShortId, plan_short_id: planShortId, gate_card: gateCard, ...(gateAnswer ? { gate_answer: gateAnswer } : {}) },
-      workflow: workflow ? { ...(await runWorkflowOf(ctx, run, workflow)), ...(await libraryOfRun(ctx, run)) } : { name: "workflow", goal: run.goal_override, nodes: [], edges: [] },
+      run: {
+        ...run,
+        task_short_id: taskShortId,
+        plan_short_id: planShortId,
+        gate_card: gateCard,
+        ...(gateAnswer ? { gate_answer: gateAnswer } : {}),
+      },
+      workflow: workflow
+        ? {
+            ...(await runWorkflowOf(ctx, run, workflow)),
+            ...(await libraryOfRun(ctx, run)),
+          }
+        : { name: "workflow", goal: run.goal_override, nodes: [], edges: [] },
     };
   },
 });
@@ -1200,10 +1807,22 @@ export const updateProgress = mutation({
     // A report about the runner alone (its machine, its graph) names no node: a resumed run waiting for a place at a
     // capped station is not in it yet, and its station starts only once the place is its own.
     node_id: v.optional(v.string()),
-    node_status: v.optional(v.union(v.literal("running"), v.literal("completed"), v.literal("failed"))),
+    node_status: v.optional(
+      v.union(
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed"),
+      ),
+    ),
     outcome: v.optional(v.string()),
     session_id: v.optional(v.string()),
-    run_status: v.optional(v.union(v.literal("running"), v.literal("completed"), v.literal("failed"))),
+    run_status: v.optional(
+      v.union(
+        v.literal("running"),
+        v.literal("completed"),
+        v.literal("failed"),
+      ),
+    ),
     fail_reason: v.optional(v.string()),
     // the-line.md L7: a chain step's output head, shown on the run's node.
     result_preview: v.optional(v.string()),
@@ -1211,7 +1830,9 @@ export const updateProgress = mutation({
     // LE14: the runner's hash of the graph it executes, sent on its first report.
     graph_hash: v.optional(v.string()),
     // LE14: each station's own hash in that graph (parser.graphNodeHashes).
-    graph_nodes: v.optional(v.array(v.object({ id: v.string(), h: v.string() }))),
+    graph_nodes: v.optional(
+      v.array(v.object({ id: v.string(), h: v.string() })),
+    ),
     // The machine driving the run, sent when a runner takes it (runResume.ts).
     runner_device: v.optional(v.string()),
     // What a call node cost (learning-loop.md LL1, LL10).
@@ -1219,7 +1840,17 @@ export const updateProgress = mutation({
     // How many times the run has entered the node (its limit is the graph's max_visits).
     visits: v.optional(v.number()),
     // The run waits on the session its change came from (flows.md FL4); null once it settled.
-    waiting_on_session: v.optional(v.union(v.null(), v.object({ node_id: v.string(), conversation_id: v.string(), since: v.number(), note: v.string() }))),
+    waiting_on_session: v.optional(
+      v.union(
+        v.null(),
+        v.object({
+          node_id: v.string(),
+          conversation_id: v.string(),
+          since: v.number(),
+          note: v.string(),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
@@ -1232,25 +1863,48 @@ export const updateProgress = mutation({
 
     const now = Date.now();
     // A runner that loaded another version of its own graph moves the run's pin onto it (lib/runGraph.ts).
-    const repin = args.graph_hash ? await repinToReported(ctx, run, args.graph_hash) : {};
-    if (args.graph_hash) await recordRoutineRunGraph(ctx, { ...run, ...repin }, args.graph_hash, now);
+    const repin = args.graph_hash
+      ? await repinToReported(ctx, run, args.graph_hash)
+      : {};
+    if (args.graph_hash)
+      await recordRoutineRunGraph(
+        ctx,
+        { ...run, ...repin },
+        args.graph_hash,
+        now,
+      );
     const nodeStatuses = [...run.node_statuses];
-    const existing = args.node_id && args.node_status ? nodeStatuses.findIndex((n) => n.node_id === args.node_id) : -1;
+    const existing =
+      args.node_id && args.node_status
+        ? nodeStatuses.findIndex((n) => n.node_id === args.node_id)
+        : -1;
     const prev = existing >= 0 ? nodeStatuses[existing] : undefined;
     // Entering the node (into running, or a new visit) starts its clock and its words; a progress line while it runs
     // keeps both, so a wait's "since" and deadline count from entry and no earlier visit's line carries over.
-    const entering = args.node_status === "running" && (prev?.status !== "running" || (args.visits !== undefined && args.visits !== prev?.visits));
-    const nodeEntry = !args.node_id || !args.node_status ? null : {
-      node_id: args.node_id,
-      status: args.node_status,
-      outcome: args.outcome,
-      session_id: args.session_id ?? prev?.session_id,
-      result_preview: args.result_preview ?? (entering ? undefined : prev?.result_preview),
-      ...(args.cost_usd !== undefined || prev?.cost_usd !== undefined ? { cost_usd: (prev?.cost_usd ?? 0) + (args.cost_usd ?? 0) } : {}),
-      ...(args.visits !== undefined || prev?.visits !== undefined ? { visits: args.visits ?? prev?.visits } : {}),
-      started_at: entering ? now : (prev?.started_at ?? now),
-      completed_at: args.node_status !== "running" ? now : undefined,
-    };
+    const entering =
+      args.node_status === "running" &&
+      (prev?.status !== "running" ||
+        (args.visits !== undefined && args.visits !== prev?.visits));
+    const nodeEntry =
+      !args.node_id || !args.node_status
+        ? null
+        : {
+            node_id: args.node_id,
+            status: args.node_status,
+            outcome: args.outcome,
+            session_id: args.session_id ?? prev?.session_id,
+            result_preview:
+              args.result_preview ??
+              (entering ? undefined : prev?.result_preview),
+            ...(args.cost_usd !== undefined || prev?.cost_usd !== undefined
+              ? { cost_usd: (prev?.cost_usd ?? 0) + (args.cost_usd ?? 0) }
+              : {}),
+            ...(args.visits !== undefined || prev?.visits !== undefined
+              ? { visits: args.visits ?? prev?.visits }
+              : {}),
+            started_at: entering ? now : (prev?.started_at ?? now),
+            completed_at: args.node_status !== "running" ? now : undefined,
+          };
 
     if (nodeEntry && existing >= 0) {
       nodeStatuses[existing] = nodeEntry;
@@ -1264,14 +1918,32 @@ export const updateProgress = mutation({
       status: args.run_status ?? run.status,
       fail_reason: args.fail_reason,
       // A runner's first report names the graph it loaded, so a restart a re-pin asked for has happened.
-      ...(args.graph_hash ? { graph_hash: args.graph_hash, restart_runner_at: undefined, ...repin } : {}),
+      ...(args.graph_hash
+        ? {
+            graph_hash: args.graph_hash,
+            restart_runner_at: undefined,
+            ...repin,
+          }
+        : {}),
       ...(args.graph_nodes?.length ? { graph_nodes: args.graph_nodes } : {}),
       ...(args.runner_device ? { runner_device: args.runner_device } : {}),
-      ...(args.waiting_on_session !== undefined || args.run_status === "completed" || args.run_status === "failed"
-        ? { waiting_on_session: args.run_status === "completed" || args.run_status === "failed" ? undefined : (args.waiting_on_session ?? undefined) }
+      ...(args.waiting_on_session !== undefined ||
+      args.run_status === "completed" ||
+      args.run_status === "failed"
+        ? {
+            waiting_on_session:
+              args.run_status === "completed" || args.run_status === "failed"
+                ? undefined
+                : (args.waiting_on_session ?? undefined),
+          }
         : {}),
       // A place at a capped station is the run's until it reports another station or ends.
-      ...(run.station_place && (args.current_node_id !== run.station_place.node_id || args.run_status === "completed" || args.run_status === "failed") ? { station_place: undefined } : {}),
+      ...(run.station_place &&
+      (args.current_node_id !== run.station_place.node_id ||
+        args.run_status === "completed" ||
+        args.run_status === "failed")
+        ? { station_place: undefined }
+        : {}),
       updated_at: now,
     });
 
@@ -1300,10 +1972,25 @@ export const updateProgress = mutation({
     // A runner that reports its run over (a signal while it waits at a gate)
     // leaves no open gate behind. The run is already patched past its pause,
     // so the withdraw keeps this report's fail_reason.
-    if (args.run_status === "completed" || args.run_status === "failed") await withdrawOpenGate(ctx, { ...run, node_statuses: nodeStatuses, status: args.run_status, fail_reason: args.fail_reason ?? run.fail_reason }, now);
-    const endsRun = args.run_status === "completed" || args.run_status === "failed";
+    if (args.run_status === "completed" || args.run_status === "failed")
+      await withdrawOpenGate(
+        ctx,
+        {
+          ...run,
+          node_statuses: nodeStatuses,
+          status: args.run_status,
+          fail_reason: args.fail_reason ?? run.fail_reason,
+        },
+        now,
+      );
+    const endsRun =
+      args.run_status === "completed" || args.run_status === "failed";
     if (endsRun || (nodeEntry && args.node_status !== "running")) {
-      await stopStationHands(ctx, { ...run, node_statuses: nodeStatuses }, endsRun ? undefined : [args.node_id!]);
+      await stopStationHands(
+        ctx,
+        { ...run, node_statuses: nodeStatuses },
+        endsRun ? undefined : [args.node_id!],
+      );
     }
 
     // Sync status to bound task/plan
@@ -1311,13 +1998,24 @@ export const updateProgress = mutation({
       const taskId = (run as any).task_id;
       const planId = (run as any).plan_id;
 
-      if (taskId) await settleRunTask(ctx, { ...run, node_statuses: nodeStatuses }, args.run_status, args.fail_reason, now);
+      if (taskId)
+        await settleRunTask(
+          ctx,
+          { ...run, node_statuses: nodeStatuses },
+          args.run_status,
+          args.fail_reason,
+          now,
+        );
 
       if (planId) {
         const planUpdates: Record<string, any> = { updated_at: now };
         if (args.run_status === "completed") {
           const entries = ((await ctx.db.get(planId)) as any)?.entries || [];
-          entries.push({ type: "progress", timestamp: now, content: "Workflow run completed" });
+          entries.push({
+            type: "progress",
+            timestamp: now,
+            content: "Workflow run completed",
+          });
           planUpdates.entries = entries;
         }
         await ctx.db.patch(planId, planUpdates);
@@ -1329,16 +2027,27 @@ export const updateProgress = mutation({
       const primaryConv = await ctx.db.get(run.primary_conversation_id);
       if (primaryConv) {
         const workflow = await runWorkflowOf(ctx, run);
-        const nodeInfo = workflow?.nodes?.find((n: any) => n.id === args.node_id);
+        const nodeInfo = workflow?.nodes?.find(
+          (n: any) => n.id === args.node_id,
+        );
         const nodeLabel = nodeInfo?.label ?? args.node_id;
         const nodeType = nodeInfo?.type ?? "agent";
-        const wfType = args.node_status === "running" ? "node_start"
-          : args.node_status === "completed" ? "node_done"
-          : "node_failed";
+        const wfType =
+          args.node_status === "running"
+            ? "node_start"
+            : args.node_status === "completed"
+              ? "node_done"
+              : "node_failed";
         await ctx.db.insert("messages", {
           conversation_id: run.primary_conversation_id,
           role: "assistant",
-          content: JSON.stringify({ __wf: wfType, node_id: args.node_id, node_label: nodeLabel, node_type: nodeType, session_id: args.session_id }),
+          content: JSON.stringify({
+            __wf: wfType,
+            node_id: args.node_id,
+            node_label: nodeLabel,
+            node_type: nodeType,
+            session_id: args.session_id,
+          }),
           subtype: "workflow_event",
           timestamp: now,
         });
@@ -1348,7 +2057,9 @@ export const updateProgress = mutation({
           updated_at: now,
           last_message_role: "assistant",
           // Mark completed when workflow finishes
-          ...(args.run_status === "completed" || args.run_status === "failed" ? { status: "completed" as const } : {}),
+          ...(args.run_status === "completed" || args.run_status === "failed"
+            ? { status: "completed" as const }
+            : {}),
         });
       }
     }
@@ -1362,8 +2073,11 @@ export const updateProgress = mutation({
 // re-post on every snapshot change. run_kind="workflow" distinguishes these from our
 // routine/DOT-graph runs, which share this table and the existing run UI.
 const INGEST_LIVE_STATUSES = new Set<string>(LIVE_RUN_STATUSES);
-export function ingestRunStatus(status: string): "pending" | "running" | "paused" | "completed" | "failed" {
-  if (INGEST_LIVE_STATUSES.has(status) || status === "completed") return status as "pending" | "running" | "paused" | "completed";
+export function ingestRunStatus(
+  status: string,
+): "pending" | "running" | "paused" | "completed" | "failed" {
+  if (INGEST_LIVE_STATUSES.has(status) || status === "completed")
+    return status as "pending" | "running" | "paused" | "completed";
   return "failed";
 }
 
@@ -1380,15 +2094,25 @@ export const ingestSnapshot = mutation({
     // card's "waiting on the fleet" stay up forever. A stop lands the way
     // cancelCore records one: failed, with the reason.
     const runStatus = ingestRunStatus(args.status);
-    const failReason = runStatus === "failed" && args.status !== "failed" ? "Stopped" : undefined;
+    const failReason =
+      runStatus === "failed" && args.status !== "failed"
+        ? "Stopped"
+        : undefined;
     const agentStatus = (s: string) =>
-      s === "done" ? "completed"
-      : s === "error" || s === "failed" ? "failed"
-      : s === "running" ? "running"
-      : "pending";
+      s === "done"
+        ? "completed"
+        : s === "error" || s === "failed"
+          ? "failed"
+          : s === "running"
+            ? "running"
+            : "pending";
 
     const node_statuses = args.agents.map((a) => {
-      const st = agentStatus(a.state) as "pending" | "running" | "completed" | "failed";
+      const st = agentStatus(a.state) as
+        | "pending"
+        | "running"
+        | "completed"
+        | "failed";
       return {
         node_id: a.agent_id,
         status: st,
@@ -1401,17 +2125,23 @@ export const ingestSnapshot = mutation({
         result_preview: a.result_preview,
         activity: a.last_tool_summary || a.last_tool_name,
         started_at: a.started_at,
-        completed_at: st === "completed" || st === "failed"
-          ? (a.started_at && a.duration_ms ? a.started_at + a.duration_ms : now)
-          : undefined,
+        completed_at:
+          st === "completed" || st === "failed"
+            ? a.started_at && a.duration_ms
+              ? a.started_at + a.duration_ms
+              : now
+            : undefined,
       };
     });
 
     const existing = await ctx.db
       .query("workflow_runs")
-      .withIndex("by_external_run", (q) => q.eq("external_run_id", args.external_run_id))
+      .withIndex("by_external_run", (q) =>
+        q.eq("external_run_id", args.external_run_id),
+      )
       .first();
-    if (existing && existing.user_id !== auth.userId) return { error: "Forbidden" };
+    if (existing && existing.user_id !== auth.userId)
+      return { error: "Forbidden" };
 
     // Link the run to the host session's conversation so it shows inline + in the dash
     let primaryConvId = existing?.primary_conversation_id;
@@ -1449,7 +2179,9 @@ export const ingestSnapshot = mutation({
     } else {
       // the-line.md L8: the run lives where its host session lives.
       const hostConv = primaryConvId ? await ctx.db.get(primaryConvId) : null;
-      const scope = await runScope(ctx, auth.userId, { conversation: hostConv });
+      const scope = await runScope(ctx, auth.userId, {
+        conversation: hostConv,
+      });
       runId = await ctx.db.insert("workflow_runs", {
         user_id: auth.userId,
         ...fields,
@@ -1464,7 +2196,12 @@ export const ingestSnapshot = mutation({
           await ctx.db.insert("messages", {
             conversation_id: primaryConvId,
             role: "assistant",
-            content: JSON.stringify({ __wf: "workflow_run", run_id: runId, external_run_id: args.external_run_id, name: args.workflow_name }),
+            content: JSON.stringify({
+              __wf: "workflow_run",
+              run_id: runId,
+              external_run_id: args.external_run_id,
+              name: args.workflow_name,
+            }),
             subtype: "workflow_event",
             timestamp: now,
           });
@@ -1500,12 +2237,16 @@ export const ingestSnapshot = mutation({
     if (primaryConvId) {
       const conv = await ctx.db.get(primaryConvId);
       if (conv && conv.workflow_run_id !== runId) {
-        const held = conv.workflow_run_id ? await ctx.db.get(conv.workflow_run_id) : null;
-        const heldLive = !!held && held.status !== "completed" && held.status !== "failed";
+        const held = conv.workflow_run_id
+          ? await ctx.db.get(conv.workflow_run_id)
+          : null;
+        const heldLive =
+          !!held && held.status !== "completed" && held.status !== "failed";
         const claims = isTerminal
           ? !conv.workflow_run_id
           : !heldLive || (held.created_at ?? 0) < (existing?.created_at ?? now);
-        if (claims) await ctx.db.patch(primaryConvId, { workflow_run_id: runId });
+        if (claims)
+          await ctx.db.patch(primaryConvId, { workflow_run_id: runId });
       }
     }
     return { ok: true, run_id: runId };
@@ -1541,13 +2282,23 @@ export const reaskGate = internalMutation({
   args: { run_id: v.id("workflow_runs") },
   handler: async (ctx, args) => {
     const run: any = await ctx.db.get(args.run_id);
-    if (!run || run.status !== "paused" || run.gate_decision_id || !run.gate_prompt) return { error: "not a paused run with an unasked gate" };
-    return pauseAtGateCore(ctx, { userId: run.user_id }, {
-      run_id: args.run_id,
-      node_id: run.gate_node_id ?? run.current_node_id,
-      prompt: run.gate_prompt,
-      choices: run.gate_choices ?? [],
-    });
+    if (
+      !run ||
+      run.status !== "paused" ||
+      run.gate_decision_id ||
+      !run.gate_prompt
+    )
+      return { error: "not a paused run with an unasked gate" };
+    return pauseAtGateCore(
+      ctx,
+      { userId: run.user_id },
+      {
+        run_id: args.run_id,
+        node_id: run.gate_node_id ?? run.current_node_id,
+        prompt: run.gate_prompt,
+        choices: run.gate_choices ?? [],
+      },
+    );
   },
 });
 
@@ -1557,7 +2308,14 @@ export const pauseAtGate = mutation({
     run_id: v.id("workflow_runs"),
     node_id: v.string(),
     prompt: v.string(),
-    choices: v.array(v.object({ key: v.string(), label: v.string(), description: v.optional(v.string()), target: v.string() })),
+    choices: v.array(
+      v.object({
+        key: v.string(),
+        label: v.string(),
+        description: v.optional(v.string()),
+        target: v.string(),
+      }),
+    ),
     doc_md: v.optional(v.string()),
     category: v.optional(v.string()),
     stack: v.optional(v.string()),
@@ -1592,12 +2350,17 @@ export const pollGateResponse = mutation({
     if (!run || run.user_id !== auth.userId) return { error: "Not found" };
 
     // A key picked with no note still carries its option's words to the next hand (runResume withOptionWords).
-    const answer = run.gate_response && run.gate_decision_id ? answeredOptionLabel(await ctx.db.get(run.gate_decision_id)) : undefined;
+    const answer =
+      run.gate_response && run.gate_decision_id
+        ? answeredOptionLabel(await ctx.db.get(run.gate_decision_id))
+        : undefined;
     return {
       status: run.status,
       gate_response: run.gate_response ?? null,
       ...(answer ? { gate_answer: answer } : {}),
-      ...(run.status === "failed" && run.fail_reason === GATE_PRESENT_AGAIN ? { present_again: true } : {}),
+      ...(run.status === "failed" && run.fail_reason === GATE_PRESENT_AGAIN
+        ? { present_again: true }
+        : {}),
     };
   },
 });
@@ -1615,19 +2378,32 @@ export const pollGateResponse = mutation({
  * holds the place (its runner resumed it) keeps it.
  */
 export const admitToStation = mutation({
-  args: { api_token: v.string(), run_id: v.id("workflow_runs"), node_id: v.string(), cap: v.number() },
+  args: {
+    api_token: v.string(),
+    run_id: v.id("workflow_runs"),
+    node_id: v.string(),
+    cap: v.number(),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) return { error: "Unauthorized" };
     const run = await ctx.db.get(args.run_id);
     if (!run || run.user_id !== auth.userId) return { error: "Not found" };
-    if (run.station_place?.node_id === args.node_id || !run.workspace) return { admitted: true };
-    const running = await ctx.db.query("workflow_runs")
-      .withIndex("by_workspace_status_updated", (q) => q.eq("workspace", run.workspace!).eq("status", "running"))
+    if (run.station_place?.node_id === args.node_id || !run.workspace)
+      return { admitted: true };
+    const running = await ctx.db
+      .query("workflow_runs")
+      .withIndex("by_workspace_status_updated", (q) =>
+        q.eq("workspace", run.workspace!).eq("status", "running"),
+      )
       .collect();
-    const inside = running.filter((r) => r.station_place?.node_id === args.node_id).length;
+    const inside = running.filter(
+      (r) => r.station_place?.node_id === args.node_id,
+    ).length;
     if (inside >= args.cap) return { admitted: false, inside, cap: args.cap };
-    await ctx.db.patch(run._id, { station_place: { node_id: args.node_id, at: Date.now() } });
+    await ctx.db.patch(run._id, {
+      station_place: { node_id: args.node_id, at: Date.now() },
+    });
     return { admitted: true, inside: inside + 1, cap: args.cap };
   },
 });
@@ -1639,10 +2415,23 @@ export const liveRunsForDevice = mutation({
     if (!auth) return { error: "Unauthorized" };
     const runs = [];
     for (const status of ["running", "paused"] as const) {
-      const rows = await ctx.db.query("workflow_runs")
-        .withIndex("by_runner_device_status", (q) => q.eq("runner_device", args.device).eq("status", status))
+      const rows = await ctx.db
+        .query("workflow_runs")
+        .withIndex("by_runner_device_status", (q) =>
+          q.eq("runner_device", args.device).eq("status", status),
+        )
         .take(100);
-      runs.push(...rows.filter((r) => r.user_id === auth.userId).map((r) => ({ run_id: r._id, status: r.status, current_node_id: r.current_node_id ?? null, updated_at: r.updated_at, restart_at: r.restart_runner_at ?? null })));
+      runs.push(
+        ...rows
+          .filter((r) => r.user_id === auth.userId)
+          .map((r) => ({
+            run_id: r._id,
+            status: r.status,
+            current_node_id: r.current_node_id ?? null,
+            updated_at: r.updated_at,
+            restart_at: r.restart_runner_at ?? null,
+          })),
+      );
     }
     const failed = await failStrandedPendingRuns(ctx, auth.userId, Date.now());
     return { runs, failed };
@@ -1657,22 +2446,47 @@ export const liveRunsForDevice = mutation({
 // live-run slot. It fails here, named, so it can be rerun. A run whose command
 // no machine has taken yet (the machine is offline) stays pending.
 export const STRANDED_PENDING_MS = 10 * 60_000;
-export async function failStrandedPendingRuns(ctx: Ctx, userId: Id<"users">, now: number): Promise<string[]> {
-  const stale = (await ctx.db.query("workflow_runs").withIndex("by_status", (q: any) => q.eq("status", "pending")).take(200))
-    .filter((r: any) => r.user_id === userId && now - r.updated_at > STRANDED_PENDING_MS);
+export async function failStrandedPendingRuns(
+  ctx: Ctx,
+  userId: Id<"users">,
+  now: number,
+): Promise<string[]> {
+  const stale = (
+    await ctx.db
+      .query("workflow_runs")
+      .withIndex("by_status", (q: any) => q.eq("status", "pending"))
+      .take(200)
+  ).filter(
+    (r: any) =>
+      r.user_id === userId && now - r.updated_at > STRANDED_PENDING_MS,
+  );
   const failed: string[] = [];
   for (const run of stale) {
     // The run's command is queued with the run, so it executed after the run was created, or after the resume that
     // put it back to pending as a new attempt (resumeRunAt): a command its first launch took does not count again.
-    const commands = await ctx.db.query("daemon_commands")
-      .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).gte("executed_at", run.visits_reset_at ?? run.created_at))
+    const commands = await ctx.db
+      .query("daemon_commands")
+      .withIndex("by_user_pending", (q: any) =>
+        q
+          .eq("user_id", userId)
+          .gte("executed_at", run.visits_reset_at ?? run.created_at),
+      )
       .take(500);
     const taken = commands.some((c: any) => {
       if (c.command !== "run_workflow" || !c.args) return false;
-      try { return String(JSON.parse(c.args).workflow_run_id) === String(run._id); } catch { return false; }
+      try {
+        return String(JSON.parse(c.args).workflow_run_id) === String(run._id);
+      } catch {
+        return false;
+      }
     });
     if (!taken) continue;
-    await cancelCore(ctx, run, now, `No runner started it: a machine took the run ${Math.round((now - run.updated_at) / 60_000)} minutes ago and nothing claimed it. Rerun it.`);
+    await cancelCore(
+      ctx,
+      run,
+      now,
+      `No runner started it: a machine took the run ${Math.round((now - run.updated_at) / 60_000)} minutes ago and nothing claimed it. Rerun it.`,
+    );
     failed.push(String(run._id));
   }
   return failed;
@@ -1683,9 +2497,15 @@ export async function failStrandedPendingRuns(ctx: Ctx, userId: Id<"users">, now
 // since an isolated station's worktree lives there.
 async function runMachine(ctx: Ctx, run: any): Promise<string | undefined> {
   if (run.runner_device) return run.runner_device;
-  const withSession = [...(run.node_statuses ?? [])].reverse().find((n: any) => n.session_id);
+  const withSession = [...(run.node_statuses ?? [])]
+    .reverse()
+    .find((n: any) => n.session_id);
   if (!withSession) return undefined;
-  const conv = await findConversationByAnyRef(ctx, withSession.session_id, run.user_id);
+  const conv = await findConversationByAnyRef(
+    ctx,
+    withSession.session_id,
+    run.user_id,
+  );
   return (conv as any)?.owner_device_id ?? undefined;
 }
 
@@ -1693,13 +2513,23 @@ async function runMachine(ctx: Ctx, run: any): Promise<string | undefined> {
 // machine's daemon runs `cast workflow run-daemon`, which resumes a mid-run
 // row, keeping every station's work and every gate's answer. The run's owner
 // asks, like cancel.
-export async function resumeRunCore(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs">): Promise<{ ok: true }> {
+export async function resumeRunCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs">,
+): Promise<{ ok: true }> {
   const run = await ctx.db.get(runId);
-  if (!run || !(await canReadRun(ctx, userId, run))) throw new ConvexError("Run not found");
-  if (!(await canCancelRun(ctx, userId, run))) throw new ConvexError("Only the run's owner can resume it");
-  if (run.status !== "running" && run.status !== "paused") throw new ConvexError(`The run is ${run.status}: nothing to resume`);
+  if (!run || !(await canReadRun(ctx, userId, run)))
+    throw new ConvexError("Run not found");
+  if (!(await canCancelRun(ctx, userId, run)))
+    throw new ConvexError("Only the run's owner can resume it");
+  if (run.status !== "running" && run.status !== "paused")
+    throw new ConvexError(`The run is ${run.status}: nothing to resume`);
   const now = Date.now();
-  await queueRunOnDaemon(ctx, run.user_id, run._id, { device: await runMachine(ctx, run), now });
+  await queueRunOnDaemon(ctx, run.user_id, run._id, {
+    device: await runMachine(ctx, run),
+    now,
+  });
   await ctx.db.patch(run._id, { resume_requested_at: now, updated_at: now });
   return { ok: true };
 }
@@ -1710,17 +2540,56 @@ export async function resumeRunCore(ctx: Ctx, userId: Id<"users">, runId: Id<"wo
  * A run no runner took past its start made nothing to keep, and no runner continues it (runStart.ts): it goes back to
  * pending, as a new run is, a new attempt its machine starts from the top. `from_start` says it did.
  */
-export async function resumeRunAt(ctx: Ctx, _by: Id<"users">, run: Doc<"workflow_runs">, node: string, now: number, opts: { newAttempt?: boolean } = {}): Promise<{ from_start: boolean }> {
+export async function resumeRunAt(
+  ctx: Ctx,
+  _by: Id<"users">,
+  run: Doc<"workflow_runs">,
+  node: string,
+  now: number,
+  opts: { newAttempt?: boolean } = {},
+): Promise<{ from_start: boolean }> {
   const fromStart = !tookPastStart(run);
-  const at = fromStart ? { status: "pending" as const, current_node_id: undefined } : { status: "running" as const, current_node_id: node };
+  const at = fromStart
+    ? { status: "pending" as const, current_node_id: undefined }
+    : { status: "running" as const, current_node_id: node };
   // A station the run stood at when its runner stopped reads running until a runner reports it again; one the run no
   // longer goes on from never will, so it goes back to pending (ct-97276: Hold read running beside the resumed Guard).
-  const node_statuses = (run.node_statuses ?? []).map((n) => (n.status === "running" && (fromStart || n.node_id !== node) ? { ...n, status: "pending" as const, started_at: undefined, activity: undefined } : n));
-  await ctx.db.patch(run._id, { ...at, node_statuses, fail_reason: undefined, fresh_branch: true, gate_node_id: undefined, gate_prompt: undefined, gate_choices: undefined, gate_response: undefined, gate_decision_id: undefined, resume_queued: undefined, merge_cleared: undefined, ...(opts.newAttempt || fromStart ? { visits_reset_at: now } : {}), updated_at: now });
+  const node_statuses = (run.node_statuses ?? []).map((n) =>
+    n.status === "running" && (fromStart || n.node_id !== node)
+      ? {
+          ...n,
+          status: "pending" as const,
+          started_at: undefined,
+          activity: undefined,
+        }
+      : n,
+  );
+  await ctx.db.patch(run._id, {
+    ...at,
+    node_statuses,
+    fail_reason: undefined,
+    fresh_branch: true,
+    gate_node_id: undefined,
+    gate_prompt: undefined,
+    gate_choices: undefined,
+    gate_response: undefined,
+    gate_decision_id: undefined,
+    resume_queued: undefined,
+    merge_cleared: undefined,
+    ...(opts.newAttempt || fromStart ? { visits_reset_at: now } : {}),
+    updated_at: now,
+  });
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
-  if (task?.execution_status === "blocked") await patchTask(ctx, task, { execution_status: undefined, execution_concerns: undefined });
+  if (task?.execution_status === "blocked")
+    await patchTask(ctx, task, {
+      execution_status: undefined,
+      execution_concerns: undefined,
+    });
   // The machine's daemon takes commands for its own account: the run's, whoever asked for the resume.
-  await queueRunOnDaemon(ctx, run.user_id, run._id, { device: run.runner_device!, now });
+  await queueRunOnDaemon(ctx, run.user_id, run._id, {
+    device: run.runner_device!,
+    now,
+  });
   return { from_start: fromStart };
 }
 
@@ -1731,33 +2600,83 @@ export async function resumeRunAt(ctx: Ctx, _by: Id<"users">, run: Doc<"workflow
  * gate itself; the old decision is withdrawn once the run no longer waits on it, so it reads as replaced and the
  * withdrawal cannot fail the run. A trial run is asked again under its budget (lineTrial.rerunCore). The owner asks.
  */
-export async function reaskRunCore(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs">, opts: { at?: string; asker?: string; check?: boolean } = {}, now = Date.now()) {
+export async function reaskRunCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs">,
+  opts: { at?: string; asker?: string; check?: boolean } = {},
+  now = Date.now(),
+) {
   const run = await ctx.db.get(runId);
-  if (!run || !(await canReadRun(ctx, userId, run))) throw new ConvexError("Run not found");
-  if (!(await ownsRun(ctx, userId, run))) throw new ConvexError("Only the run's owner asks its decision again");
+  if (!run || !(await canReadRun(ctx, userId, run)))
+    throw new ConvexError("Run not found");
+  if (!(await ownsRun(ctx, userId, run)))
+    throw new ConvexError("Only the run's owner asks its decision again");
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
-  if (task && isTerminalTaskStatus(task.status)) throw new ConvexError(`${task.short_id} is ${task.status}: a closed problem is not asked again`);
-  if (task && (await trialProjectOf(ctx, task))) throw new ConvexError(`${task.short_id} is a trial problem: cast flow trial rerun ${task.short_id} --reask asks it again under the trial's budget`);
+  if (task && isTerminalTaskStatus(task.status))
+    throw new ConvexError(
+      `${task.short_id} is ${task.status}: a closed problem is not asked again`,
+    );
+  if (task && (await trialProjectOf(ctx, task)))
+    throw new ConvexError(
+      `${task.short_id} is a trial problem: cast flow trial rerun ${task.short_id} --reask asks it again under the trial's budget`,
+    );
   const wf = await runWorkflowOf(ctx, run);
-  const isGate = (id?: string) => !!id && ((wf as any)?.nodes ?? []).some((n: { id?: string; type?: string }) => n.id === id && n.type === "human");
-  const gate = run.status === "paused" ? run.gate_node_id : run.status === "failed" && isGate(run.current_node_id) ? run.current_node_id : undefined;
-  if (!gate) throw new ConvexError(`The run is ${run.status}${run.current_node_id ? ` at ${run.current_node_id}` : ""}: it is not waiting on a decision, and did not end at one`);
-  if (!run.runner_device) throw new ConvexError("The run names no machine to pick it up");
-  const asked = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
+  const isGate = (id?: string) =>
+    !!id &&
+    ((wf as any)?.nodes ?? []).some(
+      (n: { id?: string; type?: string }) => n.id === id && n.type === "human",
+    );
+  const gate =
+    run.status === "paused"
+      ? run.gate_node_id
+      : run.status === "failed" && isGate(run.current_node_id)
+        ? run.current_node_id
+        : undefined;
+  if (!gate)
+    throw new ConvexError(
+      `The run is ${run.status}${run.current_node_id ? ` at ${run.current_node_id}` : ""}: it is not waiting on a decision, and did not end at one`,
+    );
+  if (!run.runner_device)
+    throw new ConvexError("The run names no machine to pick it up");
+  const asked = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
   const node = opts.at?.trim() || opts.asker?.trim() || gate;
   // `check`: every refusal above, and nothing written, so the CLI stops the old runner only for a run that will move.
-  if (opts.check) return { run_id: run._id, task: task?.short_id ?? null, resumed_at: node, replaced: null as string | null };
+  if (opts.check)
+    return {
+      run_id: run._id,
+      task: task?.short_id ?? null,
+      resumed_at: node,
+      replaced: null as string | null,
+    };
   await resumeRunAt(ctx, userId, run, node, now);
   if (asked?.status === "pending") await withdrawCore(ctx, asked as any, now);
-  return { run_id: run._id, task: task?.short_id ?? null, resumed_at: node, replaced: asked?.status === "pending" ? asked.short_id ?? null : null };
+  return {
+    run_id: run._id,
+    task: task?.short_id ?? null,
+    resumed_at: node,
+    replaced: asked?.status === "pending" ? (asked.short_id ?? null) : null,
+  };
 }
 
 export const reaskFromCli = mutation({
-  args: { api_token: v.string(), run_id: v.id("workflow_runs"), at: v.optional(v.string()), asker: v.optional(v.string()), check: v.optional(v.boolean()) },
+  args: {
+    api_token: v.string(),
+    run_id: v.id("workflow_runs"),
+    at: v.optional(v.string()),
+    asker: v.optional(v.string()),
+    check: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) return { error: "Unauthorized" };
-    return reaskRunCore(ctx, auth.userId, args.run_id, { at: args.at, asker: args.asker, check: args.check });
+    return reaskRunCore(ctx, auth.userId, args.run_id, {
+      at: args.at,
+      asker: args.asker,
+      check: args.check,
+    });
   },
 });
 
@@ -1767,11 +2686,28 @@ export const BEHIND_MAIN = /\S+ is behind (?:origin\/)?\S+?[;,.\s]/;
 
 /** Why "Rebase and land" cannot start on a run, or null: the run ended, a person answered Ship on its card, and its
  *  landing step refused the branch only because the default branch moved past it. */
-export function landAgainRefusal(run: { status: string; gate_response?: string | null; node_statuses?: Array<{ node_id: string; status: string; result_preview?: string | null }> | null }): string | null {
-  if (run.status !== "completed" && run.status !== "failed") return `The run is ${run.status}: it has not ended`;
-  if (!/^\s*(?:\[?S\]?|ship\b)/i.test(run.gate_response ?? "")) return "Nobody answered Ship on its card";
-  const landing = [...(run.node_statuses ?? [])].reverse().find((n) => n.node_id === "ship" || n.node_id === "merge");
-  if (!landing || landing.status !== "failed" || !BEHIND_MAIN.test(`${landing.result_preview ?? ""} `)) return "Its landing step did not refuse it for being behind the default branch";
+export function landAgainRefusal(run: {
+  status: string;
+  gate_response?: string | null;
+  node_statuses?: Array<{
+    node_id: string;
+    status: string;
+    result_preview?: string | null;
+  }> | null;
+}): string | null {
+  if (run.status !== "completed" && run.status !== "failed")
+    return `The run is ${run.status}: it has not ended`;
+  if (!/^\s*(?:\[?S\]?|ship\b)/i.test(run.gate_response ?? ""))
+    return "Nobody answered Ship on its card";
+  const landing = [...(run.node_statuses ?? [])]
+    .reverse()
+    .find((n) => n.node_id === "ship" || n.node_id === "merge");
+  if (
+    !landing ||
+    landing.status !== "failed" ||
+    !BEHIND_MAIN.test(`${landing.result_preview ?? ""} `)
+  )
+    return "Its landing step did not refuse it for being behind the default branch";
   return null;
 }
 
@@ -1780,19 +2716,37 @@ export function landAgainRefusal(run: { status: string; gate_response?: string |
 // context): the branch goes onto the default branch as the remote has it, the project's check runs on the result, and
 // Ship lands it; a conflict or a red check sends it back to the builder, as on any run. `fresh_branch` makes the daemon
 // read the line's graph file again, so a run from before the Rebase station existed gets it. The run's owner asks.
-export async function landAgainCore(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs">): Promise<{ ok: true }> {
+export async function landAgainCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs">,
+): Promise<{ ok: true }> {
   const run = await ctx.db.get(runId);
-  if (!run || !(await canReadRun(ctx, userId, run))) throw new ConvexError("Run not found");
-  if (!(await canCancelRun(ctx, userId, run))) throw new ConvexError("Only the run's owner can land it");
+  if (!run || !(await canReadRun(ctx, userId, run)))
+    throw new ConvexError("Run not found");
+  if (!(await canCancelRun(ctx, userId, run)))
+    throw new ConvexError("Only the run's owner can land it");
   const refused = landAgainRefusal(run as any);
   if (refused) throw new ConvexError(refused);
   // The line the run's machine resumes on must have the Rebase station, or the runner refuses and the run stalls.
   const wf = await runWorkflowOf(ctx, run);
-  if (!((wf as any)?.nodes ?? []).some((n: { id?: string }) => n.id === "rebase")) throw new ConvexError("Its line has no Rebase step");
+  if (
+    !((wf as any)?.nodes ?? []).some((n: { id?: string }) => n.id === "rebase")
+  )
+    throw new ConvexError("Its line has no Rebase step");
   const device = await runMachine(ctx, run);
-  if (!device) throw new ConvexError("The machine that built the fix is not known");
+  if (!device)
+    throw new ConvexError("The machine that built the fix is not known");
   const now = Date.now();
-  await ctx.db.patch(run._id, { status: "running", current_node_id: "rebase", fail_reason: undefined, fresh_branch: true, merge_cleared: undefined, resume_requested_at: now, updated_at: now });
+  await ctx.db.patch(run._id, {
+    status: "running",
+    current_node_id: "rebase",
+    fail_reason: undefined,
+    fresh_branch: true,
+    merge_cleared: undefined,
+    resume_requested_at: now,
+    updated_at: now,
+  });
   await queueRunOnDaemon(ctx, run.user_id, run._id, { device, now });
   return { ok: true };
 }
@@ -1816,28 +2770,55 @@ export const cancelFromCli = mutation({
     const run = await ctx.db.get(args.run_id);
     const was = run?.status;
     await cancelRunByPerson(ctx, auth.userId, args.run_id);
-    return { run_id: args.run_id, was, cancelled: was !== "completed" && was !== "failed" };
+    return {
+      run_id: args.run_id,
+      was,
+      cancelled: was !== "completed" && was !== "failed",
+    };
   },
 });
 
 /** A person stops a run: the run ends, and its task says so, as when a run
  *  fails, instead of reading in progress with nothing running and nothing to
  *  restart it. */
-export async function cancelRunByPerson(ctx: Ctx, userId: Id<"users">, runId: Id<"workflow_runs">, now = Date.now()): Promise<void> {
+export async function cancelRunByPerson(
+  ctx: Ctx,
+  userId: Id<"users">,
+  runId: Id<"workflow_runs">,
+  now = Date.now(),
+): Promise<void> {
   const run = await ctx.db.get(runId);
-  if (!run || !(await canReadRun(ctx, userId, run))) throw new Error("Not found");
-  if (!(await canCancelRun(ctx, userId, run))) throw new Error("Unauthorized: not your run");
+  if (!run || !(await canReadRun(ctx, userId, run)))
+    throw new Error("Not found");
+  if (!(await canCancelRun(ctx, userId, run)))
+    throw new Error("Unauthorized: not your run");
   const live = run.status !== "completed" && run.status !== "failed";
   await cancelCore(ctx, run, now);
-  if (live && run.task_id) await settleRunTask(ctx, run, "failed", "Cancelled by user", now);
+  if (live && run.task_id)
+    await settleRunTask(ctx, run, "failed", "Cancelled by user", now);
 }
 
 // ── the-line.md L8: the one run list ─────────────────────────────────────────
 
-type ListRunsArgs = { team_id?: Id<"teams">; task_id?: string; plan_id?: string; run_id?: string; status?: string; limit?: number; slim?: boolean };
+type ListRunsArgs = {
+  team_id?: Id<"teams">;
+  task_id?: string;
+  plan_id?: string;
+  run_id?: string;
+  status?: string;
+  limit?: number;
+  slim?: boolean;
+};
 
-async function findByRef(ctx: Ctx, table: "tasks" | "plans", ref: string): Promise<any | null> {
-  const byShort = await ctx.db.query(table).withIndex("by_short_id", (q: any) => q.eq("short_id", ref)).first();
+async function findByRef(
+  ctx: Ctx,
+  table: "tasks" | "plans",
+  ref: string,
+): Promise<any | null> {
+  const byShort = await ctx.db
+    .query(table)
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", ref))
+    .first();
   if (byShort) return byShort;
   const id = ctx.db.normalizeId(table, ref);
   return id ? await ctx.db.get(id) : null;
@@ -1850,10 +2831,17 @@ async function findByRef(ctx: Ctx, table: "tasks" | "plans", ref: string): Promi
 // that item's index, still filtered by the key, so a teammate who can read
 // the task can read its run and a stranger reads nothing. Rows minted
 // before the backfill (no stored key) resolve personal to their owner.
-export async function listRunsCore(ctx: Ctx, userId: Id<"users">, args: ListRunsArgs) {
-  const db = await createDataContext(ctx, args.team_id
-    ? { userId, workspace: "team", team_id: args.team_id }
-    : { userId, workspace: "personal" });
+export async function listRunsCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: ListRunsArgs,
+) {
+  const db = await createDataContext(
+    ctx,
+    args.team_id
+      ? { userId, workspace: "team", team_id: args.team_id }
+      : { userId, workspace: "personal" },
+  );
   const key = db.workspaceKey;
   const limit = Math.max(1, Math.min(args.limit ?? 50, 200));
 
@@ -1863,18 +2851,40 @@ export async function listRunsCore(ctx: Ctx, userId: Id<"users">, args: ListRuns
     const run = id ? await ctx.db.get(id) : null;
     if (run && (await canReadRun(ctx, userId, run))) rows.push(run);
   } else if (args.task_id || args.plan_id) {
-    const item = args.task_id ? await findByRef(ctx, "tasks", args.task_id) : await findByRef(ctx, "plans", args.plan_id!);
+    const item = args.task_id
+      ? await findByRef(ctx, "tasks", args.task_id)
+      : await findByRef(ctx, "plans", args.plan_id!);
     if (!item) return [];
-    const allowed = args.task_id ? await canAccessTask(ctx, userId, item) : await canAccessPlan(ctx, userId, item);
+    const allowed = args.task_id
+      ? await canAccessTask(ctx, userId, item)
+      : await canAccessPlan(ctx, userId, item);
     if (!allowed) return [];
     const all = args.task_id
-      ? await ctx.db.query("workflow_runs").withIndex("by_task", (q: any) => q.eq("task_id", item._id)).order("desc").take(limit * 4)
-      : await ctx.db.query("workflow_runs").withIndex("by_plan", (q: any) => q.eq("plan_id", item._id)).order("desc").take(limit * 4);
+      ? await ctx.db
+          .query("workflow_runs")
+          .withIndex("by_task", (q: any) => q.eq("task_id", item._id))
+          .order("desc")
+          .take(limit * 4)
+      : await ctx.db
+          .query("workflow_runs")
+          .withIndex("by_plan", (q: any) => q.eq("plan_id", item._id))
+          .order("desc")
+          .take(limit * 4);
     for (const r of all) if (await canReadRun(ctx, userId, r)) rows.push(r);
   } else {
-    rows = await (args.status
-      ? ctx.db.query("workflow_runs").withIndex("by_workspace_status_updated", (q: any) => q.eq("workspace", key).eq("status", args.status))
-      : ctx.db.query("workflow_runs").withIndex("by_workspace_updated", (q: any) => q.eq("workspace", key)))
+    rows = await (
+      args.status
+        ? ctx.db
+            .query("workflow_runs")
+            .withIndex("by_workspace_status_updated", (q: any) =>
+              q.eq("workspace", key).eq("status", args.status),
+            )
+        : ctx.db
+            .query("workflow_runs")
+            .withIndex("by_workspace_updated", (q: any) =>
+              q.eq("workspace", key),
+            )
+    )
       .order("desc")
       .take(limit * 2);
     if (!args.team_id) {
@@ -1887,7 +2897,11 @@ export async function listRunsCore(ctx: Ctx, userId: Id<"users">, args: ListRuns
         .order("desc")
         .take(limit * 2);
       for (const r of legacy) {
-        if (seen.has(String(r._id)) || (typeof r.workspace === "string" && r.workspace)) continue;
+        if (
+          seen.has(String(r._id)) ||
+          (typeof r.workspace === "string" && r.workspace)
+        )
+          continue;
         rows.push(r);
       }
     }
@@ -1902,7 +2916,14 @@ export async function listRunsCore(ctx: Ctx, userId: Id<"users">, args: ListRuns
   const shaped = [];
   // `slim` (the CLI's list) leaves the station sessions out: each carries its
   // report and handoff, and 200 runs of them outgrew the call's time limit.
-  for (const run of out.slice(0, limit)) shaped.push(await enrichRun(ctx, args.slim ? run : await withAgentSessions(ctx, run, budget), reads));
+  for (const run of out.slice(0, limit))
+    shaped.push(
+      await enrichRun(
+        ctx,
+        args.slim ? run : await withAgentSessions(ctx, run, budget),
+        reads,
+      ),
+    );
   return shaped;
 }
 
@@ -1910,7 +2931,10 @@ export async function listRunsCore(ctx: Ctx, userId: Id<"users">, args: ListRuns
 // those words are the instruction its card wrote ("Revise it first: find why it
 // goes silent on garbled calls"), which the bare key in gate_response lacks.
 export function answeredOptionLabel(decision: any): string | undefined {
-  return decision?.status === "answered" && typeof decision.answer_index === "number" ? decision.options?.[decision.answer_index]?.label : undefined;
+  return decision?.status === "answered" &&
+    typeof decision.answer_index === "number"
+    ? decision.options?.[decision.answer_index]?.label
+    : undefined;
 }
 
 // The one shape every run feed hands the web store (the-line.md L10): the
@@ -1919,23 +2943,37 @@ export function answeredOptionLabel(decision: any): string | undefined {
 /** What a feed of runs has read already: each workflows row and the graph each pinned version runs, and the
  *  supersession reads (versions, lines, graphs), shared by every run of the feed. */
 export type RunReads = { workflows: Map<string, any>; line: LineMemo };
-export const newRunReads = (): RunReads => ({ workflows: new Map(), line: newLineMemo() });
+export const newRunReads = (): RunReads => ({
+  workflows: new Map(),
+  line: newLineMemo(),
+});
 
-export async function enrichRun(ctx: Ctx, run: any, reads: RunReads = newRunReads()) {
+export async function enrichRun(
+  ctx: Ctx,
+  run: any,
+  reads: RunReads = newRunReads(),
+) {
   const workflows = reads.workflows;
   let workflow: any = null;
   if (run.workflow_id) {
     const wid = String(run.workflow_id);
-    if (!workflows.has(wid)) workflows.set(wid, await ctx.db.get(run.workflow_id));
+    if (!workflows.has(wid))
+      workflows.set(wid, await ctx.db.get(run.workflow_id));
     // The graph the run executes, read once per version a list's runs pinned.
     const at = `${wid}@${run.flow_versions?.[0]?.version_id ?? run.graph_version_id ?? ""}`;
-    if (!workflows.has(at)) workflows.set(at, await runWorkflowOf(ctx, run, workflows.get(wid), reads.line.graph));
+    if (!workflows.has(at))
+      workflows.set(
+        at,
+        await runWorkflowOf(ctx, run, workflows.get(wid), reads.line.graph),
+      );
     workflow = workflows.get(at);
   }
   const node = workflow?.nodes?.find((n: any) => n.id === run.current_node_id);
   const task = run.task_id ? await ctx.db.get(run.task_id) : null;
   const plan = run.plan_id ? await ctx.db.get(run.plan_id) : null;
-  const decision = run.gate_decision_id ? await ctx.db.get(run.gate_decision_id) : null;
+  const decision = run.gate_decision_id
+    ? await ctx.db.get(run.gate_decision_id)
+    : null;
   return {
     ...run,
     task_short_id: task?.short_id,
@@ -1948,7 +2986,11 @@ export async function enrichRun(ctx: Ctx, run: any, reads: RunReads = newRunRead
     takes_change: sourceTakesSessionChange(workflow?.source),
     // What a person reads as the flow's name, read from its workflow row; `workflow_name` stays the key.
     workflow_label: workflow?.label,
-    current_node_label: node?.label ?? run.node_statuses?.find((n: any) => n.node_id === run.current_node_id)?.label ?? run.current_node_id,
+    current_node_label:
+      node?.label ??
+      run.node_statuses?.find((n: any) => n.node_id === run.current_node_id)
+        ?.label ??
+      run.current_node_id,
     gate_decision_short_id: decision?.short_id,
     gate_decision_status: decision?.status,
     // What the last gate was answered with, in the option's own words, and
@@ -1958,7 +3000,12 @@ export async function enrichRun(ctx: Ctx, run: any, reads: RunReads = newRunRead
     // so a project reading its runs never re-derives it from station ids.
     line_outcome: lineRunOutcome(run)?.kind,
     // Billed money and the subscription sessions' list price, two kinds never added (changeCard costParts).
-    ...(typeof decision?.card?.cost?.usd === "number" ? (({ billed_usd, list_usd }) => ({ card_billed_usd: billed_usd, card_list_usd: list_usd }))(costParts(decision.card.cost)) : {}),
+    ...(typeof decision?.card?.cost?.usd === "number"
+      ? (({ billed_usd, list_usd }) => ({
+          card_billed_usd: billed_usd,
+          card_list_usd: list_usd,
+        }))(costParts(decision.card.cost))
+      : {}),
     // line-versions.md LV1: a live run a later run, a dropped station or its problem replaced; null while current.
     superseded: await runSuperseded(ctx, run, task, reads.line),
   };
@@ -2009,7 +3056,9 @@ export const backfillWorkspace = internalMutation({
       .filter((q) => q.eq(q.field("workspace"), undefined))
       .take(args.limit ?? 500);
     for (const r of rows) {
-      await ctx.db.patch(r._id, { workspace: computeWorkspaceKey({ user_id: r.user_id }, null) });
+      await ctx.db.patch(r._id, {
+        workspace: computeWorkspaceKey({ user_id: r.user_id }, null),
+      });
     }
     return { stamped: rows.length };
   },
@@ -2024,7 +3073,11 @@ export const backfillWorkspace = internalMutation({
  * Paged: call again with the returned cursor until `done`.
  */
 export const repairLineCauseStatus = internalMutation({
-  args: { dry_run: v.boolean(), cursor: v.optional(v.union(v.string(), v.null())), page: v.optional(v.number()) },
+  args: {
+    dry_run: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    page: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("workflow_runs")
@@ -2037,12 +3090,17 @@ export const repairLineCauseStatus = internalMutation({
       if (!run.task_id) continue;
       const task: any = await ctx.db.get(run.task_id);
       // Only the run the cause is bound to speaks for it now.
-      if (!task || String(task.workflow_run_id ?? "") !== String(run._id)) continue;
+      if (!task || String(task.workflow_run_id ?? "") !== String(run._id))
+        continue;
       // The cause closed when its run reached the end, not when this repair ran.
       const end = lineRunOutcome(run);
       const next = repairedLineStatus(task, run);
       if (!next) {
-        const at = repairedClosedAt(task, run, await statusHistory(ctx, task._id));
+        const at = repairedClosedAt(
+          task,
+          run,
+          await statusHistory(ctx, task._id),
+        );
         if (at !== null) {
           restamped.push({ task: task.short_id, from: task.closed_at, to: at });
           if (!args.dry_run) await patchTask(ctx, task, { closed_at: at });
@@ -2050,11 +3108,25 @@ export const repairLineCauseStatus = internalMutation({
         continue;
       }
       const history = await statusHistory(ctx, task._id);
-      if (history.some((h: any) => h.created_at > run.updated_at)) { skipped++; continue; }
+      if (history.some((h: any) => h.created_at > run.updated_at)) {
+        skipped++;
+        continue;
+      }
       moved.push({ task: task.short_id, from: task.status, to: next });
-      if (!args.dry_run) await moveTaskStatus(ctx, task, next, { actorUserId: run.user_id, ...(next !== "open" && end ? { closedAt: end.at } : {}) });
+      if (!args.dry_run)
+        await moveTaskStatus(ctx, task, next, {
+          actorUserId: run.user_id,
+          ...(next !== "open" && end ? { closedAt: end.at } : {}),
+        });
     }
-    return { scanned: page.page.length, moved, restamped, skipped, cursor: page.continueCursor, done: page.isDone };
+    return {
+      scanned: page.page.length,
+      moved,
+      restamped,
+      skipped,
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });
 
@@ -2076,7 +3148,9 @@ export const graphOfRun = query({
     // A teammate reads the graph, never where it lives: origin names the
     // owner's checkout path and machine.
     if (String(row.user_id) === String(userId)) return row;
-    const { origin: _origin, ...shared } = row as typeof row & { origin?: unknown };
+    const { origin: _origin, ...shared } = row as typeof row & {
+      origin?: unknown;
+    };
     return shared;
   },
 });
@@ -2096,7 +3170,12 @@ export const pinnedGraphOfRun = query({
     if (!pinned || !row) return null;
     const { origin, _id, _creationTime, ...graph } = rowAtVersion(row, pinned);
     // A teammate reads the graph, never where it lives.
-    return { ...graph, _id: String(pinned.ver._id), workflow_id: String(_id), ...(String(row.user_id) === String(userId) && origin ? { origin } : {}) };
+    return {
+      ...graph,
+      _id: String(pinned.ver._id),
+      workflow_id: String(_id),
+      ...(String(row.user_id) === String(userId) && origin ? { origin } : {}),
+    };
   },
 });
 
@@ -2109,7 +3188,11 @@ export const pinnedGraphOfRun = query({
 // (started_at is the run's created_at, session wf-<runId> until the daemon
 // rebinds it); a host started before its run. Clears the flag on every host.
 export const unmarkRunHosts = internalMutation({
-  args: { dry_run: v.boolean(), cursor: v.optional(v.union(v.string(), v.null())), page: v.optional(v.number()) },
+  args: {
+    dry_run: v.boolean(),
+    cursor: v.optional(v.union(v.string(), v.null())),
+    page: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("workflow_runs")
@@ -2119,12 +3202,19 @@ export const unmarkRunHosts = internalMutation({
       if (!run.primary_conversation_id) continue;
       const conv = await ctx.db.get(run.primary_conversation_id);
       if (!conv || !conv.is_workflow_primary) continue;
-      const bornWithRun = conv.session_id === `wf-${run._id}` || (conv.started_at ?? 0) >= run.created_at;
+      const bornWithRun =
+        conv.session_id === `wf-${run._id}` ||
+        (conv.started_at ?? 0) >= run.created_at;
       if (bornWithRun) continue;
       cleared.push(conv.session_id);
-      if (!args.dry_run) await ctx.db.patch(conv._id, { is_workflow_primary: false });
+      if (!args.dry_run)
+        await ctx.db.patch(conv._id, { is_workflow_primary: false });
     }
-    return { scanned: page.page.length, cleared, cursor: page.continueCursor, done: page.isDone };
+    return {
+      scanned: page.page.length,
+      cleared,
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });
-

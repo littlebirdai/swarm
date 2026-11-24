@@ -32,33 +32,75 @@ export class HostGone extends Error {
 const AUTO_RULE_TAG = "codecast-auto";
 const ANYWHERE = "0.0.0.0/0";
 
-export function healSecurityGroup(host: CloudHost, onProgress: (m: string) => void, inst: any): void {
+export function healSecurityGroup(
+  host: CloudHost,
+  onProgress: (m: string) => void,
+  inst: any,
+): void {
   if (host.platform === "darwin") return;
   try {
     const groupId = inst?.SecurityGroups?.[0]?.GroupId;
     if (!groupId) return;
 
-    const sg = aws(["ec2", "describe-security-groups", "--group-ids", groupId], host.region, host.profile);
-    const sshRules = (sg?.SecurityGroups?.[0]?.IpPermissions ?? []).filter(
-      (p: any) => p.IpProtocol === "tcp" && p.FromPort === 22 && p.ToPort === 22,
+    const sg = aws(
+      ["ec2", "describe-security-groups", "--group-ids", groupId],
+      host.region,
+      host.profile,
     );
-    const ranges: Array<{ CidrIp: string; Description?: string }> = sshRules.flatMap((p: any) => p.IpRanges ?? []);
+    const sshRules = (sg?.SecurityGroups?.[0]?.IpPermissions ?? []).filter(
+      (p: any) =>
+        p.IpProtocol === "tcp" && p.FromPort === 22 && p.ToPort === 22,
+    );
+    const ranges: Array<{ CidrIp: string; Description?: string }> =
+      sshRules.flatMap((p: any) => p.IpRanges ?? []);
 
     if (!ranges.some((x) => x.CidrIp === ANYWHERE)) {
-      onProgress("allowing key-only SSH from anywhere (a pinned address cannot follow a laptop across networks)");
+      onProgress(
+        "allowing key-only SSH from anywhere (a pinned address cannot follow a laptop across networks)",
+      );
       aws(
-        ["ec2", "authorize-security-group-ingress", "--group-id", groupId, "--ip-permissions",
-         JSON.stringify([{ IpProtocol: "tcp", FromPort: 22, ToPort: 22, IpRanges: [{ CidrIp: ANYWHERE, Description: AUTO_RULE_TAG }] }])],
-        host.region, host.profile,
+        [
+          "ec2",
+          "authorize-security-group-ingress",
+          "--group-id",
+          groupId,
+          "--ip-permissions",
+          JSON.stringify([
+            {
+              IpProtocol: "tcp",
+              FromPort: 22,
+              ToPort: 22,
+              IpRanges: [{ CidrIp: ANYWHERE, Description: AUTO_RULE_TAG }],
+            },
+          ]),
+        ],
+        host.region,
+        host.profile,
       );
     }
     // Retire the per-network /32s this code added before it learned better.
-    const stale = ranges.filter((x) => x.Description === AUTO_RULE_TAG && x.CidrIp !== ANYWHERE);
+    const stale = ranges.filter(
+      (x) => x.Description === AUTO_RULE_TAG && x.CidrIp !== ANYWHERE,
+    );
     if (stale.length) {
       aws(
-        ["ec2", "revoke-security-group-ingress", "--group-id", groupId, "--ip-permissions",
-         JSON.stringify([{ IpProtocol: "tcp", FromPort: 22, ToPort: 22, IpRanges: stale.map((x) => ({ CidrIp: x.CidrIp })) }])],
-        host.region, host.profile,
+        [
+          "ec2",
+          "revoke-security-group-ingress",
+          "--group-id",
+          groupId,
+          "--ip-permissions",
+          JSON.stringify([
+            {
+              IpProtocol: "tcp",
+              FromPort: 22,
+              ToPort: 22,
+              IpRanges: stale.map((x) => ({ CidrIp: x.CidrIp })),
+            },
+          ]),
+        ],
+        host.region,
+        host.profile,
       );
     }
   } catch {
@@ -87,14 +129,18 @@ export async function bootEc2(
   const bootMinutes = host.platform === "darwin" ? 25 : 3;
   const deadline = Date.now() + bootMinutes * 60_000;
   while (state !== "running") {
-    if (Date.now() > deadline) throw new Error(`${host.id} did not reach "running" within ${bootMinutes} minutes`);
+    if (Date.now() > deadline)
+      throw new Error(
+        `${host.id} did not reach "running" within ${bootMinutes} minutes`,
+      );
     await new Promise((r) => setTimeout(r, 4000));
     inst = ops.describe();
     ({ state, address } = ec2State(inst));
     if (state === "missing") throw new HostGone(host);
   }
 
-  if (!address) throw new Error(`${host.id} is running but has no public address`);
+  if (!address)
+    throw new Error(`${host.id} is running but has no public address`);
   if (!wasRunning) onPhase("running");
 
   if (ops.healSecurityGroup) healSecurityGroup(host, onProgress, inst);

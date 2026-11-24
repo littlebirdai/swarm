@@ -2,8 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { selectorFor, type SelectorNode } from "./picker";
 
 /** A tiny element tree: tag(id?) with children. */
-function el(tagName: string, id = "", children: SelectorNode[] = []): SelectorNode {
-  const node: SelectorNode = { tagName: tagName.toUpperCase(), id, parentElement: null, children };
+function el(
+  tagName: string,
+  id = "",
+  children: SelectorNode[] = [],
+): SelectorNode {
+  const node: SelectorNode = {
+    tagName: tagName.toUpperCase(),
+    id,
+    parentElement: null,
+    children,
+  };
   for (const c of children) c.parentElement = node;
   return node;
 }

@@ -1,9 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { dropScrapedProseTwins, isScrapedProseTwin } from "./proseTwins";
 
-const PROSE = "Tokens minted and stashed. Now seed them into the isolated browser.";
+const PROSE =
+  "Tokens minted and stashed. Now seed them into the isolated browser.";
 
-const real = (content: string, uuid = "ec4ad6ca-9bf4-4ccd-a6d7-8e16e7428e73") => ({
+const real = (
+  content: string,
+  uuid = "ec4ad6ca-9bf4-4ccd-a6d7-8e16e7428e73",
+) => ({
   role: "assistant",
   content,
   message_uuid: uuid,
@@ -23,7 +27,9 @@ describe("isScrapedProseTwin", () => {
   it("matches only the -prose sidecar, not the card it accompanies", () => {
     expect(isScrapedProseTwin(scrapedProse(PROSE).message_uuid)).toBe(true);
     expect(isScrapedProseTwin(scrapedCard().message_uuid)).toBe(false);
-    expect(isScrapedProseTwin("ec4ad6ca-9bf4-4ccd-a6d7-8e16e7428e73")).toBe(false);
+    expect(isScrapedProseTwin("ec4ad6ca-9bf4-4ccd-a6d7-8e16e7428e73")).toBe(
+      false,
+    );
     expect(isScrapedProseTwin(null)).toBe(false);
   });
 });
@@ -44,12 +50,18 @@ describe("dropScrapedProseTwins", () => {
   });
 
   it("ignores whitespace differences between the two copies", () => {
-    const out = dropScrapedProseTwins([scrapedProse(`  ${PROSE}\n`), real(PROSE)]);
+    const out = dropScrapedProseTwins([
+      scrapedProse(`  ${PROSE}\n`),
+      real(PROSE),
+    ]);
     expect(out).toHaveLength(1);
   });
 
   it("leaves a different scraped paragraph alone", () => {
-    const out = dropScrapedProseTwins([scrapedProse("Something else entirely."), real(PROSE)]);
+    const out = dropScrapedProseTwins([
+      scrapedProse("Something else entirely."),
+      real(PROSE),
+    ]);
     expect(out).toHaveLength(2);
   });
 

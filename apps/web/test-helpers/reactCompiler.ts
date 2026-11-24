@@ -12,18 +12,37 @@
 // through babel with the compiler alone, types and JSX intact, and bun then
 // transpiles the result as it would have transpiled the source.
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { plugin } from "bun";
-import { REACT_COMPILER_OPTIONS, REACT_COMPILER_PLUGIN, reactCompilerCompiles, reactCompilerOff, reactCompilerPathFilter } from "../plugins/reactCompiler";
+import {
+  REACT_COMPILER_OPTIONS,
+  REACT_COMPILER_PLUGIN,
+  reactCompilerCompiles,
+  reactCompilerOff,
+  reactCompilerPathFilter,
+} from "../plugins/reactCompiler";
 
 /** True when this process compiles the listed files. */
-export const reactCompilerActive = process.env.REACT_COMPILER === "1" && !reactCompilerOff();
+export const reactCompilerActive =
+  process.env.REACT_COMPILER === "1" && !reactCompilerOff();
 
 // Compiled text is kept on disk by a hash of the source, the options and the
 // compiler's version: a test process starts cold every time, and babel on a
 // large component costs more than the test that mounts it.
-const CACHE_DIR = path.resolve(import.meta.dir, "..", "node_modules", ".cache", "react-compiler");
+const CACHE_DIR = path.resolve(
+  import.meta.dir,
+  "..",
+  "node_modules",
+  ".cache",
+  "react-compiler",
+);
 
 let babel: typeof import("@babel/core") | undefined;
 let salt: string | undefined;
@@ -31,8 +50,18 @@ let salt: string | undefined;
 /** One listed file's source, compiled. Exported for the report script and tests. */
 export function compileForBun(file: string, source: string): string {
   babel ??= require("@babel/core") as typeof import("@babel/core");
-  salt ??= JSON.stringify([require(`${REACT_COMPILER_PLUGIN}/package.json`).version, babel.version, REACT_COMPILER_OPTIONS]);
-  const key = createHash("sha1").update(salt).update("\0").update(file).update("\0").update(source).digest("hex");
+  salt ??= JSON.stringify([
+    require(`${REACT_COMPILER_PLUGIN}/package.json`).version,
+    babel.version,
+    REACT_COMPILER_OPTIONS,
+  ]);
+  const key = createHash("sha1")
+    .update(salt)
+    .update("\0")
+    .update(file)
+    .update("\0")
+    .update(source)
+    .digest("hex");
   const cached = path.join(CACHE_DIR, `${key}.txt`);
   if (existsSync(cached)) return readFileSync(cached, "utf8");
   const result = babel.transformSync(source, {
@@ -40,7 +69,9 @@ export function compileForBun(file: string, source: string): string {
     babelrc: false,
     configFile: false,
     sourceType: "module",
-    parserOpts: { plugins: file.endsWith(".ts") ? ["typescript"] : ["typescript", "jsx"] },
+    parserOpts: {
+      plugins: file.endsWith(".ts") ? ["typescript"] : ["typescript", "jsx"],
+    },
     plugins: [[REACT_COMPILER_PLUGIN, REACT_COMPILER_OPTIONS]],
     sourceMaps: "inline",
   });
@@ -62,8 +93,17 @@ if (reactCompilerActive) {
       // directory gets its own source back.
       build.onLoad({ filter: reactCompilerPathFilter() }, (args) => {
         const source = readFileSync(args.path, "utf8");
-        const loader = path.extname(args.path).slice(1) as "ts" | "tsx" | "js" | "jsx";
-        return { contents: reactCompilerCompiles(args.path) ? compileForBun(args.path, source) : source, loader };
+        const loader = path.extname(args.path).slice(1) as
+          | "ts"
+          | "tsx"
+          | "js"
+          | "jsx";
+        return {
+          contents: reactCompilerCompiles(args.path)
+            ? compileForBun(args.path, source)
+            : source,
+          loader,
+        };
       });
     },
   });

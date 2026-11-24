@@ -2,7 +2,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { oldestTimestampInChunk, readOldestUnsyncedTimestamp } from "./syncLedger.js";
+import {
+  oldestTimestampInChunk,
+  readOldestUnsyncedTimestamp,
+} from "./syncLedger.js";
 
 // `cast status` must distinguish a wedged sync (unsynced bytes waiting for ages)
 // from a session that sat quiet for an hour and just burst back to life after an
@@ -30,8 +33,13 @@ const at = (iso: string, rest: object = {}) =>
 
 describe("oldestTimestampInChunk", () => {
   test("returns the first line's timestamp", () => {
-    const chunk = [at("2026-07-02T12:52:08.190Z"), at("2026-07-02T12:53:09.158Z")].join("\n");
-    expect(oldestTimestampInChunk(chunk)).toBe(Date.parse("2026-07-02T12:52:08.190Z"));
+    const chunk = [
+      at("2026-07-02T12:52:08.190Z"),
+      at("2026-07-02T12:53:09.158Z"),
+    ].join("\n");
+    expect(oldestTimestampInChunk(chunk)).toBe(
+      Date.parse("2026-07-02T12:52:08.190Z"),
+    );
   });
 
   test("skips timestampless rows (agent-name) and finds the next real message", () => {
@@ -39,19 +47,25 @@ describe("oldestTimestampInChunk", () => {
       JSON.stringify({ type: "agent-name", name: "worker" }),
       at("2026-07-02T12:52:08.190Z"),
     ].join("\n");
-    expect(oldestTimestampInChunk(chunk)).toBe(Date.parse("2026-07-02T12:52:08.190Z"));
+    expect(oldestTimestampInChunk(chunk)).toBe(
+      Date.parse("2026-07-02T12:52:08.190Z"),
+    );
   });
 
   test("does not read timestamps embedded in message content", () => {
     const line = JSON.stringify({
       type: "user",
-      message: { content: 'log said "timestamp":"2020-01-01T00:00:00Z" somewhere' },
+      message: {
+        content: 'log said "timestamp":"2020-01-01T00:00:00Z" somewhere',
+      },
     });
     expect(oldestTimestampInChunk(line)).toBeNull();
   });
 
   test("skips a truncated (mid-line) JSON tail and empty input", () => {
-    expect(oldestTimestampInChunk(at("2026-07-02T12:52:08.190Z").slice(0, 20))).toBeNull();
+    expect(
+      oldestTimestampInChunk(at("2026-07-02T12:52:08.190Z").slice(0, 20)),
+    ).toBeNull();
     expect(oldestTimestampInChunk("")).toBeNull();
   });
 });

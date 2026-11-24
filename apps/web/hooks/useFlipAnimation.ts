@@ -1,11 +1,25 @@
-import { useRef, useCallback, useLayoutEffect, useState, type RefObject } from "react";
+import {
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  useState,
+  type RefObject,
+} from "react";
 
 const ANIMATION_DURATION_MS = 400;
 
 /** `scale` also animates a change of size (a panel that moves AND resizes);
  *  the default moves only, which is right for rows of a fixed size.
  *  `containerRef` measures an element the caller already holds a ref to. */
-export function useFlipAnimation({ scale = false, durationMs = ANIMATION_DURATION_MS, containerRef: externalRef }: { scale?: boolean; durationMs?: number; containerRef?: RefObject<HTMLDivElement | null> } = {}) {
+export function useFlipAnimation({
+  scale = false,
+  durationMs = ANIMATION_DURATION_MS,
+  containerRef: externalRef,
+}: {
+  scale?: boolean;
+  durationMs?: number;
+  containerRef?: RefObject<HTMLDivElement | null>;
+} = {}) {
   const ownRef = useRef<HTMLDivElement>(null);
   const containerRef = externalRef ?? ownRef;
   const positionsRef = useRef<Map<string, DOMRect>>(new Map());
@@ -32,14 +46,18 @@ export function useFlipAnimation({ scale = false, durationMs = ANIMATION_DURATIO
     if (oldPositions.size === 0) return;
     // A hidden tab pauses requestAnimationFrame, which would leave the inverted
     // transform on screen until the tab is shown again.
-    if (document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (
+      document.hidden ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
       positionsRef.current = new Map();
       return;
     }
 
     // Read every new position first, then write: a style write between two
     // reads forced a layout per row.
-    const moved: Array<{ el: Element; oldRect: DOMRect; newRect: DOMRect }> = [];
+    const moved: Array<{ el: Element; oldRect: DOMRect; newRect: DOMRect }> =
+      [];
     containerRef.current.querySelectorAll("[data-flip-key]").forEach((el) => {
       const key = el.getAttribute("data-flip-key");
       if (!key) return;
@@ -54,16 +72,24 @@ export function useFlipAnimation({ scale = false, durationMs = ANIMATION_DURATIO
       // Scaling reads as one object changing size only between similar shapes.
       // Past ~2.5x on either axis (a panel folding to its title bar) it smears
       // the content, so the element just slides to its new place.
-      const similar = (a: number, b: number) => a > 0 && b > 0 && Math.max(a / b, b / a) <= 2.5;
-      const resized = scale && similar(oldRect.width, newRect.width) && similar(oldRect.height, newRect.height)
-        && (Math.abs(oldRect.width - newRect.width) >= 1 || Math.abs(oldRect.height - newRect.height) >= 1);
+      const similar = (a: number, b: number) =>
+        a > 0 && b > 0 && Math.max(a / b, b / a) <= 2.5;
+      const resized =
+        scale &&
+        similar(oldRect.width, newRect.width) &&
+        similar(oldRect.height, newRect.height) &&
+        (Math.abs(oldRect.width - newRect.width) >= 1 ||
+          Math.abs(oldRect.height - newRect.height) >= 1);
 
       if (Math.abs(deltaY) < 1 && Math.abs(deltaX) < 1 && !resized) return;
 
       const htmlEl = el as HTMLElement;
       htmlEl.style.transformOrigin = resized ? "top left" : "";
-      htmlEl.style.transform = `translate(${deltaX}px, ${deltaY}px)`
-        + (resized ? ` scale(${oldRect.width / newRect.width}, ${oldRect.height / newRect.height})` : "");
+      htmlEl.style.transform =
+        `translate(${deltaX}px, ${deltaY}px)` +
+        (resized
+          ? ` scale(${oldRect.width / newRect.width}, ${oldRect.height / newRect.height})`
+          : "");
       htmlEl.style.transition = "none";
 
       requestAnimationFrame(() => {

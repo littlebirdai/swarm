@@ -7,22 +7,48 @@ const team = [
   { _id: "u3", name: "Cy" },
   { _id: "bot", name: "Anchor", is_bot: true },
 ];
-const person = (slack_user_id: string, name: string, codecast_user_id: string | null = null) => ({
-  _id: slack_user_id, team_id: "t", slack_user_id, name, handle: null, real_name: null,
-  avatar_url: null, email: null, codecast_user_id, codecast_user_name: null, mapped_by: null,
+const person = (
+  slack_user_id: string,
+  name: string,
+  codecast_user_id: string | null = null,
+) => ({
+  _id: slack_user_id,
+  team_id: "t",
+  slack_user_id,
+  name,
+  handle: null,
+  real_name: null,
+  avatar_url: null,
+  email: null,
+  codecast_user_id,
+  codecast_user_name: null,
+  mapped_by: null,
 });
-const link = (ids?: string[]) => ({ _id: "l", chat_channel_id: "c", slack_member_ids: ids } as any);
+const link = (ids?: string[]) =>
+  ({ _id: "l", chat_channel_id: "c", slack_member_ids: ids }) as any;
 
 describe("buildChannelRoster", () => {
   test("a public room's audience is the team, locked, with agents left out", () => {
-    const rows = buildChannelRoster({ teamMembers: team, slackPeople: [], link: null });
+    const rows = buildChannelRoster({
+      teamMembers: team,
+      slackPeople: [],
+      link: null,
+    });
     expect(rows.map((r) => [r.name, r.here, r.slack])).toEqual([
-      ["Ada", "team", "none"], ["Bo", "team", "none"], ["Cy", "team", "none"],
+      ["Ada", "team", "none"],
+      ["Bo", "team", "none"],
+      ["Cy", "team", "none"],
     ]);
   });
 
   test("a private room splits members from teammates who could join", () => {
-    const rows = buildChannelRoster({ kind: "private", memberIds: ["u2"], teamMembers: team, slackPeople: [], link: null });
+    const rows = buildChannelRoster({
+      kind: "private",
+      memberIds: ["u2"],
+      teamMembers: team,
+      slackPeople: [],
+      link: null,
+    });
     expect(rows.filter(isInRoom).map((r) => r.name)).toEqual(["Bo"]);
     expect(rows.find((r) => r.name === "Ada")?.here).toBe("out");
   });
@@ -32,7 +58,12 @@ describe("buildChannelRoster", () => {
       kind: "private",
       memberIds: ["u1"],
       teamMembers: team,
-      slackPeople: [person("S1", "ada.slack", "u1"), person("S2", "Dee"), person("S3", "Eve"), person("S4", "Bo in Slack", "u2")],
+      slackPeople: [
+        person("S1", "ada.slack", "u1"),
+        person("S2", "Dee"),
+        person("S3", "Eve"),
+        person("S4", "Bo in Slack", "u2"),
+      ],
       link: link(["S1", "S2", "S9"]),
     });
     const by = (n: string) => rows.find((r) => r.name === n)!;

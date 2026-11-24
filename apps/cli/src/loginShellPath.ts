@@ -27,22 +27,35 @@ export function parseCapturedPath(stdout: string): string | null {
 }
 
 /** Run the user's shell as an interactive login shell and read back its PATH. */
-export function captureLoginShellPath(shell = os.userInfo().shell || process.env.SHELL): string | null {
+export function captureLoginShellPath(
+  shell = os.userInfo().shell || process.env.SHELL,
+): string | null {
   if (!shell || process.platform === "win32") return null;
-  const result = spawnSync(shell, ["-ilc", `printf '%s%s%s\\n' ${MARK} "$PATH" ${MARK}`], {
-    encoding: "utf8",
-    timeout: CAPTURE_TIMEOUT_MS,
-    killSignal: "SIGKILL",
-    stdio: ["ignore", "pipe", "ignore"],
-    // TERM=dumb quiets prompt themes; TMUX set keeps an rc file that attaches
-    // tmux in every interactive shell from doing it here.
-    env: { ...process.env, TERM: "dumb", TMUX: process.env.TMUX || "codecast-login-path" },
-  });
+  const result = spawnSync(
+    shell,
+    ["-ilc", `printf '%s%s%s\\n' ${MARK} "$PATH" ${MARK}`],
+    {
+      encoding: "utf8",
+      timeout: CAPTURE_TIMEOUT_MS,
+      killSignal: "SIGKILL",
+      stdio: ["ignore", "pipe", "ignore"],
+      // TERM=dumb quiets prompt themes; TMUX set keeps an rc file that attaches
+      // tmux in every interactive shell from doing it here.
+      env: {
+        ...process.env,
+        TERM: "dumb",
+        TMUX: process.env.TMUX || "codecast-login-path",
+      },
+    },
+  );
   return parseCapturedPath(String(result.stdout ?? ""));
 }
 
 /** Capture and record the login shell PATH, at most hourly. Never throws. */
-export function recordLoginShellPath(dir = defaultConfigDir(), capture = captureLoginShellPath): void {
+export function recordLoginShellPath(
+  dir = defaultConfigDir(),
+  capture = captureLoginShellPath,
+): void {
   const file = path.join(dir, LOGIN_PATH_FILENAME);
   try {
     if (Date.now() - fs.statSync(file).mtimeMs < REFRESH_MS) return;

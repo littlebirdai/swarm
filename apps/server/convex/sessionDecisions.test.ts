@@ -31,12 +31,29 @@ import {
   HOP_DEADLINE_MS,
 } from "./sessionDecisions";
 import { passCore } from "./decisionHandoff";
-import { HOST, BOSS, OWNER2, TEAM, NOW, seed, twoOptions, askApproach, seated, linesIn } from "./testDecisions";
+import {
+  HOST,
+  BOSS,
+  OWNER2,
+  TEAM,
+  NOW,
+  seed,
+  twoOptions,
+  askApproach,
+  seated,
+  linesIn,
+} from "./testDecisions";
 import { hashToken } from "./apiTokens";
 import { isMachineDeliveredMessage } from "@codecast/shared/contracts";
 import * as fs from "fs";
 import * as path from "path";
-import { createStackCore, addToStackCore, removeFromStackCore, applyAutoDefaultsCore, delegateStack } from "./decisionStacks";
+import {
+  createStackCore,
+  addToStackCore,
+  removeFromStackCore,
+  applyAutoDefaultsCore,
+  delegateStack,
+} from "./decisionStacks";
 
 // The W2 contract (docs/architecture/decisions-as-documents.md): category
 // assignment, inbox materialization, the ladder, a role answering under a grant,
@@ -50,28 +67,84 @@ describe("ask: people, inbox, ladder, holder", () => {
     await askApproach(ctx);
     expect(tables.session_decisions[0].team_id).toBe(TEAM);
     tables.tasks[0].team_id = "teams_other";
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Keep the engine vendored?", options: twoOptions, category: "approach", task: "ct-7" });
-    expect(tables.session_decisions.map((d: any) => d.team_id)).toEqual(["teams_other"]);
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Keep the engine vendored?",
+        options: twoOptions,
+        category: "approach",
+        task: "ct-7",
+      },
+    );
+    expect(tables.session_decisions.map((d: any) => d.team_id)).toEqual([
+      "teams_other",
+    ]);
   });
 
   test("a decision may offer one course: the person takes it or answers in their own words", async () => {
     const { ctx, tables } = seed();
-    const r = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Ship the fix?", options: [{ label: "Ship it", description: "merges to main" }], context_md: "What was wrong and what we built.", category: "approach" });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Ship the fix?",
+        options: [{ label: "Ship it", description: "merges to main" }],
+        context_md: "What was wrong and what we built.",
+        category: "approach",
+      },
+    );
     expect(r.error).toBeUndefined();
-    expect(tables.session_decisions[0].options.map((o: any) => o.label)).toEqual(["Ship it"]);
-    const none = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Nothing to pick?", options: [], context_md: "x", category: "approach" });
+    expect(
+      tables.session_decisions[0].options.map((o: any) => o.label),
+    ).toEqual(["Ship it"]);
+    const none = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Nothing to pick?",
+        options: [],
+        context_md: "x",
+        category: "approach",
+      },
+    );
     expect(none.error).toBe("At least one option required");
   });
 
   test("stores the asker's impact and its why, keeps it across a re-ask that names none, and refuses one off the scale", async () => {
     const { ctx, tables } = seed();
-    const ask = (extra: Record<string, unknown>) => askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Ship the fix?", options: twoOptions, context_md: "x", category: "approach", ...extra });
-    expect((await ask({ impact: 4, impact_reason: "two runs wait on it" })).error).toBeUndefined();
-    expect(tables.session_decisions[0]).toMatchObject({ impact: 4, impact_reason: "two runs wait on it" });
+    const ask = (extra: Record<string, unknown>) =>
+      askCore(
+        ctx,
+        { userId: HOST },
+        {
+          session_id: "sess-ask",
+          question: "Ship the fix?",
+          options: twoOptions,
+          context_md: "x",
+          category: "approach",
+          ...extra,
+        },
+      );
+    expect(
+      (await ask({ impact: 4, impact_reason: "two runs wait on it" })).error,
+    ).toBeUndefined();
+    expect(tables.session_decisions[0]).toMatchObject({
+      impact: 4,
+      impact_reason: "two runs wait on it",
+    });
     await ask({});
     expect(tables.session_decisions).toHaveLength(1);
-    expect(tables.session_decisions[0]).toMatchObject({ impact: 4, impact_reason: "two runs wait on it" });
-    expect((await ask({ impact: 7 })).error).toBe("impact is a whole number from 1 to 5");
+    expect(tables.session_decisions[0]).toMatchObject({
+      impact: 4,
+      impact_reason: "two runs wait on it",
+    });
+    expect((await ask({ impact: 7 })).error).toBe(
+      "impact is a whole number from 1 to 5",
+    );
     expect(tables.session_decisions[0].impact).toBe(4);
   });
 
@@ -90,12 +163,18 @@ describe("ask: people, inbox, ladder, holder", () => {
       [BOSS, "pending"],
     ]);
     // Ladder: lead then head, both active, none skipped.
-    expect(row.hops.map((h: any) => h.role_id)).toEqual(["org_roles_lead", "org_roles_head"]);
+    expect(row.hops.map((h: any) => h.role_id)).toEqual([
+      "org_roles_lead",
+      "org_roles_head",
+    ]);
     expect(row.hops.every((h: any) => !h.note)).toBe(true);
     // No grant: the people hold it.
     expect(row.holder).toEqual({ kind: "user", id: HOST });
     expect(row.holder_key).toBe(`user:${HOST}`);
-    expect(row.scope_keys).toEqual(["role:org_roles_lead", "project:projects_p1"]);
+    expect(row.scope_keys).toEqual([
+      "role:org_roles_lead",
+      "project:projects_p1",
+    ]);
   });
 
   test("a paused role on the chain is recorded as a skipped hop", async () => {
@@ -108,7 +187,10 @@ describe("ask: people, inbox, ladder, holder", () => {
       ["org_roles_head", undefined],
     ]);
     expect(ladder.firstPersonId).toBe(BOSS);
-    expect(ladder.activeRoles.map((r) => String(r._id))).toEqual(["org_roles_lead", "org_roles_head"]);
+    expect(ladder.activeRoles.map((r) => String(r._id))).toEqual([
+      "org_roles_lead",
+      "org_roles_head",
+    ]);
   });
 
   test("a session with no role asks only its owners", async () => {
@@ -124,45 +206,108 @@ describe("ask: people, inbox, ladder, holder", () => {
   // owns. Its questions belong to the people who answer for the work, never
   // to the bot: nobody reads a bot's queue.
   const BOT = "users_bot" as any;
-  const botSeed = (rows: any[] = []) => seed({
-    projects: [{ _id: "projects_p1", team_id: TEAM, name: "P1" }],
-    session_decisions: rows,
-  });
+  const botSeed = (rows: any[] = []) =>
+    seed({
+      projects: [{ _id: "projects_p1", team_id: TEAM, name: "P1" }],
+      session_decisions: rows,
+    });
   function addBotSession(tables: any) {
     tables.users.push({ _id: BOT, name: "Aivery", is_bot: true });
-    tables.team_memberships.push({ _id: "m_bot", user_id: BOT, team_id: TEAM, role: "member" });
-    tables.conversations.push({ _id: "conversations_bot", session_id: "sess-bot", user_id: BOT, team_id: TEAM, message_count: 1 });
+    tables.team_memberships.push({
+      _id: "m_bot",
+      user_id: BOT,
+      team_id: TEAM,
+      role: "member",
+    });
+    tables.conversations.push({
+      _id: "conversations_bot",
+      session_id: "sess-bot",
+      user_id: BOT,
+      team_id: TEAM,
+      message_count: 1,
+    });
   }
 
   test("an agent account's session climbs the task's project lead line to a person", async () => {
     const { ctx, tables } = botSeed();
     addBotSession(tables);
-    const r = await askCore(ctx, { userId: BOT }, { session_id: "sess-bot", question: "Build this fix?", options: twoOptions, category: "approach", task: "ct-7" });
+    const r = await askCore(
+      ctx,
+      { userId: BOT },
+      {
+        session_id: "sess-bot",
+        question: "Build this fix?",
+        options: twoOptions,
+        category: "approach",
+        task: "ct-7",
+      },
+    );
     expect(r.error).toBeUndefined();
     const row = tables.session_decisions[0];
     expect(row.asked_user_ids).toEqual([BOSS]);
-    expect(row.hops.map((h: any) => h.role_id)).toEqual(["org_roles_lead", "org_roles_head"]);
+    expect(row.hops.map((h: any) => h.role_id)).toEqual([
+      "org_roles_lead",
+      "org_roles_head",
+    ]);
     expect(row.holder).toEqual({ kind: "user", id: BOSS });
   });
 
   test("an agent account's session with no line to follow asks the workspace admins", async () => {
     const { ctx, tables } = botSeed();
     addBotSession(tables);
-    const r = await askCore(ctx, { userId: BOT }, { session_id: "sess-bot", question: "Which way?", options: twoOptions, category: "approach" });
+    const r = await askCore(
+      ctx,
+      { userId: BOT },
+      {
+        session_id: "sess-bot",
+        question: "Which way?",
+        options: twoOptions,
+        category: "approach",
+      },
+    );
     expect(r.error).toBeUndefined();
     expect(tables.session_decisions[0].asked_user_ids).toEqual([HOST, BOSS]);
   });
 
   test("a question already held by an agent account reroutes to the line", async () => {
     const { ctx, tables } = botSeed([
-      { _id: "session_decisions_old", short_id: "sd-1", conversation_id: "conversations_bot", session_id: "sess-bot", user_id: BOT, question: "Build this fix?", options: twoOptions, kind: "single", category: "approach", status: "pending", task_id: "tasks_t1", asked_user_ids: [BOT], hops: [], holder: { kind: "user", id: BOT }, created_at: NOW },
+      {
+        _id: "session_decisions_old",
+        short_id: "sd-1",
+        conversation_id: "conversations_bot",
+        session_id: "sess-bot",
+        user_id: BOT,
+        question: "Build this fix?",
+        options: twoOptions,
+        kind: "single",
+        category: "approach",
+        status: "pending",
+        task_id: "tasks_t1",
+        asked_user_ids: [BOT],
+        hops: [],
+        holder: { kind: "user", id: BOT },
+        created_at: NOW,
+      },
     ]);
     addBotSession(tables);
-    tables.decision_inbox.push({ _id: "di_old", decision_id: "session_decisions_old", user_id: BOT, status: "pending", created_at: NOW });
-    await reroutePendingDecisionsForConversation(ctx, "conversations_bot" as any, NOW);
+    tables.decision_inbox.push({
+      _id: "di_old",
+      decision_id: "session_decisions_old",
+      user_id: BOT,
+      status: "pending",
+      created_at: NOW,
+    });
+    await reroutePendingDecisionsForConversation(
+      ctx,
+      "conversations_bot" as any,
+      NOW,
+    );
     const row = tables.session_decisions[0];
     expect(row.asked_user_ids).toEqual([BOSS]);
-    expect(row.hops.map((h: any) => h.role_id)).toEqual(["org_roles_lead", "org_roles_head"]);
+    expect(row.hops.map((h: any) => h.role_id)).toEqual([
+      "org_roles_lead",
+      "org_roles_head",
+    ]);
     expect(row.holder).toEqual({ kind: "user", id: BOSS });
     expect(tables.decision_inbox.map((i: any) => i.user_id)).toEqual([BOSS]);
   });
@@ -175,9 +320,15 @@ describe("ask: people, inbox, ladder, holder", () => {
     expect(row.asked_user_ids).toEqual([OWNER2]);
     expect(row.holder).toEqual({ kind: "user", id: OWNER2 });
     expect(tables.decision_inbox.map((i) => i.user_id)).toEqual([OWNER2]);
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual([row._id]);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([]);
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual(
+      [row._id],
+    );
+    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
   });
 
   test("a stale owner_user_id cache does not keep a standing session's questions on the runner", async () => {
@@ -187,7 +338,9 @@ describe("ask: people, inbox, ladder, holder", () => {
     expect(r.error).toBeUndefined();
     expect(tables.session_decisions[0].asked_user_ids).toEqual([OWNER2]);
     expect(tables.decision_inbox.map((i) => i.user_id)).toEqual([OWNER2]);
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([]);
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
   });
 
   test("a stale inbox row for someone no longer in asked_user_ids does not list", async () => {
@@ -195,36 +348,79 @@ describe("ask: people, inbox, ladder, holder", () => {
     const r = await askApproach(ctx, "sess-standing");
     expect(r.error).toBeUndefined();
     const id = tables.session_decisions[0]._id;
-    await ctx.db.insert("decision_inbox", { decision_id: id, user_id: HOST, status: "pending", created_at: NOW });
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual([id]);
+    await ctx.db.insert("decision_inbox", {
+      decision_id: id,
+      user_id: HOST,
+      status: "pending",
+      created_at: NOW,
+    });
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual(
+      [id],
+    );
   });
 
   test("assigning a standing session moves questions off the runner and the role parent", async () => {
     const { ctx, tables } = seed();
     await ctx.db.patch("conversations_standing", { owner_user_id: HOST });
-    for (const row of await ctx.db.query("session_owners").withIndex("by_conversation", (q: any) => q.eq("conversation_id", "conversations_standing")).collect()) {
+    for (const row of await ctx.db
+      .query("session_owners")
+      .withIndex("by_conversation", (q: any) =>
+        q.eq("conversation_id", "conversations_standing"),
+      )
+      .collect()) {
       await ctx.db.delete(row._id);
     }
-    await ctx.db.insert("session_owners", { _id: "so_stand_host", conversation_id: "conversations_standing", user_id: HOST, added_by: HOST, added_at: NOW });
+    await ctx.db.insert("session_owners", {
+      _id: "so_stand_host",
+      conversation_id: "conversations_standing",
+      user_id: HOST,
+      added_by: HOST,
+      added_at: NOW,
+    });
     const r = await askApproach(ctx, "sess-standing");
     expect(r.error).toBeUndefined();
     const id = tables.session_decisions[0]._id;
     expect(tables.session_decisions[0].asked_user_ids).toEqual([HOST]);
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([id]);
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([
+      id,
+    ]);
 
     await ctx.db.patch("conversations_standing", { owner_user_id: OWNER2 });
-    for (const row of await ctx.db.query("session_owners").withIndex("by_conversation", (q: any) => q.eq("conversation_id", "conversations_standing")).collect()) {
+    for (const row of await ctx.db
+      .query("session_owners")
+      .withIndex("by_conversation", (q: any) =>
+        q.eq("conversation_id", "conversations_standing"),
+      )
+      .collect()) {
       await ctx.db.delete(row._id);
     }
-    await ctx.db.insert("session_owners", { _id: "so_stand_new", conversation_id: "conversations_standing", user_id: OWNER2, added_by: HOST, added_at: NOW });
-    const moved = await reroutePendingDecisionsForConversation(ctx, "conversations_standing" as any, NOW);
+    await ctx.db.insert("session_owners", {
+      _id: "so_stand_new",
+      conversation_id: "conversations_standing",
+      user_id: OWNER2,
+      added_by: HOST,
+      added_at: NOW,
+    });
+    const moved = await reroutePendingDecisionsForConversation(
+      ctx,
+      "conversations_standing" as any,
+      NOW,
+    );
     expect(moved.moved).toBe(1);
     expect(tables.session_decisions[0].asked_user_ids).toEqual([OWNER2]);
     expect(tables.decision_inbox.map((i) => i.user_id)).toEqual([OWNER2]);
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual([id]);
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual(
+      [id],
+    );
   });
 
   test("assigning a session moves its open questions onto the new owner's stack", async () => {
@@ -232,37 +428,66 @@ describe("ask: people, inbox, ladder, holder", () => {
     const r = await askApproach(ctx);
     expect(r.error).toBeUndefined();
     const id = tables.session_decisions[0]._id;
-    expect(new Set(tables.session_decisions[0].asked_user_ids)).toEqual(new Set([HOST, OWNER2, BOSS]));
+    expect(new Set(tables.session_decisions[0].asked_user_ids)).toEqual(
+      new Set([HOST, OWNER2, BOSS]),
+    );
 
     // Hand the session to OWNER2: drop HOST from owners, clear the role
     // pointer (the same writes performReparentSession makes on a person target).
-    await ctx.db.patch("conversations_ask", { org_role_id: undefined, owner_user_id: OWNER2 });
-    for (const row of await ctx.db.query("session_owners").withIndex("by_conversation", (q: any) => q.eq("conversation_id", "conversations_ask")).collect()) {
+    await ctx.db.patch("conversations_ask", {
+      org_role_id: undefined,
+      owner_user_id: OWNER2,
+    });
+    for (const row of await ctx.db
+      .query("session_owners")
+      .withIndex("by_conversation", (q: any) =>
+        q.eq("conversation_id", "conversations_ask"),
+      )
+      .collect()) {
       if (row.user_id !== OWNER2) await ctx.db.delete(row._id);
     }
-    const moved = await reroutePendingDecisionsForConversation(ctx, "conversations_ask" as any, NOW);
+    const moved = await reroutePendingDecisionsForConversation(
+      ctx,
+      "conversations_ask" as any,
+      NOW,
+    );
     expect(moved.moved).toBe(1);
     expect(tables.session_decisions[0].asked_user_ids).toEqual([OWNER2]);
-    expect(tables.session_decisions[0].holder).toEqual({ kind: "user", id: OWNER2 });
-    expect(tables.decision_inbox.map((i) => [i.user_id, i.status])).toEqual([[OWNER2, "pending"]]);
-    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([]);
-    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual([id]);
+    expect(tables.session_decisions[0].holder).toEqual({
+      kind: "user",
+      id: OWNER2,
+    });
+    expect(tables.decision_inbox.map((i) => [i.user_id, i.status])).toEqual([
+      [OWNER2, "pending"],
+    ]);
+    expect((await listForUserCore(ctx, HOST, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
+    expect((await listForUserCore(ctx, OWNER2, NOW)).map((d) => d._id)).toEqual(
+      [id],
+    );
     expect(personMayResolve(tables.session_decisions[0], HOST)).toBe(false);
     expect(personMayResolve(tables.session_decisions[0], OWNER2)).toBe(true);
   });
 
   test("binds to a task (default station = the task's status) and creates a decision doc", async () => {
     const { ctx, tables } = seed();
-    const r = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Which schema wins?",
-      options: twoOptions,
-      context_md: "ctx",
-      category: "approach",
-      task: "ct-7",
-      doc_md: "# Long body\n\nwhy",
-    });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Which schema wins?",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        task: "ct-7",
+        doc_md: "# Long body\n\nwhy",
+      },
+    );
     expect(r.error).toBeUndefined();
     const row = tables.session_decisions[0];
     expect(row.task_id).toBe("tasks_t1");
@@ -276,13 +501,27 @@ describe("ask: people, inbox, ladder, holder", () => {
   test("listForUser reads the inbox and falls back to the owner index for legacy rows", async () => {
     const { ctx, tables } = seed({
       session_decisions: [
-        { _id: "session_decisions_legacy", conversation_id: "conversations_plain", session_id: "sess-plain", user_id: BOSS, question: "old", options: twoOptions, blocking: true, status: "pending", created_at: NOW - 1000 },
+        {
+          _id: "session_decisions_legacy",
+          conversation_id: "conversations_plain",
+          session_id: "sess-plain",
+          user_id: BOSS,
+          question: "old",
+          options: twoOptions,
+          blocking: true,
+          status: "pending",
+          created_at: NOW - 1000,
+        },
       ],
     });
     await askApproach(ctx);
-    const fresh = tables.session_decisions.find((r) => r._id !== "session_decisions_legacy")!._id;
+    const fresh = tables.session_decisions.find(
+      (r) => r._id !== "session_decisions_legacy",
+    )!._id;
     const forBoss = await listForUserCore(ctx, BOSS, NOW);
-    expect(forBoss.map((r) => r._id).sort()).toEqual([fresh, "session_decisions_legacy"].sort());
+    expect(forBoss.map((r) => r._id).sort()).toEqual(
+      [fresh, "session_decisions_legacy"].sort(),
+    );
     const forOwner2 = await listForUserCore(ctx, OWNER2, NOW);
     expect(forOwner2.map((r) => r._id)).toEqual([fresh]);
   });
@@ -292,24 +531,53 @@ describe("the race", () => {
   test("a role on the ladder recommends; a role off the ladder cannot", async () => {
     const { ctx, tables } = seed();
     await askApproach(ctx);
-    const r = await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", recommendation: 1, note: "cheaper" });
+    const r = await recommendCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-lead",
+        recommendation: 1,
+        note: "cheaper",
+      },
+    );
     expect(r.error).toBeUndefined();
-    expect(tables.session_decisions[0].hops[0]).toMatchObject({ role_id: "org_roles_lead", recommendation: 1, note: "cheaper" });
-    const off = await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-plain", recommendation: 0 });
+    expect(tables.session_decisions[0].hops[0]).toMatchObject({
+      role_id: "org_roles_lead",
+      recommendation: 1,
+      note: "cheaper",
+    });
+    const off = await recommendCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-plain", recommendation: 0 },
+    );
     expect(off.error).toContain("no role");
   });
 
   test("a role answers under a grant and the answer is delivered to the asking session", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "approach", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "approach",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
     const asked = await askApproach(ctx);
     const decisionId = asked.id;
     expect(asked.holder).toEqual({ kind: "role", id: "org_roles_lead" });
     expect(asked.grant_id).toBe("decision_grants_g1");
-    const r = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 });
+    const r = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 },
+    );
     expect(r.error).toBeUndefined();
     expect(r.answered_by).toEqual({ kind: "role", id: "org_roles_lead" });
     const row = tables.session_decisions[0];
@@ -318,7 +586,9 @@ describe("the race", () => {
     expect(row.grant_id).toBe("decision_grants_g1");
     expect(tables.decision_inbox.every((i) => i.status === "done")).toBe(true);
     // Delivered as the "Decision: …" user message into the ASKING conversation.
-    const msg = tables.pending_messages.find((m) => m.conversation_id === "conversations_ask");
+    const msg = tables.pending_messages.find(
+      (m) => m.conversation_id === "conversations_ask",
+    );
     expect(msg?.content).toContain("Decision: Switch to upstream");
     expect(msg?.content).toContain(`<cast-decision id="${decisionId}"`);
   });
@@ -327,15 +597,41 @@ describe("the race", () => {
     const { ctx, tables } = seed();
     await askApproach(ctx);
     // The asking session cannot answer its own question, even at its human's word.
-    const self = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-ask", for_human: true, answer_index: 0 });
+    const self = await answerCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-ask",
+        for_human: true,
+        answer_index: 0,
+      },
+    );
     expect(self.error).toContain("its own question");
     // Another of the human's sessions, told to answer: their answer, via that session.
-    const r = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-plain", for_human: true, answer_index: 1 });
+    const r = await answerCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-plain",
+        for_human: true,
+        answer_index: 1,
+      },
+    );
     expect(r.error).toBeUndefined();
-    expect(r.answered_by).toEqual({ kind: "user", id: HOST, via: "conversations_plain" });
+    expect(r.answered_by).toEqual({
+      kind: "user",
+      id: HOST,
+      via: "conversations_plain",
+    });
     const row = tables.session_decisions[0];
     expect(row.status).toBe("answered");
-    expect(row.answered_by).toEqual({ kind: "user", id: HOST, via: "conversations_plain" });
+    expect(row.answered_by).toEqual({
+      kind: "user",
+      id: HOST,
+      via: "conversations_plain",
+    });
     expect(row.resolved_by).toBe(HOST);
   });
 
@@ -343,8 +639,23 @@ describe("the race", () => {
     const { ctx, tables } = seed();
     await askApproach(ctx);
     tables.users.push({ _id: "users_bot", name: "Aivery", is_bot: true });
-    tables.conversations.push({ _id: "conversations_botrun", session_id: "sess-botrun", user_id: "users_bot", team_id: TEAM, message_count: 1 });
-    const r = await answerCore(ctx, { userId: "users_bot" as any }, { decision_id: "sd-1", session_id: "sess-botrun", for_human: true, answer_index: 0 });
+    tables.conversations.push({
+      _id: "conversations_botrun",
+      session_id: "sess-botrun",
+      user_id: "users_bot",
+      team_id: TEAM,
+      message_count: 1,
+    });
+    const r = await answerCore(
+      ctx,
+      { userId: "users_bot" as any },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-botrun",
+        for_human: true,
+        answer_index: 0,
+      },
+    );
     expect(r.error).toContain("agent account");
     expect(tables.session_decisions[0].status).toBe("pending");
   });
@@ -353,22 +664,42 @@ describe("the race", () => {
     const { ctx, tables } = seed();
     await askApproach(ctx);
     // The asking session itself (its host is in asked_user_ids, and it holds the host's token).
-    const self = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-ask", answer_index: 0 });
+    const self = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-ask", answer_index: 0 },
+    );
     expect(self.error).toContain("does not hold this decision");
     // The lead's session with no grant: it speaks for a role that does not hold the row.
-    const lead = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 0 });
+    const lead = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-lead", answer_index: 0 },
+    );
     expect(lead.error).toContain("does not hold this decision");
     // A session with no role at all.
-    const plain = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-plain", answer_index: 0 });
+    const plain = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-plain", answer_index: 0 },
+    );
     expect(plain.error).toBe(SESSION_CANNOT_ANSWER_AS_PERSON);
     expect(tables.session_decisions[0].status).toBe("pending");
     // The same person from a plain shell (no session) answers.
-    const shell = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", answer_index: 0 });
+    const shell = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
     expect(shell.answered_by).toEqual({ kind: "user", id: HOST });
     // A stranger is refused outright.
     const { ctx: ctx2 } = seed();
     await askApproach(ctx2);
-    const s = await answerCore(ctx2, { userId: "users_stranger" as any }, { decision_id: "sd-1", answer_index: 0 });
+    const s = await answerCore(
+      ctx2,
+      { userId: "users_stranger" as any },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
     expect(s.error).toContain("not your decision");
   });
 
@@ -376,34 +707,70 @@ describe("the race", () => {
     const MATE = "users_mate" as any;
     const { ctx, tables } = seed();
     tables.users.push({ _id: MATE, name: "Mate" });
-    tables.team_memberships.push({ _id: "m3", user_id: MATE, team_id: TEAM, role: "member" });
+    tables.team_memberships.push({
+      _id: "m3",
+      user_id: MATE,
+      team_id: TEAM,
+      role: "member",
+    });
     // The asking session is shared with the team, so the teammate reads it.
-    Object.assign(tables.conversations.find((c: any) => c._id === "conversations_ask"), { is_private: false, team_visibility: "full" });
+    Object.assign(
+      tables.conversations.find((c: any) => c._id === "conversations_ask"),
+      { is_private: false, team_visibility: "full" },
+    );
     await askApproach(ctx);
     const row = tables.session_decisions[0];
     expect(row.asked_user_ids.map(String)).not.toContain(MATE);
     expect(await userMayRead(ctx, MATE, row)).toBe(true);
-    const r = await answerCore(ctx, { userId: MATE }, { decision_id: "sd-1", answer_index: 1 });
+    const r = await answerCore(
+      ctx,
+      { userId: MATE },
+      { decision_id: "sd-1", answer_index: 1 },
+    );
     expect(r.answered_by).toEqual({ kind: "user", id: MATE });
-    const notes = (tables.notifications ?? []).filter((n: any) => n.type === "decision_answered_for_you");
-    expect(notes.map((n: any) => String(n.recipient_user_id)).sort()).toEqual(row.asked_user_ids.map(String).sort());
+    const notes = (tables.notifications ?? []).filter(
+      (n: any) => n.type === "decision_answered_for_you",
+    );
+    expect(notes.map((n: any) => String(n.recipient_user_id)).sort()).toEqual(
+      row.asked_user_ids.map(String).sort(),
+    );
     expect(notes[0].actor_user_id).toBe(MATE);
     expect(notes[0].message).toContain("Switch to upstream");
     expect(notes[0].link).toBe(`/decisions/${row.short_id}`);
     // One of its people answering is no news to anyone.
     const { ctx: ctx2, tables: t2 } = seed();
     await askApproach(ctx2);
-    await answerCore(ctx2, { userId: HOST }, { decision_id: "sd-1", answer_index: 0 });
-    expect((t2.notifications ?? []).filter((n: any) => n.type === "decision_answered_for_you")).toHaveLength(0);
+    await answerCore(
+      ctx2,
+      { userId: HOST },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
+    expect(
+      (t2.notifications ?? []).filter(
+        (n: any) => n.type === "decision_answered_for_you",
+      ),
+    ).toHaveLength(0);
   });
 
   test("a line run's change card: the lead on its ladder answers it without a grant, in any category, while its switch is on", async () => {
-    const card = (tables: any) => Object.assign(tables.session_decisions[0], { workflow_run_id: "workflow_runs_1", gate_node_id: "decide", category: "production", holder: { kind: "user", id: HOST } });
+    const card = (tables: any) =>
+      Object.assign(tables.session_decisions[0], {
+        workflow_run_id: "workflow_runs_1",
+        gate_node_id: "decide",
+        category: "production",
+        holder: { kind: "user", id: HOST },
+      });
     const { ctx, tables } = seed();
     await askApproach(ctx);
     card(tables);
-    expect((tables.session_decisions[0].hops ?? []).map((h: any) => h.role_id)).toContain("org_roles_lead");
-    const r = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 });
+    expect(
+      (tables.session_decisions[0].hops ?? []).map((h: any) => h.role_id),
+    ).toContain("org_roles_lead");
+    const r = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 },
+    );
     expect(r.error).toBeUndefined();
     expect(r.answered_by).toEqual({ kind: "role", id: "org_roles_lead" });
     // With its switch off, the lead holds nothing it did not hold before.
@@ -411,33 +778,69 @@ describe("the race", () => {
     t2.org_roles[0].trust = "understand";
     await askApproach(ctx2);
     card(t2);
-    expect((await answerCore(ctx2, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 })).error).toContain("does not hold this decision");
+    expect(
+      (
+        await answerCore(
+          ctx2,
+          { userId: HOST },
+          { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 },
+        )
+      ).error,
+    ).toContain("does not hold this decision");
     expect(t2.session_decisions[0].status).toBe("pending");
   });
 
   test("a role session whose switch is off cannot answer even under a grant", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "approach", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "approach",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
     tables.org_roles[0].trust = "understand";
     await askApproach(ctx);
-    const r = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 });
+    const r = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 },
+    );
     expect(r.error).toContain("does not start work on its own");
   });
 
   test("a person's answer wins the race: the second writer sees already_resolved", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "approach", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "approach",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
     await askApproach(ctx);
-    const human = await answerCore(ctx, { userId: BOSS }, { decision_id: "sd-1", answer_index: 0 });
+    const human = await answerCore(
+      ctx,
+      { userId: BOSS },
+      { decision_id: "sd-1", answer_index: 0 },
+    );
     expect(human.already_resolved).toBe(false);
     expect(human.answered_by).toEqual({ kind: "user", id: BOSS });
-    const role = await answerCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 });
+    const role = await answerCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-lead", answer_index: 1 },
+    );
     expect(role.error).toContain("already answered");
     expect(tables.session_decisions[0].answer_index).toBe(0);
     expect(tables.pending_messages).toHaveLength(1);
@@ -446,16 +849,28 @@ describe("the race", () => {
   test("a protected category never resolves to a role, even with a grant row", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "production", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "production",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
-    const r = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Ship it?",
-      options: [{ label: "Deploy to production" }, { label: "Wait" }],
-      context_md: "ctx",
-      category: "production",
-    });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Ship it?",
+        options: [{ label: "Deploy to production" }, { label: "Wait" }],
+        context_md: "ctx",
+        category: "production",
+      },
+    );
     expect(r.category).toBe("production");
     expect(tables.session_decisions[0].holder.kind).toBe("user");
   });
@@ -463,18 +878,36 @@ describe("the race", () => {
   test("the card's words never pick the category: a deletion with no proposal is review, and a granted role holds it", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "review", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "review",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
-    const r = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Clear out the test rows?",
-      options: [{ label: "Delete the old rows in production" }, { label: "Keep them" }],
-      context_md: "They cost $4.50 a month.",
-    });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Clear out the test rows?",
+        options: [
+          { label: "Delete the old rows in production" },
+          { label: "Keep them" },
+        ],
+        context_md: "They cost $4.50 a month.",
+      },
+    );
     expect(r.category).toBe("review");
     expect(tables.session_decisions[0].category_proposed).toBeUndefined();
-    expect(tables.session_decisions[0].holder).toEqual({ kind: "role", id: "org_roles_lead" });
+    expect(tables.session_decisions[0].holder).toEqual({
+      kind: "role",
+      id: "org_roles_lead",
+    });
   });
 });
 
@@ -482,28 +915,60 @@ describe("grants", () => {
   // Three answered decisions of one category in one scope where the lead's
   // recommendation was picked, from two different askers.
   async function earn(ctx: any) {
-    for (const [i, session] of ["sess-ask", "sess-ask2", "sess-ask"].entries()) {
+    for (const [i, session] of [
+      "sess-ask",
+      "sess-ask2",
+      "sess-ask",
+    ].entries()) {
       const a = await askApproach(ctx, session, `Question ${i}`);
-      await recommendCore(ctx, { userId: HOST }, { decision_id: a.short_id, session_id: "sess-lead", recommendation: 1 });
-      await answerCore(ctx, { userId: BOSS }, { decision_id: a.short_id, answer_index: 1 });
+      await recommendCore(
+        ctx,
+        { userId: HOST },
+        { decision_id: a.short_id, session_id: "sess-lead", recommendation: 1 },
+      );
+      await answerCore(
+        ctx,
+        { userId: BOSS },
+        { decision_id: a.short_id, answer_index: 1 },
+      );
     }
   }
 
   test("agreement history counts agreements and distinct askers", async () => {
     const { ctx } = seed();
     await earn(ctx);
-    const h = await agreementHistory(ctx, "org_roles_lead" as any, "approach", "role:org_roles_lead", Date.now());
+    const h = await agreementHistory(
+      ctx,
+      "org_roles_lead" as any,
+      "approach",
+      "role:org_roles_lead",
+      Date.now(),
+    );
     expect(h).toEqual({ agreements: 3, askers: 2, eligible: true });
-    const other = await agreementHistory(ctx, "org_roles_head" as any, "approach", "role:org_roles_lead", Date.now());
+    const other = await agreementHistory(
+      ctx,
+      "org_roles_head" as any,
+      "approach",
+      "role:org_roles_lead",
+      Date.now(),
+    );
     expect(other.eligible).toBe(false);
   });
 
   test("grant refuses until earned unless forced; once granted, new asks are held by the role", async () => {
     const { ctx, tables } = seed();
-    const early = await grantCore(ctx, BOSS, { role_id: "org_roles_lead" as any, category: "approach", scope_key: "role:org_roles_lead" });
+    const early = await grantCore(ctx, BOSS, {
+      role_id: "org_roles_lead" as any,
+      category: "approach",
+      scope_key: "role:org_roles_lead",
+    });
     expect(early.error).toContain("Not earned yet");
     await earn(ctx);
-    const g = await grantCore(ctx, BOSS, { role_id: "org_roles_lead" as any, category: "approach", scope_key: "role:org_roles_lead" });
+    const g = await grantCore(ctx, BOSS, {
+      role_id: "org_roles_lead" as any,
+      category: "approach",
+      scope_key: "role:org_roles_lead",
+    });
     expect(g.error).toBeUndefined();
     expect(g.forced).toBe(false);
     const next = await askApproach(ctx, "sess-ask", "A fourth question");
@@ -513,34 +978,91 @@ describe("grants", () => {
 
   test("a human only category cannot be granted", async () => {
     const { ctx } = seed();
-    const r = await grantCore(ctx, BOSS, { role_id: "org_roles_lead" as any, category: "billing", scope_key: "role:org_roles_lead", force: true });
+    const r = await grantCore(ctx, BOSS, {
+      role_id: "org_roles_lead" as any,
+      category: "billing",
+      scope_key: "role:org_roles_lead",
+      force: true,
+    });
     expect(r.error).toContain("always held by a person");
   });
 
   test("two consecutive overrides revoke the grant", async () => {
-    const grant = { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "approach", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS, override_streak: 0 };
+    const grant = {
+      _id: "decision_grants_g1",
+      role_id: "org_roles_lead",
+      category: "approach",
+      scope_key: "role:org_roles_lead",
+      granted_by: BOSS,
+      granted_at: NOW,
+      expires_at: Date.now() + GRANT_TTL_MS,
+      override_streak: 0,
+    };
     const { ctx, tables } = seed({ decision_grants: [grant] });
     // Two reopened rows (a person reopened what the role answered with option 1).
     for (const n of [1, 2]) {
       const a = await askApproach(ctx, "sess-ask", `Reopened ${n}`);
-      await ctx.db.patch(a.id, { reopened_from: { grant_id: "decision_grants_g1", answer_index: 1, at: NOW }, holder: { kind: "user", id: BOSS }, holder_key: `user:${BOSS}` });
+      await ctx.db.patch(a.id, {
+        reopened_from: {
+          grant_id: "decision_grants_g1",
+          answer_index: 1,
+          at: NOW,
+        },
+        holder: { kind: "user", id: BOSS },
+        holder_key: `user:${BOSS}`,
+      });
     }
     const first = tables.session_decisions[0];
-    await finalizeAnswer(ctx, first, { status: "answered", answer_index: 0 }, { kind: "user", id: BOSS, user_id: BOSS }, { deliver: false, now: NOW });
+    await finalizeAnswer(
+      ctx,
+      first,
+      { status: "answered", answer_index: 0 },
+      { kind: "user", id: BOSS, user_id: BOSS },
+      { deliver: false, now: NOW },
+    );
     expect(tables.decision_grants[0].override_streak).toBe(1);
     expect(tables.decision_grants[0].revoked_at).toBeUndefined();
     const second = tables.session_decisions[1];
-    await finalizeAnswer(ctx, second, { status: "answered", answer_index: 0 }, { kind: "user", id: BOSS, user_id: BOSS }, { deliver: false, now: NOW });
+    await finalizeAnswer(
+      ctx,
+      second,
+      { status: "answered", answer_index: 0 },
+      { kind: "user", id: BOSS, user_id: BOSS },
+      { deliver: false, now: NOW },
+    );
     expect(tables.decision_grants[0].revoked_at).toBe(NOW);
-    expect(tables.decision_grants[0].revoked_reason).toContain("overridden 2 times");
+    expect(tables.decision_grants[0].revoked_reason).toContain(
+      "overridden 2 times",
+    );
   });
 
   test("an agreement after an override resets the streak", async () => {
-    const grant = { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "approach", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS, override_streak: 1 };
+    const grant = {
+      _id: "decision_grants_g1",
+      role_id: "org_roles_lead",
+      category: "approach",
+      scope_key: "role:org_roles_lead",
+      granted_by: BOSS,
+      granted_at: NOW,
+      expires_at: Date.now() + GRANT_TTL_MS,
+      override_streak: 1,
+    };
     const { ctx, tables } = seed({ decision_grants: [grant] });
     const a = await askApproach(ctx);
-    await ctx.db.patch(a.id, { reopened_from: { grant_id: "decision_grants_g1", answer_index: 1, at: NOW } });
-    await finalizeAnswer(ctx, tables.session_decisions[0], { status: "answered", answer_index: 1 }, { kind: "user", id: BOSS, user_id: BOSS }, { deliver: false, now: NOW });
+    await ctx.db.patch(a.id, {
+      reopened_from: {
+        grant_id: "decision_grants_g1",
+        answer_index: 1,
+        at: NOW,
+      },
+    });
+    await finalizeAnswer(
+      ctx,
+      tables.session_decisions[0],
+      { status: "answered", answer_index: 1 },
+      { kind: "user", id: BOSS, user_id: BOSS },
+      { deliver: false, now: NOW },
+    );
     expect(tables.decision_grants[0].override_streak).toBe(0);
   });
 });
@@ -548,42 +1070,73 @@ describe("grants", () => {
 describe("stacks", () => {
   test("create, append via ask --stack, and auto default the advisory members after the deadline", async () => {
     const { ctx, tables } = seed();
-    const s = await createStackCore(ctx, HOST, { title: "Launch checklist", session_id: "sess-ask", policy: { auto_default_after_ms: 60_000 } });
+    const s = await createStackCore(ctx, HOST, {
+      title: "Launch checklist",
+      session_id: "sess-ask",
+      policy: { auto_default_after_ms: 60_000 },
+    });
     expect(s.short_id).toBe("ds-1");
     expect(tables.decision_stacks[0].team_id).toBe(TEAM);
-    const advisory = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Advisory one",
-      options: twoOptions,
-      context_md: "ctx",
-      category: "approach",
-      blocking: false,
-      default_option: 1,
-      stack: "ds-1",
-    });
-    const blocking = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Blocking one",
-      options: twoOptions,
-      context_md: "ctx",
-      category: "approach",
-      stack: "ds-1",
-    });
-    expect(tables.decision_stacks[0].decision_ids).toEqual([advisory.id, blocking.id]);
+    const advisory = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Advisory one",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        blocking: false,
+        default_option: 1,
+        stack: "ds-1",
+      },
+    );
+    const blocking = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Blocking one",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        stack: "ds-1",
+      },
+    );
+    expect(tables.decision_stacks[0].decision_ids).toEqual([
+      advisory.id,
+      blocking.id,
+    ]);
     expect(tables.session_decisions[0].scope_keys).toContain(`stack:${s.id}`);
 
     // Before the deadline nothing happens.
     const created = tables.session_decisions[0].created_at;
-    expect((await applyAutoDefaultsCore(ctx, created + 10_000)).answered).toBe(0);
+    expect((await applyAutoDefaultsCore(ctx, created + 10_000)).answered).toBe(
+      0,
+    );
     // After it, the advisory member answers with its default; the blocking one never does.
-    expect((await applyAutoDefaultsCore(ctx, created + 61_000)).answered).toBe(1);
-    expect(tables.session_decisions[0]).toMatchObject({ status: "answered", answer_index: 1, answered_by: { kind: "policy", id: `stack:${s.id}` } });
+    expect((await applyAutoDefaultsCore(ctx, created + 61_000)).answered).toBe(
+      1,
+    );
+    expect(tables.session_decisions[0]).toMatchObject({
+      status: "answered",
+      answer_index: 1,
+      answered_by: { kind: "policy", id: `stack:${s.id}` },
+    });
     expect(tables.session_decisions[1].status).toBe("pending");
     expect(tables.decision_stacks[0].status).toBe("open");
-    expect(tables.pending_messages.some((m) => m.content.includes("Decision: Switch to upstream"))).toBe(true);
+    expect(
+      tables.pending_messages.some((m) =>
+        m.content.includes("Decision: Switch to upstream"),
+      ),
+    ).toBe(true);
 
     // Resolving the last member closes the stack.
-    await answerCore(ctx, { userId: BOSS }, { decision_id: blocking.short_id, answer_index: 0 });
+    await answerCore(
+      ctx,
+      { userId: BOSS },
+      { decision_id: blocking.short_id, answer_index: 0 },
+    );
     expect(tables.decision_stacks[0].status).toBe("done");
   });
 
@@ -612,32 +1165,134 @@ describe("stacks", () => {
 
   test("delegating a stack grants the role every open category and hands it the pending members", async () => {
     const { ctx, tables } = seed();
-    const s = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q1", options: twoOptions, context_md: "ctx", category: "scope", stack: s.short_id });
-    const d = await delegateStack(ctx, HOST, tables.decision_stacks[0], "org_roles_lead" as any, NOW);
+    const s = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q1",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "scope",
+        stack: s.short_id,
+      },
+    );
+    const d = await delegateStack(
+      ctx,
+      HOST,
+      tables.decision_stacks[0],
+      "org_roles_lead" as any,
+      NOW,
+    );
     expect(d.grants_created).toBe(6);
-    expect(tables.decision_grants.every((g) => g.scope_key === `stack:${s.id}`)).toBe(true);
-    expect(tables.session_decisions[0].holder).toEqual({ kind: "role", id: "org_roles_lead" });
+    expect(
+      tables.decision_grants.every((g) => g.scope_key === `stack:${s.id}`),
+    ).toBe(true);
+    expect(tables.session_decisions[0].holder).toEqual({
+      kind: "role",
+      id: "org_roles_lead",
+    });
     // A protected member stays with the people.
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q2", options: [{ label: "Delete the table" }, { label: "Keep" }], context_md: "ctx", category: "data", stack: s.short_id });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q2",
+        options: [{ label: "Delete the table" }, { label: "Keep" }],
+        context_md: "ctx",
+        category: "data",
+        stack: s.short_id,
+      },
+    );
     expect(tables.session_decisions[1].holder.kind).toBe("user");
   });
 });
 
 describe("answer kinds", () => {
-  const base = { _id: "x", options: [{ label: "A" }, { label: "B" }, { label: "C" }], status: "pending" } as any;
+  const base = {
+    _id: "x",
+    options: [{ label: "A" }, { label: "B" }, { label: "C" }],
+    status: "pending",
+  } as any;
   test("multi and rank validate lists; form validates fields", () => {
-    expect(normalizeVerdict({ ...base, kind: "multi" }, { status: "answered", answer_json: [0, 2] })).toEqual({ status: "answered", answer_json: [0, 2], answer_index: 0, answer_text: undefined });
-    expect(normalizeVerdict({ ...base, kind: "rank" }, { status: "answered", answer_json: [1, 1] })).toEqual({ error: "an option index repeats" });
-    expect(normalizeVerdict({ ...base, kind: "single" }, { status: "answered", answer_index: 5 })).toEqual({ error: "answer_index out of range" });
-    const form = { ...base, kind: "form", form: { fields: [{ key: "env", label: "Env", type: "select", options: ["dev", "prod"] }] } };
-    expect(normalizeVerdict(form, { status: "answered", answer_json: { env: "staging" } })).toEqual({ error: "form field env must be one of: dev, prod" });
-    expect(normalizeVerdict(form, { status: "answered", answer_json: { env: "prod" } })).toEqual({ status: "answered", answer_json: { env: "prod" }, answer_text: undefined });
+    expect(
+      normalizeVerdict(
+        { ...base, kind: "multi" },
+        { status: "answered", answer_json: [0, 2] },
+      ),
+    ).toEqual({
+      status: "answered",
+      answer_json: [0, 2],
+      answer_index: 0,
+      answer_text: undefined,
+    });
+    expect(
+      normalizeVerdict(
+        { ...base, kind: "rank" },
+        { status: "answered", answer_json: [1, 1] },
+      ),
+    ).toEqual({ error: "an option index repeats" });
+    expect(
+      normalizeVerdict(
+        { ...base, kind: "single" },
+        { status: "answered", answer_index: 5 },
+      ),
+    ).toEqual({ error: "answer_index out of range" });
+    const form = {
+      ...base,
+      kind: "form",
+      form: {
+        fields: [
+          {
+            key: "env",
+            label: "Env",
+            type: "select",
+            options: ["dev", "prod"],
+          },
+        ],
+      },
+    };
+    expect(
+      normalizeVerdict(form, {
+        status: "answered",
+        answer_json: { env: "staging" },
+      }),
+    ).toEqual({ error: "form field env must be one of: dev, prod" });
+    expect(
+      normalizeVerdict(form, {
+        status: "answered",
+        answer_json: { env: "prod" },
+      }),
+    ).toEqual({
+      status: "answered",
+      answer_json: { env: "prod" },
+      answer_text: undefined,
+    });
   });
   test("the delivered line renders per kind", () => {
-    expect(answerLabel({ kind: "multi", options: base.options }, { status: "answered", answer_json: [0, 2] })).toBe("A, C");
-    expect(answerLabel({ kind: "rank", options: base.options }, { status: "answered", answer_json: [2, 0] })).toBe("C > A");
-    expect(answerLabel({ kind: "form", options: [] }, { status: "answered", answer_json: { env: "prod", n: 3 } })).toBe("env=prod; n=3");
+    expect(
+      answerLabel(
+        { kind: "multi", options: base.options },
+        { status: "answered", answer_json: [0, 2] },
+      ),
+    ).toBe("A, C");
+    expect(
+      answerLabel(
+        { kind: "rank", options: base.options },
+        { status: "answered", answer_json: [2, 0] },
+      ),
+    ).toBe("C > A");
+    expect(
+      answerLabel(
+        { kind: "form", options: [] },
+        { status: "answered", answer_json: { env: "prod", n: 3 } },
+      ),
+    ).toBe("env=prod; n=3");
   });
 });
 
@@ -653,45 +1308,155 @@ describe("web resolution (dispatch patch)", () => {
 
   test("a web answer carries the same side effects as a server answer", async () => {
     const { ctx, tables } = seed();
-    const s = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
-    const a = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q", options: twoOptions, context_md: "ctx", category: "approach", stack: s.short_id });
+    const s = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
+    const a = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        stack: s.short_id,
+      },
+    );
     const before = { ...tables.session_decisions[0] };
     // The dispatch patch itself, then the settle hook with the pre-patch row.
-    await ctx.db.patch(a.id, { status: "answered", answer_index: 1, resolved_at: NOW });
-    await settleClientResolution(ctx, before as any, { status: "answered", answer_index: 1 }, BOSS, NOW);
+    await ctx.db.patch(a.id, {
+      status: "answered",
+      answer_index: 1,
+      resolved_at: NOW,
+    });
+    await settleClientResolution(
+      ctx,
+      before as any,
+      { status: "answered", answer_index: 1 },
+      BOSS,
+      NOW,
+    );
     expect(tables.decision_inbox.every((i) => i.status === "done")).toBe(true);
     expect(tables.decision_stacks[0].status).toBe("done");
-    expect(tables.session_decisions[0].answered_by).toEqual({ kind: "user", id: BOSS });
+    expect(tables.session_decisions[0].answered_by).toEqual({
+      kind: "user",
+      id: BOSS,
+    });
     expect(tables.pending_messages).toHaveLength(0); // the client sent the message itself
   });
 });
 
 describe("review wave 1 regressions", () => {
   test("dispatch guard: a resolution patch on a row that is no longer pending is dropped whole", () => {
-    expect(guardClientResolution({ status: "answered" }, { status: "answered", answer_index: 0, resolved_at: 1 })).toEqual({});
-    expect(guardClientResolution({ status: "answered" }, { updated_at: 5 })).toEqual({ updated_at: 5 });
-    expect(guardClientResolution({ status: "pending" }, { status: "answered", answer_index: 1 })).toEqual({ status: "answered", answer_index: 1 });
+    expect(
+      guardClientResolution(
+        { status: "answered" },
+        { status: "answered", answer_index: 0, resolved_at: 1 },
+      ),
+    ).toEqual({});
+    expect(
+      guardClientResolution({ status: "answered" }, { updated_at: 5 }),
+    ).toEqual({ updated_at: 5 });
+    expect(
+      guardClientResolution(
+        { status: "pending" },
+        { status: "answered", answer_index: 1 },
+      ),
+    ).toEqual({ status: "answered", answer_index: 1 });
   });
 
   test("dispatch guard: an answered advisory ask still takes a person's new answer, never a dismiss", () => {
     const patch = { status: "answered", answer_index: 1, resolved_at: 2 };
-    expect(guardClientResolution({ status: "answered", blocking: false, answered_by: { kind: "policy" } }, patch)).toEqual(patch);
-    expect(guardClientResolution({ status: "answered", blocking: false, answered_by: { kind: "user" } }, patch)).toEqual(patch);
-    expect(guardClientResolution({ status: "answered", blocking: false, answered_by: { kind: "user" } }, { status: "dismissed", resolved_at: 2 })).toEqual({});
-    expect(guardClientResolution({ status: "answered", blocking: true, answered_by: { kind: "user" } }, patch)).toEqual({});
-    expect(guardClientResolution({ status: "answered", blocking: false, answered_by: { kind: "role" } }, patch)).toEqual({});
-    expect(guardClientResolution({ status: "answered", blocking: false, workflow_run_id: "workflow_runs_1", answered_by: { kind: "user" } }, patch)).toEqual({});
-    expect(guardClientResolution({ status: "withdrawn", blocking: false }, patch)).toEqual({});
+    expect(
+      guardClientResolution(
+        {
+          status: "answered",
+          blocking: false,
+          answered_by: { kind: "policy" },
+        },
+        patch,
+      ),
+    ).toEqual(patch);
+    expect(
+      guardClientResolution(
+        { status: "answered", blocking: false, answered_by: { kind: "user" } },
+        patch,
+      ),
+    ).toEqual(patch);
+    expect(
+      guardClientResolution(
+        { status: "answered", blocking: false, answered_by: { kind: "user" } },
+        { status: "dismissed", resolved_at: 2 },
+      ),
+    ).toEqual({});
+    expect(
+      guardClientResolution(
+        { status: "answered", blocking: true, answered_by: { kind: "user" } },
+        patch,
+      ),
+    ).toEqual({});
+    expect(
+      guardClientResolution(
+        { status: "answered", blocking: false, answered_by: { kind: "role" } },
+        patch,
+      ),
+    ).toEqual({});
+    expect(
+      guardClientResolution(
+        {
+          status: "answered",
+          blocking: false,
+          workflow_run_id: "workflow_runs_1",
+          answered_by: { kind: "user" },
+        },
+        patch,
+      ),
+    ).toEqual({});
+    expect(
+      guardClientResolution({ status: "withdrawn", blocking: false }, patch),
+    ).toEqual({});
   });
 
   test("changing an advisory answer stamps who answered last and runs no side effects again", async () => {
     const { ctx, tables } = seed();
-    const a = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q", options: twoOptions, context_md: "ctx", category: "approach", blocking: false, default_option: 0 });
-    await ctx.db.patch(a.id, { status: "answered", answer_index: 0, resolved_at: NOW, answered_by: { kind: "policy", id: "stack:x" } });
+    const a = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        blocking: false,
+        default_option: 0,
+      },
+    );
+    await ctx.db.patch(a.id, {
+      status: "answered",
+      answer_index: 0,
+      resolved_at: NOW,
+      answered_by: { kind: "policy", id: "stack:x" },
+    });
     const before = { ...tables.session_decisions[0] };
-    await ctx.db.patch(a.id, { status: "answered", answer_index: 1, resolved_at: NOW + 5 });
-    await settleClientResolution(ctx, before as any, { status: "answered", answer_index: 1 }, BOSS, NOW + 5);
-    expect(tables.session_decisions[0].answered_by).toEqual({ kind: "user", id: BOSS });
+    await ctx.db.patch(a.id, {
+      status: "answered",
+      answer_index: 1,
+      resolved_at: NOW + 5,
+    });
+    await settleClientResolution(
+      ctx,
+      before as any,
+      { status: "answered", answer_index: 1 },
+      BOSS,
+      NOW + 5,
+    );
+    expect(tables.session_decisions[0].answered_by).toEqual({
+      kind: "user",
+      id: BOSS,
+    });
     expect(tables.session_decisions[0].answer_index).toBe(1);
     expect(tables.pending_messages).toHaveLength(0);
   });
@@ -700,55 +1465,168 @@ describe("review wave 1 regressions", () => {
     const STRANGER = "users_stranger" as any;
     const { ctx } = seed({
       conversations: [
-        { _id: "conversations_ask", session_id: "sess-ask", user_id: HOST, team_id: TEAM, message_count: 10, org_role_id: "org_roles_lead" },
-        { _id: "conversations_str", session_id: "sess-str", user_id: STRANGER, message_count: 1 },
+        {
+          _id: "conversations_ask",
+          session_id: "sess-ask",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 10,
+          org_role_id: "org_roles_lead",
+        },
+        {
+          _id: "conversations_str",
+          session_id: "sess-str",
+          user_id: STRANGER,
+          message_count: 1,
+        },
       ],
     });
-    const s = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q", options: twoOptions, context_md: "ctx", category: "approach", stack: s.short_id, task: "ct-7" });
-    const byStack = await listForSessionCore(ctx, { userId: STRANGER }, { session_id: "sess-str", stack: s.short_id });
+    const s = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        stack: s.short_id,
+        task: "ct-7",
+      },
+    );
+    const byStack = await listForSessionCore(
+      ctx,
+      { userId: STRANGER },
+      { session_id: "sess-str", stack: s.short_id },
+    );
     expect(byStack.error).toContain("not accessible");
-    const byTask = await listForSessionCore(ctx, { userId: STRANGER }, { session_id: "sess-str", task: "ct-7" });
+    const byTask = await listForSessionCore(
+      ctx,
+      { userId: STRANGER },
+      { session_id: "sess-str", task: "ct-7" },
+    );
     expect(byTask.error).toContain("not accessible");
-    const own = await listForSessionCore(ctx, { userId: HOST }, { session_id: "sess-ask", stack: s.short_id });
+    const own = await listForSessionCore(
+      ctx,
+      { userId: HOST },
+      { session_id: "sess-ask", stack: s.short_id },
+    );
     expect(own.decisions).toHaveLength(1);
   });
 
   test("listForSession --task lists a task's decisions with no session, so cast task show works from a plain shell", async () => {
     const { ctx } = seed({
       conversations: [
-        { _id: "conversations_ask", session_id: "sess-ask", user_id: HOST, team_id: TEAM, message_count: 10, org_role_id: "org_roles_lead" },
+        {
+          _id: "conversations_ask",
+          session_id: "sess-ask",
+          user_id: HOST,
+          team_id: TEAM,
+          message_count: 10,
+          org_role_id: "org_roles_lead",
+        },
       ],
     });
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q", options: twoOptions, context_md: "ctx", category: "approach", task: "ct-7" });
-    const noSession = await listForSessionCore(ctx, { userId: HOST }, { task: "ct-7" });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        task: "ct-7",
+      },
+    );
+    const noSession = await listForSessionCore(
+      ctx,
+      { userId: HOST },
+      { task: "ct-7" },
+    );
     expect(noSession.decisions).toHaveLength(1);
     expect(noSession.decisions[0].task_id).toBeDefined();
     // A card no run posted carries no run; a run's gate card names its run, whatever the run's own gate says now.
     expect(noSession.decisions[0].workflow_run_id).toBeUndefined();
-    await ctx.db.patch(noSession.decisions[0].id, { workflow_run_id: "workflow_runs_1" });
-    expect((await listForSessionCore(ctx, { userId: HOST }, { task: "ct-7" })).decisions[0].workflow_run_id).toBe("workflow_runs_1");
+    await ctx.db.patch(noSession.decisions[0].id, {
+      workflow_run_id: "workflow_runs_1",
+    });
+    expect(
+      (await listForSessionCore(ctx, { userId: HOST }, { task: "ct-7" }))
+        .decisions[0].workflow_run_id,
+    ).toBe("workflow_runs_1");
     // Without a session there is no message count to measure drift against.
     expect(noSession.decisions[0].messages_since).toBeUndefined();
     // With the asking session, the same row carries messages_since.
-    const withSession = await listForSessionCore(ctx, { userId: HOST }, { session_id: "sess-ask", task: "ct-7" });
+    const withSession = await listForSessionCore(
+      ctx,
+      { userId: HOST },
+      { session_id: "sess-ask", task: "ct-7" },
+    );
     expect(withSession.decisions[0].messages_since).toBe(0);
     // A bare list still needs the session it lists for.
-    expect((await listForSessionCore(ctx, { userId: HOST }, {})).error).toBe("Missing session_id");
+    expect((await listForSessionCore(ctx, { userId: HOST }, {})).error).toBe(
+      "Missing session_id",
+    );
   });
 
   test("ls --answered-since pages a team's answered cards oldest first, with a cursor that never skips a card", async () => {
     const OTHER_TEAM = "teams_other" as any;
-    const card = (id: string, user: any, task: string | undefined, at: number, extra: Record<string, any> = {}) => ({
-      _id: id, short_id: `sd-${id.slice(-1)}`, user_id: user, conversation_id: "conversations_ask", session_id: "sess-ask",
-      question: `Q ${id}`, options: twoOptions, status: "answered", answer_index: 1, answer_text: "note", task_id: task,
-      answered_by: { kind: "user", id: BOSS }, created_at: at - 10, resolved_at: at, ...extra,
+    const card = (
+      id: string,
+      user: any,
+      task: string | undefined,
+      at: number,
+      extra: Record<string, any> = {},
+    ) => ({
+      _id: id,
+      short_id: `sd-${id.slice(-1)}`,
+      user_id: user,
+      conversation_id: "conversations_ask",
+      session_id: "sess-ask",
+      question: `Q ${id}`,
+      options: twoOptions,
+      status: "answered",
+      answer_index: 1,
+      answer_text: "note",
+      task_id: task,
+      answered_by: { kind: "user", id: BOSS },
+      created_at: at - 10,
+      resolved_at: at,
+      ...extra,
     });
     const { ctx } = seed({
-      projects: [{ _id: "projects_p1", team_id: TEAM, title: "People & Deals" }],
+      projects: [
+        { _id: "projects_p1", team_id: TEAM, title: "People & Deals" },
+      ],
       tasks: [
-        { _id: "tasks_t1", short_id: "ct-7", user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, title: "Fee policy", status: "in_review", project_id: "projects_p1", task_type: "task", priority: "medium" },
-        { _id: "tasks_x", short_id: "ct-9", user_id: HOST, team_id: OTHER_TEAM, workspace: `team:${OTHER_TEAM}`, title: "Elsewhere", status: "open", task_type: "task", priority: "medium" },
+        {
+          _id: "tasks_t1",
+          short_id: "ct-7",
+          user_id: HOST,
+          team_id: TEAM,
+          workspace: `team:${TEAM}`,
+          title: "Fee policy",
+          status: "in_review",
+          project_id: "projects_p1",
+          task_type: "task",
+          priority: "medium",
+        },
+        {
+          _id: "tasks_x",
+          short_id: "ct-9",
+          user_id: HOST,
+          team_id: OTHER_TEAM,
+          workspace: `team:${OTHER_TEAM}`,
+          title: "Elsewhere",
+          status: "open",
+          task_type: "task",
+          priority: "medium",
+        },
       ],
       session_decisions: [
         card("session_decisions_1", HOST, "tasks_t1", NOW + 1),
@@ -756,46 +1634,93 @@ describe("review wave 1 regressions", () => {
         card("session_decisions_3", HOST, "tasks_x", NOW + 3),
         card("session_decisions_4", HOST, undefined, NOW + 4),
         card("session_decisions_5", HOST, "tasks_t1", NOW + 5),
-        card("session_decisions_6", HOST, "tasks_t1", NOW + 6, { status: "pending", resolved_at: undefined }),
+        card("session_decisions_6", HOST, "tasks_t1", NOW + 6, {
+          status: "pending",
+          resolved_at: undefined,
+        }),
         card("session_decisions_7", HOST, "tasks_t1", NOW - 100),
       ],
     });
 
-    const all = await listAnsweredSinceCore(ctx, HOST, { answered_since: NOW, team_id: TEAM });
-    expect(all.decisions.map((d: any) => d.short_id)).toEqual(["sd-1", "sd-2", "sd-5"]);
+    const all = await listAnsweredSinceCore(ctx, HOST, {
+      answered_since: NOW,
+      team_id: TEAM,
+    });
+    expect(all.decisions.map((d: any) => d.short_id)).toEqual([
+      "sd-1",
+      "sd-2",
+      "sd-5",
+    ]);
     expect(all.decisions[0]).toMatchObject({
-      question: "Q session_decisions_1", answer_label: "Switch to upstream", answer_text: "note",
-      answered_by: { kind: "user", name: "Boss" }, resolved_at: NOW + 1,
-      task: { short_id: "ct-7", title: "Fee policy", status: "in_review", project: "People & Deals" },
+      question: "Q session_decisions_1",
+      answer_label: "Switch to upstream",
+      answer_text: "note",
+      answered_by: { kind: "user", name: "Boss" },
+      resolved_at: NOW + 1,
+      task: {
+        short_id: "ct-7",
+        title: "Fee policy",
+        status: "in_review",
+        project: "People & Deals",
+      },
     });
     expect(all.cursor).toBe(NOW + 5);
 
     // Page of 1: HOST's full page stops the read at its last card, so BOSS's
     // later card waits for the next page instead of being stepped over.
-    const first = await listAnsweredSinceCore(ctx, HOST, { answered_since: NOW, team_id: TEAM, limit: 1 });
+    const first = await listAnsweredSinceCore(ctx, HOST, {
+      answered_since: NOW,
+      team_id: TEAM,
+      limit: 1,
+    });
     expect(first.decisions.map((d: any) => d.short_id)).toEqual(["sd-1"]);
     const seen: string[] = [];
     let cursor = NOW;
     for (let i = 0; i < 10; i++) {
-      const page = await listAnsweredSinceCore(ctx, HOST, { answered_since: cursor, team_id: TEAM, limit: 1 });
+      const page = await listAnsweredSinceCore(ctx, HOST, {
+        answered_since: cursor,
+        team_id: TEAM,
+        limit: 1,
+      });
       seen.push(...page.decisions.map((d: any) => d.short_id));
       if (page.cursor === cursor) break;
       cursor = page.cursor;
     }
     expect(seen).toEqual(["sd-1", "sd-2", "sd-5"]);
 
-    expect((await listAnsweredSinceCore(ctx, "users_stranger" as any, { answered_since: NOW, team_id: TEAM })).error).toBe("Not a member of that team");
+    expect(
+      (
+        await listAnsweredSinceCore(ctx, "users_stranger" as any, {
+          answered_since: NOW,
+          team_id: TEAM,
+        })
+      ).error,
+    ).toBe("Not a member of that team");
   });
 
   test("ls --answered-since never ends a page inside one millisecond, so a tie across a page boundary is not lost", async () => {
     const T = NOW + 10;
     const card = (id: string, user: any, at: number) => ({
-      _id: id, short_id: id.replace("session_decisions_", "sd-"), user_id: user, conversation_id: "conversations_ask", session_id: "sess-ask",
-      question: id, options: twoOptions, status: "answered", answer_index: 0, task_id: "tasks_t1",
-      answered_by: { kind: "user", id: BOSS }, created_at: at - 10, resolved_at: at,
+      _id: id,
+      short_id: id.replace("session_decisions_", "sd-"),
+      user_id: user,
+      conversation_id: "conversations_ask",
+      session_id: "sess-ask",
+      question: id,
+      options: twoOptions,
+      status: "answered",
+      answer_index: 0,
+      task_id: "tasks_t1",
+      answered_by: { kind: "user", id: BOSS },
+      created_at: at - 10,
+      resolved_at: at,
     });
     const page = async (since: number, limit: number) => {
-      const r = await listAnsweredSinceCore(ctx, HOST, { answered_since: since, team_id: TEAM, limit });
+      const r = await listAnsweredSinceCore(ctx, HOST, {
+        answered_since: since,
+        team_id: TEAM,
+        limit,
+      });
       return { ids: r.decisions.map((d: any) => d.short_id), cursor: r.cursor };
     };
     const { ctx } = seed({
@@ -814,7 +1739,10 @@ describe("review wave 1 regressions", () => {
     expect(await page(NOW, 1)).toEqual({ ids: ["sd-a", "sd-b"], cursor: T });
     // HOST's page of two ends at T + 2 with more there, so this page stops before T + 2.
     expect(await page(T, 2)).toEqual({ ids: ["sd-c"], cursor: T + 1 });
-    expect(await page(T + 1, 2)).toEqual({ ids: ["sd-d", "sd-e"], cursor: T + 2 });
+    expect(await page(T + 1, 2)).toEqual({
+      ids: ["sd-d", "sd-e"],
+      cursor: T + 2,
+    });
     expect(await page(T + 2, 2)).toEqual({ ids: [], cursor: T + 2 });
   });
 
@@ -822,7 +1750,18 @@ describe("review wave 1 regressions", () => {
     const { ctx, tables } = seed();
     const s1 = await createStackCore(ctx, HOST, { title: "S1" });
     const s2 = await createStackCore(ctx, HOST, { title: "S2" });
-    const a = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q", options: twoOptions, context_md: "ctx", category: "approach", stack: s2.short_id });
+    const a = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        stack: s2.short_id,
+      },
+    );
     const r = await removeFromStackCore(ctx, HOST, s1.short_id, a.short_id);
     expect((r as any).error).toContain(`is not in ${s1.short_id}`);
     expect(tables.session_decisions[0].stack_id).toBe(s2.id);
@@ -835,13 +1774,47 @@ describe("review wave 1 regressions", () => {
   test("re-asking an open question appends it to --stack once, updates its doc in place, and recomputes the holder", async () => {
     const { ctx, tables } = seed({
       decision_grants: [
-        { _id: "decision_grants_g1", role_id: "org_roles_lead", category: "scope", scope_key: "role:org_roles_lead", granted_by: BOSS, granted_at: NOW, expires_at: Date.now() + GRANT_TTL_MS },
+        {
+          _id: "decision_grants_g1",
+          role_id: "org_roles_lead",
+          category: "scope",
+          scope_key: "role:org_roles_lead",
+          granted_by: BOSS,
+          granted_at: NOW,
+          expires_at: Date.now() + GRANT_TTL_MS,
+        },
       ],
     });
-    const first = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Same question", options: twoOptions, context_md: "ctx", category: "approach", doc_md: "v1" });
+    const first = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Same question",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        doc_md: "v1",
+      },
+    );
     expect(tables.session_decisions[0].holder.kind).toBe("user");
-    const s = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
-    const again = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Same question", options: twoOptions, context_md: "ctx", category: "scope", doc_md: "v2", stack: s.short_id });
+    const s = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
+    const again = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Same question",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "scope",
+        doc_md: "v2",
+        stack: s.short_id,
+      },
+    );
     expect(again.updated).toBe(true);
     expect(again.id).toBe(first.id);
     expect(tables.session_decisions).toHaveLength(1);
@@ -851,16 +1824,39 @@ describe("review wave 1 regressions", () => {
     expect(tables.session_decisions[0].stack_id).toBe(s.id);
     expect(tables.session_decisions[0].scope_keys).toContain(`stack:${s.id}`);
     // The category moved to one the lead holds a grant for: the holder followed.
-    expect(tables.session_decisions[0].holder).toEqual({ kind: "role", id: "org_roles_lead" });
+    expect(tables.session_decisions[0].holder).toEqual({
+      kind: "role",
+      id: "org_roles_lead",
+    });
     // A third re-ask with the same stack does not append twice.
-    await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Same question", options: twoOptions, context_md: "ctx", category: "scope", stack: s.short_id });
+    await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Same question",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "scope",
+        stack: s.short_id,
+      },
+    );
     expect(tables.decision_stacks[0].decision_ids).toEqual([first.id]);
   });
 
   test("grant and revoke are web only: no api_token argument and no /cli/decide/grant route", () => {
-    const src = fs.readFileSync(path.join(__dirname, "sessionDecisions.ts"), "utf-8");
-    const grantBlock = src.slice(src.indexOf("export const grant = mutation("), src.indexOf("export const revoke = mutation("));
-    const revokeBlock = src.slice(src.indexOf("export const revoke = mutation("), src.indexOf("// ── Reads"));
+    const src = fs.readFileSync(
+      path.join(__dirname, "sessionDecisions.ts"),
+      "utf-8",
+    );
+    const grantBlock = src.slice(
+      src.indexOf("export const grant = mutation("),
+      src.indexOf("export const revoke = mutation("),
+    );
+    const revokeBlock = src.slice(
+      src.indexOf("export const revoke = mutation("),
+      src.indexOf("// ── Reads"),
+    );
     expect(grantBlock).not.toContain("api_token");
     expect(revokeBlock).not.toContain("api_token");
     const http = fs.readFileSync(path.join(__dirname, "http.ts"), "utf-8");
@@ -879,10 +1875,28 @@ describe("review wave 1 regressions", () => {
       ],
       conversations: [
         // A PRIVATE session of another host, reporting to the team's lead role.
-        { _id: "conversations_priv", session_id: "sess-priv", user_id: OTHER_HOST, team_id: TEAM, is_private: true, message_count: 2, org_role_id: "org_roles_lead" },
+        {
+          _id: "conversations_priv",
+          session_id: "sess-priv",
+          user_id: OTHER_HOST,
+          team_id: TEAM,
+          is_private: true,
+          message_count: 2,
+          org_role_id: "org_roles_lead",
+        },
       ],
     });
-    await askCore(ctx, { userId: OTHER_HOST }, { session_id: "sess-priv", question: "Q", options: twoOptions, context_md: "ctx", category: "approach" });
+    await askCore(
+      ctx,
+      { userId: OTHER_HOST },
+      {
+        session_id: "sess-priv",
+        question: "Q",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+      },
+    );
     const row = tables.session_decisions[0];
     expect(await userMayRead(ctx, OTHER_HOST, row)).toBe(true); // asker
     expect(await userMayRead(ctx, BOSS, row)).toBe(true); // in asked_user_ids via the chain
@@ -894,20 +1908,43 @@ describe("review wave 1 regressions", () => {
     const { ctx } = seed();
     for (const [i, session] of ["sess-ask", "sess-ask2"].entries()) {
       const a = await askApproach(ctx, session, `Q${i}`);
-      await recommendCore(ctx, { userId: HOST }, { decision_id: a.short_id, session_id: "sess-lead", recommendation: 1 });
-      await answerCore(ctx, { userId: BOSS }, { decision_id: a.short_id, answer_index: 1 });
+      await recommendCore(
+        ctx,
+        { userId: HOST },
+        { decision_id: a.short_id, session_id: "sess-lead", recommendation: 1 },
+      );
+      await answerCore(
+        ctx,
+        { userId: BOSS },
+        { decision_id: a.short_id, answer_index: 1 },
+      );
     }
     const map = await agreementHistoryForCategory(ctx, "approach", Date.now());
-    expect(agreementFor(map, "org_roles_lead" as any, "role:org_roles_lead")).toEqual({ agreements: 2, askers: 2, eligible: false });
-    expect(agreementFor(map, "org_roles_lead" as any, "project:projects_p1").agreements).toBe(2);
-    expect(agreementFor(map, "org_roles_head" as any, "role:org_roles_lead").agreements).toBe(0);
-    expect(await agreementHistoryForCategory(ctx, "scope", Date.now())).toEqual(new Map());
+    expect(
+      agreementFor(map, "org_roles_lead" as any, "role:org_roles_lead"),
+    ).toEqual({ agreements: 2, askers: 2, eligible: false });
+    expect(
+      agreementFor(map, "org_roles_lead" as any, "project:projects_p1")
+        .agreements,
+    ).toBe(2);
+    expect(
+      agreementFor(map, "org_roles_head" as any, "role:org_roles_lead")
+        .agreements,
+    ).toBe(0);
+    expect(await agreementHistoryForCategory(ctx, "scope", Date.now())).toEqual(
+      new Map(),
+    );
   });
 
   test("a role passes a decision up with recommend; escalate is a person's hand-off to their manager now", async () => {
-    expect((await import("./sessionDecisions")) as any).not.toHaveProperty("escalateCore");
+    expect((await import("./sessionDecisions")) as any).not.toHaveProperty(
+      "escalateCore",
+    );
     const http = fs.readFileSync(path.join(__dirname, "http.ts"), "utf-8");
-    const route = http.slice(http.indexOf('cliRoute("/cli/decide/escalate"'), http.indexOf('cliRoute("/cli/decide/show"'));
+    const route = http.slice(
+      http.indexOf('cliRoute("/cli/decide/escalate"'),
+      http.indexOf('cliRoute("/cli/decide/show"'),
+    );
     expect(route).toContain("decisionHandoff.escalateForCli");
   });
 });
@@ -916,7 +1953,6 @@ describe("review wave 1 regressions", () => {
 // decision from a session under a role is the role's to read first, and the
 // person's queue holds only what the lead that reports to them asks.
 describe("a decision goes up the reporting line", () => {
-
   test("a lead's decision reaches the person it reports to, and is no message in its own thread", async () => {
     const { ctx, tables } = await seated();
     const r = await askApproach(ctx, "sess-head");
@@ -924,8 +1960,12 @@ describe("a decision goes up the reporting line", () => {
     const row = tables.session_decisions[0];
     // The host runs the seat; BOSS is who the role reports to.
     expect(new Set(row.asked_user_ids)).toEqual(new Set([HOST, BOSS]));
-    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(new Set([HOST, BOSS]));
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([row._id]);
+    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(
+      new Set([HOST, BOSS]),
+    );
+    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([
+      row._id,
+    ]);
     // Its ladder starts at its parent, which is a person: no role is on it.
     expect(row.hops).toEqual([]);
     expect(tables.pending_messages).toEqual([]);
@@ -950,7 +1990,9 @@ describe("a decision goes up the reporting line", () => {
     expect(r.error).toBeUndefined();
     const row = tables.session_decisions[0];
     expect(tables.decision_inbox).toEqual([]);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual([]);
+    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d._id)).toEqual(
+      [],
+    );
     const [line, ...more] = linesIn(tables, "conversations_standing");
     expect(more).toEqual([]);
     expect(line).toContain("sd-1");
@@ -960,10 +2002,17 @@ describe("a decision goes up the reporting line", () => {
     // anyone's typed words: the frame names the session and the decision.
     const frame = parseScheduledTask(line)!;
     expect(frame.event).toBe("session_needs_input");
-    expect(frame.waiting).toMatchObject({ why: "decision", decision: "sd-1", state: "Keep the engine vendored?" });
+    expect(frame.waiting).toMatchObject({
+      why: "decision",
+      decision: "sd-1",
+      state: "Keep the engine vendored?",
+    });
     expect(isMachineDeliveredMessage(line)).toBe(true);
     expect(linesIn(tables, "conversations_head")).toEqual([]);
-    expect(r.ladder.map((h: any) => [h.role_id, h.woken])).toEqual([["org_roles_lead", true], ["org_roles_head", false]]);
+    expect(r.ladder.map((h: any) => [h.role_id, h.woken])).toEqual([
+      ["org_roles_lead", true],
+      ["org_roles_head", false],
+    ]);
     // The people above it may still answer on the card itself.
     expect(personMayResolve(row, BOSS)).toBe(true);
   });
@@ -974,10 +2023,23 @@ describe("a decision goes up the reporting line", () => {
     const { ctx, tables } = await seated();
     await askApproach(ctx);
     expect(tables.decision_inbox).toEqual([]);
-    const r = await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-standing", recommendation: 1, note: "cheaper" });
+    const r = await recommendCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-standing",
+        recommendation: 1,
+        note: "cheaper",
+      },
+    );
     expect(r.error).toBeUndefined();
-    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(new Set([HOST, OWNER2, BOSS]));
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id)).toEqual(["sd-1"]);
+    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(
+      new Set([HOST, OWNER2, BOSS]),
+    );
+    expect(
+      (await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id),
+    ).toEqual(["sd-1"]);
     expect(tables.session_decisions).toHaveLength(1);
   });
 
@@ -986,37 +2048,95 @@ describe("a decision goes up the reporting line", () => {
   // the same words, and the people see the card at once, since the role has already said its piece.
   test("a card withdrawn and asked again on the same problem keeps the ladder's recommendation, by the option's words", async () => {
     const { ctx, tables } = await seated();
-    const ask = (options: Array<{ label: string }>, question = "Keep the engine vendored?") =>
-      askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question, options, context_md: "Reasoning goes here.", category: "approach", task: "ct-7" });
-    const first = await ask([{ label: "Keep it vendored" }, { label: "Drop the vendored copy" }]);
-    await recommendCore(ctx, { userId: HOST }, { decision_id: String(first.short_id), session_id: "sess-standing", recommendation: 1, note: "cheaper to drop" });
-    const row = (id: unknown) => tables.session_decisions.find((d) => String(d._id) === String(id));
+    const ask = (
+      options: Array<{ label: string }>,
+      question = "Keep the engine vendored?",
+    ) =>
+      askCore(
+        ctx,
+        { userId: HOST },
+        {
+          session_id: "sess-ask",
+          question,
+          options,
+          context_md: "Reasoning goes here.",
+          category: "approach",
+          task: "ct-7",
+        },
+      );
+    const first = await ask([
+      { label: "Keep it vendored" },
+      { label: "Drop the vendored copy" },
+    ]);
+    await recommendCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: String(first.short_id),
+        session_id: "sess-standing",
+        recommendation: 1,
+        note: "cheaper to drop",
+      },
+    );
+    const row = (id: unknown) =>
+      tables.session_decisions.find((d) => String(d._id) === String(id));
     await withdrawCore(ctx, row(first.id), NOW + 1);
     const lines = linesIn(tables, "conversations_standing").length;
 
-    const again = await ask([{ label: "Drop the vendored copy" }, { label: "Keep it vendored" }, { label: "Ask the platform lead" }], "Keep the engine vendored, now that main moved?");
+    const again = await ask(
+      [
+        { label: "Drop the vendored copy" },
+        { label: "Keep it vendored" },
+        { label: "Ask the platform lead" },
+      ],
+      "Keep the engine vendored, now that main moved?",
+    );
     expect(again.id).not.toBe(first.id);
-    expect(row(again.id).hops[0]).toMatchObject({ role_id: "org_roles_lead", recommendation: 0, note: "cheaper to drop" });
+    expect(row(again.id).hops[0]).toMatchObject({
+      role_id: "org_roles_lead",
+      recommendation: 0,
+      note: "cheaper to drop",
+    });
     expect(linesIn(tables, "conversations_standing")).toHaveLength(lines);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id)).toContain(again.short_id);
+    expect(
+      (await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id),
+    ).toContain(again.short_id);
 
     // A recommendation whose option is gone is not carried, and the role hears the new card.
     await withdrawCore(ctx, row(again.id), NOW + 2);
-    const third = await ask([{ label: "Keep it vendored" }, { label: "Ask the platform lead" }], "Keep the engine vendored, third try?");
+    const third = await ask(
+      [{ label: "Keep it vendored" }, { label: "Ask the platform lead" }],
+      "Keep the engine vendored, third try?",
+    );
     expect(row(third.id).hops[0].recommendation).toBeUndefined();
-    expect(linesIn(tables, "conversations_standing").length).toBeGreaterThan(lines);
+    expect(linesIn(tables, "conversations_standing").length).toBeGreaterThan(
+      lines,
+    );
   });
 
   test("a pass hands the card up with only the role's note, and gives up any hold", async () => {
     const { ctx, tables } = await seated();
     await askApproach(ctx);
-    const r = await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-standing", note: "the proofs cap is a spend call I cannot make" });
+    const r = await recommendCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-standing",
+        note: "the proofs cap is a spend call I cannot make",
+      },
+    );
     expect(r).toMatchObject({ passed: true, short_id: "sd-1" });
     const row = tables.session_decisions[0];
-    expect(row.hops[0]).toMatchObject({ role_id: "org_roles_lead", note: "the proofs cap is a spend call I cannot make" });
+    expect(row.hops[0]).toMatchObject({
+      role_id: "org_roles_lead",
+      note: "the proofs cap is a spend call I cannot make",
+    });
     expect(row.hops[0].recommendation).toBeUndefined();
     expect(row.hops[0].passed_at).toBeGreaterThan(0);
-    expect((await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id)).toEqual(["sd-1"]);
+    expect(
+      (await listForUserCore(ctx, BOSS, NOW)).map((d) => d.short_id),
+    ).toEqual(["sd-1"]);
     expect(row.holder.kind).toBe("user");
   });
 
@@ -1026,12 +2146,26 @@ describe("a decision goes up the reporting line", () => {
     expect(tables.decision_inbox).toEqual([]);
     const lapse = scheduled.filter((j) => j.ms === HOP_DEADLINE_MS);
     expect(lapse).toHaveLength(1);
-    await handUpLapsedCore(ctx, lapse[0].args.decision_id, NOW + HOP_DEADLINE_MS);
-    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(new Set([HOST, OWNER2, BOSS]));
+    await handUpLapsedCore(
+      ctx,
+      lapse[0].args.decision_id,
+      NOW + HOP_DEADLINE_MS,
+    );
+    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(
+      new Set([HOST, OWNER2, BOSS]),
+    );
     // A recommendation that comes later lands on the same card, and running
     // the lapse twice changes nothing.
-    await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-standing", recommendation: 0 });
-    await handUpLapsedCore(ctx, lapse[0].args.decision_id, NOW + HOP_DEADLINE_MS);
+    await recommendCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-standing", recommendation: 0 },
+    );
+    await handUpLapsedCore(
+      ctx,
+      lapse[0].args.decision_id,
+      NOW + HOP_DEADLINE_MS,
+    );
     expect(tables.decision_inbox).toHaveLength(3);
   });
 
@@ -1043,24 +2177,59 @@ describe("a decision goes up the reporting line", () => {
     const silent = scheduled.filter((j) => j.ms === LEAD_ACT_DEADLINE_MS);
     expect(silent.map((j) => j.args.role_id)).toEqual(["org_roles_lead"]);
     expect(linesIn(tables, "conversations_head")).toEqual([]);
-    const next = await rehearSilentCore(ctx, silent[0].args.decision_id, "org_roles_lead" as any, NOW + LEAD_ACT_DEADLINE_MS);
+    const next = await rehearSilentCore(
+      ctx,
+      silent[0].args.decision_id,
+      "org_roles_lead" as any,
+      NOW + LEAD_ACT_DEADLINE_MS,
+    );
     expect(next).toBe("org_roles_head");
     expect(linesIn(tables, "conversations_head").length).toBe(1);
     // The next lead reads whose session it is, so it never refiles one that
     // was filed all along (sd-3125, 2026-11-13).
     const wake = parseScheduledTask(linesIn(tables, "conversations_head")[0]);
-    expect(wake?.waiting).toMatchObject({ why: "decision", decision: "sd-1", silent_lead: "growth" });
-    expect(wake?.body).toStartWith("This session reports to @growth. Its decision comes to you because @growth has written nothing on it for an hour.");
-    const r = await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-head", recommendation: 0, note: "the lead below went quiet" });
+    expect(wake?.waiting).toMatchObject({
+      why: "decision",
+      decision: "sd-1",
+      silent_lead: "growth",
+    });
+    expect(wake?.body).toStartWith(
+      "This session reports to @growth. Its decision comes to you because @growth has written nothing on it for an hour.",
+    );
+    const r = await recommendCore(
+      ctx,
+      { userId: HOST },
+      {
+        decision_id: "sd-1",
+        session_id: "sess-head",
+        recommendation: 0,
+        note: "the lead below went quiet",
+      },
+    );
     expect(r.error).toBeUndefined();
-    expect(tables.session_decisions[0].hops.find((h: any) => h.role_id === "org_roles_head")?.recommendation).toBe(0);
+    expect(
+      tables.session_decisions[0].hops.find(
+        (h: any) => h.role_id === "org_roles_head",
+      )?.recommendation,
+    ).toBe(0);
   });
 
   test("a lead that wrote on the card keeps it: nobody else is told", async () => {
     const { ctx, tables } = await seated();
     await askApproach(ctx);
-    await recommendCore(ctx, { userId: HOST }, { decision_id: "sd-1", session_id: "sess-standing", recommendation: 1 });
-    expect(await rehearSilentCore(ctx, tables.session_decisions[0]._id, "org_roles_lead" as any, NOW + LEAD_ACT_DEADLINE_MS)).toBeNull();
+    await recommendCore(
+      ctx,
+      { userId: HOST },
+      { decision_id: "sd-1", session_id: "sess-standing", recommendation: 1 },
+    );
+    expect(
+      await rehearSilentCore(
+        ctx,
+        tables.session_decisions[0]._id,
+        "org_roles_lead" as any,
+        NOW + LEAD_ACT_DEADLINE_MS,
+      ),
+    ).toBeNull();
     expect(linesIn(tables, "conversations_head")).toEqual([]);
   });
 
@@ -1068,7 +2237,11 @@ describe("a decision goes up the reporting line", () => {
     const { ctx, tables } = await seated();
     await askApproach(ctx);
     await ctx.db.patch(tables.session_decisions[0]._id, { status: "answered" });
-    await handUpLapsedCore(ctx, tables.session_decisions[0]._id, NOW + HOP_DEADLINE_MS);
+    await handUpLapsedCore(
+      ctx,
+      tables.session_decisions[0]._id,
+      NOW + HOP_DEADLINE_MS,
+    );
     expect(tables.decision_inbox).toEqual([]);
   });
 
@@ -1076,7 +2249,9 @@ describe("a decision goes up the reporting line", () => {
     const { ctx, tables } = await seated();
     await ctx.db.patch("org_roles_lead", { anchor_id: undefined });
     await askApproach(ctx);
-    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(new Set([HOST, OWNER2, BOSS]));
+    expect(new Set(tables.decision_inbox.map((i) => i.user_id))).toEqual(
+      new Set([HOST, OWNER2, BOSS]),
+    );
     expect(tables.pending_messages).toEqual([]);
   });
 });
@@ -1087,42 +2262,100 @@ describe("a decision goes up the reporting line", () => {
 describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
   const TOKEN = "decide-hygiene-token";
   async function seedWithToken(extra: Record<string, any[]> = {}) {
-    const out = seed({ api_tokens: [{ _id: "api_tokens_1", user_id: HOST, token_hash: await hashToken(TOKEN) }], ...extra });
+    const out = seed({
+      api_tokens: [
+        {
+          _id: "api_tokens_1",
+          user_id: HOST,
+          token_hash: await hashToken(TOKEN),
+        },
+      ],
+      ...extra,
+    });
     return out;
   }
-  const editCall = (ctx: any, decision_id: string, fields: Record<string, any>) =>
+  const editCall = (
+    ctx: any,
+    decision_id: string,
+    fields: Record<string, any>,
+  ) =>
     (edit as any)._handler(ctx, { api_token: TOKEN, decision_id, ...fields });
 
   const PAGES = [
-    { _id: "artifacts_a" as any, slug: "slug-a", user_id: HOST, title: "A", version: 1, kind: "html", storage_id: "s1", size: 1, created_at: NOW, updated_at: NOW },
-    { _id: "artifacts_p1" as any, slug: "p1", user_id: HOST, title: "P1", version: 1, kind: "html", storage_id: "s2", size: 1, created_at: NOW, updated_at: NOW },
-    { _id: "artifacts_p2" as any, slug: "p2", user_id: HOST, title: "P2", version: 1, kind: "html", storage_id: "s3", size: 1, created_at: NOW, updated_at: NOW },
+    {
+      _id: "artifacts_a" as any,
+      slug: "slug-a",
+      user_id: HOST,
+      title: "A",
+      version: 1,
+      kind: "html",
+      storage_id: "s1",
+      size: 1,
+      created_at: NOW,
+      updated_at: NOW,
+    },
+    {
+      _id: "artifacts_p1" as any,
+      slug: "p1",
+      user_id: HOST,
+      title: "P1",
+      version: 1,
+      kind: "html",
+      storage_id: "s2",
+      size: 1,
+      created_at: NOW,
+      updated_at: NOW,
+    },
+    {
+      _id: "artifacts_p2" as any,
+      slug: "p2",
+      user_id: HOST,
+      title: "P2",
+      version: 1,
+      kind: "html",
+      storage_id: "s3",
+      size: 1,
+      created_at: NOW,
+      updated_at: NOW,
+    },
   ];
 
   test("ask refuses an option page that no published page carries", async () => {
     const { ctx } = await seedWithToken({ artifacts: PAGES });
-    const r = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Which mockup?",
-      options: [{ label: "A", page_slug: "mockup" }, { label: "B" }],
-      context_md: "two mockups",
-      category: "approach",
-    });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Which mockup?",
+        options: [{ label: "A", page_slug: "mockup" }, { label: "B" }],
+        context_md: "two mockups",
+        category: "approach",
+      },
+    );
     expect(r.error).toBe("Option 1: no page mockup");
   });
 
   test("ask stores an option page; the CLI row shape adds its url", async () => {
     const { ctx, tables } = await seedWithToken({ artifacts: PAGES });
-    const r = await askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: "Which mockup?",
-      options: [{ label: "A", page_slug: "slug-a" }, { label: "B" }],
-      context_md: "two mockups",
-      category: "approach",
-    });
+    const r = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Which mockup?",
+        options: [{ label: "A", page_slug: "slug-a" }, { label: "B" }],
+        context_md: "two mockups",
+        category: "approach",
+      },
+    );
     expect(r.error).toBeUndefined();
     expect(tables.session_decisions[0].options[0].page_slug).toBe("slug-a");
-    const listed = await listForSessionCore(ctx, { userId: HOST }, { session_id: "sess-ask" });
+    const listed = await listForSessionCore(
+      ctx,
+      { userId: HOST },
+      { session_id: "sess-ask" },
+    );
     expect(listed.decisions[0].options[0].page_url).toMatch(/\/a\/slug-a$/);
     expect(listed.decisions[0].options[1].page_url).toBeUndefined();
   });
@@ -1130,13 +2363,20 @@ describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
   test("edit rebinds task and station, joins a stack once, rewrites the doc, reshapes kind and form, and re-assigns a proposed category", async () => {
     const { ctx, tables } = await seedWithToken({ artifacts: PAGES });
     const first = await askApproach(ctx);
-    const stack = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
+    const stack = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
     const r = await editCall(ctx, first.short_id, {
       task: "ct-7",
       stack: stack.short_id,
       doc_md: "# body",
       category: "scope",
-      options: [{ label: "A", page_slug: "p1" }, { label: "B", page_slug: "p2" }, { label: "C" }],
+      options: [
+        { label: "A", page_slug: "p1" },
+        { label: "B", page_slug: "p2" },
+        { label: "C" },
+      ],
     });
     expect(r.error).toBeUndefined();
     const row = tables.session_decisions[0];
@@ -1150,12 +2390,20 @@ describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
     expect(row.doc_id).toBe(tables.docs[0]._id);
     expect(row.category).toBe("scope");
     expect(row.category_proposed).toBe("scope");
-    expect(row.options.map((o: any) => o.page_slug)).toEqual(["p1", "p2", undefined]);
+    expect(row.options.map((o: any) => o.page_slug)).toEqual([
+      "p1",
+      "p2",
+      undefined,
+    ]);
     expect(r.task).toMatchObject({ short_id: "ct-7", station: "in_review" });
     expect(r.stack).toMatchObject({ short_id: stack.short_id });
 
     // A second edit with the same stack does not append twice; the doc updates in place.
-    await editCall(ctx, first.short_id, { stack: stack.short_id, doc_md: "# v2", station: "qa" });
+    await editCall(ctx, first.short_id, {
+      stack: stack.short_id,
+      doc_md: "# v2",
+      station: "qa",
+    });
     expect(tables.decision_stacks[0].decision_ids).toEqual([first.id]);
     expect(tables.docs).toHaveLength(1);
     expect(tables.docs[0].content).toBe("# v2");
@@ -1164,7 +2412,10 @@ describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
     // Kind and form: a form needs fields; multi keeps the options.
     const bad = await editCall(ctx, first.short_id, { kind: "form" });
     expect(bad.error).toMatch(/form decision needs/);
-    const ok = await editCall(ctx, first.short_id, { kind: "form", form: { fields: [{ key: "n", label: "N", type: "number" }] } });
+    const ok = await editCall(ctx, first.short_id, {
+      kind: "form",
+      form: { fields: [{ key: "n", label: "N", type: "number" }] },
+    });
     expect(ok.error).toBeUndefined();
     expect(tables.session_decisions[0].kind).toBe("form");
     expect(tables.session_decisions[0].form.fields[0].key).toBe("n");
@@ -1173,21 +2424,50 @@ describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
   test("edit refuses a task or stack outside the caller's boundary and a done stack", async () => {
     const { ctx, tables } = await seedWithToken();
     const first = await askApproach(ctx);
-    expect((await editCall(ctx, first.short_id, { task: "ct-404" })).error).toMatch(/Task not found/);
-    const stack = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
+    expect(
+      (await editCall(ctx, first.short_id, { task: "ct-404" })).error,
+    ).toMatch(/Task not found/);
+    const stack = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
     tables.decision_stacks[0].status = "done";
-    expect((await editCall(ctx, first.short_id, { stack: stack.short_id })).error).toMatch(/is done/);
+    expect(
+      (await editCall(ctx, first.short_id, { stack: stack.short_id })).error,
+    ).toMatch(/is done/);
   });
 
   test("withdraw settles: inbox rows close and the stack closes", async () => {
-    const { ctx, tables } = await seedWithToken({ anchors: [{ _id: "anchors_1", bot_user_id: HOST }] });
-    tables.org_roles.find((r: any) => r._id === "org_roles_lead").anchor_id = "anchors_1";
-    const stack = await createStackCore(ctx, HOST, { title: "S", session_id: "sess-ask" });
-    const first = await askCore(ctx, { userId: HOST }, { session_id: "sess-ask", question: "Q?", options: twoOptions, context_md: "ctx", category: "approach", stack: stack.short_id });
-    const r = await (withdraw as any)._handler(ctx, { api_token: TOKEN, decision_id: first.short_id });
+    const { ctx, tables } = await seedWithToken({
+      anchors: [{ _id: "anchors_1", bot_user_id: HOST }],
+    });
+    tables.org_roles.find((r: any) => r._id === "org_roles_lead").anchor_id =
+      "anchors_1";
+    const stack = await createStackCore(ctx, HOST, {
+      title: "S",
+      session_id: "sess-ask",
+    });
+    const first = await askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question: "Q?",
+        options: twoOptions,
+        context_md: "ctx",
+        category: "approach",
+        stack: stack.short_id,
+      },
+    );
+    const r = await (withdraw as any)._handler(ctx, {
+      api_token: TOKEN,
+      decision_id: first.short_id,
+    });
     expect(r.status).toBe("withdrawn");
     expect(tables.session_decisions[0].status).toBe("withdrawn");
-    expect(tables.decision_inbox.every((i: any) => i.status === "done")).toBe(true);
+    expect(tables.decision_inbox.every((i: any) => i.status === "done")).toBe(
+      true,
+    );
     expect(tables.decision_stacks[0].status).toBe("done");
     // A withdrawal is not an override: no grant is scored.
     expect(tables.decision_grants).toHaveLength(0);
@@ -1195,15 +2475,30 @@ describe("edit, withdraw and option pages (the-line.md L6, L10)", () => {
 });
 
 describe("a change card on a decision (LE11)", () => {
-  const card = JSON.parse(fs.readFileSync(path.join(__dirname, "../../../packages/shared/contracts/__fixtures__/changeCard/card.json"), "utf-8"));
+  const card = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        __dirname,
+        "../../../packages/shared/contracts/__fixtures__/changeCard/card.json",
+      ),
+      "utf-8",
+    ),
+  );
   const ask = (ctx: any, c: unknown) =>
-    askCore(ctx, { userId: HOST }, {
-      session_id: "sess-ask",
-      question: c && typeof c === "object" ? (c as any).cause?.title ?? "Ship it?" : "Ship it?",
-      options: [{ label: "Ship" }, { label: "Revise" }, { label: "Drop" }],
-      card: c as any,
-      category: "review",
-    });
+    askCore(
+      ctx,
+      { userId: HOST },
+      {
+        session_id: "sess-ask",
+        question:
+          c && typeof c === "object"
+            ? ((c as any).cause?.title ?? "Ship it?")
+            : "Ship it?",
+        options: [{ label: "Ship" }, { label: "Revise" }, { label: "Drop" }],
+        card: c as any,
+        category: "review",
+      },
+    );
 
   test("a valid card is stored on the row and read back by get", async () => {
     const { ctx, tables } = seed();
@@ -1214,7 +2509,10 @@ describe("a change card on a decision (LE11)", () => {
 
   test("a card that breaks its contract is refused with the field that broke", async () => {
     const { ctx, tables } = seed();
-    const r = await ask(ctx, { ...card, proof: { before: [{ name: "x", ok: true, detail: "" }], after: [] } });
+    const r = await ask(ctx, {
+      ...card,
+      proof: { before: [{ name: "x", ok: true, detail: "" }], after: [] },
+    });
     expect(r.error).toContain("Invalid change card");
     expect(r.error).toContain("proof.before");
     expect(tables.session_decisions ?? []).toHaveLength(0);
@@ -1227,7 +2525,12 @@ describe("the team's line decisions", () => {
   const MATE = "users_mate" as any;
   const lineSeed = () => {
     const s = seed({
-      users: [{ _id: HOST, name: "Host" }, { _id: BOSS, name: "Boss" }, { _id: OWNER2, name: "Owner Two" }, { _id: MATE, name: "Mate" }],
+      users: [
+        { _id: HOST, name: "Host" },
+        { _id: BOSS, name: "Boss" },
+        { _id: OWNER2, name: "Owner Two" },
+        { _id: MATE, name: "Mate" },
+      ],
       team_memberships: [
         { _id: "m1", user_id: HOST, team_id: TEAM, role: "admin" },
         { _id: "m2", user_id: BOSS, team_id: TEAM, role: "admin" },
@@ -1235,10 +2538,42 @@ describe("the team's line decisions", () => {
       ],
     });
     // A station's private session asked it: no team, so the conversation clause opens it to nobody else.
-    s.tables.conversations.push({ _id: "conversations_station", session_id: "sess-station", user_id: HOST, owner_user_id: HOST, message_count: 1 });
+    s.tables.conversations.push({
+      _id: "conversations_station",
+      session_id: "sess-station",
+      user_id: HOST,
+      owner_user_id: HOST,
+      message_count: 1,
+    });
     s.tables.session_decisions.push(
-      { _id: "session_decisions_line", short_id: "sd-40", conversation_id: "conversations_station", user_id: HOST, question: "Ship it?", options: twoOptions, status: "pending", task_id: "tasks_t1", workflow_run_id: "workflow_runs_r1", trial: true, asked_user_ids: [HOST], holder: { kind: "user", id: HOST }, holder_key: `user:${HOST}`, created_at: NOW },
-      { _id: "session_decisions_plain", short_id: "sd-41", conversation_id: "conversations_station", user_id: HOST, question: "Lunch?", options: twoOptions, status: "pending", task_id: "tasks_t1", asked_user_ids: [HOST], created_at: NOW },
+      {
+        _id: "session_decisions_line",
+        short_id: "sd-40",
+        conversation_id: "conversations_station",
+        user_id: HOST,
+        question: "Ship it?",
+        options: twoOptions,
+        status: "pending",
+        task_id: "tasks_t1",
+        workflow_run_id: "workflow_runs_r1",
+        trial: true,
+        asked_user_ids: [HOST],
+        holder: { kind: "user", id: HOST },
+        holder_key: `user:${HOST}`,
+        created_at: NOW,
+      },
+      {
+        _id: "session_decisions_plain",
+        short_id: "sd-41",
+        conversation_id: "conversations_station",
+        user_id: HOST,
+        question: "Lunch?",
+        options: twoOptions,
+        status: "pending",
+        task_id: "tasks_t1",
+        asked_user_ids: [HOST],
+        created_at: NOW,
+      },
     );
     return s;
   };
@@ -1253,21 +2588,34 @@ describe("the team's line decisions", () => {
 
   test("a trial's line decision is assigned to a teammate: it is theirs and enters their queue; a role is refused", async () => {
     const { ctx, tables } = lineSeed();
-    expect(await passCore(ctx, HOST, "sd-40", { kind: "role", id: "org_roles_head" })).toEqual({ error: "A trial run's question stays with its trial" });
-    expect(await passCore(ctx, MATE, "sd-40", { kind: "user", id: MATE })).toEqual({ passed: true });
+    expect(
+      await passCore(ctx, HOST, "sd-40", {
+        kind: "role",
+        id: "org_roles_head",
+      }),
+    ).toEqual({ error: "A trial run's question stays with its trial" });
+    expect(
+      await passCore(ctx, MATE, "sd-40", { kind: "user", id: MATE }),
+    ).toEqual({ passed: true });
     const row = tables.session_decisions[0];
     expect(row.passed_to).toMatchObject({ kind: "user", id: MATE, by: MATE });
     expect(row.asked_user_ids).toEqual([MATE]);
-    expect(tables.decision_inbox.map((i: any) => [i.user_id, i.status])).toEqual([[MATE, "pending"]]);
+    expect(
+      tables.decision_inbox.map((i: any) => [i.user_id, i.status]),
+    ).toEqual([[MATE, "pending"]]);
     // Reassigned, it moves to the next teammate's queue.
-    expect(await passCore(ctx, HOST, "sd-40", { kind: "user", id: BOSS })).toEqual({ passed: true });
+    expect(
+      await passCore(ctx, HOST, "sd-40", { kind: "user", id: BOSS }),
+    ).toEqual({ passed: true });
     expect(tables.decision_inbox.map((i: any) => i.user_id)).toEqual([BOSS]);
   });
 
   test("asked again, a decision given to a teammate stays theirs", async () => {
     const { ctx, tables } = seed();
     await askApproach(ctx);
-    expect(await passCore(ctx, HOST, "sd-1", { kind: "user", id: BOSS })).toEqual({ passed: true });
+    expect(
+      await passCore(ctx, HOST, "sd-1", { kind: "user", id: BOSS }),
+    ).toEqual({ passed: true });
     await askApproach(ctx);
     expect(tables.session_decisions).toHaveLength(1);
     expect(tables.session_decisions[0].asked_user_ids).toEqual([BOSS]);

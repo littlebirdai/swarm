@@ -11,7 +11,16 @@ import { DAY, MIN, TEAM_ID, WORKSPACE, cid } from "./world";
 const connections = (now: number) => ({
   team: { id: TEAM_ID, name: "Acme" },
   apps: [
-    { id: "github", status: "connected", scope: "team", by: "Alex Rivera", by_me: true, at: now - 40 * DAY, detail: "acme (3 repositories)", health: { last_webhook_at: now - 2 * MIN } },
+    {
+      id: "github",
+      status: "connected",
+      scope: "team",
+      by: "Alex Rivera",
+      by_me: true,
+      at: now - 40 * DAY,
+      detail: "acme (3 repositories)",
+      health: { last_webhook_at: now - 2 * MIN },
+    },
     { id: "slack", status: "not_connected", scope: "team" },
     { id: "linear", status: "not_connected", scope: "team" },
   ],
@@ -50,7 +59,10 @@ export const INTEGRATIONS_PART: AcmePart = {
         account_login: "acme",
         account_type: "Organization",
         repository_selection: "selected",
-        repositories: ["acme-api", "web", "infra"].map((name, i) => ({ id: 801_000 + i, full_name: `acme/${name}` })),
+        repositories: ["acme-api", "web", "infra"].map((name, i) => ({
+          id: 801_000 + i,
+          full_name: `acme/${name}`,
+        })),
       },
     ],
   },

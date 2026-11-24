@@ -19,7 +19,8 @@ export interface ParsedLogLine {
 
 // log() in daemon.ts writes `[ISO] ` then an optional `[LEVEL] ` tag. Only the
 // four log levels count as a tag; `[LIFECYCLE]` and friends belong to the message.
-const LINE_RE = /^\[(\d{4}-\d{2}-\d{2}T[^\]]+)\] (?:\[(DEBUG|INFO|WARN|ERROR)\] )?(.*)$/;
+const LINE_RE =
+  /^\[(\d{4}-\d{2}-\d{2}T[^\]]+)\] (?:\[(DEBUG|INFO|WARN|ERROR)\] )?(.*)$/;
 
 export function parseDaemonLogLine(line: string): ParsedLogLine | null {
   const m = LINE_RE.exec(line);
@@ -37,10 +38,14 @@ export interface LoopFreezeEvent {
   hotStacks: string[];
 }
 
-const FREEZE_RE = /^\[LOOP-FREEZE\] event loop blocked (\d+)s \((\d+)ms CPU during the freeze\); last log before it: (.*)$/;
+const FREEZE_RE =
+  /^\[LOOP-FREEZE\] event loop blocked (\d+)s \((\d+)ms CPU during the freeze\); last log before it: (.*)$/;
 const HOT_STACKS_SEP = "; hot stacks: ";
 
-export function parseLoopFreeze(ts: number, message: string): LoopFreezeEvent | null {
+export function parseLoopFreeze(
+  ts: number,
+  message: string,
+): LoopFreezeEvent | null {
   const m = FREEZE_RE.exec(message);
   if (!m) return null;
   let rest = m[3];
@@ -49,10 +54,20 @@ export function parseLoopFreeze(ts: number, message: string): LoopFreezeEvent | 
   // be a LOOP-FREEZE line, so the outer hot stacks are the last separator.
   const sep = rest.lastIndexOf(HOT_STACKS_SEP);
   if (sep >= 0) {
-    hotStacks = rest.slice(sep + HOT_STACKS_SEP.length).split(", ").map((s) => s.trim()).filter(Boolean);
+    hotStacks = rest
+      .slice(sep + HOT_STACKS_SEP.length)
+      .split(", ")
+      .map((s) => s.trim())
+      .filter(Boolean);
     rest = rest.slice(0, sep);
   }
-  return { ts, lateMs: Number(m[1]) * 1000, cpuMs: Number(m[2]), lastLog: rest, hotStacks };
+  return {
+    ts,
+    lateMs: Number(m[1]) * 1000,
+    cpuMs: Number(m[2]),
+    lastLog: rest,
+    hotStacks,
+  };
 }
 
 /** The first hot stack entry with a source location, else the first entry,
@@ -71,21 +86,49 @@ export function lastLogTag(lastLog: string): string {
   return stripped.split(/\s+/)[0] ?? "";
 }
 
-export interface PsSnapshotEvent { ts: number; args: string; tookMs: number; lines: number }
+export interface PsSnapshotEvent {
+  ts: number;
+  args: string;
+  tookMs: number;
+  lines: number;
+}
 const PS_RE = /^\[PS-SNAPSHOT\] ps (.*) took (\d+)ms \((\d+) lines\)$/;
-export function parsePsSnapshot(ts: number, message: string): PsSnapshotEvent | null {
+export function parsePsSnapshot(
+  ts: number,
+  message: string,
+): PsSnapshotEvent | null {
   const m = PS_RE.exec(message);
-  return m ? { ts, args: m[1], tookMs: Number(m[2]), lines: Number(m[3]) } : null;
+  return m
+    ? { ts, args: m[1], tookMs: Number(m[2]), lines: Number(m[3]) }
+    : null;
 }
 
 // One line shape serves both tags (slowSync.ts): `tag` tells a spawn from a
 // filesystem hold, `kind` names the wrapper, `command` carries the detail.
-export interface SlowSpawnEvent { ts: number; tag: SlowSyncTag; kind: string; blockedMs: number; command: string }
+export interface SlowSpawnEvent {
+  ts: number;
+  tag: SlowSyncTag;
+  kind: string;
+  blockedMs: number;
+  command: string;
+}
 export type SlowSyncTag = "SLOW-SYNC-SPAWN" | "SLOW-SYNC-FS";
-const SPAWN_RE = /^\[(SLOW-SYNC-SPAWN|SLOW-SYNC-FS)\] ([\w.]+) blocked the event loop (\d+)ms: (.*)$/;
-export function parseSlowSpawn(ts: number, message: string): SlowSpawnEvent | null {
+const SPAWN_RE =
+  /^\[(SLOW-SYNC-SPAWN|SLOW-SYNC-FS)\] ([\w.]+) blocked the event loop (\d+)ms: (.*)$/;
+export function parseSlowSpawn(
+  ts: number,
+  message: string,
+): SlowSpawnEvent | null {
   const m = SPAWN_RE.exec(message);
-  return m ? { ts, tag: m[1] as SlowSyncTag, kind: m[2], blockedMs: Number(m[3]), command: m[4] } : null;
+  return m
+    ? {
+        ts,
+        tag: m[1] as SlowSyncTag,
+        kind: m[2],
+        blockedMs: Number(m[3]),
+        command: m[4],
+      }
+    : null;
 }
 
 const START_RE = /^\[LIFECYCLE\] daemon_start: v(\S+) PID=(\d+)/;
@@ -93,25 +136,34 @@ const LISTEN_RE = /^Hook server listening on 127\.0\.0\.1:(\d+)$/;
 
 // ── sleep windows ─────────────────────────────────────────────────────────────
 
-export interface SleepWindow { start: number; end: number }
+export interface SleepWindow {
+  start: number;
+  end: number;
+}
 
 // `2026-08-27 08:50:32 -0400 Sleep               \tEntering Sleep state ... 202 secs`
 // "Wake Requests" lines do not match: the event name is followed by whitespace only.
-const PMSET_RE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([-+]\d{4}) (Sleep|Wake|DarkWake)\s+\t(.*)$/;
+const PMSET_RE =
+  /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([-+]\d{4}) (Sleep|Wake|DarkWake)\s+\t(.*)$/;
 
 export function parsePmsetSleepWindows(text: string): SleepWindow[] {
   const windows: SleepWindow[] = [];
   let open: { start: number; fallbackSecs: number | null } | null = null;
   const close = (end: number | null) => {
     if (!open) return;
-    const fallback = open.fallbackSecs !== null ? open.start + open.fallbackSecs * 1000 : open.start;
+    const fallback =
+      open.fallbackSecs !== null
+        ? open.start + open.fallbackSecs * 1000
+        : open.start;
     windows.push({ start: open.start, end: end ?? fallback });
     open = null;
   };
   for (const line of text.split("\n")) {
     const m = PMSET_RE.exec(line);
     if (!m) continue;
-    const ts = Date.parse(`${m[1]}T${m[2]}${m[3].slice(0, 3)}:${m[3].slice(3)}`);
+    const ts = Date.parse(
+      `${m[1]}T${m[2]}${m[3].slice(0, 3)}:${m[3].slice(3)}`,
+    );
     if (!Number.isFinite(ts)) continue;
     if (m[4] === "Sleep") {
       close(null);
@@ -129,7 +181,11 @@ export function parsePmsetSleepWindows(text: string): SleepWindow[] {
 export function readSleepWindows(): SleepWindow[] {
   if (process.platform !== "darwin") return [];
   try {
-    const r = spawnSync("pmset", ["-g", "log"], { encoding: "utf-8", timeout: 15_000, maxBuffer: 256 * 1024 * 1024 });
+    const r = spawnSync("pmset", ["-g", "log"], {
+      encoding: "utf-8",
+      timeout: 15_000,
+      maxBuffer: 256 * 1024 * 1024,
+    });
     return typeof r.stdout === "string" ? parsePmsetSleepWindows(r.stdout) : [];
   } catch {
     return [];
@@ -154,25 +210,56 @@ export type FreezeKind = "freeze" | "sleep";
  * it (5s tolerance). When pmset has no window at all around that time, a gap of
  * five minutes or more with under 1% CPU is sleep. Everything else is a freeze.
  */
-export function classifyFreeze(ev: LoopFreezeEvent, windows: SleepWindow[]): FreezeKind {
+export function classifyFreeze(
+  ev: LoopFreezeEvent,
+  windows: SleepWindow[],
+): FreezeKind {
   const from = ev.ts - ev.lateMs;
-  const covered = windows.some((w) => w.start - PMSET_COVERAGE_MS <= ev.ts && w.end + PMSET_COVERAGE_MS >= from);
+  const covered = windows.some(
+    (w) =>
+      w.start - PMSET_COVERAGE_MS <= ev.ts && w.end + PMSET_COVERAGE_MS >= from,
+  );
   if (covered) {
     const overlaps = windows.some(
-      (w) => w.start <= ev.ts + SLEEP_OVERLAP_TOLERANCE_MS && w.end >= from - SLEEP_OVERLAP_TOLERANCE_MS,
+      (w) =>
+        w.start <= ev.ts + SLEEP_OVERLAP_TOLERANCE_MS &&
+        w.end >= from - SLEEP_OVERLAP_TOLERANCE_MS,
     );
     return overlaps ? "sleep" : "freeze";
   }
-  if (ev.lateMs >= SLEEP_FALLBACK_GAP_MS && ev.cpuMs / ev.lateMs < SLEEP_FALLBACK_CPU_RATIO) return "sleep";
+  if (
+    ev.lateMs >= SLEEP_FALLBACK_GAP_MS &&
+    ev.cpuMs / ev.lateMs < SLEEP_FALLBACK_CPU_RATIO
+  )
+    return "sleep";
   return "freeze";
 }
 
 // ── the report ────────────────────────────────────────────────────────────────
 
-export interface CountedEntry { key: string; count: number }
-export interface HourRow { hour: string; count: number; totalMs: number; maxMs: number }
-export interface BootRow { startedAt: string; version: string; pid: number; listeningAt: string | null; blackoutMs: number | null }
-export interface SpawnGroup { command: string; count: number; meanMs: number | null; maxMs: number | null }
+export interface CountedEntry {
+  key: string;
+  count: number;
+}
+export interface HourRow {
+  hour: string;
+  count: number;
+  totalMs: number;
+  maxMs: number;
+}
+export interface BootRow {
+  startedAt: string;
+  version: string;
+  pid: number;
+  listeningAt: string | null;
+  blackoutMs: number | null;
+}
+export interface SpawnGroup {
+  command: string;
+  count: number;
+  meanMs: number | null;
+  maxMs: number | null;
+}
 
 export interface LogReport {
   sinceMs: number;
@@ -189,7 +276,12 @@ export interface LogReport {
     topStacks: CountedEntry[];
     topLastLog: CountedEntry[];
   };
-  psSnapshot: { n: number; meanMs: number | null; maxMs: number | null; buckets: HistogramBucket[] };
+  psSnapshot: {
+    n: number;
+    meanMs: number | null;
+    maxMs: number | null;
+    buckets: HistogramBucket[];
+  };
   slowSpawn: { n: number; groups: SpawnGroup[] };
   // Sync filesystem holds, grouped by the wrapper that reported them.
   slowFs: { n: number; groups: SpawnGroup[] };
@@ -200,7 +292,12 @@ export const PS_SNAPSHOT_EDGES_MS = [2000, 5000, 10000, 20000];
 
 export function buildLogReport(
   lines: Iterable<string>,
-  opts: { sinceMs: number; sleepWindows: SleepWindow[]; top?: number; run?: { startMs: number; endMs: number } },
+  opts: {
+    sinceMs: number;
+    sleepWindows: SleepWindow[];
+    top?: number;
+    run?: { startMs: number; endMs: number };
+  },
 ): LogReport {
   const top = opts.top ?? 8;
   const freezes: Array<LoopFreezeEvent & { kind: FreezeKind }> = [];
@@ -216,7 +313,10 @@ export function buildLogReport(
     if (!parsed) continue;
     const { ts, message } = parsed;
     const historical = ts >= opts.sinceMs;
-    const run = opts.run && ts >= opts.run.startMs && ts <= opts.run.endMs ? opts.run : null;
+    const run =
+      opts.run && ts >= opts.run.startMs && ts <= opts.run.endMs
+        ? opts.run
+        : null;
     if (!historical && !run) continue;
     if (historical) linesRead++;
     let holdMs: number | undefined;
@@ -240,7 +340,14 @@ export function buildLogReport(
       if (ev) ps.push(ev);
     } else if (message.startsWith("[LIFECYCLE] daemon_start")) {
       const m = START_RE.exec(message);
-      if (m) boots.push({ startedAt: new Date(ts).toISOString(), version: m[1], pid: Number(m[2]), listeningAt: null, blackoutMs: null });
+      if (m)
+        boots.push({
+          startedAt: new Date(ts).toISOString(),
+          version: m[1],
+          pid: Number(m[2]),
+          listeningAt: null,
+          blackoutMs: null,
+        });
     } else if (message.startsWith("Hook server listening")) {
       const last = boots[boots.length - 1];
       if (LISTEN_RE.test(message) && last && last.listeningAt === null) {
@@ -259,7 +366,12 @@ export function buildLogReport(
   const lastLogCounts = new Map<string, number>();
   for (const f of real) {
     const hour = new Date(f.ts).toISOString().slice(0, 13);
-    const row = perHourMap.get(hour) ?? { hour, count: 0, totalMs: 0, maxMs: 0 };
+    const row = perHourMap.get(hour) ?? {
+      hour,
+      count: 0,
+      totalMs: 0,
+      maxMs: 0,
+    };
     row.count++;
     row.totalMs += f.lateMs;
     row.maxMs = Math.max(row.maxMs, f.lateMs);
@@ -272,7 +384,10 @@ export function buildLogReport(
 
   // Spawns group by their program; filesystem holds by the wrapper, since
   // their detail is a path that differs on every line.
-  const spawnGroups = groupHolds(spawns, (s) => s.command.split(/\s+/)[0] ?? s.command);
+  const spawnGroups = groupHolds(
+    spawns,
+    (s) => s.command.split(/\s+/)[0] ?? s.command,
+  );
   const fsGroups = groupHolds(fsHolds, (s) => s.kind);
 
   const psTook = ps.map((p) => p.tookMs);
@@ -287,7 +402,9 @@ export function buildLogReport(
       freezeCount: real.length,
       totalMs: real.reduce((a, f) => a + f.lateMs, 0),
       maxMs: real.reduce((a, f) => Math.max(a, f.lateMs), 0),
-      perHour: [...perHourMap.values()].sort((a, b) => a.hour.localeCompare(b.hour)),
+      perHour: [...perHourMap.values()].sort((a, b) =>
+        a.hour.localeCompare(b.hour),
+      ),
       topStacks: topCounted(stackCounts, top),
       topLastLog: topCounted(lastLogCounts, top),
     },
@@ -303,7 +420,10 @@ export function buildLogReport(
   };
 }
 
-function groupHolds(events: SlowSpawnEvent[], keyOf: (e: SlowSpawnEvent) => string): SpawnGroup[] {
+function groupHolds(
+  events: SlowSpawnEvent[],
+  keyOf: (e: SlowSpawnEvent) => string,
+): SpawnGroup[] {
   const groups = new Map<string, number[]>();
   for (const e of events) {
     const arr = groups.get(keyOf(e)) ?? [];
@@ -311,13 +431,21 @@ function groupHolds(events: SlowSpawnEvent[], keyOf: (e: SlowSpawnEvent) => stri
     groups.set(keyOf(e), arr);
   }
   return [...groups.entries()]
-    .map(([command, ms]) => ({ command, count: ms.length, meanMs: mean(ms), maxMs: Math.max(...ms) }))
+    .map(([command, ms]) => ({
+      command,
+      count: ms.length,
+      meanMs: mean(ms),
+      maxMs: Math.max(...ms),
+    }))
     .sort((a, b) => b.count - a.count);
 }
 
 function topCounted(counts: Map<string, number>, top: number): CountedEntry[] {
   return [...counts.entries()]
     .map(([key, count]) => ({ key, count }))
-    .sort((a, b) => b.count - a.count || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .sort(
+      (a, b) =>
+        b.count - a.count || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+    )
     .slice(0, top);
 }

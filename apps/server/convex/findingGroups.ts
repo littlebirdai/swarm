@@ -51,7 +51,14 @@ import { latestExpectations } from "./lib/expectationsApply";
  * had asked to see together (an open checkpoint and a callback handed back; a
  * prior decline and a pitch after a no) it kept apart every time.
  */
-export const GROUPING = { attach: 0.86, ask: 0.45, hits: 64, candidates: 5, cross_ask: 0.5, cross_candidates: 3 } as const;
+export const GROUPING = {
+  attach: 0.86,
+  ask: 0.45,
+  hits: 64,
+  candidates: 5,
+  cross_ask: 0.5,
+  cross_candidates: 3,
+} as const;
 
 export type ScoredCandidate = {
   task_id: Id<"tasks">;
@@ -83,13 +90,25 @@ const SAMPLE_FINDINGS = 3;
  * into their right home 90 of 114 to 110 of 114; the email controls under
  * one expectation 65 to 63 of 84 (not separated).
  */
-export async function sampleFindings(ctx: { db: any }, taskId: Id<"tasks">): Promise<Array<{ what: string; quote?: string }>> {
-  const rows: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", taskId)).take(SAMPLE_FINDINGS * 4);
+export async function sampleFindings(
+  ctx: { db: any },
+  taskId: Id<"tasks">,
+): Promise<Array<{ what: string; quote?: string }>> {
+  const rows: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", taskId))
+    .take(SAMPLE_FINDINGS * 4);
   return rows
     .filter(standsAsEvidence)
     .slice(0, SAMPLE_FINDINGS)
     .map((row) => {
-      const quote = (row.detail_md ?? "").split("\n").filter((l) => l.startsWith("> ")).map((l) => l.slice(2)).join(" ").trim().slice(0, 200);
+      const quote = (row.detail_md ?? "")
+        .split("\n")
+        .filter((l) => l.startsWith("> "))
+        .map((l) => l.slice(2))
+        .join(" ")
+        .trim()
+        .slice(0, 200);
       return { what: row.title, ...(quote ? { quote } : {}) };
     });
 }
@@ -101,7 +120,10 @@ export async function sampleFindings(ctx: { db: any }, taskId: Id<"tasks">): Pro
  */
 export function dissolvedReason(task: Doc<"tasks">): string | null {
   if (!isTerminalTaskStatus(task.status) || !task.cause?.dissolved) return null;
-  return task.cause.dissolved.note.replace(/\s+/g, " ").trim().slice(0, 400) || "no reason recorded";
+  return (
+    task.cause.dissolved.note.replace(/\s+/g, " ").trim().slice(0, 400) ||
+    "no reason recorded"
+  );
 }
 
 /**
@@ -110,14 +132,19 @@ export function dissolvedReason(task: Doc<"tasks">): string | null {
  * history, which cannot date what it found), else when it was observed. A
  * fix is shown failing only by evidence placed after the fix went live.
  */
-export const evidenceAt = (s: { observed_at?: number; happened_after?: number }): number | undefined => s.happened_after ?? s.observed_at;
+export const evidenceAt = (s: {
+  observed_at?: number;
+  happened_after?: number;
+}): number | undefined => s.happened_after ?? s.observed_at;
 
 /**
  * What a judge's finding on a moment says of when it happened. A bulk start
  * (`cast line reviews start --batch`) opens its moment at the start, for a
  * whole history, so its findings cannot date what they name.
  */
-export const momentEvidence = (moment: Pick<Doc<"moments">, "batch">): { happened_after?: number } => (moment.batch ? { happened_after: 0 } : {});
+export const momentEvidence = (
+  moment: Pick<Doc<"moments">, "batch">,
+): { happened_after?: number } => (moment.batch ? { happened_after: 0 } : {});
 
 /**
  * Whether a closed problem still takes a finding: one a line run dissolved
@@ -127,9 +154,12 @@ export const momentEvidence = (moment: Pick<Doc<"moments">, "batch">): { happene
  * closed it. Later evidence is a recurrence (recursAfterFix) or goes where it
  * would without the problem.
  */
-export function absorbsFinding(task: Doc<"tasks">, at: number | undefined): string | null {
+export function absorbsFinding(
+  task: Doc<"tasks">,
+  at: number | undefined,
+): string | null {
   const dissolved = task.cause?.dissolved;
-  const until = dissolved ? dissolved.fixed_at ?? dissolved.at : undefined;
+  const until = dissolved ? (dissolved.fixed_at ?? dissolved.at) : undefined;
   if (at === undefined || !until || at > until) return null;
   return dissolvedReason(task);
 }
@@ -140,13 +170,22 @@ export function absorbsFinding(task: Doc<"tasks">, at: number | undefined): stri
  * is from after. It reopens that problem (signals.ts reopenAfterFix) rather
  * than sitting in it closed or opening a second problem beside it.
  */
-export function recursAfterFix(task: Doc<"tasks">, at: number | undefined): boolean {
+export function recursAfterFix(
+  task: Doc<"tasks">,
+  at: number | undefined,
+): boolean {
   const fixed = task.cause?.dissolved?.fixed_at;
-  return isTerminalTaskStatus(task.status) && !!fixed && at !== undefined && at > fixed;
+  return (
+    isTerminalTaskStatus(task.status) &&
+    !!fixed &&
+    at !== undefined &&
+    at > fixed
+  );
 }
 
 /** Every reason closeRetireReason writes starts so; lib/problemEvidence.fateOf and judgeRetire.refound read it. */
-export const CLOSED_WITH = /^closed with (ct-\d+)(, from before its fix| for coaching|: dropped)?/;
+export const CLOSED_WITH =
+  /^closed with (ct-\d+)(, from before its fix| for coaching|: dropped)?/;
 
 /** How a finding's reason opens when the moment it read came before its line was in force (judgeRetire.settleRun): history, read so by lib/problemEvidence.fateOf. */
 export const BEFORE_LINE = "from before its line was in force:";
@@ -158,12 +197,17 @@ export const BEFORE_LINE = "from before its line was in force:";
  * coaches; a drop closes it. Null for an open problem, or one a line did not
  * dissolve (a shipped fix in watch keeps its findings).
  */
-export function closeRetireReason(task: Pick<Doc<"tasks">, "status" | "short_id" | "cause">): string | null {
+export function closeRetireReason(
+  task: Pick<Doc<"tasks">, "status" | "short_id" | "cause">,
+): string | null {
   const d = task.cause?.dissolved;
   if (!d || !isTerminalTaskStatus(task.status)) return null;
-  if (d.coaching) return `closed with ${task.short_id} for coaching by ${d.coaching.owner}`;
+  if (d.coaching)
+    return `closed with ${task.short_id} for coaching by ${d.coaching.owner}`;
   if (task.status === "dropped") return `closed with ${task.short_id}: dropped`;
-  const live = d.fixed_at ? ` live ${new Date(d.fixed_at).toISOString().slice(0, 10)}` : "";
+  const live = d.fixed_at
+    ? ` live ${new Date(d.fixed_at).toISOString().slice(0, 10)}`
+    : "";
   return `closed with ${task.short_id}, from before its fix${live}`;
 }
 
@@ -174,19 +218,36 @@ export function closeRetireReason(task: Pick<Doc<"tasks">, "status" | "short_id"
  * copy (judgeRetire.refound), while counts, the dispatcher and the trial lanes
  * read only live findings on open problems. How many it retired.
  */
-export async function retireOnClose(ctx: { db: any }, task: Doc<"tasks">, now: number, only?: Array<Id<"signals">>): Promise<number> {
+export async function retireOnClose(
+  ctx: { db: any },
+  task: Doc<"tasks">,
+  now: number,
+  only?: Array<Id<"signals">>,
+): Promise<number> {
   const reason = closeRetireReason(task);
   if (!reason) return 0;
-  const held: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).collect();
+  const held: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .collect();
   const pick = only ? new Set(only.map(String)) : null;
   const rows = held.filter((r) => !pick || pick.has(String(r._id)));
-  for (const r of rows) await ctx.db.patch(r._id, { task_id: undefined, retired: { at: now, reason, task_id: task._id } });
-  if (rows.length && task.cause) await ctx.db.patch(task._id, { cause: { ...task.cause, signal_count: held.length - rows.length }, updated_at: now });
+  for (const r of rows)
+    await ctx.db.patch(r._id, {
+      task_id: undefined,
+      retired: { at: now, reason, task_id: task._id },
+    });
+  if (rows.length && task.cause)
+    await ctx.db.patch(task._id, {
+      cause: { ...task.cause, signal_count: held.length - rows.length },
+      updated_at: now,
+    });
   return rows.length;
 }
 
 /** A finding that still stands as evidence: not withdrawn, merged into another key, marked wrong, or a case against a judge. */
-export const standsAsEvidence = (row: Doc<"signals">) => !row.retired && !row.merged_into && !row.case_of && !row.judge_review;
+export const standsAsEvidence = (row: Doc<"signals">) =>
+  !row.retired && !row.merged_into && !row.case_of && !row.judge_review;
 
 /**
  * Whether a judge's finding came from the version of its judge that is
@@ -194,13 +255,25 @@ export const standsAsEvidence = (row: Doc<"signals">) => !row.retired && !row.me
  * may withdraw it (judgeRetire), so it is no ground to pull another finding
  * after it. A finding without a judge or a moment is current.
  */
-export async function judgedByCurrentVersion(ctx: { db: any }, row: Doc<"signals">, published = new Map<string, string | null>()): Promise<boolean> {
+export async function judgedByCurrentVersion(
+  ctx: { db: any },
+  row: Doc<"signals">,
+  published = new Map<string, string | null>(),
+): Promise<boolean> {
   if (!row.judge || !row.moment || !row.judge_version) return true;
   const key = `${row.moment}|${row.judge}`;
   if (!published.has(key)) {
-    const moment: Doc<"moments"> | null = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", row.moment)).first();
+    const moment: Doc<"moments"> | null = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) => q.eq("short_id", row.moment))
+      .first();
     const judge: Doc<"judges"> | null = moment
-      ? await ctx.db.query("judges").withIndex("by_source_name", (q: any) => q.eq("source_id", moment.source_id).eq("name", row.judge)).first()
+      ? await ctx.db
+          .query("judges")
+          .withIndex("by_source_name", (q: any) =>
+            q.eq("source_id", moment.source_id).eq("name", row.judge),
+          )
+          .first()
       : null;
     published.set(key, judge && !judge.removed_at ? judge.version : null);
   }
@@ -209,7 +282,8 @@ export async function judgedByCurrentVersion(ctx: { db: any }, row: Doc<"signals
 }
 
 /** The vector filter's one equality: findings group only with findings of the same expectation in the same workspace. */
-export const vectorScope = (workspace: string, subject: string) => `${workspace}|${subject}`;
+export const vectorScope = (workspace: string, subject: string) =>
+  `${workspace}|${subject}`;
 
 export const scopeOf = internalQuery({
   args: {
@@ -225,12 +299,33 @@ export const scopeOf = internalQuery({
     source: v.optional(v.string()),
     subject: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<CallScope & { project_id?: Id<"projects"> }> => {
-    const userId = args.user_id ?? (await verifyApiToken(ctx, args.api_token ?? ""))?.userId;
+  handler: async (
+    ctx,
+    args,
+  ): Promise<CallScope & { project_id?: Id<"projects"> }> => {
+    const userId =
+      args.user_id ?? (await verifyApiToken(ctx, args.api_token ?? ""))?.userId;
     if (!userId) throw new Error("Unauthorized");
-    const { db } = await createWorkContext(ctx, { userId, workspace: args.workspace, team_id: args.team_id, project_path: args.project_path, conversation_id: args.conversation_id });
-    const projectId = scopeProject(await placeSignal(ctx, db.workspaceKey, { source: args.source ?? "", subject: args.subject }, args));
-    return { workspace: db.workspaceKey, ...(db.axes.team_id ? { team_id: db.axes.team_id } : {}), ...(projectId ? { project_id: projectId } : {}) };
+    const { db } = await createWorkContext(ctx, {
+      userId,
+      workspace: args.workspace,
+      team_id: args.team_id,
+      project_path: args.project_path,
+      conversation_id: args.conversation_id,
+    });
+    const projectId = scopeProject(
+      await placeSignal(
+        ctx,
+        db.workspaceKey,
+        { source: args.source ?? "", subject: args.subject },
+        args,
+      ),
+    );
+    return {
+      workspace: db.workspaceKey,
+      ...(db.axes.team_id ? { team_id: db.axes.team_id } : {}),
+      ...(projectId ? { project_id: projectId } : {}),
+    };
   },
 });
 
@@ -244,7 +339,15 @@ export const causesForHits = internalQuery({
     evidence_at: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<ScoredCandidate[]> => {
-    const best = new Map<string, { task: Doc<"tasks">; score: number; subjects: Set<string>; closed?: string }>();
+    const best = new Map<
+      string,
+      {
+        task: Doc<"tasks">;
+        score: number;
+        subjects: Set<string>;
+        closed?: string;
+      }
+    >();
     for (const hit of args.hits) {
       const row = await ctx.db.get(hit.id);
       const signal = row ? await ctx.db.get(row.signal_id) : null;
@@ -253,7 +356,14 @@ export const causesForHits = internalQuery({
       // and stays the home of what reads the same, rather than vanishing from the
       // candidates and leaving the next such finding to open a problem beside it.
       const taskId = signal?.task_id ?? signal?.retired?.task_id;
-      if (!signal || !taskId || signal.merged_into || signal.case_of || signal.workspace !== args.workspace) continue;
+      if (
+        !signal ||
+        !taskId ||
+        signal.merged_into ||
+        signal.case_of ||
+        signal.workspace !== args.workspace
+      )
+        continue;
       const key = String(taskId);
       const seen = best.get(key);
       if (seen) {
@@ -264,12 +374,23 @@ export const causesForHits = internalQuery({
       const task = await ctx.db.get(taskId);
       if (!task || task.workspace !== args.workspace) continue;
       // A recurrence reads as an open problem: attaching it reopens the problem.
-      const closed = isTerminalTaskStatus(task.status) && !recursAfterFix(task, args.evidence_at) ? absorbsFinding(task, args.evidence_at) : undefined;
+      const closed =
+        isTerminalTaskStatus(task.status) &&
+        !recursAfterFix(task, args.evidence_at)
+          ? absorbsFinding(task, args.evidence_at)
+          : undefined;
       if (closed === null) continue;
       if (args.project_id && task.project_id !== args.project_id) continue;
-      best.set(key, { task, score: hit.score, subjects: new Set(signal.subject ? [signal.subject] : []), ...(closed ? { closed } : {}) });
+      best.set(key, {
+        task,
+        score: hit.score,
+        subjects: new Set(signal.subject ? [signal.subject] : []),
+        ...(closed ? { closed } : {}),
+      });
     }
-    const top = [...best.values()].sort((a, b) => b.score - a.score).slice(0, GROUPING.candidates);
+    const top = [...best.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, GROUPING.candidates);
     const out: ScoredCandidate[] = [];
     for (const { task, score, subjects, closed } of top) {
       const findings = await sampleFindings(ctx, task._id);
@@ -290,11 +411,18 @@ export const causesForHits = internalQuery({
 
 /** The vector scopes of a project's other active expectations: where a cross-expectation search looks. */
 export const otherScopes = internalQuery({
-  args: { workspace: v.string(), project_id: v.id("projects"), subject: v.string() },
+  args: {
+    workspace: v.string(),
+    project_id: v.id("projects"),
+    subject: v.string(),
+  },
   handler: async (ctx, args): Promise<string[]> => {
     const doc = await latestExpectations(ctx, args.project_id);
     return (doc?.items ?? [])
-      .filter((e: { id: string; status?: string }) => e.status !== "retired" && e.id !== args.subject)
+      .filter(
+        (e: { id: string; status?: string }) =>
+          e.status !== "retired" && e.id !== args.subject,
+      )
       .map((e: { id: string }) => vectorScope(args.workspace, e.id));
   },
 });
@@ -313,24 +441,56 @@ export async function nearCauses(
   opts: { cross?: boolean } = {},
 ): Promise<{ same: ScoredCandidate[]; cross: ScoredCandidate[] }> {
   const reach = async (filter: (q: any) => any): Promise<ScoredCandidate[]> => {
-    const hits: Array<{ _id: Id<"signal_vectors">; _score: number }> = await ctx.vectorSearch("signal_vectors", "by_embedding", { vector: finding.vector, limit: GROUPING.hits + 1, filter });
+    const hits: Array<{ _id: Id<"signal_vectors">; _score: number }> =
+      await ctx.vectorSearch("signal_vectors", "by_embedding", {
+        vector: finding.vector,
+        limit: GROUPING.hits + 1,
+        filter,
+      });
     return hits.length
-      ? await ctx.runQuery(internal.findingGroups.causesForHits, { workspace: where.workspace, project_id: where.project_id, evidence_at: finding.evidence_at, hits: hits.map((h) => ({ id: h._id, score: h._score })) })
+      ? await ctx.runQuery(internal.findingGroups.causesForHits, {
+          workspace: where.workspace,
+          project_id: where.project_id,
+          evidence_at: finding.evidence_at,
+          hits: hits.map((h) => ({ id: h._id, score: h._score })),
+        })
       : [];
   };
-  const same = await reach((q) => q.eq("scope", vectorScope(where.workspace, finding.subject)));
-  const scopes: string[] = opts.cross && where.project_id ? await ctx.runQuery(internal.findingGroups.otherScopes, { workspace: where.workspace, project_id: where.project_id, subject: finding.subject }) : [];
+  const same = await reach((q) =>
+    q.eq("scope", vectorScope(where.workspace, finding.subject)),
+  );
+  const scopes: string[] =
+    opts.cross && where.project_id
+      ? await ctx.runQuery(internal.findingGroups.otherScopes, {
+          workspace: where.workspace,
+          project_id: where.project_id,
+          subject: finding.subject,
+        })
+      : [];
   if (!scopes.length) return { same, cross: [] };
   const held = new Set(same.map((c) => c.short_id));
-  const cross = (await reach((q) => q.or(...scopes.map((scope) => q.eq("scope", scope)))))
-    .filter((c) => !held.has(c.short_id) && !c.subjects.includes(finding.subject) && c.score >= GROUPING.cross_ask)
+  const cross = (
+    await reach((q) => q.or(...scopes.map((scope) => q.eq("scope", scope))))
+  )
+    .filter(
+      (c) =>
+        !held.has(c.short_id) &&
+        !c.subjects.includes(finding.subject) &&
+        c.score >= GROUPING.cross_ask,
+    )
     .slice(0, GROUPING.cross_candidates)
     .map((c) => ({ ...c, cross: true }));
   return { same, cross };
 }
 
 /** The candidates the attach judge reads: the near ones of the finding's own expectation, then the other lines'. */
-export const askCandidates = (near: { same: ScoredCandidate[]; cross: ScoredCandidate[] }): ScoredCandidate[] => [...near.same.filter((c) => c.score >= GROUPING.ask), ...near.cross];
+export const askCandidates = (near: {
+  same: ScoredCandidate[];
+  cross: ScoredCandidate[];
+}): ScoredCandidate[] => [
+  ...near.same.filter((c) => c.score >= GROUPING.ask),
+  ...near.cross,
+];
 
 /**
  * The finding's embedding and the open problems whose findings of the same
@@ -340,14 +500,37 @@ export const askCandidates = (near: { same: ScoredCandidate[]; cross: ScoredCand
 export async function similarCandidates(
   ctx: { runQuery: any; runMutation: any; vectorSearch: any; scheduler: any },
   filer: { api_token: string } | { user_id: Id<"users"> },
-  signal: { source?: string; similar_text?: string; subject?: string; observed_at?: number; happened_after?: number },
+  signal: {
+    source?: string;
+    similar_text?: string;
+    subject?: string;
+    observed_at?: number;
+    happened_after?: number;
+  },
   scope: Record<string, unknown>,
-): Promise<{ scope: CallScope | null; vector?: number[]; candidates: ScoredCandidate[] }> {
-  if (!signal.similar_text || !signal.subject) return { scope: null, candidates: [] };
-  const where: CallScope & { project_id?: Id<"projects"> } = await ctx.runQuery(internal.findingGroups.scopeOf, { ...filer, ...scope, ...(signal.source ? { source: signal.source } : {}), subject: signal.subject });
+): Promise<{
+  scope: CallScope | null;
+  vector?: number[];
+  candidates: ScoredCandidate[];
+}> {
+  if (!signal.similar_text || !signal.subject)
+    return { scope: null, candidates: [] };
+  const where: CallScope & { project_id?: Id<"projects"> } = await ctx.runQuery(
+    internal.findingGroups.scopeOf,
+    {
+      ...filer,
+      ...scope,
+      ...(signal.source ? { source: signal.source } : {}),
+      subject: signal.subject,
+    },
+  );
   const embedded = await embedFinding(ctx, where, signal.similar_text);
   if (!embedded) return { scope: where, candidates: [] };
-  const near = await nearCauses(ctx, where, { vector: embedded.vector, subject: signal.subject, evidence_at: evidenceAt(signal) });
+  const near = await nearCauses(ctx, where, {
+    vector: embedded.vector,
+    subject: signal.subject,
+    evidence_at: evidenceAt(signal),
+  });
   return { scope: where, vector: embedded.vector, candidates: near.same };
 }
 
@@ -367,35 +550,85 @@ export async function groupingVerdict(
   signal: SignalInput,
   scope: Record<string, unknown>,
   opts: { message_hit?: boolean; exclude?: Id<"tasks"> } = {},
-): Promise<{ judged: Id<"tasks"> | null; similar: boolean; vector?: number[]; refused: boolean }> {
+): Promise<{
+  judged: Id<"tasks"> | null;
+  similar: boolean;
+  vector?: number[];
+  refused: boolean;
+}> {
   const near = await similarCandidates(ctx, filer, signal, scope);
   if (!near.vector) {
     // With no embedding key, no budget, or a regulated team while OpenAI has no BAA, grouping by meaning is off, not
     // refused: the finding groups by its key, as before. Otherwise a missing embedding means the cap had no room or
     // the call failed, and the finding waits.
-    const on = !!process.env.OPENAI_API_KEY && !!near.scope
-      && (await ctx.runQuery(internal.modelCalls.budgetSet, { workspace: near.scope.workspace }))
-      && (await vendorAllowedFor(ctx, { workspace: near.scope.workspace }, "openai"));
+    const on =
+      !!process.env.OPENAI_API_KEY &&
+      !!near.scope &&
+      (await ctx.runQuery(internal.modelCalls.budgetSet, {
+        workspace: near.scope.workspace,
+      })) &&
+      (await vendorAllowedFor(
+        ctx,
+        { workspace: near.scope.workspace },
+        "openai",
+      ));
     return { judged: null, similar: false, refused: on };
   }
-  const none = { judged: null, similar: false, vector: near.vector, refused: false };
+  const none = {
+    judged: null,
+    similar: false,
+    vector: near.vector,
+    refused: false,
+  };
   if (opts.message_hit) return none;
-  const candidates = near.candidates.filter((c) => String(c.task_id) !== String(opts.exclude ?? ""));
-  if (candidates[0] && candidates[0].score >= GROUPING.attach) return { ...none, judged: candidates[0].task_id, similar: true };
+  const candidates = near.candidates.filter(
+    (c) => String(c.task_id) !== String(opts.exclude ?? ""),
+  );
+  if (candidates[0] && candidates[0].score >= GROUPING.attach)
+    return { ...none, judged: candidates[0].task_id, similar: true };
   const ask = candidates.filter((c) => c.score >= GROUPING.ask);
   if (!ask.length || !near.scope) return none;
   const req = attachJudgeRequest(signal, ask);
-  const reply = await runModelCall(ctx, near.scope, "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "json" }, "Finding attach", 20_000);
-  return { ...none, judged: reply.ok ? parseAttachJudgeReply(reply.text, ask) : null };
+  const reply = await runModelCall(
+    ctx,
+    near.scope,
+    "grouping",
+    {
+      model: req.model,
+      system: req.system,
+      prompt: req.prompt,
+      max_tokens: req.max_tokens,
+      output: "json",
+    },
+    "Finding attach",
+    20_000,
+  );
+  return {
+    ...none,
+    judged: reply.ok ? parseAttachJudgeReply(reply.text, ask) : null,
+  };
 }
 
 /** Embed a finding's words inside the team's grouping budget; null when there is no room or the embedding fails. */
-export async function embedFinding(ctx: { runQuery: any; runMutation: any; scheduler: any }, scope: CallScope, text: string) {
-  const spent = await withinBudget(ctx, scope, "grouping", embeddingWorstCase(text), async (charge) => {
-    const result = await embedText({ ctx, scope: { workspace: scope.workspace } }, text);
-    charge(result?.cost_usd ?? 0);
-    return result;
-  });
+export async function embedFinding(
+  ctx: { runQuery: any; runMutation: any; scheduler: any },
+  scope: CallScope,
+  text: string,
+) {
+  const spent = await withinBudget(
+    ctx,
+    scope,
+    "grouping",
+    embeddingWorstCase(text),
+    async (charge) => {
+      const result = await embedText(
+        { ctx, scope: { workspace: scope.workspace } },
+        text,
+      );
+      charge(result?.cost_usd ?? 0);
+      return result;
+    },
+  );
   return spent.room ? spent.value : null;
 }
 
@@ -404,18 +637,41 @@ export async function embedFinding(ctx: { runQuery: any; runMutation: any; sched
  * against by those words from now on: its kept embedding is replaced. Its
  * problem stays. False when the budget had no room or the embedding failed.
  */
-export async function reembedFinding(ctx: { runQuery: any; runMutation: any; scheduler: any }, scope: CallScope, finding: { signal_id: Id<"signals">; subject: string; text: string }): Promise<boolean> {
+export async function reembedFinding(
+  ctx: { runQuery: any; runMutation: any; scheduler: any },
+  scope: CallScope,
+  finding: { signal_id: Id<"signals">; subject: string; text: string },
+): Promise<boolean> {
   const embedded = await embedFinding(ctx, scope, finding.text);
   if (!embedded) return false;
-  await ctx.runMutation(internal.findingGroups.replaceVector, { workspace: scope.workspace, subject: finding.subject, signal_id: finding.signal_id, embedding: embedded.vector });
+  await ctx.runMutation(internal.findingGroups.replaceVector, {
+    workspace: scope.workspace,
+    subject: finding.subject,
+    signal_id: finding.signal_id,
+    embedding: embedded.vector,
+  });
   return true;
 }
 
 export const replaceVector = internalMutation({
-  args: { workspace: v.string(), subject: v.string(), signal_id: v.id("signals"), embedding: v.array(v.float64()) },
+  args: {
+    workspace: v.string(),
+    subject: v.string(),
+    signal_id: v.id("signals"),
+    embedding: v.array(v.float64()),
+  },
   handler: async (ctx, args) => {
-    for (const old of await ctx.db.query("signal_vectors").withIndex("by_signal", (q: any) => q.eq("signal_id", args.signal_id)).collect()) await ctx.db.delete(old._id);
-    await ctx.db.insert("signal_vectors", { workspace: args.workspace, scope: vectorScope(args.workspace, args.subject), signal_id: args.signal_id, embedding: args.embedding });
+    for (const old of await ctx.db
+      .query("signal_vectors")
+      .withIndex("by_signal", (q: any) => q.eq("signal_id", args.signal_id))
+      .collect())
+      await ctx.db.delete(old._id);
+    await ctx.db.insert("signal_vectors", {
+      workspace: args.workspace,
+      scope: vectorScope(args.workspace, args.subject),
+      signal_id: args.signal_id,
+      embedding: args.embedding,
+    });
   },
 });
 
@@ -423,7 +679,9 @@ export const replaceVector = internalMutation({
  * After the commit, in its transaction: a problem grouping named reads as
  * attached by similarity, and the finding's embedding is kept for the next.
  */
-export async function keepSimilarity<R extends { signal_id: Id<"signals">; attach: string }>(
+export async function keepSimilarity<
+  R extends { signal_id: Id<"signals">; attach: string },
+>(
   ctx: { db: any },
   workspace: string,
   signal: { subject?: string },
@@ -436,7 +694,12 @@ export async function keepSimilarity<R extends { signal_id: Id<"signals">; attac
     out = { ...result, attach: "similar" };
   }
   if (args.vector?.length && signal.subject) {
-    await ctx.db.insert("signal_vectors", { workspace, scope: vectorScope(workspace, signal.subject), signal_id: result.signal_id, embedding: args.vector });
+    await ctx.db.insert("signal_vectors", {
+      workspace,
+      scope: vectorScope(workspace, signal.subject),
+      signal_id: result.signal_id,
+      embedding: args.vector,
+    });
   }
   return out;
 }
@@ -463,10 +726,18 @@ export type ProbeInputs = {
 export const probeInputs = internalQuery({
   args: { workspace: v.string(), signal: v.string() },
   handler: async (ctx, args): Promise<ProbeInputs | null> => {
-    const row: Doc<"signals"> | null = await ctx.db.query("signals").withIndex("by_short_id", (q: any) => q.eq("short_id", args.signal)).first();
+    const row: Doc<"signals"> | null = await ctx.db
+      .query("signals")
+      .withIndex("by_short_id", (q: any) => q.eq("short_id", args.signal))
+      .first();
     if (!row || row.workspace !== args.workspace || !row.subject) return null;
-    const kept = await ctx.db.query("signal_vectors").withIndex("by_signal", (q: any) => q.eq("signal_id", row._id)).first();
-    const task: Doc<"tasks"> | null = row.task_id ? await ctx.db.get(row.task_id) : null;
+    const kept = await ctx.db
+      .query("signal_vectors")
+      .withIndex("by_signal", (q: any) => q.eq("signal_id", row._id))
+      .first();
+    const task: Doc<"tasks"> | null = row.task_id
+      ? await ctx.db.get(row.task_id)
+      : null;
     return {
       signal_id: row._id,
       short_id: row.short_id,
@@ -477,7 +748,9 @@ export const probeInputs = internalQuery({
       subject: row.subject,
       detail_md: row.detail_md,
       observed_at: row.observed_at,
-      ...(row.happened_after !== undefined ? { happened_after: row.happened_after } : {}),
+      ...(row.happened_after !== undefined
+        ? { happened_after: row.happened_after }
+        : {}),
       task_short_id: task?.short_id ?? null,
       task_id: row.task_id ?? null,
       project_id: task?.project_id ?? row.project_id ?? null,

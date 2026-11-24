@@ -59,11 +59,29 @@ export type Area = (typeof AREAS)[number];
 export const JOB_AREAS: Record<string, Area[]> = {
   // The web bundle pulls in convex and electron source the same way its tests
   // do (see test-web).
-  build: ["cli", "web", "convex", "shared", "electron", "extension", "playground", "platform"],
+  build: [
+    "cli",
+    "web",
+    "convex",
+    "shared",
+    "electron",
+    "extension",
+    "playground",
+    "platform",
+  ],
   // The cli program's rootDir is the repo root and it imports the convex
   // generated api, so a convex change can break the cli typecheck too. The web
   // program reaches electron's window registry.
-  typecheck: ["cli", "evals", "web", "convex", "shared", "electron", "playground", "platform"],
+  typecheck: [
+    "cli",
+    "evals",
+    "web",
+    "convex",
+    "shared",
+    "electron",
+    "playground",
+    "platform",
+  ],
   lint: AREAS.filter((area) => area !== "docs"),
   // About 480 of 620 convex test files import web code through convex source.
   "test-convex": ["convex", "web", "shared", "platform"],
@@ -73,7 +91,15 @@ export const JOB_AREAS: Record<string, Area[]> = {
   // about 60 reach a README under docs/ through decisionKit.ts. About 180
   // reach the browser extension, which the CLI carries for cloud hosts
   // (browser/hostExtension.ts reads apps/browser-extension/shipped.mjs).
-  "test-cli": ["cli", "evals", "convex", "docs", "shared", "platform", "extension"],
+  "test-cli": [
+    "cli",
+    "evals",
+    "convex",
+    "docs",
+    "shared",
+    "platform",
+    "extension",
+  ],
   // The mirror's own job: its package tests, and the drift check. Every other
   // job lists "platform" too, because the mirror is a dependency of all of
   // them and is its own area, not part of "shared".
@@ -146,7 +172,10 @@ const DOCS_FILES = new Set([
 const DOCS_PREFIXES = ["docs/", "plans/", ".github/ISSUE_TEMPLATE/"];
 
 function isDocsPath(file: string): boolean {
-  return DOCS_FILES.has(file) || DOCS_PREFIXES.some((prefix) => file.startsWith(prefix));
+  return (
+    DOCS_FILES.has(file) ||
+    DOCS_PREFIXES.some((prefix) => file.startsWith(prefix))
+  );
 }
 
 /** The area a path belongs to, or null when nothing here claims it. */
@@ -166,13 +195,18 @@ export function areaOf(file: string): Area | null {
  * adoption landing without a re-vendor (ct-49675).
  */
 export function touchesPlatform(file: string): boolean {
-  return file.startsWith("platform/") || /^(apps|packages|tests)\/[^/]+\/package\.json$/.test(file);
+  return (
+    file.startsWith("platform/") ||
+    /^(apps|packages|tests)\/[^/]+\/package\.json$/.test(file)
+  );
 }
 
 export function touchesComputer(file: string): boolean {
-  return file.startsWith("apps/cli/src/computer/")
-    || file.startsWith("apps/cli/native/computer-use-")
-    || file.startsWith("apps/cli/scripts/computer-");
+  return (
+    file.startsWith("apps/cli/src/computer/") ||
+    file.startsWith("apps/cli/native/computer-use-") ||
+    file.startsWith("apps/cli/scripts/computer-")
+  );
 }
 
 /**
@@ -238,7 +272,9 @@ export function classifyChangedPaths(files: string[]): Scope {
   for (const [job, jobAreas] of Object.entries(JOB_AREAS)) {
     flags[jobFlag(job)] = forced || jobAreas.some((area) => areas.has(area));
   }
-  flags.run_lint ||= paths.some((file) => /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file));
+  flags.run_lint ||= paths.some((file) =>
+    /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(file),
+  );
   return { flags, forcedBy };
 }
 
@@ -258,7 +294,9 @@ if (import.meta.main) {
   } else {
     const scope = classifyChangedPaths(files);
     if (scope.forcedBy.length > 0) {
-      console.error(`Running every job — unclassified input: ${scope.forcedBy.join(", ")}`);
+      console.error(
+        `Running every job — unclassified input: ${scope.forcedBy.join(", ")}`,
+      );
     }
     console.log(formatScope(scope));
   }

@@ -1,5 +1,9 @@
 import { desktopAppWindow, hasAppWindow } from "./desktopApps";
-import { getDesktopWindowRole, isDetachedTabWindow, isElectron } from "./desktop";
+import {
+  getDesktopWindowRole,
+  isDetachedTabWindow,
+  isElectron,
+} from "./desktop";
 
 // Which window shows a chat toast. Every desktop window mounts useChatToasts,
 // so without one owner a second window (a detached tab, the Work window)

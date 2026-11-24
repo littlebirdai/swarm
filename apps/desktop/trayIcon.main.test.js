@@ -7,31 +7,63 @@ const { trayIconState } = require("./trayIcon");
 
 function loadTray() {
   const source = fs.readFileSync(path.join(__dirname, "main.js"), "utf8");
-  const traySource = source.slice(source.indexOf('const { trayIconState }'), source.indexOf("function buildAppMenu()"));
-  const badgeSource = source.slice(source.indexOf('shellIpc.handle("set-badge-count"'), source.indexOf("// OS-wide seconds since last user input"));
+  const traySource = source.slice(
+    source.indexOf("const { trayIconState }"),
+    source.indexOf("function buildAppMenu()"),
+  );
+  const badgeSource = source.slice(
+    source.indexOf('shellIpc.handle("set-badge-count"'),
+    source.indexOf("// OS-wide seconds since last user input"),
+  );
   const handlers = new Map();
   const badges = [];
   const images = [];
   const trays = [];
   const context = vm.createContext({
-    require, path, __dirname,
+    require,
+    path,
+    __dirname,
     tray: null,
     spareTabWindow: null,
     loadAgentDock: () => ({ enabled: false, minimized: false }),
-    app: { getVersion: () => "test", setBadgeCount: n => badges.push(n) },
+    app: { getVersion: () => "test", setBadgeCount: (n) => badges.push(n) },
     shellIpc: { handle: (name, handler) => handlers.set(name, handler) },
-    Menu: { buildFromTemplate: items => items },
-    nativeImage: { createFromPath: file => ({ file, setTemplateImage(value) { this.template = value; } }) },
+    Menu: { buildFromTemplate: (items) => items },
+    nativeImage: {
+      createFromPath: (file) => ({
+        file,
+        setTemplateImage(value) {
+          this.template = value;
+        },
+      }),
+    },
     Tray: class {
-      constructor(image) { this.image = image; this.destroyed = false; trays.push(this); }
-      isDestroyed() { return this.destroyed; }
-      setImage(image) { this.image = image; images.push(image); }
-      setToolTip(text) { this.tooltip = text; }
+      constructor(image) {
+        this.image = image;
+        this.destroyed = false;
+        trays.push(this);
+      }
+      isDestroyed() {
+        return this.destroyed;
+      }
+      setImage(image) {
+        this.image = image;
+        images.push(image);
+      }
+      setToolTip(text) {
+        this.tooltip = text;
+      }
       setContextMenu() {}
     },
   });
   vm.runInContext(traySource + "\n" + badgeSource, context);
-  return { badges, images, trays, create: () => vm.runInContext("createTray()", context), report: n => handlers.get("set-badge-count")({ sender: {} }, n) };
+  return {
+    badges,
+    images,
+    trays,
+    create: () => vm.runInContext("createTray()", context),
+    report: (n) => handlers.get("set-badge-count")({ sender: {} }, n),
+  };
 }
 
 test("badge reports update both native attention surfaces without redundant images", () => {

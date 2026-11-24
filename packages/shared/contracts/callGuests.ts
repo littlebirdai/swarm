@@ -26,7 +26,11 @@ export function guestIdentity(guestId: string): string {
 }
 
 export function isGuestIdentity(identity: string | null | undefined): boolean {
-  return typeof identity === "string" && identity.startsWith(GUEST_PREFIX) && identity.length > GUEST_PREFIX.length;
+  return (
+    typeof identity === "string" &&
+    identity.startsWith(GUEST_PREFIX) &&
+    identity.length > GUEST_PREFIX.length
+  );
 }
 
 /** Is this speaker or participant a guest? By identity when there is one
@@ -34,7 +38,10 @@ export function isGuestIdentity(identity: string | null | undefined): boolean {
  *  its name ("Ada (guest)", callSpeakerName), which a stored line keeps even
  *  where no identity rides along. The one test, for the web's badge and the
  *  phone's "(guest)" alike, so a guest never passes for a teammate on one. */
-export function isGuestParticipant(identity: string | null | undefined, name?: string | null): boolean {
+export function isGuestParticipant(
+  identity: string | null | undefined,
+  name?: string | null,
+): boolean {
   return isGuestIdentity(identity) || GUEST_MARK_RE.test(name ?? "");
 }
 
@@ -42,11 +49,18 @@ export function isGuestParticipant(identity: string | null | undefined, name?: s
 // for reading it off a stored name and for stripping one a guest typed.
 const GUEST_MARK_SRC = String.raw`\(\s*guest\s*\)`;
 export const GUEST_MARK_RE = new RegExp(`${GUEST_MARK_SRC}\\s*$`, "i");
-const GUEST_MARKS_TRAILING_RE = new RegExp(`(?:\\s*${GUEST_MARK_SRC})+\\s*$`, "i");
+const GUEST_MARKS_TRAILING_RE = new RegExp(
+  `(?:\\s*${GUEST_MARK_SRC})+\\s*$`,
+  "i",
+);
 
 /** The call_guests id inside a guest identity, or null for anyone else. */
-export function guestIdFromIdentity(identity: string | null | undefined): string | null {
-  return isGuestIdentity(identity) ? identity!.slice(GUEST_PREFIX.length) : null;
+export function guestIdFromIdentity(
+  identity: string | null | undefined,
+): string | null {
+  return isGuestIdentity(identity)
+    ? identity!.slice(GUEST_PREFIX.length)
+    : null;
 }
 
 export type CallParticipantKind = "person" | "guest" | "agent";
@@ -66,15 +80,20 @@ export const PARTICIPANT_MARKS = {
   guest: { word: "guest", title: "A guest from outside the team" },
   agent: { word: "agent", title: "An AI agent, not a person" },
 } as const;
-export type ParticipantMark = (typeof PARTICIPANT_MARKS)[keyof typeof PARTICIPANT_MARKS];
+export type ParticipantMark =
+  (typeof PARTICIPANT_MARKS)[keyof typeof PARTICIPANT_MARKS];
 
 /** Which mark this participant wears, or null for a teammate. The agent test
  *  reads the identity alone; the guest test also reads a stored line's name
  *  (isGuestParticipant), which is all a transcript line may carry. One
  *  answer for the web's badge and the phone's "(guest)" and "(agent)", so a
  *  surface never marks one and forgets the other. */
-export function participantMark(identity: string | null | undefined, name?: string | null): ParticipantMark | null {
-  if (identity && callParticipantKind(identity) === "agent") return PARTICIPANT_MARKS.agent;
+export function participantMark(
+  identity: string | null | undefined,
+  name?: string | null,
+): ParticipantMark | null {
+  if (identity && callParticipantKind(identity) === "agent")
+    return PARTICIPANT_MARKS.agent;
   return isGuestParticipant(identity, name) ? PARTICIPANT_MARKS.guest : null;
 }
 
@@ -83,7 +102,12 @@ export function participantMark(identity: string | null | undefined, name?: stri
  *  participant's mark after both, "Riley's screen (guest)". The one way a
  *  mark is put into words, so the web, the phone and the recording labels
  *  never disagree about who wears one. */
-export function markedName(base: string, identity: string | null | undefined, name?: string | null, what = ""): string {
+export function markedName(
+  base: string,
+  identity: string | null | undefined,
+  name?: string | null,
+  what = "",
+): string {
   const mark = participantMark(identity, name);
   return mark ? `${base}${what} (${mark.word})` : `${base}${what}`;
 }
@@ -114,10 +138,15 @@ export function isRoomMachineryKind(kind: number | undefined): boolean {
 export const GUEST_NAME_MAX = 40;
 
 /** The name a guest may go by, or null when nothing usable was typed. */
-export function normalizeGuestName(raw: string | null | undefined): string | null {
+export function normalizeGuestName(
+  raw: string | null | undefined,
+): string | null {
   const flat = (raw ?? "")
     .normalize("NFC")
-    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g, " ")
+    .replace(
+      /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/g,
+      " ",
+    )
     .replace(/[*_`[\]:]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -138,7 +167,10 @@ export function guestDisplayName(name: string | null | undefined): string {
 /** The speaker name a transcript line carries for a participant: a guest is
  *  marked in the words themselves, because a transcript outlives the call and
  *  is read where no badge can follow (a session, a doc, a Slack channel). */
-export function callSpeakerName(identity: string, name: string | null | undefined): string {
+export function callSpeakerName(
+  identity: string,
+  name: string | null | undefined,
+): string {
   if (isGuestIdentity(identity)) return guestDisplayName(name);
   return (name ?? "").trim() || "Someone";
 }
@@ -151,7 +183,13 @@ export function callSpeakerName(identity: string, name: string | null | undefine
 //   removed   put out of the call by somebody inside it
 //   left      walked out, the huddle ended, or their page went quiet
 //             (left_reason says which)
-export const CALL_GUEST_STATUSES = ["waiting", "admitted", "denied", "removed", "left"] as const;
+export const CALL_GUEST_STATUSES = [
+  "waiting",
+  "admitted",
+  "denied",
+  "removed",
+  "left",
+] as const;
 export type CallGuestStatus = (typeof CALL_GUEST_STATUSES)[number];
 
 /** Whether a guest may hold a media token right now. */
@@ -169,7 +207,12 @@ export function guestMayJoin(status: CallGuestStatus): boolean {
 // press Join in time). Their page says which, because "you left" to somebody
 // who did not, or "you lost connection" to somebody who never connected, is
 // a small lie at the end of a meeting.
-export const CALL_GUEST_LEFT_REASONS = ["self", "huddle_ended", "lapsed", "not_joined"] as const;
+export const CALL_GUEST_LEFT_REASONS = [
+  "self",
+  "huddle_ended",
+  "lapsed",
+  "not_joined",
+] as const;
 export type CallGuestLeftReason = (typeof CALL_GUEST_LEFT_REASONS)[number];
 
 /** Is this guest at the door or in the room right now? At the door, the
@@ -185,8 +228,11 @@ export function isGuestPresent(
   row: { status: CallGuestStatus; last_seen: number },
   now: number,
 ): boolean {
-  if (row.status === "waiting") return now - row.last_seen < CALL_MEMBER_STALE_MS;
-  return row.status === "admitted" && now - row.last_seen < GUEST_ADMISSION_LAPSE_MS;
+  if (row.status === "waiting")
+    return now - row.last_seen < CALL_MEMBER_STALE_MS;
+  return (
+    row.status === "admitted" && now - row.last_seen < GUEST_ADMISSION_LAPSE_MS
+  );
 }
 
 // What the guest's own page shows, one word per screen it can be on. The
@@ -200,7 +246,14 @@ export function isGuestPresent(
 //   left      they walked out
 //   ended     the huddle they were in is over
 //   closed    the link expired or was turned off while they waited
-export type CallGuestView = "waiting" | "admitted" | "denied" | "removed" | "left" | "ended" | "closed";
+export type CallGuestView =
+  | "waiting"
+  | "admitted"
+  | "denied"
+  | "removed"
+  | "left"
+  | "ended"
+  | "closed";
 
 // Abuse limits on a link anybody can hold. A link is a door, not a queue: a
 // handful of new people a minute is a meeting starting, more is somebody
@@ -258,7 +311,12 @@ export const GUEST_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** Every reason a link turns a guest away: the link's own three (gone,
  *  turned off, expired), the team's (calls switched off), and the person
  *  whose standing the link lived on (no longer able to invite). */
-export type GuestLinkRefusal = "not_found" | "revoked" | "expired" | "unavailable" | "inviter_gone";
+export type GuestLinkRefusal =
+  | "not_found"
+  | "revoked"
+  | "expired"
+  | "unavailable"
+  | "inviter_gone";
 
 /** Why a link refuses by its own fields alone (the first three above), or
  *  null. The one rule for a link's life: the server asks it on every knock
@@ -280,11 +338,26 @@ export function guestLinkRefusal(
  *  in its own heading and only the second under it (a body that repeats its
  *  heading reads as a mistake); everything else says both, as one line
  *  (GUEST_LINK_REFUSAL_TEXT). */
-export const GUEST_LINK_REFUSAL_PARTS: Record<GuestLinkRefusal, { what: string; next: string }> = {
-  not_found: { what: "This link isn't valid.", next: "Ask whoever sent it for a new one." },
-  revoked: { what: "This link was turned off.", next: "Ask whoever sent it for a new one." },
-  expired: { what: "This link has expired.", next: "Ask whoever sent it for a new one." },
-  unavailable: { what: "This meeting isn't taking guests right now.", next: "Try the link again later." },
+export const GUEST_LINK_REFUSAL_PARTS: Record<
+  GuestLinkRefusal,
+  { what: string; next: string }
+> = {
+  not_found: {
+    what: "This link isn't valid.",
+    next: "Ask whoever sent it for a new one.",
+  },
+  revoked: {
+    what: "This link was turned off.",
+    next: "Ask whoever sent it for a new one.",
+  },
+  expired: {
+    what: "This link has expired.",
+    next: "Ask whoever sent it for a new one.",
+  },
+  unavailable: {
+    what: "This meeting isn't taking guests right now.",
+    next: "Try the link again later.",
+  },
   inviter_gone: {
     what: "Whoever sent this link can no longer invite guests to this meeting.",
     next: "Ask someone else in it for a new one.",
@@ -296,11 +369,19 @@ export const GUEST_LINK_REFUSAL_PARTS: Record<GuestLinkRefusal, { what: string; 
  *  "Ask Ashot for a new one." rather than "whoever sent it", which a person
  *  who got the link in a busy text thread may not know. Without a name, the
  *  plain parts. */
-export function guestLinkRefusalParts(reason: GuestLinkRefusal, inviter?: string | null): { what: string; next: string } {
+export function guestLinkRefusalParts(
+  reason: GuestLinkRefusal,
+  inviter?: string | null,
+): { what: string; next: string } {
   const parts = GUEST_LINK_REFUSAL_PARTS[reason];
   if (!inviter) return parts;
-  if (reason === "expired" || reason === "revoked") return { ...parts, next: `Ask ${inviter} for a new one.` };
-  if (reason === "inviter_gone") return { ...parts, what: `${inviter} can no longer invite guests to this meeting.` };
+  if (reason === "expired" || reason === "revoked")
+    return { ...parts, next: `Ask ${inviter} for a new one.` };
+  if (reason === "inviter_gone")
+    return {
+      ...parts,
+      what: `${inviter} can no longer invite guests to this meeting.`,
+    };
   return parts;
 }
 
@@ -308,7 +389,10 @@ export function guestLinkRefusalParts(reason: GuestLinkRefusal, inviter?: string
  *  link's unfurl carries them, and the guest page words the same door from the
  *  same parts, so no two places word it differently. */
 export const GUEST_LINK_REFUSAL_TEXT = Object.fromEntries(
-  Object.entries(GUEST_LINK_REFUSAL_PARTS).map(([k, p]) => [k, `${p.what} ${p.next}`]),
+  Object.entries(GUEST_LINK_REFUSAL_PARTS).map(([k, p]) => [
+    k,
+    `${p.what} ${p.next}`,
+  ]),
 ) as Record<GuestLinkRefusal, string>;
 
 /** Why an admitted guest's page may not join the media right now
@@ -317,22 +401,33 @@ export const GUEST_LINK_REFUSAL_TEXT = Object.fromEntries(
  *  to the matching ending instead of an error line under a Join button. The
  *  other guest refusals (a knock, an admission) are only ever shown, so they
  *  stay plain Errors whose words reach the page as they are. */
-export type GuestJoinRefusal = "not_a_guest" | "not_admitted" | "removed" | "ended" | "unavailable" | "notice_changed";
+export type GuestJoinRefusal =
+  | "not_a_guest"
+  | "not_admitted"
+  | "removed"
+  | "ended"
+  | "unavailable"
+  | "notice_changed";
 
 export const GUEST_JOIN_REFUSAL_TEXT: Record<GuestJoinRefusal, string> = {
-  not_a_guest: "This page no longer holds your place in the call. Reload to ask to join again.",
-  not_admitted: "You aren't let in right now. Ask to join again and someone inside can let you in.",
+  not_a_guest:
+    "This page no longer holds your place in the call. Reload to ask to join again.",
+  not_admitted:
+    "You aren't let in right now. Ask to join again and someone inside can let you in.",
   removed: "Someone in the call removed you.",
   ended: "This call has ended.",
   unavailable: GUEST_LINK_REFUSAL_TEXT.unavailable,
-  notice_changed: "The call keeps more now than when you agreed to join. Read the notice again, then join.",
+  notice_changed:
+    "The call keeps more now than when you agreed to join. Read the notice again, then join.",
 };
 
 /** The refusal code a thrown join error carries, or null for anything else
  *  (a network failure, LiveKit itself). */
 export function guestJoinRefusalOf(err: unknown): GuestJoinRefusal | null {
   const code = (err as any)?.data?.code;
-  return typeof code === "string" && code in GUEST_JOIN_REFUSAL_TEXT ? (code as GuestJoinRefusal) : null;
+  return typeof code === "string" && code in GUEST_JOIN_REFUSAL_TEXT
+    ? (code as GuestJoinRefusal)
+    : null;
 }
 
 /** What is kept of a call, as a guest is told it. `video_public`: the
@@ -342,7 +437,12 @@ export function guestJoinRefusalOf(err: unknown): GuestJoinRefusal | null {
  *  the call's record has a public link on, which shows its transcript live,
  *  so what they say reaches anyone holding it. Each widens a row of its own
  *  (noticeNews), the way the thing it names widens who can see them. */
-export type GuestNotice = { recording: boolean; transcribed: boolean; video_public?: boolean; words_public?: boolean };
+export type GuestNotice = {
+  recording: boolean;
+  transcribed: boolean;
+  video_public?: boolean;
+  words_public?: boolean;
+};
 
 /**
  * The words a guest's consent rests on: whether what they say is written down
@@ -401,16 +501,26 @@ export function guestNoticeLines(
  *  is news before they agreed to anything. The one comparison behind the
  *  lobby's "Join, recorded", the rows marked new and the line said inside
  *  the call, so no two of them disagree about what changed. */
-export function noticeNews(since: GuestNotice | null | undefined, now: GuestNotice): { rec: boolean; words: boolean } {
+export function noticeNews(
+  since: GuestNotice | null | undefined,
+  now: GuestNotice,
+): { rec: boolean; words: boolean } {
   if (!since) return { rec: false, words: false };
   return {
-    rec: now.recording && (!since.recording || (!!now.video_public && !since.video_public)),
-    words: now.transcribed && (!since.transcribed || (!!now.words_public && !since.words_public)),
+    rec:
+      now.recording &&
+      (!since.recording || (!!now.video_public && !since.video_public)),
+    words:
+      now.transcribed &&
+      (!since.transcribed || (!!now.words_public && !since.words_public)),
   };
 }
 
 /** Does the room keep more than the guest agreed to? (noticeNews, any row) */
-export function noticeWidened(since: GuestNotice | null | undefined, now: GuestNotice): boolean {
+export function noticeWidened(
+  since: GuestNotice | null | undefined,
+  now: GuestNotice,
+): boolean {
   const n = noticeNews(since, now);
   return n.rec || n.words;
 }
@@ -418,7 +528,10 @@ export function noticeWidened(since: GuestNotice | null | undefined, now: GuestN
 /** The notice as one sentence, for a link's card: "This call is recorded and
  *  transcribed.", or "" when nothing is kept. */
 export function guestNoticeSentence(n: GuestNotice): string {
-  const kept = [n.recording && "recorded", n.transcribed && "transcribed"].filter(Boolean);
+  const kept = [
+    n.recording && "recorded",
+    n.transcribed && "transcribed",
+  ].filter(Boolean);
   return kept.length ? `This call is ${kept.join(" and ")}.` : "";
 }
 

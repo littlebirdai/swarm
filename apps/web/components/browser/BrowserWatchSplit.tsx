@@ -29,7 +29,10 @@ import type { BrowserRowState } from "../castCommand";
 import { BrowserStream } from "./BrowserStream";
 import { BrowserTabActionLabel } from "./BrowserTabPill";
 import { WatchAddress, WheelButton } from "./watchControls";
-import { BROWSER_ROW_PILL, useBrowserTabActions } from "../../hooks/useBrowserTabActions";
+import {
+  BROWSER_ROW_PILL,
+  useBrowserTabActions,
+} from "../../hooks/useBrowserTabActions";
 
 const DEFAULT_HEIGHT = 320;
 const MIN_HEIGHT = 120;
@@ -53,7 +56,6 @@ function subscribe(cb: () => void): () => void {
 function getVersion(): number {
   return version;
 }
-
 
 /** Reactive open-state, for affordances that toggle the split. */
 export function useBrowserWatchOpen(convKey: string | undefined): boolean {
@@ -97,7 +99,15 @@ export function BrowserWatchSplit({
   useSyncExternalStore(subscribe, getVersion, getVersion);
   const split = splits.get(convKey);
   if (!split) return null;
-  return <SplitBody convKey={convKey} split={split} sessionUuid={sessionUuid ?? null} tmuxSession={tmuxSession ?? null} lastPage={lastPage ?? null} />;
+  return (
+    <SplitBody
+      convKey={convKey}
+      split={split}
+      sessionUuid={sessionUuid ?? null}
+      tmuxSession={tmuxSession ?? null}
+      lastPage={lastPage ?? null}
+    />
+  );
 }
 
 function SplitBody({
@@ -150,11 +160,17 @@ function SplitBody({
   // and when the stream failed for want of a tab, bring the last page back —
   // the stream then redials onto the reopened tab.
   const tabActions = useBrowserTabActions(
-    { tabId: tab?.id || lastPage?.tabId || null, url: tab?.url || lastPage?.url || null },
+    {
+      tabId: tab?.id || lastPage?.tabId || null,
+      url: tab?.url || lastPage?.url || null,
+    },
     { sessionUuid, tmuxSession },
     reconnect,
   );
-  const reopenOffered = !!failed?.tabGone && !!(tab?.url || lastPage?.url) && !!(sessionUuid || tmuxSession);
+  const reopenOffered =
+    !!failed?.tabGone &&
+    !!(tab?.url || lastPage?.url) &&
+    !!(sessionUuid || tmuxSession);
 
   const onHandlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -164,7 +180,10 @@ function SplitBody({
     let latest = startHeight;
     const onMove = (ev: PointerEvent) => {
       // Top-docked: dragging DOWN grows the split.
-      latest = Math.min(Math.max(startHeight + (ev.clientY - startY), MIN_HEIGHT), maxH);
+      latest = Math.min(
+        Math.max(startHeight + (ev.clientY - startY), MIN_HEIGHT),
+        maxH,
+      );
       setDragHeight(latest);
     };
     const onUp = () => {
@@ -187,37 +206,64 @@ function SplitBody({
   const live = status.kind === "live";
 
   return (
-    <div className="flex-shrink-0 flex flex-col bg-sol-bg" style={{ height: dragHeight ?? split.height }}>
+    <div
+      className="flex-shrink-0 flex flex-col bg-sol-bg"
+      style={{ height: dragHeight ?? split.height }}
+    >
       <div className="flex items-center h-[24px] px-2 gap-1.5 flex-shrink-0 bg-sol-bg-alt/30 border-b border-sol-border/20 select-none">
         <span
           className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-            live ? "bg-sol-red animate-pulse" : status.kind === "connecting" ? "bg-sol-yellow animate-pulse" : "bg-sol-text-dim/40"
+            live
+              ? "bg-sol-red animate-pulse"
+              : status.kind === "connecting"
+                ? "bg-sol-yellow animate-pulse"
+                : "bg-sol-text-dim/40"
           }`}
         />
-        <span className={`text-meta font-mono tracking-wider flex-shrink-0 ${live ? "text-sol-red" : "text-sol-text-dim"}`}>
+        <span
+          className={`text-meta font-mono tracking-wider flex-shrink-0 ${live ? "text-sol-red" : "text-sol-text-dim"}`}
+        >
           {statusLabel(report)}
         </span>
         {tab && (
           <>
-            <span className="text-meta font-mono text-sol-text-muted truncate">{tab.title || "untitled"}</span>
+            <span className="text-meta font-mono text-sol-text-muted truncate">
+              {tab.title || "untitled"}
+            </span>
             {tab.url && <WatchAddress url={tab.url} nav={report.nav} />}
           </>
         )}
         {tabActions.tabId && (
           <button
             type="button"
-            onClick={tabActions.state.kind === "offer" ? tabActions.reopen : tabActions.focus}
+            onClick={
+              tabActions.state.kind === "offer"
+                ? tabActions.reopen
+                : tabActions.focus
+            }
             title={`Focus tab ${tabActions.tabId.slice(0, 8)} in the agent's browser${machineName ? ` on ${machineName}` : ""}`}
             className={`${BROWSER_ROW_PILL} ${
-              tabActions.state.kind === "busy" ? "text-sol-cyan border-sol-cyan/40" : tabActions.state.kind === "note" ? "text-sol-red/80 border-sol-red/30" : ""
+              tabActions.state.kind === "busy"
+                ? "text-sol-cyan border-sol-cyan/40"
+                : tabActions.state.kind === "note"
+                  ? "text-sol-red/80 border-sol-red/30"
+                  : ""
             }`}
             aria-busy={tabActions.state.kind === "busy"}
           >
-            <BrowserTabActionLabel state={tabActions.state} idle={<span>open tab</span>} />
+            <BrowserTabActionLabel
+              state={tabActions.state}
+              idle={<span>open tab</span>}
+            />
           </button>
         )}
         <span className="flex-1" />
-        {live && report.controlAvailable && <WheelButton on={controlOn} onToggle={() => setControlOn((v) => !v)} />}
+        {live && report.controlAvailable && (
+          <WheelButton
+            on={controlOn}
+            onToggle={() => setControlOn((v) => !v)}
+          />
+        )}
         {failed?.canRetry && (
           <button
             onClick={reconnect}
@@ -259,7 +305,9 @@ function SplitBody({
                   title={`Reopen ${tab?.url || lastPage?.url} in the cast browser, as this session, then stream it here`}
                   className="px-2 py-0.5 rounded border border-sol-yellow/50 text-sol-yellow hover:border-sol-yellow transition-colors disabled:opacity-60"
                 >
-                  {tabActions.state.kind === "busy" ? "Reopening…" : "Reopen in cast browser"}
+                  {tabActions.state.kind === "busy"
+                    ? "Reopening…"
+                    : "Reopen in cast browser"}
                 </button>
               )}
               {failed.canRetry && (
@@ -271,7 +319,9 @@ function SplitBody({
                 </button>
               )}
             </div>
-            {tabActions.state.kind === "note" && <span className="text-sol-red/80">{tabActions.state.text}</span>}
+            {tabActions.state.kind === "note" && (
+              <span className="text-sol-red/80">{tabActions.state.text}</span>
+            )}
           </div>
         ) : status.kind === "connecting" && !report.hasFrame ? (
           <div className="absolute inset-0 flex items-center justify-center text-meta font-mono text-sol-text-dim">
@@ -280,7 +330,10 @@ function SplitBody({
         ) : null}
       </div>
 
-      <SplitResizeHandle onPointerDown={onHandlePointerDown} title="Drag to resize" />
+      <SplitResizeHandle
+        onPointerDown={onHandlePointerDown}
+        title="Drag to resize"
+      />
     </div>
   );
 }

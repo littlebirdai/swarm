@@ -1,48 +1,125 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { eventMessage, readEventFrame, readReplyFrame, replyId, replyMessage, TrafficMeter } from "./frames.js";
+import {
+  eventMessage,
+  readEventFrame,
+  readReplyFrame,
+  replyId,
+  replyMessage,
+  TrafficMeter,
+} from "./frames.js";
 
 // What background.js send() puts on the wire: JSON.stringify of these literals.
 const wire = (msg: unknown) => Buffer.from(JSON.stringify(msg));
 
 describe("relay frames", () => {
-  const params = { response: { payloadData: 'naïve “quoted” \\ {"nested":"}"} ✓ 🙂' }, n: [1, 2.5, -3], ok: null };
+  const params = {
+    response: { payloadData: 'naïve “quoted” \\ {"nested":"}"} ✓ 🙂' },
+    n: [1, 2.5, -3],
+    ok: null,
+  };
 
   test("an event is routed from its first bytes and its params pass through unchanged", () => {
-    const ev = readEventFrame(wire({ op: "event", tabId: 4170, method: "Network.webSocketFrameReceived", params }))!;
+    const ev = readEventFrame(
+      wire({
+        op: "event",
+        tabId: 4170,
+        method: "Network.webSocketFrameReceived",
+        params,
+      }),
+    )!;
     expect(ev.tabId).toBe(4170);
     expect(ev.method).toBe("Network.webSocketFrameReceived");
     expect(JSON.parse(String(ev.params))).toEqual(params);
     const out = JSON.parse(String(eventMessage(ev.method, ev.params, "ABC")));
-    expect(out).toEqual({ method: "Network.webSocketFrameReceived", params, sessionId: "ABC" });
+    expect(out).toEqual({
+      method: "Network.webSocketFrameReceived",
+      params,
+      sessionId: "ABC",
+    });
   });
 
   test("a child session's event carries Chrome's session id; a tab's own carries none", () => {
-    const ev = readEventFrame(wire({ op: "event", tabId: 9, session: "4F1A2B", method: "DOM.documentUpdated", params }))!;
-    expect(ev).toMatchObject({ tabId: 9, session: "4F1A2B", method: "DOM.documentUpdated" });
+    const ev = readEventFrame(
+      wire({
+        op: "event",
+        tabId: 9,
+        session: "4F1A2B",
+        method: "DOM.documentUpdated",
+        params,
+      }),
+    )!;
+    expect(ev).toMatchObject({
+      tabId: 9,
+      session: "4F1A2B",
+      method: "DOM.documentUpdated",
+    });
     expect(JSON.parse(String(ev.params))).toEqual(params);
     // background.js leaves `session: undefined` in for a tab's own event; JSON.stringify drops it.
-    expect(readEventFrame(wire({ op: "event", tabId: 9, session: undefined, method: "A.b", params: {} }))!.session).toBeUndefined();
-    expect(readEventFrame(Buffer.from('{"op":"event","tabId":9,"session":"","method":"A.b","params":{}}'))).toBeNull();
+    expect(
+      readEventFrame(
+        wire({
+          op: "event",
+          tabId: 9,
+          session: undefined,
+          method: "A.b",
+          params: {},
+        }),
+      )!.session,
+    ).toBeUndefined();
+    expect(
+      readEventFrame(
+        Buffer.from(
+          '{"op":"event","tabId":9,"session":"","method":"A.b","params":{}}',
+        ),
+      ),
+    ).toBeNull();
   });
 
   test("a successful reply keeps its result as bytes; errors and other shapes take the parsed path", () => {
     const r = readReplyFrame(wire({ id: 912, ok: true, result: params }))!;
     expect(r.id).toBe(912);
-    expect(JSON.parse(String(replyMessage(r.id, r.result, "S1")))).toEqual({ id: 912, sessionId: "S1", result: params });
-    expect(JSON.parse(String(replyMessage(7, Buffer.from("{}"))))).toEqual({ id: 7, result: {} });
-    expect(readReplyFrame(wire({ id: 3, ok: false, error: "boom" }))).toBeNull();
+    expect(JSON.parse(String(replyMessage(r.id, r.result, "S1")))).toEqual({
+      id: 912,
+      sessionId: "S1",
+      result: params,
+    });
+    expect(JSON.parse(String(replyMessage(7, Buffer.from("{}"))))).toEqual({
+      id: 7,
+      result: {},
+    });
+    expect(
+      readReplyFrame(wire({ id: 3, ok: false, error: "boom" })),
+    ).toBeNull();
     expect(replyId(wire({ id: 3, ok: false, error: "boom" }))).toBe(3);
     expect(readReplyFrame(wire({ id: 3, ok: true, tabs: [] }))).toBeNull();
   });
 
   test("anything not in the fixed shape is left to the parser", () => {
-    expect(readEventFrame(wire({ tabId: 1, op: "event", method: "A.b", params: {} }))).toBeNull();
-    expect(readEventFrame(wire({ op: "event", tabId: 1, params: {}, method: "A.b" }))).toBeNull();
-    expect(readEventFrame(wire({ op: "tab", kind: "created", tab: {} }))).toBeNull();
-    expect(readEventFrame(wire({ op: "event", tabId: "1", method: "A.b", params: {} }))).toBeNull();
-    expect(readEventFrame(Buffer.from('{"op":"event","tabId":1,"method":"A\\"b","params":{}}'))).toBeNull();
+    expect(
+      readEventFrame(
+        wire({ tabId: 1, op: "event", method: "A.b", params: {} }),
+      ),
+    ).toBeNull();
+    expect(
+      readEventFrame(
+        wire({ op: "event", tabId: 1, params: {}, method: "A.b" }),
+      ),
+    ).toBeNull();
+    expect(
+      readEventFrame(wire({ op: "tab", kind: "created", tab: {} })),
+    ).toBeNull();
+    expect(
+      readEventFrame(
+        wire({ op: "event", tabId: "1", method: "A.b", params: {} }),
+      ),
+    ).toBeNull();
+    expect(
+      readEventFrame(
+        Buffer.from('{"op":"event","tabId":1,"method":"A\\"b","params":{}}'),
+      ),
+    ).toBeNull();
     expect(replyId(wire({ op: "pong" }))).toBeNull();
   });
 });
@@ -50,18 +127,35 @@ describe("relay frames", () => {
 test("background.js still sends the two hot messages with the payload last", () => {
   // frames.ts slices the payload up to the closing brace, so a key added
   // after it would be relayed inside the payload. Change both together.
-  const src = fs.readFileSync(path.join(import.meta.dir, "../../../../../apps/browser-extension/background.js"), "utf-8");
-  expect(src).toContain('send({ op: "event", tabId, session: source.sessionId, method, params: params || {} });');
+  const src = fs.readFileSync(
+    path.join(
+      import.meta.dir,
+      "../../../../../apps/browser-extension/background.js",
+    ),
+    "utf-8",
+  );
+  expect(src).toContain(
+    'send({ op: "event", tabId, session: source.sessionId, method, params: params || {} });',
+  );
   expect(src).toContain("send({ id: msg.id, ok: true, ...result });");
-  expect(src).toContain("return { result: (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) || {} };");
-  expect(src).toContain("return { result: (await boundedCdp(m.tabId, m.method, m.params || {}, m.sessionId)) || {} };");
+  expect(src).toContain(
+    "return { result: (await cdpPastForeignFrames(m.tabId, m.method, m.params || {})) || {} };",
+  );
+  expect(src).toContain(
+    "return { result: (await boundedCdp(m.tabId, m.method, m.params || {}, m.sessionId)) || {} };",
+  );
 });
 
 describe("TrafficMeter", () => {
   test("reports a heavy window by method and receiving session, and stays quiet otherwise", () => {
     const lines: string[] = [];
     let now = 0;
-    const m = new TrafficMeter((l) => lines.push(l), 60_000, 10 * 1024 * 1024, () => now);
+    const m = new TrafficMeter(
+      (l) => lines.push(l),
+      60_000,
+      10 * 1024 * 1024,
+      () => now,
+    );
     for (let i = 0; i < 30; i++) {
       m.note("Network.webSocketFrameReceived", 1024 * 1024);
       m.sent("env-a", 1024 * 1024);

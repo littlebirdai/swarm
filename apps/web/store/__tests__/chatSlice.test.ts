@@ -55,10 +55,13 @@ describe("chat store slice", () => {
       pending: {},
       currentUser: { _id: ME },
     } as any);
-    useInboxStore.getState()._setDispatch(async (action, args, _patches, result) => {
-      calls.push({ action, args, result });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args, _patches, result) => {
+        calls.push({ action, args, result });
+        return null;
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -69,7 +72,9 @@ describe("chat store slice", () => {
 
   describe("sendChatMessage", () => {
     it("paints the message before any round trip and dispatches the same client id", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "hello");
 
       // Synchronously on screen — the whole point of local-first.
       const rows = messagesIn(CHANNEL);
@@ -89,25 +94,30 @@ describe("chat store slice", () => {
 
     it("posting is reading: the send advances this viewer's read mark", () => {
       useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
-      const read = Object.values(useInboxStore.getState().chatReads)
-        .find((r) => r.channel_id === CHANNEL);
+      const read = Object.values(useInboxStore.getState().chatReads).find(
+        (r) => r.channel_id === CHANNEL,
+      );
       expect(read).toBeDefined();
       expect(read!.last_read_at).toBeGreaterThan(0);
     });
 
     it("the server echo supersedes the stub by client_id", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "hello");
       const realId = serverId("msg1");
 
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId,
-        client_id: clientId,
-        channel_id: CHANNEL,
-        user_id: ME,
-        content: "hello",
-        created_at: 10,
-        updated_at: 10,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          client_id: clientId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "hello",
+          created_at: 10,
+          updated_at: 10,
+        },
+      ]);
 
       const rows = messagesIn(CHANNEL);
       expect(rows).toHaveLength(1);
@@ -121,7 +131,12 @@ describe("chat store slice", () => {
       let finish: (storageId: string | null) => void;
 
       beforeEach(() => {
-        pendingImageUploads.set(preview, new Promise((resolve) => { finish = resolve; }));
+        pendingImageUploads.set(
+          preview,
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+        );
       });
       afterEach(() => pendingImageUploads.clear());
 
@@ -132,12 +147,16 @@ describe("chat store slice", () => {
 
       it("paints the message with the preview at once and dispatches only after the upload", async () => {
         const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "", {
-          attachments: [{ storage_id: "", mime: "image/png", preview_url: preview }],
+          attachments: [
+            { storage_id: "", mime: "image/png", preview_url: preview },
+          ],
         });
 
         const rows = messagesIn(CHANNEL);
         expect(rows).toHaveLength(1);
-        expect(rows[0].attachments).toEqual([{ storage_id: "", mime: "image/png", preview_url: preview }]);
+        expect(rows[0].attachments).toEqual([
+          { storage_id: "", mime: "image/png", preview_url: preview },
+        ]);
         expect(chatSendState(rows[0])).toBe("pending");
         expect(calls).toHaveLength(0);
 
@@ -147,15 +166,23 @@ describe("chat store slice", () => {
         expect(calls[0].action).toBe("dispatchChatSend");
         expect(calls[0].args[2]).toBe(clientId);
         // The journal carries the stored image, never the blob.
-        expect(calls[0].args[3].attachments).toEqual([{ storage_id: "storage-abc", mime: "image/png" }]);
-        expect(useInboxStore.getState().chatMessages[clientId].attachments).toEqual([{ storage_id: "storage-abc", mime: "image/png" }]);
+        expect(calls[0].args[3].attachments).toEqual([
+          { storage_id: "storage-abc", mime: "image/png" },
+        ]);
+        expect(
+          useInboxStore.getState().chatMessages[clientId].attachments,
+        ).toEqual([{ storage_id: "storage-abc", mime: "image/png" }]);
         expect(pendingImageUploads.has(preview)).toBe(false);
       });
 
       it("an edit while uploading is what gets sent", async () => {
-        const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "first", {
-          attachments: [{ storage_id: "", mime: "image/png", preview_url: preview }],
-        });
+        const clientId = useInboxStore
+          .getState()
+          .sendChatMessage(CHANNEL, "first", {
+            attachments: [
+              { storage_id: "", mime: "image/png", preview_url: preview },
+            ],
+          });
         useInboxStore.getState().editChatMessage(clientId, "second");
         expect(calls).toHaveLength(0);
 
@@ -166,7 +193,9 @@ describe("chat store slice", () => {
 
       it("a failed upload with nothing typed takes the message back", async () => {
         const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "", {
-          attachments: [{ storage_id: "", mime: "image/png", preview_url: preview }],
+          attachments: [
+            { storage_id: "", mime: "image/png", preview_url: preview },
+          ],
         });
         await settle(null);
         expect(calls).toHaveLength(0);
@@ -175,7 +204,9 @@ describe("chat store slice", () => {
 
       it("a failed upload with text sends the text", async () => {
         useInboxStore.getState().sendChatMessage(CHANNEL, "look", {
-          attachments: [{ storage_id: "", mime: "image/png", preview_url: preview }],
+          attachments: [
+            { storage_id: "", mime: "image/png", preview_url: preview },
+          ],
         });
         await settle(null);
         expect(calls).toHaveLength(1);
@@ -184,9 +215,13 @@ describe("chat store slice", () => {
       });
 
       it("a message discarded while uploading never leaves", async () => {
-        const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "x", {
-          attachments: [{ storage_id: "", mime: "image/png", preview_url: preview }],
-        });
+        const clientId = useInboxStore
+          .getState()
+          .sendChatMessage(CHANNEL, "x", {
+            attachments: [
+              { storage_id: "", mime: "image/png", preview_url: preview },
+            ],
+          });
         useInboxStore.getState().deleteChatMessage(clientId);
         await settle("storage-abc");
         expect(calls).toHaveLength(0);
@@ -197,14 +232,16 @@ describe("chat store slice", () => {
     it("another channel's page never prunes this one (delta overlay)", () => {
       const other = serverId("chan2");
       useInboxStore.getState().sendChatMessage(CHANNEL, "mine");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: serverId("msgB"),
-        channel_id: other,
-        user_id: THEM,
-        content: "theirs",
-        created_at: 5,
-        updated_at: 5,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: serverId("msgB"),
+          channel_id: other,
+          user_id: THEM,
+          content: "theirs",
+          created_at: 5,
+          updated_at: 5,
+        },
+      ]);
 
       expect(messagesIn(CHANNEL)).toHaveLength(1);
       expect(messagesIn(other)).toHaveLength(1);
@@ -216,31 +253,54 @@ describe("chat store slice", () => {
   describe("broadcast replies", () => {
     it("shows a broadcast reply in the channel AND its thread; a plain reply stays thread-only", () => {
       const rootId = serverId("root1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: rootId, channel_id: CHANNEL, user_id: THEM, content: "root", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: rootId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "root",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
 
-      useInboxStore.getState().sendChatMessage(CHANNEL, "thread only", { threadRootId: rootId });
-      const bcast = useInboxStore.getState().sendChatMessage(CHANNEL, "for everyone", {
-        threadRootId: rootId, broadcast: true,
-      });
+      useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "thread only", { threadRootId: rootId });
+      const bcast = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "for everyone", {
+          threadRootId: rootId,
+          broadcast: true,
+        });
 
-      expect(messagesIn(CHANNEL).map((r) => r.content)).toEqual(["root", "for everyone"]);
+      expect(messagesIn(CHANNEL).map((r) => r.content)).toEqual([
+        "root",
+        "for everyone",
+      ]);
       // Both optimistic rows can share a millisecond, so compare as a set —
       // the server's per-channel monotonic stamp owns real ordering.
-      expect(selectThreadReplies(chatState(), rootId).map((r) => r.content).sort())
-        .toEqual(["for everyone", "thread only"]);
+      expect(
+        selectThreadReplies(chatState(), rootId)
+          .map((r) => r.content)
+          .sort(),
+      ).toEqual(["for everyone", "thread only"]);
 
       // The flag rides the dispatch, so retry and delivery both keep it.
-      const sendCall = calls.find((c) => c.action === "dispatchChatSend" && c.args[2] === bcast);
+      const sendCall = calls.find(
+        (c) => c.action === "dispatchChatSend" && c.args[2] === bcast,
+      );
       expect(sendCall?.args[3]?.broadcast).toBe(true);
     });
 
     it("keeps the flag across a retry", () => {
       const rootId = serverId("root2");
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "again", {
-        threadRootId: rootId, broadcast: true,
-      });
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "again", {
+          threadRootId: rootId,
+          broadcast: true,
+        });
       useInboxStore.getState().markChatSendFailed(clientId);
       calls.length = 0;
       useInboxStore.getState().retryChatSend(clientId);
@@ -252,12 +312,20 @@ describe("chat store slice", () => {
 
   describe("failed sends", () => {
     it("marks the row failed and retries under the same client id", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "hello");
 
       // What hooks/useEnsureDispatch does when delivery finally gives up.
-      useInboxStore.getState().markChatSendFailed(clientId, "Uncaught ConvexError: FORBIDDEN");
-      expect(chatSendState(useInboxStore.getState().chatMessages[clientId])).toBe("failed");
-      expect(useInboxStore.getState().chatMessages[clientId]._failReason).toContain("FORBIDDEN");
+      useInboxStore
+        .getState()
+        .markChatSendFailed(clientId, "Uncaught ConvexError: FORBIDDEN");
+      expect(
+        chatSendState(useInboxStore.getState().chatMessages[clientId]),
+      ).toBe("failed");
+      expect(
+        useInboxStore.getState().chatMessages[clientId]._failReason,
+      ).toContain("FORBIDDEN");
 
       calls.length = 0;
       useInboxStore.getState().retryChatSend(clientId);
@@ -267,32 +335,49 @@ describe("chat store slice", () => {
       expect(calls).toHaveLength(1);
       expect(calls[0].action).toBe("dispatchChatSend");
       expect(calls[0].args[2]).toBe(clientId);
-      expect(chatSendState(useInboxStore.getState().chatMessages[clientId])).toBe("pending");
+      expect(
+        chatSendState(useInboxStore.getState().chatMessages[clientId]),
+      ).toBe("pending");
       expect(messagesIn(CHANNEL)).toHaveLength(1);
     });
 
     it("never marks a message the server already holds as failed", () => {
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: ME, content: "hi", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "hi",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       useInboxStore.getState().markChatSendFailed(realId, "boom");
-      expect(chatSendState(useInboxStore.getState().chatMessages[realId])).toBe("sent");
+      expect(chatSendState(useInboxStore.getState().chatMessages[realId])).toBe(
+        "sent",
+      );
     });
 
     it("discarding a failed send removes the row AND plants its exclude tombstone", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "hello");
       useInboxStore.getState().markChatSendFailed(clientId);
       useInboxStore.getState().discardChatSend(clientId);
 
       expect(messagesIn(CHANNEL)).toHaveLength(0);
       // Without the tombstone the IDB diff refuses the delete and boot hydration
       // resurrects the discarded message.
-      expect(useInboxStore.getState().pending[`chatMessages:${clientId}`]?.type).toBe("exclude");
+      expect(
+        useInboxStore.getState().pending[`chatMessages:${clientId}`]?.type,
+      ).toBe("exclude");
     });
 
     it("a discarded send that delivers anyway comes back as an ordinary message", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "hello");
       useInboxStore.getState().markChatSendFailed(clientId);
       useInboxStore.getState().discardChatSend(clientId);
 
@@ -300,21 +385,37 @@ describe("chat store slice", () => {
       // can still land. Better it reappears — deletable — than that it sit on
       // everyone else's screen while looking gone on this one.
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, client_id: clientId, channel_id: CHANNEL, user_id: ME,
-        content: "hello", created_at: 10, updated_at: 10,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          client_id: clientId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "hello",
+          created_at: 10,
+          updated_at: 10,
+        },
+      ]);
 
       expect(messagesIn(CHANNEL).map((m) => m._id)).toEqual([realId]);
       // And the tombstone is retired rather than left in the persisted map.
-      expect(useInboxStore.getState().pending[`chatMessages:${clientId}`]).toBeUndefined();
+      expect(
+        useInboxStore.getState().pending[`chatMessages:${clientId}`],
+      ).toBeUndefined();
     });
 
     it("refuses to discard a message the server holds", () => {
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: ME, content: "hi", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "hi",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       useInboxStore.getState().discardChatSend(realId);
       expect(messagesIn(CHANNEL)).toHaveLength(1);
     });
@@ -325,20 +426,31 @@ describe("chat store slice", () => {
   describe("editChatMessage", () => {
     it("edits a sent message optimistically and dispatches the edit", () => {
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: ME, content: "typo", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "typo",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       calls.length = 0;
 
       useInboxStore.getState().editChatMessage(realId, "fixed");
 
-      expect(useInboxStore.getState().chatMessages[realId].content).toBe("fixed");
+      expect(useInboxStore.getState().chatMessages[realId].content).toBe(
+        "fixed",
+      );
       expect(calls.map((c) => c.action)).toEqual(["dispatchChatEdit"]);
       expect(calls[0].args).toEqual([realId, "fixed"]);
     });
 
     it("editing an unsent message re-drives the SEND with the new text", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "wrong");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "wrong");
       useInboxStore.getState().markChatSendFailed(clientId);
       calls.length = 0;
 
@@ -349,17 +461,28 @@ describe("chat store slice", () => {
       expect(calls.map((c) => c.action)).toEqual(["dispatchChatSend"]);
       expect(calls[0].args[1]).toBe("right");
       expect(calls[0].args[2]).toBe(clientId);
-      expect(useInboxStore.getState().chatMessages[clientId].content).toBe("right");
-      expect(chatSendState(useInboxStore.getState().chatMessages[clientId])).toBe("pending");
+      expect(useInboxStore.getState().chatMessages[clientId].content).toBe(
+        "right",
+      );
+      expect(
+        chatSendState(useInboxStore.getState().chatMessages[clientId]),
+      ).toBe("pending");
     });
   });
 
   describe("deleteChatMessage", () => {
     it("tombstones a sent message instead of removing it", () => {
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: ME, content: "oops", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "oops",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       calls.length = 0;
 
       useInboxStore.getState().deleteChatMessage(realId);
@@ -372,7 +495,9 @@ describe("chat store slice", () => {
     });
 
     it("deleting an unsent message discards it — there is nothing to tombstone", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "never sent");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "never sent");
       calls.length = 0;
 
       useInboxStore.getState().deleteChatMessage(clientId);
@@ -388,9 +513,16 @@ describe("chat store slice", () => {
     const realId = serverId("msg1");
 
     beforeEach(() => {
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: THEM, content: "hi", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "hi",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       calls.length = 0;
     });
 
@@ -409,22 +541,35 @@ describe("chat store slice", () => {
 
       expect(selectChatReactions(chatState(), realId, ME)).toEqual([]);
       const stubId = chatReactionStubId(realId, "🎉");
-      expect(useInboxStore.getState().pending[`chatReactions:${stubId}`]?.type).toBe("exclude");
+      expect(
+        useInboxStore.getState().pending[`chatReactions:${stubId}`]?.type,
+      ).toBe("exclude");
     });
 
     it("takes back a reaction the server already holds", () => {
       const rowId = serverId("react1");
-      useInboxStore.getState().syncTable("chatReactions", [{
-        _id: rowId, message_id: realId, channel_id: CHANNEL, user_id: ME, emoji: "👍", created_at: 2,
-      }]);
+      useInboxStore.getState().syncTable("chatReactions", [
+        {
+          _id: rowId,
+          message_id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          emoji: "👍",
+          created_at: 2,
+        },
+      ]);
       useInboxStore.getState().toggleChatReaction(realId, "👍");
 
       expect(selectChatReactions(chatState(), realId, ME)).toEqual([]);
-      expect(useInboxStore.getState().pending[`chatReactions:${rowId}`]?.type).toBe("exclude");
+      expect(
+        useInboxStore.getState().pending[`chatReactions:${rowId}`]?.type,
+      ).toBe("exclude");
     });
 
     it("is inert on a message the server has never seen", () => {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "unsent");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "unsent");
       calls.length = 0;
       useInboxStore.getState().toggleChatReaction(clientId, "🎉");
       expect(selectChatReactions(chatState(), clientId, ME)).toEqual([]);
@@ -432,9 +577,16 @@ describe("chat store slice", () => {
 
     it("counts distinct people, so a stub and its server twin read as one", () => {
       useInboxStore.getState().toggleChatReaction(realId, "🎉");
-      useInboxStore.getState().syncTable("chatReactions", [{
-        _id: serverId("react2"), message_id: realId, channel_id: CHANNEL, user_id: ME, emoji: "🎉", created_at: 3,
-      }]);
+      useInboxStore.getState().syncTable("chatReactions", [
+        {
+          _id: serverId("react2"),
+          message_id: realId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          emoji: "🎉",
+          created_at: 3,
+        },
+      ]);
       expect(selectChatReactions(chatState(), realId, ME)).toEqual([
         { emoji: "🎉", count: 1, mine: true },
       ]);
@@ -445,16 +597,32 @@ describe("chat store slice", () => {
     const realId = serverId("msg1");
 
     it("supersedes the optimistic stub once the real row is in an authoritative page", () => {
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: THEM, content: "hi", created_at: 1, updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "hi",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
       useInboxStore.getState().toggleChatReaction(realId, "🎉");
       const stubId = chatReactionStubId(realId, "🎉");
       expect(useInboxStore.getState().chatReactions[stubId]).toBeDefined();
 
       useInboxStore.getState().syncTable(
         "chatReactions",
-        [{ _id: serverId("react1"), message_id: realId, channel_id: CHANNEL, user_id: ME, emoji: "🎉", created_at: 3 }],
+        [
+          {
+            _id: serverId("react1"),
+            message_id: realId,
+            channel_id: CHANNEL,
+            user_id: ME,
+            emoji: "🎉",
+            created_at: 3,
+          },
+        ],
         chatReactionSyncOpts([realId]),
       );
 
@@ -466,28 +634,55 @@ describe("chat store slice", () => {
 
     it("prunes a reaction someone else took back, and retires the tombstone with it", () => {
       const rowId = serverId("react1");
-      useInboxStore.getState().syncTable("chatReactions", [{
-        _id: rowId, message_id: realId, channel_id: CHANNEL, user_id: THEM, emoji: "👍", created_at: 2,
-      }]);
+      useInboxStore.getState().syncTable("chatReactions", [
+        {
+          _id: rowId,
+          message_id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          emoji: "👍",
+          created_at: 2,
+        },
+      ]);
       expect(selectChatReactions(chatState(), realId, ME)).toHaveLength(1);
 
       // The page comes back without it: in a delta this would mean "unchanged",
       // but a scoped page is the complete truth for these messages.
-      useInboxStore.getState().syncTable("chatReactions", [], chatReactionSyncOpts([realId]));
+      useInboxStore
+        .getState()
+        .syncTable("chatReactions", [], chatReactionSyncOpts([realId]));
 
       expect(selectChatReactions(chatState(), realId, ME)).toHaveLength(0);
       // And no dead tombstone left behind — this runs on every page of a busy
       // channel, so one immortal entry per removed reaction would accumulate.
-      expect(useInboxStore.getState().pending[`chatReactions:${rowId}`]).toBeUndefined();
+      expect(
+        useInboxStore.getState().pending[`chatReactions:${rowId}`],
+      ).toBeUndefined();
     });
 
     it("leaves another message's reactions alone", () => {
       const otherMsg = serverId("msg2");
       useInboxStore.getState().syncTable("chatReactions", [
-        { _id: serverId("react1"), message_id: realId, channel_id: CHANNEL, user_id: THEM, emoji: "👍", created_at: 2 },
-        { _id: serverId("react2"), message_id: otherMsg, channel_id: CHANNEL, user_id: THEM, emoji: "🎉", created_at: 2 },
+        {
+          _id: serverId("react1"),
+          message_id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          emoji: "👍",
+          created_at: 2,
+        },
+        {
+          _id: serverId("react2"),
+          message_id: otherMsg,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          emoji: "🎉",
+          created_at: 2,
+        },
       ]);
-      useInboxStore.getState().syncTable("chatReactions", [], chatReactionSyncOpts([realId]));
+      useInboxStore
+        .getState()
+        .syncTable("chatReactions", [], chatReactionSyncOpts([realId]));
 
       expect(selectChatReactions(chatState(), realId, ME)).toHaveLength(0);
       expect(selectChatReactions(chatState(), otherMsg, ME)).toHaveLength(1);
@@ -499,15 +694,23 @@ describe("chat store slice", () => {
   describe("markChannelRead", () => {
     it("stamps exactly what the server will write, so the badge cannot flicker back", () => {
       const realId = serverId("msg1");
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: THEM, content: "hi", created_at: 1234, updated_at: 1234,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "hi",
+          created_at: 1234,
+          updated_at: 1234,
+        },
+      ]);
       calls.length = 0;
 
       useInboxStore.getState().markChannelRead(CHANNEL, realId);
 
-      const read = Object.values(useInboxStore.getState().chatReads)
-        .find((r) => r.channel_id === CHANNEL)!;
+      const read = Object.values(useInboxStore.getState().chatReads).find(
+        (r) => r.channel_id === CHANNEL,
+      )!;
       expect(read.last_read_at).toBe(1234);
       expect(read.last_read_message_id).toBe(realId);
       expect(calls.map((c) => c.action)).toEqual(["markChannelRead"]);
@@ -517,14 +720,22 @@ describe("chat store slice", () => {
     it("keeps a stamp that sits ahead of this clock, so that line does not stay unread", () => {
       const realId = serverId("msg-ahead");
       const ahead = Date.now() + 5_000;
-      useInboxStore.getState().syncTable("chatMessages", [{
-        _id: realId, channel_id: CHANNEL, user_id: THEM, content: "hi", created_at: ahead, updated_at: ahead,
-      }]);
+      useInboxStore.getState().syncTable("chatMessages", [
+        {
+          _id: realId,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "hi",
+          created_at: ahead,
+          updated_at: ahead,
+        },
+      ]);
 
       useInboxStore.getState().markChannelRead(CHANNEL, realId);
 
-      const read = Object.values(useInboxStore.getState().chatReads)
-        .find((r) => r.channel_id === CHANNEL)!;
+      const read = Object.values(useInboxStore.getState().chatReads).find(
+        (r) => r.channel_id === CHANNEL,
+      )!;
       expect(read.last_read_at).toBe(ahead);
     });
 
@@ -532,23 +743,39 @@ describe("chat store slice", () => {
       const older = serverId("msg1");
       const newer = serverId("msg2");
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: older, channel_id: CHANNEL, user_id: THEM, content: "a", created_at: 100, updated_at: 100 },
-        { _id: newer, channel_id: CHANNEL, user_id: THEM, content: "b", created_at: 200, updated_at: 200 },
+        {
+          _id: older,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "a",
+          created_at: 100,
+          updated_at: 100,
+        },
+        {
+          _id: newer,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "b",
+          created_at: 200,
+          updated_at: 200,
+        },
       ]);
 
       useInboxStore.getState().markChannelRead(CHANNEL, newer);
       useInboxStore.getState().markChannelRead(CHANNEL, older);
 
-      const read = Object.values(useInboxStore.getState().chatReads)
-        .find((r) => r.channel_id === CHANNEL)!;
+      const read = Object.values(useInboxStore.getState().chatReads).find(
+        (r) => r.channel_id === CHANNEL,
+      )!;
       expect(read.last_read_at).toBe(200);
     });
   });
 
   it("setChannelNotifyLevel writes the level and dispatches it", () => {
     useInboxStore.getState().setChannelNotifyLevel(CHANNEL, "none");
-    const read = Object.values(useInboxStore.getState().chatReads)
-      .find((r) => r.channel_id === CHANNEL)!;
+    const read = Object.values(useInboxStore.getState().chatReads).find(
+      (r) => r.channel_id === CHANNEL,
+    )!;
     expect(read.notify_level).toBe("none");
     expect(calls.map((c) => c.action)).toEqual(["setChannelNotifyLevel"]);
     expect(calls[0].args).toEqual([CHANNEL, "none"]);
@@ -558,7 +785,9 @@ describe("chat store slice", () => {
 
   describe("createChatChannel", () => {
     it("returns a stub id the rail can select immediately", () => {
-      const stubId = useInboxStore.getState().createChatChannel("Design Review");
+      const stubId = useInboxStore
+        .getState()
+        .createChatChannel("Design Review");
       const channel = useInboxStore.getState().chatChannels[stubId];
       expect(channel.name).toBe("design-review");
       expect(channel.client_id).toBe(stubId);
@@ -568,25 +797,33 @@ describe("chat store slice", () => {
 
     it("carries messages sent into the stub across the supersede", () => {
       const stubId = useInboxStore.getState().createChatChannel("design");
-      const clientId = useInboxStore.getState().sendChatMessage(stubId, "first!");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(stubId, "first!");
       const realId = serverId("chanreal");
 
-      useInboxStore.getState().syncTable("chatChannels", [{
-        _id: realId,
-        client_id: stubId,
-        name: "design",
-        team_id: serverId("team1"),
-        created_at: 1,
-        updated_at: 1,
-      }]);
+      useInboxStore.getState().syncTable("chatChannels", [
+        {
+          _id: realId,
+          client_id: stubId,
+          name: "design",
+          team_id: serverId("team1"),
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]);
 
       // The message and the read row followed the channel; nothing orphaned
       // under an id no query will ever return.
       expect(useInboxStore.getState().chatChannels[stubId]).toBeUndefined();
-      expect(useInboxStore.getState().chatMessages[clientId].channel_id).toBe(realId);
+      expect(useInboxStore.getState().chatMessages[clientId].channel_id).toBe(
+        realId,
+      );
       expect(messagesIn(realId)).toHaveLength(1);
       expect(
-        Object.values(useInboxStore.getState().chatReads).some((r) => r.channel_id === realId),
+        Object.values(useInboxStore.getState().chatReads).some(
+          (r) => r.channel_id === realId,
+        ),
       ).toBe(true);
     });
   });
@@ -597,14 +834,38 @@ describe("chat store slice", () => {
     it("returns a channel's roots ascending, and a thread's replies separately", () => {
       const root = serverId("msgroot");
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("msgb"), channel_id: CHANNEL, user_id: THEM, content: "b", created_at: 20, updated_at: 20 },
-        { _id: root, channel_id: CHANNEL, user_id: THEM, content: "a", created_at: 10, updated_at: 10 },
-        { _id: serverId("msgr1"), channel_id: CHANNEL, thread_root_id: root, user_id: ME, content: "reply", created_at: 30, updated_at: 30 },
+        {
+          _id: serverId("msgb"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "b",
+          created_at: 20,
+          updated_at: 20,
+        },
+        {
+          _id: root,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "a",
+          created_at: 10,
+          updated_at: 10,
+        },
+        {
+          _id: serverId("msgr1"),
+          channel_id: CHANNEL,
+          thread_root_id: root,
+          user_id: ME,
+          content: "reply",
+          created_at: 30,
+          updated_at: 30,
+        },
       ]);
 
       // Roots only: folding replies in would render every reply twice.
       expect(messagesIn(CHANNEL).map((m) => m.content)).toEqual(["a", "b"]);
-      expect(selectThreadReplies(chatState(), root).map((m) => m.content)).toEqual(["reply"]);
+      expect(
+        selectThreadReplies(chatState(), root).map((m) => m.content),
+      ).toEqual(["reply"]);
     });
 
     it("orders the rail by newest activity and counts unread and mentions from local rows", () => {
@@ -613,15 +874,50 @@ describe("chat store slice", () => {
         { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
         { _id: quiet, name: "quiet", created_at: 2, updated_at: 2 },
       ]);
-      useInboxStore.getState().syncTable("chatReads", [{
-        _id: serverId("read1"), channel_id: CHANNEL, user_id: ME,
-        last_read_at: 100, notify_level: "all", updated_at: 100,
-      }]);
+      useInboxStore.getState().syncTable("chatReads", [
+        {
+          _id: serverId("read1"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          last_read_at: 100,
+          notify_level: "all",
+          updated_at: 100,
+        },
+      ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("m1"), channel_id: CHANNEL, user_id: THEM, content: "read", created_at: 50, updated_at: 50 },
-        { _id: serverId("m2"), channel_id: CHANNEL, user_id: THEM, content: "new", created_at: 150, updated_at: 150 },
-        { _id: serverId("m3"), channel_id: CHANNEL, user_id: THEM, content: "hey", created_at: 160, updated_at: 160, mentions: [ME] },
-        { _id: serverId("m4"), channel_id: CHANNEL, user_id: ME, content: "mine", created_at: 140, updated_at: 140 },
+        {
+          _id: serverId("m1"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "read",
+          created_at: 50,
+          updated_at: 50,
+        },
+        {
+          _id: serverId("m2"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "new",
+          created_at: 150,
+          updated_at: 150,
+        },
+        {
+          _id: serverId("m3"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "hey",
+          created_at: 160,
+          updated_at: 160,
+          mentions: [ME],
+        },
+        {
+          _id: serverId("m4"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "mine",
+          created_at: 140,
+          updated_at: 140,
+        },
       ]);
 
       _resetChatRailMemo();
@@ -635,20 +931,56 @@ describe("chat store slice", () => {
     });
 
     it("clears what the viewer answered even when the synced read mark lags", () => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "dm", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "dm", created_at: 1, updated_at: 1 },
+        ]);
       // The read row still sits before the teammate's lines (another device
       // sent the reply, or the rail push has not landed yet).
-      useInboxStore.getState().syncTable("chatReads", [{
-        _id: serverId("read1"), channel_id: CHANNEL, user_id: ME,
-        last_read_at: 100, notify_level: "all", updated_at: 100,
-      }]);
+      useInboxStore.getState().syncTable("chatReads", [
+        {
+          _id: serverId("read1"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          last_read_at: 100,
+          notify_level: "all",
+          updated_at: 100,
+        },
+      ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("m1"), channel_id: CHANNEL, user_id: THEM, content: "a", created_at: 150, updated_at: 150 },
-        { _id: serverId("m2"), channel_id: CHANNEL, user_id: THEM, content: "b", created_at: 160, updated_at: 160 },
-        { _id: serverId("m3"), channel_id: CHANNEL, user_id: ME, content: "answer", created_at: 170, updated_at: 170 },
-        { _id: serverId("m4"), channel_id: CHANNEL, user_id: THEM, content: "after", created_at: 180, updated_at: 180 },
+        {
+          _id: serverId("m1"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "a",
+          created_at: 150,
+          updated_at: 150,
+        },
+        {
+          _id: serverId("m2"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "b",
+          created_at: 160,
+          updated_at: 160,
+        },
+        {
+          _id: serverId("m3"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          content: "answer",
+          created_at: 170,
+          updated_at: 170,
+        },
+        {
+          _id: serverId("m4"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "after",
+          created_at: 180,
+          updated_at: 180,
+        },
       ]);
 
       _resetChatRailMemo();
@@ -657,14 +989,27 @@ describe("chat store slice", () => {
     });
 
     it("shows no badge and no preview for a room whose messages are not held", () => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
+      useInboxStore.getState().syncTable("chatRail", [
+        {
+          channel_id: CHANNEL,
+          sort_at: 900,
+          unread: 7,
+          unread_mentions: 2,
+          notify_level: "all",
+          joined: true,
+          last_message: {
+            _id: serverId("msgtip"),
+            user_id: "other",
+            created_at: 900,
+            preview: "not held",
+          },
+        },
       ]);
-      useInboxStore.getState().syncTable("chatRail", [{
-        channel_id: CHANNEL, sort_at: 900, unread: 7, unread_mentions: 2,
-        notify_level: "all", joined: true,
-        last_message: { _id: serverId("msgtip"), user_id: "other", created_at: 900, preview: "not held" },
-      }]);
 
       _resetChatRailMemo();
       const rail = selectChatRail(chatState(), ME);
@@ -684,10 +1029,17 @@ describe("chat store slice", () => {
       ]);
       // The server's summary: CHANNEL genuinely has no messages. `unknown`
       // has no rail row at all — never synced, could hold anything.
-      useInboxStore.getState().syncTable("chatRail", [{
-        channel_id: CHANNEL, sort_at: 1, unread: 0, unread_mentions: 0,
-        notify_level: "all", joined: true, last_message: null,
-      }]);
+      useInboxStore.getState().syncTable("chatRail", [
+        {
+          channel_id: CHANNEL,
+          sort_at: 1,
+          unread: 0,
+          unread_mentions: 0,
+          notify_level: "all",
+          joined: true,
+          last_message: null,
+        },
+      ]);
 
       _resetChatRailMemo();
       const rail = selectChatRail(chatState(), ME);
@@ -698,14 +1050,27 @@ describe("chat store slice", () => {
     });
 
     it("withdraws the emptiness attestation once the rail carries a message", () => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
+      useInboxStore.getState().syncTable("chatRail", [
+        {
+          channel_id: CHANNEL,
+          sort_at: 900,
+          unread: 1,
+          unread_mentions: 0,
+          notify_level: "all",
+          joined: true,
+          last_message: {
+            _id: serverId("mlast"),
+            user_id: THEM,
+            created_at: 900,
+            preview: "hi",
+          },
+        },
       ]);
-      useInboxStore.getState().syncTable("chatRail", [{
-        channel_id: CHANNEL, sort_at: 900, unread: 1, unread_mentions: 0,
-        notify_level: "all", joined: true,
-        last_message: { _id: serverId("mlast"), user_id: THEM, created_at: 900, preview: "hi" },
-      }]);
 
       _resetChatRailMemo();
       expect(selectChatRail(chatState(), ME)[0].knownEmpty).toBe(false);
@@ -715,7 +1080,13 @@ describe("chat store slice", () => {
       const dead = serverId("chandead");
       useInboxStore.getState().syncTable("chatChannels", [
         { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-        { _id: dead, name: "old", created_at: 1, updated_at: 1, archived_at: 5 },
+        {
+          _id: dead,
+          name: "old",
+          created_at: 1,
+          updated_at: 1,
+          archived_at: 5,
+        },
       ]);
       useInboxStore.getState().setChannelNotifyLevel(CHANNEL, "none");
 
@@ -732,14 +1103,22 @@ describe("channel management actions", () => {
 
   beforeEach(() => {
     useInboxStore.getState().syncTable("chatChannels", [
-      { _id: CHAN, name: "old-name", topic: "old topic", created_at: 1, updated_at: 1 },
+      {
+        _id: CHAN,
+        name: "old-name",
+        topic: "old topic",
+        created_at: 1,
+        updated_at: 1,
+      },
     ]);
   });
 
   it("updateChatChannel renames and re-topics optimistically", () => {
     useInboxStore.getState().updateChatChannel(CHAN, { name: "new-name" });
     expect(useInboxStore.getState().chatChannels[CHAN].name).toBe("new-name");
-    useInboxStore.getState().updateChatChannel(CHAN, { topic: "what this room is for" });
+    useInboxStore
+      .getState()
+      .updateChatChannel(CHAN, { topic: "what this room is for" });
     const row = useInboxStore.getState().chatChannels[CHAN];
     expect(row.topic).toBe("what this room is for");
     expect(row.name).toBe("new-name");
@@ -747,15 +1126,21 @@ describe("channel management actions", () => {
 
   it("archiveChatChannel hides the row from the rail at once; restore writes the null tombstone", () => {
     useInboxStore.getState().archiveChatChannel(CHAN, true);
-    expect(useInboxStore.getState().chatChannels[CHAN].archived_at).toBeGreaterThan(0);
+    expect(
+      useInboxStore.getState().chatChannels[CHAN].archived_at,
+    ).toBeGreaterThan(0);
     _resetChatRailMemo();
-    expect(selectChatRail(chatState(), "me").some((c) => c.id === CHAN)).toBe(false);
+    expect(selectChatRail(chatState(), "me").some((c) => c.id === CHAN)).toBe(
+      false,
+    );
 
     // Restore is null, never field-removal — the clear a delta sync can SEE.
     useInboxStore.getState().archiveChatChannel(CHAN, false);
     expect(useInboxStore.getState().chatChannels[CHAN].archived_at).toBe(null);
     _resetChatRailMemo();
-    expect(selectChatRail(chatState(), "me").some((c) => c.id === CHAN)).toBe(true);
+    expect(selectChatRail(chatState(), "me").some((c) => c.id === CHAN)).toBe(
+      true,
+    );
   });
 });
 
@@ -769,15 +1154,47 @@ describe("boot with a persisted stub AND its server twin", () => {
     // server row. A crash between the stub write and the supersede leaves both
     // on disk; boot hydration then seeds both keys, and every message you ever
     // sent renders twice until something collapses them.
-    useInboxStore.getState().syncTable("chatMessages", [
-      { _id: STUB_ID, client_id: STUB_ID, channel_id: CHAN, user_id: "me", content: "ping", created_at: 100, updated_at: 100 },
-      { _id: SERVER_ID, client_id: STUB_ID, channel_id: CHAN, user_id: "me", content: "ping", created_at: 100, updated_at: 100 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatMessages",
+      [
+        {
+          _id: STUB_ID,
+          client_id: STUB_ID,
+          channel_id: CHAN,
+          user_id: "me",
+          content: "ping",
+          created_at: 100,
+          updated_at: 100,
+        },
+        {
+          _id: SERVER_ID,
+          client_id: STUB_ID,
+          channel_id: CHAN,
+          user_id: "me",
+          content: "ping",
+          created_at: 100,
+          updated_at: 100,
+        },
+      ],
+      { isDelta: true },
+    );
 
     // The live page for the channel arrives.
-    useInboxStore.getState().syncTable("chatMessages", [
-      { _id: SERVER_ID, client_id: STUB_ID, channel_id: CHAN, user_id: "me", content: "ping", created_at: 100, updated_at: 100 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatMessages",
+      [
+        {
+          _id: SERVER_ID,
+          client_id: STUB_ID,
+          channel_id: CHAN,
+          user_id: "me",
+          content: "ping",
+          created_at: 100,
+          updated_at: 100,
+        },
+      ],
+      { isDelta: true },
+    );
 
     const rows = selectChannelMessages(chatState(), CHAN);
     expect(rows.map((r) => r._id)).toEqual([SERVER_ID]);
@@ -793,7 +1210,11 @@ describe("boot with a persisted stub AND its server twin", () => {
 // forever in the cache. These pin that a persisted stub can never again
 // shadow the real channel, and that a stub in flight can be resolved to the
 // row that makes it real.
-import { CHAT_CHANNEL_STUB_PREFIX, findDmChannelId, resolveChannelStubId } from "../chatSlice";
+import {
+  CHAT_CHANNEL_STUB_PREFIX,
+  findDmChannelId,
+  resolveChannelStubId,
+} from "../chatSlice";
 
 describe("findDmChannelId", () => {
   const DM_KEY = "team1:usera:userb";
@@ -815,7 +1236,9 @@ describe("findDmChannelId", () => {
   });
 
   it("finds nothing for an unknown key", () => {
-    expect(findDmChannelId({ [REAL]: { _id: REAL, dm_key: DM_KEY } }, "other")).toBeNull();
+    expect(
+      findDmChannelId({ [REAL]: { _id: REAL, dm_key: DM_KEY } }, "other"),
+    ).toBeNull();
   });
 });
 
@@ -850,7 +1273,9 @@ describe("resolveChannelStubId", () => {
   });
 
   it("passes an unresolved stub back as null", () => {
-    expect(resolveChannelStubId({ [STUB]: { client_id: STUB } }, STUB)).toBeNull();
+    expect(
+      resolveChannelStubId({ [STUB]: { client_id: STUB } }, STUB),
+    ).toBeNull();
   });
 });
 
@@ -872,10 +1297,13 @@ describe("rooms the viewer can no longer read", () => {
       pending: {},
       currentUser: { _id: ME },
     } as any);
-    useInboxStore.getState()._setDispatch(async (action, args, _patches, result) => {
-      calls.push({ action, args, result });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args, _patches, result) => {
+        calls.push({ action, args, result });
+        return null;
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -890,28 +1318,70 @@ describe("rooms the viewer can no longer read", () => {
 
   function railRow(channelId: string) {
     return {
-      channel_id: channelId, sort_at: 1, unread: 0, unread_mentions: 0,
-      notify_level: "mentions", joined: true, last_message: null,
+      channel_id: channelId,
+      sort_at: 1,
+      unread: 0,
+      unread_mentions: 0,
+      notify_level: "mentions",
+      joined: true,
+      last_message: null,
     };
   }
 
   it("prunes a channel of the pushed team that the complete set omits, and its read row", () => {
     const s = useInboxStore.getState();
     s.syncTable("chatChannels", [
-      { _id: CHANNEL, name: "general", team_id: TEAM, created_at: 1, updated_at: 1 },
-      { _id: GONE, name: "", kind: "dm", team_id: TEAM, created_at: 1, updated_at: 1 },
-      { _id: FOREIGN, name: "elsewhere", team_id: OTHER_TEAM, created_at: 1, updated_at: 1 },
+      {
+        _id: CHANNEL,
+        name: "general",
+        team_id: TEAM,
+        created_at: 1,
+        updated_at: 1,
+      },
+      {
+        _id: GONE,
+        name: "",
+        kind: "dm",
+        team_id: TEAM,
+        created_at: 1,
+        updated_at: 1,
+      },
+      {
+        _id: FOREIGN,
+        name: "elsewhere",
+        team_id: OTHER_TEAM,
+        created_at: 1,
+        updated_at: 1,
+      },
     ]);
     s.syncTable("chatReads", [
-      { _id: READ, channel_id: GONE, team_id: TEAM, user_id: ME, last_read_at: 5, notify_level: "mentions", updated_at: 5 },
+      {
+        _id: READ,
+        channel_id: GONE,
+        team_id: TEAM,
+        user_id: ME,
+        last_read_at: 5,
+        notify_level: "mentions",
+        updated_at: 5,
+      },
     ]);
     // An optimistic mark the server has not echoed: never pruned.
     s.markChannelRead(CHANNEL);
 
     const prune = teamChannelPushOpts(TEAM);
-    s.syncTable("chatChannels", [
-      { _id: CHANNEL, name: "general", team_id: TEAM, created_at: 1, updated_at: 1 },
-    ], prune);
+    s.syncTable(
+      "chatChannels",
+      [
+        {
+          _id: CHANNEL,
+          name: "general",
+          team_id: TEAM,
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      prune,
+    );
     s.syncTable("chatReads", [], prune);
 
     const after = useInboxStore.getState();
@@ -920,7 +1390,9 @@ describe("rooms the viewer can no longer read", () => {
     // Another team's room is out of the push's scope.
     expect(after.chatChannels[FOREIGN]).toBeDefined();
     expect(after.chatReads[READ]).toBeUndefined();
-    expect(Object.values(after.chatReads).some((r) => r.channel_id === CHANNEL)).toBe(true);
+    expect(
+      Object.values(after.chatReads).some((r) => r.channel_id === CHANNEL),
+    ).toBe(true);
     // Tombstoned, so the removal reaches disk and a stale push cannot re-add it.
     expect(after.pending[`chatChannels:${GONE}`]?.type).toBe("exclude");
     expect(after.pending[`chatReads:${READ}`]?.type).toBe("exclude");
@@ -929,16 +1401,38 @@ describe("rooms the viewer can no longer read", () => {
   it("lets a pruned room back in when a later push carries it again", () => {
     const s = useInboxStore.getState();
     const prune = teamChannelPushOpts(TEAM);
-    s.syncTable("chatChannels", [
-      { _id: GONE, name: "", kind: "dm", team_id: TEAM, created_at: 1, updated_at: 1 },
-    ], prune);
+    s.syncTable(
+      "chatChannels",
+      [
+        {
+          _id: GONE,
+          name: "",
+          kind: "dm",
+          team_id: TEAM,
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      prune,
+    );
     s.syncTable("chatChannels", [], prune);
     expect(useInboxStore.getState().chatChannels[GONE]).toBeUndefined();
 
     // Rejoined (a DM reopened under the same dm_key keeps its id).
-    s.syncTable("chatChannels", [
-      { _id: GONE, name: "", kind: "dm", team_id: TEAM, created_at: 1, updated_at: 2 },
-    ], prune);
+    s.syncTable(
+      "chatChannels",
+      [
+        {
+          _id: GONE,
+          name: "",
+          kind: "dm",
+          team_id: TEAM,
+          created_at: 1,
+          updated_at: 2,
+        },
+      ],
+      prune,
+    );
     const after = useInboxStore.getState();
     expect(after.chatChannels[GONE]?.updated_at).toBe(2);
     expect(after.pending[`chatChannels:${GONE}`]).toBeUndefined();
@@ -956,10 +1450,25 @@ describe("rooms the viewer can no longer read", () => {
   it("retireChatChannel drops the room, its reads and its rail row, without a dispatch", () => {
     const s = useInboxStore.getState();
     s.syncTable("chatChannels", [
-      { _id: GONE, name: "", kind: "dm", team_id: TEAM, created_at: 1, updated_at: 1 },
+      {
+        _id: GONE,
+        name: "",
+        kind: "dm",
+        team_id: TEAM,
+        created_at: 1,
+        updated_at: 1,
+      },
     ]);
     s.syncTable("chatReads", [
-      { _id: READ, channel_id: GONE, team_id: TEAM, user_id: ME, last_read_at: 5, notify_level: "mentions", updated_at: 5 },
+      {
+        _id: READ,
+        channel_id: GONE,
+        team_id: TEAM,
+        user_id: ME,
+        last_read_at: 5,
+        notify_level: "mentions",
+        updated_at: 5,
+      },
     ]);
     s.syncTable("chatRail", [railRow(GONE), railRow(CHANNEL)]);
 
@@ -976,7 +1485,13 @@ describe("rooms the viewer can no longer read", () => {
   it("leaving a room retires it the same way", () => {
     const s = useInboxStore.getState();
     s.syncTable("chatChannels", [
-      { _id: GONE, name: "private", team_id: TEAM, created_at: 1, updated_at: 1 },
+      {
+        _id: GONE,
+        name: "private",
+        team_id: TEAM,
+        created_at: 1,
+        updated_at: 1,
+      },
     ]);
     s.syncTable("chatRail", [railRow(GONE)]);
     s.removeChatChannelMember(GONE, ME);
@@ -989,10 +1504,16 @@ describe("rooms the viewer can no longer read", () => {
   it("recognizes the server's refusal as it arrives through dispatch", () => {
     const nested =
       "[CONVEX M(dispatch:dispatch)] [Request ID: 66d41f67] Server Error\n" +
-      "Uncaught ConvexError: Uncaught ConvexError: {\"code\":\"NOT_FOUND\",\"message\":\"Channel not found\",\"retryable\":false}\n" +
+      'Uncaught ConvexError: Uncaught ConvexError: {"code":"NOT_FOUND","message":"Channel not found","retryable":false}\n' +
       "    at chatFail (../../convex/chat.ts:103:4)";
     expect(isChatRoomRefusal(new Error(nested))).toBe(true);
-    expect(isChatRoomRefusal(new Error("Uncaught ConvexError: {\"code\":\"INVALID\",\"message\":\"That message is not in this channel\"}"))).toBe(false);
+    expect(
+      isChatRoomRefusal(
+        new Error(
+          'Uncaught ConvexError: {"code":"INVALID","message":"That message is not in this channel"}',
+        ),
+      ),
+    ).toBe(false);
     expect(isChatRoomRefusal(new Error("offline"))).toBe(false);
   });
 });

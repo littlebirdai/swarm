@@ -21,9 +21,11 @@ export function resolveQuoteSelection(): QuoteSelection | null {
   if (!text) return null;
 
   const range = sel.getRangeAt(0);
-  const anchorEl = (range.startContainer.nodeType === 1
-    ? (range.startContainer as Element)
-    : range.startContainer.parentElement) as HTMLElement | null;
+  const anchorEl = (
+    range.startContainer.nodeType === 1
+      ? (range.startContainer as Element)
+      : range.startContainer.parentElement
+  ) as HTMLElement | null;
   const region = anchorEl?.closest(".cc-msg-review") as HTMLElement | null;
   if (!region) return null; // selection isn't in a reviewable assistant body
 
@@ -34,13 +36,21 @@ export function resolveQuoteSelection(): QuoteSelection | null {
   // Which quote unit does the selection start in? Units are the top-level blocks
   // of the .cc-content column, with lists expanded per <li> — see lib/quoteUnits.
   // The hover handle resolves the same way, so selection and hover indices agree.
-  const contentEl = region.querySelector(":scope > .cc-content") as HTMLElement | null;
+  const contentEl = region.querySelector(
+    ":scope > .cc-content",
+  ) as HTMLElement | null;
   if (!contentEl) return null;
   const blockIndex = quoteUnitAt(contentEl, anchorEl)?.index ?? 0;
 
   const rect = range.getBoundingClientRect();
   if (!rect || (rect.width === 0 && rect.height === 0)) return null;
-  return { x: rect.left + rect.width / 2, y: rect.top, messageId, blockIndex, quote: text };
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top,
+    messageId,
+    blockIndex,
+    quote: text,
+  };
 }
 
 // Quote whatever is selected into the reply and drop the selection. Returns false

@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
-import { gitOrThrow } from './git';
-import { homePaths, treeRoot, writeJsonAtomic } from './paths';
-import type { SurfaceMeta } from './surface';
+import { gitOrThrow } from "./git";
+import { homePaths, treeRoot, writeJsonAtomic } from "./paths";
+import type { SurfaceMeta } from "./surface";
 
 // The cadence state: per surface, the source hash its last real run saw, the
 // hash an agent surface was last flagged at, its crash streak, and its last
@@ -42,7 +42,7 @@ export type EvalsState = Record<string, SurfaceState>;
 export function readState(path = homePaths().state): EvalsState {
   if (!existsSync(path)) return {};
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as EvalsState;
+    return JSON.parse(readFileSync(path, "utf8")) as EvalsState;
   } catch {
     return {};
   }
@@ -53,17 +53,33 @@ export function writeState(state: EvalsState, path = homePaths().state): void {
 }
 
 /** One rep's expected cost on a model: the last real run's average on it, or the surface's declared ceiling before any real run on that model. */
-export function perRepUsd(meta: SurfaceMeta, state: EvalsState, model = meta.model): number {
+export function perRepUsd(
+  meta: SurfaceMeta,
+  state: EvalsState,
+  model = meta.model,
+): number {
   return state[meta.id]?.perRep?.[model]?.usd ?? meta.maxUsdPerRep;
 }
 
 /** What one rep on a model may cost: the costliest rep of the last real run on it, else the average (perRepUsd). */
-export function perRepPeakUsd(meta: SurfaceMeta, state: EvalsState, model = meta.model): number {
-  return state[meta.id]?.perRep?.[model]?.peakUsd ?? perRepUsd(meta, state, model);
+export function perRepPeakUsd(
+  meta: SurfaceMeta,
+  state: EvalsState,
+  model = meta.model,
+): number {
+  return (
+    state[meta.id]?.perRep?.[model]?.peakUsd ?? perRepUsd(meta, state, model)
+  );
 }
 
 /** What `check` estimates for one surface, and refuses on when it is over `--budget`. */
-export function checkCostUsd(meta: SurfaceMeta, freezes: number, state: EvalsState, reps = meta.reps.check, model = meta.model): number {
+export function checkCostUsd(
+  meta: SurfaceMeta,
+  freezes: number,
+  state: EvalsState,
+  reps = meta.reps.check,
+  model = meta.model,
+): number {
   return reps * freezes * perRepUsd(meta, state, model);
 }
 
@@ -72,7 +88,11 @@ export function checkCostUsd(meta: SurfaceMeta, freezes: number, state: EvalsSta
  * surface's reps at its last recorded seconds per rep on their model, spread
  * over the slots. Null until every surface has a real run on that model on record.
  */
-export function checkMinutes(work: Array<{ meta: SurfaceMeta; reps: number; model?: string }>, state: EvalsState, parallel: number): number | null {
+export function checkMinutes(
+  work: Array<{ meta: SurfaceMeta; reps: number; model?: string }>,
+  state: EvalsState,
+  parallel: number,
+): number | null {
   let seconds = 0;
   for (const w of work) {
     const per = state[w.meta.id]?.perRep?.[w.model ?? w.meta.model]?.seconds;
@@ -83,10 +103,26 @@ export function checkMinutes(work: Array<{ meta: SurfaceMeta; reps: number; mode
 }
 
 /** Each model's average cost and wall time, and its costliest rep, over a run set's real reps, for SurfaceState.perRep. */
-export function repCostsByModel(reps: Array<{ model?: string | null; costUsd: number; realMs: number }>, fallbackModel: string): Record<string, RepCost> {
+export function repCostsByModel(
+  reps: Array<{ model?: string | null; costUsd: number; realMs: number }>,
+  fallbackModel: string,
+): Record<string, RepCost> {
   const by = new Map<string, Array<{ costUsd: number; realMs: number }>>();
-  for (const r of reps) by.set(r.model ?? fallbackModel, [...(by.get(r.model ?? fallbackModel) ?? []), r]);
-  return Object.fromEntries([...by].map(([model, rs]) => [model, { usd: rs.reduce((t, r) => t + r.costUsd, 0) / rs.length, seconds: rs.reduce((t, r) => t + r.realMs, 0) / rs.length / 1000, peakUsd: Math.max(...rs.map((r) => r.costUsd)) }]));
+  for (const r of reps)
+    by.set(r.model ?? fallbackModel, [
+      ...(by.get(r.model ?? fallbackModel) ?? []),
+      r,
+    ]);
+  return Object.fromEntries(
+    [...by].map(([model, rs]) => [
+      model,
+      {
+        usd: rs.reduce((t, r) => t + r.costUsd, 0) / rs.length,
+        seconds: rs.reduce((t, r) => t + r.realMs, 0) / rs.length / 1000,
+        peakUsd: Math.max(...rs.map((r) => r.costUsd)),
+      },
+    ]),
+  );
 }
 
 /**
@@ -116,7 +152,7 @@ const today = (): string => new Date().toISOString().slice(0, 10);
 export function spentToday(path = homePaths().spend): number {
   let usd = 0;
   if (!existsSync(path)) return usd;
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
+  for (const line of readFileSync(path, "utf8").split("\n")) {
     try {
       const s = JSON.parse(line) as DailySpend;
       if (s.day === today() && s.usd > 0) usd += s.usd;
@@ -136,10 +172,16 @@ export function spentToday(path = homePaths().spend): number {
 export function addSpend(usd: number, path = homePaths().spend): void {
   if (!(usd > 0)) return;
   mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, `${JSON.stringify({ day: today(), usd } satisfies DailySpend)}\n`);
+  appendFileSync(
+    path,
+    `${JSON.stringify({ day: today(), usd } satisfies DailySpend)}\n`,
+  );
 }
 
-export function patchSurfaceState(id: string, patch: (s: SurfaceState) => SurfaceState): void {
+export function patchSurfaceState(
+  id: string,
+  patch: (s: SurfaceState) => SurfaceState,
+): void {
   const state = readState();
   state[id] = patch(state[id] ?? {});
   writeState(state);
@@ -151,28 +193,60 @@ export function patchSurfaceState(id: string, patch: (s: SurfaceState) => Surfac
  * <rev>:<path>` would. A path the commit lacks hashes as "missing", so it
  * changes the hash when it lands.
  */
-export function sourceHashes(metas: SurfaceMeta[], root = treeRoot(), rev = 'HEAD'): Map<string, string> {
+export function sourceHashes(
+  metas: SurfaceMeta[],
+  root = treeRoot(),
+  rev = "HEAD",
+): Map<string, string> {
   const paths = [...new Set(metas.flatMap((m) => m.sources))];
   const objects = new Map<string, string>();
   if (paths.length) {
-    for (const entry of gitOrThrow(root, ['ls-tree', '-z', rev, '--', ...paths]).split('\0')) {
-      const tab = entry.indexOf('\t');
+    for (const entry of gitOrThrow(root, [
+      "ls-tree",
+      "-z",
+      rev,
+      "--",
+      ...paths,
+    ]).split("\0")) {
+      const tab = entry.indexOf("\t");
       if (tab < 0) continue;
-      objects.set(entry.slice(tab + 1), entry.slice(0, tab).split(' ')[2]!);
+      objects.set(entry.slice(tab + 1), entry.slice(0, tab).split(" ")[2]!);
     }
   }
-  return new Map(metas.map((m) => [m.id, createHash('sha256').update(m.sources.map((p) => `${p} ${objects.get(p) ?? 'missing'}`).join('\n')).digest('hex')]));
+  return new Map(
+    metas.map((m) => [
+      m.id,
+      createHash("sha256")
+        .update(
+          m.sources
+            .map((p) => `${p} ${objects.get(p) ?? "missing"}`)
+            .join("\n"),
+        )
+        .digest("hex"),
+    ]),
+  );
 }
 
 /** Surfaces with a declared source changed or untracked in the checkout. */
-export function dirtySurfaces(metas: SurfaceMeta[], root = treeRoot()): Set<string> {
+export function dirtySurfaces(
+  metas: SurfaceMeta[],
+  root = treeRoot(),
+): Set<string> {
   const paths = [...new Set(metas.flatMap((m) => m.sources))];
   if (!paths.length) return new Set();
-  const changed = gitOrThrow(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', ...paths])
-    .split('\0')
+  const changed = gitOrThrow(root, [
+    "status",
+    "--porcelain=v1",
+    "-z",
+    "--untracked-files=all",
+    "--",
+    ...paths,
+  ])
+    .split("\0")
     .filter((e) => e.length > 3)
     .map((e) => e.slice(3));
-  const touches = (src: string) => changed.some((p) => p === src || p.startsWith(`${src}/`));
+  const touches = (src: string) =>
+    changed.some((p) => p === src || p.startsWith(`${src}/`));
   return new Set(metas.filter((m) => m.sources.some(touches)).map((m) => m.id));
 }
 
@@ -195,7 +269,12 @@ export interface Staleness {
  * waits: replaying it would grade a tree HEAD does not hold, and counting it
  * would fire the trigger on nothing.
  */
-export function staleness(metas: SurfaceMeta[], state = readState(), root = treeRoot(), budget?: number): Staleness {
+export function staleness(
+  metas: SurfaceMeta[],
+  state = readState(),
+  root = treeRoot(),
+  budget?: number,
+): Staleness {
   const hashes = sourceHashes(metas, root);
   const stale: SurfaceMeta[] = [];
   const blocked: SurfaceMeta[] = [];
@@ -206,17 +285,32 @@ export function staleness(metas: SurfaceMeta[], state = readState(), root = tree
       blocked.push(m);
       continue;
     }
-    const refusedStands = budget == null || s.lastRefusedBudget == null || budget <= s.lastRefusedBudget;
-    const seen = m.route === 'call' ? [s.lastRunHash, refusedStands ? s.lastRefusedHash : undefined] : [s.lastRunHash, s.lastNotifiedHash];
+    const refusedStands =
+      budget == null ||
+      s.lastRefusedBudget == null ||
+      budget <= s.lastRefusedBudget;
+    const seen =
+      m.route === "call"
+        ? [s.lastRunHash, refusedStands ? s.lastRefusedHash : undefined]
+        : [s.lastRunHash, s.lastNotifiedHash];
     if (!seen.includes(h)) stale.push(m);
   }
-  const dirty = dirtySurfaces(stale.filter((m) => m.route === 'call'), root);
-  return { stale, waiting: stale.filter((m) => dirty.has(m.id)), due: stale.filter((m) => !dirty.has(m.id)), blocked, hashes };
+  const dirty = dirtySurfaces(
+    stale.filter((m) => m.route === "call"),
+    root,
+  );
+  return {
+    stale,
+    waiting: stale.filter((m) => dirty.has(m.id)),
+    due: stale.filter((m) => !dirty.has(m.id)),
+    blocked,
+    hashes,
+  };
 }
 
 /** Where a branch left `ref`: the commit both share, so a base that moved on is not read as the branch's change. */
 export function mergeBase(ref: string, root = treeRoot()): string {
-  return gitOrThrow(root, ['merge-base', ref, 'HEAD']).trim();
+  return gitOrThrow(root, ["merge-base", ref, "HEAD"]).trim();
 }
 
 /**
@@ -224,19 +318,28 @@ export function mergeBase(ref: string, root = treeRoot()): string {
  * merge base with `ref` and HEAD, or is dirty in the checkout. Unlike
  * `staleness`, no state is read: the question is what this change moves.
  */
-export function changedSince(metas: SurfaceMeta[], ref: string, root = treeRoot()): { base: string; changed: SurfaceMeta[] } {
+export function changedSince(
+  metas: SurfaceMeta[],
+  ref: string,
+  root = treeRoot(),
+): { base: string; changed: SurfaceMeta[] } {
   const base = mergeBase(ref, root);
   const before = sourceHashes(metas, root, base);
   const after = sourceHashes(metas, root);
   const dirty = dirtySurfaces(metas, root);
-  return { base, changed: metas.filter((m) => before.get(m.id) !== after.get(m.id) || dirty.has(m.id)) };
+  return {
+    base,
+    changed: metas.filter(
+      (m) => before.get(m.id) !== after.get(m.id) || dirty.has(m.id),
+    ),
+  };
 }
 
 /** HEAD of the tree, for run.json. */
 export function gitHead(root = treeRoot()): string {
   try {
-    return gitOrThrow(root, ['rev-parse', 'HEAD']).trim();
+    return gitOrThrow(root, ["rev-parse", "HEAD"]).trim();
   } catch {
-    return 'unknown';
+    return "unknown";
   }
 }

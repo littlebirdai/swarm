@@ -166,7 +166,7 @@ a change on a proposal, and nothing exists until a person accepts it.
 **Three change kinds** (`shared/contracts/orgProposal.ts`):
 
 - `initiative`: `{ title, description, projects: [ref], owner?: "@handle" |
-  "me" | a member's name, target_date?: unix ms }`. The description is the
+"me" | a member's name, target_date?: unix ms }`. The description is the
   sentence that says what reaching the goal looks like. Accepting creates the
   initiative through `performCreateInitiative` (convex/initiatives.ts), the
   same core `cast initiative create` and the page use, in `proposed` status
@@ -177,7 +177,7 @@ a change on a proposal, and nothing exists until a person accepts it.
   `cast initiative add-project` and the page's add.
 - `initiative_owner`: `{ initiative: ref, owner, title? }`. Accepting sets
   the owner through `performUpdateInitiative`, the core behind `cast
-  initiative set --owner` and the page's owner chip.
+initiative set --owner` and the page's owner chip.
 
 Each is one change in an ask, worded for a person who has not read the
 letter: "Set a goal: Win the private network, carried by Callers and Broker
@@ -320,7 +320,7 @@ alert line is a plain series: it keeps points and never opens a group.
   day. Union serves its admin home's numbers as `metrics.list` and
   `metrics.read` (union-mobile backend lib/codecastMetrics.ts).
 - **Writing.** `cast initiative set --metric "Dollars per intro=under $250
-  @mw-12"`, `cast project update --number ...`, or the numbers editor on the
+@mw-12"`, `cast project update --number ...`, or the numbers editor on the
   Goals page, the goal page and the project page: each number picks Reported or
   a series, and may be marked a guardrail (a number the work must not make
   worse). lib/metricSeries holds the stored shape, the write check (a series in
@@ -354,15 +354,15 @@ optional, all on the row, so every surface that reads a goal (the pages, the
 chart's Goals lens, the document view, the review) reads the same thing from
 the one synced collection:
 
-| Field | Kind | What it holds |
-| --- | --- | --- |
-| `why` | written | Why it matters, in a paragraph. |
-| `done_when` | written | What done looks like: the sentence a person checks the result against. |
-| `milestones` | structured | An ordered list of `{ key, title, date?, done_at?, source? }`, at most 12. The next milestone is the first one not done, earliest date first. Reached ones stay, so the list is also the record of progress. |
+| Field           | Kind       | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `why`           | written    | Why it matters, in a paragraph.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `done_when`     | written    | What done looks like: the sentence a person checks the result against.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `milestones`    | structured | An ordered list of `{ key, title, date?, done_at?, source? }`, at most 12. The next milestone is the first one not done, earliest date first. Reached ones stay, so the list is also the record of progress.                                                                                                                                                                                                                                                             |
 | `score_history` | structured | Per metric key, every reported value oldest first, `{ value, observed_at, source }`, the newest 52 kept. `scoreboard` (I4) stays the latest value and is a copy written by the one reporting writer, the way `health` is a copy of the latest update: the writer reads the latest of the history back, so a report backfilled for an earlier day never rewinds the current number. A renamed metric keeps its value and its history under the key its new name reads as. |
-| `questions` | written | Open questions: `{ key, text, at, by?, source?, answer?, answered_at? }`, at most 20. A question with an answer is closed and stays on the record. |
-| `decisions` | written | Decisions taken: `{ key, text, at, by?, source? }`, at most 40, newest last. |
-| `sources` | structured | Where the goal was stated: a list of sources, at most 20. |
+| `questions`     | written    | Open questions: `{ key, text, at, by?, source?, answer?, answered_at? }`, at most 20. A question with an answer is closed and stays on the record.                                                                                                                                                                                                                                                                                                                       |
+| `decisions`     | written    | Decisions taken: `{ key, text, at, by?, source? }`, at most 40, newest last.                                                                                                                                                                                                                                                                                                                                                                                             |
+| `sources`       | structured | Where the goal was stated: a list of sources, at most 20.                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 `description` stays what it was: the goal in a few sentences, its scope and
 context. Nothing else is added: progress is still derived from tasks, health

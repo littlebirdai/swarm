@@ -68,7 +68,8 @@ export {
   isToolResultCarrier,
 } from "@codecast/shared/contracts";
 
-const SESSION_MESSAGE_NAME_RE = /<session-message\s+from="[^"]*"\s+name="([^"]*)"/;
+const SESSION_MESSAGE_NAME_RE =
+  /<session-message\s+from="[^"]*"\s+name="([^"]*)"/;
 
 function removeLeadingFramingNewline(body: string): string {
   if (body.startsWith("\r\n")) return body.slice(2);
@@ -86,12 +87,19 @@ function removeSessionMessageFraming(body: string): string {
   return removeTrailingFramingNewline(removeLeadingFramingNewline(body));
 }
 
-export function parseSessionMessage(text: string): { from: string; body: string; name?: string; intent?: SessionMessageIntent } | null {
+export function parseSessionMessage(text: string): {
+  from: string;
+  body: string;
+  name?: string;
+  intent?: SessionMessageIntent;
+} | null {
   if (!text || typeof text !== "string") return null;
   const match = text.match(SESSION_MESSAGE_RE);
   if (!match) return null;
   const name = text.match(SESSION_MESSAGE_NAME_RE)?.[1]?.trim() || undefined;
-  const intent = sessionMessageIntentOf(text.slice(text.indexOf("<session-message")));
+  const intent = sessionMessageIntentOf(
+    text.slice(text.indexOf("<session-message")),
+  );
   return {
     from: match[1].trim(),
     body: restoreFrameTags(removeSessionMessageFraming(match[2])),
@@ -105,7 +113,12 @@ export function parseSessionMessage(text: string): { from: string; body: string;
 // and rendering) and the sender/body are needed.
 export function parseInboundSessionMessage(
   rawContent: string | null | undefined,
-): { from: string; body: string; name?: string; intent?: SessionMessageIntent } | null {
+): {
+  from: string;
+  body: string;
+  name?: string;
+  intent?: SessionMessageIntent;
+} | null {
   if (!rawContent) return null;
   const cleaned = stripInjectionNoise(rawContent);
   if (!cleaned.startsWith("<session-message")) return null;
@@ -141,8 +154,13 @@ export function parseAgentAuthoredMessage(
     const close = rest.lastIndexOf(`</${tag}>`);
     return {
       from: open[1].trim(),
-      name: restoreFrameTags(open[0].match(/\sname="([^"]*)"/)?.[1]?.trim() ?? "") || undefined,
-      body: restoreFrameTags((close === -1 ? rest : rest.slice(0, close)).trim()),
+      name:
+        restoreFrameTags(
+          open[0].match(/\sname="([^"]*)"/)?.[1]?.trim() ?? "",
+        ) || undefined,
+      body: restoreFrameTags(
+        (close === -1 ? rest : rest.slice(0, close)).trim(),
+      ),
       label,
     };
   }
@@ -216,13 +234,17 @@ export function chatWakeAction(wake: ChatWakePrompt): string {
 
 const CHAT_WAKE_SELF = "You (earlier)";
 
-export function parseChatWakePrompt(rawContent: string | null | undefined): ChatWakePrompt | null {
+export function parseChatWakePrompt(
+  rawContent: string | null | undefined,
+): ChatWakePrompt | null {
   if (!rawContent) return null;
   const text = chatWakeText(rawContent);
   const header = text.match(CHAT_WAKE_HEADER);
   if (!header) return null;
   const rest = text.slice(header[0].length);
-  const asker = rest.match(/^(.*?) (mentioned you in a thread|mentioned @[\w-]+ in (?:#\S+|a direct message)|messaged you directly|handed you a thread|replied in a thread you (?:are part of|follow))\./);
+  const asker = rest.match(
+    /^(.*?) (mentioned you in a thread|mentioned @[\w-]+ in (?:#\S+|a direct message)|messaged you directly|handed you a thread|replied in a thread you (?:are part of|follow))\./,
+  );
 
   const begin = rest.match(/^--- begin thread ([0-9a-f]{12}) ---$/m);
   const thread: ChatWakeEntry[] = [];
@@ -233,14 +255,22 @@ export function parseChatWakePrompt(rawContent: string | null | undefined): Chat
     const nonce = begin[1];
     const afterBegin = rest.slice(begin.index + begin[0].length + 1);
     // A truncated preview may have lost the end marker: read to the end then.
-    const endIdx = afterBegin.search(new RegExp(`^--- end thread ${nonce} ---$`, "m"));
+    const endIdx = afterBegin.search(
+      new RegExp(`^--- end thread ${nonce} ---$`, "m"),
+    );
     const quoted = endIdx === -1 ? afterBegin : afterBegin.slice(0, endIdx);
     tail = endIdx === -1 ? "" : afterBegin.slice(endIdx);
     for (const line of quoted.split("\n")) {
       // The builder's own section dividers. A quoted line always starts with
       // "Name: ", so a bare divider line can only come from the builder.
-      if (/^--- recent messages in .* ---$/.test(line)) { entries = context; continue; }
-      if (/^--- the (?:thread|new message) ---$/.test(line)) { entries = thread; continue; }
+      if (/^--- recent messages in .* ---$/.test(line)) {
+        entries = context;
+        continue;
+      }
+      if (/^--- the (?:thread|new message) ---$/.test(line)) {
+        entries = thread;
+        continue;
+      }
       // fenceSafe indents every continuation line by two spaces so it can never
       // read as a new speaker; an unindented "Name: text" line starts an entry.
       if (/^ {2}/.test(line) && entries.length > 0) {
@@ -249,14 +279,22 @@ export function parseChatWakePrompt(rawContent: string | null | undefined): Chat
       }
       const m = line.match(/^(.+?): ([\s\S]*)$/);
       if (!m) {
-        if (entries.length > 0 && line.trim()) entries[entries.length - 1].content += `\n${line}`;
+        if (entries.length > 0 && line.trim())
+          entries[entries.length - 1].content += `\n${line}`;
         continue;
       }
-      entries.push({ name: m[1], content: m[2], self: m[1] === CHAT_WAKE_SELF });
+      entries.push({
+        name: m[1],
+        content: m[2],
+        self: m[1] === CHAT_WAKE_SELF,
+      });
     }
   }
   const deadline = tail.match(/You have about (\d+) minutes?/);
-  const tidy = (list: ChatWakeEntry[]) => list.map((e) => ({ ...e, content: e.content.trim() })).filter((e) => e.content);
+  const tidy = (list: ChatWakeEntry[]) =>
+    list
+      .map((e) => ({ ...e, content: e.content.trim() }))
+      .filter((e) => e.content);
   return {
     channelName: header[1]?.trim() ?? "",
     direct: !!header[2],
@@ -286,9 +324,15 @@ export function parseMachineDeliveredMessage(
   if (!rawContent) return null;
   rawContent = stripPastedContent(rawContent);
   if (isScheduledTaskMessage(rawContent)) {
-    const m = rawContent.match(/<scheduled-task\s+title="([^"]*)"[^>]*>([\s\S]*?)(?:<\/scheduled-task>|$)/);
+    const m = rawContent.match(
+      /<scheduled-task\s+title="([^"]*)"[^>]*>([\s\S]*?)(?:<\/scheduled-task>|$)/,
+    );
     const title = (m?.[1] ?? "").replace(/&quot;/g, '"');
-    return { kind: "schedule", source: title || "trigger run", body: (m?.[2] ?? "").trim() };
+    return {
+      kind: "schedule",
+      source: title || "trigger run",
+      body: (m?.[2] ?? "").trim(),
+    };
   }
   if (isSessionMessage(rawContent)) {
     const parsed = parseInboundSessionMessage(rawContent);
@@ -296,24 +340,45 @@ export function parseMachineDeliveredMessage(
       // A huddle digest rides the session-message rail; previews should show
       // the summary, never the wire tag.
       const huddle = parseHuddleSummaryTag(parsed.body);
-      if (huddle) return { kind: "session", source: huddle.title, body: huddle.body };
-      return { kind: "session", source: parsed.name || parsed.from, body: parsed.body };
+      if (huddle)
+        return { kind: "session", source: huddle.title, body: huddle.body };
+      return {
+        kind: "session",
+        source: parsed.name || parsed.from,
+        body: parsed.body,
+      };
     }
-    const open = rawContent.match(/<session-message\s+from="([^"]*)"(?:\s+name="([^"]*)")?[^>]*>([\s\S]*)$/);
-    const body = restoreFrameTags(removeLeadingFramingNewline(
-      (open?.[3] ?? "").replace(/<\/session-message>[\s\S]*$/, ""),
-    ));
-    return { kind: "session", source: restoreFrameTags(open?.[2] ?? "") || open?.[1] || "session", body };
+    const open = rawContent.match(
+      /<session-message\s+from="([^"]*)"(?:\s+name="([^"]*)")?[^>]*>([\s\S]*)$/,
+    );
+    const body = restoreFrameTags(
+      removeLeadingFramingNewline(
+        (open?.[3] ?? "").replace(/<\/session-message>[\s\S]*$/, ""),
+      ),
+    );
+    return {
+      kind: "session",
+      source: restoreFrameTags(open?.[2] ?? "") || open?.[1] || "session",
+      body,
+    };
   }
   // A subagent's report to its parent is another agent's words, like a teammate
   // broadcast — same kind, so labels and icons need no new variant.
   if (isAgentMessage(rawContent)) {
     const agent = parseAgentAuthoredMessage(rawContent);
-    return { kind: "teammate", source: agent?.from || "subagent", body: agent?.body ?? "" };
+    return {
+      kind: "teammate",
+      source: agent?.from || "subagent",
+      body: agent?.body ?? "",
+    };
   }
   if (isTeammateMessage(rawContent)) {
-    const from = rawContent.match(/<teammate-message[^>]*\steammate_id="([^"]*)"/)?.[1];
-    const body = stripTeammateFraming(rawContent.replace(/<\/?teammate-message[^>]*>/g, "")).trim();
+    const from = rawContent.match(
+      /<teammate-message[^>]*\steammate_id="([^"]*)"/,
+    )?.[1];
+    const body = stripTeammateFraming(
+      rawContent.replace(/<\/?teammate-message[^>]*>/g, ""),
+    ).trim();
     return { kind: "teammate", source: from || "teammate", body };
   }
   const chat = parseChatWakePrompt(rawContent);
@@ -324,7 +389,8 @@ export function parseMachineDeliveredMessage(
     return { kind: "chat", source: chatWakePlace(chat), body };
   }
   const unwrapped = parseUnwrappedSessionReport(rawContent);
-  if (unwrapped) return { kind: "session", source: unwrapped.name, body: unwrapped.body };
+  if (unwrapped)
+    return { kind: "session", source: unwrapped.name, body: unwrapped.body };
   return null;
 }
 
@@ -359,13 +425,21 @@ export interface SpawnedTaskPrompt {
   instructions?: string;
 }
 
-const SPAWNED_TASK_HEADER = /^\[Codecast Task: (.*)\]\nTask ID: ([^\n]+)\nMode: ([^\n]+)\n+/;
+const SPAWNED_TASK_HEADER =
+  /^\[Codecast Task: (.*)\]\nTask ID: ([^\n]+)\nMode: ([^\n]+)\n+/;
 
-export function isSpawnedTaskPrompt(rawContent: string | null | undefined): boolean {
-  return !!rawContent && SPAWNED_TASK_HEADER.test(stripInjectionNoise(rawContent).trim());
+export function isSpawnedTaskPrompt(
+  rawContent: string | null | undefined,
+): boolean {
+  return (
+    !!rawContent &&
+    SPAWNED_TASK_HEADER.test(stripInjectionNoise(rawContent).trim())
+  );
 }
 
-export function parseSpawnedTaskPrompt(rawContent: string | null | undefined): SpawnedTaskPrompt | null {
+export function parseSpawnedTaskPrompt(
+  rawContent: string | null | undefined,
+): SpawnedTaskPrompt | null {
   if (!rawContent) return null;
   const text = stripInjectionNoise(rawContent).trim();
   const header = text.match(SPAWNED_TASK_HEADER);
@@ -375,7 +449,10 @@ export function parseSpawnedTaskPrompt(rawContent: string | null | undefined): S
   let instructions: string | undefined;
   const instrIdx = rest.lastIndexOf("\n---\nInstructions:");
   if (instrIdx !== -1) {
-    instructions = rest.slice(instrIdx + "\n---\n".length).replace(/^Instructions:\s*/, "").trim();
+    instructions = rest
+      .slice(instrIdx + "\n---\n".length)
+      .replace(/^Instructions:\s*/, "")
+      .trim();
     rest = rest.slice(0, instrIdx);
   }
 
@@ -383,13 +460,20 @@ export function parseSpawnedTaskPrompt(rawContent: string | null | undefined): S
   let previousRun: SpawnedTaskPrompt["previousRun"];
   // buildPrompt puts a blank line between `---` and `Previous run (…)` but none
   // before `Context from originating session` — tolerate any run of newlines.
-  const metaDivider = rest.match(/\n---\n+(?=Context from originating session|Previous run \()/);
+  const metaDivider = rest.match(
+    /\n---\n+(?=Context from originating session|Previous run \()/,
+  );
   if (metaDivider && metaDivider.index !== undefined) {
     const meta = rest.slice(metaDivider.index + metaDivider[0].length);
     rest = rest.slice(0, metaDivider.index);
-    const prevMatch = meta.match(/(?:^|\n)Previous run \(([^)]*)\):\n?([\s\S]*)$/);
-    if (prevMatch) previousRun = { ago: prevMatch[1], summary: prevMatch[2].trim() };
-    const ctxMatch = meta.match(/^Context from originating session[^:]*:\n?([\s\S]*?)(?=\n*Previous run \(|$)/);
+    const prevMatch = meta.match(
+      /(?:^|\n)Previous run \(([^)]*)\):\n?([\s\S]*)$/,
+    );
+    if (prevMatch)
+      previousRun = { ago: prevMatch[1], summary: prevMatch[2].trim() };
+    const ctxMatch = meta.match(
+      /^Context from originating session[^:]*:\n?([\s\S]*?)(?=\n*Previous run \(|$)/,
+    );
     if (ctxMatch && ctxMatch[1].trim()) contextSummary = ctxMatch[1].trim();
   }
 
@@ -410,7 +494,18 @@ export function parseSpawnedTaskPrompt(rawContent: string | null | undefined): S
 // the Expo bundle imports it and must not drag web UI dependencies into Hermes.
 
 // "[codecast]" is the CLI's injected session-move notice (sessionMoveNotice.ts).
-const NOISE_PREFIXES = ["[Request interrupted", "The user interrupted the previous turn on purpose.", "This session is being continued", "Your task is to create a detailed summary", "Please continue the conversation", "<task-notification>", "Implement the following plan", "[Codecast import]", "[codecast]", 'Background agent "'];
+const NOISE_PREFIXES = [
+  "[Request interrupted",
+  "The user interrupted the previous turn on purpose.",
+  "This session is being continued",
+  "Your task is to create a detailed summary",
+  "Please continue the conversation",
+  "<task-notification>",
+  "Implement the following plan",
+  "[Codecast import]",
+  "[codecast]",
+  'Background agent "',
+];
 
 const NOISE_PATTERNS = [
   /toolu_[A-Za-z0-9_-]+/,
@@ -423,7 +518,8 @@ const NOISE_PATTERNS = [
 // A bare nudge the human typed to keep the agent moving ("continue", "go",
 // "ok"). Real input to the agent, but noise on any surface that summarizes
 // what the human asked for: the sticky prompt header, the message navigator.
-const BARE_NUDGE_RE = /^(?:continue|go(?: on| ahead)?|keep going|carry on|proceed|next|ok(?:ay)?|yes|y|do it)[\s.!…]*$/i;
+const BARE_NUDGE_RE =
+  /^(?:continue|go(?: on| ahead)?|keep going|carry on|proceed|next|ok(?:ay)?|yes|y|do it)[\s.!…]*$/i;
 
 export function isBareNudge(display: string | null | undefined): boolean {
   return !!display && BARE_NUDGE_RE.test(display.trim());
@@ -433,7 +529,10 @@ export function isBareNudge(display: string | null | undefined): boolean {
 // lower case, so "Continue" and "continue." land in the same run.
 export function nudgeLabel(display: string | null | undefined): string | null {
   if (!isBareNudge(display)) return null;
-  return display!.trim().replace(/[\s.!…]+$/, "").toLowerCase();
+  return display!
+    .trim()
+    .replace(/[\s.!…]+$/, "")
+    .toLowerCase();
 }
 
 export type NudgeRow = {
@@ -451,7 +550,11 @@ export type NudgeRun = { text: string; count: number };
 // head carries the run's count ("continue ×5"); every later row in the run is
 // folded away. A run of one still gets a head, so every nudge renders the same
 // compact line whether or not it repeats.
-export function foldNudgeRuns(rows: NudgeRow[]): { runs: Map<string, NudgeRun>; folded: Set<string>; headOf: Map<string, string> } {
+export function foldNudgeRuns(rows: NudgeRow[]): {
+  runs: Map<string, NudgeRun>;
+  folded: Set<string>;
+  headOf: Map<string, string>;
+} {
   const runs = new Map<string, NudgeRun>();
   const folded = new Set<string>();
   const headOf = new Map<string, string>();
@@ -482,7 +585,9 @@ export function isSkillExpansion(content: string): boolean {
   return SKILL_EXPANSION_PATTERN.test(content.trim());
 }
 
-export function extractSkillInfo(content: string): { name: string; path: string; preview: string } | null {
+export function extractSkillInfo(
+  content: string,
+): { name: string; path: string; preview: string } | null {
   const match = content.match(SKILL_EXPANSION_PATTERN);
   if (!match) return null;
   const fullPath = match[1].trim();
@@ -490,7 +595,7 @@ export function extractSkillInfo(content: string): { name: string; path: string;
   const name = segments[segments.length - 1] || "skill";
   const shortPath = fullPath.replace(/^\/Users\/[^/]+\//, "~/");
   const afterBase = content.slice((match.index || 0) + match[0].length).trim();
-  const lines = afterBase.split("\n").filter(l => l.trim());
+  const lines = afterBase.split("\n").filter((l) => l.trim());
   const preview = lines.slice(0, 2).join(" ").slice(0, 120);
   return { name, path: shortPath, preview };
 }
@@ -499,7 +604,9 @@ export function extractSkillInfo(content: string): { name: string; path: string;
 // conversation on each render, so answers are cached by content.
 const cleanCache = new LRUCache<string, string | null>(4000);
 
-export function cleanUserMessage(raw: string | null | undefined): string | null {
+export function cleanUserMessage(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   const hit = cleanCache.get(raw);
   if (hit !== undefined) return hit;
@@ -508,11 +615,14 @@ export function cleanUserMessage(raw: string | null | undefined): string | null 
   return out;
 }
 
-const VAULT_READY_PREVIEW_RE = /^Vault: (\S+) is ready\. `cast (?:vault|browser) /;
+const VAULT_READY_PREVIEW_RE =
+  /^Vault: (\S+) is ready\. `cast (?:vault|browser) /;
 
 /** The secret a filled vault request's wake line (formatVaultReady) names, or null. The server's 200-character preview slice usually cuts the tag off, so the first line's own opening identifies it too. */
 export function vaultReadyName(raw: string): string | null {
-  return parseVaultReady(raw)?.name ?? raw.match(VAULT_READY_PREVIEW_RE)?.[1] ?? null;
+  return (
+    parseVaultReady(raw)?.name ?? raw.match(VAULT_READY_PREVIEW_RE)?.[1] ?? null
+  );
 }
 
 function cleanUserMessageUncached(raw: string): string | null {
@@ -532,7 +642,12 @@ function cleanUserMessageUncached(raw: string): string | null {
   // A workflow agent's framed opening turn: preview the task, not the header.
   // The server's 200-character slice ends inside the header line, so a cut
   // frame has no task text to show.
-  if (raw.trimStart().startsWith("[Workflow harness — ")) return parseWorkflowHarnessFrame(raw.trimStart())?.body.replace(/\s+/g, " ").trim() || null;
+  if (raw.trimStart().startsWith("[Workflow harness — "))
+    return (
+      parseWorkflowHarnessFrame(raw.trimStart())
+        ?.body.replace(/\s+/g, " ")
+        .trim() || null
+    );
   // A skill body stands for the command the human typed; preview that command.
   const skill = extractSkillInfo(raw);
   if (skill) return `/${skill.name}`;
@@ -551,7 +666,7 @@ function cleanUserMessageUncached(raw: string): string | null {
     .replace(/<[^>]+>/g, "")
     .trim();
   if (!cleaned) return null;
-  if (NOISE_PREFIXES.some(p => cleaned.startsWith(p))) return null;
-  if (NOISE_PATTERNS.some(p => p.test(cleaned))) return null;
+  if (NOISE_PREFIXES.some((p) => cleaned.startsWith(p))) return null;
+  if (NOISE_PATTERNS.some((p) => p.test(cleaned))) return null;
   return cleaned;
 }

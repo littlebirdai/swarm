@@ -9,7 +9,14 @@
 // and the message around them stays.
 // Run: cd apps/web && bun test --isolate components/__tests__/publishedPageEmbed.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, fixtureId, installDom, installMissingBackend, seedCachedSession, seedViewer } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedCachedSession,
+  seedViewer,
+} from "../../test-helpers/missingBackend";
 
 const SESSION = fixtureId("convembeds");
 // Page slugs are alphanumeric secrets of 8 to 24 characters.
@@ -20,7 +27,8 @@ const { mountPage } = installDom(`https://app.test/conversation/${SESSION}`);
 const backend = await installMissingBackend();
 await seedViewer();
 
-const { default: ConversationRoute } = await import("../../app/conversation/[id]/page");
+const { default: ConversationRoute } =
+  await import("../../app/conversation/[id]/page");
 const { default: InboxPage } = await import("../../app/inbox/page");
 
 await seedCachedSession(SESSION, "Publish the launch report", [
@@ -44,19 +52,27 @@ await seedCachedSession(SESSION, "Publish the launch report", [
 ]);
 
 test("a published page, a Claude artifact and a link render in a message with every query missing", async () => {
-  const page = await mountPage(`/conversation/${SESSION}`, { "conversation/:id": <ConversationRoute />, inbox: <InboxPage /> });
+  const page = await mountPage(`/conversation/${SESSION}`, {
+    "conversation/:id": <ConversationRoute />,
+    inbox: <InboxPage />,
+  });
   try {
     expect(describeFailures(page)).toBe("");
     const html = page.container.innerHTML;
     // The published page: its card links the public address and frames it.
     expect(html).toContain(`href="https://codecast.sh/a/${SLUG}"`);
-    expect([...page.container.querySelectorAll("iframe")].some((f) => f.getAttribute("src")?.includes(SLUG))).toBe(true);
+    expect(
+      [...page.container.querySelectorAll("iframe")].some((f) =>
+        f.getAttribute("src")?.includes(SLUG),
+      ),
+    ).toBe(true);
     // The artifact and the link keep their addresses on screen.
     expect(html).toContain(ARTIFACT);
     expect(html).toContain("example.com");
     // The words around the embeds are still the message.
     expect(page.text()).toContain("Published it here:");
-    for (const fn of ["artifacts:embedInfo", "linkPreviews:get"]) expect(backend.refused).toContain(fn);
+    for (const fn of ["artifacts:embedInfo", "linkPreviews:get"])
+      expect(backend.refused).toContain(fn);
   } finally {
     await page.unmount();
   }

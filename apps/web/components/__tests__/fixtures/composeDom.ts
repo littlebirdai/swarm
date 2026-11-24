@@ -7,7 +7,9 @@ import Dexie from "dexie";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { replaceGlobals } from "../../../test-helpers/globals";
 
-export const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
+export const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/",
+});
 export const w = dom.window as any;
 export const restoreGlobals = replaceGlobals({
   window: w,
@@ -28,10 +30,24 @@ export const restoreGlobals = replaceGlobals({
   getComputedStyle: w.getComputedStyle,
   requestAnimationFrame: (cb: any) => setTimeout(cb, 0),
   cancelAnimationFrame: (id: any) => clearTimeout(id),
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
-  IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+  IntersectionObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
   MutationObserver: w.MutationObserver,
-  matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }),
+  matchMedia: () => ({
+    matches: false,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+  }),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 Dexie.dependencies.indexedDB = indexedDB;

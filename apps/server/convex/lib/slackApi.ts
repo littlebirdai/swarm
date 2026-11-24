@@ -6,10 +6,18 @@ export type SlackResp = { ok: boolean; error?: string; [k: string]: any };
 // encoding for everything else, including chat.getPermalink, which is a read
 // and rejects a JSON body.
 const JSON_METHODS = new Set([
-  "chat.postMessage", "chat.update", "chat.delete", "reactions.add", "reactions.remove",
+  "chat.postMessage",
+  "chat.update",
+  "chat.delete",
+  "reactions.add",
+  "reactions.remove",
 ]);
 
-export async function slackApi(token: string, method: string, params: Record<string, unknown> = {}): Promise<SlackResp> {
+export async function slackApi(
+  token: string,
+  method: string,
+  params: Record<string, unknown> = {},
+): Promise<SlackResp> {
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
   let body: string;
   if (JSON_METHODS.has(method)) {
@@ -25,9 +33,16 @@ export async function slackApi(token: string, method: string, params: Record<str
     body = form.toString();
   }
   try {
-    const resp = await fetch(`https://slack.com/api/${method}`, { method: "POST", headers, body });
+    const resp = await fetch(`https://slack.com/api/${method}`, {
+      method: "POST",
+      headers,
+      body,
+    });
     return (await resp.json()) as SlackResp;
   } catch (error) {
-    return { ok: false, error: `network: ${error instanceof Error ? error.message : String(error)}` };
+    return {
+      ok: false,
+      error: `network: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }

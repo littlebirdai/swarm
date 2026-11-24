@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../store/inboxStore";
-import { cancelReconcileCrawl, crawlThrottledAt, runReconcileCrawl, syncMetaKey } from "./reconcileCrawl";
+import {
+  cancelReconcileCrawl,
+  crawlThrottledAt,
+  runReconcileCrawl,
+  syncMetaKey,
+} from "./reconcileCrawl";
 import { inboxCrawlWsKey } from "./useSyncInboxSessions";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -37,10 +42,11 @@ describe("crawlThrottledAt", () => {
     expect(crawlThrottledAt(NOW, THROTTLE, 0, 0, false)).toBe(false);
     expect(crawlThrottledAt(NOW, THROTTLE, 0, 0, true)).toBe(false);
     // An expired persisted mark is no different from none.
-    expect(crawlThrottledAt(NOW, THROTTLE, 0, NOW - THROTTLE - 1, false)).toBe(false);
+    expect(crawlThrottledAt(NOW, THROTTLE, 0, NOW - THROTTLE - 1, false)).toBe(
+      false,
+    );
   });
 });
-
 
 // The predicate can be right while the option is unplumbed, so exercise the real
 // crawl: boot-eager must page despite a fresh persisted watermark, then throttle.
@@ -50,33 +56,41 @@ describe("runReconcileCrawl — boot-eager wiring", () => {
   });
 
   it("crawls once past a recent persisted watermark, then throttles for the rest of the session", async () => {
-    useInboxStore.getState().recordSyncMeta(syncMetaKey("bEager", "wsBoot"), { backfilledAt: Date.now() });
+    useInboxStore.getState().recordSyncMeta(syncMetaKey("bEager", "wsBoot"), {
+      backfilledAt: Date.now(),
+    });
 
     let calls = 0;
-    const crawl = () => runReconcileCrawl({
-      namespace: "bEager",
-      wsKey: "wsBoot",
-      throttleMs: THROTTLE,
-      pageDelayMs: 0,
-      maxPages: 10,
-      bootEager: true,
-      fetchPage: async () => { calls++; return { rows: [{ _id: "d1" }], isDone: true, continueCursor: null }; },
-      onPage: () => {},
-      onComplete: () => {},
-    });
+    const crawl = () =>
+      runReconcileCrawl({
+        namespace: "bEager",
+        wsKey: "wsBoot",
+        throttleMs: THROTTLE,
+        pageDelayMs: 0,
+        maxPages: 10,
+        bootEager: true,
+        fetchPage: async () => {
+          calls++;
+          return { rows: [{ _id: "d1" }], isDone: true, continueCursor: null };
+        },
+        onPage: () => {},
+        onComplete: () => {},
+      });
 
     crawl();
     await delay(40);
     expect(calls).toBe(1);
     // Watermark is still WRITTEN on completion — other consumers read backfilledAt.
-    expect(useInboxStore.getState().syncMeta[syncMetaKey("bEager", "wsBoot")]?.backfilledAt).toBeGreaterThan(0);
+    expect(
+      useInboxStore.getState().syncMeta[syncMetaKey("bEager", "wsBoot")]
+        ?.backfilledAt,
+    ).toBeGreaterThan(0);
 
     // Re-fire (reconcileNonce tick / wsKey settle) — the in-session mark gates it.
     crawl();
     await delay(40);
     expect(calls).toBe(1);
   });
-
 });
 
 // A reload mid-crawl used to restart the walk from page zero — a client that
@@ -89,7 +103,11 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
     useInboxStore.setState({ syncMeta: {}, syncProgress: {} });
   });
 
-  const pagedFetcher = (pages: Record<string, { rows: any[]; next: string | null }>, log: (string | null)[]) =>
+  const pagedFetcher =
+    (
+      pages: Record<string, { rows: any[]; next: string | null }>,
+      log: (string | null)[],
+    ) =>
     async (cursor: string | null) => {
       log.push(cursor);
       const p = pages[cursor ?? "start"];
@@ -100,7 +118,9 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
     const ns = "resumeNs";
     const key = syncMetaKey(ns, "ws1");
     // A prior interrupted run checkpointed at cursor "c2".
-    useInboxStore.getState().recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now() });
+    useInboxStore
+      .getState()
+      .recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now() });
 
     const fetched: (string | null)[] = [];
     let completeFlag: boolean | null = null;
@@ -111,13 +131,18 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
       throttleMs: THROTTLE,
       pageDelayMs: 0,
       maxPages: 10,
-      fetchPage: pagedFetcher({
-        start: { rows: [{ _id: "a" }], next: "c2" },
-        c2: { rows: [{ _id: "b" }], next: "c3" },
-        c3: { rows: [{ _id: "c" }], next: null },
-      }, fetched),
+      fetchPage: pagedFetcher(
+        {
+          start: { rows: [{ _id: "a" }], next: "c2" },
+          c2: { rows: [{ _id: "b" }], next: "c3" },
+          c3: { rows: [{ _id: "c" }], next: null },
+        },
+        fetched,
+      ),
       onPage: (rows) => all.push(...rows),
-      onComplete: (rowsAll, complete) => { completeFlag = complete; },
+      onComplete: (rowsAll, complete) => {
+        completeFlag = complete;
+      },
     });
     await delay(60);
 
@@ -136,12 +161,23 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
   // resumed cursor sent with the new run's since is a different query, and
   // Convex refused it (InvalidCursor, ~300 on 2026-11-12), so a heavy account
   // reloading mid-floor restarted from page zero every time.
-  const boundedRun = (ns: string, since: number, fetched: [string | null, number | undefined][]) =>
+  const boundedRun = (
+    ns: string,
+    since: number,
+    fetched: [string | null, number | undefined][],
+  ) =>
     runReconcileCrawl({
-      namespace: ns, wsKey: "ws1", throttleMs: THROTTLE, pageDelayMs: 0, maxPages: 10, since,
+      namespace: ns,
+      wsKey: "ws1",
+      throttleMs: THROTTLE,
+      pageDelayMs: 0,
+      maxPages: 10,
+      since,
       fetchPage: async (cursor, bound) => {
         fetched.push([cursor, bound]);
-        return cursor === null ? { rows: [{ _id: "a" }], isDone: false, continueCursor: "c2" } : { rows: [{ _id: "b" }], isDone: true, continueCursor: null };
+        return cursor === null
+          ? { rows: [{ _id: "a" }], isDone: false, continueCursor: "c2" }
+          : { rows: [{ _id: "b" }], isDone: true, continueCursor: null };
       },
       onPage: () => {},
       onComplete: () => {},
@@ -150,7 +186,11 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
   it("a bounded crawl resumes with the bound its checkpoint was taken under", async () => {
     const ns = "resumeBoundNs";
     const key = syncMetaKey(ns, "ws1");
-    useInboxStore.getState().recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now(), resumeSince: 100 });
+    useInboxStore.getState().recordSyncMeta(key, {
+      resumeCursor: "c2",
+      resumeAt: Date.now(),
+      resumeSince: 100,
+    });
     const fetched: [string | null, number | undefined][] = [];
     boundedRun(ns, 200, fetched);
     await delay(60);
@@ -160,19 +200,33 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
   it("a bounded crawl restarts from page zero when its checkpoint recorded no bound", async () => {
     const ns = "resumeNoBoundNs";
     const key = syncMetaKey(ns, "ws1");
-    useInboxStore.getState().recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now() });
+    useInboxStore
+      .getState()
+      .recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now() });
     const fetched: [string | null, number | undefined][] = [];
     boundedRun(ns, 200, fetched);
     await delay(60);
-    expect(fetched).toEqual([[null, 200], ["c2", 200]]);
+    expect(fetched).toEqual([
+      [null, 200],
+      ["c2", 200],
+    ]);
   });
 
   it("a bounded crawl checkpoints its bound", async () => {
     const ns = "resumeCkptBoundNs";
     const key = syncMetaKey(ns, "ws1");
     runReconcileCrawl({
-      namespace: ns, wsKey: "ws1", throttleMs: THROTTLE, pageDelayMs: 0, maxPages: 1, since: 300,
-      fetchPage: async () => ({ rows: Array.from({ length: 250 }, (_, i) => ({ _id: `r${i}` })), isDone: false, continueCursor: "c2" }),
+      namespace: ns,
+      wsKey: "ws1",
+      throttleMs: THROTTLE,
+      pageDelayMs: 0,
+      maxPages: 1,
+      since: 300,
+      fetchPage: async () => ({
+        rows: Array.from({ length: 250 }, (_, i) => ({ _id: `r${i}` })),
+        isDone: false,
+        continueCursor: "c2",
+      }),
       onPage: () => {},
       onComplete: () => {},
     });
@@ -185,7 +239,10 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
   it("ignores a stale checkpoint and reports complete=true from a full walk", async () => {
     const ns = "resumeStaleNs";
     const key = syncMetaKey(ns, "ws1");
-    useInboxStore.getState().recordSyncMeta(key, { resumeCursor: "c2", resumeAt: Date.now() - 31 * 60 * 1000 });
+    useInboxStore.getState().recordSyncMeta(key, {
+      resumeCursor: "c2",
+      resumeAt: Date.now() - 31 * 60 * 1000,
+    });
 
     const fetched: (string | null)[] = [];
     let completeFlag: boolean | null = null;
@@ -195,12 +252,17 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
       throttleMs: THROTTLE,
       pageDelayMs: 0,
       maxPages: 10,
-      fetchPage: pagedFetcher({
-        start: { rows: [{ _id: "a" }], next: "c2" },
-        c2: { rows: [{ _id: "b" }], next: null },
-      }, fetched),
+      fetchPage: pagedFetcher(
+        {
+          start: { rows: [{ _id: "a" }], next: "c2" },
+          c2: { rows: [{ _id: "b" }], next: null },
+        },
+        fetched,
+      ),
       onPage: () => {},
-      onComplete: (rowsAll, complete) => { completeFlag = complete; },
+      onComplete: (rowsAll, complete) => {
+        completeFlag = complete;
+      },
     });
     await delay(60);
 
@@ -220,10 +282,14 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
       maxPages: 10,
       fetchPage: async (cursor) => {
         // Big page (>= FLUSH_ROWS) so every page flushes + checkpoints.
-        const rows = Array.from({ length: 200 }, (_, i) => ({ _id: `${cursor ?? "p0"}-${i}` }));
-        if (cursor === null) return { rows, isDone: false, continueCursor: "cNext" };
+        const rows = Array.from({ length: 200 }, (_, i) => ({
+          _id: `${cursor ?? "p0"}-${i}`,
+        }));
+        if (cursor === null)
+          return { rows, isDone: false, continueCursor: "cNext" };
         // Second page: capture what the first flush persisted, then finish.
-        sawCheckpoint = useInboxStore.getState().syncMeta[key]?.resumeCursor ?? undefined;
+        sawCheckpoint =
+          useInboxStore.getState().syncMeta[key]?.resumeCursor ?? undefined;
         return { rows, isDone: true, continueCursor: null };
       },
       onPage: () => {},
@@ -234,7 +300,9 @@ describe("runReconcileCrawl — mid-crawl resume", () => {
     // (refetch overlap on resume is safe — overlays are additive).
     expect(sawCheckpoint).toBeDefined();
     // And completion cleared it.
-    expect(useInboxStore.getState().syncMeta[key]?.resumeCursor).toBeUndefined();
+    expect(
+      useInboxStore.getState().syncMeta[key]?.resumeCursor,
+    ).toBeUndefined();
   });
 });
 
@@ -242,19 +310,20 @@ describe("inbox principal crawl keys", () => {
   it("does not share a completion mark between accounts, and skips before identity resolves", async () => {
     const namespace = `inbox-principal-${Math.random()}`;
     let calls = 0;
-    const crawl = (wsKey: string) => runReconcileCrawl({
-      namespace,
-      wsKey,
-      throttleMs: THROTTLE,
-      pageDelayMs: 0,
-      maxPages: 1,
-      fetchPage: async () => {
-        calls++;
-        return { rows: [], isDone: true, continueCursor: null };
-      },
-      onPage: () => {},
-      onComplete: () => {},
-    });
+    const crawl = (wsKey: string) =>
+      runReconcileCrawl({
+        namespace,
+        wsKey,
+        throttleMs: THROTTLE,
+        pageDelayMs: 0,
+        maxPages: 1,
+        fetchPage: async () => {
+          calls++;
+          return { rows: [], isDone: true, continueCursor: null };
+        },
+        onPage: () => {},
+        onComplete: () => {},
+      });
 
     crawl(inboxCrawlWsKey("account-a"));
     await delay(40);
@@ -281,10 +350,16 @@ describe("inbox principal crawl keys", () => {
       throttleMs: THROTTLE,
       pageDelayMs: 0,
       maxPages: 1,
-      fetchPage: () => new Promise((resolve) => {
-        startedA = () => resolve({ rows: [{ _id: "a" }], isDone: true, continueCursor: null });
-        releaseA = startedA;
-      }),
+      fetchPage: () =>
+        new Promise((resolve) => {
+          startedA = () =>
+            resolve({
+              rows: [{ _id: "a" }],
+              isDone: true,
+              continueCursor: null,
+            });
+          releaseA = startedA;
+        }),
       onPage: (rows) => aPages.push(rows),
       onComplete: (rows) => aCompletions.push(rows),
     });
@@ -310,7 +385,11 @@ describe("inbox principal crawl keys", () => {
       throttleMs: THROTTLE,
       pageDelayMs: 0,
       maxPages: 1,
-      fetchPage: async () => ({ rows: [{ _id: "b" }], isDone: true, continueCursor: null }),
+      fetchPage: async () => ({
+        rows: [{ _id: "b" }],
+        isDone: true,
+        continueCursor: null,
+      }),
       onPage: (rows) => bPages.push(rows),
       onComplete: () => {},
     });
@@ -336,7 +415,11 @@ describe("inbox principal crawl keys", () => {
         throttleMs: THROTTLE,
         pageDelayMs: 0,
         maxPages: 1,
-        fetchPage: async () => ({ rows: [{ _id: "a" }], isDone: true, continueCursor: null }),
+        fetchPage: async () => ({
+          rows: [{ _id: "a" }],
+          isDone: true,
+          continueCursor: null,
+        }),
         onPage: () => {},
         onComplete: async (_rows, _complete, isCurrent) => {
           verificationStarted = true;
@@ -358,7 +441,11 @@ describe("inbox principal crawl keys", () => {
         throttleMs: THROTTLE,
         pageDelayMs: 0,
         maxPages: 1,
-        fetchPage: async () => ({ rows: [{ _id: "b" }], isDone: true, continueCursor: null }),
+        fetchPage: async () => ({
+          rows: [{ _id: "b" }],
+          isDone: true,
+          continueCursor: null,
+        }),
         onPage: () => applied.push("b-page"),
         onComplete: () => {},
       });
@@ -369,7 +456,6 @@ describe("inbox principal crawl keys", () => {
       expect(applied).toEqual(["b-page"]);
     }
   });
-
 });
 
 // A resync (clearCrawlMetaForScope) asks for a FULL backfill. A crawl already
@@ -380,7 +466,11 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
   const WS = JSON.stringify({ team_id: "T", workspace: "team" });
   const KEY = syncMetaKey("tasks", WS);
   beforeEach(() => {
-    useInboxStore.setState({ syncMeta: {}, syncProgress: {}, crawlResets: {} } as any);
+    useInboxStore.setState({
+      syncMeta: {},
+      syncProgress: {},
+      crawlResets: {},
+    } as any);
   });
 
   // Pages answer only when released, so the test can clear between pages.
@@ -397,14 +487,28 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
         fetchPage: async () => {
           const n = page++;
           await new Promise<void>((r) => gates.push(r));
-          return { rows: [{ _id: `${label}${n}`, updated_at: n + 1 }], isDone: n >= 1, continueCursor: `${label}c${n}` };
+          return {
+            rows: [{ _id: `${label}${n}`, updated_at: n + 1 }],
+            isDone: n >= 1,
+            continueCursor: `${label}c${n}`,
+          };
         },
         onPage: () => {},
-        onComplete: () => { log.push(`${label} complete`); resolve(); },
+        onComplete: () => {
+          log.push(`${label} complete`);
+          resolve();
+        },
       });
       setTimeout(resolve, 200); // a superseded run never completes
     });
-    return { done, release: async () => { while (!gates.length) await delay(1); gates.shift()!(); await delay(5); } };
+    return {
+      done,
+      release: async () => {
+        while (!gates.length) await delay(1);
+        gates.shift()!();
+        await delay(5);
+      },
+    };
   };
 
   it("an old crawl in flight stamps nothing, and the relaunch runs the full walk", async () => {
@@ -463,12 +567,35 @@ describe("runReconcileCrawl — a resync clears the watermark mid-crawl", () => 
 });
 
 describe("crawlWatermarkScope", () => {
-  const { crawlWatermarkScope, crawlScopesClearedBy } = require("./syncMetaKeys");
+  const {
+    crawlWatermarkScope,
+    crawlScopesClearedBy,
+  } = require("./syncMetaKeys");
   it("names the scope a resync clears each watermark under", () => {
-    expect(crawlWatermarkScope(syncMetaKey("tasks", JSON.stringify({ workspace: "team", team_id: "T" })))).toBe("team:T");
-    expect(crawlWatermarkScope(syncMetaKey("docs", JSON.stringify({ team_id: "T", workspace: "team" })))).toBe("team:T");
-    expect(crawlWatermarkScope(syncMetaKey("tasks", JSON.stringify({ workspace: "personal" })))).toBe("personal");
-    expect(crawlWatermarkScope(syncMetaKey("sessions", inboxCrawlWsKey("u1")))).toBe("user:u1");
+    expect(
+      crawlWatermarkScope(
+        syncMetaKey(
+          "tasks",
+          JSON.stringify({ workspace: "team", team_id: "T" }),
+        ),
+      ),
+    ).toBe("team:T");
+    expect(
+      crawlWatermarkScope(
+        syncMetaKey(
+          "docs",
+          JSON.stringify({ team_id: "T", workspace: "team" }),
+        ),
+      ),
+    ).toBe("team:T");
+    expect(
+      crawlWatermarkScope(
+        syncMetaKey("tasks", JSON.stringify({ workspace: "personal" })),
+      ),
+    ).toBe("personal");
+    expect(
+      crawlWatermarkScope(syncMetaKey("sessions", inboxCrawlWsKey("u1"))),
+    ).toBe("user:u1");
     expect(crawlWatermarkScope("tasks:v2:skip")).toBeNull();
     expect(crawlWatermarkScope("synclog:v1:team:T")).toBeNull();
     expect(crawlScopesClearedBy("user:u1")).toEqual(["user:u1", "personal"]);
@@ -477,21 +604,36 @@ describe("crawlWatermarkScope", () => {
 
   it("a first crawl with no watermark yet is superseded by its scope's resync", async () => {
     const WS = JSON.stringify({ workspace: "personal" });
-    useInboxStore.setState({ syncMeta: {}, syncProgress: {}, crawlResets: {} } as any);
+    useInboxStore.setState({
+      syncMeta: {},
+      syncProgress: {},
+      crawlResets: {},
+    } as any);
     let release!: () => void;
     let completed = false;
     runReconcileCrawl({
-      namespace: "docs", wsKey: WS, throttleMs: THROTTLE, pageDelayMs: 0, maxPages: 5,
-      fetchPage: async () => { await new Promise<void>((r) => (release = r)); return { rows: [{ _id: "d1" }], isDone: true, continueCursor: null }; },
+      namespace: "docs",
+      wsKey: WS,
+      throttleMs: THROTTLE,
+      pageDelayMs: 0,
+      maxPages: 5,
+      fetchPage: async () => {
+        await new Promise<void>((r) => (release = r));
+        return { rows: [{ _id: "d1" }], isDone: true, continueCursor: null };
+      },
       onPage: () => {},
-      onComplete: () => { completed = true; },
+      onComplete: () => {
+        completed = true;
+      },
     });
     await delay(5);
     useInboxStore.getState().clearCrawlMetaForScope("user:u1");
     release();
     await delay(20);
     expect(completed).toBe(false);
-    expect(useInboxStore.getState().syncMeta[syncMetaKey("docs", WS)]).toBeUndefined();
+    expect(
+      useInboxStore.getState().syncMeta[syncMetaKey("docs", WS)],
+    ).toBeUndefined();
   });
 });
 
@@ -512,9 +654,22 @@ describe("runReconcileCrawl — a closed fence and a truncated walk", () => {
       pageDelayMs: 0,
       maxPages: 10,
       // The first page lands in the buffer (not yet flushed); the second hangs.
-      fetchPage: (cursor) => n++ === 0
-        ? Promise.resolve({ rows: [{ _id: "p1" }], isDone: false, continueCursor: "c1" })
-        : new Promise((resolve) => { release = () => resolve({ rows: [{ _id: "p2" }], isDone: true, continueCursor: null }); void cursor; }),
+      fetchPage: (cursor) =>
+        n++ === 0
+          ? Promise.resolve({
+              rows: [{ _id: "p1" }],
+              isDone: false,
+              continueCursor: "c1",
+            })
+          : new Promise((resolve) => {
+              release = () =>
+                resolve({
+                  rows: [{ _id: "p2" }],
+                  isDone: true,
+                  continueCursor: null,
+                });
+              void cursor;
+            }),
       onPage: (rows) => pages.push(rows),
       onComplete: () => {},
     });
@@ -524,7 +679,10 @@ describe("runReconcileCrawl — a closed fence and a truncated walk", () => {
     release!();
     await delay(20);
     expect(pages).toEqual([]);
-    expect(useInboxStore.getState().syncProgress[namespace]).toEqual({ loading: false, loaded: 0 });
+    expect(useInboxStore.getState().syncProgress[namespace]).toEqual({
+      loading: false,
+      loaded: 0,
+    });
   });
 
   it("a walk stopped at maxPages stamps no watermark, and the next run resumes at its checkpoint", async () => {
@@ -532,20 +690,27 @@ describe("runReconcileCrawl — a closed fence and a truncated walk", () => {
     const metaKey = syncMetaKey(namespace, "ws");
     const seen: (string | null)[] = [];
     const completes: boolean[] = [];
-    const crawl = () => runReconcileCrawl({
-      namespace,
-      wsKey: "ws",
-      throttleMs: THROTTLE,
-      pageDelayMs: 0,
-      maxPages: 2,
-      fetchPage: async (cursor) => {
-        seen.push(cursor);
-        const i = cursor ? Number(cursor.slice(1)) : 0;
-        return { rows: [{ _id: `r${i}`, updated_at: 100 + i }], isDone: i === 2, continueCursor: i === 2 ? null : `c${i + 1}` };
-      },
-      onPage: () => {},
-      onComplete: (_all, complete) => { completes.push(complete); },
-    });
+    const crawl = () =>
+      runReconcileCrawl({
+        namespace,
+        wsKey: "ws",
+        throttleMs: THROTTLE,
+        pageDelayMs: 0,
+        maxPages: 2,
+        fetchPage: async (cursor) => {
+          seen.push(cursor);
+          const i = cursor ? Number(cursor.slice(1)) : 0;
+          return {
+            rows: [{ _id: `r${i}`, updated_at: 100 + i }],
+            isDone: i === 2,
+            continueCursor: i === 2 ? null : `c${i + 1}`,
+          };
+        },
+        onPage: () => {},
+        onComplete: (_all, complete) => {
+          completes.push(complete);
+        },
+      });
 
     crawl();
     await delay(40);
@@ -555,7 +720,9 @@ describe("runReconcileCrawl — a closed fence and a truncated walk", () => {
     expect(truncated?.backfilledAt).toBeUndefined();
     expect(truncated?.cursor).toBeUndefined();
     expect(truncated?.resumeCursor).toBe("c2");
-    expect(useInboxStore.getState().syncProgress[namespace]?.loading).toBe(false);
+    expect(useInboxStore.getState().syncProgress[namespace]?.loading).toBe(
+      false,
+    );
 
     // Not throttled: the unread tail is fetched from the checkpoint.
     crawl();

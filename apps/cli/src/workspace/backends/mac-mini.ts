@@ -85,7 +85,9 @@ interface HostsFile {
 function readHosts(): HostsFile {
   if (!fs.existsSync(SCALEWAY_HOSTS_FILE)) return { hosts: [] };
   try {
-    return JSON.parse(fs.readFileSync(SCALEWAY_HOSTS_FILE, "utf-8")) as HostsFile;
+    return JSON.parse(
+      fs.readFileSync(SCALEWAY_HOSTS_FILE, "utf-8"),
+    ) as HostsFile;
   } catch {
     return { hosts: [] };
   }
@@ -155,7 +157,9 @@ async function scalewayApi<T>(
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Scaleway API ${method} ${pathName} → ${res.status}: ${text}`);
+    throw new Error(
+      `Scaleway API ${method} ${pathName} → ${res.status}: ${text}`,
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -250,7 +254,8 @@ async function destroyHost(meta: ScalewayHostMeta): Promise<void> {
   writeHosts(f);
   // Remove local keypair dir.
   const keyDir = path.dirname(sshKeyPath(meta.id));
-  if (fs.existsSync(keyDir)) fs.rmSync(keyDir, { recursive: true, force: true });
+  if (fs.existsSync(keyDir))
+    fs.rmSync(keyDir, { recursive: true, force: true });
 }
 
 /** Find a usable host, provision one if needed. */
@@ -283,15 +288,23 @@ interface SshTarget {
 function sshExec(
   target: SshTarget,
   command: string,
-  opts: { stdin?: string; envs?: Record<string, string>; timeoutMs?: number } = {},
+  opts: {
+    stdin?: string;
+    envs?: Record<string, string>;
+    timeoutMs?: number;
+  } = {},
 ): { stdout: string; stderr: string; exitCode: number | null } {
   const ssh = "ssh";
   // Scaleway Apple Silicon uses a family-based SSH user (e.g. "m1"), not root.
   const user = target.host.sshUsername || "m1";
   const args: string[] = [
-    "-i", sshKeyPath(target.host.id),
-    "-o", "StrictHostKeyChecking=accept-new",
-    "-o", "UserKnownHostsFile=" + path.join(SCALEWAY_HOSTS_DIR, target.host.id, "known_hosts"),
+    "-i",
+    sshKeyPath(target.host.id),
+    "-o",
+    "StrictHostKeyChecking=accept-new",
+    "-o",
+    "UserKnownHostsFile=" +
+      path.join(SCALEWAY_HOSTS_DIR, target.host.id, "known_hosts"),
     `${user}@${target.host.address}`,
   ];
   // Run inside tart VM if target.vm provided.
@@ -325,7 +338,10 @@ interface MacExtras {
   macVmName: string;
 }
 
-function readMacState(repoRoot: string, name: string): (PersistedWorkspaceState & MacExtras) | null {
+function readMacState(
+  repoRoot: string,
+  name: string,
+): (PersistedWorkspaceState & MacExtras) | null {
   const s = readState(repoRoot, name);
   if (!s) return null;
   return s as PersistedWorkspaceState & MacExtras;
@@ -376,15 +392,23 @@ export const MacMiniBackend: SandboxBackend = {
 
     const cloneUrl = (() => {
       try {
-        return execSync("git config --get remote.origin.url", {
-          cwd: repoRoot, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"],
-        }).trim() || null;
-      } catch { return null; }
+        return (
+          execSync("git config --get remote.origin.url", {
+            cwd: repoRoot,
+            encoding: "utf-8",
+            stdio: ["ignore", "pipe", "ignore"],
+          }).trim() || null
+        );
+      } catch {
+        return null;
+      }
     })();
     if (cloneUrl) {
       sshExec(target, `git clone ${cloneUrl} ${workspacePath}`);
     } else {
-      throw new Error("mac backend: no git remote.origin.url to clone from (local-only repos not yet supported)");
+      throw new Error(
+        "mac backend: no git remote.origin.url to clone from (local-only repos not yet supported)",
+      );
     }
 
     if (!opts.skipSetup) {
@@ -394,7 +418,9 @@ export const MacMiniBackend: SandboxBackend = {
         ...manifest.setup.generate,
         ...manifest.setup.migrate,
       ]) {
-        const r = sshExec(target, `cd ${workspacePath} && ${cmd}`, { envs: envStrings });
+        const r = sshExec(target, `cd ${workspacePath} && ${cmd}`, {
+          envs: envStrings,
+        });
         if (r.exitCode !== 0) {
           throw new Error(
             `mac setup '${cmd}' exited ${r.exitCode}\nstderr:\n${r.stderr}`,
@@ -476,7 +502,12 @@ export const MacMiniBackend: SandboxBackend = {
     return out;
   },
 
-  async exec(repoRoot, name, command, opts: ExecOptions = {}): Promise<ExecResult> {
+  async exec(
+    repoRoot,
+    name,
+    command,
+    opts: ExecOptions = {},
+  ): Promise<ExecResult> {
     const s = readMacState(repoRoot, name);
     if (!s) throw new Error(`workspace '${name}' not found`);
     const hosts = readHosts();
@@ -484,15 +515,11 @@ export const MacMiniBackend: SandboxBackend = {
     if (!host) throw new Error(`host ${s.macHostId} not in local registry`);
     const cwd = opts.cwd ? `${s.path}/${opts.cwd}` : s.path;
     const start = Date.now();
-    const r = sshExec(
-      { host, vm: s.macVmName },
-      `cd ${cwd} && ${command}`,
-      {
-        stdin: opts.stdin,
-        envs: { ...s.env, ...(opts.env ?? {}) },
-        timeoutMs: opts.timeoutMs,
-      },
-    );
+    const r = sshExec({ host, vm: s.macVmName }, `cd ${cwd} && ${command}`, {
+      stdin: opts.stdin,
+      envs: { ...s.env, ...(opts.env ?? {}) },
+      timeoutMs: opts.timeoutMs,
+    });
     return {
       stdout: r.stdout,
       stderr: r.stderr,
@@ -522,7 +549,12 @@ export const MacMiniBackend: SandboxBackend = {
     }
   },
 
-  async writeFile(repoRoot, name, relativePath, content: FileContent): Promise<void> {
+  async writeFile(
+    repoRoot,
+    name,
+    relativePath,
+    content: FileContent,
+  ): Promise<void> {
     const s = readMacState(repoRoot, name);
     if (!s) throw new Error(`workspace '${name}' not found`);
     const hosts = readHosts();
@@ -531,7 +563,10 @@ export const MacMiniBackend: SandboxBackend = {
     // Pipe content through ssh+tart into a file write.
     const buf = Buffer.isBuffer(content) ? content : Buffer.from(content);
     // Ensure parent dir exists.
-    const parent = `${s.path}/${relativePath}`.split("/").slice(0, -1).join("/");
+    const parent = `${s.path}/${relativePath}`
+      .split("/")
+      .slice(0, -1)
+      .join("/");
     sshExec({ host, vm: s.macVmName }, `mkdir -p ${JSON.stringify(parent)}`);
     const r = sshExec(
       { host, vm: s.macVmName },
@@ -547,7 +582,9 @@ export const MacMiniBackend: SandboxBackend = {
 // --------------------------------------------------------------------------
 
 /** Stop any host idle longer than thresholdMs to pause hourly billing. */
-export async function autoStopIdleHosts(thresholdMs: number = 30 * 60 * 1000): Promise<void> {
+export async function autoStopIdleHosts(
+  thresholdMs: number = 30 * 60 * 1000,
+): Promise<void> {
   const hosts = readHosts();
   for (const h of hosts.hosts) {
     if (h.stopped) continue;
@@ -559,7 +596,9 @@ export async function autoStopIdleHosts(thresholdMs: number = 30 * 60 * 1000): P
 }
 
 /** Permanently destroy hosts idle longer than thresholdMs (default 24h). */
-export async function autoDestroyOldHosts(thresholdMs: number = 24 * 60 * 60 * 1000): Promise<void> {
+export async function autoDestroyOldHosts(
+  thresholdMs: number = 24 * 60 * 60 * 1000,
+): Promise<void> {
   const hosts = readHosts();
   for (const h of hosts.hosts) {
     const idle = Date.now() - new Date(h.lastUsedAt).getTime();

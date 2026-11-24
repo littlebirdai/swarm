@@ -9,8 +9,16 @@ import { SwitchReview } from "./consequential/ConsequentialSwitch";
 import { allowAllLedger } from "./consequential/ledgers";
 import { useInboxStore } from "../store/inboxStore";
 import { formatToolName } from "@codecast/shared/render";
-import { permissionSourceTags, removalCountLabel, type PermissionRemoval } from "@codecast/shared/render/permissionCardStyle";
-import { keptPatterns, permissionRuleLabel, type PermissionRuleRequest } from "@codecast/shared/contracts/permissionRules";
+import {
+  permissionSourceTags,
+  removalCountLabel,
+  type PermissionRemoval,
+} from "@codecast/shared/render/permissionCardStyle";
+import {
+  keptPatterns,
+  permissionRuleLabel,
+  type PermissionRuleRequest,
+} from "@codecast/shared/contracts/permissionRules";
 import { useIsModernStyle } from "../hooks/useVisualStyle";
 import { ModernPermissionStack } from "./conversation/ModernPermissionStack";
 
@@ -20,9 +28,18 @@ import { ModernPermissionStack } from "./conversation/ModernPermissionStack";
  * truncate, so beside the Approve/Deny buttons in a narrow pane it yields
  * width instead of crushing the preview to one letter per line.
  */
-export function ToolName({ name, className = "" }: { name: string; className?: string }) {
+export function ToolName({
+  name,
+  className = "",
+}: {
+  name: string;
+  className?: string;
+}) {
   return (
-    <span title={name} className={`min-w-0 max-w-[40%] truncate font-mono text-sol-text-muted ${className}`}>
+    <span
+      title={name}
+      className={`min-w-0 max-w-[40%] truncate font-mono text-sol-text-muted ${className}`}
+    >
       {formatToolName(name)}
     </span>
   );
@@ -84,19 +101,33 @@ export type PermissionViewItem<PId extends string = string> = {
 
 /** What the call is for and what it would delete: the two things a person
  *  needs to answer it, above the raw command. */
-export function PermissionContext({ permission }: { permission: Pick<PermissionViewItem, "intent" | "removals"> }) {
+export function PermissionContext({
+  permission,
+}: {
+  permission: Pick<PermissionViewItem, "intent" | "removals">;
+}) {
   const removals = permission.removals ?? [];
   if (!permission.intent && removals.length === 0) return null;
   return (
     <div className="px-2.5 pb-1 space-y-0.5 whitespace-normal">
       {permission.intent && (
-        <div data-permission-intent className="text-[12px] text-sol-text">{permission.intent}</div>
+        <div data-permission-intent className="text-[12px] text-sol-text">
+          {permission.intent}
+        </div>
       )}
       {removals.map((r, i) => (
-        <div key={i} data-permission-removal className="flex items-baseline gap-2 text-meta font-mono min-w-0">
+        <div
+          key={i}
+          data-permission-removal
+          className="flex items-baseline gap-2 text-meta font-mono min-w-0"
+        >
           <span className="text-sol-red flex-shrink-0">rm</span>
-          <span className="text-sol-text truncate min-w-0" title={r.target}>{r.target}</span>
-          <span className={`flex-shrink-0 font-sans ${r.note ? "text-sol-text-dim italic" : r.files || r.dirs ? "text-sol-red" : "text-sol-text-dim"}`}>
+          <span className="text-sol-text truncate min-w-0" title={r.target}>
+            {r.target}
+          </span>
+          <span
+            className={`flex-shrink-0 font-sans ${r.note ? "text-sol-text-dim italic" : r.files || r.dirs ? "text-sol-red" : "text-sol-text-dim"}`}
+          >
             {removalCountLabel(r)}
           </span>
         </div>
@@ -106,17 +137,28 @@ export function PermissionContext({ permission }: { permission: Pick<PermissionV
 }
 
 /** Who is asking, beside the tool name (permissionSourceTags). */
-export function PermissionSourceTag({ permission, className = "text-meta" }: {
-  permission: Pick<PermissionViewItem, "subagent_type" | "subagent_conversation_id" | "safety_check">;
+export function PermissionSourceTag({
+  permission,
+  className = "text-meta",
+}: {
+  permission: Pick<
+    PermissionViewItem,
+    "subagent_type" | "subagent_conversation_id" | "safety_check"
+  >;
   className?: string;
 }) {
   const tags = permissionSourceTags(permission);
   if (tags.length === 0) return null;
   const subagentConv = permission.subagent_conversation_id;
   return (
-    <span className={`flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${className}`}>
+    <span
+      className={`flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${className}`}
+    >
       {tags.map((t) => {
-        const tone = t.kind === "subagent" ? "bg-sol-violet/12 text-sol-violet" : "bg-sol-orange/12 text-sol-orange";
+        const tone =
+          t.kind === "subagent"
+            ? "bg-sol-violet/12 text-sol-violet"
+            : "bg-sol-orange/12 text-sol-orange";
         // The subagent's own conversation holds what it did before asking;
         // the parent thread shows only the Task call that started it.
         return t.kind === "subagent" && subagentConv ? (
@@ -131,7 +173,11 @@ export function PermissionSourceTag({ permission, className = "text-meta" }: {
             <ArrowUpRight className="w-2.5 h-2.5" />
           </Link>
         ) : (
-          <span key={t.kind} data-permission-source={t.kind} className={`px-1 rounded ${tone}`}>
+          <span
+            key={t.kind}
+            data-permission-source={t.kind}
+            className={`px-1 rounded ${tone}`}
+          >
             {t.label}
           </span>
         );
@@ -145,12 +191,22 @@ export function PermissionSourceTag({ permission, className = "text-meta" }: {
  * them: `Bash(bun test:*)`, a directory, a mode. Empty when none can be named,
  * and then there is nothing for "Always allow" to keep.
  */
-export function permissionRuleLabels(suggestions: unknown[] | undefined): string[] {
+export function permissionRuleLabels(
+  suggestions: unknown[] | undefined,
+): string[] {
   const labels: string[] = [];
   for (const s of suggestions ?? []) {
     const u = s as any;
-    if (u?.type === "addRules" && u.behavior === "allow" && Array.isArray(u.rules)) {
-      for (const r of u.rules) if (r?.toolName) labels.push(r.ruleContent ? `${r.toolName}(${r.ruleContent})` : r.toolName);
+    if (
+      u?.type === "addRules" &&
+      u.behavior === "allow" &&
+      Array.isArray(u.rules)
+    ) {
+      for (const r of u.rules)
+        if (r?.toolName)
+          labels.push(
+            r.ruleContent ? `${r.toolName}(${r.ruleContent})` : r.toolName,
+          );
     } else if (u?.type === "addDirectories" && Array.isArray(u.directories)) {
       for (const d of u.directories) if (typeof d === "string") labels.push(d);
     } else if (u?.type === "setMode" && typeof u.mode === "string") {
@@ -162,18 +218,32 @@ export function permissionRuleLabels(suggestions: unknown[] | undefined): string
 
 /** What "Always allow" keeps for this row: codecast's own rules when it can
  *  keep any, else Claude's suggestions (the server keeps the same ones). */
-export function alwaysAllowLabels(permission: Pick<PermissionViewItem, "rule_request" | "suggestions">): string[] {
+export function alwaysAllowLabels(
+  permission: Pick<PermissionViewItem, "rule_request" | "suggestions">,
+): string[] {
   const r = permission.rule_request;
   const kept = keptPatterns(r);
-  if (r && kept.length) return kept.map((pattern) => permissionRuleLabel({ permission: r.permission, pattern }));
+  if (r && kept.length)
+    return kept.map((pattern) =>
+      permissionRuleLabel({ permission: r.permission, pattern }),
+    );
   return permissionRuleLabels(permission.suggestions);
 }
 
-const DENY_CLASS = "px-2.5 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-red/30 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors disabled:opacity-40 disabled:pointer-events-none";
+const DENY_CLASS =
+  "px-2.5 py-0.5 text-meta font-medium whitespace-nowrap rounded border border-sol-red/30 text-sol-text-dim hover:bg-sol-red hover:text-sol-bg transition-colors disabled:opacity-40 disabled:pointer-events-none";
 
 /** Approves and keeps the rules, each named as its own chip on the button,
  *  so a compound command shows every rule it grants. */
-function AlwaysAllowButton({ permission, onAlwaysAllow, className = "" }: { permission: PermissionViewItem; onAlwaysAllow?: (id: string) => void; className?: string }) {
+function AlwaysAllowButton({
+  permission,
+  onAlwaysAllow,
+  className = "",
+}: {
+  permission: PermissionViewItem;
+  onAlwaysAllow?: (id: string) => void;
+  className?: string;
+}) {
   const rules = alwaysAllowLabels(permission);
   if (!onAlwaysAllow || rules.length === 0) return null;
   return (
@@ -185,7 +255,13 @@ function AlwaysAllowButton({ permission, onAlwaysAllow, className = "" }: { perm
     >
       <span className="shrink-0">Always allow</span>
       {rules.map((r) => (
-        <span key={r} data-always-allow-rule className="min-w-0 truncate rounded bg-sol-green/12 px-1 font-mono font-normal">{r}</span>
+        <span
+          key={r}
+          data-always-allow-rule
+          className="min-w-0 truncate rounded bg-sol-green/12 px-1 font-mono font-normal"
+        >
+          {r}
+        </span>
       ))}
     </button>
   );
@@ -193,11 +269,20 @@ function AlwaysAllowButton({ permission, onAlwaysAllow, className = "" }: { perm
 
 /** The reason a denial sends the model, typed under the row Deny opened it on.
  *  Enter denies (with or without a reason); Escape puts the buttons back. */
-function DenyReason({ onDeny, onCancel }: { onDeny: (message?: string) => void; onCancel: () => void }) {
+function DenyReason({
+  onDeny,
+  onCancel,
+}: {
+  onDeny: (message?: string) => void;
+  onCancel: () => void;
+}) {
   const [reason, setReason] = useState("");
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); onDeny(reason.trim() || undefined); }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onDeny(reason.trim() || undefined);
+      }}
       className="flex items-center gap-1.5 px-2.5 pb-1.5"
     >
       <input
@@ -214,7 +299,9 @@ function DenyReason({ onDeny, onCancel }: { onDeny: (message?: string) => void; 
         aria-label="Reason for denying"
         className="flex-1 min-w-0 px-2 py-0.5 text-meta font-mono rounded border border-sol-border/40 bg-transparent text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-red/50"
       />
-      <button type="submit" className={DENY_CLASS}>Deny</button>
+      <button type="submit" className={DENY_CLASS}>
+        Deny
+      </button>
     </form>
   );
 }
@@ -245,17 +332,17 @@ export function PermissionRow({
     <div className="group hover:bg-sol-yellow/[0.04] transition-colors">
       <div className="flex items-center gap-2 py-1 px-2">
         {showToolName && (
-          <ToolName name={permission.tool_name} className="text-meta font-semibold" />
+          <ToolName
+            name={permission.tool_name}
+            className="text-meta font-semibold"
+          />
         )}
         <PermissionSourceTag permission={permission} />
         {/* Collapsed, the preview is one truncated line beside the buttons;
             expanded, it moves to its own full-width line below, since the
             space beside the buttons can be a few characters wide. */}
         {preview && (
-          <button
-            onClick={onToggleExpand}
-            className="flex-1 min-w-0 text-left"
-          >
+          <button onClick={onToggleExpand} className="flex-1 min-w-0 text-left">
             <span className="text-meta font-mono text-sol-text-dim block truncate">
               {isExpanded ? "hide" : preview}
             </span>
@@ -269,7 +356,11 @@ export function PermissionRow({
           >
             Approve
           </button>
-          <AlwaysAllowButton permission={permission} onAlwaysAllow={onAlwaysAllow} className="px-2" />
+          <AlwaysAllowButton
+            permission={permission}
+            onAlwaysAllow={onAlwaysAllow}
+            className="px-2"
+          />
           {!denying && (
             <button
               onClick={() => setDenying(true)}
@@ -281,9 +372,14 @@ export function PermissionRow({
         </div>
       </div>
       <PermissionContext permission={permission} />
-      {denying && <DenyReason onDeny={onDeny} onCancel={() => setDenying(false)} />}
+      {denying && (
+        <DenyReason onDeny={onDeny} onCancel={() => setDenying(false)} />
+      )}
       {preview && isExpanded && (
-        <button onClick={onToggleExpand} className="block w-full px-2 pb-1.5 -mt-0.5 text-left">
+        <button
+          onClick={onToggleExpand}
+          className="block w-full px-2 pb-1.5 -mt-0.5 text-left"
+        >
           <span className="text-meta font-mono text-sol-text-dim block whitespace-pre-wrap break-words">
             {preview}
           </span>
@@ -309,12 +405,20 @@ export function PermissionStack({
   // Local-first: the store drops the row in the same commit (and marks the
   // session's question resolved when it was the last one), so the card leaves
   // on the press and nothing here waits on the server.
-  const handleApprove = useCallback((id: Id<"pending_permissions">) => resolvePermission(id, "approved"), [resolvePermission]);
-  const handleDeny = useCallback(
-    (id: Id<"pending_permissions">, message?: string) => resolvePermission(id, "denied", message ? { message } : undefined),
+  const handleApprove = useCallback(
+    (id: Id<"pending_permissions">) => resolvePermission(id, "approved"),
     [resolvePermission],
   );
-  const handleAlwaysAllow = useCallback((id: Id<"pending_permissions">) => resolvePermission(id, "approved", { remember: true }), [resolvePermission]);
+  const handleDeny = useCallback(
+    (id: Id<"pending_permissions">, message?: string) =>
+      resolvePermission(id, "denied", message ? { message } : undefined),
+    [resolvePermission],
+  );
+  const handleAlwaysAllow = useCallback(
+    (id: Id<"pending_permissions">) =>
+      resolvePermission(id, "approved", { remember: true }),
+    [resolvePermission],
+  );
   const handleApproveAll = useCallback(() => {
     for (const p of pending) resolvePermission(p._id, "approved");
   }, [pending, resolvePermission]);
@@ -327,22 +431,33 @@ export function PermissionStack({
     onAllowAll();
   }, [pending, resolvePermission, onAllowAll]);
 
-  useEventListener("keydown", useCallback((e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
-    if (pending.length === 0) return;
+  useEventListener(
+    "keydown",
+    useCallback(
+      (e: KeyboardEvent) => {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          (e.target as HTMLElement)?.isContentEditable
+        )
+          return;
+        if (pending.length === 0) return;
 
-    if (matchesAction(e, "permission.approve")) {
-      e.preventDefault();
-      if (pending.length === 1) handleApprove(pending[0]._id);
-      else handleApproveAll();
-    }
-    if (matchesAction(e, "permission.deny")) {
-      e.preventDefault();
-      if (pending.length === 1) handleDeny(pending[0]._id);
-      else handleDenyAll();
-    }
-  }, [pending, handleApprove, handleDeny, handleApproveAll, handleDenyAll]));
+        if (matchesAction(e, "permission.approve")) {
+          e.preventDefault();
+          if (pending.length === 1) handleApprove(pending[0]._id);
+          else handleApproveAll();
+        }
+        if (matchesAction(e, "permission.deny")) {
+          e.preventDefault();
+          if (pending.length === 1) handleDeny(pending[0]._id);
+          else handleDenyAll();
+        }
+      },
+      [pending, handleApprove, handleDeny, handleApproveAll, handleDenyAll],
+    ),
+  );
 
   return (
     <PermissionStackView
@@ -397,12 +512,33 @@ export function PermissionStackView<PId extends string>({
 
   if (pending.length === 0) return null;
   // Modern: the loud ask card with 32px answers (CONV-20); the keys and the writes stay PermissionStack's.
-  if (modern) return <ModernPermissionStack pending={pending} inflight={inflight} onApprove={onApprove} onDeny={onDeny} onAlwaysAllow={onAlwaysAllow} onApproveAll={onApproveAll} onDenyAll={onDenyAll} onAllowAll={onAllowAll} />;
+  if (modern)
+    return (
+      <ModernPermissionStack
+        pending={pending}
+        inflight={inflight}
+        onApprove={onApprove}
+        onDeny={onDeny}
+        onAlwaysAllow={onAlwaysAllow}
+        onApproveAll={onApproveAll}
+        onDenyAll={onDenyAll}
+        onAllowAll={onAllowAll}
+      />
+    );
   const allowAllReview = allowReview && onAllowAll && (
-    <SwitchReview ledger={allowAllLedger({ pending: pending.length })} onClose={() => setAllowReview(false)} onConfirm={() => { setAllowReview(false); onAllowAll(); }} />
+    <SwitchReview
+      ledger={allowAllLedger({ pending: pending.length })}
+      onClose={() => setAllowReview(false)}
+      onConfirm={() => {
+        setAllowReview(false);
+        onAllowAll();
+      }}
+    />
   );
 
-  const allSameTool = pending.every((p) => p.tool_name === pending[0].tool_name);
+  const allSameTool = pending.every(
+    (p) => p.tool_name === pending[0].tool_name,
+  );
 
   if (collapsed) {
     return (
@@ -412,8 +548,18 @@ export function PermissionStackView<PId extends string>({
       >
         <span className="w-1.5 h-1.5 rounded-full bg-sol-yellow animate-pulse" />
         {pending.length} pending permission{pending.length !== 1 ? "s" : ""}
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+        <svg
+          className="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M5 15l7-7 7 7"
+          />
         </svg>
       </button>
     );
@@ -457,15 +603,24 @@ export function PermissionStackView<PId extends string>({
               </button>
             )}
             {allowAllReview}
-            <AlwaysAllowButton permission={p} onAlwaysAllow={alwaysAllow} className="px-2.5" />
+            <AlwaysAllowButton
+              permission={p}
+              onAlwaysAllow={alwaysAllow}
+              className="px-2.5"
+            />
             {!denying && (
-              <button onClick={() => setDenying(true)} disabled={inflight.has(p._id)} className={DENY_CLASS}>
+              <button
+                onClick={() => setDenying(true)}
+                disabled={inflight.has(p._id)}
+                className={DENY_CLASS}
+              >
                 Deny
               </button>
             )}
           </div>
           <span className="text-meta text-sol-text-dim flex-shrink-0 hidden sm:flex items-center gap-1">
-            <MenuKeyCaps action="permission.approve" className="contents" />/<MenuKeyCaps action="permission.deny" className="contents" />
+            <MenuKeyCaps action="permission.approve" className="contents" />/
+            <MenuKeyCaps action="permission.deny" className="contents" />
           </span>
         </div>
         <PermissionContext permission={p} />
@@ -476,7 +631,12 @@ export function PermissionStackView<PId extends string>({
             </span>
           </div>
         )}
-        {denying && <DenyReason onDeny={(message) => onDeny(p._id, message)} onCancel={() => setDenying(false)} />}
+        {denying && (
+          <DenyReason
+            onDeny={(message) => onDeny(p._id, message)}
+            onCancel={() => setDenying(false)}
+          />
+        )}
       </div>
     );
   }
@@ -490,7 +650,10 @@ export function PermissionStackView<PId extends string>({
           {pending.length} Permissions
         </span>
         {allSameTool && (
-          <ToolName name={pending[0].tool_name} className="text-meta text-sol-text-dim" />
+          <ToolName
+            name={pending[0].tool_name}
+            className="text-meta text-sol-text-dim"
+          />
         )}
         <span className="flex-1" />
         <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
@@ -524,8 +687,18 @@ export function PermissionStackView<PId extends string>({
           className="p-0.5 text-sol-text-dim hover:text-sol-text transition-colors"
           title="Collapse"
         >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
       </div>
@@ -539,7 +712,9 @@ export function PermissionStackView<PId extends string>({
             onDeny={(message) => onDeny(p._id, message)}
             onAlwaysAllow={alwaysAllow}
             isExpanded={expandedId === p._id}
-            onToggleExpand={() => setExpandedId(expandedId === p._id ? null : p._id)}
+            onToggleExpand={() =>
+              setExpandedId(expandedId === p._id ? null : p._id)
+            }
             showToolName={!allSameTool}
           />
         ))}

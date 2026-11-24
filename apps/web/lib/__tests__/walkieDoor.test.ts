@@ -44,7 +44,14 @@ describe("walkie: the door", () => {
   it("stays shut while snoozed even with everything else wide open", () => {
     // Snooze is pressed to stop a voice that is playing at that second, so it
     // has to outrank the pref rather than merely agree with it.
-    expect(walkieDoorOpen({ ...open, snoozed: true, pref: "team", status: "available" })).toBe(false);
+    expect(
+      walkieDoorOpen({
+        ...open,
+        snoozed: true,
+        pref: "team",
+        status: "available",
+      }),
+    ).toBe(false);
   });
 
   it("lets an away teammate through, and stops a busy one", () => {
@@ -59,7 +66,9 @@ describe("walkie: the door", () => {
     // one room. Every other input can be perfect and it still refuses.
     for (const status of ["available", "away"]) {
       for (const pref of ["team", undefined]) {
-        expect(walkieDoorOpen({ ...open, leader: false, status, pref })).toBe(false);
+        expect(walkieDoorOpen({ ...open, leader: false, status, pref })).toBe(
+          false,
+        );
       }
     }
   });
@@ -102,7 +111,13 @@ describe("walkie: at the machine", () => {
     expect(gate(AT_MACHINE_MS, true)).toBe(false);
     expect(gate(10 * 60 * second, true)).toBe(false);
     // And none of it matters in a window that is not the leader.
-    for (const idle of [0, 45 * second, AT_MACHINE_MS - 1, AT_MACHINE_MS, 10 * 60 * second]) {
+    for (const idle of [
+      0,
+      45 * second,
+      AT_MACHINE_MS - 1,
+      AT_MACHINE_MS,
+      10 * 60 * second,
+    ]) {
       expect(gate(idle, false)).toBe(false);
     }
   });
@@ -123,7 +138,10 @@ describe("walkie: the machine's last gesture, across windows", () => {
     // A browser tab sees input on its own page and nowhere else. The maximum is
     // what lifts a quiet window to the gesture its sibling saw, which is what
     // makes typing in one window hold the door open in the other.
-    const windows = [win("a", { inputAt: NOW - 120_000 }), win("b", { inputAt: NOW - 5_000 })];
+    const windows = [
+      win("a", { inputAt: NOW - 120_000 }),
+      win("b", { inputAt: NOW - 5_000 }),
+    ];
     expect(machineInputAt(windows, NOW)).toBe(NOW - 5_000);
   });
 
@@ -144,7 +162,10 @@ describe("walkie: the machine's last gesture, across windows", () => {
 
 describe("walkie: which window speaks for the app", () => {
   it("is the frontmost one", () => {
-    const windows = [win("a", { focusedAt: NOW - 60_000 }), win("b", { focusedAt: NOW })];
+    const windows = [
+      win("a", { focusedAt: NOW - 60_000 }),
+      win("b", { focusedAt: NOW }),
+    ];
     expect(chooseDoorWindow(windows, NOW)).toBe("b");
   });
 
@@ -152,7 +173,10 @@ describe("walkie: which window speaks for the app", () => {
     // Nothing is focused now, which is the ordinary case for a burst arriving
     // while somebody works elsewhere. The window they used last is the one the
     // strip should appear in.
-    const windows = [win("a", { focusedAt: NOW - 600_000 }), win("b", { focusedAt: NOW - 9_000 })];
+    const windows = [
+      win("a", { focusedAt: NOW - 600_000 }),
+      win("b", { focusedAt: NOW - 9_000 }),
+    ];
     expect(chooseDoorWindow(windows, NOW)).toBe("b");
   });
 
@@ -160,7 +184,10 @@ describe("walkie: which window speaks for the app", () => {
     // Both windows run this same function over the same records, so a tie that
     // resolved by scan order would elect two leaders — two seats in the room and
     // two voices over each other. The id breaks it the same way in both.
-    const windows = [win("b", { focusedAt: NOW }), win("a", { focusedAt: NOW })];
+    const windows = [
+      win("b", { focusedAt: NOW }),
+      win("a", { focusedAt: NOW }),
+    ];
     expect(chooseDoorWindow(windows, NOW)).toBe("a");
     expect(chooseDoorWindow([...windows].reverse(), NOW)).toBe("a");
   });
@@ -175,13 +202,21 @@ describe("walkie: which window speaks for the app", () => {
   });
 
   it("elects nobody when every window is gone", () => {
-    expect(chooseDoorWindow([win("a", { aliveAt: NOW - 61_000 })], NOW)).toBe(null);
+    expect(chooseDoorWindow([win("a", { aliveAt: NOW - 61_000 })], NOW)).toBe(
+      null,
+    );
   });
 
   it("elects exactly one window out of a crowd", () => {
     // One strip, one sound, stated as a count rather than as a rule.
-    const windows = [win("a", { focusedAt: NOW - 3 }), win("b", { focusedAt: NOW - 2 }), win("c", { focusedAt: NOW - 1 })];
-    const elected = windows.filter((w) => chooseDoorWindow(windows, NOW) === w.id);
+    const windows = [
+      win("a", { focusedAt: NOW - 3 }),
+      win("b", { focusedAt: NOW - 2 }),
+      win("c", { focusedAt: NOW - 1 }),
+    ];
+    const elected = windows.filter(
+      (w) => chooseDoorWindow(windows, NOW) === w.id,
+    );
     expect(elected.length).toBe(1);
     expect(elected[0].id).toBe("c");
   });
@@ -191,7 +226,9 @@ describe("walkie: window records", () => {
   it("deletes records of windows that died without saying so, and keeps live ones", () => {
     const store = new Map<string, string>();
     const fake = {
-      get length() { return store.size; },
+      get length() {
+        return store.size;
+      },
       key: (i: number) => [...store.keys()][i] ?? null,
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
@@ -201,13 +238,30 @@ describe("walkie: window records", () => {
     (globalThis as { localStorage?: unknown }).localStorage = fake;
     try {
       const now = 10_000_000;
-      store.set("cc.walkie.window.live", JSON.stringify({ aliveAt: now - 5_000, inputAt: 1, focusedAt: 2 }));
-      store.set("cc.walkie.window.quiet", JSON.stringify({ aliveAt: now - 5 * 60_000 }));
-      store.set("cc.walkie.window.dead", JSON.stringify({ aliveAt: now - 11 * 60_000 }));
+      store.set(
+        "cc.walkie.window.live",
+        JSON.stringify({ aliveAt: now - 5_000, inputAt: 1, focusedAt: 2 }),
+      );
+      store.set(
+        "cc.walkie.window.quiet",
+        JSON.stringify({ aliveAt: now - 5 * 60_000 }),
+      );
+      store.set(
+        "cc.walkie.window.dead",
+        JSON.stringify({ aliveAt: now - 11 * 60_000 }),
+      );
       store.set("cc.walkie.window.junk", "{not json");
       store.set("unrelated", "kept");
-      expect(readWindows(now).map((w) => w.id).sort()).toEqual(["live", "quiet"]);
-      expect([...store.keys()].sort()).toEqual(["cc.walkie.window.live", "cc.walkie.window.quiet", "unrelated"]);
+      expect(
+        readWindows(now)
+          .map((w) => w.id)
+          .sort(),
+      ).toEqual(["live", "quiet"]);
+      expect([...store.keys()].sort()).toEqual([
+        "cc.walkie.window.live",
+        "cc.walkie.window.quiet",
+        "unrelated",
+      ]);
     } finally {
       (globalThis as { localStorage?: unknown }).localStorage = prev;
     }

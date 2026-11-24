@@ -8,7 +8,10 @@ import { OpsShell } from "./OpsShell";
 import { resolveSource } from "./opsHomeModel";
 import { OpsHome } from "./OpsHome";
 import { OpsNotFound } from "./OpsShellParts";
-import { useForeignItemWorkspace, useForeignSourceLookup } from "./opsShellHooks";
+import {
+  useForeignItemWorkspace,
+  useForeignSourceLookup,
+} from "./opsShellHooks";
 import { useOpsFeed } from "./parts";
 import type { OpsTab, OpsView } from "./opsPaths";
 import { lazyNamed } from "../../lib/lazyNamed";
@@ -32,13 +35,27 @@ const MetricPage = lazyNamed(() => import("./MetricPage"), "MetricPage");
  * cached sources give the verdict at once; only a cold cache waits on the
  * feed, and only the other-workspace lookup is marked as still running.
  */
-function SourceGate({ source, children }: { source: string; children: ReactNode }) {
+function SourceGate({
+  source,
+  children,
+}: {
+  source: string;
+  children: ReactNode;
+}) {
   const sources = useOpsSources();
   const feed = useOpsFeed("sources");
   const named = resolveSource(sources, source);
   const foreign = useForeignSourceLookup(named ? null : source);
   if (named) return <>{children}</>;
-  return <OpsNotFound id={source} kind="source" workspace={foreign.workspace} checking={!feed?.ready && !sources.length} lookingElsewhere={foreign.pending} />;
+  return (
+    <OpsNotFound
+      id={source}
+      kind="source"
+      workspace={foreign.workspace}
+      checking={!feed?.ready && !sources.length}
+      lookingElsewhere={foreign.pending}
+    />
+  );
 }
 
 /**
@@ -50,19 +67,34 @@ function SourceGate({ source, children }: { source: string; children: ReactNode 
  */
 function ItemGate({ view, children }: { view: OpsView; children: ReactNode }) {
   const foreign = useForeignItemWorkspace(view);
-  if (!foreign || (view.view !== "issue" && view.view !== "replay" && view.view !== "metric")) return <>{children}</>;
+  if (
+    !foreign ||
+    (view.view !== "issue" && view.view !== "replay" && view.view !== "metric")
+  )
+    return <>{children}</>;
   return <OpsNotFound id={view.id} kind={view.view} workspace={foreign} />;
 }
 
 function OpsPage({ view }: { view: OpsView }) {
-  if ((view.view === "home" || view.view === "tab") && view.source) return <SourceGate source={view.source}><OpsViewPage view={view} /></SourceGate>;
-  return <ItemGate view={view}><OpsViewPage view={view} /></ItemGate>;
+  if ((view.view === "home" || view.view === "tab") && view.source)
+    return (
+      <SourceGate source={view.source}>
+        <OpsViewPage view={view} />
+      </SourceGate>
+    );
+  return (
+    <ItemGate view={view}>
+      <OpsViewPage view={view} />
+    </ItemGate>
+  );
 }
 
 function OpsViewPage({ view }: { view: OpsView }) {
-  if (view.view === "home") return <OpsHome source={view.source} show={view.show} />;
+  if (view.view === "home")
+    return <OpsHome source={view.source} show={view.show} />;
   if (view.view === "issue") return <IssuePage id={view.id} />;
-  if (view.view === "replay") return <ReplayPage id={view.id} t={view.t} tAlt={view.t_alt} />;
+  if (view.view === "replay")
+    return <ReplayPage id={view.id} t={view.t} tAlt={view.t_alt} />;
   if (view.view === "metric") return <MetricPage id={view.id} />;
   if (view.view === "tab") {
     const Tab = TABS[view.tab];
@@ -76,13 +108,16 @@ function OpsViewPage({ view }: { view: OpsView }) {
 export function OpsArea({ view: asked }: { view: OpsView }) {
   const sources = useOpsSources();
   const view = useMemo<OpsView>(() => {
-    if ((asked.view !== "tab" && asked.view !== "home") || !asked.source) return asked;
+    if ((asked.view !== "tab" && asked.view !== "home") || !asked.source)
+      return asked;
     const named = resolveSource(sources, asked.source);
     return named ? { ...asked, source: named.name } : asked;
   }, [asked, sources]);
   return (
     <OpsShell view={view}>
-      <Suspense fallback={null}><OpsPage view={view} /></Suspense>
+      <Suspense fallback={null}>
+        <OpsPage view={view} />
+      </Suspense>
     </OpsShell>
   );
 }

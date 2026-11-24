@@ -4,7 +4,12 @@
   "skills": ["./extra/added-skill"],
   "commands": ["./custom-commands"],
   "userConfig": {
-    "apiKey": { "type": "string", "title": "API key", "sensitive": true, "required": true },
+    "apiKey": {
+      "type": "string",
+      "title": "API key",
+      "sensitive": true,
+      "required": true
+    },
     "workdir": { "type": "directory", "title": "Working directory" }
   }
 }

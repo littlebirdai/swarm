@@ -85,15 +85,35 @@ export function pairingPath(): string {
 
 export function readPairing(now = Date.now()): PairingFile {
   try {
-    const v = JSON.parse(fs.readFileSync(pairingPath(), "utf-8")) as Partial<PairingFile>;
+    const v = JSON.parse(
+      fs.readFileSync(pairingPath(), "utf-8"),
+    ) as Partial<PairingFile>;
     const profiles: Record<string, ProfileRecord> = {};
     for (const [k, r] of Object.entries(v.profiles ?? {})) {
-      if (isProfileKey(k) && r && /^[0-9a-f]{64}$/.test(r.hash) && typeof r.id === "string") profiles[k] = r;
+      if (
+        isProfileKey(k) &&
+        r &&
+        /^[0-9a-f]{64}$/.test(r.hash) &&
+        typeof r.id === "string"
+      )
+        profiles[k] = r;
     }
-    const codes = (v.codes ?? []).filter((c) => c && /^[0-9a-f]{64}$/.test(c.key) && typeof c.expiresAt === "number" && c.expiresAt >= now);
+    const codes = (v.codes ?? []).filter(
+      (c) =>
+        c &&
+        /^[0-9a-f]{64}$/.test(c.key) &&
+        typeof c.expiresAt === "number" &&
+        c.expiresAt >= now,
+    );
     const revoked: Record<string, number> = {};
-    for (const [k, at] of Object.entries(v.revoked ?? {})) if (isProfileKey(k) && typeof at === "number") revoked[k] = at;
-    return { profiles, codes, failures: typeof v.failures === "number" ? v.failures : 0, revoked };
+    for (const [k, at] of Object.entries(v.revoked ?? {}))
+      if (isProfileKey(k) && typeof at === "number") revoked[k] = at;
+    return {
+      profiles,
+      codes,
+      failures: typeof v.failures === "number" ? v.failures : 0,
+      revoked,
+    };
   } catch {
     return { profiles: {}, codes: [], failures: 0, revoked: {} };
   }
@@ -122,8 +142,14 @@ export function isProfileKey(value: unknown): value is string {
 
 /** A typed code in canonical form (I and L read as 1, O as 0), or null. */
 export function normalizePairingCode(input: string): string | null {
-  const code = input.toUpperCase().replace(/[\s-]/g, "").replace(/[IL]/g, "1").replace(/O/g, "0");
-  return new RegExp(`^[${CROCKFORD}]{${CODE_LENGTH}}$`).test(code) ? code : null;
+  const code = input
+    .toUpperCase()
+    .replace(/[\s-]/g, "")
+    .replace(/[IL]/g, "1")
+    .replace(/O/g, "0");
+  return new RegExp(`^[${CROCKFORD}]{${CODE_LENGTH}}$`).test(code)
+    ? code
+    : null;
 }
 
 /** ABCD-EFGH */
@@ -133,23 +159,49 @@ export function formatPairingCode(code: string): string {
 
 /** The slow hash both sides derive from a code; the host stores only this. Mirrored in background.js. */
 export function pairingCodeKey(code: string): string {
-  return pbkdf2Sync(code, CODE_KEY_SALT, CODE_KEY_ITERATIONS, 32, "sha256").toString("hex");
+  return pbkdf2Sync(
+    code,
+    CODE_KEY_SALT,
+    CODE_KEY_ITERATIONS,
+    32,
+    "sha256",
+  ).toString("hex");
 }
 
 /** A fresh one-time code for pairing the given profile; returned formatted. A new code resets the wrong-attempt count. */
-export function mintPairingCode(profile?: { dir: string; name: string } | null, now = Date.now()): string {
-  const code = Array.from(randomBytes(CODE_LENGTH), (b) => CROCKFORD[b & 31]).join("");
+export function mintPairingCode(
+  profile?: { dir: string; name: string } | null,
+  now = Date.now(),
+): string {
+  const code = Array.from(
+    randomBytes(CODE_LENGTH),
+    (b) => CROCKFORD[b & 31],
+  ).join("");
   updatePairing((f) => ({
     ...f,
-    codes: [...f.codes, { key: pairingCodeKey(code), expiresAt: now + PAIRING_CODE_TTL_MS, ...(profile ? { dir: profile.dir, name: profile.name } : {}) }].slice(-MAX_PENDING_CODES),
+    codes: [
+      ...f.codes,
+      {
+        key: pairingCodeKey(code),
+        expiresAt: now + PAIRING_CODE_TTL_MS,
+        ...(profile ? { dir: profile.dir, name: profile.name } : {}),
+      },
+    ].slice(-MAX_PENDING_CODES),
     failures: 0,
   }));
   return formatPairingCode(code);
 }
 
 /** The key a code exchange runs under, bound to the endpoint and both nonces. */
-export function codeSession(codeKey: string, port: number, extNonce: string, hostNonce: string): string {
-  return createHmac("sha256", codeKey).update(`${CODE_CONTEXT}|127.0.0.1:${port}|${extNonce}|${hostNonce}`).digest("hex");
+export function codeSession(
+  codeKey: string,
+  port: number,
+  extNonce: string,
+  hostNonce: string,
+): string {
+  return createHmac("sha256", codeKey)
+    .update(`${CODE_CONTEXT}|127.0.0.1:${port}|${extNonce}|${hostNonce}`)
+    .digest("hex");
 }
 
 export function hmacHex(key: string, message: string): string {
@@ -165,7 +217,13 @@ export function xorHex(a: string, b: string): string {
 }
 
 /** The pending code a pairing proof was made with, among the unexpired ones. */
-export function matchPendingCode(proof: unknown, port: number, extNonce: string, hostNonce: string, now = Date.now()): { code: PendingCode; session: string } | null {
+export function matchPendingCode(
+  proof: unknown,
+  port: number,
+  extNonce: string,
+  hostNonce: string,
+  now = Date.now(),
+): { code: PendingCode; session: string } | null {
   if (typeof proof !== "string") return null;
   for (const code of readPairing(now).codes) {
     const session = codeSession(code.key, port, extNonce, hostNonce);
@@ -176,7 +234,11 @@ export function matchPendingCode(proof: unknown, port: number, extNonce: string,
 
 /** Use up a code; the attempt count starts over. */
 export function consumePairingCode(codeKey: string): void {
-  updatePairing((f) => ({ ...f, codes: f.codes.filter((c) => c.key !== codeKey), failures: 0 }));
+  updatePairing((f) => ({
+    ...f,
+    codes: f.codes.filter((c) => c.key !== codeKey),
+    failures: 0,
+  }));
 }
 
 /** A wrong code. At the limit every pending code is thrown away; returns whether that happened. */
@@ -185,7 +247,11 @@ export function recordPairingFailure(): boolean {
   updatePairing((f) => {
     const failures = f.failures + 1;
     exhausted = failures >= MAX_PAIRING_FAILURES;
-    return { ...f, codes: exhausted ? [] : f.codes, failures: exhausted ? 0 : failures };
+    return {
+      ...f,
+      codes: exhausted ? [] : f.codes,
+      failures: exhausted ? 0 : failures,
+    };
   });
   return exhausted;
 }
@@ -201,8 +267,16 @@ export function profileKeyHash(secret: string): string {
 }
 
 /** "Ashot" in "Default" → "ashot-default"; a name alone, or "chrome" when pairing knew nothing. */
-export function profileSlug(name: string | undefined, dir: string | undefined): string {
-  const slug = (s: string) => s.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+export function profileSlug(
+  name: string | undefined,
+  dir: string | undefined,
+): string {
+  const slug = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/['’]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   const parts = [name, dir].filter((s): s is string => !!s && !!slug(s));
   const joined = [...new Set(parts.map(slug))].join("-");
   return joined.slice(0, 40).replace(/-+$/, "") || "chrome";
@@ -219,16 +293,34 @@ function uniqueId(base: string, taken: Set<string>): string {
  * it re-pairs as the same profile; otherwise it gets a fresh slug no other
  * record uses. Returns the key (to hand over masked) and the stored record.
  */
-export function issueProfileKey(key: string, info: { name?: string; dir?: string; via: ProfileRecord["via"] }, now = Date.now()): { secret: string; record: ProfileRecord } {
+export function issueProfileKey(
+  key: string,
+  info: { name?: string; dir?: string; via: ProfileRecord["via"] },
+  now = Date.now(),
+): { secret: string; record: ProfileRecord } {
   const secret = randomBytes(32).toString("hex");
   let record!: ProfileRecord;
   updatePairing((f) => {
     const prev = f.profiles[key];
-    const taken = new Set(Object.entries(f.profiles).filter(([k]) => k !== key).map(([, r]) => r.id));
+    const taken = new Set(
+      Object.entries(f.profiles)
+        .filter(([k]) => k !== key)
+        .map(([, r]) => r.id),
+    );
     const dir = info.dir ?? prev?.dir;
     const name = info.name ?? prev?.name ?? "Chrome";
-    const id = prev && prev.dir === dir && !taken.has(prev.id) ? prev.id : uniqueId(profileSlug(info.name ?? prev?.name, dir), taken);
-    record = { hash: profileKeyHash(secret), id, name, ...(dir ? { dir } : {}), pairedAt: now, via: info.via };
+    const id =
+      prev && prev.dir === dir && !taken.has(prev.id)
+        ? prev.id
+        : uniqueId(profileSlug(info.name ?? prev?.name, dir), taken);
+    record = {
+      hash: profileKeyHash(secret),
+      id,
+      name,
+      ...(dir ? { dir } : {}),
+      pairedAt: now,
+      via: info.via,
+    };
     const { [key]: _cleared, ...revoked } = f.revoked;
     return { ...f, profiles: { ...f.profiles, [key]: record }, revoked };
   });
@@ -236,10 +328,19 @@ export function issueProfileKey(key: string, info: { name?: string; dir?: string
 }
 
 /** The profile a short id, name or key names, among the paired ones. */
-export function findProfile(query: string, file = readPairing()): { key: string; record: ProfileRecord } | null {
+export function findProfile(
+  query: string,
+  file = readPairing(),
+): { key: string; record: ProfileRecord } | null {
   const q = query.trim().toLowerCase();
   for (const [key, record] of Object.entries(file.profiles)) {
-    if (record.id === q || key.toLowerCase() === q || record.name.toLowerCase() === q || record.dir?.toLowerCase() === q) return { key, record };
+    if (
+      record.id === q ||
+      key.toLowerCase() === q ||
+      record.name.toLowerCase() === q ||
+      record.dir?.toLowerCase() === q
+    )
+      return { key, record };
   }
   return null;
 }
@@ -256,7 +357,11 @@ export function revokeProfile(key: string): boolean {
     if (!cur.profiles[key]) return true;
     const rest = { ...cur.profiles };
     delete rest[key];
-    writePairing({ ...cur, profiles: rest, revoked: { ...cur.revoked, [key]: Date.now() } });
+    writePairing({
+      ...cur,
+      profiles: rest,
+      revoked: { ...cur.revoked, [key]: Date.now() },
+    });
   }
   return !readPairing().profiles[key];
 }

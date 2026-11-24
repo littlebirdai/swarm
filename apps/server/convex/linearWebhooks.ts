@@ -42,8 +42,8 @@ export function linearDeliveryId(payload: any): string {
 export const storeWebhookEvent = internalMutation({
   args: {
     delivery_id: v.string(),
-    event_type: v.string(),   // Linear `type`: Issue | Comment | IssueLabel
-    action: v.optional(v.string()),  // create | update | remove
+    event_type: v.string(), // Linear `type`: Issue | Comment | IssueLabel
+    action: v.optional(v.string()), // create | update | remove
     payload: v.string(),
   },
   handler: async (ctx, args) => {
@@ -64,7 +64,9 @@ export const storeWebhookEvent = internalMutation({
 
     // One handler for every Linear shape: it reads `type` off the stored row and
     // branches there, so a new Linear entity needs no change at this layer.
-    void ctx.scheduler.runAfter(0, internal.issueSync.onLinearEvent, { event_id: eventId });
+    void ctx.scheduler.runAfter(0, internal.issueSync.onLinearEvent, {
+      event_id: eventId,
+    });
 
     return { success: true, duplicate: false };
   },

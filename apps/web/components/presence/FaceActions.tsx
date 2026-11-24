@@ -11,14 +11,23 @@
 import { Headphones, MessageSquare, Mic, Square } from "lucide-react";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
 import { Button } from "../ui/button";
-import { talkToggleProps, walkieJoinReason, type PushToTalk } from "../../hooks/useWalkie";
+import {
+  talkToggleProps,
+  walkieJoinReason,
+  type PushToTalk,
+} from "../../hooks/useWalkie";
 import "./faceActions.css";
 
 export type FaceAction = "talk" | "ring" | "message";
 
 /** A context aware Ring: "Join huddle" when they are in one, "Knock" when
  *  the room is locked (components/presence/useMemberHuddle). */
-export type HuddleGesture = { label: string; title: string; waiting: boolean; go: () => void };
+export type HuddleGesture = {
+  label: string;
+  title: string;
+  waiting: boolean;
+  go: () => void;
+};
 
 export function FaceActions({
   ptt,
@@ -49,7 +58,11 @@ export function FaceActions({
   const ringBlocked = walkieJoinReason(roomKey);
   const btnSize = size === "sm" ? "xs" : "sm";
   return (
-    <span className={`face-actions face-actions-${size} ${className}`} role="group" aria-label="Talk, ring or message">
+    <span
+      className={`face-actions face-actions-${size} ${className}`}
+      role="group"
+      aria-label="Talk, ring or message"
+    >
       {show.includes("talk") && (
         <Button
           type="button"
@@ -57,7 +70,15 @@ export function FaceActions({
           size={btnSize}
           className={`face-action face-action-talk${talking ? " face-action-talk-on" : ""}`}
           disabled={!!blocked && !talking}
-          data-walkie-state={ptt.dropped ? "dropped" : ptt.capturing ? "live" : talking ? "opening" : "idle"}
+          data-walkie-state={
+            ptt.dropped
+              ? "dropped"
+              : ptt.capturing
+                ? "live"
+                : talking
+                  ? "opening"
+                  : "idle"
+          }
           title={
             blocked && !talking
               ? blocked
@@ -67,7 +88,11 @@ export function FaceActions({
           }
           {...talkToggleProps(ptt)}
         >
-          {talking ? <Square className="face-action-icon" /> : <Mic className="face-action-icon" />}
+          {talking ? (
+            <Square className="face-action-icon" />
+          ) : (
+            <Mic className="face-action-icon" />
+          )}
           <span className="face-action-word">{talking ? "Stop" : "Talk"}</span>
         </Button>
       )}
@@ -77,8 +102,15 @@ export function FaceActions({
           variant="violet"
           size={btnSize}
           className="face-action face-action-ring"
-          disabled={huddle ? huddle.waiting : !!ringBlocked || ringIds.length === 0}
-          title={huddle ? huddle.title : (ringBlocked ?? "Ring them and start a huddle, a real call both ways")}
+          disabled={
+            huddle ? huddle.waiting : !!ringBlocked || ringIds.length === 0
+          }
+          title={
+            huddle
+              ? huddle.title
+              : (ringBlocked ??
+                "Ring them and start a huddle, a real call both ways")
+          }
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -87,7 +119,9 @@ export function FaceActions({
           }}
         >
           <Headphones className="face-action-icon" />
-          <span className="face-action-word">{huddle ? huddle.label : "Ring"}</span>
+          <span className="face-action-word">
+            {huddle ? huddle.label : "Ring"}
+          </span>
         </Button>
       )}
       {show.includes("message") && onMessage && (
@@ -108,7 +142,9 @@ export function FaceActions({
         </Button>
       )}
       {/* The reason Talk cannot start, said in words under the buttons. */}
-      {blocked && !talking && show.includes("talk") && <span className="face-actions-reason">{blocked}</span>}
+      {blocked && !talking && show.includes("talk") && (
+        <span className="face-actions-reason">{blocked}</span>
+      )}
     </span>
   );
 }

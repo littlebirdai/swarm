@@ -10,7 +10,10 @@ export type ImageMarker = { x: number; y: number; number: number };
 // Solarized yellow, the gallery's pin color.
 const MARKER_FILL = "#b58900";
 
-export async function drawMarkers(picture: Blob, markers: readonly ImageMarker[]): Promise<Blob | null> {
+export async function drawMarkers(
+  picture: Blob,
+  markers: readonly ImageMarker[],
+): Promise<Blob | null> {
   try {
     const drawn = await drawFitted(picture);
     if (!drawn) return null;
@@ -34,15 +37,22 @@ export async function drawMarkers(picture: Blob, markers: readonly ImageMarker[]
       };
       ctx.lineCap = "round";
       // A dark under-stroke, then the yellow, so it reads on any background.
-      for (const [style, width] of [["rgba(0,0,0,0.6)", 0.5], [MARKER_FILL, 0.22]] as const) {
+      for (const [style, width] of [
+        ["rgba(0,0,0,0.6)", 0.5],
+        [MARKER_FILL, 0.22],
+      ] as const) {
         ringAndStem();
         ctx.strokeStyle = style;
         ctx.lineWidth = r * width;
         ctx.stroke();
       }
-      ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2);
-      ctx.fillStyle = MARKER_FILL; ctx.fill();
-      ctx.lineWidth = r * 0.18; ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fillStyle = MARKER_FILL;
+      ctx.fill();
+      ctx.lineWidth = r * 0.18;
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.stroke();
       ctx.fillStyle = "#000";
       ctx.font = `bold ${Math.round(r * 1.15)}px sans-serif`;
       ctx.textAlign = "center";
@@ -68,7 +78,10 @@ export async function uploadMarkedImage(
     if (!res.ok) return picture.storageId;
     const marked = await drawMarkers(await res.blob(), picture.markers);
     if (!marked) return picture.storageId;
-    return (await uploadBlobToStorage(convex, marked, marked.type)) ?? picture.storageId;
+    return (
+      (await uploadBlobToStorage(convex, marked, marked.type)) ??
+      picture.storageId
+    );
   } catch {
     return picture.storageId;
   }

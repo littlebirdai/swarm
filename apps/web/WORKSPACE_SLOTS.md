@@ -49,13 +49,13 @@ is declared twice in two files.
 
 Per region, the five concerns each get their own implementation:
 
-| concern | sidebar | session rail | companion | list/detail | comment rail | terminal |
-|---|---|---|---|---|---|---|
-| open/closed flag | `ui.sidebar_collapsed` | `sidePanelOpen` + `sidePanelUserClosed` | `companionSessionId` | `ui.pinned_surfaces[surface]` | `commentRailOpen` | its own |
-| sticky dismissal | — | `sidePanelUserClosed` | `companionDismissedFor` | — | — | — |
-| size persistence | `layouts.dashboard` | `layouts.dashboard`/none | none | Group default | none | its own |
-| collapse mechanism | imperative `panelRef.collapse()` + CSS anim | imperative `panelRef` effect | conditional render | conditional render | conditional render | conditional render |
-| close affordance | header button | rail ✕ (added by hand) | companion ✕ (added by hand) | detail ✕ (via context) | its own | its own |
+| concern            | sidebar                                     | session rail                            | companion                   | list/detail                   | comment rail       | terminal           |
+| ------------------ | ------------------------------------------- | --------------------------------------- | --------------------------- | ----------------------------- | ------------------ | ------------------ |
+| open/closed flag   | `ui.sidebar_collapsed`                      | `sidePanelOpen` + `sidePanelUserClosed` | `companionSessionId`        | `ui.pinned_surfaces[surface]` | `commentRailOpen`  | its own            |
+| sticky dismissal   | —                                           | `sidePanelUserClosed`                   | `companionDismissedFor`     | —                             | —                  | —                  |
+| size persistence   | `layouts.dashboard`                         | `layouts.dashboard`/none                | none                        | Group default                 | none               | its own            |
+| collapse mechanism | imperative `panelRef.collapse()` + CSS anim | imperative `panelRef` effect            | conditional render          | conditional render            | conditional render | conditional render |
+| close affordance   | header button                               | rail ✕ (added by hand)                  | companion ✕ (added by hand) | detail ✕ (via context)        | its own            | its own            |
 
 Every new region re-implements all five, slightly differently. That is why:
 
@@ -81,7 +81,7 @@ type SlotId = "nav" | "list" | "primary" | "secondary" | "context" | "dock";
 
 type Pane =
   | { kind: "nav" }
-  | { kind: "page" }                          // whatever the route renders
+  | { kind: "page" } // whatever the route renders
   | { kind: "conversation"; id: string }
   | { kind: "sessionList" }
   | { kind: "comments"; conversationId: string }
@@ -117,19 +117,19 @@ resize(slot, size)
 
 Everything the app currently does becomes a call to one of these:
 
-| today | becomes |
-|---|---|
-| pin a doc detail | `setPresentation("secondary", "split")` |
-| unpin (peek) | `setPresentation("secondary", "overlay")` |
-| open a session beside a task | `show("secondary", { kind: "conversation", id })` |
-| close the companion | `hide("secondary", { remember: true })` |
-| collapse the sidebar | `setPresentation("nav", "collapsed")` |
-| toggle the session rail | `toggle("context", { kind: "sessionList" })` |
-| comment rail | `show("context", { kind: "comments", conversationId })` |
-| toggle the terminal | `toggle("dock", { kind: "terminal" })` |
-| ⤢ on a companion | `promote("secondary")` |
+| today                        | becomes                                                 |
+| ---------------------------- | ------------------------------------------------------- |
+| pin a doc detail             | `setPresentation("secondary", "split")`                 |
+| unpin (peek)                 | `setPresentation("secondary", "overlay")`               |
+| open a session beside a task | `show("secondary", { kind: "conversation", id })`       |
+| close the companion          | `hide("secondary", { remember: true })`                 |
+| collapse the sidebar         | `setPresentation("nav", "collapsed")`                   |
+| toggle the session rail      | `toggle("context", { kind: "sessionList" })`            |
+| comment rail                 | `show("context", { kind: "comments", conversationId })` |
+| toggle the terminal          | `toggle("dock", { kind: "terminal" })`                  |
+| ⤢ on a companion             | `promote("secondary")`                                  |
 
-Note the comment rail and the session list now *share* the `context` slot, so
+Note the comment rail and the session list now _share_ the `context` slot, so
 they can no longer both occupy the right edge — a real bug class removed by the
 shape of the model rather than by a new conditional.
 
@@ -165,14 +165,14 @@ not one per component.
 
 All shell regions now run on the slot model. What is live:
 
-| region | slot | replaces |
-|---|---|---|
-| left sidebar | `nav` (presentation) | `ui.sidebar_collapsed` scattered writes → `setNavCollapsed` |
-| task/doc list + detail | `primary` (presentation) | `ui.pinned_surfaces[surface]` — one arrangement, not per surface |
-| conversation companion | `secondary` | `companionSessionId` + `companionDismissedFor` + mirror effect |
-| session list | `context` | `sidePanelOpen` + `sidePanelUserClosed` |
-| comment rail | `context` (shares the edge) | `commentRailOpen` |
-| terminal | `dock` | shell toggle; `panelPrefs` stays the persistence owner |
+| region                 | slot                        | replaces                                                         |
+| ---------------------- | --------------------------- | ---------------------------------------------------------------- |
+| left sidebar           | `nav` (presentation)        | `ui.sidebar_collapsed` scattered writes → `setNavCollapsed`      |
+| task/doc list + detail | `primary` (presentation)    | `ui.pinned_surfaces[surface]` — one arrangement, not per surface |
+| conversation companion | `secondary`                 | `companionSessionId` + `companionDismissedFor` + mirror effect   |
+| session list           | `context`                   | `sidePanelOpen` + `sidePanelUserClosed`                          |
+| comment rail           | `context` (shares the edge) | `commentRailOpen`                                                |
+| terminal               | `dock`                      | shell toggle; `panelPrefs` stays the persistence owner           |
 
 Deleted outright: `sidePanelOpen`, `sidePanelUserClosed`, `commentRailOpen`,
 `companionSessionId`, `companionDismissedFor`, `pinned_surfaces`, and two dead

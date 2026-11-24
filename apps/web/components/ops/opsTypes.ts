@@ -2,10 +2,30 @@
 // app functions return them (apps/server/convex/ingest.ts sourceView and
 // groupView, replays.ts replayView, metrics.ts watchView, sources/app.ts).
 // Types only: the server is the shape's owner.
-import type { GroupKind, GroupStatus, SourceProvider, SourceStatus, Transition, MetricWatchHistory, WatchDirection, WatchKind } from "@codecast/shared/contracts/ingest";
-import type { ReplayBackfill, ReplayProvider } from "@codecast/shared/contracts/replay";
-import type { AlertDelivery, AlertNotify } from "@codecast/shared/contracts/metricMonitor";
-import type { ReplayEnvKey, ReplayFacts, ReplayPerson, ReplayShape } from "@codecast/shared/replay";
+import type {
+  GroupKind,
+  GroupStatus,
+  SourceProvider,
+  SourceStatus,
+  Transition,
+  MetricWatchHistory,
+  WatchDirection,
+  WatchKind,
+} from "@codecast/shared/contracts/ingest";
+import type {
+  ReplayBackfill,
+  ReplayProvider,
+} from "@codecast/shared/contracts/replay";
+import type {
+  AlertDelivery,
+  AlertNotify,
+} from "@codecast/shared/contracts/metricMonitor";
+import type {
+  ReplayEnvKey,
+  ReplayFacts,
+  ReplayPerson,
+  ReplayShape,
+} from "@codecast/shared/replay";
 
 export type OpsSource = {
   _id: string;
@@ -25,7 +45,13 @@ export type OpsSource = {
   old_key_last_at?: number;
   old_key_events?: number;
   fingerprint_prefix?: string;
-  config?: { org?: string; projects?: string[]; project_id?: string; environments?: string[]; allowed_origins?: string[] };
+  config?: {
+    org?: string;
+    projects?: string[];
+    project_id?: string;
+    environments?: string[];
+    allowed_origins?: string[];
+  };
   /** Where the vendor's own app shows this source's project (PostHog: `<host>/project/<id>`). */
   vendor_web_url?: string;
   promote: Transition[];
@@ -51,7 +77,16 @@ export type OpsSource = {
   replay_backfill?: ReplayBackfill;
   /** PostHog: how many imported copies are cut short of their recording, of unknown reach, and the one being read now (convex replayRest tally). */
   /** convex event_sources.replay_rest: `cut` and `reading` are live; `prev` the recount before the last (`counted` at `at`); `queue` the sweep's next recordings. */
-  replay_rest?: { cut: number; unknown: number; reading?: string; waiting_until?: number; at: number; counted?: number; prev?: { cut: number; at: number }; queue?: string[] };
+  replay_rest?: {
+    cut: number;
+    unknown: number;
+    reading?: string;
+    waiting_until?: number;
+    at: number;
+    counted?: number;
+    prev?: { cut: number; at: number };
+    queue?: string[];
+  };
   /** What agents may do through it (Apps tab). Expired entries stay until the next write; read with activeGrant. */
   grants?: OpsGrant[];
   /** An app connector's watches: when each last polled and how it went. */
@@ -104,9 +139,23 @@ export type OpsGroup = {
   /** How many samples the server holds for it, so a page can tell "still reading" from "none kept". */
   sample_count?: number;
   /** A job's failures by what they said (failureMessageKey), counted since the tally began: the min first_seen. Absent on other kinds and older rows. */
-  messages?: { key: string; count: number; first_seen: number; last_seen: number }[];
+  messages?: {
+    key: string;
+    count: number;
+    first_seen: number;
+    last_seen: number;
+  }[];
   /** last_ok_*: a check's last passing reading, with the commit and branch a CI run passed at. */
-  meta?: { ok?: boolean; value?: number; threshold?: number; direction?: "above" | "below"; metric_watch_id?: string; last_ok_at?: number; last_ok_sha?: string; last_ok_branch?: string };
+  meta?: {
+    ok?: boolean;
+    value?: number;
+    threshold?: number;
+    direction?: "above" | "below";
+    metric_watch_id?: string;
+    last_ok_at?: number;
+    last_ok_sha?: string;
+    last_ok_branch?: string;
+  };
   updated_at: number;
 };
 
@@ -184,13 +233,21 @@ export type OpsReplay = {
   /** How far an imported copy reaches; below the vendor's length when the import stopped short. Absent from an older backend. */
   captured_ms?: number | null;
   /** A long recording's later parts being read in the background: blobs read of how many, and whether it waits on a rate limit or stopped. Absent from an older backend. */
-  import_rest?: { next_blob: number; blobs: number; retry_at: number | null; error: string | null; updated_at: number } | null;
+  import_rest?: {
+    next_blob: number;
+    blobs: number;
+    retry_at: number | null;
+    error: string | null;
+    updated_at: number;
+  } | null;
   has_timeline: boolean;
   imported_at: number | null;
   converter_version?: number | null;
   vendor_refresh_after?: number | null;
   /** Why the vendor is waited out until vendor_refresh_after (shared VENDOR_REFRESH_WHYS). Absent from an older backend. */
-  vendor_refresh_why?: import("@codecast/shared/contracts/replay").VendorRefreshWhy | null;
+  vendor_refresh_why?:
+    | import("@codecast/shared/contracts/replay").VendorRefreshWhy
+    | null;
   updated_at: number;
 };
 
@@ -217,7 +274,13 @@ export type OpsReplayTally = {
 
 export type OpsReplayTimeline = {
   _id: string;
-  groups: { _id: string; short_id: string; kind: GroupKind; title: string; status: GroupStatus }[];
+  groups: {
+    _id: string;
+    short_id: string;
+    kind: GroupKind;
+    title: string;
+    status: GroupStatus;
+  }[];
   timeline_md: string | null;
   timeline_at: number | null;
 };
@@ -266,9 +329,20 @@ export type OpsWatch = {
   updated_at: number;
 };
 
-export type OpsGrant = { action: string; granted_by: string; granted_at: number; until?: number; via?: "session" | "api_token" };
+export type OpsGrant = {
+  action: string;
+  granted_by: string;
+  granted_at: number;
+  until?: number;
+  via?: "session" | "api_token";
+};
 
-export type WatchState = { key: string; polled_at: number; last_error?: string; paused?: boolean };
+export type WatchState = {
+  key: string;
+  polled_at: number;
+  last_error?: string;
+  paused?: boolean;
+};
 
 /**
  * sources/app.capabilities, keyed by the source _id. The page reads the
@@ -277,7 +351,14 @@ export type WatchState = { key: string; polled_at: number; last_error?: string; 
  */
 export type OpsApp = {
   _id: string;
-  source: { _id: string; short_id: string; name: string; provider?: SourceProvider; status: SourceStatus; last_error?: string };
+  source: {
+    _id: string;
+    short_id: string;
+    name: string;
+    provider?: SourceProvider;
+    status: SourceStatus;
+    last_error?: string;
+  };
   manifest_json: string | null;
   manifest_fetched_at: number | null;
   grants: OpsGrant[];
@@ -312,8 +393,22 @@ export type OpsCiRun = {
   attempt?: number;
   started_at?: number;
   duration_ms?: number;
-  jobs: { id: string; name: string; conclusion?: string; duration_ms?: number; url?: string; steps: { number: number; name: string; conclusion?: string }[] }[];
-  annotations: { job: string; level: string; message: string; title?: string; path?: string; line?: number }[];
+  jobs: {
+    id: string;
+    name: string;
+    conclusion?: string;
+    duration_ms?: number;
+    url?: string;
+    steps: { number: number; name: string; conclusion?: string }[];
+  }[];
+  annotations: {
+    job: string;
+    level: string;
+    message: string;
+    title?: string;
+    path?: string;
+    line?: number;
+  }[];
   log_job?: string;
   log_tail?: string;
   log_error?: string;

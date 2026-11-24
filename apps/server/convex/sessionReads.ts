@@ -59,7 +59,8 @@ async function findMark(
   return await ctx.db
     .query("session_reads")
     .withIndex("by_user_conversation", (q: any) =>
-      q.eq("user_id", userId).eq("conversation_id", conversationId))
+      q.eq("user_id", userId).eq("conversation_id", conversationId),
+    )
     .first();
 }
 
@@ -84,7 +85,10 @@ async function upsertMark(
     return project((await ctx.db.get(id))!);
   }
   const next: Record<string, unknown> = { updated_at: now };
-  if (patch.acknowledgedAt !== undefined && patch.acknowledgedAt > existing.acknowledged_at) {
+  if (
+    patch.acknowledgedAt !== undefined &&
+    patch.acknowledgedAt > existing.acknowledged_at
+  ) {
     next.acknowledged_at = patch.acknowledgedAt;
   }
   if (patch.manualUnread !== undefined) next.manual_unread = patch.manualUnread;
@@ -113,7 +117,9 @@ async function findReadableConversation(
 ): Promise<Doc<"conversations"> | null> {
   const conversation = await resolveConversationRef(ctx, ref, userId);
   if (!conversation) return null;
-  return (await canAccessConversation(ctx, userId, conversation)) ? conversation : null;
+  return (await canAccessConversation(ctx, userId, conversation))
+    ? conversation
+    : null;
 }
 
 /** The two writes, returning null for a session the viewer cannot mark. The
@@ -145,7 +151,9 @@ export async function markUnreadIfReadable(
 ): Promise<SessionReadRow | null> {
   const conversation = await findReadableConversation(ctx, userId, ref);
   if (!conversation) return null;
-  return await upsertMark(ctx, userId, conversation._id, { manualUnread: true });
+  return await upsertMark(ctx, userId, conversation._id, {
+    manualUnread: true,
+  });
 }
 
 // ── Queries ─────────────────────────────────────────────────────────────────
@@ -161,7 +169,10 @@ export const listMine = query({
   handler: async (ctx, args): Promise<SessionReadRow[]> => {
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     if (!userId) return [];
-    const limit = Math.min(Math.max(args.limit ?? SESSION_READ_SCAN, 1), SESSION_READ_SCAN);
+    const limit = Math.min(
+      Math.max(args.limit ?? SESSION_READ_SCAN, 1),
+      SESSION_READ_SCAN,
+    );
     const rows = await ctx.db
       .query("session_reads")
       .withIndex("by_user_updated", (q: any) => q.eq("user_id", userId))
@@ -188,7 +199,12 @@ export const acknowledge = mutation({
   handler: async (ctx, args): Promise<SessionReadRow> => {
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     if (!userId) throw new Error("Unauthorized");
-    const mark = await acknowledgeIfReadable(ctx, userId, args.conversation_id, args.acknowledged_at);
+    const mark = await acknowledgeIfReadable(
+      ctx,
+      userId,
+      args.conversation_id,
+      args.acknowledged_at,
+    );
     if (!mark) throw new Error("Conversation not found");
     return mark;
   },

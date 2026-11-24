@@ -20,7 +20,15 @@ import * as fs from "fs";
 import * as path from "path";
 import { localAgentClient } from "@codecast/shared/contracts";
 import { atomicWriteFile } from "../atomicWrite.js";
-import { allowedRoots, apply, contentEqual, realTarget, type ApplyOutcome, type DriverLedger, type PlannedOp } from "./driver.js";
+import {
+  allowedRoots,
+  apply,
+  contentEqual,
+  realTarget,
+  type ApplyOutcome,
+  type DriverLedger,
+  type PlannedOp,
+} from "./driver.js";
 import { sharedSkillDir } from "./skills.js";
 import type { StoreFile } from "./contentStore.js";
 
@@ -46,7 +54,8 @@ export function kitLedgerPath(home: string): string {
 export function readKitLedger(home: string): DriverLedger {
   try {
     const parsed = JSON.parse(fs.readFileSync(kitLedgerPath(home), "utf-8"));
-    if (parsed && typeof parsed.files === "object" && parsed.files) return { files: parsed.files };
+    if (parsed && typeof parsed.files === "object" && parsed.files)
+      return { files: parsed.files };
   } catch {
     // absent or torn: an empty ledger owns nothing, which is the safe reading
   }
@@ -55,7 +64,11 @@ export function readKitLedger(home: string): DriverLedger {
 
 export function writeKitLedger(home: string, ledger: DriverLedger): void {
   fs.mkdirSync(path.dirname(kitLedgerPath(home)), { recursive: true });
-  atomicWriteFile(kitLedgerPath(home), JSON.stringify({ files: ledger.files }, null, 2) + "\n", { mode: 0o600 });
+  atomicWriteFile(
+    kitLedgerPath(home),
+    JSON.stringify({ files: ledger.files }, null, 2) + "\n",
+    { mode: 0o600 },
+  );
 }
 
 /* ==========================================================================
@@ -80,10 +93,16 @@ function expandHome(p: string, home: string): string {
  *  image, a font, an archive) must reach the disk as the bytes themselves. */
 function asTarget(abs: string, f: StoreFile, mode: number): Target {
   const text = f.bytes.toString("utf-8");
-  return Buffer.from(text, "utf-8").equals(f.bytes) ? { abs, content: text, mode } : { abs, content: "", bytes: f.bytes, mode };
+  return Buffer.from(text, "utf-8").equals(f.bytes)
+    ? { abs, content: text, mode }
+    : { abs, content: "", bytes: f.bytes, mode };
 }
 
-function claudeDir(slot: "skillsDir" | "agentsDir", home: string, fallback: string): string {
+function claudeDir(
+  slot: "skillsDir" | "agentsDir",
+  home: string,
+  fallback: string,
+): string {
   const user = localAgentClient("claude").agentFileTargets?.[slot]?.user;
   return expandHome(user ?? fallback, home);
 }
@@ -92,12 +111,28 @@ export function kitTargets(home: string, item: KitInstallItem): Target[] {
   if (item.kind === "skill") {
     const dir = sharedSkillDir(item.name, home);
     return [
-      ...item.files.map((f) => asTarget(path.join(dir, ...f.path.split("/")), f, f.executable ? 0o755 : 0o644)),
-      { abs: path.join(claudeDir("skillsDir", home, "~/.claude/skills"), item.name), linkTo: dir },
+      ...item.files.map((f) =>
+        asTarget(
+          path.join(dir, ...f.path.split("/")),
+          f,
+          f.executable ? 0o755 : 0o644,
+        ),
+      ),
+      {
+        abs: path.join(
+          claudeDir("skillsDir", home, "~/.claude/skills"),
+          item.name,
+        ),
+        linkTo: dir,
+      },
     ];
   }
-  const main = item.files.find((f) => f.path === `${item.name}.md`) ?? item.files[0];
-  const dir = item.kind === "command" ? path.join(home, ".claude", "commands") : claudeDir("agentsDir", home, "~/.claude/agents");
+  const main =
+    item.files.find((f) => f.path === `${item.name}.md`) ?? item.files[0];
+  const dir =
+    item.kind === "command"
+      ? path.join(home, ".claude", "commands")
+      : claudeDir("agentsDir", home, "~/.claude/agents");
   return main ? [asTarget(path.join(dir, `${item.name}.md`), main, 0o644)] : [];
 }
 
@@ -124,7 +159,10 @@ function realOrSelf(p: string): string {
 /** Removal order: deepest first, so a directory's files go before it. */
 function removals(slug: string, paths: string[]): PlannedOp[] {
   return [...paths]
-    .sort((a, b) => b.split(path.sep).length - a.split(path.sep).length || (a < b ? 1 : -1))
+    .sort(
+      (a, b) =>
+        b.split(path.sep).length - a.split(path.sep).length || (a < b ? 1 : -1),
+    )
     .map((p) => ({ op: "remove" as const, path: p, slug }));
 }
 
@@ -142,10 +180,17 @@ export function kitAsideRoot(home: string): string {
  * inside a skill folder, is renamed beside itself, where its new name no
  * longer ends in `.md` and nothing loads it.
  */
-export function asideName(p: string, now: Date, home: string, skillsDirs: readonly string[]): string {
+export function asideName(
+  p: string,
+  now: Date,
+  home: string,
+  skillsDirs: readonly string[],
+): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
-  const dir = skillsDirs.includes(path.dirname(p)) ? kitAsideRoot(home) : path.dirname(p);
+  const dir = skillsDirs.includes(path.dirname(p))
+    ? kitAsideRoot(home)
+    : path.dirname(p);
   const base = path.join(dir, `${path.basename(p)}.mine-${stamp}`);
   let candidate = base;
   for (let n = 2; lstatOrNull(candidate); n++) candidate = `${base}-${n}`;
@@ -165,33 +210,62 @@ export interface PlanKitOptions {
  * `hold` names slugs still wanted whose version could not be resolved this
  * pass (fetch failed, waiting on consent): their files stay exactly as they are.
  */
-export function planKit(home: string, items: KitInstallItem[], ledger: DriverLedger, hold: string[] = [], opts: PlanKitOptions = {}): PlannedOp[] {
+export function planKit(
+  home: string,
+  items: KitInstallItem[],
+  ledger: DriverLedger,
+  hold: string[] = [],
+  opts: PlanKitOptions = {},
+): PlannedOp[] {
   const roots = allowedRoots(home).map(realOrSelf);
-  const inRoots = (abs: string) => roots.some((r) => abs.startsWith(r + path.sep));
+  const inRoots = (abs: string) =>
+    roots.some((r) => abs.startsWith(r + path.sep));
   const ops: PlannedOp[] = [];
 
   for (const item of items) {
     const mine = new Set((ledger.files[item.slug] ?? []).map(realTarget));
-    const targets = kitTargets(home, item).map((t) => ({ ...t, abs: realTarget(t.abs), linkTo: t.linkTo && realTarget(t.linkTo) }));
+    const targets = kitTargets(home, item).map((t) => ({
+      ...t,
+      abs: realTarget(t.abs),
+      linkTo: t.linkTo && realTarget(t.linkTo),
+    }));
     const conflicts: PlannedOp[] = [];
-    const conflict = (reason: string, detail: string) => conflicts.push({ op: "conflict", slug: item.slug, reason, detail });
+    const conflict = (reason: string, detail: string) =>
+      conflicts.push({ op: "conflict", slug: item.slug, reason, detail });
     // What stands in the way: someone else's file, or their whole skill
     // directory when none of it is ours.
     const blockers = new Set<string>();
-    const skillDir = item.kind === "skill" ? realTarget(sharedSkillDir(item.name, home)) : undefined;
-    const dirOwned = !!skillDir && [...mine].some((p) => p.startsWith(skillDir + path.sep));
-    const notOurs = (p: string) => `${p} exists and codecast did not write it; rename or remove it to install ${item.kind} ${item.name}`;
+    const skillDir =
+      item.kind === "skill"
+        ? realTarget(sharedSkillDir(item.name, home))
+        : undefined;
+    const dirOwned =
+      !!skillDir && [...mine].some((p) => p.startsWith(skillDir + path.sep));
+    const notOurs = (p: string) =>
+      `${p} exists and codecast did not write it; rename or remove it to install ${item.kind} ${item.name}`;
 
     for (const t of targets) {
       if (!inRoots(t.abs)) {
-        conflict("path_outside_roots", `${t.abs} is outside every allowed root`);
+        conflict(
+          "path_outside_roots",
+          `${t.abs} is outside every allowed root`,
+        );
         continue;
       }
       const st = lstatOrNull(t.abs);
       if (!st || mine.has(t.abs)) continue;
       // A link that already points at our own content dir is ours in effect.
-      if (t.linkTo && st.isSymbolicLink() && realOrSelf(t.abs) === realOrSelf(t.linkTo)) continue;
-      blockers.add(skillDir && !dirOwned && t.abs.startsWith(skillDir + path.sep) ? skillDir : t.abs);
+      if (
+        t.linkTo &&
+        st.isSymbolicLink() &&
+        realOrSelf(t.abs) === realOrSelf(t.linkTo)
+      )
+        continue;
+      blockers.add(
+        skillDir && !dirOwned && t.abs.startsWith(skillDir + path.sep)
+          ? skillDir
+          : t.abs,
+      );
     }
     if (skillDir && !dirOwned && lstatOrNull(skillDir)) blockers.add(skillDir);
 
@@ -204,17 +278,22 @@ export function planKit(home: string, items: KitInstallItem[], ledger: DriverLed
     // Adopted: the person's copy is renamed, never deleted, and the paths it
     // held are planned as empty.
     const now = opts.now ?? new Date();
-    const skillsDirs = [realTarget(path.dirname(sharedSkillDir(item.name, home))), realTarget(claudeDir("skillsDir", home, "~/.claude/skills"))];
+    const skillsDirs = [
+      realTarget(path.dirname(sharedSkillDir(item.name, home))),
+      realTarget(claudeDir("skillsDir", home, "~/.claude/skills")),
+    ];
     const taken = new Set<string>();
     for (const b of blockers) {
       // Two blockers with one name (both skills dirs hold "deploy") must not
       // be planned onto the same aside path.
       let to = asideName(b, now, home, skillsDirs);
-      for (let n = 2; taken.has(to); n++) to = `${asideName(b, now, home, skillsDirs)}-${n}`;
+      for (let n = 2; taken.has(to); n++)
+        to = `${asideName(b, now, home, skillsDirs)}-${n}`;
       taken.add(to);
       ops.push({ op: "move_aside", path: b, to, slug: item.slug });
     }
-    const gone = (p: string) => [...blockers].some((b) => p === b || p.startsWith(b + path.sep));
+    const gone = (p: string) =>
+      [...blockers].some((b) => p === b || p.startsWith(b + path.sep));
     const lstatHere = (p: string) => (gone(p) ? null : lstatOrNull(p));
 
     const wanted = new Set<string>();
@@ -222,8 +301,15 @@ export function planKit(home: string, items: KitInstallItem[], ledger: DriverLed
       wanted.add(t.abs);
       const st = lstatHere(t.abs);
       if (t.linkTo) {
-        const right = st?.isSymbolicLink() && realOrSelf(t.abs) === realOrSelf(t.linkTo);
-        if (!right || !mine.has(t.abs)) ops.push({ op: "symlink", path: t.abs, target: t.linkTo, slug: item.slug });
+        const right =
+          st?.isSymbolicLink() && realOrSelf(t.abs) === realOrSelf(t.linkTo);
+        if (!right || !mine.has(t.abs))
+          ops.push({
+            op: "symlink",
+            path: t.abs,
+            target: t.linkTo,
+            slug: item.slug,
+          });
         continue;
       }
       let existing: Buffer | undefined;
@@ -232,13 +318,30 @@ export function planKit(home: string, items: KitInstallItem[], ledger: DriverLed
       } catch {
         existing = undefined;
       }
-      const same = existing !== undefined && (t.bytes ? existing.equals(t.bytes) : contentEqual(existing.toString("utf-8"), t.content!, t.abs));
-      const execOk = !st || ((st.mode & 0o111) !== 0) === ((t.mode! & 0o111) !== 0);
+      const same =
+        existing !== undefined &&
+        (t.bytes
+          ? existing.equals(t.bytes)
+          : contentEqual(existing.toString("utf-8"), t.content!, t.abs));
+      const execOk =
+        !st || ((st.mode & 0o111) !== 0) === ((t.mode! & 0o111) !== 0);
       if (same && execOk && mine.has(t.abs)) continue;
-      ops.push({ op: "write_file", path: t.abs, content: t.content!, ...(t.bytes ? { bytes: t.bytes } : {}), mode: t.mode, slug: item.slug });
+      ops.push({
+        op: "write_file",
+        path: t.abs,
+        content: t.content!,
+        ...(t.bytes ? { bytes: t.bytes } : {}),
+        mode: t.mode,
+        slug: item.slug,
+      });
     }
     // A file the previous version had and this one does not.
-    ops.push(...removals(item.slug, [...mine].filter((p) => !wanted.has(p))));
+    ops.push(
+      ...removals(
+        item.slug,
+        [...mine].filter((p) => !wanted.has(p)),
+      ),
+    );
   }
 
   const keep = new Set([...items.map((i) => i.slug), ...hold]);
@@ -253,13 +356,22 @@ export function planKit(home: string, items: KitInstallItem[], ledger: DriverLed
  * ========================================================================== */
 
 /** driver.apply, then the directories removal emptied, up to the root. */
-export function applyKit(home: string, ops: PlannedOp[], ledger: DriverLedger): ApplyOutcome {
+export function applyKit(
+  home: string,
+  ops: PlannedOp[],
+  ledger: DriverLedger,
+): ApplyOutcome {
   // A file whose exec bit must drop is rewritten fresh: the harness writer
   // keeps an existing file's mode.
   for (const op of ops) {
-    if (op.op === "write_file" && op.mode !== undefined && (op.mode & 0o111) === 0) {
+    if (
+      op.op === "write_file" &&
+      op.mode !== undefined &&
+      (op.mode & 0o111) === 0
+    ) {
       try {
-        if ((fs.statSync(op.path).mode & 0o111) !== 0) fs.chmodSync(op.path, op.mode);
+        if ((fs.statSync(op.path).mode & 0o111) !== 0)
+          fs.chmodSync(op.path, op.mode);
       } catch {
         // absent: the write creates it with op.mode
       }
@@ -269,7 +381,10 @@ export function applyKit(home: string, ops: PlannedOp[], ledger: DriverLedger): 
   const roots = new Set(allowedRoots(home).map(realOrSelf));
   for (const removed of ops.filter((o) => o.op === "remove")) {
     let dir = path.dirname(removed.path);
-    while (!roots.has(dir) && [...roots].some((r) => dir.startsWith(r + path.sep))) {
+    while (
+      !roots.has(dir) &&
+      [...roots].some((r) => dir.startsWith(r + path.sep))
+    ) {
       try {
         if (fs.readdirSync(dir).length > 0) break;
         fs.rmdirSync(dir);
@@ -281,4 +396,3 @@ export function applyKit(home: string, ops: PlannedOp[], ledger: DriverLedger): 
   }
   return outcome;
 }
-

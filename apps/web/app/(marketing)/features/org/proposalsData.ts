@@ -35,18 +35,34 @@ export const SUBJECTS: Subject[] = [
     rows: [
       { label: "Handle", after: "@platform" },
       { label: "Reports to", after: "Maya Chen" },
-      { label: "Area", after: "Platform: the sync layer, the daemon, CLI releases" },
-      { label: "Sessions", after: "14 report to @platform and leave Needs You" },
+      {
+        label: "Area",
+        after: "Platform: the sync layer, the daemon, CLI releases",
+      },
+      {
+        label: "Sessions",
+        after: "14 report to @platform and leave Needs You",
+      },
     ],
     why: "Platform has 14 open tasks and no owner role. Its sessions report straight to you, and three asked you for a decision this week.",
-    evidence: ["14 open tasks in Platform", "3 decisions waiting", "22 sessions in ~/src/platform"],
+    evidence: [
+      "14 open tasks in Platform",
+      "3 decisions waiting",
+      "22 sessions in ~/src/platform",
+    ],
   },
   {
     id: "move",
     sentence: "Move Release Captain under Head of Platform.",
     name: "Release Captain",
     face: { k: "rocket launch" },
-    rows: [{ label: "Reports to", before: "Engineering lead", after: "Head of Platform" }],
+    rows: [
+      {
+        label: "Reports to",
+        before: "Engineering lead",
+        after: "Head of Platform",
+      },
+    ],
     why: "All 9 releases this month shipped the CLI, which is platform work.",
     evidence: ["9 releases in October", "pl-61 CLI release train"],
     needsPlatform: true,
@@ -56,7 +72,13 @@ export const SUBJECTS: Subject[] = [
     sentence: "Give the CMO the Pricing page project.",
     name: "CMO",
     face: { k: "billboard" },
-    rows: [{ label: "Area", before: "Site, ads, social", after: "Site, ads, social, the pricing page" }],
+    rows: [
+      {
+        label: "Area",
+        before: "Site, ads, social",
+        after: "Site, ads, social, the pricing page",
+      },
+    ],
     why: "The Pricing page project has 5 open tasks and no lead, and its last 4 sessions started from the CMO's thread.",
     evidence: ["5 open tasks in Pricing page", "4 sessions from @cmo"],
   },
@@ -88,7 +110,10 @@ export const REVISED: Subject = {
   evidence: ["9 releases in October"],
   needsPlatform: true,
 };
-export const REVISION_NOTE = { removed: "Move Release Captain under Head of Platform", added: "Release check routine for @platform" };
+export const REVISION_NOTE = {
+  removed: "Move Release Captain under Head of Platform",
+  added: "Release check routine for @platform",
+};
 
 export type State = {
   answers: Partial<Record<Sid, Verdict>>;
@@ -97,13 +122,22 @@ export type State = {
   /** Bumped on each send, so freshly applied nodes replay their entrance. */
   sends: number;
 };
-export const START: State = { answers: {}, outcome: {}, revised: false, sends: 0 };
+export const START: State = {
+  answers: {},
+  outcome: {},
+  revised: false,
+  sends: 0,
+};
 
-export const subjectsOf = (s: State) => SUBJECTS.map((x) => (x.id === "move" && s.revised ? REVISED : x));
+export const subjectsOf = (s: State) =>
+  SUBJECTS.map((x) => (x.id === "move" && s.revised ? REVISED : x));
 
-const platformReady = (s: State) => s.outcome.platform === "applied" || s.answers.platform === "approve";
+const platformReady = (s: State) =>
+  s.outcome.platform === "applied" || s.answers.platform === "approve";
 /** An approval the next send would apply: a dependent waits on the hire. */
-export const willApply = (s: State, id: Sid) => s.answers[id] === "approve" && (!SUBJECTS.find((x) => x.id === id)!.needsPlatform || platformReady(s));
+export const willApply = (s: State, id: Sid) =>
+  s.answers[id] === "approve" &&
+  (!SUBJECTS.find((x) => x.id === id)!.needsPlatform || platformReady(s));
 
 export function send(s: State): State {
   const outcome = { ...s.outcome };
@@ -116,7 +150,12 @@ export function send(s: State): State {
     else answers[x.id] = a; // still waits on the hire
   }
   // A rejected hire takes the work that needed it off the table.
-  if (outcome.platform === "rejected") for (const x of SUBJECTS) if (x.needsPlatform && !outcome[x.id]) { outcome[x.id] = "rejected"; delete answers[x.id]; }
+  if (outcome.platform === "rejected")
+    for (const x of SUBJECTS)
+      if (x.needsPlatform && !outcome[x.id]) {
+        outcome[x.id] = "rejected";
+        delete answers[x.id];
+      }
   return { ...s, answers, outcome, sends: s.sends + 1 };
 }
 
@@ -126,26 +165,56 @@ export function counts(s: State) {
   const answers = open.filter((x) => s.answers[x.id] === "reject").length;
   const staged = open.filter((x) => s.answers[x.id]).length;
   const applied = SUBJECTS.filter((x) => s.outcome[x.id] === "applied").length;
-  const rejected = SUBJECTS.filter((x) => s.outcome[x.id] === "rejected").length;
-  return { open: open.length, apply, answers, staged, applied, rejected, undecided: open.length - staged };
+  const rejected = SUBJECTS.filter(
+    (x) => s.outcome[x.id] === "rejected",
+  ).length;
+  return {
+    open: open.length,
+    apply,
+    answers,
+    staged,
+    applied,
+    rejected,
+    undecided: open.length - staged,
+  };
 }
 
 /** The meta line under the title: what waits, or what happened. */
 export function metaWords(s: State): string {
   const c = counts(s);
-  const done = [c.applied && `${c.applied} applied`, c.rejected && `${c.rejected} rejected`].filter(Boolean).join(", ");
+  const done = [
+    c.applied && `${c.applied} applied`,
+    c.rejected && `${c.rejected} rejected`,
+  ]
+    .filter(Boolean)
+    .join(", ");
   if (c.open === 0) return done;
-  const left = c.staged ? `${c.undecided} of ${c.open} to decide` : `${c.open} to decide`;
+  const left = c.staged
+    ? `${c.undecided} of ${c.open} to decide`
+    : `${c.open} to decide`;
   const stagedApprove = c.staged - c.answers;
-  const tail = [stagedApprove && `${stagedApprove} approved`, c.answers && `${c.answers} rejected`].filter(Boolean).join(", ");
-  return [c.undecided ? left : null, tail || null, done || null].filter(Boolean).join(" · ") || left;
+  const tail = [
+    stagedApprove && `${stagedApprove} approved`,
+    c.answers && `${c.answers} rejected`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return (
+    [c.undecided ? left : null, tail || null, done || null]
+      .filter(Boolean)
+      .join(" · ") || left
+  );
 }
 
 export function trayWords(s: State): string | null {
   const c = counts(s);
   if (!c.staged) return null;
-  const ch = c.apply ? `${c.apply} ${c.apply === 1 ? "change" : "changes"} will apply when you send` : "Nothing applies yet";
-  const an = c.answers ? `, and ${c.answers} ${c.answers === 1 ? "answer goes" : "answers go"} with them` : "";
+  const ch = c.apply
+    ? `${c.apply} ${c.apply === 1 ? "change" : "changes"} will apply when you send`
+    : "Nothing applies yet";
+  const an = c.answers
+    ? `, and ${c.answers} ${c.answers === 1 ? "answer goes" : "answers go"} with them`
+    : "";
   return ch + an;
 }
 

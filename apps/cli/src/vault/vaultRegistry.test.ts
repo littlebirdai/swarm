@@ -29,11 +29,15 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(base, { recursive: true, force: true });
+  } catch {}
 });
 
 function rawConfig(): any {
-  return JSON.parse(fs.readFileSync(path.join(configDir, "config.json"), "utf-8"));
+  return JSON.parse(
+    fs.readFileSync(path.join(configDir, "config.json"), "utf-8"),
+  );
 }
 
 describe("vaultRegistry", () => {
@@ -76,7 +80,9 @@ describe("vaultRegistry", () => {
   });
 
   test("rejects a missing directory and a file", () => {
-    expect(() => addVault(configDir, path.join(base, "missing"))).toThrow(/No such directory/);
+    expect(() => addVault(configDir, path.join(base, "missing"))).toThrow(
+      /No such directory/,
+    );
     const file = path.join(base, "note.md");
     fs.writeFileSync(file, "x");
     expect(() => addVault(configDir, file)).toThrow(/Not a directory/);
@@ -111,7 +117,9 @@ describe("vaultRegistry", () => {
 
     const before = fs.statSync(path.join(configDir, "config.json")).mtimeMs;
     setVaultNoteCount(configDir, vault.id, 42);
-    expect(fs.statSync(path.join(configDir, "config.json")).mtimeMs).toBe(before);
+    expect(fs.statSync(path.join(configDir, "config.json")).mtimeMs).toBe(
+      before,
+    );
   });
 });
 
@@ -125,7 +133,11 @@ describe("project vaults", () => {
   let home = "";
   let cfg = "";
 
-  function project(parent: string, name: string, build: (dir: string) => void): string {
+  function project(
+    parent: string,
+    name: string,
+    build: (dir: string) => void,
+  ): string {
     const dir = path.join(home, parent, name);
     fs.mkdirSync(dir, { recursive: true });
     build(dir);
@@ -140,7 +152,9 @@ describe("project vaults", () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(home, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(home, { recursive: true, force: true });
+    } catch {}
     clearProjectVaultCache();
   });
 
@@ -153,16 +167,22 @@ describe("project vaults", () => {
 
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), "vault-nohome-"));
     expect(projectVaults(path.join(empty, ".codecast"))).toEqual([]);
-    try { fs.rmSync(empty, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(empty, { recursive: true, force: true });
+    } catch {}
   });
 
   test("projects with markdown are offered, projects without are not", () => {
-    project("src", "with-readme", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    project("src", "with-readme", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
     project("dev", "with-docs", (d) => {
       fs.mkdirSync(path.join(d, "docs"));
       fs.writeFileSync(path.join(d, "docs", "guide.md"), "guide");
     });
-    project("src", "code-only", (d) => fs.writeFileSync(path.join(d, "main.ts"), "export {}"));
+    project("src", "code-only", (d) =>
+      fs.writeFileSync(path.join(d, "main.ts"), "export {}"),
+    );
 
     const found = projectVaults(cfg);
     expect(found.map((v) => v.name)).toEqual(["with-docs", "with-readme"]);
@@ -175,7 +195,9 @@ describe("project vaults", () => {
   });
 
   test("discovery is ephemeral until the vault is opened", () => {
-    const dir = project("src", "notes-repo", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    const dir = project("src", "notes-repo", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
 
     // Offered, but nothing has been written to config.json yet.
     expect(projectVaults(cfg)).toHaveLength(1);
@@ -198,7 +220,9 @@ describe("project vaults", () => {
   });
 
   test("a materialized project vault behaves like any other vault", () => {
-    const dir = project("src", "notes-repo", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    const dir = project("src", "notes-repo", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
     const id = findVault(cfg, dir)!.id;
 
     // The things a discovered vault could not hold: a note count and a mirror
@@ -210,13 +234,17 @@ describe("project vaults", () => {
   });
 
   test("resolving by root path registers it too", () => {
-    const dir = project("repos", "by-path", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    const dir = project("repos", "by-path", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
     expect(findVault(cfg, dir)?.id).toBe(vaultId(dir));
     expect(registeredVaults(cfg)).toHaveLength(1);
   });
 
   test("a hand-registered root is not offered a second time", () => {
-    const dir = project("src", "both", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    const dir = project("src", "both", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
     addVault(cfg, dir, "My Notes");
     expect(projectVaults(cfg)).toEqual([]);
     const all = listVaults(cfg);
@@ -227,7 +255,9 @@ describe("project vaults", () => {
   });
 
   test("removing a project vault makes it stay removed", () => {
-    const dir = project("src", "unwanted", (d) => fs.writeFileSync(path.join(d, "README.md"), "# hi"));
+    const dir = project("src", "unwanted", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "# hi"),
+    );
     expect(removeVault(cfg, vaultId(dir))?.root).toBe(dir);
     // Without the hidden list, discovery would re-offer it seconds later and
     // the removal would read as having failed.
@@ -237,7 +267,9 @@ describe("project vaults", () => {
     // Adding it back by hand is a clearer statement of intent than the removal.
     addVault(cfg, dir);
     expect(listVaults(cfg)).toHaveLength(1);
-    const saved = JSON.parse(fs.readFileSync(path.join(cfg, "config.json"), "utf-8"));
+    const saved = JSON.parse(
+      fs.readFileSync(path.join(cfg, "config.json"), "utf-8"),
+    );
     expect(saved.vaults_hidden ?? []).not.toContain(dir);
   });
 
@@ -255,10 +287,18 @@ describe("project vaults", () => {
     const outside = path.join(home, "notes");
     fs.mkdirSync(outside, { recursive: true });
     addVault(cfg, outside, "Zeta Notes");
-    project("src", "beta", (d) => fs.writeFileSync(path.join(d, "README.md"), "b"));
-    project("src", "alpha", (d) => fs.writeFileSync(path.join(d, "README.md"), "a"));
+    project("src", "beta", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "b"),
+    );
+    project("src", "alpha", (d) =>
+      fs.writeFileSync(path.join(d, "README.md"), "a"),
+    );
 
-    expect(listVaults(cfg).map((v) => v.name)).toEqual(["Zeta Notes", "alpha", "beta"]);
+    expect(listVaults(cfg).map((v) => v.name)).toEqual([
+      "Zeta Notes",
+      "alpha",
+      "beta",
+    ]);
   });
 });
 
@@ -273,12 +313,16 @@ describe("config healing", () => {
     const row = { id: vaultId(dir), root: dir, name: "dupe", added_at: 1 };
     fs.writeFileSync(
       path.join(cfgDir, "config.json"),
-      JSON.stringify({ vaults: [row, { ...row, name: "dupe (second writer)" }] }),
+      JSON.stringify({
+        vaults: [row, { ...row, name: "dupe (second writer)" }],
+      }),
     );
     const listed = registeredVaults(cfgDir);
     expect(listed).toHaveLength(1);
     expect(listed[0]!.name).toBe("dupe");
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
   });
 });
 
@@ -287,7 +331,11 @@ describe("locateVault", () => {
     addVault(configDir, base, "Base");
     const notes = addVault(configDir, notesDir, "Notes");
     fs.writeFileSync(path.join(notesDir, "a.md"), "a\n");
-    expect(locateVault(configDir, path.join(notesDir, "a.md"))).toMatchObject({ vault: notes, rel: "a.md", entry: { path: "a.md", size: 2 } });
+    expect(locateVault(configDir, path.join(notesDir, "a.md"))).toMatchObject({
+      vault: notes,
+      rel: "a.md",
+      entry: { path: "a.md", size: 2 },
+    });
     expect(locateVault(configDir, notesDir)).toEqual({ vault: notes, rel: "" });
     expect(locateVault(configDir, path.join(base, "x.md"))).toBeNull(); // does not exist
   });
@@ -297,10 +345,15 @@ describe("locateVault", () => {
     fs.mkdirSync(loose, { recursive: true });
     fs.writeFileSync(path.join(loose, "pic.png"), "png");
     const located = locateVault(configDir, path.join(loose, "pic.png"));
-    expect(located).toMatchObject({ vault: { root: loose, name: "tiles" }, rel: "pic.png" });
+    expect(located).toMatchObject({
+      vault: { root: loose, name: "tiles" },
+      rel: "pic.png",
+    });
     expect(registeredVaults(configDir).map((v) => v.root)).toEqual([loose]);
     // Second time round it is an ordinary registered vault.
-    expect(locateVault(configDir, path.join(loose, "pic.png"))?.vault.id).toBe(located!.vault.id);
+    expect(locateVault(configDir, path.join(loose, "pic.png"))?.vault.id).toBe(
+      located!.vault.id,
+    );
     expect(registeredVaults(configDir)).toHaveLength(1);
   });
 
@@ -309,8 +362,14 @@ describe("locateVault", () => {
     fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
     fs.mkdirSync(path.join(repo, "deep", "er"), { recursive: true });
     fs.writeFileSync(path.join(repo, "deep", "er", "note.md"), "n\n");
-    const located = locateVault(configDir, path.join(repo, "deep", "er", "note.md"));
-    expect(located).toMatchObject({ vault: { root: repo }, rel: "deep/er/note.md" });
+    const located = locateVault(
+      configDir,
+      path.join(repo, "deep", "er", "note.md"),
+    );
+    expect(located).toMatchObject({
+      vault: { root: repo },
+      rel: "deep/er/note.md",
+    });
   });
 
   test("carries the path's own row, flagged when the repo rules hide it", () => {
@@ -319,8 +378,15 @@ describe("locateVault", () => {
     fs.mkdirSync(path.join(repo, "videos", "out"), { recursive: true });
     fs.writeFileSync(path.join(repo, ".gitignore"), "videos/\n");
     fs.writeFileSync(path.join(repo, "videos", "out", "clip.mp4"), "mp4");
-    const located = locateVault(configDir, path.join(repo, "videos", "out", "clip.mp4"));
-    expect(located?.entry).toMatchObject({ path: "videos/out/clip.mp4", size: 3, ignored: true });
+    const located = locateVault(
+      configDir,
+      path.join(repo, "videos", "out", "clip.mp4"),
+    );
+    expect(located?.entry).toMatchObject({
+      path: "videos/out/clip.mp4",
+      size: 3,
+      ignored: true,
+    });
   });
 
   test("refuses a path directly under the filesystem root", () => {

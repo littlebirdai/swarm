@@ -8,9 +8,15 @@ it("keeps account data out of the reset floor when a populated store is hot repl
   const priorDocument = globals.document;
   const priorStore = globals.__codecastInboxStore;
   let scans = 0;
-  const sessions = new Proxy({ private: { _id: "private", title: "Prior account" } }, {
-    ownKeys(target) { scans++; return Reflect.ownKeys(target); },
-  });
+  const sessions = new Proxy(
+    { private: { _id: "private", title: "Prior account" } },
+    {
+      ownKeys(target) {
+        scans++;
+        return Reflect.ownKeys(target);
+      },
+    },
+  );
   useInboxStore.setState({ sessions } as any);
   globals.document = {};
   globals.__codecastInboxStore = useInboxStore;

@@ -20,7 +20,11 @@ export function SlackWorkspacePicker({
 }) {
   if (installations.length < 2) return <>{fallback}</>;
   return (
-    <span className="ch-slack-seg" role="radiogroup" aria-label="Slack workspace">
+    <span
+      className="ch-slack-seg"
+      role="radiogroup"
+      aria-label="Slack workspace"
+    >
       {installations.map((i) => (
         <button
           key={i.workspace_id}

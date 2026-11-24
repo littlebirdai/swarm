@@ -47,8 +47,12 @@ $
 
 describe("verifyTmuxSubmitAfterPaste", () => {
   test("hi submits without extra Enters when it also appears in the footer", async () => {
-    const pane = (draft: string, activity = "") => `${activity}\n❯ ${draft}\n────────────────────\n  bypass permissions on (shift+tab to cycle)`;
-    const { io, actions } = scriptedIO([pane("", "● Thinking"), pane("", "● Thinking")]);
+    const pane = (draft: string, activity = "") =>
+      `${activity}\n❯ ${draft}\n────────────────────\n  bypass permissions on (shift+tab to cycle)`;
+    const { io, actions } = scriptedIO([
+      pane("", "● Thinking"),
+      pane("", "● Thinking"),
+    ]);
     const result = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: pane(""),
       pasteConfirmed: true,
@@ -61,11 +65,7 @@ describe("verifyTmuxSubmitAfterPaste", () => {
   test("cold boot: waits through frozen pane, presses Enter when text appears, confirms submit", async () => {
     // Pane frozen (identical to pre-paste) for 10 ticks, then the pty buffer
     // drains (text visible in box), then Claude starts working.
-    const frames = [
-      ...Array(10).fill(BOOT_PANE),
-      STUCK_PANE,
-      WORKING_PANE,
-    ];
+    const frames = [...Array(10).fill(BOOT_PANE), STUCK_PANE, WORKING_PANE];
     const { io, actions } = scriptedIO(frames);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: BOOT_PANE,
@@ -116,7 +116,10 @@ describe("verifyTmuxSubmitAfterPaste", () => {
   test("stuck input gets a discrete Enter after each redraw until it submits", async () => {
     // Text renders but the first Enter doesn't take (still mid-boot); the
     // client redraws, which shows it is reading input, and the next one does.
-    const REDRAWN_STUCK_PANE = STUCK_PANE.replace("(shift+tab to cycle)", "(shift+tab to cycle) ");
+    const REDRAWN_STUCK_PANE = STUCK_PANE.replace(
+      "(shift+tab to cycle)",
+      "(shift+tab to cycle) ",
+    );
     const frames = [STUCK_PANE, STUCK_PANE, REDRAWN_STUCK_PANE, WORKING_PANE];
     const { io, actions } = scriptedIO(frames);
     const res = await verifyTmuxSubmitAfterPaste(io, {
@@ -144,24 +147,27 @@ describe("verifyTmuxSubmitAfterPaste", () => {
     expect(actions).toEqual(["enter"]);
   });
 
-  test.each(["[Pasted text #1 +3 lines]", "[Pasted text #98]"])("collapsed paste %s gets a discrete Enter instead of being re-pasted", async chip => {
-    const PASTED_PANE = `
+  test.each(["[Pasted text #1 +3 lines]", "[Pasted text #98]"])(
+    "collapsed paste %s gets a discrete Enter instead of being re-pasted",
+    async (chip) => {
+      const PASTED_PANE = `
 ────────────────────────────────────────
 ❯ ${chip}
 ────────────────────────────────────────
   paste again to expand
 `;
-    const { io, actions } = scriptedIO([PASTED_PANE, WORKING_PANE]);
-    const res = await verifyTmuxSubmitAfterPaste(io, {
-      prePaste: BOOT_PANE,
-      pasteConfirmed: true,
-      contentPrefix: "first line that is hidden by the paste chip",
-      bracketedPaste: true,
-    });
-    expect(res.outcome).toBe("delivered");
-    expect(res.rePasted).toBe(false);
-    expect(actions).toEqual(["enter"]);
-  });
+      const { io, actions } = scriptedIO([PASTED_PANE, WORKING_PANE]);
+      const res = await verifyTmuxSubmitAfterPaste(io, {
+        prePaste: BOOT_PANE,
+        pasteConfirmed: true,
+        contentPrefix: "first line that is hidden by the paste chip",
+        bracketedPaste: true,
+      });
+      expect(res.outcome).toBe("delivered");
+      expect(res.rePasted).toBe(false);
+      expect(actions).toEqual(["enter"]);
+    },
+  );
 
   test("a delayed paste on a repainting pane is submitted without another paste", async () => {
     const LIVE_EMPTY = BOOT_PANE.replace("Claude Max", "Claude Max ");
@@ -214,7 +220,8 @@ describe("verifyTmuxSubmitAfterPaste", () => {
   // reports busy and the caller injects straight into the queue). Panes captured
   // live from Claude Code 2.1.181; verified end-to-end (the queued message ran and
   // printed its marker once the turn finished).
-  const QUEUED_PROMPT = "QUEUED_FOLLOWUP: after the sleep, print the words BANANA_PHONE";
+  const QUEUED_PROMPT =
+    "QUEUED_FOLLOWUP: after the sleep, print the words BANANA_PHONE";
 
   const BUSY_BEFORE_QUEUE_PANE = `
 ⏺ I started the command in the background. It will take ~40 seconds.
@@ -270,7 +277,11 @@ describe("verifyTmuxSubmitAfterPaste", () => {
 `;
 
   test("garbage turn: waits for the buffered payload before submitting", async () => {
-    const frames = [...Array(4).fill(GARBAGE_TURN_PANE), STUCK_PANE, WORKING_PANE];
+    const frames = [
+      ...Array(4).fill(GARBAGE_TURN_PANE),
+      STUCK_PANE,
+      WORKING_PANE,
+    ];
     const { io, actions } = scriptedIO(frames);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: BOOT_PANE,
@@ -301,7 +312,10 @@ describe("verifyTmuxSubmitAfterPaste", () => {
     // nothing — the loop must not hold deliveries hostage to an uncheckable
     // question, so plain activity still acks.
     const PRE_PASTE_WITH_PREFIX = WORKING_PANE; // transcript already shows the text
-    const ACTIVE_PANE = WORKING_PANE.replace("· Osmosing… (3s", "⠋ thinking… (4s"); // live redraw with a real activity token
+    const ACTIVE_PANE = WORKING_PANE.replace(
+      "· Osmosing… (3s",
+      "⠋ thinking… (4s",
+    ); // live redraw with a real activity token
     const { io, actions } = scriptedIO([ACTIVE_PANE]);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: PRE_PASTE_WITH_PREFIX,
@@ -331,9 +345,13 @@ describe("verifyTmuxSubmitAfterPaste", () => {
 // needing its binary on the runner.
 // ---------------------------------------------------------------------------
 
-const MATRIX_PAYLOAD = "matrix payload first line\nsecond line\n\nfourth after a blank line";
+const MATRIX_PAYLOAD =
+  "matrix payload first line\nsecond line\n\nfourth after a blank line";
 
-const CLIENT_FRAMES: Record<string, { idle: string; pasted: string; running: string; glyphless?: true }> = {
+const CLIENT_FRAMES: Record<
+  string,
+  { idle: string; pasted: string; running: string; glyphless?: true }
+> = {
   claude: {
     idle: `
  ▐▛███▛█   Claude Code v2.1.263
@@ -506,7 +524,12 @@ describe("verifyTmuxSubmitAfterPaste — a lone frame is not a submit", () => {
 `;
 
   test("a promptless redraw with the text still in the box gets a discrete Enter, not an ack", async () => {
-    const { io, actions } = scriptedIO([REDRAW_BLANK_PANE, STUCK_PANE, STUCK_PANE, WORKING_PANE]);
+    const { io, actions } = scriptedIO([
+      REDRAW_BLANK_PANE,
+      STUCK_PANE,
+      STUCK_PANE,
+      WORKING_PANE,
+    ]);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: BOOT_PANE,
       pasteConfirmed: true,
@@ -519,7 +542,11 @@ describe("verifyTmuxSubmitAfterPaste — a lone frame is not a submit", () => {
   });
 
   test("an activity-looking frame with the text still at the prompt gets a discrete Enter", async () => {
-    const { io, actions } = scriptedIO([STUCK_WITH_TRANSCRIPT_KEYWORD_PANE, STUCK_WITH_TRANSCRIPT_KEYWORD_PANE, WORKING_PANE]);
+    const { io, actions } = scriptedIO([
+      STUCK_WITH_TRANSCRIPT_KEYWORD_PANE,
+      STUCK_WITH_TRANSCRIPT_KEYWORD_PANE,
+      WORKING_PANE,
+    ]);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: BOOT_PANE,
       pasteConfirmed: true,
@@ -530,7 +557,11 @@ describe("verifyTmuxSubmitAfterPaste — a lone frame is not a submit", () => {
   });
 
   test("the same holds when the prefix was already on screen (uncheckable payload)", async () => {
-    const { io, actions } = scriptedIO([REDRAW_BLANK_PANE, STUCK_PANE, WORKING_PANE]);
+    const { io, actions } = scriptedIO([
+      REDRAW_BLANK_PANE,
+      STUCK_PANE,
+      WORKING_PANE,
+    ]);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: STUCK_PANE, // transcript already showed the text before the paste
       pasteConfirmed: false,

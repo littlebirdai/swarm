@@ -15,7 +15,10 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { parseThreadStateStatus, type ThreadStateStatus } from "@codecast/shared/contracts";
+import {
+  parseThreadStateStatus,
+  type ThreadStateStatus,
+} from "@codecast/shared/contracts";
 import { defaultConfigDir } from "./config/configDir.js";
 
 function threadStateDir(): string {
@@ -41,10 +44,16 @@ export interface ThreadStateStamp {
 
 /** Stamp "this session has a pinned state" (with the declared status) and
  * reset the reminder's message baseline. */
-export function writeThreadStatePulse(sessionId: string, status?: ThreadStateStatus): void {
+export function writeThreadStatePulse(
+  sessionId: string,
+  status?: ThreadStateStatus,
+): void {
   try {
     fs.mkdirSync(threadStateDir(), { recursive: true });
-    const stamp: ThreadStateStamp = { at: Date.now(), ...(status ? { status } : {}) };
+    const stamp: ThreadStateStamp = {
+      at: Date.now(),
+      ...(status ? { status } : {}),
+    };
     fs.writeFileSync(threadStateStampPath(sessionId), JSON.stringify(stamp));
     const counter = threadStateCounterPath(sessionId);
     if (fs.existsSync(counter)) fs.unlinkSync(counter);
@@ -52,12 +61,16 @@ export function writeThreadStatePulse(sessionId: string, status?: ThreadStateSta
 }
 
 /** The stamp for a session, or null when it has none / is unreadable. */
-export function readThreadStateStamp(sessionId: string): ThreadStateStamp | null {
+export function readThreadStateStamp(
+  sessionId: string,
+): ThreadStateStamp | null {
   try {
     const raw = fs.readFileSync(threadStateStampPath(sessionId), "utf8");
     const parsed = JSON.parse(raw) as { at?: unknown; status?: unknown };
     if (typeof parsed.at !== "number") return null;
-    const status = parseThreadStateStatus(typeof parsed.status === "string" ? parsed.status : null);
+    const status = parseThreadStateStatus(
+      typeof parsed.status === "string" ? parsed.status : null,
+    );
     return { at: parsed.at, ...(status ? { status } : {}) };
   } catch {
     return null;
@@ -67,7 +80,10 @@ export function readThreadStateStamp(sessionId: string): ThreadStateStamp | null
 /** Drop the stamp — a session with no pinned state is never nudged. */
 export function clearThreadStatePulse(sessionId: string): void {
   try {
-    for (const file of [threadStateStampPath(sessionId), threadStateCounterPath(sessionId)]) {
+    for (const file of [
+      threadStateStampPath(sessionId),
+      threadStateCounterPath(sessionId),
+    ]) {
       if (fs.existsSync(file)) fs.unlinkSync(file);
     }
   } catch {}

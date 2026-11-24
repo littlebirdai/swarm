@@ -10,14 +10,42 @@
 // The window here is the real one every codecast page mounts (CodecastAuthRoot
 // over the durable storage); only the network is fake. Each test scripts what
 // Convex answers to successive auth:signIn calls.
-import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import "fake-indexeddb/auto";
 import { JSDOM } from "jsdom";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://codecast.test", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "StorageEvent", "MutationObserver", "localStorage", "sessionStorage", "BroadcastChannel"]) {
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://codecast.test",
+  pretendToBeVisual: true,
+});
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "Event",
+  "StorageEvent",
+  "MutationObserver",
+  "localStorage",
+  "sessionStorage",
+  "BroadcastChannel",
+]) {
   const value = (dom.window as any)[key];
-  if (value !== undefined) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+  if (value !== undefined)
+    Object.defineProperty(globalThis, key, {
+      value,
+      configurable: true,
+      writable: true,
+    });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -27,10 +55,15 @@ const { createRoot } = await import("react-dom/client");
 type Root = import("react-dom/client").Root;
 const { useAuthToken } = await import("@convex-dev/auth/react");
 const { CodecastAuthRoot } = await import("../authRoot");
-const { AUTH_JWT_STORAGE_KEY, AUTH_REFRESH_TOKEN_STORAGE_KEY, CONVEX_URL } = await import("../localAuth");
+const { AUTH_JWT_STORAGE_KEY, AUTH_REFRESH_TOKEN_STORAGE_KEY, CONVEX_URL } =
+  await import("../localAuth");
 
 function b64url(value: object): string {
-  return Buffer.from(JSON.stringify(value)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return Buffer.from(JSON.stringify(value))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 function issue(sessionId: string): string {
   return `${b64url({ alg: "RS256", typ: "JWT" })}.${b64url({ sub: `userA|${sessionId}`, iss: `${CONVEX_URL}/site`, aud: "convex", iat: 1, exp: 2 })}.sig`;
@@ -39,54 +72,111 @@ function issue(sessionId: string): string {
 // The body Convex sent on 2026-11-10 (eg-2972).
 const EXPIRED_IN_QUEUE = JSON.stringify({
   code: "ExpiredInQueue",
-  message: "Too many concurrent requests in a short period of time. Spread out your requests out over time or throttle them to avoid errors.",
+  message:
+    "Too many concurrent requests in a short period of time. Spread out your requests out over time or throttle them to avoid errors.",
 });
 
 // auth:signIn goes over HTTP (ConvexHttpClient -> fetch). `answers` scripts
 // the replies in order; the last one repeats. "ok" rotates the refresh token.
-type Answer = "overloaded" | "network" | "badGateway" | "gatewayTimeout" | "ok" | "refused" | "invalid";
+type Answer =
+  | "overloaded"
+  | "network"
+  | "badGateway"
+  | "gatewayTimeout"
+  | "ok"
+  | "refused"
+  | "invalid";
 let answers: Answer[] = ["ok"];
-let signInCalls: Array<{ refreshToken?: string; answer: Answer; at: number }> = [];
+let signInCalls: Array<{ refreshToken?: string; answer: Answer; at: number }> =
+  [];
 const realFetch = globalThis.fetch;
-const json = (body: object, status: number) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+const json = (body: object, status: number) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 globalThis.fetch = (async (input: any, init?: any) => {
   const url = String(input?.url ?? input);
-  if (!url.startsWith(CONVEX_URL) || !url.includes("/api/action")) return realFetch(input, init);
+  if (!url.startsWith(CONVEX_URL) || !url.includes("/api/action"))
+    return realFetch(input, init);
   const body = JSON.parse(String(init?.body ?? "{}"));
   const args = Array.isArray(body.args) ? body.args[0] : body.args;
   const answer = answers[Math.min(signInCalls.length, answers.length - 1)];
-  signInCalls.push({ refreshToken: args?.refreshToken, answer, at: Date.now() });
+  signInCalls.push({
+    refreshToken: args?.refreshToken,
+    answer,
+    at: Date.now(),
+  });
   switch (answer) {
     case "overloaded":
-      return new Response(EXPIRED_IN_QUEUE, { status: 503, headers: { "content-type": "application/json" } });
+      return new Response(EXPIRED_IN_QUEUE, {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
     case "network":
       throw new TypeError("Failed to fetch");
     // A load balancer in front of Convex, not the auth function: HTML bodies.
     case "badGateway":
-      return new Response("<html><head><title>502 Bad Gateway</title></head><body>502 Bad Gateway</body></html>", { status: 502, headers: { "content-type": "text/html" } });
+      return new Response(
+        "<html><head><title>502 Bad Gateway</title></head><body>502 Bad Gateway</body></html>",
+        { status: 502, headers: { "content-type": "text/html" } },
+      );
     case "gatewayTimeout":
-      return new Response("<html><head><title>504 Gateway Time-out</title></head><body>504 Gateway Time-out</body></html>", { status: 504, headers: { "content-type": "text/html" } });
+      return new Response(
+        "<html><head><title>504 Gateway Time-out</title></head><body>504 Gateway Time-out</body></html>",
+        { status: 504, headers: { "content-type": "text/html" } },
+      );
     case "refused":
-      return json({ status: "success", value: { tokens: null }, logLines: [] }, 200);
+      return json(
+        { status: "success", value: { tokens: null }, logLines: [] },
+        200,
+      );
     // The 560 shape a thrown function error has on the wire (authRefreshRetry
     // reads "Server Error"/"Uncaught" as the function's own answer).
     case "invalid":
-      return json({ status: "error", errorMessage: "[Request ID: 3f2a] Server Error\nUncaught Error: Invalid refresh token", logLines: [] }, 560);
+      return json(
+        {
+          status: "error",
+          errorMessage:
+            "[Request ID: 3f2a] Server Error\nUncaught Error: Invalid refresh token",
+          logLines: [],
+        },
+        560,
+      );
     case "ok":
-      return json({ status: "success", value: { tokens: { token: issue(`s${signInCalls.length}`), refreshToken: `refresh-${signInCalls.length}` } }, logLines: [] }, 200);
+      return json(
+        {
+          status: "success",
+          value: {
+            tokens: {
+              token: issue(`s${signInCalls.length}`),
+              refreshToken: `refresh-${signInCalls.length}`,
+            },
+          },
+          logLines: [],
+        },
+        200,
+      );
   }
 }) as typeof fetch;
 
 // The ConvexReactClient the provider wraps. setAuth hands us the provider's
 // fetchAccessToken, the function the Convex socket calls on every reconnect.
-let fetchAccessToken: ((args: { forceRefreshToken: boolean }) => Promise<string | null | undefined>) | null = null;
+let fetchAccessToken:
+  | ((args: {
+      forceRefreshToken: boolean;
+    }) => Promise<string | null | undefined>)
+  | null = null;
 function fakeClient() {
   return {
     address: CONVEX_URL,
     options: {},
     verbose: false,
     action: async () => null,
-    setAuth: (fetcher: typeof fetchAccessToken, onChange: (ok: boolean) => void) => {
+    setAuth: (
+      fetcher: typeof fetchAccessToken,
+      onChange: (ok: boolean) => void,
+    ) => {
       fetchAccessToken = fetcher;
       onChange(true);
     },
@@ -100,7 +190,10 @@ function Probe() {
   return null;
 }
 
-const flush = () => act(async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 2)); });
+const flush = () =>
+  act(async () => {
+    for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 2));
+  });
 const t1 = issue("s0");
 let root: Root | null = null;
 
@@ -109,7 +202,13 @@ async function mount() {
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => {
-    root!.render(React.createElement(CodecastAuthRoot, { client: fakeClient() }, React.createElement(Probe)));
+    root!.render(
+      React.createElement(
+        CodecastAuthRoot,
+        { client: fakeClient() },
+        React.createElement(Probe),
+      ),
+    );
   });
   await flush();
   expect(shownToken).toBe(t1);
@@ -118,11 +217,16 @@ async function mount() {
 
 // The socket reconnecting and forcing a refresh. Returns what it resolved to,
 // or the rejection a window would report as Uncaught.
-async function forceRefresh(): Promise<{ value?: string | null; rejection?: string }> {
+async function forceRefresh(): Promise<{
+  value?: string | null;
+  rejection?: string;
+}> {
   let out: { value?: string | null; rejection?: string } = {};
   await act(async () => {
     try {
-      out = { value: (await fetchAccessToken!({ forceRefreshToken: true })) ?? null };
+      out = {
+        value: (await fetchAccessToken!({ forceRefreshToken: true })) ?? null,
+      };
     } catch (error) {
       out = { rejection: String((error as Error)?.message ?? error) };
     }
@@ -131,7 +235,10 @@ async function forceRefresh(): Promise<{ value?: string | null; rejection?: stri
   return out;
 }
 
-const stored = () => ({ jwt: localStorage.getItem(AUTH_JWT_STORAGE_KEY), refresh: localStorage.getItem(AUTH_REFRESH_TOKEN_STORAGE_KEY) });
+const stored = () => ({
+  jwt: localStorage.getItem(AUTH_JWT_STORAGE_KEY),
+  refresh: localStorage.getItem(AUTH_REFRESH_TOKEN_STORAGE_KEY),
+});
 
 beforeEach(async () => {
   localStorage.clear();
@@ -159,7 +266,11 @@ describe("a token refresh during a Convex overload", () => {
     answers = ["overloaded", "overloaded", "ok"];
     const out = await forceRefresh();
 
-    expect(signInCalls.map((c) => c.answer)).toEqual(["overloaded", "overloaded", "ok"]);
+    expect(signInCalls.map((c) => c.answer)).toEqual([
+      "overloaded",
+      "overloaded",
+      "ok",
+    ]);
     expect(signInCalls.every((c) => c.refreshToken === "refresh-0")).toBe(true);
     // Backoff: windows cannot hammer an overloaded backend.
     expect(signInCalls[1].at - signInCalls[0].at).toBeGreaterThanOrEqual(1000);
@@ -176,7 +287,11 @@ describe("a token refresh during a Convex overload", () => {
     const out = await forceRefresh();
 
     // Bounded: three attempts, then it stops.
-    expect(signInCalls.map((c) => c.answer)).toEqual(["overloaded", "network", "overloaded"]);
+    expect(signInCalls.map((c) => c.answer)).toEqual([
+      "overloaded",
+      "network",
+      "overloaded",
+    ]);
     // Nothing for the window to report as Uncaught; the socket keeps its token.
     expect(out).toEqual({ value: t1 });
     expect(shownToken).toBe(t1);
@@ -185,7 +300,10 @@ describe("a token refresh during a Convex overload", () => {
 
     // Convex recovers; the kept token refreshes.
     const next = await forceRefresh();
-    expect(signInCalls[3]).toMatchObject({ answer: "ok", refreshToken: "refresh-0" });
+    expect(signInCalls[3]).toMatchObject({
+      answer: "ok",
+      refreshToken: "refresh-0",
+    });
     expect(next).toEqual({ value: issue("s4") });
     expect(stored()).toEqual({ jwt: issue("s4"), refresh: "refresh-4" });
   }, 15_000);
@@ -194,13 +312,20 @@ describe("a token refresh during a Convex overload", () => {
     answers = ["badGateway", "gatewayTimeout", "badGateway", "ok"];
     const out = await forceRefresh();
 
-    expect(signInCalls.map((c) => c.answer)).toEqual(["badGateway", "gatewayTimeout", "badGateway"]);
+    expect(signInCalls.map((c) => c.answer)).toEqual([
+      "badGateway",
+      "gatewayTimeout",
+      "badGateway",
+    ]);
     expect(out).toEqual({ value: t1 });
     expect(shownToken).toBe(t1);
     expect(stored()).toEqual({ jwt: t1, refresh: "refresh-0" });
 
     const next = await forceRefresh();
-    expect(signInCalls[3]).toMatchObject({ answer: "ok", refreshToken: "refresh-0" });
+    expect(signInCalls[3]).toMatchObject({
+      answer: "ok",
+      refreshToken: "refresh-0",
+    });
     expect(next).toEqual({ value: issue("s4") });
   }, 15_000);
 

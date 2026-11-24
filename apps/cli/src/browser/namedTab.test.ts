@@ -6,19 +6,32 @@
  */
 import { describe, expect, test } from "bun:test";
 import {
-  BROWSER_TAB_ENV, engineSession, ownerOfSessionKey, paneSessionKey, realSessionKey, requestTabName, tabNameOf, withTabName,
+  BROWSER_TAB_ENV,
+  engineSession,
+  ownerOfSessionKey,
+  paneSessionKey,
+  realSessionKey,
+  requestTabName,
+  tabNameOf,
+  withTabName,
 } from "./engine.js";
 import { ownerState, type LiveOwners } from "./engineReap.js";
 import { tabHolderIsSelf } from "./pinnedTab.js";
 import { splitTargetFlags } from "./bridge/real.js";
 
 const UUID = "0b8f8a8e-0e62-7af0-b709-5958e0b50f38";
-const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({ CLAUDE_CODE_SESSION_ID: UUID, ...extra });
+const env = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
+  CLAUDE_CODE_SESSION_ID: UUID,
+  ...extra,
+});
 
 describe("engineSession with a tab name", () => {
   test("a subagent naming a tab gets a key of its own; its parent keeps the plain key", () => {
     const parent = engineSession(undefined, env());
-    const worker = engineSession(undefined, env({ [BROWSER_TAB_ENV]: "r2land" }));
+    const worker = engineSession(
+      undefined,
+      env({ [BROWSER_TAB_ENV]: "r2land" }),
+    );
     expect(parent).toBe(`env-${UUID}`);
     expect(worker).toBe(`env-${UUID}__r2land`);
     expect(tabNameOf(worker)).toBe("r2land");
@@ -33,7 +46,9 @@ describe("engineSession with a tab name", () => {
       expect(ownerOfSessionKey(k)).toBe(`env-${UUID}`);
     }
     // Two long names that share a prefix stay two tabs.
-    expect(withTabName(`env-${UUID}`, "checkout-flow-desktop")).not.toBe(withTabName(`env-${UUID}`, "checkout-flow-mobile"));
+    expect(withTabName(`env-${UUID}`, "checkout-flow-desktop")).not.toBe(
+      withTabName(`env-${UUID}`, "checkout-flow-mobile"),
+    );
   });
 
   test("a name of only punctuation is no name", () => {
@@ -57,7 +72,9 @@ describe("requestTabName", () => {
   test("splitTargetFlags takes --tab and the engine's --session out of a passthrough's arguments", () => {
     const saved = process.env[BROWSER_TAB_ENV];
     try {
-      expect(splitTargetFlags(["--tab", "a", "https://x.test"]).args).toEqual(["https://x.test"]);
+      expect(splitTargetFlags(["--tab", "a", "https://x.test"]).args).toEqual([
+        "https://x.test",
+      ]);
       expect(process.env[BROWSER_TAB_ENV]).toBe("a");
       expect(splitTargetFlags(["--session=b", "#e1"]).args).toEqual(["#e1"]);
       expect(process.env[BROWSER_TAB_ENV]).toBe("b");
@@ -69,10 +86,15 @@ describe("requestTabName", () => {
 });
 
 describe("a named tab's owner", () => {
-  const live: LiveOwners = { panes: null, session: (id) => (id === UUID ? "live" : "unverifiable") };
+  const live: LiveOwners = {
+    panes: null,
+    session: (id) => (id === UUID ? "live" : "unverifiable"),
+  };
 
   test("lives as long as its agent, so the reaper keeps it", () => {
-    expect(ownerState(realSessionKey(`env-${UUID}__r2land`), live)).toBe("live");
+    expect(ownerState(realSessionKey(`env-${UUID}__r2land`), live)).toBe(
+      "live",
+    );
     expect(ownerState(`env-${UUID}__r2land`, live)).toBe("live");
   });
 

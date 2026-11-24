@@ -45,7 +45,9 @@ function harness(opts: { focused?: boolean; canSend?: boolean } = {}) {
   const advance = async (ms: number) => {
     const target = now + ms;
     for (;;) {
-      const due = timers.filter((t) => t.at <= target).sort((a, b) => a.at - b.at)[0];
+      const due = timers
+        .filter((t) => t.at <= target)
+        .sort((a, b) => a.at - b.at)[0];
       if (!due) break;
       timers.splice(timers.indexOf(due), 1);
       now = due.at;
@@ -169,7 +171,11 @@ describe("createPresenceReporter", () => {
 });
 
 describe("viewedConversationId", () => {
-  const sessions = { [CONV_A]: { _id: CONV_A }, "stub-1": { _id: "stub-1" }, "jx7abcd": { _id: CONV_B } };
+  const sessions = {
+    [CONV_A]: { _id: CONV_A },
+    "stub-1": { _id: "stub-1" },
+    jx7abcd: { _id: CONV_B },
+  };
   const base = {
     activeTabId: null as string | null,
     tabs: [] as { id: string; path: string }[],
@@ -180,27 +186,53 @@ describe("viewedConversationId", () => {
   };
 
   test("the inbox reports the attended conversation, a dismissed one first", () => {
-    expect(viewedConversationId({ ...base, currentSessionId: CONV_A }, "/inbox")).toBe(CONV_A);
-    expect(viewedConversationId({ ...base, currentSessionId: CONV_A, viewingDismissedId: "jx7abcd" }, "/inbox")).toBe(CONV_B);
+    expect(
+      viewedConversationId({ ...base, currentSessionId: CONV_A }, "/inbox"),
+    ).toBe(CONV_A);
+    expect(
+      viewedConversationId(
+        { ...base, currentSessionId: CONV_A, viewingDismissedId: "jx7abcd" },
+        "/inbox",
+      ),
+    ).toBe(CONV_B);
   });
 
   test("an optimistic stub is not a session a teammate could open", () => {
-    expect(viewedConversationId({ ...base, currentSessionId: "stub-1" }, "/inbox")).toBeNull();
+    expect(
+      viewedConversationId({ ...base, currentSessionId: "stub-1" }, "/inbox"),
+    ).toBeNull();
   });
 
   test("a conversation page reports the id in its path", () => {
     expect(viewedConversationId(base, `/conversation/${CONV_A}`)).toBe(CONV_A);
-    expect(viewedConversationId(base, `/conversation/${CONV_A}/diff?x=1`)).toBe(CONV_A);
+    expect(viewedConversationId(base, `/conversation/${CONV_A}/diff?x=1`)).toBe(
+      CONV_A,
+    );
     expect(viewedConversationId(base, "/conversation/jx7abcd")).toBeNull();
   });
 
   test("other pages report nothing, whatever the store still points at", () => {
-    expect(viewedConversationId({ ...base, currentSessionId: CONV_A }, "/tasks")).toBeNull();
+    expect(
+      viewedConversationId({ ...base, currentSessionId: CONV_A }, "/tasks"),
+    ).toBeNull();
   });
 
   test("inside the tab shell the active tab's path decides, not the window location", () => {
-    const tabs = [{ id: "t1", path: "/tasks" }, { id: "t2", path: `/inbox?s=${CONV_A}` }];
-    expect(viewedConversationId({ ...base, activeTabId: "t1", tabs, currentSessionId: CONV_A }, "/inbox")).toBeNull();
-    expect(viewedConversationId({ ...base, activeTabId: "t2", tabs, currentSessionId: CONV_A }, "/tasks")).toBe(CONV_A);
+    const tabs = [
+      { id: "t1", path: "/tasks" },
+      { id: "t2", path: `/inbox?s=${CONV_A}` },
+    ];
+    expect(
+      viewedConversationId(
+        { ...base, activeTabId: "t1", tabs, currentSessionId: CONV_A },
+        "/inbox",
+      ),
+    ).toBeNull();
+    expect(
+      viewedConversationId(
+        { ...base, activeTabId: "t2", tabs, currentSessionId: CONV_A },
+        "/tasks",
+      ),
+    ).toBe(CONV_A);
   });
 });

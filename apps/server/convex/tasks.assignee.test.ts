@@ -22,7 +22,10 @@ function makeFakeDb(seed?: (insert: (t: string, doc: any) => string) => void) {
   const db: any = {
     async get(id: any) {
       if (id == null) return null;
-      if (!isId(id)) throw new Error(`Invalid argument 'id' for 'db.get': Unable to decode ID: ${id}`);
+      if (!isId(id))
+        throw new Error(
+          `Invalid argument 'id' for 'db.get': Unable to decode ID: ${id}`,
+        );
       return ensure(tableOf(id)).get(String(id)) ?? null;
     },
     normalizeId(table: string, id: any) {
@@ -33,13 +36,22 @@ function makeFakeDb(seed?: (insert: (t: string, doc: any) => string) => void) {
       const api: any = {
         withIndex(_name: string, fn: (q: any) => any) {
           const preds: Array<[string, any]> = [];
-          const q: any = { eq: (f: string, v: any) => { preds.push([f, v]); return q; } };
+          const q: any = {
+            eq: (f: string, v: any) => {
+              preds.push([f, v]);
+              return q;
+            },
+          };
           fn(q);
           rows = rows.filter((r) => preds.every(([f, v]) => r[f] === v));
           return api;
         },
-        async first() { return rows[0] ?? null; },
-        async collect() { return rows; },
+        async first() {
+          return rows[0] ?? null;
+        },
+        async collect() {
+          return rows;
+        },
       };
       return api;
     },
@@ -53,11 +65,22 @@ function makeFakeDb(seed?: (insert: (t: string, doc: any) => string) => void) {
 // bug. team_memberships link each user to the team.
 function makeTeam() {
   let teamId = "";
-  let jason = "", ashot = "";
+  let jason = "",
+    ashot = "";
   const { db } = makeFakeDb((insert) => {
     teamId = insert("teams", { name: "Union" });
-    jason = insert("users", { name: "Jason Benn", email: "jasoncbenn@gmail.com", alternate_emails: ["jason@union.app"], active_team_id: teamId });
-    ashot = insert("users", { name: "Ashot", email: "ashot@union.app", github_username: "ashot", active_team_id: teamId });
+    jason = insert("users", {
+      name: "Jason Benn",
+      email: "jasoncbenn@gmail.com",
+      alternate_emails: ["jason@union.app"],
+      active_team_id: teamId,
+    });
+    ashot = insert("users", {
+      name: "Ashot",
+      email: "ashot@union.app",
+      github_username: "ashot",
+      active_team_id: teamId,
+    });
     insert("team_memberships", { team_id: teamId, user_id: jason });
     insert("team_memberships", { team_id: teamId, user_id: ashot });
   });
@@ -67,42 +90,62 @@ function makeTeam() {
 describe("resolveAssigneeToUserId", () => {
   test("does not throw on a raw name; resolves Jason by exact name", async () => {
     const { db, teamId, jason } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "Jason Benn", teamId as any)).toBe(jason as any);
+    expect(
+      await resolveAssigneeToUserId({ db }, "Jason Benn", teamId as any),
+    ).toBe(jason as any);
   });
 
   test("resolves a partial first name via unique substring", async () => {
     const { db, teamId, jason } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "jason", teamId as any)).toBe(jason as any);
+    expect(await resolveAssigneeToUserId({ db }, "jason", teamId as any)).toBe(
+      jason as any,
+    );
   });
 
   test("resolves by primary email", async () => {
     const { db, teamId, jason } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "jasoncbenn@gmail.com", teamId as any)).toBe(jason as any);
+    expect(
+      await resolveAssigneeToUserId(
+        { db },
+        "jasoncbenn@gmail.com",
+        teamId as any,
+      ),
+    ).toBe(jason as any);
   });
 
   test("resolves by alternate email", async () => {
     const { db, teamId, jason } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "jason@union.app", teamId as any)).toBe(jason as any);
+    expect(
+      await resolveAssigneeToUserId({ db }, "jason@union.app", teamId as any),
+    ).toBe(jason as any);
   });
 
   test("still resolves github-handle members (Ashot)", async () => {
     const { db, teamId, ashot } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "ashot", teamId as any)).toBe(ashot as any);
+    expect(await resolveAssigneeToUserId({ db }, "ashot", teamId as any)).toBe(
+      ashot as any,
+    );
   });
 
   test("resolves a real user id directly", async () => {
     const { db, teamId, jason } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, jason, teamId as any)).toBe(jason as any);
+    expect(await resolveAssigneeToUserId({ db }, jason, teamId as any)).toBe(
+      jason as any,
+    );
   });
 
   test("returns null for an unknown name instead of throwing", async () => {
     const { db, teamId } = makeTeam();
-    expect(await resolveAssigneeToUserId({ db }, "Nobody Here", teamId as any)).toBeNull();
+    expect(
+      await resolveAssigneeToUserId({ db }, "Nobody Here", teamId as any),
+    ).toBeNull();
   });
 
   test("returns null for an ambiguous substring (never guesses)", async () => {
     const { db } = makeFakeDb();
-    let teamId = "", a = "", b = "";
+    let teamId = "",
+      a = "",
+      b = "";
     const seeded = makeFakeDb((insert) => {
       teamId = insert("teams", { name: "T" });
       a = insert("users", { name: "Jordan Lee", active_team_id: teamId });
@@ -110,7 +153,9 @@ describe("resolveAssigneeToUserId", () => {
       insert("team_memberships", { team_id: teamId, user_id: a });
       insert("team_memberships", { team_id: teamId, user_id: b });
     });
-    expect(await resolveAssigneeToUserId({ db: seeded.db }, "Jordan", teamId as any)).toBeNull();
+    expect(
+      await resolveAssigneeToUserId({ db: seeded.db }, "Jordan", teamId as any),
+    ).toBeNull();
   });
 });
 
@@ -120,17 +165,27 @@ describe("resolveAssigneeStr", () => {
   // (CLAUDE.md: reads may default, writes must be explicit).
   test("persists a real user id for a friendly name (Jason Benn)", async () => {
     const { db, jason, teamId } = makeTeam();
-    expect(await resolveAssigneeStr({ db }, "Jason Benn", jason as any, { team_id: teamId as any })).toBe(jason);
+    expect(
+      await resolveAssigneeStr({ db }, "Jason Benn", jason as any, {
+        team_id: teamId as any,
+      }),
+    ).toBe(jason);
   });
 
   test("persists a real user id for a partial name (jason)", async () => {
     const { db, jason, teamId } = makeTeam();
-    expect(await resolveAssigneeStr({ db }, "jason", jason as any, { team_id: teamId as any })).toBe(jason);
+    expect(
+      await resolveAssigneeStr({ db }, "jason", jason as any, {
+        team_id: teamId as any,
+      }),
+    ).toBe(jason);
   });
 
   test("with no boundary a name is kept as typed, never resolved against a guessed team", async () => {
     const { db, jason } = makeTeam();
-    expect(await resolveAssigneeStr({ db }, "Jason Benn", jason as any)).toBe("Jason Benn");
+    expect(await resolveAssigneeStr({ db }, "Jason Benn", jason as any)).toBe(
+      "Jason Benn",
+    );
   });
 
   test("resolves github-handle members to their id (ashot)", async () => {
@@ -145,6 +200,8 @@ describe("resolveAssigneeStr", () => {
 
   test("keeps the raw string when nothing matches", async () => {
     const { db, jason } = makeTeam();
-    expect(await resolveAssigneeStr({ db }, "Nobody Here", jason as any)).toBe("Nobody Here");
+    expect(await resolveAssigneeStr({ db }, "Nobody Here", jason as any)).toBe(
+      "Nobody Here",
+    );
   });
 });

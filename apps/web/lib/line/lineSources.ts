@@ -22,10 +22,15 @@ const KIND_WORDS: Record<string, string> = {
 const kindWord = (k: string) => KIND_WORDS[k] ?? k.replace(/_/g, " ");
 
 /** "bugs and regressions", "anything worth fixing". */
-export function watchesFor(kind: LineFinderDecl["kind"] | string[] | undefined): string {
-  if (!kind || kind === "any" || kind.length === 0) return "anything worth fixing";
+export function watchesFor(
+  kind: LineFinderDecl["kind"] | string[] | undefined,
+): string {
+  if (!kind || kind === "any" || kind.length === 0)
+    return "anything worth fixing";
   const words = kind.map(kindWord);
-  return words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+  return words.length === 1
+    ? words[0]
+    : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
 
 /** A source's grouping in plain words: `union:<key>` counts reports with
@@ -41,21 +46,45 @@ export function groupingWords(fingerprint: string): string {
 export type SourceHealth = { tone: "ok" | "quiet" | "new"; words: string };
 
 /** Healthy, quiet, or nothing yet: the one word a reader needs first. */
-export function sourceHealth(s: Pick<SenseSource, "newest" | "silent" | "day">, now: number): SourceHealth {
-  if (s.silent) return { tone: "quiet", words: silentText(s, now).replace(/^silent /, "quiet for ") };
+export function sourceHealth(
+  s: Pick<SenseSource, "newest" | "silent" | "day">,
+  now: number,
+): SourceHealth {
+  if (s.silent)
+    return {
+      tone: "quiet",
+      words: silentText(s, now).replace(/^silent /, "quiet for "),
+    };
   if (!s.newest) return { tone: "new", words: "nothing reported yet" };
-  return { tone: "ok", words: s.day > 0 ? `healthy, ${s.day} today` : "healthy" };
+  return {
+    tone: "ok",
+    words: s.day > 0 ? `healthy, ${s.day} today` : "healthy",
+  };
 }
 
 /** "Reported 209 in the last 7 days; the last, 2h ago:". */
-export function sourceCounts(s: Pick<SenseSource, "week" | "newest">, now: number): string {
-  const last = s.newest ? `; the last ${ageShort(now - s.newest.created_at)} ago` : "";
-  return s.week > 0 ? `Reported ${s.week} in the last 7 days${last}` : s.newest ? `Nothing in the last 7 days${last}` : "Nothing reported yet";
+export function sourceCounts(
+  s: Pick<SenseSource, "week" | "newest">,
+  now: number,
+): string {
+  const last = s.newest
+    ? `; the last ${ageShort(now - s.newest.created_at)} ago`
+    : "";
+  return s.week > 0
+    ? `Reported ${s.week} in the last 7 days${last}`
+    : s.newest
+      ? `Nothing in the last 7 days${last}`
+      : "Nothing reported yet";
 }
 
 /** The one sentence a source is: what it watches and how its reports group. */
-export function sourceSentence(source: string, finder: Pick<LineFinderDecl, "kind" | "fingerprint"> | undefined, kinds: string[] = []): string {
+export function sourceSentence(
+  source: string,
+  finder: Pick<LineFinderDecl, "kind" | "fingerprint"> | undefined,
+  kinds: string[] = [],
+): string {
   const what = watchesFor(finder?.kind ?? (kinds.length ? kinds : undefined));
-  const name = source.toLowerCase() === "person" ? "People on the team" : source;
+  const name =
+    source.toLowerCase() === "person" ? "People on the team" : source;
   return `${name} ${source.toLowerCase() === "person" ? "report" : "reports"} ${what}${finder ? `, and ${groupingWords(finder.fingerprint)}` : ""}.`;
 }

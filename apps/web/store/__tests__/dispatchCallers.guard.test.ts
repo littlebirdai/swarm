@@ -21,10 +21,21 @@ describe("durable dispatch call-site guards", () => {
     expect(source).toContain("linked_object");
     // The first message waits for the stub's create in the store, which
     // resolves the stub through awaitConvexId before it sends.
-    expect(source).toContain("sendMessageWhenReady(sid, fullMessage, undefined, clientId)");
-    const store = await Bun.file(new URL("../inboxStore.ts", import.meta.url)).text();
-    const whenReady = store.slice(store.indexOf("typed?: string) => {", store.indexOf("  sendMessageWhenReady: (convId")));
-    expect(whenReady.slice(0, whenReady.indexOf("\n  },\n"))).toContain("awaitConvexId(convId)");
+    expect(source).toContain(
+      "sendMessageWhenReady(sid, fullMessage, undefined, clientId)",
+    );
+    const store = await Bun.file(
+      new URL("../inboxStore.ts", import.meta.url),
+    ).text();
+    const whenReady = store.slice(
+      store.indexOf(
+        "typed?: string) => {",
+        store.indexOf("  sendMessageWhenReady: (convId"),
+      ),
+    );
+    expect(whenReady.slice(0, whenReady.indexOf("\n  },\n"))).toContain(
+      "awaitConvexId(convId)",
+    );
   });
 
   test("standalone palette wires dispatch unconditionally", async () => {
@@ -45,14 +56,14 @@ describe("durable dispatch call-site guards", () => {
     ).text();
 
     expect(shell).toContain("<DashboardLayout allowUnhydratedGuest={guestOk}>");
-    expect(layout).toContain(
-      "props.allowUnhydratedGuest &&",
-    );
+    expect(layout).toContain("props.allowUnhydratedGuest &&");
     // The gate itself, not its spelling: the early return grew a block so a
     // cold desktop window can wear its bar while the cache hydrates.
     const gate = layout.indexOf("if (!hydrated && !isSettledGuest)");
     expect(gate).toBeGreaterThan(-1);
-    expect(layout.slice(gate, gate + 900)).toContain("<AppLoader deferIndicator />");
+    expect(layout.slice(gate, gate + 900)).toContain(
+      "<AppLoader deferIndicator />",
+    );
   });
 
   test("in-place agent switch is the default; forks stay an explicit opt-in", async () => {
@@ -101,7 +112,11 @@ describe("durable dispatch call-site guards", () => {
     // Fire-and-forget writes ride plain action(): optimistic paint, park-and-
     // drain delivery, server-side dedup (client id for sends, LWW for the
     // bucket patches). They are not receipt-backed.
-    for (const action of ["updateBucket", "assignSessionToBucket", "sendMessage"]) {
+    for (const action of [
+      "updateBucket",
+      "assignSessionToBucket",
+      "sendMessage",
+    ]) {
       expect(store).toContain(`${action}: action(`);
     }
 

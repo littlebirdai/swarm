@@ -23,8 +23,19 @@ export const DEVICE_ONLINE_MS = 2 * 60 * 1000;
 // (@codecast/shared/contracts/cloudPlacement) so the web composer and this
 // ladder answer "can this machine open that folder" identically. Re-exported
 // so every existing importer keeps its path.
-export { pathUnderRoot, platformCanOpenPath, pathHome } from "@codecast/shared/contracts";
-import { pathUnderRoot, platformCanOpenPath, deviceServesPath, machineGoneQuiet, cloudHostBootable, isReservedDevice } from "@codecast/shared/contracts";
+export {
+  pathUnderRoot,
+  platformCanOpenPath,
+  pathHome,
+} from "@codecast/shared/contracts";
+import {
+  pathUnderRoot,
+  platformCanOpenPath,
+  deviceServesPath,
+  machineGoneQuiet,
+  cloudHostBootable,
+  isReservedDevice,
+} from "@codecast/shared/contracts";
 
 /** Minimal device shape the routing decision needs (a subset of the `devices` row). */
 export type RoutableDevice = {
@@ -45,10 +56,15 @@ export type RoutableDevice = {
  * outranks every device that couldn't. Falls back to the whole pool when nothing
  * qualifies — leaving a session unowned is worse than routing it imperfectly.
  */
-function mostRecentPreferringOpenable(pool: RoutableDevice[], paths: string[]): string {
+function mostRecentPreferringOpenable(
+  pool: RoutableDevice[],
+  paths: string[],
+): string {
   const byRecency = [...pool].sort((a, b) => b.last_seen - a.last_seen);
   if (paths.length === 0) return byRecency[0].device_id;
-  const openable = byRecency.filter((d) => paths.every((p) => platformCanOpenPath(d.platform, p)));
+  const openable = byRecency.filter((d) =>
+    paths.every((p) => platformCanOpenPath(d.platform, p)),
+  );
   return (openable[0] ?? byRecency[0]).device_id;
 }
 
@@ -95,18 +111,31 @@ export function pickOwnerDevice(
   },
   now: number,
 ): string | null {
-  const paths = [opts.gitRoot, opts.projectPath].filter((p): p is string => !!p);
+  const paths = [opts.gitRoot, opts.projectPath].filter(
+    (p): p is string => !!p,
+  );
   const hasCheckout = (d: RoutableDevice) =>
-    (d.local_project_roots ?? []).some((r) => paths.some((p) => pathUnderRoot(p, r)));
+    (d.local_project_roots ?? []).some((r) =>
+      paths.some((p) => pathUnderRoot(p, r)),
+    );
   const servesPath = (d: RoutableDevice) => deviceServesPath(d, paths);
   // cloudHostBootable reads `online` and compares rows by identity, so judge
   // it over one set of probes built from the whole roster.
-  const probes = new Map(devices.map((d) => [d, { ...d, online: now - d.last_seen < DEVICE_ONLINE_MS }]));
-  const bootable = (d: RoutableDevice) => cloudHostBootable(probes.get(d)!, [...probes.values()]);
+  const probes = new Map(
+    devices.map((d) => [
+      d,
+      { ...d, online: now - d.last_seen < DEVICE_ONLINE_MS },
+    ]),
+  );
+  const bootable = (d: RoutableDevice) =>
+    cloudHostBootable(probes.get(d)!, [...probes.values()]);
   let online = devices.filter((d) => now - d.last_seen < DEVICE_ONLINE_MS);
 
   // 1. Explicit pick, if online.
-  if (opts.targetDeviceId && online.some((d) => d.device_id === opts.targetDeviceId)) {
+  if (
+    opts.targetDeviceId &&
+    online.some((d) => d.device_id === opts.targetDeviceId)
+  ) {
     return opts.targetDeviceId;
   }
 
@@ -115,35 +144,51 @@ export function pickOwnerDevice(
   //     online checkout holder included: the person chose where this session
   //     runs, and a start that lands elsewhere is a session they cannot find.
   //     An unknown id (garbage, another user's device) gets no such trust.
-  if (opts.targetDeviceId && devices.some((d) => d.device_id === opts.targetDeviceId)) {
+  if (
+    opts.targetDeviceId &&
+    devices.some((d) => d.device_id === opts.targetDeviceId)
+  ) {
     return opts.targetDeviceId;
   }
 
   // 2. Sticky owner, if still online (may legitimately be the remote, via a move).
-  if (opts.ownerDeviceId && online.some((d) => d.device_id === opts.ownerDeviceId)) {
+  if (
+    opts.ownerDeviceId &&
+    online.some((d) => d.device_id === opts.ownerDeviceId)
+  ) {
     return opts.ownerDeviceId;
   }
 
   // A reserved machine takes work only by name (rungs 1 and 1b) or because the
   // session is already its own: a sleeping owner still gets its queued work.
   // Nothing below may choose one, even when it is the only machine left (8).
-  devices = devices.filter((d) => !isReservedDevice(d) || d.device_id === opts.ownerDeviceId);
+  devices = devices.filter(
+    (d) => !isReservedDevice(d) || d.device_id === opts.ownerDeviceId,
+  );
 
   // Narrow to the machines that can open the path, but only on the word of
   // one that holds it or is still in service: a long-dead Linux VM must not
   // narrow a /home session down to itself and push every real machine out.
-  const openable = devices.filter((d) => hasCheckout(d) || paths.every((p) => platformCanOpenPath(d.platform, p)));
-  if (openable.some((d) => hasCheckout(d) || !machineGoneQuiet(d, now))) devices = openable;
+  const openable = devices.filter(
+    (d) =>
+      hasCheckout(d) || paths.every((p) => platformCanOpenPath(d.platform, p)),
+  );
+  if (openable.some((d) => hasCheckout(d) || !machineGoneQuiet(d, now)))
+    devices = openable;
   online = devices.filter((d) => now - d.last_seen < DEVICE_ONLINE_MS);
 
   // From here a LOCAL device always outranks a remote; a remote only auto-owns
   // when it provably has the checkout (rung 5) or nothing else exists (rung 7).
   const locals = devices.filter((d) => !d.is_remote);
-  const onlineLocals = locals.filter((d) => now - d.last_seen < DEVICE_ONLINE_MS);
+  const onlineLocals = locals.filter(
+    (d) => now - d.last_seen < DEVICE_ONLINE_MS,
+  );
 
   // 3. Online local device that has the checkout.
   if (paths.length > 0) {
-    const matches = onlineLocals.filter(hasCheckout).sort((a, b) => b.last_seen - a.last_seen);
+    const matches = onlineLocals
+      .filter(hasCheckout)
+      .sort((a, b) => b.last_seen - a.last_seen);
     if (matches.length > 0) return matches[0].device_id;
   }
 
@@ -152,7 +197,9 @@ export function pickOwnerDevice(
   //     is the one that has the files. A different home must not win just
   //     because it heartbeated more recently.
   if (paths.length > 0) {
-    const sameHome = onlineLocals.filter(servesPath).sort((a, b) => b.last_seen - a.last_seen);
+    const sameHome = onlineLocals
+      .filter(servesPath)
+      .sort((a, b) => b.last_seen - a.last_seen);
     if (sameHome.length > 0) return sameHome[0].device_id;
   }
 
@@ -207,7 +254,10 @@ export function pickOwnerDevice(
     const live = locals.filter((d) => !machineGoneQuiet(d, now));
     for (const pool of [holders, live, locals]) {
       if (pool.length === 0) continue;
-      if (opts.ownerDeviceId && pool.some((d) => d.device_id === opts.ownerDeviceId)) {
+      if (
+        opts.ownerDeviceId &&
+        pool.some((d) => d.device_id === opts.ownerDeviceId)
+      ) {
         return opts.ownerDeviceId;
       }
       return mostRecentPreferringOpenable(pool, paths);
@@ -215,6 +265,8 @@ export function pickOwnerDevice(
   }
 
   // 7. Cloud-only user: an online remote is the only machine that can serve.
-  const onlineRemotes = online.filter((d) => d.is_remote).sort((a, b) => b.last_seen - a.last_seen);
+  const onlineRemotes = online
+    .filter((d) => d.is_remote)
+    .sort((a, b) => b.last_seen - a.last_seen);
   return onlineRemotes[0]?.device_id ?? null;
 }

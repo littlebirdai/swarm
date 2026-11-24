@@ -14,14 +14,25 @@ const CAROL = "users_carol";
 function makeCtx(over: Partial<Record<string, any[]>> = {}) {
   const tables: Record<string, any[]> = {
     users: [
-      { _id: ASHOT, name: "Ashot Petrosian", email: "ashot@codecast.sh", github_username: "ashot" },
+      {
+        _id: ASHOT,
+        name: "Ashot Petrosian",
+        email: "ashot@codecast.sh",
+        github_username: "ashot",
+      },
       { _id: BOB, name: "Bob Jones", email: "bob@codecast.sh" },
       { _id: CAROL, name: "Carol Reed", email: "carol@codecast.sh" },
     ],
     tasks: [
       { _id: "tasks_agent", user_id: ASHOT, source: "agent", status: "open" },
       { _id: "tasks_human", user_id: ASHOT, source: "human", status: "open" },
-      { _id: "tasks_promoted", user_id: ASHOT, source: "agent", promoted: true, status: "open" },
+      {
+        _id: "tasks_promoted",
+        user_id: ASHOT,
+        source: "agent",
+        promoted: true,
+        status: "open",
+      },
     ],
     task_comments: [],
     entity_subscriptions: [],
@@ -33,7 +44,12 @@ function makeCtx(over: Partial<Record<string, any[]>> = {}) {
 }
 
 let nextId = 0;
-const sub = (userId: string, taskId: string, reason: string, over: any = {}) => ({
+const sub = (
+  userId: string,
+  taskId: string,
+  reason: string,
+  over: any = {},
+) => ({
   _id: `entity_subscriptions_seed${++nextId}`,
   user_id: userId,
   entity_type: "task",
@@ -64,9 +80,17 @@ const comment = (taskId: string, author: string, over: any = {}) => ({
 });
 
 const subs = async (args: any = {}) =>
-  (sweepPage as any)._handler(args.ctx.ctx, { step: "subscriptions", dryRun: false, ...args.args });
+  (sweepPage as any)._handler(args.ctx.ctx, {
+    step: "subscriptions",
+    dryRun: false,
+    ...args.args,
+  });
 const reads = async (args: any = {}) =>
-  (sweepPage as any)._handler(args.ctx.ctx, { step: "threadReads", dryRun: false, ...args.args });
+  (sweepPage as any)._handler(args.ctx.ctx, {
+    step: "threadReads",
+    dryRun: false,
+    ...args.args,
+  });
 
 describe("creator stamps follow task origin", () => {
   test("agent origin stamps agent; human origin and promotion stamp human", async () => {
@@ -79,8 +103,14 @@ describe("creator stamps follow task origin", () => {
     });
     const res = await subs({ ctx: c });
     expect(res.stamped.creator).toEqual({ human: 2, agent: 1 });
-    const byTask = Object.fromEntries(c.tables.entity_subscriptions.map((s: any) => [s.entity_id, s.via]));
-    expect(byTask).toEqual({ tasks_agent: "agent", tasks_human: "human", tasks_promoted: "human" });
+    const byTask = Object.fromEntries(
+      c.tables.entity_subscriptions.map((s: any) => [s.entity_id, s.via]),
+    );
+    expect(byTask).toEqual({
+      tasks_agent: "agent",
+      tasks_human: "human",
+      tasks_promoted: "human",
+    });
   });
 });
 
@@ -95,7 +125,9 @@ describe("assignee stamps: an agent's self-claim for its owner is an agent act",
     });
     const res = await subs({ ctx: c });
     expect(res.stamped.assignee).toEqual({ human: 2, agent: 1 });
-    const owner = c.tables.entity_subscriptions.find((s: any) => s.user_id === ASHOT && s.entity_id === "tasks_agent");
+    const owner = c.tables.entity_subscriptions.find(
+      (s: any) => s.user_id === ASHOT && s.entity_id === "tasks_agent",
+    );
     expect(owner.via).toBe("agent");
   });
 });
@@ -113,7 +145,11 @@ describe("commenter stamps from the originating comment", () => {
   test("a session comment is agent even under the user's full name", async () => {
     const c = makeCtx({
       entity_subscriptions: [sub(ASHOT, "tasks_agent", "commenter")],
-      task_comments: [comment("tasks_agent", "Ashot Petrosian", { conversation_id: "conversations_1" })],
+      task_comments: [
+        comment("tasks_agent", "Ashot Petrosian", {
+          conversation_id: "conversations_1",
+        }),
+      ],
     });
     const res = await subs({ ctx: c });
     expect(res.stamped.commenter).toEqual({ human: 0, agent: 1 });
@@ -139,7 +175,9 @@ describe("stored via and via-independent reasons are untouched", () => {
   test("a stored via survives even when the heuristic disagrees", async () => {
     const c = makeCtx({
       // Human task: the creator heuristic would say human, but the row says agent.
-      entity_subscriptions: [sub(ASHOT, "tasks_human", "creator", { via: "agent" })],
+      entity_subscriptions: [
+        sub(ASHOT, "tasks_human", "creator", { via: "agent" }),
+      ],
     });
     const res = await subs({ ctx: c });
     expect(res.keptStored).toBe(1);
@@ -148,7 +186,9 @@ describe("stored via and via-independent reasons are untouched", () => {
   });
 
   test("mentioned rows keep no via — membership never reads it", async () => {
-    const c = makeCtx({ entity_subscriptions: [sub(BOB, "tasks_agent", "mentioned")] });
+    const c = makeCtx({
+      entity_subscriptions: [sub(BOB, "tasks_agent", "mentioned")],
+    });
     const res = await subs({ ctx: c });
     expect(res.viaIndependent).toBe(1);
     expect(c.tables.entity_subscriptions[0].via).toBeUndefined();
@@ -166,7 +206,9 @@ describe("orphans: rows pointing at deleted tasks go away", () => {
     });
     const res = await subs({ ctx: c });
     expect(res.orphans).toEqual({ creator: 1, commenter: 1 });
-    expect(c.tables.entity_subscriptions.map((s: any) => s.entity_id)).toEqual(["tasks_agent"]);
+    expect(c.tables.entity_subscriptions.map((s: any) => s.entity_id)).toEqual([
+      "tasks_agent",
+    ]);
   });
 
   test("thread_reads on a missing task are deleted", async () => {
@@ -178,25 +220,28 @@ describe("orphans: rows pointing at deleted tasks go away", () => {
 });
 
 describe("thread_reads purge respects taskThreadParticipants", () => {
-  const seed = () => makeCtx({
-    entity_subscriptions: [
-      sub(ASHOT, "tasks_agent", "creator"),          // legacy, stamps agent
-      sub(BOB, "tasks_agent", "mentioned"),          // enrolls regardless of via
-      sub(CAROL, "tasks_agent", "commenter", { via: "human" }), // own web comment
-    ],
-    thread_reads: [
-      read(ASHOT, "tasks_agent"),
-      read(BOB, "tasks_agent"),
-      read(CAROL, "tasks_agent"),
-    ],
-  });
+  const seed = () =>
+    makeCtx({
+      entity_subscriptions: [
+        sub(ASHOT, "tasks_agent", "creator"), // legacy, stamps agent
+        sub(BOB, "tasks_agent", "mentioned"), // enrolls regardless of via
+        sub(CAROL, "tasks_agent", "commenter", { via: "human" }), // own web comment
+      ],
+      thread_reads: [
+        read(ASHOT, "tasks_agent"),
+        read(BOB, "tasks_agent"),
+        read(CAROL, "tasks_agent"),
+      ],
+    });
 
   test("the owner's identity-only row is purged; mentioned and human commenter survive", async () => {
     const c = seed();
     await subs({ ctx: c });
     const res = await reads({ ctx: c });
     expect(res).toMatchObject({ kept: 2, purged: 1, orphans: 0 });
-    expect(c.tables.thread_reads.map((r: any) => r.user_id).sort()).toEqual([CAROL, BOB].sort());
+    expect(c.tables.thread_reads.map((r: any) => r.user_id).sort()).toEqual(
+      [CAROL, BOB].sort(),
+    );
     expect(res.perUser["Ashot Petrosian"]).toEqual({ purged: 1 });
     expect(res.perUser["Carol Reed"]).toEqual({ kept: 1 });
   });
@@ -237,7 +282,9 @@ describe("dry run mutates nothing", () => {
   });
 
   test("omitting dryRun defaults to dry", async () => {
-    const c = makeCtx({ entity_subscriptions: [sub(ASHOT, "tasks_agent", "creator")] });
+    const c = makeCtx({
+      entity_subscriptions: [sub(ASHOT, "tasks_agent", "creator")],
+    });
     await (sweepPage as any)._handler(c.ctx, { step: "subscriptions" });
     expect(c.db._patched.length).toBe(0);
   });
@@ -264,8 +311,16 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
         sub(ASHOT, "tasks_claim2", "assignee", { via: "agent" }),
       ],
     });
-    const res = await (sweepPage as any)._handler(c.ctx, { step: "assignees", dryRun: false });
-    expect(res).toMatchObject({ selfAssigned: 2, cleared: 2, keptHuman: 0, keptExplicit: 0 });
+    const res = await (sweepPage as any)._handler(c.ctx, {
+      step: "assignees",
+      dryRun: false,
+    });
+    expect(res).toMatchObject({
+      selfAssigned: 2,
+      cleared: 2,
+      keptHuman: 0,
+      keptExplicit: 0,
+    });
     expect(res.perUser["Ashot Petrosian"]).toEqual({ cleared: 2 });
     for (const t of c.tables.tasks) {
       expect(t.assignee).toBeUndefined();
@@ -276,9 +331,14 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
   test("an explicit web self-assign (via human) is kept", async () => {
     const c = makeCtx({
       tasks: [task("tasks_web", { assignee: ASHOT })],
-      entity_subscriptions: [sub(ASHOT, "tasks_web", "assignee", { via: "human" })],
+      entity_subscriptions: [
+        sub(ASHOT, "tasks_web", "assignee", { via: "human" }),
+      ],
     });
-    const res = await (sweepPage as any)._handler(c.ctx, { step: "assignees", dryRun: false });
+    const res = await (sweepPage as any)._handler(c.ctx, {
+      step: "assignees",
+      dryRun: false,
+    });
     expect(res).toMatchObject({ selfAssigned: 1, keptExplicit: 1, cleared: 0 });
     expect(c.tables.tasks[0].assignee).toBe(ASHOT);
   });
@@ -290,7 +350,10 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
         task("tasks_p", { promoted: true, assignee: ASHOT }),
       ],
     });
-    const res = await (sweepPage as any)._handler(c.ctx, { step: "assignees", dryRun: false });
+    const res = await (sweepPage as any)._handler(c.ctx, {
+      step: "assignees",
+      dryRun: false,
+    });
     expect(res).toMatchObject({ selfAssigned: 2, keptHuman: 2, cleared: 0 });
     expect(c.tables.tasks.map((t: any) => t.assignee)).toEqual([ASHOT, ASHOT]);
   });
@@ -303,7 +366,10 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
         task("tasks_none", {}),
       ],
     });
-    const res = await (sweepPage as any)._handler(c.ctx, { step: "assignees", dryRun: false });
+    const res = await (sweepPage as any)._handler(c.ctx, {
+      step: "assignees",
+      dryRun: false,
+    });
     expect(res).toMatchObject({ scanned: 3, selfAssigned: 0, cleared: 0 });
     expect(c.db._patched.length).toBe(0);
   });
@@ -318,33 +384,50 @@ describe("assignee sweep: self-claims leave the human board, real assignments st
 
   test("the driver pages through and a second live run finds nothing", async () => {
     const many = Array.from({ length: 450 }, (_, i) =>
-      task(`tasks_bulk${i}`, { assignee: i % 2 ? ASHOT : BOB, user_id: i % 2 ? ASHOT : BOB }));
-    const c = makeCtx({ tasks: [...many, task("tasks_h", { source: "human", assignee: ASHOT })] });
+      task(`tasks_bulk${i}`, {
+        assignee: i % 2 ? ASHOT : BOB,
+        user_id: i % 2 ? ASHOT : BOB,
+      }),
+    );
+    const c = makeCtx({
+      tasks: [...many, task("tasks_h", { source: "human", assignee: ASHOT })],
+    });
     const actionCtx = {
-      runMutation: (_ref: unknown, args: any) => (sweepPage as any)._handler(c.ctx, args),
+      runMutation: (_ref: unknown, args: any) =>
+        (sweepPage as any)._handler(c.ctx, args),
     } as any;
-    const first = await (sweepAssignees as any)._handler(actionCtx, { dryRun: false });
+    const first = await (sweepAssignees as any)._handler(actionCtx, {
+      dryRun: false,
+    });
     expect(first.assignees).toMatchObject({
       scanned: 451,
       selfAssigned: 451,
       keptHuman: 1,
       cleared: 450,
     });
-    const again = await (sweepAssignees as any)._handler(actionCtx, { dryRun: false });
-    expect(again.assignees).toMatchObject({ selfAssigned: 1, keptHuman: 1, cleared: 0 });
+    const again = await (sweepAssignees as any)._handler(actionCtx, {
+      dryRun: false,
+    });
+    expect(again.assignees).toMatchObject({
+      selfAssigned: 1,
+      keptHuman: 1,
+      cleared: 0,
+    });
   });
 });
 
 describe("the driver action pages through everything and is idempotent", () => {
   test("totals merge across pages; a second live run finds nothing to do", async () => {
     const many = Array.from({ length: 450 }, (_, i) =>
-      sub(i % 2 ? ASHOT : BOB, "tasks_agent", "creator"));
+      sub(i % 2 ? ASHOT : BOB, "tasks_agent", "creator"),
+    );
     const c = makeCtx({
       entity_subscriptions: [...many, sub(ASHOT, "tasks_gone", "commenter")],
       thread_reads: [read(ASHOT, "tasks_agent"), read(BOB, "tasks_agent")],
     });
     const actionCtx = {
-      runMutation: (_ref: unknown, args: any) => (sweepPage as any)._handler(c.ctx, args),
+      runMutation: (_ref: unknown, args: any) =>
+        (sweepPage as any)._handler(c.ctx, args),
     } as any;
     const first = await (sweep as any)._handler(actionCtx, { dryRun: false });
     expect(first.subscriptions.scanned).toBe(451);

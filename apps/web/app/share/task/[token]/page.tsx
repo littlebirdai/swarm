@@ -4,13 +4,28 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { formatDateFull, formatDateSmart } from "@codecast/shared/time";
 import { taskPriorityBadge } from "../../../../lib/taskPriority";
-import { Bullets, Pill, Prose, Section, ShareHead, SharedObjectPage, StatusPill, humanize } from "../../SharedObjectPage";
+import {
+  Bullets,
+  Pill,
+  Prose,
+  Section,
+  ShareHead,
+  SharedObjectPage,
+  StatusPill,
+  humanize,
+} from "../../SharedObjectPage";
 
-type SharedTask = NonNullable<FunctionReturnType<typeof api.publicShare.getSharedTask>>;
+type SharedTask = NonNullable<
+  FunctionReturnType<typeof api.publicShare.getSharedTask>
+>;
 
 export default function SharedTaskPage() {
   return (
-    <SharedObjectPage<SharedTask> kind="task" query={api.publicShare.getSharedTask} noun="task">
+    <SharedObjectPage<SharedTask>
+      kind="task"
+      query={api.publicShare.getSharedTask}
+      noun="task"
+    >
       {(task) => {
         const priority = taskPriorityBadge(task.priority);
         return (
@@ -19,7 +34,19 @@ export default function SharedTaskPage() {
               badges={
                 <>
                   <StatusPill status={task.status} />
-                  {priority && <Pill tone={task.priority === "urgent" ? "red" : task.priority === "high" ? "orange" : "muted"}>{priority.label}</Pill>}
+                  {priority && (
+                    <Pill
+                      tone={
+                        task.priority === "urgent"
+                          ? "red"
+                          : task.priority === "high"
+                            ? "orange"
+                            : "muted"
+                      }
+                    >
+                      {priority.label}
+                    </Pill>
+                  )}
                   <Pill quiet>{task.short_id}</Pill>
                   {task.labels.map((l) => (
                     <Pill key={l} quiet>
@@ -31,7 +58,13 @@ export default function SharedTaskPage() {
               title={task.title}
               user={task.user}
               at={task.created_at}
-              meta={task.assignee ? <span>assigned to <strong>{task.assignee}</strong></span> : null}
+              meta={
+                task.assignee ? (
+                  <span>
+                    assigned to <strong>{task.assignee}</strong>
+                  </span>
+                ) : null
+              }
             />
             {task.description && (
               <Section title="Description">
@@ -48,10 +81,15 @@ export default function SharedTaskPage() {
                 <div style={{ display: "grid", gap: 28 }}>
                   {task.comments.map((c, i) => (
                     <div key={i}>
-                      <div className="share-meta" style={{ marginTop: 0, marginBottom: 8 }}>
+                      <div
+                        className="share-meta"
+                        style={{ marginTop: 0, marginBottom: 8 }}
+                      >
                         <strong>{c.author}</strong>
                         <span>{humanize(c.comment_type)}</span>
-                        <span title={formatDateFull(c.created_at)}>{formatDateSmart(c.created_at)}</span>
+                        <span title={formatDateFull(c.created_at)}>
+                          {formatDateSmart(c.created_at)}
+                        </span>
                       </div>
                       <Prose content={c.text} compact />
                     </div>

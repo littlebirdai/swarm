@@ -30,7 +30,8 @@ const MAX_DEPTH = 16;
  *  long stretches without opening thousands of file descriptors. */
 const SCAN_CONCURRENCY = 8;
 
-const CASE_INSENSITIVE_FS = process.platform === "darwin" || process.platform === "win32";
+const CASE_INSENSITIVE_FS =
+  process.platform === "darwin" || process.platform === "win32";
 
 /**
  * Content identity for a vault file: a 16-hex sha256 prefix. This ONE digest is
@@ -107,7 +108,10 @@ const repoScopeCache = new Map<string, RepoScope>();
  * properly: re-including something is the one case where guessing would hide a
  * file the repo explicitly asked to keep.
  */
-export function parseGitignore(text: string): { names: Set<string>; paths: Set<string> } {
+export function parseGitignore(text: string): {
+  names: Set<string>;
+  paths: Set<string>;
+} {
   const names = new Set<string>();
   const paths = new Set<string>();
   const negated = new Set<string>();
@@ -261,7 +265,9 @@ export function probeProjectVault(root: string): VaultProjectProbe {
     if (!dirs.has(dir)) continue;
     let docEntries: fs.Dirent[];
     try {
-      docEntries = fs.readdirSync(path.join(realRoot, dir), { withFileTypes: true });
+      docEntries = fs.readdirSync(path.join(realRoot, dir), {
+        withFileTypes: true,
+      });
     } catch {
       continue;
     }
@@ -313,7 +319,9 @@ function realpathDeepest(target: string): string {
   for (;;) {
     try {
       const real = fs.realpathSync(cur);
-      return trailing.length === 0 ? real : path.join(real, ...trailing.reverse());
+      return trailing.length === 0
+        ? real
+        : path.join(real, ...trailing.reverse());
     } catch {
       const parent = path.dirname(cur);
       if (parent === cur) return target;
@@ -358,7 +366,13 @@ export function resolveVaultPath(
 ): string | null {
   const rel = normalizeVaultPath(relPath);
   if (rel === null) return null;
-  if (rel !== "" && (opts.allowIgnored ? isVaultIgnoredPath(rel) : isVaultPathIgnored(root, rel))) return null;
+  if (
+    rel !== "" &&
+    (opts.allowIgnored
+      ? isVaultIgnoredPath(rel)
+      : isVaultPathIgnored(root, rel))
+  )
+    return null;
 
   const realRoot = realVaultRoot(root);
   const target = rel === "" ? realRoot : path.join(realRoot, ...rel.split("/"));
@@ -375,7 +389,10 @@ export function resolveVaultPath(
 
 /** Vault-relative "/"-separated path for an absolute path under `root`, or null
  *  when it sits outside the vault or is out of scope. */
-export function vaultRelativePath(root: string, absPath: string): string | null {
+export function vaultRelativePath(
+  root: string,
+  absPath: string,
+): string | null {
   const realRoot = realVaultRoot(root);
   // Resolve the candidate too: the watcher reports paths under the root as it
   // was registered (/var/... on macOS), which is a symlink to the real root
@@ -393,22 +410,37 @@ export function vaultContentType(relPath: string): string {
   const ext = path.extname(relPath).toLowerCase();
   switch (ext) {
     case ".md":
-    case ".markdown": return "text/markdown; charset=utf-8";
-    case ".png": return "image/png";
+    case ".markdown":
+      return "text/markdown; charset=utf-8";
+    case ".png":
+      return "image/png";
     case ".jpg":
-    case ".jpeg": return "image/jpeg";
-    case ".gif": return "image/gif";
-    case ".webp": return "image/webp";
-    case ".svg": return "image/svg+xml";
-    case ".avif": return "image/avif";
-    case ".pdf": return "application/pdf";
-    case ".mp3": return "audio/mpeg";
-    case ".wav": return "audio/wav";
-    case ".m4a": return "audio/mp4";
-    case ".mp4": return "video/mp4";
-    case ".webm": return "video/webm";
-    case ".mov": return "video/quicktime";
-    default: return "application/octet-stream";
+    case ".jpeg":
+      return "image/jpeg";
+    case ".gif":
+      return "image/gif";
+    case ".webp":
+      return "image/webp";
+    case ".svg":
+      return "image/svg+xml";
+    case ".avif":
+      return "image/avif";
+    case ".pdf":
+      return "application/pdf";
+    case ".mp3":
+      return "audio/mpeg";
+    case ".wav":
+      return "audio/wav";
+    case ".m4a":
+      return "audio/mp4";
+    case ".mp4":
+      return "video/mp4";
+    case ".webm":
+      return "video/webm";
+    case ".mov":
+      return "video/quicktime";
+    default:
+      return "application/octet-stream";
   }
 }
 
@@ -416,7 +448,13 @@ export function vaultContentType(relPath: string): string {
  *  DOCUMENT rather than loaded into an <img>. SVG is the one a vault serves
  *  today; the rest are here so a new entry in vaultContentType cannot quietly
  *  become an active document. */
-const ACTIVE_DOCUMENT_TYPES = new Set(["image/svg+xml", "text/html", "application/xhtml+xml", "text/xml", "application/xml"]);
+const ACTIVE_DOCUMENT_TYPES = new Set([
+  "image/svg+xml",
+  "text/html",
+  "application/xhtml+xml",
+  "text/xml",
+  "application/xml",
+]);
 
 /**
  * Response headers that keep vault bytes from becoming code.
@@ -432,9 +470,15 @@ const ACTIVE_DOCUMENT_TYPES = new Set(["image/svg+xml", "text/html", "applicatio
  * This is what stands between repository content and the daemon's authority.
  * The vault serves whatever a repo contains, and a repo is not trusted.
  */
-export function vaultResponseSecurityHeaders(relPath: string): Record<string, string> {
-  const headers: Record<string, string> = { "X-Content-Type-Options": "nosniff" };
-  if (ACTIVE_DOCUMENT_TYPES.has(vaultContentType(relPath).split(";")[0]!.trim())) {
+export function vaultResponseSecurityHeaders(
+  relPath: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-Content-Type-Options": "nosniff",
+  };
+  if (
+    ACTIVE_DOCUMENT_TYPES.has(vaultContentType(relPath).split(";")[0]!.trim())
+  ) {
     headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
   }
   return headers;
@@ -479,42 +523,57 @@ export async function scanVault(
   while (queue.length > 0 && (out.length < cap || ignoredOut.length < cap)) {
     const batch = queue.splice(0, SCAN_CONCURRENCY);
     const next: typeof queue = [];
-    await Promise.all(batch.map(async (dir) => {
-      // A full bucket is not descended into: nothing under it could be listed.
-      if ((dir.ignored ? ignoredOut : out).length >= cap) return;
-      let entries: fs.Dirent[];
-      try {
-        entries = await fsp.readdir(dir.abs, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        if (entry.isSymbolicLink()) continue;
-        const rel = dir.rel === "" ? entry.name : `${dir.rel}/${entry.name}`;
-        if (isVaultIgnoredPath(rel)) continue;
-        const ignored = dir.ignored || isVaultPathRepoIgnored(realRoot, rel);
-        if (ignored && !opts.includeIgnored) continue;
-        const bucket = ignored ? ignoredOut : out;
-        if (bucket.length >= cap) continue;
-        const flag = ignored ? { ignored: true as const } : {};
-        const abs = path.join(dir.abs, entry.name);
-        if (entry.isDirectory()) {
-          const stat = await fsp.stat(abs).catch(() => null);
-          if (!stat) continue;
-          bucket.push({ path: rel, mtime: Math.round(stat.mtimeMs), size: 0, dir: true, ...flag });
-          if (ignored && (await isNestedCheckout(abs))) continue;
-          if (dir.depth + 1 < MAX_DEPTH) next.push({ abs, rel, depth: dir.depth + 1, ignored });
-        } else if (entry.isFile()) {
-          const stat = await fsp.stat(abs).catch(() => null);
-          if (!stat) continue;
-          bucket.push({ path: rel, mtime: Math.round(stat.mtimeMs), size: stat.size, ...flag });
+    await Promise.all(
+      batch.map(async (dir) => {
+        // A full bucket is not descended into: nothing under it could be listed.
+        if ((dir.ignored ? ignoredOut : out).length >= cap) return;
+        let entries: fs.Dirent[];
+        try {
+          entries = await fsp.readdir(dir.abs, { withFileTypes: true });
+        } catch {
+          return;
         }
-      }
-    }));
+        for (const entry of entries) {
+          if (entry.isSymbolicLink()) continue;
+          const rel = dir.rel === "" ? entry.name : `${dir.rel}/${entry.name}`;
+          if (isVaultIgnoredPath(rel)) continue;
+          const ignored = dir.ignored || isVaultPathRepoIgnored(realRoot, rel);
+          if (ignored && !opts.includeIgnored) continue;
+          const bucket = ignored ? ignoredOut : out;
+          if (bucket.length >= cap) continue;
+          const flag = ignored ? { ignored: true as const } : {};
+          const abs = path.join(dir.abs, entry.name);
+          if (entry.isDirectory()) {
+            const stat = await fsp.stat(abs).catch(() => null);
+            if (!stat) continue;
+            bucket.push({
+              path: rel,
+              mtime: Math.round(stat.mtimeMs),
+              size: 0,
+              dir: true,
+              ...flag,
+            });
+            if (ignored && (await isNestedCheckout(abs))) continue;
+            if (dir.depth + 1 < MAX_DEPTH)
+              next.push({ abs, rel, depth: dir.depth + 1, ignored });
+          } else if (entry.isFile()) {
+            const stat = await fsp.stat(abs).catch(() => null);
+            if (!stat) continue;
+            bucket.push({
+              path: rel,
+              mtime: Math.round(stat.mtimeMs),
+              size: stat.size,
+              ...flag,
+            });
+          }
+        }
+      }),
+    );
     queue = next.concat(queue);
   }
 
-  const byPath = (a: VaultFileEntry, b: VaultFileEntry) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  const byPath = (a: VaultFileEntry, b: VaultFileEntry) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0;
   return out.slice(0, cap).concat(ignoredOut.slice(0, cap)).sort(byPath);
 }
 
@@ -522,9 +581,11 @@ export async function scanVault(
  *  "exists" is the test). Only asked of ignored directories: the default scan
  *  must stay byte-identical to what it was. */
 async function isNestedCheckout(abs: string): Promise<boolean> {
-  return fsp.stat(path.join(abs, ".git")).then(() => true, () => false);
+  return fsp.stat(path.join(abs, ".git")).then(
+    () => true,
+    () => false,
+  );
 }
-
 
 /** How to show a path in the OS file manager, or hand it to its default
  *  application. Split out from the spawning so the platform differences — the

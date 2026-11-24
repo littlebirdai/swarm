@@ -5,7 +5,10 @@ describe("the player's clock is the replay's clock", () => {
   // rp-39: the capture starts at t0 and runs 361 s (the page kept mutating
   // after the last thing the person did); the row and its timeline say 5:00.
   const t0 = 1_791_212_170_248;
-  const rp39 = replayClock({ t0, replay: { duration_ms: 300_008 } }, { startTime: t0, totalTime: 361_115 });
+  const rp39 = replayClock(
+    { t0, replay: { duration_ms: 300_008 } },
+    { startTime: t0, totalTime: 361_115 },
+  );
 
   test("the total is the row's duration, not where the capture ends", () => {
     expect(rp39.duration).toBe(300_008);
@@ -21,7 +24,10 @@ describe("the player's clock is the replay's clock", () => {
   });
 
   test("a capture that starts after the clock's zero is shifted by the gap", () => {
-    const c = replayClock({ t0: 1_000, replay: { duration_ms: 90_000 } }, { startTime: 11_000, totalTime: 70_000 });
+    const c = replayClock(
+      { t0: 1_000, replay: { duration_ms: 90_000 } },
+      { startTime: 11_000, totalTime: 70_000 },
+    );
     expect(c.lead).toBe(10_000);
     expect(c.toClock(0)).toBe(10_000);
     expect(c.toOffset(10_000)).toBe(0);
@@ -33,14 +39,20 @@ describe("the player's clock is the replay's clock", () => {
   });
 
   test("with no duration on the row the capture's end is the end", () => {
-    const c = replayClock({ t0: 0, replay: { duration_ms: null } }, { startTime: 2_000, totalTime: 30_000 });
+    const c = replayClock(
+      { t0: 0, replay: { duration_ms: null } },
+      { startTime: 2_000, totalTime: 30_000 },
+    );
     expect(c.duration).toBe(32_000);
     expect(c.endOffset).toBe(30_000);
   });
 
   test("an import that stopped early says where the capture ends, short of the row's length", () => {
     // rp-5132: PostHog says 1:45:49, the copy reaches 14:28.5.
-    const c = replayClock({ t0: 0, replay: { duration_ms: 6_349_000 } }, { startTime: 0, totalTime: 868_522 });
+    const c = replayClock(
+      { t0: 0, replay: { duration_ms: 6_349_000 } },
+      { startTime: 0, totalTime: 868_522 },
+    );
     expect(c.duration).toBe(6_349_000);
     expect(c.captureEnd).toBe(868_522);
     expect(rp39.captureEnd).toBe(361_115);

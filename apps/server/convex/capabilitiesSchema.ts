@@ -182,7 +182,12 @@ export const capabilityTables = {
     // tenant column first is a cross-tenant read waiting for a caller who forgets
     // the filter, and this repo has already shipped that bug class
     // (publicFunctionSecretLeak.test.ts).
-    .index("by_user_device_client_scope", ["user_id", "device_id", "client", "scope_key"]),
+    .index("by_user_device_client_scope", [
+      "user_id",
+      "device_id",
+      "client",
+      "scope_key",
+    ]),
 
   /**
    * One capability's manifest as this user's machines observed it — the raw
@@ -273,7 +278,12 @@ export const capabilityTables = {
     created_by: v.optional(v.string()),
     updated_at: v.number(),
   })
-    .index("by_user_scope", ["user_id", "capability_slug", "scope_kind", "scope_key"])
+    .index("by_user_scope", [
+      "user_id",
+      "capability_slug",
+      "scope_kind",
+      "scope_key",
+    ])
     .index("by_user_updated", ["user_id", "updated_at"])
     // Tenant exception, justified: team reads are gated by requireTeamAdmin /
     // membership, the same rule capability_events.by_team_created carries.
@@ -302,8 +312,7 @@ export const capabilityTables = {
      *  "adopt" = replace a file the installer did not write with the kit's
      *  copy (a conflict resolved from the web). Never one for the other. */
     purpose: v.optional(v.literal("adopt")),
-  })
-    .index("by_user_device_slug", ["user_id", "device_id", "capability_slug"]),
+  }).index("by_user_device_slug", ["user_id", "device_id", "capability_slug"]),
 
   /**
    * The audit line an incident needs: what changed a machine's capabilities,
@@ -313,8 +322,14 @@ export const capabilityTables = {
     user_id: v.id("users"),
     team_id: v.optional(v.id("teams")),
     kind: v.union(
-      v.literal("bind"), v.literal("unbind"), v.literal("enable"), v.literal("disable"),
-      v.literal("consent"), v.literal("apply"), v.literal("conflict"), v.literal("import"),
+      v.literal("bind"),
+      v.literal("unbind"),
+      v.literal("enable"),
+      v.literal("disable"),
+      v.literal("consent"),
+      v.literal("apply"),
+      v.literal("conflict"),
+      v.literal("import"),
       v.literal("adopt"),
     ),
     actor_user_id: v.id("users"),
@@ -454,7 +469,9 @@ interface CapQuery<T> {
   unique(): Promise<T | null>;
   collect(): Promise<T[]>;
   take(n: number): Promise<T[]>;
-  paginate(opts: any): Promise<{ page: T[]; isDone: boolean; continueCursor: string }>;
+  paginate(
+    opts: any,
+  ): Promise<{ page: T[]; isDone: boolean; continueCursor: string }>;
 }
 
 /**
@@ -502,7 +519,16 @@ export interface CapabilityEventDoc {
   _creationTime: number;
   user_id: string;
   team_id?: string;
-  kind: "bind" | "unbind" | "enable" | "disable" | "consent" | "apply" | "conflict" | "import" | "adopt";
+  kind:
+    | "bind"
+    | "unbind"
+    | "enable"
+    | "disable"
+    | "consent"
+    | "apply"
+    | "conflict"
+    | "import"
+    | "adopt";
   actor_user_id: string;
   device_id?: string;
   scope_kind?: string;
@@ -533,13 +559,34 @@ export interface CapabilityDb {
   query(table: "capability_consents"): CapQuery<CapabilityConsentDoc>;
   query(table: "capability_events"): CapQuery<CapabilityEventDoc>;
   query(table: "capability_content"): CapQuery<CapabilityContentDoc>;
-  insert(table: "capability_state", doc: NewDoc<CapabilityStateDoc>): Promise<string>;
-  insert(table: "capability_observation", doc: NewDoc<CapabilityObservationDoc>): Promise<string>;
-  insert(table: "capability_catalog_cache", doc: NewDoc<CapabilityCatalogDoc>): Promise<string>;
-  insert(table: "capability_bindings", doc: NewDoc<CapabilityBindingDoc>): Promise<string>;
-  insert(table: "capability_consents", doc: NewDoc<CapabilityConsentDoc>): Promise<string>;
-  insert(table: "capability_events", doc: NewDoc<CapabilityEventDoc>): Promise<string>;
-  insert(table: "capability_content", doc: NewDoc<CapabilityContentDoc>): Promise<string>;
+  insert(
+    table: "capability_state",
+    doc: NewDoc<CapabilityStateDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_observation",
+    doc: NewDoc<CapabilityObservationDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_catalog_cache",
+    doc: NewDoc<CapabilityCatalogDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_bindings",
+    doc: NewDoc<CapabilityBindingDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_consents",
+    doc: NewDoc<CapabilityConsentDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_events",
+    doc: NewDoc<CapabilityEventDoc>,
+  ): Promise<string>;
+  insert(
+    table: "capability_content",
+    doc: NewDoc<CapabilityContentDoc>,
+  ): Promise<string>;
   patch(
     id: string,
     patch:
@@ -614,7 +661,9 @@ export const teamKitTables = {
     version: v.number(),
     folder_hash: v.string(),
     storage_id: v.id("_storage"),
-    files: v.array(v.object({ path: v.string(), size: v.number(), executable: v.boolean() })),
+    files: v.array(
+      v.object({ path: v.string(), size: v.number(), executable: v.boolean() }),
+    ),
     main_body: v.string(),
     /** Derived HERE from the file list and the main body's frontmatter, never
      *  accepted from the publisher. */

@@ -15,14 +15,17 @@ export function TmuxMissingBanner() {
 // Every hook runs before the first early return, so the notice can bail out
 // in whatever order reads best.
 function useTmuxMissingNotice(): StatusNotice | null {
-  const initialized = useInboxStore(s => s.clientStateInitialized);
-  const dismissedTs = useInboxStore(s => s.clientState.dismissed?.tmux_missing ?? 0);
-  const updateDismissed = useInboxStore(s => s.updateClientDismissed);
+  const initialized = useInboxStore((s) => s.clientStateInitialized);
+  const dismissedTs = useInboxStore(
+    (s) => s.clientState.dismissed?.tmux_missing ?? 0,
+  );
+  const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
   const [copied, setCopied] = useState(false);
 
   const { user } = useCurrentUser();
 
-  const isDismissed = dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
+  const isDismissed =
+    dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
 
   if (!initialized || isDismissed) return null;
   if (user === undefined) return null;
@@ -32,7 +35,9 @@ function useTmuxMissingNotice(): StatusNotice | null {
   if (!lastSeen || Date.now() - lastSeen > 24 * 60 * 60 * 1000) return null;
 
   const isMac = user?.cli_platform === "darwin";
-  const installCmd = isMac ? "brew install tmux" : "sudo apt-get install -y tmux";
+  const installCmd = isMac
+    ? "brew install tmux"
+    : "sudo apt-get install -y tmux";
 
   const handleCopy = async () => {
     await copyToClipboard(installCmd);

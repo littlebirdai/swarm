@@ -53,9 +53,13 @@ export const OPTIONAL_INBOX_TIMESTAMPS: ReadonlySet<string> = new Set([
  * the server (a restore on another device) would otherwise keep its old value
  * in the meta while the inbox row shows it clear.
  */
-export function withClearedInboxStamps<T extends Record<string, unknown>>(doc: T): T {
+export function withClearedInboxStamps<T extends Record<string, unknown>>(
+  doc: T,
+): T {
   const missing = [...OPTIONAL_INBOX_TIMESTAMPS].filter((f) => !(f in doc));
-  return missing.length ? { ...doc, ...Object.fromEntries(missing.map((f) => [f, null])) } : doc;
+  return missing.length
+    ? { ...doc, ...Object.fromEntries(missing.map((f) => [f, null])) }
+    : doc;
 }
 
 export function applySyncTable<T extends { _id: string }>(
@@ -89,7 +93,13 @@ export function applySyncRecord(
   incoming: Record<string, any>,
   pending: Record<string, PendingEntry>,
 ): { record: Record<string, any>; pending: Record<string, PendingEntry> } {
-  return engineApplySyncRecord(tableName, id, incoming, pending, OPTIONAL_INBOX_TIMESTAMPS);
+  return engineApplySyncRecord(
+    tableName,
+    id,
+    incoming,
+    pending,
+    OPTIONAL_INBOX_TIMESTAMPS,
+  );
 }
 
 /** What an action locked on a local-first list or singleton, held over a
@@ -102,7 +112,10 @@ export function applyShapeLocks(
   local: any,
   keys?: { rowKey?: string; altKey?: string },
 ): { value: any; pending: Record<string, PendingEntry> } {
-  return engineApplyShapeLocks(tableName, kind, incoming, pending, local, { ...keys, optionalClearFields: OPTIONAL_INBOX_TIMESTAMPS });
+  return engineApplyShapeLocks(tableName, kind, incoming, pending, local, {
+    ...keys,
+    optionalClearFields: OPTIONAL_INBOX_TIMESTAMPS,
+  });
 }
 
 /** Partial-patch pending protection (sync-log cargo); same optional-clear rule. */
@@ -112,6 +125,17 @@ export function applySyncPatch(
   patch: Record<string, any>,
   unset: readonly string[],
   pending: Record<string, PendingEntry>,
-): { fields: Record<string, any>; unset: string[]; pending: Record<string, PendingEntry> } {
-  return engineApplySyncPatch(tableName, id, patch, unset, pending, OPTIONAL_INBOX_TIMESTAMPS);
+): {
+  fields: Record<string, any>;
+  unset: string[];
+  pending: Record<string, PendingEntry>;
+} {
+  return engineApplySyncPatch(
+    tableName,
+    id,
+    patch,
+    unset,
+    pending,
+    OPTIONAL_INBOX_TIMESTAMPS,
+  );
 }

@@ -17,7 +17,8 @@ export async function updateShared<T>(
     const value = update(current ? (current.value as T) : initial);
     const result = await write(value, current?.rev ?? 0);
     if (result.ok) return value;
-    current = result.rev === 0 ? null : { value: result.value, rev: result.rev };
+    current =
+      result.rev === 0 ? null : { value: result.value, rev: result.rev };
   }
   throw new Error("Too many people are changing this at once. Try again.");
 }

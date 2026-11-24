@@ -34,7 +34,9 @@ export class ProcessCwdCache {
     if (this.inflight && this.stale(wanted).length) await this.inflight;
     const stale = this.stale(wanted);
     if (stale.length) await this.refresh(stale);
-    return new Map(wanted.map((pid) => [pid, this.entries.get(pid)?.cwd ?? null]));
+    return new Map(
+      wanted.map((pid) => [pid, this.entries.get(pid)?.cwd ?? null]),
+    );
   }
 
   private stale(pids: number[]): number[] {
@@ -50,12 +52,20 @@ export class ProcessCwdCache {
       const at = this.now();
       let out: string;
       // A failed read caches nothing: those pids stay unknown and the next caller asks again.
-      try { out = await this.list(pids); } catch { return; }
+      try {
+        out = await this.list(pids);
+      } catch {
+        return;
+      }
       const byPid = parseLsofPidPaths(out);
-      for (const [pid, e] of this.entries) if (at - e.at >= this.ttlMs) this.entries.delete(pid);
-      for (const pid of pids) this.entries.set(pid, { cwd: byPid.get(pid)?.[0] ?? null, at });
+      for (const [pid, e] of this.entries)
+        if (at - e.at >= this.ttlMs) this.entries.delete(pid);
+      for (const pid of pids)
+        this.entries.set(pid, { cwd: byPid.get(pid)?.[0] ?? null, at });
     })();
-    const tracked = run.finally(() => { if (this.inflight === tracked) this.inflight = null; });
+    const tracked = run.finally(() => {
+      if (this.inflight === tracked) this.inflight = null;
+    });
     this.inflight = tracked;
     return tracked;
   }

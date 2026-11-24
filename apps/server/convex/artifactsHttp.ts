@@ -28,16 +28,30 @@ import {
   diffPage,
   editorPage,
 } from "./artifactPages";
-import { renderMarkdownDocument, restyleMarkdownDocument } from "./artifactMarkdown";
+import {
+  renderMarkdownDocument,
+  restyleMarkdownDocument,
+} from "./artifactMarkdown";
 import { mediaBucketFromEnv, r2Presign } from "./lib/r2";
 import { CAST_PLAYER_JS } from "./lib/castPlayer";
 import { CAST_MOTION_JS } from "./lib/castMotion";
 import { CAST_DATA_JS } from "./lib/castData";
 import { pageUsesData } from "@codecast/shared/contracts/pageData";
 import { servePageData, type PageDataSet } from "./pageData";
-import { HYPERFRAMES_RUNTIME, pageHasHyperframesRuntime, pageIsMotion, pageServingOrigin, pageUsesPlayer } from "@codecast/shared/contracts";
+import {
+  HYPERFRAMES_RUNTIME,
+  pageHasHyperframesRuntime,
+  pageIsMotion,
+  pageServingOrigin,
+  pageUsesPlayer,
+} from "@codecast/shared/contracts";
 import { injectPageTheme } from "@codecast/shared/render";
-import { sha256Hex, passwordHash, kTokenFor, eTokenFor } from "./lib/artifactGates";
+import {
+  sha256Hex,
+  passwordHash,
+  kTokenFor,
+  eTokenFor,
+} from "./lib/artifactGates";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -104,14 +118,21 @@ async function slugRateLimited(
       window_ms: windowMs,
     })) as { ok: boolean; retry_after_ms?: number };
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: "Too many requests — slow down and try again shortly." }), {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(Math.ceil((res.retry_after_ms ?? windowMs) / 1000)),
-          ...CORS,
+      return new Response(
+        JSON.stringify({
+          error: "Too many requests — slow down and try again shortly.",
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(
+              Math.ceil((res.retry_after_ms ?? windowMs) / 1000),
+            ),
+            ...CORS,
+          },
         },
-      });
+      );
     }
   } catch {
     // Fail CLOSED, unlike the auth limiter in http.ts. That one protects
@@ -121,22 +142,33 @@ async function slugRateLimited(
     // contention means failing open during exactly the flood this exists to
     // stop — and heavy write contention on one counter row is what a flood
     // against a single artifact looks like.
-    return new Response(JSON.stringify({ error: "Temporarily unavailable — please retry." }), {
-      status: 503,
-      headers: { "Content-Type": "application/json", "Retry-After": "5", ...CORS },
-    });
+    return new Response(
+      JSON.stringify({ error: "Temporarily unavailable — please retry." }),
+      {
+        status: 503,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": "5",
+          ...CORS,
+        },
+      },
+    );
   }
   return null;
 }
 
-export const corsPreflight = httpAction(async () => new Response(null, { status: 204, headers: CORS }));
+export const corsPreflight = httpAction(
+  async () => new Response(null, { status: 204, headers: CORS }),
+);
 
 /** The public https origin of this deployment. TLS terminates at the proxy in
  * front of us, so request.url says http — force https for any non-local host
  * or in-page fetches get blocked as mixed content. */
 function apiBaseFrom(request: Request): string {
   const url = new URL(request.url);
-  return /^(localhost|127\.)/.test(url.hostname) ? url.origin : `https://${url.host}`;
+  return /^(localhost|127\.)/.test(url.hostname)
+    ? url.origin
+    : `https://${url.host}`;
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -181,8 +213,20 @@ function contentTypeFor(path: string): string {
  * absolute paths, our reserved `_v/` versioned-asset namespace, and the
  * page's `_data` route. */
 export function normalizeAssetPath(raw: string): string | null {
-  const path = raw.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/{2,}/g, "/");
-  if (!path || path.startsWith("/") || path.startsWith("_v/") || path === "_data" || path.startsWith("_data/") || path.includes("..") || path.includes("\0")) return null;
+  const path = raw
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "")
+    .replace(/\/{2,}/g, "/");
+  if (
+    !path ||
+    path.startsWith("/") ||
+    path.startsWith("_v/") ||
+    path === "_data" ||
+    path.startsWith("_data/") ||
+    path.includes("..") ||
+    path.includes("\0")
+  )
+    return null;
   if (path.length > 512) return null;
   return path;
 }
@@ -193,7 +237,6 @@ function b64ToBytes(b64: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
 }
-
 
 /** Inject <base> right after <head> for bundle docs so relative asset URLs
  * resolve under the slug (and under _v/N/ for past versions). */
@@ -222,18 +265,27 @@ async function buildAccessSet(
 ): Promise<Record<string, unknown>> {
   const set: Record<string, unknown> = {};
   if (access.password !== undefined) {
-    set.password_hash = access.password === null || access.password === "" ? null : await passwordHash(access.password, slug);
+    set.password_hash =
+      access.password === null || access.password === ""
+        ? null
+        : await passwordHash(access.password, slug);
   }
   if (access.email_gate !== undefined) set.email_gate = !!access.email_gate;
   if (access.expires_in_ms !== undefined) {
-    set.expires_at = access.expires_in_ms === null ? null : Date.now() + Math.max(60_000, access.expires_in_ms);
+    set.expires_at =
+      access.expires_in_ms === null
+        ? null
+        : Date.now() + Math.max(60_000, access.expires_in_ms);
   }
   if (access.edit_mode !== undefined) {
-    if (!["owner", "link", "team"].includes(access.edit_mode)) throw new Error(`Invalid edit_mode "${access.edit_mode}"`);
+    if (!["owner", "link", "team"].includes(access.edit_mode))
+      throw new Error(`Invalid edit_mode "${access.edit_mode}"`);
     set.edit_mode = access.edit_mode;
-    if (access.edit_mode === "link" && !existingEditUrl) set.edit_key = newSecret();
+    if (access.edit_mode === "link" && !existingEditUrl)
+      set.edit_key = newSecret();
   }
-  if (access.show_session !== undefined) set.hide_session = !access.show_session;
+  if (access.show_session !== undefined)
+    set.hide_session = !access.show_session;
   if (access.comments !== undefined) set.comments_disabled = !access.comments;
   return set;
 }
@@ -259,53 +311,100 @@ function isOwnMediaUrl(url: unknown): url is string {
   const cfg = mediaBucketFromEnv();
   if (typeof url !== "string" || !cfg) return false;
   const prefix = `${cfg.publicBase}/media/`;
-  return url.startsWith(prefix) && /^[a-f0-9]{64}\.[a-z0-9]{2,4}$/.test(url.slice(prefix.length));
+  return (
+    url.startsWith(prefix) &&
+    /^[a-f0-9]{64}\.[a-z0-9]{2,4}$/.test(url.slice(prefix.length))
+  );
 }
 
 /** The filename a ?download= request saves a media asset as: the asked name
  * reduced to safe characters, keeping the asset's own extension, or null when
  * nothing was asked. Safe to put inside a quoted Content-Disposition. */
-export function mediaDownloadName(asked: string | null, assetPath: string): string | null {
+export function mediaDownloadName(
+  asked: string | null,
+  assetPath: string,
+): string | null {
   if (asked === null) return null;
-  const ext = assetPath.match(/\.([a-z0-9]{2,4})$/i)?.[1]?.toLowerCase() ?? "bin";
-  const base = asked.replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^\w.-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "").slice(0, 80);
-  return `${base || assetPath.split("/").pop()!.replace(/\.[^.]+$/, "") || "download"}.${ext}`;
+  const ext =
+    assetPath.match(/\.([a-z0-9]{2,4})$/i)?.[1]?.toLowerCase() ?? "bin";
+  const base = asked
+    .replace(/\.[a-z0-9]{2,4}$/i, "")
+    .replace(/[^\w.-]+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 80);
+  return `${
+    base ||
+    assetPath
+      .split("/")
+      .pop()!
+      .replace(/\.[^.]+$/, "") ||
+    "download"
+  }.${ext}`;
 }
 
 export const mediaSign = httpAction(async (ctx, request) => {
   try {
     const { api_token, sha256, size, ext } = await request.json();
-    const who = api_token ? await ctx.runQuery(internal.artifacts.verify, { api_token }) : null;
+    const who = api_token
+      ? await ctx.runQuery(internal.artifacts.verify, { api_token })
+      : null;
     if (!who) return json({ error: "Unauthorized" }, 401);
-    if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) return json({ error: "Bad sha256" }, 400);
-    if (typeof ext !== "string" || !MEDIA_EXT.test(ext)) return json({ error: `Unsupported media type .${ext}` }, 400);
-    if (typeof size !== "number" || size <= 0 || size > MEDIA_MAX_BYTES) return json({ error: "Media files must be under 2GB" }, 413);
+    if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256))
+      return json({ error: "Bad sha256" }, 400);
+    if (typeof ext !== "string" || !MEDIA_EXT.test(ext))
+      return json({ error: `Unsupported media type .${ext}` }, 400);
+    if (typeof size !== "number" || size <= 0 || size > MEDIA_MAX_BYTES)
+      return json({ error: "Media files must be under 2GB" }, 413);
     const cfg = mediaBucketFromEnv();
-    if (!cfg) return json({ error: "Media hosting is not configured on this server" }, 501);
+    if (!cfg)
+      return json(
+        { error: "Media hosting is not configured on this server" },
+        501,
+      );
     const key = `media/${sha256}.${ext}`;
-    const sign = (method: "HEAD" | "PUT", expiresSeconds: number) => r2Presign(cfg, method, key, expiresSeconds);
+    const sign = (method: "HEAD" | "PUT", expiresSeconds: number) =>
+      r2Presign(cfg, method, key, expiresSeconds);
     const url = `${cfg.publicBase}/${key}`;
     // Same bytes already stored: nothing to upload.
     const head = await fetch(await sign("HEAD", 60), { method: "HEAD" });
-    if (head.ok && Number(head.headers.get("content-length")) === size) return json({ url, exists: true });
-    return json({ url, exists: false, upload_url: await sign("PUT", 3600), content_type: contentTypeFor(`x.${ext}`) });
+    if (head.ok && Number(head.headers.get("content-length")) === size)
+      return json({ url, exists: true });
+    return json({
+      url,
+      exists: false,
+      upload_url: await sign("PUT", 3600),
+      content_type: contentTypeFor(`x.${ext}`),
+    });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Internal error" }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      500,
+    );
   }
 });
 
-export const playerJs = httpAction(async () =>
-  new Response(CAST_PLAYER_JS, {
-    status: 200,
-    headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" },
-  }),
+export const playerJs = httpAction(
+  async () =>
+    new Response(CAST_PLAYER_JS, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "Access-Control-Allow-Origin": "*",
+      },
+    }),
 );
 
-export const motionJs = httpAction(async () =>
-  new Response(CAST_MOTION_JS, {
-    status: 200,
-    headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" },
-  }),
+export const motionJs = httpAction(
+  async () =>
+    new Response(CAST_MOTION_JS, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "Access-Control-Allow-Origin": "*",
+      },
+    }),
 );
 
 /** A HyperFrames composition gets the pinned runtime and the motion player.
@@ -323,21 +422,34 @@ export function injectMotion(html: string, apiBase: string): string {
   return html.slice(0, at) + tags + html.slice(at);
 }
 
-export const dataJs = httpAction(async () =>
-  new Response(CAST_DATA_JS, {
-    status: 200,
-    headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "public, max-age=300", "Access-Control-Allow-Origin": "*" },
-  }),
+export const dataJs = httpAction(
+  async () =>
+    new Response(CAST_DATA_JS, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+        "Access-Control-Allow-Origin": "*",
+      },
+    }),
 );
 
 /** Pages that read live data get the data runtime first in <head>, so window.cast exists before the page's own scripts; it carries the page's data URL, gate tokens included. */
-export function injectData(html: string, dataUrl: string, apiBase: string, slug?: string): string {
+export function injectData(
+  html: string,
+  dataUrl: string,
+  apiBase: string,
+  slug?: string,
+): string {
   if (!pageUsesData(html) || /\/cli\/data\.js/.test(html)) return html;
   const attr = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   // Page state dials the deployment's client origin, which differs from the
   // HTTP actions' origin on a dev backend (3210 vs 3211).
-  const convexUrl = process.env.CONVEX_CLOUD_ORIGIN || process.env.CONVEX_CLOUD_URL || apiBase;
-  const state = slug ? ` data-slug="${attr(slug)}" data-convex="${attr(convexUrl)}"` : "";
+  const convexUrl =
+    process.env.CONVEX_CLOUD_ORIGIN || process.env.CONVEX_CLOUD_URL || apiBase;
+  const state = slug
+    ? ` data-slug="${attr(slug)}" data-convex="${attr(convexUrl)}"`
+    : "";
   const tag = `<script src="${pageServingOrigin(apiBase)}/cli/data.js" data-endpoint="${attr(dataUrl)}"${state}></script>`;
   const head = html.match(/<head[^>]*>/i);
   if (!head) return tag + html;
@@ -346,8 +458,13 @@ export function injectData(html: string, dataUrl: string, apiBase: string, slug?
 }
 
 /** A page's content hash with its live query set folded in: publish and rollback agree on it. */
-async function withDataHash(contentHash: string, setJson: string): Promise<string> {
-  return setJson ? await sha256Hex(`${contentHash}\ndata:${setJson}`) : contentHash;
+async function withDataHash(
+  contentHash: string,
+  setJson: string,
+): Promise<string> {
+  return setJson
+    ? await sha256Hex(`${contentHash}\ndata:${setJson}`)
+    : contentHash;
 }
 
 /** Pages with <cast-player> or a <video> get the player script, from the host that served them. */
@@ -365,24 +482,43 @@ const STREAM_MAX_BYTES = 16 * 1024 * 1024;
  * crosses the publish action as base64. Answers the upload_id a publish names. */
 export const upload = httpAction(async (ctx, request) => {
   try {
-    const api_token = (request.headers.get("authorization") ?? "").replace(/^Bearer /, "");
+    const api_token = (request.headers.get("authorization") ?? "").replace(
+      /^Bearer /,
+      "",
+    );
     if (!api_token) return json({ error: "Missing api_token" }, 400);
     const who = await ctx.runQuery(internal.artifacts.verify, { api_token });
     if (!who) return json({ error: "Unauthorized" }, 401);
-    const refusal = await ctx.runQuery(internal.managedDevices.publishRefusal, { api_token });
+    const refusal = await ctx.runQuery(internal.managedDevices.publishRefusal, {
+      api_token,
+    });
     if (refusal) return json({ error: refusal }, 403);
-    const tooBig = (bytes: number) => json({ error: `File is ${(bytes / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_ARTIFACT_MB}MB.` }, 413);
+    const tooBig = (bytes: number) =>
+      json(
+        {
+          error: `File is ${(bytes / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_ARTIFACT_MB}MB.`,
+        },
+        413,
+      );
     const declared = Number(request.headers.get("content-length") ?? 0);
     if (declared > MAX_ARTIFACT_BYTES) return tooBig(declared);
     const body = await request.blob();
     if (body.size > MAX_ARTIFACT_BYTES) return tooBig(body.size);
     // Stored with the type the page serves it as: a big file is read from storage directly.
     const path = new URL(request.url).searchParams.get("path");
-    const storage_id = await ctx.storage.store(path ? new Blob([body], { type: contentTypeFor(path) }) : body);
-    await ctx.runMutation(internal.artifacts.recordUpload, { user_id: who.user_id, storage_id });
+    const storage_id = await ctx.storage.store(
+      path ? new Blob([body], { type: contentTypeFor(path) }) : body,
+    );
+    await ctx.runMutation(internal.artifacts.recordUpload, {
+      user_id: who.user_id,
+      storage_id,
+    });
     return json({ upload_id: storage_id });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Internal error" }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      500,
+    );
   }
 });
 
@@ -392,28 +528,52 @@ export const publish = httpAction(async (ctx, request) => {
   let attached = false;
   try {
     const body = await request.json();
-    const { api_token, content, title, source_path, force_new, kind: rawKind, files, session_ref, access, thumb_b64, task, plan, data } = body;
-    if (!api_token || !title) return json({ error: "Missing api_token or title" }, 400);
-    const kind = rawKind === "markdown" || rawKind === "bundle" ? rawKind : "html";
-    if (kind !== "bundle" && typeof content !== "string") return json({ error: "Missing content" }, 400);
-    if (kind === "bundle" && (!Array.isArray(files) || !files.length)) return json({ error: "Bundle publish needs files[]" }, 400);
+    const {
+      api_token,
+      content,
+      title,
+      source_path,
+      force_new,
+      kind: rawKind,
+      files,
+      session_ref,
+      access,
+      thumb_b64,
+      task,
+      plan,
+      data,
+    } = body;
+    if (!api_token || !title)
+      return json({ error: "Missing api_token or title" }, 400);
+    const kind =
+      rawKind === "markdown" || rawKind === "bundle" ? rawKind : "html";
+    if (kind !== "bundle" && typeof content !== "string")
+      return json({ error: "Missing content" }, 400);
+    if (kind === "bundle" && (!Array.isArray(files) || !files.length))
+      return json({ error: "Bundle publish needs files[]" }, 400);
 
     const who = await ctx.runQuery(internal.artifacts.verify, { api_token });
     if (!who) return json({ error: "Unauthorized" }, 401);
-    const refusal = await ctx.runQuery(internal.managedDevices.publishRefusal, { api_token });
+    const refusal = await ctx.runQuery(internal.managedDevices.publishRefusal, {
+      api_token,
+    });
     if (refusal) return json({ error: refusal }, 403);
 
     // Resolve the row this publish updates (slug is the password-hash salt, so
     // it must exist before hashing). Create path: pre-mint slug + owner_key.
     const existing =
       !force_new && source_path
-        ? await ctx.runQuery(internal.artifacts.byUserPath, { user_id: who.user_id, source_path })
+        ? await ctx.runQuery(internal.artifacts.byUserPath, {
+            user_id: who.user_id,
+            source_path,
+          })
         : null;
     let slug = existing?.slug;
     let ownerKey = existing?.owner_key;
     if (!slug) {
       slug = newSlug();
-      while (await ctx.runQuery(internal.artifacts.slugTaken, { slug })) slug = newSlug();
+      while (await ctx.runQuery(internal.artifacts.slugTaken, { slug }))
+        slug = newSlug();
       ownerKey = newSecret();
     }
 
@@ -421,7 +581,12 @@ export const publish = httpAction(async (ctx, request) => {
     let docHtml: string;
     let contentHash: string;
     let sourceText: string | undefined;
-    let assetInputs: Array<{ path: string; bytes?: Uint8Array; upload?: { storage_id: Id<"_storage">; size: number; sha256: string }; content_type: string }> = [];
+    let assetInputs: Array<{
+      path: string;
+      bytes?: Uint8Array;
+      upload?: { storage_id: Id<"_storage">; size: number; sha256: string };
+      content_type: string;
+    }> = [];
 
     if (kind === "markdown") {
       sourceText = content as string;
@@ -433,16 +598,34 @@ export const publish = httpAction(async (ctx, request) => {
       let entryPath: string | null = null;
       const htmlCandidates: string[] = [];
       let total = 0;
-      const uploadRefs: Array<{ path: string; storage_id: Id<"_storage"> }> = [];
+      const uploadRefs: Array<{ path: string; storage_id: Id<"_storage"> }> =
+        [];
       for (const f of files) {
-        const path = typeof f?.path === "string" ? normalizeAssetPath(f.path) : null;
-        if (!path) return json({ error: `Invalid bundle path: ${JSON.stringify(f?.path ?? null)}` }, 400);
-        if (seen.has(path)) return json({ error: `Duplicate bundle path: ${path}` }, 400);
+        const path =
+          typeof f?.path === "string" ? normalizeAssetPath(f.path) : null;
+        if (!path)
+          return json(
+            {
+              error: `Invalid bundle path: ${JSON.stringify(f?.path ?? null)}`,
+            },
+            400,
+          );
+        if (seen.has(path))
+          return json({ error: `Duplicate bundle path: ${path}` }, 400);
         seen.add(path);
         if (f.media_url !== undefined) {
-          if (!isOwnMediaUrl(f.media_url)) return json({ error: `Bad media URL for ${path}` }, 400);
-          const pointer = JSON.stringify({ url: f.media_url, size: typeof f.size === "number" ? f.size : null, type: contentTypeFor(path) });
-          assetInputs.push({ path, bytes: new TextEncoder().encode(pointer), content_type: MEDIA_POINTER_TYPE });
+          if (!isOwnMediaUrl(f.media_url))
+            return json({ error: `Bad media URL for ${path}` }, 400);
+          const pointer = JSON.stringify({
+            url: f.media_url,
+            size: typeof f.size === "number" ? f.size : null,
+            type: contentTypeFor(path),
+          });
+          assetInputs.push({
+            path,
+            bytes: new TextEncoder().encode(pointer),
+            content_type: MEDIA_POINTER_TYPE,
+          });
           continue;
         }
         if (/\.html?$/i.test(path)) htmlCandidates.push(path);
@@ -450,7 +633,8 @@ export const publish = httpAction(async (ctx, request) => {
           uploadRefs.push({ path, storage_id: f.upload_id as Id<"_storage"> });
           continue;
         }
-        if (typeof f.content_b64 !== "string") return json({ error: `Missing content for ${path}` }, 400);
+        if (typeof f.content_b64 !== "string")
+          return json({ error: `Missing content for ${path}` }, 400);
         const bytes = b64ToBytes(f.content_b64);
         total += bytes.byteLength;
         assetInputs.push({ path, bytes, content_type: contentTypeFor(path) });
@@ -460,15 +644,28 @@ export const publish = httpAction(async (ctx, request) => {
           user_id: who.user_id,
           storage_ids: uploadRefs.map((u) => u.storage_id),
         });
-        if (!owned) return json({ error: "Unknown upload: upload the bundle's files again" }, 400);
+        if (!owned)
+          return json(
+            { error: "Unknown upload: upload the bundle's files again" },
+            400,
+          );
         claimed = owned.map((o) => o.storage_id);
         owned.forEach((o, i) => {
           total += o.size;
-          assetInputs.push({ path: uploadRefs[i].path, upload: o, content_type: contentTypeFor(uploadRefs[i].path) });
+          assetInputs.push({
+            path: uploadRefs[i].path,
+            upload: o,
+            content_type: contentTypeFor(uploadRefs[i].path),
+          });
         });
       }
       if (total > MAX_ARTIFACT_BYTES) {
-        return json({ error: `Bundle is ${(total / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_ARTIFACT_MB}MB total.` }, 413);
+        return json(
+          {
+            error: `Bundle is ${(total / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_ARTIFACT_MB}MB total.`,
+          },
+          413,
+        );
       }
       entryPath = htmlCandidates.includes("index.html")
         ? "index.html"
@@ -476,19 +673,41 @@ export const publish = httpAction(async (ctx, request) => {
           ? htmlCandidates[0]
           : null;
       if (!entryPath) {
-        return json({ error: "Bundle needs an index.html (or exactly one .html file) as the entry page" }, 400);
+        return json(
+          {
+            error:
+              "Bundle needs an index.html (or exactly one .html file) as the entry page",
+          },
+          400,
+        );
       }
       const entry = assetInputs.find((a) => a.path === entryPath)!;
-      if (!entry.bytes) return json({ error: `The entry page ${entryPath} must be sent inline, not uploaded` }, 400);
+      if (!entry.bytes)
+        return json(
+          {
+            error: `The entry page ${entryPath} must be sent inline, not uploaded`,
+          },
+          400,
+        );
       entryHtml = new TextDecoder().decode(entry.bytes);
       assetInputs = assetInputs.filter((a) => a.path !== entryPath);
       // Hash over the canonical file list so any file change bumps a version.
       const parts: string[] = [];
       parts.push(`${entryPath}:${await sha256Hex(entryHtml)}`);
-      for (const a of assetInputs.slice().sort((x, y) => (x.path < y.path ? -1 : 1))) {
-        const hex = a.upload ? a.upload.sha256 : Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", a.bytes! as unknown as ArrayBuffer)), (b) =>
-          b.toString(16).padStart(2, "0"),
-        ).join("");
+      for (const a of assetInputs
+        .slice()
+        .sort((x, y) => (x.path < y.path ? -1 : 1))) {
+        const hex = a.upload
+          ? a.upload.sha256
+          : Array.from(
+              new Uint8Array(
+                await crypto.subtle.digest(
+                  "SHA-256",
+                  a.bytes! as unknown as ArrayBuffer,
+                ),
+              ),
+              (b) => b.toString(16).padStart(2, "0"),
+            ).join("");
         parts.push(`${a.path}:${hex}`);
       }
       contentHash = await sha256Hex(parts.join("\n"));
@@ -500,17 +719,30 @@ export const publish = httpAction(async (ctx, request) => {
 
     const size = new TextEncoder().encode(docHtml).byteLength;
     if (size > MAX_DOCUMENT_BYTES) {
-      return json({ error: `The page is ${(size / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_DOCUMENT_MB}MB for the html itself. Move inlined images and data into files beside it and publish the folder (up to ${MAX_ARTIFACT_MB}MB).` }, 413);
+      return json(
+        {
+          error: `The page is ${(size / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_DOCUMENT_MB}MB for the html itself. Move inlined images and data into files beside it and publish the folder (up to ${MAX_ARTIFACT_MB}MB).`,
+        },
+        413,
+      );
     }
 
     // Access flags → hashed set (needs slug).
     let accessSet: Record<string, unknown> | undefined;
     if (access && typeof access === "object") {
-      const existingEditUrl = existing?.edit_mode === "link" && existing?.edit_key ? "set" : null;
+      const existingEditUrl =
+        existing?.edit_mode === "link" && existing?.edit_key ? "set" : null;
       try {
-        accessSet = await buildAccessSet(access as AccessInput, slug, existingEditUrl);
+        accessSet = await buildAccessSet(
+          access as AccessInput,
+          slug,
+          existingEditUrl,
+        );
       } catch (e) {
-        return json({ error: e instanceof Error ? e.message : "Invalid access flags" }, 400);
+        return json(
+          { error: e instanceof Error ? e.message : "Invalid access flags" },
+          400,
+        );
       }
     }
 
@@ -520,15 +752,35 @@ export const publish = httpAction(async (ctx, request) => {
     // stays on the fast path.
     let dataSet: PageDataSet | null = null;
     if (data !== undefined && data !== null) {
-      const checked = await ctx.runQuery(internal.pageData.validateDeclaration, {
-        owner: who.user_id,
-        declaration: data,
-        order: data && typeof data === "object" && data.queries && typeof data.queries === "object" ? Object.keys(data.queries) : undefined,
-        conversation_id: typeof session_ref === "string" && session_ref ? session_ref : undefined,
-        project_path: typeof source_path === "string" && source_path ? source_path : undefined,
-      });
-      if (!checked.ok) return json({ error: `cast-data.json: ${checked.error}` }, 400);
-      dataSet = { workspace: checked.workspace, queries: checked.queries, ...(checked.state ? { state: checked.state } : {}) };
+      const checked = await ctx.runQuery(
+        internal.pageData.validateDeclaration,
+        {
+          owner: who.user_id,
+          declaration: data,
+          order:
+            data &&
+            typeof data === "object" &&
+            data.queries &&
+            typeof data.queries === "object"
+              ? Object.keys(data.queries)
+              : undefined,
+          conversation_id:
+            typeof session_ref === "string" && session_ref
+              ? session_ref
+              : undefined,
+          project_path:
+            typeof source_path === "string" && source_path
+              ? source_path
+              : undefined,
+        },
+      );
+      if (!checked.ok)
+        return json({ error: `cast-data.json: ${checked.error}` }, 400);
+      dataSet = {
+        workspace: checked.workspace,
+        queries: checked.queries,
+        ...(checked.state ? { state: checked.state } : {}),
+      };
       contentHash = await withDataHash(contentHash, JSON.stringify(dataSet));
     }
 
@@ -536,7 +788,10 @@ export const publish = httpAction(async (ctx, request) => {
     let sessionShortId: string | undefined;
     let sessionConversationId: string | undefined;
     if (typeof session_ref === "string" && session_ref) {
-      const resolved = await ctx.runQuery(internal.artifacts.resolveSessionRef, { ref: session_ref, user_id: who.user_id });
+      const resolved = await ctx.runQuery(
+        internal.artifacts.resolveSessionRef,
+        { ref: session_ref, user_id: who.user_id },
+      );
       if (resolved) {
         sessionShortId = resolved.short_id;
         sessionConversationId = resolved.conversation_id;
@@ -552,37 +807,48 @@ export const publish = httpAction(async (ctx, request) => {
       plan: typeof plan === "string" && plan ? plan : undefined,
       session_conversation_id: sessionConversationId as never,
     });
-    if (evidence.error || !evidence.binding) return json({ error: evidence.error ?? "Could not resolve task" }, 404);
+    if (evidence.error || !evidence.binding)
+      return json({ error: evidence.error ?? "Could not resolve task" }, 404);
     const binding = evidence.binding;
 
     // Regulated data (HIPAA): a page whose workspace, data or publishing
     // device answers to a team with regulated_data is gated to that team's
     // signed-in members, on create and on every republish, and never takes a
     // public edit link.
-    const gate: { team_id: Id<"teams">; team_name: string } | null = await ctx.runQuery(internal.artifacts.publishGate, {
-      user_id: who.user_id,
-      api_token,
-      existing_id: existing?._id,
-      session_conversation_id: sessionConversationId as never,
-      task_id: binding.task_id,
-      plan_id: binding.plan_id,
-      data_workspace: dataSet?.workspace,
-    });
+    const gate: { team_id: Id<"teams">; team_name: string } | null =
+      await ctx.runQuery(internal.artifacts.publishGate, {
+        user_id: who.user_id,
+        api_token,
+        existing_id: existing?._id,
+        session_conversation_id: sessionConversationId as never,
+        task_id: binding.task_id,
+        plan_id: binding.plan_id,
+        data_workspace: dataSet?.workspace,
+      });
     if (gate) {
-      const refusal = teamGateRefusal(gate.team_name, (accessSet ?? {}) as { edit_mode?: string });
+      const refusal = teamGateRefusal(
+        gate.team_name,
+        (accessSet ?? {}) as { edit_mode?: string },
+      );
       if (refusal) return json({ error: refusal }, 403);
       accessSet = { ...(accessSet ?? {}), team_gate: gate.team_id };
     } else if (dataSet) {
       // Live data from a team that turned public sharing off never goes on an
       // open page, whatever device publishes it (a team-gated page is not open).
-      const refusal = await ctx.runQuery(internal.managedDevices.publishRefusal, { api_token, workspace: dataSet.workspace });
+      const refusal = await ctx.runQuery(
+        internal.managedDevices.publishRefusal,
+        { api_token, workspace: dataSet.workspace },
+      );
       if (refusal) return json({ error: refusal }, 403);
     }
 
     // Unchanged fast path — common under --watch: no blob stores at all.
     if (existing && existing.content_hash === contentHash && !thumb_b64) {
       if (accessSet && Object.keys(accessSet).length) {
-        await ctx.runMutation(internal.artifacts.applyManage, { artifact_id: existing._id, set: accessSet });
+        await ctx.runMutation(internal.artifacts.applyManage, {
+          artifact_id: existing._id,
+          set: accessSet,
+        });
       }
       const url = artifactUrl(existing.slug);
       return json({
@@ -592,30 +858,60 @@ export const publish = httpAction(async (ctx, request) => {
         updated: true,
         unchanged: true,
         manage_url: ownerKey ? `${url}#o=${ownerKey}` : url,
-        ...(dataSet ? { data: { workspace: dataSet.workspace, queries: dataSet.queries.length, state: dataSet.state?.map((c) => c.id) ?? [] } } : {}),
+        ...(dataSet
+          ? {
+              data: {
+                workspace: dataSet.workspace,
+                queries: dataSet.queries.length,
+                state: dataSet.state?.map((c) => c.id) ?? [],
+              },
+            }
+          : {}),
       });
     }
 
     // --- Store blobs ---
-    const storageId = await ctx.storage.store(new Blob([docHtml], { type: "text/html; charset=utf-8" }));
+    const storageId = await ctx.storage.store(
+      new Blob([docHtml], { type: "text/html; charset=utf-8" }),
+    );
     const sourceStorageId =
       sourceText !== undefined
-        ? await ctx.storage.store(new Blob([sourceText], { type: "text/markdown; charset=utf-8" }))
+        ? await ctx.storage.store(
+            new Blob([sourceText], { type: "text/markdown; charset=utf-8" }),
+          )
         : undefined;
     const assets = [];
     for (const a of assetInputs) {
       if (a.upload) {
-        assets.push({ path: a.path, storage_id: a.upload.storage_id, content_type: a.content_type, size: a.upload.size });
+        assets.push({
+          path: a.path,
+          storage_id: a.upload.storage_id,
+          content_type: a.content_type,
+          size: a.upload.size,
+        });
         continue;
       }
-      const id = await ctx.storage.store(new Blob([a.bytes as unknown as ArrayBuffer], { type: a.content_type }));
-      assets.push({ path: a.path, storage_id: id, content_type: a.content_type, size: a.bytes!.byteLength });
+      const id = await ctx.storage.store(
+        new Blob([a.bytes as unknown as ArrayBuffer], { type: a.content_type }),
+      );
+      assets.push({
+        path: a.path,
+        storage_id: id,
+        content_type: a.content_type,
+        size: a.bytes!.byteLength,
+      });
     }
     let thumbStorageId;
-    if (typeof thumb_b64 === "string" && thumb_b64 && thumb_b64.length < 3 * 1024 * 1024) {
+    if (
+      typeof thumb_b64 === "string" &&
+      thumb_b64 &&
+      thumb_b64.length < 3 * 1024 * 1024
+    ) {
       try {
         const bytes = b64ToBytes(thumb_b64);
-        thumbStorageId = await ctx.storage.store(new Blob([bytes as unknown as ArrayBuffer], { type: "image/png" }));
+        thumbStorageId = await ctx.storage.store(
+          new Blob([bytes as unknown as ArrayBuffer], { type: "image/png" }),
+        );
       } catch {
         /* bad thumb never blocks a publish */
       }
@@ -652,16 +948,39 @@ export const publish = httpAction(async (ctx, request) => {
     });
     return json({
       ...result,
-      ...(dataSet ? { data: { workspace: dataSet.workspace, queries: dataSet.queries.length, state: dataSet.state?.map((c) => c.id) ?? [] } } : {}),
-      manage_url: result.owner_key ? `${result.url}#o=${result.owner_key}` : result.url,
+      ...(dataSet
+        ? {
+            data: {
+              workspace: dataSet.workspace,
+              queries: dataSet.queries.length,
+              state: dataSet.state?.map((c) => c.id) ?? [],
+            },
+          }
+        : {}),
+      manage_url: result.owner_key
+        ? `${result.url}#o=${result.owner_key}`
+        : result.url,
       ...(binding.task_id || binding.plan_id
-        ? { evidence: { task: binding.task_short_id ?? null, plan: binding.plan_short_id ?? null, station: binding.station ?? null } }
+        ? {
+            evidence: {
+              task: binding.task_short_id ?? null,
+              plan: binding.plan_short_id ?? null,
+              station: binding.station ?? null,
+            },
+          }
         : {}),
     });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Internal error" }, 500);
+    return json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      500,
+    );
   } finally {
-    if (claimed.length) await ctx.runMutation(internal.artifacts.settleUploads, { storage_ids: claimed, attached });
+    if (claimed.length)
+      await ctx.runMutation(internal.artifacts.settleUploads, {
+        storage_ids: claimed,
+        attached,
+      });
   }
 });
 
@@ -672,15 +991,23 @@ export const publish = httpAction(async (ctx, request) => {
 export const unlock = httpAction(async (ctx, request) => {
   try {
     const { slug, password } = await request.json();
-    if (!slug || typeof password !== "string") return json({ error: "Missing slug or password" }, 400);
+    if (!slug || typeof password !== "string")
+      return json({ error: "Missing slug or password" }, 400);
     // Online guessing bound: short "share with a client" passwords are the
     // realistic case, so the hash comparison alone is not the whole defense.
-    const limited = await slugRateLimited(ctx, slug, "artifact-unlock", 12, 60_000);
+    const limited = await slugRateLimited(
+      ctx,
+      slug,
+      "artifact-unlock",
+      12,
+      60_000,
+    );
     if (limited) return limited;
     const artifact = await ctx.runQuery(internal.artifacts.bySlug, { slug });
     if (!artifact?.password_hash) return json({ error: "Not found" }, 404);
     const hash = await passwordHash(password, slug);
-    if (hash !== artifact.password_hash) return json({ error: "Wrong password" }, 403);
+    if (hash !== artifact.password_hash)
+      return json({ error: "Wrong password" }, 403);
     return json({ k: await kTokenFor(artifact.password_hash, slug) });
   } catch {
     return json({ error: "Bad request" }, 400);
@@ -690,14 +1017,29 @@ export const unlock = httpAction(async (ctx, request) => {
 export const emailUnlock = httpAction(async (ctx, request) => {
   try {
     const { slug, email } = await request.json();
-    const limited = await slugRateLimited(ctx, slug, "artifact-email-unlock", 20, 60_000);
+    const limited = await slugRateLimited(
+      ctx,
+      slug,
+      "artifact-email-unlock",
+      20,
+      60_000,
+    );
     if (limited) return limited;
-    if (!slug || typeof email !== "string" || !email.includes("@") || email.length > 254) {
+    if (
+      !slug ||
+      typeof email !== "string" ||
+      !email.includes("@") ||
+      email.length > 254
+    ) {
       return json({ error: "Enter a valid email" }, 400);
     }
     const artifact = await ctx.runQuery(internal.artifacts.bySlug, { slug });
-    if (!artifact?.email_gate || !artifact.owner_key) return json({ error: "Not found" }, 404);
-    await ctx.runMutation(internal.artifacts.recordViewerEmail, { slug, email });
+    if (!artifact?.email_gate || !artifact.owner_key)
+      return json({ error: "Not found" }, 404);
+    await ctx.runMutation(internal.artifacts.recordViewerEmail, {
+      slug,
+      email,
+    });
     return json({ e: await eTokenFor(artifact.owner_key, slug) });
   } catch {
     return json({ error: "Bad request" }, 400);
@@ -711,15 +1053,34 @@ export const emailUnlock = httpAction(async (ctx, request) => {
 export const manage = httpAction(async (ctx, request) => {
   try {
     const body = await request.json();
-    const { slug, owner_key, set, rollback_to, resolve_comment_id, delete_comment_id } = body;
-    if (!slug || !owner_key) return json({ error: "Missing slug or owner_key" }, 400);
-    const panel = await ctx.runQuery(internal.artifacts.ownerPanel, { slug, owner_key });
+    const {
+      slug,
+      owner_key,
+      set,
+      rollback_to,
+      resolve_comment_id,
+      delete_comment_id,
+    } = body;
+    if (!slug || !owner_key)
+      return json({ error: "Missing slug or owner_key" }, 400);
+    const panel = await ctx.runQuery(internal.artifacts.ownerPanel, {
+      slug,
+      owner_key,
+    });
     if (!panel) return json({ error: "Not found" }, 403);
 
     if (set && typeof set === "object") {
-      const accessSet = await buildAccessSet(set as AccessInput, slug, panel.edit_url ? "set" : null);
-      if (typeof set.title === "string" && set.title.trim()) accessSet.title = set.title.trim();
-      await ctx.runMutation(internal.artifacts.applyManage, { artifact_id: panel.artifact_id, set: accessSet as never });
+      const accessSet = await buildAccessSet(
+        set as AccessInput,
+        slug,
+        panel.edit_url ? "set" : null,
+      );
+      if (typeof set.title === "string" && set.title.trim())
+        accessSet.title = set.title.trim();
+      await ctx.runMutation(internal.artifacts.applyManage, {
+        artifact_id: panel.artifact_id,
+        set: accessSet as never,
+      });
     }
     if (resolve_comment_id || delete_comment_id) {
       await ctx.runMutation(internal.artifacts.applyManage, {
@@ -732,10 +1093,16 @@ export const manage = httpAction(async (ctx, request) => {
       const err = await performRollback(ctx, slug, rollback_to);
       if (err) return json({ error: err }, 400);
     }
-    const fresh = await ctx.runQuery(internal.artifacts.ownerPanel, { slug, owner_key });
+    const fresh = await ctx.runQuery(internal.artifacts.ownerPanel, {
+      slug,
+      owner_key,
+    });
     return json({ ok: true, ...fresh });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Bad request" }, 400);
+    return json(
+      { error: error instanceof Error ? error.message : "Bad request" },
+      400,
+    );
   }
 });
 
@@ -744,18 +1111,27 @@ export const manage = httpAction(async (ctx, request) => {
 // blobs (blob-ownership invariant: no row ever shares a storage_id).
 // ---------------------------------------------------------------------------
 
-
-async function performRollback(ctx: ActionCtx, slug: string, targetVersion: number): Promise<string | null> {
+async function performRollback(
+  ctx: ActionCtx,
+  slug: string,
+  targetVersion: number,
+): Promise<string | null> {
   const art = await ctx.runQuery(internal.artifacts.historyBySlug, { slug });
   if (!art) return "Not found";
-  if (targetVersion === art.version) return `v${targetVersion} is already current`;
-  const past = art.versions.find((x: { version: number }) => x.version === targetVersion);
-  if (!past) return `Version ${targetVersion} is no longer available (history keeps the last 20)`;
+  if (targetVersion === art.version)
+    return `v${targetVersion} is already current`;
+  const past = art.versions.find(
+    (x: { version: number }) => x.version === targetVersion,
+  );
+  if (!past)
+    return `Version ${targetVersion} is no longer available (history keeps the last 20)`;
 
   const mainBlob = await ctx.storage.get(past.storage_id);
   if (!mainBlob) return "Version content missing";
   const mainText = await mainBlob.text();
-  const newMain = await ctx.storage.store(new Blob([mainText], { type: "text/html; charset=utf-8" }));
+  const newMain = await ctx.storage.store(
+    new Blob([mainText], { type: "text/html; charset=utf-8" }),
+  );
 
   let newSource;
   let sourceText: string | undefined;
@@ -763,7 +1139,9 @@ async function performRollback(ctx: ActionCtx, slug: string, targetVersion: numb
     const src = await ctx.storage.get(past.source_storage_id);
     if (src) {
       sourceText = await src.text();
-      newSource = await ctx.storage.store(new Blob([sourceText], { type: "text/markdown; charset=utf-8" }));
+      newSource = await ctx.storage.store(
+        new Blob([sourceText], { type: "text/markdown; charset=utf-8" }),
+      );
     }
   }
 
@@ -777,9 +1155,19 @@ async function performRollback(ctx: ActionCtx, slug: string, targetVersion: numb
     const blob = await ctx.storage.get(a.storage_id);
     if (!blob) continue;
     const buf = await blob.arrayBuffer();
-    const id = await ctx.storage.store(new Blob([buf], { type: a.content_type }));
-    assets.push({ path: a.path, storage_id: id, content_type: a.content_type, size: a.size });
-    const hex = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf)), (b) => b.toString(16).padStart(2, "0")).join("");
+    const id = await ctx.storage.store(
+      new Blob([buf], { type: a.content_type }),
+    );
+    assets.push({
+      path: a.path,
+      storage_id: id,
+      content_type: a.content_type,
+      size: a.size,
+    });
+    const hex = Array.from(
+      new Uint8Array(await crypto.subtle.digest("SHA-256", buf)),
+      (b) => b.toString(16).padStart(2, "0"),
+    ).join("");
     assetHashes.push(`${a.path}:${hex}`);
   }
 
@@ -790,13 +1178,19 @@ async function performRollback(ctx: ActionCtx, slug: string, targetVersion: numb
   if (kind === "markdown" && sourceText !== undefined) {
     contentHash = await sha256Hex(sourceText);
   } else if (kind === "bundle") {
-    const parts = [`index.html:${await sha256Hex(mainText)}`, ...assetHashes.sort()];
+    const parts = [
+      `index.html:${await sha256Hex(mainText)}`,
+      ...assetHashes.sort(),
+    ];
     contentHash = await sha256Hex(parts.join("\n"));
   } else {
     contentHash = await sha256Hex(mainText);
   }
   // The restored version's live queries come back with it.
-  const setJson: string | null = await ctx.runQuery(internal.pageData.setAt, { artifact_id: art._id, version: targetVersion });
+  const setJson: string | null = await ctx.runQuery(internal.pageData.setAt, {
+    artifact_id: art._id,
+    version: targetVersion,
+  });
   if (setJson) contentHash = await withDataHash(contentHash, setJson);
 
   const appended = await ctx.runMutation(internal.artifacts.appendVersion, {
@@ -810,7 +1204,11 @@ async function performRollback(ctx: ActionCtx, slug: string, targetVersion: numb
     edited_by: `rollback to v${targetVersion}`,
     assets: assets as never,
   });
-  await ctx.runMutation(internal.pageData.restoreSet, { artifact_id: art._id, from_version: targetVersion, to_version: appended.version });
+  await ctx.runMutation(internal.pageData.restoreSet, {
+    artifact_id: art._id,
+    from_version: targetVersion,
+    to_version: appended.version,
+  });
   return null;
 }
 
@@ -820,16 +1218,29 @@ export const rollback = httpAction(async (ctx, request) => {
     if (!api_token || !target || typeof version !== "number") {
       return json({ error: "Missing api_token, target, or version" }, 400);
     }
-    const resolved = await ctx.runQuery(internal.artifacts.resolveTargetForCLI, { api_token, target });
-    if ("error" in resolved && resolved.error) return json({ error: resolved.error }, 403);
+    const resolved = await ctx.runQuery(
+      internal.artifacts.resolveTargetForCLI,
+      { api_token, target },
+    );
+    if ("error" in resolved && resolved.error)
+      return json({ error: resolved.error }, 403);
     const artifact = (resolved as { artifact: { slug: string } }).artifact;
     if (!artifact) return json({ error: `No page matches "${target}"` }, 404);
     const err = await performRollback(ctx, artifact.slug, version);
     if (err) return json({ error: err }, 400);
-    const fresh = await ctx.runQuery(internal.artifacts.bySlug, { slug: artifact.slug });
-    return json({ slug: artifact.slug, version: fresh?.version, url: artifactUrl(artifact.slug) });
+    const fresh = await ctx.runQuery(internal.artifacts.bySlug, {
+      slug: artifact.slug,
+    });
+    return json({
+      slug: artifact.slug,
+      version: fresh?.version,
+      url: artifactUrl(artifact.slug),
+    });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Bad request" }, 400);
+    return json(
+      { error: error instanceof Error ? error.message : "Bad request" },
+      400,
+    );
   }
 });
 
@@ -844,7 +1255,13 @@ export const rollback = httpAction(async (ctx, request) => {
  * with the callers. */
 export async function applyEditVersion(
   ctx: ActionCtx,
-  artifact: { _id: Id<"artifacts">; version: number; title: string; content_hash?: string; kind?: string },
+  artifact: {
+    _id: Id<"artifacts">;
+    version: number;
+    title: string;
+    content_hash?: string;
+    kind?: string;
+  },
   content: string,
   editedBy: string | undefined,
 ): Promise<{ version: number; unchanged?: boolean } | { error: string }> {
@@ -856,19 +1273,25 @@ export async function applyEditVersion(
   if (kind === "markdown") {
     contentHash = await sha256Hex(content);
     docHtml = await renderMarkdownDocument(content, artifact.title);
-    sourceStorageId = await ctx.storage.store(new Blob([content], { type: "text/markdown; charset=utf-8" }));
+    sourceStorageId = await ctx.storage.store(
+      new Blob([content], { type: "text/markdown; charset=utf-8" }),
+    );
   } else {
     docHtml = content;
     contentHash = await sha256Hex(docHtml);
   }
   const size = new TextEncoder().encode(docHtml).byteLength;
-  if (size > MAX_DOCUMENT_BYTES) return { error: `Content exceeds the ${MAX_DOCUMENT_MB}MB limit` };
+  if (size > MAX_DOCUMENT_BYTES)
+    return { error: `Content exceeds the ${MAX_DOCUMENT_MB}MB limit` };
   if (artifact.content_hash === contentHash && kind !== "bundle") {
-    if (sourceStorageId) await ctx.storage.delete(sourceStorageId).catch(() => {});
+    if (sourceStorageId)
+      await ctx.storage.delete(sourceStorageId).catch(() => {});
     return { version: artifact.version, unchanged: true };
   }
 
-  const storageId = await ctx.storage.store(new Blob([docHtml], { type: "text/html; charset=utf-8" }));
+  const storageId = await ctx.storage.store(
+    new Blob([docHtml], { type: "text/html; charset=utf-8" }),
+  );
 
   // Bundles: the editor edits the entry page; assets carry forward as blob
   // copies (ownership invariant).
@@ -882,37 +1305,63 @@ export async function applyEditVersion(
       const blob = await ctx.storage.get(a.storage_id);
       if (!blob) continue;
       const buf = await blob.arrayBuffer();
-      const id = await ctx.storage.store(new Blob([buf], { type: a.content_type }));
-      assets.push({ path: a.path, storage_id: id, content_type: a.content_type, size: a.size });
+      const id = await ctx.storage.store(
+        new Blob([buf], { type: a.content_type }),
+      );
+      assets.push({
+        path: a.path,
+        storage_id: id,
+        content_type: a.content_type,
+        size: a.size,
+      });
     }
   }
 
-  const result: { version: number } = await ctx.runMutation(internal.artifacts.appendVersion, {
-    artifact_id: artifact._id,
-    storage_id: storageId,
-    size,
-    kind,
-    source_storage_id: sourceStorageId,
-    content_hash: contentHash,
-    edited_by: editedBy,
-    assets: assets as never,
-  });
+  const result: { version: number } = await ctx.runMutation(
+    internal.artifacts.appendVersion,
+    {
+      artifact_id: artifact._id,
+      storage_id: storageId,
+      size,
+      kind,
+      source_storage_id: sourceStorageId,
+      content_hash: contentHash,
+      edited_by: editedBy,
+      assets: assets as never,
+    },
+  );
   return { version: result.version };
 }
 
 export const edit = httpAction(async (ctx, request) => {
   try {
     const { slug, key, content, editor_name } = await request.json();
-    if (!slug || !key || typeof content !== "string") return json({ error: "Missing slug, key, or content" }, 400);
-    const auth = await ctx.runQuery(internal.artifacts.editTarget, { slug, key });
+    if (!slug || !key || typeof content !== "string")
+      return json({ error: "Missing slug, key, or content" }, 400);
+    const auth = await ctx.runQuery(internal.artifacts.editTarget, {
+      slug,
+      key,
+    });
     if (!auth) return json({ error: "This link doesn't grant editing" }, 403);
 
-    const editedBy = auth.is_owner ? undefined : (typeof editor_name === "string" && editor_name.trim() ? editor_name.trim().slice(0, 80) : "link editor");
-    const outcome = await applyEditVersion(ctx, auth.artifact, content, editedBy);
+    const editedBy = auth.is_owner
+      ? undefined
+      : typeof editor_name === "string" && editor_name.trim()
+        ? editor_name.trim().slice(0, 80)
+        : "link editor";
+    const outcome = await applyEditVersion(
+      ctx,
+      auth.artifact,
+      content,
+      editedBy,
+    );
     if ("error" in outcome) return json({ error: outcome.error }, 413);
     return json(outcome);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Bad request" }, 400);
+    return json(
+      { error: error instanceof Error ? error.message : "Bad request" },
+      400,
+    );
   }
 });
 
@@ -923,14 +1372,26 @@ export const edit = httpAction(async (ctx, request) => {
 // ---------------------------------------------------------------------------
 
 export const editForWeb = action({
-  args: { slug: v.string(), content: v.string(), editor_name: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ version?: number; unchanged?: boolean; error?: string }> => {
+  args: {
+    slug: v.string(),
+    content: v.string(),
+    editor_name: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ version?: number; unchanged?: boolean; error?: string }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Not signed in" };
-    const auth = await ctx.runQuery(internal.artifacts.teamEditAuth, { slug: args.slug, editor_user_id: userId });
+    const auth = await ctx.runQuery(internal.artifacts.teamEditAuth, {
+      slug: args.slug,
+      editor_user_id: userId,
+    });
     if (!auth) return { error: "You don't have edit access to this artifact" };
 
-    const editedBy = auth.is_owner ? undefined : (args.editor_name?.trim().slice(0, 80) || auth.editor_name);
+    const editedBy = auth.is_owner
+      ? undefined
+      : args.editor_name?.trim().slice(0, 80) || auth.editor_name;
     return await applyEditVersion(ctx, auth.artifact, args.content, editedBy);
   },
 });
@@ -939,14 +1400,28 @@ export const editForWeb = action({
 // password-gated artifact — this path is authed instead of token-gated).
 export const sourceForWeb = action({
   args: { slug: v.string() },
-  handler: async (ctx, args): Promise<{ source?: string; kind?: string; version?: number; error?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    source?: string;
+    kind?: string;
+    version?: number;
+    error?: string;
+  }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Not signed in" };
-    const auth = await ctx.runQuery(internal.artifacts.teamEditAuth, { slug: args.slug, editor_user_id: userId });
+    const auth = await ctx.runQuery(internal.artifacts.teamEditAuth, {
+      slug: args.slug,
+      editor_user_id: userId,
+    });
     if (!auth) return { error: "You don't have edit access to this artifact" };
     const artifact = auth.artifact;
     const kind = artifact.kind ?? "html";
-    const id = kind === "markdown" && artifact.source_storage_id ? artifact.source_storage_id : artifact.storage_id;
+    const id =
+      kind === "markdown" && artifact.source_storage_id
+        ? artifact.source_storage_id
+        : artifact.storage_id;
     const blob = await ctx.storage.get(id);
     if (!blob) return { error: "Source missing" };
     return { source: await blob.text(), kind, version: artifact.version };
@@ -963,13 +1438,23 @@ export const comment = httpAction(async (ctx, request) => {
     // "Send all": flush stored-but-undelivered comments to the session.
     // Owner-only — the mutation checks the key.
     if (body.deliver_pending === true) {
-      const limited = await slugRateLimited(ctx, String(body.slug ?? ""), "artifact-flush", 12, 60_000);
+      const limited = await slugRateLimited(
+        ctx,
+        String(body.slug ?? ""),
+        "artifact-flush",
+        12,
+        60_000,
+      );
       if (limited) return limited;
-      const flushed = await ctx.runMutation(api.artifacts.deliverPendingComments, {
-        slug: String(body.slug ?? ""),
-        owner_key: typeof body.owner_key === "string" ? body.owner_key : undefined,
-        ...(body.resolve === true ? { resolve: true } : {}),
-      });
+      const flushed = await ctx.runMutation(
+        api.artifacts.deliverPendingComments,
+        {
+          slug: String(body.slug ?? ""),
+          owner_key:
+            typeof body.owner_key === "string" ? body.owner_key : undefined,
+          ...(body.resolve === true ? { resolve: true } : {}),
+        },
+      );
       return json(flushed);
     }
     // No limiter here: submitComments counts the window itself, in the same
@@ -982,26 +1467,37 @@ export const comment = httpAction(async (ctx, request) => {
       e: typeof body.e === "string" ? body.e : undefined,
       m: typeof body.m === "string" ? body.m : undefined,
       author_name: String(body.author_name ?? ""),
-      author_email: typeof body.author_email === "string" ? body.author_email : undefined,
+      author_email:
+        typeof body.author_email === "string" ? body.author_email : undefined,
       version: typeof body.version === "number" ? body.version : undefined,
       // "Send to agent", per batch and per comment. The mutation honors it
       // only for the owner and verified teammates; anyone else's comments
       // are stored as discussion whatever the request says.
       deliver: typeof body.deliver === "boolean" ? body.deliver : undefined,
-      owner_key: typeof body.owner_key === "string" ? body.owner_key : undefined,
-      identity_token: typeof body.identity_token === "string" ? body.identity_token : undefined,
-      parent_id: typeof body.parent_id === "string" ? body.parent_id : undefined,
+      owner_key:
+        typeof body.owner_key === "string" ? body.owner_key : undefined,
+      identity_token:
+        typeof body.identity_token === "string"
+          ? body.identity_token
+          : undefined,
+      parent_id:
+        typeof body.parent_id === "string" ? body.parent_id : undefined,
       comments: Array.isArray(body.comments)
-        ? body.comments.map((c: { text?: unknown; anchor?: unknown; deliver?: unknown }) => ({
-            text: String(c?.text ?? ""),
-            anchor: typeof c?.anchor === "string" ? c.anchor : undefined,
-            deliver: typeof c?.deliver === "boolean" ? c.deliver : undefined,
-          }))
+        ? body.comments.map(
+            (c: { text?: unknown; anchor?: unknown; deliver?: unknown }) => ({
+              text: String(c?.text ?? ""),
+              anchor: typeof c?.anchor === "string" ? c.anchor : undefined,
+              deliver: typeof c?.deliver === "boolean" ? c.deliver : undefined,
+            }),
+          )
         : [],
     });
     return json(result);
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Bad request" }, 400);
+    return json(
+      { error: error instanceof Error ? error.message : "Bad request" },
+      400,
+    );
   }
 });
 
@@ -1011,7 +1507,13 @@ export const comment = httpAction(async (ctx, request) => {
 export const identity = httpAction(async (ctx, request) => {
   try {
     const body = await request.json();
-    const limited = await slugRateLimited(ctx, String(body.slug ?? ""), "artifact-identity", 30, 60_000);
+    const limited = await slugRateLimited(
+      ctx,
+      String(body.slug ?? ""),
+      "artifact-identity",
+      30,
+      60_000,
+    );
     if (limited) return limited;
     const info = await ctx.runQuery(internal.artifacts.commenterContext, {
       slug: String(body.slug ?? ""),
@@ -1019,7 +1521,10 @@ export const identity = httpAction(async (ctx, request) => {
     });
     return json(info ?? { error: "Unknown identity" });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : "Bad request" }, 400);
+    return json(
+      { error: error instanceof Error ? error.message : "Bad request" },
+      400,
+    );
   }
 });
 
@@ -1032,7 +1537,10 @@ export const view = httpAction(async (ctx, request) => {
       k: typeof body.k === "string" ? body.k : undefined,
       e: typeof body.e === "string" ? body.e : undefined,
       m: typeof body.m === "string" ? body.m : undefined,
-      identity_token: typeof body.identity_token === "string" ? body.identity_token : undefined,
+      identity_token:
+        typeof body.identity_token === "string"
+          ? body.identity_token
+          : undefined,
     });
     return json({ ok: true });
   } catch {
@@ -1045,7 +1553,10 @@ export const view = httpAction(async (ctx, request) => {
 // ---------------------------------------------------------------------------
 
 const notFound = (msg: string) =>
-  new Response(msg, { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  new Response(msg, {
+    status: 404,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 
 // The sandbox CSP is what keeps published content from ever acting with real
 // convex.codecast.sh privileges. It must ride on EVERY response that a browser
@@ -1097,7 +1608,12 @@ const CACHE_SHAPE = "public, max-age=60";
 /** The policy for a body served off this artifact. Protected the moment a
  * gate stands in front of it; otherwise public, but never past its expiry. */
 export function cachePolicy(
-  a: { password_hash?: string | null; email_gate?: boolean; expires_at?: number | null; team_gate?: string | null },
+  a: {
+    password_hash?: string | null;
+    email_gate?: boolean;
+    expires_at?: number | null;
+    team_gate?: string | null;
+  },
   now = Date.now(),
 ): string {
   if (a.team_gate || a.password_hash || a.email_gate) return CACHE_PROTECTED;
@@ -1126,7 +1642,11 @@ export const serve = httpAction(async (ctx, request) => {
 
   // --- Gates (order: expiry → team → password → email wall) ---
   if (artifact.expires_at && Date.now() > artifact.expires_at) {
-    return htmlResponse(expiredPage({ title: artifact.title }), 410, CACHE_PROTECTED);
+    return htmlResponse(
+      expiredPage({ title: artifact.title }),
+      410,
+      CACHE_PROTECTED,
+    );
   }
   // A team gate is access control, not a shared secret: a member opens the
   // page through the app (/pages/auth), which hands them its m token. The gate
@@ -1135,14 +1655,23 @@ export const serve = httpAction(async (ctx, request) => {
   // The presented member token, kept only when it opens the page today: a
   // genuine token whose holder is still the owner or a member of the gate team.
   const presentedM = q.get("m");
-  const mToken = artifact.team_gate && presentedM
-    && (await ctx.runQuery(internal.artifacts.teamGateAdmits, { artifact_id: artifact._id, m: presentedM }))
-    ? presentedM
-    : null;
+  const mToken =
+    artifact.team_gate &&
+    presentedM &&
+    (await ctx.runQuery(internal.artifacts.teamGateAdmits, {
+      artifact_id: artifact._id,
+      m: presentedM,
+    }))
+      ? presentedM
+      : null;
   if (artifact.team_gate && !mToken) {
     if (q.get("meta") === "1") return json({ error: "Locked" }, 403);
     if (q.get("thumb") === "1" || tail) return notFound("Not found");
-    return htmlResponse(teamGatePage({ slug, teamName: artifact.team_gate_name, shareUrl }), 403, CACHE_PROTECTED);
+    return htmlResponse(
+      teamGatePage({ slug, teamName: artifact.team_gate_name, shareUrl }),
+      403,
+      CACHE_PROTECTED,
+    );
   }
   let kToken = "";
   if (artifact.password_hash) {
@@ -1150,7 +1679,11 @@ export const serve = httpAction(async (ctx, request) => {
     if (q.get("k") !== kToken) {
       if (q.get("meta") === "1") return json({ error: "Locked" }, 403);
       if (q.get("thumb") === "1") return notFound("Not found");
-      return htmlResponse(passwordGatePage({ slug, title: artifact.title, apiBase, shareUrl }), 200, CACHE_PROTECTED);
+      return htmlResponse(
+        passwordGatePage({ slug, title: artifact.title, apiBase, shareUrl }),
+        200,
+        CACHE_PROTECTED,
+      );
     }
   }
   if (artifact.email_gate && artifact.owner_key) {
@@ -1161,7 +1694,11 @@ export const serve = httpAction(async (ctx, request) => {
     // ?meta=1 is still behind the wall.
     if (q.get("e") !== eToken && (q.get("meta") !== "1" || tail)) {
       if (q.get("thumb") === "1") return notFound("Not found");
-      return htmlResponse(emailGatePage({ slug, title: artifact.title, apiBase, shareUrl }), 200, CACHE_PROTECTED);
+      return htmlResponse(
+        emailGatePage({ slug, title: artifact.title, apiBase, shareUrl }),
+        200,
+        CACHE_PROTECTED,
+      );
     }
   }
 
@@ -1169,7 +1706,11 @@ export const serve = httpAction(async (ctx, request) => {
   if (tail === "_data" || tail.startsWith("_data/")) {
     // Re-checked on every read, so a team that turns public sharing off later
     // stops its data serving (and refreshing) on pages already out there.
-    const refusal: string | null = artifact.team_gate ? null : await ctx.runQuery(internal.artifacts.pageDataRefusal, { artifact_id: artifact._id });
+    const refusal: string | null = artifact.team_gate
+      ? null
+      : await ctx.runQuery(internal.artifacts.pageDataRefusal, {
+          artifact_id: artifact._id,
+        });
     if (refusal) return json({ error: refusal }, 403);
     return await servePageData(ctx, artifact._id, tail.slice("_data".length));
   }
@@ -1178,7 +1719,9 @@ export const serve = httpAction(async (ctx, request) => {
   if (q.get("meta") === "1") {
     const art = await ctx.runQuery(internal.artifacts.historyBySlug, { slug });
     if (!art) return notFound("Page not found");
-    const agent = await ctx.runQuery(internal.artifacts.agentStateBySlug, { slug });
+    const agent = await ctx.runQuery(internal.artifacts.agentStateBySlug, {
+      slug,
+    });
     return new Response(
       JSON.stringify({
         version: art.version,
@@ -1187,13 +1730,25 @@ export const serve = httpAction(async (ctx, request) => {
         views: art.views,
         comment_count: art.comments_disabled ? 0 : artifact.comment_count,
         comments: art.comments_disabled ? [] : artifact.open_comments,
-        session: art.session_short_id && !art.hide_session ? { short_id: art.session_short_id, conversation_id: artifact.session_conversation_id ?? null, title: artifact.session_title, short_title: artifact.session_short_title } : null,
+        session:
+          art.session_short_id && !art.hide_session
+            ? {
+                short_id: art.session_short_id,
+                conversation_id: artifact.session_conversation_id ?? null,
+                title: artifact.session_title,
+                short_title: artifact.session_short_title,
+              }
+            : null,
         // The publishing session's live state for the agent chip: state is a
         // work state (working / needs_input / done / dormant / idle), since
         // when it last moved, awaiting_since when a comment sent to the agent
         // has not been answered by a newer version yet.
         agent,
-        gated: { team: !!artifact.team_gate, password: !!art.password_hash, email: !!art.email_gate },
+        gated: {
+          team: !!artifact.team_gate,
+          password: !!art.password_hash,
+          email: !!art.email_gate,
+        },
         versions: (art.versions as HistoryVersion[]).map((x) => ({
           version: x.version,
           title: x.title,
@@ -1239,20 +1794,36 @@ export const serve = httpAction(async (ctx, request) => {
       version = parseInt(versioned[1], 10);
       path = versioned[2];
     }
-    const asset = await ctx.runQuery(internal.artifacts.assetByPath, { artifact_id: artifact._id, version, path });
+    const asset = await ctx.runQuery(internal.artifacts.assetByPath, {
+      artifact_id: artifact._id,
+      version,
+      path,
+    });
     if (!asset) return notFound("Not found");
     // An HTTP action's response stops at about 20 MB, so a bigger file is read
     // from storage directly. Never a document type: storage answers on the
     // backend's own origin, without the page sandbox.
-    if (asset.size > STREAM_MAX_BYTES && !/html|svg|xml/i.test(asset.content_type)) {
+    if (
+      asset.size > STREAM_MAX_BYTES &&
+      !/html|svg|xml/i.test(asset.content_type)
+    ) {
       const direct = await ctx.storage.getUrl(asset.storage_id);
       if (!direct) return notFound("Not found");
-      return new Response(null, { status: 302, headers: { Location: direct, "Cache-Control": cachePolicy(artifact), "Access-Control-Allow-Origin": "*" } });
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: direct,
+          "Cache-Control": cachePolicy(artifact),
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
     }
     const blob = await ctx.storage.get(asset.storage_id);
     if (!blob) return notFound("Not found");
     if (asset.content_type === MEDIA_POINTER_TYPE) {
-      const { url: mediaUrl } = JSON.parse(await blob.text()) as { url: string };
+      const { url: mediaUrl } = JSON.parse(await blob.text()) as {
+        url: string;
+      };
       if (!isOwnMediaUrl(mediaUrl)) return notFound("Not found");
       // ?download=<name> saves the file instead of playing it: a short-lived
       // signed URL that asks R2 to answer as an attachment. (A download
@@ -1264,9 +1835,23 @@ export const serve = httpAction(async (ctx, request) => {
         const signed = await r2Presign(cfg, "GET", key, 3600, undefined, {
           "response-content-disposition": `attachment; filename="${download}"`,
         });
-        return new Response(null, { status: 302, headers: { Location: signed, "Cache-Control": "private, no-store", "Access-Control-Allow-Origin": "*" } });
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: signed,
+            "Cache-Control": "private, no-store",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
       }
-      return new Response(null, { status: 302, headers: { Location: mediaUrl, "Cache-Control": cachePolicy(artifact), "Access-Control-Allow-Origin": "*" } });
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: mediaUrl,
+          "Cache-Control": cachePolicy(artifact),
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
     }
     return new Response(blob, {
       status: 200,
@@ -1284,11 +1869,15 @@ export const serve = httpAction(async (ctx, request) => {
   if (kind === "bundle" && !url.pathname.endsWith("/")) {
     return new Response(null, {
       status: 301,
-      headers: { Location: `${url.pathname}/${url.search}`, "Cache-Control": CACHE_SHAPE },
+      headers: {
+        Location: `${url.pathname}/${url.search}`,
+        "Cache-Control": CACHE_SHAPE,
+      },
     });
   }
 
-  const withHistory = async () => await ctx.runQuery(internal.artifacts.historyBySlug, { slug });
+  const withHistory = async () =>
+    await ctx.runQuery(internal.artifacts.historyBySlug, { slug });
 
   // --- ?diff=A..B ---
   const diffParam = q.get("diff");
@@ -1300,15 +1889,22 @@ export const serve = httpAction(async (ctx, request) => {
     if (!art) return notFound("Page not found");
     const va = (art.versions as HistoryVersion[]).find((x) => x.version === a);
     const vb = (art.versions as HistoryVersion[]).find((x) => x.version === b);
-    if (!va || !vb) return notFound("One of those versions is no longer available (history keeps the last 20)");
+    if (!va || !vb)
+      return notFound(
+        "One of those versions is no longer available (history keeps the last 20)",
+      );
     const load = async (row: typeof va) => {
       // Diff the meaningful source: raw markdown for markdown artifacts.
-      const id = art.kind === "markdown" && row.source_storage_id ? row.source_storage_id : row.storage_id;
+      const id =
+        art.kind === "markdown" && row.source_storage_id
+          ? row.source_storage_id
+          : row.storage_id;
       const blob = await ctx.storage.get(id);
       return blob ? await blob.text() : "";
     };
     const [textA, textB] = [await load(va), await load(vb)];
-    if (textA.length > 600_000 || textB.length > 600_000) return notFound("These versions are too large to diff in the browser");
+    if (textA.length > 600_000 || textB.length > 600_000)
+      return notFound("These versions are too large to diff in the browser");
     const { ops } = lineDiff(textA, textB);
     return htmlResponse(
       diffPage({ slug, title: artifact.title, a, b, ops, apiBase, shareUrl }),
@@ -1329,8 +1925,13 @@ export const serve = httpAction(async (ctx, request) => {
   };
   if (wanted !== null && wanted !== artifact.version) {
     const art = await withHistory();
-    const past = (art?.versions as HistoryVersion[] | undefined)?.find((x) => x.version === wanted);
-    if (!past) return notFound(`Version ${wanted} of this artifact is no longer available`);
+    const past = (art?.versions as HistoryVersion[] | undefined)?.find(
+      (x) => x.version === wanted,
+    );
+    if (!past)
+      return notFound(
+        `Version ${wanted} of this artifact is no longer available`,
+      );
     doc = {
       storage_id: past.storage_id,
       source_storage_id: past.source_storage_id,
@@ -1348,7 +1949,10 @@ export const serve = httpAction(async (ctx, request) => {
   // --- ?src=raw | ?src=1 ---
   const srcParam = q.get("src");
   if (srcParam) {
-    const sourceId = kind === "markdown" && doc.source_storage_id ? doc.source_storage_id : doc.storage_id;
+    const sourceId =
+      kind === "markdown" && doc.source_storage_id
+        ? doc.source_storage_id
+        : doc.storage_id;
     const source = await loadText(sourceId);
     if (source === null) return notFound("Source missing");
     if (srcParam === "raw") {
@@ -1380,11 +1984,22 @@ export const serve = httpAction(async (ctx, request) => {
 
   // --- ?edit=1 (always current version) ---
   if (q.get("edit") === "1") {
-    const sourceId = kind === "markdown" && artifact.source_storage_id ? artifact.source_storage_id : artifact.storage_id;
+    const sourceId =
+      kind === "markdown" && artifact.source_storage_id
+        ? artifact.source_storage_id
+        : artifact.storage_id;
     const source = await loadText(sourceId);
     if (source === null) return notFound("Source missing");
     return htmlResponse(
-      editorPage({ slug, title: artifact.title, kind, source, version: artifact.version, apiBase, shareUrl }),
+      editorPage({
+        slug,
+        title: artifact.title,
+        kind,
+        source,
+        version: artifact.version,
+        apiBase,
+        shareUrl,
+      }),
       200,
       "no-store",
     );
@@ -1393,9 +2008,13 @@ export const serve = httpAction(async (ctx, request) => {
   // --- the document itself ---
   const raw = await loadText(doc.storage_id);
   if (raw === null) return notFound("Artifact content missing");
-  let html = kind === "markdown" ? restyleMarkdownDocument(raw, doc.title) : raw;
+  let html =
+    kind === "markdown" ? restyleMarkdownDocument(raw, doc.title) : raw;
   if (kind === "bundle") {
-    html = injectBase(html, doc.version < artifact.version ? `_v/${doc.version}/` : "./");
+    html = injectBase(
+      html,
+      doc.version < artifact.version ? `_v/${doc.version}/` : "./",
+    );
   }
   if (kind !== "markdown") html = injectPageTheme(html);
   html = injectPlayer(html, apiBase);
@@ -1406,11 +2025,17 @@ export const serve = httpAction(async (ctx, request) => {
     if (kToken) gate.set("k", kToken);
     if (artifact.email_gate && q.get("e")) gate.set("e", q.get("e")!);
     const qs = gate.toString();
-    html = injectData(html, `${apiBase}/cli/a/${artifact.slug}/_data${qs ? `?${qs}` : ""}`, apiBase, artifact.slug);
+    html = injectData(
+      html,
+      `${apiBase}/cli/a/${artifact.slug}/_data${qs ? `?${qs}` : ""}`,
+      apiBase,
+      artifact.slug,
+    );
   }
   // A card's live thumbnail: the page alone. No bar means no view beacon and
   // no comment polling, so a gallery of previews counts nothing as a view.
-  if (q.get("preview") === "1") return htmlResponse(html, 200, cachePolicy(artifact));
+  if (q.get("preview") === "1")
+    return htmlResponse(html, 200, cachePolicy(artifact));
   // Bake the validated gate tokens into the meta URL so the bar's polling
   // clears the same gates the document did.
   const metaTokens = `${mToken ? `&m=${mToken}` : ""}${kToken ? `&k=${kToken}` : ""}${artifact.email_gate && q.get("e") ? `&e=${q.get("e")}` : ""}`;
@@ -1425,13 +2050,21 @@ export const serve = httpAction(async (ctx, request) => {
     apiBase,
     slug: artifact.slug,
     kind,
-    sessionShortId: artifact.hide_session ? null : (artifact.session_short_id ?? null),
-    sessionConversationId: artifact.hide_session ? null : (artifact.session_conversation_id ?? null),
+    sessionShortId: artifact.hide_session
+      ? null
+      : (artifact.session_short_id ?? null),
+    sessionConversationId: artifact.hide_session
+      ? null
+      : (artifact.session_conversation_id ?? null),
     sessionTitle: artifact.hide_session ? null : artifact.session_title,
     views: artifact.views,
     commentCount: artifact.comments_disabled ? 0 : artifact.comment_count,
     commentsEnabled: !artifact.comments_disabled,
-    gated: { team: !!artifact.team_gate, password: !!artifact.password_hash, email: !!artifact.email_gate },
+    gated: {
+      team: !!artifact.team_gate,
+      password: !!artifact.password_hash,
+      email: !!artifact.email_gate,
+    },
     editMode: artifact.edit_mode ?? "owner",
     live: q.get("live") === "1",
     hasThumb: !!artifact.thumb_storage_id,

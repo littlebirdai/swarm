@@ -44,8 +44,20 @@ function fixture(rows: Record<string, any[]> = {}) {
     // so an unseeded `teams` would make every team here look deleted.
     teams: [{ _id: TEAM }, { _id: OTHER_TEAM }],
     team_memberships: [
-      { _id: "m1", user_id: OWNER, team_id: TEAM, role: "member", visibility: "full" },
-      { _id: "m2", user_id: MATE, team_id: TEAM, role: "member", visibility: "full" },
+      {
+        _id: "m1",
+        user_id: OWNER,
+        team_id: TEAM,
+        role: "member",
+        visibility: "full",
+      },
+      {
+        _id: "m2",
+        user_id: MATE,
+        team_id: TEAM,
+        role: "member",
+        visibility: "full",
+      },
     ],
     directory_team_mappings: [],
     conversations: [],
@@ -59,10 +71,20 @@ function fixture(rows: Record<string, any[]> = {}) {
 
 describe("workspace key — shape", () => {
   test("one constructor, one parser, round-trips both variants", () => {
-    expect(workspaceKey({ type: "team", teamId: TEAM as any })).toBe("team:t_team");
-    expect(workspaceKey({ type: "personal", userId: OWNER as any })).toBe("user:u_owner");
-    expect(parseWorkspaceKey("team:t_team")).toEqual({ type: "team", teamId: TEAM as any });
-    expect(parseWorkspaceKey("user:u_owner")).toEqual({ type: "personal", userId: OWNER as any });
+    expect(workspaceKey({ type: "team", teamId: TEAM as any })).toBe(
+      "team:t_team",
+    );
+    expect(workspaceKey({ type: "personal", userId: OWNER as any })).toBe(
+      "user:u_owner",
+    );
+    expect(parseWorkspaceKey("team:t_team")).toEqual({
+      type: "team",
+      teamId: TEAM as any,
+    });
+    expect(parseWorkspaceKey("user:u_owner")).toEqual({
+      type: "personal",
+      userId: OWNER as any,
+    });
   });
 
   test("unknown variants and absence parse to null — every reader fails closed", () => {
@@ -75,25 +97,48 @@ describe("workspace key — shape", () => {
   test("workspaceGrantsAccess: personal matches only that user, team requires membership, unknown grants nothing", async () => {
     const db = fixture();
     const ctx = { db } as any;
-    expect(await workspaceGrantsAccess(ctx, OWNER as any, "user:u_owner")).toBe(true);
-    expect(await workspaceGrantsAccess(ctx, MATE as any, "user:u_owner")).toBe(false);
-    expect(await workspaceGrantsAccess(ctx, MATE as any, "team:t_team")).toBe(true);
-    expect(await workspaceGrantsAccess(ctx, OUTSIDER as any, "team:t_team")).toBe(false);
-    expect(await workspaceGrantsAccess(ctx, MATE as any, "restricted:x")).toBe(false);
-    expect(await workspaceGrantsAccess(ctx, MATE as any, undefined)).toBe(false);
+    expect(await workspaceGrantsAccess(ctx, OWNER as any, "user:u_owner")).toBe(
+      true,
+    );
+    expect(await workspaceGrantsAccess(ctx, MATE as any, "user:u_owner")).toBe(
+      false,
+    );
+    expect(await workspaceGrantsAccess(ctx, MATE as any, "team:t_team")).toBe(
+      true,
+    );
+    expect(
+      await workspaceGrantsAccess(ctx, OUTSIDER as any, "team:t_team"),
+    ).toBe(false);
+    expect(await workspaceGrantsAccess(ctx, MATE as any, "restricted:x")).toBe(
+      false,
+    );
+    expect(await workspaceGrantsAccess(ctx, MATE as any, undefined)).toBe(
+      false,
+    );
   });
 });
 
 describe("computeWorkspaceKey — write-time rules", () => {
   test("no link: raw team tag → team key, no tag → personal to the ROW OWNER", () => {
-    expect(computeWorkspaceKey({ user_id: OWNER as any, team_id: TEAM as any }, null)).toBe("team:t_team");
-    expect(computeWorkspaceKey({ user_id: OWNER as any }, null)).toBe("user:u_owner");
+    expect(
+      computeWorkspaceKey(
+        { user_id: OWNER as any, team_id: TEAM as any },
+        null,
+      ),
+    ).toBe("team:t_team");
+    expect(computeWorkspaceKey({ user_id: OWNER as any }, null)).toBe(
+      "user:u_owner",
+    );
   });
 
   test("linked conversation decides: team-visible → its team, private → personal to the row owner", () => {
     const shared = { team_id: TEAM as any, is_private: false };
     const priv = { team_id: TEAM as any, is_private: true };
-    const revealed = { team_id: TEAM as any, is_private: true, team_visibility: "summary" };
+    const revealed = {
+      team_id: TEAM as any,
+      is_private: true,
+      team_visibility: "summary",
+    };
     const teamless = { is_private: false };
     const row = { user_id: OWNER as any, team_id: TEAM as any };
     expect(computeWorkspaceKey(row, shared)).toBe("team:t_team");
@@ -103,8 +148,12 @@ describe("computeWorkspaceKey — write-time rules", () => {
   });
 
   test("plans link via created_from_conversation_id — the spelling the old rule missed", () => {
-    expect(linkedConversationId({ created_from_conversation_id: "c1" })).toBe("c1");
-    expect(linkedConversationId({ created_from_conversation: "c2" })).toBe("c2");
+    expect(linkedConversationId({ created_from_conversation_id: "c1" })).toBe(
+      "c1",
+    );
+    expect(linkedConversationId({ created_from_conversation: "c2" })).toBe(
+      "c2",
+    );
     expect(linkedConversationId({ conversation_id: "c3" })).toBe("c3");
     expect(linkedConversationId({ conversation_ids: ["c4"] })).toBe("c4");
     expect(linkedConversationId({})).toBeUndefined();
@@ -113,16 +162,27 @@ describe("computeWorkspaceKey — write-time rules", () => {
 
 describe("INVARIANT 1 — access reads workspace, never team_id", () => {
   const privateInTeam = (extra: any = {}) => ({
-    _id: "row1", user_id: OWNER, team_id: TEAM, workspace: "user:u_owner", ...extra,
+    _id: "row1",
+    user_id: OWNER,
+    team_id: TEAM,
+    workspace: "user:u_owner",
+    ...extra,
   });
 
   test("team_id=T + workspace=user:owner is readable by the owner only — a fellow member of T is refused", async () => {
     const db = fixture();
     const ctx = { db } as any;
-    for (const check of [canAccessTask, canAccessDoc, canAccessPlan, canAccessProject]) {
+    for (const check of [
+      canAccessTask,
+      canAccessDoc,
+      canAccessPlan,
+      canAccessProject,
+    ]) {
       expect(await check(ctx, OWNER as any, privateInTeam() as any)).toBe(true);
       expect(await check(ctx, MATE as any, privateInTeam() as any)).toBe(false);
-      expect(await check(ctx, OUTSIDER as any, privateInTeam() as any)).toBe(false);
+      expect(await check(ctx, OUTSIDER as any, privateInTeam() as any)).toBe(
+        false,
+      );
     }
   });
 
@@ -144,7 +204,12 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
       ],
     });
     const ctx = { db } as any;
-    const row = { _id: "row3", user_id: OWNER, team_id: TEAM, workspace: `team:${OTHER_TEAM}` };
+    const row = {
+      _id: "row3",
+      user_id: OWNER,
+      team_id: TEAM,
+      workspace: `team:${OTHER_TEAM}`,
+    };
     expect(await canAccessPlan(ctx, MATE as any, row as any)).toBe(false);
     expect(await canAccessPlan(ctx, OUTSIDER as any, row as any)).toBe(true);
   });
@@ -152,29 +217,57 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
   test("assignment stays an explicit grant on tasks regardless of workspace", async () => {
     const db = fixture();
     const ctx = { db } as any;
-    expect(await canAccessTask(ctx, MATE as any, privateInTeam({ assignee: MATE }) as any)).toBe(true);
+    expect(
+      await canAccessTask(
+        ctx,
+        MATE as any,
+        privateInTeam({ assignee: MATE }) as any,
+      ),
+    ).toBe(true);
   });
 
   test("legacy row (no stored key) resolves lazily from the linked conversation — a private link stays owner-only", async () => {
     const db = fixture({
-      conversations: [{ _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true }],
+      conversations: [
+        { _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true },
+      ],
     });
     const ctx = { db } as any;
-    const legacy = { _id: "row4", user_id: OWNER, team_id: TEAM, created_from_conversation: "c1" };
+    const legacy = {
+      _id: "row4",
+      user_id: OWNER,
+      team_id: TEAM,
+      created_from_conversation: "c1",
+    };
     expect(await canAccessTask(ctx, MATE as any, legacy as any)).toBe(false);
-    const legacyPlan = { _id: "row5", user_id: OWNER, team_id: TEAM, created_from_conversation_id: "c1" };
-    expect(await canAccessPlan(ctx, MATE as any, legacyPlan as any)).toBe(false);
+    const legacyPlan = {
+      _id: "row5",
+      user_id: OWNER,
+      team_id: TEAM,
+      created_from_conversation_id: "c1",
+    };
+    expect(await canAccessPlan(ctx, MATE as any, legacyPlan as any)).toBe(
+      false,
+    );
   });
 
   test("source-level: no access helper in lib/access.ts reads team_id (only the key writer may)", () => {
     // The readers live across access.ts and its key leaf accessKeys.ts.
-    const src = readFileSync(join(import.meta.dir, "access.ts"), "utf8") + readFileSync(join(import.meta.dir, "accessKeys.ts"), "utf8");
+    const src =
+      readFileSync(join(import.meta.dir, "access.ts"), "utf8") +
+      readFileSync(join(import.meta.dir, "accessKeys.ts"), "utf8");
     // Slice out every function that grants access, then assert none mentions
     // team_id. computeWorkspaceKey / workspaceForResource are the WRITER side
     // and are excluded by name — they are the only place the axis is bridged.
     const readers = [
-      "canAccessTask", "canAccessProject", "canAccessInitiative", "canAccessDoc", "canAccessPlan",
-      "workspaceGrantsAccess", "resolveWorkspaceKey", "effectiveTeamForResource",
+      "canAccessTask",
+      "canAccessProject",
+      "canAccessInitiative",
+      "canAccessDoc",
+      "canAccessPlan",
+      "workspaceGrantsAccess",
+      "resolveWorkspaceKey",
+      "effectiveTeamForResource",
     ];
     for (const name of readers) {
       const start = src.indexOf(`export async function ${name}(`);
@@ -183,10 +276,12 @@ describe("INVARIANT 1 — access reads workspace, never team_id", () => {
       // a team_id (routing lives on the same row); reading it is what's banned.
       const bodyStart = src.indexOf("{\n", src.indexOf("): Promise<", start));
       const body = src.slice(bodyStart, src.indexOf("\n}\n", bodyStart));
-      expect(body.includes("team_id"), `${name} must not read team_id`).toBe(false);
+      expect(body.includes("team_id"), `${name} must not read team_id`).toBe(
+        false,
+      );
     }
   });
-test("source-level: tasks.ts lists by the access layer's evaluators and takes a role's boundary from the workspace key, never team_id", () => {
+  test("source-level: tasks.ts lists by the access layer's evaluators and takes a role's boundary from the workspace key, never team_id", () => {
     // The task list once filtered the global assignee index with
     // `t.team_id && memberTeamIds.has(t.team_id)`, and the boundary a role must
     // be inside came from `task.team_id`, so a task routed to a team but
@@ -195,8 +290,14 @@ test("source-level: tasks.ts lists by the access layer's evaluators and takes a 
     expect(src.includes("memberTeamIds")).toBe(false);
     const start = src.indexOf("export async function boundaryOfTask(");
     expect(start).toBeGreaterThan(-1);
-    const body = src.slice(src.indexOf("{\n", start), src.indexOf("\n}\n", start));
-    expect(body.includes("team_id"), "boundaryOfTask must not read team_id").toBe(false);
+    const body = src.slice(
+      src.indexOf("{\n", start),
+      src.indexOf("\n}\n", start),
+    );
+    expect(
+      body.includes("team_id"),
+      "boundaryOfTask must not read team_id",
+    ).toBe(false);
     expect(body.includes("resolveWorkspaceKey")).toBe(true);
     // The list's access filter goes through the layer's own evaluators.
     const listStart = src.indexOf("if (needsAccessFilter) {");
@@ -211,9 +312,20 @@ describe("INVARIANT 2 — routing and access are independent state", () => {
   test("data context insert stamps BOTH axes and an explicit workspace overrides the access axis only", async () => {
     const db = fixture();
     const ctx = { db } as any;
-    const dc = await createDataContext(ctx, { userId: OWNER as any, workspace: "team", team_id: TEAM as any });
-    await dc.insert("tasks", { title: "team-routed, team-readable", short_id: "ct-1" });
-    await dc.insert("tasks", { title: "team-routed, owner-only", short_id: "ct-2", workspace: "user:u_owner" });
+    const dc = await createDataContext(ctx, {
+      userId: OWNER as any,
+      workspace: "team",
+      team_id: TEAM as any,
+    });
+    await dc.insert("tasks", {
+      title: "team-routed, team-readable",
+      short_id: "ct-1",
+    });
+    await dc.insert("tasks", {
+      title: "team-routed, owner-only",
+      short_id: "ct-2",
+      workspace: "user:u_owner",
+    });
     const [a, b] = db._inserted.map((i: any) => i.doc);
     expect(a.team_id).toBe(TEAM);
     expect(a.workspace).toBe("team:t_team");
@@ -224,35 +336,82 @@ describe("INVARIANT 2 — routing and access are independent state", () => {
   test("a team-routed owner-only row is in T's routing index but absent from T's access-scoped list", async () => {
     const db = fixture({
       tasks: [
-        { _id: "t1", user_id: OWNER, team_id: TEAM, workspace: "team:t_team", title: "shared", updated_at: 2 },
-        { _id: "t2", user_id: OWNER, team_id: TEAM, workspace: "user:u_owner", title: "private", updated_at: 1 },
+        {
+          _id: "t1",
+          user_id: OWNER,
+          team_id: TEAM,
+          workspace: "team:t_team",
+          title: "shared",
+          updated_at: 2,
+        },
+        {
+          _id: "t2",
+          user_id: OWNER,
+          team_id: TEAM,
+          workspace: "user:u_owner",
+          title: "private",
+          updated_at: 1,
+        },
       ],
     });
     const ctx = { db } as any;
     // ROUTING: the raw team index still carries both rows.
-    const routed = await db.query("tasks").withIndex("by_team_id", (q: any) => q.eq("team_id", TEAM)).collect();
+    const routed = await db
+      .query("tasks")
+      .withIndex("by_team_id", (q: any) => q.eq("team_id", TEAM))
+      .collect();
     expect(routed.map((r: any) => r._id).sort()).toEqual(["t1", "t2"]);
     // ACCESS: the mate's team-scoped list sees only the shared one; the owner's
     // team-scoped list ALSO sees only the shared one (private lives in personal).
-    const mateList = await scopedFetch(ctx, "tasks", { userId: MATE as any, teamId: TEAM as any, workspace: "team" });
+    const mateList = await scopedFetch(ctx, "tasks", {
+      userId: MATE as any,
+      teamId: TEAM as any,
+      workspace: "team",
+    });
     expect(mateList.records.map((r: any) => r._id)).toEqual(["t1"]);
-    const ownerTeam = await scopedFetch(ctx, "tasks", { userId: OWNER as any, teamId: TEAM as any, workspace: "team" });
+    const ownerTeam = await scopedFetch(ctx, "tasks", {
+      userId: OWNER as any,
+      teamId: TEAM as any,
+      workspace: "team",
+    });
     expect(ownerTeam.records.map((r: any) => r._id)).toEqual(["t1"]);
-    const ownerPersonal = await scopedFetch(ctx, "tasks", { userId: OWNER as any, workspace: "personal" });
+    const ownerPersonal = await scopedFetch(ctx, "tasks", {
+      userId: OWNER as any,
+      workspace: "personal",
+    });
     expect(ownerPersonal.records.map((r: any) => r._id)).toEqual(["t2"]);
     // The chokepoint query path agrees with scopedFetch.
-    const dcMate = await createDataContext(ctx, { userId: MATE as any, workspace: "team", team_id: TEAM as any });
-    expect((await dcMate.query("tasks").collect()).map((r: any) => r._id)).toEqual(["t1"]);
+    const dcMate = await createDataContext(ctx, {
+      userId: MATE as any,
+      workspace: "team",
+      team_id: TEAM as any,
+    });
+    expect(
+      (await dcMate.query("tasks").collect()).map((r: any) => r._id),
+    ).toEqual(["t1"]);
     expect(await dcMate.get("t2")).toBeNull();
     expect(await dcMate.get("t1")).not.toBeNull();
   });
 
   test("shipped rows carry the resolved key and a team_id that names ONLY the access team", async () => {
     const db = fixture({
-      conversations: [{ _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true }],
-      docs: [{ _id: "d1", user_id: OWNER, team_id: TEAM, conversation_id: "c1", title: "legacy private" }],
+      conversations: [
+        { _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true },
+      ],
+      docs: [
+        {
+          _id: "d1",
+          user_id: OWNER,
+          team_id: TEAM,
+          conversation_id: "c1",
+          title: "legacy private",
+        },
+      ],
     });
-    const { records } = await scopedFetch({ db } as any, "docs", { userId: OWNER as any, workspace: "personal" });
+    const { records } = await scopedFetch({ db } as any, "docs", {
+      userId: OWNER as any,
+      workspace: "personal",
+    });
     expect(records.map((r: any) => r._id)).toEqual(["d1"]);
     expect(records[0].workspace).toBe("user:u_owner");
     expect(records[0].team_id).toBeUndefined();
@@ -260,18 +419,60 @@ describe("INVARIANT 2 — routing and access are independent state", () => {
 });
 
 describe("propagation — the stored key follows the linked conversation", () => {
-  const seed = () => fixture({
-    conversations: [{ _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true }],
-    tasks: [{ _id: "t1", user_id: OWNER, team_id: TEAM, created_from_conversation: "c1", workspace: "user:u_owner", title: "task" }],
-    plans: [{ _id: "p1", user_id: OWNER, team_id: TEAM, created_from_conversation_id: "c1", workspace: "user:u_owner", title: "plan" }],
-    docs: [
-      { _id: "d1", user_id: OWNER, team_id: TEAM, conversation_id: "c1", workspace: "user:u_owner", title: "doc" },
-      // Array-only link: reached through its indexed first id.
-      { _id: "d2", user_id: OWNER, team_id: TEAM, related_conversation_ids: ["c1"], first_linked_conversation: "c1", workspace: "user:u_owner", title: "related" },
-      // Unrelated row: must not be touched.
-      { _id: "d3", user_id: OWNER, team_id: TEAM, workspace: "team:t_team", title: "unrelated" },
-    ],
-  });
+  const seed = () =>
+    fixture({
+      conversations: [
+        { _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true },
+      ],
+      tasks: [
+        {
+          _id: "t1",
+          user_id: OWNER,
+          team_id: TEAM,
+          created_from_conversation: "c1",
+          workspace: "user:u_owner",
+          title: "task",
+        },
+      ],
+      plans: [
+        {
+          _id: "p1",
+          user_id: OWNER,
+          team_id: TEAM,
+          created_from_conversation_id: "c1",
+          workspace: "user:u_owner",
+          title: "plan",
+        },
+      ],
+      docs: [
+        {
+          _id: "d1",
+          user_id: OWNER,
+          team_id: TEAM,
+          conversation_id: "c1",
+          workspace: "user:u_owner",
+          title: "doc",
+        },
+        // Array-only link: reached through its indexed first id.
+        {
+          _id: "d2",
+          user_id: OWNER,
+          team_id: TEAM,
+          related_conversation_ids: ["c1"],
+          first_linked_conversation: "c1",
+          workspace: "user:u_owner",
+          title: "related",
+        },
+        // Unrelated row: must not be touched.
+        {
+          _id: "d3",
+          user_id: OWNER,
+          team_id: TEAM,
+          workspace: "team:t_team",
+          title: "unrelated",
+        },
+      ],
+    });
 
   const keys = (db: any) => ({
     t1: db._tables.tasks[0].workspace,
@@ -283,35 +484,76 @@ describe("propagation — the stored key follows the linked conversation", () =>
 
   test("SHARE: locking off private flips every linked row to the team key", async () => {
     const db = seed();
-    const n = await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: false });
+    const n = await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
     expect(n).toBe(4);
-    expect(keys(db)).toEqual({ t1: "team:t_team", p1: "team:t_team", d1: "team:t_team", d2: "team:t_team", d3: "team:t_team" });
+    expect(keys(db)).toEqual({
+      t1: "team:t_team",
+      p1: "team:t_team",
+      d1: "team:t_team",
+      d2: "team:t_team",
+      d3: "team:t_team",
+    });
     // And access follows immediately.
-    expect(await canAccessTask({ db } as any, MATE as any, db._tables.tasks[0])).toBe(true);
+    expect(
+      await canAccessTask({ db } as any, MATE as any, db._tables.tasks[0]),
+    ).toBe(true);
   });
 
   test("a task that moved is handed to the job that cuts its edges across workspaces", async () => {
     const db = seed();
     db._tables.tasks[0].short_id = "ct-1";
     const runs: any[] = [];
-    const scheduler = { runAfter: async (_delay: number, _fn: unknown, args: unknown) => void runs.push(args) };
-    await patchConversationVisibility({ db, scheduler } as any, db._tables.conversations[0], { is_private: false });
+    const scheduler = {
+      runAfter: async (_delay: number, _fn: unknown, args: unknown) =>
+        void runs.push(args),
+    };
+    await patchConversationVisibility(
+      { db, scheduler } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
     expect(runs).toEqual([{ task_ids: ["t1"] }]);
   });
 
   test("UNSHARE / LOCK PRIVATE: revokes already-derived access — the bug this field exists to close", async () => {
     const db = seed();
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: false });
-    const n = await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: true, team_visibility: "private" });
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
+    const n = await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: true, team_visibility: "private" },
+    );
     expect(n).toBe(4);
-    expect(keys(db)).toEqual({ t1: "user:u_owner", p1: "user:u_owner", d1: "user:u_owner", d2: "user:u_owner", d3: "team:t_team" });
-    expect(await canAccessTask({ db } as any, MATE as any, db._tables.tasks[0])).toBe(false);
-    expect(await canAccessPlan({ db } as any, MATE as any, db._tables.plans[0])).toBe(false);
+    expect(keys(db)).toEqual({
+      t1: "user:u_owner",
+      p1: "user:u_owner",
+      d1: "user:u_owner",
+      d2: "user:u_owner",
+      d3: "team:t_team",
+    });
+    expect(
+      await canAccessTask({ db } as any, MATE as any, db._tables.tasks[0]),
+    ).toBe(false);
+    expect(
+      await canAccessPlan({ db } as any, MATE as any, db._tables.plans[0]),
+    ).toBe(false);
   });
 
   test("REVEAL via team_visibility on a private session shares linked rows", async () => {
     const db = seed();
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { team_visibility: "summary" });
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { team_visibility: "summary" },
+    );
     expect(keys(db).t1).toBe("team:t_team");
     expect(keys(db).p1).toBe("team:t_team");
   });
@@ -319,18 +561,40 @@ describe("propagation — the stored key follows the linked conversation", () =>
   test("LATE PATH STAMP: a born-blank (teamless, shared) session gaining a team shares linked rows", async () => {
     const db = fixture({
       conversations: [{ _id: "c1", user_id: OWNER, is_private: false }],
-      tasks: [{ _id: "t1", user_id: OWNER, created_from_conversation: "c1", workspace: "user:u_owner", title: "task" }],
+      tasks: [
+        {
+          _id: "t1",
+          user_id: OWNER,
+          created_from_conversation: "c1",
+          workspace: "user:u_owner",
+          title: "task",
+        },
+      ],
     });
     // Teamless + shared computes personal (shared with nobody).
-    expect(computeWorkspaceKey(db._tables.tasks[0], db._tables.conversations[0])).toBe("user:u_owner");
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { team_id: TEAM, auto_shared: true });
+    expect(
+      computeWorkspaceKey(db._tables.tasks[0], db._tables.conversations[0]),
+    ).toBe("user:u_owner");
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { team_id: TEAM, auto_shared: true },
+    );
     expect(db._tables.tasks[0].workspace).toBe("team:t_team");
   });
 
   test("REPARENT / MOVE to another team re-keys linked rows to the new team", async () => {
     const db = seed();
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: false });
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { team_id: OTHER_TEAM });
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { team_id: OTHER_TEAM },
+    );
     expect(keys(db).t1).toBe("team:t_other");
     expect(keys(db).d2).toBe("team:t_other");
     expect(keys(db).d3).toBe("team:t_team"); // unlinked, untouched
@@ -340,29 +604,62 @@ describe("propagation — the stored key follows the linked conversation", () =>
   // 12k rows, 32 MB) to find array links, on every late path restamp.
   test("array links are found by index, with no scan of the owner's work items", async () => {
     const db: any = fixture({
-      conversations: [{ _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true }],
-      tasks: [{ _id: "t1", user_id: MATE, team_id: TEAM, conversation_ids: ["c1", "c9"], first_linked_conversation: "c1", workspace: "user:u_owner" }],
-      docs: [{ _id: "d1", user_id: OWNER, team_id: TEAM, related_conversation_ids: ["c2"], first_linked_conversation: "c2", workspace: "user:u_owner" }],
+      conversations: [
+        { _id: "c1", user_id: OWNER, team_id: TEAM, is_private: true },
+      ],
+      tasks: [
+        {
+          _id: "t1",
+          user_id: MATE,
+          team_id: TEAM,
+          conversation_ids: ["c1", "c9"],
+          first_linked_conversation: "c1",
+          workspace: "user:u_owner",
+        },
+      ],
+      docs: [
+        {
+          _id: "d1",
+          user_id: OWNER,
+          team_id: TEAM,
+          related_conversation_ids: ["c2"],
+          first_linked_conversation: "c2",
+          workspace: "user:u_owner",
+        },
+      ],
     });
     let ownerScans = 0;
     const query = db.query.bind(db);
     db.query = (table: string) => {
       const q = query(table);
       const withIndex = q.withIndex.bind(q);
-      q.withIndex = (name: string, fn: any) => { if (name === "by_user_id") ownerScans++; return withIndex(name, fn); };
+      q.withIndex = (name: string, fn: any) => {
+        if (name === "by_user_id") ownerScans++;
+        return withIndex(name, fn);
+      };
       return q;
     };
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: false });
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
     expect(db._tables.tasks[0].workspace).toBe("team:t_team");
     expect(db._tables.docs[0].workspace).toBe("user:u_owner");
     expect(ownerScans).toBe(0);
   });
 
   test("the first-link stamp follows the array a write sets", () => {
-    expect(firstLinkedConversationStamp("tasks", { conversation_ids: ["c1", "c2"] })).toEqual({ first_linked_conversation: "c1" });
-    expect(firstLinkedConversationStamp("docs", { related_conversation_ids: [] })).toEqual({ first_linked_conversation: undefined });
+    expect(
+      firstLinkedConversationStamp("tasks", { conversation_ids: ["c1", "c2"] }),
+    ).toEqual({ first_linked_conversation: "c1" });
+    expect(
+      firstLinkedConversationStamp("docs", { related_conversation_ids: [] }),
+    ).toEqual({ first_linked_conversation: undefined });
     expect(firstLinkedConversationStamp("tasks", { title: "x" })).toBeNull();
-    expect(firstLinkedConversationStamp("plans", { conversation_ids: ["c1"] })).toBeNull();
+    expect(
+      firstLinkedConversationStamp("plans", { conversation_ids: ["c1"] }),
+    ).toBeNull();
   });
 
   test("a second recompute in the same execution sees the key the first one wrote", async () => {
@@ -375,20 +672,32 @@ describe("propagation — the stored key follows the linked conversation", () =>
       q.withIndex = (name: string, fn: any) => {
         const r = withIndex(name, fn);
         const take = r.take.bind(r);
-        r.take = async (n: number) => (await take(n)).map((row: any) => ({ ...row }));
+        r.take = async (n: number) =>
+          (await take(n)).map((row: any) => ({ ...row }));
         return r;
       };
       return q;
     };
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: false });
-    await patchConversationVisibility({ db } as any, db._tables.conversations[0], { is_private: true, team_visibility: "private" });
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: false },
+    );
+    await patchConversationVisibility(
+      { db } as any,
+      db._tables.conversations[0],
+      { is_private: true, team_visibility: "private" },
+    );
     expect(keys(db).d2).toBe("user:u_owner");
   });
 
   test("a no-op visibility patch rewrites nothing", async () => {
     const db = seed();
     const before = db._patched.length;
-    const n = await recomputeWorkspaceForConversation({ db } as any, db._tables.conversations[0]);
+    const n = await recomputeWorkspaceForConversation(
+      { db } as any,
+      db._tables.conversations[0],
+    );
     expect(n).toBe(0);
     expect(db._patched.length).toBe(before);
   });

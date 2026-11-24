@@ -37,7 +37,11 @@ export type StopPlan =
  *   - others hold and the caller has none → refuse: it cannot know what is
  *     "its own" to release, and guessing would tear down someone's work
  */
-export function decideStop(input: { others: string[]; me: string | null; force?: boolean }): StopPlan {
+export function decideStop(input: {
+  others: string[];
+  me: string | null;
+  force?: boolean;
+}): StopPlan {
   const others = input.others.filter((sid) => sid !== input.me);
   if (input.force || others.length === 0) return { action: "teardown", others };
   if (!input.me) return { action: "refuse", others };
@@ -59,7 +63,11 @@ export const HOLDER_STALE_MS = 90 * 60 * 1000;
  * tab in `tabsBySession` whose tab still exists and which has been seen
  * recently. `liveTargetIds` may be omitted when the tab list is unknown.
  */
-export function liveHolders(state: InstanceState, liveTargetIds?: Set<string>, now = Date.now()): string[] {
+export function liveHolders(
+  state: InstanceState,
+  liveTargetIds?: Set<string>,
+  now = Date.now(),
+): string[] {
   const seen = state.sessionSeenAt ?? {};
   return Object.entries(state.tabsBySession ?? {})
     .filter(([sid, tab]) => {
@@ -81,14 +89,24 @@ export function planStop(
   me: string | null,
   opts: { force?: boolean; liveTargetIds?: Set<string>; now?: number } = {},
 ): BuiltinStopPlan {
-  const plan = decideStop({ others: liveHolders(state, opts.liveTargetIds, opts.now), me, force: opts.force });
+  const plan = decideStop({
+    others: liveHolders(state, opts.liveTargetIds, opts.now),
+    me,
+    force: opts.force,
+  });
   const myTab = me ? state.tabsBySession?.[me] : undefined;
-  const myTabs = myTab && (!opts.liveTargetIds || opts.liveTargetIds.has(myTab)) ? [myTab] : [];
+  const myTabs =
+    myTab && (!opts.liveTargetIds || opts.liveTargetIds.has(myTab))
+      ? [myTab]
+      : [];
   return { ...plan, myTabs };
 }
 
 /** Forget a session's claim on the built-in browser (its tab entry and its stamp). */
-export function releaseSession(state: InstanceState, sessionId: string): InstanceState {
+export function releaseSession(
+  state: InstanceState,
+  sessionId: string,
+): InstanceState {
   const current = readState() ?? state;
   const tabs = { ...(current.tabsBySession ?? {}) };
   const seen = { ...(current.sessionSeenAt ?? {}) };
@@ -99,7 +117,8 @@ export function releaseSession(state: InstanceState, sessionId: string): Instanc
     ...current,
     tabsBySession: tabs,
     sessionSeenAt: seen,
-    activeTargetId: current.activeTargetId === released ? null : current.activeTargetId,
+    activeTargetId:
+      current.activeTargetId === released ? null : current.activeTargetId,
   };
   writeState(next);
   return next;

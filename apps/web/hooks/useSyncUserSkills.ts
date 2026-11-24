@@ -20,7 +20,12 @@ export const skillsOf = (data: { skills: string | null } | null | undefined) =>
 
 /** Feeder: the live skills catalog. */
 export function useSyncUserSkills(enabled = true) {
-  return useSyncCollection("userSkills", api.users.getMySkills, enabled ? {} : "skip", { select: skillsOf });
+  return useSyncCollection(
+    "userSkills",
+    api.users.getMySkills,
+    enabled ? {} : "skip",
+    { select: skillsOf },
+  );
 }
 
 // The user whose catalog this launch already read.
@@ -30,7 +35,9 @@ let fetchedFor: string | null = null;
 export function useFetchUserSkillsOnce() {
   const convex = useConvex();
   const authSettled = useServerAuthSettled();
-  const userId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const userId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   useWatchEffect(() => {
     if (!authSettled || !userId || fetchedFor === userId) return;
     fetchedFor = userId;

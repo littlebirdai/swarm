@@ -19,22 +19,35 @@ const workerArgs = process.argv.slice(process.argv[2] === "--" ? 3 : 2);
 // call goes to the guard too and the run stays in its world. The guard runs
 // with DRY_RUN_GUARD cleared, so there is never a second hop.
 const dryRunGuard = process.env.DRY_RUN_GUARD;
-if (dryRunGuard && process.env.CODECAST_DIR && process.env.CODECAST_DIR === process.env.DRY_RUN_EMPTY_CODECAST_DIR) {
-  const guarded = spawnSync(dryRunGuard, workerArgs, { stdio: "inherit", env: { ...process.env, DRY_RUN_GUARD: "" } });
+if (
+  dryRunGuard &&
+  process.env.CODECAST_DIR &&
+  process.env.CODECAST_DIR === process.env.DRY_RUN_EMPTY_CODECAST_DIR
+) {
+  const guarded = spawnSync(dryRunGuard, workerArgs, {
+    stdio: "inherit",
+    env: { ...process.env, DRY_RUN_GUARD: "" },
+  });
   process.exit(guarded.status ?? 1);
 } else if (workerArgs[0] === "_worker") {
-  import("./workers/runtime.js").then(({ runWorker }) => runWorker(workerArgs.length === 2 ? workerArgs[1] : "")).catch(() => {
-    process.stderr.write("worker startup failed\n");
-    process.exit(64);
-  });
+  import("./workers/runtime.js")
+    .then(({ runWorker }) =>
+      runWorker(workerArgs.length === 2 ? workerArgs[1] : ""),
+    )
+    .catch(() => {
+      process.stderr.write("worker startup failed\n");
+      process.exit(64);
+    });
 } else if (process.env.CODECAST_WORKER === "1") {
   process.stderr.write("worker CLI recursion refused\n");
   process.exit(64);
 } else if (!runFastPath(process.argv)) {
-  runInteractiveIfClamped().then((ran) => ran || import("./index.js")).catch((err) => {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  });
+  runInteractiveIfClamped()
+    .then((ran) => ran || import("./index.js"))
+    .catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
 }
 
 /**
@@ -43,7 +56,8 @@ if (dryRunGuard && process.env.CODECAST_DIR && process.env.CODECAST_DIR === proc
  * minutes looking hung. A prompt given on stdin travels in a file.
  */
 async function runInteractiveIfClamped(): Promise<boolean> {
-  const { priorityClamped, runAsInteractiveJob, wantsInteractivePriority } = await import("./interactiveJob.js");
+  const { priorityClamped, runAsInteractiveJob, wantsInteractivePriority } =
+    await import("./interactiveJob.js");
   if (!wantsInteractivePriority(workerArgs) || !priorityClamped()) return false;
   const { selfExecInfo } = await import("./selfExec.js");
   const fs = await import("node:fs");
@@ -51,11 +65,16 @@ async function runInteractiveIfClamped(): Promise<boolean> {
   const path = await import("node:path");
   let stdin: string | undefined;
   if (!process.stdin.isTTY && workerArgs.includes("-")) {
-    stdin = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "cast-stdin-")), "in");
+    stdin = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "cast-stdin-")),
+      "in",
+    );
     fs.writeFileSync(stdin, fs.readFileSync(0));
   }
   const self = selfExecInfo(...workerArgs);
-  const code = await runAsInteractiveJob([self.executablePath, ...self.args], { stdin });
+  const code = await runAsInteractiveJob([self.executablePath, ...self.args], {
+    stdin,
+  });
   if (stdin) fs.rmSync(path.dirname(stdin), { recursive: true, force: true });
   process.exit(code);
 }

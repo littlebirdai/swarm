@@ -12,7 +12,10 @@ export const TERMINAL_HOLD_RECHECK_MS = 60_000;
 export class TerminalHoldError extends Error {
   readonly holdReason: string;
   readonly recheckMs = TERMINAL_HOLD_RECHECK_MS;
-  constructor(readonly terminalLabel: string, hint?: string | null) {
+  constructor(
+    readonly terminalLabel: string,
+    hint?: string | null,
+  ) {
     const reason = unreachableTerminalHoldReason(terminalLabel, hint);
     super(reason);
     this.holdReason = reason;

@@ -12,26 +12,49 @@ import { teamMembersOf } from "../../lib/activeTeam";
 
 const NO_MEMBERS: any[] = [];
 
-export type OwnerOption = { key: string; label: string; info: AssigneeInfo; you: boolean; section?: string };
+export type OwnerOption = {
+  key: string;
+  label: string;
+  info: AssigneeInfo;
+  you: boolean;
+  section?: string;
+};
 
 /** The people and roles an issue can go to, the viewer first. */
 export function useOwnerOptions(): OwnerOption[] {
-  const teamMembers = useInboxStore((s) => teamMembersOf(s) as any[]) ?? NO_MEMBERS;
-  const me = useInboxStore((s) => (s as any).currentUser?._id as string | undefined);
+  const teamMembers =
+    useInboxStore((s) => teamMembersOf(s) as any[]) ?? NO_MEMBERS;
+  const me = useInboxStore(
+    (s) => (s as any).currentUser?._id as string | undefined,
+  );
   const { people, roles } = useRolesAndPeopleOptions(teamMembers);
   return useMemo(() => {
-    const all = [...people, ...roles].map((o) => ({ key: o.key, label: o.label, info: o.info, you: o.key === me, section: o.section }));
+    const all = [...people, ...roles].map((o) => ({
+      key: o.key,
+      label: o.label,
+      info: o.info,
+      you: o.key === me,
+      section: o.section,
+    }));
     return all.sort((a, b) => Number(b.you) - Number(a.you));
   }, [people, roles, me]);
 }
 
 /** An owner id as a face and a name, from the options; null for one nobody here can name. */
-export function ownerInfo(options: OwnerOption[], assignee: string | null | undefined): OwnerOption | null {
+export function ownerInfo(
+  options: OwnerOption[],
+  assignee: string | null | undefined,
+): OwnerOption | null {
   if (!assignee) return null;
   return options.find((o) => o.key === assignee) ?? null;
 }
 
-type TaskLite = { _id: string; short_id?: string; title?: string; assignee?: string };
+type TaskLite = {
+  _id: string;
+  short_id?: string;
+  title?: string;
+  assignee?: string;
+};
 
 /**
  * Hands issues to a person or role. An issue with a problem task moves that
@@ -39,7 +62,11 @@ type TaskLite = { _id: string; short_id?: string; title?: string; assignee?: str
  * links it. One toast names what changed, and its Undo puts the previous
  * owners back on the tasks that had one.
  */
-export function assignIssues(groups: OpsGroup[], owner: OwnerOption, sources: Map<string, OpsSource>): void {
+export function assignIssues(
+  groups: OpsGroup[],
+  owner: OwnerOption,
+  sources: Map<string, OpsSource>,
+): void {
   const st = useInboxStore.getState();
   const tasks = st.tasks as Record<string, TaskLite>;
   const before: { short_id: string; assignee: string }[] = [];
@@ -58,7 +85,12 @@ export function assignIssues(groups: OpsGroup[], owner: OwnerOption, sources: Ma
     filed++;
     const projectId = sources.get(g.source_id)?.project_id;
     void st
-      .createTask({ title: `[${g.short_id}] ${g.title}`.slice(0, 200), description: `Problem from ${g.short_id}.`, assignee: owner.key, ...(projectId ? { project_id: projectId } : {}) })
+      .createTask({
+        title: `[${g.short_id}] ${g.title}`.slice(0, 200),
+        description: `Problem from ${g.short_id}.`,
+        assignee: owner.key,
+        ...(projectId ? { project_id: projectId } : {}),
+      })
       .then((res: any) => {
         const id = res?.id ?? res?._id;
         if (id) useInboxStore.getState().setOpsGroupTask(g._id, String(id));
@@ -68,12 +100,29 @@ export function assignIssues(groups: OpsGroup[], owner: OwnerOption, sources: Ma
   const n = before.length + filed;
   if (!n) return;
   const who = owner.you ? "you" : owner.label;
-  toast(n === 1 && groups.length === 1 ? `${groups[0].short_id} assigned to ${who}` : `${n} issues assigned to ${who}`, {
-    id: "ops-assign",
-    duration: 8000,
-    description: filed ? `${filed} filed as new ${filed === 1 ? "task" : "tasks"}` : undefined,
-    ...(before.length
-      ? { action: { label: "Undo", onClick: () => { for (const b of before) void useInboxStore.getState().updateTask(b.short_id, { assignee: b.assignee }); } } }
-      : {}),
-  });
+  toast(
+    n === 1 && groups.length === 1
+      ? `${groups[0].short_id} assigned to ${who}`
+      : `${n} issues assigned to ${who}`,
+    {
+      id: "ops-assign",
+      duration: 8000,
+      description: filed
+        ? `${filed} filed as new ${filed === 1 ? "task" : "tasks"}`
+        : undefined,
+      ...(before.length
+        ? {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                for (const b of before)
+                  void useInboxStore
+                    .getState()
+                    .updateTask(b.short_id, { assignee: b.assignee });
+              },
+            },
+          }
+        : {}),
+    },
+  );
 }

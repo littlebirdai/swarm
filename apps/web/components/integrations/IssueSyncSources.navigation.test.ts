@@ -6,6 +6,10 @@ test("integration project links navigate the active tab and preserve modified cl
     [`${import.meta.dir}/fixtures/issueSyncNavigation.tsx`],
     120_000,
   );
-  expect({ code, signalCode, stderr }).toEqual({ code: 0, signalCode: null, stderr: "" });
+  expect({ code, signalCode, stderr }).toEqual({
+    code: 0,
+    signalCode: null,
+    stderr: "",
+  });
   expect(stdout).toContain("project navigation scenarios passed");
 }, 130_000);

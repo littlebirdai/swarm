@@ -12,10 +12,22 @@ import { STRONG_MODEL, parseJsonBlock } from "./anthropic";
 
 export type GoalSourceKind = "decision" | "plan" | "session" | "chat" | "call";
 /** One line a person wrote, said or answered, and where to read it whole. */
-export type GoalCandidate = { kind: GoalSourceKind; at: number; by: string; where: string; text: string };
+export type GoalCandidate = {
+  kind: GoalSourceKind;
+  at: number;
+  by: string;
+  where: string;
+  text: string;
+};
 /** A goal as a person stated it: `line` holds their words, `where` the record
  *  to open around them (a channel, `cl-N`, `sd-N`, `pl-N`, a session id). */
-export type StatedGoal = { at: number; by: string; line: string; where: string; kind?: GoalSourceKind };
+export type StatedGoal = {
+  at: number;
+  by: string;
+  line: string;
+  where: string;
+  kind?: GoalSourceKind;
+};
 export type StatedGoals = { lines: StatedGoal[]; truncated: boolean };
 
 /** The model the read runs on. Measured on 110 hand-labelled Union lines
@@ -55,7 +67,11 @@ export const STATED_GOALS_SCHEMA = {
       type: "array",
       items: {
         type: "object",
-        properties: { i: { type: "integer" }, sets: { type: "string" }, quote: { type: "string" } },
+        properties: {
+          i: { type: "integer" },
+          sets: { type: "string" },
+          quote: { type: "string" },
+        },
         required: ["i", "sets", "quote"],
         additionalProperties: false,
       },
@@ -73,16 +89,21 @@ const SOURCE_WORDS: Record<GoalSourceKind, string> = {
   call: "call",
 };
 const day = (at: number) => new Date(at).toISOString().slice(0, 10);
-const candidateLine = (c: GoalCandidate, i: number) => `[${i}] ${SOURCE_WORDS[c.kind]} · ${c.where} · ${c.by} · ${day(c.at)}\n${c.text}`;
+const candidateLine = (c: GoalCandidate, i: number) =>
+  `[${i}] ${SOURCE_WORDS[c.kind]} · ${c.where} · ${c.by} · ${day(c.at)}\n${c.text}`;
 
 /** The candidates in the order they are worth keeping, inside the byte budget. */
-export function boundCandidates(candidates: GoalCandidate[]): { kept: GoalCandidate[]; truncated: boolean } {
+export function boundCandidates(candidates: GoalCandidate[]): {
+  kept: GoalCandidate[];
+  truncated: boolean;
+} {
   const kept: GoalCandidate[] = [];
   let bytes = 0;
   for (const c of candidates) {
     const text = c.text.trim().slice(0, STATED_GOAL_CAPS.candidate_chars);
     if (!text) continue;
-    if (bytes + text.length > STATED_GOAL_CAPS.candidate_bytes) return { kept, truncated: true };
+    if (bytes + text.length > STATED_GOAL_CAPS.candidate_bytes)
+      return { kept, truncated: true };
     bytes += text.length;
     kept.push({ ...c, text });
   }
@@ -90,13 +111,25 @@ export function boundCandidates(candidates: GoalCandidate[]): { kept: GoalCandid
 }
 
 /** One request per chunk of candidates; numbers are global so a reply names its candidate. */
-export function statedGoalsRequests(candidates: GoalCandidate[], workspace: string): Array<{ req: SurfaceRequest; from: number; to: number }> {
+export function statedGoalsRequests(
+  candidates: GoalCandidate[],
+  workspace: string,
+): Array<{ req: SurfaceRequest; from: number; to: number }> {
   const out: Array<{ req: SurfaceRequest; from: number; to: number }> = [];
   let from = 0;
   while (from < candidates.length) {
-    let to = from, chars = 0;
-    while (to < candidates.length && (to === from || chars + candidates[to].text.length <= STATED_GOAL_CAPS.chunk_chars)) chars += candidates[to++].text.length;
-    const body = candidates.slice(from, to).map((c, k) => candidateLine(c, from + k)).join("\n\n");
+    let to = from,
+      chars = 0;
+    while (
+      to < candidates.length &&
+      (to === from ||
+        chars + candidates[to].text.length <= STATED_GOAL_CAPS.chunk_chars)
+    )
+      chars += candidates[to++].text.length;
+    const body = candidates
+      .slice(from, to)
+      .map((c, k) => candidateLine(c, from + k))
+      .join("\n\n");
     out.push({
       from,
       to,
@@ -105,7 +138,10 @@ export function statedGoalsRequests(candidates: GoalCandidate[], workspace: stri
         max_tokens: STATED_GOAL_CAPS.max_tokens,
         system: STATED_GOALS_SYSTEM,
         prompt: `The company: ${workspace || "this workspace"}.\n\n${body}`,
-        output_schema: STATED_GOALS_SCHEMA as unknown as Record<string, unknown>,
+        output_schema: STATED_GOALS_SCHEMA as unknown as Record<
+          string,
+          unknown
+        >,
       },
     });
     from = to;
@@ -117,7 +153,12 @@ export function statedGoalsRequests(candidates: GoalCandidate[], workspace: stri
  *  the span of the candidate its quote copies (whitespace folded: a model
  *  re-flows a bullet list onto one line), so a line in said.goals is always
  *  what the person said and only the part the model read as direction. */
-export function picksOf(text: string | null, candidates: GoalCandidate[], from: number, to: number): StatedGoal[] | null {
+export function picksOf(
+  text: string | null,
+  candidates: GoalCandidate[],
+  from: number,
+  to: number,
+): StatedGoal[] | null {
   const raw = text ? (parseJsonBlock(text) as any) : null;
   if (!Array.isArray(raw?.goals)) return null;
   const out: StatedGoal[] = [];
@@ -129,7 +170,13 @@ export function picksOf(text: string | null, candidates: GoalCandidate[], from: 
     const line = ownWords(c.text, typeof g.quote === "string" ? g.quote : "");
     if (!line) continue;
     seen.add(i);
-    out.push({ at: c.at, by: c.by, line: line.slice(0, STATED_GOAL_CAPS.goal_line_chars), where: c.where, kind: c.kind });
+    out.push({
+      at: c.at,
+      by: c.by,
+      line: line.slice(0, STATED_GOAL_CAPS.goal_line_chars),
+      where: c.where,
+      kind: c.kind,
+    });
   }
   return out;
 }
@@ -138,7 +185,9 @@ export function picksOf(text: string | null, candidates: GoalCandidate[], from: 
 function ownWords(text: string, quote: string): string | null {
   const words = quote.trim().split(/\s+/).filter(Boolean);
   if (!words.length) return null;
-  const hit = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+")).exec(text);
+  const hit = new RegExp(
+    words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"),
+  ).exec(text);
   return hit ? hit[0] : null;
 }
 
@@ -150,22 +199,35 @@ export type AskModel = (req: SurfaceRequest) => Promise<string | null>;
  * parallel, the picks kept in candidate order (the order the readers ranked
  * them), inside the reviewer's byte budget.
  */
-export async function pickStatedGoals(candidates: GoalCandidate[], truncatedBefore: boolean, workspace: string, ask: AskModel): Promise<StatedGoals> {
+export async function pickStatedGoals(
+  candidates: GoalCandidate[],
+  truncatedBefore: boolean,
+  workspace: string,
+  ask: AskModel,
+): Promise<StatedGoals> {
   const { kept, truncated: cut } = boundCandidates(candidates);
   const chunks = statedGoalsRequests(kept, workspace);
-  const replies = await Promise.all(chunks.map((c) => ask(c.req).catch(() => null)));
+  const replies = await Promise.all(
+    chunks.map((c) => ask(c.req).catch(() => null)),
+  );
   const read = chunks.map((c, k) => picksOf(replies[k], kept, c.from, c.to));
   // A chunk with no readable answer (the call failed, or the answer ran out of
   // room before its list closed) lost its lines: the read says so.
   const unread = read.filter((r) => r === null).length;
-  if (unread) console.error(`stated goals: ${unread} of ${chunks.length} chunks gave no readable answer`);
+  if (unread)
+    console.error(
+      `stated goals: ${unread} of ${chunks.length} chunks gave no readable answer`,
+    );
   const picks = read.flatMap((r) => r ?? []);
   const lines: StatedGoal[] = [];
   let bytes = 0;
   let truncated = truncatedBefore || cut || unread > 0;
   for (const l of picks) {
     const size = JSON.stringify(l).length;
-    if (bytes + size > STATED_GOAL_CAPS.goal_bytes) { truncated = true; break; }
+    if (bytes + size > STATED_GOAL_CAPS.goal_bytes) {
+      truncated = true;
+      break;
+    }
     bytes += size;
     lines.push(l);
   }

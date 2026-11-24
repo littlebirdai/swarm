@@ -1,17 +1,31 @@
 // The builder's decisions that need no database: which build runs next, what
 // the budgets allow, how a failure reads to people, and the narration a card
 // shows. queue.ts and run.ts apply them.
-import { APP_DAILY_BUDGET_USD, GLOBAL_DAILY_BUDGET_USD, IDEA_MAX, IDEAS_MAX, NARRATION_LINE_MAX, NARRATION_LINES_MAX, VISITOR_DAILY_BUDGET_USD } from "../lib/limits";
+import {
+  APP_DAILY_BUDGET_USD,
+  GLOBAL_DAILY_BUDGET_USD,
+  IDEA_MAX,
+  IDEAS_MAX,
+  NARRATION_LINE_MAX,
+  NARRATION_LINES_MAX,
+  VISITOR_DAILY_BUDGET_USD,
+} from "../lib/limits";
 import { clipLine, oneLine } from "../lib/text";
 import type { FailureKind, NarrationLine } from "../validators";
 
-export type QueueRow<Id> = { _id: Id; status: "queued" | "building" | "live" | "failed"; _creationTime: number };
+export type QueueRow<Id> = {
+  _id: Id;
+  status: "queued" | "building" | "live" | "failed";
+  _creationTime: number;
+};
 
 /** The build to start now: the oldest queued one, unless one is building.
  *  One at a time per app, first in first out. */
 export function nextInLine<Id>(rows: readonly QueueRow<Id>[]): Id | null {
   if (rows.some((r) => r.status === "building")) return null;
-  const queued = rows.filter((r) => r.status === "queued").sort((a, b) => a._creationTime - b._creationTime);
+  const queued = rows
+    .filter((r) => r.status === "queued")
+    .sort((a, b) => a._creationTime - b._creationTime);
   return queued[0]?._id ?? null;
 }
 
@@ -38,34 +52,70 @@ export const overBudget = (spent: Record<Budget, number>): Over => ({
  *  daily budgets are spent. The global budget is the circuit breaker; the
  *  app's and the asker's own budgets are what keep one app or one person from
  *  spending it. */
-export function startRefusal(opts: { paused: boolean; over: Over }): Refusal | null {
-  if (opts.paused) return { kind: "refused", error: "Building is paused right now. Try again in a little while.", detail: "builds are switched off (PLAYGROUND_BUILDS_OFF)" };
+export function startRefusal(opts: {
+  paused: boolean;
+  over: Over;
+}): Refusal | null {
+  if (opts.paused)
+    return {
+      kind: "refused",
+      error: "Building is paused right now. Try again in a little while.",
+      detail: "builds are switched off (PLAYGROUND_BUILDS_OFF)",
+    };
   if (opts.over.global) {
-    return { kind: "refused", error: "Clayground has used today's building budget. Try again tomorrow.", detail: `global daily budget of $${GLOBAL_DAILY_BUDGET_USD} spent` };
+    return {
+      kind: "refused",
+      error: "Clayground has used today's building budget. Try again tomorrow.",
+      detail: `global daily budget of $${GLOBAL_DAILY_BUDGET_USD} spent`,
+    };
   }
   if (opts.over.app) {
-    return { kind: "refused", error: "This app has used today's building budget. Try again tomorrow, or fork it.", detail: `app daily budget of $${APP_DAILY_BUDGET_USD} spent` };
+    return {
+      kind: "refused",
+      error:
+        "This app has used today's building budget. Try again tomorrow, or fork it.",
+      detail: `app daily budget of $${APP_DAILY_BUDGET_USD} spent`,
+    };
   }
   if (opts.over.visitor) {
-    return { kind: "refused", error: "You've asked for a lot of changes today. Chat still works, and changes are back tomorrow.", detail: `visitor daily budget of $${VISITOR_DAILY_BUDGET_USD} spent` };
+    return {
+      kind: "refused",
+      error:
+        "You've asked for a lot of changes today. Chat still works, and changes are back tomorrow.",
+      detail: `visitor daily budget of $${VISITOR_DAILY_BUDGET_USD} spent`,
+    };
   }
   return null;
 }
 
 /** How a run ended, as the builder sees it. */
 export type Outcome =
-  | { kind: "finished"; summary: string; name?: string; ideas?: string[]; spotlight?: string; try?: string }
+  | {
+      kind: "finished";
+      summary: string;
+      name?: string;
+      ideas?: string[];
+      spotlight?: string;
+      try?: string;
+    }
   | { kind: "declined"; reason: string }
   | { kind: "unchanged" }
   | { kind: "invalid"; problems: string[] }
-  | { kind: "stopped"; reason: "time" | "budget" | "error" | "done" | "approval"; error?: string };
+  | {
+      kind: "stopped";
+      reason: "time" | "budget" | "error" | "done" | "approval";
+      error?: string;
+    };
 
 /** Clay's next-change ideas as the empty room offers them: short, one line
  *  each, lowercase first letter like a chip, no repeats, at most IDEAS_MAX. */
 export function cleanIdeas(raw: readonly string[]): string[] {
   const out: string[] = [];
   for (const idea of raw) {
-    const s = idea.replace(/\s+/g, " ").trim().replace(/[.!]+$/, "");
+    const s = idea
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[.!]+$/, "");
     if (!s || s.length > IDEA_MAX) continue;
     const chip = s[0].toLowerCase() + s.slice(1);
     if (!out.includes(chip)) out.push(chip);
@@ -75,19 +125,54 @@ export function cleanIdeas(raw: readonly string[]): string[] {
 }
 
 /** A failed outcome as its card says it: one line for people and the raw cause. */
-export function failureFor(outcome: Exclude<Outcome, { kind: "finished" }>): Refusal {
+export function failureFor(
+  outcome: Exclude<Outcome, { kind: "finished" }>,
+): Refusal {
   switch (outcome.kind) {
     case "declined":
-      return { kind: "declined", error: outcome.reason, detail: `declined: ${outcome.reason}` };
+      return {
+        kind: "declined",
+        error: outcome.reason,
+        detail: `declined: ${outcome.reason}`,
+      };
     case "unchanged":
-      return { kind: "unchanged", error: "Clay finished without changing anything. Try saying it another way.", detail: "the draft matched the base version" };
+      return {
+        kind: "unchanged",
+        error:
+          "Clay finished without changing anything. Try saying it another way.",
+        detail: "the draft matched the base version",
+      };
     case "invalid":
-      return { kind: "invalid", error: "The code Clay wrote didn't run, even after fixing it.", detail: outcome.problems.join("\n") };
+      return {
+        kind: "invalid",
+        error: "The code Clay wrote didn't run, even after fixing it.",
+        detail: outcome.problems.join("\n"),
+      };
     case "stopped":
-      if (outcome.reason === "time") return { kind: "time", error: "It ran out of time on a big change. Try a smaller step.", detail: outcome.error ?? "deadline passed" };
-      if (outcome.reason === "budget") return { kind: "budget", error: "It hit the spending limit for one change. Try a smaller step.", detail: outcome.error ?? "cost ceiling reached" };
-      if (outcome.reason === "done") return { kind: "stopped", error: "Clay stopped before finishing. Try again.", detail: "the model ended its turn without calling finish" };
-      return { kind: "unreachable", error: "Clay couldn't reach its model. Try again in a moment.", detail: outcome.error ?? outcome.reason };
+      if (outcome.reason === "time")
+        return {
+          kind: "time",
+          error: "It ran out of time on a big change. Try a smaller step.",
+          detail: outcome.error ?? "deadline passed",
+        };
+      if (outcome.reason === "budget")
+        return {
+          kind: "budget",
+          error:
+            "It hit the spending limit for one change. Try a smaller step.",
+          detail: outcome.error ?? "cost ceiling reached",
+        };
+      if (outcome.reason === "done")
+        return {
+          kind: "stopped",
+          error: "Clay stopped before finishing. Try again.",
+          detail: "the model ended its turn without calling finish",
+        };
+      return {
+        kind: "unreachable",
+        error: "Clay couldn't reach its model. Try again in a moment.",
+        detail: outcome.error ?? outcome.reason,
+      };
   }
 }
 
@@ -124,7 +209,8 @@ export class Narration {
     const line = clip(text);
     if (!line) return;
     this.settle();
-    if (this.lines[this.lines.length - 1]?.text !== line) this.add({ at, text: line });
+    if (this.lines[this.lines.length - 1]?.text !== line)
+      this.add({ at, text: line });
   }
 
   /** A change to one file. Changes to the file the step before was about
@@ -151,7 +237,12 @@ export class Narration {
     }
     this.settle();
     this.planned ||= plan;
-    this.add({ at, text: line, key, ...(plan ? { kind: "plan" as const } : {}) });
+    this.add({
+      at,
+      text: line,
+      key,
+      ...(plan ? { kind: "plan" as const } : {}),
+    });
   }
 
   /** The latest lines, the plan always among them. */
@@ -159,13 +250,20 @@ export class Narration {
     const shown = this.lines.slice(-NARRATION_LINES_MAX);
     const plan = this.lines.find((l) => l.kind === "plan");
     if (plan && !shown.includes(plan)) shown.splice(0, 1, plan);
-    return shown.map(({ at, text, kind }) => ({ at, text, ...(kind ? { kind } : {}) }));
+    return shown.map(({ at, text, kind }) => ({
+      at,
+      text,
+      ...(kind ? { kind } : {}),
+    }));
   }
 
   /** Lines are told apart by `at`, so no two share one. */
   private add(line: Line): void {
     const last = this.lines[this.lines.length - 1];
-    this.lines.push({ ...line, at: last && line.at <= last.at ? last.at + 1 : line.at });
+    this.lines.push({
+      ...line,
+      at: last && line.at <= last.at ? last.at + 1 : line.at,
+    });
   }
 
   /** A passing line gives way to whatever comes next. */
@@ -179,17 +277,38 @@ export class Narration {
  *  file chip, never part of the line. */
 export function stepLine(verb: string, path: string, about?: string): string {
   const why = about?.trim().replace(/[.\s]+$/, "");
-  return why ? `${why[0].toUpperCase()}${why.slice(1)}` : `${verb} ${fileName(path)}`;
+  return why
+    ? `${why[0].toUpperCase()}${why.slice(1)}`
+    : `${verb} ${fileName(path)}`;
 }
 
 export const fileName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
-const POLITE = /^(?:(?:hey|hi|ok|okay|so|clay|please|pls|(?:can|could|would|will)(?: you)?|i(?:'d| would)? like(?: you)? to|i want(?: you)? to|let's)\b[\s,.!:]*)+/i;
+const POLITE =
+  /^(?:(?:hey|hi|ok|okay|so|clay|please|pls|(?:can|could|would|will)(?: you)?|i(?:'d| would)? like(?: you)? to|i want(?: you)? to|let's)\b[\s,.!:]*)+/i;
 const GERUNDS: Record<string, string> = {
-  add: "adding", allow: "allowing", build: "building", change: "changing", create: "creating", draw: "drawing", fix: "fixing",
-  give: "giving", hide: "hiding", keep: "keeping", let: "letting", make: "making", move: "moving", put: "putting",
-  remove: "removing", rename: "renaming", replace: "replacing", set: "setting", show: "showing", swap: "swapping",
-  turn: "turning", use: "using",
+  add: "adding",
+  allow: "allowing",
+  build: "building",
+  change: "changing",
+  create: "creating",
+  draw: "drawing",
+  fix: "fixing",
+  give: "giving",
+  hide: "hiding",
+  keep: "keeping",
+  let: "letting",
+  make: "making",
+  move: "moving",
+  put: "putting",
+  remove: "removing",
+  rename: "renaming",
+  replace: "replacing",
+  set: "setting",
+  show: "showing",
+  swap: "swapping",
+  turn: "turning",
+  use: "using",
 };
 const OPENING_WORDS = 6;
 
@@ -197,14 +316,21 @@ const OPENING_WORDS = 6;
  *  thinking about, in the asker's words ("make the bass frog wobble when
  *  anyone croaks" reads "Thinking about making the bass frog wobble when…"). */
 export function openingLine(request: string): string {
-  const said = oneLine(request).replace(POLITE, "").split(/[.:;!?](?:\s|$)| - /)[0].trim();
+  const said = oneLine(request)
+    .replace(POLITE, "")
+    .split(/[.:;!?](?:\s|$)| - /)[0]
+    .trim();
   const words = said.split(" ").filter(Boolean);
   if (!words.length) return "Thinking it through";
   const verb = GERUNDS[words[0].toLowerCase()];
   if (verb) words[0] = verb;
-  else if (/^[A-Z][a-z]*$/.test(words[0]) && words[0] !== "I") words[0] = words[0].toLowerCase();
+  else if (/^[A-Z][a-z]*$/.test(words[0]) && words[0] !== "I")
+    words[0] = words[0].toLowerCase();
   const cut = words.length > OPENING_WORDS;
-  return `Thinking about ${words.slice(0, OPENING_WORDS).join(" ").replace(/[,\s]+$/, "")}${cut ? "…" : ""}`;
+  return `Thinking about ${words
+    .slice(0, OPENING_WORDS)
+    .join(" ")
+    .replace(/[,\s]+$/, "")}${cut ? "…" : ""}`;
 }
 
 /** A thinking summary as one passing line: its latest heading when it has
@@ -214,11 +340,17 @@ export function thinkingLine(summary: string): string {
   const headings = [...summary.matchAll(/\*\*(.+?)\*\*/g)];
   if (headings.length) return plain(headings[headings.length - 1][1]);
   const sentences = oneLine(summary).split(/(?<=[.!?])\s+/);
-  const done = /[.!?]$/.test(sentences[sentences.length - 1]) ? sentences : sentences.slice(0, -1);
+  const done = /[.!?]$/.test(sentences[sentences.length - 1])
+    ? sentences
+    : sentences.slice(0, -1);
   return plain(done[done.length - 1] ?? "");
 }
 
-const plain = (text: string) => text.replace(/[*_`#>]+/g, "").replace(/^[-\s]+/, "").trim();
+const plain = (text: string) =>
+  text
+    .replace(/[*_`#>]+/g, "")
+    .replace(/^[-\s]+/, "")
+    .trim();
 
 /** Runs `write` at most once per `everyMs`: the first poke writes at once,
  *  pokes inside the window fold into one trailing write, and `flush` waits

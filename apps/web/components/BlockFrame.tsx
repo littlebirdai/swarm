@@ -7,7 +7,16 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Check, ChevronDown, ChevronUp, Code2, Copy, Eye, Maximize2, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Code2,
+  Copy,
+  Eye,
+  Maximize2,
+  X,
+} from "lucide-react";
 import { copyToClipboard } from "../lib/utils";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 
@@ -16,7 +25,8 @@ import { useWatchEffect } from "../hooks/useWatchEffect";
 // message list.
 const COLLAPSE_PX = 620;
 
-const headerBtn = "p-1 rounded text-sol-text-dim/70 hover:text-sol-text-secondary hover:bg-sol-bg-highlight/50 transition-colors";
+const headerBtn =
+  "p-1 rounded text-sol-text-dim/70 hover:text-sol-text-secondary hover:bg-sol-bg-highlight/50 transition-colors";
 
 export function BlockFrame({
   title,
@@ -62,7 +72,11 @@ export function BlockFrame({
   useWatchEffect(() => {
     const content = clipRef.current?.firstElementChild;
     if (!content || showSource) return;
-    const ro = new ResizeObserver(() => setOverflowing(((content as HTMLElement).offsetHeight ?? 0) > COLLAPSE_PX));
+    const ro = new ResizeObserver(() =>
+      setOverflowing(
+        ((content as HTMLElement).offsetHeight ?? 0) > COLLAPSE_PX,
+      ),
+    );
     ro.observe(content);
     return () => ro.disconnect();
   }, [showSource, measureKey]);
@@ -80,7 +94,9 @@ export function BlockFrame({
 
   useWatchEffect(() => {
     if (!fullscreen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreen]);
@@ -92,11 +108,16 @@ export function BlockFrame({
   // `overflowing` only decides the fade and the control.
   const capped = !expanded;
   const collapsed = overflowing && !expanded;
-  const copyButton = (size: number) => copyText !== undefined && (
-    <button onClick={handleCopy} className={headerBtn} title={copyLabel}>
-      {copied ? <Check size={size} className="text-sol-cyan" /> : <Copy size={size} />}
-    </button>
-  );
+  const copyButton = (size: number) =>
+    copyText !== undefined && (
+      <button onClick={handleCopy} className={headerBtn} title={copyLabel}>
+        {copied ? (
+          <Check size={size} className="text-sol-cyan" />
+        ) : (
+          <Copy size={size} />
+        )}
+      </button>
+    );
 
   return (
     <div className="not-prose my-3 overflow-hidden rounded border border-sol-border/40 bg-sol-bg-alt">
@@ -108,14 +129,24 @@ export function BlockFrame({
           </span>
         ) : null}
         <div className="ml-auto flex items-center gap-0.5">
-          {actions ? <div className="mr-1 flex items-center gap-1.5">{actions}</div> : null}
+          {actions ? (
+            <div className="mr-1 flex items-center gap-1.5">{actions}</div>
+          ) : null}
           {source !== undefined && (
-            <button onClick={() => setShowSource((v) => !v)} className={headerBtn} title={showSource ? "Show rendered" : "Show source"}>
+            <button
+              onClick={() => setShowSource((v) => !v)}
+              className={headerBtn}
+              title={showSource ? "Show rendered" : "Show source"}
+            >
               {showSource ? <Eye size={14} /> : <Code2 size={14} />}
             </button>
           )}
           {copyButton(14)}
-          <button onClick={() => setFullscreen(true)} className={headerBtn} title="Fullscreen">
+          <button
+            onClick={() => setFullscreen(true)}
+            className={headerBtn}
+            title="Fullscreen"
+          >
             <Maximize2 size={14} />
           </button>
         </div>
@@ -125,12 +156,19 @@ export function BlockFrame({
         <div className="px-1">{source}</div>
       ) : (
         <>
-          <div ref={clipRef} className="relative overflow-hidden" style={capped ? { maxHeight: COLLAPSE_PX } : undefined}>
+          <div
+            ref={clipRef}
+            className="relative overflow-hidden"
+            style={capped ? { maxHeight: COLLAPSE_PX } : undefined}
+          >
             {children}
             {collapsed && (
               <div
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
-                style={{ background: "linear-gradient(to bottom, transparent, var(--sol-bg-alt))" }}
+                style={{
+                  background:
+                    "linear-gradient(to bottom, transparent, var(--sol-bg-alt))",
+                }}
               />
             )}
           </div>
@@ -157,12 +195,18 @@ export function BlockFrame({
             ) : null}
             <div className="absolute right-4 top-4 z-10 flex items-center gap-0.5 rounded-lg border border-sol-border/40 bg-sol-bg-alt/80 px-1 py-0.5 backdrop-blur">
               {copyButton(16)}
-              <button onClick={() => setFullscreen(false)} className={headerBtn} title="Close (Esc)">
+              <button
+                onClick={() => setFullscreen(false)}
+                className={headerBtn}
+                title="Close (Esc)"
+              >
                 <X size={18} />
               </button>
             </div>
             <div className="flex min-h-full items-center justify-center p-8">
-              <div className={`w-full ${wide ? "max-w-none" : "max-w-5xl"}`}>{renderFullscreen ? renderFullscreen() : children}</div>
+              <div className={`w-full ${wide ? "max-w-none" : "max-w-5xl"}`}>
+                {renderFullscreen ? renderFullscreen() : children}
+              </div>
             </div>
           </div>,
           document.body,

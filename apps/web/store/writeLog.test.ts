@@ -1,5 +1,10 @@
 import { test, expect, beforeEach, afterEach } from "bun:test";
-import { recordWrite, getWriteLog, noteInput, _resetWriteLogForTests } from "./writeLog";
+import {
+  recordWrite,
+  getWriteLog,
+  noteInput,
+  _resetWriteLogForTests,
+} from "./writeLog";
 
 // The log reads the DOM event off `window`; stand one in and take it away
 // after, or a later file in the same run sees a fake browser.
@@ -15,14 +20,33 @@ afterEach(() => {
 });
 
 test("a write sent while a keydown is handled records the key and target", () => {
-  (globalThis as any).event = { type: "keydown", key: "Backspace", ctrlKey: true, shiftKey: true };
-  const settle = recordWrite("killSession", ["jx7970z9x5tn8nf06tb8am19218fswbe"], {
-    conversations: { jx7970z9x5tn8nf06tb8am19218fswbe: { inbox_dismissed_at: 1 } },
-  });
+  (globalThis as any).event = {
+    type: "keydown",
+    key: "Backspace",
+    ctrlKey: true,
+    shiftKey: true,
+  };
+  const settle = recordWrite(
+    "killSession",
+    ["jx7970z9x5tn8nf06tb8am19218fswbe"],
+    {
+      conversations: {
+        jx7970z9x5tn8nf06tb8am19218fswbe: { inbox_dismissed_at: 1 },
+      },
+    },
+  );
   settle({ ok: true });
   const [e] = getWriteLog();
-  expect(e).toMatchObject({ action: "killSession", source: "key", key: "ctrl+shift+Backspace", ok: true });
-  expect(e.ids).toEqual(["jx7970z9x5tn8nf06tb8am19218fswbe", "conversations:jx7970z9x5tn8nf06tb8am19218fswbe"]);
+  expect(e).toMatchObject({
+    action: "killSession",
+    source: "key",
+    key: "ctrl+shift+Backspace",
+    ok: true,
+  });
+  expect(e.ids).toEqual([
+    "jx7970z9x5tn8nf06tb8am19218fswbe",
+    "conversations:jx7970z9x5tn8nf06tb8am19218fswbe",
+  ]);
   expect(e.stack).toBeUndefined();
 });
 
@@ -41,9 +65,17 @@ test("a click is recorded as a click", () => {
 });
 
 test("a write committed after an exit animation still names the key that asked for it", () => {
-  noteInput({ type: "keydown", key: "Backspace", ctrlKey: true, shiftKey: true });
+  noteInput({
+    type: "keydown",
+    key: "Backspace",
+    ctrlKey: true,
+    shiftKey: true,
+  });
   // The keydown is over by the time the kill commits.
   recordWrite("killSession", ["c3"], undefined);
-  expect(getWriteLog()[0]).toMatchObject({ source: "key", key: "ctrl+shift+Backspace" });
+  expect(getWriteLog()[0]).toMatchObject({
+    source: "key",
+    key: "ctrl+shift+Backspace",
+  });
   expect(getWriteLog()[0].afterMs).toBeGreaterThanOrEqual(0);
 });

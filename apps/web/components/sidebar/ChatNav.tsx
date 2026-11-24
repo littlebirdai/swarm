@@ -2,16 +2,37 @@
 
 import { memo } from "react";
 import { useRouter } from "next/navigation";
-import { BellOff, Hash, Lock, MoreHorizontal, Pin, PinOff, Plus, SquarePen, Users } from "lucide-react";
+import {
+  BellOff,
+  Hash,
+  Lock,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  Plus,
+  SquarePen,
+  Users,
+} from "lucide-react";
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { ChannelContextMenu } from "../chat/ChannelMenu";
 import { AppPopOutButton } from "../desktop/AppPopOutButton";
 import { useInboxStore } from "../../store/inboxStore";
 import type { ChatRailChannel } from "../../store/chatSlice";
-import { chatUnreadTotals, useChatRail, useChatMembers, supersededChannelId } from "../../hooks/useChatSync";
+import {
+  chatUnreadTotals,
+  useChatRail,
+  useChatMembers,
+  supersededChannelId,
+} from "../../hooks/useChatSync";
 import { useOpenDm } from "../../hooks/useOpenDm";
 import { useChannelMenu } from "../../hooks/useChannelMenu";
-import { channelDisplayName, dmCounterpart, memberName, suggestedDmMembers, type ChatMember } from "../../lib/chatViews";
+import {
+  channelDisplayName,
+  dmCounterpart,
+  memberName,
+  suggestedDmMembers,
+  type ChatMember,
+} from "../../lib/chatViews";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import { readPins, isThreadsPin, togglePin } from "../../lib/sidebarPins";
 import { RailHeading, SectionRow, type SectionRowSpec } from "./navPrimitives";
@@ -50,29 +71,51 @@ function useChatNavRows(pathname: string | null, onMobileClose?: () => void) {
     return {
       id: c.id,
       name: channelDisplayName(c, teamMembers),
-      icon: c.muted
-        ? <BellOff className="w-3 h-3 flex-shrink-0 opacity-50" aria-label="Muted" />
-        : c.kind === "dm"
-          ? counterpart
-            ? <CommentAvatar name={memberName(counterpart)} image={counterpart.image || counterpart.github_avatar_url} size={14} letters={1} />
-            : <Users className="w-3 h-3 flex-shrink-0 opacity-60" />
-          : c.isPrivate ? <Lock className="w-3 h-3 flex-shrink-0 opacity-60" />
-          : <Hash className="w-3 h-3 flex-shrink-0 opacity-60" />,
+      icon: c.muted ? (
+        <BellOff
+          className="w-3 h-3 flex-shrink-0 opacity-50"
+          aria-label="Muted"
+        />
+      ) : c.kind === "dm" ? (
+        counterpart ? (
+          <CommentAvatar
+            name={memberName(counterpart)}
+            image={counterpart.image || counterpart.github_avatar_url}
+            size={14}
+            letters={1}
+          />
+        ) : (
+          <Users className="w-3 h-3 flex-shrink-0 opacity-60" />
+        )
+      ) : c.isPrivate ? (
+        <Lock className="w-3 h-3 flex-shrink-0 opacity-60" />
+      ) : (
+        <Hash className="w-3 h-3 flex-shrink-0 opacity-60" />
+      ),
       active: pathname === `/chat/${c.id}`,
       ...channelSignals(c, String(viewer), teamMembers),
       actions: [
         {
           key: "pin",
           title: pinned ? "Unpin from top" : "Pin to top of sidebar",
-          icon: pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />,
-          onClick: () => togglePin("channel", c.id, channelDisplayName(c, teamMembers)),
+          icon: pinned ? (
+            <PinOff className="w-3 h-3" />
+          ) : (
+            <Pin className="w-3 h-3" />
+          ),
+          onClick: () =>
+            togglePin("channel", c.id, channelDisplayName(c, teamMembers)),
         },
         {
           key: "manage",
           title: "Channel settings",
           icon: <MoreHorizontal className="w-3 h-3" />,
           onClick: (e?: React.MouseEvent) => {
-            if (e) channelMenu.open(e, { channelId: c.id, notifyLevel: c.notifyLevel });
+            if (e)
+              channelMenu.open(e, {
+                channelId: c.id,
+                notifyLevel: c.notifyLevel,
+              });
           },
         },
       ],
@@ -86,7 +129,9 @@ function useChatNavRows(pathname: string | null, onMobileClose?: () => void) {
   };
 
   const unpinned = rail.filter((c) => !pinnedLiveIds.includes(c.id));
-  const pinnedRooms = pinnedLiveIds.flatMap((id) => rail.find((c) => c.id === id) ?? []);
+  const pinnedRooms = pinnedLiveIds.flatMap(
+    (id) => rail.find((c) => c.id === id) ?? [],
+  );
   const suggested = suggestedDmMembers(
     rail.filter((c) => c.kind === "dm"),
     teamMembers,
@@ -98,14 +143,24 @@ function useChatNavRows(pathname: string | null, onMobileClose?: () => void) {
     title: `Message ${memberName(m)}`,
     icon: (
       <span className="opacity-70">
-        <CommentAvatar name={memberName(m)} image={memberAvatarUrl(m)} size={14} letters={1} />
+        <CommentAvatar
+          name={memberName(m)}
+          image={memberAvatarUrl(m)}
+          size={14}
+          letters={1}
+        />
       </span>
     ),
     active: false,
     dim: true,
     // The affordance appears where a real row's actions do: a pencil on hover
     // says "click starts a conversation" without shouting on every row.
-    trailing: <SquarePen className="w-3 h-3 text-sol-text-dim opacity-0 group-hover/v:opacity-100 flex-shrink-0" aria-hidden="true" />,
+    trailing: (
+      <SquarePen
+        className="w-3 h-3 text-sol-text-dim opacity-0 group-hover/v:opacity-100 flex-shrink-0"
+        aria-hidden="true"
+      />
+    ),
     onSelect: () => {
       openDm([String(m._id)]);
       onMobileClose?.();
@@ -172,14 +227,20 @@ export const ChatNavRow = memo(function ChatNavRow({
   const unread = onDrill
     ? visible
         .filter((c) => isUnreadRoom(c) || pathname === `/chat/${c.id}`)
-        .sort((a, b) => Number((b.mentionCount ?? 0) > 0) - Number((a.mentionCount ?? 0) > 0))
+        .sort(
+          (a, b) =>
+            Number((b.mentionCount ?? 0) > 0) -
+            Number((a.mentionCount ?? 0) > 0),
+        )
     : [];
   const listed = unread.slice(0, UNREAD_LISTED_MAX);
   const listedIds = new Set(listed.map((c) => c.id));
   // Count what no row on screen already shows: a pinned room badges its pinned
   // row, a listed room badges itself, and repeating either on Chat points at
   // nothing new. What's left is the overflow past the list.
-  const { channels, mentions } = chatUnreadTotals(visible.filter((c) => !listedIds.has(c.id)));
+  const { channels, mentions } = chatUnreadTotals(
+    visible.filter((c) => !listedIds.has(c.id)),
+  );
   const overflow = unread.length - listed.length;
   return (
     <>
@@ -197,14 +258,18 @@ export const ChatNavRow = memo(function ChatNavRow({
             ? [
                 ...listed.map(rows.toRow),
                 ...(overflow > 0
-                  ? [{
-                      id: "chat-unread-more",
-                      name: `${overflow} more`,
-                      title: "Every room with unread messages",
-                      icon: <MoreHorizontal className="w-3 h-3 flex-shrink-0 opacity-60" />,
-                      dim: true,
-                      onSelect: () => onDrill(),
-                    } satisfies SectionRowSpec]
+                  ? [
+                      {
+                        id: "chat-unread-more",
+                        name: `${overflow} more`,
+                        title: "Every room with unread messages",
+                        icon: (
+                          <MoreHorizontal className="w-3 h-3 flex-shrink-0 opacity-60" />
+                        ),
+                        dim: true,
+                        onSelect: () => onDrill(),
+                      } satisfies SectionRowSpec,
+                    ]
                   : []),
               ]
             : [...rows.channels, ...rows.dms, ...rows.suggested]
@@ -230,12 +295,18 @@ export const ChatDrillList = memo(function ChatDrillList({
 }) {
   const rows = useChatNavRows(pathname, onMobileClose);
   const openCreateModal = useInboxStore((s) => s.openCreateModal);
-  const group = (label: string, list: SectionRowSpec[], action?: React.ReactNode) =>
+  const group = (
+    label: string,
+    list: SectionRowSpec[],
+    action?: React.ReactNode,
+  ) =>
     list.length > 0 || action ? (
       <>
         <RailHeading label={label} isNarrow={false} action={action} />
         <div className="mb-1">
-          {list.map((row) => <SectionRow key={row.id} row={row} className="pl-2" />)}
+          {list.map((row) => (
+            <SectionRow key={row.id} row={row} className="pl-2" />
+          ))}
         </div>
       </>
     ) : null;

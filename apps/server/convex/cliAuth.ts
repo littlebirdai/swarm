@@ -76,8 +76,10 @@ export async function registerCliAuthRequest(
   req: CliAuthRegistration,
   now: number = Date.now(),
 ): Promise<boolean> {
-  if (req.nonce.length < 32 || req.nonce.length > 128 || !HEX.test(req.nonce)) return false;
-  if (req.verifier_hash.length !== 64 || !HEX.test(req.verifier_hash)) return false;
+  if (req.nonce.length < 32 || req.nonce.length > 128 || !HEX.test(req.nonce))
+    return false;
+  if (req.verifier_hash.length !== 64 || !HEX.test(req.verifier_hash))
+    return false;
   // One registration per nonce: a second one could swap the verifier.
   if (await findRegistration(ctx, req.nonce)) return false;
   await ctx.db.insert("cli_auth_registrations", {
@@ -94,7 +96,11 @@ export async function registerCliAuthRequest(
 }
 
 const relay = createCliAuthDefinitions();
-const depositArgs = { nonce: v.string(), token: v.string(), device_name: v.string() };
+const depositArgs = {
+  nonce: v.string(),
+  token: v.string(),
+  device_name: v.string(),
+};
 type DepositArgs = { nonce: string; token: string; device_name: string };
 
 /**
@@ -110,11 +116,15 @@ export async function gatedDeposit(
 ): Promise<void> {
   const reg = await findRegistration(ctx, args.nonce);
   if (!reg) {
-    console.warn("[cliAuth] legacy deposit for an unregistered nonce", { device_name: args.device_name });
+    console.warn("[cliAuth] legacy deposit for an unregistered nonce", {
+      device_name: args.device_name,
+    });
     return await deposit(ctx, args);
   }
-  if (now - reg.created_at > CLI_AUTH_REQUEST_TTL_MS) throw new Error("This sign-in request expired");
-  if (reg.authorized_at) throw new Error("This sign-in request was already used");
+  if (now - reg.created_at > CLI_AUTH_REQUEST_TTL_MS)
+    throw new Error("This sign-in request expired");
+  if (reg.authorized_at)
+    throw new Error("This sign-in request was already used");
   await deposit(ctx, { ...args, device_name: reg.device_name });
   await ctx.db.patch(reg._id, { authorized_at: now });
 }
@@ -132,10 +142,12 @@ export async function claimWithVerifier(
   const reg = await findRegistration(ctx, nonce);
   if (!reg) {
     const legacy = await claimCliAuthRequest(ctx, nonce, now);
-    if (legacy) console.warn("[cliAuth] legacy claim for an unregistered nonce");
+    if (legacy)
+      console.warn("[cliAuth] legacy claim for an unregistered nonce");
     return legacy;
   }
-  if (!verifier || (await hashToken(verifier)) !== reg.verifier_hash) return null;
+  if (!verifier || (await hashToken(verifier)) !== reg.verifier_hash)
+    return null;
   const claimed = await claimCliAuthRequest(ctx, nonce, now);
   if (claimed) await ctx.db.delete(reg._id);
   return claimed;
@@ -145,7 +157,11 @@ export async function claimWithVerifier(
  * Exported for tests. The desktop exchange carries only the nonce, so it may
  * redeem legacy deposits alone; a registered CLI request needs its verifier.
  */
-export async function desktopExchange(ctx: Db, nonce: string, now: number = Date.now()) {
+export async function desktopExchange(
+  ctx: Db,
+  nonce: string,
+  now: number = Date.now(),
+) {
   if (await findRegistration(ctx, nonce)) return null;
   const claimed = await claimDesktopAuthExchange(ctx, nonce, now);
   if (claimed) console.warn("[cliAuth] legacy desktop exchange");
@@ -153,10 +169,15 @@ export async function desktopExchange(ctx: Db, nonce: string, now: number = Date
 }
 
 /** Exported for tests. Deletes registrations past any use. */
-export async function sweepExpiredRegistrations(ctx: Db, now: number = Date.now()): Promise<number> {
+export async function sweepExpiredRegistrations(
+  ctx: Db,
+  now: number = Date.now(),
+): Promise<number> {
   const expired = await ctx.db
     .query("cli_auth_registrations")
-    .withIndex("by_created_at", (q: any) => q.lt("created_at", now - 2 * CLI_AUTH_REQUEST_TTL_MS))
+    .withIndex("by_created_at", (q: any) =>
+      q.lt("created_at", now - 2 * CLI_AUTH_REQUEST_TTL_MS),
+    )
     .take(100);
   for (const row of expired) await ctx.db.delete(row._id);
   return expired.length;
@@ -183,7 +204,8 @@ export const deposit = mutation({
 
 export const claim = internalMutation({
   args: { nonce: v.string(), verifier: v.optional(v.string()) },
-  handler: async (ctx, args) => claimWithVerifier(ctx, args.nonce, args.verifier),
+  handler: async (ctx, args) =>
+    claimWithVerifier(ctx, args.nonce, args.verifier),
 });
 
 export const claimForDesktop = internalMutation({
@@ -215,5 +237,6 @@ export const pendingDeposit = query(relay.queries.pendingDeposit);
 export const sweepExpired = internalMutation({
   args: {},
   handler: async (ctx) =>
-    (await sweepExpiredCliAuthRequests(ctx)) + (await sweepExpiredRegistrations(ctx)),
+    (await sweepExpiredCliAuthRequests(ctx)) +
+    (await sweepExpiredRegistrations(ctx)),
 });

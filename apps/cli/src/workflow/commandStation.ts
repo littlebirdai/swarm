@@ -7,7 +7,16 @@ import { c } from "../colors.js";
 import { extractJsonOutput, lookupContextVar } from "./condition";
 import { keepEnds } from "./keepEnds";
 import { outputSummary } from "./runFailure";
-import { STATION_KILL_GRACE_MS, endGroupLeftovers, endStation, endStationsOnExit, readStationProcs, reapDeadRunnerStations, recordStations, type StationProc } from "./stationProcs";
+import {
+  STATION_KILL_GRACE_MS,
+  endGroupLeftovers,
+  endStation,
+  endStationsOnExit,
+  readStationProcs,
+  reapDeadRunnerStations,
+  recordStations,
+  type StationProc,
+} from "./stationProcs";
 import type { NodeOutcome, WorkflowNode } from "./types";
 
 // One $name as both expanders read it. `$human_message` is the gate note,
@@ -15,24 +24,33 @@ import type { NodeOutcome, WorkflowNode } from "./types";
 // unset `$human.message` (which the shell would read as `$human`). A node's
 // `$<id>.output` reads empty for the same reason when the node left none (a
 // hand that never spawned).
-export function contextVar(context: Record<string, string>, key: string): string | undefined {
+export function contextVar(
+  context: Record<string, string>,
+  key: string,
+): string | undefined {
   if (key === "human_message") return context["human.message"] ?? "";
-  if (key.endsWith(".output") || key.endsWith(".summary")) return lookupContextVar(context, key) ?? "";
+  if (key.endsWith(".output") || key.endsWith(".summary"))
+    return lookupContextVar(context, key) ?? "";
   return lookupContextVar(context, key);
 }
-
 
 // Every node's result lands under `<id>.output` (capped for prompts, both ends kept). When the
 // result is JSON, or ends in a fenced json block, the parsed value is kept
 // whole under `<id>.json` so `$<id>.json.<path>` and conditions can read its
 // fields past the output cap.
 const NODE_JSON_CAP = 64_000;
-export function recordNodeOutput(context: Record<string, string>, nodeId: string, text: string, jsonSource = text): void {
+export function recordNodeOutput(
+  context: Record<string, string>,
+  nodeId: string,
+  text: string,
+  jsonSource = text,
+): void {
   context[`${nodeId}.output`] = keepEnds(text, 4000);
   const parsed = extractJsonOutput(jsonSource);
   context[`${nodeId}.summary`] = outputSummary(text, parsed);
   const json = parsed === undefined ? undefined : JSON.stringify(parsed);
-  if (json !== undefined && json.length <= NODE_JSON_CAP) context[`${nodeId}.json`] = json;
+  if (json !== undefined && json.length <= NODE_JSON_CAP)
+    context[`${nodeId}.json`] = json;
   else delete context[`${nodeId}.json`];
 }
 
@@ -45,12 +63,22 @@ export function recordNodeOutput(context: Record<string, string>, nodeId: string
 // main). `$(` and `${` are left to the shell (no \w follows the `$`).
 // A dotted name ($scan.json.count) expands when the whole name resolves;
 // otherwise only its first word does and the rest stays literal text.
-export function expandScriptVars(script: string, context: Record<string, string>): string {
+export function expandScriptVars(
+  script: string,
+  context: Record<string, string>,
+): string {
   const resolve = (key: string): { value: string; rest: string } | null => {
     const parts = key.split(".");
     for (let n = parts.length; n >= 1; n--) {
       const value = contextVar(context, parts.slice(0, n).join("."));
-      if (value !== undefined) return { value, rest: parts.slice(n).map(p => `.${p}`).join("") };
+      if (value !== undefined)
+        return {
+          value,
+          rest: parts
+            .slice(n)
+            .map((p) => `.${p}`)
+            .join(""),
+        };
     }
     return null;
   };
@@ -59,9 +87,11 @@ export function expandScriptVars(script: string, context: Record<string, string>
   type Frame = { q: "bare"; parens: number } | { q: "dq" } | { q: "sq" };
   const stack: Frame[] = [{ q: "bare", parens: 0 }];
   const quoted = (q: Frame["q"], value: string) =>
-    q === "dq" ? value.replace(/[\\"$`]/g, "\\$&")
-    : q === "sq" ? value.replace(/'/g, `'\\''`)
-    : `'${value.replace(/'/g, `'\\''`)}'`;
+    q === "dq"
+      ? value.replace(/[\\"$`]/g, "\\$&")
+      : q === "sq"
+        ? value.replace(/'/g, `'\\''`)
+        : `'${value.replace(/'/g, `'\\''`)}'`;
   let out = "";
   for (let i = 0; i < script.length; i++) {
     const ch = script[i];
@@ -83,7 +113,8 @@ export function expandScriptVars(script: string, context: Record<string, string>
     } else if (top.q === "bare") {
       if (ch === "'") stack.push({ q: "sq" });
       else if (ch === "(") top.parens++;
-      else if (ch === ")" && stack.length > 1 && top.parens-- === 0) stack.pop();
+      else if (ch === ")" && stack.length > 1 && top.parens-- === 0)
+        stack.pop();
       else if (ch === "#" && (i === 0 || /\s/.test(script[i - 1]))) {
         const end = script.indexOf("\n", i);
         out += script.slice(i, end === -1 ? undefined : end);
@@ -109,7 +140,11 @@ export function expandScriptVars(script: string, context: Record<string, string>
 // of its own, and neither has one a signal took: recording those as 0 let
 // `exit_code` edges read a timeout as a clean run. A timeout is 124, as
 // timeout(1) reports it; any other signal is 128 + its number, as a shell does.
-export function stationExitCode(result: { status: number | null; signal?: NodeJS.Signals | null; timedOut: boolean }): number {
+export function stationExitCode(result: {
+  status: number | null;
+  signal?: NodeJS.Signals | null;
+  timedOut: boolean;
+}): number {
   if (result.timedOut) return 124;
   if (result.status !== null) return result.status;
   return 128 + ((result.signal && osConstants.signals[result.signal]) || 0);
@@ -125,15 +160,29 @@ export function stationExitCode(result: { status: number | null; signal?: NodeJS
 // SIGKILL leaves its stations' processes on disk for the next station to end
 // (stationProcs.ts). That record is read again at the station's start and on
 // every tick, so it holds what the station started since.
-const runningGroups = new Map<number, { graceMs: number; procs: StationProc[]; reading: boolean }>();
-const recordRunning = () => recordStations([...runningGroups].map(([pgid, { procs }]) => ({ pgid, procs })));
+const runningGroups = new Map<
+  number,
+  { graceMs: number; procs: StationProc[]; reading: boolean }
+>();
+const recordRunning = () =>
+  recordStations(
+    [...runningGroups].map(([pgid, { procs }]) => ({ pgid, procs })),
+  );
 function rereadStation(group: number): void {
   const station = runningGroups.get(group);
   if (!station || station.reading || process.platform === "win32") return;
   station.reading = true;
   void readStationProcs(group, station.procs)
-    .then((procs) => { station.procs = procs; }, () => {})
-    .finally(() => { station.reading = false; if (runningGroups.get(group) === station) recordRunning(); });
+    .then(
+      (procs) => {
+        station.procs = procs;
+      },
+      () => {},
+    )
+    .finally(() => {
+      station.reading = false;
+      if (runningGroups.get(group) === station) recordRunning();
+    });
 }
 let endsWithRunner = false;
 function endWithRunner(group: number, graceMs: number): void {
@@ -145,8 +194,15 @@ function endWithRunner(group: number, graceMs: number): void {
   process.on("exit", () => {
     if (!runningGroups.size) return;
     if (process.platform === "win32") {
-      for (const group of runningGroups.keys()) try { process.kill(group, "SIGTERM"); } catch {}
-    } else endStationsOnExit(runningGroups.keys(), Math.max(...[...runningGroups.values()].map((g) => g.graceMs)));
+      for (const group of runningGroups.keys())
+        try {
+          process.kill(group, "SIGTERM");
+        } catch {}
+    } else
+      endStationsOnExit(
+        runningGroups.keys(),
+        Math.max(...[...runningGroups.values()].map((g) => g.graceMs)),
+      );
     runningGroups.clear();
     recordRunning();
   });
@@ -164,7 +220,12 @@ function stationEnded(group: number): void {
  * `silent` hears a station that printed nothing past its `silent=` bound,
  * while it still runs, so the runner can tell a person.
  */
-export type StationWatch = { ended?: () => Promise<boolean>; everyMs?: number; graceMs?: number; silent?: (note: string) => void };
+export type StationWatch = {
+  ended?: () => Promise<boolean>;
+  everyMs?: number;
+  graceMs?: number;
+  silent?: (note: string) => void;
+};
 
 /** Seconds a station may print nothing before it is flagged (node `silent=`, 0 never). */
 const SILENT_DEFAULT_S = 1800;
@@ -174,7 +235,8 @@ const SILENT_DEFAULT_S = 1800;
  * something outside it (a deploy going live, a guard's next round) and prints only when it lands, so only an
  * explicit `silent=` bounds it: the default put a false "printed nothing" note on every change waiting to deploy.
  */
-export const silentBoundMs = (node: WorkflowNode): number => (node.silent ?? (node.parks ? 0 : SILENT_DEFAULT_S)) * 1000;
+export const silentBoundMs = (node: WorkflowNode): number =>
+  (node.silent ?? (node.parks ? 0 : SILENT_DEFAULT_S)) * 1000;
 /**
  * How long a station whose script exited waits for its output pipes to close.
  * A process that left the station's group (setsid) can hold them for good, and
@@ -182,7 +244,8 @@ export const silentBoundMs = (node: WorkflowNode): number => (node.silent ?? (no
  */
 const PIPE_CLOSE_GRACE_MS = 2000;
 
-const seconds = (ms: number) => (ms >= 120_000 ? `${Math.round(ms / 60_000)}m` : `${Math.round(ms / 1000)}s`);
+const seconds = (ms: number) =>
+  ms >= 120_000 ? `${Math.round(ms / 60_000)}m` : `${Math.round(ms / 1000)}s`;
 
 export async function executeCommand(
   node: WorkflowNode,
@@ -191,7 +254,9 @@ export async function executeCommand(
   watch: StationWatch = {},
 ): Promise<NodeOutcome> {
   const script = expandScriptVars(node.script!, context);
-  console.log(`${c.dim}  $ ${script.split('\n')[0]}${script.includes('\n') ? '...' : ''}${c.reset}`);
+  console.log(
+    `${c.dim}  $ ${script.split("\n")[0]}${script.includes("\n") ? "..." : ""}${c.reset}`,
+  );
   const graceMs = watch.graceMs ?? STATION_KILL_GRACE_MS;
   void reapDeadRunnerStations(undefined, graceMs).catch(() => {});
 
@@ -201,7 +266,15 @@ export async function executeCommand(
     // implement visit. Per node, in seconds.
     const timeoutMs = (node.timeout ?? 120) * 1000;
     const silentMs = silentBoundMs(node);
-    type Result = { status: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; timedOut: boolean; stopped: boolean; notes: string[] };
+    type Result = {
+      status: number | null;
+      signal: NodeJS.Signals | null;
+      stdout: string;
+      stderr: string;
+      timedOut: boolean;
+      stopped: boolean;
+      notes: string[];
+    };
     const result = await new Promise<Result>((resolve, reject) => {
       const child = spawn("bash", ["-c", script], {
         cwd,
@@ -215,61 +288,128 @@ export async function executeCommand(
         detached: process.platform !== "win32",
       });
       const group = process.platform === "win32" ? undefined : child.pid;
-      let stdout = "", stderr = "", timedOut = false, stopped = false, closed = false, done = false;
+      let stdout = "",
+        stderr = "",
+        timedOut = false,
+        stopped = false,
+        closed = false,
+        done = false;
       const notes: string[] = [];
-      let quietSince = Date.now(), flagged = false, looking = false;
+      let quietSince = Date.now(),
+        flagged = false,
+        looking = false;
       let ending: Promise<void> | null = null;
       // Every process of the station, the ones that left its group included (stationProcs.ts).
       const end = () => {
-        ending ??= group ? endStation(group, graceMs) : Promise.resolve(void child.kill("SIGKILL"));
+        ending ??= group
+          ? endStation(group, graceMs)
+          : Promise.resolve(void child.kill("SIGKILL"));
       };
       if (child.pid) endWithRunner(child.pid, graceMs);
-      const timer = setTimeout(() => { timedOut = true; end(); }, timeoutMs);
-      const tick = setInterval(() => {
-        if (group) rereadStation(group);
-        // A station that prints nothing for long is flagged, never cut off: its timeout is the bound.
-        if (silentMs > 0 && !flagged && Date.now() - quietSince >= silentMs) {
-          flagged = true;
-          const note = `printed nothing for ${seconds(Date.now() - quietSince)}`;
-          notes.push(note);
-          const told = `${node.label || node.id} has ${note}; still running (timeout ${seconds(timeoutMs)})`;
-          console.log(`  ${c.yellow}! ${told}${c.reset}`);
-          watch.silent?.(told);
-        }
-        if (watch.ended && !looking && !ending) {
-          looking = true;
-          watch.ended().then((ended) => { if (ended && !done) { stopped = true; end(); } }, () => {}).finally(() => { looking = false; });
-        }
-        // A silence bound under the tick is checked as often as it asks.
-      }, watch.everyMs ?? Math.min(30_000, silentMs || 30_000));
-      const heard = () => { quietSince = Date.now(); flagged = false; };
-      child.stdout!.on("data", (d) => { stdout += d; heard(); });
-      child.stderr!.on("data", (d) => { stderr += d; heard(); });
+      const timer = setTimeout(() => {
+        timedOut = true;
+        end();
+      }, timeoutMs);
+      const tick = setInterval(
+        () => {
+          if (group) rereadStation(group);
+          // A station that prints nothing for long is flagged, never cut off: its timeout is the bound.
+          if (silentMs > 0 && !flagged && Date.now() - quietSince >= silentMs) {
+            flagged = true;
+            const note = `printed nothing for ${seconds(Date.now() - quietSince)}`;
+            notes.push(note);
+            const told = `${node.label || node.id} has ${note}; still running (timeout ${seconds(timeoutMs)})`;
+            console.log(`  ${c.yellow}! ${told}${c.reset}`);
+            watch.silent?.(told);
+          }
+          if (watch.ended && !looking && !ending) {
+            looking = true;
+            watch
+              .ended()
+              .then(
+                (ended) => {
+                  if (ended && !done) {
+                    stopped = true;
+                    end();
+                  }
+                },
+                () => {},
+              )
+              .finally(() => {
+                looking = false;
+              });
+          }
+          // A silence bound under the tick is checked as often as it asks.
+        },
+        watch.everyMs ?? Math.min(30_000, silentMs || 30_000),
+      );
+      const heard = () => {
+        quietSince = Date.now();
+        flagged = false;
+      };
+      child.stdout!.on("data", (d) => {
+        stdout += d;
+        heard();
+      });
+      child.stderr!.on("data", (d) => {
+        stderr += d;
+        heard();
+      });
       let onClose: (() => void) | null = null;
-      child.on("close", () => { closed = true; onClose?.(); });
-      const settle = () => { clearTimeout(timer); clearInterval(tick); if (child.pid) stationEnded(child.pid); };
-      child.on("error", (err) => { done = true; settle(); reject(err); });
+      child.on("close", () => {
+        closed = true;
+        onClose?.();
+      });
+      const settle = () => {
+        clearTimeout(timer);
+        clearInterval(tick);
+        if (child.pid) stationEnded(child.pid);
+      };
+      child.on("error", (err) => {
+        done = true;
+        settle();
+        reject(err);
+      });
       child.on("exit", (status, signal) => {
         clearTimeout(timer);
         clearInterval(tick);
         // A script that ended on its own takes what it left in its group; one cut off takes everything it started.
-        const cleanup = ending ?? (group ? endGroupLeftovers(group, graceMs) : Promise.resolve());
+        const cleanup =
+          ending ??
+          (group ? endGroupLeftovers(group, graceMs) : Promise.resolve());
         void cleanup
-          .then(() => new Promise<void>((r) => { if (closed) return r(); onClose = r; setTimeout(r, PIPE_CLOSE_GRACE_MS); }))
+          .then(
+            () =>
+              new Promise<void>((r) => {
+                if (closed) return r();
+                onClose = r;
+                setTimeout(r, PIPE_CLOSE_GRACE_MS);
+              }),
+          )
           .then(() => {
             done = true;
             settle();
             child.stdout!.destroy();
             child.stderr!.destroy();
-            resolve({ status, signal, stdout, stderr, timedOut, stopped, notes });
+            resolve({
+              status,
+              signal,
+              stdout,
+              stderr,
+              timedOut,
+              stopped,
+              notes,
+            });
           });
       });
     });
 
-    const output = result.stdout + result.stderr
-      + result.notes.map((n) => `\n${n}`).join("")
-      + (result.timedOut ? `\ntimed out after ${timeoutMs / 1000}s` : "")
-      + (result.stopped ? "\nstopped: the run ended" : "");
+    const output =
+      result.stdout +
+      result.stderr +
+      result.notes.map((n) => `\n${n}`).join("") +
+      (result.timedOut ? `\ntimed out after ${timeoutMs / 1000}s` : "") +
+      (result.stopped ? "\nstopped: the run ended" : "");
     if (output.trim()) {
       console.log(c.dim + keepEnds(output, 2000) + c.reset);
     }
@@ -279,18 +419,26 @@ export async function executeCommand(
     // stayed in Eval wallet's output after the pause lifted, and the card the run wrote next said the tests were
     // paused (sd-2511, Nov 5). A failure keeps both, since a script says why it failed on either stream.
     const ok = result.status === 0 && !result.timedOut && !result.stopped;
-    recordNodeOutput(context, node.id, ok ? result.stdout.trim() || result.stderr.trim() : output.trim(), result.stdout);
+    recordNodeOutput(
+      context,
+      node.id,
+      ok ? result.stdout.trim() || result.stderr.trim() : output.trim(),
+      result.stdout,
+    );
     context[`${node.id}.exit_code`] = String(stationExitCode(result));
     // What the runner noticed about a station that succeeded (silent=) rides beside its result, never in it: later
     // stations read `$<id>.output` as the station's own words. A failure's output carries the notes already.
-    if (ok && result.notes.length) context[`${node.id}.notes`] = result.notes.join("\n");
+    if (ok && result.notes.length)
+      context[`${node.id}.notes`] = result.notes.join("\n");
     else delete context[`${node.id}.notes`];
 
     if (ok) {
       console.log(`  ${c.green}✓ success${c.reset}`);
       return "success";
     } else {
-      console.log(`  ${c.red}✗ failed (${result.timedOut ? "timed out" : result.stopped ? "the run ended" : `exit ${result.status}`})${c.reset}`);
+      console.log(
+        `  ${c.red}✗ failed (${result.timedOut ? "timed out" : result.stopped ? "the run ended" : `exit ${result.status}`})${c.reset}`,
+      );
       context["last_error"] = keepEnds(output.trim(), 2000);
       return "failure";
     }

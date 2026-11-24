@@ -18,16 +18,35 @@ import type { TaskPriority } from "../tasks";
 
 export type Severity = TaskPriority;
 
-const GOAL_WEIGHT: Record<GoalPriority, number> = { p0: 8, p1: 4, p2: 2, p3: 1 };
-const SEVERITY_WEIGHT: Record<Severity, number> = { urgent: 4, high: 3, medium: 2, low: 1, none: 1 };
+const GOAL_WEIGHT: Record<GoalPriority, number> = {
+  p0: 8,
+  p1: 4,
+  p2: 2,
+  p3: 1,
+};
+const SEVERITY_WEIGHT: Record<Severity, number> = {
+  urgent: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+  none: 1,
+};
 /** goal_ref "none": the cause threatens nothing in the brief. */
 export const NO_GOAL_WEIGHT = 0.25;
 /** A goal is named but carries no priority. */
 export const UNRANKED_GOAL_WEIGHT = 1;
 
 /** `goalPriority`: the goal's p0..p3, "unranked" for a goal without one, null for no goal. */
-export function priority(goalPriority: GoalPriority | "unranked" | null | undefined, severity: Severity | null | undefined, signalCount: number): number {
-  const goal = !goalPriority ? NO_GOAL_WEIGHT : goalPriority === "unranked" ? UNRANKED_GOAL_WEIGHT : GOAL_WEIGHT[goalPriority] ?? UNRANKED_GOAL_WEIGHT;
+export function priority(
+  goalPriority: GoalPriority | "unranked" | null | undefined,
+  severity: Severity | null | undefined,
+  signalCount: number,
+): number {
+  const goal = !goalPriority
+    ? NO_GOAL_WEIGHT
+    : goalPriority === "unranked"
+      ? UNRANKED_GOAL_WEIGHT
+      : (GOAL_WEIGHT[goalPriority] ?? UNRANKED_GOAL_WEIGHT);
   const sev = SEVERITY_WEIGHT[severity ?? "none"] ?? 1;
   const signals = 1 + Math.log2(Math.max(1, Math.floor(signalCount) || 1));
   return goal * sev * signals;
@@ -47,12 +66,17 @@ export type StartOrderTask = {
   cause?: { signal_count?: number; scored?: { score: number } | null } | null;
 };
 
-export const startValue = (t: StartOrderTask): number => t.cause?.scored?.score ?? UNSCORED_VALUE;
+export const startValue = (t: StartOrderTask): number =>
+  t.cause?.scored?.score ?? UNSCORED_VALUE;
 
 /** Sorts tasks into the line's start order. */
 export function byStartOrder(a: StartOrderTask, b: StartOrderTask): number {
   const age = (t: StartOrderTask) => t.created_at ?? t._creationTime ?? 0;
-  return startValue(b) - startValue(a) || (b.cause?.signal_count ?? 0) - (a.cause?.signal_count ?? 0) || age(a) - age(b);
+  return (
+    startValue(b) - startValue(a) ||
+    (b.cause?.signal_count ?? 0) - (a.cause?.signal_count ?? 0) ||
+    age(a) - age(b)
+  );
 }
 
 // A live flow's bar (liveFlows.ts, decision sd-1700): which problems its
@@ -66,8 +90,15 @@ export function byStartOrder(a: StartOrderTask, b: StartOrderTask): number {
 export type FlowBar = { score: number; findings: number; quiet_days: number };
 
 /** Whether a problem clears the bar: not scored, scored at or over its score, or holding at least its findings. No bar takes every problem. */
-export const clearsBar = (t: StartOrderTask, bar: Pick<FlowBar, "score" | "findings"> | null | undefined): boolean =>
-  !bar || !t.cause?.scored || t.cause.scored.score >= bar.score || (t.cause?.signal_count ?? 0) >= bar.findings;
+export const clearsBar = (
+  t: StartOrderTask,
+  bar: Pick<FlowBar, "score" | "findings"> | null | undefined,
+): boolean =>
+  !bar ||
+  !t.cause?.scored ||
+  t.cause.scored.score >= bar.score ||
+  (t.cause?.signal_count ?? 0) >= bar.findings;
 
 /** The bar in words: "score 60+ or 3+ findings". */
-export const barWords = (bar: Pick<FlowBar, "score" | "findings">): string => `score ${bar.score}+ or ${bar.findings}+ findings`;
+export const barWords = (bar: Pick<FlowBar, "score" | "findings">): string =>
+  `score ${bar.score}+ or ${bar.findings}+ findings`;

@@ -1,5 +1,13 @@
 import { MAX_TURN_RESUME_ATTEMPTS } from "./turnClaims.js";
-import { sandboxResumeParams, type ApprovalPolicy, type SandboxMode, type SandboxPolicy, type ThreadResumeParams, type ThreadResumeResponse, type Turn } from "./codexAppServer.js";
+import {
+  sandboxResumeParams,
+  type ApprovalPolicy,
+  type SandboxMode,
+  type SandboxPolicy,
+  type ThreadResumeParams,
+  type ThreadResumeResponse,
+  type Turn,
+} from "./codexAppServer.js";
 
 export type PersistedCodexThread = {
   threadId: string;
@@ -77,7 +85,9 @@ export function registerPolicyPersistenceHandlers(input: {
     const conversationId = input.conversationForThread(threadId);
     if (conversationId === undefined) return;
     if (!input.persist(conversationId, threadId)) {
-      throw new Error(`could not persist the cleared policy for conversation ${conversationId}`);
+      throw new Error(
+        `could not persist the cleared policy for conversation ${conversationId}`,
+      );
     }
   });
   // Confirmation is best effort. A failure here leaves the record with no
@@ -89,7 +99,8 @@ export function registerPolicyPersistenceHandlers(input: {
   });
 }
 
-export const CODEX_RECOVERY_PROMPT = "Codecast restarted while your previous turn was still running. Continue the user's existing task from the saved conversation and current workspace. First check the results of any commands that may already have run; do not repeat completed actions. Respect any pending permission or user decision. Continue until the requested work is complete or you need the user's input.";
+export const CODEX_RECOVERY_PROMPT =
+  "Codecast restarted while your previous turn was still running. Continue the user's existing task from the saved conversation and current workspace. First check the results of any commands that may already have run; do not repeat completed actions. Respect any pending permission or user decision. Continue until the requested work is complete or you need the user's input.";
 // The same cap as every other turn resume (turnClaims.ts).
 export const MAX_CODEX_RECOVERY_ATTEMPTS = MAX_TURN_RESUME_ATTEMPTS;
 
@@ -108,8 +119,11 @@ export function codexResumeParams(
   approvalPolicy: ApprovalPolicy,
 ): ThreadResumeParams {
   const fromPolicy = sandboxResumeParams(record.sandboxPolicy);
-  const sandbox = record.sandboxPolicy === null ? "read-only" : fromPolicy.sandbox
-    ?? (record.sandboxPolicy ? "read-only" : record.sandbox ?? "read-only");
+  const sandbox =
+    record.sandboxPolicy === null
+      ? "read-only"
+      : (fromPolicy.sandbox ??
+        (record.sandboxPolicy ? "read-only" : (record.sandbox ?? "read-only")));
   return {
     threadId: record.threadId,
     ...(record.cwd ? { cwd: record.cwd } : {}),
@@ -119,32 +133,51 @@ export function codexResumeParams(
   };
 }
 
-export function codexRecoveryAction(record: PersistedCodexThread, thread: ThreadResumeResponse["thread"]): "none" | "settled" | "active" | "continue" | "exhausted" {
+export function codexRecoveryAction(
+  record: PersistedCodexThread,
+  thread: ThreadResumeResponse["thread"],
+): "none" | "settled" | "active" | "continue" | "exhausted" {
   if (!record.activeTurnId) return "none";
   if (thread.status?.type === "active") return "active";
   const latest = thread.turns?.at(-1);
-  if (!latest) throw new Error("Codex recovery could not inspect the last turn");
-  if (latest.id !== record.activeTurnId || latest.status === "completed") return "settled";
+  if (!latest)
+    throw new Error("Codex recovery could not inspect the last turn");
+  if (latest.id !== record.activeTurnId || latest.status === "completed")
+    return "settled";
   if (latest.status === "failed") return "settled";
-  return (record.recoveryAttempts ?? 0) >= MAX_CODEX_RECOVERY_ATTEMPTS ? "exhausted" : "continue";
+  return (record.recoveryAttempts ?? 0) >= MAX_CODEX_RECOVERY_ATTEMPTS
+    ? "exhausted"
+    : "continue";
 }
 
-export function settledCodexRecord(record: PersistedCodexThread, turnId: string): PersistedCodexThread {
-  return record.activeTurnId === turnId ? { ...record, activeTurnId: undefined, recoveryAttempts: undefined } : record;
+export function settledCodexRecord(
+  record: PersistedCodexThread,
+  turnId: string,
+): PersistedCodexThread {
+  return record.activeTurnId === turnId
+    ? { ...record, activeTurnId: undefined, recoveryAttempts: undefined }
+    : record;
 }
 
 export async function recoverCodexTurn(options: {
   record: PersistedCodexThread;
   thread: ThreadResumeResponse["thread"];
   save: (record: PersistedCodexThread) => void;
-  start: (input: { threadId: string; input: Array<{ type: "text"; text: string }> }) => Promise<{ turn: Turn }>;
+  start: (input: {
+    threadId: string;
+    input: Array<{ type: "text"; text: string }>;
+  }) => Promise<{ turn: Turn }>;
 }): Promise<ReturnType<typeof codexRecoveryAction>> {
   const { record, thread, save, start } = options;
   const action = codexRecoveryAction(record, thread);
-  if (action === "settled") save(settledCodexRecord(record, record.activeTurnId!));
+  if (action === "settled")
+    save(settledCodexRecord(record, record.activeTurnId!));
   if (action === "continue") {
     save({ ...record, recoveryAttempts: (record.recoveryAttempts ?? 0) + 1 });
-    await start({ threadId: record.threadId, input: [{ type: "text", text: CODEX_RECOVERY_PROMPT }] });
+    await start({
+      threadId: record.threadId,
+      input: [{ type: "text", text: CODEX_RECOVERY_PROMPT }],
+    });
   }
   return action;
 }

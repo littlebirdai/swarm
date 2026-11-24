@@ -17,7 +17,11 @@ const MAX_PER_REPORT = 100;
 const changeValidator = v.object({
   at: v.number(),
   file: v.string(),
-  action: v.union(v.literal("created"), v.literal("modified"), v.literal("removed")),
+  action: v.union(
+    v.literal("created"),
+    v.literal("modified"),
+    v.literal("removed"),
+  ),
   what: v.string(),
   why: v.string(),
   automatic: v.boolean(),
@@ -43,9 +47,16 @@ export const report = mutation({
     const oldest = Math.min(...changes.map((c) => c.at));
     const stored = await ctx.db
       .query("harness_changes")
-      .withIndex("by_user_device_at", (q) => q.eq("user_id", userId).eq("device_id", args.device_id).gte("at", oldest))
+      .withIndex("by_user_device_at", (q) =>
+        q
+          .eq("user_id", userId)
+          .eq("device_id", args.device_id)
+          .gte("at", oldest),
+      )
       .collect();
-    const seen = new Set(stored.map((r) => `${r.at}|${r.file}|${r.what}|${r.action}`));
+    const seen = new Set(
+      stored.map((r) => `${r.at}|${r.file}|${r.what}|${r.action}`),
+    );
 
     let inserted = 0;
     for (const c of changes) {
@@ -71,10 +82,13 @@ export const report = mutation({
     if (inserted > 0) {
       const beyond = await ctx.db
         .query("harness_changes")
-        .withIndex("by_user_device_at", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+        .withIndex("by_user_device_at", (q) =>
+          q.eq("user_id", userId).eq("device_id", args.device_id),
+        )
         .order("desc")
         .collect();
-      for (const row of beyond.slice(KEEP_PER_DEVICE)) await ctx.db.delete(row._id);
+      for (const row of beyond.slice(KEEP_PER_DEVICE))
+        await ctx.db.delete(row._id);
     }
     return { inserted };
   },
@@ -93,7 +107,9 @@ export const listForDevice = query({
     const limit = Math.max(1, Math.min(args.limit ?? 100, KEEP_PER_DEVICE));
     const rows = await ctx.db
       .query("harness_changes")
-      .withIndex("by_user_device_at", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device_at", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .order("desc")
       .take(limit);
     return rows.map((r) => ({

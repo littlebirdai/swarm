@@ -25,7 +25,9 @@ describe("provider-key launch injection", () => {
   });
 
   it("renders a shell-safe env file, single-quoting values so a metachar key can't break out", () => {
-    const out = renderProviderEnvFile({ OPENROUTER_API_KEY: "sk-or-a'; rm -rf ~ #" });
+    const out = renderProviderEnvFile({
+      OPENROUTER_API_KEY: "sk-or-a'; rm -rf ~ #",
+    });
     expect(out).toBe("export OPENROUTER_API_KEY='sk-or-a'\\''; rm -rf ~ #'\n");
   });
 
@@ -36,7 +38,9 @@ describe("provider-key launch injection", () => {
       const file = syncProviderKeyEnvFile(dir);
       expect(file).toBe(path.join(dir, ENV_FILE));
       expect((fs.statSync(file!).mode & 0o777).toString(8)).toBe("600");
-      expect(fs.readFileSync(file!, "utf-8")).toContain("OPENROUTER_API_KEY='sk-or-x'");
+      expect(fs.readFileSync(file!, "utf-8")).toContain(
+        "OPENROUTER_API_KEY='sk-or-x'",
+      );
       // No managed keys → file removed, nothing injected.
       writeProviderKeyStore(dir, {});
       expect(syncProviderKeyEnvFile(dir)).toBe(null);

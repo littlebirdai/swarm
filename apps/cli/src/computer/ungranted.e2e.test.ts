@@ -43,7 +43,10 @@ import {
 } from "./helperApp.js";
 import { readInstance } from "./instance.js";
 import { COMPUTER_PROTOCOL_VERSION } from "./types.js";
-import { disclaimedHelperLaunch, probeHelperPermissions } from "../test-helpers/computerPermissionProbe.js";
+import {
+  disclaimedHelperLaunch,
+  probeHelperPermissions,
+} from "../test-helpers/computerPermissionProbe.js";
 
 const TAR = process.env.CODECAST_COMPUTER_HELPER_TAR;
 const enabled = process.platform === "darwin" && !!TAR && fs.existsSync(TAR);
@@ -57,7 +60,9 @@ afterEach(() => {
 
 beforeAll(() => {
   if (!enabled) {
-    console.log("computer ungranted e2e skipped: set CODECAST_COMPUTER_HELPER_TAR to a payload from `bun scripts/computer-verify.ts build`");
+    console.log(
+      "computer ungranted e2e skipped: set CODECAST_COMPUTER_HELPER_TAR to a payload from `bun scripts/computer-verify.ts build`",
+    );
   }
 });
 
@@ -77,7 +82,10 @@ function isolatedHome(): string {
 /** Unpack the payload into a staging directory, the way materialization does. */
 function stageBundle(root: string): { stagingDir: string; stagedApp: string } {
   const stagingDir = fs.mkdtempSync(path.join(root, "staging-"));
-  const extract = spawnSync("/usr/bin/tar", ["-xf", TAR!, "-C", stagingDir], { encoding: "utf8", timeout: 120_000 });
+  const extract = spawnSync("/usr/bin/tar", ["-xf", TAR!, "-C", stagingDir], {
+    encoding: "utf8",
+    timeout: 120_000,
+  });
   expect(extract.status, extract.stderr ?? "").toBe(0);
   return { stagingDir, stagedApp: path.join(stagingDir, HELPER_APP_BASENAME) };
 }
@@ -99,7 +107,12 @@ function clientForFixedPath(version?: string): ComputerClient {
   const client = new ComputerClient({
     version,
     helperLaunch: (socketPath, tokenPath) =>
-      disclaimedHelperLaunch(helperExecutablePath(), ["--agent", socketPath, "--token-file", tokenPath]),
+      disclaimedHelperLaunch(helperExecutablePath(), [
+        "--agent",
+        socketPath,
+        "--token-file",
+        tokenPath,
+      ]),
   });
   cleanups.push(() => {
     const state = readInstance();
@@ -122,14 +135,33 @@ function installAtFixedPath(root: string, version?: string): void {
 }
 
 describe("the bundle the build produces", () => {
-  e2e("is universal, identifies as sh.codecast.computer, and verifies strictly", () => {
-    const root = isolatedHome();
-    const { stagedApp } = stageBundle(root);
-    const info = spawnSync("/usr/bin/codesign", ["-dv", "--verbose=4", stagedApp], { encoding: "utf8" });
-    expect(`${info.stderr ?? ""}${info.stdout ?? ""}`).toContain("Identifier=sh.codecast.computer");
-    expect(spawnSync("/usr/bin/lipo", ["-archs", helperExecutablePath(stagedApp)], { encoding: "utf8" }).stdout).toContain("arm64");
-    expect(spawnSync("/usr/bin/codesign", ["--verify", "--strict", stagedApp], { encoding: "utf8" }).status).toBe(0);
-  });
+  e2e(
+    "is universal, identifies as sh.codecast.computer, and verifies strictly",
+    () => {
+      const root = isolatedHome();
+      const { stagedApp } = stageBundle(root);
+      const info = spawnSync(
+        "/usr/bin/codesign",
+        ["-dv", "--verbose=4", stagedApp],
+        { encoding: "utf8" },
+      );
+      expect(`${info.stderr ?? ""}${info.stdout ?? ""}`).toContain(
+        "Identifier=sh.codecast.computer",
+      );
+      expect(
+        spawnSync(
+          "/usr/bin/lipo",
+          ["-archs", helperExecutablePath(stagedApp)],
+          { encoding: "utf8" },
+        ).stdout,
+      ).toContain("arm64");
+      expect(
+        spawnSync("/usr/bin/codesign", ["--verify", "--strict", stagedApp], {
+          encoding: "utf8",
+        }).status,
+      ).toBe(0);
+    },
+  );
 
   e2e("is accepted by the materialization that ships it", () => {
     // The regression test for ct-49662. `spctl --assess` rejects a Developer ID
@@ -238,7 +270,11 @@ describe("the helper, with nothing granted", () => {
       installAtFixedPath(root);
       const apps = await clientForFixedPath().listApps();
       expect(apps.apps.length).toBeGreaterThan(0);
-      expect(apps.apps.some((app) => typeof app.bundleId === "string" && app.pid > 0)).toBe(true);
+      expect(
+        apps.apps.some(
+          (app) => typeof app.bundleId === "string" && app.pid > 0,
+        ),
+      ).toBe(true);
     },
     LAUNCH_TIMEOUT_MS,
   );
@@ -271,27 +307,85 @@ describe("the helper, with nothing granted", () => {
         // A bundle at a temp path is a different app to TCC, so this should not
         // happen — but a machine that granted this exact path would make the
         // assertions below meaningless rather than wrong.
-        console.log("ungranted e2e: this copy is granted, so the refusal path cannot be exercised");
+        console.log(
+          "ungranted e2e: this copy is granted, so the refusal path cannot be exercised",
+        );
         return;
       }
       const client = clientForFixedPath();
       const attempts: Array<[string, () => Promise<unknown>]> = [
         ["getAppState", () => client.getAppState({ app: "com.apple.Finder" })],
-        ["click", () => client.action("click", { app: "com.apple.Finder", elementIndex: 1 })],
-        ["setValue", () => client.action("setValue", { app: "com.apple.Finder", elementIndex: 1, value: "x" })],
-        ["typeText", () => client.action("typeText", { app: "com.apple.Finder", text: "x" })],
-        ["pressKey", () => client.action("pressKey", { app: "com.apple.Finder", key: "Return" })],
-        ["hotkey", () => client.action("hotkey", { app: "com.apple.Finder", key: "CmdOrCtrl+A" })],
-        ["pasteText", () => client.action("pasteText", { app: "com.apple.Finder", text: "x" })],
-        ["scroll", () => client.action("scroll", { app: "com.apple.Finder", direction: "down", elementIndex: 1 })],
-        ["performSecondaryAction", () => client.action("performSecondaryAction", { app: "com.apple.Finder", elementIndex: 1, action: "AXPress" })],
+        [
+          "click",
+          () =>
+            client.action("click", {
+              app: "com.apple.Finder",
+              elementIndex: 1,
+            }),
+        ],
+        [
+          "setValue",
+          () =>
+            client.action("setValue", {
+              app: "com.apple.Finder",
+              elementIndex: 1,
+              value: "x",
+            }),
+        ],
+        [
+          "typeText",
+          () =>
+            client.action("typeText", { app: "com.apple.Finder", text: "x" }),
+        ],
+        [
+          "pressKey",
+          () =>
+            client.action("pressKey", {
+              app: "com.apple.Finder",
+              key: "Return",
+            }),
+        ],
+        [
+          "hotkey",
+          () =>
+            client.action("hotkey", {
+              app: "com.apple.Finder",
+              key: "CmdOrCtrl+A",
+            }),
+        ],
+        [
+          "pasteText",
+          () =>
+            client.action("pasteText", { app: "com.apple.Finder", text: "x" }),
+        ],
+        [
+          "scroll",
+          () =>
+            client.action("scroll", {
+              app: "com.apple.Finder",
+              direction: "down",
+              elementIndex: 1,
+            }),
+        ],
+        [
+          "performSecondaryAction",
+          () =>
+            client.action("performSecondaryAction", {
+              app: "com.apple.Finder",
+              elementIndex: 1,
+              action: "AXPress",
+            }),
+        ],
       ];
       for (const [name, attempt] of attempts) {
         const failure = await attempt().then(
           () => null,
           (err) => err as { code: string; message: string },
         );
-        expect(failure, `${name} should refuse without Accessibility`).not.toBeNull();
+        expect(
+          failure,
+          `${name} should refuse without Accessibility`,
+        ).not.toBeNull();
         expect(failure!.code, name).toBe("permission_denied");
         // The message has to carry the fix, not just the diagnosis. An agent
         // reading "permission_denied" with no next step retries unchanged.

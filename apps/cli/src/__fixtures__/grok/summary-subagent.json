@@ -1,5 +1,8 @@
 {
-  "info": { "id": "b7a6c5d4-e3f2-4110-a099-887766554433", "cwd": "/tmp/grok-demo" },
+  "info": {
+    "id": "b7a6c5d4-e3f2-4110-a099-887766554433",
+    "cwd": "/tmp/grok-demo"
+  },
   "session_summary": "explore the auth module",
   "created_at": "2026-03-03T14:05:00Z",
   "updated_at": "2026-03-03T14:05:30Z",

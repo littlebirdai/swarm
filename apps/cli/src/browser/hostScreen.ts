@@ -36,7 +36,9 @@ export function linuxDisplayPlan(
   hasSocket: (path: string) => boolean = fs.existsSync,
 ): { display: string | null; headless: boolean } {
   if (headless) return { display: null, headless: true };
-  if (env.DISPLAY || env.WAYLAND_DISPLAY) return { display: null, headless: false };
-  if (hasSocket(xSocketPath(SCREEN_DISPLAY))) return { display: SCREEN_DISPLAY, headless: false };
+  if (env.DISPLAY || env.WAYLAND_DISPLAY)
+    return { display: null, headless: false };
+  if (hasSocket(xSocketPath(SCREEN_DISPLAY)))
+    return { display: SCREEN_DISPLAY, headless: false };
   return { display: null, headless: true };
 }

@@ -63,18 +63,34 @@ describe("overlaysAffecting / isOverlayAffected", () => {
   });
 
   it("focused, pending send, and draft rows are overlay-affected", () => {
-    expect(overlaysAffecting(CID, emptyDeps({ focusedId: CID }))).toEqual(["focused"]);
-    expect(overlaysAffecting(CID, emptyDeps({ pendingSendIds: new Set([CID]) }))).toEqual(["pending_send"]);
-    expect(overlaysAffecting(CID, emptyDeps({ draftIds: new Set([CID]) }))).toEqual(["draft_blank"]);
+    expect(overlaysAffecting(CID, emptyDeps({ focusedId: CID }))).toEqual([
+      "focused",
+    ]);
+    expect(
+      overlaysAffecting(CID, emptyDeps({ pendingSendIds: new Set([CID]) })),
+    ).toEqual(["pending_send"]);
+    expect(
+      overlaysAffecting(CID, emptyDeps({ draftIds: new Set([CID]) })),
+    ).toEqual(["draft_blank"]);
   });
 
   it("the revive overlay expires at BLOCKED_REVIVE_TTL_MS — bounded, then the server flag resurfaces", () => {
     // freshReviveRequestIds is the ONE revive predicate: the deps carry its
     // result, so the chokepoint, the banner and the compare read one set.
-    const fresh = emptyDeps({ reviveIds: freshReviveRequestIds({ [CID]: NOW - BLOCKED_REVIVE_TTL_MS + 1 }, NOW) });
+    const fresh = emptyDeps({
+      reviveIds: freshReviveRequestIds(
+        { [CID]: NOW - BLOCKED_REVIVE_TTL_MS + 1 },
+        NOW,
+      ),
+    });
     expect(overlaysAffecting(CID, fresh)).toEqual(["revive"]);
     expect(isOverlayAffected(CID, fresh)).toBe(true);
-    const expired = emptyDeps({ reviveIds: freshReviveRequestIds({ [CID]: NOW - BLOCKED_REVIVE_TTL_MS }, NOW) });
+    const expired = emptyDeps({
+      reviveIds: freshReviveRequestIds(
+        { [CID]: NOW - BLOCKED_REVIVE_TTL_MS },
+        NOW,
+      ),
+    });
     expect(overlaysAffecting(CID, expired)).toEqual([]);
     expect(isOverlayAffected(CID, expired)).toBe(false);
   });
@@ -108,11 +124,17 @@ describe("collectTriagePendingIds — the triage_gesture bound", () => {
   it("collects live pending locks on triage fields from both row collections", () => {
     const ids = collectTriagePendingIds(
       {
-        [`sessions:${CID}:inbox_dismissed_at`]: { type: "field", ts: NOW - 1000 },
-        ["conversations:bbb:inbox_pinned_at"]: { type: "field", ts: NOW - 1000 },
+        [`sessions:${CID}:inbox_dismissed_at`]: {
+          type: "field",
+          ts: NOW - 1000,
+        },
+        ["conversations:bbb:inbox_pinned_at"]: {
+          type: "field",
+          ts: NOW - 1000,
+        },
         ["tasks:ccc:inbox_dismissed_at"]: { type: "field", ts: NOW - 1000 }, // wrong collection
-        [`sessions:${CID}:title`]: { type: "field", ts: NOW - 1000 },        // not a triage field
-        ["sessions:ddd:inbox_stashed_at"]: { type: "exclude" },              // not a field lock
+        [`sessions:${CID}:title`]: { type: "field", ts: NOW - 1000 }, // not a triage field
+        ["sessions:ddd:inbox_stashed_at"]: { type: "exclude" }, // not a field lock
       },
       NOW,
     );
@@ -122,7 +144,10 @@ describe("collectTriagePendingIds — the triage_gesture bound", () => {
   it("expires a lock at HIDDEN_OVERRIDE_SETTLE_MS; an undated lock stays protected", () => {
     const ids = collectTriagePendingIds(
       {
-        ["sessions:aged:inbox_dismissed_at"]: { type: "field", ts: NOW - HIDDEN_OVERRIDE_SETTLE_MS },
+        ["sessions:aged:inbox_dismissed_at"]: {
+          type: "field",
+          ts: NOW - HIDDEN_OVERRIDE_SETTLE_MS,
+        },
         ["sessions:undated:inbox_dismissed_at"]: { type: "field" },
       },
       NOW,
@@ -148,14 +173,58 @@ describe("collectInboxOverlayDeps + anyOverlayActive — the digest short-circui
   });
 
   it("each overlay source flips the gate", () => {
-    expect(anyOverlayActive(collectInboxOverlayDeps(state({ pendingSessionCreates: { x: 1 } as any }), NOW))).toBe(true);
-    expect(anyOverlayActive(collectInboxOverlayDeps(state({ currentSessionId: CID }), NOW))).toBe(true);
-    expect(anyOverlayActive(collectInboxOverlayDeps(state({ sessionsWithQueuedMessages: new Set([CID]) }), NOW))).toBe(true);
-    expect(anyOverlayActive(collectInboxOverlayDeps(state({ blockedReviveRequestedAt: { [CID]: NOW - 1 } }), NOW))).toBe(true);
-    expect(anyOverlayActive(collectInboxOverlayDeps(state({ sessions: { [CID]: { _id: CID, _hasDraft: true } } }), NOW))).toBe(true);
-    expect(anyOverlayActive(collectInboxOverlayDeps(
-      state({ pending: { [`sessions:${CID}:inbox_pinned_at`]: { type: "field", ts: NOW - 1 } } }), NOW,
-    ))).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(
+          state({ pendingSessionCreates: { x: 1 } as any }),
+          NOW,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(state({ currentSessionId: CID }), NOW),
+      ),
+    ).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(
+          state({ sessionsWithQueuedMessages: new Set([CID]) }),
+          NOW,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(
+          state({ blockedReviveRequestedAt: { [CID]: NOW - 1 } }),
+          NOW,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(
+          state({ sessions: { [CID]: { _id: CID, _hasDraft: true } } }),
+          NOW,
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      anyOverlayActive(
+        collectInboxOverlayDeps(
+          state({
+            pending: {
+              [`sessions:${CID}:inbox_pinned_at`]: {
+                type: "field",
+                ts: NOW - 1,
+              },
+            },
+          }),
+          NOW,
+        ),
+      ),
+    ).toBe(true);
   });
 
   // A window inherits the host's persisted pendingMessages at boot, so it can
@@ -163,15 +232,33 @@ describe("collectInboxOverlayDeps + anyOverlayActive — the digest short-circui
   // kept its session in Working for days; past the bound it no longer moves
   // the placement, while the entry itself stays for the bubble and redrive.
   it("an unconfirmed send moves placement only inside PENDING_SEND_WORKING_TTL_MS", () => {
-    const sent = (age: number) => state({ pendingMessages: { [CID]: [{ _isOptimistic: true, content: "hi", timestamp: NOW - age } as any] } });
-    expect(overlaysAffecting(CID, collectInboxOverlayDeps(sent(60_000), NOW))).toEqual(["pending_send"]);
-    expect(overlaysAffecting(CID, collectInboxOverlayDeps(sent(PENDING_SEND_WORKING_TTL_MS), NOW))).toEqual([]);
-    expect(anyOverlayActive(collectInboxOverlayDeps(sent(5 * 24 * 3600_000), NOW))).toBe(false);
+    const sent = (age: number) =>
+      state({
+        pendingMessages: {
+          [CID]: [
+            { _isOptimistic: true, content: "hi", timestamp: NOW - age } as any,
+          ],
+        },
+      });
+    expect(
+      overlaysAffecting(CID, collectInboxOverlayDeps(sent(60_000), NOW)),
+    ).toEqual(["pending_send"]);
+    expect(
+      overlaysAffecting(
+        CID,
+        collectInboxOverlayDeps(sent(PENDING_SEND_WORKING_TTL_MS), NOW),
+      ),
+    ).toEqual([]);
+    expect(
+      anyOverlayActive(collectInboxOverlayDeps(sent(5 * 24 * 3600_000), NOW)),
+    ).toBe(false);
   });
 
   it("an expired revive stamp does not hold the gate open", () => {
     const deps = collectInboxOverlayDeps(
-      state({ blockedReviveRequestedAt: { [CID]: NOW - BLOCKED_REVIVE_TTL_MS - 1 } }),
+      state({
+        blockedReviveRequestedAt: { [CID]: NOW - BLOCKED_REVIVE_TTL_MS - 1 },
+      }),
       NOW,
     );
     expect(anyOverlayActive(deps)).toBe(false);

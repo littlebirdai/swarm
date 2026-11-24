@@ -54,7 +54,11 @@ export type FaceChatState = {
   recent: Readonly<Record<string, readonly FaceArrival[]>>;
   bubble: FaceBubble | null;
   /** Whose card is open with their messages; `focus` when it was opened to read (count, bubble), not by a hover. */
-  panel: { authorId: string; unreadIds: readonly string[]; focus: boolean } | null;
+  panel: {
+    authorId: string;
+    unreadIds: readonly string[];
+    focus: boolean;
+  } | null;
 };
 
 export type FaceChatLayer = {
@@ -71,7 +75,11 @@ export function faceBarOnScreen(bar: HTMLElement | null): boolean {
   if (!bar || bar.getClientRects().length === 0) return false;
   if (bar.closest("[data-zen-bar-hidden]")) return false;
   const r = bar.getBoundingClientRect();
-  return r.height === 0 || (r.bottom > 0 && r.top < (typeof window === "undefined" ? Infinity : window.innerHeight));
+  return (
+    r.height === 0 ||
+    (r.bottom > 0 &&
+      r.top < (typeof window === "undefined" ? Infinity : window.innerHeight))
+  );
 }
 
 const MIN_SHOW_MS = 1600;
@@ -79,7 +87,12 @@ const RETRACT_MS = 320;
 const MAX_LINES = 3;
 const RECENT_PER_AUTHOR = 30;
 
-let state: FaceChatState = { unseen: {}, recent: {}, bubble: null, panel: null };
+let state: FaceChatState = {
+  unseen: {},
+  recent: {},
+  bubble: null,
+  panel: null,
+};
 const listeners = new Set<() => void>();
 let layer: FaceChatLayer | null = null;
 let queue: FaceArrival[] = [];
@@ -118,7 +131,11 @@ function threadOnly(a: FaceArrival): boolean {
   return !!a.inThread && !a.broadcast;
 }
 
-function matchesView(a: FaceArrival, channelId: string, threadRootId?: string): boolean {
+function matchesView(
+  a: FaceArrival,
+  channelId: string,
+  threadRootId?: string,
+): boolean {
   if (a.channelId !== channelId) return false;
   if (threadRootId) return threadOnly(a) && a.threadRootId === threadRootId;
   return !threadOnly(a);
@@ -126,7 +143,8 @@ function matchesView(a: FaceArrival, channelId: string, threadRootId?: string): 
 
 function coveredByRead(a: FaceArrival): boolean {
   for (const c of cursors) {
-    if (matchesView(a, c.channelId, c.threadRootId) && a.at <= c.through) return true;
+    if (matchesView(a, c.channelId, c.threadRootId) && a.at <= c.through)
+      return true;
   }
   return false;
 }
@@ -140,7 +158,11 @@ function suppressed(a: FaceArrival): boolean {
 
 /** Hand lines to the count later, and remember them until then so a read in
  *  between can retire them. */
-function deferUnseen(authorId: string, items: readonly FaceArrival[], delay: number) {
+function deferUnseen(
+  authorId: string,
+  items: readonly FaceArrival[],
+  delay: number,
+) {
   const box = { items: items.filter((a) => !suppressed(a)) };
   if (!box.items.length) return;
   held.push(box);
@@ -199,17 +221,23 @@ function sweepRead() {
 /** The newest line of this view is on screen. The header count drops the
  *  lines that view shows, including one still on its way into the count. A
  *  thread covers its replies. The channel timeline covers everything else. */
-export function noteFaceContextRead(channelId: string, threadRootId?: string): void {
+export function noteFaceContextRead(
+  channelId: string,
+  threadRootId?: string,
+): void {
   let through = Date.now();
   const bump = (a: FaceArrival) => {
-    if (matchesView(a, channelId, threadRootId) && a.at > through) through = a.at;
+    if (matchesView(a, channelId, threadRootId) && a.at > through)
+      through = a.at;
   };
   for (const id in state.unseen) for (const a of state.unseen[id]) bump(a);
   for (const a of state.bubble?.items ?? []) bump(a);
   for (const a of queue) bump(a);
   for (const box of held) for (const a of box.items) bump(a);
   const key = threadRootId ?? "";
-  const prev = cursors.find((c) => c.channelId === channelId && (c.threadRootId ?? "") === key);
+  const prev = cursors.find(
+    (c) => c.channelId === channelId && (c.threadRootId ?? "") === key,
+  );
   if (prev) prev.through = Math.max(prev.through, through);
   else cursors.push({ channelId, threadRootId, through });
   sweepRead();
@@ -232,8 +260,15 @@ export function registerFaceChatLayer(l: FaceChatLayer): () => void {
 }
 
 function remember(authorId: string, a: FaceArrival) {
-  const list = (state.recent[authorId] ?? []).filter((x) => x.messageId !== a.messageId);
-  set({ recent: { ...state.recent, [authorId]: [...list, a].slice(-RECENT_PER_AUTHOR) } });
+  const list = (state.recent[authorId] ?? []).filter(
+    (x) => x.messageId !== a.messageId,
+  );
+  set({
+    recent: {
+      ...state.recent,
+      [authorId]: [...list, a].slice(-RECENT_PER_AUTHOR),
+    },
+  });
 }
 
 function addUnseen(authorId: string, items: readonly FaceArrival[]) {
@@ -241,7 +276,9 @@ function addUnseen(authorId: string, items: readonly FaceArrival[]) {
   if (!incoming.length) return;
   for (const a of incoming) fallbacks.delete(a.messageId);
   const have = state.unseen[authorId] ?? [];
-  const fresh = incoming.filter((a) => !have.some((x) => x.messageId === a.messageId));
+  const fresh = incoming.filter(
+    (a) => !have.some((x) => x.messageId === a.messageId),
+  );
   set({ unseen: { ...state.unseen, [authorId]: [...have, ...fresh] } });
 }
 
@@ -250,7 +287,11 @@ function addUnseen(authorId: string, items: readonly FaceArrival[]) {
  * show it (no header, the author is not a face there): the caller toasts.
  * `fallback` runs if the face never turns up on screen to take the line.
  */
-export function deliverChatToFace(authorId: string, a: FaceArrival, fallback: () => void): boolean {
+export function deliverChatToFace(
+  authorId: string,
+  a: FaceArrival,
+  fallback: () => void,
+): boolean {
   if (!layer?.canShow(authorId)) return false;
   remember(authorId, a);
   // Already read in the view that shows it: no bubble and no count. The
@@ -260,7 +301,10 @@ export function deliverChatToFace(authorId: string, a: FaceArrival, fallback: ()
   const { bubble, panel } = state;
   if (panel?.authorId === authorId) {
     fallbacks.delete(a.messageId);
-    if (!panel.unreadIds.includes(a.messageId)) set({ panel: { ...panel, unreadIds: [...panel.unreadIds, a.messageId] } });
+    if (!panel.unreadIds.includes(a.messageId))
+      set({
+        panel: { ...panel, unreadIds: [...panel.unreadIds, a.messageId] },
+      });
     return true;
   }
   if (panel) {
@@ -268,8 +312,10 @@ export function deliverChatToFace(authorId: string, a: FaceArrival, fallback: ()
     return true;
   }
   if (bubble && bubble.authorId === authorId && bubble.phase !== "out") {
-    set({ bubble: { ...bubble, items: [...bubble.items, a].slice(-MAX_LINES) } });
-    if (bubble.phase === "in") (queue.length ? hurry() : arm());
+    set({
+      bubble: { ...bubble, items: [...bubble.items, a].slice(-MAX_LINES) },
+    });
+    if (bubble.phase === "in") queue.length ? hurry() : arm();
     return true;
   }
   if (bubble) {
@@ -287,7 +333,17 @@ function openBubble(authorId: string, items: FaceArrival[]) {
   const live = items.filter((a) => !suppressed(a));
   if (!live.length) return;
   clearTimer();
-  set({ bubble: { key: ++bubbleSeq, authorId, items: live.slice(-MAX_LINES), phase: "wait", dwellMs: 0, armedAt: 0, held: false } });
+  set({
+    bubble: {
+      key: ++bubbleSeq,
+      authorId,
+      items: live.slice(-MAX_LINES),
+      phase: "wait",
+      dwellMs: 0,
+      armedAt: 0,
+      held: false,
+    },
+  });
 }
 
 /** The layer found the face and placed the bubble under it: start the clock. */
@@ -313,7 +369,11 @@ export function faceBubbleFailed(key: number) {
 
 function dwellOf(b: FaceBubble): number {
   const last = b.items[b.items.length - 1];
-  return 3200 + Math.min((last?.preview.length ?? 0) * 40, 2800) + (b.items.some((a) => a.loud) ? 2400 : 0);
+  return (
+    3200 +
+    Math.min((last?.preview.length ?? 0) * 40, 2800) +
+    (b.items.some((a) => a.loud) ? 2400 : 0)
+  );
 }
 
 function arm(ms?: number) {
@@ -330,7 +390,12 @@ function hurry(min = MIN_SHOW_MS) {
   const b = state.bubble;
   if (!b || b.phase !== "in" || b.held) return;
   const shown = b.armedAt ? Date.now() - b.armedAt : 0;
-  arm(Math.max(350, Math.min(min - shown, b.dwellMs ? b.dwellMs - shown : Infinity)));
+  arm(
+    Math.max(
+      350,
+      Math.min(min - shown, b.dwellMs ? b.dwellMs - shown : Infinity),
+    ),
+  );
 }
 
 /** The pointer is on the bubble: it stays. */
@@ -373,14 +438,20 @@ function next(delay = 0) {
   queue = [];
   queueAuthors = [];
   let lead = authors.length - 1;
-  for (let i = items.length - 1; i >= 0; i--) if (items[i].loud) { lead = i; break; }
+  for (let i = items.length - 1; i >= 0; i--)
+    if (items[i].loud) {
+      lead = i;
+      break;
+    }
   const leadAuthor = authors[lead];
   const others = new Map<string, FaceArrival[]>();
   items.forEach((a, i) => {
     if (authors[i] === leadAuthor) return;
     others.set(authors[i], [...(others.get(authors[i]) ?? []), a]);
   });
-  [...others].forEach(([id, list], i) => deferUnseen(id, list, delay + 150 * i));
+  [...others].forEach(([id, list], i) =>
+    deferUnseen(id, list, delay + 150 * i),
+  );
   const mine = items.filter((_, i) => authors[i] === leadAuthor);
   const box = { items: mine.filter((a) => !suppressed(a)) };
   if (box.items.length) held.push(box);
@@ -419,7 +490,10 @@ export function openFacePanel(authorId: string, focus = true) {
     if (id !== authorId) others.set(id, [...(others.get(id) ?? []), a]);
   });
   [...others].forEach(([id, list], i) => deferUnseen(id, list, 200 + 150 * i));
-  const unreadIds = [...(state.unseen[authorId] ?? []), ...(b?.authorId === authorId ? b.items : [])].map((a) => a.messageId);
+  const unreadIds = [
+    ...(state.unseen[authorId] ?? []),
+    ...(b?.authorId === authorId ? b.items : []),
+  ].map((a) => a.messageId);
   const { [authorId]: _, ...rest } = state.unseen;
   set({ unseen: rest, panel: { authorId, unreadIds, focus } });
 }
@@ -443,20 +517,29 @@ export function useFaceChatPanelId(): string | null {
 
 /** The card was opened to read this person: its reply box takes the keys. */
 export function useFaceChatFocus(authorId: string): boolean {
-  const read = useCallback(() => state.panel?.authorId === authorId && state.panel.focus, [authorId]);
+  const read = useCallback(
+    () => state.panel?.authorId === authorId && state.panel.focus,
+    [authorId],
+  );
   return useSyncExternalStore(subscribe, read, read);
 }
 
 /** The lines that were new when this person's card opened, for its dots. */
 export function useFaceChatUnreadIds(authorId: string): readonly string[] {
-  const read = useCallback(() => (state.panel?.authorId === authorId ? state.panel.unreadIds : NONE), [authorId]);
+  const read = useCallback(
+    () => (state.panel?.authorId === authorId ? state.panel.unreadIds : NONE),
+    [authorId],
+  );
   return useSyncExternalStore(subscribe, read, read);
 }
 const NONE: readonly string[] = [];
 
 /** The previews this window was handed for a person, for lines never loaded. */
 export function useFaceChatRecent(authorId: string): readonly FaceArrival[] {
-  const read = useCallback(() => state.recent[authorId] ?? NO_ARRIVALS, [authorId]);
+  const read = useCallback(
+    () => state.recent[authorId] ?? NO_ARRIVALS,
+    [authorId],
+  );
   return useSyncExternalStore(subscribe, read, read);
 }
 const NO_ARRIVALS: readonly FaceArrival[] = [];
@@ -485,7 +568,9 @@ export function useFaceChatBadge(authorId: string, dmUnread: number): number {
 /** Whose faces the header must keep on screen: anyone mid-bubble, open, or holding a count. */
 export function useFaceChatActive(): string {
   const read = useCallback(() => {
-    const ids = new Set(Object.keys(state.unseen).filter((id) => state.unseen[id].length));
+    const ids = new Set(
+      Object.keys(state.unseen).filter((id) => state.unseen[id].length),
+    );
     if (state.bubble) ids.add(state.bubble.authorId);
     for (const id of queueAuthors) ids.add(id);
     if (state.panel) ids.add(state.panel.authorId);

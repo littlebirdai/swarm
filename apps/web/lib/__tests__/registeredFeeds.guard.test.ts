@@ -26,7 +26,11 @@ const ALLOWLIST = join(import.meta.dir, "registeredFeeds.allowlist.txt");
 
 /** `api.plans.webList`, `(api as any).plans.webList`, `api["plans"].webList`. */
 const feedPattern = (feed: string) =>
-  new RegExp(String.raw`\bapi\)?(?:\.|\[["'])` + feed.replace(".", String.raw`(?:["']\])?\.`) + String.raw`\b`);
+  new RegExp(
+    String.raw`\bapi\)?(?:\.|\[["'])` +
+      feed.replace(".", String.raw`(?:["']\])?\.`) +
+      String.raw`\b`,
+  );
 
 /** How many files subscribe to a registered feed directly. May only fall. */
 const PIN = 1;
@@ -37,7 +41,12 @@ const patterns = feeds.map(feedPattern);
 const result = checkRatchet({
   name: "direct subscription to a registered store feed",
   root: ROOT,
-  dirs: ["apps/web/app", "apps/web/components", "apps/mobile/app", "apps/mobile/components"],
+  dirs: [
+    "apps/web/app",
+    "apps/web/components",
+    "apps/mobile/app",
+    "apps/mobile/components",
+  ],
   ignoreDirs: ["__tests__"],
   exempt: (rel) => /\.test\.tsx?$/.test(rel),
   count: (src) =>
@@ -46,11 +55,15 @@ const result = checkRatchet({
       // A type reference (`FunctionReturnType<typeof api.x.y>`) names the
       // query without subscribing to it.
       .filter((line) => !/\btypeof\s+api\b/.test(line))
-      .reduce((hits, line) => hits + (patterns.some((re) => re.test(line)) ? 1 : 0), 0),
+      .reduce(
+        (hits, line) => hits + (patterns.some((re) => re.test(line)) ? 1 : 0),
+        0,
+      ),
   allowlist: ALLOWLIST,
   pin: PIN,
   fix: "Read the store (useTrackedStore / useCollectionRows / useWorkspaceCollection) and mount the feeder hook in hooks/.",
-  pruneCommand: "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/registeredFeeds.guard.test.ts",
+  pruneCommand:
+    "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/registeredFeeds.guard.test.ts",
   minScanned: 400,
 });
 

@@ -105,17 +105,25 @@ export const LINE_TEMPLATE_FILES: Readonly<Record<string, string>> = {
 };
 
 /** A template file's text with each line that is only `@include <file>` replaced by that file, as the parser takes them in from disk. */
-export function withTemplateIncludes(text: string, ref: string, files: Readonly<Record<string, string>>): string {
+export function withTemplateIncludes(
+  text: string,
+  ref: string,
+  files: Readonly<Record<string, string>>,
+): string {
   return text.replace(/^@include[ \t]+(\S+)[ \t]*$/gm, (_line, rel: string) => {
     const key = path.posix.join(path.posix.dirname(ref), rel);
     const part = files[key];
-    if (part === undefined) throw new Error(`${ref}: @include ${rel}: no template file ${key}`);
+    if (part === undefined)
+      throw new Error(`${ref}: @include ${rel}: no template file ${key}`);
     return withTemplateIncludes(part.replace(/\n$/, ""), key, files);
   });
 }
 
 /** Replace each quoted `"@<file>"` value naming one of `files` with that file's text as a DOT string. */
-export function inlineTemplateFiles(source: string, files: Readonly<Record<string, string>>): string {
+export function inlineTemplateFiles(
+  source: string,
+  files: Readonly<Record<string, string>>,
+): string {
   return source.replace(/"@([\w./-]+)"/g, (whole, ref: string) => {
     const raw = files[ref];
     if (raw === undefined) return whole;
@@ -126,7 +134,10 @@ export function inlineTemplateFiles(source: string, files: Readonly<Record<strin
 
 export const BUILTIN_WORKFLOW_TEMPLATES: Readonly<Record<string, string>> = {
   line: inlineTemplateFiles(lineCast, LINE_TEMPLATE_FILES),
-  [JUDGE_REVIEW_GRAPH]: inlineTemplateFiles(judgeReviewCast, LINE_TEMPLATE_FILES),
+  [JUDGE_REVIEW_GRAPH]: inlineTemplateFiles(
+    judgeReviewCast,
+    LINE_TEMPLATE_FILES,
+  ),
   // A deploy's steps as stations (deploys.md DP8).
   [LINE_DEPLOY_GRAPH]: lineDeployCast,
   // The pool's starter flows (flows.md FL2): segments cut from the line's own
@@ -139,7 +150,10 @@ export const BUILTIN_WORKFLOW_TEMPLATES: Readonly<Record<string, string>> = {
   decide: decideCast,
   ship: inlineTemplateFiles(shipCast, LINE_TEMPLATE_FILES),
   deploy: deployCast,
-  "prove-implement": inlineTemplateFiles(proveImplementCast, LINE_TEMPLATE_FILES),
+  "prove-implement": inlineTemplateFiles(
+    proveImplementCast,
+    LINE_TEMPLATE_FILES,
+  ),
   change: inlineTemplateFiles(changeCast, LINE_TEMPLATE_FILES),
   "quick-change": inlineTemplateFiles(quickChangeCast, LINE_TEMPLATE_FILES),
   // Hill-climbing one goal metric through its environments (flows.md FL10).
@@ -161,14 +175,27 @@ export interface ResolvedWorkflowSource {
  * file resolves as a file; otherwise the bare name (with or without `.cast`)
  * resolves to a builtin. Returns null when neither matches.
  */
-export function resolveWorkflowSource(fileOrName: string, cwd = process.cwd()): ResolvedWorkflowSource | null {
+export function resolveWorkflowSource(
+  fileOrName: string,
+  cwd = process.cwd(),
+): ResolvedWorkflowSource | null {
   const filePath = path.resolve(cwd, fileOrName);
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    return { source: fs.readFileSync(filePath, "utf-8"), dir: path.dirname(filePath), label: filePath };
+    return {
+      source: fs.readFileSync(filePath, "utf-8"),
+      dir: path.dirname(filePath),
+      label: filePath,
+    };
   }
   const name = path.basename(fileOrName).replace(/\.cast$/, "");
-  if (!fileOrName.includes("/") && Object.prototype.hasOwnProperty.call(BUILTIN_WORKFLOW_TEMPLATES, name)) {
-    return { source: BUILTIN_WORKFLOW_TEMPLATES[name], label: `builtin:${name}` };
+  if (
+    !fileOrName.includes("/") &&
+    Object.prototype.hasOwnProperty.call(BUILTIN_WORKFLOW_TEMPLATES, name)
+  ) {
+    return {
+      source: BUILTIN_WORKFLOW_TEMPLATES[name],
+      label: `builtin:${name}`,
+    };
   }
   return null;
 }

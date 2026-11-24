@@ -10,11 +10,21 @@ import { resolveCapabilities } from "@codecast/shared/contracts";
 
 const DIR = path.join(
   __dirname,
-  "..", "..", "..", "packages", "shared", "contracts", "__fixtures__", "resolver",
+  "..",
+  "..",
+  "..",
+  "packages",
+  "shared",
+  "contracts",
+  "__fixtures__",
+  "resolver",
 );
 
 describe("resolver golden parity (convex runtime)", () => {
-  const files = fs.readdirSync(DIR).filter((f) => f.endsWith(".json")).sort();
+  const files = fs
+    .readdirSync(DIR)
+    .filter((f) => f.endsWith(".json"))
+    .sort();
 
   it("the fixture set is present and non-trivial", () => {
     expect(files.length).toBeGreaterThanOrEqual(15);
@@ -22,7 +32,9 @@ describe("resolver golden parity (convex runtime)", () => {
 
   for (const f of files) {
     it(`byte-identical on ${f}`, () => {
-      const { input, output } = JSON.parse(fs.readFileSync(path.join(DIR, f), "utf-8"));
+      const { input, output } = JSON.parse(
+        fs.readFileSync(path.join(DIR, f), "utf-8"),
+      );
       const actual = resolveCapabilities(input.bindings, input.context);
       expect(JSON.stringify(actual)).toBe(JSON.stringify(output));
     });

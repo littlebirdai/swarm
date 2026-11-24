@@ -9,10 +9,25 @@ const inboxTab = { id: "tab_1", title: "Inbox", path: "/inbox", createdAt: 1 };
 describe("isNonTabRoute", () => {
   it("treats marketing, auth, and public routes as outside the tab shell", () => {
     for (const p of [
-      "/", "/about", "/features", "/documentation", "/privacy", "/security",
-      "/support", "/terms", "/login", "/signup", "/forgot-password",
-      "/reset-password", "/auth/cli", "/join/abc123", "/share/tok",
-      "/share/message/tok", "/settings", "/settings/cli", "/palette",
+      "/",
+      "/about",
+      "/features",
+      "/documentation",
+      "/privacy",
+      "/security",
+      "/support",
+      "/terms",
+      "/login",
+      "/signup",
+      "/forgot-password",
+      "/reset-password",
+      "/auth/cli",
+      "/join/abc123",
+      "/share/tok",
+      "/share/message/tok",
+      "/settings",
+      "/settings/cli",
+      "/palette",
       "/login?return_to=%2Finbox",
     ]) {
       expect(isNonTabRoute(p)).toBe(true);
@@ -21,8 +36,17 @@ describe("isNonTabRoute", () => {
 
   it("treats dashboard routes as inside the tab shell", () => {
     for (const p of [
-      "/inbox", "/feed", "/conversation/abc", "/tasks", "/tasks/x",
-      "/docs", "/docs/y", "/plans", "/projects/pj-x", "/team/someone", "/cli",
+      "/inbox",
+      "/feed",
+      "/conversation/abc",
+      "/tasks",
+      "/tasks/x",
+      "/docs",
+      "/docs/y",
+      "/plans",
+      "/projects/pj-x",
+      "/team/someone",
+      "/cli",
     ]) {
       expect(isNonTabRoute(p)).toBe(false);
     }
@@ -31,7 +55,8 @@ describe("isNonTabRoute", () => {
   it("leaves the renamed list pages to the router, which moves them into Org", () => {
     for (const p of ["/team", "/company"]) expect(isNonTabRoute(p)).toBe(true);
     // Projects and goals are pages of their own, inside the shell.
-    for (const p of ["/projects", "/goals"]) expect(isNonTabRoute(p)).toBe(false);
+    for (const p of ["/projects", "/goals"])
+      expect(isNonTabRoute(p)).toBe(false);
   });
 
   // Public profiles live at the ROOT as a bare handle (/:username), rendered
@@ -92,8 +117,10 @@ describe("tabNavigate", () => {
     (globalThis as any).window = {
       location: { pathname: "/inbox", search: "" },
       history: {
-        pushState: (state: any, _t: string, url: string) => calls.push({ op: "push", url, state }),
-        replaceState: (state: any, _t: string, url: string) => calls.push({ op: "replace", url, state }),
+        pushState: (state: any, _t: string, url: string) =>
+          calls.push({ op: "push", url, state }),
+        replaceState: (state: any, _t: string, url: string) =>
+          calls.push({ op: "replace", url, state }),
       },
     };
   });
@@ -105,14 +132,18 @@ describe("tabNavigate", () => {
 
   it("pushes a new history entry for a navigation to a different path", () => {
     tabNavigate("/tasks", "push");
-    expect(calls).toEqual([{ op: "push", url: "/tasks", state: { tabNav: true, tabId: "tab_1" } }]);
+    expect(calls).toEqual([
+      { op: "push", url: "/tasks", state: { tabNav: true, tabId: "tab_1" } },
+    ]);
   });
 
   // A push whose target equals the current URL must NOT stack a duplicate entry —
   // otherwise re-selecting the current page would pile up dead back-stack entries.
   it("downgrades a same-URL push to replace", () => {
     tabNavigate("/inbox", "push");
-    expect(calls).toEqual([{ op: "replace", url: "/inbox", state: { tabNav: true, tabId: "tab_1" } }]);
+    expect(calls).toEqual([
+      { op: "replace", url: "/inbox", state: { tabNav: true, tabId: "tab_1" } },
+    ]);
   });
 
   it("replaces (no new entry) in replace mode", () => {
@@ -138,7 +169,9 @@ describe("tabNavigate", () => {
       dispatchEvent: (e: Event) => popped.push(e.type),
     });
     tabNavigate("/tasks/ct-1", "push");
-    expect(useInboxStore.getState().tabs.find((t) => t.id === "tab_1")?.path).toBe("/inbox");
+    expect(
+      useInboxStore.getState().tabs.find((t) => t.id === "tab_1")?.path,
+    ).toBe("/inbox");
     expect(calls).toEqual([{ op: "push", url: "/tasks/ct-1", state: null }]);
     expect(popped).toEqual(["popstate"]);
     expect(shouldUseTabRouting("/tasks", "/inbox")).toBe(false);
@@ -149,8 +182,16 @@ describe("tabNavigate", () => {
   // user is looking at. Regression: /files?path=… resolved in a background tab
   // used to router.replace the ACTIVE tab into the Files page.
   it("scopes a background pane's navigation to its own tab, leaving the URL alone", () => {
-    const bgTab = { id: "tab_2", title: "Files", path: "/files?path=/x/y.ts", createdAt: 2 };
-    useInboxStore.setState({ tabs: [inboxTab, bgTab], activeTabId: inboxTab.id });
+    const bgTab = {
+      id: "tab_2",
+      title: "Files",
+      path: "/files?path=/x/y.ts",
+      createdAt: 2,
+    };
+    useInboxStore.setState({
+      tabs: [inboxTab, bgTab],
+      activeTabId: inboxTab.id,
+    });
     tabNavigate("/files?f=y.ts", "replace", "tab_2");
     expect(calls).toEqual([]);
     const tabs = useInboxStore.getState().tabs;
@@ -160,7 +201,9 @@ describe("tabNavigate", () => {
 
   it("navigates normally when the pane's tab IS the active tab", () => {
     tabNavigate("/tasks", "push", "tab_1");
-    expect(calls).toEqual([{ op: "push", url: "/tasks", state: { tabNav: true, tabId: "tab_1" } }]);
+    expect(calls).toEqual([
+      { op: "push", url: "/tasks", state: { tabNav: true, tabId: "tab_1" } },
+    ]);
   });
 });
 
@@ -169,25 +212,53 @@ describe("tabNavigate", () => {
 // its first tab was seeded from the boot URL `/`.
 describe("a tab may only hold a shell route", () => {
   it("shellTabPath falls back to the inbox for outside-shell paths", () => {
-    for (const p of ["/", "/login", "/palette", "/people", "/ashot", "", undefined]) {
+    for (const p of [
+      "/",
+      "/login",
+      "/palette",
+      "/people",
+      "/ashot",
+      "",
+      undefined,
+    ]) {
       expect(shellTabPath(p)).toBe("/inbox");
     }
-    for (const p of ["/inbox", "/inbox?s=jx7abc", "/chat/hx7abc", "/tasks/x", "/docs"]) {
+    for (const p of [
+      "/inbox",
+      "/inbox?s=jx7abc",
+      "/chat/hx7abc",
+      "/tasks/x",
+      "/docs",
+    ]) {
       expect(shellTabPath(p)).toBe(p);
     }
   });
 
   it("healTabPaths rewrites only the offending tabs and is a no-op otherwise", () => {
-    const good = [{ id: "a", path: "/inbox?s=x" }, { id: "b", path: "/tasks" }];
+    const good = [
+      { id: "a", path: "/inbox?s=x" },
+      { id: "b", path: "/tasks" },
+    ];
     expect(healTabPaths(good)).toBe(good);
-    const healed = healTabPaths([{ id: "a", path: "/" }, { id: "b", path: "/tasks" }]);
+    const healed = healTabPaths([
+      { id: "a", path: "/" },
+      { id: "b", path: "/tasks" },
+    ]);
     expect(healed.map((t) => t.path)).toEqual(["/inbox", "/tasks"]);
   });
 
   it("updateTab drops an outside-shell path and keeps the rest of the patch", () => {
-    useInboxStore.setState({ tabs: [{ ...inboxTab, path: "/inbox?s=jx7abc" }], activeTabId: inboxTab.id });
-    useInboxStore.getState().updateTab(inboxTab.id, { path: "/", title: "Home" });
-    expect(useInboxStore.getState().tabs[0]).toMatchObject({ path: "/inbox?s=jx7abc", title: "Home" });
+    useInboxStore.setState({
+      tabs: [{ ...inboxTab, path: "/inbox?s=jx7abc" }],
+      activeTabId: inboxTab.id,
+    });
+    useInboxStore
+      .getState()
+      .updateTab(inboxTab.id, { path: "/", title: "Home" });
+    expect(useInboxStore.getState().tabs[0]).toMatchObject({
+      path: "/inbox?s=jx7abc",
+      title: "Home",
+    });
     useInboxStore.getState().updateTab(inboxTab.id, { path: "/tasks" });
     expect(useInboxStore.getState().tabs[0].path).toBe("/tasks");
   });
@@ -195,12 +266,16 @@ describe("a tab may only hold a shell route", () => {
   it("openTab seeds the inbox when handed the app root", () => {
     useInboxStore.setState({ tabs: [], activeTabId: null });
     const id = useInboxStore.getState().openTab({ path: "/", title: "Home" });
-    expect(useInboxStore.getState().tabs.find((t) => t.id === id)?.path).toBe("/inbox");
+    expect(useInboxStore.getState().tabs.find((t) => t.id === id)?.path).toBe(
+      "/inbox",
+    );
   });
 
   it("stamping the active tab keeps its path while the live URL is outside the shell", () => {
     const realWindow = (globalThis as any).window;
-    const at = (pathname: string) => { (globalThis as any).window = { location: { pathname, search: "" } }; };
+    const at = (pathname: string) => {
+      (globalThis as any).window = { location: { pathname, search: "" } };
+    };
     try {
       useInboxStore.setState({ tabs: [inboxTab], activeTabId: inboxTab.id });
       at("/");
@@ -216,7 +291,6 @@ describe("a tab may only hold a shell route", () => {
   });
 });
 
-
 // The shell adopts the address bar into its active tab once per router
 // location: on the document's first load and on every real navigation that
 // mounts it (a share link resolving to its conversation from the profile
@@ -225,11 +299,15 @@ describe("a tab may only hold a shell route", () => {
 // previous tab's URL into the tab being switched to.
 describe("shellEntryPath", () => {
   it("adopts the entry URL, query included, on the document's first load", () => {
-    expect(shellEntryPath(null, "default", "/search", "?q=new")).toBe("/search?q=new");
+    expect(shellEntryPath(null, "default", "/search", "?q=new")).toBe(
+      "/search?q=new",
+    );
   });
 
   it("adopts a conversation a share page resolved to, token and all", () => {
-    expect(shellEntryPath("k1", "k2", "/conversation/jx7abc", "?share=tok")).toBe("/conversation/jx7abc?share=tok");
+    expect(
+      shellEntryPath("k1", "k2", "/conversation/jx7abc", "?share=tok"),
+    ).toBe("/conversation/jx7abc?share=tok");
   });
 
   it("adopts nothing on a remount at the location it already entered", () => {

@@ -30,7 +30,9 @@ import { test, expect, describe, mock } from "bun:test";
 mock.restore();
 
 const { makeFunctionReference } = await import("convex/server");
-const SOME_QUERY = makeFunctionReference<"query">("devices:getConversationMachine");
+const SOME_QUERY = makeFunctionReference<"query">(
+  "devices:getConversationMachine",
+);
 
 // What convex hands back for a function the deployment doesn't have.
 const missingFunction = new Error(
@@ -40,14 +42,18 @@ const missingFunction = new Error(
 // useQueries is the transport underneath both convex's useQuery and ours. It
 // reports a terminal failure by putting the Error in the result slot; the
 // re-throw that crashes components lives in useQuery, one layer up.
-let transport: (queries: Record<string, unknown>) => Record<string, unknown> = () => ({});
+let transport: (
+  queries: Record<string, unknown>,
+) => Record<string, unknown> = () => ({});
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convexReact,
   useQueries: (queries: Record<string, unknown>) => transport(queries),
 }));
 
-const { useQueryNoThrow } = await import(`${import.meta.dir}/../useQueryNoThrow.ts?fresh`);
+const { useQueryNoThrow } = await import(
+  `${import.meta.dir}/../useQueryNoThrow.ts?fresh`
+);
 const { renderToStaticMarkup } = await import("react-dom/server");
 
 /** Renders a component that asks for the query and prints what it got. */
@@ -55,7 +61,9 @@ function renderProbe(args: Record<string, unknown> | "skip") {
   function Probe() {
     const { data, error } = useQueryNoThrow(SOME_QUERY, args as any);
     return (
-      <span data-error={error ? "yes" : "no"}>{data ? String(data) : "fallback"}</span>
+      <span data-error={error ? "yes" : "no"}>
+        {data ? String(data) : "fallback"}
+      </span>
     );
   }
   return renderToStaticMarkup(<Probe />);
@@ -63,14 +71,25 @@ function renderProbe(args: Record<string, unknown> | "skip") {
 
 describe("useQueryNoThrow", () => {
   test("a metadata timeout leaves cached conversation content renderable", () => {
-    const timeout = new Error("Your request timed out performing too many system operations.");
+    const timeout = new Error(
+      "Your request timed out performing too many system operations.",
+    );
     transport = () => ({ value: timeout });
-    const query = makeFunctionReference<"query">("conversations:getConversationWithMeta");
+    const query = makeFunctionReference<"query">(
+      "conversations:getConversationWithMeta",
+    );
     function Conversation() {
-      const { data, error } = useQueryNoThrow(query, { conversation_id: "abc" });
+      const { data, error } = useQueryNoThrow(query, {
+        conversation_id: "abc",
+      });
       expect(data).toBeUndefined();
       expect(error).toBe(timeout);
-      return <article>Cached transcript<textarea aria-label="Reply" /></article>;
+      return (
+        <article>
+          Cached transcript
+          <textarea aria-label="Reply" />
+        </article>
+      );
     }
     const html = renderToStaticMarkup(<Conversation />);
     expect(html).toContain("Cached transcript");
@@ -90,7 +109,9 @@ describe("useQueryNoThrow", () => {
     transport = () => ({ value: missingFunction });
     let seen: Error | undefined;
     function Probe() {
-      seen = useQueryNoThrow(SOME_QUERY, { conversation_id: "abc" } as any).error;
+      seen = useQueryNoThrow(SOME_QUERY, {
+        conversation_id: "abc",
+      } as any).error;
       return null;
     }
     renderToStaticMarkup(<Probe />);

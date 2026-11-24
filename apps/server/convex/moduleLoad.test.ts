@@ -20,19 +20,35 @@ import { join } from "node:path";
 const DIR = join(import.meta.dir);
 const PKG = join(DIR, "..");
 const entries = (readdirSync(DIR, { recursive: true }) as string[])
-  .filter((f) => f.endsWith(".ts") && !f.startsWith("_generated") && !/\.(test|d)\.ts$/.test(f) && f !== "schema.ts")
+  .filter(
+    (f) =>
+      f.endsWith(".ts") &&
+      !f.startsWith("_generated") &&
+      !/\.(test|d)\.ts$/.test(f) &&
+      f !== "schema.ts",
+  )
   .sort();
 
 type Load = { code: number | null; stderr: string };
 
 async function loadAlone(file: string): Promise<Load> {
-  const proc = Bun.spawn([process.execPath, "-e", `await import(${JSON.stringify(join(DIR, file))})`], {
-    cwd: PKG,
-    stdout: "ignore",
-    stderr: "pipe",
-    timeout: 120_000,
-  });
-  const [code, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()]);
+  const proc = Bun.spawn(
+    [
+      process.execPath,
+      "-e",
+      `await import(${JSON.stringify(join(DIR, file))})`,
+    ],
+    {
+      cwd: PKG,
+      stdout: "ignore",
+      stderr: "pipe",
+      timeout: 120_000,
+    },
+  );
+  const [code, stderr] = await Promise.all([
+    proc.exited,
+    new Response(proc.stderr).text(),
+  ]);
   return { code, stderr };
 }
 
@@ -56,12 +72,20 @@ function limit(width: number) {
 // the hundreds a clean load can take minutes. It loads once more with nothing else in flight, and only that answer counts.
 const KILLED = 143;
 const alone = limit(1);
-const settle = (f: string) => loadAlone(f).catch((e) => ({ code: -1, stderr: String(e) }));
+const settle = (f: string) =>
+  loadAlone(f).catch((e) => ({ code: -1, stderr: String(e) }));
 
 let loads: Map<string, Promise<Load>>;
 beforeAll(() => {
   const slot = limit(Math.max(2, Math.min(8, availableParallelism())));
-  loads = new Map(entries.map((f) => [f, slot(() => settle(f)).then((r) => (r.code === KILLED ? alone(() => settle(f)) : r))]));
+  loads = new Map(
+    entries.map((f) => [
+      f,
+      slot(() => settle(f)).then((r) =>
+        r.code === KILLED ? alone(() => settle(f)) : r,
+      ),
+    ]),
+  );
 });
 
 describe("every entry module loads on its own", () => {
@@ -70,7 +94,12 @@ describe("every entry module loads on its own", () => {
       file,
       async () => {
         const { code, stderr } = await loads.get(file)!;
-        expect({ file, code, stderr: code === 0 ? "" : stderr.trim().split("\n").slice(-12).join("\n") }).toEqual({
+        expect({
+          file,
+          code,
+          stderr:
+            code === 0 ? "" : stderr.trim().split("\n").slice(-12).join("\n"),
+        }).toEqual({
           file,
           code: 0,
           stderr: "",

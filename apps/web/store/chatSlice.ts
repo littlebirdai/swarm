@@ -37,14 +37,45 @@
 // chat.sendMessage dedupes on — so a message that actually landed can never
 // double-post, however many times the user presses retry.
 
-import { threadRowId, type PageCommentRow, type PageThreadRow, type ThreadInboxRow, type ThreadKind } from "./threadTypes";
-import { dmKeyFor, endRound, recordOutcome, withThreadMuted, type ChatMentionRef, type ChatRound, type ChatVoiceStatus } from "@codecast/shared/chat";
+import {
+  threadRowId,
+  type PageCommentRow,
+  type PageThreadRow,
+  type ThreadInboxRow,
+  type ThreadKind,
+} from "./threadTypes";
+import {
+  dmKeyFor,
+  endRound,
+  recordOutcome,
+  withThreadMuted,
+  type ChatMentionRef,
+  type ChatRound,
+  type ChatVoiceStatus,
+} from "@codecast/shared/chat";
 import { normalizeChannelName } from "@codecast/convex/convex/chatText";
 import { humanizeConvexError } from "@codecast/shared/contracts";
-import { mergeLinkOptions, nextSlackMembers, type SlackDirection, type SlackLinkOptions, type SlackMemberWriter, type SlackSendAuth } from "@codecast/convex/convex/lib/slackMirror";
-import { action, asyncAction, isParkedDispatchError, sync } from "./mutativeMiddleware";
+import {
+  mergeLinkOptions,
+  nextSlackMembers,
+  type SlackDirection,
+  type SlackLinkOptions,
+  type SlackMemberWriter,
+  type SlackSendAuth,
+} from "@codecast/convex/convex/lib/slackMirror";
+import {
+  action,
+  asyncAction,
+  isParkedDispatchError,
+  sync,
+} from "./mutativeMiddleware";
 import { toast } from "sonner";
-import { awaitUpload, deliverableAttachments, hasPendingUploads, releaseUpload } from "../lib/pendingUploads";
+import {
+  awaitUpload,
+  deliverableAttachments,
+  hasPendingUploads,
+  releaseUpload,
+} from "../lib/pendingUploads";
 import type { PendingEntry } from "./syncProtocol";
 import { isConvexId } from "../lib/entityLinks";
 import { activeTeamIdOf } from "../lib/activeTeam";
@@ -204,7 +235,12 @@ export type ChatMessageRow = {
   attachments?: ChatAttachment[];
   // Push-to-talk. Present only on a walkie burst; the recording itself rides
   // `attachments` like any other file, so playback is an attachment concern.
-  voice?: { status: ChatVoiceStatus; duration_ms?: number; room_key?: string; transcribing?: boolean };
+  voice?: {
+    status: ChatVoiceStatus;
+    duration_ms?: number;
+    room_key?: string;
+    transcribing?: boolean;
+  };
   // A huddle digest row: the summary is `content`, this names the transcript
   // the reader can unfold under it.
   call?: { transcript_id: string };
@@ -290,7 +326,16 @@ export type ChatThreadSummaryRow = {
   last_reply_at: number;
   reply_user_ids: string[];
   /** The repliers with the face to draw (lib/chatViews ThreadFace). */
-  reply_faces?: Array<{ user_id: string; slack?: { user?: string; name: string; avatar_url?: string; is_bot?: boolean }; session?: { id: string; title?: string; agent_type?: string } }>;
+  reply_faces?: Array<{
+    user_id: string;
+    slack?: {
+      user?: string;
+      name: string;
+      avatar_url?: string;
+      is_bot?: boolean;
+    };
+    session?: { id: string; title?: string; agent_type?: string };
+  }>;
   agent_status?: "thinking" | "streaming" | "error";
 };
 
@@ -361,7 +406,9 @@ export const CHAT_READ_STUB_PREFIX = "chatreadstub-";
 export const CHAT_REACTION_STUB_PREFIX = "chatreactstub-";
 
 function randomSuffix(): string {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  return (
+    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+  );
 }
 
 export function newChatMessageClientId(): string {
@@ -432,7 +479,9 @@ export function chatReactionStubId(messageId: string, emoji: string): string {
  *   "sent"    — the server has it.
  *   "pending" — optimistic, still riding the outbox.
  *   "failed"  — delivery gave up; the row is the only copy of what was typed. */
-export function chatSendState(row: Pick<ChatMessageRow, "_id" | "_failedAt">): "sent" | "pending" | "failed" {
+export function chatSendState(
+  row: Pick<ChatMessageRow, "_id" | "_failedAt">,
+): "sent" | "pending" | "failed" {
   if (row._failedAt) return "failed";
   return isConvexId(row._id) ? "sent" : "pending";
 }
@@ -458,7 +507,11 @@ export type ChatSliceData = {
   /** The same count for every OTHER workspace the viewer is in (threads.
    *  unreadByWorkspace), only those with any, plus the newest one's activity
    *  stamp: the switcher's badges. `team_id` null is personal. */
-  threadUnreadByWorkspace: Array<{ team_id: string | null; count: number; newest_at?: number }>;
+  threadUnreadByWorkspace: Array<{
+    team_id: string | null;
+    count: number;
+    newest_at?: number;
+  }>;
   /** Published pages with their newest comments (threads.listMine payload),
    *  keyed by artifact id — the page kind's root_key. */
   pageThreads: Record<string, PageThreadRow>;
@@ -503,7 +556,10 @@ export type HandToAgentInput = {
 };
 
 const HAND_SEND_WAIT_MS = 2 * 60_000;
-type SentWaiter = { resolve: (id: string) => void; reject: (e: unknown) => void };
+type SentWaiter = {
+  resolve: (id: string) => void;
+  reject: (e: unknown) => void;
+};
 const sentWaiters = new Map<string, SentWaiter>();
 const settledSends = new Map<string, string | Error>();
 function settleSend(clientId: string, outcome: string | Error) {
@@ -515,7 +571,8 @@ function settleSend(clientId: string, outcome: string | Error) {
     return;
   }
   settledSends.set(clientId, outcome);
-  if (settledSends.size > 50) settledSends.delete(settledSends.keys().next().value!);
+  if (settledSends.size > 50)
+    settledSends.delete(settledSends.keys().next().value!);
 }
 
 /**
@@ -529,7 +586,12 @@ function settleSend(clientId: string, outcome: string | Error) {
  */
 function driveChatSend(
   get: () => {
-    dispatchChatSend: (channelId: string, content: string, clientId: string, opts?: ChatSendOptions) => unknown;
+    dispatchChatSend: (
+      channelId: string,
+      content: string,
+      clientId: string,
+      opts?: ChatSendOptions,
+    ) => unknown;
     markChatSendFailed: (rowId: string, reason?: string) => void;
   },
   channelId: string,
@@ -550,21 +612,34 @@ function driveChatSend(
   }
   // (The impl type says void because the BODY returns nothing; the middleware
   // wraps an asyncAction to resolve with the dispatch result.)
-  const sent = get().dispatchChatSend(channelId, content, clientId, opts) as Promise<ChatSendResult | undefined> | undefined;
+  const sent = get().dispatchChatSend(channelId, content, clientId, opts) as
+    | Promise<ChatSendResult | undefined>
+    | undefined;
   if (!sent || typeof sent.then !== "function") return undefined;
   sent.then(
-    (res) => settleSend(clientId, res?.message_id ? String(res.message_id) : new Error("The message was not delivered")),
+    (res) =>
+      settleSend(
+        clientId,
+        res?.message_id
+          ? String(res.message_id)
+          : new Error("The message was not delivered"),
+      ),
     (e) => settleSend(clientId, e instanceof Error ? e : new Error(String(e))),
   );
   return sent;
 }
 
 /** The server id of a line this window sent, once it lands. */
-export function sentChatMessageId(clientId: string, timeoutMs = HAND_SEND_WAIT_MS): Promise<string> {
+export function sentChatMessageId(
+  clientId: string,
+  timeoutMs = HAND_SEND_WAIT_MS,
+): Promise<string> {
   const settled = settledSends.get(clientId);
   if (settled !== undefined) {
     settledSends.delete(clientId);
-    return typeof settled === "string" ? Promise.resolve(settled) : Promise.reject(settled);
+    return typeof settled === "string"
+      ? Promise.resolve(settled)
+      : Promise.reject(settled);
   }
   return new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -572,8 +647,14 @@ export function sentChatMessageId(clientId: string, timeoutMs = HAND_SEND_WAIT_M
       reject(new Error("The message has not been delivered yet"));
     }, timeoutMs);
     sentWaiters.set(clientId, {
-      resolve: (id) => { clearTimeout(timer); resolve(id); },
-      reject: (e) => { clearTimeout(timer); reject(e); },
+      resolve: (id) => {
+        clearTimeout(timer);
+        resolve(id);
+      },
+      reject: (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
     });
   });
 }
@@ -582,25 +663,48 @@ export function sentChatMessageId(clientId: string, timeoutMs = HAND_SEND_WAIT_M
 export type ChatSendResult = {
   message_id?: string;
   session_relay?: { delivered?: boolean; skipped?: string | null };
-  mention_wakes?: { roles: number; sessions: number; folded: number; skipped: string[] };
+  mention_wakes?: {
+    roles: number;
+    sessions: number;
+    folded: number;
+    skipped: string[];
+  };
 };
 
 export type ChatSliceActions = {
   /** Paints the message and hands back its client id — the row id the list
    *  renders, the retry handle, and the server's dedupe key. */
-  sendChatMessage: (channelId: string, content: string, opts?: ChatSendOptions) => string;
+  sendChatMessage: (
+    channelId: string,
+    content: string,
+    opts?: ChatSendOptions,
+  ) => string;
   /** The durable half of a send. Called by sendChatMessage and by retry; never
    *  call it directly — the client id has to exist first. */
-  dispatchChatSend: (channelId: string, content: string, clientId: string, opts?: ChatSendOptions) => Promise<any>;
+  dispatchChatSend: (
+    channelId: string,
+    content: string,
+    clientId: string,
+    opts?: ChatSendOptions,
+  ) => Promise<any>;
   /** Paints a send whose images are still uploading; nothing is journaled
    *  until they settle. Rewrites the content of a row already painted. */
-  paintChatSend: (channelId: string, content: string, clientId: string, opts?: ChatSendOptions) => void;
+  paintChatSend: (
+    channelId: string,
+    content: string,
+    clientId: string,
+    opts?: ChatSendOptions,
+  ) => void;
   retryChatSend: (rowId: string) => void;
   /** Hand to agent: start a session briefed with the thread holding `message`
    *  and bound to it. Returns the session's stub id. */
   handThreadToAgent: (o: HandToAgentInput) => string;
   stampThreadHand: (rootKey: string, sessionKey: string) => void;
-  unstampThreadHand: (rootKey: string, sessionKey: string, before?: string) => void;
+  unstampThreadHand: (
+    rootKey: string,
+    sessionKey: string,
+    before?: string,
+  ) => void;
   markChatSendFailed: (rowId: string, reason?: string) => void;
   discardChatSend: (rowId: string) => void;
 
@@ -614,7 +718,11 @@ export type ChatSliceActions = {
    *  (chat.startVoiceBurst and friends), not durable outbox work — an audio
    *  stream that failed to reach the server cannot be replayed an hour later,
    *  and the engine cancels the burst instead. */
-  beginVoiceBurstRow: (channelId: string, clientId: string, roomKey?: string) => void;
+  beginVoiceBurstRow: (
+    channelId: string,
+    clientId: string,
+    roomKey?: string,
+  ) => void;
   /** Advance the burst's own bubble: the transcript while it runs, then the
    *  landed shape. Addressed by BOTH ids because the server row can supersede
    *  the stub mid-burst (the sender is looking at the channel), and after that
@@ -632,7 +740,10 @@ export type ChatSliceActions = {
    *  the server holds: a cancelled burst really is deleted server-side (or
    *  tombstoned, when a reply already points at it), so removing it here is
    *  the truth rather than forgetting. */
-  dropVoiceBurstRow: (ids: { clientId: string; messageId?: string | null }) => void;
+  dropVoiceBurstRow: (ids: {
+    clientId: string;
+    messageId?: string | null;
+  }) => void;
 
   /** Edits a sent message, or rewrites one that never left — a failed send is
    *  edited by editing what will be sent, under the same client id. */
@@ -657,31 +768,58 @@ export type ChatSliceActions = {
   dismissThread: (kind: ThreadKind, rootKey: string) => void;
   /** The Threads page's one sweep. Scoped to the workspace like the page
    *  itself; `kind` narrows it to one chip. */
-  markAllThreadsRead: (teamId?: string | null, kind?: ThreadKind | "all") => void;
+  markAllThreadsRead: (
+    teamId?: string | null,
+    kind?: ThreadKind | "all",
+  ) => void;
   /** Reply on a published page's discussion (the page kind's composer). The
    *  caller mints the client id (newPageCommentClientId) because the dispatch
    *  effect reads it from this one argument object. */
-  addPageComment: (o: { artifactId: string; text: string; parentId?: string; clientId: string }) => void;
+  addPageComment: (o: {
+    artifactId: string;
+    text: string;
+    parentId?: string;
+    clientId: string;
+  }) => void;
   /** The page owner resolving (or reopening) one comment on its discussion. */
-  resolvePageComment: (artifactId: string, commentId: string, resolved: boolean) => void;
+  resolvePageComment: (
+    artifactId: string,
+    commentId: string,
+    resolved: boolean,
+  ) => void;
   /** Drop local rows a fresh listMine page no longer returns (revoked access). */
-  pruneThreadInbox: (keepIds: string[], teamId: string | undefined | null, floorActivityAt: number) => void;
+  pruneThreadInbox: (
+    keepIds: string[],
+    teamId: string | undefined | null,
+    floorActivityAt: number,
+  ) => void;
   setChannelNotifyLevel: (channelId: string, level: ChatNotifyLevel) => void;
   /** Silence (or restore) reply notifications for one thread. */
-  setChatThreadMuted: (channelId: string, rootId: string, muted: boolean) => void;
+  setChatThreadMuted: (
+    channelId: string,
+    rootId: string,
+    muted: boolean,
+  ) => void;
   /** Move a thread's round past the agent holding the floor (chatRounds.skipFloor). */
   skipChatRoundFloor: (rootId: string) => void;
   /** End a thread's round: no more agents are woken for it. */
   endChatRound: (rootId: string) => void;
   /** Rename or re-topic a channel. Optimistic: the rail and header rename the
    *  moment you confirm; the server enforces creator-or-admin and reconciles. */
-  updateChatChannel: (channelId: string, fields: { name?: string; topic?: string }) => void;
+  updateChatChannel: (
+    channelId: string,
+    fields: { name?: string; topic?: string },
+  ) => void;
   /** Slack mirror controls: direction, content toggles, pause. Optimistic on
    *  the link row; the server's manager check reconciles. */
   updateChatSlackLink: (linkId: string, patch: ChatSlackLinkPatch) => void;
   /** Drop the mirror. The row leaves the store at once. */
   unlinkChatSlack: (linkId: string) => void;
-  setChatSlackMember: (channelId: string, slackUserId: string, present: boolean) => void;
+  setChatSlackMember: (
+    channelId: string,
+    slackUserId: string,
+    present: boolean,
+  ) => void;
   /** Send one line that was kept local (or predates the link) into Slack. */
   shareChatMessageToSlack: (messageId: string) => void;
   /** Archive (or restore) a channel. Optimistic: the row leaves the rail at
@@ -696,7 +834,10 @@ export type ChatSliceActions = {
   removeChatChannelMember: (channelId: string, userId: string) => void;
   /** Put roles or sessions in a room (any kind but a DM). Like the people
    *  roster, the agents live on the server-derived rail row. */
-  addChatChannelAgents: (channelId: string, agents: ChatChannelAgentRef[]) => void;
+  addChatChannelAgents: (
+    channelId: string,
+    agents: ChatChannelAgentRef[],
+  ) => void;
   removeChatChannelAgent: (channelId: string, agentId: string) => void;
   /** Returns the stub channel id, so the rail can select the new channel in the
    *  same tick. The altKey supersede moves it onto the real id on echo. */
@@ -710,7 +851,11 @@ export type ChatSliceActions = {
    *  already holds returns its real id in the same tick; a new one returns a
    *  stub that the altKey supersede rekeys on echo. */
   openDmChannel: (memberIds: string[], teamId?: string) => string | null;
-  dispatchOpenDm: (clientId: string, memberIds: string[], teamId?: string) => Promise<any>;
+  dispatchOpenDm: (
+    clientId: string,
+    memberIds: string[],
+    teamId?: string,
+  ) => Promise<any>;
 };
 
 export type ChatCreateChannelOptions = {
@@ -730,14 +875,26 @@ export type ChatSliceState = ChatSliceData & ChatSliceActions;
 // a promise; the function BODY returns nothing. The slice is written against the
 // body's signature, the store interface against the caller's.
 type ChatSliceImpl = ChatSliceData &
-  Omit<ChatSliceActions, "dispatchCreateChatChannel" | "dispatchOpenDm" | "dispatchChatSend"> & {
+  Omit<
+    ChatSliceActions,
+    "dispatchCreateChatChannel" | "dispatchOpenDm" | "dispatchChatSend"
+  > & {
     dispatchCreateChatChannel: (
       clientId: string,
       name: string,
       opts?: ChatCreateChannelOptions,
     ) => void;
-    dispatchOpenDm: (clientId: string, memberIds: string[], teamId?: string) => void;
-    dispatchChatSend: (channelId: string, content: string, clientId: string, opts?: ChatSendOptions) => void;
+    dispatchOpenDm: (
+      clientId: string,
+      memberIds: string[],
+      teamId?: string,
+    ) => void;
+    dispatchChatSend: (
+      channelId: string,
+      content: string,
+      clientId: string,
+      opts?: ChatSendOptions,
+    ) => void;
   };
 
 // What a chat action may touch on the draft. Deliberately narrow: chat writes
@@ -753,9 +910,13 @@ function viewerId(draft: ChatDraft): string {
   return draft.currentUser?._id ?? "";
 }
 
-function findReadRow(draft: ChatDraft, channelId: string): ChatReadRow | undefined {
+function findReadRow(
+  draft: ChatDraft,
+  channelId: string,
+): ChatReadRow | undefined {
   for (const id in draft.chatReads) {
-    if (draft.chatReads[id]?.channel_id === channelId) return draft.chatReads[id];
+    if (draft.chatReads[id]?.channel_id === channelId)
+      return draft.chatReads[id];
   }
   return undefined;
 }
@@ -845,7 +1006,9 @@ function retireChannelRows(draft: ChatDraft, channelId: string): void {
     if (isConvexId(id)) excludeRow(draft, "chatReads", id);
   }
   if (draft.chatRail.some((row) => String(row.channel_id) === channelId)) {
-    draft.chatRail = draft.chatRail.filter((row) => String(row.channel_id) !== channelId);
+    draft.chatRail = draft.chatRail.filter(
+      (row) => String(row.channel_id) !== channelId,
+    );
   }
 }
 
@@ -873,14 +1036,22 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
 
     // ── Sending ─────────────────────────────────────────────────────────────
 
-    sendChatMessage: (channelId: string, content: string, opts?: ChatSendOptions) => {
+    sendChatMessage: (
+      channelId: string,
+      content: string,
+      opts?: ChatSendOptions,
+    ) => {
       const clientId = newChatMessageClientId();
       const { onSent, ...journaled } = opts ?? {};
       const deliver = (text: string, sendOpts: ChatSendOptions | undefined) => {
         const sent = driveChatSend(get, channelId, text, clientId, sendOpts);
         // Delivery is the outbox's problem (a failed send marks the row); the
         // callback only ever hears a success.
-        if (onSent) sent?.then((res) => onSent(res && typeof res === "object" ? res : undefined), () => {});
+        if (onSent)
+          sent?.then(
+            (res) => onSent(res && typeof res === "object" ? res : undefined),
+            () => {},
+          );
       };
       if (!hasPendingUploads(journaled.attachments)) {
         deliver(content, opts ? journaled : undefined);
@@ -893,15 +1064,21 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       get().paintChatSend(channelId, content, clientId, journaled);
       const pending = journaled.attachments!;
       void Promise.all(
-        pending.map(async (a) => (a.storage_id ? a : { ...a, storage_id: (await awaitUpload(a.preview_url)) ?? "" })),
+        pending.map(async (a) =>
+          a.storage_id
+            ? a
+            : { ...a, storage_id: (await awaitUpload(a.preview_url)) ?? "" },
+        ),
       ).then((settled) => {
         const row = get().chatMessages[clientId] as ChatMessageRow | undefined;
         // Taken back while it uploaded, or every upload failed with nothing
         // typed (uploadImage already toasted each failure).
         const attachments = deliverableAttachments(settled);
-        if (row && !row.content && !attachments) get().discardChatSend(clientId);
+        if (row && !row.content && !attachments)
+          get().discardChatSend(clientId);
         else if (row) deliver(row.content, { ...journaled, attachments });
-        for (const a of pending) if (!a.storage_id) releaseUpload(a.preview_url);
+        for (const a of pending)
+          if (!a.storage_id) releaseUpload(a.preview_url);
       });
       return clientId;
     },
@@ -955,16 +1132,26 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
         agentType: o.agentType,
         projectPath: path,
         gitRoot: path,
-        create: async (sid: string) => st.createSession({
-          agent_type: o.agentType,
-          project_path: path,
-          git_root: path,
-          session_id: sid,
-          ...(o.targetDeviceId ? { target_device_id: o.targetDeviceId } : {}),
-          linked_object: { type: "chat_thread", id: await Promise.resolve(o.message).catch(() => { throw new Error("The message did not reach the server, so no agent started"); }) },
-        }),
+        create: async (sid: string) =>
+          st.createSession({
+            agent_type: o.agentType,
+            project_path: path,
+            git_root: path,
+            session_id: sid,
+            ...(o.targetDeviceId ? { target_device_id: o.targetDeviceId } : {}),
+            linked_object: {
+              type: "chat_thread",
+              id: await Promise.resolve(o.message).catch(() => {
+                throw new Error(
+                  "The message did not reach the server, so no agent started",
+                );
+              }),
+            },
+          }),
       });
-      const before = get().chatMessages[o.rootKey]?.bound_session_id as string | undefined;
+      const before = get().chatMessages[o.rootKey]?.bound_session_id as
+        | string
+        | undefined;
       get().stampThreadHand(o.rootKey, stubId);
       ready.catch((error: unknown) => {
         if (isParkedDispatchError(error)) return;
@@ -975,16 +1162,34 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       return stubId;
     },
 
-    stampThreadHand: sync(function (this: ChatDraft, rootKey: string, sessionKey: string) {
+    stampThreadHand: sync(function (
+      this: ChatDraft,
+      rootKey: string,
+      sessionKey: string,
+    ) {
       let row = this.chatMessages[rootKey];
-      if (!row) for (const id in this.chatMessages) if (this.chatMessages[id].client_id === rootKey) { row = this.chatMessages[id]; break; }
+      if (!row)
+        for (const id in this.chatMessages)
+          if (this.chatMessages[id].client_id === rootKey) {
+            row = this.chatMessages[id];
+            break;
+          }
       if (row) row.bound_session_id = sessionKey;
     }),
 
-    unstampThreadHand: sync(function (this: ChatDraft, rootKey: string, sessionKey: string, before?: string) {
+    unstampThreadHand: sync(function (
+      this: ChatDraft,
+      rootKey: string,
+      sessionKey: string,
+      before?: string,
+    ) {
       for (const id in this.chatMessages) {
         const row = this.chatMessages[id];
-        if ((id !== rootKey && row.client_id !== rootKey) || row.bound_session_id !== sessionKey) continue;
+        if (
+          (id !== rootKey && row.client_id !== rootKey) ||
+          row.bound_session_id !== sessionKey
+        )
+          continue;
         if (before) row.bound_session_id = before;
         else delete row.bound_session_id;
       }
@@ -1005,7 +1210,11 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
 
     // Called by the dispatch error hook, not by a component: the store learns a
     // send failed the same way every other durable write does.
-    markChatSendFailed: sync(function (this: ChatDraft, rowId: string, reason?: string) {
+    markChatSendFailed: sync(function (
+      this: ChatDraft,
+      rowId: string,
+      reason?: string,
+    ) {
       const row = this.chatMessages[rowId];
       if (!row || isConvexId(row._id)) return;
       row._failedAt = Date.now();
@@ -1103,7 +1312,8 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       if (!row || row.deleted_at) return;
       if (isConvexId(messageId)) get().dispatchChatEdit(messageId, content);
       // Still uploading: the deferred send reads the row's content when it leaves.
-      else if (hasPendingUploads(row.attachments) && !row._failedAt) get().paintChatSend(row.channel_id, content, messageId);
+      else if (hasPendingUploads(row.attachments) && !row._failedAt)
+        get().paintChatSend(row.channel_id, content, messageId);
       else {
         driveChatSend(get, row.channel_id, content, messageId, {
           threadRootId: row.thread_root_id,
@@ -1117,7 +1327,11 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // `content` is the only field written optimistically. `edited_at` is a server
     // clock stamp: painting a local guess would put a value in the row that the
     // echo then corrects, for a marker that is a second away anyway.
-    dispatchChatEdit: action(function (this: ChatDraft, messageId: string, content: string) {
+    dispatchChatEdit: action(function (
+      this: ChatDraft,
+      messageId: string,
+      content: string,
+    ) {
       const row = this.chatMessages[messageId];
       if (row) row.content = content;
     }),
@@ -1146,7 +1360,11 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // The optimistic insert is keyed deterministically by (message, emoji) for
     // this viewer; selectChatReactions counts distinct users, so the stub and its
     // server twin read as one reaction during the window they overlap.
-    toggleChatReaction: action(function (this: ChatDraft, messageId: string, emoji: string) {
+    toggleChatReaction: action(function (
+      this: ChatDraft,
+      messageId: string,
+      emoji: string,
+    ) {
       // Nothing to react to until the message itself exists server-side.
       if (!isConvexId(messageId)) return;
       const me = viewerId(this);
@@ -1154,7 +1372,11 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       let mine: ChatReactionRow | undefined;
       for (const id in this.chatReactions) {
         const row = this.chatReactions[id];
-        if (row.message_id === messageId && row.user_id === me && row.emoji === emoji) {
+        if (
+          row.message_id === messageId &&
+          row.user_id === me &&
+          row.emoji === emoji
+        ) {
           mine = row;
           break;
         }
@@ -1183,8 +1405,14 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // badge that clears here does not flicker back when the echo lands. A stamp
     // can sit a few milliseconds ahead of this clock; clamping it to now left
     // that line unread and the header count up.
-    markChannelRead: action(function (this: ChatDraft, channelId: string, lastMessageId?: string) {
-      const marker = lastMessageId ? this.chatMessages[lastMessageId] : undefined;
+    markChannelRead: action(function (
+      this: ChatDraft,
+      channelId: string,
+      lastMessageId?: string,
+    ) {
+      const marker = lastMessageId
+        ? this.chatMessages[lastMessageId]
+        : undefined;
       const readAt = marker ? marker.created_at : Date.now();
       const existing = findReadRow(this, channelId);
       // Never move the mark backwards: a stale "reached bottom" from a list that
@@ -1192,7 +1420,9 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       if (existing && existing.last_read_at >= readAt) return;
       upsertRead(this, channelId, {
         last_read_at: readAt,
-        ...(lastMessageId && isConvexId(lastMessageId) ? { last_read_message_id: lastMessageId } : {}),
+        ...(lastMessageId && isConvexId(lastMessageId)
+          ? { last_read_message_id: lastMessageId }
+          : {}),
       });
     }),
 
@@ -1201,10 +1431,15 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // echo confirms rather than corrects. Numbers reconcile by value, which is
     // why this derived row may be patched optimistically where an object field
     // could not be (see lib/liveEntities' rule).
-    markThreadRead: action(function (this: ChatDraft, kind: ThreadKind, rootKey: string) {
+    markThreadRead: action(function (
+      this: ChatDraft,
+      kind: ThreadKind,
+      rootKey: string,
+    ) {
       const row = this.threadInbox[threadRowId(kind, rootKey)];
       if (!row) return;
-      if (row.for_you && row.unread > 0 && this.threadUnread > 0) this.threadUnread -= 1;
+      if (row.for_you && row.unread > 0 && this.threadUnread > 0)
+        this.threadUnread -= 1;
       row.for_you = false;
       row.last_read_at = Math.max(row.last_read_at, row.last_activity_at);
       row.unread = 0;
@@ -1215,11 +1450,16 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // The exclude tombstone is what keeps the card gone: the live listMine
     // subscription can push a page that predates the server delete, and a
     // plain local delete would let that push re-add the row.
-    dismissThread: action(function (this: ChatDraft, kind: ThreadKind, rootKey: string) {
+    dismissThread: action(function (
+      this: ChatDraft,
+      kind: ThreadKind,
+      rootKey: string,
+    ) {
       const id = threadRowId(kind, rootKey);
       const row = this.threadInbox[id];
       if (!row) return;
-      if (row.for_you && row.unread > 0 && this.threadUnread > 0) this.threadUnread -= 1;
+      if (row.for_you && row.unread > 0 && this.threadUnread > 0)
+        this.threadUnread -= 1;
       delete this.threadInbox[id];
       excludeRow(this, "threadInbox", id);
     }),
@@ -1231,17 +1471,29 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // the literal "all" for the unscoped one. A missing kind is the LEGACY
     // one-argument call, which always meant chat only — absence must not
     // widen a sweep an old bundle asked for.
-    markAllThreadsRead: action(function (this: ChatDraft, teamId?: string | null, kind?: ThreadKind | "all") {
-      const scope: ThreadKind | undefined = kind === "all" ? undefined : (kind ?? "chat");
+    markAllThreadsRead: action(function (
+      this: ChatDraft,
+      teamId?: string | null,
+      kind?: ThreadKind | "all",
+    ) {
+      const scope: ThreadKind | undefined =
+        kind === "all" ? undefined : (kind ?? "chat");
       // threadUnread counts the workspace on screen; a sweep of another one
       // (the switcher's badge) must not move it.
-      const onScreen = String(this.clientState?.ui?.active_team_id ?? "") === String(teamId ?? "");
+      const onScreen =
+        String(this.clientState?.ui?.active_team_id ?? "") ===
+        String(teamId ?? "");
       for (const id in this.threadInbox) {
         const row = this.threadInbox[id];
         // Page rows follow the owner into every workspace (threadRowInWorkspace).
-        if (row.kind !== "page" && String(row.team_id ?? "") !== String(teamId ?? "")) continue;
+        if (
+          row.kind !== "page" &&
+          String(row.team_id ?? "") !== String(teamId ?? "")
+        )
+          continue;
         if (scope && row.kind !== scope) continue;
-        if (onScreen && row.for_you && row.unread > 0 && this.threadUnread > 0) this.threadUnread -= 1;
+        if (onScreen && row.for_you && row.unread > 0 && this.threadUnread > 0)
+          this.threadUnread -= 1;
         row.for_you = false;
         row.last_read_at = Math.max(row.last_read_at, row.last_activity_at);
         row.unread = 0;
@@ -1251,8 +1503,9 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       if (!scope) {
         if (onScreen) this.threadUnread = 0;
         // The same sweep clears that workspace's badge in the switcher.
-        this.threadUnreadByWorkspace = (this.threadUnreadByWorkspace ?? [])
-          .filter((w) => String(w.team_id ?? "") !== String(teamId ?? ""));
+        this.threadUnreadByWorkspace = (
+          this.threadUnreadByWorkspace ?? []
+        ).filter((w) => String(w.team_id ?? "") !== String(teamId ?? ""));
       }
     }),
 
@@ -1261,7 +1514,12 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // (left room, lost team, purged root) and must leave the client too —
     // listMine can only drop rows silently, and a delta overlay never
     // deletes. Rows older than the page's window are untouched.
-    pruneThreadInbox: sync(function (this: ChatDraft, keepIds: string[], teamId: string | undefined | null, floorActivityAt: number) {
+    pruneThreadInbox: sync(function (
+      this: ChatDraft,
+      keepIds: string[],
+      teamId: string | undefined | null,
+      floorActivityAt: number,
+    ) {
       const keep = new Set(keepIds);
       for (const id in this.threadInbox) {
         const row = this.threadInbox[id];
@@ -1279,11 +1537,21 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // stub lands in the page's embedded comment list immediately; the server
     // row (artifacts.submitComments via the addPageComment side effect) echoes
     // the client_id and supersedes it in the next listMine push.
-    addPageComment: action(function (this: ChatDraft, o: { artifactId: string; text: string; parentId?: string; clientId: string }) {
+    addPageComment: action(function (
+      this: ChatDraft,
+      o: {
+        artifactId: string;
+        text: string;
+        parentId?: string;
+        clientId: string;
+      },
+    ) {
       const page = this.pageThreads[o.artifactId];
       const text = o.text.trim();
       if (!page || !text) return;
-      const me = (this as any).currentUser as { _id?: string; name?: string; github_avatar_url?: string } | undefined;
+      const me = (this as any).currentUser as
+        | { _id?: string; name?: string; github_avatar_url?: string }
+        | undefined;
       const stub: PageCommentRow = {
         _id: `pagecmtstub-${o.clientId}`,
         artifact_id: o.artifactId,
@@ -1307,12 +1575,23 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       }
     }),
 
-    resolvePageComment: action(function (this: ChatDraft, artifactId: string, commentId: string, resolved: boolean) {
-      const c = this.pageThreads[artifactId]?.comments.find((x) => x._id === commentId);
+    resolvePageComment: action(function (
+      this: ChatDraft,
+      artifactId: string,
+      commentId: string,
+      resolved: boolean,
+    ) {
+      const c = this.pageThreads[artifactId]?.comments.find(
+        (x) => x._id === commentId,
+      );
       if (c) c.status = resolved ? "resolved" : "open";
     }),
 
-    updateChatChannel: action(function (this: ChatDraft, channelId: string, fields: { name?: string; topic?: string }) {
+    updateChatChannel: action(function (
+      this: ChatDraft,
+      channelId: string,
+      fields: { name?: string; topic?: string },
+    ) {
       const channel = this.chatChannels[channelId];
       if (!channel) return;
       // The SERVER's slug rule, so the paint equals the echo. A name that
@@ -1326,11 +1605,16 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       return { channelId, fields };
     }),
 
-    updateChatSlackLink: action(function (this: ChatDraft, linkId: string, patch: ChatSlackLinkPatch) {
+    updateChatSlackLink: action(function (
+      this: ChatDraft,
+      linkId: string,
+      patch: ChatSlackLinkPatch,
+    ) {
       const link = this.chatSlackLinks[linkId];
       if (!link) return;
       if (patch.direction) link.direction = patch.direction;
-      if (patch.options) link.options = mergeLinkOptions(link.options, patch.options);
+      if (patch.options)
+        link.options = mergeLinkOptions(link.options, patch.options);
       if (typeof patch.paused === "boolean") {
         link.paused = patch.paused;
         if (!patch.paused) {
@@ -1345,8 +1629,15 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // Invite or remove someone on the Slack side of a mirrored room. The
     // roster flips here; the server does the same and undoes it (with the
     // reason on member_error) if Slack refuses.
-    setChatSlackMember: action(function (this: ChatDraft, channelId: string, slackUserId: string, present: boolean) {
-      const link = Object.values(this.chatSlackLinks).find((l) => l.chat_channel_id === channelId && l.kind !== "dm");
+    setChatSlackMember: action(function (
+      this: ChatDraft,
+      channelId: string,
+      slackUserId: string,
+      present: boolean,
+    ) {
+      const link = Object.values(this.chatSlackLinks).find(
+        (l) => l.chat_channel_id === channelId && l.kind !== "dm",
+      );
       if (!link) return;
       link.slack_member_ids = nextSlackMembers(
         link.slack_member_ids ?? [],
@@ -1364,7 +1655,10 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       return { linkId };
     }),
 
-    shareChatMessageToSlack: action(function (this: ChatDraft, messageId: string) {
+    shareChatMessageToSlack: action(function (
+      this: ChatDraft,
+      messageId: string,
+    ) {
       const row = this.chatMessages[messageId];
       if (!row) return;
       delete row.sync_local_only;
@@ -1372,7 +1666,11 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       return { messageId };
     }),
 
-    archiveChatChannel: action(function (this: ChatDraft, channelId: string, archived: boolean) {
+    archiveChatChannel: action(function (
+      this: ChatDraft,
+      channelId: string,
+      archived: boolean,
+    ) {
       const channel = this.chatChannels[channelId];
       if (!channel) return;
       channel.archived_at = archived ? Date.now() : null;
@@ -1383,30 +1681,54 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
     // The roster lives on the server-derived rail row; the draft edits that
     // row so the member panel moves at once, and the next listChannels push
     // (which the server's channel bump triggers) carries the same set.
-    addChatChannelMembers: action(function (this: ChatDraft, channelId: string, memberIds: string[]) {
+    addChatChannelMembers: action(function (
+      this: ChatDraft,
+      channelId: string,
+      memberIds: string[],
+    ) {
       const row = this.chatRail.find((r) => String(r.channel_id) === channelId);
-      if (row) row.member_ids = [...new Set([...(row.member_ids ?? []), ...memberIds])];
+      if (row)
+        row.member_ids = [
+          ...new Set([...(row.member_ids ?? []), ...memberIds]),
+        ];
       return { channelId, memberIds };
     }),
 
-    addChatChannelAgents: action(function (this: ChatDraft, channelId: string, agents: ChatChannelAgentRef[]) {
+    addChatChannelAgents: action(function (
+      this: ChatDraft,
+      channelId: string,
+      agents: ChatChannelAgentRef[],
+    ) {
       const row = this.chatRail.find((r) => String(r.channel_id) === channelId);
       if (row) {
         const have = new Set((row.agents ?? []).map(chatAgentId));
-        row.agents = [...(row.agents ?? []), ...agents.filter((a) => !have.has(chatAgentId(a)))];
+        row.agents = [
+          ...(row.agents ?? []),
+          ...agents.filter((a) => !have.has(chatAgentId(a))),
+        ];
       }
       return { channelId, agents };
     }),
 
-    removeChatChannelAgent: action(function (this: ChatDraft, channelId: string, agentId: string) {
+    removeChatChannelAgent: action(function (
+      this: ChatDraft,
+      channelId: string,
+      agentId: string,
+    ) {
       const row = this.chatRail.find((r) => String(r.channel_id) === channelId);
-      if (row?.agents) row.agents = row.agents.filter((a) => chatAgentId(a) !== agentId);
+      if (row?.agents)
+        row.agents = row.agents.filter((a) => chatAgentId(a) !== agentId);
       return { channelId, agentId };
     }),
 
-    removeChatChannelMember: action(function (this: ChatDraft, channelId: string, userId: string) {
+    removeChatChannelMember: action(function (
+      this: ChatDraft,
+      channelId: string,
+      userId: string,
+    ) {
       const row = this.chatRail.find((r) => String(r.channel_id) === channelId);
-      if (row?.member_ids) row.member_ids = row.member_ids.filter((id) => String(id) !== userId);
+      if (row?.member_ids)
+        row.member_ids = row.member_ids.filter((id) => String(id) !== userId);
       if (userId === viewerId(this)) {
         // Leaving: the room disappears for you now. The server deletes the
         // membership + read rows; locally the channel row goes so the rail and
@@ -1422,32 +1744,49 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       retireChannelRows(this, channelId);
     }),
 
-    setChannelNotifyLevel: action(function (this: ChatDraft, channelId: string, level: ChatNotifyLevel) {
+    setChannelNotifyLevel: action(function (
+      this: ChatDraft,
+      channelId: string,
+      level: ChatNotifyLevel,
+    ) {
       upsertRead(this, channelId, { notify_level: level });
     }),
 
     skipChatRoundFloor: action(function (this: ChatDraft, rootId: string) {
       const row = this.chatMessages[rootId] as ChatMessageRow | undefined;
-      if (row?.round?.floor_key) row.round = recordOutcome(row.round, row.round.floor_key, "skipped", { now: Date.now() });
+      if (row?.round?.floor_key)
+        row.round = recordOutcome(row.round, row.round.floor_key, "skipped", {
+          now: Date.now(),
+        });
       return { rootId };
     }),
 
     endChatRound: action(function (this: ChatDraft, rootId: string) {
       const row = this.chatMessages[rootId] as ChatMessageRow | undefined;
-      if (row?.round?.status === "open") row.round = endRound(row.round, Date.now());
+      if (row?.round?.status === "open")
+        row.round = endRound(row.round, Date.now());
       return { rootId };
     }),
 
-    setChatThreadMuted: action(function (this: ChatDraft, channelId: string, rootId: string, muted: boolean) {
+    setChatThreadMuted: action(function (
+      this: ChatDraft,
+      channelId: string,
+      rootId: string,
+      muted: boolean,
+    ) {
       const current = findReadRow(this, channelId)?.muted_threads;
-      upsertRead(this, channelId, { muted_threads: withThreadMuted(current, rootId, muted) });
+      upsertRead(this, channelId, {
+        muted_threads: withThreadMuted(current, rootId, muted),
+      });
     }),
 
     // ── Channels ────────────────────────────────────────────────────────────
 
     createChatChannel: (name: string, opts?: ChatCreateChannelOptions) => {
       const clientId = newChatChannelClientId();
-      void (get().dispatchCreateChatChannel(clientId, name, opts) as Promise<any>).catch(() => {
+      void (
+        get().dispatchCreateChatChannel(clientId, name, opts) as Promise<any>
+      ).catch(() => {
         // Delivery is the outbox's problem: the entry is journaled and re-driven.
         // Swallowing here only stops an unhandled rejection.
       });
@@ -1479,13 +1818,21 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
         updated_at: now,
       };
       // Creating a channel joins it — the same thing the server does.
-      upsertRead(this, clientId, { last_read_at: now, notify_level: "mentions" });
+      upsertRead(this, clientId, {
+        last_read_at: now,
+        notify_level: "mentions",
+      });
       // The agents it starts with paint on the stub's rail row; the server's
       // row carries them once the create lands.
       if (opts?.agents?.length) {
         this.chatRail.push({
-          channel_id: clientId, sort_at: now, unread: 0, unread_mentions: 0,
-          notify_level: "mentions", joined: true, agents: opts.agents,
+          channel_id: clientId,
+          sort_at: now,
+          unread: 0,
+          unread_mentions: 0,
+          notify_level: "mentions",
+          joined: true,
+          agents: opts.agents,
         });
       }
     }),
@@ -1504,14 +1851,21 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
       // sure, so painting a stub and dispatching would only report that
       // refusal. A team not loaded yet is not known to be off.
       const teams = (state as any).teams;
-      if (teams?.some((t: any) => String(t._id) === teamId) && !teamHasFeature(teams, teamId, "chat")) return null;
+      if (
+        teams?.some((t: any) => String(t._id) === teamId) &&
+        !teamHasFeature(teams, teamId, "chat")
+      )
+        return null;
       const clientId = newChatChannelClientId();
-      const created = (get().dispatchOpenDm(clientId, memberIds, teamId) as Promise<any>).then(
+      const created = (
+        get().dispatchOpenDm(clientId, memberIds, teamId) as Promise<any>
+      ).then(
         // The server names the room it opened or found. Kept beside the stub
         // so a caller holding only the stub id (the walkie, mid-burst) can
         // learn the real id from the answer itself rather than waiting for
         // the row to come back through the channel sync.
-        (res: any) => (typeof res?.channel_id === "string" ? String(res.channel_id) : null),
+        (res: any) =>
+          typeof res?.channel_id === "string" ? String(res.channel_id) : null,
       );
       dmOpensInFlight.set(clientId, created);
       created
@@ -1544,7 +1898,10 @@ export function createChatSlice(set: any, get: any): ChatSliceImpl {
         created_at: now,
         updated_at: now,
       };
-      upsertRead(this, clientId, { last_read_at: now, notify_level: "mentions" });
+      upsertRead(this, clientId, {
+        last_read_at: now,
+        notify_level: "mentions",
+      });
     }),
   };
 }
@@ -1593,7 +1950,11 @@ export function teamChannelPushOpts(teamId: string) {
 export const CHAT_SYNC_REGISTRY = {
   // The stub carries client_id === its own stub id; the server row arrives with
   // the same client_id and rekeys the stub onto the real _id.
-  chatChannels: { isDelta: true, altKey: "client_id", transform: liftExcludesForIncoming("chatChannels") },
+  chatChannels: {
+    isDelta: true,
+    altKey: "client_id",
+    transform: liftExcludesForIncoming("chatChannels"),
+  },
   chatMessages: {
     isDelta: true,
     altKey: "client_id",
@@ -1613,7 +1974,11 @@ export const CHAT_SYNC_REGISTRY = {
   },
   // One row per (viewer, channel), so the channel is the natural key — the same
   // shape bucketAssignments uses for its per-conversation row.
-  chatReads: { isDelta: true, altKey: "channel_id", transform: liftExcludesForIncoming("chatReads") },
+  chatReads: {
+    isDelta: true,
+    altKey: "channel_id",
+    transform: liftExcludesForIncoming("chatReads"),
+  },
   // The complete set for the team rides every listChannels push: snapshot, so
   // an unlink prunes.
   chatSlackLinks: { isDelta: false },

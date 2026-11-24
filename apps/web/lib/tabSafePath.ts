@@ -16,12 +16,16 @@
 import { codecastEvalsPaths } from "../components/evals/evalsPaths";
 
 export function tabSafePath(path: string): string {
-  return codecastEvalsPaths.isPath(path) ? codecastEvalsPaths.canonicalPath(path) : path;
+  return codecastEvalsPaths.isPath(path)
+    ? codecastEvalsPaths.canonicalPath(path)
+    : path;
 }
 
 /** The title a tab may keep for `path`: an Evals tab's label from its storable address, any other tab's own title. */
 export function tabSafeTitle(path: string, title: string): string {
-  return codecastEvalsPaths.isPath(path) ? codecastEvalsPaths.tabLabel(tabSafePath(path)) : title;
+  return codecastEvalsPaths.isPath(path)
+    ? codecastEvalsPaths.tabLabel(tabSafePath(path))
+    : title;
 }
 
 /**
@@ -30,10 +34,18 @@ export function tabSafeTitle(path: string, title: string): string {
  * Only these are walked, so free text in any other action (a message that
  * quotes an /evals link) is never rewritten.
  */
-const TAB_PATH_ACTIONS = new Set(["openTab", "updateTab", "saveCurrentTabState", "stageInsertLeaf", "stageSetLeafPath", "applyWorkbench"]);
+const TAB_PATH_ACTIONS = new Set([
+  "openTab",
+  "updateTab",
+  "saveCurrentTabState",
+  "stageInsertLeaf",
+  "stageSetLeafPath",
+  "applyWorkbench",
+]);
 
 function storable(v: unknown): unknown {
-  if (typeof v === "string") return codecastEvalsPaths.isPath(v) ? tabSafePath(v) : v;
+  if (typeof v === "string")
+    return codecastEvalsPaths.isPath(v) ? tabSafePath(v) : v;
   if (Array.isArray(v)) {
     const next = v.map(storable);
     return next.some((x, i) => x !== v[i]) ? next : v;
@@ -46,7 +58,11 @@ function storable(v: unknown): unknown {
     if (x !== rec[k]) (out ??= { ...rec })[k] = x;
   }
   const r = out ?? rec;
-  if (typeof rec.path === "string" && typeof rec.title === "string" && codecastEvalsPaths.isPath(rec.path)) {
+  if (
+    typeof rec.path === "string" &&
+    typeof rec.title === "string" &&
+    codecastEvalsPaths.isPath(rec.path)
+  ) {
     const title = tabSafeTitle(rec.path, rec.title);
     if (title !== r.title) (out ??= { ...rec }).title = title;
   }

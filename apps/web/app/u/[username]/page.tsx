@@ -4,11 +4,26 @@ import { useQuery } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, MapPin, Github, ArrowUpRight, Pin, Activity } from "lucide-react";
-import { AgentTypeIcon, formatAgentType } from "../../../components/AgentTypeIcon";
+import {
+  MessageSquare,
+  MapPin,
+  Github,
+  ArrowUpRight,
+  Pin,
+  Activity,
+} from "lucide-react";
+import {
+  AgentTypeIcon,
+  formatAgentType,
+} from "../../../components/AgentTypeIcon";
 import { AvatarImg } from "../../../lib/avatarCache";
 import { ActivityHeatmap, fmtHours } from "../../../components/ActivityHeatmap";
-import { TimelineCharts, fmtDayLabel, fmtK, type PunchRow } from "../../../components/ActivityCharts";
+import {
+  TimelineCharts,
+  fmtDayLabel,
+  fmtK,
+  type PunchRow,
+} from "../../../components/ActivityCharts";
 import { LogoMark } from "../../../components/Logo";
 import { ThemeToggle } from "../../../components/ThemeToggle";
 import { useLocalAuth } from "../../../lib/localAuth";
@@ -31,7 +46,13 @@ function timeAgo(ts?: number): string {
 }
 
 // One anonymized day of activity from the public heatmap rows.
-type FeedDay = { date: string; sessions: number; hours: number; msgs?: number; projects?: number };
+type FeedDay = {
+  date: string;
+  sessions: number;
+  hours: number;
+  msgs?: number;
+  projects?: number;
+};
 
 export default function PublicProfilePage() {
   const params = useParams();
@@ -81,10 +102,22 @@ export default function PublicProfilePage() {
   }, [heatmap]);
 
   // undefined = still loading; null = no such (enabled) profile → 404.
-  if (profile === undefined) return <ProfileShell><ProfileSkeleton /></ProfileShell>;
-  if (profile === null) return <ProfileShell><NotFound username={username} /></ProfileShell>;
+  if (profile === undefined)
+    return (
+      <ProfileShell>
+        <ProfileSkeleton />
+      </ProfileShell>
+    );
+  if (profile === null)
+    return (
+      <ProfileShell>
+        <NotFound username={username} />
+      </ProfileShell>
+    );
 
-  const initial = (profile.name || profile.username || "?").charAt(0).toUpperCase();
+  const initial = (profile.name || profile.username || "?")
+    .charAt(0)
+    .toUpperCase();
   const showActivity = profile.show_activity_graph;
 
   return (
@@ -108,15 +141,20 @@ export default function PublicProfilePage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-sol-text leading-tight">
               {profile.name || profile.username}
             </h1>
-            <div className="mt-0.5 text-sol-cyan font-mono text-sm">@{profile.username}</div>
+            <div className="mt-0.5 text-sol-cyan font-mono text-sm">
+              @{profile.username}
+            </div>
             {profile.title && (
-              <div className="mt-2 text-sol-text-secondary text-sm">{profile.title}</div>
+              <div className="mt-2 text-sol-text-secondary text-sm">
+                {profile.title}
+              </div>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-sol-text-muted">
               {profile.github_username && (
                 <a
                   href={`https://github.com/${profile.github_username}`}
-                  target="_blank" rel="noreferrer"
+                  target="_blank"
+                  rel="noreferrer"
                   className="inline-flex items-center gap-1 hover:text-sol-text transition-colors"
                 >
                   <Github className="w-3.5 h-3.5" /> {profile.github_username}
@@ -141,12 +179,24 @@ export default function PublicProfilePage() {
         <div className="reveal reveal-1 mt-7 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {showActivity && yearTotals.sessions > 0 && (
             <>
-              <StatChip label="agent hours" value={fmtHours(yearTotals.hours)} />
-              <StatChip label="sessions" value={yearTotals.sessions.toLocaleString()} />
-              <StatChip label="active days" value={yearTotals.activeDays.toLocaleString()} />
+              <StatChip
+                label="agent hours"
+                value={fmtHours(yearTotals.hours)}
+              />
+              <StatChip
+                label="sessions"
+                value={yearTotals.sessions.toLocaleString()}
+              />
+              <StatChip
+                label="active days"
+                value={yearTotals.activeDays.toLocaleString()}
+              />
             </>
           )}
-          <StatChip label="pinned" value={profile.stats.pinned_sessions.toLocaleString()} />
+          <StatChip
+            label="pinned"
+            value={profile.stats.pinned_sessions.toLocaleString()}
+          />
         </div>
 
         {/* Contribution graph */}
@@ -173,7 +223,8 @@ export default function PublicProfilePage() {
           </div>
           {pins === undefined ? (
             <div className="grid sm:grid-cols-2 gap-3">
-              <CardSkeleton /><CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
             </div>
           ) : pins.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-sol-border/30 px-5 py-10 text-center text-sm text-sol-text-muted">
@@ -181,7 +232,9 @@ export default function PublicProfilePage() {
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 gap-3">
-              {pins.map((p: any) => <SessionCard key={p._id} pin={p} />)}
+              {pins.map((p: any) => (
+                <SessionCard key={p._id} pin={p} />
+              ))}
             </div>
           )}
         </section>
@@ -198,7 +251,11 @@ export default function PublicProfilePage() {
             </div>
             <div className="relative border-l border-sol-border/25 ml-1.5 pl-5 space-y-5">
               {feedDays.map((day) => (
-                <FeedDayRow key={day.date} day={day} pins={pinsByDay[day.date]} />
+                <FeedDayRow
+                  key={day.date}
+                  day={day}
+                  pins={pinsByDay[day.date]}
+                />
               ))}
             </div>
           </section>
@@ -223,20 +280,43 @@ function FeedDayRow({ day, pins }: { day: FeedDay; pins?: any[] }) {
         {fmtDayLabel(day.date)}
       </div>
       <div className="mt-0.5 text-[13px] text-sol-text-secondary leading-relaxed">
-        ran <span className="font-semibold text-sol-text tabular-nums">{day.sessions}</span> {plural(day.sessions, "session")}
+        ran{" "}
+        <span className="font-semibold text-sol-text tabular-nums">
+          {day.sessions}
+        </span>{" "}
+        {plural(day.sessions, "session")}
         {hours > 0 && (
-          <> with <span className="font-semibold text-sol-text tabular-nums">{hours}</span> agent {plural(hours, "hour")}</>
+          <>
+            {" "}
+            with{" "}
+            <span className="font-semibold text-sol-text tabular-nums">
+              {hours}
+            </span>{" "}
+            agent {plural(hours, "hour")}
+          </>
         )}
         {(day.projects ?? 0) > 0 && (
-          <> on <span className="font-semibold text-sol-text tabular-nums">{day.projects}</span> {plural(day.projects!, "project")}</>
+          <>
+            {" "}
+            on{" "}
+            <span className="font-semibold text-sol-text tabular-nums">
+              {day.projects}
+            </span>{" "}
+            {plural(day.projects!, "project")}
+          </>
         )}
         {(day.msgs ?? 0) > 0 && (
-          <span className="text-sol-text-muted"> · {fmtK(day.msgs!)} {plural(day.msgs!, "message")}</span>
+          <span className="text-sol-text-muted">
+            {" "}
+            · {fmtK(day.msgs!)} {plural(day.msgs!, "message")}
+          </span>
         )}
       </div>
       {pins && pins.length > 0 && (
         <div className="mt-2 space-y-2">
-          {pins.map((p: any) => <FeedPinRow key={p._id} pin={p} />)}
+          {pins.map((p: any) => (
+            <FeedPinRow key={p._id} pin={p} />
+          ))}
         </div>
       )}
     </div>
@@ -255,7 +335,11 @@ function FeedPinRow({ pin }: { pin: any }) {
       <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-sol-text">
         {pin.title || "Untitled session"}
       </span>
-      {pin.repo && <span className="hidden sm:inline font-mono text-meta text-sol-green/80 shrink-0">{pin.repo}</span>}
+      {pin.repo && (
+        <span className="hidden sm:inline font-mono text-meta text-sol-green/80 shrink-0">
+          {pin.repo}
+        </span>
+      )}
       <span className="inline-flex items-center gap-1 text-meta text-sol-text-muted shrink-0">
         <MessageSquare className="w-3 h-3" /> {pin.message_count}
       </span>
@@ -275,11 +359,15 @@ function SessionCard({ pin }: { pin: any }) {
         {pin.title || "Untitled session"}
       </h3>
       {pin.subtitle && (
-        <p className="mt-1 text-xs text-sol-text-muted line-clamp-2 leading-relaxed">{pin.subtitle}</p>
+        <p className="mt-1 text-xs text-sol-text-muted line-clamp-2 leading-relaxed">
+          {pin.subtitle}
+        </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-sol-text-muted">
         {pin.repo && (
-          <span className="inline-flex items-center gap-1 font-mono text-sol-green/90">{pin.repo}</span>
+          <span className="inline-flex items-center gap-1 font-mono text-sol-green/90">
+            {pin.repo}
+          </span>
         )}
         {pin.agent && (
           <span className="inline-flex items-center gap-1">
@@ -290,7 +378,9 @@ function SessionCard({ pin }: { pin: any }) {
         <span className="inline-flex items-center gap-1">
           <MessageSquare className="w-3 h-3" /> {pin.message_count}
         </span>
-        <span className="ml-auto text-sol-text-muted/70">{timeAgo(pin.updated_at)}</span>
+        <span className="ml-auto text-sol-text-muted/70">
+          {timeAgo(pin.updated_at)}
+        </span>
       </div>
     </Link>
   );
@@ -299,7 +389,9 @@ function SessionCard({ pin }: { pin: any }) {
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-sol-border/25 bg-sol-card/60 px-4 py-3">
-      <div className="text-xl font-bold text-sol-text tabular-nums leading-none">{value}</div>
+      <div className="text-xl font-bold text-sol-text tabular-nums leading-none">
+        {value}
+      </div>
       <div className="mt-1.5 text-meta text-sol-text-muted">{label}</div>
     </div>
   );
@@ -326,7 +418,9 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
       <nav className="relative z-10 flex items-center justify-between px-5 sm:px-8 h-14 border-b border-sol-border/20">
         <Link href="/" className="flex items-center gap-2 group text-sol-text">
           <LogoMark monochrome className="w-6 h-6" />
-          <span className="font-semibold tracking-tight group-hover:text-sol-cyan transition-colors">codecast</span>
+          <span className="font-semibold tracking-tight group-hover:text-sol-cyan transition-colors">
+            codecast
+          </span>
         </Link>
         <div className="flex items-center gap-3 text-sm">
           <ThemeToggle />
@@ -339,7 +433,12 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
             </Link>
           ) : (
             <>
-              <Link href="/login" className="text-sol-text-muted hover:text-sol-text transition-colors">Sign in</Link>
+              <Link
+                href="/login"
+                className="text-sol-text-muted hover:text-sol-text transition-colors"
+              >
+                Sign in
+              </Link>
               <Link
                 href="/signup"
                 className="rounded-lg bg-sol-cyan/15 text-sol-cyan border border-sol-cyan/30 px-3 py-1.5 font-medium hover:bg-sol-cyan/25 transition-colors"
@@ -359,12 +458,17 @@ function NotFound({ username }: { username: string }) {
   return (
     <div className="mx-auto max-w-md px-5 pt-28 text-center">
       <div className="text-5xl mb-4">🛰️</div>
-      <h1 className="text-xl font-semibold text-sol-text">No public profile here</h1>
+      <h1 className="text-xl font-semibold text-sol-text">
+        No public profile here
+      </h1>
       <p className="mt-2 text-sm text-sol-text-muted">
-        <span className="font-mono text-sol-text-secondary">@{username}</span> hasn’t set up a public
-        codecast profile, or the handle doesn’t exist.
+        <span className="font-mono text-sol-text-secondary">@{username}</span>{" "}
+        hasn’t set up a public codecast profile, or the handle doesn’t exist.
       </p>
-      <Link href="/" className="mt-6 inline-block text-sm text-sol-cyan hover:underline">
+      <Link
+        href="/"
+        className="mt-6 inline-block text-sm text-sol-cyan hover:underline"
+      >
         ← Back to codecast
       </Link>
     </div>
@@ -383,7 +487,8 @@ function ProfileSkeleton() {
       </div>
       <div className="mt-8 h-20 rounded-2xl bg-sol-bg-alt/50" />
       <div className="mt-8 grid sm:grid-cols-2 gap-3">
-        <CardSkeleton /><CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
       </div>
     </div>
   );

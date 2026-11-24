@@ -26,38 +26,85 @@ const decision = (extra: Record<string, any> = {}) => ({
   ...extra,
 });
 
-async function makeCtx(task: Record<string, any> = {}, decisions: any[] = [decision()]) {
+async function makeCtx(
+  task: Record<string, any> = {},
+  decisions: any[] = [decision()],
+) {
   const tables: Record<string, any[]> = {
     users: [{ _id: OWNER, name: "Owner", github_username: "owner" }],
-    api_tokens: [{ _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
-    tasks: [{ _id: "tasks_1", short_id: "ct-1", title: "ct-1", user_id: OWNER, status: "in_review", source: "agent", ...task }],
+    api_tokens: [
+      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
+    tasks: [
+      {
+        _id: "tasks_1",
+        short_id: "ct-1",
+        title: "ct-1",
+        user_id: OWNER,
+        status: "in_review",
+        source: "agent",
+        ...task,
+      },
+    ],
     task_history: [],
     task_comments: [],
     thread_reads: [],
     entity_subscriptions: [],
     session_decisions: decisions,
-    conversations: [{ _id: "conversations_hand", session_id: "hand", user_id: OWNER, status: "active" }],
+    conversations: [
+      {
+        _id: "conversations_hand",
+        session_id: "hand",
+        user_id: OWNER,
+        status: "active",
+      },
+    ],
   };
   const db = makeFakeDb(tables);
   const ctx = {
-    auth: { async getUserIdentity() { return { subject: `${OWNER}|session` }; } },
+    auth: {
+      async getUserIdentity() {
+        return { subject: `${OWNER}|session` };
+      },
+    },
     db,
     scheduler: { runAfter: async () => null },
-    async runMutation() { return null; },
+    async runMutation() {
+      return null;
+    },
   } as any;
   return { ctx, tables };
 }
 
-const cliMove = (ctx: any, session: string | undefined, extra: Record<string, any> = {}) =>
-  (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1", status: "in_progress", ...(session ? { conversation_id: session } : {}), ...extra });
+const cliMove = (
+  ctx: any,
+  session: string | undefined,
+  extra: Record<string, any> = {},
+) =>
+  (update as any)._handler(ctx, {
+    api_token: TOKEN,
+    short_id: "ct-1",
+    status: "in_progress",
+    ...(session ? { conversation_id: session } : {}),
+    ...extra,
+  });
 const boardMove = (ctx: any, extra: Record<string, any> = {}) =>
-  (webUpdate as any)._handler(ctx, { short_id: "ct-1", status: "in_progress", ...extra });
+  (webUpdate as any)._handler(ctx, {
+    short_id: "ct-1",
+    status: "in_progress",
+    ...extra,
+  });
 
 describe("the hold (the-line.md L5)", () => {
   test("a hand cannot move a held task; the error names the decision and the release path", async () => {
     const { ctx, tables } = await makeCtx();
-    const refused = await cliMove(ctx, "hand").then(() => "", (err: Error) => err.message);
-    expect(refused).toStartWith("Held at in_review by sd-211, a decision for a person to answer");
+    const refused = await cliMove(ctx, "hand").then(
+      () => "",
+      (err: Error) => err.message,
+    );
+    expect(refused).toStartWith(
+      "Held at in_review by sd-211, a decision for a person to answer",
+    );
     // The session is never told to answer the person's decision itself.
     expect(refused).not.toContain("decide answer");
     expect(refused).toContain("cast task dep ct-1 --blocked-by sd-211");
@@ -66,11 +113,19 @@ describe("the hold (the-line.md L5)", () => {
   });
 
   test("a hand's handoff on a held task keeps the evidence and leaves the task at its station", async () => {
-    const { ctx, tables } = await makeCtx({ status: "in_progress" }, [decision({ station: "in_progress" })]);
-    const result = await cliMove(ctx, "hand", { status: "in_review", execution_status: "blocked", verification_evidence: "stopped: waiting on the call" });
+    const { ctx, tables } = await makeCtx({ status: "in_progress" }, [
+      decision({ station: "in_progress" }),
+    ]);
+    const result = await cliMove(ctx, "hand", {
+      status: "in_review",
+      execution_status: "blocked",
+      verification_evidence: "stopped: waiting on the call",
+    });
     expect(result.held).toEqual({ decision: "sd-211", station: "in_progress" });
     expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.tasks[0].verification_evidence).toBe("stopped: waiting on the call");
+    expect(tables.tasks[0].verification_evidence).toBe(
+      "stopped: waiting on the call",
+    );
     expect(tables.session_decisions[0].status).toBe("pending");
   });
 
@@ -79,7 +134,9 @@ describe("the hold (the-line.md L5)", () => {
     await boardMove(ctx);
     expect(tables.tasks[0].status).toBe("in_progress");
     expect(tables.session_decisions[0].status).toBe("pending");
-    const note = tables.task_comments.find((c: any) => c.comment_type === "note");
+    const note = tables.task_comments.find(
+      (c: any) => c.comment_type === "note",
+    );
     expect(note?.text).toContain("sd-211");
     expect(note?.text).toContain("in_review");
     expect(note?.author_user_id).toBe(OWNER);
@@ -89,30 +146,42 @@ describe("the hold (the-line.md L5)", () => {
     const { ctx, tables } = await makeCtx();
     await cliMove(ctx, undefined);
     expect(tables.tasks[0].status).toBe("in_progress");
-    expect(tables.task_comments.some((c: any) => c.comment_type === "note" && c.text.includes("sd-211"))).toBe(true);
+    expect(
+      tables.task_comments.some(
+        (c: any) => c.comment_type === "note" && c.text.includes("sd-211"),
+      ),
+    ).toBe(true);
   });
 
   test("answering releases the hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [decision({ status: "answered", answer_index: 0 })]);
+    const { ctx, tables } = await makeCtx({}, [
+      decision({ status: "answered", answer_index: 0 }),
+    ]);
     await cliMove(ctx, "hand");
     expect(tables.tasks[0].status).toBe("in_progress");
     expect(tables.task_comments).toHaveLength(0);
   });
 
   test("a non blocking decision does not hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [decision({ blocking: false, default_option: 0 })]);
+    const { ctx, tables } = await makeCtx({}, [
+      decision({ blocking: false, default_option: 0 }),
+    ]);
     await cliMove(ctx, "hand");
     expect(tables.tasks[0].status).toBe("in_progress");
   });
 
   test("a decision at another station does not hold", async () => {
-    const { ctx, tables } = await makeCtx({}, [decision({ station: "in_progress" })]);
+    const { ctx, tables } = await makeCtx({}, [
+      decision({ station: "in_progress" }),
+    ]);
     await cliMove(ctx, "hand");
     expect(tables.tasks[0].status).toBe("in_progress");
   });
 
   test("the station is the team status id when the task carries one", async () => {
-    const { ctx, tables } = await makeCtx({ status_id: "qa" }, [decision({ station: "qa" })]);
+    const { ctx, tables } = await makeCtx({ status_id: "qa" }, [
+      decision({ station: "qa" }),
+    ]);
     await expect(cliMove(ctx, "hand")).rejects.toThrow(/Held at qa by sd-211/);
     expect(tables.tasks[0].status).toBe("in_review");
   });
@@ -121,7 +190,11 @@ describe("the hold (the-line.md L5)", () => {
     const { ctx, tables } = await makeCtx();
     await cliMove(ctx, "hand", { status: undefined, title: "renamed" });
     expect(tables.tasks[0].title).toBe("renamed");
-    expect(await holdingDecisionFor(ctx, tables.tasks[0], "in_review")).toBeNull();
-    expect(await holdingDecisionFor(ctx, tables.tasks[0], undefined)).toBeNull();
+    expect(
+      await holdingDecisionFor(ctx, tables.tasks[0], "in_review"),
+    ).toBeNull();
+    expect(
+      await holdingDecisionFor(ctx, tables.tasks[0], undefined),
+    ).toBeNull();
   });
 });

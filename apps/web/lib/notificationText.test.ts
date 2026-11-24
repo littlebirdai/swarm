@@ -43,6 +43,8 @@ describe("stripMarkdown keepNewlines option", () => {
   });
 
   test("keepNewlines preserves breaks, collapsing 3+ to a paragraph break", () => {
-    expect(stripMarkdown("a\nb\n\n\n\nc", { keepNewlines: true })).toBe("a\nb\n\nc");
+    expect(stripMarkdown("a\nb\n\n\n\nc", { keepNewlines: true })).toBe(
+      "a\nb\n\nc",
+    );
   });
 });

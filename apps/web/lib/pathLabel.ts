@@ -7,7 +7,11 @@
 import { browserPathLabel, isBrowserRoutePath } from "./browserPane";
 import { isConvexId, orgObjectOfRef } from "@codecast/shared/entities";
 import { orgRefOfPath } from "../components/org/company/sheetStack";
-import { conversationIdFromPath, directConversationId, shareTokenInPath } from "./desktopHandoff";
+import {
+  conversationIdFromPath,
+  directConversationId,
+  shareTokenInPath,
+} from "./desktopHandoff";
 import { changesDayLabel } from "./changesDay";
 import { modTabLabel, objectTabLabel } from "./mods/label";
 import { weekMonday } from "@codecast/shared/changes";
@@ -60,10 +64,15 @@ export function pathLabel(path: string): string {
   // the address alone gives its kind, never its id.
   if (clean.startsWith("/workflows/runs/")) return "Run";
   // A trace (line-map.md LX4) titles by the ref it follows.
-  if (clean.startsWith("/flows/trace/") || clean.startsWith("/line/trace/")) { const r = clean.split("/")[3]; return r ? `Trace ${decodeURIComponent(r)}` : "Trace"; }
+  if (clean.startsWith("/flows/trace/") || clean.startsWith("/line/trace/")) {
+    const r = clean.split("/")[3];
+    return r ? `Trace ${decodeURIComponent(r)}` : "Trace";
+  }
   // One flow's page, by its owner's handle.
-  if (/^\/flows\/[^/]+$/.test(clean) && clean !== "/flows/settings") return "Flow";
-  if (/^\/line\/[^/]+$/.test(clean) && clean !== "/line/settings") return "Flows";
+  if (/^\/flows\/[^/]+$/.test(clean) && clean !== "/flows/settings")
+    return "Flow";
+  if (/^\/line\/[^/]+$/.test(clean) && clean !== "/line/settings")
+    return "Flows";
   if (clean.startsWith("/projects/") && clean.split("/")[2]) return "Project";
   if (clean.startsWith("/docs/")) return "Doc";
   if (clean.startsWith("/plans/")) return "Plan";
@@ -81,8 +90,10 @@ export function pathLabel(path: string): string {
   }
   // A decision's document page and a stack (docs/architecture/decisions-as-
   // documents.md D4, D5) title by their short id, the handle people quote.
-  if (clean.startsWith("/decisions/stacks/")) return clean.split("/")[3] ? `Stack ${clean.split("/")[3]}` : "Stack";
-  if (clean.startsWith("/decisions/")) return clean.split("/")[2] ? `Decision ${clean.split("/")[2]}` : "Decision";
+  if (clean.startsWith("/decisions/stacks/"))
+    return clean.split("/")[3] ? `Stack ${clean.split("/")[3]}` : "Stack";
+  if (clean.startsWith("/decisions/"))
+    return clean.split("/")[2] ? `Decision ${clean.split("/")[2]}` : "Decision";
   // The org page with a staffing proposal open (org-staffing.md S5) titles
   // by the proposal's short id, like a decision; the bare page stays "Org".
   if (clean === "/org") {
@@ -98,7 +109,8 @@ export function pathLabel(path: string): string {
   if (clean === "/mods") return "Mods";
   if (clean === "/agent-features") return "Agent features";
   if (clean.startsWith("/m/")) return modTabLabel(clean);
-  if (clean.startsWith("/objects/") || clean.startsWith("/o/")) return objectTabLabel(clean);
+  if (clean.startsWith("/objects/") || clean.startsWith("/o/"))
+    return objectTabLabel(clean);
   if (clean === "/changes") {
     try {
       const q = new URLSearchParams(path.split("#")[0].split("?")[1] ?? "");
@@ -111,7 +123,9 @@ export function pathLabel(path: string): string {
     return "Changes";
   }
   if (clean === "/prompts") {
-    const day = changesDayLabel(new URLSearchParams(path.split("#")[0].split("?")[1] ?? "").get("d"));
+    const day = changesDayLabel(
+      new URLSearchParams(path.split("#")[0].split("?")[1] ?? "").get("d"),
+    );
     return day ? `Prompts, ${day}` : "Prompts";
   }
   // A Files tab is titled by the open file, not the encoded query string. An
@@ -136,7 +150,9 @@ export function pathLabel(path: string): string {
     const inPath = (() => {
       try {
         const p = new URLSearchParams(path.split("?")[1] ?? "").get("path");
-        return p ? decodeURIComponent(p).split("/").filter(Boolean).pop() : null;
+        return p
+          ? decodeURIComponent(p).split("/").filter(Boolean).pop()
+          : null;
       } catch {
         return null;
       }
@@ -144,9 +160,15 @@ export function pathLabel(path: string): string {
     // [_, "repo", owner, name, section, ...] — the file a tree, blob or file
     // history is showing wins, then the section, then the repository itself.
     const section = clean.split("/")[4];
-    return inPath || REPO_SECTION_LABEL[section] || clean.split("/")[3] || "Repository";
+    return (
+      inPath ||
+      REPO_SECTION_LABEL[section] ||
+      clean.split("/")[3] ||
+      "Repository"
+    );
   }
-  if (codecastEvalsPaths.isPath(clean)) return codecastEvalsPaths.tabLabel(path);
+  if (codecastEvalsPaths.isPath(clean))
+    return codecastEvalsPaths.tabLabel(path);
   if (isOpsPath(clean)) return opsTabLabel(path);
   if (clean.startsWith("/commit/")) {
     const sha = clean.split("/")[4] ?? "";
@@ -252,7 +274,10 @@ export function conversationRefInPath(path: string): string | null {
  *  the equivalent `/inbox?s=<id>` (see stampedTabPath). Rewriting that URL
  *  back would clobber the `{ inboxId }` history entry the inbox pushed for
  *  the select — and with it browser back/forward across viewed sessions. */
-export function tabNeedsUrlRestore(livePathname: string, tabPath: string): boolean {
+export function tabNeedsUrlRestore(
+  livePathname: string,
+  tabPath: string,
+): boolean {
   if (livePathname === tabPath.split("?")[0].split("#")[0]) return false;
   return conversationTabPath(livePathname) !== tabPath;
 }
@@ -278,7 +303,8 @@ export function poppedTabPath(
   if (state?.inboxId) {
     // Any pane of the active tab on the inbox route keeps the pane's listener
     // alive (a split stage with the inbox beside the task counts).
-    if (activeTabPanePaths.some((p) => p.split("?")[0] === "/inbox")) return null;
+    if (activeTabPanePaths.some((p) => p.split("?")[0] === "/inbox"))
+      return null;
     return `/inbox?s=${state.inboxId}`;
   }
   return pathname + search;

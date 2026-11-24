@@ -12,7 +12,17 @@ export const chapter: HeroChapter = {
   id: "conversation",
   parts: [
     { key: "header", region: "desk.header", order: 0, Component: LeadHeader },
-    { key: "transcript", region: "desk.transcript", order: 10, Component: LeadTranscript },
-    { key: "composer", region: "desk.composer", order: 0, Component: LeadComposer },
+    {
+      key: "transcript",
+      region: "desk.transcript",
+      order: 10,
+      Component: LeadTranscript,
+    },
+    {
+      key: "composer",
+      region: "desk.composer",
+      order: 0,
+      Component: LeadComposer,
+    },
   ],
 };

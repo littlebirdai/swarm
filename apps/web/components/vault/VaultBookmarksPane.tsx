@@ -7,8 +7,22 @@
 // lib/vault/bookmarks + bookmarksHost; this file only arranges and paints it.
 
 import { memo, useState } from "react";
-import { Bookmark, BookmarkCheck, Folder, Hash, Search, Trash2, FileText, Pencil } from "lucide-react";
-import { ContextMenu, CtxItem, CtxSeparator, useContextMenu } from "../ui/context-menu";
+import {
+  Bookmark,
+  BookmarkCheck,
+  Folder,
+  Hash,
+  Search,
+  Trash2,
+  FileText,
+  Pencil,
+} from "lucide-react";
+import {
+  ContextMenu,
+  CtxItem,
+  CtxSeparator,
+  useContextMenu,
+} from "../ui/context-menu";
 import {
   bookmarkLabel,
   bookmarkSubtitle,
@@ -77,19 +91,20 @@ function EmptyState() {
       <div className="mb-1">Four things can be pinned here:</div>
       <ul className="space-y-1">
         <li>
-          <span className="text-sol-text-muted">Notes</span> — the bookmark icon beside a note&apos;s
-          title
+          <span className="text-sol-text-muted">Notes</span> — the bookmark icon
+          beside a note&apos;s title
         </li>
         <li>
-          <span className="text-sol-text-muted">Files and folders</span> — right-click a row in the
-          explorer
+          <span className="text-sol-text-muted">Files and folders</span> —
+          right-click a row in the explorer
         </li>
         <li>
-          <span className="text-sol-text-muted">Headings</span> — the bookmark icon on an outline row
+          <span className="text-sol-text-muted">Headings</span> — the bookmark
+          icon on an outline row
         </li>
         <li>
-          <span className="text-sol-text-muted">Searches</span> — &ldquo;Bookmark this search&rdquo;
-          in the search pane
+          <span className="text-sol-text-muted">Searches</span> —
+          &ldquo;Bookmark this search&rdquo; in the search pane
         </li>
       </ul>
     </div>
@@ -139,7 +154,9 @@ export const VaultBookmarksPane = memo(function VaultBookmarksPane({
           <div
             key={item.id}
             className={`group flex items-center gap-1.5 px-3 py-1 text-[12px] ${
-              isActive ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt"
+              isActive
+                ? "bg-sol-bg-highlight text-sol-text"
+                : "text-sol-text-muted hover:bg-sol-bg-alt"
             }`}
             onContextMenu={(e) => menu.open(e, item)}
           >
@@ -150,7 +167,10 @@ export const VaultBookmarksPane = memo(function VaultBookmarksPane({
                 onCommit={(title) => {
                   // The target's own name is the fallback: clearing the box, or
                   // typing it back, drops the override instead of freezing it.
-                  setBookmarkTitle(item.id, title.trim() === defaultBookmarkLabel(item) ? "" : title);
+                  setBookmarkTitle(
+                    item.id,
+                    title.trim() === defaultBookmarkLabel(item) ? "" : title,
+                  );
                   setRenamingId(null);
                 }}
                 onCancel={() => setRenamingId(null)}
@@ -237,7 +257,11 @@ export function BookmarkToggle({
         bookmarked ? "text-sol-cyan" : "text-sol-text-dim hover:text-sol-text"
       } ${className}`}
     >
-      {bookmarked ? <BookmarkCheck className={size} /> : <Bookmark className={size} />}
+      {bookmarked ? (
+        <BookmarkCheck className={size} />
+      ) : (
+        <Bookmark className={size} />
+      )}
     </button>
   );
 }

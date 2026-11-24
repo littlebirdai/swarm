@@ -11,7 +11,9 @@ export const BELOW_SM = "(max-width: 639px)";
 
 /** A CSS media query's answer, live: re-renders when it flips. */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.(query).matches);
+  const [matches, setMatches] = useState(
+    () => typeof window !== "undefined" && !!window.matchMedia?.(query).matches,
+  );
   useMountEffect(() => {
     const mq = window.matchMedia?.(query);
     if (!mq) return;

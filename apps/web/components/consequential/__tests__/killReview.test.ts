@@ -8,8 +8,23 @@ import { assertGlance } from "./glance";
 
 // One Kill, one rule: the card menu, a selection and the palette all ask
 // this before killing, and end at once only when nothing is lost.
-const s = (id: string, extra: Partial<InboxSession> = {}) => ({ _id: id, title: `Row ${id}`, is_idle: true, has_pending: false, ...extra }) as InboxSession;
-const armed = (id: string, conv: string) => ({ _id: id, title: `Check ${id}`, prompt: "p", status: "scheduled", schedule_type: "once", originating_conversation_id: conv }) as TaskRow;
+const s = (id: string, extra: Partial<InboxSession> = {}) =>
+  ({
+    _id: id,
+    title: `Row ${id}`,
+    is_idle: true,
+    has_pending: false,
+    ...extra,
+  }) as InboxSession;
+const armed = (id: string, conv: string) =>
+  ({
+    _id: id,
+    title: `Check ${id}`,
+    prompt: "p",
+    status: "scheduled",
+    schedule_type: "once",
+    originating_conversation_id: conv,
+  }) as TaskRow;
 
 describe("killReviewOf", () => {
   test("an idle session with nothing armed or queued ends at once", () => {
@@ -20,18 +35,43 @@ describe("killReviewOf", () => {
     const l = killReviewOf([s("a")], [armed("t", "a")])!;
     expect(l.name).toBe("Kill session");
     expect(l.subject).toBe("Row a");
-    expect(l.rows.find((r) => r.k === "Triggers")).toMatchObject({ v: "1 trigger canceled", list: ["Check t"] });
+    expect(l.rows.find((r) => r.k === "Triggers")).toMatchObject({
+      v: "1 trigger canceled",
+      list: ["Check t"],
+    });
     assertGlance(l);
   });
 
   test("a persistent anchor keeps its triggers and queue on a kill, so only a cut-off turn asks", () => {
-    expect(killReviewOf([s("a", { persistent: true, has_pending: true })], [armed("t", "a")])).toBeNull();
-    expect(killReviewOf([s("a", { persistent: true, is_idle: false })], [])?.rows.find((r) => r.k === "Working")?.list).toEqual(["Row a"]);
+    expect(
+      killReviewOf(
+        [s("a", { persistent: true, has_pending: true })],
+        [armed("t", "a")],
+      ),
+    ).toBeNull();
+    expect(
+      killReviewOf(
+        [s("a", { persistent: true, is_idle: false })],
+        [],
+      )?.rows.find((r) => r.k === "Working")?.list,
+    ).toEqual(["Row a"]);
   });
 
   test("a role's own session never asks here: its kill opens the retire question instead", () => {
-    expect(killReviewOf([s("a", { standing_role_id: "r1", is_idle: false, has_pending: true })], [armed("t", "a")])).toBeNull();
-    const l = killReviewOf([s("a", { standing_role_id: "r1" }), s("b", { has_pending: true }), s("c")], [armed("t", "a")])!;
+    expect(
+      killReviewOf(
+        [s("a", { standing_role_id: "r1", is_idle: false, has_pending: true })],
+        [armed("t", "a")],
+      ),
+    ).toBeNull();
+    const l = killReviewOf(
+      [
+        s("a", { standing_role_id: "r1" }),
+        s("b", { has_pending: true }),
+        s("c"),
+      ],
+      [armed("t", "a")],
+    )!;
     expect(l.name).toBe("Kill 2 sessions");
     // Nothing armed to cancel: no Triggers row at all, rather than a bare "Canceled".
     expect(l.rows.find((r) => r.k === "Triggers")).toBeUndefined();
@@ -41,15 +81,42 @@ describe("killReviewOf", () => {
   // something a Kill cuts off, and the review names it.
   test("whatever it has in flight asks first, named as what the kill cuts off", () => {
     const now = 1_800_000_000_000;
-    const lost = (extra: Partial<InboxSession>) => killReviewOf([s("a", extra)], [], now)?.rows.find((r) => r.k === "Lost")?.v;
-    expect(lost({ awaiting_input: true } as any)).toBe("Questions waiting on you");
-    expect(lost({ loop_state: { status: "waiting", wakeup_at: now + 60_000, event_at: now - 1000 } } as any)).toBe("Running /loops");
-    expect(lost({ workflow_run_id: "w1", workflow_run_status: "running", workflow_run_kind: "workflow" } as any)).toBe("Workflow runs");
+    const lost = (extra: Partial<InboxSession>) =>
+      killReviewOf([s("a", extra)], [], now)?.rows.find((r) => r.k === "Lost")
+        ?.v;
+    expect(lost({ awaiting_input: true } as any)).toBe(
+      "Questions waiting on you",
+    );
+    expect(
+      lost({
+        loop_state: {
+          status: "waiting",
+          wakeup_at: now + 60_000,
+          event_at: now - 1000,
+        },
+      } as any),
+    ).toBe("Running /loops");
+    expect(
+      lost({
+        workflow_run_id: "w1",
+        workflow_run_status: "running",
+        workflow_run_kind: "workflow",
+      } as any),
+    ).toBe("Workflow runs");
     expect(lost({ subagent_slot: "queued" } as any)).toBe("Queued starts");
     expect(lost({ is_idle: false })).toBe("Unfinished turns");
-    const two = killReviewOf([s("a", { is_idle: false }), s("b", { awaiting_input: true } as any)], [], now)!;
-    expect(two.rows.find((r) => r.k === "Working")?.list).toEqual(["Row a", "Row b"]);
-    expect(two.rows.find((r) => r.k === "Lost")?.v).toBe("Unfinished turns · Questions waiting on you");
+    const two = killReviewOf(
+      [s("a", { is_idle: false }), s("b", { awaiting_input: true } as any)],
+      [],
+      now,
+    )!;
+    expect(two.rows.find((r) => r.k === "Working")?.list).toEqual([
+      "Row a",
+      "Row b",
+    ]);
+    expect(two.rows.find((r) => r.k === "Lost")?.v).toBe(
+      "Unfinished turns · Questions waiting on you",
+    );
     assertGlance(two);
   });
 
@@ -60,9 +127,16 @@ describe("killReviewOf", () => {
   });
 
   test("the palette's Kill and the menu's Kill both ask through it", () => {
-    const read = (rel: string) => readFileSync(join(import.meta.dir, "..", "..", rel), "utf8");
+    const read = (rel: string) =>
+      readFileSync(join(import.meta.dir, "..", "..", rel), "utf8");
     const palette = read("CommandPalette.tsx");
-    const branch = palette.slice(palette.indexOf('actionKey === "session_kill"'), palette.indexOf("killManyWithNotice(ids);", palette.indexOf('actionKey === "session_kill"')));
+    const branch = palette.slice(
+      palette.indexOf('actionKey === "session_kill"'),
+      palette.indexOf(
+        "killManyWithNotice(ids);",
+        palette.indexOf('actionKey === "session_kill"'),
+      ),
+    );
     expect(branch).toContain("killReviewOf(");
     expect(read("BulkMoveSessions.tsx")).toContain("killReviewOf(");
   });

@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { parseDuration, formatDuration, parsePolicyArg, formatStackList, describePolicy, parseDue, formatDue, resolveReorderIds } from "./stackCommand";
+import {
+  parseDuration,
+  formatDuration,
+  parsePolicyArg,
+  formatStackList,
+  describePolicy,
+  parseDue,
+  formatDue,
+  resolveReorderIds,
+} from "./stackCommand";
 
 describe("cast stack policy parsing", () => {
   test("durations", () => {
@@ -11,23 +20,54 @@ describe("cast stack policy parsing", () => {
     expect(formatDuration(5_400_000)).toBe("90m");
   });
   test("--policy auto-default:<dur>", () => {
-    expect(parsePolicyArg("auto-default:24h")).toEqual({ auto_default_after_ms: 86_400_000 });
+    expect(parsePolicyArg("auto-default:24h")).toEqual({
+      auto_default_after_ms: 86_400_000,
+    });
     expect(() => parsePolicyArg("auto-default")).toThrow(/duration/);
     expect(() => parsePolicyArg("magic:1")).toThrow(/Unknown policy/);
   });
   test("list formatting", () => {
     const now = 10_000_000;
     const out = formatStackList(
-      [{ _id: "s", short_id: "ds-3", title: "Launch", status: "open", policy: { auto_default_after_ms: 3_600_000 }, decision_ids: ["a", "b"], total: 2, resolved: 1, pending: 1, next_short_id: "sd-9", created_at: now - 120_000, updated_at: now }],
+      [
+        {
+          _id: "s",
+          short_id: "ds-3",
+          title: "Launch",
+          status: "open",
+          policy: { auto_default_after_ms: 3_600_000 },
+          decision_ids: ["a", "b"],
+          total: 2,
+          resolved: 1,
+          pending: 1,
+          next_short_id: "sd-9",
+          created_at: now - 120_000,
+          updated_at: now,
+        },
+      ],
       now,
     );
-    expect(out).toBe("● ds-3  Launch  1/2 resolved  next sd-9  (auto default after 1h; 2m ago)");
+    expect(out).toBe(
+      "● ds-3  Launch  1/2 resolved  next sd-9  (auto default after 1h; 2m ago)",
+    );
     expect(describePolicy({})).toBe("no policy");
     expect(formatStackList([])).toContain("No decision stacks");
   });
   test("ls stops at the limit and says how to see the rest", () => {
     const now = 10_000_000;
-    const row = (n: number) => ({ _id: `s${n}`, short_id: `ds-${n}`, title: `T${n}`, status: "open" as const, policy: {}, decision_ids: [], total: 0, resolved: 0, pending: 0, created_at: now, updated_at: now });
+    const row = (n: number) => ({
+      _id: `s${n}`,
+      short_id: `ds-${n}`,
+      title: `T${n}`,
+      status: "open" as const,
+      policy: {},
+      decision_ids: [],
+      total: 0,
+      resolved: 0,
+      pending: 0,
+      created_at: now,
+      updated_at: now,
+    });
     const out = formatStackList([row(3), row(2), row(1)], now, 2);
     expect(out.split("\n")).toHaveLength(3);
     expect(out).toContain("ds-2");
@@ -40,7 +80,8 @@ describe("cast stack policy parsing", () => {
 describe("cast stack policy --due and reorder", () => {
   // A fixed local clock: 2026-09-15 10:30 local time.
   const now = new Date(2026, 8, 15, 10, 30).getTime();
-  const local = (y: number, m: number, d: number, h = 0, min = 0) => new Date(y, m - 1, d, h, min).getTime();
+  const local = (y: number, m: number, d: number, h = 0, min = 0) =>
+    new Date(y, m - 1, d, h, min).getTime();
 
   test("--due takes a duration, today, tomorrow, a date, or a date and time", () => {
     expect(parseDue("3h", now)).toBe(now + 3 * 3_600_000);
@@ -53,22 +94,56 @@ describe("cast stack policy --due and reorder", () => {
   });
 
   test("a due time reads as due or overdue in the policy line and the list", () => {
-    expect(formatDue(local(2026, 9, 20, 23, 59), now)).toBe("due 2026-09-20 23:59");
-    expect(formatDue(local(2026, 9, 10, 9, 0), now)).toBe("overdue since 2026-09-10 09:00");
-    expect(describePolicy({ due_at: local(2026, 9, 10, 9, 0) }, undefined, now)).toBe("overdue since 2026-09-10 09:00");
+    expect(formatDue(local(2026, 9, 20, 23, 59), now)).toBe(
+      "due 2026-09-20 23:59",
+    );
+    expect(formatDue(local(2026, 9, 10, 9, 0), now)).toBe(
+      "overdue since 2026-09-10 09:00",
+    );
+    expect(
+      describePolicy({ due_at: local(2026, 9, 10, 9, 0) }, undefined, now),
+    ).toBe("overdue since 2026-09-10 09:00");
     const out = formatStackList(
-      [{ _id: "s", short_id: "ds-3", title: "Launch", status: "open", policy: { due_at: local(2026, 9, 20, 23, 59) }, decision_ids: [], total: 0, resolved: 0, pending: 0, created_at: now - 60_000, updated_at: now }],
+      [
+        {
+          _id: "s",
+          short_id: "ds-3",
+          title: "Launch",
+          status: "open",
+          policy: { due_at: local(2026, 9, 20, 23, 59) },
+          decision_ids: [],
+          total: 0,
+          resolved: 0,
+          pending: 0,
+          created_at: now - 60_000,
+          updated_at: now,
+        },
+      ],
       now,
     );
     expect(out).toContain("(due 2026-09-20 23:59; 1m ago)");
   });
 
   test("reorder resolves short ids to raw ids and requires every member exactly once", () => {
-    const members = [{ _id: "sd_a", short_id: "sd-1" }, { _id: "sd_b", short_id: "sd-2" }, { _id: "sd_c", short_id: "sd-3" }];
-    expect(resolveReorderIds(members, ["sd-3", "sd-1", "sd_b"])).toEqual(["sd_c", "sd_a", "sd_b"]);
-    expect(() => resolveReorderIds(members, ["sd-3", "sd-1", "sd-9"])).toThrow(/sd-9 is not a member/);
-    expect(() => resolveReorderIds(members, ["sd-3", "sd-3", "sd-1"])).toThrow(/appears twice/);
-    expect(() => resolveReorderIds(members, ["sd-3", "sd-1"])).toThrow(/missing: sd-2/);
+    const members = [
+      { _id: "sd_a", short_id: "sd-1" },
+      { _id: "sd_b", short_id: "sd-2" },
+      { _id: "sd_c", short_id: "sd-3" },
+    ];
+    expect(resolveReorderIds(members, ["sd-3", "sd-1", "sd_b"])).toEqual([
+      "sd_c",
+      "sd_a",
+      "sd_b",
+    ]);
+    expect(() => resolveReorderIds(members, ["sd-3", "sd-1", "sd-9"])).toThrow(
+      /sd-9 is not a member/,
+    );
+    expect(() => resolveReorderIds(members, ["sd-3", "sd-3", "sd-1"])).toThrow(
+      /appears twice/,
+    );
+    expect(() => resolveReorderIds(members, ["sd-3", "sd-1"])).toThrow(
+      /missing: sd-2/,
+    );
   });
 });
 
@@ -84,7 +159,10 @@ describe("cast stack remove, reorder and policy --due on the wire", () => {
   const realError = console.error;
   const realExit = process.exit;
   let logs: string[] = [];
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => "s1" } as any;
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => "s1",
+  } as any;
 
   async function run(...argv: string[]) {
     const { Command } = await import("commander");
@@ -99,15 +177,24 @@ describe("cast stack remove, reorder and policy --due on the wire", () => {
     calls.length = 0;
     logs = [];
     answer = () => ({});
-    globalThis.fetch = (async (url: string | URL | Request, init: RequestInit) => {
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init: RequestInit,
+    ) => {
       const path = String(url).slice(SITE.length);
       const { api_token: _token, ...body } = JSON.parse(String(init.body));
       calls.push({ path, body });
       return new Response(JSON.stringify(answer(path, body)), { status: 200 });
     }) as typeof fetch;
-    console.log = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
-    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(" ")); };
-    process.exit = ((code?: number) => { throw new Error(`exit ${code ?? 0}`); }) as never;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+    console.error = (...args: unknown[]) => {
+      logs.push(args.map(String).join(" "));
+    };
+    process.exit = ((code?: number) => {
+      throw new Error(`exit ${code ?? 0}`);
+    }) as never;
   });
   afterEach(() => {
     globalThis.fetch = realFetch;
@@ -118,16 +205,33 @@ describe("cast stack remove, reorder and policy --due on the wire", () => {
 
   test("remove posts the stack and the decision", async () => {
     await run("remove", "ds-3", "sd-9");
-    expect(calls).toEqual([{ path: "/cli/stack/remove", body: { stack: "ds-3", decision: "sd-9" } }]);
+    expect(calls).toEqual([
+      { path: "/cli/stack/remove", body: { stack: "ds-3", decision: "sd-9" } },
+    ]);
     expect(logs.join("\n")).toContain("sd-9 from ds-3");
     await expect(run("remove", "ds-3")).rejects.toThrow(/exit 1/);
   });
 
   test("reorder reads the members, then posts raw ids in the new order", async () => {
-    answer = (path) => (path === "/cli/stack/show" ? { stack: {}, decisions: [{ _id: "raw_a", short_id: "sd-1" }, { _id: "raw_b", short_id: "sd-2" }] } : {});
+    answer = (path) =>
+      path === "/cli/stack/show"
+        ? {
+            stack: {},
+            decisions: [
+              { _id: "raw_a", short_id: "sd-1" },
+              { _id: "raw_b", short_id: "sd-2" },
+            ],
+          }
+        : {};
     await run("reorder", "ds-3", "sd-2,sd-1");
-    expect(calls.map((c) => c.path)).toEqual(["/cli/stack/show", "/cli/stack/reorder"]);
-    expect(calls[1].body).toEqual({ stack: "ds-3", decision_ids: ["raw_b", "raw_a"] });
+    expect(calls.map((c) => c.path)).toEqual([
+      "/cli/stack/show",
+      "/cli/stack/reorder",
+    ]);
+    expect(calls[1].body).toEqual({
+      stack: "ds-3",
+      decision_ids: ["raw_b", "raw_a"],
+    });
     // A member left out is refused before anything is posted.
     calls.length = 0;
     await expect(run("reorder", "ds-3", "sd-2")).rejects.toThrow(/exit 1/);
@@ -145,6 +249,8 @@ describe("cast stack remove, reorder and policy --due on the wire", () => {
     calls.length = 0;
     await run("policy", "ds-3", "--no-due");
     expect(calls[0].body).toEqual({ stack: "ds-3", clear_due: true });
-    await expect(run("policy", "ds-3", "--due", "soon")).rejects.toThrow(/exit 1/);
+    await expect(run("policy", "ds-3", "--due", "soon")).rejects.toThrow(
+      /exit 1/,
+    );
   });
 });

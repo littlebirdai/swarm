@@ -50,7 +50,8 @@ mock.module("../errorToast", () => ({
 }));
 
 const analytics = await import("../analytics");
-const { POSTHOG_REPLAY_SAMPLE_RATE } = await import("@codecast/shared/analytics");
+const { POSTHOG_REPLAY_SAMPLE_RATE } =
+  await import("@codecast/shared/analytics");
 
 describe("codecast's analytics configuration reaches the package", () => {
   test("keeps the browser SDK behind the idle initialization boundary", async () => {
@@ -64,13 +65,18 @@ describe("codecast's analytics configuration reaches the package", () => {
     expect(count(sentryCalls, "init")).toBe(0);
     await analytics.initAnalytics();
 
-    const [key, options] = last(phCalls, "init") as [string, Record<string, unknown>];
+    const [key, options] = last(phCalls, "init") as [
+      string,
+      Record<string, unknown>,
+    ];
     expect(key).toBe("phc_test_key");
     expect(options.api_host).toBe("https://ph.test");
     // Behavior the package owns, asserted here because codecast depends on it:
     // a sample of sessions recorded, no dead clicks, pageviews on SPA navigations.
     expect(options.disable_session_recording).toBe(false);
-    expect(options.session_recording).toEqual({ sampleRate: POSTHOG_REPLAY_SAMPLE_RATE });
+    expect(options.session_recording).toEqual({
+      sampleRate: POSTHOG_REPLAY_SAMPLE_RATE,
+    });
     expect(options.capture_dead_clicks).toBe(false);
     expect(options.capture_pageview).toBe("history_change");
     // A visitor without an account (no stored token here) keeps the PostHog
@@ -87,7 +93,10 @@ describe("codecast's analytics configuration reaches the package", () => {
     expect(sentryOptions.dsn).toBe("https://dsn@sentry.test/1");
     expect(sentryOptions.environment).toBe("production");
     expect(sentryOptions.enabled).toBe(true);
-    expect(sentryOptions.initialScope.tags).toEqual({ platform: "web", app: "codecast" });
+    expect(sentryOptions.initialScope.tags).toEqual({
+      platform: "web",
+      app: "codecast",
+    });
   });
 
   test("a link that is a key never reaches PostHog or Sentry as written", async () => {
@@ -95,15 +104,26 @@ describe("codecast's analytics configuration reaches the package", () => {
     const [, options] = last(phCalls, "init") as [string, Record<string, any>];
     const sent = options.before_send({
       event: "$pageview",
-      properties: { $current_url: "https://codecast.sh/share/call/k3y?t=90", $referrer: "https://codecast.sh/meet/g0lden" },
+      properties: {
+        $current_url: "https://codecast.sh/share/call/k3y?t=90",
+        $referrer: "https://codecast.sh/meet/g0lden",
+      },
     });
     expect(JSON.stringify(sent)).not.toMatch(/k3y|g0lden/);
-    expect(sent.properties.$current_url).toBe("https://codecast.sh/share/call/:token?t=90");
+    expect(sent.properties.$current_url).toBe(
+      "https://codecast.sh/share/call/:token?t=90",
+    );
 
     const [sentryOptions] = last(sentryCalls, "init") as [Record<string, any>];
-    const event = sentryOptions.beforeSend({ request: { url: "https://codecast.sh/join/inv1te" }, exception: { values: [] } });
+    const event = sentryOptions.beforeSend({
+      request: { url: "https://codecast.sh/join/inv1te" },
+      exception: { values: [] },
+    });
     expect(event.request.url).toBe("https://codecast.sh/join/:token");
-    const crumb = sentryOptions.beforeBreadcrumb({ category: "navigation", data: { from: "/inbox", to: "/share/k3y" } });
+    const crumb = sentryOptions.beforeBreadcrumb({
+      category: "navigation",
+      data: { from: "/inbox", to: "/share/k3y" },
+    });
     expect(crumb.data).toEqual({ from: "/inbox", to: "/share/:token" });
   });
 
@@ -112,29 +132,45 @@ describe("codecast's analytics configuration reaches the package", () => {
       ["/share/doc/abc123", "/share/doc/:token"],
       ["/share/abc123def", "/share/:token"],
       ["/share/abcdef", "/share/:token"],
-      ["https://codecast.sh/meet/g0lden?x=1#y", "https://codecast.sh/meet/:token?x=1#y"],
+      [
+        "https://codecast.sh/meet/g0lden?x=1#y",
+        "https://codecast.sh/meet/:token?x=1#y",
+      ],
       ["https://codecast.sh/a/pub-slug", "https://codecast.sh/a/:token"],
-      ['a:href="/join/inv1te"nth-child="2"', 'a:href="/join/:token"nth-child="2"'],
+      [
+        'a:href="/join/inv1te"nth-child="2"',
+        'a:href="/join/:token"nth-child="2"',
+      ],
       ["/share/call/:token", "/share/call/:token"],
       ["/repo/acme/web/blob/main/a/b.ts", "/repo/acme/web/blob/main/a/b.ts"],
       ["/calls/cl-42?t=90", "/calls/cl-42?t=90"],
       ["/documentation/guides/calls", "/documentation/guides/calls"],
     ];
-    for (const [input, out] of cases) expect(analytics.scrubSecretPaths(input)).toBe(out);
+    for (const [input, out] of cases)
+      expect(analytics.scrubSecretPaths(input)).toBe(out);
   });
 
   test("without VITE_CODECAST_INGEST_KEY the key is the committed codecast.json's, and reporting is off when it has none", async () => {
     await analytics.initAnalytics();
     const runtime = await import("@platform/analytics/web-runtime");
-    const committed = (await import("../../codecast.json")).default as { ingestKey?: string };
-    expect(runtime.getCodecastSink()?.ingestKey ?? null).toBe(committed.ingestKey ?? null);
+    const committed = (await import("../../codecast.json")).default as {
+      ingestKey?: string;
+    };
+    expect(runtime.getCodecastSink()?.ingestKey ?? null).toBe(
+      committed.ingestKey ?? null,
+    );
   });
 
   test("identify uses the id the caller passes — the Convex users._id", async () => {
     await analytics.initAnalytics();
     analytics.identifyUser("users:abc123", { email: "a@b.c" });
-    expect(last(phCalls, "identify")).toEqual(["users:abc123", { email: "a@b.c" }]);
-    expect(last(sentryCalls, "setUser")).toEqual([{ id: "users:abc123", email: "a@b.c" }]);
+    expect(last(phCalls, "identify")).toEqual([
+      "users:abc123",
+      { email: "a@b.c" },
+    ]);
+    expect(last(sentryCalls, "setUser")).toEqual([
+      { id: "users:abc123", email: "a@b.c" },
+    ]);
   });
 });
 
@@ -159,9 +195,15 @@ describe("error toasts read the cause chain", () => {
   });
 
   test("an uncaught wrapper is reported by the failure it hides", () => {
-    const cause = new TypeError("cannot read properties of undefined (reading 'title')");
+    const cause = new TypeError(
+      "cannot read properties of undefined (reading 'title')",
+    );
     const wrapper = new Error("Minified React error #520", { cause });
-    handlers.error({ error: wrapper, message: wrapper.message, preventDefault: () => {} });
+    handlers.error({
+      error: wrapper,
+      message: wrapper.message,
+      preventDefault: () => {},
+    });
 
     expect(toasts.length).toBe(1);
     expect(toasts[0][0]).toBe(`Uncaught: ${cause.message}`);
@@ -192,13 +234,20 @@ describe("error toasts read the cause chain", () => {
     // React's recovered-render path and the window listener share the package's
     // dedupe, so a failure arriving on both toasts once.
     const cause = new RangeError("out of range");
-    analytics.reportRecoverableRenderError(new Error("Minified React error #418", { cause }), {
-      componentStack: "\n at Flaky",
-    });
+    analytics.reportRecoverableRenderError(
+      new Error("Minified React error #418", { cause }),
+      {
+        componentStack: "\n at Flaky",
+      },
+    );
     expect(toasts.length).toBe(1);
     expect(toasts[0][0]).toBe(`Recovered render error: ${cause.message}`);
 
-    handlers.error({ error: cause, message: cause.message, preventDefault: () => {} });
+    handlers.error({
+      error: cause,
+      message: cause.message,
+      preventDefault: () => {},
+    });
     expect(toasts.length).toBe(1);
   });
 });
@@ -217,7 +266,8 @@ describe("codecast reports its own errors to codecast when the key is set", () =
   beforeEach(async () => {
     process.env.VITE_CODECAST_INGEST_KEY = KEY;
     // Nothing here may reach the real ingest door.
-    globalThis.fetch = (async () => new Response("{}", { status: 202 })) as unknown as typeof fetch;
+    globalThis.fetch = (async () =>
+      new Response("{}", { status: 202 })) as unknown as typeof fetch;
     runtime = await import("@platform/analytics/web-runtime");
     if (!keyed) {
       runtime._resetRuntimeForTests();
@@ -251,8 +301,16 @@ describe("codecast reports its own errors to codecast when the key is set", () =
     keyed.setupErrorToasts();
     const cause = new TypeError("codecast sink cause");
     const wrapper = new Error("Minified React error #520", { cause });
-    handlers.error({ error: wrapper, message: wrapper.message, preventDefault: () => {} });
-    handlers.error({ error: wrapper, message: wrapper.message, preventDefault: () => {} });
+    handlers.error({
+      error: wrapper,
+      message: wrapper.message,
+      preventDefault: () => {},
+    });
+    handlers.error({
+      error: wrapper,
+      message: wrapper.message,
+      preventDefault: () => {},
+    });
     expect(heard).toEqual([cause.message]);
     expect(count(sentryCalls, "captureException")).toBe(1);
     expect(toasts.length).toBe(1);
@@ -261,7 +319,9 @@ describe("codecast reports its own errors to codecast when the key is set", () =
   test("known-benign errors stay out of codecast too", () => {
     const heard: unknown[] = [];
     runtime.getCodecastSink()!.onError((item) => heard.push(item));
-    keyed.captureError(new Error("Dispatch binding changed while work was in flight"));
+    keyed.captureError(
+      new Error("Dispatch binding changed while work was in flight"),
+    );
     expect(heard.length).toBe(0);
   });
 });

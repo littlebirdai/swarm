@@ -57,6 +57,8 @@ describe("popOutVia", () => {
   });
 
   it("reports a popup a blocker ate", async () => {
-    expect(await popOutVia(ROUTE, rungs({ openPopup: () => false }))).toBe("blocked");
+    expect(await popOutVia(ROUTE, rungs({ openPopup: () => false }))).toBe(
+      "blocked",
+    );
   });
 });

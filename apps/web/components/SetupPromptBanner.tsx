@@ -11,28 +11,39 @@ import { setupPromptMessage } from "../lib/setupPrompt";
 const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000;
 
 export function SetupPromptBanner() {
-  const dismissedTs = useInboxStore(s => s.clientState.dismissed?.setup_prompt ?? 0);
-  const updateDismissed = useInboxStore(s => s.updateClientDismissed);
+  const dismissedTs = useInboxStore(
+    (s) => s.clientState.dismissed?.setup_prompt ?? 0,
+  );
+  const updateDismissed = useInboxStore((s) => s.updateClientDismissed);
   const [mounted, setMounted] = useState(false);
 
   const { user } = useCurrentUser();
   const conversationsResult = useQueryNoThrow(
     api.conversations.listConversations,
-    user?._id ? { filter: "my", limit: 1 } : "skip"
+    user?._id ? { filter: "my", limit: 1 } : "skip",
   ).data;
 
-  useMountEffect(() => { setMounted(true); });
+  useMountEffect(() => {
+    setMounted(true);
+  });
 
-  const isDismissed = dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
+  const isDismissed =
+    dismissedTs > 0 && Date.now() - dismissedTs < DISMISS_DURATION_MS;
 
   if (!mounted || isDismissed) return null;
   if (user === undefined || conversationsResult === undefined) return null;
 
-  const message = setupPromptMessage(!!user?.cli_version, (conversationsResult?.conversations?.length ?? 0) > 0);
+  const message = setupPromptMessage(
+    !!user?.cli_version,
+    (conversationsResult?.conversations?.length ?? 0) > 0,
+  );
   if (!message) return null;
 
   return (
-    <div data-cc-banner className="bg-gradient-to-r from-sol-yellow/10 via-sol-orange/10 to-sol-yellow/10 border-b border-sol-yellow/30">
+    <div
+      data-cc-banner
+      className="bg-gradient-to-r from-sol-yellow/10 via-sol-orange/10 to-sol-yellow/10 border-b border-sol-yellow/30"
+    >
       <div className="px-4 py-2 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Terminal className="w-4 h-4 text-sol-yellow flex-shrink-0" />

@@ -26,13 +26,27 @@ afterEach(() => nowSpy.mockRestore());
 
 function row(id: string, extra: Partial<InboxSession> = {}): InboxSession {
   return {
-    _id: id, session_id: `s-${id.slice(0, 3)}`, agent_type: "claude_code", user_id: ME, status: "active",
-    message_count: 6, is_idle: true, has_pending: false, title: `t-${id.slice(0, 1)}`, updated_at: NOW - 60_000,
-    started_at: NOW - 3_600_000, ...extra,
+    _id: id,
+    session_id: `s-${id.slice(0, 3)}`,
+    agent_type: "claude_code",
+    user_id: ME,
+    status: "active",
+    message_count: 6,
+    is_idle: true,
+    has_pending: false,
+    title: `t-${id.slice(0, 1)}`,
+    updated_at: NOW - 60_000,
+    started_at: NOW - 3_600_000,
+    ...extra,
   } as InboxSession;
 }
 const station = (extra: Partial<InboxSession> = {}) =>
-  row(STATION, { is_subagent: true, parent_conversation_id: RUN_LOG, title: "Refine · ct-1", ...extra } as Partial<InboxSession>);
+  row(STATION, {
+    is_subagent: true,
+    parent_conversation_id: RUN_LOG,
+    title: "Refine · ct-1",
+    ...extra,
+  } as Partial<InboxSession>);
 
 function state(sessions: Record<string, InboxSession>): PlaceInboxState {
   return {
@@ -53,13 +67,26 @@ function state(sessions: Record<string, InboxSession>): PlaceInboxState {
   } as unknown as PlaceInboxState;
 }
 
-const SECTIONS = ["questions", "pinned", "newSessions", "needsInput", "done", "dormant", "working"] as const;
-const flatIds = (placed: ReturnType<typeof placeInboxRows>) => SECTIONS.flatMap((k) => placed[k].map((s) => s._id));
+const SECTIONS = [
+  "questions",
+  "pinned",
+  "newSessions",
+  "needsInput",
+  "done",
+  "dormant",
+  "working",
+] as const;
+const flatIds = (placed: ReturnType<typeof placeInboxRows>) =>
+  SECTIONS.flatMap((k) => placed[k].map((s) => s._id));
 
 describe("a focused child row whose parent is not listed", () => {
   it("files as a loose card while it is the open session", () => {
     const s = state({ [STATION]: station(), [OTHER]: row(OTHER) });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: STATION, now: NOW });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: STATION,
+      now: NOW,
+    });
     expect(flatIds(placed)).toContain(STATION);
     // Never a working-set member: the tally only counts the other row.
     const shown = Object.values(placed.tally.shown).reduce((a, b) => a + b, 0);
@@ -68,40 +95,76 @@ describe("a focused child row whose parent is not listed", () => {
 
   it("stays off the list when another session is open", () => {
     const s = state({ [STATION]: station(), [OTHER]: row(OTHER) });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: OTHER, now: NOW });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: OTHER,
+      now: NOW,
+    });
     expect(flatIds(placed)).not.toContain(STATION);
   });
 
   it("files loose when its parent is stashed", () => {
-    const s = state({ [STATION]: station(), [RUN_LOG]: row(RUN_LOG, { inbox_stashed_at: NOW - 3_600_000 }) });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: STATION, now: NOW });
+    const s = state({
+      [STATION]: station(),
+      [RUN_LOG]: row(RUN_LOG, { inbox_stashed_at: NOW - 3_600_000 }),
+    });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: STATION,
+      now: NOW,
+    });
     expect(flatIds(placed)).toContain(STATION);
   });
 
   it("still nests under an active parent", () => {
     const s = state({ [STATION]: station(), [RUN_LOG]: row(RUN_LOG) });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: STATION, now: NOW });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: STATION,
+      now: NOW,
+    });
     expect(flatIds(placed)).not.toContain(STATION);
-    expect(placed.subsByParent.get(RUN_LOG)?.map((r) => r._id)).toEqual([STATION]);
+    expect(placed.subsByParent.get(RUN_LOG)?.map((r) => r._id)).toEqual([
+      STATION,
+    ]);
   });
 });
 
 describe("a station the person adopted (inbox_adopted_at)", () => {
   it("stays on the list as a member when another session is open", () => {
     const s = state({
-      [STATION]: station({ inbox_adopted_at: NOW - 600_000 } as Partial<InboxSession>),
-      [RUN_LOG]: row(RUN_LOG, { inbox_stashed_at: NOW - 3_600_000, is_workflow_primary: true, workflow_run_id: "run_1" } as Partial<InboxSession>),
+      [STATION]: station({
+        inbox_adopted_at: NOW - 600_000,
+      } as Partial<InboxSession>),
+      [RUN_LOG]: row(RUN_LOG, {
+        inbox_stashed_at: NOW - 3_600_000,
+        is_workflow_primary: true,
+        workflow_run_id: "run_1",
+      } as Partial<InboxSession>),
       [OTHER]: row(OTHER),
     });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: OTHER, now: NOW });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: OTHER,
+      now: NOW,
+    });
     expect(flatIds(placed)).toContain(STATION);
     const shown = Object.values(placed.tally.shown).reduce((a, b) => a + b, 0);
     expect(shown).toBe(2);
   });
 
   it("is off the list again once the adoption is older than the window", () => {
-    const s = state({ [STATION]: station({ inbox_adopted_at: NOW - 31 * 86_400_000 } as Partial<InboxSession>), [OTHER]: row(OTHER) });
-    const placed = placeInboxRows(s, { scope: "mine", focusedId: OTHER, now: NOW });
+    const s = state({
+      [STATION]: station({
+        inbox_adopted_at: NOW - 31 * 86_400_000,
+      } as Partial<InboxSession>),
+      [OTHER]: row(OTHER),
+    });
+    const placed = placeInboxRows(s, {
+      scope: "mine",
+      focusedId: OTHER,
+      now: NOW,
+    });
     expect(flatIds(placed)).not.toContain(STATION);
   });
 });

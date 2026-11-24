@@ -26,10 +26,18 @@ const SUB12_CLASS = /(?<![\w-])text-\[(\d+(?:\.\d+)?)px\]/g;
 function walk(ext: RegExp): string[] {
   const out: string[] = [];
   for (const dir of DIRS) {
-    for (const f of readdirSync(join(ROOT, dir), { recursive: true }) as string[]) {
+    for (const f of readdirSync(join(ROOT, dir), {
+      recursive: true,
+    }) as string[]) {
       const rel = join(dir, f);
-      if (!ext.test(rel) || rel.endsWith(".d.ts") || rel.includes("node_modules")) continue;
-      if (/\.test\.|\.spec\.|(^|\/)__tests__\/|(^|\/)__snapshots__\//.test(rel)) continue;
+      if (
+        !ext.test(rel) ||
+        rel.endsWith(".d.ts") ||
+        rel.includes("node_modules")
+      )
+        continue;
+      if (/\.test\.|\.spec\.|(^|\/)__tests__\/|(^|\/)__snapshots__\//.test(rel))
+        continue;
       out.push(rel);
     }
   }
@@ -37,13 +45,25 @@ function walk(ext: RegExp): string[] {
 }
 
 /** Every string literal and template part in a source file, with its line. */
-function strings(rel: string, src: string): Array<{ text: string; line: number }> {
+function strings(
+  rel: string,
+  src: string,
+): Array<{ text: string; line: number }> {
   const kind = rel.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const sf = ts.createSourceFile(rel, src, ts.ScriptTarget.Latest, true, kind);
   const out: Array<{ text: string; line: number }> = [];
   const visit = (n: ts.Node) => {
-    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n)) {
-      out.push({ text: n.text, line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1 });
+    if (
+      ts.isStringLiteral(n) ||
+      ts.isNoSubstitutionTemplateLiteral(n) ||
+      ts.isTemplateHead(n) ||
+      ts.isTemplateMiddle(n) ||
+      ts.isTemplateTail(n)
+    ) {
+      out.push({
+        text: n.text,
+        line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+      });
     }
     ts.forEachChild(n, visit);
   };
@@ -75,17 +95,24 @@ describe("type scale", () => {
   test("no stylesheet sets a literal font size under 11px", () => {
     const off: string[] = [];
     for (const rel of walk(/\.css$/)) {
-      const css = readFileSync(join(ROOT, rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
+      const css = readFileSync(join(ROOT, rel), "utf8").replace(
+        /\/\*[\s\S]*?\*\//g,
+        (c) => c.replace(/[^\n]/g, " "),
+      );
       const lineAt = (i: number) => css.slice(0, i).split("\n").length;
-      for (const m of css.matchAll(/(?<![\w-])font-size\s*:\s*([^;}]+?)\s*(?:!important\s*)?[;}]/g)) {
+      for (const m of css.matchAll(
+        /(?<![\w-])font-size\s*:\s*([^;}]+?)\s*(?:!important\s*)?[;}]/g,
+      )) {
         const px = literalPx(m[1]!);
-        if (px !== null && px < 11) off.push(`${rel}:${lineAt(m.index!)} font-size: ${m[1]}`);
+        if (px !== null && px < 11)
+          off.push(`${rel}:${lineAt(m.index!)} font-size: ${m[1]}`);
       }
       // The size in a `font:` shorthand: the first length before the family.
       for (const m of css.matchAll(/(?<![\w-])font\s*:\s*([^;}]+)[;}]/g)) {
         const size = /(?:^|\s)(\d*\.?\d+(?:px|rem))(?=\/|\s)/.exec(m[1]!)?.[1];
         const px = size ? literalPx(size) : null;
-        if (px !== null && px < 11) off.push(`${rel}:${lineAt(m.index!)} font: ${m[1]!.trim()}`);
+        if (px !== null && px < 11)
+          off.push(`${rel}:${lineAt(m.index!)} font: ${m[1]!.trim()}`);
       }
     }
     expect(off.slice(0, 40)).toEqual([]);

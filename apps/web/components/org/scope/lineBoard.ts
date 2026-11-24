@@ -7,7 +7,10 @@
 import type { TeamTaskStatus } from "@codecast/shared/tasks";
 import { stationOrder } from "../../../lib/taskLine";
 import { taskStatusKey } from "../../../lib/taskStatuses";
-import { DEFAULT_LINE_SLUG, DEFAULT_STEPS_LABEL } from "@codecast/shared/contracts/lineSlug";
+import {
+  DEFAULT_LINE_SLUG,
+  DEFAULT_STEPS_LABEL,
+} from "@codecast/shared/contracts/lineSlug";
 
 export type LineTaskLike = {
   _id: string;
@@ -18,13 +21,19 @@ export type LineTaskLike = {
   files_changed?: string[];
 };
 
-export type LineColumn<T extends LineTaskLike> = { status: TeamTaskStatus; tasks: T[] };
+export type LineColumn<T extends LineTaskLike> = {
+  status: TeamTaskStatus;
+  tasks: T[];
+};
 
 /** One column per station in pipeline order (backlog to dropped, the team's
  *  own order inside a category); a task lands in the column of the status it
  *  resolves to, newest change first. Every station is present, empty or not,
  *  so the board reads the same shape for every scope. */
-export function lineColumns<T extends LineTaskLike>(tasks: T[], statuses: TeamTaskStatus[]): LineColumn<T>[] {
+export function lineColumns<T extends LineTaskLike>(
+  tasks: T[],
+  statuses: TeamTaskStatus[],
+): LineColumn<T>[] {
   const ordered = stationOrder(statuses);
   const byKey = new Map<string, T[]>(ordered.map((s) => [s.id, []]));
   for (const t of tasks) {
@@ -35,14 +44,19 @@ export function lineColumns<T extends LineTaskLike>(tasks: T[], statuses: TeamTa
   }
   return ordered.map((status) => ({
     status,
-    tasks: (byKey.get(status.id) ?? []).slice().sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)),
+    tasks: (byKey.get(status.id) ?? [])
+      .slice()
+      .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)),
   }));
 }
 
 /** Evidence the card can count without a query: pages bound to the task in
  *  the artifacts store (rows that carry `task_id`) and the files its handoff
  *  named. */
-export function evidenceCount(task: LineTaskLike, artifacts: Array<{ task_id?: string | null }>): { pages: number; files: number } {
+export function evidenceCount(
+  task: LineTaskLike,
+  artifacts: Array<{ task_id?: string | null }>,
+): { pages: number; files: number } {
   let pages = 0;
   for (const a of artifacts) if (a.task_id === task._id) pages++;
   return { pages, files: task.files_changed?.length ?? 0 };
@@ -53,7 +67,10 @@ export function evidenceCount(task: LineTaskLike, artifacts: Array<{ task_id?: s
 /** The workflow templates the CLI ships (apps/cli/src/workflow/templates.ts).
  *  The web has no copy of the sources; it needs only the names a role's line
  *  may resolve to when the host has pushed no workflow of that slug. */
-export const SHIPPED_LINE_TEMPLATES: ReadonlyArray<{ slug: string; name: string }> = [
+export const SHIPPED_LINE_TEMPLATES: ReadonlyArray<{
+  slug: string;
+  name: string;
+}> = [
   { slug: DEFAULT_LINE_SLUG, name: DEFAULT_STEPS_LABEL },
   { slug: "feature", name: "Feature" },
   { slug: "plan-autopilot", name: "Plan autopilot" },
@@ -65,16 +82,34 @@ export type LineOption = { slug: string; label: string; shipped: boolean };
  *  by slug (an own workflow with a shipped slug wins, since the sweep runs the
  *  pushed row first, L9). A current slug nothing lists stays selectable so
  *  the picker never shows a value it cannot name. */
-export function lineOptions(workflows: Array<{ slug: string; name?: string }>, current: string): LineOption[] {
+export function lineOptions(
+  workflows: Array<{ slug: string; name?: string }>,
+  current: string,
+): LineOption[] {
   const own = new Map<string, string>();
-  for (const w of workflows) if (w.slug && !own.has(w.slug)) own.set(w.slug, w.name || w.slug);
+  for (const w of workflows)
+    if (w.slug && !own.has(w.slug)) own.set(w.slug, w.name || w.slug);
   const out: LineOption[] = [];
   for (const t of SHIPPED_LINE_TEMPLATES) {
     const mine = own.get(t.slug);
-    out.push({ slug: t.slug, label: mine ? `${mine} (yours)` : t.name, shipped: !mine });
+    out.push({
+      slug: t.slug,
+      label: mine ? `${mine} (yours)` : t.name,
+      shipped: !mine,
+    });
     own.delete(t.slug);
   }
-  for (const [slug, name] of own) out.push({ slug, label: name === slug ? slug : `${name} (${slug})`, shipped: false });
-  if (current && !out.some((o) => o.slug === current)) out.push({ slug: current, label: `${current} (not found)`, shipped: false });
+  for (const [slug, name] of own)
+    out.push({
+      slug,
+      label: name === slug ? slug : `${name} (${slug})`,
+      shipped: false,
+    });
+  if (current && !out.some((o) => o.slug === current))
+    out.push({
+      slug: current,
+      label: `${current} (not found)`,
+      shipped: false,
+    });
   return out;
 }

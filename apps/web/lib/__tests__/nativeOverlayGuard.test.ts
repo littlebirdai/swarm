@@ -43,7 +43,9 @@ describe("what counts as an overlay", () => {
 
   test("the stage's drag veil and pick layer hide the pane", () => {
     for (const cls of ["stage-drop-veil", "stage-pick"]) {
-      const body = dom(`<div class="${cls} absolute inset-0" data-rect="0,0,1200,800"></div>`);
+      const body = dom(
+        `<div class="${cls} absolute inset-0" data-rect="0,0,1200,800"></div>`,
+      );
       expect(overlayHidesPane(PANE, collectOverlays(body, rectOf))).toBe(true);
     }
   });
@@ -60,10 +62,17 @@ describe("what counts as an overlay", () => {
   });
 
   test("a toast in the corner leaves a pane on the other side alone", () => {
-    const body = dom(`<li data-sonner-toast data-rect="1000,700,1190,780"></li>`);
+    const body = dom(
+      `<li data-sonner-toast data-rect="1000,700,1190,780"></li>`,
+    );
     expect(overlayHidesPane(PANE, collectOverlays(body, rectOf))).toBe(false);
     // …and hides one it actually covers.
-    expect(overlayHidesPane({ left: 950, top: 600, right: 1200, bottom: 800 }, collectOverlays(body, rectOf))).toBe(true);
+    expect(
+      overlayHidesPane(
+        { left: 950, top: 600, right: 1200, bottom: 800 },
+        collectOverlays(body, rectOf),
+      ),
+    ).toBe(true);
   });
 
   test("a popper on its way out does not hold the page hidden", () => {
@@ -94,9 +103,15 @@ describe("what counts as an overlay", () => {
     // The undo card, a drill-in over one board, an anchored confirm: dialogs
     // in role, but they leave the rest of the app usable, so a browser pane on
     // the other half of the window must not blink off and on with them.
-    const beside = dom(`<div role="dialog" aria-modal="false" data-rect="${Object.values(BESIDE_PANE).join(",")}"></div>`);
-    const over = dom(`<div role="dialog" aria-modal="false" data-rect="${Object.values(OVER_PANE).join(",")}"></div>`);
-    expect(collectOverlays(beside, rectOf).map((h) => h.kind)).toEqual(["floating"]);
+    const beside = dom(
+      `<div role="dialog" aria-modal="false" data-rect="${Object.values(BESIDE_PANE).join(",")}"></div>`,
+    );
+    const over = dom(
+      `<div role="dialog" aria-modal="false" data-rect="${Object.values(OVER_PANE).join(",")}"></div>`,
+    );
+    expect(collectOverlays(beside, rectOf).map((h) => h.kind)).toEqual([
+      "floating",
+    ]);
     expect(overlayHidesPane(PANE, collectOverlays(beside, rectOf))).toBe(false);
     expect(overlayHidesPane(PANE, collectOverlays(over, rectOf))).toBe(true);
   });
@@ -122,7 +137,9 @@ describe("what counts as an overlay", () => {
   test("the two lists stay disjoint", () => {
     // A selector in both would make a floating thing black out every pane —
     // the exact over-hiding this split exists to avoid.
-    const overlap = MODAL_SELECTORS.filter((s) => FLOATING_SELECTORS.includes(s));
+    const overlap = MODAL_SELECTORS.filter((s) =>
+      FLOATING_SELECTORS.includes(s),
+    );
     expect(overlap).toEqual([]);
   });
 });
@@ -130,11 +147,19 @@ describe("what counts as an overlay", () => {
 describe("edges of the rect test", () => {
   test("touching edges do not count as covering", () => {
     const touching: Rect = { left: 900, top: 32, right: 1000, bottom: 700 };
-    expect(overlayHidesPane(PANE, [{ kind: "floating", selector: "x", rect: touching }])).toBe(false);
+    expect(
+      overlayHidesPane(PANE, [
+        { kind: "floating", selector: "x", rect: touching },
+      ]),
+    ).toBe(false);
   });
 
   test("one pixel of overlap counts", () => {
     const sliver: Rect = { left: 899, top: 32, right: 1000, bottom: 700 };
-    expect(overlayHidesPane(PANE, [{ kind: "floating", selector: "x", rect: sliver }])).toBe(true);
+    expect(
+      overlayHidesPane(PANE, [
+        { kind: "floating", selector: "x", rect: sliver },
+      ]),
+    ).toBe(true);
   });
 });

@@ -30,7 +30,12 @@ export type VoicePlayback = {
   durationMs: number;
 };
 
-const IDLE: VoicePlayback = { key: null, playing: false, positionMs: 0, durationMs: 0 };
+const IDLE: VoicePlayback = {
+  key: null,
+  playing: false,
+  positionMs: 0,
+  durationMs: 0,
+};
 
 let snapshot: VoicePlayback = IDLE;
 const subscribers = new Set<() => void>();
@@ -57,7 +62,9 @@ function sync(playing: boolean) {
     key: snapshot.key,
     playing,
     positionMs: Math.floor(el.currentTime) * 1000,
-    durationMs: Number.isFinite(el.duration) ? Math.round(el.duration * 1000) : snapshot.durationMs,
+    durationMs: Number.isFinite(el.duration)
+      ? Math.round(el.duration * 1000)
+      : snapshot.durationMs,
   });
 }
 
@@ -66,7 +73,9 @@ function audio(): HTMLAudioElement {
   el = new Audio();
   el.preload = "none";
   el.addEventListener("timeupdate", () => sync(true));
-  el.addEventListener("ended", () => emit({ ...snapshot, playing: false, positionMs: 0 }));
+  el.addEventListener("ended", () =>
+    emit({ ...snapshot, playing: false, positionMs: 0 }),
+  );
   el.addEventListener("pause", () => sync(false));
   el.addEventListener("play", () => sync(true));
   // A recording that will not decode is not worth a toast: the transcript above

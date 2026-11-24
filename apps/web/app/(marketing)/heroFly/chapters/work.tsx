@@ -11,14 +11,27 @@
 import { useMemo, useState } from "react";
 import { CastCommandBlock } from "@/components/conversation/blocks/castBlocks";
 import { EntityIdPill } from "@/components/EntityIdPill";
-import { ListGroupHeader, ListRowShell, type ItemRowState } from "@/components/ListRowShell";
+import {
+  ListGroupHeader,
+  ListRowShell,
+  type ItemRowState,
+} from "@/components/ListRowShell";
 import { PlanProgressBar } from "@/components/PlanDetailPanel";
 import { StationStrip } from "@/components/tasks/StationStrip";
 import { TaskRow, type TaskPriority } from "@/components/tasks/TaskRow";
 import { TaskTimeline } from "@/components/tasks/TaskTimeline";
 import { buildTaskGroups } from "@/lib/taskGrouping";
 import type { TaskItem } from "@/store/inboxStore";
-import { FILE_RESULT, FILE_TOOL, filedHistory, filedSessions, filedTask, mergedEvent, planProgress, planTasks } from "../fixtures/work";
+import {
+  FILE_RESULT,
+  FILE_TOOL,
+  filedHistory,
+  filedSessions,
+  filedTask,
+  mergedEvent,
+  planProgress,
+  planTasks,
+} from "../fixtures/work";
 import { WORK_AT } from "./work.motion";
 import { CUES, OBJECTS } from "../fixtures/story";
 import { FilmGrow, FilmSwap } from "../film";
@@ -28,7 +41,8 @@ import type { PartProps } from "./contract";
 const noop = () => {};
 const STATUS_CYCLE = ["open", "in_progress", "in_review", "done"];
 const PRIORITY_CYCLE: TaskPriority[] = ["urgent", "high", "medium", "low"];
-const next = <T,>(cycle: T[], v: T) => cycle[(cycle.indexOf(v) + 1) % cycle.length];
+const next = <T,>(cycle: T[], v: T) =>
+  cycle[(cycle.indexOf(v) + 1) % cycle.length];
 const CLAIMED = [CUES.taskClaimed];
 const ADVANCED = [WORK_AT.planAdvances];
 const PLAN_STEPS = [CUES.taskClaimed, WORK_AT.planAdvances];
@@ -46,7 +60,9 @@ export function TaskFiled() {
 
 /** The board: the plan's task list, its progress, and the new task's stations and activity. */
 export function TaskBoard({ now }: PartProps) {
-  const stage = useFilmTime((t) => (t < CUES.taskClaimed ? "landed" : "claimed"));
+  const stage = useFilmTime((t) =>
+    t < CUES.taskClaimed ? "landed" : "claimed",
+  );
   const advanced = useFilmTime((t) => t >= WORK_AT.planAdvances);
   const before = useFilmTime((t) => t < CUES.taskFiled);
   // What a visitor's clicks changed, per task; forgotten when the film comes round again.
@@ -58,9 +74,19 @@ export function TaskBoard({ now }: PartProps) {
   }
 
   const filed = { ...filedTask(now, stage), ...edits["hero-t1"] };
-  const tasks = [filed, ...planTasks(now, advanced).map((t) => ({ ...t, ...edits[t._id] }))];
+  const tasks = [
+    filed,
+    ...planTasks(now, advanced).map((t) => ({ ...t, ...edits[t._id] })),
+  ];
   const group = useMemo(
-    () => buildTaskGroups({ group: "plan", tasks, sortTasks: (ts) => ts, statusFilter: "", ctx: { projects: {}, onFilterLabel: noop } })?.[0],
+    () =>
+      buildTaskGroups({
+        group: "plan",
+        tasks,
+        sortTasks: (ts) => ts,
+        statusFilter: "",
+        ctx: { projects: {}, onFilterLabel: noop },
+      })?.[0],
     // The header reads the plan only, which never changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -68,7 +94,10 @@ export function TaskBoard({ now }: PartProps) {
 
   const edit = (task: TaskItem, mode: string) => {
     if (mode !== "status" && mode !== "priority") return;
-    const patch = mode === "status" ? { status: next(STATUS_CYCLE, task.status) } : { priority: next(PRIORITY_CYCLE, task.priority as TaskPriority) };
+    const patch =
+      mode === "status"
+        ? { status: next(STATUS_CYCLE, task.status) }
+        : { priority: next(PRIORITY_CYCLE, task.priority as TaskPriority) };
     setEdits((e) => ({ ...e, [task._id]: { ...e[task._id], ...patch } }));
   };
   const stateOf = (task: TaskItem): ItemRowState => ({
@@ -85,18 +114,38 @@ export function TaskBoard({ now }: PartProps) {
 
   return (
     <div className="cq-container flex h-full flex-col text-sol-text">
-      {group && <ListGroupHeader label={group.label} count={tasks.length} icon={group.icon} badge={group.badge} extra={group.extra} collapsed={false} />}
+      {group && (
+        <ListGroupHeader
+          label={group.label}
+          count={tasks.length}
+          icon={group.icon}
+          badge={group.badge}
+          extra={group.extra}
+          collapsed={false}
+        />
+      )}
       {tasks.map((task) => (
-        <div key={task._id} data-hero-live="" {...fly(`board/work.row:${task._id}`)}>
+        <div
+          key={task._id}
+          data-hero-live=""
+          {...fly(`board/work.row:${task._id}`)}
+        >
           {task._id === filed._id ? (
             // The claim dissolves in over the landed row (its chip and assignee), rather than reflowing the row in one frame.
             <FilmSwap
               cues={CLAIMED}
               render={(claimed) => {
-                const row = { ...filedTask(now, claimed ? "claimed" : "landed"), ...edits[filed._id] };
+                const row = {
+                  ...filedTask(now, claimed ? "claimed" : "landed"),
+                  ...edits[filed._id],
+                };
                 return (
                   <ListRowShell state={stateOf(row)}>
-                    <TaskRow task={row} state={stateOf(row)} onFilterLabel={noop} />
+                    <TaskRow
+                      task={row}
+                      state={stateOf(row)}
+                      onFilterLabel={noop}
+                    />
                   </ListRowShell>
                 );
               }}
@@ -106,10 +155,19 @@ export function TaskBoard({ now }: PartProps) {
             <FilmSwap
               cues={ADVANCED}
               render={(step) => {
-                const row = { ...planTasks(now, step === 1).find((t) => t._id === task._id)!, ...edits[task._id] };
+                const row = {
+                  ...planTasks(now, step === 1).find(
+                    (t) => t._id === task._id,
+                  )!,
+                  ...edits[task._id],
+                };
                 return (
                   <ListRowShell state={stateOf(row)}>
-                    <TaskRow task={row} state={stateOf(row)} onFilterLabel={noop} />
+                    <TaskRow
+                      task={row}
+                      state={stateOf(row)}
+                      onFilterLabel={noop}
+                    />
                   </ListRowShell>
                 );
               }}
@@ -117,31 +175,67 @@ export function TaskBoard({ now }: PartProps) {
           )}
         </div>
       ))}
-      <div className="flex min-h-0 flex-1 gap-6 px-4 pt-4" {...fly("board/work.below")}>
+      <div
+        className="flex min-h-0 flex-1 gap-6 px-4 pt-4"
+        {...fly("board/work.below")}
+      >
         <div className="w-[440px] shrink-0">
           <div {...fly("board/work.plan")}>
             {/* Its counts and bar change as the task is claimed and as the plan advances: each new state dissolves in over the last. */}
             <FilmSwap
               cues={PLAN_STEPS}
               render={(step) => {
-                const at = [{ ...filedTask(now, step >= 1 ? "claimed" : "landed"), ...edits["hero-t1"] }, ...planTasks(now, step >= 2).map((t) => ({ ...t, ...edits[t._id] }))];
+                const at = [
+                  {
+                    ...filedTask(now, step >= 1 ? "claimed" : "landed"),
+                    ...edits["hero-t1"],
+                  },
+                  ...planTasks(now, step >= 2).map((t) => ({
+                    ...t,
+                    ...edits[t._id],
+                  })),
+                ];
                 return <PlanProgressBar progress={planProgress(at)} />;
               }}
             />
           </div>
           <div {...fly("board/work.station")}>
             {/* The claim dissolves in over the landed state (FilmSwap), rather than switching in one frame. */}
-            <FilmSwap cues={CLAIMED} render={(claimed) => <StationStrip task={{ ...filedTask(now, claimed ? "claimed" : "landed"), ...edits["hero-t1"] } as TaskItem & { status_id?: string }} />} />
+            <FilmSwap
+              cues={CLAIMED}
+              render={(claimed) => (
+                <StationStrip
+                  task={
+                    {
+                      ...filedTask(now, claimed ? "claimed" : "landed"),
+                      ...edits["hero-t1"],
+                    } as TaskItem & { status_id?: string }
+                  }
+                />
+              )}
+            />
           </div>
         </div>
-        <div className="min-w-0 flex-1 overflow-hidden" {...fly("board/work.detail")}>
+        <div
+          className="min-w-0 flex-1 overflow-hidden"
+          {...fly("board/work.detail")}
+        >
           <FilmSwap
             cues={[CUES.taskClaimed, CUES.merged]}
             render={(step) => {
               const at = step >= 1 ? "claimed" : "landed";
               return (
                 <TaskTimeline
-                  task={{ _id: filed._id, created_at: filed.created_at, creator: filed.creator, created_from_conversation: filed.created_from_conversation, history: filedHistory(now, at), external: filed.external && { provider: filed.external.provider as "linear" } }}
+                  task={{
+                    _id: filed._id,
+                    created_at: filed.created_at,
+                    creator: filed.creator,
+                    created_from_conversation: filed.created_from_conversation,
+                    history: filedHistory(now, at),
+                    external: filed.external && {
+                      provider: filed.external.provider as "linear",
+                    },
+                  }}
                   sessions={filedSessions(now, at)}
                   externalEvents={step >= 2 ? [mergedEvent(now)] : []}
                   openLinkedSession={noop}

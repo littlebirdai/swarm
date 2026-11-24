@@ -27,7 +27,13 @@ import * as path from "path";
 import { readActiveCredentialAsync } from "./ccAccounts.js";
 import { codecastPath } from "./codecastDir.js";
 import { githubRepo } from "./cloud/gitOrigin.js";
-import { CLOUD_BACKFILL_MS, CLOUD_MAX_LIST_PAGES, cloudMirrorPlacement, PollCadence, repoOwnerName } from "./cloudAgents/poll.js";
+import {
+  CLOUD_BACKFILL_MS,
+  CLOUD_MAX_LIST_PAGES,
+  cloudMirrorPlacement,
+  PollCadence,
+  repoOwnerName,
+} from "./cloudAgents/poll.js";
 import { claudeProjectDirName } from "./projectPathResolver.js";
 import type { SessionEvent } from "./sessionWatcher.js";
 
@@ -49,7 +55,10 @@ export interface CloudSessionRow {
   environment_kind?: string;
   created_at: string;
   last_event_at?: string;
-  config?: { model?: string; sources?: Array<{ type?: string; url?: string; revision?: string }> };
+  config?: {
+    model?: string;
+    sources?: Array<{ type?: string; url?: string; revision?: string }>;
+  };
   external_metadata?: { current_branches?: Record<string, string> };
 }
 
@@ -78,7 +87,9 @@ interface CloudSessionState {
 type StateFile = { sessions: Record<string, CloudSessionState> };
 
 /** `owner/name` from a git source URL, or null. */
-export function repoFromSourceUrl(url: string | undefined): { owner: string; name: string } | null {
+export function repoFromSourceUrl(
+  url: string | undefined,
+): { owner: string; name: string } | null {
   return repoOwnerName(githubRepo(url)) ?? null;
 }
 
@@ -96,13 +107,26 @@ export function innerSessionId(events: CloudEvent[]): string | undefined {
  *  system/result/env events are session plumbing, not conversation. */
 function isTranscriptTurn(e: CloudEvent): boolean {
   const p = e.payload;
-  return !!p && (p.type === "user" || p.type === "assistant") && !p.parent_tool_use_id && !!p.message;
+  return (
+    !!p &&
+    (p.type === "user" || p.type === "assistant") &&
+    !p.parent_tool_use_id &&
+    !!p.message
+  );
 }
 
-type LineContext = { sessionId: string; cwd: string; gitBranch?: string; parentUuid?: string };
+type LineContext = {
+  sessionId: string;
+  cwd: string;
+  gitBranch?: string;
+  parentUuid?: string;
+};
 
 /** One cloud event as a local transcript line, or null when a local transcript would not hold it. */
-export function cloudEventToTranscriptLine(event: CloudEvent, ctx: LineContext): Record<string, unknown> | null {
+export function cloudEventToTranscriptLine(
+  event: CloudEvent,
+  ctx: LineContext,
+): Record<string, unknown> | null {
   if (!isTranscriptTurn(event)) return null;
   const p = event.payload;
   const { session_id: _sid, parent_tool_use_id: _ptu, ...rest } = p;
@@ -111,7 +135,10 @@ export function cloudEventToTranscriptLine(event: CloudEvent, ctx: LineContext):
     parentUuid: ctx.parentUuid ?? null,
     isSidechain: false,
     uuid: typeof p.uuid === "string" && p.uuid ? p.uuid : event.event_id,
-    timestamp: typeof p.timestamp === "string" && p.timestamp ? p.timestamp : event.created_at,
+    timestamp:
+      typeof p.timestamp === "string" && p.timestamp
+        ? p.timestamp
+        : event.created_at,
     sessionId: ctx.sessionId,
     cwd: ctx.cwd,
     ...(ctx.gitBranch ? { gitBranch: ctx.gitBranch } : {}),
@@ -131,26 +158,49 @@ export function cloudEventToTranscriptLine(event: CloudEvent, ctx: LineContext):
  * re-reads it once its fate is known rather than writing a line that reads as
  * mid-stream forever.
  */
-export function buildTranscriptLines(events: CloudEvent[], ctx: LineContext): { lines: Record<string, unknown>[]; consumed: number; parentUuid?: string } {
+export function buildTranscriptLines(
+  events: CloudEvent[],
+  ctx: LineContext,
+): { lines: Record<string, unknown>[]; consumed: number; parentUuid?: string } {
   const stopReason = new Map<number, string>();
   let holdFrom = events.length;
   for (let i = 0; i < events.length; i++) {
     const p = events[i].payload;
-    if (!isTranscriptTurn(events[i]) || p.type !== "assistant" || p.message.stop_reason || stopReason.has(i)) continue;
+    if (
+      !isTranscriptTurn(events[i]) ||
+      p.type !== "assistant" ||
+      p.message.stop_reason ||
+      stopReason.has(i)
+    )
+      continue;
     const id = p.message.id;
     const group = [i];
     let hasToolUse = false;
     let decided = false;
     for (let j = i; j < events.length; j++) {
       const q = events[j].payload;
-      if (j > i && q?.type === "result") { decided = true; break; }
+      if (j > i && q?.type === "result") {
+        decided = true;
+        break;
+      }
       if (!isTranscriptTurn(events[j])) continue;
-      if (j > i && (q.type !== "assistant" || !id || q.message.id !== id)) { decided = true; break; }
+      if (j > i && (q.type !== "assistant" || !id || q.message.id !== id)) {
+        decided = true;
+        break;
+      }
       if (j > i) group.push(j);
-      if (Array.isArray(q.message.content) && q.message.content.some((b: any) => b?.type === "tool_use")) hasToolUse = true;
+      if (
+        Array.isArray(q.message.content) &&
+        q.message.content.some((b: any) => b?.type === "tool_use")
+      )
+        hasToolUse = true;
     }
-    if (!hasToolUse && !decided) { holdFrom = i; break; }
-    for (const g of group) stopReason.set(g, hasToolUse ? "tool_use" : "end_turn");
+    if (!hasToolUse && !decided) {
+      holdFrom = i;
+      break;
+    }
+    for (const g of group)
+      stopReason.set(g, hasToolUse ? "tool_use" : "end_turn");
   }
 
   const lines: Record<string, unknown>[] = [];
@@ -159,7 +209,8 @@ export function buildTranscriptLines(events: CloudEvent[], ctx: LineContext): { 
     const line = cloudEventToTranscriptLine(events[i], { ...ctx, parentUuid });
     if (!line) continue;
     const reason = stopReason.get(i);
-    if (reason) line.message = { ...(line.message as object), stop_reason: reason };
+    if (reason)
+      line.message = { ...(line.message as object), stop_reason: reason };
     lines.push(line);
     parentUuid = line.uuid as string;
   }
@@ -179,7 +230,10 @@ export interface ClaudeCloudWatcherOptions {
   rootDir?: string;
   statePath?: string;
   /** Local checkout for a repo name, or null. The daemon passes its resolver. */
-  resolveRepoDir?: (repo: { owner: string; name: string }) => Promise<string | null>;
+  resolveRepoDir?: (repo: {
+    owner: string;
+    name: string;
+  }) => Promise<string | null>;
   fetchImpl?: typeof fetch;
   readToken?: () => Promise<string | null>;
   now?: () => number;
@@ -192,7 +246,8 @@ async function defaultReadToken(): Promise<string | null> {
   try {
     const oauth = JSON.parse(raw)?.claudeAiOauth;
     if (!oauth?.accessToken) return null;
-    if (typeof oauth.expiresAt === "number" && oauth.expiresAt < Date.now()) return null;
+    if (typeof oauth.expiresAt === "number" && oauth.expiresAt < Date.now())
+      return null;
     return oauth.accessToken;
   } catch {
     return null;
@@ -208,7 +263,10 @@ export class ClaudeCloudWatcher extends EventEmitter {
   private readonly statePath: string;
   private readonly fetchImpl: typeof fetch;
   private readonly readToken: () => Promise<string | null>;
-  private readonly resolveRepoDir: (repo: { owner: string; name: string }) => Promise<string | null>;
+  private readonly resolveRepoDir: (repo: {
+    owner: string;
+    name: string;
+  }) => Promise<string | null>;
   private readonly now: () => number;
   private readonly log: (msg: string) => void;
   private state: StateFile = { sessions: {} };
@@ -222,7 +280,11 @@ export class ClaudeCloudWatcher extends EventEmitter {
     this.resolveRepoDir = opts.resolveRepoDir ?? (async () => null);
     this.now = opts.now ?? Date.now;
     this.log = opts.log ?? (() => {});
-    this.cadence = new PollCadence(() => this.poll(), { pollMs: opts.pollMs ?? 30_000, fastPollMs: opts.fastPollMs ?? 3_000, now: this.now });
+    this.cadence = new PollCadence(() => this.poll(), {
+      pollMs: opts.pollMs ?? 30_000,
+      fastPollMs: opts.fastPollMs ?? 3_000,
+      now: this.now,
+    });
   }
 
   start(): void {
@@ -240,13 +302,16 @@ export class ClaudeCloudWatcher extends EventEmitter {
   }
 
   /** The cloud session a mirrored transcript belongs to, or undefined for a local one. */
-  cloudSessionFor(sessionId: string): { cloudId: string; remoteUrl?: string; gitBranch?: string } | undefined {
+  cloudSessionFor(
+    sessionId: string,
+  ): { cloudId: string; remoteUrl?: string; gitBranch?: string } | undefined {
     // Off means off: with the account setting turned off, a cloud
     // conversation neither takes sends nor lends its repo, since no reply
     // would sync back.
     if (!this.cadence.running) return undefined;
     for (const [cloudId, st] of Object.entries(this.state.sessions)) {
-      if (st.sessionId === sessionId) return { cloudId, remoteUrl: st.remoteUrl, gitBranch: st.gitBranch };
+      if (st.sessionId === sessionId)
+        return { cloudId, remoteUrl: st.remoteUrl, gitBranch: st.gitBranch };
     }
     return undefined;
   }
@@ -257,19 +322,37 @@ export class ClaudeCloudWatcher extends EventEmitter {
    * duplicate, not a second turn. The turn syncs back through the poll like
    * any other event; polling goes fast until the reply is expected in.
    */
-  async sendUserMessage(cloudId: string, content: string, uuid: string): Promise<void> {
+  async sendUserMessage(
+    cloudId: string,
+    content: string,
+    uuid: string,
+  ): Promise<void> {
     const token = await this.readToken();
-    if (!token) throw new Error("no usable Claude login on this machine; run claude to sign in");
-    const payload = { uuid, session_id: cloudId, type: "user", parent_tool_use_id: null, message: { role: "user", content } };
-    const resp = await this.fetchImpl(`${API_BASE}/v1/code/sessions/${encodeURIComponent(cloudId)}/events`, {
-      method: "POST",
-      headers: { ...this.headers(token), "Content-Type": "application/json" },
-      body: JSON.stringify({ events: [{ event_type: "user", payload }] }),
-      signal: AbortSignal.timeout(30_000),
-    });
+    if (!token)
+      throw new Error(
+        "no usable Claude login on this machine; run claude to sign in",
+      );
+    const payload = {
+      uuid,
+      session_id: cloudId,
+      type: "user",
+      parent_tool_use_id: null,
+      message: { role: "user", content },
+    };
+    const resp = await this.fetchImpl(
+      `${API_BASE}/v1/code/sessions/${encodeURIComponent(cloudId)}/events`,
+      {
+        method: "POST",
+        headers: { ...this.headers(token), "Content-Type": "application/json" },
+        body: JSON.stringify({ events: [{ event_type: "user", payload }] }),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
     if (!resp.ok) {
       const detail = await resp.text().catch(() => "");
-      throw new Error(`claude cloud send ${resp.status}: ${detail.slice(0, 300)}`);
+      throw new Error(
+        `claude cloud send ${resp.status}: ${detail.slice(0, 300)}`,
+      );
     }
     this.cadence.hurry(SEND_FAST_MS);
   }
@@ -282,7 +365,11 @@ export class ClaudeCloudWatcher extends EventEmitter {
       const token = await this.readToken();
       if (!token) return;
       const rows = await this.listSessions(token);
-      this.cadence.busy = rows.some((r) => r.worker_status === "running" || r.worker_status === "requires_action");
+      this.cadence.busy = rows.some(
+        (r) =>
+          r.worker_status === "running" ||
+          r.worker_status === "requires_action",
+      );
       for (const row of rows) {
         const known = this.state.sessions[row.id];
         if (known && known.lastEventAt === row.last_event_at) continue;
@@ -291,7 +378,8 @@ export class ClaudeCloudWatcher extends EventEmitter {
         // fast for a while. The recency test keeps a first-run backfill of
         // old sessions from counting as activity.
         const at = Date.parse(row.last_event_at ?? "");
-        if (Number.isFinite(at) && this.now() - at < RECENT_ACTIVITY_MS) this.cadence.hurry(CHANGE_FAST_MS);
+        if (Number.isFinite(at) && this.now() - at < RECENT_ACTIVITY_MS)
+          this.cadence.hurry(CHANGE_FAST_MS);
         await this.mirrorSession(token, row);
       }
     } catch (err) {
@@ -305,17 +393,27 @@ export class ClaudeCloudWatcher extends EventEmitter {
   private async saveState(): Promise<void> {
     await fs.promises.mkdir(this.rootDir, { recursive: true });
     const tmp = `${this.statePath}.${process.pid}.tmp`;
-    await fs.promises.writeFile(tmp, JSON.stringify(this.state, null, 2), { mode: 0o600 });
+    await fs.promises.writeFile(tmp, JSON.stringify(this.state, null, 2), {
+      mode: 0o600,
+    });
     await fs.promises.rename(tmp, this.statePath);
   }
 
   private headers(token: string): Record<string, string> {
-    return { Authorization: `Bearer ${token}`, "anthropic-version": "2023-06-01", Accept: "application/json" };
+    return {
+      Authorization: `Bearer ${token}`,
+      "anthropic-version": "2023-06-01",
+      Accept: "application/json",
+    };
   }
 
   private async getJson(token: string, url: string): Promise<any> {
-    const resp = await this.fetchImpl(url, { headers: this.headers(token), signal: AbortSignal.timeout(20_000) });
-    if (!resp.ok) throw new Error(`claude cloud ${new URL(url).pathname} ${resp.status}`);
+    const resp = await this.fetchImpl(url, {
+      headers: this.headers(token),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!resp.ok)
+      throw new Error(`claude cloud ${new URL(url).pathname} ${resp.status}`);
     return resp.json();
   }
 
@@ -325,13 +423,24 @@ export class ClaudeCloudWatcher extends EventEmitter {
     const out: CloudSessionRow[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < CLOUD_MAX_LIST_PAGES; page++) {
-      const q = new URLSearchParams({ limit: String(PAGE_LIMIT), ...(cursor ? { cursor } : {}) });
-      const data = await this.getJson(token, `${API_BASE}/v1/code/sessions?${q}`);
-      const rows: CloudSessionRow[] = Array.isArray(data?.data) ? data.data : [];
+      const q = new URLSearchParams({
+        limit: String(PAGE_LIMIT),
+        ...(cursor ? { cursor } : {}),
+      });
+      const data = await this.getJson(
+        token,
+        `${API_BASE}/v1/code/sessions?${q}`,
+      );
+      const rows: CloudSessionRow[] = Array.isArray(data?.data)
+        ? data.data
+        : [];
       let reachedHorizon = false;
       for (const row of rows) {
         const at = Date.parse(row.last_event_at ?? row.created_at);
-        if (Number.isFinite(at) && at < horizon) { reachedHorizon = true; continue; }
+        if (Number.isFinite(at) && at < horizon) {
+          reachedHorizon = true;
+          continue;
+        }
         if (row.environment_kind === "bridge") continue;
         out.push(row);
       }
@@ -342,27 +451,56 @@ export class ClaudeCloudWatcher extends EventEmitter {
   }
 
   /** Where the session's transcript belongs locally: the checkout of its repo, else a stable placeholder. */
-  private async placement(row: CloudSessionRow): Promise<{ cwd: string; gitBranch?: string; remoteUrl?: string }> {
-    const source = row.config?.sources?.find((s) => s.type === "git_repository");
+  private async placement(
+    row: CloudSessionRow,
+  ): Promise<{ cwd: string; gitBranch?: string; remoteUrl?: string }> {
+    const source = row.config?.sources?.find(
+      (s) => s.type === "git_repository",
+    );
     const repo = repoFromSourceUrl(source?.url);
     const branches = row.external_metadata?.current_branches ?? {};
-    const gitBranch = repo ? branches[`${repo.owner}/${repo.name}`] ?? source?.revision : undefined;
-    const remoteUrl = repo ? `https://github.com/${repo.owner}/${repo.name}` : undefined;
+    const gitBranch = repo
+      ? (branches[`${repo.owner}/${repo.name}`] ?? source?.revision)
+      : undefined;
+    const remoteUrl = repo
+      ? `https://github.com/${repo.owner}/${repo.name}`
+      : undefined;
     // A session seeded from a local bundle names no repo at all; those share one project.
-    return { cwd: await cloudMirrorPlacement("claude-cloud", repo, this.resolveRepoDir), gitBranch, remoteUrl };
+    return {
+      cwd: await cloudMirrorPlacement(
+        "claude-cloud",
+        repo,
+        this.resolveRepoDir,
+      ),
+      gitBranch,
+      remoteUrl,
+    };
   }
 
-  private async mirrorSession(token: string, row: CloudSessionRow): Promise<void> {
+  private async mirrorSession(
+    token: string,
+    row: CloudSessionRow,
+  ): Promise<void> {
     const st: CloudSessionState = this.state.sessions[row.id] ?? { seq: 0 };
     const events: CloudEvent[] = [];
     let cursor = st.seq;
     for (let page = 0; page < MAX_EVENT_PAGES_PER_POLL; page++) {
-      const q = new URLSearchParams({ limit: String(PAGE_LIMIT), sort_order: "asc", ...(cursor ? { cursor: String(cursor) } : {}) });
-      const data = await this.getJson(token, `${API_BASE}/v1/code/sessions/${encodeURIComponent(row.id)}/events?${q}`);
+      const q = new URLSearchParams({
+        limit: String(PAGE_LIMIT),
+        sort_order: "asc",
+        ...(cursor ? { cursor: String(cursor) } : {}),
+      });
+      const data = await this.getJson(
+        token,
+        `${API_BASE}/v1/code/sessions/${encodeURIComponent(row.id)}/events?${q}`,
+      );
       const batch: CloudEvent[] = Array.isArray(data?.data) ? data.data : [];
       for (const e of batch) {
         const n = Number(e.sequence_num);
-        if (Number.isFinite(n) && n > cursor) { events.push(e); cursor = n; }
+        if (Number.isFinite(n) && n > cursor) {
+          events.push(e);
+          cursor = n;
+        }
       }
       if (!data?.next_cursor || batch.length === 0) break;
     }
@@ -374,11 +512,21 @@ export class ClaudeCloudWatcher extends EventEmitter {
     if (!sessionId) return;
 
     const { cwd, gitBranch, remoteUrl } = await this.placement(row);
-    const file = st.file ?? path.join(this.rootDir, claudeProjectDirName(cwd), `${sessionId}.jsonl`);
+    const file =
+      st.file ??
+      path.join(this.rootDir, claudeProjectDirName(cwd), `${sessionId}.jsonl`);
 
-    const built = buildTranscriptLines(events, { sessionId, cwd, gitBranch, parentUuid: st.lastUuid });
+    const built = buildTranscriptLines(events, {
+      sessionId,
+      cwd,
+      gitBranch,
+      parentUuid: st.lastUuid,
+    });
     const lines = built.lines.map((l) => JSON.stringify(l));
-    const consumedSeq = built.consumed > 0 ? Number(events[built.consumed - 1].sequence_num) : st.seq;
+    const consumedSeq =
+      built.consumed > 0
+        ? Number(events[built.consumed - 1].sequence_num)
+        : st.seq;
     const parentUuid = built.parentUuid;
 
     if (lines.length > 0) {
@@ -388,7 +536,15 @@ export class ClaudeCloudWatcher extends EventEmitter {
     // A held-back tail leaves lastEventAt unset, so the next poll re-reads it
     // even if the session goes quiet before its result lands.
     const complete = built.consumed === events.length;
-    this.state.sessions[row.id] = { seq: consumedSeq, lastEventAt: complete ? row.last_event_at : undefined, sessionId, file, lastUuid: parentUuid, remoteUrl, gitBranch };
+    this.state.sessions[row.id] = {
+      seq: consumedSeq,
+      lastEventAt: complete ? row.last_event_at : undefined,
+      sessionId,
+      file,
+      lastUuid: parentUuid,
+      remoteUrl,
+      gitBranch,
+    };
     await this.saveState();
 
     if (lines.length > 0) {

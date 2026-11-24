@@ -1,6 +1,6 @@
-import { test, expect } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { test, expect } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /**
  * Guard: every page module the routers import actually exists on disk.
@@ -19,22 +19,27 @@ import { fileURLToPath } from 'node:url';
  * it is checked here rather than left to a build nobody reads.
  */
 
-const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
+const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 /** Mirrors the "@" alias in vite.shared.ts: "@/x" is this package's ./x. */
 function resolvesOnDisk(specifier: string): boolean {
-  const relative = specifier.slice('@/'.length);
+  const relative = specifier.slice("@/".length);
   const base = `${packageRoot}${relative}`;
-  return [base, `${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]
-    .some((candidate) => existsSync(candidate));
+  return [
+    base,
+    `${base}.tsx`,
+    `${base}.ts`,
+    `${base}/index.tsx`,
+    `${base}/index.ts`,
+  ].some((candidate) => existsSync(candidate));
 }
 
 function aliasedImports(file: string): string[] {
-  const source = readFileSync(`${packageRoot}${file}`, 'utf8');
+  const source = readFileSync(`${packageRoot}${file}`, "utf8");
   return [...source.matchAll(/["'](@\/[^"']+)["']/g)].map((m) => m[1]);
 }
 
-for (const file of ['src/App.tsx', 'src/prerender-entry.tsx']) {
+for (const file of ["src/App.tsx", "src/prerender-entry.tsx"]) {
   test(`${file} imports only modules that exist`, () => {
     const specifiers = aliasedImports(file);
     expect(specifiers.length).toBeGreaterThan(10);

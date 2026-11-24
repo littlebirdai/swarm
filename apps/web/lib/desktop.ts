@@ -1,16 +1,34 @@
 import { conversationIdFromPath } from "./desktopHandoff";
-import { applyShellVisibility, applyWarmSpareRole, isCallPanelWindow, isPaletteWindow } from "./windowRole";
+import {
+  applyShellVisibility,
+  applyWarmSpareRole,
+  isCallPanelWindow,
+  isPaletteWindow,
+} from "./windowRole";
 import { useSyncExternalStore } from "react";
 import { naturalTier, type FaceTier, type FacesMode } from "./calls/faceCrop";
 import { BrowserBannerGate, bannerEntity } from "./notificationGate";
 import { PANE_EMBED } from "./browserPane";
 import type { DesktopMenuKeys } from "@codecast/shared/contracts/keyBindings";
-import { extractDeepLinkIntent, parseDesktopDeepLinkPath } from "./desktopHandoff";
+import {
+  extractDeepLinkIntent,
+  parseDesktopDeepLinkPath,
+} from "./desktopHandoff";
 import { cmpVersions, parseShellVersion } from "./desktopFloor";
-import { agentAlertsSuppressed, deliverAlert, focusedViewChanged, focusedWindowShows, installFocusHold } from "./notificationDelivery";
+import {
+  agentAlertsSuppressed,
+  deliverAlert,
+  focusedViewChanged,
+  focusedWindowShows,
+  installFocusHold,
+} from "./notificationDelivery";
 import type { GuestMedia } from "./calls/callMedia";
 import { whenInputQuiet } from "./inputQuiet";
-import type { MeetingDetectConfig, MeetingDetectMode, MeetingOffer } from "./desktopMeetings";
+import type {
+  MeetingDetectConfig,
+  MeetingDetectMode,
+  MeetingOffer,
+} from "./desktopMeetings";
 import { followWindowIdle } from "./idleAnimationPause";
 
 declare global {
@@ -19,7 +37,13 @@ declare global {
       getVersion: () => Promise<string>;
       setBadgeCount: (count: number) => Promise<void>;
       onDeepLink: (cb: (url: string) => void) => void;
-      onUpdateStatus: (cb: (status: { status: string; version?: string; percent?: number }) => void) => void;
+      onUpdateStatus: (
+        cb: (status: {
+          status: string;
+          version?: string;
+          percent?: number;
+        }) => void,
+      ) => void;
       restartForUpdate: () => Promise<void>;
       checkForUpdate: (opts?: { manual?: boolean }) => Promise<void>;
       // Resolves { shown } on builds with multi-window routing (undefined on
@@ -45,14 +69,19 @@ declare global {
       // setup token this page minted. Absent on older builds; the page then
       // offers the terminal command.
       getDaemonSetup?: () => Promise<DaemonSetupState>;
-      runDaemonSetup?: (token: string) => Promise<{ ok: boolean; error?: string; detail?: string }>;
+      runDaemonSetup?: (
+        token: string,
+      ) => Promise<{ ok: boolean; error?: string; detail?: string }>;
       // Multi-window notification routing (see main.js). Absent on older
       // builds — gate on them; without them this window behaves as the only one.
       reportWindowState?: (state: DesktopWindowState) => void;
       onWindowRole?: (cb: (role: DesktopWindowRole) => void) => void;
       getShortcuts: () => Promise<Record<string, string>>;
       getShortcutConfig: () => Promise<DesktopShortcutConfig>;
-      setShortcut: (key: string, accelerator: string) => Promise<Record<string, string>>;
+      setShortcut: (
+        key: string,
+        accelerator: string,
+      ) => Promise<Record<string, string>>;
       paletteNavigate: (path: string) => void;
       paletteHide: () => void;
       paletteNewSession: () => void;
@@ -60,7 +89,10 @@ declare global {
       onPaletteShow: (cb: () => void) => () => void;
       // Compose popup (floating new-session window):
       onComposeShow: (cb: () => void) => () => void;
-      composeSubmit: (data: { conversationId?: string; navigate: boolean }) => void;
+      composeSubmit: (data: {
+        conversationId?: string;
+        navigate: boolean;
+      }) => void;
       // Open an https URL in the system default browser (used by the
       // browser-based desktop sign-in). Absent on older builds — gate on it.
       openExternal: (url: string) => Promise<void>;
@@ -104,7 +136,15 @@ declare global {
       // shell hides the window (the huddle stays there). Absent on older
       // builds — gate on them.
       isCallPanelWindow?: boolean;
-      openCallPanel?: (roomKey: string, opts?: { mic?: boolean; camera?: boolean; scribe?: boolean; size?: CallWindowSize }) => Promise<void>;
+      openCallPanel?: (
+        roomKey: string,
+        opts?: {
+          mic?: boolean;
+          camera?: boolean;
+          scribe?: boolean;
+          size?: CallWindowSize;
+        },
+      ) => Promise<void>;
       showCallPanel?: () => Promise<boolean>;
       closeCallPanel?: (opts?: { ended?: boolean }) => Promise<void>;
       // The panel keeps the shell told what it is hosting, so the shell can
@@ -118,7 +158,12 @@ declare global {
       }) => void;
       // Main window only: the call is coming back, take it.
       onCallPanelHandback?: (
-        cb: (payload: { room: string; mic: boolean; camera: boolean; scribe: boolean }) => void,
+        cb: (payload: {
+          room: string;
+          mic: boolean;
+          camera: boolean;
+          scribe: boolean;
+        }) => void,
       ) => void;
       // The voice host. The shell keeps ONE persistent see-through window
       // (this route) that holds the walkie's ear and every call; it hands the
@@ -130,10 +175,15 @@ declare global {
       onCallPanelOpen?: (cb: (payload: VoiceOpenPayload) => void) => void;
       onCallPanelShow?: (cb: () => void) => void;
       voiceCommand?: (cmd: string, args?: unknown[]) => Promise<boolean>;
-      onVoiceCommand?: (cb: (payload: { cmd: string; args: unknown[] }) => void) => void;
+      onVoiceCommand?: (
+        cb: (payload: { cmd: string; args: unknown[] }) => void,
+      ) => void;
       voiceMirror?: (payload: VoiceMirror) => void;
       onVoiceMirror?: (cb: (payload: VoiceMirror) => void) => void;
-      getVoiceWindowState?: () => Promise<{ size: VoiceWindowShape; callSize: CallWindowSize } | null>;
+      getVoiceWindowState?: () => Promise<{
+        size: VoiceWindowShape;
+        callSize: CallWindowSize;
+      } | null>;
       // The voice window's shapes: the float (the face row over the work),
       // the stage, the wall and idle. ONE window: `transparent` and `frame`
       // are construction-time options, so the window is born see-through and
@@ -148,10 +198,18 @@ declare global {
       // is held. Absent on older builds; gate on them.
       // An older shell still answers the legacy circle sizes, which is why
       // the setter takes both: the legacy panel asks it for those.
-      setCallWindowSize?: (size: VoiceWindowShape | CallWindowSize) => Promise<VoiceWindowShape | CallWindowSize | null>;
-      getCallWindowSize?: () => Promise<VoiceWindowShape | CallWindowSize | null>;
+      setCallWindowSize?: (
+        size: VoiceWindowShape | CallWindowSize,
+      ) => Promise<VoiceWindowShape | CallWindowSize | null>;
+      getCallWindowSize?: () => Promise<
+        VoiceWindowShape | CallWindowSize | null
+      >;
       setCallWindowInteractive?: (on: boolean) => void;
-      setCallWindowContentSize?: (size: { width: number; height: number; pinY?: number }) => void;
+      setCallWindowContentSize?: (size: {
+        width: number;
+        height: number;
+        pinY?: number;
+      }) => void;
       setCallWindowDragging?: (on: boolean) => void;
       // The host has a ring up: the dock bounces until the app is activated.
       setRingAttention?: (on: boolean) => void;
@@ -165,13 +223,18 @@ declare global {
       // getDisplayMedia; the picker UI itself is web-owned. Absent on older
       // builds — gate on them (a missing selectDisplaySource means the shell
       // captures the primary screen on its own).
-      getDisplaySources?: (opts?: { types?: Array<"screen" | "window"> }) => Promise<DesktopDisplaySource[]>;
+      getDisplaySources?: (opts?: {
+        types?: Array<"screen" | "window">;
+      }) => Promise<DesktopDisplaySource[]>;
       selectDisplaySource?: (id: string | null) => Promise<boolean>;
       // Read (no arg) or additively extend (patch) the shell's capability
       // grant table. Persisted in the shell's settings; lets the web layer
       // light up a new permission-gated feature without a desktop release.
       // Absent on older builds — gate on it.
-      hostPolicy?: (patch?: { permissions?: string[]; hosts?: string[] }) => Promise<{
+      hostPolicy?: (patch?: {
+        permissions?: string[];
+        hosts?: string[];
+      }) => Promise<{
         permissions: string[];
         hosts: string[];
         version: string;
@@ -216,7 +279,9 @@ declare global {
       callRingAnswer?: (inviteId: string, roomKey: string) => void;
       // Call window only: the ring window answered, accept the invite here —
       // this is the renderer that will hold the media.
-      onCallRingAccept?: (cb: (payload: { inviteId: string; roomKey: string }) => void) => void;
+      onCallRingAccept?: (
+        cb: (payload: { inviteId: string; roomKey: string }) => void,
+      ) => void;
       // App-defined IPC (@platform/desktop's bridge, the generic half): invoke
       // a handler main registered as "app:<name>", or subscribe to what main
       // pushes on that name. This is how a web feature grows a shell half
@@ -239,7 +304,14 @@ declare global {
 
 /** authFailed: the daemon's sign-in is refused (absent on older shells).
  *  removedBy: the team whose admins removed this machine. */
-export type DaemonSetupState = { supported: boolean; installed: boolean; linked: boolean; authFailed?: boolean; removedBy?: string; running: boolean };
+export type DaemonSetupState = {
+  supported: boolean;
+  installed: boolean;
+  linked: boolean;
+  authFailed?: boolean;
+  removedBy?: string;
+  running: boolean;
+};
 
 export type ShareCursor = { id: string; name: string; nx: number; ny: number };
 
@@ -259,10 +331,14 @@ export function sendShareCursors(cursors: ShareCursor[]): void {
 }
 
 /** The glass window's side: what the shell asks it to draw. */
-export function onShareCursors(cb: (cursors: ShareCursor[]) => void): () => void {
+export function onShareCursors(
+  cb: (cursors: ShareCursor[]) => void,
+): () => void {
   const subscribe = bridge("subscribe");
   if (!subscribe) return () => {};
-  return subscribe("share-cursors", (payload) => cb(Array.isArray(payload) ? (payload as ShareCursor[]) : []));
+  return subscribe("share-cursors", (payload) =>
+    cb(Array.isArray(payload) ? (payload as ShareCursor[]) : []),
+  );
 }
 
 // ── The ring window ───────────────────────────────────────────────────────
@@ -319,12 +395,18 @@ export async function openCallRingWindow(): Promise<boolean> {
 
 /** This renderer is a see-through shell window (palette, rings, dock). */
 export function isTransparentWindow(): boolean {
-  return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isTransparentWindow === true;
+  return (
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isTransparentWindow === true
+  );
 }
 
 /** This renderer IS the ring window. */
 export function isCallRingWindow(): boolean {
-  return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isCallRingWindow === true;
+  return (
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isCallRingWindow === true
+  );
 }
 
 // What a banner carries besides its text. `key` is a stable id for the event
@@ -455,12 +537,12 @@ export function isElectron(): boolean {
 // on builds before the compose popup shipped) — the typings declare every method
 // as required, so a bare `?.method?.()` would silently no-op instead of letting
 // the caller fall back.
-export function bridge<K extends keyof NonNullable<Window["__CODECAST_ELECTRON__"]>>(
-  method: K,
-): NonNullable<Window["__CODECAST_ELECTRON__"]>[K] | undefined {
+export function bridge<
+  K extends keyof NonNullable<Window["__CODECAST_ELECTRON__"]>,
+>(method: K): NonNullable<Window["__CODECAST_ELECTRON__"]>[K] | undefined {
   const b = window.__CODECAST_ELECTRON__;
   const fn = b?.[method];
-  return typeof fn === "function" ? fn.bind(b) as any : undefined;
+  return typeof fn === "function" ? (fn.bind(b) as any) : undefined;
 }
 
 export function isDesktop(): boolean {
@@ -496,14 +578,20 @@ export function openExternalUrl(url: string): void {
 // that away. lib/desktopHandoff.ts carries the same two lines on purpose: that
 // file is inlined into <head> before any bundle exists and may import nothing.
 export function isDesktopShell(): boolean {
-  return isElectron() || (typeof navigator !== "undefined" && / Electron\//.test(navigator.userAgent));
+  return (
+    isElectron() ||
+    (typeof navigator !== "undefined" &&
+      / Electron\//.test(navigator.userAgent))
+  );
 }
 
 // The running desktop app's version, read from the user agent so it answers
 // on a build whose bridge is dead (the case the floor gate exists for). Null
 // in a browser.
 export function desktopShellVersion(): string | null {
-  return typeof navigator === "undefined" ? null : parseShellVersion(navigator.userAgent);
+  return typeof navigator === "undefined"
+    ? null
+    : parseShellVersion(navigator.userAgent);
 }
 
 // This renderer is a DETACHED TAB WINDOW — one dashboard surface broken out
@@ -512,7 +600,10 @@ export function desktopShellVersion(): string | null {
 // must never write shared tab state or persist layout — the main window owns
 // both. Checked by the tab router, TabBar, DashboardLayout and the store.
 export function isDetachedTabWindow(): boolean {
-  return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isTabWindow === true;
+  return (
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isTabWindow === true
+  );
 }
 
 // This document shows a route but does not OWN the tab shell: a detached tab
@@ -542,7 +633,10 @@ export const DOCK_FACES_TITLE = "Dock the faces back in the header";
 // walkie and ring pumps, and (on the desktop) is the shell's notification
 // leader while it lives. Every other window stands down from those.
 export function isPeopleWindow(): boolean {
-  return typeof window !== "undefined" && window.__CODECAST_ELECTRON__?.isPeopleWindow === true;
+  return (
+    typeof window !== "undefined" &&
+    window.__CODECAST_ELECTRON__?.isPeopleWindow === true
+  );
 }
 
 // A people window exists somewhere — this one or another. True inside the
@@ -572,7 +666,10 @@ export async function getAlwaysOnTop(): Promise<boolean> {
 // Whether this window can be pinned at all (an older shell has no pin). The
 // people window of its own, or the voice host — where the pin is the wall's.
 export function canPin(): boolean {
-  return (isPeopleWindow() || isVoiceHost()) && typeof window.__CODECAST_ELECTRON__?.setAlwaysOnTop === "function";
+  return (
+    (isPeopleWindow() || isVoiceHost()) &&
+    typeof window.__CODECAST_ELECTRON__?.setAlwaysOnTop === "function"
+  );
 }
 
 /** Put the buddy list away: the wall on a voice host, the people window on an
@@ -650,7 +747,12 @@ export async function openCallPanel(
   /** `size` opens the window straight into that shape — the walkie card's
    *  "Float over your work" wants circles, not a stage that shrinks a frame
    *  later. Absent, the shell uses the size the person last left. */
-  opts?: { mic?: boolean; camera?: boolean; scribe?: boolean; size?: CallWindowSize },
+  opts?: {
+    mic?: boolean;
+    camera?: boolean;
+    scribe?: boolean;
+    size?: CallWindowSize;
+  },
 ): Promise<boolean> {
   const open = bridge("openCallPanel");
   if (!open) return false;
@@ -666,7 +768,9 @@ export async function openCallPanel(
  * main window does not grow a card trapped in its edges. Showing the window
  * again (`showCallPanel`) is how you get back.
  */
-export async function closeCallPanel(opts?: { ended?: boolean }): Promise<void> {
+export async function closeCallPanel(opts?: {
+  ended?: boolean;
+}): Promise<void> {
   await bridge("closeCallPanel")?.(opts);
 }
 
@@ -709,7 +813,12 @@ export function onCallRingAccept(
 
 /** Main window: the panel is closing, take the call back. */
 export function onCallPanelHandback(
-  cb: (payload: { room: string; mic: boolean; camera: boolean; scribe: boolean }) => void,
+  cb: (payload: {
+    room: string;
+    mic: boolean;
+    camera: boolean;
+    scribe: boolean;
+  }) => void,
 ): void {
   bridge("onCallPanelHandback")?.(cb);
 }
@@ -761,7 +870,12 @@ export function voiceShapeForCallSize(size: CallWindowSize): "panel" | "float" {
   return size === "panel" ? "panel" : "float";
 }
 
-export const CALL_WINDOW_SIZES: readonly CallWindowSize[] = ["panel", "circles", "speaker", "tiny"];
+export const CALL_WINDOW_SIZES: readonly CallWindowSize[] = [
+  "panel",
+  "circles",
+  "speaker",
+  "tiny",
+];
 
 export function isCallWindowSize(size: unknown): size is CallWindowSize {
   return (CALL_WINDOW_SIZES as readonly unknown[]).includes(size);
@@ -808,7 +922,9 @@ export function faceTierForSize(size: CallWindowSize): FaceTier {
  * then say the app needs an update instead of a button doing nothing.
  */
 export function canResizeCallWindow(): boolean {
-  return isCallPanelWindow() && typeof bridge("setCallWindowSize") === "function";
+  return (
+    isCallPanelWindow() && typeof bridge("setCallWindowSize") === "function"
+  );
 }
 
 /**
@@ -824,7 +940,9 @@ export async function setCallWindowSize(
 }
 
 /** Which shape the shell has this window in. Null on a build without shapes. */
-export async function getCallWindowSize(): Promise<VoiceWindowShape | CallWindowSize | null> {
+export async function getCallWindowSize(): Promise<
+  VoiceWindowShape | CallWindowSize | null
+> {
   const get = bridge("getCallWindowSize");
   if (!get) return null;
   return (await get()) ?? null;
@@ -887,14 +1005,19 @@ export function onCallPanelShow(cb: () => void): void {
  * false means there is none (an older shell, or the second before it
  * declares), and the caller acts locally as it always did.
  */
-export async function sendVoiceCommand(cmd: string, args: unknown[] = []): Promise<boolean> {
+export async function sendVoiceCommand(
+  cmd: string,
+  args: unknown[] = [],
+): Promise<boolean> {
   const send = bridge("voiceCommand");
   if (!send) return false;
   return (await send(cmd, args)) === true;
 }
 
 /** Host: commands from the other windows. */
-export function onVoiceCommand(cb: (payload: { cmd: string; args: unknown[] }) => void): void {
+export function onVoiceCommand(
+  cb: (payload: { cmd: string; args: unknown[] }) => void,
+): void {
   bridge("onVoiceCommand")?.(cb);
 }
 
@@ -918,10 +1041,11 @@ export type ShellProcessGone = {
 };
 
 /** Main window: each process of the app that died, including before this page loaded. */
-export function onShellProcessGone(cb: (report: ShellProcessGone) => void): void {
+export function onShellProcessGone(
+  cb: (report: ShellProcessGone) => void,
+): void {
   bridge("onShellProcessGone")?.(cb);
 }
-
 
 /** Host: a ring is up (or has stopped) — the dock bounces beside it. */
 export function setRingAttention(on: boolean): void {
@@ -929,7 +1053,10 @@ export function setRingAttention(on: boolean): void {
 }
 
 /** Host: the shape the shell has it in, and the call size the person chose. */
-export async function getVoiceWindowState(): Promise<{ size: VoiceWindowShape; callSize: CallWindowSize } | null> {
+export async function getVoiceWindowState(): Promise<{
+  size: VoiceWindowShape;
+  callSize: CallWindowSize;
+} | null> {
   const get = bridge("getVoiceWindowState");
   if (!get) return null;
   return (await get()) ?? null;
@@ -951,7 +1078,11 @@ export function setCallWindowInteractive(on: boolean): void {
 
 /** Size the window to its row. `pinY` is the point (CSS px from the top)
  *  that holds still on screen, the faces; an older shell ignores it. */
-export function setCallWindowContentSize(size: { width: number; height: number; pinY?: number }): void {
+export function setCallWindowContentSize(size: {
+  width: number;
+  height: number;
+  pinY?: number;
+}): void {
   bridge("setCallWindowContentSize")?.(size);
 }
 
@@ -1010,7 +1141,11 @@ export function useFacesFloating(): {
   floating: boolean;
   setFloating: (on: boolean) => void;
 } {
-  const role = useSyncExternalStore(subscribeWindowRole, getDesktopWindowRole, getDesktopWindowRole);
+  const role = useSyncExternalStore(
+    subscribeWindowRole,
+    getDesktopWindowRole,
+    getDesktopWindowRole,
+  );
   return {
     available: canOpenFacesOverlay(),
     floating: role.facesOverlay,
@@ -1055,7 +1190,10 @@ export function isSatelliteWindow(): boolean {
  * The one rule for every "open the chat" button, so a new surface cannot
  * get it wrong by forgetting which window it is drawn in.
  */
-export function navigateFromHere(path: string, here: (path: string) => void): void {
+export function navigateFromHere(
+  path: string,
+  here: (path: string) => void,
+): void {
   if (isSatelliteWindow() && navigateMainWindow(path)) return;
   here(path);
 }
@@ -1096,13 +1234,40 @@ export function navigateMainWindow(path: string): boolean {
  */
 export const AGENT_DOCK_RELEASED = false;
 
-export const DESKTOP_SHORTCUTS: { key: string; label: string; description: string }[] = [
-  { key: "newSession", label: "New Session", description: "Open the new-session compose popup from any app" },
-  { key: "toggleWindow", label: "Toggle Main Window", description: "Show or hide the main Codecast window" },
-  { key: "togglePalette", label: "Quick Command Palette", description: "Open the floating command palette from anywhere" },
-  { key: "toggleEnv", label: "Switch Local / Prod", description: "Switch between local dev and production" },
+export const DESKTOP_SHORTCUTS: {
+  key: string;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: "newSession",
+    label: "New Session",
+    description: "Open the new-session compose popup from any app",
+  },
+  {
+    key: "toggleWindow",
+    label: "Toggle Main Window",
+    description: "Show or hide the main Codecast window",
+  },
+  {
+    key: "togglePalette",
+    label: "Quick Command Palette",
+    description: "Open the floating command palette from anywhere",
+  },
+  {
+    key: "toggleEnv",
+    label: "Switch Local / Prod",
+    description: "Switch between local dev and production",
+  },
   ...(AGENT_DOCK_RELEASED
-    ? [{ key: "toggleAgentDock", label: "Agent Dock", description: "Open the agent dock's card from any app (only while the dock is on)" }]
+    ? [
+        {
+          key: "toggleAgentDock",
+          label: "Agent Dock",
+          description:
+            "Open the agent dock's card from any app (only while the dock is on)",
+        },
+      ]
     : []),
 ];
 
@@ -1204,11 +1369,22 @@ export function installDesktopInputTracker(): void {
     lastDesktopInputAt = Date.now();
     lastDesktopActivityAt = lastDesktopInputAt;
   };
-  const noteActivity = () => { lastDesktopActivityAt = Date.now(); };
-  window.addEventListener("pointerdown", note, { capture: true, passive: true });
+  const noteActivity = () => {
+    lastDesktopActivityAt = Date.now();
+  };
+  window.addEventListener("pointerdown", note, {
+    capture: true,
+    passive: true,
+  });
   window.addEventListener("keydown", note, { capture: true, passive: true });
-  window.addEventListener("wheel", noteActivity, { capture: true, passive: true });
-  window.addEventListener("pointermove", noteActivity, { capture: true, passive: true });
+  window.addEventListener("wheel", noteActivity, {
+    capture: true,
+    passive: true,
+  });
+  window.addEventListener("pointermove", noteActivity, {
+    capture: true,
+    passive: true,
+  });
 }
 
 // 0 until the first input after page load. Consumers that need "activity"
@@ -1233,7 +1409,9 @@ export async function getIdleMs(inPageActivityFloor: number): Promise<number> {
     if (fn) {
       try {
         return (await fn()) * 1000;
-      } catch { /* fall through to in-page signal */ }
+      } catch {
+        /* fall through to in-page signal */
+      }
     }
   }
   const last = Math.max(lastDesktopActivityAt, inPageActivityFloor);
@@ -1245,7 +1423,10 @@ const AUTO_DEEPLINK_QUIET_MS = 30_000;
 // Pure policy, unit-testable: a manual link always applies; an auto handoff
 // applies only when the desktop has been quiet (no local input) long enough
 // that moving the view cannot interrupt anything.
-export function shouldApplyAutoDeepLink(now: number = Date.now(), lastInputAt: number = lastDesktopInputAt): boolean {
+export function shouldApplyAutoDeepLink(
+  now: number = Date.now(),
+  lastInputAt: number = lastDesktopInputAt,
+): boolean {
   return now - lastInputAt > AUTO_DEEPLINK_QUIET_MS;
 }
 
@@ -1260,7 +1441,9 @@ export function shouldApplyAutoDeepLink(now: number = Date.now(), lastInputAt: n
 //    quietly (a static import, not a lazy chunk).
 //  - ignore: the link names nothing navigable, or the user is already looking
 //    at the target.
-export type DeepLinkArrival = { kind: "navigate" | "offer"; path: string } | { kind: "ignore" };
+export type DeepLinkArrival =
+  | { kind: "navigate" | "offer"; path: string }
+  | { kind: "ignore" };
 
 export function planDeepLinkArrival(
   url: string,
@@ -1271,14 +1454,17 @@ export function planDeepLinkArrival(
   const raw = parseDesktopDeepLinkPath(url);
   if (!raw) return { kind: "ignore" };
   const { path, auto } = extractDeepLinkIntent(raw);
-  if (!auto || shouldApplyAutoDeepLink(now, lastInputAt)) return { kind: "navigate", path };
+  if (!auto || shouldApplyAutoDeepLink(now, lastInputAt))
+    return { kind: "navigate", path };
   const convId = conversationIdFromPath(path);
   if (convId && currentSessionId === convId) return { kind: "ignore" };
   return { kind: "offer", path };
 }
 
 export function hasBrowserNotificationPermission(): boolean {
-  return typeof Notification !== "undefined" && Notification.permission === "granted";
+  return (
+    typeof Notification !== "undefined" && Notification.permission === "granted"
+  );
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -1313,20 +1499,44 @@ export async function notifyNative(
   data?: NotifyNativeData,
   { due }: { due?: () => boolean } = {},
 ): Promise<boolean> {
-  const key = data?.key ?? Array.from(new Uint8Array(await crypto.subtle.digest(
-    "SHA-256", new TextEncoder().encode(JSON.stringify([title, body, data?.route, data?.conversationId])),
-  )), (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return deliverAlert(`banner:${key}`, () => deliverNative(title, body, data, due), { due });
+  const key =
+    data?.key ??
+    Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(
+            JSON.stringify([title, body, data?.route, data?.conversationId]),
+          ),
+        ),
+      ),
+      (byte) => byte.toString(16).padStart(2, "0"),
+    ).join("");
+  return deliverAlert(
+    `banner:${key}`,
+    () => deliverNative(title, body, data, due),
+    { due },
+  );
 }
 
-async function deliverNative(title: string, body: string, data?: NotifyNativeData, due?: () => boolean): Promise<boolean> {
+async function deliverNative(
+  title: string,
+  body: string,
+  data?: NotifyNativeData,
+  due?: () => boolean,
+): Promise<boolean> {
   // One click target per banner: an explicit route (chat, tasks, docs) wins,
   // else the conversation. Electron receives both and applies the same rule.
-  const route = data?.route ?? (data?.conversationId ? `/conversation/${data.conversationId}` : undefined);
+  const route =
+    data?.route ??
+    (data?.conversationId ? `/conversation/${data.conversationId}` : undefined);
   if (isElectron()) {
     // The shell decides whether it goes up: only it knows which of its windows
     // is focused and what each one shows.
-    const res = await bridge("showNotification")?.(title, body, { ...data, route });
+    const res = await bridge("showNotification")?.(title, body, {
+      ...data,
+      route,
+    });
     // Older shells resolve void: they showed it.
     return res ? res.shown : true;
   }
@@ -1335,7 +1545,8 @@ async function deliverNative(title: string, body: string, data?: NotifyNativeDat
   // a banner about the thing a focused tab shows stays quiet whichever tab
   // won the claim to show it.
   const entity = bannerEntity(route);
-  if (!data?.force && entity && await focusedWindowShows(entity)) return false;
+  if (!data?.force && entity && (await focusedWindowShows(entity)))
+    return false;
   const focused = typeof document !== "undefined" && document.hasFocus();
   const verdict = await browserBanners.admit(
     { focused, active: reportedWindowState?.active ?? null },
@@ -1344,7 +1555,12 @@ async function deliverNative(title: string, body: string, data?: NotifyNativeDat
   // The gate can hold a banner through a short grace; ask again after it.
   if (!verdict.shown || (due && !due())) return false;
   if (hasBrowserNotificationPermission()) {
-    const n = new Notification(title, { body, icon: "/icon-192.png", tag: data?.conversationId ?? route, silent: true });
+    const n = new Notification(title, {
+      body,
+      icon: "/icon-192.png",
+      tag: data?.conversationId ?? route,
+      silent: true,
+    });
     if (route) {
       n.onclick = () => {
         window.focus();
@@ -1418,7 +1634,8 @@ export function installWindowRoleTracker(): void {
       voiceWindow: !!role.voiceWindow,
       facesOverlay: !!role.facesOverlay,
       peopleWall: !!role.peopleWall,
-      apps: role.apps && typeof role.apps === "object" ? { ...role.apps } : null,
+      apps:
+        role.apps && typeof role.apps === "object" ? { ...role.apps } : null,
       app: typeof role.app === "string" ? role.app : null,
       shown: typeof role.shown === "boolean" ? role.shown : null,
     };
@@ -1460,7 +1677,9 @@ export async function onDeepLink(cb: (urls: string[]) => void) {
   }
 }
 
-export function onUpdateStatus(cb: (status: { status: string; version?: string; percent?: number }) => void) {
+export function onUpdateStatus(
+  cb: (status: { status: string; version?: string; percent?: number }) => void,
+) {
   if (isElectron()) {
     bridge("onUpdateStatus")?.(cb);
   }
@@ -1486,7 +1705,10 @@ export function checkForUpdate(opts?: { manual?: boolean }) {
 // whose preload predates `checkForUpdate` — there the banner falls back to the
 // daemon-driven update path (server mutation → daemon swap).
 export function hasInProcessUpdater(): boolean {
-  return isElectron() && typeof window.__CODECAST_ELECTRON__?.checkForUpdate === "function";
+  return (
+    isElectron() &&
+    typeof window.__CODECAST_ELECTRON__?.checkForUpdate === "function"
+  );
 }
 
 export function desktopHeaderClass(): string {
@@ -1520,7 +1742,10 @@ export function zenCornerWidth(): number {
 // a rail may or may not be open. Re-measured when the row resizes and when it
 // moves through the band. The chromeless call window's older framed builds
 // use the same rule with the lights alone as the corner.
-export function attachTitlebarHead(el: HTMLElement, corner: number = TRAFFIC_LIGHTS_W): () => void {
+export function attachTitlebarHead(
+  el: HTMLElement,
+  corner: number = TRAFFIC_LIGHTS_W,
+): () => void {
   const measure = () => {
     const r = el.getBoundingClientRect();
     const inBand = r.width > 0 && r.top < TITLEBAR_H;
@@ -1533,7 +1758,8 @@ export function attachTitlebarHead(el: HTMLElement, corner: number = TRAFFIC_LIG
     el.classList.toggle("titlebar-head", inBand);
     el.classList.toggle("titlebar-head--edge", edge && fits);
     el.classList.toggle("titlebar-head--under", edge && !fits);
-    if (edge && fits) el.style.setProperty("--titlebar-edge-inset", `${inset}px`);
+    if (edge && fits)
+      el.style.setProperty("--titlebar-edge-inset", `${inset}px`);
     else el.style.removeProperty("--titlebar-edge-inset");
   };
   // Every trigger fires at the START of a layout change; the sidebar and the
@@ -1547,7 +1773,8 @@ export function attachTitlebarHead(el: HTMLElement, corner: number = TRAFFIC_LIG
   };
   // The observer's first callback measures (it lands after layout, before
   // paint); a read here, on mount, laid out the page the mount had changed.
-  const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(kick);
+  const ro =
+    typeof ResizeObserver === "undefined" ? null : new ResizeObserver(kick);
   if (ro) ro.observe(el);
   else kick();
   // Vertical moves (a tab bar or breadcrumb appearing above) change how much of
@@ -1569,14 +1796,21 @@ export function attachTitlebarHead(el: HTMLElement, corner: number = TRAFFIC_LIG
     });
   };
   watch();
-  const onResize = () => { watch(); kick(); };
+  const onResize = () => {
+    watch();
+    kick();
+  };
   window.addEventListener("resize", onResize);
   return () => {
     settle.forEach(clearTimeout);
     ro?.disconnect();
     observers.forEach((o) => o.disconnect());
     window.removeEventListener("resize", onResize);
-    el.classList.remove("titlebar-head", "titlebar-head--edge", "titlebar-head--under");
+    el.classList.remove(
+      "titlebar-head",
+      "titlebar-head--edge",
+      "titlebar-head--under",
+    );
     el.style.removeProperty("--titlebar-edge-inset");
   };
 }
@@ -1589,13 +1823,23 @@ const CHECK_GAP_MS = 500;
  *  is still a single row starting in the titlebar band (a page header), or,
  *  when the hit is page content with no header above it, its scroll region,
  *  which then drops below the corner. Null for overlays and empty background. */
-function cornerOccupant(hit: Element): { el: HTMLElement; under: boolean } | null {
+function cornerOccupant(
+  hit: Element,
+): { el: HTMLElement; under: boolean } | null {
   let row: HTMLElement | null = null;
-  for (let n: HTMLElement | null = hit as HTMLElement; n && n !== document.body; n = n.parentElement) {
+  for (
+    let n: HTMLElement | null = hit as HTMLElement;
+    n && n !== document.body;
+    n = n.parentElement
+  ) {
     if (n.matches("[data-cc-shell]")) break;
     const style = getComputedStyle(n);
     if (style.position === "fixed") return null;
-    if (/(auto|scroll)/.test(style.overflowY) && n.scrollHeight > n.clientHeight) return { el: n, under: true };
+    if (
+      /(auto|scroll)/.test(style.overflowY) &&
+      n.scrollHeight > n.clientHeight
+    )
+      return { el: n, under: true };
     const r = n.getBoundingClientRect();
     if (r.top >= TITLEBAR_H || r.height > CORNER_ROW_MAX_H) break;
     row = n;
@@ -1618,14 +1862,22 @@ export function guardZenCorner(corner: number, controls: Element): () => void {
   let cancelQuiet: (() => void) | null = null;
   // data-zen-adopted names the element in devtools: a page that should claim
   // its own top row with useTitlebarHead.
-  const release = () => { if (adopted) { adopted.detach(); delete adopted.el.dataset.zenAdopted; } adopted = null; };
+  const release = () => {
+    if (adopted) {
+      adopted.detach();
+      delete adopted.el.dataset.zenAdopted;
+    }
+    adopted = null;
+  };
   const check = () => {
     pending = null;
     if (adopted && !adopted.el.isConnected) release();
     // Probe level with the lights, across the corner: at the edge, mid-way,
     // and just inside its right end.
     for (const x of [4, corner / 2, corner - 6]) {
-      const hit = document.elementsFromPoint(x, TRAFFIC_LIGHTS_H - 6).find((e) => !controls.contains(e));
+      const hit = document
+        .elementsFromPoint(x, TRAFFIC_LIGHTS_H - 6)
+        .find((e) => !controls.contains(e));
       if (!hit || hit.closest(".titlebar-head")) continue;
       const found = cornerOccupant(hit);
       if (!found || found.el === adopted?.el) continue;
@@ -1633,7 +1885,10 @@ export function guardZenCorner(corner: number, controls: Element): () => void {
       const { el, under } = found;
       if (under) {
         el.classList.add("titlebar-head--under");
-        adopted = { el, detach: () => el.classList.remove("titlebar-head--under") };
+        adopted = {
+          el,
+          detach: () => el.classList.remove("titlebar-head--under"),
+        };
       } else {
         adopted = { el, detach: attachTitlebarHead(el, corner) };
       }
@@ -1647,10 +1902,16 @@ export function guardZenCorner(corner: number, controls: Element): () => void {
   // mutation, every hit test laid out the page the mutation had changed.
   let frame = 0;
   let tail: ReturnType<typeof setTimeout> | null = null;
-  const afterPaint = () => { frame = requestAnimationFrame(() => { tail = setTimeout(check, 0); }); };
+  const afterPaint = () => {
+    frame = requestAnimationFrame(() => {
+      tail = setTimeout(check, 0);
+    });
+  };
   const schedule = () => {
     if (pending) return;
-    pending = setTimeout(() => { cancelQuiet = whenInputQuiet(afterPaint, 2000); }, CHECK_GAP_MS);
+    pending = setTimeout(() => {
+      cancelQuiet = whenInputQuiet(afterPaint, 2000);
+    }, CHECK_GAP_MS);
   };
   schedule();
   const mo = new MutationObserver(schedule);
@@ -1702,9 +1963,15 @@ export async function getLatestDesktopVersion(): Promise<string | null> {
 
 // { current, latest } when the running desktop app is behind the published
 // version, else null (also null on web / non-desktop).
-export async function checkDesktopUpdate(): Promise<{ current: string; latest: string } | null> {
+export async function checkDesktopUpdate(): Promise<{
+  current: string;
+  latest: string;
+} | null> {
   if (!isDesktop()) return null;
-  const [current, latest] = await Promise.all([getAppVersion(), getLatestDesktopVersion()]);
+  const [current, latest] = await Promise.all([
+    getAppVersion(),
+    getLatestDesktopVersion(),
+  ]);
   if (!current || !latest) return null;
   return cmpVersions(latest, current) > 0 ? { current, latest } : null;
 }
@@ -1749,7 +2016,15 @@ export type BrowserPaneCommand =
  *  the shell keys views by (window, paneId) and never invents one. */
 export type BrowserPaneEvent = {
   paneId: string;
-  event: "title" | "url" | "loading" | "favicon" | "fail" | "focus" | "blur" | "chord";
+  event:
+    | "title"
+    | "url"
+    | "loading"
+    | "favicon"
+    | "fail"
+    | "focus"
+    | "blur"
+    | "chord";
   title?: string;
   url?: string;
   inPage?: boolean;
@@ -1764,7 +2039,10 @@ export type BrowserPaneEvent = {
 };
 
 export type BrowserPaneBridge = {
-  send: (cmd: BrowserPaneCommand, payload?: Record<string, unknown>) => Promise<unknown>;
+  send: (
+    cmd: BrowserPaneCommand,
+    payload?: Record<string, unknown>,
+  ) => Promise<unknown>;
   on: (cb: (event: BrowserPaneEvent) => void) => () => void;
 };
 
@@ -1777,7 +2055,8 @@ export function browserPaneBridge(): BrowserPaneBridge | null {
   if (!call || !subscribe) return null;
   return {
     send: (cmd, payload) => call("browser-pane", cmd, payload ?? {}),
-    on: (cb) => subscribe("browser-pane", (payload) => cb(payload as BrowserPaneEvent)),
+    on: (cb) =>
+      subscribe("browser-pane", (payload) => cb(payload as BrowserPaneEvent)),
   };
 }
 
@@ -1802,8 +2081,13 @@ export function probeNativeBrowserPane(): Promise<boolean> {
     paneCapabilities = { available: false, commands: [] };
     return Promise.resolve(false);
   }
-  paneProbe = call<{ available?: boolean; commands?: string[] }>("browser-pane-capabilities")
-    .then((caps) => ({ available: caps?.available === true, commands: caps?.commands ?? [] }))
+  paneProbe = call<{ available?: boolean; commands?: string[] }>(
+    "browser-pane-capabilities",
+  )
+    .then((caps) => ({
+      available: caps?.available === true,
+      commands: caps?.commands ?? [],
+    }))
     .catch(() => ({ available: false, commands: [] }))
     .then((caps) => {
       paneCapabilities = caps;

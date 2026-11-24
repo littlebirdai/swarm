@@ -1,4 +1,13 @@
-import { count, nonEmptyString, object, oneOf, parser, responseObject, positiveInteger, tagged } from "./parse";
+import {
+  count,
+  nonEmptyString,
+  object,
+  oneOf,
+  parser,
+  responseObject,
+  positiveInteger,
+  tagged,
+} from "./parse";
 import { readV1 } from "./version";
 import { response } from "./response";
 import { daemon } from "./link";
@@ -13,23 +22,37 @@ const claimRequest = object({
   ...daemon,
   claim_id: nonEmptyString,
 });
-const claimResponse = response(tagged("status", {
-  granted: responseObject({
-    v: readV1,
-    status: oneOf("granted"),
-    ...fence,
-    expires_at: count,
+const claimResponse = response(
+  tagged("status", {
+    granted: responseObject({
+      v: readV1,
+      status: oneOf("granted"),
+      ...fence,
+      expires_at: count,
+    }),
+    busy: responseObject({
+      v: readV1,
+      status: oneOf("busy"),
+      retry_after_ms: count,
+    }),
+    stale: responseObject({ v: readV1, status: oneOf("stale") }),
   }),
-  busy: responseObject({ v: readV1, status: oneOf("busy"), retry_after_ms: count }),
-  stale: responseObject({ v: readV1, status: oneOf("stale") }),
-}));
+);
 const renewRequest = object({ v: readV1, ...fence });
-const renewResponse = response(tagged("status", {
-  renewed: responseObject({ v: readV1, status: oneOf("renewed"), expires_at: count }),
-  stale: responseObject({ v: readV1, status: oneOf("stale") }),
-}));
+const renewResponse = response(
+  tagged("status", {
+    renewed: responseObject({
+      v: readV1,
+      status: oneOf("renewed"),
+      expires_at: count,
+    }),
+    stale: responseObject({ v: readV1, status: oneOf("stale") }),
+  }),
+);
 const releaseRequest = object({ v: readV1, ...fence });
-const releaseResponse = response(responseObject({ v: readV1, status: oneOf("released", "stale") }));
+const releaseResponse = response(
+  responseObject({ v: readV1, status: oneOf("released", "stale") }),
+);
 
 export type ClaimRequest = ReturnType<typeof claimRequest>;
 export type ClaimResponse = ReturnType<typeof claimResponse>;

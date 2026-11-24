@@ -33,16 +33,22 @@ export function formatMachineSwitchNotice(opts: {
 }): string {
   const toLabel = opts.toLabel.trim();
   const fromLabel = opts.fromLabel?.trim();
-  const head = fromLabel && fromLabel !== toLabel
-    ? `${MACHINE_SWITCH_NOTICE_PREFIX} ${toLabel} (was ${fromLabel}).`
-    : `${MACHINE_SWITCH_NOTICE_PREFIX} ${toLabel}.`;
+  const head =
+    fromLabel && fromLabel !== toLabel
+      ? `${MACHINE_SWITCH_NOTICE_PREFIX} ${toLabel} (was ${fromLabel}).`
+      : `${MACHINE_SWITCH_NOTICE_PREFIX} ${toLabel}.`;
   return `${head}\n\nThis session continues here. History above is the same thread.`;
 }
 
-export function isMachineSwitchNotice(content: string | null | undefined): boolean {
+export function isMachineSwitchNotice(
+  content: string | null | undefined,
+): boolean {
   if (!content) return false;
   const t = content.trimStart();
-  return t.startsWith(MACHINE_SWITCH_NOTICE_PREFIX) || t.startsWith(MACHINE_MOVE_NOTICE_PREFIX);
+  return (
+    t.startsWith(MACHINE_SWITCH_NOTICE_PREFIX) ||
+    t.startsWith(MACHINE_MOVE_NOTICE_PREFIX)
+  );
 }
 
 export function parseMachineSwitchNotice(

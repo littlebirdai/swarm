@@ -7,7 +7,8 @@
 // half becomes U+FFFD there, so a cut emoji costs one character, not the
 // write. Pure, loads without the Convex runtime.
 
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+const LONE_SURROGATE =
+  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
 
 export function wellFormedString(s: string): string {
   LONE_SURROGATE.lastIndex = 0;
@@ -25,11 +26,16 @@ export function wellFormedValue<T>(value: T): T {
     }
     return (out ?? value) as T;
   }
-  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+  if (
+    value &&
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
     let out: Record<string, unknown> | null = null;
     for (const [k, v] of Object.entries(value)) {
       const next = wellFormedValue(v);
-      if (next !== v) (out ??= { ...(value as Record<string, unknown>) })[k] = next;
+      if (next !== v)
+        (out ??= { ...(value as Record<string, unknown>) })[k] = next;
     }
     return (out ?? value) as T;
   }

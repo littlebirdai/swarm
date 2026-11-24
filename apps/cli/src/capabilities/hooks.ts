@@ -21,7 +21,13 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { applyOwnedJson, decodeKeyPath, readLedger, type ApplyResult, type OwnedKey } from "./ownedJson.js";
+import {
+  applyOwnedJson,
+  decodeKeyPath,
+  readLedger,
+  type ApplyResult,
+  type OwnedKey,
+} from "./ownedJson.js";
 
 /** One entry inside a `settings.json` hook matcher. Claude Code's shape. */
 export interface HookEntry {
@@ -85,25 +91,33 @@ function mergeMatchers(
   command: string,
   timeout: number | undefined,
 ): HookMatcher[] {
-  const entry: HookEntry = timeout === undefined
-    ? { type: "command", command }
-    : { type: "command", command, timeout };
+  const entry: HookEntry =
+    timeout === undefined
+      ? { type: "command", command }
+      : { type: "command", command, timeout };
 
   // Each group is copied as it stands: only its hooks list is ours to edit. A
   // group written without a `matcher` key (Claude Code reads that as "every
   // tool") keeps its shape, so a refresh never adds keys to the user's file.
   const matchers: HookMatcher[] = Array.isArray(existing)
-    ? (existing as HookMatcher[]).map((m) => ({ ...m, hooks: Array.isArray(m?.hooks) ? [...m.hooks] : [] }))
+    ? (existing as HookMatcher[]).map((m) => ({
+        ...m,
+        hooks: Array.isArray(m?.hooks) ? [...m.hooks] : [],
+      }))
     : [];
 
   // An entry already in the blanket matcher is refreshed where it stands.
   // Moving it to the end would make two of our hooks on one event trade places
   // on every refresh, and each swap is a real write to the user's file.
   const blanket = matchers.find((m) => (m.matcher ?? "") === "");
-  const at = blanket ? blanket.hooks.findIndex((h) => sameCommand(h?.command, command)) : -1;
-  for (const m of matchers) m.hooks = m.hooks.filter((h) => !sameCommand(h?.command, command));
+  const at = blanket
+    ? blanket.hooks.findIndex((h) => sameCommand(h?.command, command))
+    : -1;
+  for (const m of matchers)
+    m.hooks = m.hooks.filter((h) => !sameCommand(h?.command, command));
   // `at` is the first copy, so no copy sat before it and the index still holds.
-  if (blanket) blanket.hooks.splice(at >= 0 ? at : blanket.hooks.length, 0, entry);
+  if (blanket)
+    blanket.hooks.splice(at >= 0 ? at : blanket.hooks.length, 0, entry);
   else matchers.unshift({ matcher: "", hooks: [entry] });
 
   // A matcher we emptied by removing our own entry is ours to drop; one that
@@ -131,13 +145,23 @@ export function installOwnedHook(
   // about to produce rather than treating the user's array as a rival claim.
   const desired: OwnedKey[] = events.map((event) => ({
     keyPath: matcherKeyPath(event),
-    value: mergeMatchers(readAt(current, matcherKeyPath(event)), command, options.timeout),
+    value: mergeMatchers(
+      readAt(current, matcherKeyPath(event)),
+      command,
+      options.timeout,
+    ),
   }));
   // Every other hook event we own is re-stated, not only non-hook keys: the
   // ledger holds one key per event, and several of our hooks share events, so
   // installing one hook must not read as releasing the events of another.
   const writing = new Set(events);
-  desired.push(...retainOwned(target, current, (keyPath) => isHookKey(keyPath) && writing.has(keyPath[1])));
+  desired.push(
+    ...retainOwned(
+      target,
+      current,
+      (keyPath) => isHookKey(keyPath) && writing.has(keyPath[1]),
+    ),
+  );
 
   return applyOwnedJson(target, desired, {
     adopt: true,
@@ -159,14 +183,18 @@ export function installOwnedHook(
  */
 export function removeOwnedHook(
   command: string,
-  options: { settingsPath?: string; dryRun?: boolean; events?: readonly string[] } = {},
+  options: {
+    settingsPath?: string;
+    dryRun?: boolean;
+    events?: readonly string[];
+  } = {},
 ): ApplyResult {
   const target = options.settingsPath ?? defaultSettingsPath();
   const current = readSettings(target);
   const events = Object.keys(
-    (typeof current === "object" && current !== null
+    ((typeof current === "object" && current !== null
       ? (current as Record<string, unknown>).hooks
-      : undefined) as Record<string, unknown> ?? {},
+      : undefined) as Record<string, unknown>) ?? {},
   );
   // With `events`, only those events lose the hook; every other event is
   // re-stated as it is, so the rest of our registration survives.
@@ -184,12 +212,20 @@ export function removeOwnedHook(
   const claim: string[][] = [];
   for (const event of events) {
     const existing = readAt(current, matcherKeyPath(event));
-    const without = only && !only.has(event) ? existing : stripCommand(existing, command);
-    if (Array.isArray(without) && without.length > 0) desired.push({ keyPath: matcherKeyPath(event), value: without });
+    const without =
+      only && !only.has(event) ? existing : stripCommand(existing, command);
+    if (Array.isArray(without) && without.length > 0)
+      desired.push({ keyPath: matcherKeyPath(event), value: without });
     else if (hasCommand(existing, command)) claim.push(matcherKeyPath(event));
   }
   desired.push(...retainOwned(target, current, isHookKey));
-  return applyOwnedJson(target, desired, { adopt: true, claim, dryRun: options.dryRun, indent: 2, what: "hooks" });
+  return applyOwnedJson(target, desired, {
+    adopt: true,
+    claim,
+    dryRun: options.dryRun,
+    indent: 2,
+    what: "hooks",
+  });
 }
 
 /**
@@ -207,18 +243,24 @@ export function removeOwnedHook(
  * re-stating a key they deleted would resurrect it. Given the ledger value,
  * `planJsonMerge` answers both cases the way it answers every other key.
  */
-function retainOwned(target: string, current: unknown, mine: (keyPath: string[]) => boolean): OwnedKey[] {
+function retainOwned(
+  target: string,
+  current: unknown,
+  mine: (keyPath: string[]) => boolean,
+): OwnedKey[] {
   const kept: OwnedKey[] = [];
   for (const [encoded, ours] of Object.entries(readLedger(target))) {
     const keyPath = decodeKeyPath(encoded);
     if (mine(keyPath)) continue;
-    if (readAt(current, keyPath) !== undefined) kept.push({ keyPath, value: ours });
+    if (readAt(current, keyPath) !== undefined)
+      kept.push({ keyPath, value: ours });
   }
   return kept;
 }
 
 const isHookKey = (keyPath: string[]): boolean => keyPath[0] === "hooks";
-const isStatusLineKey = (keyPath: string[]): boolean => keyPath[0] === "statusLine";
+const isStatusLineKey = (keyPath: string[]): boolean =>
+  keyPath[0] === "statusLine";
 
 /** The value codecast writes at `statusLine`. Claude Code's own shape. */
 function statusLineEntry(command: string): Record<string, unknown> {
@@ -246,7 +288,12 @@ export function installOwnedStatusLine(
   ];
   // No `adopt`: the value is wholly ours, so the default rule (a key we do not
   // own is a conflict, not a thing to take over) is the right one.
-  return applyOwnedJson(target, desired, { dryRun: options.dryRun, indent: 2, mode: options.mode ?? 0o600, what: "statusline" });
+  return applyOwnedJson(target, desired, {
+    dryRun: options.dryRun,
+    indent: 2,
+    mode: options.mode ?? 0o600,
+    what: "statusline",
+  });
 }
 
 /** Take our `statusLine` back out, leaving any hook entries we own in place. */
@@ -272,7 +319,10 @@ export function removeOwnedStatusLine(
  * hook twice. Both spellings name one file, so both are one hook.
  */
 function sameCommand(entry: unknown, command: string): boolean {
-  return typeof entry === "string" && (entry === command || expandHome(entry) === expandHome(command));
+  return (
+    typeof entry === "string" &&
+    (entry === command || expandHome(entry) === expandHome(command))
+  );
 }
 
 function expandHome(command: string): string {
@@ -282,8 +332,14 @@ function expandHome(command: string): string {
 }
 
 function hasCommand(existing: unknown, command: string): boolean {
-  return Array.isArray(existing)
-    && (existing as HookMatcher[]).some((m) => Array.isArray(m?.hooks) && m.hooks.some((h) => sameCommand(h?.command, command)));
+  return (
+    Array.isArray(existing) &&
+    (existing as HookMatcher[]).some(
+      (m) =>
+        Array.isArray(m?.hooks) &&
+        m.hooks.some((h) => sameCommand(h?.command, command)),
+    )
+  );
 }
 
 function stripCommand(existing: unknown, command: string): HookMatcher[] {
@@ -292,9 +348,15 @@ function stripCommand(existing: unknown, command: string): HookMatcher[] {
   // touch comes back identical, so removing a hook that is not there writes
   // nothing.
   return (existing as HookMatcher[])
-    .map((m) => (Array.isArray(m?.hooks) && m.hooks.some((h) => sameCommand(h?.command, command))
-      ? { ...m, hooks: m.hooks.filter((h) => !sameCommand(h?.command, command)) }
-      : m))
+    .map((m) =>
+      Array.isArray(m?.hooks) &&
+      m.hooks.some((h) => sameCommand(h?.command, command))
+        ? {
+            ...m,
+            hooks: m.hooks.filter((h) => !sameCommand(h?.command, command)),
+          }
+        : m,
+    )
     .filter((m) => !Array.isArray(m?.hooks) || m.hooks.length > 0);
 }
 

@@ -9,12 +9,35 @@
 // as the org record (components/history/HistoryRail).
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
-import { Ban, CornerDownLeft, History, Network, Redo2, Undo2 } from "lucide-react";
+import {
+  Ban,
+  CornerDownLeft,
+  History,
+  Network,
+  Redo2,
+  Undo2,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
 import { visitTimeAgo, type ResolvedVisit } from "../../lib/recentVisits";
-import { undoActLabel, undoLabelNamesTitle, undoSetAsideLine, undoWindowWords, type UndoTimelineModel, type UndoTimelineRow } from "../../lib/undoHistory";
-import { pressLeavesCard, type UndoTimelineFlash, type UndoTimelineMode } from "../../lib/undoTimelineOpen";
-import { HISTORY_STRUCK, HistoryFold, HistoryRailDot, HistoryRailLine } from "../history/HistoryRail";
+import {
+  undoActLabel,
+  undoLabelNamesTitle,
+  undoSetAsideLine,
+  undoWindowWords,
+  type UndoTimelineModel,
+  type UndoTimelineRow,
+} from "../../lib/undoHistory";
+import {
+  pressLeavesCard,
+  type UndoTimelineFlash,
+  type UndoTimelineMode,
+} from "../../lib/undoTimelineOpen";
+import {
+  HISTORY_STRUCK,
+  HistoryFold,
+  HistoryRailDot,
+  HistoryRailLine,
+} from "../history/HistoryRail";
 import { RecentVisitGlyph } from "../RecentVisitRow";
 import { KeyCap, MenuKeyCaps } from "../KeyboardShortcutsHelp";
 import { claimKeys } from "../../shortcuts/keyOwnership";
@@ -54,19 +77,40 @@ function heldControl(target: EventTarget | null): boolean {
   return target instanceof Element && !!target.closest("button, a[href]");
 }
 
-export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canOpen = () => true, onOpenOrg, onClose, onKey, flash }: UndoTimelineViewProps) {
+export function UndoTimelineView({
+  model,
+  mode,
+  onUndoTo,
+  onRedoTo,
+  onOpen,
+  canOpen = () => true,
+  onOpenOrg,
+  onClose,
+  onKey,
+  flash,
+}: UndoTimelineViewProps) {
   const peek = mode === "peek";
   // A peek shows the head with a few rows either side; interactive shows all.
   const { rows, headIndex, atEnd } = useMemo(() => {
     // A frame with no org record leaves its org rows inert.
-    const all = onOpenOrg ? model.rows : model.rows.map((r) => (r.act?.kind === "org" ? { ...r, act: null } : r));
+    const all = onOpenOrg
+      ? model.rows
+      : model.rows.map((r) =>
+          r.act?.kind === "org" ? { ...r, act: null } : r,
+        );
     if (!peek) return { rows: all, headIndex: model.headIndex, atEnd: true };
     const from = Math.max(0, model.headIndex - PEEK_ABOVE);
     const to = Math.min(all.length, model.headIndex + PEEK_BELOW + 1);
-    return { rows: all.slice(from, to), headIndex: model.headIndex - from, atEnd: to === all.length };
+    return {
+      rows: all.slice(from, to),
+      headIndex: model.headIndex - from,
+      atEnd: to === all.length,
+    };
   }, [model, peek, !onOpenOrg]);
 
-  const [selected, setSelected] = useState<string>(() => model.headId ?? model.rows[model.rows.length - 1]?.id ?? "");
+  const [selected, setSelected] = useState<string>(
+    () => model.headId ?? model.rows[model.rows.length - 1]?.id ?? "",
+  );
   const [folds, setFolds] = useState<ReadonlySet<string>>(() => new Set());
   const cardRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -122,7 +166,10 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
   const lastInput = useRef<"card" | "elsewhere">("card");
   useWatchEffect(() => {
     if (peek) return;
-    const inside = (e: Event) => !!cardRef.current && !!e.target && cardRef.current.contains(e.target as Node);
+    const inside = (e: Event) =>
+      !!cardRef.current &&
+      !!e.target &&
+      cardRef.current.contains(e.target as Node);
     const onPointer = (e: Event) => {
       if (inside(e)) lastInput.current = "card";
       else if (pressLeavesCard(e.target, cardRef.current)) onClose();
@@ -132,10 +179,12 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
       // that focuses on click) hands it back: the card's keys act on its
       // selection, and a control that unmounts would drop focus to the body.
       if (inside(e)) {
-        if (e.target !== rootRef.current && heldControl(e.target)) rootRef.current?.focus({ preventScroll: true });
+        if (e.target !== rootRef.current && heldControl(e.target))
+          rootRef.current?.focus({ preventScroll: true });
         return;
       }
-      if (lastInput.current === "card") rootRef.current?.focus({ preventScroll: true });
+      if (lastInput.current === "card")
+        rootRef.current?.focus({ preventScroll: true });
       else onClose();
     };
     document.addEventListener("pointerdown", onPointer, true);
@@ -149,7 +198,10 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
   // The "now" rule sits on top of the head row. The first placement jumps;
   // later moves slide (160ms ease-out, a jump under reduced motion).
   useLayoutEffect(() => {
-    const target = headIndex < rows.length ? rowEls.current.get(rows[headIndex]!.id) : startRef.current;
+    const target =
+      headIndex < rows.length
+        ? rowEls.current.get(rows[headIndex]!.id)
+        : startRef.current;
     if (!target) return;
     const y = target.offsetTop;
     setRule((cur) => (cur && cur.y === y ? cur : { y, moved: cur !== null }));
@@ -166,15 +218,18 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
     if (row.state === "external") onOpenOrg?.();
     else if (row.visits[0] && canOpen(row.visits[0])) onOpen(row.visits[0]);
   };
-  const toggleFold = (id: string) => setFolds((cur) => {
-    const next = new Set(cur);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+  const toggleFold = (id: string) =>
+    setFolds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const move = (by: number) => {
     const at = rows.findIndex((r) => r.id === selected);
-    const next = rows[Math.min(rows.length - 1, Math.max(0, at === -1 ? 0 : at + by))];
+    const next =
+      rows[Math.min(rows.length - 1, Math.max(0, at === -1 ? 0 : at + by))];
     if (next) setSelected(next.id);
   };
 
@@ -191,30 +246,53 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
     if (e.metaKey || e.ctrlKey || e.altKey) return false;
     if (e.key === "Tab" || e.key === "Shift") return false;
     const row = rows.find((r) => r.id === selected);
-    const handled = (fn: () => void) => { e.preventDefault(); fn(); return true; };
+    const handled = (fn: () => void) => {
+      e.preventDefault();
+      fn();
+      return true;
+    };
     switch (e.key) {
-      case "Escape": return handled(onClose);
-      case "Enter": return handled(() => act(row));
-      case "ArrowDown": return handled(() => move(1));
-      case "ArrowUp": return handled(() => move(-1));
+      case "Escape":
+        return handled(onClose);
+      case "Enter":
+        return handled(() => act(row));
+      case "ArrowDown":
+        return handled(() => move(1));
+      case "ArrowUp":
+        return handled(() => move(-1));
       case "ArrowRight":
-      case " ": return handled(() => { if (row?.fold) toggleFold(row.id); });
+      case " ":
+        return handled(() => {
+          if (row?.fold) toggleFold(row.id);
+        });
       case "o":
-      case "O": return handled(() => open(row));
-      case "Home": return handled(() => { if (rows[0]) setSelected(rows[0].id); });
-      case "End": return handled(() => { if (rows.length) setSelected(rows[rows.length - 1]!.id); });
+      case "O":
+        return handled(() => open(row));
+      case "Home":
+        return handled(() => {
+          if (rows[0]) setSelected(rows[0].id);
+        });
+      case "End":
+        return handled(() => {
+          if (rows.length) setSelected(rows[rows.length - 1]!.id);
+        });
     }
     return true;
   };
   onKeyRef.current = (e) => {
     const mine = ownKey(e);
     // A lone modifier says nothing about where the person is going.
-    if (!["Shift", "Meta", "Control", "Alt"].includes(e.key)) lastInput.current = mine ? "card" : "elsewhere";
+    if (!["Shift", "Meta", "Control", "Alt"].includes(e.key))
+      lastInput.current = mine ? "card" : "elsewhere";
     return mine;
   };
   useWatchEffect(() => {
     if (peek) return;
-    return claimKeys((e) => !!cardRef.current?.contains(e.target as Node | null) && onKeyRef.current(e));
+    return claimKeys(
+      (e) =>
+        !!cardRef.current?.contains(e.target as Node | null) &&
+        onKeyRef.current(e),
+    );
   }, [peek]);
 
   return (
@@ -226,7 +304,9 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
       data-undo-timeline={mode}
       // A press on a row's control acts through its click and leaves focus
       // where it was: on the card, or (in a peek) on the page's own field.
-      onMouseDown={(e) => { if (heldControl(e.target)) e.preventDefault(); }}
+      onMouseDown={(e) => {
+        if (heldControl(e.target)) e.preventDefault();
+      }}
       className={cn(
         "fixed z-[9990] right-4 bottom-4 w-[min(380px,calc(100vw-24px))] flex flex-col overflow-hidden",
         "rounded-xl border border-sol-border/60 bg-sol-bg/95 backdrop-blur-xl shadow-2xl shadow-black/40",
@@ -234,7 +314,10 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
         "max-[479px]:inset-x-0 max-[479px]:bottom-0 max-[479px]:w-full max-[479px]:rounded-b-none",
         peek ? "max-h-[300px]" : "max-h-[min(560px,70vh)]",
       )}
-      style={{ backgroundImage: "linear-gradient(to bottom, color-mix(in srgb, var(--sol-cyan) 7%, transparent), transparent 72px)" }}
+      style={{
+        backgroundImage:
+          "linear-gradient(to bottom, color-mix(in srgb, var(--sol-cyan) 7%, transparent), transparent 72px)",
+      }}
     >
       <Command
         ref={rootRef}
@@ -248,8 +331,12 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
       >
         <Header peek={peek} windowMs={model.windowMs} />
         {model.rows.length === 0 ? (
-          <p className="px-4 pb-4 pt-1 text-[12.5px] leading-relaxed text-sol-text-muted" data-undo-empty>
-            Nothing to take back yet. Changes you make in this window collect here, newest first, each with a way back.
+          <p
+            className="px-4 pb-4 pt-1 text-[12.5px] leading-relaxed text-sol-text-muted"
+            data-undo-empty
+          >
+            Nothing to take back yet. Changes you make in this window collect
+            here, newest first, each with a way back.
           </p>
         ) : (
           // cmdk moves focus to the list on the first arrow key (there is no
@@ -272,14 +359,26 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
                   onAct={() => act(row)}
                   onOpen={() => open(row)}
                   opens={!!row.visits[0] && canOpen(row.visits[0])}
-                  refCb={(el) => { if (el) rowEls.current.set(row.id, el); else rowEls.current.delete(row.id); }}
+                  refCb={(el) => {
+                    if (el) rowEls.current.set(row.id, el);
+                    else rowEls.current.delete(row.id);
+                  }}
                 />
               ))}
               {atEnd && (
-                <div ref={startRef} className="relative mx-1 px-2 pt-1.5 pb-1" data-undo-start>
+                <div
+                  ref={startRef}
+                  className="relative mx-1 px-2 pt-1.5 pb-1"
+                  data-undo-start
+                >
                   <div className="relative pl-[30px] min-h-[22px] flex items-center">
-                    <span aria-hidden className="absolute left-[6px] top-[6px] w-[10px] h-[10px] rounded-full border border-dashed border-sol-text-dim/50 bg-sol-bg" />
-                    <span className="text-meta text-sol-text-dim">Start · before these changes</span>
+                    <span
+                      aria-hidden
+                      className="absolute left-[6px] top-[6px] w-[10px] h-[10px] rounded-full border border-dashed border-sol-text-dim/50 bg-sol-bg"
+                    />
+                    <span className="text-meta text-sol-text-dim">
+                      Start · before these changes
+                    </span>
                   </div>
                 </div>
               )}
@@ -287,13 +386,30 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
           </Command.List>
         )}
         {!peek && model.rows.length > 0 && (
-          <div className="flex items-center gap-2.5 px-3 py-1.5 border-t border-sol-border/30 text-meta text-sol-text-dim whitespace-nowrap" data-undo-legend>
-            <span className={HINT}><KeyCap size="xs">&uarr;</KeyCap><KeyCap size="xs">&darr;</KeyCap>move</span>
-            <span className={HINT}><KeyCap size="xs">&#9166;</KeyCap>go</span>
-            <span className={HINT}><KeyCap size="xs">&rarr;</KeyCap>fold</span>
-            <span className={HINT}><KeyCap size="xs">O</KeyCap>open</span>
-            <span className={cn(HINT, "ml-auto")} title="Back and forward one step">
-              <MenuKeyCaps action="ui.undo" className={CHORD} /><MenuKeyCaps action="ui.redo" className={CHORD} />step
+          <div
+            className="flex items-center gap-2.5 px-3 py-1.5 border-t border-sol-border/30 text-meta text-sol-text-dim whitespace-nowrap"
+            data-undo-legend
+          >
+            <span className={HINT}>
+              <KeyCap size="xs">&uarr;</KeyCap>
+              <KeyCap size="xs">&darr;</KeyCap>move
+            </span>
+            <span className={HINT}>
+              <KeyCap size="xs">&#9166;</KeyCap>go
+            </span>
+            <span className={HINT}>
+              <KeyCap size="xs">&rarr;</KeyCap>fold
+            </span>
+            <span className={HINT}>
+              <KeyCap size="xs">O</KeyCap>open
+            </span>
+            <span
+              className={cn(HINT, "ml-auto")}
+              title="Back and forward one step"
+            >
+              <MenuKeyCaps action="ui.undo" className={CHORD} />
+              <MenuKeyCaps action="ui.redo" className={CHORD} />
+              step
             </span>
           </div>
         )}
@@ -305,22 +421,38 @@ export function UndoTimelineView({ model, mode, onUndoTo, onRedoTo, onOpen, canO
 function Header({ peek, windowMs }: { peek: boolean; windowMs: number }) {
   return (
     <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2">
-      <span className="w-7 h-7 flex-shrink-0 rounded-lg inline-flex items-center justify-center text-sol-cyan" style={{ background: "color-mix(in srgb, var(--sol-cyan) 14%, transparent)" }}>
+      <span
+        className="w-7 h-7 flex-shrink-0 rounded-lg inline-flex items-center justify-center text-sol-cyan"
+        style={{
+          background: "color-mix(in srgb, var(--sol-cyan) 14%, transparent)",
+        }}
+      >
         <History className="w-4 h-4" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h2 className="text-[13px] font-semibold leading-[18px] text-sol-text truncate">Undo history</h2>
+          <h2 className="text-[13px] font-semibold leading-[18px] text-sol-text truncate">
+            Undo history
+          </h2>
           {/* Stepping keys sit in the footer beside the list they move; the
               header names only the way out, so the title keeps one line. */}
           {!peek && (
-            <span className="ml-auto flex flex-shrink-0 items-center whitespace-nowrap text-meta text-sol-text-dim" data-undo-header-keys>
-              <span className={HINT}><KeyCap size="xs">Esc</KeyCap>close</span>
+            <span
+              className="ml-auto flex flex-shrink-0 items-center whitespace-nowrap text-meta text-sol-text-dim"
+              data-undo-header-keys
+            >
+              <span className={HINT}>
+                <KeyCap size="xs">Esc</KeyCap>close
+              </span>
             </span>
           )}
         </div>
-        <p className="text-meta text-sol-text-dim leading-[18px] truncate" data-undo-subline>
-          This window · <MenuKeyCaps action="ui.undo" className={CHORD} /> reaches the last {undoWindowWords(windowMs)}
+        <p
+          className="text-meta text-sol-text-dim leading-[18px] truncate"
+          data-undo-subline
+        >
+          This window · <MenuKeyCaps action="ui.undo" className={CHORD} />{" "}
+          reaches the last {undoWindowWords(windowMs)}
         </p>
       </div>
     </div>
@@ -333,12 +465,31 @@ function NowRule({ y, slide }: { y: number; slide: boolean }) {
     <div
       aria-hidden
       data-undo-now
-      className={cn("absolute left-3 right-3 top-0 h-0 z-10 pointer-events-none", slide && "transition-transform [transition-duration:160ms] ease-out motion-reduce:transition-none")}
+      className={cn(
+        "absolute left-3 right-3 top-0 h-0 z-10 pointer-events-none",
+        slide &&
+          "transition-transform [transition-duration:160ms] ease-out motion-reduce:transition-none",
+      )}
       style={{ transform: `translateY(${y}px)` }}
     >
-      <span className="absolute left-0 right-0 -top-px h-px" style={{ background: "linear-gradient(to right, var(--sol-cyan), color-mix(in srgb, var(--sol-cyan) 45%, transparent))" }} />
-      <span className="absolute left-[7px] -top-[3.5px] w-[7px] h-[7px] rounded-full" style={{ background: "var(--sol-cyan)", boxShadow: "0 0 0 3px color-mix(in srgb, var(--sol-cyan) 22%, transparent)" }} />
-      <span className="absolute right-0 -top-[9px] px-1.5 h-[18px] inline-flex items-center rounded-full text-mark font-semibold uppercase tracking-[0.08em] text-sol-cyan bg-sol-bg">now</span>
+      <span
+        className="absolute left-0 right-0 -top-px h-px"
+        style={{
+          background:
+            "linear-gradient(to right, var(--sol-cyan), color-mix(in srgb, var(--sol-cyan) 45%, transparent))",
+        }}
+      />
+      <span
+        className="absolute left-[7px] -top-[3.5px] w-[7px] h-[7px] rounded-full"
+        style={{
+          background: "var(--sol-cyan)",
+          boxShadow:
+            "0 0 0 3px color-mix(in srgb, var(--sol-cyan) 22%, transparent)",
+        }}
+      />
+      <span className="absolute right-0 -top-[9px] px-1.5 h-[18px] inline-flex items-center rounded-full text-mark font-semibold uppercase tracking-[0.08em] text-sol-cyan bg-sol-bg">
+        now
+      </span>
     </div>
   );
 }
@@ -347,24 +498,55 @@ function RowDot({ row }: { row: UndoTimelineRow }) {
   switch (row.state) {
     case "undone":
     case "partial":
-      return <HistoryRailDot color="var(--sol-text-dim)"><Redo2 className="w-3 h-3" /></HistoryRailDot>;
+      return (
+        <HistoryRailDot color="var(--sol-text-dim)">
+          <Redo2 className="w-3 h-3" />
+        </HistoryRailDot>
+      );
     case "external":
-      return <HistoryRailDot color="var(--sol-violet)"><Network className="w-3 h-3" /></HistoryRailDot>;
+      return (
+        <HistoryRailDot color="var(--sol-violet)">
+          <Network className="w-3 h-3" />
+        </HistoryRailDot>
+      );
     case "refused":
-      return <HistoryRailDot color="var(--sol-red)"><Ban className="w-3 h-3" /></HistoryRailDot>;
+      return (
+        <HistoryRailDot color="var(--sol-red)">
+          <Ban className="w-3 h-3" />
+        </HistoryRailDot>
+      );
     default: {
       const ring = row.state === "conflict" ? "var(--sol-yellow)" : undefined;
       const dim = row.state === "dropped" || row.expired;
       return (
-        <HistoryRailDot ring={ring} color={dim ? "var(--sol-text-dim)" : "var(--sol-text-muted)"} className={cn(ring && "border-[1.5px]")}>
-          {row.visits[0] ? <RecentVisitGlyph item={row.visits[0]} className="w-3 h-3" /> : <Undo2 className="w-3 h-3" />}
+        <HistoryRailDot
+          ring={ring}
+          color={dim ? "var(--sol-text-dim)" : "var(--sol-text-muted)"}
+          className={cn(ring && "border-[1.5px]")}
+        >
+          {row.visits[0] ? (
+            <RecentVisitGlyph item={row.visits[0]} className="w-3 h-3" />
+          ) : (
+            <Undo2 className="w-3 h-3" />
+          )}
         </HistoryRailDot>
       );
     }
   }
 }
 
-function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, opens, refCb }: {
+function Row({
+  row,
+  aboveHead,
+  peek,
+  flashing,
+  foldOpen,
+  onFold,
+  onAct,
+  onOpen,
+  opens,
+  refCb,
+}: {
   row: UndoTimelineRow;
   aboveHead: boolean;
   /** A peek takes no keys: its selection marks the head, not a target for Enter. */
@@ -385,11 +567,18 @@ function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, 
   // group names several objects, so no one title speaks for it. Only a live
   // object (an archived doc resolves to its kind word), and only on a row in
   // force: an undone or refused row's line 2 is its state.
-  const showTitle = opens && !!visit?.entity && !row.fold && row.state === "done" && !undoLabelNamesTitle(row.label, visit.title);
+  const showTitle =
+    opens &&
+    !!visit?.entity &&
+    !row.fold &&
+    row.state === "done" &&
+    !undoLabelNamesTitle(row.label, visit.title);
   const actLabel = undoActLabel(row.act);
   // A group with nothing to report on line 2 puts its fold there.
   const foldInline = !!row.fold && !row.detail;
-  const skipped = new Set((row.item.skipped ?? []).map((s) => `${s.store}:${s.id}`));
+  const skipped = new Set(
+    (row.item.skipped ?? []).map((s) => `${s.store}:${s.id}`),
+  );
   return (
     <Command.Item
       ref={refCb}
@@ -411,24 +600,47 @@ function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, 
         <RowDot row={row} />
         <div className="flex items-baseline gap-2 min-h-[22px]">
           <span
-            className={cn("min-w-0 truncate text-[13px] leading-[22px]", row.state === "dropped" && HISTORY_STRUCK)}
-            style={{ color: undone || row.state === "dropped" || inert ? "var(--sol-text-dim)" : "var(--sol-text)" }}
+            className={cn(
+              "min-w-0 truncate text-[13px] leading-[22px]",
+              row.state === "dropped" && HISTORY_STRUCK,
+            )}
+            style={{
+              color:
+                undone || row.state === "dropped" || inert
+                  ? "var(--sol-text-dim)"
+                  : "var(--sol-text)",
+            }}
             title={row.label}
             data-undo-label
           >
             {row.label}
           </span>
-          <span className="ml-auto flex-shrink-0 text-meta text-sol-text-dim tabular-nums">{visitTimeAgo(row.ts)}</span>
+          <span className="ml-auto flex-shrink-0 text-meta text-sol-text-dim tabular-nums">
+            {visitTimeAgo(row.ts)}
+          </span>
         </div>
         <div className="relative flex items-center gap-2 min-h-[18px]">
-          {foldInline && <HistoryFold open={foldOpen} onClick={onFold} tabIndex={-1} className="h-[18px]" data-undo-fold>{row.fold!.label}</HistoryFold>}
+          {foldInline && (
+            <HistoryFold
+              open={foldOpen}
+              onClick={onFold}
+              tabIndex={-1}
+              className="h-[18px]"
+              data-undo-fold
+            >
+              {row.fold!.label}
+            </HistoryFold>
+          )}
           {showTitle && (
             // Line 2 is where it happened, and the object is the first word of
             // that: its live title, a quiet link. The button truncates itself
             // (an atomic inline box would vanish whole under a wrapper's ellipsis).
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onOpen(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
               tabIndex={-1}
               className="min-w-[6ch] truncate text-left text-meta text-sol-text-muted hover:text-sol-cyan hover:underline underline-offset-2"
               data-undo-open
@@ -436,11 +648,30 @@ function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, 
               {visit!.title}
             </button>
           )}
-          {showTitle && row.detail && <span aria-hidden className="-mx-1 flex-shrink-0 text-meta text-sol-text-dim">·</span>}
+          {showTitle && row.detail && (
+            <span
+              aria-hidden
+              className="-mx-1 flex-shrink-0 text-meta text-sol-text-dim"
+            >
+              ·
+            </span>
+          )}
           <span
             // After a title, the short facts keep their room and the title gives way.
-            className={cn("min-w-0 truncate text-meta", showTitle && "flex-shrink-0 max-w-[55%]")}
-            style={{ color: row.state === "conflict" || flashing ? "var(--sol-yellow)" : row.state === "refused" ? "var(--sol-red)" : row.secondsLeft !== null ? "var(--sol-orange)" : "var(--sol-text-dim)" }}
+            className={cn(
+              "min-w-0 truncate text-meta",
+              showTitle && "flex-shrink-0 max-w-[55%]",
+            )}
+            style={{
+              color:
+                row.state === "conflict" || flashing
+                  ? "var(--sol-yellow)"
+                  : row.state === "refused"
+                    ? "var(--sol-red)"
+                    : row.secondsLeft !== null
+                      ? "var(--sol-orange)"
+                      : "var(--sol-text-dim)",
+            }}
             data-undo-detail
           >
             {row.detail}
@@ -448,37 +679,70 @@ function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, 
           {actLabel && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onAct(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct();
+              }}
               tabIndex={-1}
               className={cn(
                 // Laid over the line's end on the row's own fill (a short fade
                 // into the text before it), so showing it moves nothing.
                 "absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 h-5 px-1.5 rounded-md text-meta font-medium",
                 "bg-[var(--undo-row-bg)] before:absolute before:right-full before:inset-y-0 before:w-5 before:pointer-events-none before:bg-[linear-gradient(to_left,var(--undo-row-bg),transparent)]",
-                peek ? "group-hover:inline-flex" : "group-hover:inline-flex group-data-[selected=true]:inline-flex",
+                peek
+                  ? "group-hover:inline-flex"
+                  : "group-hover:inline-flex group-data-[selected=true]:inline-flex",
                 row.act?.kind === "org"
                   ? "text-sol-violet hover:bg-[color-mix(in_srgb,var(--sol-violet)_10%,var(--undo-row-bg))]"
                   : "text-sol-cyan hover:bg-[color-mix(in_srgb,var(--sol-cyan)_10%,var(--undo-row-bg))]",
               )}
               data-undo-act={row.act?.kind}
             >
-              {row.act?.kind === "back" ? <Undo2 className="w-3 h-3" /> : row.act?.kind === "forward" ? <Redo2 className="w-3 h-3" /> : <Network className="w-3 h-3" />}
+              {row.act?.kind === "back" ? (
+                <Undo2 className="w-3 h-3" />
+              ) : row.act?.kind === "forward" ? (
+                <Redo2 className="w-3 h-3" />
+              ) : (
+                <Network className="w-3 h-3" />
+              )}
               {actLabel}
-              {!peek && <CornerDownLeft className="w-2.5 h-2.5 opacity-60 hidden group-data-[selected=true]:inline" />}
+              {!peek && (
+                <CornerDownLeft className="w-2.5 h-2.5 opacity-60 hidden group-data-[selected=true]:inline" />
+              )}
             </button>
           )}
         </div>
         {row.fold && (
           <div className={foldInline ? undefined : "mt-0.5"}>
-            {!foldInline && <HistoryFold open={foldOpen} onClick={onFold} tabIndex={-1} data-undo-fold>{row.fold.label}</HistoryFold>}
+            {!foldInline && (
+              <HistoryFold
+                open={foldOpen}
+                onClick={onFold}
+                tabIndex={-1}
+                data-undo-fold
+              >
+                {row.fold.label}
+              </HistoryFold>
+            )}
             {foldOpen && (
               <ul className="mt-1 mb-0.5 space-y-0.5 pl-1" data-undo-fold-rows>
                 {row.fold.children.map((c) => {
-                  const left = (c.objects ?? []).some((o) => skipped.has(`${o.store}:${o.id}`));
+                  const left = (c.objects ?? []).some((o) =>
+                    skipped.has(`${o.store}:${o.id}`),
+                  );
                   return (
-                    <li key={c.id} className="text-meta text-sol-text-muted truncate" data-undo-child={c.id}>
+                    <li
+                      key={c.id}
+                      className="text-meta text-sol-text-muted truncate"
+                      data-undo-child={c.id}
+                    >
                       {c.label}
-                      {left && <span className="text-sol-text-dim"> · changed since, left as it is</span>}
+                      {left && (
+                        <span className="text-sol-text-dim">
+                          {" "}
+                          · changed since, left as it is
+                        </span>
+                      )}
                     </li>
                   );
                 })}
@@ -487,7 +751,14 @@ function Row({ row, aboveHead, peek, flashing, foldOpen, onFold, onAct, onOpen, 
           </div>
         )}
         {row.setAside && (
-          <p className={cn("mt-0.5 text-meta text-sol-text-dim truncate", HISTORY_STRUCK)} title={row.setAside.labels.join("\n")} data-undo-set-aside={row.setAside.count}>
+          <p
+            className={cn(
+              "mt-0.5 text-meta text-sol-text-dim truncate",
+              HISTORY_STRUCK,
+            )}
+            title={row.setAside.labels.join("\n")}
+            data-undo-set-aside={row.setAside.count}
+          >
             {undoSetAsideLine(row.setAside.count, row.label)}
           </p>
         )}

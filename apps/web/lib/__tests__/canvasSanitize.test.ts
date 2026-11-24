@@ -43,7 +43,9 @@ describe("sanitizeCanvasHtml", () => {
   });
 
   test("strips <use> that references an external URL", async () => {
-    const out = await sanitize('<svg><use href="https://evil.example/sprite.svg#x"/></svg>');
+    const out = await sanitize(
+      '<svg><use href="https://evil.example/sprite.svg#x"/></svg>',
+    );
     expect(out).not.toContain("<use");
   });
 
@@ -55,7 +57,9 @@ describe("sanitizeCanvasHtml", () => {
   });
 
   test("still strips scripts and event handlers", async () => {
-    const out = await sanitize('<div onclick="x()"><script>bad()</script><b>ok</b></div>');
+    const out = await sanitize(
+      '<div onclick="x()"><script>bad()</script><b>ok</b></div>',
+    );
     expect(out).not.toContain("script");
     expect(out).not.toContain("onclick");
     expect(out).toContain("<b>ok</b>");
@@ -80,7 +84,7 @@ describe("sanitizeCanvasHtml", () => {
   test("neutralizes remote url() in style attributes, keeps local and data:", async () => {
     const out = await sanitize(
       '<div style="background:url(https://evil.example/x.png);color:red">a</div>' +
-        "<div style=\"background:url(data:image/gif;base64,R0l);mask:url(#m)\">b</div>",
+        '<div style="background:url(data:image/gif;base64,R0l);mask:url(#m)">b</div>',
     );
     expect(out).not.toContain("evil.example");
     expect(out).toContain("color:red");
@@ -106,7 +110,9 @@ describe("sanitizeCanvasHtml", () => {
   });
 
   test("keeps a leading top-level <style> block (FORCE_BODY)", async () => {
-    const out = await sanitize('<style>.x{color:red}</style><div class="x">t</div>');
+    const out = await sanitize(
+      '<style>.x{color:red}</style><div class="x">t</div>',
+    );
     expect(out).toContain(".x{color:red}");
   });
 
@@ -126,7 +132,9 @@ describe("sanitizeCanvasHtml", () => {
     const out = await sanitize(
       '<img src="https://convex.test.example/api/storage/abc-123" alt="shot">',
     );
-    expect(out).toContain('src="https://convex.test.example/api/storage/abc-123"');
+    expect(out).toContain(
+      'src="https://convex.test.example/api/storage/abc-123"',
+    );
   });
 
   test("keeps svg <image> on the Convex storage origin", async () => {
@@ -144,7 +152,9 @@ describe("sanitizeCanvasHtml", () => {
   });
 
   test("removes media, poster, legacy background, escaped CSS and SVG egress", async () => {
-    const out = await sanitize(String.raw`<video src="https://evil.example/video" poster="https://evil.example/poster"><source src="https://evil.example/source"></video><audio src="https://evil.example/audio"></audio><table background="https://evil.example/background"></table><div style="--x:u\72l(https://evil.example/css);background:var(--x);color:red"></div><svg><feImage href="https://evil.example/filter" /></svg>`);
+    const out = await sanitize(
+      String.raw`<video src="https://evil.example/video" poster="https://evil.example/poster"><source src="https://evil.example/source"></video><audio src="https://evil.example/audio"></audio><table background="https://evil.example/background"></table><div style="--x:u\72l(https://evil.example/css);background:var(--x);color:red"></div><svg><feImage href="https://evil.example/filter" /></svg>`,
+    );
     expect(out).not.toContain("evil.example");
     expect(out).toContain("color:red");
   });
@@ -154,13 +164,20 @@ test("normalizes DOM-created SVG namespace hrefs before links are mounted", asyn
   const { sanitizeCanvasElement } = await import("../canvasSanitize");
   const doc = window.document.implementation.createHTMLDocument("");
   const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
-  for (const href of ["https://example.com/chart", "javascript:window.__executed=1"]) {
+  for (const href of [
+    "https://example.com/chart",
+    "javascript:window.__executed=1",
+  ]) {
     const anchor = doc.createElementNS("http://www.w3.org/2000/svg", "a");
     anchor.setAttributeNS("http://www.w3.org/1999/xlink", "href", href);
     svg.append(anchor);
   }
   sanitizeCanvasElement(svg);
-  expect(svg.children[0].getAttribute("href")).toBe("https://example.com/chart");
-  expect(svg.children[0].getAttributeNS("http://www.w3.org/1999/xlink", "href")).toBeNull();
+  expect(svg.children[0].getAttribute("href")).toBe(
+    "https://example.com/chart",
+  );
+  expect(
+    svg.children[0].getAttributeNS("http://www.w3.org/1999/xlink", "href"),
+  ).toBeNull();
   expect(svg.children[1].hasAttribute("href")).toBe(false);
 });

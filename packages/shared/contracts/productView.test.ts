@@ -14,11 +14,27 @@ describe("parseProductViewRef", () => {
   test("reads app, view, id and an optional moment, and formats back", () => {
     const at = "2026-10-09T14:03:00Z";
     const ref = parseProductViewRef(`union:conversation/${contact}@${at}`);
-    expect(ref).toEqual({ app: "union", view: "conversation", id: contact, at });
-    expect(formatProductViewRef(ref!)).toBe(`union:conversation/${contact}@${at}`);
-    expect(parseProductViewRef(`union:call/${contact}`)).toEqual({ app: "union", view: "call", id: contact, at: null });
+    expect(ref).toEqual({
+      app: "union",
+      view: "conversation",
+      id: contact,
+      at,
+    });
+    expect(formatProductViewRef(ref!)).toBe(
+      `union:conversation/${contact}@${at}`,
+    );
+    expect(parseProductViewRef(`union:call/${contact}`)).toEqual({
+      app: "union",
+      view: "call",
+      id: contact,
+      at: null,
+    });
     expect(parseProductViewRef(` union:need/abc123 `)?.id).toBe("abc123");
-    expect(parseProductViewRef(`union:conversation/${contact}@2026-10-09T14:03:00.123+02:00`)?.at).toBe("2026-10-09T14:03:00.123+02:00");
+    expect(
+      parseProductViewRef(
+        `union:conversation/${contact}@2026-10-09T14:03:00.123+02:00`,
+      )?.at,
+    ).toBe("2026-10-09T14:03:00.123+02:00");
   });
 
   test("refuses malformed parts", () => {
@@ -41,16 +57,69 @@ describe("parseProductViewRef", () => {
 
 describe("frame messages", () => {
   test("parses the frame's messages field by field", () => {
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "hello" })).toEqual({ source: PRODUCT_VIEW_SOURCE, type: "hello" });
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "ready", height: 412.4 })).toEqual({ source: PRODUCT_VIEW_SOURCE, type: "ready", height: 413 });
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "height", height: 1e9 })?.type).toBe("height");
-    expect((parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "height", height: 1e9 }) as any).height).toBe(20_000);
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "error", message: "expired" })).toMatchObject({ type: "error", message: "expired" });
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "height", height: -1 })).toBeNull();
-    expect(parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "height", height: "12" })).toBeNull();
-    expect(parseProductViewMessage({ source: "codecast-replay-player", type: "ready", height: 1 })).toBeNull();
+    expect(
+      parseProductViewMessage({ source: PRODUCT_VIEW_SOURCE, type: "hello" }),
+    ).toEqual({ source: PRODUCT_VIEW_SOURCE, type: "hello" });
+    expect(
+      parseProductViewMessage({
+        source: PRODUCT_VIEW_SOURCE,
+        type: "ready",
+        height: 412.4,
+      }),
+    ).toEqual({ source: PRODUCT_VIEW_SOURCE, type: "ready", height: 413 });
+    expect(
+      parseProductViewMessage({
+        source: PRODUCT_VIEW_SOURCE,
+        type: "height",
+        height: 1e9,
+      })?.type,
+    ).toBe("height");
+    expect(
+      (
+        parseProductViewMessage({
+          source: PRODUCT_VIEW_SOURCE,
+          type: "height",
+          height: 1e9,
+        }) as any
+      ).height,
+    ).toBe(20_000);
+    expect(
+      parseProductViewMessage({
+        source: PRODUCT_VIEW_SOURCE,
+        type: "error",
+        message: "expired",
+      }),
+    ).toMatchObject({ type: "error", message: "expired" });
+    expect(
+      parseProductViewMessage({
+        source: PRODUCT_VIEW_SOURCE,
+        type: "height",
+        height: -1,
+      }),
+    ).toBeNull();
+    expect(
+      parseProductViewMessage({
+        source: PRODUCT_VIEW_SOURCE,
+        type: "height",
+        height: "12",
+      }),
+    ).toBeNull();
+    expect(
+      parseProductViewMessage({
+        source: "codecast-replay-player",
+        type: "ready",
+        height: 1,
+      }),
+    ).toBeNull();
     expect(parseProductViewMessage(null)).toBeNull();
-    expect(isProductViewHostMessage({ source: PRODUCT_VIEW_HOST_SOURCE, type: "hello" })).toBe(true);
-    expect(isProductViewHostMessage({ source: PRODUCT_VIEW_SOURCE, type: "hello" })).toBe(false);
+    expect(
+      isProductViewHostMessage({
+        source: PRODUCT_VIEW_HOST_SOURCE,
+        type: "hello",
+      }),
+    ).toBe(true);
+    expect(
+      isProductViewHostMessage({ source: PRODUCT_VIEW_SOURCE, type: "hello" }),
+    ).toBe(false);
   });
 });

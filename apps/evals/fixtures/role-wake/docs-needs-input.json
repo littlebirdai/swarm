@@ -10,10 +10,7 @@
         "handle": "docs",
         "name": "Docs lead",
         "reports_to": "Mara",
-        "scope": [
-          "Docs site",
-          "API reference"
-        ],
+        "scope": ["Docs site", "API reference"],
         "charter": "Keep every public page true to what the product does today.",
         "goals": [
           "Every page reviewed within a month of the feature it describes",

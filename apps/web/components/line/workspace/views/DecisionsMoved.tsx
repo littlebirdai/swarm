@@ -18,13 +18,24 @@ export function DecisionsMoved({ selection, workspace }: LineViewProps) {
   const flows = useOwnedFlows(workspace);
   const line = selection.process;
   const flow = selection.flow ? flowOf(flows, selection.flow) : null;
-  const waiting = (!!line || !!selection.flow) && (!workspace.ready || (!!selection.flow && flows.length === 0));
+  const waiting =
+    (!!line || !!selection.flow) &&
+    (!workspace.ready || (!!selection.flow && flows.length === 0));
   const to = useMemo(() => {
     if (waiting) return null;
     if (!line && !flow) return flowDecisionsHref(selection);
-    const lineNeeds = needsOfLine(workspace.needs, line, line ? selection.project : null);
-    return flowDecisionsHref(selection, flow ? flowNeeds(lineNeeds, flow) : lineNeeds);
+    const lineNeeds = needsOfLine(
+      workspace.needs,
+      line,
+      line ? selection.project : null,
+    );
+    return flowDecisionsHref(
+      selection,
+      flow ? flowNeeds(lineNeeds, flow) : lineNeeds,
+    );
   }, [waiting, line, flow, selection, workspace.needs]);
-  useWatchEffect(() => { if (to) router.replace(to); }, [to]);
+  useWatchEffect(() => {
+    if (to) router.replace(to);
+  }, [to]);
   return null;
 }

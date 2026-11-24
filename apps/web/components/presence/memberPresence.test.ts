@@ -20,37 +20,57 @@ it("keeps teammate clocks correct across timestamps and invalid zones", () => {
   const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const zone = localZone === "Asia/Tokyo" ? "Europe/Berlin" : "Asia/Tokyo";
   for (const now of [0, NOW, NOW + 3600000]) {
-    expect(localTimeLine(zone, now)).toBe(new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: zone }).format(now));
+    expect(localTimeLine(zone, now)).toBe(
+      new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: zone,
+      }).format(now),
+    );
   }
   expect(localTimeLine(localZone, NOW)).toBe("");
   expect(localTimeLine(undefined, NOW)).toBe("");
   expect(localTimeLine("invalid/timezone", NOW)).toBe("");
 });
-const ctx = (over: Partial<Parameters<typeof presenceActivityLine>[1]> = {}) => ({ now: NOW, ...over });
-const fleet = (over: Partial<ReturnType<typeof memberFleetSummary>> = {}) => ({
-  working: 0,
-  needsYou: 0,
-  topStatus: null,
-  topTitle: null,
-  topSessionKey: null,
-  ...over,
-}) as any;
+const ctx = (
+  over: Partial<Parameters<typeof presenceActivityLine>[1]> = {},
+) => ({ now: NOW, ...over });
+const fleet = (over: Partial<ReturnType<typeof memberFleetSummary>> = {}) =>
+  ({
+    working: 0,
+    needsYou: 0,
+    topStatus: null,
+    topTitle: null,
+    topSessionKey: null,
+    ...over,
+  }) as any;
 
-const member = (over: Record<string, any> = {}) => ({ presence_state: "active", ...over });
+const member = (over: Record<string, any> = {}) => ({
+  presence_state: "active",
+  ...over,
+});
 
 describe("memberPresenceVisual", () => {
   it("draws a manual busy over the heartbeat state", () => {
     expect(memberPresenceVisual(member({ status: "busy" }))).toBe("busy");
-    expect(memberPresenceVisual(member({ presence_state: "idle", status: "busy" }))).toBe("busy");
+    expect(
+      memberPresenceVisual(member({ presence_state: "idle", status: "busy" })),
+    ).toBe("busy");
   });
 
   it("keeps offline over a stale busy flag — a dead daemon is gone, not busy", () => {
-    expect(memberPresenceVisual(member({ presence_state: "offline", status: "busy" }))).toBe("offline");
+    expect(
+      memberPresenceVisual(
+        member({ presence_state: "offline", status: "busy" }),
+      ),
+    ).toBe("offline");
   });
 
   it("draws a declared away over an active heartbeat — the declaration is the point", () => {
     expect(memberPresenceVisual(member({ status: "away" }))).toBe("away");
-    expect(presenceActivityLine(member({ status: "away" }), ctx())).toBe("away");
+    expect(presenceActivityLine(member({ status: "away" }), ctx())).toBe(
+      "away",
+    );
     expect(presenceLine(member({ status: "away" }), NOW)).toBe("Away");
   });
 
@@ -59,27 +79,64 @@ describe("memberPresenceVisual", () => {
   // everyone in it idle and then away while they were talking to each other.
   describe("a live room outranks the heartbeat", () => {
     it("draws somebody in a huddle as present, whatever their keyboard did", () => {
-      expect(memberPresenceVisual(member({ presence_state: "away", in_room_key: "dm:a:b" }))).toBe("active");
-      expect(memberPresenceVisual(member({ presence_state: "idle", in_huddle: true }))).toBe("active");
+      expect(
+        memberPresenceVisual(
+          member({ presence_state: "away", in_room_key: "dm:a:b" }),
+        ),
+      ).toBe("active");
+      expect(
+        memberPresenceVisual(
+          member({ presence_state: "idle", in_huddle: true }),
+        ),
+      ).toBe("active");
     });
 
     it("beats offline too — the room's lease IS the report", () => {
-      expect(memberPresenceVisual(member({ presence_state: "offline", in_room_key: "dm:a:b" }))).toBe("active");
+      expect(
+        memberPresenceVisual(
+          member({ presence_state: "offline", in_room_key: "dm:a:b" }),
+        ),
+      ).toBe("active");
     });
 
     it("never overrides a declaration", () => {
-      expect(memberPresenceVisual(member({ presence_state: "away", in_room_key: "dm:a:b", status: "busy" }))).toBe("busy");
-      expect(memberPresenceVisual(member({ presence_state: "active", in_huddle: true, status: "away" }))).toBe("away");
+      expect(
+        memberPresenceVisual(
+          member({
+            presence_state: "away",
+            in_room_key: "dm:a:b",
+            status: "busy",
+          }),
+        ),
+      ).toBe("busy");
+      expect(
+        memberPresenceVisual(
+          member({ presence_state: "active", in_huddle: true, status: "away" }),
+        ),
+      ).toBe("away");
     });
 
     it("still calls a silent, roomless machine offline", () => {
-      expect(memberPresenceVisual(member({ presence_state: "offline" }))).toBe("offline");
-      expect(memberPresenceVisual(member({ presence_state: "offline", status: "busy" }))).toBe("offline");
+      expect(memberPresenceVisual(member({ presence_state: "offline" }))).toBe(
+        "offline",
+      );
+      expect(
+        memberPresenceVisual(
+          member({ presence_state: "offline", status: "busy" }),
+        ),
+      ).toBe("offline");
     });
 
     it("puts them in the band their badge claims", () => {
-      const inHuddle = { _id: "u1", name: "Ann", presence_state: "away", in_room_key: "dm:a:b" };
-      expect(presenceBand(inHuddle)).toBe(presenceBand({ presence_state: "active" }));
+      const inHuddle = {
+        _id: "u1",
+        name: "Ann",
+        presence_state: "away",
+        in_room_key: "dm:a:b",
+      };
+      expect(presenceBand(inHuddle)).toBe(
+        presenceBand({ presence_state: "active" }),
+      );
     });
   });
 
@@ -115,34 +172,67 @@ describe("presenceActivityLine ordering", () => {
 
   it("puts a live voice above everything", () => {
     expect(
-      presenceActivityLine(loud, ctx({ engagement: "talking-to-me", inHuddle: true, room: { label: "#design" }, fleet: fleet({ working: 3 }) })),
+      presenceActivityLine(
+        loud,
+        ctx({
+          engagement: "talking-to-me",
+          inHuddle: true,
+          room: { label: "#design" },
+          fleet: fleet({ working: 3 }),
+        }),
+      ),
     ).toBe("talking on the walkie");
     // An active speaker in my own huddle is talking too, and the line says where.
-    expect(presenceActivityLine(loud, ctx({ engagement: "speaking", inHuddle: true, room: { label: "#design" } }))).toBe(
-      "talking in a huddle with you",
-    );
+    expect(
+      presenceActivityLine(
+        loud,
+        ctx({
+          engagement: "speaking",
+          inHuddle: true,
+          room: { label: "#design" },
+        }),
+      ),
+    ).toBe("talking in a huddle with you");
   });
 
   it("puts the huddle above the fleet", () => {
     expect(
-      presenceActivityLine(loud, ctx({ inHuddle: true, room: { label: "#design" }, fleet: fleet({ working: 3 }) })),
+      presenceActivityLine(
+        loud,
+        ctx({
+          inHuddle: true,
+          room: { label: "#design" },
+          fleet: fleet({ working: 3 }),
+        }),
+      ),
     ).toBe("in a huddle · #design");
   });
 
   it("says a locked huddle is locked instead of guessing its name", () => {
     expect(
-      presenceActivityLine(member(), ctx({ inHuddle: true, room: { label: "a huddle", locked: true } })),
+      presenceActivityLine(
+        member(),
+        ctx({ inHuddle: true, room: { label: "a huddle", locked: true } }),
+      ),
     ).toBe("in a locked huddle");
   });
 
   it("names the room a member of it sits in, locked or not", () => {
     expect(
-      presenceActivityLine(member({ in_room_key: "call:1" }), ctx({ inHuddle: true, room: { label: "Ann, Bo", locked: true } })),
+      presenceActivityLine(
+        member({ in_room_key: "call:1" }),
+        ctx({ inHuddle: true, room: { label: "Ann, Bo", locked: true } }),
+      ),
     ).toBe("in a huddle · Ann, Bo");
   });
 
   it("falls back to the bare huddle when the label is redacted away", () => {
-    expect(presenceActivityLine(member({ in_huddle: true }), ctx({ inHuddle: true }))).toBe("in a huddle");
+    expect(
+      presenceActivityLine(
+        member({ in_huddle: true }),
+        ctx({ inHuddle: true }),
+      ),
+    ).toBe("in a huddle");
   });
 
   // A SEAT IS NOT A HUDDLE. The roster's in_huddle is true for anyone seated,
@@ -150,15 +240,27 @@ describe("presenceActivityLine ordering", () => {
   // (isInHuddle), and a row that says no leaves the line to the fleet and
   // the presence fact, whatever the roster row claims.
   it("reads the row, not the roster: a seat the row calls a burst is not a huddle", () => {
-    expect(presenceActivityLine(member({ in_huddle: true, in_room_key: "dm:a:b" }), ctx({ inHuddle: false }))).toBe("active now");
-    expect(presenceActivityLine(member({ in_huddle: true }), ctx({ room: { label: "#design" } }))).toBe("active now");
+    expect(
+      presenceActivityLine(
+        member({ in_huddle: true, in_room_key: "dm:a:b" }),
+        ctx({ inHuddle: false }),
+      ),
+    ).toBe("active now");
+    expect(
+      presenceActivityLine(
+        member({ in_huddle: true }),
+        ctx({ room: { label: "#design" } }),
+      ),
+    ).toBe("active now");
   });
 
   // A people room's shared label names it from the VIEWER's seat, which is
   // right for the dock pill and wrong on a row about one of the people in it.
   describe("naming a people huddle from the row's own seat", () => {
     const riley = member({ _id: "riley", in_room_key: "dm:riley:jordan" });
-    const ctx = (over: Partial<Parameters<typeof presenceActivityLine>[1]> = {}) => ({ now: NOW, inHuddle: true, ...over });
+    const ctx = (
+      over: Partial<Parameters<typeof presenceActivityLine>[1]> = {},
+    ) => ({ now: NOW, inHuddle: true, ...over });
     const peopleRoom = (members: Array<[string, string]>) => ({
       roomKey: "dm:riley:jordan",
       // What describeRoom hands every surface: the OTHER people, from the
@@ -171,7 +273,13 @@ describe("presenceActivityLine ordering", () => {
       expect(
         presenceActivityLine(
           riley,
-          ctx({ viewerId: "jordan", room: peopleRoom([["riley", "Riley Chen"], ["jordan", "Jordan Lee"]]) }),
+          ctx({
+            viewerId: "jordan",
+            room: peopleRoom([
+              ["riley", "Riley Chen"],
+              ["jordan", "Jordan Lee"],
+            ]),
+          }),
         ),
       ).toBe("in a huddle with you");
     });
@@ -180,7 +288,13 @@ describe("presenceActivityLine ordering", () => {
       expect(
         presenceActivityLine(
           riley,
-          ctx({ viewerId: "sam", room: peopleRoom([["riley", "Riley Chen"], ["ann", "Ann Diaz"]]) }),
+          ctx({
+            viewerId: "sam",
+            room: peopleRoom([
+              ["riley", "Riley Chen"],
+              ["ann", "Ann Diaz"],
+            ]),
+          }),
         ),
       ).toBe("in a huddle · Ann Diaz");
     });
@@ -191,7 +305,11 @@ describe("presenceActivityLine ordering", () => {
           riley,
           ctx({
             viewerId: "jordan",
-            room: peopleRoom([["riley", "R"], ["jordan", "Jordan Lee"], ["ann", "Ann Diaz"]]),
+            room: peopleRoom([
+              ["riley", "R"],
+              ["jordan", "Jordan Lee"],
+              ["ann", "Ann Diaz"],
+            ]),
           }),
         ),
       ).toBe("in a huddle with you and Ann Diaz");
@@ -204,7 +322,11 @@ describe("presenceActivityLine ordering", () => {
           ctx({
             viewerId: "sam",
             room: peopleRoom([
-              ["riley", "R"], ["ann", "Ann"], ["bo", "Bo"], ["cy", "Cy"], ["di", "Di"],
+              ["riley", "R"],
+              ["ann", "Ann"],
+              ["bo", "Bo"],
+              ["cy", "Cy"],
+              ["di", "Di"],
             ]),
           }),
         ),
@@ -213,7 +335,13 @@ describe("presenceActivityLine ordering", () => {
 
     it("says the plain thing when they are alone in a room they opened", () => {
       expect(
-        presenceActivityLine(riley, ctx({ viewerId: "jordan", room: peopleRoom([["riley", "Riley Chen"]]) })),
+        presenceActivityLine(
+          riley,
+          ctx({
+            viewerId: "jordan",
+            room: peopleRoom([["riley", "Riley Chen"]]),
+          }),
+        ),
       ).toBe("in a huddle");
     });
 
@@ -235,50 +363,73 @@ describe("presenceActivityLine ordering", () => {
 
     it("keeps the shared label when no roster came with the room", () => {
       expect(
-        presenceActivityLine(riley, ctx({ viewerId: "jordan", room: { roomKey: "dm:riley:jordan", label: "Riley Chen" } })),
+        presenceActivityLine(
+          riley,
+          ctx({
+            viewerId: "jordan",
+            room: { roomKey: "dm:riley:jordan", label: "Riley Chen" },
+          }),
+        ),
       ).toBe("in a huddle · Riley Chen");
     });
   });
 
   it("counts working agents and quotes what the top one is on", () => {
     expect(
-      presenceActivityLine(member(), ctx({ fleet: fleet({ working: 2, topTitle: "fixing auth" }) })),
+      presenceActivityLine(
+        member(),
+        ctx({ fleet: fleet({ working: 2, topTitle: "fixing auth" }) }),
+      ),
     ).toBe("2 agents working · fixing auth");
-    expect(presenceActivityLine(member(), ctx({ fleet: fleet({ working: 1 }) }))).toBe("1 agent working");
+    expect(
+      presenceActivityLine(member(), ctx({ fleet: fleet({ working: 1 }) })),
+    ).toBe("1 agent working");
   });
 
   it("asks for an answer when nothing is running", () => {
-    expect(presenceActivityLine(member(), ctx({ fleet: fleet({ needsYou: 3 }) }))).toBe(
-      "needs to answer 3 agents",
-    );
+    expect(
+      presenceActivityLine(member(), ctx({ fleet: fleet({ needsYou: 3 }) })),
+    ).toBe("needs to answer 3 agents");
   });
 
   it("caps absurd fleet counts", () => {
-    expect(presenceActivityLine(member(), ctx({ fleet: fleet({ working: 608 }) }))).toBe(
-      "20+ agents working",
-    );
+    expect(
+      presenceActivityLine(member(), ctx({ fleet: fleet({ working: 608 }) })),
+    ).toBe("20+ agents working");
   });
 
   it("says busy when there is nothing else to say", () => {
-    expect(presenceActivityLine(member({ status: "busy" }), ctx())).toBe("busy");
+    expect(presenceActivityLine(member({ status: "busy" }), ctx())).toBe(
+      "busy",
+    );
   });
 
   it("times the idle and prints the plain words for the rest", () => {
     expect(
       presenceActivityLine(
-        member({ presence_state: "idle", presence_input_at: NOW - 12 * 60_000 }),
+        member({
+          presence_state: "idle",
+          presence_input_at: NOW - 12 * 60_000,
+        }),
         ctx(),
       ),
     ).toBe("idle 12m");
-    expect(presenceActivityLine(member({ presence_state: "away" }), ctx())).toBe("away");
+    expect(
+      presenceActivityLine(member({ presence_state: "away" }), ctx()),
+    ).toBe("away");
     expect(presenceActivityLine(member(), ctx())).toBe("active now");
     expect(
       presenceActivityLine(
-        member({ presence_state: "offline", daemon_last_seen: NOW - 3 * 3600_000 }),
+        member({
+          presence_state: "offline",
+          daemon_last_seen: NOW - 3 * 3600_000,
+        }),
         ctx(),
       ),
     ).toBe("last seen 3h ago");
-    expect(presenceActivityLine(member({ presence_state: "offline" }), ctx())).toBe("offline");
+    expect(
+      presenceActivityLine(member({ presence_state: "offline" }), ctx()),
+    ).toBe("offline");
   });
 });
 
@@ -295,21 +446,35 @@ describe("memberFleetSummary", () => {
       title: "fixing auth",
       ...over,
     }) as InboxSession;
-  const opts = { queued: new Set<string>(), pendingSendIds: new Set<string>(), now: NOW };
+  const opts = {
+    queued: new Set<string>(),
+    pendingSendIds: new Set<string>(),
+    now: NOW,
+  };
 
   it("carries the top session's title for the activity line", () => {
-    const f = memberFleetSummary([sess({ is_idle: false, agent_status: "working" } as any)], "u1", opts);
+    const f = memberFleetSummary(
+      [sess({ is_idle: false, agent_status: "working" } as any)],
+      "u1",
+      opts,
+    );
     expect(f?.working).toBe(1);
     expect(f?.topTitle).toBe("fixing auth");
   });
 
   it("ignores other people's sessions", () => {
-    expect(memberFleetSummary([sess({ user_id: "u2" } as any)], "u1", opts)).toBeNull();
+    expect(
+      memberFleetSummary([sess({ user_id: "u2" } as any)], "u1", opts),
+    ).toBeNull();
   });
 });
 
 describe("roster bands", () => {
-  const who = (name: string, over: Record<string, any> = {}) => ({ _id: name, name, ...over });
+  const who = (name: string, over: Record<string, any> = {}) => ({
+    _id: name,
+    name,
+    ...over,
+  });
 
   it("keeps busy under Online — they are at the machine, the badge says not now", () => {
     expect(presenceBand(member({ status: "busy" }))).toBe("online");
@@ -342,10 +507,26 @@ describe("roster bands", () => {
 // The founder's "this huddle indicator sticks around when I'm not in a call".
 describe("teammateWhereabouts", () => {
   const me = "u-me";
-  const ann = { _id: "u-ann", name: "Ann", presence_state: "active", viewing_conversation_id: "c1", viewing_since: NOW - 120_000 };
+  const ann = {
+    _id: "u-ann",
+    name: "Ann",
+    presence_state: "active",
+    viewing_conversation_id: "c1",
+    viewing_since: NOW - 120_000,
+  };
   const bob = { _id: "u-bob", name: "Bob", presence_state: "idle" };
-  const cy = { _id: "u-cy", name: "Cy", presence_state: "offline", viewing_conversation_id: "c2" };
-  const self = { _id: me, name: "Me", presence_state: "active", viewing_conversation_id: "c3" };
+  const cy = {
+    _id: "u-cy",
+    name: "Cy",
+    presence_state: "offline",
+    viewing_conversation_id: "c2",
+  };
+  const self = {
+    _id: me,
+    name: "Me",
+    presence_state: "active",
+    viewing_conversation_id: "c3",
+  };
   const roster = [ann, bob, cy, self];
 
   it("with nothing typed, lists only teammates who are online and in a session", () => {
@@ -356,8 +537,12 @@ describe("teammateWhereabouts", () => {
   });
 
   it("never lists the viewer; an offline teammate only when named, with no session", () => {
-    expect(teammateWhereabouts(roster, me, "m").map((r) => r.id)).not.toContain(me);
-    expect(teammateWhereabouts(roster, me, "").map((r) => r.id)).not.toContain("u-cy");
+    expect(teammateWhereabouts(roster, me, "m").map((r) => r.id)).not.toContain(
+      me,
+    );
+    expect(teammateWhereabouts(roster, me, "").map((r) => r.id)).not.toContain(
+      "u-cy",
+    );
     const rows = teammateWhereabouts(roster, me, "cy");
     expect(rows.map((r) => r.id)).toEqual(["u-cy"]);
     expect(rows[0].conversationId).toBeNull();
@@ -365,20 +550,28 @@ describe("teammateWhereabouts", () => {
   });
 
   it("a teammate around but in no session appears only when the query names them", () => {
-    expect(teammateWhereabouts(roster, me, "go").map((r) => r.id)).toEqual(["u-ann"]);
+    expect(teammateWhereabouts(roster, me, "go").map((r) => r.id)).toEqual([
+      "u-ann",
+    ]);
     const rows = teammateWhereabouts(roster, me, "bo");
     expect(rows.map((r) => r.id)).toEqual(["u-bob"]);
     expect(rows[0].conversationId).toBeNull();
   });
 
   it("matches the gesture words and the name, and drops a row the query does not name", () => {
-    expect(teammateWhereabouts(roster, me, "where ann").map((r) => r.id)).toEqual(["u-ann"]);
-    expect(teammateWhereabouts(roster, me, "jump").map((r) => r.id)).toEqual(["u-ann"]);
+    expect(
+      teammateWhereabouts(roster, me, "where ann").map((r) => r.id),
+    ).toEqual(["u-ann"]);
+    expect(teammateWhereabouts(roster, me, "jump").map((r) => r.id)).toEqual([
+      "u-ann",
+    ]);
     expect(teammateWhereabouts(roster, me, "zed")).toEqual([]);
   });
 
   it("carries the session title from the store when the row is there", () => {
-    const [row] = teammateWhereabouts(roster, me, "", { c1: { title: "Fix the auth race" } });
+    const [row] = teammateWhereabouts(roster, me, "", {
+      c1: { title: "Fix the auth race" },
+    });
     expect(row.title).toBe("Fix the auth race");
     expect(row.inStore).toBe(true);
     const [bare] = teammateWhereabouts(roster, me, "");
@@ -387,14 +580,34 @@ describe("teammateWhereabouts", () => {
   });
 
   it("ranks a teammate in a session above one who is only around, then by name", () => {
-    const dan = { _id: "u-dan", name: "Dan", presence_state: "active", viewing_conversation_id: "c4" };
-    const rows = teammateWhereabouts([bob, { ...ann, name: "Dab" }, dan], me, "da");
+    const dan = {
+      _id: "u-dan",
+      name: "Dan",
+      presence_state: "active",
+      viewing_conversation_id: "c4",
+    };
+    const rows = teammateWhereabouts(
+      [bob, { ...ann, name: "Dab" }, dan],
+      me,
+      "da",
+    );
     // "da" is a prefix of Dab, Dan and a substring of nothing else; Bob drops.
     expect(rows.map((r) => r.name)).toEqual(["Dab", "Dan"]);
   });
 
   it("uses the app's one naming rule, so a nameless row still has a label", () => {
-    const rows = teammateWhereabouts([{ _id: "u-x", github_username: "ghost-dev", presence_state: "active", viewing_conversation_id: "c9" }], me, "");
+    const rows = teammateWhereabouts(
+      [
+        {
+          _id: "u-x",
+          github_username: "ghost-dev",
+          presence_state: "active",
+          viewing_conversation_id: "c9",
+        },
+      ],
+      me,
+      "",
+    );
     expect(rows[0].name).toBe("ghost-dev");
   });
 });
@@ -403,15 +616,43 @@ import { viewersLabel, viewersOf, viewersSig } from "./memberPresence";
 
 describe("viewersOf", () => {
   const me = "u-me";
-  const ann = { _id: "u-ann", name: "Ann Lee", presence_state: "active", viewing_conversation_id: "c1" };
-  const bob = { _id: "u-bob", name: "Bob", presence_state: "idle", viewing_conversation_id: "c1" };
-  const cy = { _id: "u-cy", name: "Cy", presence_state: "offline", viewing_conversation_id: "c1" };
-  const dan = { _id: "u-dan", name: "Dan", presence_state: "active", viewing_conversation_id: "c2" };
-  const self = { _id: me, name: "Me", presence_state: "active", viewing_conversation_id: "c1" };
+  const ann = {
+    _id: "u-ann",
+    name: "Ann Lee",
+    presence_state: "active",
+    viewing_conversation_id: "c1",
+  };
+  const bob = {
+    _id: "u-bob",
+    name: "Bob",
+    presence_state: "idle",
+    viewing_conversation_id: "c1",
+  };
+  const cy = {
+    _id: "u-cy",
+    name: "Cy",
+    presence_state: "offline",
+    viewing_conversation_id: "c1",
+  };
+  const dan = {
+    _id: "u-dan",
+    name: "Dan",
+    presence_state: "active",
+    viewing_conversation_id: "c2",
+  };
+  const self = {
+    _id: me,
+    name: "Me",
+    presence_state: "active",
+    viewing_conversation_id: "c1",
+  };
   const roster = [self, ann, cy, bob, dan];
 
   it("lists the online teammates reporting this conversation, in roster order, never the viewer", () => {
-    expect(viewersOf(roster, "c1", me).map((m) => m._id)).toEqual(["u-ann", "u-bob"]);
+    expect(viewersOf(roster, "c1", me).map((m) => m._id)).toEqual([
+      "u-ann",
+      "u-bob",
+    ]);
   });
 
   it("drops an offline row even when it still carries the id, and names nobody for another session or no session", () => {
@@ -431,8 +672,12 @@ describe("viewersOf", () => {
     expect(viewersLabel([])).toBe("");
     expect(viewersLabel(["Ann Lee"])).toBe("Ann Lee is here");
     expect(viewersLabel(["Ann Lee", "Bob"])).toBe("Ann and Bob are here");
-    expect(viewersLabel(["Ann Lee", "Bob", "Cy"])).toBe("Ann, Bob and Cy are here");
-    expect(viewersLabel(["Ann Lee", "Bob", "Cy", "Dan"])).toBe("Ann, Bob and 2 others are here");
+    expect(viewersLabel(["Ann Lee", "Bob", "Cy"])).toBe(
+      "Ann, Bob and Cy are here",
+    );
+    expect(viewersLabel(["Ann Lee", "Bob", "Cy", "Dan"])).toBe(
+      "Ann, Bob and 2 others are here",
+    );
   });
 });
 
@@ -441,8 +686,12 @@ describe("teammateWhereabouts, the followed teammate", () => {
   const ann = { _id: "u-ann", name: "Ann", presence_state: "offline" };
   const bob = { _id: "u-bob", name: "Bob", presence_state: "active" };
   it("is always listed, even offline or in no session, so the row that stops the follow is there", () => {
-    expect(teammateWhereabouts([ann, bob], me, "", {}, "u-ann").map((r) => r.id)).toEqual(["u-ann"]);
-    expect(teammateWhereabouts([ann, bob], me, "stop", {}, "u-ann").map((r) => r.id)).toEqual(["u-ann"]);
+    expect(
+      teammateWhereabouts([ann, bob], me, "", {}, "u-ann").map((r) => r.id),
+    ).toEqual(["u-ann"]);
+    expect(
+      teammateWhereabouts([ann, bob], me, "stop", {}, "u-ann").map((r) => r.id),
+    ).toEqual(["u-ann"]);
     expect(teammateWhereabouts([ann, bob], me, "", {}, null)).toEqual([]);
   });
 });

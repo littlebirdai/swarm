@@ -82,9 +82,10 @@ function killSessionQuiet(session: string): void {
   tmuxRun(["kill-session", "-t", session]);
 }
 function capture(target: string): string {
-  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"]).stdout;
+  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"])
+    .stdout;
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
@@ -95,57 +96,76 @@ async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   return fn();
 }
 
-describe.skipIf(!CAN_RUN)("injectViaTmux poll: a free-text answer declines once, no digit dribble", () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-decline-test-"));
-  const pyPath = path.join(tmpDir, "fakemenu.py");
-  fs.writeFileSync(pyPath, FAKE_MENU);
+describe.skipIf(!CAN_RUN)(
+  "injectViaTmux poll: a free-text answer declines once, no digit dribble",
+  () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-decline-test-"));
+    const pyPath = path.join(tmpDir, "fakemenu.py");
+    fs.writeFileSync(pyPath, FAKE_MENU);
 
-  async function runPayload(label: string, payload: object): Promise<string> {
-    const session = `cc-decline-${label}-${process.pid}`;
-    const target = `${session}:0.0`;
-    killSessionQuiet(session);
-    tmuxRun(["new-session", "-d", "-s", session, "-x", "120", "-y", "40", `python3 ${pyPath}; echo __DONE__; sleep 60`]);
-    try {
-      const menuUp = await waitFor(() => capture(target).includes("Which option?"), 10_000);
-      expect(menuUp).toBe(true);
-      await injectViaTmux(target, JSON.stringify(payload));
-      const done = await waitFor(() => capture(target).includes("CAPTURED="), 10_000);
-      expect(done).toBe(true);
-      return capture(target);
-    } finally {
+    async function runPayload(label: string, payload: object): Promise<string> {
+      const session = `cc-decline-${label}-${process.pid}`;
+      const target = `${session}:0.0`;
       killSessionQuiet(session);
+      tmuxRun([
+        "new-session",
+        "-d",
+        "-s",
+        session,
+        "-x",
+        "120",
+        "-y",
+        "40",
+        `python3 ${pyPath}; echo __DONE__; sleep 60`,
+      ]);
+      try {
+        const menuUp = await waitFor(
+          () => capture(target).includes("Which option?"),
+          10_000,
+        );
+        expect(menuUp).toBe(true);
+        await injectViaTmux(target, JSON.stringify(payload));
+        const done = await waitFor(
+          () => capture(target).includes("CAPTURED="),
+          10_000,
+        );
+        expect(done).toBe(true);
+        return capture(target);
+      } finally {
+        killSessionQuiet(session);
+      }
     }
-  }
 
-  // What the web sends today for a custom answer: prose in `text`, no menu keys.
-  test(
-    "text-only payload: menu is declined and the answer is typed",
-    async () => {
-      const out = await runPayload("text", { __cc_poll: true, text: "useZEBRAintro" });
+    // What the web sends today for a custom answer: prose in `text`, no menu keys.
+    test("text-only payload: menu is declined and the answer is typed", async () => {
+      const out = await runPayload("text", {
+        __cc_poll: true,
+        text: "useZEBRAintro",
+      });
       expect(out).toContain("DECLINED");
       const captured = out.match(/CAPTURED=\[([^\]]*)\]/)?.[1] ?? "";
       expect(captured).toContain("ZEBRA");
       // No menu keystrokes exist in this payload, so nothing but the answer is typed.
       expect(captured.replace(/<CR>|<LF>/g, "")).not.toMatch(/\d/);
-    },
-    30_000,
-  );
+    }, 30_000);
 
-  // The exact pre-fix shape that produced "211": one Other step plus trailing option
-  // digits. The fix must decline once, type the Other text, and send NONE of the digits.
-  test(
-    "old embedded-text shape: the trailing option digits never dribble in",
-    async () => {
+    // The exact pre-fix shape that produced "211": one Other step plus trailing option
+    // digits. The fix must decline once, type the Other text, and send NONE of the digits.
+    test("old embedded-text shape: the trailing option digits never dribble in", async () => {
       const out = await runPayload("steps", {
         __cc_poll: true,
-        steps: [{ key: "5", text: "useZEBRAintro" }, { key: "2" }, { key: "1" }, { key: "1" }],
+        steps: [
+          { key: "5", text: "useZEBRAintro" },
+          { key: "2" },
+          { key: "1" },
+          { key: "1" },
+        ],
       });
       expect(out).toContain("DECLINED");
       const captured = out.match(/CAPTURED=\[([^\]]*)\]/)?.[1] ?? "";
       expect(captured).toContain("ZEBRA");
       // The "2","1","1" steps must NOT be replayed after the decline (the "211" bug).
       expect(captured.replace(/<CR>|<LF>/g, "")).not.toMatch(/\d/);
-    },
-    30_000,
-  );
-});
+    }, 30_000);
+  },
+);

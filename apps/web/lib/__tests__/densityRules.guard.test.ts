@@ -31,7 +31,8 @@ function ruleBody(selector: string): Record<string, string> {
   return out;
 }
 
-const VERTICAL = /^(padding(-top|-bottom|-block)?|min-height|line-height|height)$/;
+const VERTICAL =
+  /^(padding(-top|-bottom|-block)?|min-height|line-height|height)$/;
 
 describe("object page header is one conversation-header row", () => {
   test(".object-head-row reads the session header's height token and adds no vertical padding", () => {
@@ -39,7 +40,9 @@ describe("object page header is one conversation-header row", () => {
     expect(r.height).toBe("var(--cc-panel-head-h)");
     expect(r["padding-block"]).toBe("0");
     expect(r["min-height"]).toBe("0");
-    for (const k of Object.keys(r)) if (VERTICAL.test(k)) expect(["height", "padding-block", "min-height"]).toContain(k);
+    for (const k of Object.keys(r))
+      if (VERTICAL.test(k))
+        expect(["height", "padding-block", "min-height"]).toContain(k);
   });
 
   test("the session header's .cc-panel__head reads the same token", () => {
@@ -61,12 +64,16 @@ describe("a reference in prose sits in the text line", () => {
     expect(r.display).toBe("inline");
     expect(r["line-height"]).toBe("inherit");
     expect(r["padding-block"]).toBe("0");
-    for (const k of Object.keys(r)) if (VERTICAL.test(k)) expect(["line-height", "padding-block"]).toContain(k);
+    for (const k of Object.keys(r))
+      if (VERTICAL.test(k))
+        expect(["line-height", "padding-block"]).toContain(k);
   });
 
   test("its title wraps, but never away from its icon", () => {
     expect(ruleBody(".entity-ref--flow")["white-space"]).toBe("nowrap");
-    expect(ruleBody(".entity-ref--flow .entity-ref__label")["white-space"]).toBe("normal");
+    expect(
+      ruleBody(".entity-ref--flow .entity-ref__label")["white-space"],
+    ).toBe("normal");
   });
 
   test("its icon is the text's size and hangs on the baseline", () => {
@@ -81,10 +88,14 @@ describe("a reference in prose sits in the text line", () => {
     expect(cls).toBeDefined();
     // The flow branch adds only the shared class; the box (inline-flex, leading-none)
     // belongs to the other branch.
-    expect(cls!).toContain('flows ? " entity-ref--flow" : " whitespace-normal inline-flex');
+    expect(cls!).toContain(
+      'flows ? " entity-ref--flow" : " whitespace-normal inline-flex',
+    );
     // Nothing on the shared part of the class list pads or sizes it vertically.
     const shared = cls!.replace(/\$\{flows \? [^}]*\}/, "");
-    expect(shared).not.toMatch(/[\s"](py|pt|pb|h|min-h|leading|whitespace)-[\w[\]./]+/);
+    expect(shared).not.toMatch(
+      /[\s"](py|pt|pb|h|min-h|leading|whitespace)-[\w[\]./]+/,
+    );
   });
 });
 
@@ -99,11 +110,16 @@ describe("a transcript row is one line", () => {
     expect(r["line-height"]).toBe("20px");
     expect(r.padding).toBe("2px 8px");
     expect(r["min-height"]).toBe("24px");
-    for (const k of Object.keys(r)) if (VERTICAL.test(k)) expect(["line-height", "padding", "min-height"]).toContain(k);
+    for (const k of Object.keys(r))
+      if (VERTICAL.test(k))
+        expect(["line-height", "padding", "min-height"]).toContain(k);
   });
 
   test("its smaller parts stay inside that line", () => {
-    for (const part of ["object", "meta", "tag"]) expect(ruleBody(`${ROW} [data-cc-row-${part}]`)["line-height"]).toBe("18px");
+    for (const part of ["object", "meta", "tag"])
+      expect(ruleBody(`${ROW} [data-cc-row-${part}]`)["line-height"]).toBe(
+        "18px",
+      );
   });
 
   test("a row's own button is the row's height, not clipped by it", () => {
@@ -123,6 +139,8 @@ describe("a reference on the phone sits in the text line", () => {
   });
   test("its style sets no line height or height", () => {
     expect(pill).toContain("fontSize: 11");
-    expect(pill).not.toMatch(/\b(lineHeight|height|minHeight|marginVertical)\b/);
+    expect(pill).not.toMatch(
+      /\b(lineHeight|height|minHeight|marginVertical)\b/,
+    );
   });
 });

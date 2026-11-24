@@ -1,9 +1,22 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, Check, Search, X, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Check,
+  Search,
+  X,
+  ChevronsUpDown,
+  ChevronsDownUp,
+} from "lucide-react";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { getFileStatus } from "../lib/patchParser";
 import { cn } from "../lib/utils";
-import { buildFileTreeFromStripped, shortenPrefix, stripCommonPrefix, type FileTreeNode } from "../lib/diffFileTree";
+import {
+  buildFileTreeFromStripped,
+  shortenPrefix,
+  stripCommonPrefix,
+  type FileTreeNode,
+} from "../lib/diffFileTree";
 import { SegmentedToggle } from "./SegmentedToggle";
 import type { DiffFile, FileDiffLayoutProps } from "./FileDiffLayout";
 
@@ -29,7 +42,9 @@ function FileTreeItem({
   const isExpanded = expandedDirs.has(node.path);
   const isSelected = selectedFile === node.path;
   const status = node.file ? getFileStatus(node.file.status) : null;
-  const marks = node.file ? fileMarks?.(node.file.originalFilename ?? node.file.filename) : undefined;
+  const marks = node.file
+    ? fileMarks?.(node.file.originalFilename ?? node.file.filename)
+    : undefined;
 
   if (node.isDirectory) {
     return (
@@ -66,9 +81,17 @@ function FileTreeItem({
 
   return (
     <button
-      ref={isSelected && selectedFileRef ? selectedFileRef as React.RefObject<HTMLButtonElement> : undefined}
+      ref={
+        isSelected && selectedFileRef
+          ? (selectedFileRef as React.RefObject<HTMLButtonElement>)
+          : undefined
+      }
       onClick={() => onSelect(node.path)}
-      data-diff-file={node.file ? node.file.originalFilename ?? node.file.filename : undefined}
+      data-diff-file={
+        node.file
+          ? (node.file.originalFilename ?? node.file.filename)
+          : undefined
+      }
       className={cn(
         "w-full flex items-center gap-2 py-1.5 px-2 text-sm transition-colors",
         isSelected
@@ -83,22 +106,35 @@ function FileTreeItem({
           className={cn(
             "w-4 h-4 rounded text-meta font-bold flex items-center justify-center shrink-0",
             status.bgColor,
-            status.color
+            status.color,
           )}
         >
           {status.label}
         </span>
       )}
-      <span className={cn("truncate", marks?.viewed && "line-through decoration-sol-text-dim/60")}>{node.name}</span>
+      <span
+        className={cn(
+          "truncate",
+          marks?.viewed && "line-through decoration-sol-text-dim/60",
+        )}
+      >
+        {node.name}
+      </span>
       {node.file && (
         <span className="ml-auto flex items-center gap-1.5 text-meta text-sol-text-dim shrink-0">
           {!!marks?.pending && (
-            <span className="rounded-full border border-dashed border-sol-yellow/60 px-1 text-sol-yellow" title={`${marks.pending} in your review`}>
+            <span
+              className="rounded-full border border-dashed border-sol-yellow/60 px-1 text-sol-yellow"
+              title={`${marks.pending} in your review`}
+            >
               {marks.pending}
             </span>
           )}
           {!!marks?.open && (
-            <span className="rounded-full bg-sol-cyan/15 px-1 text-sol-cyan" title={`${marks.open} open ${marks.open === 1 ? "thread" : "threads"}`}>
+            <span
+              className="rounded-full bg-sol-cyan/15 px-1 text-sol-cyan"
+              title={`${marks.open} open ${marks.open === 1 ? "thread" : "threads"}`}
+            >
               {marks.open}
             </span>
           )}
@@ -139,7 +175,8 @@ export function FileSidebar({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [toReviewOnly, setToReviewOnly] = useState(false);
-  const isViewed = (f: DiffFile) => !!fileMarks?.(f.originalFilename ?? f.filename)?.viewed;
+  const isViewed = (f: DiffFile) =>
+    !!fileMarks?.(f.originalFilename ?? f.filename)?.viewed;
 
   const strippedFiles = useMemo(() => stripCommonPrefix(files), [files]);
 
@@ -162,12 +199,18 @@ export function FileSidebar({
 
   const filteredFiles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return strippedFiles.filter((f) =>
-      (!query || f.filename.toLowerCase().includes(query)) && !(reviewable && toReviewOnly && isViewed(f)));
+    return strippedFiles.filter(
+      (f) =>
+        (!query || f.filename.toLowerCase().includes(query)) &&
+        !(reviewable && toReviewOnly && isViewed(f)),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strippedFiles, searchQuery, reviewable, toReviewOnly, fileMarks]);
 
-  const fileTree = useMemo(() => buildFileTreeFromStripped(filteredFiles), [filteredFiles]);
+  const fileTree = useMemo(
+    () => buildFileTreeFromStripped(filteredFiles),
+    [filteredFiles],
+  );
 
   const toggleDir = (path: string) => {
     setExpandedDirs((prev) => {
@@ -188,31 +231,54 @@ export function FileSidebar({
   const totalDeletions = files.reduce((sum, f) => sum + f.deletions, 0);
   const viewedFiles = fileMarks ? files.filter(isViewed) : [];
   const viewedCount = viewedFiles.length;
-  const linesOf = (list: DiffFile[]) => list.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+  const linesOf = (list: DiffFile[]) =>
+    list.reduce((sum, f) => sum + f.additions + f.deletions, 0);
   const totalLines = totalAdditions + totalDeletions;
   const reviewedLines = linesOf(viewedFiles);
 
   return (
-    <div className={flow ? "flex flex-col bg-sol-bg rounded-lg border border-sol-border/70 overflow-clip" : "h-full flex flex-col bg-sol-bg border-r border-sol-border"}>
+    <div
+      className={
+        flow
+          ? "flex flex-col bg-sol-bg rounded-lg border border-sol-border/70 overflow-clip"
+          : "h-full flex flex-col bg-sol-bg border-r border-sol-border"
+      }
+    >
       {header}
-      <div className={cn("px-3 py-2 border-b border-sol-border/50 bg-sol-bg-alt/30", flow && files.length <= 5 && "hidden")}>
-        <div className={cn("flex items-center justify-between", flow && "hidden")}>
+      <div
+        className={cn(
+          "px-3 py-2 border-b border-sol-border/50 bg-sol-bg-alt/30",
+          flow && files.length <= 5 && "hidden",
+        )}
+      >
+        <div
+          className={cn("flex items-center justify-between", flow && "hidden")}
+        >
           <div>
             <div className="text-xs text-sol-text-muted">
               {filteredFiles.length === files.length
                 ? `${files.length} ${files.length === 1 ? "file" : "files"} changed`
                 : `${filteredFiles.length} of ${files.length} files`}
               {viewedCount > 0 && !reviewable && (
-                <span className="ml-1.5 text-sol-green">{viewedCount} viewed</span>
+                <span className="ml-1.5 text-sol-green">
+                  {viewedCount} viewed
+                </span>
               )}
             </div>
             <div className="text-xs mt-0.5">
-              <span className="text-sol-green font-medium">+{totalAdditions}</span>
+              <span className="text-sol-green font-medium">
+                +{totalAdditions}
+              </span>
               <span className="text-sol-text-dim mx-1">/</span>
-              <span className="text-sol-red font-medium">-{totalDeletions}</span>
+              <span className="text-sol-red font-medium">
+                -{totalDeletions}
+              </span>
             </div>
             {commonPrefix && (
-              <div className="text-xs mt-1 font-mono text-sol-text-dim truncate" title={commonPrefix}>
+              <div
+                className="text-xs mt-1 font-mono text-sol-text-dim truncate"
+                title={commonPrefix}
+              >
                 {shortenPrefix(commonPrefix)}/
               </div>
             )}
@@ -264,7 +330,11 @@ export function FileSidebar({
             onChange={(key) => setToReviewOnly(key === "todo")}
             items={[
               { key: "all", label: "All", count: files.length },
-              { key: "todo", label: "To review", count: files.length - viewedCount },
+              {
+                key: "todo",
+                label: "To review",
+                count: files.length - viewedCount,
+              },
             ]}
           />
           <div
@@ -274,7 +344,12 @@ export function FileSidebar({
             aria-valuemax={totalLines}
             aria-valuenow={reviewedLines}
           >
-            <div className="h-full bg-sol-green transition-[width]" style={{ width: `${totalLines ? (reviewedLines / totalLines) * 100 : 0}%` }} />
+            <div
+              className="h-full bg-sol-green transition-[width]"
+              style={{
+                width: `${totalLines ? (reviewedLines / totalLines) * 100 : 0}%`,
+              }}
+            />
           </div>
           <div className="text-meta text-sol-text-dim tabular-nums">
             {reviewedLines} of {totalLines} changed lines reviewed
@@ -295,7 +370,9 @@ export function FileSidebar({
           />
         ))}
         {filteredFiles.length === 0 && !searchQuery && toReviewOnly && (
-          <div className="px-3 py-4 text-xs text-sol-text-dim text-center">All reviewed</div>
+          <div className="px-3 py-4 text-xs text-sol-text-dim text-center">
+            All reviewed
+          </div>
         )}
         {filteredFiles.length === 0 && searchQuery && (
           <div className="px-3 py-4 text-xs text-sol-text-dim text-center">

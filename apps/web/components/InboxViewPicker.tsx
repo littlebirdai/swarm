@@ -1,8 +1,27 @@
 import { forwardRef } from "react";
-import { CalendarPlus, Check, ChevronDown, FolderKanban, History, Laptop, List, Network, Tag, Target, Workflow, Zap } from "lucide-react";
+import {
+  CalendarPlus,
+  Check,
+  ChevronDown,
+  FolderKanban,
+  History,
+  Laptop,
+  List,
+  Network,
+  Tag,
+  Target,
+  Workflow,
+  Zap,
+} from "lucide-react";
 import type { InboxViewMode } from "../store/inboxStore";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 import { modernButton } from "./ui/modernLook";
 
 type ViewOption = { key: InboxViewMode; label: string; icon: typeof List };
@@ -20,36 +39,50 @@ const VIEW_OPTIONS: Record<InboxViewMode, Omit<ViewOption, "key">> = {
   machine: { label: "Machine", icon: Laptop },
 };
 
-type PickerButtonProps = { option: ViewOption } & React.ComponentPropsWithoutRef<"button">;
+type PickerButtonProps = {
+  option: ViewOption;
+} & React.ComponentPropsWithoutRef<"button">;
 
 /** The picker's face: the current grouping's icon and name, and a caret. */
-const PickerButton = forwardRef<HTMLButtonElement, PickerButtonProps>(function PickerButton({ option, ...rest }, ref) {
-  const Icon = option.icon;
-  return (
-    <button
-      ref={ref}
-      type="button"
-      data-inbox-view-picker
-      aria-label={`Grouped by ${option.label.toLowerCase()}`}
-      className={`flex flex-shrink-0 items-center gap-1 h-[22px] px-1.5 rounded-[5px] text-meta font-medium text-sol-text-secondary hover:text-sol-text hover:bg-sol-text/[0.06] data-[state=open]:bg-sol-text/[0.06] transition-colors ${modernButton({ variant: "ghost", size: "xs" }, "modern:text-sol-text modern:data-[state=open]:bg-sol-text/[0.06]")}`}
-      {...rest}
-    >
-      <Icon className="w-3 h-3 shrink-0" />
-      <span>{option.label}</span>
-      <ChevronDown className="w-2.5 h-2.5 shrink-0 opacity-60" />
-    </button>
-  );
-});
+const PickerButton = forwardRef<HTMLButtonElement, PickerButtonProps>(
+  function PickerButton({ option, ...rest }, ref) {
+    const Icon = option.icon;
+    return (
+      <button
+        ref={ref}
+        type="button"
+        data-inbox-view-picker
+        aria-label={`Grouped by ${option.label.toLowerCase()}`}
+        className={`flex flex-shrink-0 items-center gap-1 h-[22px] px-1.5 rounded-[5px] text-meta font-medium text-sol-text-secondary hover:text-sol-text hover:bg-sol-text/[0.06] data-[state=open]:bg-sol-text/[0.06] transition-colors ${modernButton({ variant: "ghost", size: "xs" }, "modern:text-sol-text modern:data-[state=open]:bg-sol-text/[0.06]")}`}
+        {...rest}
+      >
+        <Icon className="w-3 h-3 shrink-0" />
+        <span>{option.label}</span>
+        <ChevronDown className="w-2.5 h-2.5 shrink-0 opacity-60" />
+      </button>
+    );
+  },
+);
 
 /** The picker as a picture, for the marketing hero, which takes no clicks or keys. */
 export function InboxViewPickerStill({ value }: { value: InboxViewMode }) {
-  return <PickerButton option={{ key: value, ...VIEW_OPTIONS[value] }} tabIndex={-1} aria-hidden />;
+  return (
+    <PickerButton
+      option={{ key: value, ...VIEW_OPTIONS[value] }}
+      tabIndex={-1}
+      aria-hidden
+    />
+  );
 }
 
 // The inbox's grouping as one control at the start of the rail header: it
 // names the current grouping and opens the list of the others. `modes` is the
 // panel's list, the same one Ctrl+, cycles through (setInboxViewModesShown).
-export function InboxViewPicker({ value, onChange, modes }: {
+export function InboxViewPicker({
+  value,
+  onChange,
+  modes,
+}: {
   value: InboxViewMode;
   onChange: (value: InboxViewMode) => void;
   modes: readonly InboxViewMode[];
@@ -59,18 +92,30 @@ export function InboxViewPicker({ value, onChange, modes }: {
   if (!current) return null;
   return (
     <DropdownMenu>
-      <ShortcutTooltip label="Group by" action="inbox.toggleFlatView" hint="cycles" side="bottom">
+      <ShortcutTooltip
+        label="Group by"
+        action="inbox.toggleFlatView"
+        hint="cycles"
+        side="bottom"
+      >
         <DropdownMenuTrigger asChild>
           <PickerButton option={current} />
         </DropdownMenuTrigger>
       </ShortcutTooltip>
       <DropdownMenuContent align="start" className="w-40">
-        <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">Group by</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-mark uppercase tracking-wide text-sol-text-dim">
+          Group by
+        </DropdownMenuLabel>
         {options.map((option) => {
           const OptionIcon = option.icon;
           const active = option.key === current.key;
           return (
-            <DropdownMenuItem key={option.key} data-view-option={option.key} onSelect={() => onChange(option.key)} className="text-xs">
+            <DropdownMenuItem
+              key={option.key}
+              data-view-option={option.key}
+              onSelect={() => onChange(option.key)}
+              className="text-xs"
+            >
               <OptionIcon className="w-3 h-3 mr-1.5 shrink-0" />
               <span className="flex-1">{option.label}</span>
               {active && <Check className="w-3 h-3 text-sol-cyan" />}

@@ -5,7 +5,10 @@
 import { useMemo } from "react";
 import { useConvex } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import type { ShipPlan, ShipTargetKind } from "@codecast/shared/contracts/shipPlan";
+import type {
+  ShipPlan,
+  ShipTargetKind,
+} from "@codecast/shared/contracts/shipPlan";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncCollection } from "./useSyncCollection";
 import { applyEntityIds, emptyIdsByCollection } from "./useSyncChangeFeed";
@@ -34,7 +37,11 @@ export type ShipTargetRow = {
   run: ShipRun | null;
   line: {
     status: string;
-    ship: { status: string; outcome: string | null; preview: string | null } | null;
+    ship: {
+      status: string;
+      outcome: string | null;
+      preview: string | null;
+    } | null;
     merge: { branch: string; into: string; pr_url: string | null } | null;
     fail_reason: string | null;
   } | null;
@@ -44,22 +51,51 @@ export const shipTargetKey = (t: ShipTargetRef) => `${t.kind}:${t.id}`;
 
 const one = (row: unknown) => (row ? [row] : []);
 
-export function useShipTarget(target: ShipTargetRef | null): ShipTargetRow | undefined {
+export function useShipTarget(
+  target: ShipTargetRef | null,
+): ShipTargetRow | undefined {
   const convex = useConvex();
-  const args = useMemo(() => (target ? { target: { kind: target.kind, id: target.id } } : "skip"), [target?.kind, target?.id]);
+  const args = useMemo(
+    () => (target ? { target: { kind: target.kind, id: target.id } } : "skip"),
+    [target?.kind, target?.id],
+  );
   useSyncCollection("shipTargets", api.ship.forTarget, args, { select: one });
   const key = target ? shipTargetKey(target) : null;
-  const row = useInboxStore((s) => (key ? ((s as any).shipTargets?.[key] as ShipTargetRow | undefined) : undefined));
+  const row = useInboxStore((s) =>
+    key
+      ? ((s as any).shipTargets?.[key] as ShipTargetRow | undefined)
+      : undefined,
+  );
   // The ship session's row (its pinned state, its PR) and that PR's checks.
   // Sessions are fed only by useSyncCore's feeders: a row the replica lacks is
   // fetched once through the same by-ids heal, and the sync log keeps it current.
   const convId = row?.run?.conversation_id ?? null;
-  const haveSession = useInboxStore((s) => !!(convId && (s as any).sessions?.[convId]));
+  const haveSession = useInboxStore(
+    (s) => !!(convId && (s as any).sessions?.[convId]),
+  );
   useWatchEffect(() => {
-    if (convId && !haveSession) void applyEntityIds(convex, { ...emptyIdsByCollection(), sessions: [convId] });
+    if (convId && !haveSession)
+      void applyEntityIds(convex, {
+        ...emptyIdsByCollection(),
+        sessions: [convId],
+      });
   }, [convex, convId, haveSession]);
   // The PR open before the press, else the one the ship session opened.
-  const prId = useInboxStore((s) => row?.pr_id ?? (convId ? ((s as any).sessions?.[convId]?.pr_status?.pr_id as string | undefined) : undefined) ?? null);
-  useSyncCollection("pullRequests", api.pull_requests.webGet, prId ? { id: prId } : "skip", { select: one });
+  const prId = useInboxStore(
+    (s) =>
+      row?.pr_id ??
+      (convId
+        ? ((s as any).sessions?.[convId]?.pr_status?.pr_id as
+            | string
+            | undefined)
+        : undefined) ??
+      null,
+  );
+  useSyncCollection(
+    "pullRequests",
+    api.pull_requests.webGet,
+    prId ? { id: prId } : "skip",
+    { select: one },
+  );
   return row;
 }

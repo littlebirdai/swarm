@@ -10,7 +10,10 @@ describe("messageRowKey", () => {
   test("the optimistic copy and its server echo share one key", () => {
     const clientId = "optimistic_1700000000000_abc123";
     const optimistic = { _id: clientId, _clientId: clientId };
-    const serverEcho = { _id: "k57e81f05qkyj0t77k1p182m9s890xjk", client_id: clientId };
+    const serverEcho = {
+      _id: "k57e81f05qkyj0t77k1p182m9s890xjk",
+      client_id: clientId,
+    };
     expect(messageRowKey(optimistic)).toBe(clientId);
     expect(messageRowKey(serverEcho)).toBe(clientId);
     expect(messageRowKey(optimistic)).toBe(messageRowKey(serverEcho));
@@ -42,7 +45,11 @@ describe("uniqueRowKeys", () => {
 
   test("suffixes every duplicate after the first occurrence", () => {
     const clientId = "acct-switch-cmd1-conv1";
-    expect(uniqueRowKeys([clientId, "b", clientId])).toEqual([clientId, "b", `${clientId}~dup1`]);
+    expect(uniqueRowKeys([clientId, "b", clientId])).toEqual([
+      clientId,
+      "b",
+      `${clientId}~dup1`,
+    ]);
   });
 
   test("suffixes are stable across renders and distinct per occurrence", () => {

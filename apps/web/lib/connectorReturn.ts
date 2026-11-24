@@ -33,7 +33,12 @@ import { describeReturnReason } from "@codecast/shared/contracts/connectorReason
  *  main shell also read the mail connect through Whisk (WHISK_RETURN_KEY). */
 export type ConnectorReturn<P extends string = AppId> =
   /** A finished authorize waiting for this session to confirm it. */
-  | { kind: "confirm"; provider: AppId; installationId: string; confirmToken: string }
+  | {
+      kind: "confirm";
+      provider: AppId;
+      installationId: string;
+      confirmToken: string;
+    }
   /** The connector refused. `reason` is a sentence that is safe to show:
    *  when it came from the URL, it is the table's words for a known code or
    *  the generic line, never text the link itself carried. */
@@ -53,7 +58,10 @@ function toAppId(raw: string | null | undefined): AppId | null {
 }
 
 /** Accepts a full hash/search with or without its leading "#"/"?". */
-function params(raw: string | null | undefined, lead: "#" | "?"): URLSearchParams {
+function params(
+  raw: string | null | undefined,
+  lead: "#" | "?",
+): URLSearchParams {
   const s = raw ?? "";
   return new URLSearchParams(s.startsWith(lead) ? s.slice(1) : s);
 }
@@ -79,7 +87,7 @@ export function parseConnectorReturn<X extends string = never>(
   const frag = params(hash, "#");
   const query = params(search, "?");
   const toProvider = (raw: string | null | undefined): AppId | X | null =>
-    toAppId(raw) ?? (extra.find((p) => p === raw) ?? null);
+    toAppId(raw) ?? extra.find((p) => p === raw) ?? null;
 
   const installationId = frag.get("installation");
   const confirmToken = frag.get("confirm");
@@ -91,7 +99,8 @@ export function parseConnectorReturn<X extends string = never>(
       toAppId([...query.entries()].find(([, v]) => v === "pending")?.[0]);
     // A confirm token with no resolvable provider names no action to take —
     // guessing one would confirm the wrong connection.
-    if (provider) return { kind: "confirm", provider, installationId, confirmToken };
+    if (provider)
+      return { kind: "confirm", provider, installationId, confirmToken };
   }
 
   const errored = [...query.entries()].find(([, v]) => v === "error");
@@ -103,13 +112,21 @@ export function parseConnectorReturn<X extends string = never>(
     };
   }
 
-  const connected = toProvider([...query.entries()].find(([, v]) => v === "connected")?.[0]);
+  const connected = toProvider(
+    [...query.entries()].find(([, v]) => v === "connected")?.[0],
+  );
   if (connected) return { kind: "success", provider: connected };
 
   // The GitHub App install return, which names no provider of its own.
-  if (query.get("success") === "true") return { kind: "success", provider: "github" };
+  if (query.get("success") === "true")
+    return { kind: "success", provider: "github" };
   const githubError = query.get("error");
-  if (githubError) return { kind: "error", provider: "github", reason: describeReturnReason(githubError) };
+  if (githubError)
+    return {
+      kind: "error",
+      provider: "github",
+      reason: describeReturnReason(githubError),
+    };
 
   return null;
 }
@@ -117,7 +134,11 @@ export function parseConnectorReturn<X extends string = never>(
 /** Whether the address is a return from `provider` (success or refusal),
  *  for a reader that must not take another connector's return off the
  *  address: it mounts only when this is true. */
-export function isReturnFrom(hash: string, search: string, provider: string): boolean {
+export function isReturnFrom(
+  hash: string,
+  search: string,
+  provider: string,
+): boolean {
   const hit = parseConnectorReturn(hash, search, [provider]);
   return !!hit && hit.kind !== "confirm" && hit.provider === provider;
 }
@@ -131,10 +152,15 @@ export { describeConnectorError } from "@codecast/shared/contracts/connectorReas
  * replaceState that follows reading one. Query keys the page owns for other
  * reasons survive; only the callback's own keys go.
  */
-export function strippedUrl(pathname: string, search: string, hash: string): string {
+export function strippedUrl(
+  pathname: string,
+  search: string,
+  hash: string,
+): string {
   const query = params(search, "?");
   for (const [key, value] of [...query.entries()]) {
-    if (value === "pending" || value === "error" || value === "connected") query.delete(key);
+    if (value === "pending" || value === "error" || value === "connected")
+      query.delete(key);
   }
   for (const key of ["reason", "success", "error"]) query.delete(key);
   const frag = params(hash, "#");

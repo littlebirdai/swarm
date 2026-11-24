@@ -1,6 +1,12 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { appForRoute, placeRoute, sectionForRoute, DESKTOP_APPS, isDesktopApp } = require("./appWindows.mjs");
+const {
+  appForRoute,
+  placeRoute,
+  sectionForRoute,
+  DESKTOP_APPS,
+  isDesktopApp,
+} = require("./appWindows.mjs");
 
 test("appForRoute names the app by route prefix and ignores the query", () => {
   assert.equal(appForRoute("/chat"), "chat");
@@ -54,6 +60,9 @@ test("placeRoute: an app window never shows a path outside its app", () => {
   assert.equal(placeRoute("/chat/ch1", "chat", {}), "here");
   assert.equal(placeRoute("/conversation/c1", "chat", { chat: true }), "main");
   assert.equal(placeRoute("/tasks/ct-1", "chat", { chat: true }), "main");
-  assert.equal(placeRoute("/tasks/ct-1", "chat", { chat: true, work: true }), "work");
+  assert.equal(
+    placeRoute("/tasks/ct-1", "chat", { chat: true, work: true }),
+    "work",
+  );
   assert.equal(placeRoute("/settings", "work", { work: true }), "main");
 });

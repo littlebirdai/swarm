@@ -4,7 +4,12 @@
 // mod build` refuses a bundle whose calls the manifest does not grant, and the
 // web shows it on the mods page.
 
-import { MOD_METHODS, canRead, canWrite, type ModManifest } from "../contracts/mods";
+import {
+  MOD_METHODS,
+  canRead,
+  canWrite,
+  type ModManifest,
+} from "../contracts/mods";
 
 export type ModInspection = {
   hooks: string[];
@@ -21,10 +26,13 @@ export type ModInspection = {
 };
 
 const WRITE_OF: Record<string, string> = {
-  "tasks.create": "tasks", "tasks.update": "tasks",
+  "tasks.create": "tasks",
+  "tasks.update": "tasks",
   "sessions.send": "sessions",
   "docs.create": "docs",
-  "objects.create": "objects", "objects.update": "objects", "objects.archive": "objects",
+  "objects.create": "objects",
+  "objects.update": "objects",
+  "objects.archive": "objects",
   "ui.copy": "clipboard",
 };
 
@@ -34,7 +42,10 @@ function uniq(list: string[]): string[] {
   return [...new Set(list)].sort();
 }
 
-export function inspectModSource(files: Record<string, string>, manifest: ModManifest): ModInspection {
+export function inspectModSource(
+  files: Record<string, string>,
+  manifest: ModManifest,
+): ModInspection {
   const text = Object.entries(files)
     .filter(([p]) => /\.(t|j)sx?$/.test(p) && !p.endsWith(".d.ts"))
     .map(([, t]) => t)
@@ -48,38 +59,87 @@ export function inspectModSource(files: Record<string, string>, manifest: ModMan
   const calls: string[] = [];
   // `$` is the usual name; authors who rename it (`api`, `cc`) still pass it as the hook's first parameter.
   const apiNames = new Set(["$"]);
-  for (const m of text.matchAll(/\(\s*([A-Za-z_$][\w$]*)\s*(?::[^,)]*)?,\s*[A-Za-z_$][\w$]*\s*(?::[^,)]*)?(?:,\s*[A-Za-z_$][\w$]*\s*)?\)\s*=>/g)) apiNames.add(m[1]);
+  for (const m of text.matchAll(
+    /\(\s*([A-Za-z_$][\w$]*)\s*(?::[^,)]*)?,\s*[A-Za-z_$][\w$]*\s*(?::[^,)]*)?(?:,\s*[A-Za-z_$][\w$]*\s*)?\)\s*=>/g,
+  ))
+    apiNames.add(m[1]);
   for (const name of apiNames) {
     const esc = name.replace(/\$/g, "\\$");
     // A generic between the name and the call ($.local.get<T>(...)) is part of the call.
-    for (const m of text.matchAll(new RegExp(`(?<![\\w$])${esc}\\.([a-z]+)\\.([a-zA-Z]+)\\s*(?:<[^()]*>)?\\s*\\(`, "g"))) calls.push(`${m[1]}.${m[2]}`);
-    for (const m of text.matchAll(new RegExp(`(?<![\\w$])${esc}\\.me\\s*\\(`, "g"))) if (m) calls.push("me");
+    for (const m of text.matchAll(
+      new RegExp(
+        `(?<![\\w$])${esc}\\.([a-z]+)\\.([a-zA-Z]+)\\s*(?:<[^()]*>)?\\s*\\(`,
+        "g",
+      ),
+    ))
+      calls.push(`${m[1]}.${m[2]}`);
+    for (const m of text.matchAll(
+      new RegExp(`(?<![\\w$])${esc}\\.me\\s*\\(`, "g"),
+    ))
+      if (m) calls.push("me");
   }
   const reads: string[] = [];
-  for (const m of text.matchAll(/\.data\.(?:list|get|count)\(\s*["'`]([a-z]+)["'`]/g)) reads.push(m[1]);
+  for (const m of text.matchAll(
+    /\.data\.(?:list|get|count)\(\s*["'`]([a-z]+)["'`]/g,
+  ))
+    reads.push(m[1]);
   const known = new Set<string>(MOD_METHODS);
   const unknown = uniq(calls.filter((c) => !known.has(c) && !LOCAL.has(c)));
   const missing: string[] = [];
-  for (const r of uniq(reads)) if (!canRead(manifest, r)) missing.push(`permissions.read "${r}"`);
+  for (const r of uniq(reads))
+    if (!canRead(manifest, r)) missing.push(`permissions.read "${r}"`);
   for (const c of uniq(calls)) {
     const w = WRITE_OF[c];
-    if (w && !canWrite(manifest, w)) missing.push(`permissions.write "${w}" (for $.${c})`);
-    if (c === "http.fetch" && !manifest.permissions?.fetch) missing.push(`permissions.fetch (for $.http.fetch)`);
-    if (c === "connector.read" && !manifest.permissions?.connectors?.length) missing.push(`permissions.connectors (for $.connector.read)`);
+    if (w && !canWrite(manifest, w))
+      missing.push(`permissions.write "${w}" (for $.${c})`);
+    if (c === "http.fetch" && !manifest.permissions?.fetch)
+      missing.push(`permissions.fetch (for $.http.fetch)`);
+    if (c === "connector.read" && !manifest.permissions?.connectors?.length)
+      missing.push(`permissions.connectors (for $.connector.read)`);
   }
   const unserved: string[] = [];
   const served = (kind: string, id: string) =>
-    hooks.some((h) => h === "ui.render" || h.includes(`${kind}:${id}`)) || (kind === "command" && hooks.some((h) => h === "command.run"));
-  for (const p of manifest.panes ?? []) if (!served("pane", p.id)) unserved.push(`pane "${p.id}"`);
-  for (const f of manifest.fences ?? []) if (!served("fence", f.lang)) unserved.push(`fence "${f.lang}"`);
-  for (const s of manifest.sidebar ?? []) if (!served("sidebar", s.id)) unserved.push(`sidebar "${s.id}"`);
-  for (const k of manifest.objects ?? []) if (k.external && !hooks.some((h) => h === "object.resolve" || h === `object.resolve{object:${k.prefix}}`)) unserved.push(`external object "${k.prefix}" (on("object.resolve", { object: "${k.prefix}" }))`);
-  for (const c of manifest.commands ?? []) if (!hooks.some((h) => h === "command.run" || h.includes(`command:${c.id}`))) unserved.push(`command "${c.id}"`);
+    hooks.some((h) => h === "ui.render" || h.includes(`${kind}:${id}`)) ||
+    (kind === "command" && hooks.some((h) => h === "command.run"));
+  for (const p of manifest.panes ?? [])
+    if (!served("pane", p.id)) unserved.push(`pane "${p.id}"`);
+  for (const f of manifest.fences ?? [])
+    if (!served("fence", f.lang)) unserved.push(`fence "${f.lang}"`);
+  for (const s of manifest.sidebar ?? [])
+    if (!served("sidebar", s.id)) unserved.push(`sidebar "${s.id}"`);
+  for (const k of manifest.objects ?? [])
+    if (
+      k.external &&
+      !hooks.some(
+        (h) =>
+          h === "object.resolve" || h === `object.resolve{object:${k.prefix}}`,
+      )
+    )
+      unserved.push(
+        `external object "${k.prefix}" (on("object.resolve", { object: "${k.prefix}" }))`,
+      );
+  for (const c of manifest.commands ?? [])
+    if (
+      !hooks.some((h) => h === "command.run" || h.includes(`command:${c.id}`))
+    )
+      unserved.push(`command "${c.id}"`);
   const unused: string[] = [];
   const read = manifest.permissions?.read;
-  if (Array.isArray(read)) for (const c of read) if (!reads.includes(c)) unused.push(`permissions.read "${c}"`);
+  if (Array.isArray(read))
+    for (const c of read)
+      if (!reads.includes(c)) unused.push(`permissions.read "${c}"`);
   const write = manifest.permissions?.write;
   const writesUsed = new Set(calls.map((c) => WRITE_OF[c]).filter(Boolean));
-  if (Array.isArray(write)) for (const w of write) if (!writesUsed.has(w)) unused.push(`permissions.write "${w}"`);
-  return { hooks: uniq(hooks), calls: uniq(calls), reads: uniq(reads), unknown, missing: uniq(missing), unserved, unused };
+  if (Array.isArray(write))
+    for (const w of write)
+      if (!writesUsed.has(w)) unused.push(`permissions.write "${w}"`);
+  return {
+    hooks: uniq(hooks),
+    calls: uniq(calls),
+    reads: uniq(reads),
+    unknown,
+    missing: uniq(missing),
+    unserved,
+    unused,
+  };
 }

@@ -3,11 +3,21 @@
 // The config must register Google only when both AUTH_GOOGLE_ID and
 // AUTH_GOOGLE_SECRET are set, and signInProviders must tell the web the same.
 import { afterEach, describe, expect, test } from "bun:test";
-import { codecastAuthConfig, googleSignInConfigured, signInProviders } from "./auth";
+import {
+  codecastAuthConfig,
+  googleSignInConfigured,
+  signInProviders,
+} from "./auth";
 
-const saved = { id: process.env.AUTH_GOOGLE_ID, secret: process.env.AUTH_GOOGLE_SECRET };
+const saved = {
+  id: process.env.AUTH_GOOGLE_ID,
+  secret: process.env.AUTH_GOOGLE_SECRET,
+};
 afterEach(() => {
-  for (const [key, value] of [["AUTH_GOOGLE_ID", saved.id], ["AUTH_GOOGLE_SECRET", saved.secret]] as const) {
+  for (const [key, value] of [
+    ["AUTH_GOOGLE_ID", saved.id],
+    ["AUTH_GOOGLE_SECRET", saved.secret],
+  ] as const) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
@@ -30,8 +40,16 @@ describe("Google sign-in gate", () => {
     setGoogleEnv(undefined, undefined);
     expect(googleSignInConfigured()).toBe(false);
     expect(providerIds()).not.toContain("google");
-    expect(providerIds()).toEqual(["github", "apple", "apple-native", "desktop-relay", "password"]);
-    expect(await (signInProviders as any)._handler({}, {})).toEqual({ google: false });
+    expect(providerIds()).toEqual([
+      "github",
+      "apple",
+      "apple-native",
+      "desktop-relay",
+      "password",
+    ]);
+    expect(await (signInProviders as any)._handler({}, {})).toEqual({
+      google: false,
+    });
   });
 
   test("half the env is no env: an id without a secret registers nothing", () => {
@@ -47,12 +65,23 @@ describe("Google sign-in gate", () => {
     expect(googleSignInConfigured()).toBe(true);
     const ids = providerIds();
     expect(ids[0]).toBe("google");
-    expect(ids.slice(1)).toEqual(["github", "apple", "apple-native", "desktop-relay", "password"]);
+    expect(ids.slice(1)).toEqual([
+      "github",
+      "apple",
+      "apple-native",
+      "desktop-relay",
+      "password",
+    ]);
     const google = (codecastAuthConfig().providers as any[])[0];
     // Sign-in never asks for mail or calendar; those are the connector's grants.
-    const scope = google.options?.authorization?.params?.scope ?? google.authorization?.params?.scope ?? "";
+    const scope =
+      google.options?.authorization?.params?.scope ??
+      google.authorization?.params?.scope ??
+      "";
     expect(scope).not.toContain("gmail");
     expect(scope).not.toContain("calendar");
-    expect(await (signInProviders as any)._handler({}, {})).toEqual({ google: true });
+    expect(await (signInProviders as any)._handler({}, {})).toEqual({
+      google: true,
+    });
   });
 });

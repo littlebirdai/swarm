@@ -15,7 +15,10 @@ export interface Harness {
   out: () => string;
 }
 
-export function useCliHarness(group: string, load: () => Promise<(program: Command, deps: any) => void>): Harness {
+export function useCliHarness(
+  group: string,
+  load: () => Promise<(program: Command, deps: any) => void>,
+): Harness {
   const h: Harness = {
     calls: [],
     logs: [],
@@ -29,16 +32,30 @@ export function useCliHarness(group: string, load: () => Promise<(program: Comma
     },
     out: () => h.logs.join("\n"),
   };
-  const deps = { getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }), detectCurrentSessionId: () => "s1" };
-  const real = { fetch: globalThis.fetch, log: console.log, error: console.error, exit: process.exit, cwd: process.env.CODECAST_CWD };
+  const deps = {
+    getCliEndpoint: () => ({ siteUrl: SITE, apiToken: "t" }),
+    detectCurrentSessionId: () => "s1",
+  };
+  const real = {
+    fetch: globalThis.fetch,
+    log: console.log,
+    error: console.error,
+    exit: process.exit,
+    cwd: process.env.CODECAST_CWD,
+  };
 
   beforeEach(() => {
     h.calls.length = 0;
     h.logs.length = 0;
     h.answer = () => ({});
     process.env.CODECAST_CWD = "/repo";
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-      const path = String(url).startsWith(SITE) ? String(url).slice(SITE.length) : String(url);
+    globalThis.fetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const path = String(url).startsWith(SITE)
+        ? String(url).slice(SITE.length)
+        : String(url);
       const parsed = init?.body ? JSON.parse(String(init.body)) : {};
       const { api_token: _token, ...body } = parsed;
       h.calls.push({ path, body });
@@ -46,9 +63,15 @@ export function useCliHarness(group: string, load: () => Promise<(program: Comma
       if (answer instanceof Response) return answer;
       return new Response(JSON.stringify(answer), { status: 200 });
     }) as typeof fetch;
-    console.log = (...args: unknown[]) => { h.logs.push(args.map(String).join(" ")); };
-    console.error = (...args: unknown[]) => { h.logs.push(args.map(String).join(" ")); };
-    process.exit = ((code?: number) => { throw new Error(`exit ${code ?? 0}`); }) as never;
+    console.log = (...args: unknown[]) => {
+      h.logs.push(args.map(String).join(" "));
+    };
+    console.error = (...args: unknown[]) => {
+      h.logs.push(args.map(String).join(" "));
+    };
+    process.exit = ((code?: number) => {
+      throw new Error(`exit ${code ?? 0}`);
+    }) as never;
   });
   afterEach(() => {
     globalThis.fetch = real.fetch;

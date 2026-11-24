@@ -16,32 +16,84 @@ let narrow = true;
 let stageOpen = false;
 let card: any = { kind: "none" };
 
-const live = { kind: "live", roomKey: "channel:c1", mute: true, muted: false, end: true };
-const joined = { kind: "joined-notice", roomKey: "channel:c1", text: "Ann joined", end: true, mute: true, muted: false, camera: false, cameraOn: false };
-const ring = { kind: "ring-in", roomKey: "dm:a:b", from: "u2", name: "Ann", answer: true, decline: true };
+const live = {
+  kind: "live",
+  roomKey: "channel:c1",
+  mute: true,
+  muted: false,
+  end: true,
+};
+const joined = {
+  kind: "joined-notice",
+  roomKey: "channel:c1",
+  text: "Ann joined",
+  end: true,
+  mute: true,
+  muted: false,
+  camera: false,
+  cameraOn: false,
+};
+const ring = {
+  kind: "ring-in",
+  roomKey: "dm:a:b",
+  from: "u2",
+  name: "Ann",
+  answer: true,
+  decline: true,
+};
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   // The strip reads BELOW_SM through the real useMediaQuery; this answers it.
-  (window as any).matchMedia = () => ({ matches: narrow, addEventListener() {}, removeEventListener() {} });
+  (window as any).matchMedia = () => ({
+    matches: narrow,
+    addEventListener() {},
+    removeEventListener() {},
+  });
   React = await import("react");
   const h = React.createElement;
-  mock.module("../../../hooks/useFaceRow", () => ({ useFaceRow: () => ({ card }) }));
-  mock.module("../../../lib/calls/callStage", () => ({ useCallStageOpen: () => stageOpen }));
-  mock.module("../../faces/EngagementCard", () => ({
-    EngagementCard: ({ card, accessory }: any) => h("div", { "data-card": card.kind }, accessory || null),
+  mock.module("../../../hooks/useFaceRow", () => ({
+    useFaceRow: () => ({ card }),
   }));
-  mock.module("../CallCardAccessories", () => ({ CallCardAccessories: () => h("span", { "data-accessories": true }) }));
+  mock.module("../../../lib/calls/callStage", () => ({
+    useCallStageOpen: () => stageOpen,
+  }));
+  mock.module("../../faces/EngagementCard", () => ({
+    EngagementCard: ({ card, accessory }: any) =>
+      h("div", { "data-card": card.kind }, accessory || null),
+  }));
+  mock.module("../CallCardAccessories", () => ({
+    CallCardAccessories: () => h("span", { "data-accessories": true }),
+  }));
   ({ createRoot } = await import("react-dom/client"));
   ({ PhoneCallStrip } = await import("../PhoneCallStrip"));
 }, 120_000);
 
-function render(): { strip: Element | null; accessories: boolean; kind: string | null } {
+function render(): {
+  strip: Element | null;
+  accessories: boolean;
+  kind: string | null;
+} {
   const host = document.getElementById("root")!;
   host.innerHTML = "";
   const root = createRoot(host);

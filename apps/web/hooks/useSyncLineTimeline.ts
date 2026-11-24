@@ -32,21 +32,50 @@ export type LineTimelineFeed = {
   loadOlder: () => void;
 };
 
-export function useSyncLineTimeline(workspace?: string | null): LineTimelineFeed {
+export function useSyncLineTimeline(
+  workspace?: string | null,
+): LineTimelineFeed {
   const convex = useConvex();
   const settled = useServerAuthSettled();
   const { args, key } = useFeederWorkspace(workspace);
   // The ingest scope names the workspace kind beside the team: a team id alone resolves to the caller's personal one.
-  const argsKey = args === "skip" || !settled ? null : JSON.stringify(args.team_id ? { workspace: "team", team_id: args.team_id } : { workspace: "personal" });
-  const [state, setState] = useState<{ key: string | null; floor: number | null; done: boolean; loading: boolean }>({ key: null, floor: null, done: false, loading: false });
+  const argsKey =
+    args === "skip" || !settled
+      ? null
+      : JSON.stringify(
+          args.team_id
+            ? { workspace: "team", team_id: args.team_id }
+            : { workspace: "personal" },
+        );
+  const [state, setState] = useState<{
+    key: string | null;
+    floor: number | null;
+    done: boolean;
+    loading: boolean;
+  }>({ key: null, floor: null, done: false, loading: false });
   const busy = useRef(false);
 
-  const read = useCallback(async (before: number | undefined, rows: number, after?: number) => {
-    if (!argsKey) return null;
-    const res = await convex.query(api.lineTimeline.page, { ...JSON.parse(argsKey), ...(before != null ? { before } : {}), ...(after != null ? { after } : {}), rows });
-    if (res.events.length) useInboxStore.getState().syncTable("lineTimeline", res.events as any, { isDelta: true } as any);
-    return res;
-  }, [convex, argsKey]);
+  const read = useCallback(
+    async (before: number | undefined, rows: number, after?: number) => {
+      if (!argsKey) return null;
+      const res = await convex.query(api.lineTimeline.page, {
+        ...JSON.parse(argsKey),
+        ...(before != null ? { before } : {}),
+        ...(after != null ? { after } : {}),
+        rows,
+      });
+      if (res.events.length)
+        useInboxStore
+          .getState()
+          .syncTable(
+            "lineTimeline",
+            res.events as any,
+            { isDelta: true } as any,
+          );
+      return res;
+    },
+    [convex, argsKey],
+  );
 
   // The head: now, then on a timer while the page is visible.
   useWatchEffect(() => {
@@ -58,7 +87,8 @@ export function useSyncLineTimeline(workspace?: string | null): LineTimelineFeed
     let since: number | null = null;
     let running = false;
     const head = async () => {
-      if (running || (since != null && document.visibilityState !== "visible")) return;
+      if (running || (since != null && document.visibilityState !== "visible"))
+        return;
       running = true;
       const started = Date.now();
       try {
@@ -66,7 +96,16 @@ export function useSyncLineTimeline(workspace?: string | null): LineTimelineFeed
           const res = await read(undefined, HEAD_ROWS);
           if (stopped || !res) return;
           // The head never lowers a floor an older page already reached.
-          setState((s) => (s.key === argsKey && s.floor != null && s.floor <= res.cutoff ? s : { key: argsKey, floor: res.cutoff, done: res.cutoff === 0, loading: false }));
+          setState((s) =>
+            s.key === argsKey && s.floor != null && s.floor <= res.cutoff
+              ? s
+              : {
+                  key: argsKey,
+                  floor: res.cutoff,
+                  done: res.cutoff === 0,
+                  loading: false,
+                },
+          );
         } else {
           const after = since - SKEW_MS;
           let before: number | undefined;
@@ -86,7 +125,11 @@ export function useSyncLineTimeline(workspace?: string | null): LineTimelineFeed
     head();
     const timer = setInterval(head, HEAD_POLL_MS);
     document.addEventListener("visibilitychange", head);
-    return () => { stopped = true; clearInterval(timer); document.removeEventListener("visibilitychange", head); };
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", head);
+    };
   }, [argsKey, read]);
 
   const floor = state.key === argsKey ? state.floor : null;
@@ -95,13 +138,23 @@ export function useSyncLineTimeline(workspace?: string | null): LineTimelineFeed
     if (busy.current || floor == null || done) return;
     busy.current = true;
     setState((s) => ({ ...s, loading: true }));
-    read(floor, PAGE_ROWS).then((res) => {
-      if (!res) return;
-      setState((s) => ({ key: argsKey, floor: Math.min(s.floor ?? res.cutoff, res.cutoff), done: res.cutoff === 0, loading: false }));
-    }).catch((e) => {
-      console.warn("[feeder:lineTimeline] page failed", e);
-      setState((s) => ({ ...s, loading: false }));
-    }).finally(() => { busy.current = false; });
+    read(floor, PAGE_ROWS)
+      .then((res) => {
+        if (!res) return;
+        setState((s) => ({
+          key: argsKey,
+          floor: Math.min(s.floor ?? res.cutoff, res.cutoff),
+          done: res.cutoff === 0,
+          loading: false,
+        }));
+      })
+      .catch((e) => {
+        console.warn("[feeder:lineTimeline] page failed", e);
+        setState((s) => ({ ...s, loading: false }));
+      })
+      .finally(() => {
+        busy.current = false;
+      });
   }, [floor, done, argsKey, read]);
 
   return { floor, workspace: key, loading: state.loading, done, loadOlder };

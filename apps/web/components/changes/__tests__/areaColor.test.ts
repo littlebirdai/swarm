@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { areaColor, areaFill, areaLabel, areaVar, assignAreaColors, ink } from "../areaColor";
+import {
+  areaColor,
+  areaFill,
+  areaLabel,
+  areaVar,
+  assignAreaColors,
+  ink,
+} from "../areaColor";
 
 describe("areaColor", () => {
   test("named areas and surfaces share one color", () => {
@@ -15,32 +22,66 @@ describe("areaColor", () => {
     const a = areaVar("billing");
     expect(a).toBe(areaVar("billing"));
     expect(a).toMatch(/^--sol-(blue|cyan|green|violet|magenta|orange|yellow)$/);
-    const spread = new Set(["api", "billing", "infra", "ios", "android", "site", "auth", "search"].map((a) => areaVar(a)));
+    const spread = new Set(
+      [
+        "api",
+        "billing",
+        "infra",
+        "ios",
+        "android",
+        "site",
+        "auth",
+        "search",
+      ].map((a) => areaVar(a)),
+    );
     expect(spread.size).toBeGreaterThan(2);
   });
 
   test("fills and ink mix a theme variable", () => {
-    expect(areaFill("web")).toBe("color-mix(in srgb, var(--sol-blue) 14%, transparent)");
-    expect(ink(42.4)).toBe("color-mix(in srgb, var(--sol-text) 42%, transparent)");
+    expect(areaFill("web")).toBe(
+      "color-mix(in srgb, var(--sol-blue) 14%, transparent)",
+    );
+    expect(ink(42.4)).toBe(
+      "color-mix(in srgb, var(--sol-text) 42%, transparent)",
+    );
   });
 
   test("areas on one page never share an accent while the palette lasts", () => {
     // Hashed alone, these two land on the same accent.
     expect(areaVar("landing")).toBe(areaVar("outreach"));
-    const colors = assignAreaColors(["outreach", "landing", "backend", "web", "mobile"]);
+    const colors = assignAreaColors([
+      "outreach",
+      "landing",
+      "backend",
+      "web",
+      "mobile",
+    ]);
     expect(areaVar("landing", colors)).not.toBe(areaVar("outreach", colors));
-    const vars = ["outreach", "landing", "backend", "web", "mobile"].map((a) => areaVar(a, colors));
+    const vars = ["outreach", "landing", "backend", "web", "mobile"].map((a) =>
+      areaVar(a, colors),
+    );
     expect(new Set(vars).size).toBe(vars.length);
     for (const v of vars) expect(v).toMatch(/^--sol-[a-z-]+$/);
   });
 
   test("named areas keep their color, and an unnamed one never takes a named area's on the same page", () => {
-    const colors = assignAreaColors(["web", "cli", "convex", "docs", "billing", "infra", "CLI "]);
+    const colors = assignAreaColors([
+      "web",
+      "cli",
+      "convex",
+      "docs",
+      "billing",
+      "infra",
+      "CLI ",
+    ]);
     expect(areaColor("web", colors)).toBe("var(--sol-blue)");
     expect(areaColor("cli", colors)).toBe("var(--sol-green)");
     expect(areaColor("convex", colors)).toBe("var(--sol-violet)");
     expect(areaColor("docs", colors)).toBe("var(--sol-text-dim)");
-    for (const a of ["billing", "infra"]) expect(["--sol-blue", "--sol-green", "--sol-violet"]).not.toContain(areaVar(a, colors));
+    for (const a of ["billing", "infra"])
+      expect(["--sol-blue", "--sol-green", "--sol-violet"]).not.toContain(
+        areaVar(a, colors),
+      );
     // An area the page did not assign still resolves, by name or hash.
     expect(areaColor("desktop", colors)).toBe("var(--sol-cyan)");
     expect(areaVar("search", colors)).toBe(areaVar("search"));
@@ -51,8 +92,12 @@ describe("areaColor", () => {
     const b = assignAreaColors(["infra", "landing", "outreach"]);
     expect([...a]).toEqual([...b]);
     // An area that only holds files inside other stories never moves a story area's color.
-    const withRest = assignAreaColors(["outreach", "landing", "infra"], ["aaa", "scripts", "github"]);
-    for (const k of ["outreach", "landing", "infra"]) expect(withRest.get(k)).toBe(a.get(k));
+    const withRest = assignAreaColors(
+      ["outreach", "landing", "infra"],
+      ["aaa", "scripts", "github"],
+    );
+    for (const k of ["outreach", "landing", "infra"])
+      expect(withRest.get(k)).toBe(a.get(k));
   });
 
   test("past seven unnamed areas the extras fall back to their hash", () => {

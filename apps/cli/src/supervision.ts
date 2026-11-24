@@ -13,7 +13,12 @@
 // relaunches it if the loop ever exits. This turns a multi-hour outage into a
 // sub-minute one (we cannot run at all while the Mac is fully asleep — that is macOS).
 import { AGENT_ENV_UNSET_SH } from "./agentEnv.js";
-import { DARWIN_SIGNING_TEAM, MANIFEST_SIGNED_SH, RELEASE_BASE_URL, VERSION_FLOOR_SH } from "./releaseTrust.js";
+import {
+  DARWIN_SIGNING_TEAM,
+  MANIFEST_SIGNED_SH,
+  RELEASE_BASE_URL,
+  VERSION_FLOOR_SH,
+} from "./releaseTrust.js";
 import { getVersion } from "./cliVersion.js";
 
 export const WATCHDOG_HEARTBEAT_FILENAME = "watchdog.heartbeat";
@@ -62,7 +67,11 @@ export function shellEscapeForSh(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-export function daemonLauncherMatchesCommand(launcher: string, executable: string, args: string[]): boolean {
+export function daemonLauncherMatchesCommand(
+  launcher: string,
+  executable: string,
+  args: string[],
+): boolean {
   const command = [executable, ...args].map(shellEscapeForSh).join(" ");
   return launcher.split("\n").some((line) => line.trim() === `exec ${command}`);
 }
@@ -70,7 +79,10 @@ export function daemonLauncherMatchesCommand(launcher: string, executable: strin
 // exec (not plain invocation) so the daemon replaces the shell and launchd tracks
 // the daemon's pid as the job instance — kickstart, KeepAlive, and the mutual
 // supervision pid checks all depend on that.
-export function buildDaemonLauncherScript(opts: { daemonCommand: string; loginPathFile?: string }): string {
+export function buildDaemonLauncherScript(opts: {
+  daemonCommand: string;
+  loginPathFile?: string;
+}): string {
   const loginPath = opts.loginPathFile
     ? `# The login shell's PATH from \`cast start\` (loginShellPath.ts), ahead of
 # launchd's bare one, so agents find Homebrew, nvm and mise binaries.
@@ -152,7 +164,13 @@ export function daemonTickStale(
   if (tickAgeMs <= thresholdMs) return false;
   if (gapMs === null || gapMs < 0) return false;
   if (gapMs >= awakeGapMs) return false;
-  if (tickAgeMs <= Math.max(thresholdMs, DAEMON_HEARTBEAT_BUSY_GRACE_MS) && logAgeMs !== null && logAgeMs >= 0 && logAgeMs <= thresholdMs) return false;
+  if (
+    tickAgeMs <= Math.max(thresholdMs, DAEMON_HEARTBEAT_BUSY_GRACE_MS) &&
+    logAgeMs !== null &&
+    logAgeMs >= 0 &&
+    logAgeMs <= thresholdMs
+  )
+    return false;
   return true;
 }
 
@@ -181,7 +199,8 @@ export const WATCHDOG_WEDGED_ARM_TTL_MS = 10 * 60 * 1000;
 // the silence; the self_recovered rewrite lands this much later.
 const HANG_RECOVERY_LAG_MS = 5_000;
 
-export const WATCHDOG_KILL_RULE_TWO_PASSES = "two consecutive wedged passes, no self recovery in between";
+export const WATCHDOG_KILL_RULE_TWO_PASSES =
+  "two consecutive wedged passes, no self recovery in between";
 
 export interface WedgedPassStamp {
   pid: number;
@@ -202,11 +221,18 @@ export type WatchdogKillVerdict =
   | { action: "arm"; reason: string; stamp: WedgedPassStamp }
   | { action: "kill"; rule: string; reason: string };
 
-export function parseWedgedPassStamp(content: string | null): WedgedPassStamp | null {
+export function parseWedgedPassStamp(
+  content: string | null,
+): WedgedPassStamp | null {
   if (content == null) return null;
   try {
     const parsed = JSON.parse(content) as Partial<WedgedPassStamp>;
-    if (typeof parsed.pid !== "number" || typeof parsed.tick !== "number" || typeof parsed.at !== "number") return null;
+    if (
+      typeof parsed.pid !== "number" ||
+      typeof parsed.tick !== "number" ||
+      typeof parsed.at !== "number"
+    )
+      return null;
     return { pid: parsed.pid, tick: parsed.tick, at: parsed.at };
   } catch {
     return null;
@@ -216,7 +242,11 @@ export function parseWedgedPassStamp(content: string | null): WedgedPassStamp | 
 /** True when the marker says the loop resumed on its own AFTER the arming pass
  * saw it wedged. A marker from an earlier stall, or one never rewritten as
  * recovered, is no evidence of recovery between the two passes. */
-export function markerRecoveredSince(marker: HangEvidence | null, pid: number, armedAt: number): boolean {
+export function markerRecoveredSince(
+  marker: HangEvidence | null,
+  pid: number,
+  armedAt: number,
+): boolean {
   if (!marker || marker.pid !== pid || !marker.self_recovered) return false;
   return marker.detected_at + HANG_RECOVERY_LAG_MS >= armedAt;
 }
@@ -236,16 +266,39 @@ export function watchdogKillVerdict(input: {
 }): WatchdogKillVerdict {
   const { wedged, pid, tick, now, armed, marker } = input;
   const armTtlMs = input.armTtlMs ?? WATCHDOG_WEDGED_ARM_TTL_MS;
-  if (!wedged) return { action: "spare", reason: "tick fresh, busy, or the pass followed a sleep" };
+  if (!wedged)
+    return {
+      action: "spare",
+      reason: "tick fresh, busy, or the pass followed a sleep",
+    };
   const stamp: WedgedPassStamp = { pid, tick, at: now };
-  const consecutive = armed !== null && armed.pid === pid && armed.tick === tick && now - armed.at >= 0 && now - armed.at <= armTtlMs;
+  const consecutive =
+    armed !== null &&
+    armed.pid === pid &&
+    armed.tick === tick &&
+    now - armed.at >= 0 &&
+    now - armed.at <= armTtlMs;
   if (!consecutive) {
-    return { action: "arm", reason: "first wedged pass for this stall; killing only if the next pass agrees", stamp };
+    return {
+      action: "arm",
+      reason:
+        "first wedged pass for this stall; killing only if the next pass agrees",
+      stamp,
+    };
   }
   if (markerRecoveredSince(marker, pid, armed!.at)) {
-    return { action: "arm", reason: "hang marker says the loop resumed on its own after the first wedged pass; counting again from this pass", stamp };
+    return {
+      action: "arm",
+      reason:
+        "hang marker says the loop resumed on its own after the first wedged pass; counting again from this pass",
+      stamp,
+    };
   }
-  return { action: "kill", rule: WATCHDOG_KILL_RULE_TWO_PASSES, reason: `tick unmoved since the pass ${Math.round((now - armed!.at) / 1000)}s ago and no recovery marker since` };
+  return {
+    action: "kill",
+    rule: WATCHDOG_KILL_RULE_TWO_PASSES,
+    reason: `tick unmoved since the pass ${Math.round((now - armed!.at) / 1000)}s ago and no recovery marker since`,
+  };
 }
 
 // ProcessType is Interactive because every agent runs under this job: tmux,
@@ -254,7 +307,10 @@ export function watchdogKillVerdict(input: {
 // efficiency cores; at load 124 on 2026-10-05 those 4 cores were pegged while
 // the 12 performance cores sat 55-75% idle, and a busy loop from an agent shell
 // got 1/20th of the CPU the same loop got as an Interactive job.
-export function buildDaemonPlistXml(opts: { scriptPath: string; configDir: string }): string {
+export function buildDaemonPlistXml(opts: {
+  scriptPath: string;
+  configDir: string;
+}): string {
   const { scriptPath, configDir } = opts;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -285,7 +341,10 @@ export function buildDaemonPlistXml(opts: { scriptPath: string; configDir: strin
 }
 
 // Resident KeepAlive watchdog (NOT StartInterval — see file header).
-export function buildWatchdogPlistXml(opts: { scriptPath: string; configDir: string }): string {
+export function buildWatchdogPlistXml(opts: {
+  scriptPath: string;
+  configDir: string;
+}): string {
   const { scriptPath, configDir } = opts;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -318,7 +377,9 @@ export function buildWatchdogPlistXml(opts: { scriptPath: string; configDir: str
 // way ensureAutostart rewrites it to the current KeepAlive resident-loop form, so
 // existing installs migrate themselves on the next daemon start.
 export function watchdogPlistNeedsUpgrade(content: string): boolean {
-  return !content.includes("/bin/sh") || content.includes("<key>StartInterval</key>");
+  return (
+    !content.includes("/bin/sh") || content.includes("<key>StartInterval</key>")
+  );
 }
 
 // A daemon plist that still points launchd directly at the codecast binary (or at
@@ -334,7 +395,10 @@ export function daemonPlistRunsLegacyCommand(content: string): boolean {
 // buildDaemonPlistXml). A launcher-form plist only needs the plist rewritten; its
 // ProgramArguments are /bin/sh + the launcher, never the daemon command.
 export function daemonPlistNeedsUpgrade(content: string): boolean {
-  return daemonPlistRunsLegacyCommand(content) || !/<key>ProcessType<\/key>\s*<string>Interactive<\/string>/.test(content);
+  return (
+    daemonPlistRunsLegacyCommand(content) ||
+    !/<key>ProcessType<\/key>\s*<string>Interactive<\/string>/.test(content)
+  );
 }
 
 // Pull the ProgramArguments strings out of an existing plist so the daemon's
@@ -342,7 +406,9 @@ export function daemonPlistNeedsUpgrade(content: string): boolean {
 // (compiled binary, dev bun+daemon.ts, whatever) inside the new launcher script.
 // Matches the writer's symmetry: values are emitted raw, so they are read raw.
 export function extractPlistProgramArguments(content: string): string[] {
-  const arrayMatch = content.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/);
+  const arrayMatch = content.match(
+    /<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/,
+  );
   if (!arrayMatch) return [];
   const args: string[] = [];
   for (const m of arrayMatch[1].matchAll(/<string>([\s\S]*?)<\/string>/g)) {
@@ -353,7 +419,10 @@ export function extractPlistProgramArguments(content: string): string[] {
 
 // Age of the watchdog heartbeat stamp in ms (now - stamp), or null when the stamp is
 // missing or unparseable. Pure for testability.
-export function watchdogHeartbeatAge(content: string | null, now: number): number | null {
+export function watchdogHeartbeatAge(
+  content: string | null,
+  now: number,
+): number | null {
   if (content == null) return null;
   const tick = parseInt(content.trim(), 10);
   if (!Number.isFinite(tick) || tick <= 0) return null;
@@ -377,7 +446,11 @@ export function watchdogHeartbeatStale(
 // compiled `_watchdog` pass with a self-update fallback) vs the dev/from-source form
 // (do the health check inline in shell). Both run as a resident loop that stamps the
 // heartbeat each cycle so the daemon can see the watchdog is alive, not just loaded.
-export function buildWatchdogShellScript(opts: { isBinary: boolean; watchdogCommand: string; floorVersion?: string }): string {
+export function buildWatchdogShellScript(opts: {
+  isBinary: boolean;
+  watchdogCommand: string;
+  floorVersion?: string;
+}): string {
   const { isBinary, watchdogCommand } = opts;
   // The rollback floor for the self-update fallback: the version of the CLI
   // that wrote this script. The daemon rewrites it on every start, so it never
@@ -385,7 +458,9 @@ export function buildWatchdogShellScript(opts: { isBinary: boolean; watchdogComm
   const floor = opts.floorVersion ?? getVersion();
   const floorVersion = /^\d+(\.\d+)*$/.test(floor) ? floor : "0";
   // The same executable asked to update itself: `<binary> -- update`.
-  const updateCommand = /'_watchdog'$/.test(watchdogCommand) ? watchdogCommand.replace(/'_watchdog'$/, "'update'") : "false";
+  const updateCommand = /'_watchdog'$/.test(watchdogCommand)
+    ? watchdogCommand.replace(/'_watchdog'$/, "'update'")
+    : "false";
 
   if (!isBinary) {
     return `#!/bin/sh

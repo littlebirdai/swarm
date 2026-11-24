@@ -7,9 +7,20 @@
  */
 
 /** The steps of a placement, in order. `launch` happens only when autoscale adds a host; a shared checkout skips `seed`. */
-export const CLOUD_PLACEMENT_STEPS = ["host", "launch", "wake", "config", "checkout", "seed", "worktree", "start"] as const;
+export const CLOUD_PLACEMENT_STEPS = [
+  "host",
+  "launch",
+  "wake",
+  "config",
+  "checkout",
+  "seed",
+  "worktree",
+  "start",
+] as const;
 /** Steps a placement reaches only sometimes: shown once reached, never as a step still to come. */
-export const CLOUD_PLACEMENT_OCCASIONAL_STEPS: ReadonlySet<string> = new Set(["launch"]);
+export const CLOUD_PLACEMENT_OCCASIONAL_STEPS: ReadonlySet<string> = new Set([
+  "launch",
+]);
 export type CloudPlacementStep = (typeof CLOUD_PLACEMENT_STEPS)[number];
 
 export const CLOUD_PLACEMENT_STEP_LABEL: Record<CloudPlacementStep, string> = {

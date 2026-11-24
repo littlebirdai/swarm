@@ -13,12 +13,12 @@ import { optionalNative } from "./optionalNative";
 export function copyToClipboard(value: string): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ExpoClipboard = require('expo-clipboard');
+    const ExpoClipboard = require("expo-clipboard");
     return Promise.resolve(ExpoClipboard.setStringAsync(value));
   } catch {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { Clipboard } = require('react-native');
+      const { Clipboard } = require("react-native");
       Clipboard?.setString?.(value);
     } catch {
       // no clipboard backend available — swallow rather than crash the screen
@@ -29,7 +29,9 @@ export function copyToClipboard(value: string): Promise<void> {
 
 /** The clipboard's text, or null when the binary has no clipboard module or it is empty. */
 export async function readClipboard(): Promise<string | null> {
-  const ExpoClipboard = optionalNative('ExpoClipboard', () => require('expo-clipboard'));
+  const ExpoClipboard = optionalNative("ExpoClipboard", () =>
+    require("expo-clipboard"),
+  );
   try {
     const text = ExpoClipboard ? await ExpoClipboard.getStringAsync() : null;
     return text ? String(text) : null;

@@ -1,7 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Film, MonitorUp, Phone } from "lucide-react";
-import { CALL_FRAME_PREFER, CALL_JUST_SAID_MS, isRecordingFilming, locateCallMoment, offsetIntoRecording, recordingSubject, type CallMomentMiss } from "@codecast/shared/contracts";
+import {
+  CALL_FRAME_PREFER,
+  CALL_JUST_SAID_MS,
+  isRecordingFilming,
+  locateCallMoment,
+  offsetIntoRecording,
+  recordingSubject,
+  type CallMomentMiss,
+} from "@codecast/shared/contracts";
 import { formatCallTime, parseCallRef } from "@codecast/shared/entities";
 import { toVideoFile, useCallRecordings } from "../../hooks/useRoomRecording";
 import { useNearViewport } from "../../hooks/useNearViewport";
@@ -9,8 +17,16 @@ import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { ParticipantTag, PersonName } from "./GuestTag";
 import { speakerColor } from "./speakers";
-import { CALL_VIDEO_LOADING, playableFiles, videoAt } from "../../lib/calls/callVideo";
-import { keepMomentFrame, momentFrame, momentFrameKey } from "../../lib/calls/momentFrames";
+import {
+  CALL_VIDEO_LOADING,
+  playableFiles,
+  videoAt,
+} from "../../lib/calls/callVideo";
+import {
+  keepMomentFrame,
+  momentFrame,
+  momentFrameKey,
+} from "../../lib/calls/momentFrames";
 
 // A moment of a call, written in a message as `cl-42@12:34` on a line of its
 // own: the call as it looked then, a frame of its video, linking to the call
@@ -81,17 +97,28 @@ export function CallMomentFrame({
       <CallMomentPicture rawId={rawId} entity={entity} served={served} />
       {line ? (
         <div className="px-2.5 py-1.5">
-          <div className="flex items-center gap-1.5 text-[12px]" data-moment-line={line.seq}>
-            <span className={`flex min-w-0 max-w-[40%] shrink-0 items-center gap-1 font-medium ${speakerColor(line.speaker_id)}`}>
+          <div
+            className="flex items-center gap-1.5 text-[12px]"
+            data-moment-line={line.seq}
+          >
+            <span
+              className={`flex min-w-0 max-w-[40%] shrink-0 items-center gap-1 font-medium ${speakerColor(line.speaker_id)}`}
+            >
               <PersonName identity={line.speaker_id} name={line.speaker_name} />
             </span>
-            <span className="min-w-0 flex-1 truncate text-sol-text">{line.text}</span>
+            <span className="min-w-0 flex-1 truncate text-sol-text">
+              {line.text}
+            </span>
             <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-sol-text-dim transition-colors group-hover:text-sol-text" />
           </div>
           <div className="mt-0.5 flex items-center gap-1.5 text-meta text-sol-text-dim">
             <Film className="h-3 w-3 shrink-0" />
             <span className="min-w-0 truncate">{title}</span>
-            {saidBefore && <span className="shrink-0">· last said at {formatCallTime(line.t0)}</span>}
+            {saidBefore && (
+              <span className="shrink-0">
+                · last said at {formatCallTime(line.t0)}
+              </span>
+            )}
             <span className="ml-auto shrink-0 font-mono">{rawId}</span>
           </div>
         </div>
@@ -101,8 +128,12 @@ export function CallMomentFrame({
               as a missed call, and red is kept for the REC mark of a call being
               filmed now. */}
           <Film className="h-3.5 w-3.5 shrink-0 text-sol-text-dim" />
-          <span className="min-w-0 flex-1 truncate text-[12px] text-sol-text">{title}</span>
-          <span className="shrink-0 font-mono text-meta text-sol-text-dim">{rawId}</span>
+          <span className="min-w-0 flex-1 truncate text-[12px] text-sol-text">
+            {title}
+          </span>
+          <span className="shrink-0 font-mono text-meta text-sol-text-dim">
+            {rawId}
+          </span>
           <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-sol-text-dim transition-colors group-hover:text-sol-text" />
         </div>
       )}
@@ -113,13 +144,27 @@ export function CallMomentFrame({
 /** The line a moment's card is captioned with (webGetCallRef's `line`, the
  *  shared lineSaidAt), and whether it ended long enough before the moment
  *  that the card says when it was said, the way `cast call snap` does. */
-function momentCaption(entity: any, atMs: number): { line: MomentLine; saidBefore: boolean } | null {
+function momentCaption(
+  entity: any,
+  atMs: number,
+): { line: MomentLine; saidBefore: boolean } | null {
   const line: MomentLine | null | undefined = entity?.line;
   if (!line) return null;
-  return { line, saidBefore: !line.during && atMs - line.t1 >= CALL_JUST_SAID_MS };
+  return {
+    line,
+    saidBefore: !line.during && atMs - line.t1 >= CALL_JUST_SAID_MS,
+  };
 }
 
-type MomentLine = { seq: number; speaker_id: string; speaker_name: string; text: string; t0: number; t1: number; during: boolean };
+type MomentLine = {
+  seq: number;
+  speaker_id: string;
+  speaker_name: string;
+  text: string;
+  t0: number;
+  t1: number;
+  during: boolean;
+};
 
 /** The picture alone, 16:9 with the time in its corner: the embed's top, and
  *  the hover card of an inline `cl-42@12:34` pill. Nothing is asked of the
@@ -129,7 +174,15 @@ type MomentLine = { seq: number; speaker_id: string; speaker_name: string; text:
  *  loaded (useStableMediaSrcs: the query's window rolling over must not blank
  *  every frame on the page), and says so honestly when the URL cannot be
  *  played or the browser will not draw a frame of a video it has not played. */
-export function CallMomentPicture({ rawId, entity, served }: { rawId: string; entity: any; served: boolean }) {
+export function CallMomentPicture({
+  rawId,
+  entity,
+  served,
+}: {
+  rawId: string;
+  entity: any;
+  served: boolean;
+}) {
   const atMs = parseCallRef(rawId)?.at_ms ?? 0;
   const boxRef = useRef<HTMLDivElement>(null);
   // The subscription latches (one per call, shared by every card of it); the
@@ -152,13 +205,23 @@ export function CallMomentPicture({ rawId, entity, served }: { rawId: string; en
     // Why there is no picture, from the shared rule over every file (a file
     // still being written is "not yet", not "never"; one still filming is
     // "now", not "saving").
-    const miss = locateCallMoment({ callStartedAt: recs.call_started_at, atMs, recordings: files });
-    const filming = files.some((f) => isRecordingFilming(f.status) && offsetIntoRecording(f, recs.call_started_at, atMs) !== null);
+    const miss = locateCallMoment({
+      callStartedAt: recs.call_started_at,
+      atMs,
+      recordings: files,
+    });
+    const filming = files.some(
+      (f) =>
+        isRecordingFilming(f.status) &&
+        offsetIntoRecording(f, recs.call_started_at, atMs) !== null,
+    );
     return {
       ok: false as const,
       reason: miss.ok ? ("outside" as const) : miss.reason,
       filming,
-      unsigned: playableFiles(files).length === 0 && files.some((f) => f.status === "ready"),
+      unsigned:
+        playableFiles(files).length === 0 &&
+        files.some((f) => f.status === "ready"),
     };
   }, [recs, atMs]);
   const time = formatCallTime(atMs);
@@ -169,15 +232,29 @@ export function CallMomentPicture({ rawId, entity, served }: { rawId: string; en
   const [blank, setBlank] = useState<string | null>(null);
   const undrawn = !!src && blank === src;
   // This moment drawn before on this page: its kept picture, shown at once.
-  const frameKey = located?.ok ? momentFrameKey(located.file.id, located.seconds) : null;
+  const frameKey = located?.ok
+    ? momentFrameKey(located.file.id, located.seconds)
+    : null;
   const kept = frameKey ? momentFrame(frameKey) : null;
   return (
-    <div ref={boxRef} className="relative aspect-video overflow-hidden bg-black">
+    <div
+      ref={boxRef}
+      className="relative aspect-video overflow-hidden bg-black"
+    >
       {/* Until a frame draws (and wherever none will), a faint grid under the
           pulse so the box reads as a picture on its way, not a dead screen. */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07]" style={GRID} />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={GRID}
+      />
       {kept ? (
-        <img src={kept} alt={`The call at ${time}`} draggable={false} className="pointer-events-none relative h-full w-full bg-black object-contain" />
+        <img
+          src={kept}
+          alt={`The call at ${time}`}
+          draggable={false}
+          className="pointer-events-none relative h-full w-full bg-black object-contain"
+        />
       ) : located?.ok && !dead && !undrawn ? (
         src && close ? (
           <MomentVideo
@@ -188,7 +265,13 @@ export function CallMomentPicture({ rawId, entity, served }: { rawId: string; en
             onLoaded={() => media.loaded(located.file.id)}
             onRefused={() => media.refused(located.file.id)}
             onBlank={() => setBlank(src)}
-            onDrawn={(el) => void keepMomentFrame(frameKey!, { call: String(entity._id), recording: located.file.id }, el)}
+            onDrawn={(el) =>
+              void keepMomentFrame(
+                frameKey!,
+                { call: String(entity._id), recording: located.file.id },
+                el,
+              )
+            }
           />
         ) : (
           <div className={CALL_VIDEO_LOADING} />
@@ -210,12 +293,15 @@ export function CallMomentPicture({ rawId, entity, served }: { rawId: string; en
       <span className="absolute bottom-2 left-2 rounded bg-black/70 px-1.5 py-0.5 font-mono text-meta tabular-nums text-white">
         {time}
       </span>
-      {located?.ok && (kept || (!dead && !undrawn)) && located.file.kind === "screen" && (
-        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-meta text-white/85">
-          <MonitorUp className="h-3 w-3" /> {recordingSubject(located.file, "label")}
-          <ParticipantTag identity={located.file.participant_identity} />
-        </span>
-      )}
+      {located?.ok &&
+        (kept || (!dead && !undrawn)) &&
+        located.file.kind === "screen" && (
+          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/70 px-1.5 py-0.5 font-mono text-meta text-white/85">
+            <MonitorUp className="h-3 w-3" />{" "}
+            {recordingSubject(located.file, "label")}
+            <ParticipantTag identity={located.file.participant_identity} />
+          </span>
+        )}
     </div>
   );
 }
@@ -223,7 +309,8 @@ export function CallMomentPicture({ rawId, entity, served }: { rawId: string; en
 const NO_FILES: never[] = [];
 
 const GRID = {
-  backgroundImage: "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+  backgroundImage:
+    "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
   backgroundSize: "24px 24px",
 } as const;
 
@@ -263,12 +350,17 @@ function MomentVideo({
   /** The frame at the position is on screen: the host keeps it. */
   onDrawn: (el: HTMLVideoElement) => void;
 }) {
-  const [step, setStep] = useState<"waiting" | "metadata" | "eager" | "drawn">("waiting");
+  const [step, setStep] = useState<"waiting" | "metadata" | "eager" | "drawn">(
+    "waiting",
+  );
   const blankRef = useRef(onBlank);
   blankRef.current = onBlank;
   useWatchEffect(() => {
     if (step !== "metadata" && step !== "eager") return;
-    const timer = setTimeout(() => (step === "metadata" ? setStep("eager") : blankRef.current()), PAINT_WAIT_MS);
+    const timer = setTimeout(
+      () => (step === "metadata" ? setStep("eager") : blankRef.current()),
+      PAINT_WAIT_MS,
+    );
     return () => clearTimeout(timer);
   }, [step]);
   const drawn = (e: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -298,7 +390,8 @@ function MomentVideo({
         className={`pointer-events-none relative h-full w-full bg-black object-contain transition-opacity duration-150 motion-reduce:transition-none ${step === "drawn" ? "opacity-100" : "opacity-0"}`}
         onLoadedMetadata={(e) => {
           onLoaded();
-          if (Math.abs(e.currentTarget.currentTime - seconds) > 0.5) e.currentTarget.currentTime = seconds;
+          if (Math.abs(e.currentTarget.currentTime - seconds) > 0.5)
+            e.currentTarget.currentTime = seconds;
           setStep((cur) => (cur === "waiting" ? "metadata" : cur));
         }}
         onLoadedData={drawn}
@@ -310,12 +403,20 @@ function MomentVideo({
 }
 
 function missWords(
-  located: { ok: false; reason: CallMomentMiss["reason"]; filming: boolean; unsigned: boolean } | null,
+  located: {
+    ok: false;
+    reason: CallMomentMiss["reason"];
+    filming: boolean;
+    unsigned: boolean;
+  } | null,
   time: string,
 ): string {
   if (!located) return "No video of this call";
   if (located.unsigned) return "The call's video is not available here";
   if (located.reason === "no_recordings") return "This call was not recorded";
-  if (located.reason === "not_ready") return located.filming ? "Recording now. The frame appears once it stops" : "The recording is still saving";
+  if (located.reason === "not_ready")
+    return located.filming
+      ? "Recording now. The frame appears once it stops"
+      : "The recording is still saving";
   return `No video at ${time}. The call was recorded at other times`;
 }

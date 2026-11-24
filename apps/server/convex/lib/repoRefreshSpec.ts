@@ -10,7 +10,12 @@ export type Refresh = {
   kind: string;
   ref: string;
   path: string;
-  fetch: (token: string) => Promise<{ payload: any; sha?: string; size?: number; truncated?: boolean }>;
+  fetch: (token: string) => Promise<{
+    payload: any;
+    sha?: string;
+    size?: number;
+    truncated?: boolean;
+  }>;
 };
 
 /** Everything any kind might need. Each case reads only its own fields. */
@@ -63,20 +68,29 @@ async function directoryEntryNames(
   if (!row) return undefined;
 
   const entries = JSON.parse(row.content)?.entries ?? [];
-  return entries.map((entry: any) => (dir ? `${dir}/${entry.path}` : entry.path));
+  return entries.map((entry: any) =>
+    dir ? `${dir}/${entry.path}` : entry.path,
+  );
 }
 
-export function refreshSpec(ctx: any, repository: string, kind: string, params: SpecParams): Refresh {
+export function refreshSpec(
+  ctx: any,
+  repository: string,
+  kind: string,
+  params: SpecParams,
+): Refresh {
   const ref = params.ref ?? "-";
   const path = params.path ?? "";
   const page = params.page ?? 1;
-  const call = (name: string, extra: Record<string, unknown>) => async (token: string) => ({
-    payload: await ctx.runAction((internal.githubApi as any)[name], {
-      repository,
-      github_access_token: token,
-      ...extra,
-    }),
-  });
+  const call =
+    (name: string, extra: Record<string, unknown>) =>
+    async (token: string) => ({
+      payload: await ctx.runAction((internal.githubApi as any)[name], {
+        repository,
+        github_access_token: token,
+        ...extra,
+      }),
+    });
 
   switch (kind) {
     case "branches":
@@ -105,7 +119,10 @@ export function refreshSpec(ctx: any, repository: string, kind: string, params: 
             ref,
             github_access_token: token,
           });
-          return { payload: data ? { found: true, ...data } : { found: false }, sha: data?.sha };
+          return {
+            payload: data ? { found: true, ...data } : { found: false },
+            sha: data?.sha,
+          };
         },
       };
 
@@ -137,7 +154,12 @@ export function refreshSpec(ctx: any, repository: string, kind: string, params: 
             path,
             github_access_token: token,
           });
-          return { payload: data, sha: data.sha, size: data.size, truncated: data.truncated };
+          return {
+            payload: data,
+            sha: data.sha,
+            size: data.size,
+            truncated: data.truncated,
+          };
         },
       };
 
@@ -212,7 +234,10 @@ export function refreshSpec(ctx: any, repository: string, kind: string, params: 
  * table means the route can never drift from the writer. The fetch closure is
  * built and discarded unused, so the context it would have needed is not.
  */
-export function cacheKeyFor(kind: string, params: SpecParams): { ref: string; path: string } {
+export function cacheKeyFor(
+  kind: string,
+  params: SpecParams,
+): { ref: string; path: string } {
   if (kind === "commit") return { ref: params.ref ?? "-", path: "" };
   const spec = refreshSpec(null as any, "", kind, params);
   return { ref: spec.ref, path: spec.path };

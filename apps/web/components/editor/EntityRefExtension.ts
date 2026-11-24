@@ -52,7 +52,11 @@ function isPillableRef(id: string): boolean {
 /** True when this href renders as a rich pill (entity page, published page
  *  or Claude artifact). */
 export function isPillableHref(href: string | null | undefined): boolean {
-  return !!(parseEntityUrl(href) || parsePublishedPageUrl(href) || parseClaudeArtifactUrl(href));
+  return !!(
+    parseEntityUrl(href) ||
+    parsePublishedPageUrl(href) ||
+    parseClaudeArtifactUrl(href)
+  );
 }
 
 /**
@@ -88,8 +92,13 @@ function buildConversionTr(
       // only a fragment — leave those as plain links.
       if (parent && index != null) {
         const prev = index > 0 ? parent.child(index - 1) : null;
-        const next = index < parent.childCount - 1 ? parent.child(index + 1) : null;
-        if ((prev && linkMark.isInSet(prev.marks)) || (next && linkMark.isInSet(next.marks))) return;
+        const next =
+          index < parent.childCount - 1 ? parent.child(index + 1) : null;
+        if (
+          (prev && linkMark.isInSet(prev.marks)) ||
+          (next && linkMark.isInSet(next.marks))
+        )
+          return;
       }
       replacements.push({
         from: pos,
@@ -113,7 +122,12 @@ function buildConversionTr(
           replacements.push({
             from: pos + match.index,
             to: pos + match.index + match[0].length,
-            attrs: { id: dateIso, label: match[1].trim() || dateIso, type: "date", dateValue: dateIso },
+            attrs: {
+              id: dateIso,
+              label: match[1].trim() || dateIso,
+              type: "date",
+              dateValue: dateIso,
+            },
             nodeType: dateType,
           });
         }
@@ -123,7 +137,12 @@ function buildConversionTr(
       replacements.push({
         from: pos + match.index,
         to: pos + match.index + match[0].length,
-        attrs: { form: "mention", href: null, label: match[1].trim(), refId: match[2] },
+        attrs: {
+          form: "mention",
+          href: null,
+          label: match[1].trim(),
+          refId: match[2],
+        },
       });
     }
   });
@@ -219,7 +238,11 @@ export const EntityRefExtension = Node.create({
         key: new PluginKey("entityRefAutoConvert"),
         appendTransaction(transactions, _oldState, newState) {
           if (!transactions.some((tr) => tr.docChanged)) return null;
-          return buildConversionTr(newState, refType, newState.selection.$head.pos);
+          return buildConversionTr(
+            newState,
+            refType,
+            newState.selection.$head.pos,
+          );
         },
       }),
     ];

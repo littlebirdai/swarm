@@ -4,21 +4,61 @@ import { boundSessionsOf } from "./lib/taskOwner";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";
+import {
+  policyWorkspaceOf,
+  requireTeamPolicyAllows,
+} from "./lib/teamPolicyGuard";
 import { inheritedChildPrivacy, resolveCreationPrivacy } from "./privacy";
-import { admitSubagent, startSpawnedSession, type QueuedStart } from "./subagentFleet";
-import { checkoutInUseMessage, deviceDisplayName, fromConvexAgentType, isHostedAgentType, isReservedDevice, normalizeSubagentCaps, resolveAgentLaunch, toConvexAgentType, type AgentDefinitionSpec, type CloudWorkspaceMode, type SubagentCaps } from "@codecast/shared/contracts";
+import {
+  admitSubagent,
+  startSpawnedSession,
+  type QueuedStart,
+} from "./subagentFleet";
+import {
+  checkoutInUseMessage,
+  deviceDisplayName,
+  fromConvexAgentType,
+  isHostedAgentType,
+  isReservedDevice,
+  normalizeSubagentCaps,
+  resolveAgentLaunch,
+  toConvexAgentType,
+  type AgentDefinitionSpec,
+  type CloudWorkspaceMode,
+  type SubagentCaps,
+} from "@codecast/shared/contracts";
 import { resolveDefinitionFor } from "./agentDefinitions";
-import { cloudSeedArg, cloudWorkspaceValidator, findSharedCheckoutOccupant, resolveCloudDevice } from "./cloudPlacement";
-import { findConversationByAnyRef, findConversationByAnyRefWhere } from "./conversationSessionLookup";
-import { listTeamMachines, retainSessionCreator, sessionLaunchRunner } from "./sessionLaunch";
+import {
+  cloudSeedArg,
+  cloudWorkspaceValidator,
+  findSharedCheckoutOccupant,
+  resolveCloudDevice,
+} from "./cloudPlacement";
+import {
+  findConversationByAnyRef,
+  findConversationByAnyRefWhere,
+} from "./conversationSessionLookup";
+import {
+  listTeamMachines,
+  retainSessionCreator,
+  sessionLaunchRunner,
+} from "./sessionLaunch";
 import { listSessionOwnerIds } from "./sessionOwners";
 import { roleOfConversation } from "./lib/actor";
 import { actingPersonOf } from "./lib/userSend";
 import { canAccessTask } from "./lib/access";
-import { capsFor, countersFor, roleStartsOnItsOwn, roleTokensToday } from "./lib/orgCaps";
+import {
+  capsFor,
+  countersFor,
+  roleStartsOnItsOwn,
+  roleTokensToday,
+} from "./lib/orgCaps";
 import { atCap } from "@codecast/shared/contracts/orgCapacity";
-import { applyHandoffLink, findHandoffSource, handoffChildFields } from "./handoff";
+import {
+  applyHandoffLink,
+  findHandoffSource,
+  handoffChildFields,
+} from "./handoff";
 import { defaultDeviceFor } from "./newSessionDefaults";
 
 async function getAuthenticatedUserId(
@@ -35,10 +75,16 @@ async function getAuthenticatedUserId(
 }
 
 /** Is the machine a worker is being spawned from reserved for one job (devices.reserved_for)? */
-async function spawnsFromReservedDevice(ctx: { db: any }, userId: Id<"users">, deviceId: string): Promise<boolean> {
+async function spawnsFromReservedDevice(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceId: string,
+): Promise<boolean> {
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .first();
   return !!device && isReservedDevice(device);
 }
@@ -81,27 +127,38 @@ export function resolveDeviceSelector(
   const all = [...devices, ...boxes];
   const byId = all.find((d) => d.device_id === wanted);
   if (byId) return byId.device_id;
-  const byLabel = all.find((d) => (d.label ?? "").toLowerCase() === wanted.toLowerCase());
+  const byLabel = all.find(
+    (d) => (d.label ?? "").toLowerCase() === wanted.toLowerCase(),
+  );
   if (byLabel) return byLabel.device_id;
   const wantedName = wanted.toLowerCase();
-  const byChosen = all.filter((d) => (d.display_name ?? "").trim().toLowerCase() === wantedName);
+  const byChosen = all.filter(
+    (d) => (d.display_name ?? "").trim().toLowerCase() === wantedName,
+  );
   if (byChosen.length > 1) {
-    throw new Error(`"${wanted}" names ${byChosen.length} of your devices — use the device id: ${byChosen.map((d) => d.device_id).join(", ")}`);
+    throw new Error(
+      `"${wanted}" names ${byChosen.length} of your devices — use the device id: ${byChosen.map((d) => d.device_id).join(", ")}`,
+    );
   }
   if (byChosen.length === 1) return byChosen[0].device_id;
-  const byDisplayName = devices.filter((d) =>
-    deviceDisplayName({
-      label: d.label ?? d.device_id,
-      platform: d.platform ?? "",
-      is_remote: d.is_remote,
-      display_name: d.display_name,
-      cloud_host: d.cloud_host,
-    }).toLowerCase() === wantedName);
+  const byDisplayName = devices.filter(
+    (d) =>
+      deviceDisplayName({
+        label: d.label ?? d.device_id,
+        platform: d.platform ?? "",
+        is_remote: d.is_remote,
+        display_name: d.display_name,
+        cloud_host: d.cloud_host,
+      }).toLowerCase() === wantedName,
+  );
   if (byDisplayName.length > 1) {
-    throw new Error(`"${wanted}" names ${byDisplayName.length} of your devices — use the device id: ${byDisplayName.map((d) => d.device_id).join(", ")}`);
+    throw new Error(
+      `"${wanted}" names ${byDisplayName.length} of your devices — use the device id: ${byDisplayName.map((d) => d.device_id).join(", ")}`,
+    );
   }
   if (byDisplayName.length === 1) return byDisplayName[0].device_id;
-  const known = all.map((d) => d.label || d.device_id).join(", ") || "(none registered)";
+  const known =
+    all.map((d) => d.label || d.device_id).join(", ") || "(none registered)";
   throw new Error(`Unknown device "${wanted}". Your devices: ${known}`);
 }
 
@@ -115,9 +172,15 @@ export async function resolveTaskSpawnDevice(
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
   const boxes = await listTeamMachines(ctx, userId);
-  const id = resolveDeviceSelector(devices, value, boxes.map(({ device }) => device));
+  const id = resolveDeviceSelector(
+    devices,
+    value,
+    boxes.map(({ device }) => device),
+  );
   if (!devices.some((d: DeviceSelectorRow) => d.device_id === id)) {
-    throw new Error(`"${value}" is a team machine, and task spawns cannot run on a team machine yet. Pick one of your own devices.`);
+    throw new Error(
+      `"${value}" is a team machine, and task spawns cannot run on a team machine yet. Pick one of your own devices.`,
+    );
   }
   return id;
 }
@@ -140,7 +203,9 @@ export async function resolveSpawnParent(
 ): Promise<{ parent_conversation_id: Id<"conversations">; is_subagent: true }> {
   const parent = await findConversationByAnyRef(ctx, parentRef, userId);
   if (!parent) {
-    throw new Error(`Parent session "${parentRef}" not found among your sessions`);
+    throw new Error(
+      `Parent session "${parentRef}" not found among your sessions`,
+    );
   }
   // Presence of parent_conversation_id alone marks a row a subagent for the
   // client (isSubagentConversation); is_subagent makes the row self-identify
@@ -156,7 +221,16 @@ export async function spawnSessionCore(
   ctx: any,
   userId: Id<"users">,
   opts: {
-    agentType?: "claude_code" | "codex" | "cursor" | "gemini" | "opencode" | "pi" | "grok" | "muse" | "antigravity";
+    agentType?:
+      | "claude_code"
+      | "codex"
+      | "cursor"
+      | "gemini"
+      | "opencode"
+      | "pi"
+      | "grok"
+      | "muse"
+      | "antigravity";
     projectPath?: string;
     gitRoot?: string;
     // A name the caller already knows (a line station: "Prove · ct-42"). Kept
@@ -170,19 +244,39 @@ export async function spawnSessionCore(
     // A worktree that already exists on the target device (`cast spawn
     // --cloud` acquires it over SSH before creating the row): stamped on the
     // row so the header and the host list show it from the first frame.
-    worktree?: { name: string; branch?: string; path?: string; seed?: { source: "checkout" | "origin_main"; base: string; branch?: string; dirty?: boolean; laptop_root?: string; device_id?: string; reason?: string } };
+    worktree?: {
+      name: string;
+      branch?: string;
+      path?: string;
+      seed?: {
+        source: "checkout" | "origin_main";
+        base: string;
+        branch?: string;
+        dirty?: boolean;
+        laptop_root?: string;
+        device_id?: string;
+        reason?: string;
+      };
+    };
     // `cast spawn --cloud --shared`: the row is created PARKED on the host
     // (owner = the host, cloud_placement pending, no start, no seed) as the
     // atomic claim of its main checkout — the CLI then prepares the host and
     // places the row with the prompt. Refused here, before any insert, when
     // another alive session holds that checkout.
-    cloudPark?: { deviceId: string; workspace: CloudWorkspaceMode; checkoutPath: string };
+    cloudPark?: {
+      deviceId: string;
+      workspace: CloudWorkspaceMode;
+      checkoutPath: string;
+    };
     // Team/privacy resolve from THIS path when project_path lives on another
     // machine — the directory mappings are keyed by the laptop's checkouts.
     privacyPath?: string;
     targetDeviceId?: string | null;
     spawnerConversationId?: Id<"conversations">;
-    subagentFields?: { parent_conversation_id: Id<"conversations">; is_subagent: true } | null;
+    subagentFields?: {
+      parent_conversation_id: Id<"conversations">;
+      is_subagent: true;
+    } | null;
     // `cast handoff --to` / handoff.start: the session this one continues. The
     // child is born linked and bound to the source's task/plan, the source is
     // patched to point forward and its state pinned done (handoff.applyHandoffLink).
@@ -199,16 +293,30 @@ export async function spawnSessionCore(
     // finishes done.
     mergeBackOnDone?: boolean;
   },
-): Promise<{ conversationId: Id<"conversations">; shortId: string; queued?: boolean }> {
+): Promise<{
+  conversationId: Id<"conversations">;
+  shortId: string;
+  queued?: boolean;
+}> {
   const now = Date.now();
   const sessionId = crypto.randomUUID();
   const agentType = opts.agentType || "claude_code";
-  const runnerUserId = await sessionLaunchRunner(ctx, userId, opts.targetDeviceId);
+  const runnerUserId = await sessionLaunchRunner(
+    ctx,
+    userId,
+    opts.targetDeviceId,
+  );
 
-  const parent = opts.subagentFields ? await ctx.db.get(opts.subagentFields.parent_conversation_id) : null;
+  const parent = opts.subagentFields
+    ? await ctx.db.get(opts.subagentFields.parent_conversation_id)
+    : null;
   const privacy =
     inheritedChildPrivacy(parent, runnerUserId) ??
-    (await resolveCreationPrivacy(ctx, userId, opts.privacyPath || opts.gitRoot || opts.projectPath));
+    (await resolveCreationPrivacy(
+      ctx,
+      userId,
+      opts.privacyPath || opts.gitRoot || opts.projectPath,
+    ));
   if (opts.cloudPark?.workspace === "shared") {
     // The device has to be the ROW OWNER's own wake-on-use host, checked here
     // the way every other cloud creator checks it (conversations.createConversation,
@@ -216,8 +324,16 @@ export async function spawnSessionCore(
     // owner_device_id and claims a checkout, and an unchecked id would claim a
     // checkout on a machine nobody here owns.
     await resolveCloudDevice(ctx, runnerUserId, opts.cloudPark.deviceId);
-    const occupant = await findSharedCheckoutOccupant(ctx, runnerUserId, opts.cloudPark.deviceId, { projectPath: opts.cloudPark.checkoutPath });
-    if (occupant) throw new Error(checkoutInUseMessage(opts.cloudPark.checkoutPath, occupant));
+    const occupant = await findSharedCheckoutOccupant(
+      ctx,
+      runnerUserId,
+      opts.cloudPark.deviceId,
+      { projectPath: opts.cloudPark.checkoutPath },
+    );
+    if (occupant)
+      throw new Error(
+        checkoutInUseMessage(opts.cloudPark.checkoutPath, occupant),
+      );
   }
 
   const conversationId = await ctx.db.insert("conversations", {
@@ -227,13 +343,21 @@ export async function spawnSessionCore(
     session_id: sessionId,
     project_path: opts.projectPath,
     git_root: opts.gitRoot,
-    ...(opts.title ? { title: opts.title, title_is_custom: true, skip_title_generation: true } : {}),
+    ...(opts.title
+      ? {
+          title: opts.title,
+          title_is_custom: true,
+          skip_title_generation: true,
+        }
+      : {}),
     started_at: now,
     updated_at: now,
     message_count: 0,
     ...privacy,
     ...(opts.subagentFields ?? {}),
-    ...(opts.spawnerConversationId ? { spawned_by_conversation_id: opts.spawnerConversationId } : {}),
+    ...(opts.spawnerConversationId
+      ? { spawned_by_conversation_id: opts.spawnerConversationId }
+      : {}),
     ...(opts.handoffFrom ? handoffChildFields(opts.handoffFrom) : {}),
     ...(opts.ccAccount ? { cc_account: opts.ccAccount } : {}),
     ...(opts.mergeBackOnDone ? { merge_back_on_done: true } : {}),
@@ -244,7 +368,9 @@ export async function spawnSessionCore(
           worktree_path: opts.worktree.path,
           worktree_status: "active" as const,
           cloud_workspace: "isolated" as const,
-          ...(opts.worktree.seed ? { cloud_seed: { ...opts.worktree.seed, at: now } } : {}),
+          ...(opts.worktree.seed
+            ? { cloud_seed: { ...opts.worktree.seed, at: now } }
+            : {}),
         }
       : {}),
     ...(opts.cloudPark
@@ -262,7 +388,12 @@ export async function spawnSessionCore(
   await ctx.db.patch(conversationId, { short_id: shortId });
   await retainSessionCreator(ctx, conversationId, userId, runnerUserId);
   if (opts.handoffFrom) {
-    await applyHandoffLink(ctx, userId, opts.handoffFrom, { _id: conversationId, short_id: shortId, agent_type: agentType, model: opts.model });
+    await applyHandoffLink(ctx, userId, opts.handoffFrom, {
+      _id: conversationId,
+      short_id: shortId,
+      agent_type: agentType,
+      model: opts.model,
+    });
   }
   // A parked row starts nowhere yet: the CLI places it (cloud.placeConversation)
   // with the prompt once the host has the checkout ready.
@@ -272,10 +403,13 @@ export async function spawnSessionCore(
   // brief is from the person whose send started the turn it is working on.
   // Only a session the caller runs speaks for its turn, and a hosted child
   // takes input from its runner alone.
-  const spawnerRow = opts.spawnerConversationId ? await ctx.db.get(opts.spawnerConversationId) : null;
-  const briefFrom = spawnerRow && spawnerRow.user_id === userId && !isHostedAgentType(agentType)
-    ? actingPersonOf(spawnerRow, userId)
-    : userId;
+  const spawnerRow = opts.spawnerConversationId
+    ? await ctx.db.get(opts.spawnerConversationId)
+    : null;
+  const briefFrom =
+    spawnerRow && spawnerRow.user_id === userId && !isHostedAgentType(agentType)
+      ? actingPersonOf(spawnerRow, userId)
+      : userId;
   const start: QueuedStart = {
     agentType: fromConvexAgentType(agentType),
     projectPath: opts.projectPath || opts.gitRoot,
@@ -309,7 +443,6 @@ export async function spawnSessionCore(
   return { conversationId, shortId };
 }
 
-
 /** `--as <name>`: fold a definition into a spawn's agent/model/effort (explicit
  *  values win) and hand the rest (tools, prompt, mode, worktree) to the daemon.
  *  Clients with no system prompt flag get the prompt prefixed to the seeded
@@ -318,17 +451,38 @@ export async function resolveSpawnDefinition(
   ctx: any,
   userId: Id<"users">,
   name: string | undefined,
-  explicit: { agentType?: string; model?: string; effort?: string; prompt?: string; isolated?: boolean },
-): Promise<{ agentType?: any; model?: string; effort?: string; prompt?: string; isolated?: boolean; mergeBack?: boolean; definition?: AgentDefinitionSpec }> {
+  explicit: {
+    agentType?: string;
+    model?: string;
+    effort?: string;
+    prompt?: string;
+    isolated?: boolean;
+  },
+): Promise<{
+  agentType?: any;
+  model?: string;
+  effort?: string;
+  prompt?: string;
+  isolated?: boolean;
+  mergeBack?: boolean;
+  definition?: AgentDefinitionSpec;
+}> {
   if (!name) return explicit;
   const def = await resolveDefinitionFor(ctx, userId, name);
   if (!def) throw new Error(`No agent definition named "${name}"`);
-  const explicitAgent = explicit.agentType ? fromConvexAgentType(explicit.agentType) : undefined;
-  const launch = resolveAgentLaunch(def, { agent: explicitAgent, model: explicit.model, effort: explicit.effort }, "claude");
+  const explicitAgent = explicit.agentType
+    ? fromConvexAgentType(explicit.agentType)
+    : undefined;
+  const launch = resolveAgentLaunch(
+    def,
+    { agent: explicitAgent, model: explicit.model, effort: explicit.effort },
+    "claude",
+  );
   const promptViaFlag = launch.agent === "claude" || launch.agent === "pi";
   let prompt = explicit.prompt;
   if (!promptViaFlag && def.system_prompt?.trim()) {
-    prompt = `${def.system_prompt.trim()}\n\n---\n\n${explicit.prompt ?? ""}`.trim();
+    prompt =
+      `${def.system_prompt.trim()}\n\n---\n\n${explicit.prompt ?? ""}`.trim();
   }
   return {
     agentType: toConvexAgentType(launch.agent),
@@ -415,7 +569,12 @@ export const createSessionFromCli = mutation({
     handoff_from_session: v.optional(v.string()),
     // `cast spawn --subagent`: the spawner's fleet limits from its config and
     // the machine it runs on (subagentFleet.ts). Absent = the defaults.
-    subagent_caps: v.optional(v.object({ per_session: v.optional(v.number()), per_machine: v.optional(v.number()) })),
+    subagent_caps: v.optional(
+      v.object({
+        per_session: v.optional(v.number()),
+        per_machine: v.optional(v.number()),
+      }),
+    ),
     spawn_device_id: v.optional(v.string()),
     // `--merge-back` / `--no-merge-back`; absent = the definition decides.
     merge_back: v.optional(v.boolean()),
@@ -425,7 +584,9 @@ export const createSessionFromCli = mutation({
     if (!userId) {
       throw new Error("Authentication failed: invalid token or session");
     }
-    const handoffFrom = args.handoff_from_session ? await findHandoffSource(ctx, userId, args.handoff_from_session) : undefined;
+    const handoffFrom = args.handoff_from_session
+      ? await findHandoffSource(ctx, userId, args.handoff_from_session)
+      : undefined;
     const asDef = await resolveSpawnDefinition(ctx, userId, args.definition, {
       agentType: args.agent_type,
       model: args.model,
@@ -441,28 +602,52 @@ export const createSessionFromCli = mutation({
         .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
         .collect();
       const boxes = await listTeamMachines(ctx, userId);
-      targetDeviceId = resolveDeviceSelector(devices, args.device, boxes.map(({ device }) => device));
+      targetDeviceId = resolveDeviceSelector(
+        devices,
+        args.device,
+        boxes.map(({ device }) => device),
+      );
     } else if (handoffFrom?.owner_device_id) {
       // A handoff continues the work where it ran: the source's checkout is
       // on its machine, and path routing alone can pick another machine that
       // merely shares the path shape (/home/ubuntu/...).
       targetDeviceId = handoffFrom.owner_device_id;
-    } else if (args.spawn_device_id && !args.cloud_device_id && !args.cloud_seed && await spawnsFromReservedDevice(ctx, userId, args.spawn_device_id)) {
+    } else if (
+      args.spawn_device_id &&
+      !args.cloud_device_id &&
+      !args.cloud_seed &&
+      (await spawnsFromReservedDevice(ctx, userId, args.spawn_device_id))
+    ) {
       // A worker of a session on a reserved machine is that machine's work:
       // path routing skips reserved machines, so name it.
       targetDeviceId = args.spawn_device_id;
-    } else if (!args.parent_session && !args.worktree_path && !args.cloud_device_id && !args.cloud_seed) {
+    } else if (
+      !args.parent_session &&
+      !args.worktree_path &&
+      !args.cloud_device_id &&
+      !args.cloud_seed
+    ) {
       // No machine named: the person's saved default, when it can take the
       // work now. A worker stays beside its spawner's checkout, and a
       // worktree or cloud start already names its machine.
-      targetDeviceId = await defaultDeviceFor(ctx, userId, [args.git_root, args.project_path].filter((p): p is string => !!p));
+      targetDeviceId = await defaultDeviceFor(
+        ctx,
+        userId,
+        [args.git_root, args.project_path].filter((p): p is string => !!p),
+      );
     }
 
     const parentFields = args.parent_session
       ? await resolveSpawnParent(ctx, userId, args.parent_session)
       : null;
     const spawner = args.spawner_session
-      ? (await findConversationByAnyRef(ctx, args.spawner_session, userId)) ?? (await runSpawnerOf(ctx, userId, parentFields?.parent_conversation_id, args.spawner_session))
+      ? ((await findConversationByAnyRef(ctx, args.spawner_session, userId)) ??
+        (await runSpawnerOf(
+          ctx,
+          userId,
+          parentFields?.parent_conversation_id,
+          args.spawner_session,
+        )))
       : null;
     // A role's standing session, or one of its hands, starting a hand: the
     // trust stage and the daily hand cap gate it (org-roles-standing.md T4).
@@ -471,59 +656,117 @@ export const createSessionFromCli = mutation({
     // its settle wakes that session (workerSettle.tellParent) and the session
     // reads and steers it like any worker. Its prompt is the spawner's brief,
     // as written. A workflow station names its run's session as its parent.
-    const subagentFields = parentFields ?? (roleGate && spawner ? { parent_conversation_id: spawner._id as Id<"conversations">, is_subagent: true as const } : null);
+    const subagentFields =
+      parentFields ??
+      (roleGate && spawner
+        ? {
+            parent_conversation_id: spawner._id as Id<"conversations">,
+            is_subagent: true as const,
+          }
+        : null);
     // A review hand is gated by the role whose work it judges, not filed
     // under it, so its verdict is recorded as its own.
-    const review = args.review_for_task ? await resolveReviewTarget(ctx, userId, args.review_for_task) : null;
+    const review = args.review_for_task
+      ? await resolveReviewTarget(ctx, userId, args.review_for_task)
+      : null;
     if (review?.role) await gateRoleCaps(ctx, review.role);
 
-    let cloudPark: { deviceId: string; workspace: CloudWorkspaceMode; checkoutPath: string } | undefined;
+    let cloudPark:
+      | {
+          deviceId: string;
+          workspace: CloudWorkspaceMode;
+          checkoutPath: string;
+        }
+      | undefined;
     if (args.cloud_workspace === "shared") {
       if (!args.cloud_device_id || !args.cloud_checkout_path) {
-        throw new Error("a shared cloud spawn needs cloud_device_id and cloud_checkout_path");
+        throw new Error(
+          "a shared cloud spawn needs cloud_device_id and cloud_checkout_path",
+        );
       }
-      cloudPark = { deviceId: args.cloud_device_id, workspace: "shared", checkoutPath: args.cloud_checkout_path };
+      cloudPark = {
+        deviceId: args.cloud_device_id,
+        workspace: "shared",
+        checkoutPath: args.cloud_checkout_path,
+      };
     }
 
-    const { conversationId, shortId, queued } = await spawnSessionCore(ctx, userId, {
-      agentType: asDef.agentType ?? args.agent_type,
-      projectPath: args.project_path,
-      gitRoot: args.git_root,
-      title: args.title,
-      model: asDef.model,
-      effort: asDef.effort,
-      ccAccount: args.cc_account,
-      isolated: asDef.isolated,
-      definition: asDef.definition,
-      worktreeName: args.worktree_name,
-      worktree: args.worktree_path && args.worktree_name
-        ? { name: args.worktree_name, branch: args.worktree_branch, path: args.worktree_path, seed: args.cloud_seed }
-        : undefined,
-      cloudPark,
-      privacyPath: args.privacy_path,
-      targetDeviceId,
-      subagentFields,
-      spawnerConversationId: spawner?._id,
-      handoffFrom,
-      prompt: asDef.prompt,
-      // A worker joins the fleet when its spawner declares the fleet's limits
-      // (`cast spawn --subagent` always does). A workflow station's hand is
-      // nested under its run but paced by it, one station at a time, so it
-      // never waits for a slot behind the machine's other workers.
-      fleet: subagentFields && args.subagent_caps !== undefined ? { device: args.spawn_device_id ?? null, caps: normalizeSubagentCaps(args.subagent_caps) } : undefined,
-      mergeBackOnDone: !!subagentFields && !!asDef.isolated && (args.merge_back ?? asDef.mergeBack ?? false),
-    });
+    const { conversationId, shortId, queued } = await spawnSessionCore(
+      ctx,
+      userId,
+      {
+        agentType: asDef.agentType ?? args.agent_type,
+        projectPath: args.project_path,
+        gitRoot: args.git_root,
+        title: args.title,
+        model: asDef.model,
+        effort: asDef.effort,
+        ccAccount: args.cc_account,
+        isolated: asDef.isolated,
+        definition: asDef.definition,
+        worktreeName: args.worktree_name,
+        worktree:
+          args.worktree_path && args.worktree_name
+            ? {
+                name: args.worktree_name,
+                branch: args.worktree_branch,
+                path: args.worktree_path,
+                seed: args.cloud_seed,
+              }
+            : undefined,
+        cloudPark,
+        privacyPath: args.privacy_path,
+        targetDeviceId,
+        subagentFields,
+        spawnerConversationId: spawner?._id,
+        handoffFrom,
+        prompt: asDef.prompt,
+        // A worker joins the fleet when its spawner declares the fleet's limits
+        // (`cast spawn --subagent` always does). A workflow station's hand is
+        // nested under its run but paced by it, one station at a time, so it
+        // never waits for a slot behind the machine's other workers.
+        fleet:
+          subagentFields && args.subagent_caps !== undefined
+            ? {
+                device: args.spawn_device_id ?? null,
+                caps: normalizeSubagentCaps(args.subagent_caps),
+              }
+            : undefined,
+        mergeBackOnDone:
+          !!subagentFields &&
+          !!asDef.isolated &&
+          (args.merge_back ?? asDef.mergeBack ?? false),
+      },
+    );
     // A cloud spawn (`cast spawn --cloud`) under a team policy with cloud
     // hosts off: refused after the insert, which the throw rolls back, so the
     // row's own workspace (resolved by the core) decides alongside the device.
     if (args.cloud_device_id || args.cloud_seed) {
-      await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf("conversations", await ctx.db.get(conversationId)), apiToken: args.api_token }, "cloud_hosts_disabled");
+      await requireTeamPolicyAllows(
+        ctx,
+        {
+          workspace: policyWorkspaceOf(
+            "conversations",
+            await ctx.db.get(conversationId),
+          ),
+          apiToken: args.api_token,
+        },
+        "cloud_hosts_disabled",
+      );
     }
-    if (subagentFields) await inheritRunOwners(ctx, subagentFields.parent_conversation_id, conversationId);
+    if (subagentFields)
+      await inheritRunOwners(
+        ctx,
+        subagentFields.parent_conversation_id,
+        conversationId,
+      );
     if (roleGate) await recordHandStart(ctx, roleGate, conversationId);
-    if (roleGate || args.unattended) await ctx.db.patch(conversationId, { unattended: true });
+    if (roleGate || args.unattended)
+      await ctx.db.patch(conversationId, { unattended: true });
     if (review) {
-      await ctx.db.patch(conversationId, { review_of_task_id: review.task._id });
+      await ctx.db.patch(conversationId, {
+        review_of_task_id: review.task._id,
+      });
       if (review.role) await countHand(ctx, review.role);
     }
 
@@ -545,7 +788,10 @@ export const createSessionFromCli = mutation({
 // (org-staffing.md S23.1), and under its daily hand limit. The new session is filed under the role (it
 // reports to it and shows under it on the org page) and the cap counter
 // advances. A person spawning from a plain terminal is unaffected.
-export async function gateHandStart(ctx: { db: any }, spawner: any | null): Promise<any | null> {
+export async function gateHandStart(
+  ctx: { db: any },
+  spawner: any | null,
+): Promise<any | null> {
   const role = spawner ? await roleOfConversation(ctx, spawner) : null;
   if (!role) return null;
   await gateRoleCaps(ctx, role);
@@ -561,11 +807,24 @@ export async function gateHandStart(ctx: { db: any }, spawner: any | null): Prom
  * line pool, orgLine.startRoleRun): the role's standing session, which the machine's account does not run. Accepted
  * only from the account the run runs as, nested under the run's own session, and only for the spawner that run names.
  */
-async function runSpawnerOf(ctx: { db: any }, userId: Id<"users">, parentId: Id<"conversations"> | undefined, ref: string): Promise<any | null> {
+async function runSpawnerOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+  parentId: Id<"conversations"> | undefined,
+  ref: string,
+): Promise<any | null> {
   const parent = parentId ? await ctx.db.get(parentId) : null;
-  const run = parent?.is_workflow_primary && parent.workflow_run_id ? await ctx.db.get(parent.workflow_run_id) : null;
-  if (!run?.spawner_conversation_id || String(run.user_id) !== String(userId)) return null;
-  return findConversationByAnyRefWhere(ctx, ref, (c) => String(c._id) === String(run.spawner_conversation_id));
+  const run =
+    parent?.is_workflow_primary && parent.workflow_run_id
+      ? await ctx.db.get(parent.workflow_run_id)
+      : null;
+  if (!run?.spawner_conversation_id || String(run.user_id) !== String(userId))
+    return null;
+  return findConversationByAnyRefWhere(
+    ctx,
+    ref,
+    (c) => String(c._id) === String(run.spawner_conversation_id),
+  );
 }
 
 /**
@@ -573,19 +832,39 @@ async function runSpawnerOf(ctx: { db: any }, userId: Id<"users">, parentId: Id<
  * other than its own runner: the seat's person, for a role's run on another account's machine. Their cards reach
  * that person, and the hand stays filed under the role (lib/orgOwnership reads the owner before the runner).
  */
-async function inheritRunOwners(ctx: { db: any }, parentId: Id<"conversations">, childId: Id<"conversations">): Promise<void> {
+async function inheritRunOwners(
+  ctx: { db: any },
+  parentId: Id<"conversations">,
+  childId: Id<"conversations">,
+): Promise<void> {
   const parent = await ctx.db.get(parentId);
   if (!parent?.workflow_run_id) return;
   const child = await ctx.db.get(childId);
-  for (const owner of await listSessionOwnerIds(ctx, parentId)) await retainSessionCreator(ctx, childId, owner, child.user_id);
+  for (const owner of await listSessionOwnerIds(ctx, parentId))
+    await retainSessionCreator(ctx, childId, owner, child.user_id);
 }
 
-async function resolveReviewTarget(ctx: { db: any }, userId: Id<"users">, shortId: string): Promise<{ task: any; role: any | null }> {
-  const task = await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", shortId)).first();
-  if (!task || !(await canAccessTask(ctx, userId, task))) throw new Error(`Task not found: ${shortId}`);
+async function resolveReviewTarget(
+  ctx: { db: any },
+  userId: Id<"users">,
+  shortId: string,
+): Promise<{ task: any; role: any | null }> {
+  const task = await ctx.db
+    .query("tasks")
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", shortId))
+    .first();
+  if (!task || !(await canAccessTask(ctx, userId, task)))
+    throw new Error(`Task not found: ${shortId}`);
   const bound = await boundSessionsOf(ctx, task);
-  const linked = (await Promise.all([...(task.conversation_ids ?? [])].reverse().map((id: any) => ctx.db.get(id))))
-    .filter((c: any) => c && String(c.review_of_task_id ?? "") !== String(task._id));
+  const linked = (
+    await Promise.all(
+      [...(task.conversation_ids ?? [])]
+        .reverse()
+        .map((id: any) => ctx.db.get(id)),
+    )
+  ).filter(
+    (c: any) => c && String(c.review_of_task_id ?? "") !== String(task._id),
+  );
   for (const conv of [...bound, ...linked]) {
     const role = await roleOfConversation(ctx, conv);
     if (role) return { task, role };
@@ -594,35 +873,58 @@ async function resolveReviewTarget(ctx: { db: any }, userId: Id<"users">, shortI
 }
 
 export async function gateRoleCaps(ctx: { db: any }, role: any): Promise<void> {
-  if (role.status === "paused") throw new Error(`${role.name} (@${role.handle}) is paused: no new hands until a person resumes it`);
-  if (role.status === "retired") throw new Error(`${role.name} (@${role.handle}) is retired`);
+  if (role.status === "paused")
+    throw new Error(
+      `${role.name} (@${role.handle}) is paused: no new hands until a person resumes it`,
+    );
+  if (role.status === "retired")
+    throw new Error(`${role.name} (@${role.handle}) is retired`);
   // Off, the role recommends and a person starts the work; it never asks a
   // person to change its own settings (S23.1), so the message names no verb.
   if (!roleStartsOnItsOwn(role)) {
-    throw new Error(`${role.name} (@${role.handle}) does not start work on its own; say in one line that this needs starting and recommend it`);
+    throw new Error(
+      `${role.name} (@${role.handle}) does not start work on its own; say in one line that this needs starting and recommend it`,
+    );
   }
   const now = Date.now();
   const caps = capsFor(role);
   const counters = countersFor(role, now);
   if (atCap(counters.hands, caps.hands_per_day)) {
-    throw new Error(`${role.name} (@${role.handle}) reached today's limit of ${caps.hands_per_day} hands; write one line in the brief, pin that you are waiting for tomorrow, and wait`);
+    throw new Error(
+      `${role.name} (@${role.handle}) reached today's limit of ${caps.hands_per_day} hands; write one line in the brief, pin that you are waiting for tomorrow, and wait`,
+    );
   }
   // Tokens are read only for a role with a token limit: their rows change with
   // every transcript sync, and a spawn that reads them races every station.
-  if (caps.tokens_per_day != null && atCap(await roleTokensToday(ctx, role._id, now), caps.tokens_per_day)) {
-    throw new Error(`${role.name} (@${role.handle}) reached today's limit; write one line in the brief, pin that you are waiting for tomorrow, and wait`);
+  if (
+    caps.tokens_per_day != null &&
+    atCap(await roleTokensToday(ctx, role._id, now), caps.tokens_per_day)
+  ) {
+    throw new Error(
+      `${role.name} (@${role.handle}) reached today's limit; write one line in the brief, pin that you are waiting for tomorrow, and wait`,
+    );
   }
 }
 
 async function countHand(ctx: { db: any }, role: any): Promise<void> {
   const now = Date.now();
   const counters = countersFor(role, now);
-  await ctx.db.patch(role._id, { counters: { ...counters, hands: counters.hands + 1 }, updated_at: now });
+  await ctx.db.patch(role._id, {
+    counters: { ...counters, hands: counters.hands + 1 },
+    updated_at: now,
+  });
 }
 
-export async function recordHandStart(ctx: { db: any }, role: any, conversationId: Id<"conversations">): Promise<void> {
+export async function recordHandStart(
+  ctx: { db: any },
+  role: any,
+  conversationId: Id<"conversations">,
+): Promise<void> {
   await countHand(ctx, role);
-  await ctx.db.patch(conversationId, { org_role_id: role._id, org_role_hold: "filed" });
+  await ctx.db.patch(conversationId, {
+    org_role_id: role._id,
+    org_role_hold: "filed",
+  });
 }
 
 /** The first line of the briefing hands were started with until 2026-11-19;
@@ -630,4 +932,5 @@ export async function recordHandStart(ctx: { db: any }, role: any, conversationI
  *  (migrations:releaseFolderHeldSessions reads it for hands from before the
  *  `org_role_hold` stamp). */
 export const HAND_BRIEFING_HEADER = "## You are a hand of ";
-export const isHandBriefing = (text: string | null | undefined) => (text ?? "").trimStart().startsWith(HAND_BRIEFING_HEADER);
+export const isHandBriefing = (text: string | null | undefined) =>
+  (text ?? "").trimStart().startsWith(HAND_BRIEFING_HEADER);

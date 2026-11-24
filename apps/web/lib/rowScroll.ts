@@ -7,10 +7,15 @@ type Edges = { top: number; bottom: number };
 
 /** The scroll delta that brings `row` fully into `container`'s view, with
  *  `marginTop` pixels kept clear at the top. 0 when it is already in view. */
-export function rowScrollDelta(container: Edges, row: Edges, marginTop = 0): number {
+export function rowScrollDelta(
+  container: Edges,
+  row: Edges,
+  marginTop = 0,
+): number {
   const top = container.top + marginTop;
   if (row.top < top) return row.top - top;
-  if (row.bottom > container.bottom) return Math.min(row.bottom - container.bottom, row.top - top);
+  if (row.bottom > container.bottom)
+    return Math.min(row.bottom - container.bottom, row.top - top);
   return 0;
 }
 

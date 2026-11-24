@@ -3,7 +3,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { EventEmitter } from "node:events";
-import { CodexAppServer, CodexRequestRefused, approvalResultForMethod, codexAuthIdentity, threadForkTimeoutMsForBytes, threadItemToMessage, threadItemsToMessages } from "./codexAppServer.js";
+import {
+  CodexAppServer,
+  CodexRequestRefused,
+  approvalResultForMethod,
+  codexAuthIdentity,
+  threadForkTimeoutMsForBytes,
+  threadItemToMessage,
+  threadItemsToMessages,
+} from "./codexAppServer.js";
 import { persistedPolicyFor } from "./codexTurnRecovery.js";
 import { pollUntil } from "./test-helpers/pollUntil.js";
 
@@ -22,8 +30,11 @@ describe("CodexAppServer sandbox restatement", () => {
   const FULL = { type: "dangerFullAccess" } as const;
   const READONLY = { type: "readOnly", networkAccess: false } as const;
   const WORKSPACE = {
-    type: "workspaceWrite", writableRoots: ["/Users/x/proj"], networkAccess: false,
-    excludeTmpdirEnvVar: false, excludeSlashTmp: false,
+    type: "workspaceWrite",
+    writableRoots: ["/Users/x/proj"],
+    networkAccess: false,
+    excludeTmpdirEnvVar: false,
+    excludeSlashTmp: false,
   } as const;
 
   const stubbed = (resolved: any = FULL) => {
@@ -31,17 +42,26 @@ describe("CodexAppServer sandbox restatement", () => {
     const server = new CodexAppServer({ log: () => {} });
     (server as any).sendRequest = async (method: string, params: any) => {
       requests.push({ method, params });
-      if (method === "turn/start") return { turn: { id: "turn", items: [], status: "inProgress" } };
-      return { thread: { id: params.threadId ?? "thread" }, model: "gpt-test", sandbox: resolved };
+      if (method === "turn/start")
+        return { turn: { id: "turn", items: [], status: "inProgress" } };
+      return {
+        thread: { id: params.threadId ?? "thread" },
+        model: "gpt-test",
+        sandbox: resolved,
+      };
     };
     return { server, requests };
   };
-  const turns = (r: Array<{ method: string; params: any }>) => r.filter(x => x.method === "turn/start");
+  const turns = (r: Array<{ method: string; params: any }>) =>
+    r.filter((x) => x.method === "turn/start");
 
   test("thread requests carry the caller's mode, turns carry the resolved policy", async () => {
     const { server, requests } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "hi" }] });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "hi" }],
+    });
     expect(requests[0].params.sandbox).toBe("danger-full-access");
     expect(requests[0].params.sandboxPolicy).toBeUndefined();
     expect(turns(requests)[0].params.sandboxPolicy).toEqual(FULL);
@@ -51,22 +71,41 @@ describe("CodexAppServer sandbox restatement", () => {
   test("every turn restates it, not just the first", async () => {
     const { server, requests } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }] });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "b" }] });
-    expect(turns(requests).map(r => r.params.sandboxPolicy)).toEqual([FULL, FULL]);
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+    });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "b" }],
+    });
+    expect(turns(requests).map((r) => r.params.sandboxPolicy)).toEqual([
+      FULL,
+      FULL,
+    ]);
   });
 
   test("a read-only thread stays read-only", async () => {
     const { server, requests } = stubbed(READONLY);
     await server.threadStart({ cwd: "/p", sandbox: "read-only" });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "hi" }] });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "hi" }],
+    });
     expect(turns(requests)[0].params.sandboxPolicy).toEqual(READONLY);
   });
 
   test("workspace-write writable roots and network access survive verbatim", async () => {
     const { server, requests } = stubbed(WORKSPACE);
-    await server.threadResume({ threadId: "thread", cwd: "/p", sandbox: "workspace-write" });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "hi" }] });
+    await server.threadResume({
+      threadId: "thread",
+      cwd: "/p",
+      sandbox: "workspace-write",
+    });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "hi" }],
+    });
     expect(turns(requests)[0].params.sandboxPolicy).toEqual(WORKSPACE);
   });
 
@@ -77,21 +116,38 @@ describe("CodexAppServer sandbox restatement", () => {
     await server.threadResume({ threadId: "unknown-a", cwd: "/p" });
     await server.threadFork({ threadId: "unknown-b", cwd: "/p" });
     await server.threadStart({ cwd: "/p" });
-    expect(requests.map(r => r.params.sandbox)).toEqual([undefined, undefined, undefined]);
+    expect(requests.map((r) => r.params.sandbox)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 
   test("a turn on an unknown thread sends no policy rather than inventing one", async () => {
     const { server, requests } = stubbed(FULL);
-    await server.turnStart({ threadId: "never-seen", input: [{ type: "text", text: "hi" }] });
+    await server.turnStart({
+      threadId: "never-seen",
+      input: [{ type: "text", text: "hi" }],
+    });
     expect(turns(requests)[0].params.sandboxPolicy).toBeUndefined();
   });
 
   test("an accepted explicit override wins and sticks", async () => {
     const { server, requests } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "b" }] });
-    expect(turns(requests).map(r => r.params.sandboxPolicy)).toEqual([READONLY, READONLY]);
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: READONLY,
+    });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "b" }],
+    });
+    expect(turns(requests).map((r) => r.params.sandboxPolicy)).toEqual([
+      READONLY,
+      READONLY,
+    ]);
   });
 
   // A refused widening must not leak into the next implicit turn. The refusal
@@ -101,12 +157,21 @@ describe("CodexAppServer sandbox restatement", () => {
     const { server, requests } = stubbed(READONLY);
     await server.threadStart({ cwd: "/p", sandbox: "read-only" });
     const ok = (server as any).sendRequest;
-    (server as any).sendRequest = async () => { throw new CodexRequestRefused("policy refused"); };
-    await expect(server.turnStart({
-      threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: FULL,
-    })).rejects.toThrow("policy refused");
+    (server as any).sendRequest = async () => {
+      throw new CodexRequestRefused("policy refused");
+    };
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "a" }],
+        sandboxPolicy: FULL,
+      }),
+    ).rejects.toThrow("policy refused");
     (server as any).sendRequest = ok;
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "b" }] });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "b" }],
+    });
     expect(turns(requests).at(-1)!.params.sandboxPolicy).toEqual(READONLY);
   });
 
@@ -128,8 +193,12 @@ describe("CodexAppServer sandbox restatement", () => {
 
     const invalidated: string[] = [];
     server.on("policyInvalidated", (id: string) => invalidated.push(id));
-    (server as any).sendRequest = () => new Promise(() => {});   // never settles
-    void server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY });
+    (server as any).sendRequest = () => new Promise(() => {}); // never settles
+    void server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: READONLY,
+    });
     await Promise.resolve();
 
     // Invalidated BEFORE the write, and disk must not claim the old broader one.
@@ -140,10 +209,16 @@ describe("CodexAppServer sandbox restatement", () => {
   test("timeout after a narrowing leaves the policy unspecified, not the old one", async () => {
     const { server } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    (server as any).sendRequest = async () => { throw new Error("Request turn/start timed out after 1ms"); };
-    await expect(server.turnStart({
-      threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY,
-    })).rejects.toThrow("timed out");
+    (server as any).sendRequest = async () => {
+      throw new Error("Request turn/start timed out after 1ms");
+    };
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "a" }],
+        sandboxPolicy: READONLY,
+      }),
+    ).rejects.toThrow("timed out");
 
     expect(server.hasPendingPolicyChange("thread")).toBe(false);
     expect(server.policyForThread("thread")).toBeUndefined();
@@ -153,10 +228,16 @@ describe("CodexAppServer sandbox restatement", () => {
   test("a dropped connection is ambiguous too, and does not restore the old policy", async () => {
     const { server } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    (server as any).sendRequest = async () => { throw new Error("codex app-server process terminated"); };
-    await expect(server.turnStart({
-      threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY,
-    })).rejects.toThrow("terminated");
+    (server as any).sendRequest = async () => {
+      throw new Error("codex app-server process terminated");
+    };
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "a" }],
+        sandboxPolicy: READONLY,
+      }),
+    ).rejects.toThrow("terminated");
     expect(disk(server, "thread", FULL)).toBeNull();
   });
 
@@ -164,11 +245,19 @@ describe("CodexAppServer sandbox restatement", () => {
     const { server } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
     const confirmed: any[] = [];
-    server.on("policyConfirmed", (_id: string, policy: any) => confirmed.push(policy));
-    (server as any).sendRequest = async () => { throw new CodexRequestRefused("sandbox not permitted"); };
-    await expect(server.turnStart({
-      threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY,
-    })).rejects.toThrow("sandbox not permitted");
+    server.on("policyConfirmed", (_id: string, policy: any) =>
+      confirmed.push(policy),
+    );
+    (server as any).sendRequest = async () => {
+      throw new CodexRequestRefused("sandbox not permitted");
+    };
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "a" }],
+        sandboxPolicy: READONLY,
+      }),
+    ).rejects.toThrow("sandbox not permitted");
 
     expect(server.policyForThread("thread")).toEqual(FULL);
     expect(disk(server, "thread", FULL)).toEqual(FULL);
@@ -182,13 +271,26 @@ describe("CodexAppServer sandbox restatement", () => {
     let releaseFirst: (v: any) => void = () => {};
     (server as any).sendRequest = (_m: string, p: any) =>
       p.input[0].text === "first"
-        ? new Promise(r => { releaseFirst = r; })
+        ? new Promise((r) => {
+            releaseFirst = r;
+          })
         : Promise.reject(new CodexRequestRefused("no"));
 
-    const first = server.turnStart({ threadId: "thread", input: [{ type: "text", text: "first" }], sandboxPolicy: READONLY });
-    await expect(server.turnStart({
-      threadId: "thread", input: [{ type: "text", text: "second" }], sandboxPolicy: { ...WORKSPACE, writableRoots: [...WORKSPACE.writableRoots] },
-    })).rejects.toThrow("no");
+    const first = server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "first" }],
+      sandboxPolicy: READONLY,
+    });
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "second" }],
+        sandboxPolicy: {
+          ...WORKSPACE,
+          writableRoots: [...WORKSPACE.writableRoots],
+        },
+      }),
+    ).rejects.toThrow("no");
 
     // The second call finished; the first is still in flight and still owns the mark.
     expect(server.hasPendingPolicyChange("thread")).toBe(true);
@@ -215,11 +317,23 @@ describe("CodexAppServer sandbox restatement", () => {
     let failB: (e: any) => void = () => {};
     (server as any).sendRequest = (_m: string, p: any) =>
       p.sandboxPolicy?.type === "dangerFullAccess"
-        ? new Promise(r => { releaseA = r; })
-        : new Promise((_r, j) => { failB = j; });
+        ? new Promise((r) => {
+            releaseA = r;
+          })
+        : new Promise((_r, j) => {
+            failB = j;
+          });
 
-    const a = server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: FULL });
-    const b = server.turnStart({ threadId: "thread", input: [{ type: "text", text: "b" }], sandboxPolicy: READONLY });
+    const a = server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: FULL,
+    });
+    const b = server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "b" }],
+      sandboxPolicy: READONLY,
+    });
 
     releaseA({ turn: { id: "t", items: [], status: "inProgress" } });
     await a;
@@ -245,19 +359,31 @@ describe("CodexAppServer sandbox restatement", () => {
     let releaseResume: (v: any) => void = () => {};
     (server as any).sendRequest = (method: string, p: any) =>
       method === "thread/resume"
-        ? new Promise(r => { releaseResume = r; })
-        : Promise.resolve({ turn: { id: "t", items: [], status: "inProgress" } });
+        ? new Promise((r) => {
+            releaseResume = r;
+          })
+        : Promise.resolve({
+            turn: { id: "t", items: [], status: "inProgress" },
+          });
 
     // The resume is in flight and its generation is already taken.
     const resumed = server.threadResume({ threadId: "thread", cwd: "/p" });
     expect(server.hasPendingPolicyChange("thread")).toBe(true);
 
     // A newer override narrows the thread and is accepted while the resume waits.
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: READONLY,
+    });
     expect(server.policyForThread("thread")).toEqual(READONLY);
 
     // The stale resume finally answers, reporting the OLD broader policy.
-    releaseResume({ thread: { id: "thread" }, model: "gpt-test", sandbox: FULL });
+    releaseResume({
+      thread: { id: "thread" },
+      model: "gpt-test",
+      sandbox: FULL,
+    });
     await resumed;
 
     expect(server.policyForThread("thread")).toEqual(READONLY);
@@ -279,8 +405,12 @@ describe("CodexAppServer sandbox restatement", () => {
   test("a failed resume leaves the policy unknown rather than reverting", async () => {
     const { server } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
-    (server as any).sendRequest = async () => { throw new Error("Request thread/resume timed out after 1ms"); };
-    await expect(server.threadResume({ threadId: "thread", cwd: "/p" })).rejects.toThrow("timed out");
+    (server as any).sendRequest = async () => {
+      throw new Error("Request thread/resume timed out after 1ms");
+    };
+    await expect(
+      server.threadResume({ threadId: "thread", cwd: "/p" }),
+    ).rejects.toThrow("timed out");
     expect(server.policyForThread("thread")).toBeUndefined();
     expect(disk(server, "thread", FULL)).toBeNull();
   });
@@ -290,10 +420,22 @@ describe("CodexAppServer sandbox restatement", () => {
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
     let release: (v: any) => void = () => {};
     (server as any).sendRequest = (_m: string, p: any) =>
-      p.sandboxPolicy === READONLY ? new Promise(r => { release = r; })
-                                   : Promise.resolve({ turn: { id: "t", items: [], status: "inProgress" } });
-    const override = server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY });
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "implicit" }] });
+      p.sandboxPolicy === READONLY
+        ? new Promise((r) => {
+            release = r;
+          })
+        : Promise.resolve({
+            turn: { id: "t", items: [], status: "inProgress" },
+          });
+    const override = server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: READONLY,
+    });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "implicit" }],
+    });
     expect(server.hasPendingPolicyChange("thread")).toBe(true);
     release({ turn: { id: "t", items: [], status: "inProgress" } });
     await override;
@@ -304,8 +446,14 @@ describe("CodexAppServer sandbox restatement", () => {
     const { server } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
     const seen: Array<[string, any]> = [];
-    server.on("policyConfirmed", (id: string, policy: any) => seen.push([id, policy]));
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }], sandboxPolicy: READONLY });
+    server.on("policyConfirmed", (id: string, policy: any) =>
+      seen.push([id, policy]),
+    );
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "a" }],
+      sandboxPolicy: READONLY,
+    });
     expect(seen).toEqual([["thread", READONLY]]);
   });
 
@@ -313,10 +461,20 @@ describe("CodexAppServer sandbox restatement", () => {
     const { server, requests } = stubbed(FULL);
     await server.threadStart({ cwd: "/p", sandbox: "danger-full-access" });
     const ok = (server as any).sendRequest;
-    (server as any).sendRequest = async () => { throw new Error("transport died"); };
-    await expect(server.turnStart({ threadId: "thread", input: [{ type: "text", text: "a" }] })).rejects.toThrow("transport died");
+    (server as any).sendRequest = async () => {
+      throw new Error("transport died");
+    };
+    await expect(
+      server.turnStart({
+        threadId: "thread",
+        input: [{ type: "text", text: "a" }],
+      }),
+    ).rejects.toThrow("transport died");
     (server as any).sendRequest = ok;
-    await server.turnStart({ threadId: "thread", input: [{ type: "text", text: "b" }] });
+    await server.turnStart({
+      threadId: "thread",
+      input: [{ type: "text", text: "b" }],
+    });
     expect(turns(requests).at(-1)!.params.sandboxPolicy).toEqual(FULL);
   });
 });
@@ -327,7 +485,10 @@ describe("CodexAppServer protocol", () => {
     const cwd = path.join(root, ".codecast/worktrees/cloud-test");
     const stateDir = path.join(root, ".codecast/workspaces/cloud-test");
     fs.mkdirSync(stateDir, { recursive: true });
-    fs.writeFileSync(path.join(stateDir, "state.json"), JSON.stringify({ resourceIndex: 3, ports: { web: 3261 } }));
+    fs.writeFileSync(
+      path.join(stateDir, "state.json"),
+      JSON.stringify({ resourceIndex: 3, ports: { web: 3261 } }),
+    );
     const requests: Array<any> = [];
     const server = new CodexAppServer({ log: () => {} });
     (server as any).sendRequest = async (method: string, params: unknown) => {
@@ -335,27 +496,60 @@ describe("CodexAppServer protocol", () => {
       return { thread: { id: "thread" }, model: "gpt-test" };
     };
     try {
-      await server.threadStart({ cwd, sandbox: "read-only", config: { model_reasoning_effort: "high", "shell_environment_policy.set": { KEEP_ME: "yes", PORT_WEB: "wrong" } } });
-      await server.threadResume({ cwd, threadId: "thread", sandbox: "workspace-write" });
-      await server.threadFork({ cwd, threadId: "thread", sandbox: "danger-full-access" });
-      expect(requests.map((r) => r.params.sandbox)).toEqual(["read-only", "workspace-write", "danger-full-access"]);
+      await server.threadStart({
+        cwd,
+        sandbox: "read-only",
+        config: {
+          model_reasoning_effort: "high",
+          "shell_environment_policy.set": { KEEP_ME: "yes", PORT_WEB: "wrong" },
+        },
+      });
+      await server.threadResume({
+        cwd,
+        threadId: "thread",
+        sandbox: "workspace-write",
+      });
+      await server.threadFork({
+        cwd,
+        threadId: "thread",
+        sandbox: "danger-full-access",
+      });
+      expect(requests.map((r) => r.params.sandbox)).toEqual([
+        "read-only",
+        "workspace-write",
+        "danger-full-access",
+      ]);
       for (const { params } of requests) {
-        expect(params.config["shell_environment_policy.set"]).toMatchObject({ PORT_WEB: "3261", AGENT_RESOURCE_INDEX: "3" });
+        expect(params.config["shell_environment_policy.set"]).toMatchObject({
+          PORT_WEB: "3261",
+          AGENT_RESOURCE_INDEX: "3",
+        });
       }
       expect(requests[0].params.config.model_reasoning_effort).toBe("high");
-      expect(requests[0].params.config["shell_environment_policy.set"].KEEP_ME).toBe("yes");
+      expect(
+        requests[0].params.config["shell_environment_policy.set"].KEEP_ME,
+      ).toBe("yes");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
   test("enables the experimental API and forks a rollout by path", async () => {
-    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const requests: Array<{ method: string; params: Record<string, unknown> }> =
+      [];
     const server = new CodexAppServer({ log: () => {} });
-    (server as any).sendRequest = async (method: string, params: Record<string, unknown>) => {
+    (server as any).sendRequest = async (
+      method: string,
+      params: Record<string, unknown>,
+    ) => {
       requests.push({ method, params });
-      if (method === "initialize") return { userAgent: "test", platformOs: "test" };
+      if (method === "initialize")
+        return { userAgent: "test", platformOs: "test" };
       return {
-        thread: { id: "real-thread", path: "/tmp/real-thread.jsonl", forkedFromId: "synthetic-thread" },
+        thread: {
+          id: "real-thread",
+          path: "/tmp/real-thread.jsonl",
+          forkedFromId: "synthetic-thread",
+        },
         cwd: "/tmp/project",
         model: "gpt-test",
         sandbox: {},
@@ -375,7 +569,11 @@ describe("CodexAppServer protocol", () => {
     expect(requests[0]).toEqual({
       method: "initialize",
       params: {
-        clientInfo: { name: "codecast", title: "Codecast Daemon", version: "1.0.0" },
+        clientInfo: {
+          name: "codecast",
+          title: "Codecast Daemon",
+          version: "1.0.0",
+        },
         capabilities: { experimentalApi: true },
       },
     });
@@ -401,13 +599,36 @@ describe("Codex app-server login changes", () => {
     const authPath = path.join(home, "auth.json");
     try {
       expect(codexAuthIdentity(home)).toBe("signed-out");
-      fs.writeFileSync(authPath, JSON.stringify({ auth_mode: "chatgpt", tokens: { account_id: "account-a", refresh_token: "first" } }));
+      fs.writeFileSync(
+        authPath,
+        JSON.stringify({
+          auth_mode: "chatgpt",
+          tokens: { account_id: "account-a", refresh_token: "first" },
+        }),
+      );
       expect(codexAuthIdentity(home)).toBe("chatgpt:account-a");
-      fs.writeFileSync(authPath, JSON.stringify({ auth_mode: "chatgpt", tokens: { account_id: "account-a", refresh_token: "rotated" } }));
+      fs.writeFileSync(
+        authPath,
+        JSON.stringify({
+          auth_mode: "chatgpt",
+          tokens: { account_id: "account-a", refresh_token: "rotated" },
+        }),
+      );
       expect(codexAuthIdentity(home)).toBe("chatgpt:account-a");
-      fs.writeFileSync(authPath, JSON.stringify({ auth_mode: "chatgpt", tokens: { account_id: "account-b", refresh_token: "other" } }));
+      fs.writeFileSync(
+        authPath,
+        JSON.stringify({
+          auth_mode: "chatgpt",
+          tokens: { account_id: "account-b", refresh_token: "other" },
+        }),
+      );
       expect(codexAuthIdentity(home)).toBe("chatgpt:account-b");
-      fs.writeFileSync(authPath, JSON.stringify({ tokens: { account_id: "account-c", refresh_token: "third" } }));
+      fs.writeFileSync(
+        authPath,
+        JSON.stringify({
+          tokens: { account_id: "account-c", refresh_token: "third" },
+        }),
+      );
       expect(codexAuthIdentity(home)).toBe("chatgpt:account-c");
       fs.writeFileSync(authPath, "partial login");
       expect(codexAuthIdentity(home)).toBeUndefined();
@@ -422,7 +643,14 @@ describe("Codex app-server login changes", () => {
     const authPath = path.join(home, "auth.json");
     const previousHome = process.env.CODEX_HOME;
     fs.mkdirSync(home);
-    const login = (account: string, token: string) => fs.writeFileSync(authPath, JSON.stringify({ auth_mode: "chatgpt", tokens: { account_id: account, refresh_token: token } }));
+    const login = (account: string, token: string) =>
+      fs.writeFileSync(
+        authPath,
+        JSON.stringify({
+          auth_mode: "chatgpt",
+          tokens: { account_id: account, refresh_token: token },
+        }),
+      );
     login("account-a", "first");
     process.env.CODEX_HOME = home;
     const server = new CodexAppServer({ log: () => {} });
@@ -451,9 +679,13 @@ describe("Codex app-server login changes", () => {
       queueMicrotask(() => server.emit("ready"));
     };
     (server as any).sendRequest = async () => ({
-      thread: { id: "saved-thread" }, cwd: "/tmp", model: "gpt-test", sandbox: { type: "readOnly", networkAccess: false },
+      thread: { id: "saved-thread" },
+      cwd: "/tmp",
+      model: "gpt-test",
+      sandbox: { type: "readOnly", networkAccess: false },
     });
-    const ready = () => new Promise<void>(resolve => server.once("ready", () => resolve()));
+    const ready = () =>
+      new Promise<void>((resolve) => server.once("ready", () => resolve()));
     try {
       const firstReady = ready();
       server.start();
@@ -464,26 +696,56 @@ describe("Codex app-server login changes", () => {
       expect(lifecycle).toEqual(["start-1"]);
 
       login("account-b", "other");
-      const results = await Promise.all([server.restartIfAuthChanged(), server.restartIfAuthChanged()]);
+      const results = await Promise.all([
+        server.restartIfAuthChanged(),
+        server.restartIfAuthChanged(),
+      ]);
       expect(results).toEqual([true, true]);
       expect(server.running).toBe(true);
       expect(lifecycle).toEqual(["start-1", "close-1", "start-2"]);
-      await expect(server.threadResume({ threadId: "saved-thread" })).resolves.toMatchObject({ thread: { id: "saved-thread" } });
+      await expect(
+        server.threadResume({ threadId: "saved-thread" }),
+      ).resolves.toMatchObject({ thread: { id: "saved-thread" } });
 
-      (server as any).handleNotification({ method: "turn/started", params: { threadId: "saved-thread", turn: { id: "active-turn" } } });
+      (server as any).handleNotification({
+        method: "turn/started",
+        params: { threadId: "saved-thread", turn: { id: "active-turn" } },
+      });
       login("account-c", "third");
       const afterTurn = server.restartIfAuthChanged();
       await Promise.resolve();
       expect(lifecycle).toEqual(["start-1", "close-1", "start-2"]);
-      (server as any).handleNotification({ method: "turn/completed", params: { threadId: "saved-thread", turn: { id: "active-turn", status: "completed" } } });
+      (server as any).handleNotification({
+        method: "turn/completed",
+        params: {
+          threadId: "saved-thread",
+          turn: { id: "active-turn", status: "completed" },
+        },
+      });
       expect(await afterTurn).toBe(true);
-      expect(lifecycle).toEqual(["start-1", "close-1", "start-2", "close-2", "start-3"]);
+      expect(lifecycle).toEqual([
+        "start-1",
+        "close-1",
+        "start-2",
+        "close-2",
+        "start-3",
+      ]);
 
       server.noteAuthRefreshFailure(); // keyring-backed logins need this fallback
       expect(await server.restartIfAuthChanged()).toBe(true);
-      expect(lifecycle).toEqual(["start-1", "close-1", "start-2", "close-2", "start-3", "close-3", "start-4"]);
+      expect(lifecycle).toEqual([
+        "start-1",
+        "close-1",
+        "start-2",
+        "close-2",
+        "start-3",
+        "close-3",
+        "start-4",
+      ]);
     } finally {
-      const closed = new Promise<void>(resolve => server.once("closed", () => resolve()));
+      const closed = new Promise<void>((resolve) =>
+        server.once("closed", () => resolve()),
+      );
       server.stop();
       await closed;
       if (previousHome === undefined) delete process.env.CODEX_HOME;
@@ -495,10 +757,14 @@ describe("Codex app-server login changes", () => {
 
 describe("approvalResultForMethod", () => {
   test("returns a decision for command execution approvals", () => {
-    expect(approvalResultForMethod("item/commandExecution/requestApproval", true)).toEqual({
+    expect(
+      approvalResultForMethod("item/commandExecution/requestApproval", true),
+    ).toEqual({
       decision: "accept",
     });
-    expect(approvalResultForMethod("item/commandExecution/requestApproval", false)).toEqual({
+    expect(
+      approvalResultForMethod("item/commandExecution/requestApproval", false),
+    ).toEqual({
       decision: "decline",
     });
   });
@@ -524,13 +790,22 @@ describe("threadItemsToMessages", () => {
       path,
     } as any);
     const grouped = threadItemsToMessages([
-      { type: "agentMessage", id: "msg-1", text: "Screenshot:", phase: "commentary" },
+      {
+        type: "agentMessage",
+        id: "msg-1",
+        text: "Screenshot:",
+        phase: "commentary",
+      },
       { type: "imageView", id: "image-1", path },
     ] as any[]);
 
-    expect(single?.images).toEqual([{ mediaType: "image/webp", localPath: path }]);
+    expect(single?.images).toEqual([
+      { mediaType: "image/webp", localPath: path },
+    ]);
     expect(grouped[0]?.uuid).toBe("msg-1");
-    expect(grouped[0]?.images).toEqual([{ mediaType: "image/webp", localPath: path }]);
+    expect(grouped[0]?.images).toEqual([
+      { mediaType: "image/webp", localPath: path },
+    ]);
     expect(grouped[0]?.images?.[0].data).toBeUndefined();
   });
 
@@ -540,7 +815,13 @@ describe("threadItemsToMessages", () => {
     ] as any[]);
     const rebuilt = threadItemsToMessages([
       { type: "imageView", id: "image-1", path: "/tmp/one.png" },
-      { type: "commandExecution", id: "cmd-1", command: "true", cwd: "/tmp", status: "completed" },
+      {
+        type: "commandExecution",
+        id: "cmd-1",
+        command: "true",
+        cwd: "/tmp",
+        status: "completed",
+      },
     ] as any[]);
 
     expect(first[0]?.uuid).toBe("image-1");
@@ -549,7 +830,12 @@ describe("threadItemsToMessages", () => {
 
   test("preserves live codex text/tool/text ordering for streamed items", () => {
     const items = [
-      { type: "agentMessage", id: "msg-1", text: "Tracing the existing flow.", phase: "commentary" },
+      {
+        type: "agentMessage",
+        id: "msg-1",
+        text: "Tracing the existing flow.",
+        phase: "commentary",
+      },
       { type: "plan", id: "plan-1", text: "1. Read code\n2. Patch daemon" },
       {
         type: "commandExecution",
@@ -559,7 +845,12 @@ describe("threadItemsToMessages", () => {
         status: "completed",
         aggregatedOutput: "match",
       },
-      { type: "agentMessage", id: "msg-2", text: "Patch is in progress.", phase: "commentary" },
+      {
+        type: "agentMessage",
+        id: "msg-2",
+        text: "Patch is in progress.",
+        phase: "commentary",
+      },
     ] as any[];
 
     const messages = threadItemsToMessages(items);
@@ -579,8 +870,18 @@ describe("threadItemsToMessages", () => {
 
   test("groups adjacent assistant items under the first item id", () => {
     const items = [
-      { type: "agentMessage", id: "msg-1", text: "First partial.", phase: "commentary" },
-      { type: "agentMessage", id: "msg-2", text: "Second partial.", phase: "final_answer" },
+      {
+        type: "agentMessage",
+        id: "msg-1",
+        text: "First partial.",
+        phase: "commentary",
+      },
+      {
+        type: "agentMessage",
+        id: "msg-2",
+        text: "Second partial.",
+        phase: "final_answer",
+      },
     ] as any[];
 
     const messages = threadItemsToMessages(items);
@@ -599,9 +900,23 @@ describe("threadItemsToMessages", () => {
   // so the boundary-flush isn't "fixed" into a duplicate-producing emit.
   test("treats userMessage as a turn boundary, not a message source", () => {
     const items = [
-      { type: "agentMessage", id: "a1", text: "first turn reply", phase: "commentary" },
-      { type: "userMessage", id: "u1", content: [{ type: "text", text: "second prompt" }] },
-      { type: "agentMessage", id: "a2", text: "second turn reply", phase: "commentary" },
+      {
+        type: "agentMessage",
+        id: "a1",
+        text: "first turn reply",
+        phase: "commentary",
+      },
+      {
+        type: "userMessage",
+        id: "u1",
+        content: [{ type: "text", text: "second prompt" }],
+      },
+      {
+        type: "agentMessage",
+        id: "a2",
+        text: "second turn reply",
+        phase: "commentary",
+      },
     ] as any[];
 
     const messages = threadItemsToMessages(items);
@@ -615,24 +930,44 @@ describe("threadItemsToMessages", () => {
 });
 
 describe("Codex per-turn model snapshots", () => {
-  test.each(["threadStart", "threadResume", "threadFork"] as const)("records the actual model returned by %s", async method => {
-    const server = new CodexAppServer({ log: () => {} });
-    (server as any).sendRequest = async () => ({ thread: { id: "thread1" }, model: "gpt-6-astra", cwd: "/tmp" });
-    await server[method]({ threadId: "thread1", model: "default" });
-    const started: unknown[][] = [];
-    const finished: unknown[][] = [];
-    server.on("turnStarted", (...args) => started.push(args));
-    server.on("turnCompleted", (...args) => finished.push(args));
-    const notify = (method: string, params: object) => (server as any).handleNotification({ method, params: { threadId: "thread1", ...params } });
-    notify("turn/started", { turn: { id: "turn1" } });
-    notify("item/completed", { turnId: "turn1", item: { type: "agentMessage", id: "response1", text: "First" } });
-    await server.turnStart({ threadId: "thread1", input: [], model: "gpt-5.6-sol" });
-    notify("turn/completed", { turn: { id: "turn1", status: "completed" } });
-    expect(started[0]).toEqual(["thread1", "turn1", "gpt-6-astra"]);
-    expect(finished[0][2]).toMatchObject([{ model: "gpt-6-astra", content: "First" }]);
-    notify("turn/started", { turn: { id: "turn2" } });
-    expect(started[1]).toEqual(["thread1", "turn2", "gpt-5.6-sol"]);
-  });
+  test.each(["threadStart", "threadResume", "threadFork"] as const)(
+    "records the actual model returned by %s",
+    async (method) => {
+      const server = new CodexAppServer({ log: () => {} });
+      (server as any).sendRequest = async () => ({
+        thread: { id: "thread1" },
+        model: "gpt-6-astra",
+        cwd: "/tmp",
+      });
+      await server[method]({ threadId: "thread1", model: "default" });
+      const started: unknown[][] = [];
+      const finished: unknown[][] = [];
+      server.on("turnStarted", (...args) => started.push(args));
+      server.on("turnCompleted", (...args) => finished.push(args));
+      const notify = (method: string, params: object) =>
+        (server as any).handleNotification({
+          method,
+          params: { threadId: "thread1", ...params },
+        });
+      notify("turn/started", { turn: { id: "turn1" } });
+      notify("item/completed", {
+        turnId: "turn1",
+        item: { type: "agentMessage", id: "response1", text: "First" },
+      });
+      await server.turnStart({
+        threadId: "thread1",
+        input: [],
+        model: "gpt-5.6-sol",
+      });
+      notify("turn/completed", { turn: { id: "turn1", status: "completed" } });
+      expect(started[0]).toEqual(["thread1", "turn1", "gpt-6-astra"]);
+      expect(finished[0][2]).toMatchObject([
+        { model: "gpt-6-astra", content: "First" },
+      ]);
+      notify("turn/started", { turn: { id: "turn2" } });
+      expect(started[1]).toEqual(["thread1", "turn2", "gpt-5.6-sol"]);
+    },
+  );
 });
 
 describe("CodexAppServer revives after disabling itself", () => {
@@ -650,17 +985,30 @@ for await (const line of console) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-revive-"));
     const binary = path.join(dir, "codex");
     const logs: string[] = [];
-    const server = new CodexAppServer({ log: (m) => logs.push(m), codexBinary: binary, reviveDelayMs: 100 });
+    const server = new CodexAppServer({
+      log: (m) => logs.push(m),
+      codexBinary: binary,
+      reviveDelayMs: 100,
+    });
     let ready = 0;
     server.on("ready", () => ready++);
     server.on("error", () => {});
     try {
       server.start();
-      await pollUntil(() => server.binaryMissing, "disabled on a missing binary");
-      expect(logs.some((l) => l.includes("disabling; trying again"))).toBe(true);
+      await pollUntil(
+        () => server.binaryMissing,
+        "disabled on a missing binary",
+      );
+      expect(logs.some((l) => l.includes("disabling; trying again"))).toBe(
+        true,
+      );
 
       fs.writeFileSync(binary, FAKE_CODEX, { mode: 0o755 });
-      await pollUntil(() => server.running && ready === 1, "revived once codex is back", { ms: 10_000 });
+      await pollUntil(
+        () => server.running && ready === 1,
+        "revived once codex is back",
+        { ms: 10_000 },
+      );
       expect(server.binaryMissing).toBe(false);
     } finally {
       server.stop();
@@ -669,7 +1017,11 @@ for await (const line of console) {
   });
 
   test("stop cancels a pending revive", async () => {
-    const server = new CodexAppServer({ log: () => {}, codexBinary: "/nonexistent/codex-revive-test", reviveDelayMs: 50 });
+    const server = new CodexAppServer({
+      log: () => {},
+      codexBinary: "/nonexistent/codex-revive-test",
+      reviveDelayMs: 50,
+    });
     server.on("error", () => {});
     server.start();
     await pollUntil(() => server.binaryMissing, "disabled on a missing binary");

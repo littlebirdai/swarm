@@ -1,19 +1,40 @@
 "use client";
-import { ReactElement, ReactNode, useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  ReactElement,
+  ReactNode,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import { copyToClipboard } from "../lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRouter, usePathname } from "next/navigation";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { useTabActive } from "../hooks/usePagePresence";
-import { matchesAction, useShortcutAction, useShortcutParts, type ShortcutAction } from "../shortcuts";
+import {
+  matchesAction,
+  useShortcutAction,
+  useShortcutParts,
+  type ShortcutAction,
+} from "../shortcuts";
 import { KeyCap } from "./KeyCap";
 import { keyBelongsElsewhere } from "../shortcuts/keyOwnership";
-import { FilterDropdown, FilterOptionList, type FilterOption } from "./FilterDropdown";
+import {
+  FilterDropdown,
+  FilterOptionList,
+  type FilterOption,
+} from "./FilterDropdown";
 import { groupsWithItems, visibleGroups } from "../lib/listGroups";
 import { ContextMenu, useContextMenu } from "./ui/context-menu";
 import { useInboxStore } from "../store/inboxStore";
 import { toast } from "sonner";
-import { ListGroupHeader, ListRowShell, type ItemRowState } from "./ListRowShell";
+import {
+  ListGroupHeader,
+  ListRowShell,
+  type ItemRowState,
+} from "./ListRowShell";
 import {
   Plus,
   SlidersHorizontal,
@@ -36,7 +57,15 @@ import {
 import { openForwardToChat } from "../lib/forwardToChat";
 import { useTeamFeature } from "../lib/teamFeatures";
 import { ListViewHeader } from "./ListViewHeader";
-import { modernButton, modernChip, modernField, modernLook, modernMenuLabel, modernMenuRow, modernPopover } from "./ui/modernLook";
+import {
+  modernButton,
+  modernChip,
+  modernField,
+  modernLook,
+  modernMenuLabel,
+  modernMenuRow,
+  modernPopover,
+} from "./ui/modernLook";
 
 // The Modern looks the toolbar's hand-built controls wear (ui/modernLook.ts).
 const M_OUTLINE_SM = modernButton({ variant: "outline", size: "sm" });
@@ -77,7 +106,9 @@ function DisplayOptionRow({
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
-        selected ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt"
+        selected
+          ? "bg-sol-bg-highlight text-sol-text"
+          : "text-sol-text-muted hover:bg-sol-bg-alt"
       } ${modernMenuRow({ selected })}`}
     >
       <span className="flex-1 text-left whitespace-nowrap">{label}</span>
@@ -132,17 +163,23 @@ function DisplayMenu({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     // Esc closes the popover, and only the popover (captured before the
     // list's own Esc and the detail's close).
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      e.preventDefault(); e.stopPropagation(); setOpen(false);
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", onKey, true);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", onKey, true); };
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey, true);
+    };
   }, [open]);
 
   const hasGrouping = !!(groupOptions && onGroupChange);
@@ -160,11 +197,17 @@ function DisplayMenu({
         <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0 cq-caret" />
       </button>
       {open && (
-        <div className={`absolute top-full right-0 mt-1 w-56 max-h-[min(70vh,28rem)] overflow-y-auto bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] p-2 space-y-3 ${modernPopover}`}>
+        <div
+          className={`absolute top-full right-0 mt-1 w-56 max-h-[min(70vh,28rem)] overflow-y-auto bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] p-2 space-y-3 ${modernPopover}`}
+        >
           {extra && <div className="flex flex-col gap-2">{extra}</div>}
           {hasGrouping && (
             <div>
-              <div className={`text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1 ${modernMenuLabel}`}>Grouping</div>
+              <div
+                className={`text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1 ${modernMenuLabel}`}
+              >
+                Grouping
+              </div>
               <div className="space-y-0.5">
                 {groupOptions!.map((o) => (
                   <DisplayOptionRow
@@ -181,29 +224,45 @@ function DisplayMenu({
               nested: "Ashot · Codecast" is one group. Only offered once a
               primary grouping is chosen — there is nothing to sub-divide
               otherwise. */}
-          {subGroupOptions && subGroupOptions.length > 0 && onSubGroupChange && groupBy && groupBy !== "none" && (
-            <div>
-              <div className={`text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1 ${modernMenuLabel}`}>Then by</div>
-              <div className="space-y-0.5">
-                {subGroupOptions.map((o) => (
-                  <DisplayOptionRow
-                    key={o.value}
-                    label={o.label}
-                    selected={o.value === subGroupBy}
-                    onClick={() => onSubGroupChange(o.value)}
-                  />
-                ))}
+          {subGroupOptions &&
+            subGroupOptions.length > 0 &&
+            onSubGroupChange &&
+            groupBy &&
+            groupBy !== "none" && (
+              <div>
+                <div
+                  className={`text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1 ${modernMenuLabel}`}
+                >
+                  Then by
+                </div>
+                <div className="space-y-0.5">
+                  {subGroupOptions.map((o) => (
+                    <DisplayOptionRow
+                      key={o.value}
+                      label={o.label}
+                      selected={o.value === subGroupBy}
+                      onClick={() => onSubGroupChange(o.value)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
           <div>
             <div className="flex items-center justify-between px-1 mb-1">
-              <span className={`text-mark uppercase tracking-wider text-sol-text-dim ${modernMenuLabel}`}>Sorting</span>
+              <span
+                className={`text-mark uppercase tracking-wider text-sol-text-dim ${modernMenuLabel}`}
+              >
+                Sorting
+              </span>
               {sortDir && onSortDirChange && (
                 <button
                   onClick={onSortDirChange}
                   className={`flex items-center gap-1 h-5 px-1.5 rounded text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors ${M_GHOST_XS}`}
-                  title={sortDir === "asc" ? "Ascending — click for descending" : "Descending — click for ascending"}
+                  title={
+                    sortDir === "asc"
+                      ? "Ascending — click for descending"
+                      : "Descending — click for ascending"
+                  }
                 >
                   <DirIcon className="w-3 h-3 flex-shrink-0" />
                   <span>{sortDir === "asc" ? "Asc" : "Desc"}</span>
@@ -223,11 +282,16 @@ function DisplayMenu({
           </div>
           {onCopyLink && (
             <button
-              onClick={() => { onCopyLink(); setOpen(false); }}
+              onClick={() => {
+                onCopyLink();
+                setOpen(false);
+              }}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text transition-colors border-t border-sol-border/30 pt-2 ${modernMenuRow()}`}
             >
               <Link2 className="w-3 h-3 flex-shrink-0" />
-              <span className="flex-1 text-left whitespace-nowrap">Copy link to this view</span>
+              <span className="flex-1 text-left whitespace-nowrap">
+                Copy link to this view
+              </span>
             </button>
           )}
         </div>
@@ -283,20 +347,32 @@ function AddFilterMenu({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setCatKey(null); }
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setCatKey(null);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      e.preventDefault(); e.stopPropagation(); setOpen(false); setCatKey(null);
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      setCatKey(null);
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", onKey, true);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", onKey, true); };
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey, true);
+    };
   }, [open]);
 
   const available = defs.filter((d) => !filterIsSet(d));
   const cat = defs.find((d) => d.key === catKey) || null;
-  const toggle = () => { setOpen((o) => !o); setCatKey(null); };
+  const toggle = () => {
+    setOpen((o) => !o);
+    setCatKey(null);
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -312,7 +388,9 @@ function AddFilterMenu({
         >
           <ListFilter className="w-3 h-3 flex-shrink-0" />
           <span className="cq-header-collapse">Filter</span>
-          {active && <span className="w-1.5 h-1.5 rounded-full bg-sol-cyan flex-shrink-0" />}
+          {active && (
+            <span className="w-1.5 h-1.5 rounded-full bg-sol-cyan flex-shrink-0" />
+          )}
         </button>
       ) : (
         <button
@@ -325,10 +403,14 @@ function AddFilterMenu({
         </button>
       )}
       {open && (
-        <div className={`absolute top-full ${variant === "header" ? "right-0" : "left-0"} mt-1 w-48 bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 max-h-72 overflow-y-auto ${M_MENU}`}>
+        <div
+          className={`absolute top-full ${variant === "header" ? "right-0" : "left-0"} mt-1 w-48 bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 max-h-72 overflow-y-auto ${M_MENU}`}
+        >
           {!cat ? (
             available.length === 0 ? (
-              <div className="px-3 py-1.5 text-xs text-sol-text-dim">All filters added</div>
+              <div className="px-3 py-1.5 text-xs text-sol-text-dim">
+                All filters added
+              </div>
             ) : (
               available.map((d) => (
                 <button
@@ -336,7 +418,9 @@ function AddFilterMenu({
                   onClick={() => setCatKey(d.key)}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-sol-text-muted hover:bg-sol-bg-alt transition-colors ${modernMenuRow()}`}
                 >
-                  <span className="flex-shrink-0 flex items-center">{d.icon}</span>
+                  <span className="flex-shrink-0 flex items-center">
+                    {d.icon}
+                  </span>
                   <span className="flex-1 text-left">{d.label}</span>
                   <ChevronRight className="w-3 h-3 opacity-50 flex-shrink-0" />
                 </button>
@@ -352,11 +436,18 @@ function AddFilterMenu({
               </button>
               <FilterOptionList
                 key={cat.key}
-                options={cat.showEmptyOption ? cat.options : cat.options.filter((o) => o.key !== "")}
+                options={
+                  cat.showEmptyOption
+                    ? cat.options
+                    : cat.options.filter((o) => o.key !== "")
+                }
                 value={cat.value}
                 multi={cat.multi}
                 onChange={cat.onChange}
-                onPicked={() => { setOpen(false); setCatKey(null); }}
+                onPicked={() => {
+                  setOpen(false);
+                  setCatKey(null);
+                }}
               />
             </>
           )}
@@ -428,7 +519,12 @@ export interface GenericListViewProps<T> {
     /** The saved view this list was opened from, when it has been modified
      *  since. Present only while dirty — an unchanged view needs no controls,
      *  and the rail already shows which one you are in. */
-    dirtyView?: { name: string; onUpdate: () => void; onDiscard: () => void; canUpdate: boolean };
+    dirtyView?: {
+      name: string;
+      onUpdate: () => void;
+      onDiscard: () => void;
+      canUpdate: boolean;
+    };
   };
 
   /** Returns a shareable absolute URL encoding the current view (filters, sort,
@@ -456,7 +552,7 @@ export interface GenericListViewProps<T> {
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
 
-  paletteTargetType?: 'task' | 'doc' | 'decision';
+  paletteTargetType?: "task" | "doc" | "decision";
   /** Short-ID ref for an item (e.g. a task's `ct-…`). When provided, Ctrl+N with
    *  rows multi-selected opens the new-session composer pre-filled with the
    *  selection's refs, so the first message can just say what to do with them
@@ -465,7 +561,11 @@ export interface GenericListViewProps<T> {
   paletteShortcuts?: { action: ShortcutAction; mode: string; label: string }[];
   paletteProps?: { teamMembers?: any[]; currentUser?: any };
 
-  renderPreview?: (item: T, onClose: () => void, onOpen: () => void) => ReactNode;
+  renderPreview?: (
+    item: T,
+    onClose: () => void,
+    onOpen: () => void,
+  ) => ReactNode;
 
   onItemEdit?: (item: T, newTitle: string) => void;
 
@@ -515,7 +615,12 @@ export interface GenericListViewProps<T> {
     onDropOnItem?: (item: T, target: T) => void;
     /** Manual reorder: insert `item` between `before` and `after` (either null
      *  at a group edge) inside `groupKey` (null when the list is flat). */
-    onReorder?: (item: T, before: T | null, after: T | null, groupKey: string | null) => void;
+    onReorder?: (
+      item: T,
+      before: T | null,
+      after: T | null,
+      groupKey: string | null,
+    ) => void;
   };
   extraKeyHandler?: (e: KeyboardEvent, stop: () => void) => boolean;
   disableKeyboard?: boolean;
@@ -606,13 +711,15 @@ export function GenericListView<T>({
 
   const [focusIndex, setFocusIndex] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
   const storeOpenPalette = useInboxStore((s) => s.openPalette);
   const storeOpenCompose = useInboxStore((s) => s.openCompose);
   const paletteIsOpen = useInboxStore((s) => s.palette.open);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const shortcutsPanelOpen = useInboxStore(s => s.shortcutsPanelOpen);
+  const shortcutsPanelOpen = useInboxStore((s) => s.shortcutsPanelOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [savingView, setSavingView] = useState(false);
@@ -633,9 +740,12 @@ export function GenericListView<T>({
   }, [shareUrl]);
 
   const searching = !!searchQuery && !!getSearchText;
-  useWatchEffect(() => { onSearchChange?.(searchQuery); }, [searchQuery, onSearchChange]);
+  useWatchEffect(() => {
+    onSearchChange?.(searchQuery);
+  }, [searchQuery, onSearchChange]);
   const matchesSearch = useCallback(
-    (item: T, q: string) => getSearchText!(item).toLowerCase().includes(q) || !!alsoMatches?.(item),
+    (item: T, q: string) =>
+      getSearchText!(item).toLowerCase().includes(q) || !!alsoMatches?.(item),
     [getSearchText, alsoMatches],
   );
   // A search with a `searchAllItems` corpus spans the whole set (ignoring the
@@ -648,22 +758,34 @@ export function GenericListView<T>({
     if (crossScopeSearch) return null; // flat results from searchAllItems instead
     const q = searchQuery.toLowerCase();
     return groupsWithItems(
-      groups.map(g => ({ ...g, items: g.items.filter(item => matchesSearch(item, q)) }))
+      groups.map((g) => ({
+        ...g,
+        items: g.items.filter((item) => matchesSearch(item, q)),
+      })),
     );
   }, [groups, searching, crossScopeSearch, searchQuery, matchesSearch]);
 
   const displayFlatItems = useMemo(() => {
     if (!searching) return flatItems;
     const q = searchQuery.toLowerCase();
-    if (crossScopeSearch) return searchAllItems!.filter(item => matchesSearch(item, q));
+    if (crossScopeSearch)
+      return searchAllItems!.filter((item) => matchesSearch(item, q));
     if (groups) return flatItems; // grouped search handled in displayGroups
-    return flatItems.filter(item => matchesSearch(item, q));
-  }, [groups, flatItems, searching, crossScopeSearch, searchAllItems, searchQuery, matchesSearch]);
+    return flatItems.filter((item) => matchesSearch(item, q));
+  }, [
+    groups,
+    flatItems,
+    searching,
+    crossScopeSearch,
+    searchAllItems,
+    searchQuery,
+    matchesSearch,
+  ]);
 
   const visibleItems = useMemo(() => {
     if (displayGroups) {
-      return visibleGroups(displayGroups, collapsedGroups).flatMap(({ group, collapsed }) =>
-        collapsed ? [] : group.items
+      return visibleGroups(displayGroups, collapsedGroups).flatMap(
+        ({ group, collapsed }) => (collapsed ? [] : group.items),
       );
     }
     return displayFlatItems;
@@ -678,25 +800,61 @@ export function GenericListView<T>({
   // workspace was a live DOM node and re-rendered on every j/k press — O(N) per
   // keystroke. Now only the visible window (~window height) is mounted.
   type RowEntry =
-    | { kind: "header"; key: string; group: ListGroup<T>; collapsed: boolean; depth: number }
-    | { kind: "item"; key: string; item: T; focusIndex: number; groupKey: string | null; depth: number };
+    | {
+        kind: "header";
+        key: string;
+        group: ListGroup<T>;
+        collapsed: boolean;
+        depth: number;
+      }
+    | {
+        kind: "item";
+        key: string;
+        item: T;
+        focusIndex: number;
+        groupKey: string | null;
+        depth: number;
+      };
   const rowModel = useMemo<RowEntry[]>(() => {
     const rows: RowEntry[] = [];
     if (displayGroups) {
       let fi = 0;
-      for (const { group: g, collapsed } of visibleGroups(displayGroups, collapsedGroups)) {
+      for (const { group: g, collapsed } of visibleGroups(
+        displayGroups,
+        collapsedGroups,
+      )) {
         const depth = g.depth ?? 0;
-        rows.push({ kind: "header", key: `__hdr_${g.key}`, group: g, collapsed, depth });
+        rows.push({
+          kind: "header",
+          key: `__hdr_${g.key}`,
+          group: g,
+          collapsed,
+          depth,
+        });
         if (!collapsed) {
           for (const item of g.items) {
-            rows.push({ kind: "item", key: getItemId(item), item, focusIndex: fi, groupKey: g.key, depth });
+            rows.push({
+              kind: "item",
+              key: getItemId(item),
+              item,
+              focusIndex: fi,
+              groupKey: g.key,
+              depth,
+            });
             fi++;
           }
         }
       }
     } else {
       displayFlatItems.forEach((item, i) => {
-        rows.push({ kind: "item", key: getItemId(item), item, focusIndex: i, groupKey: null, depth: 0 });
+        rows.push({
+          kind: "item",
+          key: getItemId(item),
+          item,
+          focusIndex: i,
+          groupKey: null,
+          depth: 0,
+        });
       });
     }
     return rows;
@@ -706,7 +864,9 @@ export function GenericListView<T>({
   // scroll the right virtual row into view.
   const focusToRowIndex = useMemo(() => {
     const map: number[] = [];
-    rowModel.forEach((r, idx) => { if (r.kind === "item") map[r.focusIndex] = idx; });
+    rowModel.forEach((r, idx) => {
+      if (r.kind === "item") map[r.focusIndex] = idx;
+    });
     return map;
   }, [rowModel]);
 
@@ -751,20 +911,37 @@ export function GenericListView<T>({
     return focusedItem ? [focusedItem] : [];
   }, [selectedIds, visibleItems, focusedItem, getItemId]);
 
-  const openPalette = useCallback((mode: string) => {
-    storeOpenPalette({ targets: getTargetItemsForPalette(), targetType: paletteTargetType, mode });
-  }, [storeOpenPalette, getTargetItemsForPalette, paletteTargetType]);
+  const openPalette = useCallback(
+    (mode: string) => {
+      storeOpenPalette({
+        targets: getTargetItemsForPalette(),
+        targetType: paletteTargetType,
+        mode,
+      });
+    },
+    [storeOpenPalette, getTargetItemsForPalette, paletteTargetType],
+  );
 
-  const openPaletteForItems = useCallback((items: T[], mode = "root") => {
-    storeOpenPalette({ targets: items as any[], targetType: paletteTargetType, mode });
-  }, [storeOpenPalette, paletteTargetType]);
+  const openPaletteForItems = useCallback(
+    (items: T[], mode = "root") => {
+      storeOpenPalette({
+        targets: items as any[],
+        targetType: paletteTargetType,
+        mode,
+      });
+    },
+    [storeOpenPalette, paletteTargetType],
+  );
 
   // One cursor-anchored menu serves every row (virtualized lists included) and
   // any customContent surface (e.g. kanban cards).
   const ctxMenu = useContextMenu<T[]>();
-  const openContextMenuForItems = useCallback((e: React.MouseEvent, items: T[]) => {
-    ctxMenu.open(e, items);
-  }, [ctxMenu.open]);
+  const openContextMenuForItems = useCallback(
+    (e: React.MouseEvent, items: T[]) => {
+      ctxMenu.open(e, items);
+    },
+    [ctxMenu.open],
+  );
 
   // --- Drag & drop. One dragged row id + one hint describing what a release
   // would do: move to a bucket, combine with a row, or insert into a gap. The
@@ -778,13 +955,24 @@ export function GenericListView<T>({
   const dndMaps = useMemo(() => {
     const byId = new Map<string, T>();
     const groupOf = new Map<string, string | null>();
-    for (const r of rowModel) if (r.kind === "item") { byId.set(r.key, r.item); groupOf.set(r.key, r.groupKey); }
+    for (const r of rowModel)
+      if (r.kind === "item") {
+        byId.set(r.key, r.item);
+        groupOf.set(r.key, r.groupKey);
+      }
     return { byId, groupOf };
   }, [rowModel]);
-  const draggedItem = dragId ? dndMaps.byId.get(dragId) ?? null : null;
-  const clearDrag = useCallback(() => { setDragId(null); setDropHint(null); }, []);
+  const draggedItem = dragId ? (dndMaps.byId.get(dragId) ?? null) : null;
+  const clearDrag = useCallback(() => {
+    setDragId(null);
+    setDropHint(null);
+  }, []);
   const sameHint = (a: DropHint | null, b: DropHint) =>
-    !!a && a.kind === b.kind && (a as any).key === (b as any).key && (a as any).id === (b as any).id && (a as any).edge === (b as any).edge;
+    !!a &&
+    a.kind === b.kind &&
+    (a as any).key === (b as any).key &&
+    (a as any).id === (b as any).id &&
+    (a as any).edge === (b as any).edge;
   const setHint = useCallback((h: DropHint) => {
     setDropHint((prev) => (sameHint(prev, h) ? prev : h));
   }, []);
@@ -794,15 +982,21 @@ export function GenericListView<T>({
     const item = draggedItem;
     clearDrag();
     if (!hint || !item || !dnd) return;
-    if (hint.kind === "group") { dnd.onDropOnGroup?.(item, hint.key); return; }
+    if (hint.kind === "group") {
+      dnd.onDropOnGroup?.(item, hint.key);
+      return;
+    }
     if (hint.kind === "item") {
       const target = dndMaps.byId.get(hint.id);
-      if (target && getItemId(target) !== getItemId(item)) dnd.onDropOnItem?.(item, target);
+      if (target && getItemId(target) !== getItemId(item))
+        dnd.onDropOnItem?.(item, target);
       return;
     }
     // Gap: resolve the neighbors around the insertion point, staying inside the
     // target row's group (a header or list edge leaves that side null).
-    const idx = rowModel.findIndex((r) => r.kind === "item" && r.key === hint.id);
+    const idx = rowModel.findIndex(
+      (r) => r.kind === "item" && r.key === hint.id,
+    );
     const row = rowModel[idx];
     if (!row || row.kind !== "item") return;
     let before: T | null = null;
@@ -810,14 +1004,20 @@ export function GenericListView<T>({
     if (hint.edge === "before") {
       after = row.item;
       const prev = rowModel[idx - 1];
-      if (prev?.kind === "item" && prev.groupKey === row.groupKey) before = prev.item;
+      if (prev?.kind === "item" && prev.groupKey === row.groupKey)
+        before = prev.item;
     } else {
       before = row.item;
       const next = rowModel[idx + 1];
-      if (next?.kind === "item" && next.groupKey === row.groupKey) after = next.item;
+      if (next?.kind === "item" && next.groupKey === row.groupKey)
+        after = next.item;
     }
     const iid = getItemId(item);
-    if ((before && getItemId(before) === iid) || (after && getItemId(after) === iid)) return;
+    if (
+      (before && getItemId(before) === iid) ||
+      (after && getItemId(after) === iid)
+    )
+      return;
     dnd.onReorder?.(item, before, after, row.groupKey);
   }, [dropHint, draggedItem, dnd, dndMaps, rowModel, getItemId, clearDrag]);
 
@@ -825,7 +1025,7 @@ export function GenericListView<T>({
   // selection's refs (bare short IDs render as live reference cards), so the
   // first message can just say what to do with them. With nothing selected,
   // decline — DashboardLayout's default handler opens the blank composer.
-  useShortcutAction('session.compose', () => {
+  useShortcutAction("session.compose", () => {
     if (!getComposeRef || selectedIds.size === 0) return false;
     const refs = visibleItems
       .filter((item) => selectedIds.has(getItemId(item)))
@@ -865,9 +1065,12 @@ export function GenericListView<T>({
       if (owner && owner.getClientRects().length > 0) return;
       // Every key inside an open menu, listbox or dialog belongs to it (filter dropdowns, pickers, a
       // sheet's format menu): Enter there picks the item, never the list's focused row.
-      if (target.closest?.('[role="menu"],[role="listbox"],[role="dialog"]')) return;
+      if (target.closest?.('[role="menu"],[role="listbox"],[role="dialog"]'))
+        return;
 
-      const stop = () => { e.preventDefault(); };
+      const stop = () => {
+        e.preventDefault();
+      };
 
       if (shortcutsPanelOpen) return;
 
@@ -875,26 +1078,44 @@ export function GenericListView<T>({
 
       if (extraKeyHandler?.(e, stop)) return;
 
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) { stop(); openPalette("root"); return; }
+      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+        stop();
+        openPalette("root");
+        return;
+      }
       if (matchesAction(e, "list.select")) {
         stop();
         if (focusedItem) toggleSelect(getItemId(focusedItem));
         return;
       }
       if (e.key === "Escape") {
-        if (previewId) { stop(); setPreviewId(null); return; }
-        if (selectedIds.size > 0) { stop(); setSelectedIds(new Set()); return; }
+        if (previewId) {
+          stop();
+          setPreviewId(null);
+          return;
+        }
+        if (selectedIds.size > 0) {
+          stop();
+          setSelectedIds(new Set());
+          return;
+        }
       }
 
       if (paletteShortcuts) {
         for (const ps of paletteShortcuts) {
           if (matchesAction(e, ps.action)) {
-            stop(); openPalette(ps.mode); return;
+            stop();
+            openPalette(ps.mode);
+            return;
           }
         }
       }
 
-      if (matchesAction(e, "list.actions")) { stop(); openPalette("actions"); return; }
+      if (matchesAction(e, "list.actions")) {
+        stop();
+        openPalette("actions");
+        return;
+      }
       if (matchesAction(e, "list.edit") && onItemEdit) {
         stop();
         if (focusedItem) setEditingId(getItemId(focusedItem));
@@ -911,12 +1132,18 @@ export function GenericListView<T>({
         return;
       }
 
-      if (matchesAction(e, "list.down") || (e.key === "ArrowDown" && !e.metaKey && !e.ctrlKey)) {
+      if (
+        matchesAction(e, "list.down") ||
+        (e.key === "ArrowDown" && !e.metaKey && !e.ctrlKey)
+      ) {
         stop();
         setFocusIndex((i) => Math.min(i + 1, visibleItems.length - 1));
         return;
       }
-      if (matchesAction(e, "list.up") || (e.key === "ArrowUp" && !e.metaKey && !e.ctrlKey)) {
+      if (
+        matchesAction(e, "list.up") ||
+        (e.key === "ArrowUp" && !e.metaKey && !e.ctrlKey)
+      ) {
         stop();
         setFocusIndex((i) => Math.max(i - 1, 0));
         return;
@@ -926,14 +1153,37 @@ export function GenericListView<T>({
         if (focusedItem) router.push(getItemRoute(focusedItem));
         return;
       }
-      if (matchesAction(e, "list.search") && getSearchText) { stop(); setShowSearch(true); return; }
-      if (matchesAction(e, "list.create") && onCreate) { stop(); onCreate(); return; }
-      if (matchesAction(e, "list.first")) { stop(); setFocusIndex(0); return; }
-      if (matchesAction(e, "list.last")) { stop(); setFocusIndex(Math.max(0, visibleItems.length - 1)); return; }
+      if (matchesAction(e, "list.search") && getSearchText) {
+        stop();
+        setShowSearch(true);
+        return;
+      }
+      if (matchesAction(e, "list.create") && onCreate) {
+        stop();
+        onCreate();
+        return;
+      }
+      if (matchesAction(e, "list.first")) {
+        stop();
+        setFocusIndex(0);
+        return;
+      }
+      if (matchesAction(e, "list.last")) {
+        stop();
+        setFocusIndex(Math.max(0, visibleItems.length - 1));
+        return;
+      }
 
       const tabKeys: Record<string, number> = {};
-      tabs.forEach((_, i) => { tabKeys[String(i + 1)] = i; });
-      if (tabKeys[e.key] !== undefined && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+      tabs.forEach((_, i) => {
+        tabKeys[String(i + 1)] = i;
+      });
+      if (
+        tabKeys[e.key] !== undefined &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.shiftKey
+      ) {
         stop();
         onTabChange(tabs[tabKeys[e.key]].key);
         setFocusIndex(0);
@@ -943,11 +1193,36 @@ export function GenericListView<T>({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [paneActive, shortcutsPanelOpen, disableKeyboard, paletteIsOpen, editingId, focusedItem, visibleItems, focusIndex, tabs,
-    previewId, selectedIds, paletteShortcuts, onTabChange, getItemRoute, getItemId, currentPath,
-    onCreate, openPalette, toggleSelect, router, extraKeyHandler, onItemEdit, renderPreview, getSearchText]);
+  }, [
+    paneActive,
+    shortcutsPanelOpen,
+    disableKeyboard,
+    paletteIsOpen,
+    editingId,
+    focusedItem,
+    visibleItems,
+    focusIndex,
+    tabs,
+    previewId,
+    selectedIds,
+    paletteShortcuts,
+    onTabChange,
+    getItemRoute,
+    getItemId,
+    currentPath,
+    onCreate,
+    openPalette,
+    toggleSelect,
+    router,
+    extraKeyHandler,
+    onItemEdit,
+    renderPreview,
+    getSearchText,
+  ]);
 
-  const previewItem = previewId ? visibleItems.find((item) => getItemId(item) === previewId) || null : null;
+  const previewItem = previewId
+    ? visibleItems.find((item) => getItemId(item) === previewId) || null
+    : null;
 
   useEffect(() => {
     if (!hasMore || !onLoadMore || isLoadingMore) return;
@@ -959,14 +1234,18 @@ export function GenericListView<T>({
       ([entry]) => {
         if (entry?.isIntersecting) onLoadMore();
       },
-      { root, rootMargin: "240px 0px", threshold: 0 }
+      { root, rootMargin: "240px 0px", threshold: 0 },
     );
 
     observer.observe(target);
     return () => observer.disconnect();
   }, [hasMore, onLoadMore, isLoadingMore, visibleItems.length]);
 
-  const renderItemRow = (item: T, globalIdx: number, groupKey: string | null) => {
+  const renderItemRow = (
+    item: T,
+    globalIdx: number,
+    groupKey: string | null,
+  ) => {
     const id = getItemId(item);
     const isFocused = focusIndex === globalIdx;
     const isSelected = selectedIds.has(id);
@@ -975,8 +1254,10 @@ export function GenericListView<T>({
 
     // What a release right here would do (drives the row's highlight).
     const combineTarget = dropHint?.kind === "item" && dropHint.id === id;
-    const gapEdge = dropHint?.kind === "gap" && dropHint.id === id ? dropHint.edge : null;
-    const inTargetGroup = dropHint?.kind === "group" && groupKey === dropHint.key;
+    const gapEdge =
+      dropHint?.kind === "gap" && dropHint.id === id ? dropHint.edge : null;
+    const inTargetGroup =
+      dropHint?.kind === "group" && groupKey === dropHint.key;
     const dragProps = dnd
       ? {
           draggable: !isEditing,
@@ -1014,7 +1295,10 @@ export function GenericListView<T>({
             e.dataTransfer.dropEffect = "move";
             setHint(hint);
           },
-          onDrop: (e: React.DragEvent) => { e.preventDefault(); performDrop(); },
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            performDrop();
+          },
         }
       : {};
 
@@ -1024,7 +1308,11 @@ export function GenericListView<T>({
       isEditing,
       // Click opens the detail in place (space toggles) by driving the URL.
       // While a peek is open a click moves it rather than leaving the list.
-      onClick: () => { setFocusIndex(globalIdx); if (previewId) setPreviewId(id); else openDetail(item); },
+      onClick: () => {
+        setFocusIndex(globalIdx);
+        if (previewId) setPreviewId(id);
+        else openDetail(item);
+      },
       onSelect: () => toggleSelect(id),
       onContextMenu: (e: React.MouseEvent) => {
         if (contextMenuContent) {
@@ -1038,7 +1326,11 @@ export function GenericListView<T>({
           return;
         }
         e.preventDefault();
-        storeOpenPalette({ targets: [item] as any[], targetType: paletteTargetType, mode: "root" });
+        storeOpenPalette({
+          targets: [item] as any[],
+          targetType: paletteTargetType,
+          mode: "root",
+        });
       },
       onEditDone: () => setEditingId(null),
       onTitleCommit: (newTitle: string) => {
@@ -1046,7 +1338,11 @@ export function GenericListView<T>({
         setEditingId(null);
       },
       onOpenPalette: (mode: string) => {
-        storeOpenPalette({ targets: [item] as any[], targetType: paletteTargetType, mode });
+        storeOpenPalette({
+          targets: [item] as any[],
+          targetType: paletteTargetType,
+          mode,
+        });
       },
     };
 
@@ -1087,16 +1383,23 @@ export function GenericListView<T>({
             }
           : undefined
       }
-      onDrop={dnd?.onDropOnGroup ? (e) => { e.preventDefault(); performDrop(); } : undefined}
+      onDrop={
+        dnd?.onDropOnGroup
+          ? (e) => {
+              e.preventDefault();
+              performDrop();
+            }
+          : undefined
+      }
     />
   );
-
 
   // The chip-able filter bar is the header's second row (ListViewHeader). The bar
   // also has to appear for a MODIFIED view even with no chips showing:
   // clearing a view's only filter is a change you must be able to save or undo,
   // and hiding the bar would take both actions away at exactly that moment.
-  const filterBarShown = !!filters && (filters.defs.some(filterIsSet) || !!filters.dirtyView);
+  const filterBarShown =
+    !!filters && (filters.defs.some(filterIsSet) || !!filters.dirtyView);
   return (
     <div className="h-full flex flex-col" data-list-view>
       <ListViewHeader
@@ -1105,239 +1408,333 @@ export function GenericListView<T>({
         syncScope={syncScope}
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={(key) => { onTabChange(key); setFocusIndex(0); }}
-        toolbar={<>
-          {headerExtra}
-          {selectedIds.size > 0 && (
-            <span className="text-xs text-sol-cyan">{selectedIds.size} selected</span>
-          )}
-          {showSearch && getSearchText && (
-            <input
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setFocusIndex(0); }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") { setShowSearch(false); setSearchQuery(""); }
-              }}
-              placeholder="Search..."
-              autoFocus
-              className={`text-xs w-40 h-7 px-2.5 rounded-md bg-sol-bg-alt border border-sol-cyan/40 text-sol-text placeholder:text-sol-text-dim focus:outline-none ${modernLook(modernField, "modern:h-control-sm modern:text-ui")}`}
-            />
-          )}
-          {getSearchText && (
-            <button
-              onClick={() => {
-                if (showSearch && searchQuery) { setSearchQuery(""); }
-                setShowSearch((s) => !s);
-              }}
-              className={`flex items-center justify-center w-7 h-7 rounded-md border transition-colors ${
-                showSearch
-                  ? "border-sol-cyan/40 text-sol-cyan bg-sol-cyan/5"
-                  : "border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border"
-              } ${showSearch ? modernLook(M_ICON_SM, "modern:border-sol-cyan/40 modern:text-sol-cyan") : M_ICON_SM}`}
-              title="Search"
-              aria-label="Search"
-            >
-              <Search className="w-3.5 h-3.5" />
-            </button>
-          )}
-          {filters && <AddFilterMenu defs={filters.defs} variant="header" active={filters.defs.some(filterIsSet)} />}
-          <DisplayMenu
-            groupBy={groupBy}
-            groupOptions={groupOptions}
-            onGroupChange={onGroupChange ? (v) => { onGroupChange(v); setFocusIndex(0); } : undefined}
-            subGroupBy={subGroupBy}
-            subGroupOptions={subGroupOptions}
-            onSubGroupChange={onSubGroupChange ? (v) => { onSubGroupChange(v); setFocusIndex(0); } : undefined}
-            sortBy={sortBy}
-            sortOptions={sortOptions}
-            onSortChange={(v) => { onSortChange(v); setFocusIndex(0); }}
-            sortDir={sortDir}
-            onSortDirChange={onSortDirChange ? () => { onSortDirChange(); setFocusIndex(0); } : undefined}
-            extra={displayExtra}
-            onCopyLink={shareUrl ? copyViewLink : undefined}
-          />
-          <button
-            onClick={() => openPalette("root")}
-            className={`cq-header-collapse flex items-center gap-1.5 text-xs h-7 px-2.5 rounded-md border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors ${M_OUTLINE_SM}`}
-            title="Command palette"
-          >
-            {paletteKeys ? paletteKeys.map((k, i) => <KeyCap key={i} size="xs">{k}</KeyCap>) : <Command className="w-3 h-3" />}
-          </button>
-          {onCreate && (() => {
-            const plus = (
+        onTabChange={(key) => {
+          onTabChange(key);
+          setFocusIndex(0);
+        }}
+        toolbar={
+          <>
+            {headerExtra}
+            {selectedIds.size > 0 && (
+              <span className="text-xs text-sol-cyan">
+                {selectedIds.size} selected
+              </span>
+            )}
+            {showSearch && getSearchText && (
+              <input
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setFocusIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                  }
+                }}
+                placeholder="Search..."
+                autoFocus
+                className={`text-xs w-40 h-7 px-2.5 rounded-md bg-sol-bg-alt border border-sol-cyan/40 text-sol-text placeholder:text-sol-text-dim focus:outline-none ${modernLook(modernField, "modern:h-control-sm modern:text-ui")}`}
+              />
+            )}
+            {getSearchText && (
               <button
-                onClick={createMenu ? undefined : onCreate}
-                className={`flex items-center justify-center w-7 h-7 rounded-full border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors flex-shrink-0 ${M_ICON_SM}`}
-                title="Create new"
-                aria-label="Create new"
+                onClick={() => {
+                  if (showSearch && searchQuery) {
+                    setSearchQuery("");
+                  }
+                  setShowSearch((s) => !s);
+                }}
+                className={`flex items-center justify-center w-7 h-7 rounded-md border transition-colors ${
+                  showSearch
+                    ? "border-sol-cyan/40 text-sol-cyan bg-sol-cyan/5"
+                    : "border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border"
+                } ${showSearch ? modernLook(M_ICON_SM, "modern:border-sol-cyan/40 modern:text-sol-cyan") : M_ICON_SM}`}
+                title="Search"
+                aria-label="Search"
               >
-                <Plus className="w-4 h-4" />
+                <Search className="w-3.5 h-3.5" />
               </button>
-            );
-            return createMenu ? createMenu(plus) : plus;
-          })()}
-        </>}
+            )}
+            {filters && (
+              <AddFilterMenu
+                defs={filters.defs}
+                variant="header"
+                active={filters.defs.some(filterIsSet)}
+              />
+            )}
+            <DisplayMenu
+              groupBy={groupBy}
+              groupOptions={groupOptions}
+              onGroupChange={
+                onGroupChange
+                  ? (v) => {
+                      onGroupChange(v);
+                      setFocusIndex(0);
+                    }
+                  : undefined
+              }
+              subGroupBy={subGroupBy}
+              subGroupOptions={subGroupOptions}
+              onSubGroupChange={
+                onSubGroupChange
+                  ? (v) => {
+                      onSubGroupChange(v);
+                      setFocusIndex(0);
+                    }
+                  : undefined
+              }
+              sortBy={sortBy}
+              sortOptions={sortOptions}
+              onSortChange={(v) => {
+                onSortChange(v);
+                setFocusIndex(0);
+              }}
+              sortDir={sortDir}
+              onSortDirChange={
+                onSortDirChange
+                  ? () => {
+                      onSortDirChange();
+                      setFocusIndex(0);
+                    }
+                  : undefined
+              }
+              extra={displayExtra}
+              onCopyLink={shareUrl ? copyViewLink : undefined}
+            />
+            <button
+              onClick={() => openPalette("root")}
+              className={`cq-header-collapse flex items-center gap-1.5 text-xs h-7 px-2.5 rounded-md border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors ${M_OUTLINE_SM}`}
+              title="Command palette"
+            >
+              {paletteKeys ? (
+                paletteKeys.map((k, i) => (
+                  <KeyCap key={i} size="xs">
+                    {k}
+                  </KeyCap>
+                ))
+              ) : (
+                <Command className="w-3 h-3" />
+              )}
+            </button>
+            {onCreate &&
+              (() => {
+                const plus = (
+                  <button
+                    onClick={createMenu ? undefined : onCreate}
+                    className={`flex items-center justify-center w-7 h-7 rounded-full border border-sol-border/40 text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors flex-shrink-0 ${M_ICON_SM}`}
+                    title="Create new"
+                    aria-label="Create new"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                );
+                return createMenu ? createMenu(plus) : plus;
+              })()}
+          </>
+        }
       >
         {/* Filter bar — only present once at least one chip-able filter is set (NOT
             filters.hasActive, which also counts the source toggle and would leave an
             empty chipless row). The header "Filter" button adds the first one. It sits
             inside the header's query container, so its labels and padding collapse
             with the panel width. */}
-        {filterBarShown && (<>
-          {/* Active filters as removable chips; everything unset lives behind "+ Filter". */}
-          {filters.defs.filter(filterIsSet).map((f) => (
-            <FilterDropdown
-              key={f.key}
-              chip
-              label={f.label}
-              icon={f.icon}
-              value={f.value}
-              options={f.options}
-              onChange={f.onChange}
-              multi={f.multi}
-            />
-          ))}
-          <AddFilterMenu defs={filters.defs} />
+        {filterBarShown && (
+          <>
+            {/* Active filters as removable chips; everything unset lives behind "+ Filter". */}
+            {filters.defs.filter(filterIsSet).map((f) => (
+              <FilterDropdown
+                key={f.key}
+                chip
+                label={f.label}
+                icon={f.icon}
+                value={f.value}
+                options={f.options}
+                onChange={f.onChange}
+                multi={f.multi}
+              />
+            ))}
+            <AddFilterMenu defs={filters.defs} />
 
-          {/* View actions — a tight right-aligned cluster. Each button shows its
+            {/* View actions — a tight right-aligned cluster. Each button shows its
               label at roomy widths and collapses to icon-only (cq-header-collapse)
               when the bar is narrow, so save / link / clear stay on one row
               instead of each wrapping to its own line. */}
-          <div className="ml-auto flex items-center gap-0.5">
-            {shareUrl && (
-              <button
-                onClick={copyViewLink}
-                title="Copy link to this view"
-                className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
-              >
-                <Link2 className="w-3 h-3 flex-shrink-0" />
-                <span className="cq-header-collapse">Link</span>
-              </button>
-            )}
-            {shareUrl && chatOn && (
-              <button
-                onClick={() => openForwardToChat({ url: shareUrl(), label: "view" })}
-                title="Send this view to chat"
-                className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
-              >
-                <Forward className="w-3 h-3 flex-shrink-0" />
-                <span className="cq-header-collapse">Send</span>
-              </button>
-            )}
-            {/* You changed the filters while inside a saved view. Offer to fold
+            <div className="ml-auto flex items-center gap-0.5">
+              {shareUrl && (
+                <button
+                  onClick={copyViewLink}
+                  title="Copy link to this view"
+                  className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
+                >
+                  <Link2 className="w-3 h-3 flex-shrink-0" />
+                  <span className="cq-header-collapse">Link</span>
+                </button>
+              )}
+              {shareUrl && chatOn && (
+                <button
+                  onClick={() =>
+                    openForwardToChat({ url: shareUrl(), label: "view" })
+                  }
+                  title="Send this view to chat"
+                  className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
+                >
+                  <Forward className="w-3 h-3 flex-shrink-0" />
+                  <span className="cq-header-collapse">Send</span>
+                </button>
+              )}
+              {/* You changed the filters while inside a saved view. Offer to fold
                 the change back in, or to throw it away — and keep the save
                 button beside them, because the third honest answer is "this is
                 a different view now". Only the author can update a view, so a
                 teammate in a shared one gets discard and save-as instead. */}
-            {filters.dirtyView && !savingView && (
-              <>
-                {filters.dirtyView.canUpdate && (
+              {filters.dirtyView && !savingView && (
+                <>
+                  {filters.dirtyView.canUpdate && (
+                    <button
+                      onClick={filters.dirtyView.onUpdate}
+                      title={`Save these filters into "${filters.dirtyView.name}"`}
+                      className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-cyan hover:bg-sol-cyan/10 transition-colors ${modernButton({ variant: "soft", tone: "cyan", size: "xs" })}`}
+                    >
+                      <Check className="w-3 h-3 flex-shrink-0" />
+                      <span className="cq-header-collapse">Update view</span>
+                    </button>
+                  )}
                   <button
-                    onClick={filters.dirtyView.onUpdate}
-                    title={`Save these filters into "${filters.dirtyView.name}"`}
-                    className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-cyan hover:bg-sol-cyan/10 transition-colors ${modernButton({ variant: "soft", tone: "cyan", size: "xs" })}`}
+                    onClick={filters.dirtyView.onDiscard}
+                    title={`Go back to "${filters.dirtyView.name}" as saved`}
+                    className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors ${M_GHOST_XS}`}
                   >
-                    <Check className="w-3 h-3 flex-shrink-0" />
-                    <span className="cq-header-collapse">Update view</span>
-                  </button>
-                )}
-                <button
-                  onClick={filters.dirtyView.onDiscard}
-                  title={`Go back to "${filters.dirtyView.name}" as saved`}
-                  className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors ${M_GHOST_XS}`}
-                >
-                  {/* A revert arrow, NOT an X: the labels collapse to icons in a
+                    {/* A revert arrow, NOT an X: the labels collapse to icons in a
                       narrow pane, and Clear-filters beside it is already an X.
                       Two identical icons a few pixels apart, meaning different
                       things, is worse than no icon at all. */}
-                  <RotateCcw className="w-3 h-3 flex-shrink-0" />
-                  <span className="cq-header-collapse">Discard</span>
-                </button>
-              </>
-            )}
-            {filters.onSaveView && !savingView && (
-              <button
-                onClick={() => { setSavingView(true); setSaveViewName(""); }}
-                title={filters.dirtyView ? "Save these filters as a new view" : "Save current view as a shortcut"}
-                className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
-              >
-                {filters.dirtyView
-                  ? <BookmarkPlus className="w-3 h-3 flex-shrink-0" />
-                  : <Bookmark className="w-3 h-3 flex-shrink-0" />}
-                <span className="cq-header-collapse">{filters.dirtyView ? "Save as new" : "Save view"}</span>
-              </button>
-            )}
-            {filters.onSaveView && savingView && (
-              <form
-                className="flex items-center gap-1.5"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const name = saveViewName.trim();
-                  if (name) {
-                    filters.onSaveView!(name);
-                    setSavingView(false);
-                    toast.success(`View "${name}" saved`);
+                    <RotateCcw className="w-3 h-3 flex-shrink-0" />
+                    <span className="cq-header-collapse">Discard</span>
+                  </button>
+                </>
+              )}
+              {filters.onSaveView && !savingView && (
+                <button
+                  onClick={() => {
+                    setSavingView(true);
+                    setSaveViewName("");
+                  }}
+                  title={
+                    filters.dirtyView
+                      ? "Save these filters as a new view"
+                      : "Save current view as a shortcut"
                   }
-                }}
-              >
-                <input
-                  autoFocus
-                  value={saveViewName}
-                  onChange={(e) => setSaveViewName(e.target.value)}
-                  placeholder="View name..."
-                  className={`text-meta px-2 py-0.5 rounded bg-sol-bg border border-sol-border/60 text-sol-text outline-none focus:border-sol-cyan w-28 ${modernLook(modernField, "modern:h-6")}`}
-                  onKeyDown={(e) => { if (e.key === "Escape") setSavingView(false); }}
-                />
-                <button
-                  type="submit"
-                  disabled={!saveViewName.trim()}
-                  className={`text-meta text-sol-cyan hover:text-sol-cyan/80 disabled:opacity-30 disabled:cursor-default flex items-center gap-0.5 ${modernButton({ variant: "soft", tone: "cyan", size: "icon-xs" })}`}
-                  title="Save" aria-label="Save view"
+                  className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-cyan hover:bg-sol-cyan/5 transition-colors ${M_GHOST_XS}`}
                 >
-                  <Check className="w-3 h-3" />
+                  {filters.dirtyView ? (
+                    <BookmarkPlus className="w-3 h-3 flex-shrink-0" />
+                  ) : (
+                    <Bookmark className="w-3 h-3 flex-shrink-0" />
+                  )}
+                  <span className="cq-header-collapse">
+                    {filters.dirtyView ? "Save as new" : "Save view"}
+                  </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSavingView(false)}
-                  className={`text-meta text-sol-text-dim hover:text-sol-text ${modernButton({ variant: "ghost", size: "icon-xs" })}`}
-                  title="Cancel" aria-label="Cancel"
+              )}
+              {filters.onSaveView && savingView && (
+                <form
+                  className="flex items-center gap-1.5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const name = saveViewName.trim();
+                    if (name) {
+                      filters.onSaveView!(name);
+                      setSavingView(false);
+                      toast.success(`View "${name}" saved`);
+                    }
+                  }}
                 >
-                  <X className="w-3 h-3" />
+                  <input
+                    autoFocus
+                    value={saveViewName}
+                    onChange={(e) => setSaveViewName(e.target.value)}
+                    placeholder="View name..."
+                    className={`text-meta px-2 py-0.5 rounded bg-sol-bg border border-sol-border/60 text-sol-text outline-none focus:border-sol-cyan w-28 ${modernLook(modernField, "modern:h-6")}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setSavingView(false);
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!saveViewName.trim()}
+                    className={`text-meta text-sol-cyan hover:text-sol-cyan/80 disabled:opacity-30 disabled:cursor-default flex items-center gap-0.5 ${modernButton({ variant: "soft", tone: "cyan", size: "icon-xs" })}`}
+                    title="Save"
+                    aria-label="Save view"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSavingView(false)}
+                    className={`text-meta text-sol-text-dim hover:text-sol-text ${modernButton({ variant: "ghost", size: "icon-xs" })}`}
+                    title="Cancel"
+                    aria-label="Cancel"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </form>
+              )}
+              {filters.hasActive && (
+                <button
+                  onClick={filters.onClear}
+                  title="Clear filters"
+                  className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors ${M_GHOST_XS}`}
+                >
+                  <X className="w-3 h-3 flex-shrink-0" />
+                  <span className="cq-header-collapse">Clear</span>
                 </button>
-              </form>
-            )}
-            {filters.hasActive && (
-              <button
-                onClick={filters.onClear}
-                title="Clear filters"
-                className={`flex items-center gap-1 h-6 px-1.5 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt transition-colors ${M_GHOST_XS}`}
-              >
-                <X className="w-3 h-3 flex-shrink-0" />
-                <span className="cq-header-collapse">Clear</span>
-              </button>
-            )}
-          </div>
-        </>)}
+              )}
+            </div>
+          </>
+        )}
       </ListViewHeader>
 
       {banner}
 
       {/* Content area */}
-      {customContent ? customContent({ openPaletteForItems, openContextMenuForItems }) : (
+      {customContent ? (
+        customContent({ openPaletteForItems, openContextMenuForItems })
+      ) : (
         <div className="flex-1 flex overflow-hidden">
-          <div ref={scrollRef} data-list-scroll className="flex-1 overflow-y-auto">
+          <div
+            ref={scrollRef}
+            data-list-scroll
+            className="flex-1 overflow-y-auto"
+          >
             {rowModel.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-sol-text-dim">
                 {emptyIcon}
-                <p className="text-sm mt-2">{searchQuery ? (searchPending?.(searchQuery) ? "Searching…" : "No results") : (emptyMessage || "No items found")}</p>
+                <p className="text-sm mt-2">
+                  {searchQuery
+                    ? searchPending?.(searchQuery)
+                      ? "Searching…"
+                      : "No results"
+                    : emptyMessage || "No items found"}
+                </p>
                 {!searchQuery && onCreate && (
-                  <button onClick={onCreate} className="mt-3 text-sm text-sol-cyan hover:underline">
+                  <button
+                    onClick={onCreate}
+                    className="mt-3 text-sm text-sol-cyan hover:underline"
+                  >
                     Create one
                   </button>
                 )}
               </div>
             ) : (
-              <div style={{ height: rowVirtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+              <div
+                style={{
+                  height: rowVirtualizer.getTotalSize(),
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
                 {rowVirtualizer.getVirtualItems().map((vi) => {
                   const row = rowModel[vi.index];
                   if (!row) return null;
@@ -1348,7 +1745,17 @@ export function GenericListView<T>({
                       ref={rowVirtualizer.measureElement}
                       // A nested group (ListGroup.depth) steps in as one block,
                       // header and rows together, so the nesting reads at a glance.
-                      style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start}px)`, paddingLeft: row.depth ? Math.min(row.depth, MAX_GROUP_INDENT) * GROUP_INDENT_PX : undefined }}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${vi.start}px)`,
+                        paddingLeft: row.depth
+                          ? Math.min(row.depth, MAX_GROUP_INDENT) *
+                            GROUP_INDENT_PX
+                          : undefined,
+                      }}
                     >
                       {row.kind === "header"
                         ? renderGroupHeader(row.group, row.collapsed)
@@ -1362,31 +1769,40 @@ export function GenericListView<T>({
             {listFooter}
 
             {hasMore && onLoadMore && (
-              <div ref={loadMoreRef} className="px-6 py-3 border-t border-sol-border/20">
-                <button onClick={onLoadMore} className="text-xs text-sol-text-dim hover:text-sol-text transition-colors">
+              <div
+                ref={loadMoreRef}
+                className="px-6 py-3 border-t border-sol-border/20"
+              >
+                <button
+                  onClick={onLoadMore}
+                  className="text-xs text-sol-text-dim hover:text-sol-text transition-colors"
+                >
                   {isLoadingMore ? "Loading..." : "Load more"}
                 </button>
               </div>
             )}
           </div>
-          {previewItem && renderPreview && (
-            // The peek never takes more than 60% of the list's row: in a
-            // narrow pane the list keeps a usable width beside it.
-            <div className="flex flex-shrink-0 max-w-[60%] min-w-0 animate-list-peek-in">
-              {renderPreview(
-                previewItem,
-                () => setPreviewId(null),
-                () => router.push(getItemRoute(previewItem))
-              )}
-            </div>
-          )}
+          {previewItem &&
+            renderPreview && (
+              // The peek never takes more than 60% of the list's row: in a
+              // narrow pane the list keeps a usable width beside it.
+              <div className="flex flex-shrink-0 max-w-[60%] min-w-0 animate-list-peek-in">
+                {renderPreview(
+                  previewItem,
+                  () => setPreviewId(null),
+                  () => router.push(getItemRoute(previewItem)),
+                )}
+              </div>
+            )}
         </div>
       )}
 
       {children}
 
       {contextMenuContent && (
-        <ContextMenu state={ctxMenu}>{(items) => contextMenuContent(items)}</ContextMenu>
+        <ContextMenu state={ctxMenu}>
+          {(items) => contextMenuContent(items)}
+        </ContextMenu>
       )}
     </div>
   );

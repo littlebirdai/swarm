@@ -19,23 +19,36 @@ import { scheduleSeatSync } from "./teamSeats";
 // team (sessionOwnership.resolveOwnerRef). The row holds while that grant
 // still does. Another team the two people happen to share grants nothing
 // here: it would not let them start a session on that machine either.
-export async function ownerGrantHolds(ctx: { db: any }, userId: Id<"users">, conv: any): Promise<boolean> {
+export async function ownerGrantHolds(
+  ctx: { db: any },
+  userId: Id<"users">,
+  conv: any,
+): Promise<boolean> {
   const runner = await ctx.db.get(conv.user_id);
   if (!runner) return false;
-  if (runner.is_bot) return !runner.team_id || (await isTeamMember(ctx, userId, runner.team_id));
-  if (conv.team_id && (await isTeamMember(ctx, userId, conv.team_id))) return true;
+  if (runner.is_bot)
+    return !runner.team_id || (await isTeamMember(ctx, userId, runner.team_id));
+  if (conv.team_id && (await isTeamMember(ctx, userId, conv.team_id)))
+    return true;
   const device = await runnerDeviceOf(ctx, conv);
   return !!device && (await isTeamMachineFor(ctx, userId, device));
 }
 
 // Whether `teamId` is one a grant on this session could have come through.
-async function grantRunsThrough(ctx: { db: any }, conv: any, teamId: Id<"teams">): Promise<boolean> {
+async function grantRunsThrough(
+  ctx: { db: any },
+  conv: any,
+  teamId: Id<"teams">,
+): Promise<boolean> {
   const runner = await ctx.db.get(conv.user_id);
   if (runner?.is_bot) return String(runner.team_id ?? "") === String(teamId);
   if (String(conv.team_id ?? "") === String(teamId)) return true;
   if (!conv.owner_device_id) return false;
-  const shares = await ctx.db.query("device_shares")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", conv.user_id).eq("device_id", conv.owner_device_id))
+  const shares = await ctx.db
+    .query("device_shares")
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", conv.user_id).eq("device_id", conv.owner_device_id),
+    )
     .collect();
   return shares.some((sh: any) => String(sh.team_id) === String(teamId));
 }
@@ -47,7 +60,11 @@ export async function dropOwnerRow(ctx: { db: any }, row: any): Promise<void> {
 
 // When a membership ends, drop the person's owner rows on sessions others run
 // whose grant came through that team and no longer holds.
-async function releaseStrandedSessionOwnership(ctx: { db: any }, userId: Id<"users">, teamId: Id<"teams">): Promise<void> {
+async function releaseStrandedSessionOwnership(
+  ctx: { db: any },
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+): Promise<void> {
   const rows = await ctx.db
     .query("session_owners")
     .withIndex("by_user", (q: any) => q.eq("user_id", userId))
@@ -78,14 +95,22 @@ export async function endMembership(
 ): Promise<void> {
   const rows = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .collect();
   for (const row of rows) await ctx.db.delete(row._id);
-  if (rows.length && "scheduler" in ctx) await scheduleSeatSync(ctx as any, teamId, "member_left");
+  if (rows.length && "scheduler" in ctx)
+    await scheduleSeatSync(ctx as any, teamId, "member_left");
   if (rows.length) {
     await recordAuthorityEvent(ctx, {
-      kind: "team_member_removed", actor_user_id: actor, team_id: teamId, target_user_id: userId,
-      detail: { before: { role: rows[0].role, visibility: rows[0].visibility } },
+      kind: "team_member_removed",
+      actor_user_id: actor,
+      team_id: teamId,
+      target_user_id: userId,
+      detail: {
+        before: { role: rows[0].role, visibility: rows[0].visibility },
+      },
     });
   }
   await purgeChatMembership(ctx as any, userId, teamId);
@@ -93,7 +118,9 @@ export async function endMembership(
   await removeFromTeamHosts(ctx as any, userId, teamId);
   const mappings = await ctx.db
     .query("directory_team_mappings")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .collect();
   for (const dm of mappings) await ctx.db.delete(dm._id);
   await withdrawMember(ctx, userId, teamId);

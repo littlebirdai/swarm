@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { selectionGesture, selectionIdsFor, useInboxSelection } from "./inboxSelection";
+import {
+  selectionGesture,
+  selectionIdsFor,
+  useInboxSelection,
+} from "./inboxSelection";
 
 // The inbox multi-selection: toggle, shift-range over screen order, clear.
 
@@ -45,17 +49,24 @@ describe("useInboxSelection", () => {
   test("clear empties everything", () => {
     useInboxSelection.getState().set(["a", "b"]);
     useInboxSelection.getState().clear();
-    expect(useInboxSelection.getState()).toMatchObject({ ids: [], anchorId: null });
+    expect(useInboxSelection.getState()).toMatchObject({
+      ids: [],
+      anchorId: null,
+    });
   });
 });
 
 describe("selectionGesture", () => {
-  const ev = (o: Partial<{ metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }>) => ({ metaKey: false, ctrlKey: false, shiftKey: false, ...o });
+  const ev = (
+    o: Partial<{ metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }>,
+  ) => ({ metaKey: false, ctrlKey: false, shiftKey: false, ...o });
   test("shift ranges, meta/ctrl toggles, plain is not a gesture", () => {
     expect(selectionGesture(ev({ shiftKey: true }))).toBe("range");
     expect(selectionGesture(ev({ metaKey: true }))).toBe("toggle");
     expect(selectionGesture(ev({ ctrlKey: true }))).toBe("toggle");
-    expect(selectionGesture(ev({ shiftKey: true, metaKey: true }))).toBe("range");
+    expect(selectionGesture(ev({ shiftKey: true, metaKey: true }))).toBe(
+      "range",
+    );
     expect(selectionGesture(ev({}))).toBeNull();
   });
 });

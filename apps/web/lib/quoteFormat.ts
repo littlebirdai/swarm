@@ -65,10 +65,15 @@ export type PendingComment = {
 
 export type ReviewVerdict = "approve" | "cut";
 // What the agent reads for each verdict, and what the tray and rail show.
-export const REVIEW_VERDICT_WORDS: Record<ReviewVerdict, string> = { approve: "Looks good", cut: "Cut this" };
+export const REVIEW_VERDICT_WORDS: Record<ReviewVerdict, string> = {
+  approve: "Looks good",
+  cut: "Cut this",
+};
 
 /** A batch item that answers a proposal card rather than quoting a message. */
-export function isProposalAnswer(c: Pick<PendingComment, "proposal">): c is PendingComment & { proposal: PendingProposalAnswer } {
+export function isProposalAnswer(
+  c: Pick<PendingComment, "proposal">,
+): c is PendingComment & { proposal: PendingProposalAnswer } {
   return !!c.proposal;
 }
 
@@ -121,15 +126,24 @@ export function splitQuoteRuns(text: string): QuoteRun[] {
     else runs.push({ quote, text: m ? m[1] : line });
   }
   return runs
-    .map((r) => ({ quote: r.quote, text: r.text.replace(/^\s*\n|\n\s*$/g, "") }))
+    .map((r) => ({
+      quote: r.quote,
+      text: r.text.replace(/^\s*\n|\n\s*$/g, ""),
+    }))
     .filter((r) => r.text.trim());
 }
 
 // One quote + optional verdict + optional reply body.
-export function formatQuotedReply(quote: string, body?: string, verdict?: ReviewVerdict): string {
+export function formatQuotedReply(
+  quote: string,
+  body?: string,
+  verdict?: ReviewVerdict,
+): string {
   const bq = toBlockquote(quote);
   const note = (body || "").trim();
-  const reply = verdict ? `Verdict: ${REVIEW_VERDICT_WORDS[verdict].toLowerCase()}${note ? `\n\n${note}` : ""}` : note;
+  const reply = verdict
+    ? `Verdict: ${REVIEW_VERDICT_WORDS[verdict].toLowerCase()}${note ? `\n\n${note}` : ""}`
+    : note;
   if (bq && reply) return `${bq}\n\n${reply}`;
   return bq || reply;
 }
@@ -139,10 +153,22 @@ export function formatQuotedReply(quote: string, body?: string, verdict?: Review
 // send is named by its `[Image N]` attachment token and carries its pins drawn
 // on it as numbered markers, so the point is that marker's number. Otherwise
 // the image is its address as a markdown image and the point is described.
-export function imageQuoteText(c: Pick<PendingComment, "quote" | "image">, attachmentNumber?: number, marker?: number): string {
+export function imageQuoteText(
+  c: Pick<PendingComment, "quote" | "image">,
+  attachmentNumber?: number,
+  marker?: number,
+): string {
   if (!c.image) return c.quote;
-  const head = attachmentNumber ? `[Image ${attachmentNumber}]` : c.image.href ? `![image](${c.image.href})` : "[image]";
-  const at = !c.image.point ? "" : attachmentNumber && marker ? ` at marker ${marker}` : ` ${describePoint(c.image)}`;
+  const head = attachmentNumber
+    ? `[Image ${attachmentNumber}]`
+    : c.image.href
+      ? `![image](${c.image.href})`
+      : "[image]";
+  const at = !c.image.point
+    ? ""
+    : attachmentNumber && marker
+      ? ` at marker ${marker}`
+      : ` ${describePoint(c.image)}`;
   return c.quote ? `${head}${at}\n${c.quote}` : `${head}${at}`;
 }
 
@@ -150,11 +176,17 @@ export function imageQuoteText(c: Pick<PendingComment, "quote" | "image">, attac
 // picture in the order given. The gallery's dots, the pins on a framed page and
 // the markers drawn on a sent picture all read it, so a note is the same
 // number everywhere.
-export function pinNumbers(comments: readonly Pick<PendingComment, "id" | "image" | "page">[]): Map<string, number> {
+export function pinNumbers(
+  comments: readonly Pick<PendingComment, "id" | "image" | "page">[],
+): Map<string, number> {
   const perSrc = new Map<string, number>();
   const numbers = new Map<string, number>();
   for (const c of comments) {
-    const key = c.image?.point ? c.image.src : c.page?.point ? `page:${c.page.slug}` : null;
+    const key = c.image?.point
+      ? c.image.src
+      : c.page?.point
+        ? `page:${c.page.slug}`
+        : null;
     if (!key) continue;
     const n = (perSrc.get(key) ?? 0) + 1;
     perSrc.set(key, n);
@@ -179,13 +211,26 @@ export function describePoint({ point, width, height }: QuotedImage): string {
 // A proposal answer is never a quote: its words come from proposalReplyText
 // (lib/reviewActions takeProposalAnswers), so it is skipped here.
 export function formatPendingComments(
-  comments: (Pick<PendingComment, "quote" | "body" | "image" | "proposal" | "verdict"> & { id?: string })[],
+  comments: (Pick<
+    PendingComment,
+    "quote" | "body" | "image" | "proposal" | "verdict"
+  > & { id?: string })[],
   attachmentNumbers?: ReadonlyMap<string, number>,
   markers?: ReadonlyMap<string, number>,
 ): string {
   return comments
     .filter((c) => !isProposalAnswer(c))
-    .map((c) => formatQuotedReply(imageQuoteText(c, c.id ? attachmentNumbers?.get(c.id) : undefined, c.id ? markers?.get(c.id) : undefined), c.body, c.verdict))
+    .map((c) =>
+      formatQuotedReply(
+        imageQuoteText(
+          c,
+          c.id ? attachmentNumbers?.get(c.id) : undefined,
+          c.id ? markers?.get(c.id) : undefined,
+        ),
+        c.body,
+        c.verdict,
+      ),
+    )
     .filter(Boolean)
     .join("\n\n");
 }
@@ -244,14 +289,19 @@ export function formatDocFeedback(
 // Stable ordering for a batch: group by the order each message was first
 // commented on, then by block position within a message. Keeps the compiled
 // message reading top-to-bottom like the conversation.
-export function sortPendingComments(comments: PendingComment[]): PendingComment[] {
+export function sortPendingComments(
+  comments: PendingComment[],
+): PendingComment[] {
   const firstSeen = new Map<string, number>();
   comments.forEach((c) => {
     if (!firstSeen.has(c.messageId)) firstSeen.set(c.messageId, c.createdAt);
   });
   return [...comments].sort((a, b) => {
     if (a.messageId !== b.messageId) {
-      return (firstSeen.get(a.messageId)! - firstSeen.get(b.messageId)!) || (a.createdAt - b.createdAt);
+      return (
+        firstSeen.get(a.messageId)! - firstSeen.get(b.messageId)! ||
+        a.createdAt - b.createdAt
+      );
     }
     if (a.blockIndex !== b.blockIndex) return a.blockIndex - b.blockIndex;
     return a.createdAt - b.createdAt;

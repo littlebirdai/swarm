@@ -22,7 +22,9 @@ const timeout = new Error(
   "[CONVEX Q(conversations:listInboxSessions)] [Request ID: 0018a80d31f3d6a1] Server Error\nFunction execution timed out (maximum duration: 1s)",
 );
 
-let transport: (queries: Record<string, unknown>) => Record<string, unknown> = () => ({});
+let transport: (
+  queries: Record<string, unknown>,
+) => Record<string, unknown> = () => ({});
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convexReact,
@@ -30,14 +32,18 @@ mock.module("convex/react", () => ({
 }));
 
 const { useInboxStore } = await import("../../store/inboxStore");
-const { useLiveInboxSessions } = await import(`${import.meta.dir}/../useLiveInboxSessions.ts?fresh`);
+const { useLiveInboxSessions } = await import(
+  `${import.meta.dir}/../useLiveInboxSessions.ts?fresh`
+);
 const { renderToStaticMarkup } = await import("react-dom/server");
 
 const CACHED = "jx7cach0000000000000000000000aaa";
 
 function Probe() {
   const { data, error } = useLiveInboxSessions();
-  return <span data-error={error ? "yes" : "no"}>{data ? "live" : "cache"}</span>;
+  return (
+    <span data-error={error ? "yes" : "no"}>{data ? "live" : "cache"}</span>
+  );
 }
 
 describe("useLiveInboxSessions under a terminal server error", () => {
@@ -63,5 +69,4 @@ describe("useLiveInboxSessions under a terminal server error", () => {
     expect(html).toBe('<span data-error="yes">cache</span>');
     expect(Object.keys(useInboxStore.getState().sessions)).toEqual([CACHED]);
   });
-
 });

@@ -1,12 +1,32 @@
 import { describe, expect, it } from "bun:test";
-import { layoutOrgTree, personNodeId, rectsOverlap, roleNodeId, sessionNodeId, type OrgLayoutView } from "./orgLayout";
+import {
+  layoutOrgTree,
+  personNodeId,
+  rectsOverlap,
+  roleNodeId,
+  sessionNodeId,
+  type OrgLayoutView,
+} from "./orgLayout";
 import { ORG_FIXTURE } from "./orgFixture";
-import { dragRoots, parentsOf, subtreesOf, withoutPlaced, withPlaced } from "./orgPlacement";
+import {
+  dragRoots,
+  parentsOf,
+  subtreesOf,
+  withoutPlaced,
+  withPlaced,
+} from "./orgPlacement";
 
 const none: OrgLayoutView = { collapsed: new Set<string>(), expanded: {} };
-const lay = (placed?: OrgLayoutView["placed"]) => layoutOrgTree(ORG_FIXTURE, placed ? { ...none, placed } : none, undefined, "far");
+const lay = (placed?: OrgLayoutView["placed"]) =>
+  layoutOrgTree(
+    ORG_FIXTURE,
+    placed ? { ...none, placed } : none,
+    undefined,
+    "far",
+  );
 const base = lay();
-const at = (l: ReturnType<typeof lay>, id: string) => l.nodes.find((n) => n.id === id)!;
+const at = (l: ReturnType<typeof lay>, id: string) =>
+  l.nodes.find((n) => n.id === id)!;
 const me = personNodeId("fixture-user-me");
 const growth = roleNodeId("fixture-role-growth");
 const mySession = sessionNodeId(ORG_FIXTURE.people[0].sessions[0]._id);
@@ -16,11 +36,13 @@ describe("orgPlacement", () => {
     const branch = subtreesOf(base.edges, [growth]);
     expect(branch.size).toBeGreaterThan(0);
     const l = lay({ [growth]: { x: 900, y: 40 } });
-    const p = at(l, me), g = at(l, growth);
+    const p = at(l, me),
+      g = at(l, growth);
     expect(g.x).toBe(p.x + 900);
     expect(g.y).toBe(p.y + 40);
     // Its branch still hangs under it.
-    for (const id of branch.keys()) expect(at(l, id).y).toBeGreaterThan(g.y + g.h);
+    for (const id of branch.keys())
+      expect(at(l, id).y).toBeGreaterThan(g.y + g.h);
     // The edge into it is a plain one: no lane or spine route.
     expect(l.edges.find((e) => e.target === growth)!.route).toBeUndefined();
   });
@@ -34,7 +56,9 @@ describe("orgPlacement", () => {
 
   it("a placed card follows its parent when the parent is placed too", () => {
     const one = lay({ [growth]: { x: 900, y: 40 } });
-    const kid = [...subtreesOf(one.edges, [growth]).keys()].find((id) => id.startsWith("session:"))!;
+    const kid = [...subtreesOf(one.edges, [growth]).keys()].find((id) =>
+      id.startsWith("session:"),
+    )!;
     const both = lay({ [growth]: { x: 900, y: 40 }, [kid]: { x: 0, y: 300 } });
     expect(at(both, kid).x).toBe(at(both, growth).x);
     expect(at(both, kid).y).toBe(at(both, growth).y + 300);
@@ -47,11 +71,22 @@ describe("orgPlacement", () => {
   });
 
   it("spots round to pixels and clear when a card moves under a new parent", () => {
-    expect(withPlaced({}, [{ id: growth, x: 10.4, y: -3.6 }])[growth]).toEqual({ x: 10, y: -4 });
-    expect(Object.keys(withoutPlaced({ [growth]: { x: 5, y: 5 }, [me]: { x: 1, y: 1 } }, [growth]))).toEqual([me]);
+    expect(withPlaced({}, [{ id: growth, x: 10.4, y: -3.6 }])[growth]).toEqual({
+      x: 10,
+      y: -4,
+    });
+    expect(
+      Object.keys(
+        withoutPlaced({ [growth]: { x: 5, y: 5 }, [me]: { x: 1, y: 1 } }, [
+          growth,
+        ]),
+      ),
+    ).toEqual([me]);
   });
 
   it("nothing placed is the tidy tree, which never overlaps", () => {
-    for (let i = 0; i < base.nodes.length; i++) for (let j = i + 1; j < base.nodes.length; j++) expect(rectsOverlap(base.nodes[i], base.nodes[j])).toBe(false);
+    for (let i = 0; i < base.nodes.length; i++)
+      for (let j = i + 1; j < base.nodes.length; j++)
+        expect(rectsOverlap(base.nodes[i], base.nodes[j])).toBe(false);
   });
 });

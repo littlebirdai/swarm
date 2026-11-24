@@ -40,7 +40,11 @@ export interface SearchBookmark extends BookmarkFields {
   query: string;
 }
 
-export type BookmarkItem = NoteBookmark | FolderBookmark | HeadingBookmark | SearchBookmark;
+export type BookmarkItem =
+  | NoteBookmark
+  | FolderBookmark
+  | HeadingBookmark
+  | SearchBookmark;
 
 /** What a caller asks for; the store stamps id and createdAt. */
 export type BookmarkInput =
@@ -99,29 +103,45 @@ export function bookmarkSubtitle(item: BookmarkItem): string {
   }
 }
 
-export function isBookmarked(list: BookmarkItem[], target: BookmarkInput): boolean {
+export function isBookmarked(
+  list: BookmarkItem[],
+  target: BookmarkInput,
+): boolean {
   const key = bookmarkKey(target);
   return list.some((b) => bookmarkKey(b) === key);
 }
 
-export function findBookmark(list: BookmarkItem[], target: BookmarkInput): BookmarkItem | null {
+export function findBookmark(
+  list: BookmarkItem[],
+  target: BookmarkInput,
+): BookmarkItem | null {
   const key = bookmarkKey(target);
   return list.find((b) => bookmarkKey(b) === key) ?? null;
 }
 
 /** Append unless the same target is already bookmarked. Returns the SAME array
  *  when nothing changed, so the store can skip the write. */
-export function addBookmark(list: BookmarkItem[], item: BookmarkItem): BookmarkItem[] {
+export function addBookmark(
+  list: BookmarkItem[],
+  item: BookmarkItem,
+): BookmarkItem[] {
   return isBookmarked(list, item) ? list : [...list, item];
 }
 
-export function removeBookmark(list: BookmarkItem[], id: string): BookmarkItem[] {
+export function removeBookmark(
+  list: BookmarkItem[],
+  id: string,
+): BookmarkItem[] {
   const next = list.filter((b) => b.id !== id);
   return next.length === list.length ? list : next;
 }
 
 /** Set (or, with an empty string, clear) a row's user title. */
-export function retitleBookmark(list: BookmarkItem[], id: string, title: string): BookmarkItem[] {
+export function retitleBookmark(
+  list: BookmarkItem[],
+  id: string,
+  title: string,
+): BookmarkItem[] {
   const trimmed = title.trim();
   let changed = false;
   const next = list.map((b) => {

@@ -1,4 +1,8 @@
-import { MID_TURN_AGENT_STATUSES, MOVE_INTERRUPT_MESSAGE, moveContinueClientId } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  MOVE_INTERRUPT_MESSAGE,
+  moveContinueClientId,
+} from "@codecast/shared/contracts";
 import type { Id } from "./_generated/dataModel";
 import { enqueuePendingMessage } from "./pendingMessages";
 
@@ -11,20 +15,34 @@ import { enqueuePendingMessage } from "./pendingMessages";
  * re-homed (delivery follows the new owner) and before the managed rows that
  * say a turn was running are released or dropped.
  */
-export async function queueMoveContinueIfMidTurn(ctx: any, conversationId: Id<"conversations">, fromUserId: Id<"users">): Promise<void> {
+export async function queueMoveContinueIfMidTurn(
+  ctx: any,
+  conversationId: Id<"conversations">,
+  fromUserId: Id<"users">,
+): Promise<void> {
   const managed = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
-  if (!managed.some((row: any) => MID_TURN_AGENT_STATUSES.has(row.agent_status ?? ""))) return;
+  if (
+    !managed.some((row: any) =>
+      MID_TURN_AGENT_STATUSES.has(row.agent_status ?? ""),
+    )
+  )
+    return;
   // A second move before the first resumed still reads the turn as running;
   // one continue, delivered wherever the session lands, is enough.
   for (const status of ["pending", "held"]) {
     const waiting = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", status))
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conversationId).eq("status", status),
+      )
       .collect();
-    if (waiting.some((row: any) => row.content === MOVE_INTERRUPT_MESSAGE)) return;
+    if (waiting.some((row: any) => row.content === MOVE_INTERRUPT_MESSAGE))
+      return;
   }
   const conv = await ctx.db.get(conversationId);
   if (!conv) return;

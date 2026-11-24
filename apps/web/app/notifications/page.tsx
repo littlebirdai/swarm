@@ -14,8 +14,19 @@ import {
   NotificationRow,
 } from "../../components/notifications/NotificationRow";
 import { groupIdleNotifications } from "@codecast/shared/contracts";
-import { ArrowUpRight, Bell, ExternalLink, Check, CheckCheck } from "lucide-react";
-import { ContextMenu, useContextMenu, CtxItem, CtxSeparator } from "../../components/ui/context-menu";
+import {
+  ArrowUpRight,
+  Bell,
+  ExternalLink,
+  Check,
+  CheckCheck,
+} from "lucide-react";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxSeparator,
+} from "../../components/ui/context-menu";
 import { PageFrame, PageHeader } from "../../components/ui/page-header";
 import { Button } from "../../components/ui/button";
 import { SegmentedToggle } from "../../components/SegmentedToggle";
@@ -37,13 +48,21 @@ const NOTIFICATION_ROWS = {
   sort: (a: any, b: any) => (b.created_at ?? 0) - (a.created_at ?? 0),
 };
 
-
 export default function NotificationsPage() {
   const router = useRouter();
   // Local-first: sync the server list into the store, read + mutate the store.
   const notifsList = useQueryNoThrow(api.notifications.list, {}).data;
-  useConvexSync(notifsList, useCallback((d: any) => useInboxStore.getState().syncTable("notifications", d), []));
-  const notifications = useCollectionRows<any>("notifications", NOTIFICATION_ROWS);
+  useConvexSync(
+    notifsList,
+    useCallback(
+      (d: any) => useInboxStore.getState().syncTable("notifications", d),
+      [],
+    ),
+  );
+  const notifications = useCollectionRows<any>(
+    "notifications",
+    NOTIFICATION_ROWS,
+  );
   const markAsRead = useInboxStore((s) => s.markNotificationRead);
   const markAllAsRead = useInboxStore((s) => s.markAllNotificationsRead);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
@@ -55,7 +74,7 @@ export default function NotificationsPage() {
     entityType?: string,
     entityId?: string,
     link?: string,
-    chatMessageId?: string
+    chatMessageId?: string,
   ) => {
     markAsRead(notificationId);
     // A deep link wins. An app route opens here; a page outside the app (a
@@ -67,7 +86,10 @@ export default function NotificationsPage() {
       return;
     }
     const route = notificationRoute(entityType, entityId, chatMessageId);
-    if (route) { router.push(route); return; }
+    if (route) {
+      router.push(route);
+      return;
+    }
     if (conversationId) {
       router.push(`/conversation/${conversationId}`);
     } else {
@@ -77,7 +99,8 @@ export default function NotificationsPage() {
 
   const filteredNotifications = (notifications || []).filter((n: any) => {
     if (activeTab === "unread") return !n.read;
-    if (activeTab === "sessions") return sessionTypes.has(n.type) || n.type === "team_session_start";
+    if (activeTab === "sessions")
+      return sessionTypes.has(n.type) || n.type === "team_session_start";
     if (activeTab === "social") return socialTypes.has(n.type);
     if (activeTab === "tasks") return taskTypes.has(n.type);
     return true;
@@ -88,23 +111,35 @@ export default function NotificationsPage() {
   // Same fold-up the bell and the hourly alert make: a waiting burst reads as
   // one entry that opens.
   const entries = useMemo(
-    () => groupIdleNotifications(filteredNotifications, (n: any) => String(n._id)),
-    [filteredNotifications]
+    () =>
+      groupIdleNotifications(filteredNotifications, (n: any) => String(n._id)),
+    [filteredNotifications],
   );
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const toggleGroup = useCallback(
     (key: string) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] })),
-    []
+    [],
   );
   const openNotification = useCallback(
-    (n: any) => handleNotificationClick(n._id, n.conversation_id, n.entity_type, n.entity_id, n.link, n.chat_message_id),
+    (n: any) =>
+      handleNotificationClick(
+        n._id,
+        n.conversation_id,
+        n.entity_type,
+        n.entity_id,
+        n.link,
+        n.chat_message_id,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: "all", label: "All" },
-    { key: "unread", label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ""}` },
+    {
+      key: "unread",
+      label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ""}`,
+    },
     { key: "sessions", label: "Sessions" },
     { key: "tasks", label: "Tasks" },
     { key: "social", label: "Social" },
@@ -114,34 +149,34 @@ export default function NotificationsPage() {
   // header, the unread count on its tab.
   const legacy = (
     <>
-          <div className="flex items-center justify-between mb-5">
-            <h1 className="text-xl font-semibold text-sol-text">Notifications</h1>
-            {unreadCount > 0 && (
-              <button
-                onClick={() => markAllAsRead()}
-                className="text-xs text-sol-text-muted hover:text-sol-cyan transition-colors px-3 py-1.5 border border-sol-border rounded-lg hover:border-sol-cyan/40"
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-semibold text-sol-text">Notifications</h1>
+        {unreadCount > 0 && (
+          <button
+            onClick={() => markAllAsRead()}
+            className="text-xs text-sol-text-muted hover:text-sol-cyan transition-colors px-3 py-1.5 border border-sol-border rounded-lg hover:border-sol-cyan/40"
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
 
-          <div className="flex gap-1 mb-5 border-b border-sol-border">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                aria-pressed={activeTab === tab.key}
-                className={`px-3 py-2 text-sm transition-colors border-b-2 -mb-px ${
-                  activeTab === tab.key
-                    ? "border-sol-cyan text-sol-cyan font-medium"
-                    : "border-transparent text-sol-text-muted hover:text-sol-text"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+      <div className="flex gap-1 mb-5 border-b border-sol-border">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            aria-pressed={activeTab === tab.key}
+            className={`px-3 py-2 text-sm transition-colors border-b-2 -mb-px ${
+              activeTab === tab.key
+                ? "border-sol-cyan text-sol-cyan font-medium"
+                : "border-transparent text-sol-text-muted hover:text-sol-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
     </>
   );
   const header = (
@@ -149,19 +184,43 @@ export default function NotificationsPage() {
       legacy={legacy}
       title="Notifications"
       icon={Bell}
-      tabs={<SegmentedToggle value={activeTab} onChange={(key) => setActiveTab(key as FilterTab)} items={tabs.map((t) => (t.key === "unread" ? { ...t, label: "Unread", count: unreadCount } : t))} collapse />}
-      actions={unreadCount > 0 ? <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>Mark all read</Button> : null}
+      tabs={
+        <SegmentedToggle
+          value={activeTab}
+          onChange={(key) => setActiveTab(key as FilterTab)}
+          items={tabs.map((t) =>
+            t.key === "unread"
+              ? { ...t, label: "Unread", count: unreadCount }
+              : t,
+          )}
+          collapse
+        />
+      }
+      actions={
+        unreadCount > 0 ? (
+          <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
+            Mark all read
+          </Button>
+        ) : null
+      }
     />
   );
 
   return (
     <AuthGuard>
       <DashboardLayout>
-        <PageFrame header={header} legacyColumn="max-w-2xl mx-auto" column="mx-auto box-content max-w-2xl px-4 py-6 sm:px-6">
+        <PageFrame
+          header={header}
+          legacyColumn="max-w-2xl mx-auto"
+          column="mx-auto box-content max-w-2xl px-4 py-6 sm:px-6"
+        >
           {notifsList === undefined && notifications.length === 0 ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-sol-bg-alt/30 animate-pulse">
+                <div
+                  key={i}
+                  className="flex items-start gap-3 p-4 rounded-lg bg-sol-bg-alt/30 animate-pulse"
+                >
                   <div className="w-10 h-10 rounded-full bg-sol-bg-alt" />
                   <div className="flex-1 space-y-2">
                     <div className="h-4 bg-sol-bg-alt rounded w-3/4" />
@@ -172,9 +231,15 @@ export default function NotificationsPage() {
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="text-center py-16">
-              <Bell className="w-12 h-12 mx-auto text-sol-text-dim mb-3" strokeWidth={1.5} aria-hidden="true" />
+              <Bell
+                className="w-12 h-12 mx-auto text-sol-text-dim mb-3"
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
               <p className="text-sol-text-muted text-sm">
-                {activeTab === "all" ? "No notifications yet" : `No ${activeTab} notifications`}
+                {activeTab === "all"
+                  ? "No notifications yet"
+                  : `No ${activeTab} notifications`}
               </p>
             </div>
           ) : (
@@ -198,7 +263,7 @@ export default function NotificationsPage() {
                     onContextMenu={(e, n) => ctxMenu.open(e, n)}
                     size="page"
                   />
-                )
+                ),
               )}
             </div>
           )}
@@ -208,7 +273,16 @@ export default function NotificationsPage() {
               <>
                 <CtxItem
                   icon={ArrowUpRight}
-                  onSelect={() => handleNotificationClick(n._id, n.conversation_id, n.entity_type, n.entity_id, n.link, n.chat_message_id)}
+                  onSelect={() =>
+                    handleNotificationClick(
+                      n._id,
+                      n.conversation_id,
+                      n.entity_type,
+                      n.entity_id,
+                      n.link,
+                      n.chat_message_id,
+                    )
+                  }
                 >
                   Open
                 </CtxItem>

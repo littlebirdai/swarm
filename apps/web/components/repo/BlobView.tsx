@@ -65,14 +65,18 @@ export function BlobView({
   const tooBigToColour = lines.length > HIGHLIGHT_LINE_LIMIT;
 
   const html = useMemo(
-    () => (tooBigToColour ? null : highlightLines(content, languageForPath(path))),
+    () =>
+      tooBigToColour ? null : highlightLines(content, languageForPath(path)),
     [content, path, tooBigToColour],
   );
 
   const blameOn = blameMode === "git";
   const sessionsOn = blameMode === "session";
   const blameAt = useMemo(() => indexBlameRanges(blameRanges), [blameRanges]);
-  const sessionAt = useMemo(() => indexBlameRanges(sessionRanges), [sessionRanges]);
+  const sessionAt = useMemo(
+    () => indexBlameRanges(sessionRanges),
+    [sessionRanges],
+  );
   const gutterWidth = `${Math.max(2, String(lines.length).length)}ch`;
 
   return (
@@ -94,13 +98,19 @@ export function BlobView({
               <div
                 id={`L${number}`}
                 className={`repo-line flex items-start ${selected ? "repo-line-selected" : ""}`}
-                data-session-focus={sessionsOn && focusSession && sessionId === focusSession ? "" : undefined}
+                data-session-focus={
+                  sessionsOn && focusSession && sessionId === focusSession
+                    ? ""
+                    : undefined
+                }
               >
                 {sessionsOn && (
                   <SessionBlameCell
                     range={sessionRange}
                     line={number}
-                    color={sessionId ? sessionColors?.get(sessionId) : undefined}
+                    color={
+                      sessionId ? sessionColors?.get(sessionId) : undefined
+                    }
                   />
                 )}
                 {blameOn && (
@@ -119,9 +129,16 @@ export function BlobView({
                         >
                           {range.sha.slice(0, 7)}
                         </Link>
-                        <span className="truncate">{range.author_login || range.author_name}</span>
+                        <span className="truncate">
+                          {range.author_login || range.author_name}
+                        </span>
                         {range.committed_at ? (
-                          <span className="ml-auto shrink-0"><StampTime ts={range.committed_at} format={relTimeShort} /></span>
+                          <span className="ml-auto shrink-0">
+                            <StampTime
+                              ts={range.committed_at}
+                              format={relTimeShort}
+                            />
+                          </span>
                         ) : null}
                       </span>
                     )}
@@ -129,7 +146,9 @@ export function BlobView({
                 )}
 
                 <div className="flex items-center gap-1 shrink-0 pl-1 pr-2">
-                  <AnchorGutterMark placement={threadStateByLine?.get(number)} />
+                  <AnchorGutterMark
+                    placement={threadStateByLine?.get(number)}
+                  />
                   {onComment && (
                     <button
                       type="button"
@@ -160,12 +179,16 @@ export function BlobView({
                     dangerouslySetInnerHTML={{ __html: html[index] ?? "" }}
                   />
                 ) : (
-                  <code className="min-w-0 flex-1 whitespace-pre-wrap [overflow-wrap:anywhere] pr-6">{line}</code>
+                  <code className="min-w-0 flex-1 whitespace-pre-wrap [overflow-wrap:anywhere] pr-6">
+                    {line}
+                  </code>
                 )}
               </div>
 
               {thread && renderThread && (
-                <div className="pl-[3.5rem] pr-6 max-w-3xl">{renderThread(number, thread)}</div>
+                <div className="pl-[3.5rem] pr-6 max-w-3xl">
+                  {renderThread(number, thread)}
+                </div>
               )}
             </div>
           );

@@ -148,9 +148,7 @@
     "finding": "Arbitrary published-page scripts share a document with owner/edit/comment tokens; owner opening their management URL exposes its authority to that content",
     "status": "accepted_risk",
     "workstream": "006",
-    "verification": [
-      "2026-09-23: Design choice queued as sd-235"
-    ],
+    "verification": ["2026-09-23: Design choice queued as sd-235"],
     "review": {
       "decision": "human 2026-09-23 (sd-235): leave as is for now. Risk: script in a published page (e.g. added by an edit link holder) can read #o=/#ed= when the owner opens the page. Options kept on file: sandboxed iframe shell, or management in the app."
     },
@@ -182,9 +180,7 @@
     "finding": "Auth storage wrapper prevents sibling-window logout events; global cache/replication can retain or mix old-principal state",
     "status": "in_progress",
     "workstream": "007",
-    "verification": [
-      "2026-09-23: worker jx7dqzw, ct-53058"
-    ],
+    "verification": ["2026-09-23: worker jx7dqzw, ct-53058"],
     "review": null,
     "release": null
   },

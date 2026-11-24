@@ -4,8 +4,21 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-  ACTIVE_MS, PRUNABLE, STALE_MS, absorbedInto, fileVerdict, ownerIsLive, ownerOf, parseRawDiff, parseWorktreeList, relateTrees, scanRepo, treeVerdict,
-  type RepoScan, type TreeReport, type VerdictFacts,
+  ACTIVE_MS,
+  PRUNABLE,
+  STALE_MS,
+  absorbedInto,
+  fileVerdict,
+  ownerIsLive,
+  ownerOf,
+  parseRawDiff,
+  parseWorktreeList,
+  relateTrees,
+  scanRepo,
+  treeVerdict,
+  type RepoScan,
+  type TreeReport,
+  type VerdictFacts,
 } from "./scan.js";
 import { pruneTargets, type LandScan } from "./cli.js";
 import { ARCHIVE_REF_PREFIX, pruneTree, treePatch } from "./prune.js";
@@ -13,62 +26,200 @@ import { clearHold, readHold, writeHold } from "./hold.js";
 
 const NOW = 1_800_000_000_000;
 const facts = (over: Partial<VerdictFacts>): VerdictFacts => ({
-  primary: false, locked: false, liveOwner: false, processInside: false, run: false, liveRun: false, held: null,
-  lastActivity: NOW - 3 * 86_400_000, counts: { same: 0, absorbed: 0, only: 0, both: 0 }, now: NOW, ...over,
+  primary: false,
+  locked: false,
+  liveOwner: false,
+  processInside: false,
+  run: false,
+  liveRun: false,
+  held: null,
+  lastActivity: NOW - 3 * 86_400_000,
+  counts: { same: 0, absorbed: 0, only: 0, both: 0 },
+  now: NOW,
+  ...over,
 });
 
 describe("treeVerdict", () => {
   test("in-use trees are live, whatever they hold", () => {
-    expect(treeVerdict(facts({ liveOwner: true, counts: { same: 0, absorbed: 0, only: 3, both: 0 } })).verdict).toBe("live");
+    expect(
+      treeVerdict(
+        facts({
+          liveOwner: true,
+          counts: { same: 0, absorbed: 0, only: 3, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("live");
     expect(treeVerdict(facts({ processInside: true })).verdict).toBe("live");
     expect(treeVerdict(facts({ locked: true })).verdict).toBe("live");
-    expect(treeVerdict(facts({ lastActivity: NOW - ACTIVE_MS + 60_000 })).verdict).toBe("live");
+    expect(
+      treeVerdict(facts({ lastActivity: NOW - ACTIVE_MS + 60_000 })).verdict,
+    ).toBe("live");
   });
   test("the main checkout is never a candidate", () => {
-    expect(treeVerdict(facts({ primary: true, counts: { same: 0, absorbed: 0, only: 9, both: 0 } })).verdict).toBe("primary");
+    expect(
+      treeVerdict(
+        facts({
+          primary: true,
+          counts: { same: 0, absorbed: 0, only: 9, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("primary");
   });
   test("content decides between empty, landed, ready and review", () => {
     expect(treeVerdict(facts({})).verdict).toBe("empty");
-    expect(treeVerdict(facts({ counts: { same: 4, absorbed: 0, only: 0, both: 0 } })).verdict).toBe("landed");
-    expect(treeVerdict(facts({ counts: { same: 1, absorbed: 2, only: 0, both: 0 } })).verdict).toBe("landed");
-    expect(treeVerdict(facts({ counts: { same: 0, absorbed: 0, only: 2, both: 1 } })).verdict).toBe("ready");
-    expect(treeVerdict(facts({ counts: { same: 0, absorbed: 3, only: 0, both: 2 } })).verdict).toBe("review");
+    expect(
+      treeVerdict(facts({ counts: { same: 4, absorbed: 0, only: 0, both: 0 } }))
+        .verdict,
+    ).toBe("landed");
+    expect(
+      treeVerdict(facts({ counts: { same: 1, absorbed: 2, only: 0, both: 0 } }))
+        .verdict,
+    ).toBe("landed");
+    expect(
+      treeVerdict(facts({ counts: { same: 0, absorbed: 0, only: 2, both: 1 } }))
+        .verdict,
+    ).toBe("ready");
+    expect(
+      treeVerdict(facts({ counts: { same: 0, absorbed: 3, only: 0, both: 2 } }))
+        .verdict,
+    ).toBe("review");
   });
   test("work untouched past the stale line is stale, not ready", () => {
-    expect(treeVerdict(facts({ lastActivity: NOW - STALE_MS - 1, counts: { same: 0, absorbed: 0, only: 2, both: 0 } })).verdict).toBe("stale");
+    expect(
+      treeVerdict(
+        facts({
+          lastActivity: NOW - STALE_MS - 1,
+          counts: { same: 0, absorbed: 0, only: 2, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("stale");
     // Nothing of its own left: it is landed however old.
-    expect(treeVerdict(facts({ lastActivity: NOW - STALE_MS - 1, counts: { same: 2, absorbed: 0, only: 0, both: 0 } })).verdict).toBe("landed");
+    expect(
+      treeVerdict(
+        facts({
+          lastActivity: NOW - STALE_MS - 1,
+          counts: { same: 2, absorbed: 0, only: 0, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("landed");
   });
   test("a line run's tree holding work main lacks is the run's to ship, in use or not", () => {
-    expect(treeVerdict(facts({ run: true, counts: { same: 0, absorbed: 0, only: 2, both: 1 } })).verdict).toBe("run");
-    expect(treeVerdict(facts({ run: true, counts: { same: 0, absorbed: 3, only: 0, both: 2 } })).verdict).toBe("run");
-    expect(treeVerdict(facts({ run: true, processInside: true, counts: { same: 0, absorbed: 0, only: 2, both: 0 } })).verdict).toBe("run");
-    expect(treeVerdict(facts({ run: true, lastActivity: NOW - 60_000, counts: { same: 0, absorbed: 0, only: 2, both: 0 } })).verdict).toBe("run");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          counts: { same: 0, absorbed: 0, only: 2, both: 1 },
+        }),
+      ).verdict,
+    ).toBe("run");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          counts: { same: 0, absorbed: 3, only: 0, both: 2 },
+        }),
+      ).verdict,
+    ).toBe("run");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          processInside: true,
+          counts: { same: 0, absorbed: 0, only: 2, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("run");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          lastActivity: NOW - 60_000,
+          counts: { same: 0, absorbed: 0, only: 2, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("run");
     // Holding nothing of its own, or idle past the stale line, it reads as any tree does.
-    expect(treeVerdict(facts({ run: true, processInside: true })).verdict).toBe("live");
+    expect(treeVerdict(facts({ run: true, processInside: true })).verdict).toBe(
+      "live",
+    );
     expect(treeVerdict(facts({ run: true })).verdict).toBe("empty");
-    expect(treeVerdict(facts({ run: true, counts: { same: 2, absorbed: 0, only: 0, both: 0 } })).verdict).toBe("landed");
-    expect(treeVerdict(facts({ run: true, lastActivity: NOW - STALE_MS - 1, counts: { same: 0, absorbed: 0, only: 2, both: 0 } })).verdict).toBe("stale");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          counts: { same: 2, absorbed: 0, only: 0, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("landed");
+    expect(
+      treeVerdict(
+        facts({
+          run: true,
+          lastActivity: NOW - STALE_MS - 1,
+          counts: { same: 0, absorbed: 0, only: 2, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("stale");
   });
   // ct-68695 waited 8 days at the Eval wallet and was pruned as stale; ct-62158's change reached main outside its run
   // and its tree was pruned as landed. Both runs were live and failed at Eval on a missing workspace.
   test("a live run's tree is the run's whatever it holds or however long it waited, and so is one whose run cannot be told", () => {
     for (const liveRun of [true, null]) {
-      expect(treeVerdict(facts({ run: true, liveRun, lastActivity: NOW - STALE_MS - 1, counts: { same: 0, absorbed: 0, only: 6, both: 2 } })).verdict).toBe("run");
-      expect(treeVerdict(facts({ run: true, liveRun, counts: { same: 2, absorbed: 0, only: 0, both: 0 } })).verdict).toBe("run");
+      expect(
+        treeVerdict(
+          facts({
+            run: true,
+            liveRun,
+            lastActivity: NOW - STALE_MS - 1,
+            counts: { same: 0, absorbed: 0, only: 6, both: 2 },
+          }),
+        ).verdict,
+      ).toBe("run");
+      expect(
+        treeVerdict(
+          facts({
+            run: true,
+            liveRun,
+            counts: { same: 2, absorbed: 0, only: 0, both: 0 },
+          }),
+        ).verdict,
+      ).toBe("run");
       expect(treeVerdict(facts({ run: true, liveRun })).verdict).toBe("run");
     }
     // A tree no run made is unaffected by what the runs are doing.
-    expect(treeVerdict(facts({ liveRun: null, counts: { same: 2, absorbed: 0, only: 0, both: 0 } })).verdict).toBe("landed");
+    expect(
+      treeVerdict(
+        facts({
+          liveRun: null,
+          counts: { same: 2, absorbed: 0, only: 0, both: 0 },
+        }),
+      ).verdict,
+    ).toBe("landed");
   });
   test("a held tree is held whatever it holds, its reason in the report, and never prunable", () => {
     const work = { same: 0, absorbed: 0, only: 2, both: 1 };
-    expect(treeVerdict(facts({ held: "deals stays on its branch", counts: work }))).toEqual({ verdict: "held", reason: "held: deals stays on its branch; 2 files only it changed, 1 where main lacks its change" });
-    expect(treeVerdict(facts({ held: "x", run: true, counts: work })).verdict).toBe("held");
-    expect(treeVerdict(facts({ held: "x", liveOwner: true, counts: work })).verdict).toBe("held");
-    expect(treeVerdict(facts({ held: "x", lastActivity: NOW - STALE_MS - 1, counts: work })).verdict).toBe("held");
+    expect(
+      treeVerdict(facts({ held: "deals stays on its branch", counts: work })),
+    ).toEqual({
+      verdict: "held",
+      reason:
+        "held: deals stays on its branch; 2 files only it changed, 1 where main lacks its change",
+    });
+    expect(
+      treeVerdict(facts({ held: "x", run: true, counts: work })).verdict,
+    ).toBe("held");
+    expect(
+      treeVerdict(facts({ held: "x", liveOwner: true, counts: work })).verdict,
+    ).toBe("held");
+    expect(
+      treeVerdict(
+        facts({ held: "x", lastActivity: NOW - STALE_MS - 1, counts: work }),
+      ).verdict,
+    ).toBe("held");
     expect(treeVerdict(facts({ held: "x" })).verdict).toBe("held");
-    expect(treeVerdict(facts({ held: "x", primary: true })).verdict).toBe("primary");
+    expect(treeVerdict(facts({ held: "x", primary: true })).verdict).toBe(
+      "primary",
+    );
     expect(PRUNABLE.has("held")).toBe(false);
   });
 });
@@ -77,79 +228,139 @@ describe("relateTrees", () => {
   // Blob ids stand for contents; "0" is absent.
   const blobs = new Map([
     ["b0", "const settle = 120;\nfunction act() {}\n"],
-    ["w1", "const settle = 120;\nfunction act() { walk(); }\nconst batched = true;\n"],
-    ["w2", "const settle = 60;\nfunction act() { walk(); }\nconst batched = true;\nconst lanes = perPid();\n"],
+    [
+      "w1",
+      "const settle = 120;\nfunction act() { walk(); }\nconst batched = true;\n",
+    ],
+    [
+      "w2",
+      "const settle = 60;\nfunction act() { walk(); }\nconst batched = true;\nconst lanes = perPid();\n",
+    ],
     ["x1", "const settle = 120;\nfunction act() { other(); }\n"],
     ["n1", "export const leaf = 1;\n"],
   ]);
   const ZERO = "0000000000000000000000000000000000000000";
-  const report = (p: string, verdict: TreeReport["verdict"], ago: number, files: Array<[string, string, string]>): TreeReport => ({
-    repo: "r", path: p, branch: "", head: "h", base: "b", primary: false, inUse: null, verdict, reason: "open", lastActivity: NOW - ago, owner: null,
+  const report = (
+    p: string,
+    verdict: TreeReport["verdict"],
+    ago: number,
+    files: Array<[string, string, string]>,
+  ): TreeReport => ({
+    repo: "r",
+    path: p,
+    branch: "",
+    head: "h",
+    base: "b",
+    primary: false,
+    inUse: null,
+    verdict,
+    reason: "open",
+    lastActivity: NOW - ago,
+    owner: null,
     counts: { same: 0, absorbed: 0, only: files.length, both: 0 },
-    files: files.map(([path, src, dst]) => ({ path, status: "M", verdict: "only" as const, src, dst })),
+    files: files.map(([path, src, dst]) => ({
+      path,
+      status: "M",
+      verdict: "only" as const,
+      src,
+      dst,
+    })),
   });
 
   test("a worker's tree whose every change an integration tree holds in a newer form is superseded, and prunable", () => {
-    const worker = report("/w/axwalk", "ready", 5 * 3_600_000, [["main.swift", "b0", "w1"]]);
-    const integrate = report("/w/integrate", "review", 3_600_000, [["main.swift", "b0", "w2"], ["leaf.ts", ZERO, "n1"]]);
+    const worker = report("/w/axwalk", "ready", 5 * 3_600_000, [
+      ["main.swift", "b0", "w1"],
+    ]);
+    const integrate = report("/w/integrate", "review", 3_600_000, [
+      ["main.swift", "b0", "w2"],
+      ["leaf.ts", ZERO, "n1"],
+    ]);
     relateTrees([worker, integrate], blobs);
     expect(worker.verdict).toBe("superseded");
-    expect(worker.reason).toContain("/w/integrate holds all 1 of its unlanded files");
+    expect(worker.reason).toContain(
+      "/w/integrate holds all 1 of its unlanded files",
+    );
     expect(integrate.verdict).toBe("review");
     expect(PRUNABLE.has("superseded")).toBe(true);
   });
 
   test("an older tree never supersedes a newer one, and a held or live tree's newer copy still counts", () => {
-    const newer = report("/w/new", "ready", 3_600_000, [["main.swift", "b0", "w1"]]);
-    const older = report("/w/old", "ready", 9 * 3_600_000, [["main.swift", "b0", "w2"]]);
+    const newer = report("/w/new", "ready", 3_600_000, [
+      ["main.swift", "b0", "w1"],
+    ]);
+    const older = report("/w/old", "ready", 9 * 3_600_000, [
+      ["main.swift", "b0", "w2"],
+    ]);
     relateTrees([newer, older], blobs);
     expect(newer.verdict).toBe("ready");
-    const worker = report("/w/worker", "ready", 5 * 3_600_000, [["main.swift", "b0", "w1"]]);
-    const held = report("/w/held", "held", 3_600_000, [["main.swift", "b0", "w2"]]);
+    const worker = report("/w/worker", "ready", 5 * 3_600_000, [
+      ["main.swift", "b0", "w1"],
+    ]);
+    const held = report("/w/held", "held", 3_600_000, [
+      ["main.swift", "b0", "w2"],
+    ]);
     relateTrees([worker, held], blobs);
     expect(worker.verdict).toBe("superseded");
   });
 
   test("work a deploy already applied to the main checkout supersedes the tree it came from", () => {
-    const worker = report("/w/worker", "ready", 5 * 3_600_000, [["main.swift", "b0", "w1"]]);
-    const checkout = { ...report("/repo", "primary", 60_000, [["main.swift", "b0", "w2"]]), primary: true };
+    const worker = report("/w/worker", "ready", 5 * 3_600_000, [
+      ["main.swift", "b0", "w1"],
+    ]);
+    const checkout = {
+      ...report("/repo", "primary", 60_000, [["main.swift", "b0", "w2"]]),
+      primary: true,
+    };
     relateTrees([checkout, worker], blobs);
     expect(worker.verdict).toBe("superseded");
     expect(checkout.verdict).toBe("primary");
   });
 
   test("of two identical trees only the older goes", () => {
-    const a = report("/w/a", "ready", 2 * 3_600_000, [["main.swift", "b0", "w1"]]);
+    const a = report("/w/a", "ready", 2 * 3_600_000, [
+      ["main.swift", "b0", "w1"],
+    ]);
     const b = report("/w/b", "ready", 3_600_000, [["main.swift", "b0", "w1"]]);
     relateTrees([a, b], blobs);
     expect([a.verdict, b.verdict]).toEqual(["superseded", "ready"]);
   });
 
   test("a tree with a change nobody else holds stays, and different edits to one file are named as overlaps", () => {
-    const a = report("/w/a", "ready", 2 * 3_600_000, [["main.swift", "b0", "x1"]]);
+    const a = report("/w/a", "ready", 2 * 3_600_000, [
+      ["main.swift", "b0", "x1"],
+    ]);
     const b = report("/w/b", "review", 3_600_000, [["main.swift", "b0", "w1"]]);
     relateTrees([a, b], blobs);
     expect(a.verdict).toBe("ready");
     expect(a.overlaps).toEqual([{ path: "/w/b", files: ["main.swift"] }]);
-    expect(b.reason).toContain("overlaps /w/a (1 files): land one, scan again, then the next");
+    expect(b.reason).toContain(
+      "overlaps /w/a (1 files): land one, scan again, then the next",
+    );
   });
 });
 
 describe("absorbedInto", () => {
   const base = "export const a = 1;\nexport const b = 2;\n}\n";
   test("main holding the tree's added lines, moved and among its own edits, absorbs it", () => {
-    const tree = "export const a = 1;\nexport const b = 2;\nexport const added = 3;\n}\n";
-    const main = "export const added = 3;\nexport const a = 10;\nexport const b = 2;\n}\n";
+    const tree =
+      "export const a = 1;\nexport const b = 2;\nexport const added = 3;\n}\n";
+    const main =
+      "export const added = 3;\nexport const a = 10;\nexport const b = 2;\n}\n";
     expect(absorbedInto(base, tree, main)).toBe(true);
   });
   test("main lacking the tree's line does not", () => {
-    const tree = "export const a = 1;\nexport const b = 2;\nexport const added = 3;\n";
-    expect(absorbedInto(base, tree, "export const a = 10;\nexport const b = 2;\n")).toBe(false);
+    const tree =
+      "export const a = 1;\nexport const b = 2;\nexport const added = 3;\n";
+    expect(
+      absorbedInto(base, tree, "export const a = 10;\nexport const b = 2;\n"),
+    ).toBe(false);
   });
   test("a removal is absorbed only when main dropped the line too", () => {
     const tree = "export const a = 1;\n";
     expect(absorbedInto(base, tree, "export const a = 5;\n")).toBe(true);
-    expect(absorbedInto(base, tree, "export const a = 5;\nexport const b = 2;\n")).toBe(false);
+    expect(
+      absorbedInto(base, tree, "export const a = 5;\nexport const b = 2;\n"),
+    ).toBe(false);
   });
 });
 
@@ -169,15 +380,23 @@ describe("fileVerdict", () => {
 });
 
 test("parseWorktreeList marks the first entry primary and drops prunable ones", () => {
-  const out = "worktree /r\nHEAD aaa\nbranch refs/heads/main\n\nworktree /r/w1\nHEAD bbb\nbranch refs/heads/feat/x\nlocked\n\nworktree /gone\nHEAD ccc\ndetached\nprunable gitdir file points to non-existent location\n";
+  const out =
+    "worktree /r\nHEAD aaa\nbranch refs/heads/main\n\nworktree /r/w1\nHEAD bbb\nbranch refs/heads/feat/x\nlocked\n\nworktree /gone\nHEAD ccc\ndetached\nprunable gitdir file points to non-existent location\n";
   expect(parseWorktreeList(out)).toEqual([
     { path: "/r", head: "aaa", branch: "main", locked: false, primary: true },
-    { path: "/r/w1", head: "bbb", branch: "feat/x", locked: true, primary: false },
+    {
+      path: "/r/w1",
+      head: "bbb",
+      branch: "feat/x",
+      locked: true,
+      primary: false,
+    },
   ]);
 });
 
 test("parseRawDiff drops nested worktrees and node_modules symlinks", () => {
-  const z = "0".repeat(40), b = "b".repeat(40);
+  const z = "0".repeat(40),
+    b = "b".repeat(40);
   const out = `:000000 160000 ${z} ${b} A\t.codecast/worktrees/x\n:000000 120000 ${z} ${b} A\tnode_modules\n:000000 120000 ${z} ${b} A\tapps/web/node_modules\n:000000 120000 ${z} ${b} A\tlink\n`;
   expect(parseRawDiff(out).map((r) => r.path)).toEqual(["link"]);
 });
@@ -185,22 +404,46 @@ test("parseRawDiff drops nested worktrees and node_modules symlinks", () => {
 test("parseRawDiff reads blobs, status and paths with spaces", () => {
   const out = `:100644 100644 ${"a".repeat(40)} ${"b".repeat(40)} M\tsrc/a b.ts\n:000000 100644 ${"0".repeat(40)} ${"c".repeat(40)} A\tnew.ts\n`;
   expect(parseRawDiff(out)).toEqual([
-    { src: "a".repeat(40), dst: "b".repeat(40), status: "M", path: "src/a b.ts", mode: "100644" },
-    { src: "0".repeat(40), dst: "c".repeat(40), status: "A", path: "new.ts", mode: "100644" },
+    {
+      src: "a".repeat(40),
+      dst: "b".repeat(40),
+      status: "M",
+      path: "src/a b.ts",
+      mode: "100644",
+    },
+    {
+      src: "0".repeat(40),
+      dst: "c".repeat(40),
+      status: "A",
+      path: "new.ts",
+      mode: "100644",
+    },
   ]);
 });
 
 test("ownerOf matches by path or codecast worktree name; ownerIsLive needs an active, recent row", () => {
   const roster = [
-    { short_id: "a", project_path: "/r/.claude/worktrees/agent-1/sub", work_state: "working", updated_at: NOW },
-    { short_id: "b", worktree_name: "fix-x", work_state: "done", updated_at: NOW },
+    {
+      short_id: "a",
+      project_path: "/r/.claude/worktrees/agent-1/sub",
+      work_state: "working",
+      updated_at: NOW,
+    },
+    {
+      short_id: "b",
+      worktree_name: "fix-x",
+      work_state: "done",
+      updated_at: NOW,
+    },
   ];
   expect(ownerOf("/r/.claude/worktrees/agent-1", roster)?.short_id).toBe("a");
   expect(ownerOf("/r/.claude/worktrees/agent-10", roster)).toBeNull();
   expect(ownerOf("/r/.codecast/worktrees/fix-x", roster)?.short_id).toBe("b");
   expect(ownerIsLive(roster[0], NOW)).toBe(true);
   expect(ownerIsLive(roster[1], NOW)).toBe(false);
-  expect(ownerIsLive({ ...roster[0], updated_at: NOW - 4 * 86_400_000 }, NOW)).toBe(false);
+  expect(
+    ownerIsLive({ ...roster[0], updated_at: NOW - 4 * 86_400_000 }, NOW),
+  ).toBe(false);
 });
 
 describe("against a real repo", () => {
@@ -210,69 +453,148 @@ describe("against a real repo", () => {
   const sh = (cwd: string, ...args: string[]) => shAt(0, cwd, ...args);
   const shAt = (when: number, cwd: string, ...args: string[]) => {
     const date = `${Math.floor((Date.now() - when) / 1000)} +0000`;
-    return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date } }).trim();
+    return execFileSync("git", ["-C", cwd, ...args], {
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "t",
+        GIT_AUTHOR_EMAIL: "t@t",
+        GIT_COMMITTER_NAME: "t",
+        GIT_COMMITTER_EMAIL: "t@t",
+        GIT_AUTHOR_DATE: date,
+        GIT_COMMITTER_DATE: date,
+      },
+    }).trim();
   };
-  const write = (p: string, s: string) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
+  const write = (p: string, s: string) => {
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, s);
+  };
   const age = (tree: string, ms: number) => {
     const t = new Date(Date.now() - ms);
-    for (const f of [sh(tree, "diff", "HEAD", "--name-only"), sh(tree, "ls-files", "-o", "--exclude-standard")].join("\n").split("\n").filter(Boolean)) fs.utimesSync(path.join(tree, f), t, t);
-    fs.utimesSync(sh(tree, "rev-parse", "--path-format=absolute", "--git-path", "index"), t, t);
+    for (const f of [
+      sh(tree, "diff", "HEAD", "--name-only"),
+      sh(tree, "ls-files", "-o", "--exclude-standard"),
+    ]
+      .join("\n")
+      .split("\n")
+      .filter(Boolean))
+      fs.utimesSync(path.join(tree, f), t, t);
+    fs.utimesSync(
+      sh(tree, "rev-parse", "--path-format=absolute", "--git-path", "index"),
+      t,
+      t,
+    );
     // git stamps a worktree's creation reflog with the real clock whatever GIT_COMMITTER_DATE says.
-    const log = sh(tree, "rev-parse", "--path-format=absolute", "--git-path", "logs/HEAD");
+    const log = sh(
+      tree,
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      "logs/HEAD",
+    );
     const secs = Math.floor(t.getTime() / 1000);
-    fs.writeFileSync(log, fs.readFileSync(log, "utf-8").replace(/> \d+ ([+-]\d{4}\t)/g, `> ${secs} $1`));
+    fs.writeFileSync(
+      log,
+      fs
+        .readFileSync(log, "utf-8")
+        .replace(/> \d+ ([+-]\d{4}\t)/g, `> ${secs} $1`),
+    );
   };
   const day = 86_400_000;
-  const wt = (name: string, when = 0) => { const p = path.join(root, ".claude", "worktrees", name); shAt(when, root, "worktree", "add", "-q", "-b", name, p); return p; };
+  const wt = (name: string, when = 0) => {
+    const p = path.join(root, ".claude", "worktrees", name);
+    shAt(when, root, "worktree", "add", "-q", "-b", name, p);
+    return p;
+  };
   let scan: RepoScan;
-  const tree = (name: string) => scan.trees.find((t) => t.path.endsWith(`/${name}`))!;
+  const tree = (name: string) =>
+    scan.trees.find((t) => t.path.endsWith(`/${name}`))!;
 
   beforeAll(async () => {
     dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "land-test-")));
     sh(dir, "init", "-q", "--bare", "-b", "main", "origin.git");
     root = path.join(dir, "repo");
     sh(dir, "clone", "-q", path.join(dir, "origin.git"), "repo");
-    write(path.join(root, "a.ts"), "a\n"); write(path.join(root, "b.ts"), "b\n");
-    write(path.join(root, "c.ts"), "export const c = 1;\nexport const keep = true;\n");
+    write(path.join(root, "a.ts"), "a\n");
+    write(path.join(root, "b.ts"), "b\n");
+    write(
+      path.join(root, "c.ts"),
+      "export const c = 1;\nexport const keep = true;\n",
+    );
     write(path.join(root, "d.ts"), "export const d = 1;\n");
-    sh(root, "add", "-A"); sh(root, "commit", "-q", "-m", "init"); sh(root, "push", "-q", "origin", "HEAD:main");
+    sh(root, "add", "-A");
+    sh(root, "commit", "-q", "-m", "init");
+    sh(root, "push", "-q", "origin", "HEAD:main");
     sh(root, "remote", "set-head", "origin", "main");
 
-    const empty = wt("empty", 3 * day); age(empty, 3 * day);
+    const empty = wt("empty", 3 * day);
+    age(empty, 3 * day);
     const ready = wt("ready", 1 * day);
-    write(path.join(ready, "a.ts"), "a2\n"); write(path.join(ready, "new.ts"), "n\n");
+    write(path.join(ready, "a.ts"), "a2\n");
+    write(path.join(ready, "new.ts"), "n\n");
     sh(ready, "add", "a.ts"); // staged: the scan must leave it staged
     age(ready, 1 * day);
-    const landed = wt("landed", 2 * day); write(path.join(landed, "b.ts"), "b2\n"); age(landed, 2 * day);
+    const landed = wt("landed", 2 * day);
+    write(path.join(landed, "b.ts"), "b2\n");
+    age(landed, 2 * day);
     const absorbed = wt("absorbed", 5 * day);
-    write(path.join(absorbed, "c.ts"), "export const c = 1;\nexport const keep = true;\nexport const added = 2;\n"); age(absorbed, 5 * day);
-    const conflict = wt("conflict", 1 * day); write(path.join(conflict, "d.ts"), "export const d = 2;\n"); age(conflict, 1 * day);
-    const stale = wt("stale", 10 * day); write(path.join(stale, "stale.ts"), "s\n"); age(stale, 10 * day);
-    const live = wt("live"); write(path.join(live, "live.ts"), "l\n");
+    write(
+      path.join(absorbed, "c.ts"),
+      "export const c = 1;\nexport const keep = true;\nexport const added = 2;\n",
+    );
+    age(absorbed, 5 * day);
+    const conflict = wt("conflict", 1 * day);
+    write(path.join(conflict, "d.ts"), "export const d = 2;\n");
+    age(conflict, 1 * day);
+    const stale = wt("stale", 10 * day);
+    write(path.join(stale, "stale.ts"), "s\n");
+    age(stale, 10 * day);
+    const live = wt("live");
+    write(path.join(live, "live.ts"), "l\n");
     // A tree a line run made: the run's files sit under the checkout's run dirs by the tree's name.
-    const run = wt("line-ct-1", 1 * day); write(path.join(run, "fix.ts"), "f\n"); age(run, 1 * day);
-    fs.mkdirSync(path.join(root, ".git", "cast-line", "line-ct-1"), { recursive: true });
+    const run = wt("line-ct-1", 1 * day);
+    write(path.join(run, "fix.ts"), "f\n");
+    age(run, 1 * day);
+    fs.mkdirSync(path.join(root, ".git", "cast-line", "line-ct-1"), {
+      recursive: true,
+    });
     // Held trees: one with work ready to land, one holding nothing, which prune must keep too.
-    const held = wt("held", 1 * day); write(path.join(held, "deals.ts"), "d\n"); age(held, 1 * day);
+    const held = wt("held", 1 * day);
+    write(path.join(held, "deals.ts"), "d\n");
+    age(held, 1 * day);
     writeHold(held, "deals stays on its branch until Ship");
-    const heldEmpty = wt("held-empty", 3 * day); age(heldEmpty, 3 * day);
+    const heldEmpty = wt("held-empty", 3 * day);
+    age(heldEmpty, 3 * day);
     writeHold(heldEmpty, "parked");
     // A hold marked and then released counts for nothing.
-    const released = wt("released", 1 * day); write(path.join(released, "rel.ts"), "r\n"); age(released, 1 * day);
-    writeHold(released, "briefly"); expect(clearHold(released)).toBe(true); expect(readHold(released)).toBeNull();
+    const released = wt("released", 1 * day);
+    write(path.join(released, "rel.ts"), "r\n");
+    age(released, 1 * day);
+    writeHold(released, "briefly");
+    expect(clearHold(released)).toBe(true);
+    expect(readHold(released)).toBeNull();
     // An empty tree nested inside the live one stays with it.
     const underLive = path.join(live, ".codecast", "worktrees", "under-live");
-    shAt(3 * day, root, "worktree", "add", "-q", "-b", "under-live", underLive); age(underLive, 3 * day);
+    shAt(3 * day, root, "worktree", "add", "-q", "-b", "under-live", underLive);
+    age(underLive, 3 * day);
     // Nested: an outer empty tree holding an inner one with work, which must keep the outer.
-    const outer = wt("outer", 3 * day); age(outer, 3 * day);
+    const outer = wt("outer", 3 * day);
+    age(outer, 3 * day);
     const inner = path.join(outer, ".codecast", "worktrees", "inner");
-    shAt(day, root, "worktree", "add", "-q", "-b", "inner", inner); write(path.join(inner, "inner.ts"), "i\n"); age(inner, 1 * day);
+    shAt(day, root, "worktree", "add", "-q", "-b", "inner", inner);
+    write(path.join(inner, "inner.ts"), "i\n");
+    age(inner, 1 * day);
 
     // Main lands b.ts as is, lands c.ts's added line inside its own rework, and changes d.ts its own way.
     write(path.join(root, "b.ts"), "b2\n");
-    write(path.join(root, "c.ts"), "export const c = 10;\nexport const keep = true;\nexport const added = 2;\n");
+    write(
+      path.join(root, "c.ts"),
+      "export const c = 10;\nexport const keep = true;\nexport const added = 2;\n",
+    );
     write(path.join(root, "d.ts"), "export const d = 3;\n");
-    sh(root, "commit", "-q", "-am", "main moves"); sh(root, "push", "-q", "origin", "HEAD:main");
+    sh(root, "commit", "-q", "-am", "main moves");
+    sh(root, "push", "-q", "origin", "HEAD:main");
     scan = await scanRepo(root, { roster: [], processCwds: [], fetch: true });
   }, 120_000);
   afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -281,17 +603,29 @@ describe("against a real repo", () => {
     expect(tree("repo").verdict).toBe("primary");
     expect(tree("empty").verdict).toBe("empty");
     expect(tree("ready").verdict).toBe("ready");
-    expect(tree("ready").counts).toEqual({ same: 0, absorbed: 0, only: 2, both: 0 });
+    expect(tree("ready").counts).toEqual({
+      same: 0,
+      absorbed: 0,
+      only: 2,
+      both: 0,
+    });
     expect(tree("landed").verdict).toBe("landed");
     expect(tree("absorbed").verdict).toBe("landed");
-    expect(tree("absorbed").counts).toEqual({ same: 0, absorbed: 1, only: 0, both: 0 });
+    expect(tree("absorbed").counts).toEqual({
+      same: 0,
+      absorbed: 1,
+      only: 0,
+      both: 0,
+    });
     expect(tree("conflict").verdict).toBe("review");
     expect(tree("stale").verdict).toBe("stale");
     expect(tree("live").verdict).toBe("live");
     expect(tree("inner").verdict).toBe("ready");
     expect(tree("line-ct-1").verdict).toBe("run");
     expect(tree("held").verdict).toBe("held");
-    expect(tree("held").reason).toStartWith("held: deals stays on its branch until Ship; 1 files only it changed");
+    expect(tree("held").reason).toStartWith(
+      "held: deals stays on its branch until Ship; 1 files only it changed",
+    );
     expect(tree("held-empty").verdict).toBe("held");
     expect(tree("released").verdict).toBe("ready");
   });
@@ -299,32 +633,54 @@ describe("against a real repo", () => {
   test("the hold marker sits in the tree's git dir, never among its changes", () => {
     expect(tree("held").files.map((f) => f.path)).toEqual(["deals.ts"]);
     expect(sh(tree("held").path, "status", "--porcelain")).toBe("?? deals.ts");
-    expect(readHold(tree("held").path)?.reason).toBe("deals stays on its branch until Ship");
+    expect(readHold(tree("held").path)?.reason).toBe(
+      "deals stays on its branch until Ship",
+    );
   });
 
   test("a scan never touches a worktree's own index", () => {
-    expect(sh(tree("ready").path, "diff", "--cached", "--name-only")).toBe("a.ts");
-    expect(sh(tree("ready").path, "status", "--porcelain")).toContain("?? new.ts");
+    expect(sh(tree("ready").path, "diff", "--cached", "--name-only")).toBe(
+      "a.ts",
+    );
+    expect(sh(tree("ready").path, "status", "--porcelain")).toContain(
+      "?? new.ts",
+    );
   });
 
   test("the only-files patch applies to main", async () => {
     const patch = await treePatch(tree("ready"), ["only"]);
-    const p = path.join(dir, "ready.patch"); fs.writeFileSync(p, patch);
+    const p = path.join(dir, "ready.patch");
+    fs.writeFileSync(p, patch);
     sh(root, "apply", "--check", p);
   }, 60_000);
 
   test("prune keeps a tree whose nested worktree stays, and archives what it removes", async () => {
-    const landScan: LandScan = { scannedAt: new Date().toISOString(), machine: "t", roster: "ok", repos: [scan] };
+    const landScan: LandScan = {
+      scannedAt: new Date().toISOString(),
+      machine: "t",
+      roster: "ok",
+      repos: [scan],
+    };
     const { go, held } = pruneTargets(landScan);
-    expect(go.map((t) => path.basename(t.path)).sort()).toEqual(["absorbed", "empty", "landed", "stale"]);
-    expect(held.map((h) => path.basename(h.tree.path)).sort()).toEqual(["outer", "under-live"]);
+    expect(go.map((t) => path.basename(t.path)).sort()).toEqual([
+      "absorbed",
+      "empty",
+      "landed",
+      "stale",
+    ]);
+    expect(held.map((h) => path.basename(h.tree.path)).sort()).toEqual([
+      "outer",
+      "under-live",
+    ]);
     expect(pruneTargets({ ...landScan, roster: "offline" }).go).toEqual([]);
 
     process.env.CODECAST_DIR = path.join(dir, "codecast-home");
     const r = await pruneTree(tree("stale"), root);
     expect(fs.existsSync(tree("stale").path)).toBe(false);
     expect(fs.readFileSync(r.archived!, "utf-8")).toContain("stale.ts");
-    expect(sh(root, "rev-parse", `${ARCHIVE_REF_PREFIX}stale`)).toBe(tree("stale").head);
+    expect(sh(root, "rev-parse", `${ARCHIVE_REF_PREFIX}stale`)).toBe(
+      tree("stale").head,
+    );
     expect(sh(root, "branch", "--list", "stale")).toBe("");
     expect(sh(root, "worktree", "list")).not.toContain("/stale ");
   }, 60_000);

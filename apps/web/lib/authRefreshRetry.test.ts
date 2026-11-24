@@ -3,20 +3,41 @@
 // throws, the ct-91563 patch returns the old token) is covered here directly;
 // lib/__tests__/authRefreshOffline.test.ts renders the whole auth root.
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { installRefreshRetry, isRefreshInTransit, retryRefreshInTransit } from "./authRefreshRetry";
+import {
+  installRefreshRetry,
+  isRefreshInTransit,
+  retryRefreshInTransit,
+} from "./authRefreshRetry";
 
 const fakeWindow = new EventTarget();
 let onLine = true;
-const saved = { window: Object.getOwnPropertyDescriptor(globalThis, "window"), navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator") };
-Object.defineProperty(globalThis, "window", { value: fakeWindow, configurable: true, writable: true });
-Object.defineProperty(globalThis, "navigator", { value: { get onLine() { return onLine; } }, configurable: true, writable: true });
+const saved = {
+  window: Object.getOwnPropertyDescriptor(globalThis, "window"),
+  navigator: Object.getOwnPropertyDescriptor(globalThis, "navigator"),
+};
+Object.defineProperty(globalThis, "window", {
+  value: fakeWindow,
+  configurable: true,
+  writable: true,
+});
+Object.defineProperty(globalThis, "navigator", {
+  value: {
+    get onLine() {
+      return onLine;
+    },
+  },
+  configurable: true,
+  writable: true,
+});
 afterAll(() => {
   for (const key of ["window", "navigator"] as const) {
     if (saved[key]) Object.defineProperty(globalThis, key, saved[key]!);
     else delete (globalThis as any)[key];
   }
 });
-beforeEach(() => { onLine = true; });
+beforeEach(() => {
+  onLine = true;
+});
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -32,12 +53,17 @@ describe("retryRefreshInTransit (ct-74162)", () => {
     expect(await wrapped({ forceRefreshToken: false })).toBe("old");
     expect(await wrapped({ forceRefreshToken: true })).toBe("fresh");
     expect(calls.length).toBe(3);
-    for (let i = 1; i < calls.length; i++) expect(calls[i] - calls[i - 1]).toBeGreaterThanOrEqual(990);
+    for (let i = 1; i < calls.length; i++)
+      expect(calls[i] - calls[i - 1]).toBeGreaterThanOrEqual(990);
   }, 10000);
 
   test("the patched library's give-up (the same token back) is retried, not reported as a sign-out", async () => {
     let n = 0;
-    const wrapped = retryRefreshInTransit(async ({ forceRefreshToken }) => (forceRefreshToken && ++n >= 2 ? "fresh" : "old"), new AbortController().signal);
+    const wrapped = retryRefreshInTransit(
+      async ({ forceRefreshToken }) =>
+        forceRefreshToken && ++n >= 2 ? "fresh" : "old",
+      new AbortController().signal,
+    );
     await wrapped({ forceRefreshToken: false });
     expect(await wrapped({ forceRefreshToken: true })).toBe("fresh");
     expect(n).toBe(2);
@@ -60,21 +86,35 @@ describe("retryRefreshInTransit (ct-74162)", () => {
   }, 10000);
 
   test("a real refusal passes straight through: null signs out, an error from the function rejects", async () => {
-    const refused = retryRefreshInTransit(async () => null, new AbortController().signal);
+    const refused = retryRefreshInTransit(
+      async () => null,
+      new AbortController().signal,
+    );
     expect(await refused({ forceRefreshToken: true })).toBeNull();
-    const failing = retryRefreshInTransit(async () => { throw new Error("[Request ID: 3f2a] Server Error"); }, new AbortController().signal);
-    await expect(failing({ forceRefreshToken: true })).rejects.toThrow("Server Error");
+    const failing = retryRefreshInTransit(async () => {
+      throw new Error("[Request ID: 3f2a] Server Error");
+    }, new AbortController().signal);
+    await expect(failing({ forceRefreshToken: true })).rejects.toThrow(
+      "Server Error",
+    );
   });
 
   test("a newer setAuth or clearAuth ends the old config's retry loop", async () => {
     let n = 0;
     const client = {
-      setAuth: (fetchToken: any) => { void fetchToken({ forceRefreshToken: true }).then((t: unknown) => results.push(t)); },
+      setAuth: (fetchToken: any) => {
+        void fetchToken({ forceRefreshToken: true }).then((t: unknown) =>
+          results.push(t),
+        );
+      },
       clearAuth: () => {},
     };
     const results: unknown[] = [];
     installRefreshRetry(client);
-    client.setAuth(async () => { n++; throw new TypeError("Failed to fetch"); });
+    client.setAuth(async () => {
+      n++;
+      throw new TypeError("Failed to fetch");
+    });
     await sleep(50);
     client.clearAuth();
     await sleep(1500);
@@ -84,14 +124,41 @@ describe("retryRefreshInTransit (ct-74162)", () => {
 
   test("classifies transit failures", () => {
     expect(isRefreshInTransit(new TypeError("Failed to fetch"))).toBe(true);
-    expect(isRefreshInTransit(Object.assign(new Error("x"), { codecastInTransit: true }))).toBe(true);
-    expect(isRefreshInTransit(new Error('{"code":"ExpiredInQueue"}'))).toBe(true);
-    expect(isRefreshInTransit(new Error("<html><title>503 Service Unavailable</title></html>"))).toBe(true);
+    expect(
+      isRefreshInTransit(
+        Object.assign(new Error("x"), { codecastInTransit: true }),
+      ),
+    ).toBe(true);
+    expect(isRefreshInTransit(new Error('{"code":"ExpiredInQueue"}'))).toBe(
+      true,
+    );
+    expect(
+      isRefreshInTransit(
+        new Error("<html><title>503 Service Unavailable</title></html>"),
+      ),
+    ).toBe(true);
     // A backend 5xx the http client throws verbatim never reached the auth function.
-    expect(isRefreshInTransit(new Error('{"code":"InternalServerError","message":"Your request could not be completed. Try again later."}'))).toBe(true);
+    expect(
+      isRefreshInTransit(
+        new Error(
+          '{"code":"InternalServerError","message":"Your request could not be completed. Try again later."}',
+        ),
+      ),
+    ).toBe(true);
     // The 560 path: the auth function itself answered with an error.
-    expect(isRefreshInTransit(new Error("[Request ID: 3f2a] Server Error"))).toBe(false);
-    expect(isRefreshInTransit(new Error("Uncaught Error: Could not verify code"))).toBe(false);
-    expect(isRefreshInTransit(Object.assign(new Error("refused"), { name: "ConvexError", data: "refused" }))).toBe(false);
+    expect(
+      isRefreshInTransit(new Error("[Request ID: 3f2a] Server Error")),
+    ).toBe(false);
+    expect(
+      isRefreshInTransit(new Error("Uncaught Error: Could not verify code")),
+    ).toBe(false);
+    expect(
+      isRefreshInTransit(
+        Object.assign(new Error("refused"), {
+          name: "ConvexError",
+          data: "refused",
+        }),
+      ),
+    ).toBe(false);
   });
 });

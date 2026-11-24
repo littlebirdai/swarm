@@ -17,7 +17,13 @@
 // reads the raw collection in the body.
 
 import { titleLine } from "@codecast/shared/contracts";
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useIsSyncHost } from "./useSyncRole";
 import { agentName, agentTitle, type AnchorRow } from "./useSyncAnchors";
 import { useConvex } from "convex/react";
@@ -40,16 +46,37 @@ import {
   type ChatRailChannel,
   type ChatRailScope,
 } from "../store/inboxStore";
-import { channelsSig, messagesSig, railMessagesSig, railSig, reactionsSig, readsSig, seatSig, sessionOriginSig, slackLinksSig } from "../store/chatWakeSigs";
+import {
+  channelsSig,
+  messagesSig,
+  railMessagesSig,
+  railSig,
+  reactionsSig,
+  readsSig,
+  seatSig,
+  sessionOriginSig,
+  slackLinksSig,
+} from "../store/chatWakeSigs";
 import { memberListSig } from "./useTeamRoster";
 import { roleRowsOf, roleRowsSig } from "../lib/roleRows";
-import { identityRowOf, roleOfUser, sessionIdentity, withLiveRole, type IdentityPrefs, type RoleRows } from "../lib/sessionIdentity";
+import {
+  identityRowOf,
+  roleOfUser,
+  sessionIdentity,
+  withLiveRole,
+  type IdentityPrefs,
+  type RoleRows,
+} from "../lib/sessionIdentity";
 import { identityPrefsNow, useIdentityPrefs } from "./useIdentityPrefs";
 import type { SessionPersona } from "../lib/chatViews";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useTeamFeature } from "../lib/teamFeatures";
-import { isChatRailLive, markChatRailLive, subscribeChatRailLive } from "../lib/chatLive";
+import {
+  isChatRailLive,
+  markChatRailLive,
+  subscribeChatRailLive,
+} from "../lib/chatLive";
 import { isConvexId } from "../lib/entityLinks";
 import { activeTeamIdOf, teamMembersOf } from "../lib/activeTeam";
 import {
@@ -110,7 +137,9 @@ export function useChatChannelsSync(): { error?: Error } {
     // the workspace the client is actually showing. In the personal workspace
     // chat has no scope at all, so there is nothing to subscribe to.
     // Follower windows receive the channel rail over replication instead.
-    chatOn && isSyncHost && teamId && isConvexId(teamId) ? { team_id: teamId } : "skip",
+    chatOn && isSyncHost && teamId && isConvexId(teamId)
+      ? { team_id: teamId }
+      : "skip",
   );
 
   // The workspace's people, on the same gate. Its own subscription because a
@@ -120,9 +149,19 @@ export function useChatChannelsSync(): { error?: Error } {
     "chatSlackPeople",
     api.slackSync.listSlackPeople,
     feedPeople ? { team_id: teamId } : "skip",
-    useMemo(() => ({
-      select: (d: any) => d === null ? [] : d?.people?.map((p: any) => ({ ...p, _id: p.slack_user_id, team_id: teamId })),
-    }), [teamId]),
+    useMemo(
+      () => ({
+        select: (d: any) =>
+          d === null
+            ? []
+            : d?.people?.map((p: any) => ({
+                ...p,
+                _id: p.slack_user_id,
+                team_id: teamId,
+              })),
+      }),
+      [teamId],
+    ),
   );
 
   useConvexSync(
@@ -133,13 +172,16 @@ export function useChatChannelsSync(): { error?: Error } {
         // The team's complete visible set: a cached room of this team the
         // push omits is one the viewer can no longer read. No team (a signed
         // out answer) means no scope to prune.
-        const prune = data.team_id ? teamChannelPushOpts(String(data.team_id)) : undefined;
+        const prune = data.team_id
+          ? teamChannelPushOpts(String(data.team_id))
+          : undefined;
         syncTable("chatChannels", data.channels ?? [], prune);
         syncTable("chatReads", data.reads ?? [], prune);
         syncTable("chatSlackLinks", data.slack_links ?? []);
         // A DM's unread lines land before the rail that counts them, so no
         // face or row is badged for a line the cache does not hold.
-        if (data.unread_dm_messages?.length) syncTable("chatMessages", data.unread_dm_messages);
+        if (data.unread_dm_messages?.length)
+          syncTable("chatMessages", data.unread_dm_messages);
         syncChatRail(syncTable, data.rail ?? [], "team");
         // This rail came from the server, not from IndexedDB. Only now is a
         // change in it evidence that something ARRIVED — see lib/chatLive.
@@ -170,11 +212,14 @@ function syncChatRail(
   scope: ChatRailScope,
 ): void {
   const s = useInboxStore.getState() as any;
-  const isCommunity = (row: ChatRailRow) => s.chatChannels?.[String(row.channel_id)]?.kind === "community";
+  const isCommunity = (row: ChatRailRow) =>
+    s.chatChannels?.[String(row.channel_id)]?.kind === "community";
   const incomingIds = new Set(incoming.map((r) => String(r.channel_id)));
-  const kept = ((s.chatRail ?? []) as ChatRailRow[]).filter((row) =>
-    !incomingIds.has(String(row.channel_id))
-    && (scope === "community" ? !isCommunity(row) : isCommunity(row)));
+  const kept = ((s.chatRail ?? []) as ChatRailRow[]).filter(
+    (row) =>
+      !incomingIds.has(String(row.channel_id)) &&
+      (scope === "community" ? !isCommunity(row) : isCommunity(row)),
+  );
   syncTable("chatRail", [...kept, ...incoming]);
 }
 
@@ -184,9 +229,15 @@ function syncChatRail(
  * community page mounts it, nothing else does — so it runs in follower
  * windows too and never gates on the sync host.
  */
-export function useCommunityChannelsSync(enabled: boolean): { error?: Error; loading: boolean } {
+export function useCommunityChannelsSync(enabled: boolean): {
+  error?: Error;
+  loading: boolean;
+} {
   const syncTable = useInboxStore((s) => s.syncTable);
-  const { data: result, error } = useQueryNoThrow(api.chat.listCommunityChannels, enabled ? {} : "skip");
+  const { data: result, error } = useQueryNoThrow(
+    api.chat.listCommunityChannels,
+    enabled ? {} : "skip",
+  );
   useConvexSync(
     result,
     useCallback(
@@ -244,7 +295,9 @@ export type ChannelFeed = {
  * only rows at or above it. Every page lowers the floor; exhausting history
  * drops it to zero.
  */
-export function useChannelMessagesSync(channelId: string | undefined): ChannelFeed {
+export function useChannelMessagesSync(
+  channelId: string | undefined,
+): ChannelFeed {
   const syncTable = useInboxStore((s) => s.syncTable);
   const convex = useConvex();
   const live = channelId && isConvexId(channelId);
@@ -294,7 +347,9 @@ export function useChannelMessagesSync(channelId: string | undefined): ChannelFe
         const messages = ingestChatPage(data, convex);
         // Only seed the history cursor; never let a live re-push rewind a
         // cursor the reader has already paged past.
-        setOlderCursor((prev) => (prev === null ? (data.next_cursor ?? null) : prev));
+        setOlderCursor((prev) =>
+          prev === null ? (data.next_cursor ?? null) : prev,
+        );
         lowerFloor(messages, !!data.has_more);
       },
       [syncTable, convex, channelId],
@@ -306,7 +361,11 @@ export function useChannelMessagesSync(channelId: string | undefined): ChannelFe
     const forChannel = channelId;
     setIsLoadingOlder(true);
     void convex
-      .query(api.chat.listMessages, { channel_id: forChannel, cursor: olderCursor, limit: PAGE_SIZE })
+      .query(api.chat.listMessages, {
+        channel_id: forChannel,
+        cursor: olderCursor,
+        limit: PAGE_SIZE,
+      })
       .then((page: any) => {
         // The reader switched channels while the page was in flight — its rows
         // belong to a channel nothing is showing, so drop them.
@@ -329,11 +388,16 @@ export function useChannelMessagesSync(channelId: string | undefined): ChannelFe
     if (!live) return;
     const forChannel = channelId;
     void convex
-      .query(api.chat.listMessages, { channel_id: forChannel, limit: PAGE_SIZE })
+      .query(api.chat.listMessages, {
+        channel_id: forChannel,
+        limit: PAGE_SIZE,
+      })
       .then((page: any) => {
         if (channelRef.current !== forChannel) return;
         const messages = ingestChatPage(page, convex);
-        setOlderCursor((prev) => (prev === null ? (page?.next_cursor ?? null) : prev));
+        setOlderCursor((prev) =>
+          prev === null ? (page?.next_cursor ?? null) : prev,
+        );
         lowerFloor(messages, !!page?.has_more);
         setRecovered(true);
       })
@@ -369,7 +433,10 @@ export function useThreadSync(rootId: string | undefined): {
 } {
   const convex = useConvex();
   const live = rootId && isConvexId(rootId);
-  const { data: result, error } = useQueryNoThrow(api.chat.getThread, live ? { root_id: rootId } : "skip");
+  const { data: result, error } = useQueryNoThrow(
+    api.chat.getThread,
+    live ? { root_id: rootId } : "skip",
+  );
 
   useConvexSync(
     result,
@@ -397,7 +464,12 @@ export function useThreadSync(rootId: string | undefined): {
 /** The viewer plus the team roster, as chat identity. Bots (the anchor) are
  *  members too — chat.ts resolves their handles off the roster, so the client
  *  must draw its faces from the same list. */
-export function useChatMembers(): { members: ChatMember[]; byId: Map<string, ChatMember>; viewerId: string; handles: HandleSets } {
+export function useChatMembers(): {
+  members: ChatMember[];
+  byId: Map<string, ChatMember>;
+  viewerId: string;
+  handles: HandleSets;
+} {
   const s = useTrackedStore([
     (s: any) => memberListSig(teamMembersOf(s)),
     (s: any) => s.currentUser?._id,
@@ -413,15 +485,19 @@ export function useChatMembers(): { members: ChatMember[]; byId: Map<string, Cha
   const roster: any[] = teamMembersOf(s);
   const sig = memberListSig(roster);
   const botsSig = anchorBotsSig((s as any).anchors);
-  const authors = (s as any).chatAuthors as Record<string, ChatMember> | undefined;
+  const authors = (s as any).chatAuthors as
+    | Record<string, ChatMember>
+    | undefined;
   const me = s.currentUser;
   const prefs = useIdentityPrefs();
   return useMemo(() => {
     const byId = new Map<string, ChatMember>();
-    for (const m of roster) if (m?._id) byId.set(String(m._id), m as ChatMember);
+    for (const m of roster)
+      if (m?._id) byId.set(String(m._id), m as ChatMember);
     // The viewer is in their own team roster, but a just-joined client can hold
     // the user before the roster lands.
-    if (viewerId && !byId.has(viewerId) && me) byId.set(viewerId, me as ChatMember);
+    if (viewerId && !byId.has(viewerId) && me)
+      byId.set(viewerId, me as ChatMember);
     // Handles and pickers come from the ROSTER only: a team anchor is on it,
     // a personal one is not (it belongs to one person, not the team).
     const members = [...byId.values()];
@@ -457,7 +533,12 @@ function anchorBots(anchors: Record<string, any> | undefined): ChatMember[] {
   for (const id in anchors ?? {}) {
     const a = anchors![id];
     if (!a?.bot_user_id || a.status === "decommissioned") continue;
-    out.push({ _id: String(a.bot_user_id), name: a.role?.name ?? a.bot_name ?? a.name ?? "Workspace agent", image: a.bot_avatar ?? null, is_bot: true } as ChatMember);
+    out.push({
+      _id: String(a.bot_user_id),
+      name: a.role?.name ?? a.bot_name ?? a.name ?? "Workspace agent",
+      image: a.bot_avatar ?? null,
+      is_bot: true,
+    } as ChatMember);
   }
   return out;
 }
@@ -474,7 +555,11 @@ function anchorBotsSig(anchors: Record<string, any> | undefined): string {
 /** The channel rail, already sorted and counted. */
 export function useChatRail(scope: ChatRailScope = "team"): ChatRailChannel[] {
   // Once a server payload has landed, a room missing from the rail is gone.
-  const railLive = useSyncExternalStore(subscribeChatRailLive, isChatRailLive, () => false);
+  const railLive = useSyncExternalStore(
+    subscribeChatRailLive,
+    isChatRailLive,
+    () => false,
+  );
   const s = useTrackedStore([
     (s: any) => channelsSig(s.chatChannels),
     (s: any) => readsSig(s.chatReads),
@@ -488,14 +573,24 @@ export function useChatRail(scope: ChatRailScope = "team"): ChatRailChannel[] {
   // No currentUser.team_id fallback: undefined MEANS the personal workspace, and
   // falling back to a team would resurrect team rooms the user left.
   const teamId = activeTeamIdOf(s);
-  return selectChatRail(s as any, String(s.currentUser?._id ?? ""), teamId ? String(teamId) : undefined, scope, railLive);
+  return selectChatRail(
+    s as any,
+    String(s.currentUser?._id ?? ""),
+    teamId ? String(teamId) : undefined,
+    scope,
+    railLive,
+  );
 }
 
 /** The session that typed a chat line, as its lines show it: its title and
  *  agent, and the role or character it speaks as (the way its transcript
  *  names it). A chat row names its session by conversation id (rows written
  *  before 2026-09-01 by the agent's own session id), so both key the map. */
-export function sessionPersonasFrom(sessions: Record<string, any> | undefined, tree: RoleRows | null | undefined, prefs: IdentityPrefs): (sessionId: string) => SessionPersona | undefined {
+export function sessionPersonasFrom(
+  sessions: Record<string, any> | undefined,
+  tree: RoleRows | null | undefined,
+  prefs: IdentityPrefs,
+): (sessionId: string) => SessionPersona | undefined {
   const map = new Map<string, SessionPersona>();
   for (const row of Object.values(sessions ?? {}) as any[]) {
     if (!row?._id && !row?.session_id) continue;
@@ -504,9 +599,20 @@ export function sessionPersonasFrom(sessions: Record<string, any> | undefined, t
     const persona: SessionPersona = {
       title: titleLine(row.display_title || row.title) || undefined,
       agentType: row.agent_type,
-      speaker: id.kind === "role"
-        ? { name: id.name, role: { shortId: id.role.short_id, handle: id.handle, avatar: id.avatar, title: id.role.name } }
-        : id.kind === "character" ? { name: id.name, identity } : undefined,
+      speaker:
+        id.kind === "role"
+          ? {
+              name: id.name,
+              role: {
+                shortId: id.role.short_id,
+                handle: id.handle,
+                avatar: id.avatar,
+                title: id.role.name,
+              },
+            }
+          : id.kind === "character"
+            ? { name: id.name, identity }
+            : undefined,
     };
     if (row._id) map.set(String(row._id), persona);
     if (row.session_id) map.set(String(row.session_id), persona);
@@ -517,40 +623,82 @@ export function sessionPersonasFrom(sessions: Record<string, any> | undefined, t
 /** A role's bot user as chat names it. Read from the role rows
  *  (lib/sessionIdentity roleOfUser); the anchors rows answer only for a bot
  *  the active workspace's roles don't hold (a personal seat seen from a team). */
-export function roleSeatsFrom(anchors: Record<string, any> | undefined, tree: RoleRows | null | undefined, prefs: IdentityPrefs): (botUserId: string) => RoleSeat | undefined {
+export function roleSeatsFrom(
+  anchors: Record<string, any> | undefined,
+  tree: RoleRows | null | undefined,
+  prefs: IdentityPrefs,
+): (botUserId: string) => RoleSeat | undefined {
   const map = new Map<string, RoleSeat>();
   for (const a of Object.values(anchors ?? {}) as AnchorRow[]) {
-    if (!a?.bot_user_id || !a.role?.short_id || a.status === "decommissioned") continue;
-    map.set(String(a.bot_user_id), { name: agentName(a, prefs), title: agentTitle(a, prefs) ?? a.role.name, shortId: a.role.short_id, handle: a.role.handle, avatar: a.role.avatar });
+    if (!a?.bot_user_id || !a.role?.short_id || a.status === "decommissioned")
+      continue;
+    map.set(String(a.bot_user_id), {
+      name: agentName(a, prefs),
+      title: agentTitle(a, prefs) ?? a.role.name,
+      shortId: a.role.short_id,
+      handle: a.role.handle,
+      avatar: a.role.avatar,
+    });
   }
   return (id) => {
     const role = roleOfUser(id, tree, prefs);
-    return role ? { name: role.name, title: role.title, shortId: role.shortId, handle: role.handle, avatar: role.face } : map.get(id);
+    return role
+      ? {
+          name: role.name,
+          title: role.title,
+          shortId: role.shortId,
+          handle: role.handle,
+          avatar: role.face,
+        }
+      : map.get(id);
   };
 }
 
 /** Both lookups from the store as it is now, for code that runs outside a
  *  render (a palette callback, a toast). */
-export function chatAuthorLookupsNow(): { sessionFor: (sessionId: string) => SessionPersona | undefined; seatFor: (botUserId: string) => RoleSeat | undefined } {
+export function chatAuthorLookupsNow(): {
+  sessionFor: (sessionId: string) => SessionPersona | undefined;
+  seatFor: (botUserId: string) => RoleSeat | undefined;
+} {
   const s = useInboxStore.getState() as any;
-  return { sessionFor: sessionPersonasFrom(s.sessions, roleRowsOf(s), identityPrefsNow()), seatFor: roleSeatsFrom(s.anchors, roleRowsOf(s), identityPrefsNow()) };
+  return {
+    sessionFor: sessionPersonasFrom(
+      s.sessions,
+      roleRowsOf(s),
+      identityPrefsNow(),
+    ),
+    seatFor: roleSeatsFrom(s.anchors, roleRowsOf(s), identityPrefsNow()),
+  };
 }
 
 /** The live lookups every surface that names a chat line's author passes to
  *  lineAuthorFor. A surface that skips them names a role's agent by its bot
  *  user's title and a session's line by the session's title. Signature-gated:
  *  sessions heartbeat, and only a title, agent or identity change matters. */
-export function useChatAuthorLookups(): { sessionFor: (sessionId: string) => SessionPersona | undefined; seatFor: (botUserId: string) => RoleSeat | undefined } {
-  const st = useTrackedStore([(s: any) => sessionOriginSig(s.sessions), (s: any) => seatSig(s.anchors), (s: any) => roleRowsSig(s)]);
+export function useChatAuthorLookups(): {
+  sessionFor: (sessionId: string) => SessionPersona | undefined;
+  seatFor: (botUserId: string) => RoleSeat | undefined;
+} {
+  const st = useTrackedStore([
+    (s: any) => sessionOriginSig(s.sessions),
+    (s: any) => seatSig(s.anchors),
+    (s: any) => roleRowsSig(s),
+  ]);
   const sessionsSig = sessionOriginSig(st.sessions);
   const seatsSig = seatSig((st as any).anchors);
   const rolesSig = roleRowsSig(st as never);
   const prefs = useIdentityPrefs();
   // The signatures are the real deps: the raw collection refs flip on every push.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sessionFor = useMemo(() => sessionPersonasFrom(st.sessions, roleRowsOf(st as never), prefs), [sessionsSig, rolesSig, prefs]);
+  const sessionFor = useMemo(
+    () => sessionPersonasFrom(st.sessions, roleRowsOf(st as never), prefs),
+    [sessionsSig, rolesSig, prefs],
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const seatFor = useMemo(() => roleSeatsFrom((st as any).anchors, roleRowsOf(st as never), prefs), [seatsSig, rolesSig, prefs]);
+  const seatFor = useMemo(
+    () => roleSeatsFrom((st as any).anchors, roleRowsOf(st as never), prefs),
+    [seatsSig, rolesSig, prefs],
+  );
   return useMemo(() => ({ sessionFor, seatFor }), [sessionFor, seatFor]);
 }
 
@@ -572,7 +720,8 @@ export function useMessageViews(
       if (list) list.push(r);
       else byMessage.set(r.message_id, [r]);
     }
-    const nameOf = (userId: string) => seatFor(userId)?.name ?? memberName(byId.get(userId));
+    const nameOf = (userId: string) =>
+      seatFor(userId)?.name ?? memberName(byId.get(userId));
     return toMessageViews(rows, {
       members: byId,
       viewerId,
@@ -586,7 +735,16 @@ export function useMessageViews(
         return list ? foldReactions(list, viewerId, nameOf) : undefined;
       },
     });
-  }, [rows, reactionRows, byId, viewerId, rollupSource, summaries, sessionFor, seatFor]);
+  }, [
+    rows,
+    reactionRows,
+    byId,
+    viewerId,
+    rollupSource,
+    summaries,
+    sessionFor,
+    seatFor,
+  ]);
 }
 
 /** One channel's timeline, ready to render. Roots only — replies live in the
@@ -600,13 +758,17 @@ export function windowRows<T extends { created_at: number; pending?: unknown }>(
   pageSize = PAGE_SIZE,
 ): T[] {
   if (floor === undefined) return rows;
-  if (floor === null) return rows.length > pageSize ? rows.slice(rows.length - pageSize) : rows;
+  if (floor === null)
+    return rows.length > pageSize ? rows.slice(rows.length - pageSize) : rows;
   // A line typed here and not yet acknowledged has a created_at of now; it is
   // never below the floor, so pending rows always show.
   return rows.filter((r) => r.created_at >= floor);
 }
 
-export function useChannelMessages(channelId: string | undefined, floor?: number | null): ChatMessageView[] {
+export function useChannelMessages(
+  channelId: string | undefined,
+  floor?: number | null,
+): ChatMessageView[] {
   const { byId, viewerId } = useChatMembers();
   const s = useTrackedStore([
     (s: any) => messagesSig(s.chatMessages),
@@ -616,12 +778,22 @@ export function useChannelMessages(channelId: string | undefined, floor?: number
     (s: any) => s.chatThreadSummaries,
   ]);
   const rows = useMemo(
-    () => (channelId ? windowRows(selectChannelMessages(s as any, channelId), floor) : []),
+    () =>
+      channelId
+        ? windowRows(selectChannelMessages(s as any, channelId), floor)
+        : [],
     // The signature is the real dep: the raw map ref flips on every push.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [channelId, floor, messagesSig(s.chatMessages)],
   );
-  return useMessageViews(rows, s.chatReactions, byId, viewerId, s.chatMessages, s.chatThreadSummaries);
+  return useMessageViews(
+    rows,
+    s.chatReactions,
+    byId,
+    viewerId,
+    s.chatMessages,
+    s.chatThreadSummaries,
+  );
 }
 
 /** A thread: its root message and its replies, both ready to render. */
@@ -637,13 +809,24 @@ export function useThreadMessages(rootId: string | undefined): {
   const rows = useMemo(() => {
     if (!rootId) return [] as ChatMessageRow[];
     const rootRow = (s.chatMessages as Record<string, ChatMessageRow>)[rootId];
-    return [...(rootRow ? [rootRow] : []), ...selectThreadReplies(s as any, rootId)];
+    return [
+      ...(rootRow ? [rootRow] : []),
+      ...selectThreadReplies(s as any, rootId),
+    ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootId, messagesSig(s.chatMessages)]);
-  const views = useMessageViews(rows, s.chatReactions, byId, viewerId, s.chatMessages);
-  const rootRow = rootId ? (s.chatMessages as Record<string, ChatMessageRow>)[rootId] : undefined;
+  const views = useMessageViews(
+    rows,
+    s.chatReactions,
+    byId,
+    viewerId,
+    s.chatMessages,
+  );
+  const rootRow = rootId
+    ? (s.chatMessages as Record<string, ChatMessageRow>)[rootId]
+    : undefined;
   return {
-    root: rootRow ? views[0] ?? null : null,
+    root: rootRow ? (views[0] ?? null) : null,
     replies: rootRow ? views.slice(1) : views,
   };
 }
@@ -661,9 +844,14 @@ export function useThreadMessages(rootId: string | undefined): {
  * Returns undefined while the stub is alive: the reader is on their new channel
  * and nothing needs to move.
  */
-export function useSupersededChannelId(channelId: string | undefined): string | undefined {
+export function useSupersededChannelId(
+  channelId: string | undefined,
+): string | undefined {
   const s = useTrackedStore([(s: any) => channelsSig(s.chatChannels)]);
-  return supersededChannelId(s.chatChannels as Record<string, ChatChannelRow>, channelId);
+  return supersededChannelId(
+    s.chatChannels as Record<string, ChatChannelRow>,
+    channelId,
+  );
 }
 
 /** The plain-function core of useSupersededChannelId, for callers that already
@@ -685,7 +873,9 @@ export function supersededChannelId(
 
 /** The channel a message belongs to — the permalink's missing half when the URL
  *  carries `?m=` for a message whose channel is already open. */
-export function useChatMessageRow(messageId: string | undefined): ChatMessageRow | undefined {
+export function useChatMessageRow(
+  messageId: string | undefined,
+): ChatMessageRow | undefined {
   const s = useTrackedStore([(s: any) => messagesSig(s.chatMessages)]);
   if (!messageId) return undefined;
   return (s.chatMessages as Record<string, ChatMessageRow>)[messageId];
@@ -702,7 +892,11 @@ export function useChatUnread(): { channels: number; mentions: number } {
 /** The plain-function core of useChatUnread, for a caller totalling a subset
  *  of the rail (the sidebar's Chat row leaves out channels pinned above it). */
 export function chatUnreadTotals(
-  rows: ReadonlyArray<{ unreadCount?: number; mentionCount?: number; muted?: boolean }>,
+  rows: ReadonlyArray<{
+    unreadCount?: number;
+    mentionCount?: number;
+    muted?: boolean;
+  }>,
 ): { channels: number; mentions: number } {
   let channels = 0;
   let mentions = 0;
@@ -741,7 +935,12 @@ export function useEnsureChatMessage(messageId: string | undefined): void {
  * raised clears too. Never for a room the server refuses: the mark would only
  * come back as "Channel not found".
  */
-export function useReadWhileSeen(channelId: string | undefined, seen: boolean, feed: ChannelFeed, wake: unknown): void {
+export function useReadWhileSeen(
+  channelId: string | undefined,
+  seen: boolean,
+  feed: ChannelFeed,
+  wake: unknown,
+): void {
   useWatchEffect(() => {
     if (!channelId || !seen || feed.loading || feed.unavailable) return;
     // The same moment the room is read: the header count for these lines goes.

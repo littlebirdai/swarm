@@ -1,6 +1,12 @@
-import { conversationSessionsBeatingSince, heartbeatsFor } from "./lib/sessionHeartbeat";
+import {
+  conversationSessionsBeatingSince,
+  heartbeatsFor,
+} from "./lib/sessionHeartbeat";
 import { isClosedSession } from "@codecast/shared/contracts";
-import { UNCONFIRMED_DELIVERY_REASON, isReservedDevice } from "@codecast/shared/contracts";
+import {
+  UNCONFIRMED_DELIVERY_REASON,
+  isReservedDevice,
+} from "@codecast/shared/contracts";
 import { noteScreenRecordingSent } from "./lib/screenRecordingSent";
 import { steeringOwnerFor, suggestFromTeammate } from "./teamSuggestions";
 import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
@@ -9,26 +15,66 @@ import { clientRunAnswerRefusal } from "./lib/commandRuns";
 import { formatShare, formatTokens, wakeCost, wakeFieldsOf } from "./wakeCost";
 import { noteWriteCause } from "./lifecycleEvents";
 import type { RegisteredMutation } from "convex/server";
-import { mutation, query, internalMutation, internalQuery, internalAction, type QueryCtx } from "./functions";
+import {
+  mutation,
+  query,
+  internalMutation,
+  internalQuery,
+  internalAction,
+  type QueryCtx,
+} from "./functions";
 import { v, type Infer } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { HOSTED_IMAGE_REFUSAL, HOSTED_INPUT_MAX_CHARS, type WakeCause } from "@codecast/shared/contracts/assistant";
-import { findConversationByAnyRef, findConversationByAnyRefWhere } from "./conversationSessionLookup";
+import {
+  HOSTED_IMAGE_REFUSAL,
+  HOSTED_INPUT_MAX_CHARS,
+  type WakeCause,
+} from "@codecast/shared/contracts/assistant";
+import {
+  findConversationByAnyRef,
+  findConversationByAnyRefWhere,
+} from "./conversationSessionLookup";
 import { checkConversationAccess, standsWithRunner } from "./privacy";
 import { hasGrantedSendAccess } from "./collab";
-import { ackAssignmentOnEngage, addSessionOwnerRow, conversationHasHumanStarter, listSessionOwnerIds, syncPrimaryOwnerCache } from "./sessionOwners";
+import {
+  ackAssignmentOnEngage,
+  addSessionOwnerRow,
+  conversationHasHumanStarter,
+  listSessionOwnerIds,
+  syncPrimaryOwnerCache,
+} from "./sessionOwners";
 import { requireUser } from "./lib/auth";
 import { runLocalCommand } from "./localFirstCommands";
-import { composerChannel, insertEnqueuedPendingMessage, releaseQueuedRows, reviveConversationOnDelivery } from "./pendingMessageWrites";
-import { answeredThreadStateFields, formatUserMessage, hasThreadState, HEARTBEAT_ALIVE_MS, isHostedAgentType, isReviveClientId, isStashHidden, SETTLE_VERDICT_STATUSES, formatSessionMessage, sendArrival, sessionMessageIntentOf, trustedAgentStatus, restoreFrameTags, SESSION_MESSAGE_OPEN_TAG, type SendArrival, type SessionMessageIntent } from "@codecast/shared/contracts";
+import {
+  composerChannel,
+  insertEnqueuedPendingMessage,
+  releaseQueuedRows,
+  reviveConversationOnDelivery,
+} from "./pendingMessageWrites";
+import {
+  answeredThreadStateFields,
+  formatUserMessage,
+  hasThreadState,
+  HEARTBEAT_ALIVE_MS,
+  isHostedAgentType,
+  isReviveClientId,
+  isStashHidden,
+  SETTLE_VERDICT_STATUSES,
+  formatSessionMessage,
+  sendArrival,
+  sessionMessageIntentOf,
+  trustedAgentStatus,
+  restoreFrameTags,
+  SESSION_MESSAGE_OPEN_TAG,
+  type SendArrival,
+  type SessionMessageIntent,
+} from "@codecast/shared/contracts";
 import { autoRecoveryEnabled, listOnlineDevices } from "./ccAccountsShared";
 import { resolveOwnerDeviceView } from "./lib/ownerDevice";
-import {
-  messagesCommandCoverageTarget,
-} from "./messageViewContracts";
+import { messagesCommandCoverageTarget } from "./messageViewContracts";
 import {
   allocateFencedDeliveryMetadata,
   cancelFencedDeliveriesOnKill,
@@ -39,14 +85,27 @@ import { clearPaneRefused } from "./lib/paneRefusal";
 import { bringNestedThreadToInbox } from "./inboxFilters";
 import { hostedInputWaits } from "./assistant/input";
 import { isConversationSafetyBlocked } from "./conversationSafety";
-import { daemonDeliveryStateOf, legacyConversationAcceptsDaemonWork } from "./lib/daemonDelivery";
+import {
+  daemonDeliveryStateOf,
+  legacyConversationAcceptsDaemonWork,
+} from "./lib/daemonDelivery";
 import { sessionStartOf } from "./lib/sessionStarts";
 import { workspaceHasFeature } from "./lib/teamFeatureGuard";
 import { countersFor } from "./lib/orgCaps";
 import { liveRolesByHandle } from "./lib/orgAccess";
-import { byQueueOrder, headOfEachQueue, isControlMessage, isWaitingInQueue, queueAtBefore } from "./lib/sessionQueue";
+import {
+  byQueueOrder,
+  headOfEachQueue,
+  isControlMessage,
+  isWaitingInQueue,
+  queueAtBefore,
+} from "./lib/sessionQueue";
 export { headOfEachQueue, isControlMessage };
-import { formatJointMessage, jointPartsOf, parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import {
+  formatJointMessage,
+  jointPartsOf,
+  parseJointMessage,
+} from "@codecast/shared/contracts/jointMessage";
 import { quotesWaiting, stampQuotesSent } from "./quoteDrafts";
 
 export {
@@ -68,14 +127,21 @@ export async function canSendProductMessage(
   // read it.
   if (isHostedAgentType(conversation.agent_type)) return access === "owner";
   if (access === "owner" || access === "team") return true;
-  return access === "shared"
-    && await hasGrantedSendAccess(ctx, conversation._id, userId);
+  return (
+    access === "shared" &&
+    (await hasGrantedSendAccess(ctx, conversation._id, userId))
+  );
 }
 
-function sameOptionalIds(left: unknown[] | undefined, right: unknown[] | undefined): boolean {
+function sameOptionalIds(
+  left: unknown[] | undefined,
+  right: unknown[] | undefined,
+): boolean {
   if (left === undefined || right === undefined) return left === right;
-  return left.length === right.length
-    && left.every((value, index) => String(value) === String(right[index]));
+  return (
+    left.length === right.length &&
+    left.every((value, index) => String(value) === String(right[index]))
+  );
 }
 
 /** Exact intent comparison before legacy client-id dedupe may be trusted. */
@@ -89,21 +155,23 @@ export function pendingMessageMatchesProductIntent(
     clientId: string;
   },
 ): boolean {
-  return String(message.conversation_id) === String(conversation._id)
-    && String(message.from_user_id) === String(userId)
-    && String(message.owner_user_id) === String(conversation.user_id)
-    && message.content === intent.content
-    && message.client_id === intent.clientId
-    && message.image_storage_id === undefined
-    && sameOptionalIds(message.image_storage_ids, intent.imageStorageIds)
-    && message.from_conversation_id === undefined
-    && message.origin === undefined
-    && message.resend_of_delivery_id === undefined;
+  return (
+    String(message.conversation_id) === String(conversation._id) &&
+    String(message.from_user_id) === String(userId) &&
+    String(message.owner_user_id) === String(conversation.user_id) &&
+    message.content === intent.content &&
+    message.client_id === intent.clientId &&
+    message.image_storage_id === undefined &&
+    sameOptionalIds(message.image_storage_ids, intent.imageStorageIds) &&
+    message.from_conversation_id === undefined &&
+    message.origin === undefined &&
+    message.resend_of_delivery_id === undefined
+  );
 }
 
 export async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -120,7 +188,9 @@ export async function getAuthenticatedUserId(
   return null;
 }
 
-type WakeScheduler = { runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown> };
+type WakeScheduler = {
+  runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown>;
+};
 
 /** The one wake rule for a hosted conversation: a row became pending, so the
  *  turn engine runs (assistant/entry.ts wake). A safety stop never starts a
@@ -132,12 +202,23 @@ export async function wakeHostedConversation(
 ): Promise<boolean> {
   if (!isHostedAgentType(conversation?.agent_type)) return false;
   if (isConversationSafetyBlocked(conversation)) return true;
-  if (!ctx.scheduler) throw new Error("A hosted conversation needs a scheduler to wake");
-  await ctx.scheduler.runAfter(0, internal.assistant.entry.wake, { conversation_id: conversation._id, cause });
+  if (!ctx.scheduler)
+    throw new Error("A hosted conversation needs a scheduler to wake");
+  await ctx.scheduler.runAfter(0, internal.assistant.entry.wake, {
+    conversation_id: conversation._id,
+    cause,
+  });
   return true;
 }
 
-type PendingStatus = "pending" | "injected" | "delivered" | "failed" | "undeliverable" | "cancelled" | "held";
+type PendingStatus =
+  | "pending"
+  | "injected"
+  | "delivered"
+  | "failed"
+  | "undeliverable"
+  | "cancelled"
+  | "held";
 const TERMINAL_STATUSES = new Set<PendingStatus>(["delivered", "cancelled"]);
 
 export function isTerminalPendingStatus(status: string): boolean {
@@ -150,7 +231,12 @@ const HOLD_SCREEN_MAX_CHARS = 6000;
 
 async function rependPendingMessage(
   ctx: { db: any },
-  message: { _id: Id<"pending_messages">; conversation_id: Id<"conversations">; status: string; retry_count: number },
+  message: {
+    _id: Id<"pending_messages">;
+    conversation_id: Id<"conversations">;
+    status: string;
+    retry_count: number;
+  },
   retryCount: number,
   hold?: { reason: string; screen?: string },
   force?: boolean,
@@ -173,15 +259,31 @@ async function rependPendingMessage(
 
 export async function patchPendingMessageStatus(
   ctx: { db: any },
-  message: { _id: Id<"pending_messages">; conversation_id: Id<"conversations">; status: string; delivery_disposition_reason?: string },
-  patch: { status: PendingStatus; delivered_at?: number; paste_verified_at?: number }
+  message: {
+    _id: Id<"pending_messages">;
+    conversation_id: Id<"conversations">;
+    status: string;
+    delivery_disposition_reason?: string;
+  },
+  patch: {
+    status: PendingStatus;
+    delivered_at?: number;
+    paste_verified_at?: number;
+  },
 ): Promise<boolean> {
   if (isFencedPendingMessage(message)) return false;
   if (isTerminalPendingStatus(message.status)) return false;
   // Leaving the unconfirmed state (a late echo, a cancel) drops the reason with it.
-  const leavesUnconfirmed = isUnconfirmedRow(message) && patch.status !== "failed";
-  await ctx.db.patch(message._id, leavesUnconfirmed ? { ...patch, delivery_disposition_reason: undefined } : patch);
-  if (patch.status === "delivered") await clearPaneRefused(ctx, message.conversation_id);
+  const leavesUnconfirmed =
+    isUnconfirmedRow(message) && patch.status !== "failed";
+  await ctx.db.patch(
+    message._id,
+    leavesUnconfirmed
+      ? { ...patch, delivery_disposition_reason: undefined }
+      : patch,
+  );
+  if (patch.status === "delivered")
+    await clearPaneRefused(ctx, message.conversation_id);
   if (patch.status === "delivered" || patch.status === "cancelled") {
     await clearHasPendingIfQuiet(ctx, message.conversation_id);
   }
@@ -194,7 +296,7 @@ export async function patchPendingMessageStatus(
 // conversation's user_id so an un-backfilled row still routes correctly.
 export function pendingMessageOwnerId(
   message: { owner_user_id?: Id<"users"> },
-  conversation: { user_id: Id<"users"> }
+  conversation: { user_id: Id<"users"> },
 ): string {
   return (message.owner_user_id ?? conversation.user_id).toString();
 }
@@ -209,10 +311,18 @@ export async function rehomeUndeliveredMessages(
   runnerId: Id<"users">,
 ): Promise<number> {
   let moved = 0;
-  for (const status of ["pending", "held", "injected", "failed", "undeliverable"] as const) {
+  for (const status of [
+    "pending",
+    "held",
+    "injected",
+    "failed",
+    "undeliverable",
+  ] as const) {
     const rows = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", status))
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conversationId).eq("status", status),
+      )
       .collect();
     for (const row of rows) {
       if (String(row.owner_user_id) === String(runnerId)) continue;
@@ -225,11 +335,19 @@ export async function rehomeUndeliveredMessages(
 
 export function canDaemonSeePendingMessage(
   message: Parameters<typeof canDaemonDeliver>[0],
-  conversation: Parameters<typeof daemonDeliveryStateOf>[0] & { user_id: Id<"users"> },
+  conversation: Parameters<typeof daemonDeliveryStateOf>[0] & {
+    user_id: Id<"users">;
+  },
   userId: Id<"users">,
   deviceId: string,
 ): boolean {
-  return canDaemonDeliver(message, conversation, daemonDeliveryStateOf(conversation), userId, deviceId);
+  return canDaemonDeliver(
+    message,
+    conversation,
+    daemonDeliveryStateOf(conversation),
+    userId,
+    deviceId,
+  );
 }
 
 function canDaemonDeliver(
@@ -247,7 +365,8 @@ function canDaemonDeliver(
   if (delivery.blocked || isFencedPendingMessage(message)) return false;
   // Delivery is the TARGET owner's job, not the sender's — a teammate's message is delivered by
   // the owner's daemon. (For a self-send these are the same user.)
-  if (pendingMessageOwnerId(message, conversation) !== userId.toString()) return false;
+  if (pendingMessageOwnerId(message, conversation) !== userId.toString())
+    return false;
   if (message.status !== "pending") return false;
   // DPM-02: the owning device is the ONLY device that delivers, however long it
   // has been offline. Delivery to another machine happens when a person moves
@@ -259,10 +378,16 @@ function canDaemonDeliver(
 }
 
 /** A machine reserved for one job never adopts an unowned conversation: work reaches it only by name. */
-async function reservedAdopter(ctx: { db: any }, userId: Id<"users">, deviceId: string): Promise<boolean> {
+async function reservedAdopter(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceId: string,
+): Promise<boolean> {
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .first();
   return !!device && isReservedDevice(device);
 }
@@ -278,10 +403,19 @@ export async function claimPendingMessageForDaemon(
   if (!message) return null;
   const conversation = await ctx.db.get(message.conversation_id);
   if (!conversation) return null;
-  if (!canDaemonSeePendingMessage(message, conversation, userId, deviceId)) return null;
-  if (targetConversationId && targetConversationId !== message.conversation_id) {
+  if (!canDaemonSeePendingMessage(message, conversation, userId, deviceId))
+    return null;
+  if (
+    targetConversationId &&
+    targetConversationId !== message.conversation_id
+  ) {
     const target = await ctx.db.get(targetConversationId);
-    if (!target || target.user_id !== userId || isConversationSafetyBlocked(target)) return null;
+    if (
+      !target ||
+      target.user_id !== userId ||
+      isConversationSafetyBlocked(target)
+    )
+      return null;
   }
   if (!conversation.owner_device_id) {
     if (await reservedAdopter(ctx, userId, deviceId)) return null;
@@ -292,15 +426,23 @@ export async function claimPendingMessageForDaemon(
 
 async function daemonCanMutatePendingMessage(
   ctx: { db: any },
-  message: { conversation_id: Id<"conversations">; from_user_id: Id<"users">; owner_user_id?: Id<"users"> },
+  message: {
+    conversation_id: Id<"conversations">;
+    from_user_id: Id<"users">;
+    owner_user_id?: Id<"users">;
+  },
   userId: Id<"users">,
-  deviceId?: string
+  deviceId?: string,
 ): Promise<boolean> {
   // The mutating daemon must own the TARGET conversation (it's the one delivering the message),
   // not be the sender — a teammate's send is delivered & status-updated by the owner's daemon.
   const conversation = await ctx.db.get(message.conversation_id);
   if (isFencedPendingMessage(message)) return false;
-  if (!conversation || pendingMessageOwnerId(message, conversation) !== userId.toString()) return false;
+  if (
+    !conversation ||
+    pendingMessageOwnerId(message, conversation) !== userId.toString()
+  )
+    return false;
   if (!legacyConversationAcceptsDaemonWork(conversation)) return false;
   if (!deviceId) return true;
   const owner = conversation.owner_device_id as string | undefined;
@@ -316,10 +458,11 @@ async function daemonCanMutateConversation(
   ctx: { db: any },
   conversationId: Id<"conversations">,
   userId: Id<"users">,
-  deviceId?: string
+  deviceId?: string,
 ): Promise<boolean> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation || conversation.user_id.toString() !== userId.toString()) return false;
+  if (!conversation || conversation.user_id.toString() !== userId.toString())
+    return false;
   if (!legacyConversationAcceptsDaemonWork(conversation)) return false;
   if (!deviceId) return true;
   const owner = conversation.owner_device_id as string | undefined;
@@ -338,12 +481,19 @@ async function daemonCanMutateConversation(
 // can both act, but no unrelated user can.
 export async function senderOrOwnerCanAct(
   ctx: { db: any },
-  message: { conversation_id: Id<"conversations">; from_user_id: Id<"users">; owner_user_id?: Id<"users"> },
-  authUserId: Id<"users">
+  message: {
+    conversation_id: Id<"conversations">;
+    from_user_id: Id<"users">;
+    owner_user_id?: Id<"users">;
+  },
+  authUserId: Id<"users">,
 ): Promise<boolean> {
   if (message.from_user_id.toString() === authUserId.toString()) return true;
   const conversation = await ctx.db.get(message.conversation_id);
-  return !!conversation && pendingMessageOwnerId(message, conversation) === authUserId.toString();
+  return (
+    !!conversation &&
+    pendingMessageOwnerId(message, conversation) === authUserId.toString()
+  );
 }
 
 export async function updatePendingMessageStatusForDaemon(
@@ -351,11 +501,16 @@ export async function updatePendingMessageStatusForDaemon(
   messageId: Id<"pending_messages">,
   userId: Id<"users">,
   deviceId: string,
-  patch: { status: PendingStatus; delivered_at?: number; paste_verified_at?: number }
+  patch: {
+    status: PendingStatus;
+    delivered_at?: number;
+    paste_verified_at?: number;
+  },
 ): Promise<{ updated: boolean; skipped?: boolean }> {
   const message = await ctx.db.get(messageId);
   if (!message) return { updated: false, skipped: true };
-  if (isTerminalPendingStatus(message.status)) return { updated: false, skipped: true };
+  if (isTerminalPendingStatus(message.status))
+    return { updated: false, skipped: true };
   if (isFencedPendingMessage(message)) return { updated: false, skipped: true };
   if (!(await daemonCanMutatePendingMessage(ctx, message, userId, deviceId))) {
     return { updated: false, skipped: true };
@@ -370,7 +525,10 @@ export async function updatePendingMessageStatusForDaemon(
   // status:"injected" and un-retire a session I killed, with nothing delivered.
   // "injected" is self-reported and reversible (the healer re-pends it), so it
   // is only evidence of a landing when the DAEMON that owns the session says so.
-  if (updated && (patch.status === "injected" || patch.status === "delivered")) {
+  if (
+    updated &&
+    (patch.status === "injected" || patch.status === "delivered")
+  ) {
     await reviveConversationOnDelivery(ctx, message.conversation_id);
   }
   return { updated, skipped: !updated };
@@ -384,7 +542,12 @@ export async function updatePendingMessageStatusForDaemon(
 export async function enqueuePendingMessage(
   // `scheduler` is required for a hosted conversation, whose turn engine is
   // woken from here; tests driving a daemon conversation may pass `{ db }`.
-  ctx: { db: any; scheduler?: { runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown> } },
+  ctx: {
+    db: any;
+    scheduler?: {
+      runAfter: (delayMs: number, fn: any, args: any) => Promise<unknown>;
+    };
+  },
   conversation: any,
   fromUserId: Id<"users">,
   fields: {
@@ -438,58 +601,101 @@ export async function enqueuePendingMessage(
     // better than the origin says (an answered approval). Ignored for every
     // other conversation.
     wake_cause?: WakeCause;
-  }
+  },
 ): Promise<Id<"pending_messages">> {
   // Every producer reaches this point, not only the ones that check
   // canSendProductMessage (session-to-session sends, role messages), so the
   // owner-only rule for hosted input is enforced here as well.
-  if (isHostedAgentType(conversation.agent_type) && String(fromUserId) !== String(conversation.user_id)) {
+  if (
+    isHostedAgentType(conversation.agent_type) &&
+    String(fromUserId) !== String(conversation.user_id)
+  ) {
     throw new Error("Only the owner can send to a hosted conversation");
   }
   // Machine frames (a routine firing, a run outcome) are built by server code
   // and bounded by their writers; what a person sends is bounded here. The
   // public sendMessageToSession refuses `origin` for a hosted target, so on
   // these conversations "scheduler" is a server-only signal.
-  if (isHostedAgentType(conversation.agent_type) && fields.origin !== "scheduler" && fields.content.length > HOSTED_INPUT_MAX_CHARS) {
-    throw new Error(`A message to the assistant can be at most ${HOSTED_INPUT_MAX_CHARS.toLocaleString("en-US")} characters`);
+  if (
+    isHostedAgentType(conversation.agent_type) &&
+    fields.origin !== "scheduler" &&
+    fields.content.length > HOSTED_INPUT_MAX_CHARS
+  ) {
+    throw new Error(
+      `A message to the assistant can be at most ${HOSTED_INPUT_MAX_CHARS.toLocaleString("en-US")} characters`,
+    );
   }
   // The turn engine sends the model text only, so an image here would be
   // dropped without a word; refuse it so the composer can say so.
-  if (isHostedAgentType(conversation.agent_type) && (fields.image_storage_id || fields.image_storage_ids?.length)) {
+  if (
+    isHostedAgentType(conversation.agent_type) &&
+    (fields.image_storage_id || fields.image_storage_ids?.length)
+  ) {
     throw new Error(HOSTED_IMAGE_REFUSAL);
   }
   // A Run on a `cast decide --run` card reaches the session only from the server, with the output (lib/commandRuns.ts).
-  const runRefusal = await clientRunAnswerRefusal(ctx, fields.content, fields.client_id);
+  const runRefusal = await clientRunAnswerRefusal(
+    ctx,
+    fields.content,
+    fields.client_id,
+  );
   if (runRefusal) throw new Error(runRefusal);
   if (fields.client_id) {
     const existing = await ctx.db
       .query("pending_messages")
       .withIndex("by_conversation_client_id", (q: any) =>
-        q.eq("conversation_id", conversation._id).eq("client_id", fields.client_id)
+        q
+          .eq("conversation_id", conversation._id)
+          .eq("client_id", fields.client_id),
       )
       .first();
     if (existing) return existing._id;
   }
 
-  if (fields.origin === "scheduler" && !fields.client_id
-    && !conversation.execution_protocol_state && !fields.image_storage_id && !fields.image_storage_ids?.length) {
-    for (const status of ["pending", "injected", "failed", "undeliverable", "held"]) {
-      const queued = await ctx.db.query("pending_messages")
-        .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversation._id).eq("status", status))
+  if (
+    fields.origin === "scheduler" &&
+    !fields.client_id &&
+    !conversation.execution_protocol_state &&
+    !fields.image_storage_id &&
+    !fields.image_storage_ids?.length
+  ) {
+    for (const status of [
+      "pending",
+      "injected",
+      "failed",
+      "undeliverable",
+      "held",
+    ]) {
+      const queued = await ctx.db
+        .query("pending_messages")
+        .withIndex("by_conversation_status", (q: any) =>
+          q.eq("conversation_id", conversation._id).eq("status", status),
+        )
         .collect();
-      const existing = queued.find((row: any) => row.origin === "scheduler"
-        && row.from_user_id === fromUserId && row.content === fields.content
-        && !row.image_storage_id && !row.image_storage_ids?.length
-        && !isFencedPendingMessage(row)
-        // Nothing will deliver an unconfirmed row again, so a new firing is a new wake.
-        && !isUnconfirmedRow(row)
-        && (row.kill_generation ?? 0) === (conversation.pending_kill_generation ?? 0));
+      const existing = queued.find(
+        (row: any) =>
+          row.origin === "scheduler" &&
+          row.from_user_id === fromUserId &&
+          row.content === fields.content &&
+          !row.image_storage_id &&
+          !row.image_storage_ids?.length &&
+          !isFencedPendingMessage(row) &&
+          // Nothing will deliver an unconfirmed row again, so a new firing is a new wake.
+          !isUnconfirmedRow(row) &&
+          (row.kill_generation ?? 0) ===
+            (conversation.pending_kill_generation ?? 0),
+      );
       if (existing) return existing._id;
     }
   }
 
   // A screen recording rides this send: from now on it is sent, and kept.
-  await noteScreenRecordingSent(ctx, conversation._id, fromUserId, fields.content);
+  await noteScreenRecordingSent(
+    ctx,
+    conversation._id,
+    fromUserId,
+    fields.content,
+  );
 
   if (fields.queue) {
     return await insertEnqueuedPendingMessage(ctx, {
@@ -510,7 +716,11 @@ export async function enqueuePendingMessage(
   // that asks what it is for (jx73gnf, 2026-10-23). Whatever is sent stays on
   // its record and wakes nothing. The run's gates are answered by their own
   // mutation (respondToGate), never through here.
-  if (fields.hold || (fields.defer && !conversation.standing_role_id) || isWorkflowRunLog(conversation)) {
+  if (
+    fields.hold ||
+    (fields.defer && !conversation.standing_role_id) ||
+    isWorkflowRunLog(conversation)
+  ) {
     return await insertEnqueuedPendingMessage(ctx, {
       conversationId: conversation._id,
       fromUserId,
@@ -536,7 +746,11 @@ export async function enqueuePendingMessage(
   // This is the sole insertion choke point for every producer. Legacy rows are
   // unchanged. Fenced rows require a caller-stable client_id, receive their
   // server sequence/epoch here, and use that same id as delivery_id end-to-end.
-  const fenced = await allocateFencedDeliveryMetadata(ctx, conversation, fields.client_id);
+  const fenced = await allocateFencedDeliveryMetadata(
+    ctx,
+    conversation,
+    fields.client_id,
+  );
 
   const messageId = await insertEnqueuedPendingMessage(ctx, {
     conversationId: conversation._id,
@@ -559,18 +773,28 @@ export async function enqueuePendingMessage(
 
   // Deferred notes ride this turn (see `defer`). Rows queued for the end of
   // the turn wait for it (releaseQueuedForUser), whoever sends meanwhile.
-  const deferred: any[] = await ctx.db.query("pending_messages")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversation._id).eq("status", "held")).collect();
-  for (const row of deferred) if (!row.queued) await ctx.db.patch(row._id, { status: "pending" });
+  const deferred: any[] = await ctx.db
+    .query("pending_messages")
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversation._id).eq("status", "held"),
+    )
+    .collect();
+  for (const row of deferred)
+    if (!row.queued) await ctx.db.patch(row._id, { status: "pending" });
 
   // Work for a cloud host that is asleep: ask a local daemon to boot it.
-  if (!isConversationSafetyBlocked(conversation)) await requestRemoteWake(ctx, conversation);
+  if (!isConversationSafetyBlocked(conversation))
+    await requestRemoteWake(ctx, conversation);
 
   // A hosted conversation has no daemon to poll for this row: wake its turn
   // engine, which consumes the pending rows itself. A turn already running
   // picks the row up before it stops (assistant/entry.ts wake).
-  await wakeHostedConversation(ctx, conversation,
-    fields.wake_cause ?? (fields.origin === "scheduler" ? "routine" : "message"));
+  await wakeHostedConversation(
+    ctx,
+    conversation,
+    fields.wake_cause ??
+      (fields.origin === "scheduler" ? "routine" : "message"),
+  );
 
   // Wake-up rules. A human send resurfaces the session everywhere: dismissed,
   // stashed, and killed flags all clear ("I messaged it, show it to me").
@@ -594,18 +818,28 @@ export async function enqueuePendingMessage(
   // may not have read it yet. A session's relay and a trigger's wake leave the
   // pin standing — nobody answered anything. The web store clears the same
   // four fields on its draft so the panel drops before this lands.
-  const answersThreadState = fields.human === true && hasThreadState(conversation);
+  const answersThreadState =
+    fields.human === true && hasThreadState(conversation);
   await ctx.db.patch(conversation._id, {
     updated_at: Date.now(),
     has_pending_messages: true,
     ...(conversation.status === "completed" ? { status: "active" } : {}),
-    ...(conversation.inbox_dismissed_at ? { inbox_dismissed_at: undefined } : {}),
-    ...(conversation.inbox_stashed_at && !((machineWake || fields.quiet) && isStashHidden(conversation)) ? { inbox_stashed_at: undefined } : {}),
+    ...(conversation.inbox_dismissed_at
+      ? { inbox_dismissed_at: undefined }
+      : {}),
+    ...(conversation.inbox_stashed_at &&
+    !((machineWake || fields.quiet) && isStashHidden(conversation))
+      ? { inbox_stashed_at: undefined }
+      : {}),
     ...(conversation.inbox_killed_at ? { inbox_killed_at: undefined } : {}),
-    ...(!machineWake && !fields.quiet && conversation.inbox_snoozed_until ? { inbox_snoozed_until: undefined } : {}),
+    ...(!machineWake && !fields.quiet && conversation.inbox_snoozed_until
+      ? { inbox_snoozed_until: undefined }
+      : {}),
     ...(answersThreadState ? answeredThreadStateFields() : {}),
     // New input opens a new turn, which owes its own report (workerSettle.ts).
-    ...(conversation.reported_to_parent_at ? { reported_to_parent_at: undefined } : {}),
+    ...(conversation.reported_to_parent_at
+      ? { reported_to_parent_at: undefined }
+      : {}),
   });
   // "I messaged it, show it to me": a nested session through its parent, or
   // adopted on its own when that parent is never listed (a flow station).
@@ -617,7 +851,9 @@ export async function enqueuePendingMessage(
     const role = await ctx.db.get(conversation.standing_role_id);
     if (role) {
       const counters = countersFor(role, Date.now());
-      await ctx.db.patch(role._id, { counters: { ...counters, wakes: counters.wakes + 1 } });
+      await ctx.db.patch(role._id, {
+        counters: { ...counters, wakes: counters.wakes + 1 },
+      });
     }
   }
 
@@ -627,12 +863,25 @@ export async function enqueuePendingMessage(
 // A role and the standing session that hears for it, or null when the role
 // cannot be reached: retired, no live session, or its workspace has the org
 // feature off (nothing shows the role, so nothing runs under its name).
-export async function reachableRole(ctx: any, roleId: Id<"org_roles">): Promise<{ role: any; standing: any } | null> {
+export async function reachableRole(
+  ctx: any,
+  roleId: Id<"org_roles">,
+): Promise<{ role: any; standing: any } | null> {
   const role = await ctx.db.get(roleId);
   if (!role || role.status === "retired" || !role.anchor_id) return null;
-  if (!(await workspaceHasFeature(ctx, { team_id: role.team_id, user_id: role.scope_user_id }, "org"))) return null;
+  if (
+    !(await workspaceHasFeature(
+      ctx,
+      { team_id: role.team_id, user_id: role.scope_user_id },
+      "org",
+    ))
+  )
+    return null;
   const anchor = await ctx.db.get(role.anchor_id);
-  const standing = anchor?.conversation_id && anchor.status !== "decommissioned" ? await ctx.db.get(anchor.conversation_id) : null;
+  const standing =
+    anchor?.conversation_id && anchor.status !== "decommissioned"
+      ? await ctx.db.get(anchor.conversation_id)
+      : null;
   return standing ? { role, standing } : null;
 }
 
@@ -645,18 +894,34 @@ export async function reachableRole(ctx: any, roleId: Id<"org_roles">): Promise<
 export async function tellRole(
   ctx: any,
   roleId: Id<"org_roles">,
-  fields: { content: string; client_id?: string; from_user_id?: Id<"users">; from_conversation_id?: Id<"conversations">; human?: boolean },
+  fields: {
+    content: string;
+    client_id?: string;
+    from_user_id?: Id<"users">;
+    from_conversation_id?: Id<"conversations">;
+    human?: boolean;
+  },
 ): Promise<Id<"pending_messages"> | null> {
   const conversation = (await reachableRole(ctx, roleId))?.standing;
   if (!conversation) return null;
   const { from_user_id, ...rest } = fields;
   if (!fields.content.startsWith("<")) {
-    const from = fields.from_conversation_id ? await ctx.db.get(fields.from_conversation_id) : null;
+    const from = fields.from_conversation_id
+      ? await ctx.db.get(fields.from_conversation_id)
+      : null;
     rest.content = from
-      ? formatSessionMessage(from.short_id ?? String(from._id).slice(0, 7), fields.content)
+      ? formatSessionMessage(
+          from.short_id ?? String(from._id).slice(0, 7),
+          fields.content,
+        )
       : formatSessionMessage("unknown", fields.content, { name: "codecast" });
   }
-  return await enqueuePendingMessage(ctx, conversation, from_user_id ?? conversation.user_id, rest);
+  return await enqueuePendingMessage(
+    ctx,
+    conversation,
+    from_user_id ?? conversation.user_id,
+    rest,
+  );
 }
 
 export const sendMessageToSession = mutation({
@@ -687,13 +952,17 @@ export const sendMessageToSession = mutation({
     }
 
     if (conversation.user_id.toString() !== authUserId.toString()) {
-      throw new Error("Unauthorized: can only send messages to your own conversations");
+      throw new Error(
+        "Unauthorized: can only send messages to your own conversations",
+      );
     }
     // On a hosted conversation `origin` lifts the input cap and wakes a turn
     // as a routine, so only server code may set it there (routine firings and
     // run outcomes call enqueuePendingMessage directly).
     if (args.origin && isHostedAgentType(conversation.agent_type)) {
-      throw new Error("Only the server sends machine input to a hosted conversation");
+      throw new Error(
+        "Only the server sends machine input to a hosted conversation",
+      );
     }
     // A daemon's crash revive is an automatic continue like the server's own,
     // held to the recovery mode the person chose. Checked here so every daemon
@@ -739,113 +1008,136 @@ export const sendMessageV2 = mutation({
     const imageStorageIds = args.image_storage_ids?.length
       ? args.image_storage_ids
       : undefined;
-    const quoteClientIds = args.quote_client_ids?.length ? args.quote_client_ids : undefined;
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "messages.send/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        content: args.content,
-        imageStorageIds,
-        clientId: args.client_id,
-        // Only when present, so a send without quotes keeps the fingerprint
-        // every earlier receipt was written with.
-        ...(quoteClientIds ? { quoteClientIds } : {}),
-      },
-    }, async () => {
-      if (args.command_id !== args.client_id) {
-        return {
-          status: "rejected" as const,
-          code: "INVALID_ARGUMENT",
-          message: "command_id and client_id must be the same canonical id",
-        };
-      }
-
-      const conversation = await ctx.db.get(args.conversation_id);
-      if (!conversation) {
-        return {
-          status: "rejected" as const,
-          code: "MISSING",
-          message: "Conversation not found",
-        };
-      }
-      if (!(await canSendProductMessage(ctx, userId, conversation))) {
-        return {
-          status: "rejected" as const,
-          code: "FORBIDDEN",
-          message: "Conversation send access was revoked",
-        };
-      }
-
-      const existingRows = await ctx.db
-        .query("pending_messages")
-        .withIndex("by_conversation_client_id", (q) =>
-          q.eq("conversation_id", conversation._id).eq("client_id", args.client_id))
-        .collect();
-      if (existingRows.length > 1) {
-        return {
-          status: "rejected" as const,
-          code: "CLIENT_ID_INVARIANT",
-          message: "Conversation contains duplicate rows for this client id",
-        };
-      }
-      const existing = existingRows[0];
-      if (existing && !pendingMessageMatchesProductIntent(
-        existing,
-        conversation,
-        userId,
-        {
+    const quoteClientIds = args.quote_client_ids?.length
+      ? args.quote_client_ids
+      : undefined;
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "messages.send/v2",
+        arguments: {
+          conversationId: args.conversation_id,
           content: args.content,
           imageStorageIds,
           clientId: args.client_id,
+          // Only when present, so a send without quotes keeps the fingerprint
+          // every earlier receipt was written with.
+          ...(quoteClientIds ? { quoteClientIds } : {}),
         },
-      )) {
-        return {
-          status: "rejected" as const,
-          code: "CLIENT_ID_REUSED",
-          message: "This client id is already bound to different message intent",
-        };
-      }
+      },
+      async () => {
+        if (args.command_id !== args.client_id) {
+          return {
+            status: "rejected" as const,
+            code: "INVALID_ARGUMENT",
+            message: "command_id and client_id must be the same canonical id",
+          };
+        }
 
-      // Coverage is proven by this same id on the authoritative transcript.
-      // An old transcript row without our exact pending intent must therefore
-      // block admission; otherwise a fresh command could appear covered before
-      // its newly enqueued message was ever delivered.
-      const existingTranscriptMessage = await ctx.db
-        .query("messages")
-        .withIndex("by_conversation_client_id", (q) =>
-          q.eq("conversation_id", conversation._id).eq("client_id", args.client_id))
-        .first();
-      if (!existing && existingTranscriptMessage) {
-        return {
-          status: "rejected" as const,
-          code: "CLIENT_ID_REUSED",
-          message: "This client id is already present in the conversation transcript",
-        };
-      }
+        const conversation = await ctx.db.get(args.conversation_id);
+        if (!conversation) {
+          return {
+            status: "rejected" as const,
+            code: "MISSING",
+            message: "Conversation not found",
+          };
+        }
+        if (!(await canSendProductMessage(ctx, userId, conversation))) {
+          return {
+            status: "rejected" as const,
+            code: "FORBIDDEN",
+            message: "Conversation send access was revoked",
+          };
+        }
 
-      const waiting = await quotesWaiting(ctx, conversation._id, quoteClientIds);
-      if (!existing) {
-        // Session login only (requireUser).
-        await enqueuePendingMessage(ctx, conversation, userId, {
-          content: args.content,
-          image_storage_ids: imageStorageIds,
-          client_id: args.client_id,
-          human: true,
-          ...composerChannel(args.typed),
-        });
-      }
-      const quotes = quoteClientIds
-        ? await stampQuotesSent(ctx, userId, conversation._id, args.client_id, quoteClientIds, waiting)
-        : undefined;
-      return {
-        status: "acknowledged" as const,
-        coverageViews: [],
-        coverageCommandIds: [messagesCommandCoverageTarget(conversation._id)],
-        ...(quotes ? { result: { quotes } } : {}),
-      };
-    });
+        const existingRows = await ctx.db
+          .query("pending_messages")
+          .withIndex("by_conversation_client_id", (q) =>
+            q
+              .eq("conversation_id", conversation._id)
+              .eq("client_id", args.client_id),
+          )
+          .collect();
+        if (existingRows.length > 1) {
+          return {
+            status: "rejected" as const,
+            code: "CLIENT_ID_INVARIANT",
+            message: "Conversation contains duplicate rows for this client id",
+          };
+        }
+        const existing = existingRows[0];
+        if (
+          existing &&
+          !pendingMessageMatchesProductIntent(existing, conversation, userId, {
+            content: args.content,
+            imageStorageIds,
+            clientId: args.client_id,
+          })
+        ) {
+          return {
+            status: "rejected" as const,
+            code: "CLIENT_ID_REUSED",
+            message:
+              "This client id is already bound to different message intent",
+          };
+        }
+
+        // Coverage is proven by this same id on the authoritative transcript.
+        // An old transcript row without our exact pending intent must therefore
+        // block admission; otherwise a fresh command could appear covered before
+        // its newly enqueued message was ever delivered.
+        const existingTranscriptMessage = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_client_id", (q) =>
+            q
+              .eq("conversation_id", conversation._id)
+              .eq("client_id", args.client_id),
+          )
+          .first();
+        if (!existing && existingTranscriptMessage) {
+          return {
+            status: "rejected" as const,
+            code: "CLIENT_ID_REUSED",
+            message:
+              "This client id is already present in the conversation transcript",
+          };
+        }
+
+        const waiting = await quotesWaiting(
+          ctx,
+          conversation._id,
+          quoteClientIds,
+        );
+        if (!existing) {
+          // Session login only (requireUser).
+          await enqueuePendingMessage(ctx, conversation, userId, {
+            content: args.content,
+            image_storage_ids: imageStorageIds,
+            client_id: args.client_id,
+            human: true,
+            ...composerChannel(args.typed),
+          });
+        }
+        const quotes = quoteClientIds
+          ? await stampQuotesSent(
+              ctx,
+              userId,
+              conversation._id,
+              args.client_id,
+              quoteClientIds,
+              waiting,
+            )
+          : undefined;
+        return {
+          status: "acknowledged" as const,
+          coverageViews: [],
+          coverageCommandIds: [messagesCommandCoverageTarget(conversation._id)],
+          ...(quotes ? { result: { quotes } } : {}),
+        };
+      },
+    );
   },
 });
 
@@ -863,17 +1155,27 @@ export { formatSessionMessage };
 // a team with the writer's runner: a member removed since keeps no way into
 // a former teammate's agent.
 const REPLY_WINDOW = 200;
-async function wroteTo(ctx: { db: any }, writer: any, recipient: any): Promise<boolean> {
+async function wroteTo(
+  ctx: { db: any },
+  writer: any,
+  recipient: any,
+): Promise<boolean> {
   const recent = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", recipient._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", recipient._id),
+    )
     .order("desc")
     .take(REPLY_WINDOW);
-  return recent.some((row: any) => String(row.from_conversation_id ?? "") === String(writer._id));
+  return recent.some(
+    (row: any) => String(row.from_conversation_id ?? "") === String(writer._id),
+  );
 }
 
 const ledBy = (c: any, leadId: string): boolean =>
-  [c?.parent_conversation_id, c?.spawned_by_conversation_id].some((id) => id && String(id) === leadId);
+  [c?.parent_conversation_id, c?.spawned_by_conversation_id].some(
+    (id) => id && String(id) === leadId,
+  );
 
 // The session a send (and `cast send --status`) addresses: a role handle's
 // standing session, else the ref, among sessions the caller may message or
@@ -884,21 +1186,34 @@ const ledBy = (c: any, leadId: string): boolean =>
 // that wrote to it, then the newest. Newest alone sent 117 workers' reports
 // meant for the Marketplaces lead to a newer reviewer sharing its prefix
 // (week of 2026-11-17).
-async function resolveSendTarget(ctx: { db: any }, authUserId: Id<"users">, to: string, sender: any | null): Promise<{ target: any | null; role: boolean }> {
+async function resolveSendTarget(
+  ctx: { db: any },
+  authUserId: Id<"users">,
+  to: string,
+  sender: any | null,
+): Promise<{ target: any | null; role: boolean }> {
   const roleTarget = await standingSessionForHandle(ctx, authUserId, to);
-  if (roleTarget) return { target: (await canSendProductMessage(ctx, authUserId, roleTarget)) ? roleTarget : null, role: true };
+  if (roleTarget)
+    return {
+      target: (await canSendProductMessage(ctx, authUserId, roleTarget))
+        ? roleTarget
+        : null,
+      role: true,
+    };
   const target = await findConversationByAnyRefWhere(
     ctx,
     to,
     async (conversation) =>
-      await canSendProductMessage(ctx, authUserId, conversation)
-        || (!!sender && await wroteTo(ctx, conversation, sender) && await standsWithRunner(ctx, authUserId, conversation.user_id)),
+      (await canSendProductMessage(ctx, authUserId, conversation)) ||
+      (!!sender &&
+        (await wroteTo(ctx, conversation, sender)) &&
+        (await standsWithRunner(ctx, authUserId, conversation.user_id))),
     sender
       ? async (conversation) => {
-        if (ledBy(sender, String(conversation._id))) return 0;
-        if (ledBy(conversation, String(sender._id))) return 1;
-        return (await wroteTo(ctx, conversation, sender)) ? 2 : 3;
-      }
+          if (ledBy(sender, String(conversation._id))) return 0;
+          if (ledBy(conversation, String(sender._id))) return 1;
+          return (await wroteTo(ctx, conversation, sender)) ? 2 : 3;
+        }
       : undefined,
   );
   return { target, role: false };
@@ -924,7 +1239,20 @@ export async function performSessionSend(
   authUserId: Id<"users">,
   // `target`: a session the caller already resolved and checked (a role's
   // standing session behind `cast role wake`); it skips the `to` lookup.
-  args: { to: string; from?: string; body: string; client_id?: string; raw?: boolean; direct?: boolean; wake?: boolean; queue?: boolean; quiet?: boolean; intent?: SessionMessageIntent; image_storage_ids?: Id<"_storage">[]; target?: any }
+  args: {
+    to: string;
+    from?: string;
+    body: string;
+    client_id?: string;
+    raw?: boolean;
+    direct?: boolean;
+    wake?: boolean;
+    queue?: boolean;
+    quiet?: boolean;
+    intent?: SessionMessageIntent;
+    image_storage_ids?: Id<"_storage">[];
+    target?: any;
+  },
 ): Promise<{
   // null when the send waits as a suggestion for the owner (suggestion_id).
   message_id: Id<"pending_messages"> | null;
@@ -940,7 +1268,9 @@ export async function performSessionSend(
   if (!body.trim()) throw new Error("Message body is empty");
   // An intent rides the session-message wrapper; a raw or direct send has none.
   if (args.intent && args.intent !== "request" && (args.raw || args.direct)) {
-    throw new Error("--done and --fyi mark a message from a session; they do not apply to --raw or direct sends");
+    throw new Error(
+      "--done and --fyi mark a message from a session; they do not apply to --raw or direct sends",
+    );
   }
 
   // `--raw` exists so a live session can receive `/model opus` as its own
@@ -949,7 +1279,9 @@ export async function performSessionSend(
   // the human typed. Refuse that; the sender should drop --raw (or pass
   // --wake) so the wrapper stays on.
   if (args.raw && !/^\/[a-zA-Z]/.test(body.trim())) {
-    throw new Error("--raw is only for slash commands (/model, /effort). Drop --raw so the message is attributed to the sending session.");
+    throw new Error(
+      "--raw is only for slash commands (/model, /effort). Drop --raw so the message is attributed to the sending session.",
+    );
   }
 
   // Own-or-team: you can message any session the feed would let you see. A merely share-linked
@@ -962,25 +1294,51 @@ export async function performSessionSend(
   // The sender resolves among the caller's own sessions only, so a session
   // can speak only as one its caller runs.
   const fromRef = args.from?.trim();
-  const ownSender = fromRef ? await findConversationByAnyRef(ctx, fromRef, authUserId) : null;
+  const ownSender = fromRef
+    ? await findConversationByAnyRef(ctx, fromRef, authUserId)
+    : null;
   // A role's standing session (named by handle, or resolved by `cast role wake`)
   // is never held as killed or idle below.
-  const { target, role: roleTarget } = args.target ? { target: args.target, role: true } : await resolveSendTarget(ctx, authUserId, args.to, ownSender);
+  const { target, role: roleTarget } = args.target
+    ? { target: args.target, role: true }
+    : await resolveSendTarget(ctx, authUserId, args.to, ownSender);
   if (!target) {
-    throw new Error(`No session found for "${args.to}" (you can only message your own sessions, sessions shared with your team, sessions whose owner granted you send access, or a session that messaged yours)`);
+    throw new Error(
+      `No session found for "${args.to}" (you can only message your own sessions, sessions shared with your team, sessions whose owner granted you send access, or a session that messaged yours)`,
+    );
   }
 
   const isCrossUser = target.user_id.toString() !== authUserId.toString();
-  const senderUser = isCrossUser || args.direct ? await ctx.db.get(authUserId) : null;
+  const senderUser =
+    isCrossUser || args.direct ? await ctx.db.get(authUserId) : null;
 
   // A person typing into a teammate's session from the dashboard while one of
   // its owners is in it: the words wait as a suggestion that owner sends,
   // edits or dismisses (teamSuggestions.ts). Unattended sessions take them
   // straight in, below.
-  if (args.direct && !args.target && !args.raw && !args.image_storage_ids?.length && senderUser && !senderUser.is_bot) {
-    const steeringOwner = await steeringOwnerFor(ctx, target, authUserId, Date.now());
+  if (
+    args.direct &&
+    !args.target &&
+    !args.raw &&
+    !args.image_storage_ids?.length &&
+    senderUser &&
+    !senderUser.is_bot
+  ) {
+    const steeringOwner = await steeringOwnerFor(
+      ctx,
+      target,
+      authUserId,
+      Date.now(),
+    );
     if (steeringOwner) {
-      const suggestionId = await suggestFromTeammate(ctx, target, senderUser, steeringOwner, body, !!args.queue);
+      const suggestionId = await suggestFromTeammate(
+        ctx,
+        target,
+        senderUser,
+        steeringOwner,
+        body,
+        !!args.queue,
+      );
       return {
         message_id: null,
         suggestion_id: suggestionId,
@@ -999,7 +1357,9 @@ export async function performSessionSend(
   // input. Own sessions only: unwrapped text in a teammate's session would be
   // indistinguishable from something they typed.
   if (args.raw && isCrossUser) {
-    throw new Error("--raw sends only into your own sessions (a teammate's session always gets the attributed wrapper)");
+    throw new Error(
+      "--raw sends only into your own sessions (a teammate's session always gets the attributed wrapper)",
+    );
   }
 
   // A message never claims a session a person started. The runner (user_id),
@@ -1053,7 +1413,9 @@ export async function performSessionSend(
       // a human's instruction laundered through it reads as an unverifiable
       // relay. Only a send with NO sender at all (browser, system relays,
       // `direct`) takes the unattributed path.
-      throw new Error(`Sender session "${fromRef}" not found — pass --from <your session short id>`);
+      throw new Error(
+        `Sender session "${fromRef}" not found — pass --from <your session short id>`,
+      );
     }
   }
 
@@ -1064,12 +1426,25 @@ export async function performSessionSend(
   // 33 messages in files on one machine and left their work waiting
   // (jx7eahf, 2026-11-12). Only callers that ask for the check get it
   // (wake: false); older CLIs and relays send as before.
-  if (args.wake === false && senderConversation && !args.raw && !args.direct && !roleTarget) {
+  if (
+    args.wake === false &&
+    senderConversation &&
+    !args.raw &&
+    !args.direct &&
+    !roleTarget
+  ) {
     const cost = wakeCost({ ...target, ...wakeFieldsOf(target) }, Date.now());
-    const ownWorker = [target.spawned_by_conversation_id, target.parent_conversation_id]
-      .some((id) => id != null && String(id) === String(senderConversation._id));
+    const ownWorker = [
+      target.spawned_by_conversation_id,
+      target.parent_conversation_id,
+    ].some((id) => id != null && String(id) === String(senderConversation._id));
     if (cost.killed && !ownWorker) {
-      throw new Error(killedSendMessage(target.short_id ?? String(target._id).slice(0, 7), cost));
+      throw new Error(
+        killedSendMessage(
+          target.short_id ?? String(target._id).slice(0, 7),
+          cost,
+        ),
+      );
     }
   }
 
@@ -1077,16 +1452,27 @@ export async function performSessionSend(
   // session wrapper carries it when `from` has no clickable session (the common
   // case for a link collaborator). A self-send from a session is already
   // attributed by its own session pill.
-  const senderName = senderUser?.name || senderUser?.github_username || senderUser?.email?.split("@")[0] || undefined;
+  const senderName =
+    senderUser?.name ||
+    senderUser?.github_username ||
+    senderUser?.email?.split("@")[0] ||
+    undefined;
   const fromName = isCrossUser ? senderName : undefined;
 
   const messageId = await enqueuePendingMessage(ctx, target, authUserId, {
     content: args.raw
       ? body
       : args.direct
-      ? (await jointTurnVouched(ctx, target._id, senderName, body) ? body : formatUserMessage(senderName ?? "a teammate", body))
-      : formatSessionMessage(fromShortId, body, { name: fromName, intent: args.intent }),
-    image_storage_ids: args.image_storage_ids?.length ? args.image_storage_ids : undefined,
+        ? (await jointTurnVouched(ctx, target._id, senderName, body))
+          ? body
+          : formatUserMessage(senderName ?? "a teammate", body)
+        : formatSessionMessage(fromShortId, body, {
+            name: fromName,
+            intent: args.intent,
+          }),
+    image_storage_ids: args.image_storage_ids?.length
+      ? args.image_storage_ids
+      : undefined,
     client_id: args.client_id,
     // The failure-feedback channel: the stuck-message cron tells this session when the send sits
     // undelivered (planStuckSendNotify decides which waits are worth saying).
@@ -1099,8 +1485,15 @@ export async function performSessionSend(
     // Only a session hands work over out of sight; a person's send always shows the session.
     quiet: !!args.quiet && !!senderConversation && !args.raw && !args.direct,
   });
-  if (senderConversation && !args.raw && !args.direct && String(senderConversation.parent_conversation_id) === String(target._id)) {
-    await ctx.db.patch(senderConversation._id, { reported_to_parent_at: Date.now() });
+  if (
+    senderConversation &&
+    !args.raw &&
+    !args.direct &&
+    String(senderConversation.parent_conversation_id) === String(target._id)
+  ) {
+    await ctx.db.patch(senderConversation._id, {
+      reported_to_parent_at: Date.now(),
+    });
   }
 
   // Immediate liveness signal so the CLI can warn "the session looks offline" right away,
@@ -1109,7 +1502,12 @@ export async function performSessionSend(
   // heartbeat goes quiet while that daemon is still online and resumes it.
   // `arrives` says when it lands; `target_live` stays for CLIs that predate it.
   const now = Date.now();
-  const { arrives, live: targetLive } = await arrivalFor(ctx, target, !!args.queue && !!args.direct, now);
+  const { arrives, live: targetLive } = await arrivalFor(
+    ctx,
+    target,
+    !!args.queue && !!args.direct,
+    now,
+  );
 
   return {
     message_id: messageId,
@@ -1130,19 +1528,36 @@ export async function performSessionSend(
  * composer right now; otherwise the whole body is the sender's, wrapped in
  * their name like any direct send.
  */
-async function jointTurnVouched(ctx: { db: any }, conversationId: Id<"conversations">, senderName: string | undefined, body: string): Promise<boolean> {
+async function jointTurnVouched(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+  senderName: string | undefined,
+  body: string,
+): Promise<boolean> {
   const parts = parseJointMessage(body);
   if (!parts) return false;
   const drafts = await ctx.db
     .query("doc_presence")
-    .withIndex("by_doc", (q: any) => q.eq("doc_id", `compose:${conversationId}`))
+    .withIndex("by_doc", (q: any) =>
+      q.eq("doc_id", `compose:${conversationId}`),
+    )
     .collect();
   const fresh = drafts.filter((p: any) => p.updated_at > Date.now() - 30_000);
-  return parts.every((part) => part.from === senderName
-    || fresh.some((p: any) => p.user_name === part.from && (p.draft_text ?? "").trim() === part.body));
+  return parts.every(
+    (part) =>
+      part.from === senderName ||
+      fresh.some(
+        (p: any) =>
+          p.user_name === part.from &&
+          (p.draft_text ?? "").trim() === part.body,
+      ),
+  );
 }
 
-export function killedSendMessage(shortId: string, cost: ReturnType<typeof wakeCost>): string {
+export function killedSendMessage(
+  shortId: string,
+  cost: ReturnType<typeof wakeCost>,
+): string {
   // The share says how heavy that context is without the reader having to know
   // which model the session runs: 480k means one thing on a 200k model and
   // another on a million.
@@ -1155,17 +1570,33 @@ export function killedSendMessage(shortId: string, cost: ReturnType<typeof wakeC
 
 // "@handle" → the standing session of the live role with that handle in the
 // caller's personal space or any of their teams; null for any other ref.
-async function standingSessionForHandle(ctx: { db: any }, userId: Id<"users">, ref: string): Promise<any | null> {
+async function standingSessionForHandle(
+  ctx: { db: any },
+  userId: Id<"users">,
+  ref: string,
+): Promise<any | null> {
   if (!ref.startsWith("@")) return null;
   const handle = ref.slice(1).trim().toLowerCase();
   if (!handle) return null;
-  const candidates: any[] = await liveRolesByHandle(ctx, { scope_user_id: userId }, handle);
-  const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
-  for (const m of memberships) candidates.push(...await liveRolesByHandle(ctx, { team_id: m.team_id }, handle));
+  const candidates: any[] = await liveRolesByHandle(
+    ctx,
+    { scope_user_id: userId },
+    handle,
+  );
+  const memberships = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
+  for (const m of memberships)
+    candidates.push(
+      ...(await liveRolesByHandle(ctx, { team_id: m.team_id }, handle)),
+    );
   const role = candidates.find((r) => r.anchor_id);
   if (!role) return null;
   const anchor = await ctx.db.get(role.anchor_id);
-  return anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
+  return anchor?.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
 }
 
 export const sendSessionMessage = mutation({
@@ -1187,7 +1618,9 @@ export const sendSessionMessage = mutation({
     // does (enqueuePendingMessage.quiet). Ignored without a sender session.
     quiet: v.optional(v.boolean()),
     // What the sender wants back (formatSessionMessage): request is the default.
-    intent: v.optional(v.union(v.literal("request"), v.literal("inform"), v.literal("done"))),
+    intent: v.optional(
+      v.union(v.literal("request"), v.literal("inform"), v.literal("done")),
+    ),
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -1209,14 +1642,33 @@ export async function sendStatusFor(
   ctx: { db: any },
   authUserId: Id<"users">,
   args: { to: string; from: string },
-): Promise<{ to_short_id: string; sends: Array<{ created_at: number; status: string; typed_in_at?: number; delivered_at?: number; reason?: string; intent: SessionMessageIntent; preview: string }> }> {
+): Promise<{
+  to_short_id: string;
+  sends: Array<{
+    created_at: number;
+    status: string;
+    typed_in_at?: number;
+    delivered_at?: number;
+    reason?: string;
+    intent: SessionMessageIntent;
+    preview: string;
+  }>;
+}> {
   const sender = await findConversationByAnyRef(ctx, args.from, authUserId);
-  if (!sender) throw new Error(`Sender session "${args.from}" not found; pass --from <your session short id>`);
+  if (!sender)
+    throw new Error(
+      `Sender session "${args.from}" not found; pass --from <your session short id>`,
+    );
   const { target } = await resolveSendTarget(ctx, authUserId, args.to, sender);
-  if (!target) throw new Error(`No session found for "${args.to}" that you can message`);
+  if (!target)
+    throw new Error(`No session found for "${args.to}" that you can message`);
   const rows = await ctx.db
     .query("pending_messages")
-    .withIndex("by_from_conversation", (q: any) => q.eq("from_conversation_id", sender._id).eq("conversation_id", target._id))
+    .withIndex("by_from_conversation", (q: any) =>
+      q
+        .eq("from_conversation_id", sender._id)
+        .eq("conversation_id", target._id),
+    )
     .order("desc")
     .take(SEND_STATUS_LIMIT);
   return {
@@ -1225,11 +1677,20 @@ export async function sendStatusFor(
       created_at: row.created_at,
       status: sendStatusOf(row),
       typed_in_at: row.paste_verified_at,
-      reason: row.status === "delivered" || isUnconfirmedRow(row) ? undefined : row.delivery_disposition_reason,
+      reason:
+        row.status === "delivered" || isUnconfirmedRow(row)
+          ? undefined
+          : row.delivery_disposition_reason,
       delivered_at: row.status === "delivered" ? row.delivered_at : undefined,
       intent: sessionMessageIntentOf(row.content),
-      preview: restoreFrameTags(String(row.content ?? "").replace(SESSION_MESSAGE_OPEN_TAG, "").replace(/\n?<\/session-message>\s*$/, ""))
-        .replace(/\s+/g, " ").trim().slice(0, 80),
+      preview: restoreFrameTags(
+        String(row.content ?? "")
+          .replace(SESSION_MESSAGE_OPEN_TAG, "")
+          .replace(/\n?<\/session-message>\s*$/, ""),
+      )
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80),
     })),
   };
 }
@@ -1241,7 +1702,12 @@ export async function sendStatusFor(
 // reads it twice.
 function sendStatusOf(row: any): string {
   if (isUnconfirmedRow(row)) return "unconfirmed";
-  if (row.status === "cancelled" && !row.merged_into && (row.paste_verified_at || /ambiguous/.test(row.delivery_status ?? ""))) return "unconfirmed";
+  if (
+    row.status === "cancelled" &&
+    !row.merged_into &&
+    (row.paste_verified_at || /ambiguous/.test(row.delivery_status ?? ""))
+  )
+    return "unconfirmed";
   return row.status;
 }
 
@@ -1249,7 +1715,8 @@ export const sendStatus = query({
   args: { to: v.string(), from: v.string(), api_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!authUserId) throw new Error("Authentication failed: invalid token or session");
+    if (!authUserId)
+      throw new Error("Authentication failed: invalid token or session");
     return await sendStatusFor(ctx, authUserId, args);
   },
 });
@@ -1262,7 +1729,7 @@ export const updateMessageStatus = mutation({
       v.literal("injected"),
       v.literal("delivered"),
       v.literal("failed"),
-      v.literal("undeliverable")
+      v.literal("undeliverable"),
     ),
     delivered_at: v.optional(v.number()),
     // The daemon saw its paste in the composer and the Enter accepted. Only a
@@ -1292,16 +1759,26 @@ export const updateMessageStatus = mutation({
     // failed before the engine reads it.
     const conversation = await ctx.db.get(message.conversation_id);
     if (conversation && isHostedAgentType(conversation.agent_type)) {
-      throw new Error("A hosted conversation's queued input is settled by its turn engine");
+      throw new Error(
+        "A hosted conversation's queued input is settled by its turn engine",
+      );
     }
 
     const patch = {
       status: args.status,
       delivered_at: args.delivered_at,
-      ...(args.status === "injected" && args.paste_verified ? { paste_verified_at: Date.now() } : {}),
+      ...(args.status === "injected" && args.paste_verified
+        ? { paste_verified_at: Date.now() }
+        : {}),
     };
     if (args.device_id) {
-      const result = await updatePendingMessageStatusForDaemon(ctx, args.message_id, authUserId, args.device_id, patch);
+      const result = await updatePendingMessageStatusForDaemon(
+        ctx,
+        args.message_id,
+        authUserId,
+        args.device_id,
+        patch,
+      );
       return { success: true, skipped: result.skipped };
     }
 
@@ -1318,26 +1795,42 @@ export async function retryPendingMessageForUser(
   // force: the person read the held screen and chose "Send anyway".
   ref: { messageId?: string; clientId?: string; force?: boolean },
 ): Promise<string> {
-  if (!ref.messageId && !ref.clientId) throw new Error("Message identity required");
+  if (!ref.messageId && !ref.clientId)
+    throw new Error("Message identity required");
   const message = ref.messageId
     ? await ctx.db.get(ref.messageId)
-    : await ctx.db.query("pending_messages")
-      .withIndex("by_conversation_client_id", (q: any) => q.eq("conversation_id", conversationId).eq("client_id", ref.clientId))
-      .first();
+    : await ctx.db
+        .query("pending_messages")
+        .withIndex("by_conversation_client_id", (q: any) =>
+          q.eq("conversation_id", conversationId).eq("client_id", ref.clientId),
+        )
+        .first();
   if (!message) return "not_found";
-  if (message.conversation_id !== conversationId) throw new Error("Message belongs to another conversation");
-  if (!(await senderOrOwnerCanAct(ctx, message, userId))) throw new Error("Unauthorized: can only retry messages you sent or own");
-  if (isTerminalPendingStatus(message.status) || message.status === "injected") return message.status;
+  if (message.conversation_id !== conversationId)
+    throw new Error("Message belongs to another conversation");
+  if (!(await senderOrOwnerCanAct(ctx, message, userId)))
+    throw new Error("Unauthorized: can only retry messages you sent or own");
+  if (isTerminalPendingStatus(message.status) || message.status === "injected")
+    return message.status;
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) throw new Error("conversation_deleted");
-  if (isConversationSafetyBlocked(conversation)) throw new Error("Delivery is blocked by the session's safety stop");
-  if (isFencedPendingMessage(message) || !legacyConversationAcceptsDaemonWork(conversation)) {
-    throw new Error("Delivery is managed by the session transfer; retry is not available yet");
+  if (isConversationSafetyBlocked(conversation))
+    throw new Error("Delivery is blocked by the session's safety stop");
+  if (
+    isFencedPendingMessage(message) ||
+    !legacyConversationAcceptsDaemonWork(conversation)
+  ) {
+    throw new Error(
+      "Delivery is managed by the session transfer; retry is not available yet",
+    );
   }
-  if ((message.kill_generation ?? 0) < (conversation.pending_kill_generation ?? 0)) {
+  if (
+    (message.kill_generation ?? 0) < (conversation.pending_kill_generation ?? 0)
+  ) {
     throw new Error("This message was stopped when the session was killed");
   }
-  if (await rependPendingMessage(ctx, message, 0, undefined, ref.force)) await wakeHostedConversation(ctx, conversation, "message");
+  if (await rependPendingMessage(ctx, message, 0, undefined, ref.force))
+    await wakeHostedConversation(ctx, conversation, "message");
   await ctx.db.patch(conversationId, { has_pending_messages: true });
   return "pending";
 }
@@ -1353,14 +1846,19 @@ export async function cancelPendingMessageForUser(
   conversationId: Id<"conversations">,
   ref: { messageId?: string; clientId?: string },
 ): Promise<string> {
-  if (!ref.messageId && !ref.clientId) throw new Error("Message identity required");
+  if (!ref.messageId && !ref.clientId)
+    throw new Error("Message identity required");
   const message = ref.messageId
     ? await ctx.db.get(ref.messageId)
-    : await ctx.db.query("pending_messages")
-      .withIndex("by_conversation_client_id", (q: any) => q.eq("conversation_id", conversationId).eq("client_id", ref.clientId))
-      .first();
+    : await ctx.db
+        .query("pending_messages")
+        .withIndex("by_conversation_client_id", (q: any) =>
+          q.eq("conversation_id", conversationId).eq("client_id", ref.clientId),
+        )
+        .first();
   if (!message) return "not_found";
-  if (message.conversation_id !== conversationId) throw new Error("Message belongs to another conversation");
+  if (message.conversation_id !== conversationId)
+    throw new Error("Message belongs to another conversation");
   if (!(await senderOrOwnerCanAct(ctx, message, userId))) {
     throw new Error("Unauthorized: can only cancel messages you sent or own");
   }
@@ -1382,7 +1880,9 @@ export async function cancelPendingMessageForUser(
     await clearHasPendingIfQuiet(ctx, message.conversation_id);
     return "cancelled";
   }
-  const updated = await patchPendingMessageStatus(ctx, message, { status: "cancelled" as const });
+  const updated = await patchPendingMessageStatus(ctx, message, {
+    status: "cancelled" as const,
+  });
   return updated ? "cancelled" : message.status;
 }
 
@@ -1400,15 +1900,30 @@ export async function reorderQueuedForUser(
 ): Promise<string> {
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) return "not_found";
-  if (!(await canSendProductMessage(ctx, userId, conversation))) throw new Error("Only people who can send into this session can reorder its queue");
-  const rows = (await ctx.db.query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
-    .collect())
-    .filter((m: any) => SHOWN_PENDING_STATUSES.has(m.status) || (m.status === "held" && m.queued))
+  if (!(await canSendProductMessage(ctx, userId, conversation)))
+    throw new Error(
+      "Only people who can send into this session can reorder its queue",
+    );
+  const rows = (
+    await ctx.db
+      .query("pending_messages")
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", conversationId),
+      )
+      .collect()
+  )
+    .filter(
+      (m: any) =>
+        SHOWN_PENDING_STATUSES.has(m.status) ||
+        (m.status === "held" && m.queued),
+    )
     .sort(byQueueOrder);
   const moving = rows.find((m: any) => String(m._id) === ref.messageId);
   if (!moving || !isWaitingInQueue(moving)) return "not_waiting";
-  const at = queueAtBefore(rows.filter((m: any) => m !== moving), ref.beforeId);
+  const at = queueAtBefore(
+    rows.filter((m: any) => m !== moving),
+    ref.beforeId,
+  );
   if (at === null) return "not_waiting";
   await ctx.db.patch(moving._id, { queue_at: at });
   return "moved";
@@ -1428,37 +1943,71 @@ export async function mergeQueuedForUser(
 ): Promise<string> {
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) return "not_found";
-  if (!(await canSendProductMessage(ctx, userId, conversation))) throw new Error("Only people who can send into this session can merge its queue");
-  const pair = [await ctx.db.get(ref.messageId as Id<"pending_messages">), await ctx.db.get(ref.intoId as Id<"pending_messages">)];
-  if (pair.some((m: any) => !m || String(m.conversation_id) !== String(conversationId) || !isWaitingInQueue(m)) || ref.messageId === ref.intoId) return "not_waiting";
+  if (!(await canSendProductMessage(ctx, userId, conversation)))
+    throw new Error(
+      "Only people who can send into this session can merge its queue",
+    );
+  const pair = [
+    await ctx.db.get(ref.messageId as Id<"pending_messages">),
+    await ctx.db.get(ref.intoId as Id<"pending_messages">),
+  ];
+  if (
+    pair.some(
+      (m: any) =>
+        !m ||
+        String(m.conversation_id) !== String(conversationId) ||
+        !isWaitingInQueue(m),
+    ) ||
+    ref.messageId === ref.intoId
+  )
+    return "not_waiting";
   const [keep, absorb] = [...pair].sort(byQueueOrder) as any[];
   const nameOf = async (m: any) => {
     const u: any = await ctx.db.get(m.from_user_id);
-    return u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone";
+    return (
+      u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone"
+    );
   };
   const parts = [
     ...jointPartsOf(keep.content, await nameOf(keep)),
     ...jointPartsOf(absorb.content, await nameOf(absorb)),
   ];
-  const images = [keep, absorb].flatMap((m: any) => m.image_storage_ids ?? (m.image_storage_id ? [m.image_storage_id] : []));
+  const images = [keep, absorb].flatMap(
+    (m: any) =>
+      m.image_storage_ids ?? (m.image_storage_id ? [m.image_storage_id] : []),
+  );
   await ctx.db.patch(keep._id, {
     content: formatJointMessage(parts),
-    ...(images.length ? { image_storage_ids: images, image_storage_id: undefined } : {}),
+    ...(images.length
+      ? { image_storage_ids: images, image_storage_id: undefined }
+      : {}),
     // The joint message carries both rows' words, so neither person's typed mark stands (lib/messageProvenance).
     channel: undefined,
     typed_text: undefined,
   });
-  await ctx.db.patch(absorb._id, { status: "cancelled" as const, merged_into: keep._id });
+  await ctx.db.patch(absorb._id, {
+    status: "cancelled" as const,
+    merged_into: keep._id,
+  });
   return "merged";
 }
 
 /** Release the session's queue now, for anyone who may send into it (releaseQueuedRows). */
-export async function releaseQueuedForUser(ctx: { db: any; scheduler?: any }, userId: Id<"users">, conversationId: Id<"conversations">): Promise<number> {
+export async function releaseQueuedForUser(
+  ctx: { db: any; scheduler?: any },
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+): Promise<number> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation || !(await canSendProductMessage(ctx, userId, conversation))) return 0;
+  if (
+    !conversation ||
+    !(await canSendProductMessage(ctx, userId, conversation))
+  )
+    return 0;
   const released = await releaseQueuedRows(ctx, conversationId);
   if (released) {
-    if (!isConversationSafetyBlocked(conversation)) await requestRemoteWake(ctx, conversation);
+    if (!isConversationSafetyBlocked(conversation))
+      await requestRemoteWake(ctx, conversation);
     await wakeHostedConversation(ctx, conversation, "message");
   }
   return released;
@@ -1467,7 +2016,10 @@ export async function releaseQueuedForUser(ctx: { db: any; scheduler?: any }, us
 // The daemon's release: a "stop and send" whose Escape found no turn to stop
 // has no settle coming, so the daemon lets the queued row go itself.
 export const releaseQueued = mutation({
-  args: { conversation_id: v.id("conversations"), api_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Not authenticated");
@@ -1476,18 +2028,32 @@ export const releaseQueued = mutation({
 });
 
 export const reorderQueued = mutation({
-  args: { conversation_id: v.id("conversations"), message_id: v.string(), before_id: v.union(v.string(), v.null()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    message_id: v.string(),
+    before_id: v.union(v.string(), v.null()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return await reorderQueuedForUser(ctx, userId, args.conversation_id, { messageId: args.message_id, beforeId: args.before_id });
+    return await reorderQueuedForUser(ctx, userId, args.conversation_id, {
+      messageId: args.message_id,
+      beforeId: args.before_id,
+    });
   },
 });
 
 export const mergeQueued = mutation({
-  args: { conversation_id: v.id("conversations"), message_id: v.string(), into_id: v.string() },
+  args: {
+    conversation_id: v.id("conversations"),
+    message_id: v.string(),
+    into_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return await mergeQueuedForUser(ctx, userId, args.conversation_id, { messageId: args.message_id, intoId: args.into_id });
+    return await mergeQueuedForUser(ctx, userId, args.conversation_id, {
+      messageId: args.message_id,
+      intoId: args.into_id,
+    });
   },
 });
 
@@ -1526,15 +2092,26 @@ export const retryMessage = mutation({
       return { success: true };
     }
 
-    if (!(await daemonCanMutatePendingMessage(ctx, message, authUserId, args.device_id))) {
+    if (
+      !(await daemonCanMutatePendingMessage(
+        ctx,
+        message,
+        authUserId,
+        args.device_id,
+      ))
+    ) {
       return { success: true, skipped: true };
     }
     // A daemon's own retry timer may fire after the row failed as unconfirmed;
     // only a person's retry moves that row (retryPendingMessageForUser).
-    if (args.device_id && isUnconfirmedRow(message)) return { success: true, skipped: true };
+    if (args.device_id && isUnconfirmedRow(message))
+      return { success: true, skipped: true };
 
     const updated = args.hold_reason
-      ? await rependPendingMessage(ctx, message, message.retry_count, { reason: args.hold_reason, screen: args.hold_screen?.slice(-HOLD_SCREEN_MAX_CHARS) })
+      ? await rependPendingMessage(ctx, message, message.retry_count, {
+          reason: args.hold_reason,
+          screen: args.hold_screen?.slice(-HOLD_SCREEN_MAX_CHARS),
+        })
       : await rependPendingMessage(ctx, message, message.retry_count + 1);
 
     return { success: true, skipped: !updated };
@@ -1566,7 +2143,9 @@ export const cancelPendingMessage = mutation({
       throw new Error("Unauthorized: can only cancel messages you sent or own");
     }
 
-    const updated = await patchPendingMessageStatus(ctx, message, { status: "cancelled" as const });
+    const updated = await patchPendingMessageStatus(ctx, message, {
+      status: "cancelled" as const,
+    });
 
     return { success: true, skipped: !updated };
   },
@@ -1574,17 +2153,24 @@ export const cancelPendingMessage = mutation({
 
 export async function resetConversationPendingMessages(
   ctx: { db: any },
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ) {
   const messages = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
 
   let resetCount = 0;
   for (const msg of messages) {
     // An unconfirmed row may already have reached the agent: a resume must not type it again.
-    if ((msg.status === "failed" || msg.status === "undeliverable" || msg.status === "injected") && !isUnconfirmedRow(msg)) {
+    if (
+      (msg.status === "failed" ||
+        msg.status === "undeliverable" ||
+        msg.status === "injected") &&
+      !isUnconfirmedRow(msg)
+    ) {
       if (await rependPendingMessage(ctx, msg, 0)) resetCount++;
     }
   }
@@ -1632,7 +2218,7 @@ export async function cancelQueuedMessagesOnKill(
   const conversation = await ctx.db.get(conversationId);
   const cutoff = options.continuation
     ? options.cutoffGeneration!
-    : conversation?.pending_kill_generation ?? 0;
+    : (conversation?.pending_kill_generation ?? 0);
   if (!options.continuation && conversation) {
     await ctx.db.patch(conversationId, { pending_kill_generation: cutoff + 1 });
   }
@@ -1642,7 +2228,13 @@ export async function cancelQueuedMessagesOnKill(
   // expensive one — gate it on the conversation's own marker rather than paying
   // a scan on every ordinary kill.
   if (conversation?.execution_protocol_state) {
-    const fenced = await cancelFencedDeliveriesOnKill(ctx, conversationId, Date.now(), budget, cutoff);
+    const fenced = await cancelFencedDeliveriesOnKill(
+      ctx,
+      conversationId,
+      Date.now(),
+      budget,
+      cutoff,
+    );
     cancelled += fenced.cancelled;
     budget -= fenced.cancelled;
   }
@@ -1655,13 +2247,21 @@ export async function cancelQueuedMessagesOnKill(
       const rows = await ctx.db
         .query("pending_messages")
         .withIndex("by_conversation_status_kill_generation", (q: any) =>
-          q.eq("conversation_id", conversationId).eq("status", status).lte("kill_generation", cutoff)
+          q
+            .eq("conversation_id", conversationId)
+            .eq("status", status)
+            .lte("kill_generation", cutoff),
         )
         .take(Math.min(KILL_CANCEL_PAGE, budget));
       if (rows.length === 0) break;
       let progressed = 0;
       for (const row of rows) {
-        if (await patchPendingMessageStatus(ctx, row, { status: "cancelled" as const })) progressed++;
+        if (
+          await patchPendingMessageStatus(ctx, row, {
+            status: "cancelled" as const,
+          })
+        )
+          progressed++;
       }
       if (progressed === 0) break;
       cancelled += progressed;
@@ -1674,10 +2274,14 @@ export async function cancelQueuedMessagesOnKill(
   // Spent the whole budget → there may be more. Finish it in its own transaction;
   // a continuation that finds nothing left simply stops.
   if (budget <= 0 && ctx.scheduler) {
-    await ctx.scheduler.runAfter(0, internal.pendingMessages.continueKillCancellation, {
-      conversation_id: conversationId,
-      cutoff_generation: cutoff,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.pendingMessages.continueKillCancellation,
+      {
+        conversation_id: conversationId,
+        cutoff_generation: cutoff,
+      },
+    );
   }
   return cancelled;
 }
@@ -1685,12 +2289,19 @@ export async function cancelQueuedMessagesOnKill(
 // Overflow continuation for cancelQueuedMessagesOnKill — one budgeted pass per run,
 // re-scheduling itself (from inside the same helper) while rows remain.
 export const continueKillCancellation = internalMutation({
-  args: { conversation_id: v.id("conversations"), cutoff_generation: v.optional(v.number()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    cutoff_generation: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
-    const cancelled = await cancelQueuedMessagesOnKill(ctx as any, args.conversation_id, {
-      continuation: true,
-      cutoffGeneration: args.cutoff_generation,
-    });
+    const cancelled = await cancelQueuedMessagesOnKill(
+      ctx as any,
+      args.conversation_id,
+      {
+        continuation: true,
+        cutoffGeneration: args.cutoff_generation,
+      },
+    );
     return { cancelled };
   },
 });
@@ -1701,19 +2312,19 @@ export const continueKillCancellation = internalMutation({
 // from the actual message state.
 export async function clearHasPendingIfQuiet(
   ctx: { db: any },
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<void> {
   const remainingPending = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_status", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("status", "pending")
+      q.eq("conversation_id", conversationId).eq("status", "pending"),
     )
     .first();
   if (remainingPending) return;
   const remainingInjected = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_status", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("status", "injected")
+      q.eq("conversation_id", conversationId).eq("status", "injected"),
     )
     .first();
   if (!remainingInjected) {
@@ -1732,9 +2343,16 @@ export async function clearHasPendingIfQuiet(
 // on any sync path) and available to other callers.
 export async function markPendingDelivered(
   ctx: { db: any },
-  message: { _id: Id<"pending_messages">; conversation_id: Id<"conversations">; status: string }
+  message: {
+    _id: Id<"pending_messages">;
+    conversation_id: Id<"conversations">;
+    status: string;
+  },
 ): Promise<boolean> {
-  return await patchPendingMessageStatus(ctx, message, { status: "delivered" as const, delivered_at: Date.now() });
+  return await patchPendingMessageStatus(ctx, message, {
+    status: "delivered" as const,
+    delivered_at: Date.now(),
+  });
 }
 
 export const getPendingMessages = query({
@@ -1757,7 +2375,7 @@ export const getPendingMessages = query({
     const messages = await ctx.db
       .query("pending_messages")
       .withIndex("by_user_status", (q) =>
-        q.eq("from_user_id", targetUserId).eq("status", "pending")
+        q.eq("from_user_id", targetUserId).eq("status", "pending"),
       )
       .collect();
 
@@ -1793,13 +2411,13 @@ export async function collectDeliverableForOwner(
     ctx.db
       .query("pending_messages")
       .withIndex("by_owner_status", (q) =>
-        q.eq("owner_user_id", ownerUserId).eq("status", "pending")
+        q.eq("owner_user_id", ownerUserId).eq("status", "pending"),
       )
       .take(DELIVERABLE_SCAN_CAP),
     ctx.db
       .query("pending_messages")
       .withIndex("by_user_status", (q) =>
-        q.eq("from_user_id", ownerUserId).eq("status", "pending")
+        q.eq("from_user_id", ownerUserId).eq("status", "pending"),
       )
       .take(DELIVERABLE_SCAN_CAP),
   ]);
@@ -1817,12 +2435,19 @@ export async function collectDeliverableForOwner(
     // Rows written before daemon_delivery existed fall back to the conversation.
     // Remove this fallback once pageData.backfillSessionStarts has run on every
     // deployment that holds such rows.
-    const conversation = projectedDelivery ? start : await ctx.db.get(message.conversation_id);
+    const conversation = projectedDelivery
+      ? start
+      : await ctx.db.get(message.conversation_id);
     if (!conversation) continue;
     const delivery = projectedDelivery ?? daemonDeliveryStateOf(conversation);
-    if (canDaemonDeliver(message, conversation, delivery, ownerUserId, deviceId)) {
+    if (
+      canDaemonDeliver(message, conversation, delivery, ownerUserId, deviceId)
+    ) {
       // Delivery uses the current agent type to refuse leftovers after a switch.
-      owned.push({ ...message, conversation_agent_type: conversation.agent_type ?? null });
+      owned.push({
+        ...message,
+        conversation_agent_type: conversation.agent_type ?? null,
+      });
     }
   }
   return headOfEachQueue(owned);
@@ -1854,11 +2479,22 @@ export const claimPendingMessageForDelivery = mutation({
     if (!authUserId) {
       throw new Error("Authentication failed: invalid token or session");
     }
-    return await claimPendingMessageForDaemon(ctx, args.message_id, authUserId, args.device_id, args.conversation_id);
+    return await claimPendingMessageForDaemon(
+      ctx,
+      args.message_id,
+      authUserId,
+      args.device_id,
+      args.conversation_id,
+    );
   },
 });
 
-const SHOWN_PENDING_STATUSES = new Set<string>(["pending", "injected", "failed", "undeliverable"]);
+const SHOWN_PENDING_STATUSES = new Set<string>([
+  "pending",
+  "injected",
+  "failed",
+  "undeliverable",
+]);
 // The delivered rows getConversationPendingMessage reports: those that went in
 // within an hour of the newest delivery, at most this many. Measured from the
 // data, not the clock, so the answer changes only when a row does.
@@ -1878,9 +2514,16 @@ export const cliQueue = query({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Not authenticated");
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, async (c) =>
-      (await checkConversationAccess(ctx, userId, c as any)) !== "denied");
-    if (!conv) throw new Error(`No session found for "${args.session}" (you can only read sessions you can see)`);
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      async (c) =>
+        (await checkConversationAccess(ctx, userId, c as any)) !== "denied",
+    );
+    if (!conv)
+      throw new Error(
+        `No session found for "${args.session}" (you can only read sessions you can see)`,
+      );
     const rows = await ctx.db
       .query("pending_messages")
       .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
@@ -1890,18 +2533,34 @@ export const cliQueue = query({
       const key = m.from_user_id.toString();
       if (names.has(key)) continue;
       const u: any = await ctx.db.get(m.from_user_id);
-      names.set(key, u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone");
+      names.set(
+        key,
+        u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone",
+      );
     }
     const shown = (m: (typeof rows)[number]) => ({
-      message_id: m._id, created_at: m.created_at, status: m.status as string, content: m.content,
-      hold_reason: m.delivery_disposition_reason ?? null, retry_count: m.retry_count ?? 0,
+      message_id: m._id,
+      created_at: m.created_at,
+      status: m.status as string,
+      content: m.content,
+      hold_reason: m.delivery_disposition_reason ?? null,
+      retry_count: m.retry_count ?? 0,
       from_name: names.get(m.from_user_id.toString()) ?? null,
     });
     return {
       short_id: conv.short_id ?? conv._id.toString().slice(0, 7),
       title: conv.title ?? null,
-      queued: rows.filter((m) => SHOWN_PENDING_STATUSES.has(m.status) || m.status === "held").sort(byQueueOrder).map(shown),
-      cancelled: rows.filter((m) => m.status === "cancelled").sort((a, b) => b.created_at - a.created_at).slice(0, QUEUE_CANCELLED_SHOWN).map(shown),
+      queued: rows
+        .filter(
+          (m) => SHOWN_PENDING_STATUSES.has(m.status) || m.status === "held",
+        )
+        .sort(byQueueOrder)
+        .map(shown),
+      cancelled: rows
+        .filter((m) => m.status === "cancelled")
+        .sort((a, b) => b.created_at - a.created_at)
+        .slice(0, QUEUE_CANCELLED_SHOWN)
+        .map(shown),
     };
   },
 });
@@ -1916,7 +2575,9 @@ export const getConversationPendingMessage = query({
 
     const msgs = await ctx.db
       .query("pending_messages")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
 
     // The owner of this conversation sees the "delivering…" indicator for ANY in-flight message
@@ -1924,13 +2585,17 @@ export const getConversationPendingMessage = query({
     const conversation = await ctx.db.get(args.conversation_id);
     const isOwner = conversation?.user_id?.toString() === authUserId.toString();
     const visible = msgs.filter(
-      (m) => isOwner || m.from_user_id.toString() === authUserId.toString()
+      (m) => isOwner || m.from_user_id.toString() === authUserId.toString(),
     );
     // The queue is everyone's: anyone who can read the session sees every
     // message waiting to go into it, whoever sent it, with their face. Each
     // is about to land in the transcript they already read, and a shared
     // session's people steer it together (reorder, merge).
-    const sharedQueue = isOwner || (!!conversation && (await checkConversationAccess(ctx, authUserId, conversation)) !== "denied");
+    const sharedQueue =
+      isOwner ||
+      (!!conversation &&
+        (await checkConversationAccess(ctx, authUserId, conversation)) !==
+          "denied");
     // The oldest undelivered message, whatever its current status. Every
     // delivery attempt flips a row to "injected" and a hold flips it back, so
     // preferring "pending" hopped the card between queued messages on each
@@ -1948,40 +2613,75 @@ export const getConversationPendingMessage = query({
       const key = m.from_user_id.toString();
       if (authors.has(key)) continue;
       const u: any = await ctx.db.get(m.from_user_id);
-      authors.set(key, { name: u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone", image: u?.image || u?.github_avatar_url || undefined });
+      authors.set(key, {
+        name:
+          u?.name || u?.github_username || u?.email?.split("@")[0] || "Someone",
+        image: u?.image || u?.github_avatar_url || undefined,
+      });
     }
     const shown = (m: (typeof msgs)[number]) => ({
-      message_id: m._id, client_id: m.client_id, created_at: m.created_at, delivered_at: m.delivered_at, queue_at: m.queue_at, retry_count: m.retry_count,
-      status: m.status as string, content: m.content, hold_reason: m.delivery_disposition_reason, hold_screen: m.delivery_hold_screen,
-      delivery_status: m.delivery_status, queued: m.queued,
-      from_user_id: m.from_user_id, from_name: authors.get(m.from_user_id.toString())?.name, from_image: authors.get(m.from_user_id.toString())?.image,
+      message_id: m._id,
+      client_id: m.client_id,
+      created_at: m.created_at,
+      delivered_at: m.delivered_at,
+      queue_at: m.queue_at,
+      retry_count: m.retry_count,
+      status: m.status as string,
+      content: m.content,
+      hold_reason: m.delivery_disposition_reason,
+      hold_screen: m.delivery_hold_screen,
+      delivery_status: m.delivery_status,
+      queued: m.queued,
+      from_user_id: m.from_user_id,
+      from_name: authors.get(m.from_user_id.toString())?.name,
+      from_image: authors.get(m.from_user_id.toString())?.image,
     });
     const inflight = (sharedQueue ? msgs : visible)
-      .filter((m) => SHOWN_PENDING_STATUSES.has(m.status) || (m.status === "held" && m.queued))
+      .filter(
+        (m) =>
+          SHOWN_PENDING_STATUSES.has(m.status) ||
+          (m.status === "held" && m.queued),
+      )
       .sort(byQueueOrder);
     // The primary is what the viewer's delivery tracker watches: never a row
     // held on purpose (queued for the end of the turn), which is not late, and
     // never one failed as unconfirmed, which waits for a person, not a resume.
-    const msg = inflight.find((m) => visible.includes(m) && m.status !== "held" && !isUnconfirmedRow(m))
-      ?? visible
+    const msg =
+      inflight.find(
+        (m) =>
+          visible.includes(m) && m.status !== "held" && !isUnconfirmedRow(m),
+      ) ??
+      visible
         .filter((m) => TERMINAL_STATUSES.has(m.status as PendingStatus))
-        .sort((a, b) => b.created_at - a.created_at)[0]
-      ?? null;
+        .sort((a, b) => b.created_at - a.created_at)[0] ??
+      null;
     // `delivered` lists the rows that went in lately, newest first, whatever
     // else is in flight. A viewer's tail can lag the server by minutes, and
     // until a row's echo reaches it the row is the only copy of that message
     // on screen; two sends delivered together each need theirs.
     const delivered = (sharedQueue ? msgs : visible)
       .filter((m) => m.status === "delivered")
-      .sort((a, b) => (b.delivered_at ?? b.created_at) - (a.delivered_at ?? a.created_at));
-    const newestDelivery = delivered[0] ? (delivered[0].delivered_at ?? delivered[0].created_at) : 0;
+      .sort(
+        (a, b) =>
+          (b.delivered_at ?? b.created_at) - (a.delivered_at ?? a.created_at),
+      );
+    const newestDelivery = delivered[0]
+      ? (delivered[0].delivered_at ?? delivered[0].created_at)
+      : 0;
     const recent = delivered
-      .filter((m) => (m.delivered_at ?? m.created_at) >= newestDelivery - RECENT_DELIVERY_MS)
+      .filter(
+        (m) =>
+          (m.delivered_at ?? m.created_at) >=
+          newestDelivery - RECENT_DELIVERY_MS,
+      )
       .slice(0, RECENT_DELIVERY_ROWS)
       .map(shown);
     // Others' queued messages with none of the viewer's own: the queue alone,
     // with no primary row for the viewer's delivery tracker to act on.
-    if (!msg) return inflight.length || recent.length ? { inflight: inflight.map(shown), delivered: recent } : null;
+    if (!msg)
+      return inflight.length || recent.length
+        ? { inflight: inflight.map(shown), delivered: recent }
+        : null;
     return { ...shown(msg), inflight: inflight.map(shown), delivered: recent };
   },
 });
@@ -2003,7 +2703,9 @@ export const getMessageStatus = query({
     }
 
     if (!(await senderOrOwnerCanAct(ctx, message, authUserId))) {
-      throw new Error("Unauthorized: can only check status of messages you sent or own");
+      throw new Error(
+        "Unauthorized: can only check status of messages you sent or own",
+      );
     }
 
     return {
@@ -2037,8 +2739,14 @@ export type HealAction =
 export { UNCONFIRMED_DELIVERY_REASON };
 
 /** A row failed as unconfirmed: it may have reached the agent, so nothing but a person's retry or its late echo moves it. */
-export function isUnconfirmedRow(row: { status: string; delivery_disposition_reason?: string }): boolean {
-  return row.status === "failed" && row.delivery_disposition_reason === UNCONFIRMED_DELIVERY_REASON;
+export function isUnconfirmedRow(row: {
+  status: string;
+  delivery_disposition_reason?: string;
+}): boolean {
+  return (
+    row.status === "failed" &&
+    row.delivery_disposition_reason === UNCONFIRMED_DELIVERY_REASON
+  );
 }
 
 // How long an unconfirmed row stays open for a retry or a late echo. Past it
@@ -2053,8 +2761,14 @@ export const UNSERVED_UNCONFIRMED_WAIT_MS = 30 * 60_000;
 // reconnect: the old cron bumped retry_count every 30s as a liveness poke, exhausting the
 // undeliverable budget while nothing was actually being delivered.
 export function planStuckMessageHeal(
-  msg: { status: string; content: string; created_at: number; paste_verified_at?: number; delivery_disposition_reason?: string },
-  now: number
+  msg: {
+    status: string;
+    content: string;
+    created_at: number;
+    paste_verified_at?: number;
+    delivery_disposition_reason?: string;
+  },
+  now: number,
 ): HealAction {
   const age = now - msg.created_at;
 
@@ -2066,18 +2780,24 @@ export function planStuckMessageHeal(
     if (msg.paste_verified_at !== undefined) {
       // The clock is the paste's, not the row's: a send that waited in the
       // queue for an hour was handed over moments ago.
-      return now - msg.paste_verified_at < INJECT_ACK_GRACE_MS ? { kind: "skip" } : { kind: "fail_unconfirmed" };
+      return now - msg.paste_verified_at < INJECT_ACK_GRACE_MS
+        ? { kind: "skip" }
+        : { kind: "fail_unconfirmed" };
     }
     return { kind: "repend" };
   }
   if (isUnconfirmedRow(msg)) {
-    return now - (msg.paste_verified_at ?? msg.created_at) > UNCONFIRMED_ROW_TTL_MS ? { kind: "expire_unconfirmed" } : { kind: "skip" };
+    return now - (msg.paste_verified_at ?? msg.created_at) >
+      UNCONFIRMED_ROW_TTL_MS
+      ? { kind: "expire_unconfirmed" }
+      : { kind: "skip" };
   }
   // "undeliverable" is NOT a dead-end: the daemon raises it after its gentle-retry budget is
   // spent (a useful "escalate" signal), but it is revived (once the session is idle — see the
   // cron's readiness gate) so delivery keeps moving forward with no client present. "failed" is
   // the transient sync-failure sibling.
-  if (msg.status === "failed" || msg.status === "undeliverable") return { kind: "repend" };
+  if (msg.status === "failed" || msg.status === "undeliverable")
+    return { kind: "repend" };
 
   // "pending" is normally the daemon's live subscription to drive — but only WHILE delivery is
   // actually in flight (the first ~seconds). The retry-forever design had a single point of
@@ -2104,7 +2824,10 @@ export function planStuckMessageHeal(
 }
 
 async function failUnconfirmed(ctx: { db: any }, msg: any): Promise<void> {
-  await ctx.db.patch(msg._id, { status: "failed" as const, delivery_disposition_reason: UNCONFIRMED_DELIVERY_REASON });
+  await ctx.db.patch(msg._id, {
+    status: "failed" as const,
+    delivery_disposition_reason: UNCONFIRMED_DELIVERY_REASON,
+  });
   await clearHasPendingIfQuiet(ctx, msg.conversation_id);
   // A session that sent it is told, so it can check before sending again.
   if (msg.from_conversation_id) await notifyStuckSend(ctx, msg, "unconfirmed");
@@ -2121,8 +2844,13 @@ export const DEAD_SESSION_REVIVE_WINDOW_MS = 6 * 60 * 60_000;
 export const DEAD_SESSION_REVIVES_PER_PASS = 3;
 
 export function planDeadSessionRevive(
-  msg: { status: string; content: string; created_at: number; dead_session_revived_at?: number },
-  now: number
+  msg: {
+    status: string;
+    content: string;
+    created_at: number;
+    dead_session_revived_at?: number;
+  },
+  now: number,
 ): boolean {
   if (msg.dead_session_revived_at !== undefined) return false;
   if (msg.status !== "injected" && msg.status !== "failed") return false;
@@ -2140,7 +2868,11 @@ export function planDeadSessionRevive(
 // regardless of what the agent is doing) and `ready` (live AND the agent is idle, so it can take a
 // message right now). The cross-user notifier needs `live` to tell "busy" (alive but not idle)
 // apart from "offline" (no live daemon); both keep the message queued.
-function liveAndReadyConversationIds(sessions: Doc<"managed_sessions">[], beats: number[], now: number) {
+function liveAndReadyConversationIds(
+  sessions: Doc<"managed_sessions">[],
+  beats: number[],
+  now: number,
+) {
   const ready = new Set<string>();
   const live = new Set<string>();
   sessions.forEach((s, i) => {
@@ -2154,37 +2886,66 @@ function liveAndReadyConversationIds(sessions: Doc<"managed_sessions">[], beats:
 // A live managed session that would take a message now: settled, or stuck in
 // a start-up state long enough that waiting on it is pointless.
 function managedSessionReady(s: any, now: number): boolean {
-  const transitionAt = s.agent_status_updated_at ?? s.agent_started_at ?? s._creationTime;
-  const stalledTransition = ["starting", "resuming", "connected"].includes(s.agent_status)
-    && typeof transitionAt === "number" && now - transitionAt >= 5 * 60_000;
-  return s.agent_status === "idle" || SETTLE_VERDICT_STATUSES.has(s.agent_status) || stalledTransition;
+  const transitionAt =
+    s.agent_status_updated_at ?? s.agent_started_at ?? s._creationTime;
+  const stalledTransition =
+    ["starting", "resuming", "connected"].includes(s.agent_status) &&
+    typeof transitionAt === "number" &&
+    now - transitionAt >= 5 * 60_000;
+  return (
+    s.agent_status === "idle" ||
+    SETTLE_VERDICT_STATUSES.has(s.agent_status) ||
+    stalledTransition
+  );
 }
 
 // Claude Code takes a message mid-turn with its next tool result, both typed
 // into its pane and queued into an SDK host (seen on 2.1.322-323 as a
 // queued_command attachment). A Claude process with neither has no way in.
 function readsTypeAhead(target: any, s: any): boolean {
-  return target.agent_type === "claude_code" && (!!s.tmux_session || s.backend === "sdk");
+  return (
+    target.agent_type === "claude_code" &&
+    (!!s.tmux_session || s.backend === "sdk")
+  );
 }
 
 // When a send to `target` will arrive, from its live managed sessions (status
 // after the same trust decay the inbox applies, so a stale "working" left by a
 // lost hook reads as settled) and its owner's daemon (sendArrival).
-async function arrivalFor(ctx: { db: any }, target: any, queued: boolean, now: number): Promise<{ arrives: SendArrival; live: boolean }> {
+async function arrivalFor(
+  ctx: { db: any },
+  target: any,
+  queued: boolean,
+  now: number,
+): Promise<{ arrives: SendArrival; live: boolean }> {
   const sessions = await ctx.db
     .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", target._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", target._id),
+    )
     .collect();
   const beats = await heartbeatsFor(ctx, sessions);
-  const live = sessions.filter((_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS);
-  const ownerOnline = live.length > 0 || (await resolveOwnerDeviceView(ctx, target, now)).owner_online;
+  const live = sessions.filter(
+    (_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS,
+  );
+  const ownerOnline =
+    live.length > 0 ||
+    (await resolveOwnerDeviceView(ctx, target, now)).owner_online;
   const arrives = sendArrival({
     safetyBlocked: isConversationSafetyBlocked(target),
     runLog: isWorkflowRunLog(target),
     hosted: isHostedAgentType(target.agent_type),
     sessions: live.map((s: any) => {
-      const status = trustedAgentStatus(s.agent_status, s.agent_status_updated_at, now);
-      return { status, ready: managedSessionReady({ ...s, agent_status: status }, now), typeAhead: readsTypeAhead(target, s) };
+      const status = trustedAgentStatus(
+        s.agent_status,
+        s.agent_status_updated_at,
+        now,
+      );
+      return {
+        status,
+        ready: managedSessionReady({ ...s, agent_status: status }, now),
+        typeAhead: readsTypeAhead(target, s),
+      };
     }),
     queued,
     ownerOnline,
@@ -2199,8 +2960,17 @@ export const STUCK_SEND_NOTIFY_DEADLINE_MS = 3 * 60_000;
 // busy: live and mid-turn. stuck: live and idle, yet the message is still not in.
 // terminal: the daemon holds it because the session runs in a terminal it can't type into.
 // refused: its terminal never showed the message after every write, so it was dropped.
-export type TargetReach = "busy" | "stuck" | "offline" | "gone" | "unconfirmed" | "terminal" | "refused";
-export type StuckSendNotify = { kind: "skip" } | { kind: "notify"; reach: TargetReach };
+export type TargetReach =
+  | "busy"
+  | "stuck"
+  | "offline"
+  | "gone"
+  | "unconfirmed"
+  | "terminal"
+  | "refused";
+export type StuckSendNotify =
+  | { kind: "skip" }
+  | { kind: "notify"; reach: TargetReach };
 
 // Pure decision: should the sending session be told about a send that has not arrived? Fires at
 // most once (gated on sender_notified_at), and only when the sender has something to do: the
@@ -2217,9 +2987,10 @@ export function planStuckSendNotify(
     owner_user_id?: Id<"users">;
   },
   reach: TargetReach,
-  now: number
+  now: number,
 ): StuckSendNotify {
-  if (msg.status === "delivered" || msg.status === "cancelled") return { kind: "skip" };
+  if (msg.status === "delivered" || msg.status === "cancelled")
+    return { kind: "skip" };
   // Not stuck, and not retrying: it shows as not confirmed on the sender's card.
   if (isUnconfirmedRow(msg)) return { kind: "skip" };
   // Already typed in and waiting on its transcript echo: the healer either confirms it, fails
@@ -2230,10 +3001,12 @@ export function planStuckSendNotify(
   if (!msg.from_conversation_id) return { kind: "skip" }; // no sender session to notify
   if (msg.sender_notified_at) return { kind: "skip" }; // already told them once
   if (!msg.owner_user_id) return { kind: "skip" }; // legacy/unknown owner
-  if (now - msg.created_at < STUCK_SEND_NOTIFY_DEADLINE_MS) return { kind: "skip" };
+  if (now - msg.created_at < STUCK_SEND_NOTIFY_DEADLINE_MS)
+    return { kind: "skip" };
   // A message still on its way (target busy, offline, or idle and retried) needs nothing from the
   // sender: it is kept and delivered. Only an outcome the sender must act on is said.
-  if (reach === "busy" || reach === "offline" || reach === "stuck") return { kind: "skip" };
+  if (reach === "busy" || reach === "offline" || reach === "stuck")
+    return { kind: "skip" };
   return { kind: "notify", reach };
 }
 
@@ -2256,31 +3029,45 @@ export function stuckSendReach(
 export async function notifyStuckSend(
   ctx: { db: any },
   msg: any,
-  reach: TargetReach
+  reach: TargetReach,
 ): Promise<void> {
   const giveUp = reach === "gone";
   const senderConv = await ctx.db.get(msg.from_conversation_id);
   // A sender the user killed has nobody to read the receipt, and queuing it would revive the
   // killed agent just to tell it about an old send (enqueue clears the kill).
-  if (!senderConv || senderConv.inbox_killed_at || isClosedSession(senderConv) || senderConv.status === "completed") {
+  if (
+    !senderConv ||
+    senderConv.inbox_killed_at ||
+    isClosedSession(senderConv) ||
+    senderConv.status === "completed"
+  ) {
     // Sender's session is gone or stopped — nowhere to report; just stop re-evaluating this row.
     await ctx.db.patch(msg._id, { sender_notified_at: Date.now() });
-    if (giveUp) await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
+    if (giveUp)
+      await patchPendingMessageStatus(ctx, msg, {
+        status: "cancelled" as const,
+      });
     return;
   }
   const targetConv = await ctx.db.get(msg.conversation_id);
-  const targetLabel = targetConv?.short_id ?? msg.conversation_id.toString().slice(0, 7);
+  const targetLabel =
+    targetConv?.short_id ?? msg.conversation_id.toString().slice(0, 7);
   // One line: a quote ends at its first newline, so a multi-line preview spilled its later
   // lines out of the quote as loose text.
-  const flat = (msg.content ?? "").replace(SESSION_MESSAGE_OPEN_TAG, "").replace(/<\/session-message>\s*$/, "").replace(/\s+/g, " ").trim();
+  const flat = (msg.content ?? "")
+    .replace(SESSION_MESSAGE_OPEN_TAG, "")
+    .replace(/<\/session-message>\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const preview = flat.length > 140 ? `${flat.slice(0, 139).trimEnd()}…` : flat;
-  const body = reach === "gone"
-    ? `Your message to session ${targetLabel} could not be delivered — that session no longer exists, so the message was dropped.\n\n> ${preview}`
-    : reach === "terminal"
-    ? `Your message to session ${targetLabel} is held: that session ${msg.delivery_disposition_reason}. Its machine is up and keeps the message queued. It goes in once that terminal can be scripted, or once the agent there exits and codecast resumes the session in its own tmux.\n\n> ${preview}`
-    : reach === "refused"
-    ? `Your message to session ${targetLabel} never reached it: its terminal did not take the message after repeated tries, so it was dropped. That session needs a restart or a move to a healthier machine; send the message again after.\n\n> ${preview}`
-    : `Your message to session ${targetLabel} was typed into it, but its arrival was never confirmed. It may have landed: read that session before sending it again.\n\n> ${preview}`;
+  const body =
+    reach === "gone"
+      ? `Your message to session ${targetLabel} could not be delivered — that session no longer exists, so the message was dropped.\n\n> ${preview}`
+      : reach === "terminal"
+        ? `Your message to session ${targetLabel} is held: that session ${msg.delivery_disposition_reason}. Its machine is up and keeps the message queued. It goes in once that terminal can be scripted, or once the agent there exits and codecast resumes the session in its own tmux.\n\n> ${preview}`
+        : reach === "refused"
+          ? `Your message to session ${targetLabel} never reached it: its terminal did not take the message after repeated tries, so it was dropped. That session needs a restart or a move to a healthier machine; send the message again after.\n\n> ${preview}`
+          : `Your message to session ${targetLabel} was typed into it, but its arrival was never confirmed. It may have landed: read that session before sending it again.\n\n> ${preview}`;
 
   // The receipt goes into the sender's OWN conversation, so from_user == owner == the sender:
   // it's a normal self-scoped message (never itself a cross-user send), and enqueue wakes the
@@ -2288,15 +3075,26 @@ export async function notifyStuckSend(
   const content = formatSessionMessage("codecast", body);
   // A receipt the sender has not taken yet says the old state: rewrite it rather than queue a
   // second one beside it.
-  const earlier = msg.sender_notice_id ? await ctx.db.get(msg.sender_notice_id) : null;
+  const earlier = msg.sender_notice_id
+    ? await ctx.db.get(msg.sender_notice_id)
+    : null;
   if (earlier?.status === "pending") {
     await ctx.db.patch(earlier._id, { content });
     await ctx.db.patch(msg._id, { sender_notified_at: Date.now() });
   } else {
-    const noticeId = await enqueuePendingMessage(ctx, senderConv, msg.from_user_id, { content });
-    await ctx.db.patch(msg._id, { sender_notified_at: Date.now(), sender_notice_id: noticeId });
+    const noticeId = await enqueuePendingMessage(
+      ctx,
+      senderConv,
+      msg.from_user_id,
+      { content },
+    );
+    await ctx.db.patch(msg._id, {
+      sender_notified_at: Date.now(),
+      sender_notice_id: noticeId,
+    });
   }
-  if (giveUp) await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
+  if (giveUp)
+    await patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const });
 }
 
 // The query reads a bounded page. Each conversation gets its own mutation
@@ -2312,16 +3110,27 @@ export const STUCK_MESSAGE_RUN_BUDGET_MS = 40_000;
 // expiry) can fall due outside it and wait for the sweep. So can a burst of
 // more than one page of due rows: the newest page holds the slots.
 const FRESH_STUCK_MESSAGE_WINDOW_MS = 30 * 60_000;
-const NON_TERMINAL_STATUSES = ["pending", "injected", "failed", "undeliverable"] as const;
+const NON_TERMINAL_STATUSES = [
+  "pending",
+  "injected",
+  "failed",
+  "undeliverable",
+] as const;
 const stuckCursor = v.object({
   through: v.number(),
   createdAt: v.number(),
   creationTime: v.number(),
 });
 type StuckCursor = Infer<typeof stuckCursor>;
-type StuckGroup = { conversationId: Id<"conversations">; ids: Id<"pending_messages">[] };
+type StuckGroup = {
+  conversationId: Id<"conversations">;
+  ids: Id<"pending_messages">[];
+};
 type StuckPlan = { groups: StuckGroup[]; next?: StuckCursor | null };
-const retryReason = v.union(v.literal("apply_failed"), v.literal("dead_revive_limit"));
+const retryReason = v.union(
+  v.literal("apply_failed"),
+  v.literal("dead_revive_limit"),
+);
 const retryUpdate = v.object({
   conversationId: v.id("conversations"),
   messageId: v.id("pending_messages"),
@@ -2341,7 +3150,10 @@ export const retryStuckMessages = internalAction({
     let failed = 0;
     let firstError: unknown;
 
-    async function applyPage(groups: StuckGroup[], clearCompleted: boolean): Promise<RetryUpdate[]> {
+    async function applyPage(
+      groups: StuckGroup[],
+      clearCompleted: boolean,
+    ): Promise<RetryUpdate[]> {
       const updates: RetryUpdate[] = [];
       for (const { conversationId, ids: groupIds } of groups) {
         const ids = groupIds.filter((id) => !attempted.has(id));
@@ -2349,69 +3161,106 @@ export const retryStuckMessages = internalAction({
           // A failed or deferred attempt was already stamped with this tick
           // and cannot appear in the retry query again.
           for (const messageId of groupIds) {
-            if (attempted.has(messageId)) updates.push({ conversationId, messageId });
+            if (attempted.has(messageId))
+              updates.push({ conversationId, messageId });
           }
         }
         if (ids.length === 0) continue;
         for (const id of ids) attempted.add(id);
 
         try {
-          const result: ApplyStuckResult = await ctx.runMutation(internal.pendingMessages.applyStuckMessages, {
-            ids,
-            now: Date.now(),
-            deadRevivesRemaining: deadRevived.has(conversationId) ? 1 : DEAD_SESSION_REVIVES_PER_PASS - deadRevived.size,
-            allowHostedWake: !hostedChecked.has(conversationId),
-          });
+          const result: ApplyStuckResult = await ctx.runMutation(
+            internal.pendingMessages.applyStuckMessages,
+            {
+              ids,
+              now: Date.now(),
+              deadRevivesRemaining: deadRevived.has(conversationId)
+                ? 1
+                : DEAD_SESSION_REVIVES_PER_PASS - deadRevived.size,
+              allowHostedWake: !hostedChecked.has(conversationId),
+            },
+          );
           if (result.deadRevived > 0) deadRevived.add(conversationId);
           if (result.checkedHosted) hostedChecked.add(conversationId);
           const deferred = new Set(result.deferred);
           for (const messageId of ids) {
-            if (deferred.has(messageId)) updates.push({ conversationId, messageId, reason: "dead_revive_limit" });
-            else if (clearCompleted) updates.push({ conversationId, messageId });
+            if (deferred.has(messageId))
+              updates.push({
+                conversationId,
+                messageId,
+                reason: "dead_revive_limit",
+              });
+            else if (clearCompleted)
+              updates.push({ conversationId, messageId });
           }
         } catch (error) {
           failed++;
           firstError ??= error;
-          for (const messageId of ids) updates.push({ conversationId, messageId, reason: "apply_failed" });
+          for (const messageId of ids)
+            updates.push({ conversationId, messageId, reason: "apply_failed" });
         }
       }
       return updates;
     }
 
-    const fresh: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planFreshStuckMessages, { now });
+    const fresh: StuckGroup[] = await ctx.runQuery(
+      internal.pendingMessages.planFreshStuckMessages,
+      { now },
+    );
     const freshUpdates = await applyPage(fresh, true);
     if (freshUpdates.length > 0) {
-      await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates: freshUpdates });
+      await ctx.runMutation(
+        internal.pendingMessages.checkpointStuckMessagePage,
+        { now, updates: freshUpdates },
+      );
     }
 
     // Advance both queues while there is time. Repeated apply failures can
     // use the retry budget without holding the normal sweep cursor.
     let retriesRemain = true;
     let sweepRemains = true;
-    for (let page = 0; page < STUCK_MESSAGE_PAGES_PER_RUN && (retriesRemain || sweepRemains); page++) {
+    for (
+      let page = 0;
+      page < STUCK_MESSAGE_PAGES_PER_RUN && (retriesRemain || sweepRemains);
+      page++
+    ) {
       if (Date.now() >= deadline) break;
       if (retriesRemain) {
-        const groups: StuckGroup[] = await ctx.runQuery(internal.pendingMessages.planStuckMessageRetries, { now });
+        const groups: StuckGroup[] = await ctx.runQuery(
+          internal.pendingMessages.planStuckMessageRetries,
+          { now },
+        );
         retriesRemain = groups.length > 0;
         if (retriesRemain) {
           const updates = await applyPage(groups, true);
-          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates });
+          await ctx.runMutation(
+            internal.pendingMessages.checkpointStuckMessagePage,
+            { now, updates },
+          );
         }
       }
 
       if (Date.now() >= deadline) break;
       if (sweepRemains) {
-        const { groups, next }: StuckPlan = await ctx.runQuery(internal.pendingMessages.planStuckMessages, { now });
+        const { groups, next }: StuckPlan = await ctx.runQuery(
+          internal.pendingMessages.planStuckMessages,
+          { now },
+        );
         const updates = await applyPage(groups, false);
         if (next !== undefined || updates.length > 0) {
-          await ctx.runMutation(internal.pendingMessages.checkpointStuckMessagePage, { now, updates, next });
+          await ctx.runMutation(
+            internal.pendingMessages.checkpointStuckMessagePage,
+            { now, updates, next },
+          );
         }
         sweepRemains = next != null;
       }
     }
 
     if (failed) {
-      console.warn(`retryStuckMessages: ${failed} conversation apply failure(s) queued for retry: ${String(firstError).slice(0, 300)}`);
+      console.warn(
+        `retryStuckMessages: ${failed} conversation apply failure(s) queued for retry: ${String(firstError).slice(0, 300)}`,
+      );
     }
   },
 });
@@ -2421,7 +3270,11 @@ export const planStuckMessages = internalQuery({
   handler: async (ctx, args): Promise<StuckPlan> => {
     const state = await ctx.db.query("pending_message_sweep_state").first();
     const cursor = state?.cursor ?? null;
-    const { candidates, next } = await readStuckMessagePage(ctx.db, args.now, cursor);
+    const { candidates, next } = await readStuckMessagePage(
+      ctx.db,
+      args.now,
+      cursor,
+    );
     const groups = await planStuckMessageGroups(ctx, args.now, candidates);
     return { groups, ...(next || cursor ? { next } : {}) };
   },
@@ -2430,31 +3283,60 @@ export const planStuckMessages = internalQuery({
 export const planFreshStuckMessages = internalQuery({
   args: { now: v.number() },
   handler: async (ctx, { now }): Promise<StuckGroup[]> => {
-    const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
-      const grace = status === "pending" ? STUCK_SEND_NOTIFY_DEADLINE_MS
-        : status === "injected" ? INJECT_ACK_GRACE_MS : 0;
-      const rows = await ctx.db.query("pending_messages")
-        .withIndex("by_status_created", (q) =>
-          q.eq("status", status).gt("created_at", now - FRESH_STUCK_MESSAGE_WINDOW_MS).lte("created_at", now - grace))
-        .order("desc")
-        .take(STUCK_MESSAGES_PER_PAGE);
-      const page = rows.map((row) => ({ row, dueAt: row.created_at + grace }));
-      const remaining = STUCK_MESSAGES_PER_PAGE - rows.length;
-      if (status === "pending" && remaining > 0) {
-        // Pending text can heal before its sender is due a notice. Only spare room
-        // on the page is used, so with a queued backlog the repend waits for the notice tick.
-        const younger = await ctx.db.query("pending_messages")
+    const pages = await Promise.all(
+      NON_TERMINAL_STATUSES.map(async (status) => {
+        const grace =
+          status === "pending"
+            ? STUCK_SEND_NOTIFY_DEADLINE_MS
+            : status === "injected"
+              ? INJECT_ACK_GRACE_MS
+              : 0;
+        const rows = await ctx.db
+          .query("pending_messages")
           .withIndex("by_status_created", (q) =>
-            q.eq("status", "pending").gt("created_at", now - grace).lte("created_at", now - INJECT_ACK_GRACE_MS))
+            q
+              .eq("status", status)
+              .gt("created_at", now - FRESH_STUCK_MESSAGE_WINDOW_MS)
+              .lte("created_at", now - grace),
+          )
           .order("desc")
-          .take(remaining);
-        page.push(...younger.map((row) => ({ row, dueAt: row.created_at + INJECT_ACK_GRACE_MS })));
-      }
-      return page;
-    }));
+          .take(STUCK_MESSAGES_PER_PAGE);
+        const page = rows.map((row) => ({
+          row,
+          dueAt: row.created_at + grace,
+        }));
+        const remaining = STUCK_MESSAGES_PER_PAGE - rows.length;
+        if (status === "pending" && remaining > 0) {
+          // Pending text can heal before its sender is due a notice. Only spare room
+          // on the page is used, so with a queued backlog the repend waits for the notice tick.
+          const younger = await ctx.db
+            .query("pending_messages")
+            .withIndex("by_status_created", (q) =>
+              q
+                .eq("status", "pending")
+                .gt("created_at", now - grace)
+                .lte("created_at", now - INJECT_ACK_GRACE_MS),
+            )
+            .order("desc")
+            .take(remaining);
+          page.push(
+            ...younger.map((row) => ({
+              row,
+              dueAt: row.created_at + INJECT_ACK_GRACE_MS,
+            })),
+          );
+        }
+        return page;
+      }),
+    );
     // Favor rows that just crossed their age threshold. Older rows keep
     // moving through the chronological sweep even if this page is full.
-    const candidates = pages.flat().sort((a, b) => b.dueAt - a.dueAt || b.row._creationTime - a.row._creationTime)
+    const candidates = pages
+      .flat()
+      .sort(
+        (a, b) =>
+          b.dueAt - a.dueAt || b.row._creationTime - a.row._creationTime,
+      )
       .slice(0, STUCK_MESSAGES_PER_PAGE)
       .map(({ row }) => row);
     return planStuckMessageGroups(ctx, now, candidates);
@@ -2464,110 +3346,207 @@ export const planFreshStuckMessages = internalQuery({
 export const planStuckMessageRetries = internalQuery({
   args: { now: v.number() },
   handler: async (ctx, { now }): Promise<StuckGroup[]> => {
-    const failures = await ctx.db.query("pending_message_sweep_retries")
-      .withIndex("by_reason_attempted", (q) => q.eq("reason", "apply_failed").lt("attempted_at", now))
+    const failures = await ctx.db
+      .query("pending_message_sweep_retries")
+      .withIndex("by_reason_attempted", (q) =>
+        q.eq("reason", "apply_failed").lt("attempted_at", now),
+      )
       .take(STUCK_MESSAGES_PER_PAGE);
     const remaining = STUCK_MESSAGES_PER_PAGE - failures.length;
-    const deferred = remaining > 0 ? await ctx.db.query("pending_message_sweep_retries")
-      .withIndex("by_reason_attempted", (q) => q.eq("reason", "dead_revive_limit").lt("attempted_at", now))
-      .take(remaining) : [];
+    const deferred =
+      remaining > 0
+        ? await ctx.db
+            .query("pending_message_sweep_retries")
+            .withIndex("by_reason_attempted", (q) =>
+              q.eq("reason", "dead_revive_limit").lt("attempted_at", now),
+            )
+            .take(remaining)
+        : [];
     return groupStuckMessages([...failures, ...deferred]);
   },
 });
 
 export const checkpointStuckMessagePage = internalMutation({
-  args: { now: v.number(), next: v.optional(v.union(stuckCursor, v.null())), updates: v.array(retryUpdate) },
+  args: {
+    now: v.number(),
+    next: v.optional(v.union(stuckCursor, v.null())),
+    updates: v.array(retryUpdate),
+  },
   handler: async (ctx, { now, next, updates }): Promise<void> => {
     if (next !== undefined) {
       const state = await ctx.db.query("pending_message_sweep_state").first();
       if (state) await ctx.db.patch(state._id, { cursor: next });
-      else if (next) await ctx.db.insert("pending_message_sweep_state", { cursor: next });
+      else if (next)
+        await ctx.db.insert("pending_message_sweep_state", { cursor: next });
     }
     for (const { conversationId, messageId, reason } of updates) {
-      const retry = await ctx.db.query("pending_message_sweep_retries")
-        .withIndex("by_message_id", (q) => q.eq("message_id", messageId)).first();
+      const retry = await ctx.db
+        .query("pending_message_sweep_retries")
+        .withIndex("by_message_id", (q) => q.eq("message_id", messageId))
+        .first();
       if (reason === undefined) {
         if (retry) await ctx.db.delete(retry._id);
       } else if (retry) {
         await ctx.db.patch(retry._id, { attempted_at: now, reason });
       } else {
         await ctx.db.insert("pending_message_sweep_retries", {
-          message_id: messageId, conversation_id: conversationId, attempted_at: now, reason,
+          message_id: messageId,
+          conversation_id: conversationId,
+          attempted_at: now,
+          reason,
         });
       }
     }
   },
 });
 
-async function readStuckMessagePage(db: QueryCtx["db"], now: number, cursor: StuckCursor | null) {
+async function readStuckMessagePage(
+  db: QueryCtx["db"],
+  now: number,
+  cursor: StuckCursor | null,
+) {
   // Fix the high-water mark until wraparound so fresh messages cannot keep
   // an older row that becomes eligible behind the cursor out of the sweep.
   const through = cursor?.through ?? now;
-  const pages = await Promise.all(NON_TERMINAL_STATUSES.map(async (status) => {
-    const equalTime = cursor ? await db.query("pending_messages")
-      .withIndex("by_status_created", (q) =>
-        q.eq("status", status).eq("created_at", cursor.createdAt).gt("_creationTime", cursor.creationTime))
-      .take(STUCK_MESSAGES_PER_PAGE) : [];
-    const remaining = STUCK_MESSAGES_PER_PAGE - equalTime.length;
-    if (remaining === 0) return equalTime;
-    const later = await db.query("pending_messages")
-      .withIndex("by_status_created", (q) => {
-        const range = q.eq("status", status);
-        return (cursor ? range.gt("created_at", cursor.createdAt) : range).lte("created_at", through);
-      })
-      .take(remaining);
-    return equalTime.concat(later);
-  }));
-  const candidates = pages.flat()
-    .sort((a, b) => a.created_at - b.created_at || a._creationTime - b._creationTime)
+  const pages = await Promise.all(
+    NON_TERMINAL_STATUSES.map(async (status) => {
+      const equalTime = cursor
+        ? await db
+            .query("pending_messages")
+            .withIndex("by_status_created", (q) =>
+              q
+                .eq("status", status)
+                .eq("created_at", cursor.createdAt)
+                .gt("_creationTime", cursor.creationTime),
+            )
+            .take(STUCK_MESSAGES_PER_PAGE)
+        : [];
+      const remaining = STUCK_MESSAGES_PER_PAGE - equalTime.length;
+      if (remaining === 0) return equalTime;
+      const later = await db
+        .query("pending_messages")
+        .withIndex("by_status_created", (q) => {
+          const range = q.eq("status", status);
+          return (
+            cursor ? range.gt("created_at", cursor.createdAt) : range
+          ).lte("created_at", through);
+        })
+        .take(remaining);
+      return equalTime.concat(later);
+    }),
+  );
+  const candidates = pages
+    .flat()
+    .sort(
+      (a, b) =>
+        a.created_at - b.created_at || a._creationTime - b._creationTime,
+    )
     .slice(0, STUCK_MESSAGES_PER_PAGE);
   const last = candidates.at(-1);
-  const next = last && candidates.length === STUCK_MESSAGES_PER_PAGE
-    ? { through, createdAt: last.created_at, creationTime: last._creationTime }
-    : null;
+  const next =
+    last && candidates.length === STUCK_MESSAGES_PER_PAGE
+      ? {
+          through,
+          createdAt: last.created_at,
+          creationTime: last._creationTime,
+        }
+      : null;
   return { candidates, next };
 }
 
-async function planStuckMessageGroups(ctx: { db: QueryCtx["db"] }, now: number, candidates: Doc<"pending_messages">[]): Promise<StuckGroup[]> {
+async function planStuckMessageGroups(
+  ctx: { db: QueryCtx["db"] },
+  now: number,
+  candidates: Doc<"pending_messages">[],
+): Promise<StuckGroup[]> {
   const sessionsByConversation = await Promise.all(
-    queryStuckSessions(ctx.db, candidates, now).map((query) => query.take(STUCK_SESSIONS_PER_CONVERSATION)),
+    queryStuckSessions(ctx.db, candidates, now).map((query) =>
+      query.take(STUCK_SESSIONS_PER_CONVERSATION),
+    ),
   );
   const sampled = sessionsByConversation.flat();
-  const readiness = liveAndReadyConversationIds(sampled, await heartbeatsFor(ctx, sampled), now);
-  const uncertain = new Set(sessionsByConversation
-    .filter((sessions) => sessions.length === STUCK_SESSIONS_PER_CONVERSATION)
-    .map((sessions) => sessions[0].conversation_id!)
-    .filter((id) => !readiness.ready.has(id)));
-  const { acted } = await healStuckCandidates(ctx, now, candidates, readiness, candidates.length, true, async () => true);
+  const readiness = liveAndReadyConversationIds(
+    sampled,
+    await heartbeatsFor(ctx, sampled),
+    now,
+  );
+  const uncertain = new Set(
+    sessionsByConversation
+      .filter((sessions) => sessions.length === STUCK_SESSIONS_PER_CONVERSATION)
+      .map((sessions) => sessions[0].conversation_id!)
+      .filter((id) => !readiness.ready.has(id)),
+  );
+  const { acted } = await healStuckCandidates(
+    ctx,
+    now,
+    candidates,
+    readiness,
+    candidates.length,
+    true,
+    async () => true,
+  );
 
   // Treat a full session sample as inconclusive. The apply mutation checks
   // all live sessions for that conversation before it can revive anything.
   const actedIds = new Set(acted);
-  return groupStuckMessages(candidates
-    .filter((msg) => actedIds.has(msg._id) || (uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg)))
-    .map((msg) => ({ message_id: msg._id, conversation_id: msg.conversation_id })));
+  return groupStuckMessages(
+    candidates
+      .filter(
+        (msg) =>
+          actedIds.has(msg._id) ||
+          (uncertain.has(msg.conversation_id) && !isFencedPendingMessage(msg)),
+      )
+      .map((msg) => ({
+        message_id: msg._id,
+        conversation_id: msg.conversation_id,
+      })),
+  );
 }
 
-function groupStuckMessages(rows: { message_id: Id<"pending_messages">; conversation_id: Id<"conversations"> }[]): StuckGroup[] {
+function groupStuckMessages(
+  rows: {
+    message_id: Id<"pending_messages">;
+    conversation_id: Id<"conversations">;
+  }[],
+): StuckGroup[] {
   const groups = new Map<Id<"conversations">, StuckGroup>();
   for (const row of rows) {
     const group = groups.get(row.conversation_id);
     if (group) group.ids.push(row.message_id);
-    else groups.set(row.conversation_id, { conversationId: row.conversation_id, ids: [row.message_id] });
+    else
+      groups.set(row.conversation_id, {
+        conversationId: row.conversation_id,
+        ids: [row.message_id],
+      });
   }
   return [...groups.values()];
 }
 
-export const applyStuckMessages: RegisteredMutation<"internal", {
-  ids: Id<"pending_messages">[];
-  now: number;
-  deadRevivesRemaining: number;
-  allowHostedWake: boolean;
-}, Promise<ApplyStuckResult>> = internalMutation({
-  args: { ids: v.array(v.id("pending_messages")), now: v.number(), deadRevivesRemaining: v.number(), allowHostedWake: v.boolean() },
+export const applyStuckMessages: RegisteredMutation<
+  "internal",
+  {
+    ids: Id<"pending_messages">[];
+    now: number;
+    deadRevivesRemaining: number;
+    allowHostedWake: boolean;
+  },
+  Promise<ApplyStuckResult>
+> = internalMutation({
+  args: {
+    ids: v.array(v.id("pending_messages")),
+    now: v.number(),
+    deadRevivesRemaining: v.number(),
+    allowHostedWake: v.boolean(),
+  },
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:retryStuckMessages");
-    return healAndNotifyStuckMessages(ctx, args.now, args.ids, args.deadRevivesRemaining, args.allowHostedWake);
+    return healAndNotifyStuckMessages(
+      ctx,
+      args.now,
+      args.ids,
+      args.deadRevivesRemaining,
+      args.allowHostedWake,
+    );
   },
 });
 
@@ -2578,17 +3557,49 @@ async function healAndNotifyStuckMessages(
   deadRevivesRemaining: number,
   allowHostedWake: boolean,
 ) {
-  const candidates = (await Promise.all(ids.map((id) => ctx.db.get(id)))).filter(
-    (row): row is Doc<"pending_messages"> => row !== null && NON_TERMINAL_STATUSES.some((status) => status === row.status),
+  const candidates = (
+    await Promise.all(ids.map((id) => ctx.db.get(id)))
+  ).filter(
+    (row): row is Doc<"pending_messages"> =>
+      row !== null &&
+      NON_TERMINAL_STATUSES.some((status) => status === row.status),
   );
-  const sessions = (await Promise.all(queryStuckSessions(ctx.db, candidates, now).map((query) => query.collect()))).flat();
-  const readiness = liveAndReadyConversationIds(sessions, await heartbeatsFor(ctx, sessions), now);
-  return healStuckCandidates(ctx, now, candidates, readiness, deadRevivesRemaining, allowHostedWake, (effect) => effect());
+  const sessions = (
+    await Promise.all(
+      queryStuckSessions(ctx.db, candidates, now).map((query) =>
+        query.collect(),
+      ),
+    )
+  ).flat();
+  const readiness = liveAndReadyConversationIds(
+    sessions,
+    await heartbeatsFor(ctx, sessions),
+    now,
+  );
+  return healStuckCandidates(
+    ctx,
+    now,
+    candidates,
+    readiness,
+    deadRevivesRemaining,
+    allowHostedWake,
+    (effect) => effect(),
+  );
 }
 
-function queryStuckSessions(db: QueryCtx["db"], candidates: Doc<"pending_messages">[], now: number) {
-  const conversations = new Set(candidates.filter((msg) => !isFencedPendingMessage(msg)).map((msg) => msg.conversation_id));
-  return [...conversations].map((id) => conversationSessionsBeatingSince({ db }, id, now - HEARTBEAT_ALIVE_MS));
+function queryStuckSessions(
+  db: QueryCtx["db"],
+  candidates: Doc<"pending_messages">[],
+  now: number,
+) {
+  const conversations = new Set(
+    candidates
+      .filter((msg) => !isFencedPendingMessage(msg))
+      .map((msg) => msg.conversation_id),
+  );
+  return [...conversations].map((id) =>
+    conversationSessionsBeatingSince({ db }, id, now - HEARTBEAT_ALIVE_MS),
+  );
 }
 
 // A plan records eligible effects without running them. Receipts and hosted
@@ -2628,8 +3639,12 @@ async function healStuckCandidates(
     const conversationId = String(msg.conversation_id);
     if (!safetyBlocked.has(conversationId)) {
       const conversation = await ctx.db.get(msg.conversation_id);
-      safetyBlocked.set(conversationId, !!conversation && isConversationSafetyBlocked(conversation));
-      if (conversation && isHostedAgentType(conversation.agent_type)) hosted.set(conversationId, conversation);
+      safetyBlocked.set(
+        conversationId,
+        !!conversation && isConversationSafetyBlocked(conversation),
+      );
+      if (conversation && isHostedAgentType(conversation.agent_type))
+        hosted.set(conversationId, conversation);
       if (!conversation) {
         gone.add(conversationId);
         ready.delete(conversationId);
@@ -2642,19 +3657,34 @@ async function healStuckCandidates(
     }
     if (planStuckMessageHeal(msg, now).kind === "expire_unconfirmed") {
       acted.add(msg._id);
-      await perform(() => patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const }));
+      await perform(() =>
+        patchPendingMessageStatus(ctx, msg, { status: "cancelled" as const }),
+      );
       expiredUnconfirmed++;
       continue;
     }
     const hostedConversation = hosted.get(conversationId);
     if (hostedConversation) {
-      if (allowHostedWake && planStuckMessageHeal(msg, now).kind !== "skip" && !hostedChecked.has(conversationId)) {
+      if (
+        allowHostedWake &&
+        planStuckMessageHeal(msg, now).kind !== "skip" &&
+        !hostedChecked.has(conversationId)
+      ) {
         hostedChecked.add(conversationId);
         // Input waiting on an open approval card stays pending on purpose,
         // for as long as the card is open: the answer, a dismissal or the
         // person's next message wakes it, so the sweep does not.
-        if (await perform(async () => !await hostedInputWaits(ctx, msg.conversation_id)
-          && await wakeHostedConversation(ctx, hostedConversation, "continue"))) {
+        if (
+          await perform(
+            async () =>
+              !(await hostedInputWaits(ctx, msg.conversation_id)) &&
+              (await wakeHostedConversation(
+                ctx,
+                hostedConversation,
+                "continue",
+              )),
+          )
+        ) {
           rewoken.add(conversationId);
           acted.add(msg._id);
         } else {
@@ -2665,7 +3695,11 @@ async function healStuckCandidates(
     }
     // Sender feedback runs regardless of the target's readiness: a send past the deadline that
     // the sender must act on (target gone, or held in a terminal) tells its sending session.
-    const reach = stuckSendReach(msg, { gone: gone.has(conversationId), live: live.has(conversationId), ready: ready.has(conversationId) });
+    const reach = stuckSendReach(msg, {
+      gone: gone.has(conversationId),
+      live: live.has(conversationId),
+      ready: ready.has(conversationId),
+    });
     const senderNotify = planStuckSendNotify(msg, reach, now);
     if (senderNotify.kind === "notify") {
       acted.add(msg._id);
@@ -2679,7 +3713,12 @@ async function healStuckCandidates(
     // the hold so the row reads as what it is: queued for a session that is offline.
     if (msg.delivery_hold_screen && !live.has(conversationId)) {
       acted.add(msg._id);
-      await perform(() => ctx.db.patch(msg._id, { delivery_disposition_reason: undefined, delivery_hold_screen: undefined }));
+      await perform(() =>
+        ctx.db.patch(msg._id, {
+          delivery_disposition_reason: undefined,
+          delivery_hold_screen: undefined,
+        }),
+      );
     }
     // Session not ready to receive (busy / blocked / stopped / gone): leave the message
     // exactly as-is — preserved, never dropped — and revive it once the session is idle.
@@ -2688,31 +3727,43 @@ async function healStuckCandidates(
     // will not confirm now, so it fails visibly rather than holding Working.
     // A daemon that only paused (a laptop asleep, a restart) comes back and
     // syncs the echo, so this waits far longer than the idle case.
-    if (!ready.has(conversationId) && !live.has(conversationId) && !gone.has(conversationId)
-      && (msg.paste_verified_at ?? now) <= now - UNSERVED_UNCONFIRMED_WAIT_MS
-      && planStuckMessageHeal(msg, now).kind === "fail_unconfirmed") {
+    if (
+      !ready.has(conversationId) &&
+      !live.has(conversationId) &&
+      !gone.has(conversationId) &&
+      (msg.paste_verified_at ?? now) <= now - UNSERVED_UNCONFIRMED_WAIT_MS &&
+      planStuckMessageHeal(msg, now).kind === "fail_unconfirmed"
+    ) {
       acted.add(msg._id);
       await perform(() => failUnconfirmed(ctx, msg));
       failedUnconfirmed++;
       continue;
     }
     if (!ready.has(conversationId)) {
-      const revivable = !live.has(conversationId) && !gone.has(conversationId) && planDeadSessionRevive(msg, now);
+      const revivable =
+        !live.has(conversationId) &&
+        !gone.has(conversationId) &&
+        planDeadSessionRevive(msg, now);
       if (!revivable) {
         waiting++;
         continue;
       }
-      if (!deadRevived.has(conversationId) && deadRevived.size >= deadRevivesRemaining) {
+      if (
+        !deadRevived.has(conversationId) &&
+        deadRevived.size >= deadRevivesRemaining
+      ) {
         deferred.push(msg._id);
         waiting++;
         continue;
       }
       acted.add(msg._id);
-      if (await perform(async () => {
-        if (!await rependPendingMessage(ctx, msg, 0)) return false;
-        await ctx.db.patch(msg._id, { dead_session_revived_at: now });
-        return true;
-      })) {
+      if (
+        await perform(async () => {
+          if (!(await rependPendingMessage(ctx, msg, 0))) return false;
+          await ctx.db.patch(msg._id, { dead_session_revived_at: now });
+          return true;
+        })
+      ) {
         deadRevived.add(conversationId);
         reflag.add(msg.conversation_id);
         revived++;
@@ -2741,13 +3792,31 @@ async function healStuckCandidates(
     for (const convId of reflag) {
       await ctx.db.patch(convId, { has_pending_messages: true });
     }
-    if (revived > 0 || controlsAcked > 0 || failedUnconfirmed > 0 || expiredUnconfirmed > 0 || notified > 0 || rewoken.size > 0) {
-      console.log(`retryStuckMessages: revived ${revived} for idle sessions, acked ${controlsAcked} control msg(s), failed ${failedUnconfirmed} unconfirmed, expired ${expiredUnconfirmed}, notified ${notified} stuck cross-user send(s), rewoke ${rewoken.size} hosted conversation(s), ${waiting} waiting on a busy/offline session`);
+    if (
+      revived > 0 ||
+      controlsAcked > 0 ||
+      failedUnconfirmed > 0 ||
+      expiredUnconfirmed > 0 ||
+      notified > 0 ||
+      rewoken.size > 0
+    ) {
+      console.log(
+        `retryStuckMessages: revived ${revived} for idle sessions, acked ${controlsAcked} control msg(s), failed ${failedUnconfirmed} unconfirmed, expired ${expiredUnconfirmed}, notified ${notified} stuck cross-user send(s), rewoke ${rewoken.size} hosted conversation(s), ${waiting} waiting on a busy/offline session`,
+      );
     }
   });
   return {
-    revived, controlsAcked, failedUnconfirmed, expiredUnconfirmed, notified, waiting, rewoken: rewoken.size,
-    acted: [...acted], deadRevived: deadRevived.size, checkedHosted: hostedChecked.size > 0, deferred,
+    revived,
+    controlsAcked,
+    failedUnconfirmed,
+    expiredUnconfirmed,
+    notified,
+    waiting,
+    rewoken: rewoken.size,
+    acted: [...acted],
+    deadRevived: deadRevived.size,
+    checkedHosted: hostedChecked.size > 0,
+    deferred,
   };
 }
 
@@ -2846,11 +3915,13 @@ export async function ackInjectedForDaemon(
   const injected = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_status", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("status", "injected")
+      q.eq("conversation_id", conversationId).eq("status", "injected"),
     )
     .collect();
 
-  const pasted = pastedMessageIds ? new Set(pastedMessageIds.map(String)) : null;
+  const pasted = pastedMessageIds
+    ? new Set(pastedMessageIds.map(String))
+    : null;
   const transcriptByPending = new Map(
     (deliveryAcks ?? []).map((ack) => [
       String(ack.pendingMessageId),
@@ -2895,10 +3966,14 @@ export const ackInjectedMessages = mutation({
     // Rows the daemon itself pasted into a live pane (delivery resolved
     // successfully in this process). Optional for old-daemon back-compat.
     message_ids: v.optional(v.array(v.id("pending_messages"))),
-    delivery_acks: v.optional(v.array(v.object({
-      pending_message_id: v.id("pending_messages"),
-      transcript_message_id: v.id("messages"),
-    }))),
+    delivery_acks: v.optional(
+      v.array(
+        v.object({
+          pending_message_id: v.id("pending_messages"),
+          transcript_message_id: v.id("messages"),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -2906,7 +3981,14 @@ export const ackInjectedMessages = mutation({
       throw new Error("Authentication failed");
     }
 
-    if (!(await daemonCanMutateConversation(ctx, args.conversation_id, authUserId, args.device_id))) {
+    if (
+      !(await daemonCanMutateConversation(
+        ctx,
+        args.conversation_id,
+        authUserId,
+        args.device_id,
+      ))
+    ) {
       return { acked: 0, skipped: true };
     }
 
@@ -2936,14 +4018,21 @@ export const resetInjectedMessages = mutation({
       throw new Error("Authentication failed");
     }
 
-    if (!(await daemonCanMutateConversation(ctx, args.conversation_id, authUserId, args.device_id))) {
+    if (
+      !(await daemonCanMutateConversation(
+        ctx,
+        args.conversation_id,
+        authUserId,
+        args.device_id,
+      ))
+    ) {
       return { reset: 0, skipped: true };
     }
 
     const injected = await ctx.db
       .query("pending_messages")
       .withIndex("by_conversation_status", (q) =>
-        q.eq("conversation_id", args.conversation_id).eq("status", "injected")
+        q.eq("conversation_id", args.conversation_id).eq("status", "injected"),
       )
       .collect();
 

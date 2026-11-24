@@ -74,7 +74,12 @@ const run = promisify(execFile);
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 // livekit.mjs first: it quiets the SDK logger before rtc-node loads.
-import { die, loadLivekitEnv, parseArgs, participantToken } from "./livekit.mjs";
+import {
+  die,
+  loadLivekitEnv,
+  parseArgs,
+  participantToken,
+} from "./livekit.mjs";
 import {
   AudioFrame,
   AudioSource,
@@ -89,7 +94,15 @@ import {
   VideoSource,
   dispose,
 } from "@livekit/rtc-node";
-import { Canvas, identityColor, paintCamera, paintScreen, SCENE_MS, sceneAt, writePng } from "./frames.mjs";
+import {
+  Canvas,
+  identityColor,
+  paintCamera,
+  paintScreen,
+  SCENE_MS,
+  sceneAt,
+  writePng,
+} from "./frames.mjs";
 
 const { flags, positionals } = parseArgs(process.argv.slice(2), {
   booleans: ["no-camera", "no-screen", "tone", "refresh-env", "guest"],
@@ -104,20 +117,39 @@ const size = (s, dflt) => {
 const num = (key, dflt) => {
   if (flags[key] === undefined) return dflt;
   const n = Number(flags[key]);
-  if (!Number.isFinite(n) || n < 0) die(`--${key} must be a non negative number`, 64);
+  if (!Number.isFinite(n) || n < 0)
+    die(`--${key} must be a non negative number`, 64);
   return n;
 };
 
 // `--guest` alone mints a random guest id; `--guest=<id>` names one.
 const isGuest = Boolean(flags.guest);
-const gid = isGuest ? (flags.guest === true ? randomUUID().slice(0, 8) : flags.guest) : undefined;
+const gid = isGuest
+  ? flags.guest === true
+    ? randomUUID().slice(0, 8)
+    : flags.guest
+  : undefined;
 const room = positionals[0];
-if (!room && !flags.preview) die("usage: node publish.mjs <room> [--member <userId> | --guest[=<id>] | --identity <id>] [--name <n>] [--tone] [--duration <s>] ...  (header of publish.mjs has the rest)", 64);
-if ([flags.member, isGuest || undefined, flags.identity].filter(Boolean).length > 1) die("pick one of --member, --guest, --identity", 64);
+if (!room && !flags.preview)
+  die(
+    "usage: node publish.mjs <room> [--member <userId> | --guest[=<id>] | --identity <id>] [--name <n>] [--tone] [--duration <s>] ...  (header of publish.mjs has the rest)",
+    64,
+  );
+if (
+  [flags.member, isGuest || undefined, flags.identity].filter(Boolean).length >
+  1
+)
+  die("pick one of --member, --guest, --identity", 64);
 
-const identity = flags.member ?? (isGuest ? `guest:${gid}` : flags.identity ?? `call-e2e:${randomUUID().slice(0, 6)}`);
+const identity =
+  flags.member ??
+  (isGuest
+    ? `guest:${gid}`
+    : (flags.identity ?? `call-e2e:${randomUUID().slice(0, 6)}`));
 const name = flags.name ?? (isGuest ? `Guest ${gid}` : "Call E2E");
-const metadata = flags.metadata ?? (flags.image ? JSON.stringify({ image: flags.image }) : undefined);
+const metadata =
+  flags.metadata ??
+  (flags.image ? JSON.stringify({ image: flags.image }) : undefined);
 const screenSize = size(flags["screen-size"], "1920x1080");
 const cameraSize = size(flags["camera-size"], "960x540");
 const screenFps = num("screen-fps", 10) || 10;
@@ -131,13 +163,29 @@ if (flags.preview) {
   mkdirSync(dir, { recursive: true });
   const now = Date.now();
   const slides = [
-    ["screen", screenSize, (c) => paintScreen(c, { nowMs: now, frame: 421, startedAtMs: now - 42_300, label })],
-    ["camera", cameraSize, (c) => paintCamera(c, { nowMs: now, frame: 631, name, colorHex: color })],
+    [
+      "screen",
+      screenSize,
+      (c) =>
+        paintScreen(c, {
+          nowMs: now,
+          frame: 421,
+          startedAtMs: now - 42_300,
+          label,
+        }),
+    ],
+    [
+      "camera",
+      cameraSize,
+      (c) => paintCamera(c, { nowMs: now, frame: 631, name, colorHex: color }),
+    ],
   ];
   for (const [kind, { width, height }, paint] of slides) {
     const c = new Canvas(width, height);
     paint(c);
-    process.stdout.write(`${writePng(join(dir, `${kind}.png`), c.data, width, height)}\n`);
+    process.stdout.write(
+      `${writePng(join(dir, `${kind}.png`), c.data, width, height)}\n`,
+    );
   }
   process.exit(0);
 }
@@ -149,13 +197,28 @@ if (flags.preview) {
 function videoLoop({ width, height, fps, paint }) {
   const source = new VideoSource(width, height);
   const canvas = new Canvas(width, height);
-  const frame = new VideoFrame(canvas.data, width, height, VideoBufferType.RGBA);
-  const state = { source, frames: 0, startedAtMs: Date.now(), timer: undefined, stopped: false };
+  const frame = new VideoFrame(
+    canvas.data,
+    width,
+    height,
+    VideoBufferType.RGBA,
+  );
+  const state = {
+    source,
+    frames: 0,
+    startedAtMs: Date.now(),
+    timer: undefined,
+    stopped: false,
+  };
   const period = 1000 / fps;
   const tick = () => {
     if (state.stopped) return;
     const now = Date.now();
-    paint(canvas, { nowMs: now, frame: state.frames, startedAtMs: state.startedAtMs });
+    paint(canvas, {
+      nowMs: now,
+      frame: state.frames,
+      startedAtMs: state.startedAtMs,
+    });
     source.captureFrame(frame);
     state.frames++;
     const next = state.startedAtMs + state.frames * period;
@@ -191,11 +254,17 @@ function toneLoop() {
           const hz = cut ? 1320 : 880;
           // A short raised cosine envelope keeps the pip from clicking.
           const env = Math.sin((Math.PI * inSecond) / 120);
-          pcm[i] = Math.round(Math.sin((2 * Math.PI * hz * (sample + i)) / SAMPLE_RATE) * env * 9000);
+          pcm[i] = Math.round(
+            Math.sin((2 * Math.PI * hz * (sample + i)) / SAMPLE_RATE) *
+              env *
+              9000,
+          );
         }
       }
       sample += AUDIO_FRAME;
-      await source.captureFrame(new AudioFrame(pcm, SAMPLE_RATE, 1, AUDIO_FRAME));
+      await source.captureFrame(
+        new AudioFrame(pcm, SAMPLE_RATE, 1, AUDIO_FRAME),
+      );
     }
   };
   state.stop = async () => {
@@ -218,12 +287,37 @@ function speechLoop(everyS) {
     const aiff = join(dir, `line-${n}.aiff`);
     const text = `Marker ${n}. This is line ${n} of the recording test.`;
     await run("say", ["-o", aiff, text]);
-    const { stdout } = await run("ffmpeg", ["-v", "error", "-i", aiff, "-f", "s16le", "-ac", "1", "-ar", String(SAMPLE_RATE), "-"], { encoding: "buffer", maxBuffer: 64 << 20 });
-    return { text, pcm: new Int16Array(stdout.buffer, stdout.byteOffset, stdout.byteLength >> 1) };
+    const { stdout } = await run(
+      "ffmpeg",
+      [
+        "-v",
+        "error",
+        "-i",
+        aiff,
+        "-f",
+        "s16le",
+        "-ac",
+        "1",
+        "-ar",
+        String(SAMPLE_RATE),
+        "-",
+      ],
+      { encoding: "buffer", maxBuffer: 64 << 20 },
+    );
+    return {
+      text,
+      pcm: new Int16Array(
+        stdout.buffer,
+        stdout.byteOffset,
+        stdout.byteLength >> 1,
+      ),
+    };
   };
   state.start = async () => {
     let next = Date.now() + 2000;
-    let upcoming = render(1).catch((err) => (log(`speak failed: ${err.message}`), null));
+    let upcoming = render(1).catch(
+      (err) => (log(`speak failed: ${err.message}`), null),
+    );
     let ready = null;
     upcoming.then((r) => (ready = r));
     let pcm = null;
@@ -234,10 +328,14 @@ function speechLoop(everyS) {
         state.lines++;
         pcm = ready.pcm;
         at = 0;
-        log(`speak ${state.lines} at ${new Date().toISOString()}: "${ready.text}"`);
+        log(
+          `speak ${state.lines} at ${new Date().toISOString()}: "${ready.text}"`,
+        );
         ready = null;
         next = Date.now() + everyS * 1000;
-        upcoming = render(state.lines + 1).catch((err) => (log(`speak failed: ${err.message}`), null));
+        upcoming = render(state.lines + 1).catch(
+          (err) => (log(`speak failed: ${err.message}`), null),
+        );
         upcoming.then((r) => (ready = r));
       }
       if (pcm) {
@@ -245,7 +343,9 @@ function speechLoop(everyS) {
         at += AUDIO_FRAME;
         if (at >= pcm.length) pcm = null;
       }
-      await source.captureFrame(new AudioFrame(frame, SAMPLE_RATE, 1, AUDIO_FRAME));
+      await source.captureFrame(
+        new AudioFrame(frame, SAMPLE_RATE, 1, AUDIO_FRAME),
+      );
     }
   };
   state.stop = async () => {
@@ -280,24 +380,40 @@ process.on("SIGTERM", () => leave(0, "Terminated; leaving the room."));
 lk.on(RoomEvent.Disconnected, (reason) => {
   if (!leaving) leave(1, `Disconnected by the server (reason ${reason}).`);
 });
-lk.on(RoomEvent.ParticipantConnected, (p) => log(`joined: ${p.name || p.identity} (${p.identity})`));
-lk.on(RoomEvent.ParticipantDisconnected, (p) => log(`left: ${p.name || p.identity} (${p.identity})`));
+lk.on(RoomEvent.ParticipantConnected, (p) =>
+  log(`joined: ${p.name || p.identity} (${p.identity})`),
+);
+lk.on(RoomEvent.ParticipantDisconnected, (p) =>
+  log(`left: ${p.name || p.identity} (${p.identity})`),
+);
 
 log(`joining ${room} as ${name} (${identity})...`);
 try {
-  await lk.connect(env.LIVEKIT_URL, token, { autoSubscribe: false, dynacast: false });
+  await lk.connect(env.LIVEKIT_URL, token, {
+    autoSubscribe: false,
+    dynacast: false,
+  });
 } catch (err) {
   die(`Could not join ${room}: ${err.message}`);
 }
 log(`in ${room} as ${name} (${identity}) on ${env.LIVEKIT_URL}`);
 const others = [...lk.remoteParticipants.values()];
-log(others.length ? `already here: ${others.map((p) => `${p.name || p.identity} (${p.identity})`).join(", ")}` : "the room was empty");
+log(
+  others.length
+    ? `already here: ${others.map((p) => `${p.name || p.identity} (${p.identity})`).join(", ")}`
+    : "the room was empty",
+);
 
 async function publish(kind, loop, track, options) {
-  const pub = await lk.localParticipant.publishTrack(track, new TrackPublishOptions(options));
+  const pub = await lk.localParticipant.publishTrack(
+    track,
+    new TrackPublishOptions(options),
+  );
   loops.push(loop);
   loop.start();
-  log(`published ${kind} ${pub.sid}${loop.source.width ? ` ${loop.source.width}x${loop.source.height}` : ""}`);
+  log(
+    `published ${kind} ${pub.sid}${loop.source.width ? ` ${loop.source.width}x${loop.source.height}` : ""}`,
+  );
   return pub;
 }
 
@@ -307,34 +423,58 @@ if (!flags["no-camera"]) {
     fps: cameraFps,
     paint: (c, f) => paintCamera(c, { ...f, name, colorHex: color }),
   });
-  await publish("camera", cam, LocalVideoTrack.createVideoTrack("camera", cam.source), {
-    source: TrackSource.SOURCE_CAMERA,
-    simulcast: false,
-    videoEncoding: { maxBitrate: 1_500_000n, maxFramerate: cameraFps },
-  });
+  await publish(
+    "camera",
+    cam,
+    LocalVideoTrack.createVideoTrack("camera", cam.source),
+    {
+      source: TrackSource.SOURCE_CAMERA,
+      simulcast: false,
+      videoEncoding: { maxBitrate: 1_500_000n, maxFramerate: cameraFps },
+    },
+  );
 }
 
 if (flags.speak !== undefined) {
   const speech = speechLoop(num("speak", 12) || 12);
-  await publish("microphone (speech)", speech, LocalAudioTrack.createAudioTrack("microphone", speech.source), {
-    source: TrackSource.SOURCE_MICROPHONE,
-  });
+  await publish(
+    "microphone (speech)",
+    speech,
+    LocalAudioTrack.createAudioTrack("microphone", speech.source),
+    {
+      source: TrackSource.SOURCE_MICROPHONE,
+    },
+  );
 } else if (flags.tone) {
   const tone = toneLoop();
-  await publish("microphone (tone)", tone, LocalAudioTrack.createAudioTrack("microphone", tone.source), {
-    source: TrackSource.SOURCE_MICROPHONE,
-  });
+  await publish(
+    "microphone (tone)",
+    tone,
+    LocalAudioTrack.createAudioTrack("microphone", tone.source),
+    {
+      source: TrackSource.SOURCE_MICROPHONE,
+    },
+  );
 }
 
 if (!flags["no-screen"]) {
   const startShare = async () => {
     if (leaving) return;
-    const share = videoLoop({ ...screenSize, fps: screenFps, paint: (c, f) => paintScreen(c, { ...f, label }) });
-    const pub = await publish("screen share", share, LocalVideoTrack.createVideoTrack("screen", share.source), {
-      source: TrackSource.SOURCE_SCREENSHARE,
-      simulcast: false,
-      videoEncoding: { maxBitrate: 4_000_000n, maxFramerate: screenFps },
+    const share = videoLoop({
+      ...screenSize,
+      fps: screenFps,
+      paint: (c, f) => paintScreen(c, { ...f, label }),
     });
+    const pub = await publish(
+      "screen share",
+      share,
+      LocalVideoTrack.createVideoTrack("screen", share.source),
+      {
+        source: TrackSource.SOURCE_SCREENSHARE,
+        simulcast: false,
+        videoEncoding: { maxBitrate: 4_000_000n, maxFramerate: screenFps },
+      },
+    );
     const forS = num("screen-for", 0);
     if (forS > 0) {
       setTimeout(async () => {
@@ -360,10 +500,15 @@ setInterval(() => {
   const s = sceneAt(Date.now());
   if (s.index === lastScene) return;
   lastScene = s.index;
-  const counts = loops.filter((l) => l.frames !== undefined).map((l) => `${l.source.width}x${l.source.height}:${l.frames}`);
-  log(`scene ${s.index % 1000} ${s.name} at ${new Date(s.index * SCENE_MS).toISOString()}  frames ${counts.join(" ") || "-"}`);
+  const counts = loops
+    .filter((l) => l.frames !== undefined)
+    .map((l) => `${l.source.width}x${l.source.height}:${l.frames}`);
+  log(
+    `scene ${s.index % 1000} ${s.name} at ${new Date(s.index * SCENE_MS).toISOString()}  frames ${counts.join(" ") || "-"}`,
+  );
 }, 250);
 
 const duration = num("duration", 0);
-if (duration > 0) setTimeout(() => leave(0, `Leaving after ${duration}s.`), duration * 1000);
+if (duration > 0)
+  setTimeout(() => leave(0, `Leaving after ${duration}s.`), duration * 1000);
 else log("Ctrl-C to leave.");

@@ -18,19 +18,35 @@ import { useInboxStore } from "../../store/inboxStore";
 import type { WorkspaceKey } from "../../lib/workspaceScope";
 
 type CallRef = { _id: string; team_id?: string };
-type CallTask = { _id: string; short_id: string; title: string; status: string; from_call?: string; created_at?: number };
+type CallTask = {
+  _id: string;
+  short_id: string;
+  title: string;
+  status: string;
+  from_call?: string;
+  created_at?: number;
+};
 
-const callTaskSig = (row: any) => `${row.from_call ?? ""}|${row.status}|${row.title}|${row.short_id}`;
+const callTaskSig = (row: any) =>
+  `${row.from_call ?? ""}|${row.status}|${row.title}|${row.short_id}`;
 
 /** The live tasks pulled from this call, oldest first. Read in the call's own
  *  workspace, so the page shows them whichever team is active. */
 export function useCallTasks(call: CallRef | null | undefined): CallTask[] {
-  const workspace = (call?.team_id ? `team:${call.team_id}` : null) as WorkspaceKey | null;
-  const rows = useWorkspaceCollection<CallTask>("tasks", callTaskSig, workspace);
+  const workspace = (
+    call?.team_id ? `team:${call.team_id}` : null
+  ) as WorkspaceKey | null;
+  const rows = useWorkspaceCollection<CallTask>(
+    "tasks",
+    callTaskSig,
+    workspace,
+  );
   return useMemo(
     () =>
       rows
-        .filter((t) => !!call && t.from_call === call._id && t.status !== "dropped")
+        .filter(
+          (t) => !!call && t.from_call === call._id && t.status !== "dropped",
+        )
         .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0)),
     [rows, call?._id],
   );
@@ -53,7 +69,15 @@ function pickCallTask(call: CallRef) {
     pick: {
       title: "Add a task to this call",
       kinds: ["task"],
-      extras: [{ key: "new", label: "New task with the title typed above", icon: "sparkles", primary: true, needsQuery: true }],
+      extras: [
+        {
+          key: "new",
+          label: "New task with the title typed above",
+          icon: "sparkles",
+          primary: true,
+          needsQuery: true,
+        },
+      ],
       onPick: (target, result) => {
         if (target.kind === "extra") return makeCallTask(call, result.query);
         const s = useInboxStore.getState();
@@ -80,7 +104,12 @@ function CallTaskRow({ task: t }: { task: CallTask }) {
   const { icon: StatusIcon, color, label } = taskVisual(t.status);
   return (
     <li className="group rt-task">
-      <a href={taskFacePath(t)} onClick={open} className="rt-task-link" title={`${t.short_id}: ${t.title} (${label.toLowerCase()})`}>
+      <a
+        href={taskFacePath(t)}
+        onClick={open}
+        className="rt-task-link"
+        title={`${t.short_id}: ${t.title} (${label.toLowerCase()})`}
+      >
         <StatusIcon className={`h-3.5 w-3.5 flex-shrink-0 ${color}`} />
         <span className="rt-task-id">{t.short_id}</span>
         <span className="truncate">{t.title}</span>
@@ -88,7 +117,9 @@ function CallTaskRow({ task: t }: { task: CallTask }) {
       <button
         type="button"
         className="rt-task-unlink"
-        onClick={() => useInboxStore.getState().updateTask(t.short_id, { from_call: "" })}
+        onClick={() =>
+          useInboxStore.getState().updateTask(t.short_id, { from_call: "" })
+        }
         title="Unlink from this call (the task stays)"
         aria-label={`Unlink ${t.short_id} from this call`}
       >
@@ -98,22 +129,38 @@ function CallTaskRow({ task: t }: { task: CallTask }) {
   );
 }
 
-export function CallTasks({ call, tasks }: { call: CallRef; tasks: CallTask[] }) {
+export function CallTasks({
+  call,
+  tasks,
+}: {
+  call: CallRef;
+  tasks: CallTask[];
+}) {
   return (
     <section className="rt-tasks" aria-label="Tasks from this call">
       <div className="rt-tasks-head">
         <span className="rt-recap-items-label">
-          <ListPlus className="h-3 w-3" /> Tasks{tasks.length > 0 ? ` · ${tasks.length}` : ""}
+          <ListPlus className="h-3 w-3" /> Tasks
+          {tasks.length > 0 ? ` · ${tasks.length}` : ""}
         </span>
-        <button type="button" className="rt-tasks-add" onClick={() => pickCallTask(call)} title="Link a task to this call, or create one">
+        <button
+          type="button"
+          className="rt-tasks-add"
+          onClick={() => pickCallTask(call)}
+          title="Link a task to this call, or create one"
+        >
           <Plus className="h-3 w-3" /> Add task
         </button>
       </div>
       {tasks.length === 0 ? (
-        <p className="rt-tasks-empty">None yet. Make one from an action item, or add one.</p>
+        <p className="rt-tasks-empty">
+          None yet. Make one from an action item, or add one.
+        </p>
       ) : (
         <ul>
-          {tasks.map((t) => <CallTaskRow key={t._id} task={t} />)}
+          {tasks.map((t) => (
+            <CallTaskRow key={t._id} task={t} />
+          ))}
         </ul>
       )}
     </section>

@@ -7,7 +7,11 @@
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { handleVaultHttp, attachVaultServer, type VaultServerOptions } from "../src/vault/vaultServer";
+import {
+  handleVaultHttp,
+  attachVaultServer,
+  type VaultServerOptions,
+} from "../src/vault/vaultServer";
 import { handleFsBrowseHttp } from "../src/fs/browseHttp";
 
 const port = parseInt(process.argv[2] ?? "9877", 10);
@@ -27,5 +31,7 @@ const server = http.createServer((req, res) => {
 attachVaultServer(server, opts);
 server.listen(port, "127.0.0.1", () => {
   console.log(`[vault-dev] listening on 127.0.0.1:${port} (token: ${token})`);
-  console.log(`[vault-dev] browser override: localStorage.CAST_TERM_ENDPOINT = "${port}:${token}"`);
+  console.log(
+    `[vault-dev] browser override: localStorage.CAST_TERM_ENDPOINT = "${port}:${token}"`,
+  );
 });

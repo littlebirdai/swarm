@@ -26,22 +26,33 @@ import { isQuoteRow } from "./quoteRows";
  *  write path moved, a review_comments id for one written after. */
 export type CommentId = Id<"comments"> | Id<"review_comments">;
 
-export const commentIdValidator = v.union(v.id("comments"), v.id("review_comments"));
+export const commentIdValidator = v.union(
+  v.id("comments"),
+  v.id("review_comments"),
+);
 
 /** A conversation comment in the shape every surface reads. */
-export type ConversationComment = Omit<Doc<"comments">, "_id" | "parent_comment_id"> & {
+export type ConversationComment = Omit<
+  Doc<"comments">,
+  "_id" | "parent_comment_id"
+> & {
   _id: CommentId;
   parent_comment_id?: CommentId;
 };
 
 /** The fields a write supplies: the comment shape without its ids. */
-export type ConversationCommentValue = Omit<ConversationComment, "_id" | "_creationTime">;
+export type ConversationCommentValue = Omit<
+  ConversationComment,
+  "_id" | "_creationTime"
+>;
 
 type CommentMarkers = { source_comment_id?: unknown; origin?: string | null };
 
 export function isConversationComment(row: CommentMarkers): boolean {
-  return (row.source_comment_id !== undefined && row.source_comment_id !== null)
-    || row.origin === "comment";
+  return (
+    (row.source_comment_id !== undefined && row.source_comment_id !== null) ||
+    row.origin === "comment"
+  );
 }
 
 /** The rows of review_comments that are code comments, review notes and
@@ -51,7 +62,9 @@ export function withoutBorrowedRows<T extends CommentMarkers>(rows: T[]): T[] {
 }
 
 /** The id a conversation comment goes by (see the header). */
-export function commentIdOf(row: Pick<Doc<"review_comments">, "_id" | "source_comment_id">): CommentId {
+export function commentIdOf(
+  row: Pick<Doc<"review_comments">, "_id" | "source_comment_id">,
+): CommentId {
   return row.source_comment_id ?? row._id;
 }
 
@@ -71,7 +84,9 @@ export function commentFromRow(
     message_id: row.message_id,
     user_id: row.author_user_id,
     content: row.content,
-    parent_comment_id: row.parent_id ? commentIdOfRow(row.parent_id) : undefined,
+    parent_comment_id: row.parent_id
+      ? commentIdOfRow(row.parent_id)
+      : undefined,
     created_at: row.created_at,
     github_comment_id: row.source_github_comment_id,
     pr_id: row.source_pr_id,
@@ -85,20 +100,29 @@ export function commentFromRow(
     resolved_by: row.resolved_by,
     client_id: row.client_id,
   };
-  for (const key of Object.keys(comment)) if (comment[key] === undefined) delete comment[key];
+  for (const key of Object.keys(comment))
+    if (comment[key] === undefined) delete comment[key];
   return comment as ConversationComment;
 }
 
 /** Every row of one conversation's review_comments that is a comment, in the
  *  `comments` shape, unsorted. */
-export function commentsFromRows(rows: Doc<"review_comments">[]): ConversationComment[] {
+export function commentsFromRows(
+  rows: Doc<"review_comments">[],
+): ConversationComment[] {
   const comments = rows.filter(isConversationComment);
-  const idOfRow = new Map(comments.map((row) => [String(row._id), commentIdOf(row)]));
-  return comments.map((row) => commentFromRow(row, (id) => idOfRow.get(String(id))));
+  const idOfRow = new Map(
+    comments.map((row) => [String(row._id), commentIdOf(row)]),
+  );
+  return comments.map((row) =>
+    commentFromRow(row, (id) => idOfRow.get(String(id))),
+  );
 }
 
 // The comment fields and the review_comments field each is stored in.
-const FIELD_OF: Partial<Record<keyof ConversationCommentValue, keyof Doc<"review_comments">>> = {
+const FIELD_OF: Partial<
+  Record<keyof ConversationCommentValue, keyof Doc<"review_comments">>
+> = {
   conversation_id: "conversation_id",
   message_id: "message_id",
   user_id: "author_user_id",
@@ -122,15 +146,20 @@ const FIELD_OF: Partial<Record<keyof ConversationCommentValue, keyof Doc<"review
  * `resolved` follows `resolved_at`. The parent is not patchable: a reply stays
  * in the thread it was written in.
  */
-export function rowPatchFromComment(patch: Partial<ConversationCommentValue>): Partial<Doc<"review_comments">> {
+export function rowPatchFromComment(
+  patch: Partial<ConversationCommentValue>,
+): Partial<Doc<"review_comments">> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
-    if (key === "parent_comment_id") throw new Error("A comment's parent cannot change");
+    if (key === "parent_comment_id")
+      throw new Error("A comment's parent cannot change");
     const field = FIELD_OF[key as keyof ConversationCommentValue];
     if (!field) throw new Error(`Unknown comment field ${key}`);
     out[field] = value;
   }
-  if ("resolved_at" in patch) out.resolved = patch.resolved_at !== undefined && patch.resolved_at !== null;
+  if ("resolved_at" in patch)
+    out.resolved =
+      patch.resolved_at !== undefined && patch.resolved_at !== null;
   return out as Partial<Doc<"review_comments">>;
 }
 
@@ -141,7 +170,10 @@ export function rowFromComment(
 ): Omit<Doc<"review_comments">, "_id" | "_creationTime"> {
   const { parent_comment_id: _parent, ...rest } = value;
   return {
-    ...(rowPatchFromComment(rest) as Omit<Doc<"review_comments">, "_id" | "_creationTime">),
+    ...(rowPatchFromComment(rest) as Omit<
+      Doc<"review_comments">,
+      "_id" | "_creationTime"
+    >),
     origin: "comment",
     parent_id: parentRowId,
     resolved: value.resolved_at !== undefined && value.resolved_at !== null,

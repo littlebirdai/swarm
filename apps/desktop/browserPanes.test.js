@@ -35,21 +35,56 @@ class FakeWebContents extends EventEmitter {
       goForward: () => this.calls.push(["goForward"]),
     };
   }
-  getURL() { return this.url; }
-  getZoomFactor() { return this.zoom; }
-  isDestroyed() { return this.destroyed; }
-  isFocused() { return this.focused; }
-  focus() { this.calls.push(["focus"]); this.focused = true; }
-  send(channel, payload) { this.sent.push([channel, payload]); }
-  loadURL(url) { this.url = url; this.calls.push(["loadURL", url]); }
-  reload() { this.calls.push(["reload"]); }
-  close() { this.destroyed = true; this.calls.push(["close"]); }
-  setWindowOpenHandler(fn) { this.windowOpenHandler = fn; }
-  isDevToolsOpened() { return this.devtools; }
+  getURL() {
+    return this.url;
+  }
+  getZoomFactor() {
+    return this.zoom;
+  }
+  isDestroyed() {
+    return this.destroyed;
+  }
+  isFocused() {
+    return this.focused;
+  }
+  focus() {
+    this.calls.push(["focus"]);
+    this.focused = true;
+  }
+  send(channel, payload) {
+    this.sent.push([channel, payload]);
+  }
+  loadURL(url) {
+    this.url = url;
+    this.calls.push(["loadURL", url]);
+  }
+  reload() {
+    this.calls.push(["reload"]);
+  }
+  close() {
+    this.destroyed = true;
+    this.calls.push(["close"]);
+  }
+  setWindowOpenHandler(fn) {
+    this.windowOpenHandler = fn;
+  }
+  isDevToolsOpened() {
+    return this.devtools;
+  }
   // Asynchronous, like Electron's: the devtools window exists a moment after
   // the call, so isDevToolsOpened() still reads false on the same tick.
-  openDevTools(opts) { this.calls.push(["openDevTools", opts]); queueMicrotask(() => { this.devtools = true; }); }
-  closeDevTools() { this.calls.push(["closeDevTools"]); queueMicrotask(() => { this.devtools = false; }); }
+  openDevTools(opts) {
+    this.calls.push(["openDevTools", opts]);
+    queueMicrotask(() => {
+      this.devtools = true;
+    });
+  }
+  closeDevTools() {
+    this.calls.push(["closeDevTools"]);
+    queueMicrotask(() => {
+      this.devtools = false;
+    });
+  }
   /** The events this pane's renderer received, as {event, ...} payloads. */
   events(name) {
     return this.sent
@@ -67,8 +102,13 @@ class FakeView {
     this.visible = true;
     this.visibility = [];
   }
-  setBounds(b) { this.bounds = b; }
-  setVisible(v) { this.visible = v; this.visibility.push(v); }
+  setBounds(b) {
+    this.bounds = b;
+  }
+  setVisible(v) {
+    this.visible = v;
+    this.visibility.push(v);
+  }
 }
 
 class FakeWindow extends EventEmitter {
@@ -83,13 +123,23 @@ class FakeWindow extends EventEmitter {
     this.children = [];
     this.contentView = {
       addChildView: (v) => this.children.push(v),
-      removeChildView: (v) => { this.children = this.children.filter((c) => c !== v); },
+      removeChildView: (v) => {
+        this.children = this.children.filter((c) => c !== v);
+      },
     };
   }
-  isDestroyed() { return this.destroyed; }
-  isVisible() { return this.shown; }
-  isMinimized() { return this.minimized; }
-  getContentBounds() { return { x: 0, y: 0, ...this.content }; }
+  isDestroyed() {
+    return this.destroyed;
+  }
+  isVisible() {
+    return this.shown;
+  }
+  isMinimized() {
+    return this.minimized;
+  }
+  getContentBounds() {
+    return { x: 0, y: 0, ...this.content };
+  }
 }
 
 function rig({ trusted = true } = {}) {
@@ -100,7 +150,10 @@ function rig({ trusted = true } = {}) {
   const permissions = [];
   const panes = createBrowserPanes({
     WebContentsView: class extends FakeView {
-      constructor(o) { super(o); views.push(this); }
+      constructor(o) {
+        super(o);
+        views.push(this);
+      }
     },
     session: {
       fromPartition: (name) => ({
@@ -114,11 +167,16 @@ function rig({ trusted = true } = {}) {
     isTrusted: () => trusted,
   });
   panes.install();
-  const send = (cmd, payload) => handlers.get("app:browser-pane")({ sender: host }, cmd, payload);
+  const send = (cmd, payload) =>
+    handlers.get("app:browser-pane")({ sender: host }, cmd, payload);
   /** Open one pane the way the renderer opens it, already measured. */
   const open = (paneId = "p1", url = "https://example.com") => {
     send("create", { paneId, url });
-    send("bounds", { paneId, rect: { x: 100, y: 40, width: 600, height: 500 }, visible: true });
+    send("bounds", {
+      paneId,
+      rect: { x: 100, y: 40, width: 600, height: 500 },
+      visible: true,
+    });
     return views[views.length - 1];
   };
   return { panes, host, win, views, handlers, permissions, send, open };
@@ -128,41 +186,81 @@ function rig({ trusted = true } = {}) {
 
 test("a measured rect becomes view bounds in the window's own pixels", () => {
   const rect = { x: 100, y: 40, width: 600, height: 500 };
-  assert.deepEqual(paneViewBounds(rect, { zoomFactor: 1, contentWidth: 1200, contentHeight: 800 }), {
-    x: 100, y: 40, width: 600, height: 500,
-  });
+  assert.deepEqual(
+    paneViewBounds(rect, {
+      zoomFactor: 1,
+      contentWidth: 1200,
+      contentHeight: 800,
+    }),
+    {
+      x: 100,
+      y: 40,
+      width: 600,
+      height: 500,
+    },
+  );
   // A zoomed window: CSS pixels are bigger than the view's pixels, and the
   // bottom edge lands past the content area, so it is clipped there (810→800).
-  assert.deepEqual(paneViewBounds(rect, { zoomFactor: 1.5, contentWidth: 1200, contentHeight: 800 }), {
-    x: 150, y: 60, width: 900, height: 740,
-  });
+  assert.deepEqual(
+    paneViewBounds(rect, {
+      zoomFactor: 1.5,
+      contentWidth: 1200,
+      contentHeight: 800,
+    }),
+    {
+      x: 150,
+      y: 60,
+      width: 900,
+      height: 740,
+    },
+  );
 });
 
 test("both edges round, so the view never drifts off the strip above it", () => {
   // x=10.4 and width=100.4 → right edge 110.8. Rounding the size on its own
   // would give x=10 width=100 (right edge 110) and leave a seam at 111.
-  const b = paneViewBounds({ x: 10.4, y: 0, width: 100.4, height: 10 }, {
-    zoomFactor: 1, contentWidth: 1000, contentHeight: 1000,
-  });
+  const b = paneViewBounds(
+    { x: 10.4, y: 0, width: 100.4, height: 10 },
+    {
+      zoomFactor: 1,
+      contentWidth: 1000,
+      contentHeight: 1000,
+    },
+  );
   assert.deepEqual(b, { x: 10, y: 0, width: 101, height: 10 });
 });
 
 test("a pane hanging off the window is clipped, not painted over the edge", () => {
-  const b = paneViewBounds({ x: 900, y: 700, width: 600, height: 400 }, {
-    zoomFactor: 1, contentWidth: 1200, contentHeight: 800,
-  });
+  const b = paneViewBounds(
+    { x: 900, y: 700, width: 600, height: 400 },
+    {
+      zoomFactor: 1,
+      contentWidth: 1200,
+      contentHeight: 800,
+    },
+  );
   assert.deepEqual(b, { x: 900, y: 700, width: 300, height: 100 });
   // Entirely outside: nothing to show.
-  const gone = paneViewBounds({ x: 1400, y: 0, width: 200, height: 200 }, {
-    zoomFactor: 1, contentWidth: 1200, contentHeight: 800,
-  });
+  const gone = paneViewBounds(
+    { x: 1400, y: 0, width: 200, height: 200 },
+    {
+      zoomFactor: 1,
+      contentWidth: 1200,
+      contentHeight: 800,
+    },
+  );
   assert.ok(isEmptyBounds(gone));
 });
 
 test("a nonsense zoom factor falls back to 1 rather than collapsing the view", () => {
-  const b = paneViewBounds({ x: 0, y: 0, width: 100, height: 100 }, {
-    zoomFactor: 0, contentWidth: 500, contentHeight: 500,
-  });
+  const b = paneViewBounds(
+    { x: 0, y: 0, width: 100, height: 100 },
+    {
+      zoomFactor: 0,
+      contentWidth: 500,
+      contentHeight: 500,
+    },
+  );
   assert.deepEqual(b, { x: 0, y: 0, width: 100, height: 100 });
 });
 
@@ -172,8 +270,16 @@ test("a pane is born hidden and appears only once it has been measured", () => {
   const r = rig();
   r.send("create", { paneId: "p1", url: "https://example.com" });
   const view = r.views[0];
-  assert.equal(view.visible, false, "no flash of a full-window page before the first rect");
-  r.send("bounds", { paneId: "p1", rect: { x: 10, y: 32, width: 400, height: 300 }, visible: true });
+  assert.equal(
+    view.visible,
+    false,
+    "no flash of a full-window page before the first rect",
+  );
+  r.send("bounds", {
+    paneId: "p1",
+    rect: { x: 10, y: 32, width: 400, height: 300 },
+    visible: true,
+  });
   assert.equal(view.visible, true);
   assert.deepEqual(view.bounds, { x: 10, y: 32, width: 400, height: 300 });
   assert.equal(view.webContents.url, "https://example.com");
@@ -183,20 +289,32 @@ test("panes load in their own persistent partition, and that session grants noth
   const r = rig();
   const view = r.open();
   assert.equal(view.options.webPreferences.session.name, PANE_PARTITION);
-  assert.equal(view.options.webPreferences.preload, undefined, "a stranger never gets our bridge");
+  assert.equal(
+    view.options.webPreferences.preload,
+    undefined,
+    "a stranger never gets our bridge",
+  );
   assert.equal(view.options.webPreferences.nodeIntegration, false);
   assert.equal(view.options.webPreferences.sandbox, true);
   const answers = [];
   for (const [, fn] of r.permissions) fn({}, "media", (ok) => answers.push(ok));
-  assert.deepEqual(answers.filter((a) => a !== undefined), [false], "requests are denied");
+  assert.deepEqual(
+    answers.filter((a) => a !== undefined),
+    [false],
+    "requests are denied",
+  );
   assert.equal(r.permissions.find(([kind]) => kind === "check")[1](), false);
 });
 
 test("only a first-party page may open a view", () => {
   const r = rig({ trusted: false });
-  assert.deepEqual(r.send("create", { paneId: "p1", url: "https://evil.test" }), {
-    ok: false, reason: "untrusted",
-  });
+  assert.deepEqual(
+    r.send("create", { paneId: "p1", url: "https://evil.test" }),
+    {
+      ok: false,
+      reason: "untrusted",
+    },
+  );
   assert.equal(r.views.length, 0);
 });
 
@@ -206,7 +324,10 @@ test("hiding a focused view hands the keyboard back to the app", () => {
   view.webContents.focused = true;
   r.send("hide", { paneId: "p1" });
   assert.equal(view.visible, false);
-  assert.ok(r.host.calls.some(([c]) => c === "focus"), "the palette can see its own keys again");
+  assert.ok(
+    r.host.calls.some(([c]) => c === "focus"),
+    "the palette can see its own keys again",
+  );
 });
 
 test("a minimized window hides every pane in it, and restoring brings them back", () => {
@@ -234,7 +355,11 @@ test("the renderer going away takes its views with it", () => {
   const view = r.open();
   assert.equal(r.panes.panes.size, 1);
   r.host.emit("did-navigate", {}, "https://codecast.sh/inbox");
-  assert.equal(r.panes.panes.size, 0, "views must not outlive the page that placed them");
+  assert.equal(
+    r.panes.panes.size,
+    0,
+    "views must not outlive the page that placed them",
+  );
   assert.equal(r.win.children.length, 0);
   assert.ok(view.webContents.isDestroyed());
 });
@@ -251,10 +376,21 @@ test("a page that reloads and opens panes again leaves one set of listeners, not
     destroyed: r.host.listenerCount("destroyed"),
   });
   const first = count();
-  assert.deepEqual(first, { resize: 1, move: 1, closed: 1, navigate: 1, gone: 1, destroyed: 1 });
+  assert.deepEqual(first, {
+    resize: 1,
+    move: 1,
+    closed: 1,
+    navigate: 1,
+    gone: 1,
+    destroyed: 1,
+  });
   for (let i = 0; i < 5; i++) {
     r.host.emit("did-navigate", {}, "https://codecast.sh/browser");
-    assert.equal(r.win.listenerCount("resize"), 0, "a dropped host is watching nothing");
+    assert.equal(
+      r.win.listenerCount("resize"),
+      0,
+      "a dropped host is watching nothing",
+    );
     r.open();
   }
   assert.deepEqual(count(), first);
@@ -294,8 +430,14 @@ test("a window closing destroys its panes", () => {
 test("a link that wants a new window opens in the same pane", () => {
   const r = rig();
   const view = r.open();
-  const answer = view.webContents.windowOpenHandler({ url: "https://example.com/deep" });
-  assert.deepEqual(answer, { action: "deny" }, "never leak the page to the system browser");
+  const answer = view.webContents.windowOpenHandler({
+    url: "https://example.com/deep",
+  });
+  assert.deepEqual(
+    answer,
+    { action: "deny" },
+    "never leak the page to the system browser",
+  );
   assert.equal(view.webContents.url, "https://example.com/deep");
   assert.equal(r.host.events("url").at(-1).url, "https://example.com/deep");
 });
@@ -311,9 +453,18 @@ test("the page's own keys stay in the page; the app's chords come back to it", (
   const r = rig();
   const view = r.open();
   const press = (key, mods = {}) => {
-    const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    const event = {
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+    };
     view.webContents.emit("before-input-event", event, {
-      type: "keyDown", key, meta: process.platform === "darwin", control: process.platform !== "darwin", ...mods,
+      type: "keyDown",
+      key,
+      meta: process.platform === "darwin",
+      control: process.platform !== "darwin",
+      ...mods,
     });
     return event.defaultPrevented;
   };
@@ -321,7 +472,10 @@ test("the page's own keys stay in the page; the app's chords come back to it", (
   assert.equal(press("k"), true);
   assert.equal(press("l"), true);
   assert.equal(press("r"), true);
-  assert.deepEqual(r.host.events("chord").map((e) => e.key), ["k", "l", "r"]);
+  assert.deepEqual(
+    r.host.events("chord").map((e) => e.key),
+    ["k", "l", "r"],
+  );
   // A bare key is the page's, whatever it is.
   assert.equal(press("l", { meta: false, control: false }), false);
 });
@@ -332,10 +486,20 @@ test("page facts reach the renderer as pane events", () => {
   view.webContents.emit("page-title-updated", {}, "Example Domain");
   view.webContents.emit("did-start-loading");
   view.webContents.emit("did-stop-loading");
-  view.webContents.emit("did-fail-load", {}, -105, "ERR_NAME_NOT_RESOLVED", "https://nope.test", true);
+  view.webContents.emit(
+    "did-fail-load",
+    {},
+    -105,
+    "ERR_NAME_NOT_RESOLVED",
+    "https://nope.test",
+    true,
+  );
   view.webContents.emit("focus");
   assert.equal(r.host.events("title").at(-1).title, "Example Domain");
-  assert.deepEqual(r.host.events("loading").map((e) => e.loading), [true, false]);
+  assert.deepEqual(
+    r.host.events("loading").map((e) => e.loading),
+    [true, false],
+  );
   assert.equal(r.host.events("fail").at(-1).errorCode, -105);
   assert.equal(r.host.events("focus").length, 1);
 });
@@ -343,9 +507,23 @@ test("page facts reach the renderer as pane events", () => {
 test("an aborted navigation is not an error the pane paints", () => {
   const r = rig();
   const view = r.open();
-  view.webContents.emit("did-fail-load", {}, -3, "ERR_ABORTED", "https://example.com", true);
+  view.webContents.emit(
+    "did-fail-load",
+    {},
+    -3,
+    "ERR_ABORTED",
+    "https://example.com",
+    true,
+  );
   // A subframe failing is not the pane failing either.
-  view.webContents.emit("did-fail-load", {}, -105, "ERR_NAME_NOT_RESOLVED", "https://ad.test", false);
+  view.webContents.emit(
+    "did-fail-load",
+    {},
+    -105,
+    "ERR_NAME_NOT_RESOLVED",
+    "https://ad.test",
+    false,
+  );
   assert.equal(r.host.events("fail").length, 0);
 });
 
@@ -354,10 +532,19 @@ test("devtools toggle per pane, detached so they never eat the split", async () 
   const view = r.open();
   // The answer names the state asked for, even though the window opens a
   // moment later: the strip must not read "closed" while devtools appear.
-  assert.deepEqual(r.send("devtools", { paneId: "p1" }), { ok: true, open: true });
-  assert.deepEqual(view.webContents.calls.at(-1), ["openDevTools", { mode: "detach" }]);
+  assert.deepEqual(r.send("devtools", { paneId: "p1" }), {
+    ok: true,
+    open: true,
+  });
+  assert.deepEqual(view.webContents.calls.at(-1), [
+    "openDevTools",
+    { mode: "detach" },
+  ]);
   await Promise.resolve();
-  assert.deepEqual(r.send("devtools", { paneId: "p1" }), { ok: true, open: false });
+  assert.deepEqual(r.send("devtools", { paneId: "p1" }), {
+    ok: true,
+    open: false,
+  });
   assert.deepEqual(view.webContents.calls.at(-1), ["closeDevTools"]);
 });
 
@@ -366,7 +553,10 @@ test("history verbs move the view, and only when there is somewhere to go", () =
   const view = r.open();
   r.send("back", { paneId: "p1" });
   r.send("forward", { paneId: "p1" });
-  assert.deepEqual(view.webContents.calls.filter(([c]) => c.startsWith("go")), [["goBack"]]);
+  assert.deepEqual(
+    view.webContents.calls.filter(([c]) => c.startsWith("go")),
+    [["goBack"]],
+  );
 });
 
 test("commands for a pane that is gone are a no-op, not a crash", () => {
@@ -374,7 +564,10 @@ test("commands for a pane that is gone are a no-op, not a crash", () => {
   r.open();
   r.send("destroy", { paneId: "p1" });
   assert.deepEqual(r.send("reload", { paneId: "p1" }), { ok: false });
-  assert.deepEqual(r.send("nonsense", { paneId: "p1" }), { ok: false, reason: "unknown-command" });
+  assert.deepEqual(r.send("nonsense", { paneId: "p1" }), {
+    ok: false,
+    reason: "unknown-command",
+  });
 });
 
 test("creating the same pane twice reuses the view and follows the new address", () => {
@@ -382,7 +575,11 @@ test("creating the same pane twice reuses the view and follows the new address",
   r.open("p1", "https://example.com");
   const answer = r.send("create", { paneId: "p1", url: "https://example.org" });
   assert.deepEqual(answer, { ok: true, reused: true });
-  assert.equal(r.views.length, 1, "a remount must not stack two views on one pane");
+  assert.equal(
+    r.views.length,
+    1,
+    "a remount must not stack two views on one pane",
+  );
   assert.equal(r.views[0].webContents.url, "https://example.org");
 });
 
@@ -394,13 +591,19 @@ test("the shell can be asked what its views are doing, which nothing else can se
   assert.equal(before.panes[0].visible, true);
   // A palette is up: the renderer hides the view, and this is the only place
   // that fact is observable — no screenshot of the page would show it.
-  r.send("bounds", { paneId: "p1", rect: { x: 100, y: 40, width: 600, height: 500 }, visible: false });
+  r.send("bounds", {
+    paneId: "p1",
+    rect: { x: 100, y: 40, width: 600, height: 500 },
+    visible: false,
+  });
   assert.equal(r.send("state", {}).panes[0].visible, false);
 });
 
 test("the capabilities probe answers only a trusted caller, and names its commands", () => {
   const r = rig();
-  const caps = r.handlers.get("app:browser-pane-capabilities")({ sender: r.host });
+  const caps = r.handlers.get("app:browser-pane-capabilities")({
+    sender: r.host,
+  });
   assert.equal(caps.available, true);
   assert.equal(caps.partition, PANE_PARTITION);
   for (const cmd of ["create", "navigate", "bounds", "destroy", "devtools"]) {
@@ -413,7 +616,11 @@ test("the capabilities probe answers only a trusted caller, and names its comman
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { registryDocument, writeRegistryFile, REGISTRY_VERSION } = require("./browserPanes");
+const {
+  registryDocument,
+  writeRegistryFile,
+  REGISTRY_VERSION,
+} = require("./browserPanes");
 
 /** A rig whose shell advertises a CDP port and whose views answer the
  *  debugger's target question, the way Electron's do. */
@@ -432,15 +639,30 @@ function registryRig({ cdpPort = 9444, targetIds = true } = {}) {
           const id = `TARGET${++minted}`;
           this.webContents.debugger = {
             attached: false,
-            isAttached() { return this.attached; },
-            attach() { this.attached = true; },
-            detach() { this.attached = false; },
-            sendCommand: async (m) => (m === "Target.getTargetInfo" ? { targetInfo: { targetId: id } } : {}),
+            isAttached() {
+              return this.attached;
+            },
+            attach() {
+              this.attached = true;
+            },
+            detach() {
+              this.attached = false;
+            },
+            sendCommand: async (m) =>
+              m === "Target.getTargetInfo"
+                ? { targetInfo: { targetId: id } }
+                : {},
           };
         }
       }
     },
-    session: { fromPartition: (name) => ({ name, setPermissionRequestHandler() {}, setPermissionCheckHandler() {} }) },
+    session: {
+      fromPartition: (name) => ({
+        name,
+        setPermissionRequestHandler() {},
+        setPermissionCheckHandler() {},
+      }),
+    },
     ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
     BrowserWindow: { fromWebContents: (wc) => (wc === host ? win : null) },
     isTrusted: () => true,
@@ -448,18 +670,44 @@ function registryRig({ cdpPort = 9444, targetIds = true } = {}) {
     registryPath: file,
   });
   panes.install();
-  const send = (cmd, payload) => handlers.get("app:browser-pane")({ sender: host }, cmd, payload);
+  const send = (cmd, payload) =>
+    handlers.get("app:browser-pane")({ sender: host }, cmd, payload);
   const read = () => JSON.parse(fs.readFileSync(file, "utf-8"));
   const mode = () => fs.statSync(file).mode & 0o777;
   // Registry writes coalesce onto a microtask; the debugger answers a tick later.
   const settle = () => new Promise((r) => setTimeout(r, 0));
-  return { panes, host, handlers, file, dir, send, read, mode, settle, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+  return {
+    panes,
+    host,
+    handlers,
+    file,
+    dir,
+    send,
+    read,
+    mode,
+    settle,
+    cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
+  };
 }
 
 test("registry: the document names the port, this pid and each pane's target, url and session", () => {
   const panes = [
-    { paneId: "p1", hostId: 7, targetId: "T1", url: "https://example.com/", session: "509b4b48-c521-4352-bf19-eafa153745bb", view: { webContents: { isDestroyed: () => false } } },
-    { paneId: "p2", hostId: 7, targetId: null, url: null, session: null, view: { webContents: { isDestroyed: () => true } } },
+    {
+      paneId: "p1",
+      hostId: 7,
+      targetId: "T1",
+      url: "https://example.com/",
+      session: "509b4b48-c521-4352-bf19-eafa153745bb",
+      view: { webContents: { isDestroyed: () => false } },
+    },
+    {
+      paneId: "p2",
+      hostId: 7,
+      targetId: null,
+      url: null,
+      session: null,
+      view: { webContents: { isDestroyed: () => true } },
+    },
   ];
   const doc = registryDocument(panes, { port: "9444", pid: 42, now: 1000 });
   assert.deepEqual(doc, {
@@ -468,7 +716,15 @@ test("registry: the document names the port, this pid and each pane's target, ur
     pid: 42,
     updatedAt: 1000,
     // The destroyed one is gone from the document: nothing can attach to it.
-    panes: [{ paneId: "p1", hostId: 7, targetId: "T1", url: "https://example.com/", session: "509b4b48-c521-4352-bf19-eafa153745bb" }],
+    panes: [
+      {
+        paneId: "p1",
+        hostId: 7,
+        targetId: "T1",
+        url: "https://example.com/",
+        session: "509b4b48-c521-4352-bf19-eafa153745bb",
+      },
+    ],
   });
 });
 
@@ -476,15 +732,25 @@ test("registry: written 0600 in a 0700 directory, atomically, and removed when t
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pane-registry-"));
   const file = path.join(dir, "browser", "desktop-panes.json");
   try {
-    assert.equal(writeRegistryFile(file, { version: 1, port: 9444, panes: [] }), true);
+    assert.equal(
+      writeRegistryFile(file, { version: 1, port: 9444, panes: [] }),
+      true,
+    );
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
-    assert.equal(fs.readdirSync(path.dirname(file)).length, 1, "no temp file left beside it");
+    assert.equal(
+      fs.readdirSync(path.dirname(file)).length,
+      1,
+      "no temp file left beside it",
+    );
     assert.equal(writeRegistryFile(file, null), true);
     assert.equal(fs.existsSync(file), false);
     // A second removal is fine, and so is an unwritable path.
     assert.equal(writeRegistryFile(file, null), true);
-    assert.equal(writeRegistryFile("/dev/null/nope/desktop-panes.json", { version: 1 }), false);
+    assert.equal(
+      writeRegistryFile("/dev/null/nope/desktop-panes.json", { version: 1 }),
+      false,
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -498,15 +764,27 @@ test("registry: install writes an empty document, then create, navigate and dest
     assert.equal(r.read().pid, process.pid);
     assert.equal(r.mode(), 0o600);
 
-    r.send("create", { paneId: "p1", url: "https://example.com", session: "509b4b48-c521-4352-bf19-eafa153745bb" });
+    r.send("create", {
+      paneId: "p1",
+      url: "https://example.com",
+      session: "509b4b48-c521-4352-bf19-eafa153745bb",
+    });
     await r.settle();
     let [pane] = r.read().panes;
     assert.equal(pane.paneId, "p1");
     assert.equal(pane.url, "https://example.com");
     assert.equal(pane.session, "509b4b48-c521-4352-bf19-eafa153745bb");
-    assert.equal(pane.targetId, "TARGET1", "the debugger's answer is the CDP target id");
+    assert.equal(
+      pane.targetId,
+      "TARGET1",
+      "the debugger's answer is the CDP target id",
+    );
     const view = r.panes.panes.get(`${r.host.id}:p1`).view;
-    assert.equal(view.webContents.debugger.attached, false, "the debugger is let go once the id is known");
+    assert.equal(
+      view.webContents.debugger.attached,
+      false,
+      "the debugger is let go once the id is known",
+    );
 
     r.send("navigate", { paneId: "p1", url: "https://example.org/x" });
     await r.settle();
@@ -516,7 +794,12 @@ test("registry: install writes an empty document, then create, navigate and dest
     view.webContents.emit("did-navigate", {}, "https://example.org/y");
     await r.settle();
     assert.equal(r.read().panes[0].url, "https://example.org/y");
-    view.webContents.emit("did-navigate-in-page", {}, "https://example.org/y#z", true);
+    view.webContents.emit(
+      "did-navigate-in-page",
+      {},
+      "https://example.org/y#z",
+      true,
+    );
     await r.settle();
     assert.equal(r.read().panes[0].url, "https://example.org/y#z");
 
@@ -532,16 +815,27 @@ test("registry: a pane nobody offered has no session, and a malformed session ke
   const r = registryRig();
   try {
     r.send("create", { paneId: "p1", url: "https://example.com" });
-    r.send("create", { paneId: "p2", url: "https://example.com", session: "not a key; rm -rf" });
+    r.send("create", {
+      paneId: "p2",
+      url: "https://example.com",
+      session: "not a key; rm -rf",
+    });
     await r.settle();
     const [a, b] = r.read().panes;
     assert.equal(a.session, null);
     assert.equal(b.session, null);
     // A remount that now names the session (the offer chip re-opened it)
     // records the owner without a new view.
-    r.send("create", { paneId: "p1", url: "https://example.com", session: "env-abc_1" });
+    r.send("create", {
+      paneId: "p1",
+      url: "https://example.com",
+      session: "env-abc_1",
+    });
     await r.settle();
-    assert.equal(r.read().panes.find((p) => p.paneId === "p1").session, "env-abc_1");
+    assert.equal(
+      r.read().panes.find((p) => p.paneId === "p1").session,
+      "env-abc_1",
+    );
   } finally {
     r.cleanup();
   }
@@ -551,12 +845,22 @@ test("registry: no CDP port means no file, and a stale one from an earlier run i
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pane-registry-"));
   const file = path.join(dir, "browser", "desktop-panes.json");
   try {
-    writeRegistryFile(file, { version: 1, port: 9333, pid: 1, panes: [{ paneId: "old" }] });
+    writeRegistryFile(file, {
+      version: 1,
+      port: 9333,
+      pid: 1,
+      panes: [{ paneId: "old" }],
+    });
     const r = registryRig({ cdpPort: "" });
     r.cleanup();
     const again = createBrowserPanes({
       WebContentsView: FakeView,
-      session: { fromPartition: () => ({ setPermissionRequestHandler() {}, setPermissionCheckHandler() {} }) },
+      session: {
+        fromPartition: () => ({
+          setPermissionRequestHandler() {},
+          setPermissionCheckHandler() {},
+        }),
+      },
       ipcMain: { handle() {} },
       BrowserWindow: { fromWebContents: () => null },
       isTrusted: () => true,
@@ -569,12 +873,20 @@ test("registry: no CDP port means no file, and a stale one from an earlier run i
     const handlers = new Map();
     createBrowserPanes({
       WebContentsView: FakeView,
-      session: { fromPartition: () => ({ setPermissionRequestHandler() {}, setPermissionCheckHandler() {} }) },
+      session: {
+        fromPartition: () => ({
+          setPermissionRequestHandler() {},
+          setPermissionCheckHandler() {},
+        }),
+      },
       ipcMain: { handle: (ch, fn) => handlers.set(ch, fn) },
       BrowserWindow: { fromWebContents: () => null },
       isTrusted: () => true,
     }).install();
-    assert.equal(handlers.get("app:browser-pane-capabilities")({ sender: {} }).drivable, false);
+    assert.equal(
+      handlers.get("app:browser-pane-capabilities")({ sender: {} }).drivable,
+      false,
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -583,7 +895,11 @@ test("registry: no CDP port means no file, and a stale one from an earlier run i
 test("registry: a view whose debugger will not attach is still listed, without a target id", async () => {
   const r = registryRig({ targetIds: false });
   try {
-    r.send("create", { paneId: "p1", url: "https://example.com", session: "s1" });
+    r.send("create", {
+      paneId: "p1",
+      url: "https://example.com",
+      session: "s1",
+    });
     await r.settle();
     assert.equal(r.read().panes[0].targetId, null);
     assert.equal(r.read().panes[0].url, "https://example.com");

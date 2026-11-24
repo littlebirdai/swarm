@@ -8,5 +8,8 @@ import * as os from "os";
 import * as path from "path";
 
 if (!process.env.CODECAST_HARNESS_LEDGER) {
-  process.env.CODECAST_HARNESS_LEDGER = path.join(os.tmpdir(), `codecast-test-harness-${process.pid}.jsonl`);
+  process.env.CODECAST_HARNESS_LEDGER = path.join(
+    os.tmpdir(),
+    `codecast-test-harness-${process.pid}.jsonl`,
+  );
 }

@@ -6,10 +6,16 @@ import type { ProductViewRef } from "@codecast/shared/contracts/productView";
 
 /** The app whose call view a finding's call id opens. */
 export const CALL_APP = "union";
-const CALL_ID = /\b[Cc]all\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/g;
+const CALL_ID =
+  /\b[Cc]all\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/g;
 const SLACK_TS = /\s*\(\s*slack (?:msg|message)\s+\d{9,}\.\d+\s*\)/gi;
 
-const callRef = (id: string): ProductViewRef => ({ app: CALL_APP, view: "call", id, at: null });
+const callRef = (id: string): ProductViewRef => ({
+  app: CALL_APP,
+  view: "call",
+  id,
+  at: null,
+});
 
 /** Every call a text names by id, once each, in the order named. */
 export function callsIn(text: string): ProductViewRef[] {
@@ -35,5 +41,7 @@ export function textWithCalls(text: string): Array<string | ProductViewRef> {
 /** A text where it cannot hold a control (a row's one line): each call id cut to its first eight characters, which is
  *  how a person names it, and no Slack ts. */
 export function callWordsShort(text: string): string {
-  return text.replace(SLACK_TS, "").replace(CALL_ID, (m, id: string) => m.replace(id, id.slice(0, 8)));
+  return text
+    .replace(SLACK_TS, "")
+    .replace(CALL_ID, (m, id: string) => m.replace(id, id.slice(0, 8)));
 }

@@ -5,7 +5,12 @@
 // before them (the snapshot was taken from the components before the Modern
 // classes were added; `modern:` classes are left out of it).
 import { describe, expect, test } from "bun:test";
-import { installModernDom, styleValue, classicClasses, wears } from "../../test-helpers/modernDom";
+import {
+  installModernDom,
+  styleValue,
+  classicClasses,
+  wears,
+} from "../../test-helpers/modernDom";
 
 installModernDom("https://app.test/tasks");
 
@@ -15,10 +20,20 @@ const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { ThemeContext } = await import("../ThemeProvider");
 const { GenericListView } = await import("../GenericListView");
-const { modernButton, modernChip, modernTab, modernTabList, modernMenuRow, modernPopover } = await import("../ui/modernLook");
+const {
+  modernButton,
+  modernChip,
+  modernTab,
+  modernTabList,
+  modernMenuRow,
+  modernPopover,
+} = await import("../ui/modernLook");
 
 type Item = { id: string; title: string };
-const items: Item[] = [{ id: "a", title: "Review task" }, { id: "b", title: "Ship task" }];
+const items: Item[] = [
+  { id: "a", title: "Review task" },
+  { id: "b", title: "Ship task" },
+];
 const noop = () => {};
 const Icon = (p: any) => <svg {...p} />;
 
@@ -34,10 +49,16 @@ function List() {
       activeTab="open"
       onTabChange={noop}
       groupBy="none"
-      groupOptions={[{ value: "none", label: "None" }, { value: "status", label: "Status" }]}
+      groupOptions={[
+        { value: "none", label: "None" },
+        { value: "status", label: "Status" },
+      ]}
       onGroupChange={noop}
       sortBy="updated"
-      sortOptions={[{ value: "updated", label: "Updated" }, { value: "created", label: "Created" }]}
+      sortOptions={[
+        { value: "updated", label: "Updated" },
+        { value: "created", label: "Created" },
+      ]}
       onSortChange={noop}
       sortDir="desc"
       onSortDirChange={noop}
@@ -45,10 +66,36 @@ function List() {
         hasActive: true,
         onClear: noop,
         onSaveView: noop,
-        dirtyView: { name: "Mine", onUpdate: noop, onDiscard: noop, canUpdate: true },
+        dirtyView: {
+          name: "Mine",
+          onUpdate: noop,
+          onDiscard: noop,
+          canUpdate: true,
+        },
         defs: [
-          { key: "status", label: "Status", icon: <Icon />, value: "open", onChange: noop, options: [{ key: "", label: "Any" }, { key: "open", label: "Open" }, { key: "done", label: "Done" }] },
-          { key: "label", label: "Label", icon: <Icon />, value: "", onChange: noop, options: [{ key: "", label: "Any" }, { key: "infra", label: "infra" }] },
+          {
+            key: "status",
+            label: "Status",
+            icon: <Icon />,
+            value: "open",
+            onChange: noop,
+            options: [
+              { key: "", label: "Any" },
+              { key: "open", label: "Open" },
+              { key: "done", label: "Done" },
+            ],
+          },
+          {
+            key: "label",
+            label: "Label",
+            icon: <Icon />,
+            value: "",
+            onChange: noop,
+            options: [
+              { key: "", label: "Any" },
+              { key: "infra", label: "infra" },
+            ],
+          },
         ],
       }}
       shareUrl={() => "https://codecast.sh/tasks"}
@@ -68,19 +115,33 @@ async function render(style: "classic" | "modern") {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  await act(async () => root.render(
-    <ThemeContext.Provider value={styleValue(style)}>
-      <MemoryRouter initialEntries={["/tasks"]}><List /></MemoryRouter>
-    </ThemeContext.Provider>,
-  ));
-  const byTitle = (t: string) => ([...host.querySelectorAll("button")].find((el) => el.getAttribute("title") === t) ?? null) as HTMLButtonElement | null;
+  await act(async () =>
+    root.render(
+      <ThemeContext.Provider value={styleValue(style)}>
+        <MemoryRouter initialEntries={["/tasks"]}>
+          <List />
+        </MemoryRouter>
+      </ThemeContext.Provider>,
+    ),
+  );
+  const byTitle = (t: string) =>
+    ([...host.querySelectorAll("button")].find(
+      (el) => el.getAttribute("title") === t,
+    ) ?? null) as HTMLButtonElement | null;
   // Open every hand-built menu the toolbar has: the display options, the
   // header's filter menu, the status chip's options and the folded tabs.
   for (const t of ["Display options", "Filter", "Edit Status", "Open"]) {
     const b = byTitle(t);
     if (b) await act(async () => b.click());
   }
-  return { host, byTitle, unmount: async () => { await act(async () => root.unmount()); host.remove(); } };
+  return {
+    host,
+    byTitle,
+    unmount: async () => {
+      await act(async () => root.unmount());
+      host.remove();
+    },
+  };
 }
 
 describe("the list toolbar in Modern", () => {
@@ -93,16 +154,42 @@ describe("the list toolbar in Modern", () => {
   test("the toolbar's buttons, tabs, chips and menus wear the Modern looks", async () => {
     const { host, byTitle, unmount } = await render("modern");
     // Toolbar buttons: outline at 28px, the create button an icon button.
-    expect(wears(byTitle("Display options"), modernButton({ variant: "outline", size: "sm" }))).toBe(true);
-    expect(wears(byTitle("Command palette"), modernButton({ variant: "outline", size: "sm" }))).toBe(true);
-    expect(wears(byTitle("Search"), modernButton({ variant: "outline", size: "icon-sm" }))).toBe(true);
-    expect(wears(byTitle("Create new"), modernButton({ variant: "outline", size: "icon-sm" }))).toBe(true);
+    expect(
+      wears(
+        byTitle("Display options"),
+        modernButton({ variant: "outline", size: "sm" }),
+      ),
+    ).toBe(true);
+    expect(
+      wears(
+        byTitle("Command palette"),
+        modernButton({ variant: "outline", size: "sm" }),
+      ),
+    ).toBe(true);
+    expect(
+      wears(
+        byTitle("Search"),
+        modernButton({ variant: "outline", size: "icon-sm" }),
+      ),
+    ).toBe(true);
+    expect(
+      wears(
+        byTitle("Create new"),
+        modernButton({ variant: "outline", size: "icon-sm" }),
+      ),
+    ).toBe(true);
     // The filter button is a chip, on while a filter is set.
     expect(wears(byTitle("Filter"), modernChip({ active: true }))).toBe(true);
     expect(wears(byTitle("Add filter"), modernChip())).toBe(true);
     // The view actions are ghost buttons at 24px.
-    for (const t of ["Copy link to this view", "Clear filters", `Go back to "Mine" as saved`]) {
-      expect(wears(byTitle(t), modernButton({ variant: "ghost", size: "xs" }))).toBe(true);
+    for (const t of [
+      "Copy link to this view",
+      "Clear filters",
+      `Go back to "Mine" as saved`,
+    ]) {
+      expect(
+        wears(byTitle(t), modernButton({ variant: "ghost", size: "xs" })),
+      ).toBe(true);
     }
     // The status tabs: the tray, the open tab raised.
     const tabs = host.querySelector("[data-list-tabs]");
@@ -116,7 +203,9 @@ describe("the list toolbar in Modern", () => {
     for (const p of panels) expect(wears(p, modernPopover)).toBe(true);
     const rows = panels.flatMap((p) => [...p.querySelectorAll("button")]);
     expect(rows.length).toBeGreaterThan(5);
-    expect(rows.some((r) => wears(r, modernMenuRow({ selected: true })))).toBe(true);
+    expect(rows.some((r) => wears(r, modernMenuRow({ selected: true })))).toBe(
+      true,
+    );
     expect(rows.some((r) => wears(r, modernMenuRow()))).toBe(true);
     await unmount();
   });

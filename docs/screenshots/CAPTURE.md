@@ -19,22 +19,22 @@ Each shot is one entry in `apps/web/docs-shots/batches/<batch>.ts`: the route, a
 
 The PNGs here are the README's copies of framed docs shots, scaled to 1920 wide (the phone shot to 900):
 
-| File | Source under `apps/web/public` |
-|---|---|
-| `hero.png` | `docs/app/inbox.webp` |
-| `inbox.png` | `documentation/shots/inbox.webp` |
-| `conversation.png` | `docs/app/diff.webp` |
-| `fanout.png` | `documentation/forks-and-spawn/workers.webp` |
-| `mobile-chat.png` | `docs/app/mobile-session.webp` |
-| `session-messages.png` | `documentation/shots/session-messages.webp` |
-| `tasks.png` | `docs/app/tasks.webp` |
-| `automations.png` | `docs/app/triggers.webp` |
-| `team-chat.png` | `docs/app/chat.webp` |
-| `pull-request.png` | `documentation/shots/pull-request.webp` |
-| `pages.png` | `documentation/publish/page.webp` |
-| `command-palette.png` | `docs/app/palette.webp` |
-| `blame.png` | `documentation/which-session-wrote-this-line/session-blame.webp` |
-| `logo.png` | App mark used at the top of the README |
+| File                   | Source under `apps/web/public`                                   |
+| ---------------------- | ---------------------------------------------------------------- |
+| `hero.png`             | `docs/app/inbox.webp`                                            |
+| `inbox.png`            | `documentation/shots/inbox.webp`                                 |
+| `conversation.png`     | `docs/app/diff.webp`                                             |
+| `fanout.png`           | `documentation/forks-and-spawn/workers.webp`                     |
+| `mobile-chat.png`      | `docs/app/mobile-session.webp`                                   |
+| `session-messages.png` | `documentation/shots/session-messages.webp`                      |
+| `tasks.png`            | `docs/app/tasks.webp`                                            |
+| `automations.png`      | `docs/app/triggers.webp`                                         |
+| `team-chat.png`        | `docs/app/chat.webp`                                             |
+| `pull-request.png`     | `documentation/shots/pull-request.webp`                          |
+| `pages.png`            | `documentation/publish/page.webp`                                |
+| `command-palette.png`  | `docs/app/palette.webp`                                          |
+| `blame.png`            | `documentation/which-session-wrote-this-line/session-blame.webp` |
+| `logo.png`             | App mark used at the top of the README                           |
 
 To refresh one after recapturing its source:
 

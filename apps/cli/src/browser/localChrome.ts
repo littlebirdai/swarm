@@ -36,7 +36,9 @@ export interface BrowserProcess {
 export function listBrowserProcesses(): BrowserProcess[] {
   let ps: string;
   try {
-    ps = spawnSync("ps", PS_ARGS, { encoding: "utf-8", timeout: 10_000 }).stdout ?? "";
+    ps =
+      spawnSync("ps", PS_ARGS, { encoding: "utf-8", timeout: 10_000 }).stdout ??
+      "";
   } catch {
     return [];
   }
@@ -47,7 +49,10 @@ const PS_ARGS = ["ax", "-o", "pid=,command="];
 // A listing this recent answers the next caller too: one click asks both
 // engines, twice when the row's tab is gone, and hovers ask again.
 const SHARED_LISTING_MS = 2_000;
-let sharedListing: { promise: Promise<BrowserProcess[]>; settledAt: number | null } | null = null;
+let sharedListing: {
+  promise: Promise<BrowserProcess[]>;
+  settledAt: number | null;
+} | null = null;
 
 /**
  * The same listing for the daemon, off its event loop. On a loaded machine
@@ -57,10 +62,25 @@ let sharedListing: { promise: Promise<BrowserProcess[]>; settledAt: number | nul
  */
 export function listBrowserProcessesAsync(): Promise<BrowserProcess[]> {
   const cached = sharedListing;
-  if (cached && (cached.settledAt === null || Date.now() - cached.settledAt < SHARED_LISTING_MS)) return cached.promise;
-  const entry: { promise: Promise<BrowserProcess[]>; settledAt: number | null } = { promise: Promise.resolve([]), settledAt: null };
-  entry.promise = execFileAsync("ps", PS_ARGS, { encoding: "utf-8", timeout: 30_000, maxBuffer: 32 * 1024 * 1024 })
-    .then(({ stdout }) => (lastListing = parseBrowserProcesses(stdout)), () => [])
+  if (
+    cached &&
+    (cached.settledAt === null ||
+      Date.now() - cached.settledAt < SHARED_LISTING_MS)
+  )
+    return cached.promise;
+  const entry: {
+    promise: Promise<BrowserProcess[]>;
+    settledAt: number | null;
+  } = { promise: Promise.resolve([]), settledAt: null };
+  entry.promise = execFileAsync("ps", PS_ARGS, {
+    encoding: "utf-8",
+    timeout: 30_000,
+    maxBuffer: 32 * 1024 * 1024,
+  })
+    .then(
+      ({ stdout }) => (lastListing = parseBrowserProcesses(stdout)),
+      () => [],
+    )
     .finally(() => {
       entry.settledAt = Date.now();
     });
@@ -106,7 +126,8 @@ function executableOf(command: string): string {
 /** A Chromium-family browser's main binary, by its file name — never a
  *  crashpad handler, a native-messaging host or an unrelated process whose
  *  path happens to contain "chrome". */
-const BROWSER_BINARY = /(^|\/)(Google Chrome( for Testing| Canary| Beta| Dev)?|Chromium|Brave Browser|Microsoft Edge|chrome|chromium(-browser)?|google-chrome(-\w+)?|brave(-browser)?|msedge)$/;
+const BROWSER_BINARY =
+  /(^|\/)(Google Chrome( for Testing| Canary| Beta| Dev)?|Chromium|Brave Browser|Microsoft Edge|chrome|chromium(-browser)?|google-chrome(-\w+)?|brave(-browser)?|msedge)$/;
 
 /**
  * The human's own Chrome: a browser binary on its default profile, so no
@@ -128,7 +149,9 @@ export function realChromePid(processes?: BrowserProcess[]): number | null {
       !/--headless/.test(p.command),
   );
   // A test build (puppeteer's "Chrome for Testing") is never the human's.
-  return (real.find((p) => !/for Testing/.test(p.command)) ?? real[0])?.pid ?? null;
+  return (
+    (real.find((p) => !/for Testing/.test(p.command)) ?? real[0])?.pid ?? null
+  );
 }
 
 let knownChromePid: number | null = null;
@@ -141,8 +164,13 @@ let chromePidLookup: Promise<void> | null = null;
  * null until it lands; the hover probe before a click usually starts it.
  */
 export function knownRealChromePid(): number | null {
-  if (knownChromePid !== null && isPidAlive(knownChromePid)) return knownChromePid;
-  chromePidLookup ??= (isWSL() ? Promise.resolve(windowsChromePid()) : listBrowserProcessesAsync().then((procs) => realChromePid(procs)))
+  if (knownChromePid !== null && isPidAlive(knownChromePid))
+    return knownChromePid;
+  chromePidLookup ??= (
+    isWSL()
+      ? Promise.resolve(windowsChromePid())
+      : listBrowserProcessesAsync().then((procs) => realChromePid(procs))
+  )
     .then((pid) => {
       knownChromePid = pid;
     })
@@ -155,7 +183,12 @@ export function knownRealChromePid(): number | null {
 /** A running Windows chrome.exe, seen from WSL through interop. */
 export function windowsChromePid(): number | null {
   try {
-    const out = spawnSync("tasklist.exe", ["/FI", "IMAGENAME eq chrome.exe", "/FO", "CSV", "/NH"], { encoding: "utf-8", timeout: 10_000 }).stdout ?? "";
+    const out =
+      spawnSync(
+        "tasklist.exe",
+        ["/FI", "IMAGENAME eq chrome.exe", "/FO", "CSV", "/NH"],
+        { encoding: "utf-8", timeout: 10_000 },
+      ).stdout ?? "";
     const m = out.match(/^"chrome\.exe","(\d+)"/im);
     return m ? parseInt(m[1], 10) : null;
   } catch {
@@ -164,7 +197,9 @@ export function windowsChromePid(): number | null {
 }
 
 /** Live debug ports, one per Chrome user-data-dir. */
-export function listChromeDebugPorts(processes: BrowserProcess[] = listBrowserProcesses()): ChromeDebugPort[] {
+export function listChromeDebugPorts(
+  processes: BrowserProcess[] = listBrowserProcesses(),
+): ChromeDebugPort[] {
   const out: ChromeDebugPort[] = [];
   const seen = new Set<string>();
   for (const { pid, command } of processes) {
@@ -175,7 +210,12 @@ export function listChromeDebugPorts(processes: BrowserProcess[] = listBrowserPr
     seen.add(userDataDir);
     let port = 0;
     try {
-      port = parseInt(fs.readFileSync(path.join(userDataDir, "DevToolsActivePort"), "utf-8").split("\n")[0], 10);
+      port = parseInt(
+        fs
+          .readFileSync(path.join(userDataDir, "DevToolsActivePort"), "utf-8")
+          .split("\n")[0],
+        10,
+      );
     } catch {
       continue;
     }

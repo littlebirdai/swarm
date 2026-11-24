@@ -2,13 +2,13 @@
 
 Completed and reviewed the four requested chapters against revision-contract.md and architecture.md. Used the previous section-03, section-04, section-05, and section-08 drafts as source material. No full resurvey, implementation, deployment, publishing, task changes, or agent spawning was performed.
 
-| File | Words |
-|---|---:|
+| File                        | Words |
+| --------------------------- | ----: |
 | /tmp/agent-org/final/s03.md | 2,171 |
 | /tmp/agent-org/final/s04.md | 2,201 |
 | /tmp/agent-org/final/s05.md | 2,258 |
 | /tmp/agent-org/final/s08.md | 2,434 |
-| Total | 9,064 |
+| Total                       | 9,064 |
 
 Counts use whitespace-separated words and exclude this completion note.
 

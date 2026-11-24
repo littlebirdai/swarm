@@ -4,23 +4,27 @@
 # `cast line profile` prints the resolved profile.
 
 [line]
-project = "Codecast: Product"        # default project for signals filed here
-principles = ["docs/line/principles.md"]  # codecast's own set; the shared docs/principles.md is always read too (LP5)
+project = "Codecast: Product" # default project for signals filed here
+principles = [
+  "docs/line/principles.md",
+] # codecast's own set; the shared docs/principles.md is always read too (LP5)
 prompting = "docs/prompting.md"
-size_budget = 400                    # changed lines before a run returns to plan
+size_budget = 400 # changed lines before a run returns to plan
 watch_days = 7
-ci_paths = ["scripts/ci/**"]         # changed-path-scope.ts and kin decide which CI jobs run: a change to them goes to a person
+ci_paths = [
+  "scripts/ci/**",
+] # changed-path-scope.ts and kin decide which CI jobs run: a change to them goes to a person
 
 # Run from the run's worktree; $vars expand in the command's own shell.
 # scripts/line.ts is codecast's side of the contract (LP4), through ./evals.
 [line.commands]
 check = "cast ws check"
 prove = "bun scripts/line.ts prove --dir $run_dir"
-eval  = "bun scripts/line.ts eval --base $default_branch --dir $run_dir"
-ship  = "bun scripts/line.ts ship --base $default_branch --tree $project_path"
+eval = "bun scripts/line.ts eval --base $default_branch --dir $run_dir"
+ship = "bun scripts/line.ts ship --base $default_branch --tree $project_path"
 
 [line.caps]
-cards = 5                            # open cards per person, across their lines
+cards = 5 # open cards per person, across their lines
 
 # What this repo listens to (LP3). Each finder lives where its data lives.
 [[line.finders]]
@@ -99,5 +103,5 @@ opens_causes = true
 # root; deploy.sh deploys the checkout as it stands, so it takes no $sha.
 [line.deploy]
 command = "apps/server/deploy.sh"
-target = "backend"                   # what codecast's deploy markers name
-trigger = "person"                   # a person presses Deploy
+target = "backend" # what codecast's deploy markers name
+trigger = "person" # a person presses Deploy

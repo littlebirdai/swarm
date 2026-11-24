@@ -17,8 +17,17 @@
   animation: face-action-talk-breathe 1.6s ease-in-out infinite;
 }
 @keyframes face-action-talk-breathe {
-  0%, 100% { box-shadow: var(--btn-face), 0 0 0 0 color-mix(in srgb, var(--sol-red) 45%, transparent); }
-  50%      { box-shadow: var(--btn-face), 0 0 0 5px color-mix(in srgb, var(--sol-red) 0%, transparent); }
+  0%,
+  100% {
+    box-shadow:
+      var(--btn-face),
+      0 0 0 0 color-mix(in srgb, var(--sol-red) 45%, transparent);
+  }
+  50% {
+    box-shadow:
+      var(--btn-face),
+      0 0 0 5px color-mix(in srgb, var(--sol-red) 0%, transparent);
+  }
 }
 .face-actions-reason {
   flex-basis: 100%;
@@ -28,7 +37,9 @@
   color: var(--sol-red);
 }
 @media (prefers-reduced-motion: reduce) {
-  .face-action-talk-on { animation: none; }
+  .face-action-talk-on {
+    animation: none;
+  }
 }
 
 /* In a row of equal buttons (the avatar bar's hover card): each takes an
@@ -45,4 +56,7 @@
 }
 
 /* Modern (.modern-style): buttons and their reason in the interface sans. */
-.face-action:is(.modern-style *), .face-actions-reason:is(.modern-style *) { font-family: var(--font-ui); }
+.face-action:is(.modern-style *),
+.face-actions-reason:is(.modern-style *) {
+  font-family: var(--font-ui);
+}

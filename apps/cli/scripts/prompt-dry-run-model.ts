@@ -20,7 +20,9 @@ export async function startEgressProxy(): Promise<string> {
       const line = head.toString("latin1").split("\r\n", 1)[0];
       const m = /^CONNECT ([^\s:]+):(\d+) HTTP\/1\.[01]$/.exec(line);
       if (!m || m[2] !== "443" || !EGRESS_ALLOWED.test(m[1])) {
-        client.end("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        client.end(
+          "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
         return;
       }
       const upstream = net.connect(443, m[1], () => {
@@ -40,7 +42,8 @@ export async function startEgressProxy(): Promise<string> {
 /** What an agent's Claude Code holds in place of the login: a token that opens nothing. */
 export const PLACEHOLDER_TOKEN = "sk-ant-oat01-dry-run-placeholder";
 /** The model endpoints the agent's Claude Code calls; the model proxy forwards these and nothing else. */
-const MODEL_PATHS = /^(?:HEAD \/api\/hello|POST \/v1\/messages(?:\/count_tokens)?|GET \/v1\/models(?:\/[^/]+)?)$/;
+const MODEL_PATHS =
+  /^(?:HEAD \/api\/hello|POST \/v1\/messages(?:\/count_tokens)?|GET \/v1\/models(?:\/[^/]+)?)$/;
 
 /**
  * The anthropic-beta values Claude Code sends on a turn (captured from real
@@ -48,7 +51,18 @@ const MODEL_PATHS = /^(?:HEAD \/api\/hello|POST \/v1\/messages(?:\/count_tokens)
  * before the request leaves, so a beta that would enable a feature reaching
  * past the model is never asked for. 1M-context models add context-1m-*.
  */
-const MODEL_BETAS = new Set(["oauth-2025-04-20", "interleaved-thinking-2025-05-14", "context-management-2025-06-27", "claude-code-20250219", "per-turn-control-2026-07-01", "mid-conversation-tool-changes-2026-07-01", "thinking-token-count-2026-05-13", "advanced-tool-use-2025-11-20", "effort-2025-11-24", "extended-cache-ttl-2025-04-11"]);
+const MODEL_BETAS = new Set([
+  "oauth-2025-04-20",
+  "interleaved-thinking-2025-05-14",
+  "context-management-2025-06-27",
+  "claude-code-20250219",
+  "per-turn-control-2026-07-01",
+  "mid-conversation-tool-changes-2026-07-01",
+  "thinking-token-count-2026-05-13",
+  "advanced-tool-use-2025-11-20",
+  "effort-2025-11-24",
+  "extended-cache-ttl-2025-04-11",
+]);
 
 /**
  * Why a model request is refused, or null: anything that has Anthropic act
@@ -77,7 +91,13 @@ function urlInContent(node: unknown, at = ""): string | null {
     // What a tool was called with is the agent's own record, never fetched.
     if (k === "input" && o.type === "tool_use") continue;
     if (/url$/i.test(k) && typeof v === "string") return `${at}.${k}`;
-    if (k === "source" && v && typeof v === "object" && (v as Record<string, unknown>).type === "url") return `${at}.source`;
+    if (
+      k === "source" &&
+      v &&
+      typeof v === "object" &&
+      (v as Record<string, unknown>).type === "url"
+    )
+      return `${at}.source`;
     const hit = urlInContent(v, `${at}.${k}`);
     if (hit) return hit;
   }
@@ -85,13 +105,22 @@ function urlInContent(node: unknown, at = ""): string | null {
 }
 
 function modelRequestRefusal(req: any): string | null {
-  if (!req || typeof req !== "object" || Array.isArray(req)) return "a model request must be a JSON object";
-  const url = urlInContent(req.messages, "messages") ?? urlInContent(req.system, "system");
-  if (url) return `content Anthropic would fetch from a URL is not available here (${url})`;
+  if (!req || typeof req !== "object" || Array.isArray(req))
+    return "a model request must be a JSON object";
+  const url =
+    urlInContent(req.messages, "messages") ??
+    urlInContent(req.system, "system");
+  if (url)
+    return `content Anthropic would fetch from a URL is not available here (${url})`;
   if ("mcp_servers" in req) return "mcp_servers would reach other hosts";
   if ("container" in req) return "a container runs code off the machine";
-  const server = (Array.isArray(req.tools) ? req.tools : []).filter((t: any) => t && typeof t === "object" && "type" in t && t.type !== "custom");
-  return server.length ? `server tools are not available here (${server.map((t: any) => t.type).join(", ")})` : null;
+  const server = (Array.isArray(req.tools) ? req.tools : []).filter(
+    (t: any) =>
+      t && typeof t === "object" && "type" in t && t.type !== "custom",
+  );
+  return server.length
+    ? `server tools are not available here (${server.map((t: any) => t.type).join(", ")})`
+    : null;
 }
 
 /**
@@ -111,27 +140,47 @@ export function startModelProxy(token: string): string {
     idleTimeout: 0,
     async fetch(req) {
       const u = new URL(req.url);
-      if (!MODEL_PATHS.test(`${req.method} ${u.pathname}`)) return new Response("dry run: only the model's endpoints are reachable\n", { status: 403 });
+      if (!MODEL_PATHS.test(`${req.method} ${u.pathname}`))
+        return new Response(
+          "dry run: only the model's endpoints are reachable\n",
+          { status: 403 },
+        );
       let body: string | undefined;
       if (req.method === "POST") {
         let parsed: unknown;
         try {
           parsed = JSON.parse(await req.text());
         } catch {
-          return new Response("dry run: a model request must be JSON\n", { status: 403 });
+          return new Response("dry run: a model request must be JSON\n", {
+            status: 403,
+          });
         }
         const refused = modelRequestRefusal(parsed);
-        if (refused) return new Response(`dry run: ${refused}\n`, { status: 403 });
+        if (refused)
+          return new Response(`dry run: ${refused}\n`, { status: 403 });
         // What was checked is what is sent: re-serialized, so no second parser can read the raw text another way (a duplicate key).
         body = JSON.stringify(parsed);
       }
       const headers = new Headers(req.headers);
-      for (const h of ["host", "content-length", "content-encoding", "transfer-encoding"]) headers.delete(h);
-      if (headers.get("authorization")?.includes(PLACEHOLDER_TOKEN)) headers.set("authorization", `Bearer ${token}`);
-      const betas = (headers.get("anthropic-beta") ?? "").split(",").map((b) => b.trim()).filter((b) => b && (MODEL_BETAS.has(b) || /^context-1m-/.test(b)));
+      for (const h of [
+        "host",
+        "content-length",
+        "content-encoding",
+        "transfer-encoding",
+      ])
+        headers.delete(h);
+      if (headers.get("authorization")?.includes(PLACEHOLDER_TOKEN))
+        headers.set("authorization", `Bearer ${token}`);
+      const betas = (headers.get("anthropic-beta") ?? "")
+        .split(",")
+        .map((b) => b.trim())
+        .filter((b) => b && (MODEL_BETAS.has(b) || /^context-1m-/.test(b)));
       if (betas.length) headers.set("anthropic-beta", betas.join(","));
       else headers.delete("anthropic-beta");
-      const r = await fetch(`https://api.anthropic.com${u.pathname}${u.search}`, { method: req.method, headers, body } as RequestInit);
+      const r = await fetch(
+        `https://api.anthropic.com${u.pathname}${u.search}`,
+        { method: req.method, headers, body } as RequestInit,
+      );
       const out = new Headers(r.headers);
       out.delete("content-encoding");
       out.delete("content-length");

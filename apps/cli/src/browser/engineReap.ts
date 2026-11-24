@@ -29,11 +29,24 @@ import { spawnSync } from "../proc.js";
 import { tmuxRun } from "../tmux.js";
 import { paneOwnerId } from "../tmuxRoute.js";
 import {
-  baseSessionKey, engineHome, ownerOfSessionKey, engineSession, engineSessionKey, engineStateDir, findEngine, isPaneSession, isRealSession, managedPort, runEngine,
+  baseSessionKey,
+  engineHome,
+  ownerOfSessionKey,
+  engineSession,
+  engineSessionKey,
+  engineStateDir,
+  findEngine,
+  isPaneSession,
+  isRealSession,
+  managedPort,
+  runEngine,
   type EngineOptions,
 } from "./engine.js";
 import { CdpConnection, readCdpJson, type CdpEndpoint } from "./cdp.js";
-import { authorizesTeardown, type LivenessVerdict } from "@codecast/shared/contracts";
+import {
+  authorizesTeardown,
+  type LivenessVerdict,
+} from "@codecast/shared/contracts";
 import { bridgeEndpointIfConfigured, engineBrowserFor } from "./bridge/real.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
@@ -60,7 +73,9 @@ export interface EngineSessionInfo {
 }
 
 /** Every session the engine has files for, running or not. */
-export function listEngineSessions(stateDir = engineStateDir()): EngineSessionInfo[] {
+export function listEngineSessions(
+  stateDir = engineStateDir(),
+): EngineSessionInfo[] {
   const byKey = new Map<string, EngineSessionInfo>();
   let names: string[];
   try {
@@ -69,10 +84,17 @@ export function listEngineSessions(stateDir = engineStateDir()): EngineSessionIn
     return [];
   }
   for (const name of names) {
-    const m = /^(.+)\.(pid|config|target|sock|stream|version|engine)$/.exec(name);
+    const m = /^(.+)\.(pid|config|target|sock|stream|version|engine)$/.exec(
+      name,
+    );
     if (!m) continue;
     const key = m[1];
-    const info = byKey.get(key) ?? { key, pid: null, running: false, lastSeen: 0 };
+    const info = byKey.get(key) ?? {
+      key,
+      pid: null,
+      running: false,
+      lastSeen: 0,
+    };
     const full = path.join(stateDir, name);
     try {
       info.lastSeen = Math.max(info.lastSeen, fs.statSync(full).mtimeMs);
@@ -132,12 +154,18 @@ export function sessionRegistryDir(): string {
 }
 
 /** Newest mtime of a transcript for this session id under any project, or 0. */
-export function transcriptMtime(id: string, projectsDir = path.join(os.homedir(), ".claude", "projects")): number {
+export function transcriptMtime(
+  id: string,
+  projectsDir = path.join(os.homedir(), ".claude", "projects"),
+): number {
   let newest = 0;
   try {
     for (const dir of fs.readdirSync(projectsDir)) {
       try {
-        newest = Math.max(newest, fs.statSync(path.join(projectsDir, dir, `${id}.jsonl`)).mtimeMs);
+        newest = Math.max(
+          newest,
+          fs.statSync(path.join(projectsDir, dir, `${id}.jsonl`)).mtimeMs,
+        );
       } catch {
         /* not this project */
       }
@@ -151,7 +179,9 @@ export function transcriptMtime(id: string, projectsDir = path.join(os.homedir()
 /** A transcript written within this window means the agent is at work. */
 export const TRANSCRIPT_FRESH_MS = 30 * 60 * 1000;
 
-export function scanLiveOwners(opts: { registryDir?: string; projectsDir?: string; now?: number } = {}): LiveOwners {
+export function scanLiveOwners(
+  opts: { registryDir?: string; projectsDir?: string; now?: number } = {},
+): LiveOwners {
   const registryDir = opts.registryDir ?? sessionRegistryDir();
   const now = opts.now ?? Date.now();
   let panes: Set<string> | null = null;
@@ -162,7 +192,10 @@ export function scanLiveOwners(opts: { registryDir?: string; projectsDir?: strin
       panes = new Set();
       for (const line of t.stdout.split("\n")) {
         const [pane, socket] = line.trim().split("|");
-        if (pane) panes.add(paneOwnerId(pane, path.basename(socket ?? "") || "default"));
+        if (pane)
+          panes.add(
+            paneOwnerId(pane, path.basename(socket ?? "") || "default"),
+          );
       }
     }
   } catch {
@@ -172,13 +205,16 @@ export function scanLiveOwners(opts: { registryDir?: string; projectsDir?: strin
     panes,
     session(id: string): LivenessVerdict {
       try {
-        const reg = JSON.parse(fs.readFileSync(path.join(registryDir, `${id}.json`), "utf-8"));
+        const reg = JSON.parse(
+          fs.readFileSync(path.join(registryDir, `${id}.json`), "utf-8"),
+        );
         const pid = Number(reg?.pid);
         if (pid > 0 && isAlive(pid)) return "live";
       } catch {
         /* no registry entry */
       }
-      if (now - transcriptMtime(id, opts.projectsDir) < TRANSCRIPT_FRESH_MS) return "live";
+      if (now - transcriptMtime(id, opts.projectsDir) < TRANSCRIPT_FRESH_MS)
+        return "live";
       return "unverifiable";
     },
   };
@@ -189,8 +225,14 @@ export function scanLiveOwners(opts: { registryDir?: string; projectsDir?: strin
  * daemon killed it: daemon.ts killConversationBackends). Its exit is observed,
  * not inferred, so its tabs close now rather than after the idle rule.
  */
-export function withEndedSession(live: LiveOwners, sessionId: string): LiveOwners {
-  return { ...live, session: (id) => (id === sessionId ? "exited" : live.session(id)) };
+export function withEndedSession(
+  live: LiveOwners,
+  sessionId: string,
+): LiveOwners {
+  return {
+    ...live,
+    session: (id) => (id === sessionId ? "exited" : live.session(id)),
+  };
 }
 
 /**
@@ -209,7 +251,9 @@ export function ownerState(key: string, live: LiveOwners): LivenessVerdict {
     // that lacks this pane is an observed exit.
     if (!live.panes) return "unverifiable";
     const flat = (s: string) => s.replace(/[^A-Za-z0-9_-]+/g, "-");
-    for (const p of live.panes) if (engineSessionKey(`pane:${p}`) === key || flat(p) === pane[1]) return "live";
+    for (const p of live.panes)
+      if (engineSessionKey(`pane:${p}`) === key || flat(p) === pane[1])
+        return "live";
     return "exited";
   }
   return "unverifiable";
@@ -276,7 +320,10 @@ export interface SessionTarget {
 }
 
 /** The tab a session's daemon is pinned to, from the file it keeps. */
-export function sessionTarget(key: string, stateDir = engineStateDir()): SessionTarget | null {
+export function sessionTarget(
+  key: string,
+  stateDir = engineStateDir(),
+): SessionTarget | null {
   try {
     const file = path.join(stateDir, `${key}.target`);
     const t = JSON.parse(fs.readFileSync(file, "utf-8"));
@@ -293,7 +340,10 @@ export function sessionTarget(key: string, stateDir = engineStateDir()): Session
  * works through named tabs leaves its default pin on a tab long closed, so
  * "the tab this session drives" is a list to try, not one file.
  */
-export function sessionPinnedTabs(candidates: string[], stateDir = engineStateDir()): string[] {
+export function sessionPinnedTabs(
+  candidates: string[],
+  stateDir = engineStateDir(),
+): string[] {
   const owners = new Set(candidates.map(engineSessionKey));
   let names: string[];
   try {
@@ -309,10 +359,17 @@ export function sessionPinnedTabs(candidates: string[], stateDir = engineStateDi
     const pin = sessionTarget(key, stateDir);
     if (pin) pins.push(pin);
   }
-  return [...new Set(pins.sort((a, b) => b.mtimeMs - a.mtimeMs).map((pin) => pin.targetId))];
+  return [
+    ...new Set(
+      pins.sort((a, b) => b.mtimeMs - a.mtimeMs).map((pin) => pin.targetId),
+    ),
+  ];
 }
 
-export function sessionTargetId(key: string, stateDir = engineStateDir()): string | null {
+export function sessionTargetId(
+  key: string,
+  stateDir = engineStateDir(),
+): string | null {
   return sessionTarget(key, stateDir)?.targetId ?? null;
 }
 
@@ -321,7 +378,9 @@ export function sessionTargetId(key: string, stateDir = engineStateDir()): strin
  * key (the human's Chrome), the managed browser for any other. Null when that
  * browser was never set up or is not reachable, so there is nothing to close.
  */
-export async function sessionEndpoint(key: string): Promise<CdpEndpoint | null> {
+export async function sessionEndpoint(
+  key: string,
+): Promise<CdpEndpoint | null> {
   // A pane's view is the human's, in the desktop app: nothing here may close
   // it by target id, so a pane session has no endpoint to close on.
   if (isPaneSession(key)) return null;
@@ -334,26 +393,44 @@ export async function sessionEndpoint(key: string): Promise<CdpEndpoint | null> 
  * may do to the view it drove (the human owns the pane), and what a session
  * whose pane changed needs before it is re-pinned (desktopPane.ts).
  */
-export function detachSessionDaemon(key: string, binary: string | null = findEngine()): boolean {
+export function detachSessionDaemon(
+  key: string,
+  binary: string | null = findEngine(),
+): boolean {
   if (!binary) return false;
-  const daemon = listEngineSessions().find((session) => session.key === key && session.running);
+  const daemon = listEngineSessions().find(
+    (session) => session.key === key && session.running,
+  );
   if (!daemon) return false;
   const env = { ...process.env, AGENT_BROWSER_SESSION: key };
-  const res = spawnSync(binary, ["close"], { encoding: "utf-8", timeout: 20_000, stdio: ["ignore", "pipe", "pipe"], env });
+  const res = spawnSync(binary, ["close"], {
+    encoding: "utf-8",
+    timeout: 20_000,
+    stdio: ["ignore", "pipe", "pipe"],
+    env,
+  });
   // `close` returns while the daemon is still on its way out: its socket is
   // gone but its pid is alive, and an engine command started in that window
   // takes the daemon for running and dials the missing socket ("Failed to
   // connect: No such file or directory"). The callers retry a verb right
   // after, so the detach is done only once the process is.
   const deadline = Date.now() + 5_000;
-  while (res.status === 0 && daemon.pid && isAlive(daemon.pid) && Date.now() < deadline) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+  while (
+    res.status === 0 &&
+    daemon.pid &&
+    isAlive(daemon.pid) &&
+    Date.now() < deadline
+  )
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
   return res.status === 0;
 }
 
 /** The engine options that reach a session's browser, or null when a real
  *  session's bridge is not configured or not reachable (its daemon can still
  *  be closed). */
-async function engineOptionsFor(key: string): Promise<(EngineOptions & { session: string }) | null> {
+async function engineOptionsFor(
+  key: string,
+): Promise<(EngineOptions & { session: string }) | null> {
   try {
     return await engineBrowserFor(key);
   } catch {
@@ -366,7 +443,10 @@ async function engineOptionsFor(key: string): Promise<(EngineOptions & { session
  * and awaited by its callers: a reap that runs right before `process.exit`
  * (the `open` passthrough) would otherwise drop the close on the floor.
  */
-export async function closeTargetLater(targetId: string, endpoint: CdpEndpoint | null): Promise<boolean> {
+export async function closeTargetLater(
+  targetId: string,
+  endpoint: CdpEndpoint | null,
+): Promise<boolean> {
   if (!endpoint) return false;
   try {
     const conn = await CdpConnection.fromPort(endpoint, 3_000);
@@ -388,13 +468,22 @@ export async function closeTargetLater(targetId: string, endpoint: CdpEndpoint |
  * True only when a tab was still open to close, so a later pass over the same
  * binding reports nothing.
  */
-export async function closeIdleTab(key: string, stateDir = engineStateDir(), binary: string | null = findEngine()): Promise<boolean> {
+export async function closeIdleTab(
+  key: string,
+  stateDir = engineStateDir(),
+  binary: string | null = findEngine(),
+): Promise<boolean> {
   if (isPaneSession(key)) return false;
   const target = sessionTargetId(key, stateDir);
   if (!target) return false;
   const endpoint = await sessionEndpoint(key);
   if (await keptTab(key, target, endpoint)) return false;
-  if (listEngineSessions(stateDir).some((session) => session.key === key && session.running)) detachSessionDaemon(key, binary);
+  if (
+    listEngineSessions(stateDir).some(
+      (session) => session.key === key && session.running,
+    )
+  )
+    detachSessionDaemon(key, binary);
   return closeTargetLater(target, endpoint);
 }
 
@@ -406,10 +495,18 @@ export async function closeIdleTab(key: string, stateDir = engineStateDir(), bin
  * follows the same rule, so neither side closes what the other keeps. Only a
  * real session's tab has one; a listing that fails keeps nothing back.
  */
-export async function keptTab(key: string, targetId: string, endpoint: CdpEndpoint | null): Promise<string | null> {
+export async function keptTab(
+  key: string,
+  targetId: string,
+  endpoint: CdpEndpoint | null,
+): Promise<string | null> {
   if (!endpoint || !isRealSession(key)) return null;
   try {
-    const tabs = await readCdpJson<Array<{ id: string; keep?: string }>>(endpoint, "/json/list", 5_000);
+    const tabs = await readCdpJson<Array<{ id: string; keep?: string }>>(
+      endpoint,
+      "/json/list",
+      5_000,
+    );
     return tabs.find((t) => t.id === targetId)?.keep ?? null;
   } catch {
     return null;
@@ -423,17 +520,35 @@ export async function keptTab(key: string, targetId: string, endpoint: CdpEndpoi
  * it is not. `binary` is the engine to drive the daemon with; null means no
  * engine, so the tab is closed by target id alone (tests inject that).
  */
-export async function closeSessionTab(key: string, binary: string | null = findEngine()): Promise<boolean> {
+export async function closeSessionTab(
+  key: string,
+  binary: string | null = findEngine(),
+): Promise<boolean> {
   if (isPaneSession(key)) return detachSessionDaemon(key, binary);
   const target = sessionTargetId(key);
   if (!target) return false;
   const browser = await engineOptionsFor(key);
   let ok = false;
-  if (binary && browser && listEngineSessions().some((session) => session.key === key && session.running)) {
+  if (
+    binary &&
+    browser &&
+    listEngineSessions().some(
+      (session) => session.key === key && session.running,
+    )
+  ) {
     const env = { ...process.env, AGENT_BROWSER_SESSION: key };
-    const closedTab = runEngine(["tab", "close"], { ...browser, timeoutMs: 15_000 });
-    if (closedTab.status !== 0) await closeTargetLater(target, await sessionEndpoint(key));
-    const res = spawnSync(binary, ["close"], { encoding: "utf-8", timeout: 20_000, stdio: ["ignore", "pipe", "pipe"], env });
+    const closedTab = runEngine(["tab", "close"], {
+      ...browser,
+      timeoutMs: 15_000,
+    });
+    if (closedTab.status !== 0)
+      await closeTargetLater(target, await sessionEndpoint(key));
+    const res = spawnSync(binary, ["close"], {
+      encoding: "utf-8",
+      timeout: 20_000,
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
     ok = res.status === 0;
   } else {
     await closeTargetLater(target, await sessionEndpoint(key));
@@ -442,15 +557,22 @@ export async function closeSessionTab(key: string, binary: string | null = findE
 }
 
 /** Chrome browser processes (not helpers) whose user-data-dir matches. */
-function chromePids(userDataDirs: Set<string>): Array<{ pid: number; dir: string }> {
+function chromePids(
+  userDataDirs: Set<string>,
+): Array<{ pid: number; dir: string }> {
   const out: Array<{ pid: number; dir: string }> = [];
   try {
-    const ps = spawnSync("ps", ["ax", "-o", "pid=,command="], { encoding: "utf-8", timeout: 10_000, maxBuffer: 64 * 1024 * 1024 });
+    const ps = spawnSync("ps", ["ax", "-o", "pid=,command="], {
+      encoding: "utf-8",
+      timeout: 10_000,
+      maxBuffer: 64 * 1024 * 1024,
+    });
     for (const line of ((ps.stdout as string) ?? "").split("\n")) {
       const m = /^\s*(\d+)\s+(.*)$/.exec(line);
       if (!m || /\s--type=/.test(m[2])) continue;
       const dir = /--user-data-dir=(\S+)/.exec(m[2])?.[1];
-      if (dir && userDataDirs.has(dir)) out.push({ pid: parseInt(m[1], 10), dir });
+      if (dir && userDataDirs.has(dir))
+        out.push({ pid: parseInt(m[1], 10), dir });
     }
   } catch {
     /* ps unavailable */
@@ -463,8 +585,17 @@ function chromePids(userDataDirs: Set<string>): Array<{ pid: number; dir: string
  * known, that has been idle past `idleMs`), then sweep the debris. Safe to call
  * on every start: it is throttled, and it never touches `keep`.
  */
-export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapReport> {
-  const report: ReapReport = { closed: [], idled: [], killed: 0, cleaned: [], tmpDirsRemoved: 0, skipped: false };
+export async function reapEngineOrphans(
+  opts: ReapOptions = {},
+): Promise<ReapReport> {
+  const report: ReapReport = {
+    closed: [],
+    idled: [],
+    killed: 0,
+    cleaned: [],
+    tmpDirsRemoved: 0,
+    skipped: false,
+  };
   const now = opts.now ?? Date.now();
   if (!opts.force) {
     try {
@@ -500,12 +631,16 @@ export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapRep
     const owner = ownerState(s.key, live);
     const idle = now - s.lastSeen > idleMs;
     if (!authorizesReap(owner, idle)) {
-      if (now - s.lastSeen > tabIdleMs && (await closeIdleTab(s.key, stateDir))) report.idled.push(s.key);
+      if (now - s.lastSeen > tabIdleMs && (await closeIdleTab(s.key, stateDir)))
+        report.idled.push(s.key);
       continue;
     }
     // A tab the human kept (keptTab) outlives its session: only the daemon goes.
     const target = sessionTargetId(s.key, stateDir);
-    if (target && (await keptTab(s.key, target, await sessionEndpoint(s.key)))) {
+    if (
+      target &&
+      (await keptTab(s.key, target, await sessionEndpoint(s.key)))
+    ) {
       if (s.running) detachSessionDaemon(s.key);
       gone.add(s.key);
       continue;
@@ -525,7 +660,11 @@ export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapRep
       // The daemon died but its tab may still be open in the shared browser.
       // Counted like any other close: a tab that vanished from the human's
       // Chrome must show up in the summary the caller prints.
-      if (target && (await closeTargetLater(target, await sessionEndpoint(s.key)))) report.closed.push(s.key);
+      if (
+        target &&
+        (await closeTargetLater(target, await sessionEndpoint(s.key)))
+      )
+        report.closed.push(s.key);
     }
     gone.add(s.key);
   }
@@ -539,7 +678,10 @@ export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapRep
       /* raced */
     }
     for (const n of names) fs.rmSync(path.join(stateDir, n), { force: true });
-    fs.rmSync(path.join(engineHome(), "sessions", key), { recursive: true, force: true });
+    fs.rmSync(path.join(engineHome(), "sessions", key), {
+      recursive: true,
+      force: true,
+    });
     report.cleaned.push(key);
   }
 
@@ -548,7 +690,10 @@ export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapRep
   // here: this reaps tabs and per-session daemons, nothing more.
   try {
     const tmp = os.tmpdir();
-    const copies = fs.readdirSync(tmp).filter((n) => n.startsWith("agent-browser-profile-")).map((n) => path.join(tmp, n));
+    const copies = fs
+      .readdirSync(tmp)
+      .filter((n) => n.startsWith("agent-browser-profile-"))
+      .map((n) => path.join(tmp, n));
     if (copies.length) {
       const inUse = new Set(chromePids(new Set(copies)).map((c) => c.dir));
       for (const dir of copies) {
@@ -567,8 +712,17 @@ export async function reapEngineOrphans(opts: ReapOptions = {}): Promise<ReapRep
 export function describeReap(r: ReapReport): string | null {
   const parts: string[] = [];
   const n = r.closed.length;
-  if (n) parts.push(`closed ${n} abandoned tab${n === 1 ? "" : "s"}${r.killed ? ` (${r.killed} daemons by force)` : ""}`);
-  if (r.idled.length) parts.push(`closed ${r.idled.length} tab${r.idled.length === 1 ? "" : "s"} idle over ${TAB_IDLE_MS / 60_000} minutes`);
-  if (r.tmpDirsRemoved) parts.push(`removed ${r.tmpDirsRemoved} stale profile cop${r.tmpDirsRemoved === 1 ? "y" : "ies"}`);
+  if (n)
+    parts.push(
+      `closed ${n} abandoned tab${n === 1 ? "" : "s"}${r.killed ? ` (${r.killed} daemons by force)` : ""}`,
+    );
+  if (r.idled.length)
+    parts.push(
+      `closed ${r.idled.length} tab${r.idled.length === 1 ? "" : "s"} idle over ${TAB_IDLE_MS / 60_000} minutes`,
+    );
+  if (r.tmpDirsRemoved)
+    parts.push(
+      `removed ${r.tmpDirsRemoved} stale profile cop${r.tmpDirsRemoved === 1 ? "y" : "ies"}`,
+    );
   return parts.length ? parts.join(", ") : null;
 }

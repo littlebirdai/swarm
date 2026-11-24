@@ -11,14 +11,27 @@
 import type { OrgRole, OrgSession } from "./orgTypes";
 import { roleWords } from "./orgStaffingTypes";
 import { standingLineOf } from "./orgMeta";
-import { seatSentence, type OrgRoleSeat } from "@codecast/shared/contracts/orgProposal";
+import {
+  seatSentence,
+  type OrgRoleSeat,
+} from "@codecast/shared/contracts/orgProposal";
 
 export const CARD = {
   role: { w: 360, far: 84 },
   /** The far card (orgZoom): the name in large type, then what it is doing in
    *  16px on 21px lines, so a zoomed-out chart still says where each seat and
    *  session stands. Mono at 16px is 9.6px a character. */
-  far: { pad: 22, nameLine: 27, nameChars: 18, nameMax: 2, titleLine: 24, summaryGap: 6, summaryLine: 21, summaryChars: 31, summaryMax: 2 },
+  far: {
+    pad: 22,
+    nameLine: 27,
+    nameChars: 18,
+    nameMax: 2,
+    titleLine: 24,
+    summaryGap: 6,
+    summaryLine: 21,
+    summaryChars: 31,
+    summaryMax: 2,
+  },
   person: { w: 300 },
   session: { w: 340, far: 50, min: 50 },
   cluster: { w: 340 },
@@ -89,12 +102,19 @@ export const CARD = {
 export function wrapLines(text: string, chars: number, max: number): number {
   let total = 0;
   for (const para of text.split("\n")) {
-    let lines = 1, used = 0;
+    let lines = 1,
+      used = 0;
     for (const word of para.trim().split(/\s+/).filter(Boolean)) {
       const need = used ? used + 1 + word.length : word.length;
-      if (used && need > chars) { lines += 1; used = word.length; } else used = need;
+      if (used && need > chars) {
+        lines += 1;
+        used = word.length;
+      } else used = need;
       // A word longer than a line breaks inside itself.
-      while (used > chars) { lines += 1; used -= chars; }
+      while (used > chars) {
+        lines += 1;
+        used -= chars;
+      }
     }
     total += lines;
     if (total >= max) return max;
@@ -104,32 +124,66 @@ export function wrapLines(text: string, chars: number, max: number): number {
 
 const stripHeading = (l: string) => l.replace(/^#+\s*/, "").trim();
 /** A role's charter as the card prints it: the first paragraph (closed) or all of it (open), heading marks dropped. */
-export function charterText(charter: string | undefined, open: boolean): string | null {
+export function charterText(
+  charter: string | undefined,
+  open: boolean,
+): string | null {
   const text = charter?.trim();
   if (!text) return null;
-  const paras = text.split(/\n\s*\n/).map((p) => p.split("\n").map(stripHeading).filter(Boolean).join(" ")).filter(Boolean);
+  const paras = text
+    .split(/\n\s*\n/)
+    .map((p) => p.split("\n").map(stripHeading).filter(Boolean).join(" "))
+    .filter(Boolean);
   if (!paras.length) return null;
   return open ? paras.join("\n") : paras[0];
 }
 
 /** A role's line under its title: its persona name (none with characters
  *  off: the title is its name), whether its seat is started, its sessions. */
-export const roleMetaLine = (r: OrgRole, ghost?: boolean, characters = true): string =>
-  [characters ? roleWords(r).name : null, r.status === "paused" ? "paused" : null, ...(ghost ? [] : [r.standing ? "started" : "not started", r.total > 0 ? `${r.total} session${r.total === 1 ? "" : "s"}` : null])].filter(Boolean).join(" · ");
+export const roleMetaLine = (
+  r: OrgRole,
+  ghost?: boolean,
+  characters = true,
+): string =>
+  [
+    characters ? roleWords(r).name : null,
+    r.status === "paused" ? "paused" : null,
+    ...(ghost
+      ? []
+      : [
+          r.standing ? "started" : "not started",
+          r.total > 0 ? `${r.total} session${r.total === 1 ? "" : "s"}` : null,
+        ]),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
 /** The standing agent's line as the card prints it: its status word, then what it says. */
-export function standingText(r: Pick<OrgRole, "standing">): { label: string; color: string; text: string | null } | null {
+export function standingText(
+  r: Pick<OrgRole, "standing">,
+): { label: string; color: string; text: string | null } | null {
   const line = standingLineOf(r.standing);
-  return line ? { label: line.label, color: line.color, text: line.text } : null;
+  return line
+    ? { label: line.label, color: line.color, text: line.text }
+    : null;
 }
 
 /** The changes a card lists as lines: one each up to the cap, then one more for the rest. */
-export const changeLines = (n: number) => (n <= CARD.changeMax ? n : CARD.changeMax + 1);
+export const changeLines = (n: number) =>
+  n <= CARD.changeMax ? n : CARD.changeMax + 1;
 
 /** The sessions a closed card lists: the ones working now, newest first, three at most. */
-export const runningSessions = (holder: { sessions: OrgSession[] }): OrgSession[] => holder.sessions.filter((x) => x.state === "working").slice(0, CARD.runningMax);
+export const runningSessions = (holder: {
+  sessions: OrgSession[];
+}): OrgSession[] =>
+  holder.sessions
+    .filter((x) => x.state === "working")
+    .slice(0, CARD.runningMax);
 
-export const seatHeight = (seat: OrgRoleSeat | undefined): number => (seat ? 6 + Math.ceil(seatSentence(seat).length / CARD.seatChars) * CARD.seatLine : 0);
+export const seatHeight = (seat: OrgRoleSeat | undefined): number =>
+  seat
+    ? 6 + Math.ceil(seatSentence(seat).length / CARD.seatChars) * CARD.seatLine
+    : 0;
 
 /** What an open role card lists, read from the store (useOrgPeopleView). */
 export type RoleOpenDetail = {
@@ -140,46 +194,128 @@ export type RoleOpenDetail = {
 };
 
 export type RoleCardRows = {
-  header: number; titleLines: number;
-  meta: number; metaLines: number;
-  tenure: number; seat: number;
-  standing: number; standingLines: number;
-  chips: number; state: number;
+  header: number;
+  titleLines: number;
+  meta: number;
+  metaLines: number;
+  tenure: number;
+  seat: number;
+  standing: number;
+  standingLines: number;
+  chips: number;
+  state: number;
   changes: number;
-  charter: number; charterLines: number; charterText: string | null;
-  work: number; running: number;
-  leads: number; tasks: number; sessions: number;
+  charter: number;
+  charterLines: number;
+  charterText: string | null;
+  work: number;
+  running: number;
+  leads: number;
+  tasks: number;
+  sessions: number;
   h: number;
 };
 
 /** A role's full card, block by block. `open` is the in-place detail when the card is opened. */
-export function roleCardRows(r: OrgRole, o: { ghost?: boolean; changes?: number; tenure?: boolean; seat?: OrgRoleSeat; open?: RoleOpenDetail | null }): RoleCardRows {
+export function roleCardRows(
+  r: OrgRole,
+  o: {
+    ghost?: boolean;
+    changes?: number;
+    tenure?: boolean;
+    seat?: OrgRoleSeat;
+    open?: RoleOpenDetail | null;
+  },
+): RoleCardRows {
   const open = o.open ?? null;
   const ghost = !!o.ghost;
-  const titleLines = wrapLines(roleWords(r).subtitle, CARD.roleTitleChars, CARD.roleTitleMax);
+  const titleLines = wrapLines(
+    roleWords(r).subtitle,
+    CARD.roleTitleChars,
+    CARD.roleTitleMax,
+  );
   const header = Math.max(CARD.roleHeaderMin, titleLines * CARD.roleTitleLine);
-  const metaLines = wrapLines(roleMetaLine(r, ghost), CARD.metaChars, CARD.metaMax);
+  const metaLines = wrapLines(
+    roleMetaLine(r, ghost),
+    CARD.metaChars,
+    CARD.metaMax,
+  );
   const meta = 6 + metaLines * CARD.metaLine;
   const tenure = o.tenure ? CARD.tenureRow : 0;
   const seat = seatHeight(o.seat);
   const st = standingText(r);
-  const standingLines = st ? wrapLines(`${st.label} · ${st.text ?? ""}`, CARD.standingChars, open ? CARD.standingOpenMax : CARD.standingMax) : 0;
+  const standingLines = st
+    ? wrapLines(
+        `${st.label} · ${st.text ?? ""}`,
+        CARD.standingChars,
+        open ? CARD.standingOpenMax : CARD.standingMax,
+      )
+    : 0;
   const standing = st ? 6 + standingLines * CARD.standingLine : 0;
   const chips = CARD.chipsRow;
   const state = ghost ? 0 : CARD.stateRow;
   const changes = o.changes ? 6 + changeLines(o.changes) * CARD.changeLine : 0;
   const text = charterText(r.charter, !!open);
-  const charterLines = text ? wrapLines(text, CARD.charterChars, open ? CARD.charterOpenMax : CARD.charterMax) : 0;
+  const charterLines = text
+    ? wrapLines(
+        text,
+        CARD.charterChars,
+        open ? CARD.charterOpenMax : CARD.charterMax,
+      )
+    : 0;
   const charter = text ? 6 + charterLines * CARD.charterLine : 0;
   const work = ghost ? 0 : CARD.workRow;
   const n = runningSessions(r).length;
   const running = !open && n ? 6 + n * CARD.runningLine : 0;
-  const section = (rows: number) => CARD.sectionGap + CARD.sectionHead + rows * CARD.sectionRow;
+  const section = (rows: number) =>
+    CARD.sectionGap + CARD.sectionHead + rows * CARD.sectionRow;
   const leads = open && !ghost ? section(open.leads.length) : 0;
-  const tasks = open && !ghost ? section(Math.min(CARD.openTasksMax, open.tasks.length)) : 0;
-  const sessions = open && !ghost ? section(Math.min(CARD.openSessionsMax, r.sessions.length)) : 0;
-  const h = CARD.rolePad + header + meta + tenure + seat + standing + chips + state + changes + charter + work + running + leads + tasks + sessions;
-  return { header, titleLines, meta, metaLines, tenure, seat, standing, standingLines, chips, state, changes, charter, charterLines, charterText: text, work, running, leads, tasks, sessions, h };
+  const tasks =
+    open && !ghost
+      ? section(Math.min(CARD.openTasksMax, open.tasks.length))
+      : 0;
+  const sessions =
+    open && !ghost
+      ? section(Math.min(CARD.openSessionsMax, r.sessions.length))
+      : 0;
+  const h =
+    CARD.rolePad +
+    header +
+    meta +
+    tenure +
+    seat +
+    standing +
+    chips +
+    state +
+    changes +
+    charter +
+    work +
+    running +
+    leads +
+    tasks +
+    sessions;
+  return {
+    header,
+    titleLines,
+    meta,
+    metaLines,
+    tenure,
+    seat,
+    standing,
+    standingLines,
+    chips,
+    state,
+    changes,
+    charter,
+    charterLines,
+    charterText: text,
+    work,
+    running,
+    leads,
+    tasks,
+    sessions,
+    h,
+  };
 }
 
 /** A session's close detail: where it stands, the task it is bound to and, for an open card, its latest messages. */
@@ -191,43 +327,111 @@ export type OrgSessionDetail = {
 };
 
 export type SessionCardRows = {
-  header: number; titleLines: number;
-  detail: number; detailLines: number;
+  header: number;
+  titleLines: number;
+  detail: number;
+  detailLines: number;
   task: number;
   messages: { h: number; lines: number }[];
   h: number;
 };
 
-export function sessionCardRows(s: Pick<OrgSession, "title">, d: OrgSessionDetail | undefined, open: boolean): SessionCardRows {
-  const titleLines = wrapLines(s.title || "Untitled", CARD.sessionTitleChars, open ? CARD.sessionTitleOpenMax : CARD.sessionTitleMax);
-  const header = Math.max(CARD.sessionHeaderMin, titleLines * CARD.sessionTitleLine + CARD.sessionMetaRow);
-  const detailLines = d?.line ? wrapLines(d.line, CARD.detailChars, open ? CARD.detailOpenMax : CARD.detailMax) : 0;
-  const detail = detailLines ? CARD.detailGap + detailLines * CARD.detailLine : 0;
+export function sessionCardRows(
+  s: Pick<OrgSession, "title">,
+  d: OrgSessionDetail | undefined,
+  open: boolean,
+): SessionCardRows {
+  const titleLines = wrapLines(
+    s.title || "Untitled",
+    CARD.sessionTitleChars,
+    open ? CARD.sessionTitleOpenMax : CARD.sessionTitleMax,
+  );
+  const header = Math.max(
+    CARD.sessionHeaderMin,
+    titleLines * CARD.sessionTitleLine + CARD.sessionMetaRow,
+  );
+  const detailLines = d?.line
+    ? wrapLines(
+        d.line,
+        CARD.detailChars,
+        open ? CARD.detailOpenMax : CARD.detailMax,
+      )
+    : 0;
+  const detail = detailLines
+    ? CARD.detailGap + detailLines * CARD.detailLine
+    : 0;
   const task = d?.task ? CARD.taskRow : 0;
-  const messages = open ? (d?.messages ?? []).slice(-CARD.messagesMax).map((m) => { const lines = wrapLines(`${m.who}: ${m.text}`, CARD.detailChars, CARD.messageMax); return { lines, h: CARD.detailGap + lines * CARD.detailLine }; }) : [];
-  const h = Math.max(CARD.session.min, CARD.sessionPad + header + detail + task + messages.reduce((a, m) => a + m.h, 0));
+  const messages = open
+    ? (d?.messages ?? []).slice(-CARD.messagesMax).map((m) => {
+        const lines = wrapLines(
+          `${m.who}: ${m.text}`,
+          CARD.detailChars,
+          CARD.messageMax,
+        );
+        return { lines, h: CARD.detailGap + lines * CARD.detailLine };
+      })
+    : [];
+  const h = Math.max(
+    CARD.session.min,
+    CARD.sessionPad +
+      header +
+      detail +
+      task +
+      messages.reduce((a, m) => a + m.h, 0),
+  );
   return { header, titleLines, detail, detailLines, task, messages, h };
 }
 
-
 /** A far card's summary: how many lines it takes (none without text). */
-const farSummary = (text: string | null | undefined) => (text ? wrapLines(text, CARD.far.summaryChars, CARD.far.summaryMax) : 0);
-const farSummaryH = (lines: number) => (lines ? CARD.far.summaryGap + lines * CARD.far.summaryLine : 0);
+const farSummary = (text: string | null | undefined) =>
+  text ? wrapLines(text, CARD.far.summaryChars, CARD.far.summaryMax) : 0;
+const farSummaryH = (lines: number) =>
+  lines ? CARD.far.summaryGap + lines * CARD.far.summaryLine : 0;
 
 /** A role's far card: its name, then its standing agent's line. */
-export function roleFarRows(r: OrgRole): { nameLines: number; summaryLines: number; h: number } {
-  const nameLines = wrapLines(roleWords(r).subtitle, CARD.far.nameChars, CARD.far.nameMax);
+export function roleFarRows(r: OrgRole): {
+  nameLines: number;
+  summaryLines: number;
+  h: number;
+} {
+  const nameLines = wrapLines(
+    roleWords(r).subtitle,
+    CARD.far.nameChars,
+    CARD.far.nameMax,
+  );
   const st = standingText(r);
   const summaryLines = st ? farSummary(`${st.label} · ${st.text ?? ""}`) : 0;
-  return { nameLines, summaryLines, h: Math.max(CARD.role.far, CARD.far.pad + nameLines * CARD.far.nameLine + farSummaryH(summaryLines)) };
+  return {
+    nameLines,
+    summaryLines,
+    h: Math.max(
+      CARD.role.far,
+      CARD.far.pad + nameLines * CARD.far.nameLine + farSummaryH(summaryLines),
+    ),
+  };
 }
 
 /** A session's far card: its title on one line, then where it stands. */
-export function sessionFarRows(s: Pick<OrgSession, "state">, d: OrgSessionDetail | undefined): { summaryLines: number; h: number } {
+export function sessionFarRows(
+  s: Pick<OrgSession, "state">,
+  d: OrgSessionDetail | undefined,
+): { summaryLines: number; h: number } {
   const summaryLines = farSummary(`${s.state} · ${d?.line ?? ""}`);
-  return { summaryLines: d?.line ? summaryLines : 0, h: CARD.far.pad + CARD.far.titleLine + farSummaryH(d?.line ? summaryLines : 0) };
+  return {
+    summaryLines: d?.line ? summaryLines : 0,
+    h:
+      CARD.far.pad +
+      CARD.far.titleLine +
+      farSummaryH(d?.line ? summaryLines : 0),
+  };
 }
 
 /** A person's far card: their name, then one line of what waits on them and what runs. */
 export const personFarHeight = (name: string, hasCounts: boolean) =>
-  Math.max(84, CARD.far.pad + wrapLines(name, CARD.far.nameChars, CARD.far.nameMax) * CARD.far.nameLine + (hasCounts ? farSummaryH(1) : 0));
+  Math.max(
+    84,
+    CARD.far.pad +
+      wrapLines(name, CARD.far.nameChars, CARD.far.nameMax) *
+        CARD.far.nameLine +
+      (hasCounts ? farSummaryH(1) : 0),
+  );

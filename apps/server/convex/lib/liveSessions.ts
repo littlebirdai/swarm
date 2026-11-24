@@ -46,6 +46,8 @@ export async function liveConversationIdSet(
 ): Promise<Set<string>> {
   const sessions = await listLiveManagedSessions(ctx, userId, opts);
   return new Set(
-    sessions.filter((s) => s.conversation_id).map((s) => s.conversation_id!.toString()),
+    sessions
+      .filter((s) => s.conversation_id)
+      .map((s) => s.conversation_id!.toString()),
   );
 }

@@ -63,7 +63,8 @@ export function noteDeliberateRaise(): void {
  * all, as does a missing, non-finite or negative value. Exported for its test.
  */
 export function stampAt(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return 0;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
+    return 0;
   return value > Date.now() + 5_000 ? 0 : value;
 }
 
@@ -73,7 +74,11 @@ export function stampAt(value: unknown): number {
  * take focus in the first place.
  */
 export function isAgentChromeCommand(cmd: string): boolean {
-  return /--remote-debugging-port=\d+/.test(cmd) && /--user-data-dir=/.test(cmd) && !/--headless/.test(cmd);
+  return (
+    /--remote-debugging-port=\d+/.test(cmd) &&
+    /--user-data-dir=/.test(cmd) &&
+    !/--headless/.test(cmd)
+  );
 }
 
 export function isAppSwitchChord(tabDown: boolean, flags: bigint): boolean {
@@ -102,13 +107,18 @@ export function shouldRestoreFocus(i: {
  * at boot before its first log line, and nothing synced. launchd names the
  * session kind in one cheap call.
  */
-export async function inWindowServerSession(managerName: () => Promise<string> = readManagerName): Promise<boolean> {
+export async function inWindowServerSession(
+  managerName: () => Promise<string> = readManagerName,
+): Promise<boolean> {
   return (await managerName()) === "Aqua";
 }
 
 async function readManagerName(): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("launchctl", ["managername"], { encoding: "utf-8", timeout: 2_000 });
+    const { stdout } = await execFileAsync("launchctl", ["managername"], {
+      encoding: "utf-8",
+      timeout: 2_000,
+    });
     return String(stdout ?? "").trim();
   } catch {
     return "";
@@ -117,15 +127,27 @@ async function readManagerName(): Promise<string> {
 
 /** Seconds since the last mouse-down, via CoreGraphics — or null when the
  *  symbol can't load (non-darwin, no bun:ffi), which turns the sentinel off. */
-async function loadHumanInput(): Promise<{ clickAge: () => number; appSwitchAge: () => number } | null> {
+async function loadHumanInput(): Promise<{
+  clickAge: () => number;
+  appSwitchAge: () => number;
+} | null> {
   if (process.platform !== "darwin") return null;
   try {
     const { dlopen, FFIType } = await import("bun:ffi");
-    const cg = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", {
-      CGEventSourceSecondsSinceLastEventType: { args: [FFIType.i32, FFIType.u32], returns: FFIType.f64 },
-      CGEventSourceKeyState: { args: [FFIType.i32, FFIType.u16], returns: FFIType.bool },
-      CGEventSourceFlagsState: { args: [FFIType.i32], returns: FFIType.u64 },
-    });
+    const cg = dlopen(
+      "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+      {
+        CGEventSourceSecondsSinceLastEventType: {
+          args: [FFIType.i32, FFIType.u32],
+          returns: FFIType.f64,
+        },
+        CGEventSourceKeyState: {
+          args: [FFIType.i32, FFIType.u16],
+          returns: FFIType.bool,
+        },
+        CGEventSourceFlagsState: { args: [FFIType.i32], returns: FFIType.u64 },
+      },
+    );
     const since = cg.symbols.CGEventSourceSecondsSinceLastEventType;
     const keyState = cg.symbols.CGEventSourceKeyState;
     const flagsState = cg.symbols.CGEventSourceFlagsState;
@@ -148,7 +170,11 @@ async function loadHumanInput(): Promise<{ clickAge: () => number; appSwitchAge:
 /** ps read of one pid's command line; "" for a pid that is already gone. */
 export async function commandOfPidAsync(pid: number): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf-8", timeout: 3_000 });
+    const { stdout } = await execFileAsync(
+      "ps",
+      ["-p", String(pid), "-o", "command="],
+      { encoding: "utf-8", timeout: 3_000 },
+    );
     return (stdout ?? "").trim();
   } catch {
     return "";
@@ -160,24 +186,31 @@ export async function commandOfPidAsync(pid: number): Promise<string> {
  * command line, instance.json) only on an actual front-app change, so the
  * idle cost stays at one small spawn a second.
  */
-export async function startFocusSentinel(log: (line: string) => void): Promise<NodeJS.Timeout | null> {
+export async function startFocusSentinel(
+  log: (line: string) => void,
+): Promise<NodeJS.Timeout | null> {
   // A cloud host has no human at its screen to protect, and its daemon runs
   // with no window-server session: the CoreGraphics input probe below blocks
   // forever there (a Mac host's daemon froze on it right after boot).
   if (isRemoteDevice()) return null;
   if (process.platform === "darwin" && !(await inWindowServerSession())) {
-    log("[FOCUS] sentinel off: no window-server session (started outside a screen login)");
+    log(
+      "[FOCUS] sentinel off: no window-server session (started outside a screen login)",
+    );
     return null;
   }
   const input = await loadHumanInput();
   if (!input) {
-    if (process.platform === "darwin") log("[FOCUS] sentinel off: human-input detector unavailable");
+    if (process.platform === "darwin")
+      log("[FOCUS] sentinel off: human-input detector unavailable");
     return null;
   }
   let lastAsn: string | null = null;
   let lastHumanPid: number | null = null;
   const agentByPid = new Map<number, boolean>();
-  log("[FOCUS] sentinel armed: unprovoked raises by agent-driven Chromes will be bounced");
+  log(
+    "[FOCUS] sentinel armed: unprovoked raises by agent-driven Chromes will be bounced",
+  );
 
   // One probe in flight at a time: a slow lsappinfo must not stack ticks.
   let inFlight = false;
@@ -202,15 +235,21 @@ export async function startFocusSentinel(log: (line: string) => void): Promise<N
       // `cast computer --restore-window` are equally deliberate raises, and
       // neither runs in this process, so neither can call noteDeliberateRaise.
       const st = readState();
-      const cliRaisedAt = Math.max(stampAt(st?.loginRaisedAt), stampAt(st?.computerRaisedAt));
+      const cliRaisedAt = Math.max(
+        stampAt(st?.loginRaisedAt),
+        stampAt(st?.computerRaisedAt),
+      );
       const restore = shouldRestoreFocus({
         agentChrome: true,
-        msSinceDeliberateRaise: Date.now() - Math.max(lastDeliberateRaiseAt, cliRaisedAt),
+        msSinceDeliberateRaise:
+          Date.now() - Math.max(lastDeliberateRaiseAt, cliRaisedAt),
         msSinceAppSwitch: input.appSwitchAge(),
         secondsSinceClick: input.clickAge(),
       });
       if (restore && lastHumanPid) {
-        log(`[FOCUS] agent Chrome ${pid} took the front unprovoked — returning focus to pid ${lastHumanPid}`);
+        log(
+          `[FOCUS] agent Chrome ${pid} took the front unprovoked — returning focus to pid ${lastHumanPid}`,
+        );
         raiseAppByPid(lastHumanPid, log);
         lastAsn = null; // re-read next tick; the raise lands async
       }
@@ -218,5 +257,7 @@ export async function startFocusSentinel(log: (line: string) => void): Promise<N
       inFlight = false;
     }
   };
-  return setInterval(() => { void tick(); }, 1_000);
+  return setInterval(() => {
+    void tick();
+  }, 1_000);
 }

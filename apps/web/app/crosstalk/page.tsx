@@ -3,7 +3,14 @@
 // `cast send` from one session to another is a durable row in pending_messages;
 // this page reads that ledger, draws the network of who-talks-to-whom as an
 // animated constellation, and streams the actual messages alongside it.
-import { memo, useMemo, useState, useCallback, Component, type ReactNode } from "react";
+import {
+  memo,
+  useMemo,
+  useState,
+  useCallback,
+  Component,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { agentFeatureHref } from "../../lib/agentFeatureHref";
 import { useRouter } from "next/navigation";
@@ -32,7 +39,6 @@ import {
   Users,
   Sparkles,
 } from "lucide-react";
-
 
 type Link0 = {
   _id: string;
@@ -70,7 +76,9 @@ const STREAM_PAGE = 100;
 // fact alone (store/wakeSig.ts), and a heartbeat rebuilds nothing. Only live
 // sessions enter the signature, so a session going live or quiet wakes it.
 // It reads the same fields the model's overlay reads (`is_active` arrives on the row untyped).
-const liveSig = makeCollectionSig<InboxSession>((ses) => ((ses as { is_active?: boolean }).is_active && !ses.is_idle ? "1" : null));
+const liveSig = makeCollectionSig<InboxSession>((ses) =>
+  (ses as { is_active?: boolean }).is_active && !ses.is_idle ? "1" : null,
+);
 
 function dayKey(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, {
@@ -80,14 +88,23 @@ function dayKey(ts: number): string {
   });
 }
 
-const STATUS_META: Record<string, { icon: any; tint: string; label: string }> = {
-  delivered: { icon: Check, tint: "text-sol-green", label: "delivered" },
-  injected: { icon: CornerDownRight, tint: "text-sol-cyan", label: "injected" },
-  pending: { icon: Radio, tint: "text-sol-yellow", label: "in flight" },
-  failed: { icon: AlertTriangle, tint: "text-sol-red", label: "failed" },
-  undeliverable: { icon: AlertTriangle, tint: "text-sol-orange", label: "undeliverable" },
-  cancelled: { icon: X, tint: "text-sol-text-dim", label: "cancelled" },
-};
+const STATUS_META: Record<string, { icon: any; tint: string; label: string }> =
+  {
+    delivered: { icon: Check, tint: "text-sol-green", label: "delivered" },
+    injected: {
+      icon: CornerDownRight,
+      tint: "text-sol-cyan",
+      label: "injected",
+    },
+    pending: { icon: Radio, tint: "text-sol-yellow", label: "in flight" },
+    failed: { icon: AlertTriangle, tint: "text-sol-red", label: "failed" },
+    undeliverable: {
+      icon: AlertTriangle,
+      tint: "text-sol-orange",
+      label: "undeliverable",
+    },
+    cancelled: { icon: X, tint: "text-sol-text-dim", label: "cancelled" },
+  };
 
 // The backend query lives in a shared, multi-session Convex deployment; while this
 // feature is uncommitted, another session's `convex dev` can momentarily push a
@@ -95,7 +112,10 @@ const STATUS_META: Record<string, { icon: any; tint: string; label: string }> = 
 // way to the route-level boundary ("Crosstalk crashed"), catch it here and show a
 // calm reconnecting state that re-mounts itself every few seconds — so the page
 // heals the instant the function is back.
-class CrosstalkBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class CrosstalkBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
   timer: any = null;
   state = { failed: false };
   static getDerivedStateFromError() {
@@ -113,7 +133,8 @@ class CrosstalkBoundary extends Component<{ children: ReactNode }, { failed: boo
     this.setState({ failed: false });
   };
   render() {
-    if (this.state.failed) return <CrosstalkReconnecting onRetry={this.retry} />;
+    if (this.state.failed)
+      return <CrosstalkReconnecting onRetry={this.retry} />;
     return this.props.children;
   }
 }
@@ -139,7 +160,8 @@ function CrosstalkReconnecting({ onRetry }: { onRetry: () => void }) {
           <Radio className="w-8 h-8 text-sol-cyan animate-pulse" />
           <div className="text-sm font-medium">Reconnecting to the signal…</div>
           <p className="text-[12.5px] text-sol-text-muted leading-relaxed">
-            The crosstalk feed briefly lost its backend connection. Retrying automatically.
+            The crosstalk feed briefly lost its backend connection. Retrying
+            automatically.
           </p>
           <button
             onClick={onRetry}
@@ -158,7 +180,9 @@ function CrosstalkInner() {
   // Store-fed (hooks/useSyncSessionThreads): the graph paints from the cached
   // snapshot; the feeder replaces it as the server recomputes.
   const { threads } = useSessionThreads();
-  const data = (threads ?? undefined) as { links: Link0[]; nodes: Node0[] } | undefined;
+  const data = (threads ?? undefined) as
+    | { links: Link0[]; nodes: Node0[] }
+    | undefined;
 
   const s = useTrackedStore([
     (st) => liveSig(st.sessions),
@@ -174,7 +198,10 @@ function CrosstalkInner() {
   const [pulseKey, setPulseKey] = useState<string | null>(null);
 
   // The nodes by id, rebuilt only when the threads do, so the stream's rows stay put when liveness changes.
-  const nodeById = useMemo(() => new Map((data?.nodes ?? []).map((n) => [n._id, n])), [data]);
+  const nodeById = useMemo(
+    () => new Map((data?.nodes ?? []).map((n) => [n._id, n])),
+    [data],
+  );
   const [streamLimit, setStreamLimit] = useState(STREAM_PAGE);
 
   // Build the graph model: live-status overlay from the store, node weights,
@@ -227,9 +254,13 @@ function CrosstalkInner() {
 
     // Cap the constellation to the most-active sessions for legibility; the
     // stream still shows every message.
-    const topNodes = [...allNodes].sort((a, b) => b.weight - a.weight).slice(0, GRAPH_NODE_CAP);
+    const topNodes = [...allNodes]
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, GRAPH_NODE_CAP);
     const keep = new Set(topNodes.map((n) => n.id));
-    const edges = [...edgeMap.values()].filter((e) => keep.has(e.from) && keep.has(e.to));
+    const edges = [...edgeMap.values()].filter(
+      (e) => keep.has(e.from) && keep.has(e.to),
+    );
 
     // Busiest pair (combine both directions).
     let busiest: { a: string; b: string; count: number } | null = null;
@@ -269,7 +300,7 @@ function CrosstalkInner() {
       if (id.startsWith("ghost:")) return;
       router.push(`/conversation/${id}`);
     },
-    [router]
+    [router],
   );
 
   const nodeTitle = useCallback(
@@ -277,96 +308,100 @@ function CrosstalkInner() {
       const n = model?.nodeById.get(id);
       return n?.title || n?.short_id || id.slice(0, 7);
     },
-    [model]
+    [model],
   );
 
   return (
     <div className="h-full flex flex-col bg-sol-bg text-sol-text overflow-hidden">
       <Header model={model} />
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
-            {/* Constellation */}
-            <div className="relative lg:w-[58%] h-[44vh] lg:h-auto border-b lg:border-b-0 lg:border-r border-sol-border/15 bg-gradient-to-b from-[color-mix(in_srgb,var(--sol-bg-alt)_30%,transparent)] to-sol-bg">
-              {model && model.nodes.length > 0 ? (
-                <>
-                  <SessionConstellation
-                    nodes={model.nodes}
-                    edges={model.edges}
-                    selectedId={selected}
-                    pulseKey={pulseKey}
-                    onSelect={setSelected}
-                    onOpen={onOpen}
-                  />
-                  {model.nodes.length >= GRAPH_NODE_CAP && (
-                    <div className="pointer-events-none absolute top-3 right-4 text-meta text-sol-text-dim">
-                      showing {GRAPH_NODE_CAP} busiest sessions
-                    </div>
-                  )}
-                </>
+        {/* Constellation */}
+        <div className="relative lg:w-[58%] h-[44vh] lg:h-auto border-b lg:border-b-0 lg:border-r border-sol-border/15 bg-gradient-to-b from-[color-mix(in_srgb,var(--sol-bg-alt)_30%,transparent)] to-sol-bg">
+          {model && model.nodes.length > 0 ? (
+            <>
+              <SessionConstellation
+                nodes={model.nodes}
+                edges={model.edges}
+                selectedId={selected}
+                pulseKey={pulseKey}
+                onSelect={setSelected}
+                onOpen={onOpen}
+              />
+              {model.nodes.length >= GRAPH_NODE_CAP && (
+                <div className="pointer-events-none absolute top-3 right-4 text-meta text-sol-text-dim">
+                  showing {GRAPH_NODE_CAP} busiest sessions
+                </div>
+              )}
+            </>
+          ) : (
+            <GraphEmpty loading={!data} />
+          )}
+        </div>
+
+        {/* Stream */}
+        <div className="lg:w-[42%] flex flex-col min-h-0">
+          <div className="flex items-center justify-between px-4 h-11 border-b border-sol-border/15 flex-shrink-0">
+            <div className="flex items-center gap-2 text-xs font-medium text-sol-text-muted">
+              <Radio className="w-3.5 h-3.5 text-sol-cyan" />
+              {selected ? (
+                <span className="flex items-center gap-1.5">
+                  filtered to
+                  <span
+                    className="font-semibold text-sol-text truncate max-w-[180px]"
+                    style={{ color: hueFor(selected) }}
+                  >
+                    {nodeTitle(selected)}
+                  </span>
+                </span>
               ) : (
-                <GraphEmpty loading={!data} />
+                <span>{stream.length} messages</span>
               )}
             </div>
+            {selected && (
+              <button
+                onClick={() => setSelected(null)}
+                className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors"
+              >
+                <X className="w-3 h-3" /> clear
+              </button>
+            )}
+          </div>
 
-            {/* Stream */}
-            <div className="lg:w-[42%] flex flex-col min-h-0">
-              <div className="flex items-center justify-between px-4 h-11 border-b border-sol-border/15 flex-shrink-0">
-                <div className="flex items-center gap-2 text-xs font-medium text-sol-text-muted">
-                  <Radio className="w-3.5 h-3.5 text-sol-cyan" />
-                  {selected ? (
-                    <span className="flex items-center gap-1.5">
-                      filtered to
-                      <span
-                        className="font-semibold text-sol-text truncate max-w-[180px]"
-                        style={{ color: hueFor(selected) }}
-                      >
-                        {nodeTitle(selected)}
-                      </span>
-                    </span>
-                  ) : (
-                    <span>{stream.length} messages</span>
-                  )}
-                </div>
-                {selected && (
-                  <button
-                    onClick={() => setSelected(null)}
-                    className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors"
-                  >
-                    <X className="w-3 h-3" /> clear
-                  </button>
+          <div className="flex-1 min-h-0 overflow-y-auto" data-main-scroll>
+            {!data ? (
+              <StreamSkeleton />
+            ) : stream.length === 0 ? (
+              <StreamEmpty hasAny={(data.links.length ?? 0) > 0} />
+            ) : (
+              <>
+                <MessageStream
+                  links={
+                    stream.length > streamLimit
+                      ? stream.slice(0, streamLimit)
+                      : stream
+                  }
+                  nodeById={nodeById}
+                  teamMembers={teamMembersOf(s)}
+                  onPulse={setPulseKey}
+                  onSelectNode={setSelected}
+                />
+                {stream.length > streamLimit && (
+                  <div className="px-4 pb-6">
+                    <button
+                      type="button"
+                      onClick={() => setStreamLimit((n) => n + STREAM_PAGE)}
+                      className="w-full rounded-lg border border-sol-border/30 py-1.5 text-xs text-sol-text-muted hover:border-sol-border/60 hover:text-sol-text transition-colors"
+                    >
+                      Show older · {stream.length - streamLimit}
+                    </button>
+                  </div>
                 )}
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto" data-main-scroll>
-                {!data ? (
-                  <StreamSkeleton />
-                ) : stream.length === 0 ? (
-                  <StreamEmpty hasAny={(data.links.length ?? 0) > 0} />
-                ) : (
-                  <>
-                    <MessageStream
-                      links={stream.length > streamLimit ? stream.slice(0, streamLimit) : stream}
-                      nodeById={nodeById}
-                      teamMembers={teamMembersOf(s)}
-                      onPulse={setPulseKey}
-                      onSelectNode={setSelected}
-                    />
-                    {stream.length > streamLimit && (
-                      <div className="px-4 pb-6">
-                        <button
-                          type="button"
-                          onClick={() => setStreamLimit((n) => n + STREAM_PAGE)}
-                          className="w-full rounded-lg border border-sol-border/30 py-1.5 text-xs text-sol-text-muted hover:border-sol-border/60 hover:text-sol-text transition-colors"
-                        >
-                          Show older · {stream.length - streamLimit}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
+      </div>
+    </div>
   );
 }
 
@@ -385,13 +420,24 @@ function Header({ model }: { model: any }) {
             Crosstalk
           </h1>
           <p className="mt-1.5 text-[13px] text-sol-text-muted">
-            What your agents are saying to each other: every message one session sends another.
+            What your agents are saying to each other: every message one session
+            sends another.
           </p>
         </div>
         {model && (
           <div className="flex items-center gap-2">
-            <StatChip icon={ArrowRight} value={model.totalMessages} label="messages" tint="text-sol-blue" />
-            <StatChip icon={Users} value={model.talkers} label="sessions talking" tint="text-sol-violet" />
+            <StatChip
+              icon={ArrowRight}
+              value={model.totalMessages}
+              label="messages"
+              tint="text-sol-blue"
+            />
+            <StatChip
+              icon={Users}
+              value={model.talkers}
+              label="sessions talking"
+              tint="text-sol-violet"
+            />
             <StatChip
               icon={Sparkles}
               value={model.liveCount}
@@ -441,7 +487,8 @@ function SessionPill({
 }) {
   const n = nodeById.get(id);
   const hue = hueFor(id);
-  const title = n?.title || (n?.resolved ? "Untitled" : n?.short_id || id.slice(0, 7));
+  const title =
+    n?.title || (n?.resolved ? "Untitled" : n?.short_id || id.slice(0, 7));
   const ghost = !n?.resolved;
   const inner = (
     <span
@@ -451,11 +498,22 @@ function SessionPill({
         background: `${hue}0f`,
       }}
     >
-      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: ghost ? "transparent" : hue, border: ghost ? `1.5px dashed ${hue}` : undefined }} />
-      <span className="truncate text-[12.5px] font-medium" style={{ color: "var(--sol-text)" }}>
+      <span
+        className="w-2 h-2 rounded-full flex-shrink-0"
+        style={{
+          background: ghost ? "transparent" : hue,
+          border: ghost ? `1.5px dashed ${hue}` : undefined,
+        }}
+      />
+      <span
+        className="truncate text-[12.5px] font-medium"
+        style={{ color: "var(--sol-text)" }}
+      >
         {title}
       </span>
-      <span className="font-mono text-meta text-sol-text-dim flex-shrink-0">{n?.short_id ?? id.slice(0, 7)}</span>
+      <span className="font-mono text-meta text-sol-text-dim flex-shrink-0">
+        {n?.short_id ?? id.slice(0, 7)}
+      </span>
     </span>
   );
   if (ghost || !n) {
@@ -466,7 +524,11 @@ function SessionPill({
     );
   }
   return (
-    <Link href={`/conversation/${id}`} onClick={(e) => e.stopPropagation()} title="Open session">
+    <Link
+      href={`/conversation/${id}`}
+      onClick={(e) => e.stopPropagation()}
+      title="Open session"
+    >
       {inner}
     </Link>
   );
@@ -538,7 +600,10 @@ const MessageCard = memo(function MessageCard({
   const [expanded, setExpanded] = useState(false);
   const meta = STATUS_META[link.status] ?? STATUS_META.delivered;
   const StatusIcon = meta.icon;
-  const edgeKey = `${link.from_id}__${link.to_id}`.replace(/[^a-zA-Z0-9_]/g, "-");
+  const edgeKey = `${link.from_id}__${link.to_id}`.replace(
+    /[^a-zA-Z0-9_]/g,
+    "-",
+  );
   const hue = hueFor(link.from_id);
 
   const sender = teamMembers?.find((m) => m && m._id === link.from_user_id);
@@ -559,9 +624,17 @@ const MessageCard = memo(function MessageCard({
       />
       <div className="pl-3.5 pr-3 py-2.5">
         <div className="flex items-center gap-1.5 text-sol-text">
-          <SessionPill id={link.from_id} nodeById={nodeById} onSelectNode={onSelectNode} />
+          <SessionPill
+            id={link.from_id}
+            nodeById={nodeById}
+            onSelectNode={onSelectNode}
+          />
           <ArrowRight className="w-3.5 h-3.5 text-sol-text-dim flex-shrink-0" />
-          <SessionPill id={link.to_id} nodeById={nodeById} onSelectNode={onSelectNode} />
+          <SessionPill
+            id={link.to_id}
+            nodeById={nodeById}
+            onSelectNode={onSelectNode}
+          />
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             {link.cross_user && senderName && (
               <span className="hidden sm:inline-flex items-center gap-1 text-meta text-sol-text-dim">
@@ -573,7 +646,9 @@ const MessageCard = memo(function MessageCard({
               className={`flex items-center gap-1 text-meta ${meta.tint}`}
               title={meta.label}
             >
-              <StatusIcon className={`w-3 h-3 ${link.status === "pending" ? "animate-pulse" : ""}`} />
+              <StatusIcon
+                className={`w-3 h-3 ${link.status === "pending" ? "animate-pulse" : ""}`}
+              />
             </span>
             <span className="text-meta text-sol-text-dim tabular-nums whitespace-nowrap">
               {formatRelativeTime(link.created_at)}
@@ -617,12 +692,18 @@ function GraphEmpty({ loading }: { loading: boolean }) {
           <div className="w-14 h-14 rounded-2xl bg-sol-bg-alt flex items-center justify-center">
             <Radio className="w-7 h-7 text-sol-text-dim" />
           </div>
-          <div className="text-sm font-medium text-sol-text">No crosstalk yet</div>
+          <div className="text-sm font-medium text-sol-text">
+            No crosstalk yet
+          </div>
           <p className="text-[12.5px] text-sol-text-muted leading-relaxed">
-            Crosstalk lights up when your agents message each other. Switch on Messaging in Agent
-            features and every new session learns to reach the others.
+            Crosstalk lights up when your agents message each other. Switch on
+            Messaging in Agent features and every new session learns to reach
+            the others.
           </p>
-          <Link href={agentFeatureHref("messaging")} className="text-[12.5px] text-sol-cyan hover:underline">
+          <Link
+            href={agentFeatureHref("messaging")}
+            className="text-[12.5px] text-sol-cyan hover:underline"
+          >
             Open Agent features
           </Link>
         </div>
@@ -647,7 +728,10 @@ function StreamSkeleton() {
   return (
     <div className="px-4 py-4 flex flex-col gap-2.5">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-sol-border/15 bg-sol-card p-3 animate-pulse">
+        <div
+          key={i}
+          className="rounded-xl border border-sol-border/15 bg-sol-card p-3 animate-pulse"
+        >
           <div className="flex items-center gap-2">
             <div className="h-4 w-24 rounded bg-sol-bg-highlight" />
             <div className="h-3 w-3 rounded bg-sol-bg-highlight" />

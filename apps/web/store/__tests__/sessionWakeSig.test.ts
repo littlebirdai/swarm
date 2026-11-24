@@ -8,7 +8,10 @@ import {
 
 // A plausible "live working" session: has messages, not idle, recent heartbeat.
 const T = Date.now();
-const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
+const session = (
+  id: string,
+  extra: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: id,
   session_id: `session-${id}`,
   updated_at: T,
@@ -43,7 +46,9 @@ describe("sessionStructuralSig — heartbeat churn is inert", () => {
 
   it("ignores a churny display field the sidebar reads but doesn't bucket on", () => {
     const base = session("a", { last_user_message: "hi" });
-    const newPreview = session("a", { last_user_message: "a much longer reply" });
+    const newPreview = session("a", {
+      last_user_message: "a much longer reply",
+    });
     expect(sessionStructuralSig(newPreview)).toBe(sessionStructuralSig(base));
   });
 
@@ -51,8 +56,12 @@ describe("sessionStructuralSig — heartbeat churn is inert", () => {
   // rides the liveness overlay. It must NOT wake the list: each card subscribes
   // to its own row's field (lib/sessionActivity activitySig) instead.
   it("ignores the activity line: a tool call stamp wakes one card, never the list", () => {
-    const base = session("a", { activity: { text: "editing chat.ts", tool: "Edit", at: 1_000 } });
-    const nextTool = session("a", { activity: { text: "running npx tsc", tool: "Bash", at: 2_000 } });
+    const base = session("a", {
+      activity: { text: "editing chat.ts", tool: "Edit", at: 1_000 },
+    });
+    const nextTool = session("a", {
+      activity: { text: "running npx tsc", tool: "Bash", at: 2_000 },
+    });
     const cleared = session("a", { activity: null });
     expect(sessionStructuralSig(nextTool)).toBe(sessionStructuralSig(base));
     expect(sessionStructuralSig(cleared)).toBe(sessionStructuralSig(base));
@@ -67,7 +76,9 @@ describe("sessionStructuralSig — real bucket/order changes flip it", () => {
     // A real transition clears the daemon's active agent_status; is_idle alone is
     // inert while agent_status is "working" (isSessionEffectivelyIdle short-circuits).
     expect(
-      sessionStructuralSig(session("a", { agent_status: undefined, is_idle: true })),
+      sessionStructuralSig(
+        session("a", { agent_status: undefined, is_idle: true }),
+      ),
     ).not.toBe(sessionStructuralSig(base));
   });
 
@@ -79,14 +90,16 @@ describe("sessionStructuralSig — real bucket/order changes flip it", () => {
 
   it("flips when an agent becomes permission-blocked (-> needs input)", () => {
     expect(
-      sessionStructuralSig(session("a", { agent_status: "permission_blocked" })),
+      sessionStructuralSig(
+        session("a", { agent_status: "permission_blocked" }),
+      ),
     ).not.toBe(sessionStructuralSig(base));
   });
 
   it("flips when an open poll arrives (awaiting_input -> needs input)", () => {
-    expect(sessionStructuralSig(session("a", { awaiting_input: true }))).not.toBe(
-      sessionStructuralSig(base),
-    );
+    expect(
+      sessionStructuralSig(session("a", { awaiting_input: true })),
+    ).not.toBe(sessionStructuralSig(base));
   });
 
   it("flips when dismissed", () => {
@@ -116,8 +129,12 @@ describe("sessionStructuralSig — real bucket/order changes flip it", () => {
       sessionStructuralSig(session("a", { owner_user_id: "users_them" })),
     ).not.toBe(sessionStructuralSig(base));
     expect(
-      sessionStructuralSig(session("a", { owner_user_id: "users_them", owned_by_me: true })),
-    ).not.toBe(sessionStructuralSig(session("a", { owner_user_id: "users_them" })));
+      sessionStructuralSig(
+        session("a", { owner_user_id: "users_them", owned_by_me: true }),
+      ),
+    ).not.toBe(
+      sessionStructuralSig(session("a", { owner_user_id: "users_them" })),
+    );
   });
 });
 
@@ -139,14 +156,18 @@ describe("sessionStructuralSig — plan identity drives the 'By plan' lens", () 
 
   it("flips when a comment is posted or a thread resolved (open_comment_threads)", () => {
     const withThread = session("a", { open_comment_threads: 1 });
-    expect(sessionStructuralSig(withThread)).not.toBe(sessionStructuralSig(base));
+    expect(sessionStructuralSig(withThread)).not.toBe(
+      sessionStructuralSig(base),
+    );
     const resolvedAll = session("a", { open_comment_threads: 0 });
     expect(sessionStructuralSig(resolvedAll)).toBe(sessionStructuralSig(base));
   });
 
   it("flips when a plan is stamped (active_plan undefined -> set)", () => {
     expect(
-      sessionStructuralSig(session("a", { active_plan: plan("pl-1", "Rollout") })),
+      sessionStructuralSig(
+        session("a", { active_plan: plan("pl-1", "Rollout") }),
+      ),
     ).not.toBe(sessionStructuralSig(base));
   });
 
@@ -159,24 +180,36 @@ describe("sessionStructuralSig — plan identity drives the 'By plan' lens", () 
   it("flips when the plan title changes (the heading the lens renders)", () => {
     const before = session("a", { active_plan: plan("pl-1", "Rollout") });
     const renamed = session("a", { active_plan: plan("pl-1", "Rollout v2") });
-    expect(sessionStructuralSig(renamed)).not.toBe(sessionStructuralSig(before));
+    expect(sessionStructuralSig(renamed)).not.toBe(
+      sessionStructuralSig(before),
+    );
   });
 });
 
 describe("sessionsWakeSig — collection-level wake gate", () => {
   it("a heartbeat-only resync produces the SAME signature across map refs", () => {
-    const before: Record<string, InboxSession> = { a: session("a"), b: session("b") };
+    const before: Record<string, InboxSession> = {
+      a: session("a"),
+      b: session("b"),
+    };
     const sig1 = sessionsWakeSig(before);
     // A new map object (as syncTable hands back) with only churn fields bumped.
     const after: Record<string, InboxSession> = {
-      a: session("a", { updated_at: T + 50_000, last_heartbeat: T + 50_000, message_count: 9 }),
+      a: session("a", {
+        updated_at: T + 50_000,
+        last_heartbeat: T + 50_000,
+        message_count: 9,
+      }),
       b: session("b", { updated_at: T + 50_000, last_heartbeat: T + 50_000 }),
     };
     expect(sessionsWakeSig(after)).toBe(sig1);
   });
 
   it("a real bucket change in one row flips the collection signature", () => {
-    const before: Record<string, InboxSession> = { a: session("a"), b: session("b") };
+    const before: Record<string, InboxSession> = {
+      a: session("a"),
+      b: session("b"),
+    };
     const sig1 = sessionsWakeSig(before);
     const after: Record<string, InboxSession> = {
       a: session("a", { agent_status: undefined, is_idle: true }), // a finished -> idle bucket
@@ -188,7 +221,10 @@ describe("sessionsWakeSig — collection-level wake gate", () => {
   it("adding or removing a row flips the signature", () => {
     const before: Record<string, InboxSession> = { a: session("a") };
     const sig1 = sessionsWakeSig(before);
-    const grown: Record<string, InboxSession> = { a: session("a"), b: session("b") };
+    const grown: Record<string, InboxSession> = {
+      a: session("a"),
+      b: session("b"),
+    };
     expect(sessionsWakeSig(grown)).not.toBe(sig1);
   });
 });

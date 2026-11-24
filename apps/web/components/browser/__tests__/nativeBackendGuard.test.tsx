@@ -12,7 +12,15 @@
 // sends `create` to a shell that cannot honour it, and the address strip grows
 // back, forward and devtools buttons sitting above a card that says the view
 // is unavailable.
-import { afterAll, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { JSDOM } from "jsdom";
 
 const hadGlobals = new Map<string, { had: boolean; was: unknown }>();
@@ -23,7 +31,24 @@ beforeAll(() => {
     url: "https://local.codecast.sh/",
   });
   const g = globalThis as any;
-  for (const k of ["window", "document", "navigator", "location", "localStorage", "sessionStorage", "Element", "HTMLElement", "Node", "MutationObserver", "ResizeObserver", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "KeyboardEvent", "IS_REACT_ACT_ENVIRONMENT"]) {
+  for (const k of [
+    "window",
+    "document",
+    "navigator",
+    "location",
+    "localStorage",
+    "sessionStorage",
+    "Element",
+    "HTMLElement",
+    "Node",
+    "MutationObserver",
+    "ResizeObserver",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "KeyboardEvent",
+    "IS_REACT_ACT_ENVIRONMENT",
+  ]) {
     hadGlobals.set(k, { had: k in g, was: g[k] });
   }
   g.window = dom.window;
@@ -43,7 +68,8 @@ beforeAll(() => {
     disconnect() {}
   };
   g.getComputedStyle = dom.window.getComputedStyle;
-  g.requestAnimationFrame = (fn: FrameRequestCallback) => dom.window.setTimeout(() => fn(0), 0) as unknown as number;
+  g.requestAnimationFrame = (fn: FrameRequestCallback) =>
+    dom.window.setTimeout(() => fn(0), 0) as unknown as number;
   g.cancelAnimationFrame = (id: number) => dom.window.clearTimeout(id);
   // The pane re-raises a forwarded chord as a real keystroke on window.
   g.KeyboardEvent = dom.window.KeyboardEvent;
@@ -89,10 +115,14 @@ mock.module("../../../lib/desktop", () => ({
 mock.module("../../../hooks/useNativeBrowserPane", () => ({
   useNativeBrowserPane: () => available,
 }));
-mock.module("../../../lib/tabParams", () => ({ useTabContext: () => ({ leafId: "leaf-1", isActive: true }) }));
+mock.module("../../../lib/tabParams", () => ({
+  useTabContext: () => ({ leafId: "leaf-1", isActive: true }),
+}));
 /** Leaves the stage was asked to focus. */
 let focusedLeaves: string[] = [];
-mock.module("../../../lib/stage", () => ({ stageFocus: (leafId: string) => focusedLeaves.push(leafId) }));
+mock.module("../../../lib/stage", () => ({
+  stageFocus: (leafId: string) => focusedLeaves.push(leafId),
+}));
 
 const URL_UNDER_TEST = "https://github.com/";
 
@@ -110,7 +140,9 @@ async function mount(overrides: { focused?: boolean; session?: string } = {}) {
     await act(async () => {
       root.render(
         React.createElement(NativeBackend, {
-          source: overrides.session ? { kind: "url", url: URL_UNDER_TEST, session: overrides.session } : { kind: "url", url: URL_UNDER_TEST },
+          source: overrides.session
+            ? { kind: "url", url: URL_UNDER_TEST, session: overrides.session }
+            : { kind: "url", url: URL_UNDER_TEST },
           focused: overrides.focused ?? true,
           reloadToken: 0,
           onTitle: () => {},
@@ -200,7 +232,9 @@ describe("once the shell answers that it has the view", () => {
     // A pane the human opened by hand carries no session: nothing may drive it.
     sent = [];
     const bare = await mount();
-    expect(sent.find((s) => s.cmd === "create")!.payload.session).toBeUndefined();
+    expect(
+      sent.find((s) => s.cmd === "create")!.payload.session,
+    ).toBeUndefined();
     await bare.act(async () => bare.root.unmount());
   });
 
@@ -247,7 +281,17 @@ describe("a native pane that is on screen but not focused", () => {
     const realRect = proto.getBoundingClientRect;
     proto.getBoundingClientRect = function (this: Element) {
       return this.hasAttribute("data-native-pane")
-        ? { left: 600, top: 32, right: 1100, bottom: 700, width: 500, height: 668, x: 600, y: 32, toJSON() {} }
+        ? {
+            left: 600,
+            top: 32,
+            right: 1100,
+            bottom: 700,
+            width: 500,
+            height: 668,
+            x: 600,
+            y: 32,
+            toJSON() {},
+          }
         : realRect.call(this);
     };
     try {
@@ -287,12 +331,17 @@ describe("keys the page was not allowed to keep", () => {
     available = true;
     const { root, act } = await mount();
     const seen: Array<{ key: string; meta: boolean; ctrl: boolean }> = [];
-    const onKey = (e: KeyboardEvent) => seen.push({ key: e.key, meta: e.metaKey, ctrl: e.ctrlKey });
+    const onKey = (e: KeyboardEvent) =>
+      seen.push({ key: e.key, meta: e.metaKey, ctrl: e.ctrlKey });
     window.addEventListener("keydown", onKey, true);
     try {
       expect(deliver).not.toBeNull();
       await act(async () => {
-        deliver!({ paneId: (sent[0].payload as any).paneId, event: "chord", key: "k" });
+        deliver!({
+          paneId: (sent[0].payload as any).paneId,
+          event: "chord",
+          key: "k",
+        });
       });
       expect(seen).toHaveLength(1);
       expect(seen[0].key).toBe("k");

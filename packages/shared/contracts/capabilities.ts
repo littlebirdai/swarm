@@ -62,11 +62,19 @@ export const MATERIALIZABLE_KINDS = [
 export type MaterializableKind = (typeof MATERIALIZABLE_KINDS)[number];
 
 export function isCapabilityKind(value: unknown): value is CapabilityKind {
-  return typeof value === "string" && (CAPABILITY_KINDS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (CAPABILITY_KINDS as readonly string[]).includes(value)
+  );
 }
 
-export function isMaterializableKind(value: unknown): value is MaterializableKind {
-  return typeof value === "string" && (MATERIALIZABLE_KINDS as readonly string[]).includes(value);
+export function isMaterializableKind(
+  value: unknown,
+): value is MaterializableKind {
+  return (
+    typeof value === "string" &&
+    (MATERIALIZABLE_KINDS as readonly string[]).includes(value)
+  );
 }
 
 /* --------------------------------------------------------------------------
@@ -85,7 +93,10 @@ export const CAPABILITY_SOURCES = [
 export type CapabilitySource = (typeof CAPABILITY_SOURCES)[number];
 
 export function isCapabilitySource(value: unknown): value is CapabilitySource {
-  return typeof value === "string" && (CAPABILITY_SOURCES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (CAPABILITY_SOURCES as readonly string[]).includes(value)
+  );
 }
 
 /**
@@ -107,7 +118,10 @@ export const CAPABILITY_SOURCE_PREFIX = {
 /** Inverted rather than written out, so the two directions cannot drift apart
  *  when a source is added. */
 const PREFIX_TO_SOURCE: Record<string, CapabilitySource> = Object.fromEntries(
-  CAPABILITY_SOURCES.map((source) => [CAPABILITY_SOURCE_PREFIX[source], source]),
+  CAPABILITY_SOURCES.map((source) => [
+    CAPABILITY_SOURCE_PREFIX[source],
+    source,
+  ]),
 );
 
 /**
@@ -195,7 +209,8 @@ function buildSlug(
   if (!segments.every(isValidSegment)) return null;
   if (!allowPin && (pin !== undefined || subpath !== undefined)) return null;
   if (pin !== undefined && !isValidSegment(pin)) return null;
-  if (subpath !== undefined && !subpath.split("/").every(isValidSegment)) return null;
+  if (subpath !== undefined && !subpath.split("/").every(isValidSegment))
+    return null;
 
   let slug = `${prefix}/${segments.join("/")}`;
   if (pin !== undefined) slug += `@${pin}`;
@@ -208,7 +223,9 @@ function buildSlug(
  * unusable, so a caller has to decide what to do rather than persisting a
  * broken identity.
  */
-export function formatCapabilitySlug(ref: Omit<CapabilityRef, "slug">): string | null {
+export function formatCapabilitySlug(
+  ref: Omit<CapabilityRef, "slug">,
+): string | null {
   // Parse rejects an unpinned git slug (a moving ref names no fixed bytes), so
   // building one would mint an identity nothing can read back.
   if (ref.source === "git" && ref.pin === undefined) return null;
@@ -228,8 +245,12 @@ export function formatCapabilitySlug(ref: Omit<CapabilityRef, "slug">): string |
  * a slash or a confusable is caught where it is written rather than dropped by
  * the resolver on somebody's laptop.
  */
-export function formatReservedSlug(prefix: ReservedSlugPrefix, segments: readonly string[]): string | null {
-  if (!(RESERVED_SLUG_PREFIXES as readonly string[]).includes(prefix)) return null;
+export function formatReservedSlug(
+  prefix: ReservedSlugPrefix,
+  segments: readonly string[],
+): string | null {
+  if (!(RESERVED_SLUG_PREFIXES as readonly string[]).includes(prefix))
+    return null;
   return buildSlug(prefix, segments, false);
 }
 
@@ -256,9 +277,12 @@ export interface ParsedCapabilitySlug {
  * input is null rather than a throw, because this runs over rows written by
  * other machines and one bad row must not break a whole render.
  */
-export function parseAnyCapabilitySlug(slug: unknown): ParsedCapabilitySlug | null {
+export function parseAnyCapabilitySlug(
+  slug: unknown,
+): ParsedCapabilitySlug | null {
   if (typeof slug !== "string") return null;
-  if (slug.length === 0 || slug.length > MAX_CAPABILITY_SLUG_LENGTH) return null;
+  if (slug.length === 0 || slug.length > MAX_CAPABILITY_SLUG_LENGTH)
+    return null;
   if (slug !== slug.trim()) return null;
 
   // Order matters: `#` may only appear after `@`, and neither may appear in the
@@ -281,17 +305,21 @@ export function parseAnyCapabilitySlug(slug: unknown): ParsedCapabilitySlug | nu
   const prefix = parts.shift();
   if (prefix === undefined) return null;
   const source = PREFIX_TO_SOURCE[prefix] ?? null;
-  const reserved = (RESERVED_SLUG_PREFIXES as readonly string[]).includes(prefix);
+  const reserved = (RESERVED_SLUG_PREFIXES as readonly string[]).includes(
+    prefix,
+  );
   if (source === null && !reserved) return null;
   if (parts.length === 0 || !parts.every(isValidSegment)) return null;
 
-  if (source !== "git" && (pin !== undefined || subpath !== undefined)) return null;
+  if (source !== "git" && (pin !== undefined || subpath !== undefined))
+    return null;
   // A git slug without a pin is a moving ref: the bytes it names today are not
   // the bytes it names tomorrow, and consent granted against it means nothing.
   // The trust model pins every git source to a commit, so the grammar does too.
   if (source === "git" && pin === undefined) return null;
   if (pin !== undefined && !isValidSegment(pin)) return null;
-  if (subpath !== undefined && !subpath.split("/").every(isValidSegment)) return null;
+  if (subpath !== undefined && !subpath.split("/").every(isValidSegment))
+    return null;
 
   return {
     slug,
@@ -337,7 +365,10 @@ export function capabilitySlugSource(slug: unknown): CapabilitySource | null {
  * `builtin/memory` is the builtin hijack, and it is rejected here rather than
  * discovered later in a UI that renders it as ours.
  */
-export function slugMatchesSource(slug: unknown, source: CapabilitySource): boolean {
+export function slugMatchesSource(
+  slug: unknown,
+  source: CapabilitySource,
+): boolean {
   return capabilitySlugSource(slug) === source;
 }
 
@@ -368,26 +399,35 @@ export const EXECUTION_SURFACES = [
 export type ExecutionSurface = (typeof EXECUTION_SURFACES)[number];
 
 export function isExecutionSurface(value: unknown): value is ExecutionSurface {
-  return typeof value === "string" && (EXECUTION_SURFACES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (EXECUTION_SURFACES as readonly string[]).includes(value)
+  );
 }
 
 /** The two surfaces a machine can carry without a human agreeing to it first. */
-export const BENIGN_EXECUTION_SURFACES = ["prose", "reads_files"] as const satisfies
-  readonly ExecutionSurface[];
+export const BENIGN_EXECUTION_SURFACES = [
+  "prose",
+  "reads_files",
+] as const satisfies readonly ExecutionSurface[];
 
 /**
  * True when materializing this capability needs consent from the person on the
  * machine it lands on. Everything past prose and reading files either runs code
  * or removes a prompt that would have asked.
  */
-export function requiresExplicitConsent(surfaces: readonly ExecutionSurface[] | undefined): boolean {
+export function requiresExplicitConsent(
+  surfaces: readonly ExecutionSurface[] | undefined,
+): boolean {
   if (!surfaces || surfaces.length === 0) {
     // An unclassified capability is treated as dangerous. The alternative —
     // "no surfaces recorded, so assume prose" — turns a failed classification
     // into a silent install.
     return true;
   }
-  return surfaces.some((s) => !(BENIGN_EXECUTION_SURFACES as readonly string[]).includes(s));
+  return surfaces.some(
+    (s) => !(BENIGN_EXECUTION_SURFACES as readonly string[]).includes(s),
+  );
 }
 
 /* --------------------------------------------------------------------------
@@ -399,7 +439,13 @@ export function requiresExplicitConsent(surfaces: readonly ExecutionSurface[] | 
  * order a UI reads them in; `SCOPE_PRECEDENCE` carries the ranking the resolver
  * uses.
  */
-export const SCOPE_KINDS = ["team", "user", "device", "project", "session"] as const;
+export const SCOPE_KINDS = [
+  "team",
+  "user",
+  "device",
+  "project",
+  "session",
+] as const;
 
 export type ScopeKind = (typeof SCOPE_KINDS)[number];
 
@@ -420,7 +466,10 @@ export const SCOPE_PRECEDENCE = {
 } as const satisfies Record<ScopeKind, number>;
 
 export function isScopeKind(value: unknown): value is ScopeKind {
-  return typeof value === "string" && (SCOPE_KINDS as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (SCOPE_KINDS as readonly string[]).includes(value)
+  );
 }
 
 export function scopePrecedence(kind: ScopeKind): number {
@@ -482,7 +531,10 @@ export const OBSERVED_SCOPES = ["local", "project", "user"] as const;
 export type ObservedScope = (typeof OBSERVED_SCOPES)[number];
 
 export function isObservedScope(value: unknown): value is ObservedScope {
-  return typeof value === "string" && (OBSERVED_SCOPES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (OBSERVED_SCOPES as readonly string[]).includes(value)
+  );
 }
 
 /**
@@ -500,8 +552,11 @@ export function isObservedScope(value: unknown): value is ObservedScope {
  * the vocabulary and not ranked here fails the build rather than sorting to the
  * end on somebody's laptop.
  */
-export const OBSERVED_SCOPE_NARROWNESS = ["local", "project", "user"] as const satisfies
-  readonly ObservedScope[];
+export const OBSERVED_SCOPE_NARROWNESS = [
+  "local",
+  "project",
+  "user",
+] as const satisfies readonly ObservedScope[];
 
 type RankedScope<T extends never> = T;
 type _EveryObservedScopeIsRanked = RankedScope<
@@ -670,9 +725,13 @@ export interface IgnoredBinding {
  * the local content store, none of which this function is given. They layer on
  * top of this result rather than inside it.
  */
-export const CAPABILITY_WITHHOLD_REASONS = ["config_scope_not_trusted", "config_malformed"] as const;
+export const CAPABILITY_WITHHOLD_REASONS = [
+  "config_scope_not_trusted",
+  "config_malformed",
+] as const;
 
-export type CapabilityWithholdReason = (typeof CAPABILITY_WITHHOLD_REASONS)[number];
+export type CapabilityWithholdReason =
+  (typeof CAPABILITY_WITHHOLD_REASONS)[number];
 
 export interface ResolvedCapability {
   slug: string;
@@ -783,7 +842,14 @@ export function manifestHash(manifest: CapabilityManifest | undefined): string {
   for (let i = 0; i < canonical.length; i++) {
     hash ^= canonical.charCodeAt(i);
     // The FNV prime, as shifts: `hash * 16777619` overflows 32 bits in JS.
-    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+    hash =
+      (hash +
+        ((hash << 1) +
+          (hash << 4) +
+          (hash << 7) +
+          (hash << 8) +
+          (hash << 24))) >>>
+      0;
   }
   return hash.toString(16).padStart(8, "0");
 }
@@ -801,7 +867,8 @@ export function manifestHash(manifest: CapabilityManifest | undefined): string {
  * asked to approve a capability that did not change.
  */
 function canonicalize(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (value === null || typeof value !== "object")
+    return JSON.stringify(value) ?? "null";
   // Elements are never dropped, only properties: an `mcp: [{}]` entry is a server
   // we observed and learned nothing about, and dropping it would shorten a list
   // whose length is meaningful.
@@ -811,7 +878,10 @@ function canonicalize(value: unknown): string {
     // Filtering the CANONICAL form rather than the raw value is what makes the
     // rule recursive: `components: { skill: [] }` collapses to `{}` here, then
     // vanishes with its parent. Emptiness cannot survive one level down.
-    .filter(([, canonical]) => canonical !== "{}" && canonical !== "[]" && canonical !== "null")
+    .filter(
+      ([, canonical]) =>
+        canonical !== "{}" && canonical !== "[]" && canonical !== "null",
+    )
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   return `{${entries.map(([k, canonical]) => `${JSON.stringify(k)}:${canonical}`).join(",")}}`;
 }

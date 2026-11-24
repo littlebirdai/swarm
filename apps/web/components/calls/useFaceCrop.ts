@@ -1,4 +1,7 @@
-import { visibleAnimationLoop, whileWindowVisible } from "../../lib/windowVisibleWork";
+import {
+  visibleAnimationLoop,
+  whileWindowVisible,
+} from "../../lib/windowVisibleWork";
 import { type RefObject } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import {
@@ -45,7 +48,8 @@ export function useFaceCrop(opts: {
     // Honest about which of the two pictures this is, always. React never
     // renders this attribute, so the loop below owns it outright and no
     // re-render can put back a claim that has stopped being true.
-    const setTracking = (m: "face" | "center") => hostRef.current?.setAttribute("data-tracking", m);
+    const setTracking = (m: "face" | "center") =>
+      hostRef.current?.setAttribute("data-tracking", m);
     setTracking("center");
     const video = videoRef.current;
     if (!video || !active) return;
@@ -57,10 +61,16 @@ export function useFaceCrop(opts: {
     const smooth = !prefersReducedMotion();
 
     const aspect = () =>
-      video.videoWidth > 0 && video.videoHeight > 0 ? video.videoWidth / video.videoHeight : 16 / 9;
+      video.videoWidth > 0 && video.videoHeight > 0
+        ? video.videoWidth / video.videoHeight
+        : 16 / 9;
 
     const paint = () => {
-      video.style.transform = cropTransform(cropBox(crop, diameter, aspect()), diameter, mirror);
+      video.style.transform = cropTransform(
+        cropBox(crop, diameter, aspect()),
+        diameter,
+        mirror,
+      );
     };
     // Paint once immediately: until the first sample lands the circle shows the
     // middle of the frame, which is a face often enough and never a hole.
@@ -112,7 +122,8 @@ export function useFaceCrop(opts: {
       // BEFORE the early return — a detection that hangs never comes back to
       // check on itself, so the only thing that can notice it is the next tick.
       if (inFlight) {
-        if (firstAskAt && Date.now() - firstAskAt > DETECT_DEADLINE_MS) standDown();
+        if (firstAskAt && Date.now() - firstAskAt > DETECT_DEADLINE_MS)
+          standDown();
         return;
       }
       if (video.videoWidth === 0) return;
@@ -138,7 +149,10 @@ export function useFaceCrop(opts: {
       const box = faces[0]?.boundingBox;
       if (box) {
         lastFaceAt = Date.now();
-        target = clampCrop(cropFromFace(box, video.videoWidth, video.videoHeight), aspect());
+        target = clampCrop(
+          cropFromFace(box, video.videoWidth, video.videoHeight),
+          aspect(),
+        );
         setTracking("face");
       } else if (Date.now() - lastFaceAt > FACE_LOST_MS) {
         // Left the frame, turned away, or a camera pointed at a whiteboard.
@@ -202,7 +216,11 @@ const FACE_LOST_MS = 2000;
 /** How much of the remaining distance the crop covers each frame. */
 const SMOOTHING = 0.14;
 
-type Detector = { detect: (source: CanvasImageSource) => Promise<Array<{ boundingBox: FaceBox }>> };
+type Detector = {
+  detect: (
+    source: CanvasImageSource,
+  ) => Promise<Array<{ boundingBox: FaceBox }>>;
+};
 
 let detectorState: "unknown" | "ok" | "absent" = "unknown";
 let detector: Detector | null = null;
@@ -226,7 +244,10 @@ export function getFaceDetector(): Detector | null {
   if (detectorState === "unknown") {
     const Ctor = (globalThis as any).FaceDetector;
     try {
-      detector = typeof Ctor === "function" ? new Ctor({ maxDetectedFaces: 1, fastMode: true }) : null;
+      detector =
+        typeof Ctor === "function"
+          ? new Ctor({ maxDetectedFaces: 1, fastMode: true })
+          : null;
     } catch {
       detector = null;
     }

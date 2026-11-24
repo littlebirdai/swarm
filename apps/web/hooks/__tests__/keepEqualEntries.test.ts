@@ -6,7 +6,11 @@ import { keepEqualEntries } from "../useSyncTasks";
 // did not change keeps its reference, and a push that changed nothing keeps
 // the map.
 
-const entry = (status: string) => ({ conversation_id: "c1", session_id: "s1", agent_status: status });
+const entry = (status: string) => ({
+  conversation_id: "c1",
+  session_id: "s1",
+  agent_status: status,
+});
 
 test("an identical push keeps the map", () => {
   const prev = { t1: entry("working"), t2: entry("idle") };
@@ -15,7 +19,10 @@ test("an identical push keeps the map", () => {
 
 test("only the changed entry is new", () => {
   const prev = { t1: entry("working"), t2: entry("idle") };
-  const next = keepEqualEntries(prev, { t1: entry("working"), t2: entry("working") });
+  const next = keepEqualEntries(prev, {
+    t1: entry("working"),
+    t2: entry("working"),
+  });
   expect(next).not.toBe(prev);
   expect(next.t1).toBe(prev.t1);
   expect(next.t2).toEqual(entry("working"));
@@ -23,7 +30,10 @@ test("only the changed entry is new", () => {
 
 test("added and dropped entries count as changes", () => {
   const prev = { t1: entry("working") };
-  const added = keepEqualEntries(prev, { t1: entry("working"), t2: entry("idle") });
+  const added = keepEqualEntries(prev, {
+    t1: entry("working"),
+    t2: entry("idle"),
+  });
   expect(Object.keys(added)).toEqual(["t1", "t2"]);
   expect(added.t1).toBe(prev.t1);
   const swapped = keepEqualEntries(prev, { t2: entry("working") });

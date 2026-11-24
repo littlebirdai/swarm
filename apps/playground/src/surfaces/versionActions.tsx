@@ -33,9 +33,22 @@ export function useReverse(n: number) {
 }
 
 /** Undo, or Bring back, busy until the version it restores is live. */
-export function ReverseButton({ r, variant, className }: { r: NonNullable<ReturnType<typeof useReverse>>; variant?: "quiet" | "text"; className?: string }) {
+export function ReverseButton({
+  r,
+  variant,
+  className,
+}: {
+  r: NonNullable<ReturnType<typeof useReverse>>;
+  variant?: "quiet" | "text";
+  className?: string;
+}) {
   return (
-    <Button variant={variant} className={className} busy={r.busy} onClick={r.run}>
+    <Button
+      variant={variant}
+      className={className}
+      busy={r.busy}
+      onClick={r.run}
+    >
       {!r.busy && <RestoreIcon />}
       {r.busy ? r.busyLabel : r.label}
     </Button>
@@ -43,7 +56,13 @@ export function ReverseButton({ r, variant, className }: { r: NonNullable<Return
 }
 
 /** What to do to notice a change that shows itself only when used. */
-export function TryIt({ text, className }: { text: string; className?: string }) {
+export function TryIt({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
   return (
     <p className={className}>
       <b>Try it</b> {text[0].toLowerCase() + text.slice(1)}

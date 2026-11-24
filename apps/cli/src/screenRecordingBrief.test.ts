@@ -1,9 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { formatScreenRecordingMessage, framedLines, lineMomentMs, parseScreenRecordingMessage } from "@codecast/shared/contracts";
-import { expandScreenRecording, screenRecordingForDelivery, SCREEN_RECORDING_WORDS_WAIT_MS, type ScreenRecordingCall } from "./screenRecordingBrief";
+import {
+  formatScreenRecordingMessage,
+  framedLines,
+  lineMomentMs,
+  parseScreenRecordingMessage,
+} from "@codecast/shared/contracts";
+import {
+  expandScreenRecording,
+  screenRecordingForDelivery,
+  SCREEN_RECORDING_WORDS_WAIT_MS,
+  type ScreenRecordingCall,
+} from "./screenRecordingBrief";
 
 const INTO = { conversationId: "conv-A", senderUserId: "user-A" };
-const sent = formatScreenRecordingMessage({ call: "cl-12", durationMs: 42_000 }, "fix this please");
+const sent = formatScreenRecordingMessage(
+  { call: "cl-12", durationMs: 42_000 },
+  "fix this please",
+);
 
 function call(over: Partial<ScreenRecordingCall> = {}): ScreenRecordingCall {
   return {
@@ -23,18 +36,32 @@ function call(over: Partial<ScreenRecordingCall> = {}): ScreenRecordingCall {
 
 describe("screen recording message", () => {
   test("the sent message parses back to its call and caption", () => {
-    expect(parseScreenRecordingMessage(sent)).toEqual({ call: "cl-12", transcriptId: null, durationMs: 42_000, caption: "fix this please", lines: [] });
+    expect(parseScreenRecordingMessage(sent)).toEqual({
+      call: "cl-12",
+      transcriptId: null,
+      durationMs: 42_000,
+      caption: "fix this please",
+      lines: [],
+    });
     expect(parseScreenRecordingMessage("just text")).toBeNull();
   });
 
   test("a pointing word moves the frame to it", () => {
     const s = { t0: 0, t1: 10_000, text: "Look at the bottom, this one" };
-    expect(lineMomentMs(s)).toBeGreaterThan(lineMomentMs({ ...s, text: "nothing to point at in here!" }) - 9000);
-    expect(lineMomentMs({ t0: 0, t1: 10_000, text: "plain words only" })).toBe(5000);
+    expect(lineMomentMs(s)).toBeGreaterThan(
+      lineMomentMs({ ...s, text: "nothing to point at in here!" }) - 9000,
+    );
+    expect(lineMomentMs({ t0: 0, t1: 10_000, text: "plain words only" })).toBe(
+      5000,
+    );
   });
 
   test("past the cap, pointing lines keep their pictures", () => {
-    const segs = Array.from({ length: 30 }, (_, i) => ({ t0: i * 1000, t1: i * 1000 + 900, text: i === 25 ? "this is broken" : "words" }));
+    const segs = Array.from({ length: 30 }, (_, i) => ({
+      t0: i * 1000,
+      t1: i * 1000 + 900,
+      text: i === 25 ? "this is broken" : "words",
+    }));
     const picked = framedLines(segs, 6);
     expect(picked).toHaveLength(6);
     expect(picked).toContain(25);
@@ -44,44 +71,89 @@ describe("screen recording message", () => {
 describe("expandScreenRecording", () => {
   test("writes timed lines with a frame each", async () => {
     const asked: number[] = [];
-    const out = await expandScreenRecording(sent, {
-      getCall: async () => call(),
-      frameAt: async (_c, ms) => {
-        asked.push(ms);
-        return `/tmp/f-${ms}.png`;
+    const out = await expandScreenRecording(
+      sent,
+      {
+        getCall: async () => call(),
+        frameAt: async (_c, ms) => {
+          asked.push(ms);
+          return `/tmp/f-${ms}.png`;
+        },
       },
-    }, 0, INTO);
+      0,
+      INTO,
+    );
     expect(out.kind).toBe("ready");
     if (out.kind !== "ready") return;
     expect(out.frames).toBe(2);
-    expect(out.text).toContain("[0:01] The send button does nothing. [Image /tmp/f-3000.png]");
+    expect(out.text).toContain(
+      "[0:01] The send button does nothing. [Image /tmp/f-3000.png]",
+    );
     expect(out.text).toContain("[0:06] And this title here is cut off. [Image");
     expect(out.text.endsWith("fix this please")).toBe(true);
     // The agent's copy is still a screen recording to every surface, now with its lines.
     const back = parseScreenRecordingMessage(out.text)!;
     expect(back.call).toBe("cl-12");
-    expect(back.lines.map((l) => l.text)).toEqual(["The send button does nothing.", "And this title here is cut off."]);
+    expect(back.lines.map((l) => l.text)).toEqual([
+      "The send button does nothing.",
+      "And this title here is cut off.",
+    ]);
     expect(back.caption).toBe("fix this please");
     // The pointing word ("this") sits before the line's middle.
     expect(asked[1]).toBeLessThan(8000);
   });
 
   test("waits on the words, then sends what it has", async () => {
-    const deps = { getCall: async () => call({ transcribe_status: "pending", segments: [], filmed: true }), frameAt: async () => "/tmp/open.png" };
-    expect((await expandScreenRecording(sent, deps, 0, INTO)).kind).toBe("wait");
+    const deps = {
+      getCall: async () =>
+        call({ transcribe_status: "pending", segments: [], filmed: true }),
+      frameAt: async () => "/tmp/open.png",
+    };
+    expect((await expandScreenRecording(sent, deps, 0, INTO)).kind).toBe(
+      "wait",
+    );
     // A video still uploading is waited on longer: its words cannot start yet.
-    const uploading = { ...deps, getCall: async () => call({ transcribe_status: "pending", segments: [], filmed: false }) };
-    expect((await expandScreenRecording(sent, uploading, SCREEN_RECORDING_WORDS_WAIT_MS + 1, INTO)).kind).toBe("wait");
-    const late = await expandScreenRecording(sent, deps, SCREEN_RECORDING_WORDS_WAIT_MS + 1, INTO);
+    const uploading = {
+      ...deps,
+      getCall: async () =>
+        call({ transcribe_status: "pending", segments: [], filmed: false }),
+    };
+    expect(
+      (
+        await expandScreenRecording(
+          sent,
+          uploading,
+          SCREEN_RECORDING_WORDS_WAIT_MS + 1,
+          INTO,
+        )
+      ).kind,
+    ).toBe("wait");
+    const late = await expandScreenRecording(
+      sent,
+      deps,
+      SCREEN_RECORDING_WORDS_WAIT_MS + 1,
+      INTO,
+    );
     expect(late.kind).toBe("ready");
-    if (late.kind === "ready") expect(late.text).toContain("still being transcribed");
+    if (late.kind === "ready")
+      expect(late.text).toContain("still being transcribed");
   });
 
   test("a silent video says the microphone was off", async () => {
-    const out = await expandScreenRecording(sent, {
-      getCall: async () => call({ transcribe_status: "failed", segments: [], screen: { no_audio: true, conversation_id: "conv-A" } }),
-      frameAt: async () => "/tmp/open.png",
-    }, 0, INTO);
+    const out = await expandScreenRecording(
+      sent,
+      {
+        getCall: async () =>
+          call({
+            transcribe_status: "failed",
+            segments: [],
+            screen: { no_audio: true, conversation_id: "conv-A" },
+          }),
+        frameAt: async () => "/tmp/open.png",
+      },
+      0,
+      INTO,
+    );
     expect(out.kind === "ready" && out.text).toContain("microphone was off");
     expect(out.kind === "ready" && out.text).toContain("[Image /tmp/open.png]");
   });
@@ -90,14 +162,25 @@ describe("expandScreenRecording", () => {
     const deps = { getCall: async () => call(), frameAt: async () => null };
     const first = await expandScreenRecording(sent, deps, 0, INTO);
     expect(first.kind).toBe("ready");
-    if (first.kind === "ready") expect((await expandScreenRecording(first.text, deps, 0, INTO)).kind).toBe("unchanged");
-    expect((await expandScreenRecording("hello", deps, 0, INTO)).kind).toBe("unchanged");
+    if (first.kind === "ready")
+      expect(
+        (await expandScreenRecording(first.text, deps, 0, INTO)).kind,
+      ).toBe("unchanged");
+    expect((await expandScreenRecording("hello", deps, 0, INTO)).kind).toBe(
+      "unchanged",
+    );
   });
 });
 
 describe("screenRecordingForDelivery", () => {
   const slowCall = (n: number) =>
-    call({ segments: Array.from({ length: n }, (_, i) => ({ t0: i * 1000, t1: i * 1000 + 900, text: `this is line ${i}` })) });
+    call({
+      segments: Array.from({ length: n }, (_, i) => ({
+        t0: i * 1000,
+        t1: i * 1000 + 900,
+        text: `this is line ${i}`,
+      })),
+    });
 
   test("a 12-frame cut never holds the delivery loop, and the copy is there on a later pass", async () => {
     let cut = 0;
@@ -105,33 +188,103 @@ describe("screenRecordingForDelivery", () => {
       getCall: async () => slowCall(12),
       // 2 s a frame in production; 40 ms here keeps the test short while
       // still taking ~0.5 s for the whole cut.
-      frameAt: async (_c: string, ms: number) => { await new Promise((r) => setTimeout(r, 40)); cut++; return `/tmp/f-${ms}.png`; },
+      frameAt: async (_c: string, ms: number) => {
+        await new Promise((r) => setTimeout(r, 40));
+        cut++;
+        return `/tmp/f-${ms}.png`;
+      },
     };
     const t0 = performance.now();
-    const first = screenRecordingForDelivery("m1", sent, Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps);
+    const first = screenRecordingForDelivery(
+      "m1",
+      sent,
+      Date.now(),
+      INTO,
+      { siteUrl: null, apiToken: null },
+      undefined,
+      deps,
+    );
     const firstMs = performance.now() - t0;
     expect(first).toEqual({ wait: true });
     expect(firstMs).toBeLessThan(20);
     // An unrelated message delivered during the cut answers at once.
     const t1 = performance.now();
-    expect(screenRecordingForDelivery("m2", "plain words", Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps)).toEqual({ wait: false, content: "plain words" });
+    expect(
+      screenRecordingForDelivery(
+        "m2",
+        "plain words",
+        Date.now(),
+        INTO,
+        { siteUrl: null, apiToken: null },
+        undefined,
+        deps,
+      ),
+    ).toEqual({ wait: false, content: "plain words" });
     expect(performance.now() - t1).toBeLessThan(5);
     // Rechecks while cutting stay waits, and cost nothing.
-    expect(screenRecordingForDelivery("m1", sent, Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps)).toEqual({ wait: true });
+    expect(
+      screenRecordingForDelivery(
+        "m1",
+        sent,
+        Date.now(),
+        INTO,
+        { siteUrl: null, apiToken: null },
+        undefined,
+        deps,
+      ),
+    ).toEqual({ wait: true });
     expect(cut).toBeLessThan(12);
     while (cut < 12) await new Promise((r) => setTimeout(r, 20));
     await new Promise((r) => setTimeout(r, 10));
-    const done = screenRecordingForDelivery("m1", sent, Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps);
+    const done = screenRecordingForDelivery(
+      "m1",
+      sent,
+      Date.now(),
+      INTO,
+      { siteUrl: null, apiToken: null },
+      undefined,
+      deps,
+    );
     expect(done.wait).toBe(false);
     if (!done.wait) expect(done.content.match(/\[Image \//g)).toHaveLength(12);
   });
 
   test("words still being read: the job is dropped and asked again on the next pass", async () => {
     let asked = 0;
-    const deps = { getCall: async () => { asked++; return call({ transcribe_status: "pending", segments: [], filmed: true }); }, frameAt: async () => null };
-    expect(screenRecordingForDelivery("m3", sent, Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps).wait).toBe(true);
+    const deps = {
+      getCall: async () => {
+        asked++;
+        return call({
+          transcribe_status: "pending",
+          segments: [],
+          filmed: true,
+        });
+      },
+      frameAt: async () => null,
+    };
+    expect(
+      screenRecordingForDelivery(
+        "m3",
+        sent,
+        Date.now(),
+        INTO,
+        { siteUrl: null, apiToken: null },
+        undefined,
+        deps,
+      ).wait,
+    ).toBe(true);
     await new Promise((r) => setTimeout(r, 10));
-    expect(screenRecordingForDelivery("m3", sent, Date.now(), INTO, { siteUrl: null, apiToken: null }, undefined, deps).wait).toBe(true);
+    expect(
+      screenRecordingForDelivery(
+        "m3",
+        sent,
+        Date.now(),
+        INTO,
+        { siteUrl: null, apiToken: null },
+        undefined,
+        deps,
+      ).wait,
+    ).toBe(true);
     await new Promise((r) => setTimeout(r, 10));
     expect(asked).toBe(2);
   });
@@ -139,22 +292,51 @@ describe("screenRecordingForDelivery", () => {
 
 describe("whose recording, into which session", () => {
   const into = { conversationId: "conv-A", senderUserId: "user-A" };
-  const own = (over: Partial<ScreenRecordingCall> = {}) => call({ started_by: "user-A", screen: { no_audio: false, conversation_id: "conv-A" }, ...over });
-  const deps = (c: ScreenRecordingCall) => ({ getCall: async () => c, frameAt: async () => "/tmp/f.png" });
+  const own = (over: Partial<ScreenRecordingCall> = {}) =>
+    call({
+      started_by: "user-A",
+      screen: { no_audio: false, conversation_id: "conv-A" },
+      ...over,
+    });
+  const deps = (c: ScreenRecordingCall) => ({
+    getCall: async () => c,
+    frameAt: async () => "/tmp/f.png",
+  });
 
   test("the recorder's own recording, in the session it was sent to, expands", async () => {
-    expect((await expandScreenRecording(sent, deps(own()), 0, into)).kind).toBe("ready");
+    expect((await expandScreenRecording(sent, deps(own()), 0, into)).kind).toBe(
+      "ready",
+    );
   });
 
   test("a voice note or a huddle named in a tag is never typed in", async () => {
-    expect((await expandScreenRecording(sent, deps(own({ screen: null })), 0, into)).kind).toBe("unchanged");
+    expect(
+      (await expandScreenRecording(sent, deps(own({ screen: null })), 0, into))
+        .kind,
+    ).toBe("unchanged");
   });
 
   test("a recording sent to another session is not typed into this one", async () => {
-    expect((await expandScreenRecording(sent, deps(own({ screen: { no_audio: false, conversation_id: "conv-B" } })), 0, into)).kind).toBe("unchanged");
+    expect(
+      (
+        await expandScreenRecording(
+          sent,
+          deps(own({ screen: { no_audio: false, conversation_id: "conv-B" } })),
+          0,
+          into,
+        )
+      ).kind,
+    ).toBe("unchanged");
   });
 
   test("a tag sent by someone other than the recorder is not expanded", async () => {
-    expect((await expandScreenRecording(sent, deps(own()), 0, { conversationId: "conv-A", senderUserId: "user-B" })).kind).toBe("unchanged");
+    expect(
+      (
+        await expandScreenRecording(sent, deps(own()), 0, {
+          conversationId: "conv-A",
+          senderUserId: "user-B",
+        })
+      ).kind,
+    ).toBe("unchanged");
   });
 });

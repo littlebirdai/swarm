@@ -7,7 +7,11 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { canAccessConversation, canAccessTask, workspaceGrantsAccess } from "./lib/access";
+import {
+  canAccessConversation,
+  canAccessTask,
+  workspaceGrantsAccess,
+} from "./lib/access";
 import { pushSummary } from "./deployTargetsState";
 
 export const whereIs = query({
@@ -15,9 +19,19 @@ export const whereIs = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    const d = await ctx.db.query("deploys").withIndex("by_short_id", (q) => q.eq("short_id", args.ref.trim().toLowerCase())).first();
-    if (!d || !(await workspaceGrantsAccess(ctx, userId, d.workspace))) return null;
-    return { team_id: d.workspace.startsWith("team:") ? d.workspace.slice(5) : null, target: d.target, repository: d.repository ?? null };
+    const d = await ctx.db
+      .query("deploys")
+      .withIndex("by_short_id", (q) =>
+        q.eq("short_id", args.ref.trim().toLowerCase()),
+      )
+      .first();
+    if (!d || !(await workspaceGrantsAccess(ctx, userId, d.workspace)))
+      return null;
+    return {
+      team_id: d.workspace.startsWith("team:") ? d.workspace.slice(5) : null,
+      target: d.target,
+      repository: d.repository ?? null,
+    };
   },
 });
 
@@ -33,28 +47,67 @@ export const recentForTeam = query({
     if (!userId) return [];
     const workspace = `team:${args.team_id}`;
     if (!(await workspaceGrantsAccess(ctx, userId, workspace))) return [];
-    const rows: Doc<"deploys">[] = await ctx.db.query("deploys").withIndex("by_workspace_created", (q) => q.eq("workspace", workspace)).order("desc").take(RECENT);
+    const rows: Doc<"deploys">[] = await ctx.db
+      .query("deploys")
+      .withIndex("by_workspace_created", (q) => q.eq("workspace", workspace))
+      .order("desc")
+      .take(RECENT);
     const convs = new Map<string, { title: string | null } | null>();
-    const tasks = new Map<string, { short_id: string | null; title: string | null } | null>();
+    const tasks = new Map<
+      string,
+      { short_id: string | null; title: string | null } | null
+    >();
     const convOf = async (id: Id<"conversations">) => {
       const k = String(id);
-      if (!convs.has(k)) { const c = await ctx.db.get(id); convs.set(k, c && (await canAccessConversation(ctx, userId, c)) ? { title: (c.title || c.subtitle || null) as string | null } : null); }
+      if (!convs.has(k)) {
+        const c = await ctx.db.get(id);
+        convs.set(
+          k,
+          c && (await canAccessConversation(ctx, userId, c))
+            ? { title: (c.title || c.subtitle || null) as string | null }
+            : null,
+        );
+      }
       return convs.get(k);
     };
     const taskOf = async (id: Id<"tasks">) => {
       const k = String(id);
-      if (!tasks.has(k)) { const t = await ctx.db.get(id); tasks.set(k, t && (await canAccessTask(ctx, userId, t)) ? { short_id: t.short_id ?? null, title: t.title ?? null } : null); }
+      if (!tasks.has(k)) {
+        const t = await ctx.db.get(id);
+        tasks.set(
+          k,
+          t && (await canAccessTask(ctx, userId, t))
+            ? { short_id: t.short_id ?? null, title: t.title ?? null }
+            : null,
+        );
+      }
       return tasks.get(k);
     };
     const out = [];
     for (const d of rows) {
-      const sessionIds = [...new Set((d.commits ?? []).flatMap((c) => (c.conversation_id ? [String(c.conversation_id)] : [])))];
+      const sessionIds = [
+        ...new Set(
+          (d.commits ?? []).flatMap((c) =>
+            c.conversation_id ? [String(c.conversation_id)] : [],
+          ),
+        ),
+      ];
       const sessions = [];
       for (const id of sessionIds.slice(0, 12)) {
         const c = await convOf(id as Id<"conversations">);
-        if (c) sessions.push({ conversation_id: id, short_id: id.slice(0, 7), title: c.title });
+        if (c)
+          sessions.push({
+            conversation_id: id,
+            short_id: id.slice(0, 7),
+            title: c.title,
+          });
       }
-      const taskIds = [...new Set([...d.carries.map((c) => String(c.task_id)), ...(d.commits ?? []).flatMap((c) => (c.task_ids ?? []).map(String))])];
+      const taskIds = [
+        ...new Set([
+          ...d.carries.map((c) => String(c.task_id)),
+          ...(d.commits ?? []).flatMap((c) => (c.task_ids ?? []).map(String)),
+        ]),
+      ];
       const taskRows = [];
       for (const id of taskIds.slice(0, 12)) {
         const t = await taskOf(id as Id<"tasks">);
@@ -82,13 +135,23 @@ export const recentForTeam = query({
         ...pushSummary(d),
         commits: d.commits?.length ?? 0,
         // What it took out, change by change: each commit with the session that wrote it and the tasks it names.
-        commit_rows: await Promise.all((d.commits ?? []).slice(0, COMMIT_ROWS).map(async (c) => ({
-          sha: c.sha,
-          subject: c.subject,
-          ...(c.author ? { author: c.author } : {}),
-          ...(c.conversation_id ? { conversation_id: String(c.conversation_id) } : {}),
-          tasks: (await Promise.all((c.task_ids ?? []).slice(0, 3).map(async (t) => (await taskOf(t))?.short_id ?? null))).filter(Boolean),
-        }))),
+        commit_rows: await Promise.all(
+          (d.commits ?? []).slice(0, COMMIT_ROWS).map(async (c) => ({
+            sha: c.sha,
+            subject: c.subject,
+            ...(c.author ? { author: c.author } : {}),
+            ...(c.conversation_id
+              ? { conversation_id: String(c.conversation_id) }
+              : {}),
+            tasks: (
+              await Promise.all(
+                (c.task_ids ?? [])
+                  .slice(0, 3)
+                  .map(async (t) => (await taskOf(t))?.short_id ?? null),
+              )
+            ).filter(Boolean),
+          })),
+        ),
         sessions,
         tasks: taskRows,
         created_at: d.created_at,

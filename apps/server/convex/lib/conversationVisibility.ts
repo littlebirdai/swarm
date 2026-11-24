@@ -50,12 +50,24 @@ export async function patchConversationVisibility(
   // and retroactive directory share down with it from 2026-09-22. Nothing
   // under sessionOwnership imports this module, and convex/moduleLoad.test.ts
   // imports every entry to keep it that way.
-  const drop = await roleDropForVisibility(ctx, { ...conversation, ...updates });
-  await ctx.db.patch(conversation._id, drop ? { ...updates, ...drop.patch } : updates);
+  const drop = await roleDropForVisibility(ctx, {
+    ...conversation,
+    ...updates,
+  });
+  await ctx.db.patch(
+    conversation._id,
+    drop ? { ...updates, ...drop.patch } : updates,
+  );
   if (drop) await drop.tell();
   const after = { ...conversation, ...updates };
-  const VIS = ["is_private", "team_visibility", "team_id", "auto_shared"] as const;
-  const pick = (row: Record<string, any>) => Object.fromEntries(VIS.filter((k) => k in updates).map((k) => [k, row[k]]));
+  const VIS = [
+    "is_private",
+    "team_visibility",
+    "team_id",
+    "auto_shared",
+  ] as const;
+  const pick = (row: Record<string, any>) =>
+    Object.fromEntries(VIS.filter((k) => k in updates).map((k) => [k, row[k]]));
   await recordAuthorityEvent(ctx, {
     kind: "conversation_visibility_changed",
     actor_user_id: actor,
@@ -65,7 +77,11 @@ export async function patchConversationVisibility(
   await invalidateForConversation(ctx, after);
   await refreshViewingAccess(ctx, after);
   // A decision's team is routing (lib/decisionTeam.ts): it follows the conversation to its new team.
-  if ("team_id" in updates && String(updates.team_id ?? "") !== String(conversation.team_id ?? "")) await restampDecisionTeams(ctx, conversation._id);
+  if (
+    "team_id" in updates &&
+    String(updates.team_id ?? "") !== String(conversation.team_id ?? "")
+  )
+    await restampDecisionTeams(ctx, conversation._id);
   return recomputeWorkspaceForConversation(ctx, after);
 }
 
@@ -74,11 +90,18 @@ export async function patchConversationVisibility(
 // so the roster's gate never runs on a stale copy.
 async function refreshViewingAccess(
   ctx: AccessCtx,
-  conv: { _id: Id<"conversations">; team_id?: Id<"teams">; is_private?: boolean; team_visibility?: string },
+  conv: {
+    _id: Id<"conversations">;
+    team_id?: Id<"teams">;
+    is_private?: boolean;
+    team_visibility?: string;
+  },
 ): Promise<void> {
   const rows = await ctx.db
     .query("user_presence")
-    .withIndex("by_viewing_conversation", (q: any) => q.eq("viewing_conversation_id", conv._id))
+    .withIndex("by_viewing_conversation", (q: any) =>
+      q.eq("viewing_conversation_id", conv._id),
+    )
     .collect();
   const moved: Record<string, any> = {};
   if ("team_id" in conv) moved.team_id = conv.team_id;
@@ -86,6 +109,8 @@ async function refreshViewingAccess(
   if ("team_visibility" in conv) moved.team_visibility = conv.team_visibility;
   for (const row of rows) {
     if (!row.viewing_access) continue;
-    await ctx.db.patch(row._id, { viewing_access: { ...row.viewing_access, ...moved } });
+    await ctx.db.patch(row._id, {
+      viewing_access: { ...row.viewing_access, ...moved },
+    });
   }
 }

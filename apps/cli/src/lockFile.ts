@@ -61,9 +61,14 @@ function lockHolder(lockFile: string, staleMs: number): Holder {
   } catch {
     /* unreadable — a corpse, or a holder still mid-write */
   }
-  if (!holder && lockFileAgeMs(lockFile) < HOLDER_STAMP_GRACE_MS) return "young";
+  if (!holder && lockFileAgeMs(lockFile) < HOLDER_STAMP_GRACE_MS)
+    return "young";
   holder ??= {};
-  const stale = !holder.pid || !isPidAlive(holder.pid) || !holder.at || Date.now() - holder.at > staleMs;
+  const stale =
+    !holder.pid ||
+    !isPidAlive(holder.pid) ||
+    !holder.at ||
+    Date.now() - holder.at > staleMs;
   return stale ? "stale" : holder.pid!;
 }
 
@@ -75,18 +80,29 @@ const BREAK_CLAIM_STALE_MS = 10_000;
 
 /** What a lock or claim file holds, with enough identity (inode and mtime
  *  beside the bytes) to tell it from a successor at the same path. */
-function fileIdentity(file: string): { id: string; text: string; ageMs: number } | null {
+function fileIdentity(
+  file: string,
+): { id: string; text: string; ageMs: number } | null {
   try {
     const text = fs.readFileSync(file, "utf-8");
     const st = fs.statSync(file);
-    return { id: `${st.ino}:${st.mtimeMs}:${text}`, text, ageMs: Date.now() - st.mtimeMs };
+    return {
+      id: `${st.ino}:${st.mtimeMs}:${text}`,
+      text,
+      ageMs: Date.now() - st.mtimeMs,
+    };
   } catch {
     return null;
   }
 }
 
 const newStamp = (extra: Record<string, unknown> = {}): string =>
-  JSON.stringify({ pid: process.pid, at: Date.now(), ...extra, token: randomBytes(8).toString("hex") });
+  JSON.stringify({
+    pid: process.pid,
+    at: Date.now(),
+    ...extra,
+    token: randomBytes(8).toString("hex"),
+  });
 
 /** Remove `file` only while it still carries `stamp`: a holder that lost its
  *  lock to the staleness bound must not delete the lock of whoever took it. */
@@ -132,7 +148,10 @@ function takeBreakClaim(claim: string): string | null {
   } catch {
     /* mid-write, or a corpse: its age decides */
   }
-  const ownerAlive = typeof owner.pid === "number" ? isPidAlive(owner.pid) : seen.ageMs < HOLDER_STAMP_GRACE_MS;
+  const ownerAlive =
+    typeof owner.pid === "number"
+      ? isPidAlive(owner.pid)
+      : seen.ageMs < HOLDER_STAMP_GRACE_MS;
   if (ownerAlive && seen.ageMs < BREAK_CLAIM_STALE_MS) return null;
   const grave = `${claim}.${process.pid}.${randomBytes(4).toString("hex")}`;
   try {
@@ -198,11 +217,18 @@ function breakStaleLock(lockFile: string, staleMs: number): boolean {
   }
 }
 
-function waitTimeoutMessage(holder: Holder, lockFile: string, waitMs: number, describe?: string): string {
+function waitTimeoutMessage(
+  holder: Holder,
+  lockFile: string,
+  waitMs: number,
+  describe?: string,
+): string {
   const secs = Math.round(waitMs / 1000);
   const what = describe ? `another \`${describe}\`` : "another process";
-  if (typeof holder === "number") return `${what} (pid ${holder}) has held ${lockFile} for over ${secs}s — if it is stuck, remove ${lockFile}`;
-  if (holder === "young") return `${what} was still taking ${lockFile} (its holder stamp is not written yet) after ${secs}s — if it is stuck, remove ${lockFile}`;
+  if (typeof holder === "number")
+    return `${what} (pid ${holder}) has held ${lockFile} for over ${secs}s — if it is stuck, remove ${lockFile}`;
+  if (holder === "young")
+    return `${what} was still taking ${lockFile} (its holder stamp is not written yet) after ${secs}s — if it is stuck, remove ${lockFile}`;
   return `${lockFile} was left by a holder that is gone and could not be reclaimed within ${secs}s (another process is reclaiming it, or its directory is not writable) — if it is stuck, remove ${lockFile} and ${lockFile}.break`;
 }
 
@@ -213,7 +239,11 @@ function waitTimeoutMessage(holder: Holder, lockFile: string, waitMs: number, de
  * rules as acquireFileLock; the release is in `finally`, and a holder killed
  * mid-section loses the lock to the staleness bound.
  */
-export function withFileLockSync<T>(lockFile: string, fn: () => T, opts: { waitMs?: number; staleMs?: number } = {}): T {
+export function withFileLockSync<T>(
+  lockFile: string,
+  fn: () => T,
+  opts: { waitMs?: number; staleMs?: number } = {},
+): T {
   const waitMs = opts.waitMs ?? 10_000;
   const staleMs = opts.staleMs ?? 10_000;
   fs.mkdirSync(path.dirname(lockFile), { recursive: true, mode: 0o700 });
@@ -230,7 +260,8 @@ export function withFileLockSync<T>(lockFile: string, fn: () => T, opts: { waitM
     } catch {
       const holder = lockHolder(lockFile, staleMs);
       if (holder === "stale" && breakStaleLock(lockFile, staleMs)) continue;
-      if (Date.now() >= deadline) throw new Error(waitTimeoutMessage(holder, lockFile, waitMs));
+      if (Date.now() >= deadline)
+        throw new Error(waitTimeoutMessage(holder, lockFile, waitMs));
       Atomics.wait(pause, 0, 0, 5);
     }
   }
@@ -257,7 +288,10 @@ export interface FileLockOptions {
 }
 
 /** Take `lockFile` exclusively. Resolves to the release function. */
-export async function acquireFileLock(lockFile: string, opts: FileLockOptions = {}): Promise<() => void> {
+export async function acquireFileLock(
+  lockFile: string,
+  opts: FileLockOptions = {},
+): Promise<() => void> {
   const waitMs = opts.waitMs ?? 75_000;
   const staleMs = opts.staleMs ?? 90_000;
   fs.mkdirSync(path.dirname(lockFile), { recursive: true, mode: 0o700 });
@@ -304,11 +338,17 @@ export async function acquireFileLock(lockFile: string, opts: FileLockOptions = 
         if (breakStaleLock(lockFile, staleMs)) continue;
         // Another waiter is reclaiming it, or it is held after all: look again
         // shortly, and give up at the deadline like any other wait.
-        if (Date.now() >= deadline) throw new Error(waitTimeoutMessage(holder, lockFile, waitMs, opts.describe));
+        if (Date.now() >= deadline)
+          throw new Error(
+            waitTimeoutMessage(holder, lockFile, waitMs, opts.describe),
+          );
         await sleep(20);
         continue;
       }
-      if (Date.now() >= deadline) throw new Error(waitTimeoutMessage(holder, lockFile, waitMs, opts.describe));
+      if (Date.now() >= deadline)
+        throw new Error(
+          waitTimeoutMessage(holder, lockFile, waitMs, opts.describe),
+        );
       if (!announced) {
         announced = true;
         opts.onWait?.(holder);
@@ -320,26 +360,50 @@ export async function acquireFileLock(lockFile: string, opts: FileLockOptions = 
 
 export type SlotEntry = { pid: number; at: number; what?: string };
 
-const liveEntries = (files: string[], read: (f: string) => unknown): SlotEntry[] =>
+const liveEntries = (
+  files: string[],
+  read: (f: string) => unknown,
+): SlotEntry[] =>
   files.flatMap((f) => {
     try {
       const e = read(f) as Partial<SlotEntry>;
-      return typeof e.pid === "number" && isPidAlive(e.pid) ? [{ pid: e.pid, at: Number(e.at) || 0, ...(e.what ? { what: String(e.what) } : {}) }] : [];
+      return typeof e.pid === "number" && isPidAlive(e.pid)
+        ? [
+            {
+              pid: e.pid,
+              at: Number(e.at) || 0,
+              ...(e.what ? { what: String(e.what) } : {}),
+            },
+          ]
+        : [];
     } catch {
       return [];
     }
   });
 
 /** Who holds the slots in `dir`, and who waits for one, oldest first. */
-export function listFileSlots(dir: string): { holding: SlotEntry[]; waiting: SlotEntry[] } {
+export function listFileSlots(dir: string): {
+  holding: SlotEntry[];
+  waiting: SlotEntry[];
+} {
   const json = (f: string) => JSON.parse(fs.readFileSync(f, "utf-8"));
   const files = (d: string, match: RegExp) => {
-    try { return fs.readdirSync(d).filter((f) => match.test(f)).map((f) => path.join(d, f)); } catch { return []; }
+    try {
+      return fs
+        .readdirSync(d)
+        .filter((f) => match.test(f))
+        .map((f) => path.join(d, f));
+    } catch {
+      return [];
+    }
   };
   const byAge = (a: SlotEntry, b: SlotEntry) => a.at - b.at;
   return {
     holding: liveEntries(files(dir, /^slot-\d+\.lock$/), json).sort(byAge),
-    waiting: liveEntries(files(path.join(dir, "waiting"), /\.json$/), json).sort(byAge),
+    waiting: liveEntries(
+      files(path.join(dir, "waiting"), /\.json$/),
+      json,
+    ).sort(byAge),
   };
 }
 
@@ -353,24 +417,49 @@ export function listFileSlots(dir: string): { holding: SlotEntry[]; waiting: Slo
 export async function acquireFileSlot(
   dir: string,
   slots: number,
-  opts: { waitMs?: number; onWait?: () => void; describe?: string; what?: string } = {},
+  opts: {
+    waitMs?: number;
+    onWait?: () => void;
+    describe?: string;
+    what?: string;
+  } = {},
 ): Promise<() => void> {
   const deadline = Date.now() + (opts.waitMs ?? Number.POSITIVE_INFINITY);
-  const ticket = path.join(dir, "waiting", `${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`);
+  const ticket = path.join(
+    dir,
+    "waiting",
+    `${process.pid}-${Math.random().toString(36).slice(2, 8)}.json`,
+  );
   const leave = () => fs.rmSync(ticket, { force: true });
   try {
     for (;;) {
       for (let i = 0; i < slots; i++) {
         try {
-          return await acquireFileLock(path.join(dir, `slot-${i}.lock`), { waitMs: 0, staleMs: Number.POSITIVE_INFINITY, describe: opts.describe, what: opts.what });
+          return await acquireFileLock(path.join(dir, `slot-${i}.lock`), {
+            waitMs: 0,
+            staleMs: Number.POSITIVE_INFINITY,
+            describe: opts.describe,
+            what: opts.what,
+          });
         } catch {
           /* held by a live process */
         }
       }
-      if (Date.now() > deadline) throw new Error(`all ${slots} ${opts.describe ?? "slots"} are taken; try again later`);
+      if (Date.now() > deadline)
+        throw new Error(
+          `all ${slots} ${opts.describe ?? "slots"} are taken; try again later`,
+        );
       if (!fs.existsSync(ticket)) {
         fs.mkdirSync(path.dirname(ticket), { recursive: true, mode: 0o700 });
-        fs.writeFileSync(ticket, JSON.stringify({ pid: process.pid, at: Date.now(), ...(opts.what ? { what: opts.what } : {}) }), { mode: 0o600 });
+        fs.writeFileSync(
+          ticket,
+          JSON.stringify({
+            pid: process.pid,
+            at: Date.now(),
+            ...(opts.what ? { what: opts.what } : {}),
+          }),
+          { mode: 0o600 },
+        );
         process.once("exit", leave);
         opts.onWait?.();
       }

@@ -102,9 +102,15 @@
   animation: ring-card-dot 1.6s ease-out infinite;
 }
 @keyframes ring-card-dot {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring-accent) 45%, transparent); }
-  70% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ring-accent) 0%, transparent); }
-  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring-accent) 0%, transparent); }
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring-accent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ring-accent) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring-accent) 0%, transparent);
+  }
 }
 
 .ring-card-actions {
@@ -124,7 +130,10 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition:
+    background 120ms,
+    border-color 120ms,
+    color 120ms;
   -webkit-app-region: no-drag;
 }
 .ring-card-join {
@@ -132,7 +141,9 @@
   color: #002b36;
   border: 1px solid transparent;
 }
-.ring-card-join:hover { background: color-mix(in srgb, var(--ring-accent) 88%, white); }
+.ring-card-join:hover {
+  background: color-mix(in srgb, var(--ring-accent) 88%, white);
+}
 .ring-card-decline {
   background: transparent;
   color: var(--ring-fg);
@@ -149,8 +160,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ring-card-dot { animation: none; }
+  .ring-card-dot {
+    animation: none;
+  }
 }
 
 /* Modern (.modern-style): the card is words, in the interface sans. */
-.modern-style .ring-card { font-family: var(--font-ui, system-ui, sans-serif); }
+.modern-style .ring-card {
+  font-family: var(--font-ui, system-ui, sans-serif);
+}

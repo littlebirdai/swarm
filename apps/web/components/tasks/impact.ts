@@ -4,15 +4,26 @@
 
 import { findingConversation } from "@codecast/shared/contracts/judges";
 
-type Finding = { _id: string; fingerprint?: string | null; moment?: string | null; severity?: number | null };
+type Finding = {
+  _id: string;
+  fingerprint?: string | null;
+  moment?: string | null;
+  severity?: number | null;
+};
 
 export function severityWord(n: number): string {
-  return n >= 9 ? "breaks trust" : n >= 7 ? "contact noticed" : "likely unnoticed";
+  return n >= 9
+    ? "breaks trust"
+    : n >= 7
+      ? "contact noticed"
+      : "likely unnoticed";
 }
 
 /** The conversations a contact noticed (severity 7 and up), counted once each. */
 export function noticedCount(signals: ReadonlyArray<Finding>): number {
-  return new Set(signals.filter((s) => (s.severity ?? 0) >= 7).map(findingConversation)).size;
+  return new Set(
+    signals.filter((s) => (s.severity ?? 0) >= 7).map(findingConversation),
+  ).size;
 }
 
 /** The impact in a few words: "2 noticed by the contact", else the worst's word. Empty with no severity. */

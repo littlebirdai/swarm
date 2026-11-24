@@ -20,8 +20,14 @@ export class SimLabels {
     const heldLabel = this.byId.get(id);
     const heldId = this.byLabel.get(label);
     if (heldLabel === label && heldId === id) return;
-    if (heldLabel !== undefined) throw new Error(`sim labels: ${id} is already "${heldLabel}", cannot also be "${label}"`);
-    if (heldId !== undefined) throw new Error(`sim labels: "${label}" already names ${heldId}, cannot also name ${id}`);
+    if (heldLabel !== undefined)
+      throw new Error(
+        `sim labels: ${id} is already "${heldLabel}", cannot also be "${label}"`,
+      );
+    if (heldId !== undefined)
+      throw new Error(
+        `sim labels: "${label}" already names ${heldId}, cannot also name ${id}`,
+      );
     this.byId.set(id, label);
     this.byLabel.set(label, id);
   }
@@ -41,7 +47,10 @@ export class SimLabels {
   // The id behind a label, for the DSL's point checks (`shows("ada/s")`).
   id(label: string): string {
     const id = this.byLabel.get(label);
-    if (id === undefined) throw new Error(`sim labels: no row is labelled "${label}"; known: ${[...this.byLabel.keys()].sort().join(", ") || "(none)"}`);
+    if (id === undefined)
+      throw new Error(
+        `sim labels: no row is labelled "${label}"; known: ${[...this.byLabel.keys()].sort().join(", ") || "(none)"}`,
+      );
     return id;
   }
 
@@ -62,7 +71,9 @@ export class SimLabels {
   // that would clash with one already taken is skipped rather than thrown on.
   static from(byId: Record<string, string>): SimLabels {
     const labels = new SimLabels();
-    for (const [id, label] of Object.entries(byId)) if (!labels.byId.has(id) && !labels.byLabel.has(label)) labels.register(id, label);
+    for (const [id, label] of Object.entries(byId))
+      if (!labels.byId.has(id) && !labels.byLabel.has(label))
+        labels.register(id, label);
     return labels;
   }
 }
@@ -70,7 +81,14 @@ export class SimLabels {
 // Whether a delivery is one `--trace <label>` prints: its channel, label and
 // producer carry the label's id raw, or the label once ids are relabelled.
 // The runner (dsl.ts) and the Evals sim run page both decide by this.
-export function traceMatches(d: { channel: string; label: string; producer: string }, trace: string, labels: SimLabels): boolean {
+export function traceMatches(
+  d: { channel: string; label: string; producer: string },
+  trace: string,
+  labels: SimLabels,
+): boolean {
   const text = `${d.channel} ${d.label} ${d.producer}`;
-  return (labels.has(trace) && text.includes(labels.id(trace))) || labels.relabel(text).includes(trace);
+  return (
+    (labels.has(trace) && text.includes(labels.id(trace))) ||
+    labels.relabel(text).includes(trace)
+  );
 }

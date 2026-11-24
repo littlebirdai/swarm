@@ -80,7 +80,8 @@ export function judgeOwnedFile(
   if (disk === undefined) {
     // Gone. Once is maybe an accident (a stray rm, a bad sync); twice is a
     // decision.
-    if (record.recreatedOnce) return { action: "hold", reason: "locally_removed" };
+    if (record.recreatedOnce)
+      return { action: "hold", reason: "locally_removed" };
     return { action: "recreate", note: "recreated_once" };
   }
 
@@ -89,7 +90,12 @@ export function judgeOwnedFile(
   if (diskHash === record.wroteHash) return { action: "write" };
 
   // Edited by hand: theirs now.
-  return { action: "conflict", reason: "locally_modified", theirs: disk, ours: desired };
+  return {
+    action: "conflict",
+    reason: "locally_modified",
+    theirs: disk,
+    ours: desired,
+  };
 }
 
 /**
@@ -101,7 +107,10 @@ export function reconcileOwnedFile(
   record: OwnedFileRecord | undefined,
   desired: string,
   writeFile: (p: string, content: string) => void,
-): { record: OwnedFileRecord; conflict?: { reason: string; theirs: string; ours: string } } {
+): {
+  record: OwnedFileRecord;
+  conflict?: { reason: string; theirs: string; ours: string };
+} {
   let disk: string | undefined;
   try {
     disk = fs.readFileSync(filePath, "utf-8");
@@ -111,7 +120,11 @@ export function reconcileOwnedFile(
 
   // A missing PARENT directory is not a deletion of our file — the whole tree
   // moved or was never there. First-install semantics apply.
-  if (disk === undefined && record !== undefined && !fs.existsSync(path.dirname(filePath))) {
+  if (
+    disk === undefined &&
+    record !== undefined &&
+    !fs.existsSync(path.dirname(filePath))
+  ) {
     record = undefined;
   }
 
@@ -119,11 +132,18 @@ export function reconcileOwnedFile(
   switch (verdict.action) {
     case "write": {
       writeFile(filePath, desired);
-      return { record: { wroteHash: contentHash(desired), recreatedOnce: record?.recreatedOnce } };
+      return {
+        record: {
+          wroteHash: contentHash(desired),
+          recreatedOnce: record?.recreatedOnce,
+        },
+      };
     }
     case "recreate": {
       writeFile(filePath, desired);
-      return { record: { wroteHash: contentHash(desired), recreatedOnce: true } };
+      return {
+        record: { wroteHash: contentHash(desired), recreatedOnce: true },
+      };
     }
     case "none":
       return { record: record! };
@@ -132,7 +152,11 @@ export function reconcileOwnedFile(
     case "conflict":
       return {
         record: record!,
-        conflict: { reason: verdict.reason, theirs: verdict.theirs, ours: verdict.ours },
+        conflict: {
+          reason: verdict.reason,
+          theirs: verdict.theirs,
+          ours: verdict.ours,
+        },
       };
   }
 }

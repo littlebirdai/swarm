@@ -10,23 +10,59 @@ import type { OrgChangeStatus } from "./orgStaffingTypes";
 import { CHANGE_STATUS_META } from "./staffingModel";
 
 /** A small tag: "proposed", "retire", "this session", "accepted". Framed and dashed on the proposal card's role rows; `quiet` (every chart card, a goal row) is the word alone. */
-export function GhostTag({ label, status = "proposed", tone, quiet, className }: { label: string; status?: OrgChangeStatus; /** A colour of its own (a retire reads red, not the proposal violet). */ tone?: string; /** The word alone, no frame: for rows that would otherwise be all dashes. */ quiet?: boolean; className?: string }) {
-  const m = tone && status === "proposed" ? { border: `1.5px dashed color-mix(in srgb, ${tone} 70%, transparent)`, color: tone } : CHIP_STATUS[status];
+export function GhostTag({
+  label,
+  status = "proposed",
+  tone,
+  quiet,
+  className,
+}: {
+  label: string;
+  status?: OrgChangeStatus;
+  /** A colour of its own (a retire reads red, not the proposal violet). */ tone?: string;
+  /** The word alone, no frame: for rows that would otherwise be all dashes. */ quiet?: boolean;
+  className?: string;
+}) {
+  const m =
+    tone && status === "proposed"
+      ? {
+          border: `1.5px dashed color-mix(in srgb, ${tone} 70%, transparent)`,
+          color: tone,
+        }
+      : CHIP_STATUS[status];
   return (
-    <span className={cn("inline-flex items-center h-[16px] whitespace-nowrap font-medium", quiet ? "text-mark" : "px-1 rounded-sm text-mark uppercase tracking-[0.06em]", className)} style={{ border: quiet ? undefined : m.border, color: m.color }} data-ghost-tag={label}>
+    <span
+      className={cn(
+        "inline-flex items-center h-[16px] whitespace-nowrap font-medium",
+        quiet
+          ? "text-mark"
+          : "px-1 rounded-sm text-mark uppercase tracking-[0.06em]",
+        className,
+      )}
+      style={{ border: quiet ? undefined : m.border, color: m.color }}
+      data-ghost-tag={label}
+    >
       {label}
     </span>
   );
 }
 
-
-
 /** A change's status as a filled pill ("applied", "skipped", "failed"). */
 export function StatusPill({ status }: { status: OrgChangeStatus }) {
   const m = CHANGE_STATUS_META[status];
   return (
-    <span className="inline-flex items-center gap-1 h-[18px] px-1.5 rounded-md text-meta font-medium shrink-0" style={{ background: `color-mix(in srgb, ${m.color} 14%, transparent)`, color: m.color }} data-status={status}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} />
+    <span
+      className="inline-flex items-center gap-1 h-[18px] px-1.5 rounded-md text-meta font-medium shrink-0"
+      style={{
+        background: `color-mix(in srgb, ${m.color} 14%, transparent)`,
+        color: m.color,
+      }}
+      data-status={status}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ background: m.color }}
+      />
       {m.label}
     </span>
   );

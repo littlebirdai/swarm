@@ -13,12 +13,7 @@ import { useTabContext } from "../../lib/tabParams";
 import { useVaultLocalPath } from "../../hooks/useVaultLocalPath";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useConvex } from "convex/react";
-import {
-  Panel,
-  Group,
-  Separator,
-  usePanelRef,
-} from "react-resizable-panels";
+import { Panel, Group, Separator, usePanelRef } from "react-resizable-panels";
 import {
   ArrowUpDown,
   Cloud,
@@ -50,7 +45,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { VAULT_SORT_OPTIONS, type VaultSortMode } from "../../lib/vault/explorerModel";
+import {
+  VAULT_SORT_OPTIONS,
+  type VaultSortMode,
+} from "../../lib/vault/explorerModel";
 import { usePaneShortcutAction } from "../../shortcuts";
 import { VaultExplorer } from "../../components/vault/VaultExplorer";
 import { VaultNoteView } from "../../components/vault/VaultNoteView";
@@ -62,7 +60,10 @@ import { VaultSearchPane } from "../../components/vault/VaultSearchPane";
 import { VaultPicker } from "../../components/vault/VaultPicker";
 import { EmptyVaultTeaching } from "../../components/vault/EmptyVaultTeaching";
 import { VaultScopeLine } from "../../components/vault/VaultScopeLine";
-import { useDocForFile, useVaultTeamResolver } from "../../components/vault/useVaultScope";
+import {
+  useDocForFile,
+  useVaultTeamResolver,
+} from "../../components/vault/useVaultScope";
 import { vaultPresence } from "../../lib/vault/scopeModel";
 import { vaultLandingPath } from "../../lib/vault/projectVault";
 import { filesHref } from "../../lib/vault/vaultHref";
@@ -79,18 +80,25 @@ import { useTitlebarHead } from "../../hooks/useTitlebarHead";
 import { lazyNamed } from "../../lib/lazyNamed";
 
 // sigma + graphology are ~40kB gzip: nobody who doesn't open the graph pays.
-const VaultGraphView = lazyNamed(() => import("../../components/vault/VaultGraphView"), "VaultGraphView");
+const VaultGraphView = lazyNamed(
+  () => import("../../components/vault/VaultGraphView"),
+  "VaultGraphView",
+);
 
 // A 24px target per icon, so a glyph is easy to hit and the row's width is known.
-const headerButtonClass = "inline-flex size-6 shrink-0 items-center justify-center rounded text-sol-text-dim hover:bg-sol-bg-alt hover:text-sol-text transition-colors";
+const headerButtonClass =
+  "inline-flex size-6 shrink-0 items-center justify-center rounded text-sol-text-dim hover:bg-sol-bg-alt hover:text-sol-text transition-colors";
 
 const SIDE_MIN_PX = 200;
-
 
 const separatorClass =
   "relative z-10 w-px bg-black/10 cursor-col-resize before:absolute before:inset-y-0 before:-left-[2px] before:-right-[2px] before:content-[''] before:transition-colors before:duration-150 hover:before:bg-sol-cyan data-[resize-handle-active]:before:bg-sol-cyan";
 
-const LEFT_TABS: { id: "files" | "search"; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const LEFT_TABS: {
+  id: "files" | "search";
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { id: "files", label: "Files", icon: FolderTree },
   { id: "search", label: "Search", icon: Search },
 ];
@@ -148,7 +156,9 @@ function VaultContent() {
   const setStoreRightPanelOpen = useVaultStore((s) => s.setRightPanelOpen);
   const [paneRightPanelOpen, setPaneRightPanelOpen] = useState(false);
   const rightPanelOpen = inSplitPane ? paneRightPanelOpen : storeRightPanelOpen;
-  const setRightPanelOpen = inSplitPane ? setPaneRightPanelOpen : setStoreRightPanelOpen;
+  const setRightPanelOpen = inSplitPane
+    ? setPaneRightPanelOpen
+    : setStoreRightPanelOpen;
   const tagPaneRequest = useVaultStore((s) => s.tagPaneRequest);
   const seenTagPaneRequest = useRef(tagPaneRequest);
   useWatchEffect(() => {
@@ -246,7 +256,8 @@ function VaultContent() {
     // 20% of a modest pane can fall under the pixel minimum and the library
     // collapses instead of resizing; ask for the minimum itself on the retry.
     requestAnimationFrame(() => {
-      if (treePanelRef.current?.isCollapsed()) treePanelRef.current.resize("180px");
+      if (treePanelRef.current?.isCollapsed())
+        treePanelRef.current.resize("180px");
       requestAnimationFrame(() => {
         treeExpandingRef.current = false;
       });
@@ -331,7 +342,10 @@ function VaultContent() {
     },
     [activePath],
   );
-  const toggleEdit = useCallback(() => applyMode(toggleVaultEditMode), [applyMode]);
+  const toggleEdit = useCallback(
+    () => applyMode(toggleVaultEditMode),
+    [applyMode],
+  );
 
   usePaneShortcutAction("vault.toggleEdit", () => {
     if (showGraph) return false;
@@ -373,7 +387,10 @@ function VaultContent() {
       name,
       root: activeVault?.root,
       home: activeVault?.home,
-      presence: vaultPresence({ remote: isRemote, mirror: activeVault?.mirror }),
+      presence: vaultPresence({
+        remote: isRemote,
+        mirror: activeVault?.mirror,
+      }),
       team: teamForRoot(activeVault?.root),
     };
   }, [activeVault, activeVaultId, remoteVaults, isRemote, teamForRoot]);
@@ -393,7 +410,8 @@ function VaultContent() {
   const scannedAt = useVaultStore((s) => s.scannedAt);
   useWatchEffect(() => {
     // A ?path= deep link is choosing the note; the landing must not race it.
-    if (!activeVault || activePath || localPath || showGraph || !scannedAt) return;
+    if (!activeVault || activePath || localPath || showGraph || !scannedAt)
+      return;
     if (landedVaults.current.has(activeVault.id)) return;
     const paths = Object.keys(useVaultStore.getState().files);
     if (!paths.length) return;
@@ -402,7 +420,14 @@ function VaultContent() {
     if (!landing) return;
     if (activeVault.home) setDirsExpanded([activeVault.home], true);
     openNote(landing);
-  }, [activeVault, activePath, showGraph, scannedAt, setDirsExpanded, openNote]);
+  }, [
+    activeVault,
+    activePath,
+    showGraph,
+    scannedAt,
+    setDirsExpanded,
+    openNote,
+  ]);
 
   if (connection === "no-daemon")
     return (
@@ -426,7 +451,10 @@ function VaultContent() {
               >
                 {v.name}
                 {v.note_count ? (
-                  <span className="text-sol-text-dim text-meta"> — {v.note_count} notes, read-only</span>
+                  <span className="text-sol-text-dim text-meta">
+                    {" "}
+                    — {v.note_count} notes, read-only
+                  </span>
                 ) : null}
               </button>
             ))}
@@ -434,7 +462,11 @@ function VaultContent() {
         )}
       </LocalDaemonUnreachable>
     );
-  if ((connection === "connected" || connection === "cached") && vaults.length === 0 && !activeVaultId)
+  if (
+    (connection === "connected" || connection === "cached") &&
+    vaults.length === 0 &&
+    !activeVaultId
+  )
     return <EmptyVaultTeaching />;
   if (connection === "idle" || connection === "discovering") {
     return (
@@ -447,137 +479,155 @@ function VaultContent() {
   // The explorer column, rendered either as a split panel (wide pane) or an
   // overlay drawer (narrow pane).
   const treePane = (
-          <div className="h-full flex flex-col border-r-0 bg-sol-bg-alt/40">
-            <div ref={titlebarRef} className="flex items-center gap-2 px-3 py-2 border-b border-sol-border/30">
-              <VaultPicker
-                vaults={vaults}
-                remoteVaults={remoteVaults}
-                activeVaultId={activeVaultId}
-                onSelect={(id, kind) => {
-                  // A remote id belongs to another machine's mirror; the two
-                  // open through different paths but land in the same views.
-                  if (kind === "remote") void openRemoteVault(id);
-                  else void selectVault(id);
-                }}
-              />
-              {/* The three a person reaches for stay out; the rest fold into one menu, so at the panel's
+    <div className="h-full flex flex-col border-r-0 bg-sol-bg-alt/40">
+      <div
+        ref={titlebarRef}
+        className="flex items-center gap-2 px-3 py-2 border-b border-sol-border/30"
+      >
+        <VaultPicker
+          vaults={vaults}
+          remoteVaults={remoteVaults}
+          activeVaultId={activeVaultId}
+          onSelect={(id, kind) => {
+            // A remote id belongs to another machine's mirror; the two
+            // open through different paths but land in the same views.
+            if (kind === "remote") void openRemoteVault(id);
+            else void selectVault(id);
+          }}
+        />
+        {/* The three a person reaches for stay out; the rest fold into one menu, so at the panel's
                   minimum width the folder picker keeps its room. New note only while the tree shows. */}
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                {leftTab === "files" && (
-                  <button
-                    type="button"
-                    title="New note"
-                    aria-label="New note"
-                    onClick={() => void createInRoot("note")}
-                    className={headerButtonClass}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {leftTab === "files" && (
+            <button
+              type="button"
+              title="New note"
+              aria-label="New note"
+              onClick={() => void createInRoot("note")}
+              className={headerButtonClass}
+            >
+              <FilePlus2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            title={showGraph ? "Back to notes" : "Graph view"}
+            aria-label={showGraph ? "Back to notes" : "Graph view"}
+            aria-pressed={showGraph}
+            onClick={toggleGraph}
+            className={`${headerButtonClass} ${showGraph ? "!text-sol-cyan" : ""}`}
+          >
+            <Waypoints className="w-3.5 h-3.5" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                title="More"
+                aria-label="More file tree actions"
+                className={headerButtonClass}
+              >
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              {/* Tree actions, shown only while the tree is: they'd be inert next to search results. */}
+              {leftTab === "files" && (
+                <>
+                  <DropdownMenuItem
+                    onSelect={() => void createInRoot("folder")}
                   >
-                    <FilePlus2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  title={showGraph ? "Back to notes" : "Graph view"}
-                  aria-label={showGraph ? "Back to notes" : "Graph view"}
-                  aria-pressed={showGraph}
-                  onClick={toggleGraph}
-                  className={`${headerButtonClass} ${showGraph ? "!text-sol-cyan" : ""}`}
-                >
-                  <Waypoints className="w-3.5 h-3.5" />
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" title="More" aria-label="More file tree actions" className={headerButtonClass}>
-                      <MoreHorizontal className="w-3.5 h-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-[200px]">
-                    {/* Tree actions, shown only while the tree is: they'd be inert next to search results. */}
-                    {leftTab === "files" && (
-                      <>
-                        <DropdownMenuItem onSelect={() => void createInRoot("folder")}>
-                          <FolderPlus className="w-3.5 h-3.5" /> New folder
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={collapseAll}>
-                          <CopyMinus className="w-3.5 h-3.5" /> Collapse all
-                        </DropdownMenuItem>
-                        {/* A repo that hides its own source is lying about the folder, and a notes folder full of
+                    <FolderPlus className="w-3.5 h-3.5" /> New folder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={collapseAll}>
+                    <CopyMinus className="w-3.5 h-3.5" /> Collapse all
+                  </DropdownMenuItem>
+                  {/* A repo that hides its own source is lying about the folder, and a notes folder full of
                             dotfiles is noise. The default follows the vault's kind; this is the override. */}
-                        {!isRemote && (
-                          <DropdownMenuCheckboxItem checked={showAllFiles} onCheckedChange={(v) => setShowAllFiles(!!v)}>
-                            Show all files
-                          </DropdownMenuCheckboxItem>
-                        )}
-                        {/* A repo root hides its build output, .gitignore names and tool dot-directories. This lifts
+                  {!isRemote && (
+                    <DropdownMenuCheckboxItem
+                      checked={showAllFiles}
+                      onCheckedChange={(v) => setShowAllFiles(!!v)}
+                    >
+                      Show all files
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  {/* A repo root hides its build output, .gitignore names and tool dot-directories. This lifts
                             that, dimmed and read-only; .git and node_modules stay out regardless. */}
-                        {!isRemote && isRepo && (
-                          <DropdownMenuCheckboxItem checked={showIgnoredFiles} onCheckedChange={(v) => setShowIgnoredFiles(!!v)}>
-                            Show ignored files
-                          </DropdownMenuCheckboxItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="flex items-center gap-1.5 text-xs font-normal text-sol-text-dim">
-                          <ArrowUpDown className="w-3 h-3" /> Sort
-                        </DropdownMenuLabel>
-                        <DropdownMenuRadioGroup
-                          value={sortMode}
-                          onValueChange={(v) => setSortMode(v as VaultSortMode)}
-                        >
-                          {VAULT_SORT_OPTIONS.map((o) => (
-                            <DropdownMenuRadioItem key={o.id} value={o.id}>
-                              {o.label}
-                            </DropdownMenuRadioItem>
-                          ))}
-                        </DropdownMenuRadioGroup>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem onSelect={() => void refresh()}>
-                      <RefreshCw className="w-3.5 h-3.5" /> Rescan
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <button
-                  type="button"
-                  title="Hide file tree"
-                  aria-label="Hide file tree"
-                  onClick={() => setTreeOpen(false)}
-                  className={headerButtonClass}
-                >
-                  <PanelLeftClose className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-            {scope && <VaultScopeLine {...scope} docTwin={docTwin} />}
-            <div className="flex items-center border-b border-sol-border/30">
-              {LEFT_TABS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setLeftTab(id)}
-                  title={label}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-meta transition-colors border-b-2 -mb-px ${
-                    leftTab === id
-                      ? "border-sol-cyan text-sol-text"
-                      : "border-transparent text-sol-text-dim hover:text-sol-text-muted"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className={`flex-1 min-h-0 ${leftTab === "files" ? "px-1 py-1" : ""}`}>
-              {leftTab === "files" ? (
-                <VaultExplorer activePath={activePath} onOpen={openNote} />
-              ) : (
-                <VaultSearchPane
-                  activePath={activePath}
-                  onNavigate={openNote}
-                  inputRef={searchInputRef}
-                />
+                  {!isRemote && isRepo && (
+                    <DropdownMenuCheckboxItem
+                      checked={showIgnoredFiles}
+                      onCheckedChange={(v) => setShowIgnoredFiles(!!v)}
+                    >
+                      Show ignored files
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="flex items-center gap-1.5 text-xs font-normal text-sol-text-dim">
+                    <ArrowUpDown className="w-3 h-3" /> Sort
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={sortMode}
+                    onValueChange={(v) => setSortMode(v as VaultSortMode)}
+                  >
+                    {VAULT_SORT_OPTIONS.map((o) => (
+                      <DropdownMenuRadioItem key={o.id} value={o.id}>
+                        {o.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                </>
               )}
-            </div>
-          </div>
+              <DropdownMenuItem onSelect={() => void refresh()}>
+                <RefreshCw className="w-3.5 h-3.5" /> Rescan
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            title="Hide file tree"
+            aria-label="Hide file tree"
+            onClick={() => setTreeOpen(false)}
+            className={headerButtonClass}
+          >
+            <PanelLeftClose className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      {scope && <VaultScopeLine {...scope} docTwin={docTwin} />}
+      <div className="flex items-center border-b border-sol-border/30">
+        {LEFT_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setLeftTab(id)}
+            title={label}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-meta transition-colors border-b-2 -mb-px ${
+              leftTab === id
+                ? "border-sol-cyan text-sol-text"
+                : "border-transparent text-sol-text-dim hover:text-sol-text-muted"
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        className={`flex-1 min-h-0 ${leftTab === "files" ? "px-1 py-1" : ""}`}
+      >
+        {leftTab === "files" ? (
+          <VaultExplorer activePath={activePath} onOpen={openNote} />
+        ) : (
+          <VaultSearchPane
+            activePath={activePath}
+            onNavigate={openNote}
+            inputRef={searchInputRef}
+          />
+        )}
+      </div>
+    </div>
   );
 
   return (
@@ -585,7 +635,8 @@ function VaultContent() {
       {isRemote && (
         <div className="flex items-center gap-2 px-3 py-1 text-meta bg-sol-bg-alt text-sol-text-muted border-b border-sol-border/30">
           <Cloud className="w-3 h-3" />
-          Read-only mirror from another machine — edits happen where the files live.
+          Read-only mirror from another machine — edits happen where the files
+          live.
         </div>
       )}
       {connection === "cached" && (
@@ -599,65 +650,87 @@ function VaultContent() {
           <span className="flex-1 truncate" title={opError}>
             {opError}
           </span>
-          <button type="button" onClick={clearOpError} title="Dismiss" aria-label="Dismiss" className="hover:opacity-70">
+          <button
+            type="button"
+            onClick={clearOpError}
+            title="Dismiss"
+            aria-label="Dismiss"
+            className="hover:opacity-70"
+          >
             <X className="w-3 h-3" />
           </button>
         </div>
       )}
-      {renameReport && renameReport.linksRewritten + renameReport.skipped > 0 && (
-        <div className="flex items-center gap-2 px-3 py-1 text-meta bg-sol-bg-alt text-sol-text-muted border-b border-sol-border/30">
-          <span className="flex-1 truncate">
-            {renameReport.linksRewritten > 0 && (
-              <>
-                Updated {renameReport.linksRewritten}{" "}
-                {renameReport.linksRewritten === 1 ? "link" : "links"} in {renameReport.filesChanged}{" "}
-                {renameReport.filesChanged === 1 ? "note" : "notes"}
-              </>
-            )}
-            {renameReport.skipped > 0 && (
-              <span className="text-sol-yellow">
-                {renameReport.linksRewritten > 0 ? " · " : ""}
-                {renameReport.skipped} {renameReport.skipped === 1 ? "link" : "links"} left alone —
-                those notes changed under the rename
-              </span>
-            )}
-          </span>
-          <button type="button" onClick={clearRenameReport} title="Dismiss" aria-label="Dismiss" className="hover:opacity-70">
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
+      {renameReport &&
+        renameReport.linksRewritten + renameReport.skipped > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1 text-meta bg-sol-bg-alt text-sol-text-muted border-b border-sol-border/30">
+            <span className="flex-1 truncate">
+              {renameReport.linksRewritten > 0 && (
+                <>
+                  Updated {renameReport.linksRewritten}{" "}
+                  {renameReport.linksRewritten === 1 ? "link" : "links"} in{" "}
+                  {renameReport.filesChanged}{" "}
+                  {renameReport.filesChanged === 1 ? "note" : "notes"}
+                </>
+              )}
+              {renameReport.skipped > 0 && (
+                <span className="text-sol-yellow">
+                  {renameReport.linksRewritten > 0 ? " · " : ""}
+                  {renameReport.skipped}{" "}
+                  {renameReport.skipped === 1 ? "link" : "links"} left alone —
+                  those notes changed under the rename
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={clearRenameReport}
+              title="Dismiss"
+              aria-label="Dismiss"
+              className="hover:opacity-70"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       <Group
         orientation="horizontal"
         className="flex-1 min-h-0"
         defaultLayout={{
           "vault-tree": treeOpen ? 20 : 0,
-          "vault-content": 100 - (treeOpen ? 20 : 0) - (rightPanelOpen ? 22 : 0),
+          "vault-content":
+            100 - (treeOpen ? 20 : 0) - (rightPanelOpen ? 22 : 0),
           "vault-side": rightPanelOpen ? 22 : 0,
         }}
       >
         {paneNarrow === false && (
           <>
-        <Panel
-          id="vault-tree"
-          panelRef={treePanelRef}
-          minSize={180}
-          maxSize="42%"
-          collapsible
-          collapsedSize={0}
-          className="min-w-0"
-          onResize={(size) => {
-            // A drag all the way shut is a close; keep the state honest so
-            // the corner button reopens it instead of doing nothing.
-            if (size.asPercentage === 0 && treeAppliedRef.current && !treeExpandingRef.current) {
-              treeAppliedRef.current = false;
-              setTreeOpen(false);
-            }
-          }}
-        >
-          {treePane}
-        </Panel>
-        <Separator className={`${separatorClass} ${treeOpen ? "" : "invisible"}`} />
+            <Panel
+              id="vault-tree"
+              panelRef={treePanelRef}
+              minSize={180}
+              maxSize="42%"
+              collapsible
+              collapsedSize={0}
+              className="min-w-0"
+              onResize={(size) => {
+                // A drag all the way shut is a close; keep the state honest so
+                // the corner button reopens it instead of doing nothing.
+                if (
+                  size.asPercentage === 0 &&
+                  treeAppliedRef.current &&
+                  !treeExpandingRef.current
+                ) {
+                  treeAppliedRef.current = false;
+                  setTreeOpen(false);
+                }
+              }}
+            >
+              {treePane}
+            </Panel>
+            <Separator
+              className={`${separatorClass} ${treeOpen ? "" : "invisible"}`}
+            />
           </>
         )}
         {/* The graph owns everything right of the explorer: the backlinks pane
@@ -665,7 +738,10 @@ function VaultContent() {
         <Panel id="vault-content" minSize={320} className="min-w-0 relative">
           {paneNarrow === true && treeOpen && (
             <>
-              <div className="absolute inset-0 z-20 bg-black/20" onClick={() => setTreeOpen(false)} />
+              <div
+                className="absolute inset-0 z-20 bg-black/20"
+                onClick={() => setTreeOpen(false)}
+              />
               <div className="absolute inset-y-0 left-0 z-30 w-72 max-w-[85%] bg-sol-bg border-r border-sol-border shadow-xl">
                 {treePane}
               </div>
@@ -686,11 +762,19 @@ function VaultContent() {
             <button
               type="button"
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
-              title={rightPanelOpen ? "Hide side panel" : "Show backlinks, outline and tags"}
-              aria-label={rightPanelOpen ? "Hide side panel" : "Show side panel"}
+              title={
+                rightPanelOpen
+                  ? "Hide side panel"
+                  : "Show backlinks, outline and tags"
+              }
+              aria-label={
+                rightPanelOpen ? "Hide side panel" : "Show side panel"
+              }
               aria-pressed={rightPanelOpen}
               className={`absolute top-2 right-2 z-10 p-1 rounded transition-colors hover:bg-sol-bg-alt ${
-                rightPanelOpen ? "text-sol-text" : "text-sol-text-dim hover:text-sol-text"
+                rightPanelOpen
+                  ? "text-sol-text"
+                  : "text-sol-text-dim hover:text-sol-text"
               }`}
             >
               <PanelRight className="w-4 h-4" />
@@ -736,7 +820,9 @@ function VaultContent() {
         </Panel>
         {!showGraph && (
           <>
-            <Separator className={`${separatorClass} ${rightPanelOpen ? "" : "invisible"}`} />
+            <Separator
+              className={`${separatorClass} ${rightPanelOpen ? "" : "invisible"}`}
+            />
             <Panel
               id="vault-side"
               panelRef={sidePanelRef}
@@ -755,7 +841,10 @@ function VaultContent() {
                 }
               }}
             >
-              <VaultRightPanel activePath={activePath} onNavigate={(p) => openNote(p)} />
+              <VaultRightPanel
+                activePath={activePath}
+                onNavigate={(p) => openNote(p)}
+              />
             </Panel>
           </>
         )}

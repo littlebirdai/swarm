@@ -2,8 +2,20 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { makeFakeDb } from "./testDb";
 import {
-  PROVIDERS, storeConnection, finishConfirm, deleteConnection, getConnectUrl, accessExpiresAt, needsRefresh, REFRESH_MARGIN_MS,
-  getConnection, updateStoredTokens, getFreshAccessToken, claimRefresh, REFRESH_LEASE_MS, connectionForWork,
+  PROVIDERS,
+  storeConnection,
+  finishConfirm,
+  deleteConnection,
+  getConnectUrl,
+  accessExpiresAt,
+  needsRefresh,
+  REFRESH_MARGIN_MS,
+  getConnection,
+  updateStoredTokens,
+  getFreshAccessToken,
+  claimRefresh,
+  REFRESH_LEASE_MS,
+  connectionForWork,
 } from "./oauthConnectors";
 import { stampOf, stampMatches } from "./lib/tokenRefresh";
 import { encryptRefreshToken, decryptRefreshToken } from "./googleOAuth";
@@ -32,7 +44,12 @@ describe("PROVIDERS", () => {
     // Linear: read + write + comment. `write` is what issue sync's outbound
     // needs to change a title or move a state (issue-sync.md S5); it is not
     // admin, and there is no delete scope in the set.
-    expect(PROVIDERS.linear.scopes).toEqual(["read", "write", "comments:create", "app:assignable"]);
+    expect(PROVIDERS.linear.scopes).toEqual([
+      "read",
+      "write",
+      "comments:create",
+      "app:assignable",
+    ]);
     expect(PROVIDERS.linear.scopes).not.toContain("admin");
     // Notion: access is per-page the user shares; the OAuth has no scope string.
     expect(PROVIDERS.notion.scopes).toEqual([]);
@@ -45,24 +62,37 @@ describe("PROVIDERS", () => {
 
 describe("connect state", () => {
   const SECRET = "linear-client-secret";
-  const connectCtx = (team: string | null = TEAM) => ({
-    runQuery: async () => ({ user_id: OWNER, team_id: team }),
-  }) as any;
+  const connectCtx = (team: string | null = TEAM) =>
+    ({
+      runQuery: async () => ({ user_id: OWNER, team_id: team }),
+    }) as any;
 
   test("a personal connect signs a state with no team, and needs none", async () => {
     process.env.LINEAR_OAUTH_CLIENT_ID = "linear-client-id";
     process.env.LINEAR_OAUTH_CLIENT_SECRET = SECRET;
-    const res = await (getConnectUrl as any)._handler(connectCtx(null), { provider: "linear", scope: "personal" });
+    const res = await (getConnectUrl as any)._handler(connectCtx(null), {
+      provider: "linear",
+      scope: "personal",
+    });
     expect(res.ok).toBe(true);
-    const payload = await verifyStateWith(SECRET, new URL(res.url).searchParams.get("state")!);
-    expect(payload).toMatchObject({ provider: "linear", user_id: OWNER, scope: "personal" });
+    const payload = await verifyStateWith(
+      SECRET,
+      new URL(res.url).searchParams.get("state")!,
+    );
+    expect(payload).toMatchObject({
+      provider: "linear",
+      user_id: OWNER,
+      scope: "personal",
+    });
     expect(payload!.team_id).toBeUndefined();
   });
 
   test("a team connect with no team refuses and points at the personal path", async () => {
     process.env.LINEAR_OAUTH_CLIENT_ID = "linear-client-id";
     process.env.LINEAR_OAUTH_CLIENT_SECRET = SECRET;
-    const res = await (getConnectUrl as any)._handler(connectCtx(null), { provider: "linear" });
+    const res = await (getConnectUrl as any)._handler(connectCtx(null), {
+      provider: "linear",
+    });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/personally/);
   });
@@ -71,11 +101,16 @@ describe("connect state", () => {
     process.env.LINEAR_OAUTH_CLIENT_ID = "linear-client-id";
     process.env.LINEAR_OAUTH_CLIENT_SECRET = SECRET;
 
-    const res = await (getConnectUrl as any)._handler(connectCtx(), { provider: "linear" });
+    const res = await (getConnectUrl as any)._handler(connectCtx(), {
+      provider: "linear",
+    });
     expect(res.ok).toBe(true);
 
     const url = new URL(res.url);
-    const payload = await verifyStateWith(SECRET, url.searchParams.get("state")!);
+    const payload = await verifyStateWith(
+      SECRET,
+      url.searchParams.get("state")!,
+    );
     // THE regression: the connector used to sign `iat`, and verifyStateWith
     // requires `ts` — so it returned null and every Linear/Notion callback
     // died at bad_state before the code was ever exchanged.
@@ -84,13 +119,18 @@ describe("connect state", () => {
     expect(payload!.user_id).toBe(OWNER);
     expect(payload!.team_id).toBe(TEAM);
 
-    expect(url.searchParams.get("scope")).toBe("read,write,comments:create,app:assignable");
+    expect(url.searchParams.get("scope")).toBe(
+      "read,write,comments:create,app:assignable",
+    );
     expect(url.searchParams.get("actor")).toBe("app");
   });
 
   test("a state carrying iat instead of ts never verifies", async () => {
     const stale = await signStateWith(SECRET, {
-      provider: "linear", user_id: OWNER, team_id: TEAM, iat: Date.now(),
+      provider: "linear",
+      user_id: OWNER,
+      team_id: TEAM,
+      iat: Date.now(),
     });
     expect(await verifyStateWith(SECRET, stale)).toBeNull();
   });
@@ -121,23 +161,38 @@ describe("storeConnection + finishConfirm", () => {
     expect(t.app_installations[0].pending_confirm_hash).toBe("hash-1");
 
     // Wrong token: still pending, not deleted (the real browser may still confirm).
-    const wrong = await (finishConfirm as any)._handler(c, { user_id: OWNER, installation_id: stored.id, token_hash: "nope" });
+    const wrong = await (finishConfirm as any)._handler(c, {
+      user_id: OWNER,
+      installation_id: stored.id,
+      token_hash: "nope",
+    });
     expect(wrong.ok).toBe(false);
     expect(t.app_installations[0].pending_confirm_hash).toBe("hash-1");
 
     // Wrong user with the right token: refused — the relay-attack case.
-    const relay = await (finishConfirm as any)._handler(c, { user_id: "u_attacker", installation_id: stored.id, token_hash: "hash-1" });
+    const relay = await (finishConfirm as any)._handler(c, {
+      user_id: "u_attacker",
+      installation_id: stored.id,
+      token_hash: "hash-1",
+    });
     expect(relay.ok).toBe(false);
 
     // Right user, right token: confirmed.
-    const ok = await (finishConfirm as any)._handler(c, { user_id: OWNER, installation_id: stored.id, token_hash: "hash-1" });
+    const ok = await (finishConfirm as any)._handler(c, {
+      user_id: OWNER,
+      installation_id: stored.id,
+      token_hash: "hash-1",
+    });
     expect(ok.ok).toBe(true);
     expect(t.app_installations[0].pending_confirm_hash).toBeUndefined();
   });
 
   test("the app user id is stored on first connect", async () => {
     const t = t0();
-    await (storeConnection as any)._handler(ctx(t), { ...base, app_user_id: "app_1" });
+    await (storeConnection as any)._handler(ctx(t), {
+      ...base,
+      app_user_id: "app_1",
+    });
     expect(t.app_installations[0].app_user_id).toBe("app_1");
   });
 
@@ -145,7 +200,11 @@ describe("storeConnection + finishConfirm", () => {
     const t = t0();
     const c = ctx(t);
     await (storeConnection as any)._handler(c, base);
-    await (storeConnection as any)._handler(c, { ...base, access_token_enc: "enc-token-2", pending_confirm_hash: "hash-2" });
+    await (storeConnection as any)._handler(c, {
+      ...base,
+      access_token_enc: "enc-token-2",
+      pending_confirm_hash: "hash-2",
+    });
     expect(t.app_installations).toHaveLength(1);
     expect(t.app_installations[0].access_token_enc).toBe("enc-token-2");
     expect(t.app_installations[0].pending_confirm_hash).toBe("hash-2");
@@ -155,10 +214,22 @@ describe("storeConnection + finishConfirm", () => {
   test("an expired pending row is deleted on confirm, not left as a live grant", async () => {
     const t = t0();
     t.app_installations.push({
-      _id: "ai_old", provider: "linear", team_id: TEAM, connected_by: OWNER, access_token_enc: "enc",
-      granted_scopes: [], pending_confirm_hash: "h", pending_expires_at: 1, created_at: 1, updated_at: 1,
+      _id: "ai_old",
+      provider: "linear",
+      team_id: TEAM,
+      connected_by: OWNER,
+      access_token_enc: "enc",
+      granted_scopes: [],
+      pending_confirm_hash: "h",
+      pending_expires_at: 1,
+      created_at: 1,
+      updated_at: 1,
     });
-    const res = await (finishConfirm as any)._handler(ctx(t), { user_id: OWNER, installation_id: "ai_old", token_hash: "h" });
+    const res = await (finishConfirm as any)._handler(ctx(t), {
+      user_id: OWNER,
+      installation_id: "ai_old",
+      token_hash: "h",
+    });
     expect(res.ok).toBe(false);
     expect(t.app_installations).toHaveLength(0);
   });
@@ -168,13 +239,30 @@ describe("storeConnection + finishConfirm", () => {
       ...t0(),
       users: [{ _id: OWNER }, { _id: "u_member" }, { _id: "u_stranger" }],
       team_memberships: [{ _id: "tm1", team_id: TEAM, user_id: "u_member" }],
-      app_installations: [{ _id: "ai_1", provider: "linear", team_id: TEAM, connected_by: OWNER, access_token_enc: "enc", granted_scopes: [], created_at: 1, updated_at: 1 }],
+      app_installations: [
+        {
+          _id: "ai_1",
+          provider: "linear",
+          team_id: TEAM,
+          connected_by: OWNER,
+          access_token_enc: "enc",
+          granted_scopes: [],
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     };
     const c = ctx(t);
-    const outsider = await (deleteConnection as any)._handler(c, { user_id: "u_stranger", installation_id: "ai_1" });
+    const outsider = await (deleteConnection as any)._handler(c, {
+      user_id: "u_stranger",
+      installation_id: "ai_1",
+    });
     expect(outsider.ok).toBe(false);
     expect(t.app_installations).toHaveLength(1);
-    const member = await (deleteConnection as any)._handler(c, { user_id: "u_member", installation_id: "ai_1" });
+    const member = await (deleteConnection as any)._handler(c, {
+      user_id: "u_member",
+      installation_id: "ai_1",
+    });
     expect(member.ok).toBe(true);
     expect(t.app_installations).toHaveLength(0);
   });
@@ -190,8 +278,14 @@ describe("token refresh policy", () => {
   });
 
   test("a row refreshes when it can and its token is expiring or of unknown age", () => {
-    const fresh = { refresh_token_enc: "r", access_expires_at: now + 60 * 60 * 1000 };
-    const expiring = { refresh_token_enc: "r", access_expires_at: now + REFRESH_MARGIN_MS - 1 };
+    const fresh = {
+      refresh_token_enc: "r",
+      access_expires_at: now + 60 * 60 * 1000,
+    };
+    const expiring = {
+      refresh_token_enc: "r",
+      access_expires_at: now + REFRESH_MARGIN_MS - 1,
+    };
     const expired = { refresh_token_enc: "r", access_expires_at: now - 1 };
     const unknownAge = { refresh_token_enc: "r" };
     expect(needsRefresh(fresh, now)).toBe(false);
@@ -207,16 +301,30 @@ describe("token refresh policy", () => {
   });
 
   test("storeConnection persists the expiry on insert and on re-store", async () => {
-    const t = { users: [{ _id: OWNER }], teams: [{ _id: TEAM }], app_installations: [] as any[] };
+    const t = {
+      users: [{ _id: OWNER }],
+      teams: [{ _id: TEAM }],
+      app_installations: [] as any[],
+    };
     const c = ctx(t);
     const base = {
-      provider: "linear", user_id: OWNER, team_id: TEAM, access_token_enc: "a1", refresh_token_enc: "r1",
-      granted_scopes: ["read"], pending_confirm_hash: "h", access_expires_at: now + 1000,
+      provider: "linear",
+      user_id: OWNER,
+      team_id: TEAM,
+      access_token_enc: "a1",
+      refresh_token_enc: "r1",
+      granted_scopes: ["read"],
+      pending_confirm_hash: "h",
+      access_expires_at: now + 1000,
     };
     await (storeConnection as any)._handler(c, base);
     expect(t.app_installations[0].access_expires_at).toBe(now + 1000);
     t.app_installations[0].last_error = "stale";
-    await (storeConnection as any)._handler(c, { ...base, access_token_enc: "a2", access_expires_at: now + 2000 });
+    await (storeConnection as any)._handler(c, {
+      ...base,
+      access_token_enc: "a2",
+      access_expires_at: now + 2000,
+    });
     expect(t.app_installations.length).toBe(1);
     expect(t.app_installations[0].access_expires_at).toBe(now + 2000);
     expect(t.app_installations[0].last_error).toBeUndefined();
@@ -232,7 +340,10 @@ describe("getFreshAccessToken (Linear)", () => {
   const CLIENT_ID = "lin-client";
   const SECRET = "lin-secret-for-tests";
   const realFetch = globalThis.fetch;
-  const savedEnv = { id: process.env.LINEAR_OAUTH_CLIENT_ID, secret: process.env.LINEAR_OAUTH_CLIENT_SECRET };
+  const savedEnv = {
+    id: process.env.LINEAR_OAUTH_CLIENT_ID,
+    secret: process.env.LINEAR_OAUTH_CLIENT_SECRET,
+  };
   beforeEach(() => {
     process.env.LINEAR_OAUTH_CLIENT_ID = CLIENT_ID;
     process.env.LINEAR_OAUTH_CLIENT_SECRET = SECRET;
@@ -254,19 +365,29 @@ describe("getFreshAccessToken (Linear)", () => {
    *  `open()` — how "provider answered, DB write not yet issued" is staged. */
   function gate() {
     let open!: () => void;
-    const held = new Promise<void>((r) => { open = r; });
+    const held = new Promise<void>((r) => {
+      open = r;
+    });
     let arrived!: () => void;
-    const reached = new Promise<void>((r) => { arrived = r; });
+    const reached = new Promise<void>((r) => {
+      arrived = r;
+    });
     return { held, open, reached, arrived };
   }
-  function actionCtx(t: Record<string, any[]>, gates: Record<string, ReturnType<typeof gate>> = {}) {
+  function actionCtx(
+    t: Record<string, any[]>,
+    gates: Record<string, ReturnType<typeof gate>> = {},
+  ) {
     const inner = ctx(t);
     const dispatch = async (ref: any, args: any) => {
       const name = getFunctionName(ref);
       const fn = registry[name];
       if (!fn) throw new Error(`no test handler for ${name}`);
       const g = gates[name];
-      if (g) { g.arrived(); await g.held; }
+      if (g) {
+        g.arrived();
+        await g.held;
+      }
       return (fn as any)._handler(inner, args);
     };
     return { runQuery: dispatch, runMutation: dispatch, _inner: inner } as any;
@@ -277,59 +398,105 @@ describe("getFreshAccessToken (Linear)", () => {
     const pending: Array<{ body: string; resolve: (r: Response) => void }> = [];
     globalThis.fetch = (async (input: any, init?: any) => {
       const u = typeof input === "string" ? input : input.url;
-      if (u !== PROVIDERS.linear.tokenUrl) throw new Error(`unexpected fetch ${u}`);
-      return new Promise<Response>((resolve) => pending.push({ body: String(init?.body ?? ""), resolve }));
+      if (u !== PROVIDERS.linear.tokenUrl)
+        throw new Error(`unexpected fetch ${u}`);
+      return new Promise<Response>((resolve) =>
+        pending.push({ body: String(init?.body ?? ""), resolve }),
+      );
     }) as any;
     const answer = (i: number, body: any, status = 200) =>
-      pending[i].resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+      pending[i].resolve(
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     const untilCalls = async (n: number) => {
-      for (let i = 0; i < 200 && pending.length < n; i++) await new Promise((r) => setTimeout(r, 0));
-      if (pending.length < n) throw new Error(`provider saw ${pending.length} calls, wanted ${n}`);
+      for (let i = 0; i < 200 && pending.length < n; i++)
+        await new Promise((r) => setTimeout(r, 0));
+      if (pending.length < n)
+        throw new Error(`provider saw ${pending.length} calls, wanted ${n}`);
     };
     return { pending, answer, untilCalls };
   }
 
-  const pair = (n: number | string) => ({ access_token: `access-${n}`, refresh_token: `refresh-${n}`, expires_in: 86399, token_type: "Bearer" });
-  const NO_CONNECTION = { ok: false, error: "no_connection: Linear is not connected for this workspace or by you" };
+  const pair = (n: number | string) => ({
+    access_token: `access-${n}`,
+    refresh_token: `refresh-${n}`,
+    expires_in: 86399,
+    token_type: "Bearer",
+  });
+  const NO_CONNECTION = {
+    ok: false,
+    error:
+      "no_connection: Linear is not connected for this workspace or by you",
+  };
 
   async function tables(opts: { expiresAt?: number } = {}) {
     return {
       users: [{ _id: OWNER }],
       teams: [{ _id: TEAM }],
       team_memberships: [{ _id: "tm_owner", user_id: OWNER, team_id: TEAM }],
-      app_installations: [{
-        _id: "inst_1", provider: "linear", team_id: TEAM, connected_by: OWNER, granted_scopes: ["read"],
-        access_token_enc: await encryptRefreshToken("access-0", SECRET),
-        refresh_token_enc: await encryptRefreshToken("refresh-0", SECRET),
-        access_expires_at: opts.expiresAt, created_at: 1, updated_at: 1,
-      }] as any[],
+      app_installations: [
+        {
+          _id: "inst_1",
+          provider: "linear",
+          team_id: TEAM,
+          connected_by: OWNER,
+          granted_scopes: ["read"],
+          access_token_enc: await encryptRefreshToken("access-0", SECRET),
+          refresh_token_enc: await encryptRefreshToken("refresh-0", SECRET),
+          access_expires_at: opts.expiresAt,
+          created_at: 1,
+          updated_at: 1,
+        },
+      ] as any[],
     };
   }
   const run = (t: any, gates?: Record<string, ReturnType<typeof gate>>) =>
-    (getFreshAccessToken as any)._handler(actionCtx(t, gates), { provider: "linear", team_id: TEAM });
+    (getFreshAccessToken as any)._handler(actionCtx(t, gates), {
+      provider: "linear",
+      team_id: TEAM,
+    });
   const stored = async (t: any) => ({
-    access: await decryptRefreshToken(t.app_installations[0].access_token_enc, SECRET),
-    refresh: await decryptRefreshToken(t.app_installations[0].refresh_token_enc, SECRET),
+    access: await decryptRefreshToken(
+      t.app_installations[0].access_token_enc,
+      SECRET,
+    ),
+    refresh: await decryptRefreshToken(
+      t.app_installations[0].refresh_token_enc,
+      SECRET,
+    ),
     row: t.app_installations[0],
   });
   /** A reconnect landing while a refresh is in flight, CONFIRMED — which is
    *  what makes it the newest word on the row. Storing alone only stages the
    *  new grant; until the owner confirms, the refresh is still working on the
    *  credentials in force. */
-  const reconnect = (t: any) => (async () => {
-    const c = ctx(t);
-    const stored = await (storeConnection as any)._handler(c, {
-      provider: "linear", user_id: OWNER, team_id: TEAM, granted_scopes: ["read"], pending_confirm_hash: "h",
-      access_token_enc: await encryptRefreshToken("access-re", SECRET),
-      refresh_token_enc: await encryptRefreshToken("refresh-re", SECRET),
-      access_expires_at: Date.now() + 86_399_000,
-    });
-    const confirmed = await (finishConfirm as any)._handler(c, {
-      user_id: OWNER, installation_id: stored.id, token_hash: "h",
-    });
-    if (!confirmed.ok) throw new Error(`reconnect not confirmed: ${confirmed.error}`);
-  })();
-  const expireLease = (t: any) => { t.app_installations[0].refresh_lease_until = Date.now() - 1; };
+  const reconnect = (t: any) =>
+    (async () => {
+      const c = ctx(t);
+      const stored = await (storeConnection as any)._handler(c, {
+        provider: "linear",
+        user_id: OWNER,
+        team_id: TEAM,
+        granted_scopes: ["read"],
+        pending_confirm_hash: "h",
+        access_token_enc: await encryptRefreshToken("access-re", SECRET),
+        refresh_token_enc: await encryptRefreshToken("refresh-re", SECRET),
+        access_expires_at: Date.now() + 86_399_000,
+      });
+      const confirmed = await (finishConfirm as any)._handler(c, {
+        user_id: OWNER,
+        installation_id: stored.id,
+        token_hash: "h",
+      });
+      if (!confirmed.ok)
+        throw new Error(`reconnect not confirmed: ${confirmed.error}`);
+    })();
+  const expireLease = (t: any) => {
+    t.app_installations[0].refresh_lease_until = Date.now() - 1;
+  };
 
   test("an unknown-age token refreshes once; the rotated pair and expiry land together, and a fresh row skips the provider", async () => {
     const linear = stubLinear();
@@ -345,7 +512,7 @@ describe("getFreshAccessToken (Linear)", () => {
     expect(s.row.access_expires_at).toBeGreaterThan(Date.now() + 86_000_000);
     expect(s.row.last_error).toBeUndefined();
     expect(s.row.refresh_lease_id).toBeUndefined();
-    expect(await run(t)).toEqual({ ok: true, token: "access-1" });   // fresh: no provider call
+    expect(await run(t)).toEqual({ ok: true, token: "access-1" }); // fresh: no provider call
     expect(linear.pending).toHaveLength(1);
   });
 
@@ -423,22 +590,22 @@ describe("getFreshAccessToken (Linear)", () => {
     const gateB = gate();
     const a = run(t, { "oauthConnectors:updateStoredTokens": gateA });
     await linear.untilCalls(1);
-    linear.answer(0, pair("a"));             // A's provider grant succeeds ...
-    await gateA.reached;                     // ... and A stalls before the DB write
-    expireLease(t);                          // A's lease lapses
+    linear.answer(0, pair("a")); // A's provider grant succeeds ...
+    await gateA.reached; // ... and A stalls before the DB write
+    expireLease(t); // A's lease lapses
     const b = run(t, { "oauthConnectors:updateStoredTokens": gateB });
-    await linear.untilCalls(2);              // B claimed a new lease and asked the provider
+    await linear.untilCalls(2); // B claimed a new lease and asked the provider
     const leaseB = t.app_installations[0].refresh_lease_id;
-    linear.answer(1, pair("b"));             // B's grant succeeds too, its write delayed
+    linear.answer(1, pair("b")); // B's grant succeeds too, its write delayed
     await gateB.reached;
-    gateA.open();                            // A writes first
+    gateA.open(); // A writes first
     await new Promise((r) => setTimeout(r, 300));
     const mid = await stored(t);
-    expect([mid.access, mid.refresh]).toEqual(["access-0", "refresh-0"]);   // A wrote nothing
-    expect(mid.row.refresh_lease_id).toBe(leaseB);                          // and cleared no lease
-    gateB.open();                            // then B writes
+    expect([mid.access, mid.refresh]).toEqual(["access-0", "refresh-0"]); // A wrote nothing
+    expect(mid.row.refresh_lease_id).toBe(leaseB); // and cleared no lease
+    gateB.open(); // then B writes
     expect(await b).toEqual({ ok: true, token: "access-b" });
-    expect(await a).toEqual({ ok: true, token: "access-b" });                 // A deferred to the owner
+    expect(await a).toEqual({ ok: true, token: "access-b" }); // A deferred to the owner
     const s = await stored(t);
     expect([s.access, s.refresh]).toEqual(["access-b", "refresh-b"]);
     expect(s.row.last_error).toBeUndefined();
@@ -454,9 +621,9 @@ describe("getFreshAccessToken (Linear)", () => {
     const b = run(t);
     await linear.untilCalls(2);
     const leaseB = t.app_installations[0].refresh_lease_id;
-    linear.answer(0, { error: "invalid_grant" }, 400);   // A's late failure
+    linear.answer(0, { error: "invalid_grant" }, 400); // A's late failure
     await new Promise((r) => setTimeout(r, 300));
-    expect(t.app_installations[0].refresh_lease_id).toBe(leaseB);   // B's lease intact
+    expect(t.app_installations[0].refresh_lease_id).toBe(leaseB); // B's lease intact
     expect(t.app_installations[0].last_error).toBeUndefined();
     linear.answer(1, pair("b"));
     expect(await b).toEqual({ ok: true, token: "access-b" });
@@ -469,10 +636,10 @@ describe("getFreshAccessToken (Linear)", () => {
   test("no usable refresh token, reconnect lands while the release is staged: the captured token is not returned, the reconnect's is; no provider call", async () => {
     const linear = stubLinear();
     const t = await tables();
-    t.app_installations[0].refresh_token_enc = "v1.not.ciphertext";   // undecryptable
+    t.app_installations[0].refresh_token_enc = "v1.not.ciphertext"; // undecryptable
     const g = gate();
     const a = run(t, { "oauthConnectors:updateStoredTokens": g });
-    await g.reached;                          // claimed, decrypt failed, about to release
+    await g.reached; // claimed, decrypt failed, about to release
     await reconnect(t);
     g.open();
     expect(await a).toEqual({ ok: true, token: "access-re" });
@@ -509,11 +676,11 @@ describe("getFreshAccessToken (Linear)", () => {
     const t = await tables();
     const g = gate();
     const a = run(t, { "oauthConnectors:claimRefresh": g });
-    await g.reached;                          // A has read the old row, not yet claimed
+    await g.reached; // A has read the old row, not yet claimed
     await reconnect(t);
     g.open();
     expect(await a).toEqual({ ok: true, token: "access-re" });
-    expect(linear.pending).toHaveLength(0);   // the old grant was never sent
+    expect(linear.pending).toHaveLength(0); // the old grant was never sent
     const s = await stored(t);
     expect([s.access, s.refresh]).toEqual(["access-re", "refresh-re"]);
   });
@@ -521,24 +688,51 @@ describe("getFreshAccessToken (Linear)", () => {
   test("transition: an action started under the access-only stamp (Linear v5 in flight) still claims and lands; the empty legacy stamp never matches", async () => {
     const t = await tables();
     const row = t.app_installations[0];
-    const legacy = row.access_token_enc;                       // what the v5 action sends
-    const claim = await (claimRefresh as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: legacy, now: Date.now() });
+    const legacy = row.access_token_enc; // what the v5 action sends
+    const claim = await (claimRefresh as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: legacy,
+      now: Date.now(),
+    });
     expect(claim.ok).toBe(true);
     const ok = await (updateStoredTokens as any)._handler(ctx(t), {
-      installation_id: "inst_1", expected_enc: legacy, lease: claim.lease,
-      access_token_enc: "v5-access-enc", refresh_token_enc: "v5-refresh-enc", access_expires_at: Date.now() + 1000,
+      installation_id: "inst_1",
+      expected_enc: legacy,
+      lease: claim.lease,
+      access_token_enc: "v5-access-enc",
+      refresh_token_enc: "v5-refresh-enc",
+      access_expires_at: Date.now() + 1000,
     });
-    expect(ok).toEqual({ ok: true });                          // the rotated pair is not discarded
+    expect(ok).toEqual({ ok: true }); // the rotated pair is not discarded
     expect(t.app_installations[0].refresh_token_enc).toBe("v5-refresh-enc");
     // A reconnect that only changed the refresh ciphertext is visible to the new form...
-    expect(stampMatches({ access_token_enc: "a", refresh_token_enc: "r2" }, stampOf({ access_token_enc: "a", refresh_token_enc: "r1" }))).toBe(false);
+    expect(
+      stampMatches(
+        { access_token_enc: "a", refresh_token_enc: "r2" },
+        stampOf({ access_token_enc: "a", refresh_token_enc: "r1" }),
+      ),
+    ).toBe(false);
     // ...the legacy form is refused when empty (row without cache) or wrong, and
     // accepted only where a table opts in.
     const optIn = { acceptLegacyAccessStamp: true };
     expect(stampMatches({ refresh_token_enc: "r2" }, "", optIn)).toBe(false);
-    expect(stampMatches({ access_token_enc: "a", refresh_token_enc: "r" }, "b", optIn)).toBe(false);
-    expect(stampMatches({ access_token_enc: "a", refresh_token_enc: "r" }, "a", optIn)).toBe(true);
-    expect(stampMatches({ access_token_enc: "a", refresh_token_enc: "r" }, "a")).toBe(false);   // generic path
+    expect(
+      stampMatches(
+        { access_token_enc: "a", refresh_token_enc: "r" },
+        "b",
+        optIn,
+      ),
+    ).toBe(false);
+    expect(
+      stampMatches(
+        { access_token_enc: "a", refresh_token_enc: "r" },
+        "a",
+        optIn,
+      ),
+    ).toBe(true);
+    expect(
+      stampMatches({ access_token_enc: "a", refresh_token_enc: "r" }, "a"),
+    ).toBe(false); // generic path
   });
 
   test("invariant the legacy discrimination rests on: a ciphertext never contains the stamp separator", async () => {
@@ -563,16 +757,38 @@ describe("getFreshAccessToken (Linear)", () => {
   test("claimRefresh: a stale read cannot claim, a second claim is held, each claim has its own id", async () => {
     const t = await tables();
     const enc = stampOf(t.app_installations[0]);
-    expect(await (claimRefresh as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: "not-the-row's", now: Date.now() })).toEqual({ ok: false, reason: "superseded" });
-    const first = await (claimRefresh as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, now: Date.now() });
+    expect(
+      await (claimRefresh as any)._handler(ctx(t), {
+        installation_id: "inst_1",
+        expected_enc: "not-the-row's",
+        now: Date.now(),
+      }),
+    ).toEqual({ ok: false, reason: "superseded" });
+    const first = await (claimRefresh as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: enc,
+      now: Date.now(),
+    });
     expect(first.ok).toBe(true);
     expect(typeof first.lease).toBe("string");
-    expect(await (claimRefresh as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, now: Date.now() })).toEqual({ ok: false, reason: "held" });
+    expect(
+      await (claimRefresh as any)._handler(ctx(t), {
+        installation_id: "inst_1",
+        expected_enc: enc,
+        now: Date.now(),
+      }),
+    ).toEqual({ ok: false, reason: "held" });
     expireLease(t);
-    const second = await (claimRefresh as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, now: Date.now() });
+    const second = await (claimRefresh as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: enc,
+      now: Date.now(),
+    });
     expect(second.ok).toBe(true);
     expect(second.lease).not.toBe(first.lease);
-    expect(t.app_installations[0].refresh_lease_until).toBeLessThanOrEqual(Date.now() + REFRESH_LEASE_MS);
+    expect(t.app_installations[0].refresh_lease_until).toBeLessThanOrEqual(
+      Date.now() + REFRESH_LEASE_MS,
+    );
   });
 
   test("updateStoredTokens: both outcomes need the exact lease AND the read credentials; the passing write releases the lease", async () => {
@@ -580,31 +796,70 @@ describe("getFreshAccessToken (Linear)", () => {
     const accessEnc = t.app_installations[0].access_token_enc;
     const enc = stampOf(t.app_installations[0]);
     t.app_installations[0].refresh_lease_id = "current";
-    const staleFail = await (updateStoredTokens as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, lease: "old", last_error: "late" });
+    const staleFail = await (updateStoredTokens as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: enc,
+      lease: "old",
+      last_error: "late",
+    });
     expect(staleFail).toEqual({ ok: false, reason: "superseded" });
-    const staleSuccess = await (updateStoredTokens as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, lease: "old", access_token_enc: "late-enc", access_expires_at: 5 });
+    const staleSuccess = await (updateStoredTokens as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: enc,
+      lease: "old",
+      access_token_enc: "late-enc",
+      access_expires_at: 5,
+    });
     expect(staleSuccess).toEqual({ ok: false, reason: "superseded" });
-    const movedOn = await (updateStoredTokens as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: "other-enc", lease: "current", access_token_enc: "x", access_expires_at: 5 });
+    const movedOn = await (updateStoredTokens as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: "other-enc",
+      lease: "current",
+      access_token_enc: "x",
+      access_expires_at: 5,
+    });
     expect(movedOn).toEqual({ ok: false, reason: "superseded" });
     expect(t.app_installations[0].last_error).toBeUndefined();
     expect(t.app_installations[0].access_token_enc).toBe(accessEnc);
     expect(t.app_installations[0].refresh_lease_id).toBe("current");
-    const ok = await (updateStoredTokens as any)._handler(ctx(t), { installation_id: "inst_1", expected_enc: enc, lease: "current", access_token_enc: "new-enc", access_expires_at: 5 });
+    const ok = await (updateStoredTokens as any)._handler(ctx(t), {
+      installation_id: "inst_1",
+      expected_enc: enc,
+      lease: "current",
+      access_token_enc: "new-enc",
+      access_expires_at: 5,
+    });
     expect(ok).toEqual({ ok: true });
     expect(t.app_installations[0].access_token_enc).toBe("new-enc");
     expect(t.app_installations[0].refresh_lease_id).toBeUndefined();
-    expect(await (updateStoredTokens as any)._handler(ctx(t), { installation_id: "nope", expected_enc: enc, lease: "x", last_error: "e" })).toEqual({ ok: false, reason: "gone" });
+    expect(
+      await (updateStoredTokens as any)._handler(ctx(t), {
+        installation_id: "nope",
+        expected_enc: enc,
+        lease: "x",
+        last_error: "e",
+      }),
+    ).toEqual({ ok: false, reason: "gone" });
   });
 });
 
 describe("personal scope on the shared table", () => {
-  const stored = (c: any, over: Record<string, any> = {}) => (storeConnection as any)._handler(c, {
-    provider: "linear", user_id: OWNER, access_token_enc: "enc", granted_scopes: ["read"], pending_confirm_hash: "h",
-    ...over,
-  });
+  const stored = (c: any, over: Record<string, any> = {}) =>
+    (storeConnection as any)._handler(c, {
+      provider: "linear",
+      user_id: OWNER,
+      access_token_enc: "enc",
+      granted_scopes: ["read"],
+      pending_confirm_hash: "h",
+      ...over,
+    });
 
   test("storeConnection with no team binds the row to the user alone", async () => {
-    const c = ctx({ users: [{ _id: OWNER }], teams: [], app_installations: [] });
+    const c = ctx({
+      users: [{ _id: OWNER }],
+      teams: [],
+      app_installations: [],
+    });
     const res = await stored(c);
     expect(res.ok).toBe(true);
     const row = await c.db.get(res.id);
@@ -613,7 +868,11 @@ describe("personal scope on the shared table", () => {
   });
 
   test("a second personal connect for the same provider updates the same row", async () => {
-    const c = ctx({ users: [{ _id: OWNER }], teams: [], app_installations: [] });
+    const c = ctx({
+      users: [{ _id: OWNER }],
+      teams: [],
+      app_installations: [],
+    });
     const first = await stored(c);
     const second = await stored(c, { access_token_enc: "enc-2" });
     expect(second.id).toBe(first.id);
@@ -621,29 +880,93 @@ describe("personal scope on the shared table", () => {
   });
 
   test("getConnection prefers the team's row and falls back to the person's", async () => {
-    const teamRow = { _id: "ai_team", provider: "linear", team_id: TEAM, connected_by: "u_other", access_token_enc: "team-enc", granted_scopes: [], created_at: 1, updated_at: 1 };
-    const mine = { _id: "ai_me", provider: "linear", scope_user_id: OWNER, connected_by: OWNER, access_token_enc: "my-enc", granted_scopes: [], created_at: 1, updated_at: 1 };
+    const teamRow = {
+      _id: "ai_team",
+      provider: "linear",
+      team_id: TEAM,
+      connected_by: "u_other",
+      access_token_enc: "team-enc",
+      granted_scopes: [],
+      created_at: 1,
+      updated_at: 1,
+    };
+    const mine = {
+      _id: "ai_me",
+      provider: "linear",
+      scope_user_id: OWNER,
+      connected_by: OWNER,
+      access_token_enc: "my-enc",
+      granted_scopes: [],
+      created_at: 1,
+      updated_at: 1,
+    };
     const both = ctx({ app_installations: [teamRow, mine] });
-    expect((await (getConnection as any)._handler(both, { provider: "linear", team_id: TEAM, user_id: OWNER }))?._id).toBe("ai_team");
+    expect(
+      (
+        await (getConnection as any)._handler(both, {
+          provider: "linear",
+          team_id: TEAM,
+          user_id: OWNER,
+        })
+      )?._id,
+    ).toBe("ai_team");
     // A team with no connection of its own borrows the acting user's.
-    expect((await (getConnection as any)._handler(both, { provider: "linear", team_id: "team_other", user_id: OWNER }))?._id).toBe("ai_me");
+    expect(
+      (
+        await (getConnection as any)._handler(both, {
+          provider: "linear",
+          team_id: "team_other",
+          user_id: OWNER,
+        })
+      )?._id,
+    ).toBe("ai_me");
     // Nobody else's personal row ever answers.
-    expect(await (getConnection as any)._handler(both, { provider: "linear", team_id: "team_other", user_id: "u_stranger" })).toBeNull();
+    expect(
+      await (getConnection as any)._handler(both, {
+        provider: "linear",
+        team_id: "team_other",
+        user_id: "u_stranger",
+      }),
+    ).toBeNull();
     // A pending personal row is no connection.
-    const pending = ctx({ app_installations: [{ ...mine, pending_confirm_hash: "h" }] });
-    expect(await (getConnection as any)._handler(pending, { provider: "linear", user_id: OWNER })).toBeNull();
+    const pending = ctx({
+      app_installations: [{ ...mine, pending_confirm_hash: "h" }],
+    });
+    expect(
+      await (getConnection as any)._handler(pending, {
+        provider: "linear",
+        user_id: OWNER,
+      }),
+    ).toBeNull();
   });
 
   test("only the owner may disconnect a personal connection", async () => {
     const c = ctx({
       users: [{ _id: OWNER }, { _id: "u_mate" }],
       team_memberships: [{ _id: "tm1", team_id: TEAM, user_id: "u_mate" }],
-      app_installations: [{ _id: "ai_me", provider: "linear", scope_user_id: OWNER, connected_by: OWNER, access_token_enc: "enc", granted_scopes: [], created_at: 1, updated_at: 1 }],
+      app_installations: [
+        {
+          _id: "ai_me",
+          provider: "linear",
+          scope_user_id: OWNER,
+          connected_by: OWNER,
+          access_token_enc: "enc",
+          granted_scopes: [],
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
     });
-    const mate = await (deleteConnection as any)._handler(c, { user_id: "u_mate", installation_id: "ai_me" });
+    const mate = await (deleteConnection as any)._handler(c, {
+      user_id: "u_mate",
+      installation_id: "ai_me",
+    });
     expect(mate.ok).toBe(false);
     expect(await c.db.get("ai_me")).not.toBeNull();
-    const owner = await (deleteConnection as any)._handler(c, { user_id: OWNER, installation_id: "ai_me" });
+    const owner = await (deleteConnection as any)._handler(c, {
+      user_id: OWNER,
+      installation_id: "ai_me",
+    });
     expect(owner.ok).toBe(true);
     expect(await c.db.get("ai_me")).toBeNull();
   });
@@ -670,21 +993,38 @@ describe("reconnecting a confirmed connection", () => {
       { _id: "tm_owner", user_id: OWNER, team_id: TEAM },
       { _id: "tm_mate", user_id: MATE, team_id: TEAM },
     ],
-    app_installations: [{
-      _id: "ai_live", provider: "linear", team_id: TEAM, connected_by: OWNER,
-      account_label: "Acme", account_id: "acct_old",
-      access_token_enc: "live-enc", refresh_token_enc: "live-refresh", access_expires_at: 9_000,
-      granted_scopes: ["read"], created_at: 1, updated_at: 1,
-    }] as any[],
+    app_installations: [
+      {
+        _id: "ai_live",
+        provider: "linear",
+        team_id: TEAM,
+        connected_by: OWNER,
+        account_label: "Acme",
+        account_id: "acct_old",
+        access_token_enc: "live-enc",
+        refresh_token_enc: "live-refresh",
+        access_expires_at: 9_000,
+        granted_scopes: ["read"],
+        created_at: 1,
+        updated_at: 1,
+      },
+    ] as any[],
   });
 
-  const restore = (c: any, over: Record<string, any> = {}) => (storeConnection as any)._handler(c, {
-    provider: "linear", user_id: MATE, team_id: TEAM,
-    account_label: "Attacker Workspace", account_id: "acct_new",
-    access_token_enc: "new-enc", refresh_token_enc: "new-refresh", access_expires_at: 99_000,
-    granted_scopes: ["read", "write"], pending_confirm_hash: "hash-new",
-    ...over,
-  });
+  const restore = (c: any, over: Record<string, any> = {}) =>
+    (storeConnection as any)._handler(c, {
+      provider: "linear",
+      user_id: MATE,
+      team_id: TEAM,
+      account_label: "Attacker Workspace",
+      account_id: "acct_new",
+      access_token_enc: "new-enc",
+      refresh_token_enc: "new-refresh",
+      access_expires_at: 99_000,
+      granted_scopes: ["read", "write"],
+      pending_confirm_hash: "hash-new",
+      ...over,
+    });
   const live = (t: any) => t.app_installations[0];
 
   test("the new grant is staged, and the old one keeps working", async () => {
@@ -694,10 +1034,19 @@ describe("reconnecting a confirmed connection", () => {
     expect(res.ok).toBe(true);
     expect(res.id).toBe("ai_live");
     expect(live(t)).toMatchObject({
-      access_token_enc: "live-enc", refresh_token_enc: "live-refresh", access_expires_at: 9_000,
-      granted_scopes: ["read"], account_label: "Acme", account_id: "acct_old", connected_by: OWNER,
+      access_token_enc: "live-enc",
+      refresh_token_enc: "live-refresh",
+      access_expires_at: 9_000,
+      granted_scopes: ["read"],
+      account_label: "Acme",
+      account_id: "acct_old",
+      connected_by: OWNER,
     });
-    expect(live(t).pending_replacement).toMatchObject({ confirm_hash: "hash-new", initiated_by: MATE, access_token_enc: "new-enc" });
+    expect(live(t).pending_replacement).toMatchObject({
+      confirm_hash: "hash-new",
+      initiated_by: MATE,
+      access_token_enc: "new-enc",
+    });
     // The work path sees the connection it always saw, never the replacement.
     const found = await connectionForWork(c, "linear", { team_id: TEAM });
     expect(found?.access_token_enc).toBe("live-enc");
@@ -710,7 +1059,11 @@ describe("reconnecting a confirmed connection", () => {
     await restore(c, { app_user_id: "app_new" });
     expect(live(t).app_user_id).toBe("app_old");
     expect(live(t).pending_replacement.app_user_id).toBe("app_new");
-    const res = await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" });
+    const res = await (finishConfirm as any)._handler(c, {
+      user_id: MATE,
+      installation_id: "ai_live",
+      token_hash: "hash-new",
+    });
     expect(res.ok).toBe(true);
     expect(live(t).app_user_id).toBe("app_new");
   });
@@ -719,10 +1072,18 @@ describe("reconnecting a confirmed connection", () => {
     const t = t0();
     const c = ctx(t);
     await restore(c);
-    const relay = await (finishConfirm as any)._handler(c, { user_id: "u_attacker", installation_id: "ai_live", token_hash: "hash-new" });
+    const relay = await (finishConfirm as any)._handler(c, {
+      user_id: "u_attacker",
+      installation_id: "ai_live",
+      token_hash: "hash-new",
+    });
     expect(relay).toEqual({ ok: false, error: "wrong_user" });
     // Not even the original connector, who did not start this one.
-    const owner = await (finishConfirm as any)._handler(c, { user_id: OWNER, installation_id: "ai_live", token_hash: "hash-new" });
+    const owner = await (finishConfirm as any)._handler(c, {
+      user_id: OWNER,
+      installation_id: "ai_live",
+      token_hash: "hash-new",
+    });
     expect(owner).toEqual({ ok: false, error: "wrong_user" });
     expect(live(t).access_token_enc).toBe("live-enc");
     expect(live(t).pending_replacement).toBeTruthy();
@@ -732,27 +1093,49 @@ describe("reconnecting a confirmed connection", () => {
     const t = t0();
     const c = ctx(t);
     await restore(c);
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "nope" }))
-      .toEqual({ ok: false, error: "bad_token" });
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "nope",
+      }),
+    ).toEqual({ ok: false, error: "bad_token" });
     expect(live(t).access_token_enc).toBe("live-enc");
-    expect((await connectionForWork(c, "linear", { team_id: TEAM }))?.access_token_enc).toBe("live-enc");
+    expect(
+      (await connectionForWork(c, "linear", { team_id: TEAM }))
+        ?.access_token_enc,
+    ).toBe("live-enc");
   });
 
   test("the right person with the right token promotes the whole grant, once", async () => {
     const t = t0();
     const c = ctx(t);
     await restore(c);
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" }))
-      .toEqual({ ok: true });
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "hash-new",
+      }),
+    ).toEqual({ ok: true });
     expect(live(t)).toMatchObject({
-      access_token_enc: "new-enc", refresh_token_enc: "new-refresh", access_expires_at: 99_000,
-      granted_scopes: ["read", "write"], account_label: "Attacker Workspace", account_id: "acct_new",
+      access_token_enc: "new-enc",
+      refresh_token_enc: "new-refresh",
+      access_expires_at: 99_000,
+      granted_scopes: ["read", "write"],
+      account_label: "Attacker Workspace",
+      account_id: "acct_new",
       connected_by: MATE,
     });
     expect(live(t).pending_replacement).toBeUndefined();
     // Replay: the token is spent, and a second confirm changes nothing.
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" }))
-      .toEqual({ ok: true });
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "hash-new",
+      }),
+    ).toEqual({ ok: true });
     expect(live(t).access_token_enc).toBe("new-enc");
   });
 
@@ -761,20 +1144,35 @@ describe("reconnecting a confirmed connection", () => {
     const c = ctx(t);
     await restore(c);
     live(t).pending_replacement.expires_at = Date.now() - 1;
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" }))
-      .toEqual({ ok: false, error: "expired" });
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "hash-new",
+      }),
+    ).toEqual({ ok: false, error: "expired" });
     expect(live(t).pending_replacement).toBeUndefined();
     expect(live(t).access_token_enc).toBe("live-enc");
-    expect((await connectionForWork(c, "linear", { team_id: TEAM }))?.access_token_enc).toBe("live-enc");
+    expect(
+      (await connectionForWork(c, "linear", { team_id: TEAM }))
+        ?.access_token_enc,
+    ).toBe("live-enc");
   });
 
   test("someone who has left the team cannot promote, even holding their own token", async () => {
     const t = t0();
     const c = ctx(t);
     await restore(c);
-    t.team_memberships = t.team_memberships.filter((m: any) => m.user_id !== MATE);
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" }))
-      .toEqual({ ok: false, error: "not_authorized" });
+    t.team_memberships = t.team_memberships.filter(
+      (m: any) => m.user_id !== MATE,
+    );
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "hash-new",
+      }),
+    ).toEqual({ ok: false, error: "not_authorized" });
     expect(live(t).access_token_enc).toBe("live-enc");
   });
 
@@ -783,16 +1181,28 @@ describe("reconnecting a confirmed connection", () => {
       users: [{ _id: OWNER }, { _id: MATE }],
       teams: [{ _id: TEAM }],
       team_memberships: [{ _id: "tm_mate", user_id: MATE, team_id: TEAM }],
-      app_installations: [{
-        _id: "ai_mine", provider: "linear", scope_user_id: OWNER, connected_by: OWNER,
-        access_token_enc: "live-enc", granted_scopes: ["read"], created_at: 1, updated_at: 1,
-      }] as any[],
+      app_installations: [
+        {
+          _id: "ai_mine",
+          provider: "linear",
+          scope_user_id: OWNER,
+          connected_by: OWNER,
+          access_token_enc: "live-enc",
+          granted_scopes: ["read"],
+          created_at: 1,
+          updated_at: 1,
+        },
+      ] as any[],
     };
     const c = ctx(t);
     // A reconnect someone else starts cannot even stage onto my row: the
     // lookup is by scope, so MATE's callback finds no row of mine.
     await (storeConnection as any)._handler(c, {
-      provider: "linear", user_id: MATE, access_token_enc: "mate-enc", granted_scopes: ["read"], pending_confirm_hash: "h-mate",
+      provider: "linear",
+      user_id: MATE,
+      access_token_enc: "mate-enc",
+      granted_scopes: ["read"],
+      pending_confirm_hash: "h-mate",
     });
     expect(t.app_installations).toHaveLength(2);
     expect(t.app_installations[0].access_token_enc).toBe("live-enc");
@@ -803,23 +1213,52 @@ describe("reconnecting a confirmed connection", () => {
     const t = t0();
     const c = ctx(t);
     await restore(c);
-    await restore(c, { user_id: OWNER, access_token_enc: "newer-enc", pending_confirm_hash: "hash-newer" });
-    expect(live(t).pending_replacement).toMatchObject({ confirm_hash: "hash-newer", initiated_by: OWNER, access_token_enc: "newer-enc" });
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_live", token_hash: "hash-new" }))
-      .toEqual({ ok: false, error: "bad_token" });
+    await restore(c, {
+      user_id: OWNER,
+      access_token_enc: "newer-enc",
+      pending_confirm_hash: "hash-newer",
+    });
+    expect(live(t).pending_replacement).toMatchObject({
+      confirm_hash: "hash-newer",
+      initiated_by: OWNER,
+      access_token_enc: "newer-enc",
+    });
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_live",
+        token_hash: "hash-new",
+      }),
+    ).toEqual({ ok: false, error: "bad_token" });
   });
 
   test("first connect still revalidates authority at confirm time", async () => {
     const t = t0();
-    t.app_installations = [{
-      _id: "ai_pending", provider: "linear", team_id: TEAM, connected_by: MATE,
-      access_token_enc: "pending-enc", granted_scopes: ["read"],
-      pending_confirm_hash: "h", pending_expires_at: Date.now() + 60_000, created_at: 1, updated_at: 1,
-    }];
+    t.app_installations = [
+      {
+        _id: "ai_pending",
+        provider: "linear",
+        team_id: TEAM,
+        connected_by: MATE,
+        access_token_enc: "pending-enc",
+        granted_scopes: ["read"],
+        pending_confirm_hash: "h",
+        pending_expires_at: Date.now() + 60_000,
+        created_at: 1,
+        updated_at: 1,
+      },
+    ];
     const c = ctx(t);
-    t.team_memberships = t.team_memberships.filter((m: any) => m.user_id !== MATE);
-    expect(await (finishConfirm as any)._handler(c, { user_id: MATE, installation_id: "ai_pending", token_hash: "h" }))
-      .toEqual({ ok: false, error: "not_authorized" });
+    t.team_memberships = t.team_memberships.filter(
+      (m: any) => m.user_id !== MATE,
+    );
+    expect(
+      await (finishConfirm as any)._handler(c, {
+        user_id: MATE,
+        installation_id: "ai_pending",
+        token_hash: "h",
+      }),
+    ).toEqual({ ok: false, error: "not_authorized" });
     expect(t.app_installations[0].pending_confirm_hash).toBe("h");
     expect(await connectionForWork(c, "linear", { team_id: TEAM })).toBeNull();
   });

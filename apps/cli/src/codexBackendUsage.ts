@@ -16,7 +16,11 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { cloudRequestName, requestCloudJson, type CloudAnswerShape } from "./cloudAgents/http.js";
+import {
+  cloudRequestName,
+  requestCloudJson,
+  type CloudAnswerShape,
+} from "./cloudAgents/http.js";
 import {
   foldCodexLimits,
   isCodexWindowFilled,
@@ -34,7 +38,13 @@ export function codexBackendRequest<T>(
   headers: Record<string, string>,
   method: string,
   apiPath: string,
-  opts: { body?: unknown; fetchImpl?: typeof fetch; timeoutMs?: number; now?: number; answer?: CloudAnswerShape<T> } = {},
+  opts: {
+    body?: unknown;
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+    now?: number;
+    answer?: CloudAnswerShape<T>;
+  } = {},
 ): Promise<T> {
   return requestCloudJson<T>(opts.fetchImpl ?? fetch, {
     method,
@@ -56,7 +66,9 @@ export function codexBackendRequest<T>(
  * account from its snapshot, never the other way round. Null when that home has
  * no access token (logged out, or an API-key-only login).
  */
-export function codexBackendAuthHeaders(codexHomeDir: string): Record<string, string> | null {
+export function codexBackendAuthHeaders(
+  codexHomeDir: string,
+): Record<string, string> | null {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(codexHomeDir, "auth.json"), "utf-8");
@@ -67,7 +79,9 @@ export function codexBackendAuthHeaders(codexHomeDir: string): Record<string, st
 }
 
 /** The same headers from an auth.json blob already read (null without an access token). */
-export function codexBackendHeadersFromAuth(raw: string): Record<string, string> | null {
+export function codexBackendHeadersFromAuth(
+  raw: string,
+): Record<string, string> | null {
   let tokens: any;
   try {
     tokens = JSON.parse(raw)?.tokens;
@@ -96,14 +110,20 @@ interface BackendWindow {
 
 /** A backend window in the canonical shape. Duration arrives in seconds here
  * and in minutes everywhere else, so it is converted before classification. */
-function toCanonicalBackendWindow(raw: BackendWindow | null | undefined): CanonicalWindow | null {
+function toCanonicalBackendWindow(
+  raw: BackendWindow | null | undefined,
+): CanonicalWindow | null {
   if (!raw || typeof raw !== "object") return null;
   const seconds = raw.limit_window_seconds;
   const minutes =
     typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
       ? Math.ceil(seconds / 60)
       : undefined;
-  return { used_percent: raw.used_percent, window_minutes: minutes, resets_at: raw.reset_at };
+  return {
+    used_percent: raw.used_percent,
+    window_minutes: minutes,
+    resets_at: raw.reset_at,
+  };
 }
 
 /** Parse a /backend-api/wham/usage body into the limit-window half of a
@@ -113,7 +133,8 @@ export function parseBackendUsageResponse(
   body: any,
   now: number,
 ): Omit<CodexUsageSnapshot, "models"> | null {
-  if (!body || typeof body !== "object" || typeof body.plan_type !== "string") return null;
+  if (!body || typeof body !== "object" || typeof body.plan_type !== "string")
+    return null;
   const limit: CanonicalLimit = {
     limit_id: "codex",
     plan_type: body.plan_type,
@@ -122,13 +143,22 @@ export function parseBackendUsageResponse(
   };
   const snap = foldCodexLimits([limit], now);
   const available = body.rate_limit_reset_credits?.available_count;
-  if (typeof available === "number" && available > 0) snap.reset_credits = { available };
+  if (typeof available === "number" && available > 0)
+    snap.reset_credits = { available };
   return snap;
 }
 
 /** GET /usage for a login's headers (the same request Codex Cloud's sign-in check makes). */
-export function requestCodexBackendUsage(headers: Record<string, string>, fetchImpl?: typeof fetch, now?: number): Promise<any> {
-  return codexBackendRequest(headers, "GET", "/usage", { fetchImpl, timeoutMs: 15_000, now });
+export function requestCodexBackendUsage(
+  headers: Record<string, string>,
+  fetchImpl?: typeof fetch,
+  now?: number,
+): Promise<any> {
+  return codexBackendRequest(headers, "GET", "/usage", {
+    fetchImpl,
+    timeoutMs: 15_000,
+    now,
+  });
 }
 
 /**
@@ -144,7 +174,10 @@ export async function fetchCodexBackendUsage(
   const headers = codexBackendAuthHeaders(codexHomeDir);
   if (!headers) return null;
   const now = opts.now ?? Date.now();
-  return parseBackendUsageResponse(await requestCodexBackendUsage(headers, opts.fetchImpl, now), now);
+  return parseBackendUsageResponse(
+    await requestCodexBackendUsage(headers, opts.fetchImpl, now),
+    now,
+  );
 }
 
 /**
@@ -162,7 +195,11 @@ export function mergeCodexUsage(
   if (!backend) return primary;
   return {
     ...primary,
-    ...(primary.plan_type ? {} : backend.plan_type ? { plan_type: backend.plan_type } : {}),
+    ...(primary.plan_type
+      ? {}
+      : backend.plan_type
+        ? { plan_type: backend.plan_type }
+        : {}),
     // A 0% window with no reset time is the placeholder Codex writes when it
     // has no reading — treat it as a hole so a real weekly can fill it.
     ...(isCodexWindowFilled(primary.session)
@@ -175,6 +212,10 @@ export function mergeCodexUsage(
       : isCodexWindowFilled(backend.weekly)
         ? { weekly: backend.weekly }
         : {}),
-    ...(primary.reset_credits ? {} : backend.reset_credits ? { reset_credits: backend.reset_credits } : {}),
+    ...(primary.reset_credits
+      ? {}
+      : backend.reset_credits
+        ? { reset_credits: backend.reset_credits }
+        : {}),
   };
 }

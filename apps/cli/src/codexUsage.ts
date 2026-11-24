@@ -80,7 +80,9 @@ export function prettyCodexModel(name: string): string {
   if (/^[a-zA-Z]+$/.test(last) && !generic.has(last.toLowerCase())) {
     return last[0].toUpperCase() + last.slice(1).toLowerCase();
   }
-  return parts.map((p) => (/^gpt$/i.test(p) ? "GPT" : p[0].toUpperCase() + p.slice(1))).join("-");
+  return parts
+    .map((p) => (/^gpt$/i.test(p) ? "GPT" : p[0].toUpperCase() + p.slice(1)))
+    .join("-");
 }
 
 // ---- shared limit fold ------------------------------------------------------
@@ -102,7 +104,11 @@ export interface CanonicalLimit {
   plan_type?: string | null;
   primary?: CanonicalWindow | null;
   secondary?: CanonicalWindow | null;
-  credits?: { has_credits?: boolean; unlimited?: boolean; balance?: string | null } | null;
+  credits?: {
+    has_credits?: boolean;
+    unlimited?: boolean;
+    balance?: string | null;
+  } | null;
 }
 
 /** Codex writes a zeroed block (`used_percent` 0, `resets_at` 0) when it has
@@ -116,8 +122,15 @@ export function isCodexWindowFilled(
 
 /** A window worth showing: it carries a real used_percent, and is not the
  * zeroed placeholder Codex emits when it has no reading. */
-function mappable(w: CanonicalWindow | null | undefined): CanonicalWindow | null {
-  if (!w || typeof w.used_percent !== "number" || !Number.isFinite(w.used_percent)) return null;
+function mappable(
+  w: CanonicalWindow | null | undefined,
+): CanonicalWindow | null {
+  if (
+    !w ||
+    typeof w.used_percent !== "number" ||
+    !Number.isFinite(w.used_percent)
+  )
+    return null;
   if (w.resets_at === 0 || (w.used_percent === 0 && !w.resets_at)) return null;
   return w;
 }
@@ -125,8 +138,14 @@ function mappable(w: CanonicalWindow | null | undefined): CanonicalWindow | null
 function windowKind(w: CanonicalWindow): "session" | "weekly" | null {
   const mins = w.window_minutes;
   if (typeof mins !== "number" || !Number.isFinite(mins)) return null;
-  if (Math.abs(mins - SESSION_WINDOW_MINUTES) <= WINDOW_DURATION_TOLERANCE_MINUTES) return "session";
-  if (Math.abs(mins - WEEKLY_WINDOW_MINUTES) <= WINDOW_DURATION_TOLERANCE_MINUTES) return "weekly";
+  if (
+    Math.abs(mins - SESSION_WINDOW_MINUTES) <= WINDOW_DURATION_TOLERANCE_MINUTES
+  )
+    return "session";
+  if (
+    Math.abs(mins - WEEKLY_WINDOW_MINUTES) <= WINDOW_DURATION_TOLERANCE_MINUTES
+  )
+    return "weekly";
   return null;
 }
 
@@ -154,13 +173,17 @@ function classifyCodexWindows(limit: {
     else if (kind === "weekly" && !weekly) weekly = w;
   }
   if (!session && primary && windowKind(primary) === null) session = primary;
-  if (!weekly && secondary && windowKind(secondary) === null) weekly = secondary;
+  if (!weekly && secondary && windowKind(secondary) === null)
+    weekly = secondary;
   return { session, weekly };
 }
 
 /** Fold canonical limits into the limit-window half of a snapshot: plan-type
  * capture, model-scoped rows, session/weekly routing, credits merge. */
-export function foldCodexLimits(limits: CanonicalLimit[], now: number): Omit<CodexUsageSnapshot, "models"> {
+export function foldCodexLimits(
+  limits: CanonicalLimit[],
+  now: number,
+): Omit<CodexUsageSnapshot, "models"> {
   const snap: Omit<CodexUsageSnapshot, "models"> = { fetched_at: now };
   const toWindow = (w: CanonicalWindow) => ({
     percent: Math.max(0, Math.min(100, w.used_percent ?? 0)),
@@ -175,15 +198,23 @@ export function foldCodexLimits(limits: CanonicalLimit[], now: number): Omit<Cod
       // that model's session, and putting it on the scoped row hid the week.
       const { session, weekly } = classifyCodexWindows(rl);
       const w = weekly ?? session;
-      if (w) (snap.scoped ??= []).push({ label: prettyCodexModel(rl.limit_name), ...toWindow(w) });
+      if (w)
+        (snap.scoped ??= []).push({
+          label: prettyCodexModel(rl.limit_name),
+          ...toWindow(w),
+        });
     } else {
       const { session, weekly } = classifyCodexWindows(rl);
       if (session) snap.session = toWindow(session);
       // Prefer the base "codex" limit for the weekly bar over exotic ids.
-      if (weekly && (!snap.weekly || rl.limit_id === "codex")) snap.weekly = toWindow(weekly);
+      if (weekly && (!snap.weekly || rl.limit_id === "codex"))
+        snap.weekly = toWindow(weekly);
     }
     const c = rl.credits;
-    if (c && (c.has_credits || c.unlimited || (c.balance && c.balance !== "0"))) {
+    if (
+      c &&
+      (c.has_credits || c.unlimited || (c.balance && c.balance !== "0"))
+    ) {
       snap.credits = {
         has_credits: c.has_credits === true,
         ...(c.unlimited !== undefined ? { unlimited: c.unlimited } : {}),
@@ -200,7 +231,11 @@ export function foldCodexLimits(limits: CanonicalLimit[], now: number): Omit<Cod
 /** The RPC's camelCase window in the canonical (snake_case) shape. */
 function toCanonicalRpcWindow(w: any): CanonicalWindow | null {
   return w && typeof w === "object"
-    ? { used_percent: w.usedPercent, window_minutes: w.windowDurationMins, resets_at: w.resetsAt }
+    ? {
+        used_percent: w.usedPercent,
+        window_minutes: w.windowDurationMins,
+        resets_at: w.resetsAt,
+      }
     : null;
 }
 
@@ -233,8 +268,12 @@ export function parseRateLimitsReadResult(
       credits: rl.credits
         ? {
             has_credits: rl.credits.hasCredits,
-            ...(rl.credits.unlimited !== undefined ? { unlimited: rl.credits.unlimited } : {}),
-            ...(rl.credits.balance != null ? { balance: rl.credits.balance } : {}),
+            ...(rl.credits.unlimited !== undefined
+              ? { unlimited: rl.credits.unlimited }
+              : {}),
+            ...(rl.credits.balance != null
+              ? { balance: rl.credits.balance }
+              : {}),
           }
         : undefined,
     });
@@ -243,7 +282,8 @@ export function parseRateLimitsReadResult(
   // Grantable "full reset" credits exist only on the RPC shape — the rollout
   // fallback never populates reset_credits.
   const available = result.rateLimitResetCredits?.availableCount;
-  if (typeof available === "number" && available > 0) snap.reset_credits = { available };
+  if (typeof available === "number" && available > 0)
+    snap.reset_credits = { available };
   return snap;
 }
 
@@ -294,7 +334,12 @@ export function fetchRateLimitsViaAppServer(
         const msg = JSON.parse(line);
         if (msg.id === 1) {
           child.stdin!.write(
-            JSON.stringify({ jsonrpc: "2.0", id: 2, method: "account/rateLimits/read", params: {} }) + "\n",
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: 2,
+              method: "account/rateLimits/read",
+              params: {},
+            }) + "\n",
           );
         } else if (msg.id === 2) {
           finish(msg.error ? null : (msg.result ?? null));
@@ -329,7 +374,13 @@ export function fetchRateLimitsViaAppServer(
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
-        params: { clientInfo: { name: "codecast", title: "Codecast Daemon", version: "1.0.0" } },
+        params: {
+          clientInfo: {
+            name: "codecast",
+            title: "Codecast Daemon",
+            version: "1.0.0",
+          },
+        },
       }) + "\n",
     );
   });
@@ -340,9 +391,21 @@ export function fetchRateLimitsViaAppServer(
 interface RawRateLimit {
   limit_id?: string;
   limit_name?: string | null;
-  primary?: { used_percent?: number; window_minutes?: number; resets_at?: number } | null;
-  secondary?: { used_percent?: number; window_minutes?: number; resets_at?: number } | null;
-  credits?: { has_credits?: boolean; unlimited?: boolean; balance?: string | null } | null;
+  primary?: {
+    used_percent?: number;
+    window_minutes?: number;
+    resets_at?: number;
+  } | null;
+  secondary?: {
+    used_percent?: number;
+    window_minutes?: number;
+    resets_at?: number;
+  } | null;
+  credits?: {
+    has_credits?: boolean;
+    unlimited?: boolean;
+    balance?: string | null;
+  } | null;
   plan_type?: string | null;
 }
 
@@ -446,7 +509,9 @@ function readTail(filePath: string, bytes: number): string {
 /** Rollout files modified within the trailing week, newest first. Sessions are
  * sharded as sessions/YYYY/MM/DD/*.jsonl; we prune by directory date before
  * statting so an old archive costs nothing. */
-function listRecentRolloutFiles(now: number): { path: string; mtime: number; size: number }[] {
+function listRecentRolloutFiles(
+  now: number,
+): { path: string; mtime: number; size: number }[] {
   const root = path.join(codexHome(), "sessions");
   const cutoff = now - WEEK_MS;
   const out: { path: string; mtime: number; size: number }[] = [];
@@ -463,14 +528,16 @@ function listRecentRolloutFiles(now: number): { path: string; mtime: number; siz
       for (const day of safeReaddir(mDir).filter((d) => /^\d{2}$/.test(d))) {
         // Day-directory date + 2d slack vs cutoff — cheap prune, mtime decides.
         const dayMs = Date.parse(`${y}-${m}-${day}T00:00:00Z`);
-        if (!Number.isFinite(dayMs) || dayMs < cutoff - 2 * 24 * 60 * 60 * 1000) continue;
+        if (!Number.isFinite(dayMs) || dayMs < cutoff - 2 * 24 * 60 * 60 * 1000)
+          continue;
         const dDir = path.join(mDir, day);
         for (const f of safeReaddir(dDir)) {
           if (!f.endsWith(".jsonl")) continue;
           const p = path.join(dDir, f);
           try {
             const st = fs.statSync(p);
-            if (st.mtimeMs >= cutoff) out.push({ path: p, mtime: st.mtimeMs, size: st.size });
+            if (st.mtimeMs >= cutoff)
+              out.push({ path: p, mtime: st.mtimeMs, size: st.size });
           } catch {
             /* raced a deletion */
           }
@@ -492,7 +559,9 @@ function safeReaddir(dir: string): string[] {
 
 /** Build the full snapshot: newest rate limits + per-model week aggregation.
  * Returns null when there's no Codex install (or no recent activity). */
-export function collectCodexUsageSnapshot(now = Date.now()): CodexUsageSnapshot | null {
+export function collectCodexUsageSnapshot(
+  now = Date.now(),
+): CodexUsageSnapshot | null {
   const files = listRecentRolloutFiles(now);
   if (files.length === 0) return null;
 
@@ -532,7 +601,9 @@ export function collectCodexUsageSnapshot(now = Date.now()): CodexUsageSnapshot 
 
   try {
     fs.mkdirSync(path.dirname(cachePath()), { recursive: true });
-    fs.writeFileSync(cachePath(), JSON.stringify({ files: nextFiles }), { mode: 0o644 });
+    fs.writeFileSync(cachePath(), JSON.stringify({ files: nextFiles }), {
+      mode: 0o644,
+    });
   } catch {
     /* cache is an optimization; never fail the snapshot over it */
   }
@@ -602,7 +673,9 @@ export async function refreshCodexUsageSnapshot(
  * daemon's periodic refreshCodexUsageSnapshot; the one synchronous fallback
  * here (logs-only) covers the beats before the first async refresh lands, so
  * a just-started daemon isn't empty. Never throws. */
-export function getCodexUsageHeartbeatPayload(now = Date.now()): CodexUsageSnapshot | undefined {
+export function getCodexUsageHeartbeatPayload(
+  now = Date.now(),
+): CodexUsageSnapshot | undefined {
   if (!lastComputed) {
     try {
       lastComputed = { at: now, snap: collectCodexUsageSnapshot(now) };

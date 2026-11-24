@@ -90,10 +90,16 @@ const cast = <P>(c: LazyExoticComponent<ComponentType<P>>) =>
 const Landing = lazy(() => import("@/app/(marketing)/page"));
 const About = lazy(() => import("@/app/(marketing)/about/page"));
 const Features = lazy(() => import("@/app/(marketing)/features/page"));
-const FeatureDeepDive = lazy(() => import("@/app/(marketing)/features/FeatureDeepDivePage"));
+const FeatureDeepDive = lazy(
+  () => import("@/app/(marketing)/features/FeatureDeepDivePage"),
+);
 const AgentSetup = lazy(() => import("@/app/(marketing)/setup/SetupPage"));
-const Documentation = lazy(() => import("@/app/(marketing)/documentation/page"));
-const DocumentationGuide = lazy(() => import("@/app/(marketing)/documentation/guides/GuidePage"));
+const Documentation = lazy(
+  () => import("@/app/(marketing)/documentation/page"),
+);
+const DocumentationGuide = lazy(
+  () => import("@/app/(marketing)/documentation/guides/GuidePage"),
+);
 const Privacy = lazy(() => import("@/app/(marketing)/privacy/page"));
 const Security = lazy(() => import("@/app/(marketing)/security/page"));
 const Support = lazy(() => import("@/app/(marketing)/support/page"));
@@ -102,30 +108,82 @@ const Changelog = lazy(() => import("@/app/(marketing)/changelog/page"));
 const Pricing = lazy(() => import("@/app/(marketing)/pricing/page"));
 const Download = lazy(() => import("@/app/(marketing)/download/page"));
 const BlogIndex = lazy(() => import("@/app/(marketing)/blog/page"));
-const BlogGitBlame = lazy(() => import("@/app/(marketing)/blog/git-blame-for-ai-agents/page"));
-const BlogAgentInbox = lazy(() => import("@/app/(marketing)/blog/an-inbox-for-your-agents/page"));
-const BlogTeamMemory = lazy(() => import("@/app/(marketing)/blog/your-agents-forget-your-team-does-not/page"));
-const BlogTriggers = lazy(() => import("@/app/(marketing)/blog/this-post-wrote-itself/page"));
-const BlogPublish = lazy(() => import("@/app/(marketing)/blog/a-url-for-everything-your-agent-makes/page"));
-const BlogAgentsTalk = lazy(() => import("@/app/(marketing)/blog/agents-that-talk-to-each-other/page"));
-const BlogPullRequests = lazy(() => import("@/app/(marketing)/blog/the-pull-request-that-knows-its-sessions/page"));
-const BlogTeamSees = lazy(() => import("@/app/(marketing)/blog/what-your-team-sees/page"));
-const BlogWorktrees = lazy(() => import("@/app/(marketing)/blog/one-repository-twenty-checkouts/page"));
-const BlogTurns = lazy(() => import("@/app/(marketing)/blog/the-tree-at-the-end-of-every-turn/page"));
-const BlogUndo = lazy(() => import("@/app/(marketing)/blog/undo-with-a-history/page"));
-const BlogClaudeSessions = lazy(() => import("@/app/(marketing)/blog/claude-code-sessions/page"));
-const BlogAgentsTogether = lazy(() => import("@/app/(marketing)/blog/claude-code-cursor-codex/page"));
-const BlogFromYourPhone = lazy(() => import("@/app/(marketing)/blog/claude-code-from-your-phone/page"));
-const BlogOwnChrome = lazy(() => import("@/app/(marketing)/blog/agents-in-your-own-chrome/page"));
-const BlogSoftwareFactory = lazy(() => import("@/app/(marketing)/blog/the-software-factory/page"));
-const BlogHistoryOnDayOne = lazy(() => import("@/app/(marketing)/blog/claude-code-history-on-day-one/page"));
-const BlogChartReply = lazy(() => import("@/app/(marketing)/blog/the-chart-in-the-reply/page"));
-const BlogQuestions = lazy(() => import("@/app/(marketing)/blog/the-questions-your-agents-save-for-you/page"));
-const BlogTaskPage = lazy(() => import("@/app/(marketing)/blog/the-task-your-agent-reports-to/page"));
-const BlogCloud = lazy(() => import("@/app/(marketing)/blog/codecast-in-the-cloud/page"));
-const BlogJumps = lazy(() => import("@/app/(marketing)/blog/fewer-bigger-jumps/page"));
-const BlogFieldManual = lazy(() => import("@/app/(marketing)/blog/field-manual/page"));
-const BlogFieldManualChapter = lazy(() => import("@/app/(marketing)/blog/field-manual/ChapterPage"));
+const BlogGitBlame = lazy(
+  () => import("@/app/(marketing)/blog/git-blame-for-ai-agents/page"),
+);
+const BlogAgentInbox = lazy(
+  () => import("@/app/(marketing)/blog/an-inbox-for-your-agents/page"),
+);
+const BlogTeamMemory = lazy(
+  () =>
+    import("@/app/(marketing)/blog/your-agents-forget-your-team-does-not/page"),
+);
+const BlogTriggers = lazy(
+  () => import("@/app/(marketing)/blog/this-post-wrote-itself/page"),
+);
+const BlogPublish = lazy(
+  () =>
+    import("@/app/(marketing)/blog/a-url-for-everything-your-agent-makes/page"),
+);
+const BlogAgentsTalk = lazy(
+  () => import("@/app/(marketing)/blog/agents-that-talk-to-each-other/page"),
+);
+const BlogPullRequests = lazy(
+  () =>
+    import("@/app/(marketing)/blog/the-pull-request-that-knows-its-sessions/page"),
+);
+const BlogTeamSees = lazy(
+  () => import("@/app/(marketing)/blog/what-your-team-sees/page"),
+);
+const BlogWorktrees = lazy(
+  () => import("@/app/(marketing)/blog/one-repository-twenty-checkouts/page"),
+);
+const BlogTurns = lazy(
+  () => import("@/app/(marketing)/blog/the-tree-at-the-end-of-every-turn/page"),
+);
+const BlogUndo = lazy(
+  () => import("@/app/(marketing)/blog/undo-with-a-history/page"),
+);
+const BlogClaudeSessions = lazy(
+  () => import("@/app/(marketing)/blog/claude-code-sessions/page"),
+);
+const BlogAgentsTogether = lazy(
+  () => import("@/app/(marketing)/blog/claude-code-cursor-codex/page"),
+);
+const BlogFromYourPhone = lazy(
+  () => import("@/app/(marketing)/blog/claude-code-from-your-phone/page"),
+);
+const BlogOwnChrome = lazy(
+  () => import("@/app/(marketing)/blog/agents-in-your-own-chrome/page"),
+);
+const BlogSoftwareFactory = lazy(
+  () => import("@/app/(marketing)/blog/the-software-factory/page"),
+);
+const BlogHistoryOnDayOne = lazy(
+  () => import("@/app/(marketing)/blog/claude-code-history-on-day-one/page"),
+);
+const BlogChartReply = lazy(
+  () => import("@/app/(marketing)/blog/the-chart-in-the-reply/page"),
+);
+const BlogQuestions = lazy(
+  () =>
+    import("@/app/(marketing)/blog/the-questions-your-agents-save-for-you/page"),
+);
+const BlogTaskPage = lazy(
+  () => import("@/app/(marketing)/blog/the-task-your-agent-reports-to/page"),
+);
+const BlogCloud = lazy(
+  () => import("@/app/(marketing)/blog/codecast-in-the-cloud/page"),
+);
+const BlogJumps = lazy(
+  () => import("@/app/(marketing)/blog/fewer-bigger-jumps/page"),
+);
+const BlogFieldManual = lazy(
+  () => import("@/app/(marketing)/blog/field-manual/page"),
+);
+const BlogFieldManualChapter = lazy(
+  () => import("@/app/(marketing)/blog/field-manual/ChapterPage"),
+);
 const CompareIndex = lazy(() => import("@/app/(marketing)/compare/page"));
 const Compare = lazy(() => import("@/app/(marketing)/compare/ComparePage"));
 
@@ -181,7 +239,9 @@ const DecisionStacks = lazy(() => import("@/app/decisions/stacks/page"));
 const DecisionStack = lazy(() => import("@/app/decisions/stacks/[id]/page"));
 const Threads = lazy(() => import("@/app/threads/page"));
 const Conversation = lazy(() => import("@/app/conversation/[id]/page"));
-const ConversationDiff = lazy(() => import("@/app/conversation/[id]/diff/page"));
+const ConversationDiff = lazy(
+  () => import("@/app/conversation/[id]/diff/page"),
+);
 const Docs = lazy(() => import("@/app/docs/page"));
 const Capabilities = lazy(() => import("@/app/capabilities/page"));
 const AgentFeatures = lazy(() => import("@/app/agent-features/page"));
@@ -241,25 +301,44 @@ const SharePlan = lazy(() => import("@/app/share/plan/[token]/page"));
 const ShareTask = lazy(() => import("@/app/share/task/[token]/page"));
 const ShareCall = lazy(() => import("@/app/share/call/[token]/page"));
 const ShareProject = lazy(() => import("@/app/share/project/[token]/page"));
-const ShareInitiative = lazy(() => import("@/app/share/initiative/[token]/page"));
+const ShareInitiative = lazy(
+  () => import("@/app/share/initiative/[token]/page"),
+);
 const ShareDecision = lazy(() => import("@/app/share/decision/[token]/page"));
 const ShareStack = lazy(() => import("@/app/share/stack/[token]/page"));
 const ShareTrigger = lazy(() => import("@/app/share/trigger/[token]/page"));
 const ShareRun = lazy(() => import("@/app/share/run/[token]/page"));
-const ReloadOutsideApp = lazyNamed(() => import("@/components/ReloadOutsideApp"), "ReloadOutsideApp");
+const ReloadOutsideApp = lazyNamed(
+  () => import("@/components/ReloadOutsideApp"),
+  "ReloadOutsideApp",
+);
 
 // Browsing a repository
 const RepoIndex = lazy(() => import("@/app/repo/page"));
 const RepoHome = lazy(() => import("@/app/repo/[owner]/[name]/page"));
-const RepoTree = lazy(() => import("@/app/repo/[owner]/[name]/tree/[ref]/page"));
-const RepoBlob = lazy(() => import("@/app/repo/[owner]/[name]/blob/[ref]/page"));
-const RepoCommits = lazy(() => import("@/app/repo/[owner]/[name]/commits/[ref]/page"));
-const RepoCompare = lazy(() => import("@/app/repo/[owner]/[name]/compare/[range]/page"));
-const RepoBranches = lazy(() => import("@/app/repo/[owner]/[name]/branches/page"));
-const RepoWorktrees = lazy(() => import("@/app/repo/[owner]/[name]/worktrees/page"));
+const RepoTree = lazy(
+  () => import("@/app/repo/[owner]/[name]/tree/[ref]/page"),
+);
+const RepoBlob = lazy(
+  () => import("@/app/repo/[owner]/[name]/blob/[ref]/page"),
+);
+const RepoCommits = lazy(
+  () => import("@/app/repo/[owner]/[name]/commits/[ref]/page"),
+);
+const RepoCompare = lazy(
+  () => import("@/app/repo/[owner]/[name]/compare/[range]/page"),
+);
+const RepoBranches = lazy(
+  () => import("@/app/repo/[owner]/[name]/branches/page"),
+);
+const RepoWorktrees = lazy(
+  () => import("@/app/repo/[owner]/[name]/worktrees/page"),
+);
 const RepoTags = lazy(() => import("@/app/repo/[owner]/[name]/tags/page"));
 const RepoPulls = lazy(() => import("@/app/repo/[owner]/[name]/pulls/page"));
-const RepoSessions = lazy(() => import("@/app/repo/[owner]/[name]/sessions/page"));
+const RepoSessions = lazy(
+  () => import("@/app/repo/[owner]/[name]/sessions/page"),
+);
 const RepoSearch = lazy(() => import("@/app/repo/[owner]/[name]/search/page"));
 
 // Code review
@@ -280,24 +359,42 @@ const ShareCursors = lazy(() => import("@/app/share-cursors/page"));
 // Settings
 const Settings = lazy(() => import("@/app/settings/page"));
 const SettingsCli = lazy(() => import("@/app/settings/cli/page"));
-const SettingsConnectedAgents = lazy(() => import("@/app/settings/connected-agents/page"));
+const SettingsConnectedAgents = lazy(
+  () => import("@/app/settings/connected-agents/page"),
+);
 const OAuthAuthorize = lazy(() => import("@/app/oauth/authorize/page"));
 const SettingsAgents = lazy(() => import("@/app/settings/agents/page"));
-const SettingsAgentLibrary = lazy(() => import("@/app/settings/agent-library/page"));
+const SettingsAgentLibrary = lazy(
+  () => import("@/app/settings/agent-library/page"),
+);
 const SettingsDevices = lazy(() => import("@/app/settings/devices/page"));
 const SettingsMigrate = lazy(() => import("@/app/settings/migrate/page"));
 const SettingsSync = lazy(() => import("@/app/settings/sync/page"));
 const SettingsProfile = lazy(() => import("@/app/settings/profile/page"));
 const SettingsAccounts = lazy(() => import("@/app/settings/accounts/page"));
-const SettingsAccountsLinkGithub = lazy(() => import("@/app/settings/accounts/link-github/page"));
-const SettingsClaudeAccounts = lazy(() => import("@/app/settings/claude-accounts/page"));
-const SettingsAccountPool = lazy(() => import("@/app/settings/account-pool/page"));
+const SettingsAccountsLinkGithub = lazy(
+  () => import("@/app/settings/accounts/link-github/page"),
+);
+const SettingsClaudeAccounts = lazy(
+  () => import("@/app/settings/claude-accounts/page"),
+);
+const SettingsAccountPool = lazy(
+  () => import("@/app/settings/account-pool/page"),
+);
 const SettingsTeam = lazy(() => import("@/app/settings/team/page"));
-const SettingsTeamCreate = lazy(() => import("@/app/settings/team/create/page"));
+const SettingsTeamCreate = lazy(
+  () => import("@/app/settings/team/create/page"),
+);
 const SettingsTeamJoin = lazy(() => import("@/app/settings/team/join/page"));
-const SettingsTeamFeatures = lazy(() => import("@/app/settings/team/features/page"));
-const SettingsNotifications = lazy(() => import("@/app/settings/notifications/page"));
-const SettingsIntegrations = lazy(() => import("@/app/settings/integrations/page"));
+const SettingsTeamFeatures = lazy(
+  () => import("@/app/settings/team/features/page"),
+);
+const SettingsNotifications = lazy(
+  () => import("@/app/settings/notifications/page"),
+);
+const SettingsIntegrations = lazy(
+  () => import("@/app/settings/integrations/page"),
+);
 const SettingsDesktop = lazy(() => import("@/app/settings/desktop/page"));
 const SettingsApps = lazy(() => import("@/app/settings/apps/page"));
 
@@ -307,211 +404,1135 @@ const SettingsApps = lazy(() => import("@/app/settings/apps/page"));
  */
 export const ROUTES: RouteEntry[] = [
   // -- Marketing (MarketingLayout, no AuthGuard → public) --
-  { path: "", component: cast(Landing), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "about", component: cast(About), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "features", component: cast(Features), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "features/:slug", component: cast(FeatureDeepDive), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "setup/:tool", component: cast(AgentSetup), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "documentation", component: cast(Documentation), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "documentation/:slug", component: cast(DocumentationGuide), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "privacy", component: cast(Privacy), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "security", component: cast(Security), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "support", component: cast(Support), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "terms", component: cast(Terms), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "changelog", component: cast(Changelog), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "pricing", component: cast(Pricing), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "download", component: cast(Download), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog", component: cast(BlogIndex), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/git-blame-for-ai-agents", component: cast(BlogGitBlame), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/an-inbox-for-your-agents", component: cast(BlogAgentInbox), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/your-agents-forget-your-team-does-not", component: cast(BlogTeamMemory), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/this-post-wrote-itself", component: cast(BlogTriggers), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/a-url-for-everything-your-agent-makes", component: cast(BlogPublish), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/agents-that-talk-to-each-other", component: cast(BlogAgentsTalk), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-pull-request-that-knows-its-sessions", component: cast(BlogPullRequests), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/what-your-team-sees", component: cast(BlogTeamSees), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/one-repository-twenty-checkouts", component: cast(BlogWorktrees), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-tree-at-the-end-of-every-turn", component: cast(BlogTurns), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/undo-with-a-history", component: cast(BlogUndo), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/claude-code-sessions", component: cast(BlogClaudeSessions), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/claude-code-cursor-codex", component: cast(BlogAgentsTogether), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/agents-in-your-own-chrome", component: cast(BlogOwnChrome), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-software-factory", component: cast(BlogSoftwareFactory), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/claude-code-history-on-day-one", component: cast(BlogHistoryOnDayOne), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/claude-code-from-your-phone", component: cast(BlogFromYourPhone), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-chart-in-the-reply", component: cast(BlogChartReply), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-questions-your-agents-save-for-you", component: cast(BlogQuestions), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/the-task-your-agent-reports-to", component: cast(BlogTaskPage), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/codecast-in-the-cloud", component: cast(BlogCloud), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/fewer-bigger-jumps", component: cast(BlogJumps), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/field-manual", component: cast(BlogFieldManual), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "blog/field-manual/:chapter", component: cast(BlogFieldManualChapter), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "compare", component: cast(CompareIndex), layout: "marketing", guestOk: true, guestKind: "public" },
-  { path: "compare/:slug", component: cast(Compare), layout: "marketing", guestOk: true, guestKind: "public" },
+  {
+    path: "",
+    component: cast(Landing),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "about",
+    component: cast(About),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "features",
+    component: cast(Features),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "features/:slug",
+    component: cast(FeatureDeepDive),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "setup/:tool",
+    component: cast(AgentSetup),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "documentation",
+    component: cast(Documentation),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "documentation/:slug",
+    component: cast(DocumentationGuide),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "privacy",
+    component: cast(Privacy),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "security",
+    component: cast(Security),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "support",
+    component: cast(Support),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "terms",
+    component: cast(Terms),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "changelog",
+    component: cast(Changelog),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "pricing",
+    component: cast(Pricing),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "download",
+    component: cast(Download),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog",
+    component: cast(BlogIndex),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/git-blame-for-ai-agents",
+    component: cast(BlogGitBlame),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/an-inbox-for-your-agents",
+    component: cast(BlogAgentInbox),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/your-agents-forget-your-team-does-not",
+    component: cast(BlogTeamMemory),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/this-post-wrote-itself",
+    component: cast(BlogTriggers),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/a-url-for-everything-your-agent-makes",
+    component: cast(BlogPublish),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/agents-that-talk-to-each-other",
+    component: cast(BlogAgentsTalk),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-pull-request-that-knows-its-sessions",
+    component: cast(BlogPullRequests),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/what-your-team-sees",
+    component: cast(BlogTeamSees),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/one-repository-twenty-checkouts",
+    component: cast(BlogWorktrees),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-tree-at-the-end-of-every-turn",
+    component: cast(BlogTurns),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/undo-with-a-history",
+    component: cast(BlogUndo),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/claude-code-sessions",
+    component: cast(BlogClaudeSessions),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/claude-code-cursor-codex",
+    component: cast(BlogAgentsTogether),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/agents-in-your-own-chrome",
+    component: cast(BlogOwnChrome),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-software-factory",
+    component: cast(BlogSoftwareFactory),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/claude-code-history-on-day-one",
+    component: cast(BlogHistoryOnDayOne),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/claude-code-from-your-phone",
+    component: cast(BlogFromYourPhone),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-chart-in-the-reply",
+    component: cast(BlogChartReply),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-questions-your-agents-save-for-you",
+    component: cast(BlogQuestions),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/the-task-your-agent-reports-to",
+    component: cast(BlogTaskPage),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/codecast-in-the-cloud",
+    component: cast(BlogCloud),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/fewer-bigger-jumps",
+    component: cast(BlogJumps),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/field-manual",
+    component: cast(BlogFieldManual),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "blog/field-manual/:chapter",
+    component: cast(BlogFieldManualChapter),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "compare",
+    component: cast(CompareIndex),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "compare/:slug",
+    component: cast(Compare),
+    layout: "marketing",
+    guestOk: true,
+    guestKind: "public",
+  },
 
   // -- Auth (bare routes, no AuthGuard → public) --
-  { path: "login", component: cast(Login), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "signup", component: cast(Signup), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "forgot-password", component: cast(ForgotPassword), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "reset-password", component: cast(ResetPassword), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "confirm", component: cast(Confirm), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "auth/cli", component: cast(AuthCli), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "oauth/authorize", component: cast(OAuthAuthorize), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "slack/connect", component: cast(SlackConnect), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "connect/whisk", component: cast(WhiskReturn), layout: "auth", guestOk: true, guestKind: "public" },
+  {
+    path: "login",
+    component: cast(Login),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "signup",
+    component: cast(Signup),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "forgot-password",
+    component: cast(ForgotPassword),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "reset-password",
+    component: cast(ResetPassword),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "confirm",
+    component: cast(Confirm),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "auth/cli",
+    component: cast(AuthCli),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "oauth/authorize",
+    component: cast(OAuthAuthorize),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "slack/connect",
+    component: cast(SlackConnect),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "connect/whisk",
+    component: cast(WhiskReturn),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
   { path: "start", component: cast(Start), layout: "standalone" },
-  { path: "pages/auth", component: cast(ArtifactAuth), layout: "auth", guestOk: true, guestKind: "public" },
-  { path: "join/:code", component: cast(JoinTeam), layout: "auth", guestOk: true, guestKind: "public" },
+  {
+    path: "pages/auth",
+    component: cast(ArtifactAuth),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "join/:code",
+    component: cast(JoinTeam),
+    layout: "auth",
+    guestOk: true,
+    guestKind: "public",
+  },
 
   // -- Dashboard tab shell (DashboardShell) — tab-routable; conversation routes are guest-OK --
-  { path: "inbox", component: cast(Inbox), layout: "dashboardShell", tab: "/inbox", fullWidth: true },
-  { path: "feed", component: cast(Feed), layout: "dashboardShell", tab: "/feed" },
+  {
+    path: "inbox",
+    component: cast(Inbox),
+    layout: "dashboardShell",
+    tab: "/inbox",
+    fullWidth: true,
+  },
+  {
+    path: "feed",
+    component: cast(Feed),
+    layout: "dashboardShell",
+    tab: "/feed",
+  },
   // The daily edition owns its 1180px reading column (changes-page.md 4).
-  { path: "changes", component: cast(Changes), layout: "dashboardShell", tab: "/changes", fullWidth: true },
+  {
+    path: "changes",
+    component: cast(Changes),
+    layout: "dashboardShell",
+    tab: "/changes",
+    fullWidth: true,
+  },
   // Every place the team's code goes live and what waits to go out there.
-  { path: "deploys", component: cast(Deploys), layout: "dashboardShell", tab: "/deploys", fullWidth: true },
+  {
+    path: "deploys",
+    component: cast(Deploys),
+    layout: "dashboardShell",
+    tab: "/deploys",
+    fullWidth: true,
+  },
   // One day of what each person typed into sessions, a column each.
-  { path: "prompts", component: cast(Prompts), layout: "dashboardShell", tab: "/prompts", fullWidth: true },
+  {
+    path: "prompts",
+    component: cast(Prompts),
+    layout: "dashboardShell",
+    tab: "/prompts",
+    fullWidth: true,
+  },
   // Codecast mods: the list, and one mod's pane (components/mods).
-  { path: "mods", component: cast(Mods), layout: "dashboardShell", tab: "/mods" },
-  { path: "m/:mod", component: cast(ModPane), layout: "dashboardShell", tab: "/m/:mod", fullWidth: true },
-  { path: "m/:mod/:pane", component: cast(ModPane), layout: "dashboardShell", tab: "/m/:mod/:pane", fullWidth: true },
+  {
+    path: "mods",
+    component: cast(Mods),
+    layout: "dashboardShell",
+    tab: "/mods",
+  },
+  {
+    path: "m/:mod",
+    component: cast(ModPane),
+    layout: "dashboardShell",
+    tab: "/m/:mod",
+    fullWidth: true,
+  },
+  {
+    path: "m/:mod/:pane",
+    component: cast(ModPane),
+    layout: "dashboardShell",
+    tab: "/m/:mod/:pane",
+    fullWidth: true,
+  },
   // Objects of mod-declared kinds: a kind's list and one object's page.
-  { path: "objects/:prefix", component: cast(ModObjects), layout: "dashboardShell", tab: "/objects/:prefix", fullWidth: true },
-  { path: "o/:id", component: cast(ModObject), layout: "dashboardShell", tab: "/o/:id", fullWidth: true },
-  { path: "crosstalk", component: cast(Crosstalk), layout: "dashboardShell", tab: "/crosstalk", fullWidth: true },
-  { path: "map", component: cast(SessionMap), layout: "dashboardShell", tab: "/map", fullWidth: true },
+  {
+    path: "objects/:prefix",
+    component: cast(ModObjects),
+    layout: "dashboardShell",
+    tab: "/objects/:prefix",
+    fullWidth: true,
+  },
+  {
+    path: "o/:id",
+    component: cast(ModObject),
+    layout: "dashboardShell",
+    tab: "/o/:id",
+    fullWidth: true,
+  },
+  {
+    path: "crosstalk",
+    component: cast(Crosstalk),
+    layout: "dashboardShell",
+    tab: "/crosstalk",
+    fullWidth: true,
+  },
+  {
+    path: "map",
+    component: cast(SessionMap),
+    layout: "dashboardShell",
+    tab: "/map",
+    fullWidth: true,
+  },
   // A web page as a pane. Full-bleed via pageLayout FULL_WIDTH_PATTERNS (like
   // /chat), so no fullWidth flag here.
-  { path: "browser", component: cast(Browser), layout: "dashboardShell", tab: "/browser" },
+  {
+    path: "browser",
+    component: cast(Browser),
+    layout: "dashboardShell",
+    tab: "/browser",
+  },
   // A session's iOS simulator as a pane. Full-bleed via pageLayout FULL_WIDTH_PATTERNS.
-  { path: "simulator", component: cast(Simulator), layout: "dashboardShell", tab: "/simulator" },
+  {
+    path: "simulator",
+    component: cast(Simulator),
+    layout: "dashboardShell",
+    tab: "/simulator",
+  },
   // Full-bleed via pageLayout FULL_WIDTH_PATTERNS, like /chat: no fullWidth flag here.
-  { path: "org", component: cast(Org), layout: "dashboardShell", tab: "/org", fullWidth: true },
-  { path: "org/:id", component: cast(OrgScope), layout: "dashboardShell", tab: "/org/:id", fullWidth: true },
+  {
+    path: "org",
+    component: cast(Org),
+    layout: "dashboardShell",
+    tab: "/org",
+    fullWidth: true,
+  },
+  {
+    path: "org/:id",
+    component: cast(OrgScope),
+    layout: "dashboardShell",
+    tab: "/org/:id",
+    fullWidth: true,
+  },
   // The read views' objects (/org/goals/in-2, /org/projects/pj-…): the same screen.
-  { path: "org/:view/:id", component: cast(OrgScope), layout: "dashboardShell", tab: "/org/:view/:id", fullWidth: true },
+  {
+    path: "org/:view/:id",
+    component: cast(OrgScope),
+    layout: "dashboardShell",
+    tab: "/org/:view/:id",
+    fullWidth: true,
+  },
   // Chat is full-bleed via pageLayout's FULL_WIDTH_PATTERNS (like /sessions and
   // /anchor), not via a DashboardLayout isOnXPage flag — so it carries no
   // fullWidth here. See the reverse-drift check in routes.manifest.test.ts.
-  { path: "chat", component: cast(Chat), layout: "dashboardShell", tab: "/chat" },
-  { path: "chat/:channelId", component: cast(Chat), layout: "dashboardShell", tab: "/chat/:channelId" },
+  {
+    path: "chat",
+    component: cast(Chat),
+    layout: "dashboardShell",
+    tab: "/chat",
+  },
+  {
+    path: "chat/:channelId",
+    component: cast(Chat),
+    layout: "dashboardShell",
+    tab: "/chat/:channelId",
+  },
   // The public rooms (chat in community scope): a visitor reads them in the
   // guest shell, like a shared conversation. Full-bleed via FULL_WIDTH_PATTERNS.
-  { path: "community", component: cast(Community), layout: "dashboardShell", tab: "/community", guestOk: true, guestKind: "shell" },
-  { path: "community/:channelId", component: cast(Community), layout: "dashboardShell", tab: "/community/:channelId", guestOk: true, guestKind: "shell" },
-  { path: "search", component: cast(Search), layout: "dashboardShell", tab: "/search" },
-  { path: "notifications", component: cast(Notifications), layout: "dashboardShell", tab: "/notifications" },
+  {
+    path: "community",
+    component: cast(Community),
+    layout: "dashboardShell",
+    tab: "/community",
+    guestOk: true,
+    guestKind: "shell",
+  },
+  {
+    path: "community/:channelId",
+    component: cast(Community),
+    layout: "dashboardShell",
+    tab: "/community/:channelId",
+    guestOk: true,
+    guestKind: "shell",
+  },
+  {
+    path: "search",
+    component: cast(Search),
+    layout: "dashboardShell",
+    tab: "/search",
+  },
+  {
+    path: "notifications",
+    component: cast(Notifications),
+    layout: "dashboardShell",
+    tab: "/notifications",
+  },
   // Full-bleed via lib/pageLayout FULL_WIDTH_PATTERNS, so no `fullWidth` flag here.
-  { path: "decisions", component: cast(Decisions), layout: "dashboardShell", tab: "/decisions" },
+  {
+    path: "decisions",
+    component: cast(Decisions),
+    layout: "dashboardShell",
+    tab: "/decisions",
+  },
   // Full-bleed via lib/pageLayout FULL_WIDTH_PATTERNS, like /questions.
-  { path: "flows", component: cast(Flows), layout: "dashboardShell", tab: "/flows" },
-  { path: "line", component: cast(Line), layout: "dashboardShell", tab: "/line" },
-  { path: "expectations", component: cast(Expectations), layout: "dashboardShell", tab: "/expectations" },
-  { path: "trial", component: cast(Trial), layout: "dashboardShell", tab: "/trial" },
-  { path: "view", component: cast(ProductViewPage), layout: "dashboardShell", tab: "/view" },
-  { path: "line/settings", component: cast(LineSettings), layout: "dashboardShell", tab: "/line/settings" },
-  { path: "line/trace/:ref", component: cast(LineTrace), layout: "dashboardShell", tab: "/line/trace/:ref" },
-  { path: "line/:project", component: cast(LineWorkspace), layout: "dashboardShell", tab: "/line/:project" },
-  { path: "flows/settings", component: cast(FlowSettings), layout: "dashboardShell", tab: "/flows/settings" },
-  { path: "flows/pipeline", component: cast(FlowPipeline), layout: "dashboardShell", tab: "/flows/pipeline" },
-  { path: "flows/trace/:ref", component: cast(FlowTrace), layout: "dashboardShell", tab: "/flows/trace/:ref" },
-  { path: "flows/:flow", component: cast(Flow), layout: "dashboardShell", tab: "/flows/:flow" },
-  { path: "decisions/stacks", component: cast(DecisionStacks), layout: "dashboardShell", tab: "/decisions/stacks" },
-  { path: "decisions/stacks/:id", component: cast(DecisionStack), layout: "dashboardShell", tab: "/decisions/stacks/:id" },
-  { path: "decisions/:id", component: cast(DecisionDetail), layout: "dashboardShell", tab: "/decisions/:id" },
+  {
+    path: "flows",
+    component: cast(Flows),
+    layout: "dashboardShell",
+    tab: "/flows",
+  },
+  {
+    path: "line",
+    component: cast(Line),
+    layout: "dashboardShell",
+    tab: "/line",
+  },
+  {
+    path: "expectations",
+    component: cast(Expectations),
+    layout: "dashboardShell",
+    tab: "/expectations",
+  },
+  {
+    path: "trial",
+    component: cast(Trial),
+    layout: "dashboardShell",
+    tab: "/trial",
+  },
+  {
+    path: "view",
+    component: cast(ProductViewPage),
+    layout: "dashboardShell",
+    tab: "/view",
+  },
+  {
+    path: "line/settings",
+    component: cast(LineSettings),
+    layout: "dashboardShell",
+    tab: "/line/settings",
+  },
+  {
+    path: "line/trace/:ref",
+    component: cast(LineTrace),
+    layout: "dashboardShell",
+    tab: "/line/trace/:ref",
+  },
+  {
+    path: "line/:project",
+    component: cast(LineWorkspace),
+    layout: "dashboardShell",
+    tab: "/line/:project",
+  },
+  {
+    path: "flows/settings",
+    component: cast(FlowSettings),
+    layout: "dashboardShell",
+    tab: "/flows/settings",
+  },
+  {
+    path: "flows/pipeline",
+    component: cast(FlowPipeline),
+    layout: "dashboardShell",
+    tab: "/flows/pipeline",
+  },
+  {
+    path: "flows/trace/:ref",
+    component: cast(FlowTrace),
+    layout: "dashboardShell",
+    tab: "/flows/trace/:ref",
+  },
+  {
+    path: "flows/:flow",
+    component: cast(Flow),
+    layout: "dashboardShell",
+    tab: "/flows/:flow",
+  },
+  {
+    path: "decisions/stacks",
+    component: cast(DecisionStacks),
+    layout: "dashboardShell",
+    tab: "/decisions/stacks",
+  },
+  {
+    path: "decisions/stacks/:id",
+    component: cast(DecisionStack),
+    layout: "dashboardShell",
+    tab: "/decisions/stacks/:id",
+  },
+  {
+    path: "decisions/:id",
+    component: cast(DecisionDetail),
+    layout: "dashboardShell",
+    tab: "/decisions/:id",
+  },
   // Full-bleed via lib/pageLayout FULL_WIDTH_PATTERNS, so no `fullWidth` flag here.
-  { path: "threads", component: cast(Threads), layout: "dashboardShell", tab: "/threads" },
-  { path: "conversation/:id", component: cast(Conversation), layout: "dashboardShell", tab: "/conversation/:id", fullWidth: true, guestOk: true, guestKind: "shell" },
-  { path: "conversation/:id/diff", component: cast(ConversationDiff), layout: "dashboardShell", tab: "/conversation/:id/diff", fullWidth: true, guestOk: true, guestKind: "shell" },
-  { path: "docs", component: cast(Docs), layout: "dashboardShell", tab: "/docs", fullWidth: true },
-  { path: "capabilities", component: cast(Capabilities), layout: "dashboardShell", tab: "/capabilities", fullWidth: true },
-  { path: "agent-features", component: cast(AgentFeatures), layout: "dashboardShell", tab: "/agent-features" },
+  {
+    path: "threads",
+    component: cast(Threads),
+    layout: "dashboardShell",
+    tab: "/threads",
+  },
+  {
+    path: "conversation/:id",
+    component: cast(Conversation),
+    layout: "dashboardShell",
+    tab: "/conversation/:id",
+    fullWidth: true,
+    guestOk: true,
+    guestKind: "shell",
+  },
+  {
+    path: "conversation/:id/diff",
+    component: cast(ConversationDiff),
+    layout: "dashboardShell",
+    tab: "/conversation/:id/diff",
+    fullWidth: true,
+    guestOk: true,
+    guestKind: "shell",
+  },
+  {
+    path: "docs",
+    component: cast(Docs),
+    layout: "dashboardShell",
+    tab: "/docs",
+    fullWidth: true,
+  },
+  {
+    path: "capabilities",
+    component: cast(Capabilities),
+    layout: "dashboardShell",
+    tab: "/capabilities",
+    fullWidth: true,
+  },
+  {
+    path: "agent-features",
+    component: cast(AgentFeatures),
+    layout: "dashboardShell",
+    tab: "/agent-features",
+  },
   // The weekly card (components/weeklyCard): staff only until it is reviewed.
-  { path: "week", component: cast(Week), layout: "dashboardShell", tab: "/week" },
-  { path: "files", component: cast(Files), layout: "dashboardShell", tab: "/files", fullWidth: true },
-  { path: "vault", component: cast(Vault), layout: "dashboardShell", tab: "/vault", fullWidth: true }, // the team Vault; old /vault?f=… Files links redirect to /files
-  { path: "pages", component: cast(Artifacts), layout: "dashboardShell", tab: "/pages" },
-  { path: "artifacts", component: cast(Artifacts), layout: "dashboardShell", tab: "/artifacts" }, // pre-rename alias for /pages
-  { path: "docs/:id", component: cast(DocDetail), layout: "dashboardShell", tab: "/docs/:id", fullWidth: true },
-  { path: "calls", component: cast(Calls), layout: "dashboardShell", tab: "/calls", fullWidth: true },
-  { path: "calls/:id", component: cast(CallDetailEntry), layout: "dashboardShell", tab: "/calls/:id", fullWidth: true },
-  { path: "plans", component: cast(Plans), layout: "dashboardShell", tab: "/plans", fullWidth: true },
-  { path: "plans/:id", component: cast(PlanDetail), layout: "dashboardShell", tab: "/plans/:id", fullWidth: true },
-  { path: "tasks", component: cast(Tasks), layout: "dashboardShell", tab: "/tasks", fullWidth: true },
-  { path: "tasks/:id", component: cast(TaskDetail), layout: "dashboardShell", tab: "/tasks/:id", fullWidth: true },
-  { path: "goals", component: cast(Goals), layout: "dashboardShell", tab: "/goals", fullWidth: true },
-  { path: "goals/:id", component: cast(Goal), layout: "dashboardShell", tab: "/goals/:id", fullWidth: true },
-  { path: "projects", component: cast(Projects), layout: "dashboardShell", tab: "/projects", fullWidth: true },
-  { path: "projects/:id", component: cast(ProjectDetail), layout: "dashboardShell", tab: "/projects/:id", fullWidth: true },
-  { path: "projects/:id/:taskId", component: cast(ProjectDetail), layout: "dashboardShell", tab: "/projects/:id/:taskId", fullWidth: true },
-  { path: "workflows", component: cast(Workflows), layout: "dashboardShell", tab: "/workflows", fullWidth: true },
-  { path: "workflows/runs/:id", component: cast(WorkflowRun), layout: "dashboardShell", tab: "/workflows/runs/:id", fullWidth: true },
-  { path: "routines", component: cast(Routines), layout: "dashboardShell", tab: "/routines", fullWidth: true },
-  { path: "triggers", component: cast(Triggers), layout: "dashboardShell", tab: "/triggers", fullWidth: true },
-  { path: "triggers/:id", component: cast(TriggerDetail), layout: "dashboardShell", tab: "/triggers/:id", fullWidth: true },
-  { path: "schedules", component: cast(Triggers), layout: "dashboardShell", tab: "/schedules", fullWidth: true },
-  { path: "schedules/:id", component: cast(TriggerDetail), layout: "dashboardShell", tab: "/schedules/:id", fullWidth: true },
-  { path: "sessions", component: cast(Sessions), layout: "dashboardShell", tab: "/sessions" },
-  { path: "resources", component: cast(Resources), layout: "dashboardShell", tab: "/resources" },
+  {
+    path: "week",
+    component: cast(Week),
+    layout: "dashboardShell",
+    tab: "/week",
+  },
+  {
+    path: "files",
+    component: cast(Files),
+    layout: "dashboardShell",
+    tab: "/files",
+    fullWidth: true,
+  },
+  {
+    path: "vault",
+    component: cast(Vault),
+    layout: "dashboardShell",
+    tab: "/vault",
+    fullWidth: true,
+  }, // the team Vault; old /vault?f=… Files links redirect to /files
+  {
+    path: "pages",
+    component: cast(Artifacts),
+    layout: "dashboardShell",
+    tab: "/pages",
+  },
+  {
+    path: "artifacts",
+    component: cast(Artifacts),
+    layout: "dashboardShell",
+    tab: "/artifacts",
+  }, // pre-rename alias for /pages
+  {
+    path: "docs/:id",
+    component: cast(DocDetail),
+    layout: "dashboardShell",
+    tab: "/docs/:id",
+    fullWidth: true,
+  },
+  {
+    path: "calls",
+    component: cast(Calls),
+    layout: "dashboardShell",
+    tab: "/calls",
+    fullWidth: true,
+  },
+  {
+    path: "calls/:id",
+    component: cast(CallDetailEntry),
+    layout: "dashboardShell",
+    tab: "/calls/:id",
+    fullWidth: true,
+  },
+  {
+    path: "plans",
+    component: cast(Plans),
+    layout: "dashboardShell",
+    tab: "/plans",
+    fullWidth: true,
+  },
+  {
+    path: "plans/:id",
+    component: cast(PlanDetail),
+    layout: "dashboardShell",
+    tab: "/plans/:id",
+    fullWidth: true,
+  },
+  {
+    path: "tasks",
+    component: cast(Tasks),
+    layout: "dashboardShell",
+    tab: "/tasks",
+    fullWidth: true,
+  },
+  {
+    path: "tasks/:id",
+    component: cast(TaskDetail),
+    layout: "dashboardShell",
+    tab: "/tasks/:id",
+    fullWidth: true,
+  },
+  {
+    path: "goals",
+    component: cast(Goals),
+    layout: "dashboardShell",
+    tab: "/goals",
+    fullWidth: true,
+  },
+  {
+    path: "goals/:id",
+    component: cast(Goal),
+    layout: "dashboardShell",
+    tab: "/goals/:id",
+    fullWidth: true,
+  },
+  {
+    path: "projects",
+    component: cast(Projects),
+    layout: "dashboardShell",
+    tab: "/projects",
+    fullWidth: true,
+  },
+  {
+    path: "projects/:id",
+    component: cast(ProjectDetail),
+    layout: "dashboardShell",
+    tab: "/projects/:id",
+    fullWidth: true,
+  },
+  {
+    path: "projects/:id/:taskId",
+    component: cast(ProjectDetail),
+    layout: "dashboardShell",
+    tab: "/projects/:id/:taskId",
+    fullWidth: true,
+  },
+  {
+    path: "workflows",
+    component: cast(Workflows),
+    layout: "dashboardShell",
+    tab: "/workflows",
+    fullWidth: true,
+  },
+  {
+    path: "workflows/runs/:id",
+    component: cast(WorkflowRun),
+    layout: "dashboardShell",
+    tab: "/workflows/runs/:id",
+    fullWidth: true,
+  },
+  {
+    path: "routines",
+    component: cast(Routines),
+    layout: "dashboardShell",
+    tab: "/routines",
+    fullWidth: true,
+  },
+  {
+    path: "triggers",
+    component: cast(Triggers),
+    layout: "dashboardShell",
+    tab: "/triggers",
+    fullWidth: true,
+  },
+  {
+    path: "triggers/:id",
+    component: cast(TriggerDetail),
+    layout: "dashboardShell",
+    tab: "/triggers/:id",
+    fullWidth: true,
+  },
+  {
+    path: "schedules",
+    component: cast(Triggers),
+    layout: "dashboardShell",
+    tab: "/schedules",
+    fullWidth: true,
+  },
+  {
+    path: "schedules/:id",
+    component: cast(TriggerDetail),
+    layout: "dashboardShell",
+    tab: "/schedules/:id",
+    fullWidth: true,
+  },
+  {
+    path: "sessions",
+    component: cast(Sessions),
+    layout: "dashboardShell",
+    tab: "/sessions",
+  },
+  {
+    path: "resources",
+    component: cast(Resources),
+    layout: "dashboardShell",
+    tab: "/resources",
+  },
   // Full-bleed via pageLayout's FULL_WIDTH_PATTERNS (like /sessions), not an isOnXPage flag.
-  { path: "anchor", component: cast(Anchor), layout: "dashboardShell", tab: "/anchor" },
-  { path: "team/activity", component: cast(TeamActivity), layout: "dashboardShell", tab: "/team/activity" },
-  { path: "team/charts", component: cast(TeamCharts), layout: "dashboardShell", tab: "/team/charts" },
-  { path: "team/:username", component: cast(TeamMember), layout: "dashboardShell", tab: "/team/:username" },
-  { path: "admin/daemon-logs", component: cast(AdminDaemonLogs), layout: "dashboardShell", tab: "/admin/daemon-logs" },
+  {
+    path: "anchor",
+    component: cast(Anchor),
+    layout: "dashboardShell",
+    tab: "/anchor",
+  },
+  {
+    path: "team/activity",
+    component: cast(TeamActivity),
+    layout: "dashboardShell",
+    tab: "/team/activity",
+  },
+  {
+    path: "team/charts",
+    component: cast(TeamCharts),
+    layout: "dashboardShell",
+    tab: "/team/charts",
+  },
+  {
+    path: "team/:username",
+    component: cast(TeamMember),
+    layout: "dashboardShell",
+    tab: "/team/:username",
+  },
+  {
+    path: "admin/daemon-logs",
+    component: cast(AdminDaemonLogs),
+    layout: "dashboardShell",
+    tab: "/admin/daemon-logs",
+  },
   // Full-bleed via pageLayout's FULL_WIDTH_PATTERNS (like /sessions), not an isOnXPage flag.
-  { path: "config", component: cast(ConfigPage), layout: "dashboardShell", tab: "/config" },
-  { path: "memory", component: cast(Memory), layout: "dashboardShell", tab: "/memory" },
+  {
+    path: "config",
+    component: cast(ConfigPage),
+    layout: "dashboardShell",
+    tab: "/config",
+  },
+  {
+    path: "memory",
+    component: cast(Memory),
+    layout: "dashboardShell",
+    tab: "/memory",
+  },
   // One area for every Evals view: the page reads its sub-paths itself
   // (components/evals/evalsPaths.ts), so a new view needs no route here.
-  { path: "evals", component: cast(Evals), layout: "dashboardShell", tab: "/evals" },
-  { path: "evals/*", component: cast(Evals), layout: "dashboardShell", tab: "/evals/*" },
+  {
+    path: "evals",
+    component: cast(Evals),
+    layout: "dashboardShell",
+    tab: "/evals",
+  },
+  {
+    path: "evals/*",
+    component: cast(Evals),
+    layout: "dashboardShell",
+    tab: "/evals/*",
+  },
   // Ops the same way (components/ops/opsPaths.ts): tabs, issues and replays.
   { path: "ops", component: cast(Ops), layout: "dashboardShell", tab: "/ops" },
-  { path: "ops/*", component: cast(Ops), layout: "dashboardShell", tab: "/ops/*" },
+  {
+    path: "ops/*",
+    component: cast(Ops),
+    layout: "dashboardShell",
+    tab: "/ops/*",
+  },
 
   // -- Standalone shell pages (outside the shared shell) --
   // `windows` and `orchestration` are NOT in DashboardShell in App.tsx, yet TabContent
   // CAN render them in place — so they carry a `tab` here even though their layout is
   // "standalone". Without one, a tab that adopted /orchestration drew an empty stage.
   { path: "explore", component: cast(Explore), layout: "standalone" },
-  { path: "windows", component: cast(Windows), layout: "standalone", tab: "/windows", fullWidth: true },
-  { path: "orchestration", component: cast(Orchestration), layout: "standalone", tab: "/orchestration" },
+  {
+    path: "windows",
+    component: cast(Windows),
+    layout: "standalone",
+    tab: "/windows",
+    fullWidth: true,
+  },
+  {
+    path: "orchestration",
+    component: cast(Orchestration),
+    layout: "standalone",
+    tab: "/orchestration",
+  },
   { path: "cli", component: cast(Cli), layout: "standalone" },
 
   // -- Sharing (no AuthGuard → public) --
-  { path: "share/:token", component: cast(Share), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/message/:token", component: cast(ShareMessage), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/doc/:token", component: cast(ShareDoc), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/plan/:token", component: cast(SharePlan), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/task/:token", component: cast(ShareTask), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/call/:token", component: cast(ShareCall), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/project/:token", component: cast(ShareProject), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/initiative/:token", component: cast(ShareInitiative), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/decision/:token", component: cast(ShareDecision), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/stack/:token", component: cast(ShareStack), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/trigger/:token", component: cast(ShareTrigger), layout: "share", guestOk: true, guestKind: "public" },
-  { path: "share/run/:token", component: cast(ShareRun), layout: "share", guestOk: true, guestKind: "public" },
+  {
+    path: "share/:token",
+    component: cast(Share),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/message/:token",
+    component: cast(ShareMessage),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/doc/:token",
+    component: cast(ShareDoc),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/plan/:token",
+    component: cast(SharePlan),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/task/:token",
+    component: cast(ShareTask),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/call/:token",
+    component: cast(ShareCall),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/project/:token",
+    component: cast(ShareProject),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/initiative/:token",
+    component: cast(ShareInitiative),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/decision/:token",
+    component: cast(ShareDecision),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/stack/:token",
+    component: cast(ShareStack),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/trigger/:token",
+    component: cast(ShareTrigger),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "share/run/:token",
+    component: cast(ShareRun),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
   // A guest's meeting page boots standalone (shareBoot); inside the app this
   // route only turns an in-app navigation into the full load the page needs.
-  { path: "meet/:token", component: cast(ReloadOutsideApp), layout: "share", guestOk: true, guestKind: "public" },
+  {
+    path: "meet/:token",
+    component: cast(ReloadOutsideApp),
+    layout: "share",
+    guestOk: true,
+    guestKind: "public",
+  },
 
   // -- Browsing a repository. The tree and blob pages carry the file path in the
   //    query string (`?path=`), not the route, so every path here is a fixed set
   //    of segments and the tab shell can render all four in place. --
-  { path: "repo", component: cast(RepoIndex), layout: "dashboardShell", tab: "/repo", fullWidth: true },
-  { path: "repo/:owner/:name", component: cast(RepoHome), layout: "codeReview", tab: "/repo/:owner/:name", fullWidth: true },
-  { path: "repo/:owner/:name/tree/:ref", component: cast(RepoTree), layout: "codeReview", tab: "/repo/:owner/:name/tree/:ref", fullWidth: true },
-  { path: "repo/:owner/:name/blob/:ref", component: cast(RepoBlob), layout: "codeReview", tab: "/repo/:owner/:name/blob/:ref", fullWidth: true },
-  { path: "repo/:owner/:name/commits/:ref", component: cast(RepoCommits), layout: "codeReview", tab: "/repo/:owner/:name/commits/:ref", fullWidth: true },
-  { path: "repo/:owner/:name/compare/:range", component: cast(RepoCompare), layout: "codeReview", tab: "/repo/:owner/:name/compare/:range", fullWidth: true },
-  { path: "repo/:owner/:name/branches", component: cast(RepoBranches), layout: "codeReview", tab: "/repo/:owner/:name/branches", fullWidth: true },
-  { path: "repo/:owner/:name/worktrees", component: cast(RepoWorktrees), layout: "codeReview", tab: "/repo/:owner/:name/worktrees", fullWidth: true },
-  { path: "repo/:owner/:name/tags", component: cast(RepoTags), layout: "codeReview", tab: "/repo/:owner/:name/tags", fullWidth: true },
-  { path: "repo/:owner/:name/pulls", component: cast(RepoPulls), layout: "codeReview", tab: "/repo/:owner/:name/pulls", fullWidth: true },
-  { path: "repo/:owner/:name/sessions", component: cast(RepoSessions), layout: "codeReview", tab: "/repo/:owner/:name/sessions", fullWidth: true },
-  { path: "repo/:owner/:name/search", component: cast(RepoSearch), layout: "codeReview", tab: "/repo/:owner/:name/search", fullWidth: true },
+  {
+    path: "repo",
+    component: cast(RepoIndex),
+    layout: "dashboardShell",
+    tab: "/repo",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name",
+    component: cast(RepoHome),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/tree/:ref",
+    component: cast(RepoTree),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/tree/:ref",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/blob/:ref",
+    component: cast(RepoBlob),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/blob/:ref",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/commits/:ref",
+    component: cast(RepoCommits),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/commits/:ref",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/compare/:range",
+    component: cast(RepoCompare),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/compare/:range",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/branches",
+    component: cast(RepoBranches),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/branches",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/worktrees",
+    component: cast(RepoWorktrees),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/worktrees",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/tags",
+    component: cast(RepoTags),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/tags",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/pulls",
+    component: cast(RepoPulls),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/pulls",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/sessions",
+    component: cast(RepoSessions),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/sessions",
+    fullWidth: true,
+  },
+  {
+    path: "repo/:owner/:name/search",
+    component: cast(RepoSearch),
+    layout: "codeReview",
+    tab: "/repo/:owner/:name/search",
+    fullWidth: true,
+  },
 
   // -- The standalone family: the same page components with no shell around
   //    them. Layout "standalone" and guest-public, because a public repository
@@ -520,24 +1541,120 @@ export const ROUTES: RouteEntry[] = [
   //    the whole /r prefix, which is what the guest-public rule below checks).
   //    No `fullWidth` either: that flag names a DashboardLayout behaviour, and
   //    these routes never render DashboardLayout. --
-  { path: "r/:owner/:name", component: cast(RepoHome), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/tree/:ref", component: cast(RepoTree), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/blob/:ref", component: cast(RepoBlob), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/commits/:ref", component: cast(RepoCommits), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/compare/:range", component: cast(RepoCompare), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/branches", component: cast(RepoBranches), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/tags", component: cast(RepoTags), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/pulls", component: cast(RepoPulls), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/sessions", component: cast(RepoSessions), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:name/search", component: cast(RepoSearch), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:repo/commit/:sha", component: cast(CommitView), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:repo/pull/:number", component: cast(PrView), layout: "standalone", guestOk: true, guestKind: "public" },
-  { path: "r/:owner/:repo/pull/:number/:view", component: cast(PrView), layout: "standalone", guestOk: true, guestKind: "public" },
+  {
+    path: "r/:owner/:name",
+    component: cast(RepoHome),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/tree/:ref",
+    component: cast(RepoTree),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/blob/:ref",
+    component: cast(RepoBlob),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/commits/:ref",
+    component: cast(RepoCommits),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/compare/:range",
+    component: cast(RepoCompare),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/branches",
+    component: cast(RepoBranches),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/tags",
+    component: cast(RepoTags),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/pulls",
+    component: cast(RepoPulls),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/sessions",
+    component: cast(RepoSessions),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:name/search",
+    component: cast(RepoSearch),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:repo/commit/:sha",
+    component: cast(CommitView),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:repo/pull/:number",
+    component: cast(PrView),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
+  {
+    path: "r/:owner/:repo/pull/:number/:view",
+    component: cast(PrView),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
 
   // -- Code review --
-  { path: "commit/:owner/:repo/:sha", component: cast(CommitView), layout: "codeReview", tab: "/commit/:owner/:repo/:sha", fullWidth: true },
-  { path: "pr/:owner/:repo/:number", component: cast(PrView), layout: "codeReview", tab: "/pr/:owner/:repo/:number", fullWidth: true },
-  { path: "pr/:owner/:repo/:number/:view", component: cast(PrView), layout: "codeReview", tab: "/pr/:owner/:repo/:number/:view", fullWidth: true },
+  {
+    path: "commit/:owner/:repo/:sha",
+    component: cast(CommitView),
+    layout: "codeReview",
+    tab: "/commit/:owner/:repo/:sha",
+    fullWidth: true,
+  },
+  {
+    path: "pr/:owner/:repo/:number",
+    component: cast(PrView),
+    layout: "codeReview",
+    tab: "/pr/:owner/:repo/:number",
+    fullWidth: true,
+  },
+  {
+    path: "pr/:owner/:repo/:number/:view",
+    component: cast(PrView),
+    layout: "codeReview",
+    tab: "/pr/:owner/:repo/:number/:view",
+    fullWidth: true,
+  },
 
   // -- Palette (TransparentWindowLayout) --
   { path: "palette", component: cast(Palette), layout: "palette" },
@@ -573,7 +1690,13 @@ export const ROUTES: RouteEntry[] = [
 
   // -- Old addresses: /welcome and /simple and below redirect to their
   //    main-app pages (lib/laneRedirect.ts). --
-  { path: "welcome", component: cast(LaneRedirect), layout: "redirect", guestOk: true, guestKind: "public" },
+  {
+    path: "welcome",
+    component: cast(LaneRedirect),
+    layout: "redirect",
+    guestOk: true,
+    guestKind: "public",
+  },
   { path: "simple/*", component: cast(LaneRedirect), layout: "redirect" },
   // The hosted page names as addresses (lib/laneRedirect.ts PAGE_ALIASES):
   // /approvals and /questions are /decisions, /plan and /mail are settings sections. Ahead of
@@ -585,10 +1708,20 @@ export const ROUTES: RouteEntry[] = [
   { path: "mail", component: cast(LaneRedirect), layout: "redirect" },
   { path: "integrations", component: cast(LaneRedirect), layout: "redirect" },
   // The non-developer funnel's address, open to a signed-out visitor.
-  { path: "everyone", component: cast(LaneRedirect), layout: "redirect", guestOk: true, guestKind: "public" },
+  {
+    path: "everyone",
+    component: cast(LaneRedirect),
+    layout: "redirect",
+    guestOk: true,
+    guestKind: "public",
+  },
   // Renamed pages' old addresses (lib/renamedPages.ts).
   { path: "initiatives", component: cast(LaneRedirect), layout: "redirect" },
-  { path: "initiatives/:id", component: cast(LaneRedirect), layout: "redirect" },
+  {
+    path: "initiatives/:id",
+    component: cast(LaneRedirect),
+    layout: "redirect",
+  },
   { path: "team", component: cast(LaneRedirect), layout: "redirect" },
   { path: "company", component: cast(LaneRedirect), layout: "redirect" },
   { path: "roadmap", component: cast(LaneRedirect), layout: "redirect" },
@@ -596,25 +1729,93 @@ export const ROUTES: RouteEntry[] = [
   // -- Settings (SettingsLayout; index = /settings) --
   { path: "settings", component: cast(Settings), layout: "settings" },
   { path: "settings/cli", component: cast(SettingsCli), layout: "settings" },
-  { path: "settings/connected-agents", component: cast(SettingsConnectedAgents), layout: "settings" },
-  { path: "settings/agents", component: cast(SettingsAgents), layout: "settings" },
-  { path: "settings/agent-library", component: cast(SettingsAgentLibrary), layout: "settings" },
-  { path: "settings/devices", component: cast(SettingsDevices), layout: "settings" },
-  { path: "settings/migrate", component: cast(SettingsMigrate), layout: "settings" },
+  {
+    path: "settings/connected-agents",
+    component: cast(SettingsConnectedAgents),
+    layout: "settings",
+  },
+  {
+    path: "settings/agents",
+    component: cast(SettingsAgents),
+    layout: "settings",
+  },
+  {
+    path: "settings/agent-library",
+    component: cast(SettingsAgentLibrary),
+    layout: "settings",
+  },
+  {
+    path: "settings/devices",
+    component: cast(SettingsDevices),
+    layout: "settings",
+  },
+  {
+    path: "settings/migrate",
+    component: cast(SettingsMigrate),
+    layout: "settings",
+  },
   { path: "settings/sync", component: cast(SettingsSync), layout: "settings" },
-  { path: "settings/profile", component: cast(SettingsProfile), layout: "settings" },
-  { path: "settings/accounts", component: cast(SettingsAccounts), layout: "settings" },
-  { path: "settings/accounts/link-github", component: cast(SettingsAccountsLinkGithub), layout: "settings" },
-  { path: "settings/claude-accounts", component: cast(SettingsClaudeAccounts), layout: "settings" },
-  { path: "settings/account-pool", component: cast(SettingsAccountPool), layout: "settings" },
+  {
+    path: "settings/profile",
+    component: cast(SettingsProfile),
+    layout: "settings",
+  },
+  {
+    path: "settings/accounts",
+    component: cast(SettingsAccounts),
+    layout: "settings",
+  },
+  {
+    path: "settings/accounts/link-github",
+    component: cast(SettingsAccountsLinkGithub),
+    layout: "settings",
+  },
+  {
+    path: "settings/claude-accounts",
+    component: cast(SettingsClaudeAccounts),
+    layout: "settings",
+  },
+  {
+    path: "settings/account-pool",
+    component: cast(SettingsAccountPool),
+    layout: "settings",
+  },
   { path: "settings/team", component: cast(SettingsTeam), layout: "settings" },
-  { path: "settings/team/create", component: cast(SettingsTeamCreate), layout: "settings" },
-  { path: "settings/team/join", component: cast(SettingsTeamJoin), layout: "settings" },
-  { path: "settings/team/features", component: cast(SettingsTeamFeatures), layout: "settings" },
-  { path: "settings/notifications", component: cast(SettingsNotifications), layout: "settings" },
-  { path: "settings/integrations", component: cast(SettingsIntegrations), layout: "settings" },
-  { path: "settings/integrations/github-app", component: cast(SettingsIntegrations), layout: "settings" },
-  { path: "settings/desktop", component: cast(SettingsDesktop), layout: "settings" },
+  {
+    path: "settings/team/create",
+    component: cast(SettingsTeamCreate),
+    layout: "settings",
+  },
+  {
+    path: "settings/team/join",
+    component: cast(SettingsTeamJoin),
+    layout: "settings",
+  },
+  {
+    path: "settings/team/features",
+    component: cast(SettingsTeamFeatures),
+    layout: "settings",
+  },
+  {
+    path: "settings/notifications",
+    component: cast(SettingsNotifications),
+    layout: "settings",
+  },
+  {
+    path: "settings/integrations",
+    component: cast(SettingsIntegrations),
+    layout: "settings",
+  },
+  {
+    path: "settings/integrations/github-app",
+    component: cast(SettingsIntegrations),
+    layout: "settings",
+  },
+  {
+    path: "settings/desktop",
+    component: cast(SettingsDesktop),
+    layout: "settings",
+  },
   { path: "settings/apps", component: cast(SettingsApps), layout: "settings" },
   // Sections with no page of their own (provider-keys, daemon, sounds): SettingsLayout opens
   // them as a modal over the settings index.
@@ -624,7 +1825,13 @@ export const ROUTES: RouteEntry[] = [
   // MUST stay last: React Router ranks static segments above this dynamic one, so
   // every real route wins; only unmatched single-segment paths fall through here.
   // Claim collisions are blocked by RESERVED_USERNAMES in convex/users.ts.
-  { path: ":username", component: cast(PublicProfile), layout: "standalone", guestOk: true, guestKind: "public" },
+  {
+    path: ":username",
+    component: cast(PublicProfile),
+    layout: "standalone",
+    guestOk: true,
+    guestKind: "public",
+  },
 ];
 
 // -- Helpers (used by the parity test; safe for Wave 2 consumers too) --

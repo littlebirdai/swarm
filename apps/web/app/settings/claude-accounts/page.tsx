@@ -1,5 +1,5 @@
 import { useSettingsData } from "../../../hooks/useSyncSettings";
-"use client";
+("use client");
 
 import { copyToClipboard } from "../../../lib/utils";
 // First-class management of Claude Code accounts. Saved logins are
@@ -24,7 +24,12 @@ import { AppLoader } from "../../../components/AppLoader";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Switch } from "../../../components/ui/switch";
-import { SettingsBadge, SettingsPanel, SettingsSection, type SettingsBadgeTone } from "../../../components/settings/ui";
+import {
+  SettingsBadge,
+  SettingsPanel,
+  SettingsSection,
+  type SettingsBadgeTone,
+} from "../../../components/settings/ui";
 import { toast } from "sonner";
 import { Check, Copy, KeyRound, Laptop, Pin, Trash2, Zap } from "lucide-react";
 import {
@@ -35,17 +40,40 @@ import {
   UsageRefreshButton,
   type ProfileLoginFlow,
 } from "../../../components/AccountUsageMeter";
-import { MintTokenButton, SetupTokenBadge, type MintFlow } from "../../../components/MintTokenDialog";
-import { isFleetProfile, profileHasSetupToken } from "@codecast/convex/convex/ccAccountsShared";
-import { describeLastAction, formatAgo, planTypeLabel, profileLabel, rankByHeadroom, type RecoveryDecision } from "@codecast/shared/contracts";
+import {
+  MintTokenButton,
+  SetupTokenBadge,
+  type MintFlow,
+} from "../../../components/MintTokenDialog";
+import {
+  isFleetProfile,
+  profileHasSetupToken,
+} from "@codecast/convex/convex/ccAccountsShared";
+import {
+  describeLastAction,
+  formatAgo,
+  planTypeLabel,
+  profileLabel,
+  rankByHeadroom,
+  type RecoveryDecision,
+} from "@codecast/shared/contracts";
 import { useCoarseNow } from "../../../hooks/useCoarseNow";
 import { useAccountRecoveryToggles } from "../../../hooks/useAccountRecoveryToggles";
-import { RecoveryModeSelect, RecoveryDecisionNote } from "../../../components/RecoveryModeSelect";
+import {
+  RecoveryModeSelect,
+  RecoveryDecisionNote,
+} from "../../../components/RecoveryModeSelect";
 import { useMachineAccountSwitch } from "../../../hooks/useMachineAccountSwitch";
-import { machineSwitchBlock, profileIsCurrentLogin } from "../../../lib/machineAccountSwitch";
+import {
+  machineSwitchBlock,
+  profileIsCurrentLogin,
+} from "../../../lib/machineAccountSwitch";
 import { AccountPoolPill } from "../../../components/settings/AccountPoolPill";
 import { AccountMachineGrid } from "../../../components/settings/AccountMachineGrid";
-import { useAccountPool, useSyncAccountPool } from "../../../hooks/useSyncAccountPool";
+import {
+  useAccountPool,
+  useSyncAccountPool,
+} from "../../../hooks/useSyncAccountPool";
 import { modernButton, modernPill } from "../../../components/ui/modernLook";
 
 type DeviceAccounts = {
@@ -88,7 +116,11 @@ type DeviceAccounts = {
 };
 
 function sessionsBadge(
-  p: { token?: { expires_at: number }; setup_token?: { expires_at: number }; login_expired_at?: number },
+  p: {
+    token?: { expires_at: number };
+    setup_token?: { expires_at: number };
+    login_expired_at?: number;
+  },
   now: number,
 ): { label: string; tone: SettingsBadgeTone; title: string } | null {
   // A live minted token outranks the store at launch: its own badge says so.
@@ -98,13 +130,15 @@ function sessionsBadge(
     return {
       label: "grant lifetime over",
       tone: "red",
-      title: "This saved login's refresh lifetime has run out — sign into it again and sessions can use it",
+      title:
+        "This saved login's refresh lifetime has run out — sign into it again and sessions can use it",
     };
   }
   return {
     label: "sessions",
     tone: "violet",
-    title: "This account has its own credential store on the machine; sessions can be pinned to it without changing the current login",
+    title:
+      "This account has its own credential store on the machine; sessions can be pinned to it without changing the current login",
   };
 }
 
@@ -130,12 +164,22 @@ function CopyableCommand({ cmd }: { cmd: string }) {
       title="Copy command"
     >
       {cmd}
-      {copied ? <Check className="h-3 w-3 text-sol-green" /> : <Copy className="h-3 w-3 text-sol-text-dim" />}
+      {copied ? (
+        <Check className="h-3 w-3 text-sol-green" />
+      ) : (
+        <Copy className="h-3 w-3 text-sol-text-dim" />
+      )}
     </button>
   );
 }
 
-function SaveCurrentForm({ device, suggestedName }: { device: DeviceAccounts; suggestedName: string }) {
+function SaveCurrentForm({
+  device,
+  suggestedName,
+}: {
+  device: DeviceAccounts;
+  suggestedName: string;
+}) {
   const saveProfile = useMutation(api.accountSwitch.saveAccountProfile);
   const [name, setName] = useState(suggestedName);
   const [busy, setBusy] = useState(false);
@@ -162,21 +206,32 @@ function SaveCurrentForm({ device, suggestedName }: { device: DeviceAccounts; su
   return (
     <div className="bg-sol-yellow/[0.06] px-4 py-3 sm:px-5">
       <div className="text-xs font-medium text-sol-text">
-        New login: <span className="text-sol-yellow">{device.active_email}</span> isn't saved as a profile yet
+        New login:{" "}
+        <span className="text-sol-yellow">{device.active_email}</span> isn't
+        saved as a profile yet
       </div>
       <p className="mt-1 text-meta leading-relaxed text-sol-text-dim">
-        The daemon saves new logins automatically within ~30 seconds. Save it now to pick the
-        name yourself — either way you'll be able to switch back to it later.
+        The daemon saves new logins automatically within ~30 seconds. Save it
+        now to pick the name yourself — either way you'll be able to switch back
+        to it later.
       </p>
       <div className="mt-2 flex items-center gap-2">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+          }}
           placeholder="profile name"
           className="h-7 w-36 text-xs bg-sol-bg border-sol-border text-sol-text placeholder:text-sol-text-dim"
         />
-        <Button size="sm" variant="outline" disabled={busy || !name} onClick={handleSave} className="h-7 text-xs">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || !name}
+          onClick={handleSave}
+          className="h-7 text-xs"
+        >
           {busy ? "Saving…" : "Save as profile"}
         </Button>
       </div>
@@ -187,7 +242,9 @@ function SaveCurrentForm({ device, suggestedName }: { device: DeviceAccounts; su
 function SessionAccountsStatus({ device }: { device: DeviceAccounts }) {
   const now = useCoarseNow(30_000);
   const needSignIn = device.profiles.filter((p) => profileNeedsSignIn(p, now));
-  const ready = device.profiles.filter((p) => profileHasToken(p, now) && !profileNeedsSignIn(p, now));
+  const ready = device.profiles.filter(
+    (p) => profileHasToken(p, now) && !profileNeedsSignIn(p, now),
+  );
   const total = device.profiles.length;
 
   return (
@@ -195,21 +252,26 @@ function SessionAccountsStatus({ device }: { device: DeviceAccounts }) {
       <div className="flex items-center gap-2.5 px-4 py-3 sm:px-5">
         <Pin className="h-4 w-4 shrink-0 text-sol-violet" />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-sol-text">Sessions on saved accounts</div>
+          <div className="text-xs font-medium text-sol-text">
+            Sessions on saved accounts
+          </div>
           <p className="mt-0.5 text-meta leading-relaxed text-sol-text-dim">
-            Every saved login gets its own credential store on this machine, so a session can run on
-            any saved account while the current login stays put. When a blocked session switches
-            accounts, codecast restarts only its Claude Code process on the new account; the
-            conversation stays intact and other sessions keep running. Stores are filled and renewed
-            automatically; nothing here opens a browser on its own. Prefer a fixed one-year token for
-            an account? &quot;mint token&quot; on its row walks you through the browser sign-in and
-            explains the trade.
+            Every saved login gets its own credential store on this machine, so
+            a session can run on any saved account while the current login stays
+            put. When a blocked session switches accounts, codecast restarts
+            only its Claude Code process on the new account; the conversation
+            stays intact and other sessions keep running. Stores are filled and
+            renewed automatically; nothing here opens a browser on its own.
+            Prefer a fixed one-year token for an account? &quot;mint token&quot;
+            on its row walks you through the browser sign-in and explains the
+            trade.
           </p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pb-3 pl-[42px] text-meta text-sol-text-dim sm:px-5 sm:pl-[46px]">
         <span>
-          {ready.length} of {total} saved account{total === 1 ? "" : "s"} can carry sessions.
+          {ready.length} of {total} saved account{total === 1 ? "" : "s"} can
+          carry sessions.
         </span>
         {needSignIn.length > 0 && (
           <span className="text-amber-500 modern:text-sol-amber">
@@ -229,7 +291,11 @@ function AutoSwitchToggle({ device }: { device: DeviceAccounts }) {
   const state = device.auto_switch_state;
   // Time-aware: the stamp is only cleared by a re-check that may never run, so
   // past the session window it needs a still-pegged account to stand on.
-  const exhausted = isExhaustionCurrent(state?.exhausted_at, device.profiles, now);
+  const exhausted = isExhaustionCurrent(
+    state?.exhausted_at,
+    device.profiles,
+    now,
+  );
 
   return (
     <>
@@ -238,11 +304,14 @@ function AutoSwitchToggle({ device }: { device: DeviceAccounts }) {
           className={`mt-0.5 h-4 w-4 shrink-0 ${recovery.mode === "off" ? "text-sol-text-dim" : "text-sol-cyan"}`}
         />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-sol-text">When a session stops on its own</div>
+          <div className="text-sm font-medium text-sol-text">
+            When a session stops on its own
+          </div>
           <p className="mt-0.5 text-meta leading-relaxed text-sol-text-dim">
-            A usage limit, an API error or a crash can stop a session mid-turn. Choose whether
-            codecast continues it for you. Changing accounts moves every session on this machine;
-            subagent workers are never continued.
+            A usage limit, an API error or a crash can stop a session mid-turn.
+            Choose whether codecast continues it for you. Changing accounts
+            moves every session on this machine; subagent workers are never
+            continued.
           </p>
           <div className="mt-2">
             <RecoveryModeSelect control={recovery} />
@@ -259,12 +328,16 @@ function AutoSwitchToggle({ device }: { device: DeviceAccounts }) {
           <RecoveryDecisionNote decision={state.last_decision} now={now} />
         </div>
       )}
-      {!exhausted && !state?.last_decision && state?.last_action && state.last_action_at && (
-        <div className="px-4 py-2 text-meta text-sol-text-dim sm:px-5">
-          Last action: {describeLastAction(state.last_action, device.profiles)}{" "}
-          {formatAgo(now - state.last_action_at)}.
-        </div>
-      )}
+      {!exhausted &&
+        !state?.last_decision &&
+        state?.last_action &&
+        state.last_action_at && (
+          <div className="px-4 py-2 text-meta text-sol-text-dim sm:px-5">
+            Last action:{" "}
+            {describeLastAction(state.last_action, device.profiles)}{" "}
+            {formatAgo(now - state.last_action_at)}.
+          </div>
+        )}
     </>
   );
 }
@@ -275,11 +348,16 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
   const now = useCoarseNow(30_000);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const fleet = { activeEmail: device.active_email, launchProfile: device.launch_profile };
+  const fleet = {
+    activeEmail: device.active_email,
+    launchProfile: device.launch_profile,
+  };
   const sw = useMachineAccountSwitch({ deviceId: device.device_id, ...fleet });
 
   const online = device.online !== false;
-  const activeProfile = device.profiles.find((p) => profileIsCurrentLogin(p, device.active_email));
+  const activeProfile = device.profiles.find((p) =>
+    profileIsCurrentLogin(p, device.active_email),
+  );
   // Most room left first, so the top of the list is what a switch would pick —
   // except the current login, which stays pinned above it: the reader needs to
   // see what is on now beside what comes next.
@@ -289,7 +367,9 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
     ...ranked.filter((p) => !isFleetProfile(p, device, now)),
   ];
   // Suggest the email's local part as the profile name (claude2@almostcandid.com -> claude2).
-  const suggested = (device.active_email?.split("@")[0] ?? "work").toLowerCase();
+  const suggested = (
+    device.active_email?.split("@")[0] ?? "work"
+  ).toLowerCase();
   const rowBusy = busy ?? sw.switching;
 
   const handleRemove = async (profile: string) => {
@@ -300,7 +380,9 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
       // behind it, and its next heartbeat confirms — or resurrects the row
       // if the deletion failed.
       await removeProfile({ name: profile, device_id: device.device_id });
-      toast.success(`Removed "${profile}"`, { description: "Log into that account again anytime to re-add it." });
+      toast.success(`Removed "${profile}"`, {
+        description: "Log into that account again anytime to re-add it.",
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Remove failed");
     } finally {
@@ -316,12 +398,16 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
       actions={
         <>
           {device.is_remote && (
-            <span className={`px-1.5 py-0.5 rounded text-meta bg-sol-violet/10 text-sol-violet ${modernPill({ tone: "violet" })}`}>
+            <span
+              className={`px-1.5 py-0.5 rounded text-meta bg-sol-violet/10 text-sol-violet ${modernPill({ tone: "violet" })}`}
+            >
               remote — mirrors the primary's account
             </span>
           )}
           <span className="inline-flex items-center gap-1.5 text-meta text-sol-text-dim">
-            <span className={`h-1.5 w-1.5 rounded-full ${online ? "bg-sol-green" : "bg-sol-border"}`} />
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${online ? "bg-sol-green" : "bg-sol-border"}`}
+            />
             {online ? "online" : "offline"}
           </span>
           {!device.is_remote && <UsageRefreshButton device={device} />}
@@ -330,97 +416,126 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
     >
       {!online && (
         <p className="px-4 py-2.5 text-meta leading-relaxed text-sol-text-dim sm:px-5">
-          The daemon on this machine isn't reporting right now (<CopyableCommand cmd="cast restart" /> brings
-          it back). Account switching needs it; the auto-switch setting below still saves.
+          The daemon on this machine isn't reporting right now (
+          <CopyableCommand cmd="cast restart" /> brings it back). Account
+          switching needs it; the auto-switch setting below still saves.
         </p>
       )}
 
       {!device.is_remote && <AutoSwitchToggle device={device} />}
 
       {orderedProfiles.map((p) => {
-          // The lit row is the account sessions run on: the launch profile
-          // after a token switch, else the keychain login.
-          const isActive = isFleetProfile(p, device, now);
-          const viaToken = isActive && !!device.launch_profile && !device.fleet_store;
-          const keychainLoginAside = !!device.launch_profile && !isActive && profileIsCurrentLogin(p, device.active_email);
-          const onFleetStore = isActive && !!device.fleet_store;
-          const plan = planLabel(p);
-          // A pool copy is a teammate's: no sign-in, token or remove of its own.
-          const pooledFrom = p.pool_share_id ? pool.find((r) => r._id === p.pool_share_id)?.contributor_name ?? "a teammate" : null;
-          return (
-            <div
-              key={p.name}
-              className={`px-4 py-2.5 sm:px-5 ${isActive ? "bg-sol-green/[0.05]" : ""}`}
-            >
-              {/* Two lines: who the account is and the one thing to do with
+        // The lit row is the account sessions run on: the launch profile
+        // after a token switch, else the keychain login.
+        const isActive = isFleetProfile(p, device, now);
+        const viaToken =
+          isActive && !!device.launch_profile && !device.fleet_store;
+        const keychainLoginAside =
+          !!device.launch_profile &&
+          !isActive &&
+          profileIsCurrentLogin(p, device.active_email);
+        const onFleetStore = isActive && !!device.fleet_store;
+        const plan = planLabel(p);
+        // A pool copy is a teammate's: no sign-in, token or remove of its own.
+        const pooledFrom = p.pool_share_id
+          ? (pool.find((r) => r._id === p.pool_share_id)?.contributor_name ??
+            "a teammate")
+          : null;
+        return (
+          <div
+            key={p.name}
+            className={`px-4 py-2.5 sm:px-5 ${isActive ? "bg-sol-green/[0.05]" : ""}`}
+          >
+            {/* Two lines: who the account is and the one thing to do with
                   it (it is active, switch to it, remove it), then its
                   states and the secondary actions, wrapping under the name.
                   On one line they ran past the card, which clips. */}
-              <div className="flex items-center gap-2.5">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-sol-green" : "bg-sol-border"}`} />
-                <span className="min-w-0 truncate text-sm font-medium text-sol-text" title={profileLabel(p.name)}>{profileLabel(p.name)}</span>
-                <span className="min-w-0 flex-1 truncate text-xs text-sol-text-muted" title={p.email}>{p.email}</span>
-                {sw.switching === p.name ? (
-                  <span className="inline-flex shrink-0 items-center gap-1.5 text-meta font-medium text-sol-cyan">
-                    <span className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-sol-cyan/30 border-t-sol-cyan" aria-hidden />
-                    Switching…
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${isActive ? "bg-sol-green" : "bg-sol-border"}`}
+              />
+              <span
+                className="min-w-0 truncate text-sm font-medium text-sol-text"
+                title={profileLabel(p.name)}
+              >
+                {profileLabel(p.name)}
+              </span>
+              <span
+                className="min-w-0 flex-1 truncate text-xs text-sol-text-muted"
+                title={p.email}
+              >
+                {p.email}
+              </span>
+              {sw.switching === p.name ? (
+                <span className="inline-flex shrink-0 items-center gap-1.5 text-meta font-medium text-sol-cyan">
+                  <span
+                    className="h-2.5 w-2.5 animate-spin rounded-full border-2 border-sol-cyan/30 border-t-sol-cyan"
+                    aria-hidden
+                  />
+                  Switching…
+                </span>
+              ) : isActive ? (
+                <span className="shrink-0 text-meta font-medium text-sol-green">
+                  active
+                </span>
+              ) : confirmRemove === p.name ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                  <span className="text-meta text-sol-text-dim">
+                    Forget this saved login?
                   </span>
-                ) : isActive ? (
-                  <span className="shrink-0 text-meta font-medium text-sol-green">active</span>
-                ) : confirmRemove === p.name ? (
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                    <span className="text-meta text-sol-text-dim">Forget this saved login?</span>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={rowBusy !== null}
-                      onClick={() => handleRemove(p.name)}
-                      className="h-6 px-2 text-meta"
-                    >
-                      {busy === p.name ? "Removing…" : "Remove"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={rowBusy !== null}
-                      onClick={() => setConfirmRemove(null)}
-                      className="h-6 px-2 text-meta"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    {(() => {
-                      const tokenSwitch = !!p.login_expired_at && profileHasSetupToken(p, now);
-                      const blocked = machineSwitchBlock({
-                        isActive: false,
-                        online,
-                        isRemote: device.is_remote,
-                        loginExpired: !!p.login_expired_at,
-                        tokenLive: profileHasSetupToken(p, now),
-                        thisProfile: p.name,
-                      });
-                      if (blocked?.block === "login_expired") return null;
-                      return (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!!blocked || sw.switching !== null}
-                          onClick={() => void sw.switchTo(p.name, p.email)}
-                          title={
-                            blocked?.label ??
-                            (tokenSwitch
-                              ? `Move this machine's sessions to "${profileLabel(p.name)}" on its minted token. The saved login stays expired and the machine's own login stays put; running sessions keep the account they started on.`
-                              : `Switch this machine to "${profileLabel(p.name)}". Running sessions keep the account they started on.`)
-                          }
-                          className="h-6 shrink-0 px-2 text-meta"
-                        >
-                          Switch
-                        </Button>
-                      );
-                    })()}
-                    {!pooledFrom && <button
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={rowBusy !== null}
+                    onClick={() => handleRemove(p.name)}
+                    className="h-6 px-2 text-meta"
+                  >
+                    {busy === p.name ? "Removing…" : "Remove"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={rowBusy !== null}
+                    onClick={() => setConfirmRemove(null)}
+                    className="h-6 px-2 text-meta"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const tokenSwitch =
+                      !!p.login_expired_at && profileHasSetupToken(p, now);
+                    const blocked = machineSwitchBlock({
+                      isActive: false,
+                      online,
+                      isRemote: device.is_remote,
+                      loginExpired: !!p.login_expired_at,
+                      tokenLive: profileHasSetupToken(p, now),
+                      thisProfile: p.name,
+                    });
+                    if (blocked?.block === "login_expired") return null;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!!blocked || sw.switching !== null}
+                        onClick={() => void sw.switchTo(p.name, p.email)}
+                        title={
+                          blocked?.label ??
+                          (tokenSwitch
+                            ? `Move this machine's sessions to "${profileLabel(p.name)}" on its minted token. The saved login stays expired and the machine's own login stays put; running sessions keep the account they started on.`
+                            : `Switch this machine to "${profileLabel(p.name)}". Running sessions keep the account they started on.`)
+                        }
+                        className="h-6 shrink-0 px-2 text-meta"
+                      >
+                        Switch
+                      </Button>
+                    );
+                  })()}
+                  {!pooledFrom && (
+                    <button
                       onClick={() => setConfirmRemove(p.name)}
                       disabled={rowBusy !== null || !online}
                       aria-label="Remove this profile from the machine"
@@ -428,84 +543,94 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
                       className="shrink-0 rounded p-1 text-sol-text-dim transition-colors hover:bg-sol-red/10 hover:text-sol-red"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>}
-                  </>
-                )}
-              </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px] empty:hidden">
-                {pooledFrom && (
-                  <SettingsBadge tone="cyan" data-pool-from>
-                    from {pooledFrom}
-                  </SettingsBadge>
-                )}
-                {plan && <SettingsBadge tone="cyan">{plan}</SettingsBadge>}
-                {viaToken && (
-                  <SettingsBadge
-                    tone="green"
-                    title="Sessions codecast starts or resumes run on this account's minted token. The machine's own login is another account until you sign in again here."
-                  >
-                    sessions run here · token
-                  </SettingsBadge>
-                )}
-                {onFleetStore && (
-                  <SettingsBadge
-                    tone="green"
-                    title="Every session codecast runs reads this account from one shared store. A switch moves running sessions within about 30 seconds, without restarting them."
-                  >
-                    sessions run here
-                  </SettingsBadge>
-                )}
-                {keychainLoginAside && (
-                  <SettingsBadge
-                    tone="neutral"
-                    title="This is the machine's keychain login: what a `claude` typed in a terminal runs on. Codecast sessions run on the account marked above."
-                  >
-                    machine login
-                  </SettingsBadge>
-                )}
-                <LoginExpiredBadge profile={p} />
-                <ReservedBadge profile={p} />
-                {!pooledFrom && (
-                  <>
-                    <ProfileSignInButton
-                      device={device}
-                      profile={p}
-                      force={
-                        sw.outcome?.kind === "error" &&
-                        sw.outcome.profile === p.name &&
-                        /sign in again/i.test(sw.outcome.message)
-                      }
-                    />
-                    <SetupTokenBadge profile={p} now={now} />
-                    <MintTokenButton device={device} profile={p} />
-                    {!device.is_remote && p.email && profileHasSetupToken(p, now) && (
-                      <AccountPoolPill deviceId={device.device_id} email={p.email} />
-                    )}
-                  </>
-                )}
-                {(() => {
-                  const badge = sessionsBadge(p, now);
-                  return badge ? (
-                    <SettingsBadge tone={badge.tone} title={badge.title}>
-                      {badge.label}
-                    </SettingsBadge>
-                  ) : null;
-                })()}
-              </div>
-              {sw.outcome?.kind === "error" && sw.outcome.profile === p.name && (
-                <div className="mt-1.5 pl-[18px] text-meta text-sol-red">{sw.outcome.message}</div>
+                    </button>
+                  )}
+                </>
               )}
-              {sw.outcome?.kind === "success" && sw.outcome.profile === p.name && (
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px] empty:hidden">
+              {pooledFrom && (
+                <SettingsBadge tone="cyan" data-pool-from>
+                  from {pooledFrom}
+                </SettingsBadge>
+              )}
+              {plan && <SettingsBadge tone="cyan">{plan}</SettingsBadge>}
+              {viaToken && (
+                <SettingsBadge
+                  tone="green"
+                  title="Sessions codecast starts or resumes run on this account's minted token. The machine's own login is another account until you sign in again here."
+                >
+                  sessions run here · token
+                </SettingsBadge>
+              )}
+              {onFleetStore && (
+                <SettingsBadge
+                  tone="green"
+                  title="Every session codecast runs reads this account from one shared store. A switch moves running sessions within about 30 seconds, without restarting them."
+                >
+                  sessions run here
+                </SettingsBadge>
+              )}
+              {keychainLoginAside && (
+                <SettingsBadge
+                  tone="neutral"
+                  title="This is the machine's keychain login: what a `claude` typed in a terminal runs on. Codecast sessions run on the account marked above."
+                >
+                  machine login
+                </SettingsBadge>
+              )}
+              <LoginExpiredBadge profile={p} />
+              <ReservedBadge profile={p} />
+              {!pooledFrom && (
+                <>
+                  <ProfileSignInButton
+                    device={device}
+                    profile={p}
+                    force={
+                      sw.outcome?.kind === "error" &&
+                      sw.outcome.profile === p.name &&
+                      /sign in again/i.test(sw.outcome.message)
+                    }
+                  />
+                  <SetupTokenBadge profile={p} now={now} />
+                  <MintTokenButton device={device} profile={p} />
+                  {!device.is_remote &&
+                    p.email &&
+                    profileHasSetupToken(p, now) && (
+                      <AccountPoolPill
+                        deviceId={device.device_id}
+                        email={p.email}
+                      />
+                    )}
+                </>
+              )}
+              {(() => {
+                const badge = sessionsBadge(p, now);
+                return badge ? (
+                  <SettingsBadge tone={badge.tone} title={badge.title}>
+                    {badge.label}
+                  </SettingsBadge>
+                ) : null;
+              })()}
+            </div>
+            {sw.outcome?.kind === "error" && sw.outcome.profile === p.name && (
+              <div className="mt-1.5 pl-[18px] text-meta text-sol-red">
+                {sw.outcome.message}
+              </div>
+            )}
+            {sw.outcome?.kind === "success" &&
+              sw.outcome.profile === p.name && (
                 <div className="mt-1.5 pl-[18px] text-meta text-sol-green">
-                  Now using {profileLabel(p.name)}. Running sessions keep the account they started on.
+                  Now using {profileLabel(p.name)}. Running sessions keep the
+                  account they started on.
                 </div>
               )}
-              <div className="mt-2 pl-[18px]">
-                <AccountUsageBars usage={p.usage} now={now} />
-              </div>
+            <div className="mt-2 pl-[18px]">
+              <AccountUsageBars usage={p.usage} now={now} />
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
       {device.profiles.length === 0 && (
         <div className="px-4 py-3 text-xs text-sol-text-dim sm:px-5">
           No saved profiles on this machine yet.
@@ -519,7 +644,9 @@ function DeviceAccountsSection({ device }: { device: DeviceAccounts }) {
       )}
       {!device.is_remote && activeProfile && (
         <div className="px-4 py-2 text-meta text-sol-text-dim sm:px-5">
-          Currently logged in as <span className="text-sol-text">{device.active_email}</span> (saved as "{profileLabel(activeProfile.name)}").
+          Currently logged in as{" "}
+          <span className="text-sol-text">{device.active_email}</span> (saved as
+          "{profileLabel(activeProfile.name)}").
         </div>
       )}
     </SettingsSection>
@@ -533,11 +660,12 @@ export default function ClaudeAccountsSettings() {
   return (
     <SettingsPanel>
       <p className="px-1 text-sm text-sol-text-muted leading-relaxed">
-        Each Claude account you log into is saved as a profile automatically. New sessions run on the
-        current account, while running sessions keep the account they started with. Switching
-        changes the default without interrupting them. When sessions are parked on a usage limit,
-        "switch &amp; continue" restarts only those Claude Code processes on the selected account
-        and resumes the same conversations.
+        Each Claude account you log into is saved as a profile automatically.
+        New sessions run on the current account, while running sessions keep the
+        account they started with. Switching changes the default without
+        interrupting them. When sessions are parked on a usage limit, "switch
+        &amp; continue" restarts only those Claude Code processes on the
+        selected account and resumes the same conversations.
       </p>
 
       {data === undefined && (
@@ -546,16 +674,24 @@ export default function ClaudeAccountsSettings() {
 
       {data && data.devices.length === 0 && (
         <SettingsSection title="Devices" icon={Laptop} padded>
-          <div className="text-sm font-medium text-sol-text">No daemon is reporting accounts yet</div>
+          <div className="text-sm font-medium text-sol-text">
+            No daemon is reporting accounts yet
+          </div>
           <p className="mt-1 text-xs text-sol-text-muted leading-relaxed">
-            Account profiles are reported by the codecast daemon on each machine. Make sure the daemon is
-            running and up to date (<CopyableCommand cmd="cast restart" />), then save your current login:
+            Account profiles are reported by the codecast daemon on each
+            machine. Make sure the daemon is running and up to date (
+            <CopyableCommand cmd="cast restart" />
+            ), then save your current login:
           </p>
-          <div className="mt-2"><CopyableCommand cmd="cast accounts save <name>" /></div>
+          <div className="mt-2">
+            <CopyableCommand cmd="cast accounts save <name>" />
+          </div>
         </SettingsSection>
       )}
 
-      {data && data.devices.length > 0 && <AccountMachineGrid accounts={data.devices} />}
+      {data && data.devices.length > 0 && (
+        <AccountMachineGrid accounts={data.devices} />
+      )}
 
       {data?.devices.map((d) => (
         <DeviceAccountsSection key={d.device_id} device={d} />
@@ -564,12 +700,14 @@ export default function ClaudeAccountsSettings() {
       <SettingsSection title="Add another account" icon={KeyRound} padded>
         <ol className="space-y-2 text-xs text-sol-text-muted leading-relaxed list-decimal list-inside">
           <li>
-            In any terminal on that machine, run <CopyableCommand cmd="claude /login" /> and pick the other
-            account — this is the only time the browser is involved, ever.
+            In any terminal on that machine, run{" "}
+            <CopyableCommand cmd="claude /login" /> and pick the other account —
+            this is the only time the browser is involved, ever.
           </li>
           <li>
-            That's it — the daemon saves the new login as a profile automatically and it appears here
-            within ~30 seconds. To pick the profile name yourself, run{" "}
+            That's it — the daemon saves the new login as a profile
+            automatically and it appears here within ~30 seconds. To pick the
+            profile name yourself, run{" "}
             <CopyableCommand cmd="cast accounts save <name>" /> instead.
           </li>
           <li>
@@ -578,11 +716,13 @@ export default function ClaudeAccountsSettings() {
           </li>
         </ol>
         <p className="mt-2 text-meta text-sol-text-dim">
-          Profiles are stored in the machine's keychain; tokens never leave it. Saved logins are renewed
-          automatically. If one stops working, its row shows &quot;sign in again&quot;: that opens the
-          browser once, for that account only, and the current login stays as it is. A minted token
-          (&quot;mint token&quot; on the row) is the fixed alternative: it needs no renewal and works even
-          when the saved login has expired, at the cost of a yearly re-mint in the browser.
+          Profiles are stored in the machine's keychain; tokens never leave it.
+          Saved logins are renewed automatically. If one stops working, its row
+          shows &quot;sign in again&quot;: that opens the browser once, for that
+          account only, and the current login stays as it is. A minted token
+          (&quot;mint token&quot; on the row) is the fixed alternative: it needs
+          no renewal and works even when the saved login has expired, at the
+          cost of a yearly re-mint in the browser.
         </p>
       </SettingsSection>
     </SettingsPanel>

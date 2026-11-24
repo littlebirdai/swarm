@@ -39,7 +39,10 @@
 // Labels: a codecast judge's decision is a judge_runs row; a product judge's is
 // the finding (a signals row); a grouping decision is the same finding at the
 // "group" step. The label store keys them by (subject id, step id).
-import { isExpectationId, type Expectation } from "@codecast/shared/contracts/expectations";
+import {
+  isExpectationId,
+  type Expectation,
+} from "@codecast/shared/contracts/expectations";
 import type { JudgeFinding } from "@codecast/shared/contracts/judges";
 import type { LineFinderDecl } from "@codecast/shared/contracts/lineProfile";
 import { DAY, WEEK, perDay, type LineSignal } from "../lineFlow";
@@ -51,9 +54,19 @@ import { judgeName, sourceName } from "./sourceNames";
 /** A finding as codecast holds it (signals): a product's, or a live codecast judge's (which carries `moment`). */
 export type LoopSignal = LineSignal & { moment?: string };
 /** The project's current expectations document (project_expectations, highest version). */
-export type LoopExpectations = { version: number; items: ReadonlyArray<Pick<Expectation, "id" | "text" | "status">>; applied_at?: number };
+export type LoopExpectations = {
+  version: number;
+  items: ReadonlyArray<Pick<Expectation, "id" | "text" | "status">>;
+  applied_at?: number;
+};
 /** An extractor as the product's repo published it (moment_extractors). */
-export type LoopExtractorRow = { kind: string; path: string; version: string; published_at: number; source?: string };
+export type LoopExtractorRow = {
+  kind: string;
+  path: string;
+  version: string;
+  published_at: number;
+  source?: string;
+};
 /** A codecast judge as the product's repo published it (judges). */
 export type LoopJudgeRow = {
   _id: string;
@@ -94,9 +107,23 @@ export type LoopMomentRow = {
   created_at: number;
 };
 /** A problem (a cause task), for the refs and words a grouping decision names. */
-export type LoopProblem = { _id: string; short_id?: string; title: string; status: string; created_at: number; cause?: unknown };
+export type LoopProblem = {
+  _id: string;
+  short_id?: string;
+  title: string;
+  status: string;
+  created_at: number;
+  cause?: unknown;
+};
 /** A person's verdict on a decision (line_labels): run_id is the decision's subject id, node_id its step id. */
-export type LoopLabelRow = { run_id: string; node_id: string; verdict: LabelVerdict; note?: string; by: string; at: number };
+export type LoopLabelRow = {
+  run_id: string;
+  node_id: string;
+  verdict: LabelVerdict;
+  note?: string;
+  by: string;
+  at: number;
+};
 
 export type LoopRows = {
   /** The project's findings, every source (scope them to the project first). */
@@ -148,7 +175,14 @@ export type LoopHealth = {
   costUsd: number | null;
 };
 
-export type LoopLabel = { verdict: LabelVerdict; note: string | null; by: string; byName: string | null; at: number; mine: boolean };
+export type LoopLabel = {
+  verdict: LabelVerdict;
+  note: string | null;
+  by: string;
+  byName: string | null;
+  at: number;
+  mine: boolean;
+};
 export type LoopFinding = {
   expectation: string | null;
   severity: number | null;
@@ -161,7 +195,11 @@ export type LoopDecision = {
   /** `${subject.id}:${stepId}`: the label key's decision part. */
   id: string;
   stepId: string;
-  subject: { kind: "signal" | "judge_run" | "moment"; id: string; ref: string | null };
+  subject: {
+    kind: "signal" | "judge_run" | "moment";
+    id: string;
+    ref: string | null;
+  };
   at: number;
   version: string | null;
   status: "ok" | "failed" | "skipped";
@@ -192,7 +230,13 @@ export type LoopStep = {
   health: LoopHealth;
   decisions: LoopDecision[];
 };
-export type LoopEdge = { id: string; from: string; to: string; words: string | null; count: number };
+export type LoopEdge = {
+  id: string;
+  from: string;
+  to: string;
+  words: string | null;
+  count: number;
+};
 export type LoopSteps = {
   mode: LoopMode;
   steps: Record<string, LoopStep>;
@@ -205,12 +249,23 @@ export type LoopSteps = {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const num = (n: number) => n.toLocaleString("en-US");
-const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
-const shortVersion = (v: string) => (/^[0-9a-f]{12,}$/i.test(v) ? v.slice(0, 7) : v);
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${num(n)} ${n === 1 ? one : many}`;
+const shortVersion = (v: string) =>
+  /^[0-9a-f]{12,}$/i.test(v) ? v.slice(0, 7) : v;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const firstLine = (s: string | undefined) => s?.split("\n").map((l) => l.trim()).find((l) => l && !l.startsWith(">")) ?? "";
+const firstLine = (s: string | undefined) =>
+  s
+    ?.split("\n")
+    .map((l) => l.trim())
+    .find((l) => l && !l.startsWith(">")) ?? "";
 const quoteOf = (md: string | undefined) => {
-  const q = md?.split("\n").filter((l) => /^\s*>/.test(l)).map((l) => l.replace(/^\s*>\s?/, "")).join(" ").trim();
+  const q = md
+    ?.split("\n")
+    .filter((l) => /^\s*>/.test(l))
+    .map((l) => l.replace(/^\s*>\s?/, ""))
+    .join(" ")
+    .trim();
   return q || null;
 };
 
@@ -218,47 +273,77 @@ const quoteOf = (md: string | undefined) => {
 export const sourceLabel = (source: string): string => sourceName(source);
 
 /** A codecast judge's findings are filed under source `judge:<name>` (shared/contracts/judges findingSignal). */
-export const isCodecastJudgeSource = (source: string) => source.startsWith("judge:");
+export const isCodecastJudgeSource = (source: string) =>
+  source.startsWith("judge:");
 
 /** A product step's id: its source, and the judge within it when the findings name one. */
-export const productStepId = (source: string, judge?: string | null) => `product:${source}${judge ? `/${judge}` : ""}`;
+export const productStepId = (source: string, judge?: string | null) =>
+  `product:${source}${judge ? `/${judge}` : ""}`;
 
 /** The judge step a finding is a decision of, the step its label names
  *  (line_labels node_id): a product judge's step, or codecast's judge by name. */
 export const findingStepId = (s: Pick<LoopSignal, "source" | "judge">) =>
-  isCodecastJudgeSource(s.source) ? `judge:${s.judge || s.source.slice("judge:".length)}` : productStepId(s.source, s.judge);
+  isCodecastJudgeSource(s.source)
+    ? `judge:${s.judge || s.source.slice("judge:".length)}`
+    : productStepId(s.source, s.judge);
 
 /** The judge step a finding came from, as the Find band names it: "Comms judge", "Match judge",
  *  "Expectation check" for a finding that names no judge and breaks a written expectation (its subject,
  *  learning-loop.md LL2), or the product itself ("Agentwatch") otherwise. Null for what people and sessions report. */
-export function findingJudgeLabel(s: { source: string; judge?: string | null; subject?: string | null }): string | null {
+export function findingJudgeLabel(s: {
+  source: string;
+  judge?: string | null;
+  subject?: string | null;
+}): string | null {
   if (s.source === "person" || s.source === "lesson") return null;
   const own = isCodecastJudgeSource(s.source);
   const judge = s.judge || (own ? s.source.slice("judge:".length) : null);
   // Every judge reads with its product (sourceNames judgeName), as its Find table row does: codecast's comms judge and
   // AgentWatch's are two judges, never one name twice.
   if (judge) return judgeName(own ? "Codecast" : sourceLabel(s.source), judge);
-  return isExpectationId(s.subject) ? "Expectation check" : sourceLabel(s.source);
+  return isExpectationId(s.subject)
+    ? "Expectation check"
+    : sourceLabel(s.source);
 }
 
 /** A finding's own words past its title, the parts that tell one finding of a problem from the next: what the
  *  finder says happened (the first prose paragraph that is not a restated title or the finder's own bookkeeping) and
  *  the evidence it quotes. Plain text, no markdown. */
-export function findingGist(s: { title: string; detail_md?: string | null }): { says: string | null; quote: string | null } {
-  const title = findingTitle(s).toLowerCase().replace(/[.\s]+$/, "");
-  const plain = (l: string) => l.replace(/\*\*|__|`/g, "").replace(/^[#*\-\s]+/, "").trim();
+export function findingGist(s: { title: string; detail_md?: string | null }): {
+  says: string | null;
+  quote: string | null;
+} {
+  const title = findingTitle(s)
+    .toLowerCase()
+    .replace(/[.\s]+$/, "");
+  const plain = (l: string) =>
+    l
+      .replace(/\*\*|__|`/g, "")
+      .replace(/^[#*\-\s]+/, "")
+      .trim();
   let says: string | null = null;
   let quote: string | null = null;
   for (const raw of (s.detail_md ?? "").split(/\n\s*\n/)) {
     const para = raw.trim();
     if (!para) continue;
     if (/^>/.test(para)) {
-      quote ??= plain(para.split("\n").map((l) => l.replace(/^\s*>\s?/, "")).join(" ")).replace(/^["“]|["”]$/g, "") || null;
+      quote ??=
+        plain(
+          para
+            .split("\n")
+            .map((l) => l.replace(/^\s*>\s?/, ""))
+            .join(" "),
+        ).replace(/^["“]|["”]$/g, "") || null;
       continue;
     }
     const text = plain(para.replace(/\s*\n\s*/g, " "));
     if (says || !text) continue;
-    if (text.toLowerCase().startsWith(title.slice(0, 40)) || /^breaks expectation\b/i.test(text) || /^\d+ findings? in this\b/i.test(text)) continue;
+    if (
+      text.toLowerCase().startsWith(title.slice(0, 40)) ||
+      /^breaks expectation\b/i.test(text) ||
+      /^\d+ findings? in this\b/i.test(text)
+    )
+      continue;
     says = text;
   }
   return { says, quote };
@@ -266,7 +351,8 @@ export function findingGist(s: { title: string; detail_md?: string | null }): { 
 
 /** A finding's title without the "Not met:" an expectation check opens with: the finding is already a miss, and the
  *  expectation it names shows where the problem's Expects row is. */
-export const findingTitle = (s: { title: string }): string => s.title.replace(/^not met:\s*/i, "") || s.title;
+export const findingTitle = (s: { title: string }): string =>
+  s.title.replace(/^not met:\s*/i, "") || s.title;
 
 function countsOf(times: number[], now: number) {
   let day = 0;
@@ -288,7 +374,8 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
   const { now } = rows;
   const product = rows.product?.trim() || "The product";
   const problemById = new Map((rows.problems ?? []).map((p) => [p._id, p]));
-  const problemRef = (id: string | null | undefined) => (id ? problemById.get(id)?.short_id ?? null : null);
+  const problemRef = (id: string | null | undefined) =>
+    id ? (problemById.get(id)?.short_id ?? null) : null;
   const signalById = new Map(rows.signals.map((s) => [s._id, s]));
 
   // Labels by decision id.
@@ -296,7 +383,14 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
   for (const l of rows.labels ?? []) {
     const id = `${l.run_id}:${l.node_id}`;
     const list = labelsBy.get(id) ?? [];
-    list.push({ verdict: l.verdict, note: l.note?.trim() || null, by: l.by, byName: rows.names?.get(l.by) ?? null, at: l.at, mine: !!rows.viewerId && l.by === rows.viewerId });
+    list.push({
+      verdict: l.verdict,
+      note: l.note?.trim() || null,
+      by: l.by,
+      byName: rows.names?.get(l.by) ?? null,
+      at: l.at,
+      mine: !!rows.viewerId && l.by === rows.viewerId,
+    });
     labelsBy.set(id, list);
   }
   for (const list of labelsBy.values()) list.sort((a, b) => b.at - a.at);
@@ -307,30 +401,61 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
 
   const steps: LoopStep[] = [];
   const edges: LoopEdge[] = [];
-  const addEdge = (from: string, to: string, words: string | null, count: number) => edges.push({ id: `${from}->${to}`, from, to, words, count });
+  const addEdge = (
+    from: string,
+    to: string,
+    words: string | null,
+    count: number,
+  ) => edges.push({ id: `${from}->${to}`, from, to, words, count });
 
   /** A step's health from its decisions: counts, labels, and the tone a reader needs first. */
-  const health = (decisions: LoopDecision[], verb: string, extra: { cost?: number | null; declared?: boolean; off?: string | null } = {}): LoopHealth => {
-    const c = countsOf(decisions.filter((d) => d.status !== "skipped").map((d) => d.at), now);
-    const dayDecisions = decisions.filter((d) => d.at >= now - DAY && d.at <= now);
+  const health = (
+    decisions: LoopDecision[],
+    verb: string,
+    extra: {
+      cost?: number | null;
+      declared?: boolean;
+      off?: string | null;
+    } = {},
+  ): LoopHealth => {
+    const c = countsOf(
+      decisions.filter((d) => d.status !== "skipped").map((d) => d.at),
+      now,
+    );
+    const dayDecisions = decisions.filter(
+      (d) => d.at >= now - DAY && d.at <= now,
+    );
     const failed = dayDecisions.filter((d) => d.status === "failed").length;
     let right = 0;
     let wrong = 0;
-    for (const d of decisions) for (const l of d.labels) (l.verdict === "right" ? right++ : wrong++);
+    for (const d of decisions)
+      for (const l of d.labels) l.verdict === "right" ? right++ : wrong++;
     const parts = [`${num(c.day)} ${verb} ${WINDOW_WORDS}`];
     if (failed) parts.push(`${num(failed)} failed`);
     if (wrong) parts.push(`${num(wrong)} marked wrong`);
     let tone: LoopHealthTone = "ok";
     let words = parts.join(", ");
-    if (extra.off) { tone = "off"; words = extra.off; }
-    else if (c.day > 0 && failed * 2 > c.day) tone = "failing";
-    else if (!decisions.length) { tone = extra.declared ? "quiet" : "new"; words = extra.declared ? "nothing sent yet" : "nothing yet"; }
-    else if (c.day === 0) {
+    if (extra.off) {
+      tone = "off";
+      words = extra.off;
+    } else if (c.day > 0 && failed * 2 > c.day) tone = "failing";
+    else if (!decisions.length) {
+      tone = extra.declared ? "quiet" : "new";
+      words = extra.declared ? "nothing sent yet" : "nothing yet";
+    } else if (c.day === 0) {
       tone = "quiet";
       const last = Math.max(...decisions.map((d) => d.at));
       words = `quiet for ${Math.max(1, Math.floor((now - last) / DAY))}d`;
     }
-    return { tone, words, ...c, failed, right, wrong, costUsd: extra.cost ?? null };
+    return {
+      tone,
+      words,
+      ...c,
+      failed,
+      right,
+      wrong,
+      costUsd: extra.cost ?? null,
+    };
   };
 
   // ── expectations ──
@@ -338,16 +463,42 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
   const active = exp?.items.filter((e) => e.status === "active") ?? [];
   // Broken this week counts the written lines a finding cited, so it never exceeds the lines written.
   const activeIds = new Set(active.map((e) => e.id));
-  const cited = new Set(rows.signals.filter((s) => s.subject?.startsWith("ex-") && s.created_at >= now - WEEK && (!exp || activeIds.has(s.subject))).map((s) => s.subject!));
+  const cited = new Set(
+    rows.signals
+      .filter(
+        (s) =>
+          s.subject?.startsWith("ex-") &&
+          s.created_at >= now - WEEK &&
+          (!exp || activeIds.has(s.subject)),
+      )
+      .map((s) => s.subject!),
+  );
   steps.push({
-    id: "expectations", stage: "expect", stages: ["expect"], kind: "person", where: "codecast", label: "Expectations",
-    purpose: "How the product should behave, one sentence each, quoted from where a person said it.",
-    version: exp ? String(exp.version) : null, mode: null, file: null, source: null,
+    id: "expectations",
+    stage: "expect",
+    stages: ["expect"],
+    kind: "person",
+    where: "codecast",
+    label: "Expectations",
+    purpose:
+      "How the product should behave, one sentence each, quoted from where a person said it.",
+    version: exp ? String(exp.version) : null,
+    mode: null,
+    file: null,
+    source: null,
     health: {
       tone: active.length ? "ok" : "new",
       // The column header says "Expectations", so the chip carries only the counts.
-      words: active.length ? `${num(active.length)} written${cited.size ? ` · ${num(cited.size)} broken this week` : ""}` : "none written yet",
-      day: 0, week: cited.size, spark: new Array(7).fill(0), failed: 0, right: 0, wrong: 0, costUsd: null,
+      words: active.length
+        ? `${num(active.length)} written${cited.size ? ` · ${num(cited.size)} broken this week` : ""}`
+        : "none written yet",
+      day: 0,
+      week: cited.size,
+      spark: new Array(7).fill(0),
+      failed: 0,
+      right: 0,
+      wrong: 0,
+      costUsd: null,
     },
     decisions: [],
   });
@@ -356,25 +507,48 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
   const extractorKinds = new Map<string, LoopExtractorRow>();
   for (const e of rows.extractors ?? []) {
     const had = extractorKinds.get(e.kind);
-    if (!had || e.published_at > had.published_at) extractorKinds.set(e.kind, e);
+    if (!had || e.published_at > had.published_at)
+      extractorKinds.set(e.kind, e);
   }
   for (const [kind, e] of extractorKinds) {
     const id = `observe:${kind}`;
     const decisions: LoopDecision[] = (rows.moments ?? [])
-      .filter((m) => m.kind === kind && (m.status === "ready" || m.status === "failed"))
+      .filter(
+        (m) =>
+          m.kind === kind && (m.status === "ready" || m.status === "failed"),
+      )
       .map((m) => ({
-        id: `${m._id}:${id}`, stepId: id, subject: { kind: "moment" as const, id: m._id, ref: m.short_id },
-        at: m.extracted_at ?? m.created_at, version: m.extractor_version ?? null,
+        id: `${m._id}:${id}`,
+        stepId: id,
+        subject: { kind: "moment" as const, id: m._id, ref: m.short_id },
+        at: m.extracted_at ?? m.created_at,
+        version: m.extractor_version ?? null,
         status: m.status === "failed" ? ("failed" as const) : ("ok" as const),
-        decided: m.status === "failed" ? `Could not extract: ${m.error ?? "no reason given"}` : `Extracted ${plural(m.blocks ?? 0, "block")}`,
-        findings: [], problemIds: [], evidenceUrl: null, moment: m.short_id, ...labelled(m._id, id),
+        decided:
+          m.status === "failed"
+            ? `Could not extract: ${m.error ?? "no reason given"}`
+            : `Extracted ${plural(m.blocks ?? 0, "block")}`,
+        findings: [],
+        problemIds: [],
+        evidenceUrl: null,
+        moment: m.short_id,
+        ...labelled(m._id, id),
       }))
       .sort((a, b) => b.at - a.at);
     steps.push({
-      id, stage: "observe", stages: ["observe"], kind: "script", where: "product", label: `${cap(kind)} moments`,
+      id,
+      stage: "observe",
+      stages: ["observe"],
+      kind: "script",
+      where: "product",
+      label: `${cap(kind)} moments`,
       purpose: `Freezes each ${kind} with what a judge needs to read it, from ${product}'s own data.`,
-      version: shortVersion(e.version), mode: null, file: e.path, source: e.source ?? null,
-      health: health(decisions, "extracted"), decisions,
+      version: shortVersion(e.version),
+      mode: null,
+      file: e.path,
+      source: e.source ?? null,
+      health: health(decisions, "extracted"),
+      decisions,
     });
   }
 
@@ -385,30 +559,65 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
     if (!had || j.published_at > had.published_at) judgeByName.set(j.name, j);
   }
   const runsByJudge = new Map<string, LoopJudgeRunRow[]>();
-  for (const r of rows.judgeRuns ?? []) runsByJudge.set(r.judge, [...(runsByJudge.get(r.judge) ?? []), r]);
+  for (const r of rows.judgeRuns ?? [])
+    runsByJudge.set(r.judge, [...(runsByJudge.get(r.judge) ?? []), r]);
   for (const name of new Set([...judgeByName.keys(), ...runsByJudge.keys()])) {
     const j = judgeByName.get(name);
     const runs = runsByJudge.get(name) ?? [];
     const id = `judge:${name}`;
-    const decisions = runs.map((r) => judgeRunDecision(r, id, signalById, labelled)).sort((a, b) => b.at - a.at);
+    const decisions = runs
+      .map((r) => judgeRunDecision(r, id, signalById, labelled))
+      .sort((a, b) => b.at - a.at);
     const recent = decisions.filter((d) => d.at >= now - DAY);
-    const skippedAll = recent.length > 0 && recent.every((d) => d.status === "skipped");
-    const off = j?.removed_at ? "removed from the repo" : skippedAll ? "waiting on its model spend limit" : null;
+    const skippedAll =
+      recent.length > 0 && recent.every((d) => d.status === "skipped");
+    const off = j?.removed_at
+      ? "removed from the repo"
+      : skippedAll
+        ? "waiting on its model spend limit"
+        : null;
     const found = recent.reduce((n, d) => n + d.findings.length, 0);
-    const h = health(decisions, "judged", { cost: runs.reduce((n, r) => n + r.cost_usd, 0), off });
-    if (h.tone !== "off" && h.day > 0) h.words = h.words.replace(WINDOW_WORDS, `${WINDOW_WORDS}, ${plural(found, "finding")}`);
+    const h = health(decisions, "judged", {
+      cost: runs.reduce((n, r) => n + r.cost_usd, 0),
+      off,
+    });
+    if (h.tone !== "off" && h.day > 0)
+      h.words = h.words.replace(
+        WINDOW_WORDS,
+        `${WINDOW_WORDS}, ${plural(found, "finding")}`,
+      );
     const mode = j?.mode ?? runs[0]?.mode ?? null;
     steps.push({
-      id, stage: "judge", stages: ["judge"], kind: "call", where: "codecast", label: judgeName("Codecast", name),
-      purpose: mode === "shadow"
-        ? `Reads each ${j?.moment_kind ?? "moment"} against the expectations and keeps what breaks them, filing nothing while in shadow.`
-        : `Reads each ${j?.moment_kind ?? "moment"} against the expectations and files what breaks them as findings.`,
-      version: j ? shortVersion(j.version) : runs[0] ? shortVersion(runs[0].judge_version) : null, mode, file: j?.path ?? null, source: `judge:${name}`,
-      health: h, decisions,
+      id,
+      stage: "judge",
+      stages: ["judge"],
+      kind: "call",
+      where: "codecast",
+      label: judgeName("Codecast", name),
+      purpose:
+        mode === "shadow"
+          ? `Reads each ${j?.moment_kind ?? "moment"} against the expectations and keeps what breaks them, filing nothing while in shadow.`
+          : `Reads each ${j?.moment_kind ?? "moment"} against the expectations and files what breaks them as findings.`,
+      version: j
+        ? shortVersion(j.version)
+        : runs[0]
+          ? shortVersion(runs[0].judge_version)
+          : null,
+      mode,
+      file: j?.path ?? null,
+      source: `judge:${name}`,
+      health: h,
+      decisions,
     });
-    if (j && extractorKinds.has(j.moment_kind)) addEdge(`observe:${j.moment_kind}`, id, null, decisions.length);
+    if (j && extractorKinds.has(j.moment_kind))
+      addEdge(`observe:${j.moment_kind}`, id, null, decisions.length);
     addEdge("expectations", id, "grades against", decisions.length);
-    addEdge(id, "group", mode === "shadow" ? "files nothing in shadow" : null, mode === "shadow" ? 0 : found);
+    addEdge(
+      id,
+      "group",
+      mode === "shadow" ? "files nothing in shadow" : null,
+      mode === "shadow" ? 0 : found,
+    );
   }
 
   // ── judge: the product's own judges (bring findings, LL3) ──
@@ -421,109 +630,287 @@ export function buildLoopSteps(rows: LoopRows): LoopSteps {
   }
   // A declared finder with nothing sent is still a step: its silence is the news.
   for (const f of finders) {
-    if (![...productSignals.keys()].some((k) => k === productStepId(f.source) || k.startsWith(`${productStepId(f.source)}/`))) productSignals.set(productStepId(f.source), []);
+    if (
+      ![...productSignals.keys()].some(
+        (k) =>
+          k === productStepId(f.source) ||
+          k.startsWith(`${productStepId(f.source)}/`),
+      )
+    )
+      productSignals.set(productStepId(f.source), []);
   }
   for (const [id, list] of productSignals) {
     const sorted = [...list].sort((a, b) => b.created_at - a.created_at);
-    const source = sorted[0]?.source ?? id.slice("product:".length).split("/")[0];
+    const source =
+      sorted[0]?.source ?? id.slice("product:".length).split("/")[0];
     const judge = sorted[0]?.judge ?? null;
     const person = source === "person";
     const lesson = source === "lesson";
-    const finder = finders.find((f) => f.source.toLowerCase() === source.toLowerCase());
+    const finder = finders.find(
+      (f) => f.source.toLowerCase() === source.toLowerCase(),
+    );
     const decisions = sorted.map((s) => findingDecision(s, id, labelled));
-    const kind: LoopStepKind = person ? "person" : lesson ? "session" : "product";
-    const where: LoopWhere = person || lesson || source.startsWith("sdk:") ? "codecast" : "product";
+    const kind: LoopStepKind = person
+      ? "person"
+      : lesson
+        ? "session"
+        : "product";
+    const where: LoopWhere =
+      person || lesson || source.startsWith("sdk:") ? "codecast" : "product";
     steps.push({
-      id, stage: "judge", stages: kind === "product" ? ["observe", "judge"] : ["judge"], kind, where,
+      id,
+      stage: "judge",
+      stages: kind === "product" ? ["observe", "judge"] : ["judge"],
+      kind,
+      where,
       label: findingJudgeLabel({ source, judge }) ?? sourceLabel(source),
-      purpose: person ? "People on the team report what they see."
-        : lesson ? "Past sessions report what they learned."
-        : `${product} watches itself${judge ? ` with its ${judge} judge` : ""} and sends each finding.`,
-      version: sorted.find((s) => s.judge_version)?.judge_version ?? null, mode: null, file: null, source,
-      health: health(decisions, kind === "product" ? "found" : "reported", { declared: !!finder }),
+      purpose: person
+        ? "People on the team report what they see."
+        : lesson
+          ? "Past sessions report what they learned."
+          : `${product} watches itself${judge ? ` with its ${judge} judge` : ""} and sends each finding.`,
+      version: sorted.find((s) => s.judge_version)?.judge_version ?? null,
+      mode: null,
+      file: null,
+      source,
+      health: health(decisions, kind === "product" ? "found" : "reported", {
+        declared: !!finder,
+      }),
       decisions,
     });
     const citesExpectations = list.some((s) => s.subject?.startsWith("ex-"));
-    if (citesExpectations) addEdge("expectations", id, "grades against", list.filter((s) => s.subject?.startsWith("ex-")).length);
+    if (citesExpectations)
+      addEdge(
+        "expectations",
+        id,
+        "grades against",
+        list.filter((s) => s.subject?.startsWith("ex-")).length,
+      );
     addEdge(id, "group", null, list.length);
   }
 
   // ── group: findings into problems ──
-  const grouped = rows.signals.filter((s) => s.attach).map((s) => groupDecision(s, problemRef, labelled)).sort((a, b) => b.at - a.at);
+  const grouped = rows.signals
+    .filter((s) => s.attach)
+    .map((s) => groupDecision(s, problemRef, labelled))
+    .sort((a, b) => b.at - a.at);
   const groupHealth = health(grouped, "grouped");
-  const openedToday = grouped.filter((d) => d.at >= now - DAY && d.decided.startsWith("Opened"));
+  const openedToday = grouped.filter(
+    (d) => d.at >= now - DAY && d.decided.startsWith("Opened"),
+  );
   const opened = openedToday.length;
   // How the day's new problems were handled since, so the count reads against the waiting chip: most close within the day.
-  const problemStatus = new Map((rows.problems ?? []).map((p) => [p._id, p.status]));
-  const closedSince = new Set(openedToday.flatMap((d) => d.problemIds).filter((id) => { const st = problemStatus.get(id); return st === "done" || st === "dropped"; })).size;
+  const problemStatus = new Map(
+    (rows.problems ?? []).map((p) => [p._id, p.status]),
+  );
+  const closedSince = new Set(
+    openedToday
+      .flatMap((d) => d.problemIds)
+      .filter((id) => {
+        const st = problemStatus.get(id);
+        return st === "done" || st === "dropped";
+      }),
+  ).size;
   // Its chip says "grouped in codecast", so its count reads as the findings that came in.
-  groupHealth.words = groupHealth.words.replace(/^([\d,]+) grouped /, (_, n: string) => `${n} ${n === "1" ? "finding" : "findings"} `);
-  if (groupHealth.day > 0 && opened) groupHealth.words = groupHealth.words.replace(WINDOW_WORDS, `${WINDOW_WORDS}, ${plural(opened, "new problem")}${closedSince ? `, ${closedSince === opened ? "all" : closedSince} closed in the same day` : ""}`);
+  groupHealth.words = groupHealth.words.replace(
+    /^([\d,]+) grouped /,
+    (_, n: string) => `${n} ${n === "1" ? "finding" : "findings"} `,
+  );
+  if (groupHealth.day > 0 && opened)
+    groupHealth.words = groupHealth.words.replace(
+      WINDOW_WORDS,
+      `${WINDOW_WORDS}, ${plural(opened, "new problem")}${closedSince ? `, ${closedSince === opened ? "all" : closedSince} closed in the same day` : ""}`,
+    );
   steps.push({
-    id: "group", stage: "group", stages: ["group"], kind: "call", where: "codecast", label: "Problems",
-    purpose: "Puts findings about the same thing into one problem: by the product's issue key, by saying the same thing, or by a reviewer's read.",
-    version: null, mode: null, file: null, source: null, health: groupHealth, decisions: grouped,
+    id: "group",
+    stage: "group",
+    stages: ["group"],
+    kind: "call",
+    where: "codecast",
+    label: "Problems",
+    purpose:
+      "Puts findings about the same thing into one problem: by the product's issue key, by saying the same thing, or by a reviewer's read.",
+    version: null,
+    mode: null,
+    file: null,
+    source: null,
+    health: groupHealth,
+    decisions: grouped,
   });
 
   // ── the line ──
-  const open = (rows.problems ?? []).filter((p) => p.cause && p.status !== "done" && p.status !== "dropped").length;
-  const newProblems = grouped.filter((d) => d.decided.startsWith("Opened")).length;
+  const open = (rows.problems ?? []).filter(
+    (p) => p.cause && p.status !== "done" && p.status !== "dropped",
+  ).length;
+  const newProblems = grouped.filter((d) =>
+    d.decided.startsWith("Opened"),
+  ).length;
   steps.push({
-    id: "line", stage: "line", stages: ["line"], kind: "session", where: "codecast", label: "The flow",
-    purpose: "Fixes each problem: proves it, builds the change, asks you, ships it and watches.",
-    version: null, mode: null, file: null, source: null,
-    health: { tone: open ? "ok" : "new", words: open ? `${plural(open, "problem")} open` : "no problems open", day: 0, week: 0, spark: new Array(7).fill(0), failed: 0, right: 0, wrong: 0, costUsd: null },
+    id: "line",
+    stage: "line",
+    stages: ["line"],
+    kind: "session",
+    where: "codecast",
+    label: "The flow",
+    purpose:
+      "Fixes each problem: proves it, builds the change, asks you, ships it and watches.",
+    version: null,
+    mode: null,
+    file: null,
+    source: null,
+    health: {
+      tone: open ? "ok" : "new",
+      words: open ? `${plural(open, "problem")} open` : "no problems open",
+      day: 0,
+      week: 0,
+      spark: new Array(7).fill(0),
+      failed: 0,
+      right: 0,
+      wrong: 0,
+      costUsd: null,
+    },
     decisions: [],
   });
   addEdge("group", "line", "new problems", newProblems);
 
-  const byStage = (s: LoopStep) => LOOP_STAGES.findIndex((x) => x.key === s.stage);
-  const kindRank: Record<LoopStepKind, number> = { call: 0, product: 1, script: 1, session: 2, person: 3 };
-  const ordered = [...steps].sort((a, b) => byStage(a) - byStage(b) || kindRank[a.kind] - kindRank[b.kind] || b.health.week - a.health.week || a.label.localeCompare(b.label));
+  const byStage = (s: LoopStep) =>
+    LOOP_STAGES.findIndex((x) => x.key === s.stage);
+  const kindRank: Record<LoopStepKind, number> = {
+    call: 0,
+    product: 1,
+    script: 1,
+    session: 2,
+    person: 3,
+  };
+  const ordered = [...steps].sort(
+    (a, b) =>
+      byStage(a) - byStage(b) ||
+      kindRank[a.kind] - kindRank[b.kind] ||
+      b.health.week - a.health.week ||
+      a.label.localeCompare(b.label),
+  );
   const order = ordered.map((s) => s.id);
-  const codecastJudges = steps.some((s) => s.kind === "call" && s.stage === "judge");
+  const codecastJudges = steps.some(
+    (s) => s.kind === "call" && s.stage === "judge",
+  );
   const productJudges = steps.some((s) => s.kind === "product");
   return {
-    mode: codecastJudges && productJudges ? "both" : codecastJudges ? "moments" : productJudges ? "findings" : "none",
+    mode:
+      codecastJudges && productJudges
+        ? "both"
+        : codecastJudges
+          ? "moments"
+          : productJudges
+            ? "findings"
+            : "none",
     steps: Object.fromEntries(ordered.map((s) => [s.id, s])),
     order,
     edges,
-    stages: LOOP_STAGES.map((st) => ({ ...st, steps: order.filter((id) => steps.find((s) => s.id === id)!.stage === st.key) })).filter((st) => st.steps.length > 0),
+    stages: LOOP_STAGES.map((st) => ({
+      ...st,
+      steps: order.filter(
+        (id) => steps.find((s) => s.id === id)!.stage === st.key,
+      ),
+    })).filter((st) => st.steps.length > 0),
     entry: "line",
   };
 }
 
-type Labelled = (subjectId: string, stepId: string) => { labels: LoopLabel[]; label: LoopLabel | null };
+type Labelled = (
+  subjectId: string,
+  stepId: string,
+) => { labels: LoopLabel[]; label: LoopLabel | null };
 
 /** A codecast judge's run as its decision: what it found in the moment, and the problems a live judge's findings reached. */
-function judgeRunDecision(r: LoopJudgeRunRow, stepId: string, signalById: Map<string, LoopSignal>, labelled: Labelled): LoopDecision {
+function judgeRunDecision(
+  r: LoopJudgeRunRow,
+  stepId: string,
+  signalById: Map<string, LoopSignal>,
+  labelled: Labelled,
+): LoopDecision {
   let parsed: JudgeFinding[] = [];
-  try { parsed = r.findings_json ? JSON.parse(r.findings_json) : []; } catch { parsed = []; }
-  const filed = (r.signal_ids ?? []).map((id) => signalById.get(id)).filter((s): s is LoopSignal => !!s);
+  try {
+    parsed = r.findings_json ? JSON.parse(r.findings_json) : [];
+  } catch {
+    parsed = [];
+  }
+  const filed = (r.signal_ids ?? [])
+    .map((id) => signalById.get(id))
+    .filter((s): s is LoopSignal => !!s);
   const findings: LoopFinding[] = parsed.map((f) => {
-    const s = filed.find((x) => x.subject === f.expectation && firstLine(x.detail_md) === firstLine(f.what_happened)) ?? filed.find((x) => x.subject === f.expectation);
-    return { expectation: f.expectation, severity: f.severity, what: f.what_happened, quote: f.quote || null, signalId: s?._id ?? null, problemId: s?.task_id ?? null };
+    const s =
+      filed.find(
+        (x) =>
+          x.subject === f.expectation &&
+          firstLine(x.detail_md) === firstLine(f.what_happened),
+      ) ?? filed.find((x) => x.subject === f.expectation);
+    return {
+      expectation: f.expectation,
+      severity: f.severity,
+      what: f.what_happened,
+      quote: f.quote || null,
+      signalId: s?._id ?? null,
+      problemId: s?.task_id ?? null,
+    };
   });
-  const decided = r.status === "skipped" ? `Skipped: ${r.reason ?? "no budget"}`
-    : r.status === "failed" ? `Failed: ${r.reason ?? "no reason given"}`
-    : findings.length ? `Found ${findings.length === 1 ? `1 break of ${findings[0].expectation}` : `${num(findings.length)} breaks`}`
-    : "Nothing broke an expectation";
+  const decided =
+    r.status === "skipped"
+      ? `Skipped: ${r.reason ?? "no budget"}`
+      : r.status === "failed"
+        ? `Failed: ${r.reason ?? "no reason given"}`
+        : findings.length
+          ? `Found ${findings.length === 1 ? `1 break of ${findings[0].expectation}` : `${num(findings.length)} breaks`}`
+          : "Nothing broke an expectation";
   return {
-    id: `${r._id}:${stepId}`, stepId, subject: { kind: "judge_run", id: r._id, ref: r.moment_short_id }, at: r.at, version: shortVersion(r.judge_version),
-    status: r.status, decided, findings, problemIds: [...new Set(findings.map((f) => f.problemId).filter((x): x is string => !!x))],
-    evidenceUrl: filed.find((s) => s.evidence_url)?.evidence_url ?? null, moment: r.moment_short_id, ...labelled(r._id, stepId),
+    id: `${r._id}:${stepId}`,
+    stepId,
+    subject: { kind: "judge_run", id: r._id, ref: r.moment_short_id },
+    at: r.at,
+    version: shortVersion(r.judge_version),
+    status: r.status,
+    decided,
+    findings,
+    problemIds: [
+      ...new Set(
+        findings.map((f) => f.problemId).filter((x): x is string => !!x),
+      ),
+    ],
+    evidenceUrl: filed.find((s) => s.evidence_url)?.evidence_url ?? null,
+    moment: r.moment_short_id,
+    ...labelled(r._id, stepId),
   };
 }
 
 /** One finding a product's judge sent, as that judge's decision. */
-function findingDecision(s: LoopSignal, stepId: string, labelled: Labelled): LoopDecision {
+function findingDecision(
+  s: LoopSignal,
+  stepId: string,
+  labelled: Labelled,
+): LoopDecision {
   const expectation = s.subject?.startsWith("ex-") ? s.subject : null;
   const severity = typeof s.severity === "number" ? s.severity : null;
   return {
-    id: `${s._id}:${stepId}`, stepId, subject: { kind: "signal", id: s._id, ref: s.short_id ?? null }, at: s.created_at, version: s.judge_version ?? null,
-    status: "ok", decided: `${expectation ? `Broke ${expectation}: ` : ""}${s.title}${severity != null ? ` (severity ${severity})` : ""}`,
-    findings: [{ expectation, severity, what: s.title, quote: quoteOf(s.detail_md), signalId: s._id, problemId: s.task_id || null }],
-    problemIds: s.task_id ? [s.task_id] : [], evidenceUrl: s.evidence_url ?? null, moment: s.moment ?? null, ...labelled(s._id, stepId),
+    id: `${s._id}:${stepId}`,
+    stepId,
+    subject: { kind: "signal", id: s._id, ref: s.short_id ?? null },
+    at: s.created_at,
+    version: s.judge_version ?? null,
+    status: "ok",
+    decided: `${expectation ? `Broke ${expectation}: ` : ""}${s.title}${severity != null ? ` (severity ${severity})` : ""}`,
+    findings: [
+      {
+        expectation,
+        severity,
+        what: s.title,
+        quote: quoteOf(s.detail_md),
+        signalId: s._id,
+        problemId: s.task_id || null,
+      },
+    ],
+    problemIds: s.task_id ? [s.task_id] : [],
+    evidenceUrl: s.evidence_url ?? null,
+    moment: s.moment ?? null,
+    ...labelled(s._id, stepId),
   };
 }
 
@@ -536,12 +923,25 @@ const GROUP_WORDS: Record<string, (ref: string) => string> = {
   new: (ref) => `Opened ${ref}, a new problem`,
 };
 
-function groupDecision(s: LoopSignal, problemRef: (id: string) => string | null, labelled: Labelled): LoopDecision {
+function groupDecision(
+  s: LoopSignal,
+  problemRef: (id: string) => string | null,
+  labelled: Labelled,
+): LoopDecision {
   const ref = problemRef(s.task_id) ?? "a problem";
   const words = GROUP_WORDS[s.attach ?? ""] ?? ((r: string) => `Joined ${r}`);
   return {
-    id: `${s._id}:group`, stepId: "group", subject: { kind: "signal", id: s._id, ref: s.short_id ?? null }, at: s.created_at, version: null,
-    status: "ok", decided: words(ref), findings: [], problemIds: s.task_id ? [s.task_id] : [], evidenceUrl: null, moment: s.moment ?? null,
+    id: `${s._id}:group`,
+    stepId: "group",
+    subject: { kind: "signal", id: s._id, ref: s.short_id ?? null },
+    at: s.created_at,
+    version: null,
+    status: "ok",
+    decided: words(ref),
+    findings: [],
+    problemIds: s.task_id ? [s.task_id] : [],
+    evidenceUrl: null,
+    moment: s.moment ?? null,
     ...labelled(s._id, "group"),
   };
 }

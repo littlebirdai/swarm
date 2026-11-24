@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { WRONG_CASES_SHOWN, judgingSetupPlace, judgingSetupPrompt } from "../setupJudging";
+import {
+  WRONG_CASES_SHOWN,
+  judgingSetupPlace,
+  judgingSetupPrompt,
+} from "../setupJudging";
 
 describe("set up judging (learning-loop.md LL4)", () => {
   test("a whole project: names it by short id and points at the pass", () => {
@@ -11,12 +15,20 @@ describe("set up judging (learning-loop.md LL4)", () => {
   });
 
   test("a project with no short id is quoted by title", () => {
-    expect(judgingSetupPrompt({ title: "Agent Quality" })).toContain('--project "Agent Quality"');
+    expect(judgingSetupPrompt({ title: "Agent Quality" })).toContain(
+      '--project "Agent Quality"',
+    );
   });
 
   test("one judge: starts from it and carries the cases marked wrong, capped", () => {
-    const wrong = Array.from({ length: WRONG_CASES_SHOWN + 3 }, (_, i) => ({ ref: `mo-${i}`, note: i === 0 ? "the reply did go out" : null }));
-    const p = judgingSetupPrompt({ title: "Union", short_id: "pr-2" }, { judge: "comms", wrong });
+    const wrong = Array.from({ length: WRONG_CASES_SHOWN + 3 }, (_, i) => ({
+      ref: `mo-${i}`,
+      note: i === 0 ? "the reply did go out" : null,
+    }));
+    const p = judgingSetupPrompt(
+      { title: "Union", short_id: "pr-2" },
+      { judge: "comms", wrong },
+    );
     expect(p).toContain("Improve the judge comms for Union (pr-2)");
     expect(p).toContain("--judge comms");
     expect(p).toContain("- mo-0: the reply did go out");
@@ -25,8 +37,15 @@ describe("set up judging (learning-loop.md LL4)", () => {
   });
 
   test("runs where the line profile was published, else the project's folder anywhere", () => {
-    expect(judgingSetupPlace({ project_path: "/p", line_profile: { root: "/host/repo", device_id: "d1" } })).toEqual({ projectPath: "/host/repo", targetDeviceId: "d1" });
-    expect(judgingSetupPlace({ project_path: "/p", line_profile: null })).toEqual({ projectPath: "/p" });
+    expect(
+      judgingSetupPlace({
+        project_path: "/p",
+        line_profile: { root: "/host/repo", device_id: "d1" },
+      }),
+    ).toEqual({ projectPath: "/host/repo", targetDeviceId: "d1" });
+    expect(
+      judgingSetupPlace({ project_path: "/p", line_profile: null }),
+    ).toEqual({ projectPath: "/p" });
     expect(judgingSetupPlace(undefined)).toEqual({});
   });
 });

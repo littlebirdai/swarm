@@ -61,7 +61,9 @@ const running = new Map<string, Promise<unknown>>();
  * Resolves once that switch has let go of the session, so a resume right
  * behind the kill (a Restart) is not refused by a hold already cancelled.
  */
-export async function cancelBackendSwitch(...keys: (string | undefined)[]): Promise<void> {
+export async function cancelBackendSwitch(
+  ...keys: (string | undefined)[]
+): Promise<void> {
   const runs = new Set<Promise<unknown>>();
   for (const k of keys) {
     if (!k || !held.has(k)) continue;
@@ -81,18 +83,30 @@ export async function switchClaudeBackend(
   deps: BackendSwitchDeps,
   req: { target: ClaudeBackend; interrupt: boolean; holdKeys: string[] },
 ): Promise<BackendSwitchOutcome> {
-  if (backendSwitchHeld(...req.holdKeys)) return { ok: false, reason: "busy", message: "This session is already switching" };
+  if (backendSwitchHeld(...req.holdKeys))
+    return {
+      ok: false,
+      reason: "busy",
+      message: "This session is already switching",
+    };
   for (const k of req.holdKeys) held.add(k);
   const switching = run(deps, req);
   for (const k of req.holdKeys) running.set(k, switching);
   try {
     return await switching;
   } finally {
-    for (const k of req.holdKeys) { held.delete(k); cancelled.delete(k); running.delete(k); }
+    for (const k of req.holdKeys) {
+      held.delete(k);
+      cancelled.delete(k);
+      running.delete(k);
+    }
   }
 }
 
-async function run(deps: BackendSwitchDeps, req: { target: ClaudeBackend; interrupt: boolean; holdKeys: string[] }): Promise<BackendSwitchOutcome> {
+async function run(
+  deps: BackendSwitchDeps,
+  req: { target: ClaudeBackend; interrupt: boolean; holdKeys: string[] },
+): Promise<BackendSwitchOutcome> {
   const killed = () => req.holdKeys.some((k) => cancelled.has(k));
   const from = deps.current();
   if (from === req.target) return { ok: true, backend: from, already: true };
@@ -100,14 +114,26 @@ async function run(deps: BackendSwitchDeps, req: { target: ClaudeBackend; interr
   // Refused before anything stops, so a session that cannot run on the SDK keeps running where it is.
   if (req.target === "sdk") {
     const refusal = await deps.sdkRefusal();
-    if (refusal) return { ok: false, reason: "refused", message: `Stays in the terminal: ${refusal}` };
+    if (refusal)
+      return {
+        ok: false,
+        reason: "refused",
+        message: `Stays in the terminal: ${refusal}`,
+      };
   }
 
   const status = await deps.busy();
   if (status) {
-    if (!req.interrupt) return { ok: false, reason: "busy", message: `A turn is running (${status}); switching would interrupt it` };
+    if (!req.interrupt)
+      return {
+        ok: false,
+        reason: "busy",
+        message: `A turn is running (${status}); switching would interrupt it`,
+      };
     await deps.interrupt();
-    const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    const sleep =
+      deps.sleep ??
+      ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
     const deadline = Date.now() + (deps.settleMs ?? 30_000);
     let still: string | null = status;
     while (still && !killed() && Date.now() < deadline) {
@@ -115,12 +141,19 @@ async function run(deps: BackendSwitchDeps, req: { target: ClaudeBackend; interr
       still = await deps.busy();
     }
     // Past the deadline the stop below ends the turn anyway; the person already agreed to that.
-    if (still) deps.log(`[backend-switch] turn still ${still} after the interrupt; stopping it`);
+    if (still)
+      deps.log(
+        `[backend-switch] turn still ${still} after the interrupt; stopping it`,
+      );
   }
 
   if (!killed()) await deps.settleResumes();
   await deps.stop();
-  const stoppedMeanwhile: BackendSwitchOutcome = { ok: false, reason: "failed", message: "The session was stopped during the switch" };
+  const stoppedMeanwhile: BackendSwitchOutcome = {
+    ok: false,
+    reason: "failed",
+    message: "The session was stopped during the switch",
+  };
   if (killed()) return stoppedMeanwhile;
   const outcome = await start(deps, req.target);
   // A kill that landed while the new backend came up wins: stop it again, and put nothing back to pending.
@@ -133,21 +166,35 @@ async function run(deps: BackendSwitchDeps, req: { target: ClaudeBackend; interr
   return outcome;
 }
 
-async function start(deps: BackendSwitchDeps, target: ClaudeBackend): Promise<BackendSwitchOutcome> {
+async function start(
+  deps: BackendSwitchDeps,
+  target: ClaudeBackend,
+): Promise<BackendSwitchOutcome> {
   if (target === "tmux") {
     return (await deps.startTmux())
       ? { ok: true, backend: "tmux" }
-      : { ok: false, reason: "failed", message: "Claude did not start in a terminal; the next message resumes it" };
+      : {
+          ok: false,
+          reason: "failed",
+          message:
+            "Claude did not start in a terminal; the next message resumes it",
+        };
   }
   try {
     await deps.startSdk();
     return { ok: true, backend: "sdk" };
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);
-    deps.log(`[backend-switch] SDK host did not come up (${why}); resuming in tmux`);
+    deps.log(
+      `[backend-switch] SDK host did not come up (${why}); resuming in tmux`,
+    );
     // The session was stopped for the move: it runs again in the terminal rather than not at all.
     return (await deps.startTmux())
       ? { ok: true, backend: "tmux", fellBack: why }
-      : { ok: false, reason: "failed", message: `Neither backend started: ${why}` };
+      : {
+          ok: false,
+          reason: "failed",
+          message: `Neither backend started: ${why}`,
+        };
   }
 }

@@ -52,7 +52,6 @@
 // itself (`formatCapabilitySlug`, `packages/shared/contracts/capabilities.ts`).
 // This module reports the registry's own namespaced name, which is the fact.
 
-
 export const MCP_REGISTRY_BASE_URL = "https://registry.modelcontextprotocol.io";
 
 /** The `_meta` block the official registry attaches. A literal key: the leading
@@ -175,7 +174,9 @@ function text(value: unknown): string | undefined {
 }
 
 function statusOf(value: unknown): McpServerStatus {
-  return value === "active" || value === "deprecated" || value === "deleted" ? value : "unknown";
+  return value === "active" || value === "deprecated" || value === "deleted"
+    ? value
+    : "unknown";
 }
 
 /** Environment variables and headers share one shape in the registry's schema,
@@ -189,7 +190,11 @@ function parseDeclaredValues(value: unknown): McpDeclaredValue[] {
     if (!isRecord(raw)) continue;
     const name = text(raw.name);
     if (!name) continue;
-    out.push({ name, isRequired: raw.isRequired === true, isSecret: raw.isSecret === true });
+    out.push({
+      name,
+      isRequired: raw.isRequired === true,
+      isSecret: raw.isSecret === true,
+    });
   }
   return out;
 }
@@ -242,7 +247,9 @@ function parsePackages(value: unknown): McpPackage[] {
     if (!isRecord(raw)) continue;
     const identifier = text(raw.identifier);
     if (!identifier) continue;
-    const transport = isRecord(raw.transport) ? text(raw.transport.type) : undefined;
+    const transport = isRecord(raw.transport)
+      ? text(raw.transport.type)
+      : undefined;
     const version = text(raw.version);
     const runtimeHint = text(raw.runtimeHint);
     const fileSha256 = text(raw.fileSha256);
@@ -272,9 +279,10 @@ export function parseRegistryServer(raw: unknown): McpRegistryServer | null {
   const name = text(server.name);
   if (!name) return null;
 
-  const meta = isRecord(raw._meta) && isRecord(raw._meta[OFFICIAL_META_KEY])
-    ? (raw._meta[OFFICIAL_META_KEY] as Record<string, unknown>)
-    : {};
+  const meta =
+    isRecord(raw._meta) && isRecord(raw._meta[OFFICIAL_META_KEY])
+      ? (raw._meta[OFFICIAL_META_KEY] as Record<string, unknown>)
+      : {};
 
   const title = text(server.title);
   const description = text(server.description);
@@ -282,7 +290,9 @@ export function parseRegistryServer(raw: unknown): McpRegistryServer | null {
   const statusMessage = text(meta.statusMessage);
   const publishedAt = text(meta.publishedAt);
   const updatedAt = text(meta.updatedAt);
-  const repositoryUrl = isRecord(server.repository) ? text(server.repository.url) : undefined;
+  const repositoryUrl = isRecord(server.repository)
+    ? text(server.repository.url)
+    : undefined;
   const websiteUrl = text(server.websiteUrl);
 
   return {
@@ -314,7 +324,9 @@ export function parseRegistryPage(raw: unknown): McpRegistryPage {
     const parsed = parseRegistryServer(entry);
     if (parsed) servers.push(parsed);
   }
-  const cursor = isRecord(raw.metadata) ? text(raw.metadata.nextCursor) : undefined;
+  const cursor = isRecord(raw.metadata)
+    ? text(raw.metadata.nextCursor)
+    : undefined;
   return { servers, ...(cursor ? { nextCursor: cursor } : {}) };
 }
 
@@ -350,7 +362,9 @@ export interface McpServerSurface {
   secretNames: string[];
 }
 
-export function describeServerSurface(server: McpRegistryServer): McpServerSurface {
+export function describeServerSurface(
+  server: McpRegistryServer,
+): McpServerSurface {
   const secretNames: string[] = [];
   const add = (v: McpDeclaredValue) => {
     if (v.isSecret && !secretNames.includes(v.name)) secretNames.push(v.name);
@@ -376,6 +390,10 @@ export function describeServerSurface(server: McpRegistryServer): McpServerSurfa
  * make every non-official catalog browse to nothing, which is the opposite of
  * what the seam at the bottom of this file promises.
  */
-export function browsableServers(servers: McpRegistryServer[]): McpRegistryServer[] {
-  return servers.filter((s) => s.status !== "deprecated" && s.status !== "deleted");
+export function browsableServers(
+  servers: McpRegistryServer[],
+): McpRegistryServer[] {
+  return servers.filter(
+    (s) => s.status !== "deprecated" && s.status !== "deleted",
+  );
 }

@@ -34,7 +34,8 @@ export { playableFiles };
 /** While a file's metadata has not arrived: a quiet breath over the black.
  *  One shade for the player, its placeholder and a frame embed in a message,
  *  so an embed and the player it opens breathe alike. */
-export const CALL_VIDEO_LOADING = "pointer-events-none absolute inset-0 animate-pulse bg-white/[0.08] motion-reduce:animate-none";
+export const CALL_VIDEO_LOADING =
+  "pointer-events-none absolute inset-0 animate-pulse bg-white/[0.08] motion-reduce:animate-none";
 
 /** A recording row as the call page reads it (webCallRecordings), or a shared
  *  video (getSharedCall) shaped to match. */
@@ -50,14 +51,24 @@ export type CallVideoFile = CallRecordingSpan & {
 };
 
 /** Where in the call (ms since its started_at) a file's position is. */
-export function callMsOf(file: Pick<CallVideoFile, "started_at">, callStartedAt: number, fileSeconds: number): number {
-  return (file.started_at ?? callStartedAt) - callStartedAt + fileSeconds * 1000;
+export function callMsOf(
+  file: Pick<CallVideoFile, "started_at">,
+  callStartedAt: number,
+  fileSeconds: number,
+): number {
+  return (
+    (file.started_at ?? callStartedAt) - callStartedAt + fileSeconds * 1000
+  );
 }
 
 /** Where in a file (seconds) a moment of the call is, or null when the file
  *  does not cover it: the shared rule (offsetIntoRecording), so the player
  *  never seeks where locateCallMoment says there is no picture. */
-export function fileSecondsAt(file: CallVideoFile, callStartedAt: number, callMs: number): number | null {
+export function fileSecondsAt(
+  file: CallVideoFile,
+  callStartedAt: number,
+  callMs: number,
+): number | null {
   const offset = offsetIntoRecording(file, callStartedAt, callMs);
   return offset === null ? null : offset / 1000;
 }
@@ -90,14 +101,17 @@ function runState(rows: CallVideoFile[]): CallVideoRun["state"] {
  *  deleting it takes, the way the server deletes (callRecordings
  *  deleteRecording works on the whole run). Keyed rows as the store holds
  *  them (registry callRecordings). */
-export function runFilesOf<T extends { run_id?: string | null; transcript_id?: string }>(
-  rows: Record<string, T>,
-  recordingId: string,
-): Array<[string, T]> {
+export function runFilesOf<
+  T extends { run_id?: string | null; transcript_id?: string },
+>(rows: Record<string, T>, recordingId: string): Array<[string, T]> {
   const target = rows[recordingId];
   if (!target) return [];
   return Object.entries(rows).filter(
-    ([id, r]) => id === recordingId || (!!target.run_id && r.run_id === target.run_id && r.transcript_id === target.transcript_id),
+    ([id, r]) =>
+      id === recordingId ||
+      (!!target.run_id &&
+        r.run_id === target.run_id &&
+        r.transcript_id === target.transcript_id),
   );
 }
 
@@ -115,14 +129,21 @@ export function callVideoRuns(files: readonly CallVideoFile[]): CallVideoRun[] {
     runs.push({
       id,
       composite,
-      screens: rows.filter((r) => r.kind === "screen").sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0)),
+      screens: rows
+        .filter((r) => r.kind === "screen")
+        .sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0)),
       state: runState(rows),
-      startedAt: composite?.started_at ?? rows.map((r) => r.started_at).find((t) => t != null) ?? null,
+      startedAt:
+        composite?.started_at ??
+        rows.map((r) => r.started_at).find((t) => t != null) ??
+        null,
       error: failed?.error ?? null,
       canDelete: rows.some((r) => r.can_delete),
     });
   }
-  return runs.sort((a, b) => (a.startedAt ?? Infinity) - (b.startedAt ?? Infinity));
+  return runs.sort(
+    (a, b) => (a.startedAt ?? Infinity) - (b.startedAt ?? Infinity),
+  );
 }
 
 /** The file to show a moment of the call in, and how far into it: the
@@ -134,7 +155,13 @@ export function videoAt(
   prefer: CallMomentPrefer = "composite",
   identity?: string | null,
 ): { file: CallVideoFile; seconds: number } | null {
-  const hit = locateCallMoment({ callStartedAt, atMs: callMs, recordings: playableFiles(files), prefer, identity });
+  const hit = locateCallMoment({
+    callStartedAt,
+    atMs: callMs,
+    recordings: playableFiles(files),
+    prefer,
+    identity,
+  });
   return hit.ok ? { file: hit.recording, seconds: hit.offsetMs / 1000 } : null;
 }
 
@@ -143,15 +170,24 @@ export function videoAt(
  *  before the file's first frame and a stop a little after its last, so a
  *  moment just outside a recording snaps to its nearest edge within `slackMs`.
  *  Null when no video is near. */
-export function shownMomentNear(files: readonly CallVideoFile[], callStartedAt: number, callMs: number, slackMs = 20_000): number | null {
+export function shownMomentNear(
+  files: readonly CallVideoFile[],
+  callStartedAt: number,
+  callMs: number,
+  slackMs = 20_000,
+): number | null {
   const playable = playableFiles(files);
-  if (playable.some((f) => fileSecondsAt(f, callStartedAt, callMs) !== null)) return callMs;
+  if (playable.some((f) => fileSecondsAt(f, callStartedAt, callMs) !== null))
+    return callMs;
   let best: { ms: number; gap: number } | null = null;
   for (const f of playable) {
     // Every playable file is finished, so its window never reads the clock.
     const w = recordingWindow(f, 0);
     if (!w) continue;
-    const edges = [w.start - callStartedAt, ...(w.end - w.start > 1000 ? [w.end - 1000 - callStartedAt] : [])];
+    const edges = [
+      w.start - callStartedAt,
+      ...(w.end - w.start > 1000 ? [w.end - 1000 - callStartedAt] : []),
+    ];
     for (const ms of edges) {
       const gap = Math.abs(ms - callMs);
       if (gap <= slackMs && (!best || gap < best.gap)) best = { ms, gap };
@@ -162,7 +198,10 @@ export function shownMomentNear(files: readonly CallVideoFile[], callStartedAt: 
 
 /** The stretches of the call that play, in call time: the shared spans
  *  (coveredSpans, what `cast call` prints) of the files that can play. */
-export function filmedSpans(files: readonly CallVideoFile[], callStartedAt: number): CallCoveredSpan[] {
+export function filmedSpans(
+  files: readonly CallVideoFile[],
+  callStartedAt: number,
+): CallCoveredSpan[] {
   // Every playable file is finished, so its window never reads the clock.
   return coveredSpans(playableFiles(files), callStartedAt, 0);
 }
@@ -183,7 +222,11 @@ export { describeClockSpans as describeStretches };
 export function noVideoWords(
   callMs: number,
   spans: readonly CallCoveredSpan[] = [],
-): { title: string; detail: string; jump: { ms: number; words: string } | null } {
+): {
+  title: string;
+  detail: string;
+  jump: { ms: number; words: string } | null;
+} {
   const at = nearestRecordedMs(spans, callMs);
   const clock = at === null ? "" : formatCallTime(at);
   // Ahead: where it starts, or resumes after a stretch already passed.
@@ -205,9 +248,18 @@ export function noVideoWords(
  *  shares in the run. The share up at the moment, else the next one they
  *  make, else their last; `at` (call ms) is where that share begins, and
  *  `several` says they shared more than once, so the chip names the time. */
-export type ScreenChip = { file: CallVideoFile; up: boolean; at: number; several: boolean };
+export type ScreenChip = {
+  file: CallVideoFile;
+  up: boolean;
+  at: number;
+  several: boolean;
+};
 
-export function screenChips(screens: readonly CallVideoFile[], callStartedAt: number, callMs: number): ScreenChip[] {
+export function screenChips(
+  screens: readonly CallVideoFile[],
+  callStartedAt: number,
+  callMs: number,
+): ScreenChip[] {
   const bySharer = new Map<string, CallVideoFile[]>();
   for (const f of screens) {
     const key = f.participant_identity ?? f.participant_name ?? f.id;
@@ -215,10 +267,22 @@ export function screenChips(screens: readonly CallVideoFile[], callStartedAt: nu
   }
   const chips: ScreenChip[] = [];
   for (const shares of bySharer.values()) {
-    const ordered = [...shares].sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0));
-    const up = ordered.filter((f) => fileSecondsAt(f, callStartedAt, callMs) !== null).pop();
-    const file = up ?? ordered.find((f) => callMsOf(f, callStartedAt, 0) > callMs) ?? ordered[ordered.length - 1];
-    chips.push({ file, up: !!up, at: callMsOf(file, callStartedAt, 0), several: ordered.length > 1 });
+    const ordered = [...shares].sort(
+      (a, b) => (a.started_at ?? 0) - (b.started_at ?? 0),
+    );
+    const up = ordered
+      .filter((f) => fileSecondsAt(f, callStartedAt, callMs) !== null)
+      .pop();
+    const file =
+      up ??
+      ordered.find((f) => callMsOf(f, callStartedAt, 0) > callMs) ??
+      ordered[ordered.length - 1];
+    chips.push({
+      file,
+      up: !!up,
+      at: callMsOf(file, callStartedAt, 0),
+      several: ordered.length > 1,
+    });
   }
   return chips.sort((a, b) => a.at - b.at);
 }
@@ -228,15 +292,23 @@ export function screenChips(screens: readonly CallVideoFile[], callStartedAt: nu
  *  is what a link to a time should land on (a moment between two lines is
  *  still "after what Ann said"). */
 export function turnIndexAt(
-  turns: ReadonlyArray<{ t0: number; segments: ReadonlyArray<{ t1?: number }> }>,
+  turns: ReadonlyArray<{
+    t0: number;
+    segments: ReadonlyArray<{ t1?: number }>;
+  }>,
   callMs: number,
   holdLast = false,
 ): number | null {
   // A turn's words run from its first line's start to its last line's end;
   // the shared rule (segmentAt, which the CLI names a frame's line by) does
   // the rest.
-  const spans = turns.map((t) => ({ t0: t.t0, t1: t.segments[t.segments.length - 1]?.t1 }));
-  return segmentAt(spans, callMs, { holdMs: holdLast ? Infinity : 0 })?.index ?? null;
+  const spans = turns.map((t) => ({
+    t0: t.t0,
+    t1: t.segments[t.segments.length - 1]?.t1,
+  }));
+  return (
+    segmentAt(spans, callMs, { holdMs: holdLast ? Infinity : 0 })?.index ?? null
+  );
 }
 
 /** Who was talking when, for the seek bar: each line's span, a line with
@@ -244,17 +316,35 @@ export function turnIndexAt(
  *  lines a short pause apart joined into one run. A brief interjection
  *  inside someone else's talk (a "mhm", a "yeah") is left out, so the bar
  *  shows who held the floor rather than a sliver for every murmur. Call ms. */
-export type VoiceRun = { speaker_id: string; speaker_name: string; from: number; to: number };
+export type VoiceRun = {
+  speaker_id: string;
+  speaker_name: string;
+  from: number;
+  to: number;
+};
 export function voiceRuns(
-  segments: ReadonlyArray<{ speaker_id: string; speaker_name: string; t0: number; t1?: number }>,
-  { joinMs = 3_000, murmurMs = 1_500 }: { joinMs?: number; murmurMs?: number } = {},
+  segments: ReadonlyArray<{
+    speaker_id: string;
+    speaker_name: string;
+    t0: number;
+    t1?: number;
+  }>,
+  {
+    joinMs = 3_000,
+    murmurMs = 1_500,
+  }: { joinMs?: number; murmurMs?: number } = {},
 ): VoiceRun[] {
   const sorted = [...segments].sort((a, b) => a.t0 - b.t0);
   const join = (runs: VoiceRun[]) => {
     const out: VoiceRun[] = [];
     for (const r of runs) {
       const last = out[out.length - 1];
-      if (last && last.speaker_id === r.speaker_id && r.from - last.to <= joinMs) last.to = Math.max(last.to, r.to);
+      if (
+        last &&
+        last.speaker_id === r.speaker_id &&
+        r.from - last.to <= joinMs
+      )
+        last.to = Math.max(last.to, r.to);
       else out.push({ ...r });
     }
     return out;
@@ -262,7 +352,12 @@ export function voiceRuns(
   const lines = join(
     sorted.map((s, i) => {
       const next = sorted[i + 1]?.t0;
-      return { speaker_id: s.speaker_id, speaker_name: s.speaker_name, from: s.t0, to: Math.max(s.t0, s.t1 ?? Math.min(next ?? Infinity, s.t0 + 4_000)) };
+      return {
+        speaker_id: s.speaker_id,
+        speaker_name: s.speaker_name,
+        from: s.t0,
+        to: Math.max(s.t0, s.t1 ?? Math.min(next ?? Infinity, s.t0 + 4_000)),
+      };
     }),
   );
   // A murmur sits between two runs of one other speaker: drop it, and the
@@ -270,7 +365,13 @@ export function voiceRuns(
   const held = lines.filter((r, i) => {
     const before = lines[i - 1];
     const after = lines[i + 1];
-    return !(r.to - r.from < murmurMs && before && after && before.speaker_id === after.speaker_id && before.speaker_id !== r.speaker_id);
+    return !(
+      r.to - r.from < murmurMs &&
+      before &&
+      after &&
+      before.speaker_id === after.speaker_id &&
+      before.speaker_id !== r.speaker_id
+    );
   });
   return join(held);
 }
@@ -281,11 +382,16 @@ export function voiceRuns(
  *  line, not the lit turn, is what follows the picture. Null for a turn with
  *  no lines. */
 export function lineSeqAt(
-  turn: { segments: ReadonlyArray<{ seq: number; t0: number }> } | null | undefined,
+  turn:
+    | { segments: ReadonlyArray<{ seq: number; t0: number }> }
+    | null
+    | undefined,
   callMs: number,
 ): number | null {
   const segs = turn?.segments ?? [];
-  return segs[segmentAt(segs, callMs, { holdMs: Infinity })?.index ?? 0]?.seq ?? null;
+  return (
+    segs[segmentAt(segs, callMs, { holdMs: Infinity })?.index ?? 0]?.seq ?? null
+  );
 }
 
 /** What the call page says above where the video goes, when there is
@@ -297,7 +403,9 @@ export type CallVideoNotice =
   | { kind: "saving"; run: CallVideoRun }
   | { kind: "failed"; run: CallVideoRun };
 
-export function callVideoNotice(runs: readonly CallVideoRun[]): CallVideoNotice | null {
+export function callVideoNotice(
+  runs: readonly CallVideoRun[],
+): CallVideoNotice | null {
   const live = runs.find((r) => r.state === "live");
   if (live) return { kind: "live", run: live };
   const saving = runs.find((r) => r.state === "saving");

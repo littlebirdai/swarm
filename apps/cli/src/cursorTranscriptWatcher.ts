@@ -22,7 +22,7 @@ export interface CursorTranscriptWatcherEvents {
 export declare interface CursorTranscriptWatcher {
   on<K extends keyof CursorTranscriptWatcherEvents>(
     event: K,
-    listener: CursorTranscriptWatcherEvents[K]
+    listener: CursorTranscriptWatcherEvents[K],
   ): this;
   emit<K extends keyof CursorTranscriptWatcherEvents>(
     event: K,
@@ -37,8 +37,7 @@ export class CursorTranscriptWatcher extends EventEmitter {
   constructor(historyPath?: string) {
     super();
     this.historyPath =
-      historyPath ||
-      path.join(process.env.HOME || "", ".cursor", "projects");
+      historyPath || path.join(process.env.HOME || "", ".cursor", "projects");
   }
 
   /** Resolves once the priming walk has emitted the existing transcripts;
@@ -58,10 +57,16 @@ export class CursorTranscriptWatcher extends EventEmitter {
       filter: isCursorTranscriptPath,
       // A project dir holds canvases, mcps and terminals next to
       // agent-transcripts; only the transcript subtree can hold a match.
-      dirFilter: dirFilterByDepth(() => true, (seg) => seg === "agent-transcripts", () => true),
+      dirFilter: dirFilterByDepth(
+        () => true,
+        (seg) => seg === "agent-transcripts",
+        () => true,
+      ),
       // <proj>/agent-transcripts/<id>/<id>.jsonl is depth 4; one spare level.
       maxDepth: 5,
-      callback: (filePath, eventType) => { if (eventType !== "unlink") this.handleFileEvent(filePath, eventType); },
+      callback: (filePath, eventType) => {
+        if (eventType !== "unlink") this.handleFileEvent(filePath, eventType);
+      },
       onExisting: (files) => this.emitExistingFilesSorted(files),
       debounceMs: 100,
     });
@@ -82,7 +87,8 @@ export class CursorTranscriptWatcher extends EventEmitter {
     const matched = files.filter((f) => isCursorTranscriptPath(f.rel));
     matched.sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     for (let i = 0; i < matched.length; i++) {
-      if (i % 128 === 0) await new Promise<void>(resolve => setImmediate(resolve));
+      if (i % 128 === 0)
+        await new Promise<void>((resolve) => setImmediate(resolve));
       if (this.watcher !== watcher) return;
       const file = matched[i];
       this.handleFileEvent(file.path, "add");
@@ -97,7 +103,11 @@ export class CursorTranscriptWatcher extends EventEmitter {
   }
 
   private handleFileEvent(filePath: string, eventType: "add" | "change"): void {
-    this.emit("session", { sessionId: cursorTranscriptSessionId(filePath), filePath, eventType });
+    this.emit("session", {
+      sessionId: cursorTranscriptSessionId(filePath),
+      filePath,
+      eventType,
+    });
   }
 }
 

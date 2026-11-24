@@ -10,17 +10,21 @@
 // The italic was never embedded: it always loads here, as an asset of the
 // update, and italic text stands in with the system italic until it lands.
 // Never add it to the plugin list assuming shipped binaries carry it.
-import * as Font from 'expo-font';
-import { Sans, markSansFacesLoaded, markSansItalicLoaded } from '@/constants/fonts';
+import * as Font from "expo-font";
+import {
+  Sans,
+  markSansFacesLoaded,
+  markSansItalicLoaded,
+} from "@/constants/fonts";
 
 const UPRIGHT = {
-  [Sans.regular]: require('../assets/fonts/InstrumentSans-Regular.ttf'),
-  [Sans.medium]: require('../assets/fonts/InstrumentSans-Medium.ttf'),
-  [Sans.semiBold]: require('../assets/fonts/InstrumentSans-SemiBold.ttf'),
-  [Sans.bold]: require('../assets/fonts/InstrumentSans-Bold.ttf'),
+  [Sans.regular]: require("../assets/fonts/InstrumentSans-Regular.ttf"),
+  [Sans.medium]: require("../assets/fonts/InstrumentSans-Medium.ttf"),
+  [Sans.semiBold]: require("../assets/fonts/InstrumentSans-SemiBold.ttf"),
+  [Sans.bold]: require("../assets/fonts/InstrumentSans-Bold.ttf"),
 };
 const ITALIC = {
-  [Sans.italic]: require('../assets/fonts/InstrumentSans-Italic.ttf'),
+  [Sans.italic]: require("../assets/fonts/InstrumentSans-Italic.ttf"),
 };
 
 function allLoaded(names: string[]): boolean {

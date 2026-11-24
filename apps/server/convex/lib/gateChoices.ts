@@ -6,11 +6,23 @@
 // label routes as text.
 import { verdictOfOption } from "@codecast/shared/contracts/changeCard";
 
-export type GateChoice = { key: string; label: string; description?: string; target: string };
+export type GateChoice = {
+  key: string;
+  label: string;
+  description?: string;
+  target: string;
+};
 
-const bare = (s: string) => s.replace(/^\s*\[?[A-Za-z0-9]{1,3}\]\s*/, "").trim().toLowerCase();
+const bare = (s: string) =>
+  s
+    .replace(/^\s*\[?[A-Za-z0-9]{1,3}\]\s*/, "")
+    .trim()
+    .toLowerCase();
 
-export function alignGateChoices(options: ReadonlyArray<{ label: string }>, choices: ReadonlyArray<GateChoice>): Array<GateChoice | null> {
+export function alignGateChoices(
+  options: ReadonlyArray<{ label: string }>,
+  choices: ReadonlyArray<GateChoice>,
+): Array<GateChoice | null> {
   const taken = new Set<string>();
   const pick = (test: (c: GateChoice) => boolean) => {
     const c = choices.find((x) => !taken.has(x.key) && test(x));
@@ -20,8 +32,17 @@ export function alignGateChoices(options: ReadonlyArray<{ label: string }>, choi
   return options.map((o) => {
     const label = bare(o.label);
     const verdict = verdictOfOption(o.label);
-    const leads = (c: GateChoice) => { const g = bare(c.label); return label === g || label.startsWith(`${g} `) || label.startsWith(`${g}:`); };
-    return pick((c) => bare(c.label) === label) ?? pick(leads) ?? (verdict ? pick((c) => verdictOfOption(c.label) === verdict) : null);
+    const leads = (c: GateChoice) => {
+      const g = bare(c.label);
+      return (
+        label === g || label.startsWith(`${g} `) || label.startsWith(`${g}:`)
+      );
+    };
+    return (
+      pick((c) => bare(c.label) === label) ??
+      pick(leads) ??
+      (verdict ? pick((c) => verdictOfOption(c.label) === verdict) : null)
+    );
   });
 }
 
@@ -29,17 +50,36 @@ export function alignGateChoices(options: ReadonlyArray<{ label: string }>, choi
 // the edge option i names, or a keyless entry in that option's words. Every
 // reader maps an answer's option index through it, so it is rebuilt from the
 // options' words whenever they change (followOptions), never kept by position.
-export function gateMirror(options: ReadonlyArray<{ label: string }>, choices: ReadonlyArray<GateChoice>): GateChoice[] {
-  return alignGateChoices(options, choices.filter((c) => c.key)).map((c, i) => (c ? { key: c.key, label: c.label, target: c.target } : { key: "", label: options[i].label, target: "" }));
+export function gateMirror(
+  options: ReadonlyArray<{ label: string }>,
+  choices: ReadonlyArray<GateChoice>,
+): GateChoice[] {
+  return alignGateChoices(
+    options,
+    choices.filter((c) => c.key),
+  ).map((c, i) =>
+    c
+      ? { key: c.key, label: c.label, target: c.target }
+      : { key: "", label: options[i].label, target: "" },
+  );
 }
 
 // Where each of a decision's old options sits among its new ones, matched by
 // its words (then its verdict), or undefined when no new option says it. A
 // re-ask may reorder its options (sd-2373 moved Ship from 1 to 2), so anything
 // that names an option by index follows it through this.
-export function optionMoves(before: ReadonlyArray<{ label: string }>, after: ReadonlyArray<{ label: string }>): Array<number | undefined> {
-  const newToOld = alignGateChoices(after, before.map((o, i) => ({ key: String(i), label: o.label, target: "" })));
-  return before.map((_, i) => { const at = newToOld.findIndex((c) => c?.key === String(i)); return at < 0 ? undefined : at; });
+export function optionMoves(
+  before: ReadonlyArray<{ label: string }>,
+  after: ReadonlyArray<{ label: string }>,
+): Array<number | undefined> {
+  const newToOld = alignGateChoices(
+    after,
+    before.map((o, i) => ({ key: String(i), label: o.label, target: "" })),
+  );
+  return before.map((_, i) => {
+    const at = newToOld.findIndex((c) => c?.key === String(i));
+    return at < 0 ? undefined : at;
+  });
 }
 
 // The card a gate decides on is the one its presenting station posted; the
@@ -51,27 +91,57 @@ export function optionMoves(before: ReadonlyArray<{ label: string }>, after: Rea
 // visit was to a card the station has replaced since.
 export async function standingCard(
   ctx: { db: any },
-  run: { _id: string; node_statuses?: Array<{ session_id?: string; started_at?: number }> },
+  run: {
+    _id: string;
+    node_statuses?: Array<{ session_id?: string; started_at?: number }>;
+  },
   stationId: string,
   nodeId: string,
   askerRef: string | undefined,
 ) {
-  const presentedAt = run.node_statuses?.find((n) => !!askerRef && n.session_id === askerRef)?.started_at ?? Infinity;
-  const ofStation = (status: string) => ctx.db.query("session_decisions").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", stationId).eq("status", status)).collect();
-  const [pending, answered] = await Promise.all([ofStation("pending"), ofStation("answered")]);
-  const forThisGate = (d: any) => !d.workflow_run_id || (String(d.workflow_run_id) === String(run._id) && d.gate_node_id === nodeId);
-  const stands = (d: any) => d.status === "pending" || ((d.resolved_at ?? 0) >= presentedAt && (d.answer_index !== undefined || !!d.answer_text?.trim()));
-  return [...pending, ...answered].filter((d: any) => forThisGate(d) && stands(d)).sort((a: any, b: any) => b.created_at - a.created_at)[0] ?? null;
+  const presentedAt =
+    run.node_statuses?.find((n) => !!askerRef && n.session_id === askerRef)
+      ?.started_at ?? Infinity;
+  const ofStation = (status: string) =>
+    ctx.db
+      .query("session_decisions")
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", stationId).eq("status", status),
+      )
+      .collect();
+  const [pending, answered] = await Promise.all([
+    ofStation("pending"),
+    ofStation("answered"),
+  ]);
+  const forThisGate = (d: any) =>
+    !d.workflow_run_id ||
+    (String(d.workflow_run_id) === String(run._id) &&
+      d.gate_node_id === nodeId);
+  const stands = (d: any) =>
+    d.status === "pending" ||
+    ((d.resolved_at ?? 0) >= presentedAt &&
+      (d.answer_index !== undefined || !!d.answer_text?.trim()));
+  return (
+    [...pending, ...answered]
+      .filter((d: any) => forThisGate(d) && stands(d))
+      .sort((a: any, b: any) => b.created_at - a.created_at)[0] ?? null
+  );
 }
 
 // What an answer hands the runner as gate_response (the-line.md L4): the
 // chosen option's key; a note typed beside it after the key, so the runner
 // routes on the key and hands the note to the next node; the note or the
 // option's words alone when the option names no edge.
-export function gateResponseOf(key: string | undefined, note: string | undefined, label: string | undefined): string {
+export function gateResponseOf(
+  key: string | undefined,
+  note: string | undefined,
+  label: string | undefined,
+): string {
   const text = note?.trim();
   if (!key) return text || label || "";
   if (!text) return key;
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^\\[?${escaped}\\]?([:\\s]|$)`, "i").test(text) ? text : `${key}: ${text}`;
+  return new RegExp(`^\\[?${escaped}\\]?([:\\s]|$)`, "i").test(text)
+    ? text
+    : `${key}: ${text}`;
 }

@@ -14,7 +14,14 @@
 // agent; a role row's id is that agent's session.
 import { matchScore } from "./mentionRanking";
 
-export type PalettePickKind = "session" | "doc" | "task" | "plan" | "channel" | "person" | "role";
+export type PalettePickKind =
+  | "session"
+  | "doc"
+  | "task"
+  | "plan"
+  | "channel"
+  | "person"
+  | "role";
 
 export type PalettePickTarget =
   | { kind: PalettePickKind; id: string; label: string }
@@ -69,12 +76,20 @@ export type PalettePick = {
   // One on/off choice that rides along with the pick, shown as a switch beside
   // the title (e.g. an agent joining a call with or without its video avatar).
   // The caller holds the value; the switch reports each change.
-  toggle?: { label: string; value: boolean; onChange: (value: boolean) => void };
+  toggle?: {
+    label: string;
+    value: boolean;
+    onChange: (value: boolean) => void;
+  };
   onPick: (target: PalettePickTarget, result: PalettePickResult) => void;
 };
 
 type WhoOption = { key: string; label: string; hint?: string };
-export type PickWhoRow<O extends WhoOption> = { kind: "person" | "role"; id: string; o: O };
+export type PickWhoRow<O extends WhoOption> = {
+  kind: "person" | "role";
+  id: string;
+  o: O;
+};
 
 /** The person and role rows of a pick: teammates by user id, roles by their
  *  standing agent's session (a role with none has no row), less the viewer
@@ -88,10 +103,23 @@ export function pickWhoRows<O extends WhoOption>(opts: {
 }): PickWhoRow<O>[] {
   const q = opts.query.trim().toLowerCase();
   const rows: PickWhoRow<O>[] = [
-    ...(opts.people ?? []).map((o) => ({ kind: "person" as const, id: String(o.key), o })),
-    ...(opts.roles ?? []).map((o) => ({ kind: "role" as const, id: opts.standing.get(String(o.key)) ?? "", o })),
+    ...(opts.people ?? []).map((o) => ({
+      kind: "person" as const,
+      id: String(o.key),
+      o,
+    })),
+    ...(opts.roles ?? []).map((o) => ({
+      kind: "role" as const,
+      id: opts.standing.get(String(o.key)) ?? "",
+      o,
+    })),
   ];
   return rows
-    .filter((r) => r.id && !opts.skip.has(r.id) && matchScore(`${r.o.label} ${r.o.hint ?? ""}`, q) !== Infinity)
+    .filter(
+      (r) =>
+        r.id &&
+        !opts.skip.has(r.id) &&
+        matchScore(`${r.o.label} ${r.o.hint ?? ""}`, q) !== Infinity,
+    )
     .slice(0, 12);
 }

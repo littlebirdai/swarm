@@ -16,11 +16,7 @@
 // `raw` is the exact source text of the link — including the `!` of an embed.
 // maskCodeSpans is length preserving, so `col` indexes the raw line directly.
 
-import {
-  basenameOf,
-  stripKnownExtension,
-  type NoteLink,
-} from "./parseNote";
+import { basenameOf, stripKnownExtension, type NoteLink } from "./parseNote";
 import { VaultIndex, normalizeTarget } from "./vaultIndex";
 
 /** One link's replacement, anchored at the span the index recorded for it. */
@@ -74,7 +70,10 @@ function lineStarts(content: string): number[] {
  * disk; that edit is skipped rather than applied blind, which is the whole
  * safety property of this function.
  */
-export function applySpanEdits(content: string, edits: SpanEdit[]): SpanEditResult {
+export function applySpanEdits(
+  content: string,
+  edits: SpanEdit[],
+): SpanEditResult {
   const starts = lineStarts(content);
   const resolved: { at: number; end: number; newRaw: string }[] = [];
   let skipped = 0;
@@ -160,7 +159,9 @@ export function simulateMoves(index: VaultIndex, moves: Move[]): VaultIndex {
     }
     return path;
   };
-  return VaultIndex.build(index.paths().map((p) => [remap(p), ""] as [string, string]));
+  return VaultIndex.build(
+    index.paths().map((p) => [remap(p), ""] as [string, string]),
+  );
 }
 
 /**
@@ -209,7 +210,10 @@ export function renameTargetFor(
  * Only links that actually RESOLVE to a moved file are touched; a link whose
  * text merely looks similar is somebody else's link.
  */
-export function planMoveRewrites(index: VaultIndex, moves: Move[]): FileRewrite[] {
+export function planMoveRewrites(
+  index: VaultIndex,
+  moves: Move[],
+): FileRewrite[] {
   const real = moves.filter((m) => m.from !== m.to && index.note(m.from));
   const inbound = real.map((m) => ({ ...m, links: index.backlinks(m.from) }));
   // Nothing points at any of these files: the common case, and worth exiting
@@ -251,17 +255,26 @@ export function planMoveRewrites(index: VaultIndex, moves: Move[]): FileRewrite[
   return [...bySource.entries()]
     .map(([source, edits]) => ({
       source,
-      edits: [...edits.values()].sort((a, b) => a.line - b.line || a.col - b.col),
+      edits: [...edits.values()].sort(
+        (a, b) => a.line - b.line || a.col - b.col,
+      ),
     }))
     .sort((a, b) => (a.source < b.source ? -1 : a.source > b.source ? 1 : 0));
 }
 
 /** One file's move. */
-export function planLinkRewrites(index: VaultIndex, oldPath: string, newPath: string): FileRewrite[] {
+export function planLinkRewrites(
+  index: VaultIndex,
+  oldPath: string,
+  newPath: string,
+): FileRewrite[] {
   return planMoveRewrites(index, [{ from: oldPath, to: newPath }]);
 }
 
 /** A folder's move: the union of its files' plans, merged per source file. */
-export function planFolderRewrites(index: VaultIndex, moves: Move[]): FileRewrite[] {
+export function planFolderRewrites(
+  index: VaultIndex,
+  moves: Move[],
+): FileRewrite[] {
   return planMoveRewrites(index, moves);
 }

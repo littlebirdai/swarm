@@ -5,7 +5,14 @@
 // convex imports: the harness inserts these rows through the real handlers.
 
 import type { TeamFeatures } from "../teamFeatures";
-import { GEN_DAY, GEN_HOUR, GEN_MIN, convexIdFor, genWorld, type GenWorld } from "./inboxProjectionGen";
+import {
+  GEN_DAY,
+  GEN_HOUR,
+  GEN_MIN,
+  convexIdFor,
+  genWorld,
+  type GenWorld,
+} from "./inboxProjectionGen";
 
 export type WorldRow = Record<string, any>;
 
@@ -38,13 +45,20 @@ export const TEAM_WORLD_MAX_USERS = 16;
 
 export const userIdFor = (name: string): string => convexIdFor(`user:${name}`);
 export const teamIdFor = (name: string): string => convexIdFor(`team:${name}`);
-export const membershipIdFor = (team: string, user: string): string => convexIdFor(`member:${team}:${user}`);
+export const membershipIdFor = (team: string, user: string): string =>
+  convexIdFor(`member:${team}:${user}`);
 // A trigger is named after its home session, whose id is already unique.
-export const triggerIdFor = (conversationId: string): string => convexIdFor(`trg${conversationId}`);
+export const triggerIdFor = (conversationId: string): string =>
+  convexIdFor(`trg${conversationId}`);
 
 // The trigger that makes a session's armed kind true: a recurring loop for
 // "standing", a single follow-up for "once" (dormancy.armedTriggerKindFor).
-function backingTrigger(user: string, session: number, conv: WorldRow, epoch: number): WorldRow | null {
+function backingTrigger(
+  user: string,
+  session: number,
+  conv: WorldRow,
+  epoch: number,
+): WorldRow | null {
   const kind = conv.armed_trigger_kind;
   if (kind !== "standing" && kind !== "once") return null;
   return {
@@ -66,14 +80,20 @@ function backingTrigger(user: string, session: number, conv: WorldRow, epoch: nu
 
 export function genTeamWorld(spec: TeamWorldSpec): TeamWorld {
   if (spec.users.length > TEAM_WORLD_MAX_USERS) {
-    throw new Error(`genTeamWorld: ${spec.users.length} users, at most ${TEAM_WORLD_MAX_USERS} keep per-user seeds disjoint`);
+    throw new Error(
+      `genTeamWorld: ${spec.users.length} users, at most ${TEAM_WORLD_MAX_USERS} keep per-user seeds disjoint`,
+    );
   }
   const known = new Set(spec.users);
   for (const t of spec.teams) {
     for (const m of t.members) {
-      if (!known.has(m)) throw new Error(`genTeamWorld: team "${t.name}" lists "${m}", who is not in users`);
+      if (!known.has(m))
+        throw new Error(
+          `genTeamWorld: team "${t.name}" lists "${m}", who is not in users`,
+        );
     }
-    if (new Set(t.members).size !== t.members.length) throw new Error(`genTeamWorld: team "${t.name}" lists a member twice`);
+    if (new Set(t.members).size !== t.members.length)
+      throw new Error(`genTeamWorld: team "${t.name}" lists a member twice`);
   }
 
   const teamCreatedAt = spec.epoch - 60 * GEN_DAY;
@@ -86,7 +106,10 @@ export function genTeamWorld(spec: TeamWorldSpec): TeamWorld {
   }));
 
   const team_memberships: WorldRow[] = [];
-  const firstTeam = new Map<string, { teamId: string; role: "admin" | "member" }>();
+  const firstTeam = new Map<
+    string,
+    { teamId: string; role: "admin" | "member" }
+  >();
   for (const t of spec.teams) {
     t.members.forEach((m, i) => {
       const role = i === 0 ? "admin" : "member";
@@ -97,7 +120,8 @@ export function genTeamWorld(spec: TeamWorldSpec): TeamWorld {
         role,
         joined_at: teamCreatedAt + i * GEN_MIN,
       });
-      if (!firstTeam.has(m)) firstTeam.set(m, { teamId: teamIdFor(t.name), role });
+      if (!firstTeam.has(m))
+        firstTeam.set(m, { teamId: teamIdFor(t.name), role });
     });
   }
 
@@ -113,20 +137,42 @@ export function genTeamWorld(spec: TeamWorldSpec): TeamWorld {
       name,
       email: `${name}@sim.invalid`,
       created_at: spec.epoch - 90 * GEN_DAY,
-      ...(first ? { team_id: first.teamId, active_team_id: first.teamId, role: first.role } : {}),
+      ...(first
+        ? {
+            team_id: first.teamId,
+            active_team_id: first.teamId,
+            role: first.role,
+          }
+        : {}),
     });
-    perUser[name] = genWorld(spec.seed * TEAM_WORLD_MAX_USERS + i, spec.rowsPerUser, spec.epoch, _id);
+    perUser[name] = genWorld(
+      spec.seed * TEAM_WORLD_MAX_USERS + i,
+      spec.rowsPerUser,
+      spec.epoch,
+      _id,
+    );
   });
   const agent_tasks = spec.users.flatMap((name) =>
-    perUser[name].conversations.flatMap((conv, i) => backingTrigger(name, i, conv, spec.epoch) ?? []));
+    perUser[name].conversations.flatMap(
+      (conv, i) => backingTrigger(name, i, conv, spec.epoch) ?? [],
+    ),
+  );
 
   // convexIdFor folds case and punctuation and truncates at 32 characters, so
   // two distinct names can mint one id. Refuse that instead of merging rows.
   const seen = new Map<string, string>();
-  for (const [table, rows] of [["users", users], ["teams", teams], ["team_memberships", team_memberships], ["agent_tasks", agent_tasks]] as const) {
+  for (const [table, rows] of [
+    ["users", users],
+    ["teams", teams],
+    ["team_memberships", team_memberships],
+    ["agent_tasks", agent_tasks],
+  ] as const) {
     for (const r of rows) {
       const prior = seen.get(r._id);
-      if (prior) throw new Error(`genTeamWorld: ${table} id ${r._id} collides with ${prior}; pick distinct names`);
+      if (prior)
+        throw new Error(
+          `genTeamWorld: ${table} id ${r._id} collides with ${prior}; pick distinct names`,
+        );
       seen.set(r._id, `${table} ${r.name ?? r._id}`);
     }
   }

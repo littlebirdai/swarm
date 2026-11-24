@@ -15,59 +15,62 @@ The mobile app covers the core loop well (inbox, session viewer, tasks, notifica
 ## Tier 1: Critical Gaps (Daily Usage)
 
 ### 1.1 Conversation View Gaps
+
 The session detail view (`session/[id].tsx` at 6333 lines) renders messages but is missing key web features:
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Thinking blocks (expandable) | Yes | No | Missing |
-| File diffs (inline) | Yes | No | Missing |
-| Commit cards | Yes | No | Missing |
-| PR cards | Yes | No | Missing |
-| Entity references (@task, #plan) | Yes | No | Missing — renders as plain text |
-| Send & advance (inbox workflow) | Yes | No | Missing — can't triage from session |
-| Send & dismiss | Yes | No | Missing |
-| Copy message link | Yes | No | Missing |
-| Search within conversation | Yes (Cmd+F) | No | Missing |
+| Feature                          | Web         | Mobile | Gap                                 |
+| -------------------------------- | ----------- | ------ | ----------------------------------- |
+| Thinking blocks (expandable)     | Yes         | No     | Missing                             |
+| File diffs (inline)              | Yes         | No     | Missing                             |
+| Commit cards                     | Yes         | No     | Missing                             |
+| PR cards                         | Yes         | No     | Missing                             |
+| Entity references (@task, #plan) | Yes         | No     | Missing — renders as plain text     |
+| Send & advance (inbox workflow)  | Yes         | No     | Missing — can't triage from session |
+| Send & dismiss                   | Yes         | No     | Missing                             |
+| Copy message link                | Yes         | No     | Missing                             |
+| Search within conversation       | Yes (Cmd+F) | No     | Missing                             |
 
 ### 1.2 Inbox Gaps
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Defer session (hide until next activity) | Yes | No | Missing |
-| Share conversation (privacy, team visibility, link) | Yes | No | Missing |
-| Filter by agent type | Yes | No | Missing |
-| Filter by status | Yes | No | Missing |
-| Session context menu (full options) | Yes | Partial (swipe only) | Limited — swipe gives pin/dismiss only |
+| Feature                                             | Web | Mobile               | Gap                                    |
+| --------------------------------------------------- | --- | -------------------- | -------------------------------------- |
+| Defer session (hide until next activity)            | Yes | No                   | Missing                                |
+| Share conversation (privacy, team visibility, link) | Yes | No                   | Missing                                |
+| Filter by agent type                                | Yes | No                   | Missing                                |
+| Filter by status                                    | Yes | No                   | Missing                                |
+| Session context menu (full options)                 | Yes | Partial (swipe only) | Limited — swipe gives pin/dismiss only |
 
 ### 1.3 Task Management Gaps
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Create new task | Yes | No | Missing |
-| Kanban board view | Yes | No | Missing |
-| Inline title editing | Yes | No | Missing |
-| Filter by labels | Yes | No | Missing |
-| Filter by assignee | Yes | No | Missing |
-| Sort options | Yes | No | Missing |
-| Assign tasks | Yes | No | Missing |
-| Add/remove labels | Yes | No | Missing |
-| Dependencies display | Yes | No | Missing |
+| Feature              | Web | Mobile | Gap     |
+| -------------------- | --- | ------ | ------- |
+| Create new task      | Yes | No     | Missing |
+| Kanban board view    | Yes | No     | Missing |
+| Inline title editing | Yes | No     | Missing |
+| Filter by labels     | Yes | No     | Missing |
+| Filter by assignee   | Yes | No     | Missing |
+| Sort options         | Yes | No     | Missing |
+| Assign tasks         | Yes | No     | Missing |
+| Add/remove labels    | Yes | No     | Missing |
+| Dependencies display | Yes | No     | Missing |
 
 ### 1.4 Plans List Screen
+
 Mobile has a plan detail view but **no way to browse plans**. There is no plans tab or plans list screen.
 
 ### 1.5 Docs List Screen
+
 Mobile has a doc detail view but **no way to browse docs**. There is no docs tab or docs list screen.
 
 ### 1.6 Settings Gaps
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Edit profile (name, title, bio, status) | Yes | No | Shows profile card but can't edit |
-| Team management (icon, color, members, roles) | Yes | No | Missing |
-| Invite team members | Yes | No | Missing |
-| CLI setup / token generation | Yes | No | Missing |
-| Repository sync / team mappings | Yes | No | Missing |
+| Feature                                       | Web | Mobile | Gap                               |
+| --------------------------------------------- | --- | ------ | --------------------------------- |
+| Edit profile (name, title, bio, status)       | Yes | No     | Shows profile card but can't edit |
+| Team management (icon, color, members, roles) | Yes | No     | Missing                           |
+| Invite team members                           | Yes | No     | Missing                           |
+| CLI setup / token generation                  | Yes | No     | Missing                           |
+| Repository sync / team mappings               | Yes | No     | Missing                           |
 
 ---
 
@@ -75,42 +78,42 @@ Mobile has a doc detail view but **no way to browse docs**. There is no docs tab
 
 ### 2.1 Missing Pages
 
-| Page | Web Route | Purpose | Mobile Priority |
-|------|-----------|---------|-----------------|
-| Dashboard / Activity Feed | `/dashboard` | Team activity overview | High — key for managers |
-| Search (dedicated) | `/search` | Global search across all content | High — currently buried in inbox |
-| Explore | `/explore` | Browse public sessions | Medium |
-| Commit viewer | `/commit/[owner]/[repo]/[sha]` | View commit diffs | Medium |
-| PR viewer | `/pr/[owner]/[repo]/[number]` | View PR details | Medium |
+| Page                      | Web Route                      | Purpose                          | Mobile Priority                  |
+| ------------------------- | ------------------------------ | -------------------------------- | -------------------------------- |
+| Dashboard / Activity Feed | `/dashboard`                   | Team activity overview           | High — key for managers          |
+| Search (dedicated)        | `/search`                      | Global search across all content | High — currently buried in inbox |
+| Explore                   | `/explore`                     | Browse public sessions           | Medium                           |
+| Commit viewer             | `/commit/[owner]/[repo]/[sha]` | View commit diffs                | Medium                           |
+| PR viewer                 | `/pr/[owner]/[repo]/[number]`  | View PR details                  | Medium                           |
 
 ### 2.2 Team Gaps
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Team member directory | Yes | No | Mobile shows team sessions but not members |
-| Member profiles | Yes | No | Missing |
-| Team activity feed | Yes | No | Missing |
-| Invite members | Yes | No | Missing |
-| Online/offline status indicators | Yes | No | Missing |
+| Feature                          | Web | Mobile | Gap                                        |
+| -------------------------------- | --- | ------ | ------------------------------------------ |
+| Team member directory            | Yes | No     | Mobile shows team sessions but not members |
+| Member profiles                  | Yes | No     | Missing                                    |
+| Team activity feed               | Yes | No     | Missing                                    |
+| Invite members                   | Yes | No     | Missing                                    |
+| Online/offline status indicators | Yes | No     | Missing                                    |
 
 ### 2.3 Conversation Advanced Features
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Fork conversation (branch from message) | Yes | No | Missing |
-| Fork tree visualization | Yes | No | Missing |
-| Subagent indicators | Yes | No | Missing |
-| Worktree integration display | Yes | No | Missing |
-| Diff side panel | Yes | No | Missing |
+| Feature                                 | Web | Mobile | Gap     |
+| --------------------------------------- | --- | ------ | ------- |
+| Fork conversation (branch from message) | Yes | No     | Missing |
+| Fork tree visualization                 | Yes | No     | Missing |
+| Subagent indicators                     | Yes | No     | Missing |
+| Worktree integration display            | Yes | No     | Missing |
+| Diff side panel                         | Yes | No     | Missing |
 
 ### 2.4 UI/UX Features
 
-| Feature | Web | Mobile | Gap |
-|---------|-----|--------|-----|
-| Dark/light theme toggle | Yes | Auto-detect only | No manual toggle |
-| Command palette | Yes (Cmd+K) | No | Missing — could be a search/action sheet |
-| Loading skeletons | Yes | No | Bare loading states |
-| Undo/redo for actions | Yes | No | Missing |
+| Feature                 | Web         | Mobile           | Gap                                      |
+| ----------------------- | ----------- | ---------------- | ---------------------------------------- |
+| Dark/light theme toggle | Yes         | Auto-detect only | No manual toggle                         |
+| Command palette         | Yes (Cmd+K) | No               | Missing — could be a search/action sheet |
+| Loading skeletons       | Yes         | No               | Bare loading states                      |
+| Undo/redo for actions   | Yes         | No               | Missing                                  |
 
 ---
 
@@ -118,18 +121,18 @@ Mobile has a doc detail view but **no way to browse docs**. There is no docs tab
 
 These features are either web-native workflows or rarely needed on mobile:
 
-| Feature | Reason to Deprioritize |
-|---------|----------------------|
-| Workflows / workflow runs | Complex graph UI, primarily a desktop workflow |
-| Code review (individual + batch) | Heavy diff UI, better on desktop |
-| Orchestration dashboard | Admin/power-user feature |
-| Configuration editor | Developer tooling |
-| Git timeline | Visualization-heavy |
-| Keyboard shortcuts | N/A on mobile |
-| Resizable panels | N/A on mobile |
-| Zen mode | N/A on mobile |
-| CLI settings / token generation | Could be useful but niche on mobile |
-| GitHub App integration settings | One-time setup, fine on web |
+| Feature                          | Reason to Deprioritize                         |
+| -------------------------------- | ---------------------------------------------- |
+| Workflows / workflow runs        | Complex graph UI, primarily a desktop workflow |
+| Code review (individual + batch) | Heavy diff UI, better on desktop               |
+| Orchestration dashboard          | Admin/power-user feature                       |
+| Configuration editor             | Developer tooling                              |
+| Git timeline                     | Visualization-heavy                            |
+| Keyboard shortcuts               | N/A on mobile                                  |
+| Resizable panels                 | N/A on mobile                                  |
+| Zen mode                         | N/A on mobile                                  |
+| CLI settings / token generation  | Could be useful but niche on mobile            |
+| GitHub App integration settings  | One-time setup, fine on web                    |
 
 ---
 
@@ -254,15 +257,15 @@ Handle all `/session/`, `/task/`, `/plan/`, `/doc/`, `/share/` deep links from p
 
 ## Task Summary
 
-| Phase | Tasks | Focus |
-|-------|-------|-------|
-| Phase 1 | 8 | Core loop completion |
-| Phase 2 | 5 | Missing list screens |
-| Phase 3 | 6 | Team & settings |
-| Phase 4 | 4 | Discovery & navigation |
-| Phase 5 | 4 | Advanced conversation |
-| Phase 6 | 4 | Polish & parity |
-| **Total** | **31** | |
+| Phase     | Tasks  | Focus                  |
+| --------- | ------ | ---------------------- |
+| Phase 1   | 8      | Core loop completion   |
+| Phase 2   | 5      | Missing list screens   |
+| Phase 3   | 6      | Team & settings        |
+| Phase 4   | 4      | Discovery & navigation |
+| Phase 5   | 4      | Advanced conversation  |
+| Phase 6   | 4      | Polish & parity        |
+| **Total** | **31** |                        |
 
 ---
 
@@ -283,14 +286,18 @@ These web features are intentionally excluded from mobile parity:
 ## Architecture Notes
 
 ### Tab Bar Capacity
+
 Currently 5 visible tabs: Inbox, Tasks, Team, Notifications, Settings. Adding Plans and Docs as tabs would make 7 — too many. Options:
+
 - **Replace "Team" with a "More" tab** containing Team, Plans, Docs, Activity
 - **Use a top-level navigation drawer** instead of bottom tabs
 - **Keep 5 tabs, add Plans/Docs as sub-screens** accessible from inbox or a hub screen
 - **Recommended: Add a "Library" tab** replacing or supplementing Team, containing Plans, Docs, and Team as sections
 
 ### Session Detail Refactor
+
 `session/[id].tsx` is 6333 lines — the largest file in the app. Before adding more features (thinking blocks, diffs, entity refs, fork, search), it should be decomposed into:
+
 - `SessionHeader` — title, status, metadata
 - `MessageList` — virtualized message list
 - `MessageBubble` — individual message rendering
@@ -300,7 +307,9 @@ Currently 5 visible tabs: Inbox, Tasks, Team, Notifications, Settings. Adding Pl
 - `SessionActions` — share, fork, search controls
 
 ### Shared Code Opportunity
+
 The mobile app already imports from `@codecast/web/store/inboxStore`. Additional sharing opportunities:
+
 - Entity reference parsing logic
 - Session categorization (`categorizeSessions`)
 - Date grouping utilities

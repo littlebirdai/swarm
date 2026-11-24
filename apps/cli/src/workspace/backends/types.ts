@@ -14,11 +14,7 @@
  *     (e.g., agent reads code from a remote sandbox via the local CLI).
  */
 
-import type {
-  AcquireOptions,
-  ContractResult,
-  Workspace,
-} from "../types.js";
+import type { AcquireOptions, ContractResult, Workspace } from "../types.js";
 
 export interface ExecOptions {
   /** Working directory relative to the workspace root. */

@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { verifyTmuxSubmitAfterPaste, type TmuxSubmitVerifyIO } from "./daemon.js";
-import { closeOwnCommandPanel, confirmModelSwitch, mayOpenPanel, modelSwitchConfirmKey, paneDialogQuestion, rememberCommandPanel } from "./commandPanel.js";
+import {
+  verifyTmuxSubmitAfterPaste,
+  type TmuxSubmitVerifyIO,
+} from "./daemon.js";
+import {
+  closeOwnCommandPanel,
+  confirmModelSwitch,
+  mayOpenPanel,
+  modelSwitchConfirmKey,
+  paneDialogQuestion,
+  rememberCommandPanel,
+} from "./commandPanel.js";
 
 // Frames captured from Claude Code 2.1.318 in tmux. Alex Green sent /mcp from
 // his phone (2026-10-30): the verifier read the panel's help line ("…/en/mcp")
@@ -44,8 +54,12 @@ function scriptedIO(frames: string[]) {
   let i = 0;
   const io: TmuxSubmitVerifyIO = {
     capture: async () => frames[Math.min(i++, frames.length - 1)],
-    sendEnter: async () => { actions.push("enter"); },
-    rePaste: async () => { actions.push("repaste"); },
+    sendEnter: async () => {
+      actions.push("enter");
+    },
+    rePaste: async () => {
+      actions.push("repaste");
+    },
     sleep: async () => {},
     log: () => {},
   };
@@ -55,14 +69,29 @@ function scriptedIO(frames: string[]) {
 describe("a slash command that opens a panel", () => {
   test("is delivered once the panel is up, with no Enter pressed into it", async () => {
     const { io, actions } = scriptedIO([MCP_PANEL]);
-    const result = await verifyTmuxSubmitAfterPaste(io, { prePaste: IDLE, pasteConfirmed: true, payloadObserved: true, contentPrefix: "/mcp", slashCommand: true });
-    expect(result).toMatchObject({ outcome: "delivered", evidence: "command_panel" });
+    const result = await verifyTmuxSubmitAfterPaste(io, {
+      prePaste: IDLE,
+      pasteConfirmed: true,
+      payloadObserved: true,
+      contentPrefix: "/mcp",
+      slashCommand: true,
+    });
+    expect(result).toMatchObject({
+      outcome: "delivered",
+      evidence: "command_panel",
+    });
     expect(actions).toEqual([]);
   });
 
   test("a dialog that was already up before the paste proves nothing", async () => {
     const { io } = scriptedIO([MCP_PANEL]);
-    const result = await verifyTmuxSubmitAfterPaste(io, { prePaste: MCP_PANEL, pasteConfirmed: true, contentPrefix: "/mcp", slashCommand: true, deadlineMs: 2_000 });
+    const result = await verifyTmuxSubmitAfterPaste(io, {
+      prePaste: MCP_PANEL,
+      pasteConfirmed: true,
+      contentPrefix: "/mcp",
+      slashCommand: true,
+      deadlineMs: 2_000,
+    });
     expect(result.evidence).not.toBe("command_panel");
   });
 
@@ -96,10 +125,15 @@ describe("closeOwnCommandPanel", () => {
 
   test("leaves any other dialog to its hold", async () => {
     rememberCommandPanel("t:0.1", "Manage MCP servers");
-    const question = MCP_PANEL.replace("Manage MCP servers", "Which tier should run first?");
+    const question = MCP_PANEL.replace(
+      "Manage MCP servers",
+      "Which tier should run first?",
+    );
     const { exec, sent } = execOn(question);
     expect(await closeOwnCommandPanel("t:0.1", exec, 0)).toBe(false);
-    expect(await closeOwnCommandPanel("t:0.2", execOn(MCP_PANEL).exec, 0)).toBe(false);
+    expect(await closeOwnCommandPanel("t:0.2", execOn(MCP_PANEL).exec, 0)).toBe(
+      false,
+    );
     expect(sent).toEqual([]);
   });
 });
@@ -135,8 +169,12 @@ const AFTER_SWITCH = `
 
 describe("the confirmation /model <name> asks before switching", () => {
   test("is confirmed for a /model command that named the model", () => {
-    expect(modelSwitchConfirmKey("/model opus", MODEL_SWITCH_CONFIRM)).toBe("1");
-    expect(modelSwitchConfirmKey("/model  claude-opus-5-5", MODEL_SWITCH_CONFIRM)).toBe("1");
+    expect(modelSwitchConfirmKey("/model opus", MODEL_SWITCH_CONFIRM)).toBe(
+      "1",
+    );
+    expect(
+      modelSwitchConfirmKey("/model  claude-opus-5-5", MODEL_SWITCH_CONFIRM),
+    ).toBe("1");
   });
 
   test("is left alone for any other command, and other dialogs are not it", () => {
@@ -154,7 +192,15 @@ describe("the confirmation /model <name> asks before switching", () => {
       if (args[0] === "send-keys") sent.push(args.at(-1)!);
       return { stdout: frames[0] };
     };
-    expect(await confirmModelSwitch("t:1.0", "/model opus", MODEL_SWITCH_CONFIRM, exec, 0)).toBe(true);
+    expect(
+      await confirmModelSwitch(
+        "t:1.0",
+        "/model opus",
+        MODEL_SWITCH_CONFIRM,
+        exec,
+        0,
+      ),
+    ).toBe(true);
     expect(sent).toEqual(["1"]);
   });
 
@@ -164,7 +210,15 @@ describe("the confirmation /model <name> asks before switching", () => {
       if (args[0] === "send-keys") sent.push(args.at(-1)!);
       return { stdout: MODEL_SWITCH_CONFIRM };
     };
-    expect(await confirmModelSwitch("t:1.1", "/model opus", MODEL_SWITCH_CONFIRM, exec, 0)).toBe(true);
+    expect(
+      await confirmModelSwitch(
+        "t:1.1",
+        "/model opus",
+        MODEL_SWITCH_CONFIRM,
+        exec,
+        0,
+      ),
+    ).toBe(true);
     expect(sent).toEqual(["1", "Enter"]);
   });
 
@@ -174,7 +228,13 @@ describe("the confirmation /model <name> asks before switching", () => {
       if (args[0] === "send-keys") sent.push(args.at(-1)!);
       return { stdout: AFTER_SWITCH };
     };
-    await confirmModelSwitch("t:1.2", "/model opus", MODEL_SWITCH_CONFIRM, exec, 0);
+    await confirmModelSwitch(
+      "t:1.2",
+      "/model opus",
+      MODEL_SWITCH_CONFIRM,
+      exec,
+      0,
+    );
     expect(await closeOwnCommandPanel("t:1.2", exec, 0)).toBe(false);
     expect(sent).not.toContain("Escape");
   });

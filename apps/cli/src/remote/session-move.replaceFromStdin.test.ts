@@ -6,7 +6,10 @@ import path from "node:path";
 import { replaceFromStdin } from "./session-move";
 
 const homes: string[] = [];
-afterEach(() => { for (const h of homes.splice(0)) fs.rmSync(h, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const h of homes.splice(0))
+    fs.rmSync(h, { recursive: true, force: true });
+});
 
 function hostHome(old: string): { home: string; dest: string } {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "replace-stdin-"));
@@ -18,13 +21,18 @@ function hostHome(old: string): { home: string; dest: string } {
 }
 
 function push(home: string): ChildProcess {
-  return spawn("bash", ["-c", replaceFromStdin("~/.claude", ".credentials.json")], {
-    env: { ...process.env, HOME: home },
-    stdio: ["pipe", "ignore", "pipe"],
-  });
+  return spawn(
+    "bash",
+    ["-c", replaceFromStdin("~/.claude", ".credentials.json")],
+    {
+      env: { ...process.env, HOME: home },
+      stdio: ["pipe", "ignore", "pipe"],
+    },
+  );
 }
 
-const closed = (child: ChildProcess) => new Promise<number | null>((resolve) => child.on("close", resolve));
+const closed = (child: ChildProcess) =>
+  new Promise<number | null>((resolve) => child.on("close", resolve));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 describe("replaceFromStdin", () => {
@@ -37,7 +45,11 @@ describe("replaceFromStdin", () => {
     expect(await closed(child)).toBe(0);
     expect(fs.readFileSync(dest, "utf8")).toBe('{"new":true}');
     expect(fs.statSync(dest).mode & 0o777).toBe(0o600);
-    expect(fs.readdirSync(path.dirname(dest)).filter((f) => f.startsWith(".cast-push."))).toEqual([]);
+    expect(
+      fs
+        .readdirSync(path.dirname(dest))
+        .filter((f) => f.startsWith(".cast-push.")),
+    ).toEqual([]);
   });
 
   test("a transfer cut off midway leaves the old login in place", async () => {

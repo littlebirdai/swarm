@@ -5,10 +5,15 @@ import * as path from "node:path";
 
 const dirs: string[] = [];
 afterEach(() => {
-  for (const dir of dirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of dirs.splice(0))
+    fs.rmSync(dir, { recursive: true, force: true });
 });
 
-async function command(driver: "direct" | "engine", args: string[], scenario = "ok") {
+async function command(
+  driver: "direct" | "engine",
+  args: string[],
+  scenario = "ok",
+) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-perception-json-"));
   dirs.push(dir);
   const png = Buffer.alloc(24);
@@ -18,7 +23,9 @@ async function command(driver: "direct" | "engine", args: string[], scenario = "
   const image = path.join(dir, "fixture.png");
   fs.writeFileSync(image, png);
   const engine = path.join(dir, "engine");
-  fs.writeFileSync(engine, `#!${process.execPath}
+  fs.writeFileSync(
+    engine,
+    `#!${process.execPath}
 import * as fs from "node:fs";
 const args = process.argv.slice(2);
 fs.appendFileSync(process.env.FIXTURE_CALLS, JSON.stringify(args) + "\\n");
@@ -42,9 +49,16 @@ if (args[0] === "snapshot") {
   if (process.env.FIXTURE_SCENARIO === "scale-failure") process.exit(1);
   reply({ result: 2 });
 } else throw new Error("unexpected engine call: " + args.join(" "));
-`, { mode: 0o700 });
-  const file = (name: string) => JSON.stringify(path.join(import.meta.dir, name));
-  const child = Bun.spawn([process.execPath, "-e", `
+`,
+    { mode: 0o700 },
+  );
+  const file = (name: string) =>
+    JSON.stringify(path.join(import.meta.dir, name));
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      "-e",
+      `
     import { spyOn } from "bun:test";
     import { Command } from "commander";
     import * as real from ${file("bridge/real.ts")};
@@ -79,25 +93,37 @@ if (args[0] === "snapshot") {
     const { recallSnapshotRef } = await import(${file("refMemory.ts")});
     process.on("exit", () => writeFileSync(process.env.FIXTURE_MEMORY, JSON.stringify(recallSnapshotRef(engine.realSessionKey(engine.engineSession(() => "fixture")), "e2"))));
     await program.parseAsync(["bun", "cast", "browser", ...${JSON.stringify(args)}]);
-  `], {
-    stdout: "pipe", stderr: "pipe",
-    env: {
-      ...process.env,
-      CODECAST_DIR: path.join(dir, "state"),
-      CAST_BROWSER_LEGACY: driver === "direct" ? "1" : "0",
-      CAST_BROWSER_ENGINE: engine,
-      FIXTURE_IMAGE: image,
-      FIXTURE_CALLS: path.join(dir, "calls.jsonl"),
-      FIXTURE_MEMORY: path.join(dir, "memory.json"),
-      FIXTURE_RETRIED: path.join(dir, "retried"),
-      FIXTURE_SCENARIO: scenario,
+  `,
+    ],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...process.env,
+        CODECAST_DIR: path.join(dir, "state"),
+        CAST_BROWSER_LEGACY: driver === "direct" ? "1" : "0",
+        CAST_BROWSER_ENGINE: engine,
+        FIXTURE_IMAGE: image,
+        FIXTURE_CALLS: path.join(dir, "calls.jsonl"),
+        FIXTURE_MEMORY: path.join(dir, "memory.json"),
+        FIXTURE_RETRIED: path.join(dir, "retried"),
+        FIXTURE_SCENARIO: scenario,
+      },
     },
-  });
+  );
   const [stdout, stderr, code] = await Promise.all([
-    new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
   ]);
   const callsFile = path.join(dir, "calls.jsonl");
-  const calls: string[][] = fs.existsSync(callsFile) ? fs.readFileSync(callsFile, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [];
+  const calls: string[][] = fs.existsSync(callsFile)
+    ? fs
+        .readFileSync(callsFile, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line))
+    : [];
   return { dir, stdout, stderr, code, calls };
 }
 
@@ -109,13 +135,21 @@ for (const driver of ["direct", "engine"] as const) {
       expect(result.code).toBe(0);
       const json = JSON.parse(result.stdout);
       expect(json.url).toBe("https://fixture.test/");
-      expect(json.refs).toContainEqual({ ref: "e2", role: "button", name: "Save" });
+      expect(json.refs).toContainEqual({
+        ref: "e2",
+        role: "button",
+        name: "Save",
+      });
       expect(json.text).toContain("Save");
       expect(json.truncated).toBe(false);
       expect(json.lifecycle).toBeUndefined();
       if (driver === "engine") {
         expect(json.text).toContain("Save (2nd)");
-        expect(JSON.parse(fs.readFileSync(path.join(result.dir, "memory.json"), "utf8"))).toEqual({
+        expect(
+          JSON.parse(
+            fs.readFileSync(path.join(result.dir, "memory.json"), "utf8"),
+          ),
+        ).toEqual({
           role: "button",
           name: "Save",
           nth: 2,
@@ -129,24 +163,39 @@ for (const driver of ["direct", "engine"] as const) {
     test("shared JSON shots add the URL without printing markdown", async () => {
       const result = await command(driver, ["shot", "--json", "--share"]);
       expect(result.code).toBe(0);
-      expect(JSON.parse(result.stdout).url).toBe("https://images.fixture.test/shot.png");
+      expect(JSON.parse(result.stdout).url).toBe(
+        "https://images.fixture.test/shot.png",
+      );
       expect(result.stdout).not.toContain("do not print this");
     }, 15000);
 
     test("shot prints file metadata without an inline marker or encoded pixels", async () => {
-      const result = await command(driver, ["shot", "--json", ...(driver === "engine" ? ["--annotate"] : [])]);
+      const result = await command(driver, [
+        "shot",
+        "--json",
+        ...(driver === "engine" ? ["--annotate"] : []),
+      ]);
       expect(result.stderr).toBe("");
       expect(result.code).toBe(0);
       const json = JSON.parse(result.stdout);
-      expect(json).toMatchObject({ width: 720, height: 480, scale: 2, bytes: 24 });
+      expect(json).toMatchObject({
+        width: 720,
+        height: 480,
+        scale: 2,
+        bytes: 24,
+      });
       expect(path.isAbsolute(json.path)).toBe(true);
       expect(fs.readFileSync(json.path).length).toBe(24);
       expect(fs.statSync(json.path).mode & 0o777).toBe(0o600);
       expect(result.stdout).not.toContain("base64");
       expect(result.stdout).not.toContain("data:image");
       if (driver === "engine") {
-        expect(json.annotations).toEqual([{ number: 1, ref: "e1", role: "button", name: "Save" }]);
-        expect(result.calls.filter((call) => call[0] === "screenshot")).toHaveLength(1);
+        expect(json.annotations).toEqual([
+          { number: 1, ref: "e1", role: "button", name: "Save" },
+        ]);
+        expect(
+          result.calls.filter((call) => call[0] === "screenshot"),
+        ).toHaveLength(1);
       }
     }, 15000);
   });
@@ -155,23 +204,40 @@ for (const driver of ["direct", "engine"] as const) {
 test("an unavailable scale is null while the screenshot remains usable", async () => {
   const result = await command("engine", ["shot", "--json"], "scale-failure");
   expect(result.code).toBe(0);
-  expect(JSON.parse(result.stdout)).toMatchObject({ width: 720, height: 480, scale: null });
+  expect(JSON.parse(result.stdout)).toMatchObject({
+    width: 720,
+    height: 480,
+    scale: null,
+  });
 }, 15000);
 
 test("a failed snapshot does not become a successful empty object", async () => {
-  const result = await command("engine", ["snapshot", "--json", "--no-capture"], "failure");
+  const result = await command(
+    "engine",
+    ["snapshot", "--json", "--no-capture"],
+    "failure",
+  );
   expect(result.code).toBe(1);
   expect(result.stdout).toContain("snapshot unavailable");
 });
 
 test("direct JSON shot rejects a viewport row", async () => {
-  const result = await command("direct", ["shot", "--json", "--viewports", "desktop,mobile"]);
+  const result = await command("direct", [
+    "shot",
+    "--json",
+    "--viewports",
+    "desktop,mobile",
+  ]);
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("--json does not combine with --viewports");
 });
 
 test("JSON snapshot keeps the existing retry for a stalled bridge", async () => {
-  const result = await command("engine", ["snapshot", "--json", "--no-capture"], "stall");
+  const result = await command(
+    "engine",
+    ["snapshot", "--json", "--no-capture"],
+    "stall",
+  );
   expect(result.code).toBe(0);
   expect(JSON.parse(result.stdout).refs).toHaveLength(2);
   expect(result.calls.filter((call) => call[0] === "snapshot")).toHaveLength(2);

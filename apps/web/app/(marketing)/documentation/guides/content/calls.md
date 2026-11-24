@@ -16,12 +16,12 @@ Turning calls on also teaches the agents on every member's computers to read the
 
 ## Start a huddle
 
-| Where | What happens |
-|-------|--------------|
-| **Huddle** in a channel's header | Starts the channel's huddle and buzzes its members |
-| **Ring** in a DM, or on a teammate's face | Rings them. Their screen shows *Incoming huddle* with **Join** and **Decline** |
-| **Start huddle** beside **Calls** in the sidebar (on hover) | Opens **New huddle**: pick one teammate or several, then **Start huddle** |
-| **Huddle with this session** in a session's header menu | Talk to that session: what you say reaches its agent as you speak |
+| Where                                                       | What happens                                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Huddle** in a channel's header                            | Starts the channel's huddle and buzzes its members                             |
+| **Ring** in a DM, or on a teammate's face                   | Rings them. Their screen shows _Incoming huddle_ with **Join** and **Decline** |
+| **Start huddle** beside **Calls** in the sidebar (on hover) | Opens **New huddle**: pick one teammate or several, then **Start huddle**      |
+| **Huddle with this session** in a session's header menu     | Talk to that session: what you say reaches its agent as you speak              |
 
 Before anyone is rung, **Start a huddle** shows your camera, a meter for your microphone and the device pickers, so you know you can be heard. Pick **Team** (teammates see it and can join) or **Private** (only people you ring in), then **Start**. Started from a channel, the dialog says how many members it will buzz, in orange when the channel is large. Answering a ring goes through the same check, and **Check camera and mic first** in your Calls settings turns it off.
 
@@ -56,7 +56,7 @@ When an agent quotes a call, the quote shows the speaker and links to those line
 
 ![An agent's reply quoting two transcript lines from a huddle, each under its speaker, with a pill linking to the call](/documentation/calls/agent-quote.webp "An agent quoting the exact lines from a call.")
 
-**Bring a session into the huddle.** Start a huddle from a session's header menu, or click **Add an agent** in the call's thread and pick **A new agent session** (*Hears the room and answers here*). The session hears what is said each time the room goes quiet, waits for a complete thought, and answers in the thread. A line you type in the thread goes straight to it. When the call ends it already knows what happened.
+**Bring a session into the huddle.** Start a huddle from a session's header menu, or click **Add an agent** in the call's thread and pick **A new agent session** (_Hears the room and answers here_). The session hears what is said each time the room goes quiet, waits for a complete thought, and answers in the thread. A line you type in the thread goes straight to it. When the call ends it already knows what happened.
 
 ![A huddle's thread where a typed question goes to the agent and its answer appears marked as an agent](/documentation/calls/huddle-agent.webp "A session answering in a huddle's thread.")
 
@@ -95,11 +95,11 @@ On the iPhone a ring shows on the lock screen like a phone call, even when the a
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| No huddle buttons anywhere | Calls are switched off for this team. Ask a team admin to switch on **Calls** under Settings, Team |
-| The call has no summary | It was too short to summarize, or the summary failed. The transcript is still on its page |
-| Nothing was transcribed | Someone turned **transcribing** off. Turn it back on for the rest of the call |
-| The record button is dimmed | Recording isn't available right now; hover it to see why |
-| A guest's link doesn't open the call | It expired or was turned off. Make a new one from **invite** |
-| Walkie messages don't play out loud | You are set to busy, or **Let teammates talk to me** is off. They are waiting in the DM |
+| What you notice                      | What to do                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| No huddle buttons anywhere           | Calls are switched off for this team. Ask a team admin to switch on **Calls** under Settings, Team |
+| The call has no summary              | It was too short to summarize, or the summary failed. The transcript is still on its page          |
+| Nothing was transcribed              | Someone turned **transcribing** off. Turn it back on for the rest of the call                      |
+| The record button is dimmed          | Recording isn't available right now; hover it to see why                                           |
+| A guest's link doesn't open the call | It expired or was turned off. Make a new one from **invite**                                       |
+| Walkie messages don't play out loud  | You are set to busy, or **Let teammates talk to me** is off. They are waiting in the DM            |

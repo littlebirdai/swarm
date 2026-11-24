@@ -37,7 +37,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { mapLimit } from "@codecast/shared/async";
-import { SECRET_REDACTION_MAX, SECRET_REDACTION_MIN, isCredentialName, parseDotenv } from "@codecast/shared/contracts/secretRules";
+import {
+  SECRET_REDACTION_MAX,
+  SECRET_REDACTION_MIN,
+  isCredentialName,
+  parseDotenv,
+} from "@codecast/shared/contracts/secretRules";
 
 /** `vault`: a Vault value, held to SECRET_REDACTION_MIN only (qualifiesAsKnownValue). */
 export type KnownValue = { value: string; name?: string; vault?: true };
@@ -52,7 +57,8 @@ const MAX_LENGTH = SECRET_REDACTION_MAX;
 
 /** True if `value` is long and varied enough to be redacted wherever it appears. A Vault value only needs SECRET_REDACTION_MIN (below it even a Vault value would blank ordinary text; the matcher's prefix hash also needs 4 chars). */
 export function qualifiesAsKnownValue(value: string, vault = false): boolean {
-  if (vault) return value.length >= SECRET_REDACTION_MIN && value.length <= MAX_LENGTH;
+  if (vault)
+    return value.length >= SECRET_REDACTION_MIN && value.length <= MAX_LENGTH;
   if (value.length < MIN_LENGTH || value.length > MAX_LENGTH) return false;
   if (/^\d+$/.test(value)) return value.length >= MIN_DIGITS_ONLY;
   if (/^[A-Za-z_.-]+$/.test(value)) return value.length >= MIN_LETTERS_ONLY;
@@ -62,16 +68,28 @@ export function qualifiesAsKnownValue(value: string, vault = false): boolean {
 }
 
 /** The password (and user:password pair) inside a URL's userinfo, if any. */
-function urlCredentials(value: string, name: string | undefined, out: KnownValue[], vault = false): void {
+function urlCredentials(
+  value: string,
+  name: string | undefined,
+  out: KnownValue[],
+  vault = false,
+): void {
   const m = /^[a-z][a-z0-9+.-]*:\/\/([^/\s:@]+):([^/\s@]+)@/i.exec(value);
   if (!m) return;
   let password = m[2];
-  try { password = decodeURIComponent(password); } catch {}
+  try {
+    password = decodeURIComponent(password);
+  } catch {}
   const from = vault ? ({ name, vault: true } as const) : { name };
   out.push({ value: m[2], ...from }, { value: password, ...from });
 }
 
-function add(out: KnownValue[], value: string | undefined | null, name?: string, vault = false): void {
+function add(
+  out: KnownValue[],
+  value: string | undefined | null,
+  name?: string,
+  vault = false,
+): void {
   if (typeof value !== "string") return;
   const v = value.trim();
   if (!v) return;
@@ -84,7 +102,9 @@ function add(out: KnownValue[], value: string | undefined | null, name?: string,
 // the floors are applied once, when the matcher is built.
 
 /** Environment variables whose names mark them as credentials, plus URL passwords in any variable. */
-export function collectFromEnv(env: Record<string, string | undefined>): KnownValue[] {
+export function collectFromEnv(
+  env: Record<string, string | undefined>,
+): KnownValue[] {
   const out: KnownValue[] = [];
   for (const [name, value] of Object.entries(env)) {
     if (!value) continue;
@@ -96,7 +116,13 @@ export function collectFromEnv(env: Record<string, string | undefined>): KnownVa
 
 /** A value that looks generated rather than written: long, mixed letters and digits, no spaces. */
 function looksRandom(value: string): boolean {
-  return value.length >= 16 && !/\s/.test(value) && /\d/.test(value) && /[A-Za-z]/.test(value) && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value);
+  return (
+    value.length >= 16 &&
+    !/\s/.test(value) &&
+    /\d/.test(value) &&
+    /[A-Za-z]/.test(value) &&
+    !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)
+  );
 }
 
 /**
@@ -119,7 +145,8 @@ export function collectFromNetrc(text: string): KnownValue[] {
   const out: KnownValue[] = [];
   const tokens = text.split(/\s+/);
   for (let i = 0; i < tokens.length - 1; i++) {
-    if (tokens[i] === "password" || tokens[i] === "account") add(out, tokens[i + 1], "netrc");
+    if (tokens[i] === "password" || tokens[i] === "account")
+      add(out, tokens[i + 1], "netrc");
   }
   return out;
 }
@@ -130,18 +157,24 @@ export function collectFromNetrc(text: string): KnownValue[] {
  * either for pypirc. An npmrc key carries a registry scope
  * (`//registry.npmjs.org/:_authToken`); only the part after the last colon names it.
  */
-export function collectFromKeyValueLines(text: string, sep: "=" | ":" | "=:", extraKeys: RegExp | null = null): KnownValue[] {
+export function collectFromKeyValueLines(
+  text: string,
+  sep: "=" | ":" | "=:",
+  extraKeys: RegExp | null = null,
+): KnownValue[] {
   const out: KnownValue[] = [];
-  const re = sep === "="
-    ? /^\s*([^\s=#;][^=]*?)\s*=\s*(.+?)\s*$/
-    : sep === ":"
-      ? /^\s*-?\s*([\w.-]+)\s*:\s*(.+?)\s*$/
-      : /^\s*([\w.-]+)\s*[=:]\s*(.+?)\s*$/;
+  const re =
+    sep === "="
+      ? /^\s*([^\s=#;][^=]*?)\s*=\s*(.+?)\s*$/
+      : sep === ":"
+        ? /^\s*-?\s*([\w.-]+)\s*:\s*(.+?)\s*$/
+        : /^\s*([\w.-]+)\s*[=:]\s*(.+?)\s*$/;
   for (const raw of text.split(/\r?\n/)) {
     const m = re.exec(raw);
     if (!m) continue;
     const keyName = m[1].replace(/^.*:/, "");
-    if (!isCredentialName(keyName) && !(extraKeys && extraKeys.test(keyName))) continue;
+    if (!isCredentialName(keyName) && !(extraKeys && extraKeys.test(keyName)))
+      continue;
     add(out, m[2].replace(/^["']|["']$/g, ""), keyName.replace(/^_+/, ""));
   }
   return out;
@@ -151,9 +184,15 @@ export function collectFromKeyValueLines(text: string, sep: "=" | ":" | "=:", ex
 export function collectFromProviderKeys(text: string): KnownValue[] {
   const out: KnownValue[] = [];
   let parsed: unknown;
-  try { parsed = JSON.parse(text); } catch { return out; }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return out;
-  for (const [id, v] of Object.entries(parsed)) if (typeof v === "string") add(out, v, `${id}-key`);
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return out;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return out;
+  for (const [id, v] of Object.entries(parsed))
+    if (typeof v === "string") add(out, v, `${id}-key`);
   return out;
 }
 
@@ -161,7 +200,11 @@ export function collectFromProviderKeys(text: string): KnownValue[] {
 export function collectFromDockerConfig(text: string): KnownValue[] {
   const out: KnownValue[] = [];
   let parsed: any;
-  try { parsed = JSON.parse(text); } catch { return out; }
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return out;
+  }
   for (const entry of Object.values(parsed?.auths ?? {}) as any[]) {
     if (!entry || typeof entry !== "object") continue;
     add(out, entry.auth, "docker auth");
@@ -181,12 +224,20 @@ export function collectFromDockerConfig(text: string): KnownValue[] {
 export function collectFromJson(text: string): KnownValue[] {
   const out: KnownValue[] = [];
   let parsed: unknown;
-  try { parsed = JSON.parse(text); } catch { return out; }
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return out;
+  }
   const walk = (node: unknown, key: string | null, depth: number) => {
     if (depth > 6 || node == null) return;
-    if (typeof node === "string") { if (key && isCredentialName(key)) add(out, node, key); return; }
+    if (typeof node === "string") {
+      if (key && isCredentialName(key)) add(out, node, key);
+      return;
+    }
     if (typeof node !== "object") return;
-    for (const [k, v] of Object.entries(node as Record<string, unknown>)) walk(v, Array.isArray(node) ? key : k, depth + 1);
+    for (const [k, v] of Object.entries(node as Record<string, unknown>))
+      walk(v, Array.isArray(node) ? key : k, depth + 1);
   };
   walk(parsed, null, 0);
   return out;
@@ -197,12 +248,29 @@ type Collector = (text: string) => KnownValue[];
 /** Every credential file read, relative to HOME. Nothing outside this list (plus codecast's dir and session .env files) is read. */
 export const CREDENTIAL_FILES: Array<{ rel: string; collect: Collector }> = [
   { rel: ".netrc", collect: collectFromNetrc },
-  { rel: ".aws/credentials", collect: (t) => collectFromKeyValueLines(t, "=", /^aws_(?:access_key_id|secret_access_key|session_token)$/i) },
-  { rel: ".config/gh/hosts.yml", collect: (t) => collectFromKeyValueLines(t, ":") },
-  { rel: ".npmrc", collect: (t) => collectFromKeyValueLines(t, "=", /^_auth$/) },
+  {
+    rel: ".aws/credentials",
+    collect: (t) =>
+      collectFromKeyValueLines(
+        t,
+        "=",
+        /^aws_(?:access_key_id|secret_access_key|session_token)$/i,
+      ),
+  },
+  {
+    rel: ".config/gh/hosts.yml",
+    collect: (t) => collectFromKeyValueLines(t, ":"),
+  },
+  {
+    rel: ".npmrc",
+    collect: (t) => collectFromKeyValueLines(t, "=", /^_auth$/),
+  },
   { rel: ".pypirc", collect: (t) => collectFromKeyValueLines(t, "=:") },
   { rel: ".docker/config.json", collect: collectFromDockerConfig },
-  { rel: ".kube/config", collect: (t) => collectFromKeyValueLines(t, ":", /^client-key-data$/) },
+  {
+    rel: ".kube/config",
+    collect: (t) => collectFromKeyValueLines(t, ":", /^client-key-data$/),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -218,7 +286,11 @@ const markerFor = (name?: string) => {
 
 type Entry = { value: string; marker: string; name?: string };
 /** `size` counts distinct values; `minLength` is the shortest text form any of them takes. */
-export type KnownValueMatcher = { size: number; minLength: number; buckets: Map<number, Entry[]> };
+export type KnownValueMatcher = {
+  size: number;
+  minLength: number;
+  buckets: Map<number, Entry[]>;
+};
 
 /** A value as text can carry it: as written, then escaped once and twice for a JSON string; a Vault value encoded too (encodedForms). */
 function textForms(value: string, vault?: boolean): string[] {
@@ -242,17 +314,31 @@ function encodedForms(value: string): string[] {
   const out: string[] = [];
   for (let offset = 0; offset < 3; offset++) {
     const b64 = Buffer.concat([Buffer.alloc(offset), bytes]).toString("base64");
-    const core = b64.slice(Math.ceil((8 * offset) / 6), Math.floor((8 * (offset + bytes.length)) / 6));
+    const core = b64.slice(
+      Math.ceil((8 * offset) / 6),
+      Math.floor((8 * (offset + bytes.length)) / 6),
+    );
     out.push(core, core.replace(/\+/g, "-").replace(/\//g, "_"));
   }
   const uri = encodeURIComponent(value);
-  out.push(uri, uri.replace(/%[0-9A-F]{2}/g, (hex) => hex.toLowerCase()));
-  return [...new Set(out)].filter((form) => form !== value && form.length >= MIN_LENGTH);
+  out.push(
+    uri,
+    uri.replace(/%[0-9A-F]{2}/g, (hex) => hex.toLowerCase()),
+  );
+  return [...new Set(out)].filter(
+    (form) => form !== value && form.length >= MIN_LENGTH,
+  );
 }
 
 // Kept in small-integer range so Map probes stay on V8's fast path.
 const prefixKey = (s: string, i: number) =>
-  (Math.imul(Math.imul(Math.imul(s.charCodeAt(i), 31) + s.charCodeAt(i + 1), 31) + s.charCodeAt(i + 2), 31) + s.charCodeAt(i + 3)) & 0x3fffffff;
+  (Math.imul(
+    Math.imul(Math.imul(s.charCodeAt(i), 31) + s.charCodeAt(i + 1), 31) +
+      s.charCodeAt(i + 2),
+    31,
+  ) +
+    s.charCodeAt(i + 3)) &
+  0x3fffffff;
 
 export function buildMatcher(values: KnownValue[]): KnownValueMatcher {
   const byValue = new Map<string, string | undefined>();
@@ -261,10 +347,15 @@ export function buildMatcher(values: KnownValue[]): KnownValueMatcher {
     if (!qualifiesAsKnownValue(value, vault)) continue;
     if (vault) fromVault.add(value);
     // First name wins, but a named source beats an anonymous one.
-    if (!byValue.has(value) || (byValue.get(value) === undefined && name)) byValue.set(value, name);
+    if (!byValue.has(value) || (byValue.get(value) === undefined && name))
+      byValue.set(value, name);
   }
-  const markers = ["[redacted:known]", ...new Set([...byValue.values()].map(markerFor))].join("\n");
-  for (const value of byValue.keys()) if (markers.includes(value)) byValue.delete(value);
+  const markers = [
+    "[redacted:known]",
+    ...new Set([...byValue.values()].map(markerFor)),
+  ].join("\n");
+  for (const value of byValue.keys())
+    if (markers.includes(value)) byValue.delete(value);
   const buckets = new Map<number, Entry[]>();
   let minLength = Infinity;
   for (const [value, name] of byValue) {
@@ -277,12 +368,17 @@ export function buildMatcher(values: KnownValue[]): KnownValueMatcher {
       minLength = Math.min(minLength, form.length);
     }
   }
-  for (const list of buckets.values()) list.sort((a, b) => b.value.length - a.value.length);
+  for (const list of buckets.values())
+    list.sort((a, b) => b.value.length - a.value.length);
   return { size: byValue.size, minLength, buckets };
 }
 
 /** Each match in `text`, left to right, longest first and never overlapping. */
-function scan(text: string, matcher: KnownValueMatcher, onMatch: (at: number, entry: Entry) => void): void {
+function scan(
+  text: string,
+  matcher: KnownValueMatcher,
+  onMatch: (at: number, entry: Entry) => void,
+): void {
   if (!matcher.size || text.length < matcher.minLength) return;
   const { buckets } = matcher;
   const end = text.length - matcher.minLength + 1;
@@ -299,7 +395,10 @@ function scan(text: string, matcher: KnownValueMatcher, onMatch: (at: number, en
   }
 }
 
-export function redactWithMatcher(text: string, matcher: KnownValueMatcher): string {
+export function redactWithMatcher(
+  text: string,
+  matcher: KnownValueMatcher,
+): string {
   let out = "";
   let last = 0;
   scan(text, matcher, (at, entry) => {
@@ -366,9 +465,11 @@ function gitRoot(dir: string): string | null {
   return null;
 }
 
-const ENV_FILE_RE = /^\.env(?:\.(?!example$|sample$|template$|dist$|defaults$)[A-Za-z0-9_.-]+)?$/;
+const ENV_FILE_RE =
+  /^\.env(?:\.(?!example$|sample$|template$|dist$|defaults$)[A-Za-z0-9_.-]+)?$/;
 
-const envFilesFrom = (dir: string, names: string[]) => names.filter((f) => ENV_FILE_RE.test(f)).map((f) => path.join(dir, f));
+const envFilesFrom = (dir: string, names: string[]) =>
+  names.filter((f) => ENV_FILE_RE.test(f)).map((f) => path.join(dir, f));
 
 /** `.env` and `.env.*` (not `.env.example` and other templates) directly inside `dir`. */
 export function envFilesIn(dir: string): string[] {
@@ -379,7 +480,8 @@ export function envFilesIn(dir: string): string[] {
   }
 }
 
-const dirIsGone = (e: unknown) => ["ENOENT", "ENOTDIR"].includes((e as NodeJS.ErrnoException)?.code ?? "");
+const dirIsGone = (e: unknown) =>
+  ["ENOENT", "ENOTDIR"].includes((e as NodeJS.ErrnoException)?.code ?? "");
 
 // The periodic relist reads one directory at a time. libuv's thread pool has 4
 // threads, and a stuck directory holds one until its read fails, so reading
@@ -403,7 +505,10 @@ export class KnownValueStore {
   private stopped = false;
   // Parsed values per file, reused while the file's mtime and size hold, so a
   // boot that tracks many cwds one by one rereads only what changed.
-  private parsed = new Map<string, { mtimeMs: number; size: number; values: KnownValue[] }>();
+  private parsed = new Map<
+    string,
+    { mtimeMs: number; size: number; values: KnownValue[] }
+  >();
   // The .env files of each tracked directory (a cwd and its git root), as last
   // listed. A daemon tracks every cwd any transcript ever recorded, thousands
   // for a heavy user, so a rebuild reads this map and never lists a directory:
@@ -421,10 +526,20 @@ export class KnownValueStore {
 
   /** Files this store reads: credential files, codecast config, and session .env files. No directory is listed here. */
   files(): Array<{ file: string; collect: Collector }> {
-    const files = CREDENTIAL_FILES.map(({ rel, collect }) => ({ file: path.join(this.src.home, rel), collect }));
-    files.push({ file: path.join(this.src.configDir, "config.json"), collect: collectFromJson });
-    files.push({ file: path.join(this.src.configDir, "provider-keys.json"), collect: collectFromProviderKeys });
-    for (const list of this.envFiles.values()) for (const file of list) files.push({ file, collect: collectFromDotenv });
+    const files = CREDENTIAL_FILES.map(({ rel, collect }) => ({
+      file: path.join(this.src.home, rel),
+      collect,
+    }));
+    files.push({
+      file: path.join(this.src.configDir, "config.json"),
+      collect: collectFromJson,
+    });
+    files.push({
+      file: path.join(this.src.configDir, "provider-keys.json"),
+      collect: collectFromProviderKeys,
+    });
+    for (const list of this.envFiles.values())
+      for (const file of list) files.push({ file, collect: collectFromDotenv });
     return files;
   }
 
@@ -458,7 +573,9 @@ export class KnownValueStore {
       const took = Date.now() - started;
       if (took >= SLOW_DIR_READ_MS) {
         this.syncReadsBlockedUntil = Date.now() + SLOW_DIR_BACKOFF_MS;
-        this.src.log?.(`[KNOWN-VALUES] listing ${dir} took ${took}ms; listing new directories only in the background for ${SLOW_DIR_BACKOFF_MS / 60_000} min`);
+        this.src.log?.(
+          `[KNOWN-VALUES] listing ${dir} took ${took}ms; listing new directories only in the background for ${SLOW_DIR_BACKOFF_MS / 60_000} min`,
+        );
       }
     }
     return out;
@@ -470,7 +587,11 @@ export class KnownValueStore {
    * what it awaits read the disk after the call.
    */
   refreshDirs(): Promise<void> {
-    if (this.relisting) return (this.relistAgain ??= this.relisting.then(() => { this.relistAgain = null; return this.refreshDirs(); }));
+    if (this.relisting)
+      return (this.relistAgain ??= this.relisting.then(() => {
+        this.relistAgain = null;
+        return this.refreshDirs();
+      }));
     const dirs = [...this.dirs];
     const run = async () => {
       let changed = false;
@@ -484,14 +605,20 @@ export class KnownValueStore {
           list = [];
         }
         const prev = this.envFiles.get(dir);
-        if (!prev || prev.length !== list.length || prev.some((f, i) => f !== list[i])) {
+        if (
+          !prev ||
+          prev.length !== list.length ||
+          prev.some((f, i) => f !== list[i])
+        ) {
           this.envFiles.set(dir, list);
           if (list.length || prev?.length) changed = true;
         }
       });
       if (changed && !this.stopped) this.rebuild();
     };
-    this.relisting = run().finally(() => { this.relisting = null; });
+    this.relisting = run().finally(() => {
+      this.relisting = null;
+    });
     return this.relisting;
   }
 
@@ -499,23 +626,35 @@ export class KnownValueStore {
     // Vault values first: the first name wins, so a value also held in an env
     // var or a .env file still reads as the secret's Vault name.
     const values: KnownValue[] = [];
-    for (const { value, name } of this.src.vault?.values() ?? []) add(values, value, name, true);
+    for (const { value, name } of this.src.vault?.values() ?? [])
+      add(values, value, name, true);
     values.push(...collectFromEnv(this.src.env()));
-    for (const secret of this.src.codecastSecrets?.() ?? []) add(values, secret, "codecast");
+    for (const secret of this.src.codecastSecrets?.() ?? [])
+      add(values, secret, "codecast");
     const seen = new Set<string>();
     for (const { file, collect } of this.files()) {
       seen.add(file);
       let st: fs.Stats;
-      try { st = fs.statSync(file); } catch { this.parsed.delete(file); continue; }
+      try {
+        st = fs.statSync(file);
+      } catch {
+        this.parsed.delete(file);
+        continue;
+      }
       let hit = this.parsed.get(file);
       if (!hit || hit.mtimeMs !== st.mtimeMs || hit.size !== st.size) {
         const text = readSmall(file);
-        hit = { mtimeMs: st.mtimeMs, size: st.size, values: text == null ? [] : collect(text) };
+        hit = {
+          mtimeMs: st.mtimeMs,
+          size: st.size,
+          values: text == null ? [] : collect(text),
+        };
         this.parsed.set(file, hit);
       }
       values.push(...hit.values);
     }
-    for (const file of this.parsed.keys()) if (!seen.has(file)) this.parsed.delete(file);
+    for (const file of this.parsed.keys())
+      if (!seen.has(file)) this.parsed.delete(file);
     return values;
   }
 
@@ -524,12 +663,17 @@ export class KnownValueStore {
     try {
       matcher = buildMatcher(this.collect());
     } catch (e) {
-      this.src.log?.(`[KNOWN-VALUES] rebuild failed: ${(e as Error)?.message ?? e}`);
+      this.src.log?.(
+        `[KNOWN-VALUES] rebuild failed: ${(e as Error)?.message ?? e}`,
+      );
       return active ?? buildMatcher([]);
     }
     const before = active?.size ?? -1;
     active = matcher;
-    if (matcher.size !== before) this.src.log?.(`[KNOWN-VALUES] ${matcher.size} values from env, credential files, the Vault and ${this.cwds.size} session dirs`);
+    if (matcher.size !== before)
+      this.src.log?.(
+        `[KNOWN-VALUES] ${matcher.size} values from env, credential files, the Vault and ${this.cwds.size} session dirs`,
+      );
     this.watchFiles();
     return matcher;
   }
@@ -561,8 +705,13 @@ export class KnownValueStore {
   refreshVault(): Promise<void> {
     if (!this.src.vault) return Promise.resolve();
     return this.src.vault.refresh().then(
-      (changed) => { if (changed && !this.stopped) this.rebuild(); },
-      (e) => this.src.log?.(`[KNOWN-VALUES] vault refresh failed: ${(e as Error)?.message ?? e}`),
+      (changed) => {
+        if (changed && !this.stopped) this.rebuild();
+      },
+      (e) =>
+        this.src.log?.(
+          `[KNOWN-VALUES] vault refresh failed: ${(e as Error)?.message ?? e}`,
+        ),
     );
   }
 
@@ -581,12 +730,19 @@ export class KnownValueStore {
     for (const { file } of this.files()) {
       if (this.watched.has(file)) continue;
       this.watched.add(file);
-      fs.watchFile(file, { interval: 5_000, persistent: false }, (cur, prev) => {
-        if (cur.mtimeMs === prev.mtimeMs && cur.size === prev.size) return;
-        if (this.rebuildQueued) return;
-        this.rebuildQueued = true;
-        setTimeout(() => { this.rebuildQueued = false; if (!this.stopped) this.rebuild(); }, 250).unref?.();
-      });
+      fs.watchFile(
+        file,
+        { interval: 5_000, persistent: false },
+        (cur, prev) => {
+          if (cur.mtimeMs === prev.mtimeMs && cur.size === prev.size) return;
+          if (this.rebuildQueued) return;
+          this.rebuildQueued = true;
+          setTimeout(() => {
+            this.rebuildQueued = false;
+            if (!this.stopped) this.rebuild();
+          }, 250).unref?.();
+        },
+      );
     }
   }
 }
@@ -594,7 +750,9 @@ export class KnownValueStore {
 let store: KnownValueStore | null = null;
 
 /** Start the daemon's store (idempotent). */
-export function startKnownValueRedaction(src: KnownValueSources): KnownValueStore {
+export function startKnownValueRedaction(
+  src: KnownValueSources,
+): KnownValueStore {
   if (!store) {
     store = new KnownValueStore(src);
     store.start();

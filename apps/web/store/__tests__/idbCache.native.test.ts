@@ -76,7 +76,8 @@ const {
   setCachePrincipalSource,
 } = await import("../idbCache.native");
 
-const { noteSnapshotSync, _resetSnapshotLedger } = await import("../idbCollectionDiff");
+const { noteSnapshotSync, _resetSnapshotLedger } =
+  await import("../idbCollectionDiff");
 
 describe("idbCache.native", () => {
   beforeEach(() => {
@@ -104,8 +105,14 @@ describe("idbCache.native", () => {
   it("loadPaintCacheSync reads only live-list session rows", async () => {
     const a = { _id: "a", title: "Alpha" };
     const b = { _id: "b", title: "Beta" };
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { a, b } });
-    writePatchesToIDB([{ op: "replace", path: ["liveInboxIdList"], value: {} } as any], { liveInboxIdList: ["a"] });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { a, b } },
+    );
+    writePatchesToIDB(
+      [{ op: "replace", path: ["liveInboxIdList"], value: {} } as any],
+      { liveInboxIdList: ["a"] },
+    );
     await flushPersistence();
     const paint = loadPaintCacheSync();
     expect(paint).not.toBeNull();
@@ -120,7 +127,10 @@ describe("idbCache.native", () => {
         b: { _id: "b", title: "Beta" },
       },
     };
-    writePatchesToIDB([{ op: "replace", path: ["sessions", "a"], value: {} } as any], state);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions", "a"], value: {} } as any],
+      state,
+    );
     await flushPersistence();
     const asyncCached = await loadCache();
     const syncCached = loadCacheSync();
@@ -135,7 +145,10 @@ describe("idbCache.native", () => {
         b: { _id: "b", title: "Beta" },
       },
     };
-    writePatchesToIDB([{ op: "replace", path: ["sessions", "a"], value: {} } as any], state);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions", "a"], value: {} } as any],
+      state,
+    );
     // setItem is async/non-blocking; let the microtask flush.
     await flushPersistence();
 
@@ -148,12 +161,20 @@ describe("idbCache.native", () => {
   });
 
   it("round-trips a meta blob", async () => {
-    const state = { clientState: { current_conversation_id: "conv1", tips: { seen: ["x"] } } };
-    writePatchesToIDB([{ op: "replace", path: ["clientState", "tips"], value: {} } as any], state);
+    const state = {
+      clientState: { current_conversation_id: "conv1", tips: { seen: ["x"] } },
+    };
+    writePatchesToIDB(
+      [{ op: "replace", path: ["clientState", "tips"], value: {} } as any],
+      state,
+    );
     await flushPersistence();
 
     const cached = await loadCache();
-    expect(cached!.clientState).toEqual({ current_conversation_id: "conv1", tips: { seen: ["x"] } });
+    expect(cached!.clientState).toEqual({
+      current_conversation_id: "conv1",
+      tips: { seen: ["x"] },
+    });
   });
 
   it("returns null when nothing is stored", async () => {
@@ -165,7 +186,12 @@ describe("idbCache.native", () => {
     // webGetTaskDetail. It must not hydrate into the store (it renders as a
     // phantom task that 404s when opened) and must not re-enter the shadow.
     const real = { _id: "mh7real", short_id: "ct-100", title: "Real task" };
-    const poison = { _id: "jx7conv", short_id: "jx7conv", title: "Some session", message_count: 744 };
+    const poison = {
+      _id: "jx7conv",
+      short_id: "jx7conv",
+      title: "Some session",
+      message_count: 744,
+    };
     kv.set("col:tasks", JSON.stringify([real, poison]));
 
     const cached = await loadCache();
@@ -185,7 +211,10 @@ describe("idbCache.native", () => {
   it("skips the rewrite when a sync changed nothing", async () => {
     const a = { _id: "a", title: "Alpha" };
     const state = { sessions: { a } };
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], state);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      state,
+    );
     await flushPersistence();
     expect(kv.has("col:sessions:a")).toBe(true);
 
@@ -194,7 +223,10 @@ describe("idbCache.native", () => {
     // assert on the raw key: if the diff correctly skips, the key is never set.
     kv.clear();
     setItemCalls.length = 0;
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], state);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      state,
+    );
     await flushPersistence();
     expect(kv.has("col:sessions:a")).toBe(false);
     expect(setItemCalls).toEqual([]);
@@ -204,15 +236,29 @@ describe("idbCache.native", () => {
     // Convex-shaped ids: the keep-on-shrink guarantee is for SERVER rows. A
     // non-Convex id is a client-minted stub, and those DO delete (next test).
     // Freshly stamped so hydration retention (tested below) keeps them.
-    const a = { _id: "k97aaaaaaaaaaaaaaaaaaaaaaaaaaaa1", title: "Alpha", updated_at: Date.now() };
-    const b = { _id: "k97bbbbbbbbbbbbbbbbbbbbbbbbbbbb2", title: "Beta", updated_at: Date.now() };
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { [a._id]: a, [b._id]: b } });
+    const a = {
+      _id: "k97aaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+      title: "Alpha",
+      updated_at: Date.now(),
+    };
+    const b = {
+      _id: "k97bbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+      title: "Beta",
+      updated_at: Date.now(),
+    };
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { [a._id]: a, [b._id]: b } },
+    );
     await flushPersistence();
     expect((await loadCache())!.sessions).toEqual({ [a._id]: a, [b._id]: b });
 
     // b vanished from the store with NO exclude (an incomplete store / a bug, not
     // a deletion) → it MUST survive on disk so the durable cache is never wiped.
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { [a._id]: a } });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { [a._id]: a } },
+    );
     await flushPersistence();
     expect((await loadCache())!.sessions).toEqual({ [a._id]: a, [b._id]: b });
   });
@@ -223,12 +269,21 @@ describe("idbCache.native", () => {
     // as "pending, asked: you" until the next push pruned memory again.
     const a = { _id: "k97aaaaaaaaaaaaaaaaaaaaaaaaaaaa1", status: "pending" };
     const b = { _id: "k97bbbbbbbbbbbbbbbbbbbbbbbbbbbb2", status: "pending" };
-    writePatchesToIDB([{ op: "replace", path: ["sessionDecisions"], value: {} } as any], { sessionDecisions: { [a._id]: a, [b._id]: b } });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessionDecisions"], value: {} } as any],
+      { sessionDecisions: { [a._id]: a, [b._id]: b } },
+    );
     await flushPersistence();
-    expect((await loadCache())!.sessionDecisions).toEqual({ [a._id]: a, [b._id]: b });
+    expect((await loadCache())!.sessionDecisions).toEqual({
+      [a._id]: a,
+      [b._id]: b,
+    });
 
     noteSnapshotSync("sessionDecisions", [a._id], [b._id]);
-    writePatchesToIDB([{ op: "replace", path: ["sessionDecisions"], value: {} } as any], { sessionDecisions: { [a._id]: a } });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessionDecisions"], value: {} } as any],
+      { sessionDecisions: { [a._id]: a } },
+    );
     await flushPersistence();
     expect((await loadCache())!.sessionDecisions).toEqual({ [a._id]: a });
   });
@@ -237,11 +292,26 @@ describe("idbCache.native", () => {
     // The chat-transcript twin bug: the altKey supersede removed the stub from
     // the store, this engine kept it on disk, and the next boot resurrected it
     // beside its server twin — every message you sent rendered twice.
-    const server = { _id: "k97cccccccccccccccccccccccccccc3", client_id: "chatmsgstub-x1", content: "hi", updated_at: Date.now() };
-    const stub = { _id: "chatmsgstub-x1", client_id: "chatmsgstub-x1", content: "hi" };
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { [stub._id]: stub, [server._id]: server } });
+    const server = {
+      _id: "k97cccccccccccccccccccccccccccc3",
+      client_id: "chatmsgstub-x1",
+      content: "hi",
+      updated_at: Date.now(),
+    };
+    const stub = {
+      _id: "chatmsgstub-x1",
+      client_id: "chatmsgstub-x1",
+      content: "hi",
+    };
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { [stub._id]: stub, [server._id]: server } },
+    );
     await flushPersistence();
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { [server._id]: server } });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { [server._id]: server } },
+    );
     await flushPersistence();
     expect((await loadCache())!.sessions).toEqual({ [server._id]: server });
   });
@@ -249,24 +319,33 @@ describe("idbCache.native", () => {
   it("removes a row ONLY when it was explicitly excluded (kill/archive)", async () => {
     const a = { _id: "a", title: "Alpha" };
     const b = { _id: "b", title: "Beta" };
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { a, b } });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { a, b } },
+    );
     await flushPersistence();
 
     // b is intentionally removed: gone from the store AND carrying a pending
     // exclude → drop it from disk too.
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], {
-      sessions: { a },
-      pending: { "sessions:b": { type: "exclude" } },
-    });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      {
+        sessions: { a },
+        pending: { "sessions:b": { type: "exclude" } },
+      },
+    );
     await flushPersistence();
     expect((await loadCache())!.sessions).toEqual({ a });
   });
 
   it("no-ops writes while hydrating", async () => {
     setHydrating(true);
-    writePatchesToIDB([{ op: "replace", path: ["sessions", "a"], value: {} } as any], {
-      sessions: { a: { _id: "a" } },
-    });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions", "a"], value: {} } as any],
+      {
+        sessions: { a: { _id: "a" } },
+      },
+    );
     await flushPersistence();
     expect(await loadCache()).toBeNull();
   });
@@ -279,29 +358,41 @@ describe("idbCache.native", () => {
     const cid = (n: number) => `k${String(n).padStart(31, "0")}`;
     const fresh = { _id: cid(1), updated_at: now - 5 * DAY };
     const stale = { _id: cid(2), updated_at: now - 45 * DAY };
-    const pinnedStale = { _id: cid(3), updated_at: now - 45 * DAY, is_pinned: true };
+    const pinnedStale = {
+      _id: cid(3),
+      updated_at: now - 45 * DAY,
+      is_pinned: true,
+    };
     const liveStale = { _id: cid(4), updated_at: now - 45 * DAY };
     const focusedStale = { _id: cid(5), updated_at: now - 45 * DAY };
-    kv.set("col:sessions", JSON.stringify([fresh, stale, pinnedStale, liveStale, focusedStale]));
+    kv.set(
+      "col:sessions",
+      JSON.stringify([fresh, stale, pinnedStale, liveStale, focusedStale]),
+    );
     kv.set("meta:liveInboxIdList", JSON.stringify([cid(4)]));
     kv.set("meta:lastFocusedConversationId", JSON.stringify(cid(5)));
 
     const cached = await loadCache();
-    expect(Object.keys(cached!.sessions).sort()).toEqual([cid(1), cid(3), cid(4), cid(5)].sort());
+    expect(Object.keys(cached!.sessions).sort()).toEqual(
+      [cid(1), cid(3), cid(4), cid(5)].sort(),
+    );
     // The pruned rows were persisted back as per-row keys — the stale row is
     // gone from disk too, and the leftover whole-table blob is dropped.
     await flushPersistence();
     expect(kv.has("col:sessions")).toBe(false);
-    expect(collectionRows("sessions").map((r) => r._id).sort()).toEqual(
-      [cid(1), cid(3), cid(4), cid(5)].sort(),
-    );
+    expect(
+      collectionRows("sessions")
+        .map((r) => r._id)
+        .sort(),
+    ).toEqual([cid(1), cid(3), cid(4), cid(5)].sort());
   });
 
   it("caps windowed sessions at the newest MAX_CACHED_SESSIONS on load", async () => {
     const now = Date.now();
     const cid = (n: number) => `k${String(n).padStart(31, "0")}`;
     const rows = [];
-    for (let i = 0; i < 1300; i++) rows.push({ _id: cid(i), updated_at: now - i * 1000 });
+    for (let i = 0; i < 1300; i++)
+      rows.push({ _id: cid(i), updated_at: now - i * 1000 });
     kv.set("col:sessions", JSON.stringify(rows));
 
     const cached = await loadCache();
@@ -314,12 +405,18 @@ describe("idbCache.native", () => {
   it("writes only the changed row, not the whole collection (heartbeat must not stringify the table)", async () => {
     // The tap-freeze: overlay last_heartbeat on one live session used to
     // JSON.stringify every cached session (~4.5 MB) on the JS thread.
-    const sessions: Record<string, { _id: string; title: string; last_heartbeat: number }> = {};
+    const sessions: Record<
+      string,
+      { _id: string; title: string; last_heartbeat: number }
+    > = {};
     for (let i = 0; i < 80; i++) {
       const id = `k${String(i).padStart(31, "0")}`;
       sessions[id] = { _id: id, title: `S${i}`, last_heartbeat: 1 };
     }
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions },
+    );
     await flushPersistence();
     expect(kv.has("col:sessions")).toBe(false);
     expect(collectionRows("sessions")).toHaveLength(80);
@@ -330,7 +427,10 @@ describe("idbCache.native", () => {
       [touched]: { ...sessions[touched], last_heartbeat: 2 },
     };
     setItemCalls.length = 0;
-    writePatchesToIDB([{ op: "replace", path: ["sessions", touched], value: {} } as any], { sessions: next });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions", touched], value: {} } as any],
+      { sessions: next },
+    );
     await flushPersistence();
 
     expect(setItemCalls).toEqual([`col:sessions:${touched}`]);
@@ -338,7 +438,10 @@ describe("idbCache.native", () => {
     expect(written).toEqual({ _id: touched, title: "S0", last_heartbeat: 2 });
     // The rest of the table is untouched — a whole-blob rewrite would have
     // setItem'd every row (or one giant array).
-    expect(JSON.parse(kv.get(`col:sessions:${`k${String(1).padStart(31, "0")}`}`)!).last_heartbeat).toBe(1);
+    expect(
+      JSON.parse(kv.get(`col:sessions:${`k${String(1).padStart(31, "0")}`}`)!)
+        .last_heartbeat,
+    ).toBe(1);
   });
 
   it("hydrates a leftover whole-table blob and splits it into per-row keys", async () => {
@@ -359,16 +462,21 @@ describe("idbCache.native", () => {
     const DAY = 24 * 60 * 60 * 1000;
     const now = Date.now();
     const cid = (n: number) => `k${String(n).padStart(31, "0")}`;
-    kv.set("meta:conversations", JSON.stringify({
-      [cid(1)]: { _id: cid(1), updated_at: now - 5 * DAY },
-      [cid(2)]: { _id: cid(2), updated_at: now - 45 * DAY },
-    }));
+    kv.set(
+      "meta:conversations",
+      JSON.stringify({
+        [cid(1)]: { _id: cid(1), updated_at: now - 5 * DAY },
+        [cid(2)]: { _id: cid(2), updated_at: now - 45 * DAY },
+      }),
+    );
 
     const cached = await loadCache();
     expect(Object.keys(cached!.conversations)).toEqual([cid(1)]);
     await flushPersistence();
     expect(kv.has("meta:conversations")).toBe(false);
-    expect(JSON.parse(kv.get(`meta:conversations:${cid(1)}`)!)._id).toBe(cid(1));
+    expect(JSON.parse(kv.get(`meta:conversations:${cid(1)}`)!)._id).toBe(
+      cid(1),
+    );
     expect(kv.has(`meta:conversations:${cid(2)}`)).toBe(false);
   });
 
@@ -380,7 +488,10 @@ describe("idbCache.native", () => {
       const id = `k${String(i).padStart(31, "0")}`;
       conversations[id] = { _id: id, title: `C${i}` };
     }
-    writePatchesToIDB([{ op: "replace", path: ["conversations"], value: {} } as any], { conversations });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["conversations"], value: {} } as any],
+      { conversations },
+    );
     await flushPersistence();
     expect(kv.has("meta:conversations")).toBe(false);
 
@@ -390,10 +501,15 @@ describe("idbCache.native", () => {
       [touched]: { _id: touched, title: "New session" },
     };
     setItemCalls.length = 0;
-    writePatchesToIDB([{ op: "replace", path: ["conversations", touched], value: {} } as any], { conversations: next });
+    writePatchesToIDB(
+      [{ op: "replace", path: ["conversations", touched], value: {} } as any],
+      { conversations: next },
+    );
     await flushPersistence();
     expect(setItemCalls).toEqual([`meta:conversations:${touched}`]);
-    expect(JSON.parse(kv.get(`meta:conversations:${touched}`)!).title).toBe("New session");
+    expect(JSON.parse(kv.get(`meta:conversations:${touched}`)!).title).toBe(
+      "New session",
+    );
   });
 
   it("a pending-input flush does not rescan every KV key once per key", async () => {
@@ -404,7 +520,17 @@ describe("idbCache.native", () => {
     getAllKeysSyncCalls = 0;
     persistPendingMessageChanges(
       {},
-      { c: [{ _id: "m1", _clientId: "m1", role: "user", content: "hi", timestamp: 1 }] },
+      {
+        c: [
+          {
+            _id: "m1",
+            _clientId: "m1",
+            role: "user",
+            content: "hi",
+            timestamp: 1,
+          },
+        ],
+      },
       "owner",
     );
     await Promise.resolve();
@@ -415,12 +541,19 @@ describe("idbCache.native", () => {
   it("drops expired exclude tombstones at load, keeps recent ones and stamps legacy ones", async () => {
     const DAY = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    kv.set("meta:pending", JSON.stringify({
-      "sessions:old": { type: "exclude", ts: now - 45 * DAY },
-      "sessions:new": { type: "exclude", ts: now - 5 * DAY },
-      "sessions:legacy": { type: "exclude" },
-      "sessions:edit:title": { type: "field", value: "x", ts: now - 400 * DAY },
-    }));
+    kv.set(
+      "meta:pending",
+      JSON.stringify({
+        "sessions:old": { type: "exclude", ts: now - 45 * DAY },
+        "sessions:new": { type: "exclude", ts: now - 5 * DAY },
+        "sessions:legacy": { type: "exclude" },
+        "sessions:edit:title": {
+          type: "field",
+          value: "x",
+          ts: now - 400 * DAY,
+        },
+      }),
+    );
 
     const cached = await loadCache();
     expect(Object.keys(cached!.pending).sort()).toEqual(
@@ -432,19 +565,44 @@ describe("idbCache.native", () => {
   it("loads the outbox sorted ascending by ts regardless of enqueue order", async () => {
     // Fire concurrently (no awaits between) to exercise the serialized
     // read-modify-write — every entry must survive, then sort by ts on load.
-    enqueueDispatch({ id: "3", action: "x", args: {}, patches: {}, result: null, ts: 300 });
-    enqueueDispatch({ id: "1", action: "x", args: {}, patches: {}, result: null, ts: 100 });
-    enqueueDispatch({ id: "2", action: "x", args: {}, patches: {}, result: null, ts: 200 });
+    enqueueDispatch({
+      id: "3",
+      action: "x",
+      args: {},
+      patches: {},
+      result: null,
+      ts: 300,
+    });
+    enqueueDispatch({
+      id: "1",
+      action: "x",
+      args: {},
+      patches: {},
+      result: null,
+      ts: 100,
+    });
+    enqueueDispatch({
+      id: "2",
+      action: "x",
+      args: {},
+      patches: {},
+      result: null,
+      ts: 200,
+    });
 
     const outbox = await loadOutbox();
     expect(outbox.map((e) => e.id)).toEqual(["1", "2", "3"]);
   });
 
   it("keeps the split feeder's rows with their hashes, and drops the ones that left", async () => {
-    persistSplitRows("conversations:listInboxSessions", [
-      { id: "a", hash: "h1", row: { _id: "a", title: "one\ntwo" } },
-      { id: "b", hash: "h2", row: { _id: "b" } },
-    ], []);
+    persistSplitRows(
+      "conversations:listInboxSessions",
+      [
+        { id: "a", hash: "h1", row: { _id: "a", title: "one\ntwo" } },
+        { id: "b", hash: "h2", row: { _id: "b" } },
+      ],
+      [],
+    );
     await flushPersistence();
     expect(await loadSplitRows("conversations:listInboxSessions")).toEqual([
       { id: "a", hash: "h1", row: { _id: "a", title: "one\ntwo" } },
@@ -453,7 +611,9 @@ describe("idbCache.native", () => {
     expect(await loadSplitRows("conversations:sessionsLiveness")).toEqual([]);
     persistSplitRows("conversations:listInboxSessions", [], ["a"]);
     await flushPersistence();
-    expect((await loadSplitRows("conversations:listInboxSessions")).map((r) => r.id)).toEqual(["b"]);
+    expect(
+      (await loadSplitRows("conversations:listInboxSessions")).map((r) => r.id),
+    ).toEqual(["b"]);
   });
 });
 
@@ -461,21 +621,37 @@ describe("idbCache.native", () => {
 // disk may reach B's store, and sign-out leaves nothing of A's behind.
 describe("idbCache.native cache ownership", () => {
   const signedInAs = (principal: string | null) =>
-    setCachePrincipalSource(() => principal
-      ? { principal, tokenState: "named" }
-      : { principal: null, tokenState: "absent" });
+    setCachePrincipalSource(() =>
+      principal
+        ? { principal, tokenState: "named" }
+        : { principal: null, tokenState: "absent" },
+    );
 
   async function writeCacheFor(owner: string) {
     setCachePrincipalSource(null);
-    writePatchesToIDB([{ op: "replace", path: ["currentUser"], value: {} } as any], { currentUser: { _id: owner } });
-    writePatchesToIDB([{ op: "replace", path: ["sessions"], value: {} } as any], { sessions: { s1: { _id: "s1", title: `${owner}'s session` } } });
-    writePatchesToIDB([{ op: "replace", path: ["liveInboxIdList"], value: {} } as any], { liveInboxIdList: ["s1"] });
-    writeConversationMessages("c1", [{ _id: "m1", content: `${owner}'s message`, timestamp: 1 }], undefined);
+    writePatchesToIDB(
+      [{ op: "replace", path: ["currentUser"], value: {} } as any],
+      { currentUser: { _id: owner } },
+    );
+    writePatchesToIDB(
+      [{ op: "replace", path: ["sessions"], value: {} } as any],
+      { sessions: { s1: { _id: "s1", title: `${owner}'s session` } } },
+    );
+    writePatchesToIDB(
+      [{ op: "replace", path: ["liveInboxIdList"], value: {} } as any],
+      { liveInboxIdList: ["s1"] },
+    );
+    writeConversationMessages(
+      "c1",
+      [{ _id: "m1", content: `${owner}'s message`, timestamp: 1 }],
+      undefined,
+    );
     await flushPersistence();
     _resetPersistedShadow();
   }
 
-  const ownedKeys = () => [...kv.keys()].filter((k) => !k.startsWith("catchup:"));
+  const ownedKeys = () =>
+    [...kv.keys()].filter((k) => !k.startsWith("catchup:"));
 
   beforeEach(() => {
     _resetSnapshotLedger();
@@ -494,9 +670,13 @@ describe("idbCache.native cache ownership", () => {
   it("serves the cache to the account that owns it", async () => {
     await writeCacheFor("userA");
     signedInAs("userA");
-    expect(loadPaintCacheSync()?.sessions).toEqual({ s1: { _id: "s1", title: "userA's session" } });
+    expect(loadPaintCacheSync()?.sessions).toEqual({
+      s1: { _id: "s1", title: "userA's session" },
+    });
     expect((await loadCache())?.sessions?.s1?.title).toBe("userA's session");
-    expect((await loadConversationMessages("c1"))?.messages?.[0]?.content).toBe("userA's message");
+    expect((await loadConversationMessages("c1"))?.messages?.[0]?.content).toBe(
+      "userA's message",
+    );
   });
 
   it("never serves another account's cache, and deletes it", async () => {
@@ -520,7 +700,9 @@ describe("idbCache.native cache ownership", () => {
 
   it("keeps the cache but serves nothing while the token cannot be read", async () => {
     await writeCacheFor("userA");
-    setCachePrincipalSource(() => { throw new Error("keychain locked"); });
+    setCachePrincipalSource(() => {
+      throw new Error("keychain locked");
+    });
     expect(loadPaintCacheSync()).toBeNull();
     expect(await loadCache()).toBeNull();
     expect(kv.has("meta:currentUser")).toBe(true);
@@ -529,19 +711,72 @@ describe("idbCache.native cache ownership", () => {
 
   it("keeps the signed-in account's own pending input through a purge of another's cache", async () => {
     await writeCacheFor("userA");
-    persistPendingMessageChanges({}, { c: [{ _id: "p1", _clientId: "p1", role: "user", content: "B typed", timestamp: 2 }] }, "userB");
-    persistPendingMessageChanges({}, { c: [{ _id: "p2", _clientId: "p2", role: "user", content: "A typed", timestamp: 3 }] }, "userA");
+    persistPendingMessageChanges(
+      {},
+      {
+        c: [
+          {
+            _id: "p1",
+            _clientId: "p1",
+            role: "user",
+            content: "B typed",
+            timestamp: 2,
+          },
+        ],
+      },
+      "userB",
+    );
+    persistPendingMessageChanges(
+      {},
+      {
+        c: [
+          {
+            _id: "p2",
+            _clientId: "p2",
+            role: "user",
+            content: "A typed",
+            timestamp: 3,
+          },
+        ],
+      },
+      "userA",
+    );
     signedInAs("userB");
     const loaded = await loadCache();
     expect(loaded?.sessions).toBeUndefined();
-    expect(loaded?.pendingMessages?.c?.map((m: any) => m.content)).toEqual(["B typed"]);
-    expect(ownedKeys().every((k) => k.startsWith("pendingInput:v1:userB:"))).toBe(true);
+    expect(loaded?.pendingMessages?.c?.map((m: any) => m.content)).toEqual([
+      "B typed",
+    ]);
+    expect(
+      ownedKeys().every((k) => k.startsWith("pendingInput:v1:userB:")),
+    ).toBe(true);
   });
 
   it("sign-out purge removes every key the cache wrote and nothing else", async () => {
     await writeCacheFor("userA");
-    persistPendingMessageChanges({}, { c: [{ _id: "p2", _clientId: "p2", role: "user", content: "A typed", timestamp: 3 }] }, "userA");
-    enqueueDispatch({ id: "d1", action: "x", args: {}, patches: [], result: null, ts: 1 });
+    persistPendingMessageChanges(
+      {},
+      {
+        c: [
+          {
+            _id: "p2",
+            _clientId: "p2",
+            role: "user",
+            content: "A typed",
+            timestamp: 3,
+          },
+        ],
+      },
+      "userA",
+    );
+    enqueueDispatch({
+      id: "d1",
+      action: "x",
+      args: {},
+      patches: [],
+      result: null,
+      ts: 1,
+    });
     await purgeLocalCache();
     expect(ownedKeys()).toEqual([]);
     expect(kv.get("catchup:watermark")).toBe("{}");

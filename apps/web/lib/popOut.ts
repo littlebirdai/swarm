@@ -54,7 +54,10 @@ export type PopOutRungs = {
 };
 
 /** The ladder itself, with nothing of the browser in it so it can be tested. */
-export async function popOutVia(route: string, rungs: PopOutRungs): Promise<PopOutOutcome> {
+export async function popOutVia(
+  route: string,
+  rungs: PopOutRungs,
+): Promise<PopOutOutcome> {
   if (rungs.shellOpen) {
     await rungs.shellOpen();
     return "shell";
@@ -87,7 +90,11 @@ export async function popOutWindow(
     // instead of stacking another.
     openPopup: () => {
       if (typeof window === "undefined") return false;
-      const ref = window.open(route, popup.name, `popup,width=${popup.width},height=${popup.height}`);
+      const ref = window.open(
+        route,
+        popup.name,
+        `popup,width=${popup.width},height=${popup.height}`,
+      );
       ref?.focus();
       return !!ref;
     },
@@ -108,7 +115,15 @@ export async function popOutWindow(
 export function explainPopOut(
   outcome: PopOutOutcome,
   what: { thing: string; route: string; name: string },
-  toast: { error: (title: string, opts: { description: string; action?: { label: string; onClick: () => void } }) => unknown },
+  toast: {
+    error: (
+      title: string,
+      opts: {
+        description: string;
+        action?: { label: string; onClick: () => void };
+      },
+    ) => unknown;
+  },
 ): void {
   if (outcome === "needs-update") {
     toast.error("The desktop app needs an update for this", {
@@ -117,7 +132,10 @@ export function explainPopOut(
   } else if (outcome === "blocked") {
     toast.error(`Your browser blocked ${what.thing}`, {
       description: "Allow popups for this site, or open it as a tab instead.",
-      action: { label: "Open as a tab", onClick: () => window.open(what.route, what.name) },
+      action: {
+        label: "Open as a tab",
+        onClick: () => window.open(what.route, what.name),
+      },
     });
   }
 }
@@ -130,7 +148,8 @@ export function explainOpenInBrowser(
 ): void {
   if (outcome !== "needs-update") return;
   toast.error("The desktop app needs an update for this", {
-    description: "This build cannot hand a page to your browser. Update Codecast and it opens on its own.",
+    description:
+      "This build cannot hand a page to your browser. Update Codecast and it opens on its own.",
   });
 }
 

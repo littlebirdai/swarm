@@ -4,11 +4,26 @@ import { seekCallMedia, type CallMediaTarget } from "../useCallMomentLanding";
 // The one seek both call pages use: a line pressed plays from there, a linked
 // moment waits there, and the lit line moves in the same frame either way.
 function target(over: { hasVideo: boolean; seekAnswers?: boolean }) {
-  const log: { sets: unknown[]; missed: unknown[]; seeks: unknown[]; played: number } = { sets: [], missed: [], seeks: [], played: 0 };
-  const audio = { currentTime: 0, play: () => ((log.played += 1), Promise.resolve()) } as unknown as HTMLAudioElement;
+  const log: {
+    sets: unknown[];
+    missed: unknown[];
+    seeks: unknown[];
+    played: number;
+  } = { sets: [], missed: [], seeks: [], played: 0 };
+  const audio = {
+    currentTime: 0,
+    play: () => ((log.played += 1), Promise.resolve()),
+  } as unknown as HTMLAudioElement;
   const t: CallMediaTarget = {
     hasVideo: over.hasVideo,
-    player: { current: { seek: (ms: number, opts?: unknown) => (log.seeks.push([ms, opts]), over.seekAnswers ?? true) } },
+    player: {
+      current: {
+        seek: (ms: number, opts?: unknown) => (
+          log.seeks.push([ms, opts]),
+          over.seekAnswers ?? true
+        ),
+      },
+    },
     audio: { current: audio },
     media: { set: (at) => void log.sets.push(at) },
     setMissed: (ms) => void log.missed.push(ms),

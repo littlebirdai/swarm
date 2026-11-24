@@ -1,7 +1,12 @@
 import "./fixtures/signedInPrincipal";
 import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 import { describe, it, expect } from "bun:test";
-import { enqueueDispatch, removeDispatch, loadOutbox, _reopenForTests } from "../idbCache";
+import {
+  enqueueDispatch,
+  removeDispatch,
+  loadOutbox,
+  _reopenForTests,
+} from "../idbCache";
 
 // bun has no IndexedDB, and the Dexie singleton may already have failed to
 // open in another test file: bind it to fake-indexeddb and reopen.
@@ -15,7 +20,8 @@ await _reopenForTests({ indexedDB, IDBKeyRange });
 // app's browser process for a day. fake-indexeddb has no dead entries to time,
 // so these tests pin the shape that keeps the cost away.
 
-const entry = (id: string, ts: number) => ({ id, action: "x", args: {}, patches: {}, result: null, ts }) as any;
+const entry = (id: string, ts: number) =>
+  ({ id, action: "x", args: {}, patches: {}, result: null, ts }) as any;
 
 describe("dispatch outbox", () => {
   it("has no secondary index", async () => {
@@ -24,7 +30,10 @@ describe("dispatch outbox", () => {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
-    const names = [...raw.transaction("dispatchOutbox").objectStore("dispatchOutbox").indexNames];
+    const names = [
+      ...raw.transaction("dispatchOutbox").objectStore("dispatchOutbox")
+        .indexNames,
+    ];
     raw.close();
     expect(names).toEqual([]);
   });

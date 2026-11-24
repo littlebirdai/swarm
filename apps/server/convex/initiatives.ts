@@ -1,10 +1,23 @@
-import { cleanMetrics, metricArgValidator, requireSeries, seriesLookup, type MetricArg } from "./lib/metricSeries";
+import {
+  cleanMetrics,
+  metricArgValidator,
+  requireSeries,
+  seriesLookup,
+  type MetricArg,
+} from "./lib/metricSeries";
 import { openPlansOf } from "@codecast/shared/contracts/openPlans";
 import { openPlanLine } from "./lib/orgCoverage";
 import { planDriver, sessionRefs } from "./lib/planDriver";
 import { metricDenominatorRef } from "@codecast/shared/contracts/metricStanding";
 import { goalPredictions } from "./lib/goalPredictions";
-import { labelsOf, noteOrgChange, partyRef, recordSubject, whereOfRecord, withOrgChange } from "./lib/orgChangeLog";
+import {
+  labelsOf,
+  noteOrgChange,
+  partyRef,
+  recordSubject,
+  whereOfRecord,
+  withOrgChange,
+} from "./lib/orgChangeLog";
 import { movedFields } from "@codecast/shared/contracts/orgChange";
 import { v, type Validator } from "convex/values";
 import {
@@ -47,7 +60,10 @@ import {
 } from "./lib/access";
 import { findInitiative, requireInitiative } from "./lib/initiativeRef";
 import { goalEnvValidator } from "./envSchema";
-import { normalizeGoalEnvs, type GoalEnv } from "@codecast/shared/contracts/envs";
+import {
+  normalizeGoalEnvs,
+  type GoalEnv,
+} from "@codecast/shared/contracts/envs";
 import { projectProgress } from "./lib/projectWork";
 
 // Initiatives (docs/architecture/initiatives-projects-role-page.md I1): a goal
@@ -77,8 +93,12 @@ const MAX_UPDATES_READ = 200;
 // Typed (not `as any`): the create/update validators spread this into their
 // args, so an untyped union widens `fields.status` to unknown and the
 // fieldsPatch calls no longer typecheck.
-const statusArg = v.union(...INITIATIVE_STATUSES.map((s) => v.literal(s))) as Validator<InitiativeStatus>;
-const healthArg = v.union(...INITIATIVE_UPDATE_HEALTHS.map((h) => v.literal(h))) as any;
+const statusArg = v.union(
+  ...INITIATIVE_STATUSES.map((s) => v.literal(s)),
+) as Validator<InitiativeStatus>;
+const healthArg = v.union(
+  ...INITIATIVE_UPDATE_HEALTHS.map((h) => v.literal(h)),
+) as any;
 const priorityArg = v.union(...PRIORITIES.map((p) => v.literal(p))) as any;
 
 // An owner arrives as a row value from the web, or as a reference from the
@@ -95,9 +115,14 @@ const workspaceArgs = {
 };
 
 type Ctx = { db: any };
-type Owner = { kind: "user"; user_id: Id<"users"> } | { kind: "role"; role_id: Id<"org_roles"> };
+type Owner =
+  | { kind: "user"; user_id: Id<"users"> }
+  | { kind: "role"; role_id: Id<"org_roles"> };
 
-async function requireCaller(ctx: Ctx, apiToken?: string): Promise<Id<"users">> {
+async function requireCaller(
+  ctx: Ctx,
+  apiToken?: string,
+): Promise<Id<"users">> {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
   if (!userId) throw new Error("Unauthorized");
   return userId;
@@ -105,54 +130,105 @@ async function requireCaller(ctx: Ctx, apiToken?: string): Promise<Id<"users">> 
 
 // A project joins an initiative only inside the initiative's own workspace, so
 // a reader of the initiative can always read what it names.
-async function requireProjects(ctx: Ctx, userId: Id<"users">, initiative: any, refs: readonly string[]): Promise<Id<"projects">[]> {
+async function requireProjects(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  refs: readonly string[],
+): Promise<Id<"projects">[]> {
   const ids: Id<"projects">[] = [];
   for (const ref of refs) {
     const id = ctx.db.normalizeId("projects", ref);
     if (!id) throw new Error(`No project ${ref}`);
     if (ids.some((x) => String(x) === String(id))) continue;
-    requireSameWorkspace(await requireAccessibleProject(ctx, userId, id), workspaceForResource(initiative), "project");
+    requireSameWorkspace(
+      await requireAccessibleProject(ctx, userId, id),
+      workspaceForResource(initiative),
+      "project",
+    );
     ids.push(id);
   }
-  if (ids.length > MAX_PROJECTS) throw new Error(`An initiative holds at most ${MAX_PROJECTS} projects`);
+  if (ids.length > MAX_PROJECTS)
+    throw new Error(`An initiative holds at most ${MAX_PROJECTS} projects`);
   return ids;
 }
 
-async function resolveOwner(ctx: Ctx, callerId: Id<"users">, initiative: any, owner: string | { kind: "user"; user_id: string } | { kind: "role"; role_id: string }): Promise<Owner> {
+async function resolveOwner(
+  ctx: Ctx,
+  callerId: Id<"users">,
+  initiative: any,
+  owner:
+    | string
+    | { kind: "user"; user_id: string }
+    | { kind: "role"; role_id: string },
+): Promise<Owner> {
   if (typeof owner !== "string" && owner.kind === "role") {
-    return { kind: "role", role_id: (await resolveOwnerRole(ctx, initiative, owner.role_id))._id };
+    return {
+      kind: "role",
+      role_id: (await resolveOwnerRole(ctx, initiative, owner.role_id))._id,
+    };
   }
   let userId: Id<"users"> | null = null;
-  if (typeof owner !== "string") userId = ctx.db.normalizeId("users", owner.user_id);
+  if (typeof owner !== "string")
+    userId = ctx.db.normalizeId("users", owner.user_id);
   else if (owner.trim().toLowerCase() === "me") userId = callerId;
   else {
     // A role first: a handle names a seat before it names a person. The
     // resolver throws when nothing matches, and a person is the second reading.
-    const role = await resolveOwnerRole(ctx, initiative, owner).catch((e: Error) => {
-      if (/is in another workspace/.test(e.message)) throw e;
-      return null;
-    });
+    const role = await resolveOwnerRole(ctx, initiative, owner).catch(
+      (e: Error) => {
+        if (/is in another workspace/.test(e.message)) throw e;
+        return null;
+      },
+    );
     if (role) return { kind: "role", role_id: role._id };
-    const person = initiative.team_id ? matchHandle(await teamRoster(ctx as any, initiative.team_id), owner) : null;
-    if (!person) throw new Error(`No role or person ${owner} in this workspace`);
+    const person = initiative.team_id
+      ? matchHandle(await teamRoster(ctx as any, initiative.team_id), owner)
+      : null;
+    if (!person)
+      throw new Error(`No role or person ${owner} in this workspace`);
     userId = person._id;
   }
   // A person owns an initiative only where they can read it.
-  if (!userId || !(await workspaceGrantsAccess(ctx, userId, initiative.workspace))) {
+  if (
+    !userId ||
+    !(await workspaceGrantsAccess(ctx, userId, initiative.workspace))
+  ) {
     throw new Error("That person is not in this workspace");
   }
   return { kind: "user", user_id: userId };
 }
 
 // One level of nesting: a parent is never a child, a child is never a parent.
-async function requireParent(ctx: Ctx, userId: Id<"users">, initiative: any, ref: string): Promise<Id<"initiatives">> {
+async function requireParent(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  ref: string,
+): Promise<Id<"initiatives">> {
   const parent = await requireInitiative(ctx, userId, ref);
-  if (initiative._id && String(parent._id) === String(initiative._id)) throw new Error("An initiative cannot sit under itself");
-  requireSameWorkspace(parent, workspaceForResource(initiative), "parent initiative");
-  if (parent.parent_initiative_id) throw new Error(`${parent.short_id} already sits under another initiative; nesting is one level`);
+  if (initiative._id && String(parent._id) === String(initiative._id))
+    throw new Error("An initiative cannot sit under itself");
+  requireSameWorkspace(
+    parent,
+    workspaceForResource(initiative),
+    "parent initiative",
+  );
+  if (parent.parent_initiative_id)
+    throw new Error(
+      `${parent.short_id} already sits under another initiative; nesting is one level`,
+    );
   if (initiative._id) {
-    const child = await ctx.db.query("initiatives").withIndex("by_parent", (q: any) => q.eq("parent_initiative_id", initiative._id)).first();
-    if (child) throw new Error(`${initiative.short_id} has sub initiatives (${child.short_id}); nesting is one level`);
+    const child = await ctx.db
+      .query("initiatives")
+      .withIndex("by_parent", (q: any) =>
+        q.eq("parent_initiative_id", initiative._id),
+      )
+      .first();
+    if (child)
+      throw new Error(
+        `${initiative.short_id} has sub initiatives (${child.short_id}); nesting is one level`,
+      );
   }
   return parent._id;
 }
@@ -165,9 +241,28 @@ const clean = (text: string, max: number) => text.trim().slice(0, max);
 // under a key that survives the edit is kept with its history; one under a
 // key that goes is dropped with it, and a renamed metric keeps both
 // (carryMetricScores, the rule the web paints the edit with).
-function metricsPatch(raw: MetricArg[], prior: { metrics?: InitiativeMetric[]; scoreboard?: Record<string, any>; score_history?: Record<string, any> } = {}): { metrics: InitiativeMetric[] | undefined; scoreboard: Record<string, any> | undefined; score_history: Record<string, any> | undefined } {
+function metricsPatch(
+  raw: MetricArg[],
+  prior: {
+    metrics?: InitiativeMetric[];
+    scoreboard?: Record<string, any>;
+    score_history?: Record<string, any>;
+  } = {},
+): {
+  metrics: InitiativeMetric[] | undefined;
+  scoreboard: Record<string, any> | undefined;
+  score_history: Record<string, any> | undefined;
+} {
   const metrics = cleanMetrics(raw);
-  return { metrics: metrics.length ? metrics : undefined, scoreboard: carryMetricScores(prior.metrics, metrics, prior.scoreboard), score_history: carryMetricScores(prior.metrics, metrics, prior.score_history) };
+  return {
+    metrics: metrics.length ? metrics : undefined,
+    scoreboard: carryMetricScores(prior.metrics, metrics, prior.scoreboard),
+    score_history: carryMetricScores(
+      prior.metrics,
+      metrics,
+      prior.score_history,
+    ),
+  };
 }
 
 // An owner role has every project of its initiative in its scope (I1 "The
@@ -176,16 +271,32 @@ function metricsPatch(raw: MetricArg[], prior: { metrics?: InitiativeMetric[]; s
 // list under one. The answer travels back so the caller can tell the person
 // what was added and which sessions the role took over. A role retired since
 // it was named owns nothing new, so it is skipped and never an error.
-async function coverOwnerScope(ctx: Ctx, userId: Id<"users">, initiativeId: Id<"initiatives">): Promise<CoverProjectsResult | null> {
+async function coverOwnerScope(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiativeId: Id<"initiatives">,
+): Promise<CoverProjectsResult | null> {
   const initiative = await ctx.db.get(initiativeId);
-  if (initiative?.owner?.kind !== "role" || !initiative.project_ids.length) return null;
+  if (initiative?.owner?.kind !== "role" || !initiative.project_ids.length)
+    return null;
   const role = await ctx.db.get(initiative.owner.role_id);
   if (!role || role.status === "retired") return null;
-  return performCoverProjects(ctx as any, userId, role._id, initiative.project_ids);
+  return performCoverProjects(
+    ctx as any,
+    userId,
+    role._id,
+    initiative.project_ids,
+  );
 }
 
 /** What every write answers: the row as it now stands, and what happened to the owner role's scope. */
-async function written<E extends Record<string, any>>(ctx: Ctx, userId: Id<"users">, id: Id<"initiatives">, cover: boolean, extra: E = {} as E) {
+async function written<E extends Record<string, any>>(
+  ctx: Ctx,
+  userId: Id<"users">,
+  id: Id<"initiatives">,
+  cover: boolean,
+  extra: E = {} as E,
+) {
   const scope = cover ? await coverOwnerScope(ctx, userId, id) : null;
   const row = await ctx.db.get(id);
   return { id, short_id: row.short_id as string, row, scope, ...extra };
@@ -195,7 +306,11 @@ type Fields = {
   title?: string;
   description?: string | null;
   status?: InitiativeStatus;
-  owner?: string | { kind: "user"; user_id: string } | { kind: "role"; role_id: string } | null;
+  owner?:
+    | string
+    | { kind: "user"; user_id: string }
+    | { kind: "role"; role_id: string }
+    | null;
   target_date?: number | null;
   priority?: (typeof PRIORITIES)[number] | null;
   labels?: string[];
@@ -218,28 +333,52 @@ type Fields = {
 // The patch a create or an edit becomes, validated against the row's own
 // workspace. Undefined is untouched; null, an empty string or an empty list
 // clears. `row` is the stored initiative, or the fields a new one will carry.
-async function fieldsPatch(ctx: Ctx, userId: Id<"users">, row: any, fields: Fields): Promise<Record<string, any>> {
+async function fieldsPatch(
+  ctx: Ctx,
+  userId: Id<"users">,
+  row: any,
+  fields: Fields,
+): Promise<Record<string, any>> {
   const patch: Record<string, any> = {};
   if (fields.title !== undefined) {
     patch.title = clean(fields.title, MAX_TITLE);
     if (!patch.title) throw new Error("An initiative needs a title");
   }
-  if (fields.description !== undefined) patch.description = (fields.description && clean(fields.description, MAX_DESCRIPTION)) || undefined;
+  if (fields.description !== undefined)
+    patch.description =
+      (fields.description && clean(fields.description, MAX_DESCRIPTION)) ||
+      undefined;
   if (fields.status !== undefined) patch.status = fields.status;
-  if (fields.target_date !== undefined) patch.target_date = fields.target_date ?? undefined;
-  if (fields.priority !== undefined) patch.priority = fields.priority ?? undefined;
+  if (fields.target_date !== undefined)
+    patch.target_date = fields.target_date ?? undefined;
+  if (fields.priority !== undefined)
+    patch.priority = fields.priority ?? undefined;
   if (fields.labels !== undefined) {
-    const labels = [...new Set(fields.labels.map((l) => l.trim()).filter(Boolean))];
+    const labels = [
+      ...new Set(fields.labels.map((l) => l.trim()).filter(Boolean)),
+    ];
     patch.labels = labels.length ? labels : undefined;
   }
-  if (fields.project_ids !== undefined) patch.project_ids = await requireProjects(ctx, userId, row, fields.project_ids);
+  if (fields.project_ids !== undefined)
+    patch.project_ids = await requireProjects(
+      ctx,
+      userId,
+      row,
+      fields.project_ids,
+    );
   if (fields.owner !== undefined) {
-    patch.owner = fields.owner === null || fields.owner === "" ? undefined : await resolveOwner(ctx, userId, row, fields.owner);
+    patch.owner =
+      fields.owner === null || fields.owner === ""
+        ? undefined
+        : await resolveOwner(ctx, userId, row, fields.owner);
   }
   if (fields.parent_initiative_id !== undefined) {
-    patch.parent_initiative_id = fields.parent_initiative_id ? await requireParent(ctx, userId, row, fields.parent_initiative_id) : undefined;
+    patch.parent_initiative_id = fields.parent_initiative_id
+      ? await requireParent(ctx, userId, row, fields.parent_initiative_id)
+      : undefined;
   }
-  if (fields.position !== undefined) patch.position = fields.position ?? undefined;
+  if (fields.position !== undefined)
+    patch.position = fields.position ?? undefined;
   if (fields.metrics !== undefined) {
     Object.assign(patch, metricsPatch(fields.metrics, row));
     await requireSeries(ctx, row.workspace, patch.metrics ?? []);
@@ -249,12 +388,23 @@ async function fieldsPatch(ctx: Ctx, userId: Id<"users">, row: any, fields: Fiel
     if ("error" in envs) throw new Error(envs.error);
     patch.envs = envs.length ? envs : undefined;
   }
-  if (fields.why !== undefined) patch.why = (fields.why && clean(fields.why, MAX_DESCRIPTION)) || undefined;
-  if (fields.done_when !== undefined) patch.done_when = (fields.done_when && clean(fields.done_when, MAX_DESCRIPTION)) || undefined;
+  if (fields.why !== undefined)
+    patch.why = (fields.why && clean(fields.why, MAX_DESCRIPTION)) || undefined;
+  if (fields.done_when !== undefined)
+    patch.done_when =
+      (fields.done_when && clean(fields.done_when, MAX_DESCRIPTION)) ||
+      undefined;
   for (const list of INITIATIVE_RECORD_LISTS) {
     const prior: any[] = row[list] ?? [];
     let next = prior;
-    for (const entry of fields[list] ?? []) next = (await applyRecord(ctx, userId, row, next, { list, action: "add", entry })).next;
+    for (const entry of fields[list] ?? [])
+      next = (
+        await applyRecord(ctx, userId, row, next, {
+          list,
+          action: "add",
+          entry,
+        })
+      ).next;
     if (next !== prior) patch[list] = next;
   }
   return patch;
@@ -287,9 +437,22 @@ const fieldArgs = {
 // signs an entry that names nobody.
 
 /** One op applied to one list by the shared reducer: the list as it then stands, the entry it touched, and whether anything moved. */
-async function applyRecord(ctx: Ctx, userId: Id<"users">, initiative: any, prior: any[], op: InitiativeRecordOp, sessionId?: string): Promise<RecordOpResult> {
-  const by = recordOpNeedsSignature(op) ? await signature(ctx, userId, initiative, sessionId) : undefined;
-  const out = applyRecordOp(prior, op, { now: Date.now(), by, goal: initiative.short_id });
+async function applyRecord(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  prior: any[],
+  op: InitiativeRecordOp,
+  sessionId?: string,
+): Promise<RecordOpResult> {
+  const by = recordOpNeedsSignature(op)
+    ? await signature(ctx, userId, initiative, sessionId)
+    : undefined;
+  const out = applyRecordOp(prior, op, {
+    now: Date.now(),
+    by,
+    goal: initiative.short_id,
+  });
   if ("error" in out) throw new Error(out.error);
   return out;
 }
@@ -305,41 +468,100 @@ async function applyRecord(ctx: Ctx, userId: Id<"users">, initiative: any, prior
 // the page writes a row of its own through the initiative door.
 
 /** The ids the log labels for an initiative row: its owner and its projects. */
-const labelIds = (row: any, patch: Record<string, any> = {}) => [row?.owner?.role_id, row?.owner?.user_id, patch.owner?.role_id, patch.owner?.user_id, ...(row?.project_ids ?? []), ...(patch.project_ids ?? [])];
+const labelIds = (row: any, patch: Record<string, any> = {}) => [
+  row?.owner?.role_id,
+  row?.owner?.user_id,
+  patch.owner?.role_id,
+  patch.owner?.user_id,
+  ...(row?.project_ids ?? []),
+  ...(patch.project_ids ?? []),
+];
 
 /** A goal's shape as the log reads it: where it sits, how it is measured, and its intent record. */
-const SHAPE_FIELDS = ["parent_initiative_id", "metrics", "envs", "why", "done_when", ...INITIATIVE_RECORD_LISTS] as const;
+const SHAPE_FIELDS = [
+  "parent_initiative_id",
+  "metrics",
+  "envs",
+  "why",
+  "done_when",
+  ...INITIATIVE_RECORD_LISTS,
+] as const;
 const shapeOf = (r: any) => ({
   ...Object.fromEntries(SHAPE_FIELDS.map((k) => [k, r[k] ?? null])),
-  parent_initiative_id: r.parent_initiative_id ? String(r.parent_initiative_id) : null,
+  parent_initiative_id: r.parent_initiative_id
+    ? String(r.parent_initiative_id)
+    : null,
 });
 
-export type InitiativeWorkspace = { workspace: "personal" | "team"; team_id?: Id<"teams"> };
+export type InitiativeWorkspace = {
+  workspace: "personal" | "team";
+  team_id?: Id<"teams">;
+};
 
 /** Create an initiative in the named workspace. `client_key` makes a retried
  *  create (the web's outbox, a CLI rerun) answer with the row it already made. */
-export async function performCreateInitiative(ctx: Ctx, userId: Id<"users">, where: InitiativeWorkspace, fields: Fields & { title: string }, client_key?: string) {
-  const db = await createDataContext(ctx as any, { userId, workspace: where.workspace, team_id: where.team_id });
+export async function performCreateInitiative(
+  ctx: Ctx,
+  userId: Id<"users">,
+  where: InitiativeWorkspace,
+  fields: Fields & { title: string },
+  client_key?: string,
+) {
+  const db = await createDataContext(ctx as any, {
+    userId,
+    workspace: where.workspace,
+    team_id: where.team_id,
+  });
   if (client_key) {
     const mine = await db.query("initiatives").collect();
-    const existing = mine.find((r: any) => r.client_key === client_key && String(r.user_id) === String(userId));
-    if (existing) return { id: existing._id, short_id: existing.short_id, row: existing, scope: null };
+    const existing = mine.find(
+      (r: any) =>
+        r.client_key === client_key && String(r.user_id) === String(userId),
+    );
+    if (existing)
+      return {
+        id: existing._id,
+        short_id: existing.short_id,
+        row: existing,
+        scope: null,
+      };
   }
   // The row a new initiative will be, enough for the workspace checks.
-  const draft = { user_id: userId, team_id: db.workspace.type === "team" ? db.workspace.teamId : undefined, workspace: db.workspaceKey };
+  const draft = {
+    user_id: userId,
+    team_id: db.workspace.type === "team" ? db.workspace.teamId : undefined,
+    workspace: db.workspaceKey,
+  };
   const patch = await fieldsPatch(ctx, userId, draft, fields);
   const short_id = await nextShortId(ctx.db as any, "in");
-  return withOrgChange(ctx, userId, { kind: "initiative", door: "initiative" }, async () => {
-    const id = await db.insert("initiatives", { status: "proposed", project_ids: [], ...patch, short_id, client_key, health: "none" });
-    const row = await ctx.db.get(id);
-    await noteOrgChange(ctx, userId, whereOfRecord(row), {
-      kind: "initiative", subject: recordSubject("initiative", row),
-      before: { status: null, owner: null, project_ids: [] },
-      after: { status: row.status, owner: partyRef(row.owner) ?? null, project_ids: row.project_ids.map(String) },
-      labels: await labelsOf(ctx, labelIds(row)),
-    });
-    return written(ctx, userId, id, true);
-  });
+  return withOrgChange(
+    ctx,
+    userId,
+    { kind: "initiative", door: "initiative" },
+    async () => {
+      const id = await db.insert("initiatives", {
+        status: "proposed",
+        project_ids: [],
+        ...patch,
+        short_id,
+        client_key,
+        health: "none",
+      });
+      const row = await ctx.db.get(id);
+      await noteOrgChange(ctx, userId, whereOfRecord(row), {
+        kind: "initiative",
+        subject: recordSubject("initiative", row),
+        before: { status: null, owner: null, project_ids: [] },
+        after: {
+          status: row.status,
+          owner: partyRef(row.owner) ?? null,
+          project_ids: row.project_ids.map(String),
+        },
+        labels: await labelsOf(ctx, labelIds(row)),
+      });
+      return written(ctx, userId, id, true);
+    },
+  );
 }
 
 /** Edit an initiative's fields. An owner change is logged with the owner
@@ -349,23 +571,51 @@ export async function performCreateInitiative(ctx: Ctx, userId: Id<"users">, whe
  *  logged as its shape, the row the proposal's `initiative_shape` change
  *  reads back; the row opens without a kind so the first fact names it (an
  *  edit that moves both reads as the owner change, carrying both). */
-export async function performUpdateInitiative(ctx: Ctx, userId: Id<"users">, initiative: any, fields: Fields) {
+export async function performUpdateInitiative(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  fields: Fields,
+) {
   const patch = await fieldsPatch(ctx, userId, initiative, fields);
   const subject = recordSubject("initiative", initiative);
-  return withOrgChange(ctx, userId, { subject, door: "initiative" }, async () => {
-    await ctx.db.patch(initiative._id, { ...patch, updated_at: Date.now() });
-    if ("owner" in patch) await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
-      kind: "initiative_owner", subject,
-      ...movedFields({ owner: partyRef(initiative.owner) ?? null }, { owner: partyRef(patch.owner) ?? null }),
-      labels: await labelsOf(ctx, labelIds(initiative, patch)),
-    });
-    if (SHAPE_FIELDS.some((k) => k in patch)) await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
-      kind: "initiative_shape", subject,
-      ...movedFields(shapeOf(initiative), shapeOf({ ...initiative, ...patch })),
-      labels: await labelsOf(ctx, [initiative.parent_initiative_id, patch.parent_initiative_id]),
-    });
-    return written(ctx, userId, initiative._id, "owner" in patch || "project_ids" in patch);
-  });
+  return withOrgChange(
+    ctx,
+    userId,
+    { subject, door: "initiative" },
+    async () => {
+      await ctx.db.patch(initiative._id, { ...patch, updated_at: Date.now() });
+      if ("owner" in patch)
+        await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
+          kind: "initiative_owner",
+          subject,
+          ...movedFields(
+            { owner: partyRef(initiative.owner) ?? null },
+            { owner: partyRef(patch.owner) ?? null },
+          ),
+          labels: await labelsOf(ctx, labelIds(initiative, patch)),
+        });
+      if (SHAPE_FIELDS.some((k) => k in patch))
+        await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
+          kind: "initiative_shape",
+          subject,
+          ...movedFields(
+            shapeOf(initiative),
+            shapeOf({ ...initiative, ...patch }),
+          ),
+          labels: await labelsOf(ctx, [
+            initiative.parent_initiative_id,
+            patch.parent_initiative_id,
+          ]),
+        });
+      return written(
+        ctx,
+        userId,
+        initiative._id,
+        "owner" in patch || "project_ids" in patch,
+      );
+    },
+  );
 }
 
 /**
@@ -375,19 +625,41 @@ export async function performUpdateInitiative(ctx: Ctx, userId: Id<"users">, ini
  * and after, so undo restores it; an op that moved nothing writes nothing
  * and answers `moved: false` with the entry that stands.
  */
-export async function performRecordEntry(ctx: Ctx, userId: Id<"users">, initiative: any, { session_id, ...op }: InitiativeRecordOp & { session_id?: string }) {
-  const { next, entry, moved } = await applyRecord(ctx, userId, initiative, initiative[op.list] ?? [], op, session_id);
-  if (!moved) return written(ctx, userId, initiative._id, false, { entry, moved });
+export async function performRecordEntry(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  { session_id, ...op }: InitiativeRecordOp & { session_id?: string },
+) {
+  const { next, entry, moved } = await applyRecord(
+    ctx,
+    userId,
+    initiative,
+    initiative[op.list] ?? [],
+    op,
+    session_id,
+  );
+  if (!moved)
+    return written(ctx, userId, initiative._id, false, { entry, moved });
   const subject = recordSubject("initiative", initiative);
   const patch = { [op.list]: next.length ? next : undefined };
-  return withOrgChange(ctx, userId, { subject, door: "initiative" }, async () => {
-    await ctx.db.patch(initiative._id, { ...patch, updated_at: Date.now() });
-    await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
-      kind: "initiative_shape", subject,
-      ...movedFields(shapeOf(initiative), shapeOf({ ...initiative, ...patch })),
-    });
-    return written(ctx, userId, initiative._id, false, { entry, moved });
-  });
+  return withOrgChange(
+    ctx,
+    userId,
+    { subject, door: "initiative" },
+    async () => {
+      await ctx.db.patch(initiative._id, { ...patch, updated_at: Date.now() });
+      await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
+        kind: "initiative_shape",
+        subject,
+        ...movedFields(
+          shapeOf(initiative),
+          shapeOf({ ...initiative, ...patch }),
+        ),
+      });
+      return written(ctx, userId, initiative._id, false, { entry, moved });
+    },
+  );
 }
 
 /**
@@ -398,11 +670,30 @@ export async function performRecordEntry(ctx: Ctx, userId: Id<"users">, initiati
  * workspace admin. Each value written is also appended to the metric's
  * history. No log row: a number observed is not an org change.
  */
-export async function performReportMetrics(ctx: Ctx, userId: Id<"users">, initiative: any, args: { entries: string[]; source?: string; observed_at?: number; session_id?: string }) {
+export async function performReportMetrics(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  args: {
+    entries: string[];
+    source?: string;
+    observed_at?: number;
+    session_id?: string;
+  },
+) {
   const { role } = await signingRole(ctx, userId, initiative, args.session_id);
   await requireMayPostUpdate(ctx, userId, initiative, role);
   const state = { scoreboard: { ...(initiative.scoreboard ?? {}) } };
-  const written = recordScores({ scoreboard: initiative.metrics ?? [] }, state, args.entries, { source: args.source, observedAt: args.observed_at, what: `${initiative.short_id}` });
+  const written = recordScores(
+    { scoreboard: initiative.metrics ?? [] },
+    state,
+    args.entries,
+    {
+      source: args.source,
+      observedAt: args.observed_at,
+      what: `${initiative.short_id}`,
+    },
+  );
   // The history grows in the same patch as the latest value (I5). A value
   // reported before the history existed opens it, so the first report after
   // already reads as a trend. The scoreboard is read back as the latest of
@@ -411,31 +702,65 @@ export async function performReportMetrics(ctx: Ctx, userId: Id<"users">, initia
   let score_history: Record<string, any> | undefined = initiative.score_history;
   for (const [key, score] of Object.entries(written)) {
     const before = initiative.scoreboard?.[key];
-    if (before && !score_history?.[key]?.length) score_history = appendScoreHistory(score_history, key, before);
+    if (before && !score_history?.[key]?.length)
+      score_history = appendScoreHistory(score_history, key, before);
     score_history = appendScoreHistory(score_history, key, score);
     const series = score_history[key];
     state.scoreboard[key] = series[series.length - 1];
   }
-  await ctx.db.patch(initiative._id, { scoreboard: state.scoreboard, score_history, updated_at: Date.now() });
-  return { id: initiative._id, short_id: initiative.short_id, written, row: await ctx.db.get(initiative._id) };
+  await ctx.db.patch(initiative._id, {
+    scoreboard: state.scoreboard,
+    score_history,
+    updated_at: Date.now(),
+  });
+  return {
+    id: initiative._id,
+    short_id: initiative.short_id,
+    written,
+    row: await ctx.db.get(initiative._id),
+  };
 }
 
 /** Add projects to an initiative, keeping its order; a project already in it
  *  is left where it is. Answers `added`, the count that joined. */
-export async function performAddProjects(ctx: Ctx, userId: Id<"users">, initiative: any, refs: readonly string[]) {
-  const project_ids = await requireProjects(ctx, userId, initiative, [...initiative.project_ids.map(String), ...refs]);
+export async function performAddProjects(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  refs: readonly string[],
+) {
+  const project_ids = await requireProjects(ctx, userId, initiative, [
+    ...initiative.project_ids.map(String),
+    ...refs,
+  ]);
   const added = project_ids.length - initiative.project_ids.length;
-  return withOrgChange(ctx, userId, { kind: "initiative_projects", subject: recordSubject("initiative", initiative), door: "initiative" }, async () => {
-    if (added > 0) {
-      await ctx.db.patch(initiative._id, { project_ids, updated_at: Date.now() });
-      await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
-        kind: "initiative_projects", subject: recordSubject("initiative", initiative),
-        before: { project_ids: initiative.project_ids.map(String) }, after: { project_ids: project_ids.map(String) },
-        labels: await labelsOf(ctx, labelIds(initiative, { project_ids })),
+  return withOrgChange(
+    ctx,
+    userId,
+    {
+      kind: "initiative_projects",
+      subject: recordSubject("initiative", initiative),
+      door: "initiative",
+    },
+    async () => {
+      if (added > 0) {
+        await ctx.db.patch(initiative._id, {
+          project_ids,
+          updated_at: Date.now(),
+        });
+        await noteOrgChange(ctx, userId, whereOfRecord(initiative), {
+          kind: "initiative_projects",
+          subject: recordSubject("initiative", initiative),
+          before: { project_ids: initiative.project_ids.map(String) },
+          after: { project_ids: project_ids.map(String) },
+          labels: await labelsOf(ctx, labelIds(initiative, { project_ids })),
+        });
+      }
+      return written(ctx, userId, initiative._id, added > 0, {
+        added: added > 0,
       });
-    }
-    return written(ctx, userId, initiative._id, added > 0, { added: added > 0 });
-  });
+    },
+  );
 }
 
 export const create = mutation({
@@ -452,9 +777,18 @@ export const create = mutation({
     milestones: v.optional(v.array(v.any())),
     sources: v.optional(v.array(v.any())),
   },
-  handler: async (ctx, { api_token, workspace, team_id, client_key, ...fields }) => {
+  handler: async (
+    ctx,
+    { api_token, workspace, team_id, client_key, ...fields },
+  ) => {
     const userId = await requireCaller(ctx, api_token);
-    return performCreateInitiative(ctx, userId, { workspace, team_id }, fields, client_key);
+    return performCreateInitiative(
+      ctx,
+      userId,
+      { workspace, team_id },
+      fields,
+      client_key,
+    );
   },
 });
 
@@ -467,7 +801,12 @@ export const update = mutation({
   },
   handler: async (ctx, { api_token, id, ...fields }) => {
     const userId = await requireCaller(ctx, api_token);
-    return performUpdateInitiative(ctx, userId, await requireInitiative(ctx, userId, id), fields);
+    return performUpdateInitiative(
+      ctx,
+      userId,
+      await requireInitiative(ctx, userId, id),
+      fields,
+    );
   },
 });
 
@@ -475,32 +814,60 @@ export const update = mutation({
 // own mutation so two people editing one initiative never overwrite each
 // other's list with a stale copy of it.
 export const addProject = mutation({
-  args: { api_token: v.optional(v.string()), id: v.string(), project_id: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    id: v.string(),
+    project_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
-    return performAddProjects(ctx, userId, await requireInitiative(ctx, userId, args.id), [args.project_id]);
+    return performAddProjects(
+      ctx,
+      userId,
+      await requireInitiative(ctx, userId, args.id),
+      [args.project_id],
+    );
   },
 });
 
 export const removeProject = mutation({
-  args: { api_token: v.optional(v.string()), id: v.string(), project_id: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    id: v.string(),
+    project_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const initiative = await requireInitiative(ctx, userId, args.id);
-    const project_ids = initiative.project_ids.filter((p: any) => String(p) !== args.project_id);
+    const project_ids = initiative.project_ids.filter(
+      (p: any) => String(p) !== args.project_id,
+    );
     const removed = project_ids.length < initiative.project_ids.length;
-    if (removed) await ctx.db.patch(initiative._id, { project_ids, updated_at: Date.now() });
+    if (removed)
+      await ctx.db.patch(initiative._id, {
+        project_ids,
+        updated_at: Date.now(),
+      });
     return written(ctx, userId, initiative._id, false, { removed });
   },
 });
 
 // A reorder names the same projects in a new order, and nothing else.
 export const setProjects = mutation({
-  args: { api_token: v.optional(v.string()), id: v.string(), project_ids: v.array(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    id: v.string(),
+    project_ids: v.array(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const initiative = await requireInitiative(ctx, userId, args.id);
-    const project_ids = await requireProjects(ctx, userId, initiative, args.project_ids);
+    const project_ids = await requireProjects(
+      ctx,
+      userId,
+      initiative,
+      args.project_ids,
+    );
     await ctx.db.patch(initiative._id, { project_ids, updated_at: Date.now() });
     return written(ctx, userId, initiative._id, true);
   },
@@ -514,8 +881,15 @@ export const record = mutation({
     id: v.string(),
     // The calling session, so a role's standing session signs an entry as the role.
     session_id: v.optional(v.string()),
-    list: v.union(...INITIATIVE_RECORD_LISTS.map((l) => v.literal(l))) as Validator<InitiativeRecordList>,
-    action: v.union(v.literal("add"), v.literal("edit"), v.literal("close"), v.literal("remove")),
+    list: v.union(
+      ...INITIATIVE_RECORD_LISTS.map((l) => v.literal(l)),
+    ) as Validator<InitiativeRecordList>,
+    action: v.union(
+      v.literal("add"),
+      v.literal("edit"),
+      v.literal("close"),
+      v.literal("remove"),
+    ),
     key: v.optional(v.string()),
     // Each list has its own entry shape and an edit names any part of it, so
     // the reducer reads the entry and refuses a field the list does not carry.
@@ -527,7 +901,12 @@ export const record = mutation({
   },
   handler: async (ctx, { api_token, id, ...op }) => {
     const userId = await requireCaller(ctx, api_token);
-    return performRecordEntry(ctx, userId, await requireInitiative(ctx, userId, id), op);
+    return performRecordEntry(
+      ctx,
+      userId,
+      await requireInitiative(ctx, userId, id),
+      op,
+    );
   },
 });
 
@@ -536,50 +915,93 @@ export const record = mutation({
 function roleInBoundary(role: any, initiative: any): boolean {
   return initiative.team_id
     ? String(role.team_id ?? "") === String(initiative.team_id)
-    : !role.team_id && String(role.scope_user_id ?? "") === String(initiative.user_id);
+    : !role.team_id &&
+        String(role.scope_user_id ?? "") === String(initiative.user_id);
 }
 
 /** The role a call is signed by: the calling session's standing role, and
  *  only inside its own boundary. A standing session of a role from another
  *  workspace signs as the person whose token made the call. */
-async function signingRole(ctx: Ctx, userId: Id<"users">, initiative: any, sessionId?: string): Promise<{ role: any | null; conversation: any | null }> {
-  const conversation = sessionId ? await resolveSessionConversation(ctx, userId, sessionId) : null;
+async function signingRole(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  sessionId?: string,
+): Promise<{ role: any | null; conversation: any | null }> {
+  const conversation = sessionId
+    ? await resolveSessionConversation(ctx, userId, sessionId)
+    : null;
   const actor = await resolveActor(ctx, userId, conversation);
-  return { conversation, role: actor.kind === "role" && actor.role && roleInBoundary(actor.role, initiative) ? actor.role : null };
+  return {
+    conversation,
+    role:
+      actor.kind === "role" &&
+      actor.role &&
+      roleInBoundary(actor.role, initiative)
+        ? actor.role
+        : null,
+  };
 }
 
 /** Who asked or decided when the entry names nobody: the signing role, else
  *  the caller by the rule the web signs with (initiativeSignature). */
-async function signature(ctx: Ctx, userId: Id<"users">, initiative: any, sessionId?: string): Promise<string | undefined> {
+async function signature(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  sessionId?: string,
+): Promise<string | undefined> {
   const { role } = await signingRole(ctx, userId, initiative, sessionId);
   if (role) return `@${role.handle}`;
   const caller = await ctx.db.get(userId);
-  const roster = initiative.team_id ? await teamRoster(ctx as any, initiative.team_id) : caller ? [caller] : [];
+  const roster = initiative.team_id
+    ? await teamRoster(ctx as any, initiative.team_id)
+    : caller
+      ? [caller]
+      : [];
   return initiativeSignature(caller, roster);
 }
 
 // Health is what the owner said (I1): an update is posted by the owner, a
 // person or the owning role's standing session, or by a workspace admin (a
 // team admin; the creator, in a personal workspace). Everyone else reads.
-async function requireMayPostUpdate(ctx: Ctx, userId: Id<"users">, initiative: any, role: any | null): Promise<void> {
+async function requireMayPostUpdate(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+  role: any | null,
+): Promise<void> {
   const owner = initiative.owner;
-  if (owner?.kind === "user" && String(owner.user_id) === String(userId)) return;
-  if (owner?.kind === "role" && role && String(role._id) === String(owner.role_id)) return;
+  if (owner?.kind === "user" && String(owner.user_id) === String(userId))
+    return;
+  if (
+    owner?.kind === "role" &&
+    role &&
+    String(role._id) === String(owner.role_id)
+  )
+    return;
   const admin = initiative.team_id
     ? await isTeamAdmin(ctx as any, userId, initiative.team_id)
     : String(initiative.user_id) === String(userId);
   if (admin) return;
-  throw new Error("Only the owner or a workspace admin posts an update; everyone else reads");
+  throw new Error(
+    "Only the owner or a workspace admin posts an update; everyone else reads",
+  );
 }
 
 // Health lives on the update; the initiative carries a copy of the latest one
 // so a list reads it with no join. This is the only writer of that copy, and
 // it reads the latest update back instead of trusting the one just written,
 // so an update posted out of order never rewinds the initiative.
-async function denormalizeHealth(ctx: Ctx, initiativeId: Id<"initiatives">): Promise<void> {
+async function denormalizeHealth(
+  ctx: Ctx,
+  initiativeId: Id<"initiatives">,
+): Promise<void> {
   const latest = await ctx.db
     .query("initiative_updates")
-    .withIndex("by_initiative_at", (q: any) => q.eq("initiative_id", initiativeId))
+    .withIndex("by_initiative_at", (q: any) =>
+      q.eq("initiative_id", initiativeId),
+    )
     .order("desc")
     .first();
   await ctx.db.patch(initiativeId, {
@@ -606,19 +1028,31 @@ export const postUpdate = mutation({
     const initiative = await requireInitiative(ctx, userId, args.id);
     const body = clean(args.body, MAX_BODY);
     if (!body) throw new Error("An update needs a body");
-    const health: InitiativeUpdateHealth | undefined = args.health ?? (initiative.health === "none" ? undefined : initiative.health);
-    if (!health) throw new Error(`Say how it is going: ${INITIATIVE_UPDATE_HEALTHS.join(", ")}`);
+    const health: InitiativeUpdateHealth | undefined =
+      args.health ??
+      (initiative.health === "none" ? undefined : initiative.health);
+    if (!health)
+      throw new Error(
+        `Say how it is going: ${INITIATIVE_UPDATE_HEALTHS.join(", ")}`,
+      );
 
     if (args.client_key) {
       const prior = await ctx.db
         .query("initiative_updates")
-        .withIndex("by_initiative_at", (q: any) => q.eq("initiative_id", initiative._id))
+        .withIndex("by_initiative_at", (q: any) =>
+          q.eq("initiative_id", initiative._id),
+        )
         .collect();
       const existing = prior.find((u: any) => u.client_key === args.client_key);
       if (existing) return { id: existing._id, row: existing };
     }
 
-    const { role, conversation } = await signingRole(ctx, userId, initiative, args.session_id);
+    const { role, conversation } = await signingRole(
+      ctx,
+      userId,
+      initiative,
+      args.session_id,
+    );
     await requireMayPostUpdate(ctx, userId, initiative, role);
     const at = Date.now();
     const id = await ctx.db.insert("initiative_updates", {
@@ -629,7 +1063,13 @@ export const postUpdate = mutation({
       client_key: args.client_key,
       body,
       health,
-      by: role ? { kind: "role", role_id: role._id, conversation_id: conversation?._id } : { kind: "user", user_id: userId },
+      by: role
+        ? {
+            kind: "role",
+            role_id: role._id,
+            conversation_id: conversation?._id,
+          }
+        : { kind: "user", user_id: userId },
       at,
     });
     await denormalizeHealth(ctx, initiative._id);
@@ -649,24 +1089,40 @@ export const report = mutation({
   },
   handler: async (ctx, { api_token, id, ...args }) => {
     const userId = await requireCaller(ctx, api_token);
-    return performReportMetrics(ctx, userId, await requireInitiative(ctx, userId, id), args);
+    return performReportMetrics(
+      ctx,
+      userId,
+      await requireInitiative(ctx, userId, id),
+      args,
+    );
   },
 });
 
 // ── Reads ────────────────────────────────────────────────────────────────────
 
-async function visibleInitiatives(ctx: Ctx, userId: Id<"users">, args: { workspace?: "personal" | "team"; team_id?: Id<"teams"> }): Promise<any[]> {
+async function visibleInitiatives(
+  ctx: Ctx,
+  userId: Id<"users">,
+  args: { workspace?: "personal" | "team"; team_id?: Id<"teams"> },
+): Promise<any[]> {
   const { records } = await scopedFetch(ctx, "initiatives", {
     userId,
-    ...(args.workspace ? { workspace: args.workspace, teamId: args.team_id } : { workspace: "all" }),
+    ...(args.workspace
+      ? { workspace: args.workspace, teamId: args.team_id }
+      : { workspace: "all" }),
   });
   return records;
 }
 
-async function updatesOf(ctx: Ctx, initiativeId: Id<"initiatives">): Promise<any[]> {
+async function updatesOf(
+  ctx: Ctx,
+  initiativeId: Id<"initiatives">,
+): Promise<any[]> {
   return ctx.db
     .query("initiative_updates")
-    .withIndex("by_initiative_at", (q: any) => q.eq("initiative_id", initiativeId))
+    .withIndex("by_initiative_at", (q: any) =>
+      q.eq("initiative_id", initiativeId),
+    )
     .order("desc")
     .take(MAX_UPDATES_READ);
 }
@@ -694,7 +1150,9 @@ export const webUpdates = query({
   args: { initiative_id: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
-    const initiative = userId ? await findInitiative(ctx, userId, args.initiative_id) : null;
+    const initiative = userId
+      ? await findInitiative(ctx, userId, args.initiative_id)
+      : null;
     return initiative ? updatesOf(ctx, initiative._id) : null;
   },
 });
@@ -702,7 +1160,10 @@ export const webUpdates = query({
 // The CLI has no store to derive from, so its two reads join what a terminal
 // prints: the owner's name, each project's title, and the task counts that
 // make the progress line.
-export async function ownerLabel(ctx: Ctx, owner: Owner | undefined): Promise<string | undefined> {
+export async function ownerLabel(
+  ctx: Ctx,
+  owner: Owner | undefined,
+): Promise<string | undefined> {
   if (!owner) return undefined;
   if (owner.kind === "role") {
     const role = await ctx.db.get(owner.role_id);
@@ -714,21 +1175,48 @@ export async function ownerLabel(ctx: Ctx, owner: Owner | undefined): Promise<st
 
 /** A project's plans read for its open ones; past this the oldest are not seen. */
 const OPEN_PLANS_READ = 300;
-async function projectSummaries(ctx: Ctx, userId: Id<"users">, initiative: any) {
+async function projectSummaries(
+  ctx: Ctx,
+  userId: Id<"users">,
+  initiative: any,
+) {
   const refOf = sessionRefs(ctx, userId);
   const out = [];
   for (const id of initiative.project_ids) {
     const project = await ctx.db.get(id);
     if (!project) continue;
-    const lead = project.owner_role_id ? await ctx.db.get(project.owner_role_id) : null;
+    const lead = project.owner_role_id
+      ? await ctx.db.get(project.owner_role_id)
+      : null;
     // Its open plans, newest activity first (ct-95899): the unit people think in.
     // Only plans the caller may read: the goal's workspace, or their own.
-    const plans: any[] = (await ctx.db.query("plans").withIndex("by_project_id", (q: any) => q.eq("project_id", id)).take(OPEN_PLANS_READ))
-      .filter((p: any) => p.workspace === initiative.workspace || p.workspace === `user:${userId}`);
+    const plans: any[] = (
+      await ctx.db
+        .query("plans")
+        .withIndex("by_project_id", (q: any) => q.eq("project_id", id))
+        .take(OPEN_PLANS_READ)
+    ).filter(
+      (p: any) =>
+        p.workspace === initiative.workspace ||
+        p.workspace === `user:${userId}`,
+    );
     const open = openPlansOf(plans, String(id));
     const open_plans = [];
-    for (const p of open.plans) open_plans.push({ ...openPlanLine(p), driver: await planDriver(refOf, p, []) });
-    out.push({ _id: project._id, short_id: project.short_id ?? undefined, title: project.title, status: project.status, lead: lead ? `@${lead.handle}` : undefined, task_counts: await projectProgress(ctx, userId, id), open_plans, more_plans: open.more });
+    for (const p of open.plans)
+      open_plans.push({
+        ...openPlanLine(p),
+        driver: await planDriver(refOf, p, []),
+      });
+    out.push({
+      _id: project._id,
+      short_id: project.short_id ?? undefined,
+      title: project.title,
+      status: project.status,
+      lead: lead ? `@${lead.handle}` : undefined,
+      task_counts: await projectProgress(ctx, userId, id),
+      open_plans,
+      more_plans: open.more,
+    });
   }
   return out;
 }
@@ -737,26 +1225,43 @@ async function forTerminal(ctx: Ctx, userId: Id<"users">, initiative: any) {
   const projects = await projectSummaries(ctx, userId, initiative);
   // The live series its numbers read, by short id, so a terminal reads the value the page shows.
   const lookup = await seriesLookup(ctx, initiative.workspace, [initiative]);
-  const series = Object.fromEntries((initiative.metrics ?? []).flatMap((m: InitiativeMetric) => [m.series, metricDenominatorRef(m)]).filter((r: string | undefined): r is string => !!r).flatMap((ref: string) => { const found = lookup(ref); return found ? [[ref, found]] : []; }));
+  const series = Object.fromEntries(
+    (initiative.metrics ?? [])
+      .flatMap((m: InitiativeMetric) => [m.series, metricDenominatorRef(m)])
+      .filter((r: string | undefined): r is string => !!r)
+      .flatMap((ref: string) => {
+        const found = lookup(ref);
+        return found ? [[ref, found]] : [];
+      }),
+  );
   return {
     ...initiative,
     ...(Object.keys(series).length ? { series } : {}),
     owner_label: await ownerLabel(ctx, initiative.owner),
     projects,
-    task_counts: projects.reduce((sum, p) => ({
-      total: sum.total + p.task_counts.total,
-      done: sum.done + p.task_counts.done,
-      in_progress: sum.in_progress + p.task_counts.in_progress,
-      open: sum.open + p.task_counts.open,
-    }), { total: 0, done: 0, in_progress: 0, open: 0 }),
+    task_counts: projects.reduce(
+      (sum, p) => ({
+        total: sum.total + p.task_counts.total,
+        done: sum.done + p.task_counts.done,
+        in_progress: sum.in_progress + p.task_counts.in_progress,
+        open: sum.open + p.task_counts.open,
+      }),
+      { total: 0, done: 0, in_progress: 0, open: 0 },
+    ),
   };
 }
 
 export const list = query({
-  args: { api_token: v.optional(v.string()), status: v.optional(statusArg), ...workspaceArgs },
+  args: {
+    api_token: v.optional(v.string()),
+    status: v.optional(statusArg),
+    ...workspaceArgs,
+  },
   handler: async (ctx, { api_token, status, ...scope }) => {
     const userId = await requireCaller(ctx, api_token);
-    const rows = (await visibleInitiatives(ctx, userId, scope)).filter((r) => !status || r.status === status);
+    const rows = (await visibleInitiatives(ctx, userId, scope)).filter(
+      (r) => !status || r.status === status,
+    );
     return Promise.all(rows.map((r) => forTerminal(ctx, userId, r)));
   },
 });
@@ -768,11 +1273,24 @@ export const get = query({
     const initiative = await findInitiative(ctx, userId, args.id);
     if (!initiative) return null;
     const [parent, children, updates] = await Promise.all([
-      initiative.parent_initiative_id ? ctx.db.get(initiative.parent_initiative_id) : null,
-      ctx.db.query("initiatives").withIndex("by_parent", (q: any) => q.eq("parent_initiative_id", initiative._id)).collect(),
+      initiative.parent_initiative_id
+        ? ctx.db.get(initiative.parent_initiative_id)
+        : null,
+      ctx.db
+        .query("initiatives")
+        .withIndex("by_parent", (q: any) =>
+          q.eq("parent_initiative_id", initiative._id),
+        )
+        .collect(),
       updatesOf(ctx, initiative._id),
     ]);
-    const brief = (r: any) => ({ _id: r._id, short_id: r.short_id, title: r.title, status: r.status, health: r.health });
+    const brief = (r: any) => ({
+      _id: r._id,
+      short_id: r.short_id,
+      title: r.title,
+      status: r.status,
+      health: r.health,
+    });
     return {
       ...(await forTerminal(ctx, userId, initiative)),
       // Each metric's history read as a direction, and the first milestone not reached.
@@ -782,7 +1300,12 @@ export const get = query({
       predictions: await goalPredictions(ctx, initiative),
       parent: parent ? brief(parent) : undefined,
       sub_initiatives: children.map(brief),
-      updates: await Promise.all(updates.map(async (u: any) => ({ ...u, by_label: await ownerLabel(ctx, u.by) }))),
+      updates: await Promise.all(
+        updates.map(async (u: any) => ({
+          ...u,
+          by_label: await ownerLabel(ctx, u.by),
+        })),
+      ),
     };
   },
 });

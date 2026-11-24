@@ -7,7 +7,10 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api } from "./_generated/api";
 import { hashToken } from "./apiTokens";
-import { formatTaskCommentMessage, parseTaskCommentMessage } from "@codecast/shared/contracts";
+import {
+  formatTaskCommentMessage,
+  parseTaskCommentMessage,
+} from "@codecast/shared/contracts";
 
 const TOKEN = "o".repeat(64);
 const HOUR = 3_600_000;
@@ -25,16 +28,44 @@ async function setup(ownerUpdatedAgo: number) {
   const now = Date.now();
   const ids = await t.run(async (ctx) => {
     const userId = await ctx.db.insert("users", { name: "Owner" } as any);
-    await ctx.db.insert("api_tokens", { user_id: userId, token_hash: await hashToken(TOKEN), name: "cli", created_at: now, last_used_at: now } as any);
-    const conv = (sessionId: string, shortId: string, updatedAt: number) => ctx.db.insert("conversations", {
-      user_id: userId, agent_type: "claude_code", session_id: sessionId, short_id: shortId, title: `session ${shortId}`,
-      started_at: now - 2 * HOUR, updated_at: updatedAt, message_count: 3, is_private: true, status: "active", project_path: "/repo",
+    await ctx.db.insert("api_tokens", {
+      user_id: userId,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
     } as any);
-    const task = (shortId: string) => ctx.db.insert("tasks", {
-      user_id: userId, workspace: `user:${userId}`, short_id: shortId, title: `task ${shortId}`,
-      task_type: "task", status: "open", priority: "medium", blocks: [], source: "human",
-      attempt_count: 0, retry_count: 0, max_retries: 3, created_at: now, updated_at: now,
-    } as any);
+    const conv = (sessionId: string, shortId: string, updatedAt: number) =>
+      ctx.db.insert("conversations", {
+        user_id: userId,
+        agent_type: "claude_code",
+        session_id: sessionId,
+        short_id: shortId,
+        title: `session ${shortId}`,
+        started_at: now - 2 * HOUR,
+        updated_at: updatedAt,
+        message_count: 3,
+        is_private: true,
+        status: "active",
+        project_path: "/repo",
+      } as any);
+    const task = (shortId: string) =>
+      ctx.db.insert("tasks", {
+        user_id: userId,
+        workspace: `user:${userId}`,
+        short_id: shortId,
+        title: `task ${shortId}`,
+        task_type: "task",
+        status: "open",
+        priority: "medium",
+        blocks: [],
+        source: "human",
+        attempt_count: 0,
+        retry_count: 0,
+        max_retries: 3,
+        created_at: now,
+        updated_at: now,
+      } as any);
     const ownerId = await conv("sess-owner", "jx7aaaa", now - ownerUpdatedAgo);
     const otherId = await conv("sess-other", "jx7bbbb", now);
     const taskId = await task("ct-1");
@@ -43,9 +74,16 @@ async function setup(ownerUpdatedAgo: number) {
     await ctx.db.patch(ownerId, { active_task_id: taskId } as any);
     return { userId, ownerId, otherId, taskId, elsewhereId };
   });
-  const get = (id: any) => t.run(async (ctx) => await ctx.db.get(id)) as Promise<any>;
+  const get = (id: any) =>
+    t.run(async (ctx) => await ctx.db.get(id)) as Promise<any>;
   const start = (sessionId: string, shortId = "ct-1", take?: boolean) =>
-    t.mutation(api.tasks.update, { api_token: TOKEN, short_id: shortId, status: "in_progress", conversation_id: sessionId, ...(take ? { take } : {}) });
+    t.mutation(api.tasks.update, {
+      api_token: TOKEN,
+      short_id: shortId,
+      status: "in_progress",
+      conversation_id: sessionId,
+      ...(take ? { take } : {}),
+    });
   return { t, ...ids, get, start };
 }
 
@@ -54,7 +92,9 @@ setDefaultTimeout(30_000);
 describe("one owning session per task", () => {
   test("a second session is refused while the owner is still working, and nothing moves", async () => {
     const { ownerId, otherId, get, start } = await setup(60_000);
-    await expect(start("sess-other")).rejects.toThrow(/owned by session jx7aaaa[\s\S]*cast send jx7aaaa[\s\S]*--take/);
+    await expect(start("sess-other")).rejects.toThrow(
+      /owned by session jx7aaaa[\s\S]*cast send jx7aaaa[\s\S]*--take/,
+    );
     expect(String((await get(ownerId)).active_task_id)).not.toBe("undefined");
     expect((await get(otherId)).active_task_id).toBeUndefined();
   });
@@ -62,17 +102,25 @@ describe("one owning session per task", () => {
   test("--take moves the binding, names the working owner, and leaves a note on the task", async () => {
     const { t, ownerId, otherId, taskId, get, start } = await setup(60_000);
     const out: any = await start("sess-other", "ct-1", true);
-    expect(out.released_owners).toEqual([{ short_id: "jx7aaaa", title: "session jx7aaaa", live: true }]);
+    expect(out.released_owners).toEqual([
+      { short_id: "jx7aaaa", title: "session jx7aaaa", live: true },
+    ]);
     expect((await get(ownerId)).active_task_id).toBeUndefined();
     expect(String((await get(otherId)).active_task_id)).toBe(String(taskId));
-    const notes = await t.run(async (ctx) => await ctx.db.query("task_comments").collect());
-    expect(notes.map((c: any) => c.text)).toEqual(["Session jx7bbbb took over as owner from jx7aaaa."]);
+    const notes = await t.run(
+      async (ctx) => await ctx.db.query("task_comments").collect(),
+    );
+    expect(notes.map((c: any) => c.text)).toEqual([
+      "Session jx7bbbb took over as owner from jx7aaaa.",
+    ]);
   });
 
   test("a quiet owner is released without asking", async () => {
     const { ownerId, otherId, taskId, get, start } = await setup(3 * HOUR);
     const out: any = await start("sess-other");
-    expect(out.released_owners).toEqual([{ short_id: "jx7aaaa", title: "session jx7aaaa", live: false }]);
+    expect(out.released_owners).toEqual([
+      { short_id: "jx7aaaa", title: "session jx7aaaa", live: false },
+    ]);
     expect((await get(ownerId)).active_task_id).toBeUndefined();
     expect(String((await get(otherId)).active_task_id)).toBe(String(taskId));
   });
@@ -86,15 +134,28 @@ describe("one owning session per task", () => {
   test("a start moves the session's own focus off the task it held before", async () => {
     const { ownerId, elsewhereId, get, start } = await setup(60_000);
     await start("sess-owner", "ct-2");
-    expect(String((await get(ownerId)).active_task_id)).toBe(String(elsewhereId));
+    expect(String((await get(ownerId)).active_task_id)).toBe(
+      String(elsewhereId),
+    );
   });
 });
 
 describe("a person's comment reaches the session that owns the task", () => {
   const comment = (t: any, text: string, conversation_id?: string) =>
-    t.mutation(api.tasks.addComment, { api_token: TOKEN, short_id: "ct-1", text, ...(conversation_id ? { conversation_id } : {}) });
-  const pending = (t: any) => t.run(async (ctx: any) => await ctx.db.query("pending_messages").collect()) as Promise<any[]>;
-  const comments = (t: any) => t.run(async (ctx: any) => await ctx.db.query("task_comments").collect()) as Promise<any[]>;
+    t.mutation(api.tasks.addComment, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      text,
+      ...(conversation_id ? { conversation_id } : {}),
+    });
+  const pending = (t: any) =>
+    t.run(
+      async (ctx: any) => await ctx.db.query("pending_messages").collect(),
+    ) as Promise<any[]>;
+  const comments = (t: any) =>
+    t.run(
+      async (ctx: any) => await ctx.db.query("task_comments").collect(),
+    ) as Promise<any[]>;
 
   test("a working owner gets it framed with the task, and the comment says where it went", async () => {
     const { t, ownerId } = await setup(60_000);
@@ -102,10 +163,22 @@ describe("a person's comment reaches the session that owns the task", () => {
     const rows = await pending(t);
     expect(rows).toHaveLength(1);
     expect(String(rows[0].conversation_id)).toBe(String(ownerId));
-    expect(rows[0].content).toBe(formatTaskCommentMessage({ task: "ct-1", title: "task ct-1", from: "Owner", body: "Use the store row, not the snapshot" }));
+    expect(rows[0].content).toBe(
+      formatTaskCommentMessage({
+        task: "ct-1",
+        title: "task ct-1",
+        from: "Owner",
+        body: "Use the store row, not the snapshot",
+      }),
+    );
     const [c] = await comments(t);
     expect(String(c.delivered_to_conversation_id)).toBe(String(ownerId));
-    expect(parseTaskCommentMessage(rows[0].content)).toEqual({ task: "ct-1", from: "Owner", about: 'About ct-1 ("task ct-1"):', body: "Use the store row, not the snapshot" });
+    expect(parseTaskCommentMessage(rows[0].content)).toEqual({
+      task: "ct-1",
+      from: "Owner",
+      about: 'About ct-1 ("task ct-1"):',
+      body: "Use the store row, not the snapshot",
+    });
   });
 
   test("a quiet owner is left alone; the comment waits on the task", async () => {
@@ -123,27 +196,50 @@ describe("a person's comment reaches the session that owns the task", () => {
 });
 
 describe("the session a task's change came from (change_session on /cli/work/get)", () => {
-  const changeSession = async (t: any) => (await t.query(api.tasks.get, { api_token: TOKEN, short_id: "ct-1" }))?.change_session;
-  const handoff = (t: any, taskId: any, convId: any, at: number) => t.run(async (ctx: any) => {
-    await ctx.db.insert("task_comments", { task_id: taskId, author: "Owner", text: "Handoff: done\n\nverified", comment_type: "review", conversation_id: convId, created_at: at } as any);
-  });
+  const changeSession = async (t: any) =>
+    (await t.query(api.tasks.get, { api_token: TOKEN, short_id: "ct-1" }))
+      ?.change_session;
+  const handoff = (t: any, taskId: any, convId: any, at: number) =>
+    t.run(async (ctx: any) => {
+      await ctx.db.insert("task_comments", {
+        task_id: taskId,
+        author: "Owner",
+        text: "Handoff: done\n\nverified",
+        comment_type: "review",
+        conversation_id: convId,
+        created_at: at,
+      } as any);
+    });
 
   test("the session bound to the task", async () => {
     const { t, ownerId } = await setup(60_000);
-    expect(await changeSession(t)).toEqual({ short_id: "jx7aaaa", conversation_id: ownerId });
+    expect(await changeSession(t)).toEqual({
+      short_id: "jx7aaaa",
+      conversation_id: ownerId,
+    });
   });
 
   test("a session that handed the task off and moved to other work still owns its change", async () => {
     const { t, ownerId, otherId, taskId, elsewhereId } = await setup(60_000);
-    await t.run(async (ctx) => { await ctx.db.patch(ownerId, { active_task_id: elsewhereId } as any); });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ownerId, { active_task_id: elsewhereId } as any);
+    });
     await handoff(t, taskId, otherId, Date.now() - HOUR);
     await handoff(t, taskId, ownerId, Date.now());
-    expect(await changeSession(t)).toEqual({ short_id: "jx7aaaa", conversation_id: ownerId });
+    expect(await changeSession(t)).toEqual({
+      short_id: "jx7aaaa",
+      conversation_id: ownerId,
+    });
   });
 
   test("none when nobody holds it and the session that handed it off was killed", async () => {
     const { t, ownerId, taskId, elsewhereId } = await setup(60_000);
-    await t.run(async (ctx) => { await ctx.db.patch(ownerId, { active_task_id: elsewhereId, inbox_killed_at: Date.now() } as any); });
+    await t.run(async (ctx) => {
+      await ctx.db.patch(ownerId, {
+        active_task_id: elsewhereId,
+        inbox_killed_at: Date.now(),
+      } as any);
+    });
     await handoff(t, taskId, ownerId, Date.now());
     expect(await changeSession(t)).toBeNull();
   });

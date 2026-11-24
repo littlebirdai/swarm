@@ -98,7 +98,9 @@ beforeEach(() => {
 
 describe("parseCapabilityEntries", () => {
   it("reads the envelope the server actually stores", () => {
-    const parsed = parseCapabilityEntries(stateRow("r1", "d1", [entry("pdf"), entry("sql")]));
+    const parsed = parseCapabilityEntries(
+      stateRow("r1", "d1", [entry("pdf"), entry("sql")]),
+    );
     expect(parsed.entries.map((e) => e.name)).toEqual(["pdf", "sql"]);
     expect(parsed.unreadableEntries).toBe(0);
     expect(parsed.unreadable).toBe(false);
@@ -121,7 +123,10 @@ describe("parseCapabilityEntries", () => {
   it("keeps the marketplaces the envelope carries", () => {
     const parsed = parseCapabilityEntries(
       stateRow("r1", "d1", [entry("pdf")], {
-        marketplaces: [{ name: "official", repo: "anthropics/marketplace", scope: "user" }, { repo: "no-name" }],
+        marketplaces: [
+          { name: "official", repo: "anthropics/marketplace", scope: "user" },
+          { repo: "no-name" },
+        ],
       }),
     );
     expect(parsed.marketplaces).toEqual([
@@ -133,16 +138,25 @@ describe("parseCapabilityEntries", () => {
   });
 
   it("tells an empty scope apart from one it could not read", () => {
-    const empty = parseCapabilityEntries({ ...stateRow("r1", "d1", []), entry_count: 0 });
+    const empty = parseCapabilityEntries({
+      ...stateRow("r1", "d1", []),
+      entry_count: 0,
+    });
     expect(empty.entries).toEqual([]);
     expect(empty.unreadable).toBe(false);
     expect(empty.withheld).toBe(false);
 
-    const broken = parseCapabilityEntries({ ...stateRow("r2", "d1", []), entries_json: "{oops" });
+    const broken = parseCapabilityEntries({
+      ...stateRow("r2", "d1", []),
+      entries_json: "{oops",
+    });
     expect(broken.unreadable).toBe(true);
 
     // Valid JSON with no items array is just as unreadable as invalid JSON.
-    const wrongShape = parseCapabilityEntries({ ...stateRow("r3", "d1", []), entries_json: '{"a":1}' });
+    const wrongShape = parseCapabilityEntries({
+      ...stateRow("r3", "d1", []),
+      entries_json: '{"a":1}',
+    });
     expect(wrongShape.unreadable).toBe(true);
   });
 
@@ -177,7 +191,14 @@ describe("parseCapabilityEntries", () => {
 
   it("drops the entries it cannot read and counts them, keeping the rest", () => {
     const parsed = parseCapabilityEntries(
-      stateRow("r1", "d1", [entry("pdf"), null, { name: "no-kind" }, { kind: "skill" }, 7, entry("sql")]),
+      stateRow("r1", "d1", [
+        entry("pdf"),
+        null,
+        { name: "no-kind" },
+        { kind: "skill" },
+        7,
+        entry("sql"),
+      ]),
     );
     expect(parsed.entries.map((e) => e.name)).toEqual(["pdf", "sql"]);
     expect(parsed.unreadableEntries).toBe(4);
@@ -187,7 +208,9 @@ describe("parseCapabilityEntries", () => {
   it("accepts a kind the shared enum has not learned yet", () => {
     // Forward compatibility is the point: a machine already reporting a new kind
     // must render, not vanish, on a client shipped before the enum grew.
-    const parsed = parseCapabilityEntries(stateRow("r1", "d1", [entry("thing", { kind: "gadget" })]));
+    const parsed = parseCapabilityEntries(
+      stateRow("r1", "d1", [entry("thing", { kind: "gadget" })]),
+    );
     expect(parsed.entries).toHaveLength(1);
     expect(parsed.entries[0].kind).toBe("gadget");
   });
@@ -198,7 +221,13 @@ describe("parseCapabilityEntries", () => {
     expect(parseCapabilityEntries(row)).toBe(first);
 
     // The sync layer hands back a NEW object when a field moved.
-    const changed = { ...row, entries_json: JSON.stringify({ items: [entry("pdf"), entry("sql")], marketplaces: [] }) };
+    const changed = {
+      ...row,
+      entries_json: JSON.stringify({
+        items: [entry("pdf"), entry("sql")],
+        marketplaces: [],
+      }),
+    };
     const second = parseCapabilityEntries(changed);
     expect(second).not.toBe(first);
     expect(second.entries).toHaveLength(2);
@@ -216,7 +245,11 @@ describe("parseCapabilityEntries", () => {
     for (const row of [
       { ...stateRow("r1", "d1", []), entries_json: undefined, entry_count: 0 },
       { ...stateRow("r2", "d1", []), entries_json: "{oops" },
-      { ...stateRow("r3", "d1", []), entries_json: undefined, entries_omitted: true },
+      {
+        ...stateRow("r3", "d1", []),
+        entries_json: undefined,
+        entries_omitted: true,
+      },
     ]) {
       const parsed = parseCapabilityEntries(row);
       expect(() => (parsed.entries as any).push(entry("ghost"))).toThrow();
@@ -230,25 +263,40 @@ describe("capability identity", () => {
   it("composes a plugin's marketplace into its identity", () => {
     // Two plugins of the same bare name from different marketplaces are two
     // different things and must not collide into one row.
-    expect(capabilityIdentity("plugin", "deploy", { marketplace: "official" })).toBe("deploy@official");
-    expect(capabilityIdentity("plugin", "deploy@official", { marketplace: "other" })).toBe("deploy@official");
+    expect(
+      capabilityIdentity("plugin", "deploy", { marketplace: "official" }),
+    ).toBe("deploy@official");
+    expect(
+      capabilityIdentity("plugin", "deploy@official", { marketplace: "other" }),
+    ).toBe("deploy@official");
     expect(capabilityIdentity("plugin", "deploy")).toBe("deploy");
     // Everything else is already the name the ecosystem uses.
-    expect(capabilityIdentity("skill", "pdf", { marketplace: "official" })).toBe("pdf");
+    expect(
+      capabilityIdentity("skill", "pdf", { marketplace: "official" }),
+    ).toBe("pdf");
     expect(capabilityIdentity("skill", "   ")).toBeUndefined();
   });
 
   it("folds case into the key and not into the display identity", () => {
-    expect(capabilityRowKey("skill", "Domain-Search")).toBe("skill:domain-search");
+    expect(capabilityRowKey("skill", "Domain-Search")).toBe(
+      "skill:domain-search",
+    );
   });
 
   it("keeps two marketplaces' plugins on separate rows", () => {
     const state = collection(
-      stateRow("r1", "laptop", [plugin("deploy", { meta: { marketplace: "official" } })]),
-      stateRow("r2", "desktop", [plugin("deploy", { meta: { marketplace: "scratch" } })]),
+      stateRow("r1", "laptop", [
+        plugin("deploy", { meta: { marketplace: "official" } }),
+      ]),
+      stateRow("r2", "desktop", [
+        plugin("deploy", { meta: { marketplace: "scratch" } }),
+      ]),
     );
     const rows = selectCapabilityDrift(state);
-    expect(rows.map((r) => r.identity).sort()).toEqual(["deploy@official", "deploy@scratch"]);
+    expect(rows.map((r) => r.identity).sort()).toEqual([
+      "deploy@official",
+      "deploy@scratch",
+    ]);
   });
 
   it("treats two spellings of one skill as one row rather than inventing drift", () => {
@@ -277,7 +325,9 @@ describe("capability wake signatures", () => {
   it("flips when the inventory hash moves", () => {
     const base = stateRow("r1", "d1", [entry("pdf")]);
     const changed = { ...base, entries_hash: "h-different" };
-    expect(capabilityStateRowSig(changed)).not.toBe(capabilityStateRowSig(base));
+    expect(capabilityStateRowSig(changed)).not.toBe(
+      capabilityStateRowSig(base),
+    );
   });
 
   it("flips on an error, a conflict, a client version and an applied revision", () => {
@@ -288,25 +338,41 @@ describe("capability wake signatures", () => {
       { client_version: "2.1.220" },
       { applied_revision: 4 },
     ]) {
-      expect(capabilityStateRowSig({ ...base, ...patch })).not.toBe(capabilityStateRowSig(base));
+      expect(capabilityStateRowSig({ ...base, ...patch })).not.toBe(
+        capabilityStateRowSig(base),
+      );
     }
   });
 
   it("flips when a payload is withheld, so the view stops drawing a full machine", () => {
     const base = stateRow("r1", "d1", [entry("pdf")]);
-    const withheld: CapabilityStateRow = { ...base, entries_json: undefined, entries_omitted: true };
-    expect(capabilityStateRowSig(withheld)).not.toBe(capabilityStateRowSig(base));
+    const withheld: CapabilityStateRow = {
+      ...base,
+      entries_json: undefined,
+      entries_omitted: true,
+    };
+    expect(capabilityStateRowSig(withheld)).not.toBe(
+      capabilityStateRowSig(base),
+    );
   });
 
   it("falls back to the raw payload when a row carries no hash", () => {
     // An older daemon's row: the cheap proxy is gone, so the whole string goes in
     // rather than letting a content change pass unnoticed.
-    const base: CapabilityStateRow = { ...stateRow("r1", "d1", [entry("pdf")]), entries_hash: undefined };
+    const base: CapabilityStateRow = {
+      ...stateRow("r1", "d1", [entry("pdf")]),
+      entries_hash: undefined,
+    };
     const changed: CapabilityStateRow = {
       ...base,
-      entries_json: JSON.stringify({ items: [entry("pdf"), entry("sql")], marketplaces: [] }),
+      entries_json: JSON.stringify({
+        items: [entry("pdf"), entry("sql")],
+        marketplaces: [],
+      }),
     };
-    expect(capabilityStateRowSig(changed)).not.toBe(capabilityStateRowSig(base));
+    expect(capabilityStateRowSig(changed)).not.toBe(
+      capabilityStateRowSig(base),
+    );
   });
 
   it("survives a hashless row whose payload never arrived", () => {
@@ -319,7 +385,9 @@ describe("capability wake signatures", () => {
   });
 
   it("collection signature memoizes on the map ref and notices rows arriving", () => {
-    const map: Record<string, CapabilityStateRow> = { r1: stateRow("r1", "d1", [entry("pdf")]) };
+    const map: Record<string, CapabilityStateRow> = {
+      r1: stateRow("r1", "d1", [entry("pdf")]),
+    };
     const sig = capabilityStateWakeSig(map);
     expect(capabilityStateWakeSig(map)).toBe(sig);
 
@@ -351,7 +419,10 @@ describe("device rollups", () => {
   it("counts a capability once however many clients and scopes report it", () => {
     const state = collection(
       stateRow("r1", "d1", [entry("pdf")]),
-      stateRow("r2", "d1", [entry("pdf")], { client: "codex", scope_key: "git:github.com/a/b" }),
+      stateRow("r2", "d1", [entry("pdf")], {
+        client: "codex",
+        scope_key: "git:github.com/a/b",
+      }),
     );
     const rollup = selectDeviceCapabilityRollup(state, "d1")!;
     expect(rollup.rowCount).toBe(2);
@@ -366,7 +437,9 @@ describe("device rollups", () => {
   it("reads a skill with no installed flag as working, not as a broken install", () => {
     // `installed` is plugins only. Reading it as a boolean marks every skill on
     // every machine as broken and reports the whole fleet as drifting.
-    const state = collection(stateRow("r1", "d1", [entry("pdf"), entry("sql"), entry("docx")]));
+    const state = collection(
+      stateRow("r1", "d1", [entry("pdf"), entry("sql"), entry("docx")]),
+    );
     const rollup = selectDeviceCapabilityRollup(state, "d1")!;
     expect(rollup.active).toBe(3);
     expect(rollup.broken).toBe(0);
@@ -392,7 +465,10 @@ describe("device rollups", () => {
         plugin("live"),
         plugin("never-fetched", { installed: false }),
         plugin("switched-off", { enabled: false }),
-        plugin("declared-off-never-fetched", { enabled: false, installed: false }),
+        plugin("declared-off-never-fetched", {
+          enabled: false,
+          installed: false,
+        }),
       ]),
     );
     const rollup = selectDeviceCapabilityRollup(state, "d1")!;
@@ -427,7 +503,10 @@ describe("device rollups", () => {
   it("does not count an empty conflict payload as a conflict", () => {
     const state = collection(
       stateRow("r1", "d1", [entry("pdf")], { conflicts_json: "[]" }),
-      stateRow("r2", "d1", [entry("sql")], { conflicts_json: '[{"path":"x"}]', client: "codex" }),
+      stateRow("r2", "d1", [entry("sql")], {
+        conflicts_json: '[{"path":"x"}]',
+        client: "codex",
+      }),
     );
     expect(selectDeviceCapabilityRollup(state, "d1")!.conflictRows).toBe(1);
   });
@@ -435,7 +514,10 @@ describe("device rollups", () => {
   it("counts unreadable rows, unread entries and the server's own truncation apart", () => {
     const state = collection(
       { ...stateRow("r1", "d1", []), entries_json: "{oops" },
-      stateRow("r2", "d1", [entry("pdf"), { kind: "skill" }], { client: "codex", dropped_count: 12 }),
+      stateRow("r2", "d1", [entry("pdf"), { kind: "skill" }], {
+        client: "codex",
+        dropped_count: 12,
+      }),
     );
     const rollup = selectDeviceCapabilityRollup(state, "d1")!;
     expect(rollup.unreadableRows).toBe(1);
@@ -461,11 +543,13 @@ describe("device rollups", () => {
   });
 
   it("ignores a row with no device and answers nothing for an unknown device", () => {
-    const state = collection(
-      stateRow("r1", "d1", [entry("pdf")]),
-      { ...stateRow("r2", "d1", [entry("sql")]), device_id: "" },
-    );
-    expect(selectCapabilityRollups(state).map((r) => r.deviceId)).toEqual(["d1"]);
+    const state = collection(stateRow("r1", "d1", [entry("pdf")]), {
+      ...stateRow("r2", "d1", [entry("sql")]),
+      device_id: "",
+    });
+    expect(selectCapabilityRollups(state).map((r) => r.deviceId)).toEqual([
+      "d1",
+    ]);
     expect(selectDeviceCapabilityRollup(state, "nope")).toBeUndefined();
     expect(selectDeviceCapabilityRollup(state, "")).toBeUndefined();
   });
@@ -475,7 +559,10 @@ describe("device rollups", () => {
       stateRow("r1", "dz", [entry("pdf")]),
       stateRow("r2", "da", [entry("pdf")]),
     );
-    expect(selectCapabilityRollups(state).map((r) => r.deviceId)).toEqual(["da", "dz"]);
+    expect(selectCapabilityRollups(state).map((r) => r.deviceId)).toEqual([
+      "da",
+      "dz",
+    ]);
   });
 });
 
@@ -504,7 +591,9 @@ describe("drift across the fleet", () => {
       stateRow("r1", "laptop", [entry("pdf")]),
       stateRow("r2", "desktop", [entry("pdf")]),
     );
-    expect(selectCapabilityDrift(state).every((r) => r.status === "in_sync")).toBe(true);
+    expect(
+      selectCapabilityDrift(state).every((r) => r.status === "in_sync"),
+    ).toBe(true);
     expect(selectCapabilityDriftCount(state)).toBe(0);
   });
 
@@ -544,7 +633,9 @@ describe("drift across the fleet", () => {
   });
 
   it("gives no verdict at all on a fleet of one", () => {
-    const state = collection(stateRow("r1", "laptop", [entry("pdf"), entry("sql")]));
+    const state = collection(
+      stateRow("r1", "laptop", [entry("pdf"), entry("sql")]),
+    );
     const index = selectCapabilityIndex(state);
     expect(index.comparable).toBe(false);
     expect(index.drift.every((r) => r.status === "not_comparable")).toBe(true);
@@ -553,7 +644,9 @@ describe("drift across the fleet", () => {
 
   it("still names a broken install on a fleet of one", () => {
     // There is nothing to compare and there is still something to fix.
-    const state = collection(stateRow("r1", "laptop", [plugin("pdf", { installed: false })]));
+    const state = collection(
+      stateRow("r1", "laptop", [plugin("pdf", { installed: false })]),
+    );
     const index = selectCapabilityIndex(state);
     expect(index.comparable).toBe(false);
     expect(index.drift[0].status).toBe("not_comparable");
@@ -607,7 +700,10 @@ describe("drift across the fleet", () => {
       stateRow("r1", "laptop", [{ kind: "skill", name: "pdf", scope: "user" }]),
       stateRow("r2", "desktop", [entry("pdf")]),
     );
-    expect(selectCapabilityDrift(state)[0].activeOn).toEqual(["desktop", "laptop"]);
+    expect(selectCapabilityDrift(state)[0].activeOn).toEqual([
+      "desktop",
+      "laptop",
+    ]);
   });
 
   it("keeps a partly readable machine in the comparison, and says it is partial", () => {
@@ -633,9 +729,15 @@ describe("drift across the fleet", () => {
 
   it("puts a plugin's commit sha on the second axis", () => {
     const state = collection(
-      stateRow("r1", "laptop", [plugin("deploy", { meta: { marketplace: "official", sha: "aaa" } })]),
-      stateRow("r2", "desktop", [plugin("deploy", { meta: { marketplace: "official", sha: "aaa" } })]),
-      stateRow("r3", "m1", [plugin("deploy", { meta: { marketplace: "official", sha: "bbb" } })]),
+      stateRow("r1", "laptop", [
+        plugin("deploy", { meta: { marketplace: "official", sha: "aaa" } }),
+      ]),
+      stateRow("r2", "desktop", [
+        plugin("deploy", { meta: { marketplace: "official", sha: "aaa" } }),
+      ]),
+      stateRow("r3", "m1", [
+        plugin("deploy", { meta: { marketplace: "official", sha: "bbb" } }),
+      ]),
     );
     const row = selectCapabilityDrift(state)[0];
     expect(row.identity).toBe("deploy@official");
@@ -653,10 +755,16 @@ describe("drift across the fleet", () => {
     // same server; comparing those reports drift on a synchronised fleet.
     const state = collection(
       stateRow("r1", "laptop", [
-        entry("db", { kind: "mcp", meta: { command: "node /Users/ashot/mcp/db.js" } }),
+        entry("db", {
+          kind: "mcp",
+          meta: { command: "node /Users/ashot/mcp/db.js" },
+        }),
       ]),
       stateRow("r2", "desktop", [
-        entry("db", { kind: "mcp", meta: { command: "node /home/build/mcp/db.js" } }),
+        entry("db", {
+          kind: "mcp",
+          meta: { command: "node /home/build/mcp/db.js" },
+        }),
       ]),
     );
     const row = selectCapabilityDrift(state)[0];
@@ -667,9 +775,15 @@ describe("drift across the fleet", () => {
 
   it("counts a remote MCP server's url as a pin, trailing slash and all", () => {
     const state = collection(
-      stateRow("r1", "laptop", [entry("api", { kind: "mcp", meta: { url: "https://x.dev/mcp/" } })]),
-      stateRow("r2", "desktop", [entry("api", { kind: "mcp", meta: { url: "https://x.dev/mcp" } })]),
-      stateRow("r3", "m1", [entry("api", { kind: "mcp", meta: { url: "https://old.dev/mcp" } })]),
+      stateRow("r1", "laptop", [
+        entry("api", { kind: "mcp", meta: { url: "https://x.dev/mcp/" } }),
+      ]),
+      stateRow("r2", "desktop", [
+        entry("api", { kind: "mcp", meta: { url: "https://x.dev/mcp" } }),
+      ]),
+      stateRow("r3", "m1", [
+        entry("api", { kind: "mcp", meta: { url: "https://old.dev/mcp" } }),
+      ]),
     );
     const row = selectCapabilityDrift(state)[0];
     expect(row.pins).toEqual(["https://old.dev/mcp", "https://x.dev/mcp"]);
@@ -678,9 +792,14 @@ describe("drift across the fleet", () => {
 
   it("folds marketplaces into the same grid, because they explain missing plugins", () => {
     const state = collection(
-      stateRow("r1", "laptop", [plugin("deploy", { meta: { marketplace: "official" } })], {
-        marketplaces: [{ name: "official", repo: "anthropics/marketplace" }],
-      }),
+      stateRow(
+        "r1",
+        "laptop",
+        [plugin("deploy", { meta: { marketplace: "official" } })],
+        {
+          marketplaces: [{ name: "official", repo: "anthropics/marketplace" }],
+        },
+      ),
       stateRow("r2", "desktop", [], { marketplaces: [] }),
     );
     const rows = selectCapabilityDrift(state);
@@ -697,7 +816,9 @@ describe("drift across the fleet", () => {
     // Keying on it would split one capability into two rows the moment matching
     // lands on one machine and not yet on another.
     const state = collection(
-      stateRow("r1", "laptop", [entry("pdf", { slug: "mkt/official/pdf", description: "Read PDFs" })]),
+      stateRow("r1", "laptop", [
+        entry("pdf", { slug: "mkt/official/pdf", description: "Read PDFs" }),
+      ]),
       stateRow("r2", "desktop", [entry("pdf")]),
     );
     const rows = selectCapabilityDrift(state);
@@ -711,10 +832,19 @@ describe("drift across the fleet", () => {
 
   it("keeps a kind-and-name entry apart from an unrelated kind of the same name", () => {
     const state = collection(
-      stateRow("r1", "laptop", [entry("deploy"), entry("deploy", { kind: "subagent" })]),
-      stateRow("r2", "desktop", [entry("deploy"), entry("deploy", { kind: "subagent" })]),
+      stateRow("r1", "laptop", [
+        entry("deploy"),
+        entry("deploy", { kind: "subagent" }),
+      ]),
+      stateRow("r2", "desktop", [
+        entry("deploy"),
+        entry("deploy", { kind: "subagent" }),
+      ]),
     );
-    expect(selectCapabilityDrift(state).map((r) => r.key)).toEqual(["skill:deploy", "subagent:deploy"]);
+    expect(selectCapabilityDrift(state).map((r) => r.key)).toEqual([
+      "skill:deploy",
+      "subagent:deploy",
+    ]);
   });
 
   it("records which clients saw it", () => {
@@ -722,12 +852,20 @@ describe("drift across the fleet", () => {
       stateRow("r1", "laptop", [entry("pdf")]),
       stateRow("r2", "laptop", [entry("pdf")], { client: "codex" }),
     );
-    expect(selectCapabilityDrift(state)[0].clients).toEqual(["claude_code", "codex"]);
+    expect(selectCapabilityDrift(state)[0].clients).toEqual([
+      "claude_code",
+      "codex",
+    ]);
   });
 
   it("orders rows by key so a list does not reshuffle on every push", () => {
-    const state = collection(stateRow("r1", "laptop", [entry("zeta"), entry("alpha")]));
-    expect(selectCapabilityDrift(state).map((r) => r.identity)).toEqual(["alpha", "zeta"]);
+    const state = collection(
+      stateRow("r1", "laptop", [entry("zeta"), entry("alpha")]),
+    );
+    expect(selectCapabilityDrift(state).map((r) => r.identity)).toEqual([
+      "alpha",
+      "zeta",
+    ]);
   });
 });
 
@@ -748,7 +886,10 @@ describe("derived values stay derived", () => {
     const first = selectCapabilityIndex(state);
     expect(selectCapabilityIndex(state)).toBe(first);
 
-    const next = collection(stateRow("r1", "d1", [entry("pdf")]), stateRow("r2", "d2", [entry("pdf")]));
+    const next = collection(
+      stateRow("r1", "d1", [entry("pdf")]),
+      stateRow("r2", "d2", [entry("pdf")]),
+    );
     const second = selectCapabilityIndex(next);
     expect(second).not.toBe(first);
     expect(second.deviceIds).toEqual(["d1", "d2"]);
@@ -766,10 +907,16 @@ describe("selectDeviceCapabilityRows", () => {
   it("returns one machine's rows, newest report first", () => {
     const state = collection(
       stateRow("r1", "d1", [entry("pdf")], { reported_at: 1_000 }),
-      stateRow("r2", "d1", [entry("sql")], { reported_at: 9_000, client: "codex" }),
+      stateRow("r2", "d1", [entry("sql")], {
+        reported_at: 9_000,
+        client: "codex",
+      }),
       stateRow("r3", "d2", [entry("pdf")]),
     );
-    expect(selectDeviceCapabilityRows(state, "d1").map((r) => r._id)).toEqual(["r2", "r1"]);
+    expect(selectDeviceCapabilityRows(state, "d1").map((r) => r._id)).toEqual([
+      "r2",
+      "r1",
+    ]);
     expect(selectDeviceCapabilityRows(state, "nope")).toEqual([]);
     expect(selectDeviceCapabilityRows(state, "")).toEqual([]);
   });
@@ -780,7 +927,11 @@ describe("selectDeviceCapabilityRows", () => {
       stateRow("r2", "d1", [], { client: "claude_code", scope_key: "b" }),
       stateRow("r3", "d1", [], { client: "claude_code", scope_key: "a" }),
     );
-    expect(selectDeviceCapabilityRows(state, "d1").map((r) => r._id)).toEqual(["r3", "r2", "r1"]);
+    expect(selectDeviceCapabilityRows(state, "d1").map((r) => r._id)).toEqual([
+      "r3",
+      "r2",
+      "r1",
+    ]);
   });
 });
 
@@ -789,20 +940,31 @@ describe("selectDeviceCapabilityRows", () => {
 describe("isCapabilityReportStale", () => {
   it("takes the clock as an argument so a coarse ticker can drive it", () => {
     const row = { reported_at: 1_000_000 };
-    expect(isCapabilityReportStale(row, 1_000_000 + CAPABILITY_REPORT_STALE_MS - 1)).toBe(false);
-    expect(isCapabilityReportStale(row, 1_000_000 + CAPABILITY_REPORT_STALE_MS + 1)).toBe(true);
+    expect(
+      isCapabilityReportStale(row, 1_000_000 + CAPABILITY_REPORT_STALE_MS - 1),
+    ).toBe(false);
+    expect(
+      isCapabilityReportStale(row, 1_000_000 + CAPABILITY_REPORT_STALE_MS + 1),
+    ).toBe(true);
   });
 
   it("treats a row it cannot date as stale, never as fresh", () => {
     expect(isCapabilityReportStale(undefined, 1)).toBe(true);
-    expect(isCapabilityReportStale({ reported_at: undefined } as any, 1)).toBe(true);
+    expect(isCapabilityReportStale({ reported_at: undefined } as any, 1)).toBe(
+      true,
+    );
   });
 });
 
 // ── Catalog cache ───────────────────────────────────────────────────────────
 
 describe("catalog cache", () => {
-  const cap = (slug: string) => ({ slug, kind: "skill" as const, source: "marketplace" as const, name: slug });
+  const cap = (slug: string) => ({
+    slug,
+    kind: "skill" as const,
+    source: "marketplace" as const,
+    name: slug,
+  });
 
   function draft(): CapabilitySliceData {
     return { capabilityState: {}, capabilityCatalog: EMPTY_CAPABILITY_CATALOG };
@@ -819,7 +981,10 @@ describe("catalog cache", () => {
   it("keeps a page in delivery order", () => {
     const state = draft();
     cache(state, "q:skills", [cap("a"), cap("b")]);
-    expect(selectCachedCatalog(state, "q:skills").map((e) => e.slug)).toEqual(["a", "b"]);
+    expect(selectCachedCatalog(state, "q:skills").map((e) => e.slug)).toEqual([
+      "a",
+      "b",
+    ]);
     expect(state.capabilityCatalog.fetchedAt).toBeGreaterThan(0);
   });
 
@@ -827,7 +992,11 @@ describe("catalog cache", () => {
     const state = draft();
     cache(state, "q", [cap("a"), cap("b")]);
     cache(state, "q", [cap("b"), cap("c")]);
-    expect(selectCachedCatalog(state, "q").map((e) => e.slug)).toEqual(["b", "c", "a"]);
+    expect(selectCachedCatalog(state, "q").map((e) => e.slug)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
   });
 
   it("does not answer one query with another query's page", () => {
@@ -837,13 +1006,17 @@ describe("catalog cache", () => {
 
     cache(state, "q:mcp", [cap("z")]);
     // Switching the filter drops the old page rather than blending the two.
-    expect(selectCachedCatalog(state, "q:mcp").map((e) => e.slug)).toEqual(["z"]);
+    expect(selectCachedCatalog(state, "q:mcp").map((e) => e.slug)).toEqual([
+      "z",
+    ]);
     expect(state.capabilityCatalog.entries.a).toBeUndefined();
   });
 
   it("evicts the least recently delivered rows at the cap", () => {
     const state = draft();
-    const first = Array.from({ length: CAPABILITY_CATALOG_CACHE_MAX }, (_, i) => cap(`s${i}`));
+    const first = Array.from({ length: CAPABILITY_CATALOG_CACHE_MAX }, (_, i) =>
+      cap(`s${i}`),
+    );
     cache(state, "q", first);
     cache(state, "q", [cap("fresh")]);
 
@@ -853,12 +1026,19 @@ describe("catalog cache", () => {
     // The oldest delivery is gone from the index AND from the entries map, so
     // the cache cannot grow past the cap on disk either.
     expect(slugs).not.toContain(`s${CAPABILITY_CATALOG_CACHE_MAX - 1}`);
-    expect(state.capabilityCatalog.entries[`s${CAPABILITY_CATALOG_CACHE_MAX - 1}`]).toBeUndefined();
+    expect(
+      state.capabilityCatalog.entries[`s${CAPABILITY_CATALOG_CACHE_MAX - 1}`],
+    ).toBeUndefined();
   });
 
   it("refuses a row it cannot key", () => {
     const state = draft();
-    cache(state, "q", [cap("a"), { kind: "skill", name: "no slug" }, { slug: "" }, null]);
+    cache(state, "q", [
+      cap("a"),
+      { kind: "skill", name: "no slug" },
+      { slug: "" },
+      null,
+    ]);
     expect(selectCachedCatalog(state, "q").map((e) => e.slug)).toEqual(["a"]);
   });
 
@@ -903,7 +1083,9 @@ describe("registry fragments", () => {
     // reported_at stays in the identity compare on purpose: excluding it would
     // freeze each row's own "last reported" stamp. The churn is handled in the
     // wake signature instead.
-    expect((CAPABILITY_SYNC_REGISTRY.capabilityState as any).ignoreFields).toBeUndefined();
+    expect(
+      (CAPABILITY_SYNC_REGISTRY.capabilityState as any).ignoreFields,
+    ).toBeUndefined();
     // The catalog is written by a named action, never by syncTable.
     expect((CAPABILITY_SYNC_REGISTRY as any).capabilityCatalog).toBeUndefined();
   });
@@ -918,7 +1100,10 @@ describe("registry fragments", () => {
 
   it("persists both keys, deferred, and protects neither", () => {
     const state = CAPABILITY_CLIENT_SYNC_REGISTRY.capabilityState;
-    expect(state.persistence).toEqual({ kind: "collection", key: "capabilityState" });
+    expect(state.persistence).toEqual({
+      kind: "collection",
+      key: "capabilityState",
+    });
     expect(state.hydration).toEqual({ phase: "deferred" });
     // A machine's report is never a local write, so field protection could only
     // ever mask the truth with a guess.
@@ -926,13 +1111,18 @@ describe("registry fragments", () => {
     expect((state as any).dispatchTable).toBeUndefined();
 
     const catalog = CAPABILITY_CLIENT_SYNC_REGISTRY.capabilityCatalog;
-    expect(catalog.persistence).toEqual({ kind: "meta", key: "capabilityCatalog" });
+    expect(catalog.persistence).toEqual({
+      kind: "meta",
+      key: "capabilityCatalog",
+    });
     expect(catalog.hydration).toEqual({ phase: "deferred" });
   });
 
   it("refuses a foreign document persisted under capabilityState", () => {
     const valid = CAPABILITY_CLIENT_SYNC_REGISTRY.capabilityState.validRow;
-    expect(valid({ _id: "x", device_id: "d1", client: "claude_code" })).toBe(true);
+    expect(valid({ _id: "x", device_id: "d1", client: "claude_code" })).toBe(
+      true,
+    );
     // A device row, a session row, an empty object: none of them is a report.
     expect(valid({ _id: "x", device_id: "d1" })).toBe(false);
     expect(valid({ _id: "x", client: "claude_code" })).toBe(false);
@@ -941,10 +1131,14 @@ describe("registry fragments", () => {
   });
 
   it("names a Dexie table for the collection, indexed by device", () => {
-    expect(CAPABILITY_IDB_STORES).toEqual({ capabilityState: "_id, device_id" });
+    expect(CAPABILITY_IDB_STORES).toEqual({
+      capabilityState: "_id, device_id",
+    });
     // Every persisted collection key needs a table, or the whole cache degrades
     // for it (MISSING_COLLECTION_TABLES).
-    for (const [key, entry] of Object.entries(CAPABILITY_CLIENT_SYNC_REGISTRY)) {
+    for (const [key, entry] of Object.entries(
+      CAPABILITY_CLIENT_SYNC_REGISTRY,
+    )) {
       if ((entry as any).persistence?.kind !== "collection") continue;
       expect(CAPABILITY_IDB_STORES).toHaveProperty(key);
     }

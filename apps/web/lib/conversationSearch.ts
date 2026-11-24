@@ -4,21 +4,41 @@
 // has mounted — what it takes to bring one hit into view. ConversationView
 // owns the DOM and runs the plan; everything here is testable without it.
 
-export type SearchMatch = { message_id: string; timestamp: number; match_count: number };
-export type SearchPage = { matches: SearchMatch[]; next_after_ts: number | null };
-export type MatchInstance = { messageId: string; localIndex: number; timestamp: number };
+export type SearchMatch = {
+  message_id: string;
+  timestamp: number;
+  match_count: number;
+};
+export type SearchPage = {
+  matches: SearchMatch[];
+  next_after_ts: number | null;
+};
+export type MatchInstance = {
+  messageId: string;
+  localIndex: number;
+  timestamp: number;
+};
 
 /** Flatten per-message counts into one instance per hit, in transcript order. */
 export function instancesFromMatches(matches: SearchMatch[]): MatchInstance[] {
   const out: MatchInstance[] = [];
   for (const m of matches) {
-    for (let i = 0; i < m.match_count; i++) out.push({ messageId: m.message_id, localIndex: i, timestamp: m.timestamp });
+    for (let i = 0; i < m.match_count; i++)
+      out.push({
+        messageId: m.message_id,
+        localIndex: i,
+        timestamp: m.timestamp,
+      });
   }
   return out;
 }
 
 /** Wrap-around step through `count` hits. */
-export function stepIndex(current: number, delta: number, count: number): number {
+export function stepIndex(
+  current: number,
+  delta: number,
+  count: number,
+): number {
   if (count <= 0) return 0;
   return (((current + delta) % count) + count) % count;
 }
@@ -108,24 +128,47 @@ export type ActivationStep =
   | { kind: "dead" }
   | { kind: "activate"; markIndex: number };
 
-export function planActivation(hit: Pick<PendingHit, "localIndex" | "jumped">, view: ActivationView): ActivationStep {
+export function planActivation(
+  hit: Pick<PendingHit, "localIndex" | "jumped">,
+  view: ActivationView,
+): ActivationStep {
   if (!view.loaded) {
     if (view.canJump && !hit.jumped) return { kind: "jump" };
-    if (!view.canJump || view.elapsedMs >= JUMP_DEADLINE_MS) return { kind: "dead" };
+    if (!view.canJump || view.elapsedMs >= JUMP_DEADLINE_MS)
+      return { kind: "dead" };
     return { kind: "wait" };
   }
   if (view.rowIndex < 0) return { kind: "dead" };
-  if (view.expandKey && !view.expanded) return { kind: "expand", key: view.expandKey };
-  if (view.sinceLoadedMs >= MOUNT_GRACE_MS && view.markCount === 0) return { kind: "dead" };
+  if (view.expandKey && !view.expanded)
+    return { kind: "expand", key: view.expandKey };
+  if (view.sinceLoadedMs >= MOUNT_GRACE_MS && view.markCount === 0)
+    return { kind: "dead" };
   if (!view.mounted) return { kind: "scrollRow", index: view.rowIndex };
   if (view.markCount === 0) return { kind: "wait" };
-  return { kind: "activate", markIndex: Math.min(hit.localIndex, view.markCount - 1) };
+  return {
+    kind: "activate",
+    markIndex: Math.min(hit.localIndex, view.markCount - 1),
+  };
 }
 
 /** The hit to try after a dead one, or null once every hit has been tried. */
-export function skipDeadHit(hit: PendingHit, currentIndex: number, instances: MatchInstance[], now: number): { index: number; hit: PendingHit } | null {
+export function skipDeadHit(
+  hit: PendingHit,
+  currentIndex: number,
+  instances: MatchInstance[],
+  now: number,
+): { index: number; hit: PendingHit } | null {
   if (hit.skipped + 1 >= instances.length) return null;
   const index = stepIndex(currentIndex, hit.dir, instances.length);
   const next = instances[index];
-  return { index, hit: { ...next, dir: hit.dir, startedAt: now, jumped: false, skipped: hit.skipped + 1 } };
+  return {
+    index,
+    hit: {
+      ...next,
+      dir: hit.dir,
+      startedAt: now,
+      jumped: false,
+      skipped: hit.skipped + 1,
+    },
+  };
 }

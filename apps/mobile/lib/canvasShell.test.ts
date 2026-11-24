@@ -6,7 +6,11 @@ import { buildCanvasShell } from "./canvasShell";
 import { CANVAS_POLICY_SOURCE } from "./vendor/canvasPolicySource";
 
 test("mobile WebView document uses the shared sanitizer and keeps tabs, tables and local SVG", () => {
-  const html = buildCanvasShell(String.raw`<style>@import "https://evil.invalid/a";.x{--a:u\72l(https://evil.invalid/a);color:red}</style><script>window.__executed=1</script><video src="https://evil.invalid/video" poster="https://evil.invalid/poster"></video><div class="cast-tabs"><section data-tab="One">one</section><section data-tab="Two">two</section></div><table class="cast-table"><thead><tr><th>N</th></tr></thead><tbody><tr><td>2</td></tr><tr><td>1</td></tr></tbody></table><svg><defs><path id="p" /></defs><use href="#p" /></svg><div class="cast-chart"></div>`, "--sol-text:#111", "https://convex.test");
+  const html = buildCanvasShell(
+    String.raw`<style>@import "https://evil.invalid/a";.x{--a:u\72l(https://evil.invalid/a);color:red}</style><script>window.__executed=1</script><video src="https://evil.invalid/video" poster="https://evil.invalid/poster"></video><div class="cast-tabs"><section data-tab="One">one</section><section data-tab="Two">two</section></div><table class="cast-table"><thead><tr><th>N</th></tr></thead><tbody><tr><td>2</td></tr><tr><td>1</td></tr></tbody></table><svg><defs><path id="p" /></defs><use href="#p" /></svg><div class="cast-chart"></div>`,
+    "--sol-text:#111",
+    "https://convex.test",
+  );
   const script = `
     const {JSDOM}=require(${JSON.stringify(new URL("../../../apps/web/node_modules/jsdom/lib/api.js", import.meta.url).pathname)});
     const html=require('node:fs').readFileSync(process.argv[1],'utf8');
@@ -23,8 +27,17 @@ test("mobile WebView document uses the shared sanitizer and keeps tabs, tables a
     const input = join(directory, "shell.html");
     writeFileSync(input, html);
     const output = join(directory, "result.json");
-    const run = Bun.spawnSync({ cmd: ["node", "-e", script, input, output], stdin: "ignore", stdout: "pipe", stderr: "pipe", timeout: 25_000 });
-    expect({ exitCode: run.exitCode, stderr: run.stderr.toString() }).toEqual({ exitCode: 0, stderr: "" });
+    const run = Bun.spawnSync({
+      cmd: ["node", "-e", script, input, output],
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 25_000,
+    });
+    expect({ exitCode: run.exitCode, stderr: run.stderr.toString() }).toEqual({
+      exitCode: 0,
+      stderr: "",
+    });
     result = JSON.parse(readFileSync(output, "utf8"));
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -43,7 +56,13 @@ test("mobile WebView document uses the shared sanitizer and keeps tabs, tables a
 }, 30_000);
 
 test("mobile policy bundle is generated from the current shared sanitizer", async () => {
-  const build = await Bun.build({ entrypoints: [new URL("./vendor/canvasPolicy.entry.ts", import.meta.url).pathname], target: "browser", minify: true });
+  const build = await Bun.build({
+    entrypoints: [
+      new URL("./vendor/canvasPolicy.entry.ts", import.meta.url).pathname,
+    ],
+    target: "browser",
+    minify: true,
+  });
   expect(build.success).toBe(true);
   expect(await build.outputs[0].text()).toBe(CANVAS_POLICY_SOURCE);
 }, 30_000);

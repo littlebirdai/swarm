@@ -9,6 +9,7 @@ Every capability the proposal needs works. Details below.
 ## Auth and headers
 
 Every call needs only:
+
 - `Authorization: Bearer <tokens.access_token>`
 - `ChatGPT-Account-ID: <tokens.account_id>`, both read from `~/.codex/auth.json`
 
@@ -17,6 +18,7 @@ The spike client also sent the CLI's `User-Agent: codex_cli_rs/<ver> (...) codex
 The web app sends extra anti-abuse headers on create. Neither create nor follow-up needs them.
 
 Errors seen:
+
 - A bad token gives 401 `{"detail":"Could not parse your authentication token. Please try signing in again."}`.
 - An unknown task gives 404 `{"detail":"Invalid task ID"}`.
 - A validation failure gives 400 `{"error":{"message":"[pydantic errors...]","type":"invalid_request_error"}}`.
@@ -26,6 +28,7 @@ Parse `detail` and `error.message`.
 ## Turn content: new tasks use app-server events
 
 Every task created today records on its assistant turn:
+
 - `thread_events.events`: Codex **app-server v2 notifications**, the same protocol codecast already speaks in `packages/cli/src/codexAppServer.ts`.
   - Methods seen: `thread/started`, `thread/status/changed`, `turn/started`, `item/completed`, `rawResponseItem/completed`, `turn/completed`.
   - Item types seen: `userMessage`, `reasoning`, `commandExecution`, `agentMessage`.
@@ -39,6 +42,7 @@ Every task created today records on its assistant turn:
   - `pr` in code mode: `pr_title`, `pr_message`, `output_diff.diff`, `pre_apply_patch`.
 
 **Legacy tasks** (Aug 2025, fixture `turns.legacy.json`) have empty `thread_events`. Their whole work log sits in `worklog.messages` in ChatGPT message format:
+
 - `author.role`, `content.content_type` (`text`, `code`, `execution_output`), and `recipient` (tool calls such as `container.exec` and `container.new_session`).
 - The final answer and diff are in `output_items`.
 
@@ -54,27 +58,28 @@ Both formats must render.
 
 ## Endpoints verified live
 
-| Action | Call | Result |
-|---|---|---|
-| Create | `POST /tasks {new_task:{environment_id, branch, run_environment_in_qa_mode}, input_items:[{type:"message",role:"user",content:[{content_type:"text",text}]}], metadata?:{best_of_n}}` | 200 `{task, user_turn, turn, rate_limit}`. The turn is `pending`; `task.id` looks like `task_e_...`, and turn ids look like `<task>~assttrn_e_...`. |
-| Ask mode | `run_environment_in_qa_mode: true` | Works. `intent: "qa"`; no diff, no pr item. |
-| Best of N | `metadata.best_of_n: 2` | Two assistant turns share one `previous_turn_id` (the user turn). `sibling_turn_ids` point at each other, and `attempt_placement` is 0 or 1. `/turns` returns both in `turn_mapping`. The task's `current_turn_id` is attempt 0. |
-| Follow-up | `POST /tasks {follow_up:{task_id, turn_id:<assistant turn to continue>, run_environment_in_qa_mode}, input_items}` | 200. It creates a user turn plus a pending assistant turn chained via `previous_turn_id`. |
-| Cancel | `POST /tasks/{id}/cancel` body `{}` | 200 `{success:true}`. The turn becomes `cancelled` with `cancellation_requested_at` set. |
-| Archive / recover | `POST /tasks/{id}/archive` · `/recover` | 200. `task.archived` toggles. The list with `task_filter=archived` shows archived tasks; `current` hides them. |
-| Create PR | `POST /tasks/{id}/turns/{turn_id}/pr {mode:"draft"|"auto_merge", add_codex_tag:bool}` | 200 `{success:true}`. After a few seconds, `GET /tasks/{id}/turns/{turn_id}` gives `pull_request_status: "created"` (it passes through `creating`) and `pull_request_data: {number,url,state,draft,title,...}`. The branch is named `codex/<slug>`. |
-| Get PR | `GET /tasks/{id}/turns/{turn_id}/pr` | exists (web client) |
-| Update PR | `PATCH /tasks/{id}/turns/{turn_id}/pr/{pr_id}` | exists (web client), untested |
-| Usage | `GET /usage` | `plan_type`, `rate_limit.primary_window{used_percent, limit_window_seconds, reset_at}`, `secondary_window`, `credits`. The create response also carries `rate_limit`. |
-| Environments | `GET /environments` | A list of environments. **Each carries `env_vars` and `secrets` with the user's real secrets in plain text. Never persist, log, sync or display the environment object; keep only `id`, `label`, `machine_id`, `repo_map[*].repository_full_name`, `default_branch`.** |
-| By repo | `GET /environments/by-repo/github/{owner}/{repo}` | used by the CLI's auto-pick |
-| Search | `GET /tasks/search?query&limit&cursor` | exists (web client) |
+| Action            | Call                                                                                                                                                                                  | Result                                                                                                                                                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create            | `POST /tasks {new_task:{environment_id, branch, run_environment_in_qa_mode}, input_items:[{type:"message",role:"user",content:[{content_type:"text",text}]}], metadata?:{best_of_n}}` | 200 `{task, user_turn, turn, rate_limit}`. The turn is `pending`; `task.id` looks like `task_e_...`, and turn ids look like `<task>~assttrn_e_...`.                                                                                                                    |
+| Ask mode          | `run_environment_in_qa_mode: true`                                                                                                                                                    | Works. `intent: "qa"`; no diff, no pr item.                                                                                                                                                                                                                            |
+| Best of N         | `metadata.best_of_n: 2`                                                                                                                                                               | Two assistant turns share one `previous_turn_id` (the user turn). `sibling_turn_ids` point at each other, and `attempt_placement` is 0 or 1. `/turns` returns both in `turn_mapping`. The task's `current_turn_id` is attempt 0.                                       |
+| Follow-up         | `POST /tasks {follow_up:{task_id, turn_id:<assistant turn to continue>, run_environment_in_qa_mode}, input_items}`                                                                    | 200. It creates a user turn plus a pending assistant turn chained via `previous_turn_id`.                                                                                                                                                                              |
+| Cancel            | `POST /tasks/{id}/cancel` body `{}`                                                                                                                                                   | 200 `{success:true}`. The turn becomes `cancelled` with `cancellation_requested_at` set.                                                                                                                                                                               |
+| Archive / recover | `POST /tasks/{id}/archive` · `/recover`                                                                                                                                               | 200. `task.archived` toggles. The list with `task_filter=archived` shows archived tasks; `current` hides them.                                                                                                                                                         |
+| Create PR         | `POST /tasks/{id}/turns/{turn_id}/pr {mode:"draft"                                                                                                                                    | "auto_merge", add_codex_tag:bool}`                                                                                                                                                                                                                                     | 200 `{success:true}`. After a few seconds, `GET /tasks/{id}/turns/{turn_id}` gives `pull_request_status: "created"` (it passes through `creating`) and `pull_request_data: {number,url,state,draft,title,...}`. The branch is named `codex/<slug>`. |
+| Get PR            | `GET /tasks/{id}/turns/{turn_id}/pr`                                                                                                                                                  | exists (web client)                                                                                                                                                                                                                                                    |
+| Update PR         | `PATCH /tasks/{id}/turns/{turn_id}/pr/{pr_id}`                                                                                                                                        | exists (web client), untested                                                                                                                                                                                                                                          |
+| Usage             | `GET /usage`                                                                                                                                                                          | `plan_type`, `rate_limit.primary_window{used_percent, limit_window_seconds, reset_at}`, `secondary_window`, `credits`. The create response also carries `rate_limit`.                                                                                                  |
+| Environments      | `GET /environments`                                                                                                                                                                   | A list of environments. **Each carries `env_vars` and `secrets` with the user's real secrets in plain text. Never persist, log, sync or display the environment object; keep only `id`, `label`, `machine_id`, `repo_map[*].repository_full_name`, `default_branch`.** |
+| By repo           | `GET /environments/by-repo/github/{owner}/{repo}`                                                                                                                                     | used by the CLI's auto-pick                                                                                                                                                                                                                                            |
+| Search            | `GET /tasks/search?query&limit&cursor`                                                                                                                                                | exists (web client)                                                                                                                                                                                                                                                    |
 
 `/machines` returns `[]` on this account. No new-style (VM) environment exists here yet. New tasks on the legacy environment already use app-server events, so the renderer covers both generations. Re-checked 2026-10-02: still `[]`, and the account's Create environment form offers only the container type, so the VM generation stays unverified (ct-56164).
 
 ## Spike artifacts left on the account
 
 Four small tasks on `acme/example`, each titled with "codecast spike":
+
 - ask
 - ask plus follow-up
 - best-of-2

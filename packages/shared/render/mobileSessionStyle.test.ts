@@ -1,18 +1,35 @@
 import { describe, expect, test } from "bun:test";
-import { MOBILE_COMPOSER_STATUS, mobileRelativeTime } from "./mobileSessionStyle";
+import {
+  MOBILE_COMPOSER_STATUS,
+  mobileRelativeTime,
+} from "./mobileSessionStyle";
 import { toolResultHint } from "./toolCall";
 
 const call = (name: string) => ({ name, input: "{}" });
 
 describe("toolResultHint", () => {
   test("names how a call came out, as the app's transcript does", () => {
-    expect(toolResultHint(call("Read"), { content: "a\nb\nc" })).toBe("(3 lines)");
-    expect(toolResultHint(call("Bash"), { content: "one\ntwo" })).toBe("(2 lines)");
+    expect(toolResultHint(call("Read"), { content: "a\nb\nc" })).toBe(
+      "(3 lines)",
+    );
+    expect(toolResultHint(call("Bash"), { content: "one\ntwo" })).toBe(
+      "(2 lines)",
+    );
     expect(toolResultHint(call("Bash"), { content: "one" })).toBeNull();
-    expect(toolResultHint(call("Grep"), { content: "x.ts\n\ny.ts\n" })).toBe("(2 matches)");
-    expect(toolResultHint(call("Edit"), { content: "updated with 3 additions and 1 removal" })).toBe("(+3 -1)");
-    expect(toolResultHint(call("Edit"), { content: "The file has been updated" })).toBe("(ok)");
-    expect(toolResultHint(call("Bash"), { content: "boom", is_error: true })).toBe("(error)");
+    expect(toolResultHint(call("Grep"), { content: "x.ts\n\ny.ts\n" })).toBe(
+      "(2 matches)",
+    );
+    expect(
+      toolResultHint(call("Edit"), {
+        content: "updated with 3 additions and 1 removal",
+      }),
+    ).toBe("(+3 -1)");
+    expect(
+      toolResultHint(call("Edit"), { content: "The file has been updated" }),
+    ).toBe("(ok)");
+    expect(
+      toolResultHint(call("Bash"), { content: "boom", is_error: true }),
+    ).toBe("(error)");
     expect(toolResultHint(call("Bash"), undefined)).toBeNull();
   });
 });

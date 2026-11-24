@@ -4,8 +4,14 @@
 // and the URL follow. Widgets inside a view open steps and runs through
 // useLineNav(), which the shell points at the same selection.
 import type { LineModel } from "../../../../lib/line/lineModel";
-import type { LineSelection, LineSelectionPatch } from "../../../../lib/line/lineWorkspaceUrl";
-import type { LineSelect, LineWorkspace } from "../../../../hooks/useLineWorkspace";
+import type {
+  LineSelection,
+  LineSelectionPatch,
+} from "../../../../lib/line/lineWorkspaceUrl";
+import type {
+  LineSelect,
+  LineWorkspace,
+} from "../../../../hooks/useLineWorkspace";
 
 export type LineViewProps = {
   model: LineModel;

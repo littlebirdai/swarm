@@ -14,13 +14,23 @@ import { indexedDB, IDBKeyRange } from "fake-indexeddb";
 
 // The -modern workloads are the same inbox with the Modern style on (its
 // session card, ModernSessionCardView, and section header): the same budgets.
-export type Workload = "switch" | "append" | "inbox-load" | "inbox-heartbeat" | "inbox-load-modern" | "inbox-heartbeat-modern" | "diff";
+export type Workload =
+  | "switch"
+  | "append"
+  | "inbox-load"
+  | "inbox-heartbeat"
+  | "inbox-load-modern"
+  | "inbox-heartbeat-modern"
+  | "diff";
 export type Counts = Record<string, number>;
 export type Report = { counts: Counts; detail: Record<string, string[]> };
 
 // --- DOM ------------------------------------------------------------------
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/inbox", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/inbox",
+  pretendToBeVisual: true,
+});
 const w = dom.window as any;
 
 // jsdom lays nothing out. Give elements a fixed geometry (rows 50px, a feed
@@ -30,15 +40,51 @@ const ROW = 50;
 const VIEWPORT = 800;
 let layoutReads: string[] = [];
 // Named by the first app frame, or the diff viewer's own (it measures outside the app).
-const readSite = (name: string) => `${name} ${new Error().stack!.split("\n").find((l) => (l.includes("/apps/web/") && !l.includes("/perf/") && !l.includes("/node_modules/")) || l.includes("/@pierre/diffs/"))?.trim().replace(/^at /, "").replace(/\/\S*\/node_modules\//, "") ?? "?"}`;
+const readSite = (name: string) =>
+  `${name} ${
+    new Error()
+      .stack!.split("\n")
+      .find(
+        (l) =>
+          (l.includes("/apps/web/") &&
+            !l.includes("/perf/") &&
+            !l.includes("/node_modules/")) ||
+          l.includes("/@pierre/diffs/"),
+      )
+      ?.trim()
+      .replace(/^at /, "")
+      .replace(/\/\S*\/node_modules\//, "") ?? "?"
+  }`;
 const offsets = new WeakMap<Element, number>();
 // A scroller a workload mounts its subject in (`data-perf-viewport`) is a
 // viewport tall, like a virtualized feed.
-const isViewport = (el: Element) => el.hasAttribute("data-sv-feed") || el.hasAttribute("data-perf-viewport");
-const heightOf = (el: Element) => ((el as HTMLElement).style?.height === "0px" ? 0 : isViewport(el) ? VIEWPORT : ROW);
+const isViewport = (el: Element) =>
+  el.hasAttribute("data-sv-feed") || el.hasAttribute("data-perf-viewport");
+const heightOf = (el: Element) =>
+  (el as HTMLElement).style?.height === "0px"
+    ? 0
+    : isViewport(el)
+      ? VIEWPORT
+      : ROW;
 // A virtualized feed is as tall as its spacer says.
-const scrollHeightOf = (el: Element) => el.hasAttribute("data-sv-feed") ? Math.max(VIEWPORT, Number.parseFloat(el.querySelector<HTMLElement>('div[style*="position: relative"][style*="height"]')?.style.height || "0")) : heightOf(el);
-const geometry = (name: string, value: (el: HTMLElement) => number) => ({ get(this: HTMLElement) { layoutReads.push(readSite(name)); return value(this); }, configurable: true });
+const scrollHeightOf = (el: Element) =>
+  el.hasAttribute("data-sv-feed")
+    ? Math.max(
+        VIEWPORT,
+        Number.parseFloat(
+          el.querySelector<HTMLElement>(
+            'div[style*="position: relative"][style*="height"]',
+          )?.style.height || "0",
+        ),
+      )
+    : heightOf(el);
+const geometry = (name: string, value: (el: HTMLElement) => number) => ({
+  get(this: HTMLElement) {
+    layoutReads.push(readSite(name));
+    return value(this);
+  },
+  configurable: true,
+});
 Object.defineProperties(w.HTMLElement.prototype, {
   offsetHeight: geometry("offsetHeight", heightOf),
   offsetWidth: geometry("offsetWidth", () => 700),
@@ -49,12 +95,19 @@ Object.defineProperties(w.HTMLElement.prototype, {
   offsetTop: geometry("offsetTop", () => 0),
   offsetParent: { get: () => w.document.body, configurable: true },
   scrollTop: {
-    get(this: Element) { return offsets.get(this) ?? 0; },
+    get(this: Element) {
+      return offsets.get(this) ?? 0;
+    },
     set(this: HTMLElement, v: number) {
-      const next = Math.max(0, Math.min(v, Math.max(0, scrollHeightOf(this) - heightOf(this))));
+      const next = Math.max(
+        0,
+        Math.min(v, Math.max(0, scrollHeightOf(this) - heightOf(this))),
+      );
       if (next === (offsets.get(this) ?? 0)) return;
       offsets.set(this, next);
-      queueMicrotask(() => { if (this.isConnected) this.dispatchEvent(new w.Event("scroll")); });
+      queueMicrotask(() => {
+        if (this.isConnected) this.dispatchEvent(new w.Event("scroll"));
+      });
     },
     configurable: true,
   },
@@ -62,19 +115,44 @@ Object.defineProperties(w.HTMLElement.prototype, {
 w.HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
   layoutReads.push(readSite("getBoundingClientRect"));
   const h = heightOf(this);
-  return { x: 0, y: 0, top: 0, left: 0, right: 700, bottom: h, width: 700, height: h, toJSON() {} };
+  return {
+    x: 0,
+    y: 0,
+    top: 0,
+    left: 0,
+    right: 700,
+    bottom: h,
+    width: 700,
+    height: h,
+    toJSON() {},
+  };
 };
-w.HTMLElement.prototype.scrollTo = function (this: HTMLElement, x: any, y?: number) { this.scrollTop = typeof x === "object" ? x.top ?? this.scrollTop : y ?? 0; };
+w.HTMLElement.prototype.scrollTo = function (
+  this: HTMLElement,
+  x: any,
+  y?: number,
+) {
+  this.scrollTop = typeof x === "object" ? (x.top ?? this.scrollTop) : (y ?? 0);
+};
 w.HTMLElement.prototype.scrollIntoView = () => {};
-w.HTMLCanvasElement.prototype.getContext = () => ({ font: "", measureText: (t: string) => ({ width: t.length * 7 }) });
+w.HTMLCanvasElement.prototype.getContext = () => ({
+  font: "",
+  measureText: (t: string) => ({ width: t.length * 7 }),
+});
 const realComputedStyle = w.getComputedStyle.bind(w);
-const getComputedStyle = (el: Element, pseudo?: string) => { layoutReads.push(readSite("getComputedStyle")); return realComputedStyle(el, pseudo); };
+const getComputedStyle = (el: Element, pseudo?: string) => {
+  layoutReads.push(readSite("getComputedStyle"));
+  return realComputedStyle(el, pseudo);
+};
 w.getComputedStyle = getComputedStyle;
 // Shadow roots made during a measured action are watched from the moment they
 // exist, so a viewer that draws (or redraws) inside one is counted.
 let onShadowRoot: ((root: ShadowRoot) => void) | null = null;
 const realAttachShadow = w.Element.prototype.attachShadow;
-w.Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit) {
+w.Element.prototype.attachShadow = function (
+  this: Element,
+  init: ShadowRootInit,
+) {
   const shadow = realAttachShadow.call(this, init);
   onShadowRoot?.(shadow);
   return shadow;
@@ -82,11 +160,37 @@ w.Element.prototype.attachShadow = function (this: Element, init: ShadowRootInit
 
 // Constructable stylesheets (the diff viewer styles its shadow root with
 // them); jsdom has neither the class nor adoptedStyleSheets.
-class CSSStyleSheet { cssRules: unknown[] = []; replaceSync(_text: string) {} replace(_text: string) { return Promise.resolve(this); } insertRule() { return 0; } deleteRule() {} }
-for (const proto of [w.ShadowRoot.prototype, w.Document.prototype]) {
-  if (!("adoptedStyleSheets" in proto)) Object.defineProperty(proto, "adoptedStyleSheets", { get() { return this.__adopted ?? []; }, set(v) { this.__adopted = v; }, configurable: true });
+class CSSStyleSheet {
+  cssRules: unknown[] = [];
+  replaceSync(_text: string) {}
+  replace(_text: string) {
+    return Promise.resolve(this);
+  }
+  insertRule() {
+    return 0;
+  }
+  deleteRule() {}
 }
-class NoopObserver { observe() {} unobserve() {} disconnect() {} takeRecords() { return []; } }
+for (const proto of [w.ShadowRoot.prototype, w.Document.prototype]) {
+  if (!("adoptedStyleSheets" in proto))
+    Object.defineProperty(proto, "adoptedStyleSheets", {
+      get() {
+        return this.__adopted ?? [];
+      },
+      set(v) {
+        this.__adopted = v;
+      },
+      configurable: true,
+    });
+}
+class NoopObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
 // Reports each observed element as on screen once, as a browser does on
 // observe for an element inside its root's margin. Only the diff workload
 // installs it (Pierre's Virtualizer tracks which diffs are visible through
@@ -97,12 +201,28 @@ class VisibleObserver {
   observe(el: Element) {
     this.targets.add(el);
     queueMicrotask(() => {
-      if (this.targets.has(el) && el.isConnected) this.callback([{ target: el, isIntersecting: true, intersectionRatio: 1 } as unknown as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+      if (this.targets.has(el) && el.isConnected)
+        this.callback(
+          [
+            {
+              target: el,
+              isIntersecting: true,
+              intersectionRatio: 1,
+            } as unknown as IntersectionObserverEntry,
+          ],
+          this as unknown as IntersectionObserver,
+        );
     });
   }
-  unobserve(el: Element) { this.targets.delete(el); }
-  disconnect() { this.targets.clear(); }
-  takeRecords() { return []; }
+  unobserve(el: Element) {
+    this.targets.delete(el);
+  }
+  disconnect() {
+    this.targets.clear();
+  }
+  takeRecords() {
+    return [];
+  }
 }
 // Reports each observed element's fixed size once, as a browser does on observe.
 class SizeObserver {
@@ -111,48 +231,125 @@ class SizeObserver {
   observe(el: Element) {
     this.targets.add(el);
     queueMicrotask(() => {
-      if (this.targets.has(el) && el.isConnected) this.callback([{ target: el, contentRect: { height: heightOf(el), width: 700 }, contentBoxSize: [{ blockSize: heightOf(el), inlineSize: 700 }], borderBoxSize: [{ blockSize: heightOf(el), inlineSize: 700 }] } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
+      if (this.targets.has(el) && el.isConnected)
+        this.callback(
+          [
+            {
+              target: el,
+              contentRect: { height: heightOf(el), width: 700 },
+              contentBoxSize: [{ blockSize: heightOf(el), inlineSize: 700 }],
+              borderBoxSize: [{ blockSize: heightOf(el), inlineSize: 700 }],
+            } as unknown as ResizeObserverEntry,
+          ],
+          this as unknown as ResizeObserver,
+        );
     });
   }
-  unobserve(el: Element) { this.targets.delete(el); }
-  disconnect() { this.targets.clear(); }
+  unobserve(el: Element) {
+    this.targets.delete(el);
+  }
+  disconnect() {
+    this.targets.clear();
+  }
 }
 w.ResizeObserver = SizeObserver;
 w.IntersectionObserver = NoopObserver;
-w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
+w.matchMedia = () => ({
+  matches: false,
+  addEventListener() {},
+  removeEventListener() {},
+  addListener() {},
+  removeListener() {},
+});
 
 for (const [key, value] of Object.entries({
-  window: w, document: w.document, navigator: w.navigator, localStorage: w.localStorage, sessionStorage: w.sessionStorage,
-  location: w.location, history: w.history, indexedDB, IDBKeyRange,
-  HTMLElement: w.HTMLElement, HTMLTextAreaElement: w.HTMLTextAreaElement, HTMLInputElement: w.HTMLInputElement, HTMLAnchorElement: w.HTMLAnchorElement,
-  Element: w.Element, Node: w.Node, Text: w.Text, Document: w.Document, DocumentFragment: w.DocumentFragment, ShadowRoot: w.ShadowRoot, SVGElement: w.SVGElement,
-  Event: w.Event, CustomEvent: w.CustomEvent, KeyboardEvent: w.KeyboardEvent, MouseEvent: w.MouseEvent, WheelEvent: w.WheelEvent, FocusEvent: w.FocusEvent,
-  MutationObserver: w.MutationObserver, CSSStyleSheet, DOMRect: w.DOMRect, DOMParser: w.DOMParser, customElements: w.customElements, getComputedStyle,
-  ResizeObserver: SizeObserver, IntersectionObserver: NoopObserver, matchMedia: w.matchMedia,
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 0),
+  window: w,
+  document: w.document,
+  navigator: w.navigator,
+  localStorage: w.localStorage,
+  sessionStorage: w.sessionStorage,
+  location: w.location,
+  history: w.history,
+  indexedDB,
+  IDBKeyRange,
+  HTMLElement: w.HTMLElement,
+  HTMLTextAreaElement: w.HTMLTextAreaElement,
+  HTMLInputElement: w.HTMLInputElement,
+  HTMLAnchorElement: w.HTMLAnchorElement,
+  Element: w.Element,
+  Node: w.Node,
+  Text: w.Text,
+  Document: w.Document,
+  DocumentFragment: w.DocumentFragment,
+  ShadowRoot: w.ShadowRoot,
+  SVGElement: w.SVGElement,
+  Event: w.Event,
+  CustomEvent: w.CustomEvent,
+  KeyboardEvent: w.KeyboardEvent,
+  MouseEvent: w.MouseEvent,
+  WheelEvent: w.WheelEvent,
+  FocusEvent: w.FocusEvent,
+  MutationObserver: w.MutationObserver,
+  CSSStyleSheet,
+  DOMRect: w.DOMRect,
+  DOMParser: w.DOMParser,
+  customElements: w.customElements,
+  getComputedStyle,
+  ResizeObserver: SizeObserver,
+  IntersectionObserver: NoopObserver,
+  matchMedia: w.matchMedia,
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(performance.now()), 0),
   cancelAnimationFrame: (id: any) => clearTimeout(id),
-  requestIdleCallback: (cb: any) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0),
+  requestIdleCallback: (cb: any) =>
+    setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 50 }), 0),
   cancelIdleCallback: (id: any) => clearTimeout(id),
   IS_REACT_ACT_ENVIRONMENT: true,
-})) Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+}))
+  Object.defineProperty(globalThis, key, {
+    value,
+    configurable: true,
+    writable: true,
+  });
 (URL as any).createObjectURL ??= () => "blob:perf";
 (URL as any).revokeObjectURL ??= () => {};
 // React's act() warns per update when this is missing; the noise is not the work.
 const realError = console.error;
-console.error = (...args: unknown[]) => { if (String(args[0]).includes("not wrapped in act")) return; realError(...args); };
+console.error = (...args: unknown[]) => {
+  if (String(args[0]).includes("not wrapped in act")) return;
+  realError(...args);
+};
 
 // Which components rendered in each commit, through the hook React DevTools
 // attaches by (read by react-dom when it loads): a fiber that did work in a
 // commit carries the PerformedWork flag (1).
 let rendered = new Map<string, number>();
-const fiberName = (f: any) => { const t = f.elementType ?? f.type; return typeof t === "string" ? null : t?.displayName || t?.name || t?.type?.displayName || t?.type?.name || null; };
+const fiberName = (f: any) => {
+  const t = f.elementType ?? f.type;
+  return typeof t === "string"
+    ? null
+    : t?.displayName ||
+        t?.name ||
+        t?.type?.displayName ||
+        t?.type?.name ||
+        null;
+};
 (globalThis as any).__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
-  supportsFiber: true, renderers: new Map(), inject: () => 1, checkDCE() {}, onScheduleFiberRoot() {}, onCommitFiberUnmount() {}, onPostCommitFiberRoot() {},
+  supportsFiber: true,
+  renderers: new Map(),
+  inject: () => 1,
+  checkDCE() {},
+  onScheduleFiberRoot() {},
+  onCommitFiberUnmount() {},
+  onPostCommitFiberRoot() {},
   onCommitFiberRoot(_id: number, fiberRoot: any) {
     const stack = [fiberRoot.current];
     while (stack.length) {
       const f = stack.pop();
-      if (f.alternate && f.flags & 1) { const name = fiberName(f); if (name) rendered.set(name, (rendered.get(name) ?? 0) + 1); }
+      if (f.alternate && f.flags & 1) {
+        const name = fiberName(f);
+        if (name) rendered.set(name, (rendered.get(name) ?? 0) + 1);
+      }
       if (f.child) stack.push(f.child);
       if (f.sibling) stack.push(f.sibling);
     }
@@ -163,7 +360,8 @@ const fiberName = (f: any) => { const t = f.elementType ?? f.type; return typeof
 // (test-helpers/reactCompiler.ts), so a bench or a budget can be taken with
 // the compiler on. Before any app module, which is why those load below. A
 // base ref without the helper runs as written.
-if (process.env.REACT_COMPILER === "1") await import("../test-helpers/reactCompiler").catch(() => {});
+if (process.env.REACT_COMPILER === "1")
+  await import("../test-helpers/reactCompiler").catch(() => {});
 
 // --- App modules (loaded after the DOM exists: react-dom decides at load) ----
 
@@ -181,11 +379,23 @@ const { useInboxStore } = await import("../store/inboxStore");
 // distinct query and arguments, opened when the first listener attaches and
 // closed when the last leaves. A component remount that re-attaches to a query
 // already open asks the server for nothing.
-let convexAsked: { subscribe: string[]; query: string[]; mutation: string[]; action: string[] } = { subscribe: [], query: [], mutation: [], action: [] };
+let convexAsked: {
+  subscribe: string[];
+  query: string[];
+  mutation: string[];
+  action: string[];
+} = { subscribe: [], query: [], mutation: [], action: [] };
 const openQueries = new Map<string, number>();
-const nameOf = (q: any) => { try { return getFunctionName(q); } catch { return String(q); } };
+const nameOf = (q: any) => {
+  try {
+    return getFunctionName(q);
+  } catch {
+    return String(q);
+  }
+};
 const convex = {
-  clearAuth() {}, setAuth() {},
+  clearAuth() {},
+  setAuth() {},
   watchQuery(q: any, args?: unknown) {
     const name = nameOf(q);
     const key = `${name} ${JSON.stringify(args ?? {})}`;
@@ -199,20 +409,41 @@ const convex = {
           if (!open) return;
           open = false;
           const left = (openQueries.get(key) ?? 1) - 1;
-          if (left > 0) openQueries.set(key, left); else openQueries.delete(key);
+          if (left > 0) openQueries.set(key, left);
+          else openQueries.delete(key);
         };
       },
-      localQueryResult: () => undefined, localQueryLogs: () => undefined, journal: () => undefined,
+      localQueryResult: () => undefined,
+      localQueryLogs: () => undefined,
+      journal: () => undefined,
     };
   },
-  query: (q: any) => { convexAsked.query.push(nameOf(q)); return new Promise(() => {}); },
-  mutation: (q: any) => { convexAsked.mutation.push(nameOf(q)); return Promise.resolve(null); },
-  action: (q: any) => { convexAsked.action.push(nameOf(q)); return Promise.resolve(null); },
-  connectionState: () => ({ isWebSocketConnected: true, hasInflightRequests: false, hasEverConnected: true, connectionCount: 1 }),
+  query: (q: any) => {
+    convexAsked.query.push(nameOf(q));
+    return new Promise(() => {});
+  },
+  mutation: (q: any) => {
+    convexAsked.mutation.push(nameOf(q));
+    return Promise.resolve(null);
+  },
+  action: (q: any) => {
+    convexAsked.action.push(nameOf(q));
+    return Promise.resolve(null);
+  },
+  connectionState: () => ({
+    isWebSocketConnected: true,
+    hasInflightRequests: false,
+    hasEverConnected: true,
+    connectionCount: 1,
+  }),
   subscribeToConnectionState: () => () => {},
   prewarmQuery() {},
 } as any;
-const useAuth = () => ({ isLoading: false, isAuthenticated: true, fetchAccessToken: async () => "perf" });
+const useAuth = () => ({
+  isLoading: false,
+  isAuthenticated: true,
+  fetchAccessToken: async () => "perf",
+});
 
 // --- Synthetic cache --------------------------------------------------------
 
@@ -225,15 +456,45 @@ function sessionRows(n: number): Record<string, any> {
   for (let i = 0; i < n; i++) {
     const id = convId(i);
     out[id] = {
-      _id: id, session_id: `s-${i}`, title: `Session ${i}: ${["fix the sync race", "ship the inbox", "profile typing", "review the diff"][i % 4]}`,
-      user_id: i % 7 ? ME : "user_teammate", agent_type: i % 13 ? "claude_code" : "codex",
-      status: i % 9 ? "completed" : "active", is_idle: i % 9 !== 0, agent_status: i % 9 ? "idle" : "working",
-      message_count: 200 + (i % 50), updated_at: now - i * 60_000, started_at: now - i * 120_000, last_heartbeat: now,
-      project_path: `/src/p${i % 40}`, git_branch: "main",
+      _id: id,
+      session_id: `s-${i}`,
+      title: `Session ${i}: ${["fix the sync race", "ship the inbox", "profile typing", "review the diff"][i % 4]}`,
+      user_id: i % 7 ? ME : "user_teammate",
+      agent_type: i % 13 ? "claude_code" : "codex",
+      status: i % 9 ? "completed" : "active",
+      is_idle: i % 9 !== 0,
+      agent_status: i % 9 ? "idle" : "working",
+      message_count: 200 + (i % 50),
+      updated_at: now - i * 60_000,
+      started_at: now - i * 120_000,
+      last_heartbeat: now,
+      project_path: `/src/p${i % 40}`,
+      git_branch: "main",
       // Structured overlay facts on some rows, so a payload carries objects
       // the overlay must compare by value.
-      ...(i % 11 === 0 ? { activity: { text: `editing file${i}.ts`, tool: "Edit", at: now - i * 1000 } } : {}),
-      ...(i % 17 === 0 ? { open_tasks: [{ id: `task-${i}`, kind: "background", started_at: now - 600_000, tool_use_id: `tool-${i}`, description: "Watch the build", command: "sleep 60" }] } : {}),
+      ...(i % 11 === 0
+        ? {
+            activity: {
+              text: `editing file${i}.ts`,
+              tool: "Edit",
+              at: now - i * 1000,
+            },
+          }
+        : {}),
+      ...(i % 17 === 0
+        ? {
+            open_tasks: [
+              {
+                id: `task-${i}`,
+                kind: "background",
+                started_at: now - 600_000,
+                tool_use_id: `tool-${i}`,
+                description: "Watch the build",
+                command: "sleep 60",
+              },
+            ],
+          }
+        : {}),
     };
   }
   return out;
@@ -246,7 +507,9 @@ function messages(conv: string, n: number): any[] {
   for (let i = 0; i < n; i++) {
     const user = i % 2 === 0;
     out.push({
-      _id: `${conv.slice(0, 20)}m${String(i).padStart(11, "0")}`, conversation_id: conv, role: user ? "user" : "assistant",
+      _id: `${conv.slice(0, 20)}m${String(i).padStart(11, "0")}`,
+      conversation_id: conv,
+      role: user ? "user" : "assistant",
       timestamp: now - (n - i) * 30_000,
       content: user
         ? `Prompt ${i}: look at the sync layer and tell me why the inbox jumps when a session finishes.`
@@ -260,12 +523,18 @@ function seedStore(sessions: number) {
   const st = useInboxStore.getState() as any;
   st._setDispatch?.(async () => undefined);
   useInboxStore.setState({
-    sessions: {}, conversations: {}, pendingMessages: {}, drafts: {},
-    currentUser: { _id: ME, name: "Perf" }, clientStateInitialized: true,
+    sessions: {},
+    conversations: {},
+    pendingMessages: {},
+    drafts: {},
+    currentUser: { _id: ME, name: "Perf" },
+    clientStateInitialized: true,
   } as any);
   // Through the feed's own path, so what the first sync does at boot (view
   // adoption, the conversations mirror) is done before anything is measured.
-  useInboxStore.getState().syncTable("sessions", Object.values(sessionRows(sessions)) as any);
+  useInboxStore
+    .getState()
+    .syncTable("sessions", Object.values(sessionRows(sessions)) as any);
 }
 
 // --- Mounting and measuring ------------------------------------------------
@@ -286,7 +555,15 @@ function mount() {
       root.render(
         <ConvexProviderWithAuth client={convex} useAuth={useAuth}>
           <MemoryRouter>
-            <Profiler id="perf" onRender={(_id, _phase, actualDuration) => { commits++; renderMs += actualDuration; }}>{node}</Profiler>
+            <Profiler
+              id="perf"
+              onRender={(_id, _phase, actualDuration) => {
+                commits++;
+                renderMs += actualDuration;
+              }}
+            >
+              {node}
+            </Profiler>
           </MemoryRouter>
         </ConvexProviderWithAuth>,
       );
@@ -294,7 +571,10 @@ function mount() {
   };
 }
 
-const tick = (ms: number) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
+const tick = (ms: number) =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, ms));
+  });
 
 // Wait until nothing commits for a while: lazy pieces resolving, effects
 // settling. A run measures what its action caused, not the tail of the last.
@@ -310,14 +590,32 @@ async function settle(quietMs = 150, maxMs = 10_000) {
 async function until(check: () => boolean, what: string, maxMs = 30_000) {
   const deadline = Date.now() + maxMs;
   while (!check()) {
-    if (Date.now() > deadline) throw new Error(`perf harness: timed out waiting for ${what}; on screen: ${host?.textContent?.slice(0, 400)}`);
+    if (Date.now() > deadline)
+      throw new Error(
+        `perf harness: timed out waiting for ${what}; on screen: ${host?.textContent?.slice(0, 400)}`,
+      );
     await tick(10);
-    if (process.env.PERF_DEBUG) console.log("waiting", what, commits, host?.querySelectorAll("[data-vkey]").length, host?.textContent?.slice(-120));
+    if (process.env.PERF_DEBUG)
+      console.log(
+        "waiting",
+        what,
+        commits,
+        host?.querySelectorAll("[data-vkey]").length,
+        host?.textContent?.slice(-120),
+      );
   }
 }
 
 // "name xN" per distinct value, most frequent first.
-const tally = (xs: string[]) => [...xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([x, n]) => `${x} x${n}`);
+const tally = (xs: string[]) =>
+  [
+    ...xs.reduce(
+      (m, x) => m.set(x, (m.get(x) ?? 0) + 1),
+      new Map<string, number>(),
+    ),
+  ]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([x, n]) => `${x} x${n}`);
 
 // Everything one action caused: React commits, store writes, Convex asks, DOM
 // mutations and forced layouts.
@@ -337,10 +635,22 @@ async function measure(action: () => Promise<void>): Promise<Report> {
   // draws in one, outside React), including roots attached during the action.
   let mutations = 0;
   const observed = new Set<Node>();
-  const mo = new w.MutationObserver((records: MutationRecord[]) => { mutations += records.length; });
-  const watch = (node: Node) => { if (observed.has(node)) return; observed.add(node); mo.observe(node, { subtree: true, childList: true, attributes: true, characterData: true }); };
+  const mo = new w.MutationObserver((records: MutationRecord[]) => {
+    mutations += records.length;
+  });
+  const watch = (node: Node) => {
+    if (observed.has(node)) return;
+    observed.add(node);
+    mo.observe(node, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+  };
   watch(host);
-  for (const el of host.querySelectorAll("*")) if (el.shadowRoot) watch(el.shadowRoot);
+  for (const el of host.querySelectorAll("*"))
+    if (el.shadowRoot) watch(el.shadowRoot);
   onShadowRoot = watch;
   await action();
   onShadowRoot = null;
@@ -350,11 +660,25 @@ async function measure(action: () => Promise<void>): Promise<Report> {
   const reads = layoutReads;
   return {
     counts: {
-      commits, storeWrites, domMutations: mutations, layoutReads: reads.length,
-      convexSubscribes: convexAsked.subscribe.length, convexQueries: convexAsked.query.length,
-      convexMutations: convexAsked.mutation.length, convexActions: convexAsked.action.length,
+      commits,
+      storeWrites,
+      domMutations: mutations,
+      layoutReads: reads.length,
+      convexSubscribes: convexAsked.subscribe.length,
+      convexQueries: convexAsked.query.length,
+      convexMutations: convexAsked.mutation.length,
+      convexActions: convexAsked.action.length,
     },
-    detail: { renderMs: [renderMs.toFixed(2)], layoutReads: [...new Set(reads)], layoutReadKinds: tally(reads.map((r) => r.split(" ")[0])), storeKeys: [...storeKeys], rendered: [...rendered].sort((a, b) => b[1] - a[1]).map(([name, n]) => `${name} x${n}`), ...convexAsked },
+    detail: {
+      renderMs: [renderMs.toFixed(2)],
+      layoutReads: [...new Set(reads)],
+      layoutReadKinds: tally(reads.map((r) => r.split(" ")[0])),
+      storeKeys: [...storeKeys],
+      rendered: [...rendered]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, n]) => `${name} x${n}`),
+      ...convexAsked,
+    },
   };
 }
 
@@ -371,13 +695,25 @@ async function setupSwitch(): Promise<Bench> {
   const { InboxConversation } = await import("../app/inbox/QueuePageClient");
   seedStore(2000);
   const [a, b] = [convId(1), convId(2)];
-  for (const id of [a, b]) useInboxStore.getState().setMessages(id, messages(id, 200), { hasMoreAbove: true, initialized: true });
+  for (const id of [a, b])
+    useInboxStore.getState().setMessages(id, messages(id, 200), {
+      hasMoreAbove: true,
+      initialized: true,
+    });
   mount();
   let current = a;
   const show = async (id: string) => {
     current = id;
-    await render(<InboxConversation sessionId={id} isIdle autoFocusInput={false} />);
-    await until(() => host.textContent!.includes(`Last line of answer 199 in ${id.slice(-6)}`), `conversation ${id} to paint`);
+    await render(
+      <InboxConversation sessionId={id} isIdle autoFocusInput={false} />,
+    );
+    await until(
+      () =>
+        host.textContent!.includes(
+          `Last line of answer 199 in ${id.slice(-6)}`,
+        ),
+      `conversation ${id} to paint`,
+    );
   };
   await show(a);
   await settle();
@@ -386,8 +722,14 @@ async function setupSwitch(): Promise<Bench> {
   await show(a);
   await settle();
   return {
-    run: () => measure(async () => { await show(current === a ? b : a); await settle(); }),
-    reset: async () => { await settle(); },
+    run: () =>
+      measure(async () => {
+        await show(current === a ? b : a);
+        await settle();
+      }),
+    reset: async () => {
+      await settle();
+    },
   };
 }
 
@@ -399,21 +741,44 @@ async function setupAppend(): Promise<Bench> {
   const { InboxConversation } = await import("../app/inbox/QueuePageClient");
   seedStore(2000);
   const a = convId(1);
-  useInboxStore.getState().setMessages(a, messages(a, 200), { hasMoreAbove: true, initialized: true });
+  useInboxStore.getState().setMessages(a, messages(a, 200), {
+    hasMoreAbove: true,
+    initialized: true,
+  });
   mount();
-  await render(<InboxConversation sessionId={a} isIdle autoFocusInput={false} />);
-  await until(() => host.textContent!.includes(`Last line of answer 199 in ${a.slice(-6)}`), `conversation ${a} to paint`);
+  await render(
+    <InboxConversation sessionId={a} isIdle autoFocusInput={false} />,
+  );
+  await until(
+    () =>
+      host.textContent!.includes(`Last line of answer 199 in ${a.slice(-6)}`),
+    `conversation ${a} to paint`,
+  );
   await settle();
   let n = 200;
   return {
-    run: () => measure(async () => {
-      const i = n++;
-      const row = { _id: `${a.slice(0, 20)}m${String(i).padStart(11, "0")}`, conversation_id: a, role: "assistant", timestamp: now + i * 1000, content: `Streamed answer ${i} has arrived.` };
-      await act(async () => { useInboxStore.getState().mergeMessages(a, [row] as any, "append"); });
-      await until(() => host.textContent!.includes(`Streamed answer ${i} has arrived.`), "the new message to paint");
+    run: () =>
+      measure(async () => {
+        const i = n++;
+        const row = {
+          _id: `${a.slice(0, 20)}m${String(i).padStart(11, "0")}`,
+          conversation_id: a,
+          role: "assistant",
+          timestamp: now + i * 1000,
+          content: `Streamed answer ${i} has arrived.`,
+        };
+        await act(async () => {
+          useInboxStore.getState().mergeMessages(a, [row] as any, "append");
+        });
+        await until(
+          () => host.textContent!.includes(`Streamed answer ${i} has arrived.`),
+          "the new message to paint",
+        );
+        await settle();
+      }),
+    reset: async () => {
       await settle();
-    }),
-    reset: async () => { await settle(); },
+    },
   };
 }
 
@@ -431,12 +796,32 @@ async function inboxPanel(modern = false) {
   // Modern: the root class the style's CSS keys on, and the theme context the
   // components read it from (hooks/useVisualStyle).
   // Classic mounts the panel bare, as it always did.
-  const bare = <SessionListPanel activeSessionId={convId(3)} onSessionSelect={() => {}} />;
+  const bare = (
+    <SessionListPanel activeSessionId={convId(3)} onSessionSelect={() => {}} />
+  );
   if (modern) w.document.documentElement.classList.add("modern-style");
-  const theme = { theme: "light", toggleTheme: () => {}, visualStyle: "modern", setVisualStyle: () => {} } as any;
-  const panel = modern ? <ThemeContext.Provider value={theme}>{bare}</ThemeContext.Provider> : bare;
-  const show = async () => { await render(panel); await until(() => cards() > 0, "the session list to draw"); await settle(); };
-  const hide = async () => { await act(async () => { root.render(null); }); await settle(); };
+  const theme = {
+    theme: "light",
+    toggleTheme: () => {},
+    visualStyle: "modern",
+    setVisualStyle: () => {},
+  } as any;
+  const panel = modern ? (
+    <ThemeContext.Provider value={theme}>{bare}</ThemeContext.Provider>
+  ) : (
+    bare
+  );
+  const show = async () => {
+    await render(panel);
+    await until(() => cards() > 0, "the session list to draw");
+    await settle();
+  };
+  const hide = async () => {
+    await act(async () => {
+      root.render(null);
+    });
+    await settle();
+  };
   return { show, hide };
 }
 
@@ -465,23 +850,38 @@ async function setupInboxLoad(modern = false): Promise<Bench> {
 // nothing.
 const LIVE_SET = 600;
 async function setupInboxHeartbeat(modern = false): Promise<Bench> {
-  const { applyMineLivenessPayload } = await import("../hooks/useSyncInboxSessions");
-  const { INBOX_FACT_FIELDS, INBOX_PROJECTION_VERSION } = await import("@codecast/shared/contracts");
+  const { applyMineLivenessPayload } =
+    await import("../hooks/useSyncInboxSessions");
+  const { INBOX_FACT_FIELDS, INBOX_PROJECTION_VERSION } =
+    await import("@codecast/shared/contracts");
   const { placeInboxRows } = await import("../store/inboxStore");
   const { show } = await inboxPanel(modern);
   await show();
-  const target = host.querySelector("[data-session-id]")!.getAttribute("data-session-id")!;
+  const target = host
+    .querySelector("[data-session-id]")!
+    .getAttribute("data-session-id")!;
   const sessions = useInboxStore.getState().sessions as Record<string, any>;
   // The server stamps each shown member with the placement its facts give;
   // the facts do not change between beats, so neither do the stamps. No
   // seeded session asks, so `asking` is false on every row, as the server's
   // askingFor would say for them.
-  const placed = placeInboxRows(useInboxStore.getState() as any, { scope: "mine" });
-  const live = Object.keys(sessions).filter((id) => sessions[id].user_id === ME && placed.placements.has(id)).slice(0, LIVE_SET);
+  const placed = placeInboxRows(useInboxStore.getState() as any, {
+    scope: "mine",
+  });
+  const live = Object.keys(sessions)
+    .filter((id) => sessions[id].user_id === ME && placed.placements.has(id))
+    .slice(0, LIVE_SET);
   if (!live.includes(target)) live.push(target);
   const stampOf = (id: string) => {
     const p = placed.placements.get(id)!;
-    return { bucket: p.bucket, work_state: p.work_state, asking: false, below_fold: !!p.below_fold, bucket_stale_at: null, stale_bucket: null };
+    return {
+      bucket: p.bucket,
+      work_state: p.work_state,
+      asking: false,
+      below_fold: !!p.below_fold,
+      bucket_stale_at: null,
+      stale_bucket: null,
+    };
   };
   let n = 0;
   const beat = async () => {
@@ -494,15 +894,27 @@ async function setupInboxHeartbeat(modern = false): Promise<Bench> {
       liveness[id] = row;
     }
     liveness[target].last_heartbeat = now + n * 1000;
-    const projection = { v: INBOX_PROJECTION_VERSION, user_id: ME, scope: "mine", team_id: null, epoch: placed.epoch, tally: placed.tally, set_digest: null, truncated: [] };
+    const projection = {
+      v: INBOX_PROJECTION_VERSION,
+      user_id: ME,
+      scope: "mine",
+      team_id: null,
+      epoch: placed.epoch,
+      tally: placed.tally,
+      set_digest: null,
+      truncated: [],
+    };
     const payload = structuredClone({ liveness, projection });
-    await act(async () => { applyMineLivenessPayload(payload); });
+    await act(async () => {
+      applyMineLivenessPayload(payload);
+    });
   };
   return {
-    run: () => measure(async () => {
-      await beat();
-      await settle();
-    }),
+    run: () =>
+      measure(async () => {
+        await beat();
+        await settle();
+      }),
     reset: () => settle(),
   };
 }
@@ -518,14 +930,21 @@ function longFile(changed: boolean): string {
   const out: string[] = [];
   for (let i = 0; i < DIFF_LINES; i++) {
     const edit = changed && i % 20 === 7;
-    out.push(i % 6 === 0 ? `export function step${i}(rows: Row[], limit = ${edit ? 64 : 32}): Row[] {` : i % 6 === 5 ? "}" : `  const v${i} = rows.filter((r) => r.idle && r.size > ${edit ? i * 2 : i}).slice(0, limit); // line ${i}`);
+    out.push(
+      i % 6 === 0
+        ? `export function step${i}(rows: Row[], limit = ${edit ? 64 : 32}): Row[] {`
+        : i % 6 === 5
+          ? "}"
+          : `  const v${i} = rows.filter((r) => r.idle && r.size > ${edit ? i * 2 : i}).slice(0, limit); // line ${i}`,
+    );
   }
   return out.join("\n") + "\n";
 }
 
 const diffLines = () => {
   let n = 0;
-  for (const el of host.querySelectorAll("diffs-container")) n += el.shadowRoot?.querySelectorAll("[data-line]").length ?? 0;
+  for (const el of host.querySelectorAll("diffs-container"))
+    n += el.shadowRoot?.querySelectorAll("[data-line]").length ?? 0;
   return n + host.querySelectorAll("[data-line]").length;
 };
 
@@ -534,10 +953,19 @@ async function setupDiff(): Promise<Bench> {
   seedStore(200);
   mount();
   const [oldStr, newStr] = [longFile(false), longFile(true)];
-  (globalThis as any).IntersectionObserver = w.IntersectionObserver = VisibleObserver;
+  (globalThis as any).IntersectionObserver = w.IntersectionObserver =
+    VisibleObserver;
   const view = (
     <div data-perf-viewport style={{ overflowY: "auto", height: VIEWPORT }}>
-      <DiffView oldStr={oldStr} newStr={newStr} fileName="src/routes.ts" language="typescript" maxLines={100_000} expandUnchanged showLineNumbers />
+      <DiffView
+        oldStr={oldStr}
+        newStr={newStr}
+        fileName="src/routes.ts"
+        language="typescript"
+        maxLines={100_000}
+        expandUnchanged
+        showLineNumbers
+      />
     </div>
   );
   // The viewer draws outside React (on animation frames), so the window is
@@ -545,9 +973,17 @@ async function setupDiff(): Promise<Bench> {
   const show = async () => {
     await render(view);
     await until(() => diffLines() > 0, "the diff's lines to draw", 120_000);
-    for (let drawn = -1; drawn !== diffLines();) { drawn = diffLines(); await settle(); }
+    for (let drawn = -1; drawn !== diffLines();) {
+      drawn = diffLines();
+      await settle();
+    }
   };
-  const hide = async () => { await act(async () => { root.render(null); }); await settle(); };
+  const hide = async () => {
+    await act(async () => {
+      root.render(null);
+    });
+    await settle();
+  };
   // The first open loads the renderer and the language; every run after is
   // a diff opened in a warm app.
   await show();

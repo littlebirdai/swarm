@@ -31,26 +31,49 @@ function createDb(seed: Record<string, Rec[]>) {
       Object.assign(row, patch);
     },
     query(table: string) {
-      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> = [];
+      const constraints: Array<{ field: string; op: "eq" | "gt"; val: any }> =
+        [];
       const q: any = {
-        eq(field: string, val: any) { constraints.push({ field, op: "eq", val }); return q; },
-        gt(field: string, val: any) { constraints.push({ field, op: "gt", val }); return q; },
+        eq(field: string, val: any) {
+          constraints.push({ field, op: "eq", val });
+          return q;
+        },
+        gt(field: string, val: any) {
+          constraints.push({ field, op: "gt", val });
+          return q;
+        },
       };
       const run = () =>
         (tables[table] ?? []).filter((r) =>
           constraints.every((c) =>
-            c.op === "eq" ? String(r[c.field]) === String(c.val) : (r[c.field] ?? -Infinity) > c.val
-          )
+            c.op === "eq"
+              ? String(r[c.field]) === String(c.val)
+              : (r[c.field] ?? -Infinity) > c.val,
+          ),
         );
       let descending = false;
       const ordered = () => (descending ? [...run()].reverse() : run());
       const chain = {
-        withIndex(_name: string, builder: (q: any) => unknown) { builder(q); return chain; },
-        filter() { return chain; }, // no client_id in these tests → dedup branch never taken
-        order(dir: "asc" | "desc") { descending = dir === "desc"; return chain; },
-        async collect() { return ordered(); },
-        async first() { return ordered()[0] ?? null; },
-        async take(n: number) { return ordered().slice(0, n); },
+        withIndex(_name: string, builder: (q: any) => unknown) {
+          builder(q);
+          return chain;
+        },
+        filter() {
+          return chain;
+        }, // no client_id in these tests → dedup branch never taken
+        order(dir: "asc" | "desc") {
+          descending = dir === "desc";
+          return chain;
+        },
+        async collect() {
+          return ordered();
+        },
+        async first() {
+          return ordered()[0] ?? null;
+        },
+        async take(n: number) {
+          return ordered().slice(0, n);
+        },
       };
       return chain;
     },
@@ -62,31 +85,61 @@ function createDb(seed: Record<string, Rec[]>) {
 // Carol is a stranger — she can read it but not send, unless Bob grants her.
 function world(grantStatus?: "requested" | "granted" | "denied" | "revoked") {
   const collab_grants: Rec[] = grantStatus
-    ? [{
-        _id: "grant1",
-        conversation_id: "convShared",
-        grantee_user_id: "uCarol",
-        owner_user_id: "uBob",
-        status: grantStatus,
-        created_at: 1,
-        updated_at: 1,
-      }]
+    ? [
+        {
+          _id: "grant1",
+          conversation_id: "convShared",
+          grantee_user_id: "uCarol",
+          owner_user_id: "uBob",
+          status: grantStatus,
+          created_at: 1,
+          updated_at: 1,
+        },
+      ]
     : [];
   return createDb({
     users: [{ _id: "uBob" }, { _id: "uCarol" }],
     conversations: [
       // Link-shared, not team-visible: checkConversationAccess → "shared" for Carol.
-      { _id: "convShared", user_id: "uBob", short_id: "jxshare", session_id: "sess-shared", is_private: true, share_token: "tok-123", status: "active" },
-      { _id: "convCarol", user_id: "uCarol", short_id: "jxcarol", session_id: "sess-carol", is_private: true, status: "active" },
+      {
+        _id: "convShared",
+        user_id: "uBob",
+        short_id: "jxshare",
+        session_id: "sess-shared",
+        is_private: true,
+        share_token: "tok-123",
+        status: "active",
+      },
+      {
+        _id: "convCarol",
+        user_id: "uCarol",
+        short_id: "jxcarol",
+        session_id: "sess-carol",
+        is_private: true,
+        status: "active",
+      },
     ],
     // Carol opened Bob's share link signed in, so she holds a redemption of the
     // CURRENT token. "shared" requires presenting the token (issue #27) — a
     // grant row alone no longer implies she can even read the session.
     share_redemptions: [
-      { _id: "redeem1", conversation_id: "convShared", user_id: "uCarol", token: "tok-123", created_at: 1 },
+      {
+        _id: "redeem1",
+        conversation_id: "convShared",
+        user_id: "uCarol",
+        token: "tok-123",
+        created_at: 1,
+      },
     ],
     managed_sessions: [
-      { _id: "msShared", user_id: "uBob", conversation_id: "convShared", session_id: "sess-shared", last_heartbeat: Date.now() - 5_000, agent_status: "idle" },
+      {
+        _id: "msShared",
+        user_id: "uBob",
+        conversation_id: "convShared",
+        session_id: "sess-shared",
+        last_heartbeat: Date.now() - 5_000,
+        agent_status: "idle",
+      },
     ],
     collab_grants,
     pending_messages: [],
@@ -97,7 +150,11 @@ describe("collab grant — send gate", () => {
   test("a link recipient with NO grant cannot send (read-only by default)", async () => {
     const { ctx } = world();
     await expect(
-      performSessionSend(ctx as any, "uCarol" as any, { to: "jxshare", from: "jxcarol", body: "rm -rf please" })
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxshare",
+        from: "jxcarol",
+        body: "rm -rf please",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
@@ -119,21 +176,33 @@ describe("collab grant — send gate", () => {
   test("a merely REQUESTED grant does not open the gate (approval is required)", async () => {
     const { ctx } = world("requested");
     await expect(
-      performSessionSend(ctx as any, "uCarol" as any, { to: "jxshare", from: "jxcarol", body: "hi" })
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxshare",
+        from: "jxcarol",
+        body: "hi",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("a DENIED grant does not open the gate", async () => {
     const { ctx } = world("denied");
     await expect(
-      performSessionSend(ctx as any, "uCarol" as any, { to: "jxshare", from: "jxcarol", body: "hi" })
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxshare",
+        from: "jxcarol",
+        body: "hi",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 
   test("a REVOKED grant closes the gate again", async () => {
     const { ctx } = world("revoked");
     await expect(
-      performSessionSend(ctx as any, "uCarol" as any, { to: "jxshare", from: "jxcarol", body: "hi" })
+      performSessionSend(ctx as any, "uCarol" as any, {
+        to: "jxshare",
+        from: "jxcarol",
+        body: "hi",
+      }),
     ).rejects.toThrow(/No session found/);
   });
 });
@@ -147,6 +216,12 @@ describe("hasGrantedSendAccess — only a live grant counts", () => {
     [undefined, false],
   ] as const)("status %p → %p", async (status, expected) => {
     const { ctx } = world(status as any);
-    expect(await hasGrantedSendAccess(ctx as any, "convShared" as any, "uCarol" as any)).toBe(expected);
+    expect(
+      await hasGrantedSendAccess(
+        ctx as any,
+        "convShared" as any,
+        "uCarol" as any,
+      ),
+    ).toBe(expected);
   });
 });

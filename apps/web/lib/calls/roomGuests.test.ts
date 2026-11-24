@@ -1,8 +1,18 @@
 import { expect, test } from "bun:test";
-import { guestsJoining, guestsSig, rosterWithGuests, withGuestMedia } from "./roomGuests";
+import {
+  guestsJoining,
+  guestsSig,
+  rosterWithGuests,
+  withGuestMedia,
+} from "./roomGuests";
 
 const seat = (id: string, name: string) => ({ user_id: id, user_name: name });
-const guest = (id: string, name: string, joined_at: number) => ({ guest_id: id, identity: `guest:${id}`, name, joined_at });
+const guest = (id: string, name: string, joined_at: number) => ({
+  guest_id: id,
+  identity: `guest:${id}`,
+  name,
+  joined_at,
+});
 
 test("a room with no guests hands back its seats untouched", () => {
   const seats = [seat("u1", "Sam")];
@@ -11,13 +21,24 @@ test("a room with no guests hands back its seats untouched", () => {
 });
 
 test("guests follow the seats, in the order they were let in, keyed by identity and flagged", () => {
-  const rows = rosterWithGuests([seat("u1", "Sam")], [guest("g2", "Bo", 200), guest("g1", "Ada", 100)]);
+  const rows = rosterWithGuests(
+    [seat("u1", "Sam")],
+    [guest("g2", "Bo", 200), guest("g1", "Ada", 100)],
+  );
   expect(rows.map((r) => r.user_id)).toEqual(["u1", "guest:g1", "guest:g2"]);
-  expect(rows[1]).toEqual({ user_id: "guest:g1", user_name: "Ada", joined_at: 100, guest: true });
+  expect(rows[1]).toEqual({
+    user_id: "guest:g1",
+    user_name: "Ada",
+    joined_at: 100,
+    guest: true,
+  });
 });
 
 test("a guest is listed once, and never in place of a seat", () => {
-  const rows = rosterWithGuests([seat("guest:g1", "Ada")], [guest("g1", "Ada", 100), guest("g1", "Ada", 100)]);
+  const rows = rosterWithGuests(
+    [seat("guest:g1", "Ada")],
+    [guest("g1", "Ada", 100), guest("g1", "Ada", 100)],
+  );
   expect(rows).toHaveLength(1);
 });
 
@@ -34,12 +55,17 @@ test("a link's closing time reads in the unit a person checks it in", async () =
   expect(guestLinkExpiry(now - 1, now)).toBe("expired");
   expect(guestLinkExpiry(now + 42 * 60_000, now)).toBe("closes in 42 min");
   expect(guestLinkExpiry(now + 10 * 3_600_000, now)).toBe("open until 7:00 PM");
-  expect(guestLinkExpiry(now + 2 * 86_400_000, now)).toBe("open until Sun 9:00 AM");
+  expect(guestLinkExpiry(now + 2 * 86_400_000, now)).toBe(
+    "open until Sun 9:00 AM",
+  );
   expect(guestLinkExpiry(now + 7 * 86_400_000, now)).toBe("open until Oct 9");
 });
 
 test("the media decides who is drawn in the call and whether their microphone is on", () => {
-  const rows = rosterWithGuests([seat("u1", "Sam")], [guest("g1", "Ada", 100), guest("g2", "Bo", 200)]);
+  const rows = rosterWithGuests(
+    [seat("u1", "Sam")],
+    [guest("g1", "Ada", 100), guest("g2", "Bo", 200)],
+  );
   // Nobody can say: the server's list stands, untouched.
   expect(withGuestMedia(rows, null)).toBe(rows);
   // Ada is in the media and muted; Bo is let in but not connected.
@@ -51,9 +77,16 @@ test("the media decides who is drawn in the call and whether their microphone is
 });
 
 test("a guest let in but not connected yet is on their way, not gone", () => {
-  const rows = rosterWithGuests([seat("u1", "Sam")], [guest("g1", "Ada", 100), guest("g2", "Bo", 200)]);
+  const rows = rosterWithGuests(
+    [seat("u1", "Sam")],
+    [guest("g1", "Ada", 100), guest("g2", "Bo", 200)],
+  );
   // Bo was admitted and is still at the lobby: the stage draws him arriving.
-  expect(guestsJoining(rows, [{ identity: "guest:g1", muted: true }]).map((r) => r.user_id)).toEqual(["guest:g2"]);
+  expect(
+    guestsJoining(rows, [{ identity: "guest:g1", muted: true }]).map(
+      (r) => r.user_id,
+    ),
+  ).toEqual(["guest:g2"]);
   // Nobody can say who is in the media: nobody is drawn as arriving.
   expect(guestsJoining(rows, null)).toEqual([]);
   // A seat is never one of them, and a guest the server stopped listing is in neither list.

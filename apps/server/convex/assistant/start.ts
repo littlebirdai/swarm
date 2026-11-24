@@ -3,7 +3,11 @@
 // which also wakes the turn engine, so a module the engine's tools import
 // (agentTasks, for a routine's home) can start one without importing the
 // engine back.
-import { HOSTED_AGENT_TYPE, HOSTED_TITLE_MAX_CHARS, promptTitle } from "@codecast/shared/contracts/assistant";
+import {
+  HOSTED_AGENT_TYPE,
+  HOSTED_TITLE_MAX_CHARS,
+  promptTitle,
+} from "@codecast/shared/contracts/assistant";
 import { isHostedAgentType } from "@codecast/shared/contracts";
 import type { MutationCtx } from "../functions";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -29,11 +33,15 @@ export async function startHostedConversationFor(
 ): Promise<{ conversation_id: Id<"conversations">; short_id: string }> {
   const sessionId = args.session_id?.trim() || crypto.randomUUID();
   if (args.session_id) {
-    const existing = await ctx.db.query("conversations")
+    const existing = await ctx.db
+      .query("conversations")
       .withIndex("by_session_id", (q) => q.eq("session_id", sessionId))
       .first();
     if (existing) {
-      if (String(existing.user_id) !== String(userId) || !isHostedAgentType(existing.agent_type)) {
+      if (
+        String(existing.user_id) !== String(userId) ||
+        !isHostedAgentType(existing.agent_type)
+      ) {
         throw new Error("That session id belongs to another conversation");
       }
       return { conversation_id: existing._id, short_id: shortIdOf(existing) };
@@ -43,7 +51,9 @@ export async function startHostedConversationFor(
 
   const title = args.title?.trim();
   if (title && title.length > HOSTED_TITLE_MAX_CHARS) {
-    throw new Error(`A title can be at most ${HOSTED_TITLE_MAX_CHARS} characters`);
+    throw new Error(
+      `A title can be at most ${HOSTED_TITLE_MAX_CHARS} characters`,
+    );
   }
   // With no title, the first message names the conversation until the title
   // pass replaces it, so one whose first turn fails is never untitled.

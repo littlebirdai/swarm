@@ -38,7 +38,12 @@ The entry point is `org-template.json`:
     "charter": "org/charter.md"
   },
   "routines": [
-    { "id": "cmo-weekly", "title": "CMO portfolio review", "every": "7d", "prompt": "org/prompts/cmo-weekly.md" }
+    {
+      "id": "cmo-weekly",
+      "title": "CMO portfolio review",
+      "every": "7d",
+      "prompt": "org/prompts/cmo-weekly.md"
+    }
   ]
 }
 ```

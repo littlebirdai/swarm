@@ -3,7 +3,10 @@
 // the daemon is quiet or offline (switch stays blocked there). Remotes mirror
 // the primary, so they never win the pick.
 
-import { isFleetProfile, type CcUsage } from "@codecast/convex/convex/ccAccountsShared";
+import {
+  isFleetProfile,
+  type CcUsage,
+} from "@codecast/convex/convex/ccAccountsShared";
 import { cloudAgentProviderOfConversation } from "@codecast/shared/contracts";
 import { profileIsCurrentLogin } from "./machineAccountSwitch";
 
@@ -62,9 +65,23 @@ export function claudeChipLabel(
  * names none and the chip keeps what it last showed; Codex Cloud runs on the
  * ChatGPT plan, so it shows the Codex meter.
  */
-export function planAgentType(row: { agent_type?: string | null; session_id?: string | null; model?: string | null } | undefined): string | null {
+export function planAgentType(
+  row:
+    | {
+        agent_type?: string | null;
+        session_id?: string | null;
+        model?: string | null;
+      }
+    | undefined,
+): string | null {
   if (!row?.agent_type) return null;
-  return cloudAgentProviderOfConversation(row.agent_type, row.session_id, row.model)?.keyProvider ? null : row.agent_type;
+  return cloudAgentProviderOfConversation(
+    row.agent_type,
+    row.session_id,
+    row.model,
+  )?.keyProvider
+    ? null
+    : row.agent_type;
 }
 
 export function accountChipProvider(opts: {
@@ -109,7 +126,8 @@ export function resolveAccountChip<T extends AccountChipDevice>(opts: {
   const active = profiles.find((p) => isFleetProfile(p, device, opts.now));
   const codexProfiles = device.codex_accounts?.profiles ?? [];
   const activeCodex =
-    matchProfile(codexProfiles, device.codex_accounts?.active_email) ?? codexProfiles[0];
+    matchProfile(codexProfiles, device.codex_accounts?.active_email) ??
+    codexProfiles[0];
   const hasClaude = profiles.length > 0 || !!device.active_email;
   const hasCodex = !!activeCodex;
   const shown = accountChipProvider({

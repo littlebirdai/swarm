@@ -17,7 +17,12 @@ function dirOf(configDir: string): string {
   return path.join(configDir, "spawn-parents");
 }
 
-export function declareSpawnParent(configDir: string, childSessionId: string, parentSessionId: string, now = Date.now()): void {
+export function declareSpawnParent(
+  configDir: string,
+  childSessionId: string,
+  parentSessionId: string,
+  now = Date.now(),
+): void {
   if (!SAFE_ID.test(childSessionId)) return;
   const dir = dirOf(configDir);
   try {
@@ -28,20 +33,38 @@ export function declareSpawnParent(configDir: string, childSessionId: string, pa
         if (now - fs.statSync(file).mtimeMs > KEEP_MS) fs.unlinkSync(file);
       } catch {}
     }
-    fs.writeFileSync(path.join(dir, `${childSessionId}.json`), JSON.stringify({ parent_session_id: parentSessionId, ts: now }));
+    fs.writeFileSync(
+      path.join(dir, `${childSessionId}.json`),
+      JSON.stringify({ parent_session_id: parentSessionId, ts: now }),
+    );
   } catch {
     // The daemon still has the process walk; a failed declaration only loses the shortcut.
   }
 }
 
-export type DeclaredSpawnParent = { sessionId: string } | { conversationId: string };
+export type DeclaredSpawnParent =
+  | { sessionId: string }
+  | { conversationId: string };
 
-export function declaredSpawnParent(configDir: string, childSessionId: string): DeclaredSpawnParent | null {
+export function declaredSpawnParent(
+  configDir: string,
+  childSessionId: string,
+): DeclaredSpawnParent | null {
   if (!SAFE_ID.test(childSessionId)) return null;
   try {
-    const decl = JSON.parse(fs.readFileSync(path.join(dirOf(configDir), `${childSessionId}.json`), "utf8"));
-    if (typeof decl?.parent_session_id === "string" && decl.parent_session_id) return { sessionId: decl.parent_session_id };
-    if (typeof decl?.parent_conversation_id === "string" && decl.parent_conversation_id) return { conversationId: decl.parent_conversation_id };
+    const decl = JSON.parse(
+      fs.readFileSync(
+        path.join(dirOf(configDir), `${childSessionId}.json`),
+        "utf8",
+      ),
+    );
+    if (typeof decl?.parent_session_id === "string" && decl.parent_session_id)
+      return { sessionId: decl.parent_session_id };
+    if (
+      typeof decl?.parent_conversation_id === "string" &&
+      decl.parent_conversation_id
+    )
+      return { conversationId: decl.parent_conversation_id };
     return null;
   } catch {
     return null;

@@ -1,6 +1,24 @@
 import { describe, expect, it } from "bun:test";
-import { layoutOrgTree, rectsOverlap, personNodeId, roleNodeId, sessionNodeId, clusterNodeId, ORG_SIZES, ORG_STACK_VISIBLE, type OrgLayoutNode } from "./orgLayout";
-import { CARD, charterText, roleCardRows, roleFarRows, sessionCardRows, sessionFarRows, wrapLines } from "./orgCardModel";
+import {
+  layoutOrgTree,
+  rectsOverlap,
+  personNodeId,
+  roleNodeId,
+  sessionNodeId,
+  clusterNodeId,
+  ORG_SIZES,
+  ORG_STACK_VISIBLE,
+  type OrgLayoutNode,
+} from "./orgLayout";
+import {
+  CARD,
+  charterText,
+  roleCardRows,
+  roleFarRows,
+  sessionCardRows,
+  sessionFarRows,
+  wrapLines,
+} from "./orgCardModel";
 import { ORG_FIXTURE, ORG_FIXTURE_ALL_SESSIONS } from "./orgFixture";
 import { sortOrgSessions } from "./orgTypes";
 
@@ -21,33 +39,57 @@ describe("orgLayout", () => {
     const { nodes, edges } = layoutOrgTree(ORG_FIXTURE, none);
     const m = byId(nodes);
     const me = m.get(personNodeId("fixture-user-me"))!;
-    const kids = edges.filter((e) => e.source === me.id).map((e) => m.get(e.target)!);
+    const kids = edges
+      .filter((e) => e.source === me.id)
+      .map((e) => m.get(e.target)!);
     expect(kids.length).toBeGreaterThan(1);
     const left = Math.min(...kids.map((k) => k.x));
     const right = Math.max(...kids.map((k) => k.x + k.w));
     expect(me.x + me.w / 2).toBeGreaterThan(left);
     expect(me.x + me.w / 2).toBeLessThan(right);
-    expect(Math.min(...kids.map((k) => k.y))).toBe(me.y + me.h + ORG_SIZES.levelGap);
+    expect(Math.min(...kids.map((k) => k.y))).toBe(
+      me.y + me.h + ORG_SIZES.levelGap,
+    );
   });
 
   it("shallow branches stack into lanes, so a wide org grows down before it grows across", () => {
     // Twelve leaf roles under one person: a plain tidy tree is twelve cards wide.
     const me = ORG_FIXTURE.people[0];
-    const leaves = Array.from({ length: 12 }, (_, i) => ({ ...ORG_FIXTURE.roles[0], _id: `leaf-${i}`, handle: `leaf${i}`, name: `Leaf ${i}`, reports_to: { kind: "user" as const, user_id: me.user_id }, sessions: [], total: 0 }));
+    const leaves = Array.from({ length: 12 }, (_, i) => ({
+      ...ORG_FIXTURE.roles[0],
+      _id: `leaf-${i}`,
+      handle: `leaf${i}`,
+      name: `Leaf ${i}`,
+      reports_to: { kind: "user" as const, user_id: me.user_id },
+      sessions: [],
+      total: 0,
+    }));
     const tree = { ...ORG_FIXTURE, people: [me], roles: leaves, anchors: [] };
-    const { nodes, width, height } = layoutOrgTree(tree, none, undefined, "far");
+    const { nodes, width, height } = layoutOrgTree(
+      tree,
+      none,
+      undefined,
+      "far",
+    );
     const roles = nodes.filter((n) => n.kind === "role");
     expect(roles.length).toBe(12);
     expect(new Set(roles.map((r) => r.x)).size).toBeLessThan(4);
     expect(width).toBeLessThan(height * 2);
-    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) expect(rectsOverlap(nodes[i], nodes[j])).toBe(false);
+    for (let i = 0; i < nodes.length; i++)
+      for (let j = i + 1; j < nodes.length; j++)
+        expect(rectsOverlap(nodes[i], nodes[j])).toBe(false);
   });
 
   it("sessions under a parent form a vertical stack ending in a cluster", () => {
     const { nodes, edges } = layoutOrgTree(ORG_FIXTURE, none);
     const m = byId(nodes);
     const me = personNodeId("fixture-user-me");
-    const sessions = nodes.filter((n) => n.kind === "session" && n.parent.kind === "user" && n.parent.user_id === "fixture-user-me");
+    const sessions = nodes.filter(
+      (n) =>
+        n.kind === "session" &&
+        n.parent.kind === "user" &&
+        n.parent.user_id === "fixture-user-me",
+    );
     expect(sessions.length).toBe(ORG_STACK_VISIBLE);
     const xs = new Set(sessions.map((s) => s.x));
     expect(xs.size).toBe(1);
@@ -59,10 +101,15 @@ describe("orgLayout", () => {
     }
     // The parent card carries the same overflow count for its tally.
     const meNode = m.get(me)!;
-    if (meNode.kind === "person") expect(meNode.overflow).toBe(22 - ORG_STACK_VISIBLE);
+    if (meNode.kind === "person")
+      expect(meNode.overflow).toBe(22 - ORG_STACK_VISIBLE);
     // Every row of the stack hangs off the parent: a tree edge into the first, quieter stack edges into the rest.
     const first = sessionNodeId(ORG_FIXTURE.people[0].sessions[0]._id);
-    expect(edges.some((e) => e.source === me && e.target === first && e.kind === "tree")).toBe(true);
+    expect(
+      edges.some(
+        (e) => e.source === me && e.target === first && e.kind === "tree",
+      ),
+    ).toBe(true);
     expect(edges.filter((e) => e.source === me).length).toBe(
       ORG_STACK_VISIBLE + 1 /* cluster */ + 1 /* role */,
     );
@@ -71,8 +118,12 @@ describe("orgLayout", () => {
   it("a collapsed subtree takes one slot and reports what it hides", () => {
     const full = layoutOrgTree(ORG_FIXTURE, none);
     const me = personNodeId("fixture-user-me");
-    const folded = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set([me]), expanded: {} });
-    const under = (l: typeof full) => l.edges.filter((e) => e.source === me).length;
+    const folded = layoutOrgTree(ORG_FIXTURE, {
+      collapsed: new Set([me]),
+      expanded: {},
+    });
+    const under = (l: typeof full) =>
+      l.edges.filter((e) => e.source === me).length;
     expect(under(full)).toBeGreaterThan(0);
     expect(under(folded)).toBe(0);
     const node = byId(folded.nodes).get(me)!;
@@ -95,15 +146,30 @@ describe("orgLayout", () => {
 
   it("expanding a cluster appends the loaded sessions and keeps the stack tidy", () => {
     const me = personNodeId("fixture-user-me");
-    const extra = sortOrgSessions(ORG_FIXTURE_ALL_SESSIONS.filter((s) => s.owner_user_id === "fixture-user-me" && !s.org_role_id)).slice(8, 16);
-    const { nodes } = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: { [me]: extra } });
-    const stack = nodes.filter((n) => n.kind === "session" && n.parent.kind === "user" && n.parent.user_id === "fixture-user-me");
+    const extra = sortOrgSessions(
+      ORG_FIXTURE_ALL_SESSIONS.filter(
+        (s) => s.owner_user_id === "fixture-user-me" && !s.org_role_id,
+      ),
+    ).slice(8, 16);
+    const { nodes } = layoutOrgTree(ORG_FIXTURE, {
+      collapsed: new Set(),
+      expanded: { [me]: extra },
+    });
+    const stack = nodes.filter(
+      (n) =>
+        n.kind === "session" &&
+        n.parent.kind === "user" &&
+        n.parent.user_id === "fixture-user-me",
+    );
     // Opened: all 8 from the payload plus the 8 loaded.
     expect(stack.length).toBe(16);
     const cluster = byId(nodes).get(clusterNodeId(me))!;
     if (cluster.kind === "cluster") expect(cluster.remaining).toBe(6);
     const sorted = [...stack].sort((a, b) => a.y - b.y);
-    for (let i = 1; i < sorted.length; i++) expect(sorted[i].y - sorted[i - 1].y).toBe(sorted[i - 1].h + ORG_SIZES.stackGap);
+    for (let i = 1; i < sorted.length; i++)
+      expect(sorted[i].y - sorted[i - 1].y).toBe(
+        sorted[i - 1].h + ORG_SIZES.stackGap,
+      );
   });
 
   it("a role hangs under the person it reports to", () => {
@@ -111,10 +177,14 @@ describe("orgLayout", () => {
     const m = byId(nodes);
     const role = m.get(roleNodeId("fixture-role-growth"))!;
     const me = m.get(personNodeId("fixture-user-me"))!;
-    expect(edges.some((e) => e.source === me.id && e.target === role.id)).toBe(true);
+    expect(edges.some((e) => e.source === me.id && e.target === role.id)).toBe(
+      true,
+    );
     expect(role.y).toBeGreaterThan(me.y);
     // The role's own sessions stack under the role, not the person (5 drawn of 7).
-    const roleSessions = nodes.filter((n) => n.kind === "session" && n.parent.kind === "role");
+    const roleSessions = nodes.filter(
+      (n) => n.kind === "session" && n.parent.kind === "role",
+    );
     expect(roleSessions.length).toBe(ORG_STACK_VISIBLE);
     for (const s of roleSessions) expect(s.y).toBeGreaterThan(role.y + role.h);
   });
@@ -122,30 +192,73 @@ describe("orgLayout", () => {
   it("a seat's bot user is never drawn as a person", () => {
     const tree = {
       ...ORG_FIXTURE,
-      people: [...ORG_FIXTURE.people, { ...ORG_FIXTURE.people[1], user_id: "fixture-bot", name: "Head of People", is_me: false, sessions: [], total: 0 }],
+      people: [
+        ...ORG_FIXTURE.people,
+        {
+          ...ORG_FIXTURE.people[1],
+          user_id: "fixture-bot",
+          name: "Head of People",
+          is_me: false,
+          sessions: [],
+          total: 0,
+        },
+      ],
     };
     const { nodes } = layoutOrgTree(tree, none);
-    expect(nodes.some((n) => n.kind === "person" && n.person.user_id === "fixture-bot")).toBe(false);
+    expect(
+      nodes.some(
+        (n) => n.kind === "person" && n.person.user_id === "fixture-bot",
+      ),
+    ).toBe(false);
   });
 
   it("the root role is drawn once with its seat inside; no node is drawn from the anchors table (S22)", () => {
-    const seat = { ...ORG_FIXTURE.anchors[0], anchor_id: "fixture-growth-anchor", name: "Head of Growth", org_role_id: "fixture-role-growth", conversation_id: "fixture-growth-conv" };
-    const tree = { ...ORG_FIXTURE, anchors: [...ORG_FIXTURE.anchors, seat], roles: [{ ...ORG_FIXTURE.roles[0], anchor_id: "fixture-growth-anchor" }] };
+    const seat = {
+      ...ORG_FIXTURE.anchors[0],
+      anchor_id: "fixture-growth-anchor",
+      name: "Head of Growth",
+      org_role_id: "fixture-role-growth",
+      conversation_id: "fixture-growth-conv",
+    };
+    const tree = {
+      ...ORG_FIXTURE,
+      anchors: [...ORG_FIXTURE.anchors, seat],
+      roles: [{ ...ORG_FIXTURE.roles[0], anchor_id: "fixture-growth-anchor" }],
+    };
     const { nodes } = layoutOrgTree(tree, none);
-    expect(nodes.filter((n) => n.kind === "role" && n.role._id === "fixture-role-growth").length).toBe(1);
+    expect(
+      nodes.filter(
+        (n) => n.kind === "role" && n.role._id === "fixture-role-growth",
+      ).length,
+    ).toBe(1);
     expect(nodes.some((n) => (n.kind as string) === "anchor")).toBe(false);
     // Neither a seat known only by the role's pointer (an older tree without
     // org_role_id) nor a workspace agent not yet seated adds a node: the
     // anchors table is storage, not a card.
-    const older = { ...tree, anchors: tree.anchors.map((a) => ({ ...a, org_role_id: undefined })) };
-    expect(layoutOrgTree(older, none).nodes.some((n) => (n.kind as string) === "anchor")).toBe(false);
+    const older = {
+      ...tree,
+      anchors: tree.anchors.map((a) => ({ ...a, org_role_id: undefined })),
+    };
+    expect(
+      layoutOrgTree(older, none).nodes.some(
+        (n) => (n.kind as string) === "anchor",
+      ),
+    ).toBe(false);
     expect(layoutOrgTree(older, none).nodes.length).toBe(nodes.length);
   });
 
   it("an opened stack with nothing extra loaded still shows every payload session", () => {
     const me = personNodeId("fixture-user-me");
-    const { nodes } = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: { [me]: [] } });
-    const stack = nodes.filter((n) => n.kind === "session" && n.parent.kind === "user" && n.parent.user_id === "fixture-user-me");
+    const { nodes } = layoutOrgTree(ORG_FIXTURE, {
+      collapsed: new Set(),
+      expanded: { [me]: [] },
+    });
+    const stack = nodes.filter(
+      (n) =>
+        n.kind === "session" &&
+        n.parent.kind === "user" &&
+        n.parent.user_id === "fixture-user-me",
+    );
     expect(stack.length).toBe(8);
     const cluster = byId(nodes).get(clusterNodeId(me))!;
     if (cluster.kind === "cluster") expect(cluster.remaining).toBe(22 - 8);
@@ -154,9 +267,13 @@ describe("orgLayout", () => {
   it("nearer than far a session card books its title, its state line and its task; far keeps its summary in large type; nothing overlaps", () => {
     const mine = ORG_FIXTURE.people.find((p) => p.is_me)!.sessions;
     const [a, b, c] = mine;
-    const long = "Rewriting the sync applier so a follower window never re-pushes a whole collection on a heartbeat, and measuring it on the desktop build";
+    const long =
+      "Rewriting the sync applier so a follower window never re-pushes a whole collection on a heartbeat, and measuring it on the desktop build";
     const sessionDetails = {
-      [a._id]: { line: "Waiting on review", task: { short_id: "ct-12", title: "Fix the applier" } },
+      [a._id]: {
+        line: "Waiting on review",
+        task: { short_id: "ct-12", title: "Fix the applier" },
+      },
       [b._id]: { line: long, task: null },
       [c._id]: { line: null, task: { short_id: "ct-13", title: "Ship it" } },
     };
@@ -170,56 +287,153 @@ describe("orgLayout", () => {
         expect(n.kind === "session" && n.detail).toEqual(sessionDetails[s._id]);
       }
       // The long line takes the closed card's three lines, never more.
-      expect(sessionCardRows(b, sessionDetails[b._id], false).detailLines).toBe(CARD.detailMax);
-      for (let i = 0; i < out.nodes.length; i++) for (let j = i + 1; j < out.nodes.length; j++) expect(rectsOverlap(out.nodes[i], out.nodes[j])).toBe(false);
+      expect(sessionCardRows(b, sessionDetails[b._id], false).detailLines).toBe(
+        CARD.detailMax,
+      );
+      for (let i = 0; i < out.nodes.length; i++)
+        for (let j = i + 1; j < out.nodes.length; j++)
+          expect(rectsOverlap(out.nodes[i], out.nodes[j])).toBe(false);
       // The stack below the taller cards moves down with them.
-      const stack = out.nodes.filter((n) => n.kind === "session" && n.parent.kind === "user" && n.parent.user_id === "fixture-user-me").sort((x, y) => x.y - y.y);
-      for (let i = 1; i < stack.length; i++) expect(stack[i].y).toBe(stack[i - 1].y + stack[i - 1].h + ORG_SIZES.stackGap);
+      const stack = out.nodes
+        .filter(
+          (n) =>
+            n.kind === "session" &&
+            n.parent.kind === "user" &&
+            n.parent.user_id === "fixture-user-me",
+        )
+        .sort((x, y) => x.y - y.y);
+      for (let i = 1; i < stack.length; i++)
+        expect(stack[i].y).toBe(
+          stack[i - 1].y + stack[i - 1].h + ORG_SIZES.stackGap,
+        );
     }
     // Far keeps where each session stands, in large type: a line books two rows, none books the title alone.
     const far = layoutOrgTree(ORG_FIXTURE, view, undefined, "far");
     const fm = byId(far.nodes);
-    expect(sessionFarRows(b, sessionDetails[b._id]).summaryLines).toBe(CARD.far.summaryMax);
+    expect(sessionFarRows(b, sessionDetails[b._id]).summaryLines).toBe(
+      CARD.far.summaryMax,
+    );
     expect(sessionFarRows(c, sessionDetails[c._id]).summaryLines).toBe(0);
-    for (const s of [a, b, c]) expect(fm.get(sessionNodeId(s._id))!.h).toBe(sessionFarRows(s, sessionDetails[s._id]).h);
-    for (const n of far.nodes) if (n.kind === "role") expect(n.h).toBe(roleFarRows(n.role).h);
-    for (let i = 0; i < far.nodes.length; i++) for (let j = i + 1; j < far.nodes.length; j++) expect(rectsOverlap(far.nodes[i], far.nodes[j])).toBe(false);
+    for (const s of [a, b, c])
+      expect(fm.get(sessionNodeId(s._id))!.h).toBe(
+        sessionFarRows(s, sessionDetails[s._id]).h,
+      );
+    for (const n of far.nodes)
+      if (n.kind === "role") expect(n.h).toBe(roleFarRows(n.role).h);
+    for (let i = 0; i < far.nodes.length; i++)
+      for (let j = i + 1; j < far.nodes.length; j++)
+        expect(rectsOverlap(far.nodes[i], far.nodes[j])).toBe(false);
   });
 
   it("a card opened in place grows to what it lists, and Expand all opens every card without an overlap", () => {
     const me = ORG_FIXTURE.people.find((p) => p.is_me)!.sessions[0];
     const role = ORG_FIXTURE.roles[0];
-    const messages = [{ who: "you", text: "Can you check the tail?" }, { who: "agent", text: "Checked: the tail delta lands in one frame, numbers in the thread." }];
-    const sessionDetails = { [me._id]: { line: "Waiting on review", task: null, messages } };
-    const roleDetails = { [role._id]: { leads: [{ id: "p1", title: "Growth", short_id: "pr-4" }], tasks: [{ id: "t1", short_id: "ct-1", title: "Draft the review", status: "open" }] } };
-    const closed = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: {}, sessionDetails, roleDetails }, undefined, "mid");
+    const messages = [
+      { who: "you", text: "Can you check the tail?" },
+      {
+        who: "agent",
+        text: "Checked: the tail delta lands in one frame, numbers in the thread.",
+      },
+    ];
+    const sessionDetails = {
+      [me._id]: { line: "Waiting on review", task: null, messages },
+    };
+    const roleDetails = {
+      [role._id]: {
+        leads: [{ id: "p1", title: "Growth", short_id: "pr-4" }],
+        tasks: [
+          {
+            id: "t1",
+            short_id: "ct-1",
+            title: "Draft the review",
+            status: "open",
+          },
+        ],
+      },
+    };
+    const closed = layoutOrgTree(
+      ORG_FIXTURE,
+      { collapsed: new Set(), expanded: {}, sessionDetails, roleDetails },
+      undefined,
+      "mid",
+    );
     const opened = new Set([sessionNodeId(me._id), roleNodeId(role._id)]);
-    const open = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: {}, sessionDetails, roleDetails, opened }, undefined, "mid");
+    const open = layoutOrgTree(
+      ORG_FIXTURE,
+      {
+        collapsed: new Set(),
+        expanded: {},
+        sessionDetails,
+        roleDetails,
+        opened,
+      },
+      undefined,
+      "mid",
+    );
     const h = (l: typeof open, id: string) => byId(l.nodes).get(id)!.h;
     const sessionRows = sessionCardRows(me, sessionDetails[me._id], true);
     expect(h(open, sessionNodeId(me._id))).toBe(sessionRows.h);
     expect(sessionRows.messages.length).toBe(2);
-    expect(h(open, sessionNodeId(me._id))).toBeGreaterThan(h(closed, sessionNodeId(me._id)));
+    expect(h(open, sessionNodeId(me._id))).toBeGreaterThan(
+      h(closed, sessionNodeId(me._id)),
+    );
     const roleRows = roleCardRows(role, { open: roleDetails[role._id] });
     expect(h(open, roleNodeId(role._id))).toBe(roleRows.h);
     // Its sections: what it leads, its open tasks, its recent sessions; the whole charter.
-    expect(roleRows.leads).toBe(CARD.sectionGap + CARD.sectionHead + CARD.sectionRow);
-    expect(roleRows.tasks).toBe(CARD.sectionGap + CARD.sectionHead + CARD.sectionRow);
-    expect(roleRows.sessions).toBe(CARD.sectionGap + CARD.sectionHead + Math.min(CARD.openSessionsMax, role.sessions.length) * CARD.sectionRow);
+    expect(roleRows.leads).toBe(
+      CARD.sectionGap + CARD.sectionHead + CARD.sectionRow,
+    );
+    expect(roleRows.tasks).toBe(
+      CARD.sectionGap + CARD.sectionHead + CARD.sectionRow,
+    );
+    expect(roleRows.sessions).toBe(
+      CARD.sectionGap +
+        CARD.sectionHead +
+        Math.min(CARD.openSessionsMax, role.sessions.length) * CARD.sectionRow,
+    );
     const n = byId(open.nodes).get(roleNodeId(role._id))!;
-    expect(n.kind === "role" && n.opened && n.open).toEqual(roleDetails[role._id]);
+    expect(n.kind === "role" && n.opened && n.open).toEqual(
+      roleDetails[role._id],
+    );
     // Every card open (Expand all): still no overlap.
-    const all = new Set([...open.nodes.filter((x) => x.kind === "role" || x.kind === "session").map((x) => x.id)]);
-    const every = layoutOrgTree(ORG_FIXTURE, { collapsed: new Set(), expanded: {}, sessionDetails, roleDetails, opened: all }, undefined, "mid");
-    for (let i = 0; i < every.nodes.length; i++) for (let j = i + 1; j < every.nodes.length; j++) expect(rectsOverlap(every.nodes[i], every.nodes[j])).toBe(false);
+    const all = new Set([
+      ...open.nodes
+        .filter((x) => x.kind === "role" || x.kind === "session")
+        .map((x) => x.id),
+    ]);
+    const every = layoutOrgTree(
+      ORG_FIXTURE,
+      {
+        collapsed: new Set(),
+        expanded: {},
+        sessionDetails,
+        roleDetails,
+        opened: all,
+      },
+      undefined,
+      "mid",
+    );
+    for (let i = 0; i < every.nodes.length; i++)
+      for (let j = i + 1; j < every.nodes.length; j++)
+        expect(rectsOverlap(every.nodes[i], every.nodes[j])).toBe(false);
   });
 
   it("a role's charter prints its first paragraph closed and all of it open, headings dropped", () => {
-    expect(charterText("# Owns billing\nand invoices.\n\nSecond paragraph.", false)).toBe("Owns billing and invoices.");
-    expect(charterText("# Owns billing\nand invoices.\n\nSecond paragraph.", true)).toBe("Owns billing and invoices.\nSecond paragraph.");
+    expect(
+      charterText("# Owns billing\nand invoices.\n\nSecond paragraph.", false),
+    ).toBe("Owns billing and invoices.");
+    expect(
+      charterText("# Owns billing\nand invoices.\n\nSecond paragraph.", true),
+    ).toBe("Owns billing and invoices.\nSecond paragraph.");
     expect(charterText("   \n  ", false)).toBeNull();
     expect(charterText(undefined, true)).toBeNull();
     // A title wraps to two lines instead of being cut.
-    expect(wrapLines("Head of Broker Outreach and Partnerships", CARD.roleTitleChars, CARD.roleTitleMax)).toBe(2);
+    expect(
+      wrapLines(
+        "Head of Broker Outreach and Partnerships",
+        CARD.roleTitleChars,
+        CARD.roleTitleMax,
+      ),
+    ).toBe(2);
   });
 });

@@ -32,7 +32,13 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "./_generated/server";
 import type { FunctionReturnType } from "convex/server";
-import { action, internalAction, internalMutation, internalQuery, query } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./functions";
 import type { BillingRedirect } from "./billing";
 import { siteUrl } from "./lib/siteUrl";
 import {
@@ -80,8 +86,17 @@ export type SeatState =
       has_billing: boolean;
     };
 
-async function membershipOf(ctx: { db: any }, userId: Id<"users">, teamId: Id<"teams">): Promise<Doc<"team_memberships"> | null> {
-  return ctx.db.query("team_memberships").withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId)).first();
+async function membershipOf(
+  ctx: { db: any },
+  userId: Id<"users">,
+  teamId: Id<"teams">,
+): Promise<Doc<"team_memberships"> | null> {
+  return ctx.db
+    .query("team_memberships")
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
+    .first();
 }
 
 export const getSeatState = query({
@@ -98,13 +113,18 @@ export const getSeatState = query({
     const row = await teamSubscriptionRow(ctx, team_id);
     const counts = await countSeats(ctx, team);
     const plan = seatPlan(row);
-    const old = plan === "starter" && grandfathered(row, counts, Date.now(), env.grandfatherUntil);
+    const old =
+      plan === "starter" &&
+      grandfathered(row, counts, Date.now(), env.grandfatherUntil);
     return {
       enforced: true,
       plan,
       status: row?.subscription_status ?? null,
       lapsed: plan === "starter" && isLapsed(row?.subscription_status),
-      trial_end: row?.subscription_status === "trialing" ? row.trial_end ?? null : null,
+      trial_end:
+        row?.subscription_status === "trialing"
+          ? (row.trial_end ?? null)
+          : null,
       current_period_end: row?.current_period_end ?? null,
       cancel_at_period_end: !!row?.cancel_at_period_end,
       members: counts.members,
@@ -112,8 +132,12 @@ export const getSeatState = query({
       free_capacity: STARTER_FREE_CAPACITY,
       grandfathered: old,
       grandfathered_until: env.grandfatherUntil ?? null,
-      full: plan === "starter" && !old && counts.members + counts.pending >= STARTER_FREE_CAPACITY,
-      needs_pro: plan === "starter" && !old && counts.members > STARTER_FREE_CAPACITY,
+      full:
+        plan === "starter" &&
+        !old &&
+        counts.members + counts.pending >= STARTER_FREE_CAPACITY,
+      needs_pro:
+        plan === "starter" && !old && counts.members > STARTER_FREE_CAPACITY,
       team_name: team.name,
       is_admin: membership.role === "admin",
       has_billing: !!row?.stripe_customer_id,
@@ -130,7 +154,9 @@ export const seatContext = internalQuery({
     const row = await teamSubscriptionRow(ctx, team_id);
     const counts = await countSeats(ctx, team);
     const user = user_id ? await ctx.db.get(user_id) : null;
-    const membership = user_id ? await membershipOf(ctx, user_id, team_id) : null;
+    const membership = user_id
+      ? await membershipOf(ctx, user_id, team_id)
+      : null;
     return {
       team_name: team.name,
       deleted: !!team.deleted_at,
@@ -144,16 +170,34 @@ export const seatContext = internalQuery({
   },
 });
 
-const UNAVAILABLE: BillingRedirect = { ok: false, code: "unavailable", error: "Team plans are not on sale here yet." };
-const SIGNED_OUT: BillingRedirect = { ok: false, code: "signed_out", error: "Sign in to manage the team's plan." };
-const NOT_ADMIN: BillingRedirect = { ok: false, code: "bad_request", error: "Only a team admin can change the team's plan." };
+const UNAVAILABLE: BillingRedirect = {
+  ok: false,
+  code: "unavailable",
+  error: "Team plans are not on sale here yet.",
+};
+const SIGNED_OUT: BillingRedirect = {
+  ok: false,
+  code: "signed_out",
+  error: "Sign in to manage the team's plan.",
+};
+const NOT_ADMIN: BillingRedirect = {
+  ok: false,
+  code: "bad_request",
+  error: "Only a team admin can change the team's plan.",
+};
 
 const refusalText = (r: BillingRedirect) => (r.ok ? "" : r.error);
 
 function stripeRefusal(error: unknown): BillingRedirect {
   if (!(error instanceof StripeError)) throw error;
-  console.error(`[seat-billing] Stripe refused (${error.status} ${error.code ?? error.type ?? ""}): ${error.message}`);
-  return { ok: false, code: "stripe_error", error: "Stripe could not start that just now. Try again in a minute." };
+  console.error(
+    `[seat-billing] Stripe refused (${error.status} ${error.code ?? error.type ?? ""}): ${error.message}`,
+  );
+  return {
+    ok: false,
+    code: "stripe_error",
+    error: "Stripe could not start that just now. Try again in a minute.",
+  };
 }
 
 function teamReturnUrl(outcome?: "done" | "canceled"): string {
@@ -163,59 +207,117 @@ function teamReturnUrl(outcome?: "done" | "canceled"): string {
 /** How long a repeated checkout reuses the first one's session, as billing.ts does for plans. */
 const CHECKOUT_REUSE_MS = 60_000;
 
-type SeatContext = NonNullable<FunctionReturnType<typeof internal.teamBilling.seatContext>>;
+type SeatContext = NonNullable<
+  FunctionReturnType<typeof internal.teamBilling.seatContext>
+>;
 
-async function adminContext(ctx: ActionCtx, team_id: Id<"teams">): Promise<{ refusal: BillingRedirect } | { userId: Id<"users">; context: SeatContext }> {
+async function adminContext(
+  ctx: ActionCtx,
+  team_id: Id<"teams">,
+): Promise<
+  { refusal: BillingRedirect } | { userId: Id<"users">; context: SeatContext }
+> {
   const userId = await getAuthUserId(ctx);
   if (!userId) return { refusal: SIGNED_OUT };
-  const context = await ctx.runQuery(internal.teamBilling.seatContext, { team_id, user_id: userId });
-  if (!context || context.deleted || !context.is_admin) return { refusal: NOT_ADMIN };
+  const context = await ctx.runQuery(internal.teamBilling.seatContext, {
+    team_id,
+    user_id: userId,
+  });
+  if (!context || context.deleted || !context.is_admin)
+    return { refusal: NOT_ADMIN };
   return { userId, context };
 }
 
-async function liveSeatSubscription(stripe: StripeClient, customer: string | null): Promise<boolean> {
+async function liveSeatSubscription(
+  stripe: StripeClient,
+  customer: string | null,
+): Promise<boolean> {
   if (!customer) return false;
-  return (await stripe.listSubscriptions(customer)).some((s) => isLiveSubscription(s.status) && s.metadata?.kind === TEAM_SEATS_KIND);
+  return (await stripe.listSubscriptions(customer)).some(
+    (s) => isLiveSubscription(s.status) && s.metadata?.kind === TEAM_SEATS_KIND,
+  );
 }
 
-async function portal(stripe: StripeClient, customer: string): Promise<BillingRedirect> {
+async function portal(
+  stripe: StripeClient,
+  customer: string,
+): Promise<BillingRedirect> {
   const env = seatBillingEnv();
-  const session = await stripe.createPortalSession({ customer, returnUrl: teamReturnUrl(), configuration: env.portalConfiguration });
+  const session = await stripe.createPortalSession({
+    customer,
+    returnUrl: teamReturnUrl(),
+    configuration: env.portalConfiguration,
+  });
   return { ok: true, url: session.url, via: "portal" };
 }
 
 /** One seat price as Stripe will charge it. */
-export type SeatPrice = { unit_amount: number; currency: string; interval: string; interval_count: number };
+export type SeatPrice = {
+  unit_amount: number;
+  currency: string;
+  interval: string;
+  interval_count: number;
+};
 
 /** The prices the upgrade review shows, read from Stripe so the screen says
  *  what Stripe will charge. `annual` is null where no yearly price is set. */
 export type SeatOffer =
-  | { ok: true; monthly: SeatPrice; annual: SeatPrice | null; trial_days: number; seats: number }
+  | {
+      ok: true;
+      monthly: SeatPrice;
+      annual: SeatPrice | null;
+      trial_days: number;
+      seats: number;
+    }
   | { ok: false; error: string };
 
-async function readSeatPrice(stripe: StripeClient, name: string, priceId: string): Promise<SeatPrice | null> {
+async function readSeatPrice(
+  stripe: StripeClient,
+  name: string,
+  priceId: string,
+): Promise<SeatPrice | null> {
   const price = await stripe.getPrice(priceId);
-  if (price.active === false || typeof price.unit_amount !== "number" || !price.recurring) {
-    console.error(`[seat-billing] ${name} ${priceId} is not an active recurring price with a unit amount`);
+  if (
+    price.active === false ||
+    typeof price.unit_amount !== "number" ||
+    !price.recurring
+  ) {
+    console.error(
+      `[seat-billing] ${name} ${priceId} is not an active recurring price with a unit amount`,
+    );
     return null;
   }
-  return { unit_amount: price.unit_amount, currency: price.currency ?? "usd", interval: price.recurring.interval, interval_count: price.recurring.interval_count };
+  return {
+    unit_amount: price.unit_amount,
+    currency: price.currency ?? "usd",
+    interval: price.recurring.interval,
+    interval_count: price.recurring.interval_count,
+  };
 }
 
 export const seatOffer = action({
   args: { team_id: v.id("teams") },
   handler: async (ctx, { team_id }): Promise<SeatOffer> => {
     const env = seatBillingEnv();
-    if (!seatBillingOn(env)) return { ok: false, error: refusalText(UNAVAILABLE) };
+    if (!seatBillingOn(env))
+      return { ok: false, error: refusalText(UNAVAILABLE) };
     const admin = await adminContext(ctx, team_id);
-    if ("refusal" in admin) return { ok: false, error: refusalText(admin.refusal) };
+    if ("refusal" in admin)
+      return { ok: false, error: refusalText(admin.refusal) };
     try {
       const stripe = createStripe({ secretKey: env.secretKey! });
       const [monthly, annual] = await Promise.all([
         readSeatPrice(stripe, "STRIPE_PRICE_TEAM_SEAT", env.priceId!),
-        env.annualPriceId ? readSeatPrice(stripe, "STRIPE_PRICE_TEAM_SEAT_ANNUAL", env.annualPriceId) : null,
+        env.annualPriceId
+          ? readSeatPrice(
+              stripe,
+              "STRIPE_PRICE_TEAM_SEAT_ANNUAL",
+              env.annualPriceId,
+            )
+          : null,
       ]);
-      if (!monthly) return { ok: false, error: "The team plan's price is not set up." };
+      if (!monthly)
+        return { ok: false, error: "The team plan's price is not set up." };
       return {
         ok: true,
         monthly,
@@ -245,7 +347,11 @@ export const startSeatCheckout = action({
     const { userId, context } = admin;
     const stripe = createStripe({ secretKey: env.secretKey! });
     try {
-      if (context.customer && (await liveSeatSubscription(stripe, context.customer))) return await portal(stripe, context.customer);
+      if (
+        context.customer &&
+        (await liveSeatSubscription(stripe, context.customer))
+      )
+        return await portal(stripe, context.customer);
       const metadata = { kind: TEAM_SEATS_KIND, team_id };
       const seats = Math.max(1, context.members);
       const params = checkoutParams({
@@ -261,12 +367,27 @@ export const startSeatCheckout = action({
         allowPromotionCodes: true,
       });
       const trialDays = context.ever_subscribed ? 0 : env.trialDays;
-      params.subscription_data = { metadata, ...(trialDays > 0 ? { trial_period_days: trialDays } : {}) };
-      const session = await stripe.request<{ id?: string; url?: string }>("POST", "checkout/sessions", params, {
-        idempotencyKey: `team-checkout:${team_id}:${userId}:${context.customer ?? "new"}:${billing ?? "monthly"}:${Math.floor(Date.now() / CHECKOUT_REUSE_MS)}`,
+      params.subscription_data = {
+        metadata,
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+      };
+      const session = await stripe.request<{ id?: string; url?: string }>(
+        "POST",
+        "checkout/sessions",
+        params,
+        {
+          idempotencyKey: `team-checkout:${team_id}:${userId}:${context.customer ?? "new"}:${billing ?? "monthly"}:${Math.floor(Date.now() / CHECKOUT_REUSE_MS)}`,
+        },
+      );
+      if (!session.url)
+        throw new StripeError(
+          "Stripe returned a checkout session without a url",
+          200,
+        );
+      await ctx.runMutation(internal.teamBilling.markCheckoutStarted, {
+        team_id,
+        seats,
       });
-      if (!session.url) throw new StripeError("Stripe returned a checkout session without a url", 200);
-      await ctx.runMutation(internal.teamBilling.markCheckoutStarted, { team_id, seats });
       return { ok: true, url: session.url, via: "checkout" };
     } catch (error) {
       return stripeRefusal(error);
@@ -282,9 +403,17 @@ export const openSeatPortal = action({
     if (!seatBillingOn(env)) return UNAVAILABLE;
     const admin = await adminContext(ctx, team_id);
     if ("refusal" in admin) return admin.refusal;
-    if (!admin.context.customer) return { ok: false, code: "no_customer", error: "The team has no plan to manage yet." };
+    if (!admin.context.customer)
+      return {
+        ok: false,
+        code: "no_customer",
+        error: "The team has no plan to manage yet.",
+      };
     try {
-      return await portal(createStripe({ secretKey: env.secretKey! }), admin.context.customer);
+      return await portal(
+        createStripe({ secretKey: env.secretKey! }),
+        admin.context.customer,
+      );
     } catch (error) {
       return stripeRefusal(error);
     }
@@ -294,7 +423,11 @@ export const openSeatPortal = action({
 // ---------------------------------------------------------------------------
 // Mapping and sync
 
-async function upsertRow(ctx: MutationCtx, teamId: Id<"teams">, patch: Partial<Doc<"team_subscriptions">>): Promise<void> {
+async function upsertRow(
+  ctx: MutationCtx,
+  teamId: Id<"teams">,
+  patch: Partial<Doc<"team_subscriptions">>,
+): Promise<void> {
   const row = await teamSubscriptionRow(ctx, teamId);
   if (row) await ctx.db.patch(row._id, patch);
   else await ctx.db.insert("team_subscriptions", { team_id: teamId, ...patch });
@@ -312,14 +445,27 @@ export const markCheckoutStarted = internalMutation({
     if (row?.checkout_started_at) return;
     const team = await ctx.db.get(team_id);
     const now = Date.now();
-    const stamp = team && !row?.grandfathered_at && grandfathered(row, await countSeats(ctx, team), now, seatBillingEnv().grandfatherUntil);
-    await upsertRow(ctx, team_id, { checkout_started_at: now, checkout_seats: seats ?? 0, ...(stamp ? { grandfathered_at: now } : {}) });
+    const stamp =
+      team &&
+      !row?.grandfathered_at &&
+      grandfathered(
+        row,
+        await countSeats(ctx, team),
+        now,
+        seatBillingEnv().grandfatherUntil,
+      );
+    await upsertRow(ctx, team_id, {
+      checkout_started_at: now,
+      checkout_seats: seats ?? 0,
+      ...(stamp ? { grandfathered_at: now } : {}),
+    });
   },
 });
 
 export const markRefreshFailed = internalMutation({
   args: { team_id: v.id("teams") },
-  handler: async (ctx, { team_id }) => upsertRow(ctx, team_id, { refresh_failed_at: Date.now() }),
+  handler: async (ctx, { team_id }) =>
+    upsertRow(ctx, team_id, { refresh_failed_at: Date.now() }),
 });
 
 const ENDED_STATUSES: readonly string[] = ["canceled", "incomplete_expired"];
@@ -329,22 +475,48 @@ const ENDED_STATUSES: readonly string[] = ["canceled", "incomplete_expired"];
  *  quantity; any other mapping of a live subscription runs a sync, which does
  *  nothing when the quantity already matches. */
 export const applyTeamSubscription = internalMutation({
-  args: { subscription_json: v.string(), read_at: v.number(), sync: v.optional(v.boolean()) },
+  args: {
+    subscription_json: v.string(),
+    read_at: v.number(),
+    sync: v.optional(v.boolean()),
+  },
   handler: async (ctx, args): Promise<string> => {
-    const sub: StripeSubscription & { trial_end?: number | null } = JSON.parse(args.subscription_json);
+    const sub: StripeSubscription & { trial_end?: number | null } = JSON.parse(
+      args.subscription_json,
+    );
     const customer = stripeId(sub.customer);
-    const fromMetadata = sub.metadata?.team_id ? ctx.db.normalizeId("teams", sub.metadata.team_id) : null;
-    const byCustomer = !fromMetadata && customer
-      ? await ctx.db.query("team_subscriptions").withIndex("by_customer", (q) => q.eq("stripe_customer_id", customer)).first()
+    const fromMetadata = sub.metadata?.team_id
+      ? ctx.db.normalizeId("teams", sub.metadata.team_id)
       : null;
+    const byCustomer =
+      !fromMetadata && customer
+        ? await ctx.db
+            .query("team_subscriptions")
+            .withIndex("by_customer", (q) =>
+              q.eq("stripe_customer_id", customer),
+            )
+            .first()
+        : null;
     const teamId = fromMetadata ?? byCustomer?.team_id ?? null;
     if (!teamId || !(await ctx.db.get(teamId))) return "ignored:no_team";
     const row = await teamSubscriptionRow(ctx, teamId);
     const same = row?.stripe_subscription_id === sub.id;
     if (same) {
-      if (row.subscription_read_at !== undefined && args.read_at < row.subscription_read_at) return "ignored:stale_read";
-      if (ENDED_STATUSES.includes(row.subscription_status ?? "") && !ENDED_STATUSES.includes(sub.status)) return "ignored:ended";
-    } else if (row?.stripe_subscription_id && isLiveSubscription(row.subscription_status) && !isLiveSubscription(sub.status)) {
+      if (
+        row.subscription_read_at !== undefined &&
+        args.read_at < row.subscription_read_at
+      )
+        return "ignored:stale_read";
+      if (
+        ENDED_STATUSES.includes(row.subscription_status ?? "") &&
+        !ENDED_STATUSES.includes(sub.status)
+      )
+        return "ignored:ended";
+    } else if (
+      row?.stripe_subscription_id &&
+      isLiveSubscription(row.subscription_status) &&
+      !isLiveSubscription(sub.status)
+    ) {
       // A late event about a subscription the team has moved off.
       return "ignored:other_subscription";
     }
@@ -356,7 +528,8 @@ export const applyTeamSubscription = internalMutation({
       subscription_status: sub.status,
       price_id: subscriptionPriceId(sub) ?? undefined,
       quantity: item?.quantity,
-      trial_end: typeof sub.trial_end === "number" ? sub.trial_end * 1000 : undefined,
+      trial_end:
+        typeof sub.trial_end === "number" ? sub.trial_end * 1000 : undefined,
       current_period_end: period?.end,
       cancel_at_period_end: !!sub.cancel_at_period_end,
       subscription_read_at: args.read_at,
@@ -364,7 +537,8 @@ export const applyTeamSubscription = internalMutation({
       checkout_started_at: undefined,
       checkout_seats: undefined,
     });
-    if (args.sync !== false && isLiveSubscription(sub.status)) await scheduleSeatSync(ctx, teamId, "subscription_changed");
+    if (args.sync !== false && isLiveSubscription(sub.status))
+      await scheduleSeatSync(ctx, teamId, "subscription_changed");
     return `team:${sub.status}`;
   },
 });
@@ -376,12 +550,18 @@ export const syncSeats = internalAction({
   handler: async (ctx, { team_id, reason }): Promise<string> => {
     const env = seatBillingEnv();
     if (!seatBillingOn(env)) return "off";
-    let context = await ctx.runQuery(internal.teamBilling.seatContext, { team_id });
+    let context = await ctx.runQuery(internal.teamBilling.seatContext, {
+      team_id,
+    });
     const subscriptionId = context?.subscription_id;
     if (!context || !subscriptionId) return "no_subscription";
     const stripe = createStripe({ secretKey: env.secretKey! });
     const apply = (sub: StripeSubscription) =>
-      ctx.runMutation(internal.teamBilling.applyTeamSubscription, { subscription_json: JSON.stringify(sub), read_at: Date.now(), sync: false });
+      ctx.runMutation(internal.teamBilling.applyTeamSubscription, {
+        subscription_json: JSON.stringify(sub),
+        read_at: Date.now(),
+        sync: false,
+      });
     try {
       let sub = await stripe.getSubscription(subscriptionId);
       if (!isLiveSubscription(sub.status)) {
@@ -390,13 +570,21 @@ export const syncSeats = internalAction({
       }
       if (context.deleted) {
         if (!sub.cancel_at_period_end) {
-          sub = await stripe.request<StripeSubscription>("POST", `subscriptions/${encodeURIComponent(subscriptionId)}`, { cancel_at_period_end: true });
-          console.log(`[seat-billing] team=${team_id} deleted; ${subscriptionId} ends at the period's end`);
+          sub = await stripe.request<StripeSubscription>(
+            "POST",
+            `subscriptions/${encodeURIComponent(subscriptionId)}`,
+            { cancel_at_period_end: true },
+          );
+          console.log(
+            `[seat-billing] team=${team_id} deleted; ${subscriptionId} ends at the period's end`,
+          );
         }
         await apply(sub);
         return "cancel_at_period_end";
       }
-      const item = sub.items?.data?.find((i) => isSeatPrice(env, i.price?.id)) ?? sub.items?.data?.[0];
+      const item =
+        sub.items?.data?.find((i) => isSeatPrice(env, i.price?.id)) ??
+        sub.items?.data?.[0];
       if (!item) return "no_item";
       let quantity = item.quantity ?? null;
       const before = quantity;
@@ -405,28 +593,42 @@ export const syncSeats = internalAction({
       for (let attempt = 0; attempt < 3 && context; attempt++) {
         const seats = Math.max(1, context.members);
         if (quantity === seats) break;
-        const updated = await stripe.request<StripeSubscriptionItem>("POST", `subscription_items/${encodeURIComponent(item.id)}`, {
-          quantity: seats,
-          proration_behavior: "create_prorations",
-        });
+        const updated = await stripe.request<StripeSubscriptionItem>(
+          "POST",
+          `subscription_items/${encodeURIComponent(item.id)}`,
+          {
+            quantity: seats,
+            proration_behavior: "create_prorations",
+          },
+        );
         quantity = updated.quantity ?? seats;
-        context = await ctx.runQuery(internal.teamBilling.seatContext, { team_id });
+        context = await ctx.runQuery(internal.teamBilling.seatContext, {
+          team_id,
+        });
       }
       if (quantity !== before) {
         sub = await stripe.getSubscription(subscriptionId);
-        console.log(`[seat-billing] team=${team_id} reason=${reason} quantity ${before} -> ${quantity}`);
+        console.log(
+          `[seat-billing] team=${team_id} reason=${reason} quantity ${before} -> ${quantity}`,
+        );
       }
       await apply(sub);
       return quantity === before ? "unchanged" : "synced";
     } catch (error) {
       if (isStripeRefusal(error)) {
-        console.error(`[seat-billing] team=${team_id} reason=${reason}: Stripe refused the seat sync (${error.status}): ${error.message}`);
+        console.error(
+          `[seat-billing] team=${team_id} reason=${reason}: Stripe refused the seat sync (${error.status}): ${error.message}`,
+        );
         return "refused";
       }
       // Stripe unreachable: the plan is unconfirmed until a later read
       // succeeds, and the gate fails open meanwhile (lib/teamSeats.ts).
-      await ctx.runMutation(internal.teamBilling.markRefreshFailed, { team_id });
-      console.warn(`[seat-billing] team=${team_id} reason=${reason}: seat sync could not reach Stripe: ${error instanceof Error ? error.message : String(error)}`);
+      await ctx.runMutation(internal.teamBilling.markRefreshFailed, {
+        team_id,
+      });
+      console.warn(
+        `[seat-billing] team=${team_id} reason=${reason}: seat sync could not reach Stripe: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return "refresh_failed";
     }
   },

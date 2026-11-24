@@ -6,12 +6,12 @@ Some of the agents you work with don't run on a computer where codecast is insta
 
 Open **Settings** and choose **Connected agents**. The page shows the address, `https://codecast.sh/mcp`, and a tab for each agent with the line it needs:
 
-| Agent | What to do |
-|-------|------------|
-| Claude (web, desktop and mobile apps) | Settings, Connectors, **Add custom connector**. Paste the address, then **Connect**. |
-| Claude Code | Run `claude mcp add --transport http codecast https://codecast.sh/mcp`, then `/mcp`, pick codecast and sign in. |
-| Cursor | Add the server to `~/.cursor/mcp.json` with the address as its `url`, then **Connect**. |
-| Codex | Run `codex mcp add codecast --url https://codecast.sh/mcp`, then `codex mcp login codecast`. |
+| Agent                                 | What to do                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Claude (web, desktop and mobile apps) | Settings, Connectors, **Add custom connector**. Paste the address, then **Connect**.                            |
+| Claude Code                           | Run `claude mcp add --transport http codecast https://codecast.sh/mcp`, then `/mcp`, pick codecast and sign in. |
+| Cursor                                | Add the server to `~/.cursor/mcp.json` with the address as its `url`, then **Connect**.                         |
+| Codex                                 | Run `codex mcp add codecast --url https://codecast.sh/mcp`, then `codex mcp login codecast`.                    |
 
 Any other agent that speaks MCP over HTTP connects the same way: give it the address.
 

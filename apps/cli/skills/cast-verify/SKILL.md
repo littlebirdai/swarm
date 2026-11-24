@@ -19,7 +19,7 @@ Pick the surface that matches the change:
 
 - Web: `cast browser open <url>` in the human's Chrome, drive the flow with
   `cast browser do`, and capture `cast browser shot --share --alt "<what it
-  shows>"` at the moments that prove the behaviour. A flow that a reader
+shows>"` at the moments that prove the behaviour. A flow that a reader
   should watch: `cast browser` steps with shots before and after.
 - CLI or API: run the real command against real data and keep the output.
 - Backend: an end to end test or a request against the deployed function.

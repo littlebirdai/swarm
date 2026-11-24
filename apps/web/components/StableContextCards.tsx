@@ -96,14 +96,23 @@ function ContextSessionCard({
       }
     >
       <div className="flex items-center gap-1.5 min-w-0">
-        <LivenessDot state={livenessFor(item)} size="xs" className="flex-shrink-0" />
-        <span className={`text-meta font-medium text-sol-text truncate ${excluded ? "line-through" : ""}`}>
+        <LivenessDot
+          state={livenessFor(item)}
+          size="xs"
+          className="flex-shrink-0"
+        />
+        <span
+          className={`text-meta font-medium text-sol-text truncate ${excluded ? "line-through" : ""}`}
+        >
           {item.title}
         </span>
       </div>
       <div className="mt-1 flex items-center gap-1.5 text-meta text-sol-text-dim font-mono truncate">
         {meta.map((value, index) => (
-          <span key={`${value}-${index}`} className="flex items-center gap-1.5 flex-shrink-0">
+          <span
+            key={`${value}-${index}`}
+            className="flex items-center gap-1.5 flex-shrink-0"
+          >
             {index > 0 && <span className="opacity-50">·</span>}
             {value}
           </span>
@@ -129,7 +138,11 @@ function ContextSessionCard({
               : "opacity-0 group-hover:opacity-100 border-sol-border bg-sol-bg text-sol-text-dim hover:text-sol-red hover:border-sol-red/50"
           }`}
         >
-          {excluded ? <Undo2 className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+          {excluded ? (
+            <Undo2 className="w-2.5 h-2.5" />
+          ) : (
+            <X className="w-2.5 h-2.5" />
+          )}
         </button>
       )}
     </div>
@@ -153,7 +166,11 @@ function CardRow({ children }: { children: React.ReactNode }) {
  * started with. Renders nothing when no record exists (pre-feature sessions,
  * stable mode off).
  */
-export function StableContextCards({ stableContext }: { stableContext?: string | null }) {
+export function StableContextCards({
+  stableContext,
+}: {
+  stableContext?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const data: StableContextData | null = useMemo(
     () => parseStableContext(stableContext),
@@ -161,7 +178,8 @@ export function StableContextCards({ stableContext }: { stableContext?: string |
   );
   if (!data || data.items.length === 0) return null;
 
-  const openSession = (id: string) => useInboxStore.getState().navigateToSession(id);
+  const openSession = (id: string) =>
+    useInboxStore.getState().navigateToSession(id);
 
   return (
     <div className="conv-col mx-auto px-4 sm:px-5 md:px-6 pt-2 pb-1">
@@ -171,19 +189,28 @@ export function StableContextCards({ stableContext }: { stableContext?: string |
         aria-expanded={open}
         className="flex items-center gap-1.5 text-meta text-sol-text-dim hover:text-sol-text transition-colors mb-1.5"
       >
-        {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {open ? (
+          <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronRight className="w-3 h-3" />
+        )}
         <Layers className="w-3 h-3 text-sol-cyan" />
         <span>
-          Started with <span className="text-sol-text font-medium">{data.items.length}</span>{" "}
-          {data.items.length === 1 ? "session pointer" : "session pointers"} from the{" "}
-          <span className="text-sol-cyan">{data.mode}</span> feed
+          Started with{" "}
+          <span className="text-sol-text font-medium">{data.items.length}</span>{" "}
+          {data.items.length === 1 ? "session pointer" : "session pointers"}{" "}
+          from the <span className="text-sol-cyan">{data.mode}</span> feed
           {data.global ? " (all projects)" : ""}
         </span>
       </button>
       {open && (
         <CardRow>
           {data.items.map((item) => (
-            <ContextSessionCard key={item.id} item={item} onOpen={() => openSession(item.id)} />
+            <ContextSessionCard
+              key={item.id}
+              item={item}
+              onOpen={() => openSession(item.id)}
+            />
           ))}
         </CardRow>
       )}
@@ -202,7 +229,11 @@ const MODE_ITEMS = [
  * New-session context adjustment: preview the cards that will be injected and
  * let the user swap the mode or drop individual sessions for THIS session.
  */
-export function StableContextPicker({ conversationId, trailing, className = "w-full max-w-2xl mx-auto mt-4" }: {
+export function StableContextPicker({
+  conversationId,
+  trailing,
+  className = "w-full max-w-2xl mx-auto mt-4",
+}: {
   conversationId: string;
   className?: string;
   // Rendered at the right end of the header line — the new-session surface
@@ -213,11 +244,16 @@ export function StableContextPicker({ conversationId, trailing, className = "w-f
   const state = useTrackedStore([
     (store) => store.sessions[conversationId]?.stable_mode,
     (store) => store.sessions[conversationId]?.stable_exclude,
-    (store) => store.sessions[conversationId]?.project_path ?? store.conversations[conversationId]?.project_path,
+    (store) =>
+      store.sessions[conversationId]?.project_path ??
+      store.conversations[conversationId]?.project_path,
   ]);
-  const row = state.sessions[conversationId] ?? state.conversations[conversationId];
+  const row =
+    state.sessions[conversationId] ?? state.conversations[conversationId];
   const chosenMode: StableMode | undefined =
-    row?.stable_mode === "team" || row?.stable_mode === "solo" || row?.stable_mode === "off"
+    row?.stable_mode === "team" ||
+    row?.stable_mode === "solo" ||
+    row?.stable_mode === "off"
       ? row.stable_mode
       : undefined;
   const exclude = row?.stable_exclude ?? [];
@@ -275,8 +311,10 @@ export function StableContextPicker({ conversationId, trailing, className = "w-f
     [items, effectiveMode, exclude],
   );
 
-  const setPrefs = (prefs: { mode?: string | null; exclude?: string[] | null }) =>
-    useInboxStore.getState().setStableContextPrefs(conversationId, prefs);
+  const setPrefs = (prefs: {
+    mode?: string | null;
+    exclude?: string[] | null;
+  }) => useInboxStore.getState().setStableContextPrefs(conversationId, prefs);
 
   const toggleExclude = (id: string) => {
     const short = id.slice(0, 7);
@@ -294,39 +332,54 @@ export function StableContextPicker({ conversationId, trailing, className = "w-f
 
   return (
     <div className={className}>
-      <div className={`flex items-center justify-between gap-3 ${open ? "mb-2" : ""}`}>
+      <div
+        className={`flex items-center justify-between gap-3 ${open ? "mb-2" : ""}`}
+      >
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           className="flex items-center gap-1.5 whitespace-nowrap text-meta text-sol-text-dim hover:text-sol-text transition-colors min-w-0"
         >
-          {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          {open ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
           <Layers className="w-3 h-3 text-sol-cyan" />
           <span>Context</span>
           {/* Collapsed, the mode word stands in for the toggle; open, the
               toggle itself shows it. */}
-          {!open && <span className="text-sol-cyan/80">{chosenMode ?? "auto"}</span>}
-          {effectiveMode !== "off" && feed !== undefined && !(feed as any)?.error && (
-            <span className="opacity-70 truncate" title="Sessions the agent is pointed at when it starts">
-              · {includedCount} {includedCount === 1 ? "session" : "sessions"}
-            </span>
+          {!open && (
+            <span className="text-sol-cyan/80">{chosenMode ?? "auto"}</span>
           )}
+          {effectiveMode !== "off" &&
+            feed !== undefined &&
+            !(feed as any)?.error && (
+              <span
+                className="opacity-70 truncate"
+                title="Sessions the agent is pointed at when it starts"
+              >
+                · {includedCount} {includedCount === 1 ? "session" : "sessions"}
+              </span>
+            )}
         </button>
         {/* Controls never shrink — the header text truncates instead. */}
         <div className="flex items-center justify-end gap-3 flex-shrink-0">
           {open && (
             <SegmentedToggle
               value={chosenMode ?? "auto"}
-              onChange={(key) => setPrefs({ mode: key === "auto" ? null : key })}
+              onChange={(key) =>
+                setPrefs({ mode: key === "auto" ? null : key })
+              }
               items={MODE_ITEMS}
             />
           )}
           {trailing}
         </div>
       </div>
-      {open && (
-        effectiveMode === "off" ? (
+      {open &&
+        (effectiveMode === "off" ? (
           <div className="text-meta text-sol-text-dim/70 border border-dashed border-sol-border/50 rounded-md px-3 py-2">
             {chosenMode === "off"
               ? "No session history will be injected into this session."
@@ -348,20 +401,24 @@ export function StableContextPicker({ conversationId, trailing, className = "w-f
           </CardRow>
         ) : feedError || (feed as any)?.error ? (
           <div className="text-meta text-sol-text-dim/70 border border-dashed border-sol-border/50 rounded-md px-3 py-2">
-            Context preview unavailable right now — the session will still start with your machine&apos;s configured context.
+            Context preview unavailable right now — the session will still start
+            with your machine&apos;s configured context.
           </div>
         ) : feed === undefined ? (
           <div className="flex gap-2">
             {[0, 1, 2].map((index) => (
-              <div key={index} className="w-[13.5rem] h-[3.25rem] rounded-md border border-sol-border/40 bg-sol-bg-alt/40 animate-pulse" />
+              <div
+                key={index}
+                className="w-[13.5rem] h-[3.25rem] rounded-md border border-sol-border/40 bg-sol-bg-alt/40 animate-pulse"
+              />
             ))}
           </div>
         ) : (
           <div className="text-meta text-sol-text-dim/70 border border-dashed border-sol-border/50 rounded-md px-3 py-2">
-            No recent sessions to inject{projectPath ? " for this project" : ""}.
+            No recent sessions to inject{projectPath ? " for this project" : ""}
+            .
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

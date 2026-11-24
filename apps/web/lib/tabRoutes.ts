@@ -2,7 +2,13 @@
 // store's own tab writers can apply the same rule the router compat layer uses;
 // src/routes.manifest.test.ts imports the sets below for parity with App.tsx.
 
-import { countLeaves, findLeaf, leavesOf, sanitizeLayout, setLeafPath } from "../store/stageSplit";
+import {
+  countLeaves,
+  findLeaf,
+  leavesOf,
+  sanitizeLayout,
+  setLeafPath,
+} from "../store/stageSplit";
 import { tabSafePath, tabSafeTitle } from "./tabSafePath";
 // The single-segment routes that live inside the shell, shared with the
 // desktop hand-off gate (which may import nothing, so the list lives there).
@@ -11,7 +17,11 @@ import { IN_SHELL_ROOT_SEGMENTS, isPublicProfilePath } from "./desktopHandoff";
 // tab shell and the router agree on them.
 import { LANE_ROOTS, isUnderRoot } from "../components/simple/laneBoot";
 import { WHISK_RETURN_PATH } from "@codecast/convex/convex/lib/whisk";
-import { RENAMED_PAGES, RENAMED_PAGE_ROOTS, currentPagePath } from "./renamedPages";
+import {
+  RENAMED_PAGES,
+  RENAMED_PAGE_ROOTS,
+  currentPagePath,
+} from "./renamedPages";
 
 export { IN_SHELL_ROOT_SEGMENTS };
 
@@ -83,7 +93,25 @@ export const NON_TAB_EXACT = new Set([
 // the real router (components/LaneRedirect): a tab would intercept the click
 // and never run the redirect. A renamed page's old root (/goals) redirects
 // the same way.
-export const NON_TAB_PREFIXES: readonly string[] = ["/settings", "/auth", "/oauth", "/join", "/share", "/meet", "/blog", "/documentation", "/features", "/setup", "/compare", "/a", "/r", "/slack/connect", WHISK_RETURN_PATH, ...LANE_ROOTS, ...Object.keys(RENAMED_PAGE_ROOTS)];
+export const NON_TAB_PREFIXES: readonly string[] = [
+  "/settings",
+  "/auth",
+  "/oauth",
+  "/join",
+  "/share",
+  "/meet",
+  "/blog",
+  "/documentation",
+  "/features",
+  "/setup",
+  "/compare",
+  "/a",
+  "/r",
+  "/slack/connect",
+  WHISK_RETURN_PATH,
+  ...LANE_ROOTS,
+  ...Object.keys(RENAMED_PAGE_ROOTS),
+];
 
 export function isNonTabRoute(path: string): boolean {
   const clean = path.split("?")[0].split("#")[0];
@@ -108,7 +136,12 @@ export function isNonTabRoute(path: string): boolean {
  * stamped whatever URL the previous tab had written into the tab being
  * switched to.
  */
-export function shellEntryPath(entered: string | null, key: string, pathname: string, search: string): string | null {
+export function shellEntryPath(
+  entered: string | null,
+  key: string,
+  pathname: string,
+  search: string,
+): string | null {
   if (entered === key) return null;
   if (isNonTabRoute(pathname)) return null;
   return pathname + search;
@@ -146,7 +179,9 @@ export function routerNavigate(
   if (mode === "push") window.history.pushState(state, "", path);
   else window.history.replaceState(state, "", path);
   window.dispatchEvent(
-    typeof PopStateEvent === "function" ? new PopStateEvent("popstate", { state }) : new Event("popstate"),
+    typeof PopStateEvent === "function"
+      ? new PopStateEvent("popstate", { state })
+      : new Event("popstate"),
   );
   return true;
 }
@@ -165,13 +200,29 @@ export function shellTabPath(path: string | null | undefined): string {
  *  when malformed; the tab always keeps its plain path. A client that knows
  *  nothing of layouts may have rewritten `path` alone, so the focused leaf is
  *  re-synced to it here rather than trusted. */
-export function healTabPaths<T extends { path: string; title?: string; layout?: unknown; focusedLeafId?: unknown }>(tabs: T[]): T[] {
+export function healTabPaths<
+  T extends {
+    path: string;
+    title?: string;
+    layout?: unknown;
+    focusedLeafId?: unknown;
+  },
+>(tabs: T[]): T[] {
   let changed = false;
   const out = tabs.map((t) => {
     const path = shellTabPath(t.path);
     let next: T = t;
-    if (path !== t.path) { next = { ...next, path }; changed = true; }
-    if (typeof t.title === "string" && tabSafeTitle(path, t.title) !== t.title) { next = { ...next, title: tabSafeTitle(path, t.title) }; changed = true; }
+    if (path !== t.path) {
+      next = { ...next, path };
+      changed = true;
+    }
+    if (
+      typeof t.title === "string" &&
+      tabSafeTitle(path, t.title) !== t.title
+    ) {
+      next = { ...next, title: tabSafeTitle(path, t.title) };
+      changed = true;
+    }
     if (t.layout !== undefined || t.focusedLeafId !== undefined) {
       const layout = sanitizeLayout(t.layout, (p) => !isNonTabRoute(p));
       if (!layout || countLeaves(layout) < 2) {
@@ -179,7 +230,8 @@ export function healTabPaths<T extends { path: string; title?: string; layout?: 
         changed = true;
       } else {
         const focusedId =
-          typeof t.focusedLeafId === "string" && findLeaf(layout, t.focusedLeafId)
+          typeof t.focusedLeafId === "string" &&
+          findLeaf(layout, t.focusedLeafId)
             ? t.focusedLeafId
             : leavesOf(layout)[0].id;
         const synced = setLeafPath(layout, focusedId, next.path);
@@ -187,7 +239,8 @@ export function healTabPaths<T extends { path: string; title?: string; layout?: 
         // counts as healing, so healthy tabs keep their identity (callers
         // detect the no-op by array identity).
         const layoutChanged =
-          focusedId !== t.focusedLeafId || JSON.stringify(synced) !== JSON.stringify(t.layout);
+          focusedId !== t.focusedLeafId ||
+          JSON.stringify(synced) !== JSON.stringify(t.layout);
         if (layoutChanged) {
           next = { ...next, layout: synced, focusedLeafId: focusedId };
           changed = true;

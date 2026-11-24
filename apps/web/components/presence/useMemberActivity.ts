@@ -66,7 +66,14 @@ export function useFleetSummaries(): Map<string, FleetSummary> {
     const counted = fleetCountedSessions(st, opts);
     return fleetSummariesByMember(counted, opts);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the signatures stand in for the churny collections
-  }, [sessionsSig, pendingSig, s.sessionsWithQueuedMessages, teamInboxIdsOf(s), viewerId, now]);
+  }, [
+    sessionsSig,
+    pendingSig,
+    s.sessionsWithQueuedMessages,
+    teamInboxIdsOf(s),
+    viewerId,
+    now,
+  ]);
 }
 
 export interface MemberActivity {
@@ -99,11 +106,21 @@ export function useMemberActivity(member: any): MemberActivity {
   const engagement = engagementOf(memberId, row);
   const inHuddle = isInHuddle(memberId, row);
   // A scalar, so this always-mounted hook never subscribes to a churny row.
-  const viewerId = useInboxStore((st: any) => (st.currentUser?._id ? String(st.currentUser._id) : ""));
+  const viewerId = useInboxStore((st: any) =>
+    st.currentUser?._id ? String(st.currentUser._id) : "",
+  );
   const fleet = fleets.get(memberId) ?? null;
   const visual = memberPresenceVisual(member);
   const line = useMemo(
-    () => presenceActivityLine(member, { now, fleet, room, engagement, inHuddle, viewerId }),
+    () =>
+      presenceActivityLine(member, {
+        now,
+        fleet,
+        room,
+        engagement,
+        inHuddle,
+        viewerId,
+      }),
     [member, now, fleet, room, engagement, inHuddle, viewerId],
   );
   return { visual, line, fleet, room };

@@ -9,12 +9,26 @@
 // tokens only.
 
 import { useState } from "react";
-import type { AppConnectionScope, AppConnectionStatus, AppDescriptor } from "@codecast/shared/contracts";
-import { APP_LOOK, ISSUE_SYNC_APPS, useAppConnection } from "../../lib/integrations";
+import type {
+  AppConnectionScope,
+  AppConnectionStatus,
+  AppDescriptor,
+} from "@codecast/shared/contracts";
+import {
+  APP_LOOK,
+  ISSUE_SYNC_APPS,
+  useAppConnection,
+} from "../../lib/integrations";
 import type { GithubInstallUser } from "../../lib/githubAppInstall";
 import { githubAppInstallTeam } from "../../lib/githubAppInstall";
 import { formatRelative } from "../../lib/utils";
-import { ConfirmButton, LedgerLine, QuietButton, StatusDot, type DotTone } from "./parts";
+import {
+  ConfirmButton,
+  LedgerLine,
+  QuietButton,
+  StatusDot,
+  type DotTone,
+} from "./parts";
 import { GithubInstallDetail } from "./GithubInstallDetail";
 import { IssueSyncSources } from "./IssueSyncSources";
 import { SlackMirrorsSummary } from "./SlackMirrorsSummary";
@@ -25,15 +39,16 @@ import { TokenConnectForm } from "./TokenConnectForm";
  * silence, not success — the card then says nothing rather than inventing a
  * verdict it cannot support.
  */
-function healthLine(connection: Extract<AppConnectionStatus, { status: "connected" }>):
-  | { tone: DotTone; text: string }
-  | null {
+function healthLine(
+  connection: Extract<AppConnectionStatus, { status: "connected" }>,
+): { tone: DotTone; text: string } | null {
   const h = connection.health;
   if (!h) return null;
   if (h.last_error) return { tone: "bad", text: h.last_error };
   const last = Math.max(h.last_webhook_at ?? 0, h.last_sync_at ?? 0);
   if (!last) return { tone: "warn", text: "no traffic yet" };
-  const kind = (h.last_webhook_at ?? 0) >= (h.last_sync_at ?? 0) ? "webhook" : "sync";
+  const kind =
+    (h.last_webhook_at ?? 0) >= (h.last_sync_at ?? 0) ? "webhook" : "sync";
   return { tone: "ok", text: `last ${kind} ${formatRelative(last)}` };
 }
 
@@ -58,7 +73,11 @@ export function IntegrationCard({
   showSources?: boolean;
 }) {
   const { icon: Icon, accent } = APP_LOOK[descriptor.id];
-  const { connect, connectToken, disconnect, busy, error } = useAppConnection(descriptor, connection, scope);
+  const { connect, connectToken, disconnect, busy, error } = useAppConnection(
+    descriptor,
+    connection,
+    scope,
+  );
   // A token app connects through an inline form instead of a popup; the
   // Connect button opens it, and so does Replace token once connected.
   const tokenPaste = descriptor.connectKind === "token-paste";
@@ -66,7 +85,9 @@ export function IntegrationCard({
   const openOrConnect = tokenPaste ? () => setTokenFormOpen(true) : connect;
 
   const connected = connection?.status === "connected" ? connection : null;
-  const comingSoon = descriptor.connectKind === "coming-soon" || connection?.status === "coming_soon";
+  const comingSoon =
+    descriptor.connectKind === "coming-soon" ||
+    connection?.status === "coming_soon";
   // A connect action that answers `{ok:false,error}` is usually the server
   // saying an env var pair is missing. That is "not configured on this server",
   // not "you did something wrong", and the message names the variables — so it
@@ -78,32 +99,47 @@ export function IntegrationCard({
   return (
     <div
       // A link can land on a card (the Ops home's GitHub CI tile: #app-github); the team's card takes the plain id.
-      id={scope === "team" ? `app-${descriptor.id}` : `app-${descriptor.id}-${scope}`}
+      id={
+        scope === "team"
+          ? `app-${descriptor.id}`
+          : `app-${descriptor.id}-${scope}`
+      }
       className="border-l-2 px-4 py-3.5 sm:px-5 scroll-mt-4"
-      style={{ borderColor: connected ? accent : `color-mix(in srgb, ${accent} 35%, transparent)` }}
+      style={{
+        borderColor: connected
+          ? accent
+          : `color-mix(in srgb, ${accent} 35%, transparent)`,
+      }}
     >
       <div className="flex items-center gap-2.5">
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-          style={{ background: `color-mix(in srgb, ${accent} 14%, transparent)`, color: accent }}
+          style={{
+            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+            color: accent,
+          }}
         >
           <Icon className="h-4 w-4" />
         </span>
-        <span className="truncate text-sm font-semibold tracking-tight text-sol-text">{descriptor.name}</span>
+        <span className="truncate text-sm font-semibold tracking-tight text-sol-text">
+          {descriptor.name}
+        </span>
         <span className="flex-1" />
-        {comingSoon ? (
-          <span className="rounded border border-dashed border-sol-border px-1.5 py-[1px] font-mono text-meta text-sol-text-dim">
-            on the roadmap
-          </span>
-        ) : notConfigured ? (
-          <StatusDot tone="warn">Not configured</StatusDot>
-        ) : connected ? (
-          <StatusDot tone="ok">Connected</StatusDot>
-        ) : connection ? (
-          <StatusDot tone="idle">Not connected</StatusDot>
-        ) : loading ? (
-          <StatusDot tone="idle">Checking</StatusDot>
-        ) : null /* the state query failed: claim nothing */}
+        {
+          comingSoon ? (
+            <span className="rounded border border-dashed border-sol-border px-1.5 py-[1px] font-mono text-meta text-sol-text-dim">
+              on the roadmap
+            </span>
+          ) : notConfigured ? (
+            <StatusDot tone="warn">Not configured</StatusDot>
+          ) : connected ? (
+            <StatusDot tone="ok">Connected</StatusDot>
+          ) : connection ? (
+            <StatusDot tone="idle">Not connected</StatusDot>
+          ) : loading ? (
+            <StatusDot tone="idle">Checking</StatusDot>
+          ) : null /* the state query failed: claim nothing */
+        }
       </div>
 
       {/* The ledger: every fact about this connection in one monospace row. */}
@@ -120,22 +156,33 @@ export function IntegrationCard({
         />
       )}
 
-      <p className="mt-1.5 text-xs leading-relaxed text-sol-text-muted">{descriptor.tagline}</p>
+      <p className="mt-1.5 text-xs leading-relaxed text-sol-text-muted">
+        {descriptor.tagline}
+      </p>
 
       <ul className="mt-1.5 space-y-0.5">
         {descriptor.bullets.map((b) => (
-          <li key={b} className="flex gap-1.5 text-meta leading-snug text-sol-text-muted">
+          <li
+            key={b}
+            className="flex gap-1.5 text-meta leading-snug text-sol-text-muted"
+          >
             <span className="select-none text-sol-text-dim">·</span>
             {b}
           </li>
         ))}
       </ul>
 
-      {health && <div className="mt-1.5">
-        <StatusDot tone={health.tone}>{health.text}</StatusDot>
-      </div>}
+      {health && (
+        <div className="mt-1.5">
+          <StatusDot tone={health.tone}>{health.text}</StatusDot>
+        </div>
+      )}
 
-      {error && <p className="mt-1.5 break-words text-meta leading-relaxed text-sol-red">{error}</p>}
+      {error && (
+        <p className="mt-1.5 break-words text-meta leading-relaxed text-sol-red">
+          {error}
+        </p>
+      )}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-3">
         {comingSoon ? (
@@ -175,7 +222,11 @@ export function IntegrationCard({
             // When the state query failed this app may already be connected;
             // offering Connect would overclaim.
             disabled={!connection && !loading}
-            title={!connection && !loading ? "Connection state didn't load. Try again once it does." : undefined}
+            title={
+              !connection && !loading
+                ? "Connection state didn't load. Try again once it does."
+                : undefined
+            }
           >
             Connect
           </QuietButton>
@@ -197,20 +248,29 @@ export function IntegrationCard({
 
       {descriptor.id === "github" && !comingSoon && (
         <>
-          <GithubInstallDetail scope={scope} teamId={me ? githubAppInstallTeam(me) : undefined} />
+          <GithubInstallDetail
+            scope={scope}
+            teamId={me ? githubAppInstallTeam(me) : undefined}
+          />
           <p className="mt-1.5 text-meta leading-relaxed text-sol-text-dim">
-            Installing opens GitHub, which asks for the account or organization and the repositories.
-            If GitHub sends you to an existing install instead of asking, the App is set to install
-            only on its own account; change that under the App&apos;s settings on GitHub, Advanced, Make
-            public.
+            Installing opens GitHub, which asks for the account or organization
+            and the repositories. If GitHub sends you to an existing install
+            instead of asking, the App is set to install only on its own
+            account; change that under the App&apos;s settings on GitHub,
+            Advanced, Make public.
           </p>
         </>
       )}
 
       {hasSources && (
-        <IssueSyncSources provider={descriptor.id as "github" | "linear"} connected={!!connected} />
+        <IssueSyncSources
+          provider={descriptor.id as "github" | "linear"}
+          connected={!!connected}
+        />
       )}
-      {descriptor.id === "slack" && scope === "team" && !!connected && <SlackMirrorsSummary />}
+      {descriptor.id === "slack" && scope === "team" && !!connected && (
+        <SlackMirrorsSummary />
+      )}
     </div>
   );
 }

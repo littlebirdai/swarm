@@ -43,14 +43,22 @@ export function storeStatusOf(tasks: TaskRows, task?: BoardTask): StatusOf {
     const live = lookup(tasks, ref);
     if (live && (!task || workspaceKeyOfRow(live) === home)) return live;
     const snap = task?.graph_status?.find((g) => g.ref === ref);
-    if (snap) return snap.status === null ? null : { short_id: snap.short_id, status: snap.status };
+    if (snap)
+      return snap.status === null
+        ? null
+        : { short_id: snap.short_id, status: snap.status };
     return task?.graph_missing?.includes(ref) ? null : undefined;
   };
 }
 
 /** The store's answer for each ref, as one string ("open,done,-,?"), each
  *  live row's title after its status ("open|Fix it") when `titled`. */
-function refsSig(task: BoardTask, refs: readonly string[], tasks: TaskRows, titled = false): string {
+function refsSig(
+  task: BoardTask,
+  refs: readonly string[],
+  tasks: TaskRows,
+  titled = false,
+): string {
   const statusOf = storeStatusOf(tasks, task);
   return refs
     .map((ref) => {
@@ -58,7 +66,7 @@ function refsSig(task: BoardTask, refs: readonly string[], tasks: TaskRows, titl
       if (found === null) return "-";
       if (found === undefined) return "?";
       const title = titled ? (found as { title?: string }).title : undefined;
-      return title ? `${found.status ?? ""}|${title}` : found.status ?? "";
+      return title ? `${found.status ?? ""}|${title}` : (found.status ?? "");
     })
     .join(",");
 }
@@ -84,10 +92,14 @@ export function readySig(rows: readonly BoardTask[], tasks: TaskRows): string {
   if (cached !== undefined) return cached;
   let sig = "";
   for (const t of rows) {
-    if (t.status !== "open" || (!t.blocked_by?.length && !t.parent_id)) continue;
+    if (t.status !== "open" || (!t.blocked_by?.length && !t.parent_id))
+      continue;
     sig += `${refsSig(t, [...(t.blocked_by ?? []), ...(t.parent_id ? [String(t.parent_id)] : [])], tasks)};`;
   }
-  if (!byTasks) { byTasks = new WeakMap(); readySigCache.set(rows, byTasks); }
+  if (!byTasks) {
+    byTasks = new WeakMap();
+    readySigCache.set(rows, byTasks);
+  }
   byTasks.set(cacheKey, sig);
   return sig;
 }
@@ -95,7 +107,10 @@ export function readySig(rows: readonly BoardTask[], tasks: TaskRows): string {
 /** How each wait tone (`waitTone`) draws on every web surface (the row mark,
  *  the task page's lines, the timeline, the plan graph): its sol token for
  *  SVG and its text class. */
-export const WAIT_TONE_STYLE: Record<WaitTone, { token: string; text: string }> = {
+export const WAIT_TONE_STYLE: Record<
+  WaitTone,
+  { token: string; text: string }
+> = {
   waiting: { token: "--sol-orange", text: "text-sol-orange" },
   met: { token: "--sol-green", text: "text-sol-green" },
   failed: { token: "--sol-red", text: "text-sol-red" },
@@ -107,9 +122,17 @@ export const UNBLOCKED_VIEW = "unblocked";
 
 /** What the web calls "unblocked" and the CLI "ready" (TG1): open, active,
  *  not superseded, its parent not being worked, and nothing holding it. */
-export function isReadyInStore(task: BoardTask, tasks: TaskRows, viewer: string | null): boolean {
+export function isReadyInStore(
+  task: BoardTask,
+  tasks: TaskRows,
+  viewer: string | null,
+): boolean {
   const statusOf = storeStatusOf(tasks, task);
-  return isReady(task, { statusOf, parentStatusOf: parentStatusLookup(statusOf), viewer });
+  return isReady(task, {
+    statusOf,
+    parentStatusOf: parentStatusLookup(statusOf),
+    viewer,
+  });
 }
 
 export type BlockedMark = { count: number; failed: boolean; tip: string };
@@ -119,7 +142,10 @@ export type BlockedMark = { count: number; failed: boolean; tip: string };
  *  timeline's words, a task blocker with its title when `titleOf` knows it:
  *  "Waiting on ct-12 Fix the auth race · Waiting on PR #42 · Waiting until
  *  Sun 03:35". */
-export function blockedMark(blockers: Blocker[], opts: { now?: number; titleOf?: (ref: string) => string | undefined } = {}): BlockedMark | null {
+export function blockedMark(
+  blockers: Blocker[],
+  opts: { now?: number; titleOf?: (ref: string) => string | undefined } = {},
+): BlockedMark | null {
   if (!blockers.length) return null;
   const { now = Date.now(), titleOf } = opts;
   const phrases = blockers.map((b) => {
@@ -127,15 +153,25 @@ export function blockedMark(blockers: Blocker[], opts: { now?: number; titleOf?:
     const phrase = blockerWaitingLabel(b, { now });
     return title ? `${phrase} ${truncateEntityLabel(title)}` : phrase;
   });
-  return { count: blockers.length, failed: blockers.some(isFailedWait), tip: phrases.join(" · ") };
+  return {
+    count: blockers.length,
+    failed: blockers.some(isFailedWait),
+    tip: phrases.join(" · "),
+  };
 }
 
 /** `task`'s blocked mark read from the store, its task blockers titled. */
-export function storeBlockedMark(task: BoardTask, tasks: TaskRows, now = Date.now()): BlockedMark | null {
+export function storeBlockedMark(
+  task: BoardTask,
+  tasks: TaskRows,
+  now = Date.now(),
+): BlockedMark | null {
   const statusOf = storeStatusOf(tasks, task);
   const titleOf = (ref: string) => {
     const row = statusOf(ref);
-    return row && typeof row === "object" ? (row as { title?: string }).title : undefined;
+    return row && typeof row === "object"
+      ? (row as { title?: string }).title
+      : undefined;
   };
   return blockedMark(blockersHoldingBack(task, statusOf), { now, titleOf });
 }

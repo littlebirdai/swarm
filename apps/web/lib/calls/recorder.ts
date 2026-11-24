@@ -38,7 +38,11 @@ import { uploadBlobToStorage } from "../uploadBlob";
 import { mutateOnUnload } from "../keepaliveMutation";
 import { createMicMeter, type MicMeter } from "./micMeter";
 import { createScribeEngine, type ConvexHandle } from "./scribeEngine";
-import { peekOsPermissions, permissionHint, refreshOsPermissions } from "../osPermissions";
+import {
+  peekOsPermissions,
+  permissionHint,
+  refreshOsPermissions,
+} from "../osPermissions";
 import { isDesktop } from "../desktop";
 import { readJoinPrefs } from "./joinPrefs";
 import { recorderMime } from "./walkieMessage";
@@ -195,7 +199,11 @@ export async function startRecording(): Promise<string | null> {
     // desktop, the site setting in a browser).
     await refreshOsPermissions().catch(() => {});
     const hint = permissionHint("microphone", peekOsPermissions().microphone);
-    setPhase("idle", hint ?? "Recording needs the microphone. Allow it and press record again.");
+    setPhase(
+      "idle",
+      hint ??
+        "Recording needs the microphone. Allow it and press record again.",
+    );
     return null;
   }
   const track = stream.getAudioTracks()[0];
@@ -234,7 +242,9 @@ export async function startRecording(): Promise<string | null> {
   // transcript at the last beat, which is when the recording really stopped.
   beatTimer = setInterval(() => {
     if (!convex || !transcriptId) return;
-    convex.mutation(api.transcripts.beat, { transcript_id: transcriptId }).catch(() => {});
+    convex
+      .mutation(api.transcripts.beat, { transcript_id: transcriptId })
+      .catch(() => {});
   }, CALL_HEARTBEAT_MS);
 
   startedAt = Date.now();
@@ -297,7 +307,10 @@ export async function stopRecording(): Promise<void> {
 /** The microphone, opened for a meeting. The remembered pick is asked for as
  *  `ideal`, so a headset that was unplugged since falls back to the system
  *  default instead of failing the recording. */
-function openMic(deviceId: string | undefined, opts: { echoCancellation?: boolean } = {}): Promise<MediaStream> {
+function openMic(
+  deviceId: string | undefined,
+  opts: { echoCancellation?: boolean } = {},
+): Promise<MediaStream> {
   return navigator.mediaDevices.getUserMedia({
     // A meeting in the room is what this is listening for, so the processing
     // that exists to isolate ONE near voice works against it: echo
@@ -352,7 +365,12 @@ export async function switchRecorderMic(deviceId: string): Promise<void> {
     return;
   }
   const track = next.getAudioTracks()[0];
-  if (!track || gen !== micGen || phase !== "recording" || recTranscriptId !== transcriptId) {
+  if (
+    !track ||
+    gen !== micGen ||
+    phase !== "recording" ||
+    recTranscriptId !== transcriptId
+  ) {
     for (const t of next.getTracks()) t.stop();
     return;
   }
@@ -400,7 +418,10 @@ async function addSystemAudio(transcriptId: string): Promise<void> {
 
   let display: MediaStream;
   try {
-    display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+    display = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    });
   } catch {
     return;
   }
@@ -430,7 +451,9 @@ async function addSystemAudio(transcriptId: string): Promise<void> {
   // a meeting on speakers is not transcribed twice. Best effort: with
   // headphones there is nothing to subtract and this changes nothing.
   try {
-    await stream?.getAudioTracks()[0]?.applyConstraints({ echoCancellation: true });
+    await stream
+      ?.getAudioTracks()[0]
+      ?.applyConstraints({ echoCancellation: true });
   } catch {}
   // The OS can end the feed on its own (permission revoked mid-recording).
   // The recording carries on as the microphone, and says so.
@@ -482,7 +505,10 @@ function startAudioFile(source: MediaStream) {
   try {
     if (typeof MediaRecorder !== "function") return;
     const mime = recorderMime();
-    const rec = new MediaRecorder(source, mime ? { mimeType: mime } : undefined);
+    const rec = new MediaRecorder(
+      source,
+      mime ? { mimeType: mime } : undefined,
+    );
     rec.ondataavailable = (e) => {
       if (e.data?.size) chunks.push(e.data);
     };
@@ -501,7 +527,9 @@ function finishAudioFile(): Promise<Blob | null> {
   const rec = mediaRecorder;
   mediaRecorder = null;
   if (!rec || rec.state === "inactive") {
-    const blob = chunks.length ? new Blob(chunks, { type: chunks[0].type }) : null;
+    const blob = chunks.length
+      ? new Blob(chunks, { type: chunks[0].type })
+      : null;
     chunks = [];
     return Promise.resolve(blob);
   }
@@ -510,7 +538,9 @@ function finishAudioFile(): Promise<Blob | null> {
     const done = () => {
       if (settled) return;
       settled = true;
-      const blob = chunks.length ? new Blob(chunks, { type: chunks[0].type }) : null;
+      const blob = chunks.length
+        ? new Blob(chunks, { type: chunks[0].type })
+        : null;
       chunks = [];
       resolve(blob);
     };

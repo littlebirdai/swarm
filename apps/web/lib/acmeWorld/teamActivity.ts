@@ -12,8 +12,22 @@ import { MIN, PEOPLE } from "./world";
 /** The teammates' sessions that are also inbox rows (./inbox), at the same ids:
  *  Maya's dead-letter worker running now (the Now strip) and Sarah's HMAC one. */
 const LIVE: TeamSession[] = [
-  { ...INBOX_TEAM.dlq, who: PEOPLE.maya, ago: 50_000, project: "~/src/billing", messages: 41, state: "working" },
-  { ...INBOX_TEAM.hmac, who: PEOPLE.sarah, ago: 9 * MIN, project: "~/src/billing", messages: 22, state: "done" },
+  {
+    ...INBOX_TEAM.dlq,
+    who: PEOPLE.maya,
+    ago: 50_000,
+    project: "~/src/billing",
+    messages: 41,
+    state: "working",
+  },
+  {
+    ...INBOX_TEAM.hmac,
+    who: PEOPLE.sarah,
+    ago: 9 * MIN,
+    project: "~/src/billing",
+    messages: 22,
+    state: "done",
+  },
 ];
 const { dlq: _dlq, hmac: _hmac, ...HISTORY } = TEAM_SESSIONS;
 
@@ -43,6 +57,9 @@ export const TEAM_ACTIVITY_PART: AcmePart = {
   name: "teamActivity",
   answers: {
     // The team feed only; a personal feed asks with another filter.
-    "conversations:listConversations": (args) => (args?.filter === "team" ? { conversations: FEED(Date.now()), nextCursor: null, isDone: true } : undefined),
+    "conversations:listConversations": (args) =>
+      args?.filter === "team"
+        ? { conversations: FEED(Date.now()), nextCursor: null, isDone: true }
+        : undefined,
   },
 };

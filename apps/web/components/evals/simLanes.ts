@@ -38,15 +38,23 @@ export function parseChannel(channel: string): ParsedChannel {
       return { kind: "conn", window: rest };
     case "live": {
       const j = rest.indexOf(":");
-      return j < 0 ? { kind: "live", window: rest, feed: "" } : { kind: "live", window: rest.slice(0, j), feed: rest.slice(j + 1) };
+      return j < 0
+        ? { kind: "live", window: rest, feed: "" }
+        : { kind: "live", window: rest.slice(0, j), feed: rest.slice(j + 1) };
     }
     case "repl": {
       const j = rest.indexOf(">");
-      return j < 0 ? { kind: "other", raw: channel } : { kind: "repl", from: rest.slice(0, j), to: rest.slice(j + 1) };
+      return j < 0
+        ? { kind: "other", raw: channel }
+        : { kind: "repl", from: rest.slice(0, j), to: rest.slice(j + 1) };
     }
     case "bridge": {
       const j = rest.indexOf(":");
-      return { kind: "bridge", device: j < 0 ? rest : rest.slice(0, j), from: j < 0 ? "" : rest.slice(j + 1) };
+      return {
+        kind: "bridge",
+        device: j < 0 ? rest : rest.slice(0, j),
+        from: j < 0 ? "" : rest.slice(j + 1),
+      };
     }
     case "timer":
       return { kind: "timer", owner: rest };
@@ -62,7 +70,13 @@ export type SimStep = Extract<SimEvent, { kind: "step" }>;
 
 export const isStep = (e: SimEvent): e is SimStep => e.kind === "step";
 
-export type LaneKind = "device" | "window" | "sched" | "timer" | "actor" | "other";
+export type LaneKind =
+  | "device"
+  | "window"
+  | "sched"
+  | "timer"
+  | "actor"
+  | "other";
 
 export interface Lane {
   id: string;
@@ -74,7 +88,15 @@ export interface Lane {
   closed?: boolean;
 }
 
-export type MarkShape = "conn" | "live" | "repl" | "bridge" | "timer" | "sched" | "actor" | "other";
+export type MarkShape =
+  | "conn"
+  | "live"
+  | "repl"
+  | "bridge"
+  | "timer"
+  | "sched"
+  | "actor"
+  | "other";
 
 export interface Mark {
   /** Position among the deliveries: the x axis. */
@@ -102,7 +124,8 @@ export interface StepBand {
 }
 
 /** Cuts `s` to `max` characters with an ellipsis; nothing when there is no room for one. */
-export const truncate = (s: string, max: number) => (max <= 1 ? "" : s.length > max ? `${s.slice(0, Math.max(1, max - 1))}…` : s);
+export const truncate = (s: string, max: number) =>
+  max <= 1 ? "" : s.length > max ? `${s.slice(0, Math.max(1, max - 1))}…` : s;
 
 export interface StepLabel {
   /** 0 is the top row, 1 the row under it. */
@@ -120,7 +143,12 @@ export interface StepLabel {
  * to the band's title. `x0(i)` places delivery index i; widths are estimated at
  * `charW` per character.
  */
-export function stepLabels(steps: readonly StepBand[], x0: (i: number) => number, right: number, charW: number): Array<StepLabel | null> {
+export function stepLabels(
+  steps: readonly StepBand[],
+  x0: (i: number) => number,
+  right: number,
+  charW: number,
+): Array<StepLabel | null> {
   const GAP = 5;
   const EDGE = 4;
   let row1End = -Infinity;
@@ -128,10 +156,13 @@ export function stepLabels(steps: readonly StepBand[], x0: (i: number) => number
     const x = x0(s.at) + EDGE;
     const verbW = s.verb.length * charW;
     const full = s.actor === "world" ? s.label : `${s.actor}: ${s.label}`;
-    const detailFor = (room: number) => truncate(full, Math.floor((room - verbW - GAP) / charW));
-    const room0 = (k + 1 < steps.length ? x0(steps[k + 1].at) : right) - x - EDGE;
+    const detailFor = (room: number) =>
+      truncate(full, Math.floor((room - verbW - GAP) / charW));
+    const room0 =
+      (k + 1 < steps.length ? x0(steps[k + 1].at) : right) - x - EDGE;
     if (verbW <= room0) return { row: 0, x, detail: detailFor(room0) };
-    const room1 = (k + 2 < steps.length ? x0(steps[k + 2].at) : right) - x - EDGE;
+    const room1 =
+      (k + 2 < steps.length ? x0(steps[k + 2].at) : right) - x - EDGE;
     if (x < row1End + GAP + EDGE || verbW > room1) return null;
     const detail = detailFor(room1);
     row1End = x + verbW + (detail ? GAP + detail.length * charW : 0);
@@ -159,7 +190,10 @@ const deviceLane = (name: string) => `d:${name}`;
  * lane over its windows; channels naming a window the world does not list
  * still get a lane, so an artifact without world.json still draws.
  */
-export function buildTimeline(events: readonly SimEvent[], world: SimWorld | null): Timeline {
+export function buildTimeline(
+  events: readonly SimEvent[],
+  world: SimWorld | null,
+): Timeline {
   const lanes: Lane[] = [];
   const known = new Set<string>();
   const add = (lane: Lane) => {
@@ -169,10 +203,22 @@ export function buildTimeline(events: readonly SimEvent[], world: SimWorld | nul
   };
   const deviceOf = new Map<string, string>();
   for (const d of world?.devices ?? []) {
-    add({ id: deviceLane(d.name), kind: "device", label: d.name, device: d.name });
+    add({
+      id: deviceLane(d.name),
+      kind: "device",
+      label: d.name,
+      device: d.name,
+    });
     for (const w of d.windows) {
       deviceOf.set(w.name, d.name);
-      add({ id: windowLane(w.name), kind: "window", label: w.name, device: d.name, role: w.role, closed: w.closed });
+      add({
+        id: windowLane(w.name),
+        kind: "window",
+        label: w.name,
+        device: d.name,
+        role: w.role,
+        closed: w.closed,
+      });
     }
   }
 
@@ -180,10 +226,12 @@ export function buildTimeline(events: readonly SimEvent[], world: SimWorld | nul
   const steps: StepBand[] = [];
   let at = 0;
   for (const e of events) {
-    if (isStep(e)) steps.push({ at, end: at, verb: e.verb, actor: e.actor, label: e.label });
+    if (isStep(e))
+      steps.push({ at, end: at, verb: e.verb, actor: e.actor, label: e.label });
     else at++;
   }
-  for (let k = 0; k < steps.length; k++) steps[k].end = k + 1 < steps.length ? steps[k + 1].at : deliveries.length;
+  for (let k = 0; k < steps.length; k++)
+    steps[k].end = k + 1 < steps.length ? steps[k + 1].at : deliveries.length;
 
   // Windows the world does not name, then the lanes below them, in first-seen order.
   const extraWindows: string[] = [];
@@ -193,7 +241,8 @@ export function buildTimeline(events: readonly SimEvent[], world: SimWorld | nul
   const others: string[] = [];
   const feeds: string[] = [];
   const seeWindow = (w: string) => {
-    if (!known.has(windowLane(w)) && !extraWindows.includes(w)) extraWindows.push(w);
+    if (!known.has(windowLane(w)) && !extraWindows.includes(w))
+      extraWindows.push(w);
   };
   const parsed = deliveries.map((d) => parseChannel(d.channel));
   for (const p of parsed) {
@@ -204,29 +253,58 @@ export function buildTimeline(events: readonly SimEvent[], world: SimWorld | nul
     } else if (p.kind === "repl") {
       seeWindow(p.from);
       seeWindow(p.to);
-    } else if (p.kind === "bridge" && !known.has(deviceLane(p.device))) add({ id: deviceLane(p.device), kind: "device", label: p.device, device: p.device });
+    } else if (p.kind === "bridge" && !known.has(deviceLane(p.device)))
+      add({
+        id: deviceLane(p.device),
+        kind: "device",
+        label: p.device,
+        device: p.device,
+      });
     else if (p.kind === "sched" && !sched.length) sched.push("sched");
-    else if (p.kind === "timer" && !timers.includes(p.owner)) timers.push(p.owner);
-    else if (p.kind === "actor" && !actors.includes(p.name)) actors.push(p.name);
+    else if (p.kind === "timer" && !timers.includes(p.owner))
+      timers.push(p.owner);
+    else if (p.kind === "actor" && !actors.includes(p.name))
+      actors.push(p.name);
     else if (p.kind === "other" && !others.includes(p.raw)) others.push(p.raw);
   }
   // A world-less run keeps its windows together under one unnamed group.
-  for (const w of extraWindows) add({ id: windowLane(w), kind: "window", label: w, device: null });
-  if (sched.length) add({ id: "sched", kind: "sched", label: "sched", device: null });
-  for (const t of timers) add({ id: `t:${t}`, kind: "timer", label: `timer ${t}`, device: null });
-  for (const a of actors) add({ id: `a:${a}`, kind: "actor", label: `actor ${a}`, device: null });
-  for (const o of others) add({ id: `o:${o}`, kind: "other", label: o, device: null });
+  for (const w of extraWindows)
+    add({ id: windowLane(w), kind: "window", label: w, device: null });
+  if (sched.length)
+    add({ id: "sched", kind: "sched", label: "sched", device: null });
+  for (const t of timers)
+    add({ id: `t:${t}`, kind: "timer", label: `timer ${t}`, device: null });
+  for (const a of actors)
+    add({ id: `a:${a}`, kind: "actor", label: `actor ${a}`, device: null });
+  for (const o of others)
+    add({ id: `o:${o}`, kind: "other", label: o, device: null });
 
   const marks: Mark[] = deliveries.map((d, i) => {
     const p = parsed[i];
-    const base = { i, seq: d.seq, channel: d.channel, label: d.label, producer: d.producer };
+    const base = {
+      i,
+      seq: d.seq,
+      channel: d.channel,
+      label: d.label,
+      producer: d.producer,
+    };
     switch (p.kind) {
       case "conn":
         return { ...base, shape: "conn", lane: windowLane(p.window) };
       case "live":
-        return { ...base, shape: "live", lane: windowLane(p.window), feed: p.feed };
+        return {
+          ...base,
+          shape: "live",
+          lane: windowLane(p.window),
+          feed: p.feed,
+        };
       case "repl":
-        return { ...base, shape: "repl", lane: windowLane(p.from), toLane: windowLane(p.to) };
+        return {
+          ...base,
+          shape: "repl",
+          lane: windowLane(p.from),
+          toLane: windowLane(p.to),
+        };
       case "bridge":
         return { ...base, shape: "bridge", lane: deviceLane(p.device) };
       case "sched":
@@ -249,21 +327,38 @@ export function buildTimeline(events: readonly SimEvent[], world: SimWorld | nul
 }
 
 /** The failing delivery's index from result.json's count (null for a pass). */
-export const failIndex = (delivery: number | null | undefined, count: number): number | null =>
-  delivery === null || delivery === undefined ? null : Math.max(0, Math.min(count - 1, delivery - 1));
+export const failIndex = (
+  delivery: number | null | undefined,
+  count: number,
+): number | null =>
+  delivery === null || delivery === undefined
+    ? null
+    : Math.max(0, Math.min(count - 1, delivery - 1));
 
 /** The labels a run's deliveries touch, most touched first: the trace picker. */
-export function traceLabels(marks: readonly Mark[], labels: SimLabels, max = 24): Array<{ label: string; count: number }> {
+export function traceLabels(
+  marks: readonly Mark[],
+  labels: SimLabels,
+  max = 24,
+): Array<{ label: string; count: number }> {
   const out: Array<{ label: string; count: number }> = [];
   for (const [, label] of labels.entries()) {
-    const count = marks.reduce((n, m) => n + (traceMatches(m, label, labels) ? 1 : 0), 0);
+    const count = marks.reduce(
+      (n, m) => n + (traceMatches(m, label, labels) ? 1 : 0),
+      0,
+    );
     if (count) out.push({ label, count });
   }
-  return out.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)).slice(0, max);
+  return out
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, max);
 }
 
 /** The delivery indexes a shrink kept: every recorded index minus `removed` (null before a shrink). */
-export function keptIndexes(recorded: number, removed: readonly number[] | null | undefined): Set<number> | null {
+export function keptIndexes(
+  recorded: number,
+  removed: readonly number[] | null | undefined,
+): Set<number> | null {
   if (!removed) return null;
   const gone = new Set(removed);
   const kept = new Set<number>();
@@ -272,14 +367,31 @@ export function keptIndexes(recorded: number, removed: readonly number[] | null 
 }
 
 /** "17 recorded, 4 needed (1-minimal)": the order strip's caption. */
-export function shrinkCaption(recorded: number, minimal: { order: readonly string[]; oneMinimal: boolean; attempts: number } | null): string {
+export function shrinkCaption(
+  recorded: number,
+  minimal: {
+    order: readonly string[];
+    oneMinimal: boolean;
+    attempts: number;
+  } | null,
+): string {
   if (!minimal) return `${recorded} recorded`;
   return `${recorded} recorded, ${minimal.order.length} needed (${minimal.oneMinimal ? "1-minimal" : "a cap stopped it, not 1-minimal"})`;
 }
 
 /** Categorical feed colours. Magenta and red keep their fixed meanings (failure, gates), so feeds never use them. */
-export const FEED_TONES = ["var(--sol-blue)", "var(--sol-green)", "var(--sol-violet)", "var(--sol-cyan)", "var(--sol-orange)", "var(--sol-yellow)"] as const;
-export const feedTone = (feeds: readonly string[], feed: string | undefined) => (feed === undefined ? "var(--sol-text-muted)" : FEED_TONES[Math.max(0, feeds.indexOf(feed)) % FEED_TONES.length]);
+export const FEED_TONES = [
+  "var(--sol-blue)",
+  "var(--sol-green)",
+  "var(--sol-violet)",
+  "var(--sol-cyan)",
+  "var(--sol-orange)",
+  "var(--sol-yellow)",
+] as const;
+export const feedTone = (feeds: readonly string[], feed: string | undefined) =>
+  feed === undefined
+    ? "var(--sol-text-muted)"
+    : FEED_TONES[Math.max(0, feeds.indexOf(feed)) % FEED_TONES.length];
 
 /**
  * What the two columns of a failure's row diff hold. result.json names them
@@ -288,12 +400,24 @@ export const feedTone = (feeds: readonly string[], feed: string | undefined) => 
  * named by window from world.json. Every other invariant compares the
  * server's row with the window's replica.
  */
-export function rowDiffSides(invariant: string, window: string | null | undefined, world: SimWorld | null): { server: string; replica: string } {
+export function rowDiffSides(
+  invariant: string,
+  window: string | null | undefined,
+  world: SimWorld | null,
+): { server: string; replica: string } {
   if (invariant === "INV-followers") {
-    const host = world?.devices.find((d) => d.windows.some((w) => w.name === window))?.windows.find((w) => w.role === "host")?.name;
-    return { server: host ? `host (${host})` : "host", replica: window ? `follower (${window})` : "follower" };
+    const host = world?.devices
+      .find((d) => d.windows.some((w) => w.name === window))
+      ?.windows.find((w) => w.role === "host")?.name;
+    return {
+      server: host ? `host (${host})` : "host",
+      replica: window ? `follower (${window})` : "follower",
+    };
   }
-  return { server: "server", replica: window ? `replica (${window})` : "replica" };
+  return {
+    server: "server",
+    replica: window ? `replica (${window})` : "replica",
+  };
 }
 
 type DiffField = { field: string; server: string; replica: string };
@@ -308,12 +432,20 @@ const EMPTY_VALUES = new Set(["null", "false", "0", "[]", "{}", '""']);
  * with the fields the message names or the invariant compares, then the rest
  * in their recorded order.
  */
-export function splitRowDiff(diff: readonly DiffField[], named: { message?: string | null; keys?: readonly string[] }): { shown: DiffField[]; omitted: DiffField[] } {
-  const isOmission = (d: DiffField) => (d.server === "(absent)" && EMPTY_VALUES.has(d.replica)) || (d.replica === "(absent)" && EMPTY_VALUES.has(d.server));
+export function splitRowDiff(
+  diff: readonly DiffField[],
+  named: { message?: string | null; keys?: readonly string[] },
+): { shown: DiffField[]; omitted: DiffField[] } {
+  const isOmission = (d: DiffField) =>
+    (d.server === "(absent)" && EMPTY_VALUES.has(d.replica)) ||
+    (d.replica === "(absent)" && EMPTY_VALUES.has(d.server));
   const keys = new Set(named.keys ?? []);
   const message = named.message ?? "";
-  const lead = (d: DiffField) => keys.has(d.field) || (d.field.length > 2 && message.includes(d.field));
+  const lead = (d: DiffField) =>
+    keys.has(d.field) || (d.field.length > 2 && message.includes(d.field));
   const real = diff.filter((d) => !isOmission(d));
-  return { shown: [...real.filter(lead), ...real.filter((d) => !lead(d))], omitted: diff.filter(isOmission) };
+  return {
+    shown: [...real.filter(lead), ...real.filter((d) => !lead(d))],
+    omitted: diff.filter(isOmission),
+  };
 }
-

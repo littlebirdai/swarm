@@ -10,7 +10,11 @@
 // what will be sent. Two implementations would drift and the preview would
 // stop being a preview.
 
-import { FOREIGN_TEXT_CAPS, fenceForeignText, inlineForeignText } from "../contracts/fence";
+import {
+  FOREIGN_TEXT_CAPS,
+  fenceForeignText,
+  inlineForeignText,
+} from "../contracts/fence";
 
 export type ReviewNoteLike = {
   file_path: string;
@@ -36,10 +40,18 @@ export function reviewNoteLocation(note: ReviewNoteLike): string {
  * else does, and a note containing "ignore the above" must read as quoted
  * material. `authorName` names the source inside the fence.
  */
-export function formatReviewNote(note: ReviewNoteLike, authorName: string): string {
-  const lines = [`File: ${inlineForeignText(note.file_path)}`, reviewNoteLocation(note)];
+export function formatReviewNote(
+  note: ReviewNoteLike,
+  authorName: string,
+): string {
+  const lines = [
+    `File: ${inlineForeignText(note.file_path)}`,
+    reviewNoteLocation(note),
+  ];
   if (note.stale) {
-    lines.push("Stale: the file changed after this note was written — check the note still applies.");
+    lines.push(
+      "Stale: the file changed after this note was written — check the note still applies.",
+    );
   }
   lines.push(
     fenceForeignText(note.content, `review note by ${authorName}`, {
@@ -114,13 +126,21 @@ export function buildReviewBatchPrompt(opts: ReviewBatchPromptOptions): string {
         "",
       ];
   if (opts.summary?.trim()) {
-    lines.push(fenceForeignText(opts.summary.trim(), `review summary by ${opts.actorName}`, {
-      maxChars: FOREIGN_TEXT_CAPS.descriptionChars,
-    }));
+    lines.push(
+      fenceForeignText(
+        opts.summary.trim(),
+        `review summary by ${opts.actorName}`,
+        {
+          maxChars: FOREIGN_TEXT_CAPS.descriptionChars,
+        },
+      ),
+    );
     lines.push("");
   }
   if (opts.verdict && count) {
-    lines.push(`Read each spot in the repository${opts.ref ? ` at commit ${opts.ref}` : ""} before answering.`);
+    lines.push(
+      `Read each spot in the repository${opts.ref ? ` at commit ${opts.ref}` : ""} before answering.`,
+    );
     lines.push("");
   }
 
@@ -132,7 +152,10 @@ export function buildReviewBatchPrompt(opts: ReviewBatchPromptOptions): string {
   let dropped = 0;
   for (const note of opts.notes) {
     const block = formatReviewNote(note, opts.actorName);
-    if (rendered.length && spent + block.length + 2 > FOREIGN_TEXT_CAPS.blockChars) {
+    if (
+      rendered.length &&
+      spent + block.length + 2 > FOREIGN_TEXT_CAPS.blockChars
+    ) {
       dropped += 1;
       continue;
     }
@@ -142,7 +165,9 @@ export function buildReviewBatchPrompt(opts: ReviewBatchPromptOptions): string {
   lines.push(rendered.join("\n\n"));
   if (dropped) {
     lines.push("");
-    lines.push(`${dropped} further ${dropped === 1 ? "note is" : "notes are"} not shown here — run \`cast review ls\`.`);
+    lines.push(
+      `${dropped} further ${dropped === 1 ? "note is" : "notes are"} not shown here — run \`cast review ls\`.`,
+    );
   }
 
   const link = opts.pullRequest?.url ?? opts.url;
@@ -150,5 +175,8 @@ export function buildReviewBatchPrompt(opts: ReviewBatchPromptOptions): string {
     lines.push("");
     lines.push(`${opts.verdict ? "The review" : "The notes"}: ${link}`);
   }
-  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd();
+  return lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
 }

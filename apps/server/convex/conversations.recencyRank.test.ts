@@ -7,7 +7,11 @@ import { PROMPT_CACHE_LIFETIME_MS } from "./wakeCost";
 // cheaply first. Messages into sessions whose prompt cache expired cost the
 // whole context again and drew no replies (measured 2026-09-14).
 const NOW = 1_800_000_000_000;
-const conv = (o: Record<string, unknown>) => ({ updated_at: NOW - 60_000, status: "active", ...o });
+const conv = (o: Record<string, unknown>) => ({
+  updated_at: NOW - 60_000,
+  status: "active",
+  ...o,
+});
 
 describe("recencyRankOf", () => {
   test("a warm session ranks first", () => {
@@ -15,9 +19,21 @@ describe("recencyRankOf", () => {
   });
 
   test("an expired cache ranks next, judged by the last model call before updated_at", () => {
-    expect(recencyRankOf(conv({ updated_at: NOW - PROMPT_CACHE_LIFETIME_MS - 1 }), NOW)).toBe(1);
+    expect(
+      recencyRankOf(
+        conv({ updated_at: NOW - PROMPT_CACHE_LIFETIME_MS - 1 }),
+        NOW,
+      ),
+    ).toBe(1);
     // A metadata patch bumped updated_at, but the cache was last written hours ago.
-    expect(recencyRankOf(conv({ usage_totals: { updated_at: NOW - 3 * PROMPT_CACHE_LIFETIME_MS } }), NOW)).toBe(1);
+    expect(
+      recencyRankOf(
+        conv({
+          usage_totals: { updated_at: NOW - 3 * PROMPT_CACHE_LIFETIME_MS },
+        }),
+        NOW,
+      ),
+    ).toBe(1);
   });
 
   test("killed or completed sessions rank last, however recent", () => {

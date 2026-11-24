@@ -14,7 +14,12 @@ import {
   externalEventStyle,
   type ExternalEventGroup,
 } from "../../lib/externalEvents";
-import { AccentWord, ActorFace, EventRefPills, ExternalEventRow } from "./ExternalEventRow";
+import {
+  AccentWord,
+  ActorFace,
+  EventRefPills,
+  ExternalEventRow,
+} from "./ExternalEventRow";
 
 const MAX_FACES = 3;
 
@@ -29,10 +34,20 @@ export function ExternalEventGroupRow({
 }) {
   const now = useCoarseNow(60_000);
   const [open, setOpen] = useState(false);
-  const events = useMemo(() => group.events.map(externalEventRowToExternalEvent), [group.events]);
+  const events = useMemo(
+    () => group.events.map(externalEventRowToExternalEvent),
+    [group.events],
+  );
 
   if (events.length === 1) {
-    return <ExternalEventRow event={events[0]} density="feed" onNavigate={onNavigate} className={className} />;
+    return (
+      <ExternalEventRow
+        event={events[0]}
+        density="feed"
+        onNavigate={onNavigate}
+        className={className}
+      />
+    );
   }
 
   const lead = group.phrases[0];
@@ -43,13 +58,26 @@ export function ExternalEventGroupRow({
   const accent = lead.accent ?? style.accent;
   const Icon = style.icon;
 
-  const actors = uniqueBy(events.map((e) => e.actor).filter(Boolean), (a) => a!.user_id ?? a!.login ?? a!.name ?? "");
-  const sessions = uniqueBy(events.map((e) => e.refs.session_id).filter((id): id is string => !!id), (id) => id);
+  const actors = uniqueBy(
+    events.map((e) => e.actor).filter(Boolean),
+    (a) => a!.user_id ?? a!.login ?? a!.name ?? "",
+  );
+  const sessions = uniqueBy(
+    events.map((e) => e.refs.session_id).filter((id): id is string => !!id),
+    (id) => id,
+  );
   const pr = events.find((e) => e.refs.pr)?.refs.pr;
-  const commits = uniqueBy(events.map((e) => e.refs.commit).filter((c) => !!c), (c) => c!.sha);
+  const commits = uniqueBy(
+    events.map((e) => e.refs.commit).filter((c) => !!c),
+    (c) => c!.sha,
+  );
   // A run across worktrees names how many branches it touched; one branch names itself.
-  const branches = uniqueBy(group.events.map((e) => e.branch).filter((b): b is string => !!b), (b) => b);
-  const branch = branches.length > 1 ? `${branches.length} branches` : branches[0];
+  const branches = uniqueBy(
+    group.events.map((e) => e.branch).filter((b): b is string => !!b),
+    (b) => b,
+  );
+  const branch =
+    branches.length > 1 ? `${branches.length} branches` : branches[0];
   const newest = events[0];
   const oldest = events[events.length - 1];
 
@@ -70,7 +98,10 @@ export function ExternalEventGroupRow({
       >
         <span
           className="mt-[1px] w-[17px] h-[17px] rounded-full flex items-center justify-center flex-shrink-0 border"
-          style={{ background: accentSoft(accent), borderColor: accentSoft(accent, 40) }}
+          style={{
+            background: accentSoft(accent),
+            borderColor: accentSoft(accent, 40),
+          }}
         >
           <Icon className="w-2.5 h-2.5" style={{ color: accentVar(accent) }} />
         </span>
@@ -81,13 +112,22 @@ export function ExternalEventGroupRow({
               <span className="inline-flex items-center flex-shrink-0 self-center">
                 <span className="inline-flex items-center -space-x-1">
                   {actors.slice(0, MAX_FACES).map((a, i) => (
-                    <ActorFace key={a!.user_id ?? a!.login ?? i} actor={a} size={14} />
+                    <ActorFace
+                      key={a!.user_id ?? a!.login ?? i}
+                      actor={a}
+                      size={14}
+                    />
                   ))}
                 </span>
-                {actors.length === 1 && (actors[0]!.name || actors[0]!.login) ? (
-                  <span className="ml-1 text-sol-text-muted">{actors[0]!.name || actors[0]!.login}</span>
+                {actors.length === 1 &&
+                (actors[0]!.name || actors[0]!.login) ? (
+                  <span className="ml-1 text-sol-text-muted">
+                    {actors[0]!.name || actors[0]!.login}
+                  </span>
                 ) : actors.length > MAX_FACES ? (
-                  <span className="ml-1 text-sol-text-dim">+{actors.length - MAX_FACES}</span>
+                  <span className="ml-1 text-sol-text-dim">
+                    +{actors.length - MAX_FACES}
+                  </span>
                 ) : null}
               </span>
             ) : null}
@@ -102,10 +142,17 @@ export function ExternalEventGroupRow({
               </React.Fragment>
             ))}
             {branch ? (
-              <span className="font-mono text-meta text-sol-text-dim/80 flex-shrink-0 truncate max-w-[16rem]" title={branches.join("\n")}>{branch}</span>
+              <span
+                className="font-mono text-meta text-sol-text-dim/80 flex-shrink-0 truncate max-w-[16rem]"
+                title={branches.join("\n")}
+              >
+                {branch}
+              </span>
             ) : null}
             <span className="inline-flex items-center gap-0.5 text-meta text-sol-text-dim flex-shrink-0">
-              <ChevronRight className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} />
+              <ChevronRight
+                className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`}
+              />
               {events.length} events
             </span>
             <span
@@ -117,7 +164,10 @@ export function ExternalEventGroupRow({
           </div>
 
           <EventRefPills
-            refs={{ pr: pr ?? undefined, commit: commits.length === 1 ? commits[0] : undefined }}
+            refs={{
+              pr: pr ?? undefined,
+              commit: commits.length === 1 ? commits[0] : undefined,
+            }}
             sessionIds={sessions.slice(0, 3)}
             onNavigate={onNavigate}
           />

@@ -3,19 +3,34 @@
 // checkout mapped to one team reads that team's things whichever team is active (flows.md FL2: the pool).
 import * as path from "node:path";
 
-export type MappedProject = { path: string; team_id: string | null; private?: boolean };
+export type MappedProject = {
+  path: string;
+  team_id: string | null;
+  private?: boolean;
+};
 
 /** The team id the directory is mapped to, or null when no mapping covers it (or the closest one is locked private). */
-export function teamForDirectory(projects: ReadonlyArray<MappedProject>, cwd: string): string | null {
+export function teamForDirectory(
+  projects: ReadonlyArray<MappedProject>,
+  cwd: string,
+): string | null {
   const dir = path.resolve(cwd);
   const covering = projects
-    .filter((p) => p.path && (dir === path.resolve(p.path) || dir.startsWith(path.resolve(p.path) + path.sep)))
+    .filter(
+      (p) =>
+        p.path &&
+        (dir === path.resolve(p.path) ||
+          dir.startsWith(path.resolve(p.path) + path.sep)),
+    )
     .sort((a, b) => b.path.length - a.path.length)[0];
-  return covering && !covering.private ? covering.team_id ?? null : null;
+  return covering && !covering.private ? (covering.team_id ?? null) : null;
 }
 
 /** The directory mappings, read the way `cast teams mappings` reads them; none when the server cannot be reached. */
-export async function fetchMappedProjects(siteUrl: string, apiToken: string): Promise<MappedProject[]> {
+export async function fetchMappedProjects(
+  siteUrl: string,
+  apiToken: string,
+): Promise<MappedProject[]> {
   try {
     const response = await fetch(`${siteUrl}/cli/teams/projects`, {
       method: "POST",

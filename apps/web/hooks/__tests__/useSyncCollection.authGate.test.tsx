@@ -23,7 +23,9 @@ import { test, expect, describe, mock } from "bun:test";
 mock.restore();
 
 const { makeFunctionReference } = await import("convex/server");
-const TEAM_EVENTS = makeFunctionReference<"query">("externalEvents:listForTeam");
+const TEAM_EVENTS = makeFunctionReference<"query">(
+  "externalEvents:listForTeam",
+);
 
 let authenticated = false;
 let authThrows = false;
@@ -34,7 +36,10 @@ mock.module("convex/react", () => ({
   ...convexReact,
   useConvexAuth: () => {
     // Convex's own behaviour when no auth provider is an ancestor.
-    if (authThrows) throw new Error("Could not find `ConvexProviderWithAuth` as an ancestor component.");
+    if (authThrows)
+      throw new Error(
+        "Could not find `ConvexProviderWithAuth` as an ancestor component.",
+      );
     return { isAuthenticated: authenticated, isLoading: !authenticated };
   },
   useQueries: (queries: Record<string, unknown>) => {
@@ -43,14 +48,20 @@ mock.module("convex/react", () => ({
   },
 }));
 
-const { useSyncCollection } = await import(`${import.meta.dir}/../useSyncCollection.ts?fresh`);
-const { authSettledLatch } = await import(`${import.meta.dir}/../useServerAuthSettled.ts?fresh`);
+const { useSyncCollection } = await import(
+  `${import.meta.dir}/../useSyncCollection.ts?fresh`
+);
+const { authSettledLatch } = await import(
+  `${import.meta.dir}/../useServerAuthSettled.ts?fresh`
+);
 const { renderToStaticMarkup } = await import("react-dom/server");
 
 function renderFeeder() {
   sent = {};
   function Probe() {
-    const { ready } = useSyncCollection("externalEvents", TEAM_EVENTS, { limit: 200 });
+    const { ready } = useSyncCollection("externalEvents", TEAM_EVENTS, {
+      limit: 200,
+    });
     return <span data-ready={ready ? "yes" : "no"} />;
   }
   renderToStaticMarkup(<Probe />);

@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { claudeConfigDirs, claudeProjectsDirs, discoverClaudeConfigDirs, resetClaudeConfigDirsCache } from "./claudeConfigDirs.js";
+import {
+  claudeConfigDirs,
+  claudeProjectsDirs,
+  discoverClaudeConfigDirs,
+  resetClaudeConfigDirsCache,
+} from "./claudeConfigDirs.js";
 import { SessionWatcher, type SessionEvent } from "./sessionWatcher.js";
 
 // A person who runs one Claude subscription per CLAUDE_CONFIG_DIR (a shell alias
@@ -44,12 +49,23 @@ describe("claudeConfigDirs", () => {
     const a3 = configDir(".claude-account-3");
     const a1 = configDir(".claude-account-1");
     const work = configDir(".cc-work");
-    expect(claudeConfigDirs()).toEqual([path.join(home, ".claude"), work, a1, a3]);
-    expect(claudeProjectsDirs()).toEqual([path.join(home, ".claude"), work, a1, a3].map((d) => path.join(d, "projects")));
+    expect(claudeConfigDirs()).toEqual([
+      path.join(home, ".claude"),
+      work,
+      a1,
+      a3,
+    ]);
+    expect(claudeProjectsDirs()).toEqual(
+      [path.join(home, ".claude"), work, a1, a3].map((d) =>
+        path.join(d, "projects"),
+      ),
+    );
   });
 
   test("a dir without .claude.json is not a config dir (backups, worktrees)", () => {
-    fs.mkdirSync(path.join(home, ".claude-backup", "projects"), { recursive: true });
+    fs.mkdirSync(path.join(home, ".claude-backup", "projects"), {
+      recursive: true,
+    });
     fs.mkdirSync(path.join(home, ".claude-worktrees"), { recursive: true });
     fs.writeFileSync(path.join(home, ".claude.json"), "{}");
     fs.mkdirSync(path.join(home, "visible"), { recursive: true });
@@ -59,8 +75,12 @@ describe("claudeConfigDirs", () => {
   });
 
   test("the daemon's own CLAUDE_CONFIG_DIR counts, wherever it is", () => {
-    expect(discoverClaudeConfigDirs(home, "~/elsewhere/claude")).toEqual([path.join(home, "elsewhere", "claude")]);
-    expect(discoverClaudeConfigDirs(home, path.join(home, ".claude"))).toEqual([]);
+    expect(discoverClaudeConfigDirs(home, "~/elsewhere/claude")).toEqual([
+      path.join(home, "elsewhere", "claude"),
+    ]);
+    expect(discoverClaudeConfigDirs(home, path.join(home, ".claude"))).toEqual(
+      [],
+    );
   });
 });
 
@@ -70,16 +90,31 @@ describe("SessionWatcher with no explicit root", () => {
     const watcher = new SessionWatcher();
     try {
       await watcher.start();
-      expect(watcher.roots()).toEqual([path.join(home, ".claude", "projects"), path.join(a3, "projects")]);
+      expect(watcher.roots()).toEqual([
+        path.join(home, ".claude", "projects"),
+        path.join(a3, "projects"),
+      ]);
       const projectDir = path.join(a3, "projects", "-Users-alex");
       fs.mkdirSync(projectDir, { recursive: true });
       const id = "7829f4de-5f42-4cd8-ae5b-56fe1464228a";
       const file = path.join(projectDir, `${id}.jsonl`);
       const seen = new Promise<SessionEvent>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("no session event")), 5000);
-        watcher.on("session", (e) => { if (e.sessionId === id) { clearTimeout(timer); resolve(e); } });
+        const timer = setTimeout(
+          () => reject(new Error("no session event")),
+          5000,
+        );
+        watcher.on("session", (e) => {
+          if (e.sessionId === id) {
+            clearTimeout(timer);
+            resolve(e);
+          }
+        });
       });
-      fs.writeFileSync(file, JSON.stringify({ type: "user", sessionId: id, cwd: "/Users/alex" }) + "\n");
+      fs.writeFileSync(
+        file,
+        JSON.stringify({ type: "user", sessionId: id, cwd: "/Users/alex" }) +
+          "\n",
+      );
       const event = await seen;
       expect(event.filePath).toBe(file);
       expect(event.projectPath).toBe("-Users-alex");
@@ -92,7 +127,14 @@ describe("SessionWatcher with no explicit root", () => {
 describe("the recent-file scan job", () => {
   test("carries the config dirs' projects roots to the worker", async () => {
     const { validScanJob } = await import("./workers/scanTypes.js");
-    const job = { name: "recent", home, sessionId: "abc", since: 0, codexOnly: false, claudeRoots: claudeProjectsDirs() };
+    const job = {
+      name: "recent",
+      home,
+      sessionId: "abc",
+      since: 0,
+      codexOnly: false,
+      claudeRoots: claudeProjectsDirs(),
+    };
     expect(validScanJob(job)).toBe(true);
     expect(validScanJob({ ...job, claudeRoots: [""] })).toBe(false);
     expect(validScanJob({ ...job, claudeRoots: "x" })).toBe(false);

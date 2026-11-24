@@ -8,19 +8,23 @@
 // left as text: the renderer's reference scanner turns those into links and
 // pills the way mobile always has. Pure JS, so an OTA update can ship it.
 
-import { fromMarkdown } from 'mdast-util-from-markdown';
-import { gfmTable } from 'micromark-extension-gfm-table';
-import { gfmStrikethrough } from 'micromark-extension-gfm-strikethrough';
-import { gfmTaskListItem } from 'micromark-extension-gfm-task-list-item';
-import { gfmTableFromMarkdown } from 'mdast-util-gfm-table';
-import { gfmStrikethroughFromMarkdown } from 'mdast-util-gfm-strikethrough';
-import { gfmTaskListItemFromMarkdown } from 'mdast-util-gfm-task-list-item';
-import type { Root, Nodes, Table } from 'mdast';
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { gfmTable } from "micromark-extension-gfm-table";
+import { gfmStrikethrough } from "micromark-extension-gfm-strikethrough";
+import { gfmTaskListItem } from "micromark-extension-gfm-task-list-item";
+import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
+import { gfmStrikethroughFromMarkdown } from "mdast-util-gfm-strikethrough";
+import { gfmTaskListItemFromMarkdown } from "mdast-util-gfm-task-list-item";
+import type { Root, Nodes, Table } from "mdast";
 
 export type { Root, Nodes, Table };
 
 const extensions = [gfmTable(), gfmStrikethrough(), gfmTaskListItem()];
-const mdastExtensions = [gfmTableFromMarkdown(), gfmStrikethroughFromMarkdown(), gfmTaskListItemFromMarkdown()];
+const mdastExtensions = [
+  gfmTableFromMarkdown(),
+  gfmStrikethroughFromMarkdown(),
+  gfmTaskListItemFromMarkdown(),
+];
 
 // A virtualized transcript remounts rows as they scroll back into view; the
 // cache keeps a remount from parsing the same body again.
@@ -38,49 +42,73 @@ export function parseMarkdown(text: string): Root {
 
 /** The plain text of a node, the way it reads (markers dropped). */
 export function plainText(node: Nodes): string {
-  if ('value' in node && typeof node.value === 'string') return node.type === 'html' ? '' : node.value;
-  if (node.type === 'image') return node.alt ?? '';
-  if ('children' in node) return (node.children as Nodes[]).map(plainText).join('');
-  return '';
+  if ("value" in node && typeof node.value === "string")
+    return node.type === "html" ? "" : node.value;
+  if (node.type === "image") return node.alt ?? "";
+  if ("children" in node)
+    return (node.children as Nodes[]).map(plainText).join("");
+  return "";
 }
 
 /** A message as a person reads it, for picking text out of: block shape kept
  *  (paragraphs, bullets, numbers, code, table rows), markers dropped. */
 export function readableText(text: string): string {
-  return blocksText(parseMarkdown(text).children as Nodes[], '');
+  return blocksText(parseMarkdown(text).children as Nodes[], "");
 }
 
-function blocksText(nodes: Nodes[], indent: string, gap = '\n\n'): string {
-  return nodes.map((n) => blockText(n, indent)).filter(Boolean).join(gap);
+function blocksText(nodes: Nodes[], indent: string, gap = "\n\n"): string {
+  return nodes
+    .map((n) => blockText(n, indent))
+    .filter(Boolean)
+    .join(gap);
 }
 
 function inlineText(node: Nodes): string {
-  if (node.type === 'break') return '\n';
-  if ('children' in node) return (node.children as Nodes[]).map(inlineText).join('');
+  if (node.type === "break") return "\n";
+  if ("children" in node)
+    return (node.children as Nodes[]).map(inlineText).join("");
   return plainText(node);
 }
 
 function blockText(node: Nodes, indent: string): string {
   switch (node.type) {
-    case 'code':
-      return node.value.split('\n').map((l) => indent + l).join('\n');
-    case 'list': {
+    case "code":
+      return node.value
+        .split("\n")
+        .map((l) => indent + l)
+        .join("\n");
+    case "list": {
       const start = node.start ?? 1;
-      return node.children.map((item, i) => {
-        const marker = node.ordered ? `${start + i}. ` : '• ';
-        const body = blocksText(item.children as Nodes[], indent + ' '.repeat(marker.length), '\n').replace(/^\s+/, '');
-        return indent + marker + body;
-      }).join('\n');
+      return node.children
+        .map((item, i) => {
+          const marker = node.ordered ? `${start + i}. ` : "• ";
+          const body = blocksText(
+            item.children as Nodes[],
+            indent + " ".repeat(marker.length),
+            "\n",
+          ).replace(/^\s+/, "");
+          return indent + marker + body;
+        })
+        .join("\n");
     }
-    case 'table':
-      return node.children.map((row) => indent + row.children.map((c) => inlineText(c)).join(' | ')).join('\n');
-    case 'blockquote':
+    case "table":
+      return node.children
+        .map(
+          (row) => indent + row.children.map((c) => inlineText(c)).join(" | "),
+        )
+        .join("\n");
+    case "blockquote":
       return blocksText(node.children as Nodes[], indent);
-    case 'thematicBreak':
-    case 'html':
-      return '';
+    case "thematicBreak":
+    case "html":
+      return "";
     default:
-      return indent + inlineText(node).split('\n').join('\n' + indent);
+      return (
+        indent +
+        inlineText(node)
+          .split("\n")
+          .join("\n" + indent)
+      );
   }
 }
 
@@ -100,15 +128,20 @@ function blockText(node: Nodes, indent: string): string {
 //          the first cell as its title and each other cell under its header.
 
 export type TableLayout =
-  | { kind: 'grid'; widths: number[]; scroll: boolean; wraps: boolean }
-  | { kind: 'cards' };
+  | { kind: "grid"; widths: number[]; scroll: boolean; wraps: boolean }
+  | { kind: "cards" };
 
 const MIN_COLUMN_CHARS = 8;
 const SHORT_CELL_CHARS = 24;
 
-export function planTable(rows: string[][], availWidth: number, charWidth: number, cellPadX: number): TableLayout {
+export function planTable(
+  rows: string[][],
+  availWidth: number,
+  charWidth: number,
+  cellPadX: number,
+): TableLayout {
   const cols = Math.max(0, ...rows.map((r) => r.length));
-  if (cols === 0) return { kind: 'cards' };
+  if (cols === 0) return { kind: "cards" };
   // One character of slack per column: text sized to the exact advance of
   // its glyphs still wraps on iOS, which breaks "120ms" into "120m" / "s".
   const pad = (2 * cellPadX) / charWidth + 1;
@@ -119,7 +152,7 @@ export function planTable(rows: string[][], availWidth: number, charWidth: numbe
     let n = 1;
     let w = 1;
     for (const r of rows) {
-      const cell = r[c] ?? '';
+      const cell = r[c] ?? "";
       n = Math.max(n, cell.length);
       for (const word of cell.split(/\s+/)) w = Math.max(w, word.length);
     }
@@ -136,9 +169,17 @@ export function planTable(rows: string[][], availWidth: number, charWidth: numbe
   };
 
   const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-  if (sum(natural) + cols * pad <= avail) return { kind: 'grid', widths: toWidths(natural, true), scroll: false, wraps: false };
+  if (sum(natural) + cols * pad <= avail)
+    return {
+      kind: "grid",
+      widths: toWidths(natural, true),
+      scroll: false,
+      wraps: false,
+    };
 
-  const min = natural.map((n, c) => Math.max(longestWord[c], Math.min(n, MIN_COLUMN_CHARS)));
+  const min = natural.map((n, c) =>
+    Math.max(longestWord[c], Math.min(n, MIN_COLUMN_CHARS)),
+  );
   if (cols <= 3 && sum(min) + cols * pad <= avail) {
     // Each column starts at its minimum; the rest of the width goes to the
     // columns in proportion to how much more they would take.
@@ -146,13 +187,25 @@ export function planTable(rows: string[][], availWidth: number, charWidth: numbe
     const want = natural.map((n, c) => n - min[c]);
     const wantTotal = sum(want) || 1;
     const chars = min.map((m, c) => m + (spare * want[c]) / wantTotal);
-    return { kind: 'grid', widths: toWidths(chars, false), scroll: false, wraps: true };
+    return {
+      kind: "grid",
+      widths: toWidths(chars, false),
+      scroll: false,
+      wraps: true,
+    };
   }
 
   const body = rows.slice(1);
   if (body.every((r) => r.every((cell) => cell.length <= SHORT_CELL_CHARS))) {
-    const chars = natural.map((n, c) => Math.max(longestWord[c], Math.min(n, SHORT_CELL_CHARS)));
-    return { kind: 'grid', widths: toWidths(chars, false), scroll: true, wraps: false };
+    const chars = natural.map((n, c) =>
+      Math.max(longestWord[c], Math.min(n, SHORT_CELL_CHARS)),
+    );
+    return {
+      kind: "grid",
+      widths: toWidths(chars, false),
+      scroll: true,
+      wraps: false,
+    };
   }
-  return { kind: 'cards' };
+  return { kind: "cards" };
 }

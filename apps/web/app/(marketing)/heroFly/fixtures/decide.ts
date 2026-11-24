@@ -21,9 +21,21 @@ export const DECISION: SessionDecisionItem = {
   question: OBJECTS.decision.question,
   context_md: `The fork replayed the failures both ways: ${EVIDENCE}.`,
   options: [
-    { label: "Exponential, 5 attempts", description: "2, 4, 8, 16 minutes with jitter, then dead letters.", cost: "40 lines, today" },
-    { label: "Fixed, every 30s", cost: "15 lines", risk: "lost 3 events in the replay" },
-    { label: "Linear, every 5 minutes", cost: "20 lines", risk: "slow after a short blip" },
+    {
+      label: "Exponential, 5 attempts",
+      description: "2, 4, 8, 16 minutes with jitter, then dead letters.",
+      cost: "40 lines, today",
+    },
+    {
+      label: "Fixed, every 30s",
+      cost: "15 lines",
+      risk: "lost 3 events in the replay",
+    },
+    {
+      label: "Linear, every 5 minutes",
+      cost: "20 lines",
+      risk: "slow after a short blip",
+    },
   ],
   blocking: true,
   status: "pending",
@@ -34,7 +46,13 @@ export const DECISION: SessionDecisionItem = {
 } as SessionDecisionItem;
 
 /** The asking session's row as the card draws it. */
-export const ASKING = { _id: SESSIONS.lead.id, title: SESSIONS.lead.title, project_path: SESSIONS.lead.project, status: "working", agent_type: SESSIONS.lead.agent };
+export const ASKING = {
+  _id: SESSIONS.lead.id,
+  title: SESSIONS.lead.title,
+  project_path: SESSIONS.lead.project,
+  status: "working",
+  agent_type: SESSIONS.lead.agent,
+};
 
 /** How long before the film's ask the decision was created, so the card reads "asked just now". */
 export const ASKED_AGO = 20_000;

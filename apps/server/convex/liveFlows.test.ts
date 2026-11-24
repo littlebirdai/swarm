@@ -1,7 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { LINE_RUNS_PER_RUNNER, requeueCore, sweepCore } from "./orgLine";
-import { barFromCli, clearHoldCore, libraryFlowId, clearHoldFromCli, createLiveFlowCore, moveLiveFlowCore, holdFromCli, liveFlowView, MAX_HOLD_MS, setBarCore, setOnCore, setOnFromCli, showFromCli } from "./liveFlows";
+import {
+  barFromCli,
+  clearHoldCore,
+  libraryFlowId,
+  clearHoldFromCli,
+  createLiveFlowCore,
+  moveLiveFlowCore,
+  holdFromCli,
+  liveFlowView,
+  MAX_HOLD_MS,
+  setBarCore,
+  setOnCore,
+  setOnFromCli,
+  showFromCli,
+} from "./liveFlows";
 import { hashToken } from "./apiTokens";
 
 // A team's live flow (liveFlows.ts): one queue in start order across every
@@ -17,29 +31,113 @@ const NOW = Date.now();
 // Deals runs on MATE's machine, so its runs count there.
 const lead = (key: string, runner: string) => ({
   role: {
-    _id: `org_roles_${key}`, short_id: `or-${key}`, scope_type: "team", team_id: TEAM, host_user_id: runner, name: `${key} lead`, handle: key,
-    scope: { project_ids: [`projects_${key}`], plan_ids: [] }, reports_to: { kind: "user", user_id: HOST }, status: "active", trust: "direct",
-    anchor_id: `anchors_${key}`, caps: { line_on: true }, created_by: HOST, created_at: 1, updated_at: 1,
+    _id: `org_roles_${key}`,
+    short_id: `or-${key}`,
+    scope_type: "team",
+    team_id: TEAM,
+    host_user_id: runner,
+    name: `${key} lead`,
+    handle: key,
+    scope: { project_ids: [`projects_${key}`], plan_ids: [] },
+    reports_to: { kind: "user", user_id: HOST },
+    status: "active",
+    trust: "direct",
+    anchor_id: `anchors_${key}`,
+    caps: { line_on: true },
+    created_by: HOST,
+    created_at: 1,
+    updated_at: 1,
   },
-  anchor: { _id: `anchors_${key}`, team_id: TEAM, bot_user_id: "users_bot", host_user_id: runner, conversation_id: `conversations_${key}` },
-  conversation: { _id: `conversations_${key}`, session_id: key, user_id: runner, team_id: TEAM, status: "active", title: `${key} lead`, agent_type: "claude_code", message_count: 1, standing_role_id: `org_roles_${key}`, anchor_id: `anchors_${key}`, updated_at: NOW, project_path: `/srv/${key}` },
-  project: { _id: `projects_${key}`, short_id: `pj-${key}`, title: key, user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, owner_role_id: `org_roles_${key}`, created_at: 1, updated_at: 1 },
+  anchor: {
+    _id: `anchors_${key}`,
+    team_id: TEAM,
+    bot_user_id: "users_bot",
+    host_user_id: runner,
+    conversation_id: `conversations_${key}`,
+  },
+  conversation: {
+    _id: `conversations_${key}`,
+    session_id: key,
+    user_id: runner,
+    team_id: TEAM,
+    status: "active",
+    title: `${key} lead`,
+    agent_type: "claude_code",
+    message_count: 1,
+    standing_role_id: `org_roles_${key}`,
+    anchor_id: `anchors_${key}`,
+    updated_at: NOW,
+    project_path: `/srv/${key}`,
+  },
+  project: {
+    _id: `projects_${key}`,
+    short_id: `pj-${key}`,
+    title: key,
+    user_id: HOST,
+    team_id: TEAM,
+    workspace: `team:${TEAM}`,
+    owner_role_id: `org_roles_${key}`,
+    created_at: 1,
+    updated_at: 1,
+  },
 });
 const growth = lead("growth", HOST);
 const deals = lead("deals", MATE);
 
 const scored = (score: number | null, signal_count = 1) => ({
-  signal_count, first_seen: 1, last_seen: 1, fingerprints: ["f"],
-  ...(score == null ? {} : { scored: { score, harm: 3, reach: 3, fixability: 3, reason: "r", root_cause: "c", at: 1, version: "1" } }),
+  signal_count,
+  first_seen: 1,
+  last_seen: 1,
+  fingerprints: ["f"],
+  ...(score == null
+    ? {}
+    : {
+        scored: {
+          score,
+          harm: 3,
+          reach: 3,
+          fixability: 3,
+          reason: "r",
+          root_cause: "c",
+          at: 1,
+          version: "1",
+        },
+      }),
 });
-const problem = (id: string, project: string, score: number | null, over: Record<string, any> = {}) => ({
-  _id: `tasks_${id}`, short_id: `ct-${id}`, title: `Problem ${id}`, status: "open", priority: "medium", source: "signal", readiness: "ready", goal_ref: "none",
-  project_id: `projects_${project}`, user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, cause: scored(score), created_at: NOW - 1000, updated_at: NOW - 1000, ...over,
+const problem = (
+  id: string,
+  project: string,
+  score: number | null,
+  over: Record<string, any> = {},
+) => ({
+  _id: `tasks_${id}`,
+  short_id: `ct-${id}`,
+  title: `Problem ${id}`,
+  status: "open",
+  priority: "medium",
+  source: "signal",
+  readiness: "ready",
+  goal_ref: "none",
+  project_id: `projects_${project}`,
+  user_id: HOST,
+  team_id: TEAM,
+  workspace: `team:${TEAM}`,
+  cause: scored(score),
+  created_at: NOW - 1000,
+  updated_at: NOW - 1000,
+  ...over,
 });
 
-function fixtures(o: { tasks: any[]; flow?: Record<string, any> | null; extra?: Record<string, any[]> }) {
+function fixtures(o: {
+  tasks: any[];
+  flow?: Record<string, any> | null;
+  extra?: Record<string, any[]>;
+}) {
   const db = makeFakeDb({
-    users: [{ _id: HOST, name: "Host", email: "host@x.ai" }, { _id: MATE, name: "Mate", email: "mate@x.ai" }],
+    users: [
+      { _id: HOST, name: "Host", email: "host@x.ai" },
+      { _id: MATE, name: "Mate", email: "mate@x.ai" },
+    ],
     team_memberships: [
       { _id: "m1", user_id: HOST, team_id: TEAM, role: "admin", joined_at: 1 },
       { _id: "m2", user_id: MATE, team_id: TEAM, role: "member", joined_at: 1 },
@@ -51,8 +149,35 @@ function fixtures(o: { tasks: any[]; flow?: Record<string, any> | null; extra?: 
     org_roles: [growth.role, deals.role],
     anchors: [growth.anchor, deals.anchor],
     conversations: [growth.conversation, deals.conversation],
-    workflows: [{ _id: "workflows_spine", user_id: HOST, slug: "agentwatch", name: "agentwatch", label: "Acme fix flow", nodes: [], edges: [], created_at: 1, updated_at: 1 }],
-    live_flows: o.flow === null ? [] : [{ _id: "live_flows_1", workspace: `team:${TEAM}`, team_id: TEAM, workflow_id: "workflows_spine", on: true, changed_by: HOST, changed_at: 1, created_at: 1, ...(o.flow ?? {}) }],
+    workflows: [
+      {
+        _id: "workflows_spine",
+        user_id: HOST,
+        slug: "agentwatch",
+        name: "agentwatch",
+        label: "Acme fix flow",
+        nodes: [],
+        edges: [],
+        created_at: 1,
+        updated_at: 1,
+      },
+    ],
+    live_flows:
+      o.flow === null
+        ? []
+        : [
+            {
+              _id: "live_flows_1",
+              workspace: `team:${TEAM}`,
+              team_id: TEAM,
+              workflow_id: "workflows_spine",
+              on: true,
+              changed_by: HOST,
+              changed_at: 1,
+              created_at: 1,
+              ...(o.flow ?? {}),
+            },
+          ],
     workflow_runs: [],
     daemon_commands: [],
     messages: [],
@@ -79,135 +204,389 @@ describe("liveFlows (one live flow per team)", () => {
       ],
     });
     const res = await sweepCore(ctx, NOW);
-    expect(res.started.map((s) => s.task_id)).toEqual(["tasks_d90", "tasks_g70", "tasks_new", "tasks_g40"]);
-    expect(res.started.every((s) => s.live_flow_id === "live_flows_1")).toBe(true);
-    const runOf = (t: string) => tables.workflow_runs.find((r) => r.task_id === t)!;
+    expect(res.started.map((s) => s.task_id)).toEqual([
+      "tasks_d90",
+      "tasks_g70",
+      "tasks_new",
+      "tasks_g40",
+    ]);
+    expect(res.started.every((s) => s.live_flow_id === "live_flows_1")).toBe(
+      true,
+    );
+    const runOf = (t: string) =>
+      tables.workflow_runs.find((r) => r.task_id === t)!;
     // A Deals problem runs as Deals: its seat (MATE's machine) and its standing session, so its card goes to Deals' person.
-    expect(runOf("tasks_d90")).toMatchObject({ org_role_id: "org_roles_deals", user_id: MATE, spawner_conversation_id: "conversations_deals", project_path: "/srv/deals" });
-    expect(runOf("tasks_g70")).toMatchObject({ org_role_id: "org_roles_growth", user_id: HOST, spawner_conversation_id: "conversations_growth" });
-    expect(tables.live_flows[0].counters).toEqual({ day: new Date(NOW).toISOString().slice(0, 10), hands: 4 });
+    expect(runOf("tasks_d90")).toMatchObject({
+      org_role_id: "org_roles_deals",
+      user_id: MATE,
+      spawner_conversation_id: "conversations_deals",
+      project_path: "/srv/deals",
+    });
+    expect(runOf("tasks_g70")).toMatchObject({
+      org_role_id: "org_roles_growth",
+      user_id: HOST,
+      spawner_conversation_id: "conversations_growth",
+    });
+    expect(tables.live_flows[0].counters).toEqual({
+      day: new Date(NOW).toISOString().slice(0, 10),
+      hands: 4,
+    });
   });
 
   test("a lead whose machine is full holds back only its own problems", async () => {
-    const busy = Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({ _id: `workflow_runs_b${n}`, user_id: MATE, status: "running", org_role_id: "org_roles_deals", task_id: `tasks_b${n}`, node_statuses: [] }));
-    const { ctx } = fixtures({ tasks: [problem("d90", "deals", 90), problem("g20", "growth", 20)], extra: { workflow_runs: busy } });
+    const busy = Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({
+      _id: `workflow_runs_b${n}`,
+      user_id: MATE,
+      status: "running",
+      org_role_id: "org_roles_deals",
+      task_id: `tasks_b${n}`,
+      node_statuses: [],
+    }));
+    const { ctx } = fixtures({
+      tasks: [problem("d90", "deals", 90), problem("g20", "growth", 20)],
+      extra: { workflow_runs: busy },
+    });
     const res = await sweepCore(ctx, NOW);
     expect(res.started.map((s) => s.task_id)).toEqual(["tasks_g20"]);
-    const view = await liveFlowView(ctx, (ctx.db as any)._tables.live_flows[0], NOW);
-    expect(view.queue[0]).toEqual({ task_id: "tasks_d90", waiting: `${LINE_RUNS_PER_RUNNER} runs are working on @deals's machine` });
+    const view = await liveFlowView(
+      ctx,
+      (ctx.db as any)._tables.live_flows[0],
+      NOW,
+    );
+    expect(view.queue[0]).toEqual({
+      task_id: "tasks_d90",
+      waiting: `${LINE_RUNS_PER_RUNNER} runs are working on @deals's machine`,
+    });
   });
 
   test("off, the flow starts nothing, and its leads admit nothing on their own either", async () => {
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: { on: false } });
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: { on: false },
+    });
     expect((await sweepCore(ctx, NOW)).started).toEqual([]);
     expect(tables.workflow_runs).toEqual([]);
     const view = await liveFlowView(ctx, tables.live_flows[0], NOW);
-    expect(view).toMatchObject({ on: false, waiting: "the flow is off", flow: { id: "workflows_spine", slug: "agentwatch", label: "Acme fix flow" }, queue: [{ task_id: "tasks_g70", waiting: "the flow is off" }] });
+    expect(view).toMatchObject({
+      on: false,
+      waiting: "the flow is off",
+      flow: {
+        id: "workflows_spine",
+        slug: "agentwatch",
+        label: "Acme fix flow",
+      },
+      queue: [{ task_id: "tasks_g70", waiting: "the flow is off" }],
+    });
     // Without a live flow the lead's own line starts it, as before.
-    const { ctx: plain } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: null });
-    expect((await sweepCore(plain, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_g70"]);
+    const { ctx: plain } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: null,
+    });
+    expect((await sweepCore(plain, NOW)).started.map((s) => s.task_id)).toEqual(
+      ["tasks_g70"],
+    );
   });
 
   test("its hands cap stops the flow for the day; a requeued problem says the live flow starts it", async () => {
     const day = new Date(NOW).toISOString().slice(0, 10);
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70), problem("g60", "growth", 60)], flow: { caps: { hands_per_day: 3 }, counters: { day, hands: 2 } } });
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_g70"]);
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70), problem("g60", "growth", 60)],
+      flow: { caps: { hands_per_day: 3 }, counters: { day, hands: 2 } },
+    });
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_g70",
+    ]);
     expect((await sweepCore(ctx, NOW)).started).toEqual([]);
     const view = await liveFlowView(ctx, tables.live_flows[0], NOW);
-    expect(view).toMatchObject({ hands_today: 3, waiting: "hands cap reached", running: [tables.workflow_runs[0]._id] });
+    expect(view).toMatchObject({
+      hands_today: 3,
+      waiting: "hands cap reached",
+      running: [tables.workflow_runs[0]._id],
+    });
     tables.workflow_runs[0].status = "failed";
     const back = await requeueCore(ctx, HOST, "ct-g70", NOW);
-    expect(back.queued).toBe("ct-g70 is back in the line's queue; the live flow starts it in rank order.");
+    expect(back.queued).toBe(
+      "ct-g70 is back in the line's queue; the live flow starts it in rank order.",
+    );
   });
 
   test("a source the flow does not take stays out of its queue", async () => {
     const { ctx } = fixtures({
       tasks: [problem("a", "growth", 80), problem("b", "growth", 50)],
       flow: { sources: ["judge:agent-review"] },
-      extra: { signals: [{ _id: "signals_a", task_id: "tasks_a", source: "union.eval" }, { _id: "signals_b", task_id: "tasks_b", source: "judge:agent-review" }] },
+      extra: {
+        signals: [
+          { _id: "signals_a", task_id: "tasks_a", source: "union.eval" },
+          {
+            _id: "signals_b",
+            task_id: "tasks_b",
+            source: "judge:agent-review",
+          },
+        ],
+      },
     });
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_b"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_b",
+    ]);
   });
 
   test("created on when a lead's line was on, naming those lines, and the next sweep admits from it", async () => {
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70), problem("d90", "deals", 90)], flow: null });
-    tables.org_roles.find((r) => r.handle === "deals")!.caps = { line_on: false };
-    const made = await createLiveFlowCore(ctx, { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST }, NOW);
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70), problem("d90", "deals", 90)],
+      flow: null,
+    });
+    tables.org_roles.find((r) => r.handle === "deals")!.caps = {
+      line_on: false,
+    };
+    const made = await createLiveFlowCore(
+      ctx,
+      { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST },
+      NOW,
+    );
     expect(made).toMatchObject({ on: true, carried_lines_on: ["growth"] });
-    expect(tables.live_flows[0]).toMatchObject({ on: true, carried_lines_on: ["growth"], workspace: `team:${TEAM}` });
+    expect(tables.live_flows[0]).toMatchObject({
+      on: true,
+      carried_lines_on: ["growth"],
+      workspace: `team:${TEAM}`,
+    });
     // Deals' own line was off, but the flow's queue is one: its problem starts first, by score.
     const flow = tables.live_flows[0]._id;
-    expect((await sweepCore(ctx, NOW)).started.map((s) => [s.task_id, s.live_flow_id])).toEqual([["tasks_d90", flow], ["tasks_g70", flow]]);
-    await expect(createLiveFlowCore(ctx, { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST }, NOW)).rejects.toThrow("already has a live flow");
+    expect(
+      (await sweepCore(ctx, NOW)).started.map((s) => [
+        s.task_id,
+        s.live_flow_id,
+      ]),
+    ).toEqual([
+      ["tasks_d90", flow],
+      ["tasks_g70", flow],
+    ]);
+    await expect(
+      createLiveFlowCore(
+        ctx,
+        { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST },
+        NOW,
+      ),
+    ).rejects.toThrow("already has a live flow");
   });
 
   test("created off when no lead's line was on", async () => {
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: null });
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: null,
+    });
     for (const r of tables.org_roles) r.caps = { line_on: false };
-    expect(await createLiveFlowCore(ctx, { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST }, NOW)).toMatchObject({ on: false, carried_lines_on: [] });
+    expect(
+      await createLiveFlowCore(
+        ctx,
+        { team_id: TEAM, workflow_id: "workflows_spine" as any, by: HOST },
+        NOW,
+      ),
+    ).toMatchObject({ on: false, carried_lines_on: [] });
     expect((await sweepCore(ctx, NOW)).started).toEqual([]);
   });
 
   test("the switch is a team admin's, from the web or the CLI", async () => {
     const token = "cx_live_flow_test_token";
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: { on: false }, extra: { api_tokens: [{ _id: "api_tokens_1", user_id: HOST, token_hash: await hashToken(token), name: "cli", created_at: 1 }] } });
-    await expect(setOnCore(ctx, MATE as any, tables.live_flows[0], true, NOW)).rejects.toThrow("team admin required");
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: { on: false },
+      extra: {
+        api_tokens: [
+          {
+            _id: "api_tokens_1",
+            user_id: HOST,
+            token_hash: await hashToken(token),
+            name: "cli",
+            created_at: 1,
+          },
+        ],
+      },
+    });
+    await expect(
+      setOnCore(ctx, MATE as any, tables.live_flows[0], true, NOW),
+    ).rejects.toThrow("team admin required");
     await setOnCore(ctx, HOST as any, tables.live_flows[0], true, NOW);
-    expect(tables.live_flows[0]).toMatchObject({ on: true, changed_by: HOST, changed_at: NOW });
-    const show = (args: Record<string, any>) => (showFromCli as any)._handler(ctx, { api_token: token, ...args });
+    expect(tables.live_flows[0]).toMatchObject({
+      on: true,
+      changed_by: HOST,
+      changed_at: NOW,
+    });
+    const show = (args: Record<string, any>) =>
+      (showFromCli as any)._handler(ctx, { api_token: token, ...args });
     expect(await show({})).toBeNull();
     const [row] = await show({ team_id: TEAM, flow: "Acme fix flow" });
-    expect(row).toMatchObject({ _id: "live_flows_1", on: true, flow: { slug: "agentwatch" }, sources: null, queue: [{ short_id: "ct-g70", score: 70, area: { handle: "growth" }, waiting: null }] });
-    const flip = (args: Record<string, any>) => (setOnFromCli as any)._handler(ctx, { api_token: token, on: false, team_id: TEAM, ...args });
-    await expect(flip({ flow: "nope" })).rejects.toThrow('No live flow of the team runs "nope"');
-    expect(await flip({ flow: "agentwatch", from_session: "jx7hand" })).toMatchObject({ _id: "live_flows_1", on: false });
+    expect(row).toMatchObject({
+      _id: "live_flows_1",
+      on: true,
+      flow: { slug: "agentwatch" },
+      sources: null,
+      queue: [
+        {
+          short_id: "ct-g70",
+          score: 70,
+          area: { handle: "growth" },
+          waiting: null,
+        },
+      ],
+    });
+    const flip = (args: Record<string, any>) =>
+      (setOnFromCli as any)._handler(ctx, {
+        api_token: token,
+        on: false,
+        team_id: TEAM,
+        ...args,
+      });
+    await expect(flip({ flow: "nope" })).rejects.toThrow(
+      'No live flow of the team runs "nope"',
+    );
+    expect(
+      await flip({ flow: "agentwatch", from_session: "jx7hand" }),
+    ).toMatchObject({ _id: "live_flows_1", on: false });
     expect(tables.live_flows[0].on).toBe(false);
   });
 
   test("a timed hold stops admission and says why until it ends; a hand sets it, a team admin clears it from the web or the CLI", async () => {
     const token = "cx_live_flow_hold_token";
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], extra: { api_tokens: [{ _id: "api_tokens_1", user_id: HOST, token_hash: await hashToken(token), name: "cli", created_at: 1 }] } });
-    const hold = (args: Record<string, any>) => (holdFromCli as any)._handler(ctx, { api_token: token, team_id: TEAM, from_session: "jx7hand", ...args });
-    await expect(hold({ why: "eval_reserve spent", until: Date.now() + MAX_HOLD_MS + 60_000 })).rejects.toThrow("at most 48 hours");
-    await expect(hold({ why: " ", until: Date.now() + 60_000 })).rejects.toThrow("Say why");
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      extra: {
+        api_tokens: [
+          {
+            _id: "api_tokens_1",
+            user_id: HOST,
+            token_hash: await hashToken(token),
+            name: "cli",
+            created_at: 1,
+          },
+        ],
+      },
+    });
+    const hold = (args: Record<string, any>) =>
+      (holdFromCli as any)._handler(ctx, {
+        api_token: token,
+        team_id: TEAM,
+        from_session: "jx7hand",
+        ...args,
+      });
+    await expect(
+      hold({
+        why: "eval_reserve spent",
+        until: Date.now() + MAX_HOLD_MS + 60_000,
+      }),
+    ).rejects.toThrow("at most 48 hours");
+    await expect(
+      hold({ why: " ", until: Date.now() + 60_000 }),
+    ).rejects.toThrow("Say why");
     const until = Date.now() + 4 * 3_600_000;
-    const held = await hold({ why: "eval_reserve spent ($3,007 of $3,000) until the 00:00 UTC roll-over", until });
+    const held = await hold({
+      why: "eval_reserve spent ($3,007 of $3,000) until the 00:00 UTC roll-over",
+      until,
+    });
     expect(held.hold).toMatchObject({ until, by: "jx7hand" });
     // A shorter second hold keeps the later end.
-    expect((await hold({ why: "still spent", until: until - 3_600_000 })).hold).toMatchObject({ until, why: "still spent" });
+    expect(
+      (await hold({ why: "still spent", until: until - 3_600_000 })).hold,
+    ).toMatchObject({ until, why: "still spent" });
     expect((await sweepCore(ctx, Date.now())).started).toEqual([]);
     const view = await liveFlowView(ctx, tables.live_flows[0], Date.now());
-    expect(view.hold).toMatchObject({ why: "still spent", until, by: "jx7hand" });
+    expect(view.hold).toMatchObject({
+      why: "still spent",
+      until,
+      by: "jx7hand",
+    });
     expect(view.waiting).toStartWith("held until ");
-    expect(view.queue).toEqual([{ task_id: "tasks_g70", waiting: view.waiting }]);
+    expect(view.queue).toEqual([
+      { task_id: "tasks_g70", waiting: view.waiting },
+    ]);
     // Ended, it no longer holds anything.
-    expect((await sweepCore(ctx, until + 1000)).started.map((st) => st.task_id)).toEqual(["tasks_g70"]);
+    expect(
+      (await sweepCore(ctx, until + 1000)).started.map((st) => st.task_id),
+    ).toEqual(["tasks_g70"]);
     // A session clears one early through the CLI.
     await hold({ why: "again", until });
-    expect(await (clearHoldFromCli as any)._handler(ctx, { api_token: token, team_id: TEAM, from_session: "jx7hand" })).toMatchObject({ _id: "live_flows_1" });
+    expect(
+      await (clearHoldFromCli as any)._handler(ctx, {
+        api_token: token,
+        team_id: TEAM,
+        from_session: "jx7hand",
+      }),
+    ).toMatchObject({ _id: "live_flows_1" });
     expect(tables.live_flows[0].hold).toBeUndefined();
   });
 
   test("a hold set from a session names it by its short id, never by the agent's raw session id", async () => {
     const token = "cx_live_flow_hold_uuid_token";
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], extra: { api_tokens: [{ _id: "api_tokens_1", user_id: HOST, token_hash: await hashToken(token), name: "cli", created_at: 1 }] } });
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      extra: {
+        api_tokens: [
+          {
+            _id: "api_tokens_1",
+            user_id: HOST,
+            token_hash: await hashToken(token),
+            name: "cli",
+            created_at: 1,
+          },
+        ],
+      },
+    });
     const uuid = "378a9c20-019f-485d-9837-9e99fc369bfe";
-    tables.conversations.push({ _id: "conversations_hold", session_id: uuid, short_id: "jx7hold", user_id: HOST, team_id: TEAM, status: "active", title: "hold", agent_type: "claude_code", message_count: 1, updated_at: NOW });
-    const hold = (from_session: string) => (holdFromCli as any)._handler(ctx, { api_token: token, team_id: TEAM, from_session, why: "disks full", until: Date.now() + 3_600_000 });
+    tables.conversations.push({
+      _id: "conversations_hold",
+      session_id: uuid,
+      short_id: "jx7hold",
+      user_id: HOST,
+      team_id: TEAM,
+      status: "active",
+      title: "hold",
+      agent_type: "claude_code",
+      message_count: 1,
+      updated_at: NOW,
+    });
+    const hold = (from_session: string) =>
+      (holdFromCli as any)._handler(ctx, {
+        api_token: token,
+        team_id: TEAM,
+        from_session,
+        why: "disks full",
+        until: Date.now() + 3_600_000,
+      });
     expect((await hold(uuid)).hold.by).toBe("jx7hold");
-    expect((await hold("0000aaaa-0000-0000-0000-000000000000")).hold.by).toBe(`user:${HOST}`);
+    expect((await hold("0000aaaa-0000-0000-0000-000000000000")).hold.by).toBe(
+      `user:${HOST}`,
+    );
   });
 
   test("only a team admin clears a hold", async () => {
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: { hold: { why: "spent", until: Date.now() + 3_600_000, by: "jx7hand", at: 1 } } });
-    await expect(clearHoldCore(ctx, MATE as any, tables.live_flows[0])).rejects.toThrow("team admin required");
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: {
+        hold: {
+          why: "spent",
+          until: Date.now() + 3_600_000,
+          by: "jx7hand",
+          at: 1,
+        },
+      },
+    });
+    await expect(
+      clearHoldCore(ctx, MATE as any, tables.live_flows[0]),
+    ).rejects.toThrow("team admin required");
     await clearHoldCore(ctx, HOST as any, tables.live_flows[0]);
     expect(tables.live_flows[0].hold).toBeUndefined();
-    expect((await sweepCore(ctx, NOW)).started.map((st) => st.task_id)).toEqual(["tasks_g70"]);
+    expect((await sweepCore(ctx, NOW)).started.map((st) => st.task_id)).toEqual(
+      ["tasks_g70"],
+    );
   });
 
   test("a bar starts only the problems that clear it; one handed to a role runs whatever it scored", async () => {
-    const bar = { score: 60, findings: 3, quiet_days: 14, by: "jx7hand", at: 1 };
+    const bar = {
+      score: 60,
+      findings: 3,
+      quiet_days: 14,
+      by: "jx7hand",
+      at: 1,
+    };
     const { ctx, tables } = fixtures({
       tasks: [
         problem("g70", "growth", 70),
@@ -222,80 +601,251 @@ describe("liveFlows (one live flow per team)", () => {
     const view = await liveFlowView(ctx, tables.live_flows[0], NOW);
     expect(view.bar).toEqual(bar);
     // A problem with no score clears it (errors and judge cases are never scored): it ranks at 50, after the scored head.
-    expect(view.queue.map((q) => q.task_id)).toEqual(["tasks_g70", "tasks_new3", "tasks_new1", "tasks_d45x3", "tasks_g10"]);
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id).sort()).toEqual(["tasks_d45x3", "tasks_g10", "tasks_g70", "tasks_new1", "tasks_new3"]);
+    expect(view.queue.map((q) => q.task_id)).toEqual([
+      "tasks_g70",
+      "tasks_new3",
+      "tasks_new1",
+      "tasks_d45x3",
+      "tasks_g10",
+    ]);
+    expect(
+      (await sweepCore(ctx, NOW)).started.map((s) => s.task_id).sort(),
+    ).toEqual([
+      "tasks_d45x3",
+      "tasks_g10",
+      "tasks_g70",
+      "tasks_new1",
+      "tasks_new3",
+    ]);
     // Taken off, the one under it starts too.
     tables.live_flows[0].bar = undefined;
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_g40"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_g40",
+    ]);
   });
 
   test("the sweep starts what the page shows next, however many problems ahead of it in the reads cannot start", async () => {
     // Problems handed to someone outside the flow's leads are read and dropped; 100 of them on each side of the
     // one that can start put it past the first 90 of both reads (newest first, and oldest unscored first).
-    const elsewhere = (id: string, at: number) => problem(id, "growth", null, { assignee: "users_elsewhere", created_at: at, updated_at: at });
-    const old = Array.from({ length: 100 }, (_, i) => elsewhere(`old${i}`, NOW - 300_000 + i));
-    const fresh = Array.from({ length: 100 }, (_, i) => elsewhere(`new${i}`, NOW - 100_000 + i));
-    const { ctx, tables } = fixtures({ tasks: [...old, problem("mid", "growth", null, { created_at: NOW - 200_000, updated_at: NOW - 200_000 }), ...fresh] });
-    expect((await liveFlowView(ctx, tables.live_flows[0], NOW)).queue.map((q) => q.task_id)).toEqual(["tasks_mid"]);
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_mid"]);
+    const elsewhere = (id: string, at: number) =>
+      problem(id, "growth", null, {
+        assignee: "users_elsewhere",
+        created_at: at,
+        updated_at: at,
+      });
+    const old = Array.from({ length: 100 }, (_, i) =>
+      elsewhere(`old${i}`, NOW - 300_000 + i),
+    );
+    const fresh = Array.from({ length: 100 }, (_, i) =>
+      elsewhere(`new${i}`, NOW - 100_000 + i),
+    );
+    const { ctx, tables } = fixtures({
+      tasks: [
+        ...old,
+        problem("mid", "growth", null, {
+          created_at: NOW - 200_000,
+          updated_at: NOW - 200_000,
+        }),
+        ...fresh,
+      ],
+    });
+    expect(
+      (await liveFlowView(ctx, tables.live_flows[0], NOW)).queue.map(
+        (q) => q.task_id,
+      ),
+    ).toEqual(["tasks_mid"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_mid",
+    ]);
   });
 
   test("the sweep reads each led project, so problems no lead owns never hide the ones it can start", async () => {
     // More problems than either workspace window holds, in a project nobody leads, older and newer than the one
     // problem a lead owns: every row both windows read is one the flow can never start.
-    const orphan = { ...growth.project, _id: "projects_orphan", short_id: "pj-orphan", title: "orphan", owner_role_id: undefined };
-    const stray = (id: string, at: number) => problem(id, "orphan", null, { created_at: at, updated_at: at });
-    const old = Array.from({ length: 210 }, (_, i) => stray(`o${i}`, NOW - 500_000 + i));
-    const fresh = Array.from({ length: 210 }, (_, i) => stray(`n${i}`, NOW - 100_000 + i));
-    const led = problem("led", "growth", null, { created_at: NOW - 300_000, updated_at: NOW - 300_000 });
-    const { ctx, tables } = fixtures({ tasks: [...old, led, ...fresh], extra: { projects: [growth.project, deals.project, orphan] } });
-    expect((await liveFlowView(ctx, tables.live_flows[0], NOW)).queue.map((q) => q.task_id)).toEqual(["tasks_led"]);
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_led"]);
+    const orphan = {
+      ...growth.project,
+      _id: "projects_orphan",
+      short_id: "pj-orphan",
+      title: "orphan",
+      owner_role_id: undefined,
+    };
+    const stray = (id: string, at: number) =>
+      problem(id, "orphan", null, { created_at: at, updated_at: at });
+    const old = Array.from({ length: 210 }, (_, i) =>
+      stray(`o${i}`, NOW - 500_000 + i),
+    );
+    const fresh = Array.from({ length: 210 }, (_, i) =>
+      stray(`n${i}`, NOW - 100_000 + i),
+    );
+    const led = problem("led", "growth", null, {
+      created_at: NOW - 300_000,
+      updated_at: NOW - 300_000,
+    });
+    const { ctx, tables } = fixtures({
+      tasks: [...old, led, ...fresh],
+      extra: { projects: [growth.project, deals.project, orphan] },
+    });
+    expect(
+      (await liveFlowView(ctx, tables.live_flows[0], NOW)).queue.map(
+        (q) => q.task_id,
+      ),
+    ).toEqual(["tasks_led"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_led",
+    ]);
   });
 
   test("only a team admin sets the bar; the CLI says it in words, refuses a bad one, and takes it off", async () => {
     const token = "cx_live_flow_bar_token";
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], extra: { api_tokens: [{ _id: "api_tokens_1", user_id: HOST, token_hash: await hashToken(token), name: "cli", created_at: 1 }] } });
-    await expect(setBarCore(ctx, MATE as any, tables.live_flows[0], { score: 60, findings: 3, quiet_days: 14 }, "jx7hand", NOW)).rejects.toThrow("team admin required");
-    const set = (args: Record<string, any>) => (barFromCli as any)._handler(ctx, { api_token: token, team_id: TEAM, from_session: "jx7hand", score: 60, findings: 3, quiet_days: 14, ...args });
-    await expect(set({ score: 101 })).rejects.toThrow("The bar's score is a whole number from 0 to 100");
-    await expect(set({ findings: 0 })).rejects.toThrow("The bar's findings is a whole number from 1 to 1000");
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      extra: {
+        api_tokens: [
+          {
+            _id: "api_tokens_1",
+            user_id: HOST,
+            token_hash: await hashToken(token),
+            name: "cli",
+            created_at: 1,
+          },
+        ],
+      },
+    });
+    await expect(
+      setBarCore(
+        ctx,
+        MATE as any,
+        tables.live_flows[0],
+        { score: 60, findings: 3, quiet_days: 14 },
+        "jx7hand",
+        NOW,
+      ),
+    ).rejects.toThrow("team admin required");
+    const set = (args: Record<string, any>) =>
+      (barFromCli as any)._handler(ctx, {
+        api_token: token,
+        team_id: TEAM,
+        from_session: "jx7hand",
+        score: 60,
+        findings: 3,
+        quiet_days: 14,
+        ...args,
+      });
+    await expect(set({ score: 101 })).rejects.toThrow(
+      "The bar's score is a whole number from 0 to 100",
+    );
+    await expect(set({ findings: 0 })).rejects.toThrow(
+      "The bar's findings is a whole number from 1 to 1000",
+    );
     const r = await set({});
-    expect(r).toMatchObject({ bar: { score: 60, findings: 3, quiet_days: 14, by: "jx7hand" }, words: "score 60+ or 3+ findings" });
-    expect(tables.live_flows[0].bar).toMatchObject({ score: 60, findings: 3, quiet_days: 14 });
+    expect(r).toMatchObject({
+      bar: { score: 60, findings: 3, quiet_days: 14, by: "jx7hand" },
+      words: "score 60+ or 3+ findings",
+    });
+    expect(tables.live_flows[0].bar).toMatchObject({
+      score: 60,
+      findings: 3,
+      quiet_days: 14,
+    });
     expect(await set({ off: true })).toMatchObject({ bar: null, words: null });
     expect(tables.live_flows[0].bar).toBeUndefined();
   });
 
   test("a run whose task waits holds no machine slot, as a run at a card holds none", async () => {
-    const parked = Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({ _id: `workflow_runs_p${n}`, user_id: MATE, status: "running", org_role_id: "org_roles_deals", task_id: `tasks_p${n}`, node_statuses: [] }));
-    const waits = parked.map((r, n) => problem(`p${n}`, "deals", 10, { _id: r.task_id, status: "in_progress", waiting_since: 1, waits: [{ id: `w${n}`, kind: "time", at: Date.now() + 3_600_000, state: "waiting", added_at: 1 }] }));
-    const { ctx } = fixtures({ tasks: [problem("d90", "deals", 90), ...waits], extra: { workflow_runs: parked } });
+    const parked = Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({
+      _id: `workflow_runs_p${n}`,
+      user_id: MATE,
+      status: "running",
+      org_role_id: "org_roles_deals",
+      task_id: `tasks_p${n}`,
+      node_statuses: [],
+    }));
+    const waits = parked.map((r, n) =>
+      problem(`p${n}`, "deals", 10, {
+        _id: r.task_id,
+        status: "in_progress",
+        waiting_since: 1,
+        waits: [
+          {
+            id: `w${n}`,
+            kind: "time",
+            at: Date.now() + 3_600_000,
+            state: "waiting",
+            added_at: 1,
+          },
+        ],
+      }),
+    );
+    const { ctx } = fixtures({
+      tasks: [problem("d90", "deals", 90), ...waits],
+      extra: { workflow_runs: parked },
+    });
     // All four of Deals' machine slots hold parked runs, so its next problem still starts.
-    expect((await sweepCore(ctx, NOW)).started.map((st) => st.task_id)).toEqual(["tasks_d90"]);
+    expect((await sweepCore(ctx, NOW)).started.map((st) => st.task_id)).toEqual(
+      ["tasks_d90"],
+    );
   });
 
   // Oct 29: every running run on one of Union's hosts sat at the Wallet station waiting for the eval wallet's
   // room, holding all of its slots while builds queued behind them.
   test("a run at a station its flow marks parks holds no machine slot, and takes one again once it moves on", async () => {
     const version = {
-      _id: "workflow_versions_parks", workflow_id: "workflows_spine", graph_hash: "hp", nodes: [], changed: [], by: HOST, at: 1,
-      snapshot: { name: "agentwatch", source: "digraph a {}", file: "agentwatch.cast", files: [], edges: [], nodes: [
-        { id: "eval", label: "Eval", shape: "parallelogram", type: "tool" },
-        { id: "eval_wallet", label: "Wallet", shape: "parallelogram", type: "tool", parks: true },
-      ] },
+      _id: "workflow_versions_parks",
+      workflow_id: "workflows_spine",
+      graph_hash: "hp",
+      nodes: [],
+      changed: [],
+      by: HOST,
+      at: 1,
+      snapshot: {
+        name: "agentwatch",
+        source: "digraph a {}",
+        file: "agentwatch.cast",
+        files: [],
+        edges: [],
+        nodes: [
+          { id: "eval", label: "Eval", shape: "parallelogram", type: "tool" },
+          {
+            id: "eval_wallet",
+            label: "Wallet",
+            shape: "parallelogram",
+            type: "tool",
+            parks: true,
+          },
+        ],
+      },
     };
-    const at = (node: string) => Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({
-      _id: `workflow_runs_w${n}`, user_id: MATE, status: "running", org_role_id: "org_roles_deals", task_id: `tasks_w${n}`, current_node_id: node,
-      flow_versions: [{ version_id: version._id, workflow_id: "workflows_spine" }], node_statuses: [],
-    }));
+    const at = (node: string) =>
+      Array.from({ length: LINE_RUNS_PER_RUNNER }, (_, n) => ({
+        _id: `workflow_runs_w${n}`,
+        user_id: MATE,
+        status: "running",
+        org_role_id: "org_roles_deals",
+        task_id: `tasks_w${n}`,
+        current_node_id: node,
+        flow_versions: [
+          { version_id: version._id, workflow_id: "workflows_spine" },
+        ],
+        node_statuses: [],
+      }));
     const setup = (node: string) => {
       const runs = at(node);
-      const tasks = runs.map((r) => problem(r.task_id.slice("tasks_".length), "deals", 10, { status: "in_progress" }));
-      return fixtures({ tasks: [problem("d90", "deals", 90), ...tasks], extra: { workflow_runs: runs, workflow_versions: [version] } });
+      const tasks = runs.map((r) =>
+        problem(r.task_id.slice("tasks_".length), "deals", 10, {
+          status: "in_progress",
+        }),
+      );
+      return fixtures({
+        tasks: [problem("d90", "deals", 90), ...tasks],
+        extra: { workflow_runs: runs, workflow_versions: [version] },
+      });
     };
     // All of Deals' slots are runs waiting at Wallet, so its next problem starts.
-    expect((await sweepCore(setup("eval_wallet").ctx, NOW)).started.map((st) => st.task_id)).toEqual(["tasks_d90"]);
+    expect(
+      (await sweepCore(setup("eval_wallet").ctx, NOW)).started.map(
+        (st) => st.task_id,
+      ),
+    ).toEqual(["tasks_d90"]);
     // Back at Eval they take their slots again, and nothing new starts for Deals.
     expect((await sweepCore(setup("eval").ctx, NOW)).started).toEqual([]);
   });
@@ -305,14 +855,74 @@ describe("liveFlows (one live flow per team)", () => {
 // one of the flow's family, whoever runs the seat, never the runner's own line.
 describe("liveFlows: each problem runs a graph of the flow's family", () => {
   const WS = `team:${TEAM}`;
-  const wf = (id: string, over: Record<string, any>) => ({ _id: `workflows_${id}`, user_id: HOST, workspace: WS, team_id: TEAM, name: id, label: id, nodes: [], edges: [], created_at: 1, updated_at: 1, ...over });
-  const spine = wf("spine", { slug: "agentwatch", source: 'digraph a { graph [kind="line"] }', serves: ["person"], runs_from: "library", origin: { file: "outreach/line/agentwatch.cast" } });
-  const system = wf("system", { slug: "agentwatch-system", source: 'digraph s { graph [extends="agentwatch.cast"] }', serves: ["union.eval"], runs_from: "library", origin: { file: "outreach/line/agentwatch-system.cast" } });
-  const judgeFlow = wf("judge", { slug: "agentwatch-trial-judge", source: 'digraph j { graph [kind="line", serves="judge-review"] }', serves: ["judge-review"], runs_from: "library", origin: { file: "outreach/line/agentwatch-trial-judge.cast" } });
+  const wf = (id: string, over: Record<string, any>) => ({
+    _id: `workflows_${id}`,
+    user_id: HOST,
+    workspace: WS,
+    team_id: TEAM,
+    name: id,
+    label: id,
+    nodes: [],
+    edges: [],
+    created_at: 1,
+    updated_at: 1,
+    ...over,
+  });
+  const spine = wf("spine", {
+    slug: "agentwatch",
+    source: 'digraph a { graph [kind="line"] }',
+    serves: ["person"],
+    runs_from: "library",
+    origin: { file: "outreach/line/agentwatch.cast" },
+  });
+  const system = wf("system", {
+    slug: "agentwatch-system",
+    source: 'digraph s { graph [extends="agentwatch.cast"] }',
+    serves: ["union.eval"],
+    runs_from: "library",
+    origin: { file: "outreach/line/agentwatch-system.cast" },
+  });
+  const judgeFlow = wf("judge", {
+    slug: "agentwatch-trial-judge",
+    source: 'digraph j { graph [kind="line", serves="judge-review"] }',
+    serves: ["judge-review"],
+    runs_from: "library",
+    origin: { file: "outreach/line/agentwatch-trial-judge.cast" },
+  });
   // HOST's own plain line, and a graph of MATE's that serves person outside the flow: neither may run under the flow.
-  const ownLines = [wf("hostline", { slug: "line", workspace: `user:${HOST}` }), wf("mateline", { user_id: MATE, slug: "line", workspace: `user:${MATE}` }), wf("mateperson", { user_id: MATE, slug: "line-person", workspace: `user:${MATE}`, serves: ["person"] })];
-  const version = (w: any, n: number) => ({ _id: `workflow_versions_${w._id}`, workflow_id: w._id, graph_hash: `h${n}`, nodes: [], changed: [], by: HOST, at: n, snapshot: { name: w.name, source: w.source, nodes: [], edges: [], file: w.origin.file, files: [] } });
-  const judgeCause = { signal_count: 2, first_seen: 1, last_seen: 1, fingerprints: ["judge:codecast:agent-review:ex-3"] };
+  const ownLines = [
+    wf("hostline", { slug: "line", workspace: `user:${HOST}` }),
+    wf("mateline", { user_id: MATE, slug: "line", workspace: `user:${MATE}` }),
+    wf("mateperson", {
+      user_id: MATE,
+      slug: "line-person",
+      workspace: `user:${MATE}`,
+      serves: ["person"],
+    }),
+  ];
+  const version = (w: any, n: number) => ({
+    _id: `workflow_versions_${w._id}`,
+    workflow_id: w._id,
+    graph_hash: `h${n}`,
+    nodes: [],
+    changed: [],
+    by: HOST,
+    at: n,
+    snapshot: {
+      name: w.name,
+      source: w.source,
+      nodes: [],
+      edges: [],
+      file: w.origin.file,
+      files: [],
+    },
+  });
+  const judgeCause = {
+    signal_count: 2,
+    first_seen: 1,
+    last_seen: 1,
+    fingerprints: ["judge:codecast:agent-review:ex-3"],
+  };
   const tasks = [
     problem("person", "deals", 90),
     problem("eval", "deals", 80),
@@ -325,38 +935,81 @@ describe("liveFlows: each problem runs a graph of the flow's family", () => {
     { _id: "signals_lesson", task_id: "tasks_lesson", source: "lesson" },
     { _id: "signals_judge", task_id: "tasks_judge", source: "judge-review" },
   ];
-  const setup = (flows: any[], flow?: Record<string, any> | null) => fixtures({
-    tasks: tasks.map((t) => ({ ...t })),
-    flow,
-    extra: { workflows: [...flows, ...ownLines], workflow_versions: flows.map(version), signals },
-  });
-  const graphOf = (tables: Record<string, any[]>, t: string) => tables.workflow_runs.find((r) => r.task_id === `tasks_${t}`)?.workflow_id;
+  const setup = (flows: any[], flow?: Record<string, any> | null) =>
+    fixtures({
+      tasks: tasks.map((t) => ({ ...t })),
+      flow,
+      extra: {
+        workflows: [...flows, ...ownLines],
+        workflow_versions: flows.map(version),
+        signals,
+      },
+    });
+  const graphOf = (tables: Record<string, any[]>, t: string) =>
+    tables.workflow_runs.find((r) => r.task_id === `tasks_${t}`)?.workflow_id;
 
   test("the member serving the source, else the spine, on any runner; each run records its library versions", async () => {
     const { ctx, tables } = setup([spine, system, judgeFlow]);
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_person", "tasks_eval", "tasks_lesson", "tasks_judge"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_person",
+      "tasks_eval",
+      "tasks_lesson",
+      "tasks_judge",
+    ]);
     // Deals runs on MATE's machine, and MATE pushed no graph of the flow's: the runs still take the family's.
-    expect(tables.workflow_runs.find((r) => r.task_id === "tasks_person")).toMatchObject({ user_id: MATE, workflow_id: "workflows_spine" });
+    expect(
+      tables.workflow_runs.find((r) => r.task_id === "tasks_person"),
+    ).toMatchObject({ user_id: MATE, workflow_id: "workflows_spine" });
     expect(graphOf(tables, "eval")).toBe("workflows_system");
     expect(graphOf(tables, "lesson")).toBe("workflows_spine");
     expect(graphOf(tables, "judge")).toBe("workflows_judge");
     // A variant records itself and the spine it extends.
-    expect(tables.workflow_runs.find((r) => r.task_id === "tasks_eval")!.flow_versions).toEqual([
-      { workflow_id: "workflows_system", version_id: "workflow_versions_workflows_system" },
-      { workflow_id: "workflows_spine", version_id: "workflow_versions_workflows_spine" },
+    expect(
+      tables.workflow_runs.find((r) => r.task_id === "tasks_eval")!
+        .flow_versions,
+    ).toEqual([
+      {
+        workflow_id: "workflows_system",
+        version_id: "workflow_versions_workflows_system",
+      },
+      {
+        workflow_id: "workflows_spine",
+        version_id: "workflow_versions_workflows_spine",
+      },
     ]);
-    expect(tables.workflow_runs.find((r) => r.task_id === "tasks_judge")!.flow_versions).toEqual([{ workflow_id: "workflows_judge", version_id: "workflow_versions_workflows_judge" }]);
+    expect(
+      tables.workflow_runs.find((r) => r.task_id === "tasks_judge")!
+        .flow_versions,
+    ).toEqual([
+      {
+        workflow_id: "workflows_judge",
+        version_id: "workflow_versions_workflows_judge",
+      },
+    ]);
   });
 
   test("with no judge flow in the family a judge problem waits, saying so, and the rest start", async () => {
     const { ctx, tables } = setup([spine, system]);
-    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual(["tasks_person", "tasks_eval", "tasks_lesson"]);
+    expect((await sweepCore(ctx, NOW)).started.map((s) => s.task_id)).toEqual([
+      "tasks_person",
+      "tasks_eval",
+      "tasks_lesson",
+    ]);
     expect(graphOf(tables, "judge")).toBeUndefined();
     const view = await liveFlowView(ctx, tables.live_flows[0], NOW);
-    expect(view.queue).toEqual([{ task_id: "tasks_judge", waiting: "no judge flow" }]);
+    expect(view.queue).toEqual([
+      { task_id: "tasks_judge", waiting: "no judge flow" },
+    ]);
     // A start outside the sweep refuses it too, rather than run another line.
     const { startLineRun } = await import("./orgLine");
-    await expect(startLineRun(ctx, tables.org_roles.find((r) => r.handle === "deals"), tables.tasks.find((t) => t._id === "tasks_judge"), NOW)).rejects.toThrow("ct-judge waits: no judge flow");
+    await expect(
+      startLineRun(
+        ctx,
+        tables.org_roles.find((r) => r.handle === "deals"),
+        tables.tasks.find((t) => t._id === "tasks_judge"),
+        NOW,
+      ),
+    ).rejects.toThrow("ct-judge waits: no judge flow");
   });
 
   test("without a live flow a run keeps its runner's own versions", async () => {
@@ -364,7 +1017,13 @@ describe("liveFlows: each problem runs a graph of the flow's family", () => {
     const { startLineRun } = await import("./orgLine");
     const deals = tables.org_roles.find((r) => r.handle === "deals")!;
     deals.line_workflow_slug = "line";
-    for (const t of ["tasks_person", "tasks_eval"]) await startLineRun(ctx, deals, tables.tasks.find((x) => x._id === t), NOW);
+    for (const t of ["tasks_person", "tasks_eval"])
+      await startLineRun(
+        ctx,
+        deals,
+        tables.tasks.find((x) => x._id === t),
+        NOW,
+      );
     expect(graphOf(tables, "person")).toBe("workflows_mateperson");
     expect(graphOf(tables, "eval")).toBe("workflows_mateline");
   });
@@ -374,38 +1033,113 @@ describe("liveFlows: each problem runs a graph of the flow's family", () => {
     const { startLineRun } = await import("./orgLine");
     const deals = tables.org_roles.find((r) => r.handle === "deals")!;
     deals.line_workflow_slug = "line";
-    await startLineRun(ctx, deals, tables.tasks.find((t) => t._id === "tasks_person"), NOW);
+    await startLineRun(
+      ctx,
+      deals,
+      tables.tasks.find((t) => t._id === "tasks_person"),
+      NOW,
+    );
     expect(graphOf(tables, "person")).toBe("workflows_mateperson");
   });
 });
 
 describe("liveFlows: moving the live flow onto another library flow", () => {
-  const onefix = { _id: "workflows_onefix", user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, slug: "onefix", name: "onefix", label: "Acme fix flow, one session", nodes: [], edges: [], created_at: 2, updated_at: 2 };
-  const elsewhere = { ...onefix, _id: "workflows_other", team_id: "teams_other", workspace: "team:teams_other", slug: "other" };
+  const onefix = {
+    _id: "workflows_onefix",
+    user_id: HOST,
+    team_id: TEAM,
+    workspace: `team:${TEAM}`,
+    slug: "onefix",
+    name: "onefix",
+    label: "Acme fix flow, one session",
+    nodes: [],
+    edges: [],
+    created_at: 2,
+    updated_at: 2,
+  };
+  const elsewhere = {
+    ...onefix,
+    _id: "workflows_other",
+    team_id: "teams_other",
+    workspace: "team:teams_other",
+    slug: "other",
+  };
 
   test("a team admin moves it: the queue starts on the new flow, the switch, bar and sources carry over", async () => {
-    const { ctx, tables } = fixtures({ tasks: [problem("g70", "growth", 70)], flow: { sources: ["union.eval"], bar: { score: 60 } }, extra: { workflows: [tables0(), onefix] } });
-    await moveLiveFlowCore(ctx, HOST, tables.live_flows[0], "workflows_onefix", NOW);
-    expect(tables.live_flows[0]).toMatchObject({ workflow_id: "workflows_onefix", on: true, sources: ["union.eval"], bar: { score: 60 }, changed_by: HOST, changed_at: NOW });
+    const { ctx, tables } = fixtures({
+      tasks: [problem("g70", "growth", 70)],
+      flow: { sources: ["union.eval"], bar: { score: 60 } },
+      extra: { workflows: [tables0(), onefix] },
+    });
+    await moveLiveFlowCore(
+      ctx,
+      HOST,
+      tables.live_flows[0],
+      "workflows_onefix",
+      NOW,
+    );
+    expect(tables.live_flows[0]).toMatchObject({
+      workflow_id: "workflows_onefix",
+      on: true,
+      sources: ["union.eval"],
+      bar: { score: 60 },
+      changed_by: HOST,
+      changed_at: NOW,
+    });
     const view = await liveFlowView(ctx, tables.live_flows[0], NOW);
-    expect(view.flow).toEqual({ id: "workflows_onefix", slug: "onefix", label: "Acme fix flow, one session" });
+    expect(view.flow).toEqual({
+      id: "workflows_onefix",
+      slug: "onefix",
+      label: "Acme fix flow, one session",
+    });
   });
 
   test("a member who is not an admin, or a flow outside the team's library, is refused and nothing moves", async () => {
-    const { ctx, tables } = fixtures({ tasks: [], extra: { workflows: [tables0(), onefix, elsewhere] } });
-    await expect(moveLiveFlowCore(ctx, MATE, tables.live_flows[0], "workflows_onefix", NOW)).rejects.toThrow();
-    await expect(moveLiveFlowCore(ctx, HOST, tables.live_flows[0], "workflows_other", NOW)).rejects.toThrow("that flow is not in the team's library");
+    const { ctx, tables } = fixtures({
+      tasks: [],
+      extra: { workflows: [tables0(), onefix, elsewhere] },
+    });
+    await expect(
+      moveLiveFlowCore(
+        ctx,
+        MATE,
+        tables.live_flows[0],
+        "workflows_onefix",
+        NOW,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      moveLiveFlowCore(ctx, HOST, tables.live_flows[0], "workflows_other", NOW),
+    ).rejects.toThrow("that flow is not in the team's library");
     expect(tables.live_flows[0].workflow_id).toBe("workflows_spine");
   });
 });
 
 function tables0() {
-  return { _id: "workflows_spine", user_id: HOST, team_id: TEAM, workspace: `team:${TEAM}`, slug: "agentwatch", name: "agentwatch", label: "Acme fix flow", nodes: [], edges: [], created_at: 1, updated_at: 1 };
+  return {
+    _id: "workflows_spine",
+    user_id: HOST,
+    team_id: TEAM,
+    workspace: `team:${TEAM}`,
+    slug: "agentwatch",
+    name: "agentwatch",
+    label: "Acme fix flow",
+    nodes: [],
+    edges: [],
+    created_at: 1,
+    updated_at: 1,
+  };
 }
 
 describe("libraryFlowId", () => {
   test("reads the id from the flow the web's Make live sends, and takes a bare id as is", () => {
-    expect(libraryFlowId({ id: "workflows_onefix", slug: "onefix", label: "Union fix flow" } as { id: string })).toBe("workflows_onefix");
+    expect(
+      libraryFlowId({
+        id: "workflows_onefix",
+        slug: "onefix",
+        label: "Union fix flow",
+      } as { id: string }),
+    ).toBe("workflows_onefix");
     expect(libraryFlowId("workflows_onefix")).toBe("workflows_onefix");
   });
 });

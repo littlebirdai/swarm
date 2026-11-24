@@ -15,9 +15,16 @@ describe("engineVersion", () => {
   let calls: string;
   const prev = process.env.CAST_BROWSER_ENGINE;
   const install = (version: string) => {
-    fs.writeFileSync(bin, `#!/bin/bash\necho x >> "${calls}"\necho "agent-browser ${version}"\n`, { mode: 0o755 });
+    fs.writeFileSync(
+      bin,
+      `#!/bin/bash\necho x >> "${calls}"\necho "agent-browser ${version}"\n`,
+      { mode: 0o755 },
+    );
   };
-  const spawns = () => (fs.existsSync(calls) ? fs.readFileSync(calls, "utf-8").trim().split("\n").length : 0);
+  const spawns = () =>
+    fs.existsSync(calls)
+      ? fs.readFileSync(calls, "utf-8").trim().split("\n").length
+      : 0;
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-engine-version-"));
@@ -42,7 +49,9 @@ describe("engineVersion", () => {
   });
 
   test("an engine that will not say its version is asked again next time", () => {
-    fs.writeFileSync(bin, `#!/bin/bash\necho x >> "${calls}"\nexit 1\n`, { mode: 0o755 });
+    fs.writeFileSync(bin, `#!/bin/bash\necho x >> "${calls}"\nexit 1\n`, {
+      mode: 0o755,
+    });
     expect(engineVersion()).toBeNull();
     expect(engineVersion()).toBeNull();
     expect(spawns()).toBe(2);

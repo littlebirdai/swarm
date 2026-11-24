@@ -49,7 +49,17 @@ export type ShipFacts = {
    * role's merge grant (org_roles.line_merge plus its merge authority, the
    * line's L12 allowance). Null when no role's line runs the task.
    */
-  line?: { runId: string; role: { handle: string; on: boolean; allowed: boolean; reason: string | null; used: number; limit: number | null } | null } | null;
+  line?: {
+    runId: string;
+    role: {
+      handle: string;
+      on: boolean;
+      allowed: boolean;
+      reason: string | null;
+      used: number;
+      limit: number | null;
+    } | null;
+  } | null;
 };
 
 export type ShipProcedure = "line_gate" | "profile_command" | "cast_ship";
@@ -66,13 +76,22 @@ export type ShipPlan = {
   base: string;
   checks: string[];
   command: string | null;
-  pr: { action: "open" } | { action: "shepherd"; repository: string; number: number };
+  pr:
+    | { action: "open" }
+    | { action: "shepherd"; repository: string; number: number };
   /**
    * via says who allows the merge: the PR page press, the profile's
    * merge.auto, or the line's role under its merge grant (which merges
    * through `cast line merge`, so the role's daily limit counts it).
    */
-  merge: { will: boolean; method: MergeMethod; why: string; via: "pr" | "auto" | "role" | null; runId?: string; role?: string };
+  merge: {
+    will: boolean;
+    method: MergeMethod;
+    why: string;
+    via: "pr" | "auto" | "role" | null;
+    runId?: string;
+    role?: string;
+  };
   /** What pressing Ship does, in order, one sentence each. */
   steps: string[];
   /** Why it cannot start, or null. */
@@ -81,13 +100,24 @@ export type ShipPlan = {
 
 /** The line's default check when a project has no profile (line-profile.md LP2). */
 export const SHIP_DEFAULT_CHECK = "cast ws check";
-export const SHIP_DEFAULT_MERGE: ShipProfileFacts["merge"] = { auto: false, method: "squash" };
+export const SHIP_DEFAULT_MERGE: ShipProfileFacts["merge"] = {
+  auto: false,
+  method: "squash",
+};
 
-const prRef = (pr: { repository: string; number: number }) => `${pr.repository}#${pr.number}`;
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+const prRef = (pr: { repository: string; number: number }) =>
+  `${pr.repository}#${pr.number}`;
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
 
 /** The branch a change on the base branch moves to: named after what ships. */
-export function shipBranchName(facts: Pick<ShipFacts, "taskShortId" | "sessionShortId" | "target">): string {
+export function shipBranchName(
+  facts: Pick<ShipFacts, "taskShortId" | "sessionShortId" | "target">,
+): string {
   return `ship/${slug(facts.taskShortId ?? facts.sessionShortId ?? facts.target.id.slice(0, 7))}`;
 }
 
@@ -98,39 +128,57 @@ export function resolveShipPlan(facts: ShipFacts): ShipPlan {
   const base = facts.pr?.base_ref || facts.base;
   const known = facts.pr?.head_ref || facts.branch;
   const newBranch = !facts.pr && (!known || known === base);
-  const branch = facts.pr?.head_ref || (newBranch ? shipBranchName(facts) : known);
+  const branch =
+    facts.pr?.head_ref || (newBranch ? shipBranchName(facts) : known);
   const checks = [profile?.check || SHIP_DEFAULT_CHECK];
   const command = profile?.ship ?? null;
 
-  const blocked = facts.pr?.state === "merged"
-    ? `${prRef(facts.pr)} is already merged.`
-    : facts.pr?.state === "closed"
-      ? `${prRef(facts.pr)} is closed. Reopen it on GitHub first.`
-      : !facts.projectPath
-        ? "No checkout is known for this work, so there is nowhere to ship from."
-        : null;
+  const blocked =
+    facts.pr?.state === "merged"
+      ? `${prRef(facts.pr)} is already merged.`
+      : facts.pr?.state === "closed"
+        ? `${prRef(facts.pr)} is closed. Reopen it on GitHub first.`
+        : !facts.projectPath
+          ? "No checkout is known for this work, so there is nowhere to ship from."
+          : null;
 
   // Who may merge, in order: the person pressing Ship on the PR page, the
   // profile's merge.auto, the line's role under its merge grant.
   const role = facts.line?.role?.on ? facts.line.role : null;
-  const via: ShipPlan["merge"]["via"] = pressedOnPr ? "pr" : profile?.merge.auto ? "auto" : role?.allowed ? "role" : null;
+  const via: ShipPlan["merge"]["via"] = pressedOnPr
+    ? "pr"
+    : profile?.merge.auto
+      ? "auto"
+      : role?.allowed
+        ? "role"
+        : null;
   const will = via !== null;
-  const today = role ? `${role.used} of ${role.limit ?? "unlimited"} merges today` : "";
-  const why = via === "pr"
-    ? "Ship on a pull request's page merges it once its checks pass. From a task or a session it would stop at the open pull request."
-    : via === "auto"
-      ? "The project's flow profile sets merge.auto, so it merges once its checks pass."
-      : via === "role"
-        ? `The role that owns this flow, @${role!.handle}, holds a merge grant (${today}), so it merges once its checks pass.`
-        : command
-          ? "The command decides how the change lands; Ship adds no merge of its own."
-          : role
-            ? `The role that owns this flow, @${role.handle}, cannot merge now: ${role.reason}. The pull request stays open and shepherded.`
-            : "The pull request stays open and shepherded. Only Ship on the pull request's page merges, unless the flow profile sets merge.auto or the flow's owner holds a merge grant.";
-  const merge: ShipPlan["merge"] = { will, method, why, via, ...(via === "role" ? { runId: facts.line!.runId, role: role!.handle } : {}) };
-  const mergeStep = via === "role"
-    ? `Merges through @${role!.handle}'s merge grant once the checks are green (\`cast line merge\`, counted in its daily limit).`
-    : `Merges with ${method} once the checks are green.`;
+  const today = role
+    ? `${role.used} of ${role.limit ?? "unlimited"} merges today`
+    : "";
+  const why =
+    via === "pr"
+      ? "Ship on a pull request's page merges it once its checks pass. From a task or a session it would stop at the open pull request."
+      : via === "auto"
+        ? "The project's flow profile sets merge.auto, so it merges once its checks pass."
+        : via === "role"
+          ? `The role that owns this flow, @${role!.handle}, holds a merge grant (${today}), so it merges once its checks pass.`
+          : command
+            ? "The command decides how the change lands; Ship adds no merge of its own."
+            : role
+              ? `The role that owns this flow, @${role.handle}, cannot merge now: ${role.reason}. The pull request stays open and shepherded.`
+              : "The pull request stays open and shepherded. Only Ship on the pull request's page merges, unless the flow profile sets merge.auto or the flow's owner holds a merge grant.";
+  const merge: ShipPlan["merge"] = {
+    will,
+    method,
+    why,
+    via,
+    ...(via === "role" ? { runId: facts.line!.runId, role: role!.handle } : {}),
+  };
+  const mergeStep =
+    via === "role"
+      ? `Merges through @${role!.handle}'s merge grant once the checks are green (\`cast line merge\`, counted in its daily limit).`
+      : `Merges with ${method} once the checks are green.`;
 
   // A line run's change card: Ship answers it and the line's ship station
   // lands the change. With a ship command that command decides; without one
@@ -142,8 +190,22 @@ export function resolveShipPlan(facts: ShipFacts): ShipPlan {
       : `commits the changes, pushes ${branch ?? "the run's branch"} and opens a pull request into ${base}, then shepherds it`;
     const lineMerge = command ? { ...merge, will: false, via: null } : merge;
     return {
-      procedure: "line_gate", target: facts.target, label: facts.label, decisionId: facts.lineGate.decisionId, branch, newBranch: false, base, checks, command,
-      pr: facts.pr ? { action: "shepherd", repository: facts.pr.repository, number: facts.pr.number } : { action: "open" },
+      procedure: "line_gate",
+      target: facts.target,
+      label: facts.label,
+      decisionId: facts.lineGate.decisionId,
+      branch,
+      newBranch: false,
+      base,
+      checks,
+      command,
+      pr: facts.pr
+        ? {
+            action: "shepherd",
+            repository: facts.pr.repository,
+            number: facts.pr.number,
+          }
+        : { action: "open" },
       merge: lineMerge,
       steps: [
         `Answers Ship on the change card ${facts.taskShortId ? `for ${facts.taskShortId} ` : ""}waiting on you.`,
@@ -157,20 +219,53 @@ export function resolveShipPlan(facts: ShipFacts): ShipPlan {
     };
   }
 
-  const home = facts.projectPath ? facts.projectPath.replace(/^\/(Users|home)\/[^/]+/, "~") : "the checkout";
-  const source = facts.pr ? `, on the pull request's branch` : facts.sessionShortId ? `, working from session ${facts.sessionShortId}'s changes` : "";
+  const home = facts.projectPath
+    ? facts.projectPath.replace(/^\/(Users|home)\/[^/]+/, "~")
+    : "the checkout";
+  const source = facts.pr
+    ? `, on the pull request's branch`
+    : facts.sessionShortId
+      ? `, working from session ${facts.sessionShortId}'s changes`
+      : "";
   const steps: string[] = [`Starts a ship session in ${home}${source}.`];
-  if (newBranch) steps.push(`Moves the changes on ${base} to a new branch ${branch}, leaving other work in the checkout alone.`);
-  steps.push(`Runs ${checks.map((c) => `\`${c}\``).join(" and ")}; a red check stops it and names the failure.`);
-  if (command) steps.push(`Runs the project's ship command \`${command}\` and reports the line it prints.`);
-  else if (facts.pr) steps.push(`Pushes to ${branch} and shepherds ${prRef(facts.pr)}: reviews, failing checks and conflicts wake it.`);
-  else steps.push(`Commits the changes in topical pieces, pushes ${branch} and opens a pull request into ${base}, then shepherds it.`);
+  if (newBranch)
+    steps.push(
+      `Moves the changes on ${base} to a new branch ${branch}, leaving other work in the checkout alone.`,
+    );
+  steps.push(
+    `Runs ${checks.map((c) => `\`${c}\``).join(" and ")}; a red check stops it and names the failure.`,
+  );
+  if (command)
+    steps.push(
+      `Runs the project's ship command \`${command}\` and reports the line it prints.`,
+    );
+  else if (facts.pr)
+    steps.push(
+      `Pushes to ${branch} and shepherds ${prRef(facts.pr)}: reviews, failing checks and conflicts wake it.`,
+    );
+  else
+    steps.push(
+      `Commits the changes in topical pieces, pushes ${branch} and opens a pull request into ${base}, then shepherds it.`,
+    );
   if (will) steps.push(mergeStep);
 
   return {
     procedure: command ? "profile_command" : "cast_ship",
-    target: facts.target, label: facts.label, decisionId: null, branch, newBranch, base, checks, command,
-    pr: facts.pr ? { action: "shepherd", repository: facts.pr.repository, number: facts.pr.number } : { action: "open" },
+    target: facts.target,
+    label: facts.label,
+    decisionId: null,
+    branch,
+    newBranch,
+    base,
+    checks,
+    command,
+    pr: facts.pr
+      ? {
+          action: "shepherd",
+          repository: facts.pr.repository,
+          number: facts.pr.number,
+        }
+      : { action: "open" },
     merge,
     steps,
     blocked,
@@ -178,7 +273,17 @@ export function resolveShipPlan(facts: ShipFacts): ShipPlan {
 }
 
 /** The first turn of the ship session: everything it needs, nothing it must look up to start. */
-export function shipBrief(plan: ShipPlan, facts: Pick<ShipFacts, "projectPath" | "taskShortId" | "sessionShortId" | "repository" | "committed">): string {
+export function shipBrief(
+  plan: ShipPlan,
+  facts: Pick<
+    ShipFacts,
+    | "projectPath"
+    | "taskShortId"
+    | "sessionShortId"
+    | "repository"
+    | "committed"
+  >,
+): string {
   const lines: string[] = [
     `# Ship ${plan.label}`,
     "",
@@ -188,34 +293,70 @@ export function shipBrief(plan: ShipPlan, facts: Pick<ShipFacts, "projectPath" |
     `- Branch: ${plan.branch}${plan.newBranch ? ` (new; the change is on ${plan.base} now)` : ""}, landing in ${plan.base}`,
   ];
   if (facts.repository) lines.push(`- Repository: ${facts.repository}`);
-  if (facts.taskShortId) lines.push(`- Task: ${facts.taskShortId} (comment the PR link and the outcome on it)`);
-  if (facts.committed) lines.push(`- The change is already committed on ${plan.branch}, as the flow reviewed and approved it: ship that branch as it is. Run the checks where it is checked out (\`git worktree list\` shows where), add no commits of your own, and never take anything from the shared checkout's uncommitted edits`);
-  else if (facts.sessionShortId) lines.push(`- Changes from session ${facts.sessionShortId} (\`cast diff ${facts.sessionShortId}\` lists its files; ship only those)`);
-  if (plan.pr.action === "shepherd") lines.push(`- Pull request: ${plan.pr.repository}#${plan.pr.number}, already open`);
+  if (facts.taskShortId)
+    lines.push(
+      `- Task: ${facts.taskShortId} (comment the PR link and the outcome on it)`,
+    );
+  if (facts.committed)
+    lines.push(
+      `- The change is already committed on ${plan.branch}, as the flow reviewed and approved it: ship that branch as it is. Run the checks where it is checked out (\`git worktree list\` shows where), add no commits of your own, and never take anything from the shared checkout's uncommitted edits`,
+    );
+  else if (facts.sessionShortId)
+    lines.push(
+      `- Changes from session ${facts.sessionShortId} (\`cast diff ${facts.sessionShortId}\` lists its files; ship only those)`,
+    );
+  if (plan.pr.action === "shepherd")
+    lines.push(
+      `- Pull request: ${plan.pr.repository}#${plan.pr.number}, already open`,
+    );
   lines.push("", "## Steps", "");
   let n = 1;
-  if (plan.newBranch) lines.push(`${n++}. Create ${plan.branch} from ${plan.base} in a worktree (\`git worktree add\`), carry over only the files this work changed, and commit them there. Never stash, reset or discard other sessions' changes in the checkout.`);
-  lines.push(`${n++}. \`cast state --status working "Checks running"\`, then run ${plan.checks.map((c) => `\`${c}\``).join(" and ")}. If one fails: \`cast state --status blocked "Failed: <the failing check and its first error>"\` and stop.`);
+  if (plan.newBranch)
+    lines.push(
+      `${n++}. Create ${plan.branch} from ${plan.base} in a worktree (\`git worktree add\`), carry over only the files this work changed, and commit them there. Never stash, reset or discard other sessions' changes in the checkout.`,
+    );
+  lines.push(
+    `${n++}. \`cast state --status working "Checks running"\`, then run ${plan.checks.map((c) => `\`${c}\``).join(" and ")}. If one fails: \`cast state --status blocked "Failed: <the failing check and its first error>"\` and stop.`,
+  );
   if (plan.command) {
-    lines.push(`${n++}. Run the project's ship command from the branch's checkout with task_id, branch and default_branch in its environment: \`${plan.command}\`. Its last line says what is true now; pin it with \`cast state\`.`);
+    lines.push(
+      `${n++}. Run the project's ship command from the branch's checkout with task_id, branch and default_branch in its environment: \`${plan.command}\`. Its last line says what is true now; pin it with \`cast state\`.`,
+    );
   } else if (plan.pr.action === "open") {
-    lines.push(`${n++}. Follow the cast-ship skill: commit in topical pieces, push ${plan.branch}, open the pull request into ${plan.base} with \`gh pr create\`, then \`cast pr shepherd on\`. Pin \`cast state "PR opened: <url>"\`.`);
+    lines.push(
+      `${n++}. Follow the cast-ship skill: commit in topical pieces, push ${plan.branch}, open the pull request into ${plan.base} with \`gh pr create\`, then \`cast pr shepherd on\`. Pin \`cast state "PR opened: <url>"\`.`,
+    );
   } else {
-    lines.push(`${n++}. Push any commits to ${plan.branch}, then \`cast pr shepherd on ${plan.pr.repository}#${plan.pr.number}\`. Pin \`cast state "Shepherding ${plan.pr.repository}#${plan.pr.number}"\`.`);
+    lines.push(
+      `${n++}. Push any commits to ${plan.branch}, then \`cast pr shepherd on ${plan.pr.repository}#${plan.pr.number}\`. Pin \`cast state "Shepherding ${plan.pr.repository}#${plan.pr.number}"\`.`,
+    );
   }
   if (plan.merge.will && plan.merge.via === "role") {
-    lines.push(`${n++}. When its checks are green, merge under the flow's merge grant: \`cast line merge --run ${plan.merge.runId} --branch ${plan.branch} --into ${plan.base}${facts.taskShortId ? ` --task ${facts.taskShortId}` : ""}\`. It checks @${plan.merge.role}'s allowance again, merges and counts it; if it leaves the merge to a person, pin that line with \`cast state --status blocked\`. Otherwise \`cast state --status done "Merged"\`. ${plan.merge.why}`);
+    lines.push(
+      `${n++}. When its checks are green, merge under the flow's merge grant: \`cast line merge --run ${plan.merge.runId} --branch ${plan.branch} --into ${plan.base}${facts.taskShortId ? ` --task ${facts.taskShortId}` : ""}\`. It checks @${plan.merge.role}'s allowance again, merges and counts it; if it leaves the merge to a person, pin that line with \`cast state --status blocked\`. Otherwise \`cast state --status done "Merged"\`. ${plan.merge.why}`,
+    );
   } else if (plan.merge.will) {
-    lines.push(`${n++}. When its checks are green, \`cast pr merge --${plan.merge.method}\`, then \`cast state --status done "Merged"\`. ${plan.merge.why}`);
+    lines.push(
+      `${n++}. When its checks are green, \`cast pr merge --${plan.merge.method}\`, then \`cast state --status done "Merged"\`. ${plan.merge.why}`,
+    );
   } else {
-    lines.push(`${n++}. Do not merge. ${plan.merge.why} Pin \`cast state --status done "PR opened: <url>, waiting on review"\`.`);
+    lines.push(
+      `${n++}. Do not merge. ${plan.merge.why} Pin \`cast state --status done "PR opened: <url>, waiting on review"\`.`,
+    );
   }
   return lines.join("\n");
 }
 
 // ── Progress: what the ship session's row says, folded for the control ──
 
-export type ShipPhase = "starting" | "working" | "checks" | "pr_open" | "merged" | "failed" | "done";
+export type ShipPhase =
+  | "starting"
+  | "working"
+  | "checks"
+  | "pr_open"
+  | "merged"
+  | "failed"
+  | "done";
 
 export type ShipProgressInput = {
   session: {
@@ -225,27 +366,60 @@ export type ShipProgressInput = {
     pr_status?: { repository: string; number: number; state: string } | null;
     status?: string | null;
   } | null;
-  pr?: { state?: string | null; checks?: Array<{ name: string; status: string; conclusion?: string | null }> | null } | null;
+  pr?: {
+    state?: string | null;
+    checks?: Array<{
+      name: string;
+      status: string;
+      conclusion?: string | null;
+    }> | null;
+  } | null;
 };
 
-export type ShipProgress = { phase: ShipPhase; text: string; pr: { repository: string; number: number } | null };
+export type ShipProgress = {
+  phase: ShipPhase;
+  text: string;
+  pr: { repository: string; number: number } | null;
+};
 
-const FAILED = new Set(["failure", "timed_out", "cancelled", "action_required", "startup_failure"]);
+const FAILED = new Set([
+  "failure",
+  "timed_out",
+  "cancelled",
+  "action_required",
+  "startup_failure",
+]);
 
 export function shipProgress({ session, pr }: ShipProgressInput): ShipProgress {
-  if (!session) return { phase: "starting", text: "Starting the ship session", pr: null };
-  const ref = session.pr_status ? { repository: session.pr_status.repository, number: session.pr_status.number } : null;
+  if (!session)
+    return { phase: "starting", text: "Starting the ship session", pr: null };
+  const ref = session.pr_status
+    ? {
+        repository: session.pr_status.repository,
+        number: session.pr_status.number,
+      }
+    : null;
   const prState = pr?.state ?? session.pr_status?.state ?? null;
   const state = (session.thread_state ?? "").trim();
   if (prState === "merged") return { phase: "merged", text: "Merged", pr: ref };
-  const failing = (pr?.checks ?? []).find((c) => c.conclusion && FAILED.has(c.conclusion));
-  if (failing) return { phase: "failed", text: `Failed: ${failing.name}`, pr: ref };
-  if (session.thread_state_status === "blocked") return { phase: "failed", text: state || "Blocked", pr: ref };
+  const failing = (pr?.checks ?? []).find(
+    (c) => c.conclusion && FAILED.has(c.conclusion),
+  );
+  if (failing)
+    return { phase: "failed", text: `Failed: ${failing.name}`, pr: ref };
+  if (session.thread_state_status === "blocked")
+    return { phase: "failed", text: state || "Blocked", pr: ref };
   if (ref) {
     const running = (pr?.checks ?? []).some((c) => c.status !== "completed");
-    return { phase: running ? "checks" : "pr_open", text: running ? "PR open, checks running" : (state || "PR open"), pr: ref };
+    return {
+      phase: running ? "checks" : "pr_open",
+      text: running ? "PR open, checks running" : state || "PR open",
+      pr: ref,
+    };
   }
-  if (session.thread_state_status === "done") return { phase: "done", text: state || "Done", pr: ref };
-  if (/^checks running/i.test(state)) return { phase: "checks", text: state, pr: null };
+  if (session.thread_state_status === "done")
+    return { phase: "done", text: state || "Done", pr: ref };
+  if (/^checks running/i.test(state))
+    return { phase: "checks", text: state, pr: null };
   return { phase: "working", text: state || "Working", pr: null };
 }

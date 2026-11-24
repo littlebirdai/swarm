@@ -22,16 +22,37 @@ export type ReplayEvent =
   | (At & { type: "nav"; url: string; title?: string })
   // `context` is for display only, never a locator: when the control has no name or text, what it shows (an icon) and where it sits ("x icon in Release this call").
   // `x`/`y`: where the pointer landed, CSS px in the recorded viewport.
-  | (At & { type: "click"; label: string; role?: string; selector: string; text?: string; context?: string; x?: number; y?: number })
+  | (At & {
+      type: "click";
+      label: string;
+      role?: string;
+      selector: string;
+      text?: string;
+      context?: string;
+      x?: number;
+      y?: number;
+    })
   // Only the length of what was typed, never the value.
-  | (At & { type: "input"; label: string; selector: string; length: number; redacted: true })
+  | (At & {
+      type: "input";
+      label: string;
+      selector: string;
+      length: number;
+      redacted: true;
+    })
   | (At & { type: "submit"; label: string; selector: string })
   | (At & { type: "key"; key: ReplayKey })
   // Coarse: at most one per REPLAY_LIMITS.scroll_min_interval_ms.
   | (At & { type: "scroll"; y: number; of: number })
   | (At & { type: "console"; level: ReplayConsoleLevel; message: string })
   // Failures, plus anything slower than REPLAY_LIMITS.network_slow_ms.
-  | (At & { type: "network"; method: string; url: string; status: number; ms: number })
+  | (At & {
+      type: "network";
+      method: string;
+      url: string;
+      status: number;
+      ms: number;
+    })
   | (At & { type: "error"; message: string; stack?: string })
   // The visible text outline of the page, taken at navigation and before an error.
   | (At & { type: "view"; outline: string })
@@ -95,7 +116,13 @@ export const VENDOR_REFRESH_RETRY = {
  * from the vendor, or a read that failed.
  */
 /** `unsplittable`: a start whose later parts cannot be read part by part (a mobile capture). */
-export const VENDOR_REFRESH_WHYS = ["realtime", "rate_limit", "gone", "failed", "unsplittable"] as const;
+export const VENDOR_REFRESH_WHYS = [
+  "realtime",
+  "rate_limit",
+  "gone",
+  "failed",
+  "unsplittable",
+] as const;
 export type VendorRefreshWhy = (typeof VENDOR_REFRESH_WHYS)[number];
 
 /** Reading the rest of a long vendor recording (convex sources/replayRest.ts); the server and the replay page read these same numbers. */
@@ -118,9 +145,15 @@ export const REPLAY_REST_NO_MORE = "PostHog answered no more of the recording";
  * nobody knows how far it reaches. The list's mark, the player's cut and the
  * server's sweep all read this one rule.
  */
-export function replayCutAt(capturedMs: number | null | undefined, lengthMs: number | null | undefined): number | null {
+export function replayCutAt(
+  capturedMs: number | null | undefined,
+  lengthMs: number | null | undefined,
+): number | null {
   if (!capturedMs || !lengthMs) return null;
-  return lengthMs - capturedMs > Math.max(REPLAY_REST.cut_min_ms, lengthMs * REPLAY_REST.cut_min_share) ? capturedMs : null;
+  return lengthMs - capturedMs >
+    Math.max(REPLAY_REST.cut_min_ms, lengthMs * REPLAY_REST.cut_min_share)
+    ? capturedMs
+    : null;
 }
 
 /**
@@ -138,13 +171,20 @@ export function needsRest(
     duration_ms?: number | null;
     imported_at?: number | null;
     vendor_refresh_after?: number | null;
-    import_rest?: { retry_at?: number | null; error?: string | null; updated_at: number } | null;
+    import_rest?: {
+      retry_at?: number | null;
+      error?: string | null;
+      updated_at: number;
+    } | null;
   },
   now: number,
 ): boolean {
   const captured = r.captured_ms ?? null;
   const duration = r.duration_ms ?? null;
-  const unknownReach = captured === null && !!r.imported_at && (duration ?? 0) >= REPLAY_REST.reach_unknown_ms;
+  const unknownReach =
+    captured === null &&
+    !!r.imported_at &&
+    (duration ?? 0) >= REPLAY_REST.reach_unknown_ms;
   if (!unknownReach && replayCutAt(captured, duration) === null) return false;
   if (r.vendor_refresh_after && r.vendor_refresh_after > now) return false;
   const chain = r.import_rest;
@@ -159,12 +199,24 @@ export function needsRest(
  * older converter and is not waiting out a failed refresh (`vendor_refresh_after`).
  */
 export function needsVendorImport(
-  row: { provider: string; imported_at?: number | null; converter_version?: number | null; vendor_refresh_after?: number | null },
+  row: {
+    provider: string;
+    imported_at?: number | null;
+    converter_version?: number | null;
+    vendor_refresh_after?: number | null;
+  },
   now: number = Date.now(),
 ): boolean {
-  if (row.provider === "sdk" || !(REPLAY_PROVIDERS as readonly string[]).includes(row.provider)) return false;
+  if (
+    row.provider === "sdk" ||
+    !(REPLAY_PROVIDERS as readonly string[]).includes(row.provider)
+  )
+    return false;
   if (!row.imported_at) return true;
-  return (row.converter_version ?? 1) < VENDOR_CONVERTER_VERSION && !(row.vendor_refresh_after && row.vendor_refresh_after > now);
+  return (
+    (row.converter_version ?? 1) < VENDOR_CONVERTER_VERSION &&
+    !(row.vendor_refresh_after && row.vendor_refresh_after > now)
+  );
 }
 
 /**
@@ -173,7 +225,14 @@ export function needsVendorImport(
  * page, or an app's own reason (keep(reason), a token matching the pattern).
  * The platform recorder spells the same list; a drift test holds the two.
  */
-export const REPLAY_KEEP_REASONS = ["sample", "error", "rage_click", "server_error", "slow_request", "freeze"] as const;
+export const REPLAY_KEEP_REASONS = [
+  "sample",
+  "error",
+  "rage_click",
+  "server_error",
+  "slow_request",
+  "freeze",
+] as const;
 export type ReplayKeepReason = (typeof REPLAY_KEEP_REASONS)[number];
 export const REPLAY_KEEP_REASON_PATTERN = /^[a-z0-9_:-]{1,40}$/;
 export const REPLAY_KEEP_REASONS_MAX = 8;
@@ -189,14 +248,24 @@ const KEEP_REASON_LABELS: Record<ReplayKeepReason, string> = {
 
 /** A keep reason as a person reads it; an app's own token with its separators as spaces. */
 export function keepReasonLabel(reason: string): string {
-  return (KEEP_REASON_LABELS as Record<string, string>)[reason] ?? reason.replace(/[_:-]+/g, " ");
+  return (
+    (KEEP_REASON_LABELS as Record<string, string>)[reason] ??
+    reason.replace(/[_:-]+/g, " ")
+  );
 }
 
 /** A kept_for list as stored: valid tokens only, each once, at most REPLAY_KEEP_REASONS_MAX. */
 export function cleanKeepReasons(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const out: string[] = [];
-  for (const r of raw) if (typeof r === "string" && REPLAY_KEEP_REASON_PATTERN.test(r) && !out.includes(r) && out.length < REPLAY_KEEP_REASONS_MAX) out.push(r);
+  for (const r of raw)
+    if (
+      typeof r === "string" &&
+      REPLAY_KEEP_REASON_PATTERN.test(r) &&
+      !out.includes(r) &&
+      out.length < REPLAY_KEEP_REASONS_MAX
+    )
+      out.push(r);
   return out.length ? out : undefined;
 }
 
@@ -231,10 +300,14 @@ export const REPLAY_LIMITS = {
  * replayContractDrift.test.ts holds the two to the same output.
  */
 export function cleanUrl(raw: string, base?: string): string {
-  const clip = (s: string) => (s.length > REPLAY_LIMITS.url_max_chars ? s.slice(0, REPLAY_LIMITS.url_max_chars) : s);
+  const clip = (s: string) =>
+    s.length > REPLAY_LIMITS.url_max_chars
+      ? s.slice(0, REPLAY_LIMITS.url_max_chars)
+      : s;
   try {
     const u = new URL(raw, base);
-    for (const key of Array.from(u.searchParams.keys())) u.searchParams.set(key, "");
+    for (const key of Array.from(u.searchParams.keys()))
+      u.searchParams.set(key, "");
     u.hash = u.hash ? "#" : "";
     return clip(u.toString());
   } catch {
@@ -249,7 +322,12 @@ export const REPLAY_BACKFILL_WINDOWS = ["7d", "30d", "90d", "all"] as const;
 export type ReplayBackfillWindow = (typeof REPLAY_BACKFILL_WINDOWS)[number];
 export const DEFAULT_REPLAY_BACKFILL_WINDOW: ReplayBackfillWindow = "30d";
 
-export const REPLAY_BACKFILL_STATUSES = ["running", "done", "paused", "error"] as const;
+export const REPLAY_BACKFILL_STATUSES = [
+  "running",
+  "done",
+  "paused",
+  "error",
+] as const;
 export type ReplayBackfillStatus = (typeof REPLAY_BACKFILL_STATUSES)[number];
 
 /**
@@ -315,28 +393,53 @@ export const REPLAY_BACKFILL_LIMITS = {
 } as const;
 
 /** The start of a window, or undefined for "all". */
-export function replayBackfillSince(window: ReplayBackfillWindow, now: number = Date.now()): number | undefined {
+export function replayBackfillSince(
+  window: ReplayBackfillWindow,
+  now: number = Date.now(),
+): number | undefined {
   const days = { "7d": 7, "30d": 30, "90d": 90 } as const;
   return window === "all" ? undefined : now - days[window] * 86_400_000;
 }
 
-export function isReplayBackfillWindow(value: unknown): value is ReplayBackfillWindow {
-  return typeof value === "string" && (REPLAY_BACKFILL_WINDOWS as readonly string[]).includes(value);
+export function isReplayBackfillWindow(
+  value: unknown,
+): value is ReplayBackfillWindow {
+  return (
+    typeof value === "string" &&
+    (REPLAY_BACKFILL_WINDOWS as readonly string[]).includes(value)
+  );
 }
 
 /** Running in name only: no page has written for REPLAY_BACKFILL_LIMITS.stalled_ms. */
-export function replayBackfillStalled(b: Pick<ReplayBackfill, "status" | "updated_at">, now: number = Date.now()): boolean {
-  return b.status === "running" && now - b.updated_at > REPLAY_BACKFILL_LIMITS.stalled_ms;
+export function replayBackfillStalled(
+  b: Pick<ReplayBackfill, "status" | "updated_at">,
+  now: number = Date.now(),
+): boolean {
+  return (
+    b.status === "running" &&
+    now - b.updated_at > REPLAY_BACKFILL_LIMITS.stalled_ms
+  );
 }
 
 /** The state a surface leads with: "stalled" is a running import nobody is running. */
-export function replayBackfillState(b: Pick<ReplayBackfill, "status" | "updated_at">, now: number = Date.now()): ReplayBackfillStatus | "stalled" {
+export function replayBackfillState(
+  b: Pick<ReplayBackfill, "status" | "updated_at">,
+  now: number = Date.now(),
+): ReplayBackfillStatus | "stalled" {
   return replayBackfillStalled(b, now) ? "stalled" : b.status;
 }
 
 /** Whether a start continues from the cursor rather than starting over: a stopped import that never finished. */
-export function replayBackfillResumes(b: Pick<ReplayBackfill, "status" | "updated_at"> | null | undefined, now: number = Date.now()): boolean {
-  return !!b && (b.status === "paused" || b.status === "error" || replayBackfillStalled(b, now));
+export function replayBackfillResumes(
+  b: Pick<ReplayBackfill, "status" | "updated_at"> | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  return (
+    !!b &&
+    (b.status === "paused" ||
+      b.status === "error" ||
+      replayBackfillStalled(b, now))
+  );
 }
 
 /**
@@ -344,18 +447,44 @@ export function replayBackfillResumes(b: Pick<ReplayBackfill, "status" | "update
  * the run before it, not the window the import was started with, so its
  * counts are of that short span and say nothing of what is stored.
  */
-export function replayBackfillFollows(b: Pick<ReplayBackfill, "window" | "since" | "until">): boolean {
+export function replayBackfillFollows(
+  b: Pick<ReplayBackfill, "window" | "since" | "until">,
+): boolean {
   if (b.since === undefined) return false;
   const start = replayBackfillSince(b.window, b.until);
   return start === undefined || b.since - start > 3600_000;
 }
 
 /** One line for the CLI and the web: what the import did and where it stands. */
-export function replayBackfillLine(b: ReplayBackfill, now: number = Date.now()): string {
+export function replayBackfillLine(
+  b: ReplayBackfill,
+  now: number = Date.now(),
+): string {
   const state = replayBackfillState(b, now);
-  const head = { running: "importing", done: "imported", paused: "paused", error: "stopped", stalled: "stalled" }[state];
-  const window = replayBackfillFollows(b) ? `recordings new since ${new Date(b.since!).toISOString().slice(0, 16).replace("T", " ")} UTC` : b.window === "all" ? "all retained recordings" : `the last ${b.window}`;
-  const counts = [`${b.imported} imported`, b.skipped ? `${b.skipped} already here` : "", b.failed ? `${b.failed} failed` : ""].filter(Boolean).join(", ");
-  const tail = state === "paused" || state === "error" ? (b.last_error ? `: ${b.last_error}` : "") : "";
+  const head = {
+    running: "importing",
+    done: "imported",
+    paused: "paused",
+    error: "stopped",
+    stalled: "stalled",
+  }[state];
+  const window = replayBackfillFollows(b)
+    ? `recordings new since ${new Date(b.since!).toISOString().slice(0, 16).replace("T", " ")} UTC`
+    : b.window === "all"
+      ? "all retained recordings"
+      : `the last ${b.window}`;
+  const counts = [
+    `${b.imported} imported`,
+    b.skipped ? `${b.skipped} already here` : "",
+    b.failed ? `${b.failed} failed` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const tail =
+    state === "paused" || state === "error"
+      ? b.last_error
+        ? `: ${b.last_error}`
+        : ""
+      : "";
   return `${head} ${window}: ${b.listed} listed, ${counts}${tail}`;
 }

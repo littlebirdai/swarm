@@ -15,9 +15,27 @@ import {
 } from "../contracts/changeCard";
 
 const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 // UTC so a card renders the same wherever it is built.
 const day = (ms: number) => {
   const d = new Date(ms);
@@ -26,14 +44,17 @@ const day = (ms: number) => {
 
 // A metric ref (in-2:dollars_per_intro) or a short id helps a reader find the
 // goal; a raw document id beside the goal's own name does not.
-const readableRef = (goal: { ref: string; name?: string }) => !goal.name || goal.ref.includes(":") || goal.ref.length < 20;
+const readableRef = (goal: { ref: string; name?: string }) =>
+  !goal.name || goal.ref.includes(":") || goal.ref.length < 20;
 
 export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
   return String(n);
 }
-export const formatUsd = (n: number) => `$${n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString("en-US")}`;
+export const formatUsd = (n: number) =>
+  `$${n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString("en-US")}`;
 export function formatMinutes(n: number): string {
   if (n < 60) return `${n} min`;
   const h = Math.floor(n / 60);
@@ -45,24 +66,32 @@ const ICON_OK = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3
 const ICON_BAD = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 const ICON_ARROW = `<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 6h20M16 1.5L21 6l-5 4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const mark = (ok: boolean) => `<span class="mark ${ok ? "ok" : "bad"}" title="${ok ? "passes" : "fails"}">${ok ? ICON_OK : ICON_BAD}</span>`;
+const mark = (ok: boolean) =>
+  `<span class="mark ${ok ? "ok" : "bad"}" title="${ok ? "passes" : "fails"}">${ok ? ICON_OK : ICON_BAD}</span>`;
 
 function proofRows(card: ChangeCard): string {
   const after = new Map(card.proof.after.map((x) => [x.name, x]));
   const seen = new Set<string>();
   const rows: string[] = [];
-  const row = (name: string, b: CardCheck | undefined, a: CardCheck | undefined) => {
+  const row = (
+    name: string,
+    b: CardCheck | undefined,
+    a: CardCheck | undefined,
+  ) => {
     const pill = (x: CardCheck | undefined, side: string) =>
       x
         ? `<div class="pill ${x.ok ? "ok" : "bad"}">${mark(x.ok)}<span>${esc(x.detail || (x.ok ? "passes" : "fails"))}</span></div>`
         : `<div class="pill none"><span>not run ${side}</span></div>`;
-    rows.push(`<li><div class="pname">${esc(name)}</div>${pill(b, "before")}<div class="arrow">${ICON_ARROW}</div>${pill(a, "after")}</li>`);
+    rows.push(
+      `<li><div class="pname">${esc(name)}</div>${pill(b, "before")}<div class="arrow">${ICON_ARROW}</div>${pill(a, "after")}</li>`,
+    );
   };
   for (const b of card.proof.before) {
     seen.add(b.name);
     row(b.name, b, after.get(b.name));
   }
-  for (const a of card.proof.after) if (!seen.has(a.name)) row(a.name, undefined, a);
+  for (const a of card.proof.after)
+    if (!seen.has(a.name)) row(a.name, undefined, a);
   return rows.join("");
 }
 
@@ -96,17 +125,29 @@ function examples(card: ChangeCard): string {
 /** The cause's earlier shipped fixes beside this change (line-workspace.md LW5): what each changed, when it went live, and whether it held. */
 function earlierBlock(card: ChangeCard): string {
   if (!card.earlier?.length) return "";
-  const items = card.earlier.map((f) => {
-    const state = f.back ? "back" : f.held ? "held" : "";
-    const after = [esc(f.live), f.back ? `<b>${esc(f.back)}</b>` : f.held ? esc(f.held) : ""].filter(Boolean).join(" · ");
-    return `<li class="${state}"><span class="lbl">Attempt ${f.attempt}${f.ref ? ` · ${esc(f.ref)}` : ""}</span><p>${esc(f.change)}</p><p class="after">${after}</p></li>`;
-  }).join("");
+  const items = card.earlier
+    .map((f) => {
+      const state = f.back ? "back" : f.held ? "held" : "";
+      const after = [
+        esc(f.live),
+        f.back ? `<b>${esc(f.back)}</b>` : f.held ? esc(f.held) : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return `<li class="${state}"><span class="lbl">Attempt ${f.attempt}${f.ref ? ` · ${esc(f.ref)}` : ""}</span><p>${esc(f.change)}</p><p class="after">${after}</p></li>`;
+    })
+    .join("");
   return `<section class="block"><h2>Shipped before <span class="count">${card.earlier.length === 1 ? "one earlier fix" : `${card.earlier.length} earlier fixes`}</span></h2><ul class="earlier">${items}</ul></section>`;
 }
 
 function checksList(checks: CardCheck[]): string {
   if (!checks.length) return "";
-  const rows = checks.map((c) => `<li>${mark(c.ok)}<span class="cname">${esc(c.name)}</span><span class="cdetail">${esc(c.detail)}</span></li>`).join("");
+  const rows = checks
+    .map(
+      (c) =>
+        `<li>${mark(c.ok)}<span class="cname">${esc(c.name)}</span><span class="cdetail">${esc(c.detail)}</span></li>`,
+    )
+    .join("");
   return `<section class="block"><h2>Checks</h2><ul class="checks">${rows}</ul></section>`;
 }
 
@@ -114,8 +155,12 @@ function diffPanel(card: ChangeCard): string {
   const { files, added, removed, pr } = card.diff;
   const total = added + removed;
   const addPct = total ? Math.max(4, Math.round((added / total) * 100)) : 0;
-  const bar = total ? `<div class="dbar"><i class="add" style="width:${addPct}%"></i><i class="del" style="width:${100 - addPct}%"></i></div>` : "";
-  const prLink = pr ? `<a href="${esc(pr)}">${esc(pr.replace(/^https?:\/\/(www\.)?github\.com\//, "").replace("/pull/", "#"))}</a>` : `<span class="dim">no pull request</span>`;
+  const bar = total
+    ? `<div class="dbar"><i class="add" style="width:${addPct}%"></i><i class="del" style="width:${100 - addPct}%"></i></div>`
+    : "";
+  const prLink = pr
+    ? `<a href="${esc(pr)}">${esc(pr.replace(/^https?:\/\/(www\.)?github\.com\//, "").replace("/pull/", "#"))}</a>`
+    : `<span class="dim">no pull request</span>`;
   return `<div class="panel"><h3>Diff</h3><div class="big num">${files} <small>${files === 1 ? "file" : "files"}</small></div>
 <div class="num delta"><span class="add">+${added}</span> <span class="del">&minus;${removed}</span></div>${bar}<div class="sub">${prLink}</div></div>`;
 }
@@ -230,20 +275,31 @@ footer{margin-top:18px;text-align:center;font-size:12.5px;color:var(--faint)}
 export function renderChangeCardHtml(card: ChangeCard): string {
   const proof = proofSummary(card.proof);
   const v = card.recommend.verdict;
-  const tone = v === "ship" ? "green" : v === "revise" ? "blue" : v === "drop" ? "red" : "neutral";
-  const recommends = tone === "neutral" ? verdictLabel(v) : `Recommends ${verdictLabel(v)}`;
+  const tone =
+    v === "ship"
+      ? "green"
+      : v === "revise"
+        ? "blue"
+        : v === "drop"
+          ? "red"
+          : "neutral";
+  const recommends =
+    tone === "neutral" ? verdictLabel(v) : `Recommends ${verdictLabel(v)}`;
   const c = card.cause;
   const signals = c.signals
     ? `<span>${c.signals} ${c.signals === 1 ? "report" : "reports"}${c.first_seen ? ` since ${day(c.first_seen)}` : ""}</span>`
     : "";
-  const sources = c.sources.length ? `<span>${c.sources.map(esc).join(", ")}</span>` : "";
+  const sources = c.sources.length
+    ? `<span>${c.sources.map(esc).join(", ")}</span>`
+    : "";
   const goal =
     card.goal.ref === "none"
       ? `<p class="goal">Serves no named goal.</p>`
       : `<p class="goal" title="${esc(card.goal.why)}">Serves <b>${esc(card.goal.name || card.goal.ref)}</b>${readableRef(card.goal) ? `<code>${esc(card.goal.ref)}</code>` : ""}</p>${card.goal.why && !card.headline ? `<p class="why">${esc(card.goal.why)}</p>` : ""}`;
-  const proofBlock = card.proof.before.length || card.proof.after.length
-    ? `<section class="block"><h2>Proof <span class="count">${esc(proof.evidence)}</span></h2><div class="beads" aria-hidden="true">${beads(card)}</div><ul class="proof">${proofRows(card)}</ul></section>`
-    : `<section class="block"><h2>Proof <span class="count">none recorded</span></h2></section>`;
+  const proofBlock =
+    card.proof.before.length || card.proof.after.length
+      ? `<section class="block"><h2>Proof <span class="count">${esc(proof.evidence)}</span></h2><div class="beads" aria-hidden="true">${beads(card)}</div><ul class="proof">${proofRows(card)}</ul></section>`
+      : `<section class="block"><h2>Proof <span class="count">none recorded</span></h2></section>`;
   const { tokens, minutes } = card.cost;
   const cost = costParts(card.cost);
 

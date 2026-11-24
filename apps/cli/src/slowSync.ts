@@ -8,7 +8,12 @@
 // sink and one message shape serve both, so the log report and the freeze
 // SLO read them the same way.
 
-export type SlowSyncTag = "SLOW-SYNC-SPAWN" | "SLOW-SYNC-FS" | "SPAWN-TIMEOUT" | "WORKER-ENV-DROPPED" | "KEYCHAIN-LOCKED";
+export type SlowSyncTag =
+  | "SLOW-SYNC-SPAWN"
+  | "SLOW-SYNC-FS"
+  | "SPAWN-TIMEOUT"
+  | "WORKER-ENV-DROPPED"
+  | "KEYCHAIN-LOCKED";
 
 export const SLOW_SYNC_SPAWN_MS = 1_000;
 // Filesystem work is finer grained than a spawn: one walk of the transcript
@@ -17,7 +22,9 @@ export const SLOW_SYNC_FS_MS = 250;
 
 let slowSyncSink: ((message: string) => void) | null = null;
 
-export function setSlowSyncSink(sink: ((message: string) => void) | null): void {
+export function setSlowSyncSink(
+  sink: ((message: string) => void) | null,
+): void {
   slowSyncSink = sink;
 }
 
@@ -34,9 +41,15 @@ export function setSlowSyncFsThresholdForTests(ms: number | null): void {
  * async), but the same reader wants to know: a wedged keychain or launchctl
  * call otherwise fails quietly and the tick that made it stops for good.
  */
-export function reportSpawnTimeout(name: string, detail: string, timeoutMs: number): void {
+export function reportSpawnTimeout(
+  name: string,
+  detail: string,
+  timeoutMs: number,
+): void {
   try {
-    slowSyncSink?.(`[SPAWN-TIMEOUT] ${name} killed after ${timeoutMs}ms: ${detail}`);
+    slowSyncSink?.(
+      `[SPAWN-TIMEOUT] ${name} killed after ${timeoutMs}ms: ${detail}`,
+    );
   } catch {}
 }
 
@@ -45,9 +58,11 @@ export function reportSpawnTimeout(name: string, detail: string, timeoutMs: numb
  *  every 30 seconds. */
 export function reportKeychainLock(locked: boolean): void {
   try {
-    slowSyncSink?.(locked
-      ? "[KEYCHAIN-LOCKED] the login keychain is locked; keychain calls are skipped (each would put an unlock prompt on screen) until it is unlocked"
-      : "[KEYCHAIN-LOCKED] the login keychain is unlocked again; keychain calls resume");
+    slowSyncSink?.(
+      locked
+        ? "[KEYCHAIN-LOCKED] the login keychain is locked; keychain calls are skipped (each would put an unlock prompt on screen) until it is unlocked"
+        : "[KEYCHAIN-LOCKED] the login keychain is unlocked again; keychain calls resume",
+    );
   } catch {}
 }
 
@@ -60,13 +75,19 @@ export function reportKeychainLock(locked: boolean): void {
  * environment, which does not change under a running process (ct-49915).
  */
 let unroutableProbeReported = false;
-export function reportUnroutableProbe(operation: string, args: string[], options: unknown): void {
+export function reportUnroutableProbe(
+  operation: string,
+  args: string[],
+  options: unknown,
+): void {
   if (unroutableProbeReported) return;
   unroutableProbeReported = true;
   try {
     const env = (options as { env?: Record<string, unknown> } | null)?.env;
     const keys = env ? Object.keys(env).length : 0;
-    slowSyncSink?.(`[WORKER-ENV-DROPPED] ${operation} ${args.join(" ").slice(0, 120)} cannot be carried to a worker (${keys} env entries); this probe and every later one runs on the daemon loop`);
+    slowSyncSink?.(
+      `[WORKER-ENV-DROPPED] ${operation} ${args.join(" ").slice(0, 120)} cannot be carried to a worker (${keys} env entries); this probe and every later one runs on the daemon loop`,
+    );
   } catch {}
 }
 
@@ -94,12 +115,18 @@ export function timeSync<T>(
     if (elapsedMs >= thresholdMs && slowSyncSink) {
       try {
         const d = typeof detail === "function" ? detail() : detail;
-        slowSyncSink(`[${tag}] ${name} blocked the event loop ${Math.round(elapsedMs)}ms: ${d}`);
+        slowSyncSink(
+          `[${tag}] ${name} blocked the event loop ${Math.round(elapsedMs)}ms: ${d}`,
+        );
       } catch {}
     }
   }
 }
 
-export function timeSyncFs<T>(name: string, detail: string | (() => string), fn: () => T): T {
+export function timeSyncFs<T>(
+  name: string,
+  detail: string | (() => string),
+  fn: () => T,
+): T {
   return timeSync("SLOW-SYNC-FS", slowSyncFsThresholdMs, name, detail, fn);
 }

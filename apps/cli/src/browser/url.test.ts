@@ -29,13 +29,17 @@ describe("sameDocument — treated as already loaded", () => {
 
   test("differing only by fragment", () => {
     // Following #section is a scroll, not a load.
-    expect(sameDocument("https://a.test/x", "https://a.test/x#part")).toBe(true);
+    expect(sameDocument("https://a.test/x", "https://a.test/x#part")).toBe(
+      true,
+    );
   });
 
   test("a trailing slash on any path, not just the root", () => {
     // Servers overwhelmingly serve /docs and /docs/ as the same page, and being
     // wrong costs one skipped navigation rather than a wrong page.
-    expect(sameDocument("https://a.test/docs/", "https://a.test/docs")).toBe(true);
+    expect(sameDocument("https://a.test/docs/", "https://a.test/docs")).toBe(
+      true,
+    );
   });
 
   test("host case, which is not significant", () => {
@@ -49,11 +53,15 @@ describe("sameDocument — must navigate", () => {
   });
 
   test("a different query, which usually selects what is shown", () => {
-    expect(sameDocument("https://a.test/s?q=1", "https://a.test/s?q=2")).toBe(false);
+    expect(sameDocument("https://a.test/s?q=1", "https://a.test/s?q=2")).toBe(
+      false,
+    );
   });
 
   test("gaining a query", () => {
-    expect(sameDocument("https://a.test/s", "https://a.test/s?q=1")).toBe(false);
+    expect(sameDocument("https://a.test/s", "https://a.test/s?q=1")).toBe(
+      false,
+    );
   });
 
   test("a different host", () => {
@@ -62,7 +70,9 @@ describe("sameDocument — must navigate", () => {
 
   test("a different port", () => {
     // localhost:3200 and localhost:3300 are different apps, routinely both open.
-    expect(sameDocument("http://localhost:3200/x", "http://localhost:3300/x")).toBe(false);
+    expect(
+      sameDocument("http://localhost:3200/x", "http://localhost:3300/x"),
+    ).toBe(false);
   });
 
   test("a different scheme", () => {
@@ -70,7 +80,9 @@ describe("sameDocument — must navigate", () => {
   });
 
   test("path case, which servers do treat as significant", () => {
-    expect(sameDocument("https://a.test/Foo", "https://a.test/foo")).toBe(false);
+    expect(sameDocument("https://a.test/Foo", "https://a.test/foo")).toBe(
+      false,
+    );
   });
 
   test("anything unparseable, rather than guessing", () => {

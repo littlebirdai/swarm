@@ -3,17 +3,36 @@
 // the signature of the call the caret sits in with the current argument
 // marked, and the full function list behind the fx mark.
 import { useState } from "react";
-import { FN_CATEGORIES, FUNCTION_DOCS, FUNCTION_NAMES, argHelp, argIndexFor, argLabel, type FnCategory } from "@codecast/shared/artifacts/sheets";
+import {
+  FN_CATEGORIES,
+  FUNCTION_DOCS,
+  FUNCTION_NAMES,
+  argHelp,
+  argIndexFor,
+  argLabel,
+  type FnCategory,
+} from "@codecast/shared/artifacts/sheets";
 import type { FormulaAssist } from "./useFormulaAssist";
 import "./formulaAssist.css";
 
 /** The suggestion list, or the signature of the call at the caret. Positioned by the caller. */
-export function AssistPopup({ assist, style }: { assist: FormulaAssist; style: React.CSSProperties }) {
+export function AssistPopup({
+  assist,
+  style,
+}: {
+  assist: FormulaAssist;
+  style: React.CSSProperties;
+}) {
   const { matches, pick, call } = assist;
   if (matches.length) {
     const doc = FUNCTION_DOCS[matches[pick]];
     return (
-      <div className="sheet-assist" style={style} data-sheet-assist role="listbox">
+      <div
+        className="sheet-assist"
+        style={style}
+        data-sheet-assist
+        role="listbox"
+      >
         {matches.map((name, i) => (
           <button
             key={name}
@@ -27,7 +46,9 @@ export function AssistPopup({ assist, style }: { assist: FormulaAssist; style: R
             }}
           >
             <span className="sheet-assist-name">{name}</span>
-            <span className="sheet-assist-about">{FUNCTION_DOCS[name]?.about}</span>
+            <span className="sheet-assist-about">
+              {FUNCTION_DOCS[name]?.about}
+            </span>
           </button>
         ))}
         {doc && <Signature name={matches[pick]} arg={-1} />}
@@ -36,12 +57,20 @@ export function AssistPopup({ assist, style }: { assist: FormulaAssist; style: R
   }
   if (!call) return null;
   return (
-    <div className="sheet-assist sheet-assist-hint" style={style} data-sheet-arg-hint>
+    <div
+      className="sheet-assist sheet-assist-hint"
+      style={style}
+      data-sheet-arg-hint
+    >
       <Signature name={call.name} arg={argIndexFor(call.name, call.arg)} />
       {argHelp(call.name, argIndexFor(call.name, call.arg)) ? (
-        <span className="sheet-assist-arg">{argHelp(call.name, argIndexFor(call.name, call.arg))}</span>
+        <span className="sheet-assist-arg">
+          {argHelp(call.name, argIndexFor(call.name, call.arg))}
+        </span>
       ) : (
-        <span className="sheet-assist-about">{FUNCTION_DOCS[call.name].about}</span>
+        <span className="sheet-assist-about">
+          {FUNCTION_DOCS[call.name].about}
+        </span>
       )}
     </div>
   );
@@ -55,7 +84,9 @@ function Signature({ name, arg }: { name: string; arg: number }) {
       {args.map((a, i) => (
         <span key={i}>
           {i > 0 && ", "}
-          <span className={i === arg ? "is-arg" : undefined}>{argLabel(a)}</span>
+          <span className={i === arg ? "is-arg" : undefined}>
+            {argLabel(a)}
+          </span>
         </span>
       ))}
       )
@@ -92,16 +123,30 @@ export function FunctionList({ onPick }: { onPick: (name: string) => void }) {
       />
       <div className="sheet-fn-cats" role="tablist">
         {[null, ...FN_CATEGORIES].map((c) => (
-          <button key={c ?? "all"} type="button" role="tab" aria-selected={cat === c} className={cat === c ? "is-on" : undefined} onClick={() => setCat(c)}>
+          <button
+            key={c ?? "all"}
+            type="button"
+            role="tab"
+            aria-selected={cat === c}
+            className={cat === c ? "is-on" : undefined}
+            onClick={() => setCat(c)}
+          >
             {c ?? "All"}
           </button>
         ))}
       </div>
       <div className="sheet-fn-rows">
         {names.map((n) => (
-          <button key={n} type="button" className="sheet-fn-row" onClick={() => onPick(n)}>
+          <button
+            key={n}
+            type="button"
+            className="sheet-fn-row"
+            onClick={() => onPick(n)}
+          >
             <Signature name={n} arg={-1} />
-            <span className="sheet-assist-about">{FUNCTION_DOCS[n]?.about}</span>
+            <span className="sheet-assist-about">
+              {FUNCTION_DOCS[n]?.about}
+            </span>
           </button>
         ))}
         {names.length === 0 && <span className="sheet-fn-empty">No match</span>}

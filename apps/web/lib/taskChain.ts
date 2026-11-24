@@ -13,7 +13,11 @@
 // lists. This file adds only the DRAW order: parents directly above their own
 // children, each with a depth. Pure data, no React; lib/taskGrouping's chain
 // axis draws what this orders.
-import { chainIndex, chainParentOf, type ChainRole } from "@codecast/shared/contracts/orgAssignee";
+import {
+  chainIndex,
+  chainParentOf,
+  type ChainRole,
+} from "@codecast/shared/contracts/orgAssignee";
 
 /** One group in chain order. `depth` 0 is the top of a chain. */
 export type ChainNode = { key: string; depth: number };
@@ -46,7 +50,9 @@ export function arrangeChain(
     while (key && !walked.has(key)) {
       walked.add(key);
       const role = roleById.get(key);
-      const up: string | null = role ? (chainParentOf(role, roleById)?.key ?? null) : null;
+      const up: string | null = role
+        ? (chainParentOf(role, roleById)?.key ?? null)
+        : null;
       parent.set(key, up);
       key = up;
     }
@@ -60,7 +66,8 @@ export function arrangeChain(
     else children.set(up, [...(children.get(up) ?? []), key]);
   }
 
-  const byName = (a: string, b: string) => opts.nameOf(a).localeCompare(opts.nameOf(b)) || a.localeCompare(b);
+  const byName = (a: string, b: string) =>
+    opts.nameOf(a).localeCompare(opts.nameOf(b)) || a.localeCompare(b);
   tops.sort((a, b) => {
     const mine = Number(b === opts.meId) - Number(a === opts.meId);
     return mine !== 0 ? mine : byName(a, b);
@@ -69,7 +76,8 @@ export function arrangeChain(
   const out: ChainNode[] = [];
   const emit = (key: string, depth: number) => {
     out.push({ key, depth });
-    for (const child of (children.get(key) ?? []).sort(byName)) emit(child, depth + 1);
+    for (const child of (children.get(key) ?? []).sort(byName))
+      emit(child, depth + 1);
   };
   for (const top of tops) emit(top, 0);
   return out;

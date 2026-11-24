@@ -11,7 +11,14 @@
 // never leave the server except as URLs signed after that check.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
@@ -19,10 +26,30 @@ import { notFound, requireUserOrToken } from "./lib/auth";
 import { scopeArgs } from "./lib/ingestScopeArgs";
 import { scopeOf } from "./lib/ingestScope";
 import { countLanded, patchSourceStats } from "./lib/sourceStats";
-import { ingestUserValidator, replayDomChunkMetaValidator, replayImportRestValidator, replayReadToValidator, replayProviderValidator, replayShapeValidator } from "./ingestSchema";
-import { parseReplayChunkKey, parseReplayDomChunkKey, replaysBucketFromEnv, type R2Bucket } from "./lib/r2";
-import { VENDOR_CONVERTER_VERSION, VENDOR_REFRESH_WHYS, needsVendorImport } from "@codecast/shared/contracts/replay";
-import { replayShape, SHAPE_VERSION, type ReplayMatch } from "@codecast/shared/replay";
+import {
+  ingestUserValidator,
+  replayDomChunkMetaValidator,
+  replayImportRestValidator,
+  replayReadToValidator,
+  replayProviderValidator,
+  replayShapeValidator,
+} from "./ingestSchema";
+import {
+  parseReplayChunkKey,
+  parseReplayDomChunkKey,
+  replaysBucketFromEnv,
+  type R2Bucket,
+} from "./lib/r2";
+import {
+  VENDOR_CONVERTER_VERSION,
+  VENDOR_REFRESH_WHYS,
+  needsVendorImport,
+} from "@codecast/shared/contracts/replay";
+import {
+  replayShape,
+  SHAPE_VERSION,
+  type ReplayMatch,
+} from "@codecast/shared/replay";
 import {
   REPLAY_DOM_WINDOW,
   REPLAY_FRAME_PATH,
@@ -34,12 +61,43 @@ import {
   type ReplayPlayerLink,
 } from "@codecast/shared/contracts/replayPlayer";
 import { mintReplayCap, replayCapKey } from "./lib/replayCap";
-import { patchReplay, replayIndexFields, replayIndexStale } from "./lib/replayIndex";
+import {
+  patchReplay,
+  replayIndexFields,
+  replayIndexStale,
+} from "./lib/replayIndex";
 import { recordMomentEvents } from "./moments";
-import { ensureReplay, findReplay, linkReplayToGroup, recordReplayChunk, recordReplayStyle, upsertReplayManifest } from "./lib/replayWrites";
-import { domChunkMeta, lastCaptureTimestamp, readDomChunkSpan, readReplayChunks } from "./lib/replayChunks";
-import { applyIssues, domArgs, importExternalArgs, importExternalCore, importShrinks, summarize } from "./lib/replayImport";
-import { browseCore, detailCore, LIST_MAX, listCore, readableReplay, replayView, writeReplayTimeline } from "./lib/replayReads";
+import {
+  ensureReplay,
+  findReplay,
+  linkReplayToGroup,
+  recordReplayChunk,
+  recordReplayStyle,
+  upsertReplayManifest,
+} from "./lib/replayWrites";
+import {
+  domChunkMeta,
+  lastCaptureTimestamp,
+  readDomChunkSpan,
+  readReplayChunks,
+} from "./lib/replayChunks";
+import {
+  applyIssues,
+  domArgs,
+  importExternalArgs,
+  importExternalCore,
+  importShrinks,
+  summarize,
+} from "./lib/replayImport";
+import {
+  browseCore,
+  detailCore,
+  LIST_MAX,
+  listCore,
+  readableReplay,
+  replayView,
+  writeReplayTimeline,
+} from "./lib/replayReads";
 
 type Db = { db: any };
 
@@ -50,7 +108,10 @@ type Db = { db: any };
  */
 export const CHUNK_LANDING_MS = 10 * 60_000;
 
-async function sourceOrThrow(ctx: Db, id: Id<"event_sources">): Promise<Doc<"event_sources">> {
+async function sourceOrThrow(
+  ctx: Db,
+  id: Id<"event_sources">,
+): Promise<Doc<"event_sources">> {
   const source = await ctx.db.get(id);
   if (!source) throw new Error("Source not found");
   return source;
@@ -64,29 +125,82 @@ const replayItemValidator = v.object({
   started_at: v.optional(v.number()),
   duration_ms: v.optional(v.number()),
   chunks: v.optional(v.number()),
-  counts: v.optional(v.object({ clicks: v.optional(v.number()), errors: v.optional(v.number()), failed_requests: v.optional(v.number()) })),
+  counts: v.optional(
+    v.object({
+      clicks: v.optional(v.number()),
+      errors: v.optional(v.number()),
+      failed_requests: v.optional(v.number()),
+    }),
+  ),
   at: v.number(),
 });
 
 /** The manifest upsert as its own transaction, for callers outside the ingest batch. */
 export const upsertManifest = internalMutation({
   args: { source_id: v.id("event_sources"), item: replayItemValidator },
-  handler: async (ctx, args) => upsertReplayManifest(ctx, await sourceOrThrow(ctx, args.source_id), args.item, Date.now()),
+  handler: async (ctx, args) =>
+    upsertReplayManifest(
+      ctx,
+      await sourceOrThrow(ctx, args.source_id),
+      args.item,
+      Date.now(),
+    ),
 });
 
 export const linkGroup = internalMutation({
-  args: { source_id: v.id("event_sources"), replay_external_id: v.string(), group_id: v.id("event_groups") },
-  handler: async (ctx, args) => linkReplayToGroup(ctx, await sourceOrThrow(ctx, args.source_id), args.replay_external_id, args.group_id, Date.now()),
+  args: {
+    source_id: v.id("event_sources"),
+    replay_external_id: v.string(),
+    group_id: v.id("event_groups"),
+  },
+  handler: async (ctx, args) =>
+    linkReplayToGroup(
+      ctx,
+      await sourceOrThrow(ctx, args.source_id),
+      args.replay_external_id,
+      args.group_id,
+      Date.now(),
+    ),
 });
 
 export const recordStyle = internalMutation({
-  args: { source_id: v.id("event_sources"), replay_external_id: v.string(), href: v.string(), key: v.string() },
-  handler: async (ctx, args) => recordReplayStyle(ctx, await sourceOrThrow(ctx, args.source_id), args.replay_external_id, args.href, args.key, Date.now()),
+  args: {
+    source_id: v.id("event_sources"),
+    replay_external_id: v.string(),
+    href: v.string(),
+    key: v.string(),
+  },
+  handler: async (ctx, args) =>
+    recordReplayStyle(
+      ctx,
+      await sourceOrThrow(ctx, args.source_id),
+      args.replay_external_id,
+      args.href,
+      args.key,
+      Date.now(),
+    ),
 });
 
 export const recordChunk = internalMutation({
-  args: { source_id: v.id("event_sources"), replay_external_id: v.string(), seq: v.number(), key: v.string(), kind: v.optional(v.union(v.literal("events"), v.literal("dom"))), replace_unlanded: v.optional(v.string()) },
-  handler: async (ctx, args) => recordReplayChunk(ctx, await sourceOrThrow(ctx, args.source_id), args.replay_external_id, args.seq, args.key, Date.now(), args.kind ?? "events", args.replace_unlanded),
+  args: {
+    source_id: v.id("event_sources"),
+    replay_external_id: v.string(),
+    seq: v.number(),
+    key: v.string(),
+    kind: v.optional(v.union(v.literal("events"), v.literal("dom"))),
+    replace_unlanded: v.optional(v.string()),
+  },
+  handler: async (ctx, args) =>
+    recordReplayChunk(
+      ctx,
+      await sourceOrThrow(ctx, args.source_id),
+      args.replay_external_id,
+      args.seq,
+      args.key,
+      Date.now(),
+      args.kind ?? "events",
+      args.replace_unlanded,
+    ),
 });
 
 // ── Assembling a recording's timeline ──
@@ -96,21 +210,36 @@ export const assemblyInputs = internalQuery({
   args: { replay_id: v.id("replays") },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.replay_id);
-    return row ? { short_id: row.short_id, chunk_keys: row.chunk_keys, url: row.url, provider: row.provider } : null;
+    return row
+      ? {
+          short_id: row.short_id,
+          chunk_keys: row.chunk_keys,
+          url: row.url,
+          provider: row.provider,
+        }
+      : null;
   },
 });
 
 /** A recording worth a replay judge's session: long enough and clicked enough to show someone working. */
 export const REPLAY_MOMENT_MIN = { duration_ms: 30_000, clicks: 3 };
-export const isUsedRecording = (counts: { clicks: number }, durationMs: number): boolean =>
-  durationMs >= REPLAY_MOMENT_MIN.duration_ms && counts.clicks >= REPLAY_MOMENT_MIN.clicks;
+export const isUsedRecording = (
+  counts: { clicks: number },
+  durationMs: number,
+): boolean =>
+  durationMs >= REPLAY_MOMENT_MIN.duration_ms &&
+  counts.clicks >= REPLAY_MOMENT_MIN.clicks;
 
 export const saveSummary = internalMutation({
   args: {
     replay_id: v.id("replays"),
     chunk_keys: v.array(v.string()),
     timeline_md: v.string(),
-    counts: v.object({ clicks: v.number(), errors: v.number(), failed_requests: v.number() }),
+    counts: v.object({
+      clicks: v.number(),
+      errors: v.number(),
+      failed_requests: v.number(),
+    }),
     shape: v.optional(replayShapeValidator),
     duration_ms: v.number(),
     url: v.optional(v.string()),
@@ -135,7 +264,8 @@ export const saveSummary = internalMutation({
     // landed: the timeline then stays older than the chunk list and no
     // assembly counts as queued, so the manifest that follows the upload
     // queues another. A chunk still missing long after its sign is given up.
-    const pending = (args.skipped ?? 0) > 0 && now - (row.chunks_at ?? 0) < CHUNK_LANDING_MS;
+    const pending =
+      (args.skipped ?? 0) > 0 && now - (row.chunks_at ?? 0) < CHUNK_LANDING_MS;
     await patchReplay(ctx, row, {
       timeline_at: pending ? Math.max(0, (row.chunks_at ?? now) - 1) : now,
       ...(pending ? { assemble_at: undefined } : {}),
@@ -147,10 +277,13 @@ export const saveSummary = internalMutation({
       // Our recorder's t counts from started_at, and the replay clock from
       // the stream's first event, so that event's wall clock is the zero the
       // player maps the DOM capture against.
-      ...(row.provider === "sdk" && args.first_t !== undefined ? { dom_t0: row.started_at + args.first_t } : {}),
+      ...(row.provider === "sdk" && args.first_t !== undefined
+        ? { dom_t0: row.started_at + args.first_t }
+        : {}),
       updated_at: now,
     });
-    if (!pending && row.provider === "sdk") await openReplayMoment(ctx, row, args.counts, args.duration_ms, now);
+    if (!pending && row.provider === "sdk")
+      await openReplayMoment(ctx, row, args.counts, args.duration_ms, now);
   },
 });
 
@@ -162,24 +295,68 @@ export const saveSummary = internalMutation({
  * with a published replay extractor opens moments, and only for a recording
  * someone used: a reload or a glance has nothing to judge.
  */
-async function openReplayMoment(ctx: any, row: Doc<"replays">, counts: { clicks: number }, durationMs: number, now: number): Promise<void> {
+async function openReplayMoment(
+  ctx: any,
+  row: Doc<"replays">,
+  counts: { clicks: number },
+  durationMs: number,
+  now: number,
+): Promise<void> {
   if (!isUsedRecording(counts, durationMs)) return;
-  const extractor = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", row.source_id).eq("kind", "replay")).first();
+  const extractor = await ctx.db
+    .query("moment_extractors")
+    .withIndex("by_source_kind", (q: any) =>
+      q.eq("source_id", row.source_id).eq("kind", "replay"),
+    )
+    .first();
   const source = extractor ? await ctx.db.get(row.source_id) : null;
-  if (source) await recordMomentEvents(ctx, source, [{ type: "moment", kind: "replay", subject: row.short_id, at: row.started_at + durationMs, refs: { replay: row.short_id } }], now);
+  if (source)
+    await recordMomentEvents(
+      ctx,
+      source,
+      [
+        {
+          type: "moment",
+          kind: "replay",
+          subject: row.short_id,
+          at: row.started_at + durationMs,
+          refs: { replay: row.short_id },
+        },
+      ],
+      now,
+    );
 }
 
 /** Read a recording's chunks and cache its text timeline and counts on the row. */
 export const assemble = internalAction({
   args: { replay_id: v.id("replays") },
-  handler: async (ctx, args): Promise<{ events: number; skipped: number } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ events: number; skipped: number } | null> => {
     const bucket = replaysBucketFromEnv();
-    const input = await ctx.runQuery(internal.replays.assemblyInputs, { replay_id: args.replay_id });
+    const input = await ctx.runQuery(internal.replays.assemblyInputs, {
+      replay_id: args.replay_id,
+    });
     if (!bucket || !input || !input.chunk_keys.length) return null;
-    const { events, skipped } = await readReplayChunks(bucket, input.chunk_keys);
+    const { events, skipped } = await readReplayChunks(
+      bucket,
+      input.chunk_keys,
+    );
     const summary = summarize(events, input.short_id);
-    await ctx.runMutation(internal.replays.saveSummary, { replay_id: args.replay_id, chunk_keys: input.chunk_keys, skipped, ...summary });
-    await applyIssues(ctx, args.replay_id, input.provider, events, input.url ?? summary.url);
+    await ctx.runMutation(internal.replays.saveSummary, {
+      replay_id: args.replay_id,
+      chunk_keys: input.chunk_keys,
+      skipped,
+      ...summary,
+    });
+    await applyIssues(
+      ctx,
+      args.replay_id,
+      input.provider,
+      events,
+      input.url ?? summary.url,
+    );
     return { events: events.length, skipped };
   },
 });
@@ -190,10 +367,21 @@ export const assemble = internalAction({
 export const shapelessPage = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("replays").paginate({ cursor: args.cursor, numItems: 100 });
+    const page = await ctx.db
+      .query("replays")
+      .paginate({ cursor: args.cursor, numItems: 100 });
     return {
       // No shape yet, or one an older replayShape wrote (SHAPE_VERSION).
-      rows: page.page.filter((r) => (!r.shape || r.shape.v < SHAPE_VERSION) && r.chunk_keys.length > 0).map((r) => ({ replay_id: r._id, chunk_keys: r.chunk_keys, provider: r.provider })),
+      rows: page.page
+        .filter(
+          (r) =>
+            (!r.shape || r.shape.v < SHAPE_VERSION) && r.chunk_keys.length > 0,
+        )
+        .map((r) => ({
+          replay_id: r._id,
+          chunk_keys: r.chunk_keys,
+          provider: r.provider,
+        })),
       cursor: page.continueCursor,
       done: page.isDone,
     };
@@ -202,10 +390,19 @@ export const shapelessPage = internalQuery({
 
 /** A shape read from the chunks a row still lists; a row whose chunks changed meanwhile gets its own from that assembly. */
 export const saveShape = internalMutation({
-  args: { replay_id: v.id("replays"), chunk_keys: v.array(v.string()), shape: replayShapeValidator },
+  args: {
+    replay_id: v.id("replays"),
+    chunk_keys: v.array(v.string()),
+    shape: replayShapeValidator,
+  },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.replay_id);
-    if (!row || (row.shape && row.shape.v >= args.shape.v) || row.chunk_keys.join("\n") !== args.chunk_keys.join("\n")) return;
+    if (
+      !row ||
+      (row.shape && row.shape.v >= args.shape.v) ||
+      row.chunk_keys.join("\n") !== args.chunk_keys.join("\n")
+    )
+      return;
     await patchReplay(ctx, row, { shape: args.shape, updated_at: Date.now() });
   },
 });
@@ -221,20 +418,33 @@ export const shapeBackfill = internalAction({
   handler: async (ctx, args): Promise<{ shaped: number; done: boolean }> => {
     const bucket = replaysBucketFromEnv();
     if (!bucket) return { shaped: 0, done: true };
-    const page = await ctx.runQuery(internal.replays.shapelessPage, { cursor: args.cursor ?? null });
+    const page = await ctx.runQuery(internal.replays.shapelessPage, {
+      cursor: args.cursor ?? null,
+    });
     let shaped = 0;
     for (const row of page.rows) {
       try {
         // A vendor import's older chunks come back inflated by fetch and cannot hash to their key (readReplayChunks).
-        const { events } = await readReplayChunks(bucket, row.chunk_keys, { serverWritten: row.provider !== "sdk" });
+        const { events } = await readReplayChunks(bucket, row.chunk_keys, {
+          serverWritten: row.provider !== "sdk",
+        });
         if (!events.length) continue;
-        await ctx.runMutation(internal.replays.saveShape, { replay_id: row.replay_id, chunk_keys: row.chunk_keys, shape: replayShape(events) });
+        await ctx.runMutation(internal.replays.saveShape, {
+          replay_id: row.replay_id,
+          chunk_keys: row.chunk_keys,
+          shape: replayShape(events),
+        });
         shaped++;
       } catch (err) {
-        console.warn(`replay shape for ${row.replay_id} not read: ${err instanceof Error ? err.message : String(err)}`);
+        console.warn(
+          `replay shape for ${row.replay_id} not read: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
-    if (!page.done) await ctx.scheduler.runAfter(0, internal.replays.shapeBackfill, { cursor: page.cursor });
+    if (!page.done)
+      await ctx.scheduler.runAfter(0, internal.replays.shapeBackfill, {
+        cursor: page.cursor,
+      });
     return { shaped, done: page.done };
   },
 });
@@ -244,26 +454,51 @@ export const shapeBackfill = internalAction({
 /** What reading a row's capture length needs: its last DOM chunk and where its clock starts. Null without a capture. */
 function captureInput(r: Doc<"replays">) {
   if (!(r.dom_chunk_keys?.length ?? 0) || r.dom_t0 === undefined) return null;
-  return { replay_id: r._id, last_key: r.dom_chunk_keys![r.dom_chunk_keys!.length - 1], dom_t0: r.dom_t0, duration_ms: r.duration_ms ?? 0, captured_ms: r.captured_ms };
+  return {
+    replay_id: r._id,
+    last_key: r.dom_chunk_keys![r.dom_chunk_keys!.length - 1],
+    dom_t0: r.dom_t0,
+    duration_ms: r.duration_ms ?? 0,
+    captured_ms: r.captured_ms,
+  };
 }
 
 /** Read one capture's length and keep it when longer (saveCaptureLength). */
-async function lengthenFromCapture(ctx: { runMutation: any }, bucket: R2Bucket, row: NonNullable<ReturnType<typeof captureInput>>): Promise<boolean> {
+async function lengthenFromCapture(
+  ctx: { runMutation: any },
+  bucket: R2Bucket,
+  row: NonNullable<ReturnType<typeof captureInput>>,
+): Promise<boolean> {
   const last = await lastCaptureTimestamp(bucket, row.last_key);
   if (last === null) return false;
   const length = Math.round(last - row.dom_t0);
-  if (length <= row.duration_ms + 1000 && row.captured_ms !== undefined) return false;
-  await ctx.runMutation(internal.replays.saveCaptureLength, { replay_id: row.replay_id, last_key: row.last_key, duration_ms: length });
+  if (length <= row.duration_ms + 1000 && row.captured_ms !== undefined)
+    return false;
+  await ctx.runMutation(internal.replays.saveCaptureLength, {
+    replay_id: row.replay_id,
+    last_key: row.last_key,
+    duration_ms: length,
+  });
   return length > row.duration_ms + 1000;
 }
 
 /** One page of the table: recordings with a page capture, the key of its last chunk and where its clock starts. */
 export const capturedPage = internalQuery({
-  args: { cursor: v.union(v.string(), v.null()), unknown_only: v.optional(v.boolean()) },
+  args: {
+    cursor: v.union(v.string(), v.null()),
+    unknown_only: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("replays").paginate({ cursor: args.cursor, numItems: 25 });
+    const page = await ctx.db
+      .query("replays")
+      .paginate({ cursor: args.cursor, numItems: 25 });
     return {
-      rows: page.page.map(captureInput).filter((r): r is NonNullable<typeof r> => !!r && (!args.unknown_only || r.captured_ms === undefined)),
+      rows: page.page
+        .map(captureInput)
+        .filter(
+          (r): r is NonNullable<typeof r> =>
+            !!r && (!args.unknown_only || r.captured_ms === undefined),
+        ),
       cursor: page.continueCursor,
       done: page.isDone,
     };
@@ -272,7 +507,11 @@ export const capturedPage = internalQuery({
 
 /** A longer length read off the capture a row still keeps; never shortens one. */
 export const saveCaptureLength = internalMutation({
-  args: { replay_id: v.id("replays"), last_key: v.string(), duration_ms: v.number() },
+  args: {
+    replay_id: v.id("replays"),
+    last_key: v.string(),
+    duration_ms: v.number(),
+  },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.replay_id);
     const keys = row?.dom_chunk_keys ?? [];
@@ -281,7 +520,11 @@ export const saveCaptureLength = internalMutation({
     const captured = Math.max(args.duration_ms, row.captured_ms ?? 0);
     const longer = args.duration_ms > (row.duration_ms ?? 0);
     if (!longer && captured === row.captured_ms) return;
-    await patchReplay(ctx, row, { captured_ms: captured, ...(longer ? { duration_ms: args.duration_ms } : {}), updated_at: Date.now() });
+    await patchReplay(ctx, row, {
+      captured_ms: captured,
+      ...(longer ? { duration_ms: args.duration_ms } : {}),
+      updated_at: Date.now(),
+    });
   },
 });
 
@@ -291,7 +534,11 @@ export const saveCaptureLength = internalMutation({
 function spanInput(r: Doc<"replays">) {
   const keys = r.dom_chunk_keys ?? [];
   const known = r.dom_chunk_meta ?? [];
-  if (keys.length < REPLAY_DOM_WINDOW.window_min_chunks || known.length >= keys.length) return null;
+  if (
+    keys.length < REPLAY_DOM_WINDOW.window_min_chunks ||
+    known.length >= keys.length
+  )
+    return null;
   return { replay_id: r._id, keys, known };
 }
 
@@ -307,18 +554,33 @@ export const spanRow = internalQuery({
 export const spanPage = internalQuery({
   args: { cursor: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("replays").paginate({ cursor: args.cursor, numItems: 50 });
-    return { ids: page.page.filter((r) => !!spanInput(r)).map((r) => r._id), cursor: page.continueCursor, done: page.isDone };
+    const page = await ctx.db
+      .query("replays")
+      .paginate({ cursor: args.cursor, numItems: 50 });
+    return {
+      ids: page.page.filter((r) => !!spanInput(r)).map((r) => r._id),
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });
 
 /** Keep the spans read for a row's leading chunks, while those are still its first keys (a long recording's rest may have added more since). */
 export const saveDomSpans = internalMutation({
-  args: { replay_id: v.id("replays"), keys: v.array(v.string()), meta: v.array(replayDomChunkMetaValidator) },
+  args: {
+    replay_id: v.id("replays"),
+    keys: v.array(v.string()),
+    meta: v.array(replayDomChunkMetaValidator),
+  },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.replay_id);
     const keys = row?.dom_chunk_keys ?? [];
-    if (!row || args.meta.length !== args.keys.length || keys.slice(0, args.keys.length).join("\n") !== args.keys.join("\n")) return false;
+    if (
+      !row ||
+      args.meta.length !== args.keys.length ||
+      keys.slice(0, args.keys.length).join("\n") !== args.keys.join("\n")
+    )
+      return false;
     if ((row.dom_chunk_meta?.length ?? 0) >= args.meta.length) return true;
     await ctx.db.patch(row._id, { dom_chunk_meta: args.meta });
     return true;
@@ -334,7 +596,9 @@ export const domMetaOne = internalAction({
   args: { replay_id: v.id("replays") },
   handler: async (ctx, args): Promise<boolean> => {
     const bucket = replaysBucketFromEnv();
-    const row = await ctx.runQuery(internal.replays.spanRow, { replay_id: args.replay_id });
+    const row = await ctx.runQuery(internal.replays.spanRow, {
+      replay_id: args.replay_id,
+    });
     if (!bucket || !row) return false;
     // Only the chunks past the spans already kept: a long recording's rest adds chunks while this reads.
     const meta: ReplayDomChunkMeta[] = [...row.known];
@@ -345,7 +609,11 @@ export const domMetaOne = internalAction({
       meta.push(span);
     }
     if (meta.length === row.known.length) return false;
-    return await ctx.runMutation(internal.replays.saveDomSpans, { replay_id: args.replay_id, keys: row.keys.slice(0, meta.length), meta });
+    return await ctx.runMutation(internal.replays.saveDomSpans, {
+      replay_id: args.replay_id,
+      keys: row.keys.slice(0, meta.length),
+      meta,
+    });
   },
 });
 
@@ -353,9 +621,19 @@ export const domMetaOne = internalAction({
 export const domMetaBackfill = internalAction({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args): Promise<{ queued: number; done: boolean }> => {
-    const page = await ctx.runQuery(internal.replays.spanPage, { cursor: args.cursor ?? null });
-    for (let i = 0; i < page.ids.length; i++) await ctx.scheduler.runAfter(i * 20_000, internal.replays.domMetaOne, { replay_id: page.ids[i] });
-    if (!page.done) await ctx.scheduler.runAfter(page.ids.length * 20_000, internal.replays.domMetaBackfill, { cursor: page.cursor });
+    const page = await ctx.runQuery(internal.replays.spanPage, {
+      cursor: args.cursor ?? null,
+    });
+    for (let i = 0; i < page.ids.length; i++)
+      await ctx.scheduler.runAfter(i * 20_000, internal.replays.domMetaOne, {
+        replay_id: page.ids[i],
+      });
+    if (!page.done)
+      await ctx.scheduler.runAfter(
+        page.ids.length * 20_000,
+        internal.replays.domMetaBackfill,
+        { cursor: page.cursor },
+      );
     return { queued: page.ids.length, done: page.done };
   },
 });
@@ -370,20 +648,35 @@ export const domMetaBackfill = internalAction({
  */
 export const captureLengthBackfill = internalAction({
   /** unknown_only: just the copies whose reach was never stored, so the list can mark the ones cut short. */
-  args: { cursor: v.optional(v.union(v.string(), v.null())), unknown_only: v.optional(v.boolean()) },
-  handler: async (ctx, args): Promise<{ lengthened: number; done: boolean }> => {
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    unknown_only: v.optional(v.boolean()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ lengthened: number; done: boolean }> => {
     const bucket = replaysBucketFromEnv();
     if (!bucket) return { lengthened: 0, done: true };
-    const page = await ctx.runQuery(internal.replays.capturedPage, { cursor: args.cursor ?? null, ...(args.unknown_only ? { unknown_only: true } : {}) });
+    const page = await ctx.runQuery(internal.replays.capturedPage, {
+      cursor: args.cursor ?? null,
+      ...(args.unknown_only ? { unknown_only: true } : {}),
+    });
     let lengthened = 0;
     for (const row of page.rows) {
       try {
         if (await lengthenFromCapture(ctx, bucket, row)) lengthened++;
       } catch (err) {
-        console.warn(`replay length for ${row.replay_id} not read: ${err instanceof Error ? err.message : String(err)}`);
+        console.warn(
+          `replay length for ${row.replay_id} not read: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
-    if (!page.done) await ctx.scheduler.runAfter(0, internal.replays.captureLengthBackfill, { cursor: page.cursor, ...(args.unknown_only ? { unknown_only: true } : {}) });
+    if (!page.done)
+      await ctx.scheduler.runAfter(0, internal.replays.captureLengthBackfill, {
+        cursor: page.cursor,
+        ...(args.unknown_only ? { unknown_only: true } : {}),
+      });
     return { lengthened, done: page.done };
   },
 });
@@ -402,7 +695,9 @@ export const captureLengthOne = internalAction({
   args: { replay_id: v.id("replays") },
   handler: async (ctx, args): Promise<boolean> => {
     const bucket = replaysBucketFromEnv();
-    const row = await ctx.runQuery(internal.replays.captureRow, { replay_id: args.replay_id });
+    const row = await ctx.runQuery(internal.replays.captureRow, {
+      replay_id: args.replay_id,
+    });
     if (!bucket || !row) return false;
     return await lengthenFromCapture(ctx, bucket, row);
   },
@@ -421,7 +716,9 @@ export const checkCaptureLength = mutation({
     if (!userId) return { queued: false };
     const row = await readableReplay(ctx, userId, args.replay);
     if (!row || !captureInput(row)) return { queued: false };
-    await ctx.scheduler.runAfter(0, internal.replays.captureLengthOne, { replay_id: row._id });
+    await ctx.scheduler.runAfter(0, internal.replays.captureLengthOne, {
+      replay_id: row._id,
+    });
     return { queued: true };
   },
 });
@@ -430,13 +727,31 @@ export const checkCaptureLength = mutation({
 
 /** Open (or find) the row an import fills, so its short id can head the timeline. */
 export const openImport = internalMutation({
-  args: { source_id: v.id("event_sources"), external_id: v.string(), started_at: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ replay_id: Id<"replays">; short_id: string }> => {
+  args: {
+    source_id: v.id("event_sources"),
+    external_id: v.string(),
+    started_at: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ replay_id: Id<"replays">; short_id: string }> => {
     const source = await sourceOrThrow(ctx, args.source_id);
     const known = await findReplay(ctx, source._id, args.external_id);
-    const row = known ?? (await ensureReplay(ctx, source, args.external_id, args.started_at ?? Date.now(), { capped: false }))!;
+    const row =
+      known ??
+      (await ensureReplay(
+        ctx,
+        source,
+        args.external_id,
+        args.started_at ?? Date.now(),
+        { capped: false },
+      ))!;
     // A recording new to codecast is part of what the source sent, on the day it was recorded (ingest countLanded).
-    if (!known) await patchSourceStats(ctx, source, (s) => countLanded(s, [{ at: row.started_at, n: 1 }], Date.now()));
+    if (!known)
+      await patchSourceStats(ctx, source, (s) =>
+        countLanded(s, [{ at: row.started_at, n: 1 }], Date.now()),
+      );
     return { replay_id: row._id, short_id: row.short_id };
   },
 });
@@ -447,7 +762,11 @@ export const saveImported = internalMutation({
     provider: replayProviderValidator,
     chunk_keys: v.array(v.string()),
     timeline_md: v.string(),
-    counts: v.object({ clicks: v.number(), errors: v.number(), failed_requests: v.number() }),
+    counts: v.object({
+      clicks: v.number(),
+      errors: v.number(),
+      failed_requests: v.number(),
+    }),
     shape: v.optional(replayShapeValidator),
     duration_ms: v.number(),
     url: v.optional(v.string()),
@@ -469,11 +788,20 @@ export const saveImported = internalMutation({
   handler: async (ctx, args): Promise<{ saved: boolean }> => {
     const now = Date.now();
     const row = await ctx.db.get(args.replay_id);
-    if (args.expect_gen !== undefined && row?.import_rest?.gen !== args.expect_gen) return { saved: false };
-    if (args.expect_gen === undefined && row && importShrinks(row, args)) return { saved: false };
+    if (
+      args.expect_gen !== undefined &&
+      row?.import_rest?.gen !== args.expect_gen
+    )
+      return { saved: false };
+    if (args.expect_gen === undefined && row && importShrinks(row, args))
+      return { saved: false };
     if (!row) return { saved: false };
     await writeReplayTimeline(ctx, args.replay_id, args.timeline_md, now);
-    const length = Math.max(args.duration_ms, args.vendor_length_ms ?? 0, row?.facts?.length_ms ?? 0);
+    const length = Math.max(
+      args.duration_ms,
+      args.vendor_length_ms ?? 0,
+      row?.facts?.length_ms ?? 0,
+    );
     await patchReplay(ctx, row, {
       provider: args.provider,
       chunk_keys: args.chunk_keys,
@@ -487,7 +815,14 @@ export const saveImported = internalMutation({
       ...(args.shape ? { shape: args.shape } : {}),
       duration_ms: length,
       captured_ms: args.whole ? length : args.duration_ms,
-      ...(args.vendor_length_ms ? { facts: { ...(row?.facts ?? { at: now }), length_ms: args.vendor_length_ms } } : {}),
+      ...(args.vendor_length_ms
+        ? {
+            facts: {
+              ...(row?.facts ?? { at: now }),
+              length_ms: args.vendor_length_ms,
+            },
+          }
+        : {}),
       ...(args.url ? { url: args.url } : {}),
       ...(args.user ? { user: args.user } : {}),
       ...(args.started_at ? { started_at: args.started_at } : {}),
@@ -495,15 +830,27 @@ export const saveImported = internalMutation({
       // (an unplayable capture) must not keep an older one's keys.
       dom_chunk_keys: args.dom_chunk_keys ?? [],
       // The spans of the leading chunks are kept even when later ones are not known yet (domMetaOne reads only the rest); readers use them once they cover every key.
-      dom_chunk_meta: args.dom_chunk_meta && args.dom_chunk_meta.length <= (args.dom_chunk_keys ?? []).length ? args.dom_chunk_meta : undefined,
+      dom_chunk_meta:
+        args.dom_chunk_meta &&
+        args.dom_chunk_meta.length <= (args.dom_chunk_keys ?? []).length
+          ? args.dom_chunk_meta
+          : undefined,
       dom_bytes: args.dom_bytes ?? 0,
-      ...(args.dom_t0 !== undefined ? { dom_t0: args.dom_t0 + (args.first_t ?? 0) } : {}),
+      ...(args.dom_t0 !== undefined
+        ? { dom_t0: args.dom_t0 + (args.first_t ?? 0) }
+        : {}),
       import_rest: args.import_rest,
       read_to: args.read_to,
       updated_at: now,
     });
     // A vendor's recording (PostHog, Sentry) is judged the way our recorder's is.
-    await openReplayMoment(ctx, { ...row, ...(args.started_at ? { started_at: args.started_at } : {}) }, args.counts, length, now);
+    await openReplayMoment(
+      ctx,
+      { ...row, ...(args.started_at ? { started_at: args.started_at } : {}) },
+      args.counts,
+      length,
+      now,
+    );
     return { saved: true };
   },
 });
@@ -517,10 +864,18 @@ export const importExternal = internalAction({
 export const importedReplays = internalQuery({
   args: { source_id: v.id("event_sources"), external_ids: v.array(v.string()) },
   handler: async (ctx, args) => {
-    const out: Record<string, { replay_id: Id<"replays">; short_id: string; imported: boolean }> = {};
+    const out: Record<
+      string,
+      { replay_id: Id<"replays">; short_id: string; imported: boolean }
+    > = {};
     for (const id of args.external_ids.slice(0, LIST_MAX)) {
       const row = await findReplay(ctx, args.source_id, id);
-      if (row) out[id] = { replay_id: row._id, short_id: row.short_id, imported: !needsVendorImport(row) };
+      if (row)
+        out[id] = {
+          replay_id: row._id,
+          short_id: row.short_id,
+          imported: !needsVendorImport(row),
+        };
     }
     return out;
   },
@@ -537,15 +892,36 @@ export const recordingForImport = internalQuery({
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await readableReplay(ctx, userId, args.replay);
     if (!row) notFound("Replay not found");
-    return { replay_id: row!._id, short_id: row!.short_id, source_id: row!.source_id, provider: row!.provider, external_id: row!.external_id, imported_at: row!.imported_at ?? null, converter_version: row!.converter_version ?? null, vendor_refresh_after: row!.vendor_refresh_after ?? null, captured_ms: row!.captured_ms ?? null, duration_ms: row!.duration_ms ?? null, import_rest: row!.import_rest ?? null, vendor_refresh_why: row!.vendor_refresh_why ?? null };
+    return {
+      replay_id: row!._id,
+      short_id: row!.short_id,
+      source_id: row!.source_id,
+      provider: row!.provider,
+      external_id: row!.external_id,
+      imported_at: row!.imported_at ?? null,
+      converter_version: row!.converter_version ?? null,
+      vendor_refresh_after: row!.vendor_refresh_after ?? null,
+      captured_ms: row!.captured_ms ?? null,
+      duration_ms: row!.duration_ms ?? null,
+      import_rest: row!.import_rest ?? null,
+      vendor_refresh_why: row!.vendor_refresh_why ?? null,
+    };
   },
 });
 
 /** A refresh of an older copy failed: hold off asking the vendor again until `retry_at`. The copy keeps serving. */
 export const deferVendorRefresh = internalMutation({
-  args: { replay_id: v.id("replays"), retry_at: v.number(), why: v.optional(v.union(...VENDOR_REFRESH_WHYS.map((w) => v.literal(w)))) },
+  args: {
+    replay_id: v.id("replays"),
+    retry_at: v.number(),
+    why: v.optional(v.union(...VENDOR_REFRESH_WHYS.map((w) => v.literal(w)))),
+  },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.replay_id, { vendor_refresh_after: args.retry_at, vendor_refresh_why: args.why, updated_at: Date.now() });
+    await ctx.db.patch(args.replay_id, {
+      vendor_refresh_after: args.retry_at,
+      vendor_refresh_why: args.why,
+      updated_at: Date.now(),
+    });
   },
 });
 
@@ -572,16 +948,25 @@ export const list = query({
  * rows that differ, and never moves a tally (the tend cron recounts).
  */
 export const indexBackfill = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), stamped: v.optional(v.number()) },
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    stamped: v.optional(v.number()),
+  },
   handler: async (ctx, args): Promise<{ stamped: number; done: boolean }> => {
-    const page = await ctx.db.query("replays").paginate({ cursor: args.cursor ?? null, numItems: 200 });
+    const page = await ctx.db
+      .query("replays")
+      .paginate({ cursor: args.cursor ?? null, numItems: 200 });
     let stamped = args.stamped ?? 0;
     for (const row of page.page) {
       if (!replayIndexStale(row)) continue;
       await ctx.db.patch(row._id, replayIndexFields(row));
       stamped++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.replays.indexBackfill, { cursor: page.continueCursor, stamped });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.replays.indexBackfill, {
+        cursor: page.continueCursor,
+        stamped,
+      });
     else console.log(`replays.indexBackfill stamped ${stamped}`);
     return { stamped, done: page.isDone };
   },
@@ -613,7 +998,10 @@ export const browse = query({
   },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    return await browseCore(ctx, userId, workspaceKey, { ...args, has: args.has as ReplayMatch["has"] });
+    return await browseCore(ctx, userId, workspaceKey, {
+      ...args,
+      has: args.has as ReplayMatch["has"],
+    });
   },
 });
 
@@ -638,7 +1026,9 @@ export const get = query({
 export const webGetReplay = query({
   args: { ref: v.string(), api_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await requireUserOrToken(ctx, args.api_token).catch(() => null);
+    const userId = await requireUserOrToken(ctx, args.api_token).catch(
+      () => null,
+    );
     if (!userId) return null;
     const row = await readableReplay(ctx, userId, args.ref);
     if (!row) return null;
@@ -663,14 +1053,32 @@ export const cliGet = internalQuery({
 
 /** The object behind one chunk of a replay the user may read, for the redirect route; null otherwise. */
 export const chunkObject = internalQuery({
-  args: { user_id: v.optional(v.id("users")), api_token: v.optional(v.string()), replay: v.string(), seq: v.number(), kind: v.optional(v.union(v.literal("events"), v.literal("dom"))) },
+  args: {
+    user_id: v.optional(v.id("users")),
+    api_token: v.optional(v.string()),
+    replay: v.string(),
+    seq: v.number(),
+    kind: v.optional(v.union(v.literal("events"), v.literal("dom"))),
+  },
   handler: async (ctx, args): Promise<string | null> => {
-    const userId = args.user_id ?? (args.api_token ? (await verifyApiToken(ctx, args.api_token))?.userId : undefined);
+    const userId =
+      args.user_id ??
+      (args.api_token
+        ? (await verifyApiToken(ctx, args.api_token))?.userId
+        : undefined);
     if (!userId) return null;
     const row = await readableReplay(ctx, userId, args.replay);
     if (!row) return null;
-    if (args.kind === "dom") return (row.dom_chunk_keys ?? []).find((k: string) => parseReplayDomChunkKey(k)?.seq === args.seq) ?? null;
-    return row.chunk_keys.find((k) => parseReplayChunkKey(k)?.seq === args.seq) ?? null;
+    if (args.kind === "dom")
+      return (
+        (row.dom_chunk_keys ?? []).find(
+          (k: string) => parseReplayDomChunkKey(k)?.seq === args.seq,
+        ) ?? null
+      );
+    return (
+      row.chunk_keys.find((k) => parseReplayChunkKey(k)?.seq === args.seq) ??
+      null
+    );
   },
 });
 
@@ -698,7 +1106,9 @@ export const playerTarget = internalQuery({
   },
 });
 
-const playerModeValidator = v.union(...REPLAY_PLAYER_MODES.map((m) => v.literal(m)));
+const playerModeValidator = v.union(
+  ...REPLAY_PLAYER_MODES.map((m) => v.literal(m)),
+);
 
 /**
  * A link to the player for one replay the caller may read: a capability good
@@ -717,19 +1127,56 @@ export const playerLink = action({
     autoplay: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<ReplayPlayerLink> => {
-    const target = await ctx.runQuery(internal.replays.playerTarget, { api_token: args.api_token, replay: args.replay });
+    const target = await ctx.runQuery(internal.replays.playerTarget, {
+      api_token: args.api_token,
+      replay: args.replay,
+    });
     const now = Date.now();
     const frame_url = `${REPLAY_PLAYER_ORIGIN}${REPLAY_FRAME_PATH}`;
     const key = await replayCapKey();
-    if (!target.has_dom || !key) return { short_id: target.short_id, has_dom: false, cap: null, player_url: null, frame_url, expires_at: now };
-    if (target.needs_meta) await ctx.scheduler.runAfter(0, internal.replays.domMetaOne, { replay_id: target.replay_id });
+    if (!target.has_dom || !key)
+      return {
+        short_id: target.short_id,
+        has_dom: false,
+        cap: null,
+        player_url: null,
+        frame_url,
+        expires_at: now,
+      };
+    if (target.needs_meta)
+      await ctx.scheduler.runAfter(0, internal.replays.domMetaOne, {
+        replay_id: target.replay_id,
+      });
     // A person's player reads the stretch around where it opens; the frame renderer seeks anywhere with one capability, so it reads the whole.
     const interactive = (args.mode ?? "interactive") === "interactive";
     const t_ms = Math.max(0, args.t_ms ?? 0);
-    const window = interactive ? replayDomWindow(target.dom_chunk_meta, target.t0, t_ms) : null;
-    const { cap, expires_at } = await mintReplayCap(key, { replay_id: String(target.replay_id), user_id: String(target.user_id), now, ...(window ? { t_ms } : {}) });
-    const player_url = replayPlayerUrl({ cap, t_ms: args.t_ms ?? null, mode: args.mode, controls: args.controls, autoplay: args.autoplay });
-    return { short_id: target.short_id, has_dom: true, cap, player_url, frame_url, expires_at, window: window ? { start_ms: window.start_ms, end_ms: window.end_ms } : null };
+    const window = interactive
+      ? replayDomWindow(target.dom_chunk_meta, target.t0, t_ms)
+      : null;
+    const { cap, expires_at } = await mintReplayCap(key, {
+      replay_id: String(target.replay_id),
+      user_id: String(target.user_id),
+      now,
+      ...(window ? { t_ms } : {}),
+    });
+    const player_url = replayPlayerUrl({
+      cap,
+      t_ms: args.t_ms ?? null,
+      mode: args.mode,
+      controls: args.controls,
+      autoplay: args.autoplay,
+    });
+    return {
+      short_id: target.short_id,
+      has_dom: true,
+      cap,
+      player_url,
+      frame_url,
+      expires_at,
+      window: window
+        ? { start_ms: window.start_ms, end_ms: window.end_ms }
+        : null,
+    };
   },
 });
 
@@ -740,19 +1187,36 @@ export const playerLink = action({
  * signs the keys before anything leaves.
  */
 export const playerManifestRow = internalQuery({
-  args: { replay_id: v.string(), user_id: v.string(), t_ms: v.optional(v.number()) },
+  args: {
+    replay_id: v.string(),
+    user_id: v.string(),
+    t_ms: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = ctx.db.normalizeId("users", args.user_id);
     if (!userId) return null;
     const row = await readableReplay(ctx, userId, args.replay_id);
-    if (!row || !(row.dom_chunk_keys?.length)) return null;
+    if (!row || !row.dom_chunk_keys?.length) return null;
     const keys = row.dom_chunk_keys as string[];
     // A capability minted at a time names the stretch of a long capture around it, as playerLink computed it.
-    const window = args.t_ms !== undefined ? replayDomWindow(domChunkMeta(row), row.dom_t0 ?? row.started_at, args.t_ms) : null;
+    const window =
+      args.t_ms !== undefined
+        ? replayDomWindow(
+            domChunkMeta(row),
+            row.dom_t0 ?? row.started_at,
+            args.t_ms,
+          )
+        : null;
     return {
       dom_chunk_keys: window ? keys.slice(window.from, window.to + 1) : keys,
       style_keys: row.dom_styles ?? [],
-      replay: { short_id: row.short_id, provider: row.provider, url: row.url ?? null, started_at: row.started_at, duration_ms: row.duration_ms ?? null },
+      replay: {
+        short_id: row.short_id,
+        provider: row.provider,
+        url: row.url ?? null,
+        started_at: row.started_at,
+        duration_ms: row.duration_ms ?? null,
+      },
       t0: row.dom_t0 ?? row.started_at,
     };
   },
@@ -762,13 +1226,18 @@ export const playerManifestRow = internalQuery({
 export const windowFor = internalQuery({
   args: { short_id: v.string(), t_ms: v.number() },
   handler: async (ctx, args) => {
-    const row = await ctx.db.query("replays").withIndex("by_short_id", (q) => q.eq("short_id", args.short_id)).first();
+    const row = await ctx.db
+      .query("replays")
+      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
+      .first();
     if (!row) return null;
     const meta = domChunkMeta(row);
     return {
       keys: row.dom_chunk_keys?.length ?? 0,
       spans: row.dom_chunk_meta?.length ?? 0,
-      raw_mb: meta ? Math.round(meta.reduce((n, m) => n + m.raw, 0) / 1024 / 1024) : null,
+      raw_mb: meta
+        ? Math.round(meta.reduce((n, m) => n + m.raw, 0) / 1024 / 1024)
+        : null,
       window: replayDomWindow(meta, row.dom_t0 ?? row.started_at, args.t_ms),
       import_rest: row.import_rest ?? null,
       vendor_refresh_after: row.vendor_refresh_after ?? null,

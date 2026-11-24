@@ -10,7 +10,11 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { isAutoContinueEnabled, recoveryModeOf, type RecoveryMode } from "@codecast/convex/convex/ccAccountsShared";
+import {
+  isAutoContinueEnabled,
+  recoveryModeOf,
+  type RecoveryMode,
+} from "@codecast/convex/convex/ccAccountsShared";
 
 export type RecoveryToggle = {
   on: boolean;
@@ -20,15 +24,19 @@ export type RecoveryToggle = {
 
 // What each mode does, in the words the selector shows. One definition so the
 // header panel and the settings page describe the same behavior.
-export const RECOVERY_MODE_COPY: Record<RecoveryMode, { label: string; detail: string }> = {
+export const RECOVERY_MODE_COPY: Record<
+  RecoveryMode,
+  { label: string; detail: string }
+> = {
   off: {
     label: "Never continue for me",
-    detail: "Codecast never types into your sessions. A session that stopped waits until you continue it.",
+    detail:
+      "Codecast never types into your sessions. A session that stopped waits until you continue it.",
   },
   resume: {
     label: "Continue on this account",
     detail:
-      "Never change accounts. Codecast sends \"continue\" once a usage limit resets, after an API or connection error, and when the agent crashed mid-turn.",
+      'Never change accounts. Codecast sends "continue" once a usage limit resets, after an API or connection error, and when the agent crashed mid-turn.',
   },
   ask: {
     label: "Continue, and ask before switching accounts",
@@ -53,9 +61,15 @@ export function useAccountRecoveryToggles(device: {
   auto_switch: boolean;
   auto_continue?: boolean;
   ask_first?: boolean;
-}): { autoSwitch: RecoveryToggle; autoContinue: RecoveryToggle; recovery: RecoveryModeControl } {
+}): {
+  autoSwitch: RecoveryToggle;
+  autoContinue: RecoveryToggle;
+  recovery: RecoveryModeControl;
+} {
   const setAutoSwitch = useMutation(api.accountSwitch.setAutoSwitchAccounts);
-  const setAutoContinue = useMutation(api.accountSwitch.setAutoContinueAccounts);
+  const setAutoContinue = useMutation(
+    api.accountSwitch.setAutoContinueAccounts,
+  );
   const setMode = useMutation(api.accountSwitch.setRecoveryMode);
   const [pendingMode, setPendingMode] = useState<RecoveryMode | null>(null);
   // Local echo while a toggle round-trips (the flags live on the device row,
@@ -65,7 +79,10 @@ export function useAccountRecoveryToggles(device: {
 
   const flip =
     (
-      mutate: (args: { device_id: string; enabled: boolean }) => Promise<unknown>,
+      mutate: (args: {
+        device_id: string;
+        enabled: boolean;
+      }) => Promise<unknown>,
       setPending: (v: boolean | null) => void,
       label: (enabled: boolean) => string,
     ) =>
@@ -97,7 +114,11 @@ export function useAccountRecoveryToggles(device: {
           await setMode({ device_id: device.device_id, mode });
           toast.success(RECOVERY_MODE_COPY[mode].label);
         } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Could not change the recovery mode");
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Could not change the recovery mode",
+          );
         } finally {
           setPendingMode(null);
         }
@@ -107,11 +128,15 @@ export function useAccountRecoveryToggles(device: {
       on: pendingSwitch ?? device.auto_switch,
       pending: pendingSwitch !== null,
       set: flip(setAutoSwitch, setPendingSwitch, (on) =>
-        on ? "Auto-switch on — limit-parked sessions will hop accounts and continue" : "Auto-switch off",
+        on
+          ? "Auto-switch on — limit-parked sessions will hop accounts and continue"
+          : "Auto-switch off",
       ),
     },
     autoContinue: {
-      on: pendingContinue ?? isAutoContinueEnabled({ cc_auto_continue: device.auto_continue }),
+      on:
+        pendingContinue ??
+        isAutoContinueEnabled({ cc_auto_continue: device.auto_continue }),
       pending: pendingContinue !== null,
       set: flip(setAutoContinue, setPendingContinue, (on) =>
         on

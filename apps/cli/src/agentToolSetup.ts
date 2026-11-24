@@ -10,13 +10,19 @@
  */
 
 import { spawn } from "./proc.js";
-import { isAgentSetupTool, type AgentToolSetupArgs, type AgentToolSetupStatus } from "@codecast/shared/contracts";
+import {
+  isAgentSetupTool,
+  type AgentToolSetupArgs,
+  type AgentToolSetupStatus,
+} from "@codecast/shared/contracts";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { resolveCastInvocation } from "./castInvocation.js";
 
 export interface AgentToolSetupDeps {
   /** Runs `cast <args>` to completion and answers its stdout. */
-  runCast: (args: string[]) => Promise<{ code: number | null; stdout: string; stderr: string }>;
+  runCast: (
+    args: string[],
+  ) => Promise<{ code: number | null; stdout: string; stderr: string }>;
   /** Starts `cast <args>` detached and answers its pid. */
   startCast?: (args: string[]) => number | undefined;
 }
@@ -33,31 +39,74 @@ const START_ARGS: Record<AgentToolSetupArgs["tool"], string[]> = {
   computer: ["computer", "setup", "--yes"],
 };
 
-export function parseAgentToolSetupArgs(raw: string | undefined): AgentToolSetupArgs | null {
+export function parseAgentToolSetupArgs(
+  raw: string | undefined,
+): AgentToolSetupArgs | null {
   let parsed: { tool?: unknown; op?: unknown } = {};
-  try { parsed = raw ? JSON.parse(raw) : {}; } catch { return null; }
-  if (!isAgentSetupTool(parsed.tool) || (parsed.op !== "check" && parsed.op !== "start")) return null;
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    return null;
+  }
+  if (
+    !isAgentSetupTool(parsed.tool) ||
+    (parsed.op !== "check" && parsed.op !== "start")
+  )
+    return null;
   return { tool: parsed.tool, op: parsed.op };
 }
 
-export async function runAgentToolSetup(args: AgentToolSetupArgs, deps: AgentToolSetupDeps): Promise<AgentToolSetupStatus | { started: true }> {
+export async function runAgentToolSetup(
+  args: AgentToolSetupArgs,
+  deps: AgentToolSetupDeps,
+): Promise<AgentToolSetupStatus | { started: true }> {
   if (args.op === "check") return await checkAgentTool(args.tool, deps);
   const prev = starts.get(args.tool);
-  if (prev) { try { process.kill(prev, "SIGTERM"); } catch { /* already gone */ } }
+  if (prev) {
+    try {
+      process.kill(prev, "SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
   const pid = (deps.startCast ?? startCastDetached)(START_ARGS[args.tool]);
   if (pid) starts.set(args.tool, pid);
   return { started: true };
 }
 
-async function checkAgentTool(tool: AgentToolSetupArgs["tool"], deps: AgentToolSetupDeps): Promise<AgentToolSetupStatus> {
+async function checkAgentTool(
+  tool: AgentToolSetupArgs["tool"],
+  deps: AgentToolSetupDeps,
+): Promise<AgentToolSetupStatus> {
   if (tool === "browser") {
-    const res = await deps.runCast(["browser", "extension", "status", "--json"]);
-    const raw = lastJson(res.stdout) as { installed?: boolean; paired?: boolean; connected?: boolean; chrome_running?: boolean; detail?: string } | null;
-    if (!raw) return { tool, ready: false, paired: false, connected: false, chrome_running: false, detail: failure(res) };
+    const res = await deps.runCast([
+      "browser",
+      "extension",
+      "status",
+      "--json",
+    ]);
+    const raw = lastJson(res.stdout) as {
+      installed?: boolean;
+      paired?: boolean;
+      connected?: boolean;
+      chrome_running?: boolean;
+      detail?: string;
+    } | null;
+    if (!raw)
+      return {
+        tool,
+        ready: false,
+        paired: false,
+        connected: false,
+        chrome_running: false,
+        detail: failure(res),
+      };
     return {
       tool,
       ready: !!raw.connected,
-      ...(typeof raw.installed === "boolean" ? { installed: raw.installed } : {}),
+      ...(typeof raw.installed === "boolean"
+        ? { installed: raw.installed }
+        : {}),
       paired: !!raw.paired,
       connected: !!raw.connected,
       chrome_running: !!raw.chrome_running,
@@ -72,10 +121,20 @@ async function checkAgentTool(tool: AgentToolSetupArgs["tool"], deps: AgentToolS
     message?: string;
   } | null;
   if (!raw?.permissions) {
-    return { tool, ready: false, accessibility: false, screen_recording: false, supported: false, detail: raw?.message ?? failure(res) };
+    return {
+      tool,
+      ready: false,
+      accessibility: false,
+      screen_recording: false,
+      supported: false,
+      detail: raw?.message ?? failure(res),
+    };
   }
-  const granted = (id: string) => raw.permissions!.some((p) => p.id === id && p.status === "granted");
-  const supported = !raw.permissions.some((p) => p.status === "unsupported") && !raw.helperUnavailableReason;
+  const granted = (id: string) =>
+    raw.permissions!.some((p) => p.id === id && p.status === "granted");
+  const supported =
+    !raw.permissions.some((p) => p.status === "unsupported") &&
+    !raw.helperUnavailableReason;
   const accessibility = granted("accessibility");
   const screenRecording = granted("screenshots");
   return {
@@ -84,7 +143,13 @@ async function checkAgentTool(tool: AgentToolSetupArgs["tool"], deps: AgentToolS
     accessibility,
     screen_recording: screenRecording,
     supported,
-    ...(raw.helperUnavailableReason ? { detail: raw.helperUnavailableReason } : !supported ? { detail: `cast computer does not run on ${raw.platform ?? "this platform"}` } : {}),
+    ...(raw.helperUnavailableReason
+      ? { detail: raw.helperUnavailableReason }
+      : !supported
+        ? {
+            detail: `cast computer does not run on ${raw.platform ?? "this platform"}`,
+          }
+        : {}),
   };
 }
 
@@ -95,14 +160,18 @@ function lastJson(stdout: string): Record<string, unknown> | null {
     try {
       const v = JSON.parse(candidate);
       if (v && typeof v === "object") return v as Record<string, unknown>;
-    } catch { /* next */ }
+    } catch {
+      /* next */
+    }
   }
   return null;
 }
 
 function failure(res: { code: number | null; stderr: string }): string {
   const tail = res.stderr.trim().split("\n").filter(Boolean).slice(-1)[0];
-  return tail ? tail.replace(/\x1b\[[0-9;]*m/g, "") : `the check exited ${res.code ?? "without a code"}`;
+  return tail
+    ? tail.replace(/\x1b\[[0-9;]*m/g, "")
+    : `the check exited ${res.code ?? "without a code"}`;
 }
 
 function startCastDetached(args: string[]): number | undefined {

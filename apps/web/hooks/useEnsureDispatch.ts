@@ -6,7 +6,11 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
 import { installBrowserDispatchSelfHeal } from "./dispatchRecovery";
-import { applyDispatchFailure, makeDispatchBinding, newDispatchAckState } from "../lib/dispatchBinding";
+import {
+  applyDispatchFailure,
+  makeDispatchBinding,
+  newDispatchAckState,
+} from "../lib/dispatchBinding";
 import { withHostedKick } from "../lib/hostedKick";
 import { useServerAuthenticated } from "./useServerAuthSettled";
 
@@ -20,7 +24,14 @@ function deepMerge(target: any, source: any): any {
   for (const key of Object.keys(source)) {
     const sv = source[key];
     const tv = result[key];
-    if (sv && typeof sv === "object" && !Array.isArray(sv) && tv && typeof tv === "object" && !Array.isArray(tv)) {
+    if (
+      sv &&
+      typeof sv === "object" &&
+      !Array.isArray(sv) &&
+      tv &&
+      typeof tv === "object" &&
+      !Array.isArray(tv)
+    ) {
       result[key] = deepMerge(tv, sv);
     } else {
       result[key] = sv;
@@ -52,16 +63,16 @@ export function useEnsureDispatch() {
   const _setDispatch = useInboxStore((s) => s._setDispatch);
   const _clearDispatch = useInboxStore((s) => s._clearDispatch);
   const _setDispatchError = useInboxStore((s) => s._setDispatchError);
-  const dispatchMutation = useMutation(api.dispatch.dispatch).withOptimisticUpdate(
-    (localStore, { patches }) => {
-      if (!patches?.client_state) return;
-      const current = localStore.getQuery(api.client_state.get, {});
-      if (!current) return;
-      const updates = (patches.client_state as any)._;
-      if (!updates) return;
-      localStore.setQuery(api.client_state.get, {}, deepMerge(current, updates));
-    }
-  );
+  const dispatchMutation = useMutation(
+    api.dispatch.dispatch,
+  ).withOptimisticUpdate((localStore, { patches }) => {
+    if (!patches?.client_state) return;
+    const current = localStore.getQuery(api.client_state.get, {});
+    if (!current) return;
+    const updates = (patches.client_state as any)._;
+    if (!updates) return;
+    localStore.setQuery(api.client_state.get, {}, deepMerge(current, updates));
+  });
 
   const dispatchRef = useRef(dispatchMutation);
   const ownerRef = useRef<object>({});
@@ -85,7 +96,8 @@ export function useEnsureDispatch() {
     // One binding per mount; it reads the latest mutation through the ref.
     const dispatch = withHostedKick(
       makeDispatchBinding((args) => dispatchRef.current(args as any), ackState),
-      (conversationId) => kickRef.current({ conversation_id: conversationId as any }),
+      (conversationId) =>
+        kickRef.current({ conversation_id: conversationId as any }),
     );
     const bindDispatch = () => {
       _setDispatch(dispatch, { owner: ownerRef.current });
@@ -107,7 +119,8 @@ export function useEnsureDispatch() {
       canDrain: () => authenticatedRef.current,
       clearDispatch: () => _clearDispatch(ownerRef.current),
       browserWindow:
-        typeof window !== "undefined" && typeof window.addEventListener === "function"
+        typeof window !== "undefined" &&
+        typeof window.addEventListener === "function"
           ? window
           : null,
       browserDocument: typeof document !== "undefined" ? document : null,

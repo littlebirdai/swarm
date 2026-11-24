@@ -1,5 +1,9 @@
 // Why a run failed, in the words the run row, the task and its stop card carry.
-import { failReasonWords, handedBackWords, roundsOutWords } from "@codecast/shared/contracts/lineWords";
+import {
+  failReasonWords,
+  handedBackWords,
+  roundsOutWords,
+} from "@codecast/shared/contracts/lineWords";
 import { extractJsonOutput } from "./condition";
 import type { WorkflowGraph, WorkflowRunState } from "./types";
 
@@ -8,9 +12,20 @@ import type { WorkflowGraph, WorkflowRunState } from "./types";
  * an implement that ended without a handoff says so, not a review_verdict no
  * edge of its own asks about.
  */
-export function deadEndReason(graph: WorkflowGraph, nodeId: string, outcome: string, context: Record<string, string>): string {
-  const routedOn = ["handoff", "review_verdict"].filter((k) =>
-    k in context && graph.edges.some((e) => e.from === nodeId && new RegExp(`\\b${k}\\b`).test(e.condition ?? "")));
+export function deadEndReason(
+  graph: WorkflowGraph,
+  nodeId: string,
+  outcome: string,
+  context: Record<string, string>,
+): string {
+  const routedOn = ["handoff", "review_verdict"].filter(
+    (k) =>
+      k in context &&
+      graph.edges.some(
+        (e) =>
+          e.from === nodeId && new RegExp(`\\b${k}\\b`).test(e.condition ?? ""),
+      ),
+  );
   return `no outgoing edge from ${nodeId} (outcome ${outcome}${routedOn.map((k) => `, ${k} ${context[k]}`).join("")})`;
 }
 
@@ -30,14 +45,20 @@ export function profileFailure(startNodeId: string, message: string) {
   };
 }
 
-export const quotedTitle = (context: Record<string, string>, fallback: string) => {
+export const quotedTitle = (
+  context: Record<string, string>,
+  fallback: string,
+) => {
   const title = context["task_title"] || fallback;
   return `“${title.length > 80 ? `${title.slice(0, 79)}…` : title}”`;
 };
 
 // A fence that cannot be closed by the text inside it.
 function fenced(text: string): string {
-  const longest = Math.max(2, ...[...text.matchAll(/`{3,}/g)].map((m) => m[0].length));
+  const longest = Math.max(
+    2,
+    ...[...text.matchAll(/`{3,}/g)].map((m) => m[0].length),
+  );
   const fence = "`".repeat(longest + 1);
   return `${fence}text\n${text}\n${fence}`;
 }
@@ -50,10 +71,15 @@ function fenced(text: string): string {
  * fold into one paragraph.
  */
 type CheckStep = { name: string; ok?: boolean; detail?: unknown };
-const checkSteps = (json: any): CheckStep[] => Array.isArray(json?.steps) ? json.steps.filter((s: any) => typeof s?.name === "string") : [];
+const checkSteps = (json: any): CheckStep[] =>
+  Array.isArray(json?.steps)
+    ? json.steps.filter((s: any) => typeof s?.name === "string")
+    : [];
 
-const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text);
-const SAYS_WHY = /\b(error|errors|fail|failed|failing|failure|cannot|could not|not found|does not exist|denied|refused|TS\d{4})\b/i;
+const clip = (text: string, max: number) =>
+  text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+const SAYS_WHY =
+  /\b(error|errors|fail|failed|failing|failure|cannot|could not|not found|does not exist|denied|refused|TS\d{4})\b/i;
 
 /**
  * What a station's output comes to, in one line a person reads at a glance: the
@@ -67,21 +93,60 @@ export function outputSummary(text: string, json?: unknown, max = 400): string {
     const failed = steps.filter((s) => s.ok === false);
     if (!failed.length) return "every step passed";
     const each = Math.max(60, Math.floor(max / failed.length) - 4);
-    return clip(failed.map((s) => clip(s.detail ? `${s.name} (${String(s.detail)})` : s.name, each)).join("; "), max);
+    return clip(
+      failed
+        .map((s) =>
+          clip(s.detail ? `${s.name} (${String(s.detail)})` : s.name, each),
+        )
+        .join("; "),
+      max,
+    );
   }
-  const lines = text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").split("\n").map((l) => l.trim()).filter((l) => l && !/^[{[]/.test(l));
-  return clip([...lines].reverse().find((l) => SAYS_WHY.test(l)) ?? lines[lines.length - 1] ?? "", max);
+  const lines = text
+    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !/^[{[]/.test(l));
+  return clip(
+    [...lines].reverse().find((l) => SAYS_WHY.test(l)) ??
+      lines[lines.length - 1] ??
+      "",
+    max,
+  );
 }
 
-export function stationFailureMarkdown(context: Record<string, string>, nodeId: string): string {
+export function stationFailureMarkdown(
+  context: Record<string, string>,
+  nodeId: string,
+): string {
   let json: any;
-  try { json = JSON.parse(context[`${nodeId}.json`] ?? ""); } catch {}
+  try {
+    json = JSON.parse(context[`${nodeId}.json`] ?? "");
+  } catch {}
   const steps = checkSteps(json);
-  const list = steps.map((s: any) => `- ${s.ok === false ? "✗" : "✓"} ${s.name}${s.ok === false && s.detail ? `: ${String(s.detail)}` : ""}`).join("\n");
+  const list = steps
+    .map(
+      (s: any) =>
+        `- ${s.ok === false ? "✗" : "✓"} ${s.name}${s.ok === false && s.detail ? `: ${String(s.detail)}` : ""}`,
+    )
+    .join("\n");
   const raw = context[`${nodeId}.output`] || context["last_error"] || "";
-  const log = raw.split("\n").filter((line) => !(json && /^\s*\{/.test(line) && extractJsonOutput(line) !== undefined)).join("\n").trim();
+  const log = raw
+    .split("\n")
+    .filter(
+      (line) =>
+        !(json && /^\s*\{/.test(line) && extractJsonOutput(line) !== undefined),
+    )
+    .join("\n")
+    .trim();
   const tail = log.length > 1500 ? `…${log.slice(-1500)}` : log;
-  return [list, tail ? fenced(tail) : "", typeof json?.logs === "string" ? `Logs: ${json.logs}` : ""].filter(Boolean).join("\n\n");
+  return [
+    list,
+    tail ? fenced(tail) : "",
+    typeof json?.logs === "string" ? `Logs: ${json.logs}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**
@@ -89,7 +154,11 @@ export function stationFailureMarkdown(context: Record<string, string>, nodeId: 
  * stopped the run and a body that shows why, from the station that sent the
  * last round back. The blocker comment is `summary` over the same body.
  */
-export function taskStopCard(graph: WorkflowGraph, state: WorkflowRunState, taskId: string): { question: string; summary: string; body: string } {
+export function taskStopCard(
+  graph: WorkflowGraph,
+  state: WorkflowRunState,
+  taskId: string,
+): { question: string; summary: string; body: string } {
   const reason = state.failReason || "workflow failed";
   const label = (id: string) => graph.nodes.get(id)?.label || id;
   const title = quotedTitle(state.context, taskId);
@@ -98,7 +167,9 @@ export function taskStopCard(graph: WorkflowGraph, state: WorkflowRunState, task
   const hand = at ? state.context[`${at}.session_id`] : undefined;
   const footer = hand ? `\n\n${label(at)} session: ${hand}` : "";
   if (handoff === "blocked" || handoff === "needs_context") {
-    const said = state.context["last_error"] ? fenced(state.context["last_error"].slice(0, 1500)) : "";
+    const said = state.context["last_error"]
+      ? fenced(state.context["last_error"].slice(0, 1500))
+      : "";
     return {
       question: `${label(at)} handed off ${handoff} on ${title}. What next?`,
       summary: handedBackWords(label(at), handoff),
@@ -111,12 +182,20 @@ export function taskStopCard(graph: WorkflowGraph, state: WorkflowRunState, task
     // ("checks failed", "changes") is the reason the round was sent back.
     const from = state.completed[state.completed.length - 1];
     const sentBack = from && from !== at ? from : undefined;
-    const edgeLabel = sentBack ? graph.edges.find((e) => e.from === sentBack && e.to === at)?.label : undefined;
-    const says = sentBack ? `${label(sentBack)} still says “${edgeLabel || state.context[`${sentBack}.outcome`] || "failed"}”` : "";
+    const edgeLabel = sentBack
+      ? graph.edges.find((e) => e.from === sentBack && e.to === at)?.label
+      : undefined;
+    const says = sentBack
+      ? `${label(sentBack)} still says “${edgeLabel || state.context[`${sentBack}.outcome`] || "failed"}”`
+      : "";
     const lead = `**${label(at)} ran ${visits} times, the most this flow allows${sentBack ? `, and ${label(sentBack)} sent the last round back` : ""}.** The task is parked in review as blocked.`;
-    const detail = !sentBack ? ""
-      : state.context[`${sentBack}.outcome`] === "failure" ? `\n\n**${label(sentBack)}**\n\n${stationFailureMarkdown(state.context, sentBack)}`
-      : state.context["review_note"] ? `\n\n**${label(sentBack)}**\n\n${state.context["review_note"]}` : "";
+    const detail = !sentBack
+      ? ""
+      : state.context[`${sentBack}.outcome`] === "failure"
+        ? `\n\n**${label(sentBack)}**\n\n${stationFailureMarkdown(state.context, sentBack)}`
+        : state.context["review_note"]
+          ? `\n\n**${label(sentBack)}**\n\n${state.context["review_note"]}`
+          : "";
     return {
       question: `${sentBack ? `${says} after` : "Stopped after"} ${visits} ${label(at)} rounds on ${title}. What next?`,
       summary: roundsOutWords(label(at)),
@@ -125,6 +204,11 @@ export function taskStopCard(graph: WorkflowGraph, state: WorkflowRunState, task
   }
   // The reason already says it when it is the station's own error: shown once.
   const error = state.context["last_error"]?.trim();
-  const detail = error && !reason.includes(error) ? fenced(error.slice(0, 1500)) : "";
-  return { question: `${title} failed. What next?`, summary: failReasonWords(reason, label), body: `${detail}${footer}`.trim() };
+  const detail =
+    error && !reason.includes(error) ? fenced(error.slice(0, 1500)) : "";
+  return {
+    question: `${title} failed. What next?`,
+    summary: failReasonWords(reason, label),
+    body: `${detail}${footer}`.trim(),
+  };
 }

@@ -4,12 +4,53 @@ import { useState, type CSSProperties } from "react";
 import { useMountEffect } from "@/hooks/useMountEffect";
 import { Button } from "@/components/ui/button";
 import {
-  Send, Fingerprint, Quote, Star, BookOpen, Gauge, MonitorSmartphone, RefreshCw,
-  ListFilter, FolderKanban, AppWindow, Share2, Users, Wrench, ListChecks, Workflow,
-  Globe, FileText, Activity, Server, Inbox, Smartphone, GitBranch, Monitor, Brain,
-  Github, Cpu, LayoutDashboard, Boxes, Puzzle, Clock, Scale, Chrome, MousePointerClick,
-  MessagesSquare, Phone, Terminal, Image, Network, GitPullRequest, Cloud, Bell, ShieldCheck,
-  Sparkles, FolderOpen, Hourglass, Pin,
+  Send,
+  Fingerprint,
+  Quote,
+  Star,
+  BookOpen,
+  Gauge,
+  MonitorSmartphone,
+  RefreshCw,
+  ListFilter,
+  FolderKanban,
+  AppWindow,
+  Share2,
+  Users,
+  Wrench,
+  ListChecks,
+  Workflow,
+  Globe,
+  FileText,
+  Activity,
+  Server,
+  Inbox,
+  Smartphone,
+  GitBranch,
+  Monitor,
+  Brain,
+  Github,
+  Cpu,
+  LayoutDashboard,
+  Boxes,
+  Puzzle,
+  Clock,
+  Scale,
+  Chrome,
+  MousePointerClick,
+  MessagesSquare,
+  Phone,
+  Terminal,
+  Image,
+  Network,
+  GitPullRequest,
+  Cloud,
+  Bell,
+  ShieldCheck,
+  Sparkles,
+  FolderOpen,
+  Hourglass,
+  Pin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { RELEASES, type Accent, type SectionIcon } from "./changelogData";
@@ -47,17 +88,66 @@ const ACCENT: Record<Accent, string> = {
 };
 
 const ICONS: Record<SectionIcon, LucideIcon> = {
-  Send, Fingerprint, Quote, Star, BookOpen, Gauge, MonitorSmartphone, RefreshCw,
-  ListFilter, FolderKanban, AppWindow, Share2, Users, Wrench, ListChecks, Workflow,
-  Globe, FileText, Activity, Server, Inbox, Smartphone, GitBranch, Monitor, Brain,
-  Github, Cpu, LayoutDashboard, Boxes, Puzzle, Clock, Scale, Chrome, MousePointerClick,
-  MessagesSquare, Phone, Terminal, Image, Network, GitPullRequest, Cloud, Bell, ShieldCheck,
-  Sparkles, FolderOpen, Hourglass, Pin,
+  Send,
+  Fingerprint,
+  Quote,
+  Star,
+  BookOpen,
+  Gauge,
+  MonitorSmartphone,
+  RefreshCw,
+  ListFilter,
+  FolderKanban,
+  AppWindow,
+  Share2,
+  Users,
+  Wrench,
+  ListChecks,
+  Workflow,
+  Globe,
+  FileText,
+  Activity,
+  Server,
+  Inbox,
+  Smartphone,
+  GitBranch,
+  Monitor,
+  Brain,
+  Github,
+  Cpu,
+  LayoutDashboard,
+  Boxes,
+  Puzzle,
+  Clock,
+  Scale,
+  Chrome,
+  MousePointerClick,
+  MessagesSquare,
+  Phone,
+  Terminal,
+  Image,
+  Network,
+  GitPullRequest,
+  Cloud,
+  Bell,
+  ShieldCheck,
+  Sparkles,
+  FolderOpen,
+  Hourglass,
+  Pin,
 };
 
 // Marker colors cycle down the timeline so the spine has rhythm. Order is
 // chosen so adjacent dots never repeat.
-const DOT_CYCLE: Accent[] = ["cyan", "blue", "violet", "green", "yellow", "orange", "magenta"];
+const DOT_CYCLE: Accent[] = [
+  "cyan",
+  "blue",
+  "violet",
+  "green",
+  "yellow",
+  "orange",
+  "magenta",
+];
 
 /** Render a highlight string, turning `backtick` spans into inline code. */
 function Inline({ text }: { text: string }) {
@@ -75,7 +165,7 @@ function Inline({ text }: { text: string }) {
           </code>
         ) : (
           <span key={i}>{part}</span>
-        )
+        ),
       )}
     </>
   );
@@ -96,25 +186,55 @@ function PatternTile({ id, kind }: { id: string; kind: number }) {
     case 1: // line grid
       return (
         <pattern id={id} width="20" height="20" patternUnits="userSpaceOnUse">
-          <path d="M20 0H0v20" fill="none" stroke="currentColor" strokeWidth="0.8" />
+          <path
+            d="M20 0H0v20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.8"
+          />
         </pattern>
       );
     case 2: // diagonal hatch
       return (
-        <pattern id={id} width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1.1" />
+        <pattern
+          id={id}
+          width="10"
+          height="10"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(45)"
+        >
+          <line
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="10"
+            stroke="currentColor"
+            strokeWidth="1.1"
+          />
         </pattern>
       );
     case 3: // concentric rings
       return (
         <pattern id={id} width="26" height="26" patternUnits="userSpaceOnUse">
-          <circle cx="13" cy="13" r="9" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <circle
+            cx="13"
+            cy="13"
+            r="9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+          />
         </pattern>
       );
     default: // plus marks
       return (
         <pattern id={id} width="22" height="22" patternUnits="userSpaceOnUse">
-          <path d="M11 6v10 M6 11h10" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+          <path
+            d="M11 6v10 M6 11h10"
+            stroke="currentColor"
+            strokeWidth="0.9"
+            strokeLinecap="round"
+          />
         </pattern>
       );
   }
@@ -122,7 +242,17 @@ function PatternTile({ id, kind }: { id: string; kind: number }) {
 
 /** Generated cover banner for a section: accent gradient + pattern + a large
  *  icon watermark, with a solid icon badge overlapping the seam below. */
-function SectionHeader({ ac, Icon, kind, uid }: { ac: string; Icon: LucideIcon; kind: number; uid: string }) {
+function SectionHeader({
+  ac,
+  Icon,
+  kind,
+  uid,
+}: {
+  ac: string;
+  Icon: LucideIcon;
+  kind: number;
+  uid: string;
+}) {
   const pid = `cl-pat-${uid}`;
   return (
     <div
@@ -134,7 +264,11 @@ function SectionHeader({ ac, Icon, kind, uid }: { ac: string; Icon: LucideIcon; 
     >
       {/* pattern + watermark, clipped to the banner */}
       <div className="absolute inset-0 overflow-hidden">
-        <svg className="absolute inset-0 w-full h-full" style={{ color: ac, opacity: 0.4 }} aria-hidden>
+        <svg
+          className="absolute inset-0 w-full h-full"
+          style={{ color: ac, opacity: 0.4 }}
+          aria-hidden
+        >
           <defs>
             <PatternTile id={pid} kind={kind} />
           </defs>
@@ -176,7 +310,7 @@ export default function ChangelogPage() {
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
         if (visible.length > 0) setActiveId(visible[0].target.id);
       },
-      { rootMargin: "-72px 0px -65% 0px", threshold: 0 }
+      { rootMargin: "-72px 0px -65% 0px", threshold: 0 },
     );
     RELEASES.forEach((r) => {
       const el = document.getElementById(r.id);
@@ -186,7 +320,10 @@ export default function ChangelogPage() {
   });
 
   return (
-    <main className="min-h-screen w-full" style={{ backgroundColor: SOL.base3 }}>
+    <main
+      className="min-h-screen w-full"
+      style={{ backgroundColor: SOL.base3 }}
+    >
       {/* Reveal + selection styling, scoped to this page. Holds at opacity 1 so
           content is never permanently hidden, and disables under reduced motion. */}
       <style>{`
@@ -209,7 +346,11 @@ export default function ChangelogPage() {
       `}</style>
 
       {/* Nav — matches the documentation page */}
-      <MarketingNav active="/changelog" crumb="changelog" containerClassName="max-w-[90rem]" />
+      <MarketingNav
+        active="/changelog"
+        crumb="changelog"
+        containerClassName="max-w-[90rem]"
+      />
 
       <div className="max-w-[90rem] mx-auto flex">
         {/* Month rail */}
@@ -217,7 +358,10 @@ export default function ChangelogPage() {
           className="hidden lg:block w-56 shrink-0 sticky top-[53px] h-[calc(100vh-53px)] overflow-y-auto py-10 pl-6 pr-4"
           style={{ borderRight: `1px solid ${SOL.base2}` }}
         >
-          <div className="text-mark font-mono uppercase tracking-wider mb-3" style={{ color: SOL.base01 }}>
+          <div
+            className="text-mark font-mono uppercase tracking-wider mb-3"
+            style={{ color: SOL.base01 }}
+          >
             Releases
           </div>
           <nav className="space-y-0.5">
@@ -248,10 +392,16 @@ export default function ChangelogPage() {
         <div className="flex-1 min-w-0 max-w-4xl px-6 lg:px-12 py-10 pb-32">
           {/* Hero */}
           <header className="mb-14 cl-rise">
-            <h1 className="text-4xl font-bold font-mono mb-4" style={{ color: SOL.base03 }}>
+            <h1
+              className="text-4xl font-bold font-mono mb-4"
+              style={{ color: SOL.base03 }}
+            >
               Changelog
             </h1>
-            <p className="text-lg leading-relaxed max-w-2xl" style={{ color: SOL.base00 }}>
+            <p
+              className="text-lg leading-relaxed max-w-2xl"
+              style={{ color: SOL.base00 }}
+            >
               What we shipped, month by month. Newest first.
             </p>
           </header>
@@ -275,18 +425,28 @@ export default function ChangelogPage() {
                   key={r.id}
                   id={r.id}
                   className="relative pl-8 sm:pl-10 pb-16 cl-rise"
-                  style={{ scrollMarginTop: "5rem", animationDelay: `${Math.min(ri, 6) * 70}ms` }}
+                  style={{
+                    scrollMarginTop: "5rem",
+                    animationDelay: `${Math.min(ri, 6) * 70}ms`,
+                  }}
                 >
                   {/* node dot on the spine */}
                   <span
                     className="absolute top-1.5 w-[11px] h-[11px] rounded-full"
-                    style={{ left: 0, backgroundColor: dot, boxShadow: `0 0 0 4px ${SOL.base3}, 0 0 0 5px ${dot}33` }}
+                    style={{
+                      left: 0,
+                      backgroundColor: dot,
+                      boxShadow: `0 0 0 4px ${SOL.base3}, 0 0 0 5px ${dot}33`,
+                    }}
                     aria-hidden
                   />
 
                   {/* header */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-1.5">
-                    <span className="text-sm font-mono font-semibold" style={{ color: SOL.base03 }}>
+                    <span
+                      className="text-sm font-mono font-semibold"
+                      style={{ color: SOL.base03 }}
+                    >
                       {r.month}
                     </span>
                     <span
@@ -296,7 +456,10 @@ export default function ChangelogPage() {
                       {r.version}
                     </span>
                     {r.desktop && (
-                      <span className="text-meta font-mono" style={{ color: SOL.base01 }}>
+                      <span
+                        className="text-meta font-mono"
+                        style={{ color: SOL.base01 }}
+                      >
                         {r.desktop}
                       </span>
                     )}
@@ -310,10 +473,16 @@ export default function ChangelogPage() {
                     )}
                   </div>
 
-                  <h2 className="text-2xl font-bold font-mono leading-snug mb-3" style={{ color: SOL.base03 }}>
+                  <h2
+                    className="text-2xl font-bold font-mono leading-snug mb-3"
+                    style={{ color: SOL.base03 }}
+                  >
                     {r.headline}
                   </h2>
-                  <p className="text-[15px] leading-relaxed mb-7 max-w-2xl" style={{ color: SOL.base00 }}>
+                  <p
+                    className="text-[15px] leading-relaxed mb-7 max-w-2xl"
+                    style={{ color: SOL.base00 }}
+                  >
                     <Inline text={r.summary} />
                   </p>
 
@@ -326,21 +495,41 @@ export default function ChangelogPage() {
                         <div
                           key={s.title}
                           className="cl-card rounded-xl overflow-hidden"
-                          style={{ backgroundColor: `${SOL.base2}55`, "--ac": ac } as CSSProperties}
+                          style={
+                            {
+                              backgroundColor: `${SOL.base2}55`,
+                              "--ac": ac,
+                            } as CSSProperties
+                          }
                         >
-                          <SectionHeader ac={ac} Icon={Icon} kind={ri + si} uid={`${r.id}-${si}`} />
+                          <SectionHeader
+                            ac={ac}
+                            Icon={Icon}
+                            kind={ri + si}
+                            uid={`${r.id}-${si}`}
+                          />
                           <div className="pt-7 px-4 pb-4">
-                            <h3 className="font-mono text-sm font-semibold leading-tight mb-3" style={{ color: SOL.base03 }}>
+                            <h3
+                              className="font-mono text-sm font-semibold leading-tight mb-3"
+                              style={{ color: SOL.base03 }}
+                            >
                               {s.title}
                             </h3>
                             {s.when && (
-                              <p className="-mt-2 mb-3 font-mono text-meta tabular-nums" style={{ color: SOL.base1 }}>
+                              <p
+                                className="-mt-2 mb-3 font-mono text-meta tabular-nums"
+                                style={{ color: SOL.base1 }}
+                              >
                                 {s.when}
                               </p>
                             )}
                             <ul className="space-y-2">
                               {s.items.map((item, i) => (
-                                <li key={i} className="flex gap-2.5 text-sm leading-relaxed" style={{ color: SOL.base00 }}>
+                                <li
+                                  key={i}
+                                  className="flex gap-2.5 text-sm leading-relaxed"
+                                  style={{ color: SOL.base00 }}
+                                >
                                   <span
                                     className="shrink-0 h-px w-2.5 mt-[0.62em] rounded-full"
                                     style={{ backgroundColor: ac }}
@@ -365,8 +554,19 @@ export default function ChangelogPage() {
                                     style={{ color: ac }}
                                   >
                                     Deep dive: {d.label}
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 5l7 7-7 7" />
+                                    <svg
+                                      className="w-3 h-3"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                      aria-hidden
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2.2}
+                                        d="M9 5l7 7-7 7"
+                                      />
                                     </svg>
                                   </Link>
                                 ))}
@@ -400,21 +600,32 @@ export default function ChangelogPage() {
             style={{ backgroundColor: SOL.base02 }}
           >
             <div>
-              <div className="font-mono font-bold text-lg" style={{ color: SOL.base3 }}>
+              <div
+                className="font-mono font-bold text-lg"
+                style={{ color: SOL.base3 }}
+              >
                 Start capturing your sessions
               </div>
               <div className="text-sm mt-1" style={{ color: SOL.base1 }}>
-                One command. Works with Claude Code, Codex, Cursor, Gemini, OpenCode, pi and Grok.
+                One command. Works with Claude Code, Codex, Cursor, Gemini,
+                OpenCode, pi and Grok.
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Link href="/documentation">
-                <Button variant="ghost" className="font-medium" style={{ color: SOL.base1 }}>
+                <Button
+                  variant="ghost"
+                  className="font-medium"
+                  style={{ color: SOL.base1 }}
+                >
                   Read the docs
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button className="font-medium" style={{ backgroundColor: SOL.cyan, color: SOL.base03 }}>
+                <Button
+                  className="font-medium"
+                  style={{ backgroundColor: SOL.cyan, color: SOL.base03 }}
+                >
                   Get started
                 </Button>
               </Link>

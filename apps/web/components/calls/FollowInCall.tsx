@@ -55,14 +55,21 @@ export function FollowChip({
     variant === "tile"
       ? "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-meta backdrop-blur transition-all"
       : "inline-flex items-center gap-1 rounded-full px-1.5 py-px font-mono text-meta transition-all";
-  const reveal = always || following ? "" : " opacity-0 group-hover:opacity-100 focus-visible:opacity-100";
+  const reveal =
+    always || following
+      ? ""
+      : " opacity-0 group-hover:opacity-100 focus-visible:opacity-100";
   if (isSelf) {
     if (followers === 0) return null;
     return (
       <span
         data-sv-call-follow="followers"
         className={`${base} ${variant === "tile" ? "bg-black/45 text-white/90" : "bg-sol-bg-highlight text-sol-text-muted"}`}
-        title={followers === 1 ? "One person is following you" : `${followers} people are following you`}
+        title={
+          followers === 1
+            ? "One person is following you"
+            : `${followers} people are following you`
+        }
       >
         {followers} following you
       </span>
@@ -77,7 +84,11 @@ export function FollowChip({
         toggle();
       }}
       aria-pressed={following}
-      title={following ? `Stop following ${firstName(name)}` : `Follow ${firstName(name)}: your app mirrors theirs until you move`}
+      title={
+        following
+          ? `Stop following ${firstName(name)}`
+          : `Follow ${firstName(name)}: your app mirrors theirs until you move`
+      }
       className={`${base}${reveal} ${
         following
           ? variant === "tile"

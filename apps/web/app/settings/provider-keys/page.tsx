@@ -3,15 +3,31 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { KeyRound, ExternalLink, Trash2, Loader2, Check } from "lucide-react";
-import { CLOUD_AGENT_PROVIDERS, PROVIDER_KEYS, getProviderKeySpec, type CloudAgentProviderSpec, type ProviderKeySpec } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_PROVIDERS,
+  PROVIDER_KEYS,
+  getProviderKeySpec,
+  type CloudAgentProviderSpec,
+  type ProviderKeySpec,
+} from "@codecast/shared/contracts";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { SettingsBadge, SettingsPanel, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsBadge,
+  SettingsPanel,
+  SettingsSection,
+} from "../../../components/settings/ui";
 import { DevicePanelHeader } from "../../../components/settings/DevicePanelHeader";
 import { useDevices, type Device } from "../../../components/DeviceBadge";
-import { useProviderKeyCommand, deviceManagedKeys } from "../../../lib/useProviderKeyCommand";
+import {
+  useProviderKeyCommand,
+  deviceManagedKeys,
+} from "../../../lib/useProviderKeyCommand";
 import { CloudAgentSignInRows } from "../../../components/cloudAgents";
-import { cloudAgentKeyDialog, cloudAgentUi } from "../../../components/cloudAgents/providerUi";
+import {
+  cloudAgentKeyDialog,
+  cloudAgentUi,
+} from "../../../components/cloudAgents/providerUi";
 
 /**
  * "Provider keys" — manage the optional LLM API keys codecast injects into
@@ -31,8 +47,8 @@ export default function ProviderKeysPage() {
         <SettingsSection title="Provider keys" icon={KeyRound} padded>
           <p className="text-center text-sm text-sol-text-muted">
             No online machine to manage keys on. Start the daemon with{" "}
-            <code className="font-mono text-sol-text">cast daemon</code> on a machine, then manage its
-            provider keys here.
+            <code className="font-mono text-sol-text">cast daemon</code> on a
+            machine, then manage its provider keys here.
           </p>
         </SettingsSection>
       ) : (
@@ -50,14 +66,22 @@ export default function ProviderKeysPage() {
  */
 const CLOUD_KEYS_SENTENCE = (() => {
   const specs: CloudAgentProviderSpec[] = Object.values(CLOUD_AGENT_PROVIDERS);
-  const keyed = specs.filter((s) => s.keyProvider).map((s) => `the ${getProviderKeySpec(s.keyProvider!)?.label ?? s.vendor} key runs ${s.label} sessions`);
+  const keyed = specs
+    .filter((s) => s.keyProvider)
+    .map(
+      (s) =>
+        `the ${getProviderKeySpec(s.keyProvider!)?.label ?? s.vendor} key runs ${s.label} sessions`,
+    );
   const runs = keyed.length ? `${keyed.join(", and ")}.` : "";
   const signIns = specs.map((s) => cloudAgentUi(s).signIn).filter(Boolean);
   return [runs && runs[0].toUpperCase() + runs.slice(1), ...signIns].join(" ");
 })();
 
 function ProviderKeyList({ device }: { device: Device }) {
-  const { pubkey, managedIds } = useMemo(() => deviceManagedKeys(device), [device]);
+  const { pubkey, managedIds } = useMemo(
+    () => deviceManagedKeys(device),
+    [device],
+  );
   const managed = useMemo(() => new Set(managedIds), [managedIds]);
 
   return (
@@ -69,16 +93,18 @@ function ProviderKeyList({ device }: { device: Device }) {
         icon={KeyRound}
         description={
           <>
-            API keys your agents use on this machine. opencode and pi get a model provider&apos;s key
-            as its env var at launch, on top of their own login. {CLOUD_KEYS_SENTENCE} Keys stay on your
-            devices, sealed in transit and never stored as plaintext in the cloud.
+            API keys your agents use on this machine. opencode and pi get a
+            model provider&apos;s key as its env var at launch, on top of their
+            own login. {CLOUD_KEYS_SENTENCE} Keys stay on your devices, sealed
+            in transit and never stored as plaintext in the cloud.
           </>
         }
       >
         {!pubkey && (
           <div className="px-4 py-3.5 text-[13px] text-sol-text-muted sm:px-5">
             This machine&apos;s daemon predates managed keys. Update it with{" "}
-            <code className="font-mono text-sol-text">cast update</code> to set keys from here.
+            <code className="font-mono text-sol-text">cast update</code> to set
+            keys from here.
           </div>
         )}
         {PROVIDER_KEYS.map((spec) => (
@@ -174,9 +200,13 @@ function ProviderKeyRow({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => canSet && (Guided ? setGuidedOpen(true) : setEditing(true))}
+              onClick={() =>
+                canSet && (Guided ? setGuidedOpen(true) : setEditing(true))
+              }
               disabled={!canSet || busy}
-              title={pubkey ? undefined : "update your daemon to manage keys here"}
+              title={
+                pubkey ? undefined : "update your daemon to manage keys here"
+              }
             >
               {isManaged ? "Replace" : "Set"}
             </Button>
@@ -190,14 +220,23 @@ function ProviderKeyRow({
                 title="Remove key"
                 className="px-2 text-sol-red hover:border-sol-red hover:text-sol-red"
               >
-                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {busy ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
               </Button>
             )}
           </div>
         )}
       </div>
 
-      {Guided && guidedOpen && <Guided deviceId={device.device_id} onClose={() => setGuidedOpen(false)} />}
+      {Guided && guidedOpen && (
+        <Guided
+          deviceId={device.device_id}
+          onClose={() => setGuidedOpen(false)}
+        />
+      )}
       {editing && (
         <div className="mt-3 flex items-center gap-2">
           <Input
@@ -207,9 +246,14 @@ function ProviderKeyRow({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") save();
-              if (e.key === "Escape") { setEditing(false); setValue(""); }
+              if (e.key === "Escape") {
+                setEditing(false);
+                setValue("");
+              }
             }}
-            placeholder={spec.keyPrefix ? `${spec.keyPrefix}…` : `${spec.label} API key`}
+            placeholder={
+              spec.keyPrefix ? `${spec.keyPrefix}…` : `${spec.label} API key`
+            }
             className="h-8 flex-1 font-mono bg-sol-bg border-sol-border"
           />
           <Button
@@ -218,13 +262,20 @@ function ProviderKeyRow({
             disabled={busy || !value.trim()}
             variant="cyan"
           >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {busy ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Check className="w-3.5 h-3.5" />
+            )}
             Save
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => { setEditing(false); setValue(""); }}
+            onClick={() => {
+              setEditing(false);
+              setValue("");
+            }}
             disabled={busy}
           >
             Cancel

@@ -25,7 +25,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { SNIPPET_CATALOG } from "@codecast/shared/contracts";
 
-const indexSource = fs.readFileSync(path.join(import.meta.dir, "index.ts"), "utf-8");
+const indexSource = fs.readFileSync(
+  path.join(import.meta.dir, "index.ts"),
+  "utf-8",
+);
 
 /**
  * Pull the VALUE of a `const NAME: SomeType = { … }` out of the source.
@@ -54,7 +57,8 @@ function tableBody(name: string): string {
 describe("every catalog snippet is wired into the CLI", () => {
   // The section snippets join the behavior table from SECTION_SNIPPET_VERSIONS
   // (one generated entry per slug), so their wiring is a line there.
-  const behavior = tableBody("SNIPPET_BEHAVIOR") + tableBody("SECTION_SNIPPET_VERSIONS");
+  const behavior =
+    tableBody("SNIPPET_BEHAVIOR") + tableBody("SECTION_SNIPPET_VERSIONS");
 
   test("the behavior table was located, not silently empty", () => {
     // A source-scraping test that finds nothing passes everything. The table
@@ -77,15 +81,17 @@ describe("every catalog snippet is wired into the CLI", () => {
     // no error anywhere. `decide` shipped in exactly that state. Deriving the
     // map from the catalog makes the omission impossible, so what is pinned
     // here is the derivation itself.
-    expect(indexSource).toContain("SNIPPET_CATALOG.filter((d) => d.section).map((d) => [d.enabledKey, d.section!.spec])");
+    expect(indexSource).toContain(
+      "SNIPPET_CATALOG.filter((d) => d.section).map((d) => [d.enabledKey, d.section!.spec])",
+    );
 
     // And the catalog really does carry a section for everything that has one.
-    const missing = SNIPPET_CATALOG
-      .filter((d) => d.slug !== "orchestration" && d.slug !== "skills" && !d.section)
-      .map((d) => d.slug);
-    expect(`snippets with no installable section: ${missing.join(", ") || "none"}`).toBe(
-      "snippets with no installable section: none",
-    );
+    const missing = SNIPPET_CATALOG.filter(
+      (d) => d.slug !== "orchestration" && d.slug !== "skills" && !d.section,
+    ).map((d) => d.slug);
+    expect(
+      `snippets with no installable section: ${missing.join(", ") || "none"}`,
+    ).toBe("snippets with no installable section: none");
   });
 
   test("browser is present, so agents can be told the command exists", () => {
@@ -104,7 +110,11 @@ describe("every catalog snippet is wired into the CLI", () => {
     // re-check. Browser has both. (Not asserted for the whole catalog — forks,
     // for one, relies on the refresh path alone and never writes its version
     // key, so a blanket rule here would encode an invariant that is not real.)
-    expect(indexSource).toContain("config.browser_enabled && config.browser_version");
-    expect(indexSource).toContain("if (config.browser_enabled) installBrowserSnippet(true)");
+    expect(indexSource).toContain(
+      "config.browser_enabled && config.browser_version",
+    );
+    expect(indexSource).toContain(
+      "if (config.browser_enabled) installBrowserSnippet(true)",
+    );
   });
 });

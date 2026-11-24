@@ -11,17 +11,26 @@ import * as fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { WebSocket } from "ws";
-import { attachTerminalServer, type TerminalServerOptions } from "./terminalServer.js";
+import {
+  attachTerminalServer,
+  type TerminalServerOptions,
+} from "./terminalServer.js";
 import { hasTmux } from "../tmux.js";
 import { execFileSync } from "node:child_process";
 
 const scratch = fs.mkdtempSync("/tmp/octerm-");
 // bun runs every test file in one process: put the environment back after,
 // or later files would talk to a tmux server this file has killed.
-const savedEnv = { TMUX_TMPDIR: process.env.TMUX_TMPDIR, CODECAST_TMUX_PER_SESSION: process.env.CODECAST_TMUX_PER_SESSION };
+const savedEnv = {
+  TMUX_TMPDIR: process.env.TMUX_TMPDIR,
+  CODECAST_TMUX_PER_SESSION: process.env.CODECAST_TMUX_PER_SESSION,
+};
 const TOKEN = "t".repeat(64);
 const tmux = (...args: string[]) =>
-  execFileSync("tmux", args, { env: { ...process.env, TMUX_TMPDIR: scratch }, encoding: "utf8" });
+  execFileSync("tmux", args, {
+    env: { ...process.env, TMUX_TMPDIR: scratch },
+    encoding: "utf8",
+  });
 
 let server: http.Server;
 let handle: { close(): void };
@@ -47,7 +56,9 @@ beforeAll(async () => {
 afterAll(() => {
   handle?.close();
   server?.close();
-  try { tmux("kill-server"); } catch {}
+  try {
+    tmux("kill-server");
+  } catch {}
   fs.rmSync(scratch, { recursive: true, force: true });
   for (const [k, v] of Object.entries(savedEnv)) {
     if (v === undefined) delete process.env[k];
@@ -75,19 +86,27 @@ class View {
   streamId = "";
   private seedLeft = 0;
 
-  constructor(private hello: Record<string, unknown>, private origin = `http://localhost:${port}`) {}
+  constructor(
+    private hello: Record<string, unknown>,
+    private origin = `http://localhost:${port}`,
+  ) {}
 
   open(extra: Record<string, unknown> = {}): Promise<this> {
     this.json = [];
     this.screen = "";
     this.stream = "";
-    this.ws = new WebSocket(`ws://127.0.0.1:${port}/term/ws`, { headers: { Origin: this.origin } });
+    this.ws = new WebSocket(`ws://127.0.0.1:${port}/term/ws`, {
+      headers: { Origin: this.origin },
+    });
     this.ws.on("message", (data, isBinary) => {
       if (!isBinary) {
         const msg = JSON.parse(data.toString());
         this.json.push(msg);
         if (msg.type === "offset") this.offset = msg.offset;
-        if ((msg.type === "ready" || msg.type === "reseed") && typeof msg.offset === "number") {
+        if (
+          (msg.type === "ready" || msg.type === "reseed") &&
+          typeof msg.offset === "number"
+        ) {
           this.offset = msg.offset;
           this.seedLeft = msg.seedBytes ?? 0;
         }
@@ -105,7 +124,16 @@ class View {
     });
     return new Promise((resolve, reject) => {
       this.ws.once("open", () => {
-        this.ws.send(JSON.stringify({ type: "hello", token: TOKEN, cols: 100, rows: 30, ...this.hello, ...extra }));
+        this.ws.send(
+          JSON.stringify({
+            type: "hello",
+            token: TOKEN,
+            cols: 100,
+            rows: 30,
+            ...this.hello,
+            ...extra,
+          }),
+        );
         resolve(this);
       });
       // Refused upgrades surface as an error before open; later ones are a
@@ -115,7 +143,9 @@ class View {
   }
 
   resume(): Promise<this> {
-    return this.open({ resume: { stream: this.streamId, offset: this.offset } });
+    return this.open({
+      resume: { stream: this.streamId, offset: this.offset },
+    });
   }
 
   last(type: string) {
@@ -140,7 +170,9 @@ class View {
   }
 
   close() {
-    try { this.ws.close(); } catch {}
+    try {
+      this.ws.close();
+    } catch {}
   }
 }
 
@@ -149,7 +181,11 @@ const pane = (name: string) => tmux("capture-pane", "-p", "-t", name);
 describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
   it("resumes a dropped socket from its offset, with no repaint and nothing doubled", async () => {
     const name = "cast-term-resume";
-    const a = await new View({ mode: "create", name, viewId: "view-aaaaaaaa" }).open();
+    const a = await new View({
+      mode: "create",
+      name,
+      viewId: "view-aaaaaaaa",
+    }).open();
     await a.ready();
     const ready = a.last("ready")!;
     expect(ready.role).toBe("controller");
@@ -179,8 +215,12 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
     // what this view had already shown.
     expect(a.stream).toContain("AFTER-49");
     expect(a.stream).not.toContain("BEFORE-42");
-    expect(a.json.findIndex((m) => m.type === "replay_complete")).toBeGreaterThan(a.json.findIndex((m) => m.type === "ready"));
-    expect(Buffer.byteLength(before) + Buffer.byteLength(a.stream)).toBe(a.offset);
+    expect(
+      a.json.findIndex((m) => m.type === "replay_complete"),
+    ).toBeGreaterThan(a.json.findIndex((m) => m.type === "ready"));
+    expect(Buffer.byteLength(before) + Buffer.byteLength(a.stream)).toBe(
+      a.offset,
+    );
 
     // And live output still flows after the replay.
     a.type("echo LIVE-$((8*8))\r");
@@ -191,7 +231,11 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
 
   it("repaints from a fresh capture when the offset fell out of the ring", async () => {
     const name = "cast-term-truncate";
-    const a = await new View({ mode: "create", name, viewId: "view-bbbbbbbb" }).open();
+    const a = await new View({
+      mode: "create",
+      name,
+      viewId: "view-bbbbbbbb",
+    }).open();
     await a.ready();
     a.type("sleep 0.5; seq 1 30000; echo DONE-$((5*5))\r");
     await until("command echo", () => a.stream.includes("seq 1 30000"));
@@ -217,7 +261,11 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
 
   it("a shell that died while the view was away is reported ended, not recreated", async () => {
     const name = "cast-term-reborn";
-    const a = await new View({ mode: "create", name, viewId: "view-rrrrrrrr" }).open();
+    const a = await new View({
+      mode: "create",
+      name,
+      viewId: "view-rrrrrrrr",
+    }).open();
     await a.ready();
     a.type("echo FIRST-LIFE\r");
     await until("output", () => a.stream.includes("FIRST-LIFE"));
@@ -242,9 +290,17 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
 
   it("keeps one controller: observers' input is refused until they take over", async () => {
     const name = "cast-term-roles";
-    const a = await new View({ mode: "create", name, viewId: "view-cccccccc" }).open();
+    const a = await new View({
+      mode: "create",
+      name,
+      viewId: "view-cccccccc",
+    }).open();
     await a.ready();
-    const b = await new View({ mode: "create", name, viewId: "view-dddddddd" }).open();
+    const b = await new View({
+      mode: "create",
+      name,
+      viewId: "view-dddddddd",
+    }).open();
     await b.ready();
     const bReady = b.last("ready")!;
     expect(bReady.role).toBe("observer");
@@ -258,12 +314,16 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
     expect(pane(name)).not.toContain("FROM-B");
 
     a.type("echo FROM-A-$((3*3))\r");
-    await until("observer sees controller output", () => b.stream.includes("FROM-A-9"));
+    await until("observer sees controller output", () =>
+      b.stream.includes("FROM-A-9"),
+    );
 
     // The controller resizes its shell: the observer is repainted at the new
     // size; the controller, which chose it, only steps past the repaint.
     a.send({ type: "resize", cols: 70, rows: 18 });
-    await until("observer reseeded", () => b.json.some((m) => m.type === "reseed" && m.cols === 70 && m.rows === 18));
+    await until("observer reseeded", () =>
+      b.json.some((m) => m.type === "reseed" && m.cols === 70 && m.rows === 18),
+    );
     await until("controller stepped past it", () => !!a.last("offset"));
     expect(a.json.some((m) => m.type === "reseed")).toBe(false);
     expect(a.offset).toBeGreaterThanOrEqual(a.last("offset")!.offset);
@@ -283,12 +343,23 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
 
   it("holds a dropped controller's seat for its own reconnect", async () => {
     const name = "cast-term-hold";
-    const a = await new View({ mode: "create", name, viewId: "view-eeeeeeee" }).open();
+    const a = await new View({
+      mode: "create",
+      name,
+      viewId: "view-eeeeeeee",
+    }).open();
     await a.ready();
-    const b = await new View({ mode: "create", name, viewId: "view-ffffffff" }).open();
+    const b = await new View({
+      mode: "create",
+      name,
+      viewId: "view-ffffffff",
+    }).open();
     await b.ready();
     a.drop();
-    await until("b hears the seat is held", () => b.last("role")?.viewers === 1);
+    await until(
+      "b hears the seat is held",
+      () => b.last("role")?.viewers === 1,
+    );
     expect(b.last("role")!.controlledElsewhere).toBe(true);
     await a.resume();
     await a.ready();
@@ -297,9 +368,15 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
 
     // Taken while A was away: A learns it on return, not just "watching".
     a.drop();
-    await until("b hears the seat is held", () => b.last("role")?.viewers === 1);
+    await until(
+      "b hears the seat is held",
+      () => b.last("role")?.viewers === 1,
+    );
     b.send({ type: "takeover" });
-    await until("b takes the held seat", () => b.last("role")?.role === "controller");
+    await until(
+      "b takes the held seat",
+      () => b.last("role")?.role === "controller",
+    );
     await a.resume();
     await a.ready();
     expect(a.last("ready")!.role).toBe("observer");
@@ -311,15 +388,27 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
     a.drop();
     await Bun.sleep(150);
     expect(b.last("role")!.role).toBe("observer");
-    await until("b seated once the hold ends", () => b.last("role")?.role === "controller", 3000);
+    await until(
+      "b seated once the hold ends",
+      () => b.last("role")?.role === "controller",
+      3000,
+    );
 
     // A clean close (a closed tab, a reload) is not held: the seat frees at
     // once, so a reloaded page with a new view id is not locked out.
-    const c = await new View({ mode: "create", name, viewId: "view-cccc0000" }).open();
+    const c = await new View({
+      mode: "create",
+      name,
+      viewId: "view-cccc0000",
+    }).open();
     await c.ready();
     expect(c.last("ready")!.role).toBe("observer");
     b.ws.close(1000);
-    await until("seat passed on at once", () => c.last("role")?.role === "controller", 300);
+    await until(
+      "seat passed on at once",
+      () => c.last("role")?.role === "controller",
+      300,
+    );
     c.send({ type: "kill" });
     await until("exit", () => !!c.last("exit"));
   }, 30_000);
@@ -327,9 +416,20 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
   it("an attach sizes the agent's pane only while it controls, and gives the size back", async () => {
     const name = "cast-term-attach";
     tmux("new-session", "-d", "-s", name, "-x", "120", "-y", "40", "sleep 600");
-    const size = () => tmux("display-message", "-p", "-t", name, "#{window_width}x#{window_height}").trim();
+    const size = () =>
+      tmux(
+        "display-message",
+        "-p",
+        "-t",
+        name,
+        "#{window_width}x#{window_height}",
+      ).trim();
     try {
-      const watcher = await new View({ mode: "attach", target: name, viewId: "view-gggggggg" }).open();
+      const watcher = await new View({
+        mode: "attach",
+        target: name,
+        viewId: "view-gggggggg",
+      }).open();
       await watcher.ready();
       expect(watcher.last("ready")!.role).toBe("observer");
       expect(watcher.last("ready")!.canControl).toBe(false);
@@ -339,7 +439,12 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
       expect(watcher.last("role")?.role).not.toBe("controller");
       expect(size()).toBe("120x40");
 
-      const driver = await new View({ mode: "attach", target: name, interactive: true, viewId: "view-hhhhhhhh" }).open();
+      const driver = await new View({
+        mode: "attach",
+        target: name,
+        interactive: true,
+        viewId: "view-hhhhhhhh",
+      }).open();
       await driver.ready();
       expect(driver.last("ready")!.role).toBe("controller");
       // The hello's size is a pre-layout guess and must not touch the pane.
@@ -347,7 +452,11 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
       driver.send({ type: "resize", cols: 90, rows: 20 });
       await until("pane sized to the controller", () => size() === "90x20");
       // The watcher is repainted at the new geometry.
-      await until("watcher reseeded", () => watcher.json.some((m) => m.type === "reseed" && m.cols === 90 && m.rows === 20));
+      await until("watcher reseeded", () =>
+        watcher.json.some(
+          (m) => m.type === "reseed" && m.cols === 90 && m.rows === 20,
+        ),
+      );
 
       // An attach never kills the agent's session, from any seat.
       driver.send({ type: "kill" });
@@ -363,19 +472,32 @@ describe.skipIf(!hasTmux())("terminal server against a scratch tmux", () => {
       await until("size handed back", () => size() === "120x40", 3000);
       watcher.close();
     } finally {
-      try { tmux("kill-session", "-t", name); } catch {}
+      try {
+        tmux("kill-session", "-t", name);
+      } catch {}
     }
   }, 30_000);
 
   it("keeps auth as strict as before: token and origin", async () => {
-    const bad = await new View({ mode: "create", name: "cast-term-auth", token: "x".repeat(64) }).open();
+    const bad = await new View({
+      mode: "create",
+      name: "cast-term-auth",
+      token: "x".repeat(64),
+    }).open();
     await until("refusal", () => !!bad.last("error"));
     expect(bad.last("error")!.message).toBe("forbidden");
-    const noToken = await new View({ mode: "create", name: "cast-term-auth", token: undefined }).open();
+    const noToken = await new View({
+      mode: "create",
+      name: "cast-term-auth",
+      token: undefined,
+    }).open();
     await until("refusal", () => !!noToken.last("error"));
     expect(() => tmux("has-session", "-t", "cast-term-auth")).toThrow();
 
-    const evil = new View({ mode: "create", name: "cast-term-auth" }, "https://evil.example");
+    const evil = new View(
+      { mode: "create", name: "cast-term-auth" },
+      "https://evil.example",
+    );
     // The upgrade is refused before any hello is read.
     await expect(evil.open()).rejects.toThrow();
   }, 15_000);

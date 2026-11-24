@@ -23,7 +23,11 @@ const PER_USER_BINARIES = [".local/bin/codecast", ".codecast/bin/codecast"];
 type Stat = (p: string) => { uid: number };
 
 /** True when the running binary belongs to root: updates come from whoever installed it, never from a self-update. */
-export function isManagedInstall(execPath = process.execPath, stat: Stat = fs.statSync, platform = process.platform): boolean {
+export function isManagedInstall(
+  execPath = process.execPath,
+  stat: Stat = fs.statSync,
+  platform = process.platform,
+): boolean {
   if (platform !== "darwin" && platform !== "linux") return false;
   try {
     return stat(execPath).uid === 0;
@@ -37,13 +41,20 @@ export function isManagedInstall(execPath = process.execPath, stat: Stat = fs.st
  * path that is already a symlink is left as it is, and nothing happens unless
  * the managed binary is present and root-owned. Returns the paths it replaced.
  */
-export function adoptManagedBinary(home: string, managed = MANAGED_BINARY_PATH): string[] {
+export function adoptManagedBinary(
+  home: string,
+  managed = MANAGED_BINARY_PATH,
+): string[] {
   if (!isManagedInstall(managed)) return [];
   const replaced: string[] = [];
   for (const rel of PER_USER_BINARIES) {
     const p = path.join(home, rel);
     let st: fs.Stats;
-    try { st = fs.lstatSync(p); } catch { continue; }
+    try {
+      st = fs.lstatSync(p);
+    } catch {
+      continue;
+    }
     if (st.isSymbolicLink() || !st.isFile()) continue;
     const tmp = `${p}.managed-${process.pid}`;
     fs.symlinkSync(managed, tmp);

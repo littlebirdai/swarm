@@ -8,7 +8,10 @@ import { useShortcutAction } from "../../shortcuts";
 import { useVaultStore } from "../../store/vaultStore";
 import { lazyNamed } from "../../lib/lazyNamed";
 
-const VaultQuickSwitcher = lazyNamed(() => import("./VaultQuickSwitcher"), "VaultQuickSwitcher");
+const VaultQuickSwitcher = lazyNamed(
+  () => import("./VaultQuickSwitcher"),
+  "VaultQuickSwitcher",
+);
 
 export function VaultQuickSwitcherDock() {
   const open = useVaultStore((s) => s.quickSwitchOpen);

@@ -19,7 +19,9 @@ import { isLoopbackUrl, normalizeUrl, pageAddress } from "./browserPane";
  * link renderer as an href, and guessing a scheme for anything else would
  * turn a relative path into a page.
  */
-export function loopbackLinkUrl(href: string | null | undefined): string | null {
+export function loopbackLinkUrl(
+  href: string | null | undefined,
+): string | null {
   if (!href || !/^https?:\/\//i.test(href)) return null;
   const url = normalizeUrl(href);
   return url && isLoopbackUrl(url) ? url : null;
@@ -55,8 +57,12 @@ export function pageAddressLabel(url: string): string {
 export function typedAddress(text: string): string | null {
   const raw = text.trim();
   if (!raw || /\s/.test(raw)) return null;
-  const host = raw.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "").split(/[/?#]/)[0];
+  const host = raw
+    .replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "")
+    .split(/[/?#]/)[0];
   const addressed =
-    /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) || /:\d{2,5}$/.test(host) || /\.[a-z]{2,}$/i.test(host);
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) ||
+    /:\d{2,5}$/.test(host) ||
+    /\.[a-z]{2,}$/i.test(host);
   return addressed ? normalizeUrl(raw) : null;
 }

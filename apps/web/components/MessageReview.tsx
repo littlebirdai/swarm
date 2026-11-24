@@ -14,16 +14,32 @@
 // Cross-component state is in inboxStore's ephemeral review fields; the store
 // choreography is in lib/reviewActions.
 
-import React, { memo, Suspense, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  Suspense,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useInboxStore } from "../store/inboxStore";
 import type { PendingComment, ReviewVerdict } from "../lib/quoteFormat";
 import { VerdictLabel } from "./ReviewVerdictLabel";
 import { ProsePlacementChip } from "./comments/AnchorPlacementNote";
-import { resolveProseAnchor, type ProsePlacement } from "@codecast/shared/comments";
+import {
+  resolveProseAnchor,
+  type ProsePlacement,
+} from "@codecast/shared/comments";
 import { AvatarImg } from "../lib/avatarCache";
 import { getQuoteUnits, quoteUnitAt, unitTop } from "../lib/quoteUnits";
-import { createReviewComment, exitReviewMode, setBlockVerdict, undoLastVerdict } from "../lib/reviewActions";
+import {
+  createReviewComment,
+  exitReviewMode,
+  setBlockVerdict,
+  undoLastVerdict,
+} from "../lib/reviewActions";
 import { quoteSelectionIntoReply } from "../lib/quoteSelection";
 import { stepReviewBlock } from "../lib/reviewNav";
 import { altChordDirection, matchesAction } from "../shortcuts";
@@ -44,7 +60,10 @@ import { TOOLBAR_BTN, TOOLBAR_SHELL } from "./conversation/toolbarStyles";
 import { lazyNamed } from "../lib/lazyNamed";
 import { teamCommentCount, type CommentRows } from "../lib/teamCommentCount";
 
-const RightCommentRail = lazyNamed(() => import("./comments/RightCommentRail"), "RightCommentRail");
+const RightCommentRail = lazyNamed(
+  () => import("./comments/RightCommentRail"),
+  "RightCommentRail",
+);
 
 import { useWatchEffect } from "../hooks/useWatchEffect";
 // Comment-rail sizing (px). When the empty left margin is at least MIN, float the
@@ -100,10 +119,14 @@ type QuoteRecord = {
   sent_to_conversation_id: string | null;
   answered_message_id: string | null;
 };
-type SentState = { conversationId: string | null; answeredMessageId: string | null };
+type SentState = {
+  conversationId: string | null;
+  answeredMessageId: string | null;
+};
 type RailComment = PendingComment & { sent?: SentState };
 
-const quoteRecordSig = (r: QuoteRecord) => `${r._id}:${r.sent_at ?? ""}:${r.answered_message_id ?? ""}:${r.block_index ?? ""}`;
+const quoteRecordSig = (r: QuoteRecord) =>
+  `${r._id}:${r.sent_at ?? ""}:${r.answered_message_id ?? ""}:${r.block_index ?? ""}`;
 
 function sentQuoteItem(r: QuoteRecord): RailComment {
   return {
@@ -114,23 +137,38 @@ function sentQuoteItem(r: QuoteRecord): RailComment {
     body: r.body,
     createdAt: r.created_at,
     ...(r.verdict ? { verdict: r.verdict } : {}),
-    sent: { conversationId: r.sent_to_conversation_id, answeredMessageId: r.answered_message_id },
+    sent: {
+      conversationId: r.sent_to_conversation_id,
+      answeredMessageId: r.answered_message_id,
+    },
   };
 }
 
-function MessageReviewImpl({ conversationId, messageId, content, renderBlock, linkable }: Props) {
+function MessageReviewImpl({
+  conversationId,
+  messageId,
+  content,
+  renderBlock,
+  linkable,
+}: Props) {
   const scrollToBlock = useReviewComposer()?.scrollToBlock;
   const { user: author } = useCurrentUser();
 
   const isReviewTarget = useInboxStore((s) => s.reviewMessageId === messageId);
-  const activeBlock = useInboxStore((s) => (s.reviewMessageId === messageId ? s.reviewActiveBlock : -1));
+  const activeBlock = useInboxStore((s) =>
+    s.reviewMessageId === messageId ? s.reviewActiveBlock : -1,
+  );
   const editingId = useInboxStore((s) => s.reviewEditingId);
   // Opt-in: the gutter "comment" handle (starting a NEW thread on a message) only
   // shows when the user has turned comment tools on. Seeing/replying to existing
   // comments doesn't depend on it.
   const commentsEnabled = useCommentTools();
   const myComments = useInboxStore(
-    useShallow((s) => (s.reviewComments[conversationId] ?? []).filter((c) => c.messageId === messageId && !c.image && !c.page)),
+    useShallow((s) =>
+      (s.reviewComments[conversationId] ?? []).filter(
+        (c) => c.messageId === messageId && !c.image && !c.page,
+      ),
+    ),
   );
   // MODELESS: there is no review mode to enter or exit. Hovering any block always
   // offers Quote/Comment; the rail (and the content-shrink it causes) exists
@@ -142,21 +180,35 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   // the server's rows (quoteDrafts), read-only: the batch holds only what waits.
   const recordOn = useInboxStore(quoteDraftsOn);
   const sentWhere = useCallback(
-    (r: QuoteRecord) => recordOn && r.conversation_id === conversationId && r.message_id === messageId && r.sent_at != null,
+    (r: QuoteRecord) =>
+      recordOn &&
+      r.conversation_id === conversationId &&
+      r.message_id === messageId &&
+      r.sent_at != null,
     [recordOn, conversationId, messageId],
   );
-  const sentRecords = useCollectionRows<QuoteRecord>("quoteDrafts", { where: sentWhere, sig: quoteRecordSig });
+  const sentRecords = useCollectionRows<QuoteRecord>("quoteDrafts", {
+    where: sentWhere,
+    sig: quoteRecordSig,
+  });
   const sentQuotes = useMemo(() => {
     const waiting = new Set(myComments.map((c) => c.id));
-    return sentRecords.filter((r) => !waiting.has(r.client_id ?? r._id)).map(sentQuoteItem);
+    return sentRecords
+      .filter((r) => !waiting.has(r.client_id ?? r._id))
+      .map(sentQuoteItem);
   }, [sentRecords, myComments]);
-  const railComments = useMemo<RailComment[]>(() => (sentQuotes.length ? [...myComments, ...sentQuotes] : myComments), [myComments, sentQuotes]);
+  const railComments = useMemo<RailComment[]>(
+    () => (sentQuotes.length ? [...myComments, ...sentQuotes] : myComments),
+    [myComments, sentQuotes],
+  );
   const engaged = railComments.length > 0;
 
   // Persisted teammate comments on THIS message drive the right rail. A primitive
   // count keeps the selector cheap (re-renders only when it changes); the anchor
   // lets the gutter handle open the rail on a message that has none yet.
-  const teamCount = useInboxStore((s) => teamCommentCount(s.comments as CommentRows, conversationId, messageId));
+  const teamCount = useInboxStore((s) =>
+    teamCommentCount(s.comments as CommentRows, conversationId, messageId),
+  );
   const teamAnchor = useInboxStore((s) => s.commentRailAnchor === messageId);
   const rightActive = teamCount > 0 || teamAnchor;
 
@@ -187,7 +239,9 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   // "column" shrinks the text into a readable right column (only when the text can
   // spare the width); "below" drops clean cards under the message when it's too
   // narrow to sit beside. rightW is the rail/column width.
-  const [rightMode, setRightMode] = useState<"margin" | "column" | "below">("below");
+  const [rightMode, setRightMode] = useState<"margin" | "column" | "below">(
+    "below",
+  );
   const [rightW, setRightW] = useState(RIGHT_MAX_PX);
   // In margin mode the rail floats absolutely (top:0) in the right margin. If a
   // comment thread is TALLER than its (short) message, the rail overflows below
@@ -201,7 +255,13 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   // the hover handle must track its block live, because content above can reflow
   // after the mouse stops (web font load, syntax highlighting, image settle) and a
   // frozen offset would leave the handle stranded on the block's lower lines.
-  const measureActive = engaged || isReviewTarget || hoverIndex !== null || rightActive || menuBlock !== null || flashBlock !== null;
+  const measureActive =
+    engaged ||
+    isReviewTarget ||
+    hoverIndex !== null ||
+    rightActive ||
+    menuBlock !== null ||
+    flashBlock !== null;
 
   // Where each quote's block is in the text as it reads now. A doc edited or a
   // plan rewritten under a quote moves its card to the block that still holds
@@ -213,17 +273,27 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
     if (blockTexts.length === 0) return out;
     for (const c of railComments) {
       if (c.filePath || !c.quote) continue;
-      out.set(c.id, resolveProseAnchor({ text: c.quote, index: c.blockIndex }, blockTexts));
+      out.set(
+        c.id,
+        resolveProseAnchor({ text: c.quote, index: c.blockIndex }, blockTexts),
+      );
     }
     return out;
   }, [railComments, blockTexts]);
-  const drawnBlock = useCallback((c: PendingComment) => placements.get(c.id)?.index ?? c.blockIndex, [placements]);
+  const drawnBlock = useCallback(
+    (c: PendingComment) => placements.get(c.id)?.index ?? c.blockIndex,
+    [placements],
+  );
 
   // Drop a stuck peek highlight: removing a chip via its Remove button unmounts it
   // before onMouseLeave fires, so clear the peek when its block no longer has any
   // comment (or all comments are gone) — otherwise the overlay lingers.
   useWatchEffect(() => {
-    if (peekBlock !== null && !railComments.some((c) => drawnBlock(c) === peekBlock)) setPeekBlock(null);
+    if (
+      peekBlock !== null &&
+      !railComments.some((c) => drawnBlock(c) === peekBlock)
+    )
+      setPeekBlock(null);
   }, [railComments, peekBlock, drawnBlock]);
 
   // ----- measure each quote unit's vertical position + available left margin -----
@@ -233,14 +303,22 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
     // Layout-space offsets (offsetTop/offsetHeight), not bounding rects, so the
     // rail cards + hover handle stay aligned under browser zoom — see unitTop.
     const units = getQuoteUnits(el);
-    const next = units.map((u) => ({ top: unitTop(el, u), height: u.offsetHeight }));
+    const next = units.map((u) => ({
+      top: unitTop(el, u),
+      height: u.offsetHeight,
+    }));
     setRects((prev) =>
-      prev.length === next.length && prev.every((r, i) => r.top === next[i].top && r.height === next[i].height)
+      prev.length === next.length &&
+      prev.every((r, i) => r.top === next[i].top && r.height === next[i].height)
         ? prev
         : next,
     );
     const texts = units.map((u) => u.innerText ?? u.textContent ?? "");
-    setBlockTexts((prev) => (prev.length === texts.length && prev.every((t, i) => t === texts[i]) ? prev : texts));
+    setBlockTexts((prev) =>
+      prev.length === texts.length && prev.every((t, i) => t === texts[i])
+        ? prev
+        : texts,
+    );
     // Empty space to the left of the content, inside the scroll viewport. Use it
     // for the rail (at whatever width fits) so the text column keeps full width;
     // fall back to shrinking inline only when the margin is too small to be useful.
@@ -260,16 +338,26 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       // past these edges. Simple view flattens the pl-8 indent the handles'
       // fixed offsets assumed, so their CSS reads these to hug the edge instead
       // of getting cut or covering text.
-      region.style.setProperty("--cc-gutter-l", Math.max(0, Math.round(rr.left - left)) + "px");
-      const clipRight = sr && scroller ? sr.left + scroller.clientLeft + scroller.clientWidth : window.innerWidth;
-      region.style.setProperty("--cc-gutter-r", Math.max(0, Math.round(clipRight - rr.right)) + "px");
+      region.style.setProperty(
+        "--cc-gutter-l",
+        Math.max(0, Math.round(rr.left - left)) + "px",
+      );
+      const clipRight =
+        sr && scroller
+          ? sr.left + scroller.clientLeft + scroller.clientWidth
+          : window.innerWidth;
+      region.style.setProperty(
+        "--cc-gutter-r",
+        Math.max(0, Math.round(clipRight - rr.right)) + "px",
+      );
 
       // Mirror on the right: float in the empty right margin when it fits (the
       // text keeps full width, exactly like the left quote rail). When there's no
       // margin — the right edge already carries the toolbar + "files changed" chip
       // and a squeezed column would collide with them — drop clean cards below so
       // the message stays readable. (column mode kept in the union for later.)
-      const availR = (sr ? sr.right : window.innerWidth) - rr.right - RAIL_GAP_PX;
+      const availR =
+        (sr ? sr.right : window.innerWidth) - rr.right - RAIL_GAP_PX;
       const inMarginR = availR >= RIGHT_MIN_PX;
       setRightMode(inMarginR ? "margin" : "below");
       if (inMarginR) setRightW(Math.min(RIGHT_MAX_PX, Math.round(availR)));
@@ -325,10 +413,21 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   }, [content, measureActive, measure]);
 
   // ----- stack rail cards: anchor to their block, push down to avoid overlap -----
-  const byPlace = useCallback((a: PendingComment, b: PendingComment) => drawnBlock(a) - drawnBlock(b) || a.createdAt - b.createdAt, [drawnBlock]);
-  const sortedComments = useMemo(() => [...myComments].sort(byPlace), [myComments, byPlace]);
+  const byPlace = useCallback(
+    (a: PendingComment, b: PendingComment) =>
+      drawnBlock(a) - drawnBlock(b) || a.createdAt - b.createdAt,
+    [drawnBlock],
+  );
+  const sortedComments = useMemo(
+    () => [...myComments].sort(byPlace),
+    [myComments, byPlace],
+  );
   // Every card on the rail, sent quotes included, in the order they stack.
-  const railCards = useMemo<RailComment[]>(() => (sentQuotes.length ? [...railComments].sort(byPlace) : sortedComments), [railComments, sentQuotes, sortedComments, byPlace]);
+  const railCards = useMemo<RailComment[]>(
+    () =>
+      sentQuotes.length ? [...railComments].sort(byPlace) : sortedComments,
+    [railComments, sentQuotes, sortedComments, byPlace],
+  );
 
   const restack = useCallback(() => {
     if (!engaged) return;
@@ -343,13 +442,17 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       prevBottom = top + h;
     }
     setStackTops((prev) => {
-      const same = Object.keys(tops).length === Object.keys(prev).length && Object.entries(tops).every(([k, v]) => prev[k] === v);
+      const same =
+        Object.keys(tops).length === Object.keys(prev).length &&
+        Object.entries(tops).every(([k, v]) => prev[k] === v);
       return same ? prev : tops;
     });
     if (Number.isFinite(prevBottom)) setRailBottom(prevBottom + GAP * 2);
   }, [railCards, rects, engaged, drawnBlock]);
 
-  useLayoutEffect(() => { restack(); }, [restack, editingId]);
+  useLayoutEffect(() => {
+    restack();
+  }, [restack, editingId]);
 
   // The open editor autosizes its textarea on every keystroke — a height change
   // local to that card, invisible to this component's render cycle — so watch
@@ -368,7 +471,13 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   }, []);
 
   const startComment = useCallback(
-    (blockIndex: number) => createReviewComment(conversationId, messageId, blockIndex, blockText(blockIndex)),
+    (blockIndex: number) =>
+      createReviewComment(
+        conversationId,
+        messageId,
+        blockIndex,
+        blockText(blockIndex),
+      ),
     [conversationId, messageId, blockText],
   );
 
@@ -376,9 +485,12 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   useWatchEffect(() => {
     if (menuBlock === null) return;
     const onDown = (e: PointerEvent) => {
-      if (!(e.target as Element).closest?.("[data-cc-block-actions]")) setMenuBlock(null);
+      if (!(e.target as Element).closest?.("[data-cc-block-actions]"))
+        setMenuBlock(null);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuBlock(null); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuBlock(null);
+    };
     document.addEventListener("pointerdown", onDown, true);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -387,17 +499,25 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
     };
   }, [menuBlock]);
 
-  const runBlockAction = useCallback((i: number, act: "comment" | "link" | "copy" | "chat") => {
-    setMenuBlock(null);
-    if (act === "comment") return useInboxStore.getState().openCommentThread(messageId);
-    if (act === "copy") {
-      copyToClipboard(blockText(i)).then(() => toast.success("Copied")).catch(() => toast.error("Failed to copy"));
-      return;
-    }
-    const url = messageLink(conversationId, messageId, i);
-    if (act === "chat") return openForwardToChat({ url, label: "paragraph" });
-    copyToClipboard(url).then(() => toast.success("Link to paragraph copied")).catch(() => toast.error("Failed to copy link"));
-  }, [conversationId, messageId, blockText]);
+  const runBlockAction = useCallback(
+    (i: number, act: "comment" | "link" | "copy" | "chat") => {
+      setMenuBlock(null);
+      if (act === "comment")
+        return useInboxStore.getState().openCommentThread(messageId);
+      if (act === "copy") {
+        copyToClipboard(blockText(i))
+          .then(() => toast.success("Copied"))
+          .catch(() => toast.error("Failed to copy"));
+        return;
+      }
+      const url = messageLink(conversationId, messageId, i);
+      if (act === "chat") return openForwardToChat({ url, label: "paragraph" });
+      copyToClipboard(url)
+        .then(() => toast.success("Link to paragraph copied"))
+        .catch(() => toast.error("Failed to copy link"));
+    },
+    [conversationId, messageId, blockText],
+  );
 
   // Land a paragraph link: once the message has scrolled into view, bring its
   // block to the middle of the screen and light it. Runs on mount (a page load
@@ -408,7 +528,13 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
     const land = () => {
       const hash = window.location.hash;
       const target = parseMessageHash(hash);
-      if (!target || target.messageId !== messageId || target.block == null || landedHash === hash) return;
+      if (
+        !target ||
+        target.messageId !== messageId ||
+        target.block == null ||
+        landedHash === hash
+      )
+        return;
       landedHash = hash;
       const block = target.block;
       let tries = 0;
@@ -441,18 +567,21 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
     }
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    cancelClear();
-    const content = contentRef.current;
-    if (!content) return;
-    // Over the rail / a card / the + button → keep the current hover target.
-    if (railRef.current?.contains(e.target as Node)) return;
-    const hit = quoteUnitAt(content, e.target as HTMLElement);
-    if (hit) {
-      setHoverIndex(hit.index);
-      setHoverTop(unitTop(content, hit.el));
-    }
-  }, [cancelClear]);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      cancelClear();
+      const content = contentRef.current;
+      if (!content) return;
+      // Over the rail / a card / the + button → keep the current hover target.
+      if (railRef.current?.contains(e.target as Node)) return;
+      const hit = quoteUnitAt(content, e.target as HTMLElement);
+      if (hit) {
+        setHoverIndex(hit.index);
+        setHoverTop(unitTop(content, hit.el));
+      }
+    },
+    [cancelClear],
+  );
 
   const handleMouseLeave = useCallback(() => {
     cancelClear();
@@ -485,11 +614,23 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       // a / d: a typed verdict on the active block, then on to the next block
       // so a long plan reads as one pass. z takes the last verdict back.
       const native = e.nativeEvent;
-      const verdict: ReviewVerdict | null = matchesAction(native, "review.approveBlock") ? "approve"
-        : matchesAction(native, "review.cutBlock") ? "cut" : null;
+      const verdict: ReviewVerdict | null = matchesAction(
+        native,
+        "review.approveBlock",
+      )
+        ? "approve"
+        : matchesAction(native, "review.cutBlock")
+          ? "cut"
+          : null;
       if (verdict) {
         e.preventDefault();
-        setBlockVerdict(conversationId, messageId, cur, blockText(cur), verdict);
+        setBlockVerdict(
+          conversationId,
+          messageId,
+          cur,
+          blockText(cur),
+          verdict,
+        );
         stepReviewBlock(messageId, 1);
         return;
       }
@@ -497,7 +638,9 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
         const undone = undoLastVerdict(conversationId);
         if (undone) {
           e.preventDefault();
-          useInboxStore.getState().setReviewTarget(undone.messageId, undone.blockIndex);
+          useInboxStore
+            .getState()
+            .setReviewTarget(undone.messageId, undone.blockIndex);
         }
         return;
       }
@@ -505,10 +648,14 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       // the neighbouring reply at either edge and drops back into the composer
       // past the last chunk (lib/reviewNav).
       const chord = altChordDirection(e.nativeEvent);
-      const dir = chord === "up" || chord === "down" ? chord
-        : key === "ArrowDown" || key === "j" ? "down"
-        : key === "ArrowUp" || key === "k" ? "up"
-        : null;
+      const dir =
+        chord === "up" || chord === "down"
+          ? chord
+          : key === "ArrowDown" || key === "j"
+            ? "down"
+            : key === "ArrowUp" || key === "k"
+              ? "up"
+              : null;
       if (dir) {
         e.preventDefault();
         stepReviewBlock(messageId, dir === "down" ? 1 : -1);
@@ -516,19 +663,32 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
         // Quote the active block and write its note: quoting opens the editor
         // (createReviewComment); on an already-quoted block just reopen it.
         e.preventDefault();
-        if (blockComments.length) useInboxStore.getState().setReviewEditingId(blockComments[0].id);
+        if (blockComments.length)
+          useInboxStore.getState().setReviewEditingId(blockComments[0].id);
         else startComment(cur);
       } else if (key === "x" || key === "Delete" || key === "Backspace") {
         if (blockComments.length) {
           e.preventDefault();
-          useInboxStore.getState().removeReviewComment(conversationId, blockComments[blockComments.length - 1].id);
+          useInboxStore
+            .getState()
+            .removeReviewComment(
+              conversationId,
+              blockComments[blockComments.length - 1].id,
+            );
         }
       } else if (key === "Escape") {
         e.preventDefault();
         exitReviewMode();
       }
     },
-    [isReviewTarget, myComments, conversationId, messageId, startComment, blockText],
+    [
+      isReviewTarget,
+      myComments,
+      conversationId,
+      messageId,
+      startComment,
+      blockText,
+    ],
   );
 
   // keep active block in view + hold focus so single-letter keys are captured here
@@ -539,12 +699,18 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       if (scrollToBlock) scrollToBlock(block, "nearest");
       else block.scrollIntoView({ block: "nearest" });
     }
-    if (containerRef.current && !containerRef.current.contains(document.activeElement)) {
+    if (
+      containerRef.current &&
+      !containerRef.current.contains(document.activeElement)
+    ) {
       containerRef.current.focus({ preventScroll: true } as any);
     }
   }, [isReviewTarget, activeBlock, editingId, scrollToBlock]);
 
-  const focusRegion = useCallback(() => containerRef.current?.focus({ preventScroll: true } as any), []);
+  const focusRegion = useCallback(
+    () => containerRef.current?.focus({ preventScroll: true } as any),
+    [],
+  );
 
   // Walk between YOUR quote cards while writing notes (⌘↑ / ⌘↓ in the editor):
   // open the neighbour's note, or close and hand focus back to the region when
@@ -568,9 +734,21 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
   // the keyboard-active block. Replaces the in-card quote as the "what does this
   // comment point at" cue. An unquoted keyboard-lit block also shows its quote
   // key on the gutter handle (a quoted one already shows N / ⌫ on its chip).
-  const hiBlock = peekBlock != null ? peekBlock : flashBlock != null ? flashBlock : isReviewTarget ? activeBlock : -1;
+  const hiBlock =
+    peekBlock != null
+      ? peekBlock
+      : flashBlock != null
+        ? flashBlock
+        : isReviewTarget
+          ? activeBlock
+          : -1;
   const keyLitBlock =
-    peekBlock == null && isReviewTarget && hiBlock >= 0 && !myComments.some((c) => c.blockIndex === hiBlock) ? hiBlock : null;
+    peekBlock == null &&
+    isReviewTarget &&
+    hiBlock >= 0 &&
+    !myComments.some((c) => c.blockIndex === hiBlock)
+      ? hiBlock
+      : null;
 
   return (
     <div
@@ -578,14 +756,24 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       data-review-message={messageId}
       className={
         "cc-msg-review" +
-        (engaged ? (railInMargin ? " cc-rail-margin" : " cc-rail-inline") : "") +
+        (engaged
+          ? railInMargin
+            ? " cc-rail-margin"
+            : " cc-rail-inline"
+          : "") +
         (rightActive && rightMode === "column" ? " cc-rright-host-inline" : "")
       }
-      style={{
-        ...(engaged && railInMargin ? { "--cc-rail-w": railPx + "px" } : {}),
-        ...(rightActive && rightMode !== "below" ? { "--cc-rright-w": rightW + "px" } : {}),
-        ...(rightActive && rightMode === "margin" && rightReserveH ? { minHeight: rightReserveH } : {}),
-      } as React.CSSProperties}
+      style={
+        {
+          ...(engaged && railInMargin ? { "--cc-rail-w": railPx + "px" } : {}),
+          ...(rightActive && rightMode !== "below"
+            ? { "--cc-rright-w": rightW + "px" }
+            : {}),
+          ...(rightActive && rightMode === "margin" && rightReserveH
+            ? { minHeight: rightReserveH }
+            : {}),
+        } as React.CSSProperties
+      }
       data-review-region={isReviewTarget ? "active" : undefined}
       tabIndex={isReviewTarget ? -1 : undefined}
       onKeyDown={isReviewTarget ? handleKeyDown : undefined}
@@ -593,7 +781,14 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
       onMouseLeave={handleMouseLeave}
     >
       {hiBlock >= 0 && rects[hiBlock] && (
-        <div className={hiBlock === flashBlock && peekBlock == null ? "cc-active-overlay cc-flash" : "cc-active-overlay"} style={{ top: rects[hiBlock].top, height: rects[hiBlock].height }} />
+        <div
+          className={
+            hiBlock === flashBlock && peekBlock == null
+              ? "cc-active-overlay cc-flash"
+              : "cc-active-overlay"
+          }
+          style={{ top: rects[hiBlock].top, height: rects[hiBlock].height }}
+        />
       )}
 
       <div ref={contentRef} className="cc-content">
@@ -606,29 +801,42 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
           note blank for a bare quote. The keyboard-lit block gets the same handle
           carrying its key, so mouse and keyboard name the verb in one place. */}
       {editingId === null &&
-        [...new Set([hoverIndex, keyLitBlock])].map((i) => i !== null && (
-          <button
-            key={i}
-            type="button"
-            data-cc-gutter
-            className={i === keyLitBlock ? "cc-block-quote cc-block-quote-key" : "cc-block-quote"}
-            // Prefer the live measured offset (re-measured on reflow) over the
-            // mousemove snapshot, so the handle stays pinned to its block's top
-            // even if content above shifts after the cursor stops. hoverTop is the
-            // first-frame fallback before rects has measured.
-            style={{ top: rects[i]?.top ?? hoverTop }}
-            title="Quote into your reply"
-            aria-label="Quote this block into your reply"
-            onMouseEnter={cancelClear}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => startComment(i)}
-          >
-            {i === keyLitBlock && <KeyCap size="xs">C</KeyCap>}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M9.6 6C7 7.5 5.2 9.9 5.2 13.1c0 2.4 1.5 4 3.5 4 1.8 0 3.1-1.3 3.1-3 0-1.6-1.1-2.8-2.7-2.8-.3 0-.6 0-.7.1.3-1.6 1.6-3.2 3-4.1L9.6 6zm8 0c-2.6 1.5-4.4 3.9-4.4 7.1 0 2.4 1.5 4 3.5 4 1.8 0 3.1-1.3 3.1-3 0-1.6-1.1-2.8-2.7-2.8-.3 0-.6 0-.7.1.3-1.6 1.6-3.2 3-4.1L17.6 6z" />
-            </svg>
-          </button>
-        ))}
+        [...new Set([hoverIndex, keyLitBlock])].map(
+          (i) =>
+            i !== null && (
+              <button
+                key={i}
+                type="button"
+                data-cc-gutter
+                className={
+                  i === keyLitBlock
+                    ? "cc-block-quote cc-block-quote-key"
+                    : "cc-block-quote"
+                }
+                // Prefer the live measured offset (re-measured on reflow) over the
+                // mousemove snapshot, so the handle stays pinned to its block's top
+                // even if content above shifts after the cursor stops. hoverTop is the
+                // first-frame fallback before rects has measured.
+                style={{ top: rects[i]?.top ?? hoverTop }}
+                title="Quote into your reply"
+                aria-label="Quote this block into your reply"
+                onMouseEnter={cancelClear}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => startComment(i)}
+              >
+                {i === keyLitBlock && <KeyCap size="xs">C</KeyCap>}
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M9.6 6C7 7.5 5.2 9.9 5.2 13.1c0 2.4 1.5 4 3.5 4 1.8 0 3.1-1.3 3.1-3 0-1.6-1.1-2.8-2.7-2.8-.3 0-.6 0-.7.1.3-1.6 1.6-3.2 3-4.1L9.6 6zm8 0c-2.6 1.5-4.4 3.9-4.4 7.1 0 2.4 1.5 4 3.5 4 1.8 0 3.1-1.3 3.1-3 0-1.6-1.1-2.8-2.7-2.8-.3 0-.6 0-.7.1.3-1.6 1.6-3.2 3-4.1L17.6 6z" />
+                </svg>
+              </button>
+            ),
+        )}
 
       {/* Mirror of the quote handle on the RIGHT gutter: the block's actions.
           The handle opens a strip to its left in the message toolbar's look:
@@ -636,50 +844,89 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
           paragraph, copy it, send it to chat. The open menu stays on its block
           while the pointer moves on. The first block has no handle: the
           message toolbar already sits over it with the message-wide actions. */}
-      {editingId === null && (menuBlock ?? hoverIndex ?? 0) > 0 && (() => {
-        const i = (menuBlock ?? hoverIndex)!;
-        const top = rects[i]?.top ?? hoverTop;
-        const open = menuBlock === i;
-        return (
-          <div data-cc-block-actions onMouseEnter={cancelClear}>
-            <button
-              type="button"
-              data-cc-gutter
-              className="cc-block-comment"
-              style={{ top }}
-              title="Paragraph actions"
-              aria-label="Actions for this paragraph"
-              aria-expanded={open}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setMenuBlock(open ? null : i)}
-            >
-              <ChevronLeft className="cc-block-comment-chevron w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-            {/* Mounted while the handle is up, so it slides out of the handle
+      {editingId === null &&
+        (menuBlock ?? hoverIndex ?? 0) > 0 &&
+        (() => {
+          const i = (menuBlock ?? hoverIndex)!;
+          const top = rects[i]?.top ?? hoverTop;
+          const open = menuBlock === i;
+          return (
+            <div data-cc-block-actions onMouseEnter={cancelClear}>
+              <button
+                type="button"
+                data-cc-gutter
+                className="cc-block-comment"
+                style={{ top }}
+                title="Paragraph actions"
+                aria-label="Actions for this paragraph"
+                aria-expanded={open}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setMenuBlock(open ? null : i)}
+              >
+                <ChevronLeft
+                  className="cc-block-comment-chevron w-3.5 h-3.5"
+                  aria-hidden="true"
+                />
+              </button>
+              {/* Mounted while the handle is up, so it slides out of the handle
                 and back into it rather than popping. */}
-            <div className={`cc-block-menu ${TOOLBAR_SHELL}`} role="menu" data-open={open} inert={!open} style={{ top }}>
+              <div
+                className={`cc-block-menu ${TOOLBAR_SHELL}`}
+                role="menu"
+                data-open={open}
+                inert={!open}
+                style={{ top }}
+              >
                 {commentsEnabled && (
-                  <button type="button" role="menuitem" className={TOOLBAR_BTN} title="Comment for your team" aria-label="Comment for your team" onClick={() => runBlockAction(i, "comment")}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={TOOLBAR_BTN}
+                    title="Comment for your team"
+                    aria-label="Comment for your team"
+                    onClick={() => runBlockAction(i, "comment")}
+                  >
                     <MessageCircle className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}
                 {linkable && (
-                  <button type="button" role="menuitem" className={TOOLBAR_BTN} title="Copy link to paragraph" aria-label="Copy link to paragraph" onClick={() => runBlockAction(i, "link")}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={TOOLBAR_BTN}
+                    title="Copy link to paragraph"
+                    aria-label="Copy link to paragraph"
+                    onClick={() => runBlockAction(i, "link")}
+                  >
                     <Link2 className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}
-                <button type="button" role="menuitem" className={TOOLBAR_BTN} title="Copy paragraph" aria-label="Copy paragraph" onClick={() => runBlockAction(i, "copy")}>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={TOOLBAR_BTN}
+                  title="Copy paragraph"
+                  aria-label="Copy paragraph"
+                  onClick={() => runBlockAction(i, "copy")}
+                >
                   <Copy className="w-4 h-4" aria-hidden="true" />
                 </button>
                 {linkable && chatOn && (
-                  <button type="button" role="menuitem" className={TOOLBAR_BTN} title="Send to chat" aria-label="Send paragraph to chat" onClick={() => runBlockAction(i, "chat")}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={TOOLBAR_BTN}
+                    title="Send to chat"
+                    aria-label="Send paragraph to chat"
+                    onClick={() => runBlockAction(i, "chat")}
+                  >
                     <Forward className="w-4 h-4" aria-hidden="true" />
                   </button>
                 )}
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {engaged && (
         <div
@@ -718,7 +965,11 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
                   comment={c}
                   author={author}
                   onDone={focusRegion}
-                  onStep={sortedComments.length > 1 ? (delta) => stepEditor(sortedComments.indexOf(c), delta) : undefined}
+                  onStep={
+                    sortedComments.length > 1
+                      ? (delta) => stepEditor(sortedComments.indexOf(c), delta)
+                      : undefined
+                  }
                 />
               ) : (
                 <CommentChip
@@ -726,15 +977,21 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
                   author={author}
                   placement={placements.get(c.id)}
                   active={isReviewTarget && activeBlock === c.blockIndex}
-                  onEdit={() => useInboxStore.getState().setReviewEditingId(c.id)}
-                  onRemove={() => { setPeekBlock(null); useInboxStore.getState().removeReviewComment(conversationId, c.id); }}
+                  onEdit={() =>
+                    useInboxStore.getState().setReviewEditingId(c.id)
+                  }
+                  onRemove={() => {
+                    setPeekBlock(null);
+                    useInboxStore
+                      .getState()
+                      .removeReviewComment(conversationId, c.id);
+                  }}
                   onPeek={() => setPeekBlock(drawnBlock(c))}
                   onPeekEnd={() => setPeekBlock(null)}
                 />
               )}
             </div>
           ))}
-
         </div>
       )}
 
@@ -742,7 +999,11 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
           floating in the margin when it fits, else a shrink-the-text column. */}
       {rightActive && (
         <Suspense fallback={null}>
-          <RightCommentRail conversationId={conversationId} messageId={messageId} mode={rightMode} />
+          <RightCommentRail
+            conversationId={conversationId}
+            messageId={messageId}
+            mode={rightMode}
+          />
         </Suspense>
       )}
     </div>
@@ -751,7 +1012,8 @@ function MessageReviewImpl({ conversationId, messageId, content, renderBlock, li
 
 function CommentAvatar({ author }: { author: any }) {
   const name: string = author?.name || author?.email?.split("@")[0] || "You";
-  const src: string | undefined = author?.avatar_url || author?.image || undefined;
+  const src: string | undefined =
+    author?.avatar_url || author?.image || undefined;
   return (
     <AvatarImg
       className="cc-comment-avatar"
@@ -759,7 +1021,10 @@ function CommentAvatar({ author }: { author: any }) {
       alt={name}
       title={name}
       fallback={
-        <span className="cc-comment-avatar cc-comment-avatar-fallback" title={name}>
+        <span
+          className="cc-comment-avatar cc-comment-avatar-fallback"
+          title={name}
+        >
           {name.slice(0, 1).toUpperCase()}
         </span>
       }
@@ -811,11 +1076,25 @@ const CommentChip = memo(function CommentChip({
           </div>
         )}
         <div className="cc-comment-actions">
-          <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="cc-comment-btn">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="cc-comment-btn"
+          >
             {comment.body ? "Edit" : "Add note"}
             {active && <KeyCap size="xs">N</KeyCap>}
           </button>
-          <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="cc-comment-btn cc-comment-btn-danger">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="cc-comment-btn cc-comment-btn-danger"
+          >
             Remove
             {active && <KeyCap size="xs">⌫</KeyCap>}
           </button>
@@ -845,17 +1124,34 @@ const SentQuoteChip = memo(function SentQuoteChip({
   const answered = !!sent.answeredMessageId;
   const openAnswer = () => {
     if (sent.answeredMessageId && sent.conversationId) {
-      useInboxStore.getState().requestNavigate(sent.conversationId, { scrollToMessageId: sent.answeredMessageId });
+      useInboxStore.getState().requestNavigate(sent.conversationId, {
+        scrollToMessageId: sent.answeredMessageId,
+      });
     }
   };
   return (
-    <div className="cc-comment-chip" data-quote-state={answered ? "answered" : "sent"} onMouseEnter={onPeek} onMouseLeave={onPeekEnd}>
+    <div
+      className="cc-comment-chip"
+      data-quote-state={answered ? "answered" : "sent"}
+      onMouseEnter={onPeek}
+      onMouseLeave={onPeekEnd}
+    >
       {comment.body ? <CommentAvatar author={author} /> : null}
       <div className="cc-comment-main">
         {answered ? (
-          <button type="button" className="cc-quote-state" data-state="answered" onClick={openAnswer} title="Open the reply">Answered</button>
+          <button
+            type="button"
+            className="cc-quote-state"
+            data-state="answered"
+            onClick={openAnswer}
+            title="Open the reply"
+          >
+            Answered
+          </button>
         ) : (
-          <span className="cc-quote-state" data-state="sent">Sent</span>
+          <span className="cc-quote-state" data-state="sent">
+            Sent
+          </span>
         )}
         {comment.verdict && <VerdictLabel verdict={comment.verdict} />}
         <ProsePlacementChip placement={placement} />
@@ -898,8 +1194,17 @@ export function CommentEditor({
   const latestRef = useRef(comment.body);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flush = useCallback(() => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    useInboxStore.getState().commitReviewComment(conversationId, comment.id, latestRef.current.trim());
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    useInboxStore
+      .getState()
+      .commitReviewComment(
+        conversationId,
+        comment.id,
+        latestRef.current.trim(),
+      );
   }, [conversationId, comment.id]);
 
   useLayoutEffect(() => {
@@ -929,27 +1234,41 @@ export function CommentEditor({
   // Enter, the footer buttons). A blur-driven close means focus already went where
   // the user pointed it — the composer via ⌃M, another card — and yanking it
   // back would undo that gesture.
-  const close = useCallback((refocus: boolean) => {
-    const s = useInboxStore.getState();
-    if (s.reviewEditingId !== comment.id) return;
-    s.setReviewEditingId(null);
-    if (refocus) onDone();
-  }, [comment.id, onDone]);
+  const close = useCallback(
+    (refocus: boolean) => {
+      const s = useInboxStore.getState();
+      if (s.reviewEditingId !== comment.id) return;
+      s.setReviewEditingId(null);
+      if (refocus) onDone();
+    },
+    [comment.id, onDone],
+  );
 
   // The quote is committed on first click, so the note editor only edits the
   // optional note: Save stores it (empty keeps it a bare quote), Cancel just
   // closes and leaves the quote untouched. Removing is the chip's explicit Remove.
-  const save = useCallback((refocus: boolean) => {
-    flush();
-    close(refocus);
-  }, [flush, close]);
+  const save = useCallback(
+    (refocus: boolean) => {
+      flush();
+      close(refocus);
+    },
+    [flush, close],
+  );
 
-  const cancel = useCallback((refocus: boolean) => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    latestRef.current = openedWithRef.current;
-    useInboxStore.getState().commitReviewComment(conversationId, comment.id, openedWithRef.current);
-    close(refocus);
-  }, [conversationId, comment.id, close]);
+  const cancel = useCallback(
+    (refocus: boolean) => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      latestRef.current = openedWithRef.current;
+      useInboxStore
+        .getState()
+        .commitReviewComment(conversationId, comment.id, openedWithRef.current);
+      close(refocus);
+    },
+    [conversationId, comment.id, close],
+  );
 
   // Save what's typed, then open the neighbour's editor.
   const step = useCallback(
@@ -965,11 +1284,16 @@ export function CommentEditor({
   // forward, and in between the arrows edit text as usual. That is how a list of
   // fields behaves everywhere else, and it is what "I can't go up and down while
   // typing a note" was asking for. A selection always belongs to the textarea.
-  const arrowLeavesNote = useCallback((el: HTMLTextAreaElement, up: boolean) => {
-    if (el.selectionStart !== el.selectionEnd) return false;
-    const at = el.selectionStart;
-    return up ? el.value.lastIndexOf("\n", at - 1) === -1 : el.value.indexOf("\n", at) === -1;
-  }, []);
+  const arrowLeavesNote = useCallback(
+    (el: HTMLTextAreaElement, up: boolean) => {
+      if (el.selectionStart !== el.selectionEnd) return false;
+      const at = el.selectionStart;
+      return up
+        ? el.value.lastIndexOf("\n", at - 1) === -1
+        : el.value.indexOf("\n", at) === -1;
+    },
+    [],
+  );
 
   return (
     <div className="cc-comment-editor">
@@ -994,11 +1318,18 @@ export function CommentEditor({
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               save(true);
-            } else if (onStep && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+            } else if (
+              onStep &&
+              (e.key === "ArrowUp" || e.key === "ArrowDown")
+            ) {
               const up = e.key === "ArrowUp";
               // ⌘ jumps out of the note from anywhere; a bare arrow only once the
               // caret is against that edge, so it still edits multi-line notes.
-              if (e.metaKey || e.ctrlKey || arrowLeavesNote(e.currentTarget, up)) {
+              if (
+                e.metaKey ||
+                e.ctrlKey ||
+                arrowLeavesNote(e.currentTarget, up)
+              ) {
                 e.preventDefault();
                 step(up ? -1 : 1);
               }
@@ -1012,11 +1343,21 @@ export function CommentEditor({
         <div className="cc-comment-editor-footer">
           {/* Closing keeps the quote either way. On a fresh quote, "None" means no
               note (not "cancel the quote"). On a saved note it discards the edit. */}
-          <button type="button" className="cc-comment-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => cancel(true)}>
+          <button
+            type="button"
+            className="cc-comment-btn"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => cancel(true)}
+          >
             {comment.body ? "Cancel" : "None"}
             <KeyCap size="xs">Esc</KeyCap>
           </button>
-          <button type="button" className="cc-comment-btn cc-comment-btn-primary" onMouseDown={(e) => e.preventDefault()} onClick={() => save(true)}>
+          <button
+            type="button"
+            className="cc-comment-btn cc-comment-btn-primary"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => save(true)}
+          >
             Save
             <KeyCap size="xs">↵</KeyCap>
           </button>

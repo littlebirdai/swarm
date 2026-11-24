@@ -24,7 +24,13 @@ import { KeyCap } from "./KeyboardShortcutsHelp";
 import { hasOpenModal, isMac } from "../shortcuts";
 import { RoleFace } from "./org/RoleFace";
 import { standingLineOf } from "./org/orgMeta";
-import { filterRoleRecipients, roleRecipients, sendRequestToRole, type GateImage, type RoleRecipient } from "../lib/roleRecipients";
+import {
+  filterRoleRecipients,
+  roleRecipients,
+  sendRequestToRole,
+  type GateImage,
+  type RoleRecipient,
+} from "../lib/roleRecipients";
 import { useInboxStore } from "../store/inboxStore";
 import { awaitUpload } from "../lib/pendingUploads";
 import { toast } from "sonner";
@@ -34,7 +40,9 @@ const ALT_CAP = isMac ? "⌥" : "Alt";
 
 /** The chord that opens the picker: ⌥R. `code` so the mac Option dead key (®) never hides it. */
 function isRolePickerChord(e: KeyboardEvent | React.KeyboardEvent): boolean {
-  return e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.code === "KeyR";
+  return (
+    e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.code === "KeyR"
+  );
 }
 
 /** The picked recipient of a new request and the send that goes with it, for
@@ -45,17 +53,35 @@ export function useRoleRecipient() {
   const [recipient, setRecipient] = useState<RoleRecipient | null>(null);
   const recipientRef = useRef(recipient);
   recipientRef.current = recipient;
-  const wakeRole = useCallback(async (text: string, images?: GateImage[]): Promise<RoleRecipient | null> => {
-    const r = recipientRef.current;
-    if (!r) return null;
-    const into = await sendRequestToRole(() => useInboxStore.getState(), r, text, images ?? [], awaitUpload);
-    if (!into) toast.error(`${r.name} has no standing session yet`);
-    return into ? r : null;
-  }, []);
+  const wakeRole = useCallback(
+    async (
+      text: string,
+      images?: GateImage[],
+    ): Promise<RoleRecipient | null> => {
+      const r = recipientRef.current;
+      if (!r) return null;
+      const into = await sendRequestToRole(
+        () => useInboxStore.getState(),
+        r,
+        text,
+        images ?? [],
+        awaitUpload,
+      );
+      if (!into) toast.error(`${r.name} has no standing session yet`);
+      return into ? r : null;
+    },
+    [],
+  );
   return { recipient, setRecipient, recipientRef, wakeRole };
 }
 
-export function ComposeRolePicker({ picked, onPick, onDone, page, className = "" }: {
+export function ComposeRolePicker({
+  picked,
+  onPick,
+  onDone,
+  page,
+  className = "",
+}: {
   picked: RoleRecipient | null;
   /** The host's placement (width, margin), applied only while something shows. */
   className?: string;
@@ -75,7 +101,11 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
   const viewerId = user?._id ? String(user._id) : null;
   const { characters } = useIdentityPrefs();
   const all = useMemo(
-    () => roleRecipients(roles, viewerId, { teamName: workspace?.kind === "team" ? workspace.name : null, characters }),
+    () =>
+      roleRecipients(roles, viewerId, {
+        teamName: workspace?.kind === "team" ? workspace.name : null,
+        characters,
+      }),
     [roles, viewerId, workspace, characters],
   );
 
@@ -88,13 +118,19 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
   const shown = useMemo(() => filterRoleRecipients(all, query), [all, query]);
   // Only a seat with a standing session can take the request; the rest are
   // listed so the picker can say why, and the keyboard steps over them.
-  const selectable = useMemo(() => shown.filter((r) => !!r.standingId), [shown]);
+  const selectable = useMemo(
+    () => shown.filter((r) => !!r.standingId),
+    [shown],
+  );
 
-  const close = useCallback((done = true) => {
-    setOpen(false);
-    setQuery("");
-    if (done) onDone();
-  }, [onDone]);
+  const close = useCallback(
+    (done = true) => {
+      setOpen(false);
+      setQuery("");
+      if (done) onDone();
+    },
+    [onDone],
+  );
 
   const openPicker = useCallback(() => {
     setHi(0);
@@ -102,14 +138,21 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
     setOpen(true);
   }, []);
 
-  useWatchEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
-  useWatchEffect(() => { setHi(0); }, [query]);
+  useWatchEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+  useWatchEffect(() => {
+    setHi(0);
+  }, [query]);
 
-  const pick = useCallback((r: RoleRecipient) => {
-    if (!r.standingId) return;
-    onPick(r);
-    close();
-  }, [onPick, close]);
+  const pick = useCallback(
+    (r: RoleRecipient) => {
+      if (!r.standingId) return;
+      onPick(r);
+      close();
+    },
+    [onPick, close],
+  );
 
   // ⌥R from anywhere in the composer. Capture phase on window, like the
   // project and agent chords (NewSessionView): the message box swallows keys
@@ -132,31 +175,34 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
     return () => window.removeEventListener("keydown", onKey, true);
   });
 
-  const onInputKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      if (selectable.length === 0) return;
-      const d = e.key === "ArrowDown" ? 1 : -1;
-      setHi((i) => (i + d + selectable.length) % selectable.length);
-      return;
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const sel = selectable[Math.min(hi, selectable.length - 1)];
-      if (sel) pick(sel);
-      return;
-    }
-    if (e.key === "Backspace" && query === "" && picked) {
-      e.preventDefault();
-      onPick(null);
-      return;
-    }
-    if (e.key === "Escape" || e.key === "Tab") {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    }
-  }, [selectable, hi, pick, query, picked, onPick, close]);
+  const onInputKey = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (selectable.length === 0) return;
+        const d = e.key === "ArrowDown" ? 1 : -1;
+        setHi((i) => (i + d + selectable.length) % selectable.length);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const sel = selectable[Math.min(hi, selectable.length - 1)];
+        if (sel) pick(sel);
+        return;
+      }
+      if (e.key === "Backspace" && query === "" && picked) {
+        e.preventDefault();
+        onPick(null);
+        return;
+      }
+      if (e.key === "Escape" || e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        close();
+      }
+    },
+    [selectable, hi, pick, query, picked, onPick, close],
+  );
 
   // No roles in this workspace: the composer stays as it was.
   if (all.length === 0) return null;
@@ -164,36 +210,74 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
   if (!open) {
     // Unpicked: nothing on screen, only the ⌥R listener's anchor.
     if (!picked) return <div ref={rootRef} hidden />;
-    if (page) return (
-      <div ref={rootRef} className={`flex flex-col items-center gap-2 text-center ${className}`}>
-        <button type="button" onClick={openPicker} className="group flex items-center gap-3" aria-label={`Sending to ${picked.name}, ${picked.title}. Change role`}>
-          <RoleFace role={picked.role} size={36} />
-          <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-sol-text">
-            Ask <span className="underline decoration-sol-violet/60 decoration-2 underline-offset-[6px] group-hover:text-sol-violet transition-colors">{picked.name}</span>
-          </h1>
-        </button>
-        <div className="flex items-center gap-2 text-xs text-sol-text-dim">
-          <span className="text-sol-text-muted">{picked.title}</span>
-          <span className="font-mono opacity-70">@{picked.handle}</span>
-          <StandingDot r={picked} withLabel />
-          <button type="button" onClick={() => { onPick(null); onDone(); }} className="ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-sol-text hover:bg-sol-bg-alt transition-colors" aria-label="Start a fresh session instead">
-            <X className="w-3 h-3" />new session
+    if (page)
+      return (
+        <div
+          ref={rootRef}
+          className={`flex flex-col items-center gap-2 text-center ${className}`}
+        >
+          <button
+            type="button"
+            onClick={openPicker}
+            className="group flex items-center gap-3"
+            aria-label={`Sending to ${picked.name}, ${picked.title}. Change role`}
+          >
+            <RoleFace role={picked.role} size={36} />
+            <h1 className="text-xl sm:text-2xl font-medium tracking-tight text-sol-text">
+              Ask{" "}
+              <span className="underline decoration-sol-violet/60 decoration-2 underline-offset-[6px] group-hover:text-sol-violet transition-colors">
+                {picked.name}
+              </span>
+            </h1>
           </button>
+          <div className="flex items-center gap-2 text-xs text-sol-text-dim">
+            <span className="text-sol-text-muted">{picked.title}</span>
+            <span className="font-mono opacity-70">@{picked.handle}</span>
+            <StandingDot r={picked} withLabel />
+            <button
+              type="button"
+              onClick={() => {
+                onPick(null);
+                onDone();
+              }}
+              className="ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
+              aria-label="Start a fresh session instead"
+            >
+              <X className="w-3 h-3" />
+              new session
+            </button>
+          </div>
         </div>
-      </div>
-    );
+      );
     return (
-      <div ref={rootRef} className={`flex items-center gap-2 w-full min-w-0 rounded-lg border border-sol-violet/40 bg-sol-violet/[0.07] pl-2.5 pr-1.5 py-1.5 text-xs ${className}`}>
+      <div
+        ref={rootRef}
+        className={`flex items-center gap-2 w-full min-w-0 rounded-lg border border-sol-violet/40 bg-sol-violet/[0.07] pl-2.5 pr-1.5 py-1.5 text-xs ${className}`}
+      >
         <RoleFace role={picked.role} size={20} />
-        <button type="button" onClick={openPicker} className="flex items-center gap-1.5 min-w-0 flex-1 text-left hover:opacity-90" aria-label={`Sending to ${picked.name}, ${picked.title}. Change role`}>
+        <button
+          type="button"
+          onClick={openPicker}
+          className="flex items-center gap-1.5 min-w-0 flex-1 text-left hover:opacity-90"
+          aria-label={`Sending to ${picked.name}, ${picked.title}. Change role`}
+        >
           <span className="text-sol-text-dim shrink-0">To</span>
           <RoleLine r={picked} handle />
           <StandingDot r={picked} withLabel />
         </button>
         <span className="hidden sm:inline-flex items-center gap-1 text-meta text-sol-text-dim/70 shrink-0">
-          <KeyCap size="xs">{ALT_CAP}</KeyCap><KeyCap size="xs">R</KeyCap> change
+          <KeyCap size="xs">{ALT_CAP}</KeyCap>
+          <KeyCap size="xs">R</KeyCap> change
         </span>
-        <button type="button" onClick={() => { onPick(null); onDone(); }} className="p-1 rounded text-sol-text-dim/70 hover:text-sol-red hover:bg-sol-red/10 transition-colors shrink-0" aria-label="Start a fresh session instead">
+        <button
+          type="button"
+          onClick={() => {
+            onPick(null);
+            onDone();
+          }}
+          className="p-1 rounded text-sol-text-dim/70 hover:text-sol-red hover:bg-sol-red/10 transition-colors shrink-0"
+          aria-label="Start a fresh session instead"
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -203,7 +287,14 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
   const firstOther = shown.findIndex((r) => !r.mine);
   const byHandle = query.trimStart().startsWith("@");
   return (
-    <div ref={rootRef} className={`w-full rounded-lg border border-sol-violet/40 bg-sol-bg-alt/40 ring-1 ring-sol-violet/20 text-xs ${className}`} role="combobox" aria-expanded="true" aria-haspopup="listbox" aria-controls="compose-role-list">
+    <div
+      ref={rootRef}
+      className={`w-full rounded-lg border border-sol-violet/40 bg-sol-bg-alt/40 ring-1 ring-sol-violet/20 text-xs ${className}`}
+      role="combobox"
+      aria-expanded="true"
+      aria-haspopup="listbox"
+      aria-controls="compose-role-list"
+    >
       <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-sol-border/40">
         <AtSign className="w-3.5 h-3.5 text-sol-violet shrink-0" />
         <input
@@ -218,33 +309,67 @@ export function ComposeRolePicker({ picked, onPick, onDone, page, className = ""
           className="flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-sm text-sol-text placeholder:text-sol-text-dim/60"
         />
       </div>
-      <ul id="compose-role-list" role="listbox" className="max-h-56 overflow-y-auto py-1">
-        {shown.length === 0 && <li className="px-2.5 py-2 text-sol-text-dim">No role matches &ldquo;{query}&rdquo;</li>}
+      <ul
+        id="compose-role-list"
+        role="listbox"
+        className="max-h-56 overflow-y-auto py-1"
+      >
+        {shown.length === 0 && (
+          <li className="px-2.5 py-2 text-sol-text-dim">
+            No role matches &ldquo;{query}&rdquo;
+          </li>
+        )}
         {shown.map((r, i) => {
           const idx = selectable.indexOf(r);
           const isHi = idx >= 0 && idx === Math.min(hi, selectable.length - 1);
           const dead = !r.standingId;
           return (
-            <li key={r.role._id} role="option" aria-selected={isHi} aria-disabled={dead || undefined} className="contents">
+            <li
+              key={r.role._id}
+              role="option"
+              aria-selected={isHi}
+              aria-disabled={dead || undefined}
+              className="contents"
+            >
               {i === firstOther && (
-                <div className={`px-2.5 pb-1 text-meta text-sol-text-dim/60 ${i > 0 ? "mt-1 pt-1.5 border-t border-sol-border/30" : ""}`}>Other people&rsquo;s roles</div>
+                <div
+                  className={`px-2.5 pb-1 text-meta text-sol-text-dim/60 ${i > 0 ? "mt-1 pt-1.5 border-t border-sol-border/30" : ""}`}
+                >
+                  Other people&rsquo;s roles
+                </div>
               )}
               <button
                 type="button"
                 data-handle={r.handle}
                 disabled={dead}
                 onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => { if (idx >= 0) setHi(idx); }}
+                onMouseEnter={() => {
+                  if (idx >= 0) setHi(idx);
+                }}
                 onClick={() => pick(r)}
                 className={`flex items-center gap-2 w-full min-w-0 px-2.5 py-1.5 text-left transition-colors ${
-                  isHi ? "bg-sol-violet/15 text-sol-text" : dead ? "cursor-default" : "hover:bg-sol-bg-alt"
+                  isHi
+                    ? "bg-sol-violet/15 text-sol-text"
+                    : dead
+                      ? "cursor-default"
+                      : "hover:bg-sol-bg-alt"
                 } ${r.mine ? "" : "opacity-70"} ${dead ? "opacity-50" : ""}`}
               >
                 <RoleFace role={r.role} size={20} />
                 <RoleLine r={r} handle={byHandle} />
-                {!dead && r.role.status !== "paused" && <StandingDot r={r} withLabel />}
-                {r.role.status === "paused" && <span className="shrink-0 text-meta text-sol-yellow/80">paused</span>}
-                {dead && <span className="shrink-0 text-meta text-sol-text-dim">no agent yet</span>}
+                {!dead && r.role.status !== "paused" && (
+                  <StandingDot r={r} withLabel />
+                )}
+                {r.role.status === "paused" && (
+                  <span className="shrink-0 text-meta text-sol-yellow/80">
+                    paused
+                  </span>
+                )}
+                {dead && (
+                  <span className="shrink-0 text-meta text-sol-text-dim">
+                    no agent yet
+                  </span>
+                )}
               </button>
             </li>
           );
@@ -267,20 +392,42 @@ function RoleLine({ r, handle }: { r: RoleRecipient; handle?: boolean }) {
     <span className="flex items-center gap-1.5 min-w-0 flex-1">
       <span className="font-medium text-sol-text shrink-0">{r.name}</span>
       <span className="text-sol-text-muted truncate">{r.title}</span>
-      {r.area && <span className="text-sol-text-dim truncate min-w-0 shrink-[2]">· {r.area}</span>}
-      {handle && <span className="ml-auto pl-2 text-sol-text-dim/60 font-mono shrink-0">@{r.handle}</span>}
+      {r.area && (
+        <span className="text-sol-text-dim truncate min-w-0 shrink-[2]">
+          · {r.area}
+        </span>
+      )}
+      {handle && (
+        <span className="ml-auto pl-2 text-sol-text-dim/60 font-mono shrink-0">
+          @{r.handle}
+        </span>
+      )}
     </span>
   );
 }
 
 /** The role's standing session as a coloured dot (its declared status, else
  *  its observed work state): what the role is doing before it is handed more. */
-function StandingDot({ r, withLabel }: { r: RoleRecipient; withLabel?: boolean }) {
+function StandingDot({
+  r,
+  withLabel,
+}: {
+  r: RoleRecipient;
+  withLabel?: boolean;
+}) {
   const line = standingLineOf(r.role.standing);
   if (!line) return null;
   return (
-    <span className="inline-flex items-center gap-1 shrink-0 text-meta" style={{ color: line.color }} title={line.text ?? line.label}>
-      <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: line.color }} />
+    <span
+      className="inline-flex items-center gap-1 shrink-0 text-meta"
+      style={{ color: line.color }}
+      title={line.text ?? line.label}
+    >
+      <span
+        aria-hidden
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ background: line.color }}
+      />
       {withLabel && line.label}
     </span>
   );
@@ -289,7 +436,13 @@ function StandingDot({ r, withLabel }: { r: RoleRecipient; withLabel?: boolean }
 function Hint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="inline-flex items-center gap-[2px]">{keys.map((k) => <KeyCap key={k} size="xs">{k}</KeyCap>)}</span>
+      <span className="inline-flex items-center gap-[2px]">
+        {keys.map((k) => (
+          <KeyCap key={k} size="xs">
+            {k}
+          </KeyCap>
+        ))}
+      </span>
       <span>{label}</span>
     </span>
   );

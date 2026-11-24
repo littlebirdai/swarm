@@ -18,14 +18,25 @@ import type { TimelineEntry } from "../../convex/versions";
 import type { ElementRef } from "../../convex/validators";
 import { useHere, usePresenceBeat } from "../data/presence";
 import { errorData } from "../lib/errors";
-import { useIdentity, useMaybeIdentity, useRetryIdentity, useVisitorMutation, useVisitorQuery } from "../lib/identity";
+import {
+  useIdentity,
+  useMaybeIdentity,
+  useRetryIdentity,
+  useVisitorMutation,
+  useVisitorQuery,
+} from "../lib/identity";
 import { lazyPart } from "../lib/lazyPart";
 import { appUrl, navigate, versionUrl } from "../lib/router";
 import { focusLost } from "../lib/focus";
 import { load, save } from "../lib/storage";
 import { useDesktop } from "../lib/useMedia";
 import { useToast } from "../ui/Toast";
-import type { AppFrameEvents, AppFrameHandle, FailedFrame, FrameSession } from "./AppFrame";
+import type {
+  AppFrameEvents,
+  AppFrameHandle,
+  FailedFrame,
+  FrameSession,
+} from "./AppFrame";
 import {
   AppStateContext,
   ComposerContext,
@@ -51,18 +62,44 @@ import s from "./AppPage.module.css";
 
 const RoomPanel = lazyPart(() => import("./Room").then((m) => m.RoomPanel));
 const RoomSheet = lazyPart(() => import("./Room").then((m) => m.RoomSheet));
-const TimelineDock = lazyPart(() => import("./Timeline").then((m) => m.TimelineDock));
-const ForkModal = lazyPart(() => import("./ForkModal").then((m) => m.ForkModal));
-const FirstBuild = lazyPart(() => import("./FirstBuild").then((m) => m.FirstBuild));
+const TimelineDock = lazyPart(() =>
+  import("./Timeline").then((m) => m.TimelineDock),
+);
+const ForkModal = lazyPart(() =>
+  import("./ForkModal").then((m) => m.ForkModal),
+);
+const FirstBuild = lazyPart(() =>
+  import("./FirstBuild").then((m) => m.FirstBuild),
+);
 
-export function AppPage({ slug, version, room }: { slug: string; version: number | null; room: boolean }) {
+export function AppPage({
+  slug,
+  version,
+  room,
+}: {
+  slug: string;
+  version: number | null;
+  room: boolean;
+}) {
   const { app, fromCache } = useAppView(slug);
   const identity = useMaybeIdentity();
   const retry = useRetryIdentity();
   if (app === null) return <NotFound />;
   return (
-    <Stage key={slug} slug={slug} version={version ?? app?.live_version ?? null} onStuck={identity ? null : retry}>
-      {app && identity && <AppRoom key={fromCache ? `${app.id}:kept` : app.id} app={app} version={version} room={room} />}
+    <Stage
+      key={slug}
+      slug={slug}
+      version={version ?? app?.live_version ?? null}
+      onStuck={identity ? null : retry}
+    >
+      {app && identity && (
+        <AppRoom
+          key={fromCache ? `${app.id}:kept` : app.id}
+          app={app}
+          version={version}
+          room={room}
+        />
+      )}
     </Stage>
   );
 }
@@ -72,12 +109,19 @@ export function AppPage({ slug, version, room }: { slug: string; version: number
  *  page as it is; a different one starts the room over from the answer, so
  *  a cached page never celebrates a version that went live while nobody here
  *  looked. */
-function useAppView(slug: string): { app: AppView | null | undefined; fromCache: boolean } {
+function useAppView(slug: string): {
+  app: AppView | null | undefined;
+  fromCache: boolean;
+} {
   const key = `clayground.app.${slug}`;
   const asked = useQuery(api.apps.get, { slug });
   const [kept] = useState(() => load<AppView | null>(key, null));
   const keep = useRef<boolean | null>(null);
-  if (asked !== undefined && keep.current === null) keep.current = !!kept && kept.id === asked?.id && kept.live_version === asked.live_version;
+  if (asked !== undefined && keep.current === null)
+    keep.current =
+      !!kept &&
+      kept.id === asked?.id &&
+      kept.live_version === asked.live_version;
   useEffect(() => {
     if (asked !== undefined) save(key, asked);
   }, [asked, key]);
@@ -95,7 +139,8 @@ function useSticky(on: boolean): boolean {
 /** Once the app is on screen, the parts it opens load while nothing else is
  *  happening, so the first open never waits for them. */
 function preloadParts() {
-  const idle = window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 1500));
+  const idle =
+    window.requestIdleCallback ?? ((run: () => void) => setTimeout(run, 1500));
   idle(() => {
     void RoomPanel.preload();
     void TimelineDock.preload();
@@ -109,14 +154,27 @@ const DOCK_HEIGHT = 68;
 const PAST_BAR_HEIGHT = 48;
 const NO_MESSAGES: MessageView[] = [];
 
-function AppRoom({ app, version, room }: { app: AppView; version: number | null; room: boolean }) {
+function AppRoom({
+  app,
+  version,
+  room,
+}: {
+  app: AppView;
+  version: number | null;
+  room: boolean;
+}) {
   const { creds, me } = useIdentity();
   const toast = useToast();
   const desktop = useDesktop();
   const openPicker = useCharacterPicker();
   useOpenGraph(app);
 
-  const viewing = version !== null && version !== app.live_version && version <= app.version_count ? version : null;
+  const viewing =
+    version !== null &&
+    version !== app.live_version &&
+    version <= app.version_count
+      ? version
+      : null;
   usePresenceBeat(app.id, viewing);
   const here = useHere(app.id);
   const hereNow = useRef(here);
@@ -128,31 +186,57 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
 
   // What the page reads: the room's stream and the timeline once they open,
   // or as soon as someone reaches for them, and from then on.
-  const [reached, setReached] = useState<{ room: boolean; timeline: boolean }>({ room: false, timeline: false });
+  const [reached, setReached] = useState<{ room: boolean; timeline: boolean }>({
+    room: false,
+    timeline: false,
+  });
   const prepare = useCallback((part: "room" | "timeline") => {
     void (part === "room" ? RoomPanel : TimelineDock).preload();
     setReached((r) => (r[part] ? r : { ...r, [part]: true }));
   }, []);
   const roomSeen = useSticky(room);
   const streamOn = useSticky(room || reached.room);
-  const timelineOn = useSticky(room || dock || viewing !== null || reached.room || reached.timeline);
+  const timelineOn = useSticky(
+    room || dock || viewing !== null || reached.room || reached.timeline,
+  );
 
-  const page = usePaginatedQuery(api.messages.list, streamOn ? { app_id: app.id, ...creds } : "skip", { initialNumItems: STREAM_PAGE });
+  const page = usePaginatedQuery(
+    api.messages.list,
+    streamOn ? { app_id: app.id, ...creds } : "skip",
+    { initialNumItems: STREAM_PAGE },
+  );
   const paged = streamOn && page.status !== "LoadingFirstPage";
-  const latest = useVisitorQuery(api.messages.latest, paged ? "skip" : { app_id: app.id });
+  const latest = useVisitorQuery(
+    api.messages.latest,
+    paged ? "skip" : { app_id: app.id },
+  );
   const results = paged ? page.results : (latest ?? NO_MESSAGES);
   const messages = useMemo(() => [...results].reverse(), [results]);
-  const pageStatus: StreamState["status"] = streamOn ? page.status : latest === undefined ? "LoadingFirstPage" : "Exhausted";
+  const pageStatus: StreamState["status"] = streamOn
+    ? page.status
+    : latest === undefined
+      ? "LoadingFirstPage"
+      : "Exhausted";
   const { loadMore: loadPage } = page;
   const loadMore = useCallback(() => loadPage(STREAM_PAGE), [loadPage]);
 
-  const timeline = useVisitorQuery(api.versions.list, timelineOn ? { app_id: app.id } : "skip");
-  const liveEntry = useVisitorQuery(api.versions.get, timeline ? "skip" : { app_id: app.id, number: app.live_version });
+  const timeline = useVisitorQuery(
+    api.versions.list,
+    timelineOn ? { app_id: app.id } : "skip",
+  );
+  const liveEntry = useVisitorQuery(
+    api.versions.get,
+    timeline ? "skip" : { app_id: app.id, number: app.live_version },
+  );
   // Without the timeline, the live version's entries seen so far, kept while
   // the next one loads.
   const [seen, setSeen] = useState<Map<number, TimelineEntry>>(new Map());
-  if (liveEntry && seen.get(liveEntry.number) !== liveEntry) setSeen(new Map(seen).set(liveEntry.number, liveEntry));
-  const versionByNumber = useMemo(() => (timeline ? new Map(timeline.map((v) => [v.number, v])) : seen), [timeline, seen]);
+  if (liveEntry && seen.get(liveEntry.number) !== liveEntry)
+    setSeen(new Map(seen).set(liveEntry.number, liveEntry));
+  const versionByNumber = useMemo(
+    () => (timeline ? new Map(timeline.map((v) => [v.number, v])) : seen),
+    [timeline, seen],
+  );
 
   // Where you are: the URL is the state, so a link always reopens it.
   const go = useCallback(
@@ -166,21 +250,32 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
   // Stepping through the past replaces the entry it came from, so Back
   // leaves the past in one step rather than replaying every version seen.
   const inPast = viewing !== null;
-  const view = useCallback((n: number | null) => {
-    go(n === app.live_version ? null : n, room, inPast);
-    setShowAppAt(Date.now());
-  }, [go, room, app.live_version, inPast]);
+  const view = useCallback(
+    (n: number | null) => {
+      go(n === app.live_version ? null : n, room, inPast);
+      setShowAppAt(Date.now());
+    },
+    [go, room, app.live_version, inPast],
+  );
   const [warmed, warm] = useState<number | null>(null);
-  const setRoomOpen = useCallback((open: boolean) => go(version, open, true), [go, version]);
+  const setRoomOpen = useCallback(
+    (open: boolean) => go(version, open, true),
+    [go, version],
+  );
 
   // The composer: its mode sticks per app on this device.
   const modeKey = `clayground.mode.${app.id}`;
   const [draft] = useState(createDraft);
-  const [mode, setModeState] = useState<Mode>(() => load<Mode>(modeKey, "auto"));
-  const setMode = useCallback((m: Mode) => {
-    setModeState(m);
-    save(modeKey, m);
-  }, [modeKey]);
+  const [mode, setModeState] = useState<Mode>(() =>
+    load<Mode>(modeKey, "auto"),
+  );
+  const setMode = useCallback(
+    (m: Mode) => {
+      setModeState(m);
+      save(modeKey, m);
+    },
+    [modeKey],
+  );
   const [element, setElement] = useState<ElementRef | null>(null);
   const [focusAt, setFocusAt] = useState(0);
   const focus = useCallback(() => {
@@ -204,11 +299,15 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
     (v: number, message: string) => {
       if (reported.current.has(v)) return;
       reported.current.add(v);
-      reportError({ app_id: app.id, version: v, message }).catch(() => reported.current.delete(v));
+      reportError({ app_id: app.id, version: v, message }).catch(() =>
+        reported.current.delete(v),
+      );
     },
     [reportError, app.id],
   );
-  const liveError = messages.some((m) => m.note?.type === "error" && m.note.version === app.live_version);
+  const liveError = messages.some(
+    (m) => m.note?.type === "error" && m.note.version === app.live_version,
+  );
 
   // The beat a version goes live: it lands when the new version is on
   // screen, and only then do the card, the bead, the faces and the app
@@ -225,13 +324,16 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
   const liveNow = useRef(app.live_version);
   liveNow.current = app.live_version;
   const shownOnce = useRef(false);
-  const onShown = useCallback((v: number) => {
-    if (!shownOnce.current) {
-      shownOnce.current = true;
-      preloadParts();
-    }
-    if (v === liveNow.current) land(v);
-  }, [land]);
+  const onShown = useCallback(
+    (v: number) => {
+      if (!shownOnce.current) {
+        shownOnce.current = true;
+        preloadParts();
+      }
+      if (v === liveNow.current) land(v);
+    },
+    [land],
+  );
   useEffect(() => {
     if (viewing !== null) land(app.live_version);
   }, [viewing, app.live_version, land]);
@@ -249,14 +351,20 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
     spotlit.current = cheer;
     const where = entry.spotlight;
     if (!where) return setGlow(cheer);
-    void (frame.current?.spotlight(where) ?? Promise.resolve(false)).then((found) => found || setGlow(cheer));
+    void (frame.current?.spotlight(where) ?? Promise.resolve(false)).then(
+      (found) => found || setGlow(cheer),
+    );
   }, [cheer, versionByNumber, viewing]);
 
   const restoreMutation = useVisitorMutation(api.versions.restore);
   const restore = useCallback(
     async (n: number, expectedLive: number) => {
       try {
-        await restoreMutation({ app_id: app.id, number: n, expected_live: expectedLive });
+        await restoreMutation({
+          app_id: app.id,
+          number: n,
+          expected_live: expectedLive,
+        });
         view(null);
       } catch (err) {
         toast({ text: errorData(err).message });
@@ -265,11 +373,16 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
     [restoreMutation, app.id, view, toast],
   );
   const [forkFrom, setForkFrom] = useState<number | null>(null);
-  const openCharacterPicker = useCallback(() => openPicker(hereNow.current.entries.map((e) => e.visitor)), [openPicker]);
+  const openCharacterPicker = useCallback(
+    () => openPicker(hereNow.current.entries.map((e) => e.visitor)),
+    [openPicker],
+  );
 
   const building = useMemo(
     () =>
-      (landing !== null ? messages.find((m) => m.build?.result_version === landing) : undefined) ??
+      (landing !== null
+        ? messages.find((m) => m.build?.result_version === landing)
+        : undefined) ??
       messages.find((m) => m.build?.status === "building") ??
       messages.find((m) => m.build?.status === "queued") ??
       null,
@@ -279,13 +392,26 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
   // once it has landed there, in a page of the gallery's size out of sight.
   const [pictured, setPictured] = useState(0);
   const live = app.live;
-  const pictureLive = live && !live.has_still && live.author_id === me.id && landed === live.number && pictured !== live.number ? live.number : null;
+  const pictureLive =
+    live &&
+    !live.has_still &&
+    live.author_id === me.id &&
+    landed === live.number &&
+    pictured !== live.number
+      ? live.number
+      : null;
   const pastBar = dock && viewing !== null;
   const shown = viewing ?? app.live_version;
   // Ready out of sight: the versions either side of the one on screen while
   // the timeline is open, and the one its hover points at.
   const preload = useMemo(
-    () => [...new Set([...(dock || viewing !== null ? [shown - 1, shown + 1] : []), warmed ?? 0])].filter((n) => n >= 1 && n <= app.live_version && n !== shown),
+    () =>
+      [
+        ...new Set([
+          ...(dock || viewing !== null ? [shown - 1, shown + 1] : []),
+          warmed ?? 0,
+        ]),
+      ].filter((n) => n >= 1 && n <= app.live_version && n !== shown),
     [dock, viewing, shown, warmed, app.live_version],
   );
   // The app on screen tried to write while looking only: the past bar says why.
@@ -304,10 +430,47 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
 
   const state = useMemo<AppState>(
     () => ({
-      app, timeline, versionByNumber, viewing, view, warm, prepare, flashLive, showAppAt, roomOpen: room, setRoomOpen, picking, setPicking,
-      landed, making, cheer, restore, startFork: setForkFrom, openCharacterPicker, reveal, setReveal,
+      app,
+      timeline,
+      versionByNumber,
+      viewing,
+      view,
+      warm,
+      prepare,
+      flashLive,
+      showAppAt,
+      roomOpen: room,
+      setRoomOpen,
+      picking,
+      setPicking,
+      landed,
+      making,
+      cheer,
+      restore,
+      startFork: setForkFrom,
+      openCharacterPicker,
+      reveal,
+      setReveal,
     }),
-    [app, timeline, versionByNumber, viewing, view, prepare, flashLive, showAppAt, room, setRoomOpen, picking, landed, making, cheer, restore, openCharacterPicker, reveal],
+    [
+      app,
+      timeline,
+      versionByNumber,
+      viewing,
+      view,
+      prepare,
+      flashLive,
+      showAppAt,
+      room,
+      setRoomOpen,
+      picking,
+      landed,
+      making,
+      cheer,
+      restore,
+      openCharacterPicker,
+      reveal,
+    ],
   );
   const stream = useMemo<StreamState>(
     () => ({ messages, status: pageStatus, loadMore, building }),
@@ -322,11 +485,21 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
   // (desktop), Esc backs out of picking, then the past.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && (e.target.closest("input, textarea, [contenteditable]") !== null);
+      const typing =
+        e.target instanceof HTMLElement &&
+        e.target.closest("input, textarea, [contenteditable]") !== null;
       if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         focus();
-      } else if (e.key.toLowerCase() === "t" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey && desktop && !room) {
+      } else if (
+        e.key.toLowerCase() === "t" &&
+        !typing &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        desktop &&
+        !room
+      ) {
         setTimelineOnly((t) => !t);
       } else if (e.key === "Escape" && !e.defaultPrevented) {
         if (picking) setPicking(false);
@@ -355,7 +528,9 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
     }
   }, [room, desktop, focusAt]);
 
-  const [roomWidth, setRoomWidth] = useState(() => load("clayground.roomWidth", ROOM_DEFAULT));
+  const [roomWidth, setRoomWidth] = useState(() =>
+    load("clayground.roomWidth", ROOM_DEFAULT),
+  );
   const resizeRoom = useCallback((w: number) => {
     setRoomWidth(w);
     save("clayground.roomWidth", w);
@@ -369,20 +544,54 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
   // The stage: the app's frame shows the version in view, sized around the
   // panel and the dock.
   const [failed, setFailed] = useState<FailedFrame | null>(null);
-  const onPicked = useCallback((el: ElementRef) => {
-    setElement(el);
-    setPicking(false);
-    focus();
-  }, [focus]);
+  const onPicked = useCallback(
+    (el: ElementRef) => {
+      setElement(el);
+      setPicking(false);
+      focus();
+    },
+    [focus],
+  );
   const onPickCancelled = useCallback(() => setPicking(false), []);
   const events = useMemo<AppFrameEvents>(
-    () => ({ onPicked, onPickCancelled, onError, onShown, onRefused, onFailed: setFailed }),
+    () => ({
+      onPicked,
+      onPickCancelled,
+      onError,
+      onShown,
+      onRefused,
+      onFailed: setFailed,
+    }),
     [onPicked, onPickCancelled, onError, onShown, onRefused],
   );
-  const session = useMemo<FrameSession>(() => ({ creds, me, appId: app.id, name: app.name }), [creds, me, app.id, app.name]);
+  const session = useMemo<FrameSession>(
+    () => ({ creds, me, appId: app.id, name: app.name }),
+    [creds, me, app.id, app.name],
+  );
   const control = useMemo<StageControl>(
-    () => ({ frame: { version: shown, live: app.live_version, preload, picking, session, events, ref: frame }, right: panelWidth, bottom: lift }),
-    [shown, app.live_version, preload, picking, session, events, panelWidth, lift],
+    () => ({
+      frame: {
+        version: shown,
+        live: app.live_version,
+        preload,
+        picking,
+        session,
+        events,
+        ref: frame,
+      },
+      right: panelWidth,
+      bottom: lift,
+    }),
+    [
+      shown,
+      app.live_version,
+      preload,
+      picking,
+      session,
+      events,
+      panelWidth,
+      lift,
+    ],
   );
   const { area, col } = useStage(control);
 
@@ -391,49 +600,92 @@ function AppRoom({ app, version, room }: { app: AppView; version: number | null;
       <HereContext.Provider value={here}>
         <StreamContext.Provider value={stream}>
           <ComposerContext.Provider value={composer}>
-            {area && createPortal(
-              <>
-                {madeBy && <FirstBuild m={madeBy} leaving={!making} />}
-                {failed && <div className={s.failed}><FrameFailed {...failed} /></div>}
-                {viewing !== null && <div className={s.pastOutline} />}
-                {flash > 0 && <div key={flash} className={s.liveFlash} />}
-                {glow > 0 && viewing === null && <div key={glow} className={s.landGlow} />}
-                {/* Never over the app's own controls: with the timeline open the past
+            {area &&
+              createPortal(
+                <>
+                  {madeBy && <FirstBuild m={madeBy} leaving={!making} />}
+                  {failed && (
+                    <div className={s.failed}>
+                      <FrameFailed {...failed} />
+                    </div>
+                  )}
+                  {viewing !== null && <div className={s.pastOutline} />}
+                  {flash > 0 && <div key={flash} className={s.liveFlash} />}
+                  {glow > 0 && viewing === null && (
+                    <div key={glow} className={s.landGlow} />
+                  )}
+                  {/* Never over the app's own controls: with the timeline open the past
                     bar takes its own strip above it; otherwise the pill sits above
                     the capsule, and on a phone with the room open the sheet says it. */}
-                {viewing !== null && !pastBar && (desktop || !room) && (
-                  <ViewingPill number={viewing} place="capsule" compact={!desktop} nudge={nudge} onBack={backToLive} />
-                )}
-                {picking && <PickBanner onCancel={onPickCancelled} />}
-                {pictureLive && (
-                  <PreviewFrame
-                    key={pictureLive}
-                    appId={app.id}
-                    slug={app.slug}
-                    name={app.name}
-                    version={pictureLive}
-                    pictureIt
-                    className={s.stillFrame}
-                    onPictured={() => setPictured(pictureLive)}
-                  />
-                )}
-              </>,
-              area,
+                  {viewing !== null && !pastBar && (desktop || !room) && (
+                    <ViewingPill
+                      number={viewing}
+                      place="capsule"
+                      compact={!desktop}
+                      nudge={nudge}
+                      onBack={backToLive}
+                    />
+                  )}
+                  {picking && <PickBanner onCancel={onPickCancelled} />}
+                  {pictureLive && (
+                    <PreviewFrame
+                      key={pictureLive}
+                      appId={app.id}
+                      slug={app.slug}
+                      name={app.name}
+                      version={pictureLive}
+                      pictureIt
+                      className={s.stillFrame}
+                      onPictured={() => setPictured(pictureLive)}
+                    />
+                  )}
+                </>,
+                area,
+              )}
+            {col &&
+              createPortal(
+                <>
+                  {pastBar && viewing !== null && (
+                    <div
+                      className={s.pastBar}
+                      style={{ bottom: DOCK_HEIGHT, height: PAST_BAR_HEIGHT }}
+                    >
+                      <ViewingPill
+                        number={viewing}
+                        place="bar"
+                        compact={false}
+                        nudge={nudge}
+                        onBack={backToLive}
+                      />
+                    </div>
+                  )}
+                  {dock && (
+                    <TimelineDock onClose={room ? undefined : closeTimeline} />
+                  )}
+                </>,
+                col,
+              )}
+            {roomSeen &&
+              (desktop ? (
+                <RoomPanel
+                  open={room}
+                  width={clampWidth(roomWidth)}
+                  onResize={resizeRoom}
+                />
+              ) : (
+                <RoomSheet />
+              ))}
+            {!room && (
+              <Capsule
+                focusRef={capsuleFocus}
+                errorDot={liveError}
+                onTimeline={desktop ? toggleTimeline : undefined}
+                lift={lift}
+              />
             )}
-            {col && createPortal(
-              <>
-                {pastBar && viewing !== null && (
-                  <div className={s.pastBar} style={{ bottom: DOCK_HEIGHT, height: PAST_BAR_HEIGHT }}>
-                    <ViewingPill number={viewing} place="bar" compact={false} nudge={nudge} onBack={backToLive} />
-                  </div>
-                )}
-                {dock && <TimelineDock onClose={room ? undefined : closeTimeline} />}
-              </>,
-              col,
+            {forkFrom !== null && (
+              <ForkModal from={forkFrom} onClose={() => setForkFrom(null)} />
             )}
-            {roomSeen && (desktop ? <RoomPanel open={room} width={clampWidth(roomWidth)} onResize={resizeRoom} /> : <RoomSheet />)}
-            {!room && <Capsule focusRef={capsuleFocus} errorDot={liveError} onTimeline={desktop ? toggleTimeline : undefined} lift={lift} />}
-            {forkFrom !== null && <ForkModal from={forkFrom} onClose={() => setForkFrom(null)} />}
           </ComposerContext.Provider>
         </StreamContext.Provider>
       </HereContext.Provider>

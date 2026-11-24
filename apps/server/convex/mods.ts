@@ -2,7 +2,11 @@ import { v } from "convex/values";
 import { mutation, query } from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
-import { isTeamMember, resolveTeamForPath, type DirectoryMapping } from "./privacy";
+import {
+  isTeamMember,
+  resolveTeamForPath,
+  type DirectoryMapping,
+} from "./privacy";
 import { validateManifest } from "@codecast/shared/contracts/mods";
 import type { Id } from "./_generated/dataModel";
 import { LOG_CAP } from "./modLogs";
@@ -22,11 +26,16 @@ const MAX_CODE = 900_000;
 async function byName(ctx: any, userId: Id<"users">, name: string) {
   return await ctx.db
     .query("mods")
-    .withIndex("by_user_name", (q: any) => q.eq("user_id", userId).eq("name", name))
+    .withIndex("by_user_name", (q: any) =>
+      q.eq("user_id", userId).eq("name", name),
+    )
     .first();
 }
 
-async function tokenUser(ctx: any, api_token: string): Promise<Id<"users"> | null> {
+async function tokenUser(
+  ctx: any,
+  api_token: string,
+): Promise<Id<"users"> | null> {
   const result = await verifyApiToken(ctx, api_token);
   return result ? (result.userId as Id<"users">) : null;
 }
@@ -50,13 +59,17 @@ export const webList = query({
     }
     // The local half runs in a daemon, never in the page: the web learns only that one exists.
     // Where it runs names the author's machines, so only the author sees that.
-    return rows.map(({ local_code, local_off, local_devices, ...row }: any) => ({
-      ...row,
-      ...(String(row.user_id) === String(userId) ? { local_off, local_devices } : {}),
-      has_local: !!local_code,
-      owner_name: owners.get(String(row.user_id))?.name ?? undefined,
-      is_mine: String(row.user_id) === String(userId),
-    }));
+    return rows.map(
+      ({ local_code, local_off, local_devices, ...row }: any) => ({
+        ...row,
+        ...(String(row.user_id) === String(userId)
+          ? { local_off, local_devices }
+          : {}),
+        has_local: !!local_code,
+        owner_name: owners.get(String(row.user_id))?.name ?? undefined,
+        is_mine: String(row.user_id) === String(userId),
+      }),
+    );
   },
 });
 
@@ -66,8 +79,12 @@ export const webSetEnabled = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const row = await ctx.db.get(args.id);
-    if (!row || String(row.user_id) !== String(userId)) throw new Error("Only the mod's author can turn it on or off");
-    await ctx.db.patch(args.id, { enabled: args.enabled, updated_at: Date.now() });
+    if (!row || String(row.user_id) !== String(userId))
+      throw new Error("Only the mod's author can turn it on or off");
+    await ctx.db.patch(args.id, {
+      enabled: args.enabled,
+      updated_at: Date.now(),
+    });
   },
 });
 
@@ -78,8 +95,13 @@ export const webSetLocalDevice = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not signed in");
     const row = await ctx.db.get(args.id);
-    if (!row || String(row.user_id) !== String(userId)) throw new Error("Only the mod's author can choose where its local half runs");
-    await ctx.db.patch(args.id, { local_off: withDevice(row.local_off, args.device, !args.on) });
+    if (!row || String(row.user_id) !== String(userId))
+      throw new Error(
+        "Only the mod's author can choose where its local half runs",
+      );
+    await ctx.db.patch(args.id, {
+      local_off: withDevice(row.local_off, args.device, !args.on),
+    });
   },
 });
 
@@ -104,14 +126,20 @@ export const cliPush = mutation({
     const userId = await tokenUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
     const check = validateManifest(args.manifest);
-    if (!check.ok) return { error: `codecast-mod.json: ${check.errors.join("; ")}` };
+    if (!check.ok)
+      return { error: `codecast-mod.json: ${check.errors.join("; ")}` };
     const manifest = check.manifest;
-    if (args.code.length > MAX_CODE) return { error: `the bundle is ${Math.round(args.code.length / 1000)} KB; a mod holds at most ${MAX_CODE / 1000} KB` };
+    if (args.code.length > MAX_CODE)
+      return {
+        error: `the bundle is ${Math.round(args.code.length / 1000)} KB; a mod holds at most ${MAX_CODE / 1000} KB`,
+      };
     const shared = args.shared;
     // Any team named must be one the author belongs to, shared or not: a row
     // tagged with a stranger's team would land in that team's lists.
-    if (args.team_id && !(await isTeamMember(ctx, userId, args.team_id))) return { error: "--team names a team you do not belong to" };
-    if (shared && !args.team_id) return { error: "a shared mod needs a team you belong to (--team)" };
+    if (args.team_id && !(await isTeamMember(ctx, userId, args.team_id)))
+      return { error: "--team names a team you do not belong to" };
+    if (shared && !args.team_id)
+      return { error: "a shared mod needs a team you belong to (--team)" };
     const now = Date.now();
     const existing = await byName(ctx, userId, manifest.name);
     let id: Id<"mods">;
@@ -155,7 +183,17 @@ export const cliPush = mutation({
       });
     }
     if (args.publish) {
-      await ctx.db.insert("mod_versions", { mod_id: id, version, manifest, code: args.code, local_code: args.local_code, local_hash: args.local_hash, source: args.source, note: args.note, created_at: now });
+      await ctx.db.insert("mod_versions", {
+        mod_id: id,
+        version,
+        manifest,
+        code: args.code,
+        local_code: args.local_code,
+        local_hash: args.local_hash,
+        source: args.source,
+        note: args.note,
+        created_at: now,
+      });
     }
     return { id, name: manifest.name, rev, version, created: !existing };
   },
@@ -165,7 +203,8 @@ async function cliMod(ctx: any, api_token: string, name: string) {
   const userId = await tokenUser(ctx, api_token);
   if (!userId) return { error: "Unauthorized" as const };
   const row = await byName(ctx, userId, name);
-  if (!row) return { error: `no mod named "${name}" (cast mod ls lists yours)` };
+  if (!row)
+    return { error: `no mod named "${name}" (cast mod ls lists yours)` };
   return { userId, row };
 }
 
@@ -174,14 +213,31 @@ export const cliList = query({
   handler: async (ctx, args) => {
     const userId = await tokenUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
-    const rows = await ctx.db.query("mods").withIndex("by_user_name", (q: any) => q.eq("user_id", userId)).collect();
+    const rows = await ctx.db
+      .query("mods")
+      .withIndex("by_user_name", (q: any) => q.eq("user_id", userId))
+      .collect();
     const mods = [];
     for (const row of rows) {
-      const last = await ctx.db.query("mod_logs").withIndex("by_mod_created", (q: any) => q.eq("mod_id", row._id)).order("desc").first();
+      const last = await ctx.db
+        .query("mod_logs")
+        .withIndex("by_mod_created", (q: any) => q.eq("mod_id", row._id))
+        .order("desc")
+        .first();
       mods.push({
-        name: row.name, title: row.title, description: row.description, rev: row.rev, version: row.version,
-        enabled: row.enabled, shared: row.shared ?? false, updated_at: row.updated_at, bytes: row.code.length,
-        manifest: row.manifest, last_log: last ? { level: last.level, text: last.text, at: last.created_at } : null,
+        name: row.name,
+        title: row.title,
+        description: row.description,
+        rev: row.rev,
+        version: row.version,
+        enabled: row.enabled,
+        shared: row.shared ?? false,
+        updated_at: row.updated_at,
+        bytes: row.code.length,
+        manifest: row.manifest,
+        last_log: last
+          ? { level: last.level, text: last.text, at: last.created_at }
+          : null,
       });
     }
     return { mods };
@@ -189,16 +245,28 @@ export const cliList = query({
 });
 
 export const cliLogs = query({
-  args: { api_token: v.string(), name: v.string(), since: v.optional(v.number()), limit: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    name: v.string(),
+    since: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const got = await cliMod(ctx, args.api_token, args.name);
     if ("error" in got) return got;
     const rows = await ctx.db
       .query("mod_logs")
-      .withIndex("by_mod_created", (q: any) => q.eq("mod_id", got.row._id).gt("created_at", args.since ?? 0))
+      .withIndex("by_mod_created", (q: any) =>
+        q.eq("mod_id", got.row._id).gt("created_at", args.since ?? 0),
+      )
       .order("desc")
       .take(Math.max(1, Math.min(args.limit ?? 100, LOG_CAP)));
-    return { rev: got.row.rev, logs: rows.reverse().map((r: any) => ({ level: r.level, text: r.text, at: r.created_at })) };
+    return {
+      rev: got.row.rev,
+      logs: rows
+        .reverse()
+        .map((r: any) => ({ level: r.level, text: r.text, at: r.created_at })),
+    };
   },
 });
 
@@ -207,7 +275,10 @@ export const cliSetEnabled = mutation({
   handler: async (ctx, args) => {
     const got = await cliMod(ctx, args.api_token, args.name);
     if ("error" in got) return got;
-    await ctx.db.patch(got.row._id, { enabled: args.enabled, updated_at: Date.now() });
+    await ctx.db.patch(got.row._id, {
+      enabled: args.enabled,
+      updated_at: Date.now(),
+    });
     return { ok: true };
   },
 });
@@ -221,14 +292,30 @@ export const cliRemove = mutation({
     // A version carries up to a megabyte of code and source, so versions go a
     // few at a time and the row goes last: a removal that runs out of room is
     // finished by running it again.
-    const versions = await ctx.db.query("mod_versions").withIndex("by_mod_version", (q) => q.eq("mod_id", modId)).take(8);
+    const versions = await ctx.db
+      .query("mod_versions")
+      .withIndex("by_mod_version", (q) => q.eq("mod_id", modId))
+      .take(8);
     for (const r of versions) await ctx.db.delete(r._id);
     if (versions.length === 8) return { ok: false, more: true };
-    const logs = await ctx.db.query("mod_logs").withIndex("by_mod_created", (q) => q.eq("mod_id", modId)).collect();
-    const state = await ctx.db.query("mod_state").withIndex("by_mod_key", (q) => q.eq("mod_id", modId)).collect();
-    const calls = await ctx.db.query("mod_calls").withIndex("by_mod_created", (q) => q.eq("mod_id", modId)).collect();
-    const secrets = await ctx.db.query("mod_secrets").withIndex("by_mod_name", (q) => q.eq("mod_id", modId)).collect();
-    for (const r of [...logs, ...state, ...calls, ...secrets]) await ctx.db.delete(r._id);
+    const logs = await ctx.db
+      .query("mod_logs")
+      .withIndex("by_mod_created", (q) => q.eq("mod_id", modId))
+      .collect();
+    const state = await ctx.db
+      .query("mod_state")
+      .withIndex("by_mod_key", (q) => q.eq("mod_id", modId))
+      .collect();
+    const calls = await ctx.db
+      .query("mod_calls")
+      .withIndex("by_mod_created", (q) => q.eq("mod_id", modId))
+      .collect();
+    const secrets = await ctx.db
+      .query("mod_secrets")
+      .withIndex("by_mod_name", (q) => q.eq("mod_id", modId))
+      .collect();
+    for (const r of [...logs, ...state, ...calls, ...secrets])
+      await ctx.db.delete(r._id);
     await ctx.db.delete(modId);
     return { ok: true };
   },
@@ -239,32 +326,56 @@ export const cliVersions = query({
   handler: async (ctx, args) => {
     const got = await cliMod(ctx, args.api_token, args.name);
     if ("error" in got) return got;
-    const rows = await ctx.db.query("mod_versions").withIndex("by_mod_version", (q: any) => q.eq("mod_id", got.row._id)).collect();
+    const rows = await ctx.db
+      .query("mod_versions")
+      .withIndex("by_mod_version", (q: any) => q.eq("mod_id", got.row._id))
+      .collect();
     return {
       current: got.row.version,
       rev: got.row.rev,
-      versions: rows.map((r: any) => ({ version: r.version, note: r.note, at: r.created_at, bytes: r.code.length, files: r.source ? Object.keys(r.source).length : 0 })),
+      versions: rows.map((r: any) => ({
+        version: r.version,
+        note: r.note,
+        at: r.created_at,
+        bytes: r.code.length,
+        files: r.source ? Object.keys(r.source).length : 0,
+      })),
     };
   },
 });
 
 /** One version's manifest and source: `cast mod pull` and `cast mod diff`. Readable by anyone who can see the mod. */
 export const cliGetVersion = query({
-  args: { api_token: v.string(), name: v.string(), version: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    name: v.string(),
+    version: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const got = await cliMod(ctx, args.api_token, args.name);
     if ("error" in got) return got;
     const version = args.version ?? got.row.version;
     const row = await ctx.db
       .query("mod_versions")
-      .withIndex("by_mod_version", (q: any) => q.eq("mod_id", got.row._id).eq("version", version))
+      .withIndex("by_mod_version", (q: any) =>
+        q.eq("mod_id", got.row._id).eq("version", version),
+      )
       .first();
     if (!row) {
-      return { error: got.row.version === 0
-        ? `"${args.name}" has only dev builds; pull reads published versions with their source, so publish one first (cast mod publish in its folder)`
-        : `"${args.name}" has no version ${version} (cast mod versions ${args.name} lists them)` };
+      return {
+        error:
+          got.row.version === 0
+            ? `"${args.name}" has only dev builds; pull reads published versions with their source, so publish one first (cast mod publish in its folder)`
+            : `"${args.name}" has no version ${version} (cast mod versions ${args.name} lists them)`,
+      };
     }
-    return { version: row.version, manifest: row.manifest, source: row.source ?? {}, note: row.note, at: row.created_at };
+    return {
+      version: row.version,
+      manifest: row.manifest,
+      source: row.source ?? {},
+      note: row.note,
+      at: row.created_at,
+    };
   },
 });
 
@@ -275,11 +386,22 @@ export const cliRollback = mutation({
     if ("error" in got) return got;
     const row = await ctx.db
       .query("mod_versions")
-      .withIndex("by_mod_version", (q: any) => q.eq("mod_id", got.row._id).eq("version", args.version))
+      .withIndex("by_mod_version", (q: any) =>
+        q.eq("mod_id", got.row._id).eq("version", args.version),
+      )
       .first();
     if (!row) return { error: `"${args.name}" has no version ${args.version}` };
     const rev = got.row.rev + 1;
-    await ctx.db.patch(got.row._id, { manifest: row.manifest, code: row.code, local_code: row.local_code, local_hash: row.local_hash, title: row.manifest?.title, description: row.manifest?.description, rev, updated_at: Date.now() });
+    await ctx.db.patch(got.row._id, {
+      manifest: row.manifest,
+      code: row.code,
+      local_code: row.local_code,
+      local_hash: row.local_hash,
+      title: row.manifest?.title,
+      description: row.manifest?.description,
+      rev,
+      updated_at: Date.now(),
+    });
     return { ok: true, rev, version: args.version };
   },
 });
@@ -297,16 +419,42 @@ export const cliGuide = query({
   handler: async (ctx, args) => {
     const userId = await tokenUser(ctx, args.api_token);
     if (!userId) return { error: "Unauthorized" };
-    let rows: any[] = (await ctx.db.query("mods").withIndex("by_user_name", (q: any) => q.eq("user_id", userId)).collect()).filter((r: any) => r.enabled);
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+    let rows: any[] = (
+      await ctx.db
+        .query("mods")
+        .withIndex("by_user_name", (q: any) => q.eq("user_id", userId))
+        .collect()
+    ).filter((r: any) => r.enabled);
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
     for (const m of memberships) {
-      const teamRows = await ctx.db.query("mods").withIndex("by_team_id", (q: any) => q.eq("team_id", m.team_id)).collect();
-      rows.push(...teamRows.filter((r: any) => r.shared && r.enabled && String(r.user_id) !== String(userId)));
+      const teamRows = await ctx.db
+        .query("mods")
+        .withIndex("by_team_id", (q: any) => q.eq("team_id", m.team_id))
+        .collect();
+      rows.push(
+        ...teamRows.filter(
+          (r: any) =>
+            r.shared && r.enabled && String(r.user_id) !== String(userId),
+        ),
+      );
     }
     if (args.project_path) {
-      const mappings = await ctx.db.query("directory_team_mappings").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
-      const { teamId } = resolveTeamForPath(mappings as DirectoryMapping[], args.project_path, undefined);
-      rows = rows.filter((r: any) => !r.team_id || (teamId && String(r.team_id) === String(teamId)));
+      const mappings = await ctx.db
+        .query("directory_team_mappings")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+        .collect();
+      const { teamId } = resolveTeamForPath(
+        mappings as DirectoryMapping[],
+        args.project_path,
+        undefined,
+      );
+      rows = rows.filter(
+        (r: any) =>
+          !r.team_id || (teamId && String(r.team_id) === String(teamId)),
+      );
     }
     return {
       mods: rows.map((r: any) => ({
@@ -316,7 +464,13 @@ export const cliGuide = query({
         mine: String(r.user_id) === String(userId),
         agents: r.manifest?.agents,
         fences: r.manifest?.fences ?? [],
-        objects: (r.manifest?.objects ?? []).map((k: any) => ({ prefix: k.prefix, title: k.title, statuses: k.statuses, fields: k.fields ? Object.keys(k.fields) : [], ...(k.external ? { external: true } : {}) })),
+        objects: (r.manifest?.objects ?? []).map((k: any) => ({
+          prefix: k.prefix,
+          title: k.title,
+          statuses: k.statuses,
+          fields: k.fields ? Object.keys(k.fields) : [],
+          ...(k.external ? { external: true } : {}),
+        })),
         panes: (r.manifest?.panes ?? []).map((p: any) => p.id),
       })),
     };

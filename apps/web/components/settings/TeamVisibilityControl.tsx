@@ -35,7 +35,9 @@ import { modernButton } from "../ui/modernLook";
  *  first: only new sessions, or everything, because a raise opens past
  *  sessions teammates could not read before. */
 export function TeamVisibilityControl({ team }: { team: TeamSharingFacts }) {
-  const setTeamMembershipVisibility = useInboxStore((s) => s.setTeamMembershipVisibility);
+  const setTeamMembershipVisibility = useInboxStore(
+    (s) => s.setTeamMembershipVisibility,
+  );
   const current = currentMembershipVisibility(team);
   const currentOption = teamVisibilityOption(current);
   const [raiseTo, setRaiseTo] = useState<TeamVisibilityLevel | null>(null);
@@ -87,10 +89,16 @@ export function TeamVisibilityControl({ team }: { team: TeamSharingFacts }) {
                 onClick={() => pick(option.value)}
                 className={`items-start gap-3 py-2 ${active ? "bg-sol-bg-highlight/40" : ""}`}
               >
-                <Check className={`mt-0.5 h-4 w-4 shrink-0 ${active ? "text-sol-cyan" : "opacity-0"}`} />
+                <Check
+                  className={`mt-0.5 h-4 w-4 shrink-0 ${active ? "text-sol-cyan" : "opacity-0"}`}
+                />
                 <span className="min-w-0">
-                  <span className="block text-sm text-sol-text">{option.label}</span>
-                  <span className="block text-xs leading-snug text-sol-text-muted">{option.detail}</span>
+                  <span className="block text-sm text-sol-text">
+                    {option.label}
+                  </span>
+                  <span className="block text-xs leading-snug text-sol-text-muted">
+                    {option.detail}
+                  </span>
                 </span>
               </DropdownMenuItem>
             );
@@ -98,12 +106,20 @@ export function TeamVisibilityControl({ team }: { team: TeamSharingFacts }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={raiseTo !== null} onOpenChange={(open) => !open && setRaiseTo(null)}>
+      <Dialog
+        open={raiseTo !== null}
+        onOpenChange={(open) => !open && setRaiseTo(null)}
+      >
         <DialogContent className="bg-sol-bg border-sol-border sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-sol-text">Show {team.name} more?</DialogTitle>
+            <DialogTitle className="text-sol-text">
+              Show {team.name} more?
+            </DialogTitle>
             <DialogDescription className="text-sol-text-muted">
-              Teammates in {team.name} see {currentOption.sees} today. With {raiseOption?.label}, {raiseOption ? lowerFirst(raiseOption.detail) : ""} Choose which sessions that applies to.
+              Teammates in {team.name} see {currentOption.sees} today. With{" "}
+              {raiseOption?.label},{" "}
+              {raiseOption ? lowerFirst(raiseOption.detail) : ""} Choose which
+              sessions that applies to.
             </DialogDescription>
           </DialogHeader>
           {raiseTo && raiseOption && (
@@ -130,7 +146,9 @@ export function TeamVisibilityControl({ team }: { team: TeamSharingFacts }) {
             />
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRaiseTo(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setRaiseTo(null)}>
+              Cancel
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,13 +1,22 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { goToTab, insideTabs, isTabAddress, noteRouteSegments } from "./tabNavigation";
+import {
+  goToTab,
+  insideTabs,
+  isTabAddress,
+  noteRouteSegments,
+} from "./tabNavigation";
 
 function recorder() {
   const calls: string[] = [];
   return {
     calls,
     router: {
-      navigate: (href: never) => { calls.push(`navigate ${href}`); },
-      dismissTo: (href: never) => { calls.push(`dismissTo ${href}`); },
+      navigate: (href: never) => {
+        calls.push(`navigate ${href}`);
+      },
+      dismissTo: (href: never) => {
+        calls.push(`dismissTo ${href}`);
+      },
     },
   };
 }
@@ -62,6 +71,9 @@ describe("goToTab", () => {
     goToTab(r.router, "/(tabs)/chat");
     noteRouteSegments(["(tabs)", "chat"]);
     goToTab(r.router, "/(tabs)/settings");
-    expect(r.calls).toEqual(["dismissTo /(tabs)/chat", "navigate /(tabs)/settings"]);
+    expect(r.calls).toEqual([
+      "dismissTo /(tabs)/chat",
+      "navigate /(tabs)/settings",
+    ]);
   });
 });

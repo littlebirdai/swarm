@@ -21,7 +21,10 @@ function stubFrames() {
     queue.push(cb);
     return queue.length;
   }) as typeof requestAnimationFrame;
-  return { next: () => queue.splice(0, queue.length).forEach((cb) => cb(0)), queue };
+  return {
+    next: () => queue.splice(0, queue.length).forEach((cb) => cb(0)),
+    queue,
+  };
 }
 
 function handle(collapse: () => void): RefObject<PanelImperativeHandle | null> {
@@ -46,7 +49,8 @@ describe("collapsePanelSoon", () => {
     collapsePanelSoon(
       handle(() => {
         calls++;
-        if (calls === 1) throw new Error("Panel constraints not found for Panel vault-tree");
+        if (calls === 1)
+          throw new Error("Panel constraints not found for Panel vault-tree");
       }),
       () => true,
     );

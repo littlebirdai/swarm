@@ -5,9 +5,12 @@ import schema from "./schema";
 
 setDefaultTimeout(60_000);
 
-const markCompleted = makeFunctionReference<"mutation">("conversations:markSessionCompleted");
+const markCompleted = makeFunctionReference<"mutation">(
+  "conversations:markSessionCompleted",
+);
 const modules = {
-  "./conversations.ts": () => import("./conversations"), "./_generated/server.ts": () => import("./_generated/server"),
+  "./conversations.ts": () => import("./conversations"),
+  "./_generated/server.ts": () => import("./_generated/server"),
   "./syncOutbox.ts": () => import("./syncOutbox"),
 };
 
@@ -16,8 +19,20 @@ test("an agent stopped by its own move in flight is not ended; once the fence is
   const { user, conv } = await t.run(async (ctx) => {
     const user = await ctx.db.insert("users", {});
     const conv = await ctx.db.insert("conversations", {
-      user_id: user, session_id: "s1", agent_type: "claude_code", status: "active", is_private: true, message_count: 1, started_at: Date.now(), updated_at: Date.now(),
-      migration: { batch_id: "mg-x", migration_id: "m1", to_device_id: "box", started_at: Date.now() } as any,
+      user_id: user,
+      session_id: "s1",
+      agent_type: "claude_code",
+      status: "active",
+      is_private: true,
+      message_count: 1,
+      started_at: Date.now(),
+      updated_at: Date.now(),
+      migration: {
+        batch_id: "mg-x",
+        migration_id: "m1",
+        to_device_id: "box",
+        started_at: Date.now(),
+      } as any,
     });
     return { user, conv };
   });

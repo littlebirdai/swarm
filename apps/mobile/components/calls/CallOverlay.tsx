@@ -9,7 +9,13 @@ import { useQuery } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
 import { Text } from "@/components/Themed";
-import { Theme, SolarizedLight, TAB_BAR_HEIGHT, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  Theme,
+  SolarizedLight,
+  TAB_BAR_HEIGHT,
+  themedStyles,
+  useTheme,
+} from "@/constants/Theme";
 import { CALL_PUSH_TYPE_RING } from "@codecast/shared/contracts";
 import { useAuth } from "@/lib/auth";
 import {
@@ -101,13 +107,18 @@ export function RingBanner({
           <Pressable
             onPress={() => onJoin(ring)}
             style={({ pressed }) => [styles.joinBtn, pressed && styles.pressed]}
-            accessibilityLabel={switching ? "Switch to this huddle" : "Join huddle"}
+            accessibilityLabel={
+              switching ? "Switch to this huddle" : "Join huddle"
+            }
           >
             <Ionicons name="call" size={16} color="#fff" />
           </Pressable>
           <Pressable
             onPress={() => onDecline(ring)}
-            style={({ pressed }) => [styles.declineBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.declineBtn,
+              pressed && styles.pressed,
+            ]}
             accessibilityLabel="Decline"
           >
             <Ionicons name="close" size={16} color={Theme.textMuted} />
@@ -146,7 +157,11 @@ export function CallOverlay() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
-  const call = useSyncExternalStore(subscribeCall, getCallSnapshot, getCallSnapshot);
+  const call = useSyncExternalStore(
+    subscribeCall,
+    getCallSnapshot,
+    getCallSnapshot,
+  );
   const rawRing = useIncomingRing();
   // On a CallKit binary the OS rings (lock-screen call UI, its own sound):
   // our banner + ringtone would be a second ring for one call. The system UI
@@ -159,7 +174,8 @@ export function CallOverlay() {
   // but no sound and no haptic.
   const quiet = useInboxStore((s) => (s.currentUser as any)?.status === "busy");
   // A call that owns the audio session silences the ring (see ringtone.ts).
-  const callOwnsAudio = call.phase === "connecting" || call.phase === "connected";
+  const callOwnsAudio =
+    call.phase === "connecting" || call.phase === "connected";
 
   // One haptic per distinct ring; the ringtone loops for as long as ANY ring
   // is live and stops the moment the subscription drops it (answered anywhere,
@@ -196,25 +212,50 @@ export function CallOverlay() {
 
   const onStage = pathname === "/call";
   const showPill = call.phase !== "idle" && !onStage;
-  const filming = isRecordingFilming(useRoomRecordingMark(call.phase === "connected" ? call.roomKey : null).status);
+  const filming = isRecordingFilming(
+    useRoomRecordingMark(call.phase === "connected" ? call.roomKey : null)
+      .status,
+  );
   // Tab screens carry the tab bar; anything pushed over them (session, chat,
   // thread) does not.
   const onTabScreen =
-    pathname === "/" || pathname === "/inbox" || pathname === "/tasks" || pathname === "/chat" ||
-    pathname === "/notifications" || pathname === "/settings" || isTabAddress(pathname);
+    pathname === "/" ||
+    pathname === "/inbox" ||
+    pathname === "/tasks" ||
+    pathname === "/chat" ||
+    pathname === "/notifications" ||
+    pathname === "/settings" ||
+    isTabAddress(pathname);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener("keyboardWillHide", () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
+    const show = Keyboard.addListener("keyboardWillShow", (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener("keyboardWillHide", () =>
+      setKeyboardHeight(0),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
   }, []);
 
   return (
     <>
       {/* Incoming ring banner — also mounted on the call stage (a
           fullScreenModal covers this root-level layer). */}
-      <RingBanner ring={ring} top={insets.top + 6} onJoin={joinRing} onDecline={declineRing} />
-      {showPill && <RecordingNotice roomKey={call.roomKey} floating={{ top: insets.top + 6 }} />}
+      <RingBanner
+        ring={ring}
+        top={insets.top + 6}
+        onJoin={joinRing}
+        onDecline={declineRing}
+      />
+      {showPill && (
+        <RecordingNotice
+          roomKey={call.roomKey}
+          floating={{ top: insets.top + 6 }}
+        />
+      )}
 
       {/* In-call pill */}
       {showPill && (
@@ -224,18 +265,35 @@ export function CallOverlay() {
             // Above the tab bar on tab screens; above the home indicator (or
             // the keyboard) elsewhere. The tab bar's box already includes the
             // bottom inset, so never add both.
-            { bottom: (onTabScreen ? TAB_BAR_HEIGHT : Math.max(insets.bottom, 12)) + keyboardHeight + 10 },
+            {
+              bottom:
+                (onTabScreen ? TAB_BAR_HEIGHT : Math.max(insets.bottom, 12)) +
+                keyboardHeight +
+                10,
+            },
           ]}
         >
           <Pressable
             onPress={() => router.push("/call")}
-            style={({ pressed }) => [styles.pillMain, pressed && styles.pressed]}
-            accessibilityLabel={filming ? "Open the call. This call is being recorded" : "Open the call"}
+            style={({ pressed }) => [
+              styles.pillMain,
+              pressed && styles.pressed,
+            ]}
+            accessibilityLabel={
+              filming
+                ? "Open the call. This call is being recorded"
+                : "Open the call"
+            }
           >
             {filming ? (
               <LivePulse color={SolarizedLight.red} size={6} />
             ) : (
-              <View style={[styles.liveDot, call.phase === "error" && styles.errorDot]} />
+              <View
+                style={[
+                  styles.liveDot,
+                  call.phase === "error" && styles.errorDot,
+                ]}
+              />
             )}
             <Text style={styles.pillText} numberOfLines={1}>
               {call.phase === "connecting"
@@ -251,7 +309,10 @@ export function CallOverlay() {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               void setMuted(!call.muted);
             }}
-            style={({ pressed }) => [styles.pillMute, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.pillMute,
+              pressed && styles.pressed,
+            ]}
             accessibilityLabel={call.muted ? "Unmute" : "Mute"}
           >
             <Ionicons
@@ -266,87 +327,105 @@ export function CallOverlay() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  banner: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    zIndex: 60,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: Theme.card,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  bannerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Theme.bgHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bannerAvatarLetter: { fontSize: 15, color: Theme.textMuted },
-  bannerText: { flex: 1, minWidth: 0 },
-  bannerName: { fontSize: 14, color: Theme.text },
-  bannerSub: { fontSize: 12, color: Theme.textMuted },
-  joinBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Theme.green,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  declineBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Theme.bgHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pressed: { opacity: 0.7 },
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    banner: {
+      position: "absolute",
+      left: 12,
+      right: 12,
+      zIndex: 60,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: Theme.card,
+      borderRadius: 16,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      shadowColor: "#000",
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    bannerAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Theme.bgHighlight,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    bannerAvatarLetter: { fontSize: 15, color: Theme.textMuted },
+    bannerText: { flex: 1, minWidth: 0 },
+    bannerName: { fontSize: 14, color: Theme.text },
+    bannerSub: { fontSize: 12, color: Theme.textMuted },
+    joinBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: Theme.green,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    declineBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: Theme.bgHighlight,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pressed: { opacity: 0.7 },
 
-  pill: {
-    position: "absolute",
-    right: 14,
-    zIndex: 55,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Theme.assistantBubble,
-    borderRadius: 28,
-    paddingLeft: 14,
-    paddingRight: 6,
-    paddingVertical: 4,
-    gap: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  pillMain: { flexDirection: "row", alignItems: "center", gap: 7, maxWidth: 160, minHeight: 44, paddingRight: 4 },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Theme.green },
-  errorDot: { backgroundColor: Theme.orange },
-  // The pill floats on the always-dark call surface, so its text stays cream.
-  pillText: { fontSize: 12, color: SolarizedLight.bgAlt },
-  pillRec: { fontWeight: "600", letterSpacing: 0.6, color: SolarizedLight.red },
-  pillMute: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(253,246,227,0.12)",
-  },
-}));
+    pill: {
+      position: "absolute",
+      right: 14,
+      zIndex: 55,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: Theme.assistantBubble,
+      borderRadius: 28,
+      paddingLeft: 14,
+      paddingRight: 6,
+      paddingVertical: 4,
+      gap: 8,
+      shadowColor: "#000",
+      shadowOpacity: 0.22,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 8,
+    },
+    pillMain: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      maxWidth: 160,
+      minHeight: 44,
+      paddingRight: 4,
+    },
+    liveDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: Theme.green,
+    },
+    errorDot: { backgroundColor: Theme.orange },
+    // The pill floats on the always-dark call surface, so its text stays cream.
+    pillText: { fontSize: 12, color: SolarizedLight.bgAlt },
+    pillRec: {
+      fontWeight: "600",
+      letterSpacing: 0.6,
+      color: SolarizedLight.red,
+    },
+    pillMute: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(253,246,227,0.12)",
+    },
+  }),
+);

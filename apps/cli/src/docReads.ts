@@ -21,7 +21,9 @@ const MAX_ENTRIES = 300;
 const SHELL_ENTRY_TTL_MS = 12 * 60 * 60 * 1000;
 
 function ledgerFile(session: string | null | undefined): string {
-  const name = (session || `shell-${process.ppid}`).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80);
+  const name = (session || `shell-${process.ppid}`)
+    .replace(/[^A-Za-z0-9_-]/g, "_")
+    .slice(0, 80);
   return codecastPath("doc-reads", `${name}.json`);
 }
 
@@ -36,14 +38,20 @@ function load(file: string): Ledger {
 
 /** Remember `rev` for each key. Best effort: a ledger that cannot be written
  *  only means the next whole-body write asks for a fresh read. */
-export function recordDocRead(session: string | null | undefined, keys: string[], rev: string | null | undefined): void {
+export function recordDocRead(
+  session: string | null | undefined,
+  keys: string[],
+  rev: string | null | undefined,
+): void {
   if (!rev || keys.length === 0) return;
   const file = ledgerFile(session);
   try {
     const ledger = load(file);
     const at = Date.now();
     for (const k of keys) ledger[k] = { rev, at };
-    const kept = Object.entries(ledger).sort((a, b) => b[1].at - a[1].at).slice(0, MAX_ENTRIES);
+    const kept = Object.entries(ledger)
+      .sort((a, b) => b[1].at - a[1].at)
+      .slice(0, MAX_ENTRIES);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.${process.pid}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(kept)));
@@ -52,17 +60,26 @@ export function recordDocRead(session: string | null | undefined, keys: string[]
 }
 
 /** The revision this session last saw for `key`, if any. */
-export function docReadBase(session: string | null | undefined, key: string): string | undefined {
+export function docReadBase(
+  session: string | null | undefined,
+  key: string,
+): string | undefined {
   const entry = load(ledgerFile(session))[key];
-  if (!entry || (!session && Date.now() - entry.at > SHELL_ENTRY_TTL_MS)) return undefined;
+  if (!entry || (!session && Date.now() - entry.at > SHELL_ENTRY_TTL_MS))
+    return undefined;
   return entry.rev;
 }
 
 /** The newest revision this session saw under any of `keys`: one body can be
  *  read under two names (a plan, and the doc behind it). */
-export function latestDocReadBase(session: string | null | undefined, keys: string[]): string | undefined {
+export function latestDocReadBase(
+  session: string | null | undefined,
+  keys: string[],
+): string | undefined {
   const ledger = load(ledgerFile(session));
-  const fresh = keys.map((k) => ledger[k]).filter((e) => e && (session || Date.now() - e.at <= SHELL_ENTRY_TTL_MS));
+  const fresh = keys
+    .map((k) => ledger[k])
+    .filter((e) => e && (session || Date.now() - e.at <= SHELL_ENTRY_TTL_MS));
   return fresh.sort((a, b) => b!.at - a!.at)[0]?.rev;
 }
 
@@ -73,7 +90,12 @@ export const briefKey = (ref: string) => `brief:${ref}`;
 /** Record the revision a body read or whole-body write answered with. A patch
  *  or a title change is computed on the server from text the caller has not
  *  seen, so its answer never becomes the base of the caller's next rewrite. */
-export function noteDocRevisions(session: string | null | undefined, urlPath: string, body: Record<string, any>, result: any): void {
+export function noteDocRevisions(
+  session: string | null | undefined,
+  urlPath: string,
+  body: Record<string, any>,
+  result: any,
+): void {
   if (!result || typeof result !== "object") return;
   switch (urlPath) {
     case "/cli/docs/update":
@@ -89,14 +111,18 @@ export function noteDocRevisions(session: string | null | undefined, urlPath: st
       if (body.body === undefined) return;
     // falls through
     case "/cli/plans/create": {
-      const keys = [body.short_id, result.short_id].filter(Boolean).map((r: string) => planKey(String(r)));
+      const keys = [body.short_id, result.short_id]
+        .filter(Boolean)
+        .map((r: string) => planKey(String(r)));
       if (result.doc_id) keys.push(docKey(String(result.doc_id)));
       recordDocRead(session, [...new Set(keys)], result.doc_revision);
       return;
     }
     case "/cli/brief/get":
     case "/cli/brief/edit": {
-      const keys = [body.role_id, result.role?._id, result.role_id].filter(Boolean).map((r: string) => briefKey(String(r)));
+      const keys = [body.role_id, result.role?._id, result.role_id]
+        .filter(Boolean)
+        .map((r: string) => briefKey(String(r)));
       if (result.brief_doc_id) keys.push(docKey(String(result.brief_doc_id)));
       recordDocRead(session, [...new Set(keys)], result.brief_revision);
       return;

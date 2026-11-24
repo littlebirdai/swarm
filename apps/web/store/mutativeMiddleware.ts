@@ -38,13 +38,21 @@ import {
   REPLICATION_CLASSIFICATION,
   REPLICATED_EPHEMERAL_KEYS,
 } from "./clientSyncRegistry";
-import { consumeViewNav, declareViewNav, noteViewNavApplied, recordNavEvent } from "./viewNav";
-import { broadcastGesture, BRIDGED_FIELDS, type BridgedField } from "./gestureBridge";
+import {
+  consumeViewNav,
+  declareViewNav,
+  noteViewNavApplied,
+  recordNavEvent,
+} from "./viewNav";
+import {
+  broadcastGesture,
+  BRIDGED_FIELDS,
+  type BridgedField,
+} from "./gestureBridge";
 import { UNDO_SPECS } from "./undo/policy";
 import { UNDO_WRITERS } from "./undo/writers";
 import { runUndoRevert } from "./undo/onRevert";
 import { OPTIONAL_INBOX_TIMESTAMPS } from "./syncProtocol";
-
 
 export {
   action,
@@ -73,7 +81,10 @@ export {
  *  what is about to land. */
 export function isRefusedDispatchError(error: unknown): boolean {
   if (isParkedDispatchErrorImpl(error)) return false;
-  return isPermanentDispatchErrorImpl(error) || error instanceof DispatchNotWiredErrorImpl;
+  return (
+    isPermanentDispatchErrorImpl(error) ||
+    error instanceof DispatchNotWiredErrorImpl
+  );
 }
 
 export type DurableCreateContinuation =
@@ -111,10 +122,14 @@ export function groupPatchesByTable(
 // (and the action itself) still re-fires.
 export function stripStalePointerFromReplay(patches: any): any {
   const cs = patches?.client_state?.[SINGLETON_KEY];
-  if (!cs || typeof cs !== "object" || !("current_conversation_id" in cs)) return patches;
+  if (!cs || typeof cs !== "object" || !("current_conversation_id" in cs))
+    return patches;
   const { current_conversation_id: _omit, ...rest } = cs;
   if (Object.keys(rest).length > 0) {
-    return { ...patches, client_state: { ...patches.client_state, [SINGLETON_KEY]: rest } };
+    return {
+      ...patches,
+      client_state: { ...patches.client_state, [SINGLETON_KEY]: rest },
+    };
   }
   const { [SINGLETON_KEY]: _doc, ...otherDocs } = patches.client_state;
   const { client_state: _table, ...otherTables } = patches;
@@ -148,14 +163,20 @@ export const MUST_DELIVER_ACTIONS = new Set([
 // up silently strands a fork stub the user is already working in. Safe to
 // retry forever: forkFromMessage dedups on session_id.
 const isForkCreateEntry = (entry: OutboxEntry): boolean =>
-  entry.action === "convCommand" && Array.isArray(entry.args) && entry.args[1] === "forkFromMessage";
+  entry.action === "convCommand" &&
+  Array.isArray(entry.args) &&
+  entry.args[1] === "forkFromMessage";
 
-export const isMustDeliverEntry = makeIsMustDeliverEntry(MUST_DELIVER_ACTIONS, isForkCreateEntry);
+export const isMustDeliverEntry = makeIsMustDeliverEntry(
+  MUST_DELIVER_ACTIONS,
+  isForkCreateEntry,
+);
 
 // What to do with an outbox entry whose boot-time replay failed: keep it for
 // the next boot with the attempt counted, or give up at the cap. User sends
 // and fork creates are never dropped — see isMustDeliverEntry.
-export const outboxFailureDisposition = makeOutboxFailureDisposition(isMustDeliverEntry);
+export const outboxFailureDisposition =
+  makeOutboxFailureDisposition(isMustDeliverEntry);
 
 // Comment commands were briefly persisted with their optimistic payload as
 // `result`, before receiptAsyncAction added an envelope. New servers still
@@ -176,7 +197,10 @@ const LEGACY_RECEIPT_ACTIONS = new Set([
 // row, not thousands. Only register actions whose args carry the COMPLETE new
 // value for the key; partial-field updates (e.g. updateTab) must never
 // coalesce, since dropping the older row would drop the older fields.
-export const OUTBOX_COALESCE_KEYS: Record<string, (args: any[]) => string | null> = {
+export const OUTBOX_COALESCE_KEYS: Record<
+  string,
+  (args: any[]) => string | null
+> = {
   updateClientLayout: (args) =>
     typeof args[0] === "string" ? `updateClientLayout:${args[0]}` : null,
   updateClientDismissed: (args) =>
@@ -187,23 +211,35 @@ export const OUTBOX_COALESCE_KEYS: Record<string, (args: any[]) => string | null
   // user last saw it (five presses drained at once on 2026-09-12). A press
   // already in flight is unaffected; only queued rows collapse.
   convCommand: (args) =>
-    typeof args[0] === "string" && args[1] === "setPermissionMode" ? `setPermissionMode:${args[0]}` : null,
+    typeof args[0] === "string" && args[1] === "setPermissionMode"
+      ? `setPermissionMode:${args[0]}`
+      : null,
   // Record and Stop for a room: the args are the room's whole wanted state,
   // so Record, Stop, Record pressed while offline is one queued row (the
   // last), not three presses replayed in turn into a room being filmed.
-  setRoomRecording: (args) => (typeof args[0] === "string" ? `setRoomRecording:${args[0]}` : null),
+  setRoomRecording: (args) =>
+    typeof args[0] === "string" ? `setRoomRecording:${args[0]}` : null,
   // A label's args are its whole wanted state (verdict and note), so a burst
   // of presses on one decision queued offline lands as the last one.
-  labelDecision: (args) => (typeof args[0] === "string" && typeof args[1] === "string" ? `labelDecision:${args[0]}:${args[1]}` : null),
+  labelDecision: (args) =>
+    typeof args[0] === "string" && typeof args[1] === "string"
+      ? `labelDecision:${args[0]}:${args[1]}`
+      : null,
   // One quote's whole record (a note saved as it is typed): a burst queued
   // offline lands as the last save. A save of several quotes never coalesces.
   saveQuoteDrafts: (args) =>
-    typeof args[0] === "string" && Array.isArray(args[1]) && args[1].length === 1 && typeof args[1][0]?.client_id === "string"
+    typeof args[0] === "string" &&
+    Array.isArray(args[1]) &&
+    args[1].length === 1 &&
+    typeof args[1][0]?.client_id === "string"
       ? `saveQuoteDrafts:${args[0]}:${args[1][0].client_id}`
       : null,
 };
 
-export function outboxCoalesceKeyFor(action: string, args: any[]): string | null {
+export function outboxCoalesceKeyFor(
+  action: string,
+  args: any[],
+): string | null {
   return engineOutboxCoalesceKeyFor(action, args, OUTBOX_COALESCE_KEYS);
 }
 
@@ -251,7 +287,11 @@ function durableCreateContinuation(
     typeof candidate.initiativeId === "string" &&
     candidate.initiativeId
   ) {
-    return { version: 1, kind: "attachToInitiative", initiativeId: candidate.initiativeId };
+    return {
+      version: 1,
+      kind: "attachToInitiative",
+      initiativeId: candidate.initiativeId,
+    };
   }
   return null;
 }
@@ -310,7 +350,9 @@ const RECEIPT_CONTINUATIONS: ReceiptContinuations = {
       const handler = getState()?._handleReceiptAcknowledgement;
       const id = (serverResult as { id?: unknown } | null)?.id;
       if (typeof id !== "string" || !id) {
-        throw new Error("Acknowledged createProject receipt is missing its project id");
+        throw new Error(
+          "Acknowledged createProject receipt is missing its project id",
+        );
       }
       if (typeof handler !== "function") {
         throw new Error("Create-project continuation runtime is unavailable");
@@ -350,7 +392,12 @@ const RECEIPT_CONTINUATIONS: ReceiptContinuations = {
     // DashboardLayout mirrors the URL into the active tab and React Router
     // re-matches outside the tab shell. Hook-free, so it also works during a
     // boot replay; the pathname then proves completion and the row retires.
-    if (routerNavigate(href, "push", { tabNav: true, tabId: getState()?.activeTabId })) {
+    if (
+      routerNavigate(href, "push", {
+        tabNav: true,
+        tabId: getState()?.activeTabId,
+      })
+    ) {
       return true;
     }
     if (typeof window.location.assign !== "function") {
@@ -376,7 +423,10 @@ const VIEW_FIELDS = ["currentSessionId", "pendingNavigateId"] as const;
 
 // Shared verdict for both write paths (action patches and raw setState).
 // Returns the fields that must be reverted to their previous values.
-function auditViewWrites(changes: ViewGuardChange[], actionName: string): string[] {
+function auditViewWrites(
+  changes: ViewGuardChange[],
+  actionName: string,
+): string[] {
   // Consume unconditionally: a token declared by a write that ended up not
   // changing the view must not linger and authorize a later unrelated write.
   const source = consumeViewNav();
@@ -387,9 +437,20 @@ function auditViewWrites(changes: ViewGuardChange[], actionName: string): string
       recordNavEvent({ field: field as any, from, to, source });
       if (field === "currentSessionId") noteViewNavApplied();
     } else if (to == null) {
-      recordNavEvent({ field: field as any, from, to: null, source: `untracked:${actionName}` });
+      recordNavEvent({
+        field: field as any,
+        from,
+        to: null,
+        source: `untracked:${actionName}`,
+      });
     } else {
-      recordNavEvent({ field: field as any, from, to, source: `untracked:${actionName}`, blocked: "undeclared view change" });
+      recordNavEvent({
+        field: field as any,
+        from,
+        to,
+        source: `untracked:${actionName}`,
+        blocked: "undeclared view change",
+      });
       revert.push(field);
     }
   }
@@ -467,7 +528,9 @@ const UNDO_CONFIG: UndoConfig = {
   // archiveDoc deletes the row here, but the server keeps it with archived_at
   // set and the sync log delivers it that way (docs.webGetByIds), so an
   // archived doc that synced back is still the archive the undo takes back.
-  tombstone: (store, row) => (store === "docs" || store === "docDetails") && (row as { archived_at?: unknown } | undefined)?.archived_at != null,
+  tombstone: (store, row) =>
+    (store === "docs" || store === "docDetails") &&
+    (row as { archived_at?: unknown } | undefined)?.archived_at != null,
   ignoreKeys: UNDO_IGNORE_KEYS,
   beforeReplay: () => {
     // The bridge stamp predates the replay's dispatch: a sibling's
@@ -475,7 +538,8 @@ const UNDO_CONFIG: UndoConfig = {
     replayBridgeTs = Date.now();
     declareViewNav("undo");
   },
-  restoreView: (draft, field, value) => undoStoreBinding?.restoreView(draft, field, value),
+  restoreView: (draft, field, value) =>
+    undoStoreBinding?.restoreView(draft, field, value),
   afterReplay: (entry, dir, applied, how) => {
     // A redo that re-ran the original action announced its own gesture.
     if (how === "reinvoke") return;
@@ -484,12 +548,24 @@ const UNDO_CONFIG: UndoConfig = {
     // row under one timestamp. The message is exact: these are the values the
     // replay dispatched, so a sibling locks only them and the replay's
     // acknowledgement retires every one.
-    const byId = new Map<string, Partial<Record<BridgedField, number | boolean | null>>>();
+    const byId = new Map<
+      string,
+      Partial<Record<BridgedField, number | boolean | null>>
+    >();
     for (const cell of applied) {
-      if ((cell.store !== "sessions" && cell.store !== "conversations") || !cell.field) continue;
+      if (
+        (cell.store !== "sessions" && cell.store !== "conversations") ||
+        !cell.field
+      )
+        continue;
       if (!BRIDGED_FIELD_SET.has(cell.field)) continue;
       const value = cell.before === undefined ? null : cell.before;
-      if (value !== null && typeof value !== "number" && typeof value !== "boolean") continue;
+      if (
+        value !== null &&
+        typeof value !== "number" &&
+        typeof value !== "boolean"
+      )
+        continue;
       const fields = byId.get(cell.id) ?? {};
       fields[cell.field as BridgedField] = value;
       byId.set(cell.id, fields);
@@ -497,10 +573,27 @@ const UNDO_CONFIG: UndoConfig = {
     // Rows the forward forgot (a teammate's row, a stub) come back whole.
     // Siblings that applied the forget hold excludes that drop every later
     // push of them, so they get the rows themselves.
-    const readded = new Map<string, { id: string; sessions?: Record<string, unknown>; conversations?: Record<string, unknown> }>();
+    const readded = new Map<
+      string,
+      {
+        id: string;
+        sessions?: Record<string, unknown>;
+        conversations?: Record<string, unknown>;
+      }
+    >();
     for (const cell of applied) {
-      if ((cell.store !== "sessions" && cell.store !== "conversations") || cell.field !== undefined) continue;
-      if (!cell.hadBefore || cell.hadAfter || !cell.before || typeof cell.before !== "object") continue;
+      if (
+        (cell.store !== "sessions" && cell.store !== "conversations") ||
+        cell.field !== undefined
+      )
+        continue;
+      if (
+        !cell.hadBefore ||
+        cell.hadAfter ||
+        !cell.before ||
+        typeof cell.before !== "object"
+      )
+        continue;
       const row = readded.get(cell.id) ?? { id: cell.id };
       row[cell.store] = cell.before as Record<string, unknown>;
       readded.set(cell.id, row);
@@ -508,8 +601,16 @@ const UNDO_CONFIG: UndoConfig = {
     if (byId.size > 0 || readded.size > 0) {
       const ts = replayBridgeTs || Date.now();
       const userId = undoStoreBinding?.bridgeUserId() ?? null;
-      if (readded.size > 0) broadcastGesture({ kind: "unforget", rows: [...readded.values()], ts }, userId);
-      for (const [id, fields] of byId) broadcastGesture({ kind: "fields", id, fields, exact: true, ts }, userId);
+      if (readded.size > 0)
+        broadcastGesture(
+          { kind: "unforget", rows: [...readded.values()], ts },
+          userId,
+        );
+      for (const [id, fields] of byId)
+        broadcastGesture(
+          { kind: "fields", id, fields, exact: true, ts },
+          userId,
+        );
     }
     if (dir === "undo") runUndoRevert(entry, applied);
   },
@@ -543,21 +644,41 @@ export function mutativeMiddleware(
   config: any,
   opts?: Omit<MiddlewareOptions, "registryMaps">,
 ): any {
-  const middleware = engineMutativeMiddleware(config, CODECAST_PLATFORM_CONFIG, {
-    ...opts,
-    registryMaps: REGISTRY_MAPS,
-  });
-  return (set: any, get: any, api: any) => middleware((next: any, replace?: boolean) => {
-    const previous = get();
-    const value = typeof next === "function" ? next(previous) : next;
-    if (previous?.pendingMessages && value?.pendingMessages && previous.pendingMessages !== value.pendingMessages) {
-      try {
-        persistPendingMessageChanges(previous.pendingMessages, value.pendingMessages, previous.currentUser?._id);
-      } catch (error) {
-        captureException(error, { tags: { source: "pending-input-save" } });
-        throw new Error("Your message could not be saved on this device. Keep this window open and try again.", { cause: error });
-      }
-    }
-    set(value, replace);
-  }, get, api);
+  const middleware = engineMutativeMiddleware(
+    config,
+    CODECAST_PLATFORM_CONFIG,
+    {
+      ...opts,
+      registryMaps: REGISTRY_MAPS,
+    },
+  );
+  return (set: any, get: any, api: any) =>
+    middleware(
+      (next: any, replace?: boolean) => {
+        const previous = get();
+        const value = typeof next === "function" ? next(previous) : next;
+        if (
+          previous?.pendingMessages &&
+          value?.pendingMessages &&
+          previous.pendingMessages !== value.pendingMessages
+        ) {
+          try {
+            persistPendingMessageChanges(
+              previous.pendingMessages,
+              value.pendingMessages,
+              previous.currentUser?._id,
+            );
+          } catch (error) {
+            captureException(error, { tags: { source: "pending-input-save" } });
+            throw new Error(
+              "Your message could not be saved on this device. Keep this window open and try again.",
+              { cause: error },
+            );
+          }
+        }
+        set(value, replace);
+      },
+      get,
+      api,
+    );
 }

@@ -20,7 +20,8 @@ export const MEMORY_VIEWS: { id: MemoryView; label: string }[] = [
   { id: "health", label: "Health" },
 ];
 
-export const typeKey = (type: string) => ((MEMORY_TYPES as readonly string[]).includes(type) ? type : "other");
+export const typeKey = (type: string) =>
+  (MEMORY_TYPES as readonly string[]).includes(type) ? type : "other";
 
 export const TYPE_TONE: Record<string, GraphTone> = {
   user: "--sol-magenta",
@@ -30,22 +31,51 @@ export const TYPE_TONE: Record<string, GraphTone> = {
   other: "dim",
 };
 
-export const REACH: Record<MemoryReach, { label: string; why: string; tone: GraphTone }> = {
-  loaded: { label: "Loads at start", why: "Indexed above the line where Claude stops reading MEMORY.md.", tone: "--sol-green" },
-  reachable: { label: "Reachable", why: "Not indexed above the cut, but a loaded memory links here.", tone: "--sol-cyan" },
-  cut: { label: "Below the cut", why: "Indexed after the point where MEMORY.md stops loading, and nothing loaded links here.", tone: "--sol-red" },
-  orphan: { label: "Orphan", why: "No index line and no link from anything that loads.", tone: "ghost" },
+export const REACH: Record<
+  MemoryReach,
+  { label: string; why: string; tone: GraphTone }
+> = {
+  loaded: {
+    label: "Loads at start",
+    why: "Indexed above the line where Claude stops reading MEMORY.md.",
+    tone: "--sol-green",
+  },
+  reachable: {
+    label: "Reachable",
+    why: "Not indexed above the cut, but a loaded memory links here.",
+    tone: "--sol-cyan",
+  },
+  cut: {
+    label: "Below the cut",
+    why: "Indexed after the point where MEMORY.md stops loading, and nothing loaded links here.",
+    tone: "--sol-red",
+  },
+  orphan: {
+    label: "Orphan",
+    why: "No index line and no link from anything that loads.",
+    tone: "ghost",
+  },
 };
 
 /** A CSS color for a tone, for the DOM (the canvas resolves its own). */
 export const toneCss = (tone: GraphTone) =>
-  tone === "ghost" ? "color-mix(in srgb, var(--sol-text-dim) 55%, transparent)" : tone === "dim" ? "var(--sol-text-dim)" : `var(${tone})`;
+  tone === "ghost"
+    ? "color-mix(in srgb, var(--sol-text-dim) 55%, transparent)"
+    : tone === "dim"
+      ? "var(--sol-text-dim)"
+      : `var(${tone})`;
 
-export function noteMatches(note: MemoryNote, query: string, hiddenTypes: ReadonlySet<string>): boolean {
+export function noteMatches(
+  note: MemoryNote,
+  query: string,
+  hiddenTypes: ReadonlySet<string>,
+): boolean {
   if (hiddenTypes.has(typeKey(note.type))) return false;
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return [note.name, note.file, note.description, note.body].some((s) => s.toLowerCase().includes(q));
+  return [note.name, note.file, note.description, note.body].some((s) =>
+    s.toLowerCase().includes(q),
+  );
 }
 
 export function formatBytes(n: number): string {
@@ -67,25 +97,46 @@ export interface MemoryHealth {
 
 export function memoryHealth(atlas: MemoryAtlas): MemoryHealth {
   const names = new Map<string, MemoryNote[]>();
-  for (const n of atlas.notes) names.set(memoryLinkKey(n.name), [...(names.get(memoryLinkKey(n.name)) ?? []), n]);
+  for (const n of atlas.notes)
+    names.set(memoryLinkKey(n.name), [
+      ...(names.get(memoryLinkKey(n.name)) ?? []),
+      n,
+    ]);
   return {
-    unreached: atlas.notes.filter((n) => n.reach === "cut" || n.reach === "orphan"),
-    longLines: atlas.index.lines.map((l, i) => ({ line: i + 1, length: l.length })).filter((l) => l.length > MEMORY_INDEX_LINE_SOFT_MAX),
-    unwritten: atlas.notes.flatMap((note) => note.links.filter((l) => !l.file).map((l) => ({ note, target: l.raw }))),
-    danglingIndex: atlas.index.refs.flatMap((refs, i) => refs.filter((r) => !r.file).map((r) => ({ line: i + 1, target: r.raw }))),
+    unreached: atlas.notes.filter(
+      (n) => n.reach === "cut" || n.reach === "orphan",
+    ),
+    longLines: atlas.index.lines
+      .map((l, i) => ({ line: i + 1, length: l.length }))
+      .filter((l) => l.length > MEMORY_INDEX_LINE_SOFT_MAX),
+    unwritten: atlas.notes.flatMap((note) =>
+      note.links.filter((l) => !l.file).map((l) => ({ note, target: l.raw })),
+    ),
+    danglingIndex: atlas.index.refs.flatMap((refs, i) =>
+      refs.filter((r) => !r.file).map((r) => ({ line: i + 1, target: r.raw })),
+    ),
     undescribed: atlas.notes.filter((n) => !n.hasFrontmatter || !n.description),
-    oddType: atlas.notes.filter((n) => n.hasFrontmatter && typeKey(n.type) === "other"),
+    oddType: atlas.notes.filter(
+      (n) => n.hasFrontmatter && typeKey(n.type) === "other",
+    ),
     duplicateNames: [...names.values()].filter((ns) => ns.length > 1).flat(),
   };
 }
 
 /** The count on the Health tab: what keeps memories from reaching Claude. */
-export const healthAlarm = (h: MemoryHealth) => h.unreached.length + h.danglingIndex.length;
+export const healthAlarm = (h: MemoryHealth) =>
+  h.unreached.length + h.danglingIndex.length;
 
 export const MEMORY_ROUTE = "/memory";
 
 /** The ONE place the Memory page's URL shape lives: ?p=<project>&view=<view>&m=<file>. */
-export function memoryHref(opts: { project?: string | null; view?: MemoryView; file?: string | null } = {}): string {
+export function memoryHref(
+  opts: {
+    project?: string | null;
+    view?: MemoryView;
+    file?: string | null;
+  } = {},
+): string {
   const params = new URLSearchParams();
   if (opts.project) params.set("p", opts.project);
   if (opts.view && opts.view !== "map") params.set("view", opts.view);

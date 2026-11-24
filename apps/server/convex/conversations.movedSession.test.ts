@@ -26,29 +26,84 @@ async function movedToCam() {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
     const now = Date.now();
-    const team = await ctx.db.insert("teams", { name: "union", created_at: now, invite_code: "union" } as any);
-    const ashot = await ctx.db.insert("users", { name: "Ashot", emailVerificationTime: 1 } as any);
-    const cam = await ctx.db.insert("users", { name: "Cam", emailVerificationTime: 1 } as any);
+    const team = await ctx.db.insert("teams", {
+      name: "union",
+      created_at: now,
+      invite_code: "union",
+    } as any);
+    const ashot = await ctx.db.insert("users", {
+      name: "Ashot",
+      emailVerificationTime: 1,
+    } as any);
+    const cam = await ctx.db.insert("users", {
+      name: "Cam",
+      emailVerificationTime: 1,
+    } as any);
     for (const u of [ashot, cam]) {
-      await ctx.db.insert("team_memberships", { user_id: u, team_id: team, role: "member", joined_at: now } as any);
+      await ctx.db.insert("team_memberships", {
+        user_id: u,
+        team_id: team,
+        role: "member",
+        joined_at: now,
+      } as any);
     }
-    await ctx.db.insert("api_tokens", { user_id: ashot, token_hash: await hashToken(ASHOT_TOKEN), name: "cli", created_at: now, last_used_at: now } as any);
-    await ctx.db.insert("devices", { user_id: ashot, device_id: "laptop", label: "MacBook", platform: "darwin", last_seen: now } as any);
-    await ctx.db.insert("devices", { user_id: cam, device_id: "aws", label: "Union AWS", platform: "linux", last_seen: now } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: ashot,
+      token_hash: await hashToken(ASHOT_TOKEN),
+      name: "cli",
+      created_at: now,
+      last_used_at: now,
+    } as any);
+    await ctx.db.insert("devices", {
+      user_id: ashot,
+      device_id: "laptop",
+      label: "MacBook",
+      platform: "darwin",
+      last_seen: now,
+    } as any);
+    await ctx.db.insert("devices", {
+      user_id: cam,
+      device_id: "aws",
+      label: "Union AWS",
+      platform: "linux",
+      last_seen: now,
+    } as any);
     const conv = await ctx.db.insert("conversations", {
-      user_id: ashot, team_id: team, is_private: false, agent_type: "claude_code", session_id: SESSION,
-      owner_device_id: "laptop", project_path: "/Users/ashot/src/union-mobile/outreach",
-      started_at: now, updated_at: now, message_count: 0, status: "active",
+      user_id: ashot,
+      team_id: team,
+      is_private: false,
+      agent_type: "claude_code",
+      session_id: SESSION,
+      owner_device_id: "laptop",
+      project_path: "/Users/ashot/src/union-mobile/outreach",
+      started_at: now,
+      updated_at: now,
+      message_count: 0,
+      status: "active",
     } as any);
     await ctx.db.patch(conv, { short_id: conv.toString().slice(0, 7) });
-    await performReparentSessionToDevice(ctx, cam, { session_id: conv, device_id: "aws" });
+    await performReparentSessionToDevice(ctx, cam, {
+      session_id: conv,
+      device_id: "aws",
+    });
     return { ashot, cam, conv };
   });
-  const resync = () => t.mutation(api.conversations.createConversation, {
-    user_id: ids.ashot, agent_type: "claude_code", session_id: SESSION,
-    project_path: "/Users/ashot/src/union-mobile/outreach", owner_device_id: "laptop", api_token: ASHOT_TOKEN,
-  } as any);
-  const rows = () => t.run((ctx) => ctx.db.query("conversations").withIndex("by_session_id", (q) => q.eq("session_id", SESSION)).collect());
+  const resync = () =>
+    t.mutation(api.conversations.createConversation, {
+      user_id: ids.ashot,
+      agent_type: "claude_code",
+      session_id: SESSION,
+      project_path: "/Users/ashot/src/union-mobile/outreach",
+      owner_device_id: "laptop",
+      api_token: ASHOT_TOKEN,
+    } as any);
+  const rows = () =>
+    t.run((ctx) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_session_id", (q) => q.eq("session_id", SESSION))
+        .collect(),
+    );
   return { t, ids, resync, rows };
 }
 

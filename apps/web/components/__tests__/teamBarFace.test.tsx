@@ -11,13 +11,26 @@
 // there only while a call is up. Built on a hand made row so what is under
 // test is the bar, never the derivation.
 import type { Root } from "react-dom/client";
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { act } from "react";
 import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { withTeamRoster } from "../../test-helpers/teamRoster";
-import type { FaceCard, FaceEntry, FaceRow as FaceRowModel, Link } from "../../lib/faces/faceRow";
+import type {
+  FaceCard,
+  FaceEntry,
+  FaceRow as FaceRowModel,
+  Link,
+} from "../../lib/faces/faceRow";
 import type { PushToTalk } from "../../hooks/useWalkie";
 import { teamBarSig } from "../presence/memberPresence";
 import { walkieFacesSig } from "../presence/useFaceKey";
@@ -38,7 +51,10 @@ const ptt: PushToTalk = {
   press: () => {},
   release: () => {},
 };
-mock.module("../../hooks/useWalkie", () => ({ ...realWalkieHooks, usePushToTalk: () => ptt }));
+mock.module("../../hooks/useWalkie", () => ({
+  ...realWalkieHooks,
+  usePushToTalk: () => ptt,
+}));
 
 mock.module("../../hooks/useOpenDm", () => ({
   useOpenDm: () => () => {},
@@ -46,7 +62,10 @@ mock.module("../../hooks/useOpenDm", () => ({
 }));
 // The card's DM feeder is a server query: the card reads the store instead.
 const realChatSync = await import("../../hooks/useChatSync");
-mock.module("../../hooks/useChatSync", () => ({ ...realChatSync, useChannelMessagesSync: () => ({}) }));
+mock.module("../../hooks/useChatSync", () => ({
+  ...realChatSync,
+  useChannelMessagesSync: () => ({}),
+}));
 
 const nav = { pushed: [] as string[] };
 mock.module("next/navigation", () => ({
@@ -59,14 +78,23 @@ mock.module("next/navigation", () => ({
 // (MemberFace's chip, the live rooms) stay real.
 const realFaceRowHooks = await import("../../hooks/useFaceRow");
 let fakeRow: FaceRowModel;
-mock.module("../../hooks/useFaceRow", () => ({ ...realFaceRowHooks, useFaceRow: () => fakeRow }));
+mock.module("../../hooks/useFaceRow", () => ({
+  ...realFaceRowHooks,
+  useFaceRow: () => fakeRow,
+}));
 
 const realTeamFeatures = await import("../../lib/teamFeatures");
-mock.module("../../lib/teamFeatures", () => ({ ...realTeamFeatures, useCallsAvailable: () => true }));
+mock.module("../../lib/teamFeatures", () => ({
+  ...realTeamFeatures,
+  useCallsAvailable: () => true,
+}));
 
 // The feeder would open a Convex subscription; the bar paints the store.
 const realSyncCollection = await import("../../hooks/useSyncCollection");
-mock.module("../../hooks/useSyncCollection", () => ({ ...realSyncCollection, useSyncCollection: () => ({}) }));
+mock.module("../../hooks/useSyncCollection", () => ({
+  ...realSyncCollection,
+  useSyncCollection: () => ({}),
+}));
 
 // The door's chat count would subscribe to the room's thread; tests set it.
 let threadUnread = 0;
@@ -78,19 +106,37 @@ mock.module("../../hooks/useRoomThreadUnread", () => ({
 
 // The hover card's session lookups: a router context and a server query.
 const realOpenSession = await import("../../hooks/useOpenSession");
-mock.module("../../hooks/useOpenSession", () => ({ ...realOpenSession, useOpenSession: () => () => {} }));
+mock.module("../../hooks/useOpenSession", () => ({
+  ...realOpenSession,
+  useOpenSession: () => () => {},
+}));
 const realMissingRow = await import("../../hooks/useMissingSessionRow");
-mock.module("../../hooks/useMissingSessionRow", () => ({ ...realMissingRow, useMissingSessionRow: () => null }));
+mock.module("../../hooks/useMissingSessionRow", () => ({
+  ...realMissingRow,
+  useMissingSessionRow: () => null,
+}));
 
 // The context menu is a Radix dropdown in a portal; the bar's wiring is what
 // is under test, so the menu renders its items in place.
 const realCtx = await import("../ui/context-menu");
 mock.module("../ui/context-menu", () => ({
   ...realCtx,
-  ContextMenu: ({ state, children }: { state: { menu: { payload: unknown } | null }; children: (p: any) => React.ReactNode }) =>
+  ContextMenu: ({
+    state,
+    children,
+  }: {
+    state: { menu: { payload: unknown } | null };
+    children: (p: any) => React.ReactNode;
+  }) =>
     state.menu ? <div data-ctx-menu>{children(state.menu.payload)}</div> : null,
   CtxHeader: ({ title }: { title: React.ReactNode }) => <div>{title}</div>,
-  CtxItem: ({ children, onSelect }: { children: React.ReactNode; onSelect?: () => void }) => (
+  CtxItem: ({
+    children,
+    onSelect,
+  }: {
+    children: React.ReactNode;
+    onSelect?: () => void;
+  }) => (
     <button type="button" onClick={onSelect}>
       {children}
     </button>
@@ -109,7 +155,9 @@ mock.module("../../lib/desktop", () => ({
   }),
 }));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -130,7 +178,8 @@ const restoreGlobals = replaceGlobals({
     unobserve() {}
     disconnect() {}
   },
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0),
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0),
   cancelAnimationFrame: (id: number) => clearTimeout(id),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
@@ -138,7 +187,8 @@ const { createRoot } = await import("react-dom/client");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { TeamAvatarBar } = await import("../TeamAvatarBar");
 const { BAR_FACES } = await import("../../lib/faces/layout");
-const { getCallStageOpen, closeCallStage, takeCallThreadRequest } = await import("../../lib/calls/callStage");
+const { getCallStageOpen, closeCallStage, takeCallThreadRequest } =
+  await import("../../lib/calls/callStage");
 
 afterAll(() => {
   mock.module("../ui/context-menu", () => realCtx);
@@ -156,7 +206,11 @@ const ANN = "u-ann";
 const BO = "u-bo";
 const TEAM = "k97b3xkt3wvhmc3p03dgwxtfr583m6bg";
 
-function entry(id: string, name: string, over: Partial<FaceEntry> = {}): FaceEntry {
+function entry(
+  id: string,
+  name: string,
+  over: Partial<FaceEntry> = {},
+): FaceEntry {
   return {
     id,
     name,
@@ -176,14 +230,38 @@ function entry(id: string, name: string, over: Partial<FaceEntry> = {}): FaceEnt
 function me(over: Partial<FaceEntry> = {}): FaceEntry {
   return entry(ME, "Me", { me: true, tier: "me", state: "in-call", ...over });
 }
-function rowOf(entries: FaceEntry[], links: Link[] = [], card: FaceCard = { kind: "none" }): FaceRowModel {
+function rowOf(
+  entries: FaceEntry[],
+  links: Link[] = [],
+  card: FaceCard = { kind: "none" },
+): FaceRowModel {
   const mine = entries.find((e) => e.me) ?? null;
-  return { entries, links, card, me: mine, room: mine ? "dm:u-ann:u-me" : null };
+  return {
+    entries,
+    links,
+    card,
+    me: mine,
+    room: mine ? "dm:u-ann:u-me" : null,
+  };
 }
 const link = (to: string, kind: Link["kind"]): Link => ({ from: ME, to, kind });
-const liveCard: FaceCard = { kind: "live", roomKey: "dm:u-ann:u-me", title: "Ann", end: true, mute: true, muted: false, words: null, hearing: null };
+const liveCard: FaceCard = {
+  kind: "live",
+  roomKey: "dm:u-ann:u-me",
+  title: "Ann",
+  end: true,
+  mute: true,
+  muted: false,
+  words: null,
+  hearing: null,
+};
 
-const member = (id: string, name: string) => ({ _id: id, name, presence_state: "active", github_username: name.toLowerCase() });
+const member = (id: string, name: string) => ({
+  _id: id,
+  name,
+  presence_state: "active",
+  github_username: name.toLowerCase(),
+});
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -197,7 +275,10 @@ beforeEach(() => {
   closeCallStage();
   useInboxStore.setState({
     currentUser: { _id: ME, name: "Me" },
-    ...withTeamRoster([member(ME, "Me"), member(ANN, "Ann"), member(BO, "Bo")], { team: TEAM, clientState: useInboxStore.getState().clientState }),
+    ...withTeamRoster(
+      [member(ME, "Me"), member(ANN, "Ann"), member(BO, "Bo")],
+      { team: TEAM, clientState: useInboxStore.getState().clientState },
+    ),
     callOccupancy: {},
     liveRooms: [],
     followLeaderId: null,
@@ -212,12 +293,16 @@ afterEach(async () => {
 });
 
 async function mount() {
-  host = dom.window.document.body.appendChild(dom.window.document.createElement("div"));
+  host = dom.window.document.body.appendChild(
+    dom.window.document.createElement("div"),
+  );
   root = createRoot(host);
   await act(async () => root!.render(<TeamAvatarBar />));
   const fire = async (el: Element, type: string) => {
     await act(async () => {
-      el.dispatchEvent(new dom.window.MouseEvent(type, { bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new dom.window.MouseEvent(type, { bubbles: true, cancelable: true }),
+      );
     });
   };
   return {
@@ -225,12 +310,18 @@ async function mount() {
       fakeRow = row;
       // The mocked hook reads the module variable, so a re-render is what
       // hands the bar the new row.
-      await act(async () => root!.render(<TeamAvatarBar key={Math.random()} />));
+      await act(async () =>
+        root!.render(<TeamAvatarBar key={Math.random()} />),
+      );
     },
-    q: <T extends Element = HTMLElement>(sel: string) => host!.querySelector(sel) as T | null,
-    all: (sel: string) => Array.from(host!.querySelectorAll(sel)) as HTMLElement[],
-    seat: (id: string) => host!.querySelector(`[data-face-id="${id}"]`) as HTMLElement,
-    face: (id: string) => host!.querySelector(`[data-face-id="${id}"] .face`) as HTMLElement,
+    q: <T extends Element = HTMLElement>(sel: string) =>
+      host!.querySelector(sel) as T | null,
+    all: (sel: string) =>
+      Array.from(host!.querySelectorAll(sel)) as HTMLElement[],
+    seat: (id: string) =>
+      host!.querySelector(`[data-face-id="${id}"]`) as HTMLElement,
+    face: (id: string) =>
+      host!.querySelector(`[data-face-id="${id}"] .face`) as HTMLElement,
     fire,
     html: () => host!.innerHTML,
   };
@@ -240,9 +331,20 @@ async function mount() {
 
 describe("the header draws the model's row", () => {
   test("one seat per entry, in the model's order, with me at the head and the link before the face", async () => {
-    fakeRow = rowOf([me({ state: "speaking", level: "mic" }), entry(ANN, "Ann", { tier: "linked", state: "hearing-me" }), entry(BO, "Bo")], [link(ANN, "tx")]);
+    fakeRow = rowOf(
+      [
+        me({ state: "speaking", level: "mic" }),
+        entry(ANN, "Ann", { tier: "linked", state: "hearing-me" }),
+        entry(BO, "Bo"),
+      ],
+      [link(ANN, "tx")],
+    );
     const h = await mount();
-    expect(h.all("[data-face-id]").map((el) => el.dataset.faceId)).toEqual([ME, ANN, BO]);
+    expect(h.all("[data-face-id]").map((el) => el.dataset.faceId)).toEqual([
+      ME,
+      ANN,
+      BO,
+    ]);
     expect(h.face(ANN).getAttribute("data-state")).toBe("hearing-me");
     expect(h.q(".face-link")?.getAttribute("data-link-kind")).toBe("tx");
     // The bar says something is live, for the styles that hide it otherwise.
@@ -253,28 +355,61 @@ describe("the header draws the model's row", () => {
     const h = await mount();
     expect(h.q(".engagement-card")).toBeNull();
     expect(h.q("[data-open-call]")).toBeNull();
-    await h.draw(rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })], [link(ANN, "call")], liveCard));
+    await h.draw(
+      rowOf(
+        [me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })],
+        [link(ANN, "call")],
+        liveCard,
+      ),
+    );
     const card = h.q(".engagement-card")!;
     expect(card.getAttribute("data-density")).toBe("bar");
     expect(card.closest(".face-row")).not.toBeNull();
     expect(h.q("[data-open-call]")).not.toBeNull();
     // A listen offers the card's answers, not the stage.
     await h.draw(
-      rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "talking-to-me" })], [link(ANN, "rx")], {
-        kind: "incoming", roomKey: "dm:u-ann:u-me", from: ANN, name: "Ann", reply: true, join: true, snooze: true,
-        words: { stage: "incoming", badge: "INCOMING", hint: "Ann is talking to you." },
-      }),
+      rowOf(
+        [me(), entry(ANN, "Ann", { tier: "linked", state: "talking-to-me" })],
+        [link(ANN, "rx")],
+        {
+          kind: "incoming",
+          roomKey: "dm:u-ann:u-me",
+          from: ANN,
+          name: "Ann",
+          reply: true,
+          join: true,
+          snooze: true,
+          words: {
+            stage: "incoming",
+            badge: "INCOMING",
+            hint: "Ann is talking to you.",
+          },
+        },
+      ),
     );
     expect(h.q(".engagement-card")).not.toBeNull();
     expect(h.q("[data-open-call]")).toBeNull();
     // My own burst is a voice, not a call: the card, and no stage.
-    await h.draw(rowOf([me({ state: "speaking", level: "mic" }), entry(ANN, "Ann", { tier: "linked", state: "hearing-me" })], [link(ANN, "tx")], { ...liveCard, mute: false }));
+    await h.draw(
+      rowOf(
+        [
+          me({ state: "speaking", level: "mic" }),
+          entry(ANN, "Ann", { tier: "linked", state: "hearing-me" }),
+        ],
+        [link(ANN, "tx")],
+        { ...liveCard, mute: false },
+      ),
+    );
     expect(h.q(".engagement-card")).not.toBeNull();
     expect(h.q("[data-open-call]")).toBeNull();
   });
 
   test("Expand opens the stage in a browser, and nothing opens it on its own", async () => {
-    fakeRow = rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })], [link(ANN, "call")], liveCard);
+    fakeRow = rowOf(
+      [me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })],
+      [link(ANN, "call")],
+      liveCard,
+    );
     const h = await mount();
     expect(getCallStageOpen()).toBe(false);
     await h.fire(h.q("[data-open-call]")!, "click");
@@ -282,15 +417,23 @@ describe("the header draws the model's row", () => {
   });
 
   test("the door wears the count of what was typed in the call's chat", async () => {
-    fakeRow = rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })], [link(ANN, "call")], liveCard);
+    fakeRow = rowOf(
+      [me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" })],
+      [link(ANN, "call")],
+      liveCard,
+    );
     threadUnread = 0;
     let h = await mount();
     expect(h.q("[data-open-call]")!.textContent).toBe("");
-    expect(h.q("[data-open-call]")!.getAttribute("aria-label")).toBe("Expand the call");
+    expect(h.q("[data-open-call]")!.getAttribute("aria-label")).toBe(
+      "Expand the call",
+    );
     threadUnread = 3;
     h = await mount();
     expect(h.q("[data-open-call]")!.textContent).toBe("3");
-    expect(h.q("[data-open-call]")!.getAttribute("aria-label")).toBe("Expand the call, 3 new in its chat");
+    expect(h.q("[data-open-call]")!.getAttribute("aria-label")).toBe(
+      "Expand the call, 3 new in its chat",
+    );
     // The count is why they clicked: the stage opens on its thread.
     await h.fire(h.q("[data-open-call]")!, "click");
     expect(takeCallThreadRequest()).toBe(true);
@@ -299,21 +442,43 @@ describe("the header draws the model's row", () => {
   });
 
   test("the header caps the row and counts the rest; me and the linked faces are never cut", async () => {
-    const crowd = Array.from({ length: BAR_FACES + 3 }, (_, i) => entry(`u-${i}`, `Person ${i}`));
-    fakeRow = rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" }), ...crowd], [link(ANN, "call")], liveCard);
+    const crowd = Array.from({ length: BAR_FACES + 3 }, (_, i) =>
+      entry(`u-${i}`, `Person ${i}`),
+    );
+    fakeRow = rowOf(
+      [
+        me(),
+        entry(ANN, "Ann", { tier: "linked", state: "live-with-me" }),
+        ...crowd,
+      ],
+      [link(ANN, "call")],
+      liveCard,
+    );
     const h = await mount();
     const ids = h.all("[data-face-id]").map((el) => el.dataset.faceId);
     expect(ids.length).toBe(BAR_FACES);
     expect(ids.slice(0, 2)).toEqual([ME, ANN]);
-    expect(h.q("[data-overflow]")?.textContent).toBe(`+${crowd.length + 2 - BAR_FACES}`);
+    expect(h.q("[data-overflow]")?.textContent).toBe(
+      `+${crowd.length + 2 - BAR_FACES}`,
+    );
   });
 
   test("the row is people only, the count in their rhythm", async () => {
     // The count keeps the row's own gap (the bar's 4px and 2px of its own is
     // the 6px between faces). Starting a huddle lives in New, popping the row
     // out in the palette: no control sits after the roster.
-    const crowd = Array.from({ length: BAR_FACES + 3 }, (_, i) => entry(`u-${i}`, `Person ${i}`));
-    fakeRow = rowOf([me(), entry(ANN, "Ann", { tier: "linked", state: "live-with-me" }), ...crowd], [link(ANN, "call")], liveCard);
+    const crowd = Array.from({ length: BAR_FACES + 3 }, (_, i) =>
+      entry(`u-${i}`, `Person ${i}`),
+    );
+    fakeRow = rowOf(
+      [
+        me(),
+        entry(ANN, "Ann", { tier: "linked", state: "live-with-me" }),
+        ...crowd,
+      ],
+      [link(ANN, "call")],
+      liveCard,
+    );
     const h = await mount();
     expect(h.q("[data-overflow]")?.className.split(" ")).toContain("ml-0.5");
     expect(h.all(".people-bar > button:not([data-overflow])").length).toBe(0);
@@ -346,7 +511,9 @@ describe("the one card under a face", () => {
     // The face on the row is the picture; the card never repeats it.
     expect(card.querySelector("img")).toBeNull();
     // Talk and a huddle under the reply box: what you can do, on the card.
-    expect(h.all("[data-member-card] .face-action-word").map((w) => w.textContent)).toEqual(["Talk", "Huddle"]);
+    expect(
+      h.all("[data-member-card] .face-action-word").map((w) => w.textContent),
+    ).toEqual(["Talk", "Huddle"]);
     expect(card.querySelector(".fc-reply input")).not.toBeNull();
     // The profile door.
     await h.fire(card.querySelector("[data-door]")!, "click");
@@ -465,9 +632,17 @@ describe("the bar wakes on what it draws", () => {
 
   test("the walkie signature the faces read moves on the three facts a face draws", () => {
     const quiet = walkieFacesSig(status());
-    expect(walkieFacesSig(status({ incoming: { fromUserId: "u_ann" } }))).not.toBe(quiet);
-    expect(walkieFacesSig(status({ sending: { roomKey: "dm:a:b" } }))).not.toBe(quiet);
-    expect(walkieFacesSig(status({ liveRoom: { key: "dm:a:b", mode: "call", since: 1_000 } }))).not.toBe(quiet);
+    expect(
+      walkieFacesSig(status({ incoming: { fromUserId: "u_ann" } })),
+    ).not.toBe(quiet);
+    expect(walkieFacesSig(status({ sending: { roomKey: "dm:a:b" } }))).not.toBe(
+      quiet,
+    );
+    expect(
+      walkieFacesSig(
+        status({ liveRoom: { key: "dm:a:b", mode: "call", since: 1_000 } }),
+      ),
+    ).not.toBe(quiet);
   });
 
   test("and holds still through the engine's own bookkeeping", () => {
@@ -478,7 +653,13 @@ describe("the bar wakes on what it draws", () => {
     // now (isInHuddle reads the row's links), so it moves this signature no more.
     expect(walkieFacesSig(status({ asr: "unavailable" }))).toBe(quiet);
     expect(walkieFacesSig(status({ canReply: true }))).toBe(quiet);
-    expect(walkieFacesSig(status({ error: "that burst did not send" }))).toBe(quiet);
-    expect(walkieFacesSig(status({ liveRoom: { key: "dm:a:b", mode: "burst", since: 1_000 } }))).toBe(quiet);
+    expect(walkieFacesSig(status({ error: "that burst did not send" }))).toBe(
+      quiet,
+    );
+    expect(
+      walkieFacesSig(
+        status({ liveRoom: { key: "dm:a:b", mode: "burst", since: 1_000 } }),
+      ),
+    ).toBe(quiet);
   });
 });

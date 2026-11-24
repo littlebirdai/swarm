@@ -8,7 +8,11 @@ import { useAction } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@codecast/convex/convex/_generated/api";
 
-export function useRedrawRoleIcon(): { pending: string | null; rationale: string | null; run: (roleId: string, hint?: string) => void } {
+export function useRedrawRoleIcon(): {
+  pending: string | null;
+  rationale: string | null;
+  run: (roleId: string, hint?: string) => void;
+} {
   const generate = useAction(api.roleIcons.generate);
   const [pending, setPending] = useState<string | null>(null);
   const [rationale, setRationale] = useState<string | null>(null);
@@ -19,7 +23,13 @@ export function useRedrawRoleIcon(): { pending: string | null; rationale: string
       .then((r) => setRationale(r.rationale || null))
       // The server's errors are sentences meant for the person; an older
       // deployment without the function answers "Could not find public function".
-      .catch((e: unknown) => toast.error(e instanceof Error ? e.message.replace(/^[\s\S]*Uncaught Error:\s*/, "").split("\n")[0] : "Could not draw the icon"))
+      .catch((e: unknown) =>
+        toast.error(
+          e instanceof Error
+            ? e.message.replace(/^[\s\S]*Uncaught Error:\s*/, "").split("\n")[0]
+            : "Could not draw the icon",
+        ),
+      )
       .finally(() => setPending((p) => (p === roleId ? null : p)));
   };
   return { pending, rationale, run };

@@ -10,18 +10,35 @@ export const CY = "u-cy";
 export const DM_ANN = dmRoomKey(ME, ANN);
 export const DM_BOB = dmRoomKey(ME, BOB);
 
-export function member(id: string, name: string, over: Partial<FaceMember> = {}): FaceMember {
+export function member(
+  id: string,
+  name: string,
+  over: Partial<FaceMember> = {},
+): FaceMember {
   return { _id: id, name, presence_state: "active", ...over };
 }
 
 export function input(over: Partial<FaceRowInput> = {}): FaceRowInput {
   return {
     viewer: { id: ME, name: "Me" },
-    roster: [member(ME, "Me"), member(ANN, "Ann"), member(BOB, "Bob"), member(CY, "Cy")],
+    roster: [
+      member(ME, "Me"),
+      member(ANN, "Ann"),
+      member(BOB, "Bob"),
+      member(CY, "Cy"),
+    ],
     occupancy: {},
     liveRooms: [],
     walkie: { liveRoom: null, sending: null, incoming: null, canReply: false },
-    call: { phase: "idle", roomKey: null, muted: true, micDenied: false, camera: false, speaking: [], cameras: [] },
+    call: {
+      phase: "idle",
+      roomKey: null,
+      muted: true,
+      micDenied: false,
+      camera: false,
+      speaking: [],
+      cameras: [],
+    },
     followLeaderId: null,
     rings: { incoming: [], outgoing: [] },
     announcement: null,
@@ -31,17 +48,33 @@ export function input(over: Partial<FaceRowInput> = {}): FaceRowInput {
   };
 }
 
-export const seat = (id: string, over: Record<string, unknown> = {}) => ({ user_id: id, ...over });
-export const walkie = (liveRoom: FaceRowInput["walkie"]["liveRoom"], over: Partial<FaceRowInput["walkie"]> = {}) => ({
+export const seat = (id: string, over: Record<string, unknown> = {}) => ({
+  user_id: id,
+  ...over,
+});
+export const walkie = (
+  liveRoom: FaceRowInput["walkie"]["liveRoom"],
+  over: Partial<FaceRowInput["walkie"]> = {},
+) => ({
   liveRoom,
   sending: null,
   incoming: null,
   canReply: false,
   ...over,
 });
-export const sendingTo = (roomKey: string, heardLive = true) => ({ roomKey, live: true, heardLive });
-export const burstRoom = (key: string, mode: "burst" | "listen" | "call" = "burst") => ({ key, mode, since: NOW - 5_000 });
-export const call = (roomKey: string, over: Partial<FaceRowInput["call"]> = {}) => ({
+export const sendingTo = (roomKey: string, heardLive = true) => ({
+  roomKey,
+  live: true,
+  heardLive,
+});
+export const burstRoom = (
+  key: string,
+  mode: "burst" | "listen" | "call" = "burst",
+) => ({ key, mode, since: NOW - 5_000 });
+export const call = (
+  roomKey: string,
+  over: Partial<FaceRowInput["call"]> = {},
+) => ({
   phase: "connected",
   roomKey,
   muted: false,
@@ -52,6 +85,8 @@ export const call = (roomKey: string, over: Partial<FaceRowInput["call"]> = {}) 
   ...over,
 });
 
-export const states = (row: FaceRow) => Object.fromEntries(row.entries.map((e) => [e.id, e.state]));
+export const states = (row: FaceRow) =>
+  Object.fromEntries(row.entries.map((e) => [e.id, e.state]));
 export const order = (row: FaceRow) => row.entries.map((e) => e.id);
-export const entry = (row: FaceRow, id: string) => row.entries.find((e) => e.id === id)!;
+export const entry = (row: FaceRow, id: string) =>
+  row.entries.find((e) => e.id === id)!;

@@ -1,6 +1,18 @@
-import { labelsOf, noteOrgChange, recordSubject, roleSubject, whereOfRecord, whereOfRole, withOrgChange } from "./lib/orgChangeLog";
+import {
+  labelsOf,
+  noteOrgChange,
+  recordSubject,
+  roleSubject,
+  whereOfRecord,
+  whereOfRole,
+  withOrgChange,
+} from "./lib/orgChangeLog";
 import { syncProjectTriggers } from "./lib/agentTaskRows";
-import { applyFile, applyFileSession, looseSessionsOf } from "./lib/orgSessionFiling";
+import {
+  applyFile,
+  applyFileSession,
+  looseSessionsOf,
+} from "./lib/orgSessionFiling";
 import { isWholeWorkspaceRole } from "@codecast/shared/contracts/orgLead";
 import { matchHandle } from "@codecast/shared/chat";
 import { movedFields } from "@codecast/shared/contracts/orgChange";
@@ -13,20 +25,56 @@ import { scopedFetch } from "./data";
 import { workspaceForResource, workspaceKey } from "./lib/access";
 import { userCanAdminRole } from "./lib/orgAccess";
 import { isScopeless, scopeIds } from "./lib/orgScope";
-import { collectOrgSessions, requireWorkspaceCaller, resolveScope, sessionsInScope } from "./org";
+import {
+  collectOrgSessions,
+  requireWorkspaceCaller,
+  resolveScope,
+  sessionsInScope,
+} from "./org";
 import { sessionsOwnedBy, tasksOwnedBy } from "./lib/orgOwnership";
 import { performRehomeSessions, type RehomeResult } from "./sessionOwnership";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
-import { activitySessionsFromScan, latestEventAnywhere, readActivityCommits, readWorkTasks, reposFromScan, roleActivity, slimWorkTasks, type WorkTasks } from "./orgHealth";
-import { activityPlanOf, computeOrgActivity, isLandedCommit, landingFor, namedTextOf, namesRecord, recordWords, type OrgActivity, type RecordRef } from "./lib/orgActivity";
+import {
+  activitySessionsFromScan,
+  latestEventAnywhere,
+  readActivityCommits,
+  readWorkTasks,
+  reposFromScan,
+  roleActivity,
+  slimWorkTasks,
+  type WorkTasks,
+} from "./orgHealth";
+import {
+  activityPlanOf,
+  computeOrgActivity,
+  isLandedCommit,
+  landingFor,
+  namedTextOf,
+  namesRecord,
+  recordWords,
+  type OrgActivity,
+  type RecordRef,
+} from "./lib/orgActivity";
 import { canAccessChannel } from "./chatAccess";
 import type { VendorGate } from "./lib/vendorGuard";
 import type { AskModel, StatedGoals } from "./lib/statedGoals";
-import { goalModelAsk, readGoalCandidates, readSaid, readStatedGoals } from "./orgSaid";
-import { computeCoverage, unplacedOrUnread, withUnplaced } from "./lib/orgCoverage";
+import {
+  goalModelAsk,
+  readGoalCandidates,
+  readSaid,
+  readStatedGoals,
+} from "./orgSaid";
+import {
+  computeCoverage,
+  unplacedOrUnread,
+  withUnplaced,
+} from "./lib/orgCoverage";
 import { planDriverRefs, readUnplaced } from "./orgUnplaced";
 import { isActiveTask } from "@codecast/shared/tasks";
-import { DAILY_CAP_KEYS, type LandedCommit } from "@codecast/shared/contracts/orgCapacity";
+import {
+  DAILY_CAP_KEYS,
+  type LandedCommit,
+} from "@codecast/shared/contracts/orgCapacity";
 import {
   overlapsAmong,
   performCreateRole,
@@ -38,12 +86,29 @@ import {
   performSetRoleScope,
   planProjectsOf,
   resolveScopeRef,
-  rolesInBoundary, performSetAuthority, performSetProjectLead } from "./orgRoles";
-import { performAcceptUpgrade, performCatalog, performUpsertInstance, hiredRowKey, templateLine } from "./orgTemplates";
-import { capsFor, countersNow, roleStartsOnItsOwn, trustOf } from "./lib/orgCaps";
+  rolesInBoundary,
+  performSetAuthority,
+  performSetProjectLead,
+} from "./orgRoles";
+import {
+  performAcceptUpgrade,
+  performCatalog,
+  performUpsertInstance,
+  hiredRowKey,
+  templateLine,
+} from "./orgTemplates";
+import {
+  capsFor,
+  countersNow,
+  roleStartsOnItsOwn,
+  trustOf,
+} from "./lib/orgCaps";
 import { autonomyChangeWords } from "@codecast/shared/contracts/roleAutonomy";
 import { findDecision } from "./sessionDecisions";
-import { extractRepoFromRemoteUrl, threadStateHeadline } from "@codecast/shared/contracts";
+import {
+  extractRepoFromRemoteUrl,
+  threadStateHeadline,
+} from "@codecast/shared/contracts";
 import {
   applyProposalChanges,
   extractOrgProposal,
@@ -62,13 +127,51 @@ import {
   type OrgRoutineChange,
   type OrgScopeChange,
   type OrgTaskStatusChange,
-  type OrgTrustChange, authorityWords, type OrgAuthorityChange, type OrgHireChange, type OrgUpgradeChange,
-  type OrgInitiativeChange, type OrgInitiativeOwnerChange, type OrgInitiativeProjectsChange, type OrgInitiativeShapeChange, type OrgEvidenceLink, metricsWords, ORG_GOAL_KINDS, type OrgCharterEditChange, type OrgRoleEditChange, describeOrgChange, applyCharterEdits } from "@codecast/shared/contracts/orgProposal";
-import { INITIATIVE_RECORD_MAX, INITIATIVE_RECORD_NOUN, mergeIntentSources, parseIntentSource, type IntentSource } from "@codecast/shared/contracts/initiative";
-import { keepMetricReads, metricShape } from "@codecast/shared/contracts/metricStanding";
-import { performAddProjects, performCreateInitiative, performUpdateInitiative } from "./initiatives";
+  type OrgTrustChange,
+  authorityWords,
+  type OrgAuthorityChange,
+  type OrgHireChange,
+  type OrgUpgradeChange,
+  type OrgInitiativeChange,
+  type OrgInitiativeOwnerChange,
+  type OrgInitiativeProjectsChange,
+  type OrgInitiativeShapeChange,
+  type OrgEvidenceLink,
+  metricsWords,
+  ORG_GOAL_KINDS,
+  type OrgCharterEditChange,
+  type OrgRoleEditChange,
+  describeOrgChange,
+  applyCharterEdits,
+} from "@codecast/shared/contracts/orgProposal";
+import {
+  INITIATIVE_RECORD_MAX,
+  INITIATIVE_RECORD_NOUN,
+  mergeIntentSources,
+  parseIntentSource,
+  type IntentSource,
+} from "@codecast/shared/contracts/initiative";
+import {
+  keepMetricReads,
+  metricShape,
+} from "@codecast/shared/contracts/metricStanding";
+import {
+  performAddProjects,
+  performCreateInitiative,
+  performUpdateInitiative,
+} from "./initiatives";
 import { findInitiative } from "./lib/initiativeRef";
-import { applyRoutineTune, performPauseRole, performResumeRole, performSetHiresFreely, performSetKeepsReportsInside, performSetTrust, performUpdateRole, roleCheckOf, standingConversationOf } from "./orgRoles";
+import {
+  applyRoutineTune,
+  performPauseRole,
+  performResumeRole,
+  performSetHiresFreely,
+  performSetKeepsReportsInside,
+  performSetTrust,
+  performUpdateRole,
+  roleCheckOf,
+  standingConversationOf,
+} from "./orgRoles";
 import { roleWakeOf } from "@codecast/shared/contracts/rolePlaybook";
 import { roleRoutineFor } from "./lib/orgRoutine";
 import { insertTask } from "./agentTasks";
@@ -87,14 +190,33 @@ import { mintProjectShortId } from "./lib/projectShortId";
 
 type Ctx = { db: any };
 
-import { ANALYSIS_WINDOW_MS, IDLE_ROLE_DAYS, WAKE_HISTORY_DAYS, ANALYSIS_CAPS, LANDING_WINDOW_MS, LONG_RUNNING_MIN_AGE_MS } from "./lib/orgAnalysisCaps";
+import {
+  ANALYSIS_WINDOW_MS,
+  IDLE_ROLE_DAYS,
+  WAKE_HISTORY_DAYS,
+  ANALYSIS_CAPS,
+  LANDING_WINDOW_MS,
+  LONG_RUNNING_MIN_AGE_MS,
+} from "./lib/orgAnalysisCaps";
 import { roleCharterOf } from "./lib/roleCharter";
-export { ANALYSIS_WINDOW_MS, IDLE_ROLE_DAYS, WAKE_HISTORY_DAYS, ANALYSIS_CAPS, LANDING_WINDOW_MS, LONG_RUNNING_MIN_AGE_MS } from "./lib/orgAnalysisCaps";
+export {
+  ANALYSIS_WINDOW_MS,
+  IDLE_ROLE_DAYS,
+  WAKE_HISTORY_DAYS,
+  ANALYSIS_CAPS,
+  LANDING_WINDOW_MS,
+  LONG_RUNNING_MIN_AGE_MS,
+} from "./lib/orgAnalysisCaps";
 
-const bump = (m: Map<string, number>, k: string, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
+const bump = (m: Map<string, number>, k: string, by = 1) =>
+  m.set(k, (m.get(k) ?? 0) + by);
 const topOf = (m: Map<string, number>, n: number) =>
-  Array.from(m.entries()).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, n).map(([name, count]) => ({ name, count }));
-const objOf = (m: Map<string, number>): Record<string, number> => Object.fromEntries(m);
+  Array.from(m.entries())
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .slice(0, n)
+    .map(([name, count]) => ({ name, count }));
+const objOf = (m: Map<string, number>): Record<string, number> =>
+  Object.fromEntries(m);
 
 // The inputs are three bounded reads, each its own query so none crosses the
 // execution limit on a large workspace, run from one action and merged once.
@@ -106,7 +228,13 @@ type AnalysisOrg = Awaited<ReturnType<typeof computeAnalysisOrg>>;
 type AnalysisSignals = Awaited<ReturnType<typeof computeAnalysisSignals>>;
 /** What the org slice needs from the work slice: small rows, never the tasks. */
 export type AnalysisHandoff = {
-  projects: Array<{ id: string; short_id?: string; title: string; open_tasks: number; project_path?: string }>;
+  projects: Array<{
+    id: string;
+    short_id?: string;
+    title: string;
+    open_tasks: number;
+    project_path?: string;
+  }>;
   plans: Array<{ id: string; short_id: string }>;
   latest_event: number | null;
 };
@@ -117,14 +245,34 @@ function statusCounts(rows: any[]): Record<string, number> {
   return objOf(m);
 }
 
-function shapeWork(projects: any[], plans: any[], tasks: any[], docs: any[], tasksTruncated = false) {
+function shapeWork(
+  projects: any[],
+  plans: any[],
+  tasks: any[],
+  docs: any[],
+  tasksTruncated = false,
+) {
   const tasksByProject = new Map<string, any[]>();
   const tasksByPlan = new Map<string, any[]>();
   let unfiledOpen = 0;
   for (const t of tasks) {
-    if (t.project_id) tasksByProject.set(String(t.project_id), [...(tasksByProject.get(String(t.project_id)) ?? []), t]);
-    if (t.plan_id) tasksByPlan.set(String(t.plan_id), [...(tasksByPlan.get(String(t.plan_id)) ?? []), t]);
-    if (!t.project_id && !t.plan_id && t.status !== "done" && t.status !== "dropped") unfiledOpen++;
+    if (t.project_id)
+      tasksByProject.set(String(t.project_id), [
+        ...(tasksByProject.get(String(t.project_id)) ?? []),
+        t,
+      ]);
+    if (t.plan_id)
+      tasksByPlan.set(String(t.plan_id), [
+        ...(tasksByPlan.get(String(t.plan_id)) ?? []),
+        t,
+      ]);
+    if (
+      !t.project_id &&
+      !t.plan_id &&
+      t.status !== "done" &&
+      t.status !== "dropped"
+    )
+      unfiledOpen++;
   }
   const projectRows = projects.map((p) => {
     const mine = tasksByProject.get(String(p._id)) ?? [];
@@ -135,13 +283,21 @@ function shapeWork(projects: any[], plans: any[], tasks: any[], docs: any[], tas
       description: (p.description ?? "").slice(0, 600) || undefined,
       status: p.status,
       project_path: p.project_path ?? undefined,
-      tasks: { total: mine.length, open: mine.filter((t) => t.status !== "done" && t.status !== "dropped").length, by_status: statusCounts(mine) },
-      plans: plans.filter((pl) => String(pl.project_id) === String(p._id)).length,
+      tasks: {
+        total: mine.length,
+        open: mine.filter((t) => t.status !== "done" && t.status !== "dropped")
+          .length,
+        by_status: statusCounts(mine),
+      },
+      plans: plans.filter((pl) => String(pl.project_id) === String(p._id))
+        .length,
       updated_at: p.updated_at ?? p._creationTime,
     };
   });
   const planRows = plans.map((pl) => {
-    const mine = (tasksByPlan.get(String(pl._id)) ?? []).filter((t) => !t.parent_id && t.status !== "dropped");
+    const mine = (tasksByPlan.get(String(pl._id)) ?? []).filter(
+      (t) => !t.parent_id && t.status !== "dropped",
+    );
     // The plan's own stored progress counts every task under it; the window's
     // tasks hold only the open ones and the ones written lately, so a plan
     // whose work landed months ago read as "0 of 75" here against 88 of 164 on
@@ -150,10 +306,14 @@ function shapeWork(projects: any[], plans: any[], tasks: any[], docs: any[], tas
     const counted = { total: mine.length, done: 0, in_progress: 0, open: 0 };
     for (const t of mine) {
       if (t.status === "done") counted.done++;
-      else if (t.status === "in_progress" || t.status === "in_review") counted.in_progress++;
+      else if (t.status === "in_progress" || t.status === "in_review")
+        counted.in_progress++;
       else counted.open++;
     }
-    const progress = pl.progress && pl.progress.total > 0 ? { ...pl.progress, source: "plan" as const } : { ...counted, source: "window" as const };
+    const progress =
+      pl.progress && pl.progress.total > 0
+        ? { ...pl.progress, source: "plan" as const }
+        : { ...counted, source: "window" as const };
     return {
       id: String(pl._id),
       short_id: pl.short_id,
@@ -166,18 +326,33 @@ function shapeWork(projects: any[], plans: any[], tasks: any[], docs: any[], tas
     };
   });
   const docsByType = new Map<string, number>();
-  for (const d of docs) if (!d.archived_at) bump(docsByType, d.doc_type ?? "note");
+  for (const d of docs)
+    if (!d.archived_at) bump(docsByType, d.doc_type ?? "note");
   let latest: number | null = null;
-  for (const r of [...tasks, ...plans]) if (r.updated_at && (latest === null || r.updated_at > latest)) latest = r.updated_at;
+  for (const r of [...tasks, ...plans])
+    if (r.updated_at && (latest === null || r.updated_at > latest))
+      latest = r.updated_at;
   const handoff: AnalysisHandoff = {
-    projects: projectRows.map((p) => ({ id: p.id, short_id: p.short_id, title: p.title, open_tasks: p.tasks.open, project_path: p.project_path })),
+    projects: projectRows.map((p) => ({
+      id: p.id,
+      short_id: p.short_id,
+      title: p.title,
+      open_tasks: p.tasks.open,
+      project_path: p.project_path,
+    })),
     plans: planRows.map((p) => ({ id: p.id, short_id: p.short_id })),
     latest_event: latest,
   };
   return {
     projects: projectRows,
     plans: planRows,
-    tasks: { total: tasks.length, by_status: statusCounts(tasks), unfiled_open: unfiledOpen, truncated: tasksTruncated, closed_counted: "inside the window only" },
+    tasks: {
+      total: tasks.length,
+      by_status: statusCounts(tasks),
+      unfiled_open: unfiledOpen,
+      truncated: tasksTruncated,
+      closed_counted: "inside the window only",
+    },
     docs_by_type: objOf(docsByType),
     truncated: {
       projects: projects.length >= ANALYSIS_CAPS.projects,
@@ -190,28 +365,63 @@ function shapeWork(projects: any[], plans: any[], tasks: any[], docs: any[], tas
 }
 
 // ── Work items, through the workspace chokepoint ──────────────────────────
-export async function computeAnalysisWork(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined): Promise<AnalysisWork> {
-  const fetchOpts = teamId ? { userId, workspace: "team" as const, teamId } : { userId, workspace: "personal" as const };
+export async function computeAnalysisWork(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+): Promise<AnalysisWork> {
+  const fetchOpts = teamId
+    ? { userId, workspace: "team" as const, teamId }
+    : { userId, workspace: "personal" as const };
   // Every open row of the workspace plus the month's changes (orgHealth
   // readWorkTasks): real work only, complete for what is open, so the counts
   // and the stale reading are not the newest N of the table. Rows closed
   // before the window are not read; `tasks.by_status` counts done and
   // dropped inside the window and says so.
   const [projects, plans, work, docs] = await Promise.all([
-    scopedFetch(ctx, "projects", { ...fetchOpts, limit: ANALYSIS_CAPS.projects }).then((r) => r.records),
-    scopedFetch(ctx, "plans", { ...fetchOpts, limit: ANALYSIS_CAPS.plans }).then((r) => r.records),
-    readWorkTasks(ctx, userId, teamId, { perStatus: ANALYSIS_CAPS.tasks, updatedSince: Date.now() - ANALYSIS_WINDOW_MS, recentCap: ANALYSIS_CAPS.tasks }),
-    scopedFetch(ctx, "docs", { ...fetchOpts, limit: ANALYSIS_CAPS.docs, stripFields: ["content", "entries", "content_embedding"] }).then((r) => r.records),
+    scopedFetch(ctx, "projects", {
+      ...fetchOpts,
+      limit: ANALYSIS_CAPS.projects,
+    }).then((r) => r.records),
+    scopedFetch(ctx, "plans", {
+      ...fetchOpts,
+      limit: ANALYSIS_CAPS.plans,
+    }).then((r) => r.records),
+    readWorkTasks(ctx, userId, teamId, {
+      perStatus: ANALYSIS_CAPS.tasks,
+      updatedSince: Date.now() - ANALYSIS_WINDOW_MS,
+      recentCap: ANALYSIS_CAPS.tasks,
+    }),
+    scopedFetch(ctx, "docs", {
+      ...fetchOpts,
+      limit: ANALYSIS_CAPS.docs,
+      stripFields: ["content", "entries", "content_embedding"],
+    }).then((r) => r.records),
   ]);
   return shapeWork(projects, plans, work.tasks, docs, work.any_truncated);
 }
 
 // ── Sessions (the org scan), members, labels, git roots, roles ────────────
-export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number, work: AnalysisHandoff) {
+export async function computeAnalysisOrg(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+  work: AnalysisHandoff,
+) {
   const scan = await collectOrgSessions(ctx, userId, teamId, now);
-  const perMember = new Map<string, { sessions: number; by_path: Map<string, number> }>();
-  const gitRoots = new Map<string, { git_root: string; remote_url?: string; repo?: string; sessions: number }>();
-  const titlesByPath = new Map<string, Array<{ short_id?: string; title: string; updated_at: number }>>();
+  const perMember = new Map<
+    string,
+    { sessions: number; by_path: Map<string, number> }
+  >();
+  const gitRoots = new Map<
+    string,
+    { git_root: string; remote_url?: string; repo?: string; sessions: number }
+  >();
+  const titlesByPath = new Map<
+    string,
+    Array<{ short_id?: string; title: string; updated_at: number }>
+  >();
   const byId = new Map<string, any>();
   for (const { session, raw } of scan.sessions.values()) {
     byId.set(String(session._id), raw);
@@ -223,12 +433,22 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
     perMember.set(owner, m);
     const rootKey = raw.git_root ?? raw.git_remote_url;
     if (rootKey) {
-      const g = gitRoots.get(rootKey) ?? { git_root: raw.git_root ?? rootKey, remote_url: raw.git_remote_url ?? undefined, repo: extractRepoFromRemoteUrl(raw.git_remote_url) ?? undefined, sessions: 0 };
+      const g = gitRoots.get(rootKey) ?? {
+        git_root: raw.git_root ?? rootKey,
+        remote_url: raw.git_remote_url ?? undefined,
+        repo: extractRepoFromRemoteUrl(raw.git_remote_url) ?? undefined,
+        sessions: 0,
+      };
       g.sessions++;
       gitRoots.set(rootKey, g);
     }
     const list = titlesByPath.get(p) ?? [];
-    if (session.title && list.length < ANALYSIS_CAPS.titles_per_path) list.push({ short_id: session.short_id ?? undefined, title: session.title, updated_at: session.updated_at });
+    if (session.title && list.length < ANALYSIS_CAPS.titles_per_path)
+      list.push({
+        short_id: session.short_id ?? undefined,
+        title: session.title,
+        updated_at: session.updated_at,
+      });
     titlesByPath.set(p, list);
   }
   const members = [];
@@ -249,9 +469,17 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
   // evidence, and a caller with thousands of filed sessions must not sink the
   // whole read.
   const labels = new Map<string, number>();
-  const buckets: any[] = await ctx.db.query("inbox_buckets").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
-  const bucketName = new Map(buckets.filter((b) => !b.archived_at).map((b) => [String(b._id), b.name]));
-  const assignments: any[] = await ctx.db.query("bucket_assignments").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).take(ANALYSIS_CAPS.assignments);
+  const buckets: any[] = await ctx.db
+    .query("inbox_buckets")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
+  const bucketName = new Map(
+    buckets.filter((b) => !b.archived_at).map((b) => [String(b._id), b.name]),
+  );
+  const assignments: any[] = await ctx.db
+    .query("bucket_assignments")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .take(ANALYSIS_CAPS.assignments);
   for (const a of assignments) {
     const name = a.bucket_id ? bucketName.get(String(a.bucket_id)) : undefined;
     if (name && byId.has(String(a.conversation_id))) bump(labels, name);
@@ -259,13 +487,21 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
 
   // ── Roles, anchors, and each role's health (update mode reads these) ────
   const roleRows = scan.roles;
-  const planProjectOf = await planProjectsOf(ctx, roleRows.map((r: any) => r.scope));
+  const planProjectOf = await planProjectsOf(
+    ctx,
+    roleRows.map((r: any) => r.scope),
+  );
   const projectTitle = new Map(work.projects.map((p) => [p.id, p.title]));
   const planShort = new Map(work.plans.map((p) => [p.id, p.short_id]));
   // The whole workspace idle clock: the newest task or plan (handed over from
   // the work slice) or the newest scanned session.
   const latestSession = latestEventAnywhere([], [], scan);
-  const latestAnywhere = work.latest_event === null ? latestSession : latestSession === null ? work.latest_event : Math.max(work.latest_event, latestSession);
+  const latestAnywhere =
+    work.latest_event === null
+      ? latestSession
+      : latestSession === null
+        ? work.latest_event
+        : Math.max(work.latest_event, latestSession);
   const coveredProjects = new Set<string>();
   let wholeWorkspaceRoles = 0;
   const roles = [];
@@ -273,7 +509,10 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
     const ids = scopeIds(role.scope);
     if (isWholeWorkspaceRole(role)) wholeWorkspaceRoles++;
     for (const id of ids.project_ids) coveredProjects.add(id);
-    for (const id of ids.plan_ids) { const pr = planProjectOf.get(id); if (pr) coveredProjects.add(pr); }
+    for (const id of ids.plan_ids) {
+      const pr = planProjectOf.get(id);
+      if (pr) coveredProjects.add(pr);
+    }
     const scopeNames = {
       projects: ids.project_ids.map((id) => projectTitle.get(id) ?? id),
       plans: ids.plan_ids.map((id) => planShort.get(id) ?? id),
@@ -282,24 +521,38 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
     // org.health uses (orgHealth.roleActivity).
     // The slice's own scan: one session scan for every role, not one each
     // (nine scoped roles passed Convex's 100 MB read limit, ct-56046).
-    const activity = await roleActivity(ctx, userId, role, now, { wholeWorkspaceLatest: latestAnywhere, scan });
+    const activity = await roleActivity(ctx, userId, role, now, {
+      wholeWorkspaceLatest: latestAnywhere,
+      scan,
+    });
     const caps = capsFor(role);
     const hands = (scan.byParent.get(`role:${String(role._id)}`) ?? []).length;
-    const parent = role.reports_to?.kind === "role"
-      ? `@${roleRows.find((r: any) => String(r._id) === String(role.reports_to.role_id))?.handle ?? "?"}`
-      : (await ctx.db.get(role.reports_to.user_id))?.name ?? "a person";
+    const parent =
+      role.reports_to?.kind === "role"
+        ? `@${roleRows.find((r: any) => String(r._id) === String(role.reports_to.role_id))?.handle ?? "?"}`
+        : ((await ctx.db.get(role.reports_to.user_id))?.name ?? "a person");
     // The session that is this role (a seat named from a running session, or
     // a standing agent's own conversation), so a review reads it as already
     // named: an update run re-proposed three seated sessions under new handles
     // because nothing on the role row said which session it was (2026-09-22).
-    const seatRow: any = await ctx.db.query("conversations").withIndex("by_standing_role", (q: any) => q.eq("standing_role_id", role._id)).first();
+    const seatRow: any = await ctx.db
+      .query("conversations")
+      .withIndex("by_standing_role", (q: any) =>
+        q.eq("standing_role_id", role._id),
+      )
+      .first();
     roles.push({
       id: String(role._id),
       short_id: role.short_id,
       name: role.name,
       handle: role.handle,
       status: role.status,
-      seat: seatRow ? { session: seatRow.short_id ?? String(seatRow._id), title: seatRow.title ?? "" } : undefined,
+      seat: seatRow
+        ? {
+            session: seatRow.short_id ?? String(seatRow._id),
+            title: seatRow.title ?? "",
+          }
+        : undefined,
       trust: trustOf(role),
       starts_on_its_own: roleStartsOnItsOwn(role),
       caps,
@@ -315,22 +568,63 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
       idle_days: activity.idle_days,
       idle: activity.idle,
       wakes_7d: activity.wakes_7d,
-      overlaps: overlapsAmong(role, roleRows, planProjectOf).map((o) => ({ handle: o.handle, projects: o.project_ids.length, plans: o.plan_ids.length })),
+      overlaps: overlapsAmong(role, roleRows, planProjectOf).map((o) => ({
+        handle: o.handle,
+        projects: o.project_ids.length,
+        plans: o.plan_ids.length,
+      })),
     });
   }
-  const anchors = scan.anchors.map((a: any) => ({ id: String(a._id), name: a.name, status: a.status, role_id: a.org_role_id ? String(a.org_role_id) : undefined }));
-  const projectsWithoutRole = wholeWorkspaceRoles > 0 ? [] : work.projects.filter((p) => !coveredProjects.has(p.id)).map((p) => ({ id: p.id, short_id: p.short_id, title: p.title, open_tasks: p.open_tasks }));
+  const anchors = scan.anchors.map((a: any) => ({
+    id: String(a._id),
+    name: a.name,
+    status: a.status,
+    role_id: a.org_role_id ? String(a.org_role_id) : undefined,
+  }));
+  const projectsWithoutRole =
+    wholeWorkspaceRoles > 0
+      ? []
+      : work.projects
+          .filter((p) => !coveredProjects.has(p.id))
+          .map((p) => ({
+            id: p.id,
+            short_id: p.short_id,
+            title: p.title,
+            open_tasks: p.open_tasks,
+          }));
   let sessionsUnfiled = 0;
-  for (const [key, list] of scan.byParent) if (key.startsWith("user:")) sessionsUnfiled += list.length;
-  const longRunning = await longRunningSessions(ctx, scan, now, work, userId, teamId);
+  for (const [key, list] of scan.byParent)
+    if (key.startsWith("user:")) sessionsUnfiled += list.length;
+  const longRunning = await longRunningSessions(
+    ctx,
+    scan,
+    now,
+    work,
+    userId,
+    teamId,
+  );
   const loose = await looseSessionsOf(ctx, scan, userId);
 
   return {
     members,
     labels: topOf(labels, ANALYSIS_CAPS.labels),
-    git_roots: Array.from(gitRoots.values()).sort((a, b) => b.sessions - a.sessions).slice(0, ANALYSIS_CAPS.git_roots),
-    sessions: { total: scan.sessions.size, truncated: scan.truncated, unfiled: sessionsUnfiled, loose, titles_by_path: Object.fromEntries(titlesByPath), long_running: longRunning },
-    org: { roles, anchors, projects_without_role: projectsWithoutRole, whole_workspace_roles: wholeWorkspaceRoles },
+    git_roots: Array.from(gitRoots.values())
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, ANALYSIS_CAPS.git_roots),
+    sessions: {
+      total: scan.sessions.size,
+      truncated: scan.truncated,
+      unfiled: sessionsUnfiled,
+      loose,
+      titles_by_path: Object.fromEntries(titlesByPath),
+      long_running: longRunning,
+    },
+    org: {
+      roles,
+      anchors,
+      projects_without_role: projectsWithoutRole,
+      whole_workspace_roles: wholeWorkspaceRoles,
+    },
   };
 }
 
@@ -363,11 +657,29 @@ export async function computeAnalysisOrg(ctx: Ctx, userId: Id<"users">, teamId: 
 // default limit as provisional rather than sizing on nothing.
 export const SESSION_USE_DAYS = 7;
 export const USAGE_RECORDED_SINCE = Date.UTC(2026, 8, 13);
-export type SessionUse = { days: number; tokens: number; calls: number; per_day: { tokens: number; calls: number }; counted: boolean; messages_read: number; truncated: boolean };
-type UsageMessage = { timestamp?: number; usage?: { input_tokens?: number; output_tokens?: number } | null };
-export function sessionUseOf(rows: UsageMessage[], startedAt: number, now: number, cap: number = ANALYSIS_CAPS.use_messages_per_session): SessionUse {
+export type SessionUse = {
+  days: number;
+  tokens: number;
+  calls: number;
+  per_day: { tokens: number; calls: number };
+  counted: boolean;
+  messages_read: number;
+  truncated: boolean;
+};
+type UsageMessage = {
+  timestamp?: number;
+  usage?: { input_tokens?: number; output_tokens?: number } | null;
+};
+export function sessionUseOf(
+  rows: UsageMessage[],
+  startedAt: number,
+  now: number,
+  cap: number = ANALYSIS_CAPS.use_messages_per_session,
+): SessionUse {
   const D = 24 * 60 * 60 * 1000;
-  let tokens = 0, calls = 0, oldest = now;
+  let tokens = 0,
+    calls = 0,
+    oldest = now;
   for (const m of rows) {
     if (m.timestamp !== undefined && m.timestamp < oldest) oldest = m.timestamp;
     if (!m.usage) continue;
@@ -375,14 +687,39 @@ export function sessionUseOf(rows: UsageMessage[], startedAt: number, now: numbe
     tokens += (m.usage.input_tokens || 0) + (m.usage.output_tokens || 0);
   }
   const truncated = rows.length >= cap;
-  const covered = truncated ? now - oldest : now - Math.max(startedAt, USAGE_RECORDED_SINCE, now - SESSION_USE_DAYS * D);
+  const covered = truncated
+    ? now - oldest
+    : now -
+      Math.max(startedAt, USAGE_RECORDED_SINCE, now - SESSION_USE_DAYS * D);
   const days = Math.max(1, Math.min(SESSION_USE_DAYS, Math.ceil(covered / D)));
-  return { days, tokens, calls, per_day: { tokens: Math.round(tokens / days), calls: Math.round((calls / days) * 10) / 10 }, counted: calls > 0, messages_read: rows.length, truncated };
+  return {
+    days,
+    tokens,
+    calls,
+    per_day: {
+      tokens: Math.round(tokens / days),
+      calls: Math.round((calls / days) * 10) / 10,
+    },
+    counted: calls > 0,
+    messages_read: rows.length,
+    truncated,
+  };
 }
 /** A project as the per session read names it: the handoff's rows. */
-export type ProjectRef = { id: string; short_id?: string | null; title: string };
-export type SessionProjectCounts = { id: string; commits_30d: number; messages_7d: number };
-export type SessionEvidence = { use_7d: SessionUse; projects: SessionProjectCounts[] };
+export type ProjectRef = {
+  id: string;
+  short_id?: string | null;
+  title: string;
+};
+export type SessionProjectCounts = {
+  id: string;
+  commits_30d: number;
+  messages_7d: number;
+};
+export type SessionEvidence = {
+  use_7d: SessionUse;
+  projects: SessionProjectCounts[];
+};
 /** One session's measured use and its work share by project, from the reads
  *  the session's own query makes: its messages of the week (the same rows the
  *  use is measured on; a user or assistant line that names a project counts
@@ -391,35 +728,74 @@ export type SessionEvidence = { use_7d: SessionUse; projects: SessionProjectCoun
  *  under that project). Counted over every project of the workspace, so a
  *  project the session never filed a task in still shows where its commits
  *  went; the row keeps the projects with a count. */
-export async function readSessionEvidence(ctx: Ctx, conversationId: Id<"conversations">, startedAt: number, now: number, projects: ProjectRef[] = []): Promise<SessionEvidence> {
+export async function readSessionEvidence(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+  startedAt: number,
+  now: number,
+  projects: ProjectRef[] = [],
+): Promise<SessionEvidence> {
   const since = now - SESSION_USE_DAYS * 24 * 60 * 60 * 1000;
-  const rows: any[] = await ctx.db.query("messages").withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conversationId).gte("timestamp", since)).order("desc").take(ANALYSIS_CAPS.use_messages_per_session);
+  const rows: any[] = await ctx.db
+    .query("messages")
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conversationId).gte("timestamp", since),
+    )
+    .order("desc")
+    .take(ANALYSIS_CAPS.use_messages_per_session);
   const use_7d = sessionUseOf(rows, startedAt, now);
   const refs = projects.map((p) => ({ p, words: recordWords(p.title) }));
   const messages = new Map<string, number>();
   const commits = new Map<string, number>();
   for (const m of rows) {
-    if ((m.role !== "user" && m.role !== "assistant") || typeof m.content !== "string" || !m.content) continue;
-    const named = namedTextOf(m.content.slice(0, ANALYSIS_CAPS.message_scan_chars));
-    for (const { p, words } of refs) if (namesRecord(named, p, words)) bump(messages, p.id);
+    if (
+      (m.role !== "user" && m.role !== "assistant") ||
+      typeof m.content !== "string" ||
+      !m.content
+    )
+      continue;
+    const named = namedTextOf(
+      m.content.slice(0, ANALYSIS_CAPS.message_scan_chars),
+    );
+    for (const { p, words } of refs)
+      if (namesRecord(named, p, words)) bump(messages, p.id);
   }
   const windowSince = now - ANALYSIS_WINDOW_MS;
-  const commitRows: any[] = await ctx.db.query("commits").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId)).order("desc").take(ANALYSIS_CAPS.commits_per_session);
+  const commitRows: any[] = await ctx.db
+    .query("commits")
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .order("desc")
+    .take(ANALYSIS_CAPS.commits_per_session);
   const projectOfTask = new Map<string, string | null>();
   for (const c of commitRows) {
     if ((c.timestamp ?? 0) < windowSince) continue;
     const hit = new Set<string>();
     const named = namedTextOf(c.message);
-    for (const { p, words } of refs) if (namesRecord(named, p, words)) hit.add(p.id);
+    for (const { p, words } of refs)
+      if (namesRecord(named, p, words)) hit.add(p.id);
     for (const tid of c.task_ids ?? []) {
       const k = String(tid);
-      if (!projectOfTask.has(k)) { const t: any = await ctx.db.get(tid); projectOfTask.set(k, t?.project_id ? String(t.project_id) : null); }
+      if (!projectOfTask.has(k)) {
+        const t: any = await ctx.db.get(tid);
+        projectOfTask.set(k, t?.project_id ? String(t.project_id) : null);
+      }
       const pid = projectOfTask.get(k);
       if (pid) hit.add(pid);
     }
     for (const id of hit) bump(commits, id);
   }
-  return { use_7d, projects: projects.map((p) => ({ id: p.id, commits_30d: commits.get(p.id) ?? 0, messages_7d: messages.get(p.id) ?? 0 })).filter((p) => p.commits_30d || p.messages_7d) };
+  return {
+    use_7d,
+    projects: projects
+      .map((p) => ({
+        id: p.id,
+        commits_30d: commits.get(p.id) ?? 0,
+        messages_7d: messages.get(p.id) ?? 0,
+      }))
+      .filter((p) => p.commits_30d || p.messages_7d),
+  };
 }
 /** The long running rows with each session's evidence folded in and the
  *  internal ids off them: the ids exist only so the evidence can be read in
@@ -428,14 +804,32 @@ export async function readSessionEvidence(ctx: Ctx, conversationId: Id<"conversa
  *  bound) and what the session's own read counted (commits, messages),
  *  biggest share first; a project with nothing counted and no binding leaves
  *  the row. */
-export function withSessionEvidence(rows: any[], evidence: Array<SessionEvidence | null | undefined>, projects: ProjectRef[] = []) {
+export function withSessionEvidence(
+  rows: any[],
+  evidence: Array<SessionEvidence | null | undefined>,
+  projects: ProjectRef[] = [],
+) {
   const refById = new Map(projects.map((p) => [p.id, p]));
   return rows.map(({ id: _id, ...row }, i) => {
     const ev = evidence[i];
-    const byId = new Map<string, any>((row.projects ?? []).map((p: any) => [p.id, { ...p }]));
+    const byId = new Map<string, any>(
+      (row.projects ?? []).map((p: any) => [p.id, { ...p }]),
+    );
     for (const c of ev?.projects ?? []) {
       const ref = refById.get(c.id);
-      const cur = byId.get(c.id) ?? (ref ? { id: c.id, short_id: ref.short_id ?? undefined, title: ref.title, tasks: 0, commits_30d: 0, messages_7d: 0, bound: false } : null);
+      const cur =
+        byId.get(c.id) ??
+        (ref
+          ? {
+              id: c.id,
+              short_id: ref.short_id ?? undefined,
+              title: ref.title,
+              tasks: 0,
+              commits_30d: 0,
+              messages_7d: 0,
+              bound: false,
+            }
+          : null);
       if (!cur) continue;
       cur.commits_30d = c.commits_30d;
       cur.messages_7d = c.messages_7d;
@@ -443,7 +837,14 @@ export function withSessionEvidence(rows: any[], evidence: Array<SessionEvidence
     }
     const list = Array.from(byId.values())
       .filter((p) => p.tasks || p.commits_30d || p.messages_7d || p.bound)
-      .sort((a, b) => (b.tasks + b.commits_30d + b.messages_7d) - (a.tasks + a.commits_30d + a.messages_7d) || Number(b.bound) - Number(a.bound))
+      .sort(
+        (a, b) =>
+          b.tasks +
+            b.commits_30d +
+            b.messages_7d -
+            (a.tasks + a.commits_30d + a.messages_7d) ||
+          Number(b.bound) - Number(a.bound),
+      )
       .map(({ id: _pid, ...p }) => p);
     return { ...row, projects: list, ...(ev ? { use_7d: ev.use_7d } : {}) };
   });
@@ -451,21 +852,41 @@ export function withSessionEvidence(rows: any[], evidence: Array<SessionEvidence
 
 type OrgScanResult = Awaited<ReturnType<typeof collectOrgSessions>>;
 const LONG_RUNNING_RECENT_MS = 7 * 24 * 60 * 60 * 1000;
-async function longRunningSessions(ctx: Ctx, scan: OrgScanResult, now: number, work: AnalysisHandoff, userId: Id<"users">, teamId: Id<"teams"> | undefined) {
+async function longRunningSessions(
+  ctx: Ctx,
+  scan: OrgScanResult,
+  now: number,
+  work: AnalysisHandoff,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+) {
   // The live recurring routines, by the session each wakes, read once ahead
   // of the ranking so every old session is judged by the same facts.
   // Each member's own routines, never the server's: a routine runs as the
   // person who armed it, and that person is a member of the workspace whose
   // session it wakes.
   const routinesBySession = new Map<string, any[]>();
-  for (const memberId of scan.memberIds) for (const status of ["scheduled", "running"] as const) {
-    const routineRows: any[] = await ctx.db.query("agent_tasks").withIndex("by_user_status", (q: any) => q.eq("user_id", memberId).eq("status", status)).collect();
-    for (const routine of routineRows) {
-      if (routine.schedule_type === "once" || !routine.originating_conversation_id) continue;
-      const k = String(routine.originating_conversation_id);
-      routinesBySession.set(k, [...(routinesBySession.get(k) ?? []), routine]);
+  for (const memberId of scan.memberIds)
+    for (const status of ["scheduled", "running"] as const) {
+      const routineRows: any[] = await ctx.db
+        .query("agent_tasks")
+        .withIndex("by_user_status", (q: any) =>
+          q.eq("user_id", memberId).eq("status", status),
+        )
+        .collect();
+      for (const routine of routineRows) {
+        if (
+          routine.schedule_type === "once" ||
+          !routine.originating_conversation_id
+        )
+          continue;
+        const k = String(routine.originating_conversation_id);
+        routinesBySession.set(k, [
+          ...(routinesBySession.get(k) ?? []),
+          routine,
+        ]);
+      }
     }
-  }
   // A session a live routine wakes is a standing job whatever its process is
   // doing between wakes, and the scan reads only rows whose status is active
   // and that nobody dismissed from the inbox: a weekly job is parked six days
@@ -473,15 +894,41 @@ async function longRunningSessions(ctx: Ctx, scan: OrgScanResult, now: number, w
   // Codecast's four routine driven growth sessions were missing for that
   // reason (2026-09-21). Such a session is read from its own row here, with
   // its helpers uncounted (null, not zero), when it belongs to this workspace.
-  type Candidate = { session: OrgScanResult["sessions"] extends Map<string, infer V> ? (V extends { session: infer S } ? S & { routine_only?: boolean } : never) : never; raw: any };
+  type Candidate = {
+    session: OrgScanResult["sessions"] extends Map<string, infer V>
+      ? V extends { session: infer S }
+        ? S & { routine_only?: boolean }
+        : never
+      : never;
+    raw: any;
+  };
   const candidates = new Map<string, Candidate>(scan.sessions);
   for (const key of routinesBySession.keys()) {
     if (candidates.has(key)) continue;
     const raw: any = await ctx.db.get(key as Id<"conversations">);
-    if (!raw || raw.parent_conversation_id || raw.is_subagent || raw.inbox_killed_at) continue;
-    const ours = teamId ? String(raw.team_id ?? "") === String(teamId) : !raw.team_id && String(raw.user_id) === String(userId);
+    if (
+      !raw ||
+      raw.parent_conversation_id ||
+      raw.is_subagent ||
+      raw.inbox_killed_at
+    )
+      continue;
+    const ours = teamId
+      ? String(raw.team_id ?? "") === String(teamId)
+      : !raw.team_id && String(raw.user_id) === String(userId);
     if (!ours) continue;
-    candidates.set(key, { raw, session: { short_id: raw.short_id ?? null, title: raw.title ?? "", updated_at: raw.updated_at, owner_user_id: raw.owner_user_id ?? raw.user_id ?? null, subagent_count: null, project_path: raw.project_path ?? null, routine_only: true } as any });
+    candidates.set(key, {
+      raw,
+      session: {
+        short_id: raw.short_id ?? null,
+        title: raw.title ?? "",
+        updated_at: raw.updated_at,
+        owner_user_id: raw.owner_user_id ?? raw.user_id ?? null,
+        subagent_count: null,
+        project_path: raw.project_path ?? null,
+        routine_only: true,
+      } as any,
+    });
   }
   const evidence = ({ session, raw }: { session: any; raw: any }) => ({
     routine: routinesBySession.has(String(raw._id)) ? 1 : 0,
@@ -495,45 +942,109 @@ async function longRunningSessions(ctx: Ctx, scan: OrgScanResult, now: number, w
   // row, kept after the role is retired).
   const seats = new Set<string>();
   for (const a of teamId
-    ? await ctx.db.query("anchors").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).collect()
-    : await ctx.db.query("anchors").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId)).collect()) {
+    ? await ctx.db
+        .query("anchors")
+        .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+        .collect()
+    : await ctx.db
+        .query("anchors")
+        .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId))
+        .collect()) {
     if (a.conversation_id) seats.add(String(a.conversation_id));
   }
   const old = Array.from(candidates.values())
-    .filter(({ raw }) => !raw.anchor_id && !raw.standing_role_id && !seats.has(String(raw._id)) && now - (raw.started_at ?? raw._creationTime ?? now) >= LONG_RUNNING_MIN_AGE_MS)
+    .filter(
+      ({ raw }) =>
+        !raw.anchor_id &&
+        !raw.standing_role_id &&
+        !seats.has(String(raw._id)) &&
+        now - (raw.started_at ?? raw._creationTime ?? now) >=
+          LONG_RUNNING_MIN_AGE_MS,
+    )
     .sort((a, b) => {
-      const x = evidence(a), y = evidence(b);
-      return y.routine - x.routine || y.recent - x.recent || y.pinned - x.pinned || y.helpers - x.helpers || y.messages - x.messages;
+      const x = evidence(a),
+        y = evidence(b);
+      return (
+        y.routine - x.routine ||
+        y.recent - x.recent ||
+        y.pinned - x.pinned ||
+        y.helpers - x.helpers ||
+        y.messages - x.messages
+      );
     });
-  const projectByPath = new Map(work.projects.filter((p) => p.project_path).map((p) => [p.project_path!, p]));
+  const projectByPath = new Map(
+    work.projects
+      .filter((p) => p.project_path)
+      .map((p) => [p.project_path!, p]),
+  );
   const projectById = new Map(work.projects.map((p) => [p.id, p]));
-  const roleHandle = new Map(scan.roles.map((r: any) => [String(r._id), r.handle]));
+  const roleHandle = new Map(
+    scan.roles.map((r: any) => [String(r._id), r.handle]),
+  );
   const rows = [];
   for (const { session, raw } of old.slice(0, ANALYSIS_CAPS.long_running)) {
     const startedAt = raw.started_at ?? raw._creationTime;
     const routines: any[] = routinesBySession.get(String(raw._id)) ?? [];
-    const opening: any[] = await ctx.db.query("messages").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", raw._id)).order("asc").take(8);
-    const first = opening.find((m) => m.role === "user" && typeof m.content === "string" && m.content.trim());
+    const opening: any[] = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", raw._id),
+      )
+      .order("asc")
+      .take(8);
+    const first = opening.find(
+      (m) =>
+        m.role === "user" && typeof m.content === "string" && m.content.trim(),
+    );
     // Its work share by project (org-eval, 2026-09-23): the tasks it touched
     // in each (filed there, or bound to), joined below with the commits and
     // messages the per session read counts (readSessionEvidence), so a row
     // with one task in each of four projects and every commit in one reads
     // as one area, not four. A working directory that names a project is a
     // candidate only: it enters the list when the counts give it something.
-    const task = raw.active_task_id ? await ctx.db.get(raw.active_task_id) : null;
+    const task = raw.active_task_id
+      ? await ctx.db.get(raw.active_task_id)
+      : null;
     const touched = new Map<string, { tasks: Set<string>; bound: boolean }>();
-    const touch = (id: unknown) => { const k = String(id); const t = touched.get(k) ?? { tasks: new Set<string>(), bound: false }; touched.set(k, t); return t; };
-    const filed: any[] = await ctx.db.query("tasks").withIndex("by_created_from_conversation", (q: any) => q.eq("created_from_conversation", raw._id)).take(ANALYSIS_CAPS.tasks_filed_per_session);
-    for (const t of filed) if (t.project_id) touch(t.project_id).tasks.add(String(t._id));
-    if (task?.project_id) { const t = touch(task.project_id); t.tasks.add(String(task._id)); t.bound = true; }
-    for (const planId of new Set([raw.active_plan_id, task?.plan_id, ...(raw.plan_ids ?? [])].filter(Boolean).map(String))) { const plan = await ctx.db.get(planId as Id<"plans">); if (plan?.project_id) touch(plan.project_id).bound = true; }
-    if (raw.project_path && projectByPath.has(raw.project_path)) touch(projectByPath.get(raw.project_path)!.id);
-    const state = raw.thread_state ? threadStateHeadline(String(raw.thread_state)) : "";
+    const touch = (id: unknown) => {
+      const k = String(id);
+      const t = touched.get(k) ?? { tasks: new Set<string>(), bound: false };
+      touched.set(k, t);
+      return t;
+    };
+    const filed: any[] = await ctx.db
+      .query("tasks")
+      .withIndex("by_created_from_conversation", (q: any) =>
+        q.eq("created_from_conversation", raw._id),
+      )
+      .take(ANALYSIS_CAPS.tasks_filed_per_session);
+    for (const t of filed)
+      if (t.project_id) touch(t.project_id).tasks.add(String(t._id));
+    if (task?.project_id) {
+      const t = touch(task.project_id);
+      t.tasks.add(String(task._id));
+      t.bound = true;
+    }
+    for (const planId of new Set(
+      [raw.active_plan_id, task?.plan_id, ...(raw.plan_ids ?? [])]
+        .filter(Boolean)
+        .map(String),
+    )) {
+      const plan = await ctx.db.get(planId as Id<"plans">);
+      if (plan?.project_id) touch(plan.project_id).bound = true;
+    }
+    if (raw.project_path && projectByPath.has(raw.project_path))
+      touch(projectByPath.get(raw.project_path)!.id);
+    const state = raw.thread_state
+      ? threadStateHeadline(String(raw.thread_state))
+      : "";
     rows.push({
       id: String(raw._id),
       short_id: session.short_id ?? undefined,
       title: session.title,
-      owner: (await ctx.db.get(session.owner_user_id ?? raw.user_id))?.name ?? undefined,
+      owner:
+        (await ctx.db.get(session.owner_user_id ?? raw.user_id))?.name ??
+        undefined,
       started_at: startedAt,
       age_days: Math.floor((now - startedAt) / (24 * 60 * 60 * 1000)),
       last_active_at: session.updated_at,
@@ -541,19 +1052,45 @@ async function longRunningSessions(ctx: Ctx, scan: OrgScanResult, now: number, w
       // null when the scan did not read it (a routine woke it in), so a reader knows the count is unknown rather than none.
       helpers: session.subagent_count,
       scanned: session.routine_only ? false : undefined,
-      routines: routines.map((t: any) => ({ short_id: t.short_id ?? undefined, title: t.title ?? undefined, schedule: t.schedule_type, every_ms: t.interval_ms ?? undefined })),
+      routines: routines.map((t: any) => ({
+        short_id: t.short_id ?? undefined,
+        title: t.title ?? undefined,
+        schedule: t.schedule_type,
+        every_ms: t.interval_ms ?? undefined,
+      })),
       state_line: state || undefined,
       state_status: raw.thread_state_status ?? undefined,
-      first_message: first ? String(first.content).trim().slice(0, ANALYSIS_CAPS.first_message_chars) : undefined,
+      first_message: first
+        ? String(first.content)
+            .trim()
+            .slice(0, ANALYSIS_CAPS.first_message_chars)
+        : undefined,
       project_path: session.project_path ?? undefined,
       git_root: raw.git_root ?? undefined,
-      projects: Array.from(touched).filter(([id]) => projectById.has(id)).map(([id, how]) => ({ id, short_id: projectById.get(id)!.short_id, title: projectById.get(id)!.title, tasks: how.tasks.size, commits_30d: 0, messages_7d: 0, bound: how.bound })),
+      projects: Array.from(touched)
+        .filter(([id]) => projectById.has(id))
+        .map(([id, how]) => ({
+          id,
+          short_id: projectById.get(id)!.short_id,
+          title: projectById.get(id)!.title,
+          tasks: how.tasks.size,
+          commits_30d: 0,
+          messages_7d: 0,
+          bound: how.bound,
+        })),
       tasks_filed: filed.length,
-      reports_to_role: raw.org_role_id ? `@${roleHandle.get(String(raw.org_role_id)) ?? "?"}` : undefined,
+      reports_to_role: raw.org_role_id
+        ? `@${roleHandle.get(String(raw.org_role_id)) ?? "?"}`
+        : undefined,
       private: raw.is_private !== false,
     });
   }
-  return { min_age_days: LONG_RUNNING_MIN_AGE_MS / (24 * 60 * 60 * 1000), old_enough: old.length, listed: rows.length, rows };
+  return {
+    min_age_days: LONG_RUNNING_MIN_AGE_MS / (24 * 60 * 60 * 1000),
+    old_enough: old.length,
+    listed: rows.length,
+    rows,
+  };
 }
 
 // ── Activity: ground in what is happening, not what was filed (S9) ─────────
@@ -568,14 +1105,31 @@ async function longRunningSessions(ctx: Ctx, scan: OrgScanResult, now: number, w
  *  stale list, so no run could close them (2026-09-21). Bodies are stripped:
  *  the reading needs the title, status, project, timestamps and entries. */
 export const ACTIVITY_PLAN_STRIP = ["body"];
-export async function readActivityPlans(ctx: Ctx, fetchOpts: { userId: Id<"users">; workspace: "team" | "personal"; teamId?: Id<"teams"> }): Promise<any[]> {
+export async function readActivityPlans(
+  ctx: Ctx,
+  fetchOpts: {
+    userId: Id<"users">;
+    workspace: "team" | "personal";
+    teamId?: Id<"teams">;
+  },
+): Promise<any[]> {
   const byId = new Map<string, any>();
   for (const status of ["active", "draft"] as const) {
-    const { records } = await scopedFetch(ctx, "plans", { ...fetchOpts, status, limit: ANALYSIS_CAPS.open_plans, stripFields: ACTIVITY_PLAN_STRIP });
+    const { records } = await scopedFetch(ctx, "plans", {
+      ...fetchOpts,
+      status,
+      limit: ANALYSIS_CAPS.open_plans,
+      stripFields: ACTIVITY_PLAN_STRIP,
+    });
     for (const p of records) byId.set(String(p._id), p);
   }
-  const { records: newest } = await scopedFetch(ctx, "plans", { ...fetchOpts, limit: ANALYSIS_CAPS.plans, stripFields: ACTIVITY_PLAN_STRIP });
-  for (const p of newest) if (!byId.has(String(p._id))) byId.set(String(p._id), p);
+  const { records: newest } = await scopedFetch(ctx, "plans", {
+    ...fetchOpts,
+    limit: ANALYSIS_CAPS.plans,
+    stripFields: ACTIVITY_PLAN_STRIP,
+  });
+  for (const p of newest)
+    if (!byId.has(String(p._id))) byId.set(String(p._id), p);
   return Array.from(byId.values());
 }
 
@@ -583,32 +1137,82 @@ export async function readActivityPlans(ctx: Ctx, fetchOpts: { userId: Id<"users
  *  fields it uses (slimWorkTasks). Read in a query of its own on the fanned
  *  path: with the session scan beside it, Union's activity part passed the
  *  4096 read limit (one conversation read per linked task, 2026-11-17). */
-export const readActivityWork = async (ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number): Promise<WorkTasks> =>
-  slimWorkTasks(await readWorkTasks(ctx, userId, teamId, { perStatus: ANALYSIS_CAPS.tasks, updatedSince: now - ANALYSIS_WINDOW_MS, recentCap: ANALYSIS_CAPS.tasks }));
+export const readActivityWork = async (
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+): Promise<WorkTasks> =>
+  slimWorkTasks(
+    await readWorkTasks(ctx, userId, teamId, {
+      perStatus: ANALYSIS_CAPS.tasks,
+      updatedSince: now - ANALYSIS_WINDOW_MS,
+      recentCap: ANALYSIS_CAPS.tasks,
+    }),
+  );
 
-export async function computeAnalysisActivity(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number, given?: { work?: WorkTasks }) {
-  const fetchOpts = teamId ? { userId, workspace: "team" as const, teamId } : { userId, workspace: "personal" as const };
+export async function computeAnalysisActivity(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+  given?: { work?: WorkTasks },
+) {
+  const fetchOpts = teamId
+    ? { userId, workspace: "team" as const, teamId }
+    : { userId, workspace: "personal" as const };
   const [projects, plans, work, scan, initiatives] = await Promise.all([
-    scopedFetch(ctx, "projects", { ...fetchOpts, limit: ANALYSIS_CAPS.projects }).then((r) => r.records),
+    scopedFetch(ctx, "projects", {
+      ...fetchOpts,
+      limit: ANALYSIS_CAPS.projects,
+    }).then((r) => r.records),
     readActivityPlans(ctx, fetchOpts),
     given?.work ?? readActivityWork(ctx, userId, teamId, now),
     collectOrgSessions(ctx, userId, teamId, now),
-    scopedFetch(ctx, "initiatives", { ...fetchOpts, limit: ANALYSIS_CAPS.initiatives }).then((r) => r.records),
+    scopedFetch(ctx, "initiatives", {
+      ...fetchOpts,
+      limit: ANALYSIS_CAPS.initiatives,
+    }).then((r) => r.records),
   ]);
   const tasks = work.tasks;
   const members = [];
   for (const uid of scan.memberIds.slice(0, ANALYSIS_CAPS.members)) {
     const user = await ctx.db.get(uid);
-    members.push({ user_id: String(uid), name: user?.name ?? user?.email ?? "", email: user?.email ?? null });
+    members.push({
+      user_id: String(uid),
+      name: user?.name ?? user?.email ?? "",
+      email: user?.email ?? null,
+    });
   }
-  const commits = await readActivityCommits(ctx, reposFromScan(scan), now - ANALYSIS_WINDOW_MS, { teamId, userId, sessionIds: new Set(scan.sessions.keys()) });
+  const commits = await readActivityCommits(
+    ctx,
+    reposFromScan(scan),
+    now - ANALYSIS_WINDOW_MS,
+    { teamId, userId, sessionIds: new Set(scan.sessions.keys()) },
+  );
   const activity = computeOrgActivity({
     now,
     commits,
     sessions: activitySessionsFromScan(scan),
-    projects: projects.map((p: any) => ({ id: String(p._id), short_id: p.short_id, title: p.title, status: p.status, project_path: p.project_path ?? null, updated_at: p.updated_at ?? p._creationTime })),
+    projects: projects.map((p: any) => ({
+      id: String(p._id),
+      short_id: p.short_id,
+      title: p.title,
+      status: p.status,
+      project_path: p.project_path ?? null,
+      updated_at: p.updated_at ?? p._creationTime,
+    })),
     plans: plans.map(activityPlanOf),
-    tasks: tasks.map((t: any) => ({ id: String(t._id), short_id: t.short_id, title: t.title, status: t.status, plan_id: t.plan_id ? String(t.plan_id) : null, project_id: t.project_id ? String(t.project_id) : null, updated_at: t.updated_at ?? t._creationTime, conversation_ids: (t.conversation_ids ?? []).map((id: any) => String(id)) })),
+    tasks: tasks.map((t: any) => ({
+      id: String(t._id),
+      short_id: t.short_id,
+      title: t.title,
+      status: t.status,
+      plan_id: t.plan_id ? String(t.plan_id) : null,
+      project_id: t.project_id ? String(t.project_id) : null,
+      updated_at: t.updated_at ?? t._creationTime,
+      conversation_ids: (t.conversation_ids ?? []).map((id: any) => String(id)),
+    })),
     members,
     maxAreas: 40,
   });
@@ -616,10 +1220,24 @@ export async function computeAnalysisActivity(ctx: Ctx, userId: Id<"users">, tea
   // role-page.md I1, I2). This slice already holds every row the reading needs:
   // the raw projects and plans, the open tasks, the roles and the areas.
   const userNames: Record<string, string> = {};
-  for (const i of initiatives) if (i.owner?.kind === "user") userNames[String(i.owner.user_id)] ??= (await ctx.db.get(i.owner.user_id))?.name ?? "";
+  for (const i of initiatives)
+    if (i.owner?.kind === "user")
+      userNames[String(i.owner.user_id)] ??=
+        (await ctx.db.get(i.owner.user_id))?.name ?? "";
   // The session driving each open plan a goal lists (ct-95899).
   const drivers = await planDriverRefs(ctx, userId, plans, initiatives);
-  const coverage = computeCoverage({ projects, plans: plans.map((p: any) => ({ ...p, driver: drivers.get(String(p._id)) ?? null })), tasks, roles: scan.roles, areas: activity.areas, initiatives, userNames });
+  const coverage = computeCoverage({
+    projects,
+    plans: plans.map((p: any) => ({
+      ...p,
+      driver: drivers.get(String(p._id)) ?? null,
+    })),
+    tasks,
+    roles: scan.roles,
+    areas: activity.areas,
+    initiatives,
+    userNames,
+  });
   return { activity, coverage, repos: reposFromScan(scan) };
 }
 
@@ -630,39 +1248,103 @@ export async function computeAnalysisActivity(ctx: Ctx, userId: Id<"users">, tea
 // the commits on main, and answers only the matched lines per record, so the
 // heavy rows never leave the query. `truncated` says a repository hit the cap,
 // so an empty landing there is "not found in what was read", not "none".
-export type LandingSearch = { window_days: number; commits_searched: number; truncated: boolean; by_record: Record<string, LandedCommit[]> };
-export async function readLanding(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number, repos: string[], records: RecordRef[], perRepoCap: number = ANALYSIS_CAPS.landing_commits_per_repo): Promise<LandingSearch> {
+export type LandingSearch = {
+  window_days: number;
+  commits_searched: number;
+  truncated: boolean;
+  by_record: Record<string, LandedCommit[]>;
+};
+export async function readLanding(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+  repos: string[],
+  records: RecordRef[],
+  perRepoCap: number = ANALYSIS_CAPS.landing_commits_per_repo,
+): Promise<LandingSearch> {
   const stats = { truncated: [] as string[] };
-  const commits = await readActivityCommits(ctx, repos, now - LANDING_WINDOW_MS, { teamId, userId, sessionIds: new Set() }, perRepoCap, stats);
+  const commits = await readActivityCommits(
+    ctx,
+    repos,
+    now - LANDING_WINDOW_MS,
+    { teamId, userId, sessionIds: new Set() },
+    perRepoCap,
+    stats,
+  );
   const landed = commits.filter((c) => c.sha && isLandedCommit(c));
   const by_record: Record<string, LandedCommit[]> = {};
-  for (const r of records) if (r.short_id) by_record[r.short_id] = landingFor(landed, r);
-  return { window_days: LANDING_WINDOW_MS / 86_400_000, commits_searched: landed.length, truncated: stats.truncated.length > 0, by_record };
+  for (const r of records)
+    if (r.short_id) by_record[r.short_id] = landingFor(landed, r);
+  return {
+    window_days: LANDING_WINDOW_MS / 86_400_000,
+    commits_searched: landed.length,
+    truncated: stats.truncated.length > 0,
+    by_record,
+  };
 }
 /** The records whose landing is searched: every stale plan and task, and every open record a session is bound to. */
 export function landingRecordsOf(activity: OrgActivity): RecordRef[] {
-  return [...activity.stale.plans, ...activity.stale.tasks, ...activity.bound.tasks, ...activity.bound.plans].map((r) => ({ short_id: r.short_id, title: r.title }));
+  return [
+    ...activity.stale.plans,
+    ...activity.stale.tasks,
+    ...activity.bound.tasks,
+    ...activity.bound.plans,
+  ].map((r) => ({ short_id: r.short_id, title: r.title }));
 }
 /** The activity block with the three month landing on its records, and the search described beside them. */
-export function withLanding(activity: OrgActivity, search: LandingSearch): OrgActivity & { landing: Omit<LandingSearch, "by_record"> } {
-  for (const r of [...activity.stale.plans, ...activity.stale.tasks, ...activity.bound.tasks, ...activity.bound.plans]) r.landing = search.by_record[r.short_id] ?? r.landing ?? [];
+export function withLanding(
+  activity: OrgActivity,
+  search: LandingSearch,
+): OrgActivity & { landing: Omit<LandingSearch, "by_record"> } {
+  for (const r of [
+    ...activity.stale.plans,
+    ...activity.stale.tasks,
+    ...activity.bound.tasks,
+    ...activity.bound.plans,
+  ])
+    r.landing = search.by_record[r.short_id] ?? r.landing ?? [];
   const { by_record: _by, ...landing } = search;
   return { ...activity, landing };
 }
 
 // ── Insights, chat channels, open decisions ───────────────────────────────
-export async function computeAnalysisSignals(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number, handoff?: Pick<AnalysisHandoff, "projects">) {
+export async function computeAnalysisSignals(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+  handoff?: Pick<AnalysisHandoff, "projects">,
+) {
   const cutoff = now - ANALYSIS_WINDOW_MS;
   const insightRows: any[] = teamId
-    ? await ctx.db.query("session_insights").withIndex("by_team_generated_at", (q: any) => q.eq("team_id", teamId).gte("generated_at", cutoff)).order("desc").take(ANALYSIS_CAPS.insights)
-    : await ctx.db.query("session_insights").withIndex("by_actor_generated_at", (q: any) => q.eq("actor_user_id", userId).gte("generated_at", cutoff)).order("desc").take(ANALYSIS_CAPS.insights);
+    ? await ctx.db
+        .query("session_insights")
+        .withIndex("by_team_generated_at", (q: any) =>
+          q.eq("team_id", teamId).gte("generated_at", cutoff),
+        )
+        .order("desc")
+        .take(ANALYSIS_CAPS.insights)
+    : await ctx.db
+        .query("session_insights")
+        .withIndex("by_actor_generated_at", (q: any) =>
+          q.eq("actor_user_id", userId).gte("generated_at", cutoff),
+        )
+        .order("desc")
+        .take(ANALYSIS_CAPS.insights);
   const themes = new Map<string, number>();
   const outcomes = new Map<string, number>();
-  const headlines: Array<{ headline: string; outcome: string; at: number }> = [];
+  const headlines: Array<{ headline: string; outcome: string; at: number }> =
+    [];
   for (const i of insightRows) {
     for (const t of i.themes ?? []) bump(themes, t);
     bump(outcomes, i.outcome_type ?? "unknown");
-    if (headlines.length < 20 && (i.headline || i.goal)) headlines.push({ headline: i.headline ?? i.goal, outcome: i.outcome_type, at: i.generated_at });
+    if (headlines.length < 20 && (i.headline || i.goal))
+      headlines.push({
+        headline: i.headline ?? i.goal,
+        outcome: i.outcome_type,
+        at: i.generated_at,
+      });
   }
 
   // Chat channels with activity (team only), the ones the caller may read
@@ -670,39 +1352,93 @@ export async function computeAnalysisSignals(ctx: Ctx, userId: Id<"users">, team
   // has no team chat). messages_30d is a floor at the per channel cap. The
   // same rows feed `said`: the threads where a person decided, asked or
   // named a role or project (saidChatFrom), so chat is read once.
-  const channels: Array<{ id: string; name: string; messages_30d: number; last_at?: number }> = [];
+  const channels: Array<{
+    id: string;
+    name: string;
+    messages_30d: number;
+    last_at?: number;
+  }> = [];
   const chatRead: Array<{ channel: any; msgs: any[] }> = [];
   if (teamId) {
-    const rows: any[] = await ctx.db.query("chat_channels").withIndex("by_team_name", (q: any) => q.eq("team_id", teamId)).take(ANALYSIS_CAPS.channels);
+    const rows: any[] = await ctx.db
+      .query("chat_channels")
+      .withIndex("by_team_name", (q: any) => q.eq("team_id", teamId))
+      .take(ANALYSIS_CAPS.channels);
     for (const ch of rows) {
       if (!ch.name || ch.archived_at) continue;
       if (!(await canAccessChannel(ctx as any, userId, ch))) continue;
-      const msgs: any[] = (await ctx.db.query("chat_messages").withIndex("by_channel_created", (q: any) => q.eq("channel_id", ch._id).gte("created_at", cutoff)).order("desc").take(ANALYSIS_CAPS.messages_per_channel)).filter((m: any) => (m.created_at ?? 0) >= cutoff);
-      channels.push({ id: String(ch._id), name: ch.name, messages_30d: msgs.length, last_at: msgs[0]?.created_at });
+      const msgs: any[] = (
+        await ctx.db
+          .query("chat_messages")
+          .withIndex("by_channel_created", (q: any) =>
+            q.eq("channel_id", ch._id).gte("created_at", cutoff),
+          )
+          .order("desc")
+          .take(ANALYSIS_CAPS.messages_per_channel)
+      ).filter((m: any) => (m.created_at ?? 0) >= cutoff);
+      channels.push({
+        id: String(ch._id),
+        name: ch.name,
+        messages_30d: msgs.length,
+        last_at: msgs[0]?.created_at,
+      });
       if (ch.kind !== "dm") chatRead.push({ channel: ch, msgs });
     }
   }
-  const said = teamId ? await readSaid(ctx, userId, teamId, now, chatRead, handoff?.projects ?? []) : { calls: [], chat: [], truncated: false };
+  const said = teamId
+    ? await readSaid(
+        ctx,
+        userId,
+        teamId,
+        now,
+        chatRead,
+        handoff?.projects ?? [],
+      )
+    : { calls: [], chat: [], truncated: false };
 
   // Open decisions by category: one read per member (the asker's account),
   // never the deployment's newest rows; the cap applies per member.
   const memberIds: Id<"users">[] = teamId
-    ? (await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", teamId)).collect()).map((m: any) => m.user_id)
+    ? (
+        await ctx.db
+          .query("team_memberships")
+          .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
+          .collect()
+      ).map((m: any) => m.user_id)
     : [userId];
   const decisionsByCategory = new Map<string, number>();
   for (const memberId of memberIds) {
-    const pending: any[] = await ctx.db.query("session_decisions").withIndex("by_user_status_created", (q: any) => q.eq("user_id", memberId).eq("status", "pending").gte("created_at", cutoff)).order("desc").take(ANALYSIS_CAPS.decisions);
-    for (const d of pending) bump(decisionsByCategory, d.category ?? "uncategorized");
+    const pending: any[] = await ctx.db
+      .query("session_decisions")
+      .withIndex("by_user_status_created", (q: any) =>
+        q
+          .eq("user_id", memberId)
+          .eq("status", "pending")
+          .gte("created_at", cutoff),
+      )
+      .order("desc")
+      .take(ANALYSIS_CAPS.decisions);
+    for (const d of pending)
+      bump(decisionsByCategory, d.category ?? "uncategorized");
   }
   // The roles a person can hire ready made (org-hire.md H3): a release with
   // its files, so a hire change that names one can be carried out.
-  const hireable = (await performCatalog(ctx, userId, { team_id: teamId })).filter((t) => t.installable);
+  const hireable = (
+    await performCatalog(ctx, userId, { team_id: teamId })
+  ).filter((t) => t.installable);
   return {
-    insights: { total: insightRows.length, themes: topOf(themes, 30), outcomes: objOf(outcomes), headlines },
+    insights: {
+      total: insightRows.length,
+      themes: topOf(themes, 30),
+      outcomes: objOf(outcomes),
+      headlines,
+    },
     insights_truncated: insightRows.length >= ANALYSIS_CAPS.insights,
     channels,
     said,
-    templates: hireable.slice(0, ANALYSIS_CAPS.templates).map((t) => templateLine(t, ANALYSIS_CAPS.template_description_chars)),
+    templates: hireable
+      .slice(0, ANALYSIS_CAPS.templates)
+      .map((t) => templateLine(t, ANALYSIS_CAPS.template_description_chars)),
     templates_truncated: hireable.length > ANALYSIS_CAPS.templates,
     decisions_open_by_category: objOf(decisionsByCategory),
   };
@@ -722,13 +1458,19 @@ export function mergeAnalysisInputs(
 ) {
   const { handoff: _handoff, truncated, ...rest } = work;
   return {
-    workspace: teamId ? { kind: "team" as const, id: String(teamId), name: workspaceLabel } : { kind: "user" as const, id: String(userId), name: workspaceLabel },
+    workspace: teamId
+      ? { kind: "team" as const, id: String(teamId), name: workspaceLabel }
+      : { kind: "user" as const, id: String(userId), name: workspaceLabel },
     window_days: ANALYSIS_WINDOW_MS / 86_400_000,
     caps: ANALYSIS_CAPS,
     ...rest,
     // A list at its cap is a floor, not a count; the analyzer reports it as
     // "could not verify" rather than as the total.
-    truncated: { ...truncated, insights: signals.insights_truncated, templates: signals.templates_truncated },
+    truncated: {
+      ...truncated,
+      insights: signals.insights_truncated,
+      templates: signals.templates_truncated,
+    },
     ...org,
     insights: signals.insights,
     channels: signals.channels,
@@ -747,15 +1489,33 @@ export function mergeAnalysisInputs(
   };
 }
 
-export async function workspaceLabelOf(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined): Promise<string> {
-  return teamId ? (await ctx.db.get(teamId))?.name ?? "" : (await ctx.db.get(userId))?.name ?? "";
+export async function workspaceLabelOf(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+): Promise<string> {
+  return teamId
+    ? ((await ctx.db.get(teamId))?.name ?? "")
+    : ((await ctx.db.get(userId))?.name ?? "");
 }
 
-const workspaceScopeOf = (userId: Id<"users">, teamId: Id<"teams"> | undefined) => (teamId ? `team:${teamId}` : `user:${userId}`);
+const workspaceScopeOf = (
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+) => (teamId ? `team:${teamId}` : `user:${userId}`);
 
 /** The three slices in one process: tests and server side callers. `ask` is
  *  the stated goals' model read (goalModelAsk on the workspace's gate by default). */
-export async function computeAnalysisInputs(ctx: Ctx, userId: Id<"users">, teamId: Id<"teams"> | undefined, now: number, ask: AskModel = goalModelAsk({ ctx, scope: { workspace: workspaceScopeOf(userId, teamId) } })) {
+export async function computeAnalysisInputs(
+  ctx: Ctx,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+  now: number,
+  ask: AskModel = goalModelAsk({
+    ctx,
+    scope: { workspace: workspaceScopeOf(userId, teamId) },
+  }),
+) {
   const work = await computeAnalysisWork(ctx, userId, teamId);
   const [org, signals, label, activity] = await Promise.all([
     computeAnalysisOrg(ctx, userId, teamId, now, work.handoff),
@@ -763,10 +1523,44 @@ export async function computeAnalysisInputs(ctx: Ctx, userId: Id<"users">, teamI
     workspaceLabelOf(ctx, userId, teamId),
     computeAnalysisActivity(ctx, userId, teamId, now),
   ]);
-  const evidence = await Promise.all(org.sessions.long_running.rows.map((r: any) => readSessionEvidence(ctx, r.id, r.started_at, now, work.handoff.projects)));
-  org.sessions.long_running.rows = withSessionEvidence(org.sessions.long_running.rows, evidence, work.handoff.projects);
-  const landing = await readLanding(ctx, userId, teamId, now, activity.repos, landingRecordsOf(activity.activity));
-  return mergeAnalysisInputs(userId, teamId, label, work, org, signals, now, withLanding(activity.activity, landing), withUnplaced(activity.coverage, await readUnplaced(ctx, userId, teamId, now)), await readStatedGoals(await readGoalCandidates(ctx, userId, teamId, now), org.sessions.long_running.rows, label, ask));
+  const evidence = await Promise.all(
+    org.sessions.long_running.rows.map((r: any) =>
+      readSessionEvidence(ctx, r.id, r.started_at, now, work.handoff.projects),
+    ),
+  );
+  org.sessions.long_running.rows = withSessionEvidence(
+    org.sessions.long_running.rows,
+    evidence,
+    work.handoff.projects,
+  );
+  const landing = await readLanding(
+    ctx,
+    userId,
+    teamId,
+    now,
+    activity.repos,
+    landingRecordsOf(activity.activity),
+  );
+  return mergeAnalysisInputs(
+    userId,
+    teamId,
+    label,
+    work,
+    org,
+    signals,
+    now,
+    withLanding(activity.activity, landing),
+    withUnplaced(
+      activity.coverage,
+      await readUnplaced(ctx, userId, teamId, now),
+    ),
+    await readStatedGoals(
+      await readGoalCandidates(ctx, userId, teamId, now),
+      org.sessions.long_running.rows,
+      label,
+      ask,
+    ),
+  );
 }
 
 // One slice per call, so each read stays inside the execution limit on a
@@ -775,7 +1569,16 @@ export const analysisPart = query({
   args: {
     api_token: v.optional(v.string()),
     team_id: v.optional(v.id("teams")),
-    part: v.union(v.literal("work"), v.literal("org"), v.literal("signals"), v.literal("activity"), v.literal("worktasks"), v.literal("use"), v.literal("landing"), v.literal("goals")),
+    part: v.union(
+      v.literal("work"),
+      v.literal("org"),
+      v.literal("signals"),
+      v.literal("activity"),
+      v.literal("worktasks"),
+      v.literal("use"),
+      v.literal("landing"),
+      v.literal("goals"),
+    ),
     work: v.optional(v.any()),
     now: v.optional(v.number()),
     session: v.optional(v.id("conversations")),
@@ -787,7 +1590,11 @@ export const analysisPart = query({
     tasks: v.optional(v.any()),
   },
   handler: async (ctx, args): Promise<any> => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return null;
     const now = args.now ?? Date.now();
     if (args.part === "use") {
@@ -797,22 +1604,69 @@ export const analysisPart = query({
       // names another workspace's session learns nothing.
       if (!args.session) return null;
       const conv: any = await ctx.db.get(args.session);
-      const ours = !!conv && (args.team_id ? String(conv.team_id ?? "") === String(args.team_id) : !conv.team_id && String(conv.user_id) === String(userId));
-      return ours ? readSessionEvidence(ctx, args.session, args.started_at ?? conv.started_at ?? conv._creationTime, now, (args.projects as ProjectRef[] | undefined) ?? []) : null;
+      const ours =
+        !!conv &&
+        (args.team_id
+          ? String(conv.team_id ?? "") === String(args.team_id)
+          : !conv.team_id && String(conv.user_id) === String(userId));
+      return ours
+        ? readSessionEvidence(
+            ctx,
+            args.session,
+            args.started_at ?? conv.started_at ?? conv._creationTime,
+            now,
+            (args.projects as ProjectRef[] | undefined) ?? [],
+          )
+        : null;
     }
-    if (args.part === "work") return computeAnalysisWork(ctx, userId, args.team_id);
-    if (args.part === "signals") return { ...(await computeAnalysisSignals(ctx, userId, args.team_id, now, args.work as AnalysisHandoff | undefined)), label: await workspaceLabelOf(ctx, userId, args.team_id), user_id: userId };
-    if (args.part === "worktasks") return readActivityWork(ctx, userId, args.team_id, now);
-    if (args.part === "activity") return computeAnalysisActivity(ctx, userId, args.team_id, now, { work: args.tasks as WorkTasks | undefined });
-    if (args.part === "goals") return readGoalCandidates(ctx, userId, args.team_id, now);
-    if (args.part === "landing") return readLanding(ctx, userId, args.team_id, now, args.repos ?? [], (args.records as RecordRef[] | undefined) ?? []);
-    if (!args.work) throw new Error("the org slice needs the work slice's handoff");
-    return computeAnalysisOrg(ctx, userId, args.team_id, now, args.work as AnalysisHandoff);
+    if (args.part === "work")
+      return computeAnalysisWork(ctx, userId, args.team_id);
+    if (args.part === "signals")
+      return {
+        ...(await computeAnalysisSignals(
+          ctx,
+          userId,
+          args.team_id,
+          now,
+          args.work as AnalysisHandoff | undefined,
+        )),
+        label: await workspaceLabelOf(ctx, userId, args.team_id),
+        user_id: userId,
+      };
+    if (args.part === "worktasks")
+      return readActivityWork(ctx, userId, args.team_id, now);
+    if (args.part === "activity")
+      return computeAnalysisActivity(ctx, userId, args.team_id, now, {
+        work: args.tasks as WorkTasks | undefined,
+      });
+    if (args.part === "goals")
+      return readGoalCandidates(ctx, userId, args.team_id, now);
+    if (args.part === "landing")
+      return readLanding(
+        ctx,
+        userId,
+        args.team_id,
+        now,
+        args.repos ?? [],
+        (args.records as RecordRef[] | undefined) ?? [],
+      );
+    if (!args.work)
+      throw new Error("the org slice needs the work slice's handoff");
+    return computeAnalysisOrg(
+      ctx,
+      userId,
+      args.team_id,
+      now,
+      args.work as AnalysisHandoff,
+    );
   },
 });
 
 export const analysisInputs = action({
-  args: { api_token: v.optional(v.string()), team_id: v.optional(v.id("teams")) },
+  args: {
+    api_token: v.optional(v.string()),
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args): Promise<any> => {
     const now = Date.now();
     const part = (api as any).orgInit.analysisPart;
@@ -825,7 +1679,9 @@ export const analysisInputs = action({
       ctx.runQuery(part, { ...args, part: "work", now }),
       ctx.runQuery(part, { ...args, part: "activity", now, tasks }),
       // What reaches no goal, from whole tables, in its own read budget (ct-95900).
-      unplacedOrUnread(ctx.runQuery((api as any).orgUnplaced.part, { ...args, now })),
+      unplacedOrUnread(
+        ctx.runQuery((api as any).orgUnplaced.part, { ...args, now }),
+      ),
     ]);
     if (!work) return null;
     const [org, signals, goalRead] = await Promise.all([
@@ -838,14 +1694,65 @@ export const analysisInputs = action({
     // The stated goals' model read is the slowest step: it starts as soon as
     // its candidates and the sessions' opening briefs are in, beside the reads
     // of session use and landing, so the inputs answer inside the CLI's wait.
-    const gate: VendorGate = { ctx, scope: { workspace: workspaceScopeOf(user_id, args.team_id), apiToken: args.api_token } };
+    const gate: VendorGate = {
+      ctx,
+      scope: {
+        workspace: workspaceScopeOf(user_id, args.team_id),
+        apiToken: args.api_token,
+      },
+    };
     const [evidence, landing, goals] = await Promise.all([
-      Promise.all(org.sessions.long_running.rows.map((r: any) => ctx.runQuery(part, { ...args, part: "use", now, session: r.id, started_at: r.started_at, projects: work.handoff.projects }))),
-      activity ? ctx.runQuery(part, { ...args, part: "landing", now, repos: activity.repos, records: landingRecordsOf(activity.activity) }) : null,
-      goalRead ? readStatedGoals(goalRead, org.sessions.long_running.rows, label, goalModelAsk(gate)) : undefined,
+      Promise.all(
+        org.sessions.long_running.rows.map((r: any) =>
+          ctx.runQuery(part, {
+            ...args,
+            part: "use",
+            now,
+            session: r.id,
+            started_at: r.started_at,
+            projects: work.handoff.projects,
+          }),
+        ),
+      ),
+      activity
+        ? ctx.runQuery(part, {
+            ...args,
+            part: "landing",
+            now,
+            repos: activity.repos,
+            records: landingRecordsOf(activity.activity),
+          })
+        : null,
+      goalRead
+        ? readStatedGoals(
+            goalRead,
+            org.sessions.long_running.rows,
+            label,
+            goalModelAsk(gate),
+          )
+        : undefined,
     ]);
-    org.sessions.long_running.rows = withSessionEvidence(org.sessions.long_running.rows, evidence, work.handoff.projects);
-    return mergeAnalysisInputs(user_id, args.team_id, label, work, org, rest, now, activity && landing ? withLanding(activity.activity, landing) : activity?.activity, activity?.coverage ? withUnplaced(activity.coverage, unplaced) : undefined, goals);
+    org.sessions.long_running.rows = withSessionEvidence(
+      org.sessions.long_running.rows,
+      evidence,
+      work.handoff.projects,
+    );
+    return mergeAnalysisInputs(
+      user_id,
+      args.team_id,
+      label,
+      work,
+      org,
+      rest,
+      now,
+      activity && landing
+        ? withLanding(activity.activity, landing)
+        : activity?.activity,
+      activity?.coverage
+        ? withUnplaced(activity.coverage, unplaced)
+        : undefined,
+      goals,
+    );
   },
 });
 
@@ -853,7 +1760,11 @@ export const analysisInputs = action({
 
 export type Boundary = { team_id?: Id<"teams">; scope_user_id?: Id<"users"> };
 export type ApplyResult =
-  | { status: "applied"; note: string; role?: { id: string; short_id: string; handle: string } }
+  | {
+      status: "applied";
+      note: string;
+      role?: { id: string; short_id: string; handle: string };
+    }
   | { status: "skipped"; note: string }
   | { status: "unanswered" }
   | { status: "error"; error: string };
@@ -862,32 +1773,76 @@ export type ApplyResult =
  *  had before a rename, so a change written before the rename still lands.
  *  A role that holds the handle now always wins over one that held it. */
 export function roleByRef(roles: readonly any[], ref: string): any | undefined {
-  const trimmed = ref.trim(), handle = trimmed.replace(/^@/, "").toLowerCase();
-  return roles.find((r) => r.handle === handle || r.short_id === trimmed || String(r._id) === trimmed)
-    ?? roles.find((r) => (r.previous_handles ?? []).includes(handle));
+  const trimmed = ref.trim(),
+    handle = trimmed.replace(/^@/, "").toLowerCase();
+  return (
+    roles.find(
+      (r) =>
+        r.handle === handle ||
+        r.short_id === trimmed ||
+        String(r._id) === trimmed,
+    ) ?? roles.find((r) => (r.previous_handles ?? []).includes(handle))
+  );
 }
 
-async function resolveReportsTo(ctx: Ctx, userId: Id<"users">, boundary: Boundary, ref: string | undefined) {
+async function resolveReportsTo(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  ref: string | undefined,
+) {
   const trimmed = (ref ?? "").trim();
-  if (!trimmed || trimmed.toLowerCase() === "me") return { kind: "user" as const, user_id: userId };
+  if (!trimmed || trimmed.toLowerCase() === "me")
+    return { kind: "user" as const, user_id: userId };
   const role = roleByRef(await rolesInBoundary(ctx, boundary), trimmed);
-  if (role) return { kind: "role" as const, role_id: role._id as Id<"org_roles"> };
+  if (role)
+    return { kind: "role" as const, role_id: role._id as Id<"org_roles"> };
   // A person inside the boundary: by id, name or email, else by the handle
   // the roster shows them under (@ashot), read the way chat mentions read it.
-  const candidates: any[] = (boundary.team_id
-    ? await Promise.all((await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", boundary.team_id)).collect()).map((m: any) => ctx.db.get(m.user_id)))
-    : [await ctx.db.get(userId)]).filter(Boolean);
+  const candidates: any[] = (
+    boundary.team_id
+      ? await Promise.all(
+          (
+            await ctx.db
+              .query("team_memberships")
+              .withIndex("by_team_id", (q: any) =>
+                q.eq("team_id", boundary.team_id),
+              )
+              .collect()
+          ).map((m: any) => ctx.db.get(m.user_id)),
+        )
+      : [await ctx.db.get(userId)]
+  ).filter(Boolean);
   const lc = trimmed.toLowerCase();
-  const person = candidates.find((u) => String(u._id) === trimmed || (u.name ?? "").toLowerCase() === lc || (u.email ?? "").toLowerCase() === lc) ?? matchHandle(candidates, trimmed);
-  if (person) return { kind: "user" as const, user_id: person._id as Id<"users"> };
-  throw new Error(`reports_to "${trimmed}" is neither a role nor a member of this workspace`);
+  const person =
+    candidates.find(
+      (u) =>
+        String(u._id) === trimmed ||
+        (u.name ?? "").toLowerCase() === lc ||
+        (u.email ?? "").toLowerCase() === lc,
+    ) ?? matchHandle(candidates, trimmed);
+  if (person)
+    return { kind: "user" as const, user_id: person._id as Id<"users"> };
+  throw new Error(
+    `reports_to "${trimmed}" is neither a role nor a member of this workspace`,
+  );
 }
 
-async function resolveProposalScope(ctx: Ctx, boundary: Boundary, scope: OrgRoleProposal["scope"]) {
+async function resolveProposalScope(
+  ctx: Ctx,
+  boundary: Boundary,
+  scope: OrgRoleProposal["scope"],
+) {
   const project_ids: Id<"projects">[] = [];
   const plan_ids: Id<"plans">[] = [];
-  for (const ref of scope?.projects ?? []) { const r = await resolveScopeRef(ctx, boundary, `project:${ref}`); if (r.kind === "project") project_ids.push(r.id); }
-  for (const ref of scope?.plans ?? []) { const r = await resolveScopeRef(ctx, boundary, `plan:${ref}`); if (r.kind === "plan") plan_ids.push(r.id); }
+  for (const ref of scope?.projects ?? []) {
+    const r = await resolveScopeRef(ctx, boundary, `project:${ref}`);
+    if (r.kind === "project") project_ids.push(r.id);
+  }
+  for (const ref of scope?.plans ?? []) {
+    const r = await resolveScopeRef(ctx, boundary, `plan:${ref}`);
+    if (r.kind === "plan") plan_ids.push(r.id);
+  }
   return { project_ids, plan_ids };
 }
 
@@ -905,33 +1860,72 @@ async function resolveProposalScope(ctx: Ctx, boundary: Boundary, scope: OrgRole
 //
 // A session that is done or killed has nothing left for a role to look after:
 // it stays where the person left it.
-const TAKEOVER_NOTE = "It looks after the area you work in. It reads what you need first and decides what reaches a person.";
+const TAKEOVER_NOTE =
+  "It looks after the area you work in. It reads what you need first and decides what reaches a person.";
 
-const takeable = <T extends { session: { state: string }; raw: any }>(rows: T[]) => rows.filter(({ session, raw }) => session.state !== "done" && !raw.inbox_killed_at);
+const takeable = <T extends { session: { state: string }; raw: any }>(
+  rows: T[],
+) =>
+  rows.filter(
+    ({ session, raw }) => session.state !== "done" && !raw.inbox_killed_at,
+  );
 
-export async function takeOverSessions(ctx: Ctx, userId: Id<"users">, roleId: Id<"org_roles">, opts: { leave?: boolean; dry?: boolean } = {}): Promise<RehomeResult | null> {
+export async function takeOverSessions(
+  ctx: Ctx,
+  userId: Id<"users">,
+  roleId: Id<"org_roles">,
+  opts: { leave?: boolean; dry?: boolean } = {},
+): Promise<RehomeResult | null> {
   if (opts.leave) return null;
   const plan = await takeoverCandidates(ctx, userId, roleId);
   return plan ? moveTakenOver(ctx, userId, plan, { dry: opts.dry }) : null;
 }
 
 /** The role, its scope and the sessions a takeover would move; reads only. */
-export async function takeoverCandidates(ctx: Ctx, userId: Id<"users">, roleId: Id<"org_roles">) {
+export async function takeoverCandidates(
+  ctx: Ctx,
+  userId: Id<"users">,
+  roleId: Id<"org_roles">,
+) {
   const role = await ctx.db.get(roleId);
-  if (!role || role.status === "retired" || isScopeless(role.scope)) return null;
-  const resolved = await resolveScope(ctx, userId, { role_id: String(role._id) });
+  if (!role || role.status === "retired" || isScopeless(role.scope))
+    return null;
+  const resolved = await resolveScope(ctx, userId, {
+    role_id: String(role._id),
+  });
   if (!resolved) return null;
   const roles = await rolesInBoundary(ctx, role);
-  const candidates: Array<{ raw: any }> = await sessionsOwnedBy(ctx, role, roles, takeable(await sessionsInScope(ctx, resolved, Date.now())));
+  const candidates: Array<{ raw: any }> = await sessionsOwnedBy(
+    ctx,
+    role,
+    roles,
+    takeable(await sessionsInScope(ctx, resolved, Date.now())),
+  );
   return { role, roles, resolved, candidates };
 }
 
-export async function moveTakenOver(ctx: Ctx, userId: Id<"users">, plan: NonNullable<Awaited<ReturnType<typeof takeoverCandidates>>>, opts: { dry?: boolean } = {}): Promise<RehomeResult> {
+export async function moveTakenOver(
+  ctx: Ctx,
+  userId: Id<"users">,
+  plan: NonNullable<Awaited<ReturnType<typeof takeoverCandidates>>>,
+  opts: { dry?: boolean } = {},
+): Promise<RehomeResult> {
   const { role, roles, resolved, candidates } = plan;
-  const took = await performRehomeSessions(ctx, userId, role, candidates, { dry: opts.dry, note: TAKEOVER_NOTE, by_rule: true });
+  const took = await performRehomeSessions(ctx, userId, role, candidates, {
+    dry: opts.dry,
+    note: TAKEOVER_NOTE,
+    by_rule: true,
+  });
   // The open tasks in the area that the wider role held move with it, by the
   // same rule (tasksOwnedBy), each with a history row.
-  if (!opts.dry) for (const { task, from } of await tasksOwnedBy(ctx, role, roles, resolved.tasks)) await handTask(ctx, task, String(role._id), userId, from.name);
+  if (!opts.dry)
+    for (const { task, from } of await tasksOwnedBy(
+      ctx,
+      role,
+      roles,
+      resolved.tasks,
+    ))
+      await handTask(ctx, task, String(role._id), userId, from.name);
   return took;
 }
 
@@ -947,47 +1941,103 @@ export async function moveTakenOver(ctx: Ctx, userId: Id<"users">, plan: NonNull
  * org log by the move itself. The test harness has no runMutation and runs
  * it inline.
  */
-export async function takeOverSessionsSoon(ctx: Ctx, userId: Id<"users">, roleId: Id<"org_roles">, opts: { leave?: boolean } = {}): Promise<RehomeResult | null> {
+export async function takeOverSessionsSoon(
+  ctx: Ctx,
+  userId: Id<"users">,
+  roleId: Id<"org_roles">,
+  opts: { leave?: boolean } = {},
+): Promise<RehomeResult | null> {
   if (opts.leave) return null;
   const scheduler = (ctx as any).scheduler;
-  if (!(ctx as any).runMutation || !scheduler) return takeOverSessions(ctx, userId, roleId, opts);
-  await scheduler.runAfter(0, internal.orgTakeover.run, { user_id: userId, role_id: roleId });
+  if (!(ctx as any).runMutation || !scheduler)
+    return takeOverSessions(ctx, userId, roleId, opts);
+  await scheduler.runAfter(0, internal.orgTakeover.run, {
+    user_id: userId,
+    role_id: roleId,
+  });
   return null;
 }
 
 // A bare ref in a change ("pr-1", "pl-7", a project title) in the form the
 // scope resolver takes.
-const toRef = (s: string) => (/^(project|plan):/.test(s) ? s : /^pl-\d+$/.test(s) ? `plan:${s}` : `project:${s}`);
+const toRef = (s: string) =>
+  /^(project|plan):/.test(s)
+    ? s
+    : /^pl-\d+$/.test(s)
+      ? `plan:${s}`
+      : `project:${s}`;
 
 // The count a person reads BEFORE accepting a role, scope or adopt change. A
 // proposed role has no row yet, so this reads a scope and a host rather than a
 // role: the live role's scope plus what the change adds, or the proposed
 // scope alone with the person applying as the host (performCreateRole's
 // default). Always dry.
-export async function previewTakeover(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: { handle?: string; add?: string[]; seat?: string }, shared: { scan?: OrgScanResult; roles?: any[] } = {}): Promise<RehomeResult | null> {
+export async function previewTakeover(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: { handle?: string; add?: string[]; seat?: string },
+  shared: { scan?: OrgScanResult; roles?: any[] } = {},
+): Promise<RehomeResult | null> {
   const handle = (p.handle ?? "").replace(/^@/, "").toLowerCase();
-  const live = handle ? roleByRef(shared.roles ?? await rolesInBoundary(ctx, boundary), p.handle!) : undefined;
-  const scope = { project_ids: [...(live?.scope?.project_ids ?? [])], plan_ids: [...(live?.scope?.plan_ids ?? [])] };
+  const live = handle
+    ? roleByRef(
+        shared.roles ?? (await rolesInBoundary(ctx, boundary)),
+        p.handle!,
+      )
+    : undefined;
+  const scope = {
+    project_ids: [...(live?.scope?.project_ids ?? [])],
+    plan_ids: [...(live?.scope?.plan_ids ?? [])],
+  };
   for (const raw of p.add ?? []) {
-    const ref = await resolveScopeRef(ctx, boundary, toRef(raw)).catch(() => null);
+    const ref = await resolveScopeRef(ctx, boundary, toRef(raw)).catch(
+      () => null,
+    );
     if (ref?.kind === "project") scope.project_ids.push(ref.id);
     else if (ref?.kind === "plan") scope.plan_ids.push(ref.id);
   }
   if (isScopeless(scope)) return null;
-  const resolved = await resolveScope(ctx, userId, { scope, team_id: boundary.team_id });
+  const resolved = await resolveScope(ctx, userId, {
+    scope,
+    team_id: boundary.team_id,
+  });
   if (!resolved) return null;
   // The session the role will be seated on (R2) is its standing session by
   // the time the takeover runs, so it is not one of the sessions that move.
   const seat = p.seat?.trim();
-  const inScope = takeable(await sessionsInScope(ctx, resolved, Date.now(), shared.scan)).filter(({ raw }) => !seat || ![raw.short_id, String(raw._id), raw.session_id].includes(seat));
+  const inScope = takeable(
+    await sessionsInScope(ctx, resolved, Date.now(), shared.scan),
+  ).filter(
+    ({ raw }) =>
+      !seat || ![raw.short_id, String(raw._id), raw.session_id].includes(seat),
+  );
   // The rule reads the boundary as the change would leave it: the live role
   // with its wider scope, or the proposed one beside the roles that stand.
-  const subject = live ? { ...live, scope } : { _id: "proposed", status: "active", scope, host_user_id: userId, team_id: boundary.team_id };
-  const roles = (shared.roles ?? await rolesInBoundary(ctx, boundary)).filter((r) => !live || String(r._id) !== String(live._id));
-  const candidates = await sessionsOwnedBy(ctx, subject, [...roles, subject], inScope);
+  const subject = live
+    ? { ...live, scope }
+    : {
+        _id: "proposed",
+        status: "active",
+        scope,
+        host_user_id: userId,
+        team_id: boundary.team_id,
+      };
+  const roles = (shared.roles ?? (await rolesInBoundary(ctx, boundary))).filter(
+    (r) => !live || String(r._id) !== String(live._id),
+  );
+  const candidates = await sessionsOwnedBy(
+    ctx,
+    subject,
+    [...roles, subject],
+    inScope,
+  );
   // A live role's own sessions are already its; sessionsOwnedBy drops them,
   // so only sessions that would newly move are counted.
-  return performRehomeSessions(ctx, userId, subject, candidates, { dry: true, by_rule: true });
+  return performRehomeSessions(ctx, userId, subject, candidates, {
+    dry: true,
+    by_rule: true,
+  });
 }
 
 // One page asks for every row it shows in ONE call (a proposal's role, scope
@@ -996,16 +2046,42 @@ export async function previewTakeover(ctx: Ctx, userId: Id<"users">, boundary: B
 // are read once for all of them: a query per row would each scan the
 // workspace's sessions again, live, on every session heartbeat.
 export const TAKEOVER_PREVIEW_CAP = 40;
-export type TakeoverPreview = { sessions: string[]; kept_in_front: string[]; over_cap: number; phrase: string };
+export type TakeoverPreview = {
+  sessions: string[];
+  kept_in_front: string[];
+  over_cap: number;
+  phrase: string;
+};
 
-export async function previewTakeovers(ctx: Ctx, userId: Id<"users">, boundary: Boundary, items: Array<{ handle?: string; add?: string[]; seat?: string }>): Promise<Array<TakeoverPreview | null>> {
+export async function previewTakeovers(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  items: Array<{ handle?: string; add?: string[]; seat?: string }>,
+): Promise<Array<TakeoverPreview | null>> {
   const asked = items.slice(0, TAKEOVER_PREVIEW_CAP);
   if (!asked.length) return [];
-  const shared = { scan: await collectOrgSessions(ctx, userId, boundary.team_id, Date.now()), roles: await rolesInBoundary(ctx, boundary) };
+  const shared = {
+    scan: await collectOrgSessions(ctx, userId, boundary.team_id, Date.now()),
+    roles: await rolesInBoundary(ctx, boundary),
+  };
   const out: Array<TakeoverPreview | null> = [];
   for (const item of asked) {
     const r = await previewTakeover(ctx, userId, boundary, item, shared);
-    out.push(r ? { sessions: r.sessions, kept_in_front: r.kept_in_front, over_cap: r.over_cap, phrase: takeoverPhrase((item.handle ?? "").replace(/^@/, "").toLowerCase(), r, false) } : null);
+    out.push(
+      r
+        ? {
+            sessions: r.sessions,
+            kept_in_front: r.kept_in_front,
+            over_cap: r.over_cap,
+            phrase: takeoverPhrase(
+              (item.handle ?? "").replace(/^@/, "").toLowerCase(),
+              r,
+              false,
+            ),
+          }
+        : null,
+    );
   }
   return out;
 }
@@ -1014,12 +2090,30 @@ export const takeoverPreview = query({
   args: {
     api_token: v.optional(v.string()),
     team_id: v.optional(v.id("teams")),
-    items: v.array(v.object({ handle: v.optional(v.string()), add: v.optional(v.array(v.string())), seat: v.optional(v.string()) })),
+    items: v.array(
+      v.object({
+        handle: v.optional(v.string()),
+        add: v.optional(v.array(v.string())),
+        seat: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args): Promise<Array<TakeoverPreview | null>> => {
-    const userId = await requireWorkspaceCaller(ctx, args.api_token, args.team_id);
+    const userId = await requireWorkspaceCaller(
+      ctx,
+      args.api_token,
+      args.team_id,
+    );
     if (!userId) return [];
-    return previewTakeovers(ctx, userId, { team_id: args.team_id, scope_user_id: args.team_id ? undefined : userId }, args.items);
+    return previewTakeovers(
+      ctx,
+      userId,
+      {
+        team_id: args.team_id,
+        scope_user_id: args.team_id ? undefined : userId,
+      },
+      args.items,
+    );
   },
 });
 
@@ -1027,29 +2121,81 @@ export const takeoverPreview = query({
 // note before accept, the note after apply and every page say the same thing.
 export { takeoverPhrase };
 
-export async function applyRole(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgRoleProposal, note: string | undefined, opts: { provision: boolean; human_decision: string; awaiting_adopt?: string }): Promise<ApplyResult> {
+export async function applyRole(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgRoleProposal,
+  note: string | undefined,
+  opts: { provision: boolean; human_decision: string; awaiting_adopt?: string },
+): Promise<ApplyResult> {
   const handle = p.handle.trim().toLowerCase();
-  const charter = [p.charter?.trim(), note ? `Changes asked for by the person who approved this role:\n${note}` : undefined].filter(Boolean).join("\n\n") || undefined;
+  const charter =
+    [
+      p.charter?.trim(),
+      note
+        ? `Changes asked for by the person who approved this role:\n${note}`
+        : undefined,
+    ]
+      .filter(Boolean)
+      .join("\n\n") || undefined;
   // A live role with this handle is never adopted: it may be one the person
   // made by hand with its own scope and charter, and the proposal would be
   // silently discarded. The mutation is atomic, so a crash between create and
   // the applied_at stamp cannot leave a half-applied role behind; the only way
   // to get here is a real clash, and the person picks another handle or skips.
-  const taken = (await rolesInBoundary(ctx, boundary)).find((r) => r.handle === handle);
-  if (taken) return { status: "error", error: `@${handle} is already ${taken.short_id} (${taken.name}); answer with changes to pick another handle, or skip` };
+  const taken = (await rolesInBoundary(ctx, boundary)).find(
+    (r) => r.handle === handle,
+  );
+  if (taken)
+    return {
+      status: "error",
+      error: `@${handle} is already ${taken.short_id} (${taken.name}); answer with changes to pick another handle, or skip`,
+    };
   const scope = await resolveProposalScope(ctx, boundary, p.scope);
   // A role that names its session keeps the session's reporting line: with no
   // reports_to, the parent is the person who runs the session, not whoever
   // accepts the proposal (org-roles-run-work.md R2; the card promises naming
   // changes nothing about how it works).
-  const reports_to = p.seat && !p.reports_to?.trim() ? await seatOwnerOf(ctx, p.seat.existing) : await resolveReportsTo(ctx, userId, boundary, p.reports_to);
-  const role = await performCreateRole(ctx, userId, { name: p.name, handle, team_id: boundary.team_id, scope, reports_to, charter, tenure: p.tenure, avatar: p.avatar, host_user_id: p.seat ? await seatRunnerOf(ctx, p.seat.existing) : undefined });
+  const reports_to =
+    p.seat && !p.reports_to?.trim()
+      ? await seatOwnerOf(ctx, p.seat.existing)
+      : await resolveReportsTo(ctx, userId, boundary, p.reports_to);
+  const role = await performCreateRole(ctx, userId, {
+    name: p.name,
+    handle,
+    team_id: boundary.team_id,
+    scope,
+    reports_to,
+    charter,
+    tenure: p.tenure,
+    avatar: p.avatar,
+    host_user_id: p.seat ? await seatRunnerOf(ctx, p.seat.existing) : undefined,
+  });
   // The switch the person approved on the card, when it differs from the hire default.
-  if (p.trust && p.trust !== role.trust) await performSetTrust(ctx, userId, { role_id: String(role._id), trust: p.trust, human_decision: opts.human_decision });
-  if (p.caps) await performSetCaps(ctx, userId, { role_id: String(role._id), hands: p.caps.hands_per_day, wakes: p.caps.wakes_per_day, tokens: p.caps.tokens_per_day, cards: p.caps.cards, human_decision: opts.human_decision });
+  if (p.trust && p.trust !== role.trust)
+    await performSetTrust(ctx, userId, {
+      role_id: String(role._id),
+      trust: p.trust,
+      human_decision: opts.human_decision,
+    });
+  if (p.caps)
+    await performSetCaps(ctx, userId, {
+      role_id: String(role._id),
+      hands: p.caps.hands_per_day,
+      wakes: p.caps.wakes_per_day,
+      tokens: p.caps.tokens_per_day,
+      cards: p.caps.cards,
+      human_decision: opts.human_decision,
+    });
   // The line it runs (line-profile.md LP7): a template that owns a project's
   // line names its workflow, and the person's answer to this proposal sets it.
-  if (p.line) await performSetLine(ctx, userId, { role_id: String(role._id), slug: p.line, human_decision: opts.human_decision });
+  if (p.line)
+    await performSetLine(ctx, userId, {
+      role_id: String(role._id),
+      slug: p.line,
+      human_decision: opts.human_decision,
+    });
   // A role that names its session (org-roles-run-work.md R2) is seated on it
   // in this same apply, whatever `provision` says: the session IS the role, so
   // a role row without it would be a name for nothing. A session that cannot
@@ -1060,24 +2206,51 @@ export async function applyRole(ctx: Ctx, userId: Id<"users">, boundary: Boundar
   if (p.seat) {
     seated = await seatExistingSession(ctx, userId, role, p.seat.existing);
   } else if (opts.provision && !opts.awaiting_adopt) {
-    const firstProject = role.scope?.project_ids?.[0] ? await ctx.db.get(role.scope.project_ids[0]) : null;
-    await performProvisionRole(ctx, userId, { role_id: String(role._id), project_path: firstProject?.project_path ?? undefined });
+    const firstProject = role.scope?.project_ids?.[0]
+      ? await ctx.db.get(role.scope.project_ids[0])
+      : null;
+    await performProvisionRole(ctx, userId, {
+      role_id: String(role._id),
+      project_path: firstProject?.project_path ?? undefined,
+    });
     provisioned = true;
   }
   // After the seat exists, so the seated session is never a candidate (R1).
   // A role whose seat is an adopt later in this proposal has none yet: the
   // session to adopt would be filed as its hand and the adopt would refuse
   // it, so the takeover waits for applyAdopt, which runs it.
-  const tookOver = opts.awaiting_adopt ? "" : takeoverPhrase(role.handle, await takeOverSessionsSoon(ctx, userId, role._id, { leave: p.leave_sessions }), true);
+  const tookOver = opts.awaiting_adopt
+    ? ""
+    : takeoverPhrase(
+        role.handle,
+        await takeOverSessionsSoon(ctx, userId, role._id, {
+          leave: p.leave_sessions,
+        }),
+        true,
+      );
   return {
     status: "applied",
     note: `created @${role.handle} (${role.short_id})${seated ? `; ${seated} is its standing session, with its history and its helper sessions as they were` : provisioned ? ", standing session provisioned" : opts.awaiting_adopt ? `; its standing session is the adopt of ${opts.awaiting_adopt} in this proposal (skip that and provision from the role's page)` : ""}${tookOver ? `; ${tookOver}` : ""}`,
-    role: { id: String(role._id), short_id: role.short_id, handle: role.handle },
+    role: {
+      id: String(role._id),
+      short_id: role.short_id,
+      handle: role.handle,
+    },
   };
 }
 
-export async function applyProjects(ctx: Ctx, userId: Id<"users">, boundary: Boundary, changes: OrgProjectChange[], note: string | undefined): Promise<ApplyResult> {
-  const key = workspaceKey(boundary.team_id ? { type: "team", teamId: boundary.team_id } : { type: "personal", userId });
+export async function applyProjects(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  changes: OrgProjectChange[],
+  note: string | undefined,
+): Promise<ApplyResult> {
+  const key = workspaceKey(
+    boundary.team_id
+      ? { type: "team", teamId: boundary.team_id }
+      : { type: "personal", userId },
+  );
   const now = Date.now();
   const done: string[] = [];
   const findProject = async (ref: string) => {
@@ -1085,48 +2258,128 @@ export async function applyProjects(ctx: Ctx, userId: Id<"users">, boundary: Bou
     return r.kind === "project" ? await ctx.db.get(r.id) : null;
   };
   for (const c of changes) {
-    await withOrgChange(ctx, userId, { kind: "projects", door: "proposal", gesture: "accept_change" }, async () => {
-      if (c.op === "create") {
-        // Idempotent by title: a re-run after a crash must not mint a twin.
-        let existing: any = null;
-        try { existing = await findProject(c.title); } catch { existing = null; }
-        if (existing && existing.title.toLowerCase() === c.title.toLowerCase()) { done.push(`project "${c.title}" already exists`); return; }
-        const id = await ctx.db.insert("projects", {
-          user_id: userId,
-          team_id: boundary.team_id,
-          workspace: key,
-          short_id: await mintProjectShortId(ctx, now),
-          title: c.title.trim(),
-          description: [c.description?.trim(), note].filter(Boolean).join("\n\n") || undefined,
-          status: "active",
-          project_path: c.project_path,
-          created_at: now,
-          updated_at: now,
-        });
-        const project = await ctx.db.get(id);
-        await noteOrgChange(ctx, userId, whereOfRecord(project), { kind: "projects", subject: recordSubject("project", project), before: { status: null }, after: { status: "active", projects: [{ op: "create", project_id: String(id), title: project.title }] } });
-        done.push(`created project "${c.title}"`);
-      } else {
-        const from = await findProject(c.from);
-        const into = await findProject(c.into);
-        if (!from || !into) throw new Error(`merge: project "${!from ? c.from : c.into}" not found in this workspace`);
-        if (String(from._id) === String(into._id)) return;
-        let moved = 0;
-        const rows_moved: Array<{ table: "tasks" | "plans" | "docs"; id: string }> = [];
-        for (const table of ["tasks", "plans", "docs"] as const) {
-          const rows: any[] = await ctx.db.query(table).withIndex("by_project_id", (q: any) => q.eq("project_id", from._id)).collect();
-          for (const row of rows) { if (row.workspace !== key) continue; await ctx.db.patch(row._id, { project_id: into._id, updated_at: now }); rows_moved.push({ table, id: String(row._id) }); moved++; }
+    await withOrgChange(
+      ctx,
+      userId,
+      { kind: "projects", door: "proposal", gesture: "accept_change" },
+      async () => {
+        if (c.op === "create") {
+          // Idempotent by title: a re-run after a crash must not mint a twin.
+          let existing: any = null;
+          try {
+            existing = await findProject(c.title);
+          } catch {
+            existing = null;
+          }
+          if (
+            existing &&
+            existing.title.toLowerCase() === c.title.toLowerCase()
+          ) {
+            done.push(`project "${c.title}" already exists`);
+            return;
+          }
+          const id = await ctx.db.insert("projects", {
+            user_id: userId,
+            team_id: boundary.team_id,
+            workspace: key,
+            short_id: await mintProjectShortId(ctx, now),
+            title: c.title.trim(),
+            description:
+              [c.description?.trim(), note].filter(Boolean).join("\n\n") ||
+              undefined,
+            status: "active",
+            project_path: c.project_path,
+            created_at: now,
+            updated_at: now,
+          });
+          const project = await ctx.db.get(id);
+          await noteOrgChange(ctx, userId, whereOfRecord(project), {
+            kind: "projects",
+            subject: recordSubject("project", project),
+            before: { status: null },
+            after: {
+              status: "active",
+              projects: [
+                { op: "create", project_id: String(id), title: project.title },
+              ],
+            },
+          });
+          done.push(`created project "${c.title}"`);
+        } else {
+          const from = await findProject(c.from);
+          const into = await findProject(c.into);
+          if (!from || !into)
+            throw new Error(
+              `merge: project "${!from ? c.from : c.into}" not found in this workspace`,
+            );
+          if (String(from._id) === String(into._id)) return;
+          let moved = 0;
+          const rows_moved: Array<{
+            table: "tasks" | "plans" | "docs";
+            id: string;
+          }> = [];
+          for (const table of ["tasks", "plans", "docs"] as const) {
+            const rows: any[] = await ctx.db
+              .query(table)
+              .withIndex("by_project_id", (q: any) =>
+                q.eq("project_id", from._id),
+              )
+              .collect();
+            for (const row of rows) {
+              if (row.workspace !== key) continue;
+              await ctx.db.patch(row._id, {
+                project_id: into._id,
+                updated_at: now,
+              });
+              rows_moved.push({ table, id: String(row._id) });
+              moved++;
+            }
+          }
+          await ctx.db.patch(from._id, {
+            status: "done",
+            description:
+              `${from.description ?? ""}\n\nMerged into ${into.title} by cast org apply.`.trim(),
+            updated_at: now,
+          });
+          await noteOrgChange(ctx, userId, whereOfRecord(from), {
+            kind: "projects",
+            subject: recordSubject("project", from),
+            before: { status: from.status },
+            after: {
+              status: "done",
+              projects: [
+                {
+                  op: "merge",
+                  from_id: String(from._id),
+                  into_id: String(into._id),
+                },
+              ],
+            },
+            effects: { rows_moved },
+          });
+          done.push(
+            `merged "${from.title}" into "${into.title}" (${moved} rows moved)`,
+          );
         }
-        await ctx.db.patch(from._id, { status: "done", description: `${from.description ?? ""}\n\nMerged into ${into.title} by cast org apply.`.trim(), updated_at: now });
-        await noteOrgChange(ctx, userId, whereOfRecord(from), { kind: "projects", subject: recordSubject("project", from), before: { status: from.status }, after: { status: "done", projects: [{ op: "merge", from_id: String(from._id), into_id: String(into._id) }] }, effects: { rows_moved } });
-        done.push(`merged "${from.title}" into "${into.title}" (${moved} rows moved)`);
-      }
-    });
+      },
+    );
   }
   return { status: "applied", note: done.join("; ") || "nothing to change" };
 }
 
-export async function applyMove(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: { handle: string; reports_to?: string; scope_add?: string[]; scope_remove?: string[]; leave_sessions?: boolean }, humanDecision: string): Promise<ApplyResult> {
+export async function applyMove(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: {
+    handle: string;
+    reports_to?: string;
+    scope_add?: string[];
+    scope_remove?: string[];
+    leave_sessions?: boolean;
+  },
+  humanDecision: string,
+): Promise<ApplyResult> {
   const handle = p.handle.replace(/^@/, "").toLowerCase();
   const role = roleByRef(await rolesInBoundary(ctx, boundary), p.handle);
   if (!role) throw new Error(`No live role @${handle} in this workspace`);
@@ -1134,25 +2387,56 @@ export async function applyMove(ctx: Ctx, userId: Id<"users">, boundary: Boundar
   if (p.scope_add?.length || p.scope_remove?.length) {
     // Gained scope takes over the sessions in it (R1), inside the role update
     // every scope gain goes through; a role that only lost scope takes nothing.
-    const updated = await performSetRoleScope(ctx, userId, { role_id: String(role._id), add: (p.scope_add ?? []).map(toRef), remove: (p.scope_remove ?? []).map(toRef), human_decision: humanDecision, leave_sessions: p.leave_sessions });
-    did.push(`scope ${[...(p.scope_add ?? []).map((s) => `+${s}`), ...(p.scope_remove ?? []).map((s) => `-${s}`)].join(" ")}`);
+    const updated = await performSetRoleScope(ctx, userId, {
+      role_id: String(role._id),
+      add: (p.scope_add ?? []).map(toRef),
+      remove: (p.scope_remove ?? []).map(toRef),
+      human_decision: humanDecision,
+      leave_sessions: p.leave_sessions,
+    });
+    did.push(
+      `scope ${[...(p.scope_add ?? []).map((s) => `+${s}`), ...(p.scope_remove ?? []).map((s) => `-${s}`)].join(" ")}`,
+    );
     if (updated.took_over?.phrase) did.push(updated.took_over.phrase);
   }
   if (p.reports_to) {
-    await performReparentRole(ctx, userId, { role_id: String(role._id), reports_to: await resolveReportsTo(ctx, userId, boundary, p.reports_to) });
+    await performReparentRole(ctx, userId, {
+      role_id: String(role._id),
+      reports_to: await resolveReportsTo(ctx, userId, boundary, p.reports_to),
+    });
     did.push(`now reports to ${p.reports_to}`);
   }
-  return { status: "applied", note: `@${role.handle}: ${did.join("; ") || "nothing to change"}`, role: { id: String(role._id), short_id: role.short_id, handle: role.handle } };
+  return {
+    status: "applied",
+    note: `@${role.handle}: ${did.join("; ") || "nothing to change"}`,
+    role: {
+      id: String(role._id),
+      short_id: role.short_id,
+      handle: role.handle,
+    },
+  };
 }
 
-export async function applyRetire(ctx: Ctx, userId: Id<"users">, boundary: Boundary, handleRef: string): Promise<ApplyResult> {
+export async function applyRetire(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  handleRef: string,
+): Promise<ApplyResult> {
   const handle = handleRef.replace(/^@/, "").toLowerCase();
   const role = roleByRef(await rolesInBoundary(ctx, boundary), handleRef);
   // No live role by that handle: a mistyped handle must not read as a green
   // applied row while the role it meant stays. Failed stays decidable.
-  if (!role) return { status: "error", error: `No live role @${handle} in this workspace: it is already retired, or the handle is wrong; edit the handle or skip` };
+  if (!role)
+    return {
+      status: "error",
+      error: `No live role @${handle} in this workspace: it is already retired, or the handle is wrong; edit the handle or skip`,
+    };
   const r = await performRetireRole(ctx, userId, { role_id: String(role._id) });
-  return { status: "applied", note: `retired @${role.handle} (${r.cleared} sessions back under their owners, ${r.rehomed} roles re-homed)` };
+  return {
+    status: "applied",
+    note: `retired @${role.handle} (${r.cleared} sessions back under their owners, ${r.rehomed} roles re-homed)`,
+  };
 }
 
 // ── The staffing changes (org-staffing.md S4) ────────────────────────────────
@@ -1180,10 +2464,31 @@ async function liveRole(ctx: Ctx, boundary: Boundary, handleRef: string) {
   if (!role) throw new Error(`No live role @${handle} in this workspace`);
   return role;
 }
-const roleRef = (role: any) => ({ id: String(role._id), short_id: role.short_id, handle: role.handle });
+const roleRef = (role: any) => ({
+  id: String(role._id),
+  short_id: role.short_id,
+  handle: role.handle,
+});
 
-export async function applyScope(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgScopeChange, opts: ApplyOpts): Promise<ApplyResult> {
-  return applyMove(ctx, userId, boundary, { handle: p.handle, scope_add: p.add, scope_remove: p.remove, leave_sessions: p.leave_sessions }, opts.human_decision);
+export async function applyScope(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgScopeChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
+  return applyMove(
+    ctx,
+    userId,
+    boundary,
+    {
+      handle: p.handle,
+      scope_add: p.add,
+      scope_remove: p.remove,
+      leave_sessions: p.leave_sessions,
+    },
+    opts.human_decision,
+  );
 }
 
 // A role's charter edited in place (S7): the passages the change names are
@@ -1191,100 +2496,318 @@ export async function applyScope(ctx: Ctx, userId: Id<"users">, boundary: Bounda
 // a passage that is missing or ambiguous and a result over the cap) and the
 // text lands through the role's own update, a human only write the
 // person's accept authorises.
-export async function applyCharterEdit(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgCharterEditChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyCharterEdit(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgCharterEditChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
   const current = await roleCharterOf(ctx, role);
   const edited = applyCharterEdits(current, p.edits);
-  if (edited.error !== undefined) return { status: "error", error: `@${role.handle}'s charter: ${edited.error}` };
+  if (edited.error !== undefined)
+    return {
+      status: "error",
+      error: `@${role.handle}'s charter: ${edited.error}`,
+    };
   const charter = edited.charter;
-  if (charter === current) return { status: "applied", note: `@${role.handle}: charter unchanged`, role: roleRef(role) };
-  await performUpdateRole(ctx, userId, { role_id: String(role._id), charter, human_decision: opts.human_decision });
-  const did = p.edits.map((e) => (e.op === "replace" ? "a passage rewritten" : e.op === "add" ? "a line added" : "a passage cut"));
-  return { status: "applied", note: `@${role.handle}: charter ${did.join(", ")} (${charter.length} characters)`, role: roleRef(role) };
+  if (charter === current)
+    return {
+      status: "applied",
+      note: `@${role.handle}: charter unchanged`,
+      role: roleRef(role),
+    };
+  await performUpdateRole(ctx, userId, {
+    role_id: String(role._id),
+    charter,
+    human_decision: opts.human_decision,
+  });
+  const did = p.edits.map((e) =>
+    e.op === "replace"
+      ? "a passage rewritten"
+      : e.op === "add"
+        ? "a line added"
+        : "a passage cut",
+  );
+  return {
+    status: "applied",
+    note: `@${role.handle}: charter ${did.join(", ")} (${charter.length} characters)`,
+    role: roleRef(role),
+  };
 }
 
 // A role's own settings (role_edit), each through the setter its own
 // command uses, so a rename, the switches, the line and a pause keep their
 // history and their side effects whichever door made them.
-export async function applyRoleEdit(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgRoleEditChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyRoleEdit(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgRoleEditChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
-  const role_id = String(role._id), human_decision = opts.human_decision;
-  if ([p.name, p.new_handle, p.given_name, p.avatar, p.tenure].some((x) => x !== undefined)) {
-    await performUpdateRole(ctx, userId, { role_id, name: p.name, handle: p.new_handle?.replace(/^@/, "").toLowerCase(), given_name: p.given_name, avatar: p.avatar, tenure: p.tenure as any, human_decision });
+  const role_id = String(role._id),
+    human_decision = opts.human_decision;
+  if (
+    [p.name, p.new_handle, p.given_name, p.avatar, p.tenure].some(
+      (x) => x !== undefined,
+    )
+  ) {
+    await performUpdateRole(ctx, userId, {
+      role_id,
+      name: p.name,
+      handle: p.new_handle?.replace(/^@/, "").toLowerCase(),
+      given_name: p.given_name,
+      avatar: p.avatar,
+      tenure: p.tenure as any,
+      human_decision,
+    });
   }
-  if (p.line !== undefined) await performSetLine(ctx, userId, { role_id, slug: p.line, human_decision });
-  if (p.hires_freely !== undefined) await performSetHiresFreely(ctx, userId, { role_id, on: p.hires_freely, human_decision });
-  if (p.keeps_reports_inside !== undefined) await performSetKeepsReportsInside(ctx, userId, { role_id, on: p.keeps_reports_inside, human_decision });
-  if (p.paused !== undefined) await (p.paused ? performPauseRole : performResumeRole)(ctx, userId, { role_id });
+  if (p.line !== undefined)
+    await performSetLine(ctx, userId, {
+      role_id,
+      slug: p.line,
+      human_decision,
+    });
+  if (p.hires_freely !== undefined)
+    await performSetHiresFreely(ctx, userId, {
+      role_id,
+      on: p.hires_freely,
+      human_decision,
+    });
+  if (p.keeps_reports_inside !== undefined)
+    await performSetKeepsReportsInside(ctx, userId, {
+      role_id,
+      on: p.keeps_reports_inside,
+      human_decision,
+    });
+  if (p.paused !== undefined)
+    await (p.paused ? performPauseRole : performResumeRole)(ctx, userId, {
+      role_id,
+    });
   const now = await ctx.db.get(role._id);
-  return { status: "applied", note: `@${role.handle}: ${describeOrgChange(p).replace(/^edit @\S+: /, "")}`, role: roleRef(now ?? role) };
+  return {
+    status: "applied",
+    note: `@${role.handle}: ${describeOrgChange(p).replace(/^edit @\S+: /, "")}`,
+    role: roleRef(now ?? role),
+  };
 }
 
-export async function applyBudget(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgBudgetChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyBudget(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgBudgetChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
   const before = capsFor(role);
-  const updated = await performSetCaps(ctx, userId, { role_id: String(role._id), hands: p.caps.hands_per_day, wakes: p.caps.wakes_per_day, tokens: p.caps.tokens_per_day, human_decision: opts.human_decision });
-  const limit = (n: number | undefined) => (n === undefined ? "no limit" : `${n}/day`);
-  const moved = DAILY_CAP_KEYS.filter((k) => before[k] !== updated.caps[k]).map((k) => `${k.replace("_per_day", "")} ${limit(before[k])} → ${limit(updated.caps[k])}`);
-  return { status: "applied", note: `@${role.handle}: ${moved.join(", ") || "caps unchanged"}`, role: roleRef(role) };
+  const updated = await performSetCaps(ctx, userId, {
+    role_id: String(role._id),
+    hands: p.caps.hands_per_day,
+    wakes: p.caps.wakes_per_day,
+    tokens: p.caps.tokens_per_day,
+    human_decision: opts.human_decision,
+  });
+  const limit = (n: number | undefined) =>
+    n === undefined ? "no limit" : `${n}/day`;
+  const moved = DAILY_CAP_KEYS.filter((k) => before[k] !== updated.caps[k]).map(
+    (k) =>
+      `${k.replace("_per_day", "")} ${limit(before[k])} → ${limit(updated.caps[k])}`,
+  );
+  return {
+    status: "applied",
+    note: `@${role.handle}: ${moved.join(", ") || "caps unchanged"}`,
+    role: roleRef(role),
+  };
 }
 
-export async function applyTrust(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgTrustChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyTrust(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgTrustChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
-  const r = await performSetTrust(ctx, userId, { role_id: String(role._id), trust: p.trust, human_decision: opts.human_decision });
-  return { status: "applied", note: `@${role.handle}: ${autonomyChangeWords(!!r.on)}`, role: roleRef(role) };
+  const r = await performSetTrust(ctx, userId, {
+    role_id: String(role._id),
+    trust: p.trust,
+    human_decision: opts.human_decision,
+  });
+  return {
+    status: "applied",
+    note: `@${role.handle}: ${autonomyChangeWords(!!r.on)}`,
+    role: roleRef(role),
+  };
 }
 
 // Hiring from a template (docs/architecture/org-hire.md). Authority is the
 // role's, written through the same human only writer as trust; a hire writes
 // the instance row awaiting its host step and makes the role the project's
 // lead when it has none (H3); an accepted upgrade waits on the row for the host.
-export async function applyAuthority(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgAuthorityChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyAuthority(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgAuthorityChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
-  const r = await performSetAuthority(ctx, userId, { role_id: String(role._id), authority: p.authority, human_decision: opts.human_decision });
-  return { status: "applied", note: `@${role.handle} may ${authorityWords(r.authority)}`, role: roleRef(role) };
+  const r = await performSetAuthority(ctx, userId, {
+    role_id: String(role._id),
+    authority: p.authority,
+    human_decision: opts.human_decision,
+  });
+  return {
+    status: "applied",
+    note: `@${role.handle} may ${authorityWords(r.authority)}`,
+    role: roleRef(role),
+  };
 }
-export async function applyHire(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgHireChange, _opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyHire(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgHireChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
   const ref = await resolveScopeRef(ctx, boundary, `project:${p.project}`);
   const project = ref.kind === "project" ? await ctx.db.get(ref.id) : null;
   if (!project) throw new Error(`No project "${p.project}" in this workspace`);
-  if (!(role.scope?.project_ids ?? []).some((id: any) => String(id) === String(project._id))) throw new Error(`@${role.handle} does not look after ${project.title}; the role change of this hire names the project`);
+  if (
+    !(role.scope?.project_ids ?? []).some(
+      (id: any) => String(id) === String(project._id),
+    )
+  )
+    throw new Error(
+      `@${role.handle} does not look after ${project.title}; the role change of this hire names the project`,
+    );
   const row = await performUpsertInstance(ctx, userId, {
-    instance_key: hiredRowKey(String(project._id), p.instance), instance: p.instance, template_id: p.template, version: p.version, digest: p.digest,
-    project_id: project._id, role_id: role._id, phase: "awaiting_host", update_policy: p.update_policy ?? "manual", config: p.config ?? {},
+    instance_key: hiredRowKey(String(project._id), p.instance),
+    instance: p.instance,
+    template_id: p.template,
+    version: p.version,
+    digest: p.digest,
+    project_id: project._id,
+    role_id: role._id,
+    phase: "awaiting_host",
+    update_policy: p.update_policy ?? "manual",
+    config: p.config ?? {},
   });
   // The hire is recorded on the role (org-staffing.md S21); its way back is the host step, so the row carries the instance and no snapshot of it.
-  await noteOrgChange(ctx, userId, whereOfRole(role), { kind: "hire", subject: roleSubject(role), before: { instance: null }, after: { instance: { instance: p.instance, template_id: p.template, version: p.version, project_id: String(project._id) } }, labels: await labelsOf(ctx, [String(role._id), String(project._id)]) });
-  const lead = project.owner_role_id ? null : await performSetProjectLead(ctx, userId, { project_id: project._id, role_id: String(role._id) });
-  return { status: "applied", note: `hired @${role.handle} from ${p.template}@${p.version} as ${p.instance}${lead ? `; it leads ${project.title}` : ""}; run cast org template bind ${p.instance} in the checkout (row ${row._id})`, role: roleRef(role) };
+  await noteOrgChange(ctx, userId, whereOfRole(role), {
+    kind: "hire",
+    subject: roleSubject(role),
+    before: { instance: null },
+    after: {
+      instance: {
+        instance: p.instance,
+        template_id: p.template,
+        version: p.version,
+        project_id: String(project._id),
+      },
+    },
+    labels: await labelsOf(ctx, [String(role._id), String(project._id)]),
+  });
+  const lead = project.owner_role_id
+    ? null
+    : await performSetProjectLead(ctx, userId, {
+        project_id: project._id,
+        role_id: String(role._id),
+      });
+  return {
+    status: "applied",
+    note: `hired @${role.handle} from ${p.template}@${p.version} as ${p.instance}${lead ? `; it leads ${project.title}` : ""}; run cast org template bind ${p.instance} in the checkout (row ${row._id})`,
+    role: roleRef(role),
+  };
 }
-export async function applyUpgrade(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgUpgradeChange): Promise<ApplyResult> {
-  const row = await performAcceptUpgrade(ctx, userId, { access: boundary.team_id ? `team:${boundary.team_id}` : `user:${boundary.scope_user_id}`, instance: p.instance, template_id: p.template, to: p.to, digest: p.digest });
+export async function applyUpgrade(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgUpgradeChange,
+): Promise<ApplyResult> {
+  const row = await performAcceptUpgrade(ctx, userId, {
+    access: boundary.team_id
+      ? `team:${boundary.team_id}`
+      : `user:${boundary.scope_user_id}`,
+    instance: p.instance,
+    template_id: p.template,
+    to: p.to,
+    digest: p.digest,
+  });
   // Recorded on the instance's role, or its project when the row names none; the acceptance is withdrawn by undo until the host step runs it.
   const role = row.role_id ? await ctx.db.get(row.role_id) : null;
   const project = role ? null : await ctx.db.get(row.project_id);
-  await noteOrgChange(ctx, userId, role ? whereOfRole(role) : whereOfRecord(project), { kind: "upgrade", subject: role ? roleSubject(role) : recordSubject("project", project), before: { upgrade: null }, after: { upgrade: { instance: p.instance, template_id: p.template, to: p.to } } });
-  return { status: "applied", note: `instance ${p.instance} moves to ${p.template}@${p.to} on its next host step (cast org template bind ${p.instance} --to ${p.to}; row ${row._id})` };
+  await noteOrgChange(
+    ctx,
+    userId,
+    role ? whereOfRole(role) : whereOfRecord(project),
+    {
+      kind: "upgrade",
+      subject: role ? roleSubject(role) : recordSubject("project", project),
+      before: { upgrade: null },
+      after: {
+        upgrade: { instance: p.instance, template_id: p.template, to: p.to },
+      },
+    },
+  );
+  return {
+    status: "applied",
+    note: `instance ${p.instance} moves to ${p.template}@${p.to} on its next host step (cast org template bind ${p.instance} --to ${p.to}; row ${row._id})`,
+  };
 }
 
 // A routine is a recurring trigger on the role's standing session, through
 // the same insert every `cast trigger add --every` uses. The first run is one
 // cadence out: the person accepted a rhythm, not an immediate wake.
-export async function applyRoutine(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgRoutineChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyRoutine(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgRoutineChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
   const interval = orgEveryToMs(p.every);
-  if (!interval) throw new Error(`"${p.every}" is not a cadence like 7d, 1d or 12h`);
+  if (!interval)
+    throw new Error(`"${p.every}" is not a cadence like 7d, 1d or 12h`);
   const standing = await standingConversationOf(ctx, role);
-  if (!standing) throw new Error(`@${role.handle} has no standing session to run a routine on; provision the role first`);
+  if (!standing)
+    throw new Error(
+      `@${role.handle} has no standing session to run a routine on; provision the role first`,
+    );
   // A routine change that names the role's own check (org-staffing.md S38: a
   // cadence outside what the role may set itself) changes that check; it
   // never arms a second one beside it. The check's prompt stays the product's.
-  const check = p.title.trim() === roleRoutineFor(role).title ? await roleCheckOf(ctx, role) : null;
+  const check =
+    p.title.trim() === roleRoutineFor(role).title
+      ? await roleCheckOf(ctx, role)
+      : null;
   if (check) {
-    if (roleWakeOf(check).every_ms === interval) return { status: "applied", note: `@${role.handle}: its check already runs every ${p.every}`, role: roleRef(role) };
-    await applyRoutineTune(ctx, userId, role, check, { every_ms: interval, why: "a person accepted this as a routine change" }, { door: "proposal", gesture: "accept_change" });
-    return { status: "applied", note: `@${role.handle}: its check now runs every ${p.every} (${check.short_id ?? "its trigger"})`, role: roleRef(role) };
+    if (roleWakeOf(check).every_ms === interval)
+      return {
+        status: "applied",
+        note: `@${role.handle}: its check already runs every ${p.every}`,
+        role: roleRef(role),
+      };
+    await applyRoutineTune(
+      ctx,
+      userId,
+      role,
+      check,
+      { every_ms: interval, why: "a person accepted this as a routine change" },
+      { door: "proposal", gesture: "accept_change" },
+    );
+    return {
+      status: "applied",
+      note: `@${role.handle}: its check now runs every ${p.every} (${check.short_id ?? "its trigger"})`,
+      role: roleRef(role),
+    };
   }
   const now = Date.now();
   const created = await insertTask(ctx as any, standing.user_id, {
@@ -1293,18 +2816,47 @@ export async function applyRoutine(ctx: Ctx, userId: Id<"users">, boundary: Boun
     target_conversation_id: String(standing._id),
     originating_conversation_id: String(standing._id),
     project_path: standing.project_path ?? undefined,
-    agent_type: standing.agent_type === "claude_code" ? "claude" : standing.agent_type ?? undefined,
+    agent_type:
+      standing.agent_type === "claude_code"
+        ? "claude"
+        : (standing.agent_type ?? undefined),
     schedule_type: "recurring",
     interval_ms: interval,
     run_at: now + interval,
   });
-  await noteOrgChange(ctx, userId, whereOfRole(role), { kind: "routine", subject: roleSubject(role), before: { routine: null }, after: { routine: { agent_task_id: String(created.id), title: p.title.trim(), every: p.every } }, effects: { routines_started: [{ agent_task_id: String(created.id), title: p.title.trim() }] } });
-  return { status: "applied", note: `@${role.handle}: routine "${p.title.trim()}" every ${p.every} (${created.short_id})`, role: roleRef(role) };
+  await noteOrgChange(ctx, userId, whereOfRole(role), {
+    kind: "routine",
+    subject: roleSubject(role),
+    before: { routine: null },
+    after: {
+      routine: {
+        agent_task_id: String(created.id),
+        title: p.title.trim(),
+        every: p.every,
+      },
+    },
+    effects: {
+      routines_started: [
+        { agent_task_id: String(created.id), title: p.title.trim() },
+      ],
+    },
+  });
+  return {
+    status: "applied",
+    note: `@${role.handle}: routine "${p.title.trim()}" every ${p.every} (${created.short_id})`,
+    role: roleRef(role),
+  };
 }
 
 // The charter fields on a project (org-staffing.md S7), through the one
 // charter writer every project and plan update calls (lib/orgCharter).
-export async function applyProjectMeta(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgProjectMetaChange, _opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyProjectMeta(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgProjectMetaChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
   const ref = await resolveScopeRef(ctx, boundary, `project:${p.project}`);
   const project = ref.kind === "project" ? await ctx.db.get(ref.id) : null;
   if (!project) throw new Error(`No project "${p.project}" in this workspace`);
@@ -1312,31 +2864,75 @@ export async function applyProjectMeta(ctx: Ctx, userId: Id<"users">, boundary: 
   // A proposal adds to a charter's lists, never replaces them: a reviewer
   // that read one new risk writes that risk, and what the person wrote
   // stays. The words, the priority and the owner are single values and move.
-  const held = (k: "success_metrics" | "non_goals" | "risks"): string[] => (project[k] ?? []).map((x: string) => x.trim()).filter(Boolean);
+  const held = (k: "success_metrics" | "non_goals" | "risks"): string[] =>
+    (project[k] ?? []).map((x: string) => x.trim()).filter(Boolean);
   for (const k of ["success_metrics", "non_goals", "risks"] as const) {
     if (fields[k] === undefined) continue;
     const have = held(k);
     const seen = new Set(have.map((x) => x.toLowerCase()));
-    fields[k] = [...have, ...fields[k]!.map((x) => x.trim()).filter((x) => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()))];
+    fields[k] = [
+      ...have,
+      ...fields[k]!.map((x) => x.trim()).filter(
+        (x) => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()),
+      ),
+    ];
   }
   const patch = await charterPatch(ctx, project, fields, "projects");
   await ctx.db.patch(project._id, { ...patch, updated_at: Date.now() });
-  await noteOrgChange(ctx, userId, whereOfRecord(project), { kind: "project_meta", subject: recordSubject("project", project), ...movedFields(Object.fromEntries(Object.keys(patch).map((k) => [k, project[k] ?? null])), patch), labels: await labelsOf(ctx, [project.owner_role_id, patch.owner_role_id]) });
-  const did = Object.keys(patch).map((k) => (k === "owner_role_id" ? `owner ${p.owner}` : k === "priority" ? String(patch.priority ?? "no priority") : k === "success_metrics" || k === "non_goals" || k === "risks" ? `${k.replace(/_/g, " ")} +${(patch[k] ?? []).length - held(k).length}` : k.replace(/_/g, " ")));
-  return { status: "applied", note: `project "${project.title}": ${did.join(", ") || "nothing to change"}` };
+  await noteOrgChange(ctx, userId, whereOfRecord(project), {
+    kind: "project_meta",
+    subject: recordSubject("project", project),
+    ...movedFields(
+      Object.fromEntries(
+        Object.keys(patch).map((k) => [k, project[k] ?? null]),
+      ),
+      patch,
+    ),
+    labels: await labelsOf(ctx, [project.owner_role_id, patch.owner_role_id]),
+  });
+  const did = Object.keys(patch).map((k) =>
+    k === "owner_role_id"
+      ? `owner ${p.owner}`
+      : k === "priority"
+        ? String(patch.priority ?? "no priority")
+        : k === "success_metrics" || k === "non_goals" || k === "risks"
+          ? `${k.replace(/_/g, " ")} +${(patch[k] ?? []).length - held(k).length}`
+          : k.replace(/_/g, " "),
+  );
+  return {
+    status: "applied",
+    note: `project "${project.title}": ${did.join(", ") || "nothing to change"}`,
+  };
 }
 
 // This session becomes the role's standing session (org-staffing.md S6):
 // the provision path with adopt_conversation_id, which takes a short id, a
 // row id or the native session id the CLI knows itself by.
-export async function applyAdopt(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgAdoptChange, _opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyAdopt(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgAdoptChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
   const role = await liveRole(ctx, boundary, p.handle);
   try {
     const seated = await seatExistingSession(ctx, userId, role, p.conversation);
-    const tookOver = takeoverPhrase(role.handle, await takeOverSessionsSoon(ctx, userId, role._id, { leave: p.leave_sessions }), true);
-    return { status: "applied", note: `@${role.handle}: adopted ${seated} as its standing session${tookOver ? `; ${tookOver}` : ""}`, role: roleRef(role) };
+    const tookOver = takeoverPhrase(
+      role.handle,
+      await takeOverSessionsSoon(ctx, userId, role._id, {
+        leave: p.leave_sessions,
+      }),
+      true,
+    );
+    return {
+      status: "applied",
+      note: `@${role.handle}: adopted ${seated} as its standing session${tookOver ? `; ${tookOver}` : ""}`,
+      role: roleRef(role),
+    };
   } catch (e: any) {
-    if (e instanceof SeatTakenError) return { status: "error", error: e.message };
+    if (e instanceof SeatTakenError)
+      return { status: "error", error: e.message };
     throw e;
   }
 }
@@ -1345,16 +2941,30 @@ class SeatTakenError extends Error {}
 /** The person who runs a session named as a seat: its owner, else the user
  *  who started it. Throws when nothing answers to the ref, so a role is never
  *  created for a session nobody can find. */
-async function seatOwnerOf(ctx: Ctx, ref: string): Promise<{ kind: "user"; user_id: Id<"users"> }> {
-  const conv = await findConversationByAnyRefWhere(ctx, ref.trim(), async () => true);
+async function seatOwnerOf(
+  ctx: Ctx,
+  ref: string,
+): Promise<{ kind: "user"; user_id: Id<"users"> }> {
+  const conv = await findConversationByAnyRefWhere(
+    ctx,
+    ref.trim(),
+    async () => true,
+  );
   if (!conv) throw new Error(`Session not found: ${ref.trim()}`);
-  return { kind: "user", user_id: (conv.owner_user_id ?? conv.user_id) as Id<"users"> };
+  return {
+    kind: "user",
+    user_id: (conv.owner_user_id ?? conv.user_id) as Id<"users">,
+  };
 }
 /** Who runs the session a role is named on: the role's host (R2). The
  *  runner, not an added owner: the standing session acts under the runner's
  *  token, and the host is who the role's own writes are checked against. */
 async function seatRunnerOf(ctx: Ctx, ref: string): Promise<Id<"users">> {
-  const conv = await findConversationByAnyRefWhere(ctx, ref.trim(), async () => true);
+  const conv = await findConversationByAnyRefWhere(
+    ctx,
+    ref.trim(),
+    async () => true,
+  );
   if (!conv) throw new Error(`Session not found: ${ref.trim()}`);
   return conv.user_id as Id<"users">;
 }
@@ -1363,10 +2973,21 @@ async function seatRunnerOf(ctx: Ctx, ref: string): Promise<Id<"users">> {
  *  short id. Provision is idempotent per role: a role that already has a
  *  standing session keeps it and adopts nothing. Saying "adopted" then would
  *  be a lie with a second agent behind it, so that case throws. */
-async function seatExistingSession(ctx: Ctx, userId: Id<"users">, role: any, conversation: string): Promise<string> {
+async function seatExistingSession(
+  ctx: Ctx,
+  userId: Id<"users">,
+  role: any,
+  conversation: string,
+): Promise<string> {
   const ref = conversation.trim();
-  const r = await performProvisionRole(ctx, userId, { role_id: String(role._id), adopt_conversation_id: ref });
-  if (!r?.adopted) throw new SeatTakenError(`@${role.handle} already has a standing session, so ${ref} was not adopted; retire that session first (or skip this change) rather than run two agents for one seat`);
+  const r = await performProvisionRole(ctx, userId, {
+    role_id: String(role._id),
+    adopt_conversation_id: ref,
+  });
+  if (!r?.adopted)
+    throw new SeatTakenError(
+      `@${role.handle} already has a standing session, so ${ref} was not adopted; retire that session first (or skip this change) rather than run two agents for one seat`,
+    );
   return r?.short_id ?? ref;
 }
 
@@ -1402,23 +3023,47 @@ export async function setTaskStatus(
   // cascade): the release of the tasks it blocked reads both (TG2).
   release: { actorUserId?: Id<"users">; closing?: ReadonlySet<string> } = {},
 ): Promise<void> {
-  const write = await resolveStatusWrite(ctx, boundary.team_id ?? null, task.status, { status });
+  const write = await resolveStatusWrite(
+    ctx,
+    boundary.team_id ?? null,
+    task.status,
+    { status },
+  );
   const next = write.status ?? status;
   const closing = next === "done" || next === "dropped";
-  const verdict = next === "done" ? { verdict: "approve" as const, at: now, note: "closed by an org proposal" } : undefined;
-  const patch: Record<string, any> = { status: next, status_id: write.statusId.set ? write.statusId.value : task.status_id, updated_at: now, closed_at: closing ? now : undefined };
+  const verdict =
+    next === "done"
+      ? {
+          verdict: "approve" as const,
+          at: now,
+          note: "closed by an org proposal",
+        }
+      : undefined;
+  const patch: Record<string, any> = {
+    status: next,
+    status_id: write.statusId.set ? write.statusId.value : task.status_id,
+    updated_at: now,
+    closed_at: closing ? now : undefined,
+  };
   if (verdict) patch.review_verdict = verdict;
   // A hand's "blocked" or "needs context" is a claim about open work; on a
   // closed task it is history that would read as a live stall.
-  if (closing && (task.execution_status === "blocked" || task.execution_status === "needs_context")) patch.execution_status = undefined;
-  if (next === "done" && task.started_at) patch.actual_minutes = Math.round((now - task.started_at) / 60000);
+  if (
+    closing &&
+    (task.execution_status === "blocked" ||
+      task.execution_status === "needs_context")
+  )
+    patch.execution_status = undefined;
+  if (next === "done" && task.started_at)
+    patch.actual_minutes = Math.round((now - task.started_at) / 60000);
   const before = { ...task };
   await ctx.db.patch(task._id, patch);
   await afterStatusEdges(ctx as any, before, next, release);
   if (closing) {
     for (const convId of task.conversation_ids ?? []) {
       const conv = await ctx.db.get(convId);
-      if (conv && String(conv.active_task_id ?? "") === String(task._id)) await ctx.db.patch(convId, { active_task_id: undefined });
+      if (conv && String(conv.active_task_id ?? "") === String(task._id))
+        await ctx.db.patch(convId, { active_task_id: undefined });
     }
   }
   if (task.plan_id) await recalcPlanProgress(ctx, task.plan_id, task._id, next);
@@ -1431,43 +3076,114 @@ export async function setTaskStatus(
 // and done would claim work the evidence does not show. A task the proposal
 // marks done on its own evidence lands first (task_status ranks before
 // plan_status) and is already closed when the cascade reads the plan.
-export async function applyPlanStatus(ctx: Ctx, _userId: Id<"users">, boundary: Boundary, p: OrgPlanStatusChange, _opts: ApplyOpts): Promise<ApplyResult> {
-  if (!PLAN_STATUSES.has(p.status)) throw new Error(`plan status "${p.status}" is not one of done, abandoned, active`);
+export async function applyPlanStatus(
+  ctx: Ctx,
+  _userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgPlanStatusChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
+  if (!PLAN_STATUSES.has(p.status))
+    throw new Error(
+      `plan status "${p.status}" is not one of done, abandoned, active`,
+    );
   const ref = await resolveScopeRef(ctx, boundary, `plan:${p.plan}`);
   const plan = ref.kind === "plan" ? await ctx.db.get(ref.id) : null;
   if (!plan) throw new Error(`No plan "${p.plan}" in this workspace`);
   const now = Date.now();
   const same = plan.status === p.status;
   const closing = p.status === "done" || p.status === "abandoned";
-  if (same && !closing) return { status: "applied", note: `${plan.short_id} is already ${p.status}` };
-  if (!same) await ctx.db.patch(plan._id, { status: p.status, updated_at: now });
+  if (same && !closing)
+    return {
+      status: "applied",
+      note: `${plan.short_id} is already ${p.status}`,
+    };
+  if (!same)
+    await ctx.db.patch(plan._id, { status: p.status, updated_at: now });
   // A closed plan with rows still open is the record the evidence contradicts
   // whether the close is new or old (a plan marked done months ago and never
   // swept), so re-asserting done or abandoned sweeps the same way.
   let cascade = "";
-  const tasks_closed: Array<{ task_id: string; short_id: string; before_status: string }> = [];
+  const tasks_closed: Array<{
+    task_id: string;
+    short_id: string;
+    before_status: string;
+  }> = [];
   if (closing) {
-    const open: any[] = (await ctx.db.query("tasks").withIndex("by_plan_id", (q: any) => q.eq("plan_id", plan._id)).collect()).filter((t: any) => OPEN_TASK(t) && isActiveTask(t));
-    open.sort((a, b) => String(a.short_id).localeCompare(String(b.short_id), undefined, { numeric: true }));
+    const open: any[] = (
+      await ctx.db
+        .query("tasks")
+        .withIndex("by_plan_id", (q: any) => q.eq("plan_id", plan._id))
+        .collect()
+    ).filter((t: any) => OPEN_TASK(t) && isActiveTask(t));
+    open.sort((a, b) =>
+      String(a.short_id).localeCompare(String(b.short_id), undefined, {
+        numeric: true,
+      }),
+    );
     const closingIds = new Set(open.map((t) => String(t._id)));
-    for (const t of open) { await setTaskStatus(ctx, boundary, t, "dropped", now, { actorUserId: _userId, closing: closingIds }); tasks_closed.push({ task_id: String(t._id), short_id: t.short_id, before_status: t.status }); }
-    if (open.length) cascade = `; dropped its ${open.length} open task${open.length === 1 ? "" : "s"}: ${open.map((t) => t.short_id).join(", ")}`;
+    for (const t of open) {
+      await setTaskStatus(ctx, boundary, t, "dropped", now, {
+        actorUserId: _userId,
+        closing: closingIds,
+      });
+      tasks_closed.push({
+        task_id: String(t._id),
+        short_id: t.short_id,
+        before_status: t.status,
+      });
+    }
+    if (open.length)
+      cascade = `; dropped its ${open.length} open task${open.length === 1 ? "" : "s"}: ${open.map((t) => t.short_id).join(", ")}`;
   }
-  await noteOrgChange(ctx, _userId, whereOfRecord(plan), { kind: "plan_status", subject: recordSubject("plan", plan), ...movedFields({ status: plan.status }, { status: p.status }), effects: { tasks_closed } });
-  if (same) return { status: "applied", note: `${plan.short_id} is already ${p.status}${cascade || "; no open tasks under it"}` };
-  return { status: "applied", note: `${plan.short_id} "${plan.title}": ${plan.status} → ${p.status}${cascade}` };
+  await noteOrgChange(ctx, _userId, whereOfRecord(plan), {
+    kind: "plan_status",
+    subject: recordSubject("plan", plan),
+    ...movedFields({ status: plan.status }, { status: p.status }),
+    effects: { tasks_closed },
+  });
+  if (same)
+    return {
+      status: "applied",
+      note: `${plan.short_id} is already ${p.status}${cascade || "; no open tasks under it"}`,
+    };
+  return {
+    status: "applied",
+    note: `${plan.short_id} "${plan.title}": ${plan.status} → ${p.status}${cascade}`,
+  };
 }
 
-export async function applyProjectStatus(ctx: Ctx, _userId: Id<"users">, boundary: Boundary, p: OrgProjectStatusChange, _opts: ApplyOpts): Promise<ApplyResult> {
-  if (!PROJECT_STATUSES.has(p.status)) throw new Error(`project status "${p.status}" is not one of paused, done, active`);
+export async function applyProjectStatus(
+  ctx: Ctx,
+  _userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgProjectStatusChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
+  if (!PROJECT_STATUSES.has(p.status))
+    throw new Error(
+      `project status "${p.status}" is not one of paused, done, active`,
+    );
   const ref = await resolveScopeRef(ctx, boundary, `project:${p.project}`);
   const project = ref.kind === "project" ? await ctx.db.get(ref.id) : null;
   if (!project) throw new Error(`No project "${p.project}" in this workspace`);
-  if (project.status === p.status) return { status: "applied", note: `"${project.title}" is already ${p.status}` };
+  if (project.status === p.status)
+    return {
+      status: "applied",
+      note: `"${project.title}" is already ${p.status}`,
+    };
   await ctx.db.patch(project._id, { status: p.status, updated_at: Date.now() });
   await syncProjectTriggers(ctx, project._id, project.status, p.status);
-  await noteOrgChange(ctx, _userId, whereOfRecord(project), { kind: "project_status", subject: recordSubject("project", project), before: { status: project.status }, after: { status: p.status } });
-  return { status: "applied", note: `project "${project.title}": ${project.status} → ${p.status}` };
+  await noteOrgChange(ctx, _userId, whereOfRecord(project), {
+    kind: "project_status",
+    subject: recordSubject("project", project),
+    before: { status: project.status },
+    after: { status: p.status },
+  });
+  return {
+    status: "applied",
+    note: `project "${project.title}": ${project.status} → ${p.status}`,
+  };
 }
 
 // A task's status from a proposal is a person's act: a close runs the same
@@ -1476,15 +3192,46 @@ export async function applyProjectStatus(ctx: Ctx, _userId: Id<"users">, boundar
 // back where it belongs. A backlog only exists where the team's statuses
 // have one; elsewhere the write is refused with the team's vocabulary, and
 // the change lands as failed for the person to edit.
-export async function applyTaskStatus(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgTaskStatusChange, _opts: ApplyOpts): Promise<ApplyResult> {
-  if (!TASK_STATUSES.has(p.status)) throw new Error(`task status "${p.status}" is not one of done, dropped, open, backlog`);
-  const key = workspaceKey(boundary.team_id ? { type: "team", teamId: boundary.team_id } : { type: "personal", userId });
-  const task = await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", p.task.trim())).first();
-  if (!task || workspaceKey(workspaceForResource(task)) !== key) throw new Error(`No task "${p.task}" in this workspace`);
-  if (task.status === p.status) return { status: "applied", note: `${task.short_id} is already ${p.status}` };
-  await setTaskStatus(ctx, boundary, task, p.status, Date.now(), { actorUserId: userId });
-  await noteOrgChange(ctx, userId, whereOfRecord(task), { kind: "task_status", subject: recordSubject("task", task), before: { status: task.status }, after: { status: p.status } });
-  return { status: "applied", note: `${task.short_id} "${task.title}": ${task.status} → ${p.status}` };
+export async function applyTaskStatus(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgTaskStatusChange,
+  _opts: ApplyOpts,
+): Promise<ApplyResult> {
+  if (!TASK_STATUSES.has(p.status))
+    throw new Error(
+      `task status "${p.status}" is not one of done, dropped, open, backlog`,
+    );
+  const key = workspaceKey(
+    boundary.team_id
+      ? { type: "team", teamId: boundary.team_id }
+      : { type: "personal", userId },
+  );
+  const task = await ctx.db
+    .query("tasks")
+    .withIndex("by_short_id", (q: any) => q.eq("short_id", p.task.trim()))
+    .first();
+  if (!task || workspaceKey(workspaceForResource(task)) !== key)
+    throw new Error(`No task "${p.task}" in this workspace`);
+  if (task.status === p.status)
+    return {
+      status: "applied",
+      note: `${task.short_id} is already ${p.status}`,
+    };
+  await setTaskStatus(ctx, boundary, task, p.status, Date.now(), {
+    actorUserId: userId,
+  });
+  await noteOrgChange(ctx, userId, whereOfRecord(task), {
+    kind: "task_status",
+    subject: recordSubject("task", task),
+    before: { status: task.status },
+    after: { status: p.status },
+  });
+  return {
+    status: "applied",
+    note: `${task.short_id} "${task.title}": ${task.status} → ${p.status}`,
+  };
 }
 
 // ── The company's goals (initiatives-projects-role-page.md "I1, revised") ──
@@ -1497,28 +3244,71 @@ export async function applyTaskStatus(ctx: Ctx, userId: Id<"users">, boundary: B
 // role's scope; nothing here writes an initiative itself. Each change opens
 // its own rows (`acceptedRow`): what it moved, then the sources it brought.
 
-async function initiativeByRef(ctx: Ctx, userId: Id<"users">, boundary: Boundary, ref: string): Promise<any> {
-  const key = workspaceKey(boundary.team_id ? { type: "team", teamId: boundary.team_id } : { type: "personal", userId });
+async function initiativeByRef(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  ref: string,
+): Promise<any> {
+  const key = workspaceKey(
+    boundary.team_id
+      ? { type: "team", teamId: boundary.team_id }
+      : { type: "personal", userId },
+  );
   const trimmed = ref.trim();
-  const direct = /^in-\d+$/i.test(trimmed) || ctx.db.normalizeId("initiatives", trimmed) ? await findInitiative(ctx, userId, trimmed) : null;
+  const direct =
+    /^in-\d+$/i.test(trimmed) || ctx.db.normalizeId("initiatives", trimmed)
+      ? await findInitiative(ctx, userId, trimmed)
+      : null;
   if (direct && direct.workspace === key) return direct;
-  const rows: any[] = await ctx.db.query("initiatives").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).collect();
+  const rows: any[] = await ctx.db
+    .query("initiatives")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+    .collect();
   const lc = trimmed.toLowerCase();
-  const hits = rows.filter((r) => r.status !== "cancelled" && r.title.trim().toLowerCase() === lc);
-  if (hits.length > 1) throw new Error(`"${trimmed}" names ${hits.length} initiatives in this workspace; use the short id (${hits.map((r) => r.short_id).join(", ")})`);
-  if (!hits.length) throw new Error(`No initiative "${trimmed}" in this workspace`);
+  const hits = rows.filter(
+    (r) => r.status !== "cancelled" && r.title.trim().toLowerCase() === lc,
+  );
+  if (hits.length > 1)
+    throw new Error(
+      `"${trimmed}" names ${hits.length} initiatives in this workspace; use the short id (${hits.map((r) => r.short_id).join(", ")})`,
+    );
+  if (!hits.length)
+    throw new Error(`No initiative "${trimmed}" in this workspace`);
   return hits[0];
 }
-const initiativeWorkspace = (boundary: Boundary): { workspace: "personal" | "team"; team_id?: Id<"teams"> } => boundary.team_id ? { workspace: "team", team_id: boundary.team_id } : { workspace: "personal" };
-async function projectIdsOf(ctx: Ctx, boundary: Boundary, refs: string[]): Promise<string[]> {
+const initiativeWorkspace = (
+  boundary: Boundary,
+): { workspace: "personal" | "team"; team_id?: Id<"teams"> } =>
+  boundary.team_id
+    ? { workspace: "team", team_id: boundary.team_id }
+    : { workspace: "personal" };
+async function projectIdsOf(
+  ctx: Ctx,
+  boundary: Boundary,
+  refs: string[],
+): Promise<string[]> {
   const out: string[] = [];
-  for (const ref of refs) { const r = await resolveScopeRef(ctx, boundary, `project:${ref}`); if (r.kind === "project") out.push(String(r.id)); }
+  for (const ref of refs) {
+    const r = await resolveScopeRef(ctx, boundary, `project:${ref}`);
+    if (r.kind === "project") out.push(String(r.id));
+  }
   return out;
 }
 
 /** One row of an accepted proposal change, whatever cores it runs through. */
-const acceptedRow = <T>(ctx: Ctx, userId: Id<"users">, kind: OrgChange["kind"], run: () => Promise<T>): Promise<T> =>
-  withOrgChange(ctx, userId, { kind, door: "proposal", gesture: "accept_change" }, run);
+const acceptedRow = <T>(
+  ctx: Ctx,
+  userId: Id<"users">,
+  kind: OrgChange["kind"],
+  run: () => Promise<T>,
+): Promise<T> =>
+  withOrgChange(
+    ctx,
+    userId,
+    { kind, door: "proposal", gesture: "accept_change" },
+    run,
+  );
 
 /** A link of the accepted row as a source: its label is the words said and
  *  its href the address, read by the one parser (a codecast link is the
@@ -1526,7 +3316,12 @@ const acceptedRow = <T>(ctx: Ctx, userId: Id<"users">, kind: OrgChange["kind"], 
  *  href that is no address leaves the label as it reads alone. */
 function linkSource(e: OrgEvidenceLink): IntentSource {
   const label = parseIntentSource(e.label);
-  const at = e.href ? parseIntentSource(e.href, label.ref && !label.quote ? {} : { quote: e.label }) : label;
+  const at = e.href
+    ? parseIntentSource(
+        e.href,
+        label.ref && !label.quote ? {} : { quote: e.label },
+      )
+    : label;
   return at.ref ? at : label;
 }
 /**
@@ -1535,9 +3330,16 @@ function linkSource(e: OrgEvidenceLink): IntentSource {
  * one, then the accepted row's links. A source already on the record is
  * skipped, and so is one the record has no room for.
  */
-function freshSources(goal: { sources?: IntentSource[] } | null, opts: ApplyOpts, named: readonly string[] = []): IntentSource[] {
+function freshSources(
+  goal: { sources?: IntentSource[] } | null,
+  opts: ApplyOpts,
+  named: readonly string[] = [],
+): IntentSource[] {
   const prior = goal?.sources ?? [];
-  const said = [...named.map((text) => parseIntentSource(text)), ...(opts.evidence ?? []).map(linkSource)];
+  const said = [
+    ...named.map((text) => parseIntentSource(text)),
+    ...(opts.evidence ?? []).map(linkSource),
+  ];
   return mergeIntentSources(prior, said).slice(prior.length);
 }
 /**
@@ -1547,15 +3349,29 @@ function freshSources(goal: { sources?: IntentSource[] } | null, opts: ApplyOpts
  * not the change moved anything else, so a goal a review read always says
  * where. Answers how many joined; a second run finds them there and adds none.
  */
-async function recordSources(ctx: Ctx, userId: Id<"users">, goalId: Id<"initiatives">, opts: ApplyOpts, named: readonly string[] = []): Promise<number> {
+async function recordSources(
+  ctx: Ctx,
+  userId: Id<"users">,
+  goalId: Id<"initiatives">,
+  opts: ApplyOpts,
+  named: readonly string[] = [],
+): Promise<number> {
   const goal = await ctx.db.get(goalId);
   const sources = freshSources(goal, opts, named);
-  if (sources.length) await acceptedRow(ctx, userId, "initiative_shape", () => performUpdateInitiative(ctx, userId, goal, { sources }));
+  if (sources.length)
+    await acceptedRow(ctx, userId, "initiative_shape", () =>
+      performUpdateInitiative(ctx, userId, goal, { sources }),
+    );
   return sources.length;
 }
 /** The entries of a list the goal does not hold yet, compared by their words whatever their case and spacing; a repeat inside the change counts once. */
-function unheld<T>(given: readonly T[] | undefined, held: readonly string[], wordsOf: (e: T) => string): T[] {
-  const read = (words: string) => words.trim().toLowerCase().replace(/\s+/g, " ");
+function unheld<T>(
+  given: readonly T[] | undefined,
+  held: readonly string[],
+  wordsOf: (e: T) => string,
+): T[] {
+  const read = (words: string) =>
+    words.trim().toLowerCase().replace(/\s+/g, " ");
   const seen = new Set(held.map(read));
   return (given ?? []).filter((e) => {
     const words = read(wordsOf(e));
@@ -1564,37 +3380,84 @@ function unheld<T>(given: readonly T[] | undefined, held: readonly string[], wor
     return true;
   });
 }
-const milestoneEntry = (m: { title: string; date?: number }) => ({ title: m.title, ...(m.date ? { date: m.date } : {}) });
+const milestoneEntry = (m: { title: string; date?: number }) => ({
+  title: m.title,
+  ...(m.date ? { date: m.date } : {}),
+});
 const textEntry = (text: string) => ({ text });
-const counted = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
-const sourcesNote = (k: number) => k ? `; its record names ${counted(k, "source")} for it` : "";
+const counted = (k: number, one: string, many = `${one}s`) =>
+  `${k} ${k === 1 ? one : many}`;
+const sourcesNote = (k: number) =>
+  k ? `; its record names ${counted(k, "source")} for it` : "";
 
-export async function applyInitiative(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgInitiativeChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyInitiative(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgInitiativeChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const named = [...(p.sources ?? []), ...(p.evidence ?? [])];
   // Idempotent by title: a re-run after a crash must not set the goal twice.
-  const existing = await initiativeByRef(ctx, userId, boundary, p.title).catch(() => null);
-  if (existing) return { status: "applied", note: `the goal "${existing.title}" already exists (${existing.short_id})${sourcesNote(await recordSources(ctx, userId, existing._id, opts, named))}` };
+  const existing = await initiativeByRef(ctx, userId, boundary, p.title).catch(
+    () => null,
+  );
+  if (existing)
+    return {
+      status: "applied",
+      note: `the goal "${existing.title}" already exists (${existing.short_id})${sourcesNote(await recordSources(ctx, userId, existing._id, opts, named))}`,
+    };
   const project_ids = await projectIdsOf(ctx, boundary, p.projects);
-  const owner = p.owner?.trim() ? await resolveReportsTo(ctx, userId, boundary, p.owner) : undefined;
+  const owner = p.owner?.trim()
+    ? await resolveReportsTo(ctx, userId, boundary, p.owner)
+    : undefined;
   // The top level goal it feeds: a goal that exists, or one set earlier in the same proposal (the apply order keeps the proposal's order within a kind).
-  const parent = p.parent?.trim() ? await initiativeByRef(ctx, userId, boundary, p.parent) : null;
-  const milestones = unheld(p.milestones, [], (m) => m.title).map(milestoneEntry);
+  const parent = p.parent?.trim()
+    ? await initiativeByRef(ctx, userId, boundary, p.parent)
+    : null;
+  const milestones = unheld(p.milestones, [], (m) => m.title).map(
+    milestoneEntry,
+  );
   const questions = unheld(p.questions, [], (q) => q).map(textEntry);
   const decisions = unheld(p.decisions, [], (d) => d).map(textEntry);
   // A new goal's sources are part of its making: the create's undo cancels the goal whole, so they need no row of their own.
   const sources = freshSources(null, opts, named);
-  const r = await acceptedRow(ctx, userId, "initiative", () => performCreateInitiative(ctx, userId, initiativeWorkspace(boundary), {
-    title: p.title, description: p.description, project_ids,
-    ...(owner ? { owner: { ...owner, ...(owner.kind === "role" ? { role_id: String(owner.role_id) } : { user_id: String(owner.user_id) }) } as any } : {}),
-    ...(p.target_date ? { target_date: p.target_date } : {}),
-    ...(parent ? { parent_initiative_id: String(parent._id) } : {}),
-    ...(p.metrics?.length ? { metrics: p.metrics } : {}),
-    ...(p.why?.trim() ? { why: p.why } : {}),
-    ...(p.done_when?.trim() ? { done_when: p.done_when } : {}),
-    ...Object.fromEntries(Object.entries({ milestones, questions, decisions, sources }).filter(([, entries]) => entries.length)),
-  }));
-  const record = [milestones.length ? counted(milestones.length, "milestone") : "", questions.length ? counted(questions.length, "open question") : "", decisions.length ? counted(decisions.length, "decision") : ""].filter(Boolean);
-  return { status: "applied", note: `set the goal "${r.row.title}" (${r.short_id}) with ${project_ids.length} project${project_ids.length === 1 ? "" : "s"}${owner ? `, owned by ${p.owner}` : ""}${parent ? `, under "${parent.title}" (${parent.short_id})` : ""}${p.metrics?.length ? `, measured by ${metricsWords(p.metrics)}` : ""}${record.length ? `, with ${andListOf(record)}` : ""}${sourcesNote(sources.length)}${coverNote(r.scope)}` };
+  const r = await acceptedRow(ctx, userId, "initiative", () =>
+    performCreateInitiative(ctx, userId, initiativeWorkspace(boundary), {
+      title: p.title,
+      description: p.description,
+      project_ids,
+      ...(owner
+        ? {
+            owner: {
+              ...owner,
+              ...(owner.kind === "role"
+                ? { role_id: String(owner.role_id) }
+                : { user_id: String(owner.user_id) }),
+            } as any,
+          }
+        : {}),
+      ...(p.target_date ? { target_date: p.target_date } : {}),
+      ...(parent ? { parent_initiative_id: String(parent._id) } : {}),
+      ...(p.metrics?.length ? { metrics: p.metrics } : {}),
+      ...(p.why?.trim() ? { why: p.why } : {}),
+      ...(p.done_when?.trim() ? { done_when: p.done_when } : {}),
+      ...Object.fromEntries(
+        Object.entries({ milestones, questions, decisions, sources }).filter(
+          ([, entries]) => entries.length,
+        ),
+      ),
+    }),
+  );
+  const record = [
+    milestones.length ? counted(milestones.length, "milestone") : "",
+    questions.length ? counted(questions.length, "open question") : "",
+    decisions.length ? counted(decisions.length, "decision") : "",
+  ].filter(Boolean);
+  return {
+    status: "applied",
+    note: `set the goal "${r.row.title}" (${r.short_id}) with ${project_ids.length} project${project_ids.length === 1 ? "" : "s"}${owner ? `, owned by ${p.owner}` : ""}${parent ? `, under "${parent.title}" (${parent.short_id})` : ""}${p.metrics?.length ? `, measured by ${metricsWords(p.metrics)}` : ""}${record.length ? `, with ${andListOf(record)}` : ""}${sourcesNote(sources.length)}${coverNote(r.scope)}`,
+  };
 }
 
 // One call into the update core: the parent, the metrics and the words
@@ -1602,101 +3465,279 @@ export async function applyInitiative(ctx: Ctx, userId: Id<"users">, boundary: B
 // hold and has room for, so a re-run finds each one on the record and writes
 // nothing twice. Whether the change moved anything is decided before its
 // sources are counted: they are a row of their own (recordSources).
-export async function applyInitiativeShape(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgInitiativeShapeChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyInitiativeShape(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgInitiativeShapeChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const initiative = await initiativeByRef(ctx, userId, boundary, p.initiative);
-  const parent = p.parent ? await initiativeByRef(ctx, userId, boundary, p.parent) : null;
-  const sameParent = p.parent === undefined || String(initiative.parent_initiative_id ?? "") === String(parent?._id ?? "");
-  const proposedMetrics = p.metrics && keepMetricReads(initiative.metrics ?? [], p.metrics);
-  const sameMetrics = proposedMetrics === undefined || JSON.stringify((initiative.metrics ?? []).map(metricShape)) === JSON.stringify(proposedMetrics.map(metricShape));
+  const parent = p.parent
+    ? await initiativeByRef(ctx, userId, boundary, p.parent)
+    : null;
+  const sameParent =
+    p.parent === undefined ||
+    String(initiative.parent_initiative_id ?? "") === String(parent?._id ?? "");
+  const proposedMetrics =
+    p.metrics && keepMetricReads(initiative.metrics ?? [], p.metrics);
+  const sameMetrics =
+    proposedMetrics === undefined ||
+    JSON.stringify((initiative.metrics ?? []).map(metricShape)) ===
+      JSON.stringify(proposedMetrics.map(metricShape));
   // What each list gains, and what it has no room for: a full list drops the entry, never the whole change.
   const crowded: string[] = [];
-  const adds = <T>(list: "milestones" | "questions" | "decisions", words: "title" | "text", given: readonly T[] | undefined, wordsOf: (e: T) => string): T[] => {
+  const adds = <T>(
+    list: "milestones" | "questions" | "decisions",
+    words: "title" | "text",
+    given: readonly T[] | undefined,
+    wordsOf: (e: T) => string,
+  ): T[] => {
     const held: any[] = initiative[list] ?? [];
-    const fresh = unheld(given, held.map((e) => String(e[words] ?? "")), wordsOf);
-    const fit = fresh.slice(0, Math.max(0, INITIATIVE_RECORD_MAX[list] - held.length));
-    if (fit.length < fresh.length) crowded.push(counted(fresh.length - fit.length, INITIATIVE_RECORD_NOUN[list]));
+    const fresh = unheld(
+      given,
+      held.map((e) => String(e[words] ?? "")),
+      wordsOf,
+    );
+    const fit = fresh.slice(
+      0,
+      Math.max(0, INITIATIVE_RECORD_MAX[list] - held.length),
+    );
+    if (fit.length < fresh.length)
+      crowded.push(
+        counted(fresh.length - fit.length, INITIATIVE_RECORD_NOUN[list]),
+      );
     return fit;
   };
-  const milestones = adds("milestones", "title", p.milestones, (m) => m.title).map(milestoneEntry);
-  const questions = adds("questions", "text", p.questions, (q) => q).map(textEntry);
-  const decisions = adds("decisions", "text", p.decisions, (d) => d).map(textEntry);
+  const milestones = adds(
+    "milestones",
+    "title",
+    p.milestones,
+    (m) => m.title,
+  ).map(milestoneEntry);
+  const questions = adds("questions", "text", p.questions, (q) => q).map(
+    textEntry,
+  );
+  const decisions = adds("decisions", "text", p.decisions, (d) => d).map(
+    textEntry,
+  );
   const fields: Record<string, any> = {};
-  if (!sameParent) fields.parent_initiative_id = parent ? String(parent._id) : null;
+  if (!sameParent)
+    fields.parent_initiative_id = parent ? String(parent._id) : null;
   if (!sameMetrics) fields.metrics = proposedMetrics;
-  if (p.why !== undefined && p.why.trim() !== (initiative.why ?? "")) fields.why = p.why;
-  if (p.done_when !== undefined && p.done_when.trim() !== (initiative.done_when ?? "")) fields.done_when = p.done_when;
-  for (const [list, entries] of Object.entries({ milestones, questions, decisions })) if (entries.length) fields[list] = entries;
-  if (Object.keys(fields).length) await acceptedRow(ctx, userId, "initiative_shape", () => performUpdateInitiative(ctx, userId, initiative, fields));
-  const sources = await recordSources(ctx, userId, initiative._id, opts, p.sources);
-  const gained = [milestones.length ? counted(milestones.length, "milestone") : "", questions.length ? counted(questions.length, "open question") : "", decisions.length ? counted(decisions.length, "decision") : "", sources ? counted(sources, "source") : ""].filter(Boolean);
+  if (p.why !== undefined && p.why.trim() !== (initiative.why ?? ""))
+    fields.why = p.why;
+  if (
+    p.done_when !== undefined &&
+    p.done_when.trim() !== (initiative.done_when ?? "")
+  )
+    fields.done_when = p.done_when;
+  for (const [list, entries] of Object.entries({
+    milestones,
+    questions,
+    decisions,
+  }))
+    if (entries.length) fields[list] = entries;
+  if (Object.keys(fields).length)
+    await acceptedRow(ctx, userId, "initiative_shape", () =>
+      performUpdateInitiative(ctx, userId, initiative, fields),
+    );
+  const sources = await recordSources(
+    ctx,
+    userId,
+    initiative._id,
+    opts,
+    p.sources,
+  );
+  const gained = [
+    milestones.length ? counted(milestones.length, "milestone") : "",
+    questions.length ? counted(questions.length, "open question") : "",
+    decisions.length ? counted(decisions.length, "decision") : "",
+    sources ? counted(sources, "source") : "",
+  ].filter(Boolean);
   const said = [
-    "parent_initiative_id" in fields ? (parent ? `now feeds "${parent.title}" (${parent.short_id})` : "is now a top level goal") : "",
-    "metrics" in fields ? (p.metrics?.length ? `is measured by ${metricsWords(proposedMetrics ?? p.metrics)}` : "has no metric") : "",
+    "parent_initiative_id" in fields
+      ? parent
+        ? `now feeds "${parent.title}" (${parent.short_id})`
+        : "is now a top level goal"
+      : "",
+    "metrics" in fields
+      ? p.metrics?.length
+        ? `is measured by ${metricsWords(proposedMetrics ?? p.metrics)}`
+        : "has no metric"
+      : "",
     "why" in fields ? "says why it matters" : "",
     "done_when" in fields ? "says what done looks like" : "",
     gained.length ? `gained ${andListOf(gained)}` : "",
   ].filter(Boolean);
-  const noRoom = crowded.length ? `; it has no room for ${andListOf(crowded)}` : "";
-  if (!said.length) return { status: "applied", note: `${initiative.short_id} "${initiative.title}" already reads that way${noRoom}` };
-  return { status: "applied", note: `the goal "${initiative.title}" (${initiative.short_id}) ${andListOf(said)}${noRoom}` };
+  const noRoom = crowded.length
+    ? `; it has no room for ${andListOf(crowded)}`
+    : "";
+  if (!said.length)
+    return {
+      status: "applied",
+      note: `${initiative.short_id} "${initiative.title}" already reads that way${noRoom}`,
+    };
+  return {
+    status: "applied",
+    note: `the goal "${initiative.title}" (${initiative.short_id}) ${andListOf(said)}${noRoom}`,
+  };
 }
 
-export async function applyInitiativeProjects(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgInitiativeProjectsChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyInitiativeProjects(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgInitiativeProjectsChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const initiative = await initiativeByRef(ctx, userId, boundary, p.initiative);
   const project_ids = await projectIdsOf(ctx, boundary, p.projects);
-  const r = await acceptedRow(ctx, userId, "initiative_projects", () => performAddProjects(ctx, userId, initiative, project_ids));
-  const sources = sourcesNote(await recordSources(ctx, userId, initiative._id, opts));
-  if (!r.added) return { status: "applied", note: `${initiative.short_id} "${initiative.title}" already carries ${andListOf(p.projects)}${sources}` };
-  return { status: "applied", note: `added ${andListOf(p.projects)} to the goal "${initiative.title}" (${initiative.short_id})${sources}${coverNote(r.scope)}` };
+  const r = await acceptedRow(ctx, userId, "initiative_projects", () =>
+    performAddProjects(ctx, userId, initiative, project_ids),
+  );
+  const sources = sourcesNote(
+    await recordSources(ctx, userId, initiative._id, opts),
+  );
+  if (!r.added)
+    return {
+      status: "applied",
+      note: `${initiative.short_id} "${initiative.title}" already carries ${andListOf(p.projects)}${sources}`,
+    };
+  return {
+    status: "applied",
+    note: `added ${andListOf(p.projects)} to the goal "${initiative.title}" (${initiative.short_id})${sources}${coverNote(r.scope)}`,
+  };
 }
 
-export async function applyInitiativeOwner(ctx: Ctx, userId: Id<"users">, boundary: Boundary, p: OrgInitiativeOwnerChange, opts: ApplyOpts): Promise<ApplyResult> {
+export async function applyInitiativeOwner(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  p: OrgInitiativeOwnerChange,
+  opts: ApplyOpts,
+): Promise<ApplyResult> {
   const initiative = await initiativeByRef(ctx, userId, boundary, p.initiative);
   const owner = await resolveReportsTo(ctx, userId, boundary, p.owner);
-  const same = initiative.owner && initiative.owner.kind === owner.kind && String(owner.kind === "role" ? initiative.owner.role_id : initiative.owner.user_id) === String(owner.kind === "role" ? owner.role_id : owner.user_id);
-  const r = same ? null : await acceptedRow(ctx, userId, "initiative_owner", () => performUpdateInitiative(ctx, userId, initiative, { owner: { ...owner, ...(owner.kind === "role" ? { role_id: String(owner.role_id) } : { user_id: String(owner.user_id) }) } as any }));
-  const sources = sourcesNote(await recordSources(ctx, userId, initiative._id, opts));
-  if (!r) return { status: "applied", note: `${p.owner} already owns ${initiative.short_id} "${initiative.title}"${sources}` };
-  return { status: "applied", note: `${p.owner} now owns the goal "${initiative.title}" (${initiative.short_id})${sources}${coverNote(r.scope)}` };
+  const same =
+    initiative.owner &&
+    initiative.owner.kind === owner.kind &&
+    String(
+      owner.kind === "role"
+        ? initiative.owner.role_id
+        : initiative.owner.user_id,
+    ) === String(owner.kind === "role" ? owner.role_id : owner.user_id);
+  const r = same
+    ? null
+    : await acceptedRow(ctx, userId, "initiative_owner", () =>
+        performUpdateInitiative(ctx, userId, initiative, {
+          owner: {
+            ...owner,
+            ...(owner.kind === "role"
+              ? { role_id: String(owner.role_id) }
+              : { user_id: String(owner.user_id) }),
+          } as any,
+        }),
+      );
+  const sources = sourcesNote(
+    await recordSources(ctx, userId, initiative._id, opts),
+  );
+  if (!r)
+    return {
+      status: "applied",
+      note: `${p.owner} already owns ${initiative.short_id} "${initiative.title}"${sources}`,
+    };
+  return {
+    status: "applied",
+    note: `${p.owner} now owns the goal "${initiative.title}" (${initiative.short_id})${sources}${coverNote(r.scope)}`,
+  };
 }
 /** What the owner role's area gained, and the sessions it took over with it, as the core reported them. */
-const coverNote = (scope: { added: string[]; took_over?: string } | null | undefined) => `${scope?.added.length ? `; the owner now looks after ${scope.added.length} more project${scope.added.length === 1 ? "" : "s"}` : ""}${scope?.took_over ? `; ${scope.took_over}` : ""}`;
-const andListOf = (xs: string[]) => xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+const coverNote = (
+  scope: { added: string[]; took_over?: string } | null | undefined,
+) =>
+  `${scope?.added.length ? `; the owner now looks after ${scope.added.length} more project${scope.added.length === 1 ? "" : "s"}` : ""}${scope?.took_over ? `; ${scope.took_over}` : ""}`;
+const andListOf = (xs: string[]) =>
+  xs.length <= 1
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
 /** One change of any kind, applied. Throws on a refusal; the caller records it. */
-export async function applyOrgChange(ctx: Ctx, userId: Id<"users">, boundary: Boundary, change: OrgChange, opts: ApplyOpts, note?: string): Promise<ApplyResult> {
-  if (change.kind === "projects") return applyProjects(ctx, userId, boundary, change.changes, note);
+export async function applyOrgChange(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  change: OrgChange,
+  opts: ApplyOpts,
+  note?: string,
+): Promise<ApplyResult> {
+  if (change.kind === "projects")
+    return applyProjects(ctx, userId, boundary, change.changes, note);
   // A goal change opens its own rows: what it moved, then the sources it brought.
-  if (ORG_GOAL_KINDS.includes(change.kind)) return applyOrgChangeCore(ctx, userId, boundary, change, opts, note);
-  return acceptedRow(ctx, userId, change.kind, () => applyOrgChangeCore(ctx, userId, boundary, change, opts, note));
+  if (ORG_GOAL_KINDS.includes(change.kind))
+    return applyOrgChangeCore(ctx, userId, boundary, change, opts, note);
+  return acceptedRow(ctx, userId, change.kind, () =>
+    applyOrgChangeCore(ctx, userId, boundary, change, opts, note),
+  );
 }
 
-async function applyOrgChangeCore(ctx: Ctx, userId: Id<"users">, boundary: Boundary, change: OrgChange, opts: ApplyOpts, note?: string): Promise<ApplyResult> {
+async function applyOrgChangeCore(
+  ctx: Ctx,
+  userId: Id<"users">,
+  boundary: Boundary,
+  change: OrgChange,
+  opts: ApplyOpts,
+  note?: string,
+): Promise<ApplyResult> {
   switch (change.kind) {
-    case "role": return applyRole(ctx, userId, boundary, change, note, opts);
-    case "projects": return applyProjects(ctx, userId, boundary, change.changes, note);
-    case "move": return applyMove(ctx, userId, boundary, change, opts.human_decision);
-    case "retire": return applyRetire(ctx, userId, boundary, change.handle);
-    case "scope": return applyScope(ctx, userId, boundary, change, opts);
-    case "budget": return applyBudget(ctx, userId, boundary, change, opts);
-    case "trust": return applyTrust(ctx, userId, boundary, change, opts);
-    case "authority": return applyAuthority(ctx, userId, boundary, change, opts);
-    case "hire": return applyHire(ctx, userId, boundary, change, opts);
-    case "upgrade": return applyUpgrade(ctx, userId, boundary, change);
-    case "routine": return applyRoutine(ctx, userId, boundary, change, opts);
-    case "project_meta": return applyProjectMeta(ctx, userId, boundary, change, opts);
-    case "charter_edit": return applyCharterEdit(ctx, userId, boundary, change, opts);
-    case "role_edit": return applyRoleEdit(ctx, userId, boundary, change, opts);
-    case "adopt": return applyAdopt(ctx, userId, boundary, change, opts);
-    case "file": return applyFile(ctx, userId, boundary, change, opts);
-    case "file_session": return applyFileSession(ctx, userId, boundary, change, opts);
-    case "plan_status": return applyPlanStatus(ctx, userId, boundary, change, opts);
-    case "task_status": return applyTaskStatus(ctx, userId, boundary, change, opts);
-    case "project_status": return applyProjectStatus(ctx, userId, boundary, change, opts);
-    case "initiative": return applyInitiative(ctx, userId, boundary, change, opts);
-    case "initiative_projects": return applyInitiativeProjects(ctx, userId, boundary, change, opts);
-    case "initiative_owner": return applyInitiativeOwner(ctx, userId, boundary, change, opts);
-    case "initiative_shape": return applyInitiativeShape(ctx, userId, boundary, change, opts);
+    case "role":
+      return applyRole(ctx, userId, boundary, change, note, opts);
+    case "projects":
+      return applyProjects(ctx, userId, boundary, change.changes, note);
+    case "move":
+      return applyMove(ctx, userId, boundary, change, opts.human_decision);
+    case "retire":
+      return applyRetire(ctx, userId, boundary, change.handle);
+    case "scope":
+      return applyScope(ctx, userId, boundary, change, opts);
+    case "budget":
+      return applyBudget(ctx, userId, boundary, change, opts);
+    case "trust":
+      return applyTrust(ctx, userId, boundary, change, opts);
+    case "authority":
+      return applyAuthority(ctx, userId, boundary, change, opts);
+    case "hire":
+      return applyHire(ctx, userId, boundary, change, opts);
+    case "upgrade":
+      return applyUpgrade(ctx, userId, boundary, change);
+    case "routine":
+      return applyRoutine(ctx, userId, boundary, change, opts);
+    case "project_meta":
+      return applyProjectMeta(ctx, userId, boundary, change, opts);
+    case "charter_edit":
+      return applyCharterEdit(ctx, userId, boundary, change, opts);
+    case "role_edit":
+      return applyRoleEdit(ctx, userId, boundary, change, opts);
+    case "adopt":
+      return applyAdopt(ctx, userId, boundary, change, opts);
+    case "file":
+      return applyFile(ctx, userId, boundary, change, opts);
+    case "file_session":
+      return applyFileSession(ctx, userId, boundary, change, opts);
+    case "plan_status":
+      return applyPlanStatus(ctx, userId, boundary, change, opts);
+    case "task_status":
+      return applyTaskStatus(ctx, userId, boundary, change, opts);
+    case "project_status":
+      return applyProjectStatus(ctx, userId, boundary, change, opts);
+    case "initiative":
+      return applyInitiative(ctx, userId, boundary, change, opts);
+    case "initiative_projects":
+      return applyInitiativeProjects(ctx, userId, boundary, change, opts);
+    case "initiative_owner":
+      return applyInitiativeOwner(ctx, userId, boundary, change, opts);
+    case "initiative_shape":
+      return applyInitiativeShape(ctx, userId, boundary, change, opts);
   }
 }
 
@@ -1704,54 +3745,129 @@ async function applyOrgChangeCore(ctx: Ctx, userId: Id<"users">, boundary: Bound
 // decision's context, acts on the verdict, and stamps applied_at so a second
 // run skips it. Errors come back as values: the CLI walks a whole stack and
 // one refusal must not hide the rest.
-export async function performApplyDecision(ctx: Ctx, userId: Id<"users">, ref: string, opts: { provision?: boolean } = {}): Promise<ApplyResult & { decision: string }> {
+export async function performApplyDecision(
+  ctx: Ctx,
+  userId: Id<"users">,
+  ref: string,
+  opts: { provision?: boolean } = {},
+): Promise<ApplyResult & { decision: string }> {
   const decision = await findDecision(ctx, ref);
-  if (!decision) return { status: "error", error: `Decision not found: ${ref}`, decision: ref };
+  if (!decision)
+    return {
+      status: "error",
+      error: `Decision not found: ${ref}`,
+      decision: ref,
+    };
   const id = decision.short_id ?? String(decision._id);
   const proposal = extractOrgProposal(decision.context_md);
-  if (!proposal) return { status: "error", error: `${id} carries no org proposal block`, decision: id };
-  if ((decision as any).applied_at) return { status: "skipped", note: `already applied: ${(decision as any).applied_note ?? ""}`.trim(), decision: id };
-  if (decision.status !== "answered") return { status: decision.status === "pending" ? "unanswered" : "skipped", note: decision.status, decision: id } as any;
+  if (!proposal)
+    return {
+      status: "error",
+      error: `${id} carries no org proposal block`,
+      decision: id,
+    };
+  if ((decision as any).applied_at)
+    return {
+      status: "skipped",
+      note: `already applied: ${(decision as any).applied_note ?? ""}`.trim(),
+      decision: id,
+    };
+  if (decision.status !== "answered")
+    return {
+      status: decision.status === "pending" ? "unanswered" : "skipped",
+      note: decision.status,
+      decision: id,
+    } as any;
   const verdict = orgProposalVerdict(decision.answer_index);
-  if (!verdict) return { status: "error", error: `${id}: answer index ${decision.answer_index} is not one of the three proposal options`, decision: id };
+  if (!verdict)
+    return {
+      status: "error",
+      error: `${id}: answer index ${decision.answer_index} is not one of the three proposal options`,
+      decision: id,
+    };
   // Reshaping the org is a person's act (org-roles-standing.md T4): scope,
   // caps and charters are human only, and the answer is the human act this
   // apply carries. A role's delegated answer or a policy default is not one.
   const by = (decision as any).answered_by;
-  if (by?.kind !== "user") return { status: "error", error: `${id}: an org proposal applies only when a person answered it (answered by ${by?.kind ?? "nobody"})`, decision: id };
+  if (by?.kind !== "user")
+    return {
+      status: "error",
+      error: `${id}: an org proposal applies only when a person answered it (answered by ${by?.kind ?? "nobody"})`,
+      decision: id,
+    };
   const humanDecision = String(decision._id);
 
   // The boundary is the stack's; a lone decision falls back to the asking
   // session's workspace. The caller must be able to reshape the stack.
   const stack = decision.stack_id ? await ctx.db.get(decision.stack_id) : null;
   const conv = await ctx.db.get(decision.conversation_id);
-  const teamId: Id<"teams"> | undefined = stack ? stack.team_id ?? undefined : conv?.team_id ?? undefined;
-  const boundary: Boundary = teamId ? { team_id: teamId } : { scope_user_id: userId };
-  if (stack && !(await userCanAdminRole(ctx, userId, { host_user_id: stack.owner_user_id, scope_user_id: stack.scope_user_id, team_id: stack.team_id }))) {
-    return { status: "error", error: `${id}: only the stack's owner or a team admin can apply it`, decision: id };
+  const teamId: Id<"teams"> | undefined = stack
+    ? (stack.team_id ?? undefined)
+    : (conv?.team_id ?? undefined);
+  const boundary: Boundary = teamId
+    ? { team_id: teamId }
+    : { scope_user_id: userId };
+  if (
+    stack &&
+    !(await userCanAdminRole(ctx, userId, {
+      host_user_id: stack.owner_user_id,
+      scope_user_id: stack.scope_user_id,
+      team_id: stack.team_id,
+    }))
+  ) {
+    return {
+      status: "error",
+      error: `${id}: only the stack's owner or a team admin can apply it`,
+      decision: id,
+    };
   }
 
-  const stamp = async (note: string) => ctx.db.patch(decision._id, { applied_at: Date.now(), applied_note: note.slice(0, 500) });
+  const stamp = async (note: string) =>
+    ctx.db.patch(decision._id, {
+      applied_at: Date.now(),
+      applied_note: note.slice(0, 500),
+    });
   if (verdict === "skip") {
     await stamp("skipped by the person");
     return { status: "skipped", note: "skipped by the person", decision: id };
   }
-  const changed = verdict === "apply_with_changes" ? applyProposalChanges(proposal, decision.answer_text) : { proposal, note: undefined };
+  const changed =
+    verdict === "apply_with_changes"
+      ? applyProposalChanges(proposal, decision.answer_text)
+      : { proposal, note: undefined };
   const p: OrgProposal = changed.proposal;
   try {
-    const result = await applyOrgChange(ctx, userId, boundary, p, { provision: opts.provision ?? true, human_decision: humanDecision }, changed.note);
+    const result = await applyOrgChange(
+      ctx,
+      userId,
+      boundary,
+      p,
+      { provision: opts.provision ?? true, human_decision: humanDecision },
+      changed.note,
+    );
     if (result.status === "applied") await stamp(result.note);
     return { ...result, decision: id };
   } catch (err) {
-    return { status: "error", error: `${id}: ${err instanceof Error ? err.message : String(err)}`, decision: id };
+    return {
+      status: "error",
+      error: `${id}: ${err instanceof Error ? err.message : String(err)}`,
+      decision: id,
+    };
   }
 }
 
 export const applyDecision = mutation({
-  args: { api_token: v.optional(v.string()), decision: v.string(), provision: v.optional(v.boolean()) },
+  args: {
+    api_token: v.optional(v.string()),
+    decision: v.string(),
+    provision: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
-    return performApplyDecision(ctx, userId, args.decision, { provision: args.provision });
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
+    return performApplyDecision(ctx, userId, args.decision, {
+      provision: args.provision,
+    });
   },
 });

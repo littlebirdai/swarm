@@ -14,13 +14,28 @@ import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useSyncSignals } from "../../../hooks/useSyncSignals";
 import { useWorkflowRun } from "../../../hooks/useSyncWorkflows";
-import { useDecisionDetail, useSyncDecisionDetail } from "../../../hooks/useSyncDecisionDetail";
+import {
+  useDecisionDetail,
+  useSyncDecisionDetail,
+} from "../../../hooks/useSyncDecisionDetail";
 import { useWatchEffect } from "../../../hooks/useWatchEffect";
 import { graphKeyOf, type GraphRun } from "../../../lib/line/lineGraphs";
-import { lineWorkspaceTarget, resolveTraceRef, type TraceRows } from "../../../lib/line/lineTrace";
-import { lineRefOf, lineWorkspaceHref } from "../../../lib/line/lineWorkspaceUrl";
+import {
+  lineWorkspaceTarget,
+  resolveTraceRef,
+  type TraceRows,
+} from "../../../lib/line/lineTrace";
+import {
+  lineRefOf,
+  lineWorkspaceHref,
+} from "../../../lib/line/lineWorkspaceUrl";
 import { useCauseRuns } from "../RunReport";
-import { heldTask, useLineFloor, useProjectWorkspace, type HeldTask } from "../useLineFloor";
+import {
+  heldTask,
+  useLineFloor,
+  useProjectWorkspace,
+  type HeldTask,
+} from "../useLineFloor";
 import "./workspace.css";
 
 /** A Convex id: what a run ref is (refs with a prefix name other things). */
@@ -29,30 +44,63 @@ const looksLikeId = (ref: string) => /^[a-z0-9]{20,}$/i.test(ref);
 export function LineRefRedirect({ refParam }: { refParam: string }) {
   const ref = lineRefOf(refParam ?? "");
   const router = useRouter();
-  const held = useInboxStore((s) => heldTask(s.tasks as unknown as Record<string, HeldTask>, ref));
+  const held = useInboxStore((s) =>
+    heldTask(s.tasks as unknown as Record<string, HeldTask>, ref),
+  );
   const elsewhere = useProjectWorkspace(held);
-  const { lineRows } = useLineFloor(elsewhere ? held?.project_id ?? null : undefined, elsewhere);
+  const { lineRows } = useLineFloor(
+    elsewhere ? (held?.project_id ?? null) : undefined,
+    elsewhere,
+  );
   const { ready } = useSyncSignals();
   const floor = lineRows as unknown as TraceRows;
   const first = useMemo(() => resolveTraceRef(ref, floor), [ref, floor]);
 
   // A run or a card the floor does not hold is fed by itself.
-  const lonelyRun = (useWorkflowRun(!first && looksLikeId(ref) ? ref : null) as (GraphRun & { _id: string; task_id?: string }) | null | undefined) ?? null;
+  const lonelyRun =
+    (useWorkflowRun(!first && looksLikeId(ref) ? ref : null) as
+      | (GraphRun & { _id: string; task_id?: string })
+      | null
+      | undefined) ?? null;
   const cardRef = !first && /^sd-/i.test(ref) ? ref : undefined;
   useSyncDecisionDetail(cardRef);
   const detail = useDecisionDetail(cardRef);
 
-  const causeId = first?.cause._id ?? held?._id ?? lonelyRun?.task_id ?? (detail?.decision as { task_id?: string } | undefined)?.task_id ?? null;
+  const causeId =
+    first?.cause._id ??
+    held?._id ??
+    lonelyRun?.task_id ??
+    (detail?.decision as { task_id?: string } | undefined)?.task_id ??
+    null;
   const causeRuns = useCauseRuns(causeId);
 
   const to = useMemo(() => {
     if (!causeId) return null;
-    const runs = [...floor.runs, ...(causeRuns as unknown as TraceRows["runs"]), ...(lonelyRun ? [lonelyRun as unknown as TraceRows["runs"][number]] : [])];
-    const card = (detail?.decision ?? null) as TraceRows["decisions"][number] | null;
-    const resolved = first ?? { cause: { _id: causeId } as TraceRows["tasks"][number], via: lonelyRun ? "run" as const : card ? "decision" as const : "cause" as const, focusId: lonelyRun?._id ?? card?._id ?? causeId };
-    const target = lineWorkspaceTarget(resolved, { decisions: card ? [...floor.decisions, card] : floor.decisions });
-    const run = target.run ? runs.find((r) => r._id === target.run) ?? null : null;
-    const graphRun = run ?? (causeRuns[0] as unknown as GraphRun | undefined) ?? null;
+    const runs = [
+      ...floor.runs,
+      ...(causeRuns as unknown as TraceRows["runs"]),
+      ...(lonelyRun ? [lonelyRun as unknown as TraceRows["runs"][number]] : []),
+    ];
+    const card = (detail?.decision ?? null) as
+      | TraceRows["decisions"][number]
+      | null;
+    const resolved = first ?? {
+      cause: { _id: causeId } as TraceRows["tasks"][number],
+      via: lonelyRun
+        ? ("run" as const)
+        : card
+          ? ("decision" as const)
+          : ("cause" as const),
+      focusId: lonelyRun?._id ?? card?._id ?? causeId,
+    };
+    const target = lineWorkspaceTarget(resolved, {
+      decisions: card ? [...floor.decisions, card] : floor.decisions,
+    });
+    const run = target.run
+      ? (runs.find((r) => r._id === target.run) ?? null)
+      : null;
+    const graphRun =
+      run ?? (causeRuns[0] as unknown as GraphRun | undefined) ?? null;
     return lineWorkspaceHref(null, {
       view: target.run ? "runs" : "problems",
       case: causeId,
@@ -62,19 +110,35 @@ export function LineRefRedirect({ refParam }: { refParam: string }) {
     });
   }, [causeId, floor, causeRuns, lonelyRun, detail, first]);
 
-  useWatchEffect(() => { if (to) router.replace(to); }, [to, router]);
+  useWatchEffect(() => {
+    if (to) router.replace(to);
+  }, [to, router]);
 
   const missing = ready && !to && !causeId;
   return (
-    <div className="lw" data-line-ref={ref} data-line-ref-missing={missing ? "" : undefined}>
+    <div
+      className="lw"
+      data-line-ref={ref}
+      data-line-ref-missing={missing ? "" : undefined}
+    >
       {missing ? (
         <div className="lw-empty">
-          <b>No flow holds {ref ? <span className="modern:font-mono">{ref}</span> : "that ref"}</b>
-          A problem (ct-N), a finding (sg-N), a run or a card (sd-N) opens its place in its flow.
-          {" "}<Link href="/flows" className="lw-link">Flows</Link>
+          <b>
+            No flow holds{" "}
+            {ref ? <span className="modern:font-mono">{ref}</span> : "that ref"}
+          </b>
+          A problem (ct-N), a finding (sg-N), a run or a card (sd-N) opens its
+          place in its flow.{" "}
+          <Link href="/flows" className="lw-link">
+            Flows
+          </Link>
         </div>
       ) : (
-        <div className="lw-skeleton" aria-busy>{[60, 86, 48].map((w, i) => <i key={i} style={{ width: `${w}%` }} />)}</div>
+        <div className="lw-skeleton" aria-busy>
+          {[60, 86, 48].map((w, i) => (
+            <i key={i} style={{ width: `${w}%` }} />
+          ))}
+        </div>
       )}
     </div>
   );

@@ -10,7 +10,13 @@ import type { ActivityDayRow } from "./activityDaily";
 // `project` is the repo/folder basename — only the recent `conversations`
 // branch knows it (events/insights don't carry a path), so consumers must
 // treat it as best-effort. Used solely for anonymized distinct-project COUNTS.
-export type ActivityInterval = { start: number; end: number; hours: number; msgs: number; project?: string | null };
+export type ActivityInterval = {
+  start: number;
+  end: number;
+  hours: number;
+  msgs: number;
+  project?: string | null;
+};
 
 // Hour-of-day bucketing shared by the authed and public punchcard queries:
 // each session's credit is distributed across the (local date × hour) cells
@@ -28,7 +34,16 @@ export function bucketPunchcardRows(
 ) {
   const HOUR = 3600000;
   const tzShift = tzOffsetMinutes * 60000;
-  type Row = { hours: number[]; msgs: number[]; sends: number[]; words: number[]; tokens: number[]; spend: number[]; sessions: number[]; day_sessions: number };
+  type Row = {
+    hours: number[];
+    msgs: number[];
+    sends: number[];
+    words: number[];
+    tokens: number[];
+    spend: number[];
+    sessions: number[];
+    day_sessions: number;
+  };
   const rows: Record<string, Row> = {};
   const rowFor = (date: string) =>
     (rows[date] ||= {
@@ -55,7 +70,10 @@ export function bucketPunchcardRows(
     const touchedDates = new Set<string>();
     for (let cell = firstCell; cell <= lastCell; cell++) {
       const cellStart = cell * HOUR;
-      const frac = span <= 0 ? 1 : (Math.min(le, cellStart + HOUR) - Math.max(ls, cellStart)) / span;
+      const frac =
+        span <= 0
+          ? 1
+          : (Math.min(le, cellStart + HOUR) - Math.max(ls, cellStart)) / span;
       if (frac <= 0) continue;
       const d = new Date(cellStart);
       const date = d.toISOString().split("T")[0];
@@ -78,7 +96,14 @@ export function bucketPunchcardRows(
   const project = (
     dayStart: number,
     utcHours: number[] | undefined,
-    field: "sends" | "words" | "tokens" | "spend" | "hours" | "msgs" | "sessions",
+    field:
+      | "sends"
+      | "words"
+      | "tokens"
+      | "spend"
+      | "hours"
+      | "msgs"
+      | "sessions",
   ) => {
     for (let h = 0; h < 24; h++) {
       const n = utcHours?.[h] || 0;

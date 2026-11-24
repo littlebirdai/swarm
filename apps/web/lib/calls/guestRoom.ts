@@ -13,9 +13,26 @@ import {
   type Participant,
   type RemoteTrack,
 } from "livekit-client";
-import { callParticipantKind, isRoomMachineryKind, type CallParticipantKind } from "@codecast/shared/contracts";
-import { huddleRoomOptions, micConstraints, SCREEN_SHARE_CAPTURE, SCREEN_SHARE_PUBLISH } from "./livekitMedia";
-import { isMediaDenial, listDevices, mediaFailureReason, participantFlags, participantImage, participantTiles, type ParticipantTile } from "./callMedia";
+import {
+  callParticipantKind,
+  isRoomMachineryKind,
+  type CallParticipantKind,
+} from "@codecast/shared/contracts";
+import {
+  huddleRoomOptions,
+  micConstraints,
+  SCREEN_SHARE_CAPTURE,
+  SCREEN_SHARE_PUBLISH,
+} from "./livekitMedia";
+import {
+  isMediaDenial,
+  listDevices,
+  mediaFailureReason,
+  participantFlags,
+  participantImage,
+  participantTiles,
+  type ParticipantTile,
+} from "./callMedia";
 import { bindCallCursors } from "./callCursors";
 import { createMicMeter, type MicMeter } from "./micMeter";
 
@@ -42,7 +59,11 @@ import { createMicMeter, type MicMeter } from "./micMeter";
 // Both are plain subscribe/snapshot stores for useSyncExternalStore: a level
 // or a speaking ring moves many times a second and must not ride React state.
 
-export type DeviceChoice = { micId?: string; cameraId?: string; speakerId?: string };
+export type DeviceChoice = {
+  micId?: string;
+  cameraId?: string;
+  speakerId?: string;
+};
 
 type Listener = () => void;
 
@@ -67,7 +88,10 @@ class Emitter<S> {
 
 /** Can this browser pick where sound plays (Chromium, Firefox; not Safari)? */
 export function canPickSpeaker(): boolean {
-  return typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
+  return (
+    typeof HTMLMediaElement !== "undefined" &&
+    "setSinkId" in HTMLMediaElement.prototype
+  );
 }
 
 /** Where the guest turns the camera and microphone back on, in this
@@ -78,18 +102,25 @@ export function canPickSpeaker(): boolean {
  *  of the address. iPadOS reports itself as a Mac with a touch screen. */
 export function devicePermissionHint(
   ua: string = typeof navigator === "undefined" ? "" : navigator.userAgent,
-  touchMac: boolean = typeof navigator !== "undefined" && /Mac/.test(navigator.platform || "") && (navigator.maxTouchPoints ?? 0) > 1,
+  touchMac: boolean = typeof navigator !== "undefined" &&
+    /Mac/.test(navigator.platform || "") &&
+    (navigator.maxTouchPoints ?? 0) > 1,
 ): string {
   if (/iPhone|iPad|iPod/.test(ua) || touchMac) {
     return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)
       ? "Open Settings on this device, find this browser, and allow Camera and Microphone."
       : "Tap aA in the address bar, then Website Settings, and allow Camera and Microphone.";
   }
-  if (/Android/.test(ua)) return "Tap the icon left of the address, then Permissions, and allow Camera and Microphone.";
+  if (/Android/.test(ua))
+    return "Tap the icon left of the address, then Permissions, and allow Camera and Microphone.";
   return "Allow them from the icon in the address bar.";
 }
 
-export type DeviceLists = { mic: MediaDeviceInfo[]; camera: MediaDeviceInfo[]; speaker: MediaDeviceInfo[] };
+export type DeviceLists = {
+  mic: MediaDeviceInfo[];
+  camera: MediaDeviceInfo[];
+  speaker: MediaDeviceInfo[];
+};
 const NO_DEVICES: DeviceLists = { mic: [], camera: [], speaker: [] };
 
 /** Every device this guest could pick, never asking for permission (a list
@@ -99,21 +130,28 @@ async function listAllDevices(): Promise<DeviceLists> {
   const [mic, camera, speaker] = await Promise.all([
     listDevices("audioinput", { prompt: false }),
     listDevices("videoinput", { prompt: false }),
-    canPickSpeaker() ? listDevices("audiooutput", { prompt: false }) : Promise.resolve([]),
+    canPickSpeaker()
+      ? listDevices("audiooutput", { prompt: false })
+      : Promise.resolve([]),
   ]);
   return { mic, camera, speaker };
 }
 
 /** Call `fn` whenever a device is plugged in or pulled out. */
 function onDeviceChange(fn: () => void): () => void {
-  const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+  const md =
+    typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
   md?.addEventListener?.("devicechange", fn);
   return () => md?.removeEventListener?.("devicechange", fn);
 }
 
 /** Can this browser share a screen? Phones cannot, whatever they claim. */
 export function canShareScreen(): boolean {
-  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) return false;
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.mediaDevices?.getDisplayMedia
+  )
+    return false;
   return !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
@@ -125,15 +163,22 @@ export function canShareScreen(): boolean {
  *  guest can still join and listen. */
 export function canJoinCalls(): boolean {
   if (typeof navigator === "undefined") return false;
-  return isBrowserSupported() && typeof navigator.mediaDevices?.getUserMedia === "function";
+  return (
+    isBrowserSupported() &&
+    typeof navigator.mediaDevices?.getUserMedia === "function"
+  );
 }
 
 /** Has the browser already been allowed this device? null where it will not
  *  say (Safari and Firefox do not answer for camera or microphone in every
  *  version): then nothing is known, and nothing is asked on a guess. */
-async function deviceGranted(kind: "camera" | "microphone"): Promise<boolean | null> {
+async function deviceGranted(
+  kind: "camera" | "microphone",
+): Promise<boolean | null> {
   try {
-    const status = await navigator.permissions.query({ name: kind as PermissionName });
+    const status = await navigator.permissions.query({
+      name: kind as PermissionName,
+    });
     return status.state === "granted";
   } catch {
     return null;
@@ -164,7 +209,11 @@ export type PreviewSnapshot = {
 /** How the preview opens a device. LiveKit's own, and a seam: the order of
  *  two answers to one permission prompt is the whole of the bug the queue
  *  below exists for, and only a test holding the answers can replay it. */
-const OPENERS = { both: createLocalTracks, camera: createLocalVideoTrack, mic: createLocalAudioTrack };
+const OPENERS = {
+  both: createLocalTracks,
+  camera: createLocalVideoTrack,
+  mic: createLocalAudioTrack,
+};
 
 export class GuestPreview extends Emitter<PreviewSnapshot> {
   private meter: MicMeter | null = null;
@@ -236,23 +285,52 @@ export class GuestPreview extends Emitter<PreviewSnapshot> {
     let single = want;
     if (want.mic && want.camera && !this.snap.audio && !this.snap.video) {
       try {
-        const tracks = await this.openers.both({ audio: micConstraints(this.snap.choice.micId), video: this.videoOptions() });
+        const tracks = await this.openers.both({
+          audio: micConstraints(this.snap.choice.micId),
+          video: this.videoOptions(),
+        });
         if (this.disposed || this.handedOff) {
           for (const t of tracks) t.stop();
           return;
         }
-        const audio = tracks.find((t): t is LocalAudioTrack => t.kind === Track.Kind.Audio) ?? null;
-        const video = tracks.find((t): t is LocalVideoTrack => t.kind === Track.Kind.Video) ?? null;
-        this.set({ audio, video, micError: null, cameraError: null, micDenied: false, cameraDenied: false });
+        const audio =
+          tracks.find(
+            (t): t is LocalAudioTrack => t.kind === Track.Kind.Audio,
+          ) ?? null;
+        const video =
+          tracks.find(
+            (t): t is LocalVideoTrack => t.kind === Track.Kind.Video,
+          ) ?? null;
+        this.set({
+          audio,
+          video,
+          micError: null,
+          cameraError: null,
+          micDenied: false,
+          cameraDenied: false,
+        });
         this.startMeter();
       } catch (err) {
         if (isMediaDenial(err)) {
-          const [mic, camera] = await Promise.all([deviceGranted("microphone"), deviceGranted("camera")]);
+          const [mic, camera] = await Promise.all([
+            deviceGranted("microphone"),
+            deviceGranted("camera"),
+          ]);
           single = { mic: mic === true, camera: camera === true };
           if (!this.disposed) {
             this.set({
-              ...(single.mic ? {} : { micError: await mediaFailureReason("microphone", err), micDenied: true }),
-              ...(single.camera ? {} : { cameraError: await mediaFailureReason("camera", err), cameraDenied: true }),
+              ...(single.mic
+                ? {}
+                : {
+                    micError: await mediaFailureReason("microphone", err),
+                    micDenied: true,
+                  }),
+              ...(single.camera
+                ? {}
+                : {
+                    cameraError: await mediaFailureReason("camera", err),
+                    cameraDenied: true,
+                  }),
             });
           }
         }
@@ -290,18 +368,27 @@ export class GuestPreview extends Emitter<PreviewSnapshot> {
 
   /** Switch a device in place: the preview keeps playing and the choice is
    *  what the call will open with. */
-  async choose(kind: "mic" | "camera" | "speaker", deviceId: string): Promise<void> {
-    const choice = { ...this.snap.choice, [`${kind}Id`]: deviceId } as DeviceChoice;
+  async choose(
+    kind: "mic" | "camera" | "speaker",
+    deviceId: string,
+  ): Promise<void> {
+    const choice = {
+      ...this.snap.choice,
+      [`${kind}Id`]: deviceId,
+    } as DeviceChoice;
     this.set({ choice });
     try {
-      if (kind === "camera" && this.snap.video) await this.snap.video.restartTrack({ deviceId: { exact: deviceId } });
+      if (kind === "camera" && this.snap.video)
+        await this.snap.video.restartTrack({ deviceId: { exact: deviceId } });
       if (kind === "mic" && this.snap.audio) {
         await this.snap.audio.restartTrack(micConstraints(deviceId));
         this.startMeter();
       }
     } catch (err) {
-      if (kind === "camera") this.set({ cameraError: await mediaFailureReason("camera", err) });
-      if (kind === "mic") this.set({ micError: await mediaFailureReason("microphone", err) });
+      if (kind === "camera")
+        this.set({ cameraError: await mediaFailureReason("camera", err) });
+      if (kind === "mic")
+        this.set({ micError: await mediaFailureReason("microphone", err) });
     }
   }
 
@@ -334,17 +421,24 @@ export class GuestPreview extends Emitter<PreviewSnapshot> {
       // Gone to the call, or gone: a camera that opened late must not stay
       // lit. Nor one the snapshot already has: only the snapshot's track is
       // ever stopped, so a second one would be nobody's to turn off.
-      if (this.disposed || this.handedOff || this.snap.video) return void video.stop();
+      if (this.disposed || this.handedOff || this.snap.video)
+        return void video.stop();
       this.set({ video, cameraError: null, cameraDenied: false });
     } catch (err) {
       if (this.disposed) return;
-      this.set({ video: null, cameraError: await mediaFailureReason("camera", err), cameraDenied: isMediaDenial(err) });
+      this.set({
+        video: null,
+        cameraError: await mediaFailureReason("camera", err),
+        cameraDenied: isMediaDenial(err),
+      });
     }
   }
 
   private videoOptions() {
     return {
-      ...(this.snap.choice.cameraId ? { deviceId: { ideal: this.snap.choice.cameraId } } : {}),
+      ...(this.snap.choice.cameraId
+        ? { deviceId: { ideal: this.snap.choice.cameraId } }
+        : {}),
       resolution: { width: 1280, height: 720, frameRate: 30 },
     };
   }
@@ -352,13 +446,20 @@ export class GuestPreview extends Emitter<PreviewSnapshot> {
   private async openMic(): Promise<void> {
     if (this.snap.audio) return;
     try {
-      const audio = await this.openers.mic(micConstraints(this.snap.choice.micId));
-      if (this.disposed || this.handedOff || this.snap.audio) return void audio.stop();
+      const audio = await this.openers.mic(
+        micConstraints(this.snap.choice.micId),
+      );
+      if (this.disposed || this.handedOff || this.snap.audio)
+        return void audio.stop();
       this.set({ audio, micError: null, micDenied: false });
       this.startMeter();
     } catch (err) {
       if (this.disposed) return;
-      this.set({ audio: null, micError: await mediaFailureReason("microphone", err), micDenied: isMediaDenial(err) });
+      this.set({
+        audio: null,
+        micError: await mediaFailureReason("microphone", err),
+        micDenied: isMediaDenial(err),
+      });
     }
   }
 
@@ -386,7 +487,11 @@ export type GuestPerson = {
   sharing: boolean;
 };
 
-export type CallPhase = "connecting" | "connected" | "reconnecting" | "disconnected";
+export type CallPhase =
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "disconnected";
 
 export type CallSnapshot = {
   phase: CallPhase;
@@ -428,11 +533,17 @@ export type CallSnapshot = {
  * Should the server disagree, the new token is refused and its view moves
  * the page to the real ending.
  */
-export function guestMediaEnding(ended: CallSnapshot["ended"], serverView: string | null | undefined): CallSnapshot["ended"] {
+export function guestMediaEnding(
+  ended: CallSnapshot["ended"],
+  serverView: string | null | undefined,
+): CallSnapshot["ended"] {
   return ended === "room_closed" && serverView === "admitted" ? "lost" : ended;
 }
 
-export type HandedTracks = { video: LocalVideoTrack | null; audio: LocalAudioTrack | null };
+export type HandedTracks = {
+  video: LocalVideoTrack | null;
+  audio: LocalAudioTrack | null;
+};
 const NO_TRACKS: HandedTracks = { video: null, audio: null };
 
 export class GuestCall extends Emitter<CallSnapshot> {
@@ -447,7 +558,11 @@ export class GuestCall extends Emitter<CallSnapshot> {
   private handed: HandedTracks;
   private stopWatching = onDeviceChange(() => void this.refreshDevices());
 
-  constructor(choice: DeviceChoice, wants: { mic: boolean; camera: boolean }, tracks: HandedTracks = NO_TRACKS) {
+  constructor(
+    choice: DeviceChoice,
+    wants: { mic: boolean; camera: boolean },
+    tracks: HandedTracks = NO_TRACKS,
+  ) {
     super({
       phase: "connecting",
       ended: null,
@@ -465,7 +580,11 @@ export class GuestCall extends Emitter<CallSnapshot> {
     });
     this.handed = tracks;
     this.room = new Room(
-      huddleRoomOptions({ micDeviceId: choice.micId, cameraDeviceId: choice.cameraId, speakerDeviceId: choice.speakerId }),
+      huddleRoomOptions({
+        micDeviceId: choice.micId,
+        cameraDeviceId: choice.cameraId,
+        speakerDeviceId: choice.speakerId,
+      }),
     );
     this.audioHost = document.createElement("div");
     this.audioHost.style.display = "none";
@@ -493,13 +612,20 @@ export class GuestCall extends Emitter<CallSnapshot> {
     const tracks = this.handed;
     const lp = this.room.localParticipant;
     try {
-      if (tracks.audio) await lp.publishTrack(tracks.audio, { source: Track.Source.Microphone });
+      if (tracks.audio)
+        await lp.publishTrack(tracks.audio, {
+          source: Track.Source.Microphone,
+        });
     } catch (err) {
       tracks.audio?.stop();
       this.set({ error: await mediaFailureReason("microphone", err) });
     }
     try {
-      if (tracks.video) await lp.publishTrack(tracks.video, { source: Track.Source.Camera, simulcast: true });
+      if (tracks.video)
+        await lp.publishTrack(tracks.video, {
+          source: Track.Source.Camera,
+          simulcast: true,
+        });
     } catch (err) {
       tracks.video?.stop();
       this.set({ error: await mediaFailureReason("camera", err) });
@@ -528,7 +654,10 @@ export class GuestCall extends Emitter<CallSnapshot> {
   async setMic(on: boolean): Promise<void> {
     this.set({ wants: { ...this.snap.wants, mic: on } });
     try {
-      await this.room.localParticipant.setMicrophoneEnabled(on, micConstraints(this.snap.choice.micId));
+      await this.room.localParticipant.setMicrophoneEnabled(
+        on,
+        micConstraints(this.snap.choice.micId),
+      );
     } catch (err) {
       this.set({ error: await mediaFailureReason("microphone", err) });
     }
@@ -540,7 +669,9 @@ export class GuestCall extends Emitter<CallSnapshot> {
     try {
       await this.room.localParticipant.setCameraEnabled(
         on,
-        this.snap.choice.cameraId ? { deviceId: { ideal: this.snap.choice.cameraId } } : undefined,
+        this.snap.choice.cameraId
+          ? { deviceId: { ideal: this.snap.choice.cameraId } }
+          : undefined,
       );
     } catch (err) {
       this.set({ error: await mediaFailureReason("camera", err) });
@@ -550,7 +681,11 @@ export class GuestCall extends Emitter<CallSnapshot> {
 
   async setScreenShare(on: boolean): Promise<void> {
     try {
-      await this.room.localParticipant.setScreenShareEnabled(on, on ? SCREEN_SHARE_CAPTURE : { audio: false }, on ? SCREEN_SHARE_PUBLISH : undefined);
+      await this.room.localParticipant.setScreenShareEnabled(
+        on,
+        on ? SCREEN_SHARE_CAPTURE : { audio: false },
+        on ? SCREEN_SHARE_PUBLISH : undefined,
+      );
     } catch (err: any) {
       // Closing the browser's picker is a choice, not a failure.
       if (err?.name !== "NotAllowedError" && err?.name !== "AbortError") {
@@ -560,9 +695,17 @@ export class GuestCall extends Emitter<CallSnapshot> {
     this.refresh();
   }
 
-  async choose(kind: "mic" | "camera" | "speaker", deviceId: string): Promise<void> {
+  async choose(
+    kind: "mic" | "camera" | "speaker",
+    deviceId: string,
+  ): Promise<void> {
     this.set({ choice: { ...this.snap.choice, [`${kind}Id`]: deviceId } });
-    const lkKind: MediaDeviceKind = kind === "mic" ? "audioinput" : kind === "camera" ? "videoinput" : "audiooutput";
+    const lkKind: MediaDeviceKind =
+      kind === "mic"
+        ? "audioinput"
+        : kind === "camera"
+          ? "videoinput"
+          : "audiooutput";
     try {
       await this.room.switchActiveDevice(lkKind, deviceId);
     } catch {
@@ -618,16 +761,19 @@ export class GuestCall extends Emitter<CallSnapshot> {
       this.audioEls.set(key, el);
       this.audioHost.appendChild(el);
     });
-    r.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, _pub, participant) => {
-      if (track.kind !== Track.Kind.Audio) return;
-      const key = `${participant.identity}:${track.sid}`;
-      const el = this.audioEls.get(key);
-      if (el) {
-        track.detach(el);
-        el.remove();
-        this.audioEls.delete(key);
-      }
-    });
+    r.on(
+      RoomEvent.TrackUnsubscribed,
+      (track: RemoteTrack, _pub, participant) => {
+        if (track.kind !== Track.Kind.Audio) return;
+        const key = `${participant.identity}:${track.sid}`;
+        const el = this.audioEls.get(key);
+        if (el) {
+          track.detach(el);
+          el.remove();
+          this.audioEls.delete(key);
+        }
+      },
+    );
     r.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
       this.set({ speaking: speakers.map((p) => p.identity) });
     });
@@ -638,13 +784,15 @@ export class GuestCall extends Emitter<CallSnapshot> {
       const phase: CallPhase =
         state === ConnectionState.Connected
           ? "connected"
-          : state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting
+          : state === ConnectionState.Reconnecting ||
+              state === ConnectionState.SignalReconnecting
             ? "reconnecting"
             : state === ConnectionState.Disconnected
               ? "disconnected"
               : "connecting";
       this.set({ phase });
-      if (phase === "connected") this.set({ audioBlocked: !r.canPlaybackAudio });
+      if (phase === "connected")
+        this.set({ audioBlocked: !r.canPlaybackAudio });
     });
     r.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
       this.teardownAudio();
@@ -654,7 +802,8 @@ export class GuestCall extends Emitter<CallSnapshot> {
         ended:
           reason === DisconnectReason.PARTICIPANT_REMOVED
             ? "removed"
-            : reason === DisconnectReason.ROOM_DELETED || reason === DisconnectReason.ROOM_CLOSED
+            : reason === DisconnectReason.ROOM_DELETED ||
+                reason === DisconnectReason.ROOM_CLOSED
               ? "room_closed"
               : reason === DisconnectReason.DUPLICATE_IDENTITY
                 ? "elsewhere"
@@ -662,13 +811,21 @@ export class GuestCall extends Emitter<CallSnapshot> {
       });
     });
     r.on(RoomEvent.MediaDevicesError, async (err: Error) => {
-      this.set({ error: await mediaFailureReason(/video|camera/i.test(err?.message ?? "") ? "camera" : "microphone", err) });
+      this.set({
+        error: await mediaFailureReason(
+          /video|camera/i.test(err?.message ?? "") ? "camera" : "microphone",
+          err,
+        ),
+      });
     });
   }
 
   private refresh() {
     const r = this.room;
-    const all: Participant[] = [r.localParticipant, ...r.remoteParticipants.values()];
+    const all: Participant[] = [
+      r.localParticipant,
+      ...r.remoteParticipants.values(),
+    ];
     const people: GuestPerson[] = all
       .filter((p) => !!p.identity && !isRoomMachineryKind(p.kind))
       .map((p) => ({

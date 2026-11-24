@@ -5,16 +5,25 @@
 import { v } from "convex/values";
 import { mutation, query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
-import { parseChord, type KeyBindingOverride } from "@codecast/shared/contracts/keyBindings";
+import {
+  parseChord,
+  type KeyBindingOverride,
+} from "@codecast/shared/contracts/keyBindings";
 import { SHORTCUTS } from "@codecast/shared/contracts/shortcutCatalog";
 
 async function clientStateRow(ctx: any, userId: any) {
-  return await ctx.db.query("client_state").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).first();
+  return await ctx.db
+    .query("client_state")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .first();
 }
 
 export const get = query({
   args: { api_token: v.string() },
-  handler: async (ctx, args): Promise<{ key_bindings: KeyBindingOverride[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ key_bindings: KeyBindingOverride[] }> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     const row = await clientStateRow(ctx, auth.userId);
@@ -29,15 +38,23 @@ export const get = query({
 export const set = mutation({
   args: {
     api_token: v.string(),
-    key_bindings: v.array(v.object({ action: v.string(), keys: v.array(v.string()) })),
+    key_bindings: v.array(
+      v.object({ action: v.string(), keys: v.array(v.string()) }),
+    ),
   },
-  handler: async (ctx, args): Promise<{ key_bindings: KeyBindingOverride[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ key_bindings: KeyBindingOverride[] }> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const known = new Set(SHORTCUTS.filter((d) => !d.fixed).map((d) => d.action));
+    const known = new Set(
+      SHORTCUTS.filter((d) => !d.fixed).map((d) => d.action),
+    );
     const list: KeyBindingOverride[] = [];
     for (const o of args.key_bindings) {
-      if (!known.has(o.action as any)) throw new Error(`Unknown or fixed action: ${o.action}`);
+      if (!known.has(o.action as any))
+        throw new Error(`Unknown or fixed action: ${o.action}`);
       const keys: string[] = [];
       for (const k of o.keys) {
         const parsed = parseChord(k);
@@ -48,9 +65,18 @@ export const set = mutation({
     }
     const row = await clientStateRow(ctx, auth.userId);
     const now = Date.now();
-    const ui = { ...(row?.ui ?? {}), key_bindings: list, "key_bindings:ts": now };
+    const ui = {
+      ...(row?.ui ?? {}),
+      key_bindings: list,
+      "key_bindings:ts": now,
+    };
     if (row) await ctx.db.patch(row._id, { ui, updated_at: now });
-    else await ctx.db.insert("client_state", { user_id: auth.userId, ui, updated_at: now });
+    else
+      await ctx.db.insert("client_state", {
+        user_id: auth.userId,
+        ui,
+        updated_at: now,
+      });
     return { key_bindings: list };
   },
 });

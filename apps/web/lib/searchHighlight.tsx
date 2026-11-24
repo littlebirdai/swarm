@@ -2,7 +2,13 @@
 // snippet around it looks like, and how a match is marked. The header search,
 // the /search page and chat search all render from these, so a hit looks the
 // same wherever it is shown.
-import { parseSearchTerms, parseQueryTerms, termSpans, snippetAround, stripWrapperTags } from "@codecast/shared/search";
+import {
+  parseSearchTerms,
+  parseQueryTerms,
+  termSpans,
+  snippetAround,
+  stripWrapperTags,
+} from "@codecast/shared/search";
 
 export { parseSearchTerms };
 
@@ -17,7 +23,8 @@ export function highlightMatch(text: string, query: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let at = 0;
   spans.forEach(([start, end], i) => {
-    if (start > at) parts.push(<span key={`t${i}`}>{text.slice(at, start)}</span>);
+    if (start > at)
+      parts.push(<span key={`t${i}`}>{text.slice(at, start)}</span>);
     parts.push(
       // The conversation's own hit style (globals.css mark.search-hit), so a
       // word found reads the same in a title, a snippet and the transcript.
@@ -34,11 +41,21 @@ export function highlightMatch(text: string, query: string): React.ReactNode {
 /** A snippet as one line a person reads: machine wrappers out (the shared
  *  stripWrapperTags), whitespace folded. */
 export function stripSnippetMarkup(text: string): string {
-  return stripWrapperTags(text).replace(/\s{2,}/g, " ").trim();
+  return stripWrapperTags(text)
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /** The stretch of `content` that shows the most of the query (snippetAround),
  *  without the machine wrappers around injected messages. */
-export function getSnippet(content: string, query: string, maxLen = 400): string {
-  return snippetAround(stripSnippetMarkup(content), parseQueryTerms(query), maxLen);
+export function getSnippet(
+  content: string,
+  query: string,
+  maxLen = 400,
+): string {
+  return snippetAround(
+    stripSnippetMarkup(content),
+    parseQueryTerms(query),
+    maxLen,
+  );
 }

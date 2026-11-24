@@ -3,7 +3,10 @@ import { AuthGuard } from "@/components/AuthGuard";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SettingsRedirect } from "@/components/settings/SettingsRedirect";
-import { SETTINGS_PAGES_MOVED, settingsSectionForPath } from "@/lib/settingsSections";
+import {
+  SETTINGS_PAGES_MOVED,
+  settingsSectionForPath,
+} from "@/lib/settingsSections";
 import { isSetupFlowPath } from "@/lib/setupFlow";
 import { SetupScreen } from "@/components/onboarding/SetupScreen";
 

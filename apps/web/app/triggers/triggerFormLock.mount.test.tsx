@@ -12,32 +12,54 @@ const { act } = React;
 const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { ConvexProvider } = await import("convex/react");
-const { offlineConvexClient } = await import("../../test-helpers/offlineConvex");
+const { offlineConvexClient } =
+  await import("../../test-helpers/offlineConvex");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { TriggerForm } = await import("./page");
 
 const convex = offlineConvexClient();
-const trigger = { _id: "tr1", short_id: "tr-1", user_id: "users_samvit", title: "Daily sweep", prompt: "Sweep", schedule_type: "recurring", interval_ms: 86_400_000, status: "scheduled", agent_type: "grok", mode: "apply", project_path: "/repo" };
+const trigger = {
+  _id: "tr1",
+  short_id: "tr-1",
+  user_id: "users_samvit",
+  title: "Daily sweep",
+  prompt: "Sweep",
+  schedule_type: "recurring",
+  interval_ms: 86_400_000,
+  status: "scheduled",
+  agent_type: "grok",
+  mode: "apply",
+  project_path: "/repo",
+};
 
 async function formFor(viewer: string) {
   useInboxStore.setState({ currentUser: { _id: viewer } } as any);
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  await act(async () => root.render(
-    <ConvexProvider client={convex}>
-      <MemoryRouter initialEntries={["/triggers"]}><TriggerForm editTask={trigger} onClose={() => {}} /></MemoryRouter>
-    </ConvexProvider>,
-  ));
+  await act(async () =>
+    root.render(
+      <ConvexProvider client={convex}>
+        <MemoryRouter initialEntries={["/triggers"]}>
+          <TriggerForm editTask={trigger} onClose={() => {}} />
+        </MemoryRouter>
+      </ConvexProvider>,
+    ),
+  );
   const q = (sel: string) => host.querySelector(sel) as HTMLInputElement | null;
-  const agentButtons = [...host.querySelectorAll("button")].filter((b) => ["claude", "codex"].includes(b.textContent?.trim() ?? ""));
+  const agentButtons = [...host.querySelectorAll("button")].filter((b) =>
+    ["claude", "codex"].includes(b.textContent?.trim() ?? ""),
+  );
   return {
     prompt: q("textarea"),
     title: q('input[placeholder^="Optional: named"]'),
     project: q('input[list="trigger-project-roots"]'),
     readOnly: q('input[type="checkbox"]'),
     agentButtons,
-    unmount: async () => { await act(async () => root.unmount()); host.remove(); },
+    unmount: async () => {
+      await act(async () => root.unmount());
+      host.remove();
+    },
   };
 }
 
@@ -48,11 +70,18 @@ test("a teammate's form locks what the trigger runs and leaves its title open", 
   expect(f.readOnly!.disabled).toBe(true);
   expect(f.agentButtons.length).toBe(2);
   // The shared toggle marks a locked option aria-disabled and ignores its press.
-  for (const b of f.agentButtons) expect(b.getAttribute("aria-disabled")).toBe("true");
+  for (const b of f.agentButtons)
+    expect(b.getAttribute("aria-disabled")).toBe("true");
   const codex = f.agentButtons.find((b) => b.textContent?.trim() === "codex")!;
   await act(async () => (codex as HTMLButtonElement).click());
-  expect(f.agentButtons.find((b) => b.textContent?.trim() === "claude")!.getAttribute("aria-pressed")).toBe("true");
-  expect(f.prompt!.getAttribute("title")).toBe("Only its owner can change this");
+  expect(
+    f.agentButtons
+      .find((b) => b.textContent?.trim() === "claude")!
+      .getAttribute("aria-pressed"),
+  ).toBe("true");
+  expect(f.prompt!.getAttribute("title")).toBe(
+    "Only its owner can change this",
+  );
   expect(f.title!.disabled).toBe(false);
   await f.unmount();
 });
@@ -62,6 +91,7 @@ test("the owner's form is unlocked", async () => {
   expect(f.prompt!.disabled).toBe(false);
   expect(f.project!.disabled).toBe(false);
   expect(f.readOnly!.disabled).toBe(false);
-  for (const b of f.agentButtons) expect(b.getAttribute("aria-disabled")).toBeNull();
+  for (const b of f.agentButtons)
+    expect(b.getAttribute("aria-disabled")).toBeNull();
   await f.unmount();
 });

@@ -14,12 +14,15 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 const WORKTREE_SEGMENT = "/.codecast/worktrees/";
-const KEEP = /^(PORT_[A-Z0-9_]+|CODECAST_PORT_[A-Z0-9_]+|CODECAST_WORKTREE_(PATH|NAME)|CODECAST_BRANCH|CODECAST_RESOURCE_INDEX)$/;
+const KEEP =
+  /^(PORT_[A-Z0-9_]+|CODECAST_PORT_[A-Z0-9_]+|CODECAST_WORKTREE_(PATH|NAME)|CODECAST_BRANCH|CODECAST_RESOURCE_INDEX)$/;
 /** The reserved record `cast ws root` writes for the main checkout (workspace/lifecycle.ts ROOT_WORKSPACE_NAME). */
 const ROOT_WORKSPACE_NAME = "shared-checkout";
 
 /** The repo root and worktree name for a cwd inside `<repo>/.codecast/worktrees/<name>[/...]`. */
-export function locateWorktree(cwd: string): { repoRoot: string; name: string } | null {
+export function locateWorktree(
+  cwd: string,
+): { repoRoot: string; name: string } | null {
   const i = cwd.indexOf(WORKTREE_SEGMENT);
   if (i < 0) return null;
   const rest = cwd.slice(i + WORKTREE_SEGMENT.length);
@@ -34,10 +37,24 @@ export function locateWorktree(cwd: string): { repoRoot: string; name: string } 
  * so there is no worktree segment to find — the state file is the only mark.
  * Walks up from cwd; the first directory holding the record wins.
  */
-export function locateRootWorkspace(cwd: string, exists: (p: string) => boolean = fs.existsSync): { repoRoot: string; name: typeof ROOT_WORKSPACE_NAME } | null {
+export function locateRootWorkspace(
+  cwd: string,
+  exists: (p: string) => boolean = fs.existsSync,
+): { repoRoot: string; name: typeof ROOT_WORKSPACE_NAME } | null {
   let dir = cwd;
   for (;;) {
-    if (exists(path.join(dir, ".codecast", "workspaces", ROOT_WORKSPACE_NAME, "state.json"))) return { repoRoot: dir, name: ROOT_WORKSPACE_NAME };
+    if (
+      exists(
+        path.join(
+          dir,
+          ".codecast",
+          "workspaces",
+          ROOT_WORKSPACE_NAME,
+          "state.json",
+        ),
+      )
+    )
+      return { repoRoot: dir, name: ROOT_WORKSPACE_NAME };
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
@@ -52,7 +69,11 @@ export function locateRootWorkspace(cwd: string, exists: (p: string) => boolean 
  * sees the same PORT_* / AGENT_RESOURCE_INDEX an isolated one does. The root
  * never gets the BUN_INSTALL_* override: it keeps bun's global store.
  */
-export function worktreeEnv(cwd: string, readFile: (p: string) => string = (p) => fs.readFileSync(p, "utf-8"), exists: (p: string) => boolean = fs.existsSync): Record<string, string> {
+export function worktreeEnv(
+  cwd: string,
+  readFile: (p: string) => string = (p) => fs.readFileSync(p, "utf-8"),
+  exists: (p: string) => boolean = fs.existsSync,
+): Record<string, string> {
   let wt = locateWorktree(cwd);
   let root = false;
   if (!wt) {
@@ -61,19 +82,41 @@ export function worktreeEnv(cwd: string, readFile: (p: string) => string = (p) =
     root = true;
   }
   try {
-    const state = JSON.parse(readFile(path.join(wt.repoRoot, ".codecast", "workspaces", wt.name, "state.json")));
+    const state = JSON.parse(
+      readFile(
+        path.join(
+          wt.repoRoot,
+          ".codecast",
+          "workspaces",
+          wt.name,
+          "state.json",
+        ),
+      ),
+    );
     if (root && state?.path !== wt.repoRoot) return {};
     const env = (state?.env ?? {}) as Record<string, unknown>;
     const out: Record<string, string> = {};
     if (!root && env.CODECAST_CLOUD_WORKSPACE === "1") {
       out.BUN_INSTALL_GLOBAL_STORE = "0";
-      out.BUN_INSTALL_CACHE_DIR = path.join(wt.repoRoot, ".codecast", "workspaces", wt.name, "bun-cache");
+      out.BUN_INSTALL_CACHE_DIR = path.join(
+        wt.repoRoot,
+        ".codecast",
+        "workspaces",
+        wt.name,
+        "bun-cache",
+      );
     }
     for (const [k, v] of Object.entries(env)) {
-      if (KEEP.test(k) && (typeof v === "string" || typeof v === "number")) out[k] = String(v);
+      if (KEEP.test(k) && (typeof v === "string" || typeof v === "number"))
+        out[k] = String(v);
     }
     for (const [name, port] of Object.entries(state.ports ?? {})) {
-      if (/^[a-zA-Z0-9_]+$/.test(name) && Number.isInteger(port) && Number(port) > 0 && Number(port) <= 65535) {
+      if (
+        /^[a-zA-Z0-9_]+$/.test(name) &&
+        Number.isInteger(port) &&
+        Number(port) > 0 &&
+        Number(port) <= 65535
+      ) {
         out[`PORT_${name.toUpperCase()}`] = String(port);
         out[`CODECAST_PORT_${name.toUpperCase()}`] = String(port);
       }
@@ -86,7 +129,10 @@ export function worktreeEnv(cwd: string, readFile: (p: string) => string = (p) =
     }
     // The daemon's own name for the index, so a session placed in a worktree
     // it did not create (cloud) sees exactly what an --isolated session sees.
-    if (out.CODECAST_RESOURCE_INDEX !== undefined && /^\d+$/.test(out.CODECAST_RESOURCE_INDEX)) {
+    if (
+      out.CODECAST_RESOURCE_INDEX !== undefined &&
+      /^\d+$/.test(out.CODECAST_RESOURCE_INDEX)
+    ) {
       out.AGENT_RESOURCE_INDEX = out.CODECAST_RESOURCE_INDEX;
     }
     return out;
@@ -95,7 +141,9 @@ export function worktreeEnv(cwd: string, readFile: (p: string) => string = (p) =
   }
 }
 
-export function withWorktreeConfig<T extends { cwd?: string; config?: Record<string, unknown> }>(params: T): T {
+export function withWorktreeConfig<
+  T extends { cwd?: string; config?: Record<string, unknown> },
+>(params: T): T {
   const env = params.cwd ? worktreeEnv(params.cwd) : {};
   if (!Object.keys(env).length) return params;
   return {
@@ -103,7 +151,9 @@ export function withWorktreeConfig<T extends { cwd?: string; config?: Record<str
     config: {
       ...params.config,
       "shell_environment_policy.set": {
-        ...(params.config?.["shell_environment_policy.set"] as Record<string, unknown> | undefined),
+        ...(params.config?.["shell_environment_policy.set"] as
+          | Record<string, unknown>
+          | undefined),
         ...env,
       },
     },

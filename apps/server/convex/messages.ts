@@ -1,10 +1,28 @@
 import { isHostedAgentType } from "@codecast/shared/contracts";
-import { DELIVERED_ECHO_ADOPTION_WINDOW_MS, findEchoedPendingMessage, imageEchoMatchesPending, injectedImageRefs, injectedImageStorageIds, pendingImageStorageIds, resolveEchoImages, verifiedEchoImages } from "./lib/echoMatch";
+import {
+  DELIVERED_ECHO_ADOPTION_WINDOW_MS,
+  findEchoedPendingMessage,
+  imageEchoMatchesPending,
+  injectedImageRefs,
+  injectedImageStorageIds,
+  pendingImageStorageIds,
+  resolveEchoImages,
+  verifiedEchoImages,
+} from "./lib/echoMatch";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { clipText } from "./lib/wellFormed";
 import { claimShareToken } from "./lib/shareToken";
-import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";
-import { mutation, query, internalMutation, type MutationCtx, type QueryCtx } from "./functions";
+import {
+  policyWorkspaceOf,
+  requireTeamPolicyAllows,
+} from "./lib/teamPolicyGuard";
+import {
+  mutation,
+  query,
+  internalMutation,
+  type MutationCtx,
+  type QueryCtx,
+} from "./functions";
 import { addRoleTokens } from "./lib/orgCaps";
 import { calibrationSlot } from "./usageCalibration";
 import { weightedTokens } from "@codecast/shared/contracts";
@@ -21,13 +39,27 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
 import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { maybeScheduleTitleGeneration, firstPromptOf, FIRST_PROMPT_STAMP_WINDOW } from "./titleGeneration";
-import { checkConversationAccess, isConversationOwner, teamVisibleConvTeam } from "./privacy";
+import {
+  maybeScheduleTitleGeneration,
+  firstPromptOf,
+  FIRST_PROMPT_STAMP_WINDOW,
+} from "./titleGeneration";
+import {
+  checkConversationAccess,
+  isConversationOwner,
+  teamVisibleConvTeam,
+} from "./privacy";
 import { computeWorkspaceKey } from "./lib/access";
 import { redactSecrets } from "./redact";
 import { storeHostedReplay } from "./hostedReplay";
 import { canSendProductMessage, markPendingDelivered } from "./pendingMessages";
-import { queuedBy, scheduleUserSend, turnOpener, turnOpenerPatch, type TurnOpener } from "./lib/userSend";
+import {
+  queuedBy,
+  scheduleUserSend,
+  turnOpener,
+  turnOpenerPatch,
+  type TurnOpener,
+} from "./lib/userSend";
 import { recordUsageDays, type UsageTurn } from "./lib/usageDaily";
 import { validateCommandId } from "./localFirstCommands";
 import {
@@ -43,18 +75,47 @@ import {
 import { onFreshApiErrorPark } from "./accountSwitch";
 import { isCurrentBlock } from "./ccAccountsShared";
 import { safetyBlockPatch } from "./conversationSafety";
-import { stripContextTags, navPromptField, navPromptPatch } from "./userMessagesFilter";
+import {
+  stripContextTags,
+  navPromptField,
+  navPromptPatch,
+} from "./userMessagesFilter";
 import { dropMirroredMessage } from "./searchMirror";
 import { countMatches, parseSearchTerms } from "@codecast/shared/search";
 import { batchHasLoopEvent, deriveLoopState } from "./loopState";
-import { nextAgentStatusOnAddMessages, classifyApiErrorBanner, apiErrorBatchAction, nextPendingApiError, parkWalk, liftsPark, isBannerTurn, NEEDS_INPUT_AUQ_CHECK_DELAY_MS } from "./inboxFilters";
+import {
+  nextAgentStatusOnAddMessages,
+  classifyApiErrorBanner,
+  apiErrorBatchAction,
+  nextPendingApiError,
+  parkWalk,
+  liftsPark,
+  isBannerTurn,
+  NEEDS_INPUT_AUQ_CHECK_DELAY_MS,
+} from "./inboxFilters";
 import { markAnsweredReviewNotes } from "./lib/reviewAnswered";
 import { relayDecisionReply } from "./decisionThread";
-import { extractFileChanges, extractCommitHashFromContent, extractCommitBranchFromContent, hasFileChangeToolCall, type FileChange, type FileChangeBody, type FileChangeRef } from "./fileChanges/extractor";
+import {
+  extractFileChanges,
+  extractCommitHashFromContent,
+  extractCommitBranchFromContent,
+  hasFileChangeToolCall,
+  type FileChange,
+  type FileChangeBody,
+  type FileChangeRef,
+} from "./fileChanges/extractor";
 import { activityLine } from "@codecast/shared/render";
 import type { SessionActivity } from "@codecast/shared/contracts";
-import { attachmentViews, extractSessionImages, type SessionImageEntry } from "./sessionImages";
-import { trustedImageOrigin, latestImagePreviewUrl, listConversationFileChanges } from "./lib/messageReads";
+import {
+  attachmentViews,
+  extractSessionImages,
+  type SessionImageEntry,
+} from "./sessionImages";
+import {
+  trustedImageOrigin,
+  latestImagePreviewUrl,
+  listConversationFileChanges,
+} from "./lib/messageReads";
 export { latestImagePreviewUrl, listConversationFileChanges };
 
 /** Bound demand-scoped coverage checks independently of transcript size. */
@@ -101,41 +162,67 @@ export function buildExistingMessagePatch(
   const patch: Record<string, unknown> = {};
 
   if (incoming.role === "assistant") {
-    if (incoming.content !== undefined && incoming.content !== existing.content) {
+    if (
+      incoming.content !== undefined &&
+      incoming.content !== existing.content
+    ) {
       patch.content = incoming.content;
     }
-    if (incoming.thinking !== undefined && incoming.thinking !== existing.thinking) {
+    if (
+      incoming.thinking !== undefined &&
+      incoming.thinking !== existing.thinking
+    ) {
       patch.thinking = incoming.thinking;
     }
-    if (incoming.subtype !== undefined && incoming.subtype !== existing.subtype) {
+    if (
+      incoming.subtype !== undefined &&
+      incoming.subtype !== existing.subtype
+    ) {
       patch.subtype = incoming.subtype;
     }
     // Backfills older rows when a transcript re-syncs (resume, fork, new device).
     if (incoming.model !== undefined && incoming.model !== existing.model) {
       patch.model = incoming.model;
     }
-    if (incoming.tool_calls !== undefined && JSON.stringify(incoming.tool_calls) !== JSON.stringify(existing.tool_calls ?? null)) {
+    if (
+      incoming.tool_calls !== undefined &&
+      JSON.stringify(incoming.tool_calls) !==
+        JSON.stringify(existing.tool_calls ?? null)
+    ) {
       patch.tool_calls = incoming.tool_calls;
     }
-    if (incoming.tool_results !== undefined && JSON.stringify(incoming.tool_results) !== JSON.stringify(existing.tool_results ?? null)) {
+    if (
+      incoming.tool_results !== undefined &&
+      JSON.stringify(incoming.tool_results) !==
+        JSON.stringify(existing.tool_results ?? null)
+    ) {
       patch.tool_results = incoming.tool_results;
     }
   }
 
-  if (incoming.images && JSON.stringify(incoming.images) !== JSON.stringify(existing.images ?? null)) {
+  if (
+    incoming.images &&
+    JSON.stringify(incoming.images) !== JSON.stringify(existing.images ?? null)
+  ) {
     patch.images = incoming.images;
   }
 
   // A re-synced turn carries its sent files again, now with storage ids. The
   // first sync of a live turn can land before the upload finishes, so this is
   // what fills the card in rather than leaving it stuck on "preparing".
-  if (incoming.files && JSON.stringify(incoming.files) !== JSON.stringify(existing.files ?? null)) {
+  if (
+    incoming.files &&
+    JSON.stringify(incoming.files) !== JSON.stringify(existing.files ?? null)
+  ) {
     patch.files = incoming.files;
   }
 
   if (Object.keys(patch).length === 0) return null;
   // The navigator's index flag follows whatever this patch changed.
-  return { ...patch, ...navPromptPatch(existing as Parameters<typeof navPromptPatch>[0], patch) };
+  return {
+    ...patch,
+    ...navPromptPatch(existing as Parameters<typeof navPromptPatch>[0], patch),
+  };
 }
 
 // A /model switch emits a user line `<local-command-stdout>Set model to <Name>`
@@ -146,7 +233,9 @@ export function buildExistingMessagePatch(
 // a concrete model — not a signal; the next assistant turn records the real one.
 const MODEL_SWITCH_RE =
   /<local-command-stdout>Set model to (?:\u001b\[\d+m)*(opus|sonnet|haiku|fable)\s*([\d.]*)/i;
-export function modelFromSwitchLine(content: string | undefined): string | null {
+export function modelFromSwitchLine(
+  content: string | undefined,
+): string | null {
   const m = content?.match(MODEL_SWITCH_RE);
   if (!m) return null;
   const version = m[2] ? `-${m[2].replace(/\.$/, "").replace(/\./g, "-")}` : "";
@@ -159,7 +248,12 @@ export function modelFromSwitchLine(content: string | undefined): string | null 
 // lines record where the session is headed. "<synthetic>" marks system-generated
 // assistant entries (error banners), never a real model.
 export function lastKnownModelFromBatch(
-  messages: Array<{ role: string; model?: string; content?: string; timestamp?: number }>,
+  messages: Array<{
+    role: string;
+    model?: string;
+    content?: string;
+    timestamp?: number;
+  }>,
 ): string | null {
   let best: { ts: number; model: string } | null = null;
   for (const m of messages) {
@@ -183,7 +277,9 @@ export function lastKnownModelFromBatch(
 // only signal, so the rollup is the sole source for conversations.effort.
 const EFFORT_SWITCH_RE =
   /<local-command-stdout>[^<]*?(?:Set effort level to (?:\u001b\[\d+m)*(low|medium|high|xhigh|max|auto)\b|with (?:\u001b\[\d+m)*(low|medium|high|xhigh|max)(?:\u001b\[\d+m)* effort)/i;
-export function effortFromSwitchLine(content: string | undefined): string | null {
+export function effortFromSwitchLine(
+  content: string | undefined,
+): string | null {
   const m = content?.match(EFFORT_SWITCH_RE);
   if (!m) return null;
   const level = (m[1] ?? m[2]).toLowerCase();
@@ -236,31 +332,67 @@ export const getMessageCoverageV2 = query({
       return forbiddenView(identity, [grantKey]);
     }
 
-    const matches = await Promise.all(commandIds.map(async (commandId) =>
-      await ctx.db
-        .query("messages")
-        .withIndex("by_conversation_client_id", (q) =>
-          q.eq("conversation_id", args.conversation_id).eq("client_id", commandId))
-        .first()));
-    const coveredCommandIds = commandIds.filter((_commandId, index) => !!matches[index]);
-    const deliveries = await Promise.all(commandIds.filter(id => !coveredCommandIds.includes(id)).map(async commandId => {
-      const message = await ctx.db.query("pending_messages")
-        .withIndex("by_conversation_client_id", q => q.eq("conversation_id", args.conversation_id).eq("client_id", commandId))
-        .first();
-      return message ? { commandId, status: message.status, merged: !!message.merged_into } : null;
-    }));
-    const settled = deliveries.filter(message => message?.status === "delivered" || message?.status === "cancelled")
-      .map(message => message!.commandId);
+    const matches = await Promise.all(
+      commandIds.map(
+        async (commandId) =>
+          await ctx.db
+            .query("messages")
+            .withIndex("by_conversation_client_id", (q) =>
+              q
+                .eq("conversation_id", args.conversation_id)
+                .eq("client_id", commandId),
+            )
+            .first(),
+      ),
+    );
+    const coveredCommandIds = commandIds.filter(
+      (_commandId, index) => !!matches[index],
+    );
+    const deliveries = await Promise.all(
+      commandIds
+        .filter((id) => !coveredCommandIds.includes(id))
+        .map(async (commandId) => {
+          const message = await ctx.db
+            .query("pending_messages")
+            .withIndex("by_conversation_client_id", (q) =>
+              q
+                .eq("conversation_id", args.conversation_id)
+                .eq("client_id", commandId),
+            )
+            .first();
+          return message
+            ? {
+                commandId,
+                status: message.status,
+                merged: !!message.merged_into,
+              }
+            : null;
+        }),
+    );
+    const settled = deliveries
+      .filter(
+        (message) =>
+          message?.status === "delivered" || message?.status === "cancelled",
+      )
+      .map((message) => message!.commandId);
     // Cancelled outright (not folded into another row's turn): no echo will
     // ever come, so the sender's bubble goes rather than waiting for one.
-    const cancelled = deliveries.filter(message => message?.status === "cancelled" && !message.merged)
-      .map(message => message!.commandId);
-    const failed = deliveries.filter(message => message?.status === "failed" || message?.status === "undeliverable")
-      .map(message => message!.commandId);
+    const cancelled = deliveries
+      .filter((message) => message?.status === "cancelled" && !message.merged)
+      .map((message) => message!.commandId);
+    const failed = deliveries
+      .filter(
+        (message) =>
+          message?.status === "failed" || message?.status === "undeliverable",
+      )
+      .map((message) => message!.commandId);
     // Neither a transcript row nor a queue row: the server never received
     // this send. The client decides whether it is still on its way (its
     // outbox holds it) or was lost.
-    const unknown = commandIds.filter((id, index) => !matches[index] && !deliveries.some(d => d?.commandId === id));
+    const unknown = commandIds.filter(
+      (id, index) =>
+        !matches[index] && !deliveries.some((d) => d?.commandId === id),
+    );
     // Command-id coverage, not a revision-covered row set — outside grantedView.
     return {
       ...identity,
@@ -270,7 +402,9 @@ export const getMessageCoverageV2 = query({
         kind: "command-ids" as const,
         commandIds: coveredCommandIds,
       },
-      ...(settled.length || failed.length || unknown.length ? { delivery: { settled, failed, cancelled, unknown } } : {}),
+      ...(settled.length || failed.length || unknown.length
+        ? { delivery: { settled, failed, cancelled, unknown } }
+        : {}),
     };
   },
 });
@@ -287,12 +421,22 @@ export const getMessageTimestamp = query({
     if (!conversation) {
       return null;
     }
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
 
     const message = await ctx.db.get(args.message_id);
-    if (!message || message.conversation_id.toString() !== args.conversation_id.toString()) {
+    if (
+      !message ||
+      message.conversation_id.toString() !== args.conversation_id.toString()
+    ) {
       return null;
     }
 
@@ -302,7 +446,7 @@ export const getMessageTimestamp = query({
 
 async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -346,11 +490,18 @@ export function mergeRecentFiles(
   }
   const capped = merged.slice(0, RECENT_FILES_CAP);
   const prev = existing ?? [];
-  if (capped.length === prev.length && capped.every((p, i) => p === prev[i])) return null;
+  if (capped.length === prev.length && capped.every((p, i) => p === prev[i]))
+    return null;
   return capped;
 }
 
-type TallyRow = { tool_results?: Array<{ tool_use_id: string; content: string; is_error?: boolean }> | null };
+type TallyRow = {
+  tool_results?: Array<{
+    tool_use_id: string;
+    content: string;
+    is_error?: boolean;
+  }> | null;
+};
 
 // The line `git commit` prints when it made a commit, at the start of a line:
 // `[<branch> <hash>] <subject>`, `[<branch> (root-commit) <hash>]` or
@@ -370,8 +521,10 @@ function shellOutputOf(content: string): string {
   }
 }
 
-const failedResults = (row: TallyRow | undefined) => row?.tool_results?.filter((r) => r.is_error).length ?? 0;
-const commitLines = (content: string) => shellOutputOf(content).match(COMMIT_MADE_LINES)?.length ?? 0;
+const failedResults = (row: TallyRow | undefined) =>
+  row?.tool_results?.filter((r) => r.is_error).length ?? 0;
+const commitLines = (content: string) =>
+  shellOutputOf(content).match(COMMIT_MADE_LINES)?.length ?? 0;
 const commitLinesIn = (row: TallyRow | undefined) =>
   (row?.tool_results ?? []).reduce((n, r) => n + commitLines(r.content), 0);
 
@@ -379,14 +532,20 @@ const commitLinesIn = (row: TallyRow | undefined) =>
  *  session recorded as a `git commit` (its commit file_changes row, keyed by
  *  the call id): reading an old log that holds a commit line made no commit.
  *  A result that committed and then failed keeps its commits. */
-async function confirmedCommits(ctx: MutationCtx, conversationId: Id<"conversations">, row: TallyRow | undefined): Promise<number> {
+async function confirmedCommits(
+  ctx: MutationCtx,
+  conversationId: Id<"conversations">,
+  row: TallyRow | undefined,
+): Promise<number> {
   let commits = 0;
   for (const r of row?.tool_results ?? []) {
     const lines = commitLines(r.content);
     if (!lines || !r.tool_use_id) continue;
     const change = await ctx.db
       .query("file_changes")
-      .withIndex("by_conversation_change_key", (q) => q.eq("conversation_id", conversationId).eq("change_key", r.tool_use_id))
+      .withIndex("by_conversation_change_key", (q) =>
+        q.eq("conversation_id", conversationId).eq("change_key", r.tool_use_id),
+      )
       .first();
     if (change?.change_type === "commit") commits += lines;
   }
@@ -421,11 +580,19 @@ export async function bumpSessionTallies(
   if (!conv) return;
   if (conv.session_tallies === undefined && conv.message_count > 0) return;
   const commits = commitText
-    ? (await confirmedCommits(ctx, conversation._id, after)) - (await confirmedCommits(ctx, conversation._id, before))
+    ? (await confirmedCommits(ctx, conversation._id, after)) -
+      (await confirmedCommits(ctx, conversation._id, before))
     : 0;
   const was = conv.session_tallies ?? { failed_tools: 0, commits: 0 };
-  const next = { failed_tools: Math.max(0, was.failed_tools + failed), commits: Math.max(0, was.commits + commits) };
-  if (conv.session_tallies === undefined || next.failed_tools !== was.failed_tools || next.commits !== was.commits) {
+  const next = {
+    failed_tools: Math.max(0, was.failed_tools + failed),
+    commits: Math.max(0, was.commits + commits),
+  };
+  if (
+    conv.session_tallies === undefined ||
+    next.failed_tools !== was.failed_tools ||
+    next.commits !== was.commits
+  ) {
     await ctx.db.patch(conversation._id, { session_tallies: next });
   }
 }
@@ -440,7 +607,11 @@ export async function bumpSessionTallies(
  * traffic), or the same stamp again (a re-sync of the same rows).
  */
 export function deriveActivity(
-  messages: ReadonlyArray<{ role: string; timestamp?: number; tool_calls?: ReadonlyArray<{ name: string; input: string }> }>,
+  messages: ReadonlyArray<{
+    role: string;
+    timestamp?: number;
+    tool_calls?: ReadonlyArray<{ name: string; input: string }>;
+  }>,
   previous: SessionActivity | undefined,
   now: number,
 ): SessionActivity | null {
@@ -454,7 +625,13 @@ export function deriveActivity(
     if (!text) return null;
     const at = msg.timestamp || now;
     if (previous && previous.at > at) return null;
-    if (previous && previous.at === at && previous.text === text && previous.tool === tc.name) return null;
+    if (
+      previous &&
+      previous.at === at &&
+      previous.text === text &&
+      previous.tool === tc.name
+    )
+      return null;
     return { text, tool: tc.name, at };
   }
   return null;
@@ -469,7 +646,10 @@ export function deriveActivity(
  * processed rows with no edits so a re-run skips them.
  */
 export const backfillRecentFiles = internalMutation({
-  args: { cursor_ts: v.optional(v.number()), cutoff_ts: v.optional(v.number()) },
+  args: {
+    cursor_ts: v.optional(v.number()),
+    cutoff_ts: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const cutoff = args.cutoff_ts ?? Date.now() - 14 * 24 * 60 * 60 * 1000;
     // Bound the walk: a conversation CREATED well before the activity cutoff
@@ -478,7 +658,9 @@ export const backfillRecentFiles = internalMutation({
     const batch = await ctx.db
       .query("conversations")
       .withIndex("by_creation_time", (q) =>
-        args.cursor_ts !== undefined ? q.lt("_creationTime", args.cursor_ts) : q,
+        args.cursor_ts !== undefined
+          ? q.lt("_creationTime", args.cursor_ts)
+          : q,
       )
       .order("desc")
       .take(40);
@@ -487,14 +669,18 @@ export const backfillRecentFiles = internalMutation({
       if (conv.updated_at < cutoff || conv.recent_files !== undefined) continue;
       const rows = await ctx.db
         .query("file_changes")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conv._id),
+        )
         .order("desc")
         .take(12);
       // Rows arrive newest-first; mergeRecentFiles treats the LAST change as
       // newest, so feed it ascending.
       const merged = mergeRecentFiles(
         undefined,
-        rows.reverse().map((r) => ({ filePath: r.file_path, changeType: r.change_type })),
+        rows
+          .reverse()
+          .map((r) => ({ filePath: r.file_path, changeType: r.change_type })),
       );
       await ctx.db.patch(conv._id, { recent_files: merged ?? [] });
       seeded++;
@@ -506,7 +692,11 @@ export const backfillRecentFiles = internalMutation({
         cutoff_ts: cutoff,
       });
     }
-    return { scanned: batch.length, seeded, done: !oldest || oldest._creationTime <= walkFloor };
+    return {
+      scanned: batch.length,
+      seeded,
+      done: !oldest || oldest._creationTime <= walkFloor,
+    };
   },
 });
 
@@ -516,7 +706,9 @@ export async function materializeFileChanges(
   messageId: Id<"messages">,
   timestamp: number,
   toolCalls: Array<{ id: string; name: string; input: string }> | undefined,
-  toolResults: Array<{ tool_use_id: string; content: string; is_error?: boolean }> | undefined,
+  toolResults:
+    | Array<{ tool_use_id: string; content: string; is_error?: boolean }>
+    | undefined,
   previousChanges: FileChange[] = [],
 ): Promise<void> {
   // Late-arriving commit hashes: a `git commit` Bash RESULT lands on the next
@@ -531,12 +723,17 @@ export async function materializeFileChanges(
       const row = await ctx.db
         .query("file_changes")
         .withIndex("by_conversation_change_key", (q) =>
-          q.eq("conversation_id", conversationId).eq("change_key", tr.tool_use_id),
+          q
+            .eq("conversation_id", conversationId)
+            .eq("change_key", tr.tool_use_id),
         )
         .first();
       if (row && row.change_type === "commit" && !row.commit_hash) {
         const branch = extractCommitBranchFromContent(tr.content ?? "");
-        await ctx.db.patch(row._id, { commit_hash: hash, ...(branch ? { commit_branch: branch } : {}) });
+        await ctx.db.patch(row._id, {
+          commit_hash: hash,
+          ...(branch ? { commit_branch: branch } : {}),
+        });
         // The reflog may have reported this commit before this line synced;
         // the commit row and its activity event learn the session now.
         await linkLocalCommitToConversation(ctx, conversationId, hash);
@@ -544,40 +741,54 @@ export async function materializeFileChanges(
     }
   }
 
-  const msg = { _id: messageId, timestamp, tool_calls: toolCalls, tool_results: toolResults };
+  const msg = {
+    _id: messageId,
+    timestamp,
+    tool_calls: toolCalls,
+    tool_results: toolResults,
+  };
   if (!hasFileChangeToolCall(msg) && previousChanges.length === 0) return;
   const extracted = extractFileChanges([msg]);
   const nextIds = new Set(extracted.map((change) => change.id));
   for (const previous of previousChanges) {
-    if (!nextIds.has(previous.id)) await deleteFileChange(ctx, conversationId, previous.id);
+    if (!nextIds.has(previous.id))
+      await deleteFileChange(ctx, conversationId, previous.id);
   }
   // Keep the conversation's "where does it work" list current in the same
   // transaction — feed/search cards render it (see schema.recent_files).
   if (extracted.length > 0) {
     const conv = await ctx.db.get(conversationId);
     const nextRecent = mergeRecentFiles(conv?.recent_files, extracted);
-    if (nextRecent) await ctx.db.patch(conversationId, { recent_files: nextRecent });
+    if (nextRecent)
+      await ctx.db.patch(conversationId, { recent_files: nextRecent });
   }
   for (const fc of extracted) {
-    const matches = await ctx.db.query("file_changes")
+    const matches = await ctx.db
+      .query("file_changes")
       .withIndex("by_conversation_change_key", (q) =>
-        q.eq("conversation_id", conversationId).eq("change_key", fc.id))
+        q.eq("conversation_id", conversationId).eq("change_key", fc.id),
+      )
       .collect();
     const [existing, ...duplicates] = matches;
     for (const duplicate of duplicates) await ctx.db.delete(duplicate._id);
-    await writeFileChange(ctx, existing ?? null, {
-      conversation_id: conversationId,
-      change_key: fc.id,
-      message_id: messageId,
-      tool_call_id: fc.toolCallId,
-      seq: fc.sequenceIndex,
-      file_path: fc.filePath,
-      change_type: fc.changeType,
-      commit_message: fc.commitMessage,
-      commit_hash: fc.commitHash ?? existing?.commit_hash,
-      commit_branch: fc.commitBranch ?? existing?.commit_branch,
-      timestamp: fc.timestamp,
-    }, { oldContent: fc.oldContent, newContent: fc.newContent });
+    await writeFileChange(
+      ctx,
+      existing ?? null,
+      {
+        conversation_id: conversationId,
+        change_key: fc.id,
+        message_id: messageId,
+        tool_call_id: fc.toolCallId,
+        seq: fc.sequenceIndex,
+        file_path: fc.filePath,
+        change_type: fc.changeType,
+        commit_message: fc.commitMessage,
+        commit_hash: fc.commitHash ?? existing?.commit_hash,
+        commit_branch: fc.commitBranch ?? existing?.commit_branch,
+        timestamp: fc.timestamp,
+      },
+      { oldContent: fc.oldContent, newContent: fc.newContent },
+    );
   }
 }
 
@@ -592,16 +803,27 @@ async function readableConversation(
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) return null;
   const viewerId = await getAuthUserId(ctx);
-  if ((await checkConversationAccess(ctx, viewerId, conversation, shareToken)) === "denied") return null;
+  if (
+    (await checkConversationAccess(ctx, viewerId, conversation, shareToken)) ===
+    "denied"
+  )
+    return null;
   return conversation;
 }
 
 /** The fold payload for web builds that predate the index/bodies split. */
 export const getConversationFileChanges = query({
-  args: { conversation_id: v.id("conversations"), share_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    share_token: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<FileChange[]> => {
-    if (!(await readableConversation(ctx, args.conversation_id, args.share_token))) return [];
-    return (await listConversationFileChanges(ctx, args.conversation_id)).changes;
+    if (
+      !(await readableConversation(ctx, args.conversation_id, args.share_token))
+    )
+      return [];
+    return (await listConversationFileChanges(ctx, args.conversation_id))
+      .changes;
   },
 });
 
@@ -609,9 +831,15 @@ export const getConversationFileChanges = query({
  *  independent of how many message pages the client holds. Small enough for
  *  any session: the timeline and the file tree render from it. */
 export const getConversationFileChangeIndex = query({
-  args: { conversation_id: v.id("conversations"), share_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    share_token: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<FileChangeRef[]> => {
-    if (!(await readableConversation(ctx, args.conversation_id, args.share_token))) return [];
+    if (
+      !(await readableConversation(ctx, args.conversation_id, args.share_token))
+    )
+      return [];
     return readFileChangeIndex(ctx, args.conversation_id);
   },
 });
@@ -624,10 +852,23 @@ export const getFileChangeBodies = query({
     share_token: v.optional(v.string()),
     change_keys: v.array(v.string()),
   },
-  handler: async (ctx, args): Promise<{ bodies: Array<FileChangeBody & { id: string }>; truncated: boolean }> => {
-    if (!(await readableConversation(ctx, args.conversation_id, args.share_token))) return { bodies: [], truncated: false };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    bodies: Array<FileChangeBody & { id: string }>;
+    truncated: boolean;
+  }> => {
+    if (
+      !(await readableConversation(ctx, args.conversation_id, args.share_token))
+    )
+      return { bodies: [], truncated: false };
     const keys = args.change_keys.slice(0, FILE_CHANGE_BODY_KEYS_LIMIT);
-    const { bodies, truncated } = await readFileChangeBodies(ctx, args.conversation_id, keys);
+    const { bodies, truncated } = await readFileChangeBodies(
+      ctx,
+      args.conversation_id,
+      keys,
+    );
     return {
       bodies: Array.from(bodies, ([id, body]) => ({ id, ...body })),
       truncated: truncated || args.change_keys.length > keys.length,
@@ -668,7 +909,14 @@ async function materializeConversationImages(
   messageId: Id<"messages">,
   timestamp: number,
   content: string | undefined,
-  images: Array<{ media_type: string; data?: string; storage_id?: Id<"_storage">; tool_use_id?: string }> | undefined,
+  images:
+    | Array<{
+        media_type: string;
+        data?: string;
+        storage_id?: Id<"_storage">;
+        tool_use_id?: string;
+      }>
+    | undefined,
 ): Promise<void> {
   if (!images?.some((i) => i.storage_id) && !content?.includes("![")) return;
   // A tool result's call sits on an earlier assistant row; read the few rows
@@ -684,10 +932,15 @@ async function materializeConversationImages(
           .take(20),
       )
     : new Map<string, string>();
-  for (const entry of extractSessionImages([{ content, timestamp, images }], isTrustedMarkdownImageSrc, views)) {
+  for (const entry of extractSessionImages(
+    [{ content, timestamp, images }],
+    isTrustedMarkdownImageSrc,
+    views,
+  )) {
     // Inline base64 images key on their own payload — the client window
     // extraction surfaces those; an index table is no place for the bytes.
-    if (!entry.storage_id && (!entry.src || entry.src.startsWith("data:"))) continue;
+    if (!entry.storage_id && (!entry.src || entry.src.startsWith("data:")))
+      continue;
     const existing = await ctx.db
       .query("conversation_images")
       .withIndex("by_conversation_image_key", (q) =>
@@ -720,16 +973,24 @@ const SESSION_GALLERY_ROW_LIMIT = 2000;
  * cost one storage call per image on every re-run of a reactive query.
  */
 export const getConversationImages = query({
-  args: { conversation_id: v.id("conversations"), share_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    share_token: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<SessionImageEntry[]> => {
-    if (!(await readableConversation(ctx, args.conversation_id, args.share_token))) return [];
+    if (
+      !(await readableConversation(ctx, args.conversation_id, args.share_token))
+    )
+      return [];
     // Newest-first, so a session past the cap keeps its RECENT images (the
     // gallery opens on the last one) instead of its oldest. Both writers append
     // in transcript order — live ingest as messages arrive, the sweep walking
     // by_conversation_timestamp ascending — so creation order tracks it.
     const rows = await ctx.db
       .query("conversation_images")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(SESSION_GALLERY_ROW_LIMIT);
     // Rows land in insertion order, which is transcript order for live ingest
@@ -757,19 +1018,38 @@ export const getConversationImages = query({
  *  page itself (title, version, gates, capture) is artifacts.embedInfo's to say. A republish from another session
  *  moves the page to that session's gallery, as its provenance moves. The web
  *  feeds on conversationPages.list; this path serves builds from before it. */
-export async function conversationPagesOf(ctx: QueryCtx, args: { conversation_id: Id<"conversations">; share_token?: string }): Promise<{ _id: Id<"conversations">; pages: Array<{ slug: string; created_at: number }> }> {
-  const out = { _id: args.conversation_id, pages: [] as Array<{ slug: string; created_at: number }> };
-  if (!(await readableConversation(ctx, args.conversation_id, args.share_token))) return out;
+export async function conversationPagesOf(
+  ctx: QueryCtx,
+  args: { conversation_id: Id<"conversations">; share_token?: string },
+): Promise<{
+  _id: Id<"conversations">;
+  pages: Array<{ slug: string; created_at: number }>;
+}> {
+  const out = {
+    _id: args.conversation_id,
+    pages: [] as Array<{ slug: string; created_at: number }>,
+  };
+  if (
+    !(await readableConversation(ctx, args.conversation_id, args.share_token))
+  )
+    return out;
   const rows = await ctx.db
     .query("artifacts")
-    .withIndex("by_session_conversation", (q) => q.eq("session_conversation_id", args.conversation_id))
+    .withIndex("by_session_conversation", (q) =>
+      q.eq("session_conversation_id", args.conversation_id),
+    )
     .take(SESSION_GALLERY_ROW_LIMIT);
-  out.pages = rows.map((r) => ({ slug: r.slug, created_at: r.created_at })).sort((a, b) => a.created_at - b.created_at);
+  out.pages = rows
+    .map((r) => ({ slug: r.slug, created_at: r.created_at }))
+    .sort((a, b) => a.created_at - b.created_at);
   return out;
 }
 
 export const getConversationPages = query({
-  args: { conversation_id: v.id("conversations"), share_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    share_token: v.optional(v.string()),
+  },
   handler: (ctx, args) => conversationPagesOf(ctx, args),
 });
 
@@ -795,9 +1075,13 @@ export const backfillConversationImages = mutation({
       throw new Error("Can only backfill your own conversations");
     }
     if (conversation.images_backfilled_at !== undefined) return;
-    await ctx.scheduler.runAfter(0, internal.messages.backfillConversationImagesPage, {
-      conversation_id: args.conversation_id,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.messages.backfillConversationImagesPage,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
   },
 });
 
@@ -809,8 +1093,13 @@ export const backfillConversationImagesPage = internalMutation({
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", args.conversation_id))
-      .paginate({ cursor: args.cursor ?? null, numItems: IMAGE_BACKFILL_PAGE_SIZE });
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: IMAGE_BACKFILL_PAGE_SIZE,
+      });
 
     for (const msg of page.page) {
       await materializeConversationImages(
@@ -824,25 +1113,44 @@ export const backfillConversationImagesPage = internalMutation({
     }
 
     if (page.isDone) {
-      await ctx.db.patch(args.conversation_id, { images_backfilled_at: Date.now() });
-    } else {
-      await ctx.scheduler.runAfter(0, internal.messages.backfillConversationImagesPage, {
-        conversation_id: args.conversation_id,
-        cursor: page.continueCursor,
+      await ctx.db.patch(args.conversation_id, {
+        images_backfilled_at: Date.now(),
       });
+    } else {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.messages.backfillConversationImagesPage,
+        {
+          conversation_id: args.conversation_id,
+          cursor: page.continueCursor,
+        },
+      );
     }
     return { scanned: page.page.length, done: page.isDone };
   },
 });
 
-export { DELIVERED_ECHO_ADOPTION_WINDOW_MS, findEchoedPendingMessage, imageEchoMatchesPending, injectedImageRefs, injectedImageStorageIds, pendingImageStorageIds, resolveEchoImages };
+export {
+  DELIVERED_ECHO_ADOPTION_WINDOW_MS,
+  findEchoedPendingMessage,
+  imageEchoMatchesPending,
+  injectedImageRefs,
+  injectedImageStorageIds,
+  pendingImageStorageIds,
+  resolveEchoImages,
+};
 
 // The pending rows a transcript echo can adopt: every send queued for this
 // conversation, matched by findEchoedPendingMessage against the redacted echo.
-export async function pendingRowsForEcho(ctx: { db: any }, conversationId: Id<"conversations">): Promise<Doc<"pending_messages">[]> {
+export async function pendingRowsForEcho(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<Doc<"pending_messages">[]> {
   return await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
 }
 
@@ -861,7 +1169,8 @@ export async function settleEchoedPending(
   messageId: Id<"messages">,
 ): Promise<void> {
   await markPendingDelivered(ctx, pending);
-  if (!pending.echo_message_id) await ctx.db.patch(pending._id, { echo_message_id: messageId });
+  if (!pending.echo_message_id)
+    await ctx.db.patch(pending._id, { echo_message_id: messageId });
 }
 
 // The pending rows a stamped turn names, read by id, each taken by one turn
@@ -882,15 +1191,22 @@ export async function stampedEchoRows(
     if (!id || consumed.has(id) || rows.some((r) => r._id === id)) continue;
     const row = await ctx.db.get(id);
     if (!row) continue;
-    if (String(row.conversation_id) === String(conversation._id)) rows.push(row);
-    else if (String(row.owner_user_id ?? row.from_user_id) === String(conversation.user_id)) rows.push(row);
+    if (String(row.conversation_id) === String(conversation._id))
+      rows.push(row);
+    else if (
+      String(row.owner_user_id ?? row.from_user_id) ===
+      String(conversation.user_id)
+    )
+      rows.push(row);
   }
   return rows;
 }
 
 /** Whether a stamped row belongs to the conversation its echo landed in. */
-const isOwnRow = (row: Doc<"pending_messages">, conversationId: Id<"conversations">) =>
-  String(row.conversation_id) === String(conversationId);
+const isOwnRow = (
+  row: Doc<"pending_messages">,
+  conversationId: Id<"conversations">,
+) => String(row.conversation_id) === String(conversationId);
 
 // A legacy batch's echo, paired by its words (see MessageBatch.echo_ids).
 function legacyEchoRows(
@@ -899,7 +1215,9 @@ function legacyEchoRows(
   timestamp: number,
   consumed: ReadonlySet<Id<"pending_messages">>,
 ): Doc<"pending_messages">[] {
-  const row = pendingMsgs.length ? findEchoedPendingMessage(pendingMsgs, content, timestamp, consumed) : undefined;
+  const row = pendingMsgs.length
+    ? findEchoedPendingMessage(pendingMsgs, content, timestamp, consumed)
+    : undefined;
   return row ? [row] : [];
 }
 
@@ -914,8 +1232,10 @@ async function settleEchoesOn(
 ): Promise<void> {
   if (primary) {
     const patch: Record<string, unknown> = {};
-    if (!message.client_id && primary.client_id) patch.client_id = primary.client_id;
-    if (!message.from_user_id && primary.from_user_id) patch.from_user_id = primary.from_user_id;
+    if (!message.client_id && primary.client_id)
+      patch.client_id = primary.client_id;
+    if (!message.from_user_id && primary.from_user_id)
+      patch.from_user_id = primary.from_user_id;
     if (Object.keys(patch).length) await ctx.db.patch(message._id, patch);
   }
   for (const row of echoed) await settleEchoedPending(ctx, row, message._id);
@@ -926,10 +1246,18 @@ async function settleEchoesOn(
 // backfill, which reads its real opening, where this batch holds its latest turn.
 function stampFirstPrompt(
   conversation: Doc<"conversations">,
-  rows: ReadonlyArray<{ role: string; content?: string | null; tool_results?: readonly unknown[] | null }>,
+  rows: ReadonlyArray<{
+    role: string;
+    content?: string | null;
+    tool_results?: readonly unknown[] | null;
+  }>,
   convPatch: Record<string, unknown>,
 ) {
-  if (conversation.first_prompt || (conversation.message_count ?? 0) >= FIRST_PROMPT_STAMP_WINDOW) return;
+  if (
+    conversation.first_prompt ||
+    (conversation.message_count ?? 0) >= FIRST_PROMPT_STAMP_WINDOW
+  )
+    return;
   const opening = firstPromptOf(rows);
   if (opening) convPatch.first_prompt = redactSecrets(opening);
 }
@@ -946,8 +1274,21 @@ function stampFirstPrompt(
 // standing session or one of its hands also bumps the role's daily token
 // counter, which is what the caps read, and every counted turn lands in its
 // owner's per-day usage counters (lib/usageDaily) on the turn's own day.
-type UsageIn = { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
-export type UsageRow = { usage: UsageIn; api_message_id?: string; inserted: boolean; model?: string; timestamp?: number };
+type UsageIn =
+  | {
+      input_tokens: number;
+      output_tokens: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    }
+  | undefined;
+export type UsageRow = {
+  usage: UsageIn;
+  api_message_id?: string;
+  inserted: boolean;
+  model?: string;
+  timestamp?: number;
+};
 export async function rollUpUsage(
   ctx: { db: any; scheduler: any },
   conversation: any,
@@ -955,9 +1296,20 @@ export async function rollUpUsage(
   convPatch: Record<string, unknown>,
   now: number,
 ): Promise<void> {
-  const prev = conversation.usage_totals ?? { input: 0, output: 0, cache_read: 0, cache_write: 0, updated_at: 0 };
-  const seen = new Set<string>(prev.last_api_message_id ? [prev.last_api_message_id] : []);
-  let input = 0, output = 0, cacheRead = 0, cacheWrite = 0;
+  const prev = conversation.usage_totals ?? {
+    input: 0,
+    output: 0,
+    cache_read: 0,
+    cache_write: 0,
+    updated_at: 0,
+  };
+  const seen = new Set<string>(
+    prev.last_api_message_id ? [prev.last_api_message_id] : [],
+  );
+  let input = 0,
+    output = 0,
+    cacheRead = 0,
+    cacheWrite = 0;
   let lastId: string | undefined = prev.last_api_message_id;
   let contextTokens: number | undefined = prev.context_tokens;
   const turns: UsageTurn[] = [];
@@ -972,10 +1324,17 @@ export async function rollUpUsage(
     output += r.usage.output_tokens || 0;
     cacheRead += r.usage.cache_read_input_tokens || 0;
     cacheWrite += r.usage.cache_creation_input_tokens || 0;
-    turns.push({ usage: r.usage, model: r.model, timestamp: r.timestamp ?? now });
+    turns.push({
+      usage: r.usage,
+      model: r.model,
+      timestamp: r.timestamp ?? now,
+    });
     // A refused turn (a limit banner) carries an all-zero usage block; it did not
     // shrink the context, so it never overwrites the last real reading.
-    const context = (r.usage.input_tokens || 0) + (r.usage.cache_read_input_tokens || 0) + (r.usage.cache_creation_input_tokens || 0);
+    const context =
+      (r.usage.input_tokens || 0) +
+      (r.usage.cache_read_input_tokens || 0) +
+      (r.usage.cache_creation_input_tokens || 0);
     if (context > 0) contextTokens = context;
   }
   if (input + output + cacheRead + cacheWrite === 0) return;
@@ -984,8 +1343,13 @@ export async function rollUpUsage(
   // fleet spends costs no extra write (usageCalibration.ts).
   const slot = calibrationSlot(now);
   const slotWeighted =
-    (prev.slot === slot ? prev.slot_weighted ?? 0 : 0) +
-    weightedTokens({ input, output, cache_read: cacheRead, cache_write: cacheWrite });
+    (prev.slot === slot ? (prev.slot_weighted ?? 0) : 0) +
+    weightedTokens({
+      input,
+      output,
+      cache_read: cacheRead,
+      cache_write: cacheWrite,
+    });
   convPatch.usage_totals = {
     input: prev.input + input,
     output: prev.output + output,
@@ -1000,7 +1364,8 @@ export async function rollUpUsage(
   await recordUsageDays(ctx, conversation, turns);
   const roleId = conversation.standing_role_id ?? conversation.org_role_id;
   // On the session's own row, never the role (lib/orgCaps addRoleTokens).
-  if (roleId) await addRoleTokens(ctx, roleId, conversation._id, input + output, now);
+  if (roleId)
+    await addRoleTokens(ctx, roleId, conversation._id, input + output, now);
 }
 
 export const addMessage = mutation({
@@ -1011,45 +1376,63 @@ export const addMessage = mutation({
       v.literal("user"),
       v.literal("assistant"),
       v.literal("system"),
-      v.literal("tool")
+      v.literal("tool"),
     ),
     content: v.optional(v.string()),
     thinking: v.optional(v.string()),
-    tool_calls: v.optional(v.array(v.object({
-      id: v.string(),
-      name: v.string(),
-      input: v.string(),
-    }))),
-    tool_results: v.optional(v.array(v.object({
-      tool_use_id: v.string(),
-      content: v.string(),
-      is_error: v.optional(v.boolean()),
-    }))),
-    images: v.optional(v.array(v.object({
-      media_type: v.string(),
-      data: v.optional(v.string()),
-      storage_id: v.optional(v.id("_storage")),
-      tool_use_id: v.optional(v.string()),
-    }))),
-    files: v.optional(v.array(v.object({
-      name: v.string(),
-      media_type: v.string(),
-      size: v.optional(v.number()),
-      storage_id: v.optional(v.id("_storage")),
-      tool_use_id: v.optional(v.string()),
-      caption: v.optional(v.string()),
-      display: v.optional(v.string()),
-      error: v.optional(v.string()),
-    }))),
+    tool_calls: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          input: v.string(),
+        }),
+      ),
+    ),
+    tool_results: v.optional(
+      v.array(
+        v.object({
+          tool_use_id: v.string(),
+          content: v.string(),
+          is_error: v.optional(v.boolean()),
+        }),
+      ),
+    ),
+    images: v.optional(
+      v.array(
+        v.object({
+          media_type: v.string(),
+          data: v.optional(v.string()),
+          storage_id: v.optional(v.id("_storage")),
+          tool_use_id: v.optional(v.string()),
+        }),
+      ),
+    ),
+    files: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          media_type: v.string(),
+          size: v.optional(v.number()),
+          storage_id: v.optional(v.id("_storage")),
+          tool_use_id: v.optional(v.string()),
+          caption: v.optional(v.string()),
+          display: v.optional(v.string()),
+          error: v.optional(v.string()),
+        }),
+      ),
+    ),
     subtype: v.optional(v.string()),
     model: v.optional(v.string()),
     timestamp: v.optional(v.number()),
-    usage: v.optional(v.object({
-      input_tokens: v.number(),
-      output_tokens: v.number(),
-      cache_creation_input_tokens: v.optional(v.number()),
-      cache_read_input_tokens: v.optional(v.number()),
-    })),
+    usage: v.optional(
+      v.object({
+        input_tokens: v.number(),
+        output_tokens: v.number(),
+        cache_creation_input_tokens: v.optional(v.number()),
+        cache_read_input_tokens: v.optional(v.number()),
+      }),
+    ),
     // Claude's API message id: one assistant turn spans several JSONL records
     // that share it and repeat the same usage block, so usage counts once
     // per id (rollUpUsage).
@@ -1070,19 +1453,25 @@ export const addMessage = mutation({
       console.warn(
         `[addMessage] cross-user write blocked: auth=${authUserId} conv=${args.conversation_id} owner=${conversation.user_id} session=${conversation.session_id ?? "?"}`,
       );
-      throw new Error("Unauthorized: can only add messages to your own conversations");
+      throw new Error(
+        "Unauthorized: can only add messages to your own conversations",
+      );
     }
     refuseHostedTranscriptWrite(conversation);
 
     const msgTimestamp = args.timestamp || Date.now();
 
-    const safeContent = args.content ? redactSecrets(args.content) : args.content;
-    const safeThinking = args.thinking ? redactSecrets(args.thinking) : args.thinking;
-    const safeToolCalls = args.tool_calls?.map(tc => ({
+    const safeContent = args.content
+      ? redactSecrets(args.content)
+      : args.content;
+    const safeThinking = args.thinking
+      ? redactSecrets(args.thinking)
+      : args.thinking;
+    const safeToolCalls = args.tool_calls?.map((tc) => ({
       ...tc,
       input: redactSecrets(tc.input),
     }));
-    const safeToolResults = args.tool_results?.map(tr => ({
+    const safeToolResults = args.tool_results?.map((tr) => ({
       ...tr,
       content: redactSecrets(tr.content),
     }));
@@ -1091,7 +1480,9 @@ export const addMessage = mutation({
       const existing = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q) =>
-          q.eq("conversation_id", args.conversation_id).eq("message_uuid", args.message_uuid)
+          q
+            .eq("conversation_id", args.conversation_id)
+            .eq("message_uuid", args.message_uuid),
         )
         .first();
 
@@ -1111,18 +1502,34 @@ export const addMessage = mutation({
           await ctx.db.patch(existing._id, patch);
           // Same backfill watermark rule as addMessages: an edit far behind
           // the head is invisible to the live tail — bump the revision.
-          if (existing.timestamp < conversation.updated_at - OLD_ROW_EDIT_MARGIN_MS) {
+          if (
+            existing.timestamp <
+            conversation.updated_at - OLD_ROW_EDIT_MARGIN_MS
+          ) {
             await ctx.db.patch(args.conversation_id, {
               transcript_revision: (conversation.transcript_revision ?? 0) + 1,
             });
           }
         }
         const current = { ...existing, ...patch };
-        await materializeConversationImages(ctx, args.conversation_id, existing._id, existing.timestamp,
-          current.content, current.images);
+        await materializeConversationImages(
+          ctx,
+          args.conversation_id,
+          existing._id,
+          existing.timestamp,
+          current.content,
+          current.images,
+        );
         if (safeToolCalls !== undefined || safeToolResults !== undefined) {
-          await materializeFileChanges(ctx, args.conversation_id, existing._id, existing.timestamp,
-            current.tool_calls, current.tool_results, extractFileChanges([existing]));
+          await materializeFileChanges(
+            ctx,
+            args.conversation_id,
+            existing._id,
+            existing.timestamp,
+            current.tool_calls,
+            current.tool_results,
+            extractFileChanges([existing]),
+          );
         }
         await bumpSessionTallies(ctx, conversation, existing, current);
         return existing._id;
@@ -1132,18 +1539,24 @@ export const addMessage = mutation({
     if (args.role === "user") {
       const hasContent = !!safeContent?.trim();
       const hasImages = args.images && args.images.length > 0;
-      const hasToolResults = !!args.tool_results && args.tool_results.length > 0;
+      const hasToolResults =
+        !!args.tool_results && args.tool_results.length > 0;
       if ((hasContent || hasImages) && !hasToolResults) {
         const recentMessages = await ctx.db
           .query("messages")
           .withIndex("by_conversation_timestamp", (q) =>
-            q.eq("conversation_id", args.conversation_id)
+            q.eq("conversation_id", args.conversation_id),
           )
           .order("desc")
           .take(5);
         const dup = findDuplicateUserRow(
           recentMessages,
-          { content: safeContent, timestamp: msgTimestamp, tool_results: args.tool_results, images: args.images },
+          {
+            content: safeContent,
+            timestamp: msgTimestamp,
+            tool_results: args.tool_results,
+            images: args.images,
+          },
           redactSecrets,
         );
         if (dup) {
@@ -1159,7 +1572,11 @@ export const addMessage = mutation({
     let matchingPending: Doc<"pending_messages"> | undefined;
     if (args.role === "user") {
       const pendingMsgs = await pendingRowsForEcho(ctx, args.conversation_id);
-      matchingPending = findEchoedPendingMessage(pendingMsgs, safeContent, msgTimestamp);
+      matchingPending = findEchoedPendingMessage(
+        pendingMsgs,
+        safeContent,
+        msgTimestamp,
+      );
       if (matchingPending) {
         contentToStore = redactSecrets(matchingPending.content);
         clientIdToStore = matchingPending.client_id;
@@ -1168,10 +1585,16 @@ export const addMessage = mutation({
         // only point where "who typed it" is known.
         fromUserIdToStore = matchingPending.from_user_id;
       }
-      const resolved = resolveEchoImages(images, matchingPending, safeContent || "");
-      images = (resolved === null
-        ? await verifiedEchoImages(ctx, safeContent || "")
-        : resolved) as typeof images;
+      const resolved = resolveEchoImages(
+        images,
+        matchingPending,
+        safeContent || "",
+      );
+      images = (
+        resolved === null
+          ? await verifiedEchoImages(ctx, safeContent || "")
+          : resolved
+      ) as typeof images;
       if (images && images.length === 0) images = undefined;
     }
 
@@ -1191,32 +1614,77 @@ export const addMessage = mutation({
       usage: args.usage,
       client_id: clientIdToStore,
       timestamp: msgTimestamp,
-      ...navPromptField({ role: args.role, content: contentToStore, tool_results: safeToolResults, images, subtype: args.subtype }),
+      ...navPromptField({
+        role: args.role,
+        content: contentToStore,
+        tool_results: safeToolResults,
+        images,
+        subtype: args.subtype,
+      }),
     });
-    if (matchingPending) await settleEchoedPending(ctx, matchingPending, messageId);
-    const sendMsg = { _id: messageId, role: args.role, content: contentToStore, tool_results: safeToolResults, from_user_id: fromUserIdToStore, queued: queuedBy(matchingPending) };
+    if (matchingPending)
+      await settleEchoedPending(ctx, matchingPending, messageId);
+    const sendMsg = {
+      _id: messageId,
+      role: args.role,
+      content: contentToStore,
+      tool_results: safeToolResults,
+      from_user_id: fromUserIdToStore,
+      queued: queuedBy(matchingPending),
+    };
     await scheduleUserSend(ctx, conversation, sendMsg, msgTimestamp);
     const opener = turnOpener(conversation, sendMsg);
-    await materializeFileChanges(ctx, args.conversation_id, messageId, msgTimestamp, safeToolCalls, safeToolResults);
-    await bumpSessionTallies(ctx, conversation, undefined, { tool_results: safeToolResults });
-    await materializeConversationImages(ctx, args.conversation_id, messageId, msgTimestamp, contentToStore, images);
-    if (args.role === "assistant") await markAnsweredReviewNotes(ctx, args.conversation_id, { _id: messageId, content: contentToStore, timestamp: msgTimestamp });
-    if (args.role === "assistant") await relayDecisionReply(ctx, args.conversation_id, { _id: messageId, content: contentToStore, timestamp: msgTimestamp, subtype: args.subtype });
+    await materializeFileChanges(
+      ctx,
+      args.conversation_id,
+      messageId,
+      msgTimestamp,
+      safeToolCalls,
+      safeToolResults,
+    );
+    await bumpSessionTallies(ctx, conversation, undefined, {
+      tool_results: safeToolResults,
+    });
+    await materializeConversationImages(
+      ctx,
+      args.conversation_id,
+      messageId,
+      msgTimestamp,
+      contentToStore,
+      images,
+    );
+    if (args.role === "assistant")
+      await markAnsweredReviewNotes(ctx, args.conversation_id, {
+        _id: messageId,
+        content: contentToStore,
+        timestamp: msgTimestamp,
+      });
+    if (args.role === "assistant")
+      await relayDecisionReply(ctx, args.conversation_id, {
+        _id: messageId,
+        content: contentToStore,
+        timestamp: msgTimestamp,
+        subtype: args.subtype,
+      });
     const newMessageCount = conversation.message_count + 1;
     const now = Date.now();
 
     // Mirror addMessages' API-error banner supersession on the single-message
     // retry path so a banner inserted here is cleared once a real turn lands.
-    const msgBannerKind = args.role === "assistant" ? classifyApiErrorBanner(contentToStore) : null;
+    const msgBannerKind =
+      args.role === "assistant" ? classifyApiErrorBanner(contentToStore) : null;
     const msgIsBanner = msgBannerKind !== null;
     const wasPendingApiError = conversation.pending_api_error === true;
-    const msgIsRealTurn = liftsPark({
-      role: args.role,
-      content: contentToStore,
-      tool_calls: safeToolCalls,
-      tool_results: safeToolResults,
-      images,
-    }, wasPendingApiError ? conversation.pending_api_error_kind : undefined);
+    const msgIsRealTurn = liftsPark(
+      {
+        role: args.role,
+        content: contentToStore,
+        tool_calls: safeToolCalls,
+        tool_results: safeToolResults,
+        images,
+      },
+      wasPendingApiError ? conversation.pending_api_error_kind : undefined,
+    );
     let supersededBanners = 0;
     if (
       apiErrorBatchAction({
@@ -1225,7 +1693,11 @@ export const addMessage = mutation({
         conversationPending: wasPendingApiError,
       }) === "supersede"
     ) {
-      supersededBanners = await supersedeApiErrorBanners(ctx, args.conversation_id, msgTimestamp);
+      supersededBanners = await supersedeApiErrorBanners(
+        ctx,
+        args.conversation_id,
+        msgTimestamp,
+      );
     }
 
     const convPatch: Record<string, unknown> = {
@@ -1235,31 +1707,82 @@ export const addMessage = mutation({
       updated_at: Math.max(conversation.updated_at, msgTimestamp),
       last_message_role: args.role,
     };
-    stampFirstPrompt(conversation, [{ role: args.role, content: safeContent, tool_results: args.tool_results }], convPatch);
-    await rollUpUsage(ctx, conversation, [{ usage: args.usage, api_message_id: args.api_message_id, inserted: true, model: args.model, timestamp: msgTimestamp }], convPatch, now);
-    const msgModel = lastKnownModelFromBatch([{ role: args.role, model: args.model, content: contentToStore, timestamp: msgTimestamp }]);
+    stampFirstPrompt(
+      conversation,
+      [
+        {
+          role: args.role,
+          content: safeContent,
+          tool_results: args.tool_results,
+        },
+      ],
+      convPatch,
+    );
+    await rollUpUsage(
+      ctx,
+      conversation,
+      [
+        {
+          usage: args.usage,
+          api_message_id: args.api_message_id,
+          inserted: true,
+          model: args.model,
+          timestamp: msgTimestamp,
+        },
+      ],
+      convPatch,
+      now,
+    );
+    const msgModel = lastKnownModelFromBatch([
+      {
+        role: args.role,
+        model: args.model,
+        content: contentToStore,
+        timestamp: msgTimestamp,
+      },
+    ]);
     if (msgModel && msgModel !== conversation.model) {
       convPatch.model = msgModel;
     }
-    const msgEffort = lastKnownEffortFromBatch([{ role: args.role, content: contentToStore, timestamp: msgTimestamp }]);
+    const msgEffort = lastKnownEffortFromBatch([
+      { role: args.role, content: contentToStore, timestamp: msgTimestamp },
+    ]);
     if (msgEffort && msgEffort !== conversation.effort) {
       convPatch.effort = msgEffort;
     }
-    const safetyPatch = safetyBlockPatch(conversation, [{ role: args.role, content: contentToStore, timestamp: msgTimestamp }], now);
-    const nextPending = safetyPatch ? true : nextPendingApiError({
-      newestIsBanner: msgIsBanner,
-      batchHasRealTurn: msgIsRealTurn,
-      conversationPending: wasPendingApiError,
-    });
+    const safetyPatch = safetyBlockPatch(
+      conversation,
+      [{ role: args.role, content: contentToStore, timestamp: msgTimestamp }],
+      now,
+    );
+    const nextPending = safetyPatch
+      ? true
+      : nextPendingApiError({
+          newestIsBanner: msgIsBanner,
+          batchHasRealTurn: msgIsRealTurn,
+          conversationPending: wasPendingApiError,
+        });
     if (nextPending !== wasPendingApiError) {
       convPatch.pending_api_error = nextPending;
     }
     // A kept flag keeps its kind and stamp; only a fresh banner rewrites them.
-    const nextBannerKind = safetyPatch?.pending_api_error_kind ?? (msgIsBanner ? msgBannerKind : nextPending ? conversation.pending_api_error_kind ?? undefined : undefined);
+    const nextBannerKind =
+      safetyPatch?.pending_api_error_kind ??
+      (msgIsBanner
+        ? msgBannerKind
+        : nextPending
+          ? (conversation.pending_api_error_kind ?? undefined)
+          : undefined);
     if ((conversation.pending_api_error_kind ?? undefined) !== nextBannerKind) {
       convPatch.pending_api_error_kind = nextBannerKind;
     }
-    const nextBannerAt = safetyPatch?.pending_api_error_at ?? (msgIsBanner ? msgTimestamp : nextPending ? conversation.pending_api_error_at ?? undefined : undefined);
+    const nextBannerAt =
+      safetyPatch?.pending_api_error_at ??
+      (msgIsBanner
+        ? msgTimestamp
+        : nextPending
+          ? (conversation.pending_api_error_at ?? undefined)
+          : undefined);
     if ((conversation.pending_api_error_at ?? undefined) !== nextBannerAt) {
       convPatch.pending_api_error_at = nextBannerAt;
     }
@@ -1271,45 +1794,78 @@ export const addMessage = mutation({
     // again) is history, not an incident: it keeps its flag but wakes nothing.
     if (
       msgIsBanner &&
-      nextBannerKind && nextBannerKind !== "error" &&
-      (!wasPendingApiError || conversation.pending_api_error_kind !== nextBannerKind) &&
+      nextBannerKind &&
+      nextBannerKind !== "error" &&
+      (!wasPendingApiError ||
+        conversation.pending_api_error_kind !== nextBannerKind) &&
       isCurrentBlock({ pending_api_error_at: nextBannerAt }, now)
     ) {
-      await onFreshApiErrorPark(ctx, conversation.user_id, nextBannerKind, args.conversation_id);
+      await onFreshApiErrorPark(
+        ctx,
+        conversation.user_id,
+        nextBannerKind,
+        args.conversation_id,
+      );
     }
     if (safetyPatch) Object.assign(convPatch, safetyPatch);
     Object.assign(convPatch, turnOpenerPatch(conversation, opener));
     if (args.role === "user" && contentToStore?.trim()) {
-      convPatch.last_message_preview = redactSecrets(contentToStore).replace(/\u001b\[\d+m/g, "").replace(/\[Image[:\s][^\]]*\]/gi, "").trim().slice(0, 200);
+      convPatch.last_message_preview = redactSecrets(contentToStore)
+        .replace(/\u001b\[\d+m/g, "")
+        .replace(/\[Image[:\s][^\]]*\]/gi, "")
+        .trim()
+        .slice(0, 200);
       convPatch.last_user_message_at = msgTimestamp;
     } else if (args.role === "user") {
       convPatch.last_user_message_at = msgTimestamp;
     }
-    const imagePreview = await latestImagePreviewUrl(ctx, [{ content: contentToStore, images }]);
+    const imagePreview = await latestImagePreviewUrl(ctx, [
+      { content: contentToStore, images },
+    ]);
     if (imagePreview && imagePreview !== conversation.image_preview_url) {
       convPatch.image_preview_url = imagePreview;
     }
     // What the agent is doing now, off this message's newest tool call (the
     // inbox activity line; see schema.activity).
-    const nextActivity = deriveActivity([{ role: args.role, timestamp: msgTimestamp, tool_calls: safeToolCalls }], conversation.activity, now);
+    const nextActivity = deriveActivity(
+      [{ role: args.role, timestamp: msgTimestamp, tool_calls: safeToolCalls }],
+      conversation.activity,
+      now,
+    );
     if (nextActivity) convPatch.activity = nextActivity;
     // Fold harness-loop events (ScheduleWakeup / scheduled_task_fire) into the
     // conversation's loop_state so the inbox trigger set sees the armed loop.
-    const singleMsg = [{ role: args.role, subtype: args.subtype, timestamp: msgTimestamp, tool_calls: args.tool_calls }];
+    const singleMsg = [
+      {
+        role: args.role,
+        subtype: args.subtype,
+        timestamp: msgTimestamp,
+        tool_calls: args.tool_calls,
+      },
+    ];
     if (batchHasLoopEvent(singleMsg)) {
       const nextLoop = deriveLoopState(conversation.loop_state, singleMsg, now);
       if (nextLoop) convPatch.loop_state = nextLoop;
     }
     await ctx.db.patch(args.conversation_id, convPatch);
 
-    const hasToolResultReply = args.role === "user" && !!args.tool_results && args.tool_results.length > 0;
+    const hasToolResultReply =
+      args.role === "user" &&
+      !!args.tool_results &&
+      args.tool_results.length > 0;
     if (args.role === "assistant" || hasToolResultReply) {
       const session = await ctx.db
         .query("managed_sessions")
-        .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", args.conversation_id),
+        )
         .first();
       const nextStatus = session
-        ? nextAgentStatusOnAddMessages(session.agent_status, args.role === "assistant", hasToolResultReply)
+        ? nextAgentStatusOnAddMessages(
+            session.agent_status,
+            args.role === "assistant",
+            hasToolResultReply,
+          )
         : null;
       if (session && nextStatus) {
         await ctx.db.patch(session._id, {
@@ -1321,18 +1877,32 @@ export const addMessage = mutation({
 
     // Same open-poll trigger as addMessages (the retry-queue drain delivers
     // through this singular path).
-    if (args.role === "assistant" && args.tool_calls?.some((tc) => tc.name === "AskUserQuestion")) {
-      await ctx.scheduler.runAfter(NEEDS_INPUT_AUQ_CHECK_DELAY_MS, internal.notifications.checkNeedsInput, {
-        conversation_id: args.conversation_id,
-      });
+    if (
+      args.role === "assistant" &&
+      args.tool_calls?.some((tc) => tc.name === "AskUserQuestion")
+    ) {
+      await ctx.scheduler.runAfter(
+        NEEDS_INPUT_AUQ_CHECK_DELAY_MS,
+        internal.notifications.checkNeedsInput,
+        {
+          conversation_id: args.conversation_id,
+        },
+      );
     }
 
-    await maybeScheduleTitleGeneration(ctx, conversation, newMessageCount - 1, newMessageCount);
+    await maybeScheduleTitleGeneration(
+      ctx,
+      conversation,
+      newMessageCount - 1,
+      newMessageCount,
+    );
 
     if (args.role === "user" && safeContent) {
       const planMentions = safeContent.match(/\bpl-[a-z0-9]{3,8}\b/gi);
       if (planMentions) {
-        const uniquePlanMentions = [...new Set(planMentions.map(m => m.toLowerCase()))];
+        const uniquePlanMentions = [
+          ...new Set(planMentions.map((m) => m.toLowerCase())),
+        ];
         for (const mention of uniquePlanMentions) {
           const plan = await ctx.db
             .query("plans")
@@ -1340,14 +1910,28 @@ export const addMessage = mutation({
             .first();
           if (plan) {
             const convPlanIds = (conversation as any).plan_ids || [];
-            if (!convPlanIds.some((pid: any) => pid.toString() === plan._id.toString())) {
+            if (
+              !convPlanIds.some(
+                (pid: any) => pid.toString() === plan._id.toString(),
+              )
+            ) {
               convPlanIds.push(plan._id);
-              await ctx.db.patch(args.conversation_id, { plan_ids: convPlanIds });
+              await ctx.db.patch(args.conversation_id, {
+                plan_ids: convPlanIds,
+              });
             }
             const planSessionIds = plan.session_ids || [];
-            if (!planSessionIds.some((sid: any) => sid.toString() === args.conversation_id.toString())) {
+            if (
+              !planSessionIds.some(
+                (sid: any) =>
+                  sid.toString() === args.conversation_id.toString(),
+              )
+            ) {
               planSessionIds.push(args.conversation_id);
-              await ctx.db.patch(plan._id, { session_ids: planSessionIds, updated_at: Date.now() });
+              await ctx.db.patch(plan._id, {
+                session_ids: planSessionIds,
+                updated_at: Date.now(),
+              });
             }
           }
         }
@@ -1355,7 +1939,9 @@ export const addMessage = mutation({
 
       const taskMentions = safeContent.match(/\bct-[a-z0-9]{3,8}\b/gi);
       if (taskMentions) {
-        const uniqueTaskMentions = [...new Set(taskMentions.map(m => m.toLowerCase()))];
+        const uniqueTaskMentions = [
+          ...new Set(taskMentions.map((m) => m.toLowerCase())),
+        ];
         for (const mention of uniqueTaskMentions) {
           const task = await ctx.db
             .query("tasks")
@@ -1363,7 +1949,12 @@ export const addMessage = mutation({
             .first();
           if (task) {
             const taskConvIds = task.conversation_ids || [];
-            if (!taskConvIds.some((cid: any) => cid.toString() === args.conversation_id.toString())) {
+            if (
+              !taskConvIds.some(
+                (cid: any) =>
+                  cid.toString() === args.conversation_id.toString(),
+              )
+            ) {
               taskConvIds.push(args.conversation_id);
               await ctx.db.patch(task._id, { conversation_ids: taskConvIds });
             }
@@ -1396,12 +1987,18 @@ export async function supersedeApiErrorBanners(
 ): Promise<number> {
   const recent = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_timestamp", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
     .order("desc")
     .take(12);
   let deleted = 0;
   for (const r of recent) {
-    if (r.timestamp < beforeTs && isBannerTurn(r) && classifyApiErrorBanner(r.content) !== "safety") {
+    if (
+      r.timestamp < beforeTs &&
+      isBannerTurn(r) &&
+      classifyApiErrorBanner(r.content) !== "safety"
+    ) {
       await ctx.db.delete(r._id);
       await dropMirroredMessage(ctx, r._id);
       deleted++;
@@ -1420,48 +2017,66 @@ export const messageValidator = v.object({
     v.literal("user"),
     v.literal("assistant"),
     v.literal("system"),
-    v.literal("tool")
+    v.literal("tool"),
   ),
   content: v.optional(v.string()),
   thinking: v.optional(v.string()),
   // Kept for hosted writes only, in message_thinking rather than on the row.
   thinking_signature: v.optional(v.string()),
   thinking_redacted: v.optional(v.boolean()),
-  tool_calls: v.optional(v.array(v.object({
-    id: v.string(),
-    name: v.string(),
-    input: v.string(),
-  }))),
-  tool_results: v.optional(v.array(v.object({
-    tool_use_id: v.string(),
-    content: v.string(),
-    is_error: v.optional(v.boolean()),
-  }))),
-  images: v.optional(v.array(v.object({
-    media_type: v.string(),
-    data: v.optional(v.string()),
-    storage_id: v.optional(v.id("_storage")),
-    tool_use_id: v.optional(v.string()),
-  }))),
-  files: v.optional(v.array(v.object({
-    name: v.string(),
-    media_type: v.string(),
-    size: v.optional(v.number()),
-    storage_id: v.optional(v.id("_storage")),
-    tool_use_id: v.optional(v.string()),
-    caption: v.optional(v.string()),
-    display: v.optional(v.string()),
-    error: v.optional(v.string()),
-  }))),
+  tool_calls: v.optional(
+    v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        input: v.string(),
+      }),
+    ),
+  ),
+  tool_results: v.optional(
+    v.array(
+      v.object({
+        tool_use_id: v.string(),
+        content: v.string(),
+        is_error: v.optional(v.boolean()),
+      }),
+    ),
+  ),
+  images: v.optional(
+    v.array(
+      v.object({
+        media_type: v.string(),
+        data: v.optional(v.string()),
+        storage_id: v.optional(v.id("_storage")),
+        tool_use_id: v.optional(v.string()),
+      }),
+    ),
+  ),
+  files: v.optional(
+    v.array(
+      v.object({
+        name: v.string(),
+        media_type: v.string(),
+        size: v.optional(v.number()),
+        storage_id: v.optional(v.id("_storage")),
+        tool_use_id: v.optional(v.string()),
+        caption: v.optional(v.string()),
+        display: v.optional(v.string()),
+        error: v.optional(v.string()),
+      }),
+    ),
+  ),
   subtype: v.optional(v.string()),
   model: v.optional(v.string()),
   timestamp: v.optional(v.number()),
-  usage: v.optional(v.object({
-    input_tokens: v.number(),
-    output_tokens: v.number(),
-    cache_creation_input_tokens: v.optional(v.number()),
-    cache_read_input_tokens: v.optional(v.number()),
-  })),
+  usage: v.optional(
+    v.object({
+      input_tokens: v.number(),
+      output_tokens: v.number(),
+      cache_creation_input_tokens: v.optional(v.number()),
+      cache_read_input_tokens: v.optional(v.number()),
+    }),
+  ),
   api_message_id: v.optional(v.string()),
   // The deliveries this user turn echoes: the pending_messages ids the writer
   // handed to the agent and saw come back as this turn (the daemon's
@@ -1524,12 +2139,21 @@ export function nextAgentStatusProbe(
       probe: {
         due_at: current.due_at,
         at: now,
-        has_assistant_message: current.has_assistant_message || projection.has_assistant_message,
-        has_tool_result_reply: current.has_tool_result_reply || projection.has_tool_result_reply,
+        has_assistant_message:
+          current.has_assistant_message || projection.has_assistant_message,
+        has_tool_result_reply:
+          current.has_tool_result_reply || projection.has_tool_result_reply,
       },
     };
   }
-  return { schedule: true, probe: { ...projection, due_at: now + AGENT_STATUS_PROBE_WINDOW_MS, at: now } };
+  return {
+    schedule: true,
+    probe: {
+      ...projection,
+      due_at: now + AGENT_STATUS_PROBE_WINDOW_MS,
+      at: now,
+    },
+  };
 }
 
 /**
@@ -1545,19 +2169,26 @@ export async function sessionAwaitsAgentStatusProjection(
   conversationId: Id<"conversations">,
   projection: AddMessagesAgentStatusProjection,
 ): Promise<boolean> {
-  const inStatus = async (status: string) => !!(await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("agent_status", status))
-    .first());
-  return (projection.has_assistant_message && (await inStatus("idle")))
-    || (projection.has_tool_result_reply && (await inStatus("permission_blocked")));
+  const inStatus = async (status: string) =>
+    !!(await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", conversationId).eq("agent_status", status),
+      )
+      .first());
+  return (
+    (projection.has_assistant_message && (await inStatus("idle"))) ||
+    (projection.has_tool_result_reply && (await inStatus("permission_blocked")))
+  );
 }
 
 export function shouldApplyAddMessagesAgentStatusProjection(
   agentStatusUpdatedAt: number | undefined,
   scheduledAt: number,
 ): boolean {
-  return agentStatusUpdatedAt === undefined || agentStatusUpdatedAt <= scheduledAt;
+  return (
+    agentStatusUpdatedAt === undefined || agentStatusUpdatedAt <= scheduledAt
+  );
 }
 
 // Content-matched duplicate suppression for USER rows: the same typed message
@@ -1580,10 +2211,16 @@ export type UserDedupeRow = {
 
 export function findDuplicateUserRow<T extends UserDedupeRow>(
   recent: T[],
-  incoming: { content?: string; timestamp: number; tool_results?: unknown[]; images?: unknown[] },
+  incoming: {
+    content?: string;
+    timestamp: number;
+    tool_results?: unknown[];
+    images?: unknown[];
+  },
   normalize: (content: string) => string = (c) => c,
 ): T | undefined {
-  if (incoming.tool_results && incoming.tool_results.length > 0) return undefined;
+  if (incoming.tool_results && incoming.tool_results.length > 0)
+    return undefined;
   const content = (incoming.content || "").trim();
   const hasImages = !!incoming.images && incoming.images.length > 0;
   if (!content && !hasImages) return undefined;
@@ -1602,7 +2239,9 @@ export function findDuplicateUserRow<T extends UserDedupeRow>(
 function batchHasWork(messages: readonly unknown[]): boolean {
   if (messages.length === 0) return false;
   if (messages.length > MAX_BATCH_SIZE) {
-    throw new Error(`Batch size ${messages.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
+    throw new Error(
+      `Batch size ${messages.length} exceeds maximum of ${MAX_BATCH_SIZE}`,
+    );
   }
   return true;
 }
@@ -1614,7 +2253,9 @@ function batchHasWork(messages: readonly unknown[]): boolean {
 // queued input through the echo match, or report usage.
 function refuseHostedTranscriptWrite(conversation: Doc<"conversations">) {
   if (isHostedAgentType(conversation.agent_type)) {
-    throw new Error("A hosted conversation's transcript is written by its turn engine");
+    throw new Error(
+      "A hosted conversation's transcript is written by its turn engine",
+    );
   }
 }
 
@@ -1624,7 +2265,11 @@ function refuseHostedTranscriptWrite(conversation: Doc<"conversations">) {
 // older than delivery ids, whose echoes are still paired by text
 // (findEchoedPendingMessage), as is ackInjectedMessages' delivery_acks. Both
 // go once the oldest CLI still syncing is the release that carries echo_ids.
-export type MessageBatch = { conversation_id: Id<"conversations">; messages: Array<typeof messageValidator.type>; echo_ids?: boolean };
+export type MessageBatch = {
+  conversation_id: Id<"conversations">;
+  messages: Array<typeof messageValidator.type>;
+  echo_ids?: boolean;
+};
 
 export const addMessages = mutation({
   args: {
@@ -1651,7 +2296,9 @@ export const addMessages = mutation({
       console.warn(
         `[addMessages] cross-user write blocked: auth=${authUserId} conv=${args.conversation_id} owner=${conversation.user_id} session=${conversation.session_id ?? "?"} batch=${args.messages.length}`,
       );
-      throw new Error("Unauthorized: can only add messages to your own conversations");
+      throw new Error(
+        "Unauthorized: can only add messages to your own conversations",
+      );
     }
     refuseHostedTranscriptWrite(conversation);
 
@@ -1685,17 +2332,22 @@ export const writeHostedMessages = internalMutation({
 // conversation: the device fence, inserts and uuid rewrites, the pending echo
 // settle, the conversation patch (counts, previews, usage rollup, banners),
 // and the scheduled projections (agent status, title, docs, needs input).
-export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"conversations">, args: MessageBatch) {
+export async function writeMessageBatch(
+  ctx: MutationCtx,
+  conversation: Doc<"conversations">,
+  args: MessageBatch,
+) {
   // Only a hosted conversation's turn engine writes here with thinking
   // signatures and approvable tool calls (client writers refuse hosted rows).
   const hosted = isHostedAgentType(conversation.agent_type);
-  const messages = args.messages.filter((msg) =>
-    !(
-      conversation.owner_device_id &&
-      typeof msg.source_device_id === "string" &&
-      typeof msg.source_revision === "number" &&
-      msg.source_device_id !== conversation.owner_device_id
-    )
+  const messages = args.messages.filter(
+    (msg) =>
+      !(
+        conversation.owner_device_id &&
+        typeof msg.source_device_id === "string" &&
+        typeof msg.source_revision === "number" &&
+        msg.source_device_id !== conversation.owner_device_id
+      ),
   );
   if (messages.length === 0) {
     // The session moved to another device. Acknowledge the old daemon's
@@ -1725,41 +2377,65 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
   // unless the batch actually carries a user message. consumedPendingIds keeps a
   // pending row from matching two different user messages in the same batch.
   const batchHasUserMsg = args.messages.some((m) => m.role === "user");
-  const pendingMsgs = batchHasUserMsg && !args.echo_ids ? await pendingRowsForEcho(ctx, args.conversation_id) : [];
+  const pendingMsgs =
+    batchHasUserMsg && !args.echo_ids
+      ? await pendingRowsForEcho(ctx, args.conversation_id)
+      : [];
   const consumedPendingIds = new Set<Id<"pending_messages">>();
 
   for (const [batchIndex, msg] of args.messages.entries()) {
     const msgTimestamp = msg.timestamp || Date.now();
 
     const safeContent = msg.content ? redactSecrets(msg.content) : msg.content;
-    const safeThinking = msg.thinking ? redactSecrets(msg.thinking) : msg.thinking;
+    const safeThinking = msg.thinking
+      ? redactSecrets(msg.thinking)
+      : msg.thinking;
     // A hosted conversation's raw tool call arguments, which an approved call
     // runs with, are kept server side by storeHostedReplay; the row keeps the
     // redacted form like every other transcript.
-    const safeToolCalls = msg.tool_calls?.map(tc => ({
+    const safeToolCalls = msg.tool_calls?.map((tc) => ({
       ...tc,
       input: redactSecrets(tc.input),
     }));
-    const safeToolResults = msg.tool_results?.map(tr => ({
+    const safeToolResults = msg.tool_results?.map((tr) => ({
       ...tr,
       content: redactSecrets(tr.content),
     }));
     // Resolve the exact pending intent before duplicate suppression. Two
     // identical user sends with different client ids are distinct durable
     // commands and need distinct transcript relations for v2 coverage.
-    const echoed = msg.role !== "user" ? []
-      : args.echo_ids ? await stampedEchoRows(ctx, conversation, msg.delivery_ids, consumedPendingIds)
-      : legacyEchoRows(pendingMsgs, safeContent, msgTimestamp, consumedPendingIds);
+    const echoed =
+      msg.role !== "user"
+        ? []
+        : args.echo_ids
+          ? await stampedEchoRows(
+              ctx,
+              conversation,
+              msg.delivery_ids,
+              consumedPendingIds,
+            )
+          : legacyEchoRows(
+              pendingMsgs,
+              safeContent,
+              msgTimestamp,
+              consumedPendingIds,
+            );
     // The delivery the turn takes its sender, client id and words from: one
     // no other message took first, so a client id never lands on two rows.
-    const matchingPending = echoed.find((row) => !row.echo_message_id && isOwnRow(row, args.conversation_id));
-    const consumeEchoed = () => { for (const row of echoed) consumedPendingIds.add(row._id); };
+    const matchingPending = echoed.find(
+      (row) => !row.echo_message_id && isOwnRow(row, args.conversation_id),
+    );
+    const consumeEchoed = () => {
+      for (const row of echoed) consumedPendingIds.add(row._id);
+    };
 
     if (msg.message_uuid) {
       const existing = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q) =>
-          q.eq("conversation_id", args.conversation_id).eq("message_uuid", msg.message_uuid)
+          q
+            .eq("conversation_id", args.conversation_id)
+            .eq("message_uuid", msg.message_uuid),
         )
         .first();
 
@@ -1779,9 +2455,12 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
         // usage only on the final write, which lands here as a rewrite: the
         // first usage a row receives is stored and counted once, like an
         // insert (rollUpUsage, keyed by the message's api_message_id).
-        const finalUsage = hosted && msg.usage && !existing.usage ? msg.usage : undefined;
+        const finalUsage =
+          hosted && msg.usage && !existing.usage ? msg.usage : undefined;
         if (finalUsage) insertedIndexes.add(batchIndex);
-        const written = finalUsage ? { ...(patch ?? {}), usage: finalUsage } : patch;
+        const written = finalUsage
+          ? { ...(patch ?? {}), usage: finalUsage }
+          : patch;
         if (written) {
           await ctx.db.patch(existing._id, written);
           // An edit far behind the conversation head is a backfill (resync
@@ -1789,19 +2468,42 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
           // subscription — count it so the watermark bumps below. The margin
           // keeps ordinary streaming patches (which target the newest row)
           // from bumping the conversation doc on every flush.
-          if (existing.timestamp < conversation.updated_at - OLD_ROW_EDIT_MARGIN_MS) {
+          if (
+            existing.timestamp <
+            conversation.updated_at - OLD_ROW_EDIT_MARGIN_MS
+          ) {
             oldRowEdits++;
           }
         }
         const current = { ...existing, ...written };
-        await materializeConversationImages(ctx, args.conversation_id, existing._id, existing.timestamp,
-          current.content, current.images);
+        await materializeConversationImages(
+          ctx,
+          args.conversation_id,
+          existing._id,
+          existing.timestamp,
+          current.content,
+          current.images,
+        );
         if (safeToolCalls !== undefined || safeToolResults !== undefined) {
-          await materializeFileChanges(ctx, args.conversation_id, existing._id, existing.timestamp,
-            current.tool_calls, current.tool_results, extractFileChanges([existing]));
+          await materializeFileChanges(
+            ctx,
+            args.conversation_id,
+            existing._id,
+            existing.timestamp,
+            current.tool_calls,
+            current.tool_results,
+            extractFileChanges([existing]),
+          );
         }
         await bumpSessionTallies(ctx, conversation, existing, current);
-        if (hosted) await storeHostedReplay(ctx, args.conversation_id, existing._id, msg, { thinking: safeThinking, tool_calls: safeToolCalls });
+        if (hosted)
+          await storeHostedReplay(
+            ctx,
+            args.conversation_id,
+            existing._id,
+            msg,
+            { thinking: safeThinking, tool_calls: safeToolCalls },
+          );
         // A re-upload of a stored turn settles what it echoes: the id makes
         // the retry converge on the one row, whichever upload stamped first.
         if (args.echo_ids && echoed.length) {
@@ -1821,32 +2523,52 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
         const recentMessages = await ctx.db
           .query("messages")
           .withIndex("by_conversation_timestamp", (q) =>
-            q.eq("conversation_id", args.conversation_id)
+            q.eq("conversation_id", args.conversation_id),
           )
           .order("desc")
           .take(5);
         const dup = findDuplicateUserRow(
           recentMessages,
-          { content: safeContent, timestamp: msgTimestamp, tool_results: msg.tool_results, images: msg.images },
+          {
+            content: safeContent,
+            timestamp: msgTimestamp,
+            tool_results: msg.tool_results,
+            images: msg.images,
+          },
           redactSecrets,
         );
-        if (dup && (!matchingPending?.client_id ||
-          dup.client_id === matchingPending.client_id)) {
+        if (
+          dup &&
+          (!matchingPending?.client_id ||
+            dup.client_id === matchingPending.client_id)
+        ) {
           // If incoming message has images/tool_results that the existing doesn't, patch them in.
           // This handles the race where a fast sync path stores the message without images,
           // and the image-aware sync arrives later matching by content dedup.
           const patch: Record<string, unknown> = {};
-          if (msg.images && msg.images.length > 0 && (!dup.images || dup.images.length === 0)) {
+          if (
+            msg.images &&
+            msg.images.length > 0 &&
+            (!dup.images || dup.images.length === 0)
+          ) {
             patch.images = msg.images;
           }
-          if (msg.tool_results && msg.tool_results.length > 0 && (!dup.tool_results || dup.tool_results.length === 0)) {
+          if (
+            msg.tool_results &&
+            msg.tool_results.length > 0 &&
+            (!dup.tool_results || dup.tool_results.length === 0)
+          ) {
             patch.tool_results = safeToolResults;
           }
           if (Object.keys(patch).length > 0) {
-            await ctx.db.patch(dup._id, { ...patch, ...navPromptPatch(dup, patch) });
+            await ctx.db.patch(dup._id, {
+              ...patch,
+              ...navPromptPatch(dup, patch),
+            });
           }
           consumeEchoed();
-          if (echoed.length) await settleEchoesOn(ctx, dup, echoed, matchingPending);
+          if (echoed.length)
+            await settleEchoesOn(ctx, dup, echoed, matchingPending);
           ids.push(dup._id);
           continue;
         }
@@ -1859,14 +2581,21 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
     consumeEchoed();
     if (matchingPending) {
       // A turn that carried several sends keeps the agent's words, which hold them all.
-      if (echoed.length === 1) contentToStore = redactSecrets(matchingPending.content);
+      if (echoed.length === 1)
+        contentToStore = redactSecrets(matchingPending.content);
       clientIdToStore = matchingPending.client_id;
     }
     if (msg.role === "user") {
-      const resolved = resolveEchoImages(images, matchingPending, safeContent || "");
-      images = (resolved === null
-        ? await verifiedEchoImages(ctx, safeContent || "")
-        : resolved) as typeof images;
+      const resolved = resolveEchoImages(
+        images,
+        matchingPending,
+        safeContent || "",
+      );
+      images = (
+        resolved === null
+          ? await verifiedEchoImages(ctx, safeContent || "")
+          : resolved
+      ) as typeof images;
       if (images && images.length === 0) images = undefined;
     }
 
@@ -1889,27 +2618,77 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
       usage: msg.usage,
       client_id: clientIdToStore,
       timestamp: msgTimestamp,
-      ...navPromptField({ role: msg.role, content: contentToStore, tool_results: safeToolResults, images, subtype: msg.subtype }),
+      ...navPromptField({
+        role: msg.role,
+        content: contentToStore,
+        tool_results: safeToolResults,
+        images,
+        subtype: msg.subtype,
+      }),
     });
     for (const row of echoed) await settleEchoedPending(ctx, row, messageId);
-    if (hosted) await storeHostedReplay(ctx, args.conversation_id, messageId, msg, { thinking: safeThinking, tool_calls: safeToolCalls });
+    if (hosted)
+      await storeHostedReplay(ctx, args.conversation_id, messageId, msg, {
+        thinking: safeThinking,
+        tool_calls: safeToolCalls,
+      });
     ids.push(messageId);
     insertedCount++;
     insertedIndexes.add(batchIndex);
-    const sendMsg = { _id: messageId, role: msg.role, content: contentToStore, tool_results: safeToolResults, from_user_id: matchingPending?.from_user_id, queued: queuedBy(matchingPending) };
+    const sendMsg = {
+      _id: messageId,
+      role: msg.role,
+      content: contentToStore,
+      tool_results: safeToolResults,
+      from_user_id: matchingPending?.from_user_id,
+      queued: queuedBy(matchingPending),
+    };
     await scheduleUserSend(ctx, conversation, sendMsg, msgTimestamp);
     lastTurnOpener = turnOpener(conversation, sendMsg) ?? lastTurnOpener;
-    await materializeFileChanges(ctx, args.conversation_id, messageId, msgTimestamp, safeToolCalls, safeToolResults);
-    await bumpSessionTallies(ctx, conversation, undefined, { tool_results: safeToolResults });
-    await materializeConversationImages(ctx, args.conversation_id, messageId, msgTimestamp, contentToStore, images);
-    if (msg.role === "assistant") await markAnsweredReviewNotes(ctx, args.conversation_id, { _id: messageId, content: contentToStore, timestamp: msgTimestamp });
-    if (msg.role === "assistant") await relayDecisionReply(ctx, args.conversation_id, { _id: messageId, content: contentToStore, timestamp: msgTimestamp, subtype: msg.subtype });
+    await materializeFileChanges(
+      ctx,
+      args.conversation_id,
+      messageId,
+      msgTimestamp,
+      safeToolCalls,
+      safeToolResults,
+    );
+    await bumpSessionTallies(ctx, conversation, undefined, {
+      tool_results: safeToolResults,
+    });
+    await materializeConversationImages(
+      ctx,
+      args.conversation_id,
+      messageId,
+      msgTimestamp,
+      contentToStore,
+      images,
+    );
+    if (msg.role === "assistant")
+      await markAnsweredReviewNotes(ctx, args.conversation_id, {
+        _id: messageId,
+        content: contentToStore,
+        timestamp: msgTimestamp,
+      });
+    if (msg.role === "assistant")
+      await relayDecisionReply(ctx, args.conversation_id, {
+        _id: messageId,
+        content: contentToStore,
+        timestamp: msgTimestamp,
+        subtype: msg.subtype,
+      });
     if (msg.role === "user") lastUserContentStored = contentToStore;
   }
 
   // Each row's usage, and whether this batch is its first write (inserted, or
   // a hosted streamed row's final write): the one input both rollups below read.
-  const usageRows = args.messages.map((m: any, i: number) => ({ usage: m.usage, api_message_id: m.api_message_id, inserted: insertedIndexes.has(i), model: m.model, timestamp: m.timestamp }));
+  const usageRows = args.messages.map((m: any, i: number) => ({
+    usage: m.usage,
+    api_message_id: m.api_message_id,
+    inserted: insertedIndexes.has(i),
+    model: m.model,
+    timestamp: m.timestamp,
+  }));
   if (insertedCount > 0) {
     const newMessageCount = conversation.message_count + insertedCount;
     const lastMsg = args.messages[args.messages.length - 1];
@@ -1918,7 +2697,10 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
     // up months-old JSONLs) Date.now() would falsely mark every old session
     // as just-active and pollute the inbox's "needs input" / "working"
     // buckets. Math.max guards against clock skew or out-of-order batches.
-    const maxMsgTs = args.messages.reduce((max, m) => Math.max(max, m.timestamp || 0), 0);
+    const maxMsgTs = args.messages.reduce(
+      (max, m) => Math.max(max, m.timestamp || 0),
+      0,
+    );
 
     // --- Supersede transient Claude Code API/auth-error banners ---
     // The CLI rewinds these out of its transcript on a successful retry, but
@@ -1945,7 +2727,11 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
         conversationPending: wasPendingApiError,
       }) === "supersede"
     ) {
-      supersededBanners = await supersedeApiErrorBanners(ctx, args.conversation_id, maxRealTurnTs);
+      supersededBanners = await supersedeApiErrorBanners(
+        ctx,
+        args.conversation_id,
+        maxRealTurnTs,
+      );
     }
 
     const convPatch: Record<string, unknown> = {
@@ -1956,7 +2742,8 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
     stampFirstPrompt(conversation, args.messages, convPatch);
     await rollUpUsage(ctx, conversation, usageRows, convPatch, Date.now());
     if (oldRowEdits > 0) {
-      convPatch.transcript_revision = (conversation.transcript_revision ?? 0) + 1;
+      convPatch.transcript_revision =
+        (conversation.transcript_revision ?? 0) + 1;
     }
     const batchModel = lastKnownModelFromBatch(args.messages);
     if (batchModel && batchModel !== conversation.model) {
@@ -1967,26 +2754,41 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
       convPatch.effort = batchEffort;
     }
     // Keep the gate flag in lockstep with "newest banner-or-turn is a banner".
-    const newestIsBanner = newestSignificant != null && isBannerTurn(newestSignificant);
-    const safetyPatch = safetyBlockPatch(conversation, args.messages, Date.now());
-    const nextPending = safetyPatch ? true : nextPendingApiError({
-      newestIsBanner,
-      batchHasRealTurn,
-      conversationPending: wasPendingApiError,
-    });
+    const newestIsBanner =
+      newestSignificant != null && isBannerTurn(newestSignificant);
+    const safetyPatch = safetyBlockPatch(
+      conversation,
+      args.messages,
+      Date.now(),
+    );
+    const nextPending = safetyPatch
+      ? true
+      : nextPendingApiError({
+          newestIsBanner,
+          batchHasRealTurn,
+          conversationPending: wasPendingApiError,
+        });
     if (nextPending !== wasPendingApiError) {
       convPatch.pending_api_error = nextPending;
     }
     // A kept flag keeps its kind and stamp; only a fresh banner rewrites them.
-    const nextBannerKind = safetyPatch?.pending_api_error_kind ?? (newestIsBanner
-      ? classifyApiErrorBanner(newestSignificant!.content) ?? undefined
-      : nextPending ? conversation.pending_api_error_kind ?? undefined : undefined);
+    const nextBannerKind =
+      safetyPatch?.pending_api_error_kind ??
+      (newestIsBanner
+        ? (classifyApiErrorBanner(newestSignificant!.content) ?? undefined)
+        : nextPending
+          ? (conversation.pending_api_error_kind ?? undefined)
+          : undefined);
     if ((conversation.pending_api_error_kind ?? undefined) !== nextBannerKind) {
       convPatch.pending_api_error_kind = nextBannerKind;
     }
-    const nextBannerAt = safetyPatch?.pending_api_error_at ?? (newestIsBanner
-      ? newestSignificant!.timestamp || Date.now()
-      : nextPending ? conversation.pending_api_error_at ?? undefined : undefined);
+    const nextBannerAt =
+      safetyPatch?.pending_api_error_at ??
+      (newestIsBanner
+        ? newestSignificant!.timestamp || Date.now()
+        : nextPending
+          ? (conversation.pending_api_error_at ?? undefined)
+          : undefined);
     if ((conversation.pending_api_error_at ?? undefined) !== nextBannerAt) {
       convPatch.pending_api_error_at = nextBannerAt;
     }
@@ -1996,22 +2798,37 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
       (newestIsBanner || safetyPatch) &&
       nextBannerKind &&
       nextBannerKind !== "error" &&
-      (!wasPendingApiError || conversation.pending_api_error_kind !== nextBannerKind) &&
+      (!wasPendingApiError ||
+        conversation.pending_api_error_kind !== nextBannerKind) &&
       isCurrentBlock({ pending_api_error_at: nextBannerAt }, Date.now())
     ) {
-      await onFreshApiErrorPark(ctx, conversation.user_id, nextBannerKind, args.conversation_id);
+      await onFreshApiErrorPark(
+        ctx,
+        conversation.user_id,
+        nextBannerKind,
+        args.conversation_id,
+      );
     }
     if (safetyPatch) Object.assign(convPatch, safetyPatch);
     Object.assign(convPatch, turnOpenerPatch(conversation, lastTurnOpener));
     const userMsgs = args.messages.filter((m) => m.role === "user");
     if (userMsgs.length > 0) {
       const lastUserMsg = userMsgs[userMsgs.length - 1];
-      const lastUserTs = userMsgs.reduce((max, m) => Math.max(max, m.timestamp || 0), 0);
+      const lastUserTs = userMsgs.reduce(
+        (max, m) => Math.max(max, m.timestamp || 0),
+        0,
+      );
       if (lastUserTs > 0) {
         convPatch.last_user_message_at = lastUserTs;
       }
       const previewSrc = lastUserContentStored || lastUserMsg.content;
-      const preview = clipText(redactSecrets(previewSrc || "").replace(/\u001b\[\d+m/g, "").replace(/\[Image[:\s][^\]]*\]/gi, "").trim(), 200);
+      const preview = clipText(
+        redactSecrets(previewSrc || "")
+          .replace(/\u001b\[\d+m/g, "")
+          .replace(/\[Image[:\s][^\]]*\]/gi, "")
+          .trim(),
+        200,
+      );
       if (preview) {
         convPatch.last_message_preview = preview;
       }
@@ -2022,22 +2839,43 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
     }
     // What the agent is doing now, off the batch's newest tool call (the
     // inbox activity line; see schema.activity).
-    const nextActivity = deriveActivity(args.messages, conversation.activity, Date.now());
+    const nextActivity = deriveActivity(
+      args.messages,
+      conversation.activity,
+      Date.now(),
+    );
     if (nextActivity) convPatch.activity = nextActivity;
-    const agentStatusProjection = getAddMessagesAgentStatusProjection(args.messages);
+    const agentStatusProjection = getAddMessagesAgentStatusProjection(
+      args.messages,
+    );
     let agentStatusProbe = agentStatusProjection
-      ? nextAgentStatusProbe(conversation.agent_status_probe, agentStatusProjection, Date.now())
+      ? nextAgentStatusProbe(
+          conversation.agent_status_probe,
+          agentStatusProjection,
+          Date.now(),
+        )
       : null;
-    if (agentStatusProbe?.schedule && !(await sessionAwaitsAgentStatusProjection(ctx, args.conversation_id, agentStatusProjection!))) {
+    if (
+      agentStatusProbe?.schedule &&
+      !(await sessionAwaitsAgentStatusProjection(
+        ctx,
+        args.conversation_id,
+        agentStatusProjection!,
+      ))
+    ) {
       agentStatusProbe = null;
     }
     if (agentStatusProbe) convPatch.agent_status_probe = agentStatusProbe.probe;
     await ctx.db.patch(args.conversation_id, convPatch);
 
     if (agentStatusProbe?.schedule) {
-      await ctx.scheduler.runAfter(AGENT_STATUS_PROBE_WINDOW_MS, internal.messages.projectAgentStatusOnAddMessages, {
-        conversation_id: args.conversation_id,
-      });
+      await ctx.scheduler.runAfter(
+        AGENT_STATUS_PROBE_WINDOW_MS,
+        internal.messages.projectAgentStatusOnAddMessages,
+        {
+          conversation_id: args.conversation_id,
+        },
+      );
     }
 
     // Comment-thread agent reply: when this conversation is the hidden fork
@@ -2045,7 +2883,8 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
     // back into the placeholder comment. Single cheap field check skips this for
     // all ordinary traffic; the mirror runs off this transaction.
     if (
-      (conversation as { comment_fork_comment_id?: unknown }).comment_fork_comment_id &&
+      (conversation as { comment_fork_comment_id?: unknown })
+        .comment_fork_comment_id &&
       args.messages.some((m) => m.role === "assistant" && !!m.content?.trim())
     ) {
       await ctx.scheduler.runAfter(0, internal.comments.mirrorAgentReply, {
@@ -2053,16 +2892,23 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
       });
     }
 
-    await maybeScheduleTitleGeneration(ctx, conversation, conversation.message_count, newMessageCount);
-
+    await maybeScheduleTitleGeneration(
+      ctx,
+      conversation,
+      conversation.message_count,
+      newMessageCount,
+    );
   } else if (oldRowEdits > 0 || insertedIndexes.size > 0) {
     // Backfill-only batch (no inserts): still bump the watermark so tail
     // subscribers learn that rows behind their anchor changed. A hosted
     // message's final write (usage on a streamed row) is counted here.
     const convPatch: Record<string, unknown> = {};
-    if (oldRowEdits > 0) convPatch.transcript_revision = (conversation.transcript_revision ?? 0) + 1;
+    if (oldRowEdits > 0)
+      convPatch.transcript_revision =
+        (conversation.transcript_revision ?? 0) + 1;
     await rollUpUsage(ctx, conversation, usageRows, convPatch, Date.now());
-    if (Object.keys(convPatch).length > 0) await ctx.db.patch(args.conversation_id, convPatch);
+    if (Object.keys(convPatch).length > 0)
+      await ctx.db.patch(args.conversation_id, convPatch);
   }
 
   // Fold harness-loop events (ScheduleWakeup / scheduled_task_fire) into
@@ -2071,8 +2917,13 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
   // the already-synced streaming message. The batchHasLoopEvent gate keeps
   // ordinary traffic free of the derivation.
   if (batchHasLoopEvent(args.messages)) {
-    const nextLoop = deriveLoopState(conversation.loop_state, args.messages, Date.now());
-    if (nextLoop) await ctx.db.patch(args.conversation_id, { loop_state: nextLoop });
+    const nextLoop = deriveLoopState(
+      conversation.loop_state,
+      args.messages,
+      Date.now(),
+    );
+    if (nextLoop)
+      await ctx.db.patch(args.conversation_id, { loop_state: nextLoop });
   }
 
   // An AskUserQuestion tool_use arriving as the batch's newest message means
@@ -2084,14 +2935,20 @@ export async function writeMessageBatch(ctx: MutationCtx, conversation: Doc<"con
   // (insertedCount 0), which is exactly the batch that must schedule the
   // check. The check re-reads the messages table at fire time, so a poll
   // answered in the meantime is a no-op. (see notifications.checkNeedsInput)
-  const newestBatchMsg = args.messages.reduce((a, b) => ((b.timestamp || 0) >= (a.timestamp || 0) ? b : a));
+  const newestBatchMsg = args.messages.reduce((a, b) =>
+    (b.timestamp || 0) >= (a.timestamp || 0) ? b : a,
+  );
   if (
     newestBatchMsg.role === "assistant" &&
     newestBatchMsg.tool_calls?.some((tc) => tc.name === "AskUserQuestion")
   ) {
-    await ctx.scheduler.runAfter(NEEDS_INPUT_AUQ_CHECK_DELAY_MS, internal.notifications.checkNeedsInput, {
-      conversation_id: args.conversation_id,
-    });
+    await ctx.scheduler.runAfter(
+      NEEDS_INPUT_AUQ_CHECK_DELAY_MS,
+      internal.notifications.checkNeedsInput,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
   }
 
   return { inserted: insertedCount, ids };
@@ -2106,18 +2963,30 @@ export const projectAgentStatusOnAddMessages = internalMutation({
     has_tool_result_reply: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const evidence = args.scheduled_at !== undefined
-      ? { at: args.scheduled_at, has_assistant_message: !!args.has_assistant_message, has_tool_result_reply: !!args.has_tool_result_reply }
-      : (await ctx.db.get(args.conversation_id))?.agent_status_probe;
+    const evidence =
+      args.scheduled_at !== undefined
+        ? {
+            at: args.scheduled_at,
+            has_assistant_message: !!args.has_assistant_message,
+            has_tool_result_reply: !!args.has_tool_result_reply,
+          }
+        : (await ctx.db.get(args.conversation_id))?.agent_status_probe;
     if (!evidence) return;
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     // A hosted conversation's turn engine sets its work state itself, in the
     // mutation that ends each turn; a guess from its rows would undo that.
     if (!session || session.hosted) return;
-    if (!shouldApplyAddMessagesAgentStatusProjection(session.agent_status_updated_at, evidence.at)) {
+    if (
+      !shouldApplyAddMessagesAgentStatusProjection(
+        session.agent_status_updated_at,
+        evidence.at,
+      )
+    ) {
       return;
     }
 
@@ -2147,7 +3016,10 @@ export const existingMessageUuids = query({
       throw new Error("Authentication failed: invalid token or session");
     }
 
-    const conversationId = ctx.db.normalizeId("conversations", args.conversation_id);
+    const conversationId = ctx.db.normalizeId(
+      "conversations",
+      args.conversation_id,
+    );
     if (!conversationId) {
       return [];
     }
@@ -2160,13 +3032,16 @@ export const existingMessageUuids = query({
       throw new Error("Unauthorized: can only read your own conversations");
     }
 
-    const unique = Array.from(new Set(args.message_uuids)).slice(0, MAX_BATCH_SIZE);
+    const unique = Array.from(new Set(args.message_uuids)).slice(
+      0,
+      MAX_BATCH_SIZE,
+    );
     const existing: string[] = [];
     for (const uuid of unique) {
       const found = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q) =>
-          q.eq("conversation_id", conversationId).eq("message_uuid", uuid)
+          q.eq("conversation_id", conversationId).eq("message_uuid", uuid),
         )
         .first();
       if (found?.message_uuid) existing.push(found.message_uuid);
@@ -2190,7 +3065,9 @@ export const deleteMessagesByUuid = mutation({
   handler: async (ctx, args) => {
     if (args.message_uuids.length === 0) return { deleted: 0 };
     if (args.message_uuids.length > MAX_BATCH_SIZE) {
-      throw new Error(`Batch size ${args.message_uuids.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
+      throw new Error(
+        `Batch size ${args.message_uuids.length} exceeds maximum of ${MAX_BATCH_SIZE}`,
+      );
     }
 
     const conversation = await ctx.db.get(args.conversation_id);
@@ -2203,7 +3080,9 @@ export const deleteMessagesByUuid = mutation({
       throw new Error("Authentication failed: invalid token or session");
     }
     if (conversation.user_id.toString() !== authUserId.toString()) {
-      throw new Error("Unauthorized: can only delete messages from your own conversations");
+      throw new Error(
+        "Unauthorized: can only delete messages from your own conversations",
+      );
     }
     refuseHostedTranscriptWrite(conversation);
 
@@ -2212,7 +3091,9 @@ export const deleteMessagesByUuid = mutation({
       const existing = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q) =>
-          q.eq("conversation_id", args.conversation_id).eq("message_uuid", uuid)
+          q
+            .eq("conversation_id", args.conversation_id)
+            .eq("message_uuid", uuid),
         )
         .first();
       if (existing) {
@@ -2276,7 +3157,9 @@ export const generateMessageShareLink = mutation({
     // give, never a teammate's: reading a session is not leave to publish it.
     const isOwner = await isConversationOwner(ctx, authUserId, conversation);
     if (!isOwner) {
-      throw new Error("Only the session's owner can share its messages by link");
+      throw new Error(
+        "Only the session's owner can share its messages by link",
+      );
     }
 
     // Linking the full conversation requires a public share_token on it. Only
@@ -2287,10 +3170,18 @@ export const generateMessageShareLink = mutation({
       if (conversation.share_token) {
         includeConversationLink = true;
       } else if (isOwner) {
-        await claimShareToken(ctx, "conversations", conversation, generateShareToken(), authUserId);
+        await claimShareToken(
+          ctx,
+          "conversations",
+          conversation,
+          generateShareToken(),
+          authUserId,
+        );
         includeConversationLink = true;
       } else {
-        throw new Error("Only the conversation owner can make the full conversation public");
+        throw new Error(
+          "Only the conversation owner can make the full conversation public",
+        );
       }
     }
 
@@ -2299,24 +3190,38 @@ export const generateMessageShareLink = mutation({
     // message id from any tenant.
     if (args.message_ids) {
       if (args.message_ids.length > MESSAGE_SHARE_MAX_IDS) {
-        throw new Error(`A share holds at most ${MESSAGE_SHARE_MAX_IDS} messages`);
+        throw new Error(
+          `A share holds at most ${MESSAGE_SHARE_MAX_IDS} messages`,
+        );
       }
       for (const id of args.message_ids) {
         const listed = await ctx.db.get(id);
         if (!listed || listed.conversation_id !== message.conversation_id) {
-          throw new Error("Unauthorized: shared messages must come from one conversation");
+          throw new Error(
+            "Unauthorized: shared messages must come from one conversation",
+          );
         }
       }
     }
 
     const shareToken = generateShareToken();
-    await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf("conversations", conversation) }, "public_sharing_disabled");
+    await requireTeamPolicyAllows(
+      ctx,
+      { workspace: policyWorkspaceOf("conversations", conversation) },
+      "public_sharing_disabled",
+    );
     await ctx.db.insert("message_shares", {
       share_token: shareToken,
       message_id: args.message_id,
       user_id: authUserId,
-      context_before: args.context_before === undefined ? undefined : clampShareContext(args.context_before),
-      context_after: args.context_after === undefined ? undefined : clampShareContext(args.context_after),
+      context_before:
+        args.context_before === undefined
+          ? undefined
+          : clampShareContext(args.context_before),
+      context_after:
+        args.context_after === undefined
+          ? undefined
+          : clampShareContext(args.context_after),
       message_ids: args.message_ids,
       note: args.note,
       include_conversation_link: includeConversationLink || undefined,
@@ -2339,7 +3244,14 @@ export const findMessageByContent = query({
     if (!conversation) {
       return null;
     }
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
 
@@ -2347,7 +3259,7 @@ export const findMessageByContent = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("asc")
       .collect();
@@ -2382,26 +3294,41 @@ export const SEARCH_PAGE_LIMIT = 1500;
  * before the boundary and the next call re-reads the boundary rows.
  * `rows` is `limit + 1` rows (the extra one proves there is more).
  */
-export function cutSearchPage<T extends { timestamp: number }>(rows: T[], limit: number): { rows: T[]; next_after_ts: number | null } {
+export function cutSearchPage<T extends { timestamp: number }>(
+  rows: T[],
+  limit: number,
+): { rows: T[]; next_after_ts: number | null } {
   if (rows.length <= limit) return { rows, next_after_ts: null };
   const boundary = rows[limit - 1].timestamp;
   const kept = rows.filter((r) => r.timestamp < boundary);
   // Every row on the page shares one timestamp: nothing precedes the boundary,
   // so keep the page and skip past it, accepting the (theoretical) tie loss
   // over an infinite loop.
-  if (kept.length === 0) return { rows: rows.slice(0, limit), next_after_ts: boundary };
+  if (kept.length === 0)
+    return { rows: rows.slice(0, limit), next_after_ts: boundary };
   return { rows: kept, next_after_ts: boundary - 1 };
 }
 
-export function searchMessageMatches<T extends { _id: Id<"messages">; timestamp: number; content?: string }>(
+export function searchMessageMatches<
+  T extends { _id: Id<"messages">; timestamp: number; content?: string },
+>(
   rows: T[],
   terms: string[],
 ): { message_id: Id<"messages">; timestamp: number; match_count: number }[] {
-  const matches: { message_id: Id<"messages">; timestamp: number; match_count: number }[] = [];
+  const matches: {
+    message_id: Id<"messages">;
+    timestamp: number;
+    match_count: number;
+  }[] = [];
   for (const msg of rows) {
     if (!msg.content) continue;
     const count = countMatches(stripContextTags(msg.content), terms);
-    if (count > 0) matches.push({ message_id: msg._id, timestamp: msg.timestamp, match_count: count });
+    if (count > 0)
+      matches.push({
+        message_id: msg._id,
+        timestamp: msg.timestamp,
+        match_count: count,
+      });
   }
   return matches;
 }
@@ -2419,25 +3346,41 @@ export const findAllMessagesByContent = query({
     const authUserId = await getAuthUserId(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return empty;
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") return empty;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return empty;
 
     const terms = parseSearchTerms(args.search_term);
     if (terms.length === 0) return empty;
 
-    const limit = Math.max(1, Math.min(args.limit ?? SEARCH_PAGE_LIMIT, SEARCH_PAGE_LIMIT));
+    const limit = Math.max(
+      1,
+      Math.min(args.limit ?? SEARCH_PAGE_LIMIT, SEARCH_PAGE_LIMIT),
+    );
     const after = args.after_ts;
     const rows = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
         after === undefined
           ? q.eq("conversation_id", args.conversation_id)
-          : q.eq("conversation_id", args.conversation_id).gt("timestamp", after)
+          : q
+              .eq("conversation_id", args.conversation_id)
+              .gt("timestamp", after),
       )
       .order("asc")
       .take(limit + 1);
 
     const page = cutSearchPage(rows, limit);
-    return { matches: searchMessageMatches(page.rows, terms), next_after_ts: page.next_after_ts };
+    return {
+      matches: searchMessageMatches(page.rows, terms),
+      next_after_ts: page.next_after_ts,
+    };
   },
 });
 
@@ -2452,7 +3395,14 @@ export const findMessageByContentPublic = query({
     if (!conversation) {
       return null;
     }
-    if (await checkConversationAccess(ctx, null, conversation, args.share_token) !== "shared") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        null,
+        conversation,
+        args.share_token,
+      )) !== "shared"
+    ) {
       return null;
     }
 
@@ -2460,7 +3410,7 @@ export const findMessageByContentPublic = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("asc")
       .collect();
@@ -2478,7 +3428,11 @@ export const findMessageByContentPublic = query({
 // A message link serves only while the person who made it still owns the
 // session. Links a teammate minted before minting became owner-only stop
 // serving, as does a link whose maker has since lost ownership.
-async function messageShareHolds(ctx: any, share: { user_id: Id<"users"> }, conversation: Doc<"conversations">): Promise<boolean> {
+async function messageShareHolds(
+  ctx: any,
+  share: { user_id: Id<"users"> },
+  conversation: Doc<"conversations">,
+): Promise<boolean> {
   return await isConversationOwner(ctx, share.user_id, conversation);
 }
 
@@ -2508,21 +3462,26 @@ export const getSharedMessage = query({
 
     const user = await ctx.db.get(conversation.user_id);
 
-    let sharedMessages: typeof message[] = [];
+    let sharedMessages: (typeof message)[] = [];
 
     if (share.message_ids && share.message_ids.length > 0) {
-      const msgs = await Promise.all(share.message_ids.slice(0, MESSAGE_SHARE_MAX_IDS).map(id => ctx.db.get(id)));
+      const msgs = await Promise.all(
+        share.message_ids
+          .slice(0, MESSAGE_SHARE_MAX_IDS)
+          .map((id) => ctx.db.get(id)),
+      );
       // Only the anchor conversation's messages: a share row written before
       // generateMessageShareLink checked this may list foreign ids.
       sharedMessages = msgs.filter(
-        (m): m is NonNullable<typeof m> => m !== null && m.conversation_id === message.conversation_id,
+        (m): m is NonNullable<typeof m> =>
+          m !== null && m.conversation_id === message.conversation_id,
       );
       sharedMessages.sort((a, b) => a.timestamp - b.timestamp);
     } else if (share.context_before || share.context_after) {
       const allMessages = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", message.conversation_id)
+          q.eq("conversation_id", message.conversation_id),
         )
         .collect();
 
@@ -2530,8 +3489,14 @@ export const getSharedMessage = query({
       const targetIndex = sorted.findIndex((m) => m._id === message._id);
 
       if (targetIndex !== -1) {
-        const startIdx = Math.max(0, targetIndex - clampShareContext(share.context_before));
-        const endIdx = Math.min(sorted.length, targetIndex + clampShareContext(share.context_after) + 1);
+        const startIdx = Math.max(
+          0,
+          targetIndex - clampShareContext(share.context_before),
+        );
+        const endIdx = Math.min(
+          sorted.length,
+          targetIndex + clampShareContext(share.context_after) + 1,
+        );
         sharedMessages = sorted.slice(startIdx, endIdx);
       }
     }
@@ -2550,7 +3515,9 @@ export const getSharedMessage = query({
       // Read live from the conversation (not copied onto the share row) so the
       // link keeps working if the token is minted later, and only when the
       // sharer opted in.
-      conversationShareToken: share.include_conversation_link ? (conversation.share_token ?? null) : null,
+      conversationShareToken: share.include_conversation_link
+        ? (conversation.share_token ?? null)
+        : null,
       user: user ? { name: user.name, image: user.image } : null,
       note: share.note,
       sharedAt: share.created_at,
@@ -2560,15 +3527,21 @@ export const getSharedMessage = query({
 
 /** The agent's first message with text after a person's message, within the
  *  same turn: the next typed message from a person ends the search. */
-async function firstReplyTo(ctx: QueryCtx, message: Doc<"messages">): Promise<Doc<"messages"> | null> {
+async function firstReplyTo(
+  ctx: QueryCtx,
+  message: Doc<"messages">,
+): Promise<Doc<"messages"> | null> {
   const after = await ctx.db
     .query("messages")
     .withIndex("by_conversation_timestamp", (q) =>
-      q.eq("conversation_id", message.conversation_id).gt("timestamp", message.timestamp),
+      q
+        .eq("conversation_id", message.conversation_id)
+        .gt("timestamp", message.timestamp),
     )
     .take(40);
   for (const m of after) {
-    if (m.role === "user" && !m.tool_results?.length && m.content?.trim()) return null;
+    if (m.role === "user" && !m.tool_results?.length && m.content?.trim())
+      return null;
     if (m.role === "assistant" && m.content?.trim()) return m;
   }
   return null;
@@ -2586,7 +3559,11 @@ export const webGet = query({
   // the same message the navigator lists for them.
   // `with_reply`: a chat card previews a person's message with the agent's
   // answer under it, so it asks for the first reply with text as well.
-  args: { id: v.string(), share_token: v.optional(v.string()), with_reply: v.optional(v.boolean()) },
+  args: {
+    id: v.string(),
+    share_token: v.optional(v.string()),
+    with_reply: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId && !args.share_token) return null;
@@ -2597,13 +3574,27 @@ export const webGet = query({
     if (!message) return null;
     const conversation = await ctx.db.get(message.conversation_id);
     if (!conversation) return null;
-    if ((await checkConversationAccess(ctx, userId, conversation, args.share_token)) === "denied") return null;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        userId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return null;
     const user = await ctx.db.get(conversation.user_id);
     // A person's message names its sender (a teammate can type into a shared session).
-    const sender = message.role === "user" && message.from_user_id && message.from_user_id !== conversation.user_id
-      ? await ctx.db.get(message.from_user_id)
-      : user;
-    const reply = args.with_reply && message.role === "user" ? await firstReplyTo(ctx, message) : null;
+    const sender =
+      message.role === "user" &&
+      message.from_user_id &&
+      message.from_user_id !== conversation.user_id
+        ? await ctx.db.get(message.from_user_id)
+        : user;
+    const reply =
+      args.with_reply && message.role === "user"
+        ? await firstReplyTo(ctx, message)
+        : null;
     return {
       message,
       contextMessages: [message],
@@ -2641,23 +3632,29 @@ export const getSharedMessageMeta = query({
     if (!message) return null;
 
     const conversation = await ctx.db.get(message.conversation_id);
-    if (!conversation || !(await messageShareHolds(ctx, share, conversation))) return null;
+    if (!conversation || !(await messageShareHolds(ctx, share, conversation)))
+      return null;
 
     const user = await ctx.db.get(conversation.user_id);
 
     const raw = message.content?.trim() || "";
-    const plain = raw.replace(/[*_`#~\[\]()>]/g, "").replace(/\n{2,}/g, " ").replace(/\n/g, " ").trim();
-    const messagePreview = plain.length > 200 ? plain.slice(0, 200) + "..." : plain;
+    const plain = raw
+      .replace(/[*_`#~\[\]()>]/g, "")
+      .replace(/\n{2,}/g, " ")
+      .replace(/\n/g, " ")
+      .trim();
+    const messagePreview =
+      plain.length > 200 ? plain.slice(0, 200) + "..." : plain;
 
-    const title = conversation.title
-      || conversation.subtitle
-      || "Coding Session";
+    const title =
+      conversation.title || conversation.subtitle || "Coding Session";
 
-    const description = share.note
-      || messagePreview
-      || conversation.subtitle
-      || conversation.idle_summary
-      || `Shared ${message.role === "user" ? "prompt" : "response"}${user?.name ? ` from ${user.name}` : ""}`;
+    const description =
+      share.note ||
+      messagePreview ||
+      conversation.subtitle ||
+      conversation.idle_summary ||
+      `Shared ${message.role === "user" ? "prompt" : "response"}${user?.name ? ` from ${user.name}` : ""}`;
 
     return {
       title,
@@ -2683,7 +3680,10 @@ export const getTranscriptChanges = query({
     const authUserId = await getAuthUserId(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
-    if ((await checkConversationAccess(ctx, authUserId, conversation)) === "denied") {
+    if (
+      (await checkConversationAccess(ctx, authUserId, conversation)) ===
+      "denied"
+    ) {
       return null;
     }
     const latestRevision = conversation.transcript_revision ?? 0;

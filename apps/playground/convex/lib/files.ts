@@ -2,7 +2,13 @@
 // which need transpiling, and the size rules a version must pass. The builder
 // validates a draft with these before it commits, and the version writer
 // enforces them again, so a bad version cannot exist.
-import { MAX_FILE_BYTES, MAX_FILES_PER_VERSION, MAX_PATH_DEPTH, MAX_PATH_LENGTH, MAX_VERSION_BYTES } from "./limits";
+import {
+  MAX_FILE_BYTES,
+  MAX_FILES_PER_VERSION,
+  MAX_PATH_DEPTH,
+  MAX_PATH_LENGTH,
+  MAX_VERSION_BYTES,
+} from "./limits";
 import { sha256Hex } from "./identity";
 
 export type FileDraft = { path: string; text: string };
@@ -41,7 +47,12 @@ export function normalizeFilePath(raw: string): string | null {
   if (!path || path.length > MAX_PATH_LENGTH) return null;
   const segments = path.split("/");
   if (segments.length > MAX_PATH_DEPTH) return null;
-  if (!segments.every((s) => /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(s) && !/^\.+$/.test(s))) return null;
+  if (
+    !segments.every(
+      (s) => /^[A-Za-z0-9_-][A-Za-z0-9._-]*$/.test(s) && !/^\.+$/.test(s),
+    )
+  )
+    return null;
   return fileExtension(path) in CONTENT_TYPES ? path : null;
 }
 
@@ -67,22 +78,34 @@ export function fileSetProblems(files: readonly FileDraft[]): string[] {
   const seen = new Set<string>();
   let total = 0;
   for (const f of files) {
-    if (normalizeFilePath(f.path) !== f.path) problems.push(`"${f.path}" is not an allowed path`);
+    if (normalizeFilePath(f.path) !== f.path)
+      problems.push(`"${f.path}" is not an allowed path`);
     if (seen.has(f.path)) problems.push(`"${f.path}" appears twice`);
     seen.add(f.path);
     const size = byteLength(f.text);
     total += size;
-    if (size > MAX_FILE_BYTES) problems.push(`${f.path} is ${kb(size)}; a file may be at most ${kb(MAX_FILE_BYTES)}`);
+    if (size > MAX_FILE_BYTES)
+      problems.push(
+        `${f.path} is ${kb(size)}; a file may be at most ${kb(MAX_FILE_BYTES)}`,
+      );
   }
   if (!seen.has(ENTRY_PATH)) problems.push(`${ENTRY_PATH} is missing`);
-  if (files.length > MAX_FILES_PER_VERSION) problems.push(`${files.length} files; a version may have at most ${MAX_FILES_PER_VERSION}`);
-  if (total > MAX_VERSION_BYTES) problems.push(`the files total ${kb(total)}; a version may total at most ${kb(MAX_VERSION_BYTES)}`);
+  if (files.length > MAX_FILES_PER_VERSION)
+    problems.push(
+      `${files.length} files; a version may have at most ${MAX_FILES_PER_VERSION}`,
+    );
+  if (total > MAX_VERSION_BYTES)
+    problems.push(
+      `the files total ${kb(total)}; a version may total at most ${kb(MAX_VERSION_BYTES)}`,
+    );
   return problems;
 }
 
 /** One hash for a whole file set, independent of order: equal hashes mean
  *  two versions serve identical files. */
-export async function manifestHash(entries: readonly { path: string; hash: string }[]): Promise<string> {
+export async function manifestHash(
+  entries: readonly { path: string; hash: string }[],
+): Promise<string> {
   const lines = entries.map((e) => `${e.path}\0${e.hash}`).sort();
   return sha256Hex(lines.join("\n"));
 }

@@ -49,7 +49,9 @@ function readCache(): ImageCacheFile {
 }
 
 /** Drop oldest entries beyond the cap so the file can't grow unbounded. */
-function prune(map: Record<string, CachedUpload>): Record<string, CachedUpload> {
+function prune(
+  map: Record<string, CachedUpload>,
+): Record<string, CachedUpload> {
   const entries = Object.entries(map);
   if (entries.length <= MAX_ENTRIES) return map;
   entries.sort((a, b) => b[1].at - a[1].at);
@@ -64,9 +66,18 @@ export function lookupByPath(absPath: string): CachedUpload | null {
   return readCache().byPath[absPath] ?? null;
 }
 
-export function storeUpload(opts: { hash: string; absPath?: string; storageId: string; url: string }): void {
+export function storeUpload(opts: {
+  hash: string;
+  absPath?: string;
+  storageId: string;
+  url: string;
+}): void {
   const cache = readCache();
-  const entry: CachedUpload = { storageId: opts.storageId, url: opts.url, at: Date.now() };
+  const entry: CachedUpload = {
+    storageId: opts.storageId,
+    url: opts.url,
+    at: Date.now(),
+  };
   cache.byHash[opts.hash] = entry;
   if (opts.absPath) cache.byPath[opts.absPath] = entry;
   cache.byHash = prune(cache.byHash);

@@ -19,7 +19,10 @@ import { notifyNative } from "../desktop";
 export const TOASTLESS_WINDOW_CLASS = "faces-overlay-window";
 
 export function toastsHiddenHere(): boolean {
-  return typeof document !== "undefined" && document.documentElement.classList.contains(TOASTLESS_WINDOW_CLASS);
+  return (
+    typeof document !== "undefined" &&
+    document.documentElement.classList.contains(TOASTLESS_WINDOW_CLASS)
+  );
 }
 
 /** A refusal sayer for one kind of press: a toast with the reason, or, in a
@@ -27,7 +30,8 @@ export function toastsHiddenHere(): boolean {
  *  under it. */
 export function sayRefusal(title: string): (message: string) => void {
   return (message) => {
-    if (toastsHiddenHere()) void notifyNative(title, message, { key: `refused:${title}:${message}` });
+    if (toastsHiddenHere())
+      void notifyNative(title, message, { key: `refused:${title}:${message}` });
     else toast.error(message);
   };
 }

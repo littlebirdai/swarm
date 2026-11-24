@@ -19,7 +19,12 @@ export function useStageWide(on: boolean): void {
     useInboxStore.getState().setStageWide(wide);
     return () => {
       const st = useInboxStore.getState();
-      if (st.stageWide && st.stageWide.tabId === wide.tabId && st.stageWide.leafId === wide.leafId) st.setStageWide(null);
+      if (
+        st.stageWide &&
+        st.stageWide.tabId === wide.tabId &&
+        st.stageWide.leafId === wide.leafId
+      )
+        st.setStageWide(null);
     };
   }, [tabId, leafId]);
 }

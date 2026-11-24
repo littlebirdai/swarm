@@ -24,10 +24,20 @@ import type { ActionCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { explainAskFailure, type AskResult } from "@codecast/shared/contracts";
 import { internal } from "./_generated/api";
-import { readableConversation, readableConversationAs, streamMessageRows, isNonEmptyMessage } from "./conversations";
+import {
+  readableConversation,
+  readableConversationAs,
+  streamMessageRows,
+  isNonEmptyMessage,
+} from "./conversations";
 import type { QueryCtx } from "./_generated/server";
 import { readFileChangeIndex } from "./fileChangeBodies";
-import { callModel, callModelMetered, cheapModelCost, CHEAP_MODEL } from "./lib/anthropic";
+import {
+  callModel,
+  callModelMetered,
+  cheapModelCost,
+  CHEAP_MODEL,
+} from "./lib/anthropic";
 import { requireVendorAllowed } from "./lib/vendorGuard";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -54,14 +64,27 @@ export const askRateKey = (userId: string) => `read-ask:${userId}`;
 
 /** Who is reading: a token (CLI, or "" for a signed-in web caller), or a user id
  *  a server-side caller already checked (the side-answer action). */
-const callerArgs = { api_token: v.string(), user_id: v.optional(v.id("users")), conversation_id: v.string() };
-type Caller = { api_token: string; user_id?: Id<"users">; conversation_id: string };
+const callerArgs = {
+  api_token: v.string(),
+  user_id: v.optional(v.id("users")),
+  conversation_id: v.string(),
+};
+type Caller = {
+  api_token: string;
+  user_id?: Id<"users">;
+  conversation_id: string;
+};
 const readFor = (ctx: QueryCtx, a: Caller) =>
-  a.user_id ? readableConversationAs(ctx, a.user_id, a.conversation_id) : readableConversation(ctx, a.api_token, a.conversation_id);
+  a.user_id
+    ? readableConversationAs(ctx, a.user_id, a.conversation_id)
+    : readableConversation(ctx, a.api_token, a.conversation_id);
 
 type AskHead =
   | { error: string }
-  | { user_id: string; conversation: { id: string; short_id: string; title: string } };
+  | {
+      user_id: string;
+      conversation: { id: string; short_id: string; title: string };
+    };
 
 /** Who is asking and whether they may read the session. Cheap: no message rows. */
 export const askHead = internalQuery({
@@ -84,7 +107,12 @@ export const askHead = internalQuery({
 /** Files each message changed, from the conversation's change index (no bodies). */
 export const askFileChanges = internalQuery({
   args: callerArgs,
-  handler: async (ctx, args): Promise<{ error: string } | { changes: Array<{ message_id: string; path: string }> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    { error: string } | { changes: Array<{ message_id: string; path: string }> }
+  > => {
     const access = await readFor(ctx, args);
     if (access.error !== undefined) return { error: access.error };
     const changes = await readFileChangeIndex(ctx, access.conv._id);
@@ -98,13 +126,19 @@ export const askFileChanges = internalQuery({
 
 type AskScanStep =
   | { error: string }
-  | { lines: AskScanLine[]; cursor?: { creation_time: number; skip: number }; reached?: boolean };
+  | {
+      lines: AskScanLine[];
+      cursor?: { creation_time: number; skip: number };
+      reached?: boolean;
+    };
 
 export const askScan = internalQuery({
   args: {
     ...callerArgs,
     order: v.union(v.literal("asc"), v.literal("desc")),
-    after: v.optional(v.object({ creation_time: v.number(), skip: v.number() })),
+    after: v.optional(
+      v.object({ creation_time: v.number(), skip: v.number() }),
+    ),
     // Oldest-first steps stop before any row created after this (the tail already read it).
     stop_after: v.optional(v.number()),
     terms: v.array(v.string()),
@@ -116,13 +150,29 @@ export const askScan = internalQuery({
     if (access.error !== undefined) return { error: access.error };
     const lines: AskScanLine[] = [];
     let reached = false;
-    const cursor = await streamMessageRows(ctx, access.conv._id, args.after, args.order, (m) => {
-      if (args.stop_after !== undefined && m._creationTime > args.stop_after) return (reached = true);
-      if (!isNonEmptyMessage(m)) return;
-      lines.push({ id: m._id, creation_time: m._creationTime, ...toAskLine(m as unknown as AskMessage, 0, args.terms) });
-      if (args.max_rows !== undefined && lines.length >= args.max_rows) return true;
-    });
-    return { lines, cursor: reached ? undefined : cursor, reached: reached || undefined };
+    const cursor = await streamMessageRows(
+      ctx,
+      access.conv._id,
+      args.after,
+      args.order,
+      (m) => {
+        if (args.stop_after !== undefined && m._creationTime > args.stop_after)
+          return (reached = true);
+        if (!isNonEmptyMessage(m)) return;
+        lines.push({
+          id: m._id,
+          creation_time: m._creationTime,
+          ...toAskLine(m as unknown as AskMessage, 0, args.terms),
+        });
+        if (args.max_rows !== undefined && lines.length >= args.max_rows)
+          return true;
+      },
+    );
+    return {
+      lines,
+      cursor: reached ? undefined : cursor,
+      reached: reached || undefined,
+    };
   },
 });
 
@@ -131,22 +181,43 @@ export const askRateMessage = (retryAfterMs: number | undefined) =>
 
 /** The access refusals, as coded errors cliRoute answers with 401/403/404. */
 const ACCESS_ERRORS: Record<string, { code: string; message: string }> = {
-  Unauthorized: { code: "UNAUTHENTICATED", message: "Unauthorized: run `cast auth`" },
-  "User not found": { code: "UNAUTHENTICATED", message: "Unauthorized: run `cast auth`" },
-  "Conversation not found": { code: "NOT_FOUND", message: "No session found for that id" },
-  "Access denied": { code: "FORBIDDEN", message: "You do not have access to that session" },
+  Unauthorized: {
+    code: "UNAUTHENTICATED",
+    message: "Unauthorized: run `cast auth`",
+  },
+  "User not found": {
+    code: "UNAUTHENTICATED",
+    message: "Unauthorized: run `cast auth`",
+  },
+  "Conversation not found": {
+    code: "NOT_FOUND",
+    message: "No session found for that id",
+  },
+  "Access denied": {
+    code: "FORBIDDEN",
+    message: "You do not have access to that session",
+  },
 };
 
-function accessError(error: string, cliRef?: string): ConvexError<{ code: string; message: string }> {
+function accessError(
+  error: string,
+  cliRef?: string,
+): ConvexError<{ code: string; message: string }> {
   const known = ACCESS_ERRORS[error] ?? { code: "FORBIDDEN", message: error };
-  return new ConvexError(cliRef ? { ...known, message: explainAskFailure(known.message, cliRef) } : known);
+  return new ConvexError(
+    cliRef
+      ? { ...known, message: explainAskFailure(known.message, cliRef) }
+      : known,
+  );
 }
 
-const debugArgs = v.optional(v.object({
-  max_steps: v.optional(v.number()),
-  rows_per_step: v.optional(v.number()),
-  include_prompt: v.optional(v.boolean()),
-}));
+const debugArgs = v.optional(
+  v.object({
+    max_steps: v.optional(v.number()),
+    rows_per_step: v.optional(v.number()),
+    include_prompt: v.optional(v.boolean()),
+  }),
+);
 
 interface AskArgs {
   /** The CLI's token; empty when `user_id` names the caller. */
@@ -155,57 +226,102 @@ interface AskArgs {
   user_id?: Id<"users">;
   conversation_id: string;
   question: string;
-  debug?: { max_steps?: number; rows_per_step?: number; include_prompt?: boolean };
+  debug?: {
+    max_steps?: number;
+    rows_per_step?: number;
+    include_prompt?: boolean;
+  };
 }
 
 /** The one implementation behind the CLI route and the web's side answers (sideAnswers.answer). */
-export async function answerQuestion(ctx: ActionCtx, args: AskArgs): Promise<AskResult> {
+export async function answerQuestion(
+  ctx: ActionCtx,
+  args: AskArgs,
+): Promise<AskResult> {
   const started = Date.now();
   const question = args.question.trim();
-  if (!question) throw new ConvexError({ code: "INVALID", message: "Ask needs a question" });
+  if (!question)
+    throw new ConvexError({ code: "INVALID", message: "Ask needs a question" });
   if (question.length > ASK_MAX_QUESTION_CHARS) {
-    throw new ConvexError({ code: "INVALID", message: `The question is ${question.length} characters; keep it under ${ASK_MAX_QUESTION_CHARS}` });
+    throw new ConvexError({
+      code: "INVALID",
+      message: `The question is ${question.length} characters; keep it under ${ASK_MAX_QUESTION_CHARS}`,
+    });
   }
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("The server has no model key configured");
+  if (!process.env.ANTHROPIC_API_KEY)
+    throw new Error("The server has no model key configured");
 
-  const who: Caller = { api_token: args.api_token, conversation_id: args.conversation_id, ...(args.user_id ? { user_id: args.user_id } : {}) };
+  const who: Caller = {
+    api_token: args.api_token,
+    conversation_id: args.conversation_id,
+    ...(args.user_id ? { user_id: args.user_id } : {}),
+  };
   // A CLI caller's errors name the commands that work without the model; the
   // web's side answers (user_id set) show their own recovery.
-  const cliRef = args.user_id ? undefined : args.conversation_id.length > 12 ? args.conversation_id.slice(0, 7) : args.conversation_id;
-  const explain = (message: string) => (cliRef ? explainAskFailure(message, cliRef) : message);
+  const cliRef = args.user_id
+    ? undefined
+    : args.conversation_id.length > 12
+      ? args.conversation_id.slice(0, 7)
+      : args.conversation_id;
+  const explain = (message: string) =>
+    cliRef ? explainAskFailure(message, cliRef) : message;
   const head: AskHead = await ctx.runQuery(internal.sessionAsk.askHead, who);
   if ("error" in head) throw accessError(head.error, cliRef);
   // A regulated team's session is read to Anthropic only once it holds a BAA: refused here, with its one line.
-  const gate = { ctx, scope: { conversationId: head.conversation.id as Id<"conversations">, apiToken: args.api_token || undefined } };
+  const gate = {
+    ctx,
+    scope: {
+      conversationId: head.conversation.id as Id<"conversations">,
+      apiToken: args.api_token || undefined,
+    },
+  };
   await requireVendorAllowed(ctx, gate.scope, "anthropic");
   // A side answer spent its unit when it was asked (sideAnswers.askCore).
-  const limited = args.user_id ? { ok: true as const, retry_after_ms: undefined } : await ctx.runMutation(internal.ipRateLimit.bump, {
-    key: askRateKey(head.user_id),
-    max: ASK_RATE.max,
-    window_ms: ASK_RATE.window_ms,
-  });
-  if (!limited.ok) throw new ConvexError({ code: "RATE_LIMITED", message: explain(askRateMessage(limited.retry_after_ms)), retryable: true });
+  const limited = args.user_id
+    ? { ok: true as const, retry_after_ms: undefined }
+    : await ctx.runMutation(internal.ipRateLimit.bump, {
+        key: askRateKey(head.user_id),
+        max: ASK_RATE.max,
+        window_ms: ASK_RATE.window_ms,
+      });
+  if (!limited.ok)
+    throw new ConvexError({
+      code: "RATE_LIMITED",
+      message: explain(askRateMessage(limited.retry_after_ms)),
+      retryable: true,
+    });
 
   const usage = { input_tokens: 0, output_tokens: 0 };
-  const expansion = await callModel({ ...askTermsRequest(question), label: "Ask terms", timeout_ms: ASK_TERMS_MS, gate });
+  const expansion = await callModel({
+    ...askTermsRequest(question),
+    label: "Ask terms",
+    timeout_ms: ASK_TERMS_MS,
+    gate,
+  });
   if (expansion) {
     usage.input_tokens += expansion.usage.input_tokens;
     usage.output_tokens += expansion.usage.output_tokens;
   }
   const terms = askTerms(question, expansion?.text);
 
-  const read = await readSession(async ({ order, after, stop_after }) => {
-    const page: AskScanStep = await ctx.runQuery(internal.sessionAsk.askScan, {
-      ...who,
-      order,
-      after,
-      stop_after,
-      terms,
-      max_rows: args.debug?.rows_per_step,
-    });
-    if ("error" in page) throw accessError(page.error, cliRef);
-    return page;
-  }, { maxSteps: args.debug?.max_steps ?? ASK_MAX_STEPS, maxMs: ASK_SCAN_MS });
+  const read = await readSession(
+    async ({ order, after, stop_after }) => {
+      const page: AskScanStep = await ctx.runQuery(
+        internal.sessionAsk.askScan,
+        {
+          ...who,
+          order,
+          after,
+          stop_after,
+          terms,
+          max_rows: args.debug?.rows_per_step,
+        },
+      );
+      if ("error" in page) throw accessError(page.error, cliRef);
+      return page;
+    },
+    { maxSteps: args.debug?.max_steps ?? ASK_MAX_STEPS, maxMs: ASK_SCAN_MS },
+  );
   const lines = read.lines;
 
   const files = await ctx.runQuery(internal.sessionAsk.askFileChanges, who);
@@ -214,14 +330,32 @@ export async function answerQuestion(ctx: ActionCtx, args: AskArgs): Promise<Ask
   const extraFiles = new Map<number, string[]>();
   for (const change of files.changes) {
     const line = idToLine.get(change.message_id);
-    if (line !== undefined) extraFiles.set(line, [...(extraFiles.get(line) ?? []), change.path]);
+    if (line !== undefined)
+      extraFiles.set(line, [...(extraFiles.get(line) ?? []), change.path]);
   }
-  const { context, request } = askAnswerRequest({ question, title: head.conversation.title, read, termCount: terms.length, extraFiles });
-  const answer = await callModelMetered({ ...request, label: "Ask answer", timeout_ms: ASK_ANSWER_MS, gate });
+  const { context, request } = askAnswerRequest({
+    question,
+    title: head.conversation.title,
+    read,
+    termCount: terms.length,
+    extraFiles,
+  });
+  const answer = await callModelMetered({
+    ...request,
+    label: "Ask answer",
+    timeout_ms: ASK_ANSWER_MS,
+    gate,
+  });
   const reply = answer.reply;
   // Name the API's own reason: an empty credit balance or a refused request
   // will not clear on retry, and the caller has to know that to stop retrying.
-  if (!reply) throw new ConvexError({ code: "MODEL_FAILED", message: explain(`The model did not answer (${answer.error ?? "no reason given"})`) });
+  if (!reply)
+    throw new ConvexError({
+      code: "MODEL_FAILED",
+      message: explain(
+        `The model did not answer (${answer.error ?? "no reason given"})`,
+      ),
+    });
   usage.input_tokens += reply.usage.input_tokens;
   usage.output_tokens += reply.usage.output_tokens;
 
@@ -236,11 +370,16 @@ export async function answerQuestion(ctx: ActionCtx, args: AskArgs): Promise<Ask
     terms,
     scanned_lines: lines.length,
     scan_complete: read.complete,
-    ...(read.complete ? {} : { unread: { after: read.headLines, before: -read.tailLines } }),
+    ...(read.complete
+      ? {}
+      : { unread: { after: read.headLines, before: -read.tailLines } }),
     shown_lines: context.shownLines.length,
     matched_lines: context.matchedLines,
     model: CHEAP_MODEL,
-    usage: { ...usage, cost_usd: Math.round(cheapModelCost(usage) * 10_000) / 10_000 },
+    usage: {
+      ...usage,
+      cost_usd: Math.round(cheapModelCost(usage) * 10_000) / 10_000,
+    },
     took_ms: Date.now() - started,
     ...(args.debug?.include_prompt ? { prompt: request.prompt } : {}),
   };
@@ -266,6 +405,10 @@ export const askFromWeb = action({
   args: { conversation_id: v.string(), question: v.string() },
   handler: async (ctx, args): Promise<AskResult> => {
     if (!(await ctx.auth.getUserIdentity())) throw accessError("Unauthorized");
-    return answerQuestion(ctx, { api_token: "", conversation_id: args.conversation_id, question: args.question });
+    return answerQuestion(ctx, {
+      api_token: "",
+      conversation_id: args.conversation_id,
+      question: args.question,
+    });
   },
 });

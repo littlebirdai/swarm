@@ -20,14 +20,22 @@ import {
 import { relTimeShort } from "../../lib/utils";
 import { StampTime } from "../StampTime";
 
-const firstName = (name: string | undefined) => name?.trim().split(/\s+/)[0] ?? "";
+const firstName = (name: string | undefined) =>
+  name?.trim().split(/\s+/)[0] ?? "";
 
 /** What a reader learns on hover: who, which session, which commit, and how the line was traced. */
 function rangeTitle(range: SessionBlameRange): string {
   const { session, git } = range;
-  const commit = git ? `${git.sha.slice(0, 7)} ${git.message?.split("\n")[0] ?? ""}`.trim() : "";
+  const commit = git
+    ? `${git.sha.slice(0, 7)} ${git.message?.split("\n")[0] ?? ""}`.trim()
+    : "";
   if (!session) {
-    return [git?.author_name ? `${git.author_name} committed this outside a codecast session` : "No codecast session recorded", commit]
+    return [
+      git?.author_name
+        ? `${git.author_name} committed this outside a codecast session`
+        : "No codecast session recorded",
+      commit,
+    ]
       .filter(Boolean)
       .join("\n");
   }
@@ -55,11 +63,19 @@ export function SessionBlameCell({
   return (
     <div
       className={`repo-session-blame w-[17rem] shrink-0 pl-2 pr-2 text-meta ${starts ? "repo-blame-start" : ""}`}
-      style={color ? ({ "--session-hue": color } as React.CSSProperties) : undefined}
+      style={
+        color ? ({ "--session-hue": color } as React.CSSProperties) : undefined
+      }
       data-session={session?.conversation_id}
       title={range ? rangeTitle(range) : undefined}
     >
-      {starts && range && (session ? <SessionLabel session={session} range={range} /> : <UnattributedLabel range={range} />)}
+      {starts &&
+        range &&
+        (session ? (
+          <SessionLabel session={session} range={range} />
+        ) : (
+          <UnattributedLabel range={range} />
+        ))}
     </div>
   );
 }
@@ -69,27 +85,62 @@ export function SessionBlameCell({
  * plain span for a private session on the public page, which is named but
  * cannot be opened.
  */
-function SessionAnchor({ session, className, title, children }: { session: BlameSessionRef; className: string; title?: string; children: ReactNode }) {
+function SessionAnchor({
+  session,
+  className,
+  title,
+  children,
+}: {
+  session: BlameSessionRef;
+  className: string;
+  title?: string;
+  children: ReactNode;
+}) {
   const href = sessionHref(session);
-  if (!href) return <span className={className} title={title}>{children}</span>;
-  return <Link href={href} className={className} title={title}>{children}</Link>;
+  if (!href)
+    return (
+      <span className={className} title={title}>
+        {children}
+      </span>
+    );
+  return (
+    <Link href={href} className={className} title={title}>
+      {children}
+    </Link>
+  );
 }
 
-function SessionLabel({ session, range }: { session: BlameSession; range: SessionBlameRange }) {
+function SessionLabel({
+  session,
+  range,
+}: {
+  session: BlameSession;
+  range: SessionBlameRange;
+}) {
   return (
     <SessionAnchor
       session={session}
       className="flex items-center gap-1.5 min-w-0 text-sol-text-muted hover:text-sol-text transition-colors"
     >
-      <AuthorAvatar name={session.author_name} avatar={session.author_image} size={12} />
+      <AuthorAvatar
+        name={session.author_name}
+        avatar={session.author_image}
+        size={12}
+      />
       <span className="truncate">{session.title}</span>
       {session.via === "edit" && (
-        <span className="shrink-0 text-mark uppercase tracking-wide" style={{ color: "var(--session-hue)" }} aria-label="wrote this line">
+        <span
+          className="shrink-0 text-mark uppercase tracking-wide"
+          style={{ color: "var(--session-hue)" }}
+          aria-label="wrote this line"
+        >
           wrote
         </span>
       )}
       {range.newest_at ? (
-        <span className="ml-auto shrink-0 tabular-nums text-sol-text-dim"><StampTime ts={range.newest_at} format={relTimeShort} /></span>
+        <span className="ml-auto shrink-0 tabular-nums text-sol-text-dim">
+          <StampTime ts={range.newest_at} format={relTimeShort} />
+        </span>
       ) : null}
     </SessionAnchor>
   );
@@ -100,8 +151,14 @@ function UnattributedLabel({ range }: { range: SessionBlameRange }) {
   return (
     <span className="flex items-center gap-1.5 min-w-0 text-sol-text-dim">
       <GitCommitHorizontal className="w-3 h-3 shrink-0 opacity-60" />
-      <span className="truncate">{git?.author_login || git?.author_name || "no session"}</span>
-      {git?.committed_at ? <span className="ml-auto shrink-0 tabular-nums"><StampTime ts={git.committed_at} format={relTimeShort} /></span> : null}
+      <span className="truncate">
+        {git?.author_login || git?.author_name || "no session"}
+      </span>
+      {git?.committed_at ? (
+        <span className="ml-auto shrink-0 tabular-nums">
+          <StampTime ts={git.committed_at} format={relTimeShort} />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -129,7 +186,10 @@ export function SessionBlameStrip({
   const pct = Math.round((summary.attributed / summary.total) * 100);
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 border-b border-sol-border/30 shrink-0 min-w-0 overflow-x-auto">
-      <span className="text-meta text-sol-text-dim tabular-nums shrink-0" title={`${summary.attributed} of ${summary.total} lines trace to a codecast session`}>
+      <span
+        className="text-meta text-sol-text-dim tabular-nums shrink-0"
+        title={`${summary.attributed} of ${summary.total} lines trace to a codecast session`}
+      >
         {summary.entries.length === 0
           ? "No lines trace to a codecast session"
           : `${pct}% by ${summary.entries.length} ${summary.entries.length === 1 ? "session" : "sessions"}`}
@@ -153,12 +213,20 @@ export function SessionBlameStrip({
               className="flex items-center gap-1.5 min-w-0 h-full pl-2 pr-1.5 hover:text-sol-text"
               title={`${entry.session.title}\n${entry.lines} lines in ${entry.ranges} ${entry.ranges === 1 ? "place" : "places"}${entry.session.author_name ? `\n${entry.session.author_name}` : ""}\nClick to jump to line ${entry.first_line}`}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ background: color }}
+              />
               <span className="truncate">{entry.session.title}</span>
-              {entry.session.public !== false && firstName(entry.session.author_name) && (
-                <span className="text-sol-text-dim shrink-0">{firstName(entry.session.author_name)}</span>
-              )}
-              <span className="tabular-nums text-sol-text-dim shrink-0 pl-1.5 border-l border-sol-border/40">{entry.lines}</span>
+              {entry.session.public !== false &&
+                firstName(entry.session.author_name) && (
+                  <span className="text-sol-text-dim shrink-0">
+                    {firstName(entry.session.author_name)}
+                  </span>
+                )}
+              <span className="tabular-nums text-sol-text-dim shrink-0 pl-1.5 border-l border-sol-border/40">
+                {entry.lines}
+              </span>
             </button>
             {sessionHref(entry.session) ? (
               <Link
@@ -170,7 +238,10 @@ export function SessionBlameStrip({
                 <MessagesSquare className="w-3 h-3" />
               </Link>
             ) : (
-              <span className="flex items-center h-full pr-2 pl-0.5 text-sol-text-dim" title="This session is not public">
+              <span
+                className="flex items-center h-full pr-2 pl-0.5 text-sol-text-dim"
+                title="This session is not public"
+              >
                 <Lock className="w-3 h-3" />
               </span>
             )}

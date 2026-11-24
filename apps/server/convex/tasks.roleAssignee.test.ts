@@ -26,15 +26,31 @@ const BOT = id("userbotgrowth");
 const PROJECT = id("projectgrowth");
 const TOKEN = "role-assignee-token";
 
-const role = (_id: string, handle: string, extra: Record<string, any> = {}) => ({
-  _id, short_id: `or-${handle}`, name: handle, handle, status: "active", scope_type: "team", team_id: TEAM,
-  host_user_id: OWNER, anchor_id: `anchors_${handle}`, scope: { project_ids: [], plan_ids: [PROJECT] }, reports_to: { kind: "user", user_id: OWNER },
+const role = (
+  _id: string,
+  handle: string,
+  extra: Record<string, any> = {},
+) => ({
+  _id,
+  short_id: `or-${handle}`,
+  name: handle,
+  handle,
+  status: "active",
+  scope_type: "team",
+  team_id: TEAM,
+  host_user_id: OWNER,
+  anchor_id: `anchors_${handle}`,
+  scope: { project_ids: [], plan_ids: [PROJECT] },
+  reports_to: { kind: "user", user_id: OWNER },
   ...extra,
 });
 
 const ROLES = [
   // Growth looks after one project; ads reports to growth; platform to Jason.
-  role(GROWTH, "growth", { name: "Head of Growth", scope: { project_ids: [PROJECT], plan_ids: [] } }),
+  role(GROWTH, "growth", {
+    name: "Head of Growth",
+    scope: { project_ids: [PROJECT], plan_ids: [] },
+  }),
   role(ADS, "ads", { reports_to: { kind: "role", role_id: GROWTH } }),
   role(PLATFORM, "platform", { reports_to: { kind: "user", user_id: JASON } }),
   role(RETIRED, "old", { status: "retired" }),
@@ -42,38 +58,133 @@ const ROLES = [
 ];
 
 const CONVERSATIONS = [
-  { _id: "conversations_hand", session_id: "hand-growth", user_id: OWNER, team_id: TEAM, status: "active", org_role_id: GROWTH },
-  { _id: "conversations_standing", session_id: "standing-growth", user_id: OWNER, team_id: TEAM, status: "active", standing_role_id: GROWTH },
-  { _id: "conversations_standing_ads", session_id: "standing-ads", user_id: OWNER, team_id: TEAM, status: "active", standing_role_id: ADS },
-  { _id: "conversations_hand_ads", session_id: "hand-ads", user_id: OWNER, team_id: TEAM, status: "active", org_role_id: ADS },
-  { _id: "conversations_free", session_id: "free", user_id: OWNER, team_id: TEAM, status: "active" },
+  {
+    _id: "conversations_hand",
+    session_id: "hand-growth",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+    org_role_id: GROWTH,
+  },
+  {
+    _id: "conversations_standing",
+    session_id: "standing-growth",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+    standing_role_id: GROWTH,
+  },
+  {
+    _id: "conversations_standing_ads",
+    session_id: "standing-ads",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+    standing_role_id: ADS,
+  },
+  {
+    _id: "conversations_hand_ads",
+    session_id: "hand-ads",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+    org_role_id: ADS,
+  },
+  {
+    _id: "conversations_free",
+    session_id: "free",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+  },
   // A fork of the growth hand: the hand's history under a new id.
-  { _id: "conversations_fork", session_id: "fork-of-hand", user_id: OWNER, team_id: TEAM, status: "active", org_role_id: GROWTH, forked_from: "conversations_hand" },
+  {
+    _id: "conversations_fork",
+    session_id: "fork-of-hand",
+    user_id: OWNER,
+    team_id: TEAM,
+    status: "active",
+    org_role_id: GROWTH,
+    forked_from: "conversations_hand",
+  },
 ];
 
 const task = (n: number, extra: Record<string, any> = {}) => ({
-  _id: `tasks_${n}`, short_id: `ct-${n}`, title: `Task ${n}`, user_id: OWNER, team_id: TEAM, workspace: `team:${TEAM}`,
-  status: "open", source: "human", updated_at: n, created_at: n, ...extra,
+  _id: `tasks_${n}`,
+  short_id: `ct-${n}`,
+  title: `Task ${n}`,
+  user_id: OWNER,
+  team_id: TEAM,
+  workspace: `team:${TEAM}`,
+  status: "open",
+  source: "human",
+  updated_at: n,
+  created_at: n,
+  ...extra,
 });
 
 async function makeCtx(tasks: any[], opts: { withBot?: boolean } = {}) {
   const tables: Record<string, any[]> = {
     users: [
-      { _id: OWNER, name: "Ashot", github_username: "ashot", active_team_id: TEAM, team_id: TEAM },
-      { _id: JASON, name: "Jason Benn", github_username: "jbenn", active_team_id: TEAM, team_id: TEAM },
-      ...(opts.withBot ? [{ _id: BOT, name: "Growth", is_bot: true, bot_kind: "role", team_id: TEAM, active_team_id: TEAM }] : []),
+      {
+        _id: OWNER,
+        name: "Ashot",
+        github_username: "ashot",
+        active_team_id: TEAM,
+        team_id: TEAM,
+      },
+      {
+        _id: JASON,
+        name: "Jason Benn",
+        github_username: "jbenn",
+        active_team_id: TEAM,
+        team_id: TEAM,
+      },
+      ...(opts.withBot
+        ? [
+            {
+              _id: BOT,
+              name: "Growth",
+              is_bot: true,
+              bot_kind: "role",
+              team_id: TEAM,
+              active_team_id: TEAM,
+            },
+          ]
+        : []),
     ],
-    teams: [{ _id: TEAM, name: "Union", features: { org: true } }, { _id: OTHER_TEAM, name: "Other" }],
+    teams: [
+      { _id: TEAM, name: "Union", features: { org: true } },
+      { _id: OTHER_TEAM, name: "Other" },
+    ],
     team_memberships: [
       { _id: "tm_1", user_id: OWNER, team_id: TEAM, role: "admin" },
       { _id: "tm_2", user_id: JASON, team_id: TEAM, role: "member" },
-      ...(opts.withBot ? [{ _id: "tm_3", user_id: BOT, team_id: TEAM, role: "member" }] : []),
+      ...(opts.withBot
+        ? [{ _id: "tm_3", user_id: BOT, team_id: TEAM, role: "member" }]
+        : []),
     ],
     anchors: [
-      { _id: "anchors_growth", bot_user_id: BOT, org_role_id: GROWTH, team_id: TEAM, status: "active", conversation_id: "conversations_standing" },
-      { _id: "anchors_ads", bot_user_id: "users_bot_ads", org_role_id: ADS, team_id: TEAM, status: "active", conversation_id: "conversations_standing_ads" },
+      {
+        _id: "anchors_growth",
+        bot_user_id: BOT,
+        org_role_id: GROWTH,
+        team_id: TEAM,
+        status: "active",
+        conversation_id: "conversations_standing",
+      },
+      {
+        _id: "anchors_ads",
+        bot_user_id: "users_bot_ads",
+        org_role_id: ADS,
+        team_id: TEAM,
+        status: "active",
+        conversation_id: "conversations_standing_ads",
+      },
     ],
-    api_tokens: [{ _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
     org_roles: ROLES.map((r) => ({ ...r })),
     tasks,
     task_history: [],
@@ -84,24 +195,52 @@ async function makeCtx(tasks: any[], opts: { withBot?: boolean } = {}) {
   const db = makeFakeDb(tables);
   const scheduled: any[] = [];
   const ctx = {
-    auth: { async getUserIdentity() { return { subject: `${OWNER}|session` }; } },
+    auth: {
+      async getUserIdentity() {
+        return { subject: `${OWNER}|session` };
+      },
+    },
     db,
-    scheduler: { runAfter: async (...a: any[]) => { scheduled.push(a); return null; } },
-    async runMutation() { return null; },
+    scheduler: {
+      runAfter: async (...a: any[]) => {
+        scheduled.push(a);
+        return null;
+      },
+    },
+    async runMutation() {
+      return null;
+    },
   } as any;
   return { ctx, tables, scheduled };
 }
 
-const cliUpdate = (ctx: any, args: Record<string, any>) => (update as any)._handler(ctx, { api_token: TOKEN, ...args });
-const start = (ctx: any, shortId: string, session: string) => cliUpdate(ctx, { short_id: shortId, status: "in_progress", conversation_id: session });
-const ls = (ctx: any, args: Record<string, any>) => (list as any)._handler(ctx, { api_token: TOKEN, workspace: "team", team_id: TEAM, ...args });
+const cliUpdate = (ctx: any, args: Record<string, any>) =>
+  (update as any)._handler(ctx, { api_token: TOKEN, ...args });
+const start = (ctx: any, shortId: string, session: string) =>
+  cliUpdate(ctx, {
+    short_id: shortId,
+    status: "in_progress",
+    conversation_id: session,
+  });
+const ls = (ctx: any, args: Record<string, any>) =>
+  (list as any)._handler(ctx, {
+    api_token: TOKEN,
+    workspace: "team",
+    team_id: TEAM,
+    ...args,
+  });
 
 describe("a role is an assignee", () => {
   test("@handle round trips: stored as the role's id, read back by handle, named in the list", async () => {
-    const { ctx, tables } = await makeCtx([task(1), task(2, { assignee: JASON })]);
+    const { ctx, tables } = await makeCtx([
+      task(1),
+      task(2, { assignee: JASON }),
+    ]);
     await cliUpdate(ctx, { short_id: "ct-1", assignee: "@growth" });
     expect(tables.tasks[0].assignee).toBe(GROWTH);
-    expect(tables.task_history.find((h: any) => h.field === "assignee")).toMatchObject({ old_value: "", new_value: GROWTH });
+    expect(
+      tables.task_history.find((h: any) => h.field === "assignee"),
+    ).toMatchObject({ old_value: "", new_value: GROWTH });
 
     const rows = await ls(ctx, { assignee: "@growth" });
     expect(rows.map((r: any) => r.short_id)).toEqual(["ct-1"]);
@@ -121,17 +260,27 @@ describe("a role is an assignee", () => {
 
   test("a handle nobody answers to is refused, never stored as a bare string", async () => {
     const { ctx, tables } = await makeCtx([task(1)]);
-    await expect(cliUpdate(ctx, { short_id: "ct-1", assignee: "@nobody-here" })).rejects.toThrow(/Nobody answers to @nobody-here/);
+    await expect(
+      cliUpdate(ctx, { short_id: "ct-1", assignee: "@nobody-here" }),
+    ).rejects.toThrow(/Nobody answers to @nobody-here/);
     // A role in another workspace does not answer here either.
-    await expect(cliUpdate(ctx, { short_id: "ct-1", assignee: "@elsewhere" })).rejects.toThrow(/Nobody answers to @elsewhere/);
+    await expect(
+      cliUpdate(ctx, { short_id: "ct-1", assignee: "@elsewhere" }),
+    ).rejects.toThrow(/Nobody answers to @elsewhere/);
     expect(tables.tasks[0].assignee).toBeUndefined();
   });
 
   test("a retired role and a role from another workspace are refused in plain words", async () => {
     const { ctx, tables } = await makeCtx([task(1)]);
-    await expect(cliUpdate(ctx, { short_id: "ct-1", assignee: RETIRED })).rejects.toThrow(/@old is retired/);
-    await expect(cliUpdate(ctx, { short_id: "ct-1", assignee: FOREIGN })).rejects.toThrow(/another workspace/);
-    await expect((webUpdate as any)._handler(ctx, { short_id: "ct-1", assignee: FOREIGN })).rejects.toThrow(/another workspace/);
+    await expect(
+      cliUpdate(ctx, { short_id: "ct-1", assignee: RETIRED }),
+    ).rejects.toThrow(/@old is retired/);
+    await expect(
+      cliUpdate(ctx, { short_id: "ct-1", assignee: FOREIGN }),
+    ).rejects.toThrow(/another workspace/);
+    await expect(
+      (webUpdate as any)._handler(ctx, { short_id: "ct-1", assignee: FOREIGN }),
+    ).rejects.toThrow(/another workspace/);
     expect(tables.tasks[0].assignee).toBeUndefined();
   });
 
@@ -165,9 +314,15 @@ describe("a role is an assignee", () => {
   // cannot go to a team role: its standing session is the team's to read,
   // and the title would leak through it.
   test("a task readable by its owner only is refused to a team role, in words that say why", async () => {
-    const { ctx, tables } = await makeCtx([task(1, { workspace: `user:${OWNER}` })]);
-    await expect(cliUpdate(ctx, { short_id: "ct-1", assignee: "@growth" })).rejects.toThrow(/readable by its owner only/);
-    await expect((webUpdate as any)._handler(ctx, { short_id: "ct-1", assignee: GROWTH })).rejects.toThrow(/readable by its owner only/);
+    const { ctx, tables } = await makeCtx([
+      task(1, { workspace: `user:${OWNER}` }),
+    ]);
+    await expect(
+      cliUpdate(ctx, { short_id: "ct-1", assignee: "@growth" }),
+    ).rejects.toThrow(/readable by its owner only/);
+    await expect(
+      (webUpdate as any)._handler(ctx, { short_id: "ct-1", assignee: GROWTH }),
+    ).rejects.toThrow(/readable by its owner only/);
     expect(tables.tasks[0].assignee).toBeUndefined();
     expect(tables.pending_messages).toEqual([]);
     // A person can still take it.
@@ -180,10 +335,20 @@ describe("a session that takes a task assigns it to its role", () => {
   test("a hand's start hands the unassigned task to the role and stays bound to it", async () => {
     const { ctx, tables } = await makeCtx([task(1)]);
     const result = await start(ctx, "ct-1", "hand-growth");
-    expect(tables.tasks[0]).toMatchObject({ assignee: GROWTH, status: "in_progress" });
+    expect(tables.tasks[0]).toMatchObject({
+      assignee: GROWTH,
+      status: "in_progress",
+    });
     expect(tables.conversations[0].active_task_id).toBe("tasks_1");
-    expect(result.assigned_role).toEqual({ handle: "growth", name: "Head of Growth" });
-    expect(tables.task_history.some((h: any) => h.field === "assignee" && h.new_value === GROWTH)).toBe(true);
+    expect(result.assigned_role).toEqual({
+      handle: "growth",
+      name: "Head of Growth",
+    });
+    expect(
+      tables.task_history.some(
+        (h: any) => h.field === "assignee" && h.new_value === GROWTH,
+      ),
+    ).toBe(true);
   });
 
   test("the role's standing session does the same", async () => {
@@ -195,10 +360,15 @@ describe("a session that takes a task assigns it to its role", () => {
   test("a person's task is not reassigned", async () => {
     const { ctx, tables } = await makeCtx([task(1, { assignee: JASON })]);
     const result = await start(ctx, "ct-1", "hand-growth");
-    expect(tables.tasks[0]).toMatchObject({ assignee: JASON, status: "in_progress" });
+    expect(tables.tasks[0]).toMatchObject({
+      assignee: JASON,
+      status: "in_progress",
+    });
     expect(tables.conversations[0].active_task_id).toBe("tasks_1");
     expect(result.assigned_role).toBeUndefined();
-    expect(tables.task_history.some((h: any) => h.field === "assignee")).toBe(false);
+    expect(tables.task_history.some((h: any) => h.field === "assignee")).toBe(
+      false,
+    );
   });
 
   test("a name nobody resolved still names a person", async () => {
@@ -222,7 +392,12 @@ describe("a session that takes a task assigns it to its role", () => {
   });
 
   test("starts a task it filed itself: stays unassigned and internal", async () => {
-    const { ctx, tables } = await makeCtx([task(1, { source: "agent", created_from_conversation: "conversations_hand" })]);
+    const { ctx, tables } = await makeCtx([
+      task(1, {
+        source: "agent",
+        created_from_conversation: "conversations_hand",
+      }),
+    ]);
     const result = await start(ctx, "ct-1", "hand-growth");
     expect(tables.tasks[0]).toMatchObject({ status: "in_progress" });
     expect(tables.tasks[0].assignee).toBeUndefined();
@@ -233,14 +408,19 @@ describe("a session that takes a task assigns it to its role", () => {
   });
 
   test("starts a subtask: stays nested with no assignee of its own", async () => {
-    const { ctx, tables } = await makeCtx([task(1), task(2, { parent_id: "tasks_1" })]);
+    const { ctx, tables } = await makeCtx([
+      task(1),
+      task(2, { parent_id: "tasks_1" }),
+    ]);
     await start(ctx, "ct-2", "hand-growth");
     expect(tables.tasks[1]).toMatchObject({ status: "in_progress" });
     expect(tables.tasks[1].assignee).toBeUndefined();
   });
 
   test("the role's standing session follows the same rule", async () => {
-    const { ctx, tables } = await makeCtx([task(1, { created_from_conversation: "conversations_standing" })]);
+    const { ctx, tables } = await makeCtx([
+      task(1, { created_from_conversation: "conversations_standing" }),
+    ]);
     await start(ctx, "ct-1", "standing-growth");
     expect(tables.tasks[0].assignee).toBeUndefined();
   });
@@ -265,14 +445,25 @@ describe("a session that takes a task assigns it to its role", () => {
   test("start, hand off, start the next: the next task goes to the role too", async () => {
     const { ctx, tables } = await makeCtx([task(1), task(2)]);
     await start(ctx, "ct-1", "hand-growth");
-    await cliUpdate(ctx, { short_id: "ct-1", status: "in_review", execution_status: "done", verification_evidence: "ran it", conversation_id: "hand-growth" });
+    await cliUpdate(ctx, {
+      short_id: "ct-1",
+      status: "in_review",
+      execution_status: "done",
+      verification_evidence: "ran it",
+      conversation_id: "hand-growth",
+    });
     const second = await start(ctx, "ct-2", "hand-growth");
     expect(tables.tasks[1].assignee).toBe(GROWTH);
-    expect(second.assigned_role).toEqual({ handle: "growth", name: "Head of Growth" });
+    expect(second.assigned_role).toEqual({
+      handle: "growth",
+      name: "Head of Growth",
+    });
   });
 
   test("a task readable by its owner only stays unassigned when a team role's hand starts it", async () => {
-    const { ctx, tables } = await makeCtx([task(1, { workspace: `user:${OWNER}` })]);
+    const { ctx, tables } = await makeCtx([
+      task(1, { workspace: `user:${OWNER}` }),
+    ]);
     const result = await start(ctx, "ct-1", "hand-growth");
     expect(tables.tasks[0]).toMatchObject({ status: "in_progress" });
     expect(tables.tasks[0].assignee).toBeUndefined();
@@ -284,7 +475,12 @@ describe("a session that takes a task assigns it to its role", () => {
   // its start of a task that session filed is the same bookkeeping, not a
   // takeover.
   test("a fork of the session that filed the task starts it as its own bookkeeping", async () => {
-    const { ctx, tables } = await makeCtx([task(1, { source: "agent", created_from_conversation: "conversations_hand" })]);
+    const { ctx, tables } = await makeCtx([
+      task(1, {
+        source: "agent",
+        created_from_conversation: "conversations_hand",
+      }),
+    ]);
     const result = await start(ctx, "ct-1", "fork-of-hand");
     expect(tables.tasks[0]).toMatchObject({ status: "in_progress" });
     expect(tables.tasks[0].assignee).toBeUndefined();
@@ -297,12 +493,22 @@ describe("a session that takes a task assigns it to its role", () => {
 // person running it. Its own bookkeeping stays unowned, off the person's board.
 describe("a session that files a task for people owns it", () => {
   const file = (ctx: any, session: string, args: Record<string, any> = {}) =>
-    (create as any)._handler(ctx, { api_token: TOKEN, title: "Filed", conversation_id: session, workspace: "team", team_id: TEAM, ...args });
+    (create as any)._handler(ctx, {
+      api_token: TOKEN,
+      title: "Filed",
+      conversation_id: session,
+      workspace: "team",
+      team_id: TEAM,
+      ...args,
+    });
 
   test("a plain session's --human task is the person's", async () => {
     const { ctx, tables } = await makeCtx([]);
     await file(ctx, "free", { source: "agent", promoted: true });
-    expect(tables.tasks[0]).toMatchObject({ assignee: OWNER, created_from_conversation: "conversations_free" });
+    expect(tables.tasks[0]).toMatchObject({
+      assignee: OWNER,
+      created_from_conversation: "conversations_free",
+    });
   });
 
   test("a hand's and a standing session's tasks are the role's, and the role is not told about its own filing", async () => {
@@ -316,14 +522,22 @@ describe("a session that files a task for people owns it", () => {
   test("a session's own bookkeeping and its subtasks stay unowned", async () => {
     const { ctx, tables } = await makeCtx([task(1)]);
     await file(ctx, "hand-growth", { source: "agent" });
-    await file(ctx, "free", { source: "agent", promoted: true, parent_id: "ct-1" });
+    await file(ctx, "free", {
+      source: "agent",
+      promoted: true,
+      parent_id: "ct-1",
+    });
     expect(tables.tasks[1].assignee).toBeUndefined();
     expect(tables.tasks[2].assignee).toBeUndefined();
   });
 
   test("a named assignee wins over the default", async () => {
     const { ctx, tables } = await makeCtx([]);
-    await file(ctx, "hand-growth", { source: "agent", promoted: true, assignee: "jbenn" });
+    await file(ctx, "hand-growth", {
+      source: "agent",
+      promoted: true,
+      assignee: "jbenn",
+    });
     expect(tables.tasks[0].assignee).toBe(JASON);
   });
 });
@@ -333,43 +547,76 @@ describe("the assignee filter and the chain read what a task holds", () => {
   // `t.team_id && memberTeamIds.has(t.team_id)`. team_id is routing: a task
   // routed to the team and readable only by its owner that a role holds was
   // listed to every teammate who asked for the role's tasks.
-  const privateTask = () => task(9, { user_id: JASON, workspace: `user:${JASON}`, title: "Jason's private task", assignee: GROWTH });
+  const privateTask = () =>
+    task(9, {
+      user_id: JASON,
+      workspace: `user:${JASON}`,
+      title: "Jason's private task",
+      assignee: GROWTH,
+    });
 
   test("--assignee @growth does not list a teammate's task that only they can read", async () => {
-    const { ctx } = await makeCtx([task(1, { assignee: GROWTH }), privateTask()]);
+    const { ctx } = await makeCtx([
+      task(1, { assignee: GROWTH }),
+      privateTask(),
+    ]);
     const rows = await ls(ctx, { assignee: "@growth" });
     expect(rows.map((r: any) => r.short_id)).toEqual(["ct-1"]);
   });
 
   test("--chain me does not list it either", async () => {
-    const { ctx } = await makeCtx([task(1, { assignee: GROWTH }), privateTask()]);
+    const { ctx } = await makeCtx([
+      task(1, { assignee: GROWTH }),
+      privateTask(),
+    ]);
     const rows = await ls(ctx, { chain: "me" });
     expect(rows.map((r: any) => r.short_id)).toEqual(["ct-1"]);
   });
 
   test("a row the owner assigned to the reader is still theirs to see", async () => {
-    const { ctx } = await makeCtx([task(9, { user_id: JASON, workspace: `user:${JASON}`, assignee: OWNER })]);
-    expect((await ls(ctx, { assignee: "me" })).map((r: any) => r.short_id)).toEqual(["ct-9"]);
+    const { ctx } = await makeCtx([
+      task(9, { user_id: JASON, workspace: `user:${JASON}`, assignee: OWNER }),
+    ]);
+    expect(
+      (await ls(ctx, { assignee: "me" })).map((r: any) => r.short_id),
+    ).toEqual(["ct-9"]);
   });
 
   // A read names what a task holds where a write would refuse the role, so
   // nothing a retired role still holds can vanish from every CLI read.
   test("the tasks a retired role still holds can be listed by its id and by its handle", async () => {
     const { ctx } = await makeCtx([task(1, { assignee: RETIRED })]);
-    expect((await ls(ctx, { assignee: RETIRED })).map((r: any) => r.short_id)).toEqual(["ct-1"]);
-    expect((await ls(ctx, { assignee: "@old" })).map((r: any) => r.short_id)).toEqual(["ct-1"]);
+    expect(
+      (await ls(ctx, { assignee: RETIRED })).map((r: any) => r.short_id),
+    ).toEqual(["ct-1"]);
+    expect(
+      (await ls(ctx, { assignee: "@old" })).map((r: any) => r.short_id),
+    ).toEqual(["ct-1"]);
   });
 
   test("a retired role's tasks stay in the chain of the person it reported to", async () => {
     const { ctx } = await makeCtx([task(1, { assignee: RETIRED })]);
-    expect((await ls(ctx, { chain: "me" })).map((r: any) => r.short_id)).toEqual(["ct-1"]);
+    expect(
+      (await ls(ctx, { chain: "me" })).map((r: any) => r.short_id),
+    ).toEqual(["ct-1"]);
   });
 
   test("the list names a role in the contract's shape, so the CLI tells it from a person by kind", async () => {
-    const { ctx } = await makeCtx([task(1, { assignee: GROWTH }), task(2, { assignee: JASON })]);
+    const { ctx } = await makeCtx([
+      task(1, { assignee: GROWTH }),
+      task(2, { assignee: JASON }),
+    ]);
     const rows = await ls(ctx, {});
-    expect(rows.find((r: any) => r.short_id === "ct-1").assignee_info).toMatchObject({ kind: "role", handle: "growth", role_short_id: "or-growth" });
-    expect(rows.find((r: any) => r.short_id === "ct-2").assignee_info).toMatchObject({ name: "Jason Benn", github_username: "jbenn" });
+    expect(
+      rows.find((r: any) => r.short_id === "ct-1").assignee_info,
+    ).toMatchObject({
+      kind: "role",
+      handle: "growth",
+      role_short_id: "or-growth",
+    });
+    expect(
+      rows.find((r: any) => r.short_id === "ct-2").assignee_info,
+    ).toMatchObject({ name: "Jason Benn", github_username: "jbenn" });
   });
 });
 
@@ -382,8 +629,15 @@ describe("batch assign", () => {
     const { ctx, tables } = await makeCtx(tasks);
     let rosterReads = 0;
     const query = ctx.db.query.bind(ctx.db);
-    ctx.db.query = (table: string) => { if (table === "team_memberships") rosterReads++; return query(table); };
-    await (batchAssign as any)._handler(ctx, { api_token: TOKEN, short_ids: tasks.map((t) => t.short_id), assignee: "@growth" });
+    ctx.db.query = (table: string) => {
+      if (table === "team_memberships") rosterReads++;
+      return query(table);
+    };
+    await (batchAssign as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_ids: tasks.map((t) => t.short_id),
+      assignee: "@growth",
+    });
     expect(rosterReads).toBeLessThanOrEqual(2);
     expect(tables.tasks.every((t: any) => t.assignee === GROWTH)).toBe(true);
   });
@@ -391,30 +645,49 @@ describe("batch assign", () => {
   test("a batch past the cap is refused before any write", async () => {
     const { ctx, tables } = await makeCtx([task(1)]);
     const ids = Array.from({ length: 201 }, (_, i) => `ct-${i + 1}`);
-    await expect((batchAssign as any)._handler(ctx, { api_token: TOKEN, short_ids: ids, assignee: "@growth" })).rejects.toThrow(/at most 200/);
+    await expect(
+      (batchAssign as any)._handler(ctx, {
+        api_token: TOKEN,
+        short_ids: ids,
+        assignee: "@growth",
+      }),
+    ).rejects.toThrow(/at most 200/);
     expect(tables.tasks[0].assignee).toBeUndefined();
   });
 });
 
 describe("a person assigning a task to a role tells it", () => {
   test("one line into the role's standing session, for a task outside the role's scope", async () => {
-    const { ctx, tables } = await makeCtx([task(7, { title: "Fix the pricing copy" })]);
+    const { ctx, tables } = await makeCtx([
+      task(7, { title: "Fix the pricing copy" }),
+    ]);
     await cliUpdate(ctx, { short_id: "ct-7", assignee: "@ads" });
     expect(tables.pending_messages).toHaveLength(1);
     // codecast's envelope, never bare: bare, the role's thread painted it as
     // its host's own typed words.
     expect(tables.pending_messages[0]).toMatchObject({
       conversation_id: "conversations_standing_ads",
-      content: '<session-message from="unknown" name="codecast">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>',
+      content:
+        '<session-message from="unknown" name="codecast">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>',
       status: "pending",
     });
   });
 
   test("a session that assigns it is the sender", async () => {
-    const { ctx, tables } = await makeCtx([task(7, { title: "Fix the pricing copy" })]);
-    await cliUpdate(ctx, { short_id: "ct-7", assignee: "@ads", conversation_id: "free" });
-    const rows = tables.pending_messages.filter((r: any) => r.conversation_id === "conversations_standing_ads");
-    expect(rows.map((r: any) => r.content)).toEqual(['<session-message from="convers">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>']);
+    const { ctx, tables } = await makeCtx([
+      task(7, { title: "Fix the pricing copy" }),
+    ]);
+    await cliUpdate(ctx, {
+      short_id: "ct-7",
+      assignee: "@ads",
+      conversation_id: "free",
+    });
+    const rows = tables.pending_messages.filter(
+      (r: any) => r.conversation_id === "conversations_standing_ads",
+    );
+    expect(rows.map((r: any) => r.content)).toEqual([
+      '<session-message from="convers">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>',
+    ]);
   });
 
   // `cast route` files the task for the role and says how to answer in the
@@ -422,10 +695,18 @@ describe("a person assigning a task to a role tells it", () => {
   test("a routed task is one line, from the session that routed it, with the routing note", async () => {
     const { ctx, tables } = await makeCtx([]);
     await (create as any)._handler(ctx, {
-      api_token: TOKEN, title: "Fix the pricing copy", source: "route", assignee: ADS, workspace: "team", team_id: TEAM,
-      assignment_note: "It was routed to you (line 1: named @ads). Read it.", assignment_from: "free",
+      api_token: TOKEN,
+      title: "Fix the pricing copy",
+      source: "route",
+      assignee: ADS,
+      workspace: "team",
+      team_id: TEAM,
+      assignment_note: "It was routed to you (line 1: named @ads). Read it.",
+      assignment_from: "free",
     });
-    const rows = tables.pending_messages.filter((r: any) => r.conversation_id === "conversations_standing_ads");
+    const rows = tables.pending_messages.filter(
+      (r: any) => r.conversation_id === "conversations_standing_ads",
+    );
     expect(rows.map((r: any) => r.content)).toEqual([
       `<session-message from="convers">\nAshot assigned you ${tables.tasks[0].short_id} "Fix the pricing copy". It was routed to you (line 1: named @ads). Read it.\n</session-message>`,
     ]);
@@ -435,15 +716,23 @@ describe("a person assigning a task to a role tells it", () => {
   test("the board's assign tells it the same way", async () => {
     const { ctx, tables } = await makeCtx([task(7)]);
     await (webUpdate as any)._handler(ctx, { short_id: "ct-7", assignee: ADS });
-    expect(tables.pending_messages.map((r: any) => r.conversation_id)).toEqual(["conversations_standing_ads"]);
+    expect(tables.pending_messages.map((r: any) => r.conversation_id)).toEqual([
+      "conversations_standing_ads",
+    ]);
   });
 
   test("a task inside the role's scope is one line, and it says assigned", async () => {
-    const { ctx, tables } = await makeCtx([task(7, { project_id: PROJECT, title: "Fix the pricing copy" })]);
+    const { ctx, tables } = await makeCtx([
+      task(7, { project_id: PROJECT, title: "Fix the pricing copy" }),
+    ]);
     await cliUpdate(ctx, { short_id: "ct-7", assignee: "@growth" });
-    const rows = tables.pending_messages.filter((r: any) => r.conversation_id === "conversations_standing");
+    const rows = tables.pending_messages.filter(
+      (r: any) => r.conversation_id === "conversations_standing",
+    );
     expect(rows).toHaveLength(1);
-    expect(rows[0].content).toBe('<session-message from="unknown" name="codecast">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>');
+    expect(rows[0].content).toBe(
+      '<session-message from="unknown" name="codecast">\nAshot assigned you ct-7 "Fix the pricing copy"\n</session-message>',
+    );
   });
 
   test("assigning to a person tells no role", async () => {
@@ -466,7 +755,11 @@ describe("cast task ls --chain", () => {
   test("me: my tasks and the tasks of every role that reports up to me", async () => {
     const { ctx } = await makeCtx(board());
     const rows = await ls(ctx, { chain: "me" });
-    expect(rows.map((r: any) => r.short_id).sort()).toEqual(["ct-1", "ct-2", "ct-3"]);
+    expect(rows.map((r: any) => r.short_id).sort()).toEqual([
+      "ct-1",
+      "ct-2",
+      "ct-3",
+    ]);
   });
 
   test("another person's chain is theirs", async () => {
@@ -477,14 +770,25 @@ describe("cast task ls --chain", () => {
 
   test("a reparent moves the role's tasks to the new chain with no write to any task", async () => {
     const { ctx, tables } = await makeCtx(board());
-    tables.org_roles.find((r: any) => r._id === ADS).reports_to = { kind: "user", user_id: JASON };
-    expect((await ls(ctx, { chain: "me" })).map((r: any) => r.short_id).sort()).toEqual(["ct-1", "ct-2"]);
-    expect((await ls(ctx, { chain: "jbenn" })).map((r: any) => r.short_id).sort()).toEqual(["ct-3", "ct-4", "ct-5"]);
+    tables.org_roles.find((r: any) => r._id === ADS).reports_to = {
+      kind: "user",
+      user_id: JASON,
+    };
+    expect(
+      (await ls(ctx, { chain: "me" })).map((r: any) => r.short_id).sort(),
+    ).toEqual(["ct-1", "ct-2"]);
+    expect(
+      (await ls(ctx, { chain: "jbenn" })).map((r: any) => r.short_id).sort(),
+    ).toEqual(["ct-3", "ct-4", "ct-5"]);
   });
 
   test("--chain takes a person and refuses --assignee beside it", async () => {
     const { ctx } = await makeCtx(board());
-    await expect(ls(ctx, { chain: "nobody-by-this-name" })).rejects.toThrow(/--chain takes a person/);
-    await expect(ls(ctx, { chain: "me", assignee: "me" })).rejects.toThrow(/not both/);
+    await expect(ls(ctx, { chain: "nobody-by-this-name" })).rejects.toThrow(
+      /--chain takes a person/,
+    );
+    await expect(ls(ctx, { chain: "me", assignee: "me" })).rejects.toThrow(
+      /not both/,
+    );
   });
 });

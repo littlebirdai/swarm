@@ -5,7 +5,11 @@ import { test, expect, describe, mock } from "bun:test";
 // module mocks across the files of one run, so a second, different mock of
 // convex/react would break that file's doc lookups.
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={href} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const { JSDOM } = await import("jsdom");
@@ -15,19 +19,46 @@ const { replaceGlobals } = await import("../../test-helpers/globals");
 const { MemoryRouter } = await import("react-router");
 const { default: ReactMarkdown } = await import("react-markdown");
 const { entityRemarkPlugins } = await import("../remarkEntityIds");
-const { EntityAwareLink, EntityAwareCode } = await import("../../components/EntityIdPill");
+const { EntityAwareLink, EntityAwareCode } =
+  await import("../../components/EntityIdPill");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { isObjectRef, objectKinds } = await import("./objects");
 const { modHost } = await import("./host");
 
 (globalThis as any).__inboxStore = useInboxStore;
 
-const PEOPLE = { name: "people", objects: [{ prefix: "contact", title: "Contact", icon: "contact", external: true, fields: { role: { type: "text", label: "Role" } } }] };
+const PEOPLE = {
+  name: "people",
+  objects: [
+    {
+      prefix: "contact",
+      title: "Contact",
+      icon: "contact",
+      external: true,
+      fields: { role: { type: "text", label: "Role" } },
+    },
+  ],
+};
 
 function seed(objects: Record<string, any>) {
   useInboxStore.setState({
     mods: {
-      m1: { _id: "m1", name: "bug-desk", title: "Bug Desk", manifest: { name: "bug-desk", objects: [{ prefix: "bug", title: "Bug", icon: "bug", statuses: ["open", "fixed"] }] } },
+      m1: {
+        _id: "m1",
+        name: "bug-desk",
+        title: "Bug Desk",
+        manifest: {
+          name: "bug-desk",
+          objects: [
+            {
+              prefix: "bug",
+              title: "Bug",
+              icon: "bug",
+              statuses: ["open", "fixed"],
+            },
+          ],
+        },
+      },
       m2: { _id: "m2", name: "people", title: "People", manifest: PEOPLE },
     },
     modObjects: objects,
@@ -36,18 +67,29 @@ function seed(objects: Record<string, any>) {
 
 /** A client render, so the pill reads the seeded store rather than the server snapshot. */
 async function render(markdown: string): Promise<string> {
-  const dom = new JSDOM("<!doctype html><div id='root'></div>", { url: "https://codecast.test/inbox" });
-  const restore = replaceGlobals({ window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true });
+  const dom = new JSDOM("<!doctype html><div id='root'></div>", {
+    url: "https://codecast.test/inbox",
+  });
+  const restore = replaceGlobals({
+    window: dom.window,
+    document: dom.window.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
   const container = dom.window.document.getElementById("root")!;
   const root = createRoot(container);
   try {
-    await act(() => root.render(
-      <MemoryRouter>
-        <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={{ a: EntityAwareLink, code: EntityAwareCode } as any}>
-          {markdown}
-        </ReactMarkdown>
-      </MemoryRouter>,
-    ));
+    await act(() =>
+      root.render(
+        <MemoryRouter>
+          <ReactMarkdown
+            remarkPlugins={entityRemarkPlugins}
+            components={{ a: EntityAwareLink, code: EntityAwareCode } as any}
+          >
+            {markdown}
+          </ReactMarkdown>
+        </MemoryRouter>,
+      ),
+    );
     return container.innerHTML;
   } finally {
     await act(() => root.unmount());
@@ -57,11 +99,22 @@ async function render(markdown: string): Promise<string> {
 
 describe("mod object references in prose", () => {
   test("a declared kind's short id is a pill titled from the store; look-alike prose stays text", async () => {
-    seed({ o1: { _id: "o1", short_id: "bug-14", prefix: "bug", title: "Pane flashes on reload", status: "open", updated_at: 2 } });
+    seed({
+      o1: {
+        _id: "o1",
+        short_id: "bug-14",
+        prefix: "bug",
+        title: "Pane flashes on reload",
+        status: "open",
+        updated_at: 2,
+      },
+    });
     expect(objectKinds().has("bug")).toBe(true);
     expect(isObjectRef("BUG-14")).toBe(true);
     expect(isObjectRef("covid-19")).toBe(false);
-    const html = await render("Filed bug-14 after the covid-19 rush, see also top-10.");
+    const html = await render(
+      "Filed bug-14 after the covid-19 rush, see also top-10.",
+    );
     expect(html).toContain('href="/o/bug-14"');
     expect(html).toContain("Pane flashes on reload");
     expect(html).toContain("covid-19");
@@ -70,7 +123,16 @@ describe("mod object references in prose", () => {
   });
 
   test("an object not in the store yet pills with its short id, and a done one dims", async () => {
-    seed({ o2: { _id: "o2", short_id: "bug-3", prefix: "bug", title: "Fixed thing", status: "fixed", updated_at: 1 } });
+    seed({
+      o2: {
+        _id: "o2",
+        short_id: "bug-3",
+        prefix: "bug",
+        title: "Fixed thing",
+        status: "fixed",
+        updated_at: 1,
+      },
+    });
     const unknown = await render("what about bug-99?");
     expect(unknown).toContain('href="/o/bug-99"');
     expect(unknown).toContain(">bug-99<");
@@ -80,7 +142,9 @@ describe("mod object references in prose", () => {
 
   test("ids inside inline code are left alone", async () => {
     seed({});
-    expect(await render("run `cast obj show bug-14`")).not.toContain('href="/o/bug-14"');
+    expect(await render("run `cast obj show bug-14`")).not.toContain(
+      'href="/o/bug-14"',
+    );
   });
 });
 
@@ -88,10 +152,14 @@ describe("external object references in prose", () => {
   test("an external kind's own ids pill with nothing stored; numeric and other-kind look-alikes stay prose", async () => {
     seed({});
     expect(isObjectRef("contact-3f9a21bc")).toBe(true);
-    expect(isObjectRef("contact-3f9a21bc-1111-2222-3333-444455556666")).toBe(true);
+    expect(isObjectRef("contact-3f9a21bc-1111-2222-3333-444455556666")).toBe(
+      true,
+    );
     expect(isObjectRef("bug-3f9a21bc")).toBe(false);
     expect(isObjectRef("contact-form")).toBe(false);
-    const html = await render("Ask contact-3f9a21bc, not the contact-form or bug-3f9a21bc.");
+    const html = await render(
+      "Ask contact-3f9a21bc, not the contact-form or bug-3f9a21bc.",
+    );
     expect(html).toContain('href="/o/contact-3f9a21bc"');
     expect(html).not.toContain('href="/o/contact-form"');
     expect(html).not.toContain('href="/o/bug-3f9a21bc"');
@@ -101,14 +169,30 @@ describe("external object references in prose", () => {
     seed({});
     const asked: unknown[] = [];
     const runtime = {
-      id: "m2", status: "ready", hooks: [], row: { name: "people", is_mine: true, manifest: PEOPLE },
-      render: async (_key: string, surface: any) => { asked.push(surface); return { value: { title: "David Nolan, The Proper Group", fields: { role: "Fractional CEO" } } }; },
-      onInvalidate: () => () => {}, onStatus: () => () => {}, release: () => {}, invalidate: () => {},
+      id: "m2",
+      status: "ready",
+      hooks: [],
+      row: { name: "people", is_mine: true, manifest: PEOPLE },
+      render: async (_key: string, surface: any) => {
+        asked.push(surface);
+        return {
+          value: {
+            title: "David Nolan, The Proper Group",
+            fields: { role: "Fractional CEO" },
+          },
+        };
+      },
+      onInvalidate: () => () => {},
+      onStatus: () => () => {},
+      release: () => {},
+      invalidate: () => {},
     };
     (modHost as any).runtimes.set("m2", runtime);
     try {
       const html = await render("Top of the list: contact-3f9a21bc.");
-      expect(asked).toEqual([{ kind: "resolve", id: "contact", props: { id: "3f9a21bc" } }]);
+      expect(asked).toEqual([
+        { kind: "resolve", id: "contact", props: { id: "3f9a21bc" } },
+      ]);
       expect(html).toContain("David Nolan, The Proper Group");
     } finally {
       (modHost as any).runtimes.delete("m2");
@@ -119,12 +203,15 @@ describe("external object references in prose", () => {
 describe("a mod pane link alone on a line", () => {
   test("renders the live pane embed; the same link inside a sentence stays a link", async () => {
     seed({});
-    const alone = await render("Here it is:\n\nhttps://codecast.sh/m/bug-desk/triage\n\nTell me what to change.");
+    const alone = await render(
+      "Here it is:\n\nhttps://codecast.sh/m/bug-desk/triage\n\nTell me what to change.",
+    );
     expect(alone).toContain('data-mod-embed="bug-desk"');
     expect(alone).toContain("Bug Desk");
-    const inline = await render("Open https://codecast.sh/m/bug-desk/triage when you have a minute.");
+    const inline = await render(
+      "Open https://codecast.sh/m/bug-desk/triage when you have a minute.",
+    );
     expect(inline).not.toContain("data-mod-embed");
     expect(inline).toContain('href="/m/bug-desk/triage"');
   });
 });
-

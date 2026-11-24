@@ -34,7 +34,10 @@ export type LeadRole = {
   /** Set on an Executive Assistant (S30); such a role never covers the workspace. */
   assistant?: unknown;
   status?: string;
-  scope?: { project_ids?: readonly unknown[]; plan_ids?: readonly unknown[] } | null;
+  scope?: {
+    project_ids?: readonly unknown[];
+    plan_ids?: readonly unknown[];
+  } | null;
   reports_to?: { kind: string; role_id?: unknown } | null;
   keeps_reports_inside?: boolean | null;
 };
@@ -56,7 +59,8 @@ export function scopeListsProject(role: LeadRole, projectId: unknown): boolean {
   return (role.scope?.project_ids ?? []).some((p) => String(p) === id);
 }
 
-const scopeListsPlan = (role: LeadRole, planId: unknown) => (role.scope?.plan_ids ?? []).some((p) => String(p) === String(planId));
+const scopeListsPlan = (role: LeadRole, planId: unknown) =>
+  (role.scope?.plan_ids ?? []).some((p) => String(p) === String(planId));
 
 export const HEAD_OF_PEOPLE_HANDLE = "head-of-people";
 /** The name the role is born with (org-staffing.md S22: renamable like any role). */
@@ -75,26 +79,39 @@ export const LEGACY_HEAD_OF_PEOPLE_NAME = "Chief of Staff";
 export const EXECUTIVE_ASSISTANT_HANDLE = "executive-assistant";
 export const EXECUTIVE_ASSISTANT_NAME = "Executive Assistant";
 
-export type AssistantReach<TeamId = unknown> = { reach: "global" } | { reach: "team"; team_id: TeamId };
+export type AssistantReach<TeamId = unknown> =
+  | { reach: "global" }
+  | { reach: "team"; team_id: TeamId };
 
 /** True for the Head of People of a boundary: its handle, or the handle it
  *  had before the rename, on a row that is not an Executive Assistant. */
-export const isHeadOfPeopleRole = (r: { handle?: string; assistant?: unknown }): boolean =>
-  !r.assistant && (r.handle === HEAD_OF_PEOPLE_HANDLE || r.handle === LEGACY_HEAD_OF_PEOPLE_HANDLE);
+export const isHeadOfPeopleRole = (r: {
+  handle?: string;
+  assistant?: unknown;
+}): boolean =>
+  !r.assistant &&
+  (r.handle === HEAD_OF_PEOPLE_HANDLE ||
+    r.handle === LEGACY_HEAD_OF_PEOPLE_HANDLE);
 
 /** The role names projects or plans it looks after. */
-export const hasScope = (r: LeadRole) => (r.scope?.project_ids ?? []).length > 0 || (r.scope?.plan_ids ?? []).length > 0;
+export const hasScope = (r: LeadRole) =>
+  (r.scope?.project_ids ?? []).length > 0 ||
+  (r.scope?.plan_ids ?? []).length > 0;
 
 /** The one role that looks after what no narrower role covers: the Head of
  *  People, while it names no scope. Any other role without a scope owns nothing. */
-export const isWholeWorkspaceRole = (r: LeadRole) => !hasScope(r) && isHeadOfPeopleRole(r);
+export const isWholeWorkspaceRole = (r: LeadRole) =>
+  !hasScope(r) && isHeadOfPeopleRole(r);
 
 /** A piece of work as the rule reads it: the plan it is filed under and the
  *  project it belongs to (a plan's own project when the work names none).
  *  Work under neither is covered by a whole workspace role alone. */
 export type OwnedWork = { project_id?: unknown; plan_id?: unknown };
 
-export type WorkOwner<R> = { kind: "owner"; role: R } | { kind: "watchers"; roles: R[] } | { kind: "none" };
+export type WorkOwner<R> =
+  | { kind: "owner"; role: R }
+  | { kind: "watchers"; roles: R[] }
+  | { kind: "none" };
 
 /** How specifically `role` covers `work`: 2 names its plan, 1 names its
  *  project, 0 is the whole workspace, -1 does not cover it. */
@@ -105,7 +122,10 @@ export function coverDepth(role: LeadRole, work: OwnedWork): number {
 }
 
 /** The most specific live role covering `work` (S26). */
-export function ownerOf<R extends LeadRole>(work: OwnedWork, roles: readonly R[] | null | undefined): WorkOwner<R> {
+export function ownerOf<R extends LeadRole>(
+  work: OwnedWork,
+  roles: readonly R[] | null | undefined,
+): WorkOwner<R> {
   if (!roles) return { kind: "none" };
   let best = -1;
   let matches: R[] = [];
@@ -113,10 +133,14 @@ export function ownerOf<R extends LeadRole>(work: OwnedWork, roles: readonly R[]
     if (!live(r)) continue;
     const d = coverDepth(r, work);
     if (d < 0 || d < best) continue;
-    if (d > best) { best = d; matches = []; }
+    if (d > best) {
+      best = d;
+      matches = [];
+    }
     matches.push(r);
   }
-  if (matches.length <= 1) return matches[0] ? { kind: "owner", role: matches[0] } : { kind: "none" };
+  if (matches.length <= 1)
+    return matches[0] ? { kind: "owner", role: matches[0] } : { kind: "none" };
 
   // Walk each match's chain once. On a named area the role closest to the
   // work owns it: every match another one reports up to steps aside.
@@ -127,7 +151,10 @@ export function ownerOf<R extends LeadRole>(work: OwnedWork, roles: readonly R[]
     let cur: LeadRole | undefined = r;
     const seen = new Set<string>();
     for (let depth = 0; cur && depth < MAX_DEPTH; depth++) {
-      const parentId: string | null = cur.reports_to?.kind === "role" && cur.reports_to.role_id ? String(cur.reports_to.role_id) : null;
+      const parentId: string | null =
+        cur.reports_to?.kind === "role" && cur.reports_to.role_id
+          ? String(cur.reports_to.role_id)
+          : null;
       if (!parentId || seen.has(parentId)) break;
       seen.add(parentId);
       if (ids.has(parentId) && parentId !== String(r._id)) above.add(parentId);
@@ -138,23 +165,39 @@ export function ownerOf<R extends LeadRole>(work: OwnedWork, roles: readonly R[]
   // A cycle in a corrupt chain could put every match above another; fall
   // back to the matches as they stand rather than naming no one.
   const watchers = closest.length ? closest : matches;
-  return watchers.length === 1 ? { kind: "owner", role: watchers[0] } : { kind: "watchers", roles: watchers };
+  return watchers.length === 1
+    ? { kind: "owner", role: watchers[0] }
+    : { kind: "watchers", roles: watchers };
 }
 
 /** True when `role` is the one owner of `work` by the rule. */
-export const ownsWork = (role: LeadRole, work: OwnedWork, roles: readonly LeadRole[]): boolean => {
+export const ownsWork = (
+  role: LeadRole,
+  work: OwnedWork,
+  roles: readonly LeadRole[],
+): boolean => {
   const o = ownerOf(work, roles);
   return o.kind === "owner" && String(o.role._id) === String(role._id);
 };
 
-export function projectLeadOf<R extends LeadRole>(project: LeadProject | null | undefined, roles: readonly R[] | null | undefined): ProjectLead<R> {
+export function projectLeadOf<R extends LeadRole>(
+  project: LeadProject | null | undefined,
+  roles: readonly R[] | null | undefined,
+): ProjectLead<R> {
   if (!project || !roles) return { kind: "none" };
   if (project.owner_role_id) {
-    const owner = roles.find((r) => live(r) && String(r._id) === String(project.owner_role_id));
+    const owner = roles.find(
+      (r) => live(r) && String(r._id) === String(project.owner_role_id),
+    );
     if (owner) return { kind: "lead", role: owner, by: "owner" };
   }
   const o = ownerOf({ project_id: project._id }, roles);
-  if (o.kind === "owner") return { kind: "lead", role: o.role, by: isWholeWorkspaceRole(o.role) ? "workspace" : "scope" };
+  if (o.kind === "owner")
+    return {
+      kind: "lead",
+      role: o.role,
+      by: isWholeWorkspaceRole(o.role) ? "workspace" : "scope",
+    };
   // Whole workspace roles on separate lines tie on everything nobody listed:
   // that is no claim on this project, so nobody leads it.
   if (o.kind === "watchers" && !isWholeWorkspaceRole(o.roles[0])) return o;
@@ -166,7 +209,9 @@ export function projectLeadOf<R extends LeadRole>(project: LeadProject | null | 
  *  (2026-10-22), so a report may look after work its lead does not, and no
  *  scope edit, move or undo is refused for it. Every containment check reads
  *  this one answer. */
-export function keepsReportsInside(role: { keeps_reports_inside?: boolean | null }): boolean {
+export function keepsReportsInside(role: {
+  keeps_reports_inside?: boolean | null;
+}): boolean {
   return role.keeps_reports_inside === true;
 }
 
@@ -180,14 +225,33 @@ export function keepsReportsInside(role: { keeps_reports_inside?: boolean | null
  *  - `outside_parent`: the role reports to a role that keeps its reports
  *    inside its area and does not look after the project. The lead is still
  *    set; the scope waits for the parent's. */
-export type LeadScopeChange<R> = { kind: "add" } | { kind: "listed" } | { kind: "whole_workspace" } | { kind: "outside_parent"; parent: R };
+export type LeadScopeChange<R> =
+  | { kind: "add" }
+  | { kind: "listed" }
+  | { kind: "whole_workspace" }
+  | { kind: "outside_parent"; parent: R };
 
-export function leadScopeChange<R extends LeadRole>(projectId: unknown, role: R, roles: readonly R[]): LeadScopeChange<R> {
+export function leadScopeChange<R extends LeadRole>(
+  projectId: unknown,
+  role: R,
+  roles: readonly R[],
+): LeadScopeChange<R> {
   if (isWholeWorkspaceRole(role)) return { kind: "whole_workspace" };
   if (scopeListsProject(role, projectId)) return { kind: "listed" };
-  const parentId = role.reports_to?.kind === "role" && role.reports_to.role_id ? String(role.reports_to.role_id) : null;
-  const parent = parentId ? roles.find((r) => String(r._id) === parentId) : undefined;
-  if (parent && keepsReportsInside(parent) && hasScope(parent) && !scopeListsProject(parent, projectId)) return { kind: "outside_parent", parent };
+  const parentId =
+    role.reports_to?.kind === "role" && role.reports_to.role_id
+      ? String(role.reports_to.role_id)
+      : null;
+  const parent = parentId
+    ? roles.find((r) => String(r._id) === parentId)
+    : undefined;
+  if (
+    parent &&
+    keepsReportsInside(parent) &&
+    hasScope(parent) &&
+    !scopeListsProject(parent, projectId)
+  )
+    return { kind: "outside_parent", parent };
   return { kind: "add" };
 }
 
@@ -198,7 +262,13 @@ export function watchersLabel(count: number): string {
 
 /** The projects that need the analyzer's eye: several roles list them and
  *  they name no owner. One line each in the analyzer's inputs. */
-export function projectsWithoutAnOwnerAmongWatchers<P extends LeadProject, R extends LeadRole>(projects: readonly P[], roles: readonly R[]): Array<{ project: P; roles: R[] }> {
+export function projectsWithoutAnOwnerAmongWatchers<
+  P extends LeadProject,
+  R extends LeadRole,
+>(
+  projects: readonly P[],
+  roles: readonly R[],
+): Array<{ project: P; roles: R[] }> {
   const out: Array<{ project: P; roles: R[] }> = [];
   for (const project of projects) {
     const lead = projectLeadOf(project, roles);

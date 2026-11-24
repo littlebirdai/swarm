@@ -17,13 +17,19 @@ export const PRESENCE = {
   typingMs: 6_000,
 } as const;
 
-export type PresenceFields = { last_seen: number; viewing_version: number | null };
+export type PresenceFields = {
+  last_seen: number;
+  viewing_version: number | null;
+};
 
 export function presenceCutoff(now: number): number {
   return now - PRESENCE.staleMs;
 }
 
-export function isHere(row: Pick<PresenceFields, "last_seen">, now: number): boolean {
+export function isHere(
+  row: Pick<PresenceFields, "last_seen">,
+  now: number,
+): boolean {
   return row.last_seen > presenceCutoff(now);
 }
 
@@ -33,7 +39,13 @@ export function isTyping(row: { until: number }, now: number): boolean {
 
 /** The patch a heartbeat should write to an existing row, or null when the
  *  row already says everything (fresh enough, same version in view). */
-export function heartbeatPatch(row: PresenceFields, viewing: number | null, now: number): PresenceFields | null {
+export function heartbeatPatch(
+  row: PresenceFields,
+  viewing: number | null,
+  now: number,
+): PresenceFields | null {
   const due = now - row.last_seen >= PRESENCE.seenWriteMs;
-  return due || row.viewing_version !== viewing ? { last_seen: now, viewing_version: viewing } : null;
+  return due || row.viewing_version !== viewing
+    ? { last_seen: now, viewing_version: viewing }
+    : null;
 }

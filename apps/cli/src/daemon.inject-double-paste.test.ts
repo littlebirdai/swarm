@@ -53,118 +53,168 @@ restoreCodecastDirAfterAll(() => codecastDir.restore());
 const CAN_RUN = hasBinary("tmux") && hasBinary("claude");
 const exec = async (args: string[]) => ({ stdout: tmuxRun(args).stdout ?? "" });
 
-describe.skipIf(!CAN_RUN)("a claude composer holding two copies is never submitted twice", () => {
-  afterAll(() => {
-    sweepStaleSessions(MATRIX_TMUX_PREFIX);
-    killIsolatedTmuxServer();
-  });
+describe.skipIf(!CAN_RUN)(
+  "a claude composer holding two copies is never submitted twice",
+  () => {
+    afterAll(() => {
+      sweepStaleSessions(MATRIX_TMUX_PREFIX);
+      killIsolatedTmuxServer();
+    });
 
-  test("a single-line payload at the prompt twice is not submitted twice", async () => {
-    const payload = `double-${randomUUID().slice(0, 8)}: follow-up content`;
-    const marker = payload.split(":")[0];
-    const endpoint = await startFakeModelEndpoint();
-    endpoint.reject(); // every turn ends at once, so the pane stays classifiable
-    const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
-    try {
-      await waitFor(() => /❯/.test(pane.capture()), { timeoutMs: 60_000, label: "claude prompt" });
-
-      // The state the re-paste branch leaves behind on a composer that took the
-      // first paste: two copies, one after the other, nothing else.
-      await pasteTextIntoPane(exec as never, pane.target, payload, true);
-      await waitFor(() => pane.capture().includes(marker), { timeoutMs: 20_000, label: "first paste at the prompt" });
-      await pasteTextIntoPane(exec as never, pane.target, payload, true);
-      await waitFor(() => pane.capture().split(marker).length - 1 >= 2,
-        { timeoutMs: 20_000, label: "two copies at the prompt" });
-
-      let rePastes = 0;
-      let gate = "";
+    test("a single-line payload at the prompt twice is not submitted twice", async () => {
+      const payload = `double-${randomUUID().slice(0, 8)}: follow-up content`;
+      const marker = payload.split(":")[0];
+      const endpoint = await startFakeModelEndpoint();
+      endpoint.reject(); // every turn ends at once, so the pane stays classifiable
+      const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
       try {
-        gate = await awaitTmuxComposerPayload(pane.target, payload, {
-          // Never equal to a capture, so the frozen-pane branch cannot fire and
-          // the gate has to decide on what the composer shows.
-          prePaste: " never equal to a capture",
-          rePaste: async () => {
-            rePastes++;
-            await pasteTextIntoPane(exec as never, pane.target, payload, true);
-          },
-          budgetMs: 25_000,
-          exec: exec as never,
+        await waitFor(() => /❯/.test(pane.capture()), {
+          timeoutMs: 60_000,
+          label: "claude prompt",
         });
-      } catch (err) {
-        gate = "threw " + (err as Error).message.split(":")[0];
+
+        // The state the re-paste branch leaves behind on a composer that took the
+        // first paste: two copies, one after the other, nothing else.
+        await pasteTextIntoPane(exec as never, pane.target, payload, true);
+        await waitFor(() => pane.capture().includes(marker), {
+          timeoutMs: 20_000,
+          label: "first paste at the prompt",
+        });
+        await pasteTextIntoPane(exec as never, pane.target, payload, true);
+        await waitFor(() => pane.capture().split(marker).length - 1 >= 2, {
+          timeoutMs: 20_000,
+          label: "two copies at the prompt",
+        });
+
+        let rePastes = 0;
+        let gate = "";
+        try {
+          gate = await awaitTmuxComposerPayload(pane.target, payload, {
+            // Never equal to a capture, so the frozen-pane branch cannot fire and
+            // the gate has to decide on what the composer shows.
+            prePaste: " never equal to a capture",
+            rePaste: async () => {
+              rePastes++;
+              await pasteTextIntoPane(
+                exec as never,
+                pane.target,
+                payload,
+                true,
+              );
+            },
+            budgetMs: 25_000,
+            exec: exec as never,
+          });
+        } catch (err) {
+          gate = "threw " + (err as Error).message.split(":")[0];
+        }
+        if (gate === "matched")
+          tmuxRun(["send-keys", "-t", pane.target, "Enter"]);
+
+        // Not every good outcome records a message: when the gate refuses and the
+        // composer still will not converge it throws, and nothing is submitted.
+        await waitFor(
+          () => pane.userMessages().some((m) => m.includes(marker)),
+          { timeoutMs: 60_000 },
+        ).catch(() => {});
+        await new Promise((r) => setTimeout(r, 3_000));
+
+        const recorded = pane.userMessages().map((m) => m.trimEnd());
+        const copies = recorded.reduce(
+          (n, m) => n + m.split(marker).length - 1,
+          0,
+        );
+        console.log(
+          `[double] gate=${gate} rePastes=${rePastes} copies=${copies} ` +
+            `recorded=${JSON.stringify(recorded)}`,
+        );
+
+        // Accepting the composer as it stands is the bug: "matched" with nothing
+        // re-pasted means the gate read two copies and called them the payload.
+        // Refusing and re-pasting is the good outcome; throwing
+        // AGENT_STDIN_NOT_READY is the acceptable one, because the delivery layer
+        // then redelivers rather than sending the message twice.
+        expect(
+          gate === "matched" && rePastes === 0,
+          JSON.stringify(recorded),
+        ).toBe(false);
+        expect(
+          copies,
+          `recorded: ${JSON.stringify(recorded)}`,
+        ).toBeLessThanOrEqual(1);
+      } finally {
+        try {
+          pane.tearDown();
+        } catch {}
+        endpoint.close();
       }
-      if (gate === "matched") tmuxRun(["send-keys", "-t", pane.target, "Enter"]);
+    }, 240_000);
 
-      // Not every good outcome records a message: when the gate refuses and the
-      // composer still will not converge it throws, and nothing is submitted.
-      await waitFor(() => pane.userMessages().some((m) => m.includes(marker)), { timeoutMs: 60_000 })
-        .catch(() => {});
-      await new Promise((r) => setTimeout(r, 3_000));
-
-      const recorded = pane.userMessages().map((m) => m.trimEnd());
-      const copies = recorded.reduce((n, m) => n + m.split(marker).length - 1, 0);
-      console.log(
-        `[double] gate=${gate} rePastes=${rePastes} copies=${copies} ` +
-        `recorded=${JSON.stringify(recorded)}`,
-      );
-
-      // Accepting the composer as it stands is the bug: "matched" with nothing
-      // re-pasted means the gate read two copies and called them the payload.
-      // Refusing and re-pasting is the good outcome; throwing
-      // AGENT_STDIN_NOT_READY is the acceptable one, because the delivery layer
-      // then redelivers rather than sending the message twice.
-      expect(gate === "matched" && rePastes === 0, JSON.stringify(recorded)).toBe(false);
-      expect(copies, `recorded: ${JSON.stringify(recorded)}`).toBeLessThanOrEqual(1);
-    } finally {
-      try { pane.tearDown(); } catch {}
-      endpoint.close();
-    }
-  }, 240_000);
-
-  // ct-49841: the same composer, handed to the WHOLE injection path rather than
-  // to the gate alone. injectViaTmux asks before it pastes whether the payload
-  // is already at the prompt, and a "yes" skips the drain and the paste and
-  // presses Enter over what is there. Reading two copies as "already there" is
-  // how the union of the two fixes reopened the doubling: the gate refused the
-  // doubled composer, and the check in front of it never let the gate see it.
-  test("a composer already holding two copies is not submitted as one message", async () => {
-    const payload = `union-${randomUUID().slice(0, 8)}: follow-up content`;
-    const marker = payload.split(":")[0];
-    const endpoint = await startFakeModelEndpoint();
-    endpoint.reject();
-    const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
-    try {
-      await waitFor(() => /❯/.test(pane.capture()), { timeoutMs: 60_000, label: "claude prompt" });
-
-      await pasteTextIntoPane(exec as never, pane.target, payload, true);
-      await waitFor(() => pane.capture().includes(marker), { timeoutMs: 20_000, label: "first paste at the prompt" });
-      await pasteTextIntoPane(exec as never, pane.target, payload, true);
-      await waitFor(() => pane.capture().split(marker).length - 1 >= 2,
-        { timeoutMs: 20_000, label: "two copies at the prompt" });
-
-      let outcome = "delivered";
+    // ct-49841: the same composer, handed to the WHOLE injection path rather than
+    // to the gate alone. injectViaTmux asks before it pastes whether the payload
+    // is already at the prompt, and a "yes" skips the drain and the paste and
+    // presses Enter over what is there. Reading two copies as "already there" is
+    // how the union of the two fixes reopened the doubling: the gate refused the
+    // doubled composer, and the check in front of it never let the gate see it.
+    test("a composer already holding two copies is not submitted as one message", async () => {
+      const payload = `union-${randomUUID().slice(0, 8)}: follow-up content`;
+      const marker = payload.split(":")[0];
+      const endpoint = await startFakeModelEndpoint();
+      endpoint.reject();
+      const pane = spawnClientPane("claude", { endpointUrl: endpoint.url });
       try {
-        await injectViaTmux(pane.target, payload, "claude");
-      } catch (err) {
-        outcome = (err as Error).message.split(":")[0];
+        await waitFor(() => /❯/.test(pane.capture()), {
+          timeoutMs: 60_000,
+          label: "claude prompt",
+        });
+
+        await pasteTextIntoPane(exec as never, pane.target, payload, true);
+        await waitFor(() => pane.capture().includes(marker), {
+          timeoutMs: 20_000,
+          label: "first paste at the prompt",
+        });
+        await pasteTextIntoPane(exec as never, pane.target, payload, true);
+        await waitFor(() => pane.capture().split(marker).length - 1 >= 2, {
+          timeoutMs: 20_000,
+          label: "two copies at the prompt",
+        });
+
+        let outcome = "delivered";
+        try {
+          await injectViaTmux(pane.target, payload, "claude");
+        } catch (err) {
+          outcome = (err as Error).message.split(":")[0];
+        }
+
+        await waitFor(
+          () => pane.userMessages().some((m) => m.includes(marker)),
+          { timeoutMs: 60_000 },
+        ).catch(() => {});
+        await new Promise((r) => setTimeout(r, 3_000));
+
+        const recorded = pane.userMessages().map((m) => m.trimEnd());
+        const copies = recorded.reduce(
+          (n, m) => n + m.split(marker).length - 1,
+          0,
+        );
+        console.log(
+          `[double/inject] outcome=${outcome} copies=${copies} recorded=${JSON.stringify(recorded)}`,
+        );
+
+        // One message, or none with AGENT_STDIN_NOT_READY left for the delivery
+        // layer to retry. Two copies of the marker, in one message or across two,
+        // is the bug whichever way they were submitted.
+        expect(["delivered", "AGENT_STDIN_NOT_READY"]).toContain(outcome);
+        expect(
+          copies,
+          `recorded: ${JSON.stringify(recorded)}`,
+        ).toBeLessThanOrEqual(1);
+      } finally {
+        try {
+          pane.tearDown();
+        } catch {}
+        endpoint.close();
       }
-
-      await waitFor(() => pane.userMessages().some((m) => m.includes(marker)), { timeoutMs: 60_000 })
-        .catch(() => {});
-      await new Promise((r) => setTimeout(r, 3_000));
-
-      const recorded = pane.userMessages().map((m) => m.trimEnd());
-      const copies = recorded.reduce((n, m) => n + m.split(marker).length - 1, 0);
-      console.log(`[double/inject] outcome=${outcome} copies=${copies} recorded=${JSON.stringify(recorded)}`);
-
-      // One message, or none with AGENT_STDIN_NOT_READY left for the delivery
-      // layer to retry. Two copies of the marker, in one message or across two,
-      // is the bug whichever way they were submitted.
-      expect(["delivered", "AGENT_STDIN_NOT_READY"]).toContain(outcome);
-      expect(copies, `recorded: ${JSON.stringify(recorded)}`).toBeLessThanOrEqual(1);
-    } finally {
-      try { pane.tearDown(); } catch {}
-      endpoint.close();
-    }
-  }, 240_000);
-});
+    }, 240_000);
+  },
+);

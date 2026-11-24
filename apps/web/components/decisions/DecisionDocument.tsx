@@ -3,9 +3,22 @@
 import { gateDoc } from "@codecast/shared/contracts/changeCard";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, MessageSquare, MessagesSquare } from "lucide-react";
-import { useInboxStore, type SessionDecisionItem, type DecisionDetailItem } from "../../store/inboxStore";
-import { useSyncTaskEvidence, useTaskEvidenceByShortId } from "../../hooks/useSyncTaskEvidence";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  MessageSquare,
+  MessagesSquare,
+} from "lucide-react";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+  type DecisionDetailItem,
+} from "../../store/inboxStore";
+import {
+  useSyncTaskEvidence,
+  useTaskEvidenceByShortId,
+} from "../../hooks/useSyncTaskEvidence";
 import { useDecisionThread } from "../../hooks/useDecisionThread";
 import { useJumpToDecisionAsk } from "../../hooks/useJumpToDecisionAsk";
 import { DoubtChip } from "../line/DoubtChip";
@@ -15,20 +28,42 @@ import { DecisionAnswerControls } from "./DecisionAnswerControls";
 import { RunFallbackLine } from "./RunFallbackLine";
 import { DecisionOptionList, RecommendedMark } from "./DecisionOptionList";
 import { DecisionDiscussion } from "./DecisionDiscussion";
-import { DecisionBody, DecisionFacts, DecisionLadder, DecisionReport, LeadRecommendation } from "./DecisionSections";
+import {
+  DecisionBody,
+  DecisionFacts,
+  DecisionLadder,
+  DecisionReport,
+  LeadRecommendation,
+} from "./DecisionSections";
 import { GateRunChip } from "./DecisionCompactCard";
 import { DeployedIn } from "../line/widgets/DeployedIn";
 import { OriginTrail } from "../line/widgets/OriginTrail";
 import "../line/workspace/workspace.css";
 import { OptionPages } from "./OptionPages";
 import { DecisionPager } from "./DecisionPager";
-import { useDecisionStep, type DecisionStep } from "../../hooks/useDecisionStep";
+import {
+  useDecisionStep,
+  type DecisionStep,
+} from "../../hooks/useDecisionStep";
 import { useDecisionQueue } from "../../hooks/useDecisionQueue";
 import { HandoffNote } from "./DecisionParties";
-import { ChangeCardHeadline, ChangeCardVerdictBar, ChangeCardView } from "./ChangeCardView";
+import {
+  ChangeCardHeadline,
+  ChangeCardVerdictBar,
+  ChangeCardView,
+} from "./ChangeCardView";
 import { ShareControl } from "../ShareControl";
-import { decisionWaitLabel, ladderRecommenders, waitsOnViewer } from "../../lib/decisionLinks";
-import { DecisionAnswerPanel, restatesCard, useDecisionAnswering, useDecisionPage } from "./DecisionAnswering";
+import {
+  decisionWaitLabel,
+  ladderRecommenders,
+  waitsOnViewer,
+} from "../../lib/decisionLinks";
+import {
+  DecisionAnswerPanel,
+  restatesCard,
+  useDecisionAnswering,
+  useDecisionPage,
+} from "./DecisionAnswering";
 import "./decisions.css";
 import { Button } from "../ui/button";
 
@@ -37,28 +72,73 @@ import { Button } from "../ui/button";
 // answers land there first) and the page context from decisionDetails, which
 // useSyncDecisionDetail feeds from getWithDoc. The answer footer is the same
 // store action the compact card and the transcript card use.
-export function DecisionDocument({ id, pager = true }: { id: string; pager?: boolean }) {
+export function DecisionDocument({
+  id,
+  pager = true,
+}: {
+  id: string;
+  pager?: boolean;
+}) {
   const page = useDecisionPage(id);
   if (!page.detail || !page.decision) {
-    if (page.missing && page.ready) return <Empty text="This decision does not exist, or it is not yours to read." />;
+    if (page.missing && page.ready)
+      return (
+        <Empty text="This decision does not exist, or it is not yours to read." />
+      );
     return <AppLoader />;
   }
-  return <DocumentBody decision={page.decision} detail={page.detail} answerable={page.answerable} pager={pager} />;
+  return (
+    <DocumentBody
+      decision={page.decision}
+      detail={page.detail}
+      answerable={page.answerable}
+      pager={pager}
+    />
+  );
 }
 
 function Empty({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
       <div className="text-lg text-sol-text">{text}</div>
-      <Link href="/decisions" className="text-sm text-sol-text-dim hover:text-sol-text">Back to the queue</Link>
+      <Link
+        href="/decisions"
+        className="text-sm text-sol-text-dim hover:text-sol-text"
+      >
+        Back to the queue
+      </Link>
     </div>
   );
 }
 
-function DocumentBody({ decision, detail, answerable, pager }: { decision: SessionDecisionItem; detail: DecisionDetailItem; answerable: boolean; pager: boolean }) {
+function DocumentBody({
+  decision,
+  detail,
+  answerable,
+  pager,
+}: {
+  decision: SessionDecisionItem;
+  detail: DecisionDetailItem;
+  answerable: boolean;
+  pager: boolean;
+}) {
   const a = useDecisionAnswering(decision, detail, answerable);
   const meId = useInboxStore((st) => st.currentUser?._id as string | undefined);
-  const { now, pending, rec, answerInOptions, verdictBar, chosen, onAnswer, onDismiss, heldNote, outcome, closed, banner, doubt } = a;
+  const {
+    now,
+    pending,
+    rec,
+    answerInOptions,
+    verdictBar,
+    chosen,
+    onAnswer,
+    onDismiss,
+    heldNote,
+    outcome,
+    closed,
+    banner,
+    doubt,
+  } = a;
   // A card's cause task may carry the author's change guide; its evidence row holds it.
   useSyncTaskEvidence(a.cardTask);
   const guide = useTaskEvidenceByShortId(a.cardTask)?.change_guide ?? null;
@@ -67,61 +147,138 @@ function DocumentBody({ decision, detail, answerable, pager }: { decision: Sessi
 
   // The thread that asked opens from its own button ("Talk to the session"),
   // the page's lead action: the session is selected in the inbox at once.
-  const jumpToAsk = useJumpToDecisionAsk(decision.conversation_id, decision._id, decision.question);
+  const jumpToAsk = useJumpToDecisionAsk(
+    decision.conversation_id,
+    decision._id,
+    decision.question,
+  );
   // Read before the answer, so the slot this decision held is known once it leaves the list.
   const step = useDecisionStep([decision.short_id, decision._id]);
 
   // Who asked, who may answer, who holds it. A change card leads with the
   // change and its proof, so for one these facts follow the card.
-  const meta = <DecisionFacts decision={decision} detail={detail} ladder={detail.ladder.length ? <DecisionLadder decision={decision} detail={detail} now={now} /> : undefined} />;
+  const meta = (
+    <DecisionFacts
+      decision={decision}
+      detail={detail}
+      ladder={
+        detail.ladder.length ? (
+          <DecisionLadder decision={decision} detail={detail} now={now} />
+        ) : undefined
+      }
+    />
+  );
 
   // A card's attached doc that only restates the card ("What is wrong: ...")
   // is said once, by the card.
-  const restated = !!decision.card && restatesCard(gateDoc(detail.doc?.content ?? ""), decision.card);
+  const restated =
+    !!decision.card &&
+    restatesCard(gateDoc(detail.doc?.content ?? ""), decision.card);
   // The report is drawn on its own, under the team's comments, so the words
   // that frame the question stay with it and the comments sit near the top.
-  const hasWords = !!(gateDoc(detail.doc?.content ?? "") || decision.context_md);
-  const body = hasWords && !restated ? <DecisionBody decision={decision} detail={detail} report={false} /> : null;
+  const hasWords = !!(
+    gateDoc(detail.doc?.content ?? "") || decision.context_md
+  );
+  const body =
+    hasWords && !restated ? (
+      <DecisionBody decision={decision} detail={detail} report={false} />
+    ) : null;
 
   return (
     <div className="h-full overflow-y-auto decision-doc" data-main-scroll>
       {/* One measure for every decision: a change card stacks its proof over its examples, so it needs no wider page. */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
         <div className="flex items-center gap-3">
-          <Link href="/decisions" className="inline-flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors no-underline">
+          <Link
+            href="/decisions"
+            className="inline-flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors no-underline"
+          >
             <ArrowLeft className="w-3 h-3" /> The queue
           </Link>
-          {pager && <span className="ml-auto"><DecisionPager step={step} /></span>}
+          {pager && (
+            <span className="ml-auto">
+              <DecisionPager step={step} />
+            </span>
+          )}
         </div>
 
         {/* ── Header ── */}
         <header className="mt-4">
-          {banner && <div className="decision-status-banner mb-3" role="status" data-decision-banner={decision.status}>{banner}</div>}
+          {banner && (
+            <div
+              className="decision-status-banner mb-3"
+              role="status"
+              data-decision-banner={decision.status}
+            >
+              {banner}
+            </div>
+          )}
           <div className="flex items-center gap-2 flex-wrap text-meta text-sol-text-dim">
             {/* The wait leads, as its consequence for the reader; a settled
                 card says its verdict once, as the card's last line with who
                 and when, so the header keeps only the age. */}
-            {!outcome && !banner && (
-              // Words in the wait's tone, not a box: the headline under it is the thing to read.
-              <span className={pending && waitsOnViewer(decision, meId) ? (decision.blocking ? "text-sol-yellow" : "text-sol-blue") : "text-sol-text-dim"}>
-                {decisionWaitLabel(decision, meId)}
-              </span>
+            {!outcome &&
+              !banner && (
+                // Words in the wait's tone, not a box: the headline under it is the thing to read.
+                <span
+                  className={
+                    pending && waitsOnViewer(decision, meId)
+                      ? decision.blocking
+                        ? "text-sol-yellow"
+                        : "text-sol-blue"
+                      : "text-sol-text-dim"
+                  }
+                >
+                  {decisionWaitLabel(decision, meId)}
+                </span>
+              )}
+            <span>
+              {!outcome && !banner && "· "}asked{" "}
+              {formatTimeAgo(decision.created_at, now)}
+            </span>
+            {decision.resolved_at && !outcome && !banner && (
+              <span>· resolved {formatTimeAgo(decision.resolved_at, now)}</span>
             )}
-            <span>{!outcome && !banner && "· "}asked {formatTimeAgo(decision.created_at, now)}</span>
-            {decision.resolved_at && !outcome && !banner && <span>· resolved {formatTimeAgo(decision.resolved_at, now)}</span>}
             {/* A gate on the line (the-line.md L4): the run this question pauses. */}
-            {decision.workflow_run_id && <GateRunChip runId={decision.workflow_run_id} nodeId={decision.gate_node_id} />}
+            {decision.workflow_run_id && (
+              <GateRunChip
+                runId={decision.workflow_run_id}
+                nodeId={decision.gate_node_id}
+              />
+            )}
             {/* A line card answered Ship: the deploy that put its fix live (deploys.md). */}
-            {decision.workflow_run_id && decision.status === "answered" && <DeployedIn taskId={decision.task_id} />}
+            {decision.workflow_run_id && decision.status === "answered" && (
+              <DeployedIn taskId={decision.task_id} />
+            )}
             {/* The id is for citing, so it trails the line. */}
-            <span className="font-mono opacity-70">{decision.short_id ?? "decision"}</span>
-            <ShareControl label="decision" path={`/decisions/${decision.short_id ?? decision._id}`} publicShare={{ kind: "decision", id: decision._id, token: (decision as any).share_token }} className="ml-auto" />
+            <span className="font-mono opacity-70">
+              {decision.short_id ?? "decision"}
+            </span>
+            <ShareControl
+              label="decision"
+              path={`/decisions/${decision.short_id ?? decision._id}`}
+              publicShare={{
+                kind: "decision",
+                id: decision._id,
+                token: (decision as any).share_token,
+              }}
+              className="ml-auto"
+            />
           </div>
           {/* A change card leads with what changed, and its cause and goal under
               it, so the first line says what and the second says why. */}
-          {decision.card ? <ChangeCardHeadline card={decision.card} question={decision.question} questionFirst className="mt-3" /> : (
+          {decision.card ? (
+            <ChangeCardHeadline
+              card={decision.card}
+              question={decision.question}
+              questionFirst
+              className="mt-3"
+            />
+          ) : (
             <>
-              <h1 className="mt-3 decision-question text-sol-text">{decision.question}</h1>
+              <h1 className="mt-3 decision-question text-sol-text">
+                {decision.question}
+              </h1>
               {meta}
             </>
           )}
@@ -134,18 +291,41 @@ function DocumentBody({ decision, detail, answerable, pager }: { decision: Sessi
         {/* Two ways to discuss, each saying where the words go: into the
             session that asked (its transcript, where a message brings it to
             the inbox), or onto the decision for the team. */}
-        <div className="mt-4 flex items-center gap-2.5 flex-wrap" data-decision-discuss>
-          <Button type="button" variant="blue" size="sm" onClick={() => void jumpToAsk()} data-decision-open-thread>
-            <MessagesSquare />Talk to the session
+        <div
+          className="mt-4 flex items-center gap-2.5 flex-wrap"
+          data-decision-discuss
+        >
+          <Button
+            type="button"
+            variant="blue"
+            size="sm"
+            onClick={() => void jumpToAsk()}
+            data-decision-open-thread
+          >
+            <MessagesSquare />
+            Talk to the session
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => { setDiscussOpen(true); requestAnimationFrame(() => document.getElementById("discuss")?.scrollIntoView({ block: "nearest", behavior: "smooth" })); }}
+            onClick={() => {
+              setDiscussOpen(true);
+              requestAnimationFrame(() =>
+                document
+                  .getElementById("discuss")
+                  ?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
+              );
+            }}
             data-decision-discuss-button
           >
-            <MessageSquare />Comment for the team{discussion.rows.length > 0 && <span className="text-sol-text-dim">{discussion.rows.length}</span>}
+            <MessageSquare />
+            Comment for the team
+            {discussion.rows.length > 0 && (
+              <span className="text-sol-text-dim">
+                {discussion.rows.length}
+              </span>
+            )}
           </Button>
         </div>
 
@@ -155,7 +335,13 @@ function DocumentBody({ decision, detail, answerable, pager }: { decision: Sessi
         {(discussOpen || discussion.rows.length > 0) && (
           <section className="mt-5" id="discuss" data-decision-discuss-section>
             <h2 className="decision-kicker mb-3">Comments</h2>
-            <DecisionDiscussion decisionId={decision._id} open={discussOpen} onOpenChange={setDiscussOpen} bare noAsk />
+            <DecisionDiscussion
+              decisionId={decision._id}
+              open={discussOpen}
+              onOpenChange={setDiscussOpen}
+              bare
+              noAsk
+            />
           </section>
         )}
 
@@ -171,16 +357,27 @@ function DocumentBody({ decision, detail, answerable, pager }: { decision: Sessi
         {/* A change card's lead verdict reads before its proof. A plain
             decision reads question, context, then the lead's call beside
             the options it picks between. */}
-        {decision.card && <LeadRecommendation decision={decision} detail={detail} />}
+        {decision.card && (
+          <LeadRecommendation decision={decision} detail={detail} />
+        )}
 
         {/* The doubt the record raised about the cause, where a reviewer cannot miss it. */}
         {doubt && <DoubtChip doubt={doubt} className="mt-3" />}
 
         {/* Sticky, so it is a sibling of the page's sections, not inside the header. */}
-        {verdictBar && decision.card && heldNote && <div className="mt-4">{heldNote}</div>}
+        {verdictBar && decision.card && heldNote && (
+          <div className="mt-4">{heldNote}</div>
+        )}
         {verdictBar && decision.card && (
           <ChangeCardVerdictBar card={decision.card}>
-            <DecisionAnswerControls decision={decision} onAnswer={onAnswer} onDismiss={pending ? onDismiss : undefined} keys recommendation={rec} record={outcome?.pill} />
+            <DecisionAnswerControls
+              decision={decision}
+              onAnswer={onAnswer}
+              onDismiss={pending ? onDismiss : undefined}
+              keys
+              recommendation={rec}
+              record={outcome?.pill}
+            />
           </ChangeCardVerdictBar>
         )}
 
@@ -188,89 +385,185 @@ function DocumentBody({ decision, detail, answerable, pager }: { decision: Sessi
         {/* The agent's own context reads right under the card, before the facts. */}
         {decision.card && (
           <section className="mt-6">
-            <ChangeCardView card={decision.card} density="full" change={false} recommend={!verdictBar} outcome={closed ? undefined : outcome?.line} summarized={verdictBar} guide={guide} />
+            <ChangeCardView
+              card={decision.card}
+              density="full"
+              change={false}
+              recommend={!verdictBar}
+              outcome={closed ? undefined : outcome?.line}
+              summarized={verdictBar}
+              guide={guide}
+            />
             {body && <div className="mt-6">{body}</div>}
             {meta}
           </section>
         )}
 
-        {!decision.card && <LeadRecommendation decision={decision} detail={detail} className="mt-8" />}
-
+        {!decision.card && (
+          <LeadRecommendation
+            decision={decision}
+            detail={detail}
+            className="mt-8"
+          />
+        )}
 
         {/* ── Options ── */}
         {/* A settled card's options collapse into its outcome line. */}
-        {!verdictBar && !outcome && <section className="mt-8">
-          <h2 className="decision-kicker">{decision.card ? "Your call" : "Options"}{decision.kind && decision.kind !== "single" ? ` · ${decision.kind === "multi" ? "pick several" : decision.kind === "rank" ? "rank them" : "a form"}` : ""}</h2>
-          {/* Option pages (L6) compare side by side above the list; a card's
+        {!verdictBar && !outcome && (
+          <section className="mt-8">
+            <h2 className="decision-kicker">
+              {decision.card ? "Your call" : "Options"}
+              {decision.kind && decision.kind !== "single"
+                ? ` · ${decision.kind === "multi" ? "pick several" : decision.kind === "rank" ? "rank them" : "a form"}`
+                : ""}
+            </h2>
+            {/* Option pages (L6) compare side by side above the list; a card's
               number answers on a single kind, where one option is the answer. */}
-          <div className="mt-3 empty:hidden">
-            <OptionPages
-              decision={decision}
-              answerable={pending && answerable && (decision.kind ?? "single") === "single"}
-              onAnswer={(index) => onAnswer({ index })}
-              chosen={chosen}
-            />
-          </div>
-          {/* While the reader may answer, the option rows ARE the answer
+            <div className="mt-3 empty:hidden">
+              <OptionPages
+                decision={decision}
+                answerable={
+                  pending &&
+                  answerable &&
+                  (decision.kind ?? "single") === "single"
+                }
+                onAnswer={(index) => onAnswer({ index })}
+                chosen={chosen}
+              />
+            </div>
+            {/* While the reader may answer, the option rows ARE the answer
               surface (the same controls the queue card uses), so the page
               never lists the options once to read and again to click. A
               form's options are context for its fields, which sit in the
               footer; a settled or held decision reads its rows plainly. */}
-          <div className="mt-3">
-            {answerInOptions ? (
-              <>
-                {heldNote}
-                <DecisionAnswerControls decision={decision} onAnswer={onAnswer} onDismiss={onDismiss} keys recommendation={rec} />
-              </>
-            ) : (
-              <DecisionOptionList
-                options={decision.options}
-                tone={(i) => (chosen.has(i) ? "picked" : "plain")}
-                leading={(i) => chosen.has(i) ? (
-                  <span className="w-6 h-6 rounded-full border border-sol-green text-sol-green flex items-center justify-center"><Check className="w-3.5 h-3.5" /></span>
-                ) : undefined}
-                tags={(i) => (
-                  <>
-                    {rec === i && <RecommendedMark count={ladderRecommenders(decision).get(i)} />}
-                    {decision.default_option === i && !decision.blocking && <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim">the agent's default</span>}
-                  </>
-                )}
-              />
-            )}
-          </div>
-          {decision.kind === "form" && decision.form && (
-            <div className="mt-3 text-[12px] text-sol-text-dim">
-              Fields: {decision.form.fields.map((f) => `${f.label} (${f.type})`).join(", ")}
+            <div className="mt-3">
+              {answerInOptions ? (
+                <>
+                  {heldNote}
+                  <DecisionAnswerControls
+                    decision={decision}
+                    onAnswer={onAnswer}
+                    onDismiss={onDismiss}
+                    keys
+                    recommendation={rec}
+                  />
+                </>
+              ) : (
+                <DecisionOptionList
+                  options={decision.options}
+                  tone={(i) => (chosen.has(i) ? "picked" : "plain")}
+                  leading={(i) =>
+                    chosen.has(i) ? (
+                      <span className="w-6 h-6 rounded-full border border-sol-green text-sol-green flex items-center justify-center">
+                        <Check className="w-3.5 h-3.5" />
+                      </span>
+                    ) : undefined
+                  }
+                  tags={(i) => (
+                    <>
+                      {rec === i && (
+                        <RecommendedMark
+                          count={ladderRecommenders(decision).get(i)}
+                        />
+                      )}
+                      {decision.default_option === i && !decision.blocking && (
+                        <span className="text-meta px-1.5 py-0.5 rounded border border-sol-border text-sol-text-dim">
+                          the agent's default
+                        </span>
+                      )}
+                    </>
+                  )}
+                />
+              )}
             </div>
-          )}
-          <RunFallbackLine run={pending ? decision.run : undefined} className="mt-3" />
-        </section>}
+            {decision.kind === "form" && decision.form && (
+              <div className="mt-3 text-[12px] text-sol-text-dim">
+                Fields:{" "}
+                {decision.form.fields
+                  .map((f) => `${f.label} (${f.type})`)
+                  .join(", ")}
+              </div>
+            )}
+            <RunFallbackLine
+              run={pending ? decision.run : undefined}
+              className="mt-3"
+            />
+          </section>
+        )}
 
         {/* ── Answer ── */}
-        {a.answerSection && <section className="mt-8 decision-footer rounded-xl border border-sol-border/70 bg-sol-card/50 p-4 sm:p-5">
-          <DecisionAnswerPanel decision={decision} detail={detail} answerable={answerable} a={a} />
-        </section>}
+        {a.answerSection && (
+          <section className="mt-8 decision-footer rounded-xl border border-sol-border/70 bg-sol-card/50 p-4 sm:p-5">
+            <DecisionAnswerPanel
+              decision={decision}
+              detail={detail}
+              answerable={answerable}
+              a={a}
+            />
+          </section>
+        )}
 
         {/* Settled: where to go from here, the thread that asked or the next decision waiting. */}
-        {!pending && <DecisionNext decisionId={decision._id} step={step} openSession={jumpToAsk} />}
+        {!pending && (
+          <DecisionNext
+            decisionId={decision._id}
+            step={step}
+            openSession={jumpToAsk}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function DecisionNext({ decisionId, step, openSession }: { decisionId: string; step: DecisionStep; openSession: () => Promise<boolean> }) {
+function DecisionNext({
+  decisionId,
+  step,
+  openSession,
+}: {
+  decisionId: string;
+  step: DecisionStep;
+  openSession: () => Promise<boolean>;
+}) {
   // The list's next, else the first decision still waiting in the queue.
   const queue = useDecisionQueue();
   const queued = queue.find((q) => q.decisionId && q.decisionId !== decisionId);
-  const next = step.pos?.next ?? (queued ? queued.shortId ?? queued.decisionId ?? null : null);
+  const next =
+    step.pos?.next ??
+    (queued ? (queued.shortId ?? queued.decisionId ?? null) : null);
   return (
     // Pinned to the bottom of the page's scroll, so the next step shows where the answer was given.
-    <div className="decision-next-bar mt-4 flex items-center gap-2.5 flex-wrap" data-decision-next>
-      <Button type="button" variant="outline" size="sm" onClick={() => void openSession()} data-decision-next-session>
-        <MessagesSquare />Open the session
+    <div
+      className="decision-next-bar mt-4 flex items-center gap-2.5 flex-wrap"
+      data-decision-next
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => void openSession()}
+        data-decision-next-session
+      >
+        <MessagesSquare />
+        Open the session
       </Button>
-      <Button type="button" variant="blue" size="sm" className="ml-auto" disabled={!next} onClick={() => step.go(next)} data-decision-next-decision>
-        {next ? <>Next decision<ArrowRight /></> : "No decisions waiting"}
+      <Button
+        type="button"
+        variant="blue"
+        size="sm"
+        className="ml-auto"
+        disabled={!next}
+        onClick={() => step.go(next)}
+        data-decision-next-decision
+      >
+        {next ? (
+          <>
+            Next decision
+            <ArrowRight />
+          </>
+        ) : (
+          "No decisions waiting"
+        )}
       </Button>
     </div>
   );

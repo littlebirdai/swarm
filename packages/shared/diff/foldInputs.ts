@@ -19,8 +19,14 @@ export interface FoldInputRef {
   changeType: "write" | "edit" | "delete" | "commit";
 }
 
-export function selectFoldInputs<T extends FoldInputRef>(changes: T[], upToIndex: number | null): T[] {
-  const end = Math.min(upToIndex !== null ? upToIndex : changes.length - 1, changes.length - 1);
+export function selectFoldInputs<T extends FoldInputRef>(
+  changes: T[],
+  upToIndex: number | null,
+): T[] {
+  const end = Math.min(
+    upToIndex !== null ? upToIndex : changes.length - 1,
+    changes.length - 1,
+  );
   if (end < 0) return [];
   type FileState = { sawFull: boolean; lastFull: T | null; tail: T[] };
   const files = new Map<string, FileState>();

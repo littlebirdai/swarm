@@ -99,7 +99,11 @@ export interface TermInstance {
    *  repaints over it. */
   painted: boolean;
   /** Auto-reconnect after a dropped socket. */
-  retry: { attempt: number; timer: ReturnType<typeof setTimeout> | null; since: number } | null;
+  retry: {
+    attempt: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    since: number;
+  } | null;
   /** The view was closed: nothing reconnects it. */
   disposed?: boolean;
 }
@@ -132,7 +136,11 @@ export interface OpenTerminalOptions {
 
 export const instances = new Map<string, TermInstance>();
 /** Mutable tab state, held in one object so every module writes the same copy. */
-export const reg: { order: string[]; activeId: string | null; currentTheme: ITheme } = {
+export const reg: {
+  order: string[];
+  activeId: string | null;
+  currentTheme: ITheme;
+} = {
   order: [],
   activeId: null,
   currentTheme: {},
@@ -167,7 +175,12 @@ const MIN_FIT_COLS = 80;
 const MIN_FIT_ROWS = 12;
 
 export function fitInstance(inst: TermInstance): void {
-  if (!inst.container || inst.container.clientWidth < 20 || inst.container.clientHeight < 20) return;
+  if (
+    !inst.container ||
+    inst.container.clientWidth < 20 ||
+    inst.container.clientHeight < 20
+  )
+    return;
   if (inst.state.paneSized) return; // fixed to pane size; CSS handles overflow
   try {
     const dims = inst.fit.proposeDimensions();

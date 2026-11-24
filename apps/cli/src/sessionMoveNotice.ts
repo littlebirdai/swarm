@@ -75,7 +75,12 @@ export interface ReorientationFacts {
    *  process tree (tmux panes, backgrounded jobs), which the move stops there. */
   stoppedOnSource?: Array<{ name: string; via?: string }>;
   /** Other repositories and folders the move brought, where they landed, or why one did not. */
-  brought?: Array<{ local: string; remote: string; kind: "repo" | "folder"; error?: string }>;
+  brought?: Array<{
+    local: string;
+    remote: string;
+    kind: "repo" | "folder";
+    error?: string;
+  }>;
   /** What a rehearsal before the move found this machine lacks (rehearse.ts rehearsalNotice). */
   missingHere?: string[];
 }
@@ -120,7 +125,9 @@ export function reorientationNotice(f: ReorientationFacts): string | null {
       );
     }
   } else if (f.checkout?.cloned) {
-    const onBranch = f.checkout.branch ? ` and is on branch ${f.checkout.branch}` : "";
+    const onBranch = f.checkout.branch
+      ? ` and is on branch ${f.checkout.branch}`
+      : "";
     const ofRemote = f.checkout.remote ? ` of ${f.checkout.remote}` : "";
     lines.push(
       `The working tree here is a fresh clone${ofRemote}${onBranch}. Only work that was pushed to that remote is present: anything uncommitted, or committed but not pushed, stayed behind on the previous machine and is NOT here. If you were on a different branch, you are not on it now.`,
@@ -146,10 +153,14 @@ export function reorientationNotice(f: ReorientationFacts): string | null {
   const landed = f.brought?.filter((b) => !b.error) ?? [];
   const failed = f.brought?.filter((b) => b.error) ?? [];
   if (landed.length) {
-    lines.push(`Also brought from the previous machine, the same way as the working tree: ${landed.map((b) => `${b.local} → ${b.remote} (${b.kind === "repo" ? "repository" : "folder, without what git ignores"})`).join("; ")}.`);
+    lines.push(
+      `Also brought from the previous machine, the same way as the working tree: ${landed.map((b) => `${b.local} → ${b.remote} (${b.kind === "repo" ? "repository" : "folder, without what git ignores"})`).join("; ")}.`,
+    );
   }
   if (failed.length) {
-    lines.push(`Asked to bring these too, but they did not come across: ${failed.map((b) => `${b.local} (${b.error})`).join("; ")}.`);
+    lines.push(
+      `Asked to bring these too, but they did not come across: ${failed.map((b) => `${b.local} (${b.error})`).join("; ")}.`,
+    );
   }
   if (f.machineChanged) {
     lines.push(
@@ -160,7 +171,12 @@ export function reorientationNotice(f: ReorientationFacts): string | null {
     lines.push(`Checked before the move: ${f.missingHere.join("; ")}.`);
   }
   if (f.stoppedOnSource?.length) {
-    const named = f.stoppedOnSource.slice(0, 8).map((p) => `${p.name}${p.via === "tmux" ? " (in a tmux pane)" : p.via === "background" ? " (backgrounded)" : ""}`);
+    const named = f.stoppedOnSource
+      .slice(0, 8)
+      .map(
+        (p) =>
+          `${p.name}${p.via === "tmux" ? " (in a tmux pane)" : p.via === "background" ? " (backgrounded)" : ""}`,
+      );
     lines.push(
       `The move stops what this session left running on the previous machine outside its own process tree: ${named.join(", ")}${f.stoppedOnSource.length > 8 ? `, and ${f.stoppedOnSource.length - 8} more` : ""}. Start again here anything you still need.`,
     );
@@ -184,7 +200,8 @@ export interface ReparentCommandFacts {
   to_user?: unknown;
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v ? v : undefined;
 
 /**
  * Build the notice for a session reparented onto THIS machine.
@@ -224,7 +241,10 @@ export function reparentNotice(opts: {
     machineChanged,
     checkout: opts.checkout,
     account: crossUser
-      ? { fromUser: str(opts.command.from_user), toUser: str(opts.command.to_user) }
+      ? {
+          fromUser: str(opts.command.from_user),
+          toUser: str(opts.command.to_user),
+        }
       : undefined,
   });
 }

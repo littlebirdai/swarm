@@ -2,7 +2,10 @@ import { useRef, useSyncExternalStore } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
-import { createChatPrefetcher, offRailChatNotificationMessageIds } from "../lib/chatPrefetch";
+import {
+  createChatPrefetcher,
+  offRailChatNotificationMessageIds,
+} from "../lib/chatPrefetch";
 import { captureError } from "../lib/analytics";
 import { CHAT_PAGE_SIZE, ingestChatPage } from "../lib/ingestChatPage";
 import { isChatRailLive, subscribeChatRailLive } from "../lib/chatLive";
@@ -17,15 +20,22 @@ import { useWatchEffect } from "./useWatchEffect";
  *  stale tips would only cost fetches the live rail then repeats. */
 export function useChatPrefetch(): void {
   const convex = useConvex();
-  const viewerId = useInboxStore(s => s.currentUser?._id);
-  const teamId = useInboxStore(s => s.clientState.ui?.active_team_id) as string | undefined;
-  const rail = useInboxStore(s => s.chatRail);
+  const viewerId = useInboxStore((s) => s.currentUser?._id);
+  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
+    | string
+    | undefined;
+  const rail = useInboxStore((s) => s.chatRail);
   const chatOn = useTeamFeature("chat");
-  const railLive = useSyncExternalStore(subscribeChatRailLive, isChatRailLive, () => false);
-  const ready = chatOn && railLive && !!viewerId && !!teamId && isConvexId(teamId);
+  const railLive = useSyncExternalStore(
+    subscribeChatRailLive,
+    isChatRailLive,
+    () => false,
+  );
+  const ready =
+    chatOn && railLive && !!viewerId && !!teamId && isConvexId(teamId);
   // The store's notifications (fed app-wide), the same rows the bell and the
   // phone's Alerts tab draw.
-  const notificationsMap = useInboxStore(s => s.notifications);
+  const notificationsMap = useInboxStore((s) => s.notifications);
   const worker = useRef<ReturnType<typeof createChatPrefetcher> | null>(null);
   const askedOffRailRef = useRef<Set<string>>(new Set());
 
@@ -36,21 +46,38 @@ export function useChatPrefetch(): void {
   useWatchEffect(() => {
     if (!ready) return;
     const current = createChatPrefetcher({
-      load: target => target.kind === "channel"
-        ? convex.query(api.chat.listMessages, { channel_id: target.id as any, limit: CHAT_PAGE_SIZE })
-        : target.kind === "thread"
-          ? convex.query(api.chat.getThread, { root_id: target.id as any })
-          : convex.query(api.chat.getMessage, { message_id: target.id as any }),
-      ingest: data => ingestChatPage(data, convex),
-      read: id => useInboxStore.getState().chatMessages[id],
+      load: (target) =>
+        target.kind === "channel"
+          ? convex.query(api.chat.listMessages, {
+              channel_id: target.id as any,
+              limit: CHAT_PAGE_SIZE,
+            })
+          : target.kind === "thread"
+            ? convex.query(api.chat.getThread, { root_id: target.id as any })
+            : convex.query(api.chat.getMessage, {
+                message_id: target.id as any,
+              }),
+      ingest: (data) => ingestChatPage(data, convex),
+      read: (id) => useInboxStore.getState().chatMessages[id],
       allowed: () => {
         const s = useInboxStore.getState();
-        return s.currentUser?._id === viewerId && s.clientState.ui?.active_team_id === teamId && s.syncRole !== "follower";
+        return (
+          s.currentUser?._id === viewerId &&
+          s.clientState.ui?.active_team_id === teamId &&
+          s.syncRole !== "follower"
+        );
       },
-      onError: error => captureError(error instanceof Error ? error : new Error(String(error)), { operation: "chat-prefetch" }),
+      onError: (error) =>
+        captureError(
+          error instanceof Error ? error : new Error(String(error)),
+          { operation: "chat-prefetch" },
+        ),
     });
     worker.current = current;
-    return () => { current.dispose(); worker.current = null; };
+    return () => {
+      current.dispose();
+      worker.current = null;
+    };
   }, [convex, viewerId, teamId, ready]);
 
   useWatchEffect(() => {
@@ -58,30 +85,41 @@ export function useChatPrefetch(): void {
     // rooms, which no notification of this viewer names.
     const state = useInboxStore.getState();
     const channels = state.chatChannels;
-    const teamRail = (rail ?? []).filter(row => String(channels[row.channel_id]?.team_id) === String(teamId));
+    const teamRail = (rail ?? []).filter(
+      (row) => String(channels[row.channel_id]?.team_id) === String(teamId),
+    );
     const notifications = Object.values(notificationsMap ?? {}) as any[];
     worker.current?.update(teamRail, notifications);
 
     if (!viewerId || state.syncRole === "follower") return;
-    const covered = ready ? new Set(teamRail.map(r => String(r.channel_id))) : new Set<string>();
+    const covered = ready
+      ? new Set(teamRail.map((r) => String(r.channel_id)))
+      : new Set<string>();
     const missing = offRailChatNotificationMessageIds(
       notifications,
       covered,
-      id => !!state.chatMessages[id] || askedOffRailRef.current.has(id),
+      (id) => !!state.chatMessages[id] || askedOffRailRef.current.has(id),
     );
     for (const msgId of missing) {
       askedOffRailRef.current.add(msgId);
       void convex
         .query(api.chat.getMessage, { message_id: msgId as any })
-        .then(data => {
+        .then((data) => {
           const cur = useInboxStore.getState();
-          if (data && cur.currentUser?._id === viewerId && cur.syncRole !== "follower") {
+          if (
+            data &&
+            cur.currentUser?._id === viewerId &&
+            cur.syncRole !== "follower"
+          ) {
             ingestChatPage(data, convex);
           }
         })
-        .catch(error => {
+        .catch((error) => {
           askedOffRailRef.current.delete(msgId);
-          captureError(error instanceof Error ? error : new Error(String(error)), { operation: "chat-notif-prefetch" });
+          captureError(
+            error instanceof Error ? error : new Error(String(error)),
+            { operation: "chat-notif-prefetch" },
+          );
         });
     }
   }, [convex, viewerId, rail, notificationsMap, teamId, ready]);

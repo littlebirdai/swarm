@@ -25,10 +25,22 @@ import { WEB_ROOT, offendersUnder } from "./sourceWalk";
 // If this fails on new code, route the read through the chokepoint (or, for
 // the compare, the compare module) — do not widen an allowlist.
 
-const offendersFor = (dirs: string[], token: RegExp, allowed: ReadonlyMap<string, string>) =>
-  offendersUnder(WEB_ROOT, dirs, token, allowed);
+const offendersFor = (
+  dirs: string[],
+  token: RegExp,
+  allowed: ReadonlyMap<string, string>,
+) => offendersUnder(WEB_ROOT, dirs, token, allowed);
 
-const ALL_DIRS = ["app", "components", "hooks", "lib", "store", "src", "shortcuts", "tips"];
+const ALL_DIRS = [
+  "app",
+  "components",
+  "hooks",
+  "lib",
+  "store",
+  "src",
+  "shortcuts",
+  "tips",
+];
 
 describe("sessionsProjection is read only by its owner and the compare", () => {
   test("no file outside the store owner / compare module touches the stamp buffer", () => {
@@ -42,10 +54,18 @@ describe("sessionsProjection is read only by its owner and the compare", () => {
       // Cross-window replication (sync-host): only the host subscribes to the
       // overlay, so the slot crosses to follower windows as a value and lands
       // through the owner's applyReplicatedProjection (ct-47927).
-      ["store/clientSyncRegistry.ts", "REPLICATED_EPHEMERAL_KEYS names the slot"],
-      ["store/syncReplication.ts", "routes the replicated slot to the owner's applier"],
+      [
+        "store/clientSyncRegistry.ts",
+        "REPLICATED_EPHEMERAL_KEYS names the slot",
+      ],
+      [
+        "store/syncReplication.ts",
+        "routes the replicated slot to the owner's applier",
+      ],
     ]);
-    expect(offendersFor(ALL_DIRS, /\bsessionsProjection\b/, allowed)).toEqual([]);
+    expect(offendersFor(ALL_DIRS, /\bsessionsProjection\b/, allowed)).toEqual(
+      [],
+    );
   }, 120_000);
 });
 
@@ -54,18 +74,33 @@ describe("the chokepoint is the only counting reader of the synced view keys", (
     // Everything — the panel's toggle render included — goes through
     // resolveShowOld / computeInboxVisible, both in the store.
     const allowed = new Map<string, string>([
-      ["store/inboxStore.ts", "resolveShowOld + computeInboxVisible + the LWW key registry"],
+      [
+        "store/inboxStore.ts",
+        "resolveShowOld + computeInboxVisible + the LWW key registry",
+      ],
     ]);
     expect(offendersFor(ALL_DIRS, /\binbox_show_old\b/, allowed)).toEqual([]);
   }, 120_000);
 
   test("inbox_scope readers are pinned — no new counting path may consult scope directly", () => {
     const allowed = new Map<string, string>([
-      ["store/inboxStore.ts", "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry, boot seed"],
-      ["hooks/useSyncTeamInboxSessions.ts", "feeder mount gate: which subscriptions run, not what counts"],
-      ["components/GlobalSessionPanel.tsx", "chokepoint memo dep + the scope toggle write"],
+      [
+        "store/inboxStore.ts",
+        "the chokepoint (computeInboxVisible/filterInboxScope), LWW registry, boot seed",
+      ],
+      [
+        "hooks/useSyncTeamInboxSessions.ts",
+        "feeder mount gate: which subscriptions run, not what counts",
+      ],
+      [
+        "components/GlobalSessionPanel.tsx",
+        "chokepoint memo dep + the scope toggle write",
+      ],
       ["components/FleetBoard.tsx", "chokepoint memo dep"],
-      ["lib/instantSessionSearch.ts", "chokepoint memo dep: scope only re-runs the memo, the rows come from instantSessionRows"],
+      [
+        "lib/instantSessionSearch.ts",
+        "chokepoint memo dep: scope only re-runs the memo, the rows come from instantSessionRows",
+      ],
     ]);
     expect(offendersFor(ALL_DIRS, /\binbox_scope\b/, allowed)).toEqual([]);
   }, 120_000);
@@ -78,15 +113,27 @@ describe("projection stamp fields never appear in render code", () => {
     const allowed = new Map<string, string>([
       // Renders feedForCLI items (the CLI-shaped feed payload, a different
       // contract) — not store session rows.
-      ["components/StableContextCards.tsx", "StableContextItem.work_state from feedForCLI"],
+      [
+        "components/StableContextCards.tsx",
+        "StableContextItem.work_state from feedForCLI",
+      ],
       // The docs shots world's stable context record: feedForCLI items again, never a store row.
-      ["lib/acmeWorld/recall.ts", "feedForCLI-shaped items in a stable context record"],
+      [
+        "lib/acmeWorld/recall.ts",
+        "feedForCLI-shaped items in a stable context record",
+      ],
       // Reads the store's own placement ({ bucket, work_state } from
       // placeInboxRows / sessionPlacement), the chokepoint's output, never a row.
-      ["lib/instantSessionSearch.ts", "sessionStanding reads the store's placement"],
+      [
+        "lib/instantSessionSearch.ts",
+        "sessionStanding reads the store's placement",
+      ],
       // Matches the words of a failure station's comment ("work_state:
       // needs_input"), text a station wrote, never a field of a row.
-      ["components/trial/TrialReviewPage.tsx", "parses a station comment's text"],
+      [
+        "components/trial/TrialReviewPage.tsx",
+        "parses a station comment's text",
+      ],
     ]);
     const offenders = offendersFor(
       ["app", "components", "hooks", "lib", "src", "shortcuts", "tips"],

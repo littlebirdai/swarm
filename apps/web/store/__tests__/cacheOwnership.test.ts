@@ -23,10 +23,18 @@ for (const scenario of [
   "owner-read-fails",
 ]) {
   it(`cache ownership: ${scenario}`, () => {
-    const result = Bun.spawnSync([process.execPath, `${import.meta.dir}/fixtures/cacheOwnership.ts`], {
-      stdout: "pipe", stderr: "pipe", timeout: 20000, env: { ...process.env, SCENARIO: scenario },
-    });
+    const result = Bun.spawnSync(
+      [process.execPath, `${import.meta.dir}/fixtures/cacheOwnership.ts`],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: 20000,
+        env: { ...process.env, SCENARIO: scenario },
+      },
+    );
     expect(result.exitCode, new TextDecoder().decode(result.stderr)).toBe(0);
-    expect(new TextDecoder().decode(result.stdout)).toContain(`${scenario} verified`);
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      `${scenario} verified`,
+    );
   }, 25000);
 }

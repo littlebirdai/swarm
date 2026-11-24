@@ -10,7 +10,10 @@
 
 import { cssZoomOf } from "../lib/cssZoom";
 
-export function shouldFollowStreaming(userScrolled: boolean, openAtTop = false): boolean {
+export function shouldFollowStreaming(
+  userScrolled: boolean,
+  openAtTop = false,
+): boolean {
   // Unsigned share-link visitors start at the top of the transcript. End-follow
   // would pin them to the live tail as rows measure in, which is the authed
   // default and the wrong first paint for a guest reading a shared session.
@@ -109,7 +112,13 @@ export interface LoadOlderInput {
  * looking for it, which is the only time it's wanted.
  */
 export function shouldLoadOlder(i: LoadOlderInput): boolean {
-  if (!i.hasMoreAbove || i.isLoadingOlder || i.isLoadingNewer || i.cooldownActive) return false;
+  if (
+    !i.hasMoreAbove ||
+    i.isLoadingOlder ||
+    i.isLoadingNewer ||
+    i.cooldownActive
+  )
+    return false;
   // Nothing on screen can move while the list cannot scroll, and loading stops
   // once the content overflows, so filling the viewport needs no intent.
   if (i.underfilled) return true;
@@ -125,7 +134,9 @@ export function shouldLoadOlder(i: LoadOlderInput): boolean {
  * height of 0, it stacked every mounted row at one offset when the pane came
  * back, drawn over each other until each was measured again.
  */
-export function isUnrenderedBox(box: { inlineSize: number; blockSize: number } | undefined): boolean {
+export function isUnrenderedBox(
+  box: { inlineSize: number; blockSize: number } | undefined,
+): boolean {
   return box !== undefined && box.inlineSize === 0 && box.blockSize === 0;
 }
 
@@ -190,11 +201,20 @@ export interface LoadNewerInput {
  * overflows, so it fills without intent.
  */
 export function shouldLoadNewer(i: LoadNewerInput): boolean {
-  if (!i.hasMoreBelow || i.isLoadingOlder || i.isLoadingNewer || i.cooldownActive) return false;
+  if (
+    !i.hasMoreBelow ||
+    i.isLoadingOlder ||
+    i.isLoadingNewer ||
+    i.cooldownActive
+  )
+    return false;
   return i.nearBottom;
 }
 
-export { shouldAdjustScrollForResize, type ResizeAdjustInput } from "../lib/virtualList/resizeAdjust";
+export {
+  shouldAdjustScrollForResize,
+  type ResizeAdjustInput,
+} from "../lib/virtualList/resizeAdjust";
 
 /**
  * Hand the view back to the reader. Every virtualizer scrollToIndex/scrollToEnd
@@ -216,7 +236,11 @@ export function releaseScrollTarget(virtualizer: object): void {
  * the screen. That shift keeps the reader's distance from the bottom, so
  * counting it as a return re-pinned a reader who had scrolled up a little.
  */
-export function shouldResumeFollow(i: { nearBottom: boolean; scrolledDown: boolean; readerMovingDown: boolean }): boolean {
+export function shouldResumeFollow(i: {
+  nearBottom: boolean;
+  scrolledDown: boolean;
+  readerMovingDown: boolean;
+}): boolean {
   return i.nearBottom && i.scrolledDown && i.readerMovingDown;
 }
 
@@ -284,13 +308,18 @@ export function cancelActiveItemSettle() {
  *  background tab runs no animation frames, and a jump opened there (a link
  *  in a new tab, an agent's tab) must still land by the time it is seen. */
 export function nextFrame(fn: () => void): void {
-  if (typeof document !== "undefined" && document.hidden) { setTimeout(fn, 16); return; }
+  if (typeof document !== "undefined" && document.hidden) {
+    setTimeout(fn, 16);
+    return;
+  }
   requestAnimationFrame(fn);
 }
 
 export function settleTimelineItemAtOffset(
   container: HTMLElement,
-  virtualizer: { scrollToIndex: (index: number, opts: { align: "start" }) => void },
+  virtualizer: {
+    scrollToIndex: (index: number, opts: { align: "start" }) => void;
+  },
   itemIndex: number,
   offsetPx: number,
   opts?: {
@@ -330,10 +359,14 @@ export function settleTimelineItemAtOffset(
       // With an identity, the index lookup is only a fallback — an index hit
       // that isn't the keyed row is exactly the wrong-row pin this guards
       // against, so verify before trusting it.
-      const byKey = container.querySelector(`[data-vkey="${CSS.escape(opts.itemKey)}"]`);
+      const byKey = container.querySelector(
+        `[data-vkey="${CSS.escape(opts.itemKey)}"]`,
+      );
       if (byKey) return byKey;
       const byIndex = container.querySelector(`[data-index="${idx}"]`);
-      return byIndex?.getAttribute("data-vkey") === opts.itemKey ? byIndex : null;
+      return byIndex?.getAttribute("data-vkey") === opts.itemKey
+        ? byIndex
+        : null;
     }
     return container.querySelector(`[data-index="${idx}"]`);
   };
@@ -346,12 +379,16 @@ export function settleTimelineItemAtOffset(
     lastTop = container.scrollTop;
     lastHeight = container.scrollHeight;
   };
-  const takenOver = () => lastTop >= 0 && container.scrollTop !== lastTop && container.scrollHeight === lastHeight;
+  const takenOver = () =>
+    lastTop >= 0 &&
+    container.scrollTop !== lastTop &&
+    container.scrollHeight === lastHeight;
   const scrollElToOffset = (el: Element) => {
     const elRect = el.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     // Rect deltas are screen px; scrollTop is layout px — divide by CSS zoom.
-    container.scrollTop += (elRect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
+    container.scrollTop +=
+      (elRect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
     remember();
   };
   const watchMs = opts?.watchMs ?? 2500;
@@ -375,7 +412,8 @@ export function settleTimelineItemAtOffset(
         if (!el.isConnected) {
           // The row unmounted (a window swap re-rendered the list). The jump
           // isn't done — re-find the row by identity while time remains.
-          if (performance.now() - start < watchMs && findAttempts < 20) setTimeout(attempt, 100);
+          if (performance.now() - start < watchMs && findAttempts < 20)
+            setTimeout(attempt, 100);
           else cancel();
           return;
         }
@@ -385,7 +423,8 @@ export function settleTimelineItemAtOffset(
         }
         const rect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        const off = (rect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
+        const off =
+          (rect.top - containerRect.top) / cssZoomOf(container) - offsetPx;
         if (Math.abs(off) > 2) scrollElToOffset(el);
         else remember();
         // Remembered before onSettled runs: a host that scrolls from inside

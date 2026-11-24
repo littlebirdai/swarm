@@ -1,7 +1,12 @@
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { memberAvatarUrl } from "../../lib/liveEntities";
 import { useTrackedStore } from "../../store/inboxStore";
-import { memberDisplayName, viewersLabel, viewersOf, viewersSig } from "./memberPresence";
+import {
+  memberDisplayName,
+  viewersLabel,
+  viewersOf,
+  viewersSig,
+} from "./memberPresence";
 import "./viewers.css";
 import { teamMembersOf } from "../../lib/activeTeam";
 
@@ -33,18 +38,29 @@ export function ViewerFaces({
     <span
       data-sv-viewers={members.length}
       className={`cc-viewers ${className}`}
-      style={{ ["--cc-viewers-overlap" as string]: `${Math.round(size * 0.3)}px` }}
+      style={{
+        ["--cc-viewers-overlap" as string]: `${Math.round(size * 0.3)}px`,
+      }}
       title={label}
       role="img"
       aria-label={label}
     >
       {shown.map((m) => (
-        <CommentAvatar key={String(m._id)} name={memberDisplayName(m)} image={memberAvatarUrl(m)} size={size} />
+        <CommentAvatar
+          key={String(m._id)}
+          name={memberDisplayName(m)}
+          image={memberAvatarUrl(m)}
+          size={size}
+        />
       ))}
       {overflow > 0 && (
         <span
           className="cc-viewers-more"
-          style={{ width: size, height: size, fontSize: Math.max(7, Math.round(size * 0.42)) }}
+          style={{
+            width: size,
+            height: size,
+            fontSize: Math.max(7, Math.round(size * 0.42)),
+          }}
         >
           +{overflow}
         </span>
@@ -70,9 +86,21 @@ export function ConversationViewers({
   className?: string;
 }) {
   const st = useTrackedStore([
-    (s) => viewersSig(teamMembersOf(s), conversationId, s.currentUser?._id?.toString?.() ?? null),
+    (s) =>
+      viewersSig(
+        teamMembersOf(s),
+        conversationId,
+        s.currentUser?._id?.toString?.() ?? null,
+      ),
   ]);
   const me = st.currentUser?._id?.toString?.() ?? null;
   const viewers = viewersOf(teamMembersOf(st), conversationId, me);
-  return <ViewerFaces members={viewers} size={size} max={max} className={className} />;
+  return (
+    <ViewerFaces
+      members={viewers}
+      size={size}
+      max={max}
+      className={className}
+    />
+  );
 }

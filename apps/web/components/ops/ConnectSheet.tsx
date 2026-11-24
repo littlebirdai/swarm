@@ -13,7 +13,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Check, Loader2, Send, X } from "lucide-react";
-import { APP_DESCRIPTORS, type AppConnectionScope, type AppConnectionsResult } from "@codecast/shared/contracts";
+import {
+  APP_DESCRIPTORS,
+  type AppConnectionScope,
+  type AppConnectionsResult,
+} from "@codecast/shared/contracts";
 import { useOpsScope, useOpsSources } from "../../hooks/useSyncOps";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -23,7 +27,14 @@ import { KeyCap } from "../KeyboardShortcutsHelp";
 import { TokenConnectForm } from "../integrations/TokenConnectForm";
 import { opsHref } from "./opsPaths";
 import { ProviderIcon, SOURCE_PROVIDER_LABEL } from "./parts";
-import { AddSourceForm, AppReveal, KeyReveal, type Kind, type Reveal, type Vendor } from "./SourcesSection";
+import {
+  AddSourceForm,
+  AppReveal,
+  KeyReveal,
+  type Kind,
+  type Reveal,
+  type Vendor,
+} from "./SourcesSection";
 import { CONVEX_URL } from "../../lib/convexUrl";
 import { HealthFixButton } from "./SourceHealthParts";
 import { connectWait, sendTestEvent, type TestSend } from "./connectWait";
@@ -33,11 +44,17 @@ import { useVendorProjects } from "./useVendorProjects";
 import "./connectSheet.css";
 
 const VENDORS: readonly Vendor[] = ["sentry", "posthog"];
-const isVendor = (k: string): k is Vendor => (VENDORS as readonly string[]).includes(k);
+const isVendor = (k: string): k is Vendor =>
+  (VENDORS as readonly string[]).includes(k);
 
 /** Where a vendor connection made from Ops is stored: the team being looked at when the vendor binds to teams, else the person. */
-function connectScope(vendor: Vendor, team: AppConnectionsResult["team"] | undefined): AppConnectionScope {
-  return team && APP_DESCRIPTORS[vendor].scopes.includes("team") ? "team" : "personal";
+function connectScope(
+  vendor: Vendor,
+  team: AppConnectionsResult["team"] | undefined,
+): AppConnectionScope {
+  return team && APP_DESCRIPTORS[vendor].scopes.includes("team")
+    ? "team"
+    : "personal";
 }
 
 /**
@@ -51,7 +68,12 @@ function useScopedConnections(): AppConnectionsResult | null {
   const { data } = useSettingsData("connections");
   const result = data as AppConnectionsResult | undefined;
   if (!result || scope === "skip") return null;
-  if (scope.workspace === "team" ? result.team?.id !== scope.team_id : !!result.team) return null;
+  if (
+    scope.workspace === "team"
+      ? result.team?.id !== scope.team_id
+      : !!result.team
+  )
+    return null;
   return result;
 }
 
@@ -67,7 +89,13 @@ const SHEET_KINDS: { kind: SheetKind; label: string }[] = [
 ];
 const GITHUB_INSTALL = "/settings/integrations#app-github";
 
-export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onClose: () => void }) {
+export function ConnectSheet({
+  kind: initial,
+  onClose,
+}: {
+  kind: SheetKind;
+  onClose: () => void;
+}) {
   const [kind, setKind] = useState<SheetKind>(initial);
   const sources = useOpsSources();
   // The sources there before this sheet opened: the one that appears after is the new one.
@@ -75,9 +103,19 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
   const [created, setCreated] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const connections = useScopedConnections();
-  const connected = connections ? new Set(connections.apps.filter((a) => a.status === "connected").map((a) => a.id as string)) : null;
+  const connected = connections
+    ? new Set(
+        connections.apps
+          .filter((a) => a.status === "connected")
+          .map((a) => a.id as string),
+      )
+    : null;
   const vendors = VENDORS.filter((v) => connected?.has(v));
-  const fresh = created ? sources.find((s) => !known.has(s._id) && (!reveal || s.name === reveal.name)) ?? null : null;
+  const fresh = created
+    ? (sources.find(
+        (s) => !known.has(s._id) && (!reveal || s.name === reveal.name),
+      ) ?? null)
+    : null;
   const health = useSourceHealth(fresh);
   const wait = connectWait(fresh, health);
   // The key a keyed source was minted with, held after its reveal is put away, so the sheet can send its first event itself.
@@ -91,14 +129,22 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
     setSending(false);
   };
   const label = kind === "github" ? "GitHub CI" : SOURCE_PROVIDER_LABEL[kind];
-  const needsConnection = kind !== "github" && isVendor(kind) && connected !== null && !connected.has(kind);
+  const needsConnection =
+    kind !== "github" &&
+    isVendor(kind) &&
+    connected !== null &&
+    !connected.has(kind);
   const github = sources.filter((s) => s.provider === "github");
   // A vendor already feeding a source: the sheet opens on it, and adding another is a deliberate second step.
-  const existing = isVendor(kind) ? sources.filter((s) => s.provider === kind) : [];
+  const existing = isVendor(kind)
+    ? sources.filter((s) => s.provider === kind)
+    : [];
   const [addingAnother, setAddingAnother] = useState(false);
-  const showExisting = existing.length > 0 && !needsConnection && !created && !addingAnother;
+  const showExisting =
+    existing.length > 0 && !needsConnection && !created && !addingAnother;
   // A vendor's form waits for this workspace's connections: before them the sheet cannot tell a token step from a project step.
-  const resolving = kind !== "github" && isVendor(kind) && connected === null && !created;
+  const resolving =
+    kind !== "github" && isVendor(kind) && connected === null && !created;
 
   // Escape closes the sheet from anywhere in it, its fields included, before the shell's go-up-a-level sees it.
   useWatchEffect(() => {
@@ -113,19 +159,51 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
   }, [onClose]);
 
   return (
-    <section className="ops-connect" aria-label={`Connect ${label}`} data-ops-connect-sheet={kind}>
+    <section
+      className="ops-connect"
+      aria-label={`Connect ${label}`}
+      data-ops-connect-sheet={kind}
+    >
       <div className="ops-connect-head">
         <ProviderIcon provider={kind} className="w-4 h-4" />
         <span className="ops-connect-title">
           <b>{created && fresh ? fresh.name : `Connect ${label}`}</b>
-          {needsConnection ? <span className="ops-connect-step ops-dim">step 1 of 2: the {label} token</span> : null}
+          {needsConnection ? (
+            <span className="ops-connect-step ops-dim">
+              step 1 of 2: the {label} token
+            </span>
+          ) : null}
         </span>
-        <button type="button" className="ops-btn ops-connect-x" onClick={onClose} aria-label="Close" title="Close"><X className="w-3.5 h-3.5" /><KeyCap size="xs">Esc</KeyCap></button>
+        <button
+          type="button"
+          className="ops-btn ops-connect-x"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+        >
+          <X className="w-3.5 h-3.5" />
+          <KeyCap size="xs">Esc</KeyCap>
+        </button>
       </div>
       {!created && (
-        <div className="ops-seg ops-connect-kinds" role="group" aria-label="Kind" data-ops-connect-kinds>
+        <div
+          className="ops-seg ops-connect-kinds"
+          role="group"
+          aria-label="Kind"
+          data-ops-connect-kinds
+        >
           {SHEET_KINDS.map((k) => (
-            <button key={k.kind} type="button" data-on={kind === k.kind ? "true" : undefined} aria-pressed={kind === k.kind} onClick={() => { setKind(k.kind); setAddingAnother(false); }} data-ops-connect-kind={k.kind}>
+            <button
+              key={k.kind}
+              type="button"
+              data-on={kind === k.kind ? "true" : undefined}
+              aria-pressed={kind === k.kind}
+              onClick={() => {
+                setKind(k.kind);
+                setAddingAnother(false);
+              }}
+              data-ops-connect-kind={k.kind}
+            >
               <ProviderIcon provider={k.kind} className="w-3 h-3" />
               {k.label}
             </button>
@@ -133,27 +211,59 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
         </div>
       )}
       {kind === "github" ? (
-        <div className="ops-connect-row" data-ops-connect-github={github.length ? "connected" : "install"}>
+        <div
+          className="ops-connect-row"
+          data-ops-connect-github={github.length ? "connected" : "install"}
+        >
           {github.length ? (
             <>
               <Check className="w-3.5 h-3.5 ops-connect-ok" />
               <span>{github.map((s) => s.name).join(", ")}</span>
               <span className="flex-1" />
-              <Link href={GITHUB_INSTALL} className="ops-btn" onClick={onClose}>Repositories</Link>
-              <Link href={opsHref.home({ source: github[0].name })} className="ops-btn" data-tone="primary" onClick={onClose}>Open {github[0].name}</Link>
+              <Link href={GITHUB_INSTALL} className="ops-btn" onClick={onClose}>
+                Repositories
+              </Link>
+              <Link
+                href={opsHref.home({ source: github[0].name })}
+                className="ops-btn"
+                data-tone="primary"
+                onClick={onClose}
+              >
+                Open {github[0].name}
+              </Link>
             </>
           ) : (
             <>
               <span className="ops-dim">Failed runs and deploys</span>
               <span className="flex-1" />
-              <Link href={GITHUB_INSTALL} className="ops-btn" data-tone="primary" onClick={onClose} data-ops-connect-install="github">Install the GitHub app</Link>
+              <Link
+                href={GITHUB_INSTALL}
+                className="ops-btn"
+                data-tone="primary"
+                onClick={onClose}
+                data-ops-connect-install="github"
+              >
+                Install the GitHub app
+              </Link>
             </>
           )}
         </div>
       ) : resolving ? (
-        <div className="ops-connect-row ops-dim" role="status" data-ops-connect-resolving><Loader2 className="w-3.5 h-3.5 animate-spin" />Reading {label} connection</div>
+        <div
+          className="ops-connect-row ops-dim"
+          role="status"
+          data-ops-connect-resolving
+        >
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Reading {label} connection
+        </div>
       ) : showExisting && isVendor(kind) ? (
-        <ExistingVendor vendor={kind} sources={existing} onAdd={() => setAddingAnother(true)} onClose={onClose} />
+        <ExistingVendor
+          vendor={kind}
+          sources={existing}
+          onAdd={() => setAddingAnother(true)}
+          onClose={onClose}
+        />
       ) : needsConnection ? (
         <VendorConnect key={kind} vendor={kind} onCancel={onClose} />
       ) : !created ? (
@@ -162,7 +272,13 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
           kindPicked
           initial={kind}
           vendors={vendors}
-          takenProjects={kind === "posthog" && existing.length ? existing.flatMap((s) => (s.config?.project_id ? [s.config.project_id] : [])) : undefined}
+          takenProjects={
+            kind === "posthog" && existing.length
+              ? existing.flatMap((s) =>
+                  s.config?.project_id ? [s.config.project_id] : [],
+                )
+              : undefined
+          }
           onCancel={existing.length ? () => setAddingAnother(false) : onClose}
           onCreated={(r) => {
             setCreated(true);
@@ -171,23 +287,86 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
           }}
         />
       ) : null}
-      {reveal && (reveal.key ? <KeyReveal reveal={{ ...reveal, key: reveal.key }} onDone={() => setReveal({ ...reveal, key: undefined, rotated: false })} /> : reveal.id && kind === "app" ? <AppReveal reveal={reveal} onDone={() => setReveal({ ...reveal, id: undefined })} /> : null)}
+      {reveal &&
+        (reveal.key ? (
+          <KeyReveal
+            reveal={{ ...reveal, key: reveal.key }}
+            onDone={() =>
+              setReveal({ ...reveal, key: undefined, rotated: false })
+            }
+          />
+        ) : reveal.id && kind === "app" ? (
+          <AppReveal
+            reveal={reveal}
+            onDone={() => setReveal({ ...reveal, id: undefined })}
+          />
+        ) : null)}
       {created && (
-        <div className="ops-connect-row" role="status" data-ops-connect-wait={wait.state}>
-          {wait.state === "arrived" || wait.state === "connected" ? <Check className="w-3.5 h-3.5 ops-connect-ok" /> : wait.state === "failing" ? <AlertTriangle className="w-3.5 h-3.5 ops-connect-bad" /> : <Loader2 className="w-3.5 h-3.5 animate-spin ops-dim" />}
+        <div
+          className="ops-connect-row"
+          role="status"
+          data-ops-connect-wait={wait.state}
+        >
+          {wait.state === "arrived" || wait.state === "connected" ? (
+            <Check className="w-3.5 h-3.5 ops-connect-ok" />
+          ) : wait.state === "failing" ? (
+            <AlertTriangle className="w-3.5 h-3.5 ops-connect-bad" />
+          ) : (
+            <Loader2 className="w-3.5 h-3.5 animate-spin ops-dim" />
+          )}
           <span className="ops-connect-wait-label">
-            <span data-tone={wait.state === "failing" ? "bad" : undefined}>{wait.label}</span>
-            {wait.reason && <span className="ops-connect-err ops-connect-reason" title={wait.reason}>{wait.reason}</span>}
-            {test && !test.ok && <span className="ops-connect-err ops-connect-reason" title={test.error}>Test refused: {test.error}</span>}
+            <span data-tone={wait.state === "failing" ? "bad" : undefined}>
+              {wait.label}
+            </span>
+            {wait.reason && (
+              <span
+                className="ops-connect-err ops-connect-reason"
+                title={wait.reason}
+              >
+                {wait.reason}
+              </span>
+            )}
+            {test && !test.ok && (
+              <span
+                className="ops-connect-err ops-connect-reason"
+                title={test.error}
+              >
+                Test refused: {test.error}
+              </span>
+            )}
           </span>
           <span className="flex-1" />
-          {fresh && wait.state === "failing" && health && <HealthFixButton source={fresh} health={health} />}
+          {fresh && wait.state === "failing" && health && (
+            <HealthFixButton source={fresh} health={health} />
+          )}
           {fresh && heldKey && wait.state !== "arrived" && (
-            <button type="button" className="ops-btn" data-tone="primary" disabled={sending} onClick={() => void sendTest()} data-ops-connect-test>
-              <Send className="w-3.5 h-3.5" />{sending ? "Sending" : test?.ok ? "Send another" : "Send a test"}
+            <button
+              type="button"
+              className="ops-btn"
+              data-tone="primary"
+              disabled={sending}
+              onClick={() => void sendTest()}
+              data-ops-connect-test
+            >
+              <Send className="w-3.5 h-3.5" />
+              {sending ? "Sending" : test?.ok ? "Send another" : "Send a test"}
             </button>
           )}
-          {fresh && <Link href={opsHref.home({ source: fresh.name })} className="ops-btn" data-tone={wait.state === "arrived" || wait.state === "connected" ? "primary" : undefined} onClick={onClose} data-ops-connect-open>Open {fresh.name}</Link>}
+          {fresh && (
+            <Link
+              href={opsHref.home({ source: fresh.name })}
+              className="ops-btn"
+              data-tone={
+                wait.state === "arrived" || wait.state === "connected"
+                  ? "primary"
+                  : undefined
+              }
+              onClick={onClose}
+              data-ops-connect-open
+            >
+              Open {fresh.name}
+            </Link>
+          )}
         </div>
       )}
     </section>
@@ -199,26 +378,75 @@ export function ConnectSheet({ kind: initial, onClose }: { kind: SheetKind; onCl
  * PostHog project, its Sentry projects, else the connection's account), Open
  * as the press, and Add another behind it.
  */
-function ExistingVendor({ vendor, sources, onAdd, onClose }: { vendor: Vendor; sources: OpsSource[]; onAdd: () => void; onClose: () => void }) {
+function ExistingVendor({
+  vendor,
+  sources,
+  onAdd,
+  onClose,
+}: {
+  vendor: Vendor;
+  sources: OpsSource[];
+  onAdd: () => void;
+  onClose: () => void;
+}) {
   const { data } = useSettingsData("connections");
-  const conn = (data as AppConnectionsResult | undefined)?.apps.find((a) => a.id === vendor && a.status === "connected");
-  const account = conn && conn.status === "connected" ? conn.detail ?? null : null;
+  const conn = (data as AppConnectionsResult | undefined)?.apps.find(
+    (a) => a.id === vendor && a.status === "connected",
+  );
+  const account =
+    conn && conn.status === "connected" ? (conn.detail ?? null) : null;
   // A PostHog source's project by the name the picker gives it, its id on hover.
   const listed = useVendorProjects(vendor === "posthog" ? "posthog" : null);
-  const projectName = (id: string) => (listed?.ok ? listed.projects.find((p) => p.id === id)?.name : undefined);
-  const reads = (s: OpsSource) => (vendor === "posthog" ? (s.config?.project_id ? projectName(s.config.project_id) ?? `project ${s.config.project_id}` : account) : s.config?.projects?.length ? s.config.projects.join(", ") : account ? `${account} · every project` : "every project");
+  const projectName = (id: string) =>
+    listed?.ok ? listed.projects.find((p) => p.id === id)?.name : undefined;
+  const reads = (s: OpsSource) =>
+    vendor === "posthog"
+      ? s.config?.project_id
+        ? (projectName(s.config.project_id) ?? `project ${s.config.project_id}`)
+        : account
+      : s.config?.projects?.length
+        ? s.config.projects.join(", ")
+        : account
+          ? `${account} · every project`
+          : "every project";
   return (
     <div className="ops-connect-existing" data-ops-connect-existing={vendor}>
       {sources.map((s, i) => (
         <div key={s._id} className="ops-connect-row">
           <Check className="w-3.5 h-3.5 ops-connect-ok" />
           <span className="ops-connect-name">{s.name}</span>
-          {reads(s) && <span className="ops-dim ops-connect-reads" title={s.config?.project_id ? `project ${s.config.project_id}` : undefined}>{reads(s)}</span>}
+          {reads(s) && (
+            <span
+              className="ops-dim ops-connect-reads"
+              title={
+                s.config?.project_id
+                  ? `project ${s.config.project_id}`
+                  : undefined
+              }
+            >
+              {reads(s)}
+            </span>
+          )}
           <span className="flex-1" />
-          <Link href={opsHref.home({ source: s.name })} className="ops-btn" data-tone={i === 0 ? "primary" : undefined} onClick={onClose} data-ops-connect-open-existing>Open {s.name}</Link>
+          <Link
+            href={opsHref.home({ source: s.name })}
+            className="ops-btn"
+            data-tone={i === 0 ? "primary" : undefined}
+            onClick={onClose}
+            data-ops-connect-open-existing
+          >
+            Open {s.name}
+          </Link>
         </div>
       ))}
-      <button type="button" className="ops-btn self-start" onClick={onAdd} data-ops-connect-add-another>{vendor === "posthog" ? "Add another project" : "Add other projects"}</button>
+      <button
+        type="button"
+        className="ops-btn self-start"
+        onClick={onAdd}
+        data-ops-connect-add-another
+      >
+        {vendor === "posthog" ? "Add another project" : "Add other projects"}
+      </button>
     </div>
   );
 }
@@ -229,18 +457,47 @@ function ExistingVendor({ vendor, sources, onAdd, onClose }: { vendor: Vendor; s
  * The connections feed then lists the vendor as connected and the sheet moves
  * on to the source form by itself.
  */
-function VendorConnect({ vendor, onCancel }: { vendor: Vendor; onCancel: () => void }) {
+function VendorConnect({
+  vendor,
+  onCancel,
+}: {
+  vendor: Vendor;
+  onCancel: () => void;
+}) {
   const { data } = useSettingsData("connections");
   const result = data as AppConnectionsResult | undefined;
   const scope = connectScope(vendor, result?.team);
   const descriptor = APP_DESCRIPTORS[vendor];
-  const connection = result?.apps.find((a) => a.id === vendor && "scope" in a && a.scope === scope);
-  const { connectToken, busy, error } = useAppConnection(descriptor, connection, scope);
+  const connection = result?.apps.find(
+    (a) => a.id === vendor && "scope" in a && a.scope === scope,
+  );
+  const { connectToken, busy, error } = useAppConnection(
+    descriptor,
+    connection,
+    scope,
+  );
   return (
-    <div className="ops-connect-vendor" data-ops-connect-needs={vendor} data-scope={scope}>
-      <span className="ops-connect-where ops-dim">{scope === "team" ? `For ${result?.team?.name ?? "this team"}` : "For you"}</span>
-      <TokenConnectForm descriptor={descriptor} busy={busy} onSubmit={connectToken} onCancel={onCancel} />
-      {error && <span className="ops-connect-err" role="alert">{error}</span>}
+    <div
+      className="ops-connect-vendor"
+      data-ops-connect-needs={vendor}
+      data-scope={scope}
+    >
+      <span className="ops-connect-where ops-dim">
+        {scope === "team"
+          ? `For ${result?.team?.name ?? "this team"}`
+          : "For you"}
+      </span>
+      <TokenConnectForm
+        descriptor={descriptor}
+        busy={busy}
+        onSubmit={connectToken}
+        onCancel={onCancel}
+      />
+      {error && (
+        <span className="ops-connect-err" role="alert">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

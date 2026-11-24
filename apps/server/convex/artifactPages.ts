@@ -24,7 +24,10 @@ const PIN_PATH = `<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><cir
 
 import { escAttr, escHtml } from "./htmlEscape";
 import { MD_THEME_CSS } from "./artifactMarkdown";
-import { PAGE_AGENT_LABELS, PAGE_AGENT_PICKUP_MS } from "@codecast/shared/contracts";
+import {
+  PAGE_AGENT_LABELS,
+  PAGE_AGENT_PICKUP_MS,
+} from "@codecast/shared/contracts";
 import { PAGE_GATE_SIGNAL } from "@codecast/shared/render";
 export { escAttr, escHtml };
 
@@ -41,7 +44,11 @@ function iconStyle(size: number): string {
   return `width:${size}px;height:${size}px;display:inline-block;vertical-align:middle;flex:none;max-width:none;min-width:0`;
 }
 
-function iconSvg(size: number, body: string, opts?: { sw?: number; stroke?: string }): string {
+function iconSvg(
+  size: number,
+  body: string,
+  opts?: { sw?: number; stroke?: string },
+): string {
   return `<svg width="${size}" height="${size}" style="${iconStyle(size)}" viewBox="0 0 24 24" fill="none" stroke="${opts?.stroke ?? "currentColor"}" stroke-width="${opts?.sw ?? 2}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 }
 
@@ -95,7 +102,11 @@ export interface BrandOpts {
 // "Send to session" / "Send all", and the server enforces the same rule.
 // ---------------------------------------------------------------------------
 function barHtml(o: BrandOpts): string {
-  const when = new Date(o.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const when = new Date(o.updatedAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   const version = o.version ?? 1;
   const currentVersion = o.currentVersion ?? version;
   const viewingOld = version < currentVersion;
@@ -105,18 +116,29 @@ function barHtml(o: BrandOpts): string {
   const verChip = interactive
     ? `<button id="__cc_ver" type="button" title="Version history"${viewingOld ? ' class="__cc_old"' : ""}>v${version}${viewingOld ? " (old)" : ""} ${chevronSvg}</button>`
     : "";
-  const upRightSvg = iconSvg(11, `<path d="M7 7h10v10"/><path d="M7 17 17 7"/>`);
-  const dotsSvg = iconSvg(15, `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`);
-  const latestLink = viewingOld ? `<a id="__cc_latest" href="#">Latest ${upRightSvg}</a>` : "";
+  const upRightSvg = iconSvg(
+    11,
+    `<path d="M7 7h10v10"/><path d="M7 17 17 7"/>`,
+  );
+  const dotsSvg = iconSvg(
+    15,
+    `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
+  );
+  const latestLink = viewingOld
+    ? `<a id="__cc_latest" href="#">Latest ${upRightSvg}</a>`
+    : "";
   // The chip reads as the session's TITLE (a short id means nothing to a
   // viewer); the id stays in the tooltip and the href.
   const sessionLink = o.sessionShortId
     ? `<a class="__cc_sess" href="https://codecast.sh/conversation/${escAttr(o.sessionConversationId || o.sessionShortId)}" target="_blank" rel="noopener noreferrer" title="Open the session that published this (${escAttr(o.sessionShortId)})">${escAttr(o.sessionTitle || `by ${o.sessionShortId}`)}</a>`
     : "";
-  const commentsBtn = interactive && o.commentsEnabled !== false
-    ? `<button id="__cc_cbtn" type="button" title="Discuss this page">${bubbleSvg}<span id="__cc_ccount">${o.commentCount || ""}</span></button>`
+  const commentsBtn =
+    interactive && o.commentsEnabled !== false
+      ? `<button id="__cc_cbtn" type="button" title="Discuss this page">${bubbleSvg}<span id="__cc_ccount">${o.commentCount || ""}</span></button>`
+      : "";
+  const menuBtn = interactive
+    ? `<button id="__cc_menu" type="button" title="More">${dotsSvg}</button>`
     : "";
-  const menuBtn = interactive ? `<button id="__cc_menu" type="button" title="More">${dotsSvg}</button>` : "";
   const collapseSvg = iconSvg(13, `<path d="m17 14-5-5-5 5"/>`);
   const hideBtn = `<button id="__cc_hide" type="button" title="Hide this bar">${collapseSvg}</button>`;
   const cfg = {
@@ -1756,7 +1778,10 @@ function barHtml(o: BrandOpts): string {
 function ogMeta(o: BrandOpts): string {
   const author = o.author ? ` by ${escAttr(o.author)}` : "";
   const image =
-    o.hasThumb && o.apiBase && o.slug && !(o.gated?.team || o.gated?.password || o.gated?.email)
+    o.hasThumb &&
+    o.apiBase &&
+    o.slug &&
+    !(o.gated?.team || o.gated?.password || o.gated?.email)
       ? `\n<meta property="og:image" content="${escAttr(`${o.apiBase}/cli/a/${o.slug}?thumb=1`)}">\n<meta name="twitter:card" content="summary_large_image">`
       : `\n<meta name="twitter:card" content="summary">`;
   return `
@@ -1873,7 +1898,11 @@ ${body}
 </html>`;
 }
 
-function topRow(title: string, shareUrl: string, backLabel = "← Back to page"): string {
+function topRow(
+  title: string,
+  shareUrl: string,
+  backLabel = "← Back to page",
+): string {
   return `<div class="top">
   <a class="brand" href="https://codecast.sh" target="_blank" rel="noopener noreferrer">${logoSvg(22)}</a>
   <span class="t">${escHtml(title)}</span>
@@ -1882,11 +1911,28 @@ function topRow(title: string, shareUrl: string, backLabel = "← Back to page")
 }
 
 const GATE_ICON = { sw: 1.8, stroke: "#e86c5d" };
-const LOCK_SVG = iconSvg(22, `<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>`, GATE_ICON);
-const MAIL_SVG = iconSvg(22, `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>`, GATE_ICON);
-const CLOCK_SVG = iconSvg(22, `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>`, GATE_ICON);
+const LOCK_SVG = iconSvg(
+  22,
+  `<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>`,
+  GATE_ICON,
+);
+const MAIL_SVG = iconSvg(
+  22,
+  `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>`,
+  GATE_ICON,
+);
+const CLOCK_SVG = iconSvg(
+  22,
+  `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>`,
+  GATE_ICON,
+);
 
-export function passwordGatePage(o: { slug: string; title: string; apiBase: string; shareUrl: string }): string {
+export function passwordGatePage(o: {
+  slug: string;
+  title: string;
+  apiBase: string;
+  shareUrl: string;
+}): string {
   const body = `
 ${PAGE_GATE_SIGNAL}
 <div class="top"><a class="brand" href="https://codecast.sh" target="_blank" rel="noopener noreferrer">${logoSvg(22)}</a><span class="t">${escHtml(o.title)}</span></div>
@@ -1919,7 +1965,12 @@ ${PAGE_GATE_SIGNAL}
   return pageShell(o.title, body);
 }
 
-export function emailGatePage(o: { slug: string; title: string; apiBase: string; shareUrl: string }): string {
+export function emailGatePage(o: {
+  slug: string;
+  title: string;
+  apiBase: string;
+  shareUrl: string;
+}): string {
   const body = `
 ${PAGE_GATE_SIGNAL}
 <div class="top"><a class="brand" href="https://codecast.sh" target="_blank" rel="noopener noreferrer">${logoSvg(22)}</a><span class="t">${escHtml(o.title)}</span></div>
@@ -1959,9 +2010,17 @@ ${PAGE_GATE_SIGNAL}
  * opens it through the app: /pages/auth signs them in, asks ownerUnlock for the
  * token, and comes back here with it. Names the team, never the page, whose
  * title may itself be regulated data. */
-export function teamGatePage(o: { slug: string; teamName: string | null; shareUrl: string }): string {
+export function teamGatePage(o: {
+  slug: string;
+  teamName: string | null;
+  shareUrl: string;
+}): string {
   let origin = "https://codecast.sh";
-  try { origin = new URL(o.shareUrl).origin; } catch { /* default host */ }
+  try {
+    origin = new URL(o.shareUrl).origin;
+  } catch {
+    /* default host */
+  }
   const open = `${origin}/pages/auth?slug=${encodeURIComponent(o.slug)}&back=${encodeURIComponent(o.shareUrl)}`;
   const team = o.teamName ? escHtml(o.teamName) : "this team";
   const body = `
@@ -2005,7 +2064,10 @@ export function sourcePage(o: {
     : "";
   const lines = o.source.split("\n");
   const rows = lines
-    .map((ln, i) => `<div class="ln"><span class="no">${i + 1}</span><span class="lc">${escHtml(ln)}</span></div>`)
+    .map(
+      (ln, i) =>
+        `<div class="ln"><span class="no">${i + 1}</span><span class="lc">${escHtml(ln)}</span></div>`,
+    )
     .join("");
   const extra = `
   .tools { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,.07);
@@ -2050,7 +2112,11 @@ export function diffPage(o: {
   apiBase: string;
   shareUrl: string;
 }): string {
-  const fmt = (op: { t: string; line: string }, a: number | null, b: number | null) => {
+  const fmt = (
+    op: { t: string; line: string },
+    a: number | null,
+    b: number | null,
+  ) => {
     const cls = op.t === "add" ? "add" : op.t === "del" ? "del" : "eq";
     const sign = op.t === "add" ? "+" : op.t === "del" ? "−" : " ";
     return `<div class="ln ${cls}"><span class="no">${a ?? ""}</span><span class="no">${b ?? ""}</span><span class="sg">${sign}</span><span class="tx">${escHtml(op.line) || " "}</span></div>`;

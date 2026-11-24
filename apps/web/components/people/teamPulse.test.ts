@@ -34,8 +34,18 @@ describe("teamPulse", () => {
       (x) => fleets.get(x._id),
       1,
     );
-    expect(p).toMatchObject({ here: 2, idle: 1, away: 1, offline: 1, working: 5, needsInput: 1, huddles: 1 });
-    expect(pulseText(p)).toBe("1 needs you · 2 here · 5 agents working · 1 huddle · 1 idle · 1 away");
+    expect(p).toMatchObject({
+      here: 2,
+      idle: 1,
+      away: 1,
+      offline: 1,
+      working: 5,
+      needsInput: 1,
+      huddles: 1,
+    });
+    expect(pulseText(p)).toBe(
+      "1 needs you · 2 here · 5 agents working · 1 huddle · 1 idle · 1 away",
+    );
   });
 
   it("drops zero counts and pluralises", () => {
@@ -44,12 +54,20 @@ describe("teamPulse", () => {
   });
 
   it("says nobody is here rather than listing absences", () => {
-    expect(pulseText(teamPulse([m("a", "offline"), m("b", "offline")], () => null, 0))).toBe("nobody here");
+    expect(
+      pulseText(
+        teamPulse([m("a", "offline"), m("b", "offline")], () => null, 0),
+      ),
+    ).toBe("nobody here");
     expect(pulseText(teamPulse([], () => null, 0))).toBe("no teammates yet");
   });
 
   it("can be cut to the first N segments for a narrow slot", () => {
-    const p = teamPulse([m("a", "active"), m("b", "idle")], () => fleet({ working: 1 }), 0);
+    const p = teamPulse(
+      [m("a", "active"), m("b", "idle")],
+      () => fleet({ working: 1 }),
+      0,
+    );
     expect(pulseText(p, 2)).toBe("1 here · 2 agents working");
   });
 });

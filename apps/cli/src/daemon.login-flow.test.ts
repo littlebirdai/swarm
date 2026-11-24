@@ -1,8 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { buildLoginFlowCommand, buildMintFlowCommand, loginPaneSucceeded, summarizeLoginPaneTail } from "./daemon.js";
+import {
+  buildLoginFlowCommand,
+  buildMintFlowCommand,
+  loginPaneSucceeded,
+  summarizeLoginPaneTail,
+} from "./daemon.js";
 
-const daemonSource = readFileSync(new URL("./daemon.ts", import.meta.url), "utf8");
+const daemonSource = readFileSync(
+  new URL("./daemon.ts", import.meta.url),
+  "utf8",
+);
 
 // The login-flow watcher reports the dying pane's last meaningful line as the
 // rejection reason — the CLI's own words are the most honest "why" available.
@@ -60,13 +68,20 @@ describe("buildLoginFlowCommand", () => {
 
 describe("buildLoginFlowCommand into a profile store", () => {
   test("exports CLAUDE_SECURESTORAGE_CONFIG_DIR for the login process only", () => {
-    const cmd = buildLoginFlowCommand("a@b.com", "/Users/me/.codecast/cc-store/work");
-    expect(cmd).toMatch(/^PATH='[^']+' CLAUDE_SECURESTORAGE_CONFIG_DIR='\/Users\/me\/\.codecast\/cc-store\/work' claude auth login --claudeai --email 'a@b.com'; sleep 4$/);
+    const cmd = buildLoginFlowCommand(
+      "a@b.com",
+      "/Users/me/.codecast/cc-store/work",
+    );
+    expect(cmd).toMatch(
+      /^PATH='[^']+' CLAUDE_SECURESTORAGE_CONFIG_DIR='\/Users\/me\/\.codecast\/cc-store\/work' claude auth login --claudeai --email 'a@b.com'; sleep 4$/,
+    );
   });
 
   test("shell-escapes the store dir", () => {
     const cmd = buildLoginFlowCommand(undefined, "/tmp/it's/store");
-    expect(cmd).toContain("CLAUDE_SECURESTORAGE_CONFIG_DIR='/tmp/it'\\''s/store' claude auth login");
+    expect(cmd).toContain(
+      "CLAUDE_SECURESTORAGE_CONFIG_DIR='/tmp/it'\\''s/store' claude auth login",
+    );
   });
 });
 
@@ -79,7 +94,9 @@ describe("buildLoginFlowCommand into a profile store", () => {
 describe("per-profile credential stores", () => {
   test("provisions stores on every heartbeat without a settings gate", () => {
     expect(daemonSource).not.toContain("sessionTokensEnabled");
-    expect(daemonSource).toMatch(/async function sendHeartbeat[\s\S]*?void ensureProfileStores\("heartbeat"\);/);
+    expect(daemonSource).toMatch(
+      /async function sendHeartbeat[\s\S]*?void ensureProfileStores\("heartbeat"\);/,
+    );
   });
 
   test("never opens a browser unattended", () => {
@@ -90,7 +107,9 @@ describe("per-profile credential stores", () => {
     expect(openers).toHaveLength(2); // the definition and the mint watcher's call
     // Each flow is started from its command handler and nowhere else.
     expect(daemonSource.match(/startLoginFlow\(/g) ?? []).toHaveLength(2);
-    expect(daemonSource).toMatch(/case "start_login"[\s\S]{0,1500}startLoginFlow\(/);
+    expect(daemonSource).toMatch(
+      /case "start_login"[\s\S]{0,1500}startLoginFlow\(/,
+    );
   });
 });
 
@@ -100,8 +119,12 @@ describe("per-profile credential stores", () => {
 
 describe("buildMintFlowCommand", () => {
   test("runs setup-token with $BROWSER pointed at the URL hook, PATH carried, grace sleep appended", () => {
-    const cmd = buildMintFlowCommand("/Users/me/.codecast/mint-browser-hook.sh");
-    expect(cmd).toMatch(/^PATH='[^']+' BROWSER='\/Users\/me\/\.codecast\/mint-browser-hook\.sh' claude setup-token; sleep 4$/);
+    const cmd = buildMintFlowCommand(
+      "/Users/me/.codecast/mint-browser-hook.sh",
+    );
+    expect(cmd).toMatch(
+      /^PATH='[^']+' BROWSER='\/Users\/me\/\.codecast\/mint-browser-hook\.sh' claude setup-token; sleep 4$/,
+    );
   });
 
   test("a hook path with a quote cannot break out of the shell word", () => {
@@ -121,21 +144,39 @@ describe("minting is never automatic", () => {
     const calls = daemonSource.match(/startMintFlow\(/g) ?? [];
     // The definition and the one call in the command handler.
     expect(calls).toHaveLength(2);
-    expect(daemonSource).toMatch(/parsed\.mint[\s\S]{0,200}startMintFlow\(parsed\.mint/);
+    expect(daemonSource).toMatch(
+      /parsed\.mint[\s\S]{0,200}startMintFlow\(parsed\.mint/,
+    );
   });
 });
 
 describe("loginPaneSucceeded", () => {
   test("only the CLI's own success line confirms a sign-in", () => {
-    expect(loginPaneSucceeded("Opening browser to sign in…\nPaste code here if prompted >")).toBe(false);
-    expect(loginPaneSucceeded("Paste code here if prompted > abc#def\nLogin successful.")).toBe(true);
+    expect(
+      loginPaneSucceeded(
+        "Opening browser to sign in…\nPaste code here if prompted >",
+      ),
+    ).toBe(false);
+    expect(
+      loginPaneSucceeded(
+        "Paste code here if prompted > abc#def\nLogin successful.",
+      ),
+    ).toBe(true);
   });
 });
 
 describe("summarizeLoginPaneTail on the code prompt", () => {
   test("the error on the prompt's line is kept, a refused code is explained", () => {
-    expect(summarizeLoginPaneTail("visit: https://x\nPaste code here if prompted > Login failed: Request failed with status code 400\n")).toMatch(/refused that code/);
-    expect(summarizeLoginPaneTail("Paste code here if prompted > Login failed: network down")).toBe("Login failed: network down");
+    expect(
+      summarizeLoginPaneTail(
+        "visit: https://x\nPaste code here if prompted > Login failed: Request failed with status code 400\n",
+      ),
+    ).toMatch(/refused that code/);
+    expect(
+      summarizeLoginPaneTail(
+        "Paste code here if prompted > Login failed: network down",
+      ),
+    ).toBe("Login failed: network down");
     expect(summarizeLoginPaneTail("Paste code here if prompted >")).toBeNull();
   });
 });

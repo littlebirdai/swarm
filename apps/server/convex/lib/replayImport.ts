@@ -5,10 +5,31 @@ import { v, type ObjectType } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { sha256Hex } from "./hash";
-import { replayChunkKey, replaysBucketFromEnv, safeReplayPathSegment } from "./r2";
-import { ingestUserValidator, replayDomChunkMetaValidator, replayImportRestValidator, replayReadToValidator, replayProviderValidator } from "../ingestSchema";
-import { VENDOR_CONVERTER_VERSION, type ReplayEvent, type ReplayProvider } from "@codecast/shared/contracts/replay";
-import { parseReplayEvents, renderTimeline, replayCounts, replayIssues, replayShape, sortReplayEvents } from "@codecast/shared/replay";
+import {
+  replayChunkKey,
+  replaysBucketFromEnv,
+  safeReplayPathSegment,
+} from "./r2";
+import {
+  ingestUserValidator,
+  replayDomChunkMetaValidator,
+  replayImportRestValidator,
+  replayReadToValidator,
+  replayProviderValidator,
+} from "../ingestSchema";
+import {
+  VENDOR_CONVERTER_VERSION,
+  type ReplayEvent,
+  type ReplayProvider,
+} from "@codecast/shared/contracts/replay";
+import {
+  parseReplayEvents,
+  renderTimeline,
+  replayCounts,
+  replayIssues,
+  replayShape,
+  sortReplayEvents,
+} from "@codecast/shared/replay";
 import { chunkReplayEvents, putChunk } from "./replayChunks";
 
 /** What an import carries about the DOM capture it stored (storeReplayDom). */
@@ -26,9 +47,17 @@ export const domArgs = {
  * last event. Both count from the stream's first event, the replay clock's
  * zero (dom_t0), so the row, the list and the player agree on one length.
  */
-export function withCaptureLength<S extends { duration_ms: number; first_t: number }>(summary: S, captureEndT: number | undefined): S {
+export function withCaptureLength<
+  S extends { duration_ms: number; first_t: number },
+>(summary: S, captureEndT: number | undefined): S {
   if (captureEndT === undefined) return summary;
-  return { ...summary, duration_ms: Math.max(summary.duration_ms, Math.round(captureEndT - summary.first_t)) };
+  return {
+    ...summary,
+    duration_ms: Math.max(
+      summary.duration_ms,
+      Math.round(captureEndT - summary.first_t),
+    ),
+  };
 }
 
 /** What a stream says about its recording: the cached timeline and the recounted manifest fields. */
@@ -50,11 +79,24 @@ export function summarize(events: ReplayEvent[], shortId: string) {
  * replay_issue groups (ingest.recordReplayIssues). Run after the stream is
  * saved, by every action that reads one: assembly, a vendor import, a regroup.
  */
-export async function applyIssues(ctx: { runMutation: any }, replayId: Id<"replays">, provider: ReplayProvider, events: ReplayEvent[], startUrl: string | undefined) {
+export async function applyIssues(
+  ctx: { runMutation: any },
+  replayId: Id<"replays">,
+  provider: ReplayProvider,
+  events: ReplayEvent[],
+  startUrl: string | undefined,
+) {
   // Our recorder's t counts from started_at; a vendor stream's from its first event (as dom_t0 reads it).
-  const issues = replayIssues(events, startUrl, provider === "sdk" ? 0 : events[0]?.t ?? 0);
+  const issues = replayIssues(
+    events,
+    startUrl,
+    provider === "sdk" ? 0 : (events[0]?.t ?? 0),
+  );
   if (!issues.length) return { groups: 0, transitions: 0 };
-  return await ctx.runMutation(internal.ingest.applyReplayIssues, { replay_id: replayId, issues_json: JSON.stringify(issues) });
+  return await ctx.runMutation(internal.ingest.applyReplayIssues, {
+    replay_id: replayId,
+    issues_json: JSON.stringify(issues),
+  });
 }
 
 /**
@@ -66,12 +108,22 @@ export async function applyIssues(ctx: { runMutation: any }, replayId: Id<"repla
  * since that is what the refresh is for.
  */
 export function importShrinks(
-  row: { imported_at?: number; converter_version?: number; captured_ms?: number; dom_chunk_keys?: string[] },
+  row: {
+    imported_at?: number;
+    converter_version?: number;
+    captured_ms?: number;
+    dom_chunk_keys?: string[];
+  },
   incoming: { duration_ms: number; dom_chunk_keys?: string[] },
 ): boolean {
-  if (!row.imported_at || (row.converter_version ?? 1) !== VENDOR_CONVERTER_VERSION) return false;
+  if (
+    !row.imported_at ||
+    (row.converter_version ?? 1) !== VENDOR_CONVERTER_VERSION
+  )
+    return false;
   const lessTime = (row.captured_ms ?? 0) > incoming.duration_ms + 1000;
-  const lessCapture = (row.dom_chunk_keys?.length ?? 0) > (incoming.dom_chunk_keys?.length ?? 0);
+  const lessCapture =
+    (row.dom_chunk_keys?.length ?? 0) > (incoming.dom_chunk_keys?.length ?? 0);
   return lessTime && lessCapture;
 }
 
@@ -83,24 +135,24 @@ export function importShrinks(
  * that is already there.
  */
 export const importExternalArgs = {
-    source_id: v.id("event_sources"),
-    provider: replayProviderValidator,
-    external_id: v.string(),
-    events: v.any(),
-    started_at: v.optional(v.number()),
-    user: v.optional(ingestUserValidator),
-    ...domArgs,
-    /** Where the capture ends on the events' base (VendorCapture.end_t): a page left open runs past the last event. */
-    capture_end_t: v.optional(v.number()),
-    /** The vendor's own length for the recording, kept as a floor (saveImported). */
-    vendor_length_ms: v.optional(v.number()),
-    /** A later part of a long recording (sources/replayRest.ts): the chain's state, saved only while `expect_gen` is the row's chain. */
-    import_rest: v.optional(replayImportRestValidator),
-    expect_gen: v.optional(v.number()),
-    /** Nothing of the vendor's recording was left unread (saveImported). */
-    whole: v.optional(v.boolean()),
-    /** Where this read stopped (saveImported). */
-    read_to: v.optional(replayReadToValidator),
+  source_id: v.id("event_sources"),
+  provider: replayProviderValidator,
+  external_id: v.string(),
+  events: v.any(),
+  started_at: v.optional(v.number()),
+  user: v.optional(ingestUserValidator),
+  ...domArgs,
+  /** Where the capture ends on the events' base (VendorCapture.end_t): a page left open runs past the last event. */
+  capture_end_t: v.optional(v.number()),
+  /** The vendor's own length for the recording, kept as a floor (saveImported). */
+  vendor_length_ms: v.optional(v.number()),
+  /** A later part of a long recording (sources/replayRest.ts): the chain's state, saved only while `expect_gen` is the row's chain. */
+  import_rest: v.optional(replayImportRestValidator),
+  expect_gen: v.optional(v.number()),
+  /** Nothing of the vendor's recording was left unread (saveImported). */
+  whole: v.optional(v.boolean()),
+  /** Where this read stopped (saveImported). */
+  read_to: v.optional(replayReadToValidator),
 };
 
 /**
@@ -109,34 +161,72 @@ export const importExternalArgs = {
  * long stream through runAction meets Convex's 8192 element cap on an
  * argument array (an eight hour recording has more events than that).
  */
-export async function importExternalCore(ctx: { runMutation: any }, args: ObjectType<typeof importExternalArgs>): Promise<{ replay_id: Id<"replays">; short_id: string; chunks: number; saved: boolean }> {
-    const bucket = replaysBucketFromEnv();
-    if (!bucket) throw new Error("Replays storage is not configured (REPLAYS_R2_*)");
-    const opened = await ctx.runMutation(internal.replays.openImport, { source_id: args.source_id, external_id: args.external_id, started_at: args.started_at });
-    const events = sortReplayEvents(parseReplayEvents(args.events));
-    const chunks = chunkReplayEvents(events);
-    const replay = safeReplayPathSegment(args.external_id);
-    const keys: string[] = [];
-    for (let seq = 0; seq < chunks.length; seq++) {
-      const key = replayChunkKey({ sourceId: String(args.source_id), replay, seq, sha256: await sha256Hex(chunks[seq]) });
-      await putChunk(bucket, key, chunks[seq]);
-      keys.push(key);
-    }
-    const { saved } = await ctx.runMutation(internal.replays.saveImported, {
-      replay_id: opened.replay_id,
-      provider: args.provider,
-      chunk_keys: keys,
-      started_at: args.started_at,
-      user: args.user,
-      ...(args.dom_chunk_keys ? { dom_chunk_keys: args.dom_chunk_keys, dom_bytes: args.dom_bytes, dom_t0: args.dom_t0, ...(args.dom_chunk_meta ? { dom_chunk_meta: args.dom_chunk_meta } : {}) } : {}),
-      ...(args.vendor_length_ms ? { vendor_length_ms: args.vendor_length_ms } : {}),
-      ...(args.import_rest ? { import_rest: args.import_rest } : {}),
-      ...(args.expect_gen !== undefined ? { expect_gen: args.expect_gen } : {}),
-      ...(args.whole ? { whole: true } : {}),
-      ...(args.read_to ? { read_to: args.read_to } : {}),
-      ...withCaptureLength(summarize(events, opened.short_id), args.capture_end_t),
+export async function importExternalCore(
+  ctx: { runMutation: any },
+  args: ObjectType<typeof importExternalArgs>,
+): Promise<{
+  replay_id: Id<"replays">;
+  short_id: string;
+  chunks: number;
+  saved: boolean;
+}> {
+  const bucket = replaysBucketFromEnv();
+  if (!bucket)
+    throw new Error("Replays storage is not configured (REPLAYS_R2_*)");
+  const opened = await ctx.runMutation(internal.replays.openImport, {
+    source_id: args.source_id,
+    external_id: args.external_id,
+    started_at: args.started_at,
+  });
+  const events = sortReplayEvents(parseReplayEvents(args.events));
+  const chunks = chunkReplayEvents(events);
+  const replay = safeReplayPathSegment(args.external_id);
+  const keys: string[] = [];
+  for (let seq = 0; seq < chunks.length; seq++) {
+    const key = replayChunkKey({
+      sourceId: String(args.source_id),
+      replay,
+      seq,
+      sha256: await sha256Hex(chunks[seq]),
     });
-    if (saved) await applyIssues(ctx, opened.replay_id, args.provider, events, events.find((e) => e.type === "nav")?.url);
-    return { ...opened, chunks: keys.length, saved };
+    await putChunk(bucket, key, chunks[seq]);
+    keys.push(key);
+  }
+  const { saved } = await ctx.runMutation(internal.replays.saveImported, {
+    replay_id: opened.replay_id,
+    provider: args.provider,
+    chunk_keys: keys,
+    started_at: args.started_at,
+    user: args.user,
+    ...(args.dom_chunk_keys
+      ? {
+          dom_chunk_keys: args.dom_chunk_keys,
+          dom_bytes: args.dom_bytes,
+          dom_t0: args.dom_t0,
+          ...(args.dom_chunk_meta
+            ? { dom_chunk_meta: args.dom_chunk_meta }
+            : {}),
+        }
+      : {}),
+    ...(args.vendor_length_ms
+      ? { vendor_length_ms: args.vendor_length_ms }
+      : {}),
+    ...(args.import_rest ? { import_rest: args.import_rest } : {}),
+    ...(args.expect_gen !== undefined ? { expect_gen: args.expect_gen } : {}),
+    ...(args.whole ? { whole: true } : {}),
+    ...(args.read_to ? { read_to: args.read_to } : {}),
+    ...withCaptureLength(
+      summarize(events, opened.short_id),
+      args.capture_end_t,
+    ),
+  });
+  if (saved)
+    await applyIssues(
+      ctx,
+      opened.replay_id,
+      args.provider,
+      events,
+      events.find((e) => e.type === "nav")?.url,
+    );
+  return { ...opened, chunks: keys.length, saved };
 }
-

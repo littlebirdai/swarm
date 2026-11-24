@@ -17,9 +17,19 @@
 
 import { cliFetchRead } from "../cliHttp.js";
 import { fetchTurnSnapshots } from "../turnsCommand.js";
-import { snapshotAtLine, snapshotMoment, type TurnMessage, type TurnSnapshotRow } from "../turns.js";
+import {
+  snapshotAtLine,
+  snapshotMoment,
+  type TurnMessage,
+  type TurnSnapshotRow,
+} from "../turns.js";
 import { gitTry, wipRef } from "../wipSnapshot.js";
-import { fetchPickupConversation, PickupError, preparePickup, type PickupConversation } from "./pickup.js";
+import {
+  fetchPickupConversation,
+  PickupError,
+  preparePickup,
+  type PickupConversation,
+} from "./pickup.js";
 
 export interface ResolvedRewind {
   conversation: PickupConversation;
@@ -34,21 +44,39 @@ export interface ResolvedRewind {
 }
 
 /** `<session>` or `<session>@<line>`. */
-export function parseRewindRef(ref: string): { session: string; line?: number } {
+export function parseRewindRef(ref: string): {
+  session: string;
+  line?: number;
+} {
   const m = ref.match(/^(.+?)@(\d+)$/);
   if (!m) return { session: ref };
   return { session: m[1], line: Number(m[2]) };
 }
 
-async function fetchMessages(conversationId: string, auth: { convexUrl: string; authToken: string }, upTo: number): Promise<TurnMessage[]> {
+async function fetchMessages(
+  conversationId: string,
+  auth: { convexUrl: string; authToken: string },
+  upTo: number,
+): Promise<TurnMessage[]> {
   const siteUrl = auth.convexUrl.replace(".cloud", ".site");
   const resp = await cliFetchRead(`${siteUrl}/cli/read`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_token: auth.authToken, conversation_id: conversationId, start_line: 1, end_line: upTo }),
+    body: JSON.stringify({
+      api_token: auth.authToken,
+      conversation_id: conversationId,
+      start_line: 1,
+      end_line: upTo,
+    }),
   });
-  const data = (await resp.json().catch(() => ({}))) as { error?: string; messages?: TurnMessage[] };
-  if (data.error) throw new PickupError(`could not read the session's messages: ${data.error}`);
+  const data = (await resp.json().catch(() => ({}))) as {
+    error?: string;
+    messages?: TurnMessage[];
+  };
+  if (data.error)
+    throw new PickupError(
+      `could not read the session's messages: ${data.error}`,
+    );
   return data.messages ?? [];
 }
 
@@ -70,7 +98,10 @@ export async function resolveRewind(
   const warnings: string[] = [];
   if (line !== undefined) {
     const messages = await fetchMessages(conversation.id, auth, line);
-    if (messages.length < line) throw new PickupError(`the session has ${messages.length} messages; there is no line ${line}`);
+    if (messages.length < line)
+      throw new PickupError(
+        `the session has ${messages.length} messages; there is no line ${line}`,
+      );
     snapshot = snapshotAtLine(rows, messages, line);
     if (!snapshot) {
       throw new PickupError(
@@ -83,18 +114,40 @@ export async function resolveRewind(
 
   // Objects: here when this machine took them, else on the wip ref. The
   // pickup fetch brings the chain tip and everything behind it.
-  if ((await gitTry(repoRoot, ["cat-file", "-e", `${snapshot.sha}^{commit}`])) === null) {
+  if (
+    (await gitTry(repoRoot, ["cat-file", "-e", `${snapshot.sha}^{commit}`])) ===
+    null
+  ) {
     const prepared = await preparePickup(repoRoot, conversation);
     warnings.push(...prepared.warnings);
-    if ((await gitTry(repoRoot, ["cat-file", "-e", `${snapshot.sha}^{commit}`])) === null) {
+    if (
+      (await gitTry(repoRoot, [
+        "cat-file",
+        "-e",
+        `${snapshot.sha}^{commit}`,
+      ])) === null
+    ) {
       throw new PickupError(
         `snapshot ${snapshot.sha.slice(0, 10)} is not on ${wipRef(conversation.id)}: the session's daemon has pushed a newer chain that no longer reaches it, or has not pushed since. Its machine pushes every few minutes while the session runs.`,
       );
     }
   }
   const short = conversation.id.slice(0, 7);
-  const base = snapshot.branch && snapshot.branch !== "HEAD" ? snapshot.branch : `codecast/rewind-${short}`;
+  const base =
+    snapshot.branch && snapshot.branch !== "HEAD"
+      ? snapshot.branch
+      : `codecast/rewind-${short}`;
   const suffix = line !== undefined ? `-at-${line}` : "";
   const branch = branchOverride ?? `${base}-rewind-${short}${suffix}`;
-  return { conversation, snapshot, line, startPoint: snapshot.sha, branch, altBranch: branchOverride ? undefined : `${branch}-${Date.now().toString(36)}`, warnings };
+  return {
+    conversation,
+    snapshot,
+    line,
+    startPoint: snapshot.sha,
+    branch,
+    altBranch: branchOverride
+      ? undefined
+      : `${branch}-${Date.now().toString(36)}`,
+    warnings,
+  };
 }

@@ -23,7 +23,12 @@ export type Device = {
    *  start sessions on it. Empty or absent = private. */
   shared_team_ids?: string[];
   /** The team that manages it through an MDM, or whose admins removed it (devices.listDevices). */
-  managed?: { team_id: string; team_name: string; state: "managed" | "removed"; at: number };
+  managed?: {
+    team_id: string;
+    team_name: string;
+    state: "managed" | "removed";
+    at: number;
+  };
   /** Installed agent-feature snippets (by slug) + stable mode, heartbeat-reported. */
   settings?: {
     snippets?: Record<string, boolean>;
@@ -79,7 +84,12 @@ export type Device = {
   cloud_host?: import("@codecast/shared/contracts").CloudHostReport;
   /** Work waiting for this host since then (its next beat clears it), and the server's own start of it when it owns one (lib/hostWake). */
   wake_requested_at?: number;
-  cloud_wake?: { request_at: number; status: "pending" | "starting" | "awake" | "failed"; attempt: number; last_error?: string };
+  cloud_wake?: {
+    request_at: number;
+    status: "pending" | "starting" | "awake" | "failed";
+    attempt: number;
+    last_error?: string;
+  };
   /** Autoscale with this host as the template (devices.cloud_autoscale). */
   cloud_autoscale?: import("@codecast/shared/contracts").CloudAutoscale;
   /** What keeps this machine from reading a cloud agent provider (its heartbeat): it is not connected to that one. */
@@ -89,6 +99,11 @@ export type Device = {
   /** The one job this machine is kept for; automatic placement skips it (devices.reserved_for). */
   reserved_for?: string;
   /** Outcomes with this machine as the source. */
-  peer_links?: Array<import("@codecast/shared/contracts/peerTransport").PeerLinkOutcome & { to_device_id: string; last_relay_ok_at?: number }>;
+  peer_links?: Array<
+    import("@codecast/shared/contracts/peerTransport").PeerLinkOutcome & {
+      to_device_id: string;
+      last_relay_ok_at?: number;
+    }
+  >;
   online: boolean;
 };

@@ -11,7 +11,10 @@ export type UndoRevertHook = (rows: UndoRevertRow[], entry: UndoEntry) => void;
 const hooks = new Map<string, Set<UndoRevertHook>>();
 
 /** Run `fn` after every undo that writes rows of `store`. Returns the unregister. */
-export function registerUndoRevert(store: string, fn: UndoRevertHook): () => void {
+export function registerUndoRevert(
+  store: string,
+  fn: UndoRevertHook,
+): () => void {
   const set = hooks.get(store) ?? new Set<UndoRevertHook>();
   set.add(fn);
   hooks.set(store, set);
@@ -21,7 +24,10 @@ export function registerUndoRevert(store: string, fn: UndoRevertHook): () => voi
   };
 }
 
-export function runUndoRevert(entry: UndoEntry, applied: readonly CellChange[]): void {
+export function runUndoRevert(
+  entry: UndoEntry,
+  applied: readonly CellChange[],
+): void {
   if (hooks.size === 0) return;
   const byStore = new Map<string, Map<string, CellChange[]>>();
   for (const cell of applied) {

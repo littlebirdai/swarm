@@ -8,7 +8,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 // Loads first, as in the app: it and messageMarkdown import each other.
 import "../../chat/ChatMessage";
-import { ASSISTANT_MD_REMARK, MESSAGE_MD_COMPONENTS } from "../../messageMarkdown";
+import {
+  ASSISTANT_MD_REMARK,
+  MESSAGE_MD_COMPONENTS,
+} from "../../messageMarkdown";
 import { EntityFixtureContext } from "../../../lib/entityDisplay";
 import { ConvexProvider } from "convex/react";
 import { MemoryRouter } from "react-router";
@@ -21,7 +24,10 @@ const call = {
   status: "ended",
   started_at: 1_000,
   ended_at: 1_000 + 76 * 60_000,
-  participants: [{ id: "u-sam", name: "Samvit Ramadurgam" }, { id: "u-jason", name: "Jason Benn" }],
+  participants: [
+    { id: "u-sam", name: "Samvit Ramadurgam" },
+    { id: "u-jason", name: "Jason Benn" },
+  ],
   summary: "We picked the desk layout.",
 };
 const turns = {
@@ -29,9 +35,27 @@ const turns = {
   to_seq: 3,
   more: false,
   segments: [
-    { seq: 1, speaker_id: "u-sam", speaker_name: "Samvit Ramadurgam", text: "Put the queue on the left", t0: 0 },
-    { seq: 2, speaker_id: "u-sam", speaker_name: "Samvit Ramadurgam", text: "and the chat on the right", t0: 2_000 },
-    { seq: 3, speaker_id: "u-jason", speaker_name: "Jason Benn", text: "Agreed, ship it", t0: 5_000 },
+    {
+      seq: 1,
+      speaker_id: "u-sam",
+      speaker_name: "Samvit Ramadurgam",
+      text: "Put the queue on the left",
+      t0: 0,
+    },
+    {
+      seq: 2,
+      speaker_id: "u-sam",
+      speaker_name: "Samvit Ramadurgam",
+      text: "and the chat on the right",
+      t0: 2_000,
+    },
+    {
+      seq: 3,
+      speaker_id: "u-jason",
+      speaker_name: "Jason Benn",
+      text: "Agreed, ship it",
+      t0: 5_000,
+    },
   ],
 };
 const fixtures = {
@@ -43,7 +67,10 @@ const render = (md: string) =>
     <MemoryRouter>
       <ConvexProvider client={heroConvexStub}>
         <EntityFixtureContext.Provider value={fixtures}>
-          <ReactMarkdown remarkPlugins={ASSISTANT_MD_REMARK as any} components={MESSAGE_MD_COMPONENTS as any}>
+          <ReactMarkdown
+            remarkPlugins={ASSISTANT_MD_REMARK as any}
+            components={MESSAGE_MD_COMPONENTS as any}
+          >
             {md}
           </ReactMarkdown>
         </EntityFixtureContext.Provider>

@@ -15,12 +15,18 @@ export function AgentStatusPill({
   const spec = agentStatusPillSpec(agentStatus, { disconnected, live });
   if (!spec) return null;
   return (
-    <span data-cc-conv-status className={`inline-flex items-center gap-1 px-1 text-meta flex-shrink-0 ${spec.tone}`} title={spec.quiet ? spec.label : undefined}>
+    <span
+      data-cc-conv-status
+      className={`inline-flex items-center gap-1 px-1 text-meta flex-shrink-0 ${spec.tone}`}
+      title={spec.quiet ? spec.label : undefined}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${spec.dot}`} />
-      {!spec.quiet && <>
-        <span className="hidden sm:inline cq-sq3">{spec.label}</span>
-        <span className="sm:hidden cq-sq3">{spec.short}</span>
-      </>}
+      {!spec.quiet && (
+        <>
+          <span className="hidden sm:inline cq-sq3">{spec.label}</span>
+          <span className="sm:hidden cq-sq3">{spec.short}</span>
+        </>
+      )}
     </span>
   );
 }
@@ -38,7 +44,12 @@ export function ConversationHeaderTitle({
   onDoubleClick?: () => void;
 }) {
   const title = (
-    <h1 data-cc-conv-title className="cc-panel__title truncate flex-1 min-w-0 cursor-default" title={tooltip} onDoubleClick={onDoubleClick}>
+    <h1
+      data-cc-conv-title
+      className="cc-panel__title truncate flex-1 min-w-0 cursor-default"
+      title={tooltip}
+      onDoubleClick={onDoubleClick}
+    >
       {text}
     </h1>
   );
@@ -47,7 +58,12 @@ export function ConversationHeaderTitle({
   // the wrapper shrank to nothing while the title kept its full width inside
   // it, so the title painted over the facts and the squeeze never saw an
   // overflow to shed for.
-  return <>{lead}{title}</>;
+  return (
+    <>
+      {lead}
+      {title}
+    </>
+  );
 }
 
 /**
@@ -92,22 +108,37 @@ export function ConversationHeaderBar({
   children?: ReactNode;
 }) {
   return (
-    <header ref={headerRef} data-sv-convhead className={`cq-container shrink-0 relative ${className}`}>
+    <header
+      ref={headerRef}
+      data-sv-convhead
+      className={`cq-container shrink-0 relative ${className}`}
+    >
       <div>
         <div ref={headRef} className="cc-panel__head gap-2 min-w-0">
-          <div ref={squeezeRowRef} className="cq-squeeze-row flex items-center gap-2 min-w-0 overflow-hidden flex-1">
+          <div
+            ref={squeezeRowRef}
+            className="cq-squeeze-row flex items-center gap-2 min-w-0 overflow-hidden flex-1"
+          >
             {lead}
             {title}
             {titlePills}
             {status}
             {facts ? (
-              <span data-cc-facts data-cc-conv-meta data-simple-dim className="cq-sq6 flex items-center min-w-0">
+              <span
+                data-cc-facts
+                data-cc-conv-meta
+                data-simple-dim
+                className="cq-sq6 flex items-center min-w-0"
+              >
                 {facts}
               </span>
             ) : null}
             {actions ? (
               <TooltipProvider delayDuration={300}>
-                <div data-cc-conv-actions className="flex items-center gap-1 flex-shrink-0 overflow-hidden ml-auto">
+                <div
+                  data-cc-conv-actions
+                  className="flex items-center gap-1 flex-shrink-0 overflow-hidden ml-auto"
+                >
                   {actions}
                 </div>
               </TooltipProvider>

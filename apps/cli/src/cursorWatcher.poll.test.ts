@@ -11,7 +11,11 @@ const cleanups: (() => void)[] = [];
 afterEach(() => {
   setSlowSyncFsThresholdForTests(null);
   setSlowSyncSink(null);
-  for (const fn of cleanups) { try { fn(); } catch {} }
+  for (const fn of cleanups) {
+    try {
+      fn();
+    } catch {}
+  }
   cleanups.length = 0;
 });
 
@@ -22,11 +26,16 @@ function scaffold(): { cursorPath: string; storage: string; dbPath: string } {
   const ws = path.join(storage, "abc123");
   fs.mkdirSync(ws, { recursive: true });
   fs.mkdirSync(path.join(storage, "no-db-here"), { recursive: true });
-  fs.writeFileSync(path.join(ws, "workspace.json"), JSON.stringify({ folder: "file:///Users/me/proj%20one" }));
+  fs.writeFileSync(
+    path.join(ws, "workspace.json"),
+    JSON.stringify({ folder: "file:///Users/me/proj%20one" }),
+  );
   const dbPath = path.join(ws, "state.vscdb");
   const db = new Database(dbPath);
   db.run("CREATE TABLE ItemTable (key TEXT, value BLOB)");
-  db.run("INSERT INTO ItemTable (key, value) VALUES ('workbench.panel.aichat.view.aichat.chatdata', 'x')");
+  db.run(
+    "INSERT INTO ItemTable (key, value) VALUES ('workbench.panel.aichat.view.aichat.chatdata', 'x')",
+  );
   db.close();
   return { cursorPath, storage, dbPath };
 }
@@ -37,7 +46,9 @@ describe("CursorWatcher.pollWorkspaces", () => {
     const watcher = new CursorWatcher(cursorPath, 60_000);
     const events: CursorSessionEvent[] = [];
     watcher.on("session", (e) => events.push(e));
-    watcher.on("error", (e) => { throw e; });
+    watcher.on("error", (e) => {
+      throw e;
+    });
     const queries = spyOn(Database.prototype, "query");
     cleanups.push(() => queries.mockRestore());
     const seen: string[] = [];
@@ -46,7 +57,12 @@ describe("CursorWatcher.pollWorkspaces", () => {
 
     await watcher.pollWorkspaces(storage);
     expect(events).toHaveLength(1);
-    expect(events[0]).toEqual({ sessionId: "abc123", workspacePath: "/Users/me/proj one", dbPath, eventType: "add" });
+    expect(events[0]).toEqual({
+      sessionId: "abc123",
+      workspacePath: "/Users/me/proj one",
+      dbPath,
+      eventType: "add",
+    });
     expect(seen).toHaveLength(0);
     const firstQueries = queries.mock.calls.length;
     expect(firstQueries).toBe(daemonWorkersEnabled() ? 0 : 2);
@@ -58,7 +74,9 @@ describe("CursorWatcher.pollWorkspaces", () => {
 
     // A new chat row moves the WAL or the main file; the next poll opens it.
     const db = new Database(dbPath);
-    db.run("INSERT INTO ItemTable (key, value) VALUES ('workbench.panel.aichat.view.aichat.chatdata', 'y')");
+    db.run(
+      "INSERT INTO ItemTable (key, value) VALUES ('workbench.panel.aichat.view.aichat.chatdata', 'y')",
+    );
     db.close();
     const future = new Date(Date.now() + 5_000);
     fs.utimesSync(dbPath, future, future);
@@ -74,7 +92,10 @@ describe("CursorWatcher.pollWorkspaces", () => {
     const watcher = new CursorWatcher(cursorPath, 60_000);
     const events: CursorSessionEvent[] = [];
     watcher.on("session", (e) => events.push(e));
-    await Promise.all([watcher.pollWorkspaces(storage), watcher.pollWorkspaces(storage)]);
+    await Promise.all([
+      watcher.pollWorkspaces(storage),
+      watcher.pollWorkspaces(storage),
+    ]);
     expect(events).toHaveLength(1);
   }, 15_000);
 });

@@ -8,7 +8,12 @@ import { stampedTabPath, type AppTab } from "../inboxStore";
 //   2. an inbox tab never adopts a /conversation/<id> route (which would swap
 //      the rendered component and unmount the pane).
 
-const tab = (path: string): AppTab => ({ id: "t", title: "", path, createdAt: 0 });
+const tab = (path: string): AppTab => ({
+  id: "t",
+  title: "",
+  path,
+  createdAt: 0,
+});
 
 function withLocation(pathname: string, search: string, fn: () => void) {
   const prev = (globalThis as any).window;
@@ -36,14 +41,20 @@ describe("stampedTabPath", () => {
     // The inbox rewrites window.location to /conversation/<id> while a session is
     // open; the tab must stay /inbox so its pane doesn't re-match <Conversation>.
     withLocation("/conversation/jx7c0123nvbf8jnk1234567890abcdef", "", () => {
-      expect(stampedTabPath(tab("/inbox?s=jx7o1dcvnvbf8jnk1234567890abcdef"))).toBe("/inbox?s=jx7c0123nvbf8jnk1234567890abcdef");
-      expect(stampedTabPath(tab("/inbox"))).toBe("/inbox?s=jx7c0123nvbf8jnk1234567890abcdef");
+      expect(
+        stampedTabPath(tab("/inbox?s=jx7o1dcvnvbf8jnk1234567890abcdef")),
+      ).toBe("/inbox?s=jx7c0123nvbf8jnk1234567890abcdef");
+      expect(stampedTabPath(tab("/inbox"))).toBe(
+        "/inbox?s=jx7c0123nvbf8jnk1234567890abcdef",
+      );
     });
   });
 
   it("leaves a standalone /conversation tab on its conversation route", () => {
     withLocation("/conversation/jx7c0123nvbf8jnk1234567890abcdef", "", () => {
-      expect(stampedTabPath(tab("/conversation/jx7c0123nvbf8jnk1234567890abcdef"))).toBe("/conversation/jx7c0123nvbf8jnk1234567890abcdef");
+      expect(
+        stampedTabPath(tab("/conversation/jx7c0123nvbf8jnk1234567890abcdef")),
+      ).toBe("/conversation/jx7c0123nvbf8jnk1234567890abcdef");
     });
   });
 

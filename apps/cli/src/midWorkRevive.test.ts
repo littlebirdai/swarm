@@ -4,18 +4,39 @@ import os from "node:os";
 import path from "node:path";
 import { isRecoveryContinueClientId } from "@codecast/shared/contracts";
 import {
-  REVIVE_BUDGET, REVIVE_BUDGET_WINDOW_MS, REVIVE_MAX_AGE_MS, UNFINISHED_STATUS_FILE_TTL_MS,
-  isStationHandOpening, lastSignOfLifeMs, midWorkReviveDecision, stationHandsFirst, priorRevives, recordRevive, unrecordRevive, reviveClientId, statusFileExpired, type ReviveFacts,
+  REVIVE_BUDGET,
+  REVIVE_BUDGET_WINDOW_MS,
+  REVIVE_MAX_AGE_MS,
+  UNFINISHED_STATUS_FILE_TTL_MS,
+  isStationHandOpening,
+  lastSignOfLifeMs,
+  midWorkReviveDecision,
+  stationHandsFirst,
+  priorRevives,
+  recordRevive,
+  unrecordRevive,
+  reviveClientId,
+  statusFileExpired,
+  type ReviveFacts,
 } from "./midWorkRevive.js";
 
 const NOW = Date.parse("2026-10-05T05:01:05Z");
 const MIN = 60_000;
-const visible = { hideStateKnown: true, inboxKilledAt: null, inboxDismissedAt: null };
+const visible = {
+  hideStateKnown: true,
+  inboxKilledAt: null,
+  inboxDismissedAt: null,
+};
 
 function facts(over: Partial<ReviveFacts> = {}): ReviveFacts {
   return {
-    status: "waiting", ageMs: 59 * MIN, lifecycle: visible,
-    interruptedByUser: false, limitParked: false, priorRevives: [], now: NOW,
+    status: "waiting",
+    ageMs: 59 * MIN,
+    lifecycle: visible,
+    interruptedByUser: false,
+    limitParked: false,
+    priorRevives: [],
+    now: NOW,
     ...over,
   };
 }
@@ -29,68 +50,133 @@ describe("midWorkReviveDecision", () => {
   });
 
   test("revives a finished turn that still owned background work", () => {
-    expect(midWorkReviveDecision(facts({ status: "waiting" })).revive).toBe(true);
+    expect(midWorkReviveDecision(facts({ status: "waiting" })).revive).toBe(
+      true,
+    );
   });
 
   // A death mid-turn is the turn claim's to resume (turnClaims.ts), never this path's too.
   test("leaves mid-turn statuses to the turn claims", () => {
-    for (const status of ["working", "thinking", "compacting", "permission_blocked"]) {
-      expect(midWorkReviveDecision(facts({ status }))).toEqual({ revive: false, reason: "turn-finished" });
+    for (const status of [
+      "working",
+      "thinking",
+      "compacting",
+      "permission_blocked",
+    ]) {
+      expect(midWorkReviveDecision(facts({ status }))).toEqual({
+        revive: false,
+        reason: "turn-finished",
+      });
     }
   });
 
   test("leaves a finished turn and a trigger wait alone", () => {
     for (const status of ["idle", "stopped", "dormant", undefined]) {
-      expect(midWorkReviveDecision(facts({ status }))).toEqual({ revive: false, reason: "turn-finished" });
+      expect(midWorkReviveDecision(facts({ status }))).toEqual({
+        revive: false,
+        reason: "turn-finished",
+      });
     }
   });
 
   // ct-59998's Implement hand, 2026-10-16: it pinned dormant on a background
   // check and a Monitor, the machine restarted, and nothing was left to wake it.
   test("revives a dormant session whose wake was its own background work", () => {
-    expect(midWorkReviveDecision(facts({ status: "dormant", wakeDiedWithProcess: true }))).toEqual({ revive: true });
-    expect(midWorkReviveDecision(facts({ status: "dormant", wakeDiedWithProcess: false }))).toEqual({ revive: false, reason: "turn-finished" });
-    expect(midWorkReviveDecision(facts({ status: "idle", wakeDiedWithProcess: true }))).toEqual({ revive: false, reason: "turn-finished" });
+    expect(
+      midWorkReviveDecision(
+        facts({ status: "dormant", wakeDiedWithProcess: true }),
+      ),
+    ).toEqual({ revive: true });
+    expect(
+      midWorkReviveDecision(
+        facts({ status: "dormant", wakeDiedWithProcess: false }),
+      ),
+    ).toEqual({ revive: false, reason: "turn-finished" });
+    expect(
+      midWorkReviveDecision(
+        facts({ status: "idle", wakeDiedWithProcess: true }),
+      ),
+    ).toEqual({ revive: false, reason: "turn-finished" });
   });
 
   test("keeps a dormant session's status file as long as an unfinished one's", () => {
-    expect(statusFileExpired("dormant", NOW - 2 * 60 * MIN, NOW, 60 * MIN)).toBe(false);
+    expect(
+      statusFileExpired("dormant", NOW - 2 * 60 * MIN, NOW, 60 * MIN),
+    ).toBe(false);
   });
 
   test("does not wake work that died long ago", () => {
-    expect(midWorkReviveDecision(facts({ ageMs: REVIVE_MAX_AGE_MS + 1 }))).toEqual({ revive: false, reason: "too-old" });
+    expect(
+      midWorkReviveDecision(facts({ ageMs: REVIVE_MAX_AGE_MS + 1 })),
+    ).toEqual({ revive: false, reason: "too-old" });
   });
 
   test("respects the person: killed, dismissed, or interrupted stays stopped", () => {
-    expect(midWorkReviveDecision(facts({ lifecycle: { ...visible, inboxKilledAt: NOW - MIN } })).revive).toBe(false);
-    expect(midWorkReviveDecision(facts({ lifecycle: { ...visible, inboxDismissedAt: NOW - MIN } })).revive).toBe(false);
-    expect(midWorkReviveDecision(facts({ interruptedByUser: true }))).toEqual({ revive: false, reason: "interrupted" });
+    expect(
+      midWorkReviveDecision(
+        facts({ lifecycle: { ...visible, inboxKilledAt: NOW - MIN } }),
+      ).revive,
+    ).toBe(false);
+    expect(
+      midWorkReviveDecision(
+        facts({ lifecycle: { ...visible, inboxDismissedAt: NOW - MIN } }),
+      ).revive,
+    ).toBe(false);
+    expect(midWorkReviveDecision(facts({ interruptedByUser: true }))).toEqual({
+      revive: false,
+      reason: "interrupted",
+    });
   });
 
   test("a stashed session keeps running by design, so it is revived", () => {
-    expect(midWorkReviveDecision(facts({ lifecycle: { ...visible, inboxStashedAt: NOW - MIN } as never })).revive).toBe(true);
+    expect(
+      midWorkReviveDecision(
+        facts({
+          lifecycle: { ...visible, inboxStashedAt: NOW - MIN } as never,
+        }),
+      ).revive,
+    ).toBe(true);
   });
 
   test("unknown hide state falls back to closing it", () => {
-    expect(midWorkReviveDecision(facts({ lifecycle: null })).revive).toBe(false);
-    expect(midWorkReviveDecision(facts({ lifecycle: { hideStateKnown: false } })).revive).toBe(false);
+    expect(midWorkReviveDecision(facts({ lifecycle: null })).revive).toBe(
+      false,
+    );
+    expect(
+      midWorkReviveDecision(facts({ lifecycle: { hideStateKnown: false } }))
+        .revive,
+    ).toBe(false);
   });
 
   test("a limit park belongs to the account recovery chain", () => {
-    expect(midWorkReviveDecision(facts({ limitParked: true }))).toEqual({ revive: false, reason: "limit-parked" });
+    expect(midWorkReviveDecision(facts({ limitParked: true }))).toEqual({
+      revive: false,
+      reason: "limit-parked",
+    });
   });
 
   test("stops after the budget inside the window, and the window rolls", () => {
-    const spent = Array.from({ length: REVIVE_BUDGET }, (_, i) => NOW - (i + 1) * 30 * MIN);
-    expect(midWorkReviveDecision(facts({ priorRevives: spent }))).toEqual({ revive: false, reason: "budget-spent" });
+    const spent = Array.from(
+      { length: REVIVE_BUDGET },
+      (_, i) => NOW - (i + 1) * 30 * MIN,
+    );
+    expect(midWorkReviveDecision(facts({ priorRevives: spent }))).toEqual({
+      revive: false,
+      reason: "budget-spent",
+    });
     const old = spent.map((t) => t - REVIVE_BUDGET_WINDOW_MS);
-    expect(midWorkReviveDecision(facts({ priorRevives: old })).revive).toBe(true);
+    expect(midWorkReviveDecision(facts({ priorRevives: old })).revive).toBe(
+      true,
+    );
   });
 });
 
 describe("revive ledger", () => {
   test("records revives, survives a re-read, and prunes outside the window", () => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "revive-")), "revives.json");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "revive-")),
+      "revives.json",
+    );
     expect(priorRevives(file, "a")).toEqual([]);
     recordRevive(file, "old", NOW - REVIVE_BUDGET_WINDOW_MS - MIN);
     recordRevive(file, "a", NOW - MIN);
@@ -102,7 +188,10 @@ describe("revive ledger", () => {
   // A revive is counted before its message is queued; one whose queue call
   // failed or was declined gives its entry back, so retries do not spend the budget.
   test("a revive that was never queued is taken back, and only that one", () => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "revive-")), "revives.json");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "revive-")),
+      "revives.json",
+    );
     recordRevive(file, "a", NOW - MIN);
     recordRevive(file, "a", NOW);
     unrecordRevive(file, "a", NOW);
@@ -111,7 +200,10 @@ describe("revive ledger", () => {
   });
 
   test("a corrupt ledger reads as empty instead of blocking revives", () => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "revive-")), "revives.json");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "revive-")),
+      "revives.json",
+    );
     fs.writeFileSync(file, "{not json");
     expect(priorRevives(file, "a")).toEqual([]);
     recordRevive(file, "a", NOW);
@@ -120,13 +212,23 @@ describe("revive ledger", () => {
 });
 
 test("the revive message reads as the system's, not the person's", () => {
-  expect(isRecoveryContinueClientId(reviveClientId("jx7e4fydgv2are6sv3gdkp78n58fg737", NOW))).toBe(true);
+  expect(
+    isRecoveryContinueClientId(
+      reviveClientId("jx7e4fydgv2are6sv3gdkp78n58fg737", NOW),
+    ),
+  ).toBe(true);
   expect(reviveClientId("c", NOW)).toBe(reviveClientId("c", NOW + 30_000));
   // A turn claim's second attempt in the same minute is a new continue, not a retry the server dedupes onto the first.
-  expect(reviveClientId("c", NOW, "100a2")).not.toBe(reviveClientId("c", NOW, "100a1"));
+  expect(reviveClientId("c", NOW, "100a2")).not.toBe(
+    reviveClientId("c", NOW, "100a1"),
+  );
   // ...nor is a new claim's first attempt (a resume that landed on a new session id).
-  expect(reviveClientId("c", NOW, "200a1")).not.toBe(reviveClientId("c", NOW, "100a1"));
-  expect(isRecoveryContinueClientId(reviveClientId("c", NOW, "100a2"))).toBe(true);
+  expect(reviveClientId("c", NOW, "200a1")).not.toBe(
+    reviveClientId("c", NOW, "100a1"),
+  );
+  expect(isRecoveryContinueClientId(reviveClientId("c", NOW, "100a2"))).toBe(
+    true,
+  );
 });
 
 // fdf643a3 on 2026-10-06: its turn ended at 02:00Z with a workflow running, the
@@ -150,12 +252,25 @@ describe("status file retention", () => {
   });
 
   test("still clears an unfinished file nobody settles", () => {
-    expect(statusFileExpired("waiting", NOW - UNFINISHED_STATUS_FILE_TTL_MS - MIN, NOW, HOUR)).toBe(true);
+    expect(
+      statusFileExpired(
+        "waiting",
+        NOW - UNFINISHED_STATUS_FILE_TTL_MS - MIN,
+        NOW,
+        HOUR,
+      ),
+    ).toBe(true);
   });
 
   test("the cleanup asks the retention rule instead of a bare mtime cutoff", () => {
-    const src = fs.readFileSync(path.join(import.meta.dir, "daemon.ts"), "utf8");
-    const block = src.slice(src.indexOf("Clean up stale agent-status files"), src.indexOf("const CLAUDE_PLANS_DIR"));
+    const src = fs.readFileSync(
+      path.join(import.meta.dir, "daemon.ts"),
+      "utf8",
+    );
+    const block = src.slice(
+      src.indexOf("Clean up stale agent-status files"),
+      src.indexOf("const CLAUDE_PLANS_DIR"),
+    );
     expect(block).toContain("statusFileExpired(f.data?.status, f.mtimeMs");
     expect(block).not.toMatch(/f\.mtimeMs\s*>=\s*cutoff/);
   });
@@ -175,8 +290,14 @@ describe("lastSignOfLifeMs", () => {
     const transcript = path.join(dir, "sid.jsonl");
     touch(transcript, NOW - 160 * MIN);
     touch(path.join(dir, "sid", "subagents", "agent-a.jsonl"), NOW - 90 * MIN);
-    touch(path.join(dir, "sid", "subagents", "workflows", "wf_1", "agent-b.jsonl"), NOW - 6 * MIN);
-    touch(path.join(dir, "sid", "subagents", "workflows", "wf_0", "agent-c.jsonl"), NOW - 120 * MIN);
+    touch(
+      path.join(dir, "sid", "subagents", "workflows", "wf_1", "agent-b.jsonl"),
+      NOW - 6 * MIN,
+    );
+    touch(
+      path.join(dir, "sid", "subagents", "workflows", "wf_0", "agent-c.jsonl"),
+      NOW - 120 * MIN,
+    );
     expect(await lastSignOfLifeMs(transcript)).toBe(NOW - 6 * MIN);
   });
 
@@ -193,27 +314,44 @@ describe("lastSignOfLifeMs", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "revive-life-"));
     const transcript = path.join(dir, "sid.jsonl");
     touch(transcript, NOW - REVIVE_MAX_AGE_MS - 60 * MIN);
-    touch(path.join(dir, "sid", "subagents", "workflows", "wf_1", "agent-a.jsonl"), NOW - 8 * MIN);
+    touch(
+      path.join(dir, "sid", "subagents", "workflows", "wf_1", "agent-a.jsonl"),
+      NOW - 8 * MIN,
+    );
     const statusAge = REVIVE_MAX_AGE_MS + 60 * MIN;
-    expect(midWorkReviveDecision(facts({ ageMs: statusAge })).revive).toBe(false);
-    const ageMs = Math.min(statusAge, NOW - await lastSignOfLifeMs(transcript));
+    expect(midWorkReviveDecision(facts({ ageMs: statusAge })).revive).toBe(
+      false,
+    );
+    const ageMs = Math.min(
+      statusAge,
+      NOW - (await lastSignOfLifeMs(transcript)),
+    );
     expect(midWorkReviveDecision(facts({ ageMs }))).toEqual({ revive: true });
   });
 });
 
 describe("station hands first", () => {
-  const brief = 'You are running unattended: the "Implement" step of workflow line (run th7fvy67e9e93r2zsy8dtwek758gd316) started this session';
+  const brief =
+    'You are running unattended: the "Implement" step of workflow line (run th7fvy67e9e93r2zsy8dtwek758gd316) started this session';
   test("knows a station hand by its brief, as written and as transcript JSON", () => {
     expect(isStationHandOpening(brief)).toBe(true);
-    expect(isStationHandOpening(JSON.stringify({ message: { content: brief } }))).toBe(true);
+    expect(
+      isStationHandOpening(JSON.stringify({ message: { content: brief } })),
+    ).toBe(true);
     // A try or an eval renders the station with no run behind it.
-    expect(isStationHandOpening('the "Implement" step of workflow line started this session')).toBe(false);
+    expect(
+      isStationHandOpening(
+        'the "Implement" step of workflow line started this session',
+      ),
+    ).toBe(false);
     expect(isStationHandOpening("fix the flaky test")).toBe(false);
   });
 
   // ct-59998's hand, 2026-10-16: deferred behind other sessions at 07:18 and
   // 07:22 while its run was waiting on it.
   test("orders station hands ahead of everything else, each group as it was", () => {
-    expect(stationHandsFirst(["a", "S1", "b", "S2"], (x) => x.startsWith("S"))).toEqual(["S1", "S2", "a", "b"]);
+    expect(
+      stationHandsFirst(["a", "S1", "b", "S2"], (x) => x.startsWith("S")),
+    ).toEqual(["S1", "S2", "a", "b"]);
   });
 });

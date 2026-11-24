@@ -1,5 +1,13 @@
 import { useCallback, useRef, useState, type CSSProperties } from "react";
-import { TeamIcon, TEAM_ICONS, TEAM_COLORS, colorBgClassMap, iconLabelMap, type TeamIconName, type TeamColorName } from "../TeamIcon";
+import {
+  TeamIcon,
+  TEAM_ICONS,
+  TEAM_COLORS,
+  colorBgClassMap,
+  iconLabelMap,
+  type TeamIconName,
+  type TeamColorName,
+} from "../TeamIcon";
 import { moveRadioIndex } from "./radioNav";
 import { cn } from "../../lib/utils";
 import "./teamFlow.css";
@@ -21,30 +29,49 @@ interface TeamIdentityPickerProps {
 const ICON_COLUMNS = 6;
 
 /** Icon grid plus color swatches, with an optional live crest preview. Controlled. */
-export function TeamIdentityPicker({ value, onChange, previewName, disabled, className }: TeamIdentityPickerProps) {
-  const [focusIcon, setFocusIcon] = useState<number>(() => Math.max(0, TEAM_ICONS.indexOf(value.icon)));
+export function TeamIdentityPicker({
+  value,
+  onChange,
+  previewName,
+  disabled,
+  className,
+}: TeamIdentityPickerProps) {
+  const [focusIcon, setFocusIcon] = useState<number>(() =>
+    Math.max(0, TEAM_ICONS.indexOf(value.icon)),
+  );
   const iconRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const swatchRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Arrows move focus AND select, the native radio pattern. Selecting as
   // you move also drives the live crest preview, so keyboard users see
   // each candidate exactly as pointer users do on click.
-  const onIconKey = useCallback((e: React.KeyboardEvent, index: number) => {
-    const next = moveRadioIndex(e.key, index, TEAM_ICONS.length, ICON_COLUMNS);
-    if (next == null) return;
-    e.preventDefault();
-    setFocusIcon(next);
-    iconRefs.current[next]?.focus();
-    onChange({ ...value, icon: TEAM_ICONS[next] });
-  }, [onChange, value]);
+  const onIconKey = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      const next = moveRadioIndex(
+        e.key,
+        index,
+        TEAM_ICONS.length,
+        ICON_COLUMNS,
+      );
+      if (next == null) return;
+      e.preventDefault();
+      setFocusIcon(next);
+      iconRefs.current[next]?.focus();
+      onChange({ ...value, icon: TEAM_ICONS[next] });
+    },
+    [onChange, value],
+  );
 
-  const onSwatchKey = useCallback((e: React.KeyboardEvent, index: number) => {
-    const next = moveRadioIndex(e.key, index, TEAM_COLORS.length, 1);
-    if (next == null) return;
-    e.preventDefault();
-    swatchRefs.current[next]?.focus();
-    onChange({ ...value, color: TEAM_COLORS[next] });
-  }, [onChange, value]);
+  const onSwatchKey = useCallback(
+    (e: React.KeyboardEvent, index: number) => {
+      const next = moveRadioIndex(e.key, index, TEAM_COLORS.length, 1);
+      if (next == null) return;
+      e.preventDefault();
+      swatchRefs.current[next]?.focus();
+      onChange({ ...value, color: TEAM_COLORS[next] });
+    },
+    [onChange, value],
+  );
 
   const selectedIcon = TEAM_ICONS.indexOf(value.icon);
 
@@ -61,7 +88,11 @@ export function TeamIdentityPicker({ value, onChange, previewName, disabled, cla
         // No aria-live: the pill mirrors the name field on every keystroke,
         // and the radios already announce icon and color changes themselves.
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-sol-bg-alt text-sm max-w-[160px] shrink-0">
-          <TeamIcon icon={value.icon} color={value.color} className="w-4 h-4 shrink-0 transition-colors duration-300" />
+          <TeamIcon
+            icon={value.icon}
+            color={value.color}
+            className="w-4 h-4 shrink-0 transition-colors duration-300"
+          />
           <span
             className={cn(
               "font-medium truncate transition-colors duration-200",
@@ -74,20 +105,27 @@ export function TeamIdentityPicker({ value, onChange, previewName, disabled, cla
       )}
       <div className="flex-1 min-w-0 space-y-4">
         <div>
-          <div className="text-mark uppercase tracking-wider text-sol-text-dim mb-1.5">Icon</div>
+          <div className="text-mark uppercase tracking-wider text-sol-text-dim mb-1.5">
+            Icon
+          </div>
           <div
             role="radiogroup"
             aria-label="Team icon"
             className="grid gap-1.5"
-            style={{ gridTemplateColumns: `repeat(${ICON_COLUMNS}, max-content)` }}
+            style={{
+              gridTemplateColumns: `repeat(${ICON_COLUMNS}, max-content)`,
+            }}
           >
             {TEAM_ICONS.map((icon, i) => {
               const selected = icon === value.icon;
-              const tabbable = selectedIcon >= 0 ? i === selectedIcon : i === focusIcon;
+              const tabbable =
+                selectedIcon >= 0 ? i === selectedIcon : i === focusIcon;
               return (
                 <button
                   key={icon}
-                  ref={(el) => { iconRefs.current[i] = el; }}
+                  ref={(el) => {
+                    iconRefs.current[i] = el;
+                  }}
                   type="button"
                   role="radio"
                   aria-checked={selected}
@@ -107,7 +145,10 @@ export function TeamIdentityPicker({ value, onChange, previewName, disabled, cla
                   <TeamIcon
                     icon={icon}
                     color={selected ? value.color : undefined}
-                    className={cn("w-4 h-4 transition-colors", !selected && "text-sol-text-muted")}
+                    className={cn(
+                      "w-4 h-4 transition-colors",
+                      !selected && "text-sol-text-muted",
+                    )}
                   />
                 </button>
               );
@@ -115,14 +156,18 @@ export function TeamIdentityPicker({ value, onChange, previewName, disabled, cla
           </div>
         </div>
         <div>
-          <div className="text-mark uppercase tracking-wider text-sol-text-dim mb-1.5">Color</div>
+          <div className="text-mark uppercase tracking-wider text-sol-text-dim mb-1.5">
+            Color
+          </div>
           <div role="radiogroup" aria-label="Team color" className="flex gap-2">
             {TEAM_COLORS.map((color, i) => {
               const selected = color === value.color;
               return (
                 <button
                   key={color}
-                  ref={(el) => { swatchRefs.current[i] = el; }}
+                  ref={(el) => {
+                    swatchRefs.current[i] = el;
+                  }}
                   type="button"
                   role="radio"
                   aria-checked={selected}
@@ -134,7 +179,9 @@ export function TeamIdentityPicker({ value, onChange, previewName, disabled, cla
                   className={cn(
                     "w-7 h-7 rounded-full transition-transform duration-150 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-sol-bg focus-visible:ring-sol-text",
                     colorBgClassMap[color],
-                    selected ? "ring-2 ring-offset-2 ring-offset-sol-bg ring-sol-text-dim scale-110" : "hover:scale-105",
+                    selected
+                      ? "ring-2 ring-offset-2 ring-offset-sol-bg ring-sol-text-dim scale-110"
+                      : "hover:scale-105",
                     disabled && "opacity-50",
                   )}
                 />

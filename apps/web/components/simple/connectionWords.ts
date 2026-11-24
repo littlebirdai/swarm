@@ -6,9 +6,12 @@
 import type { MailAbilities } from "./lane";
 
 export function emailAbility(can: MailAbilities | null | undefined): string {
-  if (!can?.read_mail) return "Read and sort your mail, find what needs you, and draft replies in your voice.";
-  if (can.modify_mail && can.send_mail) return "I read and sort your mail and draft replies in your voice. I send only after you say yes.";
-  if (can.send_mail) return "I can read your mail and send replies after you say yes. Sorting, archiving and drafts need you to connect again.";
+  if (!can?.read_mail)
+    return "Read and sort your mail, find what needs you, and draft replies in your voice.";
+  if (can.modify_mail && can.send_mail)
+    return "I read and sort your mail and draft replies in your voice. I send only after you say yes.";
+  if (can.send_mail)
+    return "I can read your mail and send replies after you say yes. Sorting, archiving and drafts need you to connect again.";
   return "I can read your mail. Sorting it and sending replies need you to connect again.";
 }
 
@@ -20,11 +23,18 @@ export function calendarAbility(can: MailAbilities | null | undefined): string {
 
 /** The mailboxes a connection reaches, as one short line: the main one, and
  *  how many more. */
-export function mailboxLine(email: string | undefined, mailboxes: readonly string[]): string | undefined {
+export function mailboxLine(
+  email: string | undefined,
+  mailboxes: readonly string[],
+): string | undefined {
   const main = email ?? mailboxes[0];
   if (!main) return undefined;
-  const more = mailboxes.filter((m) => m.toLowerCase() !== main.toLowerCase()).length;
-  return more ? `${main} and ${more} more ${more === 1 ? "mailbox" : "mailboxes"}` : main;
+  const more = mailboxes.filter(
+    (m) => m.toLowerCase() !== main.toLowerCase(),
+  ).length;
+  return more
+    ? `${main} and ${more} more ${more === 1 ? "mailbox" : "mailboxes"}`
+    : main;
 }
 
 /** The line under the card. Before anything is connected it tells someone

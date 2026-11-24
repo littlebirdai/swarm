@@ -10,10 +10,19 @@
 import { readFileSync } from "node:fs";
 
 const [mod, worldPath, treePath, seedPath, ...argv] = process.argv.slice(2);
-if (!mod || !worldPath || !treePath) throw new Error("usage: prompt-dry-run-fake.ts <module> <world.json> <tree.json> <seed.json|\"\"> <argv...>");
+if (!mod || !worldPath || !treePath)
+  throw new Error(
+    'usage: prompt-dry-run-fake.ts <module> <world.json> <tree.json> <seed.json|""> <argv...>',
+  );
 const { openFake } = await import(mod);
 const stdin = await new Response(Bun.stdin.stream()).text();
-const a = openFake({ worldPath, tree: JSON.parse(readFileSync(treePath, "utf8")), seed: seedPath ? JSON.parse(readFileSync(seedPath, "utf8")) : undefined })(argv, stdin);
+const a = openFake({
+  worldPath,
+  tree: JSON.parse(readFileSync(treePath, "utf8")),
+  seed: seedPath ? JSON.parse(readFileSync(seedPath, "utf8")) : undefined,
+})(argv, stdin);
 if (!a) process.exit(125);
-process.stdout.write(JSON.stringify({ out: a.out, exit: a.exit, ...(a.cli ? { cli: true } : {}) }));
+process.stdout.write(
+  JSON.stringify({ out: a.out, exit: a.exit, ...(a.cli ? { cli: true } : {}) }),
+);
 process.exit(0);

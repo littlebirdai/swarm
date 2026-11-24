@@ -1,8 +1,20 @@
 import { heartbeatOf } from "./lib/sessionHeartbeat";
 import { wakeFieldsOf, wakeCost } from "./wakeCost";
-import { deriveSessionActivity, classifyWorkState, trustedAgentStatus, userRestOf, isSettleVerdictCurrent, HEARTBEAT_ALIVE_MS, type WorkState } from "./inboxFilters";
+import {
+  deriveSessionActivity,
+  classifyWorkState,
+  trustedAgentStatus,
+  userRestOf,
+  isSettleVerdictCurrent,
+  HEARTBEAT_ALIVE_MS,
+  type WorkState,
+} from "./inboxFilters";
 import { openTasksVouchForWaiting } from "@codecast/shared/contracts";
-import { armedTriggerHomeLoader, isArmedTriggerHome, isArmedLoopHome } from "./dormancy";
+import {
+  armedTriggerHomeLoader,
+  isArmedTriggerHome,
+  isArmedLoopHome,
+} from "./dormancy";
 
 // The one work-state classifier for every CLI surface that lists sessions
 // (`cast feed` and the stable-context FEED, `cast search`, `cast context` file
@@ -21,18 +33,24 @@ const MANAGED_STALE_MS = 60 * 1000;
 export type RecencyRank = 0 | 1 | 2;
 
 export function recencyRankOf(conv: any, now: number): RecencyRank {
-  const cost = wakeCost({
-    ...wakeFieldsOf(conv),
-    updated_at: conv.updated_at,
-    status: conv.status,
-    inbox_killed_at: conv.inbox_killed_at,
-  }, now);
+  const cost = wakeCost(
+    {
+      ...wakeFieldsOf(conv),
+      updated_at: conv.updated_at,
+      status: conv.status,
+      inbox_killed_at: conv.inbox_killed_at,
+    },
+    now,
+  );
   return cost.killed ? 2 : cost.cacheCold ? 1 : 0;
 }
 
 export function cliSessionClassifier(ctx: any, now: number) {
   const managedCache = new Map<string, { session: any; beat: number }>();
-  const classified = new Map<string, { work_state: WorkState; agent_status?: string }>();
+  const classified = new Map<
+    string,
+    { work_state: WorkState; agent_status?: string }
+  >();
   const armedHomesFor = armedTriggerHomeLoader(ctx);
 
   const managedFor = async (conv: any) => {
@@ -40,17 +58,32 @@ export function cliSessionClassifier(ctx: any, now: number) {
     if (!managedCache.has(key)) {
       const managed = await ctx.db
         .query("managed_sessions")
-        .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", conv._id),
+        )
         .first();
-      managedCache.set(key, { session: managed, beat: await heartbeatOf(ctx, managed) });
+      managedCache.set(key, {
+        session: managed,
+        beat: await heartbeatOf(ctx, managed),
+      });
     }
     return managedCache.get(key)!;
   };
 
-  const isLiveManaged = ({ session, beat }: { session: any; beat: number }): boolean =>
-    !!session && session.agent_status !== "hibernated" && now - beat < MANAGED_STALE_MS;
+  const isLiveManaged = ({
+    session,
+    beat,
+  }: {
+    session: any;
+    beat: number;
+  }): boolean =>
+    !!session &&
+    session.agent_status !== "hibernated" &&
+    now - beat < MANAGED_STALE_MS;
 
-  const classify = async (conv: any): Promise<{ work_state: WorkState; agent_status?: string }> => {
+  const classify = async (
+    conv: any,
+  ): Promise<{ work_state: WorkState; agent_status?: string }> => {
     const cached = classified.get(conv._id.toString());
     if (cached) return cached;
     const facts = await managedFor(conv);
@@ -69,8 +102,15 @@ export function cliSessionClassifier(ctx: any, now: number) {
     // agrees with the bucketed work_state.
     const heartbeatFresh = beat !== 0 && now - beat < HEARTBEAT_ALIVE_MS;
     const agentStatus = trustedAgentStatus(
-      managed?.agent_status, conv.updated_at, now, heartbeatFresh,
-      openTasksVouchForWaiting(managed?.open_tasks_at, managed?.open_tasks?.length ?? 0, heartbeatFresh),
+      managed?.agent_status,
+      conv.updated_at,
+      now,
+      heartbeatFresh,
+      openTasksVouchForWaiting(
+        managed?.open_tasks_at,
+        managed?.open_tasks?.length ?? 0,
+        heartbeatFresh,
+      ),
     );
     const daemonAlive = agentStatus === "stopped" ? false : isLive;
     const hasPending = !!(conv as any).has_pending_messages;
@@ -87,13 +127,21 @@ export function cliSessionClassifier(ctx: any, now: number) {
       now,
     });
     let awaitingInput = false;
-    if (((!activity.isIdle && isLive) || agentStatus === "hibernated") && (conv.message_count || 0) > 0) {
+    if (
+      ((!activity.isIdle && isLive) || agentStatus === "hibernated") &&
+      (conv.message_count || 0) > 0
+    ) {
       const lastMsg = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_timestamp", (q: any) =>
+          q.eq("conversation_id", conv._id),
+        )
         .order("desc")
         .first();
-      if (lastMsg?.role === "assistant" && lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")) {
+      if (
+        lastMsg?.role === "assistant" &&
+        lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")
+      ) {
         awaitingInput = true;
       }
     }
@@ -128,7 +176,9 @@ export function cliSessionClassifier(ctx: any, now: number) {
     const managed = await managedFor(conv);
     const { work_state, agent_status } = await classify(conv);
     return {
-      ...(isLiveManaged(managed) ? { is_live: true as const, agent_status: agent_status || undefined } : {}),
+      ...(isLiveManaged(managed)
+        ? { is_live: true as const, agent_status: agent_status || undefined }
+        : {}),
       work_state,
       ...(conv.inbox_killed_at ? { is_killed: true as const } : {}),
       ...(conv.status === "completed" ? { is_completed: true as const } : {}),

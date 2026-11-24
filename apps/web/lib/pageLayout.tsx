@@ -91,7 +91,8 @@ const FULL_WIDTH_PATTERNS: RegExp[] = [
 // (components/ui/page-header PageFrame): the bar spans the pane and the page
 // scrolls its own column under it, so PageShell steps aside. Classic and
 // Minimal keep them in the shell.
-const MODERN_CANVAS = /^\/(notifications|pages|artifacts|feed|team\/activity|expectations|week|mods)$/;
+const MODERN_CANVAS =
+  /^\/(notifications|pages|artifacts|feed|team\/activity|expectations|week|mods)$/;
 
 export function ownsCanvasInModern(pathname: string): boolean {
   return MODERN_CANVAS.test(routePath(pathname));
@@ -146,7 +147,9 @@ export function PageShell({
         data-main-scroll
         className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6"
       >
-        <div className={`mx-auto w-full ${pageMaxWidth(pathname)}`}>{children}</div>
+        <div className={`mx-auto w-full ${pageMaxWidth(pathname)}`}>
+          {children}
+        </div>
       </div>
     </div>
   );

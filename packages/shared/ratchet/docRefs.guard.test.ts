@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { join, relative } from "node:path";
 
 // DOC REFERENCES. The architecture docs and the project instructions are bound
@@ -34,7 +40,15 @@ const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const BASELINE = join(import.meta.dir, "doc-refs-baseline.txt");
 const DOC_DIR = "docs/architecture";
 const ROOT_DOCS = ["CLAUDE.md", "AGENTS.md"];
-const ROOTS = ["apps", "packages", "docs", "scripts", "platform", ".codecast", ".github"];
+const ROOTS = [
+  "apps",
+  "packages",
+  "docs",
+  "scripts",
+  "platform",
+  ".codecast",
+  ".github",
+];
 const MODULE_EXTENSIONS = [".ts", ".tsx", ".js", ".mjs", ".cjs"];
 // Dirs no doc should have to name a file under: build output and codegen.
 const GENERATED = new Set(["node_modules", "dist", "_generated"]);
@@ -45,16 +59,21 @@ const REF = new RegExp(
 );
 
 function unbalanced(path: string, open: string, close: string): boolean {
-  return path.endsWith(close) && path.split(close).length > path.split(open).length;
+  return (
+    path.endsWith(close) && path.split(close).length > path.split(open).length
+  );
 }
 
 /** Drops trailing punctuation, a closing bracket the path did not open, and a `:line` suffix. */
 function trim(raw: string): string {
   let path = raw.replace(/:\d+(-\d+)?$/, "");
   for (;;) {
-    const next = /[.,;:!?'"\/-]$/.test(path) || unbalanced(path, "(", ")") || unbalanced(path, "[", "]")
-      ? path.slice(0, -1)
-      : path;
+    const next =
+      /[.,;:!?'"\/-]$/.test(path) ||
+      unbalanced(path, "(", ")") ||
+      unbalanced(path, "[", "]")
+        ? path.slice(0, -1)
+        : path;
     if (next === path) return path;
     path = next;
   }
@@ -77,10 +96,14 @@ export function refsIn(text: string): Set<string> {
 
 /** Every file in the repo, plus every directory holding one. Tracked, or untracked and not ignored. */
 function repoPaths(): Set<string> {
-  const listed = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
-    cwd: REPO_ROOT,
-    maxBuffer: 256 * 1024 * 1024,
-  }).toString("utf8");
+  const listed = execFileSync(
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+    {
+      cwd: REPO_ROOT,
+      maxBuffer: 256 * 1024 * 1024,
+    },
+  ).toString("utf8");
   const out = new Set<string>();
   for (const file of listed.split("\0")) {
     if (!file) continue;
@@ -98,7 +121,9 @@ function repoPaths(): Set<string> {
 }
 
 function exists(paths: Set<string>, ref: string): boolean {
-  return paths.has(ref) || MODULE_EXTENSIONS.some((ext) => paths.has(ref + ext));
+  return (
+    paths.has(ref) || MODULE_EXTENSIONS.some((ext) => paths.has(ref + ext))
+  );
 }
 
 /** The docs this test binds, by their real path so the CLAUDE.md symlink and AGENTS.md count once. */
@@ -138,16 +163,21 @@ function deadReferences(): { scanned: number; dead: string[] } {
 
 describe("doc references", () => {
   test("every path a doc names exists, and the baseline only shrinks", () => {
-    expect(existsSync(BASELINE), `${BASELINE} is missing; a missing baseline is an error, never an empty set`).toBe(true);
+    expect(
+      existsSync(BASELINE),
+      `${BASELINE} is missing; a missing baseline is an error, never an empty set`,
+    ).toBe(true);
     const { scanned, dead } = deadReferences();
     const deadSet = new Set(dead);
 
     if (process.env.RATCHET_WRITE === "prune") {
       // Drops the lines that are no longer dead and nothing else.
-      const kept = readFileSync(BASELINE, "utf8").split("\n").filter((line) => {
-        const body = line.replace(/#.*/, "").trim();
-        return !body || deadSet.has(body);
-      });
+      const kept = readFileSync(BASELINE, "utf8")
+        .split("\n")
+        .filter((line) => {
+          const body = line.replace(/#.*/, "").trim();
+          return !body || deadSet.has(body);
+        });
       writeFileSync(BASELINE, kept.join("\n"));
     }
 
@@ -157,14 +187,25 @@ describe("doc references", () => {
 
     // A scanner that walks the wrong tree or whose pattern stopped matching
     // finds nothing and passes forever.
-    expect(scanned, "the scan found too few references to be reading the docs").toBeGreaterThan(200);
+    expect(
+      scanned,
+      "the scan found too few references to be reading the docs",
+    ).toBeGreaterThan(200);
 
     const problems = [
-      ...unlisted.map((line) => `dead reference: ${line}\n  fix the doc so the path exists; a baseline entry is never the fix`),
-      ...stale.map((line) => `baseline entry no longer dead: ${line}\n  delete that line from ${relative(REPO_ROOT, BASELINE)}`),
+      ...unlisted.map(
+        (line) =>
+          `dead reference: ${line}\n  fix the doc so the path exists; a baseline entry is never the fix`,
+      ),
+      ...stale.map(
+        (line) =>
+          `baseline entry no longer dead: ${line}\n  delete that line from ${relative(REPO_ROOT, BASELINE)}`,
+      ),
     ];
     if (stale.length > 0) {
-      problems.push(`prune with: cd packages/shared && RATCHET_WRITE=prune bun test ratchet/docRefs.guard.test.ts`);
+      problems.push(
+        `prune with: cd packages/shared && RATCHET_WRITE=prune bun test ratchet/docRefs.guard.test.ts`,
+      );
     }
     expect(problems).toEqual([]);
   }, 120_000);
@@ -178,8 +219,11 @@ describe("doc references", () => {
       .map((line) => line.split("=")[0].trim());
 
     const claude = readFileSync(join(REPO_ROOT, "CLAUDE.md"), "utf8");
-    const section = claude.match(/^## Typechecking\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? "";
-    const sentence = section.match(/`\.codecast\/check\.toml`:([^.]*)\./)?.[1] ?? "";
+    const section =
+      claude.match(/^## Typechecking\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ??
+      "";
+    const sentence =
+      section.match(/`\.codecast\/check\.toml`:([^.]*)\./)?.[1] ?? "";
     const named = [...sentence.matchAll(/`([\w-]+)`/g)].map((m) => m[1]);
 
     expect(projects.length).toBeGreaterThan(0);
@@ -187,13 +231,15 @@ describe("doc references", () => {
   });
 
   test("the scanner reads paths the way docs write them", () => {
-    const refs = refsIn([
-      "see `apps/cli/src/daemon.ts:42` and (docs/architecture/sync-host.md).",
-      "the generated api under apps/server/convex/_generated/api.ts",
-      "any of packages/*, docs/<slug>.md, ~/.codecast/config.json, $HOME/.codecast/x",
-      "a route at apps/web/app/(marketing)/page.tsx and scripts/ci/ alone",
-      "a relative ../../../scripts/sim.ts include",
-    ].join("\n"));
+    const refs = refsIn(
+      [
+        "see `apps/cli/src/daemon.ts:42` and (docs/architecture/sync-host.md).",
+        "the generated api under apps/server/convex/_generated/api.ts",
+        "any of packages/*, docs/<slug>.md, ~/.codecast/config.json, $HOME/.codecast/x",
+        "a route at apps/web/app/(marketing)/page.tsx and scripts/ci/ alone",
+        "a relative ../../../scripts/sim.ts include",
+      ].join("\n"),
+    );
     expect([...refs].sort()).toEqual([
       "apps/cli/src/daemon.ts",
       "apps/web/app/(marketing)/page.tsx",

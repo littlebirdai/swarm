@@ -8,9 +8,27 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://codecast.test", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "sessionStorage", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://codecast.test", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "sessionStorage",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -21,19 +39,35 @@ const finish = async (args: unknown) => {
   return { ok: true, return_to: "/settings/integrations" };
 };
 const convex = await import("convex/react");
-mock.module("convex/react", () => ({ ...convex, useConvexAuth: () => auth, useAction: () => finish }));
+mock.module("convex/react", () => ({
+  ...convex,
+  useConvexAuth: () => auth,
+  useAction: () => finish,
+}));
 const { default: WhiskReturn, WHISK_SIGN_IN_URL } = await import("./page");
 
 let root: Root;
-const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+const flush = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
 function Where() {
   const loc = useLocation();
   return <p data-where>{loc.pathname + loc.search}</p>;
 }
-const render = () => act(async () => root.render(<React.StrictMode><BrowserRouter><Routes>
-  <Route path="/connect/whisk" element={<WhiskReturn />} />
-  <Route path="*" element={<Where />} />
-</Routes></BrowserRouter></React.StrictMode>));
+const render = () =>
+  act(async () =>
+    root.render(
+      <React.StrictMode>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/connect/whisk" element={<WhiskReturn />} />
+            <Route path="*" element={<Where />} />
+          </Routes>
+        </BrowserRouter>
+      </React.StrictMode>,
+    ),
+  );
 const here = () => window.location.pathname + window.location.search;
 
 beforeEach(() => {
@@ -50,16 +84,26 @@ afterEach(async () => {
 describe("/connect/whisk", () => {
   test("a signed-in return finishes once under StrictMode and lands on the lane page", async () => {
     auth = { isAuthenticated: true, isLoading: false };
-    window.history.replaceState(null, "", "/connect/whisk?whisk_code=one-time&state=signed");
+    window.history.replaceState(
+      null,
+      "",
+      "/connect/whisk?whisk_code=one-time&state=signed",
+    );
     await render();
     await flush();
-    expect(calls).toEqual([{ code: "one-time", state: "signed", error: undefined }]);
+    expect(calls).toEqual([
+      { code: "one-time", state: "signed", error: undefined },
+    ]);
     expect(here()).toBe("/settings/integrations?whisk=connected");
     expect(sessionStorage.length).toBe(0);
   });
 
   test("a signed-out return is held, sends the person to sign in, and finishes when sign-in comes back", async () => {
-    window.history.replaceState(null, "", "/connect/whisk?whisk_code=one-time&state=signed");
+    window.history.replaceState(
+      null,
+      "",
+      "/connect/whisk?whisk_code=one-time&state=signed",
+    );
     await render();
     await flush();
     expect(calls).toEqual([]);
@@ -74,7 +118,9 @@ describe("/connect/whisk", () => {
     window.history.replaceState(null, "", "/connect/whisk");
     await render();
     await flush();
-    expect(calls).toEqual([{ code: "one-time", state: "signed", error: undefined }]);
+    expect(calls).toEqual([
+      { code: "one-time", state: "signed", error: undefined },
+    ]);
     expect(here()).toBe("/settings/integrations?whisk=connected");
     expect(sessionStorage.length).toBe(0);
   });

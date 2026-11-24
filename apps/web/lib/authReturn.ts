@@ -18,7 +18,10 @@ type Note = { path: string; at: number };
 export function noteAuthLeave(path: string, now = Date.now()): void {
   if (NOT_A_RETURN.test(path)) return;
   try {
-    sessionStorage.setItem(KEY, JSON.stringify({ path, at: now } satisfies Note));
+    sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ path, at: now } satisfies Note),
+    );
   } catch {
     // Storage refused (private mode, quota): nothing to return to.
   }
@@ -35,7 +38,9 @@ export function takeAuthReturn(now = Date.now()): string | null {
   } catch {
     return null;
   }
-  if (!note || typeof note.path !== "string" || typeof note.at !== "number") return null;
-  if (now - note.at > RETURN_TTL_MS || NOT_A_RETURN.test(note.path)) return null;
+  if (!note || typeof note.path !== "string" || typeof note.at !== "number")
+    return null;
+  if (now - note.at > RETURN_TTL_MS || NOT_A_RETURN.test(note.path))
+    return null;
   return note.path;
 }

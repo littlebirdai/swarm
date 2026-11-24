@@ -7,28 +7,53 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { landedCommit } from "./awaitDeploy";
 
-const ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_CONFIG_NOSYSTEM: "1" };
+const ENV = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+  GIT_CONFIG_NOSYSTEM: "1",
+};
 let dir = "";
-const git = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", env: ENV }).trim();
-const write = (cwd: string, f: string, t: string) => { fs.mkdirSync(path.dirname(path.join(cwd, f)), { recursive: true }); fs.writeFileSync(path.join(cwd, f), t); };
+const git = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    env: ENV,
+  }).trim();
+const write = (cwd: string, f: string, t: string) => {
+  fs.mkdirSync(path.dirname(path.join(cwd, f)), { recursive: true });
+  fs.writeFileSync(path.join(cwd, f), t);
+};
 
-let remote = "", work = "", other = "";
+let remote = "",
+  work = "",
+  other = "";
 beforeAll(() => {
-  dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cast-await-deploy-")));
+  dir = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "cast-await-deploy-")),
+  );
   remote = path.join(dir, "remote.git");
-  execFileSync("git", ["init", "-q", "--bare", "-b", "main", remote], { env: ENV });
+  execFileSync("git", ["init", "-q", "--bare", "-b", "main", remote], {
+    env: ENV,
+  });
   work = path.join(dir, "work");
-  execFileSync("git", ["clone", "-q", remote, work], { env: ENV, stdio: "ignore" });
+  execFileSync("git", ["clone", "-q", remote, work], {
+    env: ENV,
+    stdio: "ignore",
+  });
   write(work, "api/a.ts", "a1\n");
   write(work, "web/w.ts", "w1\n");
   git(work, "add", "-A");
   git(work, "commit", "-qm", "base");
   git(work, "push", "-q", "origin", "HEAD:main");
   other = path.join(dir, "other");
-  execFileSync("git", ["clone", "-q", remote, other], { env: ENV, stdio: "ignore" });
+  execFileSync("git", ["clone", "-q", remote, other], {
+    env: ENV,
+    stdio: "ignore",
+  });
 });
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
-
 
 describe("landedCommit", () => {
   test("not landed until main holds it; a pushed branch lands as itself, a squash as the commit that reads the same", async () => {
@@ -47,7 +72,10 @@ describe("landedCommit", () => {
     git(other, "commit", "-qam", "squashed change");
     git(other, "push", "-q", "origin", "HEAD:main");
     const squashed = git(other, "rev-parse", "HEAD");
-    expect(await landedCommit(work, "change", "main")).toEqual({ sha: squashed, files: ["api/a.ts"] });
+    expect(await landedCommit(work, "change", "main")).toEqual({
+      sha: squashed,
+      files: ["api/a.ts"],
+    });
   });
 
   test("a branch main fast-forwarded to lands as its own tip", async () => {
@@ -58,8 +86,13 @@ describe("landedCommit", () => {
     git(work, "push", "-q", "origin", "HEAD:main");
     const tip = git(work, "rev-parse", "HEAD");
     // Once main holds the branch there is nothing to diff it against: the tip's own files, or the ones the run knows.
-    expect(await landedCommit(work, "ff", "main")).toEqual({ sha: tip, files: ["web/w.ts"] });
-    expect((await landedCommit(work, "ff", "main", ["web/w.ts", "api/a.ts"]))?.files).toEqual(["web/w.ts", "api/a.ts"]);
+    expect(await landedCommit(work, "ff", "main")).toEqual({
+      sha: tip,
+      files: ["web/w.ts"],
+    });
+    expect(
+      (await landedCommit(work, "ff", "main", ["web/w.ts", "api/a.ts"]))?.files,
+    ).toEqual(["web/w.ts", "api/a.ts"]);
   });
 
   // The merge step replays a branch onto a main that changed the same file elsewhere (ct-61888, Nov 7): no commit
@@ -82,6 +115,9 @@ describe("landedCommit", () => {
     git(other, "commit", "-qam", "replayed change");
     git(other, "push", "-q", "origin", "HEAD:main");
     const landed = git(other, "rev-parse", "HEAD");
-    expect(await landedCommit(work, "replay", "main")).toEqual({ sha: landed, files: ["api/b.ts"] });
+    expect(await landedCommit(work, "replay", "main")).toEqual({
+      sha: landed,
+      files: ["api/b.ts"],
+    });
   });
 });

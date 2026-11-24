@@ -39,6 +39,7 @@ digraph PlanImplement {
 **Why it matters:** Workflows become diffable, reviewable, version-controlled artifacts. You can PR a workflow change. This is what our `cast plan decompose` + task graph aspires to, but Fabro's representation is more explicit and visual.
 
 **Codecast opportunity:** We already have plans with task dependencies (blocked_by). Our graph is implicit in the dependency edges. We could:
+
 - Add DOT export/import for our plan task graphs (we have `cast plan export` already)
 - Add a visual graph renderer to the web UI (Fabro uses viz.js for client-side Graphviz)
 - Let users define workflow templates as graphs, not just flat task lists
@@ -76,6 +77,7 @@ Fabro-Completed: 3
 ### 4. Automatic Retrospectives
 
 Post-run, an LLM generates a structured narrative:
+
 - Smoothness rating (effortless/smooth/bumpy/struggled/failed)
 - Intent, outcome, learnings
 - Friction points (retry/timeout/wrong_approach)
@@ -120,6 +122,7 @@ Local, Docker, SSH, Daytona, Sprites, exe.dev all implement it transparently.
 ### 7. Event-Driven Observability
 
 Every action emits a `WorkflowRunEvent` to multiple sinks:
+
 - `progress.jsonl` (persistent log)
 - `live.json` (latest state)
 - SSE stream (web UI)
@@ -138,6 +141,7 @@ Four columns: Working, Pending (human input needed), Verify, Merge. Drag-and-dro
 ### 9. Fidelity Control
 
 Controls how much context passes between stages:
+
 - `full` -- complete history
 - `compact` -- structured summary (default)
 - `summary:high/medium/low` -- variable detail
@@ -156,15 +160,19 @@ Controls how much context passes between stages:
 ## What We Should NOT Adopt
 
 ### 1. Graphviz DOT as Primary Format
+
 DOT is good for visualization but awkward for authoring complex workflows. Our task-based model (title, description, acceptance criteria, dependencies) is more natural for the kinds of work codecast handles. Keep DOT for visualization/export, not as the primary authoring format.
 
 ### 2. Rust Binary
+
 We're a TypeScript/Convex stack. Rewriting in Rust would be a complete detour. The agent runtime abstraction we just built (claude-code/codex/tmux backends) gives us the same subprocess model without Rust.
 
 ### 3. Their LLM Client Layer
+
 They built their own multi-provider LLM client across 4 crates. We use the Anthropic SDK directly plus our agent runtime (which delegates to `claude` or `codex` CLI). No need to build a provider abstraction -- the CLI tools handle that.
 
 ### 4. Their Sandbox Infrastructure
+
 Daytona, exe.dev, Sprites -- these are cloud VM providers. No longer premature: codecast now runs cloud hosts on AWS and on Namespace Devboxes behind one host provider interface, so another substrate is another provider rather than a sandbox layer like theirs.
 
 ## Integration Recommendations

@@ -16,9 +16,24 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { Pencil, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { INITIATIVE_HEALTH_LABEL, INITIATIVE_UPDATE_HEALTHS, initiativeChain, metricReadings, metricTrends, parseIntentSource, type InitiativeMetric, type InitiativeRow, type InitiativeUpdateHealth, type InitiativeUpdateRow } from "@codecast/shared/contracts/initiative";
+import {
+  INITIATIVE_HEALTH_LABEL,
+  INITIATIVE_UPDATE_HEALTHS,
+  initiativeChain,
+  metricReadings,
+  metricTrends,
+  parseIntentSource,
+  type InitiativeMetric,
+  type InitiativeRow,
+  type InitiativeUpdateHealth,
+  type InitiativeUpdateRow,
+} from "@codecast/shared/contracts/initiative";
 import { objectHref } from "@codecast/shared/entities";
-import { useInboxStore, type PlanItem, type ProjectItem } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  type PlanItem,
+  type ProjectItem,
+} from "../../store/inboxStore";
 import { openPlansOf } from "@codecast/shared/contracts/openPlans";
 import { formatRelative } from "@codecast/shared/time";
 import { EntityIdPill } from "../EntityIdPill";
@@ -27,7 +42,12 @@ import { quoted } from "../../store/undo/labels";
 import { useInitiativeUpdates } from "../../hooks/useInitiatives";
 import { useWorkspaceArgs, workspaceStamp } from "../../hooks/useWorkspaceArgs";
 import { useWorkspaceCollection } from "../../hooks/useWorkspaceCollection";
-import { goalScopeInitiativeIds, goalScopeProjectIds, newInitiativeKey, projectTrouble } from "../../lib/initiatives";
+import {
+  goalScopeInitiativeIds,
+  goalScopeProjectIds,
+  newInitiativeKey,
+  projectTrouble,
+} from "../../lib/initiatives";
 import type { ScopeRef } from "../../hooks/useScopeQueries";
 import { cn } from "../../lib/utils";
 import { HEALTH_COLOR } from "../../lib/initiativeColors";
@@ -35,11 +55,24 @@ import { FilterOptionList } from "../FilterDropdown";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { ScopeFeed } from "../org/scope/ScopeFeed";
-import { GoalGlyph, GoalLine, LINE_COMPACT, LINE_SCOPE, ObjectLine, ProjectLine, type LineGhost } from "../org/lines";
+import {
+  GoalGlyph,
+  GoalLine,
+  LINE_COMPACT,
+  LINE_SCOPE,
+  ObjectLine,
+  ProjectLine,
+  type LineGhost,
+} from "../org/lines";
 import { useLineOpen } from "../org/lines/lineOpen";
 import type { DocChange, DocGoal, DocProject } from "../company/companyModel";
 import { carriedProjects } from "../goals/goalsOutline";
-import { HealthChip, MetricTile, OwnerChip, SourceLink } from "./InitiativeAtoms";
+import {
+  HealthChip,
+  MetricTile,
+  OwnerChip,
+  SourceLink,
+} from "./InitiativeAtoms";
 import { FormButtons, GhostButton } from "./formBits";
 import { MetricsEditor } from "./MetricsEditor";
 import { GoalEnvLevels } from "./GoalEnvLevels";
@@ -49,8 +82,12 @@ import { RecordSection as Section, Written } from "./InitiativeRecord";
 const HAIRLINE = "color-mix(in srgb, var(--sol-border) 26%, transparent)";
 const DIM = "var(--sol-text-dim)";
 /** A report's source is free text: an address opens, anything else is read as written. */
-const metricSource = (text: string) => { const src = parseIntentSource(text); return src.kind === "note" ? null : src; };
-const projectSig = (p: ProjectItem) => `${p.title}|${p.short_id ?? ""}|${p.status}`;
+const metricSource = (text: string) => {
+  const src = parseIntentSource(text);
+  return src.kind === "note" ? null : src;
+};
+const projectSig = (p: ProjectItem) =>
+  `${p.title}|${p.short_id ?? ""}|${p.status}`;
 
 // ------------------------------------------------------------------- why
 
@@ -59,11 +96,31 @@ const projectSig = (p: ProjectItem) => `${p.title}|${p.short_id ?? ""}|${p.statu
  *  glance with Read all under it. With neither written it is not drawn
  *  unless `writing` opens it on its editor; `onWriting(false)` says the
  *  editor closed. */
-export function GoalWhy({ goal, writing = false, onWriting }: { goal: InitiativeRow; writing?: boolean; onWriting?: (on: boolean) => void }) {
+export function GoalWhy({
+  goal,
+  writing = false,
+  onWriting,
+}: {
+  goal: InitiativeRow;
+  writing?: boolean;
+  onWriting?: (on: boolean) => void;
+}) {
   if (!goal.why?.trim() && !goal.description?.trim() && !writing) return null;
   return (
     <div className="mt-5" data-goal-why>
-      <Written key={writing ? "writing" : "reading"} initiative={goal} field="why" label="Why" rows={4} markdown clamp fallback={goal.description} start={writing} onDone={() => onWriting?.(false)} placeholder="What changes for the company when this is reached, and what it costs to miss it." />
+      <Written
+        key={writing ? "writing" : "reading"}
+        initiative={goal}
+        field="why"
+        label="Why"
+        rows={4}
+        markdown
+        clamp
+        fallback={goal.description}
+        start={writing}
+        onDone={() => onWriting?.(false)}
+        placeholder="What changes for the company when this is reached, and what it costs to miss it."
+      />
     </div>
   );
 }
@@ -76,40 +133,122 @@ export function GoalWhy({ goal, writing = false, onWriting }: { goal: Initiative
  *  so the two can disagree visibly. Drawn only for a goal that has a number,
  *  or while one is being written. A role reports the value with
  *  `cast initiative report`. */
-export function GoalMeasures({ goal, all, now, editing, onEditing }: { goal: InitiativeRow; all: readonly InitiativeRow[]; now: number; editing: boolean; onEditing: (on: boolean) => void }) {
+export function GoalMeasures({
+  goal,
+  all,
+  now,
+  editing,
+  onEditing,
+}: {
+  goal: InitiativeRow;
+  all: readonly InitiativeRow[];
+  now: number;
+  editing: boolean;
+  onEditing: (on: boolean) => void;
+}) {
   const { lookup, watches } = useMetricSeries();
   const readings = metricReadings(goal, lookup);
   const trends = metricTrends(goal, lookup);
-  const chain = useMemo(() => initiativeChain(goal, (id) => all.find((r) => r._id === id)), [goal, all]);
-  if (!readings.length && !editing) return <GoalEnvLevels goal={goal} now={now} />;
+  const chain = useMemo(
+    () => initiativeChain(goal, (id) => all.find((r) => r._id === id)),
+    [goal, all],
+  );
+  if (!readings.length && !editing)
+    return <GoalEnvLevels goal={goal} now={now} />;
   const save = (metrics: InitiativeMetric[]) => {
     useInboxStore.getState().updateInitiative(goal._id, { metrics });
     onEditing(false);
   };
   return (
     <div className="mt-5">
-      <Section name="metrics" label="Measured by" action={!editing ? <GhostButton icon={Pencil} onClick={() => onEditing(true)} data-initiative-edit-metrics="">Edit</GhostButton> : undefined}>
+      <Section
+        name="metrics"
+        label="Measured by"
+        action={
+          !editing ? (
+            <GhostButton
+              icon={Pencil}
+              onClick={() => onEditing(true)}
+              data-initiative-edit-metrics=""
+            >
+              Edit
+            </GhostButton>
+          ) : undefined
+        }
+      >
         {editing ? (
-          <MetricsEditor metrics={goal.metrics ?? []} watches={watches} onSave={save} onCancel={() => onEditing(false)} />
+          <MetricsEditor
+            metrics={goal.metrics ?? []}
+            watches={watches}
+            onSave={save}
+            onCancel={() => onEditing(false)}
+          />
         ) : (
           <div className="space-y-2">
-            <div className="initiative-metric-grid grid grid-cols-1 gap-2" data-count={readings.length}>
+            <div
+              className="initiative-metric-grid grid grid-cols-1 gap-2"
+              data-count={readings.length}
+            >
               {readings.map((r) => {
                 const source = r.source ? metricSource(r.source) : null;
                 return (
-                  <div key={r.key} className="min-w-0 flex flex-col" data-initiative-metric={r.key}>
-                    <MetricTile reading={r} trend={trends[r.key]} now={now} size="tile" className="flex-1" />
-                    {source ? <SourceLink source={source} now={now} className="mt-1 pl-1" /> : r.source ? <p className="mt-1 pl-1 text-meta truncate" style={{ color: DIM }} title={r.source}>{r.source}</p> : null}
+                  <div
+                    key={r.key}
+                    className="min-w-0 flex flex-col"
+                    data-initiative-metric={r.key}
+                  >
+                    <MetricTile
+                      reading={r}
+                      trend={trends[r.key]}
+                      now={now}
+                      size="tile"
+                      className="flex-1"
+                    />
+                    {source ? (
+                      <SourceLink
+                        source={source}
+                        now={now}
+                        className="mt-1 pl-1"
+                      />
+                    ) : r.source ? (
+                      <p
+                        className="mt-1 pl-1 text-meta truncate"
+                        style={{ color: DIM }}
+                        title={r.source}
+                      >
+                        {r.source}
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
             </div>
             {readings.every((r) => r.value === null && !r.series) && (
-              <p className="text-meta" style={{ color: DIM }} title={`An agent reports it with: cast initiative report ${goal.short_id} ${readings[0].key}=<value> --source <link>`} data-initiative-no-reading>No reading yet. Ask its owner for the first one.</p>
+              <p
+                className="text-meta"
+                style={{ color: DIM }}
+                title={`An agent reports it with: cast initiative report ${goal.short_id} ${readings[0].key}=<value> --source <link>`}
+                data-initiative-no-reading
+              >
+                No reading yet. Ask its owner for the first one.
+              </p>
             )}
             {chain.length > 0 && (
-              <p className="text-[12px] inline-flex items-center gap-1.5 flex-wrap" style={{ color: DIM }} data-initiative-chain>
-                Feeds {chain.map((c, i) => <span key={c.short_id} className="inline-flex items-center gap-1">{i > 0 && <span>under</span>}<ChainLink ref_={c.short_id} title={c.title} /></span>)}
+              <p
+                className="text-[12px] inline-flex items-center gap-1.5 flex-wrap"
+                style={{ color: DIM }}
+                data-initiative-chain
+              >
+                Feeds{" "}
+                {chain.map((c, i) => (
+                  <span
+                    key={c.short_id}
+                    className="inline-flex items-center gap-1"
+                  >
+                    {i > 0 && <span>under</span>}
+                    <ChainLink ref_={c.short_id} title={c.title} />
+                  </span>
+                ))}
               </p>
             )}
           </div>
@@ -124,101 +263,275 @@ export function GoalMeasures({ goal, all, now, editing, onEditing }: { goal: Ini
 function ChainLink({ ref_, title }: { ref_: string; title: string }) {
   const { onLinkClick } = useLineOpen();
   const target = { kind: "initiative" as const, ref: ref_ };
-  return <Link href={objectHref("initiative", ref_)} onClick={onLinkClick(target)} className="no-underline hover:underline underline-offset-[3px]" style={{ color: "var(--sol-text-secondary)" }}>{title}</Link>;
+  return (
+    <Link
+      href={objectHref("initiative", ref_)}
+      onClick={onLinkClick(target)}
+      className="no-underline hover:underline underline-offset-[3px]"
+      style={{ color: "var(--sol-text-secondary)" }}
+    >
+      {title}
+    </Link>
+  );
 }
 
 // ------------------------------------------------------------- carried by
 
-const ghostOf = (change: DocChange | undefined): LineGhost | undefined => (change ? { ...(change.proposal ? { proposal: change.proposal } : {}), changeIds: [change.row.change_id] } : undefined);
+const ghostOf = (change: DocChange | undefined): LineGhost | undefined =>
+  change
+    ? {
+        ...(change.proposal ? { proposal: change.proposal } : {}),
+        changeIds: [change.row.change_id],
+      }
+    : undefined;
 
 /** What carries the goal, in the document's own reading (companyDoc): its
  *  projects, each with what it says against itself, then the goals under it,
  *  live and proposed, on the sheet's compact grid. "+ Project" adds one, an
  *  existing project or a new one, which lands under this goal. */
-export function GoalCarriedBy({ goal, doc, now, adding, onAdding }: { goal: InitiativeRow; doc: DocGoal | undefined; now: number; /** The menu asked to add the first project. */ adding: boolean; onAdding: (on: boolean) => void }) {
+export function GoalCarriedBy({
+  goal,
+  doc,
+  now,
+  adding,
+  onAdding,
+}: {
+  goal: InitiativeRow;
+  doc: DocGoal | undefined;
+  now: number;
+  /** The menu asked to add the first project. */ adding: boolean;
+  onAdding: (on: boolean) => void;
+}) {
   // Every project it carries, in the owner's order, those a proposal would bring last.
-  const projects = useMemo<DocProject[]>(() => (doc ? carriedProjects(doc, goal.project_ids).map((c) => c.project) : []), [doc, goal.project_ids]);
+  const projects = useMemo<DocProject[]>(
+    () =>
+      doc ? carriedProjects(doc, goal.project_ids).map((c) => c.project) : [],
+    [doc, goal.project_ids],
+  );
   const plans = useWorkspaceCollection<PlanItem>("plans", openPlanSig);
   const subs = doc?.goals ?? [];
   const empty = projects.length === 0 && subs.length === 0;
   if (empty && !adding) return null;
-  const add = <AddProject goal={goal} open={adding || undefined} onOpenChange={onAdding} />;
+  const add = (
+    <AddProject
+      goal={goal}
+      open={adding || undefined}
+      onOpenChange={onAdding}
+    />
+  );
   return (
     <div className="mt-5">
       <Section name="carried" label="Carried by" action={add}>
         <div className={cn(LINE_SCOPE, LINE_COMPACT)} data-sheet-carried>
           {projects.map((p) => {
-            const counts = p.counts && p.counts !== "counting" ? p.counts : { open: 0, done: 0 };
-            const trouble = p.ghost ? null : projectTrouble({ _id: p.id, title: p.title, status: p.status ?? "", target_date: p.target_date, risks: p.risks }, counts, now);
+            const counts =
+              p.counts && p.counts !== "counting"
+                ? p.counts
+                : { open: 0, done: 0 };
+            const trouble = p.ghost
+              ? null
+              : projectTrouble(
+                  {
+                    _id: p.id,
+                    title: p.title,
+                    status: p.status ?? "",
+                    target_date: p.target_date,
+                    risks: p.risks,
+                  },
+                  counts,
+                  now,
+                );
             // The state cell speaks only when something is worth a word: its
             // trouble, its live sessions, or a status other than active.
-            const live = !!p.sessions && !!(p.sessions.working || p.sessions.needs_input);
-            const quiet = !trouble && !live && (p.status ?? "active") === "active";
+            const live =
+              !!p.sessions && !!(p.sessions.working || p.sessions.needs_input);
+            const quiet =
+              !trouble && !live && (p.status ?? "active") === "active";
             const line = (
               <ProjectLine
                 key={p.id}
                 project={p}
                 now={now}
-                ghost={p.ghost ? { ...(p.ghost.proposal ? { proposal: p.ghost.proposal } : {}), changeIds: [p.ghost.change_id] } : undefined}
+                ghost={
+                  p.ghost
+                    ? {
+                        ...(p.ghost.proposal
+                          ? { proposal: p.ghost.proposal }
+                          : {}),
+                        changeIds: [p.ghost.change_id],
+                      }
+                    : undefined
+                }
                 sub={p.ghost ? "would move here" : undefined}
-                {...(trouble ? { state: <span className="truncate" style={{ color: "var(--sol-orange)" }} title={trouble} data-initiative-project-trouble>{trouble}</span> } : quiet ? { state: null } : {})}
+                {...(trouble
+                  ? {
+                      state: (
+                        <span
+                          className="truncate"
+                          style={{ color: "var(--sol-orange)" }}
+                          title={trouble}
+                          data-initiative-project-trouble
+                        >
+                          {trouble}
+                        </span>
+                      ),
+                    }
+                  : quiet
+                    ? { state: null }
+                    : {})}
                 data-initiative-project={p.id}
               />
             );
-            return p.ghost ? line : <Fragment key={p.id}>{line}<ProjectOpenPlans plans={plans} projectId={p.id} now={now} /></Fragment>;
+            return p.ghost ? (
+              line
+            ) : (
+              <Fragment key={p.id}>
+                {line}
+                <ProjectOpenPlans plans={plans} projectId={p.id} now={now} />
+              </Fragment>
+            );
           })}
-          {subs.map((g) => g.row
-            ? <GoalLine key={g.id} goal={g.row} now={now} data-initiative-sub={g.short_id || g.id} />
-            : <ObjectLine key={g.id} kind="goal" id={g.id} glyph={<GoalGlyph ghost />} title={g.title} sub="a goal under this one" ghost={ghostOf(g.proposed)} />)}
+          {subs.map((g) =>
+            g.row ? (
+              <GoalLine
+                key={g.id}
+                goal={g.row}
+                now={now}
+                data-initiative-sub={g.short_id || g.id}
+              />
+            ) : (
+              <ObjectLine
+                key={g.id}
+                kind="goal"
+                id={g.id}
+                glyph={<GoalGlyph ghost />}
+                title={g.title}
+                sub="a goal under this one"
+                ghost={ghostOf(g.proposed)}
+              />
+            ),
+          )}
         </div>
       </Section>
     </div>
   );
 }
 
-const openPlanSig = (p: PlanItem) => `${p.short_id}|${p.title}|${p.status}|${p.project_id ?? ""}|${p.updated_at}|${p.progress?.done ?? ""}/${p.progress?.total ?? ""}|${(p as { current_session_id?: string }).current_session_id ?? ""}`;
+const openPlanSig = (p: PlanItem) =>
+  `${p.short_id}|${p.title}|${p.status}|${p.project_id ?? ""}|${p.updated_at}|${p.progress?.done ?? ""}/${p.progress?.total ?? ""}|${(p as { current_session_id?: string }).current_session_id ?? ""}`;
 
 /** A project's open plans under its line on a goal (ct-95899): what is in
  *  flight there, newest activity first, each with its progress, when it last
  *  moved and the session driving it. */
-function ProjectOpenPlans({ plans, projectId, now }: { plans: PlanItem[]; projectId: string; now: number }) {
+function ProjectOpenPlans({
+  plans,
+  projectId,
+  now,
+}: {
+  plans: PlanItem[];
+  projectId: string;
+  now: number;
+}) {
   const open = useMemo(() => openPlansOf(plans, projectId), [plans, projectId]);
   if (open.plans.length === 0) return null;
   return (
-    <div className="pl-[42px] pr-2 pb-1.5 -mt-0.5 flex flex-col gap-0.5" data-initiative-project-plans={projectId}>
+    <div
+      className="pl-[42px] pr-2 pb-1.5 -mt-0.5 flex flex-col gap-0.5"
+      data-initiative-project-plans={projectId}
+    >
       {open.plans.map((p) => {
-        const driver = (p as { current_session_id?: string }).current_session_id;
+        const driver = (p as { current_session_id?: string })
+          .current_session_id;
         return (
-          <div key={p._id} className="flex min-w-0 items-center gap-2 text-[12px]" data-initiative-plan={p.short_id}>
-            <span className="min-w-0 flex-1 truncate"><EntityIdPill type="plan" shortId={p.short_id} label={p.title} wide /></span>
-            {p.progress && p.progress.total > 0 && <span className="shrink-0 tabular-nums" style={{ color: "var(--sol-text-muted)" }} title={`${p.progress.done} of ${p.progress.total} tasks done`}>{p.progress.done}/{p.progress.total}</span>}
-            <span className="shrink-0 w-[64px] text-right tabular-nums" style={{ color: "var(--sol-text-dim)" }} title={`Last activity ${new Date(p.updated_at).toLocaleString()}`}>{formatRelative(p.updated_at, now)}</span>
-            <span className="shrink-0 w-[120px] truncate">{driver ? <EntityIdPill type="session" id={driver} compact /> : <span style={{ color: "var(--sol-text-dim)" }}>no session</span>}</span>
+          <div
+            key={p._id}
+            className="flex min-w-0 items-center gap-2 text-[12px]"
+            data-initiative-plan={p.short_id}
+          >
+            <span className="min-w-0 flex-1 truncate">
+              <EntityIdPill
+                type="plan"
+                shortId={p.short_id}
+                label={p.title}
+                wide
+              />
+            </span>
+            {p.progress && p.progress.total > 0 && (
+              <span
+                className="shrink-0 tabular-nums"
+                style={{ color: "var(--sol-text-muted)" }}
+                title={`${p.progress.done} of ${p.progress.total} tasks done`}
+              >
+                {p.progress.done}/{p.progress.total}
+              </span>
+            )}
+            <span
+              className="shrink-0 w-[64px] text-right tabular-nums"
+              style={{ color: "var(--sol-text-dim)" }}
+              title={`Last activity ${new Date(p.updated_at).toLocaleString()}`}
+            >
+              {formatRelative(p.updated_at, now)}
+            </span>
+            <span className="shrink-0 w-[120px] truncate">
+              {driver ? (
+                <EntityIdPill type="session" id={driver} compact />
+              ) : (
+                <span style={{ color: "var(--sol-text-dim)" }}>no session</span>
+              )}
+            </span>
           </div>
         );
       })}
-      {open.more > 0 && <Link href={`/projects/${encodeURIComponent(projectId)}`} className="text-xs hover:underline" style={{ color: "var(--sol-text-dim)" }}>{open.more} more open {open.more === 1 ? "plan" : "plans"}</Link>}
+      {open.more > 0 && (
+        <Link
+          href={`/projects/${encodeURIComponent(projectId)}`}
+          className="text-xs hover:underline"
+          style={{ color: "var(--sol-text-dim)" }}
+        >
+          {open.more} more open {open.more === 1 ? "plan" : "plans"}
+        </Link>
+      )}
     </div>
   );
 }
 
 /** "+ Project": the workspace's projects to carry the goal, and a new one by name. */
-export function AddProject({ goal, open: asked, onOpenChange }: { goal: InitiativeRow; open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function AddProject({
+  goal,
+  open: asked,
+  onOpenChange,
+}: {
+  goal: InitiativeRow;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const workspace = useWorkspaceArgs();
   const all = useWorkspaceCollection<ProjectItem>("projects", projectSig);
   const [own, setOwn] = useState(false);
   const open = asked ?? own;
-  const setOpen = (o: boolean) => { setOwn(o); onOpenChange?.(o); };
+  const setOpen = (o: boolean) => {
+    setOwn(o);
+    onOpenChange?.(o);
+  };
   const [name, setName] = useState("");
-  const options = useMemo(() => [...all].filter((p) => p.status !== "done" || goal.project_ids.includes(p._id)).sort((a, b) => a.title.localeCompare(b.title)).map((p) => ({ key: p._id, label: p.title })), [all, goal.project_ids]);
+  const options = useMemo(
+    () =>
+      [...all]
+        .filter((p) => p.status !== "done" || goal.project_ids.includes(p._id))
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map((p) => ({ key: p._id, label: p.title })),
+    [all, goal.project_ids],
+  );
   const toggle = (next: string) => {
     const before = new Set(goal.project_ids);
     const after = new Set(next ? next.split(",") : []);
     const store = useInboxStore.getState();
     // One pick is one undo, however many projects it adds and removes.
     undoAsOne(`Changed the projects of ${quoted(goal.title, "goal")}`, () => {
-      for (const id of after) if (!before.has(id)) store.addInitiativeProject(goal._id, id);
-      for (const id of before) if (!after.has(id)) store.removeInitiativeProject(goal._id, id);
+      for (const id of after)
+        if (!before.has(id)) store.addInitiativeProject(goal._id, id);
+      for (const id of before)
+        if (!after.has(id)) store.removeInitiativeProject(goal._id, id);
     });
   };
   // The new project paints under the goal at once, as a stub the server row
@@ -228,22 +541,67 @@ export function AddProject({ goal, open: asked, onOpenChange }: { goal: Initiati
     const title = name.trim();
     if (!title || workspace === "skip") return;
     const client_key = `projstub-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    useInboxStore.getState()
-      .createProject({ title, client_key, ...workspaceStamp(workspace) }, { version: 1, kind: "attachToInitiative", initiativeId: goal._id })
-      .catch((e: any) => toast.error(e?.message?.split("\n")[0] || "Could not create the project"));
+    useInboxStore
+      .getState()
+      .createProject(
+        { title, client_key, ...workspaceStamp(workspace) },
+        { version: 1, kind: "attachToInitiative", initiativeId: goal._id },
+      )
+      .catch((e: any) =>
+        toast.error(
+          e?.message?.split("\n")[0] || "Could not create the project",
+        ),
+      );
     setName("");
     setOpen(false);
   };
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild><span><GhostButton icon={Plus} data-initiative-projects-edit="">Project</GhostButton></span></PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-1 bg-sol-bg border border-sol-border shadow-xl" data-initiative-add-project>
-        <form onSubmit={(e) => { e.preventDefault(); create(); }} className="flex items-center gap-1.5 p-1.5 border-b" style={{ borderColor: HAIRLINE }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="A new project" aria-label="New project name" className="min-w-0 flex-1 h-7 rounded-md border bg-transparent px-2 text-[12.5px] outline-none placeholder:text-sol-text-dim focus:border-sol-cyan/60" style={{ borderColor: HAIRLINE }} data-initiative-new-project />
-          <button type="submit" disabled={!name.trim()} className="h-7 px-2.5 inline-flex items-center gap-1 rounded-md text-[12px] font-medium disabled:opacity-45" style={{ background: "var(--sol-text)", color: "var(--sol-bg)" }}>Create</button>
+      <PopoverTrigger asChild>
+        <span>
+          <GhostButton icon={Plus} data-initiative-projects-edit="">
+            Project
+          </GhostButton>
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-72 p-1 bg-sol-bg border border-sol-border shadow-xl"
+        data-initiative-add-project
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            create();
+          }}
+          className="flex items-center gap-1.5 p-1.5 border-b"
+          style={{ borderColor: HAIRLINE }}
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="A new project"
+            aria-label="New project name"
+            className="min-w-0 flex-1 h-7 rounded-md border bg-transparent px-2 text-[12.5px] outline-none placeholder:text-sol-text-dim focus:border-sol-cyan/60"
+            style={{ borderColor: HAIRLINE }}
+            data-initiative-new-project
+          />
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="h-7 px-2.5 inline-flex items-center gap-1 rounded-md text-[12px] font-medium disabled:opacity-45"
+            style={{ background: "var(--sol-text)", color: "var(--sol-bg)" }}
+          >
+            Create
+          </button>
         </form>
         <div className="max-h-72 overflow-y-auto pt-1">
-          <FilterOptionList options={options} value={goal.project_ids.join(",")} multi onChange={toggle} />
+          <FilterOptionList
+            options={options}
+            value={goal.project_ids.join(",")}
+            multi
+            onChange={toggle}
+          />
         </div>
       </PopoverContent>
     </Popover>
@@ -255,7 +613,17 @@ export function AddProject({ goal, open: asked, onOpenChange }: { goal: Initiati
 /** What the owner said last, with the health it set: the newest update in
  *  full, the older ones folded under it, and the form that posts the next.
  *  Drawn once there is an update or one is being written. */
-export function GoalLatest({ goal, now, writing, onWriting }: { goal: InitiativeRow; now: number; writing: boolean; onWriting: (on: boolean) => void }) {
+export function GoalLatest({
+  goal,
+  now,
+  writing,
+  onWriting,
+}: {
+  goal: InitiativeRow;
+  now: number;
+  writing: boolean;
+  onWriting: (on: boolean) => void;
+}) {
   const updates = useInitiativeUpdates(goal._id);
   const [older, setOlder] = useState(false);
   if (updates.length === 0 && !writing) return null;
@@ -264,57 +632,133 @@ export function GoalLatest({ goal, now, writing, onWriting }: { goal: Initiative
     <div className="mt-5">
       <Section name="updates" label="Latest update">
         {writing && <UpdateForm goal={goal} onDone={() => onWriting(false)} />}
-        {latest && <ol><UpdateRow update={latest} now={now} /></ol>}
+        {latest && (
+          <ol>
+            <UpdateRow update={latest} now={now} />
+          </ol>
+        )}
         {!writing && (
           <div className="mt-1.5 flex items-center gap-1 -ml-1.5">
-            <GhostButton onClick={() => onWriting(true)} data-initiative-update-open="">Post an update</GhostButton>
-            {rest.length > 0 && <GhostButton onClick={() => setOlder(!older)} data-initiative-updates-older="">{older ? "Hide older updates" : `${rest.length} older ${rest.length === 1 ? "update" : "updates"}`}</GhostButton>}
+            <GhostButton
+              onClick={() => onWriting(true)}
+              data-initiative-update-open=""
+            >
+              Post an update
+            </GhostButton>
+            {rest.length > 0 && (
+              <GhostButton
+                onClick={() => setOlder(!older)}
+                data-initiative-updates-older=""
+              >
+                {older
+                  ? "Hide older updates"
+                  : `${rest.length} older ${rest.length === 1 ? "update" : "updates"}`}
+              </GhostButton>
+            )}
           </div>
         )}
-        {older && rest.length > 0 && <ol className="mt-2 space-y-3">{rest.map((u) => <UpdateRow key={u._id} update={u} now={now} />)}</ol>}
+        {older && rest.length > 0 && (
+          <ol className="mt-2 space-y-3">
+            {rest.map((u) => (
+              <UpdateRow key={u._id} update={u} now={now} />
+            ))}
+          </ol>
+        )}
       </Section>
     </div>
   );
 }
 
-function UpdateRow({ update, now }: { update: InitiativeUpdateRow; now: number }) {
-  const by = update.by.kind === "role" ? { kind: "role" as const, role_id: update.by.role_id } : update.by;
+function UpdateRow({
+  update,
+  now,
+}: {
+  update: InitiativeUpdateRow;
+  now: number;
+}) {
+  const by =
+    update.by.kind === "role"
+      ? { kind: "role" as const, role_id: update.by.role_id }
+      : update.by;
   return (
-    <li className="relative pl-3.5" data-initiative-update={update._id} data-initiative-update-health={update.health}>
-      <span className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full" style={{ background: HEALTH_COLOR[update.health] }} aria-hidden />
+    <li
+      className="relative pl-3.5"
+      data-initiative-update={update._id}
+      data-initiative-update-health={update.health}
+    >
+      <span
+        className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full"
+        style={{ background: HEALTH_COLOR[update.health] }}
+        aria-hidden
+      />
       <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
         <OwnerChip owner={by} size={14} />
         <HealthChip health={update.health} at={update.at} now={now} lower />
       </div>
-      <MarkdownRenderer content={update.body} className="mt-1 text-[13px] leading-relaxed" />
+      <MarkdownRenderer
+        content={update.body}
+        className="mt-1 text-[13px] leading-relaxed"
+      />
     </li>
   );
 }
 
 /** Posting is one short form, a body and a health. The update and the goal's
  *  health paint in the same tick. */
-function UpdateForm({ goal, onDone }: { goal: InitiativeRow; onDone: () => void }) {
+function UpdateForm({
+  goal,
+  onDone,
+}: {
+  goal: InitiativeRow;
+  onDone: () => void;
+}) {
   const [body, setBody] = useState("");
-  const [health, setHealth] = useState<InitiativeUpdateHealth>(goal.health === "none" ? "on_track" : goal.health);
+  const [health, setHealth] = useState<InitiativeUpdateHealth>(
+    goal.health === "none" ? "on_track" : goal.health,
+  );
   const post = () => {
     if (!body.trim()) return;
-    useInboxStore.getState().postInitiativeUpdate(goal._id, { client_key: newInitiativeKey(), body: body.trim(), health });
+    useInboxStore.getState().postInitiativeUpdate(goal._id, {
+      client_key: newInitiativeKey(),
+      body: body.trim(),
+      health,
+    });
     onDone();
   };
   return (
-    <form onSubmit={(e) => { e.preventDefault(); post(); }} className="mb-3 rounded-[9px] border p-2.5" style={{ borderColor: `color-mix(in srgb, ${HEALTH_COLOR[health]} 45%, transparent)` }} data-initiative-update-form>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        post();
+      }}
+      className="mb-3 rounded-[9px] border p-2.5"
+      style={{
+        borderColor: `color-mix(in srgb, ${HEALTH_COLOR[health]} 45%, transparent)`,
+      }}
+      data-initiative-update-form
+    >
       <textarea
         autoFocus
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onDone(); } if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onDone();
+          }
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post();
+        }}
         rows={3}
         placeholder="How is it going, and what changed since the last update?"
         className="w-full resize-y bg-transparent px-1 py-0.5 text-[13px] leading-relaxed outline-none placeholder:text-sol-text-dim"
         aria-label="Update"
       />
       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Health">
+        <div
+          className="flex items-center gap-1"
+          role="radiogroup"
+          aria-label="Health"
+        >
           {INITIATIVE_UPDATE_HEALTHS.map((h) => (
             <button
               key={h}
@@ -322,17 +766,40 @@ function UpdateForm({ goal, onDone }: { goal: InitiativeRow; onDone: () => void 
               role="radio"
               aria-checked={health === h}
               onClick={() => setHealth(h)}
-              className={cn("h-7 inline-flex items-center gap-1.5 px-2.5 rounded-md text-[12px] border transition-colors", health !== h && "hover:bg-sol-bg-highlight/60")}
-              style={health === h ? { borderColor: HEALTH_COLOR[h], background: `color-mix(in srgb, ${HEALTH_COLOR[h]} 12%, transparent)`, color: "var(--sol-text)" } : { borderColor: "transparent", color: "var(--sol-text-muted)" }}
+              className={cn(
+                "h-7 inline-flex items-center gap-1.5 px-2.5 rounded-md text-[12px] border transition-colors",
+                health !== h && "hover:bg-sol-bg-highlight/60",
+              )}
+              style={
+                health === h
+                  ? {
+                      borderColor: HEALTH_COLOR[h],
+                      background: `color-mix(in srgb, ${HEALTH_COLOR[h]} 12%, transparent)`,
+                      color: "var(--sol-text)",
+                    }
+                  : {
+                      borderColor: "transparent",
+                      color: "var(--sol-text-muted)",
+                    }
+              }
               data-initiative-update-health-pick={h}
             >
-              <span className="w-[7px] h-[7px] rounded-full" style={{ background: HEALTH_COLOR[h] }} aria-hidden />
+              <span
+                className="w-[7px] h-[7px] rounded-full"
+                style={{ background: HEALTH_COLOR[h] }}
+                aria-hidden
+              />
               {INITIATIVE_HEALTH_LABEL[h]}
             </button>
           ))}
         </div>
         <span className="flex-1" />
-        <FormButtons submit="Post update" onCancel={onDone} disabled={!body.trim()} data-initiative-update-post="" />
+        <FormButtons
+          submit="Post update"
+          onCancel={onDone}
+          disabled={!body.trim()}
+          data-initiative-update-post=""
+        />
       </div>
     </form>
   );
@@ -343,12 +810,30 @@ function UpdateForm({ goal, onDone }: { goal: InitiativeRow; onDone: () => void 
 /** Everything that moved under the goal: its projects and its sub goals',
  *  with the goals' own updates and the calls that name them. The scope feed
  *  is the engine; this only says which scope. */
-export function GoalActivity({ goal, all }: { goal: InitiativeRow; all: readonly InitiativeRow[] }) {
-  const projectIds = goalScopeProjectIds(goal, all as InitiativeRow[]).join(",");
-  const initiativeIds = goalScopeInitiativeIds(goal, all as InitiativeRow[]).join(",");
-  const scope = useMemo<ScopeRef>(() => ({
-    scope: { project_ids: projectIds ? projectIds.split(",") : [], plan_ids: [], initiative_ids: initiativeIds ? initiativeIds.split(",") : [] },
-    ...(goal.team_id ? { team_id: goal.team_id } : {}),
-  }), [projectIds, initiativeIds, goal.team_id]);
+export function GoalActivity({
+  goal,
+  all,
+}: {
+  goal: InitiativeRow;
+  all: readonly InitiativeRow[];
+}) {
+  const projectIds = goalScopeProjectIds(goal, all as InitiativeRow[]).join(
+    ",",
+  );
+  const initiativeIds = goalScopeInitiativeIds(
+    goal,
+    all as InitiativeRow[],
+  ).join(",");
+  const scope = useMemo<ScopeRef>(
+    () => ({
+      scope: {
+        project_ids: projectIds ? projectIds.split(",") : [],
+        plan_ids: [],
+        initiative_ids: initiativeIds ? initiativeIds.split(",") : [],
+      },
+      ...(goal.team_id ? { team_id: goal.team_id } : {}),
+    }),
+    [projectIds, initiativeIds, goal.team_id],
+  );
   return <ScopeFeed key={JSON.stringify(scope)} scope={scope} />;
 }

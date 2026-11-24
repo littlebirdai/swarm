@@ -6,7 +6,11 @@ import { entityRemarkPlugins } from "./remarkEntityIds";
 
 const render = (md: string) =>
   renderToStaticMarkup(
-    React.createElement(ReactMarkdown, { remarkPlugins: entityRemarkPlugins }, md),
+    React.createElement(
+      ReactMarkdown,
+      { remarkPlugins: entityRemarkPlugins },
+      md,
+    ),
   );
 
 describe("entityRemarkPlugins strikethrough handling", () => {
@@ -122,7 +126,9 @@ describe("entityRemarkPlugins trigger references", () => {
   });
 
   test("task, plan and session references still resolve alongside triggers", () => {
-    const html = render("ct-4102 under pl-88, fired by tr-42, discussed in jx7c6zk");
+    const html = render(
+      "ct-4102 under pl-88, fired by tr-42, discussed in jx7c6zk",
+    );
     for (const id of ["ct-4102", "pl-88", "tr-42", "jx7c6zk"]) {
       expect(html).toContain(`>${id}</a>`);
     }
@@ -151,7 +157,9 @@ describe("entityRemarkPlugins repository objects", () => {
 
   test("a GitHub pull request link keeps its own text (the renderer decides the pill)", () => {
     const html = render("https://github.com/codecast-sh/codecast/pull/482");
-    expect(html).toContain('href="https://github.com/codecast-sh/codecast/pull/482"');
+    expect(html).toContain(
+      'href="https://github.com/codecast-sh/codecast/pull/482"',
+    );
   });
 });
 
@@ -173,7 +181,9 @@ describe("entityRemarkPlugins contextual pull request references", () => {
   });
 
   test("a hash in a URL fragment or inline code stays text", () => {
-    const html = render("see https://example.com/page#12 and `#12` and page.html#12");
+    const html = render(
+      "see https://example.com/page#12 and `#12` and page.html#12",
+    );
     expect(html).not.toContain("#12|");
   });
 
@@ -210,8 +220,12 @@ describe("an object id inside a file path", () => {
   // (.git/worktrees/line-ct-57458/cast-line). The id matched first and split
   // the path into two links around a task pill.
   test("stays part of one path link, with no entity pill", () => {
-    const html = render("logs: /Users/ashot/src/union-mobile/.git/worktrees/line-ct-57458/cast-line and ct-57458 alone");
-    expect(html).toContain(">/Users/ashot/src/union-mobile/.git/worktrees/line-ct-57458/cast-line</a>");
+    const html = render(
+      "logs: /Users/ashot/src/union-mobile/.git/worktrees/line-ct-57458/cast-line and ct-57458 alone",
+    );
+    expect(html).toContain(
+      ">/Users/ashot/src/union-mobile/.git/worktrees/line-ct-57458/cast-line</a>",
+    );
     expect(html.match(/>ct-57458<\/a>/g)?.length).toBe(1);
   });
 });
@@ -221,7 +235,8 @@ describe("entityRemarkPlugins the company's objects", () => {
   // (`in-N`), so each reaches EntityAwareLink and renders as its pill.
   test("bare or-, pj- and in- ids become entity links", () => {
     const html = render("Ask or-3 about pj-mf3k2a, which carries in-2.");
-    for (const id of ["or-3", "pj-mf3k2a", "in-2"]) expect(html).toContain(`>${id}</a>`);
+    for (const id of ["or-3", "pj-mf3k2a", "in-2"])
+      expect(html).toContain(`>${id}</a>`);
   });
 
   test("words that start like a role or a goal stay prose", () => {

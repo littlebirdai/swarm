@@ -21,7 +21,10 @@ describe("incremental sync watermark (syncMeta)", () => {
   it("advances the cursor forward-only; backfilledAt is set wholesale", () => {
     const s = useInboxStore.getState();
     s.recordSyncMeta("tasks:wsA", { cursor: 100, backfilledAt: 5 });
-    expect(useInboxStore.getState().syncMeta["tasks:wsA"]).toEqual({ cursor: 100, backfilledAt: 5 });
+    expect(useInboxStore.getState().syncMeta["tasks:wsA"]).toEqual({
+      cursor: 100,
+      backfilledAt: 5,
+    });
 
     // A late / out-of-order delta with a LOWER cursor must not rewind the mark
     // (which would re-fetch already-synced rows forever).
@@ -42,7 +45,12 @@ describe("runReconcileCrawl — durable throttle + watermark", () => {
   it("SKIPS the crawl when a recent backfill is persisted (no full re-walk on relaunch)", async () => {
     // Simulate a backfill that completed moments ago, as a fresh page load would
     // restore from IDB. The crawl must serve from cache, not re-page the table.
-    useInboxStore.getState().recordSyncMeta(syncMetaKey("tThrottle", "wsRecent"), { backfilledAt: Date.now(), cursor: 42 });
+    useInboxStore
+      .getState()
+      .recordSyncMeta(syncMetaKey("tThrottle", "wsRecent"), {
+        backfilledAt: Date.now(),
+        cursor: 42,
+      });
 
     let calls = 0;
     runReconcileCrawl({
@@ -51,7 +59,10 @@ describe("runReconcileCrawl — durable throttle + watermark", () => {
       throttleMs: 60_000,
       pageDelayMs: 0,
       maxPages: 10,
-      fetchPage: async () => { calls++; return { rows: [], isDone: true, continueCursor: null }; },
+      fetchPage: async () => {
+        calls++;
+        return { rows: [], isDone: true, continueCursor: null };
+      },
       onPage: () => {},
       onComplete: () => {},
     });
@@ -69,14 +80,22 @@ describe("runReconcileCrawl — durable throttle + watermark", () => {
       maxPages: 10,
       fetchPage: async () => {
         calls++;
-        return { rows: [{ _id: "t1", updated_at: 777 }, { _id: "t2", updated_at: 999 }], isDone: true, continueCursor: null };
+        return {
+          rows: [
+            { _id: "t1", updated_at: 777 },
+            { _id: "t2", updated_at: 999 },
+          ],
+          isDone: true,
+          continueCursor: null,
+        };
       },
       onPage: () => {},
       onComplete: () => {},
     });
     await delay(50);
     expect(calls).toBe(1);
-    const meta = useInboxStore.getState().syncMeta[syncMetaKey("tBackfill", "wsCold")];
+    const meta =
+      useInboxStore.getState().syncMeta[syncMetaKey("tBackfill", "wsCold")];
     expect(meta?.backfilledAt).toBeGreaterThan(0);
     // cursor = highest updated_at seen → the NEXT crawl resumes incrementally from here.
     expect(meta?.cursor).toBe(999);
@@ -104,9 +123,15 @@ describe("runReconcileCrawl — completeness flag (dismiss CLEAR guard)", () => 
       throttleMs: 60_000,
       pageDelayMs: 0,
       maxPages: 10,
-      fetchPage: async () => ({ rows: [{ _id: "d1" }], isDone: true, continueCursor: null }),
+      fetchPage: async () => ({
+        rows: [{ _id: "d1" }],
+        isDone: true,
+        continueCursor: null,
+      }),
       onPage: () => {},
-      onComplete: (_all, complete) => { seen = complete; },
+      onComplete: (_all, complete) => {
+        seen = complete;
+      },
     });
     await delay(40);
     expect(seen).toBe(true);
@@ -120,7 +145,9 @@ describe("runReconcileCrawl — completeness flag (dismiss CLEAR guard)", () => 
     let seen: boolean | undefined;
     let completeRows = -1;
     let resolveComplete!: () => void;
-    const completed = new Promise<void>((resolve) => { resolveComplete = resolve; });
+    const completed = new Promise<void>((resolve) => {
+      resolveComplete = resolve;
+    });
     runReconcileCrawl({
       namespace: "cTrunc",
       wsKey: "wsB",
@@ -129,14 +156,22 @@ describe("runReconcileCrawl — completeness flag (dismiss CLEAR guard)", () => 
       maxPages: 3,
       fetchPage: async () => {
         pages++;
-        return { rows: [{ _id: `d${pages}` }], isDone: false, continueCursor: `cursor-${pages}` };
+        return {
+          rows: [{ _id: `d${pages}` }],
+          isDone: false,
+          continueCursor: `cursor-${pages}`,
+        };
       },
       onPage: () => {},
-      onComplete: (all, complete) => { seen = complete; completeRows = all.length; resolveComplete(); },
+      onComplete: (all, complete) => {
+        seen = complete;
+        completeRows = all.length;
+        resolveComplete();
+      },
     });
     await completed;
-    expect(pages).toBe(3);            // stopped exactly at maxPages
-    expect(seen).toBe(false);         // crawl is NOT complete → CLEAR must be skipped
-    expect(completeRows).toBe(3);     // onComplete still fires (SET-only path is safe)
+    expect(pages).toBe(3); // stopped exactly at maxPages
+    expect(seen).toBe(false); // crawl is NOT complete → CLEAR must be skipped
+    expect(completeRows).toBe(3); // onComplete still fires (SET-only path is safe)
   });
 });

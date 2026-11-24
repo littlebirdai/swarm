@@ -1,7 +1,13 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-export const FAKE_BOX = { id: "box123", name: "cast-box", site: "iad", instance_shape: { virtual_cpu: 2, memory_megabytes: 4096 }, spec: { remote_user: "devbox" } };
+export const FAKE_BOX = {
+  id: "box123",
+  name: "cast-box",
+  site: "iad",
+  instance_shape: { virtual_cpu: 2, memory_megabytes: 4096 },
+  spec: { remote_user: "devbox" },
+};
 
 const RECORD = `{ printf '%s\\n' "$BIN"; for a in "$@"; do printf '%s\\n' "$a"; done; printf '\\036\\n'; } >> "$FAKE_NS/argv.log"`;
 
@@ -66,7 +72,18 @@ if [ -e "$FAKE_NS/nsc-fail" ]; then echo "nsc: not logged in" >&2; exit 1; fi
 if [ -e "$FAKE_NS/nsc-list" ]; then cat "$FAKE_NS/nsc-list"; else echo null; fi
 `;
 
-export function installFakeNamespace(root: string, opts: { ssh?: boolean } = {}): { home: string; bin: string; state: string; calls: () => string[][]; argv: () => string[][]; stdins: () => string[]; set: (file: string, body?: string) => void } {
+export function installFakeNamespace(
+  root: string,
+  opts: { ssh?: boolean } = {},
+): {
+  home: string;
+  bin: string;
+  state: string;
+  calls: () => string[][];
+  argv: () => string[][];
+  stdins: () => string[];
+  set: (file: string, body?: string) => void;
+} {
   const home = path.join(root, "home");
   const bin = path.join(home, ".local", "bin");
   const state = path.join(root, "ns");
@@ -78,10 +95,32 @@ export function installFakeNamespace(root: string, opts: { ssh?: boolean } = {})
   const log = path.join(state, "calls.log");
   const argvLog = path.join(state, "argv.log");
   return {
-    home, bin, state,
-    argv: () => (fs.existsSync(argvLog) ? fs.readFileSync(argvLog, "utf-8").split("\x1e\n").filter(Boolean).map((r) => r.replace(/\n$/, "").split("\n")) : []),
-    stdins: () => fs.readdirSync(state).filter((f) => f.startsWith("stdin-")).sort((a, b) => Number(a.slice(6)) - Number(b.slice(6))).map((f) => fs.readFileSync(path.join(state, f), "utf-8")),
-    calls: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf-8").trim().split("\n").filter(Boolean).map((l) => l.split("|")) : []),
+    home,
+    bin,
+    state,
+    argv: () =>
+      fs.existsSync(argvLog)
+        ? fs
+            .readFileSync(argvLog, "utf-8")
+            .split("\x1e\n")
+            .filter(Boolean)
+            .map((r) => r.replace(/\n$/, "").split("\n"))
+        : [],
+    stdins: () =>
+      fs
+        .readdirSync(state)
+        .filter((f) => f.startsWith("stdin-"))
+        .sort((a, b) => Number(a.slice(6)) - Number(b.slice(6)))
+        .map((f) => fs.readFileSync(path.join(state, f), "utf-8")),
+    calls: () =>
+      fs.existsSync(log)
+        ? fs
+            .readFileSync(log, "utf-8")
+            .trim()
+            .split("\n")
+            .filter(Boolean)
+            .map((l) => l.split("|"))
+        : [],
     set: (file, body = "") => fs.writeFileSync(path.join(state, file), body),
   };
 }

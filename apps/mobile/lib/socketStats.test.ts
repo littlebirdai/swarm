@@ -5,8 +5,12 @@ class Socket extends EventTarget {
   static CONNECTING = 0;
   readyState = 1;
   sent: string[] = [];
-  send(data: string) { this.sent.push(data); }
-  close() { this.dispatchEvent(new Event("close")); }
+  send(data: string) {
+    this.sent.push(data);
+  }
+  close() {
+    this.dispatchEvent(new Event("close"));
+  }
 }
 // The wrapper defaults to the global WebSocket; the fake stands in for this
 // file only.
@@ -25,12 +29,19 @@ test("counts opens and messages without reading frame data, and sees held mutati
   expect(socketStats.opens).toBe(1);
 
   let reads = 0;
-  const frame = (data: string) => Object.defineProperty(new Event("message"), "data", { get() { reads++; return data; } });
+  const frame = (data: string) =>
+    Object.defineProperty(new Event("message"), "data", {
+      get() {
+        reads++;
+        return data;
+      },
+    });
   socket.dispatchEvent(frame('{"type":"Transition"}'));
   expect(socketStats.messagesIn).toBe(1);
   expect(reads).toBe(0);
 
-  for (let id = 0; id < 10; id++) socket.send(JSON.stringify({ type: "Mutation", requestId: id }));
+  for (let id = 0; id < 10; id++)
+    socket.send(JSON.stringify({ type: "Mutation", requestId: id }));
   expect(socketStats.activeMutations).toBe(8);
   expect(socketStats.heldMutations).toBe(2);
 

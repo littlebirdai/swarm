@@ -1,7 +1,11 @@
 import { useCallback } from "react";
 import { useConvex, type ConvexReactClient } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { useInboxStore, isConvexId, isSessionHidden } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  isSessionHidden,
+} from "../store/inboxStore";
 import { findDecisionAnchorMessage } from "../lib/decisionQueue";
 import { useOpenSession } from "./useOpenSession";
 
@@ -14,10 +18,18 @@ export async function locateDecisionAsk(
   decisionId: string | undefined,
   question: string,
 ): Promise<{ id: string; ts: number | null } | null> {
-  const anchor = findDecisionAnchorMessage(useInboxStore.getState().messages[conversationId] as any[], decisionId, question);
+  const anchor = findDecisionAnchorMessage(
+    useInboxStore.getState().messages[conversationId] as any[],
+    decisionId,
+    question,
+  );
   if (anchor) return { id: anchor._id, ts: anchor.timestamp ?? null };
   if (!convex || !decisionId || !isConvexId(decisionId)) return null;
-  const found = await convex.query(api.sessionDecisions.findAskMessage, { decision_id: decisionId as any }).catch(() => null);
+  const found = await convex
+    .query(api.sessionDecisions.findAskMessage, {
+      decision_id: decisionId as any,
+    })
+    .catch(() => null);
   return found ? { id: found.message_id, ts: found.timestamp } : null;
 }
 
@@ -54,7 +66,8 @@ export function useJumpToDecisionAsk(
     // from now on instead of riding a run log nobody lists.
     const store = useInboxStore.getState();
     const row = store.sessions[conversationId];
-    if (row && (isSessionHidden(row) || row.inbox_killed_at)) store.restoreSession(conversationId);
+    if (row && (isSessionHidden(row) || row.inbox_killed_at))
+      store.restoreSession(conversationId);
     if (row) store.adoptSession(conversationId);
     openSession(conversationId);
     // The ask's message is scrolled to only while the view is on this session:
@@ -62,10 +75,17 @@ export function useJumpToDecisionAsk(
     // stray target for whatever the inbox shows next.
     const scrollTo = (target: { id: string; ts: number | null } | null) => {
       const st = useInboxStore.getState();
-      const viewing = st.pendingNavigateId ?? st.viewingDismissedId ?? st.currentSessionId;
-      if (target && viewing === conversationId) useInboxStore.setState({ pendingScrollToMessageId: target.id, pendingScrollToMessageTimestamp: target.ts });
+      const viewing =
+        st.pendingNavigateId ?? st.viewingDismissedId ?? st.currentSessionId;
+      if (target && viewing === conversationId)
+        useInboxStore.setState({
+          pendingScrollToMessageId: target.id,
+          pendingScrollToMessageTimestamp: target.ts,
+        });
     };
-    scrollTo(await locateDecisionAsk(convex, conversationId, decisionId, question));
+    scrollTo(
+      await locateDecisionAsk(convex, conversationId, decisionId, question),
+    );
     return true;
   }, [conversationId, decisionId, question, convex, openSession]);
 }

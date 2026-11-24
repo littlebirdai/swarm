@@ -27,7 +27,11 @@ export type ComputerErrorCode =
   | "screen_locked"
   | "remote_refused";
 
-export type ComputerAppInfo = { name: string; bundleId: string | null; pid: number };
+export type ComputerAppInfo = {
+  name: string;
+  bundleId: string | null;
+  pid: number;
+};
 
 export type ComputerWindowInfo = {
   id?: number | null;
@@ -53,10 +57,21 @@ export type ComputerSnapshotData = {
   focusedElementId: number | null;
   /** Window-local frames by element index, for a click at a point the tree names. */
   elements?: ComputerElementFrame[];
-  truncation?: { truncated: boolean; maxNodes?: number; maxDepth?: number; maxDepthReached?: boolean };
+  truncation?: {
+    truncated: boolean;
+    maxNodes?: number;
+    maxDepth?: number;
+    maxDepthReached?: boolean;
+  };
 };
 
-export type ComputerElementFrame = { index: number; x: number; y: number; width: number; height: number };
+export type ComputerElementFrame = {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export type ComputerScreenshotData = {
   /** The file the helper wrote (0600, swept by the CLI after a day), on the
@@ -75,12 +90,28 @@ export type ComputerScreenshotData = {
 };
 
 export type ComputerScreenshotStatus =
-  | { state: "captured"; metadata?: { engine?: "cgWindowList" | "screenCaptureKit" | "x11" | "unknown"; windowId?: number | null } }
+  | {
+      state: "captured";
+      metadata?: {
+        engine?: "cgWindowList" | "screenCaptureKit" | "x11" | "unknown";
+        windowId?: number | null;
+      };
+    }
   | { state: "skipped"; reason: "no_screenshot_flag" }
-  | { state: "failed"; code: ComputerErrorCode; message: string; metadata?: { engine?: string; windowId?: number | null } };
+  | {
+      state: "failed";
+      code: ComputerErrorCode;
+      message: string;
+      metadata?: { engine?: string; windowId?: number | null };
+    };
 
 export type ComputerActionVerification =
-  | { state: "verified"; property: "focusedText" | "selection" | "value"; expected?: string | null; actualPreview?: string | null }
+  | {
+      state: "verified";
+      property: "focusedText" | "selection" | "value";
+      expected?: string | null;
+      actualPreview?: string | null;
+    }
   | {
       state: "unverified";
       reason:
@@ -116,16 +147,27 @@ export type ComputerSnapshotResult = {
   baselineTreeText?: string;
 };
 
-export type ComputerRect = { x: number; y: number; width: number; height: number };
+export type ComputerRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 /** The target window's pixels across an action, in window points: where they
  *  changed (null when they did not), and where they changed again in a capture
  *  a moment later (null when they held still or that capture was not needed).
  *  Absent when the helper could not capture (no Screen Recording, an older
  *  helper, a window that went away). `pixels.ts` decides what it means. */
-export type ComputerPixelChange = { changed: ComputerRect | null; repainting: ComputerRect | null };
+export type ComputerPixelChange = {
+  changed: ComputerRect | null;
+  repainting: ComputerRect | null;
+};
 
-export type ComputerActionResult = ComputerSnapshotResult & { action?: ComputerActionMetadata; pixelChange?: ComputerPixelChange };
+export type ComputerActionResult = ComputerSnapshotResult & {
+  action?: ComputerActionMetadata;
+  pixelChange?: ComputerPixelChange;
+};
 
 export type ComputerProviderCapabilities = {
   platform: "darwin" | "linux";
@@ -135,8 +177,19 @@ export type ComputerProviderCapabilities = {
   protocolVersion: number;
   supports: {
     apps: { list: boolean; bundleIds: boolean; pids: boolean };
-    windows: { list: boolean; targetById: boolean; targetByIndex: boolean; focus: boolean; moveResize: boolean };
-    observation: { screenshot: boolean; annotatedScreenshot: boolean; elementFrames: boolean; ocr: boolean };
+    windows: {
+      list: boolean;
+      targetById: boolean;
+      targetByIndex: boolean;
+      focus: boolean;
+      moveResize: boolean;
+    };
+    observation: {
+      screenshot: boolean;
+      annotatedScreenshot: boolean;
+      elementFrames: boolean;
+      ocr: boolean;
+    };
     actions: {
       click: boolean;
       typeText: boolean;
@@ -148,17 +201,30 @@ export type ComputerProviderCapabilities = {
       setValue: boolean;
       performAction: boolean;
     };
-    surfaces: { menus: boolean; dialogs: boolean; dock: boolean; menubar: boolean };
+    surfaces: {
+      menus: boolean;
+      dialogs: boolean;
+      dock: boolean;
+      menubar: boolean;
+    };
   };
 };
 
 export type ComputerListAppsResult = {
-  apps: (ComputerAppInfo & { isRunning: boolean; lastUsedAt: string | null; useCount: number | null })[];
+  apps: (ComputerAppInfo & {
+    isRunning: boolean;
+    lastUsedAt: string | null;
+    useCount: number | null;
+  })[];
 };
 
 export type ComputerListWindowsResult = {
   app: ComputerAppInfo;
-  windows: (ComputerWindowInfo & { app: ComputerAppInfo; index: number; isMain?: boolean | null })[];
+  windows: (ComputerWindowInfo & {
+    app: ComputerAppInfo;
+    index: number;
+    isMain?: boolean | null;
+  })[];
 };
 
 /** Every method the helper answers. `terminate` is the only one with no result. */
@@ -178,17 +244,27 @@ export type ComputerMethod =
   | "setValue"
   | "terminate";
 
-export type ComputerActionMethod = Exclude<ComputerMethod, "handshake" | "listApps" | "listWindows" | "getAppState" | "terminate">;
+export type ComputerActionMethod = Exclude<
+  ComputerMethod,
+  "handshake" | "listApps" | "listWindows" | "getAppState" | "terminate"
+>;
 
 export type ComputerResponse =
   | { id: number; ok: true; result: unknown }
-  | { id: number; ok: false; error: { code: ComputerErrorCode; message: string } };
+  | {
+      id: number;
+      ok: false;
+      error: { code: ComputerErrorCode; message: string };
+    };
 
 export const COMPUTER_PROTOCOL_VERSION = 1;
 
 /** Both TCC grants the helper asks for, and nothing else asks for. */
 export type ComputerPermissionId = "accessibility" | "screenshots";
-export type ComputerPermissionStatus = "granted" | "not-granted" | "unsupported";
+export type ComputerPermissionStatus =
+  | "granted"
+  | "not-granted"
+  | "unsupported";
 
 export type ComputerPermissionStatusResult = {
   platform: NodeJS.Platform;

@@ -30,12 +30,22 @@ describe("extractInlineImages", () => {
   });
 
   test("keeps several images in the order they were printed", () => {
-    const out = [inlineImageMarker("/tmp/a.png"), "middle", inlineImageMarker("/tmp/b.png")].join("\n");
-    expect(extractInlineImages(out).paths).toEqual(["/tmp/a.png", "/tmp/b.png"]);
+    const out = [
+      inlineImageMarker("/tmp/a.png"),
+      "middle",
+      inlineImageMarker("/tmp/b.png"),
+    ].join("\n");
+    expect(extractInlineImages(out).paths).toEqual([
+      "/tmp/a.png",
+      "/tmp/b.png",
+    ]);
   });
 
   test("does not repeat a path declared twice", () => {
-    const out = [inlineImageMarker("/tmp/a.png"), inlineImageMarker("/tmp/a.png")].join("\n");
+    const out = [
+      inlineImageMarker("/tmp/a.png"),
+      inlineImageMarker("/tmp/a.png"),
+    ].join("\n");
     expect(extractInlineImages(out).paths).toEqual(["/tmp/a.png"]);
   });
 

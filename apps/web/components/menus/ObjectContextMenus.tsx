@@ -37,7 +37,14 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { CtxItem, CtxHeader, CtxSeparator, CtxSub, CtxSubTrigger, CtxSubContent } from "../ui/context-menu";
+import {
+  CtxItem,
+  CtxHeader,
+  CtxSeparator,
+  CtxSub,
+  CtxSubTrigger,
+  CtxSubContent,
+} from "../ui/context-menu";
 import { SessionAccountLine } from "../conversation/SessionAccountLabel";
 import {
   PRIORITY_OPTIONS,
@@ -46,7 +53,13 @@ import {
   DOC_RETYPE_OPTIONS,
   type EntityOption,
 } from "./entityOptions";
-import { statusByKey, statusEntityOptions, statusWriteFields, taskStatusKey, useTeamTaskStatusList } from "../../lib/taskStatuses";
+import {
+  statusByKey,
+  statusEntityOptions,
+  statusWriteFields,
+  taskStatusKey,
+  useTeamTaskStatusList,
+} from "../../lib/taskStatuses";
 import {
   useInboxStore,
   sortLabels,
@@ -57,7 +70,12 @@ import {
   type DocItem,
 } from "../../store/inboxStore";
 import { setTaskParent, updateTasksAsOne } from "../../lib/taskActions";
-import { animatedCloseSessions, animatedSetSessionRest, toggleSessionsLikeFirst, undoAsOne } from "../../store/undoActions";
+import {
+  animatedCloseSessions,
+  animatedSetSessionRest,
+  toggleSessionsLikeFirst,
+  undoAsOne,
+} from "../../store/undoActions";
 import { gestureToast } from "../../store/undoStack";
 import { hideFromTeam } from "../../hooks/useTeamShareActions";
 import { counted } from "../../store/undo/labels";
@@ -66,7 +84,10 @@ import { openForwardToChat } from "../../lib/forwardToChat";
 import { useTeamFeature } from "../../lib/teamFeatures";
 import { getLabelColor } from "../../lib/labelColors";
 import { canControlModel } from "../../lib/modelSwitch";
-import { isSessionKilled, isSessionSetAside } from "../../lib/sessionRetirement";
+import {
+  isSessionKilled,
+  isSessionSetAside,
+} from "../../lib/sessionRetirement";
 import { KillSelection } from "../BulkMoveSessions";
 import { teamMembersOf } from "../../lib/activeTeam";
 
@@ -80,8 +101,11 @@ import { teamMembersOf } from "../../lib/activeTeam";
 // (useInboxStore.getState()) and take one-shot snapshots for submenu data —
 // a menu lives for seconds, so it never needs live subscriptions.
 
-const openPaletteMode = (targets: any[], targetType: "task" | "doc" | "plan" | "session", mode: string) =>
-  useInboxStore.getState().openPalette({ targets, targetType, mode });
+const openPaletteMode = (
+  targets: any[],
+  targetType: "task" | "doc" | "plan" | "session",
+  mode: string,
+) => useInboxStore.getState().openPalette({ targets, targetType, mode });
 
 /** "Send to chat…" next to an object's Copy link — same URL, forwarded through
  *  the palette's channel picker. Renders nothing when the team has chat off. */
@@ -118,7 +142,11 @@ function OptionSubmenu({
             icon={o.icon}
             iconClassName={o.color}
             className={!o.icon ? o.color : undefined}
-            trailing={currentKey === o.key ? <Check className="size-3.5 text-sol-cyan" /> : undefined}
+            trailing={
+              currentKey === o.key ? (
+                <Check className="size-3.5 text-sol-cyan" />
+              ) : undefined
+            }
             onSelect={() => onPick(o.key)}
           >
             {o.label}
@@ -144,34 +172,58 @@ export function TaskMenuItems({
   const bulkLabel = single ? single.short_id : `${count} tasks`;
   // One-shot roster snapshot: the assign submenu doesn't need live presence.
   // People and roles come from the one list every picker shares.
-  const members = React.useMemo(() => teamMembersOf(useInboxStore.getState()), []);
+  const members = React.useMemo(
+    () => teamMembersOf(useInboxStore.getState()),
+    [],
+  );
   const { people, roles } = useRolesAndPeopleOptions(members);
-  const assignOptions = React.useMemo(() => [...people, ...roles], [people, roles]);
+  const assignOptions = React.useMemo(
+    () => [...people, ...roles],
+    [people, roles],
+  );
   // The team's status vocabulary (a context-menu selection is always one
   // workspace's rows, so the first task's team speaks for the set).
   const taskStatuses = useTeamTaskStatusList((tasks[0] as any)?.team_id);
-  const statusOptions = React.useMemo(() => statusEntityOptions(taskStatuses), [taskStatuses]);
+  const statusOptions = React.useMemo(
+    () => statusEntityOptions(taskStatuses),
+    [taskStatuses],
+  );
 
   // One undo named for the change; terminal moves route through the close
   // gateway so a parent with open subtasks gets the shared dialog.
-  const applyAll = (fields: Record<string, any>) => updateTasksAsOne(tasks.map((t) => t.short_id), fields);
+  const applyAll = (fields: Record<string, any>) =>
+    updateTasksAsOne(
+      tasks.map((t) => t.short_id),
+      fields,
+    );
 
   const setStatus = (key: string) => {
     const target = statusByKey(taskStatuses, key);
     if (!target) return;
-    if (!applyAll(statusWriteFields(target)).needsConfirm) toast.success(`${bulkLabel} → ${target.name}`);
+    if (!applyAll(statusWriteFields(target)).needsConfirm)
+      toast.success(`${bulkLabel} → ${target.name}`);
   };
 
   const hasParent = tasks.some((t) => (t as any).parent_id);
 
   return (
     <>
-      {single && <CtxHeader title={single.title || single.short_id} id={single.short_id} />}
+      {single && (
+        <CtxHeader
+          title={single.title || single.short_id}
+          id={single.short_id}
+        />
+      )}
       {!single && <CtxHeader title={`${count} tasks selected`} />}
       {single && onOpen && (
         <>
-          <CtxItem icon={ExternalLink} onSelect={() => onOpen(single)}>Open</CtxItem>
-          <CtxItem icon={ExternalLink} onSelect={() => window.open(`/tasks/${single._id}`, "_blank")}>
+          <CtxItem icon={ExternalLink} onSelect={() => onOpen(single)}>
+            Open
+          </CtxItem>
+          <CtxItem
+            icon={ExternalLink}
+            onSelect={() => window.open(`/tasks/${single._id}`, "_blank")}
+          >
             Open in new tab
           </CtxItem>
           <CtxSeparator />
@@ -181,7 +233,9 @@ export function TaskMenuItems({
         icon={CircleDot}
         label="Status"
         options={statusOptions}
-        currentKey={single ? taskStatusKey(single as any, taskStatuses) : undefined}
+        currentKey={
+          single ? taskStatusKey(single as any, taskStatuses) : undefined
+        }
         onPick={setStatus}
       />
       <OptionSubmenu
@@ -191,7 +245,9 @@ export function TaskMenuItems({
         currentKey={(single as any)?.priority}
         onPick={(key) => {
           applyAll({ priority: key });
-          toast.success(`${bulkLabel} priority → ${PRIORITY_OPTIONS.find((o) => o.key === key)?.label ?? key}`);
+          toast.success(
+            `${bulkLabel} priority → ${PRIORITY_OPTIONS.find((o) => o.key === key)?.label ?? key}`,
+          );
         }}
       />
       <CtxSub>
@@ -199,15 +255,27 @@ export function TaskMenuItems({
         <CtxSubContent className="min-w-[190px]">
           {assignOptions.map((o, i) => (
             <React.Fragment key={o.key}>
-              {o.section && assignOptions[i - 1]?.section !== o.section && <CtxHeader title={o.section} />}
+              {o.section && assignOptions[i - 1]?.section !== o.section && (
+                <CtxHeader title={o.section} />
+              )}
               <CtxItem
-                trailing={single && (single as any).assignee === o.key ? <Check className="size-3.5 text-sol-cyan" /> : undefined}
+                trailing={
+                  single && (single as any).assignee === o.key ? (
+                    <Check className="size-3.5 text-sol-cyan" />
+                  ) : undefined
+                }
                 onSelect={() => {
                   applyAll({ assignee: o.key });
                   toast.success(`Assigned to ${o.label}`);
                 }}
               >
-                <span className="inline-flex items-center gap-2 min-w-0">{o.face}<span className="truncate">{o.label}</span>{o.hint && <span className="text-sol-text-dim">{o.hint}</span>}</span>
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  {o.face}
+                  <span className="truncate">{o.label}</span>
+                  {o.hint && (
+                    <span className="text-sol-text-dim">{o.hint}</span>
+                  )}
+                </span>
               </CtxItem>
             </React.Fragment>
           ))}
@@ -222,16 +290,37 @@ export function TaskMenuItems({
           </CtxItem>
         </CtxSubContent>
       </CtxSub>
-      <CtxItem icon={Tag} onSelect={() => openPaletteMode(tasks, "task", "labels")}>Labels…</CtxItem>
-      <CtxItem icon={CornerDownRight} onSelect={() => openPaletteMode(tasks, "task", "parent")}>Set parent…</CtxItem>
-      <CtxItem icon={Hourglass} onSelect={() => openPaletteMode(tasks, "task", "blocker")}>Add blocker…</CtxItem>
-      <CtxItem icon={Link2} onSelect={() => openPaletteMode(tasks, "task", "related")}>Link related task…</CtxItem>
+      <CtxItem
+        icon={Tag}
+        onSelect={() => openPaletteMode(tasks, "task", "labels")}
+      >
+        Labels…
+      </CtxItem>
+      <CtxItem
+        icon={CornerDownRight}
+        onSelect={() => openPaletteMode(tasks, "task", "parent")}
+      >
+        Set parent…
+      </CtxItem>
+      <CtxItem
+        icon={Hourglass}
+        onSelect={() => openPaletteMode(tasks, "task", "blocker")}
+      >
+        Add blocker…
+      </CtxItem>
+      <CtxItem
+        icon={Link2}
+        onSelect={() => openPaletteMode(tasks, "task", "related")}
+      >
+        Link related task…
+      </CtxItem>
       {hasParent && (
         <CtxItem
           icon={CornerDownRight}
           onSelect={() => {
             undoAsOne(`Removed the parent of ${counted(count, "task")}`, () => {
-              for (const t of tasks) if ((t as any).parent_id) setTaskParent(t.short_id, "");
+              for (const t of tasks)
+                if ((t as any).parent_id) setTaskParent(t.short_id, "");
             });
             toast.success("Parent removed");
           }}
@@ -239,7 +328,12 @@ export function TaskMenuItems({
           Remove parent
         </CtxItem>
       )}
-      <CtxItem icon={Bot} onSelect={() => openPaletteMode(tasks, "task", "agent_run")}>Start agent run…</CtxItem>
+      <CtxItem
+        icon={Bot}
+        onSelect={() => openPaletteMode(tasks, "task", "agent_run")}
+      >
+        Start agent run…
+      </CtxItem>
       {single && (
         <>
           <CtxSeparator />
@@ -255,12 +349,17 @@ export function TaskMenuItems({
           <CtxItem
             icon={LinkIcon}
             onSelect={() =>
-              copyToClipboard(`${shareOrigin()}/tasks/${single._id}`).then(() => toast.success("Link copied"))
+              copyToClipboard(`${shareOrigin()}/tasks/${single._id}`).then(() =>
+                toast.success("Link copied"),
+              )
             }
           >
             Copy link
           </CtxItem>
-          <ForwardCtxItem url={`${shareOrigin()}/tasks/${single._id}`} label="task" />
+          <ForwardCtxItem
+            url={`${shareOrigin()}/tasks/${single._id}`}
+            label="task"
+          />
         </>
       )}
       <CtxSeparator />
@@ -284,12 +383,21 @@ export function DocMenuItems({
 
   return (
     <>
-      {single && <CtxHeader title={(single as any).display_title || single.title || "Untitled"} />}
+      {single && (
+        <CtxHeader
+          title={(single as any).display_title || single.title || "Untitled"}
+        />
+      )}
       {!single && <CtxHeader title={`${docs.length} documents selected`} />}
       {single && onOpen && (
         <>
-          <CtxItem icon={ExternalLink} onSelect={() => onOpen(single)}>Open</CtxItem>
-          <CtxItem icon={ExternalLink} onSelect={() => window.open(`/docs/${single._id}`, "_blank")}>
+          <CtxItem icon={ExternalLink} onSelect={() => onOpen(single)}>
+            Open
+          </CtxItem>
+          <CtxItem
+            icon={ExternalLink}
+            onSelect={() => window.open(`/docs/${single._id}`, "_blank")}
+          >
             Open in new tab
           </CtxItem>
           <CtxSeparator />
@@ -302,24 +410,36 @@ export function DocMenuItems({
         currentKey={(single as any)?.doc_type}
         onPick={(key) => {
           const { updateDoc } = useInboxStore.getState();
-          undoAsOne(`Changed the type of ${counted(docs.length, "document")}`, () => {
-            for (const d of docs) updateDoc(d._id, { doc_type: key });
-          });
-          toast.success(`Type → ${DOC_TYPE_OPTIONS.find((o) => o.key === key)?.label ?? key}`);
+          undoAsOne(
+            `Changed the type of ${counted(docs.length, "document")}`,
+            () => {
+              for (const d of docs) updateDoc(d._id, { doc_type: key });
+            },
+          );
+          toast.success(
+            `Type → ${DOC_TYPE_OPTIONS.find((o) => o.key === key)?.label ?? key}`,
+          );
         }}
       />
       {single && (
         <CtxItem
           icon={Star}
           onSelect={() => {
-            useInboxStore.getState().pinDoc(single._id, !(single as any).pinned);
+            useInboxStore
+              .getState()
+              .pinDoc(single._id, !(single as any).pinned);
             toast.success((single as any).pinned ? "Unstarred" : "Starred");
           }}
         >
           {(single as any).pinned ? "Unstar document" : "Star document"}
         </CtxItem>
       )}
-      <CtxItem icon={Tag} onSelect={() => openPaletteMode(docs, "doc", "labels")}>Labels…</CtxItem>
+      <CtxItem
+        icon={Tag}
+        onSelect={() => openPaletteMode(docs, "doc", "labels")}
+      >
+        Labels…
+      </CtxItem>
       {single && (
         <>
           <CtxSeparator />
@@ -335,12 +455,17 @@ export function DocMenuItems({
           <CtxItem
             icon={LinkIcon}
             onSelect={() =>
-              copyToClipboard(`${shareOrigin()}/docs/${single._id}`).then(() => toast.success("Link copied"))
+              copyToClipboard(`${shareOrigin()}/docs/${single._id}`).then(() =>
+                toast.success("Link copied"),
+              )
             }
           >
             Copy link
           </CtxItem>
-          <ForwardCtxItem url={`${shareOrigin()}/docs/${single._id}`} label="doc" />
+          <ForwardCtxItem
+            url={`${shareOrigin()}/docs/${single._id}`}
+            label="doc"
+          />
         </>
       )}
       <CtxSeparator />
@@ -375,7 +500,9 @@ export function PlanMenuItems({
       <CtxHeader title={plan.title || shortId} id={plan.short_id} />
       {onOpen && (
         <>
-          <CtxItem icon={ExternalLink} onSelect={onOpen}>Open</CtxItem>
+          <CtxItem icon={ExternalLink} onSelect={onOpen}>
+            Open
+          </CtxItem>
           <CtxSeparator />
         </>
       )}
@@ -386,7 +513,9 @@ export function PlanMenuItems({
         currentKey={plan.status}
         onPick={(key) => {
           useInboxStore.getState().updatePlan(shortId, { status: key });
-          toast.success(`Plan → ${PLAN_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? key}`);
+          toast.success(
+            `Plan → ${PLAN_STATUS_OPTIONS.find((o) => o.key === key)?.label ?? key}`,
+          );
         }}
       />
       <CtxSeparator />
@@ -401,7 +530,11 @@ export function PlanMenuItems({
       </CtxItem>
       <CtxItem
         icon={LinkIcon}
-        onSelect={() => copyToClipboard(`${shareOrigin()}/plans/${plan._id}`).then(() => toast.success("Link copied"))}
+        onSelect={() =>
+          copyToClipboard(`${shareOrigin()}/plans/${plan._id}`).then(() =>
+            toast.success("Link copied"),
+          )
+        }
       >
         Copy link
       </CtxItem>
@@ -444,30 +577,56 @@ export function SessionMenuItems({
   // The card's row can predate a toggle; the store says what the star shows now.
   const isFavorite = isFavoriteInStore(useInboxStore.getState(), id);
   // One-shot snapshots — labels don't churn while a menu is open.
-  const labels = React.useMemo(() => sortLabels(useInboxStore.getState().buckets as any), []);
+  const labels = React.useMemo(
+    () => sortLabels(useInboxStore.getState().buckets as any),
+    [],
+  );
   const currentBucketId = React.useMemo(
     () => convBucketMap(useInboxStore.getState().bucketAssignments)[id],
     [id],
   );
 
   const copyLink = () =>
-    copyToClipboard(`${shareOrigin()}/conversation/${id}`).then(() => toast.success("Link copied"));
+    copyToClipboard(`${shareOrigin()}/conversation/${id}`).then(() =>
+      toast.success("Link copied"),
+    );
 
   if (isForeign) {
     return (
       <>
         <CtxHeader title={session.title || "Session"} />
-        <SessionAccountLine conversationId={id} className="px-2.5 pb-1.5 pt-0 text-meta" />
-        {onOpen && <CtxItem icon={ExternalLink} onSelect={onOpen}>Open</CtxItem>}
-        <CtxItem icon={ExternalLink} onSelect={() => window.open(`/conversation/${id}`, "_blank")}>
+        <SessionAccountLine
+          conversationId={id}
+          className="px-2.5 pb-1.5 pt-0 text-meta"
+        />
+        {onOpen && (
+          <CtxItem icon={ExternalLink} onSelect={onOpen}>
+            Open
+          </CtxItem>
+        )}
+        <CtxItem
+          icon={ExternalLink}
+          onSelect={() => window.open(`/conversation/${id}`, "_blank")}
+        >
           Open in new tab
         </CtxItem>
         <CtxSeparator />
-        <CtxItem icon={Copy} onSelect={() => { copyToClipboard(id); toast.success("Copied session ID"); }}>
+        <CtxItem
+          icon={Copy}
+          onSelect={() => {
+            copyToClipboard(id);
+            toast.success("Copied session ID");
+          }}
+        >
           Copy session ID
         </CtxItem>
-        <CtxItem icon={LinkIcon} shortcut="conv.copyLink" onSelect={copyLink}>Copy link</CtxItem>
-      <ForwardCtxItem url={`${shareOrigin()}/conversation/${id}`} label="session" />
+        <CtxItem icon={LinkIcon} shortcut="conv.copyLink" onSelect={copyLink}>
+          Copy link
+        </CtxItem>
+        <ForwardCtxItem
+          url={`${shareOrigin()}/conversation/${id}`}
+          label="session"
+        />
       </>
     );
   }
@@ -475,9 +634,19 @@ export function SessionMenuItems({
   return (
     <>
       <CtxHeader title={session.title || "Session"} />
-      <SessionAccountLine conversationId={id} className="px-2.5 pb-1.5 pt-0 text-meta" />
-      {onOpen && <CtxItem icon={ExternalLink} onSelect={onOpen}>Open</CtxItem>}
-      <CtxItem icon={ExternalLink} onSelect={() => window.open(`/conversation/${id}`, "_blank")}>
+      <SessionAccountLine
+        conversationId={id}
+        className="px-2.5 pb-1.5 pt-0 text-meta"
+      />
+      {onOpen && (
+        <CtxItem icon={ExternalLink} onSelect={onOpen}>
+          Open
+        </CtxItem>
+      )}
+      <CtxItem
+        icon={ExternalLink}
+        onSelect={() => window.open(`/conversation/${id}`, "_blank")}
+      >
         Open in new tab
       </CtxItem>
       <CtxSeparator />
@@ -517,10 +686,23 @@ export function SessionMenuItems({
             return (
               <CtxItem
                 key={b._id}
-                leading={<span className={cn("inline-block size-2 rounded-full shrink-0", color.dot)} />}
-                trailing={currentBucketId === b._id ? <Check className="size-3.5 text-sol-cyan" /> : undefined}
+                leading={
+                  <span
+                    className={cn(
+                      "inline-block size-2 rounded-full shrink-0",
+                      color.dot,
+                    )}
+                  />
+                }
+                trailing={
+                  currentBucketId === b._id ? (
+                    <Check className="size-3.5 text-sol-cyan" />
+                  ) : undefined
+                }
                 onSelect={() => {
-                  gestureToast(`Filed under "${b.name}"`, () => useInboxStore.getState().assignSessionToBucket(id, b._id));
+                  gestureToast(`Filed under "${b.name}"`, () =>
+                    useInboxStore.getState().assignSessionToBucket(id, b._id),
+                  );
                 }}
               >
                 {b.name}
@@ -530,44 +712,79 @@ export function SessionMenuItems({
           {currentBucketId && (
             <CtxItem
               onSelect={() => {
-                gestureToast("Label removed", () => useInboxStore.getState().assignSessionToBucket(id, null));
+                gestureToast("Label removed", () =>
+                  useInboxStore.getState().assignSessionToBucket(id, null),
+                );
               }}
             >
               Remove label
             </CtxItem>
           )}
           {(labels.length > 0 || currentBucketId) && <CtxSeparator />}
-          <CtxItem shortcut="session.moveToBucket" onSelect={() => openPaletteMode([session], "session", "bucket")}>
+          <CtxItem
+            shortcut="session.moveToBucket"
+            onSelect={() => openPaletteMode([session], "session", "bucket")}
+          >
             New label…
           </CtxItem>
         </CtxSubContent>
       </CtxSub>
       {extra}
-      {canControlModel(session.agent_type, session.session_id, session.model) && (
-        <CtxItem icon={Cpu} onSelect={() => openPaletteMode([session], "session", "model")}>
+      {canControlModel(
+        session.agent_type,
+        session.session_id,
+        session.model,
+      ) && (
+        <CtxItem
+          icon={Cpu}
+          onSelect={() => openPaletteMode([session], "session", "model")}
+        >
           Change model &amp; effort…
         </CtxItem>
       )}
       {onPickCharacter && prefs.characters && (
         <CtxItem icon={Smile} onSelect={onPickCharacter}>
-          {sessionIdentity(session).kind === "plain" ? "Give it a character\u2026" : "Change character\u2026"}
+          {sessionIdentity(session).kind === "plain"
+            ? "Give it a character\u2026"
+            : "Change character\u2026"}
         </CtxItem>
       )}
       {onRename && (
-        <CtxItem icon={Pencil} shortcut="session.rename" onSelect={onRename}>Rename</CtxItem>
+        <CtxItem icon={Pencil} shortcut="session.rename" onSelect={onRename}>
+          Rename
+        </CtxItem>
       )}
       <CtxSeparator />
-      <CtxItem icon={Copy} onSelect={() => { copyToClipboard(id); toast.success("Copied session ID"); }}>
+      <CtxItem
+        icon={Copy}
+        onSelect={() => {
+          copyToClipboard(id);
+          toast.success("Copied session ID");
+        }}
+      >
         Copy session ID
       </CtxItem>
-      <CtxItem icon={LinkIcon} shortcut="conv.copyLink" onSelect={copyLink}>Copy link</CtxItem>
-      <ForwardCtxItem url={`${shareOrigin()}/conversation/${id}`} label="session" />
+      <CtxItem icon={LinkIcon} shortcut="conv.copyLink" onSelect={copyLink}>
+        Copy link
+      </CtxItem>
+      <ForwardCtxItem
+        url={`${shareOrigin()}/conversation/${id}`}
+        label="session"
+      />
       {session.is_private === false && !!session.team_id && (
-        <CtxItem icon={Lock} onSelect={() => hideFromTeam(id)}>Hide from team</CtxItem>
+        <CtxItem icon={Lock} onSelect={() => hideFromTeam(id)}>
+          Hide from team
+        </CtxItem>
       )}
       <CtxSeparator />
       {isSessionSetAside(session) ? (
-        <CtxItem icon={RefreshCw} onSelect={() => { useInboxStore.getState().restoreSession(id); toast.success("Restored to inbox"); }}>
+        <CtxItem
+          icon={RefreshCw}
+          onSelect={() => {
+            useInboxStore.getState().restoreSession(id);
+            toast.success("Restored to inbox");
+          }}
+        >
           Restore session to inbox
         </CtxItem>
       ) : (
@@ -575,26 +792,37 @@ export function SessionMenuItems({
           <CtxItem
             icon={Archive}
             shortcut="session.stash"
-            onSelect={onStash ?? (() => useInboxStore.getState().stashSession(id))}
+            onSelect={
+              onStash ?? (() => useInboxStore.getState().stashSession(id))
+            }
           >
             Stash
           </CtxItem>
           <CtxItem
             icon={EyeOff}
             shortcut="session.stashHide"
-            onSelect={() => useInboxStore.getState().stashSession(id, { hidden: true })}
+            onSelect={() =>
+              useInboxStore.getState().stashSession(id, { hidden: true })
+            }
           >
             Stash and hide — stays out through trigger wakes
           </CtxItem>
         </>
       )}
       {!isSessionKilled(session) && (
-        <CtxItem icon={Clock} shortcut="session.snooze" onSelect={() => openPaletteMode([session], "session", "snooze")}>
+        <CtxItem
+          icon={Clock}
+          shortcut="session.snooze"
+          onSelect={() => openPaletteMode([session], "session", "snooze")}
+        >
           Snooze…
         </CtxItem>
       )}
       {!!session.inbox_snoozed_until && (
-        <CtxItem icon={Clock} onSelect={() => useInboxStore.getState().wakeSnoozedSession(id)}>
+        <CtxItem
+          icon={Clock}
+          onSelect={() => useInboxStore.getState().wakeSnoozedSession(id)}
+        >
           Move to Needs You now
         </CtxItem>
       )}
@@ -603,7 +831,9 @@ export function SessionMenuItems({
           <CtxItem
             icon={Clock}
             shortcut="session.deferAdvance"
-            onSelect={onDefer ?? (() => useInboxStore.getState().deferSession(id))}
+            onSelect={
+              onDefer ?? (() => useInboxStore.getState().deferSession(id))
+            }
           >
             Defer
           </CtxItem>
@@ -614,24 +844,51 @@ export function SessionMenuItems({
           >
             Dormant — a machine wakes it
           </CtxItem>
-          <CtxItem icon={CheckCircle2} onSelect={() => animatedSetSessionRest(id, "done")}>
+          <CtxItem
+            icon={CheckCircle2}
+            onSelect={() => animatedSetSessionRest(id, "done")}
+          >
             Mark done
           </CtxItem>
-          <CtxItem icon={CircleDot} onSelect={() => animatedSetSessionRest(id, "needs_input")}>
+          <CtxItem
+            icon={CircleDot}
+            onSelect={() => animatedSetSessionRest(id, "needs_input")}
+          >
             Mark needs you
           </CtxItem>
         </>
       )}
       {!isSessionSetAside(session) && (
-        <CtxItem icon={X} shortcut="session.close" onSelect={onClose ?? (() => { void animatedCloseSessions([id]); })}>
+        <CtxItem
+          icon={X}
+          shortcut="session.close"
+          onSelect={
+            onClose ??
+            (() => {
+              void animatedCloseSessions([id]);
+            })
+          }
+        >
           Close
         </CtxItem>
       )}
       {onKill && !isSessionKilled(session) && (
-        <KillSelection sessions={[session]} onKill={onKill} onClear={() => {}} item label="Kill session" />
+        <KillSelection
+          sessions={[session]}
+          onKill={onKill}
+          onClear={() => {}}
+          item
+          label="Kill session"
+        />
       )}
       {!session.persistent && (
-        <CtxItem danger icon={Trash2} onSelect={() => openPaletteMode([session], "session", "session_delete")}>
+        <CtxItem
+          danger
+          icon={Trash2}
+          onSelect={() =>
+            openPaletteMode([session], "session", "session_delete")
+          }
+        >
           Delete session…
         </CtxItem>
       )}

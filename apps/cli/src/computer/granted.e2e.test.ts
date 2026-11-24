@@ -30,7 +30,10 @@ import { helperExecutablePath, helperAppPath } from "./helperApp.js";
 import { rewriteScreenshotForJson } from "./screenshotFile.js";
 import { readInstance } from "./instance.js";
 import { readState } from "../browser/instance.js";
-import { disclaimedHelperLaunch, probeHelperPermissions } from "../test-helpers/computerPermissionProbe.js";
+import {
+  disclaimedHelperLaunch,
+  probeHelperPermissions,
+} from "../test-helpers/computerPermissionProbe.js";
 import { acquireFileLock } from "../lockFile.js";
 import type { ComputerActionResult, ComputerSnapshotResult } from "./types.js";
 
@@ -38,7 +41,10 @@ const TEXTEDIT = "com.apple.TextEdit";
 
 function helperIsInstalled(): boolean {
   try {
-    return process.platform === "darwin" && fs.statSync(helperExecutablePath()).isFile();
+    return (
+      process.platform === "darwin" &&
+      fs.statSync(helperExecutablePath()).isFile()
+    );
   } catch {
     return false;
   }
@@ -60,7 +66,8 @@ let screenshotsGranted = false;
 
 const reason = await (async (): Promise<string | null> => {
   if (process.platform !== "darwin") return "not macOS";
-  if (!helperIsInstalled()) return `no helper at ${helperAppPath()} — run \`bun scripts/computer-verify.ts install <helper.tar>\``;
+  if (!helperIsInstalled())
+    return `no helper at ${helperAppPath()} — run \`bun scripts/computer-verify.ts install <helper.tar>\``;
   // Not `getPermissionStatus`: from a test its disclaimed spawn cannot even
   // start (ct-49674) and its 5-second poll is shorter than the helper's own
   // answer time (ct-49671), so it reports "not granted" on a granted machine.
@@ -72,7 +79,8 @@ const reason = await (async (): Promise<string | null> => {
   // not-granted below may skip.
   const status = await probeHelperPermissions();
   screenshotsGranted = status.screenshots === "granted";
-  if (status.accessibility !== "granted") return "Accessibility is not granted to `codecast computer`";
+  if (status.accessibility !== "granted")
+    return "Accessibility is not granted to `codecast computer`";
   return null;
 })();
 
@@ -99,7 +107,12 @@ const granted = (name: string, fn: () => Promise<void>): void => {
 function makeClient(): ComputerClient {
   return new ComputerClient({
     helperLaunch: (socketPath, tokenPath) =>
-      disclaimedHelperLaunch(helperExecutablePath(), ["--agent", socketPath, "--token-file", tokenPath]),
+      disclaimedHelperLaunch(helperExecutablePath(), [
+        "--agent",
+        socketPath,
+        "--token-file",
+        tokenPath,
+      ]),
   });
 }
 
@@ -123,8 +136,14 @@ let releaseRunLock: (() => void) | null = null;
 
 /** The frontmost app's bundle id, which is what the focus proof compares. */
 function frontApp(): string {
-  const asn = spawnSync("/usr/bin/lsappinfo", ["front"], { encoding: "utf8" }).stdout?.trim() ?? "";
-  const info = spawnSync("/usr/bin/lsappinfo", ["info", "-only", "bundleid", asn], { encoding: "utf8" }).stdout ?? "";
+  const asn =
+    spawnSync("/usr/bin/lsappinfo", ["front"], {
+      encoding: "utf8",
+    }).stdout?.trim() ?? "";
+  const info =
+    spawnSync("/usr/bin/lsappinfo", ["info", "-only", "bundleid", asn], {
+      encoding: "utf8",
+    }).stdout ?? "";
   return info.match(/"CFBundleIdentifier"="([^"]*)"/)?.[1] ?? asn;
 }
 
@@ -138,19 +157,33 @@ function findElement(tree: string, match: RegExp): number | null {
   return null;
 }
 
-function requireElement(result: ComputerSnapshotResult, match: RegExp, what: string): number {
+function requireElement(
+  result: ComputerSnapshotResult,
+  match: RegExp,
+  what: string,
+): number {
   const index = findElement(result.snapshot.treeText, match);
-  if (index === null) throw new Error(`no ${what} in TextEdit's window. Tree was:\n${result.snapshot.treeText}`);
+  if (index === null)
+    throw new Error(
+      `no ${what} in TextEdit's window. Tree was:\n${result.snapshot.treeText}`,
+    );
   return index;
 }
 
 const snapshot = () => client.getAppState({ app: TEXTEDIT });
 
 const windowIds = async (): Promise<Set<number>> =>
-  new Set((await client.listWindows({ app: TEXTEDIT })).windows.flatMap((w) => (typeof w.id === "number" ? [w.id] : [])));
+  new Set(
+    (await client.listWindows({ app: TEXTEDIT })).windows.flatMap((w) =>
+      typeof w.id === "number" ? [w.id] : [],
+    ),
+  );
 
 /** Poll TextEdit's window list until `want` says yes, or give up loudly. */
-async function untilWindows(want: (ids: Set<number>) => boolean, what: string): Promise<Set<number>> {
+async function untilWindows(
+  want: (ids: Set<number>) => boolean,
+  what: string,
+): Promise<Set<number>> {
   for (let attempt = 0; attempt < 40; attempt++) {
     const ids = await windowIds();
     if (want(ids)) return ids;
@@ -168,17 +201,24 @@ beforeAll(async () => {
     waitMs: 240_000,
     staleMs: 300_000,
     describe: "the cast computer granted e2e",
-    onWait: (holder) => console.log(`granted e2e: another run holds the Mac (pid ${holder}) — queueing behind it`),
+    onWait: (holder) =>
+      console.log(
+        `granted e2e: another run holds the Mac (pid ${holder}) — queueing behind it`,
+      ),
   });
   scratch = fs.mkdtempSync(path.join(os.tmpdir(), "cast-computer-textedit-"));
   const doc = path.join(scratch, "cast-computer.txt");
   fs.writeFileSync(doc, "seed\n");
   // -g: open it WITHOUT bringing TextEdit to the front. The whole focus proof
   // rests on the target window being in the background.
-  spawnSync("/usr/bin/open", ["-g", "-a", "TextEdit", doc], { timeout: 30_000 });
+  spawnSync("/usr/bin/open", ["-g", "-a", "TextEdit", doc], {
+    timeout: 30_000,
+  });
   client = makeClient();
   for (let attempt = 0; attempt < 40; attempt++) {
-    const windows = await client.listWindows({ app: TEXTEDIT }).catch(() => null);
+    const windows = await client
+      .listWindows({ app: TEXTEDIT })
+      .catch(() => null);
     if (windows?.windows.length) return;
     await Bun.sleep(250);
   }
@@ -216,196 +256,294 @@ afterAll(async () => {
 });
 
 describe("the observe half", () => {
-  granted("get-app-state returns an indexed tree of the background window", async () => {
-    const result = await snapshot();
-    expect(result.snapshot.app.bundleId).toBe(TEXTEDIT);
-    expect(result.snapshot.coordinateSpace).toBe("window");
-    expect(result.snapshot.elementCount).toBeGreaterThan(0);
-    expect(result.snapshot.treeText.length).toBeGreaterThan(0);
-    // Indexes are what every action takes, so the tree has to carry them.
-    expect(result.snapshot.treeText).toMatch(/^\s*\d+\s+\S/m);
-    expect(result.snapshot.window.width).toBeGreaterThan(0);
-  });
+  granted(
+    "get-app-state returns an indexed tree of the background window",
+    async () => {
+      const result = await snapshot();
+      expect(result.snapshot.app.bundleId).toBe(TEXTEDIT);
+      expect(result.snapshot.coordinateSpace).toBe("window");
+      expect(result.snapshot.elementCount).toBeGreaterThan(0);
+      expect(result.snapshot.treeText.length).toBeGreaterThan(0);
+      // Indexes are what every action takes, so the tree has to carry them.
+      expect(result.snapshot.treeText).toMatch(/^\s*\d+\s+\S/m);
+      expect(result.snapshot.window.width).toBeGreaterThan(0);
+    },
+  );
 
-  granted("the helper writes the screenshot to a 0600 file, never inline, and its scale maps pixels to points", async () => {
-    if (!screenshotsGranted) {
-      console.log("granted e2e: Screen Recording is not granted — capture assertions skipped");
-      return;
-    }
-    const raw = await snapshot();
-    expect(raw.screenshotStatus.state).toBe("captured");
-    const result = rewriteScreenshotForJson(raw);
-    const shot = result.screenshot!;
+  granted(
+    "the helper writes the screenshot to a 0600 file, never inline, and its scale maps pixels to points",
+    async () => {
+      if (!screenshotsGranted) {
+        console.log(
+          "granted e2e: Screen Recording is not granted — capture assertions skipped",
+        );
+        return;
+      }
+      const raw = await snapshot();
+      expect(raw.screenshotStatus.state).toBe("captured");
+      const result = rewriteScreenshotForJson(raw);
+      const shot = result.screenshot!;
 
-    expect(shot.path).toBeTruthy();
-    expect((shot as Record<string, unknown>).data).toBeUndefined();
-    expect(fs.statSync(shot.path).size).toBe(shot.bytes!);
-    expect(fs.statSync(shot.path!).mode & 0o777).toBe(0o600);
-    expect(fs.statSync(path.dirname(shot.path!)).mode & 0o777).toBe(0o700);
-    expect(fs.statSync(shot.path!).size).toBeGreaterThan(0);
+      expect(shot.path).toBeTruthy();
+      expect((shot as Record<string, unknown>).data).toBeUndefined();
+      expect(fs.statSync(shot.path).size).toBe(shot.bytes!);
+      expect(fs.statSync(shot.path!).mode & 0o777).toBe(0o600);
+      expect(fs.statSync(path.dirname(shot.path!)).mode & 0o777).toBe(0o700);
+      expect(fs.statSync(shot.path!).size).toBeGreaterThan(0);
 
-    // The formula the snippet teaches: action_x = pixel_x / scale. If it does
-    // not hold, every coordinate an agent reads off a screenshot is wrong.
-    expect(shot.scale).toBeGreaterThan(0);
-    expect(shot.width / shot.scale).toBeCloseTo(result.snapshot.window.width, 0);
-    expect(shot.height / shot.scale).toBeCloseTo(result.snapshot.window.height, 0);
-  });
+      // The formula the snippet teaches: action_x = pixel_x / scale. If it does
+      // not hold, every coordinate an agent reads off a screenshot is wrong.
+      expect(shot.scale).toBeGreaterThan(0);
+      expect(shot.width / shot.scale).toBeCloseTo(
+        result.snapshot.window.width,
+        0,
+      );
+      expect(shot.height / shot.scale).toBeCloseTo(
+        result.snapshot.window.height,
+        0,
+      );
+    },
+  );
 
-  granted("--crop returns one region at the display's full density", async () => {
-    if (!screenshotsGranted) return;
-    const whole = await snapshot();
-    const crop = { x: 10, y: 10, width: 120, height: 60 };
-    const zoom = await client.getAppState({ app: TEXTEDIT, noScreenshot: false, crop });
-    const shot = zoom.screenshot!;
-    expect(shot.crop).toEqual(crop);
-    // Full density: a retina window gives 2 pixels per point, more than the whole-window picture.
-    expect(shot.scale).toBeGreaterThanOrEqual(whole.screenshot!.scale);
-    expect(shot.width / shot.scale).toBeCloseTo(crop.width, 0);
-    expect(shot.height / shot.scale).toBeCloseTo(crop.height, 0);
-    await expect(client.getAppState({ app: TEXTEDIT, crop: { x: 100_000, y: 0, width: 10, height: 10 } })).rejects.toThrow(/outside the window/);
-  });
+  granted(
+    "--crop returns one region at the display's full density",
+    async () => {
+      if (!screenshotsGranted) return;
+      const whole = await snapshot();
+      const crop = { x: 10, y: 10, width: 120, height: 60 };
+      const zoom = await client.getAppState({
+        app: TEXTEDIT,
+        noScreenshot: false,
+        crop,
+      });
+      const shot = zoom.screenshot!;
+      expect(shot.crop).toEqual(crop);
+      // Full density: a retina window gives 2 pixels per point, more than the whole-window picture.
+      expect(shot.scale).toBeGreaterThanOrEqual(whole.screenshot!.scale);
+      expect(shot.width / shot.scale).toBeCloseTo(crop.width, 0);
+      expect(shot.height / shot.scale).toBeCloseTo(crop.height, 0);
+      await expect(
+        client.getAppState({
+          app: TEXTEDIT,
+          crop: { x: 100_000, y: 0, width: 10, height: 10 },
+        }),
+      ).rejects.toThrow(/outside the window/);
+    },
+  );
 
-  granted("an index from a stale tree is refused rather than acted on", async () => {
-    const before = await snapshot();
-    const target = requireElement(before, /text/i, "text element");
-    // Change the window under the cached snapshot. The next action carrying an
-    // index from `before` must be refused, not aimed at whatever now sits there.
-    await client.action("setValue", { app: TEXTEDIT, elementIndex: target, value: "changed by the stale-index test" });
-    await client.getAppState({ app: TEXTEDIT });
+  granted(
+    "an index from a stale tree is refused rather than acted on",
+    async () => {
+      const before = await snapshot();
+      const target = requireElement(before, /text/i, "text element");
+      // Change the window under the cached snapshot. The next action carrying an
+      // index from `before` must be refused, not aimed at whatever now sits there.
+      await client.action("setValue", {
+        app: TEXTEDIT,
+        elementIndex: target,
+        value: "changed by the stale-index test",
+      });
+      await client.getAppState({ app: TEXTEDIT });
 
-    const stale = before.snapshot.elementCount + 5000;
-    await expect(client.action("setValue", { app: TEXTEDIT, elementIndex: stale, value: "should never land" })).rejects.toMatchObject({
-      code: "element_not_found",
-    });
-  });
+      const stale = before.snapshot.elementCount + 5000;
+      await expect(
+        client.action("setValue", {
+          app: TEXTEDIT,
+          elementIndex: stale,
+          value: "should never land",
+        }),
+      ).rejects.toMatchObject({
+        code: "element_not_found",
+      });
+    },
+  );
 });
 
 describe("the act half", () => {
-  granted("set-value writes a background window and verifies by reading it back", async () => {
-    const before = await snapshot();
-    const target = requireElement(before, /text/i, "text element");
-    const value = `cast computer set-value ${Date.now()}`;
+  granted(
+    "set-value writes a background window and verifies by reading it back",
+    async () => {
+      const before = await snapshot();
+      const target = requireElement(before, /text/i, "text element");
+      const value = `cast computer set-value ${Date.now()}`;
 
-    const result: ComputerActionResult = await client.action("setValue", { app: TEXTEDIT, elementIndex: target, value });
-    expect(result.action?.path).toBe("accessibility");
-    // The design's whole point about verification: `verified` means the helper
-    // read the value back and it matched, not that the write returned.
-    expect(result.action?.verification).toMatchObject({ state: "verified", property: "value" });
-    expect(result.snapshot.treeText).toContain(value);
-  });
+      const result: ComputerActionResult = await client.action("setValue", {
+        app: TEXTEDIT,
+        elementIndex: target,
+        value,
+      });
+      expect(result.action?.path).toBe("accessibility");
+      // The design's whole point about verification: `verified` means the helper
+      // read the value back and it matched, not that the write returned.
+      expect(result.action?.verification).toMatchObject({
+        state: "verified",
+        property: "value",
+      });
+      expect(result.snapshot.treeText).toContain(value);
+    },
+  );
 
-  granted("click presses a control through the accessibility path, with no focus and no coordinates", async () => {
-    // The target has to be something that actually presses. This case first
-    // aimed at whatever tree line said "Secondary Actions", which in TextEdit
-    // is the scroll area ("scroll up, scroll down") — and a scroll area has no
-    // AXPress, so `click` fell through to a coordinate click and was correctly
-    // refused for want of focus. Measured on a granted Mac; the product was
-    // right and the target was wrong.
-    //
-    // A close button on a document this case opens and never edits is the
-    // honest target: it presses, it needs no focus, and the press has a visible
-    // result, so "the accessibility path worked" is observed rather than
-    // inferred from a returned string. An unmodified document closes without a
-    // save sheet, so nothing is left on screen.
-    const before = await windowIds();
-    const doc = path.join(scratch, "cast-computer-click.txt");
-    // Deliberately says nothing about what this case looks for: the rendered
-    // tree carries element VALUES as well as roles, so a document whose text
-    // named the control would be matched by the matcher below (it was, and the
-    // case aimed `click` at the text area instead of the button).
-    fs.writeFileSync(doc, "a second document, opened and never edited\n");
-    spawnSync("/usr/bin/open", ["-g", "-a", "TextEdit", doc], { timeout: 30_000 });
-    const opened = await untilWindows((ids) => [...ids].some((id) => !before.has(id)), "opened a second window");
-    const target = [...opened].find((id) => !before.has(id))!;
+  granted(
+    "click presses a control through the accessibility path, with no focus and no coordinates",
+    async () => {
+      // The target has to be something that actually presses. This case first
+      // aimed at whatever tree line said "Secondary Actions", which in TextEdit
+      // is the scroll area ("scroll up, scroll down") — and a scroll area has no
+      // AXPress, so `click` fell through to a coordinate click and was correctly
+      // refused for want of focus. Measured on a granted Mac; the product was
+      // right and the target was wrong.
+      //
+      // A close button on a document this case opens and never edits is the
+      // honest target: it presses, it needs no focus, and the press has a visible
+      // result, so "the accessibility path worked" is observed rather than
+      // inferred from a returned string. An unmodified document closes without a
+      // save sheet, so nothing is left on screen.
+      const before = await windowIds();
+      const doc = path.join(scratch, "cast-computer-click.txt");
+      // Deliberately says nothing about what this case looks for: the rendered
+      // tree carries element VALUES as well as roles, so a document whose text
+      // named the control would be matched by the matcher below (it was, and the
+      // case aimed `click` at the text area instead of the button).
+      fs.writeFileSync(doc, "a second document, opened and never edited\n");
+      spawnSync("/usr/bin/open", ["-g", "-a", "TextEdit", doc], {
+        timeout: 30_000,
+      });
+      const opened = await untilWindows(
+        (ids) => [...ids].some((id) => !before.has(id)),
+        "opened a second window",
+      );
+      const target = [...opened].find((id) => !before.has(id))!;
 
-    const front = frontApp();
-    const state = await client.getAppState({ app: TEXTEDIT, windowId: target });
-    // Anchored: a role at the START of the rendered line, never a phrase from
-    // some element's value further along it.
-    const closeButton = requireElement(state, /^close button\b/i, "close button");
-    const result = await client.action("click", { app: TEXTEDIT, elementIndex: closeButton, windowId: target });
+      const front = frontApp();
+      const state = await client.getAppState({
+        app: TEXTEDIT,
+        windowId: target,
+      });
+      // Anchored: a role at the START of the rendered line, never a phrase from
+      // some element's value further along it.
+      const closeButton = requireElement(
+        state,
+        /^close button\b/i,
+        "close button",
+      );
+      const result = await client.action("click", {
+        app: TEXTEDIT,
+        elementIndex: closeButton,
+        windowId: target,
+      });
 
-    expect(result.action?.path).toBe("accessibility");
-    expect(result.action?.actionName).toBe("AXPress");
-    // Pressing a control is not a reason to raise anything (design 11.2).
-    expect(frontApp()).toBe(front);
-    await untilWindows((ids) => !ids.has(target), "closed the window whose close button was pressed");
-  });
+      expect(result.action?.path).toBe("accessibility");
+      expect(result.action?.actionName).toBe("AXPress");
+      // Pressing a control is not a reason to raise anything (design 11.2).
+      expect(frontApp()).toBe(front);
+      await untilWindows(
+        (ids) => !ids.has(target),
+        "closed the window whose close button was pressed",
+      );
+    },
+  );
 
-  granted("synthetic input on a background window goes to that app alone, and the accessibility route is taken where one exists", async () => {
-    // The safety property from design 11.2 point 1: a keystroke with no named
-    // recipient must never be delivered blind to whatever holds focus. A
-    // background target now gets its keys in its own event queue (posted to
-    // its pid), which names the recipient, so the key lands in TextEdit and
-    // the human's front app never sees it.
-    //
-    // Observe first. The case before this one closes a window, and the helper
-    // answers an index from a superseded tree with `window_stale` rather than
-    // acting on whatever now sits there. Snapshot-then-act is the model anyway.
-    await snapshot();
-    expect(frontApp()).not.toBe(TEXTEDIT);
-    const marker = `k${Date.now() % 100000}`;
-    for (const key of marker) {
-      const pressed = await client.action("pressKey", { app: TEXTEDIT, key });
-      expect(pressed.action?.path).toBe("synthetic");
-      expect(pressed.action?.verification).toMatchObject({ state: "unverified", reason: "background_input" });
-    }
-    expect((await snapshot()).snapshot.treeText).toContain(marker);
-    // Whatever the human did meanwhile, the keys never brought TextEdit forward.
-    expect(frontApp()).not.toBe(TEXTEDIT);
+  granted(
+    "synthetic input on a background window goes to that app alone, and the accessibility route is taken where one exists",
+    async () => {
+      // The safety property from design 11.2 point 1: a keystroke with no named
+      // recipient must never be delivered blind to whatever holds focus. A
+      // background target now gets its keys in its own event queue (posted to
+      // its pid), which names the recipient, so the key lands in TextEdit and
+      // the human's front app never sees it.
+      //
+      // Observe first. The case before this one closes a window, and the helper
+      // answers an index from a superseded tree with `window_stale` rather than
+      // acting on whatever now sits there. Snapshot-then-act is the model anyway.
+      await snapshot();
+      expect(frontApp()).not.toBe(TEXTEDIT);
+      const marker = `k${Date.now() % 100000}`;
+      for (const key of marker) {
+        const pressed = await client.action("pressKey", { app: TEXTEDIT, key });
+        expect(pressed.action?.path).toBe("synthetic");
+        expect(pressed.action?.verification).toMatchObject({
+          state: "unverified",
+          reason: "background_input",
+        });
+      }
+      expect((await snapshot()).snapshot.treeText).toContain(marker);
+      // Whatever the human did meanwhile, the keys never brought TextEdit forward.
+      expect(frontApp()).not.toBe(TEXTEDIT);
 
-    // The other two need no focus, because they name the element they act on.
-    const typed = await client.action("typeText", { app: TEXTEDIT, text: `typed without focus ${Date.now()}` });
-    expect(typed.action?.path).toBe("accessibility");
-    expect(typed.action?.actionName).toBe("AXReplaceSelection");
-    expect(typed.action?.verification?.state).toBe("verified");
+      // The other two need no focus, because they name the element they act on.
+      const typed = await client.action("typeText", {
+        app: TEXTEDIT,
+        text: `typed without focus ${Date.now()}`,
+      });
+      expect(typed.action?.path).toBe("accessibility");
+      expect(typed.action?.actionName).toBe("AXReplaceSelection");
+      expect(typed.action?.verification?.state).toBe("verified");
 
-    const selected = await client.action("hotkey", { app: TEXTEDIT, key: "CmdOrCtrl+A" });
-    expect(selected.action?.path).toBe("accessibility");
-    expect(selected.action?.verification?.state).toBe("verified");
-  });
+      const selected = await client.action("hotkey", {
+        app: TEXTEDIT,
+        key: "CmdOrCtrl+A",
+      });
+      expect(selected.action?.path).toBe("accessibility");
+      expect(selected.action?.verification?.state).toBe("verified");
+    },
+  );
 });
 
 describe("focus", () => {
-  granted("a whole observe-and-act loop leaves the frontmost app untouched", async () => {
-    const before = frontApp();
-    expect(before).not.toBe(TEXTEDIT);
+  granted(
+    "a whole observe-and-act loop leaves the frontmost app untouched",
+    async () => {
+      const before = frontApp();
+      expect(before).not.toBe(TEXTEDIT);
 
-    const state = await snapshot();
-    const target = requireElement(state, /text/i, "text element");
-    await client.action("setValue", { app: TEXTEDIT, elementIndex: target, value: `no raise ${Date.now()}` });
-    // A second act, through a different verb. Deliberately NOT `click` on the
-    // text area — a text area has no AXPress, so that click fell through to a
-    // coordinate click and was refused for want of focus, which says nothing
-    // about raising. `type-text` takes the accessibility route on a background
-    // window (proven in the act half), so it exercises a second verb here
-    // without smuggling in a focus requirement this case is not about.
-    await client.action("typeText", { app: TEXTEDIT, text: " and still no raise" });
+      const state = await snapshot();
+      const target = requireElement(state, /text/i, "text element");
+      await client.action("setValue", {
+        app: TEXTEDIT,
+        elementIndex: target,
+        value: `no raise ${Date.now()}`,
+      });
+      // A second act, through a different verb. Deliberately NOT `click` on the
+      // text area — a text area has no AXPress, so that click fell through to a
+      // coordinate click and was refused for want of focus, which says nothing
+      // about raising. `type-text` takes the accessibility route on a background
+      // window (proven in the act half), so it exercises a second verb here
+      // without smuggling in a focus requirement this case is not about.
+      await client.action("typeText", {
+        app: TEXTEDIT,
+        text: " and still no raise",
+      });
 
-    // 400 ms is the helper's own settle after a raise; if a verb raised, the
-    // front would have moved by now.
-    await Bun.sleep(600);
-    expect(frontApp()).toBe(before);
-  });
+      // 400 ms is the helper's own settle after a raise; if a verb raised, the
+      // front would have moved by now.
+      await Bun.sleep(600);
+      expect(frontApp()).toBe(before);
+    },
+  );
 
-  granted("--restore-window is the one verb that moves the front, and it stamps the sentinel", async () => {
-    const before = frontApp();
-    const browserStateBefore = readState();
+  granted(
+    "--restore-window is the one verb that moves the front, and it stamps the sentinel",
+    async () => {
+      const before = frontApp();
+      const browserStateBefore = readState();
 
-    await client.getAppState({ app: TEXTEDIT, restoreWindow: true });
-    await Bun.sleep(600);
+      await client.getAppState({ app: TEXTEDIT, restoreWindow: true });
+      await Bun.sleep(600);
 
-    expect(frontApp()).toBe(TEXTEDIT);
-    expect(frontApp()).not.toBe(before);
+      expect(frontApp()).toBe(TEXTEDIT);
+      expect(frontApp()).not.toBe(before);
 
-    // The stamp only exists when a managed browser does. With none there is no
-    // agent Chrome for the sentinel to bounce, so skipping the write is correct
-    // rather than lossy (design 11.2 point 4).
-    if (browserStateBefore) {
-      const stamp = readState()?.computerRaisedAt ?? 0;
-      expect(stamp).toBeGreaterThan(Date.now() - 60_000);
-    } else {
-      console.log("granted e2e: no browser instance file, so computerRaisedAt is correctly not written");
-    }
-  });
+      // The stamp only exists when a managed browser does. With none there is no
+      // agent Chrome for the sentinel to bounce, so skipping the write is correct
+      // rather than lossy (design 11.2 point 4).
+      if (browserStateBefore) {
+        const stamp = readState()?.computerRaisedAt ?? 0;
+        expect(stamp).toBeGreaterThan(Date.now() - 60_000);
+      } else {
+        console.log(
+          "granted e2e: no browser instance file, so computerRaisedAt is correctly not written",
+        );
+      }
+    },
+  );
 });

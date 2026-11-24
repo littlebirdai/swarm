@@ -2,7 +2,8 @@
 // guest call links and the secrets guests hold. A leaf module (no imports) so
 // any function module can mint one without pulling another's graph.
 
-const SLUG_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const SLUG_ALPHABET =
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const SLUG_LENGTH = 12; // ~71 bits of entropy: the slug IS the access gate.
 
 export function newSlug(length = SLUG_LENGTH): string {

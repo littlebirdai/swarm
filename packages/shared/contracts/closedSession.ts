@@ -12,7 +12,11 @@ export type ClosedFields = {
 };
 
 export function isClosedSession(row: ClosedFields): boolean {
-  return row.inbox_closed_at != null && row.inbox_closed_at === row.inbox_dismissed_at && !row.inbox_killed_at;
+  return (
+    row.inbox_closed_at != null &&
+    row.inbox_closed_at === row.inbox_dismissed_at &&
+    !row.inbox_killed_at
+  );
 }
 
 /** Whether a hide of a lead takes this member of its nested group down: the
@@ -21,12 +25,18 @@ export function isClosedSession(row: ClosedFields): boolean {
  *  store closeInDraft). `queued`: a message waits for it (the server's
  *  has_pending_messages, the web row's has_pending). */
 export function cascadeTakesDownRow(
-  child: ClosedFields & { inbox_stashed_at?: number | null; is_subagent?: boolean | null; parent_conversation_id?: unknown; [k: string]: any },
+  child: ClosedFields & {
+    inbox_stashed_at?: number | null;
+    is_subagent?: boolean | null;
+    parent_conversation_id?: unknown;
+    [k: string]: any;
+  },
   field: "inbox_dismissed_at" | "inbox_stashed_at",
   opts: { forceKill?: boolean; close?: boolean; queued: boolean },
 ): boolean {
   // A stash takes only the members that are inbox rows of their own.
-  if (field === "inbox_stashed_at" && isOrphanOrSubagent(child as any)) return false;
+  if (field === "inbox_stashed_at" && isOrphanOrSubagent(child as any))
+    return false;
   // A quiet re-assert never re-kills.
   if (child[field] && !opts.forceKill) return false;
   // A close leaves a killed member alone (it is retired, nothing of it wakes),
@@ -38,7 +48,10 @@ export function cascadeTakesDownRow(
 
 /** A patch (or a row) that IS a close: the two stamps written together. */
 export function isClosePatch(fields: ClosedFields): boolean {
-  return !!fields.inbox_dismissed_at && fields.inbox_closed_at === fields.inbox_dismissed_at;
+  return (
+    !!fields.inbox_dismissed_at &&
+    fields.inbox_closed_at === fields.inbox_dismissed_at
+  );
 }
 
 // What makes a session "in flight": something its own agent process holds that
@@ -72,11 +85,28 @@ export type InFlightFacts = {
 // Every fact, at runtime: the type forces each key here, and a test holds both
 // gatherers to filling exactly these (convex closeInFlight.agree.test.ts).
 const IN_FLIGHT_FACT_SPEC: Record<keyof InFlightFacts, true> = {
-  queued: true, loopFresh: true, inProcessRun: true, turnLive: true, awaitingInput: true, limitParked: true, openBackgroundWork: true, fleetQueued: true,
+  queued: true,
+  loopFresh: true,
+  inProcessRun: true,
+  turnLive: true,
+  awaitingInput: true,
+  limitParked: true,
+  openBackgroundWork: true,
+  fleetQueued: true,
 };
-export const IN_FLIGHT_FACT_KEYS = Object.keys(IN_FLIGHT_FACT_SPEC) as ReadonlyArray<keyof InFlightFacts>;
+export const IN_FLIGHT_FACT_KEYS = Object.keys(
+  IN_FLIGHT_FACT_SPEC,
+) as ReadonlyArray<keyof InFlightFacts>;
 
-export type InFlightReason = "queued" | "fleet" | "loop" | "workflow" | "live" | "awaiting" | "background" | "limit";
+export type InFlightReason =
+  | "queued"
+  | "fleet"
+  | "loop"
+  | "workflow"
+  | "live"
+  | "awaiting"
+  | "background"
+  | "limit";
 
 /** Why a close must set this session aside, or null when stopping it loses nothing. */
 export function closeInFlightReason(f: InFlightFacts): InFlightReason | null {

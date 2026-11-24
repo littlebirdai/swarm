@@ -36,7 +36,6 @@ export interface FaceDescription {
   refused?: boolean;
 }
 
-
 /**
  * A WALL, not a list.
  *
@@ -55,7 +54,9 @@ export interface FaceDescription {
  *  open. The always-mounted panel uses PeopleWallView with the data it already
  *  holds, so the window never pays for a second subscription. */
 export function PeopleWall({ callsEnabled }: { callsEnabled: boolean }) {
-  return <PeopleWallView callsEnabled={callsEnabled} data={usePeopleRoster()} />;
+  return (
+    <PeopleWallView callsEnabled={callsEnabled} data={usePeopleRoster()} />
+  );
 }
 
 export function PeopleWallView({
@@ -80,17 +81,30 @@ export function PeopleWallView({
     // talked to and the wall should look like it. The attribute is written once
     // per burst, from a status the list already subscribes to; nothing here
     // moves at the frame rate of a voice.
-    <div className="people-wall" data-holding={data.sendingRoomKey ? "1" : undefined}>
+    <div
+      className="people-wall"
+      data-holding={data.sendingRoomKey ? "1" : undefined}
+    >
       <div className="people-wall-cluster">
         {wall.present.map((face) => (
-          <WallFaceButton key={face.id} face={face} data={data} callsEnabled={callsEnabled} />
+          <WallFaceButton
+            key={face.id}
+            face={face}
+            data={data}
+            callsEnabled={callsEnabled}
+          />
         ))}
       </div>
       {wall.gone.length > 0 && (
         <div className="people-wall-gone">
           <div className="people-wall-gone-cluster">
             {wall.gone.map((face) => (
-              <WallFaceButton key={face.id} face={face} data={data} callsEnabled={callsEnabled} />
+              <WallFaceButton
+                key={face.id}
+                face={face}
+                data={data}
+                callsEnabled={callsEnabled}
+              />
             ))}
           </div>
         </div>
@@ -131,7 +145,15 @@ export function WallFaceButton({
   const inHuddle = isInHuddle(id, row);
   const talking = isTalking(id, row);
   const line = useMemo(
-    () => presenceActivityLine(member, { now, fleet, room, engagement, inHuddle, viewerId }),
+    () =>
+      presenceActivityLine(member, {
+        now,
+        fleet,
+        room,
+        engagement,
+        inHuddle,
+        viewerId,
+      }),
     [member, now, fleet, room, engagement, inHuddle, viewerId],
   );
 
@@ -158,7 +180,8 @@ export function WallFaceButton({
   const [open, setOpen] = useState(false);
   const seatRef = useRef<HTMLSpanElement | null>(null);
   useEventListener("pointerdown", (e: Event) => {
-    if (open && seatRef.current && !seatRef.current.contains(e.target as Node)) setOpen(false);
+    if (open && seatRef.current && !seatRef.current.contains(e.target as Node))
+      setOpen(false);
   });
 
   // The describe channel: the same words the label under the face shows, told
@@ -258,8 +281,16 @@ export function WallFaceButton({
         }}
         onBlur={unattend}
       >
-        <span ref={key.txRef} className="people-face-ring people-face-ring-tx" aria-hidden="true" />
-        <span ref={key.rxRef} className="people-face-ring people-face-ring-rx" aria-hidden="true" />
+        <span
+          ref={key.txRef}
+          className="people-face-ring people-face-ring-tx"
+          aria-hidden="true"
+        />
+        <span
+          ref={key.rxRef}
+          className="people-face-ring people-face-ring-rx"
+          aria-hidden="true"
+        />
         <MemberFace
           member={member}
           size={px}
@@ -283,8 +314,12 @@ export function WallFaceButton({
       {!open && (
         <span className="people-face-label" aria-hidden="true">
           <span className="people-face-name">{name}</span>
-          <span className={`people-face-line ${PRESENCE_META[visual].text}`}>{line}</span>
-          <span className="people-face-gesture">CLICK for Talk · Ring · Message</span>
+          <span className={`people-face-line ${PRESENCE_META[visual].text}`}>
+            {line}
+          </span>
+          <span className="people-face-gesture">
+            CLICK for Talk · Ring · Message
+          </span>
         </span>
       )}
       {/* THE THREE ACTIONS, under the face that was clicked. */}

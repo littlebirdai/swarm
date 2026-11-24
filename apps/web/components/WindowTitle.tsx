@@ -18,7 +18,11 @@ import { teamMembersOf } from "../lib/activeTeam";
 export function WindowTitle() {
   const routerLocation = useLocation();
   useInboxStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path);
-  useWindowTitle(typeof window === "undefined" ? routerLocation.pathname + routerLocation.search : window.location.pathname + window.location.search);
+  useWindowTitle(
+    typeof window === "undefined"
+      ? routerLocation.pathname + routerLocation.search
+      : window.location.pathname + window.location.search,
+  );
   return null;
 }
 
@@ -38,11 +42,21 @@ function useWindowTitle(path: string) {
     const label = pathLabel(path);
     // An inbox window titles by the session it is SHOWING (the store pointer);
     // the URL's ?s= deep link is the fallback inside tabTitle.
-    const inboxish = path.startsWith("/inbox") || path.startsWith("/conversation");
-    const sessionId = inboxish ? s.currentSessionId ?? undefined : undefined;
+    const inboxish =
+      path.startsWith("/inbox") || path.startsWith("/conversation");
+    const sessionId = inboxish ? (s.currentSessionId ?? undefined) : undefined;
     // The same arguments the tab strip passes, so a tab and its window name a
     // goal, role, project or person the same way.
-    const rest = tabTitle({ id: "window", path, sessionId, title: "", createdAt: 0 }, s.sessions, s.chatChannels, teamMembersOf(s), s.currentUser?._id, s.initiatives, activeWorkspaceKey(s.clientState.ui?.active_team_id, s.currentUser?._id), s);
+    const rest = tabTitle(
+      { id: "window", path, sessionId, title: "", createdAt: 0 },
+      s.sessions,
+      s.chatChannels,
+      teamMembersOf(s),
+      s.currentUser?._id,
+      s.initiatives,
+      activeWorkspaceKey(s.clientState.ui?.active_team_id, s.currentUser?._id),
+      s,
+    );
     // An object on the Org screen sits on the Org surface once its name is
     // known ("Codecast Org | Win the private network"); its kind and handle
     // ("Goal in-1") stand in only until the store holds the row.

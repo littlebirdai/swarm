@@ -15,17 +15,39 @@ const PRIVATE = "conv_2" as any;
 
 function context(user: string | null) {
   const db = makeFakeDb({
-    users: [{ _id: USER, name: "Ashot" }, { _id: OTHER, name: "Sam" }],
+    users: [
+      { _id: USER, name: "Ashot" },
+      { _id: OTHER, name: "Sam" },
+    ],
     team_memberships: [],
     conversations: [
-      { _id: CONV, user_id: USER, is_private: true, session_id: "sess-1", short_id: "jx70ntf", title: "Git backend", updated_at: 5_000 },
-      { _id: PRIVATE, user_id: OTHER, is_private: true, session_id: "sess-2", title: "Not mine", updated_at: 5_000 },
+      {
+        _id: CONV,
+        user_id: USER,
+        is_private: true,
+        session_id: "sess-1",
+        short_id: "jx70ntf",
+        title: "Git backend",
+        updated_at: 5_000,
+      },
+      {
+        _id: PRIVATE,
+        user_id: OTHER,
+        is_private: true,
+        session_id: "sess-2",
+        title: "Not mine",
+        updated_at: 5_000,
+      },
     ],
     session_reads: [],
   });
   return {
     db,
-    auth: { async getUserIdentity() { return user ? { subject: `${user}|session` } : null; } },
+    auth: {
+      async getUserIdentity() {
+        return user ? { subject: `${user}|session` } : null;
+      },
+    },
   } as any;
 }
 
@@ -34,22 +56,39 @@ const rows = (ctx: any) => ctx.db._tables.session_reads;
 describe("sessionReads.acknowledge", () => {
   test("inserts one mark for this viewer at the stamp they name", async () => {
     const ctx = context(USER);
-    const out = await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 4_000 });
+    const out = await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 4_000,
+    });
 
     expect(rows(ctx)).toHaveLength(1);
-    expect(rows(ctx)[0]).toMatchObject({ user_id: USER, conversation_id: CONV, acknowledged_at: 4_000 });
+    expect(rows(ctx)[0]).toMatchObject({
+      user_id: USER,
+      conversation_id: CONV,
+      acknowledged_at: 4_000,
+    });
     expect(out.acknowledged_at).toBe(4_000);
     // No stored unread, and no copy of the conversation's own updated_at: the
     // comparison is the client's, against a live row, so it cannot go stale.
-    expect(Object.keys(rows(ctx)[0]).sort()).toEqual(
-      ["_id", "acknowledged_at", "conversation_id", "updated_at", "user_id"],
-    );
+    expect(Object.keys(rows(ctx)[0]).sort()).toEqual([
+      "_id",
+      "acknowledged_at",
+      "conversation_id",
+      "updated_at",
+      "user_id",
+    ]);
   });
 
   test("a second ack moves the same row, never adds another", async () => {
     const ctx = context(USER);
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 4_000 });
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 6_000 });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 4_000,
+    });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 6_000,
+    });
     expect(rows(ctx)).toHaveLength(1);
     expect(rows(ctx)[0].acknowledged_at).toBe(6_000);
   });
@@ -58,8 +97,14 @@ describe("sessionReads.acknowledge", () => {
     // Two devices ack the same session seconds apart; the older stamp must not
     // re-unread what the viewer already saw.
     const ctx = context(USER);
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 6_000 });
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 4_000 });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 6_000,
+    });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 4_000,
+    });
     expect(rows(ctx)[0].acknowledged_at).toBe(6_000);
   });
 
@@ -77,7 +122,10 @@ describe("sessionReads.acknowledge", () => {
     await (markUnread as any)._handler(ctx, { conversation_id: CONV });
     expect(rows(ctx)[0].manual_unread).toBe(true);
 
-    const out = await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 6_000 });
+    const out = await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 6_000,
+    });
     expect(rows(ctx)[0].manual_unread).toBe(false);
     // The projection omits a false flag, so the client's optimistic delete of
     // the field reconciles by === against what comes back.
@@ -92,15 +140,17 @@ describe("sessionReads.acknowledge", () => {
 
   test("a session the caller cannot read cannot be marked", async () => {
     const ctx = context(USER);
-    await expect((acknowledge as any)._handler(ctx, { conversation_id: PRIVATE }))
-      .rejects.toThrow("Conversation not found");
+    await expect(
+      (acknowledge as any)._handler(ctx, { conversation_id: PRIVATE }),
+    ).rejects.toThrow("Conversation not found");
     expect(rows(ctx)).toHaveLength(0);
   });
 
   test("an unauthenticated caller writes nothing", async () => {
     const ctx = context(null);
-    await expect((acknowledge as any)._handler(ctx, { conversation_id: CONV }))
-      .rejects.toThrow("Unauthorized");
+    await expect(
+      (acknowledge as any)._handler(ctx, { conversation_id: CONV }),
+    ).rejects.toThrow("Unauthorized");
     expect(rows(ctx)).toHaveLength(0);
   });
 });
@@ -108,26 +158,41 @@ describe("sessionReads.acknowledge", () => {
 describe("sessionReads.markUnread", () => {
   test("lights a session that has no mark yet", async () => {
     const ctx = context(USER);
-    const out = await (markUnread as any)._handler(ctx, { conversation_id: CONV });
+    const out = await (markUnread as any)._handler(ctx, {
+      conversation_id: CONV,
+    });
     expect(out.manual_unread).toBe(true);
     expect(rows(ctx)[0].acknowledged_at).toBe(0);
   });
 
   test("lights a session the viewer had already acknowledged, without moving the mark", async () => {
     const ctx = context(USER);
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 6_000 });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 6_000,
+    });
     await (markUnread as any)._handler(ctx, { conversation_id: CONV });
-    expect(rows(ctx)[0]).toMatchObject({ acknowledged_at: 6_000, manual_unread: true });
+    expect(rows(ctx)[0]).toMatchObject({
+      acknowledged_at: 6_000,
+      manual_unread: true,
+    });
   });
 });
 
 describe("sessionReads.listMine", () => {
   test("returns only the caller's own marks", async () => {
     const ctx = context(USER);
-    await (acknowledge as any)._handler(ctx, { conversation_id: CONV, acknowledged_at: 6_000 });
+    await (acknowledge as any)._handler(ctx, {
+      conversation_id: CONV,
+      acknowledged_at: 6_000,
+    });
     // A mark belonging to someone else, in the same table.
     ctx.db._tables.session_reads.push({
-      _id: "other_read", user_id: OTHER, conversation_id: PRIVATE, acknowledged_at: 1, updated_at: 1,
+      _id: "other_read",
+      user_id: OTHER,
+      conversation_id: PRIVATE,
+      acknowledged_at: 1,
+      updated_at: 1,
     });
 
     const out = await (listMine as any)._handler(ctx, {});
@@ -151,30 +216,69 @@ describe("dispatch read marks on a session the viewer cannot mark", () => {
 
   function dispatchContext() {
     const db = makeFakeDb({
-      users: [{ _id: USER, name: "Ashot" }, { _id: OTHER, name: "Sam" }],
+      users: [
+        { _id: USER, name: "Ashot" },
+        { _id: OTHER, name: "Sam" },
+      ],
       team_memberships: [],
       conversations: [
-        { _id: OWN, user_id: USER, is_private: true, session_id: "sess-own", updated_at: 5_000 },
-        { _id: FOREIGN, user_id: OTHER, is_private: true, session_id: "sess-foreign", updated_at: 5_000 },
+        {
+          _id: OWN,
+          user_id: USER,
+          is_private: true,
+          session_id: "sess-own",
+          updated_at: 5_000,
+        },
+        {
+          _id: FOREIGN,
+          user_id: OTHER,
+          is_private: true,
+          session_id: "sess-foreign",
+          updated_at: 5_000,
+        },
       ],
       session_reads: [],
     });
-    return { db, auth: { async getUserIdentity() { return { subject: `${USER}|session` }; } } } as any;
+    return {
+      db,
+      auth: {
+        async getUserIdentity() {
+          return { subject: `${USER}|session` };
+        },
+      },
+    } as any;
   }
 
   test("writeSessionAck and writeSessionUnread write nothing and do not throw", async () => {
     const ctx = dispatchContext();
     for (const id of [FOREIGN, GONE]) {
-      expect(await (dispatch as any)._handler(ctx, { action: "writeSessionAck", args: [id, 4_000] })).toBeNull();
-      expect(await (dispatch as any)._handler(ctx, { action: "writeSessionUnread", args: [id] })).toBeNull();
+      expect(
+        await (dispatch as any)._handler(ctx, {
+          action: "writeSessionAck",
+          args: [id, 4_000],
+        }),
+      ).toBeNull();
+      expect(
+        await (dispatch as any)._handler(ctx, {
+          action: "writeSessionUnread",
+          args: [id],
+        }),
+      ).toBeNull();
     }
     expect(rows(ctx)).toEqual([]);
   });
 
   test("the viewer's own session still gets its mark", async () => {
     const ctx = dispatchContext();
-    await (dispatch as any)._handler(ctx, { action: "writeSessionAck", args: [OWN, 4_000] });
+    await (dispatch as any)._handler(ctx, {
+      action: "writeSessionAck",
+      args: [OWN, 4_000],
+    });
     expect(rows(ctx)).toHaveLength(1);
-    expect(rows(ctx)[0]).toMatchObject({ user_id: USER, conversation_id: OWN, acknowledged_at: 4_000 });
+    expect(rows(ctx)[0]).toMatchObject({
+      user_id: USER,
+      conversation_id: OWN,
+      acknowledged_at: 4_000,
+    });
   });
 });

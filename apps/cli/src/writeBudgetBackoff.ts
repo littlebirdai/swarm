@@ -18,7 +18,8 @@ const MAX_MS = 30_000;
 const STREAK_RESET_MS = 60_000;
 
 export function isWriteBudgetRefusal(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  const message =
+    err instanceof Error ? err.message : typeof err === "string" ? err : "";
   return message.includes("Too many writes per second");
 }
 
@@ -31,7 +32,8 @@ export class WriteBudgetBackoff {
 
   /** Record a refusal; returns how long bulk sync now pauses. */
   refused(now = Date.now()): number {
-    this.streak = now - this.lastRefusalAt > STREAK_RESET_MS ? 1 : this.streak + 1;
+    this.streak =
+      now - this.lastRefusalAt > STREAK_RESET_MS ? 1 : this.streak + 1;
     this.lastRefusalAt = now;
     const ceiling = Math.min(MAX_MS, BASE_MS * 2 ** (this.streak - 1));
     const delay = Math.round(ceiling * (0.5 + 0.5 * this.random()));

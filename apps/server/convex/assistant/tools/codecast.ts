@@ -20,11 +20,22 @@
 // that text as data.
 import { defineTool, Type, type Tool } from "@platform/agent";
 import { ROUTINE_MIN_INTERVAL_MS } from "@codecast/shared/contracts/assistant";
-import { TASK_PRIORITIES, TASK_STATUS_CATEGORIES } from "@codecast/shared/tasks";
+import {
+  TASK_PRIORITIES,
+  TASK_STATUS_CATEGORIES,
+} from "@codecast/shared/tasks";
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import { MEMORY_DOC_TITLE, TASK_LIST_FILTERS } from "./workspace";
-import { clockMinutes, instant, NEVER, WEEKDAY_KEYS, weekdayNumbers, WHOLE_TOOL, type AllowScopes } from "@platform/assistant";
+import {
+  clockMinutes,
+  instant,
+  NEVER,
+  WEEKDAY_KEYS,
+  weekdayNumbers,
+  WHOLE_TOOL,
+  type AllowScopes,
+} from "@platform/assistant";
 
 /** The sourced codecast tools whose results hold only text the person
  *  approved: the memory doc, which grows through remember's gate or an
@@ -32,7 +43,10 @@ import { clockMinutes, instant, NEVER, WEEKDAY_KEYS, weekdayNumbers, WHOLE_TOOL,
  *  gate. Every other sourced tool counts as outside content: a task or doc
  *  can hold text others wrote (a synced issue, a pasted email) or that the
  *  assistant wrote without asking while mail was in front of it. */
-export const PERSON_APPROVED_TOOLS: ReadonlySet<string> = new Set(["recall", "list_routines"]);
+export const PERSON_APPROVED_TOOLS: ReadonlySet<string> = new Set([
+  "recall",
+  "list_routines",
+]);
 
 /** How an Always allow narrows for each codecast tool (@platform/assistant
  *  rules). A routine's prompt comes back later as the person's own words, and
@@ -56,7 +70,8 @@ export interface CodecastDeps {
 const ops = internal.assistant.tools.workspace;
 
 const json = (value: unknown) => JSON.stringify(value, null, 1);
-const literals = <T extends string>(values: readonly T[]) => Type.Union(values.map((v) => Type.Literal(v)));
+const literals = <T extends string>(values: readonly T[]) =>
+  Type.Union(values.map((v) => Type.Literal(v)));
 
 export function codecastTools(deps: CodecastDeps): Tool[] {
   // The revision each doc was read at in this run, for a replace_doc that
@@ -69,7 +84,8 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
     defineTool({
       name: "list_tasks",
       label: "Check tasks",
-      description: "List the person's own to-dos, most recently changed first: open ones by default, or finished ones (done or dropped), or all.",
+      description:
+        "List the person's own to-dos, most recently changed first: open ones by default, or finished ones (done or dropped), or all.",
       parameters: Type.Object({
         filter: Type.Optional(literals(TASK_LIST_FILTERS)),
         limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
@@ -77,8 +93,15 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
       risk: "read",
       source: "workspace",
       run: async ({ filter, limit }) => {
-        const tasks = await deps.runQuery(ops.listTasks, { ...user, filter, limit });
-        return { content: tasks.length ? json(tasks) : "No tasks.", details: { tasks: tasks.length } };
+        const tasks = await deps.runQuery(ops.listTasks, {
+          ...user,
+          filter,
+          limit,
+        });
+        return {
+          content: tasks.length ? json(tasks) : "No tasks.",
+          details: { tasks: tasks.length },
+        };
       },
     }),
     defineTool({
@@ -92,16 +115,25 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
       }),
       risk: "read",
       run: async (args) => {
-        const { id } = await deps.runMutation(ops.createTask, { ...here, ...args });
-        return { content: `Added task ${id}: ${args.title}`, details: { task_id: id } };
+        const { id } = await deps.runMutation(ops.createTask, {
+          ...here,
+          ...args,
+        });
+        return {
+          content: `Added task ${id}: ${args.title}`,
+          details: { task_id: id },
+        };
       },
     }),
     defineTool({
       name: "update_task",
       label: "Update a task",
-      description: "Change one of the person's own to-dos: its title, notes, priority, or status (done closes it, dropped abandons it). A to-do linked to a GitHub or Linear issue, or shared by link, cannot be changed here.",
+      description:
+        "Change one of the person's own to-dos: its title, notes, priority, or status (done closes it, dropped abandons it). A to-do linked to a GitHub or Linear issue, or shared by link, cannot be changed here.",
       parameters: Type.Object({
-        id: Type.String({ description: "The to-do's id from list_tasks, like ct-123." }),
+        id: Type.String({
+          description: "The to-do's id from list_tasks, like ct-123.",
+        }),
         title: Type.Optional(Type.String()),
         description: Type.Optional(Type.String()),
         status: Type.Optional(literals(TASK_STATUS_CATEGORIES)),
@@ -109,25 +141,40 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
       }),
       risk: "read",
       run: async (args) => {
-        const after = await deps.runMutation(ops.updateTask, { ...user, ...args });
-        return { content: `Updated task ${after.id}: ${after.status}, ${after.priority} priority.`, details: { task_id: after.id } };
+        const after = await deps.runMutation(ops.updateTask, {
+          ...user,
+          ...args,
+        });
+        return {
+          content: `Updated task ${after.id}: ${after.status}, ${after.priority} priority.`,
+          details: { task_id: after.id },
+        };
       },
     }),
     defineTool({
       name: "read_doc",
       label: "Read a note",
-      description: "Read one of the person's own notes in codecast, by id or by words from its title. Returns the best match in full and names the other matches.",
+      description:
+        "Read one of the person's own notes in codecast, by id or by words from its title. Returns the best match in full and names the other matches.",
       parameters: Type.Object({
         id: Type.Optional(Type.String()),
-        query: Type.Optional(Type.String({ description: "Words from the note's title." })),
+        query: Type.Optional(
+          Type.String({ description: "Words from the note's title." }),
+        ),
       }),
       risk: "read",
       source: "workspace",
       run: async (args) => {
         const doc = await deps.runQuery(ops.readDoc, { ...user, ...args });
-        if (!doc.found) return { content: `No note of yours has a title matching "${args.query}".`, details: { found: false } };
+        if (!doc.found)
+          return {
+            content: `No note of yours has a title matching "${args.query}".`,
+            details: { found: false },
+          };
         readAt.set(doc.id, doc.revision);
-        const others = doc.others.length ? `\n\nOther matches: ${doc.others.map((o: any) => `${o.title} (${o.id})`).join("; ")}` : "";
+        const others = doc.others.length
+          ? `\n\nOther matches: ${doc.others.map((o: any) => `${o.title} (${o.id})`).join("; ")}`
+          : "";
         return {
           content: `Doc ${doc.id}: ${doc.title} (updated ${doc.updated}, revision ${doc.revision})\n\n${doc.content}${doc.truncated ? "\n[cut: the doc goes on]" : ""}${others}`,
           details: { doc_id: doc.id, revision: doc.revision },
@@ -142,30 +189,55 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
         "To rewrite a note's existing text, or to add to a note shared by link, use replace_doc. The conversation shows what you write as a link to the note.",
       parameters: Type.Object({
         id: Type.Optional(Type.String()),
-        title: Type.Optional(Type.String({ description: "The new note's title." })),
+        title: Type.Optional(
+          Type.String({ description: "The new note's title." }),
+        ),
         content: Type.String({ description: "Markdown." }),
       }),
       risk: "read",
       run: async ({ id, title, content }) => {
-        const done = await deps.runMutation(ops.writeDoc, { ...user, content, ...(id ? { id, append: true } : { title }) });
-        return { content: `${done.created ? "Created" : "Added to"} doc ${done.id}.`, details: { doc_id: done.id } };
+        const done = await deps.runMutation(ops.writeDoc, {
+          ...user,
+          content,
+          ...(id ? { id, append: true } : { title }),
+        });
+        return {
+          content: `${done.created ? "Created" : "Added to"} doc ${done.id}.`,
+          details: { doc_id: done.id },
+        };
       },
     }),
     defineTool({
       name: "replace_doc",
       label: "Rewrite a note",
-      description: "Replace the whole text of one of the person's own notes in codecast, by its id. The old text is not kept, so the person approves the new text first.",
+      description:
+        "Replace the whole text of one of the person's own notes in codecast, by its id. The old text is not kept, so the person approves the new text first.",
       parameters: Type.Object({
         id: Type.String(),
-        content: Type.String({ description: "The note's new text in full, Markdown." }),
-        title: Type.Optional(Type.String({ description: "A new title, if it changes." })),
+        content: Type.String({
+          description: "The note's new text in full, Markdown.",
+        }),
+        title: Type.Optional(
+          Type.String({ description: "A new title, if it changes." }),
+        ),
         // In the arguments, so it survives the wait for the person's approval.
-        base: Type.String({ description: "The revision read_doc showed for the text you rewrote." }),
+        base: Type.String({
+          description: "The revision read_doc showed for the text you rewrote.",
+        }),
       }),
       risk: "write",
       run: async ({ id, content, title, base }) => {
-        const done = await deps.runMutation(ops.writeDoc, { ...user, id, content, base, ...(title ? { title } : {}) });
-        return { content: `Rewrote doc ${done.id}.`, details: { doc_id: done.id } };
+        const done = await deps.runMutation(ops.writeDoc, {
+          ...user,
+          id,
+          content,
+          base,
+          ...(title ? { title } : {}),
+        });
+        return {
+          content: `Rewrote doc ${done.id}.`,
+          details: { doc_id: done.id },
+        };
       },
     }),
     defineTool({
@@ -177,7 +249,10 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
       parameters: Type.Object({ fact: Type.String() }),
       risk: "read",
       run: async ({ fact }) => {
-        const { doc_id } = await deps.runMutation(ops.remember, { ...user, fact });
+        const { doc_id } = await deps.runMutation(ops.remember, {
+          ...user,
+          fact,
+        });
         return { content: "Remembered.", details: { doc_id } };
       },
     }),
@@ -190,7 +265,10 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
       source: "workspace",
       run: async () => {
         const { content, doc_id } = await deps.runQuery(ops.recall, user);
-        return { content: content.trim() ? content : "Nothing remembered yet.", details: { doc_id } };
+        return {
+          content: content.trim() ? content : "Nothing remembered yet.",
+          details: { doc_id },
+        };
       },
     }),
     defineTool({
@@ -201,67 +279,149 @@ export function codecastTools(deps: CodecastDeps): Tool[] {
         "Write the instruction so it stands on its own. " +
         "A routine on days of the week (every day at 8, weekdays at 8, every Sunday at 6) is always days plus time, listing exactly the days they named, and keeps that time on their clock; it starts at the next listed day. Never write a daily or weekly routine as repeat_every_hours of 24 or 168, which runs on days they did not ask for. A repeat within a day (every 3 hours) is first_run plus repeat_every_hours. Once is first_run alone.",
       parameters: Type.Object({
-        instruction: Type.String({ description: "What you will do each time, in plain words, like \"Remind you to plan the week, with a short checklist\". It comes back to you as this routine's request when it runs. Name only work your tools can do now." }),
-        summary: Type.Optional(Type.String({ description: "Always write it. One sentence to the person saying what they will get, as a promise in their terms, like \"Each weekday at 8 AM I'll send you your open to-dos, so you can plan the day.\" Their approval card and Routines show it; the instruction stays out of view." })),
-        title: Type.Optional(Type.String({ description: "A short name the person sees." })),
-        days: Type.Optional(Type.Array(literals(WEEKDAY_KEYS), { minItems: 1, uniqueItems: true, description: "The days of the week it runs on: all seven for every day, mon to fri for weekdays, one day for weekly." })),
-        time: Type.Optional(Type.String({ description: "With days only: the time of day on their clock, 24-hour HH:MM, like 18:30." })),
-        starts_on: Type.Optional(Type.String({ description: "With days only, and only when they ask it to begin later than the next listed day: YYYY-MM-DD. It then starts at the first listed day on or after this date." })),
-        first_run: Type.Optional(Type.String({ description: "Not with days. For once or a repeat within a day: when it first runs, ISO 8601 with its UTC offset, like 2026-10-06T08:00:00-07:00." })),
-        repeat_every_hours: Type.Optional(Type.Number({ exclusiveMinimum: 0, exclusiveMaximum: 24, description: `For a repeat within a day only: repeat this many hours apart, counted from first_run. At least ${ROUTINE_MIN_INTERVAL_MS / 3_600_000}; the person's plan may set a longer floor. Not with days.` })),
+        instruction: Type.String({
+          description:
+            'What you will do each time, in plain words, like "Remind you to plan the week, with a short checklist". It comes back to you as this routine\'s request when it runs. Name only work your tools can do now.',
+        }),
+        summary: Type.Optional(
+          Type.String({
+            description:
+              'Always write it. One sentence to the person saying what they will get, as a promise in their terms, like "Each weekday at 8 AM I\'ll send you your open to-dos, so you can plan the day." Their approval card and Routines show it; the instruction stays out of view.',
+          }),
+        ),
+        title: Type.Optional(
+          Type.String({ description: "A short name the person sees." }),
+        ),
+        days: Type.Optional(
+          Type.Array(literals(WEEKDAY_KEYS), {
+            minItems: 1,
+            uniqueItems: true,
+            description:
+              "The days of the week it runs on: all seven for every day, mon to fri for weekdays, one day for weekly.",
+          }),
+        ),
+        time: Type.Optional(
+          Type.String({
+            description:
+              "With days only: the time of day on their clock, 24-hour HH:MM, like 18:30.",
+          }),
+        ),
+        starts_on: Type.Optional(
+          Type.String({
+            description:
+              "With days only, and only when they ask it to begin later than the next listed day: YYYY-MM-DD. It then starts at the first listed day on or after this date.",
+          }),
+        ),
+        first_run: Type.Optional(
+          Type.String({
+            description:
+              "Not with days. For once or a repeat within a day: when it first runs, ISO 8601 with its UTC offset, like 2026-10-06T08:00:00-07:00.",
+          }),
+        ),
+        repeat_every_hours: Type.Optional(
+          Type.Number({
+            exclusiveMinimum: 0,
+            exclusiveMaximum: 24,
+            description: `For a repeat within a day only: repeat this many hours apart, counted from first_run. At least ${ROUTINE_MIN_INTERVAL_MS / 3_600_000}; the person's plan may set a longer floor. Not with days.`,
+          }),
+        ),
       }),
       risk: "write",
-      run: async ({ instruction, summary, title, first_run, days, time, starts_on, repeat_every_hours }) => {
-        if (days?.length && repeat_every_hours !== undefined) throw new Error("Give days or repeat_every_hours, not both");
+      run: async ({
+        instruction,
+        summary,
+        title,
+        first_run,
+        days,
+        time,
+        starts_on,
+        repeat_every_hours,
+      }) => {
+        if (days?.length && repeat_every_hours !== undefined)
+          throw new Error("Give days or repeat_every_hours, not both");
         // The schema says it too; a model that sends 24 anyway is told the
         // shape rather than set a routine that runs on days nobody asked for.
-        if (repeat_every_hours !== undefined && repeat_every_hours >= 24) throw new Error("A repeat of a day or more is days plus time (every day: all seven days; weekdays: mon to fri), not repeat_every_hours");
+        if (repeat_every_hours !== undefined && repeat_every_hours >= 24)
+          throw new Error(
+            "A repeat of a day or more is days plus time (every day: all seven days; weekdays: mon to fri), not repeat_every_hours",
+          );
         const weekdays = days?.length ? weekdayNumbers(days) : undefined;
         const minutes = time === undefined ? undefined : clockMinutes(time);
-        if (minutes === null) throw new Error("time is 24-hour HH:MM, like 18:30");
+        if (minutes === null)
+          throw new Error("time is 24-hour HH:MM, like 18:30");
         // Days and a time leave the first day to the server (firstCadenceRun),
         // which counts weekdays right. A first_run with days is still read, so
         // a call parked on its card before this shape runs as asked.
         const atTime = weekdays && minutes !== undefined;
-        if (!atTime && !first_run) throw new Error(weekdays ? "A routine on days needs its time" : "Give first_run, or days and time");
+        if (!atTime && !first_run)
+          throw new Error(
+            weekdays
+              ? "A routine on days needs its time"
+              : "Give first_run, or days and time",
+          );
         // Daily or weekly, the nominal spacing the plan check reads; the run
         // times come from the wall clock (assistant/routines.ts hostedWallCadence).
-        const interval_ms = weekdays ? (weekdays.length === 1 ? 7 * 86_400_000 : 86_400_000)
-          : repeat_every_hours !== undefined ? Math.round(repeat_every_hours * 3_600_000) : undefined;
+        const interval_ms = weekdays
+          ? weekdays.length === 1
+            ? 7 * 86_400_000
+            : 86_400_000
+          : repeat_every_hours !== undefined
+            ? Math.round(repeat_every_hours * 3_600_000)
+            : undefined;
         const routine = await deps.runMutation(ops.scheduleRoutine, {
           ...here,
           prompt: instruction,
           ...(title ? { title } : {}),
           ...(summary ? { summary } : {}),
-          ...(atTime ? { minutes, ...(starts_on ? { starts_on } : {}) } : { run_at: instant(first_run!, "first_run") }),
+          ...(atTime
+            ? { minutes, ...(starts_on ? { starts_on } : {}) }
+            : { run_at: instant(first_run!, "first_run") }),
           ...(interval_ms !== undefined ? { interval_ms } : {}),
           ...(weekdays ? { weekdays } : {}),
         });
-        return { content: `Routine set: ${json(routine)}`, details: { routine_id: routine.id } };
+        return {
+          content: `Routine set: ${json(routine)}`,
+          details: { routine_id: routine.id },
+        };
       },
     }),
     defineTool({
       name: "list_routines",
       label: "Check routines",
-      description: "List the routines set on this conversation, with when each runs next.",
+      description:
+        "List the routines set on this conversation, with when each runs next.",
       parameters: Type.Object({}),
       risk: "read",
       // Titles are stored text the person can edit on the web.
       source: "workspace",
       run: async () => {
         const routines = await deps.runQuery(ops.listRoutines, here);
-        return { content: routines.length ? json(routines) : "No routines on this conversation.", details: { routines: routines.length } };
+        return {
+          content: routines.length
+            ? json(routines)
+            : "No routines on this conversation.",
+          details: { routines: routines.length },
+        };
       },
     }),
     defineTool({
       name: "cancel_routine",
       label: "Cancel a routine",
-      description: "Cancel a routine on this conversation, by its id from list_routines.",
+      description:
+        "Cancel a routine on this conversation, by its id from list_routines.",
       parameters: Type.Object({ id: Type.String() }),
       risk: "read",
       run: async ({ id }) => {
-        const result = await deps.runMutation(ops.cancelRoutine, { ...here, id });
-        return { content: result.cancelled ? `Cancelled routine ${id}.` : `Routine ${id} was not running.`, details: result };
+        const result = await deps.runMutation(ops.cancelRoutine, {
+          ...here,
+          id,
+        });
+        return {
+          content: result.cancelled
+            ? `Cancelled routine ${id}.`
+            : `Routine ${id} was not running.`,
+          details: result,
+        };
       },
     }),
   ];

@@ -55,15 +55,28 @@ export function pickShareSuggestion(
   teamId: Id<"teams"> | string | null,
 ): SuggestedWorkspace | null {
   const open = (suggestions ?? []).filter(
-    (s) => s.matched_member_count > 0 && s.session_count > 0 && !isScratchWorkspace(s.path) && String(s.current_team_id ?? "") !== String(teamId ?? ""),
+    (s) =>
+      s.matched_member_count > 0 &&
+      s.session_count > 0 &&
+      !isScratchWorkspace(s.path) &&
+      String(s.current_team_id ?? "") !== String(teamId ?? ""),
   );
-  open.sort((a, b) => b.matched_member_count - a.matched_member_count || b.session_count - a.session_count);
+  open.sort(
+    (a, b) =>
+      b.matched_member_count - a.matched_member_count ||
+      b.session_count - a.session_count,
+  );
   return open[0] ?? null;
 }
 
 /** True when the workspace already flows to this team. */
-export function isMappedToTeam(ws: UserWorkspace, teamId: Id<"teams"> | null): boolean {
-  return !!teamId && ws.team_id?.toString() === teamId.toString() && ws.auto_share;
+export function isMappedToTeam(
+  ws: UserWorkspace,
+  teamId: Id<"teams"> | null,
+): boolean {
+  return (
+    !!teamId && ws.team_id?.toString() === teamId.toString() && ws.auto_share
+  );
 }
 
 /**
@@ -123,8 +136,11 @@ export function useTeamWorkspaceSuggestions(teamId: Id<"teams"> | null) {
     other,
     teamName: suggestions?.team_name || "your team",
     teamOnlyRepos: suggestions?.team_only_repos ?? [],
-    getSuggestion: (path: string) => suggestions?.suggestions.find((s) => s.path === path),
+    getSuggestion: (path: string) =>
+      suggestions?.suggestions.find((s) => s.path === path),
   };
 }
 
-export type TeamWorkspaceSuggestions = ReturnType<typeof useTeamWorkspaceSuggestions>;
+export type TeamWorkspaceSuggestions = ReturnType<
+  typeof useTeamWorkspaceSuggestions
+>;

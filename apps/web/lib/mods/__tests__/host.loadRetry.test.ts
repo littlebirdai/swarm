@@ -6,8 +6,13 @@ import { replaceGlobals } from "../../../test-helpers/globals";
 // timeout fires often, and a mod that stayed failed after it left every one of
 // its object ids (contact-4108ba04) drawn raw until the window reloaded.
 
-const dom = new JSDOM("<!doctype html><div id='c'></div>", { url: "https://codecast.test/" });
-const restore = replaceGlobals({ window: dom.window, document: dom.window.document });
+const dom = new JSDOM("<!doctype html><div id='c'></div>", {
+  url: "https://codecast.test/",
+});
+const restore = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+});
 const { ModRuntime, modLoadTiming } = await import("../host");
 // The retry waits far longer than the load timeout, so a busy test machine
 // stalling the event loop cannot fire both before the test looks.
@@ -15,16 +20,35 @@ Object.assign(modLoadTiming, { timeout: 30, retryBase: 300, retryMax: 600 });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const until = async (ok: () => boolean) => {
-  for (const end = Date.now() + 2000; !ok(); await sleep(5)) if (Date.now() > end) throw new Error("timed out waiting");
+  for (const end = Date.now() + 2000; !ok(); await sleep(5))
+    if (Date.now() > end) throw new Error("timed out waiting");
 };
 const container = () => dom.window.document.getElementById("c")!;
 const frames = () => [...container().querySelectorAll("iframe")];
 const fromFrame = (frame: HTMLIFrameElement, data: unknown) =>
-  dom.window.dispatchEvent(new dom.window.MessageEvent("message", { data, source: (frame as any).contentWindow }));
-const row = (name: string): any => ({ _id: name, name, manifest: { name, permissions: {} }, code: "", rev: 1, version: 0, enabled: true, is_mine: true, updated_at: 1 });
+  dom.window.dispatchEvent(
+    new dom.window.MessageEvent("message", {
+      data,
+      source: (frame as any).contentWindow,
+    }),
+  );
+const row = (name: string): any => ({
+  _id: name,
+  name,
+  manifest: { name, permissions: {} },
+  code: "",
+  rev: 1,
+  version: 0,
+  enabled: true,
+  is_mine: true,
+  updated_at: 1,
+});
 
 const runtimes: InstanceType<typeof ModRuntime>[] = [];
-afterAll(() => { runtimes.forEach((r) => r.dispose()); restore(); });
+afterAll(() => {
+  runtimes.forEach((r) => r.dispose());
+  restore();
+});
 
 describe("mod load timeout", () => {
   it("a frame whose page never booted is mounted again and comes up", async () => {

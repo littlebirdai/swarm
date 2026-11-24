@@ -26,7 +26,9 @@ type IndexRow = { _id: string; updated_at: number };
 function heldRange(): { newest: number | null; oldest: number | null } {
   let newest: number | null = null;
   let oldest: number | null = null;
-  for (const row of Object.values(useInboxStore.getState().sessionIndex as Record<string, IndexRow>)) {
+  for (const row of Object.values(
+    useInboxStore.getState().sessionIndex as Record<string, IndexRow>,
+  )) {
     if (newest == null || row.updated_at > newest) newest = row.updated_at;
     if (oldest == null || row.updated_at < oldest) oldest = row.updated_at;
   }
@@ -46,7 +48,10 @@ export function useSyncSessionIndex() {
 
     const read = async (args: { before?: number; after?: number }) => {
       const res = await convex.query(api.sessionIndex.page, args);
-      if (!stopped && res.rows.length) useInboxStore.getState().syncTable("sessionIndex", res.rows as any, { isDelta: true } as any);
+      if (!stopped && res.rows.length)
+        useInboxStore
+          .getState()
+          .syncTable("sessionIndex", res.rows as any, { isDelta: true } as any);
       return res;
     };
 
@@ -60,7 +65,10 @@ export function useSyncSessionIndex() {
         const after = newest == null ? undefined : newest - SKEW_MS;
         let before: number | undefined;
         for (;;) {
-          const res = await read({ ...(before != null ? { before } : {}), ...(after != null ? { after } : {}) });
+          const res = await read({
+            ...(before != null ? { before } : {}),
+            ...(after != null ? { after } : {}),
+          });
           if (stopped || res.next == null || after == null) break;
           before = res.next;
         }
@@ -76,25 +84,38 @@ export function useSyncSessionIndex() {
     // moves even when a page held only workers.
     let cursor: number | null = null;
     const walk = async () => {
-      if (stopped || useInboxStore.getState().syncMeta[META_KEY]?.backfilledAt) return;
+      if (stopped || useInboxStore.getState().syncMeta[META_KEY]?.backfilledAt)
+        return;
       cursor ??= heldRange().oldest;
       try {
         const res = await read(cursor == null ? {} : { before: cursor });
         if (stopped) return;
         cursor = res.next;
         if (res.next == null) {
-          useInboxStore.getState().recordSyncMeta(META_KEY, { backfilledAt: Date.now() });
+          useInboxStore
+            .getState()
+            .recordSyncMeta(META_KEY, { backfilledAt: Date.now() });
           return;
         }
-        setTimeout(() => { if (!stopped) cancelWait = whenInputQuiet(walk, 10_000); }, WALK_GAP_MS);
+        setTimeout(() => {
+          if (!stopped) cancelWait = whenInputQuiet(walk, 10_000);
+        }, WALK_GAP_MS);
       } catch (e) {
         console.warn("[feeder:sessionIndex] page failed", e);
-        setTimeout(() => { if (!stopped) walk(); }, WALK_RETRY_MS);
+        setTimeout(() => {
+          if (!stopped) walk();
+        }, WALK_RETRY_MS);
       }
     };
 
     head().then(walk);
-    const unsubscribe = useInboxStore.subscribe((s, prev) => { if (s.palette.open && !prev.palette.open) head(); });
-    return () => { stopped = true; cancelWait?.(); unsubscribe(); };
+    const unsubscribe = useInboxStore.subscribe((s, prev) => {
+      if (s.palette.open && !prev.palette.open) head();
+    });
+    return () => {
+      stopped = true;
+      cancelWait?.();
+      unsubscribe();
+    };
   }, [settled, convex]);
 }

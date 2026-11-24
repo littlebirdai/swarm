@@ -24,7 +24,9 @@ describe("registry", () => {
   });
 
   test("notifications and microphone are the required pair", () => {
-    expect(OS_PERMISSION_KINDS.filter((k) => OS_PERMISSIONS[k].required)).toEqual(["notifications", "microphone"]);
+    expect(
+      OS_PERMISSION_KINDS.filter((k) => OS_PERMISSIONS[k].required),
+    ).toEqual(["notifications", "microphone"]);
   });
 });
 
@@ -53,7 +55,9 @@ describe("actions in a browser", () => {
   });
 
   test("hints name the remedy for the surface, nothing when granted", () => {
-    expect(permissionHint("microphone", "off")).toMatch(/blocked for this site/);
+    expect(permissionHint("microphone", "off")).toMatch(
+      /blocked for this site/,
+    );
     expect(permissionHint("camera", "ask")).toMatch(/hasn't been allowed/);
     expect(permissionHint("notifications", "granted")).toBeNull();
     expect(permissionHint("screen", "n/a")).toBeNull();
@@ -76,7 +80,8 @@ describe("the codecast computer grants", () => {
   test("they are not part of the map the app polls for itself", () => {
     // The app's own four are read at boot and on a timer; these two are not,
     // because each one launches the helper.
-    for (const k of COMPUTER_PERMISSION_KINDS) expect(OS_PERMISSION_KINDS).not.toContain(k as never);
+    for (const k of COMPUTER_PERMISSION_KINDS)
+      expect(OS_PERMISSION_KINDS).not.toContain(k as never);
   });
 
   test("a missing grant names the helper, never Codecast", () => {
@@ -84,14 +89,21 @@ describe("the codecast computer grants", () => {
     // one thing that is not true: the desktop app never holds these.
     for (const k of COMPUTER_PERMISSION_KINDS) {
       expect(permissionHint(k, "off")).toContain("codecast computer");
-      expect(permissionHint(k, "off")).not.toContain("Codecast in System Settings");
+      expect(permissionHint(k, "off")).not.toContain(
+        "Codecast in System Settings",
+      );
       expect(permissionHint(k, "granted")).toBeNull();
     }
-    expect(permissionHint("computerAccessibility", "off")).toMatch(/Accessibility/);
+    expect(permissionHint("computerAccessibility", "off")).toMatch(
+      /Accessibility/,
+    );
     expect(permissionHint("computerScreen", "off")).toMatch(/Screen Recording/);
   });
 
   test("a browser has no helper, so it reports nothing to set up", async () => {
-    expect(await getComputerPermissions()).toEqual({ computerAccessibility: "n/a", computerScreen: "n/a" });
+    expect(await getComputerPermissions()).toEqual({
+      computerAccessibility: "n/a",
+      computerScreen: "n/a",
+    });
   });
 });

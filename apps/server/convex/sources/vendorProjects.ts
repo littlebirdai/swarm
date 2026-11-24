@@ -12,18 +12,36 @@ import { sentryCall, SENTRY_DEFAULT_HOST } from "./sentry";
 import { tokenHttp } from "../lib/tokenHttp";
 import { hogqlBody, hogqlScalar, posthogRequest } from "./posthog";
 
-export type VendorProject = { id: string; slug?: string; name: string; platform?: string; taken_by?: string; /** PostHog: events the project took in the last 7 days, when the key may query it. */ events_7d?: number };
-export type VendorProjects = { ok: true; projects: VendorProject[]; account?: string } | { ok: false; error: string };
+export type VendorProject = {
+  id: string;
+  slug?: string;
+  name: string;
+  platform?: string;
+  taken_by?: string;
+  /** PostHog: events the project took in the last 7 days, when the key may query it. */ events_7d?: number;
+};
+export type VendorProjects =
+  | { ok: true; projects: VendorProject[]; account?: string }
+  | { ok: false; error: string };
 
 const vendorValidator = v.union(v.literal("sentry"), v.literal("posthog"));
 const LIST_MAX_BYTES = 512 * 1024;
 /** Projects whose last week is counted for the picker; past this the rows show no count rather than one call each. */
 const COUNT_MAX_PROJECTS = 12;
-const WEEK_COUNT = "SELECT count() FROM events WHERE timestamp > now() - INTERVAL 7 DAY";
+const WEEK_COUNT =
+  "SELECT count() FROM events WHERE timestamp > now() - INTERVAL 7 DAY";
 
 /** A PostHog project's events over the last week, or undefined when the key may not query it or it does not answer. */
-async function weekEvents(token: string, host: string, projectId: string): Promise<number | undefined> {
-  const answer = await posthogRequest({ token, host, project_id: projectId }, "/query/", { method: "POST", body: hogqlBody(WEEK_COUNT), maxBytes: 16 * 1024 });
+async function weekEvents(
+  token: string,
+  host: string,
+  projectId: string,
+): Promise<number | undefined> {
+  const answer = await posthogRequest(
+    { token, host, project_id: projectId },
+    "/query/",
+    { method: "POST", body: hogqlBody(WEEK_COUNT), maxBytes: 16 * 1024 },
+  );
   if (!answer.ok) return undefined;
   try {
     return hogqlScalar(JSON.parse(answer.text)) ?? undefined;
@@ -37,20 +55,43 @@ export const projectsTarget = internalQuery({
   args: { ...scopeArgs, provider: vendorValidator },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    const connection_id = await connectionIdForSource(ctx, { provider: args.provider, workspace: workspaceKey, owner_user_id: userId });
-    const sources = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey)).take(500);
+    const connection_id = await connectionIdForSource(ctx, {
+      provider: args.provider,
+      workspace: workspaceKey,
+      owner_user_id: userId,
+    });
+    const sources = await ctx.db
+      .query("event_sources")
+      .withIndex("by_workspace_name", (q) => q.eq("workspace", workspaceKey))
+      .take(500);
     const reads = sources
       .filter((s) => s.provider === args.provider)
-      .map((s) => ({ name: s.name, projects: s.config?.projects ?? [], project_id: s.config?.project_id ?? null }));
+      .map((s) => ({
+        name: s.name,
+        projects: s.config?.projects ?? [],
+        project_id: s.config?.project_id ?? null,
+      }));
     return { connection_id, reads };
   },
 });
 
 /** Which source reads a project: by id or slug for Sentry (a source naming none reads them all), by id for PostHog. */
-export function takenBy(provider: "sentry" | "posthog", p: { id: string; slug?: string }, reads: { name: string; projects: string[]; project_id: string | null }[], connectionProject?: string): string | undefined {
+export function takenBy(
+  provider: "sentry" | "posthog",
+  p: { id: string; slug?: string },
+  reads: { name: string; projects: string[]; project_id: string | null }[],
+  connectionProject?: string,
+): string | undefined {
   for (const r of reads) {
-    if (provider === "sentry" && (!r.projects.length || r.projects.includes(p.id) || (p.slug && r.projects.includes(p.slug)))) return r.name;
-    if (provider === "posthog" && (r.project_id ?? connectionProject) === p.id) return r.name;
+    if (
+      provider === "sentry" &&
+      (!r.projects.length ||
+        r.projects.includes(p.id) ||
+        (p.slug && r.projects.includes(p.slug)))
+    )
+      return r.name;
+    if (provider === "posthog" && (r.project_id ?? connectionProject) === p.id)
+      return r.name;
   }
   return undefined;
 }
@@ -58,33 +99,101 @@ export function takenBy(provider: "sentry" | "posthog", p: { id: string; slug?: 
 export const listVendorProjects = action({
   args: { ...scopeArgs, provider: vendorValidator },
   handler: async (ctx, args): Promise<VendorProjects> => {
-    const target: { connection_id: string | null; reads: { name: string; projects: string[]; project_id: string | null }[] } = await ctx.runQuery(internal.sources.vendorProjects.projectsTarget, args);
+    const target: {
+      connection_id: string | null;
+      reads: { name: string; projects: string[]; project_id: string | null }[];
+    } = await ctx.runQuery(
+      internal.sources.vendorProjects.projectsTarget,
+      args,
+    );
     const cred = await tokenFor(ctx, target.connection_id, args.provider);
     if (!cred.ok) return { ok: false, error: cred.error };
     const config = cred.config as Record<string, string | undefined>;
     if (args.provider === "sentry") {
       const host = (config.host || SENTRY_DEFAULT_HOST).replace(/\/+$/, "");
-      if (!config.org) return { ok: false, error: "The Sentry connection names no organization: reconnect Sentry" };
-      const answer = await sentryCall(fetch, cred.token, `${host}/api/0/organizations/${encodeURIComponent(config.org)}/projects/?per_page=100`, { maxBytes: LIST_MAX_BYTES });
+      if (!config.org)
+        return {
+          ok: false,
+          error:
+            "The Sentry connection names no organization: reconnect Sentry",
+        };
+      const answer = await sentryCall(
+        fetch,
+        cred.token,
+        `${host}/api/0/organizations/${encodeURIComponent(config.org)}/projects/?per_page=100`,
+        { maxBytes: LIST_MAX_BYTES },
+      );
       if (!answer.ok) return { ok: false, error: answer.error };
-      const projects = (Array.isArray(answer.json) ? answer.json : []).map((p: any): VendorProject => ({ id: String(p?.id), slug: String(p?.slug ?? ""), name: String(p?.name ?? p?.slug ?? p?.id), ...(p?.platform ? { platform: String(p.platform) } : {}) }));
-      return { ok: true, account: config.org, projects: projects.map((p) => ({ ...p, ...(takenBy("sentry", p, target.reads) ? { taken_by: takenBy("sentry", p, target.reads) } : {}) })) };
+      const projects = (Array.isArray(answer.json) ? answer.json : []).map(
+        (p: any): VendorProject => ({
+          id: String(p?.id),
+          slug: String(p?.slug ?? ""),
+          name: String(p?.name ?? p?.slug ?? p?.id),
+          ...(p?.platform ? { platform: String(p.platform) } : {}),
+        }),
+      );
+      return {
+        ok: true,
+        account: config.org,
+        projects: projects.map((p) => ({
+          ...p,
+          ...(takenBy("sentry", p, target.reads)
+            ? { taken_by: takenBy("sentry", p, target.reads) }
+            : {}),
+        })),
+      };
     }
-    if (!config.host) return { ok: false, error: "The PostHog connection has no host: reconnect PostHog" };
-    const res = await tokenHttp(fetch, { url: `${config.host.replace(/\/+$/, "")}/api/projects/?limit=200`, method: "GET", token: cred.token, maxBytes: LIST_MAX_BYTES, timeoutMs: 15_000, vendor: "PostHog" });
-    if (res.failure || !res.ok) return { ok: false, error: res.error ?? `PostHog answered ${res.status} listing projects` };
+    if (!config.host)
+      return {
+        ok: false,
+        error: "The PostHog connection has no host: reconnect PostHog",
+      };
+    const res = await tokenHttp(fetch, {
+      url: `${config.host.replace(/\/+$/, "")}/api/projects/?limit=200`,
+      method: "GET",
+      token: cred.token,
+      maxBytes: LIST_MAX_BYTES,
+      timeoutMs: 15_000,
+      vendor: "PostHog",
+    });
+    if (res.failure || !res.ok)
+      return {
+        ok: false,
+        error: res.error ?? `PostHog answered ${res.status} listing projects`,
+      };
     let body: any = null;
     try {
       body = JSON.parse(res.text ?? "");
     } catch {
       return { ok: false, error: "PostHog's project list was not JSON" };
     }
-    const rows: any[] = Array.isArray(body?.results) ? body.results : Array.isArray(body) ? body : [];
+    const rows: any[] = Array.isArray(body?.results)
+      ? body.results
+      : Array.isArray(body)
+        ? body
+        : [];
     const host = config.host.replace(/\/+$/, "");
-    const listed = rows.map((p): VendorProject => ({ id: String(p?.id), name: String(p?.name ?? p?.id) }));
+    const listed = rows.map((p): VendorProject => ({
+      id: String(p?.id),
+      name: String(p?.name ?? p?.id),
+    }));
     // Each project's last week beside its name, so a person picks the one that holds the traffic; read in parallel, a failure leaves the count off.
-    const counts = await Promise.all(listed.slice(0, COUNT_MAX_PROJECTS).map((p) => weekEvents(cred.token, host, p.id)));
-    const projects = listed.map((p, i) => (counts[i] !== undefined ? { ...p, events_7d: counts[i] } : p));
-    return { ok: true, projects: projects.map((p) => ({ ...p, ...(takenBy("posthog", p, target.reads, config.project_id) ? { taken_by: takenBy("posthog", p, target.reads, config.project_id) } : {}) })) };
+    const counts = await Promise.all(
+      listed
+        .slice(0, COUNT_MAX_PROJECTS)
+        .map((p) => weekEvents(cred.token, host, p.id)),
+    );
+    const projects = listed.map((p, i) =>
+      counts[i] !== undefined ? { ...p, events_7d: counts[i] } : p,
+    );
+    return {
+      ok: true,
+      projects: projects.map((p) => ({
+        ...p,
+        ...(takenBy("posthog", p, target.reads, config.project_id)
+          ? { taken_by: takenBy("posthog", p, target.reads, config.project_id) }
+          : {}),
+      })),
+    };
   },
 });

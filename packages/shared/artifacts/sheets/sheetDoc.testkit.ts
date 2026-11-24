@@ -1,5 +1,11 @@
 // A tiny in-memory sheet doc for tests: apply ops, run verbs, read elements.
-import { applyOp, toElement, type ArtifactElement, type ArtifactOp, type ElementState } from "../core";
+import {
+  applyOp,
+  toElement,
+  type ArtifactElement,
+  type ArtifactOp,
+  type ElementState,
+} from "../core";
 import { artifactView } from "../spec";
 import { sheetSpec } from "../sheet";
 
@@ -10,7 +16,8 @@ export function doc(initial: ArtifactOp[] = []) {
     for (const op of ops) state.set(op.k, applyOp(state.get(op.k), op));
   };
   apply(initial);
-  const elements = (): ArtifactElement[] => [...state].filter(([, s]) => !s.deleted).map(([k, s]) => toElement(k, s));
+  const elements = (): ArtifactElement[] =>
+    [...state].filter(([, s]) => !s.deleted).map(([k, s]) => toElement(k, s));
   const view = () => artifactView("sheet", "Pre-orders", elements());
   const verb = (name: string, args: string[], stdin?: string) => {
     const r = sheetSpec.verbs![name].run(view(), args, stdin);

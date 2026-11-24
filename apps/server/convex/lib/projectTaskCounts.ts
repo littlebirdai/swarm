@@ -22,7 +22,14 @@ type Bucket = { project_id: Id<"projects">; workspace: string; status: string };
 
 /** Fields whose change can move a task between buckets. */
 export const COUNT_FIELDS = new Set([
-  "project_id", "workspace", "status", "triage_status", "source", "promoted", "assignee", "ephemeral",
+  "project_id",
+  "workspace",
+  "status",
+  "triage_status",
+  "source",
+  "promoted",
+  "assignee",
+  "ephemeral",
 ]);
 
 export function touchesProjectCount(fields: Record<string, unknown>): boolean {
@@ -31,28 +38,55 @@ export function touchesProjectCount(fields: Record<string, unknown>): boolean {
 
 export function countBucket(task: any): Bucket | null {
   if (!task?.project_id || !isOnProjectBoard(task)) return null;
-  return { project_id: task.project_id, workspace: task.workspace ?? "", status: task.status ?? "" };
+  return {
+    project_id: task.project_id,
+    workspace: task.workspace ?? "",
+    status: task.status ?? "",
+  };
 }
 
 const sameBucket = (a: Bucket | null, b: Bucket | null) =>
-  a === b || (!!a && !!b && String(a.project_id) === String(b.project_id) && a.workspace === b.workspace && a.status === b.status);
+  a === b ||
+  (!!a &&
+    !!b &&
+    String(a.project_id) === String(b.project_id) &&
+    a.workspace === b.workspace &&
+    a.status === b.status);
 
-export async function countState(ctx: Db): Promise<{ _id?: any; through: number; done: boolean }> {
-  return (await ctx.db.query("project_task_count_state").first()) ?? { through: 0, done: false };
+export async function countState(
+  ctx: Db,
+): Promise<{ _id?: any; through: number; done: boolean }> {
+  return (
+    (await ctx.db.query("project_task_count_state").first()) ?? {
+      through: 0,
+      done: false,
+    }
+  );
 }
 
 async function bump(ctx: Db, b: Bucket, delta: number): Promise<void> {
   const row = await ctx.db
     .query("project_task_counts")
-    .withIndex("by_bucket", (q: any) => q.eq("project_id", b.project_id).eq("workspace", b.workspace).eq("status", b.status))
+    .withIndex("by_bucket", (q: any) =>
+      q
+        .eq("project_id", b.project_id)
+        .eq("workspace", b.workspace)
+        .eq("status", b.status),
+    )
     .first();
-  if (row) await ctx.db.patch(row._id, { count: Math.max(0, row.count + delta) });
-  else if (delta > 0) await ctx.db.insert("project_task_counts", { ...b, count: delta });
+  if (row)
+    await ctx.db.patch(row._id, { count: Math.max(0, row.count + delta) });
+  else if (delta > 0)
+    await ctx.db.insert("project_task_counts", { ...b, count: delta });
 }
 
 /** Move one task from its pre-write bucket to its post-write one. `ctx.db` is
  *  the raw writer: count rows are not tracked tables. */
-export async function moveProjectCount(ctx: Db, pre: any | null, post: any | null): Promise<void> {
+export async function moveProjectCount(
+  ctx: Db,
+  pre: any | null,
+  post: any | null,
+): Promise<void> {
   const from = countBucket(pre);
   const to = countBucket(post);
   if (sameBucket(from, to)) return;
@@ -64,12 +98,17 @@ export async function moveProjectCount(ctx: Db, pre: any | null, post: any | nul
 }
 
 /** One backfill page: count the next tasks past the cursor and advance it. */
-export async function backfillProjectCountsPage(ctx: Db, numItems: number): Promise<{ scanned: number; done: boolean }> {
+export async function backfillProjectCountsPage(
+  ctx: Db,
+  numItems: number,
+): Promise<{ scanned: number; done: boolean }> {
   const state = await countState(ctx);
   if (state.done) return { scanned: 0, done: true };
   const page = await ctx.db
     .query("tasks")
-    .withIndex("by_creation_time", (q: any) => q.gt("_creationTime", state.through))
+    .withIndex("by_creation_time", (q: any) =>
+      q.gt("_creationTime", state.through),
+    )
     .take(numItems);
   const totals = new Map<string, { b: Bucket; n: number }>();
   for (const task of page) {
@@ -82,7 +121,10 @@ export async function backfillProjectCountsPage(ctx: Db, numItems: number): Prom
   }
   for (const { b, n } of totals.values()) await bump(ctx, b, n);
   const done = page.length < numItems;
-  const next = { through: page.length ? page[page.length - 1]._creationTime : state.through, done };
+  const next = {
+    through: page.length ? page[page.length - 1]._creationTime : state.through,
+    done,
+  };
   if (state._id) await ctx.db.patch(state._id, next);
   else await ctx.db.insert("project_task_count_state", next);
   return { scanned: page.length, done };
@@ -109,12 +151,16 @@ export async function projectCountsFor(
   const out = new Map<string, ProjectProgress>();
   for (const projectId of projectIds) {
     const p: ProjectProgress = { total: 0, done: 0, in_progress: 0, open: 0 };
-    const rows = await ctx.db.query("project_task_counts").withIndex("by_bucket", (q: any) => q.eq("project_id", projectId)).collect();
+    const rows = await ctx.db
+      .query("project_task_counts")
+      .withIndex("by_bucket", (q: any) => q.eq("project_id", projectId))
+      .collect();
     for (const r of rows) {
       if (!held.has(r.workspace) || !r.count) continue;
       p.total += r.count;
       if (r.status === "done") p.done += r.count;
-      else if (r.status === "in_progress" || r.status === "in_review") p.in_progress += r.count;
+      else if (r.status === "in_progress" || r.status === "in_review")
+        p.in_progress += r.count;
       else p.open += r.count;
     }
     out.set(String(projectId), p);

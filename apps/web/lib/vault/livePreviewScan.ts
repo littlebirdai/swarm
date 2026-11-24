@@ -55,7 +55,13 @@ export type LiveSpan =
    *  unit by the cursor (see atomicRanges in livePreview.ts). */
   | { kind: "hide"; from: number; to: number }
   /** Styled content — the words inside `**…**`, a wiki link's display text. */
-  | { kind: "mark"; from: number; to: number; class: string; attrs?: Record<string, string> }
+  | {
+      kind: "mark";
+      from: number;
+      to: number;
+      class: string;
+      attrs?: Record<string, string>;
+    }
   /** A whole-line class: heading size, quote rule, code-block background. */
   | { kind: "line"; from: number; class: string }
   /** The only honest rendering is a drawn thing, not styled text. */
@@ -122,7 +128,11 @@ const entityAccentStyle = (type: keyof typeof ENTITY_REF_ACCENT) => ({
  *  three passes that interleave (a tag before an earlier wiki link, a block
  *  anchor after both), so any ordering assumption here would silently miss
  *  overlaps. These lists hold one viewport's worth of ranges — a few dozen. */
-function overlaps(ranges: readonly ScanRange[], from: number, to: number): boolean {
+function overlaps(
+  ranges: readonly ScanRange[],
+  from: number,
+  to: number,
+): boolean {
   for (const r of ranges) {
     if (r.from < to && r.to > from) return true;
   }
@@ -132,7 +142,10 @@ function overlaps(ranges: readonly ScanRange[], from: number, to: number): boole
 /** Merge the requested ranges and widen each to whole lines: a wiki link that
  *  straddles the viewport edge must still be seen whole, and line decorations
  *  need the line start anyway. */
-function normalizeRanges(state: EditorState, ranges: readonly ScanRange[]): ScanRange[] {
+function normalizeRanges(
+  state: EditorState,
+  ranges: readonly ScanRange[],
+): ScanRange[] {
   const doc = state.doc;
   const widened = ranges
     .map((r) => ({
@@ -179,9 +192,15 @@ export function scanLivePreview(
     if (to > from && sameLine(from, to)) spans.push({ kind: "hide", from, to });
   };
   const widget = (from: number, to: number, w: LiveWidget) => {
-    if (to > from && sameLine(from, to)) spans.push({ kind: "widget", from, to, widget: w });
+    if (to > from && sameLine(from, to))
+      spans.push({ kind: "widget", from, to, widget: w });
   };
-  const mark = (from: number, to: number, cls: string, attrs?: Record<string, string>) => {
+  const mark = (
+    from: number,
+    to: number,
+    cls: string,
+    attrs?: Record<string, string>,
+  ) => {
     if (to > from) spans.push({ kind: "mark", from, to, class: cls, attrs });
   };
   const lineClasses = new Set<string>();
@@ -201,7 +220,8 @@ export function scanLivePreview(
       from: r.from,
       to: r.to,
       enter(node) {
-        if (LITERAL_NODES.has(node.name)) literal.push({ from: node.from, to: node.to });
+        if (LITERAL_NODES.has(node.name))
+          literal.push({ from: node.from, to: node.to });
       },
     });
   }
@@ -230,7 +250,12 @@ export function scanLivePreview(
       const tag = m[2];
       const from = r.from + m.index + m[1].length;
       const to = from + 1 + tag.length;
-      if (isNumericTag(tag) || overlaps(literal, from, to) || overlaps(claimed, from, to)) continue;
+      if (
+        isNumericTag(tag) ||
+        overlaps(literal, from, to) ||
+        overlaps(claimed, from, to)
+      )
+        continue;
       claimed.push({ from, to });
       // A tag pill hides nothing — `#tag` is its own display text — so it stays
       // rendered under the cursor too, exactly as the reading view shows it.
@@ -263,12 +288,24 @@ export function scanLivePreview(
    *  the file, and the cursor arriving inside it lands somewhere meaningful.
    *  (The reading view prints `Target › Head` for the subpath form; in an
    *  editor the characters you would type are the more useful truth.) */
-  function emitWiki(from: number, to: number, raw: string, parts: WikiLinkParts) {
+  function emitWiki(
+    from: number,
+    to: number,
+    raw: string,
+    parts: WikiLinkParts,
+  ) {
     if (parts.isEmbed) {
       // Image embeds are the one transclusion worth drawing here; a note embed
       // inside an editor is a document-in-a-document and stays raw.
-      const src = IMAGE_EXT.test(parts.target) ? (deps.assetUrl?.(parts.target) ?? null) : null;
-      if (src) widget(from, to, { type: "image", src, alt: parts.alias ?? parts.target });
+      const src = IMAGE_EXT.test(parts.target)
+        ? (deps.assetUrl?.(parts.target) ?? null)
+        : null;
+      if (src)
+        widget(from, to, {
+          type: "image",
+          src,
+          alt: parts.alias ?? parts.target,
+        });
       return;
     }
     const pipe = raw.indexOf("|");
@@ -285,7 +322,8 @@ export function scanLivePreview(
     hide(textTo, to);
     mark(textFrom, textTo, cls, {
       "data-live-wiki": raw,
-      title: res.path ?? `"${parts.target}" does not exist yet — click to create`,
+      title:
+        res.path ?? `"${parts.target}" does not exist yet — click to create`,
     });
   }
 
@@ -326,12 +364,17 @@ export function scanLivePreview(
               // Swallow the space after the hashes too, or the prose starts
               // one column further right than an unmarked paragraph.
               let end = hm.to;
-              while (end < node.to && doc.sliceString(end, end + 1) === " ") end++;
+              while (end < node.to && doc.sliceString(end, end + 1) === " ")
+                end++;
               hide(hm.from, end);
             } else {
               // A closed heading's trailing `###`, with its leading space.
               let start = hm.from;
-              while (start > node.from && doc.sliceString(start - 1, start) === " ") start--;
+              while (
+                start > node.from &&
+                doc.sliceString(start - 1, start) === " "
+              )
+                start--;
               hide(start, hm.to);
             }
           }
@@ -362,9 +405,17 @@ export function scanLivePreview(
             // plain text in the reading view.
             const entity = parseEntityRefHref(href);
             const attrs = href
-              ? { ...(entity ? entityAccentStyle(entity.type) : {}), "data-live-href": href }
+              ? {
+                  ...(entity ? entityAccentStyle(entity.type) : {}),
+                  "data-live-href": href,
+                }
               : undefined;
-            mark(textFrom, textTo, entity ? ENTITY_LINK_CLASS : "cm-live-link", attrs);
+            mark(
+              textFrom,
+              textTo,
+              entity ? ENTITY_LINK_CLASS : "cm-live-link",
+              attrs,
+            );
             if (revealed(node.from, node.to)) return;
             hide(node.from, textFrom);
             hide(textTo, node.to);
@@ -390,15 +441,20 @@ export function scanLivePreview(
           }
 
           case "Image": {
-            if (isClaimed(node.from, node.to) || revealed(node.from, node.to)) return;
+            if (isClaimed(node.from, node.to) || revealed(node.from, node.to))
+              return;
             const url = node.node.getChild("URL");
             if (!url) return;
             const raw = doc.sliceString(url.from, url.to);
-            const src = ABSOLUTE_URL.test(raw) ? raw : (deps.assetUrl?.(raw) ?? null);
+            const src = ABSOLUTE_URL.test(raw)
+              ? raw
+              : (deps.assetUrl?.(raw) ?? null);
             if (!src) return;
             const marks = node.node.getChildren("LinkMark");
             const alt =
-              marks.length >= 2 ? doc.sliceString(marks[0].to, marks[1].from) : "";
+              marks.length >= 2
+                ? doc.sliceString(marks[0].to, marks[1].from)
+                : "";
             widget(node.from, node.to, { type: "image", src, alt });
             return;
           }
@@ -408,7 +464,8 @@ export function scanLivePreview(
             // A task item's `-` keeps its shape: `• [ ] thing` reads worse than
             // the source it stands for, and the checkbox is the marker there.
             const isTask = !!node.node.parent?.getChild("Task");
-            if (/^[-*+]$/.test(text) && !isTask) widget(node.from, node.to, { type: "bullet" });
+            if (/^[-*+]$/.test(text) && !isTask)
+              widget(node.from, node.to, { type: "bullet" });
             else mark(node.from, node.to, "cm-live-listmark");
             return;
           }
@@ -424,7 +481,10 @@ export function scanLivePreview(
             const callout = lineAt.text.match(/^\s*>\s*\[!(\w+)\][+-]?/);
             if (callout) {
               const kind = callout[1].toLowerCase();
-              line(lineAt.from, `cm-live-quote cm-live-callout cm-live-callout-${kind}`);
+              line(
+                lineAt.from,
+                `cm-live-quote cm-live-callout cm-live-callout-${kind}`,
+              );
             } else {
               line(node.from, "cm-live-quote");
             }
@@ -440,8 +500,10 @@ export function scanLivePreview(
                 const close = lineAt.text.indexOf("]", tokenStart);
                 if (close > tokenStart) {
                   let tokenEnd = lineAt.from + close + 1;
-                  if (/[+-]/.test(doc.sliceString(tokenEnd, tokenEnd + 1))) tokenEnd++;
-                  if (doc.sliceString(tokenEnd, tokenEnd + 1) === " ") tokenEnd++;
+                  if (/[+-]/.test(doc.sliceString(tokenEnd, tokenEnd + 1)))
+                    tokenEnd++;
+                  if (doc.sliceString(tokenEnd, tokenEnd + 1) === " ")
+                    tokenEnd++;
                   hide(node.from, tokenEnd);
                   return;
                 }
@@ -463,7 +525,8 @@ export function scanLivePreview(
             // view sets it apart with one.
             const first = doc.lineAt(Math.max(node.from, r.from)).number;
             const last = doc.lineAt(Math.min(node.to, r.to)).number;
-            for (let n = first; n <= last; n++) line(doc.line(n).from, "cm-live-codeblock");
+            for (let n = first; n <= last; n++)
+              line(doc.line(n).from, "cm-live-codeblock");
             return;
           }
         }

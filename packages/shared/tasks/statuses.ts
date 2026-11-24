@@ -23,7 +23,13 @@ export const TASK_STATUS_CATEGORIES = [
 export type TaskStatusCategory = (typeof TASK_STATUS_CATEGORIES)[number];
 
 /** Every value tasks.priority may hold, most pressing first. */
-export const TASK_PRIORITIES = ["urgent", "high", "medium", "low", "none"] as const;
+export const TASK_PRIORITIES = [
+  "urgent",
+  "high",
+  "medium",
+  "low",
+  "none",
+] as const;
 
 export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
@@ -34,9 +40,14 @@ export const TASK_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type TaskEffort = (typeof TASK_EFFORTS)[number];
 
 /** Categories that close a task (stamp closed_at, leave progress denominators). */
-export const TERMINAL_TASK_CATEGORIES: readonly TaskStatusCategory[] = ["done", "dropped"];
+export const TERMINAL_TASK_CATEGORIES: readonly TaskStatusCategory[] = [
+  "done",
+  "dropped",
+];
 
-export function isTerminalTaskStatus(category: string | undefined | null): boolean {
+export function isTerminalTaskStatus(
+  category: string | undefined | null,
+): boolean {
   return category === "done" || category === "dropped";
 }
 
@@ -73,9 +84,12 @@ export const DEFAULT_TASK_STATUS_NAMES: Record<TaskStatusCategory, string> = {
   dropped: "Dropped",
 };
 
-export const DEFAULT_TASK_STATUSES: TeamTaskStatus[] = TASK_STATUS_CATEGORIES.map(
-  (category) => ({ id: category, name: DEFAULT_TASK_STATUS_NAMES[category], category }),
-);
+export const DEFAULT_TASK_STATUSES: TeamTaskStatus[] =
+  TASK_STATUS_CATEGORIES.map((category) => ({
+    id: category,
+    name: DEFAULT_TASK_STATUS_NAMES[category],
+    category,
+  }));
 
 const MAX_STATUSES = 50;
 const MAX_NAME_LEN = 40;
@@ -101,9 +115,12 @@ export function normalizeTeamTaskStatuses(input: unknown): TeamTaskStatus[] {
     const id = typeof raw?.id === "string" ? raw.id.trim() : "";
     const name = typeof raw?.name === "string" ? raw.name.trim() : "";
     const category = raw?.category;
-    if (!id || id.length > MAX_ID_LEN) throw new Error("Each status needs an id");
+    if (!id || id.length > MAX_ID_LEN)
+      throw new Error("Each status needs an id");
     if (!name || name.length > MAX_NAME_LEN) {
-      throw new Error(`Each status needs a name of at most ${MAX_NAME_LEN} characters`);
+      throw new Error(
+        `Each status needs a name of at most ${MAX_NAME_LEN} characters`,
+      );
     }
     if (!TASK_STATUS_CATEGORIES.includes(category)) {
       throw new Error(`Unknown category '${category}' for status '${name}'`);
@@ -127,7 +144,9 @@ export function normalizeTeamTaskStatuses(input: unknown): TeamTaskStatus[] {
   return out;
 }
 
-export function isTaskStatusCategory(value: string | undefined | null): value is TaskStatusCategory {
+export function isTaskStatusCategory(
+  value: string | undefined | null,
+): value is TaskStatusCategory {
   return TASK_STATUS_CATEGORIES.includes(value as TaskStatusCategory);
 }
 
@@ -136,17 +155,33 @@ export function isTaskStatusCategory(value: string | undefined | null): value is
  * "pending_approval" and "pending-approval" are the same key.
  */
 export function taskStatusKey(name: string): string {
-  return name.trim().toLowerCase().replace(/[\s_-]+/g, "_");
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "_");
 }
 
 // Words people and agents reach for that name no status, and the category each
 // means. A team status of the same name always wins over these.
 const TASK_STATUS_ALIASES: Record<string, TaskStatusCategory> = {
-  cancelled: "dropped", canceled: "dropped", cancel: "dropped", wontfix: "dropped", wont_fix: "dropped", abandoned: "dropped",
-  review: "in_review", needs_review: "in_review",
-  wip: "in_progress", doing: "in_progress", started: "in_progress", active: "in_progress",
-  todo: "open", to_do: "open",
-  complete: "done", completed: "done", finished: "done", closed: "done",
+  cancelled: "dropped",
+  canceled: "dropped",
+  cancel: "dropped",
+  wontfix: "dropped",
+  wont_fix: "dropped",
+  abandoned: "dropped",
+  review: "in_review",
+  needs_review: "in_review",
+  wip: "in_progress",
+  doing: "in_progress",
+  started: "in_progress",
+  active: "in_progress",
+  todo: "open",
+  to_do: "open",
+  complete: "done",
+  completed: "done",
+  finished: "done",
+  closed: "done",
 };
 
 /** The category a near-miss status word means (`cancelled` is `dropped`), or undefined. */
@@ -155,7 +190,10 @@ export function taskStatusAlias(ref: string): TaskStatusCategory | undefined {
 }
 
 /** The refusal for a status nothing answers to. `blocked` is not a status: what a task waits on is a dependency. */
-export function invalidTaskStatusMessage(ref: string, choices: readonly string[]): string {
+export function invalidTaskStatusMessage(
+  ref: string,
+  choices: readonly string[],
+): string {
   if (taskStatusKey(ref) === "blocked") {
     return "A task has no blocked status: record what it waits on with cast task dep <id> --blocked-by <ct-N | #PR | sd-N | 2h>, which keeps it off the ready list until that clears";
   }
@@ -168,12 +206,20 @@ export function findTeamTaskStatus(
   ref: string,
 ): TeamTaskStatus | undefined {
   const key = taskStatusKey(ref);
-  return statuses.find((s) => s.id === ref) ?? statuses.find((s) => taskStatusKey(s.name) === key);
+  return (
+    statuses.find((s) => s.id === ref) ??
+    statuses.find((s) => taskStatusKey(s.name) === key)
+  );
 }
 
 /** Every status key a team accepts: the categories, then its named statuses. */
 export function taskStatusChoices(statuses: TeamTaskStatus[]): string[] {
-  return [...new Set([...TASK_STATUS_CATEGORIES, ...statuses.map((s) => taskStatusKey(s.name))])];
+  return [
+    ...new Set([
+      ...TASK_STATUS_CATEGORIES,
+      ...statuses.map((s) => taskStatusKey(s.name)),
+    ]),
+  ];
 }
 
 /** A team's effective statuses: its config, or the defaults when it has none. */

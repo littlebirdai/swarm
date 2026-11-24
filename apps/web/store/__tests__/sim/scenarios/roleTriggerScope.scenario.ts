@@ -24,9 +24,16 @@ export async function roleTriggerScope(w: ScenarioWorld): Promise<void> {
   const rev = w.role("acme", "rev");
   await w.start();
   // bo files s under the role, as the org chart's drag does.
-  await w.clientAs("bo").mutation("orgRoles:reparentSession", { conversation_id: w.idOf(s), target: { kind: "role", role_id: w.idOf(rev) } });
+  await w.clientAs("bo").mutation("orgRoles:reparentSession", {
+    conversation_id: w.idOf(s),
+    target: { kind: "role", role_id: w.idOf(rev) },
+  });
   for (const user of ["ada", "bo"]) {
-    await (await w.device(user)).host.feed("agentTasks", api.agentTasks.webList, () => ({}), { syncOpts: { isDelta: true } });
+    await (
+      await w.device(user)
+    ).host.feed("agentTasks", api.agentTasks.webList, () => ({}), {
+      syncOpts: { isDelta: true },
+    });
   }
 
   const bo = w.daemon("bo");
@@ -39,10 +46,25 @@ export async function roleTriggerScope(w: ScenarioWorld): Promise<void> {
   await w.settle();
 
   // Every role event about s, keyed by the episode it was fired for.
-  const told = (w.backend.db._tables.pending_messages ?? []).map((r: any) => String(r.client_id ?? "")).filter((c: string) => c.startsWith(`session-waits:${w.idOf(s)}:`));
+  const told = (w.backend.db._tables.pending_messages ?? [])
+    .map((r: any) => String(r.client_id ?? ""))
+    .filter((c: string) => c.startsWith(`session-waits:${w.idOf(s)}:`));
   const key = (await w.row(s))?.hand_wake_notified_key;
   if (told.length !== 1 || told[0] !== `session-waits:${w.idOf(s)}:${key}`) {
-    w.fail({ ...w.reportBase("expect role events"), invariant: { id: "expect.roleEvents", meaning: "one role event per hand_wake_notified_key" }, message: `hand_wake_notified_key ${key ?? "(absent)"}, role events [${told.join(", ")}]`, row: { table: "conversations", id: w.idOf(s), server: await w.row(s), replica: null } });
+    w.fail({
+      ...w.reportBase("expect role events"),
+      invariant: {
+        id: "expect.roleEvents",
+        meaning: "one role event per hand_wake_notified_key",
+      },
+      message: `hand_wake_notified_key ${key ?? "(absent)"}, role events [${told.join(", ")}]`,
+      row: {
+        table: "conversations",
+        id: w.idOf(s),
+        server: await w.row(s),
+        replica: null,
+      },
+    });
   }
 }
 

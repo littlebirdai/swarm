@@ -18,18 +18,52 @@ import type { SimWindow } from "../window";
 const TEXT = "ship it";
 
 // The send's rows in the transcript the conversation view renders: confirmed rows, then bubbles.
-async function expectSendRendersOnce(w: ScenarioWorld, win: SimWindow, session: string, as: "settled bubble" | "echo") {
+async function expectSendRendersOnce(
+  w: ScenarioWorld,
+  win: SimWindow,
+  session: string,
+  as: "settled bubble" | "echo",
+) {
   const meaning = `${win.name} renders the send to ${session} once, as its ${as}`;
   await w.settleAs(`expect ${meaning}`);
   const id = w.idOf(session);
   const rows = await win.run(() => {
     const s = win.store.getState() as any;
     // The echo carries Claude Code's paste wrapper, which every render surface strips.
-    return mergeUnconfirmedMessages(s.messages[id] ?? [], s.pendingMessages[id] ?? []).filter((m) => m.role === "user" && stripPastedContent(m.content ?? "") === TEXT);
+    return mergeUnconfirmedMessages(
+      s.messages[id] ?? [],
+      s.pendingMessages[id] ?? [],
+    ).filter(
+      (m) => m.role === "user" && stripPastedContent(m.content ?? "") === TEXT,
+    );
   });
-  const shape = (m: any) => (m.client_id ? "echo" : m._isSettled ? "settled bubble" : m._isFailed ? "failed bubble" : "bubble in flight");
-  const wrong = rows.length !== 1 ? `the send renders ${rows.length} times${rows.length ? ` (${rows.map(shape).join(", ")})` : ""}` : shape(rows[0]) !== as ? `the send renders as its ${shape(rows[0])}` : null;
-  if (wrong) w.fail({ ...w.reportBase(), invariant: { id: "expect.sendRendersOnce", meaning }, message: wrong, window: windowContext(win), row: { table: "conversations", id, server: (await w.row(session)) ?? null, replica: rows[0] ?? null } });
+  const shape = (m: any) =>
+    m.client_id
+      ? "echo"
+      : m._isSettled
+        ? "settled bubble"
+        : m._isFailed
+          ? "failed bubble"
+          : "bubble in flight";
+  const wrong =
+    rows.length !== 1
+      ? `the send renders ${rows.length} times${rows.length ? ` (${rows.map(shape).join(", ")})` : ""}`
+      : shape(rows[0]) !== as
+        ? `the send renders as its ${shape(rows[0])}`
+        : null;
+  if (wrong)
+    w.fail({
+      ...w.reportBase(),
+      invariant: { id: "expect.sendRendersOnce", meaning },
+      message: wrong,
+      window: windowContext(win),
+      row: {
+        table: "conversations",
+        id,
+        server: (await w.row(session)) ?? null,
+        replica: rows[0] ?? null,
+      },
+    });
 }
 
 scenario({ name: "queuedSendVsLaggingTail" }, async (w) => {

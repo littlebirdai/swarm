@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import { autoDeployCore, DEPLOY_SETTLE_MS, recordDeployMarker, report, request, stage } from "./deploys";
+import {
+  autoDeployCore,
+  DEPLOY_SETTLE_MS,
+  recordDeployMarker,
+  report,
+  request,
+  stage,
+} from "./deploys";
 import { carriesForMarker } from "./deployCarries";
 import schema from "./schema";
 import { schemaIndexes } from "./testDb";
@@ -22,21 +29,87 @@ const NOW = Date.now();
 async function seed(extra: Record<string, any[]> = {}) {
   return {
     users: [{ _id: ME, name: "Ana" }],
-    api_tokens: [{ _id: "tok_1", user_id: ME, token_hash: await hashToken(TOKEN) }],
-    team_memberships: [{ _id: "m1", user_id: ME, team_id: TEAM, role: "member" }],
+    api_tokens: [
+      { _id: "tok_1", user_id: ME, token_hash: await hashToken(TOKEN) },
+    ],
+    team_memberships: [
+      { _id: "m1", user_id: ME, team_id: TEAM, role: "member" },
+    ],
     teams: [{ _id: TEAM, name: "Acme" }],
     devices: [{ _id: "dev_row", user_id: ME, device_id: "ana-mac" }],
-    projects: [{
-      _id: PROJECT, short_id: "pj-1", title: "Checkout", user_id: ME, team_id: TEAM, workspace: WS,
-      line_profile: { finders: [], changed_at: 1, root: "/repo", device_id: "ana-mac", deploy: { command: "./deploy.sh", target: "production", trigger: "person" } },
-    }],
+    projects: [
+      {
+        _id: PROJECT,
+        short_id: "pj-1",
+        title: "Checkout",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        line_profile: {
+          finders: [],
+          changed_at: 1,
+          root: "/repo",
+          device_id: "ana-mac",
+          deploy: {
+            command: "./deploy.sh",
+            target: "production",
+            trigger: "person",
+          },
+        },
+      },
+    ],
     tasks: [
-      { _id: "task_a", short_id: "ct-1", title: "Totals round wrong", user_id: ME, team_id: TEAM, workspace: WS, project_id: PROJECT, status: "done" },
-      { _id: "task_b", short_id: "ct-2", title: "Coupon ignored", user_id: ME, team_id: TEAM, workspace: WS, project_id: PROJECT, status: "done" },
+      {
+        _id: "task_a",
+        short_id: "ct-1",
+        title: "Totals round wrong",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        project_id: PROJECT,
+        status: "done",
+      },
+      {
+        _id: "task_b",
+        short_id: "ct-2",
+        title: "Coupon ignored",
+        user_id: ME,
+        team_id: TEAM,
+        workspace: WS,
+        project_id: PROJECT,
+        status: "done",
+      },
     ],
     workflow_runs: [
-      { _id: "run_a", workspace: WS, task_id: "task_a", status: "completed", gate_decision_id: "dec_a", updated_at: NOW - 2 * DAY, created_at: NOW - 3 * DAY, merge: { sha: "aaaaaaa1111", branch: "fix/a", into: "main", at: NOW - 2 * DAY } },
-      { _id: "run_b", workspace: WS, task_id: "task_b", status: "completed", updated_at: NOW - DAY, created_at: NOW - 2 * DAY, merge: { sha: "bbbbbbb2222", branch: "fix/b", into: "main", at: NOW - DAY } },
+      {
+        _id: "run_a",
+        workspace: WS,
+        task_id: "task_a",
+        status: "completed",
+        gate_decision_id: "dec_a",
+        updated_at: NOW - 2 * DAY,
+        created_at: NOW - 3 * DAY,
+        merge: {
+          sha: "aaaaaaa1111",
+          branch: "fix/a",
+          into: "main",
+          at: NOW - 2 * DAY,
+        },
+      },
+      {
+        _id: "run_b",
+        workspace: WS,
+        task_id: "task_b",
+        status: "completed",
+        updated_at: NOW - DAY,
+        created_at: NOW - 2 * DAY,
+        merge: {
+          sha: "bbbbbbb2222",
+          branch: "fix/b",
+          into: "main",
+          at: NOW - DAY,
+        },
+      },
     ],
     session_decisions: [{ _id: "dec_a", short_id: "sd-9", status: "answered" }],
     deploys: [],
@@ -51,9 +124,21 @@ async function seed(extra: Record<string, any[]> = {}) {
 }
 
 const ctxFor = (tables: Record<string, any[]>) =>
-  ({ db: makeFakeDb(tables), auth: { getUserIdentity: async () => null }, scheduler: { runAfter: async () => null } }) as any;
+  ({
+    db: makeFakeDb(tables),
+    auth: { getUserIdentity: async () => null },
+    scheduler: { runAfter: async () => null },
+  }) as any;
 
-const marker = (over: Record<string, any> = {}) => ({ workspace: WS, team_id: TEAM, target: "production", sha: "ccccccc3333", source: "acme-api", at: NOW - 60_000, ...over });
+const marker = (over: Record<string, any> = {}) => ({
+  workspace: WS,
+  team_id: TEAM,
+  target: "production",
+  sha: "ccccccc3333",
+  source: "acme-api",
+  at: NOW - 60_000,
+  ...over,
+});
 
 describe("deploy markers (DP1)", () => {
   test("a marker nobody asked for records a live deploy carrying the fixes merged before it", async () => {
@@ -62,8 +147,15 @@ describe("deploy markers (DP1)", () => {
     const id = await recordDeployMarker(ctx, marker());
     expect(id).toBe("dp-1");
     const d = t.deploys[0];
-    expect(d).toMatchObject({ status: "live", trigger: "outside", target: "production", workspace: WS });
-    expect(d.carries.map((c: any) => [c.task_id, c.how, c.decision_id])).toEqual([
+    expect(d).toMatchObject({
+      status: "live",
+      trigger: "outside",
+      target: "production",
+      workspace: WS,
+    });
+    expect(
+      d.carries.map((c: any) => [c.task_id, c.how, c.decision_id]),
+    ).toEqual([
       ["task_a", "deployed after the merge", "dec_a"],
       ["task_b", "deployed after the merge", undefined],
     ]);
@@ -73,14 +165,24 @@ describe("deploy markers (DP1)", () => {
     const t = await seed();
     const ctx = ctxFor(t);
     await recordDeployMarker(ctx, { ...marker(), target: "dashboard" });
-    expect(t.deploys[0]).toMatchObject({ target: "dashboard", status: "live", carries: [] });
+    expect(t.deploys[0]).toMatchObject({
+      target: "dashboard",
+      status: "live",
+      carries: [],
+    });
   });
 
   test("the same version reported twice is one deploy, and the second report adds what it knows", async () => {
     const t = await seed();
     const ctx = ctxFor(t);
     await recordDeployMarker(ctx, marker());
-    const again = await recordDeployMarker(ctx, marker({ url: "https://github.com/acme/app/actions/runs/7", commits: [{ sha: "ccccccc3333", subject: "fix totals" }] }));
+    const again = await recordDeployMarker(
+      ctx,
+      marker({
+        url: "https://github.com/acme/app/actions/runs/7",
+        commits: [{ sha: "ccccccc3333", subject: "fix totals" }],
+      }),
+    );
     expect(again).toBe("dp-1");
     expect(t.deploys).toHaveLength(1);
     expect(t.deploys[0].url).toBe("https://github.com/acme/app/actions/runs/7");
@@ -91,13 +193,18 @@ describe("deploy markers (DP1)", () => {
     const t = await seed();
     const ctx = ctxFor(t);
     await recordDeployMarker(ctx, marker());
-    await recordDeployMarker(ctx, marker({ sha: "ddddddd4444", at: NOW - 30_000 }));
+    await recordDeployMarker(
+      ctx,
+      marker({ sha: "ddddddd4444", at: NOW - 30_000 }),
+    );
     expect(t.deploys[1].carries).toEqual([]);
   });
 
   test("a laptop's boot is no deploy", async () => {
     const t = await seed();
-    expect(await recordDeployMarker(ctxFor(t), marker({ target: "local" }))).toBeNull();
+    expect(
+      await recordDeployMarker(ctxFor(t), marker({ target: "local" })),
+    ).toBeNull();
     expect(t.deploys).toHaveLength(0);
   });
 });
@@ -106,10 +213,22 @@ describe("a fix that landed outside a run's merge step", () => {
   test("a problem's landed commit is a merge the next deploy carries", async () => {
     const t = await seed();
     t.workflow_runs = [];
-    t.tasks[0].landed = { sha: "1111111aaaa", at: NOW - DAY, url: "https://github.com/acme/app/commit/1111111", repository: "acme/app", branch: "main" };
+    t.tasks[0].landed = {
+      sha: "1111111aaaa",
+      at: NOW - DAY,
+      url: "https://github.com/acme/app/commit/1111111",
+      repository: "acme/app",
+      branch: "main",
+    };
     const ctx = ctxFor(t);
     await recordDeployMarker(ctx, marker());
-    expect(t.deploys[0].carries).toEqual([expect.objectContaining({ task_id: "task_a", how: "deployed after the merge", merge_sha: "1111111aaaa" })]);
+    expect(t.deploys[0].carries).toEqual([
+      expect.objectContaining({
+        task_id: "task_a",
+        how: "deployed after the merge",
+        merge_sha: "1111111aaaa",
+      }),
+    ]);
     expect(t.deploys[0].carries[0]).not.toHaveProperty("run_id");
   });
 });
@@ -120,66 +239,169 @@ describe("a deploy carries what its range on main names", () => {
   const REPO = "acme/app";
   const at = (h: number) => NOW - 10 * DAY + h * 60 * 60 * 1000;
   const live = (id: string, sha: string, cut: number) => ({
-    _id: id, short_id: id, workspace: WS, team_id: TEAM, target: "production", status: "live", trigger: "outside", source: "acme-api",
-    event_ids: [], repository: REPO, sha, cut_at: cut, carries: [], created_at: cut + 30 * 60_000, live_at: cut + 60 * 60_000, updated_at: cut,
+    _id: id,
+    short_id: id,
+    workspace: WS,
+    team_id: TEAM,
+    target: "production",
+    status: "live",
+    trigger: "outside",
+    source: "acme-api",
+    event_ids: [],
+    repository: REPO,
+    sha,
+    cut_at: cut,
+    carries: [],
+    created_at: cut + 30 * 60_000,
+    live_at: cut + 60 * 60_000,
+    updated_at: cut,
   });
-  const commit = (sha: string, mainAt: number, task_ids: string[] = [], message = sha) => ({ _id: `c_${sha}`, sha, repository: REPO, team_id: TEAM, message, author_name: "a", author_email: "a@x", timestamp: mainAt, files_changed: 1, insertions: 0, deletions: 0, main_at: mainAt, task_ids });
+  const commit = (
+    sha: string,
+    mainAt: number,
+    task_ids: string[] = [],
+    message = sha,
+  ) => ({
+    _id: `c_${sha}`,
+    sha,
+    repository: REPO,
+    team_id: TEAM,
+    message,
+    author_name: "a",
+    author_email: "a@x",
+    timestamp: mainAt,
+    files_changed: 1,
+    insertions: 0,
+    deletions: 0,
+    main_at: mainAt,
+    task_ids,
+  });
 
   test("each landing goes with the deploy whose range holds it, a run merge keeps its run, and a branch-only link carries nothing", async () => {
     const t = await seed({
-      deploys: [live("dp-1", "d1d1d1d1d1", at(0)), live("dp-2", "d2d2d2d2d2", at(10)), live("dp-3", "d3d3d3d3d3", at(30))],
+      deploys: [
+        live("dp-1", "d1d1d1d1d1", at(0)),
+        live("dp-2", "d2d2d2d2d2", at(10)),
+        live("dp-3", "d3d3d3d3d3", at(30)),
+      ],
       commits: [
         commit("d1d1d1d1d1", at(0)),
-        commit("e1e1e1e1e1", at(5), ["task_a"], "Fix totals (ct-1)"),   // the first landing, in dp-2's range
+        commit("e1e1e1e1e1", at(5), ["task_a"], "Fix totals (ct-1)"), // the first landing, in dp-2's range
         // Linked to task_a only by the fix branch it was first pushed on; its message names no problem.
         commit("f1f1f1f1f1", at(7), ["task_a"], "Unrelated refactor"),
-        commit("bbbbbbb2222", at(6), ["task_b"]),           // run_b's merge
+        commit("bbbbbbb2222", at(6), ["task_b"]), // run_b's merge
         commit("d2d2d2d2d2", at(10)),
         commit("e3e3e3e3e3", at(20), ["task_a"], "Totals again (ct-1)"), // the second landing, in dp-3's range
-        commit("f3f3f3f3f3", at(25), ["task_b"], "Unrelated, pushed on a fix branch"),
+        commit(
+          "f3f3f3f3f3",
+          at(25),
+          ["task_b"],
+          "Unrelated, pushed on a fix branch",
+        ),
         commit("d3d3d3d3d3", at(30)),
       ],
     });
-    t.workflow_runs = [{ ...t.workflow_runs[1], merge: { sha: "bbbbbbb2222", branch: "fix/b", into: "main", at: at(6) + 60_000 } }];
+    t.workflow_runs = [
+      {
+        ...t.workflow_runs[1],
+        merge: {
+          sha: "bbbbbbb2222",
+          branch: "fix/b",
+          into: "main",
+          at: at(6) + 60_000,
+        },
+      },
+    ];
     t.tasks[0].landed = { sha: "e3e3e3e3e3", at: at(20), branch: "main" };
-    const ctx = { db: makeFakeDb(t, { indexes: schemaIndexes(schema as any) }) } as any;
+    const ctx = {
+      db: makeFakeDb(t, { indexes: schemaIndexes(schema as any) }),
+    } as any;
     const [, dp2, dp3] = t.deploys;
     const two = await carriesForMarker(ctx, dp2, NOW);
-    expect(two.map((c) => [c.task_id, c.merge_sha, c.run_id ?? null])).toEqual([["task_a", "e1e1e1e1e1", null], ["task_b", "bbbbbbb2222", "run_b"]]);
-    expect((await carriesForMarker(ctx, dp3, NOW)).map((c) => [c.task_id, c.merge_sha])).toEqual([["task_a", "e3e3e3e3e3"]]);
+    expect(two.map((c) => [c.task_id, c.merge_sha, c.run_id ?? null])).toEqual([
+      ["task_a", "e1e1e1e1e1", null],
+      ["task_b", "bbbbbbb2222", "run_b"],
+    ]);
+    expect(
+      (await carriesForMarker(ctx, dp3, NOW)).map((c) => [
+        c.task_id,
+        c.merge_sha,
+      ]),
+    ).toEqual([["task_a", "e3e3e3e3e3"]]);
   });
 });
 
 describe("the line's deploy stage (DP2)", () => {
   test("the stage lists the shipped fixes no live deploy carried", async () => {
     const t = await seed();
-    const s = await (stage as any)._handler(ctxFor(t), { project_id: "pj-1", api_token: TOKEN });
-    expect(s.waiting.map((w: any) => w.task_short_id)).toEqual(["ct-1", "ct-2"]);
+    const s = await (stage as any)._handler(ctxFor(t), {
+      project_id: "pj-1",
+      api_token: TOKEN,
+    });
+    expect(s.waiting.map((w: any) => w.task_short_id)).toEqual([
+      "ct-1",
+      "ct-2",
+    ]);
     expect(s.deploy.command).toBe("./deploy.sh");
   });
 
   test("Deploy asks for one deploy sending every waiting fix, queues it on the publishing machine, and refuses a second", async () => {
     const t = await seed();
     const ctx = ctxFor(t);
-    const r = await (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN });
+    const r = await (request as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+    });
     expect(r).toMatchObject({ short_id: "dp-1", carries: 2 });
-    expect(t.deploys[0]).toMatchObject({ status: "requested", trigger: "person", target: "production", project_id: PROJECT });
+    expect(t.deploys[0]).toMatchObject({
+      status: "requested",
+      trigger: "person",
+      target: "production",
+      project_id: PROJECT,
+    });
     expect(t.deploys[0].carries.every((c: any) => c.how === "sent")).toBe(true);
-    expect(t.daemon_commands[0]).toMatchObject({ command: "line_deploy", target_device_id: "ana-mac" });
-    expect(JSON.parse(t.daemon_commands[0].args)).toEqual({ deploy: "dp-1", root: "/repo" });
-    await expect((request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN })).rejects.toThrow("dp-1 is already going out");
+    expect(t.daemon_commands[0]).toMatchObject({
+      command: "line_deploy",
+      target_device_id: "ana-mac",
+    });
+    expect(JSON.parse(t.daemon_commands[0].args)).toEqual({
+      deploy: "dp-1",
+      root: "/repo",
+    });
+    await expect(
+      (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN }),
+    ).rejects.toThrow("dp-1 is already going out");
   });
 
   test("the team's marker finishes the line's deploy, and the stage is empty after", async () => {
     const t = await seed();
     const ctx = ctxFor(t);
-    await (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN, here: true });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "running", url: "https://ci/run/1" });
-    const id = await recordDeployMarker(ctx, marker({ sha: "eeeeeee5555", at: NOW }));
+    await (request as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+      here: true,
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "running",
+      url: "https://ci/run/1",
+    });
+    const id = await recordDeployMarker(
+      ctx,
+      marker({ sha: "eeeeeee5555", at: NOW }),
+    );
     expect(id).toBe("dp-1");
     expect(t.deploys).toHaveLength(1);
-    expect(t.deploys[0]).toMatchObject({ status: "live", sha: "eeeeeee5555", url: "https://ci/run/1" });
-    const s = await (stage as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN });
+    expect(t.deploys[0]).toMatchObject({
+      status: "live",
+      sha: "eeeeeee5555",
+      url: "https://ci/run/1",
+    });
+    const s = await (stage as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+    });
     expect(s.waiting).toEqual([]);
     expect(s.open).toBeNull();
   });
@@ -187,65 +409,166 @@ describe("the line's deploy stage (DP2)", () => {
   test("a report never moves a deploy backwards, and a failure keeps its fixes waiting", async () => {
     const t = await seed();
     const ctx = ctxFor(t);
-    await (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN, here: true });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "failed", note: "exited 1" });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "live" });
+    await (request as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+      here: true,
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "failed",
+      note: "exited 1",
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "live",
+    });
     expect(t.deploys[0].status).toBe("failed");
-    const s = await (stage as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN });
+    const s = await (stage as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+    });
     expect(s.waiting).toHaveLength(2);
   });
 
   test("one deploy ships one checkout: a fix in another project on the same root waits on it too", async () => {
     const t = await seed();
-    t.projects.push({ _id: "proj_2", short_id: "pj-2", title: "Calls", user_id: ME, team_id: TEAM, workspace: WS, line_profile: { finders: [], changed_at: 1, root: "/repo" } });
+    t.projects.push({
+      _id: "proj_2",
+      short_id: "pj-2",
+      title: "Calls",
+      user_id: ME,
+      team_id: TEAM,
+      workspace: WS,
+      line_profile: { finders: [], changed_at: 1, root: "/repo" },
+    });
     t.tasks[1].project_id = "proj_2";
-    const s = await (stage as any)._handler(ctxFor(t), { project_id: "pj-1", api_token: TOKEN });
-    expect(s.waiting.map((w: any) => w.task_short_id)).toEqual(["ct-1", "ct-2"]);
+    const s = await (stage as any)._handler(ctxFor(t), {
+      project_id: "pj-1",
+      api_token: TOKEN,
+    });
+    expect(s.waiting.map((w: any) => w.task_short_id)).toEqual([
+      "ct-1",
+      "ct-2",
+    ]);
     t.projects[1].line_profile.root = "/elsewhere";
-    const narrower = await (stage as any)._handler(ctxFor(t), { project_id: "pj-1", api_token: TOKEN });
+    const narrower = await (stage as any)._handler(ctxFor(t), {
+      project_id: "pj-1",
+      api_token: TOKEN,
+    });
     expect(narrower.waiting.map((w: any) => w.task_short_id)).toEqual(["ct-1"]);
   });
 
   test("with no deploy path in the profile, nothing is asked for", async () => {
     const t = await seed();
-    t.projects[0].line_profile.deploy = { command: null, target: null, trigger: "person" };
-    await expect((request as any)._handler(ctxFor(t), { project_id: PROJECT, api_token: TOKEN })).rejects.toThrow("no deploy stage");
+    t.projects[0].line_profile.deploy = {
+      command: null,
+      target: null,
+      trigger: "person",
+    };
+    await expect(
+      (request as any)._handler(ctxFor(t), {
+        project_id: PROJECT,
+        api_token: TOKEN,
+      }),
+    ).rejects.toThrow("no deploy stage");
   });
 });
 
 describe("the role trigger (DP4)", () => {
   const releaseRole = (over: Record<string, any> = {}) => ({
-    _id: "role_rel", short_id: "or-9", handle: "release", name: "Release Captain", team_id: TEAM, host_user_id: ME, status: "active", trust: "direct",
-    authority: [{ id: "deploy", kind: "publish", label: "Deploy", limit: { per_day: 2 }, granted_by: ME, granted_at: NOW - DAY, expires_at: NOW + 30 * DAY }],
+    _id: "role_rel",
+    short_id: "or-9",
+    handle: "release",
+    name: "Release Captain",
+    team_id: TEAM,
+    host_user_id: ME,
+    status: "active",
+    trust: "direct",
+    authority: [
+      {
+        id: "deploy",
+        kind: "publish",
+        label: "Deploy",
+        limit: { per_day: 2 },
+        granted_by: ME,
+        granted_at: NOW - DAY,
+        expires_at: NOW + 30 * DAY,
+      },
+    ],
     ...over,
   });
-  const roleLine = (t: Record<string, any[]>) => { t.projects[0].line_profile.deploy = { command: "./deploy.sh", target: "production", trigger: "role", role: "release" }; t.projects[0].line_profile.publisher_user_id = ME; };
+  const roleLine = (t: Record<string, any[]>) => {
+    t.projects[0].line_profile.deploy = {
+      command: "./deploy.sh",
+      target: "production",
+      trigger: "role",
+      role: "release",
+    };
+    t.projects[0].line_profile.publisher_user_id = ME;
+  };
 
   test("a role holding a deploy grant asks for one deploy of what waits, counted against its daily limit", async () => {
     const t = await seed({ org_roles: [releaseRole()] });
     roleLine(t);
     const r = await autoDeployCore(ctxFor(t), NOW);
-    expect(r.asked).toEqual([{ project_id: PROJECT, deploy: "dp-1", role: "release" }]);
-    expect(t.deploys[0]).toMatchObject({ status: "requested", trigger: "role", started_by: { kind: "role", name: "@release", role_id: "role_rel" } });
+    expect(r.asked).toEqual([
+      { project_id: PROJECT, deploy: "dp-1", role: "release" },
+    ]);
+    expect(t.deploys[0]).toMatchObject({
+      status: "requested",
+      trigger: "role",
+      started_by: { kind: "role", name: "@release", role_id: "role_rel" },
+    });
     expect(t.deploys[0].carries).toHaveLength(2);
-    expect(t.daemon_commands[0]).toMatchObject({ command: "line_deploy", target_device_id: "ana-mac", user_id: ME });
+    expect(t.daemon_commands[0]).toMatchObject({
+      command: "line_deploy",
+      target_device_id: "ana-mac",
+      user_id: ME,
+    });
     expect(t.org_roles[0].counters.deploys).toBe(1);
     // The deploy is going out: the next pass asks for nothing.
     expect((await autoDeployCore(ctxFor(t), NOW)).asked).toEqual([]);
   });
 
   test("the stage says whether the role may deploy and why not", async () => {
-    const t = await seed({ org_roles: [releaseRole({ counters: { day: new Date(NOW).toISOString().slice(0, 10), hands: 0, wakes: 0, tokens: 0, deploys: 2 } })] });
+    const t = await seed({
+      org_roles: [
+        releaseRole({
+          counters: {
+            day: new Date(NOW).toISOString().slice(0, 10),
+            hands: 0,
+            wakes: 0,
+            tokens: 0,
+            deploys: 2,
+          },
+        }),
+      ],
+    });
     roleLine(t);
-    const s = await (stage as any)._handler(ctxFor(t), { project_id: "pj-1", api_token: TOKEN });
-    expect(s.auto).toMatchObject({ role: "release", allowed: false, used: 2, limit: 2 });
+    const s = await (stage as any)._handler(ctxFor(t), {
+      project_id: "pj-1",
+      api_token: TOKEN,
+    });
+    expect(s.auto).toMatchObject({
+      role: "release",
+      allowed: false,
+      used: 2,
+      limit: 2,
+    });
     expect(s.auto.reason).toContain("2 of 2");
     expect((await autoDeployCore(ctxFor(t), NOW)).asked).toEqual([]);
     expect(t.deploys).toHaveLength(0);
   });
 
   test("no grant, an expired grant, or a role that does not start work on its own deploys nothing", async () => {
-    for (const over of [{ authority: [] }, { authority: [{ ...releaseRole().authority[0], expires_at: NOW - 1 }] }, { trust: "understand" }]) {
+    for (const over of [
+      { authority: [] },
+      { authority: [{ ...releaseRole().authority[0], expires_at: NOW - 1 }] },
+      { trust: "understand" },
+    ]) {
       const t = await seed({ org_roles: [releaseRole(over)] });
       roleLine(t);
       expect((await autoDeployCore(ctxFor(t), NOW)).asked).toEqual([]);
@@ -265,7 +588,21 @@ describe("the role trigger (DP4)", () => {
   test("after a failed deploy the role waits for a newer fix instead of retrying the same one", async () => {
     const t = await seed({ org_roles: [releaseRole()] });
     roleLine(t);
-    t.deploys.push({ _id: "dep_0", short_id: "dp-0", workspace: WS, team_id: TEAM, project_id: PROJECT, target: "production", status: "failed", trigger: "role", source: "line", event_ids: [], carries: [], created_at: NOW - 3600_000, updated_at: NOW - 3600_000 });
+    t.deploys.push({
+      _id: "dep_0",
+      short_id: "dp-0",
+      workspace: WS,
+      team_id: TEAM,
+      project_id: PROJECT,
+      target: "production",
+      status: "failed",
+      trigger: "role",
+      source: "line",
+      event_ids: [],
+      carries: [],
+      created_at: NOW - 3600_000,
+      updated_at: NOW - 3600_000,
+    });
     const r = await autoDeployCore(ctxFor(t), NOW);
     expect(r.asked).toEqual([]);
     expect(r.waiting[0].why).toContain("dp-0 failed");
@@ -278,8 +615,17 @@ describe("the role trigger (DP4)", () => {
     t.tasks[0].watch_until = NOW - DAY;
     t.tasks[1].status = "open";
     const ctx = ctxFor(t);
-    await (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN, here: true });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "live", watch_days: 7 });
+    await (request as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+      here: true,
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "live",
+      watch_days: 7,
+    });
     expect(t.deploys[0].status).toBe("live");
     expect(t.tasks[0].watch_until).toBeGreaterThan(NOW + 6 * DAY);
     // Evidence from before this moment is older than the fix (signals.ts watchReopens).
@@ -295,35 +641,107 @@ describe("the role trigger (DP4)", () => {
   test("a deploy's run is named once, and its steps read from that run", async () => {
     const t = await seed();
     const ctx = ctxFor(t);
-    await (request as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN, here: true });
-    t.workflow_runs.push({ _id: "run_dp", workspace: WS, status: "running", created_at: NOW, updated_at: NOW, node_statuses: [
-      { node_id: "start", status: "completed" }, { node_id: "ci", status: "completed", started_at: 1, completed_at: 2 }, { node_id: "send", status: "running", started_at: 3 },
-    ] });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "running", run_id: "run_dp" });
-    await (report as any)._handler(ctx, { api_token: TOKEN, deploy: "dp-1", status: "running", run_id: "run_other" });
+    await (request as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+      here: true,
+    });
+    t.workflow_runs.push({
+      _id: "run_dp",
+      workspace: WS,
+      status: "running",
+      created_at: NOW,
+      updated_at: NOW,
+      node_statuses: [
+        { node_id: "start", status: "completed" },
+        { node_id: "ci", status: "completed", started_at: 1, completed_at: 2 },
+        { node_id: "send", status: "running", started_at: 3 },
+      ],
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "running",
+      run_id: "run_dp",
+    });
+    await (report as any)._handler(ctx, {
+      api_token: TOKEN,
+      deploy: "dp-1",
+      status: "running",
+      run_id: "run_other",
+    });
     expect(t.deploys[0].run_id).toBe("run_dp");
-    const s = await (stage as any)._handler(ctx, { project_id: PROJECT, api_token: TOKEN });
-    expect(s.open.steps).toEqual([{ id: "ci", status: "completed", started_at: 1, completed_at: 2 }, { id: "send", status: "running", started_at: 3 }]);
+    const s = await (stage as any)._handler(ctx, {
+      project_id: PROJECT,
+      api_token: TOKEN,
+    });
+    expect(s.open.steps).toEqual([
+      { id: "ci", status: "completed", started_at: 1, completed_at: 2 },
+      { id: "send", status: "running", started_at: 3 },
+    ]);
   });
 });
 
 describe("backfill (DP6)", () => {
   test("every marker becomes a deploy once, oldest first, and a rerun skips them", async () => {
     const t = await seed({
-      event_sources: [{ _id: "src_1", name: "acme-api", workspace: WS, team_id: TEAM, project_id: PROJECT }],
+      event_sources: [
+        {
+          _id: "src_1",
+          name: "acme-api",
+          workspace: WS,
+          team_id: TEAM,
+          project_id: PROJECT,
+        },
+      ],
       external_events: [
-        { _id: "ev_1", source_id: "src_1", kind: "deploy", workspace: WS, team_id: TEAM, title: "Deployed x", sha: "ccccccc3333", data: { source_name: "acme-api", environment: "production", release: "ccccccc3333" }, created_at: NOW - 12 * 3600_000, dedupe_key: "k1" },
-        { _id: "ev_2", source_id: "src_1", kind: "deploy", workspace: WS, team_id: TEAM, title: "Deployed y", sha: "fffffff6666", data: { source_name: "acme-api", environment: "local", release: "fffffff6666" }, created_at: NOW - 6 * 3600_000, dedupe_key: "k2" },
+        {
+          _id: "ev_1",
+          source_id: "src_1",
+          kind: "deploy",
+          workspace: WS,
+          team_id: TEAM,
+          title: "Deployed x",
+          sha: "ccccccc3333",
+          data: {
+            source_name: "acme-api",
+            environment: "production",
+            release: "ccccccc3333",
+          },
+          created_at: NOW - 12 * 3600_000,
+          dedupe_key: "k1",
+        },
+        {
+          _id: "ev_2",
+          source_id: "src_1",
+          kind: "deploy",
+          workspace: WS,
+          team_id: TEAM,
+          title: "Deployed y",
+          sha: "fffffff6666",
+          data: {
+            source_name: "acme-api",
+            environment: "local",
+            release: "fffffff6666",
+          },
+          created_at: NOW - 6 * 3600_000,
+          dedupe_key: "k2",
+        },
       ],
     });
     const ctx = ctxFor(t);
     const first = await (backfill as any)._handler(ctx, { source_id: "src_1" });
     expect(first).toMatchObject({ markers: 2, recorded: 1, not_live: 1 });
     expect(t.external_events[0].meta.deploy).toBe("dp-1");
-    expect(t.deploys[0]).toMatchObject({ source: "acme-api", target: "production" });
+    expect(t.deploys[0]).toMatchObject({
+      source: "acme-api",
+      target: "production",
+    });
     // A deploy ships the code, not the source's project: it belongs to the workspace.
     expect(t.deploys[0].project_id).toBeUndefined();
-    const second = await (backfill as any)._handler(ctx, { source_id: "src_1" });
+    const second = await (backfill as any)._handler(ctx, {
+      source_id: "src_1",
+    });
     expect(second).toMatchObject({ recorded: 0, skipped: 1 });
   });
 });
@@ -331,7 +749,21 @@ describe("backfill (DP6)", () => {
 describe("the Changes page reads the deploy behind a marker", () => {
   test("a deploy marker's ship names its deploy object, so the live strip opens it", async () => {
     const { shipOf } = await import("./changes");
-    expect(shipOf({ kind: "deploy", sha: "abc1234", created_at: 1, meta: { surface: "backend", deploy: "dp-7" } } as any)).toMatchObject({ surface: "backend", deploy: "dp-7" });
-    expect(shipOf({ kind: "deploy", sha: "abc1234", created_at: 1, meta: { surface: "backend" } } as any)).not.toHaveProperty("deploy");
+    expect(
+      shipOf({
+        kind: "deploy",
+        sha: "abc1234",
+        created_at: 1,
+        meta: { surface: "backend", deploy: "dp-7" },
+      } as any),
+    ).toMatchObject({ surface: "backend", deploy: "dp-7" });
+    expect(
+      shipOf({
+        kind: "deploy",
+        sha: "abc1234",
+        created_at: 1,
+        meta: { surface: "backend" },
+      } as any),
+    ).not.toHaveProperty("deploy");
   });
 });

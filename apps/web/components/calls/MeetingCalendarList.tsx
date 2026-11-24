@@ -4,9 +4,17 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { Switch } from "../ui/switch";
 import { useConnectGesture } from "../../lib/integrations";
 import { useInboxStore } from "../../store/inboxStore";
-import { useCalendarMeetings, useMeetingBotSettings } from "../../hooks/useCalendarMeetings";
+import {
+  useCalendarMeetings,
+  useMeetingBotSettings,
+} from "../../hooks/useCalendarMeetings";
 import { useMeetingBots } from "../../hooks/useMeetingBots";
-import { calendarMeetingWanted, MEETING_BOT_FINAL, type CalendarMeeting, type MeetingBot } from "../../store/meetingBotsSlice";
+import {
+  calendarMeetingWanted,
+  MEETING_BOT_FINAL,
+  type CalendarMeeting,
+  type MeetingBot,
+} from "../../store/meetingBotsSlice";
 
 // The viewer's upcoming meetings from their Google Calendar, each with a
 // switch: on, a bot joins it (scheduled a day ahead, convex
@@ -35,34 +43,58 @@ const BOT_WORDS: Partial<Record<string, { words: string; tone: string }>> = {
 function whenOf(at: number, now = Date.now()): string {
   const d = new Date(at);
   const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const day = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const days = Math.round((day(d) - day(new Date(now))) / 86_400_000);
   if (days === 0) return `Today ${time}`;
   if (days === 1) return `Tomorrow ${time}`;
   return `${d.toLocaleDateString([], { weekday: "short" })} ${time}`;
 }
 
-function MeetingRow({ meeting, joinAll, bot }: { meeting: CalendarMeeting; joinAll: boolean; bot: MeetingBot | null }) {
+function MeetingRow({
+  meeting,
+  joinAll,
+  bot,
+}: {
+  meeting: CalendarMeeting;
+  joinAll: boolean;
+  bot: MeetingBot | null;
+}) {
   const setChoice = useInboxStore((s) => s.setCalendarMeetingChoice);
   const wanted = calendarMeetingWanted(meeting, joinAll);
-  const live = bot && !MEETING_BOT_FINAL.has(bot.status) ? BOT_WORDS[bot.status] : null;
+  const live =
+    bot && !MEETING_BOT_FINAL.has(bot.status) ? BOT_WORDS[bot.status] : null;
   // Back to following join-all when the switch lands on what join-all says.
-  const toggle = (on: boolean) => setChoice(meeting._id, on === joinAll ? null : on ? "on" : "off");
+  const toggle = (on: boolean) =>
+    setChoice(meeting._id, on === joinAll ? null : on ? "on" : "off");
   return (
-    <li className="flex items-center gap-2 text-meta" data-calendar-meeting={wanted ? "on" : "off"}>
+    <li
+      className="flex items-center gap-2 text-meta"
+      data-calendar-meeting={wanted ? "on" : "off"}
+    >
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sol-text" title={meeting.title}>{meeting.title}</div>
+        <div className="truncate text-sol-text" title={meeting.title}>
+          {meeting.title}
+        </div>
         <div className="flex min-w-0 items-center gap-1.5 text-sol-text-dim">
-          <span className="shrink-0 tabular-nums">{whenOf(meeting.starts_at)}</span>
+          <span className="shrink-0 tabular-nums">
+            {whenOf(meeting.starts_at)}
+          </span>
           <span aria-hidden="true">·</span>
           {live ? (
             <span className={`truncate ${live.tone}`}>{live.words}</span>
           ) : (
-            <span className="truncate">{PLATFORM[meeting.platform] ?? meeting.platform}</span>
+            <span className="truncate">
+              {PLATFORM[meeting.platform] ?? meeting.platform}
+            </span>
           )}
         </div>
       </div>
-      <Switch checked={wanted} onCheckedChange={toggle} aria-label={`Send a bot to ${meeting.title}`} />
+      <Switch
+        checked={wanted}
+        onCheckedChange={toggle}
+        aria-label={`Send a bot to ${meeting.title}`}
+      />
     </li>
   );
 }
@@ -80,10 +112,15 @@ export function MeetingCalendarList() {
   if (!connected) {
     const connect = () =>
       void attempt(
-        () => openMinted(
-          () => getGoogleUrl({ grant: "calendar.events", return_to: "/settings/integrations" }),
-          "Couldn't start the Google connection",
-        ),
+        () =>
+          openMinted(
+            () =>
+              getGoogleUrl({
+                grant: "calendar.events",
+                return_to: "/settings/integrations",
+              }),
+            "Couldn't start the Google connection",
+          ),
         "Couldn't reach Google",
       );
     return (
@@ -95,7 +132,9 @@ export function MeetingCalendarList() {
           className="flex w-full items-center justify-center gap-2 rounded-md border border-sol-border/40 px-3 py-1.5 text-xs text-sol-text-muted transition-colors hover:bg-sol-bg-alt hover:text-sol-text disabled:opacity-50"
         >
           <CalendarDays className="h-3.5 w-3.5" />
-          {settings.calendar === "missing_scope" ? "Allow calendar access" : "Connect Google Calendar"}
+          {settings.calendar === "missing_scope"
+            ? "Allow calendar access"
+            : "Connect Google Calendar"}
         </button>
         {error && <p className="mt-1 text-meta text-sol-red">{error}</p>}
       </div>
@@ -111,15 +150,26 @@ export function MeetingCalendarList() {
         <span className="flex-1">Upcoming meetings</span>
         <label className="flex items-center gap-1.5">
           Join all
-          <Switch checked={joinAll} onCheckedChange={setJoinAll} aria-label="Send a bot to every meeting with a link" />
+          <Switch
+            checked={joinAll}
+            onCheckedChange={setJoinAll}
+            aria-label="Send a bot to every meeting with a link"
+          />
         </label>
       </div>
       {meetings.length === 0 ? (
-        <p className="mt-1.5 text-meta text-sol-text-dim">No meetings with a link this week</p>
+        <p className="mt-1.5 text-meta text-sol-text-dim">
+          No meetings with a link this week
+        </p>
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {meetings.slice(0, 12).map((m) => (
-            <MeetingRow key={m._id} meeting={m} joinAll={joinAll} bot={m.meet_id ? botByMeet.get(m.meet_id) ?? null : null} />
+            <MeetingRow
+              key={m._id}
+              meeting={m}
+              joinAll={joinAll}
+              bot={m.meet_id ? (botByMeet.get(m.meet_id) ?? null) : null}
+            />
           ))}
         </ul>
       )}

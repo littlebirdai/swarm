@@ -30,9 +30,22 @@ export function channelHuddleMemberIds(
   teammates: readonly ({ _id: string; is_bot?: boolean } | null)[] | undefined,
 ): string[] | undefined {
   if (kind === "community") return [];
-  if (!teammates?.length || ((kind === "private" || kind === "dm") && !memberIds)) return undefined;
-  const allowed = kind === "private" || kind === "dm" ? new Set(memberIds) : null;
-  return [...new Set(teammates.flatMap((m) => isPerson(m) && (!allowed || allowed.has(String(m._id))) ? [String(m._id)] : []))];
+  if (
+    !teammates?.length ||
+    ((kind === "private" || kind === "dm") && !memberIds)
+  )
+    return undefined;
+  const allowed =
+    kind === "private" || kind === "dm" ? new Set(memberIds) : null;
+  return [
+    ...new Set(
+      teammates.flatMap((m) =>
+        isPerson(m) && (!allowed || allowed.has(String(m._id)))
+          ? [String(m._id)]
+          : [],
+      ),
+    ),
+  ];
 }
 
 const MAX_ROOM_KEY_LENGTH = 400;
@@ -69,9 +82,14 @@ const REC_ID = /^[A-Za-z0-9-]{8,64}$/;
 // Ids are opaque strings; the parser enforces shape only — existence and
 // authorization are the server's job.
 export function parseRoomKey(roomKey: string): ParsedRoomKey | null {
-  if (typeof roomKey !== "string" || roomKey.length > MAX_ROOM_KEY_LENGTH) return null;
+  if (typeof roomKey !== "string" || roomKey.length > MAX_ROOM_KEY_LENGTH)
+    return null;
   const parts = roomKey.split(":");
-  if (parts[0] === "dm" && parts.length >= 3 && parts.length <= MAX_ROOM_MEMBERS + 1) {
+  if (
+    parts[0] === "dm" &&
+    parts.length >= 3 &&
+    parts.length <= MAX_ROOM_MEMBERS + 1
+  ) {
     const users = parts.slice(1);
     // Canonical order is part of the key's identity: a swapped or repeated
     // form is invalid, not an alias — otherwise one set of people could
@@ -137,7 +155,9 @@ export function meetRoomKey(meetId: string): string {
  *  and one person in it is a conversation rather than someone waiting for an
  *  answer (autoScribe). Both sides ask here so they cannot disagree about
  *  which rooms those exceptions cover. */
-export function sessionRoomConversationId(roomKey: string | null | undefined): string | null {
+export function sessionRoomConversationId(
+  roomKey: string | null | undefined,
+): string | null {
   if (!roomKey) return null;
   const parsed = parseRoomKey(roomKey);
   return parsed?.kind === "session" ? parsed.conversationId : null;
@@ -211,7 +231,10 @@ function peopleTitle(
 /** How long a call ran, on every surface that lists it (the web's history
  *  and call page, `cast calls`): `31s` under a minute, `12m`, `1h 14m`, or
  *  `live` while it has no end. One rule, so a call has one length. */
-export function callLength(startedAt: number, endedAt: number | null | undefined): string {
+export function callLength(
+  startedAt: number,
+  endedAt: number | null | undefined,
+): string {
   if (!endedAt) return "live";
   const sec = Math.max(1, Math.round((endedAt - startedAt) / 1000));
   if (sec < 60) return `${sec}s`;
@@ -225,18 +248,35 @@ export function callLength(startedAt: number, endedAt: number | null | undefined
  *  the room key: a key is an opaque id that tells a person nothing and costs
  *  an agent tokens. */
 export function callDisplayTitle(
-  call: { title?: string | null; room_key: string; participants?: ReadonlyArray<{ id: string; name: string }>; screen?: unknown },
+  call: {
+    title?: string | null;
+    room_key: string;
+    participants?: ReadonlyArray<{ id: string; name: string }>;
+    screen?: unknown;
+  },
   names: CallPlaceNames = {},
 ): string {
   const title = call.title?.trim();
   if (title) return title;
   const parsed = parseRoomKey(call.room_key);
-  if (parsed?.kind === "rec") return call.screen ? "Screen recording" : "Untitled voice note";
-  if (parsed?.kind === "meet") return names.untitled ?? peopleTitle(call.participants, names.viewerId, "Meeting") ?? "Untitled meeting";
+  if (parsed?.kind === "rec")
+    return call.screen ? "Screen recording" : "Untitled voice note";
+  if (parsed?.kind === "meet")
+    return (
+      names.untitled ??
+      peopleTitle(call.participants, names.viewerId, "Meeting") ??
+      "Untitled meeting"
+    );
   if (names.peerName) return `Call with ${names.peerName}`;
-  if (parsed?.kind === "session" && names.sessionTitle) return `Huddle in ${names.sessionTitle}`;
-  if (parsed?.kind === "channel" && names.channelName) return `Huddle in #${names.channelName}`;
-  return names.untitled ?? peopleTitle(call.participants, names.viewerId) ?? "Untitled huddle";
+  if (parsed?.kind === "session" && names.sessionTitle)
+    return `Huddle in ${names.sessionTitle}`;
+  if (parsed?.kind === "channel" && names.channelName)
+    return `Huddle in #${names.channelName}`;
+  return (
+    names.untitled ??
+    peopleTitle(call.participants, names.viewerId) ??
+    "Untitled huddle"
+  );
 }
 
 // The room a chat channel huddles in. A DM or group thread's identity IS its
@@ -297,7 +337,9 @@ export function agentFaceIdentity(conversationId: string): string {
 /** The conversation an agent's face speaks for; null for anyone else,
  *  the worker's own `agent-<job>` included. */
 export function agentFaceConversationId(identity: string): string | null {
-  return identity.startsWith(AGENT_FACE_PREFIX) ? identity.slice(AGENT_FACE_PREFIX.length) || null : null;
+  return identity.startsWith(AGENT_FACE_PREFIX)
+    ? identity.slice(AGENT_FACE_PREFIX.length) || null
+    : null;
 }
 export function isAgentFaceIdentity(identity: string): boolean {
   return /^agent[:-]/.test(identity);
@@ -310,6 +352,13 @@ export function isAgentFaceIdentity(identity: string): boolean {
  * seats its listener without asking, and a ring into that room is the
  * question of whether to make it a call.
  */
-export function seatAnswersRing(roomKey: string, join: { deliberate?: boolean; walkieJoin?: boolean }): boolean {
-  return parseRoomKey(roomKey)?.kind !== "dm" || !!join.deliberate || !!join.walkieJoin;
+export function seatAnswersRing(
+  roomKey: string,
+  join: { deliberate?: boolean; walkieJoin?: boolean },
+): boolean {
+  return (
+    parseRoomKey(roomKey)?.kind !== "dm" ||
+    !!join.deliberate ||
+    !!join.walkieJoin
+  );
 }

@@ -17,7 +17,10 @@ function writeWebDist(contents: string) {
 
 function writeCliBinary(contents: string) {
   mkdirSync(join(root, "apps/web/binaries"), { recursive: true });
-  writeFileSync(join(root, "apps/web/binaries/codecast-darwin-arm64"), contents);
+  writeFileSync(
+    join(root, "apps/web/binaries/codecast-darwin-arm64"),
+    contents,
+  );
 }
 
 beforeEach(() => {
@@ -29,7 +32,9 @@ afterEach(() => {
 
 describe("verifyTelemetryKey", () => {
   it("passes when the bundle carries the key", () => {
-    writeWebDist(`posthog.init("${KEY}",{api_host:"https://us.i.posthog.com"})`);
+    writeWebDist(
+      `posthog.init("${KEY}",{api_host:"https://us.i.posthog.com"})`,
+    );
     writeCliBinary("compiled bun binary, no telemetry");
     const { errors } = verifyTelemetryKey({ root, key: KEY });
     expect(errors).toEqual([]);
@@ -46,7 +51,9 @@ describe("verifyTelemetryKey", () => {
 
   it("fails when a PostHog key reached a CLI binary", () => {
     writeWebDist(`posthog.init("${KEY}")`);
-    writeCliBinary(`fetch("https://us.i.posthog.com",{body:'{"api_key":"${KEY}"}'})`);
+    writeCliBinary(
+      `fetch("https://us.i.posthog.com",{body:'{"api_key":"${KEY}"}'})`,
+    );
     const { errors } = verifyTelemetryKey({ root, key: KEY });
     expect(errors.length).toBe(1);
     expect(errors[0]).toContain("CLI binaries");
@@ -54,7 +61,10 @@ describe("verifyTelemetryKey", () => {
 
   it("skips a target nobody built, and fails it under --require", () => {
     expect(verifyTelemetryKey({ root, key: KEY }).errors).toEqual([]);
-    expect(verifyTelemetryKey({ root, key: KEY, requireArtifacts: true }).errors.length).toBe(2);
+    expect(
+      verifyTelemetryKey({ root, key: KEY, requireArtifacts: true }).errors
+        .length,
+    ).toBe(2);
   });
 
   it("fails a release with no key configured rather than checking nothing", () => {
@@ -63,7 +73,13 @@ describe("verifyTelemetryKey", () => {
     expect(relaxed.errors).toEqual([]);
     expect(relaxed.notes.join("\n")).toContain("no key to look for");
 
-    const strict = verifyTelemetryKey({ root, key: "", requireArtifacts: true });
-    expect(strict.errors.some((e: string) => e.includes("no key to look for"))).toBe(true);
+    const strict = verifyTelemetryKey({
+      root,
+      key: "",
+      requireArtifacts: true,
+    });
+    expect(
+      strict.errors.some((e: string) => e.includes("no key to look for")),
+    ).toBe(true);
   });
 });

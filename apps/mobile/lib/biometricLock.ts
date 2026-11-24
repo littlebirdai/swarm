@@ -20,11 +20,18 @@ export function shouldLockOnReturn(opts: {
  *  device passcode by itself; "bypass" is the phone that has nothing left to
  *  check against (biometrics and passcode both removed since the setting was
  *  turned on), which must open rather than lock its owner out. */
-export type UnlockVerdict = 'unlock' | 'bypass' | 'stay';
+export type UnlockVerdict = "unlock" | "bypass" | "stay";
 
-const NOTHING_TO_CHECK = new Set(['not_enrolled', 'not_available', 'passcode_not_set']);
+const NOTHING_TO_CHECK = new Set([
+  "not_enrolled",
+  "not_available",
+  "passcode_not_set",
+]);
 
-export function unlockVerdict(result: { success: boolean; error?: string }): UnlockVerdict {
-  if (result.success) return 'unlock';
-  return result.error && NOTHING_TO_CHECK.has(result.error) ? 'bypass' : 'stay';
+export function unlockVerdict(result: {
+  success: boolean;
+  error?: string;
+}): UnlockVerdict {
+  if (result.success) return "unlock";
+  return result.error && NOTHING_TO_CHECK.has(result.error) ? "bypass" : "stay";
 }

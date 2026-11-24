@@ -22,7 +22,10 @@ let current = null; // { key, gz, out }
 
 function freshFile(dir, hour) {
   for (let n = 0; ; n++) {
-    const file = path.join(dir, n === 0 ? `${hour}.jsonl.gz` : `${hour}.${n}.jsonl.gz`);
+    const file = path.join(
+      dir,
+      n === 0 ? `${hour}.jsonl.gz` : `${hour}.${n}.jsonl.gz`,
+    );
     if (!fs.existsSync(file)) return file;
   }
 }
@@ -35,7 +38,9 @@ function writer() {
   const dir = path.join(ROOT, iso.slice(0, 10));
   fs.mkdirSync(dir, { recursive: true });
   const gz = zlib.createGzip();
-  const out = fs.createWriteStream(freshFile(dir, iso.slice(11, 13)), { flags: "wx" });
+  const out = fs.createWriteStream(freshFile(dir, iso.slice(11, 13)), {
+    flags: "wx",
+  });
   gz.pipe(out);
   current = { key, gz, out };
   prune();
@@ -43,9 +48,12 @@ function writer() {
 }
 
 function prune() {
-  const cutoff = new Date(Date.now() - RETAIN_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const cutoff = new Date(Date.now() - RETAIN_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   for (const day of fs.readdirSync(ROOT)) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && day < cutoff) fs.rmSync(path.join(ROOT, day), { recursive: true, force: true });
+    if (/^\d{4}-\d{2}-\d{2}$/.test(day) && day < cutoff)
+      fs.rmSync(path.join(ROOT, day), { recursive: true, force: true });
   }
 }
 
@@ -56,20 +64,28 @@ setInterval(() => current?.gz.flush(), FLUSH_MS).unref();
 let backoff = 1_000;
 function tail() {
   const started = Date.now();
-  const child = spawn("convex", ["logs", "--jsonl", "--success"], { stdio: ["ignore", "pipe", "inherit"] });
-  readline.createInterface({ input: child.stdout }).on("line", line => { if (line) writer().write(line + "\n"); });
-  child.on("exit", code => {
-    backoff = Date.now() - started > 60_000 ? 1_000 : Math.min(backoff * 2, 60_000);
-    console.error(`${new Date().toISOString()} convex logs exited (${code}); restarting in ${backoff}ms`);
+  const child = spawn("convex", ["logs", "--jsonl", "--success"], {
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  readline.createInterface({ input: child.stdout }).on("line", (line) => {
+    if (line) writer().write(line + "\n");
+  });
+  child.on("exit", (code) => {
+    backoff =
+      Date.now() - started > 60_000 ? 1_000 : Math.min(backoff * 2, 60_000);
+    console.error(
+      `${new Date().toISOString()} convex logs exited (${code}); restarting in ${backoff}ms`,
+    );
     setTimeout(tail, backoff);
   });
 }
 
-for (const signal of ["SIGTERM", "SIGINT"]) process.on(signal, () => {
-  if (!current) process.exit(0);
-  current.out.on("close", () => process.exit(0));
-  current.gz.end();
-  setTimeout(() => process.exit(0), 3_000).unref();
-});
+for (const signal of ["SIGTERM", "SIGINT"])
+  process.on(signal, () => {
+    if (!current) process.exit(0);
+    current.out.on("close", () => process.exit(0));
+    current.gz.end();
+    setTimeout(() => process.exit(0), 3_000).unref();
+  });
 
 tail();

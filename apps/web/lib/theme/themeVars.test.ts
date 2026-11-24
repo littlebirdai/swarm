@@ -6,11 +6,14 @@ import { ACCENT_SCALES, SCALES, SHADES, scaleVar } from "./scales";
 
 describe("theme variables", () => {
   test("every scale the config routes exists in Tailwind with every shade", () => {
-    for (const s of SCALES) for (const n of SHADES) expect(typeof (twColors as any)[s]?.[n]).toBe("string");
+    for (const s of SCALES)
+      for (const n of SHADES)
+        expect(typeof (twColors as any)[s]?.[n]).toBe("string");
   });
 
   test("every accent scale names an accent token", () => {
-    for (const token of Object.values(ACCENT_SCALES)) expect(THEME_COLOR_TOKENS).toContain(token);
+    for (const token of Object.values(ACCENT_SCALES))
+      expect(THEME_COLOR_TOKENS).toContain(token);
   });
 
   test("an empty palette changes nothing", () => {
@@ -30,14 +33,20 @@ describe("theme variables", () => {
   test("neutrals keep Tailwind's direction in both modes: 900 is dark, 50 is pale", () => {
     const light = themeVars({ bg: "#ffffff", text: "#111111" }, "light");
     const dark = themeVars({ bg: "#111111", text: "#ffffff" }, "dark");
-    expect(light[scaleVar("zinc", 900)]).toBe("color-mix(in srgb, var(--sol-text) 93%, var(--sol-bg))");
-    expect(dark[scaleVar("zinc", 900)]).toBe("color-mix(in srgb, var(--sol-bg) 93%, var(--sol-text))");
+    expect(light[scaleVar("zinc", 900)]).toBe(
+      "color-mix(in srgb, var(--sol-text) 93%, var(--sol-bg))",
+    );
+    expect(dark[scaleVar("zinc", 900)]).toBe(
+      "color-mix(in srgb, var(--sol-bg) 93%, var(--sol-text))",
+    );
   });
 
   test("shadcn variables get HSL triplets", () => {
     expect(hexToHslTriplet("#ffffff")).toBe("0 0% 100%");
     expect(hexToHslTriplet("#268bd2")).toBe("204.8 69.4% 48.6%");
-    expect(themeVars({ bg: "#fff" }, "light")["--background"]).toBe("0 0% 100%");
+    expect(themeVars({ bg: "#fff" }, "light")["--background"]).toBe(
+      "0 0% 100%",
+    );
   });
 
   test("a color with alpha keeps it, in the hex variables and the HSL triplets", () => {

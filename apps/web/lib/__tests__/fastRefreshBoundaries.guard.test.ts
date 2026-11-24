@@ -204,7 +204,8 @@ const ALLOWED = new Set<string>([
   "components/trial/TrialStopActs.tsx",
 ]);
 
-const walk = (dir: string) => walkSources(dir).filter((f) => f.endsWith(".tsx"));
+const walk = (dir: string) =>
+  walkSources(dir).filter((f) => f.endsWith(".tsx"));
 
 // `Inner(props, ref)` / `Inner(props)`: a PascalCase identifier invoked with
 // `props` as its first argument. Declarations (`function Inner(props`) carry
@@ -222,21 +223,31 @@ export function plainComponentCalls(source: string): string[] {
   return out;
 }
 
-const COMPONENT_LIKE_INIT = /^(memo|forwardRef|React\.memo|React\.forwardRef|lazy|dynamic|styled|\(|function|async|[A-Za-z_$][\w$]*\s*=>)/;
+const COMPONENT_LIKE_INIT =
+  /^(memo|forwardRef|React\.memo|React\.forwardRef|lazy|dynamic|styled|\(|function|async|[A-Za-z_$][\w$]*\s*=>)/;
 
 /** Exports that would make Fast Refresh reject the module. */
 export function nonComponentExports(source: string): string[] {
   const bad: string[] = [];
-  for (const m of source.matchAll(/^export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) {
+  for (const m of source.matchAll(
+    /^export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
     if (!/^[A-Z]/.test(m[1])) bad.push(`${m[1]}()`);
   }
-  for (const m of source.matchAll(/^export\s+(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*?)?=\s*([^\n]{0,80})/gm)) {
+  for (const m of source.matchAll(
+    /^export\s+(?:const|let)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*?)?=\s*([^\n]{0,80})/gm,
+  )) {
     const [, name, init] = m;
     const value = init.trim();
-    if (!/^[A-Z]/.test(name)) { bad.push(name); continue; }
+    if (!/^[A-Z]/.test(name)) {
+      bad.push(name);
+      continue;
+    }
     if (!COMPONENT_LIKE_INIT.test(value)) bad.push(name);
   }
-  for (const m of source.matchAll(/^export\s+(?:enum|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+  for (const m of source.matchAll(
+    /^export\s+(?:enum|class)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
     // Classes remount on refresh anyway; only enums are data here.
     if (m[0].startsWith("export enum")) bad.push(m[1]);
   }
@@ -244,7 +255,10 @@ export function nonComponentExports(source: string): string[] {
     for (const part of m[1].split(",")) {
       const p = part.trim();
       if (!p || p.startsWith("type ")) continue;
-      const local = p.split(/\s+as\s+/).pop()!.trim();
+      const local = p
+        .split(/\s+as\s+/)
+        .pop()!
+        .trim();
       // Re-exports of a component name are fine; a lowercase name is a helper.
       if (!/^[A-Z]/.test(local)) bad.push(`{${local}}`);
     }
@@ -263,7 +277,10 @@ describe("component modules export only components (Fast Refresh boundaries)", (
   test("no new component module exports helpers, hooks or config objects", () => {
     const fresh = [...offenders].filter(([f]) => !ALLOWED.has(f));
     const msg = fresh.map(([f, bad]) => `  ${f}: ${bad.join(", ")}`).join("\n");
-    expect(fresh, `Move these out to lib/ or hooks/ (see header):\n${msg}`).toEqual([]);
+    expect(
+      fresh,
+      `Move these out to lib/ or hooks/ (see header):\n${msg}`,
+    ).toEqual([]);
   });
 
   test("shared markdown and entity renderers remain Fast Refresh boundaries", () => {
@@ -273,20 +290,35 @@ describe("component modules export only components (Fast Refresh boundaries)", (
       "components/EntityIdPill.tsx",
       "components/EntityObjectCard.tsx",
     ]) {
-      expect(nonComponentExports(readFileSync(join(ROOT, file), "utf8")), file).toEqual([]);
+      expect(
+        nonComponentExports(readFileSync(join(ROOT, file), "utf8")),
+        file,
+      ).toEqual([]);
     }
   });
 
   test("the allowlist only names files that still offend (ratchet)", () => {
     const stale = [...ALLOWED].filter((f) => !offenders.has(f));
-    expect(stale, "These files are clean now — remove them from ALLOWED").toEqual([]);
+    expect(
+      stale,
+      "These files are clean now — remove them from ALLOWED",
+    ).toEqual([]);
   });
 
   test("no component invokes another component as a plain function", () => {
     const calls = files
-      .map((f) => [relative(ROOT, f), plainComponentCalls(readFileSync(f, "utf8"))] as const)
+      .map(
+        (f) =>
+          [
+            relative(ROOT, f),
+            plainComponentCalls(readFileSync(f, "utf8")),
+          ] as const,
+      )
       .filter(([, bad]) => bad.length);
     const msg = calls.map(([f, bad]) => `  ${f}: ${bad.join(", ")}`).join("\n");
-    expect(calls, `Render these as elements instead of calling them (see header):\n${msg}`).toEqual([]);
+    expect(
+      calls,
+      `Render these as elements instead of calling them (see header):\n${msg}`,
+    ).toEqual([]);
   });
 });

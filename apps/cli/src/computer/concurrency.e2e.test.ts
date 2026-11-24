@@ -19,7 +19,11 @@ import { afterAll, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import { helperExecutablePath } from "./helperApp.js";
 import { ComputerError } from "./errors.js";
-import { fixtureClient, launchFixture, type Fixture } from "../test-helpers/computerBenchFixture.js";
+import {
+  fixtureClient,
+  launchFixture,
+  type Fixture,
+} from "../test-helpers/computerBenchFixture.js";
 import { pollUntil } from "../test-helpers/pollUntil.js";
 import type { ComputerClient } from "./client.js";
 
@@ -31,11 +35,15 @@ let hung: Fixture;
 
 const reason = await (async (): Promise<string | null> => {
   if (process.platform !== "darwin") return "not macOS";
-  if (!fs.existsSync(inPlace ?? helperExecutablePath())) return `no helper at ${inPlace ?? helperExecutablePath()}`;
+  if (!fs.existsSync(inPlace ?? helperExecutablePath()))
+    return `no helper at ${inPlace ?? helperExecutablePath()}`;
   client = fixtureClient(inPlace);
   live = await launchFixture();
-  const probe = await client.getAppState({ app: `pid:${live.pid}`, noScreenshot: true }).catch((e: unknown) => e);
-  if (probe instanceof ComputerError && probe.code === "permission_denied") return "Accessibility is not granted to the helper under test";
+  const probe = await client
+    .getAppState({ app: `pid:${live.pid}`, noScreenshot: true })
+    .catch((e: unknown) => e);
+  if (probe instanceof ComputerError && probe.code === "permission_denied")
+    return "Accessibility is not granted to the helper under test";
   hung = await launchFixture(["--barren", "--hang"]);
   await pollUntil(() => hung.output().includes("HUNG"), "the fixture to hang");
   return null;
@@ -45,21 +53,31 @@ afterAll(() => {
   live?.child.kill();
   hung?.child.kill("SIGKILL");
   client?.shutdown();
-  for (const f of [live?.statusFile, hung?.statusFile]) if (f) fs.rmSync(f, { force: true });
+  for (const f of [live?.statusFile, hung?.statusFile])
+    if (f) fs.rmSync(f, { force: true });
 });
 
 (reason ? test.skip : test)(
   `a read of one app is answered while another app hangs${reason ? ` (skipped: ${reason})` : ""}`,
   async () => {
     const startedAt = performance.now();
-    const stalled = client.getAppState({ app: `pid:${hung.pid}`, noScreenshot: true }).then(
-      () => null,
-      (e: unknown) => ({ error: e as ComputerError, ms: performance.now() - startedAt }),
-    );
+    const stalled = client
+      .getAppState({ app: `pid:${hung.pid}`, noScreenshot: true })
+      .then(
+        () => null,
+        (e: unknown) => ({
+          error: e as ComputerError,
+          ms: performance.now() - startedAt,
+        }),
+      );
     await Bun.sleep(100);
 
     const readAt = performance.now();
-    const read = await client.getAppState({ app: `pid:${live.pid}`, windowId: live.windows["Bench Form"], noScreenshot: true });
+    const read = await client.getAppState({
+      app: `pid:${live.pid}`,
+      windowId: live.windows["Bench Form"],
+      noScreenshot: true,
+    });
     const readMs = performance.now() - readAt;
     expect(read.snapshot.treeText).toContain("Subscribe");
     // Far under the hung app's own timeout: the read never waited behind it.

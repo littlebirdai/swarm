@@ -1,12 +1,24 @@
 import { replaceGlobals } from "../../test-helpers/globals";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { openConversationBeside, resolveLinkedSessionOpen } from "../useOpenLinkedSession";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "bun:test";
+import {
+  openConversationBeside,
+  resolveLinkedSessionOpen,
+} from "../useOpenLinkedSession";
 import { resolveSessionSelectKind } from "../../lib/inboxRouting";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
 import { leavesOf } from "../../store/stageSplit";
 import { declareViewNav } from "../../store/viewNav";
 
-const kindFor = (surface: Partial<Parameters<typeof resolveSessionSelectKind>[0]>) =>
+const kindFor = (
+  surface: Partial<Parameters<typeof resolveSessionSelectKind>[0]>,
+) =>
   resolveSessionSelectKind({
     isOnSettingsPage: false,
     isOnInboxPage: false,
@@ -18,7 +30,9 @@ describe("resolveLinkedSessionOpen", () => {
   // dead click -- the hook always called openSidePanel, but the side-column
   // conversation peek doesn't render on the inbox page, so nothing opened.
   it("selects in place on the inbox page instead of peeking", () => {
-    expect(resolveLinkedSessionOpen(kindFor({ isOnInboxPage: true }), false)).toBe("select");
+    expect(
+      resolveLinkedSessionOpen(kindFor({ isOnInboxPage: true }), false),
+    ).toBe("select");
   });
 
   it("routes to the stage from every other page — side by side is a drag, not a click", () => {
@@ -27,16 +41,26 @@ describe("resolveLinkedSessionOpen", () => {
 
   it("routes on narrow viewports regardless of surface", () => {
     expect(resolveLinkedSessionOpen(kindFor({}), true)).toBe("route");
-    expect(resolveLinkedSessionOpen(kindFor({ isOnInboxPage: true }), true)).toBe("route");
+    expect(
+      resolveLinkedSessionOpen(kindFor({ isOnInboxPage: true }), true),
+    ).toBe("route");
   });
 
   it("routes from Settings, where selecting a session means leaving", () => {
-    expect(resolveLinkedSessionOpen(kindFor({ isOnSettingsPage: true, isOnInboxPage: true }), false)).toBe("route");
+    expect(
+      resolveLinkedSessionOpen(
+        kindFor({ isOnSettingsPage: true, isOnInboxPage: true }),
+        false,
+      ),
+    ).toBe("route");
   });
 });
 
 describe("openConversationBeside", () => {
-  const session = (id: string, extra?: Partial<InboxSession>): InboxSession => ({
+  const session = (
+    id: string,
+    extra?: Partial<InboxSession>,
+  ): InboxSession => ({
     _id: id,
     session_id: `s-${id}`,
     updated_at: Date.now(),
@@ -73,7 +97,10 @@ describe("openConversationBeside", () => {
     openConversationBeside("b");
     const tab = useInboxStore.getState().tabs[0];
     expect(tab.layout).toBeDefined();
-    expect(leavesOf(tab.layout!).map((l) => l.path)).toEqual(["/tasks", "/conversation/b"]);
+    expect(leavesOf(tab.layout!).map((l) => l.path)).toEqual([
+      "/tasks",
+      "/conversation/b",
+    ]);
     // The newcomer is focused, and the tab's path mirrors it.
     expect(tab.path).toBe("/conversation/b");
     expect(tab.focusedLeafId).toBe(leavesOf(tab.layout!)[1].id);

@@ -1,5 +1,11 @@
 import { toast } from "sonner";
-import { DESKTOP_APPS, hasAppWindow, openDesktopApp, raiseDesktopApp, type DesktopApp } from "./desktopApps";
+import {
+  DESKTOP_APPS,
+  hasAppWindow,
+  openDesktopApp,
+  raiseDesktopApp,
+  type DesktopApp,
+} from "./desktopApps";
 import { bridge } from "./desktop";
 import { explainPopOut, popOutWindow } from "./popOut";
 
@@ -10,7 +16,15 @@ export async function popOutApp(app: DesktopApp, path?: string): Promise<void> {
   if (hasAppWindow(app) && raiseDesktopApp(app)) return;
   const route = path ?? DESKTOP_APPS[app].home;
   const popup = { name: `codecast-${app}`, width: 1100, height: 760 };
-  const shellOpen = bridge("openAppWindow") ? async () => { await openDesktopApp(app, route); } : undefined;
+  const shellOpen = bridge("openAppWindow")
+    ? async () => {
+        await openDesktopApp(app, route);
+      }
+    : undefined;
   const outcome = await popOutWindow(route, shellOpen, popup);
-  explainPopOut(outcome, { thing: `the ${DESKTOP_APPS[app].title} window`, route, name: popup.name }, toast);
+  explainPopOut(
+    outcome,
+    { thing: `the ${DESKTOP_APPS[app].title} window`, route, name: popup.name },
+    toast,
+  );
 }

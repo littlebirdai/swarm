@@ -4,7 +4,10 @@ import { replaceGlobals } from "../test-helpers/globals";
 import { closeDomWindow } from "../test-helpers/domGlobals";
 import type { VaultInfo } from "@codecast/shared/contracts";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost",
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -20,29 +23,47 @@ const { useVaultLocalPath } = await import("./useVaultLocalPath");
 const initial = useVaultStore.getState();
 const originalFetch = globalThis.fetch;
 const roots: ReturnType<typeof createRoot>[] = [];
-const known: VaultInfo = { id: "repo", root: "/Users/ada/src/app", name: "app", added_at: 1 };
-const located: VaultInfo = { id: "skill", root: "/Users/ada/.agents/skills/improve", name: "improve", added_at: 1 };
+const known: VaultInfo = {
+  id: "repo",
+  root: "/Users/ada/src/app",
+  name: "app",
+  added_at: 1,
+};
+const located: VaultInfo = {
+  id: "skill",
+  root: "/Users/ada/.agents/skills/improve",
+  name: "improve",
+  added_at: 1,
+};
 const localPath = `${located.root}/SKILL.md`;
 const endpoint = { port: 12345, token: "test", deviceId: "local", tmux: true };
 let requests: { url: string; resolve: (response: Response) => void }[];
 
 beforeEach(() => {
   requests = [];
-  globalThis.fetch = ((input: string | URL | Request) => new Promise<Response>((resolve) => {
-    requests.push({ url: String(input), resolve });
-  })) as typeof fetch;
-  useVaultStore.setState({
-    ...initial,
-    connection: "cached",
-    endpoint: null,
-    vaults: [known],
-    activeVaultId: known.id,
-    scannedAt: 1,
-    files: { "README.md": { path: "README.md", mtime: 1, size: 10 } },
-    selectVault: async (id) => {
-      useVaultStore.setState({ activeVaultId: id, files: {}, scannedAt: null });
+  globalThis.fetch = ((input: string | URL | Request) =>
+    new Promise<Response>((resolve) => {
+      requests.push({ url: String(input), resolve });
+    })) as typeof fetch;
+  useVaultStore.setState(
+    {
+      ...initial,
+      connection: "cached",
+      endpoint: null,
+      vaults: [known],
+      activeVaultId: known.id,
+      scannedAt: 1,
+      files: { "README.md": { path: "README.md", mtime: 1, size: 10 } },
+      selectVault: async (id) => {
+        useVaultStore.setState({
+          activeVaultId: id,
+          files: {},
+          scannedAt: null,
+        });
+      },
     },
-  }, true);
+    true,
+  );
 });
 
 afterEach(async () => {
@@ -58,7 +79,11 @@ afterAll(() => {
 
 async function mount(path: string | null = localPath) {
   const routes: string[] = [];
-  const router = { replace: (href: string) => { routes.push(href); } };
+  const router = {
+    replace: (href: string) => {
+      routes.push(href);
+    },
+  };
   function Probe({ path }: { path: string | null }) {
     useVaultLocalPath(path, 23, router);
     return null;
@@ -67,15 +92,18 @@ async function mount(path: string | null = localPath) {
   document.body.append(container);
   const root = createRoot(container);
   roots.push(root);
-  const render = (next: string | null) => act(() => root.render(<Probe path={next} />));
+  const render = (next: string | null) =>
+    act(() => root.render(<Probe path={next} />));
   await render(path);
   return { routes, render };
 }
 
-const update = (state: Parameters<typeof useVaultStore.setState>[0]) => act(() => useVaultStore.setState(state));
-const answer = (index: number, body: unknown, status = 200) => act(async () => {
-  requests[index].resolve(Response.json(body, { status }));
-});
+const update = (state: Parameters<typeof useVaultStore.setState>[0]) =>
+  act(() => useVaultStore.setState(state));
+const answer = (index: number, body: unknown, status = 200) =>
+  act(async () => {
+    requests[index].resolve(Response.json(body, { status }));
+  });
 
 test("cached startup waits for the endpoint, then locates, selects, scans and opens the linked file", async () => {
   const view = await mount();
@@ -90,7 +118,10 @@ test("cached startup waits for the endpoint, then locates, selects, scans and op
   expect(useVaultStore.getState().activeVaultId).toBe(located.id);
   expect(view.routes).toEqual([]);
 
-  await update({ scannedAt: 2, files: { "SKILL.md": { path: "SKILL.md", mtime: 2, size: 12 } } });
+  await update({
+    scannedAt: 2,
+    files: { "SKILL.md": { path: "SKILL.md", mtime: 2, size: 12 } },
+  });
   expect(view.routes).toEqual(["/files?f=SKILL.md&l=23"]);
   expect(useVaultStore.getState().opError).toBeNull();
 });
@@ -98,7 +129,11 @@ test("cached startup waits for the endpoint, then locates, selects, scans and op
 test("connection, vault-list and scan updates do not fail or repeat a pending lookup", async () => {
   await update({ endpoint });
   const view = await mount();
-  await update({ connection: "connected", scannedAt: 2, vaults: [{ ...known }] });
+  await update({
+    connection: "connected",
+    scannedAt: 2,
+    vaults: [{ ...known }],
+  });
   await view.render(localPath);
   expect(requests).toHaveLength(1);
   expect(view.routes).toEqual([]);
@@ -143,7 +178,9 @@ test("a missing file reports the actual problem without discarding the deep link
   await update({ endpoint });
   const view = await mount();
   await answer(0, { error: "no such path" }, 404);
-  expect(useVaultStore.getState().opError).toBe(`${localPath} does not exist on this machine.`);
+  expect(useVaultStore.getState().opError).toBe(
+    `${localPath} does not exist on this machine.`,
+  );
   expect(view.routes).toEqual([]);
 });
 
@@ -176,11 +213,18 @@ test("an already cached file opens without waiting for a local connection", asyn
 
 test("a file the scan leaves out opens from the daemon's own row for it", async () => {
   const rel = "videos/out/clip.mp4";
-  const row = { path: rel, mtime: 3, size: 104_000_000, ignored: true as const };
+  const row = {
+    path: rel,
+    mtime: 3,
+    size: 104_000_000,
+    ignored: true as const,
+  };
   await update({ endpoint, connection: "connected" });
   const view = await mount(`${known.root}/${rel}`);
   expect(requests).toHaveLength(1);
-  expect(new URL(requests[0].url).searchParams.get("path")).toBe(`${known.root}/${rel}`);
+  expect(new URL(requests[0].url).searchParams.get("path")).toBe(
+    `${known.root}/${rel}`,
+  );
   expect(useVaultStore.getState().opError).toBeNull();
   await answer(0, { vault: known, rel, entry: row });
   expect(view.routes).toEqual([`/files?f=${encodeURIComponent(rel)}&l=23`]);
@@ -193,7 +237,9 @@ test("a daemon without the row still reports the file as outside the vault", asy
   await update({ endpoint, connection: "connected" });
   const view = await mount(`${known.root}/gone.txt`);
   await answer(0, { vault: known, rel: "gone.txt" });
-  expect(useVaultStore.getState().opError).toBe(`${known.root}/gone.txt isn't in this vault.`);
+  expect(useVaultStore.getState().opError).toBe(
+    `${known.root}/gone.txt isn't in this vault.`,
+  );
   expect(view.routes).toEqual(["/files"]);
 });
 
@@ -220,9 +266,13 @@ test("a path from a teammate's machine opens the same file in this machine's che
   const foreign = "/Users/jason/code/app/docs/notes.md";
   const view = await mount(foreign);
   await answer(0, { error: "no such path" }, 404);
-  expect(new URL(requests[1].url).searchParams.get("path")).toBe(`${known.root}/docs/notes.md`);
+  expect(new URL(requests[1].url).searchParams.get("path")).toBe(
+    `${known.root}/docs/notes.md`,
+  );
   await answer(1, { vault: known, rel: "docs/notes.md" });
-  expect(view.routes).toEqual([`/files?path=${encodeURIComponent(`${known.root}/docs/notes.md`)}&l=23`]);
+  expect(view.routes).toEqual([
+    `/files?path=${encodeURIComponent(`${known.root}/docs/notes.md`)}&l=23`,
+  ]);
   expect(useVaultStore.getState().opError).toBeNull();
 });
 
@@ -231,7 +281,9 @@ test("a teammate's path with no exact copy opens in the same-named checkout, whe
   const view = await mount("/Users/jason/code/app/docs/moved.md");
   await answer(0, { error: "no such path" }, 404);
   await answer(1, { error: "no such path" }, 404);
-  expect(view.routes).toEqual([`/files?path=${encodeURIComponent(`${known.root}/docs/moved.md`)}&l=23`]);
+  expect(view.routes).toEqual([
+    `/files?path=${encodeURIComponent(`${known.root}/docs/moved.md`)}&l=23`,
+  ]);
 });
 
 test("a teammate's path with no same-named checkout here says it does not exist", async () => {
@@ -240,6 +292,8 @@ test("a teammate's path with no same-named checkout here says it does not exist"
   const view = await mount(foreign);
   await answer(0, { error: "no such path" }, 404);
   expect(requests).toHaveLength(1);
-  expect(useVaultStore.getState().opError).toBe(`${foreign} does not exist on this machine.`);
+  expect(useVaultStore.getState().opError).toBe(
+    `${foreign} does not exist on this machine.`,
+  );
   expect(view.routes).toEqual([]);
 });

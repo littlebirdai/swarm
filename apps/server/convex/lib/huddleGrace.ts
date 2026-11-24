@@ -22,7 +22,9 @@ export function quietSince(
   emptiedAt?: number,
 ): number | null {
   if (t?.idle_since) return t.idle_since;
-  const lastSeen = rows.filter(isSeat).reduce((m, r) => Math.max(m, r.last_seen), emptiedAt ?? 0);
+  const lastSeen = rows
+    .filter(isSeat)
+    .reduce((m, r) => Math.max(m, r.last_seen), emptiedAt ?? 0);
   return lastSeen || null;
 }
 
@@ -40,6 +42,8 @@ export function withinHuddleGrace(
   now: number,
   emptiedAt?: number,
 ): boolean {
-  const quiet = t ? (quietSince(t, rows, emptiedAt) ?? now) : quietSince(null, rows, emptiedAt);
+  const quiet = t
+    ? (quietSince(t, rows, emptiedAt) ?? now)
+    : quietSince(null, rows, emptiedAt);
   return quiet !== null && now - quiet < HUDDLE_GRACE_MS;
 }

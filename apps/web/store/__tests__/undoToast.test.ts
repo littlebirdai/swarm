@@ -1,8 +1,33 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  spyOn,
+  test,
+} from "bun:test";
 import { toast } from "sonner";
-import { _resetUndoStacks, getUndoHistory, setUndoNotifier } from "@platform/engine";
+import {
+  _resetUndoStacks,
+  getUndoHistory,
+  setUndoNotifier,
+} from "@platform/engine";
 import { useInboxStore } from "../inboxStore";
-import { CODECAST_UNDO_NOTIFIER, gestureToast, UNDO_QUIET_ACTION_CLASS, UNDO_RECEIPT_CLASS, performRedo, performUndo, pushUndo, showUndoToast, undoEntryToastId, undoStepMessage, undoTo, UNDO_STATUS_TOAST_ID } from "../undoStack";
+import {
+  CODECAST_UNDO_NOTIFIER,
+  gestureToast,
+  UNDO_QUIET_ACTION_CLASS,
+  UNDO_RECEIPT_CLASS,
+  performRedo,
+  performUndo,
+  pushUndo,
+  showUndoToast,
+  undoEntryToastId,
+  undoStepMessage,
+  undoTo,
+  UNDO_STATUS_TOAST_ID,
+} from "../undoStack";
 import * as undoTimeline from "../../lib/undoTimelineOpen";
 import { undoAsOne } from "../undoActions";
 
@@ -12,9 +37,14 @@ import { undoAsOne } from "../undoActions";
 const A = "a".repeat(32);
 const B = "b".repeat(32);
 
-type Shown = { title?: unknown; action?: { label?: unknown; onClick?: (e: any) => void } };
+type Shown = {
+  title?: unknown;
+  action?: { label?: unknown; onClick?: (e: any) => void };
+};
 const undoToastFor = (title: string) =>
-  (toast.getHistory() as Shown[]).filter((t) => t.title === title && (t.action as any)?.label === "Undo").at(-1);
+  (toast.getHistory() as Shown[])
+    .filter((t) => t.title === title && (t.action as any)?.label === "Undo")
+    .at(-1);
 
 describe("an undo toast targets its own entry", () => {
   beforeEach(() => {
@@ -25,8 +55,14 @@ describe("an undo toast targets its own entry", () => {
       pending: {},
       currentSessionId: null,
       clientState: {},
-      sessions: { [A]: { _id: A, title: "First", updated_at: 1 }, [B]: { _id: B, title: "Second", updated_at: 1 } },
-      conversations: { [A]: { _id: A, title: "First" }, [B]: { _id: B, title: "Second" } },
+      sessions: {
+        [A]: { _id: A, title: "First", updated_at: 1 },
+        [B]: { _id: B, title: "Second", updated_at: 1 },
+      },
+      conversations: {
+        [A]: { _id: A, title: "First" },
+        [B]: { _id: B, title: "Second" },
+      },
     } as any);
   });
 
@@ -43,7 +79,9 @@ describe("an undo toast targets its own entry", () => {
     expect(sessions[A].inbox_stashed_at ?? null).toBe(null);
     // The newer change is untouched.
     expect(sessions[B].title).toBe("Renamed");
-    const byLabel = Object.fromEntries(getUndoHistory().items.map((i) => [i.label, i.status]));
+    const byLabel = Object.fromEntries(
+      getUndoHistory().items.map((i) => [i.label, i.status]),
+    );
     expect(byLabel["Stashed “First”"]).toBe("undone");
     expect(byLabel["Renamed “Second” to “Renamed”"]).toBe("done");
   });
@@ -58,13 +96,20 @@ describe("undo announcements", () => {
   type Shown = { id: unknown; title?: unknown; action?: { label?: unknown } };
   let mark = 0;
   const since = () => (toast.getHistory() as Shown[]).slice(mark);
-  const latest = (id: string) => since().filter((t) => t.id === id).at(-1);
+  const latest = (id: string) =>
+    since()
+      .filter((t) => t.id === id)
+      .at(-1);
   const status = () => latest(UNDO_STATUS_TOAST_ID);
   // sonner dismisses on a frame; run it at once.
   const hadRaf = "requestAnimationFrame" in globalThis;
   let dismissed: ReturnType<typeof spyOn>;
   beforeAll(() => {
-    if (!hadRaf) (globalThis as any).requestAnimationFrame = (cb: (t: number) => void) => { cb(0); return 0; };
+    if (!hadRaf)
+      (globalThis as any).requestAnimationFrame = (cb: (t: number) => void) => {
+        cb(0);
+        return 0;
+      };
     dismissed = spyOn(toast, "dismiss");
   });
   afterAll(() => {
@@ -83,8 +128,14 @@ describe("undo announcements", () => {
       pending: {},
       currentSessionId: null,
       clientState: {},
-      sessions: { [A]: { _id: A, title: "First", updated_at: 1 }, [B]: { _id: B, title: "Second", updated_at: 1 } },
-      conversations: { [A]: { _id: A, title: "First" }, [B]: { _id: B, title: "Second" } },
+      sessions: {
+        [A]: { _id: A, title: "First", updated_at: 1 },
+        [B]: { _id: B, title: "Second", updated_at: 1 },
+      },
+      conversations: {
+        [A]: { _id: A, title: "First" },
+        [B]: { _id: B, title: "Second" },
+      },
     } as any);
   });
 
@@ -102,7 +153,13 @@ describe("undo announcements", () => {
     // Named explicitly, so the merge on screen drops any earlier action.
     expect(status()).toHaveProperty("action", undefined);
     // Every announcement used the one id.
-    expect(new Set(since().filter((t) => String(t.title).match(/^(Undid|Redid)/)).map((t) => t.id))).toEqual(new Set([UNDO_STATUS_TOAST_ID]));
+    expect(
+      new Set(
+        since()
+          .filter((t) => String(t.title).match(/^(Undid|Redid)/))
+          .map((t) => t.id),
+      ),
+    ).toEqual(new Set([UNDO_STATUS_TOAST_ID]));
   });
 
   test("a multi-step undo takes down every stepped entry's Undo toast", () => {
@@ -121,7 +178,11 @@ describe("undo announcements", () => {
 
   test("an entry lost to a conflict takes its Undo toast down too", () => {
     // The change was taken back elsewhere, so its undo finds nothing to do.
-    const id = pushUndo({ label: "Moved it", undo: () => ({ ok: false, reason: "conflict" }), redo: () => {} });
+    const id = pushUndo({
+      label: "Moved it",
+      undo: () => ({ ok: false, reason: "conflict" }),
+      redo: () => {},
+    });
     showUndoToast("Moved it");
     expect(latest(undoEntryToastId(id))?.action?.label).toBe("Undo");
     dismissed.mockClear();
@@ -141,7 +202,9 @@ describe("undo announcements", () => {
     performUndo();
     expect(status()?.action?.label).toBe("History");
     // A side door, worn quietly, not a second primary button.
-    expect((status() as any)?.className).toBe(`${UNDO_RECEIPT_CLASS} ${UNDO_QUIET_ACTION_CLASS}`);
+    expect((status() as any)?.className).toBe(
+      `${UNDO_RECEIPT_CLASS} ${UNDO_QUIET_ACTION_CLASS}`,
+    );
 
     // A redo never offers it, and its update clears the earlier one.
     performRedo();
@@ -182,16 +245,32 @@ describe("undo announcements", () => {
 
   test("a ⌘Z that stops at a confirm entry toasts when the card is closed and marks the row when it is open", () => {
     let undone = 0;
-    pushUndo({ label: "Made “First” private", confirm: true, undo: () => { undone += 1; }, redo: () => {} });
+    pushUndo({
+      label: "Made “First” private",
+      confirm: true,
+      undo: () => {
+        undone += 1;
+      },
+      redo: () => {},
+    });
     performUndo();
-    expect(status()?.title).toBe("Undo Made “First” private from its toast or the history");
+    expect(status()?.title).toBe(
+      "Undo Made “First” private from its toast or the history",
+    );
     // The stop is a doorway, not a dead end: the entry's own Undo rides on
     // the toast that names it, so the change it points at is one click away
     // long after the entry's own 5 s toast has gone.
     expect(status()?.action?.label).toBe("Undo");
     status()!.action!.onClick({} as any);
     expect(undone).toBe(1);
-    const id = pushUndo({ label: "Made “First” private", confirm: true, undo: () => { undone += 1; }, redo: () => {} });
+    const id = pushUndo({
+      label: "Made “First” private",
+      confirm: true,
+      undo: () => {
+        undone += 1;
+      },
+      redo: () => {},
+    });
 
     undoTimeline.open("interactive");
     mark = toast.getHistory().length;
@@ -228,17 +307,31 @@ describe("undo announcements", () => {
   test("a conflict says the change came since", () => {
     useInboxStore.getState().renameSession(A, "Mine");
     // Someone else renamed it after.
-    useInboxStore.setState((s: any) => ({ sessions: { ...s.sessions, [A]: { ...s.sessions[A], title: "Theirs" } } }));
+    useInboxStore.setState((s: any) => ({
+      sessions: { ...s.sessions, [A]: { ...s.sessions[A], title: "Theirs" } },
+    }));
     performUndo();
-    expect(status()?.title).toBe("Can't undo Renamed “First” to “Mine”: changed since");
+    expect(status()?.title).toBe(
+      "Can't undo Renamed “First” to “Mine”: changed since",
+    );
     expect((useInboxStore.getState().sessions as any)[A].title).toBe("Theirs");
   });
 
   test("a partial step counts the rows it reached", () => {
-    const entry = { label: "Filed 3 sessions as Done", objects: [1, 2, 3].map((i) => ({ store: "sessions", id: `s${i}` })), skipped: [{ store: "sessions", id: "s2" }] };
-    expect(undoStepMessage("undo", 1, entry)).toBe("Undid: Filed 3 sessions as Done (2 of 3; 1 changed since)");
-    expect(undoStepMessage("redo", 1, entry)).toBe("Redid: Filed 3 sessions as Done (2 of 3; 1 changed since)");
-    expect(undoStepMessage("undo", 1, { ...entry, skipped: [] })).toBe("Undid: Filed 3 sessions as Done");
+    const entry = {
+      label: "Filed 3 sessions as Done",
+      objects: [1, 2, 3].map((i) => ({ store: "sessions", id: `s${i}` })),
+      skipped: [{ store: "sessions", id: "s2" }],
+    };
+    expect(undoStepMessage("undo", 1, entry)).toBe(
+      "Undid: Filed 3 sessions as Done (2 of 3; 1 changed since)",
+    );
+    expect(undoStepMessage("redo", 1, entry)).toBe(
+      "Redid: Filed 3 sessions as Done (2 of 3; 1 changed since)",
+    );
+    expect(undoStepMessage("undo", 1, { ...entry, skipped: [] })).toBe(
+      "Undid: Filed 3 sessions as Done",
+    );
     expect(undoStepMessage("undo", 3, entry)).toBe("Undid 3 changes");
   });
 
@@ -247,7 +340,10 @@ describe("undo announcements", () => {
     // both copies in objects but skips the server row once.
     const C = "c".repeat(32);
     useInboxStore.setState((s: any) => ({
-      sessions: { ...s.sessions, [C]: { _id: C, title: "Third", updated_at: 1 } },
+      sessions: {
+        ...s.sessions,
+        [C]: { _id: C, title: "Third", updated_at: 1 },
+      },
       conversations: { ...s.conversations, [C]: { _id: C, title: "Third" } },
     }));
     undoAsOne("Stashed 3 sessions", () => {
@@ -255,8 +351,14 @@ describe("undo announcements", () => {
     });
     // A teammate changed one of them after.
     useInboxStore.setState((s: any) => ({
-      sessions: { ...s.sessions, [B]: { ...s.sessions[B], inbox_stashed_at: 99 } },
-      conversations: { ...s.conversations, [B]: { ...s.conversations[B], inbox_stashed_at: 99 } },
+      sessions: {
+        ...s.sessions,
+        [B]: { ...s.sessions[B], inbox_stashed_at: 99 },
+      },
+      conversations: {
+        ...s.conversations,
+        [B]: { ...s.conversations[B], inbox_stashed_at: 99 },
+      },
     }));
     performUndo();
     expect(status()?.title).toBe("Undid: Stashed 3 sessions");

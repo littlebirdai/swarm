@@ -1,5 +1,13 @@
 import { useInboxStore } from "../../store/inboxStore";
-import { ENGINE_CARD_ACTIONS, sentence, type CardActions, type Incoming, type Live, type RingIn, type RingOut } from "../../lib/faces/cardActions";
+import {
+  ENGINE_CARD_ACTIONS,
+  sentence,
+  type CardActions,
+  type Incoming,
+  type Live,
+  type RingIn,
+  type RingOut,
+} from "../../lib/faces/cardActions";
 // THE ENGAGEMENT CARD: the one transient control card the row needs (pl-756 F2).
 //
 // The model (lib/faces/faceRow) decides WHICH card is up and what it says:
@@ -68,12 +76,21 @@ function Line({
   hearing?: Extract<FaceCard, { kind: "live" }>["hearing"];
 }) {
   return (
-    <div className={`walkie-stage walkie-stage-${stage}`} role="status" aria-live="polite" title={title}>
+    <div
+      className={`walkie-stage walkie-stage-${stage}`}
+      role="status"
+      aria-live="polite"
+      title={title}
+    >
       <span className="walkie-stage-dot" aria-hidden="true" />
       <span className="engagement-card-words">
         {children}
         {hearing && (
-          <span className="engagement-card-hearing" data-hearing={hearing.state} title={hearing.text}>
+          <span
+            className="engagement-card-hearing"
+            data-hearing={hearing.state}
+            title={hearing.text}
+          >
             {" · "}
             {HEARING_SHORT[hearing.state]}
           </span>
@@ -119,16 +136,28 @@ function Stage({
   onTrack?: boolean;
 }) {
   const bare = words.stage === "open" || words.stage === "incoming";
-  const said = muteButton ? sentence(words.badge).replace(/ · muted$/, "") : sentence(words.badge);
+  const said = muteButton
+    ? sentence(words.badge).replace(/ · muted$/, "")
+    : sentence(words.badge);
   const badge = onTrack ? said.replace(/^On the line/, "Live") : said;
   return (
-    <Line stage={words.stage} hearing={hearing} title={onTrack ? words.hint : undefined}>
+    <Line
+      stage={words.stage}
+      hearing={hearing}
+      title={onTrack ? words.hint : undefined}
+    >
       {bare ? (
-        <span className="walkie-strip-hint">{words.stage === "incoming" ? `${shortName(name)} is talking to you` : words.hint}</span>
+        <span className="walkie-strip-hint">
+          {words.stage === "incoming"
+            ? `${shortName(name)} is talking to you`
+            : words.hint}
+        </span>
       ) : (
         <>
           <span className="walkie-stage-badge">{badge}</span>
-          {!onTrack && <span className="walkie-stage-with">{` with ${shortName(name)}`}</span>}
+          {!onTrack && (
+            <span className="walkie-stage-with">{` with ${shortName(name)}`}</span>
+          )}
         </>
       )}
     </Line>
@@ -138,12 +167,24 @@ function Stage({
 /** The mic and the camera as two switches on one small plate, then End. A
  *  switch is its icon: struck through and dimmed when off, lit when on, with
  *  its word in the tooltip and for a reader. */
-function LiveControls({ card, actions, accessory }: { card: Live; actions: CardActions; accessory?: React.ReactNode }) {
+function LiveControls({
+  card,
+  actions,
+  accessory,
+}: {
+  card: Live;
+  actions: CardActions;
+  accessory?: React.ReactNode;
+}) {
   return (
     <div className="walkie-strip-actions">
       {accessory}
       {(card.mute || card.camera) && (
-        <span className="engagement-card-toggles" role="group" aria-label="Microphone and camera">
+        <span
+          className="engagement-card-toggles"
+          role="group"
+          aria-label="Microphone and camera"
+        >
           {card.mute && (
             <button
               type="button"
@@ -151,10 +192,18 @@ function LiveControls({ card, actions, accessory }: { card: Live; actions: CardA
               data-card-action="mute"
               aria-pressed={!card.muted}
               aria-label={card.muted ? "Unmute" : "Mute"}
-              title={card.muted ? "Unmute: they hear you again" : "Mute: they stop hearing you"}
+              title={
+                card.muted
+                  ? "Unmute: they hear you again"
+                  : "Mute: they stop hearing you"
+              }
               onClick={() => actions.mute(card)}
             >
-              {card.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+              {card.muted ? (
+                <MicOff className="h-3.5 w-3.5" />
+              ) : (
+                <Mic className="h-3.5 w-3.5" />
+              )}
             </button>
           )}
           {card.camera && (
@@ -163,16 +212,32 @@ function LiveControls({ card, actions, accessory }: { card: Live; actions: CardA
               className={`engagement-card-toggle walkie-strip-camera${card.cameraOn ? "" : " is-off"}`}
               data-card-action="camera"
               aria-pressed={card.cameraOn}
-              aria-label={card.cameraOn ? "Turn the camera off" : "Turn the camera on"}
-              title={card.cameraOn ? "Camera off: they see your picture" : "Camera on: they see you"}
+              aria-label={
+                card.cameraOn ? "Turn the camera off" : "Turn the camera on"
+              }
+              title={
+                card.cameraOn
+                  ? "Camera off: they see your picture"
+                  : "Camera on: they see you"
+              }
               onClick={() => actions.camera(card)}
             >
-              {card.cameraOn ? <Video className="h-3.5 w-3.5" /> : <VideoOff className="h-3.5 w-3.5" />}
+              {card.cameraOn ? (
+                <Video className="h-3.5 w-3.5" />
+              ) : (
+                <VideoOff className="h-3.5 w-3.5" />
+              )}
             </button>
           )}
         </span>
       )}
-      <button type="button" className="walkie-strip-end" data-card-action="end" aria-label="End" onClick={() => actions.end(card)}>
+      <button
+        type="button"
+        className="walkie-strip-end"
+        data-card-action="end"
+        aria-label="End"
+        onClick={() => actions.end(card)}
+      >
         <PhoneOff className="h-3.5 w-3.5" />
         <span className="walkie-strip-end-label">End</span>
       </button>
@@ -195,7 +260,12 @@ export function EngagementCard({
 }) {
   if (card.kind === "none") return null;
   const shell = (edge: string, body: React.ReactNode) => (
-    <div className={`engagement-card walkie-strip ${edge}`.trim()} data-density={density} data-card={card.kind} data-chrome-hit>
+    <div
+      className={`engagement-card walkie-strip ${edge}`.trim()}
+      data-density={density}
+      data-card={card.kind}
+      data-chrome-hit
+    >
       {body}
     </div>
   );
@@ -212,19 +282,32 @@ export function EngagementCard({
                 roomKey={card.roomKey}
                 // At press time, never at render: the DM is opened only when a
                 // burst is about to land in it.
-                resolveChannelId={() => useInboxStore.getState().openDmChannel([card.from])}
+                resolveChannelId={() =>
+                  useInboxStore.getState().openDmChannel([card.from])
+                }
                 size="sm"
                 label="Talk"
                 title="Talk back: click to start, click again to stop"
               />
             )}
             {card.join && (
-              <button type="button" className="walkie-strip-join" data-card-action="join" onClick={() => actions.join(card)}>
+              <button
+                type="button"
+                className="walkie-strip-join"
+                data-card-action="join"
+                onClick={() => actions.join(card)}
+              >
                 Join live
               </button>
             )}
             {card.snooze && (
-              <button type="button" className="walkie-strip-snooze" data-card-action="snooze" onClick={() => actions.snooze(card)} title="Snooze the walkie for an hour">
+              <button
+                type="button"
+                className="walkie-strip-snooze"
+                data-card-action="snooze"
+                onClick={() => actions.snooze(card)}
+                title="Snooze the walkie for an hour"
+              >
                 Snooze
               </button>
             )}
@@ -237,18 +320,32 @@ export function EngagementCard({
         card.words ? edgeOf(card.words.stage) : "walkie-strip-live",
         <>
           {card.words ? (
-            <Stage words={card.words} name={card.title} hearing={card.hearing} muteButton={card.mute} onTrack />
+            <Stage
+              words={card.words}
+              name={card.title}
+              hearing={card.hearing}
+              muteButton={card.mute}
+              onTrack
+            />
           ) : card.joining ? (
             <Line stage="joining">
-              Joining <span className="engagement-card-title">{shortName(card.title)}</span>
+              Joining{" "}
+              <span className="engagement-card-title">
+                {shortName(card.title)}
+              </span>
             </Line>
           ) : (
             <Line stage="locked" hearing={card.hearing}>
-              <span className="engagement-card-title">{shortName(card.title)}</span>
+              <span className="engagement-card-title">
+                {shortName(card.title)}
+              </span>
             </Line>
           )}
           {card.private && (
-            <span className="engagement-card-private" title="Private huddle: only people rung in see it, join it and read its record">
+            <span
+              className="engagement-card-private"
+              title="Private huddle: only people rung in see it, join it and read its record"
+            >
               <Lock aria-hidden="true" />
               private
             </span>
@@ -275,14 +372,27 @@ export function EngagementCard({
           <div className="ring-card-line" role="status" aria-live="polite">
             <span className="ring-card-dot" aria-hidden="true" />
             <span className="engagement-card-words">
-              <span className="engagement-card-title">{shortName(card.name)}</span> is calling
+              <span className="engagement-card-title">
+                {shortName(card.name)}
+              </span>{" "}
+              is calling
             </span>
           </div>
           <div className="ring-card-actions">
-            <button type="button" className="ring-card-decline" data-card-action="decline" onClick={() => actions.decline(card)}>
+            <button
+              type="button"
+              className="ring-card-decline"
+              data-card-action="decline"
+              onClick={() => actions.decline(card)}
+            >
               Decline
             </button>
-            <button type="button" className="ring-card-join" data-card-action="answer" onClick={() => actions.answer(card)}>
+            <button
+              type="button"
+              className="ring-card-join"
+              data-card-action="answer"
+              onClick={() => actions.answer(card)}
+            >
               Join
             </button>
           </div>
@@ -296,11 +406,19 @@ export function EngagementCard({
           <div className="ring-card-line" role="status" aria-live="polite">
             <span className="ring-card-dot" aria-hidden="true" />
             <span className="engagement-card-words">
-              {card.status === "ringing" ? "Ringing" : sentence(card.status)} <span className="engagement-card-title">{shortName(card.name)}</span>
+              {card.status === "ringing" ? "Ringing" : sentence(card.status)}{" "}
+              <span className="engagement-card-title">
+                {shortName(card.name)}
+              </span>
             </span>
           </div>
           <div className="ring-card-actions">
-            <button type="button" className="ring-card-decline" data-card-action="cancel" onClick={() => actions.cancel(card)}>
+            <button
+              type="button"
+              className="ring-card-decline"
+              data-card-action="cancel"
+              onClick={() => actions.cancel(card)}
+            >
               Cancel
             </button>
           </div>

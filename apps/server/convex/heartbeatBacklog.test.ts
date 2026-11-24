@@ -12,7 +12,10 @@ describe("backlogFieldsPatch", () => {
     // Simulate the heartbeat merge: a newer daemon wrote a real backlog, then an
     // OLD daemon's heartbeat arrives with the field undefined. The merged patch must
     // not carry the field, so the prior value survives.
-    const prior = { daemon_pending_sync_messages: 42, daemon_pending_sync_conversations: 7 };
+    const prior = {
+      daemon_pending_sync_messages: 42,
+      daemon_pending_sync_conversations: 7,
+    };
     const merged = { ...prior, ...backlogFieldsPatch({}) };
     expect(merged.daemon_pending_sync_messages).toBe(42);
     expect(merged.daemon_pending_sync_conversations).toBe(7);
@@ -20,7 +23,10 @@ describe("backlogFieldsPatch", () => {
 
   test("patches the fields when the daemon sends them, including a real zero", () => {
     expect(
-      backlogFieldsPatch({ pending_sync_messages: 5, pending_sync_conversations: 2 })
+      backlogFieldsPatch({
+        pending_sync_messages: 5,
+        pending_sync_conversations: 2,
+      }),
     ).toEqual({
       daemon_pending_sync_messages: 5,
       daemon_pending_sync_conversations: 2,
@@ -28,7 +34,10 @@ describe("backlogFieldsPatch", () => {
     // An explicit 0 (queue genuinely drained) is a real value and IS written —
     // distinguished from "field absent" by being defined.
     expect(
-      backlogFieldsPatch({ pending_sync_messages: 0, pending_sync_conversations: 0 })
+      backlogFieldsPatch({
+        pending_sync_messages: 0,
+        pending_sync_conversations: 0,
+      }),
     ).toEqual({
       daemon_pending_sync_messages: 0,
       daemon_pending_sync_conversations: 0,

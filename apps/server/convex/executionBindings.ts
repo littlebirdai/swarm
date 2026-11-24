@@ -16,7 +16,10 @@ import {
 } from "@codecast/shared/contracts";
 import type { Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
-import { insertRiskResendPendingMessage, reviveConversationOnDelivery } from "./pendingMessageWrites";
+import {
+  insertRiskResendPendingMessage,
+  reviveConversationOnDelivery,
+} from "./pendingMessageWrites";
 import { isConversationSafetyBlocked } from "./conversationSafety";
 
 export const EXECUTION_PROTOCOL_VERSION = 1 as const;
@@ -28,7 +31,16 @@ export const EXECUTION_PROTOCOL_CAPABILITIES = [
   "runtime-inspection-v1",
 ] as const;
 
-type AgentClientId = "claude" | "codex" | "cursor" | "gemini" | "opencode" | "pi" | "grok" | "muse" | "antigravity";
+type AgentClientId =
+  | "claude"
+  | "codex"
+  | "cursor"
+  | "gemini"
+  | "opencode"
+  | "pi"
+  | "grok"
+  | "muse"
+  | "antigravity";
 type RuntimeTransport = "tmux" | "app-server" | "external";
 type RuntimeCapability = (typeof EXECUTION_PROTOCOL_CAPABILITIES)[number];
 type SuccessorPolicy = "drain-current" | "cancel-unstarted";
@@ -86,7 +98,10 @@ const TERMINAL_DELIVERY_STATES = new Set([
 ]);
 
 export class ExecutionAuthorityError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(`${code}: ${message}`);
     this.name = "ExecutionAuthorityError";
   }
@@ -97,12 +112,16 @@ function fail(code: string, message: string): never {
 }
 
 function requireNonEmpty(value: string, field: string): void {
-  if (!value.trim()) fail("INVALID_EXECUTION_ARGUMENT", `${field} must be non-empty`);
+  if (!value.trim())
+    fail("INVALID_EXECUTION_ARGUMENT", `${field} must be non-empty`);
 }
 
 function requireSafePositive(value: number, field: string): void {
   if (!Number.isSafeInteger(value) || value < 1) {
-    fail("INVALID_EXECUTION_ARGUMENT", `${field} must be a positive safe integer`);
+    fail(
+      "INVALID_EXECUTION_ARGUMENT",
+      `${field} must be a positive safe integer`,
+    );
   }
 }
 
@@ -119,7 +138,10 @@ function normalizedCapabilities(capabilities: readonly string[]): string[] {
   return [...new Set(capabilities)].sort();
 }
 
-function capabilitiesEqual(left: readonly string[], right: readonly string[]): boolean {
+function capabilitiesEqual(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
   const a = normalizedCapabilities(left);
   const b = normalizedCapabilities(right);
   return a.length === b.length && a.every((value, index) => value === b[index]);
@@ -129,7 +151,9 @@ function requireProtocolCapabilities(capabilities: readonly string[]): void {
   const normalized = normalizedCapabilities(capabilities);
   if (
     normalized.length !== EXECUTION_PROTOCOL_CAPABILITIES.length ||
-    !EXECUTION_PROTOCOL_CAPABILITIES.every((capability) => normalized.includes(capability))
+    !EXECUTION_PROTOCOL_CAPABILITIES.every((capability) =>
+      normalized.includes(capability),
+    )
   ) {
     fail(
       "EXECUTION_CAPABILITY_MISMATCH",
@@ -154,7 +178,10 @@ function strictConversationAgent(agentType: unknown): AgentClientId {
     case "antigravity":
       return agentType;
     default:
-      return fail("INVALID_EXECUTION_AGENT", `unsupported conversation agent ${String(agentType)}`);
+      return fail(
+        "INVALID_EXECUTION_AGENT",
+        `unsupported conversation agent ${String(agentType)}`,
+      );
   }
 }
 
@@ -173,12 +200,21 @@ function validateTargetInput(input: TargetInput): void {
   }
 }
 
-async function executionHead(ctx: DbCtx, conversationId: Id<"conversations">): Promise<any | null> {
+async function executionHead(
+  ctx: DbCtx,
+  conversationId: Id<"conversations">,
+): Promise<any | null> {
   const rows = await ctx.db
     .query("conversation_execution_heads")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
-  if (rows.length > 1) fail("EXECUTION_PROTOCOL_INVARIANT", "conversation has multiple execution heads");
+  if (rows.length > 1)
+    fail(
+      "EXECUTION_PROTOCOL_INVARIANT",
+      "conversation has multiple execution heads",
+    );
   return rows[0] ?? null;
 }
 
@@ -194,7 +230,10 @@ async function executionBinding(
     )
     .collect();
   if (rows.length > 1) {
-    fail("EXECUTION_PROTOCOL_INVARIANT", `conversation has multiple bindings for epoch ${epoch}`);
+    fail(
+      "EXECUTION_PROTOCOL_INVARIANT",
+      `conversation has multiple bindings for epoch ${epoch}`,
+    );
   }
   return rows[0] ?? null;
 }
@@ -205,9 +244,13 @@ async function requireOwnedConversation(
   userId: Id<"users">,
 ): Promise<any> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation) fail("CONVERSATION_NOT_FOUND", "conversation does not exist");
+  if (!conversation)
+    fail("CONVERSATION_NOT_FOUND", "conversation does not exist");
   if (String(conversation.user_id) !== String(userId)) {
-    fail("EXECUTION_NOT_OWNER", "only the account that runs the conversation may control execution");
+    fail(
+      "EXECUTION_NOT_OWNER",
+      "only the account that runs the conversation may control execution",
+    );
   }
   return conversation;
 }
@@ -240,14 +283,17 @@ async function insertRequestedBinding(
   now: number,
 ): Promise<any> {
   validateTargetInput(input);
-  if (strictConversationAgent(conversation.agent_type) !== input.requestedAgent) {
+  if (
+    strictConversationAgent(conversation.agent_type) !== input.requestedAgent
+  ) {
     fail(
       "EXECUTION_TARGET_MISMATCH",
       "execution target must match the conversation's authoritative strict agent family",
     );
   }
   const existing = await executionBinding(ctx, conversation._id, epoch);
-  if (existing) fail("EXECUTION_EPOCH_ALREADY_EXISTS", `epoch ${epoch} already exists`);
+  if (existing)
+    fail("EXECUTION_EPOCH_ALREADY_EXISTS", `epoch ${epoch} already exists`);
 
   return await ctx.db.insert("execution_bindings", {
     conversation_id: conversation._id,
@@ -283,7 +329,10 @@ function bindingTargetMatches(binding: any, input: TargetInput): boolean {
     binding.owner_device_id === input.ownerDeviceId &&
     binding.daemon_boot_id === input.daemonBootId &&
     binding.protocol_version === input.protocolVersion &&
-    capabilitiesEqual(binding.required_capabilities ?? [], input.requiredCapabilities)
+    capabilitiesEqual(
+      binding.required_capabilities ?? [],
+      input.requiredCapabilities,
+    )
   );
 }
 
@@ -306,24 +355,35 @@ function isEffectivelyTerminalDelivery(message: any, head?: any): boolean {
   return false;
 }
 
-async function fencedMessages(ctx: DbCtx, conversationId: Id<"conversations">): Promise<any[]> {
+async function fencedMessages(
+  ctx: DbCtx,
+  conversationId: Id<"conversations">,
+): Promise<any[]> {
   const messages = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
-  return messages.filter((message: any) => message.delivery_protocol_version !== undefined);
+  return messages.filter(
+    (message: any) => message.delivery_protocol_version !== undefined,
+  );
 }
 
-function orderedNonterminalMessages(messages: readonly any[], head?: any): any[] {
+function orderedNonterminalMessages(
+  messages: readonly any[],
+  head?: any,
+): any[] {
   return messages
     .filter(
       (message) =>
         Number.isSafeInteger(message.conversation_sequence) &&
         !isEffectivelyTerminalDelivery(message, head),
     )
-    .sort((left, right) =>
-      left.conversation_sequence - right.conversation_sequence ||
-      String(left._id).localeCompare(String(right._id)),
+    .sort(
+      (left, right) =>
+        left.conversation_sequence - right.conversation_sequence ||
+        String(left._id).localeCompare(String(right._id)),
     );
 }
 
@@ -348,7 +408,9 @@ async function clearPendingFlagIfQuiet(
 ): Promise<void> {
   const messages = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   const hasNonterminal = messages.some((message: any) => {
     if (message.delivery_protocol_version !== undefined) {
@@ -381,7 +443,10 @@ export async function allocateFencedDeliveryMetadata(
 
   if (!marker && !head) return null;
   if (!head || marker !== head.protocol_state) {
-    fail("EXECUTION_PROTOCOL_INVARIANT", "conversation marker and execution head disagree");
+    fail(
+      "EXECUTION_PROTOCOL_INVARIANT",
+      "conversation marker and execution head disagree",
+    );
   }
   if (head.protocol_state === "legacy-quiescing") {
     fail(
@@ -403,7 +468,10 @@ export async function allocateFencedDeliveryMetadata(
   requireSafePositive(executionEpoch, "admissionEpoch");
   const binding = await executionBinding(ctx, conversation._id, executionEpoch);
   if (!binding || binding.protocol_version !== head.protocol_version) {
-    fail("EXECUTION_BINDING_MISSING", `admission epoch ${executionEpoch} has no binding`);
+    fail(
+      "EXECUTION_BINDING_MISSING",
+      `admission epoch ${executionEpoch} has no binding`,
+    );
   }
   const conversationSequence = head.next_conversation_sequence;
   requireSafePositive(conversationSequence, "nextConversationSequence");
@@ -437,7 +505,11 @@ export async function beginLegacyQuiescenceInDb(
   requireProtocolVersion(args.protocolVersion);
   requireNonEmpty(args.ownerDeviceId, "ownerDeviceId");
   requireNonEmpty(args.legacyDaemonBootId, "legacyDaemonBootId");
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const existingHead = await executionHead(ctx, args.conversationId);
   if (
     conversation.execution_protocol_state === "legacy-quiescing" &&
@@ -449,25 +521,46 @@ export async function beginLegacyQuiescenceInDb(
     return { state: "legacy-quiescing" };
   }
   if (conversation.execution_protocol_state !== undefined) {
-    fail("EXECUTION_PROTOCOL_ALREADY_INITIALIZED", "conversation already entered execution migration");
+    fail(
+      "EXECUTION_PROTOCOL_ALREADY_INITIALIZED",
+      "conversation already entered execution migration",
+    );
   }
-  if (conversation.owner_device_id && conversation.owner_device_id !== args.ownerDeviceId) {
-    fail("EXECUTION_OWNER_FENCE_MISMATCH", "legacy owner device does not match conversation owner");
+  if (
+    conversation.owner_device_id &&
+    conversation.owner_device_id !== args.ownerDeviceId
+  ) {
+    fail(
+      "EXECUTION_OWNER_FENCE_MISMATCH",
+      "legacy owner device does not match conversation owner",
+    );
   }
   if (existingHead) {
-    fail("EXECUTION_PROTOCOL_INVARIANT", "execution head exists without conversation marker");
+    fail(
+      "EXECUTION_PROTOCOL_INVARIANT",
+      "execution head exists without conversation marker",
+    );
   }
 
   let inspected = 0;
-  for (const status of ["pending", "injected", "failed", "undeliverable"] as const) {
+  for (const status of [
+    "pending",
+    "injected",
+    "failed",
+    "undeliverable",
+  ] as const) {
     const messages = await ctx.db
       .query("pending_messages")
       .withIndex("by_conversation_status", (q: any) =>
-        q.eq("conversation_id", args.conversationId).eq("status", status))
+        q.eq("conversation_id", args.conversationId).eq("status", status),
+      )
       .take(129 - inspected);
     inspected += messages.length;
     if (inspected > 128) {
-      fail("LEGACY_PENDING_QUEUE_REQUIRES_DRAIN", "drain the unresolved legacy queue to at most 128 messages before migration");
+      fail(
+        "LEGACY_PENDING_QUEUE_REQUIRES_DRAIN",
+        "drain the unresolved legacy queue to at most 128 messages before migration",
+      );
     }
   }
 
@@ -494,10 +587,18 @@ export async function beginLegacyQuiescenceInDb(
 export async function initializeFencedExecutionInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: { conversationId: Id<"conversations">; target: TargetInput; now: number },
+  args: {
+    conversationId: Id<"conversations">;
+    target: TargetInput;
+    now: number;
+  },
 ): Promise<{ state: "fenced"; epoch: number }> {
   validateTargetInput(args.target);
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const existingHead = await executionHead(ctx, args.conversationId);
   if (
     conversation.execution_protocol_state === "fenced" &&
@@ -510,19 +611,40 @@ export async function initializeFencedExecutionInDb(
     }
   }
   if (conversation.execution_protocol_state !== undefined || existingHead) {
-    fail("EXECUTION_PROTOCOL_ALREADY_INITIALIZED", "conversation already has execution authority");
+    fail(
+      "EXECUTION_PROTOCOL_ALREADY_INITIALIZED",
+      "conversation already has execution authority",
+    );
   }
-  if (conversation.owner_device_id && conversation.owner_device_id !== args.target.ownerDeviceId) {
-    fail("EXECUTION_OWNER_FENCE_MISMATCH", "target owner device does not match conversation owner");
+  if (
+    conversation.owner_device_id &&
+    conversation.owner_device_id !== args.target.ownerDeviceId
+  ) {
+    fail(
+      "EXECUTION_OWNER_FENCE_MISMATCH",
+      "target owner device does not match conversation owner",
+    );
   }
-  if (strictConversationAgent(conversation.agent_type) !== args.target.requestedAgent) {
-    fail("EXECUTION_TARGET_MISMATCH", "initial target must match the conversation's strict agent family");
+  if (
+    strictConversationAgent(conversation.agent_type) !==
+    args.target.requestedAgent
+  ) {
+    fail(
+      "EXECUTION_TARGET_MISMATCH",
+      "initial target must match the conversation's strict agent family",
+    );
   }
   const existingMessages = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", args.conversationId),
+    )
     .collect();
-  if (existingMessages.some((message: any) => !["delivered", "cancelled"].includes(message.status))) {
+  if (
+    existingMessages.some(
+      (message: any) => !["delivered", "cancelled"].includes(message.status),
+    )
+  ) {
     fail(
       "LEGACY_MESSAGES_REQUIRE_QUIESCENCE",
       "a conversation with legacy in-flight messages must cross the quiescence gate",
@@ -563,24 +685,32 @@ export async function activateAfterLegacyQuiescenceInDb(
   },
 ): Promise<{ state: "fenced"; epoch: number; migratedMessages: number }> {
   validateTargetInput(args.target);
-  requireNonEmpty(args.terminatedLegacyDaemonBootId, "terminatedLegacyDaemonBootId");
+  requireNonEmpty(
+    args.terminatedLegacyDaemonBootId,
+    "terminatedLegacyDaemonBootId",
+  );
   requireNonEmpty(args.terminationEvidence, "terminationEvidence");
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId);
   if (
     head?.protocol_state === "fenced" &&
     conversation.execution_protocol_state === "fenced" &&
     head.current_epoch === 1 &&
-    head.terminated_legacy_daemon_boot_id === args.terminatedLegacyDaemonBootId &&
+    head.terminated_legacy_daemon_boot_id ===
+      args.terminatedLegacyDaemonBootId &&
     head.replacement_daemon_boot_id === args.target.daemonBootId &&
     head.legacy_runtime_disposition === args.runtimeDisposition &&
     head.termination_evidence === args.terminationEvidence
   ) {
     const existingBinding = await executionBinding(ctx, args.conversationId, 1);
     if (existingBinding && bindingTargetMatches(existingBinding, args.target)) {
-      const migratedMessages = (await fencedMessages(ctx, args.conversationId)).filter(
-        (message) => message.execution_epoch === 1,
-      ).length;
+      const migratedMessages = (
+        await fencedMessages(ctx, args.conversationId)
+      ).filter((message) => message.execution_epoch === 1).length;
       return { state: "fenced", epoch: 1, migratedMessages };
     }
   }
@@ -589,27 +719,47 @@ export async function activateAfterLegacyQuiescenceInDb(
     head.protocol_state !== "legacy-quiescing" ||
     conversation.execution_protocol_state !== "legacy-quiescing"
   ) {
-    fail("EXECUTION_NOT_QUIESCING", "conversation is not at the legacy quiescence gate");
+    fail(
+      "EXECUTION_NOT_QUIESCING",
+      "conversation is not at the legacy quiescence gate",
+    );
   }
   if (
     head.legacy_owner_device_id !== args.target.ownerDeviceId ||
     conversation.owner_device_id !== args.target.ownerDeviceId
   ) {
-    fail("EXECUTION_OWNER_FENCE_MISMATCH", "quiescing device does not match replacement target");
+    fail(
+      "EXECUTION_OWNER_FENCE_MISMATCH",
+      "quiescing device does not match replacement target",
+    );
   }
   if (head.legacy_daemon_boot_id !== args.terminatedLegacyDaemonBootId) {
-    fail("LEGACY_BOOT_PROOF_MISMATCH", "termination proof names a different legacy daemon boot");
+    fail(
+      "LEGACY_BOOT_PROOF_MISMATCH",
+      "termination proof names a different legacy daemon boot",
+    );
   }
   if (args.target.daemonBootId === args.terminatedLegacyDaemonBootId) {
-    fail("LEGACY_BOOT_STILL_ACTIVE", "replacement daemon must have a new boot id");
+    fail(
+      "LEGACY_BOOT_STILL_ACTIVE",
+      "replacement daemon must have a new boot id",
+    );
   }
-  if (strictConversationAgent(conversation.agent_type) !== args.target.requestedAgent) {
-    fail("EXECUTION_TARGET_MISMATCH", "migration target must match the conversation's strict agent family");
+  if (
+    strictConversationAgent(conversation.agent_type) !==
+    args.target.requestedAgent
+  ) {
+    fail(
+      "EXECUTION_TARGET_MISMATCH",
+      "migration target must match the conversation's strict agent family",
+    );
   }
 
   const allMessages = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", args.conversationId),
+    )
     .collect();
   const legacyInFlight = allMessages
     .filter(
@@ -619,9 +769,12 @@ export async function activateAfterLegacyQuiescenceInDb(
     )
     .sort(
       (left: any, right: any) =>
-        left.created_at - right.created_at || String(left._id).localeCompare(String(right._id)),
+        left.created_at - right.created_at ||
+        String(left._id).localeCompare(String(right._id)),
     );
-  const unsafe = legacyInFlight.find((message: any) => message.status !== "pending");
+  const unsafe = legacyInFlight.find(
+    (message: any) => message.status !== "pending",
+  );
   if (unsafe) {
     fail(
       "LEGACY_DELIVERY_OUTCOME_UNRESOLVED",
@@ -631,7 +784,8 @@ export async function activateAfterLegacyQuiescenceInDb(
 
   let sequence = 1;
   for (const message of legacyInFlight) {
-    const deliveryId = message.client_id?.trim() || canonicalLegacyDeliveryId(message._id);
+    const deliveryId =
+      message.client_id?.trim() || canonicalLegacyDeliveryId(message._id);
     await ctx.db.patch(message._id, {
       client_id: deliveryId,
       delivery_protocol_version: args.target.protocolVersion,
@@ -664,7 +818,10 @@ export async function activateAfterLegacyQuiescenceInDb(
   return { state: "fenced", epoch: 1, migratedMessages: legacyInFlight.length };
 }
 
-function sameSuccessorIntentRequest(intent: any, request: SuccessorIntentRequest): boolean {
+function sameSuccessorIntentRequest(
+  intent: any,
+  request: SuccessorIntentRequest,
+): boolean {
   return (
     intent.intent_id === request.intentId &&
     intent.expected_current_epoch === request.expectedCurrentEpoch &&
@@ -675,7 +832,10 @@ function sameSuccessorIntentRequest(intent: any, request: SuccessorIntentRequest
   );
 }
 
-function successorIntentMatchesTarget(intent: any, target: TargetInput): boolean {
+function successorIntentMatchesTarget(
+  intent: any,
+  target: TargetInput,
+): boolean {
   return (
     intent.requested_agent === target.requestedAgent &&
     intent.transport === target.transport &&
@@ -687,7 +847,10 @@ function successorIntentMatchesTarget(intent: any, target: TargetInput): boolean
     intent.effort === target.effort &&
     intent.owner_device_id === target.ownerDeviceId &&
     intent.protocol_version === target.protocolVersion &&
-    capabilitiesEqual(intent.required_capabilities ?? [], target.requiredCapabilities)
+    capabilitiesEqual(
+      intent.required_capabilities ?? [],
+      target.requiredCapabilities,
+    )
   );
 }
 
@@ -700,7 +863,10 @@ function successorIntentMatchesTarget(intent: any, target: TargetInput): boolean
 export async function recordExecutionSuccessorIntentInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  args: SuccessorIntentRequest & { conversationId: Id<"conversations">; now: number },
+  args: SuccessorIntentRequest & {
+    conversationId: Id<"conversations">;
+    now: number;
+  },
 ): Promise<{
   intentId: string;
   state: "pending" | "consumed" | "activated";
@@ -710,19 +876,36 @@ export async function recordExecutionSuccessorIntentInDb(
 }> {
   requireNonEmpty(args.intentId, "intentId");
   if (args.intentId !== args.intentId.trim()) {
-    fail("INVALID_EXECUTION_ARGUMENT", "intentId must be a canonical non-whitespace string");
+    fail(
+      "INVALID_EXECUTION_ARGUMENT",
+      "intentId must be a canonical non-whitespace string",
+    );
   }
   requireSafePositive(args.expectedCurrentEpoch, "expectedCurrentEpoch");
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId);
-  if (!head || head.protocol_state !== "fenced" || conversation.execution_protocol_state !== "fenced") {
-    fail("EXECUTION_NOT_FENCED", "successor intent requires a fenced conversation");
+  if (
+    !head ||
+    head.protocol_state !== "fenced" ||
+    conversation.execution_protocol_state !== "fenced"
+  ) {
+    fail(
+      "EXECUTION_NOT_FENCED",
+      "successor intent requires a fenced conversation",
+    );
   }
 
   const existingIntent = head.successor_intent;
   if (existingIntent?.intent_id === args.intentId) {
     if (!sameSuccessorIntentRequest(existingIntent, args)) {
-      fail("EXECUTION_INTENT_ID_REUSED", "intent id was already used for different product intent");
+      fail(
+        "EXECUTION_INTENT_ID_REUSED",
+        "intent id was already used for different product intent",
+      );
     }
     return {
       intentId: existingIntent.intent_id,
@@ -733,43 +916,85 @@ export async function recordExecutionSuccessorIntentInDb(
     };
   }
   if (head.current_epoch !== args.expectedCurrentEpoch) {
-    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "current epoch changed before successor intent");
+    fail(
+      "EXECUTION_EPOCH_FENCE_MISMATCH",
+      "current epoch changed before successor intent",
+    );
   }
-  if (head.pending_epoch !== undefined || (existingIntent && existingIntent.status !== "activated")) {
-    fail("EXECUTION_SUCCESSOR_INTENT_ALREADY_PENDING", "only one successor intent may be live at a time");
+  if (
+    head.pending_epoch !== undefined ||
+    (existingIntent && existingIntent.status !== "activated")
+  ) {
+    fail(
+      "EXECUTION_SUCCESSOR_INTENT_ALREADY_PENDING",
+      "only one successor intent may be live at a time",
+    );
   }
 
-  const current = await executionBinding(ctx, args.conversationId, args.expectedCurrentEpoch);
-  if (!current) fail("EXECUTION_BINDING_MISSING", "current epoch binding is missing");
+  const current = await executionBinding(
+    ctx,
+    args.conversationId,
+    args.expectedCurrentEpoch,
+  );
+  if (!current)
+    fail("EXECUTION_BINDING_MISSING", "current epoch binding is missing");
   const requestedAgent = strictConversationAgent(conversation.agent_type);
   if (current.requested_agent !== requestedAgent) {
-    fail("EXECUTION_PROTOCOL_INVARIANT", "current binding disagrees with the conversation agent");
+    fail(
+      "EXECUTION_PROTOCOL_INVARIANT",
+      "current binding disagrees with the conversation agent",
+    );
   }
   if (
     conversation.owner_device_id &&
     conversation.owner_device_id !== current.owner_device_id
   ) {
-    fail("EXECUTION_OWNER_FENCE_MISMATCH", "conversation and current binding disagree on owner device");
+    fail(
+      "EXECUTION_OWNER_FENCE_MISMATCH",
+      "conversation and current binding disagree on owner device",
+    );
   }
   requireProtocolVersion(head.protocol_version);
   if (current.protocol_version !== head.protocol_version) {
-    fail("EXECUTION_PROTOCOL_VERSION_MISMATCH", "current binding and execution head disagree");
+    fail(
+      "EXECUTION_PROTOCOL_VERSION_MISMATCH",
+      "current binding and execution head disagree",
+    );
   }
   requireProtocolCapabilities(current.required_capabilities ?? []);
 
-  if (args.kind === "restart" && (args.model !== undefined || args.effort !== undefined)) {
-    fail("EXECUTION_INTENT_UNSUPPORTED", "restart intent cannot carry model or effort changes");
+  if (
+    args.kind === "restart" &&
+    (args.model !== undefined || args.effort !== undefined)
+  ) {
+    fail(
+      "EXECUTION_INTENT_UNSUPPORTED",
+      "restart intent cannot carry model or effort changes",
+    );
   }
-  if (args.kind === "reconfigure" && args.model === undefined && args.effort === undefined) {
-    fail("EXECUTION_INTENT_UNSUPPORTED", "reconfigure intent requires a model or effort choice");
+  if (
+    args.kind === "reconfigure" &&
+    args.model === undefined &&
+    args.effort === undefined
+  ) {
+    fail(
+      "EXECUTION_INTENT_UNSUPPORTED",
+      "reconfigure intent requires a model or effort choice",
+    );
   }
 
   const modelConfig = AGENT_MODEL_CONFIG[requestedAgent];
   let model = current.model as string | undefined;
   let effort = current.effort as string | undefined;
   if (args.model !== undefined) {
-    const option = modelConfig?.models.find((candidate) => candidate.key === args.model);
-    if (!option) fail("EXECUTION_MODEL_UNSUPPORTED", `unknown ${requestedAgent} model option ${args.model}`);
+    const option = modelConfig?.models.find(
+      (candidate) => candidate.key === args.model,
+    );
+    if (!option)
+      fail(
+        "EXECUTION_MODEL_UNSUPPORTED",
+        `unknown ${requestedAgent} model option ${args.model}`,
+      );
     model = option.cliAlias;
   }
   if (args.effort !== undefined) {
@@ -777,13 +1002,23 @@ export async function recordExecutionSuccessorIntentInDb(
       effort = undefined;
     } else {
       if (!modelConfig?.efforts.includes(args.effort)) {
-        fail("EXECUTION_EFFORT_UNSUPPORTED", `unknown ${requestedAgent} effort option ${args.effort}`);
+        fail(
+          "EXECUTION_EFFORT_UNSUPPORTED",
+          `unknown ${requestedAgent} effort option ${args.effort}`,
+        );
       }
       effort = args.effort;
     }
   }
-  if (args.kind === "reconfigure" && model === current.model && effort === current.effort) {
-    fail("EXECUTION_INTENT_NO_CHANGE", "reconfigure intent must change model or effort");
+  if (
+    args.kind === "reconfigure" &&
+    model === current.model &&
+    effort === current.effort
+  ) {
+    fail(
+      "EXECUTION_INTENT_NO_CHANGE",
+      "reconfigure intent must change model or effort",
+    );
   }
 
   const intent = {
@@ -803,11 +1038,16 @@ export async function recordExecutionSuccessorIntentInDb(
     effort,
     owner_device_id: current.owner_device_id,
     protocol_version: head.protocol_version,
-    required_capabilities: normalizedCapabilities(current.required_capabilities ?? []),
+    required_capabilities: normalizedCapabilities(
+      current.required_capabilities ?? [],
+    ),
     status: "pending" as const,
     created_at: args.now,
   };
-  await ctx.db.patch(head._id, { successor_intent: intent, updated_at: args.now });
+  await ctx.db.patch(head._id, {
+    successor_intent: intent,
+    updated_at: args.now,
+  });
   return {
     intentId: args.intentId,
     state: "pending",
@@ -831,7 +1071,11 @@ export async function requestExecutionSuccessorInDb(
   validateTargetInput(args.target);
   requireNonEmpty(args.intentId, "intentId");
   requireSafePositive(args.expectedCurrentEpoch, "expectedCurrentEpoch");
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId);
   if (
     !head ||
@@ -841,25 +1085,42 @@ export async function requestExecutionSuccessorInDb(
     fail("EXECUTION_NOT_FENCED", "successors require a fenced conversation");
   }
   if (head.current_epoch !== args.expectedCurrentEpoch) {
-    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "current epoch changed before successor request");
+    fail(
+      "EXECUTION_EPOCH_FENCE_MISMATCH",
+      "current epoch changed before successor request",
+    );
   }
   const intent = head.successor_intent;
   if (!intent || intent.intent_id !== args.intentId) {
-    fail("EXECUTION_SUCCESSOR_INTENT_MISSING", "daemon proposal has no exact pending browser intent");
+    fail(
+      "EXECUTION_SUCCESSOR_INTENT_MISSING",
+      "daemon proposal has no exact pending browser intent",
+    );
   }
   if (
     intent.expected_current_epoch !== args.expectedCurrentEpoch ||
     intent.policy !== args.policy ||
     !successorIntentMatchesTarget(intent, args.target)
   ) {
-    fail("EXECUTION_SUCCESSOR_INTENT_MISMATCH", "daemon proposal differs from durable browser intent");
+    fail(
+      "EXECUTION_SUCCESSOR_INTENT_MISMATCH",
+      "daemon proposal differs from durable browser intent",
+    );
   }
   requireProtocolVersion(head.protocol_version);
   if (args.target.protocolVersion !== head.protocol_version) {
-    fail("EXECUTION_PROTOCOL_VERSION_MISMATCH", "successor protocol differs from conversation head");
+    fail(
+      "EXECUTION_PROTOCOL_VERSION_MISMATCH",
+      "successor protocol differs from conversation head",
+    );
   }
-  const current = await executionBinding(ctx, args.conversationId, args.expectedCurrentEpoch);
-  if (!current) fail("EXECUTION_BINDING_MISSING", "current epoch binding is missing");
+  const current = await executionBinding(
+    ctx,
+    args.conversationId,
+    args.expectedCurrentEpoch,
+  );
+  if (!current)
+    fail("EXECUTION_BINDING_MISSING", "current epoch binding is missing");
   if (args.target.configurationRevision <= current.configuration_revision) {
     fail(
       "CONFIGURATION_REVISION_NOT_MONOTONIC",
@@ -868,7 +1129,11 @@ export async function requestExecutionSuccessorInDb(
   }
 
   if (head.pending_epoch !== undefined) {
-    const pending = await executionBinding(ctx, args.conversationId, head.pending_epoch);
+    const pending = await executionBinding(
+      ctx,
+      args.conversationId,
+      head.pending_epoch,
+    );
     if (
       pending &&
       intent.status === "consumed" &&
@@ -883,17 +1148,26 @@ export async function requestExecutionSuccessorInDb(
         admissionBoundary: head.pending_requested_at_sequence,
       };
     }
-    fail("EXECUTION_SUCCESSOR_ALREADY_PENDING", "successor intent was already consumed by another proposal");
+    fail(
+      "EXECUTION_SUCCESSOR_ALREADY_PENDING",
+      "successor intent was already consumed by another proposal",
+    );
   }
   if (intent.status !== "pending") {
-    fail("EXECUTION_SUCCESSOR_INTENT_CONSUMED", `successor intent is already ${intent.status}`);
+    fail(
+      "EXECUTION_SUCCESSOR_INTENT_CONSUMED",
+      `successor intent is already ${intent.status}`,
+    );
   }
 
   const epoch = args.expectedCurrentEpoch + 1;
   const admissionBoundary = head.next_conversation_sequence;
   await insertRequestedBinding(ctx, conversation, epoch, args.target, args.now);
   let releasedClaim = false;
-  if (args.policy === "cancel-unstarted" && head.active_delivery_state === "claimed") {
+  if (
+    args.policy === "cancel-unstarted" &&
+    head.active_delivery_state === "claimed"
+  ) {
     const attempt = head.active_delivery_attempt_id
       ? await ctx.db.get(head.active_delivery_attempt_id)
       : null;
@@ -906,7 +1180,10 @@ export async function requestExecutionSuccessorInDb(
       message.execution_epoch !== args.expectedCurrentEpoch ||
       message.conversation_sequence >= admissionBoundary
     ) {
-      fail("DELIVERY_SLOT_INVARIANT", "active claimed permit does not match the supersession cutoff");
+      fail(
+        "DELIVERY_SLOT_INVARIANT",
+        "active claimed permit does not match the supersession cutoff",
+      );
     }
     await ctx.db.patch(attempt._id, {
       state: "cancelled-by-supersession" as const,
@@ -934,7 +1211,10 @@ export async function requestExecutionSuccessorInDb(
       consumed_at: args.now,
     },
     ...(releasedClaim
-      ? { active_delivery_attempt_id: undefined, active_delivery_state: undefined }
+      ? {
+          active_delivery_attempt_id: undefined,
+          active_delivery_state: undefined,
+        }
       : {}),
     updated_at: args.now,
   };
@@ -954,10 +1234,16 @@ function bindingEvidenceWire(binding: any): any {
     binding.applied_configuration_revision === undefined ||
     !binding.capabilities
   ) {
-    fail("READY_BINDING_INCOMPLETE", "ready binding is missing required evidence");
+    fail(
+      "READY_BINDING_INCOMPLETE",
+      "ready binding is missing required evidence",
+    );
   }
   if (binding.requested_agent !== binding.actual_agent) {
-    fail("REQUESTED_ACTUAL_AGENT_MISMATCH", "binding evidence changed agent family");
+    fail(
+      "REQUESTED_ACTUAL_AGENT_MISMATCH",
+      "binding evidence changed agent family",
+    );
   }
   return {
     conversationId: String(binding.conversation_id),
@@ -1050,38 +1336,59 @@ export async function claimExecutionStartInDb(
   requireNonEmpty(args.ownerDeviceId, "ownerDeviceId");
   requireNonEmpty(args.daemonBootId, "daemonBootId");
   requireNonEmpty(args.proposedOperationId, "proposedOperationId");
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId);
-  if (!head || head.protocol_state !== "fenced" || conversation.execution_protocol_state !== "fenced") {
+  if (
+    !head ||
+    head.protocol_state !== "fenced" ||
+    conversation.execution_protocol_state !== "fenced"
+  ) {
     return {
       state: "rejected" as const,
-      failure: { code: "EXECUTION_NOT_FENCED", message: "conversation is not fenced" },
+      failure: {
+        code: "EXECUTION_NOT_FENCED",
+        message: "conversation is not fenced",
+      },
     };
   }
   if (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch) {
     return {
       state: "rejected" as const,
-      failure: { code: "EXECUTION_EPOCH_FENCE_MISMATCH", message: "epoch is neither current nor pending" },
+      failure: {
+        code: "EXECUTION_EPOCH_FENCE_MISMATCH",
+        message: "epoch is neither current nor pending",
+      },
     };
   }
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
   if (!binding) {
     return {
       state: "rejected" as const,
-      failure: { code: "EXECUTION_BINDING_MISSING", message: "binding does not exist" },
+      failure: {
+        code: "EXECUTION_BINDING_MISSING",
+        message: "binding does not exist",
+      },
     };
   }
   if (
     binding.owner_device_id !== args.ownerDeviceId ||
     binding.configuration_revision !== args.configurationRevision ||
     binding.protocol_version !== args.protocolVersion ||
-    !capabilitiesEqual(binding.required_capabilities ?? [], args.requiredCapabilities)
+    !capabilitiesEqual(
+      binding.required_capabilities ?? [],
+      args.requiredCapabilities,
+    )
   ) {
     return {
       state: "rejected" as const,
       failure: {
         code: "EXECUTION_BINDING_FENCE_MISMATCH",
-        message: "owner device, configuration, protocol, or capabilities differ",
+        message:
+          "owner device, configuration, protocol, or capabilities differ",
       },
     };
   }
@@ -1097,13 +1404,18 @@ export async function claimExecutionStartInDb(
   const previousDaemonBootId = binding.daemon_boot_id;
   const bootTransfer = previousDaemonBootId !== args.daemonBootId;
   if (bootTransfer) {
-    const registration = await registeredDaemonBoot(ctx, userId, args.ownerDeviceId);
+    const registration = await registeredDaemonBoot(
+      ctx,
+      userId,
+      args.ownerDeviceId,
+    );
     if (registration?.daemon_boot_id !== args.daemonBootId) {
       return {
         state: "rejected" as const,
         failure: {
           code: "EXECUTION_BINDING_FENCE_MISMATCH",
-          message: "daemon boot differs and is not the device's registered current boot",
+          message:
+            "daemon boot differs and is not the device's registered current boot",
         },
       };
     }
@@ -1117,10 +1429,16 @@ export async function claimExecutionStartInDb(
     : { state: "fresh" as const };
   if (binding.state === "ready") {
     if (bootTransfer) {
-      await ctx.db.patch(binding._id, { daemon_boot_id: args.daemonBootId, updated_at: args.now });
+      await ctx.db.patch(binding._id, {
+        daemon_boot_id: args.daemonBootId,
+        updated_at: args.now,
+      });
       return {
         state: "ready" as const,
-        binding: readyBindingWire({ ...binding, daemon_boot_id: args.daemonBootId }),
+        binding: readyBindingWire({
+          ...binding,
+          daemon_boot_id: args.daemonBootId,
+        }),
       };
     }
     return { state: "ready" as const, binding: readyBindingWire(binding) };
@@ -1146,27 +1464,38 @@ export async function claimExecutionStartInDb(
     return {
       state: "busy" as const,
       operationId: binding.operation_id,
-      failure: { code: "START_ALREADY_CLAIMED", message: "another start operation owns this epoch" },
+      failure: {
+        code: "START_ALREADY_CLAIMED",
+        message: "another start operation owns this epoch",
+      },
     };
   }
   const retryingBeforeEffect =
-    binding.state === "start-failed-before-effect" && binding.failure_retryable === true;
+    binding.state === "start-failed-before-effect" &&
+    binding.failure_retryable === true;
   if (binding.state !== "requested" && !retryingBeforeEffect) {
     return {
       state: "busy" as const,
       operationId: binding.operation_id,
       failure: {
-        code: binding.state === "start-ambiguous" ? "START_AMBIGUOUS" : "START_NOT_RETRYABLE",
+        code:
+          binding.state === "start-ambiguous"
+            ? "START_AMBIGUOUS"
+            : "START_NOT_RETRYABLE",
         message: `binding state ${binding.state} does not authorize startup`,
       },
     };
   }
-  if (retryingBeforeEffect && binding.operation_id !== args.proposedOperationId) {
+  if (
+    retryingBeforeEffect &&
+    binding.operation_id !== args.proposedOperationId
+  ) {
     return {
       state: "rejected" as const,
       failure: {
         code: "START_RETRY_OPERATION_MISMATCH",
-        message: "a proven pre-effect retry must reuse the exact durable operation id",
+        message:
+          "a proven pre-effect retry must reuse the exact durable operation id",
       },
     };
   }
@@ -1210,7 +1539,10 @@ export async function publishReadyBindingInDb(
 ): Promise<{ accepted: boolean; binding?: any; reason?: string }> {
   await requireOwnedConversation(ctx, args.conversationId, userId);
   requireSafePositive(args.epoch, "epoch");
-  requireSafePositive(args.appliedConfigurationRevision, "appliedConfigurationRevision");
+  requireSafePositive(
+    args.appliedConfigurationRevision,
+    "appliedConfigurationRevision",
+  );
   requireProtocolVersion(args.protocolVersion);
   requireProtocolCapabilities(args.capabilities);
   for (const [field, value] of [
@@ -1219,13 +1551,21 @@ export async function publishReadyBindingInDb(
     ["daemonBootId", args.daemonBootId],
     ["runtimeId", args.runtimeId],
     ["operationId", args.operationId],
-  ] as const) requireNonEmpty(value, field);
+  ] as const)
+    requireNonEmpty(value, field);
   if (args.requestedAgent !== args.actualAgent) {
-    fail("REQUESTED_ACTUAL_AGENT_MISMATCH", "actual agent must equal requested agent exactly");
+    fail(
+      "REQUESTED_ACTUAL_AGENT_MISMATCH",
+      "actual agent must equal requested agent exactly",
+    );
   }
   const head = await executionHead(ctx, args.conversationId);
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
-  if (!head || !binding || (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)) {
+  if (
+    !head ||
+    !binding ||
+    (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)
+  ) {
     return { accepted: false, reason: "stale-epoch" };
   }
   if (binding.state === "ready") {
@@ -1238,14 +1578,16 @@ export async function publishReadyBindingInDb(
       binding.daemon_boot_id === args.daemonBootId &&
       binding.runtime_id === args.runtimeId &&
       binding.operation_id === args.operationId &&
-      binding.applied_configuration_revision === args.appliedConfigurationRevision &&
+      binding.applied_configuration_revision ===
+        args.appliedConfigurationRevision &&
       binding.protocol_version === args.protocolVersion &&
       capabilitiesEqual(binding.capabilities ?? [], args.capabilities);
     return exact
       ? { accepted: true, binding: readyBindingWire(binding) }
       : { accepted: false, reason: "ready-binding-conflict" };
   }
-  if (binding.state !== "starting") return { accepted: false, reason: `state-${binding.state}` };
+  if (binding.state !== "starting")
+    return { accepted: false, reason: `state-${binding.state}` };
   if (
     binding.requested_agent !== args.requestedAgent ||
     binding.transport !== args.transport ||
@@ -1303,7 +1645,11 @@ export async function publishStartOutcomeInDb(
   await requireOwnedConversation(ctx, args.conversationId, userId);
   const head = await executionHead(ctx, args.conversationId);
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
-  if (!head || !binding || (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)) {
+  if (
+    !head ||
+    !binding ||
+    (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)
+  ) {
     return { accepted: false };
   }
   if (
@@ -1345,7 +1691,11 @@ export async function disposePreReadyBindingInDb(
   args: {
     conversationId: Id<"conversations">;
     epoch: number;
-    expectedState: "requested" | "starting" | "start-failed-before-effect" | "start-ambiguous";
+    expectedState:
+      | "requested"
+      | "starting"
+      | "start-failed-before-effect"
+      | "start-ambiguous";
     configurationRevision: number;
     ownerDeviceId: string;
     daemonBootId: string;
@@ -1360,8 +1710,15 @@ export async function disposePreReadyBindingInDb(
   await requireOwnedConversation(ctx, args.conversationId, userId);
   const head = await executionHead(ctx, args.conversationId);
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
-  if (!head || !binding || (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)) {
-    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "epoch is no longer current or pending");
+  if (
+    !head ||
+    !binding ||
+    (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)
+  ) {
+    fail(
+      "EXECUTION_EPOCH_FENCE_MISMATCH",
+      "epoch is no longer current or pending",
+    );
   }
   if (
     binding.configuration_revision !== args.configurationRevision ||
@@ -1370,7 +1727,8 @@ export async function disposePreReadyBindingInDb(
   ) {
     fail("EXECUTION_BINDING_FENCE_MISMATCH", "pre-ready binding fence changed");
   }
-  const operationMatches = (binding.operation_id ?? undefined) === args.operationId;
+  const operationMatches =
+    (binding.operation_id ?? undefined) === args.operationId;
   if (
     operationMatches &&
     binding.disposition_evidence === args.evidence &&
@@ -1404,10 +1762,16 @@ export async function disposePreReadyBindingInDb(
   }
   if (binding.state === "requested") {
     if (args.operationId !== undefined || binding.operation_id !== undefined) {
-      fail("EXECUTION_OPERATION_FENCE_MISMATCH", "requested binding must not have a start operation");
+      fail(
+        "EXECUTION_OPERATION_FENCE_MISMATCH",
+        "requested binding must not have a start operation",
+      );
     }
     if (args.inspection !== "proven-no-effect") {
-      fail("PRE_READY_INSPECTION_REQUIRED", "an unclaimed request has no runtime to quarantine");
+      fail(
+        "PRE_READY_INSPECTION_REQUIRED",
+        "an unclaimed request has no runtime to quarantine",
+      );
     }
   } else {
     requireNonEmpty(args.operationId ?? "", "operationId");
@@ -1420,12 +1784,16 @@ export async function disposePreReadyBindingInDb(
     // A claimed startup can cross the external-create boundary. Uncertainty is
     // durable ambiguity, never a synonym for missing/no-effect.
     if (binding.state === "requested") {
-      fail("PRE_READY_INSPECTION_REQUIRED", "requested state is already proof no start was claimed");
+      fail(
+        "PRE_READY_INSPECTION_REQUIRED",
+        "requested state is already proof no start was claimed",
+      );
     }
     await ctx.db.patch(binding._id, {
       state: "start-ambiguous" as const,
       failure_code: "START_INSPECTION_UNKNOWN",
-      failure_message: "runtime inspection could not prove absence or quarantine",
+      failure_message:
+        "runtime inspection could not prove absence or quarantine",
       suspected_runtime_id: args.suspectedRuntimeId,
       disposition_evidence: args.evidence,
       updated_at: args.now,
@@ -1467,7 +1835,10 @@ function assertReadyFence(
     runtimeId: string;
   },
 ): void {
-  if (head.protocol_state !== "fenced" || head.current_epoch !== fence.executionEpoch) {
+  if (
+    head.protocol_state !== "fenced" ||
+    head.current_epoch !== fence.executionEpoch
+  ) {
     fail("EXECUTION_EPOCH_FENCE_MISMATCH", "delivery epoch is not current");
   }
   if (
@@ -1508,19 +1879,26 @@ function startedPermitWire(attempt: any): any {
   return { ...claimedPermitWire(attempt), state: "delivery-started" as const };
 }
 
-function attemptMatchesFence(attempt: any, fence: PermitFence, userId?: Id<"users">): boolean {
-  return !!attempt &&
+function attemptMatchesFence(
+  attempt: any,
+  fence: PermitFence,
+  userId?: Id<"users">,
+): boolean {
+  return (
+    !!attempt &&
     String(attempt._id) === String(fence.attemptId) &&
     String(attempt.message_id) === String(fence.messageId) &&
     String(attempt.conversation_id) === String(fence.conversationId) &&
-    (userId === undefined || String(attempt.owner_user_id) === String(userId)) &&
+    (userId === undefined ||
+      String(attempt.owner_user_id) === String(userId)) &&
     attempt.delivery_id === fence.deliveryId &&
     attempt.conversation_sequence === fence.conversationSequence &&
     attempt.execution_epoch === fence.executionEpoch &&
     attempt.configuration_revision === fence.configurationRevision &&
     attempt.owner_device_id === fence.ownerDeviceId &&
     attempt.daemon_boot_id === fence.daemonBootId &&
-    attempt.runtime_id === fence.runtimeId;
+    attempt.runtime_id === fence.runtimeId
+  );
 }
 
 export async function claimNextDeliveryInDb(
@@ -1537,11 +1915,21 @@ export async function claimNextDeliveryInDb(
     now: number;
   },
 ): Promise<any> {
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
-  if (isConversationSafetyBlocked(conversation)) return { state: "busy", reason: "safety" };
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
+  if (isConversationSafetyBlocked(conversation))
+    return { state: "busy", reason: "safety" };
   const head = await executionHead(ctx, args.conversationId);
-  const binding = await executionBinding(ctx, args.conversationId, args.executionEpoch);
-  if (!head) fail("EXECUTION_HEAD_MISSING", "conversation has no execution head");
+  const binding = await executionBinding(
+    ctx,
+    args.conversationId,
+    args.executionEpoch,
+  );
+  if (!head)
+    fail("EXECUTION_HEAD_MISSING", "conversation has no execution head");
   assertReadyFence(head, binding, args);
 
   if (head.active_delivery_attempt_id !== undefined) {
@@ -1553,7 +1941,8 @@ export async function claimNextDeliveryInDb(
       activeAttempt.owner_device_id === args.ownerDeviceId &&
       activeAttempt.daemon_boot_id === args.daemonBootId &&
       activeAttempt.runtime_id === args.runtimeId &&
-      (!args.expectedMessageId || String(activeAttempt.message_id) === String(args.expectedMessageId))
+      (!args.expectedMessageId ||
+        String(activeAttempt.message_id) === String(args.expectedMessageId))
     ) {
       const activeMessage = await ctx.db.get(activeAttempt.message_id);
       return {
@@ -1578,7 +1967,10 @@ export async function claimNextDeliveryInDb(
     };
   }
 
-  const messages = orderedNonterminalMessages(await fencedMessages(ctx, args.conversationId), head);
+  const messages = orderedNonterminalMessages(
+    await fencedMessages(ctx, args.conversationId),
+    head,
+  );
   const message = messages[0];
   if (!message) {
     if (head.next_nonterminal_sequence !== head.next_conversation_sequence) {
@@ -1595,8 +1987,14 @@ export async function claimNextDeliveryInDb(
       `durable head ${head.next_nonterminal_sequence} differs from first nonterminal ${message.conversation_sequence}`,
     );
   }
-  if (args.expectedMessageId && String(args.expectedMessageId) !== String(message._id)) {
-    return { state: "waiting-for-earlier-message" as const, messageId: String(message._id) };
+  if (
+    args.expectedMessageId &&
+    String(args.expectedMessageId) !== String(message._id)
+  ) {
+    return {
+      state: "waiting-for-earlier-message" as const,
+      messageId: String(message._id),
+    };
   }
   if (message.execution_epoch !== head.current_epoch) {
     return {
@@ -1672,10 +2070,16 @@ export async function rejectHeadDeliveryInDb(
   await requireOwnedConversation(ctx, args.conversationId, userId);
   const head = await executionHead(ctx, args.conversationId);
   if (!head || head.protocol_state !== "fenced") {
-    fail("EXECUTION_NOT_FENCED", "delivery rejection requires fenced authority");
+    fail(
+      "EXECUTION_NOT_FENCED",
+      "delivery rejection requires fenced authority",
+    );
   }
   if (head.active_delivery_attempt_id !== undefined) {
-    fail("DELIVERY_SLOT_BUSY", "an active attempt must reach its own explicit disposition");
+    fail(
+      "DELIVERY_SLOT_BUSY",
+      "an active attempt must reach its own explicit disposition",
+    );
   }
   const existingMessage = await ctx.db.get(args.messageId);
   if (
@@ -1701,7 +2105,10 @@ export async function rejectHeadDeliveryInDb(
     message.execution_epoch !== args.executionEpoch ||
     message.delivery_status !== "pending"
   ) {
-    fail("DELIVERY_SEQUENCE_HEAD_MISMATCH", "only the exact pending global head may be rejected");
+    fail(
+      "DELIVERY_SEQUENCE_HEAD_MISMATCH",
+      "only the exact pending global head may be rejected",
+    );
   }
   await ctx.db.patch(message._id, {
     delivery_status: "rejected" as const,
@@ -1718,8 +2125,18 @@ async function verifyAttemptFence(
   userId: Id<"users">,
   fence: PermitFence,
   expectedAttemptStates: readonly string[],
-): Promise<{ conversation: any; head: any; binding: any; message: any; attempt: any }> {
-  const conversation = await requireOwnedConversation(ctx, fence.conversationId, userId);
+): Promise<{
+  conversation: any;
+  head: any;
+  binding: any;
+  message: any;
+  attempt: any;
+}> {
+  const conversation = await requireOwnedConversation(
+    ctx,
+    fence.conversationId,
+    userId,
+  );
   const [head, binding, message, attempt] = await Promise.all([
     executionHead(ctx, fence.conversationId),
     executionBinding(ctx, fence.conversationId, fence.executionEpoch),
@@ -1738,7 +2155,11 @@ async function verifyAttemptFence(
     message.client_id === fence.deliveryId &&
     message.conversation_sequence === fence.conversationSequence &&
     message.execution_epoch === fence.executionEpoch;
-  if (!exact) fail("DELIVERY_PERMIT_FENCE_MISMATCH", "permit no longer owns the exact durable slot");
+  if (!exact)
+    fail(
+      "DELIVERY_PERMIT_FENCE_MISMATCH",
+      "permit no longer owns the exact durable slot",
+    );
   if (!expectedAttemptStates.includes(attempt.state)) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", `attempt is ${attempt.state}`);
   }
@@ -1750,11 +2171,14 @@ export async function startDeliveryInDb(
   userId: Id<"users">,
   fence: PermitFence & { now: number },
 ): Promise<any> {
-  const { conversation, head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, [
-    "claimed",
-    "delivery-started",
-  ]);
-  if (isConversationSafetyBlocked(conversation)) fail("CONVERSATION_SAFETY_BLOCKED", "Delivery is held for safety review");
+  const { conversation, head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["claimed", "delivery-started"],
+  );
+  if (isConversationSafetyBlocked(conversation))
+    fail("CONVERSATION_SAFETY_BLOCKED", "Delivery is held for safety review");
   if (
     attempt.state === "delivery-started" &&
     head.active_delivery_state === "delivery-started" &&
@@ -1762,14 +2186,22 @@ export async function startDeliveryInDb(
   ) {
     return startedPermitWire(attempt);
   }
-  if (head.active_delivery_state !== "claimed" || message.delivery_status !== "claimed") {
-    fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "conversation slot or message is not claimed");
+  if (
+    head.active_delivery_state !== "claimed" ||
+    message.delivery_status !== "claimed"
+  ) {
+    fail(
+      "DELIVERY_ATTEMPT_STATE_MISMATCH",
+      "conversation slot or message is not claimed",
+    );
   }
   await ctx.db.patch(attempt._id, {
     state: "delivery-started" as const,
     delivery_started_at: fence.now,
   });
-  await ctx.db.patch(message._id, { delivery_status: "delivery-started" as const });
+  await ctx.db.patch(message._id, {
+    delivery_status: "delivery-started" as const,
+  });
   await ctx.db.patch(head._id, {
     active_delivery_state: "delivery-started" as const,
     updated_at: fence.now,
@@ -1797,8 +2229,16 @@ export async function releaseClaimBeforeEffectInDb(
   ) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, ["claimed"]);
-  if (head.active_delivery_state !== "claimed" || message.delivery_status !== "claimed") {
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["claimed"],
+  );
+  if (
+    head.active_delivery_state !== "claimed" ||
+    message.delivery_status !== "claimed"
+  ) {
     fail(
       "DELIVERY_ALREADY_STARTED",
       "only a claim that never crossed delivery-started can be safely released",
@@ -1848,8 +2288,10 @@ async function finishTerminalDelivery(
     active_delivery_attempt_id: undefined,
     // Legacy status is projection-only for fenced rows. Keeping terminal rows
     // out of legacy indexes prevents healer/backlog amplification.
-    status: args.messageState === "abandoned-ambiguous" ? "cancelled" : "delivered",
-    delivered_at: args.messageState === "abandoned-ambiguous" ? undefined : args.now,
+    status:
+      args.messageState === "abandoned-ambiguous" ? "cancelled" : "delivered",
+    delivered_at:
+      args.messageState === "abandoned-ambiguous" ? undefined : args.now,
   });
   await ctx.db.patch(head._id, {
     active_delivery_attempt_id: undefined,
@@ -1867,19 +2309,31 @@ export async function completeDeliveryInDb(
 ): Promise<{ accepted: true }> {
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
-  if (existingAttempt?.state === "delivered" && attemptMatchesFence(existingAttempt, fence, userId)) {
+  if (
+    existingAttempt?.state === "delivered" &&
+    attemptMatchesFence(existingAttempt, fence, userId)
+  ) {
     if (
       fence.externalDeliveryId !== undefined &&
       existingAttempt.external_delivery_id !== fence.externalDeliveryId
     ) {
-      fail("DELIVERY_COMPLETION_CONFLICT", "external delivery id differs from durable completion");
+      fail(
+        "DELIVERY_COMPLETION_CONFLICT",
+        "external delivery id differs from durable completion",
+      );
     }
     return { accepted: true };
   }
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, [
-    "delivery-started",
-  ]);
-  if (head.active_delivery_state !== "delivery-started" || message.delivery_status !== "delivery-started") {
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["delivery-started"],
+  );
+  if (
+    head.active_delivery_state !== "delivery-started" ||
+    message.delivery_status !== "delivery-started"
+  ) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery was not durably started");
   }
   await finishTerminalDelivery(ctx, head, message, attempt, {
@@ -1894,7 +2348,11 @@ export async function completeDeliveryInDb(
 export async function failDeliveryBeforeEffectInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  fence: PermitFence & { failureCode: string; failureMessage: string; now: number },
+  fence: PermitFence & {
+    failureCode: string;
+    failureMessage: string;
+    now: number;
+  },
 ): Promise<{ retryable: true; deliveryId: string }> {
   await requireOwnedConversation(ctx, fence.conversationId, userId);
   const existingAttempt = await ctx.db.get(fence.attemptId);
@@ -1904,10 +2362,16 @@ export async function failDeliveryBeforeEffectInDb(
   ) {
     return { retryable: true, deliveryId: existingAttempt.delivery_id };
   }
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, [
-    "delivery-started",
-  ]);
-  if (head.active_delivery_state !== "delivery-started" || message.delivery_status !== "delivery-started") {
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["delivery-started"],
+  );
+  if (
+    head.active_delivery_state !== "delivery-started" ||
+    message.delivery_status !== "delivery-started"
+  ) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery was not durably started");
   }
   await ctx.db.patch(attempt._id, {
@@ -1934,12 +2398,18 @@ export async function failDeliveryBeforeEffectInDb(
 export async function markDeliveryAmbiguousInDb(
   ctx: DbCtx,
   userId: Id<"users">,
-  fence: PermitFence & { failureCode: string; failureMessage: string; now: number },
+  fence: PermitFence & {
+    failureCode: string;
+    failureMessage: string;
+    now: number;
+  },
 ): Promise<{ blocked: true; deliveryId: string }> {
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, [
-    "delivery-started",
-    "ambiguous",
-  ]);
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["delivery-started", "ambiguous"],
+  );
   if (
     attempt.state === "ambiguous" &&
     head.active_delivery_state === "ambiguous" &&
@@ -1947,7 +2417,10 @@ export async function markDeliveryAmbiguousInDb(
   ) {
     return { blocked: true, deliveryId: message.delivery_id };
   }
-  if (head.active_delivery_state !== "delivery-started" || message.delivery_status !== "delivery-started") {
+  if (
+    head.active_delivery_state !== "delivery-started" ||
+    message.delivery_status !== "delivery-started"
+  ) {
     fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery was not durably started");
   }
   await ctx.db.patch(attempt._id, {
@@ -1969,15 +2442,29 @@ export async function resolveAmbiguousDeliveryInDb(
   ctx: DbCtx,
   userId: Id<"users">,
   fence: PermitFence & {
-    resolution: "correlated-delivered" | "proven-no-effect" | "abandoned-ambiguous";
+    resolution:
+      | "correlated-delivered"
+      | "proven-no-effect"
+      | "abandoned-ambiguous";
     resolutionEvidence: string;
     now: number;
   },
 ): Promise<{ state: string }> {
   requireNonEmpty(fence.resolutionEvidence, "resolutionEvidence");
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, ["ambiguous"]);
-  if (head.active_delivery_state !== "ambiguous" || message.delivery_status !== "ambiguous") {
-    fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery is not ambiguity-blocked");
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["ambiguous"],
+  );
+  if (
+    head.active_delivery_state !== "ambiguous" ||
+    message.delivery_status !== "ambiguous"
+  ) {
+    fail(
+      "DELIVERY_ATTEMPT_STATE_MISMATCH",
+      "delivery is not ambiguity-blocked",
+    );
   }
   if (fence.resolution === "proven-no-effect") {
     await ctx.db.patch(attempt._id, {
@@ -2023,21 +2510,36 @@ export async function abandonAmbiguousAndResendInDb(
   executionEpoch: number;
 }> {
   requireNonEmpty(fence.resolutionEvidence, "resolutionEvidence");
-  if (!fence.newClientId.trim() || fence.newClientId !== fence.newClientId.trim()) {
+  if (
+    !fence.newClientId.trim() ||
+    fence.newClientId !== fence.newClientId.trim()
+  ) {
     fail("INVALID_DELIVERY_ID", "newClientId must be non-empty canonical text");
   }
   if (fence.newClientId === fence.deliveryId) {
-    fail("RISK_RESEND_REQUIRES_NEW_ID", "risk-bearing resend must use a new logical delivery id");
+    fail(
+      "RISK_RESEND_REQUIRES_NEW_ID",
+      "risk-bearing resend must use a new logical delivery id",
+    );
   }
-  const conversation = await requireOwnedConversation(ctx, fence.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    fence.conversationId,
+    userId,
+  );
   const existingRows = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_client_id", (q: any) =>
-      q.eq("conversation_id", fence.conversationId).eq("client_id", fence.newClientId),
+      q
+        .eq("conversation_id", fence.conversationId)
+        .eq("client_id", fence.newClientId),
     )
     .collect();
   if (existingRows.length > 1) {
-    fail("DELIVERY_ID_INVARIANT", "conversation contains duplicate client/delivery ids");
+    fail(
+      "DELIVERY_ID_INVARIANT",
+      "conversation contains duplicate client/delivery ids",
+    );
   }
   const existingAttempt = await ctx.db.get(fence.attemptId);
   const existingResend = existingRows[0];
@@ -2057,12 +2559,26 @@ export async function abandonAmbiguousAndResendInDb(
     };
   }
   if (existingResend) {
-    fail("DELIVERY_ID_ALREADY_EXISTS", "newClientId already names another logical delivery");
+    fail(
+      "DELIVERY_ID_ALREADY_EXISTS",
+      "newClientId already names another logical delivery",
+    );
   }
 
-  const { head, message, attempt } = await verifyAttemptFence(ctx, userId, fence, ["ambiguous"]);
-  if (head.active_delivery_state !== "ambiguous" || message.delivery_status !== "ambiguous") {
-    fail("DELIVERY_ATTEMPT_STATE_MISMATCH", "delivery is not ambiguity-blocked");
+  const { head, message, attempt } = await verifyAttemptFence(
+    ctx,
+    userId,
+    fence,
+    ["ambiguous"],
+  );
+  if (
+    head.active_delivery_state !== "ambiguous" ||
+    message.delivery_status !== "ambiguous"
+  ) {
+    fail(
+      "DELIVERY_ATTEMPT_STATE_MISMATCH",
+      "delivery is not ambiguity-blocked",
+    );
   }
   await finishTerminalDelivery(ctx, head, message, attempt, {
     attemptState: "abandoned-ambiguous",
@@ -2071,8 +2587,13 @@ export async function abandonAmbiguousAndResendInDb(
     now: fence.now,
   });
 
-  const allocation = await allocateFencedDeliveryMetadata(ctx, conversation, fence.newClientId);
-  if (!allocation) fail("EXECUTION_NOT_FENCED", "risk resend lost fenced execution authority");
+  const allocation = await allocateFencedDeliveryMetadata(
+    ctx,
+    conversation,
+    fence.newClientId,
+  );
+  if (!allocation)
+    fail("EXECUTION_NOT_FENCED", "risk resend lost fenced execution authority");
   const messageId = await insertRiskResendPendingMessage(ctx, {
     conversationId: fence.conversationId,
     fromUserId: message.from_user_id,
@@ -2093,9 +2614,16 @@ export async function abandonAmbiguousAndResendInDb(
   await ctx.db.patch(fence.conversationId, {
     updated_at: fence.now,
     has_pending_messages: true,
-    ...(conversation.status === "completed" ? { status: "active" as const } : {}),
-    ...(conversation.inbox_dismissed_at ? { inbox_dismissed_at: undefined } : {}),
-    ...(conversation.inbox_stashed_at && !((machineWake || message.quiet) && isStashHidden(conversation)) ? { inbox_stashed_at: undefined } : {}),
+    ...(conversation.status === "completed"
+      ? { status: "active" as const }
+      : {}),
+    ...(conversation.inbox_dismissed_at
+      ? { inbox_dismissed_at: undefined }
+      : {}),
+    ...(conversation.inbox_stashed_at &&
+    !((machineWake || message.quiet) && isStashHidden(conversation))
+      ? { inbox_stashed_at: undefined }
+      : {}),
     ...(conversation.inbox_killed_at ? { inbox_killed_at: undefined } : {}),
   });
   return {
@@ -2126,7 +2654,11 @@ export async function publishRuntimeDispositionInDb(
   await requireOwnedConversation(ctx, args.conversationId, userId);
   const head = await executionHead(ctx, args.conversationId);
   const binding = await executionBinding(ctx, args.conversationId, args.epoch);
-  if (!head || !binding || (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)) {
+  if (
+    !head ||
+    !binding ||
+    (head.current_epoch !== args.epoch && head.pending_epoch !== args.epoch)
+  ) {
     return { accepted: false };
   }
   if (
@@ -2153,14 +2685,18 @@ export async function publishRuntimeDispositionInDb(
   }
   if (
     head.current_epoch === args.epoch &&
-    (head.active_delivery_state === "delivery-started" || head.active_delivery_state === "ambiguous")
+    (head.active_delivery_state === "delivery-started" ||
+      head.active_delivery_state === "ambiguous")
   ) {
     fail(
       "ACTIVE_DELIVERY_PREVENTS_RUNTIME_DISPOSITION",
       "a started or ambiguous delivery still depends on this runtime",
     );
   }
-  if (head.current_epoch === args.epoch && head.pending_policy === "drain-current") {
+  if (
+    head.current_epoch === args.epoch &&
+    head.pending_policy === "drain-current"
+  ) {
     const remaining = (await fencedMessages(ctx, args.conversationId)).filter(
       (message) =>
         message.execution_epoch === args.epoch &&
@@ -2195,11 +2731,16 @@ async function cancelUnstartedOldEpoch(
       !isTerminalDeliveryState(message.delivery_status),
   );
   const batch = messages
-    .sort((left, right) => left.conversation_sequence - right.conversation_sequence)
+    .sort(
+      (left, right) => left.conversation_sequence - right.conversation_sequence,
+    )
     .slice(0, MAX_CANCELLATIONS_PER_ACTIVATION);
   let cancelled = 0;
   for (const message of batch) {
-    if (message.delivery_status === "delivery-started" || message.delivery_status === "ambiguous") {
+    if (
+      message.delivery_status === "delivery-started" ||
+      message.delivery_status === "ambiguous"
+    ) {
       fail(
         "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
         `message ${String(message._id)} has a started or ambiguous effect`,
@@ -2210,7 +2751,10 @@ async function cancelUnstartedOldEpoch(
         ? await ctx.db.get(message.active_delivery_attempt_id)
         : null;
       if (!attempt || attempt.state !== "claimed") {
-        fail("DELIVERY_SLOT_INVARIANT", "claimed message lacks its claimed attempt");
+        fail(
+          "DELIVERY_SLOT_INVARIANT",
+          "claimed message lacks its claimed attempt",
+        );
       }
       await ctx.db.patch(attempt._id, {
         state: "cancelled-by-supersession" as const,
@@ -2272,16 +2816,26 @@ export async function cancelFencedDeliveriesOnKill(
   // collectOldLegacyPendingMessages). Capped for the same reason — the caller
   // schedules a continuation for anything left over.
   const messages: any[] = [];
-  for (const status of ["pending", "injected", "failed", "undeliverable"] as const) {
+  for (const status of [
+    "pending",
+    "injected",
+    "failed",
+    "undeliverable",
+  ] as const) {
     if (messages.length >= limit) break;
     const query = ctx.db.query("pending_messages");
-    const rows = await (maxKillGeneration === undefined
-      ? query.withIndex("by_conversation_status", (q: any) =>
-          q.eq("conversation_id", conversationId).eq("status", status))
-      : query.withIndex("by_conversation_status_kill_generation", (q: any) =>
-          q.eq("conversation_id", conversationId).eq("status", status)
-            .lte("kill_generation", maxKillGeneration)))
-      .take(limit - messages.length);
+    const rows = await (
+      maxKillGeneration === undefined
+        ? query.withIndex("by_conversation_status", (q: any) =>
+            q.eq("conversation_id", conversationId).eq("status", status),
+          )
+        : query.withIndex("by_conversation_status_kill_generation", (q: any) =>
+            q
+              .eq("conversation_id", conversationId)
+              .eq("status", status)
+              .lte("kill_generation", maxKillGeneration),
+          )
+    ).take(limit - messages.length);
     for (const row of rows) {
       if (row.delivery_protocol_version !== undefined) messages.push(row);
     }
@@ -2311,7 +2865,10 @@ export async function cancelFencedDeliveriesOnKill(
         state: "cancelled-by-supersession" as const,
         completed_at: now,
       });
-      if (head && String(head.active_delivery_attempt_id) === String(attempt._id)) {
+      if (
+        head &&
+        String(head.active_delivery_attempt_id) === String(attempt._id)
+      ) {
         releasedHeadSlot = true;
       }
     } else if (message.delivery_status !== "pending") {
@@ -2362,17 +2919,31 @@ export async function activateExecutionSuccessorInDb(
       remainingCancellations: number;
     }
 > {
-  const conversation = await requireOwnedConversation(ctx, args.conversationId, userId);
+  const conversation = await requireOwnedConversation(
+    ctx,
+    args.conversationId,
+    userId,
+  );
   const head = await executionHead(ctx, args.conversationId);
-  if (!head || head.protocol_state !== "fenced" || conversation.execution_protocol_state !== "fenced") {
-    fail("EXECUTION_NOT_FENCED", "successor activation requires a fenced conversation");
+  if (
+    !head ||
+    head.protocol_state !== "fenced" ||
+    conversation.execution_protocol_state !== "fenced"
+  ) {
+    fail(
+      "EXECUTION_NOT_FENCED",
+      "successor activation requires a fenced conversation",
+    );
   }
   if (
     head.current_epoch !== args.expectedCurrentEpoch ||
     head.pending_epoch !== args.successorEpoch ||
     args.successorEpoch !== args.expectedCurrentEpoch + 1
   ) {
-    fail("EXECUTION_EPOCH_FENCE_MISMATCH", "current or pending epoch changed before activation");
+    fail(
+      "EXECUTION_EPOCH_FENCE_MISMATCH",
+      "current or pending epoch changed before activation",
+    );
   }
   const successorIntent = head.successor_intent;
   if (
@@ -2382,23 +2953,44 @@ export async function activateExecutionSuccessorInDb(
     successorIntent.successor_epoch !== args.successorEpoch ||
     successorIntent.consumed_daemon_boot_id !== args.successorDaemonBootId
   ) {
-    fail("EXECUTION_SUCCESSOR_INTENT_MISMATCH", "activation does not match the consumed successor intent");
+    fail(
+      "EXECUTION_SUCCESSOR_INTENT_MISMATCH",
+      "activation does not match the consumed successor intent",
+    );
   }
-  if (head.active_delivery_state === "delivery-started" || head.active_delivery_state === "ambiguous") {
+  if (
+    head.active_delivery_state === "delivery-started" ||
+    head.active_delivery_state === "ambiguous"
+  ) {
     fail(
       "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
       `conversation slot is ${head.active_delivery_state}`,
     );
   }
-  const current = await executionBinding(ctx, args.conversationId, args.expectedCurrentEpoch);
-  const successor = await executionBinding(ctx, args.conversationId, args.successorEpoch);
-  if (!current || !successor) fail("EXECUTION_BINDING_MISSING", "current or successor binding is missing");
+  const current = await executionBinding(
+    ctx,
+    args.conversationId,
+    args.expectedCurrentEpoch,
+  );
+  const successor = await executionBinding(
+    ctx,
+    args.conversationId,
+    args.successorEpoch,
+  );
+  if (!current || !successor)
+    fail(
+      "EXECUTION_BINDING_MISSING",
+      "current or successor binding is missing",
+    );
   if (
     current.configuration_revision !== args.currentConfigurationRevision ||
     current.owner_device_id !== args.currentOwnerDeviceId ||
     current.daemon_boot_id !== args.currentDaemonBootId
   ) {
-    fail("EXECUTION_BINDING_FENCE_MISMATCH", "current binding fence changed before activation");
+    fail(
+      "EXECUTION_BINDING_FENCE_MISMATCH",
+      "current binding fence changed before activation",
+    );
   }
   if (current.state !== "stopped" && current.state !== "quarantined") {
     fail(
@@ -2420,19 +3012,27 @@ export async function activateExecutionSuccessorInDb(
       current.pre_ready_disposition === "no-runtime-proven" &&
       args.currentRuntimeId !== undefined
     ) {
-      fail("EXECUTION_RUNTIME_FENCE_MISMATCH", "no-runtime proof must not name a runtime");
+      fail(
+        "EXECUTION_RUNTIME_FENCE_MISMATCH",
+        "no-runtime proof must not name a runtime",
+      );
     }
     if (
       current.pre_ready_disposition === "runtime-quarantined" &&
-      (!args.currentRuntimeId || current.suspected_runtime_id !== args.currentRuntimeId)
+      (!args.currentRuntimeId ||
+        current.suspected_runtime_id !== args.currentRuntimeId)
     ) {
-      fail("EXECUTION_RUNTIME_FENCE_MISMATCH", "quarantined runtime id does not match");
+      fail(
+        "EXECUTION_RUNTIME_FENCE_MISMATCH",
+        "quarantined runtime id does not match",
+      );
     }
   } else if (
     !args.currentOperationId ||
     current.operation_id !== args.currentOperationId ||
     !args.currentRuntimeId ||
-    current.applied_configuration_revision !== args.currentConfigurationRevision ||
+    current.applied_configuration_revision !==
+      args.currentConfigurationRevision ||
     current.runtime_id !== args.currentRuntimeId ||
     current.requested_agent !== current.actual_agent
   ) {
@@ -2443,7 +3043,8 @@ export async function activateExecutionSuccessorInDb(
   }
   if (
     successor.configuration_revision !== args.successorConfigurationRevision ||
-    successor.applied_configuration_revision !== args.successorConfigurationRevision ||
+    successor.applied_configuration_revision !==
+      args.successorConfigurationRevision ||
     successor.owner_device_id !== args.successorOwnerDeviceId ||
     successor.daemon_boot_id !== args.successorDaemonBootId ||
     successor.runtime_id !== args.successorRuntimeId ||
@@ -2451,7 +3052,10 @@ export async function activateExecutionSuccessorInDb(
     successor.requested_agent !== successor.actual_agent ||
     !successor.handle ||
     !successor.operation_id ||
-    !capabilitiesEqual(successor.required_capabilities ?? [], successor.capabilities ?? [])
+    !capabilitiesEqual(
+      successor.required_capabilities ?? [],
+      successor.capabilities ?? [],
+    )
   ) {
     fail(
       "SUCCESSOR_BINDING_NOT_READY",
@@ -2478,7 +3082,10 @@ export async function activateExecutionSuccessorInDb(
       };
     }
   } else if (head.active_delivery_state === "claimed") {
-    fail("ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION", "drain-current cannot cancel a claimed delivery");
+    fail(
+      "ACTIVE_DELIVERY_PREVENTS_EPOCH_ACTIVATION",
+      "drain-current cannot cancel a claimed delivery",
+    );
   }
 
   const remainingOld = (await fencedMessages(ctx, args.conversationId)).filter(
@@ -2510,7 +3117,9 @@ export async function activateExecutionSuccessorInDb(
     updated_at: args.now,
   });
   await advanceNonterminalHead(ctx, head, args.now);
-  await ctx.db.patch(args.conversationId, { owner_device_id: args.successorOwnerDeviceId });
+  await ctx.db.patch(args.conversationId, {
+    owner_device_id: args.successorOwnerDeviceId,
+  });
   await clearPendingFlagIfQuiet(ctx, args.conversationId);
   return { activated: true, epoch: args.successorEpoch, cancelledMessages };
 }
@@ -2542,17 +3151,21 @@ const capabilityValidator = v.union(
   v.literal("runtime-inspection-v1"),
 );
 const isolationValidator = v.object({
-  sandbox: v.optional(v.union(
-    v.literal("read-only"),
-    v.literal("workspace-write"),
-    v.literal("danger-full-access"),
-  )),
-  approval_policy: v.optional(v.union(
-    v.literal("untrusted"),
-    v.literal("on-failure"),
-    v.literal("on-request"),
-    v.literal("never"),
-  )),
+  sandbox: v.optional(
+    v.union(
+      v.literal("read-only"),
+      v.literal("workspace-write"),
+      v.literal("danger-full-access"),
+    ),
+  ),
+  approval_policy: v.optional(
+    v.union(
+      v.literal("untrusted"),
+      v.literal("on-failure"),
+      v.literal("on-request"),
+      v.literal("never"),
+    ),
+  ),
   isolated: v.optional(v.boolean()),
   worktree_name: v.optional(v.string()),
 });
@@ -2608,7 +3221,10 @@ function targetFromWire(target: any): TargetInput {
 function sequenceFromWire(value: string): number {
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== value) {
-    fail("INVALID_CONVERSATION_SEQUENCE", "conversation_sequence must be a canonical positive integer string");
+    fail(
+      "INVALID_CONVERSATION_SEQUENCE",
+      "conversation_sequence must be a canonical positive integer string",
+    );
   }
   return parsed;
 }
@@ -2634,9 +3250,11 @@ export async function authenticateExecutionDaemon(
 ): Promise<Id<"users">> {
   // Effect authority never falls back to ambient browser/session auth. The
   // caller must present the daemon/CLI bearer explicitly on every mutation.
-  if (!apiToken) fail("DAEMON_TOKEN_REQUIRED", "execution control requires an API token");
+  if (!apiToken)
+    fail("DAEMON_TOKEN_REQUIRED", "execution control requires an API token");
   const result = await verifyApiToken(ctx, apiToken);
-  if (!result) fail("DAEMON_TOKEN_INVALID", "execution control API token is invalid");
+  if (!result)
+    fail("DAEMON_TOKEN_INVALID", "execution control API token is invalid");
   return result.userId;
 }
 
@@ -2649,13 +3267,17 @@ export const beginLegacyQuiescence = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await beginLegacyQuiescenceInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      ownerDeviceId: args.owner_device_id,
-      legacyDaemonBootId: args.legacy_daemon_boot_id,
-      protocolVersion: args.protocol_version,
-      now: Date.now(),
-    }),
+    await beginLegacyQuiescenceInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        ownerDeviceId: args.owner_device_id,
+        legacyDaemonBootId: args.legacy_daemon_boot_id,
+        protocolVersion: args.protocol_version,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const initializeFencedExecution = mutation({
@@ -2665,11 +3287,15 @@ export const initializeFencedExecution = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await initializeFencedExecutionInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      target: targetFromWire(args.target),
-      now: Date.now(),
-    }),
+    await initializeFencedExecutionInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        target: targetFromWire(args.target),
+        now: Date.now(),
+      },
+    ),
 });
 
 export const activateAfterLegacyQuiescence = mutation({
@@ -2686,14 +3312,18 @@ export const activateAfterLegacyQuiescence = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await activateAfterLegacyQuiescenceInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      target: targetFromWire(args.target),
-      terminatedLegacyDaemonBootId: args.terminated_legacy_daemon_boot_id,
-      runtimeDisposition: args.runtime_disposition,
-      terminationEvidence: args.termination_evidence,
-      now: Date.now(),
-    }),
+    await activateAfterLegacyQuiescenceInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        target: targetFromWire(args.target),
+        terminatedLegacyDaemonBootId: args.terminated_legacy_daemon_boot_id,
+        runtimeDisposition: args.runtime_disposition,
+        terminationEvidence: args.termination_evidence,
+        now: Date.now(),
+      },
+    ),
 });
 
 // Product authority only. This endpoint accepts browser session auth and no API
@@ -2711,7 +3341,11 @@ export const requestExecutionSuccessorIntent = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) fail("EXECUTION_BROWSER_AUTH_REQUIRED", "successor intent requires a browser session");
+    if (!userId)
+      fail(
+        "EXECUTION_BROWSER_AUTH_REQUIRED",
+        "successor intent requires a browser session",
+      );
     return await recordExecutionSuccessorIntentInDb(ctx, userId, {
       conversationId: args.conversation_id,
       intentId: args.intent_id,
@@ -2735,14 +3369,18 @@ export const requestExecutionSuccessor = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await requestExecutionSuccessorInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      intentId: args.intent_id,
-      expectedCurrentEpoch: args.expected_current_epoch,
-      policy: args.policy,
-      target: targetFromWire(args.target),
-      now: Date.now(),
-    }),
+    await requestExecutionSuccessorInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        intentId: args.intent_id,
+        expectedCurrentEpoch: args.expected_current_epoch,
+        policy: args.policy,
+        target: targetFromWire(args.target),
+        now: Date.now(),
+      },
+    ),
 });
 
 export const registerExecutionDaemonBoot = mutation({
@@ -2752,11 +3390,15 @@ export const registerExecutionDaemonBoot = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await registerExecutionDaemonBootInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      now: Date.now(),
-    }),
+    await registerExecutionDaemonBootInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const claimExecutionStart = mutation({
@@ -2772,17 +3414,21 @@ export const claimExecutionStart = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await claimExecutionStartInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      configurationRevision: args.configuration_revision,
-      protocolVersion: args.protocol_version,
-      requiredCapabilities: args.required_capabilities,
-      proposedOperationId: args.proposed_operation_id,
-      now: Date.now(),
-    }),
+    await claimExecutionStartInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        configurationRevision: args.configuration_revision,
+        protocolVersion: args.protocol_version,
+        requiredCapabilities: args.required_capabilities,
+        proposedOperationId: args.proposed_operation_id,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const publishReadyBinding = mutation({
@@ -2803,22 +3449,26 @@ export const publishReadyBinding = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await publishReadyBindingInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      requestedAgent: args.requested_agent,
-      actualAgent: args.actual_agent,
-      transport: args.transport,
-      handle: args.handle,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      runtimeId: args.runtime_id,
-      operationId: args.operation_id,
-      appliedConfigurationRevision: args.applied_configuration_revision,
-      protocolVersion: args.protocol_version,
-      capabilities: args.capabilities,
-      now: Date.now(),
-    }),
+    await publishReadyBindingInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        requestedAgent: args.requested_agent,
+        actualAgent: args.actual_agent,
+        transport: args.transport,
+        handle: args.handle,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        runtimeId: args.runtime_id,
+        operationId: args.operation_id,
+        appliedConfigurationRevision: args.applied_configuration_revision,
+        protocolVersion: args.protocol_version,
+        capabilities: args.capabilities,
+        now: Date.now(),
+      },
+    ),
 });
 
 const startOutcomeArgs = {
@@ -2837,38 +3487,46 @@ const startOutcomeArgs = {
 export const publishStartFailedBeforeEffect = mutation({
   args: startOutcomeArgs,
   handler: async (ctx, args) =>
-    await publishStartOutcomeInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      configurationRevision: args.configuration_revision,
-      operationId: args.operation_id,
-      failureCode: args.failure_code,
-      failureMessage: args.failure_message,
-      failureRetryable: args.failure_retryable,
-      outcome: "start-failed-before-effect",
-      now: Date.now(),
-    }),
+    await publishStartOutcomeInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        configurationRevision: args.configuration_revision,
+        operationId: args.operation_id,
+        failureCode: args.failure_code,
+        failureMessage: args.failure_message,
+        failureRetryable: args.failure_retryable,
+        outcome: "start-failed-before-effect",
+        now: Date.now(),
+      },
+    ),
 });
 
 export const publishStartAmbiguous = mutation({
   args: { ...startOutcomeArgs, suspected_runtime_id: v.optional(v.string()) },
   handler: async (ctx, args) =>
-    await publishStartOutcomeInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      configurationRevision: args.configuration_revision,
-      operationId: args.operation_id,
-      failureCode: args.failure_code,
-      failureMessage: args.failure_message,
-      failureRetryable: args.failure_retryable,
-      suspectedRuntimeId: args.suspected_runtime_id,
-      outcome: "start-ambiguous",
-      now: Date.now(),
-    }),
+    await publishStartOutcomeInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        configurationRevision: args.configuration_revision,
+        operationId: args.operation_id,
+        failureCode: args.failure_code,
+        failureMessage: args.failure_message,
+        failureRetryable: args.failure_retryable,
+        suspectedRuntimeId: args.suspected_runtime_id,
+        outcome: "start-ambiguous",
+        now: Date.now(),
+      },
+    ),
 });
 
 export const disposePreReadyBinding = mutation({
@@ -2895,19 +3553,23 @@ export const disposePreReadyBinding = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await disposePreReadyBindingInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      expectedState: args.expected_state,
-      configurationRevision: args.configuration_revision,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      operationId: args.operation_id,
-      inspection: args.inspection,
-      suspectedRuntimeId: args.suspected_runtime_id,
-      evidence: args.evidence,
-      now: Date.now(),
-    }),
+    await disposePreReadyBindingInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        expectedState: args.expected_state,
+        configurationRevision: args.configuration_revision,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        operationId: args.operation_id,
+        inspection: args.inspection,
+        suspectedRuntimeId: args.suspected_runtime_id,
+        evidence: args.evidence,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const claimNextDelivery = mutation({
@@ -2922,16 +3584,20 @@ export const claimNextDelivery = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await claimNextDeliveryInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      expectedMessageId: args.expected_message_id,
-      executionEpoch: args.execution_epoch,
-      configurationRevision: args.configuration_revision,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      runtimeId: args.runtime_id,
-      now: Date.now(),
-    }),
+    await claimNextDeliveryInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        expectedMessageId: args.expected_message_id,
+        executionEpoch: args.execution_epoch,
+        configurationRevision: args.configuration_revision,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        runtimeId: args.runtime_id,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const rejectHeadDelivery = mutation({
@@ -2945,24 +3611,32 @@ export const rejectHeadDelivery = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await rejectHeadDeliveryInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      messageId: args.message_id,
-      deliveryId: args.delivery_id,
-      conversationSequence: sequenceFromWire(args.conversation_sequence),
-      executionEpoch: args.execution_epoch,
-      reason: args.reason,
-      now: Date.now(),
-    }),
+    await rejectHeadDeliveryInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        messageId: args.message_id,
+        deliveryId: args.delivery_id,
+        conversationSequence: sequenceFromWire(args.conversation_sequence),
+        executionEpoch: args.execution_epoch,
+        reason: args.reason,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const startDelivery = mutation({
   args: { permit: permitValidator, api_token: v.string() },
   handler: async (ctx, args) =>
-    await startDeliveryInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      now: Date.now(),
-    }),
+    await startDeliveryInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        now: Date.now(),
+      },
+    ),
 });
 
 export const releaseClaimBeforeEffect = mutation({
@@ -2973,12 +3647,16 @@ export const releaseClaimBeforeEffect = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await releaseClaimBeforeEffectInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      reason: args.reason,
-      evidence: args.evidence,
-      now: Date.now(),
-    }),
+    await releaseClaimBeforeEffectInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        reason: args.reason,
+        evidence: args.evidence,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const completeDelivery = mutation({
@@ -2988,11 +3666,15 @@ export const completeDelivery = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await completeDeliveryInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      externalDeliveryId: args.external_delivery_id,
-      now: Date.now(),
-    }),
+    await completeDeliveryInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        externalDeliveryId: args.external_delivery_id,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const failDeliveryBeforeEffect = mutation({
@@ -3003,12 +3685,16 @@ export const failDeliveryBeforeEffect = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await failDeliveryBeforeEffectInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      failureCode: args.failure_code,
-      failureMessage: args.failure_message,
-      now: Date.now(),
-    }),
+    await failDeliveryBeforeEffectInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        failureCode: args.failure_code,
+        failureMessage: args.failure_message,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const markDeliveryAmbiguous = mutation({
@@ -3019,12 +3705,16 @@ export const markDeliveryAmbiguous = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await markDeliveryAmbiguousInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      failureCode: args.failure_code,
-      failureMessage: args.failure_message,
-      now: Date.now(),
-    }),
+    await markDeliveryAmbiguousInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        failureCode: args.failure_code,
+        failureMessage: args.failure_message,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const resolveAmbiguousDelivery = mutation({
@@ -3039,12 +3729,16 @@ export const resolveAmbiguousDelivery = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await resolveAmbiguousDeliveryInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      resolution: args.resolution,
-      resolutionEvidence: args.resolution_evidence,
-      now: Date.now(),
-    }),
+    await resolveAmbiguousDeliveryInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        resolution: args.resolution,
+        resolutionEvidence: args.resolution_evidence,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const abandonAmbiguousAndResend = mutation({
@@ -3055,12 +3749,16 @@ export const abandonAmbiguousAndResend = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await abandonAmbiguousAndResendInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      ...permitFromWire(args.permit),
-      newClientId: args.new_client_id,
-      resolutionEvidence: args.resolution_evidence,
-      now: Date.now(),
-    }),
+    await abandonAmbiguousAndResendInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        ...permitFromWire(args.permit),
+        newClientId: args.new_client_id,
+        resolutionEvidence: args.resolution_evidence,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const publishRuntimeDisposition = mutation({
@@ -3076,17 +3774,21 @@ export const publishRuntimeDisposition = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await publishRuntimeDispositionInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      epoch: args.epoch,
-      configurationRevision: args.configuration_revision,
-      ownerDeviceId: args.owner_device_id,
-      daemonBootId: args.daemon_boot_id,
-      runtimeId: args.runtime_id,
-      disposition: args.disposition,
-      reason: args.reason,
-      now: Date.now(),
-    }),
+    await publishRuntimeDispositionInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        epoch: args.epoch,
+        configurationRevision: args.configuration_revision,
+        ownerDeviceId: args.owner_device_id,
+        daemonBootId: args.daemon_boot_id,
+        runtimeId: args.runtime_id,
+        disposition: args.disposition,
+        reason: args.reason,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const activateExecutionSuccessor = mutation({
@@ -3106,21 +3808,25 @@ export const activateExecutionSuccessor = mutation({
     api_token: v.string(),
   },
   handler: async (ctx, args) =>
-    await activateExecutionSuccessorInDb(ctx, await authenticateExecutionDaemon(ctx, args.api_token), {
-      conversationId: args.conversation_id,
-      expectedCurrentEpoch: args.expected_current_epoch,
-      successorEpoch: args.successor_epoch,
-      currentConfigurationRevision: args.current_configuration_revision,
-      currentOwnerDeviceId: args.current_owner_device_id,
-      currentDaemonBootId: args.current_daemon_boot_id,
-      currentOperationId: args.current_operation_id,
-      currentRuntimeId: args.current_runtime_id,
-      successorConfigurationRevision: args.successor_configuration_revision,
-      successorOwnerDeviceId: args.successor_owner_device_id,
-      successorDaemonBootId: args.successor_daemon_boot_id,
-      successorRuntimeId: args.successor_runtime_id,
-      now: Date.now(),
-    }),
+    await activateExecutionSuccessorInDb(
+      ctx,
+      await authenticateExecutionDaemon(ctx, args.api_token),
+      {
+        conversationId: args.conversation_id,
+        expectedCurrentEpoch: args.expected_current_epoch,
+        successorEpoch: args.successor_epoch,
+        currentConfigurationRevision: args.current_configuration_revision,
+        currentOwnerDeviceId: args.current_owner_device_id,
+        currentDaemonBootId: args.current_daemon_boot_id,
+        currentOperationId: args.current_operation_id,
+        currentRuntimeId: args.current_runtime_id,
+        successorConfigurationRevision: args.successor_configuration_revision,
+        successorOwnerDeviceId: args.successor_owner_device_id,
+        successorDaemonBootId: args.successor_daemon_boot_id,
+        successorRuntimeId: args.successor_runtime_id,
+        now: Date.now(),
+      },
+    ),
 });
 
 export const getExecutionAuthority = query({
@@ -3135,10 +3841,14 @@ export const getExecutionAuthority = query({
     if (!head) return null;
     const bindings = await (ctx.db as any)
       .query("execution_bindings")
-      .withIndex("by_conversation_epoch", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_epoch", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
     const activeAttempt = head.active_delivery_attempt_id
-      ? await ctx.db.get(head.active_delivery_attempt_id as Id<"delivery_attempts">)
+      ? await ctx.db.get(
+          head.active_delivery_attempt_id as Id<"delivery_attempts">,
+        )
       : null;
     return { head, bindings, activeAttempt };
   },
@@ -3194,21 +3904,45 @@ export const listExecutionWork = query({
       .collect();
     const work: any[] = [];
     for (const head of heads) {
-      const conversation = await ctx.db.get(head.conversation_id as Id<"conversations">);
+      const conversation = await ctx.db.get(
+        head.conversation_id as Id<"conversations">,
+      );
       if (conversation && isConversationSafetyBlocked(conversation)) continue;
       if (head.protocol_version !== args.protocol_version) {
-        fail("EXECUTION_PROTOCOL_VERSION_MISMATCH", "stored head differs from daemon handshake");
+        fail(
+          "EXECUTION_PROTOCOL_VERSION_MISMATCH",
+          "stored head differs from daemon handshake",
+        );
       }
-      const epochs = [...new Set([head.current_epoch, head.pending_epoch].filter(Number.isSafeInteger))];
+      const epochs = [
+        ...new Set(
+          [head.current_epoch, head.pending_epoch].filter(Number.isSafeInteger),
+        ),
+      ];
       const bindings = [];
       for (const epoch of epochs) {
-        const binding = await executionBinding(ctx, head.conversation_id, epoch as number);
-        if (!binding || binding.owner_device_id !== args.owner_device_id) continue;
-        if (!capabilitiesEqual(binding.required_capabilities ?? [], args.capabilities)) {
-          fail("EXECUTION_CAPABILITY_MISMATCH", "stored binding differs from daemon handshake");
+        const binding = await executionBinding(
+          ctx,
+          head.conversation_id,
+          epoch as number,
+        );
+        if (!binding || binding.owner_device_id !== args.owner_device_id)
+          continue;
+        if (
+          !capabilitiesEqual(
+            binding.required_capabilities ?? [],
+            args.capabilities,
+          )
+        ) {
+          fail(
+            "EXECUTION_CAPABILITY_MISMATCH",
+            "stored binding differs from daemon handshake",
+          );
         }
         const hasRuntimeEvidence =
-          binding.state === "ready" || binding.state === "stopped" || binding.state === "quarantined";
+          binding.state === "ready" ||
+          binding.state === "stopped" ||
+          binding.state === "quarantined";
         bindings.push({
           state: binding.state,
           daemonBootMatch: binding.daemon_boot_id === args.daemon_boot_id,
@@ -3220,7 +3954,8 @@ export const listExecutionWork = query({
       }
       const intent = head.successor_intent;
       const pendingIntent =
-        intent?.status === "pending" && intent.owner_device_id === args.owner_device_id
+        intent?.status === "pending" &&
+        intent.owner_device_id === args.owner_device_id
           ? {
               intentId: intent.intent_id,
               expectedCurrentEpoch: intent.expected_current_epoch,

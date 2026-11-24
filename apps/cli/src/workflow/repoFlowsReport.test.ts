@@ -32,7 +32,10 @@ beforeEach(() => {
   fs.mkdirSync(path.join(root, ".codecast", "flows"), { recursive: true });
   fs.mkdirSync(path.join(root, "line"), { recursive: true });
   fs.writeFileSync(path.join(root, "line", "change.cast"), BASE);
-  fs.writeFileSync(path.join(root, ".codecast", "flows", "change.cast"), `digraph change {\n  graph [extends="../../line/change.cast"]\n}\n`);
+  fs.writeFileSync(
+    path.join(root, ".codecast", "flows", "change.cast"),
+    `digraph change {\n  graph [extends="../../line/change.cast"]\n}\n`,
+  );
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -42,16 +45,26 @@ describe("a checkout's own flows", () => {
   test("a repo flow that extends another reports the whole graph under its repository", () => {
     const r = repoFlowsReport(root, REMOTE)!;
     expect(r.repository.toLowerCase()).toBe("union-ai/union-mobile");
-    expect(r.flows.map((f) => [f.slug, f.kind, f.label, f.takes.join(",")])).toEqual([["change", "line", "Change", "task,branch"]]);
+    expect(
+      r.flows.map((f) => [f.slug, f.kind, f.label, f.takes.join(",")]),
+    ).toEqual([["change", "line", "Change", "task,branch"]]);
     const nodes = new Map(r.flows[0].nodes.map((n) => [n.id, n]));
     expect(nodes.get("checks")?.type).toBe("parallel_fanout");
-    expect(nodes.get("fix")).toMatchObject({ backend: "subject", max_visits: 3 });
+    expect(nodes.get("fix")).toMatchObject({
+      backend: "subject",
+      max_visits: 3,
+    });
     expect(r.flows[0].edges).toContainEqual({ from: "checks", to: "review" });
   });
 
   test("a draft and a checkout with no origin report nothing", () => {
-    fs.writeFileSync(path.join(root, ".codecast", "flows", "mine.cast"), `digraph mine {\n  graph [kind="line", draft="jx7abcd"]\n  start [shape=Mdiamond]\n  exit [shape=Msquare]\n  start -> exit\n}\n`);
-    expect(repoFlowsReport(root, REMOTE)!.flows.map((f) => f.slug)).toEqual(["change"]);
+    fs.writeFileSync(
+      path.join(root, ".codecast", "flows", "mine.cast"),
+      `digraph mine {\n  graph [kind="line", draft="jx7abcd"]\n  start [shape=Mdiamond]\n  exit [shape=Msquare]\n  start -> exit\n}\n`,
+    );
+    expect(repoFlowsReport(root, REMOTE)!.flows.map((f) => f.slug)).toEqual([
+      "change",
+    ]);
     expect(repoFlowsReport(root, null)).toBeNull();
   });
 
@@ -59,19 +72,29 @@ describe("a checkout's own flows", () => {
     const cache = path.join(root, "cache");
     const sent: string[] = [];
     gitInit(root);
-    const post = async (r: { hash: string }) => { sent.push(r.hash); return true; };
+    const post = async (r: { hash: string }) => {
+      sent.push(r.hash);
+      return true;
+    };
     expect(await reportRepoFlows(root, post, cache)).toBe("sent");
     expect(await reportRepoFlows(root, post, cache)).toBe("unchanged");
     // An unchanged checkout still reports once a day, so the server keeps its row.
-    expect(await reportRepoFlows(root, post, cache, Date.now() + RESEND_MS + 1)).toBe("sent");
+    expect(
+      await reportRepoFlows(root, post, cache, Date.now() + RESEND_MS + 1),
+    ).toBe("sent");
     sent.pop();
-    fs.writeFileSync(path.join(root, "line", "change.cast"), BASE.replace('label="PR"', 'label="Pull request"'));
+    fs.writeFileSync(
+      path.join(root, "line", "change.cast"),
+      BASE.replace('label="PR"', 'label="Pull request"'),
+    );
     expect(await reportRepoFlows(root, post, cache)).toBe("sent");
     expect(sent.length).toBe(2);
     expect(sent[0]).not.toBe(sent[1]);
     // A refused post is tried again next time.
     fs.writeFileSync(path.join(root, "line", "change.cast"), BASE);
-    expect(await reportRepoFlows(root, async () => false, cache)).toBe("skipped");
+    expect(await reportRepoFlows(root, async () => false, cache)).toBe(
+      "skipped",
+    );
     expect(await reportRepoFlows(root, post, cache)).toBe("sent");
   });
 
@@ -82,11 +105,17 @@ describe("a checkout's own flows", () => {
       gitInit(other);
       const cache = path.join(root, "cache");
       const sent: Array<{ root: string; flows: unknown[] }> = [];
-      const post = async (r: { root: string; flows: unknown[] }) => { sent.push(r); return true; };
+      const post = async (r: { root: string; flows: unknown[] }) => {
+        sent.push(r);
+        return true;
+      };
       expect(await reportRepoFlows(root, post, cache)).toBe("sent");
       // A worktree with no flows of its own is its own report, not a repeat of the first checkout's.
       expect(await reportRepoFlows(other, post, cache)).toBe("sent");
-      expect(sent.map((r) => [path.basename(r.root), r.flows.length])).toEqual([[path.basename(root), 1], [path.basename(other), 0]]);
+      expect(sent.map((r) => [path.basename(r.root), r.flows.length])).toEqual([
+        [path.basename(root), 1],
+        [path.basename(other), 0],
+      ]);
     } finally {
       fs.rmSync(other, { recursive: true, force: true });
     }
@@ -96,7 +125,9 @@ describe("a checkout's own flows", () => {
 /** A git checkout with Union's origin. Git's own env from a calling hook (GIT_DIR, say) is dropped, or `git init`
  *  reinitialises that repository instead of this directory. */
 function gitInit(dir: string) {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_"))) as Record<string, string>;
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")),
+  ) as Record<string, string>;
   Bun.spawnSync(["git", "init", "-q", dir], { env });
   Bun.spawnSync(["git", "-C", dir, "remote", "add", "origin", REMOTE], { env });
 }

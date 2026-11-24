@@ -36,20 +36,63 @@ const WEEKS3 = 21 * DAY;
 
 /** Sarah's recent sessions, what the palette lists before she types. */
 export const RECENT = [
-  { _id: "hero-s-sarah3", title: "Refund webhook idempotency", project_path: "/Users/sarah/src/billing", ago: 2 * HOUR },
-  { _id: "hero-s-sarah4", title: "Quarterly invoice export", project_path: "/Users/sarah/src/billing", ago: 6 * HOUR },
-  { _id: "hero-s-sarah5", title: "Support macros for failed payments", project_path: "/Users/sarah/src/support", ago: DAY },
-  { _id: "hero-s-sarah1", title: "Stripe signature check", project_path: "/Users/sarah/src/billing", ago: 3 * DAY },
+  {
+    _id: "hero-s-sarah3",
+    title: "Refund webhook idempotency",
+    project_path: "/Users/sarah/src/billing",
+    ago: 2 * HOUR,
+  },
+  {
+    _id: "hero-s-sarah4",
+    title: "Quarterly invoice export",
+    project_path: "/Users/sarah/src/billing",
+    ago: 6 * HOUR,
+  },
+  {
+    _id: "hero-s-sarah5",
+    title: "Support macros for failed payments",
+    project_path: "/Users/sarah/src/support",
+    ago: DAY,
+  },
+  {
+    _id: "hero-s-sarah1",
+    title: "Stripe signature check",
+    project_path: "/Users/sarah/src/billing",
+    ago: 3 * DAY,
+  },
 ] as const;
 
 /** What the content search returns for the query, three weeks on. */
 export const RESULTS = [
-  { session: SESSIONS.lead, match: "Failed webhooks retry from a queue with exponential backoff, at most 5 attempts.", matches: 6, ago: WEEKS3 },
-  { session: SESSIONS.fork, match: "Replayed the webhooks: a fixed 30s retry lost 3 events, exponential lost none.", matches: 3, ago: WEEKS3 + 2 * HOUR },
-  { session: SESSIONS.api, match: "Webhook retry states: pending, retrying, delivered, dead.", matches: 2, ago: WEEKS3 + 3 * HOUR },
+  {
+    session: SESSIONS.lead,
+    match:
+      "Failed webhooks retry from a queue with exponential backoff, at most 5 attempts.",
+    matches: 6,
+    ago: WEEKS3,
+  },
+  {
+    session: SESSIONS.fork,
+    match:
+      "Replayed the webhooks: a fixed 30s retry lost 3 events, exponential lost none.",
+    matches: 3,
+    ago: WEEKS3 + 2 * HOUR,
+  },
+  {
+    session: SESSIONS.api,
+    match: "Webhook retry states: pending, retrying, delivered, dead.",
+    matches: 2,
+    ago: WEEKS3 + 3 * HOUR,
+  },
 ] as const;
 
-export const TASK = { _id: "hero-task-1", title: OBJECTS.task.title, short_id: OBJECTS.task.shortId, status: "done", ago: WEEKS3 - 2 * DAY } as const;
+export const TASK = {
+  _id: "hero-task-1",
+  title: OBJECTS.task.title,
+  short_id: OBJECTS.task.shortId,
+  status: "done",
+  ago: WEEKS3 - 2 * DAY,
+} as const;
 
 /** src/billing/retry.ts as it stands on main. */
 export const FILE = {
@@ -113,7 +156,11 @@ export const FILE = {
   ].join("\n"),
 };
 
-const who = (s: { id: string; shortId: string; title: string }, author: string, via: "edit" | "trailer") => ({
+const who = (
+  s: { id: string; shortId: string; title: string },
+  author: string,
+  via: "edit" | "trailer",
+) => ({
   conversation_id: s.id,
   short_id: s.shortId,
   title: s.title,
@@ -123,21 +170,79 @@ const who = (s: { id: string; shortId: string; title: string }, author: string, 
 
 /** Session blame folded onto the file: which session wrote which run of lines. */
 export function blameRanges(now: number): SessionBlameRange[] {
-  const run = (start: number, end: number, s: Parameters<typeof who>[0] | null, ago: number, sha: string, message: string, via: "edit" | "trailer" = "edit"): SessionBlameRange => ({
+  const run = (
+    start: number,
+    end: number,
+    s: Parameters<typeof who>[0] | null,
+    ago: number,
+    sha: string,
+    message: string,
+    via: "edit" | "trailer" = "edit",
+  ): SessionBlameRange => ({
     start_line: start,
     end_line: end,
     session: s ? who(s, PEOPLE.me.name, via) : null,
-    git: { start_line: start, end_line: end, sha, message, author_name: PEOPLE.me.name, author_login: PEOPLE.me.handle, committed_at: now - ago },
+    git: {
+      start_line: start,
+      end_line: end,
+      sha,
+      message,
+      author_name: PEOPLE.me.name,
+      author_login: PEOPLE.me.handle,
+      committed_at: now - ago,
+    },
     newest_at: now - ago,
   });
   return [
     run(1, 3, null, 90 * DAY, "4f1c2a9d0b7e", "billing: webhook types"),
-    run(4, 25, SESSIONS.lead, WEEKS3, "a83e51c07d2f", "Retry failed webhooks with exponential backoff"),
-    run(26, 30, SESSIONS.api, WEEKS3 + 3 * HOUR, "c19b7e2f4a01", "Webhook API: retry states and dead letters"),
-    run(31, 38, SESSIONS.lead, WEEKS3, "a83e51c07d2f", "Retry failed webhooks with exponential backoff"),
-    run(39, 44, SESSIONS.lead, WEEKS3 - HOUR, "e7d2096b3c55", `Backoff: exponential over fixed, per ${OBJECTS.decision.shortId}`),
-    run(45, 47, SESSIONS.lead, WEEKS3, "a83e51c07d2f", "Retry failed webhooks with exponential backoff"),
-    run(48, 51, SESSIONS.api, WEEKS3 + 3 * HOUR, "c19b7e2f4a01", "Webhook API: retry states and dead letters"),
+    run(
+      4,
+      25,
+      SESSIONS.lead,
+      WEEKS3,
+      "a83e51c07d2f",
+      "Retry failed webhooks with exponential backoff",
+    ),
+    run(
+      26,
+      30,
+      SESSIONS.api,
+      WEEKS3 + 3 * HOUR,
+      "c19b7e2f4a01",
+      "Webhook API: retry states and dead letters",
+    ),
+    run(
+      31,
+      38,
+      SESSIONS.lead,
+      WEEKS3,
+      "a83e51c07d2f",
+      "Retry failed webhooks with exponential backoff",
+    ),
+    run(
+      39,
+      44,
+      SESSIONS.lead,
+      WEEKS3 - HOUR,
+      "e7d2096b3c55",
+      `Backoff: exponential over fixed, per ${OBJECTS.decision.shortId}`,
+    ),
+    run(
+      45,
+      47,
+      SESSIONS.lead,
+      WEEKS3,
+      "a83e51c07d2f",
+      "Retry failed webhooks with exponential backoff",
+    ),
+    run(
+      48,
+      51,
+      SESSIONS.api,
+      WEEKS3 + 3 * HOUR,
+      "c19b7e2f4a01",
+      "Webhook API: retry states and dead letters",
+    ),
   ];
 }
 

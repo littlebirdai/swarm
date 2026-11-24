@@ -18,11 +18,20 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
-import { CODECAST_STATUSLINE_HOOK, STATUSLINE_HOOK_FILE } from "./statuslineHook.js";
+import {
+  CODECAST_STATUSLINE_HOOK,
+  STATUSLINE_HOOK_FILE,
+} from "./statuslineHook.js";
 import { handleStatusLinePost } from "./daemon.js";
-import { readUsageCache, readProfileStoreCredentials, credentialHealth, fetchUsageSnapshot } from "./ccAccounts.js";
+import {
+  readUsageCache,
+  readProfileStoreCredentials,
+  credentialHealth,
+  fetchUsageSnapshot,
+} from "./ccAccounts.js";
 
-const has = (bin: string) => spawnSync("which", [bin], { encoding: "utf8" }).status === 0;
+const has = (bin: string) =>
+  spawnSync("which", [bin], { encoding: "utf8" }).status === 0;
 // A saved profile's launch credential (its per-session store, see ccAccounts
 // "Per-profile credential stores"). The keychain cannot be read under the
 // sandboxed $HOME the test runs claude with, so the blob is copied into a
@@ -42,7 +51,11 @@ const storeCredential = (() => {
   } catch {}
   return null;
 })();
-const CAN_RUN = process.platform !== "win32" && has("tmux") && has("claude") && !!storeCredential;
+const CAN_RUN =
+  process.platform !== "win32" &&
+  has("tmux") &&
+  has("claude") &&
+  !!storeCredential;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -58,7 +71,9 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
   test("a turn's rate_limits reach the usage cache through the installed statusLine", async () => {
     // realpath: on macOS the temp root is a symlink, and Claude Code keys the
     // trust prompt on the resolved path — an unresolved one prompts forever.
-    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cc-statusline-e2e-")));
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "cc-statusline-e2e-")),
+    );
     const home = path.join(root, "home");
     const configDir = path.join(root, "cc-config");
     const session = `cc-statusline-e2e-${process.pid}`;
@@ -70,22 +85,30 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
     fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
     fs.writeFileSync(
       path.join(home, ".codecast", "cc-accounts.json"),
-      JSON.stringify({ profiles: { probe: { uuid: "uuid-probe", email: "probe@example.com" } } }),
+      JSON.stringify({
+        profiles: { probe: { uuid: "uuid-probe", email: "probe@example.com" } },
+      }),
     );
     // A live reading is filed under the account whose window resets it carries
     // (liveUsageKey), so the sandbox needs the same thing production has before
     // any session posts: one poll of this account on its own credential. It is
     // what makes the reading attributable at all, and it is the reading the
     // turn below must then overwrite.
-    const accessToken = JSON.parse(storeCredential!).claudeAiOauth?.accessToken as string;
+    const accessToken = JSON.parse(storeCredential!).claudeAiOauth
+      ?.accessToken as string;
     const polled = await fetchUsageSnapshot(accessToken);
-    expect(polled.weekly?.resets_at, "the usage endpoint gave this account no weekly window").toBeDefined();
+    expect(
+      polled.weekly?.resets_at,
+      "the usage endpoint gave this account no weekly window",
+    ).toBeDefined();
     fs.writeFileSync(
       path.join(home, ".codecast", "cc-usage.json"),
       JSON.stringify({ accounts: { "uuid-probe": polled } }),
     );
 
-    const server = http.createServer((req, res) => handleStatusLinePost(req, res));
+    const server = http.createServer((req, res) =>
+      handleStatusLinePost(req, res),
+    );
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const port = (server.address() as { port: number }).port;
     fs.writeFileSync(path.join(home, ".codecast", "hook-port"), String(port));
@@ -97,11 +120,17 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(
       path.join(configDir, "settings.json"),
-      JSON.stringify({ statusLine: { type: "command", command: hook, padding: 0 } }),
+      JSON.stringify({
+        statusLine: { type: "command", command: hook, padding: 0 },
+      }),
     );
     const storeDir = path.join(home, "store");
     fs.mkdirSync(storeDir, { recursive: true, mode: 0o700 });
-    fs.writeFileSync(path.join(storeDir, ".credentials.json"), storeCredential!, { mode: 0o600 });
+    fs.writeFileSync(
+      path.join(storeDir, ".credentials.json"),
+      storeCredential!,
+      { mode: 0o600 },
+    );
     // Enough of a config to skip onboarding and the trust prompt; the login
     // itself comes from the sandbox store, not from this file.
     fs.writeFileSync(
@@ -109,14 +138,28 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
       JSON.stringify({
         hasCompletedOnboarding: true,
         theme: "dark",
-        projects: { [root]: { hasTrustDialogAccepted: true, allowedTools: [] } },
+        projects: {
+          [root]: { hasTrustDialogAccepted: true, allowedTools: [] },
+        },
       }),
     );
 
-    const tmux = (args: string[]) => spawnSync("tmux", args, { encoding: "utf8" });
+    const tmux = (args: string[]) =>
+      spawnSync("tmux", args, { encoding: "utf8" });
     tmux(["kill-session", "-t", session]);
     try {
-      tmux(["new-session", "-d", "-x", "200", "-y", "50", "-s", session, "-c", root]);
+      tmux([
+        "new-session",
+        "-d",
+        "-x",
+        "200",
+        "-y",
+        "50",
+        "-s",
+        session,
+        "-c",
+        root,
+      ]);
       // CODECAST_CC_ACCOUNT is what accountSourcePrefix exports beside the
       // store, and what the script forwards so the post is attributed.
       tmux([
@@ -127,18 +170,35 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
         "Enter",
       ]);
       const ready = await waitFor(
-        () => tmux(["capture-pane", "-p", "-J", "-t", `${session}:0.0`, "-S", "-40"]).stdout.includes("Claude Code v"),
+        () =>
+          tmux([
+            "capture-pane",
+            "-p",
+            "-J",
+            "-t",
+            `${session}:0.0`,
+            "-S",
+            "-40",
+          ]).stdout.includes("Claude Code v"),
         60_000,
       );
       expect(ready).toBe(true);
 
-      tmux(["send-keys", "-t", `${session}:0.0`, "reply with the single word ok"]);
+      tmux([
+        "send-keys",
+        "-t",
+        `${session}:0.0`,
+        "reply with the single word ok",
+      ]);
       await sleep(1000);
       tmux(["send-keys", "-t", `${session}:0.0`, "Enter"]);
 
-      const pane = () => tmux(["capture-pane", "-p", "-J", "-t", `${session}:0.0`, "-S", "-40"]).stdout;
+      const pane = () =>
+        tmux(["capture-pane", "-p", "-J", "-t", `${session}:0.0`, "-S", "-40"])
+          .stdout;
       const landed = await waitFor(
-        () => readUsageCache().accounts["uuid-probe"]?.source === "live-session",
+        () =>
+          readUsageCache().accounts["uuid-probe"]?.source === "live-session",
         120_000,
       );
       const snap = readUsageCache().accounts["uuid-probe"];
@@ -151,14 +211,21 @@ describe.skipIf(!CAN_RUN)("live usage from a real Claude turn", () => {
       // The post lands on the tick that renders, and the repaint follows it, so
       // the row is a moment behind the cache write.
       await waitFor(() => pane().includes("probe \u00b7 session "), 30_000);
-      const drawn = pane().split("\n").find((l) => l.includes("probe \u00b7 session "));
+      const drawn = pane()
+        .split("\n")
+        .find((l) => l.includes("probe \u00b7 session "));
       expect(drawn, `pane:\n${pane()}`).toBeDefined();
-      expect(drawn).toMatch(/probe \u00b7 session \d+%(, resets in [\dhdm ]+)? \u00b7 week \d+%/);
+      expect(drawn).toMatch(
+        /probe \u00b7 session \d+%(, resets in [\dhdm ]+)? \u00b7 week \d+%/,
+      );
       expect(drawn).not.toContain("\u001b");
       expect(snap?.source).toBe("live-session");
       // The windows Claude Code reported, not a shape we invented: a percentage
       // and, for a subscriber, a reset time in the future.
-      expect(typeof snap?.session?.percent === "number" || typeof snap?.weekly?.percent === "number").toBe(true);
+      expect(
+        typeof snap?.session?.percent === "number" ||
+          typeof snap?.weekly?.percent === "number",
+      ).toBe(true);
       for (const w of [snap?.session, snap?.weekly]) {
         if (w?.resets_at) expect(w.resets_at).toBeGreaterThan(Date.now());
       }

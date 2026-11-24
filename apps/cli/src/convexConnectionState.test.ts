@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { bindConvexConnectionState, type ConvexSocketClient } from "./convexConnectionState.js";
+import {
+  bindConvexConnectionState,
+  type ConvexSocketClient,
+} from "./convexConnectionState.js";
 
 function fakeClient(initial: boolean): {
   client: ConvexSocketClient;
@@ -39,7 +42,9 @@ describe("bindConvexConnectionState", () => {
     let restored = 0;
     bindConvexConnectionState(client, {
       saveConnected: (c) => writes.push(c),
-      onRestored: () => { restored++; },
+      onRestored: () => {
+        restored++;
+      },
     });
     expect(writes).toEqual([false]);
     expect(restored).toBe(0);
@@ -53,7 +58,9 @@ describe("bindConvexConnectionState", () => {
     let restored = 0;
     bindConvexConnectionState(client, {
       saveConnected: () => {},
-      onRestored: () => { restored++; },
+      onRestored: () => {
+        restored++;
+      },
     });
     expect(restored).toBe(0);
   });

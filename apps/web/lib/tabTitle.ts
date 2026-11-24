@@ -10,7 +10,11 @@ import { isConvexId, orgObjectOfRef } from "./entityLinks";
 import { findEntityInStore } from "./liveEntities";
 import { vaultNoteTitle } from "./vault/noteTitle";
 import { channelDisplayName } from "./chatViews";
-import { filterByWorkspace, inWorkspace, type WorkspaceKey } from "./workspaceScope";
+import {
+  filterByWorkspace,
+  inWorkspace,
+  type WorkspaceKey,
+} from "./workspaceScope";
 import { dmOtherIds } from "@codecast/shared/chat";
 import { currentPagePath } from "./renamedPages";
 import { orgRefOfPath } from "../components/org/company/sheetStack";
@@ -36,7 +40,11 @@ export function chatTabTitle(
   if (!channel) return null;
   if (channel.kind === "dm") {
     return channelDisplayName(
-      { name: "", kind: "dm", dmMemberIds: dmOtherIds(channel.dm_key, viewerId ?? "") },
+      {
+        name: "",
+        kind: "dm",
+        dmMemberIds: dmOtherIds(channel.dm_key, viewerId ?? ""),
+      },
       members,
     );
   }
@@ -46,26 +54,57 @@ export function chatTabTitle(
 /** The session a tab is pinned to: an explicit sessionId, or the ?s= deep link
  *  the tab's path was stamped to (stampedTabPath normalizes /conversation/<id>
  *  into /inbox?s=<id>, so most conversation tabs carry the session here). */
-export function tabSessionId(tab: Pick<AppTab, "sessionId" | "path">): string | null {
+export function tabSessionId(
+  tab: Pick<AppTab, "sessionId" | "path">,
+): string | null {
   return tab.sessionId ?? inboxTabSessionId(tab.path);
 }
 
 /** An initiative's tab reads its title once the store holds the row, the way
  *  a session's does (initiatives-projects-role-page.md I1); its `in-N` stands
  *  in until then (pathLabel). */
-export function initiativeTabTitle(path: string, initiatives: Record<string, { short_id?: string; title?: string; workspace?: string; team_id?: string }> | undefined, workspaceKey: WorkspaceKey | null | undefined): string | null {
+export function initiativeTabTitle(
+  path: string,
+  initiatives:
+    | Record<
+        string,
+        {
+          short_id?: string;
+          title?: string;
+          workspace?: string;
+          team_id?: string;
+        }
+      >
+    | undefined,
+  workspaceKey: WorkspaceKey | null | undefined,
+): string | null {
   const ref = orgRefOfPath(currentPagePath(path))?.ref;
   if (!initiatives || !ref) return null;
   // A goal's sheet, by `in-N` or by its key; any other object under /org is not one.
   const object = orgObjectOfRef(ref);
   if (object && object.kind !== "initiative") return null;
-  const row = initiatives[ref] ?? filterByWorkspace(Object.values(initiatives), workspaceKey).find((r) => r?.short_id === ref.toLowerCase());
+  const row =
+    initiatives[ref] ??
+    filterByWorkspace(Object.values(initiatives), workspaceKey).find(
+      (r) => r?.short_id === ref.toLowerCase(),
+    );
   return row && inWorkspace(row, workspaceKey) ? row.title || null : null;
 }
 
 /** The records a tab can be titled by, read by key only (never a scan, so
  *  the window title can derive on every store tick). */
-export type TabRecords = { tasks?: Record<string, any>; projects?: Record<string, any>; workflowRuns?: Record<string, any>; orgTree?: { roles?: readonly unknown[] } | null; teamMembers?: readonly unknown[]; clientState?: unknown; pendingMessages?: Record<string, ReadonlyArray<{ role?: string; content?: unknown }>> };
+export type TabRecords = {
+  tasks?: Record<string, any>;
+  projects?: Record<string, any>;
+  workflowRuns?: Record<string, any>;
+  orgTree?: { roles?: readonly unknown[] } | null;
+  teamMembers?: readonly unknown[];
+  clientState?: unknown;
+  pendingMessages?: Record<
+    string,
+    ReadonlyArray<{ role?: string; content?: unknown }>
+  >;
+};
 
 /** A task, project, run, role or person tab reads its record's name once the
  *  store holds the row: the task's title, the project's title (by Convex id
@@ -73,32 +112,59 @@ export type TabRecords = { tasks?: Record<string, any>; projects?: Record<string
  *  ("ct-56750 run"). Until then pathLabel names the kind, never the id. A
  *  short id is read through the store's memoized short id index, never a scan
  *  per tick. */
-export function recordTabTitle(path: string, records: TabRecords | undefined): string | null {
+export function recordTabTitle(
+  path: string,
+  records: TabRecords | undefined,
+): string | null {
   if (!records) return null;
   // Modern names a doc, plan, trigger, call or task by its own title (lib/modernRecordTitle).
-  const modern = isModernStyle() ? modernRecordTitle(path, records as Record<string, unknown>) : null;
+  const modern = isModernStyle()
+    ? modernRecordTitle(path, records as Record<string, unknown>)
+    : null;
   if (modern) return modern;
-  const [, kind, ref, sub]= currentPagePath(path.split("#")[0]).split("?")[0].split("/");
+  const [, kind, ref, sub] = currentPagePath(path.split("#")[0])
+    .split("?")[0]
+    .split("/");
   if (!ref) return null;
   if (kind === "tasks") return records.tasks?.[ref]?.title || null;
-  if (kind === "projects") return (records.projects?.[ref] ?? findEntityInStore(records, "project", ref))?.title || null;
+  if (kind === "projects")
+    return (
+      (records.projects?.[ref] ?? findEntityInStore(records, "project", ref))
+        ?.title || null
+    );
   if (kind === "org") {
     const org = orgRefOfPath(currentPagePath(path.split("#")[0]));
     const object = org?.ref ? orgObjectOfRef(org.ref) : null;
-    if (object?.kind === "project") return findEntityInStore(records, "project", object.ref)?.title || null;
-    if (object?.kind === "role") return findEntityInStore(records, "role", object.ref)?.name || null;
-    if (object?.kind === "person") return findEntityInStore(records, "person", object.ref)?.name || null;
+    if (object?.kind === "project")
+      return findEntityInStore(records, "project", object.ref)?.title || null;
+    if (object?.kind === "role")
+      return findEntityInStore(records, "role", object.ref)?.name || null;
+    if (object?.kind === "person")
+      return findEntityInStore(records, "person", object.ref)?.name || null;
     return null;
   }
   if (kind === "workflows" && ref === "runs" && sub) {
     const run = records.workflowRuns?.[sub];
     if (!run) return null;
-    return run.task_short_id ? `${run.task_short_id} run` : run.workflow_name ? `${run.workflow_name} run` : null;
+    return run.task_short_id
+      ? `${run.task_short_id} run`
+      : run.workflow_name
+        ? `${run.workflow_name} run`
+        : null;
   }
   return null;
 }
 
-export function tabTitle(tab: AppTab, sessions: Record<string, any>, channels: Record<string, any>, members?: any[], viewerId?: string, initiatives?: Record<string, any>, workspaceKey?: WorkspaceKey | null, records?: TabRecords): string {
+export function tabTitle(
+  tab: AppTab,
+  sessions: Record<string, any>,
+  channels: Record<string, any>,
+  members?: any[],
+  viewerId?: string,
+  initiatives?: Record<string, any>,
+  workspaceKey?: WorkspaceKey | null,
+  records?: TabRecords,
+): string {
   const sid = tabSessionId(tab);
   if (sid && sessions[sid]) {
     const s = sessions[sid];
@@ -108,7 +174,11 @@ export function tabTitle(tab: AppTab, sessions: Record<string, any>, channels: R
     // Untitled: the name its card shows (the person's first message, sent or
     // still on its way), else the 7-char short handle (what every cast link
     // and command uses), never a slice of the agent's UUID.
-    return s.title || untitledSessionName(s, pendingAsk(records?.pendingMessages?.[sid])) || (isConvexId(sid) ? sid.slice(0, 7) : "Session");
+    return (
+      s.title ||
+      untitledSessionName(s, pendingAsk(records?.pendingMessages?.[sid])) ||
+      (isConvexId(sid) ? sid.slice(0, 7) : "Session")
+    );
   }
   const chat = chatTabTitle(tab.path, channels, members, viewerId);
   if (chat) return chat;
@@ -135,5 +205,10 @@ export function tabTitle(tab: AppTab, sessions: Record<string, any>, channels: R
 // name here. Never show any of them; re-derive.
 function storedTitle(tab: AppTab): string | null {
   const t = tab.title;
-  return t && !t.includes("?") && !isConvexId(t) && !staleNavTitle(tab.path, t, isModernStyle()) ? t : null;
+  return t &&
+    !t.includes("?") &&
+    !isConvexId(t) &&
+    !staleNavTitle(tab.path, t, isModernStyle())
+    ? t
+    : null;
 }

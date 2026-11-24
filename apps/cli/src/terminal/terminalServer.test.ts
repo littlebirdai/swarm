@@ -20,7 +20,9 @@ import {
 import { hasTmux, tmuxExecSync } from "../tmux.js";
 
 const TOKEN = "a".repeat(64);
-const opts = (extra: Partial<TerminalServerOptions> = {}): TerminalServerOptions => ({ token: TOKEN, log: () => {}, ...extra });
+const opts = (
+  extra: Partial<TerminalServerOptions> = {},
+): TerminalServerOptions => ({ token: TOKEN, log: () => {}, ...extra });
 
 describe("originAllowed", () => {
   it("accepts the product origins and local dev servers", () => {
@@ -30,18 +32,30 @@ describe("originAllowed", () => {
       "https://local.3200.codecast.sh",
       "http://localhost:3000",
       "http://127.0.0.1:5173",
-    ]) expect(originAllowed(o, opts())).toBe(true);
+    ])
+      expect(originAllowed(o, opts())).toBe(true);
   });
 
   it("refuses plain http on the product host, lookalike hosts, and no origin", () => {
-    for (const o of ["http://codecast.sh", "https://codecast.sh.evil.com", "https://evil.com", undefined, ""]) {
+    for (const o of [
+      "http://codecast.sh",
+      "https://codecast.sh.evil.com",
+      "https://evil.com",
+      undefined,
+      "",
+    ]) {
       expect(originAllowed(o, opts())).toBe(false);
     }
   });
 
   it("consults allowOrigin only after the built in list refuses", () => {
     const seen: string[] = [];
-    const o = opts({ allowOrigin: (origin) => { seen.push(origin); return origin === "https://dev.example"; } });
+    const o = opts({
+      allowOrigin: (origin) => {
+        seen.push(origin);
+        return origin === "https://dev.example";
+      },
+    });
     expect(originAllowed("https://codecast.sh", o)).toBe(true);
     expect(seen).toEqual([]);
     expect(originAllowed("https://dev.example", o)).toBe(true);
@@ -60,12 +74,35 @@ describe("tokenMatches and authorizeLocalRequest", () => {
   });
 
   it("needs an allowed origin and the bearer token together", () => {
-    const req = (headers: Record<string, string>) => ({ headers }) as unknown as http.IncomingMessage;
-    expect(authorizeLocalRequest(req({ origin: "https://codecast.sh", authorization: `Bearer ${TOKEN}` }), opts())).toBe(true);
-    expect(authorizeLocalRequest(req({ origin: "https://codecast.sh" }), opts())).toBe(false);
-    expect(authorizeLocalRequest(req({ authorization: `Bearer ${TOKEN}` }), opts())).toBe(false);
-    expect(authorizeLocalRequest(req({ origin: "https://evil.com", authorization: `Bearer ${TOKEN}` }), opts())).toBe(false);
-    expect(authorizeLocalRequest(req({ origin: "https://codecast.sh", authorization: TOKEN }), opts())).toBe(false);
+    const req = (headers: Record<string, string>) =>
+      ({ headers }) as unknown as http.IncomingMessage;
+    expect(
+      authorizeLocalRequest(
+        req({
+          origin: "https://codecast.sh",
+          authorization: `Bearer ${TOKEN}`,
+        }),
+        opts(),
+      ),
+    ).toBe(true);
+    expect(
+      authorizeLocalRequest(req({ origin: "https://codecast.sh" }), opts()),
+    ).toBe(false);
+    expect(
+      authorizeLocalRequest(req({ authorization: `Bearer ${TOKEN}` }), opts()),
+    ).toBe(false);
+    expect(
+      authorizeLocalRequest(
+        req({ origin: "https://evil.com", authorization: `Bearer ${TOKEN}` }),
+        opts(),
+      ),
+    ).toBe(false);
+    expect(
+      authorizeLocalRequest(
+        req({ origin: "https://codecast.sh", authorization: TOKEN }),
+        opts(),
+      ),
+    ).toBe(false);
   });
 
   // The daemon's token is state now: it loads from disk early in boot, so a
@@ -76,9 +113,17 @@ describe("tokenMatches and authorizeLocalRequest", () => {
     const unset = opts({ token: "" });
     expect(tokenMatches("", unset)).toBe(false);
     expect(tokenMatches(TOKEN, unset)).toBe(false);
-    const req = (headers: Record<string, string>) => ({ headers }) as unknown as http.IncomingMessage;
-    expect(authorizeLocalRequest(req({ origin: "https://codecast.sh" }), unset)).toBe(false);
-    expect(authorizeLocalRequest(req({ origin: "https://codecast.sh", authorization: "Bearer " }), unset)).toBe(false);
+    const req = (headers: Record<string, string>) =>
+      ({ headers }) as unknown as http.IncomingMessage;
+    expect(
+      authorizeLocalRequest(req({ origin: "https://codecast.sh" }), unset),
+    ).toBe(false);
+    expect(
+      authorizeLocalRequest(
+        req({ origin: "https://codecast.sh", authorization: "Bearer " }),
+        unset,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -108,8 +153,18 @@ describe("parseTerminalSessionRows", () => {
       "cast-term-c3|1700000300|2|vim|/tmp",
     ].join("\n");
     const rows = parseTerminalSessionRows(stdout);
-    expect(rows.map((r) => r.name)).toEqual(["cast-term-a1", "cast-term-b2", "cast-term-c3"]);
-    expect(rows[0]).toEqual({ name: "cast-term-a1", path: "/Users/me/src", command: "", created: 1700000100 * 1000, attached: 0 });
+    expect(rows.map((r) => r.name)).toEqual([
+      "cast-term-a1",
+      "cast-term-b2",
+      "cast-term-c3",
+    ]);
+    expect(rows[0]).toEqual({
+      name: "cast-term-a1",
+      path: "/Users/me/src",
+      command: "",
+      created: 1700000100 * 1000,
+      attached: 0,
+    });
     expect(rows[1].path).toBe("/Users/me/odd|name");
     expect(rows[1].command).toBe("zsh");
     expect(rows[1].attached).toBe(1);
@@ -140,14 +195,18 @@ describe("staleTerminalSessions", () => {
 
 // The router on a real loopback server; no tmux session is needed for these.
 describe("handleTerminalHttp", () => {
-  async function withServer(fn: (base: string) => Promise<void>): Promise<void> {
+  async function withServer(
+    fn: (base: string) => Promise<void>,
+  ): Promise<void> {
     const o = opts();
     const server = http.createServer((req, res) => {
       if (handleTerminalHttp(req, res, o)) return;
       res.writeHead(404);
       res.end();
     });
-    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", () => resolve()),
+    );
     const addr = server.address() as { port: number };
     try {
       await fn(`http://127.0.0.1:${addr.port}`);
@@ -155,16 +214,28 @@ describe("handleTerminalHttp", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   }
-  const authed = { Origin: "https://codecast.sh", Authorization: `Bearer ${TOKEN}` };
+  const authed = {
+    Origin: "https://codecast.sh",
+    Authorization: `Bearer ${TOKEN}`,
+  };
 
   it("answers OPTIONS with the CORS envelope and refuses a missing token", async () => {
     await withServer(async (base) => {
-      const pre = await fetch(`${base}/term/sessions`, { method: "OPTIONS", headers: { Origin: "https://codecast.sh" } });
+      const pre = await fetch(`${base}/term/sessions`, {
+        method: "OPTIONS",
+        headers: { Origin: "https://codecast.sh" },
+      });
       expect(pre.status).toBe(204);
-      expect(pre.headers.get("access-control-allow-origin")).toBe("https://codecast.sh");
-      expect(pre.headers.get("access-control-allow-private-network")).toBe("true");
+      expect(pre.headers.get("access-control-allow-origin")).toBe(
+        "https://codecast.sh",
+      );
+      expect(pre.headers.get("access-control-allow-private-network")).toBe(
+        "true",
+      );
 
-      const noToken = await fetch(`${base}/term/sessions`, { headers: { Origin: "https://codecast.sh" } });
+      const noToken = await fetch(`${base}/term/sessions`, {
+        headers: { Origin: "https://codecast.sh" },
+      });
       expect(noToken.status).toBe(403);
       expect(await noToken.json()).toEqual({ error: "forbidden" });
 
@@ -177,12 +248,19 @@ describe("handleTerminalHttp", () => {
     await withServer(async (base) => {
       const list = await fetch(`${base}/term/sessions`, { headers: authed });
       expect(list.status).toBe(200);
-      const body = (await list.json()) as { sessions: unknown[]; tmux: boolean };
+      const body = (await list.json()) as {
+        sessions: unknown[];
+        tmux: boolean;
+      };
       expect(Array.isArray(body.sessions)).toBe(true);
       expect(typeof body.tmux).toBe("boolean");
-      for (const s of body.sessions as Array<{ name: string }>) expect(s.name.startsWith(TERM_SESSION_PREFIX)).toBe(true);
+      for (const s of body.sessions as Array<{ name: string }>)
+        expect(s.name.startsWith(TERM_SESSION_PREFIX)).toBe(true);
 
-      const kill = await fetch(`${base}/term/kill?name=cc-claude-nope`, { method: "POST", headers: authed });
+      const kill = await fetch(`${base}/term/kill?name=cc-claude-nope`, {
+        method: "POST",
+        headers: authed,
+      });
       expect(kill.status).toBe(400);
       expect(await kill.json()).toEqual({ ok: false });
     });
@@ -192,25 +270,33 @@ describe("handleTerminalHttp", () => {
 // A leftover cast-term-test session would sit in the user's terminal panel
 // until the three day reaper, so the kill in finally is not optional.
 describe("listTerminalSessions and killTerminalSession with tmux", () => {
-  it.skipIf(!hasTmux())("sees a panel session with its path and command, then kills it", async () => {
-    const name = `${TERM_SESSION_PREFIX}test-${crypto.randomBytes(3).toString("hex")}`;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "term-server-"));
-    try {
-      tmuxExecSync(["new-session", "-d", "-s", name, "-c", dir]);
-      const rows = await listTerminalSessions();
-      const mine = rows.find((r) => r.name === name);
-      expect(mine).toBeDefined();
-      // tmux reports the path as it was given or resolved; both are the dir.
-      expect([dir, fs.realpathSync(dir)]).toContain(mine!.path);
-      expect(mine!.command.length).toBeGreaterThan(0);
-      expect(mine!.created).toBeGreaterThan(0);
-      expect(mine!.attached).toBe(0);
+  it.skipIf(!hasTmux())(
+    "sees a panel session with its path and command, then kills it",
+    async () => {
+      const name = `${TERM_SESSION_PREFIX}test-${crypto.randomBytes(3).toString("hex")}`;
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "term-server-"));
+      try {
+        tmuxExecSync(["new-session", "-d", "-s", name, "-c", dir]);
+        const rows = await listTerminalSessions();
+        const mine = rows.find((r) => r.name === name);
+        expect(mine).toBeDefined();
+        // tmux reports the path as it was given or resolved; both are the dir.
+        expect([dir, fs.realpathSync(dir)]).toContain(mine!.path);
+        expect(mine!.command.length).toBeGreaterThan(0);
+        expect(mine!.created).toBeGreaterThan(0);
+        expect(mine!.attached).toBe(0);
 
-      expect(await killTerminalSession(name)).toBe(true);
-      expect((await listTerminalSessions()).some((r) => r.name === name)).toBe(false);
-    } finally {
-      try { tmuxExecSync(["kill-session", "-t", name]); } catch {}
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }, 20_000);
+        expect(await killTerminalSession(name)).toBe(true);
+        expect(
+          (await listTerminalSessions()).some((r) => r.name === name),
+        ).toBe(false);
+      } finally {
+        try {
+          tmuxExecSync(["kill-session", "-t", name]);
+        } catch {}
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    },
+    20_000,
+  );
 });

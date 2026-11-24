@@ -18,7 +18,10 @@ describe("highlightRuns", () => {
   });
 
   test("handles several matches given out of order", () => {
-    const runs = highlightRuns("a b a", [[4, 5], [0, 1]]);
+    const runs = highlightRuns("a b a", [
+      [4, 5],
+      [0, 1],
+    ]);
     expect(runs.filter((r) => r.hit).map((r) => r.text)).toEqual(["a", "a"]);
     expect(rebuild(runs)).toBe("a b a");
   });
@@ -26,7 +29,10 @@ describe("highlightRuns", () => {
   test("overlapping spans never duplicate characters", () => {
     // The naive version emits "repo" twice and shows the reader code that is
     // not in the file.
-    const runs = highlightRuns("repoSearch", [[0, 6], [2, 8]]);
+    const runs = highlightRuns("repoSearch", [
+      [0, 6],
+      [2, 8],
+    ]);
     expect(rebuild(runs)).toBe("repoSearch");
   });
 
@@ -36,13 +42,19 @@ describe("highlightRuns", () => {
 
   test("degenerate spans are dropped rather than trusted", () => {
     // end <= start, and NaN from a malformed payload.
-    const runs = highlightRuns("abc", [[2, 2], [Number.NaN, 2] as [number, number]]);
+    const runs = highlightRuns("abc", [
+      [2, 2],
+      [Number.NaN, 2] as [number, number],
+    ]);
     expect(rebuild(runs)).toBe("abc");
     expect(runs.some((r) => r.hit)).toBe(false);
   });
 
   test("a match running to the end emits no trailing empty run", () => {
     const runs = highlightRuns("abc", [[1, 3]]);
-    expect(runs).toEqual([{ text: "a", hit: false }, { text: "bc", hit: true }]);
+    expect(runs).toEqual([
+      { text: "a", hit: false },
+      { text: "bc", hit: true },
+    ]);
   });
 });

@@ -87,7 +87,11 @@ describe("project updates: posting", () => {
 
   test("a post carries the web stub's client_key, and a replay lands on the same row", async () => {
     const tables = baseTables();
-    const args = { project_id: PROJECT, body: "Shipped.", client_key: "pustub-abc" };
+    const args = {
+      project_id: PROJECT,
+      body: "Shipped.",
+      client_key: "pustub-abc",
+    };
     const first = await (webPost as any)._handler(ctx(MEMBER, tables), args);
     const replay = await (webPost as any)._handler(ctx(MEMBER, tables), args);
     expect(tables.project_updates).toHaveLength(1);
@@ -171,27 +175,50 @@ describe("project updates: comments", () => {
     const tables = withUpdate({
       project_updates: [
         {
-          _id: "update_1", project_id: PROJECT, user_id: OWNER, author: "Owner",
-          author_kind: "user", kind: "update", body: "older", created_at: 2000, updated_at: 2000,
+          _id: "update_1",
+          project_id: PROJECT,
+          user_id: OWNER,
+          author: "Owner",
+          author_kind: "user",
+          kind: "update",
+          body: "older",
+          created_at: 2000,
+          updated_at: 2000,
         },
         {
-          _id: "update_2", project_id: PROJECT, user_id: OWNER, author: "Owner",
-          author_kind: "user", kind: "digest", body: "newer", created_at: 3000, updated_at: 3000,
+          _id: "update_2",
+          project_id: PROJECT,
+          user_id: OWNER,
+          author: "Owner",
+          author_kind: "user",
+          kind: "digest",
+          body: "newer",
+          created_at: 3000,
+          updated_at: 3000,
         },
       ],
       project_update_comments: [
         {
-          _id: "cmt_1", update_id: "update_1", project_id: PROJECT, author: "Member",
-          author_kind: "user", text: "nice", created_at: 2500,
+          _id: "cmt_1",
+          update_id: "update_1",
+          project_id: PROJECT,
+          author: "Member",
+          author_kind: "user",
+          text: "nice",
+          created_at: 2500,
         },
       ],
     });
-    const rows = await (webList as any)._handler(ctx(MEMBER, tables), { project_id: PROJECT });
+    const rows = await (webList as any)._handler(ctx(MEMBER, tables), {
+      project_id: PROJECT,
+    });
     expect(rows.map((r: any) => r.body)).toEqual(["newer", "older"]);
     expect(rows[1].comments).toHaveLength(1);
     expect(rows[0].comments).toHaveLength(0);
 
-    const denied = await (webList as any)._handler(ctx(STRANGER, tables), { project_id: PROJECT });
+    const denied = await (webList as any)._handler(ctx(STRANGER, tables), {
+      project_id: PROJECT,
+    });
     expect(denied).toBeNull();
   });
 
@@ -199,17 +226,28 @@ describe("project updates: comments", () => {
     const tables = withUpdate({
       project_update_comments: [
         {
-          _id: "cmt_1", update_id: "update_1", project_id: PROJECT, author: "Member",
-          author_kind: "user", text: "nice", created_at: 2500,
+          _id: "cmt_1",
+          update_id: "update_1",
+          project_id: PROJECT,
+          author: "Member",
+          author_kind: "user",
+          text: "nice",
+          created_at: 2500,
         },
       ],
     });
     // Member is not the author.
     await expect(
-      (webEdit as any)._handler(ctx(MEMBER, tables), { id: "update_1", body: "hijack" }),
+      (webEdit as any)._handler(ctx(MEMBER, tables), {
+        id: "update_1",
+        body: "hijack",
+      }),
     ).rejects.toThrow("Update not found");
     // The author edits.
-    await (webEdit as any)._handler(ctx(OWNER, tables), { id: "update_1", body: "edited" });
+    await (webEdit as any)._handler(ctx(OWNER, tables), {
+      id: "update_1",
+      body: "edited",
+    });
     expect(tables.project_updates[0].body).toBe("edited");
     expect(tables.project_updates[0].edited_at).toBeGreaterThan(0);
 
@@ -229,71 +267,134 @@ describe("project timeline", () => {
     return baseTables({
       project_updates: [
         {
-          _id: "update_1", project_id: PROJECT, short_id: "pu-1", user_id: OWNER,
-          author: "Owner", author_kind: "user", kind: "update",
-          body: "Kickoff", created_at: 5000, updated_at: 5000,
+          _id: "update_1",
+          project_id: PROJECT,
+          short_id: "pu-1",
+          user_id: OWNER,
+          author: "Owner",
+          author_kind: "user",
+          kind: "update",
+          body: "Kickoff",
+          created_at: 5000,
+          updated_at: 5000,
         },
       ],
       project_update_comments: [
         {
-          _id: "cmt_1", update_id: "update_1", project_id: PROJECT, author: "Member",
-          author_kind: "user", text: "Let's go", created_at: 5500,
+          _id: "cmt_1",
+          update_id: "update_1",
+          project_id: PROJECT,
+          author: "Member",
+          author_kind: "user",
+          text: "Let's go",
+          created_at: 5500,
         },
       ],
       tasks: [
         {
-          _id: "task_a", user_id: OWNER, workspace: WS, project_id: PROJECT,
-          short_id: "ct-1", title: "Build it", status: "in_progress", priority: "high",
-          created_at: 2000, updated_at: 6000,
+          _id: "task_a",
+          user_id: OWNER,
+          workspace: WS,
+          project_id: PROJECT,
+          short_id: "ct-1",
+          title: "Build it",
+          status: "in_progress",
+          priority: "high",
+          created_at: 2000,
+          updated_at: 6000,
         },
         {
           // Closed before task_history existed: no history rows, but closed_at set.
-          _id: "task_b", user_id: OWNER, workspace: WS, project_id: PROJECT,
-          short_id: "ct-2", title: "Old win", status: "done", priority: "medium",
-          created_at: 1500, updated_at: 4000, closed_at: 4000,
+          _id: "task_b",
+          user_id: OWNER,
+          workspace: WS,
+          project_id: PROJECT,
+          short_id: "ct-2",
+          title: "Old win",
+          status: "done",
+          priority: "medium",
+          created_at: 1500,
+          updated_at: 4000,
+          closed_at: 4000,
         },
       ],
       task_history: [
         {
-          _id: "hist_1", task_id: "task_a", user_id: OWNER, actor_type: "user",
-          action: "updated", field: "status", old_value: "open", new_value: "in_progress",
+          _id: "hist_1",
+          task_id: "task_a",
+          user_id: OWNER,
+          actor_type: "user",
+          action: "updated",
+          field: "status",
+          old_value: "open",
+          new_value: "in_progress",
           created_at: 3000,
         },
         {
           // Non-status rows stay out of the feed.
-          _id: "hist_2", task_id: "task_a", user_id: OWNER, actor_type: "user",
-          action: "updated", field: "priority", old_value: "low", new_value: "high",
+          _id: "hist_2",
+          task_id: "task_a",
+          user_id: OWNER,
+          actor_type: "user",
+          action: "updated",
+          field: "priority",
+          old_value: "low",
+          new_value: "high",
           created_at: 3100,
         },
       ],
       task_comments: [
         {
-          _id: "tc_1", task_id: "task_a", author: "Member", author_user_id: MEMBER,
-          text: "On it", comment_type: "progress", created_at: 3500,
+          _id: "tc_1",
+          task_id: "task_a",
+          author: "Member",
+          author_user_id: MEMBER,
+          text: "On it",
+          comment_type: "progress",
+          created_at: 3500,
         },
       ],
       plans: [
         {
-          _id: "plan_1", short_id: "pl-1", user_id: OWNER, workspace: WS,
-          project_id: PROJECT, title: "The plan", status: "active", created_at: 1200,
+          _id: "plan_1",
+          short_id: "pl-1",
+          user_id: OWNER,
+          workspace: WS,
+          project_id: PROJECT,
+          title: "The plan",
+          status: "active",
+          created_at: 1200,
           entries: [
-            { type: "decision", timestamp: 4500, content: "Chose SVG", author: "Owner" },
+            {
+              type: "decision",
+              timestamp: 4500,
+              content: "Chose SVG",
+              author: "Owner",
+            },
           ],
         },
       ],
       docs: [
         {
-          _id: "doc_1", user_id: OWNER, workspace: WS, project_id: PROJECT,
-          title: "Design notes", doc_type: "note", created_at: 4800,
+          _id: "doc_1",
+          user_id: OWNER,
+          workspace: WS,
+          project_id: PROJECT,
+          title: "Design notes",
+          doc_type: "note",
+          created_at: 4800,
         },
       ],
     });
   }
 
   test("merges every source, newest first", async () => {
-    const events = await (webTimeline as any)._handler(ctx(MEMBER, richTables()), {
-      project_id: PROJECT,
-    });
+    const events = await (webTimeline as any)._handler(
+      ctx(MEMBER, richTables()),
+      {
+        project_id: PROJECT,
+      },
+    );
     const types = events.map((e: any) => `${e.type}@${e.ts}`);
     expect(types).toEqual([
       "update_comment@5500",
@@ -311,29 +412,44 @@ describe("project timeline", () => {
   });
 
   test("stranger gets null; since and limit narrow the feed", async () => {
-    const denied = await (webTimeline as any)._handler(ctx(STRANGER, richTables()), {
-      project_id: PROJECT,
-    });
+    const denied = await (webTimeline as any)._handler(
+      ctx(STRANGER, richTables()),
+      {
+        project_id: PROJECT,
+      },
+    );
     expect(denied).toBeNull();
 
-    const recent = await (webTimeline as any)._handler(ctx(MEMBER, richTables()), {
-      project_id: PROJECT,
-      since: 4900,
-    });
+    const recent = await (webTimeline as any)._handler(
+      ctx(MEMBER, richTables()),
+      {
+        project_id: PROJECT,
+        since: 4900,
+      },
+    );
     expect(recent.every((e: any) => e.ts >= 4900)).toBe(true);
-    expect(recent.map((e: any) => e.type)).toEqual(["update_comment", "update_posted"]);
+    expect(recent.map((e: any) => e.type)).toEqual([
+      "update_comment",
+      "update_posted",
+    ]);
 
-    const limited = await (webTimeline as any)._handler(ctx(MEMBER, richTables()), {
-      project_id: PROJECT,
-      limit: 3,
-    });
+    const limited = await (webTimeline as any)._handler(
+      ctx(MEMBER, richTables()),
+      {
+        project_id: PROJECT,
+        limit: 3,
+      },
+    );
     expect(limited).toHaveLength(3);
   });
 
   test("synthesizes a close for pre-history done tasks, without doubling logged ones", async () => {
-    const events = await (webTimeline as any)._handler(ctx(MEMBER, richTables()), {
-      project_id: PROJECT,
-    });
+    const events = await (webTimeline as any)._handler(
+      ctx(MEMBER, richTables()),
+      {
+        project_id: PROJECT,
+      },
+    );
     const statusEvents = events.filter((e: any) => e.type === "task_status");
     // task_a: one logged transition. task_b: one synthesized close. No dupes.
     expect(statusEvents).toHaveLength(2);
@@ -346,9 +462,15 @@ describe("project timeline", () => {
   test("a stranger's task inside an accessible project stays hidden", async () => {
     const tables = richTables();
     tables.tasks.push({
-      _id: "task_secret", user_id: STRANGER, workspace: `user:${STRANGER}`,
-      project_id: PROJECT, short_id: "ct-99", title: "Private errand",
-      status: "open", created_at: 9000, updated_at: 9000,
+      _id: "task_secret",
+      user_id: STRANGER,
+      workspace: `user:${STRANGER}`,
+      project_id: PROJECT,
+      short_id: "ct-99",
+      title: "Private errand",
+      status: "open",
+      created_at: 9000,
+      updated_at: 9000,
     });
     const events = await (webTimeline as any)._handler(ctx(MEMBER, tables), {
       project_id: PROJECT,

@@ -33,15 +33,15 @@ With a cloud machine connected, the menu that says where the session runs offers
 
 ![The new-session composer's placement menu with This checkout, Isolated worktree and a cloud machine](/documentation/remote-and-cloud-sessions/placement-menu.webp "Pick where the session runs before you send.")
 
-An asleep cloud machine wakes when a session starts on it. The header reads *preparing cloud host* while its checkout is being made.
+An asleep cloud machine wakes when a session starts on it. The header reads _preparing cloud host_ while its checkout is being made.
 
 ## Move a session
 
-Click the machine name in a conversation's header for **Run on device · which machine**. Pick another machine to move the session there: its worktree, its uncommitted changes and its conversation travel with it, and the agent resumes on the new machine. An asleep cloud machine is marked *asleep, wakes on move*.
+Click the machine name in a conversation's header for **Run on device · which machine**. Pick another machine to move the session there: its worktree, its uncommitted changes and its conversation travel with it, and the agent resumes on the new machine. An asleep cloud machine is marked _asleep, wakes on move_.
 
 ![The machine menu in a conversation's header](/documentation/remote-and-cloud-sessions/machine-menu.webp "The session runs on the laptop and can move to either cloud machine.")
 
-The transcript marks the move with a rule reading *now running on …*, and the agent is told which machine it's on now. Messages you send during the move wait and are delivered once it lands.
+The transcript marks the move with a rule reading _now running on …_, and the agent is told which machine it's on now. Messages you send during the move wait and are delivered once it lands.
 
 To move many sessions at once, select them in the inbox (⌘-click, shift-click for a run) and choose **Move to…**, or open **Settings → Migration**. Migration lists your sessions with filters, lets you pick a destination, and asks how to treat sessions that are mid-turn: interrupt them, or wait for them to finish up to a time you choose. A session waiting on a permission prompt moves at once, and the prompt asks again on the new machine.
 
@@ -51,7 +51,7 @@ For a session on a cloud machine, the machine menu offers **Sync with** your lap
 
 ![The sync chip in a cloud session's header, reading in step, with its menu open](/documentation/remote-and-cloud-sessions/sync-chip.webp "The sync chip says whether the laptop copy is in step.")
 
-- A chip in the header shows the sync's state: *in step*, *syncing…*, or *sync paused* while the session is idle (so the cloud machine can sleep). Its menu opens the copy in VS Code or Cursor, switches between **Both ways** and **Cloud to laptop only**, and has **Stop syncing**.
+- A chip in the header shows the sync's state: _in step_, _syncing…_, or _sync paused_ while the session is idle (so the cloud machine can sleep). Its menu opens the copy in VS Code or Cursor, switches between **Both ways** and **Cloud to laptop only**, and has **Stop syncing**.
 - Dependency and build folders, very large files and media stay on their own machine; each side builds its own. The chip lists what stayed behind under **Stayed on its own machine**.
 - When both sides change the same file, only that file holds. The chip offers **Keep the laptop's** or **Keep the cloud's** for each, and everything else keeps flowing.
 - **Cloud to laptop only** makes the laptop copy a mirror you read and don't edit.
@@ -84,7 +84,7 @@ A cloud machine can push to GitHub without anyone handing it a key, through the 
 
 ## Keeping a busy machine responsive
 
-A session you aren't using can be **hibernated**: its agent stops and frees the machine's memory, and the conversation stays exactly where it was. Above the message box it reads *hibernated, resumes on send*; sending a message brings it back. The **Sessions** page has a **Hibernated** filter and **Hibernate idle**, and the **Resources** page shows each session's CPU and memory with **Park** and **Resume**. A session that's mid-turn, waiting on a permission prompt or running background work is never parked.
+A session you aren't using can be **hibernated**: its agent stops and frees the machine's memory, and the conversation stays exactly where it was. Above the message box it reads _hibernated, resumes on send_; sending a message brings it back. The **Sessions** page has a **Hibernated** filter and **Hibernate idle**, and the **Resources** page shows each session's CPU and memory with **Park** and **Resume**. A session that's mid-turn, waiting on a permission prompt or running background work is never parked.
 
 ## On your phone
 
@@ -94,13 +94,13 @@ The iPhone app shows which machine a session runs on in its header; tap it to mo
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
+| What you notice                                       | What to do                                                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | The cloud machine shows **Asleep** and nothing starts | Start or move a session there, or click **Wake** in Settings → Devices. Your laptop has to be online to wake it |
-| Wake and sleep buttons say the laptop is offline | Actions on a cloud machine run through the laptop that manages it. Open that laptop |
-| A repository shows **needs access** | Add the shown key on GitHub as a deploy key with write access |
-| The sync chip says files changed on both sides | Pick **Keep the laptop's** or **Keep the cloud's** for each file |
-| The terminal says *paused* | The machine is asleep or offline. Wake it, then **Reconnect** |
+| Wake and sleep buttons say the laptop is offline      | Actions on a cloud machine run through the laptop that manages it. Open that laptop                             |
+| A repository shows **needs access**                   | Add the shown key on GitHub as a deploy key with write access                                                   |
+| The sync chip says files changed on both sides        | Pick **Keep the laptop's** or **Keep the cloud's** for each file                                                |
+| The terminal says _paused_                            | The machine is asleep or offline. Wake it, then **Reconnect**                                                   |
 
 ## For agents and scripts
 

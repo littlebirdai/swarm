@@ -32,22 +32,43 @@ function taskServer() {
     const route = String(url).replace(/^https?:\/\/[^/]+/, "");
     const reviewed = path.join(dir, "review1");
     if (route === "/cli/work/get") {
-      return new Response(JSON.stringify({
-        title: "Make it good",
-        status: "in_progress",
-        ...(fs.existsSync(reviewed) ? { review_verdict: { verdict: "changes", note: "rename x to width", at: fs.statSync(reviewed).mtimeMs } } : {}),
-      }));
+      return new Response(
+        JSON.stringify({
+          title: "Make it good",
+          status: "in_progress",
+          ...(fs.existsSync(reviewed)
+            ? {
+                review_verdict: {
+                  verdict: "changes",
+                  note: "rename x to width",
+                  at: fs.statSync(reviewed).mtimeMs,
+                },
+              }
+            : {}),
+        }),
+      );
     }
     return new Response(JSON.stringify({ ok: true }));
   }) as typeof fetch;
 }
-const options = () => ({ cwd: dir, taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test" });
-const briefs = () => fs.readdirSync(dir).filter((f) => f.startsWith("brief-")).sort().map((f) => fs.readFileSync(path.join(dir, f), "utf-8"));
+const options = () => ({
+  cwd: dir,
+  taskId: "ct-9",
+  apiToken: "tok",
+  convexSiteUrl: "https://convex.test",
+});
+const briefs = () =>
+  fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith("brief-"))
+    .sort()
+    .map((f) => fs.readFileSync(path.join(dir, f), "utf-8"));
 
 describe("a fanout goes on to its fanin", () => {
   test("CI fails and Review asks for changes in round 1: one brief holds both; round 2 reads neither and ends", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph loop {
+    const graph = parseWorkflowSource(
+      `digraph loop {
       graph [label="Loop"]
       start [shape=Mdiamond]
       split [shape=component]
@@ -64,7 +85,9 @@ describe("a fanout goes on to its fanin", () => {
       join -> fix [condition="outcome = failure or review_verdict = changes"]
       join -> exit [condition="outcome = success"]
       fix -> split
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
     const [brief, ...more] = briefs();
     expect(more).toEqual([]);
@@ -76,7 +99,8 @@ describe("a fanout goes on to its fanin", () => {
 
   test("a branch's json from round 1 does not route round 2 (jx7389x)", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph loop {
+    const graph = parseWorkflowSource(
+      `digraph loop {
       graph [label="Loop"]
       start [shape=Mdiamond]
       split [shape=component]
@@ -93,14 +117,17 @@ describe("a fanout goes on to its fanin", () => {
       join -> fix [condition="review.json.verdict = changes"]
       join -> exit [condition="outcome = success"]
       fix -> split
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
     expect(briefs()).toHaveLength(1);
   }, 60_000);
 
   test("a failed branch never takes a loop's edge on another branch's json: the run stops (flowImport's rounds)", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph rounds {
+    const graph = parseWorkflowSource(
+      `digraph rounds {
       graph [label="Rounds"]
       start [shape=Mdiamond]
       split [shape=component]
@@ -117,14 +144,17 @@ describe("a fanout goes on to its fanin", () => {
       join -> split [condition="b.json.again = true", label="another round"]
       join -> ship [condition="b.json.again != true", label="rounds done"]
       ship -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("failed");
     expect(fs.existsSync(path.join(dir, "shipped"))).toBe(false);
   }, 60_000);
 
   test("a review that passes never ships a red CI: the run takes the fanout's retry_target", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph pass {
+    const graph = parseWorkflowSource(
+      `digraph pass {
       graph [label="Pass"]
       start [shape=Mdiamond]
       split [shape=component, retry_target=fix]
@@ -143,7 +173,9 @@ describe("a fanout goes on to its fanin", () => {
       join -> fix [condition="review.json.verdict = changes"]
       fix -> split
       ship -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
     expect(fs.existsSync(path.join(dir, "shipped-red"))).toBe(false);
     expect(fs.existsSync(path.join(dir, "shipped-green"))).toBe(true);
@@ -151,7 +183,8 @@ describe("a fanout goes on to its fanin", () => {
 
   test("a branch the fanout retries on its own reaches the fanin as itself: the spent failure does not loop it", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph again {
+    const graph = parseWorkflowSource(
+      `digraph again {
       graph [label="Again"]
       start [shape=Mdiamond]
       split [shape=component, retry_target=review]
@@ -169,7 +202,9 @@ describe("a fanout goes on to its fanin", () => {
       review -> gone [condition="outcome = failure"]
       join -> ship
       ship -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
     expect(fs.readFileSync(path.join(dir, "reviews"), "utf-8")).toBe("r\nr\n");
     expect(fs.existsSync(path.join(dir, "shipped"))).toBe(true);
@@ -177,7 +212,8 @@ describe("a fanout goes on to its fanin", () => {
 
   test("a fanout's retry_target is not taken for another branch's failure: CI red and the review fine ends failed", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph red {
+    const graph = parseWorkflowSource(
+      `digraph red {
       graph [label="Red"]
       start [shape=Mdiamond]
       split [shape=component, retry_target=review]
@@ -193,7 +229,9 @@ describe("a fanout goes on to its fanin", () => {
       review -> join [condition="outcome = success"]
       join -> ship
       ship -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     // The retry runs only the review, which cannot fix CI: it is not taken, and the run ends failed at once.
     expect(await runWorkflow(graph, options())).toBe("failed");
     expect(fs.existsSync(path.join(dir, "shipped"))).toBe(false);
@@ -202,7 +240,8 @@ describe("a fanout goes on to its fanin", () => {
 
   test("both branches failing: retrying one leaves the other's failure, so the run does not ship", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph both {
+    const graph = parseWorkflowSource(
+      `digraph both {
       graph [label="Both"]
       start [shape=Mdiamond]
       split [shape=component, retry_target=review]
@@ -218,7 +257,9 @@ describe("a fanout goes on to its fanin", () => {
       review -> join [condition="outcome = success"]
       join -> ship
       ship -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("failed");
     expect(fs.existsSync(path.join(dir, "shipped"))).toBe(false);
     expect(fs.readFileSync(path.join(dir, "reviews"), "utf-8")).toBe("r\n");
@@ -226,7 +267,8 @@ describe("a fanout goes on to its fanin", () => {
 
   test("a round that finds nothing leaves no stop: the station after reads none of the last round's", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph stale {
+    const graph = parseWorkflowSource(
+      `digraph stale {
       graph [label="Stale"]
       start [shape=Mdiamond]
       split [shape=component]
@@ -245,14 +287,19 @@ describe("a fanout goes on to its fanin", () => {
       join -> report [condition="outcome = success"]
       fix -> split
       report -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
-    expect(fs.readFileSync(path.join(dir, "report"), "utf-8")).not.toContain("lint failed");
+    expect(fs.readFileSync(path.join(dir, "report"), "utf-8")).not.toContain(
+      "lint failed",
+    );
   }, 60_000);
 
   test("a review branch that died routes to the fanin's No review edge", async () => {
     taskServer();
-    const graph = parseWorkflowSource(`digraph dead {
+    const graph = parseWorkflowSource(
+      `digraph dead {
       graph [label="Dead"]
       start [shape=Mdiamond]
       split [shape=component]
@@ -269,7 +316,9 @@ describe("a fanout goes on to its fanin", () => {
       join -> no_review [label="No review", condition="outcome = failure"]
       join -> exit [condition="outcome = success"]
       no_review -> exit
-    }`, dir);
+    }`,
+      dir,
+    );
     expect(await runWorkflow(graph, options())).toBe("completed");
     expect(fs.existsSync(path.join(dir, "no-review"))).toBe(true);
   }, 60_000);

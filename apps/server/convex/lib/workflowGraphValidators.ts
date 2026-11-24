@@ -44,10 +44,18 @@ export const workflowEdgeValidator = v.object({
 });
 
 /** Each station's text file, repo-relative, for a graph that reads them (`@file`). */
-export const graphFilesValidator = v.array(v.object({ node: v.string(), prompt: v.optional(v.string()), script: v.optional(v.string()) }));
+export const graphFilesValidator = v.array(
+  v.object({
+    node: v.string(),
+    prompt: v.optional(v.string()),
+    script: v.optional(v.string()),
+  }),
+);
 
 /** Each station's own hash in a graph (cli parser.graphNodeHashes). */
-export const graphNodeHashesValidator = v.array(v.object({ id: v.string(), h: v.string() }));
+export const graphNodeHashesValidator = v.array(
+  v.object({ id: v.string(), h: v.string() }),
+);
 
 /** One version of a flow whole (ct-70169): what a library run materializes and a restore writes back. */
 export const workflowSnapshotValidator = v.object({
@@ -85,19 +93,23 @@ export const ingestSnapshotArgs = {
   project_path: v.optional(v.string()),
   workflow_name: v.string(),
   status: v.string(),
-  phases: v.array(v.object({ title: v.string(), detail: v.optional(v.string()) })),
-  agents: v.array(v.object({
-    agent_id: v.string(),
-    label: v.optional(v.string()),
-    phase: v.optional(v.string()),
-    state: v.string(),
-    tokens: v.optional(v.number()),
-    duration_ms: v.optional(v.number()),
-    started_at: v.optional(v.number()),
-    result_preview: v.optional(v.string()),
-    last_tool_name: v.optional(v.string()),
-    last_tool_summary: v.optional(v.string()),
-  })),
+  phases: v.array(
+    v.object({ title: v.string(), detail: v.optional(v.string()) }),
+  ),
+  agents: v.array(
+    v.object({
+      agent_id: v.string(),
+      label: v.optional(v.string()),
+      phase: v.optional(v.string()),
+      state: v.string(),
+      tokens: v.optional(v.number()),
+      duration_ms: v.optional(v.number()),
+      started_at: v.optional(v.number()),
+      result_preview: v.optional(v.string()),
+      last_tool_name: v.optional(v.string()),
+      last_tool_summary: v.optional(v.string()),
+    }),
+  ),
   total_tokens: v.optional(v.number()),
   agent_count: v.optional(v.number()),
   started_at: v.optional(v.number()),

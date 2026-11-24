@@ -1,6 +1,11 @@
 import { recordCacheEvent } from "../cacheEvents";
 import { resetCollectionWrites } from "./collectionWriter";
-import { db, deleteCacheDatabase, reopenAfterPurge, setPurgeInProgress } from "./db";
+import {
+  db,
+  deleteCacheDatabase,
+  reopenAfterPurge,
+  setPurgeInProgress,
+} from "./db";
 import { dropPendingMessageWrites } from "./messageCache";
 import { writeOwnerStamp } from "./ownership";
 import { clearPendingInputJournal } from "./pendingInputJournal";
@@ -20,12 +25,20 @@ export function purgeLocalCache(opts?: {
 }): Promise<void> {
   if (purging) return purging;
   const keep = opts?.keepPendingInputFor ?? null;
-  recordCacheEvent("purge", { reason: opts?.reason ?? "unspecified", keepPendingInputFor: keep, ...opts?.detail });
-  purging = purgeLocalCacheNow(keep).finally(() => { purging = null; });
+  recordCacheEvent("purge", {
+    reason: opts?.reason ?? "unspecified",
+    keepPendingInputFor: keep,
+    ...opts?.detail,
+  });
+  purging = purgeLocalCacheNow(keep).finally(() => {
+    purging = null;
+  });
   return purging;
 }
 
-async function purgeLocalCacheNow(keepPendingInputFor: string | null): Promise<void> {
+async function purgeLocalCacheNow(
+  keepPendingInputFor: string | null,
+): Promise<void> {
   setPurgeInProgress(true);
   try {
     await purgeLocalCacheSteps(keepPendingInputFor);
@@ -34,7 +47,9 @@ async function purgeLocalCacheNow(keepPendingInputFor: string | null): Promise<v
   }
 }
 
-async function purgeLocalCacheSteps(keepPendingInputFor: string | null): Promise<void> {
+async function purgeLocalCacheSteps(
+  keepPendingInputFor: string | null,
+): Promise<void> {
   await clearPendingInputJournal();
   dropPendingMessageWrites();
   resetCollectionWrites();
@@ -43,7 +58,14 @@ async function purgeLocalCacheSteps(keepPendingInputFor: string | null): Promise
   // never the other account's, and a typed message must not vanish.
   let kept: Array<{ key: string; value: any }> = [];
   if (keepPendingInputFor) {
-    try { kept = await db.meta.where("key").startsWith(`${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`).toArray(); } catch { kept = []; }
+    try {
+      kept = await db.meta
+        .where("key")
+        .startsWith(`${PENDING_INPUT_PREFIX}${keepPendingInputFor}:`)
+        .toArray();
+    } catch {
+      kept = [];
+    }
   }
   try {
     await deleteCacheDatabase();
@@ -55,5 +77,8 @@ async function purgeLocalCacheSteps(keepPendingInputFor: string | null): Promise
   // instead of rows that name nobody and purging again: the principal it was
   // purged for, or the signed-out tombstone, which makes anything a sibling
   // re-persists for the account just left provably foreign.
-  await writeOwnerStamp(keepPendingInputFor, keepPendingInputFor ? "purged-for-principal" : "purged-leaving-account");
+  await writeOwnerStamp(
+    keepPendingInputFor,
+    keepPendingInputFor ? "purged-for-principal" : "purged-leaving-account",
+  );
 }

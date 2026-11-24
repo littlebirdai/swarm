@@ -14,20 +14,34 @@ type Ctx = { db: any };
 // to what the daemon's redaction feed holds (a value written or deleted, an
 // Ask first secret approved), so a daemon polls a few counter reads instead of
 // decrypting every value it can read.
-export const redactionCounter = (workspace: string) => `secrets-redaction:${workspace}`;
+export const redactionCounter = (workspace: string) =>
+  `secrets-redaction:${workspace}`;
 
 export async function bumpRedaction(ctx: Ctx, workspace: string) {
   const name = redactionCounter(workspace);
-  const row = await ctx.db.query("counters").withIndex("by_name", (q: any) => q.eq("name", name)).unique();
+  const row = await ctx.db
+    .query("counters")
+    .withIndex("by_name", (q: any) => q.eq("name", name))
+    .unique();
   if (row) await ctx.db.patch(row._id, { value: row.value + 1 });
   else await ctx.db.insert("counters", { name, value: 1 });
 }
 
 export async function recordSecretEvent(
   ctx: Ctx,
-  row: { _id: Id<"secrets">; workspace: string; name: string; short_id: string },
+  row: {
+    _id: Id<"secrets">;
+    workspace: string;
+    name: string;
+    short_id: string;
+  },
   kind: Doc<"secret_events">["kind"],
-  fields: { actor?: Id<"users">; conversation_id?: Id<"conversations">; purpose?: string; decision_id?: Id<"session_decisions"> } = {},
+  fields: {
+    actor?: Id<"users">;
+    conversation_id?: Id<"conversations">;
+    purpose?: string;
+    decision_id?: Id<"session_decisions">;
+  } = {},
 ) {
   await ctx.db.insert("secret_events", {
     secret_id: row._id,
@@ -51,24 +65,45 @@ export async function recordSecretEvent(
  * owner. A teammate who can view a team-shared session cannot open someone's
  * secret to it.
  */
-async function mayApprove(ctx: Ctx, approval: Doc<"secret_approvals">, userId: Id<"users"> | undefined): Promise<boolean> {
+async function mayApprove(
+  ctx: Ctx,
+  approval: Doc<"secret_approvals">,
+  userId: Id<"users"> | undefined,
+): Promise<boolean> {
   if (!userId) return false;
-  if (approval.workspace.startsWith("user:") && approval.workspace !== `user:${userId}`) return false;
+  if (
+    approval.workspace.startsWith("user:") &&
+    approval.workspace !== `user:${userId}`
+  )
+    return false;
   const conversation = await ctx.db.get(approval.conversation_id);
   if (!conversation) return false;
-  return String(conversation.user_id) === String(userId) || (await isSessionOwner(ctx, conversation._id, userId));
+  return (
+    String(conversation.user_id) === String(userId) ||
+    (await isSessionOwner(ctx, conversation._id, userId))
+  );
 }
 
 /** The pending Ask first approval a decision was filed for, or null: the decision is the Vault's, not its asker's to reshape. */
-export const pendingApproval = async (ctx: Ctx, decisionId: Id<"session_decisions">): Promise<Doc<"secret_approvals"> | null> => {
-  const approval = await ctx.db.query("secret_approvals").withIndex("by_decision", (q: any) => q.eq("decision_id", decisionId)).first();
+export const pendingApproval = async (
+  ctx: Ctx,
+  decisionId: Id<"session_decisions">,
+): Promise<Doc<"secret_approvals"> | null> => {
+  const approval = await ctx.db
+    .query("secret_approvals")
+    .withIndex("by_decision", (q: any) => q.eq("decision_id", decisionId))
+    .first();
   return approval?.status === "pending" ? approval : null;
 };
 
 type Verdict = { status: string; answer_index?: number };
 
-const approves = (row: { options?: Array<{ label: string }> }, verdict: Verdict) =>
-  verdict.status === "answered" && row.options?.[verdict.answer_index ?? -1]?.label === APPROVE_FOR_SESSION;
+const approves = (
+  row: { options?: Array<{ label: string }> },
+  verdict: Verdict,
+) =>
+  verdict.status === "answered" &&
+  row.options?.[verdict.answer_index ?? -1]?.label === APPROVE_FOR_SESSION;
 
 /**
  * Why `by` may not resolve this decision, or null. An Ask first decision is
@@ -91,9 +126,18 @@ export async function secretApprovalRefusal(
 ): Promise<string | null> {
   const approval = await pendingApproval(ctx, row._id);
   if (!approval) return null;
-  if (!by.signed_in) return "An Ask first decision is a person's: answer it on the web or the phone, where you are signed in";
-  if (!(await mayApprove(ctx, approval, by.user_id))) return "Only the person whose session asked can answer an Ask first decision";
-  if (!verdict || approves(row, verdict)) return await presenceRefusal(ctx, by.user_id!, "approve", String(row._id), by.presence);
+  if (!by.signed_in)
+    return "An Ask first decision is a person's: answer it on the web or the phone, where you are signed in";
+  if (!(await mayApprove(ctx, approval, by.user_id)))
+    return "Only the person whose session asked can answer an Ask first decision";
+  if (!verdict || approves(row, verdict))
+    return await presenceRefusal(
+      ctx,
+      by.user_id!,
+      "approve",
+      String(row._id),
+      by.presence,
+    );
   return null;
 }
 
@@ -114,23 +158,54 @@ export async function settleSecretApproval(
   ctx: Ctx,
   row: { _id: Id<"session_decisions">; options?: Array<{ label: string }> },
   verdict: Verdict,
-  by: { kind: string; user_id?: Id<"users">; signed_in?: boolean; presence?: string },
+  by: {
+    kind: string;
+    user_id?: Id<"users">;
+    signed_in?: boolean;
+    presence?: string;
+  },
   now: number,
 ): Promise<void> {
   const approval = await pendingApproval(ctx, row._id);
   if (!approval) return;
   const approved = approves(row, verdict);
-  if (approved && (by.kind !== "user" || !by.signed_in || !(await mayApprove(ctx, approval, by.user_id)))) return;
-  if (approved && (await consumePresence(ctx, by.user_id!, "approve", String(row._id), by.presence))) return;
+  if (
+    approved &&
+    (by.kind !== "user" ||
+      !by.signed_in ||
+      !(await mayApprove(ctx, approval, by.user_id)))
+  )
+    return;
+  if (
+    approved &&
+    (await consumePresence(
+      ctx,
+      by.user_id!,
+      "approve",
+      String(row._id),
+      by.presence,
+    ))
+  )
+    return;
   const withdrawn = verdict.status === "withdrawn";
   if (withdrawn) await ctx.db.delete(approval._id);
-  else await ctx.db.patch(approval._id, { status: approved ? "approved" : "denied", approved_by: approved ? by.user_id : undefined, at: now });
+  else
+    await ctx.db.patch(approval._id, {
+      status: approved ? "approved" : "denied",
+      approved_by: approved ? by.user_id : undefined,
+      at: now,
+    });
   if (approved) await bumpRedaction(ctx, approval.workspace);
   const secret = await ctx.db.get(approval.secret_id);
   if (!secret) return;
-  await recordSecretEvent(ctx, secret, approved ? "approved" : withdrawn ? "withdrawn" : "denied", {
-    actor: by.user_id,
-    conversation_id: approval.conversation_id,
-    decision_id: row._id,
-  });
+  await recordSecretEvent(
+    ctx,
+    secret,
+    approved ? "approved" : withdrawn ? "withdrawn" : "denied",
+    {
+      actor: by.user_id,
+      conversation_id: approval.conversation_id,
+      decision_id: row._id,
+    },
+  );
 }

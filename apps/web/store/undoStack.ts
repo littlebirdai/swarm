@@ -26,7 +26,16 @@
 //   A ⌘Z that stops at an entry whose undo widens access is the one notice
 //   the card cannot narrate by moving its head, so it flashes that row.
 import { toast } from "sonner";
-import { getUndoHistory, onUndoReset, setUndoNotifier, subscribeUndoHistory, undoEntry, undoRowCount, type UndoEntry, type UndoNotifier } from "@platform/engine";
+import {
+  getUndoHistory,
+  onUndoReset,
+  setUndoNotifier,
+  subscribeUndoHistory,
+  undoEntry,
+  undoRowCount,
+  type UndoEntry,
+  type UndoNotifier,
+} from "@platform/engine";
 import * as undoTimeline from "../lib/undoTimelineOpen";
 import { splitLabelNote } from "./undo/labels";
 
@@ -42,7 +51,11 @@ export function undoEntryToastId(entryId: string): string {
   return `undo-${entryId}`;
 }
 
-export function undoStepMessage(kind: "undo" | "redo", steps: number, entry: Pick<UndoEntry, "label" | "skipped" | "objects">): string {
+export function undoStepMessage(
+  kind: "undo" | "redo",
+  steps: number,
+  entry: Pick<UndoEntry, "label" | "skipped" | "objects">,
+): string {
   const verb = kind === "undo" ? "Undid" : "Redid";
   if (steps > 1) return `${verb} ${steps} changes`;
   const left = undoRowCount(entry.skipped);
@@ -101,16 +114,24 @@ onUndoReset(() => {
 export const CODECAST_UNDO_NOTIFIER: UndoNotifier = {
   notify: (message) => {
     if (undoTimeline.isOpen()) return;
-    toast(message, { id: UNDO_STATUS_TOAST_ID, description: undefined, action: undefined, className: UNDO_RECEIPT_CLASS });
+    toast(message, {
+      id: UNDO_STATUS_TOAST_ID,
+      description: undefined,
+      action: undefined,
+      className: UNDO_RECEIPT_CLASS,
+    });
   },
   notifyWithUndo: (label, entryId) => {
     // A newly recorded gesture is not a step the card narrates. The held
     // peek is on its way out (the gesture's key or click ends the walk), so
     // only the interactive card, which lists the entry with its own way
     // back, stands in for the entry's Undo toast.
-    if (undoTimeline.isOpen() && undoTimeline.getMode() === "interactive") return;
+    if (undoTimeline.isOpen() && undoTimeline.getMode() === "interactive")
+      return;
     liveEntryToasts.add(entryId);
-    const forget = () => { liveEntryToasts.delete(entryId); };
+    const forget = () => {
+      liveEntryToasts.delete(entryId);
+    };
     const [title, description] = splitLabelNote(label);
     toast(title, {
       id: undoEntryToastId(entryId),
@@ -126,22 +147,35 @@ export const CODECAST_UNDO_NOTIFIER: UndoNotifier = {
     if (undoTimeline.isOpen()) undoTimeline.flashRow(entry.id);
     // The message points at the entry's toast, which is long gone by the
     // time a ⌘Z reaches it, so this toast carries that Undo itself.
-    else toast(message, { id: UNDO_STATUS_TOAST_ID, description: undefined, action: { label: "Undo", onClick: () => undoEntry(entry.id) }, className: undefined });
+    else
+      toast(message, {
+        id: UNDO_STATUS_TOAST_ID,
+        description: undefined,
+        action: { label: "Undo", onClick: () => undoEntry(entry.id) },
+        className: undefined,
+      });
   },
   onHistoryStep: (kind, steps, entry) => {
     if (undoTimeline.isOpen()) return;
-    const more = kind === "undo"
-      && undoTimeline.UNDO_HISTORY_TIER === "hidden"
-      && getUndoHistory().items.length > steps;
+    const more =
+      kind === "undo" &&
+      undoTimeline.UNDO_HISTORY_TIER === "hidden" &&
+      getUndoHistory().items.length > steps;
     // The status toast is one id updated in place, so the note is always
     // passed, undefined included, or the last one's would stay under it.
-    const [title, description] = splitLabelNote(undoStepMessage(kind, steps, entry));
+    const [title, description] = splitLabelNote(
+      undoStepMessage(kind, steps, entry),
+    );
     toast(title, {
       id: UNDO_STATUS_TOAST_ID,
       description,
-      action: more ? { label: "History", onClick: () => undoTimeline.open("interactive") } : undefined,
+      action: more
+        ? { label: "History", onClick: () => undoTimeline.open("interactive") }
+        : undefined,
       // Quiet: a way into the history, not the toast's answer (sonner.css).
-      className: more ? `${UNDO_RECEIPT_CLASS} ${UNDO_QUIET_ACTION_CLASS}` : UNDO_RECEIPT_CLASS,
+      className: more
+        ? `${UNDO_RECEIPT_CLASS} ${UNDO_QUIET_ACTION_CLASS}`
+        : UNDO_RECEIPT_CLASS,
     });
   },
 };
@@ -158,7 +192,8 @@ export function gestureToast<T>(message: string, fn: () => T): T {
   const out = fn();
   const head = getUndoHistory().head;
   if (head && head !== before) {
-    if (!liveEntryToasts.has(head)) CODECAST_UNDO_NOTIFIER.notifyWithUndo!(message, head);
+    if (!liveEntryToasts.has(head))
+      CODECAST_UNDO_NOTIFIER.notifyWithUndo!(message, head);
   } else {
     toast.success(message);
   }

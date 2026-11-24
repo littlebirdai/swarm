@@ -14,7 +14,12 @@ import { Command } from "commander";
 import { registerComputerCommand } from "./cli.js";
 import { ComputerError } from "./errors.js";
 import { runComputerSetup, type ComputerSetupDeps } from "./setup.js";
-import { GRANTED, NONE, setupHarness, type HarnessOptions } from "../test-helpers/computerSetupHarness.js";
+import {
+  GRANTED,
+  NONE,
+  setupHarness,
+  type HarnessOptions,
+} from "../test-helpers/computerSetupHarness.js";
 
 let out: string[] = [];
 let err: string[] = [];
@@ -36,11 +41,16 @@ afterEach(() => {
 /** Same options as the harness, plus the Ctrl C handle a poll test needs: the
  *  handler only exists once the flow has registered it, which is inside the
  *  run these options configure. */
-type RunOptions = Omit<HarnessOptions, "onWait"> & { onWait?: (n: number, cancel: () => void) => void };
+type RunOptions = Omit<HarnessOptions, "onWait"> & {
+  onWait?: (n: number, cancel: () => void) => void;
+};
 
 async function run(argv: string[], opts: RunOptions) {
   let cancel = () => {};
-  const harness = setupHarness({ ...opts, onWait: (n) => opts.onWait?.(n, cancel) });
+  const harness = setupHarness({
+    ...opts,
+    onWait: (n) => opts.onWait?.(n, cancel),
+  });
   cancel = harness.cancel;
   // A holder rather than a bare let: the only writer is the exit callback, so
   // control flow analysis would otherwise narrow the variable to null and make
@@ -61,7 +71,12 @@ async function run(argv: string[], opts: RunOptions) {
   } catch (e) {
     if (!(e instanceof Error) || !e.message.startsWith("__exit")) throw e;
   }
-  return { harness, exit: exited.code, text: harness.lines.join("\n"), stderr: err.join("\n") };
+  return {
+    harness,
+    exit: exited.code,
+    text: harness.lines.join("\n"),
+    stderr: err.join("\n"),
+  };
 }
 
 describe("both grants missing", () => {
@@ -71,7 +86,11 @@ describe("both grants missing", () => {
       confirm: true,
       // Read 1 sees nothing granted; the human grants Accessibility, then
       // Screen Recording, one turn of the poll each.
-      grants: [NONE, { accessibility: "granted", screenshots: "not-granted" }, GRANTED],
+      grants: [
+        NONE,
+        { accessibility: "granted", screenshots: "not-granted" },
+        GRANTED,
+      ],
     });
     expect(r.harness.calls).toEqual([
       "materialize",
@@ -84,7 +103,9 @@ describe("both grants missing", () => {
       "wait",
       "read",
     ]);
-    expect(r.text).toContain("Accessibility lets the helper read the window you name");
+    expect(r.text).toContain(
+      "Accessibility lets the helper read the window you name",
+    );
     expect(r.text).toContain("Screen Recording lets the helper take a picture");
     expect(r.text).toContain("Accessibility granted.");
     expect(r.text).toContain("Screen Recording granted.");
@@ -93,11 +114,20 @@ describe("both grants missing", () => {
   });
 
   test("the setup window is closed once every grant is in, and left up when the wait stops short", async () => {
-    const closes = (grants: HarnessOptions["grants"], extra: Partial<ComputerSetupDeps> = {}) => {
+    const closes = (
+      grants: HarnessOptions["grants"],
+      extra: Partial<ComputerSetupDeps> = {},
+    ) => {
       const harness = setupHarness({ isTty: true, confirm: true, grants });
       let closed = 0;
-      const permissions = { ...harness.deps.permissions!, closePermissionSettings: () => void closed++ };
-      return runComputerSetup({}, { ...(harness.deps as ComputerSetupDeps), permissions, ...extra }).then(() => closed);
+      const permissions = {
+        ...harness.deps.permissions!,
+        closePermissionSettings: () => void closed++,
+      };
+      return runComputerSetup(
+        {},
+        { ...(harness.deps as ComputerSetupDeps), permissions, ...extra },
+      ).then(() => closed);
     };
     expect(await closes([NONE, GRANTED])).toBe(1);
     // Nothing was opened, so there is nothing to close.
@@ -109,13 +139,23 @@ describe("both grants missing", () => {
   test("says why the helper holds the permission, not just what it allows", async () => {
     // The part a human cannot look up: an app they have never heard of is
     // asking, and the answer is that macOS attaches the grant to whoever asks.
-    const r = await run(["setup"], { isTty: true, confirm: false, grants: [NONE] });
+    const r = await run(["setup"], {
+      isTty: true,
+      confirm: false,
+      grants: [NONE],
+    });
     expect(r.text).toContain("macOS attaches it to the program that asks");
-    expect(r.text).toContain("a grant to your terminal would let anything you run there record your screen");
+    expect(r.text).toContain(
+      "a grant to your terminal would let anything you run there record your screen",
+    );
   });
 
   test("a human who declines gets no window and a way back", async () => {
-    const r = await run(["setup"], { isTty: true, confirm: false, grants: [NONE] });
+    const r = await run(["setup"], {
+      isTty: true,
+      confirm: false,
+      grants: [NONE],
+    });
     expect(r.harness.calls).toEqual(["materialize", "read", "confirm"]);
     expect(r.text).toContain("Nothing was opened.");
     expect(r.text).toContain("Accessibility and Screen Recording");
@@ -127,9 +167,19 @@ describe("one grant missing", () => {
     const r = await run(["setup"], {
       isTty: true,
       confirm: true,
-      grants: [{ accessibility: "granted", screenshots: "not-granted" }, GRANTED],
+      grants: [
+        { accessibility: "granted", screenshots: "not-granted" },
+        GRANTED,
+      ],
     });
-    expect(r.harness.calls).toEqual(["materialize", "read", "confirm", "open:screenshots", "wait", "read"]);
+    expect(r.harness.calls).toEqual([
+      "materialize",
+      "read",
+      "confirm",
+      "open:screenshots",
+      "wait",
+      "read",
+    ]);
     expect(r.text).not.toContain("Accessibility lets the helper");
     expect(r.text).toContain("Screen Recording lets the helper");
   });
@@ -137,7 +187,11 @@ describe("one grant missing", () => {
 
 describe("both grants present", () => {
   test("prints the state and exits without opening anything", async () => {
-    const r = await run(["setup"], { isTty: true, confirm: true, grants: [GRANTED] });
+    const r = await run(["setup"], {
+      isTty: true,
+      confirm: true,
+      grants: [GRANTED],
+    });
     expect(r.harness.calls).toEqual(["materialize", "read"]);
     expect(r.text).toContain("accessibility=granted, screenshots=granted");
     expect(r.text).toContain("Both permissions were already granted.");
@@ -145,10 +199,20 @@ describe("both grants present", () => {
   });
 
   test("running it again costs one read and still opens nothing", async () => {
-    const first = await run(["setup"], { isTty: true, confirm: true, grants: [GRANTED] });
-    const second = await run(["setup"], { isTty: true, confirm: true, grants: [GRANTED] });
+    const first = await run(["setup"], {
+      isTty: true,
+      confirm: true,
+      grants: [GRANTED],
+    });
+    const second = await run(["setup"], {
+      isTty: true,
+      confirm: true,
+      grants: [GRANTED],
+    });
     expect(second.harness.calls).toEqual(first.harness.calls);
-    expect(second.harness.calls.filter((c) => c.startsWith("open:"))).toEqual([]);
+    expect(second.harness.calls.filter((c) => c.startsWith("open:"))).toEqual(
+      [],
+    );
   });
 });
 
@@ -162,10 +226,18 @@ describe("the human stops the wait", () => {
         if (n === 1) cancel();
       },
     });
-    expect(r.harness.calls).toEqual(["materialize", "read", "confirm", "open:accessibility", "wait"]);
+    expect(r.harness.calls).toEqual([
+      "materialize",
+      "read",
+      "confirm",
+      "open:accessibility",
+      "wait",
+    ]);
     expect(r.text).toContain("Stopped.");
     expect(r.text).toContain("accessibility=not-granted");
-    expect(r.text).toContain("Still missing: Accessibility and Screen Recording.");
+    expect(r.text).toContain(
+      "Still missing: Accessibility and Screen Recording.",
+    );
     expect(r.exit).toBe(null);
   });
 
@@ -180,21 +252,37 @@ describe("the human stops the wait", () => {
     });
     expect(r.text).toContain("Accessibility granted.");
     expect(r.text).toContain("Still missing: Screen Recording.");
-    expect(r.harness.calls.filter((c) => c.startsWith("open:"))).toEqual(["open:accessibility", "open:screenshots"]);
+    expect(r.harness.calls.filter((c) => c.startsWith("open:"))).toEqual([
+      "open:accessibility",
+      "open:screenshots",
+    ]);
   });
 });
 
 describe("nobody at the keyboard", () => {
   test("no tty and no --yes refuses to raise, and says which two ways in exist", async () => {
-    const r = await run(["setup"], { isTty: false, confirm: true, grants: [NONE] });
+    const r = await run(["setup"], {
+      isTty: false,
+      confirm: true,
+      grants: [NONE],
+    });
     expect(r.harness.calls).toEqual(["materialize", "read"]);
     expect(r.text).toContain("This is not a terminal");
     expect(r.text).toContain("Pass --yes");
   });
 
   test("--yes opens without asking, which is the only thing it changes", async () => {
-    const r = await run(["setup", "--yes"], { isTty: false, grants: [NONE, GRANTED] });
-    expect(r.harness.calls).toEqual(["materialize", "read", "open:accessibility", "wait", "read"]);
+    const r = await run(["setup", "--yes"], {
+      isTty: false,
+      grants: [NONE, GRANTED],
+    });
+    expect(r.harness.calls).toEqual([
+      "materialize",
+      "read",
+      "open:accessibility",
+      "wait",
+      "read",
+    ]);
     expect(r.text).toContain("cast computer is ready.");
   });
 
@@ -203,9 +291,18 @@ describe("nobody at the keyboard", () => {
     // ceiling `--yes` on a build server would wait on a switch nobody will
     // ever click.
     const harness = setupHarness({ isTty: false, grants: [NONE] });
-    await runComputerSetup({ yes: true }, { ...(harness.deps as ComputerSetupDeps), pollTimeoutMs: -1 });
-    expect(harness.calls).toEqual(["materialize", "read", "open:accessibility"]);
-    expect(harness.lines.join("\n")).toContain("Stopped waiting for Accessibility.");
+    await runComputerSetup(
+      { yes: true },
+      { ...(harness.deps as ComputerSetupDeps), pollTimeoutMs: -1 },
+    );
+    expect(harness.calls).toEqual([
+      "materialize",
+      "read",
+      "open:accessibility",
+    ]);
+    expect(harness.lines.join("\n")).toContain(
+      "Stopped waiting for Accessibility.",
+    );
   });
 });
 
@@ -215,7 +312,10 @@ describe("a machine the helper cannot run on", () => {
       isTty: true,
       grants: [NONE],
       materialize: async () => {
-        throw new ComputerError("unsupported_capability", "cast computer runs on macOS only");
+        throw new ComputerError(
+          "unsupported_capability",
+          "cast computer runs on macOS only",
+        );
       },
     });
     expect(r.exit).toBe(1);

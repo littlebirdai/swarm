@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { TaskScheduler, TRIGGER_STARVE_MS, buildRunLaunch, buildRunScript, startableDue, triggerRunTaskId, forgetTriggerRun } from "./taskScheduler.js";
+import {
+  TaskScheduler,
+  TRIGGER_STARVE_MS,
+  buildRunLaunch,
+  buildRunScript,
+  startableDue,
+  triggerRunTaskId,
+  forgetTriggerRun,
+} from "./taskScheduler.js";
 import { deviceId } from "./remote/device.js";
 import { runTriggerPrecheck } from "./precheckRunner.js";
 import { triggerPrecheckPassed } from "@codecast/shared/contracts";
@@ -37,14 +45,32 @@ interface MockCalls {
   /** The exact prompt each injection carried. */
   prompts: string[];
   /** Firings the precheck gate refused, with what it reported. */
-  skipped: Array<{ taskId: string; reason: string; command: string; exitCode?: number; timedOut: boolean; source?: string }>;
+  skipped: Array<{
+    taskId: string;
+    reason: string;
+    command: string;
+    exitCode?: number;
+    timedOut: boolean;
+    source?: string;
+  }>;
 }
 
 function makeScheduler(
   dueTasks: any[],
-  opts: { claimResult?: (task: any) => any; filing?: "stashed" | "killed" | null; frame?: string } = {},
+  opts: {
+    claimResult?: (task: any) => any;
+    filing?: "stashed" | "killed" | null;
+    frame?: string;
+  } = {},
 ) {
-  const calls: MockCalls = { claimed: [], failed: [], injected: [], completed: [], prompts: [], skipped: [] };
+  const calls: MockCalls = {
+    claimed: [],
+    failed: [],
+    injected: [],
+    completed: [],
+    prompts: [],
+    skipped: [],
+  };
   const byId = new Map(dueTasks.map((t) => [t._id, t]));
   const syncService = {
     getDueTasks: async () => dueTasks,
@@ -73,13 +99,26 @@ function makeScheduler(
     getSessionFiling: async () => opts.filing ?? null,
     getInjectFrame: async () => opts.frame ?? null,
     // The trigger row keeps a changes/state gate's state between firings.
-    passTaskPrecheck: async (taskId: string, _daemonId: string, _gate: unknown, state?: string, message?: string) => {
+    passTaskPrecheck: async (
+      taskId: string,
+      _daemonId: string,
+      _gate: unknown,
+      state?: string,
+      message?: string,
+    ) => {
       const task = byId.get(taskId);
       if (state !== undefined) task.precheck_state = state;
       task.precheck_message = message;
       return true;
     },
-    skipTaskRun: async (taskId: string, _daemonId: string, result: any, reason: string, source?: string, state?: string) => {
+    skipTaskRun: async (
+      taskId: string,
+      _daemonId: string,
+      result: any,
+      reason: string,
+      source?: string,
+      state?: string,
+    ) => {
       if (state !== undefined) byId.get(taskId).precheck_state = state;
       calls.skipped.push({
         taskId,
@@ -115,7 +154,13 @@ describe("TaskScheduler across a daemon restart", () => {
   // lapsed, and the re-claim respawned into the same tmux name and killed it.
   it("keeps its lease identity and adopts the runs the previous daemon left live", () => {
     const first = makeScheduler([]).scheduler;
-    first.track({ taskId: "t1", tmuxSession: "ct-claude-abc123", startedAt: 1000, maxRuntimeMs: 600_000, runSessionUuid: "run-uuid-1" });
+    first.track({
+      taskId: "t1",
+      tmuxSession: "ct-claude-abc123",
+      startedAt: 1000,
+      maxRuntimeMs: 600_000,
+      runSessionUuid: "run-uuid-1",
+    });
     first.stop();
 
     const second = makeScheduler([]).scheduler;
@@ -123,7 +168,11 @@ describe("TaskScheduler across a daemon restart", () => {
     second.start();
     try {
       const adopted = second.running.get("t1");
-      expect(adopted).toMatchObject({ tmuxSession: "ct-claude-abc123", startedAt: 1000, maxRuntimeMs: 600_000 });
+      expect(adopted).toMatchObject({
+        tmuxSession: "ct-claude-abc123",
+        startedAt: 1000,
+        maxRuntimeMs: 600_000,
+      });
       expect(triggerRunTaskId("run-uuid-1")).toBe("t1");
     } finally {
       second.stop();
@@ -132,7 +181,12 @@ describe("TaskScheduler across a daemon restart", () => {
 
   it("forgets a run once it is cleaned up", () => {
     const first = makeScheduler([]).scheduler;
-    first.track({ taskId: "t1", tmuxSession: "ct-claude-abc123", startedAt: 1000, maxRuntimeMs: 600_000 });
+    first.track({
+      taskId: "t1",
+      tmuxSession: "ct-claude-abc123",
+      startedAt: 1000,
+      maxRuntimeMs: 600_000,
+    });
     first.cleanupTask("t1");
     first.stop();
 
@@ -151,7 +205,13 @@ describe("a run whose transcript syncs late", () => {
   // cleaned up, and its conversation was created 18 minutes later with no stamp.
   it("keeps the birth stamp through cleanup and a restart until the row exists", () => {
     const first = makeScheduler([]).scheduler;
-    first.track({ taskId: "t9", tmuxSession: "ct-claude-late", startedAt: 1000, maxRuntimeMs: 600_000, runSessionUuid: "late-uuid" });
+    first.track({
+      taskId: "t9",
+      tmuxSession: "ct-claude-late",
+      startedAt: 1000,
+      maxRuntimeMs: 600_000,
+      runSessionUuid: "late-uuid",
+    });
     first.cleanupTask("t9");
     expect(triggerRunTaskId("late-uuid")).toBe("t9");
     first.stop();
@@ -170,17 +230,28 @@ describe("a run whose transcript syncs late", () => {
 
 describe("Codex trigger launch receipts", () => {
   it("recovers a late Codex transcript from the saved exact launch prompt", () => {
-    const prompt = "[Codecast Task: fixture]\nTask ID: trigger-codex\nUnique report.";
+    const prompt =
+      "[Codecast Task: fixture]\nTask ID: trigger-codex\nUnique report.";
     const key = `prompt:${require("node:crypto").createHash("sha256").update(prompt).digest("hex")}`;
-    fs.writeFileSync(path.join(dir, "trigger-runs.json"), JSON.stringify({
-      daemonId: "old-daemon", runs: [], sessions: { [key]: { taskId: "trigger-codex", at: Date.now() } },
-    }));
+    fs.writeFileSync(
+      path.join(dir, "trigger-runs.json"),
+      JSON.stringify({
+        daemonId: "old-daemon",
+        runs: [],
+        sessions: { [key]: { taskId: "trigger-codex", at: Date.now() } },
+      }),
+    );
     const { scheduler } = makeScheduler([]);
-    expect(triggerRunTaskId("codex-unrelated", `${prompt} changed`)).toBeUndefined();
+    expect(
+      triggerRunTaskId("codex-unrelated", `${prompt} changed`),
+    ).toBeUndefined();
     expect(triggerRunTaskId("codex-late", prompt)).toBe("trigger-codex");
     expect(triggerRunTaskId("codex-late")).toBe("trigger-codex");
     scheduler.saveRuns();
-    expect(JSON.parse(fs.readFileSync(path.join(dir, "trigger-runs.json"), "utf8")).sessions["codex-late"].taskId).toBe("trigger-codex");
+    expect(
+      JSON.parse(fs.readFileSync(path.join(dir, "trigger-runs.json"), "utf8"))
+        .sessions["codex-late"].taskId,
+    ).toBe("trigger-codex");
     scheduler.stop();
     forgetTriggerRun("codex-late");
     forgetTriggerRun(key);
@@ -189,7 +260,9 @@ describe("Codex trigger launch receipts", () => {
 
 describe("TaskScheduler device affinity", () => {
   it("does not claim a spawn task whose project_path is missing locally", async () => {
-    const { scheduler, calls } = makeScheduler([spawnTask("t1", path.join(dir, "nope"))]);
+    const { scheduler, calls } = makeScheduler([
+      spawnTask("t1", path.join(dir, "nope")),
+    ]);
     await scheduler.poll();
     expect(calls.claimed).toEqual([]);
     expect(calls.failed).toEqual([]);
@@ -222,8 +295,13 @@ describe("TaskScheduler device affinity", () => {
   });
 
   it("claims injection tasks regardless of project_path (server routes delivery)", async () => {
-    const task = { ...spawnTask("t1", path.join(dir, "nope")), originating_conversation_id: "conv123" };
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const task = {
+      ...spawnTask("t1", path.join(dir, "nope")),
+      originating_conversation_id: "conv123",
+    };
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.claimed).toEqual(["t1"]);
     expect(calls.injected).toEqual(["conv123"]);
@@ -240,7 +318,10 @@ describe("TaskScheduler device affinity", () => {
   });
 
   it("never claims a task created on another device, even with the checkout present", async () => {
-    const task = { ...spawnTask("t1", dir), created_device_id: "some-other-device" };
+    const task = {
+      ...spawnTask("t1", dir),
+      created_device_id: "some-other-device",
+    };
     const { scheduler, calls } = makeScheduler([task]);
     await scheduler.poll();
     expect(calls.claimed).toEqual([]);
@@ -260,7 +341,9 @@ describe("TaskScheduler device affinity", () => {
 
   it("fails loudly (no $HOME fallback) when the checkout vanishes after the claim", async () => {
     const task = spawnTask("t1", path.join(dir, "vanished"));
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
     expect(calls.failed.length).toBe(1);
     expect(calls.failed[0].taskId).toBe("t1");
@@ -275,8 +358,13 @@ describe("wake-time self-knowledge", () => {
   });
 
   it("delivers the frame the server builds for every trigger path", async () => {
-    const frame = '<scheduled-task title="Check Growth\'s area" task-id="t1" trigger="tr-9">\n<role-card handle="growth" name="Growth lead" reports-to="Ada">Looks after: Growth</role-card>\nCheck your area.</scheduled-task>';
-    const { scheduler, calls } = makeScheduler([injectTask()], { claimResult: (t) => t, frame, filing: "stashed" });
+    const frame =
+      '<scheduled-task title="Check Growth\'s area" task-id="t1" trigger="tr-9">\n<role-card handle="growth" name="Growth lead" reports-to="Ada">Looks after: Growth</role-card>\nCheck your area.</scheduled-task>';
+    const { scheduler, calls } = makeScheduler([injectTask()], {
+      claimResult: (t) => t,
+      frame,
+      filing: "stashed",
+    });
     await scheduler.poll();
     expect(calls.prompts[0]).toBe(frame);
     expect(calls.failed).toEqual([]);
@@ -316,18 +404,27 @@ describe("spawned run launch flags", () => {
   });
 
   it("launches on the agent's saved default when no model is pinned", () => {
-    const { extraAgentArgs } = buildRunLaunch({ ...spawnTask("t1"), mode: "apply" }, {} as any);
+    const { extraAgentArgs } = buildRunLaunch(
+      { ...spawnTask("t1"), mode: "apply" },
+      {} as any,
+    );
     expect(extraAgentArgs).not.toContain("--model");
   });
 
   it("a run parked at a usage limit resumes its own session instead of starting a fresh one", () => {
     const { extraAgentArgs, runSessionUuid } = buildRunLaunch(
-      { ...spawnTask("t1"), mode: "apply", parked_run_session_uuid: "parked-uuid" },
+      {
+        ...spawnTask("t1"),
+        mode: "apply",
+        parked_run_session_uuid: "parked-uuid",
+      },
       {} as any,
     );
     expect(runSessionUuid).toBe("parked-uuid");
     expect(extraAgentArgs).toContain("--resume");
-    expect(extraAgentArgs[extraAgentArgs.indexOf("--resume") + 1]).toBe("parked-uuid");
+    expect(extraAgentArgs[extraAgentArgs.indexOf("--resume") + 1]).toBe(
+      "parked-uuid",
+    );
     expect(extraAgentArgs).not.toContain("--session-id");
   });
 
@@ -336,16 +433,26 @@ describe("spawned run launch flags", () => {
   it("runs a Claude run on the launch account, never the bare keychain login", () => {
     const prefix = ". /home/x/.codecast/cc-fleet.env 2>/dev/null || true; ";
     const script = buildRunScript({
-      agentType: "claude", agentBin: "claude", extraAgentArgs: ["--session-id", "u1"],
-      promptFile: "/tmp/p.txt", scriptFile: "/tmp/s.sh", accountPrefix: prefix,
+      agentType: "claude",
+      agentBin: "claude",
+      extraAgentArgs: ["--session-id", "u1"],
+      promptFile: "/tmp/p.txt",
+      scriptFile: "/tmp/s.sh",
+      accountPrefix: prefix,
     });
     const line = script.split("\n").find((l) => l.includes(" -p "))!;
-    expect(line.startsWith(`${prefix}claude -p "$(cat /tmp/p.txt)"`)).toBe(true);
+    expect(line.startsWith(`${prefix}claude -p "$(cat /tmp/p.txt)"`)).toBe(
+      true,
+    );
   });
 
   it("leaves a codex run's launch alone", () => {
     const script = buildRunScript({
-      agentType: "codex", agentBin: "codex", extraAgentArgs: [], promptFile: "/tmp/p.txt", scriptFile: "/tmp/s.sh",
+      agentType: "codex",
+      agentBin: "codex",
+      extraAgentArgs: [],
+      promptFile: "/tmp/p.txt",
+      scriptFile: "/tmp/s.sh",
       accountPrefix: ". /x 2>/dev/null || true; ",
     });
     expect(script).not.toContain("/x 2>");
@@ -358,35 +465,71 @@ describe("spawned run launch flags", () => {
     );
     expect(agentBin).toBe("codex");
     expect(extraAgentArgs).toContain("-m");
-    expect(extraAgentArgs[extraAgentArgs.indexOf("-m") + 1]).toBe("gpt-5.3-codex");
+    expect(extraAgentArgs[extraAgentArgs.indexOf("-m") + 1]).toBe(
+      "gpt-5.3-codex",
+    );
   });
 });
 
 describe("trigger run lifecycle guidance", () => {
   const task = (extra: Record<string, any> = {}) => ({
-    ...spawnTask("task-internal-id"), short_id: "tr-42", schedule_type: "recurring", mode: "apply",
-    prompt: "Keep the ongoing mandate active. Collect the next due cohort after its deadline.",
+    ...spawnTask("task-internal-id"),
+    short_id: "tr-42",
+    schedule_type: "recurring",
+    mode: "apply",
+    prompt:
+      "Keep the ongoing mandate active. Collect the next due cohort after its deadline.",
     ...extra,
   });
   const assertLifecycle = (prompt: string) => {
     expect(prompt).toContain("cast trigger complete tr-42 --summary");
-    expect(prompt).toContain("Completing one recurring run alone does not retire its trigger");
-    expect(prompt).toContain("bounded trigger and its terminal condition is verified complete");
-    expect(prompt).toContain("save the outcome first, then cancel only this trigger with cast trigger cancel tr-42");
-    expect(prompt).toContain("Quiet or no-change results, quota errors, collector failures, unavailable sources, and pending deadlines are NOT proof of completion");
+    expect(prompt).toContain(
+      "Completing one recurring run alone does not retire its trigger",
+    );
+    expect(prompt).toContain(
+      "bounded trigger and its terminal condition is verified complete",
+    );
+    expect(prompt).toContain(
+      "save the outcome first, then cancel only this trigger with cast trigger cancel tr-42",
+    );
+    expect(prompt).toContain(
+      "Quiet or no-change results, quota errors, collector failures, unavailable sources, and pending deadlines are NOT proof of completion",
+    );
     expect(prompt).toContain("A spawned run is its parent session's worker");
     expect(prompt).toContain("The next firing replaces the trigger's summary");
-    expect(prompt).toContain("Do not file a new task merely because a run found something");
-    expect(prompt).toContain("--needs-attention claims the human's eyes, so pass it only when they themselves must act");
-    expect(prompt).toContain("open the summary with the ask: what you need them to do");
-    expect(prompt).toContain("Work you have already given an owner does not need their eyes");
-    expect(prompt).toContain("says something needs a look without naming the action");
-    expect(prompt).toContain("widen the interval with cast trigger update tr-42 --every <longer>");
-    expect(prompt).toContain("A quiet run is a reason to slow a trigger down, never a reason to call it complete");
-    expect(prompt).toContain("Ongoing mandates remain active until explicitly ended");
-    expect(prompt).toContain("Do not close unrelated tasks or cancel other triggers");
-    expect(prompt).toContain("subordinate to this trigger's prompt, explicit user instructions, and the session's existing permissions");
-    expect(prompt).toContain("if cancellation is outside this run's authority, report the verified outcome and required cancellation");
+    expect(prompt).toContain(
+      "Do not file a new task merely because a run found something",
+    );
+    expect(prompt).toContain(
+      "--needs-attention claims the human's eyes, so pass it only when they themselves must act",
+    );
+    expect(prompt).toContain(
+      "open the summary with the ask: what you need them to do",
+    );
+    expect(prompt).toContain(
+      "Work you have already given an owner does not need their eyes",
+    );
+    expect(prompt).toContain(
+      "says something needs a look without naming the action",
+    );
+    expect(prompt).toContain(
+      "widen the interval with cast trigger update tr-42 --every <longer>",
+    );
+    expect(prompt).toContain(
+      "A quiet run is a reason to slow a trigger down, never a reason to call it complete",
+    );
+    expect(prompt).toContain(
+      "Ongoing mandates remain active until explicitly ended",
+    );
+    expect(prompt).toContain(
+      "Do not close unrelated tasks or cancel other triggers",
+    );
+    expect(prompt).toContain(
+      "subordinate to this trigger's prompt, explicit user instructions, and the session's existing permissions",
+    );
+    expect(prompt).toContain(
+      "if cancellation is outside this run's authority, report the verified outcome and required cancellation",
+    );
     expect(prompt).not.toContain("cast trigger cancel task-internal-id");
   };
 
@@ -400,41 +543,69 @@ describe("trigger run lifecycle guidance", () => {
 
   it("injects the same rules inline without changing the stored prompt or completing the purpose", async () => {
     const input = task({ originating_conversation_id: "conv123" });
-    const { scheduler, calls } = makeScheduler([input], { claimResult: t => t });
+    const { scheduler, calls } = makeScheduler([input], {
+      claimResult: (t) => t,
+    });
     const original = input.prompt;
     await scheduler.poll();
     expect(calls.injected).toEqual(["conv123"]);
     const prompt = calls.prompts[0];
-    expect(prompt).toContain(`<scheduled-task title="${input.title}" task-id="${input._id}">${original}`);
+    expect(prompt).toContain(
+      `<scheduled-task title="${input.title}" task-id="${input._id}">${original}`,
+    );
     assertLifecycle(prompt);
     expect(input.prompt).toBe(original);
     expect(calls.completed).toEqual([input._id]);
     expect(calls.failed).toEqual([]);
     const start = "Trigger lifecycle defaults";
     const spawnedPrompt = scheduler.buildPrompt(task());
-    expect(prompt.slice(prompt.indexOf(start), prompt.indexOf("</scheduled-task>")))
-      .toBe(spawnedPrompt.slice(spawnedPrompt.indexOf(start), spawnedPrompt.indexOf('\n- To set a follow-up trigger:')));
+    expect(
+      prompt.slice(prompt.indexOf(start), prompt.indexOf("</scheduled-task>")),
+    ).toBe(
+      spawnedPrompt.slice(
+        spawnedPrompt.indexOf(start),
+        spawnedPrompt.indexOf("\n- To set a follow-up trigger:"),
+      ),
+    );
   });
 
   // A role's routine wakes a session whose opening message already says how it
   // works, so it carries its own prompt and nothing else.
   it("injects a role's routine with no lifecycle defaults", async () => {
-    const input = task({ originating_conversation_id: "conv123", role_id: "role1" });
-    const { scheduler, calls } = makeScheduler([input], { claimResult: t => t });
+    const input = task({
+      originating_conversation_id: "conv123",
+      role_id: "role1",
+    });
+    const { scheduler, calls } = makeScheduler([input], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
-    expect(calls.prompts[0]).toBe(`<scheduled-task title="${input.title}" task-id="${input._id}">${input.prompt}</scheduled-task>`);
+    expect(calls.prompts[0]).toBe(
+      `<scheduled-task title="${input.title}" task-id="${input._id}">${input.prompt}</scheduled-task>`,
+    );
   });
 
   // The briefing and the server post by ONE rule (runResultThreadOf): a run is
   // told its summary lands in a thread exactly when it does.
   it("tells a run its summary is posted to a thread only when the server will post it", () => {
     const { scheduler } = makeScheduler([]);
-    const posted = "Your summary will be posted as a message in the originating conversation thread.";
-    expect(scheduler.buildPrompt(task({ target_conversation_id: "thread1" }))).toContain(posted);
-    expect(scheduler.buildPrompt(task({ schedule_type: "once", created_by_conversation_id: "creator1" }))).toContain(posted);
+    const posted =
+      "Your summary will be posted as a message in the originating conversation thread.";
+    expect(
+      scheduler.buildPrompt(task({ target_conversation_id: "thread1" })),
+    ).toContain(posted);
+    expect(
+      scheduler.buildPrompt(
+        task({ schedule_type: "once", created_by_conversation_id: "creator1" }),
+      ),
+    ).toContain(posted);
     // A repeating fresh run reports to its trigger row, never to the creator.
-    expect(scheduler.buildPrompt(task({ created_by_conversation_id: "creator1" }))).not.toContain(posted);
-    expect(scheduler.buildPrompt(task({ schedule_type: "once" }))).not.toContain(posted);
+    expect(
+      scheduler.buildPrompt(task({ created_by_conversation_id: "creator1" })),
+    ).not.toContain(posted);
+    expect(
+      scheduler.buildPrompt(task({ schedule_type: "once" })),
+    ).not.toContain(posted);
   });
 
   it("keeps the safe-mode mandate and launch restrictions while deferring unauthorized cancellation", () => {
@@ -443,15 +614,22 @@ describe("trigger run lifecycle guidance", () => {
     const prompt = scheduler.buildPrompt(input);
     assertLifecycle(prompt);
     expect(prompt).toContain("strictly read-only");
-    expect(prompt).toContain("Never modify files, run state-changing commands, commit, push, or deploy");
+    expect(prompt).toContain(
+      "Never modify files, run state-changing commands, commit, push, or deploy",
+    );
     const { extraAgentArgs } = buildRunLaunch(input, {} as any);
     expect(extraAgentArgs).toContain("--disallowedTools");
     expect(extraAgentArgs.join(" ")).toContain("strictly read-only");
   });
 
   it("an inline run inherits its session permissions without a new mode mandate", async () => {
-    const input = task({ originating_conversation_id: "conv123", mode: "propose" });
-    const { scheduler, calls } = makeScheduler([input], { claimResult: t => t });
+    const input = task({
+      originating_conversation_id: "conv123",
+      mode: "propose",
+    });
+    const { scheduler, calls } = makeScheduler([input], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     assertLifecycle(calls.prompts[0]);
     expect(calls.prompts[0]).not.toContain("This is a SAFE-mode scheduled run");
@@ -471,7 +649,9 @@ describe("precheck gate", () => {
   });
 
   it("exit 0 lets the run proceed and records no skip", async () => {
-    const { scheduler, calls } = makeScheduler([injectTask("exit 0")], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([injectTask("exit 0")], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.injected).toEqual(["conv123"]);
     expect(calls.completed).toEqual(["t1"]);
@@ -479,7 +659,9 @@ describe("precheck gate", () => {
   });
 
   it("a non-zero exit skips the run: nothing injected, nothing failed, a skip recorded", async () => {
-    const { scheduler, calls } = makeScheduler([injectTask("exit 3")], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([injectTask("exit 3")], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.claimed).toEqual(["t1"]);
     expect(calls.injected).toEqual([]);
@@ -487,13 +669,24 @@ describe("precheck gate", () => {
     // A skip is not a failure: retrying it would just re-run the same gate.
     expect(calls.failed).toEqual([]);
     expect(calls.skipped).toHaveLength(1);
-    expect(calls.skipped[0]).toMatchObject({ taskId: "t1", command: "exit 3", exitCode: 3, timedOut: false });
+    expect(calls.skipped[0]).toMatchObject({
+      taskId: "t1",
+      command: "exit 3",
+      exitCode: 3,
+      timedOut: false,
+    });
     expect(calls.skipped[0].reason).toBe("precheck exited 3");
   });
 
   it("gates a spawn run too — the tmux spawn is never reached", async () => {
-    const task = { ...spawnTask("t1", dir), schedule_type: "recurring", precheck: "exit 1" };
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const task = {
+      ...spawnTask("t1", dir),
+      schedule_type: "recurring",
+      precheck: "exit 1",
+    };
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
     expect(calls.skipped).toHaveLength(1);
     expect(calls.failed).toEqual([]);
@@ -503,32 +696,47 @@ describe("precheck gate", () => {
     const out = path.join(dir, "watched");
     fs.writeFileSync(out, "pr 1\n");
     const task = injectTask(`cat ${out}`, { precheck_mode: "changes" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
-    expect(calls.skipped.map((s) => s.reason)).toEqual(["precheck output recorded; the next change wakes it"]);
+    expect(calls.skipped.map((s) => s.reason)).toEqual([
+      "precheck output recorded; the next change wakes it",
+    ]);
     await scheduler.executeTask(task);
-    expect(calls.skipped.map((s) => s.reason).at(-1)).toBe("precheck output unchanged");
+    expect(calls.skipped.map((s) => s.reason).at(-1)).toBe(
+      "precheck output unchanged",
+    );
     expect(calls.injected).toEqual([]);
     fs.writeFileSync(out, "pr 1\npr 2\n");
     await scheduler.executeTask(task);
     expect(calls.injected).toEqual(["conv123"]);
     expect(calls.prompts[0]).toContain("pr 2");
-    expect(calls.prompts[0]).toContain("What this trigger's precheck reported when it woke this run");
+    expect(calls.prompts[0]).toContain(
+      "What this trigger's precheck reported when it woke this run",
+    );
     // The next firing compares against what woke this one.
     await scheduler.executeTask(task);
-    expect(calls.skipped.map((s) => s.reason).at(-1)).toBe("precheck output unchanged");
+    expect(calls.skipped.map((s) => s.reason).at(-1)).toBe(
+      "precheck output unchanged",
+    );
   }, 60_000);
 
   it("a state gate reads its previous state, keeps the new one either way and wakes on its own verdict", async () => {
     // Wakes on its third firing, counting in its state.
     const script = `n=$(printf %s "$CAST_PRECHECK_STATE" | sed 's/[^0-9]//g'); n=$((\${n:-0}+1)); if [ $n -ge 3 ]; then printf '{"wake":true,"state":%d,"message":"fired %d"}' $n $n; else printf '{"wake":false,"state":%d}' $n; fi`;
     const task: any = injectTask(script, { precheck_mode: "state" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
     expect(task.precheck_state).toBe("1");
     await scheduler.executeTask(task);
     expect(task.precheck_state).toBe("2");
-    expect(calls.skipped.map((s) => s.reason)).toEqual(["precheck said not yet", "precheck said not yet"]);
+    expect(calls.skipped.map((s) => s.reason)).toEqual([
+      "precheck said not yet",
+      "precheck said not yet",
+    ]);
     await scheduler.executeTask(task);
     expect(task.precheck_state).toBe("3");
     expect(calls.injected).toEqual(["conv123"]);
@@ -537,8 +745,17 @@ describe("precheck gate", () => {
 
   it("a run the gate did not wake carries no message from an earlier one", async () => {
     // Woken at 9:00 with a message; at 10:00 a person presses Run now.
-    const task: any = injectTask("exit 0", { precheck_mode: "changes", precheck_message: "PR #12 opened" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => ({ ...t, last_run_source: "manual", precheck_message: undefined }) });
+    const task: any = injectTask("exit 0", {
+      precheck_mode: "changes",
+      precheck_message: "PR #12 opened",
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => ({
+        ...t,
+        last_run_source: "manual",
+        precheck_message: undefined,
+      }),
+    });
     await scheduler.executeTask(task);
     expect(calls.injected).toEqual(["conv123"]);
     expect(calls.prompts[0]).not.toContain("PR #12 opened");
@@ -547,8 +764,15 @@ describe("precheck gate", () => {
   it("the retry of a run its gate woke runs ungated and keeps the message it was woken with", async () => {
     // Woken by PR #9, the run failed; the gate already holds PR #9's output,
     // so asking it again would say "unchanged" and PR #9 would never run.
-    const task: any = injectTask("exit 0", { precheck_mode: "changes", precheck_state: "sha256:pr9", retry_count: 1, precheck_message: "PR #9 opened" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const task: any = injectTask("exit 0", {
+      precheck_mode: "changes",
+      precheck_state: "sha256:pr9",
+      retry_count: 1,
+      precheck_message: "PR #9 opened",
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
     expect(calls.skipped).toEqual([]);
     expect(calls.injected).toEqual(["conv123"]);
@@ -556,8 +780,13 @@ describe("precheck gate", () => {
   }, 60_000);
 
   it("a state gate that prints no verdict skips and keeps its state", async () => {
-    const task: any = injectTask("echo hello", { precheck_mode: "state", precheck_state: "7" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const task: any = injectTask("echo hello", {
+      precheck_mode: "state",
+      precheck_state: "7",
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.executeTask(task);
     expect(calls.skipped[0].reason).toContain("printed no");
     expect(task.precheck_state).toBe("7");
@@ -568,7 +797,11 @@ describe("precheck gate", () => {
     // it calls with a short one — the contract under test is that a timeout
     // fails closed, which is what turns into a skip above.
     const started = Date.now();
-    const result = await runTriggerPrecheck({ command: "sleep 30", cwd: dir, timeoutMs: 300 });
+    const result = await runTriggerPrecheck({
+      command: "sleep 30",
+      cwd: dir,
+      timeoutMs: 300,
+    });
     expect(result.timedOut).toBe(true);
     expect(triggerPrecheckPassed(result)).toBe(false);
     expect(Date.now() - started).toBeLessThan(10_000);
@@ -576,26 +809,44 @@ describe("precheck gate", () => {
 
   it("uses the claimed manual source even when the due row says recurring", async () => {
     const marker = path.join(dir, "precheck-ran");
-    const task = injectTask(`touch '${marker}'; exit 1`, { project_path: dir, last_run_source: "recurring" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: t => ({ ...t, last_run_source: "manual" }) });
+    const task = injectTask(`touch '${marker}'; exit 1`, {
+      project_path: dir,
+      last_run_source: "recurring",
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => ({ ...t, last_run_source: "manual" }),
+    });
     await scheduler.poll();
     expect(fs.existsSync(marker)).toBe(false);
     expect(calls.injected).toEqual(["conv123"]);
     expect(calls.skipped).toEqual([]);
   });
 
-  it.each(["recurring", "scheduled"])("a %s claim after a manual run applies the gate again", async source => {
-    const task = injectTask("exit 1", { project_path: dir, last_run_source: "manual" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: t => ({ ...t, last_run_source: source }) });
-    await scheduler.poll();
-    expect(calls.injected).toEqual([]);
-    expect(calls.skipped).toHaveLength(1);
-    expect(calls.skipped[0].source).toBe(source);
-  });
+  it.each(["recurring", "scheduled"])(
+    "a %s claim after a manual run applies the gate again",
+    async (source) => {
+      const task = injectTask("exit 1", {
+        project_path: dir,
+        last_run_source: "manual",
+      });
+      const { scheduler, calls } = makeScheduler([task], {
+        claimResult: (t) => ({ ...t, last_run_source: source }),
+      });
+      await scheduler.poll();
+      expect(calls.injected).toEqual([]);
+      expect(calls.skipped).toHaveLength(1);
+      expect(calls.skipped[0].source).toBe(source);
+    },
+  );
 
   it("a server without firing stamps derives the source from the schedule, never the old row", async () => {
-    const task = injectTask("exit 1", { project_path: dir, last_run_source: "manual" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: () => ({ status: "running" }) });
+    const task = injectTask("exit 1", {
+      project_path: dir,
+      last_run_source: "manual",
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: () => ({ status: "running" }),
+    });
     await scheduler.poll();
     expect(calls.skipped[0].source).toBe("recurring");
     expect(calls.injected).toEqual([]);
@@ -603,15 +854,21 @@ describe("precheck gate", () => {
 
   it("an event trigger ignores the precheck — the webhook already is the evidence", async () => {
     const task = injectTask("exit 1", { schedule_type: "event" });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.skipped).toEqual([]);
     expect(calls.injected).toEqual(["conv123"]);
   });
 
   it("runs ungated when the named directory is gone, rather than answering about $HOME", async () => {
-    const task = injectTask("exit 1", { project_path: path.join(dir, "vanished") });
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const task = injectTask("exit 1", {
+      project_path: path.join(dir, "vanished"),
+    });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.skipped).toEqual([]);
     expect(calls.injected).toEqual(["conv123"]);
@@ -619,7 +876,9 @@ describe("precheck gate", () => {
 
   it("a trigger with no precheck runs exactly as before", async () => {
     const task = { ...spawnTask("t1"), originating_conversation_id: "conv123" };
-    const { scheduler, calls } = makeScheduler([task], { claimResult: (t) => t });
+    const { scheduler, calls } = makeScheduler([task], {
+      claimResult: (t) => t,
+    });
     await scheduler.poll();
     expect(calls.skipped).toEqual([]);
     expect(calls.injected).toEqual(["conv123"]);
@@ -637,8 +896,20 @@ describe("checkTaskCompletion's session check", () => {
   it("ends a run only when tmux says the session is gone, not when it cannot answer", async () => {
     const tmux = await import("./tmux.js");
     const { scheduler, calls } = makeScheduler([]);
-    scheduler.track({ taskId: "t1", tmuxSession: "ct-claude-abc123", startedAt: Date.now(), maxRuntimeMs: 600_000, runSessionUuid: "u1" });
-    const probe = spyOn(tmux, "tmuxRunAsync").mockResolvedValue({ status: null, stdout: "", stderr: "", killed: true, signal: "SIGKILL" } as any);
+    scheduler.track({
+      taskId: "t1",
+      tmuxSession: "ct-claude-abc123",
+      startedAt: Date.now(),
+      maxRuntimeMs: 600_000,
+      runSessionUuid: "u1",
+    });
+    const probe = spyOn(tmux, "tmuxRunAsync").mockResolvedValue({
+      status: null,
+      stdout: "",
+      stderr: "",
+      killed: true,
+      signal: "SIGKILL",
+    } as any);
     try {
       await scheduler.checkTaskCompletion("t1");
       expect(calls.completed).toEqual([]);
@@ -647,10 +918,23 @@ describe("checkTaskCompletion's session check", () => {
       // A probe that never answers still meets the runtime cap.
       scheduler.running.get("t1").startedAt = Date.now() - 700_000;
       await scheduler.checkTaskCompletion("t1");
-      expect(calls.failed.map((f: { error: string }) => f.error)).toEqual(["Exceeded max runtime (10min)"]);
-      scheduler.track({ taskId: "t1", tmuxSession: "ct-claude-abc123", startedAt: Date.now(), maxRuntimeMs: 600_000, runSessionUuid: "u1" });
+      expect(calls.failed.map((f: { error: string }) => f.error)).toEqual([
+        "Exceeded max runtime (10min)",
+      ]);
+      scheduler.track({
+        taskId: "t1",
+        tmuxSession: "ct-claude-abc123",
+        startedAt: Date.now(),
+        maxRuntimeMs: 600_000,
+        runSessionUuid: "u1",
+      });
 
-      probe.mockResolvedValue({ status: 1, stdout: "", stderr: "can't find session: ct-claude-abc123", code: 1 } as any);
+      probe.mockResolvedValue({
+        status: 1,
+        stdout: "",
+        stderr: "can't find session: ct-claude-abc123",
+        code: 1,
+      } as any);
       await scheduler.checkTaskCompletion("t1");
       expect(calls.completed).toEqual(["t1"]);
       expect(scheduler.running.has("t1")).toBe(false);
@@ -669,7 +953,11 @@ describe("due runs while the machine is over (startableDue)", () => {
     { _id: "latest", run_at: now - 12 * 3_600_000 },
   ];
   it("with room, every due run may start", () => {
-    expect(startableDue(due, true, now).map((t) => t._id)).toEqual(["fresh", "late", "latest"]);
+    expect(startableDue(due, true, now).map((t) => t._id)).toEqual([
+      "fresh",
+      "late",
+      "latest",
+    ]);
   });
   it("at over, only the run that has waited longest starts, once it has waited past the bound", () => {
     expect(startableDue(due, false, now).map((t) => t._id)).toEqual(["latest"]);
@@ -680,12 +968,26 @@ describe("due runs while the machine is over (startableDue)", () => {
 describe("runs already going never hold due triggers (ct-92447)", () => {
   // 2026-11-11: a 4h paced X-reply run and a 45 min run held both slots of a fixed live-run cap, so from 22:16 UTC the
   // poll returned before reading the queue: monitors' prechecks never ran, one-shots never fired, `trigger run` sat.
-  const longRun = (id: string) => ({ taskId: id, tmuxSession: `ct-claude-${id}`, startedAt: Date.now(), maxRuntimeMs: 4 * 3600_000 });
+  const longRun = (id: string) => ({
+    taskId: id,
+    tmuxSession: `ct-claude-${id}`,
+    startedAt: Date.now(),
+    maxRuntimeMs: 4 * 3600_000,
+  });
 
   it("still injects and still runs prechecks while long runs are live", async () => {
-    const inject = { ...spawnTask("inj"), originating_conversation_id: "conv1" };
-    const gated = { ...spawnTask("gated", dir), schedule_type: "recurring", precheck: "exit 1" };
-    const { scheduler, calls } = makeScheduler([inject, gated], { claimResult: (t) => t });
+    const inject = {
+      ...spawnTask("inj"),
+      originating_conversation_id: "conv1",
+    };
+    const gated = {
+      ...spawnTask("gated", dir),
+      schedule_type: "recurring",
+      precheck: "exit 1",
+    };
+    const { scheduler, calls } = makeScheduler([inject, gated], {
+      claimResult: (t) => t,
+    });
     scheduler.track(longRun("a"));
     scheduler.track(longRun("b"));
     scheduler.track(longRun("c"));
@@ -708,7 +1010,8 @@ describe("runs already going never hold due triggers (ct-92447)", () => {
     let release!: () => void;
     scheduler.executeTask = (t: any) => {
       started.push(t._id);
-      if (t._id === "slow") return new Promise<boolean>((r) => (release = () => r(true)));
+      if (t._id === "slow")
+        return new Promise<boolean>((r) => (release = () => r(true)));
       return Promise.resolve(false);
     };
     const first = scheduler.poll();
@@ -759,8 +1062,14 @@ describe("runs already going never hold due triggers (ct-92447)", () => {
   });
 
   it("a claim or skip record the backend did not answer is tried again before the lease lapses", async () => {
-    const gated = { ...spawnTask("gated", dir), schedule_type: "recurring", precheck: "exit 1" };
-    const { scheduler, calls } = makeScheduler([gated], { claimResult: (t) => t });
+    const gated = {
+      ...spawnTask("gated", dir),
+      schedule_type: "recurring",
+      precheck: "exit 1",
+    };
+    const { scheduler, calls } = makeScheduler([gated], {
+      claimResult: (t) => t,
+    });
     scheduler.retryDelaysMs = [0, 0, 0];
     const realClaim = scheduler.syncService.claimTask;
     const realSkip = scheduler.syncService.skipTaskRun;
@@ -784,8 +1093,12 @@ describe("runs already going never hold due triggers (ct-92447)", () => {
     const lines: string[] = [];
     const { scheduler } = makeScheduler([]);
     scheduler.log = (msg: string) => lines.push(msg);
-    scheduler.syncService.getDueTasks = async () => { throw new Error("The operation timed out."); };
+    scheduler.syncService.getDueTasks = async () => {
+      throw new Error("The operation timed out.");
+    };
     await scheduler.poll();
-    expect(lines.some((l) => l.includes("Poll error") && l.includes("timed out"))).toBe(true);
+    expect(
+      lines.some((l) => l.includes("Poll error") && l.includes("timed out")),
+    ).toBe(true);
   });
 });

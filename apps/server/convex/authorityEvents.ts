@@ -6,10 +6,16 @@
 import { v } from "convex/values";
 import { query } from "./functions";
 import { getUserOrToken } from "./lib/auth";
-import { heldKeysFor, requireAccessibleConversation, resolveSessionConversation } from "./lib/access";
+import {
+  heldKeysFor,
+  requireAccessibleConversation,
+  resolveSessionConversation,
+} from "./lib/access";
 import { AUTHORITY_EVENT_KINDS } from "./lib/authorityEvents";
 
-const kindValidator = v.union(...AUTHORITY_EVENT_KINDS.map((k) => v.literal(k)));
+const kindValidator = v.union(
+  ...AUTHORITY_EVENT_KINDS.map((k) => v.literal(k)),
+);
 
 /** Rows one index walk reads while looking for a kind. */
 export const KIND_SCAN_MAX = 4000;
@@ -34,8 +40,15 @@ export const list = query({
     // matching after returned nothing whenever newer rows of other kinds
     // filled the cut. The walk is bounded so a rare kind cannot read a whole
     // audit log.
-    const take = async (idx: string, key: string, value: any): Promise<any[]> => {
-      const walk = ctx.db.query("authority_events").withIndex(idx as any, (q: any) => range(q.eq(key, value))).order("desc");
+    const take = async (
+      idx: string,
+      key: string,
+      value: any,
+    ): Promise<any[]> => {
+      const walk = ctx.db
+        .query("authority_events")
+        .withIndex(idx as any, (q: any) => range(q.eq(key, value)))
+        .order("desc");
       if (!args.kind) return await walk.take(limit);
       const out: any[] = [];
       let read = 0;
@@ -58,10 +71,14 @@ export const list = query({
       const held = await heldKeysFor(ctx, userId);
       const sets = await Promise.all([
         take("by_actor_created", "actor_user_id", userId),
-        ...[...held].map((key) => take("by_workspace_created", "workspace", key)),
+        ...[...held].map((key) =>
+          take("by_workspace_created", "workspace", key),
+        ),
       ]);
       const seen = new Set<string>();
-      rows = sets.flat().filter((r) => !seen.has(String(r._id)) && seen.add(String(r._id)));
+      rows = sets
+        .flat()
+        .filter((r) => !seen.has(String(r._id)) && seen.add(String(r._id)));
     }
     return rows
       .filter((r) => !args.kind || r.kind === args.kind)

@@ -1,15 +1,26 @@
-import { StyleSheet, TouchableOpacity, View as RNView } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { appAlert, showActionSheet } from '@/lib/popups';
-import { Text as RNText } from '@/components/Themed';
-import { useState, useCallback } from 'react';
-import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { useCoarseNow } from '@codecast/web/hooks/useCoarseNow';
-import { taskDisplayTitle, isTriggerFailing, triggerEndWords, type TriggerRow, type TaskRow } from '@codecast/web/components/triggerTasks';
-import { describeTaskCadence, fmtClock, fmtDuration, taskStateLabel } from '@codecast/web/components/triggerCadence';
+import { StyleSheet, TouchableOpacity, View as RNView } from "react-native";
+import * as Haptics from "expo-haptics";
+import { appAlert, showActionSheet } from "@/lib/popups";
+import { Text as RNText } from "@/components/Themed";
+import { useState, useCallback } from "react";
+import { useRouter } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { useCoarseNow } from "@codecast/web/hooks/useCoarseNow";
+import {
+  taskDisplayTitle,
+  isTriggerFailing,
+  triggerEndWords,
+  type TriggerRow,
+  type TaskRow,
+} from "@codecast/web/components/triggerTasks";
+import {
+  describeTaskCadence,
+  fmtClock,
+  fmtDuration,
+  taskStateLabel,
+} from "@codecast/web/components/triggerCadence";
 
 // The mobile TRIGGERS dock — the phone twin of GlobalSessionPanel's TriggerDock.
 // Every armed schedule lives in this one collapsible line docked at the top of
@@ -25,18 +36,23 @@ import { describeTaskCadence, fmtClock, fmtDuration, taskStateLabel } from '@cod
 // "on PR comment"); a one-time schedule shows WHEN it fires instead of the
 // generic "one-time".
 function cadenceLabel(task: TaskRow): string {
-  if (task.schedule_type === 'once') return task.run_at ? fmtClock(task.run_at) : 'one-time';
+  if (task.schedule_type === "once")
+    return task.run_at ? fmtClock(task.run_at) : "one-time";
   return describeTaskCadence(task);
 }
 
-export function TriggerDock({ rows, unreadCount, nextRunAt }: {
+export function TriggerDock({
+  rows,
+  unreadCount,
+  nextRunAt,
+}: {
   rows: TriggerRow[];
   unreadCount: number;
   nextRunAt?: number;
 }) {
   const Theme = useTheme();
   const router = useRouter();
-  const ending = triggerEndWords('cancel', 'Trigger');
+  const ending = triggerEndWords("cancel", "Trigger");
   const [expanded, setExpanded] = useState(false);
   const now = useCoarseNow(30_000);
 
@@ -45,7 +61,10 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
   // moment the roster appeared. Opening leaves the watermark alone.
   const toggle = useCallback(() => {
     setExpanded((prev) => {
-      if (prev) useInboxStore.getState().updateClientUI({ schedules_seen_at: Date.now() });
+      if (prev)
+        useInboxStore
+          .getState()
+          .updateClientUI({ schedules_seen_at: Date.now() });
       return !prev;
     });
   }, []);
@@ -55,18 +74,33 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
   const manage = ({ task, openId }: TriggerRow) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const act = useInboxStore.getState().triggerAction;
-    const paused = task.status === 'paused';
+    const paused = task.status === "paused";
     showActionSheet(taskDisplayTitle(task), [
-      ...(openId ? [{ label: 'Open session', onPress: () => router.push(`/session/${openId}`) }] : []),
-      { label: 'Run now', onPress: () => act(task._id, 'runNow') },
-      { label: paused ? 'Resume' : 'Pause', onPress: () => act(task._id, paused ? 'resume' : 'pause') },
+      ...(openId
+        ? [
+            {
+              label: "Open session",
+              onPress: () => router.push(`/session/${openId}`),
+            },
+          ]
+        : []),
+      { label: "Run now", onPress: () => act(task._id, "runNow") },
+      {
+        label: paused ? "Resume" : "Pause",
+        onPress: () => act(task._id, paused ? "resume" : "pause"),
+      },
       {
         label: ending.label,
         destructive: true,
-        onPress: () => appAlert(ending.ask, taskDisplayTitle(task), [
-          { text: 'Keep', style: 'cancel' },
-          { text: ending.label, style: 'destructive', onPress: () => act(task._id, 'cancel') },
-        ]),
+        onPress: () =>
+          appAlert(ending.ask, taskDisplayTitle(task), [
+            { text: "Keep", style: "cancel" },
+            {
+              text: ending.label,
+              style: "destructive",
+              onPress: () => act(task._id, "cancel"),
+            },
+          ]),
       },
     ]);
   };
@@ -75,19 +109,33 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
 
   const failing = rows.some((r) => isTriggerFailing(r.task));
   const titleColor = failing ? Theme.red : Theme.orange;
-  const nextIn = nextRunAt !== undefined ? Math.max(0, nextRunAt - now) : undefined;
+  const nextIn =
+    nextRunAt !== undefined ? Math.max(0, nextRunAt - now) : undefined;
 
   return (
     <RNView style={styles.dock}>
-      <TouchableOpacity style={styles.header} onPress={toggle} activeOpacity={0.7}>
-        <FontAwesome name={expanded ? 'chevron-up' : 'chevron-down'} size={11} color={Theme.textMuted0} />
-        <FontAwesome name="clock-o" size={12} color={titleColor} style={{ marginLeft: 2 }} />
+      <TouchableOpacity
+        style={styles.header}
+        onPress={toggle}
+        activeOpacity={0.7}
+      >
+        <FontAwesome
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={11}
+          color={Theme.textMuted0}
+        />
+        <FontAwesome
+          name="clock-o"
+          size={12}
+          color={titleColor}
+          style={{ marginLeft: 2 }}
+        />
         <RNText style={[styles.headerTitle, { color: titleColor }]}>
           Triggers ({rows.length})
         </RNText>
         {nextIn !== undefined && (
           <RNText style={styles.headerNext} numberOfLines={1}>
-            next {nextIn > 0 ? `in ${fmtDuration(nextIn)}` : 'due'}
+            next {nextIn > 0 ? `in ${fmtDuration(nextIn)}` : "due"}
           </RNText>
         )}
         <RNView style={{ flex: 1 }} />
@@ -103,13 +151,17 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
           {rows.map((row) => {
             const { task } = row;
             const countdown =
-              task.status === 'scheduled' && task.run_at !== undefined ? taskStateLabel(task, now) : null;
+              task.status === "scheduled" && task.run_at !== undefined
+                ? taskStateLabel(task, now)
+                : null;
             return (
               <TouchableOpacity
                 key={task._id}
                 style={styles.row}
                 activeOpacity={0.6}
-                onPress={() => router.push(`/trigger/${task.short_id ?? task._id}` as never)}
+                onPress={() =>
+                  router.push(`/trigger/${task.short_id ?? task._id}` as never)
+                }
                 onLongPress={() => manage(row)}
                 delayLongPress={350}
               >
@@ -126,9 +178,13 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
                 </RNView>
                 <RNView style={styles.rowMeta}>
                   <RNView style={styles.cadenceChip}>
-                    <RNText style={styles.cadenceChipText} numberOfLines={1}>{cadenceLabel(task)}</RNText>
+                    <RNText style={styles.cadenceChipText} numberOfLines={1}>
+                      {cadenceLabel(task)}
+                    </RNText>
                   </RNView>
-                  {countdown && <RNText style={styles.rowCountdown}>{countdown}</RNText>}
+                  {countdown && (
+                    <RNText style={styles.rowCountdown}>{countdown}</RNText>
+                  )}
                 </RNView>
               </TouchableOpacity>
             );
@@ -139,99 +195,101 @@ export function TriggerDock({ rows, unreadCount, nextRunAt }: {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  dock: {
-    borderTopWidth: 1,
-    borderTopColor: Theme.bgHighlight,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: Spacing.lg,
-  },
-  headerTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  headerNext: {
-    fontSize: 12,
-    color: Theme.textMuted0,
-    flexShrink: 1,
-  },
-  newPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 9,
-    backgroundColor: Theme.orange,
-  },
-  newPillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: Theme.bg,
-  },
-  rows: {
-    backgroundColor: Theme.bgAlt,
-  },
-  row: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Theme.borderLight,
-  },
-  rowMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  failDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Theme.red,
-  },
-  rowTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    color: Theme.text,
-  },
-  rowNewPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    backgroundColor: Theme.orange + '22',
-  },
-  rowNewPillText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: Theme.orange,
-    textTransform: 'uppercase',
-  },
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 3,
-  },
-  cadenceChip: {
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 6,
-    backgroundColor: Theme.bgHighlight,
-    maxWidth: 160,
-  },
-  cadenceChipText: {
-    fontSize: 11,
-    color: Theme.textMuted,
-    fontWeight: '500',
-  },
-  rowCountdown: {
-    fontSize: 11,
-    color: Theme.textMuted0,
-    fontWeight: '500',
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    dock: {
+      borderTopWidth: 1,
+      borderTopColor: Theme.bgHighlight,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 14,
+      paddingHorizontal: Spacing.lg,
+    },
+    headerTitle: {
+      fontSize: 12,
+      fontWeight: "600",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    headerNext: {
+      fontSize: 12,
+      color: Theme.textMuted0,
+      flexShrink: 1,
+    },
+    newPill: {
+      paddingHorizontal: 7,
+      paddingVertical: 1,
+      borderRadius: 9,
+      backgroundColor: Theme.orange,
+    },
+    newPillText: {
+      fontSize: 10,
+      fontWeight: "700",
+      color: Theme.bg,
+    },
+    rows: {
+      backgroundColor: Theme.bgAlt,
+    },
+    row: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Theme.borderLight,
+    },
+    rowMain: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    failDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: Theme.red,
+    },
+    rowTitle: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "500",
+      color: Theme.text,
+    },
+    rowNewPill: {
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      borderRadius: 8,
+      backgroundColor: Theme.orange + "22",
+    },
+    rowNewPillText: {
+      fontSize: 9,
+      fontWeight: "700",
+      color: Theme.orange,
+      textTransform: "uppercase",
+    },
+    rowMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 3,
+    },
+    cadenceChip: {
+      paddingHorizontal: 7,
+      paddingVertical: 1,
+      borderRadius: 6,
+      backgroundColor: Theme.bgHighlight,
+      maxWidth: 160,
+    },
+    cadenceChipText: {
+      fontSize: 11,
+      color: Theme.textMuted,
+      fontWeight: "500",
+    },
+    rowCountdown: {
+      fontSize: 11,
+      color: Theme.textMuted0,
+      fontWeight: "500",
+    },
+  }),
+);

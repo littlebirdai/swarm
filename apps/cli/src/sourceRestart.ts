@@ -30,11 +30,28 @@ export type SourceRestartState = {
 };
 
 /** What to do with the id the source hashes to now. `restart` means: check the new code builds, then restart. */
-export function decideSourceRestart(state: SourceRestartState, observedId: string, now: number, overloaded = false): { state: SourceRestartState; restart: boolean } {
-  if (observedId === state.bootId) return { state: { bootId: state.bootId, lastRestartAt: state.lastRestartAt }, restart: false };
-  if (observedId !== state.pendingId) return { state: { ...state, pendingId: observedId, pendingSince: now }, restart: false };
+export function decideSourceRestart(
+  state: SourceRestartState,
+  observedId: string,
+  now: number,
+  overloaded = false,
+): { state: SourceRestartState; restart: boolean } {
+  if (observedId === state.bootId)
+    return {
+      state: { bootId: state.bootId, lastRestartAt: state.lastRestartAt },
+      restart: false,
+    };
+  if (observedId !== state.pendingId)
+    return {
+      state: { ...state, pendingId: observedId, pendingSince: now },
+      restart: false,
+    };
   const settled = now - (state.pendingSince ?? now) >= SOURCE_SETTLE_MS;
-  const spaced = state.lastRestartAt === undefined || now - state.lastRestartAt >= SOURCE_RESTART_SPACING_MS;
-  const deferred = overloaded && now - (state.pendingSince ?? now) < SOURCE_LOADED_MAX_DEFER_MS;
+  const spaced =
+    state.lastRestartAt === undefined ||
+    now - state.lastRestartAt >= SOURCE_RESTART_SPACING_MS;
+  const deferred =
+    overloaded &&
+    now - (state.pendingSince ?? now) < SOURCE_LOADED_MAX_DEFER_MS;
   return { state, restart: settled && spaced && !deferred };
 }

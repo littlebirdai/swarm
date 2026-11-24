@@ -8,7 +8,11 @@ import {
 
 // Minimal stand-in exposing only the editor surface the handlers touch, so the
 // behavior can be exercised without a DOM / live ProseMirror view.
-function mockEditor(opts: { from: number; empty?: boolean; charBefore?: string }) {
+function mockEditor(opts: {
+  from: number;
+  empty?: boolean;
+  charBefore?: string;
+}) {
   const commandCalls: Array<[string, unknown]> = [];
   const editor: any = {
     commandCalls,
@@ -36,7 +40,9 @@ describe("TabIndentExtension", () => {
     // Tiptap tries bindings highest-priority first, so ours must sit lower or
     // it would hijack list indentation.
     const DEFAULT_TIPTAP_PRIORITY = 100;
-    expect((TabIndentExtension as any).config.priority).toBe(TAB_INDENT_PRIORITY);
+    expect((TabIndentExtension as any).config.priority).toBe(
+      TAB_INDENT_PRIORITY,
+    );
     expect(TAB_INDENT_PRIORITY).toBeLessThan(DEFAULT_TIPTAP_PRIORITY);
   });
 

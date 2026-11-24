@@ -4,7 +4,11 @@ import { Bot, X } from "lucide-react";
 import { toastWriteError } from "../../lib/dispatchBinding";
 import { useInboxStore } from "../../store/inboxStore";
 import { useMeetingBots } from "../../hooks/useMeetingBots";
-import { MEETING_BOT_FINAL, type MeetingBot, type MeetingBotStatus } from "../../store/meetingBotsSlice";
+import {
+  MEETING_BOT_FINAL,
+  type MeetingBot,
+  type MeetingBotStatus,
+} from "../../store/meetingBotsSlice";
 
 // A Recall.ai bot sent to a meeting on another platform (convex meetingBots.ts).
 // The field takes the link; under it, one row per bot still on its way in or
@@ -37,29 +41,51 @@ function MeetingBotRow({ bot }: { bot: MeetingBot }) {
   const cancel = useInboxStore((s) => s.cancelMeetingBot);
   const status = STATUS[bot.status] ?? STATUS.requested;
   const going = !MEETING_BOT_FINAL.has(bot.status);
-  const when = bot.status === "scheduled" && bot.join_at
-    ? new Date(bot.join_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : null;
+  const when =
+    bot.status === "scheduled" && bot.join_at
+      ? new Date(bot.join_at).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
   const body = (
     <>
       <Bot className="h-3 w-3 shrink-0 text-sol-text-dim" aria-hidden="true" />
-      <span className="min-w-0 shrink truncate text-sol-text" title={bot.meeting_url}>{platformOf(bot)}</span>
-      <span className={`flex min-w-0 flex-1 items-center gap-1.5 ${status.tone}`}>
+      <span
+        className="min-w-0 shrink truncate text-sol-text"
+        title={bot.meeting_url}
+      >
+        {platformOf(bot)}
+      </span>
+      <span
+        className={`flex min-w-0 flex-1 items-center gap-1.5 ${status.tone}`}
+      >
         {bot.status === "recording" && (
-          <span className="relative inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-sol-green ring-2 ring-sol-green/25" aria-hidden="true" />
+          <span
+            className="relative inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-sol-green ring-2 ring-sol-green/25"
+            aria-hidden="true"
+          />
         )}
         <span className="truncate" title={bot.status_words ?? undefined}>
           {status.words}
           {when && ` ${when}`}
-          {bot.status === "failed" && bot.status_words && <span className="text-sol-red/80"> · {bot.status_words}</span>}
+          {bot.status === "failed" && bot.status_words && (
+            <span className="text-sol-red/80"> · {bot.status_words}</span>
+          )}
         </span>
       </span>
     </>
   );
   return (
-    <li className="flex items-center gap-1.5 text-meta" data-meeting-bot={bot.status}>
+    <li
+      className="flex items-center gap-1.5 text-meta"
+      data-meeting-bot={bot.status}
+    >
       {bot.transcript_id ? (
-        <Link href={`/calls/${bot.transcript_id}`} className="flex min-w-0 flex-1 items-center gap-1.5 rounded hover:underline">
+        <Link
+          href={`/calls/${bot.transcript_id}`}
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded hover:underline"
+        >
           {body}
         </Link>
       ) : (
@@ -128,7 +154,9 @@ export function MeetingBotField() {
       </form>
       {bots.length > 0 && (
         <ul className="mt-2 flex flex-col gap-1.5">
-          {bots.map((b) => <MeetingBotRow key={b._id} bot={b} />)}
+          {bots.map((b) => (
+            <MeetingBotRow key={b._id} bot={b} />
+          ))}
         </ul>
       )}
     </div>

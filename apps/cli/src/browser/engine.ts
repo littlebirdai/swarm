@@ -64,7 +64,8 @@ export function engineHome(): string {
  */
 export function findEngine(): string | null {
   const candidates: string[] = [];
-  if (process.env.CAST_BROWSER_ENGINE) candidates.push(process.env.CAST_BROWSER_ENGINE);
+  if (process.env.CAST_BROWSER_ENGINE)
+    candidates.push(process.env.CAST_BROWSER_ENGINE);
 
   const onPath = whichBin(ENGINE_PACKAGE);
   if (onPath) candidates.push(onPath);
@@ -72,13 +73,19 @@ export function findEngine(): string | null {
   // Relative to this module, for a source or npm install.
   try {
     const here = path.dirname(fileURLToPath(import.meta.url));
-    candidates.push(path.resolve(here, "../../node_modules/.bin", ENGINE_PACKAGE));
-    candidates.push(path.resolve(here, "../../../../node_modules/.bin", ENGINE_PACKAGE));
+    candidates.push(
+      path.resolve(here, "../../node_modules/.bin", ENGINE_PACKAGE),
+    );
+    candidates.push(
+      path.resolve(here, "../../../../node_modules/.bin", ENGINE_PACKAGE),
+    );
   } catch {
     /* import.meta.url is unavailable in some bundles */
   }
 
-  candidates.push(path.join(engineHome(), "node_modules", ".bin", ENGINE_PACKAGE));
+  candidates.push(
+    path.join(engineHome(), "node_modules", ".bin", ENGINE_PACKAGE),
+  );
 
   for (const c of candidates) {
     try {
@@ -110,12 +117,26 @@ export function ensureEngine(opts: { quiet?: boolean } = {}): InstallResult {
   const home = engineHome();
   fs.mkdirSync(home, { recursive: true });
   if (!opts.quiet) {
-    process.stderr.write(`  installing the browser engine (${ENGINE_PACKAGE}@${ENGINE_VERSION}), one time…\n`);
+    process.stderr.write(
+      `  installing the browser engine (${ENGINE_PACKAGE}@${ENGINE_VERSION}), one time…\n`,
+    );
   }
   const res = spawnSync(
     "npm",
-    ["install", `${ENGINE_PACKAGE}@${ENGINE_VERSION}`, "--prefix", home, "--no-save", "--silent"],
-    { encoding: "utf-8", stdio: opts.quiet ? ["ignore", "ignore", "ignore"] : ["ignore", "ignore", "inherit"] },
+    [
+      "install",
+      `${ENGINE_PACKAGE}@${ENGINE_VERSION}`,
+      "--prefix",
+      home,
+      "--no-save",
+      "--silent",
+    ],
+    {
+      encoding: "utf-8",
+      stdio: opts.quiet
+        ? ["ignore", "ignore", "ignore"]
+        : ["ignore", "ignore", "inherit"],
+    },
   );
   if (res.status !== 0) {
     throw new Error(
@@ -125,7 +146,10 @@ export function ensureEngine(opts: { quiet?: boolean } = {}): InstallResult {
     );
   }
   const found = findEngine();
-  if (!found) throw new Error(`the browser engine installed but could not be found under ${home}`);
+  if (!found)
+    throw new Error(
+      `the browser engine installed but could not be found under ${home}`,
+    );
   return { binary: found, installed: true };
 }
 
@@ -168,9 +192,15 @@ export interface EngineOptions {
  * terminal has one obvious intent and should not be handed a private browser
  * they then cannot see.
  */
-export function engineSession(detectSessionId?: () => string | null, env: NodeJS.ProcessEnv = process.env): string {
+export function engineSession(
+  detectSessionId?: () => string | null,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
   const key = ownerKey(detectSessionId, env);
-  return withTabName(key ? engineSessionKey(key) : "default", env[BROWSER_TAB_ENV]);
+  return withTabName(
+    key ? engineSessionKey(key) : "default",
+    env[BROWSER_TAB_ENV],
+  );
 }
 
 /** An owner key as the engine session name: names end up in paths and process
@@ -200,12 +230,17 @@ const TAB_SEPARATOR = "__";
  *  mode suffix is added; a long name is shortened with a hash so two long
  *  names never collapse into one tab. */
 export function withTabName(base: string, name: string | undefined): string {
-  const clean = (name ?? "").replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  const clean = (name ?? "")
+    .replace(/[^A-Za-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   if (!clean) return base;
   const room = SESSION_KEY_MAX - MODE_SUFFIX_MAX - TAB_SEPARATOR.length;
   const owner = base.slice(0, room - 8);
   const left = room - owner.length;
-  const tab = clean.length <= left ? clean : `${clean.slice(0, left - 5)}-${createHash("sha1").update(clean).digest("hex").slice(0, 4)}`;
+  const tab =
+    clean.length <= left
+      ? clean
+      : `${clean.slice(0, left - 5)}-${createHash("sha1").update(clean).digest("hex").slice(0, 4)}`;
   return `${owner}${TAB_SEPARATOR}${tab}`;
 }
 
@@ -215,10 +250,15 @@ export function withTabName(base: string, name: string | undefined): string {
  * `--tab <id>` acted on that tab in the old driver, and here it would mint an
  * empty tab named after it.
  */
-export function requestTabName(name: string | undefined, env: NodeJS.ProcessEnv = process.env): void {
+export function requestTabName(
+  name: string | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
   if (!name) return;
   if (/^([0-9a-f]{8}|[0-9a-f]{32}|t\d+)$/i.test(name)) {
-    throw new Error(`--tab names a tab of your own (e.g. --tab checkout); '${name}' is an existing tab's id. To act on that tab: cast browser tab switch ${name}`);
+    throw new Error(
+      `--tab names a tab of your own (e.g. --tab checkout); '${name}' is an existing tab's id. To act on that tab: cast browser tab switch ${name}`,
+    );
   }
   env[BROWSER_TAB_ENV] = name;
 }
@@ -226,7 +266,9 @@ export function requestTabName(name: string | undefined, env: NodeJS.ProcessEnv 
 /** The tab name in a session key, or null for the agent's default tab. */
 export function tabNameOf(session: string): string | null {
   const i = baseSessionKey(session).lastIndexOf(TAB_SEPARATOR);
-  return i >= 0 ? baseSessionKey(session).slice(i + TAB_SEPARATOR.length) : null;
+  return i >= 0
+    ? baseSessionKey(session).slice(i + TAB_SEPARATOR.length)
+    : null;
 }
 
 /** The agent behind a session key: no mode suffix and no tab name. What
@@ -256,7 +298,10 @@ const REAL_SESSION_SUFFIX = "-real";
  */
 const PANE_SESSION_SUFFIX = "-pane";
 
-const MODE_SUFFIX_MAX = Math.max(REAL_SESSION_SUFFIX.length, PANE_SESSION_SUFFIX.length);
+const MODE_SUFFIX_MAX = Math.max(
+  REAL_SESSION_SUFFIX.length,
+  PANE_SESSION_SUFFIX.length,
+);
 
 export function realSessionKey(session: string): string {
   if (isRealSession(session)) return session;
@@ -280,8 +325,10 @@ export function isPaneSession(session: string): boolean {
 
 /** The inverse of realSessionKey and paneSessionKey: the key with no mode on it. */
 export function baseSessionKey(session: string): string {
-  if (isRealSession(session)) return session.slice(0, -REAL_SESSION_SUFFIX.length);
-  if (isPaneSession(session)) return session.slice(0, -PANE_SESSION_SUFFIX.length);
+  if (isRealSession(session))
+    return session.slice(0, -REAL_SESSION_SUFFIX.length);
+  if (isPaneSession(session))
+    return session.slice(0, -PANE_SESSION_SUFFIX.length);
   return session;
 }
 
@@ -315,7 +362,8 @@ export function baseSessionKey(session: string): string {
  */
 export function engineStateDir(env: NodeJS.ProcessEnv = process.env): string {
   if (env.AGENT_BROWSER_SOCKET_DIR) return env.AGENT_BROWSER_SOCKET_DIR;
-  if (env.XDG_RUNTIME_DIR) return path.join(env.XDG_RUNTIME_DIR, "agent-browser");
+  if (env.XDG_RUNTIME_DIR)
+    return path.join(env.XDG_RUNTIME_DIR, "agent-browser");
   return path.join(os.homedir(), ".agent-browser");
 }
 
@@ -367,9 +415,15 @@ export function managedPort(): number | null {
  * URL carrying the bridge token, and on macOS every user can read every
  * other user's process arguments.
  */
-export function runEngine(args: string[], opts: EngineOptions & { narrate: string }): Promise<EngineRun>;
+export function runEngine(
+  args: string[],
+  opts: EngineOptions & { narrate: string },
+): Promise<EngineRun>;
 export function runEngine(args: string[], opts?: EngineOptions): EngineRun;
-export function runEngine(args: string[], opts: EngineOptions = {}): EngineRun | Promise<EngineRun> {
+export function runEngine(
+  args: string[],
+  opts: EngineOptions = {},
+): EngineRun | Promise<EngineRun> {
   const binary = findEngine();
   if (!binary) {
     throw new Error(
@@ -379,7 +433,11 @@ export function runEngine(args: string[], opts: EngineOptions = {}): EngineRun |
   }
   const cdp = opts.cdp ?? managedPort();
   if (!cdp) {
-    return { status: 1, stdout: "", stderr: "no managed browser is running — run `cast browser start`" };
+    return {
+      status: 1,
+      stdout: "",
+      stderr: "no managed browser is running — run `cast browser start`",
+    };
   }
 
   const session = opts.session ?? engineSession();
@@ -387,10 +445,18 @@ export function runEngine(args: string[], opts: EngineOptions = {}): EngineRun |
   // Never past the verb's whole budget (deadline.ts): a synchronous run
   // blocks the timer that would otherwise end it.
   const left = remainingMs();
-  setStage(opts.narrate ?? `waiting for the browser engine (\`${args[0] ?? ""}\`)`);
+  setStage(
+    opts.narrate ?? `waiting for the browser engine (\`${args[0] ?? ""}\`)`,
+  );
   const launch = {
     timeout: Math.max(1, Math.min(opts.timeoutMs ?? 120_000, left ?? Infinity)),
-    stdio: (opts.inherit ? ["ignore", "inherit", "inherit"] : ["ignore", "pipe", "pipe"]) as ["ignore", "inherit" | "pipe", "inherit" | "pipe"],
+    stdio: (opts.inherit
+      ? ["ignore", "inherit", "inherit"]
+      : ["ignore", "pipe", "pipe"]) as [
+      "ignore",
+      "inherit" | "pipe",
+      "inherit" | "pipe",
+    ],
     env: {
       ...process.env,
       // The isolation that replaces our tab-ownership bookkeeping.
@@ -407,10 +473,16 @@ export function runEngine(args: string[], opts: EngineOptions = {}): EngineRun |
       const child = spawn(binary, full, launch);
       let stdout = "";
       let stderr = "";
-      child.stdout?.setEncoding("utf-8").on("data", (chunk: string) => (stdout += chunk));
-      child.stderr?.setEncoding("utf-8").on("data", (chunk: string) => (stderr += chunk));
+      child.stdout
+        ?.setEncoding("utf-8")
+        .on("data", (chunk: string) => (stdout += chunk));
+      child.stderr
+        ?.setEncoding("utf-8")
+        .on("data", (chunk: string) => (stderr += chunk));
       child.on("error", reject);
-      child.on("close", (status) => resolve({ status: status ?? 1, stdout, stderr }));
+      child.on("close", (status) =>
+        resolve({ status: status ?? 1, stdout, stderr }),
+      );
     });
     return narrated(opts.narrate, run).finally(() => {
       restoreFocusIfStolen(front);
@@ -435,7 +507,10 @@ export function runEngine(args: string[], opts: EngineOptions = {}): EngineRun |
  * directly keeps that envelope out of the rest of the codebase, so if it ever
  * changes shape only this function moves.
  */
-export function runEngineJson<T = any>(args: string[], opts: EngineOptions = {}): T {
+export function runEngineJson<T = any>(
+  args: string[],
+  opts: EngineOptions = {},
+): T {
   return parseEngineJson<T>(runEngine([...args, "--json"], opts));
 }
 
@@ -449,7 +524,10 @@ export function runEngineJson<T = any>(args: string[], opts: EngineOptions = {})
 export function parseEngineJson<T = any>(res: EngineRun): T {
   const text = res.stdout.trim();
   if (!text) {
-    throw new Error(res.stderr.trim() || `the browser engine returned nothing (exit ${res.status})`);
+    throw new Error(
+      res.stderr.trim() ||
+        `the browser engine returned nothing (exit ${res.status})`,
+    );
   }
   let parsed: any;
   try {
@@ -458,10 +536,16 @@ export function parseEngineJson<T = any>(res: EngineRun): T {
     // Not JSON: usually a human-readable error the engine printed before it
     // got as far as formatting a response. Pass it through rather than
     // reporting a parse failure the reader can do nothing with.
-    throw new Error(text.split("\n")[0] || `the browser engine returned unparseable output`);
+    throw new Error(
+      text.split("\n")[0] || `the browser engine returned unparseable output`,
+    );
   }
   if (parsed && parsed.success === false) {
-    throw new Error(parsed.error?.message || parsed.error || "the browser engine reported a failure");
+    throw new Error(
+      parsed.error?.message ||
+        parsed.error ||
+        "the browser engine reported a failure",
+    );
   }
   return (parsed?.data ?? parsed) as T;
 }
@@ -507,7 +591,8 @@ export function engineFitness(): EngineFitness {
   // driving it and letting a real error speak is better than refusing on a
   // guess.
   if (!v) return { ok: true, version: "unknown" };
-  if (compareVersions(v, ENGINE_MIN_VERSION) < 0) return { ok: false, reason: "too-old", version: v };
+  if (compareVersions(v, ENGINE_MIN_VERSION) < 0)
+    return { ok: false, reason: "too-old", version: v };
   return { ok: true, version: v };
 }
 
@@ -522,9 +607,14 @@ export function engineFitness(): EngineFitness {
 export function engineHelpText(engineVerb: string): string | null {
   const binary = findEngine();
   if (!binary) return null;
-  const res = spawnSync(binary, [engineVerb, "--help"], { encoding: "utf-8", timeout: 15_000 });
+  const res = spawnSync(binary, [engineVerb, "--help"], {
+    encoding: "utf-8",
+    timeout: 15_000,
+  });
   if (res.status !== 0) return null;
-  const text = (((res.stdout as string) ?? "") + ((res.stderr as string) ?? "")).trim();
+  const text = (
+    ((res.stdout as string) ?? "") + ((res.stderr as string) ?? "")
+  ).trim();
   // A verb the engine does not know prints its generic usage error.
   if (!text || /^Unknown command:/m.test(text)) return null;
   return text;
@@ -543,15 +633,28 @@ export function engineVersion(): string | null {
   const cacheFile = path.join(engineHome(), "version-cache.json");
   if (stamp) {
     try {
-      const cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8")) as { stamp?: unknown; version?: unknown };
-      if (cached.stamp === stamp && typeof cached.version === "string" && cached.version) return cached.version;
+      const cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8")) as {
+        stamp?: unknown;
+        version?: unknown;
+      };
+      if (
+        cached.stamp === stamp &&
+        typeof cached.version === "string" &&
+        cached.version
+      )
+        return cached.version;
     } catch {
       /* no cache yet, or an unreadable one: ask the engine */
     }
   }
-  const res = spawnSync(binary, ["--version"], { encoding: "utf-8", timeout: 15_000 });
+  const res = spawnSync(binary, ["--version"], {
+    encoding: "utf-8",
+    timeout: 15_000,
+  });
   if (res.status !== 0) return null;
-  const version = ((res.stdout as string) ?? "").trim().replace(/^agent-browser\s+/, "") || null;
+  const version =
+    ((res.stdout as string) ?? "").trim().replace(/^agent-browser\s+/, "") ||
+    null;
   if (stamp && version) {
     try {
       fs.mkdirSync(path.dirname(cacheFile), { recursive: true });

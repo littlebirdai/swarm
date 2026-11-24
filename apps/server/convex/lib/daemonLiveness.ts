@@ -8,7 +8,10 @@ import type { Id } from "../_generated/dataModel";
 // and those mutations (plus the heartbeat) failed on OCC (2026-09-30, 2026-10-16).
 export const DAEMON_LAST_SEEN_THROTTLE_MS = 50 * 1000;
 
-export function daemonLastSeenStale(lastSeen: number | undefined, now: number): boolean {
+export function daemonLastSeenStale(
+  lastSeen: number | undefined,
+  now: number,
+): boolean {
   return !lastSeen || now - lastSeen > DAEMON_LAST_SEEN_THROTTLE_MS;
 }
 

@@ -20,17 +20,48 @@ export const DAY = 24 * HOUR;
  *  the shape: the inbox treats any other id as a create it is still waiting on and
  *  shows it as working (store/inboxOverlays.ts), and team feeds skip any
  *  other team id. Safe here, with no server. */
-export const cid = (name: string) => `hero${name.replace(/[^a-z0-9]/g, "")}`.padEnd(32, "0").slice(0, 32);
+export const cid = (name: string) =>
+  `hero${name.replace(/[^a-z0-9]/g, "")}`.padEnd(32, "0").slice(0, 32);
 
 export const TEAM_ID = cid("teamacme");
 export const WORKSPACE = `team:${TEAM_ID}`;
 
 export const PEOPLE = {
-  me: { _id: "hero-u-me", name: "Alex Rivera", handle: "alex", email: "alex@acme.dev", image: FACES.me },
-  sarah: { _id: "hero-u-sarah", name: "Sarah Chen", handle: "sarah", email: "sarah@acme.dev", image: FACES.sarah },
-  maya: { _id: "hero-u-maya", name: "Maya Ortiz", handle: "maya", email: "maya@acme.dev", image: FACES.maya },
-  jordan: { _id: "hero-u-jordan", name: "Jordan Lee", handle: "jordan", email: "jordan@acme.dev", image: FACES.jordan },
-  priya: { _id: "hero-u-priya", name: "Priya Nair", handle: "priya", email: "priya@acme.dev", image: FACES.priya },
+  me: {
+    _id: "hero-u-me",
+    name: "Alex Rivera",
+    handle: "alex",
+    email: "alex@acme.dev",
+    image: FACES.me,
+  },
+  sarah: {
+    _id: "hero-u-sarah",
+    name: "Sarah Chen",
+    handle: "sarah",
+    email: "sarah@acme.dev",
+    image: FACES.sarah,
+  },
+  maya: {
+    _id: "hero-u-maya",
+    name: "Maya Ortiz",
+    handle: "maya",
+    email: "maya@acme.dev",
+    image: FACES.maya,
+  },
+  jordan: {
+    _id: "hero-u-jordan",
+    name: "Jordan Lee",
+    handle: "jordan",
+    email: "jordan@acme.dev",
+    image: FACES.jordan,
+  },
+  priya: {
+    _id: "hero-u-priya",
+    name: "Priya Nair",
+    handle: "priya",
+    email: "priya@acme.dev",
+    image: FACES.priya,
+  },
 } as const;
 export type Person = (typeof PEOPLE)[keyof typeof PEOPLE];
 
@@ -61,7 +92,17 @@ export const TEAMS = [
     _id: TEAM_ID,
     name: "Acme",
     timezone: "UTC",
-    features: { chat: true, calls: true, org: true, line: true, changes: true, agent_faces: true, agent_realtime: true, ship: true, member_spend: false },
+    features: {
+      chat: true,
+      calls: true,
+      org: true,
+      line: true,
+      changes: true,
+      agent_faces: true,
+      agent_realtime: true,
+      ship: true,
+      member_spend: false,
+    },
     role: "admin",
     // Settings and the share review count teammates from this.
     member_count: 5,
@@ -86,14 +127,54 @@ export const TEAM_MEMBERS = (now: number) =>
 /* ── Sessions ──────────────────────────────────────────────────────────── */
 
 export const SESSIONS = {
-  api: { _id: cid("sapi"), short_id: "jx7d2wk", title: "Webhook API half", agent_type: "codex" },
-  e2e: { _id: cid("se2e"), short_id: "jx7e8hb", title: "Fix flaky checkout e2e", agent_type: "cursor" },
-  lead: { _id: cid("slead"), short_id: "jx7c4mq", title: "Retry failed webhooks", agent_type: "claude_code" },
-  ui: { _id: cid("sui"), short_id: "jx7f9np", title: "Dashboard retry UI", agent_type: "cursor" },
-  rate: { _id: cid("srate"), short_id: "jx7h3vd", title: "Rate limiter for the public API", agent_type: "pi" },
-  stripe: { _id: cid("sstripe"), short_id: "jx7k6ra", title: "Upgrade Stripe SDK to v14", agent_type: "claude_code" },
-  audit: { _id: cid("saudit"), short_id: "jx7m1zq", title: "Audit log export to S3", agent_type: "opencode" },
-  pg: { _id: cid("spg"), short_id: "jx7n5tc", title: "Migrate invoices to Postgres 16", agent_type: "codex" },
+  api: {
+    _id: cid("sapi"),
+    short_id: "jx7d2wk",
+    title: "Webhook API half",
+    agent_type: "codex",
+  },
+  e2e: {
+    _id: cid("se2e"),
+    short_id: "jx7e8hb",
+    title: "Fix flaky checkout e2e",
+    agent_type: "cursor",
+  },
+  lead: {
+    _id: cid("slead"),
+    short_id: "jx7c4mq",
+    title: "Retry failed webhooks",
+    agent_type: "claude_code",
+  },
+  ui: {
+    _id: cid("sui"),
+    short_id: "jx7f9np",
+    title: "Dashboard retry UI",
+    agent_type: "cursor",
+  },
+  rate: {
+    _id: cid("srate"),
+    short_id: "jx7h3vd",
+    title: "Rate limiter for the public API",
+    agent_type: "pi",
+  },
+  stripe: {
+    _id: cid("sstripe"),
+    short_id: "jx7k6ra",
+    title: "Upgrade Stripe SDK to v14",
+    agent_type: "claude_code",
+  },
+  audit: {
+    _id: cid("saudit"),
+    short_id: "jx7m1zq",
+    title: "Audit log export to S3",
+    agent_type: "opencode",
+  },
+  pg: {
+    _id: cid("spg"),
+    short_id: "jx7n5tc",
+    title: "Migrate invoices to Postgres 16",
+    agent_type: "codex",
+  },
 } as const;
 
 /** The question the API worker stops on, answered from the phone in the film. */
@@ -101,9 +182,18 @@ export const ASK = {
   question: "Should a 410 Gone count as a failed delivery?",
   header: "410 Gone",
   options: [
-    { label: "Log it once, never retry (Recommended)", description: "The endpoint is gone, so a retry can never succeed." },
-    { label: "Retry like any 5xx", description: "Up to 5 attempts with exponential backoff." },
-    { label: "Pause the endpoint", description: "Stop delivering until someone re-enables it." },
+    {
+      label: "Log it once, never retry (Recommended)",
+      description: "The endpoint is gone, so a retry can never succeed.",
+    },
+    {
+      label: "Retry like any 5xx",
+      description: "Up to 5 attempts with exponential backoff.",
+    },
+    {
+      label: "Pause the endpoint",
+      description: "Stop delivering until someone re-enables it.",
+    },
   ],
 };
 
@@ -176,21 +266,26 @@ export const INBOX = (now: number) => [
     messages: 12,
     state: `Retry endpoint is in, 16 tests green\nBlocked: ${ASK.question}`,
     preview: ASK.question,
-    extra: { worktree_name: "webhook-api", worktree_branch: "feat/webhook-retry-api" },
+    extra: {
+      worktree_name: "webhook-api",
+      worktree_branch: "feat/webhook-retry-api",
+    },
   }),
   session(now, SESSIONS.e2e, {
     ago: 6 * MIN,
     waiting: "blocked",
     project: "~/src/web",
     messages: 28,
-    state: "Which card should the e2e use?\nBlocked: the 4242 test card is rate limited in CI",
+    state:
+      "Which card should the e2e use?\nBlocked: the 4242 test card is rate limited in CI",
   }),
   session(now, SESSIONS.lead, {
     ago: 20_000,
     waiting: "working",
     project: "~/src/billing",
     messages: 64,
-    state: "Retry queue is in, workers on the API and the dashboard\nStatus: 14 of 16 tests green",
+    state:
+      "Retry queue is in, workers on the API and the dashboard\nStatus: 14 of 16 tests green",
     // Shared with the whole team, with a link already made (the share sheet's full state).
     extra: {
       is_private: false,
@@ -199,8 +294,18 @@ export const INBOX = (now: number) => [
       model: "claude-opus-5-5",
       git_branch: "feat/webhook-retries",
       // The header's task and plan: the session works ct-4182 under pl-312.
-      active_task: { _id: "hero-t1", short_id: "ct-4182", title: "Retry queue for failed webhooks", status: "in_progress" },
-      active_plan: { _id: cid("planwebhooks"), short_id: "pl-312", title: "Webhook reliability", status: "active" },
+      active_task: {
+        _id: "hero-t1",
+        short_id: "ct-4182",
+        title: "Retry queue for failed webhooks",
+        status: "in_progress",
+      },
+      active_plan: {
+        _id: cid("planwebhooks"),
+        short_id: "pl-312",
+        title: "Webhook reliability",
+        status: "active",
+      },
     },
   }),
   session(now, SESSIONS.ui, {
@@ -208,21 +313,24 @@ export const INBOX = (now: number) => [
     waiting: "working",
     project: "~/src/billing",
     messages: 18,
-    state: "Retry button and attempt history on each failed webhook\nStatus: wiring the endpoint's states",
+    state:
+      "Retry button and attempt history on each failed webhook\nStatus: wiring the endpoint's states",
   }),
   session(now, SESSIONS.rate, {
     ago: 4 * MIN,
     waiting: "working",
     project: "~/src/gateway",
     messages: 63,
-    state: "Token bucket is in, load test next\nStatus: 4,000 req/s holds on one node",
+    state:
+      "Token bucket is in, load test next\nStatus: 4,000 req/s holds on one node",
   }),
   session(now, SESSIONS.stripe, {
     ago: 25 * MIN,
     waiting: "done",
     project: "~/src/billing",
     messages: 87,
-    state: "Stripe SDK on v14, 38 call sites migrated\nStatus: tests green, PR #479 open for review",
+    state:
+      "Stripe SDK on v14, 38 call sites migrated\nStatus: tests green, PR #479 open for review",
   }),
   session(now, SESSIONS.audit, {
     ago: 47 * MIN,
@@ -236,77 +344,131 @@ export const INBOX = (now: number) => [
     waiting: "done",
     project: "~/src/billing",
     messages: 41,
-    state: "Invoices on Postgres 16, staging verified\nStatus: migration ran clean, 0 rows lost",
+    state:
+      "Invoices on Postgres 16, staging verified\nStatus: migration ran clean, 0 rows lost",
   }),
 ];
 
 /** The API worker's transcript, oldest first, ending on its question. */
 export const API_TRANSCRIPT = (now: number) => {
   const t = (minsAgo: number) => now - minsAgo * MIN;
-  const call = (id: string, name: string, input: unknown) => ({ id, name, input: JSON.stringify(input) });
-  const result = (id: string, content: string) => ({ tool_use_id: id, content });
+  const call = (id: string, name: string, input: unknown) => ({
+    id,
+    name,
+    input: JSON.stringify(input),
+  });
+  const result = (id: string, content: string) => ({
+    tool_use_id: id,
+    content,
+  });
   return [
     {
       _id: "hero-api-m1",
       role: "user",
-      content: "Build the retry endpoint for failed webhooks: POST /v2/hooks/retry, idempotent, 5 attempts max. Reuse deliver() for each attempt.",
+      content:
+        "Build the retry endpoint for failed webhooks: POST /v2/hooks/retry, idempotent, 5 attempts max. Reuse deliver() for each attempt.",
       timestamp: t(14),
     },
     {
       _id: "hero-api-m2",
       role: "assistant",
-      content: "Reading the webhook handlers and the delivery path before I change anything.",
+      content:
+        "Reading the webhook handlers and the delivery path before I change anything.",
       tool_calls: [
         call("hero-tc-1", "Glob", { pattern: "src/api/**/*.ts" }),
         call("hero-tc-2", "Read", { file_path: "src/billing/retry.ts" }),
         call("hero-tc-3", "Grep", { pattern: "router.post", path: "src/api" }),
       ],
       tool_results: [
-        result("hero-tc-1", "src/api/hooks.ts\nsrc/api/router.ts\nsrc/api/billing.ts\nsrc/api/health.ts"),
-        result("hero-tc-2", "export async function deliver(event: WebhookEvent) {\n  const res = await fetch(event.endpoint, signed(event));\n  return res.status;\n}"),
-        result("hero-tc-3", "src/api/hooks.ts:18: router.post(\"/v2/hooks\", receive)\nsrc/api/billing.ts:41: router.post(\"/v2/refunds\", refund)"),
+        result(
+          "hero-tc-1",
+          "src/api/hooks.ts\nsrc/api/router.ts\nsrc/api/billing.ts\nsrc/api/health.ts",
+        ),
+        result(
+          "hero-tc-2",
+          "export async function deliver(event: WebhookEvent) {\n  const res = await fetch(event.endpoint, signed(event));\n  return res.status;\n}",
+        ),
+        result(
+          "hero-tc-3",
+          'src/api/hooks.ts:18: router.post("/v2/hooks", receive)\nsrc/api/billing.ts:41: router.post("/v2/refunds", refund)',
+        ),
       ],
       timestamp: t(12),
     },
     {
       _id: "hero-api-m2b",
       role: "assistant",
-      content: "deliver() already signs and sends one attempt, so the retry route only needs a schedule and a stop rule. Writing the tests first so those rules are pinned down.",
+      content:
+        "deliver() already signs and sends one attempt, so the retry route only needs a schedule and a stop rule. Writing the tests first so those rules are pinned down.",
       tool_calls: [
-        call("hero-tc-6", "Write", { file_path: "src/api/hooks.test.ts", content: "describe(\"POST /v2/hooks/retry\", () => { /* 16 cases */ })" }),
-        call("hero-tc-7", "Bash", { command: "bun test src/api/hooks.test.ts" }),
+        call("hero-tc-6", "Write", {
+          file_path: "src/api/hooks.test.ts",
+          content: 'describe("POST /v2/hooks/retry", () => { /* 16 cases */ })',
+        }),
+        call("hero-tc-7", "Bash", {
+          command: "bun test src/api/hooks.test.ts",
+        }),
       ],
       tool_results: [
-        result("hero-tc-6", "File created successfully at: src/api/hooks.test.ts"),
-        result("hero-tc-7", "4 pass\n12 fail\nRan 16 tests across 1 file. [201ms]"),
+        result(
+          "hero-tc-6",
+          "File created successfully at: src/api/hooks.test.ts",
+        ),
+        result(
+          "hero-tc-7",
+          "4 pass\n12 fail\nRan 16 tests across 1 file. [201ms]",
+        ),
       ],
       timestamp: t(9),
     },
     {
       _id: "hero-api-m3",
       role: "assistant",
-      content: "Adding the retry route next to the webhook handlers, reusing deliver() for each attempt. Attempts back off 2s, 4s, 8s, 16s with jitter, capped at 5.",
+      content:
+        "Adding the retry route next to the webhook handlers, reusing deliver() for each attempt. Attempts back off 2s, 4s, 8s, 16s with jitter, capped at 5.",
       tool_calls: [
-        call("hero-tc-4", "Edit", { file_path: "src/api/hooks.ts", old_string: "router.post(\"/v2/hooks\", receive)", new_string: "router.post(\"/v2/hooks\", receive)\nrouter.post(\"/v2/hooks/retry\", idempotent(retry))" }),
-        call("hero-tc-5", "Bash", { command: "bun test src/api/hooks.test.ts" }),
+        call("hero-tc-4", "Edit", {
+          file_path: "src/api/hooks.ts",
+          old_string: 'router.post("/v2/hooks", receive)',
+          new_string:
+            'router.post("/v2/hooks", receive)\nrouter.post("/v2/hooks/retry", idempotent(retry))',
+        }),
+        call("hero-tc-5", "Bash", {
+          command: "bun test src/api/hooks.test.ts",
+        }),
       ],
       tool_results: [
         result("hero-tc-4", "The file src/api/hooks.ts has been updated."),
-        result("hero-tc-5", "16 pass\n0 fail\nRan 16 tests across 1 file. [184ms]"),
+        result(
+          "hero-tc-5",
+          "16 pass\n0 fail\nRan 16 tests across 1 file. [184ms]",
+        ),
       ],
       timestamp: t(4),
     },
     {
       _id: "hero-api-m3b",
       role: "assistant",
-      content: "All 16 tests pass: 5xx, 429 and timeouts retry with backoff, and a delivery stops after its fifth attempt. One case is a product call, not mine to make.",
+      content:
+        "All 16 tests pass: 5xx, 429 and timeouts retry with backoff, and a delivery stops after its fifth attempt. One case is a product call, not mine to make.",
       timestamp: t(2),
     },
     {
       _id: "hero-api-m4",
       role: "assistant",
       content: "",
-      tool_calls: [call("hero-tc-ask", "AskUserQuestion", { questions: [{ question: ASK.question, header: ASK.header, multiSelect: false, options: ASK.options }] })],
+      tool_calls: [
+        call("hero-tc-ask", "AskUserQuestion", {
+          questions: [
+            {
+              question: ASK.question,
+              header: ASK.header,
+              multiSelect: false,
+              options: ASK.options,
+            },
+          ],
+        }),
+      ],
       timestamp: t(1),
     },
   ];
@@ -315,42 +477,99 @@ export const API_TRANSCRIPT = (now: number) => {
 /* ── Team chat ─────────────────────────────────────────────────────────── */
 
 export const CHANNELS = [
-  { _id: "hero-ch-eng", name: "eng", topic: "Billing and payments engineering", is_default: true },
+  {
+    _id: "hero-ch-eng",
+    name: "eng",
+    topic: "Billing and payments engineering",
+    is_default: true,
+  },
   { _id: "hero-ch-billing", name: "billing-alerts", unread: 3 },
   { _id: "hero-ch-agents", name: "agents", kind: "agents" as const, unread: 7 },
   { _id: "hero-ch-incidents", name: "incidents" },
   { _id: "hero-ch-design", name: "design", unread: 1 },
   { _id: "hero-ch-random", name: "random" },
-  { _id: "hero-dm-sarah", name: "", kind: "dm" as const, dm_key: `${TEAM_ID}:hero-u-me:hero-u-sarah`, unread: 1 },
-  { _id: "hero-dm-maya", name: "", kind: "dm" as const, dm_key: `${TEAM_ID}:hero-u-jordan:hero-u-maya:hero-u-me` },
+  {
+    _id: "hero-dm-sarah",
+    name: "",
+    kind: "dm" as const,
+    dm_key: `${TEAM_ID}:hero-u-me:hero-u-sarah`,
+    unread: 1,
+  },
+  {
+    _id: "hero-dm-maya",
+    name: "",
+    kind: "dm" as const,
+    dm_key: `${TEAM_ID}:hero-u-jordan:hero-u-maya:hero-u-me`,
+  },
 ];
 
 // A line a session typed: named for the session, crediting its human (web lib/chatViews
 // sessionAuthorFor). author_kind "agent" is a role seat's mark, never a session's.
-const LEAD_AUTHOR = { origin: "agent" as const, origin_session_id: SESSIONS.lead._id, origin_session_title: SESSIONS.lead.title, origin_agent_type: SESSIONS.lead.agent_type };
+const LEAD_AUTHOR = {
+  origin: "agent" as const,
+  origin_session_id: SESSIONS.lead._id,
+  origin_session_title: SESSIONS.lead.title,
+  origin_agent_type: SESSIONS.lead.agent_type,
+};
 
 /** #eng, oldest first: the team's day, then the lead session answering for its work. */
 export const ENG_MESSAGES = (now: number) =>
   [
-    { id: "hero-m-1", who: PEOPLE.me, ago: 7 * HOUR, content: "Billing deploy freeze lifts at noon. Queue anything that touches payouts for after." },
-    { id: "hero-m-2", who: PEOPLE.maya, ago: 5 * HOUR, content: "The ledger restarts for the Postgres upgrade tonight. Expect a few minutes of 502s around 2am." },
-    { id: "hero-m-3", who: PEOPLE.sarah, ago: 3 * HOUR, content: "Refund webhooks are idempotent now, so replaying one is safe." },
-    { id: "hero-m-4", who: PEOPLE.me, ago: 12 * MIN, content: "Heads up, agents are on webhook retries now. Ask the lead session here if anything looks off." },
-    { id: "hero-m-5", who: PEOPLE.sarah, ago: 3 * MIN, content: "Support has two tickets about Stripe events dropped overnight. Would the retry queue have caught them?" },
+    {
+      id: "hero-m-1",
+      who: PEOPLE.me,
+      ago: 7 * HOUR,
+      content:
+        "Billing deploy freeze lifts at noon. Queue anything that touches payouts for after.",
+    },
+    {
+      id: "hero-m-2",
+      who: PEOPLE.maya,
+      ago: 5 * HOUR,
+      content:
+        "The ledger restarts for the Postgres upgrade tonight. Expect a few minutes of 502s around 2am.",
+    },
+    {
+      id: "hero-m-3",
+      who: PEOPLE.sarah,
+      ago: 3 * HOUR,
+      content: "Refund webhooks are idempotent now, so replaying one is safe.",
+    },
+    {
+      id: "hero-m-4",
+      who: PEOPLE.me,
+      ago: 12 * MIN,
+      content:
+        "Heads up, agents are on webhook retries now. Ask the lead session here if anything looks off.",
+    },
+    {
+      id: "hero-m-5",
+      who: PEOPLE.sarah,
+      ago: 3 * MIN,
+      content:
+        "Support has two tickets about Stripe events dropped overnight. Would the retry queue have caught them?",
+    },
     {
       id: "hero-m-6",
       who: PEOPLE.me,
       agent: true,
       ago: 2 * MIN,
-      content: "Yes. Both failed on a 502 from the ledger, and a failed delivery now goes to a retry queue with exponential backoff, at most 5 attempts. Both would have landed on the second try. PR #482 is up and its checks are running.",
+      content:
+        "Yes. Both failed on a 502 from the ledger, and a failed delivery now goes to a retry queue with exponential backoff, at most 5 attempts. Both would have landed on the second try. PR #482 is up and its checks are running.",
     },
-    { id: "hero-m-7", who: PEOPLE.maya, ago: 40_000, content: "I'll point support at the retry queue once it ships." },
+    {
+      id: "hero-m-7",
+      who: PEOPLE.maya,
+      ago: 40_000,
+      content: "I'll point support at the retry queue once it ships.",
+    },
     {
       id: "hero-m-8",
       who: PEOPLE.me,
       agent: true,
       ago: 15_000,
-      content: "Shipped: failed webhooks now retry. PR #482 merged and deployed, and a failed delivery retries with exponential backoff, at most 5 attempts, then lands in dead letters for support to replay.",
+      content:
+        "Shipped: failed webhooks now retry. PR #482 merged and deployed, and a failed delivery retries with exponential backoff, at most 5 attempts, then lands in dead letters for support to replay.",
     },
   ].map((m) => ({
     // Convex-shaped: a chat line with any other id reads as an unsent stub (store/chatSlice chatSendState).
@@ -361,24 +580,85 @@ export const ENG_MESSAGES = (now: number) =>
     content: m.content,
     created_at: now - m.ago,
     updated_at: now - m.ago,
-    ...("agent" in m && m.agent ? LEAD_AUTHOR : { author_kind: "user" as const }),
+    ...("agent" in m && m.agent
+      ? LEAD_AUTHOR
+      : { author_kind: "user" as const }),
   }));
 
 export const ENG_REACTIONS = (now: number) => [
-  { _id: "hero-r-1", message_id: cid("hero-m-6"), channel_id: "hero-ch-eng", user_id: PEOPLE.sarah._id, emoji: "🎉", created_at: now - 90_000 },
-  { _id: "hero-r-2", message_id: cid("hero-m-6"), channel_id: "hero-ch-eng", user_id: PEOPLE.maya._id, emoji: "🙌", created_at: now - 80_000 },
-  { _id: "hero-r-3", message_id: cid("hero-m-6"), channel_id: "hero-ch-eng", user_id: PEOPLE.jordan._id, emoji: "🎉", created_at: now - 70_000 },
+  {
+    _id: "hero-r-1",
+    message_id: cid("hero-m-6"),
+    channel_id: "hero-ch-eng",
+    user_id: PEOPLE.sarah._id,
+    emoji: "🎉",
+    created_at: now - 90_000,
+  },
+  {
+    _id: "hero-r-2",
+    message_id: cid("hero-m-6"),
+    channel_id: "hero-ch-eng",
+    user_id: PEOPLE.maya._id,
+    emoji: "🙌",
+    created_at: now - 80_000,
+  },
+  {
+    _id: "hero-r-3",
+    message_id: cid("hero-m-6"),
+    channel_id: "hero-ch-eng",
+    user_id: PEOPLE.jordan._id,
+    emoji: "🎉",
+    created_at: now - 70_000,
+  },
 ];
 
-const RAIL_PREVIEWS: Record<string, { who: string; preview: string; ago: number; agent?: boolean }> = {
-  "hero-ch-eng": { who: PEOPLE.me._id, preview: "Shipped: failed webhooks now retry. PR #482 merged and deployed", ago: 15_000, agent: true },
-  "hero-ch-billing": { who: PEOPLE.me._id, preview: "3 webhooks retried, all delivered on attempt 2", ago: 9 * MIN, agent: true },
-  "hero-ch-agents": { who: PEOPLE.me._id, preview: "Rate limiter load test: 4,000 req/s holds on one node", ago: 4 * MIN, agent: true },
-  "hero-ch-incidents": { who: PEOPLE.maya._id, preview: "Ledger restart done, 502s cleared at 2:04am", ago: 9 * HOUR },
-  "hero-ch-design": { who: PEOPLE.priya._id, preview: "New retry history mock is in Figma", ago: 2 * HOUR },
-  "hero-ch-random": { who: PEOPLE.jordan._id, preview: "Lunch order closes at 11:45", ago: 5 * HOUR },
-  "hero-dm-sarah": { who: PEOPLE.sarah._id, preview: "Can you look at the HMAC PR before standup?", ago: 18 * MIN },
-  "hero-dm-maya": { who: PEOPLE.jordan._id, preview: "Load test numbers are in, sharing in #agents", ago: 50 * MIN },
+const RAIL_PREVIEWS: Record<
+  string,
+  { who: string; preview: string; ago: number; agent?: boolean }
+> = {
+  "hero-ch-eng": {
+    who: PEOPLE.me._id,
+    preview: "Shipped: failed webhooks now retry. PR #482 merged and deployed",
+    ago: 15_000,
+    agent: true,
+  },
+  "hero-ch-billing": {
+    who: PEOPLE.me._id,
+    preview: "3 webhooks retried, all delivered on attempt 2",
+    ago: 9 * MIN,
+    agent: true,
+  },
+  "hero-ch-agents": {
+    who: PEOPLE.me._id,
+    preview: "Rate limiter load test: 4,000 req/s holds on one node",
+    ago: 4 * MIN,
+    agent: true,
+  },
+  "hero-ch-incidents": {
+    who: PEOPLE.maya._id,
+    preview: "Ledger restart done, 502s cleared at 2:04am",
+    ago: 9 * HOUR,
+  },
+  "hero-ch-design": {
+    who: PEOPLE.priya._id,
+    preview: "New retry history mock is in Figma",
+    ago: 2 * HOUR,
+  },
+  "hero-ch-random": {
+    who: PEOPLE.jordan._id,
+    preview: "Lunch order closes at 11:45",
+    ago: 5 * HOUR,
+  },
+  "hero-dm-sarah": {
+    who: PEOPLE.sarah._id,
+    preview: "Can you look at the HMAC PR before standup?",
+    ago: 18 * MIN,
+  },
+  "hero-dm-maya": {
+    who: PEOPLE.jordan._id,
+    preview: "Load test numbers are in, sharing in #agents",
+    ago: 50 * MIN,
+  },
 };
 
 /** Each room's newest line as a held message: the rail's preview, time and
@@ -409,7 +689,14 @@ export const CHAT_RAIL = (now: number) =>
         user_id: p.who,
         created_at: now - p.ago,
         preview: p.preview,
-        ...(p.agent ? { origin: "agent" as const, origin_session_id: SESSIONS.lead._id, origin_session_title: SESSIONS.lead.title, origin_agent_type: SESSIONS.lead.agent_type } : {}),
+        ...(p.agent
+          ? {
+              origin: "agent" as const,
+              origin_session_id: SESSIONS.lead._id,
+              origin_session_title: SESSIONS.lead.title,
+              origin_agent_type: SESSIONS.lead.agent_type,
+            }
+          : {}),
       },
       sort_at: now - p.ago,
       unread: c.unread ?? 0,
@@ -430,38 +717,98 @@ export const LIVE_ROOMS = [
     can_join: true,
     redacted: false,
     title: "#eng",
-    members: [PEOPLE.sarah, PEOPLE.maya].map((p) => ({ user_id: p._id, user_name: p.name, user_image: p.image })),
+    members: [PEOPLE.sarah, PEOPLE.maya].map((p) => ({
+      user_id: p._id,
+      user_name: p.name,
+      user_image: p.image,
+    })),
   },
 ];
 
 /** The call screen's participants: Alex (this phone) joins Sarah and Maya. */
 export const HUDDLE_PARTICIPANTS = [
-  { identity: PEOPLE.sarah._id, name: PEOPLE.sarah.name, image: PEOPLE.sarah.image, isLocal: false, micMuted: false, hasCamera: false, hasScreen: false },
-  { identity: PEOPLE.me._id, name: PEOPLE.me.name, image: PEOPLE.me.image, isLocal: true, micMuted: false, hasCamera: false, hasScreen: false },
-  { identity: PEOPLE.maya._id, name: PEOPLE.maya.name, image: PEOPLE.maya.image, isLocal: false, micMuted: true, hasCamera: false, hasScreen: false },
+  {
+    identity: PEOPLE.sarah._id,
+    name: PEOPLE.sarah.name,
+    image: PEOPLE.sarah.image,
+    isLocal: false,
+    micMuted: false,
+    hasCamera: false,
+    hasScreen: false,
+  },
+  {
+    identity: PEOPLE.me._id,
+    name: PEOPLE.me.name,
+    image: PEOPLE.me.image,
+    isLocal: true,
+    micMuted: false,
+    hasCamera: false,
+    hasScreen: false,
+  },
+  {
+    identity: PEOPLE.maya._id,
+    name: PEOPLE.maya.name,
+    image: PEOPLE.maya.image,
+    isLocal: false,
+    micMuted: true,
+    hasCamera: false,
+    hasScreen: false,
+  },
 ];
 
 /** Live captions: the last turns of the huddle, written seconds ago. */
 export const CAPTIONS = (now: number) => ({
   started_by: PEOPLE.sarah._id,
   tail: [
-    { seq: 1, speaker_id: PEOPLE.sarah._id, speaker_name: PEOPLE.sarah.name, text: "Five attempts over how long, worst case?", at: now - 14_000 },
-    { seq: 2, speaker_id: PEOPLE.me._id, speaker_name: PEOPLE.me.name, text: "About thirty seconds. Two, four, eight, then sixteen, with jitter.", at: now - 8_000 },
-    { seq: 3, speaker_id: PEOPLE.sarah._id, speaker_name: PEOPLE.sarah.name, text: "That covers a blip like last night's, and dead letters catch the rest. Ship it once the checks are green.", at: now - 2_000 },
+    {
+      seq: 1,
+      speaker_id: PEOPLE.sarah._id,
+      speaker_name: PEOPLE.sarah.name,
+      text: "Five attempts over how long, worst case?",
+      at: now - 14_000,
+    },
+    {
+      seq: 2,
+      speaker_id: PEOPLE.me._id,
+      speaker_name: PEOPLE.me.name,
+      text: "About thirty seconds. Two, four, eight, then sixteen, with jitter.",
+      at: now - 8_000,
+    },
+    {
+      seq: 3,
+      speaker_id: PEOPLE.sarah._id,
+      speaker_name: PEOPLE.sarah.name,
+      text: "That covers a blip like last night's, and dead letters catch the rest. Ship it once the checks are green.",
+      at: now - 2_000,
+    },
   ],
 });
 
 /* ── Tasks ─────────────────────────────────────────────────────────────── */
 
-const PLAN = { _id: cid("planwebhooks"), short_id: "pl-312", title: "Webhook retries" };
-const info = (p: Person) => ({ _id: p._id, name: p.name, image: p.image, github_avatar_url: p.image });
+const PLAN = {
+  _id: cid("planwebhooks"),
+  short_id: "pl-312",
+  title: "Webhook retries",
+};
+const info = (p: Person) => ({
+  _id: p._id,
+  name: p.name,
+  image: p.image,
+  github_avatar_url: p.image,
+});
 
 /** The plan's document: what the plan page shows under its charter. */
 const PLAN_DOC = `Support saw two Stripe events dropped overnight: both failed on a 502 from the ledger during its restart, and nothing tried them again. A failed delivery now retries with exponential backoff (2s, 4s, 8s, 16s, with jitter), at most 5 attempts, and dead-letters after the fifth.
 `;
 
 /** Maya's dashboard agent, working the retry history task (its inbox row is in ./retriesPlan). */
-export const MAYA_DASHBOARD = { _id: cid("smayadash"), short_id: "jx7q8dh", title: "Retry history in the dashboard", agent_type: "cursor" } as const;
+export const MAYA_DASHBOARD = {
+  _id: cid("smayadash"),
+  short_id: "jx7q8dh",
+  title: "Retry history in the dashboard",
+  agent_type: "cursor",
+} as const;
 
 export const PLANS = (now: number) => [
   {
@@ -471,9 +818,16 @@ export const PLANS = (now: number) => [
     status: "active",
     goal: "No webhook is ever dropped: every failed delivery is retried until it lands or is dead-lettered",
     priority: "p1",
-    success_metrics: ["0 dropped events in a week of ledger restarts", "95% of retries land by the second attempt"],
+    success_metrics: [
+      "0 dropped events in a week of ledger restarts",
+      "95% of retries land by the second attempt",
+    ],
     non_goals: ["Changing the webhook payload format"],
-    acceptance_criteria: ["A failed delivery retries at most 5 times with backoff", "Every payload is signed", "Support can see and retry any failed webhook"],
+    acceptance_criteria: [
+      "A failed delivery retries at most 5 times with backoff",
+      "Every payload is signed",
+      "Support can see and retry any failed webhook",
+    ],
     doc_id: cid("docwebhookplan"),
     doc_content: PLAN_DOC,
     created_from_conversation_id: SESSIONS.lead._id,
@@ -481,10 +835,32 @@ export const PLANS = (now: number) => [
     author: info(PEOPLE.me),
     // The timeline agents posted to the plan, newest first on the page.
     comments: [
-      { type: "decision", timestamp: now - 3 * DAY + HOUR, content: "Backoff is 2s, 4s, 8s, 16s with jitter, capped at 5 attempts.", rationale: "Covers a ledger restart by the third attempt without hammering a dead endpoint." },
-      { type: "discovery", timestamp: now - DAY, content: "Both dropped Stripe events failed on a 502 from the ledger; a retry on attempt 2 would have delivered them." },
-      { type: "progress", timestamp: now - 3 * HOUR, content: "Backoff and idempotency keys are in; the queue worker and the dashboard history are in progress." },
-      { type: "decision", timestamp: now - 40 * MIN, content: "A 410 Gone is final and never retries.", rationale: "The endpoint is gone; a retry can never succeed." },
+      {
+        type: "decision",
+        timestamp: now - 3 * DAY + HOUR,
+        content:
+          "Backoff is 2s, 4s, 8s, 16s with jitter, capped at 5 attempts.",
+        rationale:
+          "Covers a ledger restart by the third attempt without hammering a dead endpoint.",
+      },
+      {
+        type: "discovery",
+        timestamp: now - DAY,
+        content:
+          "Both dropped Stripe events failed on a 502 from the ledger; a retry on attempt 2 would have delivered them.",
+      },
+      {
+        type: "progress",
+        timestamp: now - 3 * HOUR,
+        content:
+          "Backoff and idempotency keys are in; the queue worker and the dashboard history are in progress.",
+      },
+      {
+        type: "decision",
+        timestamp: now - 40 * MIN,
+        content: "A 410 Gone is final and never retries.",
+        rationale: "The endpoint is gone; a retry can never succeed.",
+      },
     ],
     workspace: WORKSPACE,
     team_id: TEAM_ID,
@@ -497,7 +873,16 @@ export const PLANS = (now: number) => [
 const FROM_HUDDLE = { from_call: cid("callbackoff") };
 
 export const TASKS = (now: number) => {
-  const task = (t: Record<string, unknown> & { _id: string; short_id: string; title: string; status: string; priority: string }, ago: number) => ({
+  const task = (
+    t: Record<string, unknown> & {
+      _id: string;
+      short_id: string;
+      title: string;
+      status: string;
+      priority: string;
+    },
+    ago: number,
+  ) => ({
     task_type: "task",
     source: "human",
     plan: PLAN,
@@ -510,22 +895,254 @@ export const TASKS = (now: number) => {
     ...t,
   });
   return [
-    task({ _id: "hero-t13", short_id: "ct-4181", title: "Add exponential backoff to webhook retries", description: "Retry a failed delivery at 2s, 4s, 8s and 16s with jitter, and stop after the fifth attempt.", status: "done", priority: "high", labels: ["webhooks"], assignee: PEOPLE.me._id, assignee_info: info(PEOPLE.me), source: "agent", source_agent_type: "claude_code", created_from_conversation_id: SESSIONS.lead._id, conversation_ids: [SESSIONS.lead._id], closed_at: now - 5 * HOUR, execution_status: "done", verification_evidence: "bun test src/billing/retry.test.ts: 16 pass, 0 fail. A 502 retries and lands on attempt 2, five 500s dead-letter, a 404 never retries.", files_changed: ["src/billing/retry.ts", "src/billing/retry.test.ts"], estimated_minutes: 90, actual_minutes: 70, comments: [
-      { _id: cid("tcbackoff1"), task_id: "hero-t13", author: SESSIONS.lead.title, text: "Started: reading deliver() and the queue client.", conversation_id: SESSIONS.lead._id, comment_type: "progress", created_at: now - 7 * HOUR },
-      { _id: cid("tcbackoff2"), task_id: "hero-t13", author: SESSIONS.lead.title, text: "Backoff in with jitter; 16 tests green. PR #482.", conversation_id: SESSIONS.lead._id, comment_type: "progress", created_at: now - 5 * HOUR - 10 * MIN },
-      { _id: cid("tcbackoff3"), task_id: "hero-t13", author: PEOPLE.maya.name, author_user_id: PEOPLE.maya._id, text: "Jitter scaling with the delay looks right. Approved on the PR.", comment_type: "review", created_at: now - 5 * HOUR },
-    ] }, 5 * HOUR),
-    task({ ...FROM_HUDDLE, _id: "hero-t1", short_id: "ct-4182", title: "Retry queue for failed webhooks", status: "in_progress", priority: "high", labels: ["webhooks"], assignee: PEOPLE.me._id, assignee_info: info(PEOPLE.me), source: "agent", source_agent_type: "claude_code", conversation_ids: [SESSIONS.lead._id], blocked_by: ["hero-t13"], estimated_minutes: 120, actual_minutes: 50 }, MIN),
-    task({ _id: "hero-t2", short_id: "ct-4183", title: "Sign webhook payloads with HMAC", status: "in_progress", priority: "medium", labels: ["webhooks", "security"], assignee: PEOPLE.sarah._id, assignee_info: info(PEOPLE.sarah), plan: undefined, plan_id: undefined }, 3 * HOUR),
-    task({ ...FROM_HUDDLE, _id: "hero-t3", short_id: "ct-4184", title: "Dead-letter exhausted deliveries", status: "open", priority: "high", labels: ["webhooks"], blocked_by: ["hero-t1"], estimated_minutes: 60 }, 5 * HOUR),
-    task({ ...FROM_HUDDLE, _id: "hero-t4", short_id: "ct-4185", title: "Page on-call when retries run out", status: "open", priority: "medium", labels: ["ops"], assignee: PEOPLE.sarah._id, assignee_info: info(PEOPLE.sarah), blocked_by: ["hero-t1", "hero-t9"], estimated_minutes: 45 }, DAY),
-    task({ _id: "hero-t5", short_id: "ct-4186", title: "Backfill events Stripe sent while we were down", status: "in_review", priority: "low", labels: ["data"], assignee: PEOPLE.maya._id, assignee_info: info(PEOPLE.maya), source: "agent", source_agent_type: "cursor", plan: undefined, plan_id: undefined }, 2 * DAY),
-    task({ _id: "hero-t6", short_id: "ct-4187", title: "Idempotency keys on webhook handlers", status: "done", priority: "high", labels: ["webhooks"], assignee: PEOPLE.sarah._id, assignee_info: info(PEOPLE.sarah), closed_at: now - 2 * DAY, estimated_minutes: 60, actual_minutes: 45 }, 2 * DAY),
-    task({ _id: "hero-t7", short_id: "ct-4179", title: "Rate limit the public API", status: "in_progress", priority: "high", labels: ["gateway"], assignee: PEOPLE.jordan._id, assignee_info: info(PEOPLE.jordan), plan: undefined, plan_id: undefined, source: "agent", source_agent_type: "pi" }, 4 * MIN),
-    task({ _id: "hero-t9", short_id: "ct-4188", title: "Retry button and attempt history", status: "in_progress", priority: "high", labels: ["dashboard"], assignee: PEOPLE.maya._id, assignee_info: info(PEOPLE.maya), source: "agent", source_agent_type: "cursor", conversation_ids: [MAYA_DASHBOARD._id], blocked_by: ["hero-t6"], estimated_minutes: 90, actual_minutes: 30 }, 40_000),
-    task({ _id: "hero-t10", short_id: "ct-4175", title: "Upgrade Stripe SDK to v14", status: "in_review", priority: "high", labels: ["billing"], assignee: PEOPLE.me._id, assignee_info: info(PEOPLE.me), plan: undefined, plan_id: undefined, source: "agent", source_agent_type: "claude_code" }, 25 * MIN),
-    task({ _id: "hero-t11", short_id: "ct-4189", title: "Alert when the retry queue backs up", status: "open", priority: "medium", labels: ["ops"], plan: undefined, plan_id: undefined }, 3 * HOUR),
-    task({ _id: "hero-t12", short_id: "ct-4190", title: "Document the retry policy for support", status: "open", priority: "low", labels: ["docs"], assignee: PEOPLE.priya._id, assignee_info: info(PEOPLE.priya), plan: undefined, plan_id: undefined }, 5 * HOUR),
-    task({ _id: "hero-t8", short_id: "ct-4171", title: "Audit log export to S3", status: "done", priority: "medium", labels: ["infra"], assignee: PEOPLE.priya._id, assignee_info: info(PEOPLE.priya), plan: undefined, plan_id: undefined }, 47 * MIN),
+    task(
+      {
+        _id: "hero-t13",
+        short_id: "ct-4181",
+        title: "Add exponential backoff to webhook retries",
+        description:
+          "Retry a failed delivery at 2s, 4s, 8s and 16s with jitter, and stop after the fifth attempt.",
+        status: "done",
+        priority: "high",
+        labels: ["webhooks"],
+        assignee: PEOPLE.me._id,
+        assignee_info: info(PEOPLE.me),
+        source: "agent",
+        source_agent_type: "claude_code",
+        created_from_conversation_id: SESSIONS.lead._id,
+        conversation_ids: [SESSIONS.lead._id],
+        closed_at: now - 5 * HOUR,
+        execution_status: "done",
+        verification_evidence:
+          "bun test src/billing/retry.test.ts: 16 pass, 0 fail. A 502 retries and lands on attempt 2, five 500s dead-letter, a 404 never retries.",
+        files_changed: ["src/billing/retry.ts", "src/billing/retry.test.ts"],
+        estimated_minutes: 90,
+        actual_minutes: 70,
+        comments: [
+          {
+            _id: cid("tcbackoff1"),
+            task_id: "hero-t13",
+            author: SESSIONS.lead.title,
+            text: "Started: reading deliver() and the queue client.",
+            conversation_id: SESSIONS.lead._id,
+            comment_type: "progress",
+            created_at: now - 7 * HOUR,
+          },
+          {
+            _id: cid("tcbackoff2"),
+            task_id: "hero-t13",
+            author: SESSIONS.lead.title,
+            text: "Backoff in with jitter; 16 tests green. PR #482.",
+            conversation_id: SESSIONS.lead._id,
+            comment_type: "progress",
+            created_at: now - 5 * HOUR - 10 * MIN,
+          },
+          {
+            _id: cid("tcbackoff3"),
+            task_id: "hero-t13",
+            author: PEOPLE.maya.name,
+            author_user_id: PEOPLE.maya._id,
+            text: "Jitter scaling with the delay looks right. Approved on the PR.",
+            comment_type: "review",
+            created_at: now - 5 * HOUR,
+          },
+        ],
+      },
+      5 * HOUR,
+    ),
+    task(
+      {
+        ...FROM_HUDDLE,
+        _id: "hero-t1",
+        short_id: "ct-4182",
+        title: "Retry queue for failed webhooks",
+        status: "in_progress",
+        priority: "high",
+        labels: ["webhooks"],
+        assignee: PEOPLE.me._id,
+        assignee_info: info(PEOPLE.me),
+        source: "agent",
+        source_agent_type: "claude_code",
+        conversation_ids: [SESSIONS.lead._id],
+        blocked_by: ["hero-t13"],
+        estimated_minutes: 120,
+        actual_minutes: 50,
+      },
+      MIN,
+    ),
+    task(
+      {
+        _id: "hero-t2",
+        short_id: "ct-4183",
+        title: "Sign webhook payloads with HMAC",
+        status: "in_progress",
+        priority: "medium",
+        labels: ["webhooks", "security"],
+        assignee: PEOPLE.sarah._id,
+        assignee_info: info(PEOPLE.sarah),
+        plan: undefined,
+        plan_id: undefined,
+      },
+      3 * HOUR,
+    ),
+    task(
+      {
+        ...FROM_HUDDLE,
+        _id: "hero-t3",
+        short_id: "ct-4184",
+        title: "Dead-letter exhausted deliveries",
+        status: "open",
+        priority: "high",
+        labels: ["webhooks"],
+        blocked_by: ["hero-t1"],
+        estimated_minutes: 60,
+      },
+      5 * HOUR,
+    ),
+    task(
+      {
+        ...FROM_HUDDLE,
+        _id: "hero-t4",
+        short_id: "ct-4185",
+        title: "Page on-call when retries run out",
+        status: "open",
+        priority: "medium",
+        labels: ["ops"],
+        assignee: PEOPLE.sarah._id,
+        assignee_info: info(PEOPLE.sarah),
+        blocked_by: ["hero-t1", "hero-t9"],
+        estimated_minutes: 45,
+      },
+      DAY,
+    ),
+    task(
+      {
+        _id: "hero-t5",
+        short_id: "ct-4186",
+        title: "Backfill events Stripe sent while we were down",
+        status: "in_review",
+        priority: "low",
+        labels: ["data"],
+        assignee: PEOPLE.maya._id,
+        assignee_info: info(PEOPLE.maya),
+        source: "agent",
+        source_agent_type: "cursor",
+        plan: undefined,
+        plan_id: undefined,
+      },
+      2 * DAY,
+    ),
+    task(
+      {
+        _id: "hero-t6",
+        short_id: "ct-4187",
+        title: "Idempotency keys on webhook handlers",
+        status: "done",
+        priority: "high",
+        labels: ["webhooks"],
+        assignee: PEOPLE.sarah._id,
+        assignee_info: info(PEOPLE.sarah),
+        closed_at: now - 2 * DAY,
+        estimated_minutes: 60,
+        actual_minutes: 45,
+      },
+      2 * DAY,
+    ),
+    task(
+      {
+        _id: "hero-t7",
+        short_id: "ct-4179",
+        title: "Rate limit the public API",
+        status: "in_progress",
+        priority: "high",
+        labels: ["gateway"],
+        assignee: PEOPLE.jordan._id,
+        assignee_info: info(PEOPLE.jordan),
+        plan: undefined,
+        plan_id: undefined,
+        source: "agent",
+        source_agent_type: "pi",
+      },
+      4 * MIN,
+    ),
+    task(
+      {
+        _id: "hero-t9",
+        short_id: "ct-4188",
+        title: "Retry button and attempt history",
+        status: "in_progress",
+        priority: "high",
+        labels: ["dashboard"],
+        assignee: PEOPLE.maya._id,
+        assignee_info: info(PEOPLE.maya),
+        source: "agent",
+        source_agent_type: "cursor",
+        conversation_ids: [MAYA_DASHBOARD._id],
+        blocked_by: ["hero-t6"],
+        estimated_minutes: 90,
+        actual_minutes: 30,
+      },
+      40_000,
+    ),
+    task(
+      {
+        _id: "hero-t10",
+        short_id: "ct-4175",
+        title: "Upgrade Stripe SDK to v14",
+        status: "in_review",
+        priority: "high",
+        labels: ["billing"],
+        assignee: PEOPLE.me._id,
+        assignee_info: info(PEOPLE.me),
+        plan: undefined,
+        plan_id: undefined,
+        source: "agent",
+        source_agent_type: "claude_code",
+      },
+      25 * MIN,
+    ),
+    task(
+      {
+        _id: "hero-t11",
+        short_id: "ct-4189",
+        title: "Alert when the retry queue backs up",
+        status: "open",
+        priority: "medium",
+        labels: ["ops"],
+        plan: undefined,
+        plan_id: undefined,
+      },
+      3 * HOUR,
+    ),
+    task(
+      {
+        _id: "hero-t12",
+        short_id: "ct-4190",
+        title: "Document the retry policy for support",
+        status: "open",
+        priority: "low",
+        labels: ["docs"],
+        assignee: PEOPLE.priya._id,
+        assignee_info: info(PEOPLE.priya),
+        plan: undefined,
+        plan_id: undefined,
+      },
+      5 * HOUR,
+    ),
+    task(
+      {
+        _id: "hero-t8",
+        short_id: "ct-4171",
+        title: "Audit log export to S3",
+        status: "done",
+        priority: "medium",
+        labels: ["infra"],
+        assignee: PEOPLE.priya._id,
+        assignee_info: info(PEOPLE.priya),
+        plan: undefined,
+        plan_id: undefined,
+      },
+      47 * MIN,
+    ),
   ];
 };

@@ -47,11 +47,15 @@ export function ShareControl({
   defaultOpen?: boolean;
 }) {
   const setObjectShareLink = useInboxStore((s) => s.setObjectShareLink);
-  const policyRefusal = usePolicyRefusal("public_sharing_disabled", publicShare?.team);
+  const policyRefusal = usePolicyRefusal(
+    "public_sharing_disabled",
+    publicShare?.team,
+  );
   const token = publicShare?.token ?? null;
   // The view a person is looking at (a dashboard's filters, a sheet's tab) rides the public link too.
   const query = path.includes("?") ? path.slice(path.indexOf("?")) : "";
-  const publicUrl = (t: string) => `${shareOrigin()}${sharePath(publicShare!.kind, t)}${query}`;
+  const publicUrl = (t: string) =>
+    `${shareOrigin()}${sharePath(publicShare!.kind, t)}${query}`;
   const control = (
     <SharePopover
       canManage={!!publicShare}
@@ -65,12 +69,18 @@ export function ShareControl({
         setObjectShareLink(publicShare!.kind, publicShare!.id, next);
         return publicUrl(next);
       }}
-      onRevokeShareLink={async () => setObjectShareLink(publicShare!.kind, publicShare!.id, null)}
+      onRevokeShareLink={async () =>
+        setObjectShareLink(publicShare!.kind, publicShare!.id, null)
+      }
       linkExtra={linkExtra}
       access={access}
       openRefusal={publicShare?.openRefusal ?? policyRefusal}
       defaultOpen={defaultOpen}
     />
   );
-  return className ? <span className={`inline-flex ${className}`}>{control}</span> : control;
+  return className ? (
+    <span className={`inline-flex ${className}`}>{control}</span>
+  ) : (
+    control
+  );
 }

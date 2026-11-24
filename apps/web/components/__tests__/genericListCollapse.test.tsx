@@ -20,14 +20,21 @@ const restoreGlobals = replaceGlobals({
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 Object.defineProperties(dom.window.HTMLElement.prototype, {
-  offsetHeight: { get() { return this.hasAttribute("data-index") ? 40 : 600; } },
+  offsetHeight: {
+    get() {
+      return this.hasAttribute("data-index") ? 40 : 600;
+    },
+  },
   offsetWidth: { get: () => 1000 },
 });
 dom.window.HTMLElement.prototype.scrollTo = () => {};
 
 const { createRoot } = await import("react-dom/client");
 const { GenericListView } = await import("../GenericListView");
-const tasks = [{ id: "a", title: "Review task" }, { id: "b", title: "Ship task" }];
+const tasks = [
+  { id: "a", title: "Review task" },
+  { id: "b", title: "Ship task" },
+];
 type Task = (typeof tasks)[number];
 const groups: ListGroup<Task>[] = [
   { key: "alice", label: "Alice", items: [tasks[0]] },
@@ -40,32 +47,43 @@ let root: ReturnType<typeof createRoot>;
 afterEach(async () => {
   await act(() => root.unmount());
 });
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
-async function mount(listGroups: ListGroup<Task>[] | null, flatItems: Task[] = tasks, onCreate: () => void = () => {}) {
+async function mount(
+  listGroups: ListGroup<Task>[] | null,
+  flatItems: Task[] = tasks,
+  onCreate: () => void = () => {},
+) {
   root = createRoot(host);
-  await act(() => root.render(
-    <MemoryRouter initialEntries={["/tasks"]}>
-      <GenericListView<Task>
-        title="Tasks"
-        tabs={[]}
-        activeTab=""
-        onTabChange={() => {}}
-        groups={listGroups}
-        flatItems={flatItems}
-        renderRow={(item) => <span data-task={item.id}>{item.title}</span>}
-        getItemId={(item) => item.id}
-        getItemRoute={(item) => `/tasks/${item.id}`}
-        getSearchText={(item) => item.title}
-        emptyMessage="No tasks found"
-        onCreate={onCreate}
-      />
-    </MemoryRouter>,
-  ));
+  await act(() =>
+    root.render(
+      <MemoryRouter initialEntries={["/tasks"]}>
+        <GenericListView<Task>
+          title="Tasks"
+          tabs={[]}
+          activeTab=""
+          onTabChange={() => {}}
+          groups={listGroups}
+          flatItems={flatItems}
+          renderRow={(item) => <span data-task={item.id}>{item.title}</span>}
+          getItemId={(item) => item.id}
+          getItemRoute={(item) => `/tasks/${item.id}`}
+          getSearchText={(item) => item.title}
+          emptyMessage="No tasks found"
+          onCreate={onCreate}
+        />
+      </MemoryRouter>,
+    ),
+  );
 }
 
 function button(text: string) {
-  return [...host.querySelectorAll("button")].find((el) => el.textContent === text);
+  return [...host.querySelectorAll("button")].find(
+    (el) => el.textContent === text,
+  );
 }
 
 async function click(text: string) {
@@ -92,7 +110,10 @@ test("collapsing every group keeps its header and lets each task return", async 
 });
 
 test("a collapsed parent with only nested tasks remains available to reopen", async () => {
-  await mount([{ key: "team", label: "Team", items: [], depth: 0 }, ...groups.map((g) => ({ ...g, depth: 1 }))]);
+  await mount([
+    { key: "team", label: "Team", items: [], depth: 0 },
+    ...groups.map((g) => ({ ...g, depth: 1 })),
+  ]);
   await click("Team(0)");
   expect(host.textContent).not.toContain("No tasks found");
   expect(button("Team(0)")).toBeDefined();
@@ -101,20 +122,28 @@ test("a collapsed parent with only nested tasks remains available to reopen", as
   expect(host.querySelectorAll("[data-task]")).toHaveLength(2);
 });
 
-test.each([{ listGroups: null }, { listGroups: [] }])("an empty list still offers creation (%j)", async ({ listGroups }) => {
-  await mount(listGroups, []);
-  expect(host.textContent).toContain("No tasks found");
-  expect(button("Create one")).toBeDefined();
-});
+test.each([{ listGroups: null }, { listGroups: [] }])(
+  "an empty list still offers creation (%j)",
+  async ({ listGroups }) => {
+    await mount(listGroups, []);
+    expect(host.textContent).toContain("No tasks found");
+    expect(button("Create one")).toBeDefined();
+  },
+);
 
 test("a search with no matches shows No results even when groups were collapsed", async () => {
   await mount(groups);
   await click("Alice(1)");
   await click("Bob(1)");
-  await act(() => host.querySelector<HTMLButtonElement>('button[title="Search"]')!.click());
+  await act(() =>
+    host.querySelector<HTMLButtonElement>('button[title="Search"]')!.click(),
+  );
   const input = host.querySelector("input")!;
   await act(() => {
-    Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value")!.set!.call(input, "missing");
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, "missing");
     input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   });
   expect(host.textContent).toContain("No results");
@@ -125,13 +154,20 @@ test("a search with no matches shows No results even when groups were collapsed"
 // list: its keys must not also act on the list behind it.
 test("a key pressed inside a region that owns its keys never reaches the list", async () => {
   let created = 0;
-  await mount(groups, tasks, () => { created += 1; });
+  await mount(groups, tasks, () => {
+    created += 1;
+  });
   const card = document.createElement("div");
   card.setAttribute("data-owns-keys", "");
   const inner = document.createElement("button");
   card.append(inner);
   document.body.append(card);
-  const press = (el: Element) => act(() => { el.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "c", bubbles: true })); });
+  const press = (el: Element) =>
+    act(() => {
+      el.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", { key: "c", bubbles: true }),
+      );
+    });
   await press(inner);
   expect(created).toBe(0);
   await press(document.body);

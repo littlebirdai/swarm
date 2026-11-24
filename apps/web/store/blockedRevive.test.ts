@@ -29,7 +29,10 @@ function mk(over: Partial<any>): any {
   };
 }
 
-function bucketsOf(sessions: any[], reviveRequestedAt?: Record<string, number>) {
+function bucketsOf(
+  sessions: any[],
+  reviveRequestedAt?: Record<string, number>,
+) {
   const map: Record<string, any> = {};
   for (const s of sessions) map[s._id] = s;
   const { working, needsInput } = placeSections(map, new Set(), undefined, {
@@ -49,19 +52,17 @@ describe("placeSections — blocked-banner revive stamps (the revive overlay)", 
   });
 
   it("moves a blocked session to working while its revive stamp is fresh", () => {
-    const { working, needsInput } = bucketsOf(
-      [mk({ _id: "reviving" })],
-      { reviving: NOW - 5_000 },
-    );
+    const { working, needsInput } = bucketsOf([mk({ _id: "reviving" })], {
+      reviving: NOW - 5_000,
+    });
     expect(working).toContain("reviving");
     expect(needsInput).not.toContain("reviving");
   });
 
   it("lets the blocked state resurface once the stamp expires", () => {
-    const { working, needsInput } = bucketsOf(
-      [mk({ _id: "failed" })],
-      { failed: NOW - (BLOCKED_REVIVE_TTL_MS + 5_000) },
-    );
+    const { working, needsInput } = bucketsOf([mk({ _id: "failed" })], {
+      failed: NOW - (BLOCKED_REVIVE_TTL_MS + 5_000),
+    });
     expect(needsInput).toContain("failed");
     expect(working).not.toContain("failed");
   });
@@ -117,6 +118,13 @@ describe("showsBlockedBadge", () => {
   });
 
   it("brings it back once the stamp expires", () => {
-    expect(showsBlockedBadge(true, false, NOW - (BLOCKED_REVIVE_TTL_MS + 1_000), NOW)).toBe(true);
+    expect(
+      showsBlockedBadge(
+        true,
+        false,
+        NOW - (BLOCKED_REVIVE_TTL_MS + 1_000),
+        NOW,
+      ),
+    ).toBe(true);
   });
 });

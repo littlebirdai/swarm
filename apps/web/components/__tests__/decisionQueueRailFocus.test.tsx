@@ -27,12 +27,8 @@ afterAll(() => {
   restoreGlobals();
 });
 
-
-
 // posthog-js reads bare `location` at module load; the analytics import rides
 // in with the store.
-
-
 
 const CONV_A = "convaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const CONV_B = "convbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -65,7 +61,12 @@ mock.module("../../hooks/useDecisionQueue", () => ({
 // It reports the item the stepper hands it, the one the thread's card shows.
 mock.module("../../app/inbox/QueuePageClient", () => ({
   InboxConversation: ({ sessionId }: { sessionId: string }) => (
-    <div data-conv={sessionId} data-stepper-item={React.useContext(realQueueModule.DecisionStepperContext)?.item?.key} />
+    <div
+      data-conv={sessionId}
+      data-stepper-item={
+        React.useContext(realQueueModule.DecisionStepperContext)?.item?.key
+      }
+    />
   ),
 }));
 
@@ -94,7 +95,9 @@ describe("the queue lights the rail card it is showing", () => {
   });
 
   test("the entry question owns the highlight", async () => {
-    await act(async () => root.render(<DecisionQueue initialConversationId={CONV_B} />));
+    await act(async () =>
+      root.render(<DecisionQueue initialConversationId={CONV_B} />),
+    );
     expect(railFocus()).toBe(CONV_B);
   });
 
@@ -123,14 +126,35 @@ describe("the queue lights the rail card it is showing", () => {
 // that session's first ask.
 describe("a rail row picks the ask the thread's card shows", () => {
   test("entering on the third ask of a session hands that ask to the card", async () => {
-    queue = [item("decide:1", CONV_A), item("decide:5", CONV_A), item("decide:19", CONV_A)];
+    queue = [
+      item("decide:1", CONV_A),
+      item("decide:5", CONV_A),
+      item("decide:19", CONV_A),
+    ];
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    const shown = () => container.querySelector("[data-conv]")?.getAttribute("data-stepper-item");
-    await act(async () => root.render(<DecisionQueue key="19" initialConversationId={CONV_A} initialKey="decide:19" />));
+    const shown = () =>
+      container.querySelector("[data-conv]")?.getAttribute("data-stepper-item");
+    await act(async () =>
+      root.render(
+        <DecisionQueue
+          key="19"
+          initialConversationId={CONV_A}
+          initialKey="decide:19"
+        />,
+      ),
+    );
     expect(shown()).toBe("decide:19");
-    await act(async () => root.render(<DecisionQueue key="5" initialConversationId={CONV_A} initialKey="decide:5" />));
+    await act(async () =>
+      root.render(
+        <DecisionQueue
+          key="5"
+          initialConversationId={CONV_A}
+          initialKey="decide:5"
+        />,
+      ),
+    );
     expect(shown()).toBe("decide:5");
     await act(async () => root.unmount());
     container.remove();

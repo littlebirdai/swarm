@@ -1,10 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { flushRetryQueueForShutdown, type ShutdownFlushable } from "./retryQueue.js";
+import {
+  flushRetryQueueForShutdown,
+  type ShutdownFlushable,
+} from "./retryQueue.js";
 import { DAEMON_STOP_SIGKILL_MS, SHUTDOWN_FLUSH_MS } from "./shutdownBudget.js";
 
 /** A queue that drains `perPoll` ops each time it is asked its size. */
 function fakeQueue(size: number, perPoll: number) {
-  const calls = { restored: 0, slept: 0, persisted: [] as Array<{ sync?: boolean } | undefined> };
+  const calls = {
+    restored: 0,
+    slept: 0,
+    persisted: [] as Array<{ sync?: boolean } | undefined>,
+  };
   const queue: ShutdownFlushable = {
     getQueueSize() {
       return size;
@@ -27,7 +34,9 @@ function fakeQueue(size: number, perPoll: number) {
 describe("flushRetryQueueForShutdown", () => {
   test("an empty queue returns immediately and touches nothing", async () => {
     const { queue, calls, sleep } = fakeQueue(0, 0);
-    expect(await flushRetryQueueForShutdown(queue, SHUTDOWN_FLUSH_MS, sleep)).toBe(0);
+    expect(
+      await flushRetryQueueForShutdown(queue, SHUTDOWN_FLUSH_MS, sleep),
+    ).toBe(0);
     expect(calls.restored).toBe(0);
     expect(calls.slept).toBe(0);
     expect(calls.persisted).toEqual([]);
@@ -35,7 +44,9 @@ describe("flushRetryQueueForShutdown", () => {
 
   test("a draining queue empties, pulls retries forward once, and persists synchronously", async () => {
     const { queue, calls, sleep } = fakeQueue(4, 2);
-    expect(await flushRetryQueueForShutdown(queue, SHUTDOWN_FLUSH_MS, sleep)).toBe(0);
+    expect(
+      await flushRetryQueueForShutdown(queue, SHUTDOWN_FLUSH_MS, sleep),
+    ).toBe(0);
     expect(calls.restored).toBe(1);
     expect(calls.slept).toBe(2);
     expect(calls.persisted).toEqual([{ sync: true }]);

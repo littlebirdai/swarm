@@ -20,29 +20,46 @@ import { repositoryKeyOfRemote } from "@codecast/shared/contracts";
 
 export { ruleRequestValidator } from "./permissionRuleRequest";
 
-type ConvLike = Pick<Doc<"conversations">, "_id" | "user_id" | "team_id" | "git_remote_url" | "git_root" | "project_path">;
+type ConvLike = Pick<
+  Doc<"conversations">,
+  "_id" | "user_id" | "team_id" | "git_remote_url" | "git_root" | "project_path"
+>;
 
 /** The project a conversation's rules live under: its repository (owner/name,
  *  the key every clone and worktree share), else its checkout path. */
-export function permissionProjectKey(conv: Pick<ConvLike, "git_remote_url" | "git_root" | "project_path">): string {
-  return repositoryKeyOfRemote(conv.git_remote_url) || conv.git_root || conv.project_path || "";
+export function permissionProjectKey(
+  conv: Pick<ConvLike, "git_remote_url" | "git_root" | "project_path">,
+): string {
+  return (
+    repositoryKeyOfRemote(conv.git_remote_url) ||
+    conv.git_root ||
+    conv.project_path ||
+    ""
+  );
 }
 
 /** The workspace a conversation's rules live under. Scope, not access: the
  *  rule is read by its owner alone. */
-export function permissionScopeKey(conv: Pick<ConvLike, "user_id" | "team_id">): string {
+export function permissionScopeKey(
+  conv: Pick<ConvLike, "user_id" | "team_id">,
+): string {
   return conv.team_id ? `team:${conv.team_id}` : `user:${conv.user_id}`;
 }
 
 type Ctx = { db: any };
 
-export async function rulesForConversation(ctx: Ctx, conv: ConvLike): Promise<Doc<"permission_rules">[]> {
+export async function rulesForConversation(
+  ctx: Ctx,
+  conv: ConvLike,
+): Promise<Doc<"permission_rules">[]> {
   // No repository and no path: no project to hold rules, so none apply.
   if (!permissionProjectKey(conv)) return [];
   const scope = permissionScopeKey(conv);
   const rows: Doc<"permission_rules">[] = await ctx.db
     .query("permission_rules")
-    .withIndex("by_user_project", (q: any) => q.eq("user_id", conv.user_id).eq("project", permissionProjectKey(conv)))
+    .withIndex("by_user_project", (q: any) =>
+      q.eq("user_id", conv.user_id).eq("project", permissionProjectKey(conv)),
+    )
     .collect();
   return rows.filter((r) => r.scope === scope);
 }
@@ -73,7 +90,9 @@ export function settle(
   }
   if (verdict.action === "allow") return { action: "allow", reason: "rule" };
   if (isUnattendedConversation(conv)) {
-    const shown = verdict.uncovered.slice(0, 5).map((p) => code(p.length > 200 ? `${p.slice(0, 200)}…` : p));
+    const shown = verdict.uncovered
+      .slice(0, 5)
+      .map((p) => code(p.length > 200 ? `${p.slice(0, 200)}…` : p));
     const what = shown.length ? shown.join(", ") : "this call";
     return {
       action: "deny",
@@ -94,7 +113,15 @@ export async function saveAllowRules(
   const saved: Doc<"permission_rules">[] = [];
   const now = Date.now();
   for (const pattern of new Set(request.always)) {
-    if (existing.some((r) => r.permission === request.permission && r.pattern === pattern && r.action === "allow")) continue;
+    if (
+      existing.some(
+        (r) =>
+          r.permission === request.permission &&
+          r.pattern === pattern &&
+          r.action === "allow",
+      )
+    )
+      continue;
     const row = {
       user_id: conv.user_id,
       project: permissionProjectKey(conv),
@@ -106,7 +133,11 @@ export async function saveAllowRules(
       source_conversation_id: conv._id,
     };
     const id = await ctx.db.insert("permission_rules", row);
-    saved.push({ _id: id, _creationTime: now, ...row } as Doc<"permission_rules">);
+    saved.push({
+      _id: id,
+      _creationTime: now,
+      ...row,
+    } as Doc<"permission_rules">);
   }
   return saved;
 }

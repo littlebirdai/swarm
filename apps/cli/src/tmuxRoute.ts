@@ -24,7 +24,12 @@ import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/shared/contracts";
 import { readLocalConfig } from "./config/readLocalConfig.js";
-import { snapshotProcessTable, snapshotProcessTableAsync, tmuxServerRows, type ProcRow } from "./processTable.js";
+import {
+  snapshotProcessTable,
+  snapshotProcessTableAsync,
+  tmuxServerRows,
+  type ProcRow,
+} from "./processTable.js";
 
 export const SESSION_SOCKET_PREFIX = TMUX_SESSION_SOCKET_PREFIX;
 
@@ -32,7 +37,10 @@ export const SESSION_SOCKET_PREFIX = TMUX_SESSION_SOCKET_PREFIX;
 const AGENT_SESSION_RE = /^(cc|cx|cu|gm|oc|pi|wf|ct|codecast)-[\w-]+$/;
 
 export function tmuxSocketDir(env: NodeJS.ProcessEnv = process.env): string {
-  return path.join(env.TMUX_TMPDIR || "/tmp", `tmux-${process.getuid?.() ?? 0}`);
+  return path.join(
+    env.TMUX_TMPDIR || "/tmp",
+    `tmux-${process.getuid?.() ?? 0}`,
+  );
 }
 
 export function sessionSocketName(session: string): string {
@@ -40,26 +48,42 @@ export function sessionSocketName(session: string): string {
 }
 
 /** Every per-session server socket on this machine, by socket name. */
-export function sessionServerSockets(env: NodeJS.ProcessEnv = process.env): string[] {
+export function sessionServerSockets(
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   try {
-    return fs.readdirSync(tmuxSocketDir(env)).filter((f) => f.startsWith(SESSION_SOCKET_PREFIX)).sort();
+    return fs
+      .readdirSync(tmuxSocketDir(env))
+      .filter((f) => f.startsWith(SESSION_SOCKET_PREFIX))
+      .sort();
   } catch {
     return [];
   }
 }
 
-export function hasSessionServer(session: string, env: NodeJS.ProcessEnv = process.env): boolean {
-  return fs.existsSync(path.join(tmuxSocketDir(env), sessionSocketName(session)));
+export function hasSessionServer(
+  session: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return fs.existsSync(
+    path.join(tmuxSocketDir(env), sessionSocketName(session)),
+  );
 }
 
 let enabledCache: { at: number; value: boolean } | null = null;
 /** Whether new agent sessions get their own server: on macOS unless `tmux_server_per_session` is false in config.json. */
-export function perSessionServersEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (env.CODECAST_TMUX_PER_SESSION) return env.CODECAST_TMUX_PER_SESSION === "1";
+export function perSessionServersEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (env.CODECAST_TMUX_PER_SESSION)
+    return env.CODECAST_TMUX_PER_SESSION === "1";
   if (process.platform !== "darwin") return false;
   const now = Date.now();
   if (!enabledCache || now - enabledCache.at > 10_000) {
-    enabledCache = { at: now, value: readLocalConfig()?.tmux_server_per_session !== false };
+    enabledCache = {
+      at: now,
+      value: readLocalConfig()?.tmux_server_per_session !== false,
+    };
   }
   return enabledCache.value;
 }
@@ -71,7 +95,13 @@ export function withTmuxSession<T>(session: string, fn: () => T): T {
   return scope.run(session, fn);
 }
 
-const FLEET_LISTINGS = new Set(["list-sessions", "ls", "list-panes", "list-clients", "list-windows"]);
+const FLEET_LISTINGS = new Set([
+  "list-sessions",
+  "ls",
+  "list-panes",
+  "list-clients",
+  "list-windows",
+]);
 
 function flagValue(args: string[], flag: string): string | null {
   const i = args.indexOf(flag);
@@ -79,7 +109,9 @@ function flagValue(args: string[], flag: string): string | null {
 }
 
 /** The session a target names, `null` for an id target (%3, $2, @1), `undefined` when there is none. */
-export function targetSession(target: string | null): string | null | undefined {
+export function targetSession(
+  target: string | null,
+): string | null | undefined {
   if (target === null) return undefined;
   const t = target.startsWith("=") ? target.slice(1) : target;
   if (/^[%$@]/.test(t)) return null;
@@ -90,7 +122,8 @@ export function targetSession(target: string | null): string | null | undefined 
 /** The verb and its arguments, past any global flags a caller already put in front. */
 function verbIndex(args: string[]): number {
   let i = 0;
-  while (i < args.length && args[i].startsWith("-")) i += args[i] === "-L" || args[i] === "-S" || args[i] === "-f" ? 2 : 1;
+  while (i < args.length && args[i].startsWith("-"))
+    i += args[i] === "-L" || args[i] === "-S" || args[i] === "-f" ? 2 : 1;
   return i;
 }
 
@@ -101,12 +134,16 @@ function namesServer(args: string[]): boolean {
   return globals.includes("-L") || globals.includes("-S");
 }
 
-export function ownServerSession(args: string[], env: NodeJS.ProcessEnv = process.env): string | null {
+export function ownServerSession(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   if (namesServer(args)) return null;
   const rest = args.slice(verbIndex(args));
   if (rest[0] !== "new-session" && rest[0] !== "new") return null;
   const name = flagValue(rest, "-s");
-  if (!name || !AGENT_SESSION_RE.test(name) || !perSessionServersEnabled(env)) return null;
+  if (!name || !AGENT_SESSION_RE.test(name) || !perSessionServersEnabled(env))
+    return null;
   return name;
 }
 
@@ -114,20 +151,34 @@ export function ownServerSession(args: string[], env: NodeJS.ProcessEnv = proces
  * The argv lists one tmux call becomes: one list for a call that reaches one
  * server, one per server for a fleet listing outside any session scope.
  */
-export function routeTmuxArgs(args: string[], env: NodeJS.ProcessEnv = process.env, scoped: string | undefined = scope.getStore()): string[][] {
+export function routeTmuxArgs(
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+  scoped: string | undefined = scope.getStore(),
+): string[][] {
   if (namesServer(args)) return [args];
   const rest = args.slice(verbIndex(args));
   const verb = rest[0] ?? "";
-  const target = verb === "new-session" || verb === "new" ? flagValue(rest, "-s") : flagValue(rest, "-t");
+  const target =
+    verb === "new-session" || verb === "new"
+      ? flagValue(rest, "-s")
+      : flagValue(rest, "-t");
   const named = targetSession(target);
   // Inside a pane, tmux talks to the server in $TMUX, which may be a session's
   // own; the shared server is then named outright. An id target or a bare
   // command keeps meaning the pane's own server, as it always has.
-  const shared = socketOfTmuxEnv(env.TMUX) === "default" ? args : ["-L", "default", ...args];
-  const own = (session: string | undefined) => (session && hasSessionServer(session, env) ? [["-L", sessionSocketName(session), ...args]] : null);
+  const shared =
+    socketOfTmuxEnv(env.TMUX) === "default" ? args : ["-L", "default", ...args];
+  const own = (session: string | undefined) =>
+    session && hasSessionServer(session, env)
+      ? [["-L", sessionSocketName(session), ...args]]
+      : null;
   if (named) return own(named) ?? [shared];
   if (scoped) return own(scoped) ?? [shared];
-  const fleet = named === undefined && FLEET_LISTINGS.has(verb) && (verb !== "list-panes" && verb !== "list-windows" || rest.includes("-a"));
+  const fleet =
+    named === undefined &&
+    FLEET_LISTINGS.has(verb) &&
+    ((verb !== "list-panes" && verb !== "list-windows") || rest.includes("-a"));
   if (!fleet) return [args];
   return [shared, ...sessionServerSockets(env).map((s) => ["-L", s, ...args])];
 }
@@ -141,13 +192,17 @@ export function joinListings(outputs: string[]): string {
 const errText = (err: unknown): string => {
   const e = err as { stderr?: unknown; message?: unknown } | null;
   const stderr = e?.stderr;
-  return typeof stderr === "string" ? stderr : Buffer.isBuffer(stderr) ? stderr.toString("utf-8") : String(e?.message ?? err ?? "");
+  return typeof stderr === "string"
+    ? stderr
+    : Buffer.isBuffer(stderr)
+      ? stderr.toString("utf-8")
+      : String(e?.message ?? err ?? "");
 };
 
 /** The socket a routed argv addresses, or null for the shared server reached without -L. */
 function socketOf(argv: string[]): string | null {
   const i = argv.indexOf("-L");
-  return i >= 0 ? argv[i + 1] ?? null : null;
+  return i >= 0 ? (argv[i + 1] ?? null) : null;
 }
 
 /**
@@ -155,12 +210,21 @@ function socketOf(argv: string[]): string | null {
  * inventory (tmuxFleetInventory.ts); null for the shared server, which holds
  * many sessions and is always asked directly.
  */
-export function sessionServerKey(argv: string[], env: NodeJS.ProcessEnv = process.env): string | null {
+export function sessionServerKey(
+  argv: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   const globals = argv.slice(0, verbIndex(argv));
   const l = globals.indexOf("-L");
-  if (l >= 0) return globals[l + 1]?.startsWith(SESSION_SOCKET_PREFIX) ? path.join(tmuxSocketDir(env), globals[l + 1]) : null;
+  if (l >= 0)
+    return globals[l + 1]?.startsWith(SESSION_SOCKET_PREFIX)
+      ? path.join(tmuxSocketDir(env), globals[l + 1])
+      : null;
   const s = globals.indexOf("-S");
-  return s >= 0 && path.basename(globals[s + 1] ?? "").startsWith(SESSION_SOCKET_PREFIX) ? globals[s + 1] : null;
+  return s >= 0 &&
+    path.basename(globals[s + 1] ?? "").startsWith(SESSION_SOCKET_PREFIX)
+    ? globals[s + 1]
+    : null;
 }
 
 /** The server's flags and the command, split where the verb starts. */
@@ -170,14 +234,32 @@ export function splitServerFlags(argv: string[]): [string[], string[]] {
 }
 
 const READ_VERBS = new Set([
-  ...FLEET_LISTINGS, "capture-pane", "capturep", "display-message", "display", "show-options", "show",
-  "show-window-options", "showw", "has-session", "has", "show-environment", "showenv", "list-buffers", "show-buffer",
+  ...FLEET_LISTINGS,
+  "capture-pane",
+  "capturep",
+  "display-message",
+  "display",
+  "show-options",
+  "show",
+  "show-window-options",
+  "showw",
+  "has-session",
+  "has",
+  "show-environment",
+  "showenv",
+  "list-buffers",
+  "show-buffer",
 ]);
 
 /** Whether a call may change what a server lists: anything but a plain read, and every command chain. */
 export function tmuxCallWrites(argv: string[]): boolean {
   const verb = argv[verbIndex(argv)] ?? "";
-  return !READ_VERBS.has(verb) || argv.some((word, i) => i > verbIndex(argv) && (word === ";" || word.endsWith(";")));
+  return (
+    !READ_VERBS.has(verb) ||
+    argv.some(
+      (word, i) => i > verbIndex(argv) && (word === ";" || word.endsWith(";")),
+    )
+  );
 }
 
 /**
@@ -193,17 +275,35 @@ export function tmuxCallWrites(argv: string[]): boolean {
  * that came back empty, which is what a failed ps returns: it decides nothing,
  * and removing a live server's socket would strand the server.
  */
-export function holdsNothing(err: unknown, argv: string[], procs: () => ProcRow[], env: NodeJS.ProcessEnv): boolean {
+export function holdsNothing(
+  err: unknown,
+  argv: string[],
+  procs: () => ProcRow[],
+  env: NodeJS.ProcessEnv,
+): boolean {
   const text = errText(err);
-  if (/error connecting to .+ \(No such file or directory\)|no current target/i.test(text)) return true;
-  if (!/no server running on |error connecting to .+ \(Connection refused\)/i.test(text)) return false;
+  if (
+    /error connecting to .+ \(No such file or directory\)|no current target/i.test(
+      text,
+    )
+  )
+    return true;
+  if (
+    !/no server running on |error connecting to .+ \(Connection refused\)/i.test(
+      text,
+    )
+  )
+    return false;
   const socket = socketOf(argv) ?? "default";
   if (socket === "default" && env.TMUX_TMPDIR) return true;
   const table = procs();
   if (table.length === 0) return false;
-  if (socket === "default") return tmuxServerRows(table, process.getuid?.()).length === 0;
+  if (socket === "default")
+    return tmuxServerRows(table, process.getuid?.()).length === 0;
   if (table.some((p) => p.command.includes(` -L ${socket} `))) return false;
-  try { fs.rmSync(path.join(tmuxSocketDir(env), socket), { force: true }); } catch {}
+  try {
+    fs.rmSync(path.join(tmuxSocketDir(env), socket), { force: true });
+  } catch {}
   return true;
 }
 
@@ -211,7 +311,12 @@ export function holdsNothing(err: unknown, argv: string[], procs: () => ProcRow[
  * Run one routed tmux call. `exec` throws on failure. A fleet listing answers
  * with every server, or fails as a single call would (holdsNothing).
  */
-export function runRoutedSync<T>(argvs: string[][], exec: (argv: string[]) => T, join: (results: T[]) => T, env: NodeJS.ProcessEnv = process.env): T {
+export function runRoutedSync<T>(
+  argvs: string[][],
+  exec: (argv: string[]) => T,
+  join: (results: T[]) => T,
+  env: NodeJS.ProcessEnv = process.env,
+): T {
   if (argvs.length === 1) return exec(argvs[0]);
   const results: T[] = [];
   let firstError: unknown;
@@ -221,7 +326,10 @@ export function runRoutedSync<T>(argvs: string[][], exec: (argv: string[]) => T,
       results.push(exec(argv));
     } catch (err) {
       firstError ??= err;
-      if (!holdsNothing(err, argv, () => (procs ??= snapshotProcessTable()), env)) throw err;
+      if (
+        !holdsNothing(err, argv, () => (procs ??= snapshotProcessTable()), env)
+      )
+        throw err;
     }
   }
   if (results.length === 0) throw firstError;
@@ -230,20 +338,42 @@ export function runRoutedSync<T>(argvs: string[][], exec: (argv: string[]) => T,
 
 const FLEET_CONCURRENCY = 8;
 
-export async function runRouted<T>(argvs: string[][], exec: (argv: string[]) => Promise<T>, join: (results: T[]) => T, env: NodeJS.ProcessEnv = process.env): Promise<T> {
+export async function runRouted<T>(
+  argvs: string[][],
+  exec: (argv: string[]) => Promise<T>,
+  join: (results: T[]) => T,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<T> {
   if (argvs.length === 1) return exec(argvs[0]);
-  const settled: Array<{ ok: true; value: T } | { ok: false; error: unknown }> = new Array(argvs.length);
+  const settled: Array<{ ok: true; value: T } | { ok: false; error: unknown }> =
+    new Array(argvs.length);
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(FLEET_CONCURRENCY, argvs.length) }, async () => {
-    while (next < argvs.length) {
-      const i = next++;
-      settled[i] = await exec(argvs[i]).then((value) => ({ ok: true as const, value }), (error) => ({ ok: false as const, error }));
-    }
-  }));
-  const failed = settled.flatMap((r, i) => (r.ok ? [] : [{ error: r.error, argv: argvs[i] }]));
+  await Promise.all(
+    Array.from(
+      { length: Math.min(FLEET_CONCURRENCY, argvs.length) },
+      async () => {
+        while (next < argvs.length) {
+          const i = next++;
+          settled[i] = await exec(argvs[i]).then(
+            (value) => ({ ok: true as const, value }),
+            (error) => ({ ok: false as const, error }),
+          );
+        }
+      },
+    ),
+  );
+  const failed = settled.flatMap((r, i) =>
+    r.ok ? [] : [{ error: r.error, argv: argvs[i] }],
+  );
   if (failed.length) {
-    const procs = failed.some((f) => /no server running on |Connection refused/i.test(errText(f.error))) ? await snapshotProcessTableAsync() : [];
-    const blocking = failed.find((f) => !holdsNothing(f.error, f.argv, () => procs, env));
+    const procs = failed.some((f) =>
+      /no server running on |Connection refused/i.test(errText(f.error)),
+    )
+      ? await snapshotProcessTableAsync()
+      : [];
+    const blocking = failed.find(
+      (f) => !holdsNothing(f.error, f.argv, () => procs, env),
+    );
     if (blocking) throw blocking.error;
   }
   const results = settled.flatMap((r) => (r.ok ? [r.value] : []));
@@ -269,16 +399,21 @@ export async function listEveryServer(
   const outputs: string[] = [];
   const unanswered: string[] = [];
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(FLEET_CONCURRENCY, argvs.length) }, async () => {
-    while (next < argvs.length) {
-      const argv = argvs[next++];
-      try {
-        outputs.push((await exec(argv)).stdout);
-      } catch {
-        unanswered.push(socketOf(argv) ?? "default");
-      }
-    }
-  }));
+  await Promise.all(
+    Array.from(
+      { length: Math.min(FLEET_CONCURRENCY, argvs.length) },
+      async () => {
+        while (next < argvs.length) {
+          const argv = argvs[next++];
+          try {
+            outputs.push((await exec(argv)).stdout);
+          } catch {
+            unanswered.push(socketOf(argv) ?? "default");
+          }
+        }
+      },
+    ),
+  );
   return { stdout: joinListings(outputs), unanswered };
 }
 
@@ -287,14 +422,18 @@ export async function listEveryServer(
  * pane, those point every `tmux` command at that pane's server rather than the
  * default one, and a child that starts tmux refuses to nest.
  */
-export function outsideTmuxEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+export function outsideTmuxEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
   const { TMUX: _tmux, TMUX_PANE: _pane, ...rest } = env;
   return rest;
 }
 
 /** The socket a `$TMUX` value names, by file name; "default" for the shared server or none. */
 export function socketOfTmuxEnv(tmux: string | undefined): string {
-  return tmux ? path.basename(tmux.split(",")[0] ?? "") || "default" : "default";
+  return tmux
+    ? path.basename(tmux.split(",")[0] ?? "") || "default"
+    : "default";
 }
 
 /**
@@ -307,7 +446,12 @@ export function paneOwnerId(paneId: string, socket: string): string {
 }
 
 /** The environment a process in pane `id` (from paneOwnerId) would have. */
-export function paneOwnerEnv(id: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+export function paneOwnerEnv(
+  id: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
   const [pane, socket] = id.split("@");
-  return socket ? { TMUX_PANE: pane, TMUX: `${path.join(tmuxSocketDir(env), socket)},0,0` } : { TMUX_PANE: pane };
+  return socket
+    ? { TMUX_PANE: pane, TMUX: `${path.join(tmuxSocketDir(env), socket)},0,0` }
+    : { TMUX_PANE: pane };
 }

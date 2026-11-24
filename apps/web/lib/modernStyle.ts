@@ -2,7 +2,9 @@
 // (`modern_style: false`), or chose Minimal before Modern existed and so never
 // wrote `modern_style` at all. Web (ThemeProvider, the store) and the phone
 // (apps/mobile/lib/mobileLook.ts) decide it here.
-export function prefersModern(ui: { modern_style?: unknown; visual_style?: unknown } | null | undefined): boolean {
+export function prefersModern(
+  ui: { modern_style?: unknown; visual_style?: unknown } | null | undefined,
+): boolean {
   const own = ui?.modern_style;
   if (own === true || own === false) return own;
   return ui?.visual_style !== "minimal" && ui?.visual_style !== "codex";
@@ -28,8 +30,13 @@ export function storedModern(): boolean | undefined {
 /** Whether this device draws Modern. The same answer ThemeProvider paints, so
  *  store code that cannot read its context (worker nesting, the board) agrees
  *  with the screen. */
-export function showsModern(ui: { modern_style?: unknown; visual_style?: unknown } | null | undefined): boolean {
+export function showsModern(
+  ui: { modern_style?: unknown; visual_style?: unknown } | null | undefined,
+): boolean {
   const own = storedModern();
   if (own !== undefined) return own;
-  return prefersModern({ modern_style: ui?.modern_style, visual_style: readDevice(VISUAL_STYLE_KEY) ?? ui?.visual_style });
+  return prefersModern({
+    modern_style: ui?.modern_style,
+    visual_style: readDevice(VISUAL_STYLE_KEY) ?? ui?.visual_style,
+  });
 }

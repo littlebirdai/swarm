@@ -4,7 +4,14 @@
 // a huddle) a person is a name they chose to show, never their address and
 // never an id.
 
-type NamedUser = { name?: string | null; github_username?: string | null; email?: string | null } | null | undefined;
+type NamedUser =
+  | {
+      name?: string | null;
+      github_username?: string | null;
+      email?: string | null;
+    }
+  | null
+  | undefined;
 
 /** A teammate's name as the team sees it. */
 export function displayName(user: NamedUser): string {

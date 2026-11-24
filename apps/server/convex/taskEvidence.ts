@@ -13,9 +13,12 @@ import type { Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { canAccessDoc, canAccessPlan, canAccessTask } from "./lib/access";
 import { linkedSessionsFor } from "./tasks";
-import { sessionImages, storageUrl, type SessionImage } from "./lib/sessionMedia";
+import {
+  sessionImages,
+  storageUrl,
+  type SessionImage,
+} from "./lib/sessionMedia";
 import type { ChangeGuide } from "@codecast/shared/contracts/changeGuide";
-
 
 type Ctx = { db: any; storage?: any };
 
@@ -23,18 +26,34 @@ const IMAGES_MAX = 12;
 const WORKSPACE_DOC_SCAN = 300;
 
 // `ct-N` (the short id the CLI prints) or a raw Convex id.
-export async function findTaskByRef(ctx: Ctx, ref: string): Promise<any | null> {
+export async function findTaskByRef(
+  ctx: Ctx,
+  ref: string,
+): Promise<any | null> {
   if (/^ct-\d+$/.test(ref)) {
-    return (await ctx.db.query("tasks").withIndex("by_short_id", (q: any) => q.eq("short_id", ref)).first()) ?? null;
+    return (
+      (await ctx.db
+        .query("tasks")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", ref))
+        .first()) ?? null
+    );
   }
   const id = ctx.db.normalizeId("tasks", ref);
   return id ? await ctx.db.get(id) : null;
 }
 
 // `pl-N` or a raw Convex id.
-export async function findPlanByRef(ctx: Ctx, ref: string): Promise<any | null> {
+export async function findPlanByRef(
+  ctx: Ctx,
+  ref: string,
+): Promise<any | null> {
   if (/^pl-\d+$/.test(ref)) {
-    return (await ctx.db.query("plans").withIndex("by_short_id", (q: any) => q.eq("short_id", ref)).first()) ?? null;
+    return (
+      (await ctx.db
+        .query("plans")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", ref))
+        .first()) ?? null
+    );
   }
   const id = ctx.db.normalizeId("plans", ref);
   return id ? await ctx.db.get(id) : null;
@@ -63,12 +82,20 @@ export type EvidenceBinding = {
 export async function resolveEvidenceBinding(
   ctx: Ctx,
   userId: Id<"users">,
-  args: { task?: string; plan?: string; session_conversation_id?: Id<"conversations"> | string; station?: string },
-): Promise<{ binding: EvidenceBinding; error: null } | { binding: null; error: string }> {
+  args: {
+    task?: string;
+    plan?: string;
+    session_conversation_id?: Id<"conversations"> | string;
+    station?: string;
+  },
+): Promise<
+  { binding: EvidenceBinding; error: null } | { binding: null; error: string }
+> {
   const binding: EvidenceBinding = {};
   if (args.task) {
     const task = await findTaskByRef(ctx, args.task);
-    if (!task || !(await canAccessTask(ctx as any, userId, task))) return { binding: null, error: `Task not found: ${args.task}` };
+    if (!task || !(await canAccessTask(ctx as any, userId, task)))
+      return { binding: null, error: `Task not found: ${args.task}` };
     binding.task_id = task._id;
     binding.task_short_id = task.short_id;
     binding.station = args.station ?? stationOf(task);
@@ -76,13 +103,16 @@ export async function resolveEvidenceBinding(
   }
   if (args.plan) {
     const plan = await findPlanByRef(ctx, args.plan);
-    if (!plan || !(await canAccessPlan(ctx as any, userId, plan))) return { binding: null, error: `Plan not found: ${args.plan}` };
+    if (!plan || !(await canAccessPlan(ctx as any, userId, plan)))
+      return { binding: null, error: `Plan not found: ${args.plan}` };
     binding.plan_id = plan._id;
     binding.plan_short_id = plan.short_id;
   }
   if (!args.task && !args.plan && args.session_conversation_id) {
     const conv = await ctx.db.get(args.session_conversation_id);
-    const task = conv?.active_task_id ? await ctx.db.get(conv.active_task_id) : null;
+    const task = conv?.active_task_id
+      ? await ctx.db.get(conv.active_task_id)
+      : null;
     if (task && (await canAccessTask(ctx as any, userId, task))) {
       binding.task_id = task._id;
       binding.task_short_id = task.short_id;
@@ -94,14 +124,21 @@ export async function resolveEvidenceBinding(
 }
 
 /** The stored fields of a binding, for a patch or an insert. */
-export function evidencePatch(binding: EvidenceBinding): { task_id?: Id<"tasks">; plan_id?: Id<"plans">; station?: string } {
-  const out: { task_id?: Id<"tasks">; plan_id?: Id<"plans">; station?: string } = {};
+export function evidencePatch(binding: EvidenceBinding): {
+  task_id?: Id<"tasks">;
+  plan_id?: Id<"plans">;
+  station?: string;
+} {
+  const out: {
+    task_id?: Id<"tasks">;
+    plan_id?: Id<"plans">;
+    station?: string;
+  } = {};
   if (binding.task_id) out.task_id = binding.task_id;
   if (binding.plan_id) out.plan_id = binding.plan_id;
   if (binding.station) out.station = binding.station;
   return out;
 }
-
 
 export type EvidencePage = {
   id: string;
@@ -119,20 +156,38 @@ export type TaskEvidence = {
   task: { id: string; short_id: string; station: string };
   pages: EvidencePage[];
   stations: Array<{ station: string; pages: EvidencePage[] }>;
-  docs: Array<{ id: string; title: string; doc_type: string; updated_at: number; href: string }>;
-  images: Array<{ url: string; conversation_id: string; message_id: string; timestamp: number }>;
+  docs: Array<{
+    id: string;
+    title: string;
+    doc_type: string;
+    updated_at: number;
+    href: string;
+  }>;
+  images: Array<{
+    url: string;
+    conversation_id: string;
+    message_id: string;
+    timestamp: number;
+  }>;
   files_changed: string[];
   verification_evidence: string | null;
   execution_status: string | null;
   pr_url: string | null;
-  review_verdict: { verdict: string; at: number; note?: string; by_conversation_id?: string } | null;
+  review_verdict: {
+    verdict: string;
+    at: number;
+    note?: string;
+    by_conversation_id?: string;
+  } | null;
   /** The author's walkthrough from the handoff (ct-57527), hunks included. */
-  change_guide: ChangeGuide & { written_at: number } | null;
+  change_guide: (ChangeGuide & { written_at: number }) | null;
 };
 
 // The handoff writes the PR only into its review comment ("PR: <url>",
 // handoffCommentText in the CLI); the newest such line is the task's PR.
-export function prUrlFromComments(comments: Array<{ text?: string; created_at: number }>): string | null {
+export function prUrlFromComments(
+  comments: Array<{ text?: string; created_at: number }>,
+): string | null {
   const sorted = [...comments].sort((a, b) => b.created_at - a.created_at);
   for (const c of sorted) {
     const m = (c.text ?? "").match(/^PR:\s*(\S+)/m);
@@ -145,8 +200,16 @@ export function prUrlFromComments(comments: Array<{ text?: string; created_at: n
 // conversation_ids come first, then the comment trail's sessions, newest last.
 const LINKED_SESSIONS_MAX = 20;
 
-export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task: any): Promise<TaskEvidence> {
-  const comments: any[] = await ctx.db.query("task_comments").withIndex("by_task_created", (q: any) => q.eq("task_id", task._id)).order("desc").take(50);
+export async function computeTaskEvidence(
+  ctx: Ctx,
+  viewerId: Id<"users">,
+  task: any,
+): Promise<TaskEvidence> {
+  const comments: any[] = await ctx.db
+    .query("task_comments")
+    .withIndex("by_task_created", (q: any) => q.eq("task_id", task._id))
+    .order("desc")
+    .take(50);
   // The sessions whose work the task is: the ones `cast task show` lists.
   // linkedSessionsFor unions the task's conversation_ids with the comment
   // trail's sessions and keeps only those the viewer can read in the task's
@@ -154,8 +217,13 @@ export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task:
   // teammate no images and no docs. Linked sessions stay linked after the
   // task closes (active_task_id is cleared then), so evidence survives the
   // move to done.
-  const linkedConversationIds = (await linkedSessionsFor(ctx, viewerId, task, comments, LINKED_SESSIONS_MAX)).map((s) => s.conversation_id);
-  const pagesRaw: any[] = await ctx.db.query("artifacts").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).collect();
+  const linkedConversationIds = (
+    await linkedSessionsFor(ctx, viewerId, task, comments, LINKED_SESSIONS_MAX)
+  ).map((s) => s.conversation_id);
+  const pagesRaw: any[] = await ctx.db
+    .query("artifacts")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .collect();
   pagesRaw.sort((a, b) => b.updated_at - a.updated_at);
   const pages: EvidencePage[] = [];
   for (const a of pagesRaw) {
@@ -166,7 +234,10 @@ export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task:
       version: a.version,
       kind: a.kind ?? "html",
       station: a.station ?? null,
-      thumbnail_url: (a.kind === "image" ? await storageUrl(ctx, a.storage_id) : await storageUrl(ctx, a.thumb_storage_id)) ?? null,
+      thumbnail_url:
+        (a.kind === "image"
+          ? await storageUrl(ctx, a.storage_id)
+          : await storageUrl(ctx, a.thumb_storage_id)) ?? null,
       href: `/a/${a.slug}`,
       updated_at: a.updated_at,
     });
@@ -177,25 +248,67 @@ export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task:
     if (!byStation.has(key)) byStation.set(key, []);
     byStation.get(key)!.push(p);
   }
-  const stations = Array.from(byStation, ([station, rows]) => ({ station, pages: rows }));
+  const stations = Array.from(byStation, ([station, rows]) => ({
+    station,
+    pages: rows,
+  }));
 
   // Docs carry task_ids, which no index covers: read the task's project, plan
   // and sessions, plus the newest docs of its workspace, then keep the ones
   // that name the task.
   const docById = new Map<string, any>();
-  const addDocs = (rows: any[]) => { for (const d of rows) docById.set(String(d._id), d); };
-  if (task.project_id) addDocs(await ctx.db.query("docs").withIndex("by_project_id", (q: any) => q.eq("project_id", task.project_id)).collect());
-  if (task.plan_id) addDocs(await ctx.db.query("docs").withIndex("by_plan_id", (q: any) => q.eq("plan_id", task.plan_id)).collect());
+  const addDocs = (rows: any[]) => {
+    for (const d of rows) docById.set(String(d._id), d);
+  };
+  if (task.project_id)
+    addDocs(
+      await ctx.db
+        .query("docs")
+        .withIndex("by_project_id", (q: any) =>
+          q.eq("project_id", task.project_id),
+        )
+        .collect(),
+    );
+  if (task.plan_id)
+    addDocs(
+      await ctx.db
+        .query("docs")
+        .withIndex("by_plan_id", (q: any) => q.eq("plan_id", task.plan_id))
+        .collect(),
+    );
   for (const cid of linkedConversationIds) {
-    addDocs(await ctx.db.query("docs").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", cid)).collect());
+    addDocs(
+      await ctx.db
+        .query("docs")
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", cid),
+        )
+        .collect(),
+    );
   }
-  if (task.workspace) addDocs(await ctx.db.query("docs").withIndex("by_workspace", (q: any) => q.eq("workspace", task.workspace)).order("desc").take(WORKSPACE_DOC_SCAN));
+  if (task.workspace)
+    addDocs(
+      await ctx.db
+        .query("docs")
+        .withIndex("by_workspace", (q: any) =>
+          q.eq("workspace", task.workspace),
+        )
+        .order("desc")
+        .take(WORKSPACE_DOC_SCAN),
+    );
   const docs: TaskEvidence["docs"] = [];
   for (const d of docById.values()) {
     if (d.archived_at) continue;
-    if (!(d.task_ids ?? []).some((id: any) => String(id) === String(task._id))) continue;
+    if (!(d.task_ids ?? []).some((id: any) => String(id) === String(task._id)))
+      continue;
     if (!(await canAccessDoc(ctx as any, viewerId, d))) continue;
-    docs.push({ id: String(d._id), title: d.display_title ?? d.title, doc_type: d.doc_type, updated_at: d.updated_at, href: `/docs/${d._id}` });
+    docs.push({
+      id: String(d._id),
+      title: d.display_title ?? d.title,
+      doc_type: d.doc_type,
+      updated_at: d.updated_at,
+      href: `/docs/${d._id}`,
+    });
   }
   docs.sort((a, b) => b.updated_at - a.updated_at);
 
@@ -211,21 +324,35 @@ export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task:
   for (const c of comments) {
     if (!c.conversation_id) continue;
     const key = String(c.conversation_id);
-    firstCommentAt.set(key, Math.min(firstCommentAt.get(key) ?? Infinity, c.created_at));
+    firstCommentAt.set(
+      key,
+      Math.min(firstCommentAt.get(key) ?? Infinity, c.created_at),
+    );
   }
   const taskStart = task.created_at ?? task._creationTime;
   const found: SessionImage[] = [];
   for (const cid of linkedConversationIds) {
-    const since = listed.has(String(cid)) ? taskStart : Math.max(taskStart, firstCommentAt.get(String(cid)) ?? taskStart);
+    const since = listed.has(String(cid))
+      ? taskStart
+      : Math.max(taskStart, firstCommentAt.get(String(cid)) ?? taskStart);
     found.push(...(await sessionImages(ctx, cid, { since, max: IMAGES_MAX })));
   }
   found.sort((a, b) => b.timestamp - a.timestamp || b.seq - a.seq);
-  const images: TaskEvidence["images"] = found.slice(0, IMAGES_MAX).map((img) => ({
-    url: img.url, conversation_id: String(img.conversation_id), message_id: String(img.message_id), timestamp: img.timestamp,
-  }));
+  const images: TaskEvidence["images"] = found
+    .slice(0, IMAGES_MAX)
+    .map((img) => ({
+      url: img.url,
+      conversation_id: String(img.conversation_id),
+      message_id: String(img.message_id),
+      timestamp: img.timestamp,
+    }));
 
   return {
-    task: { id: String(task._id), short_id: task.short_id, station: stationOf(task) },
+    task: {
+      id: String(task._id),
+      short_id: task.short_id,
+      station: stationOf(task),
+    },
     pages,
     stations,
     docs,
@@ -235,7 +362,14 @@ export async function computeTaskEvidence(ctx: Ctx, viewerId: Id<"users">, task:
     execution_status: task.execution_status ?? null,
     pr_url: prUrlFromComments(comments),
     review_verdict: task.review_verdict
-      ? { verdict: task.review_verdict.verdict, at: task.review_verdict.at, note: task.review_verdict.note, by_conversation_id: task.review_verdict.by_conversation_id ? String(task.review_verdict.by_conversation_id) : undefined }
+      ? {
+          verdict: task.review_verdict.verdict,
+          at: task.review_verdict.at,
+          note: task.review_verdict.note,
+          by_conversation_id: task.review_verdict.by_conversation_id
+            ? String(task.review_verdict.by_conversation_id)
+            : undefined,
+        }
       : null,
     change_guide: task.change_guide ?? null,
   };

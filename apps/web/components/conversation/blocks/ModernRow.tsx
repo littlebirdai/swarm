@@ -77,5 +77,12 @@ const ICONS: Record<RowKind, LucideIcon> = {
 /** A tool row's 16px glyph (Modern only: ToolBlock draws it under useIsModernStyle). */
 export function RowIcon({ kind }: { kind: RowKind }) {
   const Icon = ICONS[kind];
-  return <Icon data-cc-row-icon aria-hidden className="w-4 h-4 shrink-0" strokeWidth={1.75} />;
+  return (
+    <Icon
+      data-cc-row-icon
+      aria-hidden
+      className="w-4 h-4 shrink-0"
+      strokeWidth={1.75}
+    />
+  );
 }

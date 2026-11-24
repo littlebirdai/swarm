@@ -10,32 +10,32 @@ Everything lives under `apps/web/store/__tests__/sim/`, plus the server router i
 
 From `apps/web`:
 
-| Command | What it does |
-|---|---|
-| `bun run sim` | every scenario, every self-test, and the pure sim tests (net, report, the window-slot guard) |
-| `bun run sim visibilityFlip` | only the scenario and self-test files whose name contains `visibilityFlip` (it runs `sim.test.ts` alone; a filter that names no file is refused with the closest names) |
-| `bun run sim --list` | the scenario catalog (name, red markers, known invariants, modes, file), read statically |
-| `bun run sim --invariants` | the invariant catalog (id, meaning), read statically |
-| `bun run sim visibilityFlip --seed 174182` | pin the seeds (comma separated) |
-| `bun run sim visibilityFlip --sweep 20` | run 20 interleave seeds instead of 2 |
-| `bun run sim visibilityFlip --seed 174182 --trace bo-host` | stream every delivery whose channel, label or producer names `bo-host` |
-| `bun run sim --red` | only the scenarios with a red marker or a known invariant |
-| `bun run sim visibilityFlip --out /tmp/sim-out` | write the run artifacts on a pass too |
-| `bun run sim visibilityFlip --seed 174182 --order="<channels>"` | replay one delivery order, pasted from a report |
-| `bun run sim --help` | every flag |
+| Command                                                         | What it does                                                                                                                                                            |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run sim`                                                   | every scenario, every self-test, and the pure sim tests (net, report, the window-slot guard)                                                                            |
+| `bun run sim visibilityFlip`                                    | only the scenario and self-test files whose name contains `visibilityFlip` (it runs `sim.test.ts` alone; a filter that names no file is refused with the closest names) |
+| `bun run sim --list`                                            | the scenario catalog (name, red markers, known invariants, modes, file), read statically                                                                                |
+| `bun run sim --invariants`                                      | the invariant catalog (id, meaning), read statically                                                                                                                    |
+| `bun run sim visibilityFlip --seed 174182`                      | pin the seeds (comma separated)                                                                                                                                         |
+| `bun run sim visibilityFlip --sweep 20`                         | run 20 interleave seeds instead of 2                                                                                                                                    |
+| `bun run sim visibilityFlip --seed 174182 --trace bo-host`      | stream every delivery whose channel, label or producer names `bo-host`                                                                                                  |
+| `bun run sim --red`                                             | only the scenarios with a red marker or a known invariant                                                                                                               |
+| `bun run sim visibilityFlip --out /tmp/sim-out`                 | write the run artifacts on a pass too                                                                                                                                   |
+| `bun run sim visibilityFlip --seed 174182 --order="<channels>"` | replay one delivery order, pasted from a report                                                                                                                         |
+| `bun run sim --help`                                            | every flag                                                                                                                                                              |
 
 The runner (`apps/web/scripts/sim.ts`) only turns flags into environment variables and spawns `bun test store/__tests__/sim/ --isolate`, or with a filter `bun test store/__tests__/sim/sim.test.ts --isolate`. The variables are the source of truth, so `SIM_SCENARIO=visibilityFlip bun test store/__tests__/sim/sim.test.ts --isolate` does the same thing:
 
-| Variable | Flag | Meaning |
-|---|---|---|
-| `SIM_SCENARIO` | the filter | import only files whose name contains it |
-| `SIM_SEEDS` | `--seed` | pin the seeds |
-| `SIM_SWEEP` | `--sweep` | interleave seeds per scenario |
-| `SIM_TRACE` | `--trace [label]` | stream deliveries whose channel, label or producer names the label, or all of them for `1`; it also turns on the strict store facade, which throws on a store read outside a window |
-| `SIM_RED` | `--red` | register only scenarios with a red marker or a known invariant |
-| `SIM_OUT` | `--out` | artifact root, written on a pass too |
-| `SIM_ORDER` | `--order` | replay one channel order |
-| `SIM_SELFTEST` | none | `0` skips the self-tests |
+| Variable       | Flag              | Meaning                                                                                                                                                                             |
+| -------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SIM_SCENARIO` | the filter        | import only files whose name contains it                                                                                                                                            |
+| `SIM_SEEDS`    | `--seed`          | pin the seeds                                                                                                                                                                       |
+| `SIM_SWEEP`    | `--sweep`         | interleave seeds per scenario                                                                                                                                                       |
+| `SIM_TRACE`    | `--trace [label]` | stream deliveries whose channel, label or producer names the label, or all of them for `1`; it also turns on the strict store facade, which throws on a store read outside a window |
+| `SIM_RED`      | `--red`           | register only scenarios with a red marker or a known invariant                                                                                                                      |
+| `SIM_OUT`      | `--out`           | artifact root, written on a pass too                                                                                                                                                |
+| `SIM_ORDER`    | `--order`         | replay one channel order                                                                                                                                                            |
+| `SIM_SELFTEST` | none              | `0` skips the self-tests                                                                                                                                                            |
 
 Put the filter before `--trace`: a bare word after `--trace` is read as its label. `--trace=label` also works. Deliveries name windows, channels, functions and actor verbs, not rows, so a window name (`bo-host`) streams everything that window did, while a row label (`ada/s`) matches only the verbs that name it.
 
@@ -72,15 +72,15 @@ invariants, reports, labels                   sim/invariants.ts, report.ts, labe
 
 Every event in a run is a delivery on a named channel:
 
-| Channel | Carries |
-|---|---|
-| `conn:<win>` | a window's request and its response, as two deliveries |
-| `live:<win>:<feed>` | a live query push to a window |
-| `repl:<from>><to>` | a replication post between two windows of one device |
-| `bridge:<dev>:<from>` | a gesture bridge post to the device's other windows |
-| `timer:<owner>` | a timer a window (or `global`) armed |
-| `sched` | a scheduled job or a cron |
-| `actor:<name>` | one actor verb |
+| Channel               | Carries                                                |
+| --------------------- | ------------------------------------------------------ |
+| `conn:<win>`          | a window's request and its response, as two deliveries |
+| `live:<win>:<feed>`   | a live query push to a window                          |
+| `repl:<from>><to>`    | a replication post between two windows of one device   |
+| `bridge:<dev>:<from>` | a gesture bridge post to the device's other windows    |
+| `timer:<owner>`       | a timer a window (or `global`) armed                   |
+| `sched`               | a scheduled job or a cron                              |
+| `actor:<name>`        | one actor verb                                         |
 
 The rules the net enforces:
 
@@ -121,14 +121,14 @@ scenario({ name: "visibilityFlip" }, async (w) => {
 
 **Declarations** come before the first async verb, which runs genesis once:
 
-| Declaration | Label it creates |
-|---|---|
-| `w.team(name, { features })` | `<team>`; chat scenarios need `features: { chat: true }`, role scenarios `org: true` |
-| `w.user(name, teams)` | `<user>`; the first team listed is the user's team, and a team's first declared user is its admin |
-| `w.session(user, name, { private, agentStatus, row })` | `<user>/<name>` |
-| `w.task`, `w.doc`, `w.plan(name, { owner, session })` | `task:<name>`, `doc:<name>`, `plan:<name>` |
-| `w.trigger(name, { owner, session, runInMs })` | `trigger:<name>` |
-| `w.role(team, handle)` | `role:<team>/<handle>` |
+| Declaration                                            | Label it creates                                                                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `w.team(name, { features })`                           | `<team>`; chat scenarios need `features: { chat: true }`, role scenarios `org: true`              |
+| `w.user(name, teams)`                                  | `<user>`; the first team listed is the user's team, and a team's first declared user is its admin |
+| `w.session(user, name, { private, agentStatus, row })` | `<user>/<name>`                                                                                   |
+| `w.task`, `w.doc`, `w.plan(name, { owner, session })`  | `task:<name>`, `doc:<name>`, `plan:<name>`                                                        |
+| `w.trigger(name, { owner, session, runInMs })`         | `trigger:<name>`                                                                                  |
+| `w.role(team, handle)`                                 | `role:<team>/<handle>`                                                                            |
 
 Genesis builds the rows through the real create mutations and the real visibility chokepoint, and refuses to start unless `teamScopeSweep` finds every work item's stored workspace key correct. Rows real mutations insert later are labelled `<table>#<n>`.
 
@@ -136,13 +136,13 @@ Genesis builds the rows through the real create mutations and the real visibilit
 
 **Verbs** return a `Step`. Awaiting it drains the net in scripted mode and returns at once in interleave mode, so the same file races its verbs under interleave.
 
-| Actor | Verbs |
-|---|---|
-| `w.human(window)` | `kill`, `stash`, `restore`, `pin`, `revive(s, text?)`, `send(s, text)`, `setPrivacy(s, "private" \| "team")`, `chat(channel, text)`, `tellRole(role, text)` |
-| `w.daemon(user)` | `settles(s, status?)`, `heartbeat(s, status?)`, `restart(sessions)`, `claimPending(s?)`, `ack(s)`, `resume(s)`, `claimTask(trigger?)` |
-| `w.agent(session)` | `says(channel, text, mentions?, { thread? })` |
-| `w.admin(user)` | `remove(team, user)` |
-| clock | `w.advance(ms)` |
+| Actor              | Verbs                                                                                                                                                       |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `w.human(window)`  | `kill`, `stash`, `restore`, `pin`, `revive(s, text?)`, `send(s, text)`, `setPrivacy(s, "private" \| "team")`, `chat(channel, text)`, `tellRole(role, text)` |
+| `w.daemon(user)`   | `settles(s, status?)`, `heartbeat(s, status?)`, `restart(sessions)`, `claimPending(s?)`, `ack(s)`, `resume(s)`, `claimTask(trigger?)`                       |
+| `w.agent(session)` | `says(channel, text, mentions?, { thread? })`                                                                                                               |
+| `w.admin(user)`    | `remove(team, user)`                                                                                                                                        |
+| clock              | `w.advance(ms)`                                                                                                                                             |
 
 Each verb takes the path production takes: a human verb is the store action a component calls, which reaches `dispatch:dispatch`; a daemon verb is the mutation `apps/cli/src/syncService.ts` sends, under the user's API token. A server refusal is an outcome (it lands in `w.actors.log` and `w.backend.calls`); an error the sim itself raises (`sim client:`, `sim server:`, `sim ctx:`, `sim world:`) is a harness gap and fails the test.
 
@@ -162,23 +162,23 @@ Each verb takes the path production takes: a human verb is the store action a co
 
 Every `settle()`, every point check, and the end of every run check the whole catalog; every delivery that touches a window also checks the cheap `always` rules over that window. Each oracle is real code. `bun run sim --invariants` prints the live list.
 
-| id | Holds when | Oracle |
-|---|---|---|
-| `INV-sessions-mine` | the window's mine digest, tally and placements equal the principal's canonical projection | `conversations:sessionsLiveness` as the principal |
-| `INV-followers` | every follower holds the host's replicated slice byte for byte | engine `snapshotEntries` over `REPLICATED_STORE_KEYS` |
-| `INV-team-inbox` | the team slot holds exactly the server's team list for the viewer, minus the viewer's own hides | `conversations:listTeamInboxSessions` |
-| `INV-workspace-rows` (always) | the window holds no task, doc, plan or project its principal cannot read, and each fed collection matches the server in the active workspace | `accessStampFor`, `authorizedFor`, `heldKeysFor` |
-| `INV-sweep` | no work item's stored workspace key disagrees with its computed one, and the sweep writes nothing | `teamScopeSweep:sweepPage` with `apply: false` |
-| `INV-cursors` | each held sync-log scope's cursor stands at its head, and no unheld scope has a cursor | `syncLog:getHeads` |
-| `INV-pending-locks` | no acknowledged lock survives its cursor, and no field lock outlives the settle window | the window's `pending` slot |
-| `INV-outbox` | every window's engine outbox is empty once the world settles | the engine outbox |
-| `INV-triggers` | the trigger replica equals `agentTasks:webList`, and each conversation's armed kind matches its live triggers | `armedTriggerKindFor` |
-| `INV-pending-sends` (always: uniqueness) | every send bubble is echoed, settled or failed, and each `client_id` is on at most one `pending_messages` row | server rows |
-| `INV-chat` (always: dedupe and caps) | the chat replica equals `chat:listMessages`, each mention wakes its target once, and the hourly wake caps hold | `MENTION_WAKES_PER_*_HOUR`, `hourBucket` |
-| `INV-roles` | each role's mention wake counter equals the wakes enqueued for it, and `listAnchors` equals `visibleAnchorsForUser` | `anchors.ts`, chat quota rows |
-| `INV-ping-pong` | agent to agent wakes per virtual hour stay under the mention caps, per sender (the person for a mention, the replying session for a relayed reply), per person (one sender cap plus one per session they own) and per target | `pending_messages` rows |
-| `INV-row-shape` | every sessions row holds only the inbox row's fields (`INBOX_ROW_FIELDS` plus the facts), or a field a pending local write holds | `INBOX_ROW_FIELDS`, pinned by a convex test to what the feeders write |
-| `INV-fixpoint` | re-running every mounted feeder, one catch-up and a byIds pass over every held id changes nothing | the feeders themselves |
+| id                                       | Holds when                                                                                                                                                                                                                   | Oracle                                                                |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `INV-sessions-mine`                      | the window's mine digest, tally and placements equal the principal's canonical projection                                                                                                                                    | `conversations:sessionsLiveness` as the principal                     |
+| `INV-followers`                          | every follower holds the host's replicated slice byte for byte                                                                                                                                                               | engine `snapshotEntries` over `REPLICATED_STORE_KEYS`                 |
+| `INV-team-inbox`                         | the team slot holds exactly the server's team list for the viewer, minus the viewer's own hides                                                                                                                              | `conversations:listTeamInboxSessions`                                 |
+| `INV-workspace-rows` (always)            | the window holds no task, doc, plan or project its principal cannot read, and each fed collection matches the server in the active workspace                                                                                 | `accessStampFor`, `authorizedFor`, `heldKeysFor`                      |
+| `INV-sweep`                              | no work item's stored workspace key disagrees with its computed one, and the sweep writes nothing                                                                                                                            | `teamScopeSweep:sweepPage` with `apply: false`                        |
+| `INV-cursors`                            | each held sync-log scope's cursor stands at its head, and no unheld scope has a cursor                                                                                                                                       | `syncLog:getHeads`                                                    |
+| `INV-pending-locks`                      | no acknowledged lock survives its cursor, and no field lock outlives the settle window                                                                                                                                       | the window's `pending` slot                                           |
+| `INV-outbox`                             | every window's engine outbox is empty once the world settles                                                                                                                                                                 | the engine outbox                                                     |
+| `INV-triggers`                           | the trigger replica equals `agentTasks:webList`, and each conversation's armed kind matches its live triggers                                                                                                                | `armedTriggerKindFor`                                                 |
+| `INV-pending-sends` (always: uniqueness) | every send bubble is echoed, settled or failed, and each `client_id` is on at most one `pending_messages` row                                                                                                                | server rows                                                           |
+| `INV-chat` (always: dedupe and caps)     | the chat replica equals `chat:listMessages`, each mention wakes its target once, and the hourly wake caps hold                                                                                                               | `MENTION_WAKES_PER_*_HOUR`, `hourBucket`                              |
+| `INV-roles`                              | each role's mention wake counter equals the wakes enqueued for it, and `listAnchors` equals `visibleAnchorsForUser`                                                                                                          | `anchors.ts`, chat quota rows                                         |
+| `INV-ping-pong`                          | agent to agent wakes per virtual hour stay under the mention caps, per sender (the person for a mention, the replying session for a relayed reply), per person (one sender cap plus one per session they own) and per target | `pending_messages` rows                                               |
+| `INV-row-shape`                          | every sessions row holds only the inbox row's fields (`INBOX_ROW_FIELDS` plus the facts), or a field a pending local write holds                                                                                             | `INBOX_ROW_FIELDS`, pinned by a convex test to what the feeders write |
+| `INV-fixpoint`                           | re-running every mounted feeder, one catch-up and a byIds pass over every held id changes nothing                                                                                                                            | the feeders themselves                                                |
 
 A coverage guard (run by the invariants self-test) fails for any `REPLICATION_CLASSIFICATION` key that no rule compares and that `NOT_COMPARED` in `invariants.ts` does not excuse with a reason. A new synced collection therefore needs either a rule or a reason.
 
@@ -214,12 +214,12 @@ Runs are deterministic: the DSL self-test runs one scenario twice and requires i
 
 ## Budget
 
-| Item | Limit | Kind |
-|---|---|---|
-| Deliveries per scenario run | 5000 (`DEFAULT_MAX_DELIVERIES`) | hard failure, `net.no-quiescence`, names the top producers |
-| Server writes inside deliveries per run | 2000 (`DEFAULT_MAX_WRITES`) | hard failure, `net.write-budget`, names the top writers |
-| A specific scenario | `budget: { deliveries, writes }` | hard failure |
-| Wall time | reported only | the machine's load makes it flaky |
+| Item                                    | Limit                            | Kind                                                       |
+| --------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| Deliveries per scenario run             | 5000 (`DEFAULT_MAX_DELIVERIES`)  | hard failure, `net.no-quiescence`, names the top producers |
+| Server writes inside deliveries per run | 2000 (`DEFAULT_MAX_WRITES`)      | hard failure, `net.write-budget`, names the top writers    |
+| A specific scenario                     | `budget: { deliveries, writes }` | hard failure                                               |
+| Wall time                               | reported only                    | the machine's load makes it flaky                          |
 
 Genesis writes are not budgeted. If CI time grows, cut seeds first and never scenarios.
 
@@ -232,20 +232,20 @@ A red scenario reproduces a bug we have today. Each test holds its run to the sc
 
 Every marker below is what the default runs actually hit (measured 2026-10-02, after ct-56011, ct-56044, ct-56045, ct-56047, ct-56048, ct-56050, ct-56051 and ct-56053 landed):
 
-| Scenario | What it drives | Red | Known |
-|---|---|---|---|
-| `visibilityFlip` | ada shares a private session with acme and takes it back; bo's team slot and the linked task follow | none | none |
-| `viewerHideVsOwner` | bo hides ada's team-visible session while ada's daemon settles it | none | none |
-| `reapVsFollowerLock` | a follower kills an empty session, the daemon heartbeats, the gc reaps the row | none | none |
-| `queuedSendVsLaggingTail` | ada sends while her transcript tail lags; the daemon delivers twice | none | none |
-| `roleTriggerScope` | a session filed under a role settles `permission_blocked` twice with a working turn between | none | none |
-| `agentPingPong` | two agent sessions mention each other in a thread for an hour | none | none |
-| `agentPingPongOwnSessions` | one session names six of its owner's sessions in a thread and each answers | none | none |
-| `personalAnchorOwnedByTeammate` | bo, a second owner of ada's personal standing session, pins and kills it | none | none |
-| `twoHumansOneRole` | ada and bo tell one role something 200ms apart, in both orders | none | none |
-| `memberRemovedMidTurn` | bo is removed from acme while offline, then kills a session he can no longer read | none | none |
-| `resumeVsSend` | a send and a resume race on two parked sessions | none | none |
-| `daemonRestartParked` | a daemon heartbeat gap and a restart over parked sessions with a due trigger | none | none |
+| Scenario                        | What it drives                                                                                      | Red  | Known |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- | ---- | ----- |
+| `visibilityFlip`                | ada shares a private session with acme and takes it back; bo's team slot and the linked task follow | none | none  |
+| `viewerHideVsOwner`             | bo hides ada's team-visible session while ada's daemon settles it                                   | none | none  |
+| `reapVsFollowerLock`            | a follower kills an empty session, the daemon heartbeats, the gc reaps the row                      | none | none  |
+| `queuedSendVsLaggingTail`       | ada sends while her transcript tail lags; the daemon delivers twice                                 | none | none  |
+| `roleTriggerScope`              | a session filed under a role settles `permission_blocked` twice with a working turn between         | none | none  |
+| `agentPingPong`                 | two agent sessions mention each other in a thread for an hour                                       | none | none  |
+| `agentPingPongOwnSessions`      | one session names six of its owner's sessions in a thread and each answers                          | none | none  |
+| `personalAnchorOwnedByTeammate` | bo, a second owner of ada's personal standing session, pins and kills it                            | none | none  |
+| `twoHumansOneRole`              | ada and bo tell one role something 200ms apart, in both orders                                      | none | none  |
+| `memberRemovedMidTurn`          | bo is removed from acme while offline, then kills a session he can no longer read                   | none | none  |
+| `resumeVsSend`                  | a send and a resume race on two parked sessions                                                     | none | none  |
+| `daemonRestartParked`           | a daemon heartbeat gap and a restart over parked sessions with a due trigger                        | none | none  |
 
 Sweeps also found ct-56054 on seeds of `queuedSendVsLaggingTail` (157409) and `resumeVsSend` (671520): the overlay shipped its coerced agent_status as the fact a replica re-derives over, and a coerced status does not replay at a later instant. Rows now carry the daemon's raw status as `agent_status_raw`, and both scenarios pass `--sweep 20`. A sweep widens the seeds past the markers, which is how it found a bug no default seed reached.
 
@@ -325,10 +325,16 @@ The in-process server cannot show real optimistic concurrency conflicts, real sc
    const env = await Bun.file(".env.local").text();
    const url = env.match(/^CONVEX_URL=(.*)$/m)![1];
    const name = env.match(/^CONVEX_DEPLOYMENT=anonymous:(.*)$/m)![1];
-   const { adminKey } = await Bun.file(`${homedir()}/.convex/anonymous-convex-backend-state/${name}/config.json`).json();
-   if (new URL(url).hostname !== "127.0.0.1") throw new Error(`refusing ${url}`);
+   const { adminKey } = await Bun.file(
+     `${homedir()}/.convex/anonymous-convex-backend-state/${name}/config.json`,
+   ).json();
+   if (new URL(url).hostname !== "127.0.0.1")
+     throw new Error(`refusing ${url}`);
    const client = new ConvexHttpClient(url);
-   (client as any).setAdminAuth(adminKey, { subject: `${process.argv[2]}|session`, issuer: "sim" });
+   (client as any).setAdminAuth(adminKey, {
+     subject: `${process.argv[2]}|session`,
+     issuer: "sim",
+   });
    console.log(await client.query("users:getCurrentUser" as any, {}));
    ```
 

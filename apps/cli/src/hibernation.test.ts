@@ -3,7 +3,10 @@
 // rule that silently stops blocking costs a working agent its turn.
 
 import { describe, expect, test } from "bun:test";
-import { MID_TURN_AGENT_STATUSES, type AgentStatus } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  type AgentStatus,
+} from "@codecast/shared/contracts";
 import {
   DEFAULT_HIBERNATE_IDLE_MS,
   DEFAULT_MAX_LIVE_SESSIONS,
@@ -18,7 +21,9 @@ import {
 } from "./hibernation.js";
 import { reapTargets, type ProcRow } from "./processTable.js";
 
-const candidate = (over: Partial<HibernationCandidate> = {}): HibernationCandidate => ({
+const candidate = (
+  over: Partial<HibernationCandidate> = {},
+): HibernationCandidate => ({
   sessionId: over.sessionId ?? "s1",
   tmux: over.tmux ?? `cc-resume-${over.sessionId ?? "s1"}`,
   conversationId: "conv1",
@@ -33,10 +38,17 @@ const candidate = (over: Partial<HibernationCandidate> = {}): HibernationCandida
   ...over,
 });
 
-const fleet = (n: number, over: (i: number) => Partial<HibernationCandidate> = () => ({})): HibernationCandidate[] =>
-  Array.from({ length: n }, (_, i) => candidate({ sessionId: `s${String(i).padStart(3, "0")}`, ...over(i) }));
+const fleet = (
+  n: number,
+  over: (i: number) => Partial<HibernationCandidate> = () => ({}),
+): HibernationCandidate[] =>
+  Array.from({ length: n }, (_, i) =>
+    candidate({ sessionId: `s${String(i).padStart(3, "0")}`, ...over(i) }),
+  );
 
-const policy = (over: Partial<{ maxLive: number; idleMs: number; maxPerPass: number }> = {}) => ({
+const policy = (
+  over: Partial<{ maxLive: number; idleMs: number; maxPerPass: number }> = {},
+) => ({
   maxLive: 0,
   idleMs: 0,
   maxPerPass: HIBERNATE_MAX_PER_PASS,
@@ -48,52 +60,88 @@ describe("hibernationBlockReason", () => {
     expect(hibernationBlockReason(candidate())).toBeNull();
   });
 
-  for (const status of ["working", "thinking", "compacting", "permission_blocked"] as const) {
+  for (const status of [
+    "working",
+    "thinking",
+    "compacting",
+    "permission_blocked",
+  ] as const) {
     test(`${status} blocks: parking it would kill the turn, not park it`, () => {
-      expect(hibernationBlockReason(candidate({ status }))).toBe("status-working");
+      expect(hibernationBlockReason(candidate({ status }))).toBe(
+        "status-working",
+      );
     });
   }
 
   test("every mid-turn status blocks, so a new one is covered the day it lands", () => {
     for (const status of MID_TURN_AGENT_STATUSES) {
-      expect(hibernationBlockReason(candidate({ status: status as AgentStatus }))).toBe("status-working");
+      expect(
+        hibernationBlockReason(candidate({ status: status as AgentStatus })),
+      ).toBe("status-working");
     }
   });
 
   test("waiting blocks: the pane's tree holds the background work it waits on", () => {
-    expect(hibernationBlockReason(candidate({ status: "waiting" }))).toBe("open-background-work");
+    expect(hibernationBlockReason(candidate({ status: "waiting" }))).toBe(
+      "open-background-work",
+    );
   });
 
   for (const status of ["resuming", "starting"] as const) {
     test(`${status} blocks: the session is still coming up`, () => {
-      expect(hibernationBlockReason(candidate({ status }))).toBe("status-resuming");
+      expect(hibernationBlockReason(candidate({ status }))).toBe(
+        "status-resuming",
+      );
     });
   }
 
   test("an attached tmux client blocks: a human has the pane open", () => {
-    expect(hibernationBlockReason(candidate({ attachedClients: 1 }))).toBe("attached");
+    expect(hibernationBlockReason(candidate({ attachedClients: 1 }))).toBe(
+      "attached",
+    );
   });
 
   test("a shared pane blocks: a parent runs its subagent in that pane", () => {
-    expect(hibernationBlockReason(candidate({ sharedPane: true }))).toBe("shared-pane");
+    expect(hibernationBlockReason(candidate({ sharedPane: true }))).toBe(
+      "shared-pane",
+    );
   });
 
   test("a parent whose subagent is still writing blocks", () => {
     // The child has no pane of its own: it is a process inside this pane's
     // tree, so the teardown would kill it mid-turn.
-    expect(hibernationBlockReason(candidate({ subagentActiveAgoMs: HIBERNATE_SUBAGENT_QUIET_MS - 1 })))
-      .toBe("live-subagents");
-    expect(hibernationBlockReason(candidate({ subagentActiveAgoMs: HIBERNATE_SUBAGENT_QUIET_MS }))).toBe("live-subagents");
-    expect(hibernationBlockReason(candidate({ subagentActiveAgoMs: 0 }))).toBe("live-subagents");
+    expect(
+      hibernationBlockReason(
+        candidate({ subagentActiveAgoMs: HIBERNATE_SUBAGENT_QUIET_MS - 1 }),
+      ),
+    ).toBe("live-subagents");
+    expect(
+      hibernationBlockReason(
+        candidate({ subagentActiveAgoMs: HIBERNATE_SUBAGENT_QUIET_MS }),
+      ),
+    ).toBe("live-subagents");
+    expect(hibernationBlockReason(candidate({ subagentActiveAgoMs: 0 }))).toBe(
+      "live-subagents",
+    );
   });
 
   test("a resume inside the grace window blocks", () => {
-    expect(hibernationBlockReason(candidate({ resumedAgoMs: HIBERNATE_RESUME_GRACE_MS - 1 }))).toBe("recently-resumed");
-    expect(hibernationBlockReason(candidate({ resumedAgoMs: HIBERNATE_RESUME_GRACE_MS }))).toBeNull();
+    expect(
+      hibernationBlockReason(
+        candidate({ resumedAgoMs: HIBERNATE_RESUME_GRACE_MS - 1 }),
+      ),
+    ).toBe("recently-resumed");
+    expect(
+      hibernationBlockReason(
+        candidate({ resumedAgoMs: HIBERNATE_RESUME_GRACE_MS }),
+      ),
+    ).toBeNull();
   });
 
   test("messages on their way block: parking would buy a resume next tick", () => {
-    expect(hibernationBlockReason(candidate({ messagesInFlight: true }))).toBe("in-flight-messages");
+    expect(hibernationBlockReason(candidate({ messagesInFlight: true }))).toBe(
+      "in-flight-messages",
+    );
   });
 
   test("a quiet session does not block — that is exactly what to park", () => {
@@ -109,7 +157,10 @@ describe("selectHibernationCandidates: the shipping defaults do nothing", () => 
   test("no cap and no idle bar picks nothing, however large the fleet", () => {
     const { picked } = selectHibernationCandidates(
       fleet(200, () => ({ awakeIdleMs: 99 * 3600_000 })),
-      policy({ maxLive: DEFAULT_MAX_LIVE_SESSIONS, idleMs: DEFAULT_HIBERNATE_IDLE_MS }),
+      policy({
+        maxLive: DEFAULT_MAX_LIVE_SESSIONS,
+        idleMs: DEFAULT_HIBERNATE_IDLE_MS,
+      }),
     );
     expect(picked).toEqual([]);
   });
@@ -117,33 +168,52 @@ describe("selectHibernationCandidates: the shipping defaults do nothing", () => 
 
 describe("selectHibernationCandidates: cap math", () => {
   test("a fleet at or under the cap with nobody past the bar picks nothing", () => {
-    const { picked } = selectHibernationCandidates(fleet(10), policy({ maxLive: 10, idleMs: 3600_000 }));
+    const { picked } = selectHibernationCandidates(
+      fleet(10),
+      policy({ maxLive: 10, idleMs: 3600_000 }),
+    );
     expect(picked).toEqual([]);
   });
 
   test("the overage is exactly how many get parked, even when all are fresh", () => {
-    const { picked } = selectHibernationCandidates(fleet(13), policy({ maxLive: 10 }));
+    const { picked } = selectHibernationCandidates(
+      fleet(13),
+      policy({ maxLive: 10 }),
+    );
     expect(picked.length).toBe(3);
   });
 
   test("maxLive 0 means no cap, so only the idle bar fires", () => {
-    const under = fleet(3, (i) => ({ awakeIdleMs: i === 0 ? 3 * 3600_000 : 1000 }));
-    const { picked } = selectHibernationCandidates(under, policy({ maxLive: 0, idleMs: 2 * 3600_000 }));
+    const under = fleet(3, (i) => ({
+      awakeIdleMs: i === 0 ? 3 * 3600_000 : 1000,
+    }));
+    const { picked } = selectHibernationCandidates(
+      under,
+      policy({ maxLive: 0, idleMs: 2 * 3600_000 }),
+    );
     expect(picked.map((c) => c.sessionId)).toEqual(["s000"]);
   });
 
   test("the bar and the overage together never exceed maxPerPass", () => {
     const all = fleet(40, () => ({ awakeIdleMs: 9 * 3600_000 }));
-    const { picked, skips } = selectHibernationCandidates(all, policy({ maxLive: 10, idleMs: 3600_000 }));
+    const { picked, skips } = selectHibernationCandidates(
+      all,
+      policy({ maxLive: 10, idleMs: 3600_000 }),
+    );
     expect(picked.length).toBe(HIBERNATE_MAX_PER_PASS);
-    expect(skips.filter((s) => s === "pass-cap").length).toBe(all.length - HIBERNATE_MAX_PER_PASS);
+    expect(skips.filter((s) => s === "pass-cap").length).toBe(
+      all.length - HIBERNATE_MAX_PER_PASS,
+    );
   });
 
   test("a blocked session counts toward the fleet size but can never fill the overage", () => {
     // Twelve live sessions against a cap of ten, but every one of them is
     // working: the machine is over its cap and the pass still parks nobody.
     const all = fleet(12, () => ({ status: "working" as const }));
-    const { picked, skips } = selectHibernationCandidates(all, policy({ maxLive: 10 }));
+    const { picked, skips } = selectHibernationCandidates(
+      all,
+      policy({ maxLive: 10 }),
+    );
     expect(picked).toEqual([]);
     expect(skips.filter((s) => s === "status-working").length).toBe(12);
   });
@@ -165,20 +235,50 @@ describe("selectHibernationCandidates: a refused head does not starve the pass",
   // row offered the same five while 24 to 36 parkable sessions waited.
   const bar = 8 * 3600_000;
   const fleetPastBar = Array.from({ length: 12 }, (_, i) =>
-    candidate({ sessionId: `s${String(i).padStart(2, "0")}`, tmux: `t${i}`, awakeIdleMs: bar + (12 - i) * 60_000 }));
+    candidate({
+      sessionId: `s${String(i).padStart(2, "0")}`,
+      tmux: `t${i}`,
+      awakeIdleMs: bar + (12 - i) * 60_000,
+    }),
+  );
 
   test("the first pass picks the longest idle, and the next pass moves past the ones it refused", () => {
-    const first = selectHibernationCandidates(fleetPastBar, policy({ idleMs: bar }));
-    expect(first.picked.map((c) => c.sessionId)).toEqual(["s00", "s01", "s02", "s03", "s04"]);
+    const first = selectHibernationCandidates(
+      fleetPastBar,
+      policy({ idleMs: bar }),
+    );
+    expect(first.picked.map((c) => c.sessionId)).toEqual([
+      "s00",
+      "s01",
+      "s02",
+      "s03",
+      "s04",
+    ]);
     const refused = new Set(first.picked.map((c) => c.sessionId));
-    const second = selectHibernationCandidates(fleetPastBar, policy({ idleMs: bar }), refused);
-    expect(second.picked.map((c) => c.sessionId)).toEqual(["s05", "s06", "s07", "s08", "s09"]);
-    expect(second.skips.filter((r) => r === "refused-recently")).toHaveLength(5);
+    const second = selectHibernationCandidates(
+      fleetPastBar,
+      policy({ idleMs: bar }),
+      refused,
+    );
+    expect(second.picked.map((c) => c.sessionId)).toEqual([
+      "s05",
+      "s06",
+      "s07",
+      "s08",
+      "s09",
+    ]);
+    expect(second.skips.filter((r) => r === "refused-recently")).toHaveLength(
+      5,
+    );
   });
 
   test("a refused session still counts toward the fleet size for the cap", () => {
     const refused = new Set(["s00"]);
-    const { picked } = selectHibernationCandidates(fleetPastBar, policy({ maxLive: 10 }), refused);
+    const { picked } = selectHibernationCandidates(
+      fleetPastBar,
+      policy({ maxLive: 10 }),
+      refused,
+    );
     expect(picked.map((c) => c.sessionId)).toEqual(["s01", "s02"]);
   });
 });
@@ -208,8 +308,14 @@ describe("selectHibernationCandidates: ordering", () => {
     const shuffled = [...all].reverse();
     const one = selectHibernationCandidates(all, policy({ maxLive: 6 }));
     const two = selectHibernationCandidates(shuffled, policy({ maxLive: 6 }));
-    expect(one.picked.map((c) => c.sessionId)).toEqual(two.picked.map((c) => c.sessionId));
-    expect(one.picked.map((c) => c.sessionId)).toEqual(["s000", "s001", "s002"]);
+    expect(one.picked.map((c) => c.sessionId)).toEqual(
+      two.picked.map((c) => c.sessionId),
+    );
+    expect(one.picked.map((c) => c.sessionId)).toEqual([
+      "s000",
+      "s001",
+      "s002",
+    ]);
   });
 });
 
@@ -219,21 +325,33 @@ describe("selectHibernationCandidates: the idle bar", () => {
       candidate({ sessionId: "old", awakeIdleMs: 3 * 3600_000 }),
       candidate({ sessionId: "new", awakeIdleMs: 60_000 }),
     ];
-    const { picked } = selectHibernationCandidates(all, policy({ maxLive: 100, idleMs: 2 * 3600_000 }));
+    const { picked } = selectHibernationCandidates(
+      all,
+      policy({ maxLive: 100, idleMs: 2 * 3600_000 }),
+    );
     expect(picked.map((c) => c.sessionId)).toEqual(["old"]);
   });
 
   test("exactly at the bar parks; one millisecond short does not", () => {
     const bar = 2 * 3600_000;
-    const at = selectHibernationCandidates([candidate({ awakeIdleMs: bar })], policy({ idleMs: bar }));
-    const under = selectHibernationCandidates([candidate({ awakeIdleMs: bar - 1 })], policy({ idleMs: bar }));
+    const at = selectHibernationCandidates(
+      [candidate({ awakeIdleMs: bar })],
+      policy({ idleMs: bar }),
+    );
+    const under = selectHibernationCandidates(
+      [candidate({ awakeIdleMs: bar - 1 })],
+      policy({ idleMs: bar }),
+    );
     expect(at.picked.length).toBe(1);
     expect(under.picked).toEqual([]);
   });
 
   test("a blocked session past the bar is still blocked", () => {
     const all = [candidate({ awakeIdleMs: 99 * 3600_000, attachedClients: 2 })];
-    const { picked, skips } = selectHibernationCandidates(all, policy({ maxLive: 1, idleMs: 1000 }));
+    const { picked, skips } = selectHibernationCandidates(
+      all,
+      policy({ maxLive: 1, idleMs: 1000 }),
+    );
     expect(picked).toEqual([]);
     expect(skips).toEqual(["attached"]);
   });
@@ -244,35 +362,85 @@ describe("agentForeignDescendants", () => {
   // 2026-11-01: the agent leads its own group, its MCP servers stay in it, and
   // each Bash tool shell is detached into a group of its own.
   const AGENT = 98132;
-  const row = (pid: number, ppid: number, pgid: number | undefined, command: string): ProcRow => ({ pid, ppid, pgid, command });
+  const row = (
+    pid: number,
+    ppid: number,
+    pgid: number | undefined,
+    command: string,
+  ): ProcRow => ({ pid, ppid, pgid, command });
   const agent = row(AGENT, 97474, AGENT, "claude --session-id s1");
   const shell = row(97474, 97347, 97474, "-bash");
-  const gmail = row(98248, AGENT, AGENT, "npm exec @gongrzhe/server-gmail-autoauth-mcp");
-  const gmailNode = row(99411, 98248, AGENT, "node /Users/x/.npm/_npx/9524/node_modules/.bin/gmail-mcp");
-  const imessage = row(98250, AGENT, AGENT, "node /Users/x/code/imessage-mcp-server/build/index.js");
-  const bash = row(1154, AGENT, 1154, "/usr/local/bin/bash -c source snapshot.sh && eval 'sleep 120'");
+  const gmail = row(
+    98248,
+    AGENT,
+    AGENT,
+    "npm exec @gongrzhe/server-gmail-autoauth-mcp",
+  );
+  const gmailNode = row(
+    99411,
+    98248,
+    AGENT,
+    "node /Users/x/.npm/_npx/9524/node_modules/.bin/gmail-mcp",
+  );
+  const imessage = row(
+    98250,
+    AGENT,
+    AGENT,
+    "node /Users/x/code/imessage-mcp-server/build/index.js",
+  );
+  const bash = row(
+    1154,
+    AGENT,
+    1154,
+    "/usr/local/bin/bash -c source snapshot.sh && eval 'sleep 120'",
+  );
   const sleep = row(1160, 1154, 1154, "sleep 120");
 
   test("MCP children only: nothing foreign, the agent may park", () => {
-    expect(agentForeignDescendants([shell, agent, imessage], AGENT)).toEqual([]);
+    expect(agentForeignDescendants([shell, agent, imessage], AGENT)).toEqual(
+      [],
+    );
   });
 
   test("a nested MCP server (npm exec, then node) is the agent's own", () => {
-    expect(agentForeignDescendants([shell, agent, gmail, gmailNode], AGENT)).toEqual([]);
+    expect(
+      agentForeignDescendants([shell, agent, gmail, gmailNode], AGENT),
+    ).toEqual([]);
   });
 
   test("MCP children plus a Bash tool shell: the shell and its work are foreign", () => {
-    expect(agentForeignDescendants([shell, agent, gmail, gmailNode, imessage, bash, sleep], AGENT)).toEqual([bash, sleep]);
+    expect(
+      agentForeignDescendants(
+        [shell, agent, gmail, gmailNode, imessage, bash, sleep],
+        AGENT,
+      ),
+    ).toEqual([bash, sleep]);
   });
 
   test("a dev server under a Bash shell is foreign even when it outlives the shell's command", () => {
     const server = row(1170, 1154, 1154, "node vite --port 3200");
-    expect(agentForeignDescendants([agent, bash, server], AGENT)).toEqual([bash, server]);
+    expect(agentForeignDescendants([agent, bash, server], AGENT)).toEqual([
+      bash,
+      server,
+    ]);
   });
 
   test("a table read without process groups fails closed", () => {
-    expect(agentForeignDescendants([row(AGENT, 1, undefined, "claude"), row(98248, AGENT, undefined, "npm exec x")], AGENT)).toHaveLength(1);
-    expect(agentForeignDescendants([agent, row(98248, AGENT, undefined, "npm exec x")], AGENT)).toHaveLength(1);
+    expect(
+      agentForeignDescendants(
+        [
+          row(AGENT, 1, undefined, "claude"),
+          row(98248, AGENT, undefined, "npm exec x"),
+        ],
+        AGENT,
+      ),
+    ).toHaveLength(1);
+    expect(
+      agentForeignDescendants(
+        [agent, row(98248, AGENT, undefined, "npm exec x")],
+        AGENT,
+      ),
+    ).toHaveLength(1);
   });
 
   test("an absent agent yields nothing to judge", () => {
@@ -287,14 +455,23 @@ describe("what the park kills", () => {
   const PANE = 97474;
   const AGENT = 98132;
   const T = "Sun Nov  1 21:00:00 2026";
-  const row = (pid: number, ppid: number, pgid: number, command: string): ProcRow => ({ pid, ppid, pgid, uid: 501, startedAt: T, command });
+  const row = (
+    pid: number,
+    ppid: number,
+    pgid: number,
+    command: string,
+  ): ProcRow => ({ pid, ppid, pgid, uid: 501, startedAt: T, command });
   const shell = row(PANE, 97347, PANE, "-bash");
   const agent = row(AGENT, PANE, AGENT, "claude --session-id s1");
   const npmExec = row(98248, AGENT, AGENT, "npm exec ios-simulator-mcp");
   const mcpNode = row(99411, 98248, AGENT, "node ios-simulator-mcp");
   const caffeinate = row(98253, AGENT, AGENT, "caffeinate -i -t 300");
   const kill = (procs: ProcRow[], descendsFrom?: (p: ProcRow) => boolean) =>
-    reapTargets(procs, [PANE], { selfPid: 4_000_000, uid: 501, descendsFrom: descendsFrom && (p => descendsFrom(p)) }).targets;
+    reapTargets(procs, [PANE], {
+      selfPid: 4_000_000,
+      uid: 501,
+      descendsFrom: descendsFrom && ((p) => descendsFrom(p)),
+    }).targets;
   const scope = { panePid: PANE, agentPid: AGENT };
 
   test("the agent with nested MCP servers and caffeinate: the kill reaches nothing beyond it", () => {
@@ -307,14 +484,24 @@ describe("what the park kills", () => {
     const devServer = row(1170, 1, AGENT, "node next-server");
     const procs = [shell, agent, npmExec, mcpNode, devServer];
     expect(kill(procs)).toContainEqual(devServer);
-    expect(parkTargetsBeyondAgent(kill(procs), procs, scope)).toEqual([devServer]);
+    expect(parkTargetsBeyondAgent(kill(procs), procs, scope)).toEqual([
+      devServer,
+    ]);
   });
 
   test("a dev server whose tool shell exited, found by lineage, refuses", () => {
     const devServer = row(1170, 1, 1154, "node vite --port 3200");
     const procs = [shell, agent, npmExec, mcpNode, devServer];
-    expect(kill(procs, p => p.pid === devServer.pid)).toContainEqual(devServer);
-    expect(parkTargetsBeyondAgent(kill(procs, p => p.pid === devServer.pid), procs, scope)).toEqual([devServer]);
+    expect(kill(procs, (p) => p.pid === devServer.pid)).toContainEqual(
+      devServer,
+    );
+    expect(
+      parkTargetsBeyondAgent(
+        kill(procs, (p) => p.pid === devServer.pid),
+        procs,
+        scope,
+      ),
+    ).toEqual([devServer]);
   });
 
   test("a Bash tool shell under the agent refuses here too", () => {
@@ -325,14 +512,37 @@ describe("what the park kills", () => {
 
   test("a target the table cannot match to the same process is beyond", () => {
     const procs = [shell, agent, npmExec];
-    expect(parkTargetsBeyondAgent([{ ...npmExec, startedAt: "Sun Nov  1 22:00:00 2026" }], procs, scope)).toHaveLength(1);
-    expect(parkTargetsBeyondAgent([{ ...npmExec, startedAt: undefined }], procs, scope)).toHaveLength(1);
+    expect(
+      parkTargetsBeyondAgent(
+        [{ ...npmExec, startedAt: "Sun Nov  1 22:00:00 2026" }],
+        procs,
+        scope,
+      ),
+    ).toHaveLength(1);
+    expect(
+      parkTargetsBeyondAgent(
+        [{ ...npmExec, startedAt: undefined }],
+        procs,
+        scope,
+      ),
+    ).toHaveLength(1);
   });
 
   test("a second process beside the agent in the pane refuses", () => {
     const vim = row(5000, PANE, 5000, "vim");
-    const procs = [shell, agent, npmExec, mcpNode, vim, row(5001, 5000, 5000, "x")];
-    expect(parkTargetsBeyondAgent(kill(procs), procs, scope).map(p => p.pid).sort()).toEqual([5000, 5001]);
+    const procs = [
+      shell,
+      agent,
+      npmExec,
+      mcpNode,
+      vim,
+      row(5001, 5000, 5000, "x"),
+    ];
+    expect(
+      parkTargetsBeyondAgent(kill(procs), procs, scope)
+        .map((p) => p.pid)
+        .sort(),
+    ).toEqual([5000, 5001]);
   });
 
   describe("a session on a tmux server of its own", () => {
@@ -341,37 +551,73 @@ describe("what the park kills", () => {
     const SERVER = 97300;
     const server = row(SERVER, 1, SERVER, "tmux -L cc-x new-session");
     const paneShell = { ...shell, ppid: SERVER };
-    const ownKill = (procs: ProcRow[]) => reapTargets(procs, [SERVER, PANE], { spare: [SERVER], selfPid: 4_000_000, uid: 501 }).targets;
+    const ownKill = (procs: ProcRow[]) =>
+      reapTargets(procs, [SERVER, PANE], {
+        spare: [SERVER],
+        selfPid: 4_000_000,
+        uid: 501,
+      }).targets;
     const ownScope = { ...scope, server: { pid: SERVER, panes: [PANE] } };
     // What tmux-plugins run: `run-shell -b` forks a child of the server in the
     // server's own group, under no pane (measured with `ps -o pid,ppid,pgid`).
-    const plugin = row(5100, SERVER, SERVER, "/bin/sh -c ~/.tmux/plugins/aw-watcher-tmux/scripts/monitor-session-activity.sh");
+    const plugin = row(
+      5100,
+      SERVER,
+      SERVER,
+      "/bin/sh -c ~/.tmux/plugins/aw-watcher-tmux/scripts/monitor-session-activity.sh",
+    );
     const pluginSleep = row(5101, 5100, SERVER, "sleep 10");
 
     test("a plugin helper in the server's group parks with the server", () => {
-      const procs = [server, paneShell, agent, npmExec, mcpNode, plugin, pluginSleep];
-      expect(ownKill(procs)).toEqual(expect.arrayContaining([plugin, pluginSleep]));
-      expect(parkTargetsBeyondAgent(ownKill(procs), procs, ownScope)).toEqual([]);
+      const procs = [
+        server,
+        paneShell,
+        agent,
+        npmExec,
+        mcpNode,
+        plugin,
+        pluginSleep,
+      ];
+      expect(ownKill(procs)).toEqual(
+        expect.arrayContaining([plugin, pluginSleep]),
+      );
+      expect(parkTargetsBeyondAgent(ownKill(procs), procs, ownScope)).toEqual(
+        [],
+      );
     });
 
     test("without the server in scope the same helper refuses", () => {
       const procs = [server, paneShell, agent, plugin];
-      expect(parkTargetsBeyondAgent(ownKill(procs), procs, scope)).toEqual([plugin]);
+      expect(parkTargetsBeyondAgent(ownKill(procs), procs, scope)).toEqual([
+        plugin,
+      ]);
     });
 
     test("another pane on the server, and anything under it, still refuses", () => {
       const side = row(6000, SERVER, 6000, "-bash");
       const devServer = row(6001, 6000, 6000, "node vite");
       const procs = [server, paneShell, agent, plugin, side, devServer];
-      const targets = reapTargets(procs, [SERVER, PANE, 6000], { spare: [SERVER], selfPid: 4_000_000, uid: 501 }).targets;
-      expect(parkTargetsBeyondAgent(targets, procs, { ...scope, server: { pid: SERVER, panes: [PANE, 6000] } }).map(p => p.pid).sort()).toEqual([6000, 6001]);
+      const targets = reapTargets(procs, [SERVER, PANE, 6000], {
+        spare: [SERVER],
+        selfPid: 4_000_000,
+        uid: 501,
+      }).targets;
+      expect(
+        parkTargetsBeyondAgent(targets, procs, {
+          ...scope,
+          server: { pid: SERVER, panes: [PANE, 6000] },
+        })
+          .map((p) => p.pid)
+          .sort(),
+      ).toEqual([6000, 6001]);
     });
 
     test("a process in the server's group under a pane is not a helper", () => {
       const odd = row(6100, AGENT, SERVER, "node something");
       const procs = [server, paneShell, agent, odd];
-      expect(parkTargetsBeyondAgent(ownKill(procs), procs, ownScope)).toEqual([odd]);
+      expect(parkTargetsBeyondAgent(ownKill(procs), procs, ownScope)).toEqual([
+        odd,
+      ]);
     });
   });
 });
-

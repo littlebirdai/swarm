@@ -1,10 +1,25 @@
 import { describe, expect, test } from "bun:test";
-import { bringsByDefault, invalidBringPaths, rehearsalPending, type MoveRehearsal } from "./moveRehearsal";
+import {
+  bringsByDefault,
+  invalidBringPaths,
+  rehearsalPending,
+  type MoveRehearsal,
+} from "./moveRehearsal";
 
 const r: MoveRehearsal = {
-  session_id: "s", destination_id: "d", at: 1, blockers: [], transfer: { method: "files" },
-  missing: [{ path: "/Users/me/src/dailies", kind: "repo", writes: 7, uses: 167 }, { path: "/Users/me/src/eaiden", kind: "repo", writes: 0, uses: 11 }],
-  services: [{ label: "sh.dailies.host", running: true }, { label: "sh.old", running: false }],
+  session_id: "s",
+  destination_id: "d",
+  at: 1,
+  blockers: [],
+  transfer: { method: "files" },
+  missing: [
+    { path: "/Users/me/src/dailies", kind: "repo", writes: 7, uses: 167 },
+    { path: "/Users/me/src/eaiden", kind: "repo", writes: 0, uses: 11 },
+  ],
+  services: [
+    { label: "sh.dailies.host", running: true },
+    { label: "sh.old", running: false },
+  ],
   tools: { missing: ["pnpm", "vid"], installs: ["pnpm"] },
   machine: ["macOS 26.2 here, macOS 15.7.3 on the host"],
 };

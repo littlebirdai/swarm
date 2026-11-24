@@ -17,10 +17,17 @@ export type VerbHelpSpec = {
 };
 
 /** The help text for one verb, built from the command's own option definitions. */
-export function renderVerbHelp(cmd: Command, verb: string, spec: VerbHelpSpec, width = process.stdout.columns || 80): string {
+export function renderVerbHelp(
+  cmd: Command,
+  verb: string,
+  spec: VerbHelpSpec,
+  width = process.stdout.columns || 80,
+): string {
   const help = cmd.createHelp();
   const byLong = new Map((cmd.options as Option[]).map((o) => [o.long, o]));
-  const options = (spec.flags ?? []).map((flag) => byLong.get(flag)).filter((o): o is Option => !!o);
+  const options = (spec.flags ?? [])
+    .map((flag) => byLong.get(flag))
+    .filter((o): o is Option => !!o);
   const terms = options.map((o) => help.optionTerm(o));
   const pad = Math.max(0, ...terms.map((t) => t.length));
   const lines = [`Usage: ${spec.usage}`, "", spec.summary];
@@ -33,18 +40,28 @@ export function renderVerbHelp(cmd: Command, verb: string, spec: VerbHelpSpec, w
   }
   if (spec.note) lines.push("", spec.note);
   const path: string[] = [];
-  for (let at: Command | null = cmd; at; at = at.parent) path.unshift(at.name());
+  for (let at: Command | null = cmd; at; at = at.parent)
+    path.unshift(at.name());
   lines.push("", `Every verb and flag: ${path.join(" ")} --help`);
   return lines.join("\n") + "\n";
 }
 
 /** Make `--help` after one of `verbs` print that verb's help; anything else keeps the command's own. */
-export function addVerbHelp(cmd: Command, verbs: Readonly<Record<string, VerbHelpSpec>>): Command {
+export function addVerbHelp(
+  cmd: Command,
+  verbs: Readonly<Record<string, VerbHelpSpec>>,
+): Command {
   const own = cmd.helpInformation.bind(cmd);
   // commander sets `args` to the operands before it answers --help, so the verb is already known here.
-  cmd.helpInformation = function helpInformation(this: Command, context?: HelpContext): string {
+  cmd.helpInformation = function helpInformation(
+    this: Command,
+    context?: HelpContext,
+  ): string {
     const verb = this.args?.[0];
-    const spec = verb !== undefined && Object.hasOwn(verbs, verb) ? verbs[verb] : undefined;
+    const spec =
+      verb !== undefined && Object.hasOwn(verbs, verb)
+        ? verbs[verb]
+        : undefined;
     return spec ? renderVerbHelp(this, verb!, spec) : own(context);
   };
   return cmd;

@@ -46,7 +46,10 @@ export interface GitCredentialDeps {
   /** git's request on stdin. */
   readInput: () => Promise<string>;
   /** Ask the server for this repository's token. */
-  fetchCredential: (q: { host: string; repository: string }) => Promise<CredentialAnswer>;
+  fetchCredential: (q: {
+    host: string;
+    repository: string;
+  }) => Promise<CredentialAnswer>;
   /** The origin of the repository git is working in, for a request that names no path. */
   originRepository?: () => Promise<string | undefined> | string | undefined;
   write: (text: string) => void;
@@ -95,8 +98,14 @@ export async function credentialRepository(
 }
 
 function repositoryFromPath(path: string): string | undefined {
-  const parts = path.replace(/^\/+/, "").replace(/\/+$/, "").replace(/\.git$/, "").split("/");
-  return parts.length === 2 && parts.every((p) => /^[A-Za-z0-9._-]+$/.test(p)) ? parts.join("/") : undefined;
+  const parts = path
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "")
+    .replace(/\.git$/, "")
+    .split("/");
+  return parts.length === 2 && parts.every((p) => /^[A-Za-z0-9._-]+$/.test(p))
+    ? parts.join("/")
+    : undefined;
 }
 
 /**
@@ -135,11 +144,17 @@ export async function runGitCredential(
   if (operation !== "get") return 0;
 
   const q = parseCredentialInput(await deps.readInput());
-  if (q.protocol && q.protocol !== "https") return refuse(`${q.protocol} is not https — an installation token is an http credential`);
-  if (q.host !== "github.com") return refuse(`${q.host || "this host"} is not github.com`);
+  if (q.protocol && q.protocol !== "https")
+    return refuse(
+      `${q.protocol} is not https — an installation token is an http credential`,
+    );
+  if (q.host !== "github.com")
+    return refuse(`${q.host || "this host"} is not github.com`);
   const repository = await credentialRepository(q, deps.originRepository);
   if (!repository) {
-    return refuse("the request names no repository — set credential.useHttpPath, or run this inside the repository");
+    return refuse(
+      "the request names no repository — set credential.useHttpPath, or run this inside the repository",
+    );
   }
   // The deps are injected, so a throw here would reach commander and print a
   // stack trace into the middle of git's output. A failure is a refusal.
@@ -147,9 +162,12 @@ export async function runGitCredential(
   try {
     answer = await deps.fetchCredential({ host: q.host, repository });
   } catch (e) {
-    return refuse((e as Error)?.message || "the credential could not be fetched");
+    return refuse(
+      (e as Error)?.message || "the credential could not be fetched",
+    );
   }
-  if (!answer || "reason" in answer) return refuse(answer?.reason ?? "the credential could not be fetched");
+  if (!answer || "reason" in answer)
+    return refuse(answer?.reason ?? "the credential could not be fetched");
   deps.write(formatCredential(answer));
   return 0;
 }
@@ -168,7 +186,11 @@ async function readStdin(): Promise<string> {
 /** The origin of the repository git invoked the helper from, if it is in one. */
 async function originHere(): Promise<string | undefined> {
   const { spawnSync } = await import("../proc.js");
-  const r = spawnSync("git", ["remote", "get-url", "origin"], { encoding: "utf-8", stdio: "pipe", timeout: 10_000 });
+  const r = spawnSync("git", ["remote", "get-url", "origin"], {
+    encoding: "utf-8",
+    stdio: "pipe",
+    timeout: 10_000,
+  });
   const url = r.status === 0 ? (r.stdout ?? "").trim() : "";
   return url && parseOrigin(url) ? url : undefined;
 }
@@ -185,12 +207,23 @@ async function originHere(): Promise<string | undefined> {
  */
 export const CREDENTIAL_BUDGET_MS = 15_000;
 
-export function withBudget<T>(work: Promise<T>, ms: number = CREDENTIAL_BUDGET_MS): Promise<T> {
+export function withBudget<T>(
+  work: Promise<T>,
+  ms: number = CREDENTIAL_BUDGET_MS,
+): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([
     work.finally(() => clearTimeout(timer)),
     new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`the server did not answer within ${Math.round(ms / 1000)}s`)), ms);
+      timer = setTimeout(
+        () =>
+          reject(
+            new Error(
+              `the server did not answer within ${Math.round(ms / 1000)}s`,
+            ),
+          ),
+        ms,
+      );
     }),
   ]);
 }
@@ -200,7 +233,10 @@ export function withBudget<T>(work: Promise<T>, ms: number = CREDENTIAL_BUDGET_M
  * deployment does not have — is one reason, because git only needs to know
  * that this helper has nothing.
  */
-async function requestCredential(q: { host: string; repository: string }): Promise<CredentialAnswer> {
+async function requestCredential(q: {
+  host: string;
+  repository: string;
+}): Promise<CredentialAnswer> {
   try {
     const [{ convexClient }, { deviceId }] = await Promise.all([
       import("../remote/convexClient.js"),
@@ -215,11 +251,18 @@ async function requestCredential(q: { host: string; repository: string }): Promi
         host: q.host,
       }),
     );
-    if (!answer || typeof answer !== "object") return { reason: "the server answered nothing" };
+    if (!answer || typeof answer !== "object")
+      return { reason: "the server answered nothing" };
     if ("reason" in answer) return { reason: String(answer.reason) };
-    return { username: String(answer.username), password: String(answer.password), expires_at: Number(answer.expires_at) };
+    return {
+      username: String(answer.username),
+      password: String(answer.password),
+      expires_at: Number(answer.expires_at),
+    };
   } catch (e) {
-    return { reason: (e as Error).message || "the server could not be reached" };
+    return {
+      reason: (e as Error).message || "the server could not be reached",
+    };
   }
 }
 
@@ -239,7 +282,9 @@ function hostDeps(): GitCredentialDeps {
  * returns, because the abandoned request after a budget expiry would otherwise
  * hold the process open long after git has moved on.
  */
-export async function runHostGitCredential(operation: string | undefined): Promise<never> {
+export async function runHostGitCredential(
+  operation: string | undefined,
+): Promise<never> {
   let code = 1;
   try {
     code = await runGitCredential(operation, hostDeps());
@@ -247,7 +292,9 @@ export async function runHostGitCredential(operation: string | undefined): Promi
     code = 1;
   }
   // stdout is a pipe here, so the last write may still be buffered.
-  await new Promise<void>((resolve) => process.stdout.write("", () => resolve()));
+  await new Promise<void>((resolve) =>
+    process.stdout.write("", () => resolve()),
+  );
   process.exit(code);
 }
 
@@ -255,12 +302,17 @@ export function registerGitCredentialCommand(program: Command): void {
   program
     .command("git-credential", { hidden: true })
     .argument("[operation]", "get, store or erase — git supplies it")
-    .option("--why", "print why a request is refused instead of exiting quietly")
+    .option(
+      "--why",
+      "print why a request is refused instead of exiting quietly",
+    )
     .description(commandGroup("git-credential").description)
     .action(async (operation: string | undefined, o: { why?: boolean }) => {
       // `--why` and a human typing the verb land here; git itself never does
       // (fastPath.ts claims `cast git-credential <operation>` before the CLI
       // loads), so the update notice this lifecycle can print costs nothing.
-      process.exitCode = await runGitCredential(operation, hostDeps(), { why: o.why === true });
+      process.exitCode = await runGitCredential(operation, hostDeps(), {
+        why: o.why === true,
+      });
     });
 }

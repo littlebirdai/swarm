@@ -46,18 +46,41 @@ export async function encryptProviderKey(
     false,
     [],
   );
-  const eph = await subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
-  const shared = await subtle.deriveBits({ name: "ECDH", public: devicePub }, eph.privateKey, 256);
-  const hkdfKey = await subtle.importKey("raw", shared, { name: "HKDF" }, false, ["deriveKey"]);
+  const eph = await subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    ["deriveBits"],
+  );
+  const shared = await subtle.deriveBits(
+    { name: "ECDH", public: devicePub },
+    eph.privateKey,
+    256,
+  );
+  const hkdfKey = await subtle.importKey(
+    "raw",
+    shared,
+    { name: "HKDF" },
+    false,
+    ["deriveKey"],
+  );
   const aesKey = await subtle.deriveKey(
-    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: new TextEncoder().encode(PROVIDER_KEY_HKDF_INFO) },
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(0),
+      info: new TextEncoder().encode(PROVIDER_KEY_HKDF_INFO),
+    },
     hkdfKey,
     { name: "AES-GCM", length: 256 },
     false,
     ["encrypt"],
   );
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await subtle.encrypt({ name: "AES-GCM", iv, tagLength: 128 }, aesKey, new TextEncoder().encode(apiKey));
+  const ct = await subtle.encrypt(
+    { name: "AES-GCM", iv, tagLength: 128 },
+    aesKey,
+    new TextEncoder().encode(apiKey),
+  );
   const epk = await subtle.exportKey("raw", eph.publicKey);
   return { provider, epk: toB64(epk), iv: toB64(iv), ct: toB64(ct) };
 }

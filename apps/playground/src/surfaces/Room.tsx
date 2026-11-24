@@ -1,6 +1,11 @@
 // The room overlay: a resizable side panel on desktop, a bottom sheet with
 // three detents below 1024px (DESIGN 6.3, 6.11). Same parts in both.
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useIdentity } from "../lib/identity";
 import { useExit } from "../lib/useExit";
 import { freshFocus, useAppState, useComposer, useStream } from "./appState";
@@ -12,7 +17,15 @@ import { Stream } from "./Stream";
 import { TimelineStrip } from "./Timeline";
 import s from "./Room.module.css";
 
-export function RoomPanel({ open, width, onResize }: { open: boolean; width: number; onResize: (w: number) => void }) {
+export function RoomPanel({
+  open,
+  width,
+  onResize,
+}: {
+  open: boolean;
+  width: number;
+  onResize: (w: number) => void;
+}) {
   const { setRoomOpen, picking, setPicking } = useAppState();
   const { mounted, leaving } = useExit(open, 180);
   if (!mounted) return null;
@@ -21,7 +34,8 @@ export function RoomPanel({ open, width, onResize }: { open: boolean; width: num
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
     el.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => onResize(clampWidth(innerWidth - ev.clientX));
+    const move = (ev: PointerEvent) =>
+      onResize(clampWidth(innerWidth - ev.clientX));
     const up = () => {
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
@@ -61,7 +75,12 @@ export function RoomPanel({ open, width, onResize }: { open: boolean; width: num
         onDoubleClick={() => onResize(ROOM_DEFAULT)}
         onKeyDown={(e) => {
           // The room grows leftward, so ← widens it.
-          const to = { ArrowLeft: width + RESIZE_STEP, ArrowRight: width - RESIZE_STEP, Home: ROOM_DEFAULT, Enter: ROOM_DEFAULT }[e.key];
+          const to = {
+            ArrowLeft: width + RESIZE_STEP,
+            ArrowRight: width - RESIZE_STEP,
+            Home: ROOM_DEFAULT,
+            Enter: ROOM_DEFAULT,
+          }[e.key];
           if (to === undefined) return;
           e.preventDefault();
           onResize(clampWidth(to));
@@ -80,10 +99,12 @@ type Detent = "peek" | "half" | "full";
 const DETENTS: Detent[] = ["peek", "half", "full"];
 /** A press that moves less than this is a tap, not a drag. */
 const TAP_SLOP_PX = 6;
-const heightOf = (d: Detent, vh: number) => (d === "peek" ? 132 : d === "half" ? vh * 0.55 : vh * 0.92);
+const heightOf = (d: Detent, vh: number) =>
+  d === "peek" ? 132 : d === "half" ? vh * 0.55 : vh * 0.92;
 
 export function RoomSheet() {
-  const { roomOpen, setRoomOpen, picking, showAppAt, viewing, view } = useAppState();
+  const { roomOpen, setRoomOpen, picking, showAppAt, viewing, view } =
+    useAppState();
   const composer = useComposer();
   const { building } = useStream();
   const { me } = useIdentity();
@@ -95,7 +116,8 @@ export function RoomSheet() {
   // rises from its peek to half, never further on its own.
   const toHalf = () => setDetent((d) => (d === "peek" ? "half" : d));
   const toPeek = () => {
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    if (document.activeElement instanceof HTMLElement)
+      document.activeElement.blur();
     setDetent("peek");
   };
 
@@ -116,7 +138,8 @@ export function RoomSheet() {
   // Your change is on its way (sent as Change it, or Auto made it one): the
   // sheet drops to its peek, so the app the change lands in is on screen when
   // it goes live. A half-written next message keeps its keyboard.
-  const mine = building?.author?.id === me.id && building.build ? building.build.id : null;
+  const mine =
+    building?.author?.id === me.id && building.build ? building.build.id : null;
   const seenBuild = useRef(mine);
   useEffect(() => {
     if (!mine || mine === seenBuild.current) return;
@@ -160,10 +183,17 @@ export function RoomSheet() {
       // the peek, close.
       if (Math.abs(velocity) > 0.5) {
         if (velocity > 0 && i === 0) return setRoomOpen(false);
-        return setDetent(DETENTS[Math.min(2, Math.max(0, i + (velocity > 0 ? -1 : 1)))]);
+        return setDetent(
+          DETENTS[Math.min(2, Math.max(0, i + (velocity > 0 ? -1 : 1)))],
+        );
       }
       if (h < heightOf("peek", vv.height) * 0.6) return setRoomOpen(false);
-      const nearest = DETENTS.reduce((a, b) => (Math.abs(heightOf(b, vv.height) - h) < Math.abs(heightOf(a, vv.height) - h) ? b : a));
+      const nearest = DETENTS.reduce((a, b) =>
+        Math.abs(heightOf(b, vv.height) - h) <
+        Math.abs(heightOf(a, vv.height) - h)
+          ? b
+          : a,
+      );
       setDetent(nearest);
     };
     el.addEventListener("pointermove", move);
@@ -180,13 +210,18 @@ export function RoomSheet() {
       tabIndex={-1}
       inert={leaving}
     >
-      <div className={`${s.grab} ${peek ? s.grabPeek : ""}`} onPointerDown={startDrag}>
+      <div
+        className={`${s.grab} ${peek ? s.grabPeek : ""}`}
+        onPointerDown={startDrag}
+      >
         <span className={s.handle} />
         {peek ? <SheetPeek /> : <RoomHeader compact />}
       </div>
       {!peek && (
         <>
-          {viewing !== null && <PastRow n={viewing} onBack={() => view(null)} className={s.past} />}
+          {viewing !== null && (
+            <PastRow n={viewing} onBack={() => view(null)} className={s.past} />
+          )}
           {/* Reading back through history is what the tall sheet is for. */}
           <Stream onBrowse={() => setDetent("full")} />
           {detent === "full" && <TimelineStrip />}
@@ -202,7 +237,12 @@ export function RoomSheet() {
 function useVisualViewport() {
   const read = () => {
     const v = window.visualViewport;
-    return v ? { height: v.height, keyboard: Math.max(0, innerHeight - v.height - v.offsetTop) } : { height: innerHeight, keyboard: 0 };
+    return v
+      ? {
+          height: v.height,
+          keyboard: Math.max(0, innerHeight - v.height - v.offsetTop),
+        }
+      : { height: innerHeight, keyboard: 0 };
   };
   const [state, setState] = useState(read);
   useEffect(() => {

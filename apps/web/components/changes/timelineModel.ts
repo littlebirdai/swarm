@@ -4,7 +4,14 @@
 // Pure, so the page and its tests share it.
 import { isoWeekOf, topWeekStories, weekDates } from "@codecast/shared/changes";
 import type { EditionRow, StoryRow } from "../../hooks/useSyncChanges";
-import { byWeight, hasProse, inFocus, survives, type Person, type Ship } from "./editionModel";
+import {
+  byWeight,
+  hasProse,
+  inFocus,
+  survives,
+  type Person,
+  type Ship,
+} from "./editionModel";
 import type { ChangesUrl, Zoom } from "./useChangesUrlState";
 
 export type TimelineDay = {
@@ -60,14 +67,22 @@ export function buildTimeline(input: {
     byDate.set(s.date, day);
   }
   const editionOf = new Map(input.editions.map((e) => [e.date, e]));
-  const summaries = new Set(input.editions.filter((e) => hasProse(e)).map((e) => e.headline!));
-  const weekOf = new Map(finishedWeeks(input.weeks, input.today).filter((w) => !summaries.has(w.headline)).map((w) => [w.week, w]));
+  const summaries = new Set(
+    input.editions.filter((e) => hasProse(e)).map((e) => e.headline!),
+  );
+  const weekOf = new Map(
+    finishedWeeks(input.weeks, input.today)
+      .filter((w) => !summaries.has(w.headline))
+      .map((w) => [w.week, w]),
+  );
 
   const out: TimelineItem[] = [];
   let lastWeek: string | null = null;
   for (const date of [...byDate.keys()].sort().reverse()) {
     const all = byDate.get(date)!;
-    const shown = all.filter((s) => inFocus(s, url) && survives(s, url, person)).sort(byWeight);
+    const shown = all
+      .filter((s) => inFocus(s, url) && survives(s, url, person))
+      .sort(byWeight);
     if (!shown.length) continue;
     const week = isoWeekOf(date);
     if (week !== lastWeek) {
@@ -76,12 +91,16 @@ export function buildTimeline(input: {
       if (notes && notes.week !== input.skipWeek) out.push(notes);
     }
     const edition = editionOf.get(date);
-    const brief = edition && hasProse(edition) && edition.brief_story_keys ? new Set(edition.brief_story_keys) : null;
+    const brief =
+      edition && hasProse(edition) && edition.brief_story_keys
+        ? new Set(edition.brief_story_keys)
+        : null;
     out.push({
       kind: "day",
       date,
       summary: edition && hasProse(edition) ? edition.headline! : null,
-      standfirst: edition && hasProse(edition) ? edition.narrative?.trim() || null : null,
+      standfirst:
+        edition && hasProse(edition) ? edition.narrative?.trim() || null : null,
       stories: shown.filter((s) => !isSmall(s, brief)),
       small: shown.filter((s) => isSmall(s, brief)),
       releases: edition?.releases ?? [],
@@ -95,27 +114,46 @@ export function buildTimeline(input: {
  * The finished weeks whose notes are written, newest first. The week in
  * progress has none: its notes only restate its newest day.
  */
-export function finishedWeeks(weeks: readonly EditionRow[], today: string): TimelineWeek[] {
+export function finishedWeeks(
+  weeks: readonly EditionRow[],
+  today: string,
+): TimelineWeek[] {
   const thisWeek = isoWeekOf(today);
   return weeks
     .filter((w) => hasProse(w) && w.date < thisWeek)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .map((w) => ({ kind: "week", week: w.date, headline: w.headline!, summary: w.narrative?.trim() || null, top: w.top_story_keys ?? [] }));
+    .map((w) => ({
+      kind: "week",
+      week: w.date,
+      headline: w.headline!,
+      summary: w.narrative?.trim() || null,
+      top: w.top_story_keys ?? [],
+    }));
 }
 
 /** The week's picks that are still on the page, else (keys move when a day is rebuilt) its heaviest stories. */
-export function weekTop(week: TimelineWeek, byKey: ReadonlyMap<string, StoryRow>): StoryRow[] {
-  const picked = week.top.map((k) => byKey.get(k)).filter((s): s is StoryRow => !!s);
+export function weekTop(
+  week: TimelineWeek,
+  byKey: ReadonlyMap<string, StoryRow>,
+): StoryRow[] {
+  const picked = week.top
+    .map((k) => byKey.get(k))
+    .filter((s): s is StoryRow => !!s);
   if (picked.length) return picked;
   const days = new Set(weekDates(week.week) ?? []);
   return topWeekStories([...byKey.values()].filter((s) => days.has(s.date)));
 }
 
-
 /** One week of the timeline: its notes when written, and its days newest first. */
-export type TimelineWeekGroup = { week: string; notes: TimelineWeek | null; days: TimelineDay[] };
+export type TimelineWeekGroup = {
+  week: string;
+  notes: TimelineWeek | null;
+  days: TimelineDay[];
+};
 
-export function groupWeeks(items: readonly TimelineItem[]): TimelineWeekGroup[] {
+export function groupWeeks(
+  items: readonly TimelineItem[],
+): TimelineWeekGroup[] {
   const out: TimelineWeekGroup[] = [];
   let notes: TimelineWeek | null = null;
   for (const item of items) {
@@ -126,21 +164,31 @@ export function groupWeeks(items: readonly TimelineItem[]): TimelineWeekGroup[] 
     const week = isoWeekOf(item.date);
     const last = out[out.length - 1];
     if (last?.week === week) last.days.push(item);
-    else out.push({ week, notes: notes?.week === week ? notes : null, days: [item] });
+    else
+      out.push({
+        week,
+        notes: notes?.week === week ? notes : null,
+        days: [item],
+      });
   }
   return out;
 }
 
 const dayMs = (d: string) => Date.parse(`${d}T12:00:00Z`);
 /** Whole days from `day` to `today`. */
-export const ageOf = (day: string, today: string) => Math.round((dayMs(today) - dayMs(day)) / 86_400_000);
+export const ageOf = (day: string, today: string) =>
+  Math.round((dayMs(today) - dayMs(day)) / 86_400_000);
 
 /**
  * How far out a day reads when the reader has not picked a zoom: the last two
  * days story by story, the rest of the past week a day at a time, and older
  * days folded into their week's notes.
  */
-export function dayZoom(day: string, today: string, zoom: Zoom | undefined): Zoom {
+export function dayZoom(
+  day: string,
+  today: string,
+  zoom: Zoom | undefined,
+): Zoom {
   if (zoom) return zoom;
   const age = ageOf(day, today);
   return age <= 1 ? "changes" : age <= 6 ? "days" : "weeks";
@@ -150,5 +198,10 @@ export function dayZoom(day: string, today: string, zoom: Zoom | undefined): Zoo
  * Whether a week reads as one summary: every day in it is that far out, and
  * its notes are written. A week without notes reads day by day.
  */
-export const weekFolds = (group: TimelineWeekGroup, today: string, zoom: Zoom | undefined) =>
-  !!group.notes && group.days.every((d) => dayZoom(d.date, today, zoom) === "weeks");
+export const weekFolds = (
+  group: TimelineWeekGroup,
+  today: string,
+  zoom: Zoom | undefined,
+) =>
+  !!group.notes &&
+  group.days.every((d) => dayZoom(d.date, today, zoom) === "weeks");

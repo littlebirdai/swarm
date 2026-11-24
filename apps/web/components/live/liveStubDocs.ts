@@ -26,14 +26,21 @@ export function promoteStubDoc(stubId: string, realId: string): void {
     const ops: ArtifactOp[] = [];
     for (const row of rows[layer].values()) {
       const state = fromElement(row);
-      if (!state.deleted) ops.push({ k: row.key, put: { kind: state.kind, ...state.fields } as any });
+      if (!state.deleted)
+        ops.push({
+          k: row.key,
+          put: { kind: state.kind, ...state.fields } as any,
+        });
     }
     if (ops.length) batches.push([layer, ops]);
   }
   const store = useInboxStore.getState() as any;
   store.liveDropStub(stubId);
   for (const [layer, ops] of batches) sendLiveOps(realId, layer, ops);
-  if (typeof window !== "undefined" && window.location.pathname === `/docs/${stubId}`) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname === `/docs/${stubId}`
+  ) {
     routerNavigate(`/docs/${realId}${window.location.search}`, "replace");
   }
 }
@@ -67,7 +74,11 @@ export function watchStubDocs(): void {
     lastDocs = s.docs;
     for (const row of Object.values<any>(s.docs ?? {})) {
       const key = row?.client_key;
-      if (typeof key === "string" && waiting.has(key) && !isStubDoc(String(row._id))) {
+      if (
+        typeof key === "string" &&
+        waiting.has(key) &&
+        !isStubDoc(String(row._id))
+      ) {
         waiting.delete(key);
         promoteStubDoc(key, String(row._id));
       }

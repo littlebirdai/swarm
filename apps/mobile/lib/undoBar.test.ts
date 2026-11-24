@@ -1,7 +1,13 @@
 import { beforeEach, expect, test } from "bun:test";
 import { _resetUndoStacks, getUndoHistory } from "@platform/engine";
 import { useInboxStore } from "@codecast/web/store/inboxStore";
-import { dismissUndoBar, holdKill, runHeldKill, UNDO_BAR_MS, useUndoBar } from "./undoBar";
+import {
+  dismissUndoBar,
+  holdKill,
+  runHeldKill,
+  UNDO_BAR_MS,
+  useUndoBar,
+} from "./undoBar";
 
 const A = "a".repeat(32);
 const B = "b".repeat(32);
@@ -13,9 +19,17 @@ beforeEach(() => {
   _resetUndoStacks();
   useUndoBar.setState({ item: null, heldKillId: null });
   useInboxStore.setState({
-    pending: {}, currentSessionId: null, clientState: {},
-    sessions: { [A]: { _id: A, title: "First", updated_at: 1 }, [B]: { _id: B, title: "Second", updated_at: 1 } },
-    conversations: { [A]: { _id: A, title: "First" }, [B]: { _id: B, title: "Second" } },
+    pending: {},
+    currentSessionId: null,
+    clientState: {},
+    sessions: {
+      [A]: { _id: A, title: "First", updated_at: 1 },
+      [B]: { _id: B, title: "Second", updated_at: 1 },
+    },
+    conversations: {
+      [A]: { _id: A, title: "First" },
+      [B]: { _id: B, title: "Second" },
+    },
   } as any);
 });
 

@@ -1,7 +1,13 @@
 "use client";
 
 import { SOL } from "../../../blog/blogChrome";
-import { ChannelDigest, CitationMessage, HuddleChat, PeopleWall, WalkieBurst } from "../../../features/calls/mocks";
+import {
+  ChannelDigest,
+  CitationMessage,
+  HuddleChat,
+  PeopleWall,
+  WalkieBurst,
+} from "../../../features/calls/mocks";
 import "../../../features/calls/calls.css";
 
 /**
@@ -11,22 +17,38 @@ import "../../../features/calls/calls.css";
  */
 
 function Paper({ children }: { children: React.ReactNode }) {
-  return <div className="cc-root p-4 sm:p-6" style={{ backgroundColor: SOL.base3 }}>{children}</div>;
+  return (
+    <div className="cc-root p-4 sm:p-6" style={{ backgroundColor: SOL.base3 }}>
+      {children}
+    </div>
+  );
 }
 
 /** The digest a channel huddle leaves behind as a chat message. */
 export function DigestFigure() {
-  return <Paper><ChannelDigest /></Paper>;
+  return (
+    <Paper>
+      <ChannelDigest />
+    </Paper>
+  );
 }
 
 /** A session in the huddle: a person's typed line goes in, the agent's answer comes back. */
 export function HuddleAgentFigure() {
-  return <Paper><HuddleChat /></Paper>;
+  return (
+    <Paper>
+      <HuddleChat />
+    </Paper>
+  );
 }
 
 /** An agent quoting the call, the speaker's name on each line. */
 export function CitationFigure() {
-  return <Paper><CitationMessage /></Paper>;
+  return (
+    <Paper>
+      <CitationMessage />
+    </Paper>
+  );
 }
 
 /** The people wall beside a walkie burst landing in a DM. */

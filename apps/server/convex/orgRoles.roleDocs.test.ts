@@ -8,10 +8,29 @@ import { afterRoleDocWrite } from "./orgRoles";
 // standing conversation, and records every write.
 
 function fakeCtx() {
-  const role = { _id: "role1", team_id: "team1", status: "active", anchor_id: "anchor1", brief_doc_id: "brief1", charter_doc_id: "charter1", name: "Infra lead", handle: "infra" };
+  const role = {
+    _id: "role1",
+    team_id: "team1",
+    status: "active",
+    anchor_id: "anchor1",
+    brief_doc_id: "brief1",
+    charter_doc_id: "charter1",
+    name: "Infra lead",
+    handle: "infra",
+  };
   const anchor = { _id: "anchor1", conversation_id: "conv1" };
-  const conv = { _id: "conv1", user_id: "u1", standing_role_id: "role1", thread_state: null };
-  const rows: Record<string, any> = { role1: role, anchor1: anchor, conv1: conv, team1: { _id: "team1", features: { org: true } } };
+  const conv = {
+    _id: "conv1",
+    user_id: "u1",
+    standing_role_id: "role1",
+    thread_state: null,
+  };
+  const rows: Record<string, any> = {
+    role1: role,
+    anchor1: anchor,
+    conv1: conv,
+    team1: { _id: "team1", features: { org: true } },
+  };
   const patches: Array<{ id: string; patch: any }> = [];
   const inserts: Array<{ table: string; row: any }> = [];
   const scheduled: any[] = [];
@@ -26,11 +45,24 @@ function fakeCtx() {
   const ctx = {
     db: {
       get: async (id: string) => rows[id] ?? null,
-      patch: async (id: string, patch: any) => { patches.push({ id, patch }); Object.assign(rows[id], patch); },
-      insert: async (table: string, row: any) => { inserts.push({ table, row }); return `${table}-${inserts.length}`; },
+      patch: async (id: string, patch: any) => {
+        patches.push({ id, patch });
+        Object.assign(rows[id], patch);
+      },
+      insert: async (table: string, row: any) => {
+        inserts.push({ table, row });
+        return `${table}-${inserts.length}`;
+      },
       query,
     },
-    scheduler: { runAfter: async (...args: any[]) => { scheduled.push(args); }, runAt: async (...args: any[]) => { scheduled.push(args); } },
+    scheduler: {
+      runAfter: async (...args: any[]) => {
+        scheduled.push(args);
+      },
+      runAt: async (...args: any[]) => {
+        scheduled.push(args);
+      },
+    },
   };
   return { ctx, patches, inserts, scheduled, conv };
 }
@@ -38,7 +70,11 @@ function fakeCtx() {
 describe("afterRoleDocWrite", () => {
   test("a brief's first line lands on the standing session's state", async () => {
     const { ctx, patches } = fakeCtx();
-    await afterRoleDocWrite(ctx, { _id: "brief1", doc_type: "brief", team_id: "team1" }, "Infra lead standing by\nStatus: dormant waiting on CI\nNext: read the frame\n\nMore prose.");
+    await afterRoleDocWrite(
+      ctx,
+      { _id: "brief1", doc_type: "brief", team_id: "team1" },
+      "Infra lead standing by\nStatus: dormant waiting on CI\nNext: read the frame\n\nMore prose.",
+    );
     const conv = patches.find((p) => p.id === "conv1");
     expect(conv).toBeDefined();
     expect(String(conv!.patch.thread_state)).toMatch(/^Infra lead standing by/);
@@ -49,14 +85,22 @@ describe("afterRoleDocWrite", () => {
 
   test("a charter edit touches nothing: the role reads it at its next run", async () => {
     const { ctx, inserts, patches } = fakeCtx();
-    await afterRoleDocWrite(ctx, { _id: "charter1", doc_type: "charter", team_id: "team1" }, "# Charter\nnew rules");
+    await afterRoleDocWrite(
+      ctx,
+      { _id: "charter1", doc_type: "charter", team_id: "team1" },
+      "# Charter\nnew rules",
+    );
     expect(inserts).toHaveLength(0);
     expect(patches).toHaveLength(0);
   });
 
   test("any other document is left alone", async () => {
     const { ctx, inserts, patches } = fakeCtx();
-    await afterRoleDocWrite(ctx, { _id: "note1", doc_type: "note", team_id: "team1" }, "hello");
+    await afterRoleDocWrite(
+      ctx,
+      { _id: "note1", doc_type: "note", team_id: "team1" },
+      "hello",
+    );
     expect(inserts).toHaveLength(0);
     expect(patches).toHaveLength(0);
   });

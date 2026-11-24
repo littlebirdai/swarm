@@ -30,8 +30,13 @@ export const SHRINK_MAX_ATTEMPTS = 400;
 export const SHRINK_MAX_MS = 10 * 60_000;
 
 /** An --order line split into its drain mark and its channels. */
-export function splitOrderLine(tokens: readonly string[]): { mark: string | null; channels: string[] } {
-  return tokens[0] === SCRIPTED_ORDER_MARK ? { mark: tokens[0], channels: tokens.slice(1) } : { mark: null, channels: [...tokens] };
+export function splitOrderLine(tokens: readonly string[]): {
+  mark: string | null;
+  channels: string[];
+} {
+  return tokens[0] === SCRIPTED_ORDER_MARK
+    ? { mark: tokens[0], channels: tokens.slice(1) }
+    : { mark: null, channels: [...tokens] };
 }
 
 export interface ShrinkOptions {
@@ -75,7 +80,11 @@ function chunks<T>(items: readonly T[], n: number): T[][] {
  * entries at those indexes, in order, and resolves true when the run fails
  * the same way.
  */
-export async function shrinkOrder(length: number, reproduces: (kept: number[]) => Promise<boolean>, opts: ShrinkOptions = {}): Promise<ShrinkResult> {
+export async function shrinkOrder(
+  length: number,
+  reproduces: (kept: number[]) => Promise<boolean>,
+  opts: ShrinkOptions = {},
+): Promise<ShrinkResult> {
   const now = opts.now ?? Date.now;
   const maxAttempts = opts.maxAttempts ?? SHRINK_MAX_ATTEMPTS;
   const maxMs = opts.maxMs ?? SHRINK_MAX_MS;
@@ -89,7 +98,8 @@ export async function shrinkOrder(length: number, reproduces: (kept: number[]) =
     const key = kept.join(",");
     const known = memo.get(key);
     if (known !== undefined) return known;
-    if (attempts >= maxAttempts || now() - start >= maxMs) throw new CapReached();
+    if (attempts >= maxAttempts || now() - start >= maxMs)
+      throw new CapReached();
     attempts++;
     const ok = await reproduces(kept);
     memo.set(key, ok);
@@ -100,7 +110,14 @@ export async function shrinkOrder(length: number, reproduces: (kept: number[]) =
 
   const done = (reproduced: boolean, oneMinimal: boolean): ShrinkResult => {
     const keep = new Set(best);
-    return { reproduced, kept: best, removed: range(length).filter((i) => !keep.has(i)), attempts, ms: now() - start, oneMinimal };
+    return {
+      reproduced,
+      kept: best,
+      removed: range(length).filter((i) => !keep.has(i)),
+      attempts,
+      ms: now() - start,
+      oneMinimal,
+    };
   };
 
   try {
@@ -156,7 +173,8 @@ export async function shrinkOrder(length: number, reproduces: (kept: number[]) =
     best = c;
     return done(true, true);
   } catch (e) {
-    if (e instanceof CapReached) return done(memo.get(range(length).join(",")) === true, false);
+    if (e instanceof CapReached)
+      return done(memo.get(range(length).join(",")) === true, false);
     throw e;
   }
 }

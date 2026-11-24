@@ -4,14 +4,25 @@ import * as os from "os";
 import * as path from "path";
 import { spawn, type ChildProcess } from "./proc.js";
 import * as readline from "readline";
-import { STABLE_ENV_MODE, type CodexTurnError } from "@codecast/shared/contracts";
+import {
+  STABLE_ENV_MODE,
+  type CodexTurnError,
+} from "@codecast/shared/contracts";
 import { codexTurnErrorMessage } from "./codexTurnError.js";
 import { agentSpawnPath } from "./agentSpawnPath.js";
 import { extractInlineImages } from "./inlineImage.js";
 import { withWorktreeConfig } from "./worktreeEnv.js";
-import type { ParsedMessage, ToolCall, ToolResult, ImageBlock } from "./parser.js";
+import type {
+  ParsedMessage,
+  ToolCall,
+  ToolResult,
+  ImageBlock,
+} from "./parser.js";
 
-export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access";
+export type SandboxMode =
+  | "read-only"
+  | "workspace-write"
+  | "danger-full-access";
 
 /**
  * The resolved sandbox the server reports for a thread. Mirrors
@@ -24,7 +35,13 @@ export type SandboxPolicy =
   | { type: "dangerFullAccess" }
   | { type: "readOnly"; networkAccess: boolean }
   | { type: "externalSandbox"; networkAccess: unknown }
-  | { type: "workspaceWrite"; writableRoots: string[]; networkAccess: boolean; excludeTmpdirEnvVar: boolean; excludeSlashTmp: boolean };
+  | {
+      type: "workspaceWrite";
+      writableRoots: string[];
+      networkAccess: boolean;
+      excludeTmpdirEnvVar: boolean;
+      excludeSlashTmp: boolean;
+    };
 
 /**
  * Resume params that reproduce a policy the server previously reported.
@@ -42,9 +59,10 @@ export type SandboxPolicy =
  * justify would widen a thread that was deliberately restricted. `externalSandbox`
  * is deliberately not reproduced, since its settings are not expressible here.
  */
-export function sandboxResumeParams(
-  policy: SandboxPolicy | undefined | null,
-): { sandbox?: SandboxMode; config?: Record<string, unknown> } {
+export function sandboxResumeParams(policy: SandboxPolicy | undefined | null): {
+  sandbox?: SandboxMode;
+  config?: Record<string, unknown>;
+} {
   if (!policy || typeof policy !== "object") return {};
   switch (policy.type) {
     case "dangerFullAccess":
@@ -63,10 +81,17 @@ export function sandboxResumeParams(
       return {
         sandbox: "workspace-write",
         config: {
-          "sandbox_workspace_write.writable_roots": Array.isArray(policy.writableRoots) ? policy.writableRoots : [],
-          "sandbox_workspace_write.network_access": policy.networkAccess === true,
-          "sandbox_workspace_write.exclude_tmpdir_env_var": policy.excludeTmpdirEnvVar !== false,
-          "sandbox_workspace_write.exclude_slash_tmp": policy.excludeSlashTmp !== false,
+          "sandbox_workspace_write.writable_roots": Array.isArray(
+            policy.writableRoots,
+          )
+            ? policy.writableRoots
+            : [],
+          "sandbox_workspace_write.network_access":
+            policy.networkAccess === true,
+          "sandbox_workspace_write.exclude_tmpdir_env_var":
+            policy.excludeTmpdirEnvVar !== false,
+          "sandbox_workspace_write.exclude_slash_tmp":
+            policy.excludeSlashTmp !== false,
         },
       };
     default:
@@ -93,10 +118,18 @@ export class CodexPolicyInvalidationFailed extends Error {}
 
 /** True only for an answered refusal, never for an ambiguous transport failure. */
 export function isAuthoritativeRefusal(error: unknown): boolean {
-  return !!error && typeof error === "object" && (error as { refused?: unknown }).refused === true;
+  return (
+    !!error &&
+    typeof error === "object" &&
+    (error as { refused?: unknown }).refused === true
+  );
 }
 
-export type ApprovalPolicy = "untrusted" | "on-failure" | "on-request" | "never";
+export type ApprovalPolicy =
+  | "untrusted"
+  | "on-failure"
+  | "on-request"
+  | "never";
 export type TurnStatus = "inProgress" | "completed" | "failed" | "interrupted";
 
 export interface ThreadStartParams {
@@ -165,7 +198,13 @@ export interface TurnStartResponse {
 }
 
 export interface ThreadResumeResponse {
-  thread: { id: string; path?: string | null; forkedFromId?: string | null; status?: { type: string; activeFlags?: string[] }; turns?: Turn[] };
+  thread: {
+    id: string;
+    path?: string | null;
+    forkedFromId?: string | null;
+    status?: { type: string; activeFlags?: string[] };
+    turns?: Turn[];
+  };
   cwd: string;
   model: string;
   /** The policy the server resolved for the resumed thread. Present on
@@ -181,19 +220,94 @@ export interface FileUpdateChange {
   kind: string | { type: string; move_path?: string | null };
 }
 
-interface UserMessageItem { type: "userMessage"; id: string; content: UserInput[] }
-interface AgentMessageItem { type: "agentMessage"; id: string; text: string; phase?: "commentary" | "final_answer" | null }
-interface PlanItem { type: "plan"; id: string; text: string }
-interface ReasoningItem { type: "reasoning"; id: string; content: string[]; summary: string[] }
-interface CommandExecutionItem { type: "commandExecution"; id: string; command: string; cwd?: string; status: string; aggregatedOutput?: string | null; exitCode?: number | null; durationMs?: number | null }
-interface FileChangeItem { type: "fileChange"; id: string; changes: FileUpdateChange[]; status: string }
-interface McpToolCallItem { type: "mcpToolCall"; id: string; tool: string; server: string; arguments: unknown; status: string; result?: { content?: unknown[] } | null; error?: { message: string } | null; durationMs?: number | null }
-interface DynamicToolCallItem { type: "dynamicToolCall"; id: string; tool: string; arguments: unknown; status: string; durationMs?: number | null; success?: boolean | null; contentItems?: Array<{ type: string; text?: string | null }> | null }
-interface CollabAgentToolCallItem { type: "collabAgentToolCall"; id: string; tool: string; status: string; senderThreadId: string; receiverThreadIds: string[]; prompt?: string | null }
-interface WebSearchItem { type: "webSearch"; id: string; query: string }
-interface ImageViewItem { type: "imageView"; id: string; path: string }
-interface ImageGenerationItem { type: "imageGeneration"; id: string; result: string; status: string }
-interface ContextCompactionItem { type: "contextCompaction"; id: string }
+interface UserMessageItem {
+  type: "userMessage";
+  id: string;
+  content: UserInput[];
+}
+interface AgentMessageItem {
+  type: "agentMessage";
+  id: string;
+  text: string;
+  phase?: "commentary" | "final_answer" | null;
+}
+interface PlanItem {
+  type: "plan";
+  id: string;
+  text: string;
+}
+interface ReasoningItem {
+  type: "reasoning";
+  id: string;
+  content: string[];
+  summary: string[];
+}
+interface CommandExecutionItem {
+  type: "commandExecution";
+  id: string;
+  command: string;
+  cwd?: string;
+  status: string;
+  aggregatedOutput?: string | null;
+  exitCode?: number | null;
+  durationMs?: number | null;
+}
+interface FileChangeItem {
+  type: "fileChange";
+  id: string;
+  changes: FileUpdateChange[];
+  status: string;
+}
+interface McpToolCallItem {
+  type: "mcpToolCall";
+  id: string;
+  tool: string;
+  server: string;
+  arguments: unknown;
+  status: string;
+  result?: { content?: unknown[] } | null;
+  error?: { message: string } | null;
+  durationMs?: number | null;
+}
+interface DynamicToolCallItem {
+  type: "dynamicToolCall";
+  id: string;
+  tool: string;
+  arguments: unknown;
+  status: string;
+  durationMs?: number | null;
+  success?: boolean | null;
+  contentItems?: Array<{ type: string; text?: string | null }> | null;
+}
+interface CollabAgentToolCallItem {
+  type: "collabAgentToolCall";
+  id: string;
+  tool: string;
+  status: string;
+  senderThreadId: string;
+  receiverThreadIds: string[];
+  prompt?: string | null;
+}
+interface WebSearchItem {
+  type: "webSearch";
+  id: string;
+  query: string;
+}
+interface ImageViewItem {
+  type: "imageView";
+  id: string;
+  path: string;
+}
+interface ImageGenerationItem {
+  type: "imageGeneration";
+  id: string;
+  result: string;
+  status: string;
+}
+interface ContextCompactionItem {
+  type: "contextCompaction";
+  id: string;
+}
 
 export type ThreadItem =
   | UserMessageItem
@@ -212,7 +326,8 @@ export type ThreadItem =
 
 function imageMediaTypeForPath(imagePath: string): string {
   const cleanPath = imagePath.split(/[?#]/, 1)[0].toLowerCase();
-  if (cleanPath.endsWith(".jpg") || cleanPath.endsWith(".jpeg")) return "image/jpeg";
+  if (cleanPath.endsWith(".jpg") || cleanPath.endsWith(".jpeg"))
+    return "image/jpeg";
   if (cleanPath.endsWith(".gif")) return "image/gif";
   if (cleanPath.endsWith(".webp")) return "image/webp";
   if (cleanPath.endsWith(".bmp")) return "image/bmp";
@@ -229,9 +344,15 @@ export interface ApprovalRequest {
 
 export interface CodexAppServerOptions {
   log: (msg: string) => void;
-  onApproval?: (threadId: string, approval: ApprovalRequest) => Promise<boolean>;
+  onApproval?: (
+    threadId: string,
+    approval: ApprovalRequest,
+  ) => Promise<boolean>;
   codexBinary?: string;
-  defaultPermissions?: () => Pick<ThreadStartParams, "sandbox" | "approvalPolicy">;
+  defaultPermissions?: () => Pick<
+    ThreadStartParams,
+    "sandbox" | "approvalPolicy"
+  >;
   reviveDelayMs?: number;
 }
 
@@ -263,19 +384,28 @@ const REVIVE_MAX_MS = 15 * 60_000;
  * Only the identity matters here: ordinary token rotation for the same account
  * is handled by Codex itself. Undefined means an unreadable or partial file,
  * which is not evidence that the account changed. */
-export function codexAuthIdentity(home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex")): string | undefined {
+export function codexAuthIdentity(
+  home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex"),
+): string | undefined {
   let raw: string;
   try {
     raw = fs.readFileSync(path.join(home, "auth.json"), "utf-8");
   } catch (err) {
-    return (err as NodeJS.ErrnoException).code === "ENOENT" ? "signed-out" : undefined;
+    return (err as NodeJS.ErrnoException).code === "ENOENT"
+      ? "signed-out"
+      : undefined;
   }
   try {
     const auth = JSON.parse(raw);
     if (!auth || typeof auth !== "object") return undefined;
     const accountId = auth.tokens?.account_id;
-    if (auth.auth_mode === "chatgpt" || (auth.auth_mode == null && typeof accountId === "string" && accountId)) {
-      return typeof accountId === "string" && accountId ? `chatgpt:${accountId}` : undefined;
+    if (
+      auth.auth_mode === "chatgpt" ||
+      (auth.auth_mode == null && typeof accountId === "string" && accountId)
+    ) {
+      return typeof accountId === "string" && accountId
+        ? `chatgpt:${accountId}`
+        : undefined;
     }
     return typeof auth.auth_mode === "string" ? auth.auth_mode : undefined;
   } catch {
@@ -307,7 +437,11 @@ const SILENT_NOTIFICATIONS = new Set([
   "serverRequest/resolved",
 ]);
 
-export function approvalResultForMethod(method: string, approved: boolean, params?: Record<string, unknown>): Record<string, unknown> {
+export function approvalResultForMethod(
+  method: string,
+  approved: boolean,
+  params?: Record<string, unknown>,
+): Record<string, unknown> {
   switch (method) {
     case "execCommandApproval":
     case "applyPatchApproval":
@@ -378,7 +512,10 @@ export class CodexAppServer extends EventEmitter {
   private reviveMinMs: number;
   private reviveDelay: number;
   private log: (msg: string) => void;
-  private onApproval?: (threadId: string, approval: ApprovalRequest) => Promise<boolean>;
+  private onApproval?: (
+    threadId: string,
+    approval: ApprovalRequest,
+  ) => Promise<boolean>;
   private codexBinary: string;
   private defaultPermissions?: CodexAppServerOptions["defaultPermissions"];
 
@@ -418,7 +555,9 @@ export class CodexAppServer extends EventEmitter {
     this.stopped = true;
     this.clearRevive();
     const generation = this.stopGeneration;
-    this.log(`[codex-app-server] ${reason}, disabling; trying again in ${Math.round(this.reviveDelay / 1000)}s`);
+    this.log(
+      `[codex-app-server] ${reason}, disabling; trying again in ${Math.round(this.reviveDelay / 1000)}s`,
+    );
     this.reviveTimer = setTimeout(() => {
       this.reviveTimer = null;
       if (generation !== this.stopGeneration || this.process) return;
@@ -432,7 +571,11 @@ export class CodexAppServer extends EventEmitter {
   }
 
   get running(): boolean {
-    return this.process !== null && this.process.exitCode === null && this.initialized;
+    return (
+      this.process !== null &&
+      this.process.exitCode === null &&
+      this.initialized
+    );
   }
 
   get binaryMissing(): boolean {
@@ -453,7 +596,10 @@ export class CodexAppServer extends EventEmitter {
       return true;
     }
     const current = codexAuthIdentity();
-    const identityChanged = current !== undefined && this.authIdentityAtSpawn !== undefined && current !== this.authIdentityAtSpawn;
+    const identityChanged =
+      current !== undefined &&
+      this.authIdentityAtSpawn !== undefined &&
+      current !== this.authIdentityAtSpawn;
     if (!this.running || (!identityChanged && !this.authRefreshFailed)) {
       return false;
     }
@@ -480,7 +626,11 @@ export class CodexAppServer extends EventEmitter {
         const timer = setTimeout(() => {
           this.off("turnCompleted", done);
           this.off("exited", done);
-          reject(new Error("Codex login changed while another turn is running; retry when it finishes"));
+          reject(
+            new Error(
+              "Codex login changed while another turn is running; retry when it finishes",
+            ),
+          );
         }, THREAD_START_TIMEOUT_MS);
         this.on("turnCompleted", done);
         this.on("exited", done);
@@ -490,8 +640,13 @@ export class CodexAppServer extends EventEmitter {
     // A second login may have happened while we waited for a turn. Capture the
     // identity at the actual spawn, not at the beginning of this method.
     const child = this.process;
-    if (!child) throw new Error("Codex app-server stopped before its login could be refreshed");
-    const closed = new Promise<void>((resolve) => child.once("close", () => resolve()));
+    if (!child)
+      throw new Error(
+        "Codex app-server stopped before its login could be refreshed",
+      );
+    const closed = new Promise<void>((resolve) =>
+      child.once("close", () => resolve()),
+    );
     this.stop();
     const expectedStopGeneration = this.stopGeneration;
     await closed;
@@ -499,7 +654,15 @@ export class CodexAppServer extends EventEmitter {
       throw new Error("Codex app-server stopped during its login refresh");
     }
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => finish(new Error("Codex app-server did not restart after the login changed")), THREAD_START_TIMEOUT_MS);
+      const timer = setTimeout(
+        () =>
+          finish(
+            new Error(
+              "Codex app-server did not restart after the login changed",
+            ),
+          ),
+        THREAD_START_TIMEOUT_MS,
+      );
       const finish = (err?: Error) => {
         clearTimeout(timer);
         this.off("ready", onReady);
@@ -516,20 +679,38 @@ export class CodexAppServer extends EventEmitter {
   }
 
   private async initialize(): Promise<void> {
-    const resp = await this.sendRequest("initialize", {
-      clientInfo: { name: "codecast", title: "Codecast Daemon", version: "1.0.0" },
-      capabilities: { experimentalApi: true },
-    }, THREAD_START_TIMEOUT_MS);
+    const resp = await this.sendRequest(
+      "initialize",
+      {
+        clientInfo: {
+          name: "codecast",
+          title: "Codecast Daemon",
+          version: "1.0.0",
+        },
+        capabilities: { experimentalApi: true },
+      },
+      THREAD_START_TIMEOUT_MS,
+    );
     this.initialized = true;
     const r = resp as { userAgent?: string; platformOs?: string };
-    this.log(`[codex-app-server] initialized: ${r.userAgent ?? "unknown"} (${r.platformOs ?? "unknown"})`);
+    this.log(
+      `[codex-app-server] initialized: ${r.userAgent ?? "unknown"} (${r.platformOs ?? "unknown"})`,
+    );
     this.emit("ready");
   }
 
   async threadStart(params: ThreadStartParams): Promise<ThreadStartResponse> {
-    const response = await this.sendRequest("thread/start", withWorktreeConfig(this.withDefaultPermissions(params)), THREAD_START_TIMEOUT_MS) as ThreadStartResponse;
+    const response = (await this.sendRequest(
+      "thread/start",
+      withWorktreeConfig(this.withDefaultPermissions(params)),
+      THREAD_START_TIMEOUT_MS,
+    )) as ThreadStartResponse;
     this.threadModels.set(response.thread.id, response.model);
-    this.rememberPolicy(response.thread.id, response.sandbox, this.nextPolicyGeneration(response.thread.id));
+    this.rememberPolicy(
+      response.thread.id,
+      response.sandbox,
+      this.nextPolicyGeneration(response.thread.id),
+    );
     return response;
   }
 
@@ -551,9 +732,11 @@ export class CodexAppServer extends EventEmitter {
     // touch the in-flight bookkeeping at all: doing so would clear an override's
     // mark that a concurrent call is relying on.
     if (!params.sandboxPolicy) {
-      return await this.sendRequest(
-        "turn/start", previous ? { ...params, sandboxPolicy: previous } : params, DEFAULT_TIMEOUT_MS,
-      ) as TurnStartResponse;
+      return (await this.sendRequest(
+        "turn/start",
+        previous ? { ...params, sandboxPolicy: previous } : params,
+        DEFAULT_TIMEOUT_MS,
+      )) as TurnStartResponse;
     }
 
     // From here the thread's policy is UNKNOWN, starting before the write hits
@@ -563,19 +746,26 @@ export class CodexAppServer extends EventEmitter {
     const generation = this.beginPendingPolicy(params.threadId);
     this.invalidatePolicyOrThrow(params.threadId);
     try {
-      const response = await this.sendRequest(
-        "turn/start", { ...params, sandboxPolicy: params.sandboxPolicy }, DEFAULT_TIMEOUT_MS,
-      ) as TurnStartResponse;
+      const response = (await this.sendRequest(
+        "turn/start",
+        { ...params, sandboxPolicy: params.sandboxPolicy },
+        DEFAULT_TIMEOUT_MS,
+      )) as TurnStartResponse;
       // Only if no later override has been issued for this thread. Two overrides
       // can settle out of order, and an earlier acceptance must not resolve the
       // uncertainty a later one created.
       const latest = this.isLatestPolicyGeneration(params.threadId, generation);
       this.rememberPolicy(params.threadId, params.sandboxPolicy, generation);
       this.endPendingPolicy(params.threadId);
-      if (latest) this.emit("policyConfirmed", params.threadId, params.sandboxPolicy);
+      if (latest)
+        this.emit("policyConfirmed", params.threadId, params.sandboxPolicy);
       return response;
     } catch (error) {
-      if (isAuthoritativeRefusal(error) && previous && this.isLatestPolicyGeneration(params.threadId, generation)) {
+      if (
+        isAuthoritativeRefusal(error) &&
+        previous &&
+        this.isLatestPolicyGeneration(params.threadId, generation)
+      ) {
         // The server answered and refused, so the previous policy still holds
         // and may be restored to memory and disk.
         this.rememberPolicy(params.threadId, previous, generation);
@@ -594,13 +784,25 @@ export class CodexAppServer extends EventEmitter {
   /** Records the policy the server resolved for a thread. Only a server-reported
    *  or caller-supplied policy is ever stored, never one inferred from a mode,
    *  so replaying it cannot widen access. */
-  private rememberPolicy(threadId: string, policy?: SandboxPolicy | null, generation?: number): void {
+  private rememberPolicy(
+    threadId: string,
+    policy?: SandboxPolicy | null,
+    generation?: number,
+  ): void {
     // A superseded response records nothing. Storing its policy would be stale,
     // and clearing the unknown flag would erase uncertainty a later request
     // introduced, which is how an accepted narrowing gets replayed as the older
     // broader policy.
-    if (generation !== undefined && !this.isLatestPolicyGeneration(threadId, generation)) return;
-    if (policy && typeof policy === "object" && typeof (policy as { type?: unknown }).type === "string") {
+    if (
+      generation !== undefined &&
+      !this.isLatestPolicyGeneration(threadId, generation)
+    )
+      return;
+    if (
+      policy &&
+      typeof policy === "object" &&
+      typeof (policy as { type?: unknown }).type === "string"
+    ) {
       this.threadPolicies.set(threadId, policy);
       // An authoritative value ends the unknown state.
       this.invalidatedPolicyThreads.delete(threadId);
@@ -620,7 +822,10 @@ export class CodexAppServer extends EventEmitter {
 
   /** Marks a policy request in flight and returns its generation. */
   private beginPendingPolicy(threadId: string): number {
-    this.pendingPolicyCounts.set(threadId, (this.pendingPolicyCounts.get(threadId) ?? 0) + 1);
+    this.pendingPolicyCounts.set(
+      threadId,
+      (this.pendingPolicyCounts.get(threadId) ?? 0) + 1,
+    );
     this.invalidatedPolicyThreads.add(threadId);
     return this.nextPolicyGeneration(threadId);
   }
@@ -631,7 +836,10 @@ export class CodexAppServer extends EventEmitter {
     return generation;
   }
 
-  private isLatestPolicyGeneration(threadId: string, generation: number): boolean {
+  private isLatestPolicyGeneration(
+    threadId: string,
+    generation: number,
+  ): boolean {
     return (this.policyGenerations.get(threadId) ?? 0) === generation;
   }
 
@@ -666,18 +874,30 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async turnInterrupt(threadId: string, turnId: string): Promise<void> {
-    await this.sendRequest("turn/interrupt", { threadId, turnId }, DEFAULT_TIMEOUT_MS);
+    await this.sendRequest(
+      "turn/interrupt",
+      { threadId, turnId },
+      DEFAULT_TIMEOUT_MS,
+    );
   }
 
-  async threadResume(params: ThreadResumeParams): Promise<ThreadResumeResponse> {
+  async threadResume(
+    params: ThreadResumeParams,
+  ): Promise<ThreadResumeResponse> {
     const knownPolicy = this.policyForThread(params.threadId);
     if (!params.sandbox && knownPolicy) {
       const known = sandboxResumeParams(knownPolicy);
-      params = { ...params, sandbox: known.sandbox ?? "read-only", config: { ...known.config, ...params.config } };
+      params = {
+        ...params,
+        sandbox: known.sandbox ?? "read-only",
+        config: { ...known.config, ...params.config },
+      };
     }
-    params = this.withDefaultPermissions(this.isPolicyInvalidated(params.threadId) && !params.sandbox
-      ? { ...params, sandbox: "read-only" }
-      : params);
+    params = this.withDefaultPermissions(
+      this.isPolicyInvalidated(params.threadId) && !params.sandbox
+        ? { ...params, sandbox: "read-only" }
+        : params,
+    );
     // Unlike start and fork, a resume already knows its thread id, so its
     // generation must be taken BEFORE the request goes out. Taking it after the
     // await would make a slow response the newest by definition, letting it
@@ -686,16 +906,30 @@ export class CodexAppServer extends EventEmitter {
     const generation = this.beginPendingPolicy(params.threadId);
     this.invalidatePolicyOrThrow(params.threadId);
     try {
-      const response = await this.sendRequest("thread/resume", withWorktreeConfig(params), THREAD_START_TIMEOUT_MS) as ThreadResumeResponse;
+      const response = (await this.sendRequest(
+        "thread/resume",
+        withWorktreeConfig(params),
+        THREAD_START_TIMEOUT_MS,
+      )) as ThreadResumeResponse;
       this.threadModels.set(response.thread.id, response.model);
       // Resume by history or by path can return a different thread. That id has
       // no earlier generation to capture, so it records under a fresh one.
       const sameThread = response.thread.id === params.threadId;
-      const recordGeneration = sameThread ? generation : this.nextPolicyGeneration(response.thread.id);
-      const current = this.isLatestPolicyGeneration(response.thread.id, recordGeneration);
-      this.rememberPolicy(response.thread.id, response.sandbox, recordGeneration);
+      const recordGeneration = sameThread
+        ? generation
+        : this.nextPolicyGeneration(response.thread.id);
+      const current = this.isLatestPolicyGeneration(
+        response.thread.id,
+        recordGeneration,
+      );
+      this.rememberPolicy(
+        response.thread.id,
+        response.sandbox,
+        recordGeneration,
+      );
       this.endPendingPolicy(params.threadId);
-      if (current) this.emit("policyConfirmed", response.thread.id, response.sandbox);
+      if (current)
+        this.emit("policyConfirmed", response.thread.id, response.sandbox);
       return response;
     } catch (error) {
       // A failed resume says nothing about the thread's policy, so it stays
@@ -705,16 +939,34 @@ export class CodexAppServer extends EventEmitter {
     }
   }
 
-  async threadFork(params: ThreadForkParams, timeoutMs = THREAD_START_TIMEOUT_MS): Promise<ThreadForkResponse> {
-    const response = await this.sendRequest("thread/fork", withWorktreeConfig(this.withDefaultPermissions(params)), timeoutMs) as ThreadForkResponse;
+  async threadFork(
+    params: ThreadForkParams,
+    timeoutMs = THREAD_START_TIMEOUT_MS,
+  ): Promise<ThreadForkResponse> {
+    const response = (await this.sendRequest(
+      "thread/fork",
+      withWorktreeConfig(this.withDefaultPermissions(params)),
+      timeoutMs,
+    )) as ThreadForkResponse;
     this.threadModels.set(response.thread.id, response.model);
-    this.rememberPolicy(response.thread.id, response.sandbox, this.nextPolicyGeneration(response.thread.id));
+    this.rememberPolicy(
+      response.thread.id,
+      response.sandbox,
+      this.nextPolicyGeneration(response.thread.id),
+    );
     return response;
   }
 
-  respondToApproval(id: number | string, approved: boolean, method?: string, params?: Record<string, unknown>): void {
+  respondToApproval(
+    id: number | string,
+    approved: boolean,
+    method?: string,
+    params?: Record<string, unknown>,
+  ): void {
     const result = approvalResultForMethod(method || "", approved, params);
-    this.log(`[codex-app-server] approval response: method=${method} approved=${approved} result=${JSON.stringify(result)}`);
+    this.log(
+      `[codex-app-server] approval response: method=${method} approved=${approved} result=${JSON.stringify(result)}`,
+    );
     this.writeMessage({ jsonrpc: "2.0", id, result });
   }
 
@@ -725,7 +977,9 @@ export class CodexAppServer extends EventEmitter {
 
   private spawnProcess(): void {
     const args = ["app-server"];
-    this.log(`[codex-app-server] spawning: ${this.codexBinary} ${args.join(" ")}`);
+    this.log(
+      `[codex-app-server] spawning: ${this.codexBinary} ${args.join(" ")}`,
+    );
     this.lastSpawnTime = Date.now();
     this.authIdentityAtSpawn = codexAuthIdentity();
     this.authRefreshFailed = false;
@@ -745,7 +999,10 @@ export class CodexAppServer extends EventEmitter {
       });
     } catch (err: any) {
       const msg = err?.message ?? String(err);
-      const isNotFound = err?.code === "ENOENT" || msg.includes("not found in") || msg.includes("ENOENT");
+      const isNotFound =
+        err?.code === "ENOENT" ||
+        msg.includes("not found in") ||
+        msg.includes("ENOENT");
       this.log(`[codex-app-server] spawn failed: ${msg}`);
       if (isNotFound) {
         this._binaryMissing = true;
@@ -793,12 +1050,19 @@ export class CodexAppServer extends EventEmitter {
     });
 
     child.on("close", (code, signal) => {
-      this.log(`[codex-app-server] process exited: code=${code} signal=${signal}`);
+      this.log(
+        `[codex-app-server] process exited: code=${code} signal=${signal}`,
+      );
       const uptime = Date.now() - this.lastSpawnTime;
       if (uptime < CodexAppServer.QUICK_EXIT_THRESHOLD_MS) {
         this.consecutiveQuickExits++;
-        if (this.consecutiveQuickExits >= CodexAppServer.MAX_CONSECUTIVE_QUICK_EXITS) {
-          this.disableSelf(`${this.consecutiveQuickExits} consecutive quick exits (last uptime ${uptime}ms)`);
+        if (
+          this.consecutiveQuickExits >=
+          CodexAppServer.MAX_CONSECUTIVE_QUICK_EXITS
+        ) {
+          this.disableSelf(
+            `${this.consecutiveQuickExits} consecutive quick exits (last uptime ${uptime}ms)`,
+          );
           this.cleanup();
           this.emit("closed");
           return;
@@ -815,15 +1079,17 @@ export class CodexAppServer extends EventEmitter {
       }
     });
 
-    this.initialize().then(() => {
-      // Only reset backoff after successful initialization
-      this.restartDelay = 1000;
-      this.consecutiveQuickExits = 0;
-      this.reviveDelay = this.reviveMinMs;
-    }).catch((err) => {
-      this.log(`[codex-app-server] initialize failed: ${err.message}`);
-      this.emit("error", err);
-    });
+    this.initialize()
+      .then(() => {
+        // Only reset backoff after successful initialization
+        this.restartDelay = 1000;
+        this.consecutiveQuickExits = 0;
+        this.reviveDelay = this.reviveMinMs;
+      })
+      .catch((err) => {
+        this.log(`[codex-app-server] initialize failed: ${err.message}`);
+        this.emit("error", err);
+      });
   }
 
   private killProcess(): void {
@@ -865,7 +1131,11 @@ export class CodexAppServer extends EventEmitter {
     this.restartDelay = Math.min(this.restartDelay * 2, MAX_RESTART_DELAY_MS);
   }
 
-  private sendRequest(method: string, params: object, timeoutMs: number): Promise<unknown> {
+  private sendRequest(
+    method: string,
+    params: object,
+    timeoutMs: number,
+  ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (!this.process || !this.process.stdin) {
         reject(new Error("codex app-server not running"));
@@ -920,7 +1190,9 @@ export class CodexAppServer extends EventEmitter {
       return;
     }
 
-    this.log(`[codex-app-server] unroutable message: ${JSON.stringify(msg).slice(0, 200)}`);
+    this.log(
+      `[codex-app-server] unroutable message: ${JSON.stringify(msg).slice(0, 200)}`,
+    );
   }
 
   private handleResponse(msg: Record<string, unknown>): void {
@@ -935,7 +1207,9 @@ export class CodexAppServer extends EventEmitter {
 
     if (msg.error) {
       const err = msg.error as Record<string, unknown>;
-      pending.reject(new CodexRequestRefused(String(err.message || JSON.stringify(err))));
+      pending.reject(
+        new CodexRequestRefused(String(err.message || JSON.stringify(err))),
+      );
     } else {
       pending.resolve(msg.result);
     }
@@ -952,12 +1226,16 @@ export class CodexAppServer extends EventEmitter {
       this.emit("approvalRequested", threadId, approval);
 
       if (this.onApproval) {
-        this.onApproval(threadId, approval).then((approved) => {
-          this.respondToApproval(id, approved, method, params);
-        }).catch((err) => {
-          this.log(`[codex-app-server] approval handler error: ${err.message}`);
-          this.respondToApproval(id, false, method, params);
-        });
+        this.onApproval(threadId, approval)
+          .then((approved) => {
+            this.respondToApproval(id, approved, method, params);
+          })
+          .catch((err) => {
+            this.log(
+              `[codex-app-server] approval handler error: ${err.message}`,
+            );
+            this.respondToApproval(id, false, method, params);
+          });
       }
       return;
     }
@@ -997,12 +1275,31 @@ export class CodexAppServer extends EventEmitter {
         const acc = this.turnAccumulators.get(turn.id);
         const items = acc?.items || [];
         this.turnAccumulators.delete(turn.id);
-        const messages: ParsedMessage[] = threadItemsToMessages(items).map(message => ({ ...message, model: acc?.model }));
+        const messages: ParsedMessage[] = threadItemsToMessages(items).map(
+          (message) => ({ ...message, model: acc?.model }),
+        );
         if (turn.status === "failed") {
-          const timestamp = Math.max(Date.now(), ...messages.map(message => message.timestamp + 1));
-          messages.push(codexTurnErrorMessage(turn.id, turn.error ?? {}, timestamp, acc?.model));
+          const timestamp = Math.max(
+            Date.now(),
+            ...messages.map((message) => message.timestamp + 1),
+          );
+          messages.push(
+            codexTurnErrorMessage(
+              turn.id,
+              turn.error ?? {},
+              timestamp,
+              acc?.model,
+            ),
+          );
         }
-        this.emit("turnCompleted", threadId, turn.id, messages, turn.status, turn.error);
+        this.emit(
+          "turnCompleted",
+          threadId,
+          turn.id,
+          messages,
+          turn.status,
+          turn.error,
+        );
         break;
       }
 
@@ -1029,22 +1326,44 @@ export class CodexAppServer extends EventEmitter {
       }
 
       case "item/agentMessage/delta": {
-        this.emit("messageDelta", params.threadId as string, params.turnId as string, params.delta as string, params.itemId as string);
+        this.emit(
+          "messageDelta",
+          params.threadId as string,
+          params.turnId as string,
+          params.delta as string,
+          params.itemId as string,
+        );
         break;
       }
 
       case "item/commandExecution/outputDelta": {
-        this.emit("commandOutputDelta", params.threadId as string, params.turnId as string, params.delta as string, params.itemId as string);
+        this.emit(
+          "commandOutputDelta",
+          params.threadId as string,
+          params.turnId as string,
+          params.delta as string,
+          params.itemId as string,
+        );
         break;
       }
 
       case "item/fileChange/outputDelta": {
-        this.emit("fileChangeDelta", params.threadId as string, params.turnId as string, params.delta as string, params.itemId as string);
+        this.emit(
+          "fileChangeDelta",
+          params.threadId as string,
+          params.turnId as string,
+          params.delta as string,
+          params.itemId as string,
+        );
         break;
       }
 
       case "thread/name/updated": {
-        this.emit("threadNameUpdated", params.threadId as string, params.threadName as string | null);
+        this.emit(
+          "threadNameUpdated",
+          params.threadId as string,
+          params.threadName as string | null,
+        );
         break;
       }
 
@@ -1063,7 +1382,10 @@ export class CodexAppServer extends EventEmitter {
   }
 }
 
-export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): ParsedMessage | null {
+export function threadItemToMessage(
+  item: ThreadItem,
+  timestamp = Date.now(),
+): ParsedMessage | null {
   switch (item.type) {
     case "userMessage": {
       const texts: string[] = [];
@@ -1098,9 +1420,10 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
     }
 
     case "reasoning": {
-      const thinkingText = item.content.length > 0
-        ? item.content.join("\n")
-        : item.summary.join("\n");
+      const thinkingText =
+        item.content.length > 0
+          ? item.content.join("\n")
+          : item.summary.join("\n");
       if (!thinkingText) return null;
       return {
         uuid: item.id,
@@ -1113,16 +1436,20 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
 
     case "commandExecution": {
       const output = extractInlineImages(item.aggregatedOutput || "");
-      const toolCalls: ToolCall[] = [{
-        id: item.id,
-        name: "commandExecution",
-        input: { command: item.command, cwd: item.cwd },
-      }];
-      const toolResults: ToolResult[] = [{
-        toolUseId: item.id,
-        content: output.text,
-        isError: item.status === "failed",
-      }];
+      const toolCalls: ToolCall[] = [
+        {
+          id: item.id,
+          name: "commandExecution",
+          input: { command: item.command, cwd: item.cwd },
+        },
+      ];
+      const toolResults: ToolResult[] = [
+        {
+          toolUseId: item.id,
+          content: output.text,
+          isError: item.status === "failed",
+        },
+      ];
       return {
         uuid: item.id,
         role: "assistant",
@@ -1130,37 +1457,55 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
         timestamp,
         toolCalls,
         toolResults,
-        images: output.paths.length > 0
-          ? output.paths.map(localPath => ({ mediaType: imageMediaTypeForPath(localPath), localPath, toolUseId: item.id }))
-          : undefined,
+        images:
+          output.paths.length > 0
+            ? output.paths.map((localPath) => ({
+                mediaType: imageMediaTypeForPath(localPath),
+                localPath,
+                toolUseId: item.id,
+              }))
+            : undefined,
       };
     }
 
     case "fileChange": {
-      const diffSummary = item.changes.map(c => `${typeof c.kind === "string" ? c.kind : c.kind.type}: ${c.path}`).join("\n");
-      const fullDiff = item.changes.map(c => {
-        const kind = typeof c.kind === "string" ? c.kind : c.kind.type;
-        if (kind === "add" || kind === "delete") {
-          const lines = c.diff ? c.diff.replace(/\n$/, "").split("\n") : [];
-          const adding = kind === "add";
-          return `--- ${adding ? "/dev/null" : c.path}\n+++ ${adding ? c.path : "/dev/null"}\n`
-            + `@@ -${adding ? "0,0" : `1,${lines.length}`} +${adding ? `1,${lines.length}` : "0,0"} @@\n`
-            + lines.map(line => `${adding ? "+" : "-"}${line}`).join("\n");
-        }
-        return /^diff --git |^--- [^\n]*\n\+\+\+ /m.test(c.diff)
-          ? c.diff
-          : `--- ${c.path}\n+++ ${c.path}\n${c.diff}`;
-      }).join("\n");
-      const toolCalls: ToolCall[] = [{
-        id: item.id,
-        name: "fileChange",
-        input: { changes: diffSummary },
-      }];
-      const toolResults: ToolResult[] = [{
-        toolUseId: item.id,
-        content: fullDiff,
-        isError: item.status === "failed" || item.status === "declined",
-      }];
+      const diffSummary = item.changes
+        .map(
+          (c) =>
+            `${typeof c.kind === "string" ? c.kind : c.kind.type}: ${c.path}`,
+        )
+        .join("\n");
+      const fullDiff = item.changes
+        .map((c) => {
+          const kind = typeof c.kind === "string" ? c.kind : c.kind.type;
+          if (kind === "add" || kind === "delete") {
+            const lines = c.diff ? c.diff.replace(/\n$/, "").split("\n") : [];
+            const adding = kind === "add";
+            return (
+              `--- ${adding ? "/dev/null" : c.path}\n+++ ${adding ? c.path : "/dev/null"}\n` +
+              `@@ -${adding ? "0,0" : `1,${lines.length}`} +${adding ? `1,${lines.length}` : "0,0"} @@\n` +
+              lines.map((line) => `${adding ? "+" : "-"}${line}`).join("\n")
+            );
+          }
+          return /^diff --git |^--- [^\n]*\n\+\+\+ /m.test(c.diff)
+            ? c.diff
+            : `--- ${c.path}\n+++ ${c.path}\n${c.diff}`;
+        })
+        .join("\n");
+      const toolCalls: ToolCall[] = [
+        {
+          id: item.id,
+          name: "fileChange",
+          input: { changes: diffSummary },
+        },
+      ];
+      const toolResults: ToolResult[] = [
+        {
+          toolUseId: item.id,
+          content: fullDiff,
+          isError: item.status === "failed" || item.status === "declined",
+        },
+      ];
       return {
         uuid: item.id,
         role: "assistant",
@@ -1173,17 +1518,23 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
 
     case "mcpToolCall": {
       let args: Record<string, unknown> = {};
-      if (item.arguments && typeof item.arguments === "object" && !Array.isArray(item.arguments)) {
+      if (
+        item.arguments &&
+        typeof item.arguments === "object" &&
+        !Array.isArray(item.arguments)
+      ) {
         args = item.arguments as Record<string, unknown>;
       } else if (item.arguments !== undefined) {
         args = { input: item.arguments };
       }
 
-      const toolCalls: ToolCall[] = [{
-        id: item.id,
-        name: `${item.server}__${item.tool}`,
-        input: args,
-      }];
+      const toolCalls: ToolCall[] = [
+        {
+          id: item.id,
+          name: `${item.server}__${item.tool}`,
+          input: args,
+        },
+      ];
 
       let resultContent = "";
       if (item.error) {
@@ -1192,11 +1543,13 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
         resultContent = JSON.stringify(item.result.content);
       }
 
-      const toolResults: ToolResult[] = [{
-        toolUseId: item.id,
-        content: resultContent,
-        isError: item.status === "failed" || !!item.error,
-      }];
+      const toolResults: ToolResult[] = [
+        {
+          toolUseId: item.id,
+          content: resultContent,
+          isError: item.status === "failed" || !!item.error,
+        },
+      ];
 
       return {
         uuid: item.id,
@@ -1210,24 +1563,35 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
 
     case "dynamicToolCall": {
       let args: Record<string, unknown> = {};
-      if (item.arguments && typeof item.arguments === "object" && !Array.isArray(item.arguments)) {
+      if (
+        item.arguments &&
+        typeof item.arguments === "object" &&
+        !Array.isArray(item.arguments)
+      ) {
         args = item.arguments as Record<string, unknown>;
       } else if (item.arguments !== undefined) {
         args = { input: item.arguments };
       }
 
-      const toolCalls: ToolCall[] = [{
-        id: item.id,
-        name: item.tool,
-        input: args,
-      }];
+      const toolCalls: ToolCall[] = [
+        {
+          id: item.id,
+          name: item.tool,
+          input: args,
+        },
+      ];
       // What the tool answered, once it has (the text parts of its output).
       const toolResults: ToolResult[] | undefined = item.contentItems
-        ? [{
-          toolUseId: item.id,
-          content: item.contentItems.map((c) => c.text ?? "").filter(Boolean).join("\n"),
-          isError: item.status === "failed" || item.success === false,
-        }]
+        ? [
+            {
+              toolUseId: item.id,
+              content: item.contentItems
+                .map((c) => c.text ?? "")
+                .filter(Boolean)
+                .join("\n"),
+              isError: item.status === "failed" || item.success === false,
+            },
+          ]
         : undefined;
 
       return {
@@ -1241,15 +1605,17 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
     }
 
     case "collabAgentToolCall": {
-      const toolCalls: ToolCall[] = [{
-        id: item.id,
-        name: `collab:${item.tool}`,
-        input: {
-          sender: item.senderThreadId,
-          receivers: item.receiverThreadIds,
-          prompt: item.prompt || "",
+      const toolCalls: ToolCall[] = [
+        {
+          id: item.id,
+          name: `collab:${item.tool}`,
+          input: {
+            sender: item.senderThreadId,
+            receivers: item.receiverThreadIds,
+            prompt: item.prompt || "",
+          },
         },
-      }];
+      ];
       return {
         uuid: item.id,
         role: "assistant",
@@ -1265,11 +1631,13 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
         role: "assistant",
         content: "",
         timestamp,
-        toolCalls: [{
-          id: item.id,
-          name: "webSearch",
-          input: { query: item.query },
-        }],
+        toolCalls: [
+          {
+            id: item.id,
+            name: "webSearch",
+            input: { query: item.query },
+          },
+        ],
       };
     }
 
@@ -1289,10 +1657,12 @@ export function threadItemToMessage(item: ThreadItem, timestamp = Date.now()): P
         role: "assistant",
         content: "",
         timestamp,
-        images: [{
-          mediaType: imageMediaTypeForPath(item.path),
-          localPath: item.path,
-        }],
+        images: [
+          {
+            mediaType: imageMediaTypeForPath(item.path),
+            localPath: item.path,
+          },
+        ],
       };
     }
 
@@ -1358,9 +1728,10 @@ export function threadItemsToMessages(items: ThreadItem[]): ParsedMessage[] {
     }
 
     if (item.type === "reasoning") {
-      const text = item.content.length > 0
-        ? item.content.join("\n")
-        : item.summary.join("\n");
+      const text =
+        item.content.length > 0
+          ? item.content.join("\n")
+          : item.summary.join("\n");
       if (text) {
         currentThinking += (currentThinking ? "\n" : "") + text;
       }

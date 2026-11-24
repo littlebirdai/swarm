@@ -23,16 +23,23 @@ interface InviteModalProps {
 }
 
 /** Thin dialog around InvitePanel. */
-export function InviteModal({ teamId, trigger, open: controlledOpen, onOpenChange }: InviteModalProps) {
+export function InviteModal({
+  teamId,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+}: InviteModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const { user } = useCurrentUser();
-  const activeTeamId = useTrackedStore([(s) => s.clientState.ui?.active_team_id]).clientState.ui
-    ?.active_team_id as Id<"teams"> | undefined;
+  const activeTeamId = useTrackedStore([
+    (s) => s.clientState.ui?.active_team_id,
+  ]).clientState.ui?.active_team_id as Id<"teams"> | undefined;
   // isConvexId: a just-created team holds an optimistic stub id until the
   // server echoes, and InvitePanel hands the id to server queries.
-  const serverActiveTeamId = activeTeamId && isConvexId(String(activeTeamId)) ? activeTeamId : undefined;
+  const serverActiveTeamId =
+    activeTeamId && isConvexId(String(activeTeamId)) ? activeTeamId : undefined;
   const effectiveTeamId = teamId ?? serverActiveTeamId ?? user?.team_id;
 
   if (!effectiveTeamId) return null;
@@ -44,7 +51,8 @@ export function InviteModal({ teamId, trigger, open: controlledOpen, onOpenChang
         <DialogHeader>
           <DialogTitle className="text-sol-text">Invite a teammate</DialogTitle>
           <DialogDescription className="text-sol-text-muted">
-            Share the link or send an email. Anyone who opens it joins this team.
+            Share the link or send an email. Anyone who opens it joins this
+            team.
           </DialogDescription>
         </DialogHeader>
         {open && <InvitePanel teamId={effectiveTeamId} variant="modal" />}

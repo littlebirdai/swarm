@@ -9,22 +9,22 @@
 // which paints the row now and delivers when the upload settles (chatSlice
 // sendChatMessage, the same path the web composer takes).
 
-import { Linking } from 'react-native';
-import type { ConvexReactClient } from 'convex/react';
-import { uploadUriToStorage } from '@/lib/uploadToStorage';
-import { optionalNative } from '@/lib/optionalNative';
-import { pendingImageUploads } from '@codecast/web/lib/pendingUploads';
-import { appAlert, showActionSheet } from '@/lib/popups';
-import type { ComposerImage } from '@/components/session/MessageComposer';
+import { Linking } from "react-native";
+import type { ConvexReactClient } from "convex/react";
+import { uploadUriToStorage } from "@/lib/uploadToStorage";
+import { optionalNative } from "@/lib/optionalNative";
+import { pendingImageUploads } from "@codecast/web/lib/pendingUploads";
+import { appAlert, showActionSheet } from "@/lib/popups";
+import type { ComposerImage } from "@/components/session/MessageComposer";
 
 // Lazy-required, NEVER statically imported: a native module missing from the
 // installed binary throws during initial JS eval — before expo-updates marks
 // the OTA launched — and silently rolls the update back (lib/gestureHandler.tsx
 // documents the saga). Same guard the session screen uses.
-const ImagePicker: typeof import('expo-image-picker') | null = optionalNative(
-  'ExponentImagePicker',
+const ImagePicker: typeof import("expo-image-picker") | null = optionalNative(
+  "ExponentImagePicker",
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  () => require('expo-image-picker'),
+  () => require("expo-image-picker"),
 );
 
 export type PickedImage = {
@@ -45,21 +45,51 @@ export type ChatAttachmentArg = {
   height?: number;
 };
 
-export type ImageSource = 'camera' | 'camera-burst' | 'library' | 'screen-recording';
+export type ImageSource =
+  | "camera"
+  | "camera-burst"
+  | "library"
+  | "screen-recording";
 
 /** The most images one pick attaches, from the library or a run of camera shots. */
 const PICK_LIMIT = 6;
 
 /** Ask where an attachment comes from: a new photo or the library, and in a
  *  session's composer a screen recording (lib/screenRecordingSend). Null when dismissed. */
-export function chooseImageSource(opts: { screenRecording?: boolean } = {}): Promise<ImageSource | null> {
+export function chooseImageSource(
+  opts: { screenRecording?: boolean } = {},
+): Promise<ImageSource | null> {
   return new Promise((resolve) => {
-    showActionSheet(undefined, [
-      { label: 'Take photo', icon: 'camera', onPress: () => resolve('camera') },
-      { label: 'Take several photos', icon: 'copy', onPress: () => resolve('camera-burst') },
-      { label: 'Photo library', icon: 'image', onPress: () => resolve('library') },
-      ...(opts.screenRecording ? [{ label: 'Screen recording', icon: 'video' as const, onPress: () => resolve('screen-recording' as const) }] : []),
-    ], { onCancel: () => resolve(null) });
+    showActionSheet(
+      undefined,
+      [
+        {
+          label: "Take photo",
+          icon: "camera",
+          onPress: () => resolve("camera"),
+        },
+        {
+          label: "Take several photos",
+          icon: "copy",
+          onPress: () => resolve("camera-burst"),
+        },
+        {
+          label: "Photo library",
+          icon: "image",
+          onPress: () => resolve("library"),
+        },
+        ...(opts.screenRecording
+          ? [
+              {
+                label: "Screen recording",
+                icon: "video" as const,
+                onPress: () => resolve("screen-recording" as const),
+              },
+            ]
+          : []),
+      ],
+      { onCancel: () => resolve(null) },
+    );
   });
 }
 
@@ -70,46 +100,70 @@ export function chooseImageSource(opts: { screenRecording?: boolean } = {}): Pro
  *  and an agent's image reader cannot open. The library is the system picker,
  *  which needs no permission; the camera asks once. 'camera-burst' reopens
  *  the camera after each shot until the person cancels it or hits the limit. */
-export async function pickImages(source: ImageSource = 'library'): Promise<PickedImage[]> {
+export async function pickImages(
+  source: ImageSource = "library",
+): Promise<PickedImage[]> {
   if (!ImagePicker) {
-    appAlert('Not available', 'Image uploads need a build with expo-image-picker.');
+    appAlert(
+      "Not available",
+      "Image uploads need a build with expo-image-picker.",
+    );
     return [];
   }
-  const camera = source !== 'library';
+  const camera = source !== "library";
   const picked: PickedImage[] = [];
   try {
     if (camera) {
       const { granted } = await ImagePicker.requestCameraPermissionsAsync();
       if (!granted) {
-        appAlert('Camera access is off', 'Turn on camera access for Codecast in Settings to take a photo.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
-        ]);
+        appAlert(
+          "Camera access is off",
+          "Turn on camera access for Codecast in Settings to take a photo.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Open Settings",
+              onPress: () => {
+                void Linking.openSettings();
+              },
+            },
+          ],
+        );
         return [];
       }
     }
     do {
       const result = camera
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            quality: 0.8,
+          })
         : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsMultipleSelection: true,
-          selectionLimit: PICK_LIMIT,
-          quality: 0.8,
-          preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-        });
+            mediaTypes: ["images"],
+            allowsMultipleSelection: true,
+            selectionLimit: PICK_LIMIT,
+            quality: 0.8,
+            preferredAssetRepresentationMode:
+              ImagePicker.UIImagePickerPreferredAssetRepresentationMode
+                .Compatible,
+          });
       if (result.canceled) break;
-      picked.push(...result.assets.map((a) => ({
-        uri: a.uri,
-        width: a.width,
-        height: a.height,
-        mime: a.mimeType ?? 'image/jpeg',
-      })));
-    } while (source === 'camera-burst' && picked.length < PICK_LIMIT);
+      picked.push(
+        ...result.assets.map((a) => ({
+          uri: a.uri,
+          width: a.width,
+          height: a.height,
+          mime: a.mimeType ?? "image/jpeg",
+        })),
+      );
+    } while (source === "camera-burst" && picked.length < PICK_LIMIT);
   } catch (err) {
     // The simulator has no camera, and a picker can fail to present. Shots
     // already taken in a burst still attach.
-    appAlert(camera ? 'Camera unavailable' : 'Photo library unavailable', err instanceof Error ? err.message : String(err));
+    appAlert(
+      camera ? "Camera unavailable" : "Photo library unavailable",
+      err instanceof Error ? err.message : String(err),
+    );
   }
   return picked;
 }
@@ -118,7 +172,10 @@ export async function pickImages(source: ImageSource = 'library'): Promise<Picke
  *  Registers itself in pendingImageUploads under the local uri, where it stays
  *  until the send that carries it settles (releaseUpload) or the tile is
  *  removed: a send pressed the instant the bytes land still finds the id. */
-export function startUpload(convex: ConvexReactClient, img: PickedImage): Promise<string | null> {
+export function startUpload(
+  convex: ConvexReactClient,
+  img: PickedImage,
+): Promise<string | null> {
   const existing = pendingImageUploads.get(img.uri);
   if (existing) return existing;
   const task = uploadUriToStorage(convex, img.uri, img.mime);
@@ -134,9 +191,11 @@ export function forgetUpload(uri: string): void {
 /** The composer's images as a send's attachments, without waiting: an upload
  *  still in flight rides as its preview and the store finishes it. (A failed
  *  upload has already left the strip.) */
-export function composerAttachments(images: ComposerImage[]): ChatAttachmentArg[] {
+export function composerAttachments(
+  images: ComposerImage[],
+): ChatAttachmentArg[] {
   return images.map((img) => ({
-    storage_id: img.storageId ?? '',
+    storage_id: img.storageId ?? "",
     ...(img.storageId ? {} : { preview_url: img.uri }),
     mime: img.mime,
     width: img.width,

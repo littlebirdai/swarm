@@ -71,9 +71,23 @@ import { spawn, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { BRIDGE_DEFAULT_PORT, BRIDGE_EXTENSION_ID } from "../src/browser/bridge/protocol.ts";
+import {
+  BRIDGE_DEFAULT_PORT,
+  BRIDGE_EXTENSION_ID,
+} from "../src/browser/bridge/protocol.ts";
 import { serveFixtures, writeForwarder } from "./lib/rigFixtures.ts";
-import { enableDeveloperMode, extensionContext, extensionInfo, findTestChrome, freePort, pairExtension, reloadUnpacked, seedExtensionToken, sleep, waitForCdp } from "./lib/chromeRig.ts";
+import {
+  enableDeveloperMode,
+  extensionContext,
+  extensionInfo,
+  findTestChrome,
+  freePort,
+  pairExtension,
+  reloadUnpacked,
+  seedExtensionToken,
+  sleep,
+  waitForCdp,
+} from "./lib/chromeRig.ts";
 
 const REPO = path.resolve(import.meta.dir, "../../..");
 const CLI_ENTRY = path.join(REPO, "apps/cli/src/main.ts");
@@ -93,8 +107,17 @@ const CONNECT_MS = (WAIT_S || 120) * 1000;
  * own CAST_SESSION_ID and CODECAST_SESSION_ID are set after.
  */
 const SESSION_ENV_TO_CLEAR = [
-  "CLAUDE_CODE_SESSION_ID", "CODEX_SESSION_ID", "CLAUDE_CODE_BRIDGE_SESSION_ID", "CODECAST_SESSION_ID",
-  "GROK_SESSION_ID", "CODECAST_CONVERSATION_ID", "CODECAST_MANAGED_SESSION", "TMUX_PANE", "CAST_BROWSER_LEGACY", "XDG_RUNTIME_DIR", "CODEX_THREAD_ID",
+  "CLAUDE_CODE_SESSION_ID",
+  "CODEX_SESSION_ID",
+  "CLAUDE_CODE_BRIDGE_SESSION_ID",
+  "CODECAST_SESSION_ID",
+  "GROK_SESSION_ID",
+  "CODECAST_CONVERSATION_ID",
+  "CODECAST_MANAGED_SESSION",
+  "TMUX_PANE",
+  "CAST_BROWSER_LEGACY",
+  "XDG_RUNTIME_DIR",
+  "CODEX_THREAD_ID",
 ];
 
 interface RigState {
@@ -134,7 +157,8 @@ const option = (name: string) => {
   return i >= 0 ? own[i + 1] : undefined;
 };
 const rigName = option("name") ?? "default";
-if (!/^[A-Za-z0-9_-]{1,24}$/.test(rigName)) die(`rig name must be 1-24 letters, digits, - or _ (got "${rigName}")`);
+if (!/^[A-Za-z0-9_-]{1,24}$/.test(rigName))
+  die(`rig name must be 1-24 letters, digits, - or _ (got "${rigName}")`);
 const rigDir = path.join(RIG_ROOT, rigName);
 const paths = {
   home: path.join(rigDir, "home"),
@@ -160,9 +184,12 @@ class RigError extends Error {}
 {
   const realHome = path.resolve(os.userInfo().homedir);
   const dir = path.resolve(rigDir);
-  const within = (a: string, b: string) => a === b || a.startsWith(b + path.sep);
+  const within = (a: string, b: string) =>
+    a === b || a.startsWith(b + path.sep);
   if (within(dir, realHome) || within(realHome, dir)) {
-    console.error(`browser-rig: refusing to run: the rig directory ${dir} overlaps the real home ${realHome}; set CAST_RIG_ROOT outside it`);
+    console.error(
+      `browser-rig: refusing to run: the rig directory ${dir} overlaps the real home ${realHome}; set CAST_RIG_ROOT outside it`,
+    );
     process.exit(1);
   }
 }
@@ -185,14 +212,24 @@ function readState(): RigState | null {
 }
 
 function requireState(): RigState {
-  return readState() ?? die(`rig "${rigName}" is not up (no ${paths.state}); run \`bun apps/cli/scripts/browser-rig.ts up${rigName === "default" ? "" : ` --name ${rigName}`}\``);
+  return (
+    readState() ??
+    die(
+      `rig "${rigName}" is not up (no ${paths.state}); run \`bun apps/cli/scripts/browser-rig.ts up${rigName === "default" ? "" : ` --name ${rigName}`}\``,
+    )
+  );
 }
 
 function writeState(s: RigState): void {
   fs.writeFileSync(paths.state, JSON.stringify(s, null, 2));
 }
 
-function readBridgeJson(): { port: number; token: string; hostPid?: number; extensionConnected?: boolean } | null {
+function readBridgeJson(): {
+  port: number;
+  token: string;
+  hostPid?: number;
+  extensionConnected?: boolean;
+} | null {
   try {
     return JSON.parse(fs.readFileSync(paths.bridgeJson, "utf-8"));
   } catch {
@@ -201,7 +238,10 @@ function readBridgeJson(): { port: number; token: string; hostPid?: number; exte
 }
 
 /** The variables that point a cast process at the rig. */
-function rigVars(s: Pick<RigState, "bridgePort" | "fixtures" | "engine">, session = `rig-${rigName}`): Record<string, string> {
+function rigVars(
+  s: Pick<RigState, "bridgePort" | "fixtures" | "engine">,
+  session = `rig-${rigName}`,
+): Record<string, string> {
   return {
     ...(s.engine ? { CAST_BROWSER_ENGINE: s.engine } : {}),
     HOME: paths.home,
@@ -212,11 +252,16 @@ function rigVars(s: Pick<RigState, "bridgePort" | "fixtures" | "engine">, sessio
     CAST_SESSION_ID: session,
     CODECAST_SESSION_ID: session,
     CAST_RIG_DIR: rigDir,
-    ...(s.fixtures ? { CAST_RIG_FIXTURES: s.fixtures[0], CAST_RIG_FIXTURES_B: s.fixtures[1] } : {}),
+    ...(s.fixtures
+      ? { CAST_RIG_FIXTURES: s.fixtures[0], CAST_RIG_FIXTURES_B: s.fixtures[1] }
+      : {}),
   };
 }
 
-function rigEnv(s: Pick<RigState, "bridgePort" | "fixtures" | "engine">, session?: string): NodeJS.ProcessEnv {
+function rigEnv(
+  s: Pick<RigState, "bridgePort" | "fixtures" | "engine">,
+  session?: string,
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env };
   for (const k of SESSION_ENV_TO_CLEAR) delete env[k];
   return { ...env, ...rigVars(s, session) };
@@ -267,10 +312,20 @@ async function stop(pid: number | undefined, waitMs = 5_000): Promise<void> {
   if (alive(pid)) signal("SIGKILL");
 }
 
-function spawnDetached(cmd: string, args: string[], env: NodeJS.ProcessEnv, logName: string): number {
+function spawnDetached(
+  cmd: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  logName: string,
+): number {
   fs.mkdirSync(paths.logs, { recursive: true });
   const log = fs.openSync(path.join(paths.logs, logName), "a");
-  const child = spawn(cmd, args, { env, detached: true, stdio: ["ignore", log, log], cwd: REPO });
+  const child = spawn(cmd, args, {
+    env,
+    detached: true,
+    stdio: ["ignore", log, log],
+    cwd: REPO,
+  });
   child.unref();
   fs.closeSync(log);
   if (!child.pid) die(`could not start ${cmd}`);
@@ -278,23 +333,43 @@ function spawnDetached(cmd: string, args: string[], env: NodeJS.ProcessEnv, logN
 }
 
 /** Does OUR host (the rig token) answer on the rig port? */
-async function hostProbe(port: number): Promise<"alive" | "impostor" | "down" | "busy"> {
+async function hostProbe(
+  port: number,
+): Promise<"alive" | "impostor" | "down" | "busy"> {
   const { probeHost } = await import("../src/browser/bridge/host.ts");
   const b = readBridgeJson();
   if (!b?.token) return "down";
   return probeHost({ port, token: b.token }, 3_000);
 }
 
-async function startHost(s: Pick<RigState, "bridgePort" | "fixtures" | "engine" | "hostCli">, onSpawn?: (pid: number) => void, env: Record<string, string> = {}): Promise<number> {
-  const pid = spawnDetached("bun", [s.hostCli ?? CLI_ENTRY, "browser", "bridge-host"], { ...rigEnv(s), ...env }, "bridge-host.log");
+async function startHost(
+  s: Pick<RigState, "bridgePort" | "fixtures" | "engine" | "hostCli">,
+  onSpawn?: (pid: number) => void,
+  env: Record<string, string> = {},
+): Promise<number> {
+  const pid = spawnDetached(
+    "bun",
+    [s.hostCli ?? CLI_ENTRY, "browser", "bridge-host"],
+    { ...rigEnv(s), ...env },
+    "bridge-host.log",
+  );
   onSpawn?.(pid);
   const deadline = Date.now() + HOST_START_MS;
   for (;;) {
     const p = await hostProbe(s.bridgePort);
     if (p === "alive") return readBridgeJson()?.hostPid ?? pid;
-    if (p === "impostor") die(`something else answers on 127.0.0.1:${s.bridgePort} and cannot prove the rig token`);
-    if (!alive(pid) && p === "down") die(`bridge host exited at start; see ${path.join(paths.logs, "bridge-host.log")}`);
-    if (Date.now() > deadline) die(`bridge host did not answer on ${s.bridgePort} within ${HOST_START_MS / 1000}s`);
+    if (p === "impostor")
+      die(
+        `something else answers on 127.0.0.1:${s.bridgePort} and cannot prove the rig token`,
+      );
+    if (!alive(pid) && p === "down")
+      die(
+        `bridge host exited at start; see ${path.join(paths.logs, "bridge-host.log")}`,
+      );
+    if (Date.now() > deadline)
+      die(
+        `bridge host did not answer on ${s.bridgePort} within ${HOST_START_MS / 1000}s`,
+      );
     await sleep(300);
   }
 }
@@ -304,8 +379,15 @@ async function extensionConnected(port: number): Promise<boolean> {
   const b = readBridgeJson();
   if (!b?.token) return false;
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/status?token=${encodeURIComponent(b.token)}`, { signal: AbortSignal.timeout(3_000) });
-    return res.ok && ((await res.json()) as { extensionConnected?: boolean }).extensionConnected === true;
+    const res = await fetch(
+      `http://127.0.0.1:${port}/status?token=${encodeURIComponent(b.token)}`,
+      { signal: AbortSignal.timeout(3_000) },
+    );
+    return (
+      res.ok &&
+      ((await res.json()) as { extensionConnected?: boolean })
+        .extensionConnected === true
+    );
   } catch {
     return false;
   }
@@ -316,7 +398,12 @@ async function extensionSays(cdpPort: number): Promise<string> {
   try {
     const ext = await extensionContext(cdpPort);
     try {
-      return JSON.stringify(await Promise.race([ext.eval(`chrome.runtime.sendMessage({ op: "status" })`), sleep(10_000).then(() => "no answer in 10s")]));
+      return JSON.stringify(
+        await Promise.race([
+          ext.eval(`chrome.runtime.sendMessage({ op: "status" })`),
+          sleep(10_000).then(() => "no answer in 10s"),
+        ]),
+      );
     } finally {
       await ext.close();
       ext.cdp.close();
@@ -326,7 +413,12 @@ async function extensionSays(cdpPort: number): Promise<string> {
   }
 }
 
-async function waitConnected(port: number, timeoutMs = CONNECT_MS, nudge?: () => Promise<void>, cdpPort?: number): Promise<void> {
+async function waitConnected(
+  port: number,
+  timeoutMs = CONNECT_MS,
+  nudge?: () => Promise<void>,
+  cdpPort?: number,
+): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let nudgedAt = 0;
   while (Date.now() < deadline) {
@@ -338,15 +430,21 @@ async function waitConnected(port: number, timeoutMs = CONNECT_MS, nudge?: () =>
     }
     await sleep(300);
   }
-  const says = cdpPort ? `; the extension says ${(await extensionSays(cdpPort)).slice(0, 600)}` : "";
-  die(`the extension did not report connected to 127.0.0.1:${port} within ${timeoutMs / 1000}s${says}; host log: ${path.join(paths.logs, "bridge-host.log")}`);
+  const says = cdpPort
+    ? `; the extension says ${(await extensionSays(cdpPort)).slice(0, 600)}`
+    : "";
+  die(
+    `the extension did not report connected to 127.0.0.1:${port} within ${timeoutMs / 1000}s${says}; host log: ${path.join(paths.logs, "bridge-host.log")}`,
+  );
 }
 
 /** Ask the extension's worker to reconnect now, through its options page in the rig Chrome. */
 async function nudgeExtension(cdpPort: number): Promise<void> {
   const ext = await extensionContext(cdpPort);
   try {
-    await ext.eval(`chrome.runtime.sendMessage({ op: "reconnect" }).then(() => true, () => false)`);
+    await ext.eval(
+      `chrome.runtime.sendMessage({ op: "reconnect" }).then(() => true, () => false)`,
+    );
   } finally {
     await ext.close();
     ext.cdp.close();
@@ -364,10 +462,23 @@ function seedDownloadDir(userDataDir: string): void {
   if (fs.existsSync(prefs)) return;
   fs.mkdirSync(path.dirname(prefs), { recursive: true });
   fs.mkdirSync(paths.downloads, { recursive: true });
-  fs.writeFileSync(prefs, JSON.stringify({ download: { default_directory: paths.downloads, prompt_for_download: false, directory_upgrade: true }, savefile: { default_directory: paths.downloads } }));
+  fs.writeFileSync(
+    prefs,
+    JSON.stringify({
+      download: {
+        default_directory: paths.downloads,
+        prompt_for_download: false,
+        directory_upgrade: true,
+      },
+      savefile: { default_directory: paths.downloads },
+    }),
+  );
 }
 
-function chromeArgs(s: { cdpPort: number; headed: boolean; extDir?: string }, userDataDir = paths.profile): string[] {
+function chromeArgs(
+  s: { cdpPort: number; headed: boolean; extDir?: string },
+  userDataDir = paths.profile,
+): string[] {
   seedDownloadDir(userDataDir);
   const extDir = s.extDir ?? DEFAULT_EXT_DIR;
   return [
@@ -396,21 +507,42 @@ function chromeArgs(s: { cdpPort: number; headed: boolean; extDir?: string }, us
 // Fixtures
 // ---------------------------------------------------------------------------
 
-async function startFixtures(s: Pick<RigState, "bridgePort">): Promise<{ pid: number; urls: [string, string] }> {
+async function startFixtures(
+  s: Pick<RigState, "bridgePort">,
+): Promise<{ pid: number; urls: [string, string] }> {
   const a = await freePort();
   let b = await freePort();
   while (b === a) b = await freePort();
-  const pid = spawnDetached("bun", [import.meta.path, "serve-fixtures", String(a), String(b)], rigEnv(s), "fixtures.log");
-  const urls: [string, string] = [`http://127.0.0.1:${a}`, `http://127.0.0.1:${b}`];
+  const pid = spawnDetached(
+    "bun",
+    [import.meta.path, "serve-fixtures", String(a), String(b)],
+    rigEnv(s),
+    "fixtures.log",
+  );
+  const urls: [string, string] = [
+    `http://127.0.0.1:${a}`,
+    `http://127.0.0.1:${b}`,
+  ];
   // Waits as long as the server process lives: bun's start alone can take
   // minutes on a loaded machine. A server that exited fails at once.
   const deadline = Date.now() + HOST_START_MS;
   for (const u of urls) {
     for (;;) {
-      const ok = await fetch(`${u}/healthz`, { signal: AbortSignal.timeout(2_000) }).then((r) => r.ok, () => false);
+      const ok = await fetch(`${u}/healthz`, {
+        signal: AbortSignal.timeout(2_000),
+      }).then(
+        (r) => r.ok,
+        () => false,
+      );
       if (ok) break;
-      if (!alive(pid)) die(`fixture server exited; see ${path.join(paths.logs, "fixtures.log")}`);
-      if (Date.now() > deadline) die(`fixture server did not answer on ${u} within ${HOST_START_MS / 1000}s`);
+      if (!alive(pid))
+        die(
+          `fixture server exited; see ${path.join(paths.logs, "fixtures.log")}`,
+        );
+      if (Date.now() > deadline)
+        die(
+          `fixture server did not answer on ${u} within ${HOST_START_MS / 1000}s`,
+        );
       await sleep(200);
     }
   }
@@ -424,16 +556,24 @@ async function startFixtures(s: Pick<RigState, "bridgePort">): Promise<{ pid: nu
 async function up(): Promise<void> {
   const existing = readState();
   if (existing && (alive(existing.chromePid) || alive(existing.hostPid))) {
-    die(`rig "${rigName}" is already up (env: ${paths.env}); run \`down\` first`);
+    die(
+      `rig "${rigName}" is already up (env: ${paths.env}); run \`down\` first`,
+    );
   }
-  if (existing || fs.existsSync(rigDir)) await teardown(existing, { quiet: true });
-  for (const d of [paths.castDir, paths.profile, paths.sockets, paths.logs]) fs.mkdirSync(d, { recursive: true, mode: 0o700 });
+  if (existing || fs.existsSync(rigDir))
+    await teardown(existing, { quiet: true });
+  for (const d of [paths.castDir, paths.profile, paths.sockets, paths.logs])
+    fs.mkdirSync(d, { recursive: true, mode: 0o700 });
 
   let bridgePort = await freePort();
   while (bridgePort === BRIDGE_DEFAULT_PORT) bridgePort = await freePort();
   const cdpPort = await freePort();
   const headed = flag("headed");
-  writeForwarder(cdpPort, paths.forward, path.join(paths.logs, "chrome-forward.log"));
+  writeForwarder(
+    cdpPort,
+    paths.forward,
+    path.join(paths.logs, "chrome-forward.log"),
+  );
 
   // The token and port, written into the rig's own bridge.json by the same
   // code the CLI uses. CODECAST_DIR is read per call, so setting it here
@@ -442,38 +582,75 @@ async function up(): Promise<void> {
   process.env.CAST_BRIDGE_PORT = String(bridgePort);
   const { ensureBridgeConfig } = await import("../src/browser/bridge/host.ts");
   const config = ensureBridgeConfig();
-  if (config.port !== bridgePort || !paths.bridgeJson.startsWith(rigDir)) die("bridge config did not land in the rig directory");
+  if (config.port !== bridgePort || !paths.bridgeJson.startsWith(rigDir))
+    die("bridge config did not land in the rig directory");
 
   const chrome = findTestChrome();
   const extDir = resolveExtensionDir(option("extension"));
   const engine = flag("engine") ? realEngine() : undefined;
   const hostCli = cliOption();
-  const state: RigState = { name: rigName, dir: rigDir, bridgePort, cdpPort, chromePid: 0, hostPid: 0, headed, chrome, ...(extDir ? { extDir } : {}), ...(engine ? { engine } : {}), ...(hostCli ? { hostCli } : {}) };
+  const state: RigState = {
+    name: rigName,
+    dir: rigDir,
+    bridgePort,
+    cdpPort,
+    chromePid: 0,
+    hostPid: 0,
+    headed,
+    chrome,
+    ...(extDir ? { extDir } : {}),
+    ...(engine ? { engine } : {}),
+    ...(hostCli ? { hostCli } : {}),
+  };
   writeState(state);
   if (flag("fixtures")) {
     const fixtures = await startFixtures({ bridgePort });
-    Object.assign(state, { fixturesPid: fixtures.pid, fixtures: fixtures.urls });
+    Object.assign(state, {
+      fixturesPid: fixtures.pid,
+      fixtures: fixtures.urls,
+    });
     writeState(state);
   }
   const base = { bridgePort, fixtures: state.fixtures, engine, hostCli };
-  console.error(`starting the bridge host from ${hostCli ?? "source"} on 127.0.0.1:${bridgePort}…`);
-  state.hostPid = await startHost(base, (pid) => writeState({ ...state, hostPid: pid }));
+  console.error(
+    `starting the bridge host from ${hostCli ?? "source"} on 127.0.0.1:${bridgePort}…`,
+  );
+  state.hostPid = await startHost(base, (pid) =>
+    writeState({ ...state, hostPid: pid }),
+  );
   writeState(state);
 
-  console.error(`starting ${path.basename(chrome)} (${headed ? "headed" : "headless"}) with the unpacked extension…`);
-  state.chromePid = spawnDetached(chrome, chromeArgs({ cdpPort, headed, extDir }), rigEnv(base), "chrome.log");
+  console.error(
+    `starting ${path.basename(chrome)} (${headed ? "headed" : "headless"}) with the unpacked extension…`,
+  );
+  state.chromePid = spawnDetached(
+    chrome,
+    chromeArgs({ cdpPort, headed, extDir }),
+    rigEnv(base),
+    "chrome.log",
+  );
   writeState(state);
   await waitForCdp(cdpPort);
   await enableDeveloperMode(cdpPort);
 
   await pairRigChrome(cdpPort, bridgePort, config.token);
-  await waitConnected(bridgePort, CONNECT_MS, () => nudgeExtension(cdpPort), cdpPort);
+  await waitConnected(
+    bridgePort,
+    CONNECT_MS,
+    () => nudgeExtension(cdpPort),
+    cdpPort,
+  );
 
   const envText = writeEnvFile(state);
-  console.log(`rig "${rigName}" is up: bridge 127.0.0.1:${bridgePort} (host pid ${state.hostPid}), Chrome pid ${state.chromePid}, extension ${extDir ?? DEFAULT_EXT_DIR} connected`);
-  if (state.fixtures) console.log(`fixtures: ${state.fixtures[0]}  ${state.fixtures[1]}`);
+  console.log(
+    `rig "${rigName}" is up: bridge 127.0.0.1:${bridgePort} (host pid ${state.hostPid}), Chrome pid ${state.chromePid}, extension ${extDir ?? DEFAULT_EXT_DIR} connected`,
+  );
+  if (state.fixtures)
+    console.log(`fixtures: ${state.fixtures[0]}  ${state.fixtures[1]}`);
   console.log(`\n# env (also in ${paths.env}):\n${envText}`);
-  console.log(`# drive it:  bun apps/cli/scripts/browser-rig.ts exec${rigName === "default" ? "" : ` --name ${rigName}`} -- open ${state.fixtures ? state.fixtures[0] + "/" : "https://example.com"}`);
+  console.log(
+    `# drive it:  bun apps/cli/scripts/browser-rig.ts exec${rigName === "default" ? "" : ` --name ${rigName}`} -- open ${state.fixtures ? state.fixtures[0] + "/" : "https://example.com"}`,
+  );
 }
 
 /** `--cli <main.ts>`: another CLI entry (an older checkout's), resolved to an absolute path. */
@@ -494,9 +671,21 @@ function cliOption(): string | undefined {
 function realEngine(): string {
   const env = { ...process.env, HOME: os.userInfo().homedir };
   delete env.CODECAST_DIR;
-  const r = spawnSync("bun", ["-e", `const { findEngine } = await import(${JSON.stringify(path.join(REPO, "apps/cli/src/browser/engine.ts"))}); console.log(findEngine() ?? "")`], { env, encoding: "utf-8" });
+  const r = spawnSync(
+    "bun",
+    [
+      "-e",
+      `const { findEngine } = await import(${JSON.stringify(path.join(REPO, "apps/cli/src/browser/engine.ts"))}); console.log(findEngine() ?? "")`,
+    ],
+    { env, encoding: "utf-8" },
+  );
   const found = r.stdout.trim().split("\n").pop();
-  return found || die("--engine: no agent-browser engine on this machine (`cast browser start` installs it)");
+  return (
+    found ||
+    die(
+      "--engine: no agent-browser engine on this machine (`cast browser start` installs it)",
+    )
+  );
 }
 
 /**
@@ -513,16 +702,28 @@ function resolveExtensionDir(arg: string | undefined): string | undefined {
     const out = path.join(rigDir, "extension");
     fs.mkdirSync(out, { recursive: true });
     const appPath = "apps/browser-extension";
-    const hasAppPath = spawnSync("git", ["cat-file", "-e", `${rev}:${appPath}`], { cwd: REPO }).status === 0;
+    const hasAppPath =
+      spawnSync("git", ["cat-file", "-e", `${rev}:${appPath}`], { cwd: REPO })
+        .status === 0;
     const extPath = hasAppPath ? appPath : "packages/browser-extension";
-    const archive = spawnSync("git", ["archive", rev, extPath], { cwd: REPO, maxBuffer: 256 * 1024 * 1024 });
-    if (archive.status !== 0) die(`git archive ${rev} ${extPath} failed: ${archive.stderr}`);
-    const untar = spawnSync("tar", ["-x", "-C", out, "--strip-components", "2"], { input: archive.stdout });
-    if (untar.status !== 0) die(`could not unpack the ${rev} extension: ${untar.stderr}`);
+    const archive = spawnSync("git", ["archive", rev, extPath], {
+      cwd: REPO,
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    if (archive.status !== 0)
+      die(`git archive ${rev} ${extPath} failed: ${archive.stderr}`);
+    const untar = spawnSync(
+      "tar",
+      ["-x", "-C", out, "--strip-components", "2"],
+      { input: archive.stdout },
+    );
+    if (untar.status !== 0)
+      die(`could not unpack the ${rev} extension: ${untar.stderr}`);
     return out;
   }
   const dir = path.resolve(arg);
-  if (!fs.existsSync(path.join(dir, "manifest.json"))) die(`--extension ${arg}: no manifest.json in ${dir}`);
+  if (!fs.existsSync(path.join(dir, "manifest.json")))
+    die(`--extension ${arg}: no manifest.json in ${dir}`);
   return dir;
 }
 
@@ -532,21 +733,38 @@ function resolveExtensionDir(arg: string | undefined): string | undefined {
  * clicked. `--legacy-pair` pairs with the shared token instead, the way cast
  * did before per-profile keys, so the migration can be watched.
  */
-async function pairRigChrome(cdpPort: number, bridgePort: number, token: string): Promise<void> {
+async function pairRigChrome(
+  cdpPort: number,
+  bridgePort: number,
+  token: string,
+): Promise<void> {
   const legacy = flag("legacy-pair");
   // The code goes into the rig's pairing file, never the real home's.
   process.env.CODECAST_DIR = paths.castDir;
   const { mintPairingCode } = await import("../src/browser/bridge/pairing.ts");
   const ext = await extensionContext(cdpPort);
   try {
-    if (ext.extId !== BRIDGE_EXTENSION_ID) die(`the extension loaded as ${ext.extId}, not ${BRIDGE_EXTENSION_ID}; is the manifest key intact?`);
+    if (ext.extId !== BRIDGE_EXTENSION_ID)
+      die(
+        `the extension loaded as ${ext.extId}, not ${BRIDGE_EXTENSION_ID}; is the manifest key intact?`,
+      );
     // Without --legacy-pair, the page setup opens: the code, and the shared token for an extension from before codes.
-    const pairing = legacy ? { token, port: bridgePort } : { code: mintPairingCode(null), token, port: bridgePort };
+    const pairing = legacy
+      ? { token, port: bridgePort }
+      : { code: mintPairingCode(null), token, port: bridgePort };
     const paired = await pairExtension(ext, pairing, rigDir);
     if (!paired.stored) {
-      if (!legacy) die(`the pairing page did not take the code (${JSON.stringify(paired)})`);
-      console.error(`the pairing page did not store the token (${JSON.stringify(paired)}); writing it into extension storage instead`);
-      if (!(await seedExtensionToken(ext, { token, port: bridgePort }))) die("pairing failed both through the pairing page and by writing extension storage");
+      if (!legacy)
+        die(
+          `the pairing page did not take the code (${JSON.stringify(paired)})`,
+        );
+      console.error(
+        `the pairing page did not store the token (${JSON.stringify(paired)}); writing it into extension storage instead`,
+      );
+      if (!(await seedExtensionToken(ext, { token, port: bridgePort })))
+        die(
+          "pairing failed both through the pairing page and by writing extension storage",
+        );
     }
   } finally {
     await ext.close();
@@ -555,12 +773,23 @@ async function pairRigChrome(cdpPort: number, bridgePort: number, token: string)
 }
 
 /** The host's connected profiles, as `extension status` reads them. */
-async function connectedProfiles(port: number): Promise<Array<{ id: string; default: boolean; legacy: boolean }>> {
+async function connectedProfiles(
+  port: number,
+): Promise<Array<{ id: string; default: boolean; legacy: boolean }>> {
   const b = readBridgeJson();
   if (!b?.token) return [];
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/status?token=${encodeURIComponent(b.token)}`, { signal: AbortSignal.timeout(3_000) });
-    return ((await res.json()) as { profiles?: Array<{ id: string; default: boolean; legacy: boolean }> }).profiles ?? [];
+    const res = await fetch(
+      `http://127.0.0.1:${port}/status?token=${encodeURIComponent(b.token)}`,
+      { signal: AbortSignal.timeout(3_000) },
+    );
+    return (
+      (
+        (await res.json()) as {
+          profiles?: Array<{ id: string; default: boolean; legacy: boolean }>;
+        }
+      ).profiles ?? []
+    );
   } catch {
     return [];
   }
@@ -574,11 +803,22 @@ async function connectedProfiles(port: number): Promise<Array<{ id: string; defa
  */
 async function addProfile(): Promise<void> {
   const s = requireState();
-  if (alive(s.chrome2Pid)) die(`rig "${rigName}" already has a second profile (Chrome pid ${s.chrome2Pid})`);
+  if (alive(s.chrome2Pid))
+    die(
+      `rig "${rigName}" already has a second profile (Chrome pid ${s.chrome2Pid})`,
+    );
   const before = (await connectedProfiles(s.bridgePort)).length;
   fs.mkdirSync(paths.profile2, { recursive: true, mode: 0o700 });
   const cdpPort2 = await freePort();
-  const chrome2Pid = spawnDetached(s.chrome, chromeArgs({ cdpPort: cdpPort2, headed: s.headed, extDir: s.extDir }, paths.profile2), rigEnv(s), "chrome2.log");
+  const chrome2Pid = spawnDetached(
+    s.chrome,
+    chromeArgs(
+      { cdpPort: cdpPort2, headed: s.headed, extDir: s.extDir },
+      paths.profile2,
+    ),
+    rigEnv(s),
+    "chrome2.log",
+  );
   writeState({ ...s, chrome2Pid, cdpPort2 });
   await waitForCdp(cdpPort2);
   await enableDeveloperMode(cdpPort2);
@@ -587,11 +827,16 @@ async function addProfile(): Promise<void> {
   await pairRigChrome(cdpPort2, s.bridgePort, token);
   const deadline = Date.now() + CONNECT_MS;
   while ((await connectedProfiles(s.bridgePort)).length <= before) {
-    if (Date.now() > deadline) die(`the second profile did not connect within ${CONNECT_MS / 1000}s; the extension says ${(await extensionSays(cdpPort2)).slice(0, 600)}`);
+    if (Date.now() > deadline)
+      die(
+        `the second profile did not connect within ${CONNECT_MS / 1000}s; the extension says ${(await extensionSays(cdpPort2)).slice(0, 600)}`,
+      );
     await nudgeExtension(cdpPort2).catch(() => {});
     await sleep(1_000);
   }
-  console.log(`second profile up: Chrome pid ${chrome2Pid}, CDP ${cdpPort2}; connected profiles: ${JSON.stringify(await connectedProfiles(s.bridgePort))}`);
+  console.log(
+    `second profile up: Chrome pid ${chrome2Pid}, CDP ${cdpPort2}; connected profiles: ${JSON.stringify(await connectedProfiles(s.bridgePort))}`,
+  );
 }
 
 const REFUSED: Array<[string[], string]> = [
@@ -605,13 +850,20 @@ async function exec(): Promise<void> {
   if (!rest.length) die("nothing to run: `exec -- <browser verb> [args]`");
   const args = rest[0] === "browser" ? rest.slice(1) : rest;
   for (const [verb, why] of REFUSED) {
-    if (verb.every((w, i) => args[i] === w)) die(`\`browser ${verb.join(" ")}\` is refused in the rig: it ${why}`);
+    if (verb.every((w, i) => args[i] === w))
+      die(`\`browser ${verb.join(" ")}\` is refused in the rig: it ${why}`);
   }
   // `--cli <main.ts>` runs another CLI build against the rig, e.g. an older
   // checkout's, the way a session mid-turn keeps its CLI across a release.
   const cli = cliOption() ?? CLI_ENTRY;
-  const child = spawn("bun", [cli, "browser", ...args], { env: rigEnv(s, option("session")), stdio: "inherit", cwd: process.cwd() });
-  const code: number = await new Promise((resolve) => child.on("close", (c) => resolve(c ?? 1)));
+  const child = spawn("bun", [cli, "browser", ...args], {
+    env: rigEnv(s, option("session")),
+    stdio: "inherit",
+    cwd: process.cwd(),
+  });
+  const code: number = await new Promise((resolve) =>
+    child.on("close", (c) => resolve(c ?? 1)),
+  );
   process.exit(code);
 }
 
@@ -623,24 +875,39 @@ async function reloadExt(): Promise<void> {
   // cannot hear that, so Chrome reloads it from chrome://extensions instead,
   // which also hands back a load error from a broken edit.
   await enableDeveloperMode(s.cdpPort);
-  const viaHost = b?.token && (await extensionConnected(s.bridgePort))
-    ? await fetch(`http://127.0.0.1:${s.bridgePort}/reload?token=${encodeURIComponent(b.token)}`, { method: "POST", signal: AbortSignal.timeout(15_000) }).then((r) => r.ok, () => false)
-    : false;
+  const viaHost =
+    b?.token && (await extensionConnected(s.bridgePort))
+      ? await fetch(
+          `http://127.0.0.1:${s.bridgePort}/reload?token=${encodeURIComponent(b.token)}`,
+          { method: "POST", signal: AbortSignal.timeout(15_000) },
+        ).then(
+          (r) => r.ok,
+          () => false,
+        )
+      : false;
   if (viaHost) {
     // Let the old socket drop before asking, or the old connection reads as up.
     const gone = Date.now() + 5_000;
-    while (Date.now() < gone && (await extensionConnected(s.bridgePort))) await sleep(150);
+    while (Date.now() < gone && (await extensionConnected(s.bridgePort)))
+      await sleep(150);
   } else {
     const loadError = await reloadUnpacked(s.cdpPort, BRIDGE_EXTENSION_ID);
-    if (loadError) die(`Chrome could not load ${s.extDir ?? DEFAULT_EXT_DIR}: ${loadError}`);
+    if (loadError)
+      die(`Chrome could not load ${s.extDir ?? DEFAULT_EXT_DIR}: ${loadError}`);
   }
   try {
-    await waitConnected(s.bridgePort, CONNECT_MS, () => nudgeExtension(s.cdpPort));
+    await waitConnected(s.bridgePort, CONNECT_MS, () =>
+      nudgeExtension(s.cdpPort),
+    );
   } catch (err) {
-    const info = await extensionInfo(s.cdpPort, BRIDGE_EXTENSION_ID).catch((e) => `unreadable: ${(e as Error).message}`);
+    const info = await extensionInfo(s.cdpPort, BRIDGE_EXTENSION_ID).catch(
+      (e) => `unreadable: ${(e as Error).message}`,
+    );
     die(`${(err as Error).message}; Chrome says ${JSON.stringify(info)}`);
   }
-  console.log(`extension reloaded from ${s.extDir ?? DEFAULT_EXT_DIR} ${viaHost ? "(asked through the host)" : "(from chrome://extensions)"} and reconnected`);
+  console.log(
+    `extension reloaded from ${s.extDir ?? DEFAULT_EXT_DIR} ${viaHost ? "(asked through the host)" : "(from chrome://extensions)"} and reconnected`,
+  );
 }
 
 /**
@@ -651,27 +918,48 @@ async function reloadExt(): Promise<void> {
  */
 function sourceLoadError(): string | null {
   const out = path.join(rigDir, "preflight");
-  const r = spawnSync("bun", ["build", CLI_ENTRY, "--target=bun", "--outdir", out], { cwd: REPO, encoding: "utf-8" });
+  const r = spawnSync(
+    "bun",
+    ["build", CLI_ENTRY, "--target=bun", "--outdir", out],
+    { cwd: REPO, encoding: "utf-8" },
+  );
   fs.rmSync(out, { recursive: true, force: true });
-  return r.status === 0 ? null : `${r.stderr || r.stdout}`.trim().split("\n").slice(-12).join("\n");
+  return r.status === 0
+    ? null
+    : `${r.stderr || r.stdout}`.trim().split("\n").slice(-12).join("\n");
 }
 
 async function restartHost(): Promise<void> {
   const s = { ...requireState(), hostCli: cliOption() };
   // The preflight guards this worktree against a sibling's half-saved file; another checkout's entry is run as it is.
   const loadError = s.hostCli ? null : sourceLoadError();
-  if (loadError) die(`the CLI source does not load, so a new host would die at start; the running host (pid ${readBridgeJson()?.hostPid ?? s.hostPid}) was left up.\n${loadError}`);
+  if (loadError)
+    die(
+      `the CLI source does not load, so a new host would die at start; the running host (pid ${readBridgeJson()?.hostPid ?? s.hostPid}) was left up.\n${loadError}`,
+    );
   const pid = readBridgeJson()?.hostPid ?? s.hostPid;
   await stop(pid);
   await stopStrayHosts(s.bridgePort);
   const gone = Date.now() + 5_000;
-  while (Date.now() < gone && (await hostProbe(s.bridgePort)) !== "down") await sleep(150);
+  while (Date.now() < gone && (await hostProbe(s.bridgePort)) !== "down")
+    await sleep(150);
   // `--build <stamp>` starts the host under another build stamp (hostBuild.ts), e.g. an old one a newer CLI should replace.
   const build = option("build");
-  const hostPid = await startHost(s, (pid) => writeState({ ...s, hostPid: pid }), build ? { CAST_BRIDGE_BUILD: build } : {});
+  const hostPid = await startHost(
+    s,
+    (pid) => writeState({ ...s, hostPid: pid }),
+    build ? { CAST_BRIDGE_BUILD: build } : {},
+  );
   writeState({ ...s, hostPid });
-  await waitConnected(s.bridgePort, CONNECT_MS, () => nudgeExtension(s.cdpPort), s.cdpPort);
-  console.log(`bridge host restarted from ${s.hostCli ?? "source"} (pid ${hostPid}${build ? `, build ${build}` : ""}) and the extension reconnected`);
+  await waitConnected(
+    s.bridgePort,
+    CONNECT_MS,
+    () => nudgeExtension(s.cdpPort),
+    s.cdpPort,
+  );
+  console.log(
+    `bridge host restarted from ${s.hostCli ?? "source"} (pid ${hostPid}${build ? `, build ${build}` : ""}) and the extension reconnected`,
+  );
 }
 
 /**
@@ -682,54 +970,91 @@ async function restartHost(): Promise<void> {
 async function restartChrome(): Promise<void> {
   const s = requireState();
   await stop(s.chromePid);
-  const chromePid = spawnDetached(s.chrome, chromeArgs(s), rigEnv(s), "chrome.log");
+  const chromePid = spawnDetached(
+    s.chrome,
+    chromeArgs(s),
+    rigEnv(s),
+    "chrome.log",
+  );
   writeState({ ...s, chromePid });
   await waitForCdp(s.cdpPort, CONNECT_MS);
-  await waitConnected(s.bridgePort, CONNECT_MS, () => nudgeExtension(s.cdpPort), s.cdpPort);
-  console.log(`rig Chrome restarted (pid ${chromePid}) and the extension reconnected`);
+  await waitConnected(
+    s.bridgePort,
+    CONNECT_MS,
+    () => nudgeExtension(s.cdpPort),
+    s.cdpPort,
+  );
+  console.log(
+    `rig Chrome restarted (pid ${chromePid}) and the extension reconnected`,
+  );
 }
 
 async function status(): Promise<void> {
   const s = requireState();
   const probe = await hostProbe(s.bridgePort);
-  console.log(JSON.stringify({
-    name: s.name,
-    dir: s.dir,
-    env: paths.env,
-    bridge: `127.0.0.1:${s.bridgePort}`,
-    host: probe,
-    extensionConnected: probe === "alive" ? await extensionConnected(s.bridgePort) : false,
-    chrome: alive(s.chromePid) ? `pid ${s.chromePid}` : "down",
-    ...(s.chrome2Pid ? { chrome2: alive(s.chrome2Pid) ? `pid ${s.chrome2Pid}, CDP ${s.cdpPort2}` : "down" } : {}),
-    profiles: probe === "alive" ? await connectedProfiles(s.bridgePort) : [],
-    fixtures: s.fixtures ?? null,
-  }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        name: s.name,
+        dir: s.dir,
+        env: paths.env,
+        bridge: `127.0.0.1:${s.bridgePort}`,
+        host: probe,
+        extensionConnected:
+          probe === "alive" ? await extensionConnected(s.bridgePort) : false,
+        chrome: alive(s.chromePid) ? `pid ${s.chromePid}` : "down",
+        ...(s.chrome2Pid
+          ? {
+              chrome2: alive(s.chrome2Pid)
+                ? `pid ${s.chrome2Pid}, CDP ${s.cdpPort2}`
+                : "down",
+            }
+          : {}),
+        profiles:
+          probe === "alive" ? await connectedProfiles(s.bridgePort) : [],
+        fixtures: s.fixtures ?? null,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 /** A host the CLI itself respawned for the rig (ensureBridgeHost): by port, or as a launchd job named for the port. */
 async function stopStrayHosts(port: number): Promise<void> {
-  const { bridgeHostPidsOnPort } = await import("../src/browser/bridge/host.ts");
+  const { bridgeHostPidsOnPort } =
+    await import("../src/browser/bridge/host.ts");
   for (const pid of bridgeHostPidsOnPort(port)) await stop(pid);
   const label = `gui/${process.getuid?.()}/sh.codecast.bridge-host.${port}`;
-  if (spawnSync("/bin/launchctl", ["print", label], { stdio: "ignore" }).status === 0) {
+  if (
+    spawnSync("/bin/launchctl", ["print", label], { stdio: "ignore" })
+      .status === 0
+  ) {
     spawnSync("/bin/launchctl", ["bootout", label], { stdio: "ignore" });
   }
 }
 
-async function teardown(s: RigState | null, opts: { quiet?: boolean } = {}): Promise<void> {
+async function teardown(
+  s: RigState | null,
+  opts: { quiet?: boolean } = {},
+): Promise<void> {
   if (s) {
     await stop(s.chromePid);
     await stop(s.chrome2Pid);
     await stop(readBridgeJson()?.hostPid);
     await stop(s.hostPid);
     await stop(s.fixturesPid);
-    if (s.bridgePort !== BRIDGE_DEFAULT_PORT) await stopStrayHosts(s.bridgePort);
+    if (s.bridgePort !== BRIDGE_DEFAULT_PORT)
+      await stopStrayHosts(s.bridgePort);
   }
   // Engine daemons the CLI started under the rig's socket dir.
   try {
     for (const name of fs.readdirSync(paths.sockets)) {
       if (!name.endsWith(".pid")) continue;
-      const pid = parseInt(fs.readFileSync(path.join(paths.sockets, name), "utf-8").trim(), 10);
+      const pid = parseInt(
+        fs.readFileSync(path.join(paths.sockets, name), "utf-8").trim(),
+        10,
+      );
       if (pid > 0) await stop(pid, 2_000);
     }
   } catch {}
@@ -741,7 +1066,12 @@ async function teardown(s: RigState | null, opts: { quiet?: boolean } = {}): Pro
       await sleep(500);
     }
   }
-  if (!opts.quiet) console.log(fs.existsSync(rigDir) ? `rig "${rigName}" stopped; could not remove ${rigDir}` : `rig "${rigName}" is down and ${rigDir} removed`);
+  if (!opts.quiet)
+    console.log(
+      fs.existsSync(rigDir)
+        ? `rig "${rigName}" stopped; could not remove ${rigDir}`
+        : `rig "${rigName}" is down and ${rigDir} removed`,
+    );
 }
 
 async function down(): Promise<void> {
@@ -772,9 +1102,15 @@ async function main(): Promise<void> {
     case "down":
       return down();
     case "serve-fixtures":
-      return serveFixtures(parseInt(own[1], 10), parseInt(own[2], 10), FIXTURES_DIR);
+      return serveFixtures(
+        parseInt(own[1], 10),
+        parseInt(own[2], 10),
+        FIXTURES_DIR,
+      );
     default:
-      console.error("usage: browser-rig.ts up [--fixtures] [--headed] [--legacy-pair] [--extension <dir|git:rev>] [--engine] [--cli <main.ts>] [--name <n>] | add-profile [--legacy-pair] | exec [--name <n>] [--session <id>] [--cli <main.ts>] -- <verb> [args] | reload-ext | restart-host [--build <stamp>] [--cli <main.ts>] | restart-chrome | status | down");
+      console.error(
+        "usage: browser-rig.ts up [--fixtures] [--headed] [--legacy-pair] [--extension <dir|git:rev>] [--engine] [--cli <main.ts>] [--name <n>] | add-profile [--legacy-pair] | exec [--name <n>] [--session <id>] [--cli <main.ts>] -- <verb> [args] | reload-ext | restart-host [--build <stamp>] [--cli <main.ts>] | restart-chrome | status | down",
+      );
       process.exit(sub ? 1 : 0);
   }
 }
@@ -782,9 +1118,13 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (err) {
-  console.error(`browser-rig: ${err instanceof RigError ? err.message : (err as Error)?.stack ?? err}`);
+  console.error(
+    `browser-rig: ${err instanceof RigError ? err.message : ((err as Error)?.stack ?? err)}`,
+  );
   if (sub === "up") {
-    console.error(`browser-rig: tearing down the half-built rig (logs were in ${paths.logs})`);
+    console.error(
+      `browser-rig: tearing down the half-built rig (logs were in ${paths.logs})`,
+    );
     await teardown(readState(), { quiet: true });
   }
   process.exit(1);

@@ -17,7 +17,8 @@ export function recoveringWebSocket({
     private activeMutations = new Set<number>();
 
     override send(data: Parameters<WebSocket["send"]>[0]) {
-      if (typeof data !== "string" || this.readyState !== Native.OPEN) return super.send(data);
+      if (typeof data !== "string" || this.readyState !== Native.OPEN)
+        return super.send(data);
       const message = JSON.parse(data);
       if (message.type !== "Mutation") return super.send(data);
       if (this.activeMutations.has(message.requestId)) return;
@@ -48,14 +49,22 @@ export function recoveringWebSocket({
       let closeTimeout: ReturnType<typeof setTimeout> | undefined;
       const timeout = setTimeout(() => {
         if (this.readyState !== Native.CONNECTING) return;
-        if (completeMissingClose) closeTimeout = setTimeout(() => {
-          if (!closed) this.dispatchEvent(Object.assign(new Event("close"), {
-            code: 1006, reason: "WebSocket handshake timed out", wasClean: false,
-          }));
-        }, 1_000);
+        if (completeMissingClose)
+          closeTimeout = setTimeout(() => {
+            if (!closed)
+              this.dispatchEvent(
+                Object.assign(new Event("close"), {
+                  code: 1006,
+                  reason: "WebSocket handshake timed out",
+                  wasClean: false,
+                }),
+              );
+          }, 1_000);
         this.close();
       }, timeoutMs);
-      this.addEventListener("open", () => clearTimeout(timeout), { once: true });
+      this.addEventListener("open", () => clearTimeout(timeout), {
+        once: true,
+      });
       this.addEventListener("close", (event) => {
         if (closed) {
           event.stopImmediatePropagation();

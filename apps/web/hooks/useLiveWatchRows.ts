@@ -9,8 +9,21 @@ import { isWatchHostDead, liveWatchRowsFor } from "../components/monitorRows";
 export function useLiveWatchRows(session: InboxSession, now: number) {
   const messages = useInboxStore((st) => st.messages[session._id]);
   return useMemo(
-    () => (isWatchHostDead(session, now) ? [] : liveWatchRowsFor(session, messages, now)),
+    () =>
+      isWatchHostDead(session, now)
+        ? []
+        : liveWatchRowsFor(session, messages, now),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the row fields the merge reads
-    [messages, now, session.open_tasks, session.open_tasks_at, session.agent_started_at, session.agent_status, session.last_heartbeat, session.inbox_killed_at, session.updated_at],
+    [
+      messages,
+      now,
+      session.open_tasks,
+      session.open_tasks_at,
+      session.agent_started_at,
+      session.agent_status,
+      session.last_heartbeat,
+      session.inbox_killed_at,
+      session.updated_at,
+    ],
   );
 }

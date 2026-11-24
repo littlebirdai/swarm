@@ -84,7 +84,11 @@ export const SETTINGS_PAGES_MOVED: Record<string, string> = {
 /** The address that opens a section: its own /settings/<id> URL. A hard load
  *  or an in-app push to it opens the modal on that section. */
 export function settingsPathFor(section: SettingsSectionId): string {
-  return Object.keys(PATH_TO_SECTION).find((path) => PATH_TO_SECTION[path] === section && path !== "/settings") ?? "/settings";
+  return (
+    Object.keys(PATH_TO_SECTION).find(
+      (path) => PATH_TO_SECTION[path] === section && path !== "/settings",
+    ) ?? "/settings"
+  );
 }
 
 export interface SettingsPathHit {
@@ -103,7 +107,10 @@ export interface SettingsPathHit {
 export function settingsSectionForPath(path: string): SettingsPathHit | null {
   const qIndex = path.indexOf("?");
   const search = qIndex === -1 ? "" : path.slice(qIndex + 1).split("#")[0];
-  const clean = (qIndex === -1 ? path : path.slice(0, qIndex)).split("#")[0].replace(/\/+$/, "") || "/";
+  const clean =
+    (qIndex === -1 ? path : path.slice(0, qIndex))
+      .split("#")[0]
+      .replace(/\/+$/, "") || "/";
   const section = PATH_TO_SECTION[clean];
   return section ? { section, search } : null;
 }

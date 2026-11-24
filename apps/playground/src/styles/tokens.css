@@ -23,12 +23,12 @@
   --live-fold: #a8cdb4;
 
   /* overlays */
-  --scrim: rgba(43, 37, 32, .32);
-  --glass: rgba(255, 253, 249, .94);
-  --hover-row: rgba(239, 233, 223, .55);
-  --past-frame: rgba(255, 253, 249, .85);
+  --scrim: rgba(43, 37, 32, 0.32);
+  --glass: rgba(255, 253, 249, 0.94);
+  --hover-row: rgba(239, 233, 223, 0.55);
+  --past-frame: rgba(255, 253, 249, 0.85);
   --shadow-tint: 70, 45, 20;
-  --edge: rgba(var(--shadow-tint), .08);
+  --edge: rgba(var(--shadow-tint), 0.08);
 
   /* type (4.2, fonts.css) */
   --ui: "Commissioner", system-ui, sans-serif;
@@ -48,8 +48,15 @@
   --t-mono: 500 11.5px/1.4 var(--mono);
 
   /* space, radius, line, elevation (4.3) */
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
-  --s6: 24px; --s8: 32px; --s12: 48px; --s16: 64px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --s16: 64px;
 
   --r-xs: 5px;
   --r-sm: 6px;
@@ -63,14 +70,20 @@
   --ring-line: inset 0 0 0 1px var(--line);
   --ring-line-2: inset 0 0 0 1px var(--line-2);
 
-  --shadow-sm: 0 1px 2px rgba(var(--shadow-tint), .06), 0 0 0 1px rgba(var(--shadow-tint), .02);
-  --shadow-md: 0 8px 24px -10px rgba(var(--shadow-tint), .22), 0 2px 5px rgba(var(--shadow-tint), .06);
-  --shadow-lg: 0 24px 60px -18px rgba(var(--shadow-tint), .35), 0 4px 10px rgba(var(--shadow-tint), .08);
+  --shadow-sm:
+    0 1px 2px rgba(var(--shadow-tint), 0.06),
+    0 0 0 1px rgba(var(--shadow-tint), 0.02);
+  --shadow-md:
+    0 8px 24px -10px rgba(var(--shadow-tint), 0.22),
+    0 2px 5px rgba(var(--shadow-tint), 0.06);
+  --shadow-lg:
+    0 24px 60px -18px rgba(var(--shadow-tint), 0.35),
+    0 4px 10px rgba(var(--shadow-tint), 0.08);
   --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-2);
 
   /* motion (4.4) */
-  --ease-out: cubic-bezier(.2, .8, .2, 1);
-  --ease-pop: cubic-bezier(.3, 1.35, .6, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-pop: cubic-bezier(0.3, 1.35, 0.6, 1);
   --t-press: 120ms;
   --t-quick: 150ms;
   --t-move: 250ms;

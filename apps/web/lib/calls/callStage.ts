@@ -64,5 +64,9 @@ export function closeCallStage(): void {
 }
 
 export function useCallStageOpen(): boolean {
-  return useSyncExternalStore(subscribeCallStage, getCallStageOpen, getCallStageOpen);
+  return useSyncExternalStore(
+    subscribeCallStage,
+    getCallStageOpen,
+    getCallStageOpen,
+  );
 }

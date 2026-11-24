@@ -16,8 +16,18 @@ export function raiseThreadToInteractiveQos(): boolean {
   if (process.platform !== "darwin") return false;
   try {
     const { dlopen, FFIType } = require("bun:ffi") as typeof import("bun:ffi");
-    const lib = dlopen("libSystem.B.dylib", { pthread_set_qos_class_self_np: { args: [FFIType.u32, FFIType.i32], returns: FFIType.i32 } });
-    return lib.symbols.pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0) === 0;
+    const lib = dlopen("libSystem.B.dylib", {
+      pthread_set_qos_class_self_np: {
+        args: [FFIType.u32, FFIType.i32],
+        returns: FFIType.i32,
+      },
+    });
+    return (
+      lib.symbols.pthread_set_qos_class_self_np(
+        QOS_CLASS_USER_INTERACTIVE,
+        0,
+      ) === 0
+    );
   } catch {
     return false; // not under bun, or no libSystem: stay at the default priority
   }

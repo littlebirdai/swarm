@@ -25,16 +25,21 @@ export interface StallWatchdogOptions {
   checkMs?: number;
 }
 
-export function stallWatchdogPlugin({ stallSeconds, checkMs = 5000 }: StallWatchdogOptions = {}): Plugin {
+export function stallWatchdogPlugin({
+  stallSeconds,
+  checkMs = 5000,
+}: StallWatchdogOptions = {}): Plugin {
   return {
     name: "codecast-stall-watchdog",
     apply: "serve",
     configureServer(server) {
       // A middleware-mode server belongs to a host process we must not kill.
-      if (!server.httpServer || process.env.CODECAST_VITE_WATCHDOG === "0") return;
+      if (!server.httpServer || process.env.CODECAST_VITE_WATCHDOG === "0")
+        return;
       const beat = new SharedArrayBuffer(4);
       const heartbeat = new Int32Array(beat);
-      const stamp = () => Atomics.store(heartbeat, 0, Math.floor(Date.now() / 1000));
+      const stamp = () =>
+        Atomics.store(heartbeat, 0, Math.floor(Date.now() / 1000));
       stamp();
       const pulse = setInterval(stamp, 1000);
       pulse.unref();
@@ -43,7 +48,9 @@ export function stallWatchdogPlugin({ stallSeconds, checkMs = 5000 }: StallWatch
       const worker = new Worker(WORKER_URL, {
         workerData: {
           beat,
-          stallSeconds: stallSeconds ?? Number(process.env.CODECAST_VITE_STALL_SECONDS || 60),
+          stallSeconds:
+            stallSeconds ??
+            Number(process.env.CODECAST_VITE_STALL_SECONDS || 60),
           checkMs,
           execPath: process.execPath,
           execArgv: process.execArgv.filter((a) => !a.startsWith("--inspect")),
@@ -55,9 +62,12 @@ export function stallWatchdogPlugin({ stallSeconds, checkMs = 5000 }: StallWatch
       worker.unref();
 
       if (respawns > 0) {
-        server.config.logger.warn(`[codecast-stall-watchdog] started as replacement #${respawns} for a wedged dev server`, {
-          timestamp: true,
-        });
+        server.config.logger.warn(
+          `[codecast-stall-watchdog] started as replacement #${respawns} for a wedged dev server`,
+          {
+            timestamp: true,
+          },
+        );
       }
 
       // A server.restart() closes this server and runs configureServer again.

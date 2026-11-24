@@ -20,18 +20,51 @@
 // several teams; each one runs through `requireTeam`, so naming a team you are
 // not in returns nothing rather than someone else's chat.
 
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { scheduleTriggerMatch } from "./lib/triggerMatch";
 import { siteUrl } from "./lib/siteUrl";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { canSendProductMessage, enqueuePendingMessage, getAuthenticatedUserId, tellRole } from "./pendingMessages";
-import { canOwnerOrTeamAccess, isConversationOwner, isTeamAdmin, isTeamMember } from "./privacy";
+import {
+  canSendProductMessage,
+  enqueuePendingMessage,
+  getAuthenticatedUserId,
+  tellRole,
+} from "./pendingMessages";
+import {
+  canOwnerOrTeamAccess,
+  isConversationOwner,
+  isTeamAdmin,
+  isTeamMember,
+} from "./privacy";
 import { activeTeamMembershipFor } from "./lib/access";
 import { requireTeamFeature, teamHasFeature } from "./teamFeatures";
-import { canAccessChannel, canReadChannelAnonymously, channelAgentRows, channelMemberIds, chatReadOriginArgs, isChannelMember, isCommunity, isRestricted, sessionChatScope, sessionDmRefusal, sessionMayReadChannel, primeSessionListing, grantSessionRoom, grantTargetOf, type ChatReadOrigin, type SessionChatScope } from "./chatAccess";
+import {
+  canAccessChannel,
+  canReadChannelAnonymously,
+  channelAgentRows,
+  channelMemberIds,
+  chatReadOriginArgs,
+  isChannelMember,
+  isCommunity,
+  isRestricted,
+  sessionChatScope,
+  sessionDmRefusal,
+  sessionMayReadChannel,
+  primeSessionListing,
+  grantSessionRoom,
+  grantTargetOf,
+  type ChatReadOrigin,
+  type SessionChatScope,
+} from "./chatAccess";
 import { dmAnchorFor, dmExchange, dmSessionLineAnswered } from "./chatDm";
 import {
   dmKeyFor,
@@ -50,10 +83,25 @@ import {
   threadFaceKey,
   withThreadMuted,
 } from "@codecast/shared/chat";
-import { HUDDLE_DIGEST_CLIENT_ID_PREFIX, isHostedAgentType, parseRoomKey } from "@codecast/shared/contracts";
+import {
+  HUDDLE_DIGEST_CLIENT_ID_PREFIX,
+  isHostedAgentType,
+  parseRoomKey,
+} from "@codecast/shared/contracts";
 import { RateLimitError, checkRateLimit } from "./rateLimit";
-import { matchHandle, resolveChatMentions, teamRoster } from "./lib/mentionResolve";
-import { agentPosterKey, hourBucket, mentionWakeQuotas, reserveQuotas, takeAgentPostQuota, takeQuotas } from "./lib/chatQuota";
+import {
+  matchHandle,
+  resolveChatMentions,
+  teamRoster,
+} from "./lib/mentionResolve";
+import {
+  agentPosterKey,
+  hourBucket,
+  mentionWakeQuotas,
+  reserveQuotas,
+  takeAgentPostQuota,
+  takeQuotas,
+} from "./lib/chatQuota";
 import { chatAttachmentValidator } from "./lib/chatAttachment";
 import { displayName } from "./lib/displayNames";
 import { purgeUserTeam, touchThread } from "./threadReads";
@@ -61,9 +109,17 @@ import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
 // `userCanAccessAnchor` is the WAKE permission (any member of a team anchor's
 // team may spend a turn on it). It is used on the wake path and NOT on
 // `replyAsAnchor`, which gates on the host — see the comment there.
-import { deliverToAnchor, userCanAccessAnchor, workspaceAnchorFor } from "./anchors";
+import {
+  deliverToAnchor,
+  userCanAccessAnchor,
+  workspaceAnchorFor,
+} from "./anchors";
 import { resolveActor, roleWorkedFor } from "./lib/actor";
-import { queueSlackOutbound, slackLinkForChannel, slackLinksWithSendAuth } from "./lib/slackOutbound";
+import {
+  queueSlackOutbound,
+  slackLinkForChannel,
+  slackLinksWithSendAuth,
+} from "./lib/slackOutbound";
 import { isDesktopActivePresence } from "./pushRouter";
 import {
   HERE_PRESENCE_MS,
@@ -86,19 +142,41 @@ import {
   notifyLevelAllows,
   oneLine,
   plainPreview,
-  searchSnippet, holdsQueryPhrases, emailLocalHandle, memberHandle, sessionLineTitle } from "./chatText";
+  searchSnippet,
+  holdsQueryPhrases,
+  emailLocalHandle,
+  memberHandle,
+  sessionLineTitle,
+} from "./chatText";
 import { peopleOf } from "@codecast/shared/team/memberKind";
 import { parseQueryTerms } from "@codecast/shared/search";
-import { chatMentionClientId, chatRelayClientId, parseChatMentionClientId, parseChatRelayClientId } from "./lib/chatWakeIds";
+import {
+  chatMentionClientId,
+  chatRelayClientId,
+  parseChatMentionClientId,
+  parseChatRelayClientId,
+} from "./lib/chatWakeIds";
 import { nextChatStamp, patchChat } from "./lib/chatRows";
-import { closeSessionReplyOnAnswer, openSessionReply } from "./chatSessionReplies";
-import { buildAnchorWake, buildChatWake, buildSessionRelay } from "./chatWakePrompts";
+import {
+  closeSessionReplyOnAnswer,
+  openSessionReply,
+} from "./chatSessionReplies";
+import {
+  buildAnchorWake,
+  buildChatWake,
+  buildSessionRelay,
+} from "./chatWakePrompts";
 import { collectChatExcerpt } from "./chatExcerpt";
 import { mayHandTo } from "./chatHandoff";
 import { onRoomLine, roomTakesTurns, type RoundResult } from "./chatRounds";
 import { openaiFetch } from "./lib/openai";
 import { upsertRead, touchThreadReads } from "./lib/chatReadState";
-import { notifyChat, threadParticipants, channelAudience, presentMembers } from "./lib/chatNotify";
+import {
+  notifyChat,
+  threadParticipants,
+  channelAudience,
+  presentMembers,
+} from "./lib/chatNotify";
 
 type ReadCtx = Pick<QueryCtx, "db"> | Pick<MutationCtx, "db">;
 
@@ -141,7 +219,8 @@ async function chatRateLimit(
   try {
     await checkRateLimit(ctx, userId, endpoint, limit);
   } catch (error) {
-    if (error instanceof RateLimitError) chatFail("RATE_LIMITED", error.message);
+    if (error instanceof RateLimitError)
+      chatFail("RATE_LIMITED", error.message);
     throw error;
   }
 }
@@ -192,7 +271,8 @@ export async function requireCaller(
   apiToken: string | undefined,
 ): Promise<Id<"users">> {
   const userId = await getAuthenticatedUserId(ctx as any, apiToken);
-  if (!userId) chatFail("UNAUTHENTICATED", "Unauthorized: authentication failed");
+  if (!userId)
+    chatFail("UNAUTHENTICATED", "Unauthorized: authentication failed");
   return userId;
 }
 
@@ -223,17 +303,25 @@ async function requireSessionMayRead(
   opts: { scope?: SessionChatScope | null; thread?: Id<"chat_messages"> } = {},
 ): Promise<void> {
   if (!userId || origin.origin !== "agent" || channel.kind !== "dm") return;
-  const scope = opts.scope ?? await sessionChatScope(ctx, userId, origin);
-  if (await sessionMayReadChannel(ctx, scope, channel, { deep: true, thread: opts.thread })) return;
+  const scope = opts.scope ?? (await sessionChatScope(ctx, userId, origin));
+  if (
+    await sessionMayReadChannel(ctx, scope, channel, {
+      deep: true,
+      thread: opts.thread,
+    })
+  )
+    return;
   const withNames: string[] = [];
   let personInRoom = false;
   for (const id of await channelMemberIds(ctx, channel._id)) {
     if (String(id) === String(userId)) personInRoom = true;
     else withNames.push(oneLine(displayName(await ctx.db.get(id)), 40));
   }
-  chatFail("FORBIDDEN", sessionDmRefusal(scope!, { withNames, readCommand, personInRoom }));
+  chatFail(
+    "FORBIDDEN",
+    sessionDmRefusal(scope!, { withNames, readCommand, personInRoom }),
+  );
 }
-
 
 // The CLI prints a message as a short prefix of its id (`cast chat read`), so
 // every verb that takes a message id also takes that prefix. A full id passes
@@ -242,11 +330,15 @@ async function requireSessionMayRead(
 // before counting, so a prefix never reveals another team's message.
 export const resolveMessageRef = internalQuery({
   args: { api_token: v.optional(v.string()), ref: v.string() },
-  handler: async (ctx, args): Promise<{ id: Id<"chat_messages"> | null; error?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ id: Id<"chat_messages"> | null; error?: string }> => {
     const ref = args.ref.trim();
     const exact = ctx.db.normalizeId("chat_messages", ref);
     if (exact) return { id: exact };
-    if (!/^[a-z0-9]{5,}$/.test(ref)) return { id: null, error: `Not a chat message id: ${ref}` };
+    if (!/^[a-z0-9]{5,}$/.test(ref))
+      return { id: null, error: `Not a chat message id: ${ref}` };
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     const rows = await ctx.db
       .query("chat_messages")
@@ -254,11 +346,16 @@ export const resolveMessageRef = internalQuery({
       .take(20);
     const readable: Id<"chat_messages">[] = [];
     for (const row of rows) {
-      if (await readChannel(ctx, userId, row.channel_id)) readable.push(row._id);
+      if (await readChannel(ctx, userId, row.channel_id))
+        readable.push(row._id);
     }
     if (readable.length === 1) return { id: readable[0] };
-    if (!readable.length) return { id: null, error: `No chat message matches ${ref}` };
-    return { id: null, error: `${ref} matches ${readable.length} messages; use more of the id` };
+    if (!readable.length)
+      return { id: null, error: `No chat message matches ${ref}` };
+    return {
+      id: null,
+      error: `${ref} matches ${readable.length} messages; use more of the id`,
+    };
   },
 });
 
@@ -325,15 +422,25 @@ export const seedCommunityPost = internalMutation({
   },
   handler: async (ctx, args) => {
     const channel = await ctx.db.get(args.channel_id);
-    if (!channel || !isCommunity(channel)) throw new Error("Not a community channel");
+    if (!channel || !isCommunity(channel))
+      throw new Error("Not a community channel");
     const anchor = await ctx.db.get(args.anchor_id);
-    if (!anchor || !anchor.team_id || anchor.team_id.toString() !== channel.team_id.toString()) {
+    if (
+      !anchor ||
+      !anchor.team_id ||
+      anchor.team_id.toString() !== channel.team_id.toString()
+    ) {
       throw new Error("The workspace's agent is not this channel's team's");
     }
-    if (!args.content.trim() || args.content.length > MAX_CHAT_CONTENT) throw new Error("Bad content");
+    if (!args.content.trim() || args.content.length > MAX_CHAT_CONTENT)
+      throw new Error("Bad content");
     if (args.thread_root_id) {
       const root = await ctx.db.get(args.thread_root_id);
-      if (!root || root.channel_id.toString() !== channel._id.toString() || root.thread_root_id) {
+      if (
+        !root ||
+        root.channel_id.toString() !== channel._id.toString() ||
+        root.thread_root_id
+      ) {
         throw new Error("That thread is not in this channel");
       }
     }
@@ -371,7 +478,9 @@ async function resolveTeamMembership(
   if (!(await isTeamMember(ctx as any, userId, teamId))) {
     chatFail("FORBIDDEN", "Not a member of that team");
   }
-  await requireTeamFeature(ctx as any, teamId, "chat", (m) => chatFail("FORBIDDEN", m));
+  await requireTeamFeature(ctx as any, teamId, "chat", (m) =>
+    chatFail("FORBIDDEN", m),
+  );
   return teamId;
 }
 
@@ -384,7 +493,9 @@ async function resolveTeamForRead(
   let resolved = teamId;
   if (!resolved) {
     const user = await ctx.db.get(userId);
-    resolved = (user?.active_team_id ?? user?.team_id) as Id<"teams"> | undefined;
+    resolved = (user?.active_team_id ?? user?.team_id) as
+      | Id<"teams">
+      | undefined;
   }
   if (!resolved) chatFail("FORBIDDEN", "No team: join or select a team first");
   return resolveTeamMembership(ctx, userId, resolved);
@@ -402,28 +513,39 @@ async function requireTeamForWrite(
   userId: Id<"users">,
   teamId: Id<"teams"> | undefined,
 ): Promise<{ teamId: Id<"teams">; guessed: boolean }> {
-  if (teamId) return { teamId: await resolveTeamMembership(ctx, userId, teamId), guessed: false };
+  if (teamId)
+    return {
+      teamId: await resolveTeamMembership(ctx, userId, teamId),
+      guessed: false,
+    };
   const user = await ctx.db.get(userId);
-  const fallback = (user?.active_team_id ?? user?.team_id) as Id<"teams"> | undefined;
+  const fallback = (user?.active_team_id ?? user?.team_id) as
+    | Id<"teams">
+    | undefined;
   if (!fallback) {
     chatFail(
       "FORBIDDEN",
       "No team named and no active team: pass --team <id> (cast chat channels lists them)",
     );
   }
-  return { teamId: await resolveTeamMembership(ctx, userId, fallback), guessed: true };
+  return {
+    teamId: await resolveTeamMembership(ctx, userId, fallback),
+    guessed: true,
+  };
 }
 
 // patchChat lives in lib/chatRows; re-exported for the modules that import it from here.
 export { patchChat };
 // The mention-wake caps live in lib/chatQuota; the web sim reads them from here.
-export { MENTION_WAKES_PER_SENDER_HOUR, MENTION_WAKES_PER_TARGET_HOUR } from "./lib/chatQuota";
+export {
+  MENTION_WAKES_PER_SENDER_HOUR,
+  MENTION_WAKES_PER_TARGET_HOUR,
+} from "./lib/chatQuota";
 
 // ── Identity ────────────────────────────────────────────────────────────────
 
 // Lives in lib/displayNames beside the outsider-safe form.
 export { displayName };
-
 
 // ── Queries ─────────────────────────────────────────────────────────────────
 
@@ -466,7 +588,9 @@ export const listChannels = query({
       .query("chat_channel_members")
       .withIndex("by_user", (q: any) => q.eq("user_id", userId))
       .collect();
-    const myRestricted = new Set(myMemberRows.map((r) => r.channel_id.toString()));
+    const myRestricted = new Set(
+      myMemberRows.map((r) => r.channel_id.toString()),
+    );
     // A private room the caller is not in must not exist for them — not as a
     // name in the rail, not as a row in the cache.
     const visibleToPerson = teamChannels.filter(
@@ -475,11 +599,20 @@ export const listChannels = query({
     // A session listing its person's rooms sees the DMs it is part of and no
     // others: no name, no preview, no unread line, no count.
     const scope = await sessionChatScope(ctx, userId, args);
-    await primeSessionListing(ctx, scope, visibleToPerson.filter((c) => c.kind === "dm").map((c) => c._id));
+    await primeSessionListing(
+      ctx,
+      scope,
+      visibleToPerson.filter((c) => c.kind === "dm").map((c) => c._id),
+    );
     const channels: Doc<"chat_channels">[] = [];
-    for (const c of visibleToPerson) if (await sessionMayReadChannel(ctx, scope, c)) channels.push(c);
+    for (const c of visibleToPerson)
+      if (await sessionMayReadChannel(ctx, scope, c)) channels.push(c);
 
-    const { reads, rail, unread_dm_messages } = await railFor(ctx, userId, channels);
+    const { reads, rail, unread_dm_messages } = await railFor(
+      ctx,
+      userId,
+      channels,
+    );
     // Slack mirrors for the channels on this page (slackSync). Rides the same
     // subscription so the rail and header can show the mirror mark from the
     // store without a second feed.
@@ -490,7 +623,14 @@ export const listChannels = query({
         .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
         .collect()
     ).filter((l) => visibleIds.has(l.chat_channel_id.toString()));
-    return { team_id: teamId, channels, reads, rail, unread_dm_messages, slack_links: await slackLinksWithSendAuth(ctx, slack_links, userId) };
+    return {
+      team_id: teamId,
+      channels,
+      reads,
+      rail,
+      unread_dm_messages,
+      slack_links: await slackLinksWithSendAuth(ctx, slack_links, userId),
+    };
   },
 });
 
@@ -513,7 +653,8 @@ export const listCommunityChannels = query({
     for (const row of rows) {
       if (row.archived_at) continue;
       const key = row.team_id.toString();
-      if (!teamOk.has(key)) teamOk.set(key, !!(await ctx.db.get(row.team_id))?.community);
+      if (!teamOk.has(key))
+        teamOk.set(key, !!(await ctx.db.get(row.team_id))?.community);
       if (teamOk.get(key)) channels.push(row);
     }
     const { reads, rail } = await railFor(ctx, userId, channels);
@@ -527,7 +668,12 @@ export const listCommunityChannels = query({
 // stored under the human the session ran as, and naming that human is wrong.
 // Empty for anyone else's line, so the payload only grows where it matters.
 function sessionOriginOf(row: Doc<"chat_messages">) {
-  if (row.origin !== "agent" || !row.origin_session_id || row.author_kind === "agent") return {};
+  if (
+    row.origin !== "agent" ||
+    !row.origin_session_id ||
+    row.author_kind === "agent"
+  )
+    return {};
   return {
     origin: row.origin,
     origin_session_id: row.origin_session_id,
@@ -577,10 +723,16 @@ export type ChannelAgentRef =
   | { kind: "role"; role_id: Id<"org_roles">; short_id: string }
   | { kind: "session"; conversation_id: Id<"conversations">; short_id: string };
 
-export function channelAgentRef(row: Doc<"chat_channel_agents">): ChannelAgentRef {
+export function channelAgentRef(
+  row: Doc<"chat_channel_agents">,
+): ChannelAgentRef {
   return row.role_id
     ? { kind: "role", role_id: row.role_id, short_id: row.short_id }
-    : { kind: "session", conversation_id: row.conversation_id!, short_id: row.short_id };
+    : {
+        kind: "session",
+        conversation_id: row.conversation_id!,
+        short_id: row.short_id,
+      };
 }
 
 // One channel's rail row for one reader: the newest line, the sort key, and
@@ -591,16 +743,23 @@ async function railFor(
   ctx: ReadCtx,
   userId: Id<"users"> | null,
   channels: Doc<"chat_channels">[],
-): Promise<{ reads: Doc<"chat_reads">[]; rail: ChatRailRow[]; unread_dm_messages: Doc<"chat_messages">[] }> {
+): Promise<{
+  reads: Doc<"chat_reads">[];
+  rail: ChatRailRow[];
+  unread_dm_messages: Doc<"chat_messages">[];
+}> {
   const allReads = userId
     ? await ctx.db
-      .query("chat_reads")
-      .withIndex("by_user_channel", (q: any) => q.eq("user_id", userId))
-      .collect()
+        .query("chat_reads")
+        .withIndex("by_user_channel", (q: any) => q.eq("user_id", userId))
+        .collect()
     : [];
-  const readByChannel = new Map(allReads.map((r) => [r.channel_id.toString(), r]));
+  const readByChannel = new Map(
+    allReads.map((r) => [r.channel_id.toString(), r]),
+  );
   const reads = allReads.filter((r) =>
-    channels.some((c) => c._id.toString() === r.channel_id.toString()));
+    channels.some((c) => c._id.toString() === r.channel_id.toString()),
+  );
 
   const rail: ChatRailRow[] = [];
   // A DM's unread lines themselves, from the rows already read to count them:
@@ -620,7 +779,9 @@ async function railFor(
     // same rows the preview would have seen.
     const newest = await ctx.db
       .query("chat_messages")
-      .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
+      .withIndex("by_channel_created", (q: any) =>
+        q.eq("channel_id", channel._id),
+      )
       .order("desc")
       .take(channel.kind === "dm" ? DM_INBOUND_SCAN : 4);
     // A burst still being spoken is not yet a line in this room: it has not
@@ -631,9 +792,10 @@ async function railFor(
     const lastMessage = newest.find(visible) ?? null;
     // The newest line from the other side, or null when the viewer has only
     // ever spoken (or the other side's last word is beyond the scan).
-    const lastInbound = channel.kind === "dm"
-      ? newest.find((m) => visible(m) && !mine(m)) ?? null
-      : null;
+    const lastInbound =
+      channel.kind === "dm"
+        ? (newest.find((m) => visible(m) && !mine(m)) ?? null)
+        : null;
 
     // Read MORE rows than the cap before filtering. Tombstones and the
     // caller's own lines are dropped after the read, so taking exactly the cap
@@ -642,19 +804,24 @@ async function railFor(
     // Nobody is unread for a visitor: no identity, no read mark, no number.
     const unreadRows = userId
       ? await ctx.db
-        .query("chat_messages")
-        .withIndex("by_channel_created", (q: any) =>
-          q.eq("channel_id", channel._id).gt("created_at", lastReadAt))
-        .take(UNREAD_CAP * 2 + 1)
+          .query("chat_messages")
+          .withIndex("by_channel_created", (q: any) =>
+            q.eq("channel_id", channel._id).gt("created_at", lastReadAt),
+          )
+          .take(UNREAD_CAP * 2 + 1)
       : [];
     // The shared unread rule (@codecast/shared/chat tallyUnread): every
     // client tallies the rows it holds with the same function, so the badge
     // this rail raises is the one opening the channel clears.
     const tally = userId
-      ? tallyUnread(unreadRows, lastReadAt, userId.toString(), { isDm: channel.kind === "dm" })
+      ? tallyUnread(unreadRows, lastReadAt, userId.toString(), {
+          isDm: channel.kind === "dm",
+        })
       : { unread: 0, mentions: 0 };
     if (channel.kind === "dm" && tally.unread > 0) {
-      for (const m of unreadRows) if (!m.deleted_at && visible(m) && !isSilentAgentRow(m)) unread_dm_messages.push(m);
+      for (const m of unreadRows)
+        if (!m.deleted_at && visible(m) && !isSilentAgentRow(m))
+          unread_dm_messages.push(m);
     }
 
     rail.push({
@@ -673,7 +840,9 @@ async function railFor(
             _id: lastMessage._id,
             user_id: lastMessage.user_id,
             author_kind: lastMessage.author_kind ?? "user",
-            ...(lastMessage.external_author ? { external_author: lastMessage.external_author } : {}),
+            ...(lastMessage.external_author
+              ? { external_author: lastMessage.external_author }
+              : {}),
             ...sessionOriginOf(lastMessage),
             created_at: lastMessage.created_at,
             preview: plainPreview(lastMessage.content, 120),
@@ -756,27 +925,39 @@ export const listMessages = query({
     // sendMessage then refuses. One flag for missing and for forbidden, on the
     // same terms as loadChannel.
     if (!channel) return { ...empty, unavailable: true };
-    await requireSessionMayRead(ctx, userId, channel, args, `cast chat read --channel ${channel._id}${args.limit ? ` -n ${args.limit}` : ""}`);
+    await requireSessionMayRead(
+      ctx,
+      userId,
+      channel,
+      args,
+      `cast chat read --channel ${channel._id}${args.limit ? ` -n ${args.limit}` : ""}`,
+    );
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 100);
     const page = await ctx.db
       .query("chat_messages")
       .withIndex("by_channel_created", (q: any) => {
         const scoped = q.eq("channel_id", args.channel_id);
-        return args.before === undefined ? scoped : scoped.lt("created_at", args.before);
+        return args.before === undefined
+          ? scoped
+          : scoped.lt("created_at", args.before);
       })
       .order("desc")
       // Thread replies live in the thread panel, like Slack: the channel shows
       // roots only — plus replies the author chose to ALSO send to the channel.
-      .filter((q) => q.or(
-        q.eq(q.field("thread_root_id"), undefined),
-        q.eq(q.field("broadcast"), true),
-      ))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("thread_root_id"), undefined),
+          q.eq(q.field("broadcast"), true),
+        ),
+      )
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
     // A silent placeholder at room level (an inline DM turn the anchor passed
     // on) never reaches a reader.
-    const messages = [...page.page].reverse().filter((r) => !isSilentAgentRow(r) || isClosedAgentPlaceholder(r));
+    const messages = [...page.page]
+      .reverse()
+      .filter((r) => !isSilentAgentRow(r) || isClosedAgentPlaceholder(r));
     const reactions = await reactionsFor(ctx, messages);
     const threads = await threadSummariesFor(ctx, messages);
     const authors = await authorsFor(ctx, messages);
@@ -835,7 +1016,12 @@ export type ThreadSummary = {
   // threadFaceKey), and a Slack person's snapshot rides along.
   reply_faces: Array<{
     user_id: Id<"users">;
-    slack?: { user?: string; name: string; avatar_url?: string; is_bot?: boolean };
+    slack?: {
+      user?: string;
+      name: string;
+      avatar_url?: string;
+      is_bot?: boolean;
+    };
     // A session typed the reply (stored under its human): the face is the session.
     session?: { id: string; title?: string; agent_type?: string };
   }>;
@@ -857,7 +1043,9 @@ export async function threadSummariesFor(
     if (root.deleted_at) continue;
     const replies = await ctx.db
       .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", root._id))
+      .withIndex("by_thread_created", (q: any) =>
+        q.eq("thread_root_id", root._id),
+      )
       .order("desc")
       .take(THREAD_SUMMARY_SCAN);
     // A silent placeholder (the anchor listening, or having chosen to stay
@@ -873,16 +1061,37 @@ export async function threadSummariesFor(
       seen.add(key);
       faces.push(r.user_id);
       const ext = r.external_author;
-      replyFaces.push(ext
-        ? { user_id: r.user_id, slack: { user: r.external?.user, name: ext.name, avatar_url: ext.avatar_url, is_bot: ext.is_bot } }
-        : r.origin === "agent" && r.origin_session_id && r.author_kind !== "agent"
-          ? { user_id: r.user_id, session: { id: r.origin_session_id, title: r.origin_session_title, agent_type: r.origin_agent_type } }
-          : { user_id: r.user_id });
+      replyFaces.push(
+        ext
+          ? {
+              user_id: r.user_id,
+              slack: {
+                user: r.external?.user,
+                name: ext.name,
+                avatar_url: ext.avatar_url,
+                is_bot: ext.is_bot,
+              },
+            }
+          : r.origin === "agent" &&
+              r.origin_session_id &&
+              r.author_kind !== "agent"
+            ? {
+                user_id: r.user_id,
+                session: {
+                  id: r.origin_session_id,
+                  title: r.origin_session_title,
+                  agent_type: r.origin_agent_type,
+                },
+              }
+            : { user_id: r.user_id },
+      );
       if (faces.length >= 4) break;
     }
     const newest = live[0];
     // Only agent rows carry a status: the anchor's, or a session's thinking row.
-    const pendingAgent = isVisibleAgentPending(newest.agent_status) || newest.agent_status === "error";
+    const pendingAgent =
+      isVisibleAgentPending(newest.agent_status) ||
+      newest.agent_status === "error";
     out.push({
       root_id: root._id,
       reply_count: Math.min(live.length, THREAD_SUMMARY_SCAN - 1),
@@ -905,7 +1114,8 @@ async function reactionsFor(
       ctx.db
         .query("chat_reactions")
         .withIndex("by_message", (q: any) => q.eq("message_id", message._id))
-        .collect()),
+        .collect(),
+    ),
   );
   return perMessage.flat();
 }
@@ -931,7 +1141,11 @@ export const getThread = query({
       root: null as Doc<"chat_messages"> | null,
       replies: [] as Doc<"chat_messages">[],
       reactions: [] as Doc<"chat_reactions">[],
-      anchor: null as { armed: boolean; bot_user_id: Id<"users">; name: string } | null,
+      anchor: null as {
+        armed: boolean;
+        bot_user_id: Id<"users">;
+        name: string;
+      } | null,
       authors: [] as Array<{ _id: Id<"users">; name: string; is_bot: boolean }>,
       has_more: false,
       next_cursor: null as string | null,
@@ -949,17 +1163,28 @@ export const getThread = query({
     if (!root) return { ...empty, unavailable: true };
     const channel = await readChannel(ctx, userId, root.channel_id);
     if (!channel) return { ...empty, unavailable: true };
-    await requireSessionMayRead(ctx, userId, channel, args, `cast chat thread ${root._id}`, { thread: root._id });
+    await requireSessionMayRead(
+      ctx,
+      userId,
+      channel,
+      args,
+      `cast chat thread ${root._id}`,
+      { thread: root._id },
+    );
 
     const limit = Math.min(Math.max(args.limit ?? 200, 1), 300);
     const page = await ctx.db
       .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", args.root_id))
+      .withIndex("by_thread_created", (q: any) =>
+        q.eq("thread_root_id", args.root_id),
+      )
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
     // Silent placeholders never leave the server: a reader must not see the
     // anchor listening, nor the rows where it decided to stay quiet.
-    const replies = [...page.page].reverse().filter((r) => !isSilentAgentRow(r) || isClosedAgentPlaceholder(r));
+    const replies = [...page.page]
+      .reverse()
+      .filter((r) => !isSilentAgentRow(r) || isClosedAgentPlaceholder(r));
     const reactions = await reactionsFor(ctx, [root, ...replies]);
     const authors = await authorsFor(ctx, [root, ...replies]);
 
@@ -968,7 +1193,11 @@ export const getThread = query({
     // "replies reach Anchor" hint can never disagree with what a send does.
     // Clients must not re-derive this; two implementations of the rule is how
     // the hint starts lying.
-    let anchor: { armed: boolean; bot_user_id: Id<"users">; name: string } | null = null;
+    let anchor: {
+      armed: boolean;
+      bot_user_id: Id<"users">;
+      name: string;
+    } | null = null;
     const channelAnchor = await resolveChannelAnchor(ctx, channel);
     if (channelAnchor) {
       anchor = {
@@ -994,7 +1223,11 @@ export const getThread = query({
 // One message by id — the permalink read, and what the CLI uses to see what it
 // is replying to. Same gate as everything else.
 export const getMessage = query({
-  args: { api_token: v.optional(v.string()), message_id: v.id("chat_messages"), ...chatReadOriginArgs },
+  args: {
+    api_token: v.optional(v.string()),
+    message_id: v.id("chat_messages"),
+    ...chatReadOriginArgs,
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx as any, args.api_token);
     const message = await ctx.db.get(args.message_id);
@@ -1002,8 +1235,19 @@ export const getMessage = query({
     const channel = await readChannel(ctx, userId, message.channel_id);
     if (!channel) return null;
     const thread = message.thread_root_id ?? message._id;
-    await requireSessionMayRead(ctx, userId, channel, args, `cast chat thread ${thread}`, { thread });
-    return { message, channel, permalink: chatPermalink(channel._id.toString(), message._id.toString()) };
+    await requireSessionMayRead(
+      ctx,
+      userId,
+      channel,
+      args,
+      `cast chat thread ${thread}`,
+      { thread },
+    );
+    return {
+      message,
+      channel,
+      permalink: chatPermalink(channel._id.toString(), message._id.toString()),
+    };
   },
 });
 
@@ -1026,7 +1270,8 @@ export const searchMessages = query({
     // Words, a filter, or both. Filters alone ("from:@ana", "in:#design")
     // list that sender's or room's newest lines.
     const words = args.q.trim();
-    if (!userId || (!words && !args.from_user_id && !args.channel_id)) return { results: [] };
+    if (!userId || (!words && !args.from_user_id && !args.channel_id))
+      return { results: [] };
     let teamId: Id<"teams">;
     try {
       teamId = await resolveTeamForRead(ctx, userId, args.team_id);
@@ -1041,7 +1286,14 @@ export const searchMessages = query({
       if (!channel || channel.team_id.toString() !== teamId.toString()) {
         return { results: [] };
       }
-      await requireSessionMayRead(ctx, userId, channel, args, `cast chat read --channel ${channel._id}`, { scope });
+      await requireSessionMayRead(
+        ctx,
+        userId,
+        channel,
+        args,
+        `cast chat read --channel ${channel._id}`,
+        { scope },
+      );
     }
 
     const limit = Math.min(Math.max(args.limit ?? 30, 1), 50);
@@ -1050,7 +1302,10 @@ export const searchMessages = query({
     // Quoted phrases filter post-index too (the index has no phrases), so they
     // widen it the same way.
     // A session's search drops its person's DM hits post-index too.
-    const narrowed = !!args.from_user_id || parseQueryTerms(args.q).phrases.length > 0 || !!scope;
+    const narrowed =
+      !!args.from_user_id ||
+      parseQueryTerms(args.q).phrases.length > 0 ||
+      !!scope;
     const take = limit * (narrowed ? 6 : 2);
     const fromId = args.from_user_id;
     const hits = words
@@ -1058,19 +1313,29 @@ export const searchMessages = query({
           .query("chat_messages")
           .withSearchIndex("search_content", (q: any) => {
             const scoped = q.search("content", words).eq("team_id", teamId);
-            return args.channel_id ? scoped.eq("channel_id", args.channel_id) : scoped;
+            return args.channel_id
+              ? scoped.eq("channel_id", args.channel_id)
+              : scoped;
           })
           .take(take)
       : fromId
         ? await ctx.db
             .query("chat_messages")
-            .withIndex("by_team_user_created", (q) => q.eq("team_id", teamId).eq("user_id", fromId))
+            .withIndex("by_team_user_created", (q) =>
+              q.eq("team_id", teamId).eq("user_id", fromId),
+            )
             .order("desc")
-            .filter((q) => (args.channel_id ? q.eq(q.field("channel_id"), args.channel_id) : q.eq(1, 1)))
+            .filter((q) =>
+              args.channel_id
+                ? q.eq(q.field("channel_id"), args.channel_id)
+                : q.eq(1, 1),
+            )
             .take(take)
         : await ctx.db
             .query("chat_messages")
-            .withIndex("by_channel_created", (q) => q.eq("channel_id", args.channel_id!))
+            .withIndex("by_channel_created", (q) =>
+              q.eq("channel_id", args.channel_id!),
+            )
             .order("desc")
             .take(take);
 
@@ -1086,17 +1351,25 @@ export const searchMessages = query({
       { allowed: boolean; name: string; kind?: string; dm_key?: string }
     >();
     const results = [];
-    for (const row of hits.filter((r) => !r.deleted_at && !isSilentAgentRow(r))) {
+    for (const row of hits.filter(
+      (r) => !r.deleted_at && !isSilentAgentRow(r),
+    )) {
       if (results.length >= limit) break;
-      if (args.from_user_id && row.user_id.toString() !== args.from_user_id.toString()) continue;
+      if (
+        args.from_user_id &&
+        row.user_id.toString() !== args.from_user_id.toString()
+      )
+        continue;
       if (!holdsQueryPhrases(row.content, args.q)) continue;
       const key = row.channel_id.toString();
       let meta = channels.get(key);
       if (!meta) {
         const channel = await ctx.db.get(row.channel_id);
         meta = {
-          allowed: await canAccessChannel(ctx, userId, channel)
-            && !!channel && await sessionMayReadChannel(ctx, scope, channel),
+          allowed:
+            (await canAccessChannel(ctx, userId, channel)) &&
+            !!channel &&
+            (await sessionMayReadChannel(ctx, scope, channel)),
           name: channel?.name ?? "unknown",
           kind: channel?.kind,
           dm_key: channel?.dm_key,
@@ -1141,7 +1414,13 @@ export const createChannel = mutation({
     // public room for roles and sessions (agent-channels.md C1). "community"
     // is a room on the public site: only an admin of the team flagged as the
     // community may open one.
-    kind: v.optional(v.union(v.literal("private"), v.literal("agents"), v.literal("community"))),
+    kind: v.optional(
+      v.union(
+        v.literal("private"),
+        v.literal("agents"),
+        v.literal("community"),
+      ),
+    ),
     // Initial roster for a private room, besides the creator. Ignored for
     // public: a public channel's audience is the team.
     member_ids: v.optional(v.array(v.id("users"))),
@@ -1149,7 +1428,11 @@ export const createChannel = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
-    const { teamId, guessed: workspaceGuessed } = await requireTeamForWrite(ctx, userId, args.team_id);
+    const { teamId, guessed: workspaceGuessed } = await requireTeamForWrite(
+      ctx,
+      userId,
+      args.team_id,
+    );
     // Named in every return: when the caller omitted team_id the server GUESSED
     // (users.active_team_id), and a write must never be silent about where it
     // landed — a stale pointer here is exactly how a channel ends up in the
@@ -1157,9 +1440,13 @@ export const createChannel = mutation({
     const team = await ctx.db.get(teamId);
     const teamName = team?.name ?? "";
     const name = normalizeChannelName(args.name);
-    if (!name) chatFail("INVALID", "Channel name must contain a letter or a number");
+    if (!name)
+      chatFail("INVALID", "Channel name must contain a letter or a number");
     if ((args.topic ?? "").length > MAX_CHANNEL_TOPIC) {
-      chatFail("INVALID", `Topic is longer than ${MAX_CHANNEL_TOPIC} characters`);
+      chatFail(
+        "INVALID",
+        `Topic is longer than ${MAX_CHANNEL_TOPIC} characters`,
+      );
     }
     // Only an admin may set the channel new members land in.
     if (args.is_default && !(await isTeamAdmin(ctx, userId, teamId))) {
@@ -1174,9 +1461,16 @@ export const createChannel = mutation({
     // the community team's admins' call and nobody else's: not another team,
     // not an ordinary member of this one.
     if (args.kind === "community") {
-      if (!team?.community) chatFail("FORBIDDEN", "Only the community team can open a community channel");
+      if (!team?.community)
+        chatFail(
+          "FORBIDDEN",
+          "Only the community team can open a community channel",
+        );
       if (!(await isTeamAdmin(ctx, userId, teamId))) {
-        chatFail("FORBIDDEN", "Only a community team admin can open a community channel");
+        chatFail(
+          "FORBIDDEN",
+          "Only a community team admin can open a community channel",
+        );
       }
     }
     // Validate the initial roster BEFORE any write: every member must be a
@@ -1188,13 +1482,20 @@ export const createChannel = mutation({
         if (seen.has(id.toString())) continue;
         seen.add(id.toString());
         const member = await ctx.db.get(id);
-        if (!member || member.is_bot) chatFail("INVALID", "Members must be human teammates");
+        if (!member || member.is_bot)
+          chatFail("INVALID", "Members must be human teammates");
         if (!(await isTeamMember(ctx as any, id, teamId))) {
-          chatFail("INVALID", `${displayName(member)} is not a member of this team`);
+          chatFail(
+            "INVALID",
+            `${displayName(member)} is not a member of this team`,
+          );
         }
         initialMembers.push(id);
         if (initialMembers.length > MAX_CHANNEL_MEMBERS) {
-          chatFail("INVALID", `At most ${MAX_CHANNEL_MEMBERS} members per channel`);
+          chatFail(
+            "INVALID",
+            `At most ${MAX_CHANNEL_MEMBERS} members per channel`,
+          );
         }
       }
     }
@@ -1203,26 +1504,52 @@ export const createChannel = mutation({
     if (args.client_id) {
       const existing = await ctx.db
         .query("chat_channels")
-        .withIndex("by_client_id", (q: any) => q.eq("client_id", args.client_id))
+        .withIndex("by_client_id", (q: any) =>
+          q.eq("client_id", args.client_id),
+        )
         .first();
       if (existing) {
         if (existing.team_id.toString() !== teamId.toString()) {
-          chatFail("CONFLICT", "This client id is already bound to another channel");
+          chatFail(
+            "CONFLICT",
+            "This client id is already bound to another channel",
+          );
         }
-        return { channel_id: existing._id, client_id: args.client_id, created: false, team_id: teamId, team_name: teamName, workspace_guessed: workspaceGuessed };
+        return {
+          channel_id: existing._id,
+          client_id: args.client_id,
+          created: false,
+          team_id: teamId,
+          team_name: teamName,
+          workspace_guessed: workspaceGuessed,
+        };
       }
     }
 
-    await chatRateLimit(ctx, userId, "chat.channel_create", CHANNEL_CREATE_LIMIT);
+    await chatRateLimit(
+      ctx,
+      userId,
+      "chat.channel_create",
+      CHANNEL_CREATE_LIMIT,
+    );
 
     const existingName = await ctx.db
       .query("chat_channels")
-      .withIndex("by_team_name", (q: any) => q.eq("team_id", teamId).eq("name", name))
+      .withIndex("by_team_name", (q: any) =>
+        q.eq("team_id", teamId).eq("name", name),
+      )
       .first();
     // Best effort only: two concurrent creates can both read no row. That is why
     // routing is by _id and a name is never resolved to a channel.
     if (existingName) {
-      return { channel_id: existingName._id, client_id: args.client_id, created: false, team_id: teamId, team_name: teamName, workspace_guessed: workspaceGuessed };
+      return {
+        channel_id: existingName._id,
+        client_id: args.client_id,
+        created: false,
+        team_id: teamId,
+        team_name: teamName,
+        workspace_guessed: workspaceGuessed,
+      };
     }
 
     const count = await ctx.db
@@ -1233,7 +1560,10 @@ export const createChannel = mutation({
     // holding the cap already has as many channels as anyone can see. One more
     // would exist and accept messages while never appearing in any rail.
     if (count.length >= MAX_CHANNELS_PER_TEAM) {
-      chatFail("INVALID", `A team may have at most ${MAX_CHANNELS_PER_TEAM} channels`);
+      chatFail(
+        "INVALID",
+        `A team may have at most ${MAX_CHANNELS_PER_TEAM} channels`,
+      );
     }
 
     const now = Date.now();
@@ -1252,20 +1582,29 @@ export const createChannel = mutation({
     // own membership; public rooms are the team's. Patched after insert because
     // a restricted key names the row's own id.
     await patchChat(ctx, channelId, {
-      workspace: args.kind === "private"
-        ? `restricted:${channelId}`
-        : args.kind === "community" ? "public" : `team:${teamId}`,
+      workspace:
+        args.kind === "private"
+          ? `restricted:${channelId}`
+          : args.kind === "community"
+            ? "public"
+            : `team:${teamId}`,
     });
     if (args.kind === "private") {
       await ctx.db.insert("chat_channel_members", {
-        channel_id: channelId, user_id: userId, added_by: userId, added_at: now,
+        channel_id: channelId,
+        user_id: userId,
+        added_by: userId,
+        added_at: now,
       });
       const channel = await ctx.db.get(channelId);
       const author = await ctx.db.get(userId);
       const actorName = oneLine(displayName(author), 60);
       for (const memberId of initialMembers) {
         await ctx.db.insert("chat_channel_members", {
-          channel_id: channelId, user_id: memberId, added_by: userId, added_at: now,
+          channel_id: channelId,
+          user_id: memberId,
+          added_by: userId,
+          added_at: now,
         });
         if (channel) {
           await notifyChat(ctx, {
@@ -1284,7 +1623,14 @@ export const createChannel = mutation({
     // Creating a channel joins it at the default level, like Slack: asking for
     // a room is not asking to be pinged for every line in it.
     await upsertRead(ctx, userId, teamId, channelId, now, undefined, undefined);
-    return { channel_id: channelId, client_id: args.client_id, created: true, team_id: teamId, team_name: teamName, workspace_guessed: workspaceGuessed };
+    return {
+      channel_id: channelId,
+      client_id: args.client_id,
+      created: true,
+      team_id: teamId,
+      team_name: teamName,
+      workspace_guessed: workspaceGuessed,
+    };
   },
 });
 
@@ -1317,20 +1663,48 @@ export const openDm = mutation({
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const { teamId } = await requireTeamForWrite(ctx, userId, args.team_id);
-    const { speaker, session } = args.origin === "agent"
-      ? await sessionSpeaker(ctx, userId, args.origin_session_id)
-      : { speaker: userId, session: null };
+    const { speaker, session } =
+      args.origin === "agent"
+        ? await sessionSpeaker(ctx, userId, args.origin_session_id)
+        : { speaker: userId, session: null };
     const { room, others, sessionRoom } = await openPeopleRoom(ctx, {
-      teamId, speaker, session, ids: args.member_ids ?? [], handles: args.handles ?? [], limitedUser: userId, clientId: args.client_id,
+      teamId,
+      speaker,
+      session,
+      ids: args.member_ids ?? [],
+      handles: args.handles ?? [],
+      limitedUser: userId,
+      clientId: args.client_id,
     });
     // Re-opening is joining: the caller may have left the read row behind. No
     // chat_added here: an empty DM room is not an event. The first MESSAGE
     // notifies (chat_dm), which is the moment something was actually said.
-    if (speaker === userId) await upsertRead(ctx, userId, teamId, room.channel._id, Date.now(), undefined, undefined);
-    const names = await Promise.all(others.map(async (id) => displayName(await ctx.db.get(id))));
+    if (speaker === userId)
+      await upsertRead(
+        ctx,
+        userId,
+        teamId,
+        room.channel._id,
+        Date.now(),
+        undefined,
+        undefined,
+      );
+    const names = await Promise.all(
+      others.map(async (id) => displayName(await ctx.db.get(id))),
+    );
     // Whose room this is: the session's own, a role's (its bot speaks), or the person's.
-    const room_of = sessionRoom ? "session" : speaker !== userId ? "role" : "person";
-    return { channel_id: room.channel._id, created: room.created, team_id: teamId, with: names, room_of };
+    const room_of = sessionRoom
+      ? "session"
+      : speaker !== userId
+        ? "role"
+        : "person";
+    return {
+      channel_id: room.channel._id,
+      created: room.created,
+      team_id: teamId,
+      with: names,
+      room_of,
+    };
   },
 });
 
@@ -1344,10 +1718,14 @@ async function sessionSpeaker(
   sessionRef: string | undefined,
 ): Promise<{ speaker: Id<"users">; session: Doc<"conversations"> | null }> {
   if (!sessionRef) return { speaker: callerId, session: null };
-  const conv = await findConversationByAnyRefWhere(ctx, sessionRef, (c) => isConversationOwner(ctx, callerId, c));
+  const conv = await findConversationByAnyRefWhere(ctx, sessionRef, (c) =>
+    isConversationOwner(ctx, callerId, c),
+  );
   if (!conv) return { speaker: callerId, session: null };
   const voice = await sessionVoice(ctx, callerId, conv, "new-dm");
-  return voice ? { speaker: voice.user_id, session: null } : { speaker: callerId, session: conv };
+  return voice
+    ? { speaker: voice.user_id, session: null }
+    : { speaker: callerId, session: conv };
 }
 
 /** The role bot a session's lines speak as, or null to speak as the caller.
@@ -1365,13 +1743,22 @@ async function sessionVoice(
   room: Doc<"chat_channels"> | "new-dm",
 ): Promise<{ user_id: Id<"users">; anchor: Doc<"anchors"> } | null> {
   const actor = await resolveActor(ctx, callerId, conv);
-  if (actor.kind === "role") return actor.anchor ? { user_id: actor.user_id, anchor: actor.anchor } : null;
+  if (actor.kind === "role")
+    return actor.anchor
+      ? { user_id: actor.user_id, anchor: actor.anchor }
+      : null;
   if (!conv || String(conv.user_id) !== String(callerId)) return null;
   if (room !== "new-dm" && room.kind !== "dm") return null;
   const role = await roleWorkedFor(ctx, conv);
   const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
   if (!anchor?.bot_user_id) return null;
-  if (room !== "new-dm" && !(await channelMemberIds(ctx, room._id)).some((id) => String(id) === String(anchor.bot_user_id))) return null;
+  if (
+    room !== "new-dm" &&
+    !(await channelMemberIds(ctx, room._id)).some(
+      (id) => String(id) === String(anchor.bot_user_id),
+    )
+  )
+    return null;
   return { user_id: anchor.bot_user_id, anchor };
 }
 
@@ -1381,17 +1768,46 @@ async function sessionVoice(
 async function openPeopleRoom(
   ctx: MutationCtx,
   opts: {
-    teamId: Id<"teams">; speaker: Id<"users">; session?: Doc<"conversations"> | null;
-    ids: Id<"users">[]; handles: string[]; limitedUser: Id<"users">; clientId?: string;
+    teamId: Id<"teams">;
+    speaker: Id<"users">;
+    session?: Doc<"conversations"> | null;
+    ids: Id<"users">[];
+    handles: string[];
+    limitedUser: Id<"users">;
+    clientId?: string;
   },
-): Promise<{ room: { channel: Doc<"chat_channels">; created: boolean }; others: Id<"users">[]; sessionRoom: boolean }> {
-  const { others, namedSelf } = await dmOthers(ctx, opts.teamId, opts.speaker, opts.ids, opts.handles);
-  await chatRateLimit(ctx, opts.limitedUser, "chat.channel_create", CHANNEL_CREATE_LIMIT);
-  const session = namedSelf ? null : opts.session ?? null;
+): Promise<{
+  room: { channel: Doc<"chat_channels">; created: boolean };
+  others: Id<"users">[];
+  sessionRoom: boolean;
+}> {
+  const { others, namedSelf } = await dmOthers(
+    ctx,
+    opts.teamId,
+    opts.speaker,
+    opts.ids,
+    opts.handles,
+  );
+  await chatRateLimit(
+    ctx,
+    opts.limitedUser,
+    "chat.channel_create",
+    CHANNEL_CREATE_LIMIT,
+  );
+  const session = namedSelf ? null : (opts.session ?? null);
   const sessionRoom = !!session;
   const room = session
-    ? await ensureDmRoom(ctx, opts.teamId, others, opts.speaker, { client_id: opts.clientId, session })
-    : await ensureDmRoom(ctx, opts.teamId, [opts.speaker, ...others], opts.speaker, { client_id: opts.clientId });
+    ? await ensureDmRoom(ctx, opts.teamId, others, opts.speaker, {
+        client_id: opts.clientId,
+        session,
+      })
+    : await ensureDmRoom(
+        ctx,
+        opts.teamId,
+        [opts.speaker, ...others],
+        opts.speaker,
+        { client_id: opts.clientId },
+      );
   return { room, others, sessionRoom };
 }
 
@@ -1413,8 +1829,14 @@ async function dmOthers(
     for (const handle of handles) {
       const match = matchHandle(roster, handle);
       if (!match) {
-        const known = peopleOf(roster).map((u) => memberHandle(u)).filter(Boolean).map((h) => `@${h}`);
-        chatFail("INVALID", `No teammate answers to @${handle.replace(/^@/, "")}. People here: ${known.join(", ") || "none"}`);
+        const known = peopleOf(roster)
+          .map((u) => memberHandle(u))
+          .filter(Boolean)
+          .map((h) => `@${h}`);
+        chatFail(
+          "INVALID",
+          `No teammate answers to @${handle.replace(/^@/, "")}. People here: ${known.join(", ") || "none"}`,
+        );
       }
       targets.push(match._id);
     }
@@ -1426,15 +1848,23 @@ async function dmOthers(
     if (seen.has(id.toString())) continue;
     seen.add(id.toString());
     const member = await ctx.db.get(id);
-    if (!member || member.is_bot) chatFail("INVALID", "You can only message human teammates");
+    if (!member || member.is_bot)
+      chatFail("INVALID", "You can only message human teammates");
     if (!(await isTeamMember(ctx as any, id, teamId))) {
-      chatFail("INVALID", `${displayName(member)} is not a member of this team`);
+      chatFail(
+        "INVALID",
+        `${displayName(member)} is not a member of this team`,
+      );
     }
     others.push(id);
   }
-  if (others.length === 0) chatFail("INVALID", "Pick at least one person to message (not yourself)");
+  if (others.length === 0)
+    chatFail("INVALID", "Pick at least one person to message (not yourself)");
   if (others.length + 1 > MAX_DM_MEMBERS) {
-    chatFail("INVALID", `A group message holds at most ${MAX_DM_MEMBERS} people`);
+    chatFail(
+      "INVALID",
+      `A group message holds at most ${MAX_DM_MEMBERS} people`,
+    );
   }
   return { others, namedSelf };
 }
@@ -1454,7 +1884,9 @@ export const listPeople = query({
       .query("team_memberships")
       .withIndex("by_team_id", (q: any) => q.eq("team_id", teamId))
       .collect();
-    const roles = new Map(memberships.map((m) => [m.user_id.toString(), m.role]));
+    const roles = new Map(
+      memberships.map((m) => [m.user_id.toString(), m.role]),
+    );
     const people = peopleOf(await teamRoster(ctx, teamId)).map((u) => ({
       _id: u._id,
       name: displayName(u),
@@ -1482,7 +1914,11 @@ export async function ensureDmRoom(
   opts: { client_id?: string; session?: Doc<"conversations"> } = {},
 ): Promise<{ channel: Doc<"chat_channels">; created: boolean }> {
   const dmKey = opts.session
-    ? sessionDmKeyFor(String(teamId), memberIds.map(String), String(opts.session._id))
+    ? sessionDmKeyFor(
+        String(teamId),
+        memberIds.map(String),
+        String(opts.session._id),
+      )
     : dmKeyFor(String(teamId), memberIds.map(String));
   const existing = await ctx.db
     .query("chat_channels")
@@ -1499,12 +1935,16 @@ export async function ensureDmRoom(
   }
   const now = Date.now();
   const session = opts.session;
-  const sessionShortId = session ? (session.short_id ?? String(session._id).slice(0, 7)) : "";
+  const sessionShortId = session
+    ? (session.short_id ?? String(session._id).slice(0, 7))
+    : "";
   const channelId = await ctx.db.insert("chat_channels", {
     team_id: teamId,
     // A people DM has no name: every surface derives it from the members. A
     // session's room is named for the session, the party they talk to.
-    name: session ? oneLine(session.title || `Session ${sessionShortId}`, 80) : "",
+    name: session
+      ? oneLine(session.title || `Session ${sessionShortId}`, 80)
+      : "",
     kind: "dm",
     dm_key: dmKey,
     created_by: createdBy,
@@ -1517,13 +1957,22 @@ export async function ensureDmRoom(
   for (const id of memberIds) {
     if (seen.has(id.toString())) continue;
     seen.add(id.toString());
-    await ctx.db.insert("chat_channel_members", { channel_id: channelId, user_id: id, added_by: createdBy, added_at: now });
+    await ctx.db.insert("chat_channel_members", {
+      channel_id: channelId,
+      user_id: id,
+      added_by: createdBy,
+      added_at: now,
+    });
   }
   // The session is the room's agent member: its owner reads and posts there
   // through it (canAccessChannel), and every line people write reaches it.
   if (session) {
     await ctx.db.insert("chat_channel_agents", {
-      channel_id: channelId, conversation_id: session._id, short_id: sessionShortId, added_by: createdBy, added_at: now,
+      channel_id: channelId,
+      conversation_id: session._id,
+      short_id: sessionShortId,
+      added_by: createdBy,
+      added_at: now,
     });
   }
   return { channel: (await ctx.db.get(channelId))!, created: true };
@@ -1569,10 +2018,16 @@ export const addChannelMembers = mutation({
     const userId = await requireCaller(ctx, args.api_token);
     const channel = await loadChannel(ctx, userId, args.channel_id);
     if (channel.kind === "dm") {
-      chatFail("INVALID", "A direct message's members are fixed — start a group message instead");
+      chatFail(
+        "INVALID",
+        "A direct message's members are fixed — start a group message instead",
+      );
     }
     if (channel.kind !== "private") {
-      chatFail("INVALID", "Public channels don't have a member list — the whole team is in them");
+      chatFail(
+        "INVALID",
+        "Public channels don't have a member list — the whole team is in them",
+      );
     }
     const author = await ctx.db.get(userId);
     const actorName = oneLine(displayName(author), 60);
@@ -1581,16 +2036,26 @@ export const addChannelMembers = mutation({
     const existingCount = (await channelMemberIds(ctx, channel._id)).length;
     for (const id of args.member_ids) {
       const member = await ctx.db.get(id);
-      if (!member || member.is_bot) chatFail("INVALID", "Members must be human teammates");
+      if (!member || member.is_bot)
+        chatFail("INVALID", "Members must be human teammates");
       if (!(await isTeamMember(ctx as any, id, channel.team_id))) {
-        chatFail("INVALID", `${displayName(member)} is not a member of this team`);
+        chatFail(
+          "INVALID",
+          `${displayName(member)} is not a member of this team`,
+        );
       }
       if (await isChannelMember(ctx, channel._id, id)) continue;
       if (existingCount + added.length >= MAX_CHANNEL_MEMBERS) {
-        chatFail("INVALID", `At most ${MAX_CHANNEL_MEMBERS} members per channel`);
+        chatFail(
+          "INVALID",
+          `At most ${MAX_CHANNEL_MEMBERS} members per channel`,
+        );
       }
       await ctx.db.insert("chat_channel_members", {
-        channel_id: channel._id, user_id: id, added_by: userId, added_at: now,
+        channel_id: channel._id,
+        user_id: id,
+        added_by: userId,
+        added_at: now,
       });
       added.push(id);
       await notifyChat(ctx, {
@@ -1630,16 +2095,20 @@ export const removeChannelMember = mutation({
     const removingSelf = args.user_id.toString() === userId.toString();
     if (!removingSelf) {
       const mayManage =
-        channel.created_by.toString() === userId.toString()
-        || (await isTeamAdmin(ctx, userId, channel.team_id));
+        channel.created_by.toString() === userId.toString() ||
+        (await isTeamAdmin(ctx, userId, channel.team_id));
       if (!mayManage) {
-        chatFail("FORBIDDEN", "Only the channel's creator or a team admin can remove members");
+        chatFail(
+          "FORBIDDEN",
+          "Only the channel's creator or a team admin can remove members",
+        );
       }
     }
     const row = await ctx.db
       .query("chat_channel_members")
       .withIndex("by_channel_user", (q: any) =>
-        q.eq("channel_id", channel._id).eq("user_id", args.user_id))
+        q.eq("channel_id", channel._id).eq("user_id", args.user_id),
+      )
       .first();
     if (!row) return { channel_id: channel._id, removed: false };
     await ctx.db.delete(row._id);
@@ -1648,7 +2117,8 @@ export const removeChannelMember = mutation({
     const read = await ctx.db
       .query("chat_reads")
       .withIndex("by_user_channel", (q: any) =>
-        q.eq("user_id", args.user_id).eq("channel_id", channel._id))
+        q.eq("user_id", args.user_id).eq("channel_id", channel._id),
+      )
       .first();
     if (read) await ctx.db.delete(read._id);
     // Their thread follows in this room go the same way: threads.listMine
@@ -1675,24 +2145,36 @@ export const updateChannel = mutation({
     const channel = await loadChannel(ctx, userId, args.channel_id);
     // A DM has no name to change and no topic to set: its identity is who is
     // in it.
-    if (channel.kind === "dm") chatFail("INVALID", "A direct message can't be renamed");
+    if (channel.kind === "dm")
+      chatFail("INVALID", "A direct message can't be renamed");
     const mayEdit = await mayManageChannel(ctx, userId, channel);
-    if (!mayEdit) chatFail("FORBIDDEN", "Only the channel's creator or a team admin can change it");
+    if (!mayEdit)
+      chatFail(
+        "FORBIDDEN",
+        "Only the channel's creator or a team admin can change it",
+      );
 
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) {
       const name = normalizeChannelName(args.name);
-      if (!name) chatFail("INVALID", "Channel name must contain a letter or a number");
+      if (!name)
+        chatFail("INVALID", "Channel name must contain a letter or a number");
       // A mirrored channel is named by its Slack channel; the two never diverge.
       const link = await slackLinkForChannel(ctx, channel._id);
       if (link && name !== channel.name) {
-        chatFail("INVALID", `This channel takes its name from Slack #${link.slack_channel_name ?? link.slack_channel_id}. Rename it in Slack.`);
+        chatFail(
+          "INVALID",
+          `This channel takes its name from Slack #${link.slack_channel_name ?? link.slack_channel_id}. Rename it in Slack.`,
+        );
       }
       patch.name = name;
     }
     if (args.topic !== undefined) {
       if (args.topic.length > MAX_CHANNEL_TOPIC) {
-        chatFail("INVALID", `Topic is longer than ${MAX_CHANNEL_TOPIC} characters`);
+        chatFail(
+          "INVALID",
+          `Topic is longer than ${MAX_CHANNEL_TOPIC} characters`,
+        );
       }
       patch.topic = args.topic || undefined;
     }
@@ -1713,9 +2195,17 @@ export const archiveChannel = mutation({
     const channel = await loadChannel(ctx, userId, args.channel_id);
     // Archiving a DM would hide a conversation someone else can still write
     // to — the mute level is the tool for a DM you're done with.
-    if (channel.kind === "dm") chatFail("INVALID", "A direct message can't be archived — mute it instead");
+    if (channel.kind === "dm")
+      chatFail(
+        "INVALID",
+        "A direct message can't be archived — mute it instead",
+      );
     const mayEdit = await mayManageChannel(ctx, userId, channel);
-    if (!mayEdit) chatFail("FORBIDDEN", "Only the channel's creator or a team admin can archive it");
+    if (!mayEdit)
+      chatFail(
+        "FORBIDDEN",
+        "Only the channel's creator or a team admin can archive it",
+      );
     await patchChat(ctx, args.channel_id, {
       // null, never field-removal: an absent field is invisible to the delta
       // sync, so removing it would leave every client archived forever.
@@ -1734,7 +2224,11 @@ export const archiveChannel = mutation({
 // them once no deployed client calls them. The explicit result types break
 // the type cycle (threads.ts imports this module's types).
 
-type LegacyThreadAuthors = Array<{ _id: Id<"users">; name: string; is_bot: boolean }>;
+type LegacyThreadAuthors = Array<{
+  _id: Id<"users">;
+  name: string;
+  is_bot: boolean;
+}>;
 type LegacyListMyThreads = {
   entries: any[];
   roots: Doc<"chat_messages">[];
@@ -1769,8 +2263,16 @@ export const listMyThreads = query({
       return empty;
     }
     const result: {
-      entries: Array<{ kind: string; root_key: string } & Record<string, unknown>>;
-      payload: { chat: { roots: Doc<"chat_messages">[]; threads: ThreadSummary[]; authors: LegacyThreadAuthors } };
+      entries: Array<
+        { kind: string; root_key: string } & Record<string, unknown>
+      >;
+      payload: {
+        chat: {
+          roots: Doc<"chat_messages">[];
+          threads: ThreadSummary[];
+          authors: LegacyThreadAuthors;
+        };
+      };
       has_more: boolean;
       next_cursor: string | null;
     } = await ctx.runQuery(api.threads.listMine as any, {
@@ -1782,7 +2284,11 @@ export const listMyThreads = query({
     return {
       entries: result.entries
         .filter((entry) => entry.kind === "chat")
-        .map((entry) => ({ ...entry, _id: entry.root_key, root_id: entry.root_key })),
+        .map((entry) => ({
+          ...entry,
+          _id: entry.root_key,
+          root_id: entry.root_key,
+        })),
       roots: result.payload.chat.roots,
       threads: result.payload.chat.threads,
       authors: result.payload.chat.authors,
@@ -1797,12 +2303,18 @@ export const markThreadRead = mutation({
     api_token: v.optional(v.string()),
     root_id: v.id("chat_messages"),
   },
-  handler: async (ctx, args): Promise<{ root_id: Id<"chat_messages">; last_read_at: number | null }> => {
-    const result: { last_read_at: number | null } = await ctx.runMutation(api.threads.markRead as any, {
-      api_token: args.api_token,
-      kind: "chat",
-      root_key: String(args.root_id),
-    });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ root_id: Id<"chat_messages">; last_read_at: number | null }> => {
+    const result: { last_read_at: number | null } = await ctx.runMutation(
+      api.threads.markRead as any,
+      {
+        api_token: args.api_token,
+        kind: "chat",
+        root_key: String(args.root_id),
+      },
+    );
     return { root_id: args.root_id, last_read_at: result.last_read_at };
   },
 });
@@ -1853,7 +2365,8 @@ async function cancelChatPushes(
   const unread = await ctx.db
     .query("notifications")
     .withIndex("by_recipient_read", (q: any) =>
-      q.eq("recipient_user_id", userId).eq("read", false))
+      q.eq("recipient_user_id", userId).eq("read", false),
+    )
     .collect();
 
   const clearedIds = new Set<string>();
@@ -1909,7 +2422,10 @@ export async function purgeChatMembership(
   userId: Id<"users">,
   teamId: Id<"teams">,
 ): Promise<{
-  reads: number; subscriptions: number; notifications: number; pushes: number;
+  reads: number;
+  subscriptions: number;
+  notifications: number;
+  pushes: number;
 }> {
   const reads = await ctx.db
     .query("chat_reads")
@@ -1943,7 +2459,8 @@ export async function purgeChatMembership(
   const subs = await ctx.db
     .query("entity_subscriptions")
     .withIndex("by_user_entity", (q: any) =>
-      q.eq("user_id", userId).eq("entity_type", "chat_channel"))
+      q.eq("user_id", userId).eq("entity_type", "chat_channel"),
+    )
     .collect();
   let subCount = 0;
   for (const sub of subs) {
@@ -1972,7 +2489,8 @@ export async function purgeChatMembership(
   const unread = await ctx.db
     .query("notifications")
     .withIndex("by_recipient_read", (q: any) =>
-      q.eq("recipient_user_id", userId).eq("read", false))
+      q.eq("recipient_user_id", userId).eq("read", false),
+    )
     .collect();
   const dropped = new Set<string>();
   for (const notification of unread) {
@@ -2019,11 +2537,15 @@ export const markRead = mutation({
     // another room's row must not move this mark, so that call changes nothing.
     // Neither throws: a read mark is bookkeeping, and refusing it only reports
     // the client's cache back to it as a failed write.
-    const marker = args.last_read_message_id ? await ctx.db.get(args.last_read_message_id) : null;
+    const marker = args.last_read_message_id
+      ? await ctx.db.get(args.last_read_message_id)
+      : null;
     if (marker && marker.channel_id.toString() !== channel._id.toString()) {
       const existing = await ctx.db
         .query("chat_reads")
-        .withIndex("by_user_channel", (q: any) => q.eq("user_id", userId).eq("channel_id", channel._id))
+        .withIndex("by_user_channel", (q: any) =>
+          q.eq("user_id", userId).eq("channel_id", channel._id),
+        )
         .first();
       return {
         channel_id: channel._id,
@@ -2046,16 +2568,29 @@ export const markRead = mutation({
       // past Date.now(); a mark at `now` would leave it unread for good.
       const newest = await ctx.db
         .query("chat_messages")
-        .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
+        .withIndex("by_channel_created", (q: any) =>
+          q.eq("channel_id", channel._id),
+        )
         .order("desc")
         .first();
       if (newest && newest.created_at > readAt) readAt = newest.created_at;
     }
     await upsertRead(
-      ctx, userId, channel.team_id, channel._id, readAt, marker?._id, undefined,
+      ctx,
+      userId,
+      channel.team_id,
+      channel._id,
+      readAt,
+      marker?._id,
+      undefined,
     );
 
-    const { cleared, pushes } = await cancelChatPushes(ctx, userId, channel._id, readAt);
+    const { cleared, pushes } = await cancelChatPushes(
+      ctx,
+      userId,
+      channel._id,
+      readAt,
+    );
     return {
       channel_id: channel._id,
       last_read_at: readAt,
@@ -2069,13 +2604,23 @@ export const setNotifyLevel = mutation({
   args: {
     api_token: v.optional(v.string()),
     channel_id: v.id("chat_channels"),
-    notify_level: v.union(v.literal("all"), v.literal("mentions"), v.literal("none")),
+    notify_level: v.union(
+      v.literal("all"),
+      v.literal("mentions"),
+      v.literal("none"),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const channel = await loadChannel(ctx, userId, args.channel_id);
     await upsertRead(
-      ctx, userId, channel.team_id, channel._id, 0, undefined, args.notify_level,
+      ctx,
+      userId,
+      channel.team_id,
+      channel._id,
+      0,
+      undefined,
+      args.notify_level,
     );
     return { channel_id: channel._id, notify_level: args.notify_level };
   },
@@ -2094,19 +2639,32 @@ export const setThreadMuted = mutation({
     const root = await ctx.db.get(args.root_id);
     if (!root || root.thread_root_id) chatFail("NOT_FOUND", "Thread not found");
     const channel = await loadChannel(ctx, userId, root.channel_id);
-    await upsertRead(ctx, userId, channel.team_id, channel._id, 0, undefined, undefined);
+    await upsertRead(
+      ctx,
+      userId,
+      channel.team_id,
+      channel._id,
+      0,
+      undefined,
+      undefined,
+    );
     const read = await ctx.db
       .query("chat_reads")
-      .withIndex("by_user_channel", (q: any) => q.eq("user_id", userId).eq("channel_id", channel._id))
+      .withIndex("by_user_channel", (q: any) =>
+        q.eq("user_id", userId).eq("channel_id", channel._id),
+      )
       .first();
-    const muted_threads = withThreadMuted(read!.muted_threads, String(root._id), args.muted);
+    const muted_threads = withThreadMuted(
+      read!.muted_threads,
+      String(root._id),
+      args.muted,
+    );
     await patchChat(ctx, read!._id, { muted_threads });
     return { root_id: root._id, muted: args.muted };
   },
 });
 
 // ── Sending ─────────────────────────────────────────────────────────────────
-
 
 export async function findByClientId(
   ctx: ReadCtx,
@@ -2116,7 +2674,8 @@ export async function findByClientId(
   return await ctx.db
     .query("chat_messages")
     .withIndex("by_channel_client_id", (q: any) =>
-      q.eq("channel_id", channelId).eq("client_id", clientId))
+      q.eq("channel_id", channelId).eq("client_id", clientId),
+    )
     .first();
 }
 
@@ -2138,7 +2697,9 @@ export async function channelForRoom(
   if (parsed.kind === "dm") {
     return await ctx.db
       .query("chat_channels")
-      .withIndex("by_dm_key", (q: any) => q.eq("dm_key", dmKeyFor(String(teamId), parsed.users)))
+      .withIndex("by_dm_key", (q: any) =>
+        q.eq("dm_key", dmKeyFor(String(teamId), parsed.users)),
+      )
       .first();
   }
   return null;
@@ -2152,22 +2713,40 @@ export async function channelForRoom(
 // stays in the room the key names.
 async function digestChannel(
   ctx: MutationCtx,
-  args: { transcript_id: Id<"transcripts">; room_key: string; team_id: Id<"teams">; author: Id<"users"> },
+  args: {
+    transcript_id: Id<"transcripts">;
+    room_key: string;
+    team_id: Id<"teams">;
+    author: Id<"users">;
+  },
 ): Promise<Doc<"chat_channels"> | null> {
   const parsed = parseRoomKey(args.room_key);
-  if (parsed?.kind !== "dm") return await channelForRoom(ctx, args.room_key, args.team_id);
+  if (parsed?.kind !== "dm")
+    return await channelForRoom(ctx, args.room_key, args.team_id);
   const members = new Set(parsed.users);
   const transcript = await ctx.db.get(args.transcript_id);
   for (const p of transcript?.participants ?? []) {
     if (members.has(p.id)) continue;
     const id = ctx.db.normalizeId("users", p.id);
     const user = id ? await ctx.db.get(id) : null;
-    if (user && !user.is_bot && (await isTeamMember(ctx as any, user._id, args.team_id))) members.add(p.id);
+    if (
+      user &&
+      !user.is_bot &&
+      (await isTeamMember(ctx as any, user._id, args.team_id))
+    )
+      members.add(p.id);
   }
   if (members.size === parsed.users.length || members.size > MAX_DM_MEMBERS) {
     return await channelForRoom(ctx, args.room_key, args.team_id);
   }
-  return (await ensureDmRoom(ctx, args.team_id, [...members] as Id<"users">[], args.author)).channel;
+  return (
+    await ensureDmRoom(
+      ctx,
+      args.team_id,
+      [...members] as Id<"users">[],
+      args.author,
+    )
+  ).channel;
 }
 
 // The row a finished huddle leaves in its chat room (digestChannel): the
@@ -2185,7 +2764,10 @@ export const postCallDigest = internalMutation({
     author: v.id("users"),
     content: v.string(),
   },
-  handler: async (ctx, args): Promise<{ posted: boolean; message_id?: Id<"chat_messages"> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ posted: boolean; message_id?: Id<"chat_messages"> }> => {
     const channel = await digestChannel(ctx, args);
     if (!channel || channel.archived_at) return { posted: false };
     const clientId = `${HUDDLE_DIGEST_CLIENT_ID_PREFIX}${args.transcript_id}`;
@@ -2197,7 +2779,8 @@ export const postCallDigest = internalMutation({
       if (!already.deleted_at && already.content !== args.content) {
         await patchChat(ctx, already._id, { content: args.content });
         const updated = await ctx.db.get(already._id);
-        if (updated) await queueSlackOutbound(ctx, { op: "edit", message: updated });
+        if (updated)
+          await queueSlackOutbound(ctx, { op: "edit", message: updated });
       }
       return { posted: false, message_id: already._id };
     }
@@ -2216,10 +2799,22 @@ export const postCallDigest = internalMutation({
 
 /** A call record folded into another (huddleBackfill): its digest card
  *  speaks for a call that no longer exists on its own, so it comes down. */
-export async function retireCallDigest(ctx: MutationCtx, t: Doc<"transcripts">): Promise<boolean> {
-  const channel = await digestChannel(ctx, { transcript_id: t._id, room_key: t.room_key, team_id: t.team_id, author: t.started_by });
+export async function retireCallDigest(
+  ctx: MutationCtx,
+  t: Doc<"transcripts">,
+): Promise<boolean> {
+  const channel = await digestChannel(ctx, {
+    transcript_id: t._id,
+    room_key: t.room_key,
+    team_id: t.team_id,
+    author: t.started_by,
+  });
   if (!channel) return false;
-  const card = await findByClientId(ctx, channel._id, `${HUDDLE_DIGEST_CLIENT_ID_PREFIX}${t._id}`);
+  const card = await findByClientId(
+    ctx,
+    channel._id,
+    `${HUDDLE_DIGEST_CLIENT_ID_PREFIX}${t._id}`,
+  );
   if (!card || card.deleted_at) return false;
   await tombstoneChatMessage(ctx, card._id);
   await queueSlackOutbound(ctx, { op: "delete", message: card });
@@ -2272,7 +2867,10 @@ export const sendMessage = mutation({
       chatFail("INVALID", "A message needs text or an attachment");
     }
     if (content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Message is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Message is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
     if (attachments.length > MAX_ATTACHMENTS) {
       chatFail("INVALID", `At most ${MAX_ATTACHMENTS} attachments per message`);
@@ -2283,11 +2881,16 @@ export const sendMessage = mutation({
     if (args.client_id) {
       const duplicate = await findByClientId(ctx, channel._id, args.client_id);
       if (duplicate) {
-        const matches = duplicate.user_id.toString() === userId.toString()
-          && duplicate.content === content
-          && String(duplicate.thread_root_id ?? "") === String(args.thread_root_id ?? "");
+        const matches =
+          duplicate.user_id.toString() === userId.toString() &&
+          duplicate.content === content &&
+          String(duplicate.thread_root_id ?? "") ===
+            String(args.thread_root_id ?? "");
         if (!matches) {
-          chatFail("CONFLICT", "This client id is already bound to a different message");
+          chatFail(
+            "CONFLICT",
+            "This client id is already bound to a different message",
+          );
         }
         // The same shape as a fresh send, zeroed: a retry woke nobody and
         // relayed nothing, and a caller must not have to branch on `created`.
@@ -2297,8 +2900,18 @@ export const sendMessage = mutation({
           created: false,
           mentioned: 0,
           here_notified: 0,
-          mention_wakes: { roles: 0, sessions: 0, folded: 0, skipped: [] } as MentionWakeResult,
-          session_relay: { delivered: false, skipped: null, session_short_id: null, conversation_id: null } as RelayResult,
+          mention_wakes: {
+            roles: 0,
+            sessions: 0,
+            folded: 0,
+            skipped: [],
+          } as MentionWakeResult,
+          session_relay: {
+            delivered: false,
+            skipped: null,
+            session_short_id: null,
+            conversation_id: null,
+          } as RelayResult,
           anchor_thinking_message_id: null,
           anchor_listening: false,
           anchor_wake_skipped: null,
@@ -2312,7 +2925,8 @@ export const sendMessage = mutation({
       if (!root || root.channel_id.toString() !== channel._id.toString()) {
         chatFail("INVALID", "That thread is not in this channel");
       }
-      if (root.thread_root_id) chatFail("INVALID", "Threads are flat: reply to the root message");
+      if (root.thread_root_id)
+        chatFail("INVALID", "Threads are flat: reply to the root message");
     }
 
     await chatRateLimit(ctx, userId, "chat.send", SEND_LIMIT);
@@ -2320,21 +2934,27 @@ export const sendMessage = mutation({
     // a degraded send: the line is the noise the rule exists to stop.
     const sender = await ctx.db.get(userId);
     if (sender?.is_bot || args.origin === "agent") {
-      await enforceAgentPostQuota(ctx, channel, agentPosterKey(userId, args.origin_session_id), !root);
+      await enforceAgentPostQuota(
+        ctx,
+        channel,
+        agentPosterKey(userId, args.origin_session_id),
+        !root,
+      );
     }
-    const { messageId, mentions, roles, sessions, hereCount, actorName } = await postChatMessage(ctx, {
-      channel,
-      root,
-      authorId: userId,
-      content,
-      attachments,
-      clientId: args.client_id,
-      origin: args.origin,
-      originSessionId: args.origin ? args.origin_session_id : undefined,
-      contextSessionId: args.context_session_id,
-      broadcast: args.broadcast,
-      syncLocalOnly: args.sync_local_only,
-    });
+    const { messageId, mentions, roles, sessions, hereCount, actorName } =
+      await postChatMessage(ctx, {
+        channel,
+        root,
+        authorId: userId,
+        content,
+        attachments,
+        clientId: args.client_id,
+        origin: args.origin,
+        originSessionId: args.origin ? args.origin_session_id : undefined,
+        contextSessionId: args.context_session_id,
+        broadcast: args.broadcast,
+        syncLocalOnly: args.sync_local_only,
+      });
 
     // The wake is a SIDE EFFECT of the send, and it is the only part of this
     // transaction the sender did not ask for — so it is never allowed to veto the
@@ -2349,19 +2969,34 @@ export const sendMessage = mutation({
     if (message) await closeSessionReplyOnAnswer(ctx, message);
     // A reply on a thread a session started goes back into that session, and
     // a failure there never costs the message, like the wake below.
-    let relay: RelayResult = { delivered: false, skipped: null, session_short_id: null, conversation_id: null };
+    let relay: RelayResult = {
+      delivered: false,
+      skipped: null,
+      session_short_id: null,
+      conversation_id: null,
+    };
     if (message) {
       try {
         // A line at the top of a DM that answers a session's line there goes
         // to that session, as a reply on that line would.
-        const answered = root ? null : await dmSessionLineAnswered(ctx, channel, message);
+        const answered = root
+          ? null
+          : await dmSessionLineAnswered(ctx, channel, message);
         relay = await maybeRelayToOriginSession(ctx, {
-          channel, message, root: root ?? answered, senderId: userId, senderName: actorName, inline: !!answered,
+          channel,
+          message,
+          root: root ?? answered,
+          senderId: userId,
+          senderName: actorName,
+          inline: !!answered,
         });
       } catch (error) {
         relay = {
           delivered: false,
-          skipped: error instanceof ConvexError ? String((error.data as any)?.code ?? "error") : "error",
+          skipped:
+            error instanceof ConvexError
+              ? String((error.data as any)?.code ?? "error")
+              : "error",
           session_short_id: null,
           conversation_id: null,
         };
@@ -2382,16 +3017,20 @@ export const sendMessage = mutation({
           senderName: actorName,
           mentions,
           roles,
-          relayedTo: relay.delivered || relay.skipped === "folded" ? relay.conversation_id : null,
+          relayedTo:
+            relay.delivered || relay.skipped === "folded"
+              ? relay.conversation_id
+              : null,
         });
         anchor = woke.placeholder_id;
         wakeSkipped = woke.skipped;
         listening = !!woke.listening;
         answeredBySeat = woke.seat_role_id;
       } catch (error) {
-        wakeSkipped = error instanceof ConvexError
-          ? String((error.data as any)?.code ?? "error")
-          : "error";
+        wakeSkipped =
+          error instanceof ConvexError
+            ? String((error.data as any)?.code ?? "error")
+            : "error";
       }
     }
 
@@ -2402,38 +3041,75 @@ export const sendMessage = mutation({
     const personLine = !sender?.is_bot && args.origin !== "agent";
     const agentMembers = await channelAgentRows(ctx, channel._id);
     const takesTurns = roomTakesTurns(channel, agentMembers);
-    const memberIds = new Set((takesTurns || personLine ? agentMembers : []).map((row) => String(row.role_id ?? row.conversation_id)));
-    let mentionWakes: MentionWakeResult = { roles: 0, sessions: 0, folded: 0, skipped: [] };
+    const memberIds = new Set(
+      (takesTurns || personLine ? agentMembers : []).map((row) =>
+        String(row.role_id ?? row.conversation_id),
+      ),
+    );
+    let mentionWakes: MentionWakeResult = {
+      roles: 0,
+      sessions: 0,
+      folded: 0,
+      skipped: [],
+    };
     if (message && (roles.length > 0 || sessions.length > 0)) {
       try {
         mentionWakes = await wakeMentionedParties(ctx, {
-          channel, message, root, senderId: userId, senderName: actorName, roles, sessions, members: memberIds,
+          channel,
+          message,
+          root,
+          senderId: userId,
+          senderName: actorName,
+          roles,
+          sessions,
+          members: memberIds,
           // The thread relay above already handed this line to that session,
           // or folded it there past the hourly caps: naming the thread's own
           // session must not cost it a second turn or the sender a second wake.
-          alreadyDelivered: relay.delivered || relay.skipped === "folded" ? relay.conversation_id : null,
+          alreadyDelivered:
+            relay.delivered || relay.skipped === "folded"
+              ? relay.conversation_id
+              : null,
           answeredBySeat,
         });
       } catch (error) {
         mentionWakes.skipped.push(
-          error instanceof ConvexError ? String((error.data as any)?.code ?? "error") : "error",
+          error instanceof ConvexError
+            ? String((error.data as any)?.code ?? "error")
+            : "error",
         );
       }
     }
     let round: RoundResult = null;
     if (message && takesTurns) {
       try {
-        round = await onRoomLine(ctx, { channel, message, root, rows: agentMembers, byPerson: personLine });
+        round = await onRoomLine(ctx, {
+          channel,
+          message,
+          root,
+          rows: agentMembers,
+          byPerson: personLine,
+        });
       } catch (error) {
         mentionWakes.skipped.push(
-          error instanceof ConvexError ? String((error.data as any)?.code ?? "error") : "error",
+          error instanceof ConvexError
+            ? String((error.data as any)?.code ?? "error")
+            : "error",
         );
       }
     } else if (message && personLine && agentMembers.length > 0) {
       try {
         const reached = await deliverToChannelAgents(ctx, {
-          channel, message, root, senderId: userId, senderName: actorName, rows: agentMembers,
-          alreadyDelivered: relay.delivered || relay.skipped === "folded" ? relay.conversation_id : null,
+          channel,
+          message,
+          root,
+          senderId: userId,
+          senderName: actorName,
+          rows: agentMembers,
+          alreadyDelivered:
+            relay.delivered || relay.skipped === "folded"
+              ? relay.conversation_id
+              : null,
           answeredBySeat,
         });
         mentionWakes.roles += reached.roles;
@@ -2441,7 +3117,9 @@ export const sendMessage = mutation({
         mentionWakes.skipped.push(...reached.skipped);
       } catch (error) {
         mentionWakes.skipped.push(
-          error instanceof ConvexError ? String((error.data as any)?.code ?? "error") : "error",
+          error instanceof ConvexError
+            ? String((error.data as any)?.code ?? "error")
+            : "error",
         );
       }
     }
@@ -2453,14 +3131,27 @@ export const sendMessage = mutation({
     const threadRelays: string[] = [];
     if (message && root && personLine && !takesTurns) {
       const reached = new Set<string>([
-        ...[relay.conversation_id, root.bound_session_id, root.origin_session_id, message.origin_session_id].filter((id): id is string => !!id),
+        ...[
+          relay.conversation_id,
+          root.bound_session_id,
+          root.origin_session_id,
+          message.origin_session_id,
+        ].filter((id): id is string => !!id),
         ...sessions.map((c) => String(c._id)),
         ...memberIds,
       ]);
       for (const participant of await threadPosters(ctx, root, reached)) {
         try {
-          const r = await maybeRelayToOriginSession(ctx, { channel, message, root, senderId: userId, senderName: actorName, participant });
-          if (r.delivered && r.session_short_id) threadRelays.push(r.session_short_id);
+          const r = await maybeRelayToOriginSession(ctx, {
+            channel,
+            message,
+            root,
+            senderId: userId,
+            senderName: actorName,
+            participant,
+          });
+          if (r.delivered && r.session_short_id)
+            threadRelays.push(r.session_short_id);
         } catch {
           // A failed relay never costs the message.
         }
@@ -2494,14 +3185,19 @@ export const sendMessage = mutation({
   },
 });
 
-
 // The session a line came from, for the trigger match: the session that typed
 // it, or the seat session of the anchor (a role's standing session) voicing
 // it, so a project's main session never wakes on its own reply.
-async function lineSessionId(ctx: MutationCtx, originSessionId: string | undefined, anchorId: Id<"anchors"> | undefined): Promise<{ origin_conversation_id?: string }> {
+async function lineSessionId(
+  ctx: MutationCtx,
+  originSessionId: string | undefined,
+  anchorId: Id<"anchors"> | undefined,
+): Promise<{ origin_conversation_id?: string }> {
   if (originSessionId) return { origin_conversation_id: originSessionId };
   const anchor = anchorId ? await ctx.db.get(anchorId) : null;
-  return anchor?.conversation_id ? { origin_conversation_id: String(anchor.conversation_id) } : {};
+  return anchor?.conversation_id
+    ? { origin_conversation_id: String(anchor.conversation_id) }
+    : {};
 }
 
 // The one insert-and-notify path for a chat line, whether a person or the
@@ -2556,8 +3252,13 @@ export async function postChatMessage(
   createdAt: number;
 }> {
   const { channel, root, authorId, content, attachments } = opts;
-  const now = opts.createdAt ?? await nextChatStamp(ctx, channel._id);
-  const resolved = await resolveChatMentions(ctx, channel.team_id, content, authorId);
+  const now = opts.createdAt ?? (await nextChatStamp(ctx, channel._id));
+  const resolved = await resolveChatMentions(
+    ctx,
+    channel.team_id,
+    content,
+    authorId,
+  );
   const mentions = resolved.users;
   const here = mentionsHere(content);
   if (here) await chatRateLimit(ctx, authorId, "chat.here", HERE_LIMIT);
@@ -2567,7 +3268,9 @@ export async function postChatMessage(
   // holder could dress a line as a teammate's private session by guessing its
   // id. Store the canonical conversation id, not the native Claude/Codex id the
   // CLI has on hand, because this field is also the UI's conversation link.
-  let originSession: { id: string; title?: string; agent_type?: string } | undefined;
+  let originSession:
+    | { id: string; title?: string; agent_type?: string }
+    | undefined;
   if (opts.origin === "agent" && opts.originSessionId) {
     const conv = await findConversationByAnyRefWhere(
       ctx,
@@ -2583,17 +3286,25 @@ export async function postChatMessage(
     }
   }
 
-  const contextConv = opts.contextSessionId ? await ctx.db.get(opts.contextSessionId) : null;
-  const contextSessionId = contextConv && await canOwnerOrTeamAccess(ctx, authorId, contextConv)
-    ? contextConv._id
-    : undefined;
+  const contextConv = opts.contextSessionId
+    ? await ctx.db.get(opts.contextSessionId)
+    : null;
+  const contextSessionId =
+    contextConv && (await canOwnerOrTeamAccess(ctx, authorId, contextConv))
+      ? contextConv._id
+      : undefined;
 
   // A session speaking as its role (sessionVoice): the line wears the bot's
   // name and the anchor pointer, the way sendAsAnchor's lines do.
   let authorUserId: Id<"users"> = authorId;
   let agent = opts.agent;
   if (originSession && !agent) {
-    const voice = await sessionVoice(ctx, authorId, await ctx.db.get(originSession.id as Id<"conversations">), channel);
+    const voice = await sessionVoice(
+      ctx,
+      authorId,
+      await ctx.db.get(originSession.id as Id<"conversations">),
+      channel,
+    );
     if (voice) {
       authorUserId = voice.user_id;
       agent = { anchorId: voice.anchor._id };
@@ -2607,7 +3318,9 @@ export async function postChatMessage(
     broadcast: root && opts.broadcast ? true : undefined,
     user_id: authorUserId,
     author_kind: agent ? "agent" : "user",
-    ...(agent ? { agent_status: "done" as const, agent_anchor_id: agent.anchorId } : {}),
+    ...(agent
+      ? { agent_status: "done" as const, agent_anchor_id: agent.anchorId }
+      : {}),
     content,
     mentions: resolved.refs.length > 0 ? (resolved.refs as any) : undefined,
     mention_scope: here ? "here" : undefined,
@@ -2630,7 +3343,8 @@ export async function postChatMessage(
   // line. Decided here so every writer (a person, the anchor, a call digest)
   // gets the same answer.
   const inserted = await ctx.db.get(messageId);
-  if (inserted) await queueSlackOutbound(ctx, { op: "message", message: inserted });
+  if (inserted)
+    await queueSlackOutbound(ctx, { op: "message", message: inserted });
 
   // A Slack person with no codecast account authors as the workspace bridge;
   // the snapshot on the row is who actually spoke, and bells must name them.
@@ -2638,32 +3352,36 @@ export async function postChatMessage(
   // theirs: the bell and the phone name the huddle, as the transcript does.
   // A line voiced as a role (above) is the role's: its bells name the bot.
   const voiced = authorUserId !== authorId;
-  const actorLabel = (voiced ? undefined : originSession?.title) ?? opts.externalAuthor?.name ?? (opts.call ? "Huddle" : undefined);
+  const actorLabel =
+    (voiced ? undefined : originSession?.title) ??
+    opts.externalAuthor?.name ??
+    (opts.call ? "Huddle" : undefined);
   const { hereCount, actorName } = opts.history
     ? { hereCount: 0, actorName: await actorNameFor(ctx, authorId, actorLabel) }
     : await announceChatMessage(ctx, {
-      channel,
-      root,
-      messageId,
-      authorId,
-      content,
-      attachments,
-      mentions,
-      here,
-      createdAt: now,
-      agent: !!opts.agent,
-      agentLine: !!opts.agent || opts.origin === "agent",
-      actorLabel,
-      actorAvatar: opts.externalAuthor?.avatar_url,
-      actorUserId: voiced ? authorUserId : undefined,
-    });
+        channel,
+        root,
+        messageId,
+        authorId,
+        content,
+        attachments,
+        mentions,
+        here,
+        createdAt: now,
+        agent: !!opts.agent,
+        agentLine: !!opts.agent || opts.origin === "agent",
+        actorLabel,
+        actorAvatar: opts.externalAuthor?.avatar_url,
+        actorUserId: voiced ? authorUserId : undefined,
+      });
 
   // A project watching this channel hears the line (trigger event
   // chat_message). History is not news, and a DM room is nobody's source.
   // Sources bring people's input to a project, so a line an agent wrote (a
   // session, an anchor, a role's voice) wakes no project: two projects
   // watching one channel would otherwise wake each other back and forth.
-  const agentWrote = !!opts.agent || opts.origin === "agent" || !!originSession || voiced;
+  const agentWrote =
+    !!opts.agent || opts.origin === "agent" || !!originSession || voiced;
   if (!opts.history && channel.kind !== "dm" && !agentWrote) {
     await scheduleTriggerMatch(ctx, {
       event_type: "chat_message",
@@ -2678,7 +3396,15 @@ export async function postChatMessage(
     });
   }
 
-  return { messageId, mentions, roles: resolved.roles, sessions: resolved.sessions, hereCount, actorName, createdAt: now };
+  return {
+    messageId,
+    mentions,
+    roles: resolved.roles,
+    sessions: resolved.sessions,
+    hereCount,
+    actorName,
+    createdAt: now,
+  };
 }
 
 // One-time backfill of chat_session_rooms from the wakes chat delivered before
@@ -2694,15 +3420,22 @@ export const backfillSessionRooms = internalMutation({
     phase: v.optional(v.literal("mentions")),
   },
   handler: async (ctx, args) => {
-    if (args.phase === "mentions") return await backfillMentionGrants(ctx, args.cursor, args.granted ?? 0);
+    if (args.phase === "mentions")
+      return await backfillMentionGrants(ctx, args.cursor, args.granted ?? 0);
     // Wake rows carry whole prompts: bound the page by bytes as well as rows.
-    const page = await ctx.db.query("pending_messages").paginate({ numItems: 200, cursor: args.cursor ?? null, maximumBytesRead: 4_000_000 });
+    const page = await ctx.db.query("pending_messages").paginate({
+      numItems: 200,
+      cursor: args.cursor ?? null,
+      maximumBytesRead: 4_000_000,
+    });
     let granted = args.granted ?? 0;
     for (const wake of page.page) {
       const relay = parseChatRelayClientId(wake.client_id);
       const mention = relay ? null : parseChatMentionClientId(wake.client_id);
       const messageId = relay ?? mention?.message;
-      const normalized = messageId ? ctx.db.normalizeId("chat_messages", messageId) : null;
+      const normalized = messageId
+        ? ctx.db.normalizeId("chat_messages", messageId)
+        : null;
       const message = normalized ? await ctx.db.get(normalized) : null;
       if (!message) continue;
       const channel = await ctx.db.get(message.channel_id);
@@ -2711,27 +3444,73 @@ export const backfillSessionRooms = internalMutation({
       // A hand-off's brief rides a relay key too (chatHandoff): the thread's
       // root names the session it was handed to, and a hand-off opens the room
       // whoever wrote the handed line.
-      const root = message.thread_root_id ? await ctx.db.get(message.thread_root_id) : message;
+      const root = message.thread_root_id
+        ? await ctx.db.get(message.thread_root_id)
+        : message;
       if (relay && root?.bound_session_id === String(target._id)) {
-        if (await grantSessionRoom(ctx, channel, grantTargetOf(target), "backfill")) granted++;
+        if (
+          await grantSessionRoom(
+            ctx,
+            channel,
+            grantTargetOf(target),
+            "backfill",
+          )
+        )
+          granted++;
         continue;
       }
-      if (message.origin === "agent" || message.author_kind === "agent") continue;
+      if (message.origin === "agent" || message.author_kind === "agent")
+        continue;
       // A room member's wake (the member rail) grants nothing live: membership answers.
-      if ((await channelAgentRows(ctx, channel._id)).some((row) => String(row.conversation_id ?? "") === String(target._id))) continue;
-      if (await grantSessionRoom(ctx, channel, grantTargetOf(target), "backfill", relay ? message.thread_root_id ?? message._id : undefined)) granted++;
+      if (
+        (await channelAgentRows(ctx, channel._id)).some(
+          (row) => String(row.conversation_id ?? "") === String(target._id),
+        )
+      )
+        continue;
+      if (
+        await grantSessionRoom(
+          ctx,
+          channel,
+          grantTargetOf(target),
+          "backfill",
+          relay ? (message.thread_root_id ?? message._id) : undefined,
+        )
+      )
+        granted++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, { cursor: page.continueCursor, granted });
-    else await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, { phase: "mentions", granted });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, {
+        cursor: page.continueCursor,
+        granted,
+      });
+    else
+      await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, {
+        phase: "mentions",
+        granted,
+      });
   },
 });
 
-async function backfillMentionGrants(ctx: MutationCtx, cursor: string | undefined, grantedSoFar: number): Promise<void> {
-  const page = await ctx.db.query("chat_messages").paginate({ numItems: 200, cursor: cursor ?? null, maximumBytesRead: 4_000_000 });
+async function backfillMentionGrants(
+  ctx: MutationCtx,
+  cursor: string | undefined,
+  grantedSoFar: number,
+): Promise<void> {
+  const page = await ctx.db.query("chat_messages").paginate({
+    numItems: 200,
+    cursor: cursor ?? null,
+    maximumBytesRead: 4_000_000,
+  });
   let granted = grantedSoFar;
   const kinds = new Map<string, Doc<"chat_channels"> | null>();
   for (const row of page.page) {
-    if (!row.mentions?.length || row.origin === "agent" || row.author_kind === "agent") continue;
+    if (
+      !row.mentions?.length ||
+      row.origin === "agent" ||
+      row.author_kind === "agent"
+    )
+      continue;
     const key = String(row.channel_id);
     if (!kinds.has(key)) kinds.set(key, await ctx.db.get(row.channel_id));
     const channel = kinds.get(key);
@@ -2739,17 +3518,46 @@ async function backfillMentionGrants(ctx: MutationCtx, cursor: string | undefine
     for (const m of row.mentions as any[]) {
       if (typeof m !== "object" || !m) continue;
       if (m.kind === "session") {
-        const target = await ctx.db.get(m.conversation_id as Id<"conversations">);
-        if (target && await grantSessionRoom(ctx, channel, grantTargetOf(target), "backfill")) granted++;
+        const target = await ctx.db.get(
+          m.conversation_id as Id<"conversations">,
+        );
+        if (
+          target &&
+          (await grantSessionRoom(
+            ctx,
+            channel,
+            grantTargetOf(target),
+            "backfill",
+          ))
+        )
+          granted++;
       } else if (m.kind === "role") {
         const role = await ctx.db.get(m.role_id as Id<"org_roles">);
-        const anchor = role?.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-        const answerer = anchor?.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
-        if (answerer && await grantSessionRoom(ctx, channel, grantTargetOf(answerer), "backfill")) granted++;
+        const anchor = role?.anchor_id
+          ? await ctx.db.get(role.anchor_id)
+          : null;
+        const answerer = anchor?.conversation_id
+          ? await ctx.db.get(anchor.conversation_id)
+          : null;
+        if (
+          answerer &&
+          (await grantSessionRoom(
+            ctx,
+            channel,
+            grantTargetOf(answerer),
+            "backfill",
+          ))
+        )
+          granted++;
       }
     }
   }
-  if (!page.isDone) await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, { phase: "mentions", cursor: page.continueCursor, granted });
+  if (!page.isDone)
+    await ctx.scheduler.runAfter(0, internal.chat.backfillSessionRooms, {
+      phase: "mentions",
+      cursor: page.continueCursor,
+      granted,
+    });
   else console.log(`backfillSessionRooms: ${granted} grants written`);
 }
 
@@ -2760,7 +3568,11 @@ export const repairMissingOriginSession = internalMutation({
   },
   handler: async (ctx, args) => {
     const message = await ctx.db.get(args.message_id);
-    if (!message || message.origin !== "agent" || message.author_kind === "agent") {
+    if (
+      !message ||
+      message.origin !== "agent" ||
+      message.author_kind === "agent"
+    ) {
       throw new Error("Message is not session-authored");
     }
     const conversation = await findConversationByAnyRefWhere(
@@ -2768,14 +3580,16 @@ export const repairMissingOriginSession = internalMutation({
       args.session_ref,
       (candidate) => isConversationOwner(ctx, message.user_id, candidate),
     );
-    if (!conversation) throw new Error("Session is not owned by the message author");
+    if (!conversation)
+      throw new Error("Session is not owned by the message author");
     const sessionId = conversation._id.toString();
     const title = sessionLineTitle(conversation.title);
     if (
-      message.origin_session_id === sessionId
-      && message.origin_session_title === title
-      && message.origin_agent_type === conversation.agent_type
-    ) return { repaired: false };
+      message.origin_session_id === sessionId &&
+      message.origin_session_title === title &&
+      message.origin_agent_type === conversation.agent_type
+    )
+      return { repaired: false };
     await patchChat(ctx, message._id, {
       origin_session_id: sessionId,
       origin_session_title: title,
@@ -2789,7 +3603,11 @@ export const repairMissingOriginSession = internalMutation({
 // body: a display name is self-editable and goes into the bell and the phone
 // banner ahead of the text, where a bidi override or a fake "…mentioned you in
 // #security:" prefix makes the banner read as if someone else sent it.
-async function actorNameFor(ctx: MutationCtx, authorId: Id<"users">, actorLabel?: string): Promise<string> {
+async function actorNameFor(
+  ctx: MutationCtx,
+  authorId: Id<"users">,
+  actorLabel?: string,
+): Promise<string> {
   if (actorLabel) return oneLine(actorLabel, 60);
   return oneLine(displayName(await ctx.db.get(authorId)), 60);
 }
@@ -2833,7 +3651,8 @@ async function announceChatMessage(
     pushFallback?: string;
   },
 ): Promise<{ hereCount: number; actorName: string }> {
-  const { channel, root, messageId, authorId, content, attachments, mentions } = opts;
+  const { channel, root, messageId, authorId, content, attachments, mentions } =
+    opts;
   const here = opts.here;
   const now = opts.createdAt;
   // Posting is reading: you have obviously seen everything above your own line.
@@ -2843,7 +3662,16 @@ async function announceChatMessage(
   // setting the sender never touched. (A first post still joins the channel at
   // "all" — that is `upsertRead`'s insert default, not an instruction.) A bot
   // has no read position and no bell.
-  if (!opts.agent) await upsertRead(ctx, authorId, channel.team_id, channel._id, now, messageId, undefined);
+  if (!opts.agent)
+    await upsertRead(
+      ctx,
+      authorId,
+      channel.team_id,
+      channel._id,
+      now,
+      messageId,
+      undefined,
+    );
 
   const actorId = opts.actorUserId ?? authorId;
   const actorName = await actorNameFor(ctx, actorId, opts.actorLabel);
@@ -2852,11 +3680,18 @@ async function announceChatMessage(
   // The banner's "where" line. A 1:1 DM gets none — the title already names
   // the person, and "Direct message" under their name is noise.
   const inThread = !!root;
-  const channelWhere = inThread ? `thread · #${channel.name}` : `#${channel.name}`;
+  const channelWhere = inThread
+    ? `thread · #${channel.name}`
+    : `#${channel.name}`;
   // The words alone; a wordless message says what it carries instead.
-  const pushBody = preview || opts.pushFallback || (attachments.length > 0
-    ? (attachments.length === 1 ? "📷 Photo" : `📷 ${attachments.length} photos`)
-    : preview);
+  const pushBody =
+    preview ||
+    opts.pushFallback ||
+    (attachments.length > 0
+      ? attachments.length === 1
+        ? "📷 Photo"
+        : `📷 ${attachments.length} photos`
+      : preview);
   const notified = new Set<string>([authorId.toString()]);
 
   for (const recipientId of mentions) {
@@ -2966,7 +3801,9 @@ async function announceChatMessage(
     const dmMembers = await channelMemberIds(ctx, channel._id);
     const dmWhere = inThread
       ? "thread"
-      : dmMembers.length > 2 ? "Group message" : undefined;
+      : dmMembers.length > 2
+        ? "Group message"
+        : undefined;
     for (const recipientId of dmMembers) {
       if (notified.has(recipientId.toString())) continue;
       notified.add(recipientId.toString());
@@ -3010,7 +3847,10 @@ async function announceChatMessage(
 // recognizer that mishears a name is not a reason to spend a billed agent turn
 // on somebody's laptop — addressing the anchor stays something you type.
 
-type VoiceBurst = { message: Doc<"chat_messages">; channel: Doc<"chat_channels"> };
+type VoiceBurst = {
+  message: Doc<"chat_messages">;
+  channel: Doc<"chat_channels">;
+};
 
 // Author AND live, checked in one place so no step can forget one. Author,
 // because a transcript is the speaker's own words and nobody may put words
@@ -3049,13 +3889,20 @@ async function landVoiceBurst(
   },
 ): Promise<Id<"users">[]> {
   const { channel, message, content, attachments } = opts;
-  const { users: mentions } = await resolveChatMentions(ctx, channel.team_id, content, message.user_id);
+  const { users: mentions } = await resolveChatMentions(
+    ctx,
+    channel.team_id,
+    content,
+    message.user_id,
+  );
   // A burst that landed with a recording and no words. Something in the live
   // path came back empty — the recognizer was refused, the socket never opened,
   // the room was too quiet for the server's VAD — and the person still spoke.
   // The recording is right there, so the words are recoverable, and recovering
   // them is what makes "no words" impossible rather than merely unlikely.
-  const recording = attachments.find((a) => String(a?.mime ?? "").startsWith("audio/"));
+  const recording = attachments.find((a) =>
+    String(a?.mime ?? "").startsWith("audio/"),
+  );
   const recover = !content.trim() && !!recording;
   await patchChat(ctx, message._id, {
     content,
@@ -3123,9 +3970,21 @@ export const transcribeVoiceNote = internalAction({
           form.append("model", VOICE_FALLBACK_MODEL);
           form.append("response_format", "text");
           // A regulated team's voice note reaches OpenAI only once it has a BAA (lib/vendorGuard).
-          const resp = await openaiFetch({ ctx, scope: { row: { table: "chat_messages", id: args.message_id } } }, "/v1/audio/transcriptions", { method: "POST", body: form });
+          const resp = await openaiFetch(
+            {
+              ctx,
+              scope: { row: { table: "chat_messages", id: args.message_id } },
+            },
+            "/v1/audio/transcriptions",
+            { method: "POST", body: form },
+          );
           if (resp?.ok) content = (await resp.text()).trim();
-          else if (resp) console.error("[chat] voice transcription failed", resp.status, (await resp.text()).slice(0, 300));
+          else if (resp)
+            console.error(
+              "[chat] voice transcription failed",
+              resp.status,
+              (await resp.text()).slice(0, 300),
+            );
         }
       } catch (err) {
         console.error("[chat] voice transcription threw", err);
@@ -3161,7 +4020,11 @@ export const applyVoiceTranscription = internalMutation({
     const { transcribing: _was, ...voice } = message.voice;
     const words = args.content.trim();
     const keep = !!message.deleted_at || !!message.content.trim() || !words;
-    await patchChat(ctx, message._id, keep ? { voice } : { content: words, voice });
+    await patchChat(
+      ctx,
+      message._id,
+      keep ? { voice } : { content: words, voice },
+    );
     return { patched: !keep };
   },
 });
@@ -3197,7 +4060,9 @@ async function sweepStaleVoiceBursts(
   const cutoff = Date.now() - VOICE_STALE_MS;
   const recent = await ctx.db
     .query("chat_messages")
-    .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
+    .withIndex("by_channel_created", (q: any) =>
+      q.eq("channel_id", channel._id),
+    )
     .order("desc")
     .take(VOICE_SWEEP_SCAN);
   for (const row of recent) {
@@ -3247,11 +4112,20 @@ export const startVoiceBurst = mutation({
     if (args.client_id) {
       const duplicate = await findByClientId(ctx, channel._id, args.client_id);
       if (duplicate) {
-        const matches = duplicate.user_id.toString() === userId.toString() && !!duplicate.voice;
+        const matches =
+          duplicate.user_id.toString() === userId.toString() &&
+          !!duplicate.voice;
         if (!matches) {
-          chatFail("CONFLICT", "This client id is already bound to a different message");
+          chatFail(
+            "CONFLICT",
+            "This client id is already bound to a different message",
+          );
         }
-        return { message_id: duplicate._id, client_id: args.client_id, created: false };
+        return {
+          message_id: duplicate._id,
+          client_id: args.client_id,
+          created: false,
+        };
       }
     }
 
@@ -3287,9 +4161,17 @@ export const appendVoiceTranscript = mutation({
     const userId = await requireCaller(ctx, args.api_token);
     const { message } = await loadLiveBurst(ctx, userId, args.message_id);
     if (args.content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Message is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Message is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
-    await chatRateLimit(ctx, userId, "chat.voice.transcript", VOICE_PATCH_LIMIT);
+    await chatRateLimit(
+      ctx,
+      userId,
+      "chat.voice.transcript",
+      VOICE_PATCH_LIMIT,
+    );
     // Mentions are resolved when the burst lands, never here: a name half-heard
     // mid-sentence would notify the wrong person, and then the right one.
     await patchChat(ctx, message._id, { content: args.content });
@@ -3310,11 +4192,19 @@ export const finalizeVoiceBurst = mutation({
     // Deliberately no archived check: an archive that lands mid-burst does not
     // swallow what was already being said, and refusing here would strand the
     // row "live" until a sweep. Starting a NEW burst is refused, like a send.
-    const { message, channel } = await loadLiveBurst(ctx, userId, args.message_id);
+    const { message, channel } = await loadLiveBurst(
+      ctx,
+      userId,
+      args.message_id,
+    );
     const attachments = args.attachments ?? [];
-    if (!Number.isFinite(args.duration_ms)) chatFail("INVALID", "A voice message needs a duration");
+    if (!Number.isFinite(args.duration_ms))
+      chatFail("INVALID", "A voice message needs a duration");
     if (args.content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Message is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Message is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
     if (attachments.length > MAX_ATTACHMENTS) {
       chatFail("INVALID", `At most ${MAX_ATTACHMENTS} attachments per message`);
@@ -3336,7 +4226,10 @@ export const finalizeVoiceBurst = mutation({
 });
 
 export const cancelVoiceBurst = mutation({
-  args: { api_token: v.optional(v.string()), message_id: v.id("chat_messages") },
+  args: {
+    api_token: v.optional(v.string()),
+    message_id: v.id("chat_messages"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const { message } = await loadLiveBurst(ctx, userId, args.message_id);
@@ -3382,7 +4275,9 @@ export const listLiveVoiceBursts = query({
       if (!channel || channel.kind !== "dm" || channel.archived_at) continue;
       const recent = await ctx.db
         .query("chat_messages")
-        .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
+        .withIndex("by_channel_created", (q: any) =>
+          q.eq("channel_id", channel._id),
+        )
         .order("desc")
         .take(VOICE_WATCH_SCAN);
       for (const row of recent) {
@@ -3425,24 +4320,42 @@ async function anchorSpokenFor(
   } else if (args.session_id) {
     const conv = await ctx.db
       .query("conversations")
-      .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+      .withIndex("by_session_id", (q: any) =>
+        q.eq("session_id", args.session_id),
+      )
       .first();
     if (conv?.anchor_id) anchor = await ctx.db.get(conv.anchor_id);
-    if (!anchor) chatFail("INVALID", "This session is not a workspace's agent. Pass --team or --personal to say which agent speaks.");
+    if (!anchor)
+      chatFail(
+        "INVALID",
+        "This session is not a workspace's agent. Pass --team or --personal to say which agent speaks.",
+      );
   } else {
     const scopeType = args.scope_type ?? "user";
     let teamId = args.team_id;
     if (scopeType === "team" && !teamId) {
       teamId = (await activeTeamMembershipFor(ctx as any, userId))?.teamId;
     }
-    const rows = scopeType === "team" && teamId
-      ? await ctx.db.query("anchors").withIndex("by_team", (q: any) => q.eq("team_id", teamId)).collect()
-      : await ctx.db.query("anchors").withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId)).collect();
+    const rows =
+      scopeType === "team" && teamId
+        ? await ctx.db
+            .query("anchors")
+            .withIndex("by_team", (q: any) => q.eq("team_id", teamId))
+            .collect()
+        : await ctx.db
+            .query("anchors")
+            .withIndex("by_scope_user", (q: any) =>
+              q.eq("scope_user_id", userId),
+            )
+            .collect();
     anchor = rows.find((a) => a.status !== "decommissioned") ?? null;
   }
-  if (!anchor || anchor.status === "decommissioned") chatFail("NOT_FOUND", "No workspace agent found");
-  const isHost = anchor.host_user_id.toString() === userId.toString()
-    || (!!anchor.scope_user_id && anchor.scope_user_id.toString() === userId.toString());
+  if (!anchor || anchor.status === "decommissioned")
+    chatFail("NOT_FOUND", "No workspace agent found");
+  const isHost =
+    anchor.host_user_id.toString() === userId.toString() ||
+    (!!anchor.scope_user_id &&
+      anchor.scope_user_id.toString() === userId.toString());
   if (!isHost) chatFail("FORBIDDEN", "Only the agent's host can speak as it");
   return anchor;
 }
@@ -3486,41 +4399,73 @@ export const sendAsAnchor = mutation({
     const content = args.content;
     if (!content.trim()) chatFail("INVALID", "A message needs text");
     if (content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Message is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Message is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
 
     let channel: Doc<"chat_channels">;
-    const wantsDm = (args.dm_user_ids?.length ?? 0) > 0 || (args.dm_handles?.length ?? 0) > 0;
+    const wantsDm =
+      (args.dm_user_ids?.length ?? 0) > 0 || (args.dm_handles?.length ?? 0) > 0;
     if (wantsDm) {
-      if (args.channel_id) chatFail("INVALID", "Pass a channel or people to message, not both");
+      if (args.channel_id)
+        chatFail("INVALID", "Pass a channel or people to message, not both");
       // The room's team: a team anchor's own team; a personal anchor's is the
       // caller's explicit team (a write never guesses — see requireTeamForWrite).
       const { teamId } = anchor.team_id
         ? { teamId: anchor.team_id }
         : await requireTeamForWrite(ctx, userId, args.team_id);
-      if (!(await isTeamMember(ctx as any, userId, teamId))) chatFail("FORBIDDEN", "Not a member of that team");
+      if (!(await isTeamMember(ctx as any, userId, teamId)))
+        chatFail("FORBIDDEN", "Not a member of that team");
       const { room, others } = await openPeopleRoom(ctx, {
-        teamId, speaker: anchor.bot_user_id, ids: args.dm_user_ids ?? [], handles: args.dm_handles ?? [], limitedUser: userId,
+        teamId,
+        speaker: anchor.bot_user_id,
+        ids: args.dm_user_ids ?? [],
+        handles: args.dm_handles ?? [],
+        limitedUser: userId,
       });
       channel = room.channel;
       if (room.created) {
         const now = Date.now();
-        for (const id of others) await upsertRead(ctx, id, teamId, channel._id, now, undefined, undefined);
+        for (const id of others)
+          await upsertRead(
+            ctx,
+            id,
+            teamId,
+            channel._id,
+            now,
+            undefined,
+            undefined,
+          );
       }
     } else {
-      if (!args.channel_id) chatFail("INVALID", "Pass a channel (--chat) or people to message (--dm)");
+      if (!args.channel_id)
+        chatFail(
+          "INVALID",
+          "Pass a channel (--chat) or people to message (--dm)",
+        );
       channel = await loadChannel(ctx, userId, args.channel_id);
-      if (channel.archived_at) chatFail("FORBIDDEN", "This channel is archived");
+      if (channel.archived_at)
+        chatFail("FORBIDDEN", "This channel is archived");
       // A team anchor speaks in its own team's rooms; a personal anchor in any
       // room its owner can write in.
-      if (anchor.team_id && anchor.team_id.toString() !== channel.team_id.toString()) {
+      if (
+        anchor.team_id &&
+        anchor.team_id.toString() !== channel.team_id.toString()
+      ) {
         chatFail("FORBIDDEN", "That channel belongs to another team");
       }
     }
 
     if (args.client_id) {
       const duplicate = await findByClientId(ctx, channel._id, args.client_id);
-      if (duplicate) return { message_id: duplicate._id, channel_id: channel._id, created: false };
+      if (duplicate)
+        return {
+          message_id: duplicate._id,
+          channel_id: channel._id,
+          created: false,
+        };
     }
     let root: Doc<"chat_messages"> | null = null;
     if (args.thread_root_id) {
@@ -3528,21 +4473,43 @@ export const sendAsAnchor = mutation({
       if (!root || root.channel_id.toString() !== channel._id.toString()) {
         chatFail("INVALID", "That thread is not in this channel");
       }
-      if (root.thread_root_id) chatFail("INVALID", "Threads are flat: reply to the root message");
+      if (root.thread_root_id)
+        chatFail("INVALID", "Threads are flat: reply to the root message");
     }
     await chatRateLimit(ctx, userId, "chat.anchor_reply", ANCHOR_REPLY_LIMIT);
-    await enforceAgentPostQuota(ctx, channel, agentPosterKey(anchor.bot_user_id), !root);
-    const { messageId, roles, sessions, actorName } = await postChatMessage(ctx, {
+    await enforceAgentPostQuota(
+      ctx,
       channel,
+      agentPosterKey(anchor.bot_user_id),
+      !root,
+    );
+    const { messageId, roles, sessions, actorName } = await postChatMessage(
+      ctx,
+      {
+        channel,
+        root,
+        authorId: anchor.bot_user_id,
+        content,
+        attachments: [],
+        clientId: args.client_id,
+        agent: { anchorId: anchor._id },
+      },
+    );
+    const mentionWakes = await wakeAnchorMentions(ctx, {
+      channel,
+      messageId,
       root,
-      authorId: anchor.bot_user_id,
-      content,
-      attachments: [],
-      clientId: args.client_id,
-      agent: { anchorId: anchor._id },
+      anchor,
+      roles,
+      sessions,
+      actorName,
     });
-    const mentionWakes = await wakeAnchorMentions(ctx, { channel, messageId, root, anchor, roles, sessions, actorName });
-    return { message_id: messageId, channel_id: channel._id, created: true, mention_wakes: mentionWakes };
+    return {
+      message_id: messageId,
+      channel_id: channel._id,
+      created: true,
+      mention_wakes: mentionWakes,
+    };
   },
 });
 
@@ -3562,18 +4529,28 @@ export const editMessage = mutation({
     }
     // An agent row is written by replyAsAnchor and by nothing else, so nobody can
     // put words in the anchor's mouth through the edit path.
-    if (message.author_kind === "agent") chatFail("FORBIDDEN", "An agent reply cannot be edited");
+    if (message.author_kind === "agent")
+      chatFail("FORBIDDEN", "An agent reply cannot be edited");
     if (message.deleted_at) chatFail("INVALID", "That message was deleted");
-    if (!args.content.trim()) chatFail("INVALID", "An edited message cannot be empty");
+    if (!args.content.trim())
+      chatFail("INVALID", "An edited message cannot be empty");
     if (args.content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Message is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Message is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
 
     // An edit costs what a send costs — an 8,000 character write, a full roster
     // read, and a re-index of the search field — so it is capped like one.
     await chatRateLimit(ctx, userId, "chat.edit", SEND_LIMIT);
 
-    const { refs } = await resolveChatMentions(ctx, channel.team_id, args.content, userId);
+    const { refs } = await resolveChatMentions(
+      ctx,
+      channel.team_id,
+      args.content,
+      userId,
+    );
     // An edit never notifies and never wakes the anchor. Adding a mention by
     // editing would otherwise be a way to page someone repeatedly, or to run
     // another billed agent turn on a teammate's laptop per keystroke saved.
@@ -3612,15 +4589,23 @@ export async function tombstoneChatMessage(
 }
 
 export const deleteMessage = mutation({
-  args: { api_token: v.optional(v.string()), message_id: v.id("chat_messages") },
+  args: {
+    api_token: v.optional(v.string()),
+    message_id: v.id("chat_messages"),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const message = await ctx.db.get(args.message_id);
     if (!message) chatFail("NOT_FOUND", "Message not found");
     const channel = await loadChannel(ctx, userId, message.channel_id);
-    const mayDelete = message.user_id.toString() === userId.toString()
-      || (await isTeamAdmin(ctx, userId, channel.team_id));
-    if (!mayDelete) chatFail("FORBIDDEN", "Only the author or a team admin can delete a message");
+    const mayDelete =
+      message.user_id.toString() === userId.toString() ||
+      (await isTeamAdmin(ctx, userId, channel.team_id));
+    if (!mayDelete)
+      chatFail(
+        "FORBIDDEN",
+        "Only the author or a team admin can delete a message",
+      );
     if (message.deleted_at) return { message_id: message._id, deleted: true };
 
     await tombstoneChatMessage(ctx, message._id);
@@ -3645,18 +4630,29 @@ export const toggleReaction = mutation({
     if (!message) chatFail("NOT_FOUND", "Message not found");
     await loadChannel(ctx, userId, message.channel_id);
     if (message.deleted_at) chatFail("INVALID", "That message was deleted");
-    if (!isValidEmoji(args.emoji)) chatFail("INVALID", "That is not a usable reaction");
+    if (!isValidEmoji(args.emoji))
+      chatFail("INVALID", "That is not a usable reaction");
 
     const existing = await ctx.db
       .query("chat_reactions")
       .withIndex("by_message_user_emoji", (q: any) =>
-        q.eq("message_id", args.message_id).eq("user_id", userId).eq("emoji", args.emoji))
+        q
+          .eq("message_id", args.message_id)
+          .eq("user_id", userId)
+          .eq("emoji", args.emoji),
+      )
       .first();
     if (existing) {
       await ctx.db.delete(existing._id);
       // Whose reaction comes off in Slack (theirs, or the app's once nobody
       // it speaks for still holds the emoji) is slackSync.reactionSpeaker's call.
-      await queueSlackOutbound(ctx, { op: "reaction", message, emoji: args.emoji, add: false, user_id: userId });
+      await queueSlackOutbound(ctx, {
+        op: "reaction",
+        message,
+        emoji: args.emoji,
+        add: false,
+        user_id: userId,
+      });
       return { message_id: args.message_id, emoji: args.emoji, reacted: false };
     }
 
@@ -3667,7 +4663,10 @@ export const toggleReaction = mutation({
       .collect();
     const distinct = new Set(all.map((r) => r.emoji));
     if (!distinct.has(args.emoji) && distinct.size >= MAX_DISTINCT_EMOJI) {
-      chatFail("INVALID", `A message can carry at most ${MAX_DISTINCT_EMOJI} different reactions`);
+      chatFail(
+        "INVALID",
+        `A message can carry at most ${MAX_DISTINCT_EMOJI} different reactions`,
+      );
     }
     await ctx.db.insert("chat_reactions", {
       message_id: args.message_id,
@@ -3676,7 +4675,13 @@ export const toggleReaction = mutation({
       emoji: args.emoji,
       created_at: Date.now(),
     });
-    await queueSlackOutbound(ctx, { op: "reaction", message, emoji: args.emoji, add: true, user_id: userId });
+    await queueSlackOutbound(ctx, {
+      op: "reaction",
+      message,
+      emoji: args.emoji,
+      add: true,
+      user_id: userId,
+    });
     return { message_id: args.message_id, emoji: args.emoji, reacted: true };
   },
 });
@@ -3731,11 +4736,13 @@ export async function resolveChannelAnchor(
   const link = await ctx.db
     .query("anchor_channels")
     .withIndex("by_surface_channel", (q: any) =>
-      q.eq("surface", "codecast").eq("channel_key", channel._id.toString()))
+      q.eq("surface", "codecast").eq("channel_key", channel._id.toString()),
+    )
     .first();
   if (link) {
     const linked = await ctx.db.get(link.anchor_id);
-    if (linked && linked.team_id?.toString() === channel.team_id.toString()) return linked;
+    if (linked && linked.team_id?.toString() === channel.team_id.toString())
+      return linked;
     return null;
   }
   // The workspace anchor, by the one rule that names it (the plain anchor, else
@@ -3780,23 +4787,31 @@ async function anchorTurnInFlight(
   // A thread's replies, or — for an inline DM turn — the room's own lines.
   const recent = where.rootId
     ? await ctx.db
-      .query("chat_messages")
-      .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", where.rootId))
-      .order("desc")
-      .take(12)
+        .query("chat_messages")
+        .withIndex("by_thread_created", (q: any) =>
+          q.eq("thread_root_id", where.rootId),
+        )
+        .order("desc")
+        .take(12)
     : await ctx.db
-      .query("chat_messages")
-      .withIndex("by_channel_created", (q: any) => q.eq("channel_id", where.channelId))
-      .order("desc")
-      .filter((q) => q.eq(q.field("thread_root_id"), undefined))
-      .take(12);
+        .query("chat_messages")
+        .withIndex("by_channel_created", (q: any) =>
+          q.eq("channel_id", where.channelId),
+        )
+        .order("desc")
+        .filter((q) => q.eq(q.field("thread_root_id"), undefined))
+        .take(12);
   // A role's standing session writes its own thinking rows under the same bot
   // (chatSessionReplies); those carry the session and are not the anchor's.
-  return recent.find((row) =>
-    !row.deleted_at
-    && !row.origin_session_id
-    && row.user_id.toString() === anchor.bot_user_id.toString()
-    && isAgentTurnInFlight(row.agent_status)) ?? null;
+  return (
+    recent.find(
+      (row) =>
+        !row.deleted_at &&
+        !row.origin_session_id &&
+        row.user_id.toString() === anchor.bot_user_id.toString() &&
+        isAgentTurnInFlight(row.agent_status),
+    ) ?? null
+  );
 }
 
 // A person replying on a thread a SESSION started goes back into that session.
@@ -3838,7 +4853,12 @@ async function maybeRelayToOriginSession(
     inline?: boolean;
   },
 ): Promise<RelayResult> {
-  const no = (skipped: string | null) => ({ delivered: false, skipped, session_short_id: null, conversation_id: null });
+  const no = (skipped: string | null) => ({
+    delivered: false,
+    skipped,
+    session_short_id: null,
+    conversation_id: null,
+  });
   const root = opts.root;
   if (!root) return no(null);
   const participant = opts.participant ?? null;
@@ -3851,11 +4871,17 @@ async function maybeRelayToOriginSession(
   let mentionReply = false;
   if (participant) {
     targetRef = participant;
-  } else if (opts.message.origin === "agent" && opts.message.origin_session_id) {
+  } else if (
+    opts.message.origin === "agent" &&
+    opts.message.origin_session_id
+  ) {
     targetRef = await mentioningSessionIn(ctx, root, opts.message);
     mentionReply = true;
     if (!targetRef) return no("agent_authored");
-  } else if (opts.message.origin === "agent" || opts.message.author_kind === "agent") {
+  } else if (
+    opts.message.origin === "agent" ||
+    opts.message.author_kind === "agent"
+  ) {
     return no("agent_authored");
   } else {
     targetRef = root.bound_session_id ?? root.origin_session_id ?? null;
@@ -3868,15 +4894,39 @@ async function maybeRelayToOriginSession(
   // caller's ref before storing it); historical rows may still hold a native
   // session id, and the shared resolver accepts either. Access is decided
   // below, so any conversation is accepted here.
-  let conversation = await findConversationByAnyRefWhere(ctx, targetRef, () => true);
-  if ((!conversation || conversation.inbox_killed_at) && !mentionReply && !participant && root.bound_session_id && root.origin_session_id) {
-    conversation = (await findConversationByAnyRefWhere(ctx, root.origin_session_id, () => true)) ?? conversation;
+  let conversation = await findConversationByAnyRefWhere(
+    ctx,
+    targetRef,
+    () => true,
+  );
+  if (
+    (!conversation || conversation.inbox_killed_at) &&
+    !mentionReply &&
+    !participant &&
+    root.bound_session_id &&
+    root.origin_session_id
+  ) {
+    conversation =
+      (await findConversationByAnyRefWhere(
+        ctx,
+        root.origin_session_id,
+        () => true,
+      )) ?? conversation;
   }
   if (!conversation) return no("session_not_found");
-  if (conversation.inbox_killed_at && (participant || root.bound_session_id === String(conversation._id))) return no("session_ended");
+  if (
+    conversation.inbox_killed_at &&
+    (participant || root.bound_session_id === String(conversation._id))
+  )
+    return no("session_ended");
   // A member of a room that takes turns hears this thread through its round.
   const roomRows = await channelAgentRows(ctx, opts.channel._id);
-  if (roomTakesTurns(opts.channel, roomRows) && roomRows.some((row) => String(row.conversation_id) === String(conversation._id))) {
+  if (
+    roomTakesTurns(opts.channel, roomRows) &&
+    roomRows.some(
+      (row) => String(row.conversation_id) === String(conversation._id),
+    )
+  ) {
     return no("round");
   }
   // A person needs the right to inject a turn into the session (the own-or-team
@@ -3888,11 +4938,17 @@ async function maybeRelayToOriginSession(
   // conversation takes input from its owner alone, mention or not, so a
   // teammate's reply into one is skipped here rather than refused (and the
   // post lost) by enqueuePendingMessage.
-  const needsSendGrant = !mentionReply || isHostedAgentType(conversation.agent_type);
-  if (needsSendGrant && !(await canSendProductMessage(ctx, opts.senderId, conversation))) return no("no_access");
+  const needsSendGrant =
+    !mentionReply || isHostedAgentType(conversation.agent_type);
+  if (
+    needsSendGrant &&
+    !(await canSendProductMessage(ctx, opts.senderId, conversation))
+  )
+    return no("no_access");
 
   const key = chatRelayClientId(opts.message._id);
-  const shortId = (conversation as any).short_id ?? conversation._id.toString().slice(0, 7);
+  const shortId =
+    (conversation as any).short_id ?? conversation._id.toString().slice(0, 7);
   // A mention reply is an agent waking an agent, so it spends the same hourly
   // caps a mention does (C2). The sender cap is the replying SESSION's, not
   // its person's: the person's own budget already paid for the mentions that
@@ -3904,14 +4960,32 @@ async function maybeRelayToOriginSession(
   // the same line. The caps are reserved before the per-minute limit and
   // spent after it, so neither refusal costs the other's credit.
   const wakeCaps = mentionReply
-    ? await reserveQuotas(ctx, hourBucket(), mentionWakeQuotas(agentPosterKey(opts.senderId, opts.message.origin_session_id), String(conversation._id)))
+    ? await reserveQuotas(
+        ctx,
+        hourBucket(),
+        mentionWakeQuotas(
+          agentPosterKey(opts.senderId, opts.message.origin_session_id),
+          String(conversation._id),
+        ),
+      )
     : null;
   if (mentionReply && !wakeCaps) {
-    if (!opts.message.mention_folded) await patchChat(ctx, opts.message._id, { mention_folded: true });
-    return { delivered: false, skipped: "folded", session_short_id: shortId, conversation_id: conversation._id.toString() };
+    if (!opts.message.mention_folded)
+      await patchChat(ctx, opts.message._id, { mention_folded: true });
+    return {
+      delivered: false,
+      skipped: "folded",
+      session_short_id: shortId,
+      conversation_id: conversation._id.toString(),
+    };
   }
   try {
-    await chatRateLimit(ctx, opts.senderId, "chat.session_relay", ANCHOR_WAKE_LIMIT);
+    await chatRateLimit(
+      ctx,
+      opts.senderId,
+      "chat.session_relay",
+      ANCHOR_WAKE_LIMIT,
+    );
   } catch (error) {
     if (error instanceof ConvexError) return no("rate_limited");
     throw error;
@@ -3920,23 +4994,43 @@ async function maybeRelayToOriginSession(
 
   const nonce = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   // The session's own earlier lines read as its own words.
-  const isSelf = (row: Doc<"chat_messages">) => !!row.origin_session_id && row.origin_session_id === String(conversation._id);
+  const isSelf = (row: Doc<"chat_messages">) =>
+    !!row.origin_session_id &&
+    row.origin_session_id === String(conversation._id);
   const { entries, channelEntries } = opts.inline
-    // An answer at the top of a DM quotes the exchange alone: the session's
-    // line and the person's lines since, which were all addressed to it.
-    ? { entries: await dmExchange(ctx, opts.channel, root, opts.message, isSelf, opts.senderName), channelEntries: [] }
+    ? // An answer at the top of a DM quotes the exchange alone: the session's
+      // line and the person's lines since, which were all addressed to it.
+      {
+        entries: await dmExchange(
+          ctx,
+          opts.channel,
+          root,
+          opts.message,
+          isSelf,
+          opts.senderName,
+        ),
+        channelEntries: [],
+      }
     : await collectChatExcerpt(ctx, {
-      channel: opts.channel,
-      root,
-      message: opts.message,
-      senderName: opts.senderName,
-      threadRootId: root._id,
-      isSelf,
-    });
+        channel: opts.channel,
+        root,
+        message: opts.message,
+        senderName: opts.senderName,
+        threadRootId: root._id,
+        isSelf,
+      });
   // A DM the session is not part of opens to it one thread at a time
   // (chatAccess): the wake carries the thread, never the room's other lines.
-  const roomOpen = opts.channel.kind !== "dm" || await sessionMayReadChannel(
-    ctx, await sessionChatScope(ctx, conversation.user_id, { origin: "agent", origin_session_id: String(conversation._id) }), opts.channel);
+  const roomOpen =
+    opts.channel.kind !== "dm" ||
+    (await sessionMayReadChannel(
+      ctx,
+      await sessionChatScope(ctx, conversation.user_id, {
+        origin: "agent",
+        origin_session_id: String(conversation._id),
+      }),
+      opts.channel,
+    ));
   const team = await ctx.db.get(opts.channel.team_id);
   const wakeId = await enqueuePendingMessage(ctx, conversation, opts.senderId, {
     content: buildSessionRelay({
@@ -3952,8 +5046,12 @@ async function maybeRelayToOriginSession(
       nonce,
       mentionReply,
       participant: !!participant,
-      handed: !mentionReply && root.bound_session_id === String(conversation._id),
-      fromOutsider: !mentionReply && root.bound_session_id === String(conversation._id) && !mayHandTo(opts.senderId, conversation),
+      handed:
+        !mentionReply && root.bound_session_id === String(conversation._id),
+      fromOutsider:
+        !mentionReply &&
+        root.bound_session_id === String(conversation._id) &&
+        !mayHandTo(opts.senderId, conversation),
       roomOpen,
       // A relay to the thread's starter opens the thread (openSessionReply
       // below); an answer to a mention the session made opens nothing.
@@ -3981,15 +5079,24 @@ async function maybeRelayToOriginSession(
 // minus the ones in `exclude`. At most THREAD_POSTERS_MAX: a long thread
 // between many agents is a room, and a room's members are reached as members.
 const THREAD_POSTERS_MAX = 3;
-async function threadPosters(ctx: MutationCtx, root: Doc<"chat_messages">, exclude: Set<string>): Promise<string[]> {
+async function threadPosters(
+  ctx: MutationCtx,
+  root: Doc<"chat_messages">,
+  exclude: Set<string>,
+): Promise<string[]> {
   const replies = await ctx.db
     .query("chat_messages")
-    .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", root._id))
+    .withIndex("by_thread_created", (q: any) =>
+      q.eq("thread_root_id", root._id),
+    )
     .order("desc")
     .take(200);
   const out: string[] = [];
   for (const row of [...replies, root]) {
-    const id = row.origin === "agent" && !row.deleted_at ? row.origin_session_id : undefined;
+    const id =
+      row.origin === "agent" && !row.deleted_at
+        ? row.origin_session_id
+        : undefined;
     if (!id || exclude.has(id) || out.includes(id)) continue;
     out.push(id);
     if (out.length >= THREAD_POSTERS_MAX) break;
@@ -4022,25 +5129,38 @@ export async function maybeWakeAnchor(
     relayedTo?: string | null;
   },
 ): Promise<AnchorWake & { seat_role_id: Id<"org_roles"> | null }> {
-  const no = (skipped: string | null) => ({ placeholder_id: null, skipped, seat_role_id: null });
+  const no = (skipped: string | null) => ({
+    placeholder_id: null,
+    skipped,
+    seat_role_id: null,
+  });
 
   const anchor = await resolveChannelAnchor(ctx, opts.channel);
   if (!anchor) return no(null);
-  const seatRole = opts.roles?.find((r) => String(r.anchor_id ?? "") === String(anchor._id)) ?? null;
+  const seatRole =
+    opts.roles?.find((r) => String(r.anchor_id ?? "") === String(anchor._id)) ??
+    null;
   // Addressed: named in the line (by its bot or by the role it seats), or
   // spoken to in a DM room it is a member of (every line in a DM is for the
   // people in it).
-  const named = !!seatRole || opts.mentions.some(
-    (id) => id.toString() === anchor.bot_user_id.toString(),
-  );
+  const named =
+    !!seatRole ||
+    opts.mentions.some((id) => id.toString() === anchor.bot_user_id.toString());
   const addressed = opts.channel.kind === "dm" || named;
   // (6) A thread the anchor follows wakes on a plain reply too — silently. It
   // reads and decides whether the line was for it (see buildAnchorWake).
-  const followUp = !addressed && !!opts.root && anchorFollowsThread(anchor, opts.root);
+  const followUp =
+    !addressed && !!opts.root && anchorFollowsThread(anchor, opts.root);
   if (!addressed && !followUp) return no(null);
   // (7) A reply under a line a role's hand wrote as the role answers the hand:
   // once the thread relay carried it there, the role wakes only when named.
-  if (!named && opts.relayedTo && opts.root && await isHandLine(ctx, opts.root)) return no(null);
+  if (
+    !named &&
+    opts.relayedTo &&
+    opts.root &&
+    (await isHandLine(ctx, opts.root))
+  )
+    return no(null);
 
   // (1) A line a session typed never reaches a person's machine. Checked AFTER
   // the addressed test so a skip reason only surfaces when the anchor was
@@ -4063,13 +5183,24 @@ export async function maybeWakeAnchor(
 
 /** A line a session working for a role (not its standing session) wrote as
  *  the role (sessionVoice). */
-async function isHandLine(ctx: MutationCtx, row: Doc<"chat_messages">): Promise<boolean> {
+async function isHandLine(
+  ctx: MutationCtx,
+  row: Doc<"chat_messages">,
+): Promise<boolean> {
   if (row.author_kind !== "agent" || !row.origin_session_id) return false;
-  const conv = await findConversationByAnyRefWhere(ctx, row.origin_session_id, () => true);
+  const conv = await findConversationByAnyRefWhere(
+    ctx,
+    row.origin_session_id,
+    () => true,
+  );
   return !!conv && !conv.standing_role_id;
 }
 
-type AnchorWake = { placeholder_id: Id<"chat_messages"> | null; skipped: string | null; listening?: boolean };
+type AnchorWake = {
+  placeholder_id: Id<"chat_messages"> | null;
+  skipped: string | null;
+  listening?: boolean;
+};
 
 async function wakeAnchorTurn(
   ctx: MutationCtx,
@@ -4090,7 +5221,9 @@ async function wakeAnchorTurn(
   // a DM room, where a line at room level is answered at room level: a 1:1
   // with the anchor reads like a 1:1, not a stack of threads.
   const inline = opts.channel.kind === "dm" && !opts.root;
-  const threadRootId: Id<"chat_messages"> | undefined = inline ? undefined : (opts.root?._id ?? opts.message._id);
+  const threadRootId: Id<"chat_messages"> | undefined = inline
+    ? undefined
+    : (opts.root?._id ?? opts.message._id);
 
   // A skip the ASKER can see. Someone addressed the anchor and it cannot run —
   // saying so in the thread, in the same error row a timeout produces, is the
@@ -4119,7 +5252,10 @@ async function wakeAnchorTurn(
 
   // A team anchor's host must still be on the team; a personal anchor answers
   // only its owner's DMs, and its host IS that owner.
-  if (anchor.team_id && !(await isTeamMember(ctx as any, anchor.host_user_id, opts.channel.team_id))) {
+  if (
+    anchor.team_id &&
+    !(await isTeamMember(ctx as any, anchor.host_user_id, opts.channel.team_id))
+  ) {
     return await visibleSkip(
       "host_not_in_team",
       "The workspace agent's host is no longer on this team, so it cannot answer here.",
@@ -4138,7 +5274,10 @@ async function wakeAnchorTurn(
   // one exception: a person NAMING the anchor while it is silently listening
   // turns that listening turn into a visible one — the excerpt it gets below
   // carries their line, and the placeholder they can see is the same row.
-  const inFlight = await anchorTurnInFlight(ctx, anchor, { channelId: opts.channel._id, rootId: threadRootId });
+  const inFlight = await anchorTurnInFlight(ctx, anchor, {
+    channelId: opts.channel._id,
+    rootId: threadRootId,
+  });
   if (inFlight) {
     if (addressed && inFlight.agent_status === "listening") {
       const now = Date.now();
@@ -4159,9 +5298,17 @@ async function wakeAnchorTurn(
   // message — a chat rate limit reported for a chat message that broke no chat
   // limit. Skipping the wake costs an answer; throwing costs the message.
   try {
-    await chatRateLimit(ctx, opts.senderId, "chat.anchor_wake", ANCHOR_WAKE_LIMIT);
     await chatRateLimit(
-      ctx, anchor.host_user_id, "chat.anchor_host_wake", ANCHOR_HOST_WAKE_LIMIT,
+      ctx,
+      opts.senderId,
+      "chat.anchor_wake",
+      ANCHOR_WAKE_LIMIT,
+    );
+    await chatRateLimit(
+      ctx,
+      anchor.host_user_id,
+      "chat.anchor_host_wake",
+      ANCHOR_HOST_WAKE_LIMIT,
     );
   } catch (error) {
     if (error instanceof ConvexError) {
@@ -4231,9 +5378,13 @@ async function wakeAnchorTurn(
   // leave a spinner in the thread forever — the daemon can be asleep, the host
   // can close the laptop, the agent can die mid-turn — and arming it afterwards
   // would mean a failed delivery leaves the one placeholder that never expires.
-  await ctx.scheduler.runAfter(ANCHOR_REPLY_TIMEOUT_MS, internal.chat.expireAnchorReply, {
-    message_id: placeholderId,
-  });
+  await ctx.scheduler.runAfter(
+    ANCHOR_REPLY_TIMEOUT_MS,
+    internal.chat.expireAnchorReply,
+    {
+      message_id: placeholderId,
+    },
+  );
 
   try {
     await deliverToAnchor(
@@ -4265,12 +5416,24 @@ async function wakeAnchorTurn(
     // The anchor's session went away between the check above and here. Say so in
     // the thread now rather than showing ten minutes of spinner first — unless
     // nobody addressed it, in which case the silent row simply closes.
-    await patchChat(ctx, placeholderId, addressed
-      ? { agent_status: "error", content: "The workspace's agent could not be reached. Mention it again to retry." }
-      : { agent_status: "passed" });
+    await patchChat(
+      ctx,
+      placeholderId,
+      addressed
+        ? {
+            agent_status: "error",
+            content:
+              "The workspace's agent could not be reached. Mention it again to retry.",
+          }
+        : { agent_status: "passed" },
+    );
     return no("delivery_failed");
   }
-  return { placeholder_id: placeholderId, skipped: null, listening: !addressed };
+  return {
+    placeholder_id: placeholderId,
+    skipped: null,
+    listening: !addressed,
+  };
 }
 
 // ── Agent noise rules (docs/architecture/agent-channels.md C2/C3) ────────────
@@ -4288,7 +5451,12 @@ async function enforceAgentPostQuota(
   if (refusal) chatFail("RATE_LIMITED", refusal);
 }
 
-type MentionWakeResult = { roles: number; sessions: number; folded: number; skipped: string[] };
+type MentionWakeResult = {
+  roles: number;
+  sessions: number;
+  folded: number;
+  skipped: string[];
+};
 
 // Wake the roles and sessions a line named. This is the ONE exception to "an
 // agent line wakes nobody": an explicit mention is a request for that party's
@@ -4298,9 +5466,16 @@ type MentionWakeResult = { roles: number; sessions: number; folded: number; skip
 // on its next wake instead of being woken for it.
 // A person's mention of a role opens the room to the session that answers for
 // it (the role's anchor session), the same grant a delivered wake writes.
-async function grantRoleAnswerer(ctx: MutationCtx, channel: Doc<"chat_channels">, anchor: Doc<"anchors">): Promise<void> {
-  const answerer = anchor.conversation_id ? await ctx.db.get(anchor.conversation_id) : null;
-  if (answerer) await grantSessionRoom(ctx, channel, grantTargetOf(answerer), "mention");
+async function grantRoleAnswerer(
+  ctx: MutationCtx,
+  channel: Doc<"chat_channels">,
+  anchor: Doc<"anchors">,
+): Promise<void> {
+  const answerer = anchor.conversation_id
+    ? await ctx.db.get(anchor.conversation_id)
+    : null;
+  if (answerer)
+    await grantSessionRoom(ctx, channel, grantTargetOf(answerer), "mention");
 }
 
 export async function wakeMentionedParties(
@@ -4329,7 +5504,12 @@ export async function wakeMentionedParties(
     members?: Set<string>;
   },
 ): Promise<MentionWakeResult> {
-  const out: MentionWakeResult = { roles: 0, sessions: 0, folded: 0, skipped: [] };
+  const out: MentionWakeResult = {
+    roles: 0,
+    sessions: 0,
+    folded: 0,
+    skipped: [],
+  };
   const delivered = (conversationId: unknown) =>
     !!opts.alreadyDelivered && String(conversationId) === opts.alreadyDelivered;
   const hour = hourBucket();
@@ -4340,42 +5520,66 @@ export async function wakeMentionedParties(
   const teamName = oneLine((team as any)?.name ?? "team", 60);
   const selfSession = opts.selfConversationId ?? opts.message.origin_session_id;
   const selfConversation = selfSession
-    ? await ctx.db.get(ctx.db.normalizeId("conversations", selfSession) ?? (selfSession as Id<"conversations">))
+    ? await ctx.db.get(
+        ctx.db.normalizeId("conversations", selfSession) ??
+          (selfSession as Id<"conversations">),
+      )
     : null;
 
   const underCaps = async (targetKey: string) =>
-    (await takeQuotas(ctx, hour, mentionWakeQuotas(String(opts.senderId), targetKey))).ok;
+    (
+      await takeQuotas(
+        ctx,
+        hour,
+        mentionWakeQuotas(String(opts.senderId), targetKey),
+      )
+    ).ok;
   // A person's mention lets the session read the DM even when it folds; a
   // session's own line never opens a room for another (chatAccess).
-  const personLine = opts.message.origin !== "agent" && opts.message.author_kind !== "agent";
-  const quoted = (lead: string, tail: string[]) => buildChatWake({
-    channelName: opts.channel.name,
-    channelKind: opts.channel.kind,
-    channelTopic: opts.channel.topic,
-    teamName,
-    threadRootId,
-    lead,
-    entries: [{ name: opts.senderName, content: opts.message.content }],
-    channelEntries: [],
-    nonce: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
-    tail,
-  });
+  const personLine =
+    opts.message.origin !== "agent" && opts.message.author_kind !== "agent";
+  const quoted = (lead: string, tail: string[]) =>
+    buildChatWake({
+      channelName: opts.channel.name,
+      channelKind: opts.channel.kind,
+      channelTopic: opts.channel.topic,
+      teamName,
+      threadRootId,
+      lead,
+      entries: [{ name: opts.senderName, content: opts.message.content }],
+      channelEntries: [],
+      nonce: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+      tail,
+    });
   const replyTail = [
     "Reply in the thread with:",
     `  cast chat send --channel ${opts.channel._id} --thread ${threadRootId} "<your reply>"`,
     // Another session's line in a DM opens nothing to the session it names
     // (chatAccess), so it is not pointed at reads that would be refused.
-    ...(opts.channel.kind === "dm" && !personLine ? [] : [`Read more: cast chat thread ${threadRootId} · cast chat read --channel ${opts.channel._id}`]),
+    ...(opts.channel.kind === "dm" && !personLine
+      ? []
+      : [
+          `Read more: cast chat thread ${threadRootId} · cast chat read --channel ${opts.channel._id}`,
+        ]),
     "Answer once, concisely, and only if the line wants something from you.",
   ];
 
   for (const role of opts.roles) {
-    if (opts.answeredBySeat && String(role._id) === String(opts.answeredBySeat)) continue;
+    if (opts.answeredBySeat && String(role._id) === String(opts.answeredBySeat))
+      continue;
     if (opts.members?.has(String(role._id))) continue;
     // A role's own standing session naming its own role is not a request.
     const anchor = role.anchor_id ? await ctx.db.get(role.anchor_id) : null;
-    if (anchor?.conversation_id && selfSession && String(anchor.conversation_id) === selfSession) continue;
-    if (!anchor) { out.skipped.push(`role_has_no_session:${role.handle}`); continue; }
+    if (
+      anchor?.conversation_id &&
+      selfSession &&
+      String(anchor.conversation_id) === selfSession
+    )
+      continue;
+    if (!anchor) {
+      out.skipped.push(`role_has_no_session:${role.handle}`);
+      continue;
+    }
     if (anchor.conversation_id && delivered(anchor.conversation_id)) {
       // The relay opened the thread; a person's mention opens the room.
       if (personLine) await grantRoleAnswerer(ctx, opts.channel, anchor);
@@ -4403,32 +5607,63 @@ export async function wakeMentionedParties(
     if (!rowId) out.skipped.push(`delivery_failed:${role.handle}`);
     else {
       out.roles++;
-      await openSessionReply(ctx, { channel: opts.channel, threadRootId, wakeId: rowId, grant: personLine ? "room" : false });
+      await openSessionReply(ctx, {
+        channel: opts.channel,
+        threadRootId,
+        wakeId: rowId,
+        grant: personLine ? "room" : false,
+      });
     }
   }
 
   for (const conversation of opts.sessions) {
     if (selfSession && String(conversation._id) === selfSession) continue;
     if (opts.members?.has(String(conversation._id))) continue;
-    const shortId = (conversation as any).short_id ?? String(conversation._id).slice(0, 7);
+    const shortId =
+      (conversation as any).short_id ?? String(conversation._id).slice(0, 7);
     if (delivered(conversation._id)) {
-      if (personLine) await grantSessionRoom(ctx, opts.channel, grantTargetOf(conversation), "mention");
+      if (personLine)
+        await grantSessionRoom(
+          ctx,
+          opts.channel,
+          grantTargetOf(conversation),
+          "mention",
+        );
       out.skipped.push(`relayed:${shortId}`);
       continue;
     }
     if (!(await underCaps(String(conversation._id)))) {
-      if (personLine) await grantSessionRoom(ctx, opts.channel, grantTargetOf(conversation), "mention");
+      if (personLine)
+        await grantSessionRoom(
+          ctx,
+          opts.channel,
+          grantTargetOf(conversation),
+          "mention",
+        );
       out.folded++;
       continue;
     }
-    const body = quoted(`${opts.senderName} mentioned @${shortId} in #${opts.channel.name}.`, replyTail);
+    const body = quoted(
+      `${opts.senderName} mentioned @${shortId} in #${opts.channel.name}.`,
+      replyTail,
+    );
     const where = opts.channel.kind === "dm" ? "dm" : `#${opts.channel.name}`;
-    const wakeId = await enqueuePendingMessage(ctx, conversation, opts.senderId, {
-      content: `<chat-mention channel="${where.replace(/"/g, "'")}" thread="${threadRootId}" from="${opts.senderName.replace(/"/g, "'")}">\n${body}\n</chat-mention>`,
-      client_id: chatMentionClientId(opts.message._id, conversation._id),
-    });
+    const wakeId = await enqueuePendingMessage(
+      ctx,
+      conversation,
+      opts.senderId,
+      {
+        content: `<chat-mention channel="${where.replace(/"/g, "'")}" thread="${threadRootId}" from="${opts.senderName.replace(/"/g, "'")}">\n${body}\n</chat-mention>`,
+        client_id: chatMentionClientId(opts.message._id, conversation._id),
+      },
+    );
     out.sessions++;
-    await openSessionReply(ctx, { channel: opts.channel, threadRootId, wakeId, grant: personLine ? "room" : false });
+    await openSessionReply(ctx, {
+      channel: opts.channel,
+      threadRootId,
+      wakeId,
+      grant: personLine ? "room" : false,
+    });
   }
 
   if (out.folded > 0 && !opts.message.mention_folded) {
@@ -4493,7 +5728,11 @@ async function deliverToChannelAgents(
     // owner only) never costs the others theirs.
     try {
       if (row.role_id) {
-        if (opts.answeredBySeat && String(row.role_id) === String(opts.answeredBySeat)) continue;
+        if (
+          opts.answeredBySeat &&
+          String(row.role_id) === String(opts.answeredBySeat)
+        )
+          continue;
         const rowId = await tellRole(ctx, row.role_id, {
           content,
           client_id: chatMentionClientId(opts.message._id, row.role_id),
@@ -4502,20 +5741,41 @@ async function deliverToChannelAgents(
         });
         if (rowId) {
           out.roles++;
-          await openSessionReply(ctx, { channel: opts.channel, threadRootId, wakeId: rowId, grant: false });
+          await openSessionReply(ctx, {
+            channel: opts.channel,
+            threadRootId,
+            wakeId: rowId,
+            grant: false,
+          });
         } else out.skipped.push(`role_has_no_session:${row.short_id}`);
         continue;
       }
-      const conversation = row.conversation_id ? await ctx.db.get(row.conversation_id) : null;
+      const conversation = row.conversation_id
+        ? await ctx.db.get(row.conversation_id)
+        : null;
       if (!conversation) continue;
-      if (opts.alreadyDelivered && String(conversation._id) === opts.alreadyDelivered) continue;
-      const wakeId = await enqueuePendingMessage(ctx, conversation, opts.senderId, {
-        content,
-        client_id: chatMentionClientId(opts.message._id, conversation._id),
-        human: true,
-      });
+      if (
+        opts.alreadyDelivered &&
+        String(conversation._id) === opts.alreadyDelivered
+      )
+        continue;
+      const wakeId = await enqueuePendingMessage(
+        ctx,
+        conversation,
+        opts.senderId,
+        {
+          content,
+          client_id: chatMentionClientId(opts.message._id, conversation._id),
+          human: true,
+        },
+      );
       out.sessions++;
-      await openSessionReply(ctx, { channel: opts.channel, threadRootId, wakeId, grant: false });
+      await openSessionReply(ctx, {
+        channel: opts.channel,
+        threadRootId,
+        wakeId,
+        grant: false,
+      });
     } catch {
       out.skipped.push(`delivery_failed:${row.short_id}`);
     }
@@ -4540,7 +5800,12 @@ async function wakeAnchorMentions(
     actorName: string;
   },
 ): Promise<MentionWakeResult> {
-  const none: MentionWakeResult = { roles: 0, sessions: 0, folded: 0, skipped: [] };
+  const none: MentionWakeResult = {
+    roles: 0,
+    sessions: 0,
+    folded: 0,
+    skipped: [],
+  };
   if (opts.roles.length === 0 && opts.sessions.length === 0) return none;
   const message = await ctx.db.get(opts.messageId);
   if (!message) return none;
@@ -4553,12 +5818,18 @@ async function wakeAnchorMentions(
       senderName: opts.actorName,
       roles: opts.roles,
       sessions: opts.sessions,
-      selfConversationId: opts.anchor.conversation_id ? String(opts.anchor.conversation_id) : null,
+      selfConversationId: opts.anchor.conversation_id
+        ? String(opts.anchor.conversation_id)
+        : null,
     });
   } catch (error) {
     return {
       ...none,
-      skipped: [error instanceof ConvexError ? String((error.data as any)?.code ?? "error") : "error"],
+      skipped: [
+        error instanceof ConvexError
+          ? String((error.data as any)?.code ?? "error")
+          : "error",
+      ],
     };
   }
 }
@@ -4575,13 +5846,20 @@ async function mentioningSessionIn(
   if (!self) return null;
   const replies = await ctx.db
     .query("chat_messages")
-    .withIndex("by_thread_created", (q: any) => q.eq("thread_root_id", root._id))
+    .withIndex("by_thread_created", (q: any) =>
+      q.eq("thread_root_id", root._id),
+    )
     .order("desc")
     .take(200);
   for (const row of [...replies, root]) {
-    if (row._id.toString() === message._id.toString() || row.deleted_at) continue;
+    if (row._id.toString() === message._id.toString() || row.deleted_at)
+      continue;
     if (!row.origin_session_id || row.origin_session_id === self) continue;
-    if (mentionSessions(row.mentions as any).some((m) => m.conversation_id === self)) {
+    if (
+      mentionSessions(row.mentions as any).some(
+        (m) => m.conversation_id === self,
+      )
+    ) {
       return row.origin_session_id;
     }
   }
@@ -4615,12 +5893,14 @@ export async function collectLinesSince(
     const rows = await ctx.db
       .query("chat_messages")
       .withIndex("by_channel_created", (q: any) =>
-        q.eq("channel_id", channelId).gt("created_at", since))
+        q.eq("channel_id", channelId).gt("created_at", since),
+      )
       .order("desc")
       .take(scan);
     if (rows.length === scan) truncated = true;
     for (const row of rows) {
-      if (row.deleted_at || isSilentAgentRow(row) || isLiveVoiceRow(row)) continue;
+      if (row.deleted_at || isSilentAgentRow(row) || isLiveVoiceRow(row))
+        continue;
       const key = row.user_id.toString();
       if (!authors.has(key)) authors.set(key, await ctx.db.get(row.user_id));
       const author = authors.get(key) ?? null;
@@ -4628,7 +5908,8 @@ export async function collectLinesSince(
         message_id: row._id,
         channel_id: channel._id,
         channel_name: channel.name,
-        author_name: row.origin_session_title ?? oneLine(displayName(author), 60),
+        author_name:
+          row.origin_session_title ?? oneLine(displayName(author), 60),
         is_bot: !!author?.is_bot,
         is_agent: !!author?.is_bot || row.origin === "agent",
         origin_session_id: row.origin_session_id,
@@ -4642,7 +5923,10 @@ export async function collectLinesSince(
   }
   lines.sort((a, b) => a.created_at - b.created_at);
   if (lines.length > limit) truncated = true;
-  return { lines: lines.length > limit ? lines.slice(lines.length - limit) : lines, truncated };
+  return {
+    lines: lines.length > limit ? lines.slice(lines.length - limit) : lines,
+    truncated,
+  };
 }
 
 export type ChatLineSince = {
@@ -4663,7 +5947,8 @@ export type ChatLineSince = {
 
 function mentionedAgents(row: Doc<"chat_messages">): string[] {
   return (row.mentions ?? []).flatMap((m: any) =>
-    m?.kind === "role" ? [m.handle] : m?.kind === "session" ? [m.short_id] : []);
+    m?.kind === "role" ? [m.handle] : m?.kind === "session" ? [m.short_id] : [],
+  );
 }
 
 export const linesSince = query({
@@ -4682,9 +5967,24 @@ export const linesSince = query({
     const scope = await sessionChatScope(ctx, userId, args);
     if (args.channel_ids.length === 1) {
       const channel = await readChannel(ctx, userId, args.channel_ids[0]);
-      if (channel) await requireSessionMayRead(ctx, userId, channel, args, `cast chat read --channel ${channel._id} --since ${args.since}`, { scope });
+      if (channel)
+        await requireSessionMayRead(
+          ctx,
+          userId,
+          channel,
+          args,
+          `cast chat read --channel ${channel._id} --since ${args.since}`,
+          { scope },
+        );
     }
-    return collectLinesSince(ctx, userId, args.channel_ids, args.since, args.limit, scope);
+    return collectLinesSince(
+      ctx,
+      userId,
+      args.channel_ids,
+      args.since,
+      args.limit,
+      scope,
+    );
   },
 });
 
@@ -4710,8 +6010,10 @@ async function dropQueuedAnchorWake(
   const queued = await ctx.db
     .query("pending_messages")
     .withIndex("by_conversation_client_id", (q: any) =>
-      q.eq("conversation_id", anchor.conversation_id)
-        .eq("client_id", anchorWakeKey(message._id)))
+      q
+        .eq("conversation_id", anchor.conversation_id)
+        .eq("client_id", anchorWakeKey(message._id)),
+    )
     .first();
   if (queued && queued.status === "pending") await ctx.db.delete(queued._id);
 }
@@ -4735,8 +6037,9 @@ export const expireAnchorReply = internalMutation({
     } else {
       await patchChat(ctx, message._id, {
         agent_status: "error",
-        content: message.content
-          || "No answer: the workspace's agent did not respond. Mention it again to retry.",
+        content:
+          message.content ||
+          "No answer: the workspace's agent did not respond. Mention it again to retry.",
       });
     }
     await dropQueuedAnchorWake(ctx, message);
@@ -4769,12 +6072,16 @@ export const stopAnchorReply = mutation({
       return { stopped: false };
     }
     const stopper = await ctx.db.get(userId);
-    await patchChat(ctx, message._id, message.agent_status === "listening"
-      ? { agent_status: "passed" }
-      : {
-        agent_status: "error",
-        content: `Stopped by ${oneLine(displayName(stopper), 60)}.`,
-      });
+    await patchChat(
+      ctx,
+      message._id,
+      message.agent_status === "listening"
+        ? { agent_status: "passed" }
+        : {
+            agent_status: "error",
+            content: `Stopped by ${oneLine(displayName(stopper), 60)}.`,
+          },
+    );
     await dropQueuedAnchorWake(ctx, message);
     return { stopped: true };
   },
@@ -4828,7 +6135,9 @@ export const replyAsAnchor = mutation({
     // "passed": the anchor read the thread and chose not to speak. The row goes
     // silent (never rendered) — a listening turn closing, or an addressed
     // spinner withdrawn when the mention was only in passing.
-    status: v.optional(v.union(v.literal("done"), v.literal("error"), v.literal("passed"))),
+    status: v.optional(
+      v.union(v.literal("done"), v.literal("error"), v.literal("passed")),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
@@ -4851,12 +6160,16 @@ export const replyAsAnchor = mutation({
     // that arrives after it is still an answer. Throwing it away means the work
     // is spent, the thread still says nobody replied, and a person has to ask
     // again.
-    const fillable = isAgentTurnInFlight(message.agent_status)
-      || message.agent_status === "error";
+    const fillable =
+      isAgentTurnInFlight(message.agent_status) ||
+      message.agent_status === "error";
     if (!fillable) chatFail("CONFLICT", "That reply is already finished");
     // Passing is only meaningful while the turn is open; a landed answer or a
     // reported failure stays what it is.
-    if (args.status === "passed" && !isAgentTurnInFlight(message.agent_status)) {
+    if (
+      args.status === "passed" &&
+      !isAgentTurnInFlight(message.agent_status)
+    ) {
       chatFail("CONFLICT", "That reply is already finished");
     }
     const anchor = await ctx.db.get(message.agent_anchor_id);
@@ -4866,13 +6179,18 @@ export const replyAsAnchor = mutation({
     if (message.user_id.toString() !== anchor.bot_user_id.toString()) {
       chatFail("FORBIDDEN", "That reply does not belong to this agent");
     }
-    const isHost = anchor.host_user_id.toString() === userId.toString()
-      || (!!anchor.scope_user_id && anchor.scope_user_id.toString() === userId.toString());
+    const isHost =
+      anchor.host_user_id.toString() === userId.toString() ||
+      (!!anchor.scope_user_id &&
+        anchor.scope_user_id.toString() === userId.toString());
     if (!isHost) {
       chatFail("FORBIDDEN", "Only the agent's host can write its reply");
     }
     if (args.content.length > MAX_CHAT_CONTENT) {
-      chatFail("INVALID", `Reply is longer than ${MAX_CHAT_CONTENT} characters`);
+      chatFail(
+        "INVALID",
+        `Reply is longer than ${MAX_CHAT_CONTENT} characters`,
+      );
     }
     // An empty "done" is a permanent blank message under the bot's name that
     // nobody — not even the anchor — can replace. A shell quoting slip is enough
@@ -4885,7 +6203,10 @@ export const replyAsAnchor = mutation({
 
     const status = args.status ?? "done";
     if (status === "passed") {
-      await patchChat(ctx, message._id, { content: "", agent_status: "passed" });
+      await patchChat(ctx, message._id, {
+        content: "",
+        agent_status: "passed",
+      });
       await dropQueuedAnchorWake(ctx, message);
       return { message_id: message._id, agent_status: status };
     }
@@ -4894,35 +6215,52 @@ export const replyAsAnchor = mutation({
     // silent listening row was invisible, so an answer that lands minutes later
     // takes its place at the END of the thread rather than surfacing above the
     // lines typed while it was reading.
-    const patch: Record<string, unknown> = { content: args.content, agent_status: status };
+    const patch: Record<string, unknown> = {
+      content: args.content,
+      agent_status: status,
+    };
     if (message.agent_status === "listening") {
       const newest = await ctx.db
         .query("chat_messages")
-        .withIndex("by_channel_created", (q: any) => q.eq("channel_id", channel._id))
+        .withIndex("by_channel_created", (q: any) =>
+          q.eq("channel_id", channel._id),
+        )
         .order("desc")
         .first();
       patch.created_at = Math.max(Date.now(), (newest?.created_at ?? 0) + 1);
     }
     // A landed answer names people, roles and sessions like any other line:
     // the placeholder was inserted empty, so its mentions are resolved now.
-    const resolved = status === "done"
-      ? await resolveChatMentions(ctx, channel.team_id, args.content, anchor.bot_user_id)
-      : { users: [], roles: [], sessions: [], slack: [], refs: [] };
+    const resolved =
+      status === "done"
+        ? await resolveChatMentions(
+            ctx,
+            channel.team_id,
+            args.content,
+            anchor.bot_user_id,
+          )
+        : { users: [], roles: [], sessions: [], slack: [], refs: [] };
     if (resolved.refs.length > 0) patch.mentions = resolved.refs;
     await patchChat(ctx, message._id, patch);
     // The placeholder was empty when it was inserted, so the Slack mirror is
     // decided now that the answer is on the row.
     if (status === "done") {
       const landed = await ctx.db.get(message._id);
-      if (landed) await queueSlackOutbound(ctx, { op: "message", message: landed });
+      if (landed)
+        await queueSlackOutbound(ctx, { op: "message", message: landed });
     }
 
     // The answer landing is a thread reply like any other, so the people in that
     // thread hear about it — including the person who asked. An inline DM
     // answer reaches the room's members the way any DM line does. Both are
     // agent lines: a bell, never a phone push (C3).
-    const root = message.thread_root_id ? await ctx.db.get(message.thread_root_id) : null;
-    const anchorName = oneLine(displayName(await ctx.db.get(anchor.bot_user_id)), 60);
+    const root = message.thread_root_id
+      ? await ctx.db.get(message.thread_root_id)
+      : null;
+    const anchorName = oneLine(
+      displayName(await ctx.db.get(anchor.bot_user_id)),
+      60,
+    );
     if (!root && status === "done" && channel.kind === "dm") {
       const preview = plainPreview(args.content);
       for (const recipientId of await channelMemberIds(ctx, channel._id)) {
@@ -4946,7 +6284,8 @@ export const replyAsAnchor = mutation({
       await touchThreadReads(ctx, {
         channel,
         root,
-        activityAt: (patch.created_at as number | undefined) ?? message.created_at,
+        activityAt:
+          (patch.created_at as number | undefined) ?? message.created_at,
       });
       const preview = plainPreview(args.content);
       for (const recipientId of await threadParticipants(ctx, root)) {
@@ -4965,11 +6304,22 @@ export const replyAsAnchor = mutation({
         });
       }
     }
-    const mentionWakes = status === "done"
-      ? await wakeAnchorMentions(ctx, {
-        channel, messageId: message._id, root, anchor, roles: resolved.roles, sessions: resolved.sessions, actorName: anchorName,
-      })
-      : { roles: 0, sessions: 0, folded: 0, skipped: [] };
-    return { message_id: message._id, agent_status: status, mention_wakes: mentionWakes };
+    const mentionWakes =
+      status === "done"
+        ? await wakeAnchorMentions(ctx, {
+            channel,
+            messageId: message._id,
+            root,
+            anchor,
+            roles: resolved.roles,
+            sessions: resolved.sessions,
+            actorName: anchorName,
+          })
+        : { roles: 0, sessions: 0, folded: 0, skipped: [] };
+    return {
+      message_id: message._id,
+      agent_status: status,
+      mention_wakes: mentionWakes,
+    };
   },
 });

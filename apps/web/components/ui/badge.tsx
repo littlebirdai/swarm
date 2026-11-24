@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 // In the Modern style a badge is a soft tint of its colour behind text in the
 // same colour, 20px tall, 6px corners, no edge: `neutral` is the ink and each
@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils"
 // blue info, violet people and calls, cyan the accent's own things). `dot`
 // leads with a dot in the text colour, for a state that is live. The Classic
 // variants keep their faces and gain the Modern one; the tones are new.
-const MODERN_SHAPE = "modern:h-5 modern:gap-1 modern:whitespace-nowrap modern:rounded-control modern:px-1.5 modern:py-0 modern:text-meta modern:font-medium modern:shadow-none modern:focus:ring-0 modern:focus:ring-offset-0"
+const MODERN_SHAPE =
+  "modern:h-5 modern:gap-1 modern:whitespace-nowrap modern:rounded-control modern:px-1.5 modern:py-0 modern:text-meta modern:font-medium modern:shadow-none modern:focus:ring-0 modern:focus:ring-offset-0";
 
 const badgeVariants = cva(
   `inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold select-none transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${MODERN_SHAPE}`,
@@ -22,7 +23,8 @@ const badgeVariants = cva(
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80 modern:bg-sol-text/[0.07] modern:text-sol-text-muted modern:hover:bg-sol-text/[0.07]",
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80 modern:bg-sol-red/10 modern:text-sol-red modern:hover:bg-sol-red/10",
-        outline: "text-foreground modern:border-sol-border modern:text-sol-text-muted",
+        outline:
+          "text-foreground modern:border-sol-border modern:text-sol-text-muted",
         // The tones (new): the soft tint in every style.
         neutral: "border-transparent bg-sol-text/[0.07] text-sol-text-muted",
         cyan: "border-transparent bg-sol-cyan/10 text-sol-cyan",
@@ -39,23 +41,29 @@ const badgeVariants = cva(
     defaultVariants: {
       variant: "default",
     },
-  }
-)
+  },
+);
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends
+    React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {
   /** Lead with a dot in the badge's colour: the state is live right now. */
-  dot?: boolean
+  dot?: boolean;
 }
 
 function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
   return (
     <div className={cn(badgeVariants({ variant }), className)} {...props}>
-      {dot && <span aria-hidden className="mr-1 size-1.5 shrink-0 rounded-full bg-current modern:mr-0" />}
+      {dot && (
+        <span
+          aria-hidden
+          className="mr-1 size-1.5 shrink-0 rounded-full bg-current modern:mr-0"
+        />
+      )}
       {children}
     </div>
-  )
+  );
 }
 
-export { Badge, badgeVariants }
+export { Badge, badgeVariants };

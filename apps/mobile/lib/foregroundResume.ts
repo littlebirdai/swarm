@@ -17,14 +17,18 @@
 // - The push. On binaries with the notification service extension
 //   (targets/notification-service), a push about a conversation has already
 //   read its new rows before the phone showed it; they are merged first.
-import { AppState, type AppStateStatus } from 'react-native';
-import { ConvexHttpClient } from 'convex/browser';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { socketStats } from '@/lib/socketStats';
-import { readForward } from '@codecast/web/hooks/inboxWarm';
-import { ensureHydrated, isConvexId, useInboxStore } from '@codecast/web/store/inboxStore';
-import { convex, CONVEX_URL } from '@/lib/convex';
-import { pushPrefetchNative } from '@/modules/codecast-push-prefetch';
+import { AppState, type AppStateStatus } from "react-native";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { socketStats } from "@/lib/socketStats";
+import { readForward } from "@codecast/web/hooks/inboxWarm";
+import {
+  ensureHydrated,
+  isConvexId,
+  useInboxStore,
+} from "@codecast/web/store/inboxStore";
+import { convex, CONVEX_URL } from "@/lib/convex";
+import { pushPrefetchNative } from "@/modules/codecast-push-prefetch";
 
 // A live socket answers the return's probe query well inside this.
 const PROOF_WINDOW_MS = 5_000;
@@ -36,7 +40,7 @@ const WATERMARK_LIMIT = 300;
 // stay on disk for the next return.
 const CACHE_WAIT_MS = 30_000;
 
-let route = '';
+let route = "";
 let token: string | null = null;
 let started = false;
 const inFlight = new Set<string>();
@@ -46,7 +50,7 @@ let awaitingToken: string | null = null;
 
 /** The last HTTPS catch-up that landed: when, for which conversation, how many
  *  rows. Read by the foreground trace. */
-export const lastCatchUp = { at: 0, convId: '', rows: 0 };
+export const lastCatchUp = { at: 0, convId: "", rows: 0 };
 
 export function setForegroundRoute(path: string) {
   route = path;
@@ -71,7 +75,9 @@ export function setCatchUpToken(next: string | null) {
   if (!signedIn) return;
   const pending = awaitingToken;
   awaitingToken = null;
-  void mergePrefetched().then(() => (pending ? catchUpConversation(pending) : undefined));
+  void mergePrefetched().then(() =>
+    pending ? catchUpConversation(pending) : undefined,
+  );
 }
 
 // What the extension needs to read a pushed conversation: the backend and the
@@ -80,19 +86,27 @@ function writePrefetchState() {
   if (!pushPrefetchNative) return;
   const marks: [string, number][] = [];
   for (const [id, rows] of Object.entries(useInboxStore.getState().messages)) {
-    const ts = rows?.length ? (rows[rows.length - 1] as { timestamp?: number })?.timestamp : 0;
+    const ts = rows?.length
+      ? (rows[rows.length - 1] as { timestamp?: number })?.timestamp
+      : 0;
     if (ts && isConvexId(id)) marks.push([id, ts]);
   }
   marks.sort((a, b) => b[1] - a[1]);
   try {
-    pushPrefetchNative.writeState(JSON.stringify({ url: CONVEX_URL, watermarks: Object.fromEntries(marks.slice(0, WATERMARK_LIMIT)) }));
+    pushPrefetchNative.writeState(
+      JSON.stringify({
+        url: CONVEX_URL,
+        watermarks: Object.fromEntries(marks.slice(0, WATERMARK_LIMIT)),
+      }),
+    );
   } catch {}
 }
 
 // A cold launch signs in before the disk cache is loaded, and a conversation
 // read before then looks empty. The saved rows wait for the cache.
 function cacheLoaded(): Promise<boolean> {
-  if (useInboxStore.getState().clientStateInitialized) return Promise.resolve(true);
+  if (useInboxStore.getState().clientStateInitialized)
+    return Promise.resolve(true);
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       unsubscribe();
@@ -119,7 +133,11 @@ export async function mergePrefetched(): Promise<void> {
   let merged = 0;
   for (const text of saved) {
     try {
-      const entry = JSON.parse(text) as { conversation_id?: string; after_timestamp?: number; messages?: any[] };
+      const entry = JSON.parse(text) as {
+        conversation_id?: string;
+        after_timestamp?: number;
+        messages?: any[];
+      };
       const convId = entry.conversation_id;
       if (!convId || !isConvexId(convId) || !entry.messages?.length) continue;
       const hydrated = await ensureHydrated(convId);
@@ -127,15 +145,24 @@ export async function mergePrefetched(): Promise<void> {
       // Rows that start past the window this phone holds would leave a gap;
       // the screen's own open reads those.
       if (local < (entry.after_timestamp ?? Infinity)) {
-        if (__DEV__) console.log(`[foreground-resume] prefetch skipped ${convId}: hydrated=${hydrated} local=${local} after=${entry.after_timestamp}`);
+        if (__DEV__)
+          console.log(
+            `[foreground-resume] prefetch skipped ${convId}: hydrated=${hydrated} local=${local} after=${entry.after_timestamp}`,
+          );
         continue;
       }
-      useInboxStore.getState().mergeMessages(convId, entry.messages, 'append', { initialized: true });
+      useInboxStore
+        .getState()
+        .mergeMessages(convId, entry.messages, "append", { initialized: true });
       merged += entry.messages.length;
-      if (__DEV__) console.log(`[foreground-resume] prefetch merged ${entry.messages.length} rows into ${convId}; newest now ${newestLocalTimestamp(convId)}`);
+      if (__DEV__)
+        console.log(
+          `[foreground-resume] prefetch merged ${entry.messages.length} rows into ${convId}; newest now ${newestLocalTimestamp(convId)}`,
+        );
     } catch {}
   }
-  if (saved.length) Object.assign(lastPrefetch, { at: Date.now(), rows: merged });
+  if (saved.length)
+    Object.assign(lastPrefetch, { at: Date.now(), rows: merged });
 }
 
 export function sessionIdFromRoute(path: string): string | null {
@@ -145,7 +172,9 @@ export function sessionIdFromRoute(path: string): string | null {
 
 /** Newest row timestamp the store holds for a conversation (0 when none). */
 export function newestLocalTimestamp(convId: string): number {
-  const rows = useInboxStore.getState().messages[convId] as { timestamp?: number }[] | undefined;
+  const rows = useInboxStore.getState().messages[convId] as
+    | { timestamp?: number }[]
+    | undefined;
   return rows?.length ? (rows[rows.length - 1]?.timestamp ?? 0) : 0;
 }
 
@@ -174,10 +203,17 @@ export async function catchUpConversation(convId: string): Promise<void> {
     http.setAuth(token);
     const rows = await readForward(http, convId, after);
     Object.assign(lastCatchUp, { at: Date.now(), convId, rows: rows ?? 0 });
-    if (__DEV__) console.log(`[foreground-resume] https rows=${rows} in ${Date.now() - started}ms`);
+    if (__DEV__)
+      console.log(
+        `[foreground-resume] https rows=${rows} in ${Date.now() - started}ms`,
+      );
   } catch (err) {
     // The socket's own subscription still delivers the same rows.
-    if (__DEV__) console.log(`[foreground-resume] https failed after ${Date.now() - started}ms`, String(err));
+    if (__DEV__)
+      console.log(
+        `[foreground-resume] https failed after ${Date.now() - started}ms`,
+        String(err),
+      );
   } finally {
     inFlight.delete(convId);
   }
@@ -192,7 +228,7 @@ function socketManager(): any {
 /** The socket manager's state ("ready", "connecting", "disconnected", ...). */
 export function socketState(): string {
   const state = socketManager()?.socket?.state;
-  return typeof state === 'string' ? state : 'unknown';
+  return typeof state === "string" ? state : "unknown";
 }
 
 // Replace the socket now. Convex's own close schedules the new socket on its
@@ -201,7 +237,8 @@ export function socketState(): string {
 function reconnectNow() {
   const manager = socketManager();
   if (!manager) return;
-  if (manager.socket?.state !== 'disconnected') manager.closeAndReconnect?.('InactiveServer');
+  if (manager.socket?.state !== "disconnected")
+    manager.closeAndReconnect?.("InactiveServer");
   manager.tryReconnectImmediately?.();
 }
 
@@ -226,26 +263,37 @@ function proveSocket() {
   if (!convId) return;
   let answered = false;
   convex
-    .query(api.conversations.listMessagesTail, { conversation_id: convId, after_timestamp: Date.now() })
-    .then(() => { answered = true; }, () => { answered = true; });
+    .query(api.conversations.listMessagesTail, {
+      conversation_id: convId,
+      after_timestamp: Date.now(),
+    })
+    .then(
+      () => {
+        answered = true;
+      },
+      () => {
+        answered = true;
+      },
+    );
   setTimeout(() => {
-    if (!answered && socketState() === 'ready') reconnectNow();
+    if (!answered && socketState() === "ready") reconnectNow();
   }, PROOF_WINDOW_MS);
 }
 
 function nudgeSocket() {
   const state = socketState();
-  if (state === 'disconnected') {
+  if (state === "disconnected") {
     reconnectNow();
     return;
   }
   // A connect attempt made while the network was gone can sit in its TCP
   // handshake well past the network's return.
-  if (state === 'connecting') {
-    if (Date.now() - socketStats.lastConnectAt > STALLED_CONNECT_MS) reconnectNow();
+  if (state === "connecting") {
+    if (Date.now() - socketStats.lastConnectAt > STALLED_CONNECT_MS)
+      reconnectNow();
     return;
   }
-  if (state === 'ready') proveSocket();
+  if (state === "ready") proveSocket();
 }
 
 /** Starts watching AppState. Idempotent. */
@@ -253,18 +301,20 @@ export function startForegroundResume() {
   if (started) return;
   started = true;
   let wasBackground = false;
-  AppState.addEventListener('change', (next: AppStateStatus) => {
-    if (next === 'background') {
+  AppState.addEventListener("change", (next: AppStateStatus) => {
+    if (next === "background") {
       wasBackground = true;
       writePrefetchState();
       return;
     }
-    if (next !== 'active' || !wasBackground) return;
+    if (next !== "active" || !wasBackground) return;
     wasBackground = false;
     nudgeSocket();
     const convId = sessionIdFromRoute(route);
     // The extension's rows first: the HTTPS read then asks only for what is
     // newer than them.
-    void mergePrefetched().then(() => (convId ? catchUpConversation(convId) : undefined));
+    void mergePrefetched().then(() =>
+      convId ? catchUpConversation(convId) : undefined,
+    );
   });
 }

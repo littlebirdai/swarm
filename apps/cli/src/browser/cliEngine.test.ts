@@ -4,8 +4,24 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { carryLogins, castVoice, isUnattachableTab, lastMutatingIndex, normalizeTabArgs, parseShotArgs, parseViewportSize, translate, readEvalScript, loginRaisePlan, LOGIN_RAISE_COOLDOWN_MS } from "./cliEngine.js";
-import { parseEngineRefs, rankByVisibility, withOrdinals } from "./engineRefs.js";
+import {
+  carryLogins,
+  castVoice,
+  isUnattachableTab,
+  lastMutatingIndex,
+  normalizeTabArgs,
+  parseShotArgs,
+  parseViewportSize,
+  translate,
+  readEvalScript,
+  loginRaisePlan,
+  LOGIN_RAISE_COOLDOWN_MS,
+} from "./cliEngine.js";
+import {
+  parseEngineRefs,
+  rankByVisibility,
+  withOrdinals,
+} from "./engineRefs.js";
 
 describe("carryLogins on the cloud host", () => {
   // The host's clone of its own ~/.config/google-chrome carries a
@@ -16,8 +32,14 @@ describe("carryLogins on the cloud host", () => {
     let provisioned = 0;
     await carryLogins("github.com", {
       isRemote: () => true,
-      readState: () => { read++; return { port: 1, sourceProfile: "Default", channel: "chrome" } as any; },
-      provision: async () => { provisioned++; return { injected: 0, host: "github.com" }; },
+      readState: () => {
+        read++;
+        return { port: 1, sourceProfile: "Default", channel: "chrome" } as any;
+      },
+      provision: async () => {
+        provisioned++;
+        return { injected: 0, host: "github.com" };
+      },
     });
     expect(read).toBe(0);
     expect(provisioned).toBe(0);
@@ -26,18 +48,28 @@ describe("carryLogins on the cloud host", () => {
     const calls: any[] = [];
     await carryLogins("github.com", {
       isRemote: () => false,
-      readState: () => ({ port: 1, sourceProfile: "Default", channel: "chrome" } as any),
-      provision: async (...a) => { calls.push(a); return { injected: 0, host: "github.com" }; },
+      readState: () =>
+        ({ port: 1, sourceProfile: "Default", channel: "chrome" }) as any,
+      provision: async (...a) => {
+        calls.push(a);
+        return { injected: 0, host: "github.com" };
+      },
     });
-    expect(calls).toEqual([[1, "https://github.com", { profileDir: "Default", channel: "chrome" }]]);
+    expect(calls).toEqual([
+      [1, "https://github.com", { profileDir: "Default", channel: "chrome" }],
+    ]);
   });
 });
 
 describe("translate: tab", () => {
   test("tab switch becomes the engine's bare tab <ref>, which it reads as a switch", () => {
     // The engine has no `switch` operation and would read it as a tab label.
-    expect(translate("tab", ["switch", "t3"], null)).toEqual([{ args: ["tab", "t3"] }]);
-    expect(translate("tab", ["close", "t3"], null)).toEqual([{ args: ["tab", "close", "t3"] }]);
+    expect(translate("tab", ["switch", "t3"], null)).toEqual([
+      { args: ["tab", "t3"] },
+    ]);
+    expect(translate("tab", ["close", "t3"], null)).toEqual([
+      { args: ["tab", "close", "t3"] },
+    ]);
   });
 });
 
@@ -47,20 +79,30 @@ describe("translate: text", () => {
   });
 
   test("a selector positional reads one element via get text", () => {
-    expect(translate("text", ["div[role=main]"], null)).toEqual([{ args: ["get", "text", "div[role=main]"] }]);
+    expect(translate("text", ["div[role=main]"], null)).toEqual([
+      { args: ["get", "text", "div[role=main]"] },
+    ]);
   });
 
   test("a ref positional reads one element, in engine spelling", () => {
-    expect(translate("text", ["#e42"], null)).toEqual([{ args: ["get", "text", "@e42"] }]);
+    expect(translate("text", ["#e42"], null)).toEqual([
+      { args: ["get", "text", "@e42"] },
+    ]);
   });
 
   test("-s / --selector spell the same thing", () => {
-    expect(translate("text", ["-s", "div.a3s"], null)).toEqual([{ args: ["get", "text", "div.a3s"] }]);
-    expect(translate("text", ["--selector", "div.a3s"], null)).toEqual([{ args: ["get", "text", "div.a3s"] }]);
+    expect(translate("text", ["-s", "div.a3s"], null)).toEqual([
+      { args: ["get", "text", "div.a3s"] },
+    ]);
+    expect(translate("text", ["--selector", "div.a3s"], null)).toEqual([
+      { args: ["get", "text", "div.a3s"] },
+    ]);
   });
 
   test("a leading flag still means the whole-page read", () => {
-    expect(translate("text", ["--outline"], null)).toEqual([{ args: ["read", "--outline"] }]);
+    expect(translate("text", ["--outline"], null)).toEqual([
+      { args: ["read", "--outline"] },
+    ]);
   });
 
   test("a URL positional reads the document, not an element", () => {
@@ -72,14 +114,18 @@ describe("translate: text", () => {
 
 describe("translate: read passes through", () => {
   test("read is its own verb, flags intact", () => {
-    expect(translate("read", ["--outline"], null)).toEqual([{ args: ["read", "--outline"] }]);
+    expect(translate("read", ["--outline"], null)).toEqual([
+      { args: ["read", "--outline"] },
+    ]);
   });
 
   test("read -s <sel> is absorbed as scoped element text", () => {
-    expect(translate("read", ["-s", "[role=main]"], null)).toEqual([{ args: ["get", "text", "[role=main]"] }]);
-    expect(translate("read", ["--selector", "div.a3s", "--json"], null)).toEqual([
-      { args: ["get", "text", "div.a3s", "--json"] },
+    expect(translate("read", ["-s", "[role=main]"], null)).toEqual([
+      { args: ["get", "text", "[role=main]"] },
     ]);
+    expect(
+      translate("read", ["--selector", "div.a3s", "--json"], null),
+    ).toEqual([{ args: ["get", "text", "div.a3s", "--json"] }]);
   });
 
   test("read with a URL keeps -s out of the way (engine reports it)", () => {
@@ -89,7 +135,9 @@ describe("translate: read passes through", () => {
   });
 
   test("diff is reachable for snapshot deltas", () => {
-    expect(translate("diff", ["snapshot"], null)).toEqual([{ args: ["diff", "snapshot"] }]);
+    expect(translate("diff", ["snapshot"], null)).toEqual([
+      { args: ["diff", "snapshot"] },
+    ]);
   });
 });
 
@@ -133,8 +181,15 @@ describe("parseEngineRefs", () => {
   });
 
   test("carries the ref itself, and no ordinal when every name is its own", () => {
-    expect(parseEngineRefs(stdout).map((i) => i.ref)).toEqual(["e9", "e162", "e47", "e77"]);
-    expect(parseEngineRefs(stdout).every((i) => i.nth === undefined)).toBe(true);
+    expect(parseEngineRefs(stdout).map((i) => i.ref)).toEqual([
+      "e9",
+      "e162",
+      "e47",
+      "e77",
+    ]);
+    expect(parseEngineRefs(stdout).every((i) => i.nth === undefined)).toBe(
+      true,
+    );
   });
 });
 
@@ -170,36 +225,49 @@ describe("ordinals on the engine's snapshot", () => {
   });
 
   test("a page with nothing ambiguous on it is passed through untouched", () => {
-    const plain = ['- link "All issues" [ref=e9]', '- button "Watch" [expanded=false, ref=e162]'].join("\n");
+    const plain = [
+      '- link "All issues" [ref=e9]',
+      '- button "Watch" [expanded=false, ref=e162]',
+    ].join("\n");
     expect(withOrdinals(plain)).toBe(plain);
   });
 
   test("same name under different roles is not a duplicate", () => {
-    const mixed = ['- link "Delete" [ref=e3]', '- button "Delete" [ref=e4]'].join("\n");
+    const mixed = [
+      '- link "Delete" [ref=e3]',
+      '- button "Delete" [ref=e4]',
+    ].join("\n");
     expect(withOrdinals(mixed)).toBe(mixed);
   });
 });
 
 describe("translate: -s selector quoting", () => {
   test("unquoted attribute values are quoted for snapshot scoping", () => {
-    expect(translate("snapshot", ["-i", "-s", "div[role=main]"], null)).toEqual([
-      { args: ["snapshot", "-i", "-s", 'div[role="main"]'] },
-    ]);
+    expect(translate("snapshot", ["-i", "-s", "div[role=main]"], null)).toEqual(
+      [{ args: ["snapshot", "-i", "-s", 'div[role="main"]'] }],
+    );
   });
 
   test("already-quoted and attribute-free selectors pass unchanged", () => {
     expect(translate("snapshot", ["-s", 'div[role="main"]'], null)).toEqual([
       { args: ["snapshot", "-s", 'div[role="main"]'] },
     ]);
-    expect(translate("diff", ["snapshot", "--selector", "#main .list"], null)).toEqual([
-      { args: ["diff", "snapshot", "--selector", "#main .list"] },
-    ]);
+    expect(
+      translate("diff", ["snapshot", "--selector", "#main .list"], null),
+    ).toEqual([{ args: ["diff", "snapshot", "--selector", "#main .list"] }]);
   });
 });
 
 describe("lastMutatingIndex", () => {
   test("names the last page-changing step, not the first", () => {
-    expect(lastMutatingIndex(["open example.com", "snapshot -i", "click #e2", "get text div.a3s"])).toBe(2);
+    expect(
+      lastMutatingIndex([
+        "open example.com",
+        "snapshot -i",
+        "click #e2",
+        "get text div.a3s",
+      ]),
+    ).toBe(2);
   });
 
   test("a flow with no page-changing step has none", () => {
@@ -225,7 +293,9 @@ describe("readEvalScript", () => {
   });
 
   test("-b decodes base64", () => {
-    expect(readEvalScript(["-b", Buffer.from("2+2").toString("base64")], null)).toBe("2+2");
+    expect(
+      readEvalScript(["-b", Buffer.from("2+2").toString("base64")], null),
+    ).toBe("2+2");
   });
 
   test("--stdin uses the body when available and refuses inside a flow", () => {
@@ -245,13 +315,19 @@ describe("rankByVisibility", () => {
     c: null, // box unknown — treated as visible, never demoted on a guess
   };
   test("zero-size elements sink below visible ones, order otherwise kept", () => {
-    const { ordered, hidden } = rankByVisibility(["a", "b", "c"], (h) => boxes[h]);
+    const { ordered, hidden } = rankByVisibility(
+      ["a", "b", "c"],
+      (h) => boxes[h],
+    );
     expect(ordered).toEqual(["b", "c", "a"]);
     expect([...hidden]).toEqual(["a"]);
   });
 
   test("all visible: untouched", () => {
-    expect(rankByVisibility(["b", "c"], (h) => boxes[h]).ordered).toEqual(["b", "c"]);
+    expect(rankByVisibility(["b", "c"], (h) => boxes[h]).ordered).toEqual([
+      "b",
+      "c",
+    ]);
   });
 });
 
@@ -259,17 +335,33 @@ describe("loginRaisePlan", () => {
   const now = 1_000_000_000;
   test("an already-authed page never raises, even with no prior raise on record", () => {
     expect(loginRaisePlan(null, undefined, now)).toBe("signed-in");
-    expect(loginRaisePlan(null, now - LOGIN_RAISE_COOLDOWN_MS * 10, now)).toBe("signed-in");
+    expect(loginRaisePlan(null, now - LOGIN_RAISE_COOLDOWN_MS * 10, now)).toBe(
+      "signed-in",
+    );
   });
 
   test("a pending sign-in raises when no raise happened recently", () => {
     expect(loginRaisePlan("accounts.google.com", undefined, now)).toBe("raise");
-    expect(loginRaisePlan("accounts.google.com", now - LOGIN_RAISE_COOLDOWN_MS - 1, now)).toBe("raise");
+    expect(
+      loginRaisePlan(
+        "accounts.google.com",
+        now - LOGIN_RAISE_COOLDOWN_MS - 1,
+        now,
+      ),
+    ).toBe("raise");
   });
 
   test("a pending sign-in inside the cooldown does not raise again", () => {
-    expect(loginRaisePlan("accounts.google.com", now - 10_000, now)).toBe("cooldown");
-    expect(loginRaisePlan("accounts.google.com", now - LOGIN_RAISE_COOLDOWN_MS + 1, now)).toBe("cooldown");
+    expect(loginRaisePlan("accounts.google.com", now - 10_000, now)).toBe(
+      "cooldown",
+    );
+    expect(
+      loginRaisePlan(
+        "accounts.google.com",
+        now - LOGIN_RAISE_COOLDOWN_MS + 1,
+        now,
+      ),
+    ).toBe("cooldown");
   });
 });
 
@@ -282,11 +374,17 @@ describe("tab ls and engine wording", () => {
   });
 
   test("engine messages name cast browser, never the engine binary", () => {
-    expect(castVoice("No tab with label `ls`; run `agent-browser tab`")).toBe("No tab with label `ls`; run `cast browser tab`");
+    expect(castVoice("No tab with label `ls`; run `agent-browser tab`")).toBe(
+      "No tab with label `ls`; run `cast browser tab`",
+    );
   });
 
   test("Chrome refusing the debugger is recognised", () => {
-    expect(isUnattachableTab("✗ CDP error (Target.attachToTarget): Cannot attach to this target.")).toBe(true);
+    expect(
+      isUnattachableTab(
+        "✗ CDP error (Target.attachToTarget): Cannot attach to this target.",
+      ),
+    ).toBe(true);
     expect(isUnattachableTab("tab_gone")).toBe(false);
   });
 });
@@ -301,8 +399,14 @@ describe("parseShotArgs", () => {
   test("the spellings agents reach for: -o, --out, --path, --full-page", () => {
     expect(opts(["-o", "/tmp/a.png"]).out).toBe("/tmp/a.png");
     expect(opts(["--out=/tmp/a.png"]).out).toBe("/tmp/a.png");
-    expect(opts(["--path", "a.png", "--full-page"])).toEqual({ out: "a.png", full: true });
-    expect(opts(["t1-1440.png", "-s", "#hero"])).toEqual({ out: "t1-1440.png", selector: "#hero" });
+    expect(opts(["--path", "a.png", "--full-page"])).toEqual({
+      out: "a.png",
+      full: true,
+    });
+    expect(opts(["t1-1440.png", "-s", "#hero"])).toEqual({
+      out: "t1-1440.png",
+      selector: "#hero",
+    });
   });
 
   test("a flag shot does not have is refused, never handed to the engine as a selector", () => {
@@ -318,7 +422,11 @@ describe("parseShotArgs", () => {
 
 describe("parseViewportSize", () => {
   test("presets, WxH in its common spellings, and a bare width", () => {
-    expect(parseViewportSize("mobile")).toEqual({ width: 390, height: 844, preset: "mobile" });
+    expect(parseViewportSize("mobile")).toEqual({
+      width: 390,
+      height: 844,
+      preset: "mobile",
+    });
     expect(parseViewportSize("1440x900")).toEqual({ width: 1440, height: 900 });
     expect(parseViewportSize("1440*900")).toEqual({ width: 1440, height: 900 });
     expect(parseViewportSize("390")).toEqual({ width: 390, height: 844 });

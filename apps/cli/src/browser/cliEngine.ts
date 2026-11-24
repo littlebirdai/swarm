@@ -30,55 +30,199 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { Option, type Command } from "commander";
 import {
-  ENGINE_PACKAGE, engineHelpText, engineHome, engineSession, ownerOfSessionKey, requestTabName, tabNameOf, engineTabs, engineVersion, ensureEngine, findEngine, isPaneSession, isRealSession,
-  parseEngineJson, realSessionKey, runEngine, runEngineJson, type EngineRun,
+  ENGINE_PACKAGE,
+  engineHelpText,
+  engineHome,
+  engineSession,
+  ownerOfSessionKey,
+  requestTabName,
+  tabNameOf,
+  engineTabs,
+  engineVersion,
+  ensureEngine,
+  findEngine,
+  isPaneSession,
+  isRealSession,
+  parseEngineJson,
+  realSessionKey,
+  runEngine,
+  runEngineJson,
+  type EngineRun,
 } from "./engine.js";
-import { engineBrowserFor, isPaneMode, isRealMode, realModeHint, requireRealBridge, splitTargetFlags, walledOffFromExtension } from "./bridge/real.js";
-import { desktopPaneCtx, DesktopPaneUnavailable, PANE_TAB_NOTE } from "./desktopPane.js";
-import { modelJudge, registerBrowserSubscriptions, type BrowserSubDeps } from "./subscribe.js";
+import {
+  engineBrowserFor,
+  isPaneMode,
+  isRealMode,
+  realModeHint,
+  requireRealBridge,
+  splitTargetFlags,
+  walledOffFromExtension,
+} from "./bridge/real.js";
+import {
+  desktopPaneCtx,
+  DesktopPaneUnavailable,
+  PANE_TAB_NOTE,
+} from "./desktopPane.js";
+import {
+  modelJudge,
+  registerBrowserSubscriptions,
+  type BrowserSubDeps,
+} from "./subscribe.js";
 import { registerHandoffCommand } from "./handoff.js";
 import { currentSession } from "@platform/cli-kit/subscribe";
-import { bridgeEndpoint, grantTab, requestBrowserProfile } from "./bridge/host.js";
-import { readCdpJson, listTargets, type CdpEndpoint } from "./cdp.js";
-import { BROWSER_START_HELP, prepareRealBrowserStart, registerBridgeCommands, targetFlags } from "./bridge/commands.js";
-import { closeSessionTab, describeReap, detachSessionDaemon, listEngineSessions, reapEngineOrphans, scanLiveOwners, withEndedSession } from "./engineReap.js";
-import { engineSnapshotJson, type EngineSnapshotPayload, matchRefs, nearMatches, ordinal, pickOrdinal, refLabel, splitOrdinalQuery } from "./snapshot.js";
-import { type EngineRef, parseEngineRefs, rankByVisibility, withOrdinals } from "./engineRefs.js";
 import {
-  isStaleRefFailure, preflightRefPlan, recallSnapshotRef, recoverRefPlan, rememberedSnapshotUrl, rememberSnapshotRefs, SNAPSHOT_AGAIN,
+  bridgeEndpoint,
+  grantTab,
+  requestBrowserProfile,
+} from "./bridge/host.js";
+import { readCdpJson, listTargets, type CdpEndpoint } from "./cdp.js";
+import {
+  BROWSER_START_HELP,
+  prepareRealBrowserStart,
+  registerBridgeCommands,
+  targetFlags,
+} from "./bridge/commands.js";
+import {
+  closeSessionTab,
+  describeReap,
+  detachSessionDaemon,
+  listEngineSessions,
+  reapEngineOrphans,
+  scanLiveOwners,
+  withEndedSession,
+} from "./engineReap.js";
+import {
+  engineSnapshotJson,
+  type EngineSnapshotPayload,
+  matchRefs,
+  nearMatches,
+  ordinal,
+  pickOrdinal,
+  refLabel,
+  splitOrdinalQuery,
+} from "./snapshot.js";
+import {
+  type EngineRef,
+  parseEngineRefs,
+  rankByVisibility,
+  withOrdinals,
+} from "./engineRefs.js";
+import {
+  isStaleRefFailure,
+  preflightRefPlan,
+  recallSnapshotRef,
+  recoverRefPlan,
+  rememberedSnapshotUrl,
+  rememberSnapshotRefs,
+  SNAPSHOT_AGAIN,
 } from "./refMemory.js";
 import { redactHarFile, redactSnapshotOutput } from "./redaction.js";
-import { captureSettled, type PageStamp, parseSettleProbe, settleProbeSource, sleepSync } from "./snapshotSettle.js";
 import {
-  awaitChallenge, CHALLENGE_PROBE_SOURCE, challengeReport, challengeWaitMs, parseChallengeProbe, type ChallengeOutcome, type ChallengeProbe,
+  captureSettled,
+  type PageStamp,
+  parseSettleProbe,
+  settleProbeSource,
+  sleepSync,
+} from "./snapshotSettle.js";
+import {
+  awaitChallenge,
+  CHALLENGE_PROBE_SOURCE,
+  challengeReport,
+  challengeWaitMs,
+  parseChallengeProbe,
+  type ChallengeOutcome,
+  type ChallengeProbe,
 } from "./challenge.js";
-import { ensurePinnedTab, pinnedTabBrowser, readBoundTarget, recoverGoneTab, touchBoundTarget } from "./pinnedTab.js";
+import {
+  ensurePinnedTab,
+  pinnedTabBrowser,
+  readBoundTarget,
+  recoverGoneTab,
+  touchBoundTarget,
+} from "./pinnedTab.js";
 import { markChallengedTab } from "./humanInput.js";
 import { tabIdOfTarget } from "./bridge/protocol.js";
-import { retryOnStall, shouldRetryAfterStall, STALL_NOTE, STALL_RETRY_DELAY_MS } from "./stall.js";
+import {
+  retryOnStall,
+  shouldRetryAfterStall,
+  STALL_NOTE,
+  STALL_RETRY_DELAY_MS,
+} from "./stall.js";
 import { formatBytes, keepsOwnLogin, listRealProfiles } from "./profile.js";
-import { DEFAULT_START, startLocalBrowser, startManagedBrowser, stopRemoteManagedBrowser, type StartOptions } from "./managedBrowser.js";
+import {
+  DEFAULT_START,
+  startLocalBrowser,
+  startManagedBrowser,
+  stopRemoteManagedBrowser,
+  type StartOptions,
+} from "./managedBrowser.js";
 import { hideCloneControls, registerAdvancedClone } from "./advanced.js";
-import { clearState, probeLiveness, readState, stopInstance, writeState } from "./instance.js";
+import {
+  clearState,
+  probeLiveness,
+  readState,
+  stopInstance,
+  writeState,
+} from "./instance.js";
 import { provisionLocalLogins } from "./credentials.js";
 import { isPidAlive } from "../workspace/chrome.js";
 import { authorizesTeardown } from "@codecast/shared/contracts";
-import { auditExplicitLoads, auditLanding, browserJarRead, NAVIGATING_VERBS, refuseNavigation, signInHost, signInLandingNote, urlsLoadedBy, vaultJarRefusal, viaFor, webAuthnRefusal } from "./siteGuard.js";
+import {
+  auditExplicitLoads,
+  auditLanding,
+  browserJarRead,
+  NAVIGATING_VERBS,
+  refuseNavigation,
+  signInHost,
+  signInLandingNote,
+  urlsLoadedBy,
+  vaultJarRefusal,
+  viaFor,
+  webAuthnRefusal,
+} from "./siteGuard.js";
 import { focusBrowserTabBlocking } from "./focusHttp.js";
 import { emitFailureBlock, engineSource } from "./capture.js";
 import { registerAuditCommand } from "./auditCommand.js";
-import { autoShotsEnabled, clearAutoShots, isMutatingStep, maybeAutoShot, setAutoShots, type AutoShotSource } from "./autoShot.js";
-import { opensATab, tabFooterLines, TAB_AFFECTING_VERBS, TAB_CLEANUP_NOTE } from "./tabFooter.js";
+import {
+  autoShotsEnabled,
+  clearAutoShots,
+  isMutatingStep,
+  maybeAutoShot,
+  setAutoShots,
+  type AutoShotSource,
+} from "./autoShot.js";
+import {
+  opensATab,
+  tabFooterLines,
+  TAB_AFFECTING_VERBS,
+  TAB_CLEANUP_NOTE,
+} from "./tabFooter.js";
 import { tokenize } from "./batch.js";
 import { readStepPlan } from "../stepBatch.js";
-import { armVerbDeadline, deadlineSeconds, DEADLINE_ENV, DEFAULT_DEADLINE_S, setStage } from "./deadline.js";
-import { captureFullPage, evalInPage, grantPermissions, type PageCtx } from "./pageEval.js";
+import {
+  armVerbDeadline,
+  deadlineSeconds,
+  DEADLINE_ENV,
+  DEFAULT_DEADLINE_S,
+  setStage,
+} from "./deadline.js";
+import {
+  captureFullPage,
+  evalInPage,
+  grantPermissions,
+  type PageCtx,
+} from "./pageEval.js";
 import { ownerKey } from "./owner.js";
 import { runBrowserSync, DEFAULT_SYNC_WAIT_S } from "./sync.js";
 import { cloudHostSignInHint } from "../cloud/browserSync.js";
 import { isRemoteDevice } from "../remote/device.js";
 import { inlineImageMarker } from "../inlineImage.js";
-import { defaultShotPath, imageSize, shotJson, SHOT_TEMP_KIND } from "./shotFile.js";
+import {
+  defaultShotPath,
+  imageSize,
+  shotJson,
+  SHOT_TEMP_KIND,
+} from "./shotFile.js";
 import { agentTempPath, secureTempFile } from "../tempFiles.js";
 import { uploadOne } from "../imageCommand.js";
 import { MAX_IMAGE_SIZE } from "../syncService.js";
@@ -113,7 +257,8 @@ export interface TargetChoice {
  */
 const CLONE_ONLY: Record<string, string> = {
   grant: "the extension cannot grant site permissions in the human's Chrome",
-  login: "the human's Chrome already holds their logins; a sign-in there is the human's own",
+  login:
+    "the human's Chrome already holds their logins; a sign-in there is the human's own",
   sync: "the human's Chrome already has its own cookies",
 };
 
@@ -123,7 +268,10 @@ const CLONE_ONLY: Record<string, string> = {
  * and `runFlow` fails the step with it inside a `do` flow, so the two paths
  * cannot disagree about which verbs the real Chrome gets.
  */
-function cloneOnlyRefusal(verb: string, real: boolean): { message: string; hint: string } | null {
+function cloneOnlyRefusal(
+  verb: string,
+  real: boolean,
+): { message: string; hint: string } | null {
   const why = CLONE_ONLY[verb];
   if (!why || !real) return null;
   return {
@@ -158,15 +306,21 @@ async function ctx(choice: TargetChoice = {}): Promise<Ctx> {
       return await desktopPaneCtx(owner);
     } catch (err) {
       const unavailable = err instanceof DesktopPaneUnavailable ? err : null;
-      if (!unavailable || unavailable.reason !== "closed") die((err as Error).message, unavailable?.hint);
-      console.log(`${fmt.warning("!")} ${unavailable.message} — continuing in the human's Chrome`);
+      if (!unavailable || unavailable.reason !== "closed")
+        die((err as Error).message, unavailable?.hint);
+      console.log(
+        `${fmt.warning("!")} ${unavailable.message} — continuing in the human's Chrome`,
+      );
       choice = { ...choice, pane: false };
     }
   }
   if (!isRealMode(choice, owner)) return { session };
   try {
     setStage("connecting to the human's Chrome through the extension");
-    return await engineBrowserFor(realSessionKey(session), await requireRealBridge());
+    return await engineBrowserFor(
+      realSessionKey(session),
+      await requireRealBridge(),
+    );
   } catch (err) {
     die((err as Error).message);
   }
@@ -183,14 +337,21 @@ async function ctxFor(verb: string, choice: TargetChoice): Promise<Ctx> {
 function targetChoiceOf(cmd: Command): TargetChoice {
   const o = cmd.opts() as TargetChoice;
   const raw = splitTargetFlags(cmd.args);
-  return { real: o.real || raw.real, clone: o.clone || raw.clone, pane: o.pane || raw.pane };
+  return {
+    real: o.real || raw.real,
+    clone: o.clone || raw.clone,
+    pane: o.pane || raw.pane,
+  };
 }
 
 /**
  * A passthrough verb's browser and its own arguments, from a raw argument
  * list that may carry `--real` or the retired `--clone` flag, which is rejected.
  */
-async function targetOf(verb: string, args: string[]): Promise<{ ctx: Ctx; args: string[] }> {
+async function targetOf(
+  verb: string,
+  args: string[],
+): Promise<{ ctx: Ctx; args: string[] }> {
   const t = splitTargetFlags(args);
   return { ctx: await ctxFor(verb, t), args: t.args };
 }
@@ -218,11 +379,24 @@ function engineAutoShotSource(o: Ctx): AutoShotSource {
   return {
     tabKey: `engine:${o.session}`,
     capture: async () => {
-      const out = agentTempPath(SHOT_TEMP_KIND, `cast-autoshot-${process.pid}.jpg`);
-      const res = runEngine(["screenshot", out, "--screenshot-format", "jpeg", "--screenshot-quality", "60"], {
-        ...o,
-        timeoutMs: 20_000,
-      });
+      const out = agentTempPath(
+        SHOT_TEMP_KIND,
+        `cast-autoshot-${process.pid}.jpg`,
+      );
+      const res = runEngine(
+        [
+          "screenshot",
+          out,
+          "--screenshot-format",
+          "jpeg",
+          "--screenshot-quality",
+          "60",
+        ],
+        {
+          ...o,
+          timeoutMs: 20_000,
+        },
+      );
       if (res.status !== 0) throw new Error(res.stderr || "screenshot failed");
       secureTempFile(out);
       const buf = fs.readFileSync(out);
@@ -241,41 +415,123 @@ function engineAutoShotSource(o: Ctx): AutoShotSource {
  * description so `cast browser --help` still reads like our tool. Anything not
  * listed is still reachable: `cast browser raw <args…>`.
  */
-const PASSTHROUGH: Array<{ verb: string; engine?: string; args: string; desc: string }> = [
-  { verb: "open", args: "[args...]", desc: "Navigate to a URL (--new-tab for a second page)" },
-  { verb: "snapshot", args: "[args...]", desc: "The page as an accessibility tree with refs (-i interactive only, -s <sel> scope, -c compact, -d <n> depth, -u link urls, --redact-values hides every field value (passwords and codes always are), --json for {url, refs, text})" },
-  { verb: "read", args: "[args...]", desc: 'The page, or a URL, as clean readable text (--outline, --filter <text>) — best for "what does this page say"' },
-  { verb: "click", args: "[args...]", desc: "Click an element (#e42 ref or CSS selector)" },
-  { verb: "type", args: "[args...]", desc: "Type into an element (--submit presses Enter after; --vault <name>[/field] or --stdin for a secret)" },
-  { verb: "fill", args: "[args...]", desc: "Clear a field and fill it (--vault <name>[/username|/otp] types a Vault login unseen, --stdin a piped value)" },
-  { verb: "press", args: "[args...]", desc: 'Press a key ("Enter", "Control+a")' },
-  { verb: "hover", args: "[args...]", desc: "Hover an element, revealing menus" },
-  { verb: "focus", args: "[args...]", desc: "Focus an element without clicking" },
+const PASSTHROUGH: Array<{
+  verb: string;
+  engine?: string;
+  args: string;
+  desc: string;
+}> = [
+  {
+    verb: "open",
+    args: "[args...]",
+    desc: "Navigate to a URL (--new-tab for a second page)",
+  },
+  {
+    verb: "snapshot",
+    args: "[args...]",
+    desc: "The page as an accessibility tree with refs (-i interactive only, -s <sel> scope, -c compact, -d <n> depth, -u link urls, --redact-values hides every field value (passwords and codes always are), --json for {url, refs, text})",
+  },
+  {
+    verb: "read",
+    args: "[args...]",
+    desc: 'The page, or a URL, as clean readable text (--outline, --filter <text>) — best for "what does this page say"',
+  },
+  {
+    verb: "click",
+    args: "[args...]",
+    desc: "Click an element (#e42 ref or CSS selector)",
+  },
+  {
+    verb: "type",
+    args: "[args...]",
+    desc: "Type into an element (--submit presses Enter after; --vault <name>[/field] or --stdin for a secret)",
+  },
+  {
+    verb: "fill",
+    args: "[args...]",
+    desc: "Clear a field and fill it (--vault <name>[/username|/otp] types a Vault login unseen, --stdin a piped value)",
+  },
+  {
+    verb: "press",
+    args: "[args...]",
+    desc: 'Press a key ("Enter", "Control+a")',
+  },
+  {
+    verb: "hover",
+    args: "[args...]",
+    desc: "Hover an element, revealing menus",
+  },
+  {
+    verb: "focus",
+    args: "[args...]",
+    desc: "Focus an element without clicking",
+  },
   { verb: "select", args: "[args...]", desc: "Choose an option in a dropdown" },
-  { verb: "scroll", args: "[args...]", desc: "Scroll the page (up/down/left/right)" },
+  {
+    verb: "scroll",
+    args: "[args...]",
+    desc: "Scroll the page (up/down/left/right)",
+  },
   { verb: "upload", args: "[args...]", desc: "Attach files to a file input" },
-  { verb: "download", args: "[args...]", desc: "Download a file by clicking an element" },
+  {
+    verb: "download",
+    args: "[args...]",
+    desc: "Download a file by clicking an element",
+  },
   { verb: "drag", args: "[args...]", desc: "Drag one element onto another" },
-  { verb: "wait", args: "[args...]", desc: "Wait for --text <s>, --url <pat>, --load <state>, --fn <js>, a selector, or ms" },
-  { verb: "text", engine: "read", args: "[args...]", desc: "Visible text of the page, or of one element (text <selector>)" },
-  { verb: "get", args: "[args...]", desc: "Element data without eval: get text|html|value|attr|count|box|styles <sel>" },
-  { verb: "diff", args: "[args...]", desc: "What changed: diff snapshot (since your last snapshot; -s <sel> scope), diff url <u1> <u2>" },
+  {
+    verb: "wait",
+    args: "[args...]",
+    desc: "Wait for --text <s>, --url <pat>, --load <state>, --fn <js>, a selector, or ms",
+  },
+  {
+    verb: "text",
+    engine: "read",
+    args: "[args...]",
+    desc: "Visible text of the page, or of one element (text <selector>)",
+  },
+  {
+    verb: "get",
+    args: "[args...]",
+    desc: "Element data without eval: get text|html|value|attr|count|box|styles <sel>",
+  },
+  {
+    verb: "diff",
+    args: "[args...]",
+    desc: "What changed: diff snapshot (since your last snapshot; -s <sel> scope), diff url <u1> <u2>",
+  },
   { verb: "back", args: "[args...]", desc: "Go back in history" },
   { verb: "forward", args: "[args...]", desc: "Go forward in history" },
   { verb: "reload", args: "[args...]", desc: "Reload the page" },
   { verb: "tab", args: "[args...]", desc: "Tabs: list, new, close, switch" },
   { verb: "console", args: "[args...]", desc: "What the page logged" },
   { verb: "errors", args: "[args...]", desc: "Uncaught errors on the page" },
-  { verb: "network", args: "[args...]", desc: "Requests, routing and HAR capture" },
+  {
+    verb: "network",
+    args: "[args...]",
+    desc: "Requests, routing and HAR capture",
+  },
   { verb: "cookies", args: "[args...]", desc: "Read and write cookies" },
   { verb: "storage", args: "[args...]", desc: "Local and session storage" },
   { verb: "inspect", args: "[args...]", desc: "Inspect an element in detail" },
-  { verb: "react", args: "[args...]", desc: "React tree, renders and Suspense boundaries" },
-  { verb: "vitals", args: "[args...]", desc: "Web Vitals for the current page" },
+  {
+    verb: "react",
+    args: "[args...]",
+    desc: "React tree, renders and Suspense boundaries",
+  },
+  {
+    verb: "vitals",
+    args: "[args...]",
+    desc: "Web Vitals for the current page",
+  },
   { verb: "a11y", args: "[args...]", desc: "Accessibility audit (axe-core)" },
   { verb: "trace", args: "[args...]", desc: "Record a DevTools trace" },
   { verb: "record", args: "[args...]", desc: "Record video of the session" },
-  { verb: "skills", args: "[args...]", desc: "The engine's own usage guides (skills get core --full)" },
+  {
+    verb: "skills",
+    args: "[args...]",
+    desc: "The engine's own usage guides (skills get core --full)",
+  },
 ];
 
 /** What the wrapper layers on top of every engine verb, appended to the
@@ -321,11 +577,16 @@ Related:
  * cannot drift from what the passthrough accepts. Only the branding and verb
  * names are reworded into our vocabulary.
  */
-export function verbHelp(p: { verb: string; engine?: string; desc: string }): string {
+export function verbHelp(p: {
+  verb: string;
+  engine?: string;
+  desc: string;
+}): string {
   if (p.verb === "text") return `${TEXT_HELP}\n\n${CAST_HELP_EXTRAS}`;
   const engineVerb = p.engine ?? p.verb;
   const raw = engineHelpText(engineVerb);
-  const secret = p.verb === "type" || p.verb === "fill" ? `\n\n${SECRET_INPUT_HELP}` : "";
+  const secret =
+    p.verb === "type" || p.verb === "fill" ? `\n\n${SECRET_INPUT_HELP}` : "";
   if (!raw) {
     return (
       `Usage: cast browser ${p.verb} [args...]\n\n${p.desc}\n\n` +
@@ -333,13 +594,19 @@ export function verbHelp(p: { verb: string; engine?: string; desc: string }): st
     );
   }
   const body = castVoice(raw)
-    .replace(new RegExp(`\\bcast browser ${engineVerb}\\b`, "g"), `cast browser ${p.verb}`)
+    .replace(
+      new RegExp(`\\bcast browser ${engineVerb}\\b`, "g"),
+      `cast browser ${p.verb}`,
+    )
     // cast picks the engine session itself (one per agent session); the
     // engine's own --session would point a verb at another agent's tab.
     // `--pin-tab` likewise: cast pins every session to its own tab already,
     // and recovers a closed one itself.
     .replace(/^[ \t]*--(?:session <name>|pin-tab\b).*\n?/gm, "")
-    .replace(/\n[^\n]*remembers its active tab[\s\S]*?--no-pin-tab[^\n]*\n/, "");
+    .replace(
+      /\n[^\n]*remembers its active tab[\s\S]*?--no-pin-tab[^\n]*\n/,
+      "",
+    );
   return `${body}${secret}\n\n${CAST_HELP_EXTRAS}`;
 }
 
@@ -360,11 +627,17 @@ const MOBILE_PRESETS = new Set(["tablet", "mobile", "mobile-small"]);
  * `W,H`), or a bare width, which takes a preset's height when one has that
  * width and 900 otherwise. Null when it is none of those. Pure.
  */
-export function parseViewportSize(size: string): { width: number; height: number; preset?: string } | null {
+export function parseViewportSize(
+  size: string,
+): { width: number; height: number; preset?: string } | null {
   const preset = VIEWPORTS[size];
   if (preset) return { width: preset[0], height: preset[1], preset: size };
   const explicit = /^(\d{2,5})\s*[x×*,]\s*(\d{2,5})$/i.exec(size.trim());
-  if (explicit) return { width: parseInt(explicit[1]!, 10), height: parseInt(explicit[2]!, 10) };
+  if (explicit)
+    return {
+      width: parseInt(explicit[1]!, 10),
+      height: parseInt(explicit[2]!, 10),
+    };
   if (/^\d{2,5}$/.test(size.trim())) {
     const width = parseInt(size, 10);
     const match = Object.values(VIEWPORTS).find(([w]) => w === width);
@@ -383,25 +656,59 @@ function pendingViewportPath(session: string): string {
  * open yet, the size is kept and the next `open` applies it, rather than
  * failing and leaving every later screenshot at the default size.
  */
-async function setViewport(size: string, c: Ctx): Promise<{ ok: true; lines: string[] } | { ok: false; message: string; hint?: string }> {
-  const parsed = size === "reset" ? { width: 1440, height: 900 } : parseViewportSize(size);
-  if (!parsed) return { ok: false, message: `unknown size '${size}'`, hint: `use a preset (${Object.keys(VIEWPORTS).join(", ")}), WxH like 1440x900, or a width like 1440` };
+async function setViewport(
+  size: string,
+  c: Ctx,
+): Promise<
+  { ok: true; lines: string[] } | { ok: false; message: string; hint?: string }
+> {
+  const parsed =
+    size === "reset" ? { width: 1440, height: 900 } : parseViewportSize(size);
+  if (!parsed)
+    return {
+      ok: false,
+      message: `unknown size '${size}'`,
+      hint: `use a preset (${Object.keys(VIEWPORTS).join(", ")}), WxH like 1440x900, or a width like 1440`,
+    };
   const { width, height } = parsed;
-  const label = size === "reset" ? "viewport reset" : `${parsed.preset ? `${parsed.preset}: ` : ""}${width}x${height}`;
-  const pinned = await ensurePinnedTab(c.session).then(() => null, (err: Error) => err);
-  if (pinned && !/no open page/.test(pinned.message)) return { ok: false, message: pinned.message };
+  const label =
+    size === "reset"
+      ? "viewport reset"
+      : `${parsed.preset ? `${parsed.preset}: ` : ""}${width}x${height}`;
+  const pinned = await ensurePinnedTab(c.session).then(
+    () => null,
+    (err: Error) => err,
+  );
+  if (pinned && !/no open page/.test(pinned.message))
+    return { ok: false, message: pinned.message };
   if (pinned) {
     const file = pendingViewportPath(c.session);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, `${width} ${height}`);
-    return { ok: true, lines: [`${OK} ${label}, applied when \`cast browser open\` opens this session's page`] };
+    return {
+      ok: true,
+      lines: [
+        `${OK} ${label}, applied when \`cast browser open\` opens this session's page`,
+      ],
+    };
   }
   const res = runEngine(["set", "viewport", String(width), String(height)], c);
-  if (res.status !== 0) return { ok: false, message: castVoice((res.stderr || res.stdout).trim().split("\n")[0] || "could not resize") };
+  if (res.status !== 0)
+    return {
+      ok: false,
+      message: castVoice(
+        (res.stderr || res.stdout).trim().split("\n")[0] || "could not resize",
+      ),
+    };
   const lines = [`${OK} ${label}`];
   // Say it plainly: a "mobile" page that is secretly non-touch can show a
   // hover menu no real phone would ever render.
-  if (parsed.preset && MOBILE_PRESETS.has(parsed.preset)) lines.push(fmt.muted("  (size only — touch is not emulated, so hover-only menus still open)"));
+  if (parsed.preset && MOBILE_PRESETS.has(parsed.preset))
+    lines.push(
+      fmt.muted(
+        "  (size only — touch is not emulated, so hover-only menus still open)",
+      ),
+    );
   return { ok: true, lines };
 }
 
@@ -419,7 +726,6 @@ function applyPendingViewport(c: Ctx): void {
   const [w, h] = size.split(/\s+/);
   if (w && h) runEngine(["set", "viewport", w, h], c);
 }
-
 
 /** The calling codecast session, for the audit trail — same key the built-in
  *  driver stamps, so `cast browser audit` reads one trail whichever engine drove. */
@@ -489,9 +795,31 @@ function recallFindQuery(session: string): string | null {
 }
 
 /** Verbs whose first positional argument is the element to act on. */
-const TARGETED = new Set(["click", "dblclick", "hover", "focus", "check", "uncheck", "select", "upload", "scrollintoview", "type", "fill", "drag", "download", "inspect", "highlight"]);
+const TARGETED = new Set([
+  "click",
+  "dblclick",
+  "hover",
+  "focus",
+  "check",
+  "uncheck",
+  "select",
+  "upload",
+  "scrollintoview",
+  "type",
+  "fill",
+  "drag",
+  "download",
+  "inspect",
+  "highlight",
+]);
 /** Verbs that take an element AND a value, so one positional means "the value". */
-const TARGET_PLUS_VALUE = new Set(["type", "fill", "select", "upload", "download"]);
+const TARGET_PLUS_VALUE = new Set([
+  "type",
+  "fill",
+  "select",
+  "upload",
+  "download",
+]);
 
 /** Key names the built-in driver accepted, in the engine's spelling. */
 export function engineKey(k: string): string {
@@ -504,7 +832,10 @@ export function engineKey(k: string): string {
     .replace(/^(enter|return)$/i, "Enter")
     .replace(/^(tab)$/i, "Tab")
     .replace(/^(space)$/i, "Space")
-    .replace(/^(up|down|left|right)$/i, (m) => `Arrow${m[0].toUpperCase()}${m.slice(1).toLowerCase()}`);
+    .replace(
+      /^(up|down|left|right)$/i,
+      (m) => `Arrow${m[0].toUpperCase()}${m.slice(1).toLowerCase()}`,
+    );
 }
 
 export interface EngineCall {
@@ -514,7 +845,9 @@ export interface EngineCall {
 /** `tab ls` and `tab rm <id>`, the shell spellings, in the engine's words.
  *  Unmapped, the engine reads `ls` as a tab label and fails. */
 export function normalizeTabArgs(args: string[]): string[] {
-  const op = ({ ls: "list", rm: "close" } as Record<string, string>)[args[0] ?? ""];
+  const op = ({ ls: "list", rm: "close" } as Record<string, string>)[
+    args[0] ?? ""
+  ];
   return op ? [op, ...args.slice(1)] : args;
 }
 
@@ -529,7 +862,11 @@ export function castVoice(text: string): string {
  * Pure, so it is testable without a browser. `lastFind` is what a bare action
  * falls back to.
  */
-export function translate(verb: string, args: string[], lastFind: string | null): EngineCall[] {
+export function translate(
+  verb: string,
+  args: string[],
+  lastFind: string | null,
+): EngineCall[] {
   const engineVerb = PASSTHROUGH.find((p) => p.verb === verb)?.engine ?? verb;
   let a = args.map(engineRef);
   const positional = () => a.filter((x) => !x.startsWith("--"));
@@ -538,7 +875,8 @@ export function translate(verb: string, args: string[], lastFind: string | null)
 
   // `tab switch <ref>` is the footer's wording; the engine switches on a bare
   // `tab <ref>` and reads `switch` as a tab label.
-  if (verb === "tab" && a[0] === "switch") return [{ args: ["tab", ...a.slice(1)] }];
+  if (verb === "tab" && a[0] === "switch")
+    return [{ args: ["tab", ...a.slice(1)] }];
   if (verb === "tab") a = normalizeTabArgs(a);
 
   if (verb === "scroll") {
@@ -549,7 +887,12 @@ export function translate(verb: string, args: string[], lastFind: string | null)
     const others = flags.filter((x) => x !== "--up");
     if (rest.length && /^-?\d+$/.test(rest[0])) {
       const n = parseInt(rest[0], 10);
-      a = [n < 0 || up ? "up" : "down", String(Math.abs(n)), ...rest.slice(1), ...others];
+      a = [
+        n < 0 || up ? "up" : "down",
+        String(Math.abs(n)),
+        ...rest.slice(1),
+        ...others,
+      ];
     } else if (!rest.length) {
       a = [up ? "up" : "down", ...others];
     } else if (up && !/^(up|down|left|right)$/.test(rest[0])) {
@@ -564,10 +907,13 @@ export function translate(verb: string, args: string[], lastFind: string | null)
     if (i >= 0) a = [...a.slice(0, i), ...a.slice(i + 1)];
   }
 
-  if (verb === "network" && (!a.length || a[0] === "--failed")) a = ["requests", ...a.slice(1)];
+  if (verb === "network" && (!a.length || a[0] === "--failed"))
+    a = ["requests", ...a.slice(1)];
 
   if (verb === "snapshot" || verb === "diff") {
-    a = a.map((x, i) => (a[i - 1] === "-s" || a[i - 1] === "--selector" ? quoteAttrValues(x) : x));
+    a = a.map((x, i) =>
+      a[i - 1] === "-s" || a[i - 1] === "--selector" ? quoteAttrValues(x) : x,
+    );
   }
 
   if (verb === "read") {
@@ -590,17 +936,26 @@ export function translate(verb: string, args: string[], lastFind: string | null)
     // reading one region of a big app forces agents into `eval`. A URL still
     // reads as a document, and a leading flag (--outline, --filter) means the
     // whole-page read was intended.
-    if (a[0] === "-s" || a[0] === "--selector") return [{ args: ["get", "text", ...a.slice(1)] }];
-    if (a[0] && !a[0].startsWith("-") && !/^[a-z]+:\/\//i.test(a[0])) return [{ args: ["get", "text", ...a] }];
+    if (a[0] === "-s" || a[0] === "--selector")
+      return [{ args: ["get", "text", ...a.slice(1)] }];
+    if (a[0] && !a[0].startsWith("-") && !/^[a-z]+:\/\//i.test(a[0]))
+      return [{ args: ["get", "text", ...a] }];
   }
 
   if (verb === "open") {
     // The engine always waits and always navigates; these built-in flags have
     // nothing to say to it.
     const newTab = a.includes("--new-tab");
-    a = a.filter((x) => x !== "--no-wait" && x !== "--reload" && x !== "--wait" && x !== "--new-tab");
+    a = a.filter(
+      (x) =>
+        x !== "--no-wait" &&
+        x !== "--reload" &&
+        x !== "--wait" &&
+        x !== "--new-tab",
+    );
     const i = a.findIndex((x) => !x.startsWith("--"));
-    if (i >= 0 && !/^[a-z]+:/i.test(a[i]) && a[i] !== "about:blank") a[i] = `https://${a[i]}`;
+    if (i >= 0 && !/^[a-z]+:/i.test(a[i]) && a[i] !== "about:blank")
+      a[i] = `https://${a[i]}`;
     // A second page for this session: bind a new tab and go there.
     if (newTab) return [{ args: ["tab", "new", ...a] }];
   }
@@ -608,7 +963,9 @@ export function translate(verb: string, args: string[], lastFind: string | null)
   // A bare action after `find` acts on what find matched.
   if (TARGETED.has(verb) && lastFind) {
     const pos = positional();
-    const needsTarget = TARGET_PLUS_VALUE.has(verb) ? pos.length === 1 : pos.length === 0;
+    const needsTarget = TARGET_PLUS_VALUE.has(verb)
+      ? pos.length === 1
+      : pos.length === 0;
     if (needsTarget) a = [lastFind, ...a];
   }
 
@@ -632,7 +989,10 @@ export function translate(verb: string, args: string[], lastFind: string | null)
 function settle(o: Ctx): void {
   // A flag, never an env override: the daemon treats a changed environment as
   // a new launch config and resets the tab to about:blank.
-  runEngine(["wait", "--load", "networkidle", "--timeout", "3000"], { ...o, timeoutMs: 8_000 });
+  runEngine(["wait", "--load", "networkidle", "--timeout", "3000"], {
+    ...o,
+    timeoutMs: 8_000,
+  });
 }
 
 export interface RunOptions {
@@ -645,7 +1005,8 @@ export interface RunOptions {
 /** What a verb's engine run is waiting on, for the narration while it runs long. */
 export function engineStepLabel(verb: string, engineArgs: string[]): string {
   const url = engineArgs.slice(1).find((x) => /^[a-z]+:\/\//i.test(x));
-  if (verb === "open") return `opening ${url ?? "the page"} in Chrome (attach, navigate, load)`;
+  if (verb === "open")
+    return `opening ${url ?? "the page"} in Chrome (attach, navigate, load)`;
   return `waiting for the browser to finish \`${verb}\``;
 }
 
@@ -664,7 +1025,12 @@ function tabUrl(o: Ctx): string | null {
  * holds no approval for, in either Chrome (signInOnOpen loads into both). The
  * desktop pane never holds one.
  */
-function refuseEngineCommand(verb: string, args: string[], o: Ctx, owner: string | null): void {
+function refuseEngineCommand(
+  verb: string,
+  args: string[],
+  o: Ctx,
+  owner: string | null,
+): void {
   const passkey = webAuthnRefusal(verb, args);
   if (passkey) die(passkey.message, passkey.hint);
   for (const url of urlsLoadedBy(verb, args, () => tabUrl(o))) {
@@ -672,7 +1038,13 @@ function refuseEngineCommand(verb: string, args: string[], o: Ctx, owner: string
     if (deny) die(deny.message, deny.hint);
   }
   const read = isPaneSession(o.session) ? null : browserJarRead(verb, args);
-  const deny = read && vaultJarRefusal(read, read === "page" ? tabUrl(o) : null, detectSessionId?.() ?? null);
+  const deny =
+    read &&
+    vaultJarRefusal(
+      read,
+      read === "page" ? tabUrl(o) : null,
+      detectSessionId?.() ?? null,
+    );
   if (deny) die(deny.message, deny.hint);
 }
 
@@ -681,7 +1053,12 @@ function refuseEngineCommand(verb: string, args: string[], o: Ctx, owner: string
  * text), and a `--vault` or `--stdin` value goes in over CDP, never as an
  * engine argument (secretInput.ts). Null means plain text for the engine.
  */
-async function typeFromSecretSource(verb: string, args: string[], o: Ctx, run: RunOptions): Promise<number | null> {
+async function typeFromSecretSource(
+  verb: string,
+  args: string[],
+  o: Ctx,
+  run: RunOptions,
+): Promise<number | null> {
   const { parseTypeArgs, runSecretInput } = await import("./secretInput.js");
   const parsed = parseTypeArgs(verb, args, recallFind(o.session));
   const fail = (message: string, hint?: string): never => {
@@ -690,15 +1067,22 @@ async function typeFromSecretSource(verb: string, args: string[], o: Ctx, run: R
   };
   if ("error" in parsed) return fail(parsed.error, parsed.hint);
   if (parsed.mode === "text") return null;
-  if (parsed.mode === "stdin" && run.quiet) return fail("--stdin is not read inside `do`", `run \`cast browser ${verb} <target> --stdin\` as its own command`);
-  if (!engineDeps) return fail("cast browser is not set up to read the Vault here");
+  if (parsed.mode === "stdin" && run.quiet)
+    return fail(
+      "--stdin is not read inside `do`",
+      `run \`cast browser ${verb} <target> --stdin\` as its own command`,
+    );
+  if (!engineDeps)
+    return fail("cast browser is not set up to read the Vault here");
   try {
     console.log(await runSecretInput(verb, parsed, o, engineDeps));
   } catch (err) {
     const { refusalText } = await import("./secretType.js");
     return fail(refusalText(err));
   }
-  return parsed.submit ? runVerb("press", ["Enter", ...parsed.stepFlags], o, run) : 0;
+  return parsed.submit
+    ? runVerb("press", ["Enter", ...parsed.stepFlags], o, run)
+    : 0;
 }
 
 /**
@@ -721,7 +1105,12 @@ async function typeFromSecretSource(verb: string, args: string[], o: Ctx, run: R
  *
  * Tab footer (tabFooter.ts): the URL and tab id the web's "open tab" link reads.
  */
-export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOptions = {}): Promise<number> {
+export async function runVerb(
+  verb: string,
+  args: string[],
+  o: Ctx,
+  run: RunOptions = {},
+): Promise<number> {
   const { session } = o;
   const owner = auditOwner();
   const real = isRealSession(session);
@@ -735,7 +1124,8 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
   if (verb === "tab" && opensATab(verb, args, false)) openedTab = true;
   if (verb === "tab" && real) {
     const ref = args[/^(close|switch)$/.test(args[0] ?? "") ? 1 : 0];
-    if (ref && /^[0-9a-f]{8}$/i.test(ref)) await grantTab(await requireRealBridge(), session, ref.toUpperCase());
+    if (ref && /^[0-9a-f]{8}$/i.test(ref))
+      await grantTab(await requireRealBridge(), session, ref.toUpperCase());
   }
 
   refuseEngineCommand(verb, args, o, owner);
@@ -748,7 +1138,11 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
   if (verb === "open") {
     const url = args.find((a) => !a.startsWith("--"));
     const wall = real && url ? walledOffFromExtension(url) : null;
-    if (wall) die(wall, "the human opens this page in their own Chrome; hand them the URL and the steps.");
+    if (wall)
+      die(
+        wall,
+        "the human opens this page in their own Chrome; hand them the URL and the steps.",
+      );
     // The real Chrome is the human's, already running; its bridge came up in
     // ctx. The clone is ours to start.
     await ensureBrowser(o);
@@ -759,11 +1153,16 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     // (2026-09-17: ninety two bindings, sixteen live sessions). The reaper
     // closes only tabs whose owner is gone, never this session's own, and
     // never a tab the human opened. A pane is the human's view: untouched.
-    const swept = pane ? "" : describeReap(await reapEngineOrphans({ keep: session }));
+    const swept = pane
+      ? ""
+      : describeReap(await reapEngineOrphans({ keep: session }));
     if (swept) console.log(fmt.muted(`  ${swept}`));
     // The pre-action hook ran before the browser existed on a cold start;
     // now that it does, bind this session's tab quietly (pinnedTab.ts).
-    const created = await ensurePinnedTab(session, url && (/^[a-z]+:/i.test(url) ? url : `https://${url}`));
+    const created = await ensurePinnedTab(
+      session,
+      url && (/^[a-z]+:/i.test(url) ? url : `https://${url}`),
+    );
     if (opensATab(verb, args, created)) openedTab = true;
     if (created) args = args.filter((arg) => arg !== "--new-tab");
     applyPendingViewport(o);
@@ -774,7 +1173,11 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     // none for the site, in whichever Chrome this session drives: the human's
     // own through the bridge, or the agent browser (on a cloud host, the one
     // that applies). The desktop pane is the human's view and gets none.
-    if (url && !pane) await useVaultSignin(url, real ? bridgeEndpoint(await requireRealBridge()) : undefined);
+    if (url && !pane)
+      await useVaultSignin(
+        url,
+        real ? bridgeEndpoint(await requireRealBridge()) : undefined,
+      );
   } else {
     await ensurePinnedTab(session);
   }
@@ -793,7 +1196,12 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
         tabs.find((t) => t.targetId.toLowerCase().startsWith(q)) ??
         tabs.find((t) => (t.url ?? "").toLowerCase().includes(q));
       const hit = find(engineTabs(o));
-      if (hit) args = [...args.slice(0, at), hit.tabId || hit.targetId, ...args.slice(at + 1)];
+      if (hit)
+        args = [
+          ...args.slice(0, at),
+          hit.tabId || hit.targetId,
+          ...args.slice(at + 1),
+        ];
     }
   }
 
@@ -804,13 +1212,16 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
   // `--redact-values` hides every field value in a snapshot, not only
   // passwords and codes (redaction.ts); ours, never forwarded.
   const redactValues = args.includes("--redact-values");
-  const forwarded = args.filter((a) => a !== "--no-capture" && a !== "--no-shot" && a !== "--redact-values");
+  const forwarded = args.filter(
+    (a) => a !== "--no-capture" && a !== "--no-shot" && a !== "--redact-values",
+  );
 
   // Did translate() have to reach for the last find? Then the remembered words
   // are also available to a stale-ref retry, as a fallback behind the ordinal.
   const positionals = forwarded.filter((x) => !x.startsWith("--")).length;
   const usedLastFind =
-    TARGETED.has(verb) && (TARGET_PLUS_VALUE.has(verb) ? positionals === 1 : positionals === 0);
+    TARGETED.has(verb) &&
+    (TARGET_PLUS_VALUE.has(verb) ? positionals === 1 : positionals === 0);
 
   const calls = translate(verb, forwarded, recallFind(session));
   const verbStarted = Date.now();
@@ -824,28 +1235,55 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     let snapPage: PageStamp | null = null;
     let res: EngineRun;
     const target = call.args.find((x) => /^@e\d+$/.test(x));
-    const refused = call.args[0] !== "snapshot" && target ? refuseShiftedRef(target, o) : null;
+    const refused =
+      call.args[0] !== "snapshot" && target
+        ? refuseShiftedRef(target, o)
+        : null;
     if (refused) {
-      res = { status: 1, stdout: "", stderr: `${target!.replace("@", "#")} was not used: ${refused}\n` };
+      res = {
+        status: 1,
+        stdout: "",
+        stderr: `${target!.replace("@", "#")} was not used: ${refused}\n`,
+      };
     } else if (call.args[0] === "snapshot") {
       const snap = settledSnapshot(call.args, o, redactValues);
       res = snap.res;
       snapPage = snap.page;
     } else {
-      res = await runEngine(call.args, { ...o, narrate: engineStepLabel(verb, call.args) });
+      res = await runEngine(call.args, {
+        ...o,
+        narrate: engineStepLabel(verb, call.args),
+      });
     }
     // A ref the engine cannot resolve any more — the page re-rendered, or the
     // route changed since the snapshot. Re-find it and retry once. Gated on
     // the engine's own "no such element" wording, because a retry re-runs the
     // command and must never follow a failure that already touched the page.
-    if (!refused && res.status !== 0 && target && !retried && i === 0 && isStaleRefFailure(res.stderr + res.stdout)) {
+    if (
+      !refused &&
+      res.status !== 0 &&
+      target &&
+      !retried &&
+      i === 0 &&
+      isStaleRefFailure(res.stderr + res.stdout)
+    ) {
       retried = true;
-      const again = recoverStaleRef(target, o, usedLastFind ? recallFindQuery(session) : null);
+      const again = recoverStaleRef(
+        target,
+        o,
+        usedLastFind ? recallFindQuery(session) : null,
+      );
       if ("ref" in again) {
         console.log(fmt.muted(`  ${again.note}`));
-        res = runEngine(call.args.map((x) => (x === target ? again.ref : x)), o);
+        res = runEngine(
+          call.args.map((x) => (x === target ? again.ref : x)),
+          o,
+        );
       } else {
-        res = { ...res, stderr: `${(res.stderr || res.stdout).trim().split("\n")[0]}\n  ${target.replace("@", "#")} went stale and was not retried: ${again.refused}\n` };
+        res = {
+          ...res,
+          stderr: `${(res.stderr || res.stdout).trim().split("\n")[0]}\n  ${target.replace("@", "#")} went stale and was not retried: ${again.refused}\n`,
+        };
       }
     }
     // The session is pinned to one tab. When that tab is gone (closed by the
@@ -856,11 +1294,28 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     // Only a session with no tab left is asked to open first.
     if (res.status !== 0 && /tab_gone/.test(res.stderr + res.stdout)) {
       const open = call.args[0] === "open";
-      const goneUrl = open ? call.args.slice(1).find((a) => a && !a.startsWith("-")) : undefined;
-      const live = await recoverGoneTab(session, goneUrl && (/^[a-z]+:/i.test(goneUrl) ? goneUrl : `https://${goneUrl}`));
-      if (open || live) res = await runEngine(call.args, { ...o, narrate: engineStepLabel(verb, call.args) });
-      if (!open && res.status !== 0 && /tab_gone/.test(res.stderr + res.stdout)) {
-        res = { ...res, stderr: `this session's tab is gone — \`cast browser open <url>\` starts a new one\n`, stdout: "" };
+      const goneUrl = open
+        ? call.args.slice(1).find((a) => a && !a.startsWith("-"))
+        : undefined;
+      const live = await recoverGoneTab(
+        session,
+        goneUrl && (/^[a-z]+:/i.test(goneUrl) ? goneUrl : `https://${goneUrl}`),
+      );
+      if (open || live)
+        res = await runEngine(call.args, {
+          ...o,
+          narrate: engineStepLabel(verb, call.args),
+        });
+      if (
+        !open &&
+        res.status !== 0 &&
+        /tab_gone/.test(res.stderr + res.stdout)
+      ) {
+        res = {
+          ...res,
+          stderr: `this session's tab is gone — \`cast browser open <url>\` starts a new one\n`,
+          stdout: "",
+        };
       }
     }
     // Chrome refused to attach to this session's tab (Target.attachToTarget:
@@ -868,17 +1323,33 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     // running again repeats nothing. An `open` does what `stop` then `open`
     // did by hand: close the tab and start on a fresh one. Any other verb lets
     // the daemon go and attaches again once, keeping the page it was on.
-    if (res.status !== 0 && !retriedAttach && isUnattachableTab(res.stderr + res.stdout)) {
+    if (
+      res.status !== 0 &&
+      !retriedAttach &&
+      isUnattachableTab(res.stderr + res.stdout)
+    ) {
       retriedAttach = true;
       const opening = call.args[0] === "open";
       if (opening) {
         await closeSessionTab(session).catch(() => false);
         const url = call.args.slice(1).find((a) => a && !a.startsWith("-"));
-        if (url) await ensurePinnedTab(session, /^[a-z]+:/i.test(url) ? url : `https://${url}`).then((made) => { if (made) openedTab = true; }, () => false);
+        if (url)
+          await ensurePinnedTab(
+            session,
+            /^[a-z]+:/i.test(url) ? url : `https://${url}`,
+          ).then(
+            (made) => {
+              if (made) openedTab = true;
+            },
+            () => false,
+          );
       } else {
         detachSessionDaemon(session);
       }
-      res = await runEngine(call.args, { ...o, narrate: engineStepLabel(verb, call.args) });
+      res = await runEngine(call.args, {
+        ...o,
+        narrate: engineStepLabel(verb, call.args),
+      });
       if (res.status !== 0 && isUnattachableTab(res.stderr + res.stdout)) {
         res = { ...res, stdout: "", stderr: `${UNATTACHABLE_NOTE}\n` };
       }
@@ -886,32 +1357,66 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
     // The bridge stalled before the verb reached the page: the extension's
     // process was not scheduled. Once, after a pause, the same verb again;
     // the human should see a slow command, not a failed one.
-    if (res.status !== 0 && !retriedStall && shouldRetryAfterStall(verb, res.stderr + res.stdout)) {
+    if (
+      res.status !== 0 &&
+      !retriedStall &&
+      shouldRetryAfterStall(verb, res.stderr + res.stdout)
+    ) {
       retriedStall = true;
       console.error(fmt.muted(`  ${STALL_NOTE}`));
-      await new Promise((r) => setTimeout(r, run.stallRetryDelayMs ?? STALL_RETRY_DELAY_MS));
-      res = await runEngine(call.args, { ...o, narrate: engineStepLabel(verb, call.args) });
+      await new Promise((r) =>
+        setTimeout(r, run.stallRetryDelayMs ?? STALL_RETRY_DELAY_MS),
+      );
+      res = await runEngine(call.args, {
+        ...o,
+        narrate: engineStepLabel(verb, call.args),
+      });
     }
     // A snapshot is the one output we rewrite: names that repeat get their
     // ordinal so the agent can say which one it means, and the ref table is
     // remembered so a stale ref can be recovered by it (refMemory.ts).
     if (res.status === 0 && res.stdout && call.args[0] === "snapshot") {
       if (call.args.includes("--json")) {
-        const snapshot = engineSnapshotJson(parseEngineJson<EngineSnapshotPayload>(res));
+        const snapshot = engineSnapshotJson(
+          parseEngineJson<EngineSnapshotPayload>(res),
+        );
         const items = parseEngineRefs(snapshot.text);
-        rememberSnapshotRefs(session, items, snapPage, snapshotScope(call.args));
+        rememberSnapshotRefs(
+          session,
+          items,
+          snapPage,
+          snapshotScope(call.args),
+        );
         snapshot.text = withOrdinals(snapshot.text, items);
         res = { ...res, stdout: JSON.stringify(snapshot) + "\n" };
       } else {
         const items = parseEngineRefs(res.stdout);
-        if (items.length) rememberSnapshotRefs(session, items, snapPage, snapshotScope(call.args));
+        if (items.length)
+          rememberSnapshotRefs(
+            session,
+            items,
+            snapPage,
+            snapshotScope(call.args),
+          );
         res = { ...res, stdout: withOrdinals(res.stdout, items) };
       }
     }
-    if (res.status === 0 && call.args[0] === "network" && call.args[1] === "har" && call.args[2] === "stop") {
-      res = { ...res, stdout: res.stdout + redactHarNote(call.args.slice(3), res.stdout) };
+    if (
+      res.status === 0 &&
+      call.args[0] === "network" &&
+      call.args[1] === "har" &&
+      call.args[2] === "stop"
+    ) {
+      res = {
+        ...res,
+        stdout: res.stdout + redactHarNote(call.args.slice(3), res.stdout),
+      };
     }
-    res = { ...res, stdout: castVoice(res.stdout), stderr: castVoice(res.stderr) };
+    res = {
+      ...res,
+      stdout: castVoice(res.stdout),
+      stderr: castVoice(res.stderr),
+    };
     if (res.stdout) process.stdout.write(res.stdout);
     if (res.stderr) process.stderr.write(res.stderr);
     if (res.status !== 0) {
@@ -928,12 +1433,18 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
   if (mutating) settle(o);
   // Keystrokes into a field never navigate; only a page load or a mutating
   // step (which already paid for settle) pays for the probe.
-  const challenge = LOADS_A_PAGE.has(verb) || (mutating && NAVIGATING_VERBS.has(verb)) ? await checkChallenge(verb, o, verbStarted) : null;
+  const challenge =
+    LOADS_A_PAGE.has(verb) || (mutating && NAVIGATING_VERBS.has(verb))
+      ? await checkChallenge(verb, o, verbStarted)
+      : null;
   if (mutating) {
     const file = await maybeAutoShot(engineAutoShotSource(o), shot);
     if (file) console.log(inlineImageMarker(file));
   }
-  if (!run.quiet && (TAB_AFFECTING_VERBS.has(verb) || NAVIGATING_VERBS.has(verb))) {
+  if (
+    !run.quiet &&
+    (TAB_AFFECTING_VERBS.has(verb) || NAVIGATING_VERBS.has(verb))
+  ) {
     printFooter(o, verb, owner);
   }
   return challenge && !challenge.cleared ? 1 : 0;
@@ -948,11 +1459,20 @@ export async function runVerb(verb: string, args: string[], o: Ctx, run: RunOpti
 function redactHarNote(rest: string[], stdout: string): string {
   const asked = rest.find((a) => !a.startsWith("-"));
   const reported = /(\S+\.har)\b/i.exec(stdout)?.[1];
-  const file = [asked && path.resolve(asked), reported && path.resolve(reported)].find((f) => f && fs.existsSync(f));
-  if (!file) return `${fmt.warning("!")} could not find the HAR to redact it; treat it as holding secrets\n`;
+  const file = [
+    asked && path.resolve(asked),
+    reported && path.resolve(reported),
+  ].find((f) => f && fs.existsSync(f));
+  if (!file)
+    return `${fmt.warning("!")} could not find the HAR to redact it; treat it as holding secrets\n`;
   const n = redactHarFile(file, fs);
-  if (n === null) return `${fmt.warning("!")} ${file} is not a HAR this can redact; treat it as holding secrets\n`;
-  return fmt.muted(`  redacted ${n} secret value${n === 1 ? "" : "s"} (auth, cookies, tokens, passwords, codes) in ${file}`) + "\n";
+  if (n === null)
+    return `${fmt.warning("!")} ${file} is not a HAR this can redact; treat it as holding secrets\n`;
+  return (
+    fmt.muted(
+      `  redacted ${n} secret value${n === 1 ? "" : "s"} (auth, cookies, tokens, passwords, codes) in ${file}`,
+    ) + "\n"
+  );
 }
 
 /** Verbs whose whole point is to load a document: always probed. Other
@@ -967,24 +1487,38 @@ const LOADS_A_PAGE = new Set(["open", "goto", "reload", "back", "forward"]);
  * verb fail with the instruction to hand it over or stop, so a `do` flow does
  * not carry on against it and nothing loops.
  */
-async function checkChallenge(verb: string, o: Ctx, started: number): Promise<ChallengeOutcome | null> {
+async function checkChallenge(
+  verb: string,
+  o: Ctx,
+  started: number,
+): Promise<ChallengeOutcome | null> {
   const probe = async (): Promise<ChallengeProbe | null> => {
-    const r = await runEngine(["eval", CHALLENGE_PROBE_SOURCE, "--json"], { ...o, narrate: "checking the page for a bot check" });
+    const r = await runEngine(["eval", CHALLENGE_PROBE_SOURCE, "--json"], {
+      ...o,
+      narrate: "checking the page for a bot check",
+    });
     return r.status === 0 ? parseChallengeProbe(r.stdout) : null;
   };
   const first = await probe().catch(() => null);
   if (!first) return null;
   // A click that did not load a new document cannot have landed on an interstitial.
-  if (!LOADS_A_PAGE.has(verb) && first.sinceLoad >= Date.now() - started) return null;
+  if (!LOADS_A_PAGE.has(verb) && first.sinceLoad >= Date.now() - started)
+    return null;
   const outcome = await awaitChallenge(
     first,
-    { probe, sleep: (ms) => new Promise((r) => setTimeout(r, ms)), now: Date.now },
+    {
+      probe,
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+      now: Date.now,
+    },
     challengeWaitMs(),
   );
   if (!outcome) return null;
   // That site scores input: pace it like a hand from now on, in the human's
   // Chrome where the host paces input (humanInput.ts).
-  const tabId = isRealSession(o.session) ? tabIdOfTarget(readBoundTarget(o.session) ?? "") : null;
+  const tabId = isRealSession(o.session)
+    ? tabIdOfTarget(readBoundTarget(o.session) ?? "")
+    : null;
   if (tabId !== null) markChallengedTab(tabId);
   if (outcome.cleared) console.log(fmt.muted(`  ${challengeReport(outcome)}`));
   else console.log(`${fmt.warning("!")} ${challengeReport(outcome)}`);
@@ -1000,16 +1534,27 @@ async function checkChallenge(verb: string, o: Ctx, started: number): Promise<Ch
  */
 export async function carryLogins(
   rawUrl: string,
-  deps: { isRemote: () => boolean; readState: () => ReturnType<typeof readState>; provision: typeof provisionLocalLogins } =
-    { isRemote: isRemoteDevice, readState, provision: provisionLocalLogins },
+  deps: {
+    isRemote: () => boolean;
+    readState: () => ReturnType<typeof readState>;
+    provision: typeof provisionLocalLogins;
+  } = { isRemote: isRemoteDevice, readState, provision: provisionLocalLogins },
 ): Promise<void> {
   if (deps.isRemote()) return;
   const state = deps.readState();
   if (!state || state.remote || !state.sourceProfile) return;
   const url = /^[a-z]+:/i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
   try {
-    const r = await deps.provision(state.port, url, { profileDir: state.sourceProfile, channel: state.channel });
-    if (r.injected) console.log(fmt.muted(`  carried ${r.injected} cookie${r.injected === 1 ? "" : "s"} for ${r.host} from your Chrome`));
+    const r = await deps.provision(state.port, url, {
+      profileDir: state.sourceProfile,
+      channel: state.channel,
+    });
+    if (r.injected)
+      console.log(
+        fmt.muted(
+          `  carried ${r.injected} cookie${r.injected === 1 ? "" : "s"} for ${r.host} from your Chrome`,
+        ),
+      );
   } catch {
     /* a courtesy: never fail the open over it */
   }
@@ -1020,10 +1565,18 @@ export async function carryLogins(
  * newer cookies when the browser already uses it. Loaded only when `open`
  * runs, and never fails the open.
  */
-async function useVaultSignin(url: string, bridge?: CdpEndpoint): Promise<void> {
+async function useVaultSignin(
+  url: string,
+  bridge?: CdpEndpoint,
+): Promise<void> {
   try {
     const { signInOnOpen } = await import("../secrets/signinBrowser.js");
-    await signInOnOpen(url, () => detectSessionId?.() ?? null, (line) => console.log(fmt.muted(`  ${line}`)), bridge);
+    await signInOnOpen(
+      url,
+      () => detectSessionId?.() ?? null,
+      (line) => console.log(fmt.muted(`  ${line}`)),
+      bridge,
+    );
   } catch {
     /* a courtesy, like carryLogins */
   }
@@ -1047,21 +1600,43 @@ function printFooter(o: Ctx, verb: string, owner: string | null): void {
   const lines = tabFooterLines(tabs);
   // The tab line names a tab in the human's own Chrome: say so, after the
   // id, where the web's tab parser (browserFocus.ts) does not read.
-  if (lines.length && isRealSession(o.session)) lines[lines.length - 1] += fmt.muted(REAL_TAB_NOTE);
-  if (lines.length && isPaneSession(o.session)) lines[lines.length - 1] += fmt.muted(PANE_TAB_NOTE);
-  for (const line of verb === "open" ? lines.slice(-1) : lines) console.log(line);
-  if (lines.length && openedTab) console.log(fmt.muted(isPaneSession(o.session)
-    ? "  When finished: `cast browser stop` releases this session's control; the human's desktop pane stays open."
-    : TAB_CLEANUP_NOTE));
+  if (lines.length && isRealSession(o.session))
+    lines[lines.length - 1] += fmt.muted(REAL_TAB_NOTE);
+  if (lines.length && isPaneSession(o.session))
+    lines[lines.length - 1] += fmt.muted(PANE_TAB_NOTE);
+  for (const line of verb === "open" ? lines.slice(-1) : lines)
+    console.log(line);
+  if (lines.length && openedTab)
+    console.log(
+      fmt.muted(
+        isPaneSession(o.session)
+          ? "  When finished: `cast browser stop` releases this session's control; the human's desktop pane stays open."
+          : TAB_CLEANUP_NOTE,
+      ),
+    );
   if (NAVIGATING_VERBS.has(verb)) {
     const url = (tabs.find((t) => t.active) ?? tabs[0])?.url ?? "";
     // Tab identity on the engine path is the engine session: one active tab
     // per session, so per-session dedup is the same thing.
-    const warn = url ? auditLanding({ url, tab: `engine:${o.session}`, session: owner, via: viaFor(verb) }) : null;
+    const warn = url
+      ? auditLanding({
+          url,
+          tab: `engine:${o.session}`,
+          session: owner,
+          via: viaFor(verb),
+        })
+      : null;
     if (warn) console.log(`${fmt.warning("!")} ${warn}`);
     // A login form where the work was expected. Named, with the fix, so an
     // agent does not read it as an empty page or restart the browser over it.
-    const signIn = url ? (isRemoteDevice() ? cloudHostSignInHint(url) : signInLandingNote(url, keepsOwnLogin, { real: isRealSession(o.session), realHint: realModeHint(owner) })) : null;
+    const signIn = url
+      ? isRemoteDevice()
+        ? cloudHostSignInHint(url)
+        : signInLandingNote(url, keepsOwnLogin, {
+            real: isRealSession(o.session),
+            realHint: realModeHint(owner),
+          })
+      : null;
     if (signIn) console.log(`${fmt.warning("!")} ${signIn}`);
   }
 }
@@ -1105,7 +1680,11 @@ export function loginRaisePlan(
   return "raise";
 }
 
-async function loginAsPerson(url: string | undefined, waitSeconds: number, choice: TargetChoice): Promise<number> {
+async function loginAsPerson(
+  url: string | undefined,
+  waitSeconds: number,
+  choice: TargetChoice,
+): Promise<number> {
   const o = await ctxFor("login", choice);
   if (url) {
     const code = await runVerb("open", [url], o, { quiet: true });
@@ -1115,7 +1694,11 @@ async function loginAsPerson(url: string | undefined, waitSeconds: number, choic
     await ensurePinnedTab(o.session);
   }
   const tab = currentTab(o);
-  if (!tab) die("this session has no tab to sign in on", "give a URL: cast browser login <url>");
+  if (!tab)
+    die(
+      "this session has no tab to sign in on",
+      "give a URL: cast browser login <url>",
+    );
   const startHost = signInHost(tab.url);
   const lastRaisedAt = readState()?.loginRaisedAt;
   const plan = loginRaisePlan(startHost, lastRaisedAt, Date.now());
@@ -1124,7 +1707,9 @@ async function loginAsPerson(url: string | undefined, waitSeconds: number, choic
   // never keep pulling the window in front of the human (observed 2026-08-26:
   // a retry loop raised the window every 10s over an already-authed page).
   if (plan === "signed-in") {
-    console.log(`${OK} not on a sign-in page (${tab.url}) — already signed in, nothing to wait for; the window stays where it is`);
+    console.log(
+      `${OK} not on a sign-in page (${tab.url}) — already signed in, nothing to wait for; the window stays where it is`,
+    );
     printFooter(o, "login", auditOwner());
     return 0;
   }
@@ -1137,17 +1722,31 @@ async function loginAsPerson(url: string | undefined, waitSeconds: number, choic
     );
   } else {
     const raised = await raiseTabForPerson(tab.targetId);
-    if (raised.ok) console.log(`${OK} raised the agent browser on ${startHost} — a separate window from your Chrome`);
-    else console.log(`${fmt.warning("!")} could not raise the window (${raised.reason}); it is the Chrome window titled by the page, behind your others`);
+    if (raised.ok)
+      console.log(
+        `${OK} raised the agent browser on ${startHost} — a separate window from your Chrome`,
+      );
+    else
+      console.log(
+        `${fmt.warning("!")} could not raise the window (${raised.reason}); it is the Chrome window titled by the page, behind your others`,
+      );
   }
-  console.log(fmt.muted("  sign in there once; the login stays in the agent browser across restarts (only `stop --wipe` / `start --fresh` drop it)"));
+  console.log(
+    fmt.muted(
+      "  sign in there once; the login stays in the agent browser across restarts (only `stop --wipe` / `start --fresh` drop it)",
+    ),
+  );
   const hint = realModeHint(auditOwner());
   if (hint) console.log(fmt.muted(`  or skip the sign-in: ${hint}`));
   printFooter(o, "login", auditOwner());
   if (waitSeconds <= 0) return 0;
 
   const deadline = Date.now() + waitSeconds * 1000;
-  console.log(fmt.muted(`  waiting up to ${waitSeconds}s for the page to leave the sign-in page…`));
+  console.log(
+    fmt.muted(
+      `  waiting up to ${waitSeconds}s for the page to leave the sign-in page…`,
+    ),
+  );
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 2000));
     const now = currentTab(o);
@@ -1158,7 +1757,9 @@ async function loginAsPerson(url: string | undefined, waitSeconds: number, choic
     }
   }
   const still = currentTab(o)?.url ?? tab.url;
-  console.log(`${fmt.warning("!")} still on a sign-in page after ${waitSeconds}s (${still}) — run \`cast browser login\` again to keep waiting, or report blocked on the sign-in`);
+  console.log(
+    `${fmt.warning("!")} still on a sign-in page after ${waitSeconds}s (${still}) — run \`cast browser login\` again to keep waiting, or report blocked on the sign-in`,
+  );
   return 1;
 }
 
@@ -1170,7 +1771,9 @@ async function loginAsPerson(url: string | undefined, waitSeconds: number, choic
  * (focusSentinel.ts) reads InstanceState.loginRaisedAt to tell a wanted
  * raise from a theft, so it must be on disk before the window ever moves.
  */
-async function raiseTabForPerson(targetId: string): Promise<{ ok: boolean; reason?: string }> {
+async function raiseTabForPerson(
+  targetId: string,
+): Promise<{ ok: boolean; reason?: string }> {
   const fresh = readState();
   if (fresh) writeState({ ...fresh, loginRaisedAt: Date.now() });
   return focusBrowserTabBlocking(targetId);
@@ -1185,11 +1788,23 @@ async function showToPerson(choice: TargetChoice): Promise<number> {
   const o = await ctx(choice);
   await ensurePinnedTab(o.session);
   const tab = currentTab(o);
-  if (!tab) die("this session has no tab to show", "open a page first: cast browser open <url>");
+  if (!tab)
+    die(
+      "this session has no tab to show",
+      "open a page first: cast browser open <url>",
+    );
   const raised = await raiseTabForPerson(tab.targetId);
-  const where = isPaneSession(o.session) ? "the desktop app's pane" : isRealSession(o.session) ? "your Chrome" : "the agent browser (a separate window from your Chrome)";
-  if (raised.ok) console.log(`${OK} brought the tab to the front in ${where}: ${tab.url}`);
-  else console.log(`${fmt.warning("!")} could not bring the tab to the front (${raised.reason}); it is ${tab.url} in ${where}`);
+  const where = isPaneSession(o.session)
+    ? "the desktop app's pane"
+    : isRealSession(o.session)
+      ? "your Chrome"
+      : "the agent browser (a separate window from your Chrome)";
+  if (raised.ok)
+    console.log(`${OK} brought the tab to the front in ${where}: ${tab.url}`);
+  else
+    console.log(
+      `${fmt.warning("!")} could not bring the tab to the front (${raised.reason}); it is ${tab.url} in ${where}`,
+    );
   printFooter(o, "show", auditOwner());
   return raised.ok ? 0 : 1;
 }
@@ -1213,11 +1828,18 @@ async function passthrough(verb: string, args: string[]): Promise<never> {
  *  class of miss, where a kept-alive background pane held the same label.
  *  Remembers the best hit AND the query, so a following bare action can use
  *  it and a stale ref can be re-found. */
-function findRefs(text: string, o: Ctx, opts: { lenient?: boolean } = {}): { hits: string[]; near: string[]; total: number } {
+function findRefs(
+  text: string,
+  o: Ctx,
+  opts: { lenient?: boolean } = {},
+): { hits: string[]; near: string[]; total: number } {
   const { res, page } = settledSnapshot(["snapshot"], o);
   if (res.status !== 0) {
     if (opts.lenient) return { hits: [], near: [], total: 0 };
-    die((res.stderr || res.stdout).trim().split("\n")[0] || "could not read the page");
+    die(
+      (res.stderr || res.stdout).trim().split("\n")[0] ||
+        "could not read the page",
+    );
   }
   const items = parseEngineRefs(res.stdout);
   if (items.length) rememberSnapshotRefs(o.session, items, page);
@@ -1231,18 +1853,35 @@ function findRefs(text: string, o: Ctx, opts: { lenient?: boolean } = {}): { hit
     for (const h of hits.slice(0, 5)) {
       if (!h.ref) continue;
       try {
-        const box = runEngineJson<{ width?: number; height?: number }>(["get", "box", `@${h.ref}`], o);
-        boxes.set(h.line, box?.width !== undefined ? { width: box.width ?? 0, height: box.height ?? 0 } : null);
+        const box = runEngineJson<{ width?: number; height?: number }>(
+          ["get", "box", `@${h.ref}`],
+          o,
+        );
+        boxes.set(
+          h.line,
+          box?.width !== undefined
+            ? { width: box.width ?? 0, height: box.height ?? 0 }
+            : null,
+        );
       } catch {
         boxes.set(h.line, null);
       }
     }
-    const { ordered, hidden } = rankByVisibility(hits, (h) => boxes.get(h.line) ?? null);
-    hits = ordered.map((h) => (hidden.has(h) ? { ...h, line: `${h.line}  (hidden)` } : h));
+    const { ordered, hidden } = rankByVisibility(
+      hits,
+      (h) => boxes.get(h.line) ?? null,
+    );
+    hits = ordered.map((h) =>
+      hidden.has(h) ? { ...h, line: `${h.line}  (hidden)` } : h,
+    );
   }
   const near = hits.length ? [] : nearMatches(items, query);
   if (hits[0]?.ref) rememberFind(o.session, `@${hits[0].ref}`, text);
-  return { hits: hits.map(findLine), near: near.map(findLine), total: items.length };
+  return {
+    hits: hits.map(findLine),
+    near: near.map(findLine),
+    total: items.length,
+  };
 }
 
 /**
@@ -1255,32 +1894,53 @@ function findRefs(text: string, o: Ctx, opts: { lenient?: boolean } = {}): { hit
  * `find` are the fallback, held to the same page and to a single match.
  * Anything less certain is refused with the instruction to snapshot again.
  */
-function recoverStaleRef(target: string, o: Ctx, query: string | null): { ref: string; note: string } | { refused: string } {
+function recoverStaleRef(
+  target: string,
+  o: Ctx,
+  query: string | null,
+): { ref: string; note: string } | { refused: string } {
   const was = recallSnapshotRef(o.session, target);
   const before = was?.url ?? rememberedSnapshotUrl(o.session);
-  if (!was && !query) return { refused: `it is not in the last snapshot; ${SNAPSHOT_AGAIN}` };
+  if (!was && !query)
+    return { refused: `it is not in the last snapshot; ${SNAPSHOT_AGAIN}` };
   // Within the scope the ref was read in, so the namesake count compares like for like.
   const scoped = was?.scope ? ["snapshot", "-s", was.scope] : ["snapshot"];
   const { res, page } = settledSnapshot(scoped, o);
   const url = page?.url ?? null;
-  if (res.status !== 0 || !res.stdout) return { refused: `the page could not be read again; ${SNAPSHOT_AGAIN}` };
+  if (res.status !== 0 || !res.stdout)
+    return { refused: `the page could not be read again; ${SNAPSHOT_AGAIN}` };
   const items = parseEngineRefs(res.stdout);
   if (items.length) rememberSnapshotRefs(o.session, items, page, was?.scope);
   if (was) {
     const plan = recoverRefPlan(was, items, url);
     if ("refused" in plan) return plan;
     const which = was.nth ? `the ${ordinal(was.nth)} ` : "";
-    return { ref: `@${plan.ref}`, note: `ref went stale — retried ${which}${was.role} ${JSON.stringify(was.name)} as #${plan.ref}` };
+    return {
+      ref: `@${plan.ref}`,
+      note: `ref went stale — retried ${which}${was.role} ${JSON.stringify(was.name)} as #${plan.ref}`,
+    };
   }
-  if (!before || before !== url) return { refused: `the page changed since the find; ${SNAPSHOT_AGAIN}` };
+  if (!before || before !== url)
+    return { refused: `the page changed since the find; ${SNAPSHOT_AGAIN}` };
   const { text, nth } = splitOrdinalQuery(query!);
-  const matched = nth ? pickOrdinal(items, matchRefs(items, text), nth) : matchRefs(items, text);
-  if (matched.length !== 1 || !matched[0].ref || `@${matched[0].ref}` === target) {
-    return { refused: `${JSON.stringify(query)} now matches ${matched.length} elements; ${SNAPSHOT_AGAIN}` };
+  const matched = nth
+    ? pickOrdinal(items, matchRefs(items, text), nth)
+    : matchRefs(items, text);
+  if (
+    matched.length !== 1 ||
+    !matched[0].ref ||
+    `@${matched[0].ref}` === target
+  ) {
+    return {
+      refused: `${JSON.stringify(query)} now matches ${matched.length} elements; ${SNAPSHOT_AGAIN}`,
+    };
   }
   const fresh = `@${matched[0].ref}`;
   rememberFind(o.session, fresh, query!);
-  return { ref: fresh, note: `ref went stale — re-found ${JSON.stringify(query)} as ${fresh.replace("@", "#")}` };
+  return {
+    ref: fresh,
+    note: `ref went stale — re-found ${JSON.stringify(query)} as ${fresh.replace("@", "#")}`,
+  };
 }
 
 /**
@@ -1290,7 +1950,11 @@ function recoverStaleRef(target: string, o: Ctx, query: string | null): { ref: s
  * that kept navigating through every attempt is a failure the agent can act
  * on, never a snapshot of a document that is already gone.
  */
-function settledSnapshot(args: string[], o: Ctx, redactAllValues = false): { res: EngineRun; page: PageStamp | null } {
+function settledSnapshot(
+  args: string[],
+  o: Ctx,
+  redactAllValues = false,
+): { res: EngineRun; page: PageStamp | null } {
   const out = captureSettled({
     capture: () => runEngine(args, o),
     probe: () => probePage(o, redactAllValues),
@@ -1299,19 +1963,33 @@ function settledSnapshot(args: string[], o: Ctx, redactAllValues = false): { res
   });
   if (out.navigating) {
     return {
-      res: { status: 1, stdout: "", stderr: "the page kept navigating while the snapshot was read; wait for it to land, then snapshot again\n" },
+      res: {
+        status: 1,
+        stdout: "",
+        stderr:
+          "the page kept navigating while the snapshot was read; wait for it to land, then snapshot again\n",
+      },
       page: null,
     };
   }
   // Password, one-time-code and card values never reach the agent's text.
-  return { res: { ...out.res, stdout: redactSnapshotOutput(out.res.stdout, out.hidden) }, page: out.page };
+  return {
+    res: {
+      ...out.res,
+      stdout: redactSnapshotOutput(out.res.stdout, out.hidden),
+    },
+    page: out.page,
+  };
 }
 
 /** One read of the page: its URL, document token, mutation clocks and the
  *  field values a snapshot must not show; asked about a ref's name, also when
  *  an element of that name last left the page. */
 function probePage(o: PageCtx, redactAllValues = false, refName?: string) {
-  const r = runEngine(["eval", settleProbeSource(redactAllValues, refName), "--json"], o);
+  const r = runEngine(
+    ["eval", settleProbeSource(redactAllValues, refName), "--json"],
+    o,
+  );
   return r.status === 0 ? parseSettleProbe(r.stdout) : null;
 }
 
@@ -1338,7 +2016,9 @@ function snapshotScope(args: string[]): string | undefined {
  *  ordinal added when the name is one of several. */
 function findLine(h: EngineRef): string {
   const label = refLabel(h);
-  return label === h.name ? h.line : h.line.replace(/"[^"]*"/, JSON.stringify(label));
+  return label === h.name
+    ? h.line
+    : h.line.replace(/"[^"]*"/, JSON.stringify(label));
 }
 
 export interface ShotOptions {
@@ -1358,11 +2038,20 @@ export interface ShotOptions {
 /** Flags `shot` reads, with the spellings agents reach for. A value-taking
  *  flag maps to its option name; a bare one to true. */
 const SHOT_FLAGS: Record<string, { key: keyof ShotOptions; value: boolean }> = {
-  "-o": { key: "out", value: true }, "--out": { key: "out", value: true }, "--path": { key: "out", value: true },
-  "-s": { key: "selector", value: true }, "--selector": { key: "selector", value: true }, "--ref": { key: "selector", value: true },
-  "--full": { key: "full", value: false }, "--full-page": { key: "full", value: false },
-  "--annotate": { key: "annotate", value: false }, "--json": { key: "json", value: false }, "--share": { key: "share", value: false },
-  "--alt": { key: "alt", value: true }, "--format": { key: "format", value: true }, "--quality": { key: "quality", value: true },
+  "-o": { key: "out", value: true },
+  "--out": { key: "out", value: true },
+  "--path": { key: "out", value: true },
+  "-s": { key: "selector", value: true },
+  "--selector": { key: "selector", value: true },
+  "--ref": { key: "selector", value: true },
+  "--full": { key: "full", value: false },
+  "--full-page": { key: "full", value: false },
+  "--annotate": { key: "annotate", value: false },
+  "--json": { key: "json", value: false },
+  "--share": { key: "share", value: false },
+  "--alt": { key: "alt", value: true },
+  "--format": { key: "format", value: true },
+  "--quality": { key: "quality", value: true },
 };
 
 /**
@@ -1371,15 +2060,25 @@ const SHOT_FLAGS: Record<string, { key: keyof ShotOptions; value: boolean }> = {
  * read a stray `--out` as a selector and failed with "Element not found: --out".
  * Pure, so it is testable without a browser.
  */
-export function parseShotArgs(args: readonly string[]): { opts: ShotOptions } | { error: string; hint: string } {
+export function parseShotArgs(
+  args: readonly string[],
+): { opts: ShotOptions } | { error: string; hint: string } {
   const opts: Record<string, unknown> = {};
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const raw = args[i]!;
-    if (raw === "--no-inline") { opts.inline = false; continue; }
+    if (raw === "--no-inline") {
+      opts.inline = false;
+      continue;
+    }
     if (raw === "--no-shot" || raw === "--no-capture") continue;
-    if (!raw.startsWith("-") || raw === "-") { positional.push(raw); continue; }
-    const [flag, inline] = raw.includes("=") ? [raw.slice(0, raw.indexOf("=")), raw.slice(raw.indexOf("=") + 1)] : [raw, undefined];
+    if (!raw.startsWith("-") || raw === "-") {
+      positional.push(raw);
+      continue;
+    }
+    const [flag, inline] = raw.includes("=")
+      ? [raw.slice(0, raw.indexOf("=")), raw.slice(raw.indexOf("=") + 1)]
+      : [raw, undefined];
     const spec = SHOT_FLAGS[flag!];
     if (!spec) {
       return {
@@ -1387,19 +2086,38 @@ export function parseShotArgs(args: readonly string[]): { opts: ShotOptions } | 
         hint: "write to a file with a path or -o: cast browser shot /tmp/page.png (--full for the whole page, -s <sel> for one element)",
       };
     }
-    if (!spec.value) { opts[spec.key] = true; continue; }
+    if (!spec.value) {
+      opts[spec.key] = true;
+      continue;
+    }
     const value = inline ?? args[++i];
-    if (value === undefined) return { error: `${flag} needs a value`, hint: "cast browser shot -o /tmp/page.png" };
+    if (value === undefined)
+      return {
+        error: `${flag} needs a value`,
+        hint: "cast browser shot -o /tmp/page.png",
+      };
     opts[spec.key] = value;
   }
-  if (positional.length > 1) return { error: `shot takes one path, got ${positional.join(" ")}`, hint: "one element is -s <sel>: cast browser shot -s \"#pricing\" /tmp/pricing.png" };
-  if (positional[0] && opts.out) return { error: `two paths: ${positional[0]} and ${String(opts.out)}`, hint: "give the path once" };
+  if (positional.length > 1)
+    return {
+      error: `shot takes one path, got ${positional.join(" ")}`,
+      hint: 'one element is -s <sel>: cast browser shot -s "#pricing" /tmp/pricing.png',
+    };
+  if (positional[0] && opts.out)
+    return {
+      error: `two paths: ${positional[0]} and ${String(opts.out)}`,
+      hint: "give the path once",
+    };
   if (positional[0]) opts.out = positional[0];
   return { opts: opts as ShotOptions };
 }
 
 /** `shot`: screenshot to a file, inline in the conversation, optionally shared. */
-async function takeShot(o: ShotOptions, c: Ctx, deps: PublishDeps): Promise<string> {
+async function takeShot(
+  o: ShotOptions,
+  c: Ctx,
+  deps: PublishDeps,
+): Promise<string> {
   // The engine daemon writes a relative path against its own working
   // directory, not the agent's: resolve it here, where the agent is.
   const out = o.out ? path.resolve(o.out) : defaultShotPath();
@@ -1414,9 +2132,17 @@ async function takeShot(o: ShotOptions, c: Ctx, deps: PublishDeps): Promise<stri
   // clips the capture to that element — one region readable at full size,
   // no post-hoc cropping.
   const target = o.selector ? [engineRef(quoteAttrValues(o.selector))] : [];
-  const res = await runEngine(["screenshot", ...target, out, ...extra], { ...c, narrate: "taking a screenshot" });
+  const res = await runEngine(["screenshot", ...target, out, ...extra], {
+    ...c,
+    narrate: "taking a screenshot",
+  });
   if (res.status !== 0) {
-    die(castVoice((res.stderr || res.stdout).trim().split("\n")[0] || "the screenshot failed"));
+    die(
+      castVoice(
+        (res.stderr || res.stdout).trim().split("\n")[0] ||
+          "the screenshot failed",
+      ),
+    );
   }
   if (!fs.existsSync(out) && o.full && !o.selector) {
     // Over the extension bridge the engine's full-page capture reports
@@ -1425,25 +2151,47 @@ async function takeShot(o: ShotOptions, c: Ctx, deps: PublishDeps): Promise<stri
     const page = await captureFullPage(c);
     if ("png" in page) fs.writeFileSync(out, page.png);
     else {
-      const viewport = await runEngine(["screenshot", out, ...extra.filter((x) => x !== "--full")], { ...c, narrate: "taking a screenshot" });
-      if (viewport.status === 0 && fs.existsSync(out)) console.log(`${fmt.warning("!")} the whole-page capture failed (${page.error}); this is the viewport only`);
+      const viewport = await runEngine(
+        ["screenshot", out, ...extra.filter((x) => x !== "--full")],
+        { ...c, narrate: "taking a screenshot" },
+      );
+      if (viewport.status === 0 && fs.existsSync(out))
+        console.log(
+          `${fmt.warning("!")} the whole-page capture failed (${page.error}); this is the viewport only`,
+        );
     }
   }
-  if (!fs.existsSync(out)) die(`the engine reported success but wrote no file at ${out}`, "try again without --full, or with -s <sel> for one region");
+  if (!fs.existsSync(out))
+    die(
+      `the engine reported success but wrote no file at ${out}`,
+      "try again without --full, or with -s <sel> for one region",
+    );
   if (!o.out) secureTempFile(out);
   if (o.json) {
     const payload = parseEngineJson<{ annotations?: unknown }>(res);
-    const ratio = await runEngine(["eval", "devicePixelRatio", "--json"], { ...c, narrate: "reading screenshot scale" });
-    const scale = ratio.status === 0 ? parseEngineJson<{ result?: unknown }>(ratio).result : null;
+    const ratio = await runEngine(["eval", "devicePixelRatio", "--json"], {
+      ...c,
+      narrate: "reading screenshot scale",
+    });
+    const scale =
+      ratio.status === 0
+        ? parseEngineJson<{ result?: unknown }>(ratio).result
+        : null;
     const written = fs.readFileSync(out);
-    console.log(JSON.stringify(shotJson({
-      file: out,
-      bytes: written.length,
-      size: imageSize(written),
-      scale: typeof scale === "number" ? scale : null,
-      annotations: payload.annotations,
-      url: o.share ? (await uploadOne(deps, out, o.alt || "screenshot")).url : undefined,
-    })));
+    console.log(
+      JSON.stringify(
+        shotJson({
+          file: out,
+          bytes: written.length,
+          size: imageSize(written),
+          scale: typeof scale === "number" ? scale : null,
+          annotations: payload.annotations,
+          url: o.share
+            ? (await uploadOne(deps, out, o.alt || "screenshot")).url
+            : undefined,
+        }),
+      ),
+    );
     return out;
   }
 
@@ -1462,7 +2210,11 @@ async function takeShot(o: ShotOptions, c: Ctx, deps: PublishDeps): Promise<stri
   if (o.inline !== false && bytes <= MAX_IMAGE_SIZE) {
     console.log(inlineImageMarker(path.resolve(out)));
   } else if (o.inline !== false) {
-    console.log(fmt.muted(`  (too large to show inline at ${formatBytes(bytes)} — pass --share for a link)`));
+    console.log(
+      fmt.muted(
+        `  (too large to show inline at ${formatBytes(bytes)} — pass --share for a link)`,
+      ),
+    );
   }
   if (o.share) {
     const img = await uploadOne(deps, out, o.alt || "screenshot");
@@ -1476,7 +2228,10 @@ async function takeShot(o: ShotOptions, c: Ctx, deps: PublishDeps): Promise<stri
  * positional argument, `--file <path>`, `-b <base64>`, or (command form only)
  * `--stdin`. `stdinBody` is null inside a `do` flow, whose stdin is the plan.
  */
-export function readEvalScript(args: string[], stdinBody: string | null): string {
+export function readEvalScript(
+  args: string[],
+  stdinBody: string | null,
+): string {
   const fi = args.findIndex((a) => a === "--file" || a === "-f");
   if (fi >= 0) {
     const p = args[fi + 1];
@@ -1490,10 +2245,15 @@ export function readEvalScript(args: string[], stdinBody: string | null): string
     return Buffer.from(enc, "base64").toString("utf-8");
   }
   if (args.includes("--stdin")) {
-    if (stdinBody === null) throw new Error("--stdin is not available here — use --file or a quoted script");
+    if (stdinBody === null)
+      throw new Error(
+        "--stdin is not available here — use --file or a quoted script",
+      );
     return stdinBody;
   }
-  const positional = args.filter((a) => !a.startsWith("--") && a !== "-b" && a !== "-f");
+  const positional = args.filter(
+    (a) => !a.startsWith("--") && a !== "-b" && a !== "-f",
+  );
   if (!positional.length) throw new Error("no script given");
   return positional.join(" ");
 }
@@ -1524,7 +2284,10 @@ async function runFlow(
   const started = Date.now();
   let failed = 0;
   // Flow-level opt-outs apply to every step.
-  const flowFlags = [...(o.shot === false ? ["--no-shot"] : []), ...(o.capture === false ? ["--no-capture"] : [])];
+  const flowFlags = [
+    ...(o.shot === false ? ["--no-shot"] : []),
+    ...(o.capture === false ? ["--no-capture"] : []),
+  ];
   // One auto shot per flow, after its LAST page-changing step: that is where
   // the flow landed, and the only frame anyone reads. Intermediate shots cost
   // context and are superseded within the same invocation.
@@ -1543,20 +2306,27 @@ async function runFlow(
       // the real Chrome cannot take fails here, before anything touches it.
       const refused = cloneOnlyRefusal(verb, isRealSession(c.session));
       if (refused) throw new Error(`${refused.message} (${refused.hint})`);
-      if (verb !== "open" && verb !== "tab" && verb !== "viewport") await ensurePinnedTab(c.session);
+      if (verb !== "open" && verb !== "tab" && verb !== "viewport")
+        await ensurePinnedTab(c.session);
       if (verb === "shot") {
         const shot = parseShotArgs(args);
         if ("error" in shot) throw new Error(`${shot.error} (${shot.hint})`);
         await takeShot(shot.opts, c, deps);
       } else if (verb === "viewport") {
         const sizeArgs = rest.filter((a) => !a.startsWith("--"));
-        const r = await setViewport(rest.includes("--reset") ? "reset" : sizeArgs.join("x"), c);
-        if (!r.ok) throw new Error(r.hint ? `${r.message} (${r.hint})` : r.message);
+        const r = await setViewport(
+          rest.includes("--reset") ? "reset" : sizeArgs.join("x"),
+          c,
+        );
+        if (!r.ok)
+          throw new Error(r.hint ? `${r.message} (${r.hint})` : r.message);
         for (const line of r.lines) console.log(line);
       } else if (verb === "eval") {
         const script = readEvalScript(rest, null);
         const out = await evalInPage(script, c);
-        console.log(rest.includes("--json") ? out.output : out.display ?? out.output);
+        console.log(
+          rest.includes("--json") ? out.output : (out.display ?? out.output),
+        );
         if (!out.ok) throw new Error(out.hint ?? "eval failed");
       } else if (verb === "find") {
         // The query is the step's own words — flow-level flags are not part
@@ -1564,8 +2334,12 @@ async function runFlow(
         const query = rest.join(" ");
         const { hits, near, total } = findRefs(query, c);
         if (!hits.length) {
-          const hint = near.length ? `; closest: ${near.slice(0, 3).join(", ")}` : "";
-          throw new Error(`no element matching ${JSON.stringify(query)} (${total} refs on the page)${hint}`);
+          const hint = near.length
+            ? `; closest: ${near.slice(0, 3).join(", ")}`
+            : "";
+          throw new Error(
+            `no element matching ${JSON.stringify(query)} (${total} refs on the page)${hint}`,
+          );
         }
         for (const h of hits.slice(0, 5)) console.log(`    ${h}`);
       } else {
@@ -1581,7 +2355,11 @@ async function runFlow(
     }
   }
   if (!failed) printFooter(c, "batch", auditOwner());
-  console.log(fmt.muted(`  ${steps.length} step${steps.length === 1 ? "" : "s"} in ${((Date.now() - started) / 1000).toFixed(1)}s${failed ? `, ${failed} failed` : ""}`));
+  console.log(
+    fmt.muted(
+      `  ${steps.length} step${steps.length === 1 ? "" : "s"} in ${((Date.now() - started) / 1000).toFixed(1)}s${failed ? `, ${failed} failed` : ""}`,
+    ),
+  );
   return failed ? 1 : 0;
 }
 
@@ -1597,7 +2375,10 @@ export const UNATTACHABLE_NOTE =
 
 /** The engine's one-line verdict, for failure classification. */
 export function engineFailureMessage(stderr: string, stdout: string): string {
-  const lines = `${stderr}\n${stdout}`.split("\n").map((l) => l.replace(/^\s*[✗×x]\s*/, "").trim()).filter(Boolean);
+  const lines = `${stderr}\n${stdout}`
+    .split("\n")
+    .map((l) => l.replace(/^\s*[✗×x]\s*/, "").trim())
+    .filter(Boolean);
   return lines[0] ?? "the browser engine reported a failure";
 }
 
@@ -1606,31 +2387,62 @@ export function engineFailureMessage(stderr: string, stdout: string): string {
 // ---------------------------------------------------------------------------
 
 /** Flags agents write for "screenshot this element", which `shot` spells -s/--selector. */
-const SHOT_ELEMENT_FLAGS = new Set(["--element", "--el", "--sel", "--target", "--clip", "--css"]);
+const SHOT_ELEMENT_FLAGS = new Set([
+  "--element",
+  "--el",
+  "--sel",
+  "--target",
+  "--clip",
+  "--css",
+]);
 
 /** A flag that names one element is the agent reaching for -s; passed on, its
  *  value would be read as the output path and the whole page shot. Checked
  *  before a tab is pinned, so the fix is the first thing the agent reads. */
 function refuseMisnamedShotFlag(args: readonly unknown[]): void {
-  const misnamed = args.find((a): a is string => typeof a === "string" && SHOT_ELEMENT_FLAGS.has(a.split("=")[0]!));
-  if (misnamed) die(`shot has no ${misnamed.split("=")[0]} flag`, `screenshot one element with -s: cast browser shot -s "#pricing" (a CSS selector or a #eNN ref)`);
+  const misnamed = args.find(
+    (a): a is string =>
+      typeof a === "string" && SHOT_ELEMENT_FLAGS.has(a.split("=")[0]!),
+  );
+  if (misnamed)
+    die(
+      `shot has no ${misnamed.split("=")[0]} flag`,
+      `screenshot one element with -s: cast browser shot -s "#pricing" (a CSS selector or a #eNN ref)`,
+    );
 }
 
 export function registerEngineCommands(br: Command, deps: PublishDeps): void {
-  registerAdvancedClone(br, (program) => registerEngineCommands(program.command("browser"), deps));
+  registerAdvancedClone(br, (program) =>
+    registerEngineCommands(program.command("browser"), deps),
+  );
   detectSessionId = deps.detectCurrentSessionId;
   engineDeps = deps;
   auditOwner = () => ownerKey(deps.detectCurrentSessionId);
   registerAuditCommand(br, auditOwner);
   registerBridgeCommands(br, { me: auditOwner });
-  const subscriptionDeps: BrowserSubDeps & { session: () => string | undefined } = {
+  const subscriptionDeps: BrowserSubDeps & {
+    session: () => string | undefined;
+  } = {
     session: () => currentSession(),
     currentTab: () => ctx(),
-    tabFor: async (tab) => (isRealSession(tab) ? await engineBrowserFor(tab, await requireRealBridge()) : { session: tab }),
-    judge: (session) => modelJudge(
-      async (spec) => (await import("../judgingCommand.js")).callModel(deps, session ? { conversation_id: session } : {}, spec, "browser subscription"),
-      async (spec) => (await import("../subscriptionCall.js")).subscriptionModelCall(spec, { timeoutMs: 40_000 }),
-    ),
+    tabFor: async (tab) =>
+      isRealSession(tab)
+        ? await engineBrowserFor(tab, await requireRealBridge())
+        : { session: tab },
+    judge: (session) =>
+      modelJudge(
+        async (spec) =>
+          (await import("../judgingCommand.js")).callModel(
+            deps,
+            session ? { conversation_id: session } : {},
+            spec,
+            "browser subscription",
+          ),
+        async (spec) =>
+          (await import("../subscriptionCall.js")).subscriptionModelCall(spec, {
+            timeoutMs: 40_000,
+          }),
+      ),
   };
   registerBrowserSubscriptions(br, subscriptionDeps);
   registerHandoffCommand(br, subscriptionDeps);
@@ -1642,23 +2454,61 @@ export function registerEngineCommands(br: Command, deps: PublishDeps): void {
   // and a clone-only verb asked for the real Chrome dies in ctxFor before a
   // tab is pinned in a browser it will then refuse.
   // `pane` offers a page to the reader over the backend and never opens a tab.
-  const NO_TAB_NEEDED = new Set(["open", "do", "viewport", "status", "tab", "tabs", "start", "stop", "reap", "profiles", "shots", "dialogs", "audit", "target", "bridge-host", "pane", "unsubscribe", "subscriptions", "subscription", "handoff", "sync"]);
-  br.option("--tab <name>", "A tab of your own under this name, for parallel workers sharing one session (or CAST_BROWSER_TAB)")
+  const NO_TAB_NEEDED = new Set([
+    "open",
+    "do",
+    "viewport",
+    "status",
+    "tab",
+    "tabs",
+    "start",
+    "stop",
+    "reap",
+    "profiles",
+    "shots",
+    "dialogs",
+    "audit",
+    "target",
+    "bridge-host",
+    "pane",
+    "unsubscribe",
+    "subscriptions",
+    "subscription",
+    "handoff",
+    "sync",
+  ]);
+  br.option(
+    "--tab <name>",
+    "A tab of your own under this name, for parallel workers sharing one session (or CAST_BROWSER_TAB)",
+  )
     .addOption(new Option("--session <name>", "Same as --tab").hideHelp())
-    .option("--deadline <seconds>", `Give up on a verb after this long, naming what it waited on (default ${DEFAULT_DEADLINE_S}, 0 for none; or ${DEADLINE_ENV})`);
+    .option(
+      "--deadline <seconds>",
+      `Give up on a verb after this long, naming what it waited on (default ${DEFAULT_DEADLINE_S}, 0 for none; or ${DEADLINE_ENV})`,
+    );
   br.hook("preAction", async (thisCommand, actionCommand) => {
     const verb = actionCommand.name();
     // `--browser <id>` parsed by commander (targetFlags); passthrough verbs carry it raw (splitTargetFlags).
     // `--tab`, `--session` and `--deadline` belong to `browser` itself, which
     // reads them anywhere on the line, before or after the verb.
     const opts = actionCommand.opts() as { browser?: string };
-    const parent = thisCommand.opts() as { tab?: string; session?: string; deadline?: string };
+    const parent = thisCommand.opts() as {
+      tab?: string;
+      session?: string;
+      deadline?: string;
+    };
     const seconds = deadlineSeconds(parent.deadline);
-    if (seconds === null) die(`--deadline takes seconds, not '${parent.deadline ?? process.env[DEADLINE_ENV]}'`, "cast browser --deadline 180 open <url>  (0 for none)");
+    if (seconds === null)
+      die(
+        `--deadline takes seconds, not '${parent.deadline ?? process.env[DEADLINE_ENV]}'`,
+        "cast browser --deadline 180 open <url>  (0 for none)",
+      );
     verbDeadlineS = seconds;
     // Direct verbs, and the connection check; other groups (extension setup
     // waits for the human's Pair click) bound their own waits.
-    const bounded = actionCommand.parent === br || (verb === "status" && actionCommand.parent?.name() === "extension");
+    const bounded =
+      actionCommand.parent === br ||
+      (verb === "status" && actionCommand.parent?.name() === "extension");
     if (bounded) armVerbDeadline(verb, seconds);
     if (opts.browser) requestBrowserProfile(opts.browser);
     try {
@@ -1669,12 +2519,21 @@ export function registerEngineCommands(br: Command, deps: PublishDeps): void {
     }
     if (verb === "shot") {
       refuseMisnamedShotFlag(actionCommand.args);
-      const parsed = parseShotArgs(actionCommand.args.filter((a): a is string => typeof a === "string"));
+      const parsed = parseShotArgs(
+        actionCommand.args.filter((a): a is string => typeof a === "string"),
+      );
       if ("error" in parsed) die(parsed.error, parsed.hint);
     }
-    if (NO_TAB_NEEDED.has(verb) || actionCommand.parent !== br || actionCommand.args.some((arg) => arg === "--help" || arg === "-h")) return;
+    if (
+      NO_TAB_NEEDED.has(verb) ||
+      actionCommand.parent !== br ||
+      actionCommand.args.some((arg) => arg === "--help" || arg === "-h")
+    )
+      return;
     try {
-      await ensurePinnedTab((await ctxFor(verb, targetChoiceOf(actionCommand))).session);
+      await ensurePinnedTab(
+        (await ctxFor(verb, targetChoiceOf(actionCommand))).session,
+      );
     } catch (err) {
       // One line for the human, never a stack trace: a bridge that is down,
       // or a stall that outlived its retry (stall.ts).
@@ -1755,10 +2614,17 @@ The human's Chrome is always the default, including before pairing and after res
     .allowUnknownOption(true)
     .helpOption(false)
     .action(async (args: string[] = []) => {
-      if (!args.length) die("raw needs a command", "e.g. cast browser raw profiler start");
+      if (!args.length)
+        die("raw needs a command", "e.g. cast browser raw profiler start");
       const t = await targetOf("raw", args);
       const at = t.args.findIndex((a) => !a.startsWith("-"));
-      if (at >= 0) refuseEngineCommand(t.args[at], t.args.slice(at + 1), t.ctx, auditOwner());
+      if (at >= 0)
+        refuseEngineCommand(
+          t.args[at],
+          t.args.slice(at + 1),
+          t.ctx,
+          auditOwner(),
+        );
       const res = runEngine(t.args, t.ctx);
       if (res.stdout) process.stdout.write(res.stdout);
       if (res.stderr) process.stderr.write(res.stderr);
@@ -1769,15 +2635,32 @@ The human's Chrome is always the default, including before pairing and after res
 
   targetFlags(br.command("shot [pathArg]"))
     .alias("screenshot")
-    .description("Screenshot the page — appears inline in this conversation (--annotate labels refs on it, -s clips to one element)")
-    .option("-o, --out <path>", "Where to write the image (same as the positional path; --path works too)")
-    .option("-s, --selector <sel>", "Screenshot just this element (CSS selector or #eNN ref)")
+    .description(
+      "Screenshot the page — appears inline in this conversation (--annotate labels refs on it, -s clips to one element)",
+    )
+    .option(
+      "-o, --out <path>",
+      "Where to write the image (same as the positional path; --path works too)",
+    )
+    .option(
+      "-s, --selector <sel>",
+      "Screenshot just this element (CSS selector or #eNN ref)",
+    )
     .option("--ref <ref>", "Same as -s")
-    .option("--full", "Whole scroll height, not just the viewport (--full-page works too)")
+    .option(
+      "--full",
+      "Whole scroll height, not just the viewport (--full-page works too)",
+    )
     .option("--format <fmt>", "png (default) or jpeg")
     .option("--quality <n>", "JPEG quality, 0-100")
-    .option("--annotate", "Number every interactive element on the image; each [N] label is snapshot ref #eN, with a legend")
-    .option("--share", "Also upload it and print a link you can paste elsewhere")
+    .option(
+      "--annotate",
+      "Number every interactive element on the image; each [N] label is snapshot ref #eN, with a legend",
+    )
+    .option(
+      "--share",
+      "Also upload it and print a link you can paste elsewhere",
+    )
     .option("--alt <text>", "Caption for the shared image — say what it shows")
     .option("--no-inline", "Do not show the image in the conversation")
     .option("--json", "Print file metadata as JSON, without image bytes")
@@ -1785,19 +2668,36 @@ The human's Chrome is always the default, including before pairing and after res
     .action(async (pathArg: string | undefined, o: any, cmd: any) => {
       // What commander left over: the aliases it does not declare (--path,
       // --full-page) and anything `shot` lacks, which parseShotArgs refuses.
-      const more = parseShotArgs(((cmd.args ?? []) as unknown[]).filter((a): a is string => typeof a === "string"));
+      const more = parseShotArgs(
+        ((cmd.args ?? []) as unknown[]).filter(
+          (a): a is string => typeof a === "string",
+        ),
+      );
       if ("error" in more) die(more.error, more.hint);
       const out = more.opts.out ?? pathArg;
-      if (o.out && out && o.out !== out) die(`two paths: ${out} and ${o.out}`, "give the path once");
-      const opts: ShotOptions = { ...o, ...more.opts, out: o.out ?? out, selector: o.selector ?? o.ref ?? more.opts.selector, full: o.full || more.opts.full };
+      if (o.out && out && o.out !== out)
+        die(`two paths: ${out} and ${o.out}`, "give the path once");
+      const opts: ShotOptions = {
+        ...o,
+        ...more.opts,
+        out: o.out ?? out,
+        selector: o.selector ?? o.ref ?? more.opts.selector,
+        full: o.full || more.opts.full,
+      };
       await takeShot(opts, await ctx(o), deps);
     });
 
   targetFlags(br.command("do [steps...]"))
     .description("Run several steps in one invocation")
     .option("--keep-going", "Continue past a failing step")
-    .option("--no-shot", "Skip the automatic screenshots after page-changing steps")
-    .option("--no-capture", "Skip the automatic failure context on a failing step")
+    .option(
+      "--no-shot",
+      "Skip the automatic screenshots after page-changing steps",
+    )
+    .option(
+      "--no-capture",
+      "Skip the automatic failure context on a failing step",
+    )
     .addHelpText(
       "after",
       `
@@ -1817,11 +2717,24 @@ A step with no ref uses whatever the last \`find\` matched.
 One auto screenshot per flow, after the last page-changing step — intermediate
 frames are superseded before anyone reads them.`,
     )
-    .action(async (steps: string[] = [], o: { keepGoing?: boolean; shot?: boolean; capture?: boolean } & TargetChoice) => {
-      const plan = await readStepPlan(steps);
-      if (!plan.length) die("no steps given", 'try: cast browser do "open example.com" snapshot');
-      process.exit(await runFlow(plan, o, await ctx(o), deps));
-    });
+    .action(
+      async (
+        steps: string[] = [],
+        o: {
+          keepGoing?: boolean;
+          shot?: boolean;
+          capture?: boolean;
+        } & TargetChoice,
+      ) => {
+        const plan = await readStepPlan(steps);
+        if (!plan.length)
+          die(
+            "no steps given",
+            'try: cast browser do "open example.com" snapshot',
+          );
+        process.exit(await runFlow(plan, o, await ctx(o), deps));
+      },
+    );
 
   // ------------------------------------------------------- compatibility verbs
   //
@@ -1832,31 +2745,69 @@ frames are superseded before anyone reads them.`,
   // they have already read into their context.
 
   targetFlags(br.command("show"))
-    .description("Bring this session's tab to the front of the human's screen, only when they asked to see the page (a step they must do on it is `handoff`)")
+    .description(
+      "Bring this session's tab to the front of the human's screen, only when they asked to see the page (a step they must do on it is `handoff`)",
+    )
     .action(async (o: TargetChoice) => {
       process.exit(await showToPerson(o));
     });
 
   targetFlags(br.command("login [url]"))
-    .description("Run this yourself when a page needs a sign-in: raises the agent browser on the page for the human and waits until it leaves the sign-in page")
-    .option("--wait <seconds>", "How long to wait for the sign-in; 0 returns at once", "300")
-    .action(async (url: string | undefined, o: { wait: string } & TargetChoice) => {
-      process.exit(await loginAsPerson(url, Math.max(0, parseInt(o.wait, 10) || 0), o));
-    });
+    .description(
+      "Run this yourself when a page needs a sign-in: raises the agent browser on the page for the human and waits until it leaves the sign-in page",
+    )
+    .option(
+      "--wait <seconds>",
+      "How long to wait for the sign-in; 0 returns at once",
+      "300",
+    )
+    .action(
+      async (url: string | undefined, o: { wait: string } & TargetChoice) => {
+        process.exit(
+          await loginAsPerson(url, Math.max(0, parseInt(o.wait, 10) || 0), o),
+        );
+      },
+    );
 
   targetFlags(br.command("sync [url]"))
-    .description("Carry your Chrome's current logins into the running agent browser: one site, or every site with no URL (Google excepted — it signs in on its own); on the cloud host it asks your laptop to carry the login")
-    .option("--all", "On the cloud host: carry every site (refused while a site allowlist is active)")
-    .option("--via <device-id>", "On the cloud host: the laptop that carries it (default: your most recently seen online laptop)")
-    .option("--wait <seconds>", "On the cloud host: how long to wait for the laptop; 0 returns at once", String(DEFAULT_SYNC_WAIT_S))
-    .action(async (url: string | undefined, o: { all?: boolean; via?: string; wait: string } & TargetChoice) => {
-      const c = await ctxFor("sync", o);
-      process.exit(await runBrowserSync(url, o, { ensureBrowser: () => ensureBrowser(c), me: auditOwner, isRemote: isRemoteDevice }));
-    });
+    .description(
+      "Carry your Chrome's current logins into the running agent browser: one site, or every site with no URL (Google excepted — it signs in on its own); on the cloud host it asks your laptop to carry the login",
+    )
+    .option(
+      "--all",
+      "On the cloud host: carry every site (refused while a site allowlist is active)",
+    )
+    .option(
+      "--via <device-id>",
+      "On the cloud host: the laptop that carries it (default: your most recently seen online laptop)",
+    )
+    .option(
+      "--wait <seconds>",
+      "On the cloud host: how long to wait for the laptop; 0 returns at once",
+      String(DEFAULT_SYNC_WAIT_S),
+    )
+    .action(
+      async (
+        url: string | undefined,
+        o: { all?: boolean; via?: string; wait: string } & TargetChoice,
+      ) => {
+        const c = await ctxFor("sync", o);
+        process.exit(
+          await runBrowserSync(url, o, {
+            ensureBrowser: () => ensureBrowser(c),
+            me: auditOwner,
+            isRemote: isRemoteDevice,
+          }),
+        );
+      },
+    );
 
   targetFlags(br.command("tabs"))
     .description("List this session's tabs; --all lists every agent's")
-    .option("--all", "Every agent session's tab in the browser, not only this session's")
+    .option(
+      "--all",
+      "Every agent session's tab in the browser, not only this session's",
+    )
     .action(async (o: TargetChoice & { all?: boolean }) => {
       const c = await ctx(o);
       if (isRealSession(c.session)) {
@@ -1870,26 +2821,57 @@ frames are superseded before anyone reads them.`,
         }
         // The listing is answered by the extension's worker, whose process
         // may be frozen (stall.ts): once more after a stall, then one line.
-        let raw: Array<{ id: string; title: string; url: string; cast?: boolean; sessions?: string[] }>;
+        let raw: Array<{
+          id: string;
+          title: string;
+          url: string;
+          cast?: boolean;
+          sessions?: string[];
+        }>;
         try {
-          raw = await retryOnStall(() => readCdpJson<typeof raw>({ port: bridge.port, token: bridge.token }, "/json/list"));
+          raw = await retryOnStall(() =>
+            readCdpJson<typeof raw>(
+              { port: bridge.port, token: bridge.token },
+              "/json/list",
+            ),
+          );
         } catch (err) {
           die((err as Error).message);
         }
-        const tabs = raw.filter((t) => t.cast && (o.all || t.sessions?.includes(c.session)));
-        if (!tabs.length) console.log(fmt.muted("  no agent tabs in your Chrome"));
+        const tabs = raw.filter(
+          (t) => t.cast && (o.all || t.sessions?.includes(c.session)),
+        );
+        if (!tabs.length)
+          console.log(fmt.muted("  no agent tabs in your Chrome"));
         for (const t of tabs) {
           const mine = (t.sessions ?? []).includes(c.session);
           // A named tab (--tab) of this same agent: its own tab, still this agent's.
-          const sibling = (t.sessions ?? []).find((sid) => ownerOfSessionKey(sid) === ownerOfSessionKey(c.session));
-          const who = mine ? "this session" : sibling ? `this agent's tab ${tabNameOf(sibling) ?? "(default)"}` : (t.sessions ?? []).join(", ") || "no session";
-          console.log(`  ${mine ? "*" : "~"} [${t.id}] ${t.title || t.url} - ${t.url}  ${fmt.muted(who)}`);
+          const sibling = (t.sessions ?? []).find(
+            (sid) => ownerOfSessionKey(sid) === ownerOfSessionKey(c.session),
+          );
+          const who = mine
+            ? "this session"
+            : sibling
+              ? `this agent's tab ${tabNameOf(sibling) ?? "(default)"}`
+              : (t.sessions ?? []).join(", ") || "no session";
+          console.log(
+            `  ${mine ? "*" : "~"} [${t.id}] ${t.title || t.url} - ${t.url}  ${fmt.muted(who)}`,
+          );
         }
-        console.log(fmt.muted("  * = this session's, ~ = another agent's — `cast browser tab switch <id>` shares one with this session; the human's own tabs are never listed"));
+        console.log(
+          fmt.muted(
+            "  * = this session's, ~ = another agent's — `cast browser tab switch <id>` shares one with this session; the human's own tabs are never listed",
+          ),
+        );
         process.exit(0);
       }
       const code = await runVerb("tab", ["list"], c);
-      if (code === 0 && isPaneSession(c.session)) console.log(fmt.muted("  the desktop app's pane opened for this session, driven over the app's CDP port"));
+      if (code === 0 && isPaneSession(c.session))
+        console.log(
+          fmt.muted(
+            "  the desktop app's pane opened for this session, driven over the app's CDP port",
+          ),
+        );
       process.exit(code);
     });
 
@@ -1901,7 +2883,9 @@ frames are superseded before anyone reads them.`,
       // the verb — and remembers the match for a bare action to use.
       const { hits, near, total } = findRefs(text, await ctx(o));
       if (!hits.length) {
-        console.log(`no element matching ${JSON.stringify(text)} (${total} refs on the page)`);
+        console.log(
+          `no element matching ${JSON.stringify(text)} (${total} refs on the page)`,
+        );
         if (near.length) {
           console.log("closest:");
           for (const h of near) console.log(`  ${h}`);
@@ -1910,7 +2894,8 @@ frames are superseded before anyone reads them.`,
         process.exit(1);
       }
       for (const h of hits.slice(0, 25)) console.log(h);
-      if (hits.length > 25) console.log(fmt.muted(`  … and ${hits.length - 25} more`));
+      if (hits.length > 25)
+        console.log(fmt.muted(`  … and ${hits.length - 25} more`));
     });
 
   const EVAL_HELP = `cast browser eval - Run JavaScript in this session's page
@@ -1940,8 +2925,11 @@ A string prints as itself, newlines and quotes intact, so there is no need to
 wrap a result in JSON.stringify; other values print as JSON. A script that
 throws prints the page's exception and exits 1.`;
 
-  const evalCmd = br.command("eval [script...]")
-    .description("Run JavaScript in the page — promises are awaited (--stdin heredoc, --file <path>)")
+  const evalCmd = br
+    .command("eval [script...]")
+    .description(
+      "Run JavaScript in the page — promises are awaited (--stdin heredoc, --file <path>)",
+    )
     .allowUnknownOption(true)
     .helpOption(false)
     .action(async (scriptArgs: string[] = []) => {
@@ -1964,10 +2952,15 @@ throws prints the page's exception and exits 1.`;
         });
       }
       const ti = scriptArgs.findIndex((a) => a === "--timeout");
-      const timeout = ti >= 0 ? parseInt(scriptArgs[ti + 1] ?? "", 10) || 15_000 : 15_000;
+      const timeout =
+        ti >= 0 ? parseInt(scriptArgs[ti + 1] ?? "", 10) || 15_000 : 15_000;
       // A script given longer than the budget keeps its own limit.
-      if (verbDeadlineS > 0 && timeout / 1000 + 30 > verbDeadlineS) armVerbDeadline("eval", Math.ceil(timeout / 1000) + 30);
-      const rest = ti >= 0 ? scriptArgs.filter((_, i) => i !== ti && i !== ti + 1) : scriptArgs;
+      if (verbDeadlineS > 0 && timeout / 1000 + 30 > verbDeadlineS)
+        armVerbDeadline("eval", Math.ceil(timeout / 1000) + 30);
+      const rest =
+        ti >= 0
+          ? scriptArgs.filter((_, i) => i !== ti && i !== ti + 1)
+          : scriptArgs;
       let script: string;
       try {
         script = readEvalScript(rest, stdinBody);
@@ -1975,15 +2968,22 @@ throws prints the page's exception and exits 1.`;
         die((err as Error).message);
       }
       const out = await evalInPage(script, c, timeout);
-      console.log(rest.includes("--json") ? out.output : out.display ?? out.output);
+      console.log(
+        rest.includes("--json") ? out.output : (out.display ?? out.output),
+      );
       if (!out.ok && out.hint) console.log(fmt.muted(`  ${out.hint}`));
       process.exit(out.ok ? 0 : 1);
     });
   evalCmd.helpInformation = () => `${EVAL_HELP}\n`;
 
   targetFlags(br.command("grant [permissions...]"))
-    .description("Grant browser permissions to the current origin, no prompt, no restart (default: camera microphone)")
-    .option("--origin <origin>", "Grant to this origin instead of the current tab's")
+    .description(
+      "Grant browser permissions to the current origin, no prompt, no restart (default: camera microphone)",
+    )
+    .option(
+      "--origin <origin>",
+      "Grant to this origin instead of the current tab's",
+    )
     .option("--reset", "Reset ALL granted permissions to defaults")
     .addHelpText(
       "after",
@@ -2000,18 +3000,25 @@ A machine with no camera still needs fake devices at launch:
 \`cast browser start --fake-media\` (restart — coordinate, it closes other
 sessions' tabs).`,
     )
-    .action(async (permissions: string[] = [], o: { origin?: string; reset?: boolean } & TargetChoice) => {
-      const c = await ctxFor("grant", o);
-      await ensureBrowser(c);
-      await ensurePinnedTab(c.session);
-      const out = await grantPermissions(permissions, c, o);
-      console.log(`${out.ok ? OK : BAD} ${out.output}`);
-      if (out.hint) console.log(fmt.muted(`  ${out.hint}`));
-      process.exit(out.ok ? 0 : 1);
-    });
+    .action(
+      async (
+        permissions: string[] = [],
+        o: { origin?: string; reset?: boolean } & TargetChoice,
+      ) => {
+        const c = await ctxFor("grant", o);
+        await ensureBrowser(c);
+        await ensurePinnedTab(c.session);
+        const out = await grantPermissions(permissions, c, o);
+        console.log(`${out.ok ? OK : BAD} ${out.output}`);
+        if (out.hint) console.log(fmt.muted(`  ${out.hint}`));
+        process.exit(out.ok ? 0 : 1);
+      },
+    );
 
   targetFlags(br.command("viewport [size] [height]"))
-    .description("Resize the page, or emulate a device: desktop, laptop, wide, tablet, mobile, mobile-small")
+    .description(
+      "Resize the page, or emulate a device: desktop, laptop, wide, tablet, mobile, mobile-small",
+    )
     .option("--reset", "Back to the default size")
     .addHelpText(
       "after",
@@ -2023,26 +3030,51 @@ sessions' tabs).`,
 
 Before any page is open, the size is kept and applied by the next \`open\`.`,
     )
-    .action(async (size: string | undefined, height: string | undefined, o: { reset?: boolean } & TargetChoice) => {
-      const c = await ctx(o);
-      if (!size && !o.reset) {
-        await ensurePinnedTab(c.session).catch((err) => die((err as Error).message));
-        const res = runEngine(["eval", "JSON.stringify([innerWidth,innerHeight,devicePixelRatio])"], c);
-        console.log(res.stdout.trim());
-        console.log(fmt.muted(`  presets: ${Object.keys(VIEWPORTS).join(", ")}  ·  or a size like 1024x768`));
-        return;
-      }
-      const r = await setViewport(o.reset ? "reset" : [size, height].filter(Boolean).join("x"), c);
-      if (!r.ok) die(r.message, r.hint);
-      for (const line of r.lines) console.log(line);
-    });
+    .action(
+      async (
+        size: string | undefined,
+        height: string | undefined,
+        o: { reset?: boolean } & TargetChoice,
+      ) => {
+        const c = await ctx(o);
+        if (!size && !o.reset) {
+          await ensurePinnedTab(c.session).catch((err) =>
+            die((err as Error).message),
+          );
+          const res = runEngine(
+            [
+              "eval",
+              "JSON.stringify([innerWidth,innerHeight,devicePixelRatio])",
+            ],
+            c,
+          );
+          console.log(res.stdout.trim());
+          console.log(
+            fmt.muted(
+              `  presets: ${Object.keys(VIEWPORTS).join(", ")}  ·  or a size like 1024x768`,
+            ),
+          );
+          return;
+        }
+        const r = await setViewport(
+          o.reset ? "reset" : [size, height].filter(Boolean).join("x"),
+          c,
+        );
+        if (!r.ok) die(r.message, r.hint);
+        for (const line of r.lines) console.log(line);
+      },
+    );
 
   br.command("dialogs")
     .description("Modal dialogs the page tried to open")
     .action(() => {
       console.log(
-        fmt.muted("alert / confirm / beforeunload are dismissed automatically, so a dialog cannot freeze the tab.\n") +
-          fmt.muted("Anything the page logged around one shows in `cast browser console`."),
+        fmt.muted(
+          "alert / confirm / beforeunload are dismissed automatically, so a dialog cannot freeze the tab.\n",
+        ) +
+          fmt.muted(
+            "Anything the page logged around one shows in `cast browser console`.",
+          ),
       );
     });
 
@@ -2051,29 +3083,47 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
   targetFlags(br.command("start"))
     .description("Connect to the human's Chrome through the extension")
     .addHelpText("after", BROWSER_START_HELP)
-    .option("--profile <dir>", "Chrome profile to inherit logins from (see `cast browser profiles`)")
+    .option(
+      "--profile <dir>",
+      "Chrome profile to inherit logins from (see `cast browser profiles`)",
+    )
     .option("--fresh", "Start signed out of everything")
     .option("--resync", "Re-copy the profile even if a clone already exists")
     .option("--headless", "Run without a visible window")
-    .option("--fake-media", "Fake camera/mic devices (test pattern + tone) — for machines without real ones; permission prompts are auto-accepted")
+    .option(
+      "--fake-media",
+      "Fake camera/mic devices (test pattern + tone) — for machines without real ones; permission prompts are auto-accepted",
+    )
     .option("--size <WxH>", "Window size for the separate browser")
-    .option("--remote [host]", "Run the browser on a remote host (see `cast browser hosts`)")
+    .option(
+      "--remote [host]",
+      "Run the browser on a remote host (see `cast browser hosts`)",
+    )
     .action(async (o: Partial<StartOptions> & TargetChoice) => {
-      const real = await prepareRealBrowserStart(o, auditOwner()).catch((err) => die((err as Error).message));
+      const real = await prepareRealBrowserStart(o, auditOwner()).catch((err) =>
+        die((err as Error).message),
+      );
       let install;
       try {
         install = ensureEngine();
       } catch (err) {
         die((err as Error).message);
       }
-      if (install.installed) console.log(`${OK} browser engine installed (${ENGINE_PACKAGE})`);
+      if (install.installed)
+        console.log(`${OK} browser engine installed (${ENGINE_PACKAGE})`);
       const session = engineSession(detectSessionId);
-      const swept = describeReap(await reapEngineOrphans({ force: true, keep: session }));
+      const swept = describeReap(
+        await reapEngineOrphans({ force: true, keep: session }),
+      );
       if (swept) console.log(fmt.muted(`  ${swept}`));
       if (real) return;
 
       await startManagedBrowser({ ...DEFAULT_START, ...o });
-      console.log(fmt.muted(`  this session drives its own tab in it — session ${session}`));
+      console.log(
+        fmt.muted(
+          `  this session drives its own tab in it — session ${session}`,
+        ),
+      );
     });
 
   targetFlags(br.command("status"))
@@ -2088,33 +3138,54 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
       // the browser, and the bridge is what can be up or down. A pane's
       // browser is the desktop app, already answering on its port.
       if (!binary || (!state && !real && !pane)) {
-        console.log(`${fmt.muted(icons.dot)} not set up yet — run \`cast browser start\``);
+        console.log(
+          `${fmt.muted(icons.dot)} not set up yet — run \`cast browser start\``,
+        );
         return;
       }
       let alive = true;
       if (real) {
-        console.log(`${OK} real Chrome via the bridge on ${new URL(c.cdp!).host} — \`cast browser extension status\` says whether it is connected`);
+        console.log(
+          `${OK} real Chrome via the bridge on ${new URL(c.cdp!).host} — \`cast browser extension status\` says whether it is connected`,
+        );
       } else if (pane) {
-        console.log(`${OK} the desktop app's pane over its CDP port ${new URL(c.cdp!).host} — the human opened it for this session`);
+        console.log(
+          `${OK} the desktop app's pane over its CDP port ${new URL(c.cdp!).host} — the human opened it for this session`,
+        );
       } else if (state) {
         alive = isPidAlive(state.pid);
-        console.log(`${alive ? OK : BAD} browser ${alive ? "up" : "gone"} — pid ${state.pid}, CDP 127.0.0.1:${state.port}${state.headless ? ", headless" : ""}${state.fakeMedia ? ", fake media devices" : ""}`);
+        console.log(
+          `${alive ? OK : BAD} browser ${alive ? "up" : "gone"} — pid ${state.pid}, CDP 127.0.0.1:${state.port}${state.headless ? ", headless" : ""}${state.fakeMedia ? ", fake media devices" : ""}`,
+        );
       }
-      console.log(`  engine: ${ENGINE_PACKAGE} ${engineVersion() ?? "?"}  ${fmt.muted(binary)}`);
+      console.log(
+        `  engine: ${ENGINE_PACKAGE} ${engineVersion() ?? "?"}  ${fmt.muted(binary)}`,
+      );
       console.log(`  session: ${c.session}`);
       if (!real && !pane && state) {
-        console.log(`  profile: ${state.sourceProfile ? `${state.sourceProfile} (logins inherited; Google is its own — \`cast browser login\` once)` : "fresh — signed out"}`);
+        console.log(
+          `  profile: ${state.sourceProfile ? `${state.sourceProfile} (logins inherited; Google is its own — \`cast browser login\` once)` : "fresh — signed out"}`,
+        );
       }
       if (!alive) return;
       const browser = await pinnedTabBrowser(c.session);
       const tabs = browser ? await listTargets(browser.endpoint) : [];
       if (tabs.length) {
         console.log(`  tabs:`);
-        for (const tab of tabs) console.log(`    [${tab.targetId}] ${tab.title || tab.url} - ${tab.url}`);
+        for (const tab of tabs)
+          console.log(
+            `    [${tab.targetId}] ${tab.title || tab.url} - ${tab.url}`,
+          );
       }
-      const others = listEngineSessions().filter((x) => x.running && x.key !== c.session);
+      const others = listEngineSessions().filter(
+        (x) => x.running && x.key !== c.session,
+      );
       if (others.length) {
-        console.log(fmt.muted(`  ${others.length} other session${others.length === 1 ? " is" : "s are"} browsing here too — abandoned tabs close on the next start`));
+        console.log(
+          fmt.muted(
+            `  ${others.length} other session${others.length === 1 ? " is" : "s are"} browsing here too — abandoned tabs close on the next start`,
+          ),
+        );
       }
     });
 
@@ -2125,15 +3196,24 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
   // session is kept: the daemon drives no tab of its own.
   br.command("reap", { hidden: true })
     .description("Close engine browsers whose agent is gone")
-    .option("--ended <session id>", "This agent session was just killed: close its tabs now")
+    .option(
+      "--ended <session id>",
+      "This agent session was just killed: close its tabs now",
+    )
     .action(async (o: { ended?: string }) => {
-      const live = o.ended ? withEndedSession(scanLiveOwners(), o.ended) : undefined;
-      const swept = describeReap(await reapEngineOrphans({ keep: null, force: !!o.ended, live }));
+      const live = o.ended
+        ? withEndedSession(scanLiveOwners(), o.ended)
+        : undefined;
+      const swept = describeReap(
+        await reapEngineOrphans({ keep: null, force: !!o.ended, live }),
+      );
       if (swept) console.log(swept);
     });
 
   targetFlags(br.command("stop"))
-    .description("Close this session's tab; --all closes every session's and the browser")
+    .description(
+      "Close this session's tab; --all closes every session's and the browser",
+    )
     .option("--all", "Close every session's tab and the browser itself")
     .option("--wipe", "Also remove the cloned profile (implies --all)")
     .action(async (o: { all?: boolean; wipe?: boolean } & TargetChoice) => {
@@ -2142,23 +3222,41 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
       // close one tab, remove nothing and say nothing.
       if (o.wipe) o.all = true;
       const { session } = await ctx(o);
-      if ((isRealSession(session) || isPaneSession(session)) && (o.all || o.wipe)) die("Ordinary browser commands cannot stop or wipe a separate browser.");
+      if (
+        (isRealSession(session) || isPaneSession(session)) &&
+        (o.all || o.wipe)
+      )
+        die(
+          "Ordinary browser commands cannot stop or wipe a separate browser.",
+        );
       // Detach the engine and close the tab it was pinned to; the browser
       // stays for everyone else. A pane is the human's: only the engine lets
       // go of it, and the pane stays where they put it.
       await closeSessionTab(session);
-      console.log(isPaneSession(session) ? `${OK} let go of the desktop pane; it stays open for the human` : `${OK} closed this session's tab`);
+      console.log(
+        isPaneSession(session)
+          ? `${OK} let go of the desktop pane; it stays open for the human`
+          : `${OK} closed this session's tab`,
+      );
       if (isPaneSession(session)) return;
-      const swept = describeReap(await reapEngineOrphans({ force: true, keep: o.all ? null : session, idleMs: o.all ? 0 : undefined }));
+      const swept = describeReap(
+        await reapEngineOrphans({
+          force: true,
+          keep: o.all ? null : session,
+          idleMs: o.all ? 0 : undefined,
+        }),
+      );
       if (swept) console.log(fmt.muted(`  ${swept}`));
       if (isRealSession(session)) return;
       if (o.all) {
         const state = readState();
         if (state?.remote) {
           const { wiped } = await stopRemoteManagedBrowser(state);
-          console.log(wiped
-            ? `${OK} remote browser stopped and its profile wiped`
-            : `${OK} closed the tunnel to ${state.remote.user}@${state.remote.host}; that host is no longer registered here, so its browser profile was not wiped`);
+          console.log(
+            wiped
+              ? `${OK} remote browser stopped and its profile wiped`
+              : `${OK} closed the tunnel to ${state.remote.user}@${state.remote.host}; that host is no longer registered here, so its browser profile was not wiped`,
+          );
         } else if (state) {
           await stopInstance(state);
           // Forget it, or the next command reads a browser that is gone.
@@ -2173,7 +3271,9 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
     });
 
   br.command("shots [mode]")
-    .description("Automatic screenshots after page-changing commands: on | off | default | status")
+    .description(
+      "Automatic screenshots after page-changing commands: on | off | default | status",
+    )
     .action((mode?: string) => {
       if (!mode || mode === "status") {
         console.log(
@@ -2185,12 +3285,20 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
       }
       if (mode === "default") {
         clearAutoShots();
-        console.log(`${OK} auto screenshots follow the default again: on at a terminal, off for agent sessions`);
+        console.log(
+          `${OK} auto screenshots follow the default again: on at a terminal, off for agent sessions`,
+        );
         return;
       }
-      if (mode !== "on" && mode !== "off") die(`'${mode}' is not a mode`, "use: cast browser shots on | off | default | status");
+      if (mode !== "on" && mode !== "off")
+        die(
+          `'${mode}' is not a mode`,
+          "use: cast browser shots on | off | default | status",
+        );
       setAutoShots(mode === "on");
-      console.log(`${OK} auto screenshots ${mode} (machine-wide; \`cast browser shots default\` restores the per-audience default)`);
+      console.log(
+        `${OK} auto screenshots ${mode} (machine-wide; \`cast browser shots default\` restores the per-audience default)`,
+      );
     });
 
   br.command("profiles")
@@ -2202,9 +3310,15 @@ Before any page is open, the size is kept and applied by the next \`open\`.`,
       for (const p of profiles) {
         const mark = p.dir === active ? fmt.success("*") : " ";
         const tag = p.lastUsed ? fmt.muted(" (you used this last)") : "";
-        console.log(`${mark} ${p.dir.padEnd(12)} ${fmt.highlight(p.name)}${p.email ? fmt.muted(` <${p.email}>`) : ""}${tag}`);
+        console.log(
+          `${mark} ${p.dir.padEnd(12)} ${fmt.highlight(p.name)}${p.email ? fmt.muted(` <${p.email}>`) : ""}${tag}`,
+        );
       }
-      console.log(fmt.muted("\n  * = the separate browser's profile, used only when explicitly selected. Normal commands use the human's Chrome."));
+      console.log(
+        fmt.muted(
+          "\n  * = the separate browser's profile, used only when explicitly selected. Normal commands use the human's Chrome.",
+        ),
+      );
     });
   hideCloneControls(br);
 }

@@ -9,14 +9,25 @@
 // a card has room for.
 import { useMetricSeries } from "../../hooks/useMetricSeries";
 import { useMemo } from "react";
-import { metricReadings, metricTrends } from "@codecast/shared/contracts/initiative";
+import {
+  metricReadings,
+  metricTrends,
+} from "@codecast/shared/contracts/initiative";
 import { useInitiatives } from "../../hooks/useInitiatives";
 import { initiativesOfProject } from "../../lib/initiatives";
 import { cn } from "../../lib/utils";
 import { EntityIdPill } from "../EntityIdPill";
 import { MetricTile } from "./InitiativeAtoms";
 
-export function ProjectInitiatives({ projectId, size = "sm", label, except, metrics, now, className }: {
+export function ProjectInitiatives({
+  projectId,
+  size = "sm",
+  label,
+  except,
+  metrics,
+  now,
+  className,
+}: {
   projectId: string;
   size?: "xs" | "sm";
   /** An initiative to leave out: its own page lists what a project shares with the others. */
@@ -31,17 +42,38 @@ export function ProjectInitiatives({ projectId, size = "sm", label, except, metr
 }) {
   const all = useInitiatives();
   const { lookup } = useMetricSeries();
-  const rows = useMemo(() => initiativesOfProject(all, projectId).filter((r) => r._id !== except), [all, projectId, except]);
+  const rows = useMemo(
+    () => initiativesOfProject(all, projectId).filter((r) => r._id !== except),
+    [all, projectId, except],
+  );
   if (rows.length === 0) return null;
   return (
-    <span className={cn("inline-flex items-center gap-x-1.5 gap-y-1 flex-wrap min-w-0", size === "xs" ? "text-meta" : "text-[12.5px]", className)} data-project-initiatives={projectId}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-x-1.5 gap-y-1 flex-wrap min-w-0",
+        size === "xs" ? "text-meta" : "text-[12.5px]",
+        className,
+      )}
+      data-project-initiatives={projectId}
+    >
       {label && <span style={{ color: "var(--sol-text-dim)" }}>{label}</span>}
       {rows.map((r) => {
         const reading = metrics ? metricReadings(r, lookup)[0] : undefined;
         return (
-          <span key={r._id} className="inline-flex items-center gap-1.5 min-w-0 max-w-full" data-project-initiative={r.short_id || r._id}>
+          <span
+            key={r._id}
+            className="inline-flex items-center gap-1.5 min-w-0 max-w-full"
+            data-project-initiative={r.short_id || r._id}
+          >
             <EntityIdPill type="initiative" id={r.short_id || r._id} />
-            {reading && metrics && <MetricTile reading={reading} trend={metricTrends(r, lookup)[reading.key]} now={now ?? Date.now()} size={metrics} />}
+            {reading && metrics && (
+              <MetricTile
+                reading={reading}
+                trend={metricTrends(r, lookup)[reading.key]}
+                now={now ?? Date.now()}
+                size={metrics}
+              />
+            )}
           </span>
         );
       })}

@@ -29,12 +29,14 @@ export const CHAT_SYNC_COLLECTIONS = {
     indexes: "_id, channel_id, thread_root_id",
     // A row must know which channel it belongs to; anything else is a foreign
     // document that would render as a message with no home.
-    validRow: (row: any) => typeof row?.channel_id === "string" && typeof row?.content === "string",
+    validRow: (row: any) =>
+      typeof row?.channel_id === "string" && typeof row?.content === "string",
     // A send painted while its images uploaded (chatSlice sendChatMessage) had
     // no outbox entry yet, and the reload took the upload and its blob with
     // it: show it as a failed send carrying what can still be delivered.
     hydrateRow: (row: any) => {
-      if (!row?.attachments?.some((a: any) => !a.storage_id) || row._failedAt) return row;
+      if (!row?.attachments?.some((a: any) => !a.storage_id) || row._failedAt)
+        return row;
       return {
         ...row,
         attachments: deliverableAttachments(row.attachments),

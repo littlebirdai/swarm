@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BRIDGE_EXTENSION_ID, BRIDGE_STORE_URL } from "./protocol";
@@ -14,15 +20,24 @@ const ONE_PROFILE = {
     { dir: "Default", name: "Personal", email: null, lastUsed: true },
     { dir: "Profile 2", name: "Work", email: "a@work.com", lastUsed: false },
   ],
-  withExtension: [{ dir: "Profile 2", name: "Work", email: "a@work.com", lastUsed: false }],
+  withExtension: [
+    { dir: "Profile 2", name: "Work", email: "a@work.com", lastUsed: false },
+  ],
 };
 
 /**
  * `connected`: the pairing completes (the profile shows up on the host). `live`: profiles already connected before setup runs.
  */
-async function setup(args: string[], connected = false, profiles: unknown = ONE_PROFILE, initialState?: Record<string, unknown>, live: unknown[] = []) {
+async function setup(
+  args: string[],
+  connected = false,
+  profiles: unknown = ONE_PROFILE,
+  initialState?: Record<string, unknown>,
+  live: unknown[] = [],
+) {
   const dir = mkdtempSync(join(tmpdir(), "cast-store-setup-"));
-  const modulePath = (name: string) => JSON.stringify(join(import.meta.dir, name));
+  const modulePath = (name: string) =>
+    JSON.stringify(join(import.meta.dir, name));
   const script = `
     import { mock } from "bun:test";
     import { Command } from "commander";
@@ -63,14 +78,19 @@ async function setup(args: string[], connected = false, profiles: unknown = ONE_
     const proc = Bun.spawn([process.execPath, "--eval", script], {
       cwd: import.meta.dir,
       env: { ...process.env, CODECAST_DIR: dir, NO_COLOR: "1" },
-      stdout: Bun.file(stdout), stderr: Bun.file(stderr),
+      stdout: Bun.file(stdout),
+      stderr: Bun.file(stderr),
     });
     const code = await proc.exited;
     expect(code, readFileSync(stderr, "utf8")).toBe(0);
     const statePath = join(dir, "browser", "bridge.json");
-    lastState = existsSync(statePath) ? JSON.parse(readFileSync(statePath, "utf8")) : null;
+    lastState = existsSync(statePath)
+      ? JSON.parse(readFileSync(statePath, "utf8"))
+      : null;
     const fragPath = join(dir, "opened-fragment.json");
-    lastFragment = existsSync(fragPath) ? JSON.parse(readFileSync(fragPath, "utf8")) : null;
+    lastFragment = existsSync(fragPath)
+      ? JSON.parse(readFileSync(fragPath, "utf8"))
+      : null;
     return readFileSync(stdout, "utf8");
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -82,7 +102,9 @@ test("setup without an installed extension points to the store without exposing 
   expect(out).toContain(`OPENED_EXTENSION_ID=${BRIDGE_EXTENSION_ID}`);
   expect(out).toContain(BRIDGE_STORE_URL);
   expect(out).toContain("Chrome Web Store");
-  expect(out).not.toMatch(/Load unpacked|Developer mode|apps\/browser-extension/);
+  expect(out).not.toMatch(
+    /Load unpacked|Developer mode|apps\/browser-extension/,
+  );
   expect(out).not.toMatch(/[a-f0-9]{64}|#token=/);
 });
 
@@ -118,22 +140,30 @@ test("successful pairing reports connection without falling back to install inst
 // had no extension, and showed chrome-extension://invalid.
 test("pairing opens in the profile that has the extension, not Chrome's last-used one", async () => {
   const out = await setup([], true);
-  expect(out).toContain(`OPENED_URL=chrome-extension://${BRIDGE_EXTENSION_ID}/options.html PROFILE_ARGS=["--profile-directory=Profile 2"]`);
-  expect(out).toContain(`default Chrome profile: "Work" (a@work.com, Profile 2)`);
+  expect(out).toContain(
+    `OPENED_URL=chrome-extension://${BRIDGE_EXTENSION_ID}/options.html PROFILE_ARGS=["--profile-directory=Profile 2"]`,
+  );
+  expect(out).toContain(
+    `default Chrome profile: "Work" (a@work.com, Profile 2)`,
+  );
   expect(lastState?.profile).toBe("Profile 2");
 });
 
 test("with no profile holding the extension, setup opens the setup page for this machine and never an extension page", async () => {
   const out = await setup([], false, { ...ONE_PROFILE, withExtension: [] });
   expect(out).not.toContain("OPENED_URL=chrome-extension://");
-  expect(out).toMatch(/OPENED_URL=https:\/\/[^ ]+\/setup\/browser\?device=[0-9a-f]+ PROFILE_ARGS=\["--profile-directory=Default"\]/);
+  expect(out).toMatch(
+    /OPENED_URL=https:\/\/[^ ]+\/setup\/browser\?device=[0-9a-f]+ PROFILE_ARGS=\["--profile-directory=Default"\]/,
+  );
   expect(out).toContain("not installed in any Chrome profile");
 });
 
 test("--profile naming a profile without the extension sends that profile to the setup page", async () => {
   const out = await setup(["--profile", "personal"], false);
   expect(out).not.toContain("OPENED_URL=chrome-extension://");
-  expect(out).toMatch(/OPENED_URL=\S+\/setup\/browser\S* PROFILE_ARGS=\["--profile-directory=Default"\]/);
+  expect(out).toMatch(
+    /OPENED_URL=\S+\/setup\/browser\S* PROFILE_ARGS=\["--profile-directory=Default"\]/,
+  );
   expect(out).toContain('cast browser extension setup --profile "personal"');
 });
 
@@ -142,7 +172,10 @@ test("several profiles: the pinned one is paired and the others are named", asyn
     ...ONE_PROFILE,
     withExtension: ONE_PROFILE.all,
   };
-  const out = await setup([], true, both, { profile: "Profile 2", extensionSeenAt: 1 });
+  const out = await setup([], true, both, {
+    profile: "Profile 2",
+    extensionSeenAt: 1,
+  });
   expect(out).toContain(`PROFILE_ARGS=["--profile-directory=Profile 2"]`);
   expect(out).toContain(`also installed in "Personal" (Default)`);
   expect(out).not.toContain("new token: the pairing moves");
@@ -150,7 +183,10 @@ test("several profiles: the pinned one is paired and the others are named", asyn
 
 test("pairing another profile makes it the default and leaves the first one paired (no token rotation)", async () => {
   const both = { ...ONE_PROFILE, withExtension: ONE_PROFILE.all };
-  const out = await setup(["--profile", "Personal"], true, both, { profile: "Profile 2", extensionSeenAt: 1 });
+  const out = await setup(["--profile", "Personal"], true, both, {
+    profile: "Profile 2",
+    extensionSeenAt: 1,
+  });
   expect(out).toContain(`PROFILE_ARGS=["--profile-directory=Default"]`);
   expect(lastState?.token).toBe("a".repeat(64));
   expect(lastState?.profile).toBe("Default");
@@ -158,10 +194,28 @@ test("pairing another profile makes it the default and leaves the first one pair
 
 test("a profile that is already connected is only made the default; no pairing page opens", async () => {
   const both = { ...ONE_PROFILE, withExtension: ONE_PROFILE.all };
-  const live = [{ id: "personal-default", name: "Personal", dir: "Default", default: false, legacy: false, connectedAt: 1, sessions: 0 }];
-  const out = await setup(["--profile", "Personal"], false, both, { profile: "Profile 2", extensionSeenAt: 1 }, live);
+  const live = [
+    {
+      id: "personal-default",
+      name: "Personal",
+      dir: "Default",
+      default: false,
+      legacy: false,
+      connectedAt: 1,
+      sessions: 0,
+    },
+  ];
+  const out = await setup(
+    ["--profile", "Personal"],
+    false,
+    both,
+    { profile: "Profile 2", extensionSeenAt: 1 },
+    live,
+  );
   expect(out).not.toContain("OPENED_URL=");
-  expect(out).toContain("personal-default is paired and connected; new sessions use it by default");
+  expect(out).toContain(
+    "personal-default is paired and connected; new sessions use it by default",
+  );
   expect(lastState?.profile).toBe("Default");
 });
 
@@ -169,6 +223,9 @@ test("a profile that is already connected is only made the default; no pairing p
 // Chrome carries the shared token beside the code until no extension below code pairing connects.
 test("the pairing page opened in Chrome carries the code and the legacy token; the terminal shows neither token", async () => {
   const out = await setup([], true);
-  expect(lastFragment).toEqual({ keys: ["code", "token", "port"], tokenIsState: true });
+  expect(lastFragment).toEqual({
+    keys: ["code", "token", "port"],
+    tokenIsState: true,
+  });
   expect(out).not.toMatch(/[a-f0-9]{64}|#token=/);
 });

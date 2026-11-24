@@ -18,24 +18,42 @@ interface RailPoint {
   lane: number; // 0 center, 1 above, 2 below — declusters near-coincident dots
 }
 
-const railPct = (at: number, now: number) => 0.5 + (at - now) / (2 * HORIZON_MS);
+const railPct = (at: number, now: number) =>
+  0.5 + (at - now) / (2 * HORIZON_MS);
 
 // The plot runs inside the track's padding so end dots never sit on its border:
 // 0..1 maps to 1.5%..98.5% of the track.
 const INSET = 0.015;
-const railLeft = (pct: number) => (INSET + Math.min(Math.max(pct, 0), 1) * (1 - 2 * INSET)) * 100;
+const railLeft = (pct: number) =>
+  (INSET + Math.min(Math.max(pct, 0), 1) * (1 - 2 * INSET)) * 100;
 
 // Gridlines every 6h across the 48h window, without the ends or "now".
 const GRID = [0.125, 0.25, 0.375, 0.625, 0.75, 0.875];
-const AXIS: [number, string][] = [[0, "-24h"], [0.25, "-12h"], [0.5, "now"], [0.75, "+12h"], [1, "+24h"]];
+const AXIS: [number, string][] = [
+  [0, "-24h"],
+  [0.25, "-12h"],
+  [0.5, "now"],
+  [0.75, "+12h"],
+  [1, "+24h"],
+];
 
 function collectRailPoints(tasks: any[], now: number): RailPoint[] {
   const points: RailPoint[] = [];
   for (const t of tasks) {
     // Past half: each task's latest run — complete coverage for daily cadences;
     // a faster loop shows its newest run. Includes finished one-times.
-    if (t.last_run_at && t.last_run_at > now - HORIZON_MS && t.last_run_at <= now) {
-      points.push({ pct: railPct(t.last_run_at, now), task: t, at: t.last_run_at, kind: "past", lane: 0 });
+    if (
+      t.last_run_at &&
+      t.last_run_at > now - HORIZON_MS &&
+      t.last_run_at <= now
+    ) {
+      points.push({
+        pct: railPct(t.last_run_at, now),
+        task: t,
+        at: t.last_run_at,
+        kind: "past",
+        lane: 0,
+      });
     }
     if (t.status === "running") {
       points.push({ pct: 0.5, task: t, at: now, kind: "running", lane: 0 });
@@ -46,27 +64,50 @@ function collectRailPoints(tasks: any[], now: number): RailPoint[] {
     if (dt <= 0) {
       points.push({ pct: 0.5, task: t, at: now, kind: "due", lane: 0 });
     } else if (dt <= HORIZON_MS) {
-      points.push({ pct: railPct(t.run_at, now), task: t, at: t.run_at, kind: "next", lane: 0 });
+      points.push({
+        pct: railPct(t.run_at, now),
+        task: t,
+        at: t.run_at,
+        kind: "next",
+        lane: 0,
+      });
     }
     // Project recurring tasks forward so the rail shows the day's cadence.
     if (t.schedule_type === "recurring" && t.interval_ms) {
       const first = Math.max(dt, 0);
-      for (let at = first + t.interval_ms; at <= HORIZON_MS; at += t.interval_ms) {
-        points.push({ pct: railPct(now + at, now), task: t, at: now + at, kind: "ghost", lane: 0 });
+      for (
+        let at = first + t.interval_ms;
+        at <= HORIZON_MS;
+        at += t.interval_ms
+      ) {
+        points.push({
+          pct: railPct(now + at, now),
+          task: t,
+          at: now + at,
+          kind: "ghost",
+          lane: 0,
+        });
         if (points.length > 200) break; // sanity cap for tiny intervals
       }
     }
   }
   // Daily tasks created minutes apart land on the same pixel and would hide
   // each other from hover/click — fan near-coincident real dots across lanes.
-  const real = points.filter((p) => p.kind !== "ghost").sort((a, b) => a.pct - b.pct);
+  const real = points
+    .filter((p) => p.kind !== "ghost")
+    .sort((a, b) => a.pct - b.pct);
   for (let i = 1; i < real.length; i++) {
-    if (real[i].pct - real[i - 1].pct < 0.012) real[i].lane = (real[i - 1].lane + 1) % 3;
+    if (real[i].pct - real[i - 1].pct < 0.012)
+      real[i].lane = (real[i - 1].lane + 1) % 3;
   }
   return points;
 }
 
-export function HorizonRail({ tasks, now, onOpenPastRun }: {
+export function HorizonRail({
+  tasks,
+  now,
+  onOpenPastRun,
+}: {
   tasks: any[];
   now: number;
   // A past dot's click: the page opens that task's latest run.
@@ -100,18 +141,25 @@ export function HorizonRail({ tasks, now, onOpenPastRun }: {
         <div className="pointer-events-none absolute left-1/2 inset-y-0 w-px -translate-x-1/2 bg-sol-cyan/70 shadow-[0_0_6px_var(--sol-cyan)]" />
         <div className="pointer-events-none absolute left-1/2 -top-[3px] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sol-cyan ring-2 ring-sol-bg" />
         {/* cadence ticks for projected loop fires */}
-        {points.filter((pt) => pt.kind === "ghost").map((pt, i) => (
-          <div
-            key={`g-${pt.task._id}-${i}`}
-            className="pointer-events-none absolute top-1/2 mt-1 h-2 w-px bg-sol-violet/45"
-            style={{ left: `${railLeft(pt.pct)}%` }}
-          />
-        ))}
+        {points
+          .filter((pt) => pt.kind === "ghost")
+          .map((pt, i) => (
+            <div
+              key={`g-${pt.task._id}-${i}`}
+              className="pointer-events-none absolute top-1/2 mt-1 h-2 w-px bg-sol-violet/45"
+              style={{ left: `${railLeft(pt.pct)}%` }}
+            />
+          ))}
         {/* dots */}
         {points.map((pt, i) => {
           if (pt.kind === "ghost") return null;
-          const base = pt.task.schedule_type === "recurring" ? "bg-sol-violet" : "bg-sol-cyan";
-          const failed = pt.kind === "past" && (isTriggerFailing(pt.task) || pt.task.status === "failed");
+          const base =
+            pt.task.schedule_type === "recurring"
+              ? "bg-sol-violet"
+              : "bg-sol-cyan";
+          const failed =
+            pt.kind === "past" &&
+            (isTriggerFailing(pt.task) || pt.task.status === "failed");
           const cls =
             pt.kind === "past"
               ? `${failed ? "bg-sol-red" : base} opacity-55 group-hover:opacity-100 w-2 h-2`
@@ -120,7 +168,12 @@ export function HorizonRail({ tasks, now, onOpenPastRun }: {
                 : pt.kind === "due"
                   ? `${base} w-2.5 h-2.5`
                   : `${base} w-2 h-2`;
-          const halo = pt.kind === "running" ? "bg-emerald-400" : pt.kind === "due" ? base : null;
+          const halo =
+            pt.kind === "running"
+              ? "bg-emerald-400"
+              : pt.kind === "due"
+                ? base
+                : null;
           const label =
             pt.kind === "running"
               ? "running now"
@@ -133,8 +186,14 @@ export function HorizonRail({ tasks, now, onOpenPastRun }: {
           const style = { left: `${railLeft(pt.pct)}%`, marginTop: dy };
           const inner = (
             <>
-              {halo && <span className={`absolute inset-0 m-auto h-2.5 w-2.5 rounded-full ${halo} opacity-60 animate-ping motion-reduce:animate-none`} />}
-              <div className={`relative rounded-full ring-2 ring-sol-bg-alt shadow-[0_1px_2px_rgb(0_0_0/0.35)] ${cls} group-hover:scale-150 transition-transform duration-150 ease-out`} />
+              {halo && (
+                <span
+                  className={`absolute inset-0 m-auto h-2.5 w-2.5 rounded-full ${halo} opacity-60 animate-ping motion-reduce:animate-none`}
+                />
+              )}
+              <div
+                className={`relative rounded-full ring-2 ring-sol-bg-alt shadow-[0_1px_2px_rgb(0_0_0/0.35)] ${cls} group-hover:scale-150 transition-transform duration-150 ease-out`}
+              />
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 whitespace-nowrap rounded-md border border-sol-border bg-sol-bg-highlight px-2 py-1 text-meta text-sol-text shadow-lg pointer-events-none modern:rounded-control modern:bg-sol-card modern:shadow-popover">
                 <span className="font-medium">{taskDisplayTitle(pt.task)}</span>
                 <span className="text-sol-text-dim"> · {label}</span>

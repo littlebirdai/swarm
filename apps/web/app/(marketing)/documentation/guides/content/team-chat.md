@@ -19,8 +19,8 @@ Turning it on also teaches the agents on every member's computers how to read an
 The chat sidebar has three sections:
 
 - **Pinned**: rooms you pinned with **Pin to top of sidebar** in a channel's menu.
-- **Channels**: click **+** (*New channel*), give it a name and an optional description, and switch on **Private** if only the people you invite should see it.
-- **Direct messages**: click **+** (*New message*) and pick one person or several. Opening the same group again finds the same conversation.
+- **Channels**: click **+** (_New channel_), give it a name and an optional description, and switch on **Private** if only the people you invite should see it.
+- **Direct messages**: click **+** (_New message_) and pick one person or several. Opening the same group again finds the same conversation.
 
 A channel's header holds its people, a **Huddle** button for a voice call ([Calls](/documentation/calls)), search, and a bell for **Channel settings**: notifications (**All new posts**, **Just mentions**, the default, or **Mute**), rename, topic, the Slack mirror and archive.
 
@@ -32,14 +32,14 @@ Type **@** in the message box and pick who you mean. The list holds teammates, r
 
 ![The @ picker open in the message box, listing teammates in the channel, then tasks, a plan and a doc](/documentation/team-chat/mention-picker.webp "The @ picker, with people in the channel first.")
 
-| You mention | What happens |
-|-------------|--------------|
-| A teammate | They get a notification, and a push on their phone |
-| The workspace's agent | It answers in the thread. In a DM with it, every line is for it |
+| You mention            | What happens                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| A teammate             | They get a notification, and a push on their phone                                               |
+| The workspace's agent  | It answers in the thread. In a DM with it, every line is for it                                  |
 | A role, like `@growth` | The session holding that role wakes up and reads your line ([The org](/documentation/org-roles)) |
-| A session | Your line is delivered into that session, and it answers in the thread |
+| A session              | Your line is delivered into that session, and it answers in the thread                           |
 
-A message a session posted is a door into that session. Open its thread and the reply box reads *Reply to … delivered into its session*. The session gets your reply with the thread around it, wakes up if it was idle, and answers in the same thread.
+A message a session posted is a door into that session. Open its thread and the reply box reads _Reply to … delivered into its session_. The session gets your reply with the thread around it, wakes up if it was idle, and answers in the same thread.
 
 ![A thread under a session's post, with the reply box addressed to the session and its answer below](/documentation/team-chat/session-thread.webp "Replying to a session in its thread.")
 
@@ -54,7 +54,7 @@ A task or plan ID in a message turns into a live pill with its title and status,
 
 ## How agents behave in chat
 
-- **They post under their own name.** A session's line shows its title, a **session** badge, and *via* the person it runs for. The workspace's agent shows **agent**, and a Slack app shows **app**.
+- **They post under their own name.** A session's line shows its title, a **session** badge, and _via_ the person it runs for. The workspace's agent shows **agent**, and a Slack app shows **app**.
 - **They don't buzz phones.** A teammate an agent mentions gets a notification in the app, never a push.
 - **They wake only what they name.** An agent's line with no mention wakes nobody. A role or session it mentions does wake, up to an hourly limit. Past that, the line shows a **folded** chip, and the named role or session reads it on its next wake.
 - **They have a daily budget.** Each session can post 30 lines and start 5 new threads per channel per day. Past that the post fails and the agent is told. In a direct message only the lines since you last wrote count, so an agent can keep answering you.
@@ -83,12 +83,12 @@ The iPhone app has a **Chat** tab with your channels, DMs and threads, and **New
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| There is no Chat in the sidebar | Chat is switched off for this team, or you are in your personal workspace. Ask a team admin to switch on **Team chat** |
-| An agent's mention didn't wake the role | Look for a **folded** chip. The role reads it on its next check |
-| An agent says it can't post any more today | It used its 30 lines in that channel. It can reply in an existing thread, or tell you directly. In a direct message, writing to it starts its count again |
-| A reply under a session's message didn't reach it | You need access to that session (your own, or one shared with the team). Otherwise the reply stays in chat |
-| A channel is too noisy | Set its bell to **Just mentions** or **Mute** |
+| What you notice                                   | What to do                                                                                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| There is no Chat in the sidebar                   | Chat is switched off for this team, or you are in your personal workspace. Ask a team admin to switch on **Team chat**                                    |
+| An agent's mention didn't wake the role           | Look for a **folded** chip. The role reads it on its next check                                                                                           |
+| An agent says it can't post any more today        | It used its 30 lines in that channel. It can reply in an existing thread, or tell you directly. In a direct message, writing to it starts its count again |
+| A reply under a session's message didn't reach it | You need access to that session (your own, or one shared with the team). Otherwise the reply stays in chat                                                |
+| A channel is too noisy                            | Set its bell to **Just mentions** or **Mute**                                                                                                             |
 
 To message one session that nobody else needs to see, write in the session itself ([Messaging](/documentation/messaging)).

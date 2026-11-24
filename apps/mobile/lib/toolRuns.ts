@@ -1,5 +1,10 @@
-import { extractNestedActions, isPlanWriteToolCall, summarizeToolGroup, type ToolCallLike } from '@codecast/shared/render';
-import { isSayToolCall } from '@codecast/web/components/conversation/classify';
+import {
+  extractNestedActions,
+  isPlanWriteToolCall,
+  summarizeToolGroup,
+  type ToolCallLike,
+} from "@codecast/shared/render";
+import { isSayToolCall } from "@codecast/web/components/conversation/classify";
 
 /**
  * Runs of tool calls in a transcript, folded to one "N steps" row each, the
@@ -22,12 +27,27 @@ type RunMessage = {
 
 /** Calls that draw their own card in the transcript; they stay visible and break a run. A `cast say` is the agent's words. */
 const CARD_TOOLS = new Set([
-  'Task', 'AskUserQuestion', 'TodoWrite', 'TaskList', 'TaskCreate', 'TaskUpdate', 'TaskGet',
-  'SendUserFile', 'SendMessage', 'TeamCreate', 'TeamDelete', 'Skill', 'EnterPlanMode', 'ExitPlanMode',
-  'StructuredOutput',
+  "Task",
+  "AskUserQuestion",
+  "TodoWrite",
+  "TaskList",
+  "TaskCreate",
+  "TaskUpdate",
+  "TaskGet",
+  "SendUserFile",
+  "SendMessage",
+  "TeamCreate",
+  "TeamDelete",
+  "Skill",
+  "EnterPlanMode",
+  "ExitPlanMode",
+  "StructuredOutput",
 ]);
 
-export const isFoldableToolCall = (tc: ToolCallLike) => !CARD_TOOLS.has(tc.name) && !isPlanWriteToolCall(tc) && !isSayToolCall(tc as any);
+export const isFoldableToolCall = (tc: ToolCallLike) =>
+  !CARD_TOOLS.has(tc.name) &&
+  !isPlanWriteToolCall(tc) &&
+  !isSayToolCall(tc as any);
 
 export type ToolRun = {
   /** The run's first message; its key is the run's. */
@@ -42,22 +62,40 @@ export type ToolRun = {
  * what ran ("ran npx tsc") where its own line shows the raw call. `skip`
  * names rows that never render (tool-result carriers) and so never break a run.
  */
-export function foldToolRuns<M extends RunMessage>(messages: readonly M[], skip: (m: M) => boolean): Map<string, ToolRun> {
+export function foldToolRuns<M extends RunMessage>(
+  messages: readonly M[],
+  skip: (m: M) => boolean,
+): Map<string, ToolRun> {
   const byId = new Map<string, ToolRun>();
   let open: { ids: string[]; actions: ToolCallLike[] } | null = null;
   const close = () => {
     if (open && open.actions.length > 0) {
-      const run: ToolRun = { head: open.ids[0], members: open.ids, steps: open.actions.length, summary: summarizeToolGroup(open.actions) };
+      const run: ToolRun = {
+        head: open.ids[0],
+        members: open.ids,
+        steps: open.actions.length,
+        summary: summarizeToolGroup(open.actions),
+      };
       for (const id of open.ids) byId.set(id, run);
     }
     open = null;
   };
   for (const m of messages) {
     if (skip(m)) continue;
-    const calls = m.role === 'assistant' ? m.tool_calls ?? [] : [];
+    const calls = m.role === "assistant" ? (m.tool_calls ?? []) : [];
     // Reasoning between calls, stored as its own message, belongs to the run around it.
-    const thinkingOnly = m.role === 'assistant' && calls.length === 0 && !m.content?.trim() && !!m.thinking?.trim() && !m.images?.length;
-    if (!thinkingOnly && (calls.length === 0 || !calls.every(isFoldableToolCall) || (m.images?.length ?? 0) > 0)) {
+    const thinkingOnly =
+      m.role === "assistant" &&
+      calls.length === 0 &&
+      !m.content?.trim() &&
+      !!m.thinking?.trim() &&
+      !m.images?.length;
+    if (
+      !thinkingOnly &&
+      (calls.length === 0 ||
+        !calls.every(isFoldableToolCall) ||
+        (m.images?.length ?? 0) > 0)
+    ) {
       close();
       continue;
     }

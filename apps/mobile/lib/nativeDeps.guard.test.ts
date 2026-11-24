@@ -8,7 +8,12 @@ import { staticImportSpecifiers } from "../../../apps/cli/src/bench/bootGraph";
 // binary at boot, or rolls every OTA update back in silence.
 
 const mobileRoot = path.resolve(import.meta.dir, "..");
-const NATIVE_MARKERS = ["ios", "android", "expo-module.config.json", "react-native.config.js"];
+const NATIVE_MARKERS = [
+  "ios",
+  "android",
+  "expo-module.config.json",
+  "react-native.config.js",
+];
 
 // Native packages every supported binary contains, so a static import is safe.
 // This list is FROZEN. Do not add a package to make this test pass: a package
@@ -37,27 +42,43 @@ const BASELINE = new Set([
 ]);
 
 const nativeDeps = Object.keys(
-  JSON.parse(fs.readFileSync(path.join(mobileRoot, "package.json"), "utf8")).dependencies,
-).filter((name) => NATIVE_MARKERS.some((m) => fs.existsSync(path.join(mobileRoot, "node_modules", name, m))));
+  JSON.parse(fs.readFileSync(path.join(mobileRoot, "package.json"), "utf8"))
+    .dependencies,
+).filter((name) =>
+  NATIVE_MARKERS.some((m) =>
+    fs.existsSync(path.join(mobileRoot, "node_modules", name, m)),
+  ),
+);
 
 function sourceFiles(): string[] {
   const out: string[] = [];
   (function walk(dir: string) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (["node_modules", "ios", "android", "dist", ".expo", "targets"].includes(e.name)) continue;
+      if (
+        ["node_modules", "ios", "android", "dist", ".expo", "targets"].includes(
+          e.name,
+        )
+      )
+        continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (/\.(ts|tsx)$/.test(e.name) && !/\.(test|d)\.tsx?$/.test(e.name)) out.push(p);
+      else if (/\.(ts|tsx)$/.test(e.name) && !/\.(test|d)\.tsx?$/.test(e.name))
+        out.push(p);
     }
   })(mobileRoot);
   return out;
 }
 
 const packageOf = (spec: string) =>
-  spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+  spec.startsWith("@")
+    ? spec.split("/").slice(0, 2).join("/")
+    : spec.split("/")[0];
 
 describe("native dependency convention", () => {
-  const files = sourceFiles().map((file) => ({ file, source: fs.readFileSync(file, "utf8") }));
+  const files = sourceFiles().map((file) => ({
+    file,
+    source: fs.readFileSync(file, "utf8"),
+  }));
   const rel = (f: string) => path.relative(mobileRoot, f);
 
   test("a native package outside the baseline is never imported statically", () => {
@@ -65,14 +86,17 @@ describe("native dependency convention", () => {
     for (const { file, source } of files) {
       for (const spec of staticImportSpecifiers(source)) {
         const pkg = packageOf(spec);
-        if (nativeDeps.includes(pkg) && !BASELINE.has(pkg)) offenders.push(`${rel(file)} imports ${spec}`);
+        if (nativeDeps.includes(pkg) && !BASELINE.has(pkg))
+          offenders.push(`${rel(file)} imports ${spec}`);
       }
     }
     expect(offenders).toEqual([]);
   });
 
   test("the baseline names only installed native packages", () => {
-    expect([...BASELINE].filter((name) => !nativeDeps.includes(name))).toEqual([]);
+    expect([...BASELINE].filter((name) => !nativeDeps.includes(name))).toEqual(
+      [],
+    );
   });
 
   // Guarded requires that predate the helper. Remove a name when its file
@@ -87,12 +111,21 @@ describe("native dependency convention", () => {
   test("a lazy require of a native package goes through optionalNative", () => {
     const offenders: string[] = [];
     for (const { file, source } of files) {
-      if (HAND_WRITTEN_PROBES.has(rel(file)) || rel(file) === "lib/optionalNative.ts") continue;
+      if (
+        HAND_WRITTEN_PROBES.has(rel(file)) ||
+        rel(file) === "lib/optionalNative.ts"
+      )
+        continue;
       const lazy = [...source.matchAll(/\brequire\(\s*["']([^"']+)["']\s*\)/g)]
         .map((m) => packageOf(m[1]))
         .filter((pkg) => nativeDeps.includes(pkg) && !BASELINE.has(pkg));
-      if (lazy.length > 0 && !/\b(optionalNative|nativeModulePresent)\(/.test(source)) {
-        offenders.push(`${rel(file)} requires ${[...new Set(lazy)].join(", ")}`);
+      if (
+        lazy.length > 0 &&
+        !/\b(optionalNative|nativeModulePresent)\(/.test(source)
+      ) {
+        offenders.push(
+          `${rel(file)} requires ${[...new Set(lazy)].join(", ")}`,
+        );
       }
     }
     expect(offenders).toEqual([]);

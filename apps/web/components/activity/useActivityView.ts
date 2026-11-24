@@ -5,7 +5,13 @@
 import { useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useInboxStore, type ClientUI } from "../../store/inboxStore";
-import { activityViewHref, defaultScope, parseActivityView, type ActivityTab, type ActivityView } from "./activityView";
+import {
+  activityViewHref,
+  defaultScope,
+  parseActivityView,
+  type ActivityTab,
+  type ActivityView,
+} from "./activityView";
 
 // The grouping rides the ui prefs bag under its own key. ClientUI is a closed
 // type kept in inboxStore.ts; every key there is stamped and synced unless
@@ -19,23 +25,49 @@ export type ActivityViewState = {
   tabHref: (tab: ActivityTab) => string;
 };
 
-export function useActivityView(tab: ActivityTab, hasTeam: boolean): ActivityViewState {
+export function useActivityView(
+  tab: ActivityTab,
+  hasTeam: boolean,
+): ActivityViewState {
   const params = useSearchParams();
   const router = useRouter();
-  const savedGroup = useInboxStore((s) => (s.clientState.ui as ActivityPrefs | undefined)?.activity_view?.group);
+  const savedGroup = useInboxStore(
+    (s) =>
+      (s.clientState.ui as ActivityPrefs | undefined)?.activity_view?.group,
+  );
   const updateClientUI = useInboxStore((s) => s.updateClientUI);
-  const view = useMemo(() => parseActivityView(params, { tab, hasTeam, savedGroup }), [params, tab, hasTeam, savedGroup]);
+  const view = useMemo(
+    () => parseActivityView(params, { tab, hasTeam, savedGroup }),
+    [params, tab, hasTeam, savedGroup],
+  );
 
-  const set = useCallback((patch: Partial<ActivityView>) => {
-    const next = { ...view, ...patch };
-    if (patch.group && patch.group !== savedGroup) updateClientUI({ activity_view: { group: patch.group } } as Partial<ClientUI>);
-    router.replace(activityViewHref(next, hasTeam));
-  }, [view, savedGroup, updateClientUI, router, hasTeam]);
+  const set = useCallback(
+    (patch: Partial<ActivityView>) => {
+      const next = { ...view, ...patch };
+      if (patch.group && patch.group !== savedGroup)
+        updateClientUI({
+          activity_view: { group: patch.group },
+        } as Partial<ClientUI>);
+      router.replace(activityViewHref(next, hasTeam));
+    },
+    [view, savedGroup, updateClientUI, router, hasTeam],
+  );
 
   // A scope the person chose travels with them; a tab's own default does not.
   const chose = !!params?.get("filter");
   const tabHref = useCallback(
-    (to: ActivityTab) => activityViewHref({ ...view, tab: to, scope: chose ? view.scope : defaultScope(to, hasTeam), people: [], project: null, needs: false }, hasTeam),
+    (to: ActivityTab) =>
+      activityViewHref(
+        {
+          ...view,
+          tab: to,
+          scope: chose ? view.scope : defaultScope(to, hasTeam),
+          people: [],
+          project: null,
+          needs: false,
+        },
+        hasTeam,
+      ),
     [view, hasTeam, chose],
   );
 

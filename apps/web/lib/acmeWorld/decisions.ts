@@ -10,14 +10,54 @@ import type { AcmePart } from "./parts";
 import { MIN, PEOPLE, TEAM_ID, WORKSPACE, cid, session } from "./world";
 
 export const DECISION_SESSIONS = {
-  retries: { _id: cid("sretries"), short_id: "jx7r2kd", title: "Webhook retries", agent_type: "claude_code" },
-  queue: { _id: cid("squeueworker"), short_id: "jx7q8mt", title: "Retry queue worker", agent_type: "claude_code" },
-  hooksApi: { _id: cid("shooksapi"), short_id: "jx7w4hn", title: "Webhook retries API", agent_type: "codex" },
-  reviewer: { _id: cid("sretriesreview"), short_id: "jx7v6pc", title: "Review the retry schedule", agent_type: "codex" },
-  tests: { _id: cid("sretriestests"), short_id: "jx7t3ga", title: "Write retry schedule tests", agent_type: "claude_code" },
-  research: { _id: cid("sretriesresearch"), short_id: "jx7s9fe", title: "Research provider retry policies", agent_type: "claude_code" },
-  deadLetters: { _id: cid("sdeadletters"), short_id: "jx7d5lq", title: "Dead-letter queue", agent_type: "claude_code" },
-  alerting: { _id: cid("salerting"), short_id: "jx7a7lt", title: "Alert on dead letters", agent_type: "claude_code" },
+  retries: {
+    _id: cid("sretries"),
+    short_id: "jx7r2kd",
+    title: "Webhook retries",
+    agent_type: "claude_code",
+  },
+  queue: {
+    _id: cid("squeueworker"),
+    short_id: "jx7q8mt",
+    title: "Retry queue worker",
+    agent_type: "claude_code",
+  },
+  hooksApi: {
+    _id: cid("shooksapi"),
+    short_id: "jx7w4hn",
+    title: "Webhook retries API",
+    agent_type: "codex",
+  },
+  reviewer: {
+    _id: cid("sretriesreview"),
+    short_id: "jx7v6pc",
+    title: "Review the retry schedule",
+    agent_type: "codex",
+  },
+  tests: {
+    _id: cid("sretriestests"),
+    short_id: "jx7t3ga",
+    title: "Write retry schedule tests",
+    agent_type: "claude_code",
+  },
+  research: {
+    _id: cid("sretriesresearch"),
+    short_id: "jx7s9fe",
+    title: "Research provider retry policies",
+    agent_type: "claude_code",
+  },
+  deadLetters: {
+    _id: cid("sdeadletters"),
+    short_id: "jx7d5lq",
+    title: "Dead-letter queue",
+    agent_type: "claude_code",
+  },
+  alerting: {
+    _id: cid("salerting"),
+    short_id: "jx7a7lt",
+    title: "Alert on dead letters",
+    agent_type: "claude_code",
+  },
 } as const;
 
 const S = DECISION_SESSIONS;
@@ -25,10 +65,19 @@ const S = DECISION_SESSIONS;
 /** The backoff question the Webhook retries session parks on (also the phone's decision shots). */
 export const BACKOFF_DECISION_ID = cid("decbackoff");
 export const BACKOFF = {
-  question: "Retry failed webhooks with exponential backoff or a fixed schedule?",
+  question:
+    "Retry failed webhooks with exponential backoff or a fixed schedule?",
   options: [
-    { label: "Exponential backoff, five attempts", description: "Waits 2s, 4s, 8s and 16s with jitter, then dead-letters after the fifth attempt. Rides out a ledger restart without hammering it." },
-    { label: "Fixed schedule, every 5 minutes", description: "12 attempts over an hour. Simpler to explain to support, but a short outage waits the full 5 minutes for its first retry." },
+    {
+      label: "Exponential backoff, five attempts",
+      description:
+        "Waits 2s, 4s, 8s and 16s with jitter, then dead-letters after the fifth attempt. Rides out a ledger restart without hammering it.",
+    },
+    {
+      label: "Fixed schedule, every 5 minutes",
+      description:
+        "12 attempts over an hour. Simpler to explain to support, but a short outage waits the full 5 minutes for its first retry.",
+    },
   ],
 };
 
@@ -43,7 +92,22 @@ Either one fixes the dropped events. The difference is how fast a short blip rec
 
 type Row = Record<string, unknown> & { _id: string };
 
-const decision = (now: number, d: { id: string; short: string; s: { _id: string; title: string }; project: string; question: string; context: string; options: { label: string; description: string }[]; blocking: boolean; ago: number; default_option?: number; category: string }): Row => ({
+const decision = (
+  now: number,
+  d: {
+    id: string;
+    short: string;
+    s: { _id: string; title: string };
+    project: string;
+    question: string;
+    context: string;
+    options: { label: string; description: string }[];
+    blocking: boolean;
+    ago: number;
+    default_option?: number;
+    category: string;
+  },
+): Row => ({
   _id: d.id,
   short_id: d.short,
   conversation_id: d.s._id,
@@ -55,7 +119,9 @@ const decision = (now: number, d: { id: string; short: string; s: { _id: string;
   kind: "single",
   category: d.category,
   blocking: d.blocking,
-  ...(d.default_option !== undefined ? { default_option: d.default_option } : {}),
+  ...(d.default_option !== undefined
+    ? { default_option: d.default_option }
+    : {}),
   status: "pending",
   holder: { kind: "user", id: PEOPLE.me._id },
   holder_key: `user:${PEOPLE.me._id}`,
@@ -91,10 +157,19 @@ export const DECISIONS = (now: number): Row[] => [
     s: S.deadLetters,
     project: "~/src/billing",
     question: "Keep dead-lettered webhooks for 7 days or 30?",
-    context: "An event that fails every attempt lands in the dead-letter queue with its last response. Support replays from there. Last month 41 events were dead-lettered; the oldest replay was 9 days after the failure.",
+    context:
+      "An event that fails every attempt lands in the dead-letter queue with its last response. Support replays from there. Last month 41 events were dead-lettered; the oldest replay was 9 days after the failure.",
     options: [
-      { label: "30 days", description: "Covers every replay support made last month. About 2 MB of storage." },
-      { label: "7 days", description: "Matches the log retention, but the 9-day-old replay would have been gone." },
+      {
+        label: "30 days",
+        description:
+          "Covers every replay support made last month. About 2 MB of storage.",
+      },
+      {
+        label: "7 days",
+        description:
+          "Matches the log retention, but the 9-day-old replay would have been gone.",
+      },
     ],
     blocking: false,
     default_option: 0,
@@ -106,12 +181,26 @@ export const DECISIONS = (now: number): Row[] => [
     short: "sd-4103",
     s: S.alerting,
     project: "~/src/billing",
-    question: "Page on-call when a webhook dead-letters, or post to #billing-alerts?",
-    context: "A dead-lettered webhook means a customer missed an event. Paging wakes someone for each one; a channel post batches them for the morning.",
+    question:
+      "Page on-call when a webhook dead-letters, or post to #billing-alerts?",
+    context:
+      "A dead-lettered webhook means a customer missed an event. Paging wakes someone for each one; a channel post batches them for the morning.",
     options: [
-      { label: "Post to #billing-alerts", description: "One message per hour with every dead-lettered event. Nobody is woken up." },
-      { label: "Page on-call", description: "Each dead letter pages within a minute. Last month that would have been 41 pages." },
-      { label: "Page only for enterprise customers", description: "Pages for the 12 accounts on an SLA, posts the rest to the channel." },
+      {
+        label: "Post to #billing-alerts",
+        description:
+          "One message per hour with every dead-lettered event. Nobody is woken up.",
+      },
+      {
+        label: "Page on-call",
+        description:
+          "Each dead letter pages within a minute. Last month that would have been 41 pages.",
+      },
+      {
+        label: "Page only for enterprise customers",
+        description:
+          "Pages for the 12 accounts on an SLA, posts the rest to the channel.",
+      },
     ],
     blocking: true,
     ago: 22 * MIN,
@@ -120,7 +209,11 @@ export const DECISIONS = (now: number): Row[] => [
 ];
 
 const t = (now: number, minsAgo: number) => now - minsAgo * MIN;
-const call = (id: string, name: string, input: unknown) => ({ id, name, input: JSON.stringify(input) });
+const call = (id: string, name: string, input: unknown) => ({
+  id,
+  name,
+  input: JSON.stringify(input),
+});
 const result = (id: string, content: string) => ({ tool_use_id: id, content });
 
 /** Webhook retries: Alex's ask, two workers delegated by name, their reports, one combined answer, then the decision. */
@@ -128,18 +221,27 @@ export const RETRIES_TRANSCRIPT = (now: number) => [
   {
     _id: "hero-rt-m1",
     role: "user",
-    content: "Failed webhooks get dropped after one try. Find out how retries should work here: split the research between two workers, one on how Stripe and GitHub retry, one writing tests for our delivery path. Come back with one answer.",
+    content:
+      "Failed webhooks get dropped after one try. Find out how retries should work here: split the research between two workers, one on how Stripe and GitHub retry, one writing tests for our delivery path. Come back with one answer.",
     timestamp: t(now, 48),
   },
   {
     _id: "hero-rt-m2",
     role: "assistant",
-    content: "Splitting it in two. One worker reads how the big providers retry, the other writes tests that pin down what our delivery path does today.",
+    content:
+      "Splitting it in two. One worker reads how the big providers retry, the other writes tests that pin down what our delivery path does today.",
     tool_calls: [
-      call("hero-rt-tc1", "Bash", { command: `cast spawn --subagent -- "Research how Stripe, GitHub and Shopify retry failed webhooks: schedule, cap, and when they give up."` }),
-      call("hero-rt-tc2", "Bash", { command: `cast spawn --subagent -- "Write tests for src/billing/deliver.ts that pin down what happens on a 5xx, a 429 and a timeout."` }),
+      call("hero-rt-tc1", "Bash", {
+        command: `cast spawn --subagent -- "Research how Stripe, GitHub and Shopify retry failed webhooks: schedule, cap, and when they give up."`,
+      }),
+      call("hero-rt-tc2", "Bash", {
+        command: `cast spawn --subagent -- "Write tests for src/billing/deliver.ts that pin down what happens on a 5xx, a 429 and a timeout."`,
+      }),
     ],
-    tool_results: [result("hero-rt-tc1", `Spawned ${S.research.short_id}`), result("hero-rt-tc2", `Spawned ${S.tests.short_id}`)],
+    tool_results: [
+      result("hero-rt-tc1", `Spawned ${S.research.short_id}`),
+      result("hero-rt-tc2", `Spawned ${S.tests.short_id}`),
+    ],
     timestamp: t(now, 47),
   },
   {
@@ -183,19 +285,46 @@ export const RETRIES_TRANSCRIPT = (now: number) => [
 
 /** Dead-letter queue: still working while its retention question waits on Alex. */
 export const DEAD_LETTER_TRANSCRIPT = (now: number) => [
-  { _id: "hero-dl-m1", role: "user", content: "Add a dead-letter queue: an event that fails every retry lands there with its last response, and support can replay it.", timestamp: t(now, 16) },
+  {
+    _id: "hero-dl-m1",
+    role: "user",
+    content:
+      "Add a dead-letter queue: an event that fails every retry lands there with its last response, and support can replay it.",
+    timestamp: t(now, 16),
+  },
   {
     _id: "hero-dl-m2",
     role: "assistant",
-    content: "Adding the dead_letters table next to the retry queue and a replay endpoint for support. I'm going ahead with 30 days of retention; I asked whether 7 is enough and will change it if you say so.",
+    content:
+      "Adding the dead_letters table next to the retry queue and a replay endpoint for support. I'm going ahead with 30 days of retention; I asked whether 7 is enough and will change it if you say so.",
     tool_calls: [
-      call("hero-dl-tc1", "Write", { file_path: "src/billing/deadLetters.ts", content: "export const RETENTION_DAYS = 30;" }),
-      call("hero-dl-tc2", "Bash", { command: "bun test src/billing/deadLetters.test.ts" }),
+      call("hero-dl-tc1", "Write", {
+        file_path: "src/billing/deadLetters.ts",
+        content: "export const RETENTION_DAYS = 30;",
+      }),
+      call("hero-dl-tc2", "Bash", {
+        command: "bun test src/billing/deadLetters.test.ts",
+      }),
     ],
-    tool_results: [result("hero-dl-tc1", "File created successfully at: src/billing/deadLetters.ts"), result("hero-dl-tc2", "6 pass\n0 fail\nRan 6 tests across 1 file. [96ms]")],
+    tool_results: [
+      result(
+        "hero-dl-tc1",
+        "File created successfully at: src/billing/deadLetters.ts",
+      ),
+      result(
+        "hero-dl-tc2",
+        "6 pass\n0 fail\nRan 6 tests across 1 file. [96ms]",
+      ),
+    ],
     timestamp: t(now, 8),
   },
-  { _id: "hero-dl-m3", role: "assistant", content: "Dead letters are stored and replayable. Wiring the replay button into the support dashboard next.", timestamp: t(now, 1) },
+  {
+    _id: "hero-dl-m3",
+    role: "assistant",
+    content:
+      "Dead letters are stored and replayable. Wiring the replay button into the support dashboard next.",
+    timestamp: t(now, 1),
+  },
 ];
 
 const sessions = (now: number) => [
@@ -204,7 +333,8 @@ const sessions = (now: number) => [
     waiting: "working",
     project: "~/src/billing",
     messages: 9,
-    state: "Dead letters stored with their last response\nStatus: wiring replay into the support dashboard",
+    state:
+      "Dead letters stored with their last response\nStatus: wiring replay into the support dashboard",
   }),
   session(now, S.retries, {
     ago: 4 * MIN,
@@ -219,7 +349,8 @@ const sessions = (now: number) => [
     waiting: "done",
     project: "~/src/billing",
     messages: 22,
-    state: "Stripe, GitHub and Shopify retry policies compared\nStatus: reported to Webhook retries",
+    state:
+      "Stripe, GitHub and Shopify retry policies compared\nStatus: reported to Webhook retries",
     extra: { parent_conversation_id: S.retries._id, is_subagent: true },
   }),
   session(now, S.tests, {
@@ -235,7 +366,8 @@ const sessions = (now: number) => [
     waiting: "working",
     project: "~/src/billing",
     messages: 12,
-    state: "Reviewing the retry schedule against the replay\nStatus: 3 of 5 files read",
+    state:
+      "Reviewing the retry schedule against the replay\nStatus: 3 of 5 files read",
     extra: { parent_conversation_id: S.retries._id, is_subagent: true },
   }),
 ];
@@ -245,15 +377,31 @@ export const ANSWERED_TAIL = (now: number) => [
   {
     _id: "hero-rt-m8",
     role: "user",
-    content: formatDecisionAnswer({ id: "sd-4101", question: BACKOFF.question, answer: BACKOFF.options[0].label }),
+    content: formatDecisionAnswer({
+      id: "sd-4101",
+      question: BACKOFF.question,
+      answer: BACKOFF.options[0].label,
+    }),
     timestamp: now - 40_000,
   },
   {
     _id: "hero-rt-m9",
     role: "assistant",
-    content: "Exponential it is. Building the retry queue: attempts wait 2s, 4s, 8s and 16s with jitter, and an event that fails its fifth attempt goes to dead letters. Writing the schedule tests first.",
-    tool_calls: [call("hero-rt-tc4", "Write", { file_path: "src/billing/retrySchedule.test.ts", content: "describe(\"backoff\", () => { /* 2s, 4s, 8s, 16s, five attempts */ })" })],
-    tool_results: [result("hero-rt-tc4", "File created successfully at: src/billing/retrySchedule.test.ts")],
+    content:
+      "Exponential it is. Building the retry queue: attempts wait 2s, 4s, 8s and 16s with jitter, and an event that fails its fifth attempt goes to dead letters. Writing the schedule tests first.",
+    tool_calls: [
+      call("hero-rt-tc4", "Write", {
+        file_path: "src/billing/retrySchedule.test.ts",
+        content:
+          'describe("backoff", () => { /* 2s, 4s, 8s, 16s, five attempts */ })',
+      }),
+    ],
+    tool_results: [
+      result(
+        "hero-rt-tc4",
+        "File created successfully at: src/billing/retrySchedule.test.ts",
+      ),
+    ],
     timestamp: now - 20_000,
   },
 ];
@@ -281,10 +429,25 @@ function installScenes(s: any) {
     answered() {
       const now = Date.now();
       const row = DECISIONS(now)[0];
-      st().syncRecord("sessionDecisions", row._id, { ...row, status: "answered", answer_index: 0, resolved_at: now - 40_000, answered_by: { kind: "user", id: PEOPLE.me._id } });
-      const msgs = [...RETRIES_TRANSCRIPT(now), ...ANSWERED_TAIL(now)].map((m) => ({ ...m, message_uuid: m._id }));
+      st().syncRecord("sessionDecisions", row._id, {
+        ...row,
+        status: "answered",
+        answer_index: 0,
+        resolved_at: now - 40_000,
+        answered_by: { kind: "user", id: PEOPLE.me._id },
+      });
+      const msgs = [...RETRIES_TRANSCRIPT(now), ...ANSWERED_TAIL(now)].map(
+        (m) => ({ ...m, message_uuid: m._id }),
+      );
       st().applyTailMessages(S.retries._id, 0, msgs as any, null);
-      const live = session(now, S.retries, { ago: 20_000, waiting: "working", project: "~/src/billing", messages: 16, state: "Building the retry queue with exponential backoff\nStatus: writing the schedule tests" });
+      const live = session(now, S.retries, {
+        ago: 20_000,
+        waiting: "working",
+        project: "~/src/billing",
+        messages: 16,
+        state:
+          "Building the retry queue with exponential backoff\nStatus: writing the schedule tests",
+      });
       st().syncRecord("sessions", S.retries._id, live);
       st().syncRecord("conversations", S.retries._id, live);
     },
@@ -292,9 +455,20 @@ function installScenes(s: any) {
     nest() {
       const now = Date.now();
       const row = DECISIONS(now)[0];
-      st().syncRecord("sessionDecisions", row._id, { ...row, status: "withdrawn" });
+      st().syncRecord("sessionDecisions", row._id, {
+        ...row,
+        status: "withdrawn",
+      });
       // agent_status is the daemon's settle status: a declared dormant parks the row (inboxProjection restState).
-      const parked = session(now, S.retries, { ago: 3 * MIN, waiting: "dormant" as any, project: "~/src/billing", messages: 3, state: "Waiting on two workers: provider research and delivery tests\nNext: combine their results", extra: { agent_status: "dormant" } });
+      const parked = session(now, S.retries, {
+        ago: 3 * MIN,
+        waiting: "dormant" as any,
+        project: "~/src/billing",
+        messages: 3,
+        state:
+          "Waiting on two workers: provider research and delivery tests\nNext: combine their results",
+        extra: { agent_status: "dormant" },
+      });
       st().syncRecord("sessions", S.retries._id, parked);
       st().syncRecord("conversations", S.retries._id, parked);
     },
@@ -303,10 +477,27 @@ function installScenes(s: any) {
 
 /** A decision's page payload (sessionDecisions getWithDoc): the row and its context. None of these has a doc, task or stack. */
 function detailOf(id: string) {
-  const row = DECISIONS(Date.now()).find((d) => d._id === id || d.short_id === id);
+  const row = DECISIONS(Date.now()).find(
+    (d) => d._id === id || d.short_id === id,
+  );
   if (!row) return null;
-  const me = { _id: PEOPLE.me._id, name: PEOPLE.me.name, image: PEOPLE.me.image };
-  return { decision: row, doc: null, task: null, stack: null, ladder: [], asked_users: [me], holder_role: null, grant_offer: null, grant: null, superseded: null };
+  const me = {
+    _id: PEOPLE.me._id,
+    name: PEOPLE.me.name,
+    image: PEOPLE.me.image,
+  };
+  return {
+    decision: row,
+    doc: null,
+    task: null,
+    stack: null,
+    ladder: [],
+    asked_users: [me],
+    holder_role: null,
+    grant_offer: null,
+    grant: null,
+    superseded: null,
+  };
 }
 
 export const DECISIONS_PART: AcmePart = {
@@ -319,16 +510,32 @@ export const DECISIONS_PART: AcmePart = {
       return row ? { ...row, user: { name: row.author_name } } : undefined;
     },
     // The Decisions page's Team view: the same open questions, stamped with the workspace they were read from.
-    "sessionDecisions:getWithDoc": (a) => detailOf(String(a?.decision_id ?? "")),
-    "sessionDecisions:getWithDocMany": (a) => ((a?.decision_ids ?? []) as string[]).map(detailOf).filter(Boolean),
-    "decisionTeamList:listForTeam": () => DECISIONS(Date.now()).map((d) => ({ ...d, team_workspace: WORKSPACE })),
+    "sessionDecisions:getWithDoc": (a) =>
+      detailOf(String(a?.decision_id ?? "")),
+    "sessionDecisions:getWithDocMany": (a) =>
+      ((a?.decision_ids ?? []) as string[]).map(detailOf).filter(Boolean),
+    "decisionTeamList:listForTeam": () =>
+      DECISIONS(Date.now()).map((d) => ({ ...d, team_workspace: WORKSPACE })),
   },
   seed: (s, now) => {
     installScenes(s);
     // Held in the store as the queue feed leaves them, so a client that mounts no global feeder (the phone's store shots) has them too.
     s.syncTable("sessionDecisions", DECISIONS(now), { isDelta: true });
     // message_uuid: the fork point its branches (./forks) name.
-    s.applyTailMessages(S.retries._id, 0, RETRIES_TRANSCRIPT(now).map((m) => ({ ...m, message_uuid: m._id })) as any, null);
-    s.applyTailMessages(S.deadLetters._id, 0, DEAD_LETTER_TRANSCRIPT(now) as any, null);
+    s.applyTailMessages(
+      S.retries._id,
+      0,
+      RETRIES_TRANSCRIPT(now).map((m) => ({
+        ...m,
+        message_uuid: m._id,
+      })) as any,
+      null,
+    );
+    s.applyTailMessages(
+      S.deadLetters._id,
+      0,
+      DEAD_LETTER_TRANSCRIPT(now) as any,
+      null,
+    );
   },
 };

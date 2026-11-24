@@ -25,10 +25,18 @@ export const ORG_REVIEW_FOCUSES = {
 export type OrgReviewFocusKey = keyof typeof ORG_REVIEW_FOCUSES;
 
 export function isOrgReviewFocusKey(key: unknown): key is OrgReviewFocusKey {
-  return typeof key === "string" && Object.prototype.hasOwnProperty.call(ORG_REVIEW_FOCUSES, key);
+  return (
+    typeof key === "string" &&
+    Object.prototype.hasOwnProperty.call(ORG_REVIEW_FOCUSES, key)
+  );
 }
 
 /** The focus a stored key names, or null for none or an unknown key. */
-export function orgReviewFocusOf(key: string | null | undefined): { key: OrgReviewFocusKey; label: string; running: string; prompt: string } | null {
+export function orgReviewFocusOf(key: string | null | undefined): {
+  key: OrgReviewFocusKey;
+  label: string;
+  running: string;
+  prompt: string;
+} | null {
   return isOrgReviewFocusKey(key) ? { key, ...ORG_REVIEW_FOCUSES[key] } : null;
 }

@@ -19,48 +19,48 @@
 // body boundary and swallowing unrelated content into a card.
 
 export type InsightPart =
-  | { type: 'text'; content: string }
-  | { type: 'insight'; label: string; content: string };
+  | { type: "text"; content: string }
+  | { type: "insight"; label: string; content: string };
 
-const RULE = '[─━═—–]';
-const WRAP = '(?:`|\\*\\*)?';
+const RULE = "[─━═—–]";
+const WRAP = "(?:`|\\*\\*)?";
 const HRULE = `${WRAP}[ \\t]*${RULE}{5,}[ \\t]*${WRAP}`;
 const INSIGHT_BLOCK_RE = new RegExp(
   `(?:^|\\n)[ \\t]*${WRAP}[ \\t]*([★✦⭐☆✨])[ \\t]+([^\\n\`]*?)[ \\t]*${RULE}{5,}[ \\t]*${WRAP}[ \\t]*(?:\\n|$)` +
     `([\\s\\S]*?)` +
     `(?:^|\\n)[ \\t]*${HRULE}[ \\t]*(?=\\n|$)`,
-  'g',
+  "g",
 );
 
 const TRIM_RULE_RE = /^[\s─━═—–]+|[\s─━═—–]+$/g;
 
 export function cleanInsightLabel(raw: string): string {
-  const label = raw.replace(TRIM_RULE_RE, '').trim();
+  const label = raw.replace(TRIM_RULE_RE, "").trim();
   // "Insight — Custom title" → surface the custom title
   const titled = label.match(/^insight\s*[─━═—–-]\s*(.+)$/i);
-  return (titled ? titled[1] : label || 'Insight').trim();
+  return (titled ? titled[1] : label || "Insight").trim();
 }
 
 export function formatInsightBody(raw: string): string {
   // Bullet glyphs aren't markdown list markers; map them to real list items so
   // the card body renders as a list rather than a run-together paragraph.
-  return raw.replace(/^([ \t]*)[•·‣◦]\s+/gm, '$1- ').trim();
+  return raw.replace(/^([ \t]*)[•·‣◦]\s+/gm, "$1- ").trim();
 }
 
 export function parseInsightBlocks(text: string): InsightPart[] {
-  if (!text || typeof text !== 'string') {
-    return [{ type: 'text', content: String(text || '') }];
+  if (!text || typeof text !== "string") {
+    return [{ type: "text", content: String(text || "") }];
   }
-  const src = text.replace(/\r\n?/g, '\n');
+  const src = text.replace(/\r\n?/g, "\n");
   const parts: InsightPart[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   INSIGHT_BLOCK_RE.lastIndex = 0;
   while ((match = INSIGHT_BLOCK_RE.exec(src)) !== null) {
     const before = src.slice(lastIndex, match.index).trim();
-    if (before) parts.push({ type: 'text', content: before });
+    if (before) parts.push({ type: "text", content: before });
     parts.push({
-      type: 'insight',
+      type: "insight",
       label: cleanInsightLabel(match[2]),
       content: formatInsightBody(match[3]),
     });
@@ -68,8 +68,8 @@ export function parseInsightBlocks(text: string): InsightPart[] {
   }
   if (lastIndex < src.length) {
     const remaining = src.slice(lastIndex).trim();
-    if (remaining) parts.push({ type: 'text', content: remaining });
+    if (remaining) parts.push({ type: "text", content: remaining });
   }
-  if (parts.length === 0) parts.push({ type: 'text', content: src });
+  if (parts.length === 0) parts.push({ type: "text", content: src });
   return parts;
 }

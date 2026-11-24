@@ -18,7 +18,7 @@
 // have to know. Every tab address reaches the router through goToTab
 // (lib/tabNavigation.guard.test.ts holds that).
 
-export const TABS_GROUP = '(tabs)';
+export const TABS_GROUP = "(tabs)";
 
 /** What goToTab needs of expo-router's router (the hook's or the imported one). */
 export type TabRouter = {
@@ -37,7 +37,11 @@ export function noteRouteSegments(next: readonly string[]): void {
 
 /** A tab's address: the tabs group itself or anything under it. */
 export function isTabAddress(href: string): boolean {
-  return href === `/${TABS_GROUP}` || href.startsWith(`/${TABS_GROUP}/`) || href.startsWith(`/${TABS_GROUP}?`);
+  return (
+    href === `/${TABS_GROUP}` ||
+    href.startsWith(`/${TABS_GROUP}/`) ||
+    href.startsWith(`/${TABS_GROUP}?`)
+  );
 }
 
 /**
@@ -50,7 +54,11 @@ export function insideTabs(at: readonly string[] = segments): boolean {
 }
 
 /** Go to a tab from wherever the app is, leaving nothing mounted behind. */
-export function goToTab(router: TabRouter, href: string, at: readonly string[] = segments): void {
+export function goToTab(
+  router: TabRouter,
+  href: string,
+  at: readonly string[] = segments,
+): void {
   if (insideTabs(at)) router.navigate(href as never);
   else router.dismissTo(href as never);
 }

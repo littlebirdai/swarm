@@ -4,7 +4,19 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { showUndoToast } from "../store/undoStack";
 import { undoAsOne } from "../store/undoActions";
-import { Check, ChevronLeft, ChevronRight, EyeOff, Filter, FilterX, ListFilter, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  EyeOff,
+  Filter,
+  FilterX,
+  ListFilter,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   useInboxStore,
   useTrackedStore,
@@ -16,13 +28,23 @@ import {
   type BucketItem,
 } from "../store/inboxStore";
 import { clickBucketChip, clickProjectChip } from "../store/chipFilterClicks";
-import { projectAxisLabel, projectAxisNoun, workProjectIdOfChipKey } from "../store/workProjects";
+import {
+  projectAxisLabel,
+  projectAxisNoun,
+  workProjectIdOfChipKey,
+} from "../store/workProjects";
 import { useRosterMachines } from "./DeviceBadge";
 import { useRouter } from "next/navigation";
 import { getLabelColor } from "../lib/labelColors";
 import { OWNS_MODIFIER_CLICK } from "../lib/openIntent";
 import { folderShortList, type FolderActivity } from "../lib/railFolderFilter";
-import { ContextMenu, useContextMenu, CtxItem, CtxHeader, CtxSeparator } from "./ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxHeader,
+  CtxSeparator,
+} from "./ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,15 +98,15 @@ export function RailFilterMenu({
   dropSessionOnLabel: (draggedId: string, bucketId: string | null) => void;
 }) {
   const s = useTrackedStore([
-    st => st.buckets,
+    (st) => st.buckets,
     // Titles for project entries (`pj:` keys); the collection changes rarely.
-    st => st.projects,
-    st => st.activeBucketFilter,
-    st => st.activeProjectFilter,
-    st => st.chipFilterExclude,
-    st => st.extraBucketFilters,
-    st => st.activeProjectPath,
-    st => st.extraProjectFilters,
+    (st) => st.projects,
+    (st) => st.activeBucketFilter,
+    (st) => st.activeProjectFilter,
+    (st) => st.chipFilterExclude,
+    (st) => st.extraBucketFilters,
+    (st) => st.activeProjectPath,
+    (st) => st.extraProjectFilters,
   ]);
   const machines = useRosterMachines();
   const labels = useMemo(() => sortLabels(s.buckets), [s.buckets]);
@@ -92,16 +114,28 @@ export function RailFilterMenu({
   // The project axis holds Codecast projects (`pj:` keys, shown by their
   // title, store/workProjects), folders (where a session ran) and machines
   // (`mc:` keys, shown by the device's name).
-  const chipLabel = (name: string) => projectAxisLabel(name, s.projects, (id) => machines.get(id));
-  const workProjects = useMemo(() => projectCounts.filter(([name]) => workProjectIdOfChipKey(name)), [projectCounts]);
-  const folders = useMemo(() => projectCounts.filter(([name]) => !workProjectIdOfChipKey(name)), [projectCounts]);
+  const chipLabel = (name: string) =>
+    projectAxisLabel(name, s.projects, (id) => machines.get(id));
+  const workProjects = useMemo(
+    () => projectCounts.filter(([name]) => workProjectIdOfChipKey(name)),
+    [projectCounts],
+  );
+  const folders = useMemo(
+    () => projectCounts.filter(([name]) => !workProjectIdOfChipKey(name)),
+    [projectCounts],
+  );
   const labelFilters = useMemo(
     () => chipBucketFilters(s),
     [s.activeBucketFilter, s.chipFilterExclude, s.extraBucketFilters],
   );
   const projectFilters = useMemo(
     () => chipProjectFilters(s),
-    [s.activeProjectFilter, s.activeProjectPath, s.chipFilterExclude, s.extraProjectFilters],
+    [
+      s.activeProjectFilter,
+      s.activeProjectPath,
+      s.chipFilterExclude,
+      s.extraProjectFilters,
+    ],
   );
 
   const [open, setOpen] = useState(false);
@@ -133,7 +167,11 @@ export function RailFilterMenu({
   // Modifier-click hints, rendered as real keycaps (never bare glyphs in text).
   const clickHint = (...mods: string[]) => (
     <span className="flex items-center gap-[3px]">
-      {mods.map((m) => <KeyCap key={m} size="xs">{m}</KeyCap>)}
+      {mods.map((m) => (
+        <KeyCap key={m} size="xs">
+          {m}
+        </KeyCap>
+      ))}
       <KeyCap size="xs">click</KeyCap>
     </span>
   );
@@ -149,10 +187,14 @@ export function RailFilterMenu({
     let last: Mods = { alt: false, shift: false };
     return {
       onKeyDown: (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") keyMods.current = { alt: e.altKey, shift: e.shiftKey };
+        if (e.key === "Enter" || e.key === " ")
+          keyMods.current = { alt: e.altKey, shift: e.shiftKey };
       },
       onClick: (e: React.MouseEvent) => {
-        last = { alt: e.altKey || !!keyMods.current?.alt, shift: e.shiftKey || !!keyMods.current?.shift };
+        last = {
+          alt: e.altKey || !!keyMods.current?.alt,
+          shift: e.shiftKey || !!keyMods.current?.shift,
+        };
         keyMods.current = null;
       },
       onSelect: (e: Event) => {
@@ -163,8 +205,11 @@ export function RailFilterMenu({
     };
   };
   const pickFolder = (name: string) =>
-    pickProps((m) => clickProjectChip(name, projectPathByName[name] || null, m.alt, m.shift));
-  const pickLabel = (id: string) => pickProps((m) => clickBucketChip(id, m.alt, m.shift));
+    pickProps((m) =>
+      clickProjectChip(name, projectPathByName[name] || null, m.alt, m.shift),
+    );
+  const pickLabel = (id: string) =>
+    pickProps((m) => clickBucketChip(id, m.alt, m.shift));
 
   // ── Right-click: one shared menu for both kinds ──────────────────────────
   const ctxMenu = useContextMenu<ChipCtxPayload>();
@@ -177,13 +222,21 @@ export function RailFilterMenu({
   // ── Labels ───────────────────────────────────────────────────────────────
   // Labels created here THIS session stay listed at count 0 — creating one
   // that instantly tucks itself under "empty" is broken feedback.
-  const [freshLabelIds, setFreshLabelIds] = useState<Set<string>>(() => new Set());
+  const [freshLabelIds, setFreshLabelIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const listedLabelIds = useMemo(() => {
     const ids = new Set<string>();
     for (const b of labels) {
       // Non-Convex ids are optimistic create-stubs, listed from the instant
       // Enter is pressed until the server row supersedes them.
-      if ((bucketCounts[b._id] || 0) > 0 || labelFilters.some((t) => t.id === b._id) || freshLabelIds.has(b._id) || !isConvexId(b._id)) ids.add(b._id);
+      if (
+        (bucketCounts[b._id] || 0) > 0 ||
+        labelFilters.some((t) => t.id === b._id) ||
+        freshLabelIds.has(b._id) ||
+        !isConvexId(b._id)
+      )
+        ids.add(b._id);
     }
     return ids;
   }, [labels, bucketCounts, labelFilters, freshLabelIds]);
@@ -194,9 +247,12 @@ export function RailFilterMenu({
     setCreatingLabel(false);
     setNewLabelName("");
     if (!name) return;
-    useInboxStore.getState().createBucket({ name })
+    useInboxStore
+      .getState()
+      .createBucket({ name })
       .then((r: any) => {
-        if (r?.bucketId) setFreshLabelIds((prev) => new Set(prev).add(r.bucketId));
+        if (r?.bucketId)
+          setFreshLabelIds((prev) => new Set(prev).add(r.bucketId));
         toast.success(`Created label "${name}"`);
       })
       .catch(() => toast.error("Couldn't create label"));
@@ -220,57 +276,81 @@ export function RailFilterMenu({
   // Drag a label onto another to move it there (inserted before the row the
   // pointer is above the middle of, after it otherwise).
   const [draggingLabelId, setDraggingLabelId] = useState<string | null>(null);
-  const [dropHint, setDropHint] = useState<{ id: string; after: boolean } | null>(null);
+  const [dropHint, setDropHint] = useState<{
+    id: string;
+    after: boolean;
+  } | null>(null);
   const [dragOverLabelId, setDragOverLabelId] = useState<string | null>(null);
   const clearDrag = useCallback(() => {
     setDraggingLabelId(null);
     setDropHint(null);
     setDragOverLabelId(null);
   }, []);
-  const applyReorder = useCallback((draggedId: string, targetId: string, after: boolean) => {
-    const ordered = sortLabels(useInboxStore.getState().buckets);
-    const fromIndex = ordered.findIndex((b) => b._id === draggedId);
-    const targetIndex = ordered.findIndex((b) => b._id === targetId);
-    if (fromIndex < 0 || targetIndex < 0) return;
-    const insertion = targetIndex + (after ? 1 : 0);
-    const finalIndex = fromIndex < insertion ? insertion - 1 : insertion;
-    if (finalIndex === fromIndex) return;
-    const updates = computeReorderUpdates(ordered, fromIndex, finalIndex);
-    const store = useInboxStore.getState();
-    const name = ordered[fromIndex]!.name;
-    undoAsOne(`Moved label "${name}"`, () => {
-      for (const u of updates) store.updateBucket(u.id, { sort_order: u.sort_order });
-    });
-  }, []);
+  const applyReorder = useCallback(
+    (draggedId: string, targetId: string, after: boolean) => {
+      const ordered = sortLabels(useInboxStore.getState().buckets);
+      const fromIndex = ordered.findIndex((b) => b._id === draggedId);
+      const targetIndex = ordered.findIndex((b) => b._id === targetId);
+      if (fromIndex < 0 || targetIndex < 0) return;
+      const insertion = targetIndex + (after ? 1 : 0);
+      const finalIndex = fromIndex < insertion ? insertion - 1 : insertion;
+      if (finalIndex === fromIndex) return;
+      const updates = computeReorderUpdates(ordered, fromIndex, finalIndex);
+      const store = useInboxStore.getState();
+      const name = ordered[fromIndex]!.name;
+      undoAsOne(`Moved label "${name}"`, () => {
+        for (const u of updates)
+          store.updateBucket(u.id, { sort_order: u.sort_order });
+      });
+    },
+    [],
+  );
 
   // ── Folders ──────────────────────────────────────────────────────────────
-  const countByFolder = useMemo(() => new Map([...projectCounts, ...machineCounts]), [projectCounts, machineCounts]);
+  const countByFolder = useMemo(
+    () => new Map([...projectCounts, ...machineCounts]),
+    [projectCounts, machineCounts],
+  );
   const shortFolders = useMemo(() => {
     const list = folderShortList(folders, projectActivity);
     // A folder in the filter always shows here, so it can be seen and undone
     // without a trip to "All folders…".
-    for (const t of projectFilters) if (!list.includes(t.id) && projectAxisNoun(t.id) === "folder") list.push(t.id);
+    for (const t of projectFilters)
+      if (!list.includes(t.id) && projectAxisNoun(t.id) === "folder")
+        list.push(t.id);
     return list;
   }, [folders, projectActivity, projectFilters]);
   const allFolders = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? folders.filter(([name]) => name.toLowerCase().includes(q)) : folders;
+    return q
+      ? folders.filter(([name]) => name.toLowerCase().includes(q))
+      : folders;
   }, [folders, query]);
 
   // ── The button's face ────────────────────────────────────────────────────
   const activeTerms = labelFilters.length > 0 ? labelFilters : projectFilters;
-  const activeKind: "label" | "project" | null = labelFilters.length > 0 ? "label" : projectFilters.length > 0 ? "project" : null;
+  const activeKind: "label" | "project" | null =
+    labelFilters.length > 0
+      ? "label"
+      : projectFilters.length > 0
+        ? "project"
+        : null;
   const headTerm = activeTerms[0];
   const headName = !headTerm
     ? null
     : activeKind === "label"
-      ? s.buckets[headTerm.id]?.name ?? "label"
+      ? (s.buckets[headTerm.id]?.name ?? "label")
       : chipLabel(headTerm.id);
-  const faceText = headName ? `${headTerm!.exclude ? "Not " : ""}${headName}` : "Filter";
+  const faceText = headName
+    ? `${headTerm!.exclude ? "Not " : ""}${headName}`
+    : "Filter";
   const extraCount = activeTerms.length - 1;
   const faceTitle = headName
     ? activeTerms
-        .map((t) => `${t.exclude ? "Hiding" : "Showing"} ${activeKind === "label" ? "label" : projectAxisNoun(t.id)} "${activeKind === "label" ? s.buckets[t.id]?.name ?? t.id : chipLabel(t.id)}"`)
+        .map(
+          (t) =>
+            `${t.exclude ? "Hiding" : "Showing"} ${activeKind === "label" ? "label" : projectAxisNoun(t.id)} "${activeKind === "label" ? (s.buckets[t.id]?.name ?? t.id) : chipLabel(t.id)}"`,
+        )
         .join(", ")
     : "Filter by project, folder, machine or label";
   const clearFilter = () => {
@@ -282,8 +362,18 @@ export function RailFilterMenu({
   // ── Rows ─────────────────────────────────────────────────────────────────
   const stateIcon = (term: { exclude: boolean } | undefined) => (
     <span className="w-3.5 flex-shrink-0 inline-flex items-center justify-center text-sol-text-secondary">
-      {term ? (term.exclude ? <EyeOff className="w-3 h-3" /> : <Check className="w-3 h-3" />) : null}
-      {term && <span className="sr-only">{term.exclude ? "Hidden: " : "Selected: "}</span>}
+      {term ? (
+        term.exclude ? (
+          <EyeOff className="w-3 h-3" />
+        ) : (
+          <Check className="w-3 h-3" />
+        )
+      ) : null}
+      {term && (
+        <span className="sr-only">
+          {term.exclude ? "Hidden: " : "Selected: "}
+        </span>
+      )}
     </span>
   );
   const ROW = "text-[13px] gap-2 px-2 py-1.5 cursor-pointer";
@@ -299,10 +389,18 @@ export function RailFilterMenu({
         {...pickFolder(name)}
         onContextMenu={(e) => openCtx(e, { kind: "project", name })}
         className={ROW}
-        title={term ? (term.exclude ? "Hidden — click to clear" : "In the filter — click to clear") : `Filter to this ${projectAxisNoun(name)} — ⇧-click adds, ⌥-click hides`}
+        title={
+          term
+            ? term.exclude
+              ? "Hidden — click to clear"
+              : "In the filter — click to clear"
+            : `Filter to this ${projectAxisNoun(name)} — ⇧-click adds, ⌥-click hides`
+        }
       >
         {stateIcon(term)}
-        <span className={`truncate ${term ? "text-sol-text" : ""}`}>{chipLabel(name)}</span>
+        <span className={`truncate ${term ? "text-sol-text" : ""}`}>
+          {chipLabel(name)}
+        </span>
         <span className={COUNT}>{countByFolder.get(name) ?? 0}</span>
       </DropdownMenuItem>
     );
@@ -334,9 +432,15 @@ export function RailFilterMenu({
           } else if (types.includes("codecast/label-id")) {
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            const rect = (
+              e.currentTarget as HTMLElement
+            ).getBoundingClientRect();
             const after = e.clientY > rect.top + rect.height / 2;
-            setDropHint((cur) => (cur?.id === bucket._id && cur.after === after ? cur : { id: bucket._id, after }));
+            setDropHint((cur) =>
+              cur?.id === bucket._id && cur.after === after
+                ? cur
+                : { id: bucket._id, after },
+            );
           }
         }}
         onDragLeave={() => {
@@ -352,18 +456,40 @@ export function RailFilterMenu({
             dropSessionOnLabel(sessionId, bucket._id);
             onOpenChange(false);
           } else if (labelId && labelId !== bucket._id) {
-            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            applyReorder(labelId, bucket._id, e.clientY > rect.top + rect.height / 2);
+            const rect = (
+              e.currentTarget as HTMLElement
+            ).getBoundingClientRect();
+            applyReorder(
+              labelId,
+              bucket._id,
+              e.clientY > rect.top + rect.height / 2,
+            );
           }
           clearDrag();
         }}
-        style={hint ? { boxShadow: `inset 0 ${hint.after ? "-2px" : "2px"} 0 0 var(--sol-cyan)` } : undefined}
+        style={
+          hint
+            ? {
+                boxShadow: `inset 0 ${hint.after ? "-2px" : "2px"} 0 0 var(--sol-cyan)`,
+              }
+            : undefined
+        }
         className={`${ROW} ${draggingLabelId === bucket._id ? "opacity-40" : ""} ${dragOverLabelId === bucket._id ? "ring-1 ring-inset ring-sol-cyan" : ""}`}
-        title={term ? (term.exclude ? "Hidden — click to clear" : "In the filter — click to clear") : "Filter to this label — ⇧-click adds, ⌥-click hides, drag to reorder"}
+        title={
+          term
+            ? term.exclude
+              ? "Hidden — click to clear"
+              : "In the filter — click to clear"
+            : "Filter to this label — ⇧-click adds, ⌥-click hides, drag to reorder"
+        }
       >
         {stateIcon(term)}
-        <span className={`w-2 h-2 flex-shrink-0 rounded-[2px] ${getLabelColor(bucket.name).dot}`} />
-        <span className={`truncate ${term ? "text-sol-text" : ""}`}>{bucket.name}</span>
+        <span
+          className={`w-2 h-2 flex-shrink-0 rounded-[2px] ${getLabelColor(bucket.name).dot}`}
+        />
+        <span className={`truncate ${term ? "text-sol-text" : ""}`}>
+          {bucket.name}
+        </span>
         <span className={COUNT}>{bucketCounts[bucket._id] || 0}</span>
       </DropdownMenuItem>
     );
@@ -373,7 +499,11 @@ export function RailFilterMenu({
   const hasHiddenFolders = folders.length > shortFolders.length;
 
   return (
-    <div data-sv-rail-filter {...OWNS_MODIFIER_CLICK} className="flex min-w-0 flex-shrink items-center">
+    <div
+      data-sv-rail-filter
+      {...OWNS_MODIFIER_CLICK}
+      className="flex min-w-0 flex-shrink items-center"
+    >
       <DropdownMenu open={open} onOpenChange={onOpenChange}>
         <ShortcutTooltip label={faceTitle} side="bottom">
           <DropdownMenuTrigger asChild>
@@ -381,7 +511,11 @@ export function RailFilterMenu({
               type="button"
               data-sv-filter-button
               data-active={headName ? "true" : undefined}
-              aria-label={headName ? `Filter: ${faceText}${extraCount > 0 ? ` and ${extraCount} more` : ""}` : "Filter"}
+              aria-label={
+                headName
+                  ? `Filter: ${faceText}${extraCount > 0 ? ` and ${extraCount} more` : ""}`
+                  : "Filter"
+              }
               onDragOver={(e) => {
                 // A session card dragged here opens the menu, whose labels
                 // take the drop.
@@ -400,14 +534,20 @@ export function RailFilterMenu({
               } ${headName ? "rounded-r-none" : ""}`}
             >
               {activeKind === "label" && headName ? (
-                <span className={`w-2 h-2 flex-shrink-0 rounded-[2px] ${getLabelColor(headName).dot}`} />
+                <span
+                  className={`w-2 h-2 flex-shrink-0 rounded-[2px] ${getLabelColor(headName).dot}`}
+                />
               ) : headTerm?.exclude ? (
                 <EyeOff className="w-3 h-3 shrink-0" />
               ) : (
                 <ListFilter className="w-3 h-3 shrink-0" />
               )}
               <span className="truncate max-w-[10rem]">{faceText}</span>
-              {extraCount > 0 && <span className="shrink-0 tabular-nums text-sol-text-dim">+{extraCount}</span>}
+              {extraCount > 0 && (
+                <span className="shrink-0 tabular-nums text-sol-text-dim">
+                  +{extraCount}
+                </span>
+              )}
             </button>
           </DropdownMenuTrigger>
         </ShortcutTooltip>
@@ -433,8 +573,12 @@ export function RailFilterMenu({
             handingOff.current = false;
             pointerUsed.current = false;
           }}
-          onPointerDown={() => { pointerUsed.current = true; }}
-          onKeyDownCapture={() => { pointerUsed.current = false; }}
+          onPointerDown={() => {
+            pointerUsed.current = true;
+          }}
+          onKeyDownCapture={() => {
+            pointerUsed.current = false;
+          }}
           onKeyDown={(e) => {
             // In the folder list, typing goes to the search field wherever
             // focus is (Radix would otherwise jump to an item by its letter).
@@ -461,7 +605,9 @@ export function RailFilterMenu({
                 <>
                   {/* Codecast projects: the sessions working in them
                       (store/workProjects). Few, so all of them. */}
-                  <DropdownMenuLabel className={groupLabel}>Projects</DropdownMenuLabel>
+                  <DropdownMenuLabel className={groupLabel}>
+                    Projects
+                  </DropdownMenuLabel>
                   {workProjects.map(([name]) => folderItem(name))}
                   <DropdownMenuSeparator />
                 </>
@@ -470,7 +616,9 @@ export function RailFilterMenu({
                 <>
                   {/* A folder is where a session ran (its repo root, else its
                       working directory), not a Codecast project. */}
-                  <DropdownMenuLabel className={groupLabel}>Folders</DropdownMenuLabel>
+                  <DropdownMenuLabel className={groupLabel}>
+                    Folders
+                  </DropdownMenuLabel>
                   {shortFolders.map(folderItem)}
                   {hasHiddenFolders && (
                     <DropdownMenuItem
@@ -493,13 +641,19 @@ export function RailFilterMenu({
               {machineCounts.length > 0 && (
                 <>
                   {/* The machine a session runs on (owner_device_id). */}
-                  <DropdownMenuLabel className={groupLabel}>Machines</DropdownMenuLabel>
+                  <DropdownMenuLabel className={groupLabel}>
+                    Machines
+                  </DropdownMenuLabel>
                   {machineCounts.map(([name]) => folderItem(name))}
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuLabel className={groupLabel}>Labels</DropdownMenuLabel>
-              {labels.map((b) => (listedLabelIds.has(b._id) || showEmpty ? labelItem(b) : null))}
+              <DropdownMenuLabel className={groupLabel}>
+                Labels
+              </DropdownMenuLabel>
+              {labels.map((b) =>
+                listedLabelIds.has(b._id) || showEmpty ? labelItem(b) : null,
+              )}
               {emptyCount > 0 && (
                 <DropdownMenuItem
                   onSelect={(e) => {
@@ -515,8 +669,12 @@ export function RailFilterMenu({
                   }}
                   className={`${ROW} text-sol-text-dim`}
                 >
-                  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showEmpty ? "rotate-90" : ""}`} />
-                  <span>{showEmpty ? "Hide empty labels" : `${emptyCount} empty`}</span>
+                  <ChevronRight
+                    className={`w-3.5 h-3.5 transition-transform ${showEmpty ? "rotate-90" : ""}`}
+                  />
+                  <span>
+                    {showEmpty ? "Hide empty labels" : `${emptyCount} empty`}
+                  </span>
                 </DropdownMenuItem>
               )}
               {creatingLabel ? (
@@ -580,8 +738,11 @@ export function RailFilterMenu({
                     onKeyDown={(e) => {
                       if (e.key === "ArrowDown") {
                         e.preventDefault();
-                        const first = (e.currentTarget.closest("[data-sv-rail-filter-menu]") as HTMLElement | null)
-                          ?.querySelector<HTMLElement>("[data-filter-folder]");
+                        const first = (
+                          e.currentTarget.closest(
+                            "[data-sv-rail-filter-menu]",
+                          ) as HTMLElement | null
+                        )?.querySelector<HTMLElement>("[data-filter-folder]");
                         first?.focus();
                         return;
                       }
@@ -596,7 +757,9 @@ export function RailFilterMenu({
                 </div>
               </div>
               {allFolders.length === 0 ? (
-                <div className="px-2 py-1.5 text-[13px] text-sol-text-dim">No folders match</div>
+                <div className="px-2 py-1.5 text-[13px] text-sol-text-dim">
+                  No folders match
+                </div>
               ) : (
                 allFolders.map(([name]) => folderItem(name))
               )}
@@ -612,23 +775,36 @@ export function RailFilterMenu({
           // are peers; whichever is currently active swaps for its "clear"
           // counterpart, so exactly one item ever reads as an undo.
           const store = useInboxStore.getState();
-          const axis = p.kind === "label"
-            ? {
-                id: p.bucket._id,
-                name: p.bucket.name,
-                noun: "label",
-                filters: labelFilters,
-                set: (id: string | null, exclude?: boolean) => store.setActiveBucketFilter(id, exclude),
-                toggle: (exclude: boolean) => store.toggleBucketFilterTerm(p.bucket._id, exclude),
-              }
-            : {
-                id: p.name,
-                name: chipLabel(p.name),
-                noun: projectAxisNoun(p.name),
-                filters: projectFilters,
-                set: (id: string | null, exclude?: boolean) => store.setActiveProjectFilter(id, id ? projectPathByName[p.name] || null : null, exclude),
-                toggle: (exclude: boolean) => store.toggleProjectFilterTerm(p.name, projectPathByName[p.name] || null, exclude),
-              };
+          const axis =
+            p.kind === "label"
+              ? {
+                  id: p.bucket._id,
+                  name: p.bucket.name,
+                  noun: "label",
+                  filters: labelFilters,
+                  set: (id: string | null, exclude?: boolean) =>
+                    store.setActiveBucketFilter(id, exclude),
+                  toggle: (exclude: boolean) =>
+                    store.toggleBucketFilterTerm(p.bucket._id, exclude),
+                }
+              : {
+                  id: p.name,
+                  name: chipLabel(p.name),
+                  noun: projectAxisNoun(p.name),
+                  filters: projectFilters,
+                  set: (id: string | null, exclude?: boolean) =>
+                    store.setActiveProjectFilter(
+                      id,
+                      id ? projectPathByName[p.name] || null : null,
+                      exclude,
+                    ),
+                  toggle: (exclude: boolean) =>
+                    store.toggleProjectFilterTerm(
+                      p.name,
+                      projectPathByName[p.name] || null,
+                      exclude,
+                    ),
+                };
           const term = axis.filters.find((t) => t.id === axis.id);
           const sole = !!term && axis.filters.length === 1;
           const inOtherFilter = axis.filters.length > 0 && !term;
@@ -641,7 +817,11 @@ export function RailFilterMenu({
                     Clear filter
                   </CtxItem>
                 ) : (
-                  <CtxItem icon={FilterX} trailing={shiftClickHint} onSelect={() => axis.toggle(false)}>
+                  <CtxItem
+                    icon={FilterX}
+                    trailing={shiftClickHint}
+                    onSelect={() => axis.toggle(false)}
+                  >
                     Remove from filter
                   </CtxItem>
                 )
@@ -653,28 +833,50 @@ export function RailFilterMenu({
               {/* Additive verbs, only while some other filter is on — the
                   menu twin of ⇧-click / ⇧⌥-click. */}
               {inOtherFilter && (
-                <CtxItem icon={Filter} trailing={shiftClickHint} onSelect={() => axis.toggle(false)}>
+                <CtxItem
+                  icon={Filter}
+                  trailing={shiftClickHint}
+                  onSelect={() => axis.toggle(false)}
+                >
                   Add to filter
                 </CtxItem>
               )}
               {term?.exclude ? (
-                <CtxItem icon={FilterX} onSelect={() => (sole ? axis.set(null) : axis.toggle(true))}>
+                <CtxItem
+                  icon={FilterX}
+                  onSelect={() => (sole ? axis.set(null) : axis.toggle(true))}
+                >
                   Stop hiding
                 </CtxItem>
               ) : (
-                <CtxItem icon={EyeOff} trailing={altClickHint} onSelect={() => axis.set(axis.id, true)}>
+                <CtxItem
+                  icon={EyeOff}
+                  trailing={altClickHint}
+                  onSelect={() => axis.set(axis.id, true)}
+                >
                   Hide this {axis.noun}
                 </CtxItem>
               )}
               {inOtherFilter && (
-                <CtxItem icon={EyeOff} trailing={shiftAltClickHint} onSelect={() => axis.toggle(true)}>
+                <CtxItem
+                  icon={EyeOff}
+                  trailing={shiftAltClickHint}
+                  onSelect={() => axis.toggle(true)}
+                >
                   Also hide this {axis.noun}
                 </CtxItem>
               )}
               {p.kind === "project" && workProjectIdOfChipKey(p.name) && (
                 <>
                   <CtxSeparator />
-                  <CtxItem icon={ChevronRight} onSelect={() => router.push(`/projects/${s.projects[workProjectIdOfChipKey(p.name)!]?.short_id || workProjectIdOfChipKey(p.name)}`)}>
+                  <CtxItem
+                    icon={ChevronRight}
+                    onSelect={() =>
+                      router.push(
+                        `/projects/${s.projects[workProjectIdOfChipKey(p.name)!]?.short_id || workProjectIdOfChipKey(p.name)}`,
+                      )
+                    }
+                  >
                     Open project
                   </CtxItem>
                 </>
@@ -682,7 +884,11 @@ export function RailFilterMenu({
               {p.kind === "label" && (
                 <>
                   <CtxSeparator />
-                  <CtxItem danger icon={Trash2} onSelect={() => performDeleteLabel(p.bucket)}>
+                  <CtxItem
+                    danger
+                    icon={Trash2}
+                    onSelect={() => performDeleteLabel(p.bucket)}
+                  >
                     Delete label
                   </CtxItem>
                 </>

@@ -12,7 +12,9 @@ describe("syncTable collection path on a non-array payload", () => {
   beforeEach(() => {
     err = spyOn(console, "error").mockImplementation(() => {});
     useInboxStore.setState({
-      agentTasks: { a: { _id: "a", status: "scheduled", schedule_type: "recurring" } },
+      agentTasks: {
+        a: { _id: "a", status: "scheduled", schedule_type: "recurring" },
+      },
       pending: {},
     } as any);
   });
@@ -21,20 +23,28 @@ describe("syncTable collection path on a non-array payload", () => {
   it("drops a scalar pushed at an unregistered collection field instead of throwing", () => {
     const { syncTable } = useInboxStore.getState();
     expect(() => syncTable("someRenamedCounter", 0)).not.toThrow();
-    expect((useInboxStore.getState() as any).someRenamedCounter).toBeUndefined();
+    expect(
+      (useInboxStore.getState() as any).someRenamedCounter,
+    ).toBeUndefined();
     expect(err).toHaveBeenCalledTimes(1);
   });
 
   it("drops a non-array payload at a registered collection and keeps the cached rows", () => {
     const { syncTable } = useInboxStore.getState();
     const before = useInboxStore.getState().agentTasks;
-    expect(() => syncTable("agentTasks", { a: { _id: "a", status: "running" } })).not.toThrow();
+    expect(() =>
+      syncTable("agentTasks", { a: { _id: "a", status: "running" } }),
+    ).not.toThrow();
     expect(useInboxStore.getState().agentTasks).toBe(before);
     expect(useInboxStore.getState().agentTasks.a.status).toBe("scheduled");
   });
 
   it("still accepts a normal array push", () => {
-    useInboxStore.getState().syncTable("agentTasks", [{ _id: "a", status: "running", schedule_type: "recurring" }]);
+    useInboxStore
+      .getState()
+      .syncTable("agentTasks", [
+        { _id: "a", status: "running", schedule_type: "recurring" },
+      ]);
     expect(useInboxStore.getState().agentTasks.a.status).toBe("running");
     expect(err).not.toHaveBeenCalled();
   });

@@ -1,4 +1,10 @@
-import { createContext, useContext, type ComponentType, type MouseEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  type ComponentType,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import type { Room } from "livekit-client";
 import type { ParticipantTile } from "../../lib/calls/callMedia";
 import { LayoutGrid, User, Wand2 } from "lucide-react";
@@ -12,14 +18,27 @@ import { LayoutGrid, User, Wand2 } from "lucide-react";
 /** A thing pinned on the stage (convex/callStage.ts): drawn by the host,
  *  beside the faces and in the same places a screen share goes. `pin` is the
  *  host's own row; the views only lay it out. */
-export type StagePinShare = { kind: "pin"; key: string; identity: string; name: string; pin: unknown; /** When it went up. */ at?: number };
+export type StagePinShare = {
+  kind: "pin";
+  key: string;
+  identity: string;
+  name: string;
+  pin: unknown;
+  /** When it went up. */ at?: number;
+};
 
 /** What can hold the stage the way a screen share does. */
 export type StageShare = ParticipantTile | StagePinShare;
 
-export const isPinShare = (t: StageShare): t is StagePinShare => t.kind === "pin";
+export const isPinShare = (t: StageShare): t is StagePinShare =>
+  t.kind === "pin";
 
-export type StageFollowChip = ComponentType<{ identity: string; name: string; variant: "tile" | "row"; always?: boolean }>;
+export type StageFollowChip = ComponentType<{
+  identity: string;
+  name: string;
+  variant: "tile" | "row";
+  always?: boolean;
+}>;
 
 export type StageHost = {
   /** The room the tiles are in: whose pointer is mine, where mine goes. */
@@ -31,10 +50,17 @@ export type StageHost = {
   useFollowLeader?: () => string | null;
   /** What the viewer may do to this participant, beside their name (a
    *  member putting a guest out). Null for nothing. */
-  personActions?: (p: { identity: string; name: string; variant: "tile" | "row" }) => ReactNode;
+  personActions?: (p: {
+    identity: string;
+    name: string;
+    variant: "tile" | "row";
+  }) => ReactNode;
   /** Open what the viewer may do to this participant (put them out of the
    *  call), on a right click of their tile or row. */
-  openPersonMenu?: (e: MouseEvent, p: { identity: string; name: string }) => void;
+  openPersonMenu?: (
+    e: MouseEvent,
+    p: { identity: string; name: string },
+  ) => void;
   /** The viewer's own identity, so their row in a list reads "you" the way
    *  their own tile does. */
   selfIdentity?: string;
@@ -64,7 +90,10 @@ export function useStageHost(): StageHost {
 /** Is this participant speaking: the host's own reactive read when it has
  *  one, else the set the view was handed. A host never gains or loses the
  *  hook between renders, so the hook order holds. */
-export function useIsSpeaking(identity: string, speaking?: ReadonlySet<string>): boolean {
+export function useIsSpeaking(
+  identity: string,
+  speaking?: ReadonlySet<string>,
+): boolean {
   const host = useStageHost();
   const live = (host.useSpeaking ?? noSpeaking)(identity);
   return host.useSpeaking ? live : !!speaking?.has(identity);
@@ -74,7 +103,10 @@ export function useIsSpeaking(identity: string, speaking?: ReadonlySet<string>):
  *  as many equal rows as the tiles need. Every row is an explicit `1fr` track:
  *  a video tile has no content height, so a tile left to an implicit `auto`
  *  row beside `fr` rows collapses to nothing. */
-export function stageLattice(n: number): { gridTemplateColumns: string; gridTemplateRows: string } {
+export function stageLattice(n: number): {
+  gridTemplateColumns: string;
+  gridTemplateRows: string;
+} {
   const cols = n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
   const rows = Math.max(1, Math.ceil(n / cols));
   return {
@@ -90,18 +122,35 @@ export const isMuted = (roster: any[], identity: string) =>
 // The control bar's round buttons, the same on a member's stage and a guest's:
 // borderless, state read by tint (cyan camera, violet share, red muted).
 export const STAGE_CTL = "rounded-full p-2 transition-colors";
-export const STAGE_CTL_IDLE = "text-sol-text-muted hover:bg-white/10 hover:text-sol-text";
+export const STAGE_CTL_IDLE =
+  "text-sol-text-muted hover:bg-white/10 hover:text-sol-text";
 
 // The one outline the stage allows itself: a soft cyan ring with a faint
 // halo on whoever is speaking. Silent tiles have no border at all: the gap
 // between them is the frame.
-export const SPEAKING_RING = "ring-2 ring-sol-cyan/80 shadow-[0_0_0_5px_rgba(42,161,152,0.16)]";
+export const SPEAKING_RING =
+  "ring-2 ring-sol-cyan/80 shadow-[0_0_0_5px_rgba(42,161,152,0.16)]";
 
 // The three ways to see a call, for whichever view switch draws them.
 export type StageView = "auto" | "speaker" | "grid";
 
 export const STAGE_VIEWS = [
-  { key: "auto", icon: Wand2, label: "auto", hint: "Auto: shares take the stage" },
-  { key: "speaker", icon: User, label: "speaker", hint: "Speaker: follow whoever is talking (click a tile to pin)" },
-  { key: "grid", icon: LayoutGrid, label: "grid", hint: "Grid: everyone equal" },
+  {
+    key: "auto",
+    icon: Wand2,
+    label: "auto",
+    hint: "Auto: shares take the stage",
+  },
+  {
+    key: "speaker",
+    icon: User,
+    label: "speaker",
+    hint: "Speaker: follow whoever is talking (click a tile to pin)",
+  },
+  {
+    key: "grid",
+    icon: LayoutGrid,
+    label: "grid",
+    hint: "Grid: everyone equal",
+  },
 ] as const;

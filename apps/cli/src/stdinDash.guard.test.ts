@@ -11,8 +11,10 @@ import * as path from "node:path";
  * Prose is recognised by its placeholder. Search filters (-q, --query) are the
  * one exception: a query is never a heredoc.
  */
-const PROSE_PLACEHOLDER = /<(text|title|prompt|why|criteria|content|entry|description|body|message)>/;
-const DECL = /\.(?:option|requiredOption|argument)\("([^"]*)", (?:stdinText\()?"/g;
+const PROSE_PLACEHOLDER =
+  /<(text|title|prompt|why|criteria|content|entry|description|body|message)>/;
+const DECL =
+  /\.(?:option|requiredOption|argument)\("([^"]*)", (?:stdinText\()?"/g;
 const FILES = ["index.ts", "decideCommand.ts", "stateCommand.ts", "publish.ts"];
 
 describe("stdin dash guard", () => {
@@ -25,8 +27,10 @@ describe("stdin dash guard", () => {
         for (const m of line.matchAll(DECL)) {
           const flags = m[1];
           if (!PROSE_PLACEHOLDER.test(flags)) continue;
-          if (/(^|, )-q, --query /.test(flags) || flags.startsWith("--query ")) continue;
-          if (!m[0].includes("stdinText(")) offenders.push(`${file}:${i + 1}  ${flags}`);
+          if (/(^|, )-q, --query /.test(flags) || flags.startsWith("--query "))
+            continue;
+          if (!m[0].includes("stdinText("))
+            offenders.push(`${file}:${i + 1}  ${flags}`);
         }
       });
     }

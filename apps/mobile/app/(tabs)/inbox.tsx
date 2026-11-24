@@ -1,62 +1,124 @@
-import { StyleSheet, RefreshControl, TouchableOpacity, View as RNView, FlatList, type ListRenderItem } from 'react-native';
-import { probeRender, PERF_PROBE } from '@/lib/perfProbe';
-import { TextInput, Text as RNText } from '@/components/Themed';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { Component, type ReactNode, useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { useRouter } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme, useAppearanceKey } from '@/constants/Theme';
 import {
-  SessionData, SwipeableSessionItem, InboxRowEnvProvider, sessionTitle, projectColor,
-} from '@/components/SessionItem';
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+  View as RNView,
+  FlatList,
+  type ListRenderItem,
+} from "react-native";
+import { probeRender, PERF_PROBE } from "@/lib/perfProbe";
+import { TextInput, Text as RNText } from "@/components/Themed";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { api } from "@codecast/convex/convex/_generated/api";
 import {
-  useInboxStore, type InboxSession, type BucketItem,
-  chipMatchesSession, getProjectName, resolveInboxViewMode, resolveShowSubagents, flatViewSessions, convBucketMap,
-  groupSessionsForLabelView, groupSessionsByPlan, sortLabels,
-  sessionUnreadMap, sessionUnreadWakeSig, sectionHeaderCount,
-} from '@codecast/web/store/inboxStore';
-import { hiddenBucketTree, killAllIds } from '@codecast/web/store/hiddenBucketTree';
-import { partitionTriggerInbox, type TaskRow } from '@codecast/web/components/triggerTasks';
-import { DecisionsBadge } from '@/components/decisions/DecisionsBadge';
-import { useTriggers } from '@codecast/web/hooks/useSyncTriggers';
-import { SearchResults } from '@/components/search/SearchResults';
-import { labelHexColor } from '@/lib/labelColors';
-import { SessionListSkeleton } from '@/components/SkeletonLoader';
-import { TriggerDock } from '@/components/TriggerDock';
-import { useQuery } from 'convex/react';
-import { mobileCreateErrorMessage, mobileCreateFailureDisposition } from '@/lib/durableCreatePolicy';
-import { bootMark } from '@/lib/bootProfile';
-import { setInboxDrawerOpen } from '@/lib/inboxDrawer';
-import { holdKill, showNotice, useUndoBar } from '@/lib/undoBar';
-import { appAlert, appPrompt, showActionSheet, type SheetItem } from '@/lib/popups';
-import { closeDetail, reviewedKill } from '@/lib/sessionVerbs';
-import { useInboxPlacement } from '@/hooks/useInboxPlacement';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { ComposeButton } from '@/components/session/ComposeButton';
-import { InboxLensBar } from '@/components/inbox/InboxLensBar';
-import { AreaBar } from '@/components/nav/AreaBar';
-import { LivePulse } from '@/components/calls/LiveRooms';
-import { HiddenSessionRow } from '@/components/inbox/HiddenSessionRow';
+  Component,
+  type ReactNode,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+} from "react";
+import { useRouter } from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import {
+  Theme,
+  Spacing,
+  themedStyles,
+  useTheme,
+  useAppearanceKey,
+} from "@/constants/Theme";
+import {
+  SessionData,
+  SwipeableSessionItem,
+  InboxRowEnvProvider,
+  sessionTitle,
+  projectColor,
+} from "@/components/SessionItem";
+import {
+  useInboxStore,
+  type InboxSession,
+  type BucketItem,
+  chipMatchesSession,
+  getProjectName,
+  resolveInboxViewMode,
+  resolveShowSubagents,
+  flatViewSessions,
+  convBucketMap,
+  groupSessionsForLabelView,
+  groupSessionsByPlan,
+  sortLabels,
+  sessionUnreadMap,
+  sessionUnreadWakeSig,
+  sectionHeaderCount,
+} from "@codecast/web/store/inboxStore";
+import {
+  hiddenBucketTree,
+  killAllIds,
+} from "@codecast/web/store/hiddenBucketTree";
+import {
+  partitionTriggerInbox,
+  type TaskRow,
+} from "@codecast/web/components/triggerTasks";
+import { DecisionsBadge } from "@/components/decisions/DecisionsBadge";
+import { useTriggers } from "@codecast/web/hooks/useSyncTriggers";
+import { SearchResults } from "@/components/search/SearchResults";
+import { labelHexColor } from "@/lib/labelColors";
+import { SessionListSkeleton } from "@/components/SkeletonLoader";
+import { TriggerDock } from "@/components/TriggerDock";
+import { useQuery } from "convex/react";
+import {
+  mobileCreateErrorMessage,
+  mobileCreateFailureDisposition,
+} from "@/lib/durableCreatePolicy";
+import { bootMark } from "@/lib/bootProfile";
+import { setInboxDrawerOpen } from "@/lib/inboxDrawer";
+import { holdKill, showNotice, useUndoBar } from "@/lib/undoBar";
+import {
+  appAlert,
+  appPrompt,
+  showActionSheet,
+  type SheetItem,
+} from "@/lib/popups";
+import { closeDetail, reviewedKill } from "@/lib/sessionVerbs";
+import { useInboxPlacement } from "@/hooks/useInboxPlacement";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { ComposeButton } from "@/components/session/ComposeButton";
+import { InboxLensBar } from "@/components/inbox/InboxLensBar";
+import { AreaBar } from "@/components/nav/AreaBar";
+import { LivePulse } from "@/components/calls/LiveRooms";
+import { HiddenSessionRow } from "@/components/inbox/HiddenSessionRow";
 
 // A thrown Convex query error (e.g. searchConversations timing out on a
 // multi-word query) must cost the user the RESULTS LIST, not the whole inbox —
 // web survives this, so the phone must too. The boundary re-arms whenever the
 // query changes so the next keystroke retries cleanly.
-class SearchErrorBoundary extends Component<{ resetKey: string; children: ReactNode }, { error: Error | null }> {
+class SearchErrorBoundary extends Component<
+  { resetKey: string; children: ReactNode },
+  { error: Error | null }
+> {
   state = { error: null as Error | null };
-  static getDerivedStateFromError(error: Error) { return { error }; }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
   componentDidUpdate(prev: { resetKey: string }) {
-    if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
+    if (prev.resetKey !== this.props.resetKey && this.state.error)
+      this.setState({ error: null });
   }
   render() {
     if (this.state.error) {
       return (
         <RNView style={styles.emptyInbox}>
-          <FontAwesome name="exclamation-triangle" size={22} color={Theme.textMuted0} />
+          <FontAwesome
+            name="exclamation-triangle"
+            size={22}
+            color={Theme.textMuted0}
+          />
           <RNText style={styles.emptyText}>Search failed</RNText>
-          <RNText style={styles.emptySubtext}>Try a shorter or simpler query</RNText>
+          <RNText style={styles.emptySubtext}>
+            Try a shorter or simpler query
+          </RNText>
         </RNView>
       );
     }
@@ -75,31 +137,44 @@ const FIRST_PAINT_ROWS = 14;
  *  state (the skeleton, an empty inbox). The list is virtualized, so only the
  *  lines near the screen are mounted, whatever the account holds. */
 type InboxListItem =
-  | { kind: 'header'; key: string; section: string; label: string; color?: string; count: number; collapsed: boolean }
-  | { kind: 'row'; key: string; session: InboxSession }
-  | { kind: 'node'; key: string; node: ReactNode };
+  | {
+      kind: "header";
+      key: string;
+      section: string;
+      label: string;
+      color?: string;
+      count: number;
+      collapsed: boolean;
+    }
+  | { kind: "row"; key: string; session: InboxSession }
+  | { kind: "node"; key: string; node: ReactNode };
 
 const inboxItemKey = (item: InboxListItem) => item.key;
 
 /** The inbox list. The tab shows it whole; a conversation's slide-out panel
  *  shows it as `panel`, where a row opens in place of the conversation
  *  (`onOpenSession`) and `currentId`'s row is marked as the one on screen. */
-export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
+export function InboxView({
+  panel = false,
+  currentId,
+  onOpenSession,
+  onExit,
+}: {
   panel?: boolean;
   currentId?: string;
   onOpenSession?: (conversationId: string, messageId?: string) => void;
   /** The panel's title leaves for the inbox tab. */
   onExit?: () => void;
 } = {}) {
-  if (PERF_PROBE) probeRender('InboxView');
+  if (PERF_PROBE) probeRender("InboxView");
   const Theme = useTheme();
   // Both list memos below bake palette values into React nodes.
   const appearance = useAppearanceKey();
   const [showStashed, setShowStashed] = useState(false);
   const [showKilled, setShowKilled] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   // Search stays folded away until asked for: it opens from its icon or by
   // pulling the list down past its first row. Labels, projects and the view
   // lens live in the slide-out panel (components/inbox/InboxDrawer).
@@ -107,15 +182,27 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
   const isSearching = searchQuery.trim().length >= 2;
-  const openSession = useCallback((conversationId: string, messageId?: string) => {
-    if (onOpenSession) onOpenSession(conversationId, messageId);
-    else router.push(`/session/${conversationId}${messageId ? `?message=${messageId}` : ''}`);
-  }, [onOpenSession, router]);
+  const openSession = useCallback(
+    (conversationId: string, messageId?: string) => {
+      if (onOpenSession) onOpenSession(conversationId, messageId);
+      else
+        router.push(
+          `/session/${conversationId}${messageId ? `?message=${messageId}` : ""}`,
+        );
+    },
+    [onOpenSession, router],
+  );
 
   // The rows as the shared chokepoint places them (hooks/useInboxPlacement):
   // the same computation the slide-out panel's counts and web run. The body
   // reads the raw sessions map off the store at render, gated by sessionsSig.
-  const { placed, sessionsSig, coarseNow, currentSessionId, sessionsWithQueuedMessages } = useInboxPlacement();
+  const {
+    placed,
+    sessionsSig,
+    coarseNow,
+    currentSessionId,
+    sessionsWithQueuedMessages,
+  } = useInboxPlacement();
   const inboxPainted = useRef(false);
   useEffect(() => {
     if (inboxPainted.current) return;
@@ -150,7 +237,9 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   const killSessions = useInboxStore((s) => s.killSessions);
   const collapsedSections = useInboxStore((s) => s.collapsedSections);
   // The plan rows the "By plan" lens orders by: only while that lens is up.
-  const planRows = useInboxStore((s) => (resolveInboxViewMode(s.clientState.ui) === "plan" ? s.plans : null));
+  const planRows = useInboxStore((s) =>
+    resolveInboxViewMode(s.clientState.ui) === "plan" ? s.plans : null,
+  );
   const toggleCollapsedSection = useInboxStore((s) => s.toggleCollapsedSection);
   const activeProjectFilter = useInboxStore((s) => s.activeProjectFilter);
   const setActiveProjectFilter = useInboxStore((s) => s.setActiveProjectFilter);
@@ -163,27 +252,62 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // Scalars off clientState, never the whole singleton — it churns on every
   // draft keystroke synced from any device. inbox_manual_order is an array, so
   // its wake rides a stringified key (ref may flip without content change).
-  const viewMode = useInboxStore((s) => resolveInboxViewMode(s.clientState?.ui));
-  const showSubagents = useInboxStore((s) => resolveShowSubagents(s.clientState?.ui));
-  const manualOrderKey = useInboxStore((s) => JSON.stringify(s.clientState?.ui?.inbox_manual_order ?? null));
-  const bucketByConv = useMemo(() => convBucketMap(bucketAssignments), [bucketAssignments]);
+  const viewMode = useInboxStore((s) =>
+    resolveInboxViewMode(s.clientState?.ui),
+  );
+  const showSubagents = useInboxStore((s) =>
+    resolveShowSubagents(s.clientState?.ui),
+  );
+  const manualOrderKey = useInboxStore((s) =>
+    JSON.stringify(s.clientState?.ui?.inbox_manual_order ?? null),
+  );
+  const bucketByConv = useMemo(
+    () => convBucketMap(bucketAssignments),
+    [bucketAssignments],
+  );
 
-  const { visibleSessions, sorted: sortedAll, subsByParent, questions, pinned, newSessions, needsInput, done, dormant, working, stashed: stashedSessions, dismissed: dismissedOnly, roleSessionsByLead } = placed;
-  const activeSessions = useMemo(() => sortedAll.filter((s) => !s.is_deferred), [sortedAll]);
+  const {
+    visibleSessions,
+    sorted: sortedAll,
+    subsByParent,
+    questions,
+    pinned,
+    newSessions,
+    needsInput,
+    done,
+    dormant,
+    working,
+    stashed: stashedSessions,
+    dismissed: dismissedOnly,
+    roleSessionsByLead,
+  } = placed;
+  const activeSessions = useMemo(
+    () => sortedAll.filter((s) => !s.is_deferred),
+    [sortedAll],
+  );
   // The number beside the title, in the attention colour: how much is open.
   const headerCount = activeSessions.length;
 
-  const chipMatches = useCallback((s: InboxSession) =>
-    chipMatchesSession(s, {
-      projectFilters: activeProjectFilter ? [{ id: activeProjectFilter, path: null, exclude: false }] : undefined,
-      bucketFilters: activeBucketFilter ? [{ id: activeBucketFilter, exclude: false }] : undefined,
-      bucketByConv,
-    }),
-    [activeProjectFilter, activeBucketFilter, bucketByConv]);
-  const chipFilter = useCallback((items: InboxSession[]) => {
-    if (!activeProjectFilter && !activeBucketFilter) return items;
-    return items.filter(chipMatches);
-  }, [activeProjectFilter, activeBucketFilter, chipMatches]);
+  const chipMatches = useCallback(
+    (s: InboxSession) =>
+      chipMatchesSession(s, {
+        projectFilters: activeProjectFilter
+          ? [{ id: activeProjectFilter, path: null, exclude: false }]
+          : undefined,
+        bucketFilters: activeBucketFilter
+          ? [{ id: activeBucketFilter, exclude: false }]
+          : undefined,
+        bucketByConv,
+      }),
+    [activeProjectFilter, activeBucketFilter, bucketByConv],
+  );
+  const chipFilter = useCallback(
+    (items: InboxSession[]) => {
+      if (!activeProjectFilter && !activeBucketFilter) return items;
+      return items.filter(chipMatches);
+    },
+    [activeProjectFilter, activeBucketFilter, chipMatches],
+  );
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
@@ -194,8 +318,8 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   }, []);
 
   const clearSearch = useCallback(() => {
-    setSearchQuery('');
-    setDebouncedQuery('');
+    setSearchQuery("");
+    setDebouncedQuery("");
   }, []);
 
   const closeSearch = useCallback(() => {
@@ -203,36 +327,59 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
     setSearchOpen(false);
   }, [clearSearch]);
 
-  const handleStash = useCallback((conversationId: string) => {
-    stashSession(conversationId);
-  }, [stashSession]);
+  const handleStash = useCallback(
+    (conversationId: string) => {
+      stashSession(conversationId);
+    },
+    [stashSession],
+  );
 
   // Close: done looking at it, the web card's one remove (store closeSession).
   // A turn in progress is set aside and finishes; anything else stops and
   // files under Closed, keeping its triggers and queued messages.
-  const handleClose = useCallback((conversationId: string) => {
-    closeSession(conversationId);
-  }, [closeSession]);
+  const handleClose = useCallback(
+    (conversationId: string) => {
+      closeSession(conversationId);
+    },
+    [closeSession],
+  );
 
-  const handleRestore = useCallback((conversationId: string) => {
-    restoreSession(conversationId);
-  }, [restoreSession]);
+  const handleRestore = useCallback(
+    (conversationId: string) => {
+      restoreSession(conversationId);
+    },
+    [restoreSession],
+  );
 
-  const handlePin = useCallback((conversationId: string) => {
-    pinSession(conversationId);
-  }, [pinSession]);
+  const handlePin = useCallback(
+    (conversationId: string) => {
+      pinSession(conversationId);
+    },
+    [pinSession],
+  );
 
   // A single kill waits behind the undo bar (lib/undoBar) and stops the agent
   // only when the bar drains, so Undo takes it back whole. Until then the row
   // stays where it is, dimmed.
   const heldKillId = useUndoBar((s) => s.heldKillId);
 
-  const confirmKillAllStashed = useCallback((ids: string[]) => {
-    appAlert('Kill all stashed', `Stop every stashed session? (${ids.length})`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Kill', style: 'destructive', onPress: () => killSessions(ids) },
-    ]);
-  }, [killSessions]);
+  const confirmKillAllStashed = useCallback(
+    (ids: string[]) => {
+      appAlert(
+        "Kill all stashed",
+        `Stop every stashed session? (${ids.length})`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Kill",
+            style: "destructive",
+            onPress: () => killSessions(ids),
+          },
+        ],
+      );
+    },
+    [killSessions],
+  );
 
   // Label filing — the web session-card context menu's "label" half. Picks from
   // existing labels (tap the current one to unfile), creates on the fly, all
@@ -242,44 +389,54 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
     const labels = sortLabels(store.buckets);
     const current = convBucketMap(store.bucketAssignments)[session._id];
     const pick = (bucket: BucketItem) =>
-      store.assignSessionToBucket(session._id, bucket._id === current ? null : bucket._id);
-    const createAndAssign = () => appPrompt('New label', {
-      placeholder: 'Name',
-      confirm: 'Create',
-      onSubmit: (name) => {
-        const trimmed = name.trim();
-        if (!trimmed) return;
-        const attemptCreate = async () => {
-          try {
-            await useInboxStore.getState().createBucket(
-              { name: trimmed },
-              {
-                version: 1,
-                kind: "assignBucket",
-                conversationIds: [session._id],
-              },
-            );
-          } catch (error) {
-            if (mobileCreateFailureDisposition(error) === "accepted-pending") {
-              showNotice('Label queued until CodeCast reconnects');
-              return;
+      store.assignSessionToBucket(
+        session._id,
+        bucket._id === current ? null : bucket._id,
+      );
+    const createAndAssign = () =>
+      appPrompt("New label", {
+        placeholder: "Name",
+        confirm: "Create",
+        onSubmit: (name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return;
+          const attemptCreate = async () => {
+            try {
+              await useInboxStore.getState().createBucket(
+                { name: trimmed },
+                {
+                  version: 1,
+                  kind: "assignBucket",
+                  conversationIds: [session._id],
+                },
+              );
+            } catch (error) {
+              if (
+                mobileCreateFailureDisposition(error) === "accepted-pending"
+              ) {
+                showNotice("Label queued until CodeCast reconnects");
+                return;
+              }
+              appAlert(
+                "Couldn't create label",
+                mobileCreateErrorMessage("label", error),
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Retry", onPress: () => void attemptCreate() },
+                ],
+              );
             }
-            appAlert(
-              "Couldn't create label",
-              mobileCreateErrorMessage("label", error),
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Retry', onPress: () => void attemptCreate() },
-              ],
-            );
-          }
-        };
-        void attemptCreate();
-      },
-    });
-    showActionSheet('Label', [
-      ...labels.map((b) => ({ label: b.name, selected: b._id === current, onPress: () => pick(b) })),
-      { label: 'New label…', onPress: createAndAssign },
+          };
+          void attemptCreate();
+        },
+      });
+    showActionSheet("Label", [
+      ...labels.map((b) => ({
+        label: b.name,
+        selected: b._id === current,
+        onPress: () => pick(b),
+      })),
+      { label: "New label…", onPress: createAndAssign },
     ]);
   }, []);
 
@@ -287,38 +444,80 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // when it would cut a turn off or cancel a trigger or a queued message (the
   // web's kill review, as an alert), else goes behind the undo bar.
   const reviewedKillOf = useCallback((session: InboxSession) => {
-    const tasks = Object.values(useInboxStore.getState().agentTasks ?? {}) as TaskRow[];
+    const tasks = Object.values(
+      useInboxStore.getState().agentTasks ?? {},
+    ) as TaskRow[];
     reviewedKill(session as any, tasks, {
       hold: holdKill,
-      ask: (review, confirm) => appAlert(review.title, review.message, [
-        { text: review.keep, style: 'cancel' },
-        { text: review.confirm, style: 'destructive', onPress: confirm },
-      ]),
+      ask: (review, confirm) =>
+        appAlert(review.title, review.message, [
+          { text: review.keep, style: "cancel" },
+          { text: review.confirm, style: "destructive", onPress: confirm },
+        ]),
     });
   }, []);
 
-  const handleSessionLongPress = useCallback((session: InboxSession) => {
-    const favoriteLabel = session.is_favorite ? 'Unfavorite' : 'Favorite';
-    const toggleFavorite = () => useInboxStore.getState().toggleFavorite(session._id);
-    // Same verb as the web card's right-click menu, same store action, so the
-    // dot the phone lights is the dot the desktop shows.
-    const markUnread = () => useInboxStore.getState().markSessionUnread(session._id);
-    // The web menu's "Hide from team": only on the viewer's own session while a
-    // team can see it. The store action records its own Undo on the bar.
-    const store = useInboxStore.getState();
-    const canHide = session.is_private === false && !!session.team_id && session.user_id === store.currentUser?._id;
-    const kill = () => reviewedKillOf(session);
-    showActionSheet(sessionTitle(session), [
-      { label: 'Close', detail: closeDetail(session, store as any, Date.now()), icon: 'x', onPress: () => handleClose(session._id) },
-      { label: session.is_pinned ? 'Unpin' : 'Pin', icon: 'map-pin', onPress: () => handlePin(session._id) },
-      { label: favoriteLabel, icon: 'star', onPress: toggleFavorite },
-      { label: 'Mark unread', icon: 'circle', onPress: markUnread },
-      { label: 'Label…', icon: 'tag', onPress: () => openLabelPicker(session) },
-      ...(canHide ? [{ label: 'Hide from team', icon: 'lock', onPress: () => useInboxStore.getState().setPrivacy(session._id, true) } satisfies SheetItem] : []),
-      { label: 'Stash', icon: 'archive', onPress: () => handleStash(session._id) },
-      { label: 'Kill session', icon: 'x-octagon', destructive: true, onPress: kill },
-    ]);
-  }, [handlePin, handleStash, handleClose, openLabelPicker, reviewedKillOf]);
+  const handleSessionLongPress = useCallback(
+    (session: InboxSession) => {
+      const favoriteLabel = session.is_favorite ? "Unfavorite" : "Favorite";
+      const toggleFavorite = () =>
+        useInboxStore.getState().toggleFavorite(session._id);
+      // Same verb as the web card's right-click menu, same store action, so the
+      // dot the phone lights is the dot the desktop shows.
+      const markUnread = () =>
+        useInboxStore.getState().markSessionUnread(session._id);
+      // The web menu's "Hide from team": only on the viewer's own session while a
+      // team can see it. The store action records its own Undo on the bar.
+      const store = useInboxStore.getState();
+      const canHide =
+        session.is_private === false &&
+        !!session.team_id &&
+        session.user_id === store.currentUser?._id;
+      const kill = () => reviewedKillOf(session);
+      showActionSheet(sessionTitle(session), [
+        {
+          label: "Close",
+          detail: closeDetail(session, store as any, Date.now()),
+          icon: "x",
+          onPress: () => handleClose(session._id),
+        },
+        {
+          label: session.is_pinned ? "Unpin" : "Pin",
+          icon: "map-pin",
+          onPress: () => handlePin(session._id),
+        },
+        { label: favoriteLabel, icon: "star", onPress: toggleFavorite },
+        { label: "Mark unread", icon: "circle", onPress: markUnread },
+        {
+          label: "Label…",
+          icon: "tag",
+          onPress: () => openLabelPicker(session),
+        },
+        ...(canHide
+          ? [
+              {
+                label: "Hide from team",
+                icon: "lock",
+                onPress: () =>
+                  useInboxStore.getState().setPrivacy(session._id, true),
+              } satisfies SheetItem,
+            ]
+          : []),
+        {
+          label: "Stash",
+          icon: "archive",
+          onPress: () => handleStash(session._id),
+        },
+        {
+          label: "Kill session",
+          icon: "x-octagon",
+          destructive: true,
+          onPress: kill,
+        },
+      ]);
+    },
+    [handlePin, handleStash, handleClose, openLabelPicker, reviewedKillOf],
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -340,28 +539,49 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // Read here once for every row (components/SessionItem InboxRowEnv).
   const reviveByConv = useInboxStore((s) => s.blockedReviveRequestedAt);
 
-  const openRole = useCallback((roleShortId: string) => router.push(`/org/${roleShortId}`), [router]);
+  const openRole = useCallback(
+    (roleShortId: string) => router.push(`/org/${roleShortId}`),
+    [router],
+  );
 
-  const renderSessionItem = useCallback((s: InboxSession) => {
-    const row = (
-    <SwipeableSessionItem
-      key={s._id}
-      session={s as SessionData}
-      isUnread={!!unreadByConv[s._id]}
-      selected={currentId === s._id}
-      onPress={openSession}
-      onClose={handleClose}
-      onLongPress={handleSessionLongPress as (session: SessionData) => void}
-      roleSessions={roleSessionsByLead.get(s._id)}
-      onOpenRole={openRole}
-      clock={rowMinute}
-      reviveAt={reviveByConv[s._id]}
-    />
-    );
-    return s._id === heldKillId
-      ? <RNView key={s._id} style={styles.heldKill} pointerEvents="none">{row}</RNView>
-      : row;
-  }, [openSession, currentId, handleClose, handleSessionLongPress, openRole, rowMinute, reviveByConv, unreadByConv, roleSessionsByLead, heldKillId]);
+  const renderSessionItem = useCallback(
+    (s: InboxSession) => {
+      const row = (
+        <SwipeableSessionItem
+          key={s._id}
+          session={s as SessionData}
+          isUnread={!!unreadByConv[s._id]}
+          selected={currentId === s._id}
+          onPress={openSession}
+          onClose={handleClose}
+          onLongPress={handleSessionLongPress as (session: SessionData) => void}
+          roleSessions={roleSessionsByLead.get(s._id)}
+          onOpenRole={openRole}
+          clock={rowMinute}
+          reviveAt={reviveByConv[s._id]}
+        />
+      );
+      return s._id === heldKillId ? (
+        <RNView key={s._id} style={styles.heldKill} pointerEvents="none">
+          {row}
+        </RNView>
+      ) : (
+        row
+      );
+    },
+    [
+      openSession,
+      currentId,
+      handleClose,
+      handleSessionLongPress,
+      openRole,
+      rowMinute,
+      reviveByConv,
+      unreadByConv,
+      roleSessionsByLead,
+      heldKillId,
+    ],
+  );
 
   // Collapsible section — collapse state lives in the shared store's
   // collapsedSections. Grouped-view sections keep their historical label keys;
@@ -370,49 +590,107 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // `count` is the chokepoint's section count (flat cards plus members nested
   // under a same-bucket lead) — the header number web, the tally and the CLI
   // agree on; items.length is only the flat cards.
-  const renderSection = useCallback((label: string, items: InboxSession[], color?: string, collapseKey?: string, count?: number): InboxListItem[] => {
-    if (items.length === 0) return [];
-    const key = collapseKey ?? label;
-    const collapsed = !!collapsedSections?.[key];
-    const out: InboxListItem[] = [{ kind: 'header', key: `h:${key}`, section: key, label, color, count: count ?? items.length, collapsed }];
-    if (!collapsed) for (const session of items) out.push({ kind: 'row', key: `${key}:${session._id}`, session });
-    return out;
-  }, [collapsedSections]);
+  const renderSection = useCallback(
+    (
+      label: string,
+      items: InboxSession[],
+      color?: string,
+      collapseKey?: string,
+      count?: number,
+    ): InboxListItem[] => {
+      if (items.length === 0) return [];
+      const key = collapseKey ?? label;
+      const collapsed = !!collapsedSections?.[key];
+      const out: InboxListItem[] = [
+        {
+          kind: "header",
+          key: `h:${key}`,
+          section: key,
+          label,
+          color,
+          count: count ?? items.length,
+          collapsed,
+        },
+      ];
+      if (!collapsed)
+        for (const session of items)
+          out.push({ kind: "row", key: `${key}:${session._id}`, session });
+      return out;
+    },
+    [collapsedSections],
+  );
 
   // One heading for every lens: sentence case in the interface face, muted
   // ink, the count beside it, and a dot in the section's colour.
-  const renderListItem = useCallback<ListRenderItem<InboxListItem>>(({ item }) => {
-    if (item.kind === 'row') return renderSessionItem(item.session);
-    if (item.kind === 'node') return <>{item.node}</>;
-    const { section, label, color, count, collapsed } = item;
-    return (
-      <TouchableOpacity
-        style={styles.sectionHeader}
-        onPress={() => { void Haptics.selectionAsync(); toggleCollapsedSection(section); }}
-        activeOpacity={0.6}
-        accessibilityRole="header"
-        accessibilityState={{ expanded: !collapsed }}
-      >
-        {color ? <RNView style={[styles.sectionDot, { backgroundColor: color }]} /> : null}
-        <RNText style={styles.sectionTitle}>{label}</RNText>
-        <RNText style={styles.sectionCount}>{count}</RNText>
-        <Feather name={collapsed ? "chevron-right" : "chevron-down"} size={15} color={Theme.textMuted0} style={{ marginLeft: 'auto' }} />
-      </TouchableOpacity>
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- appearance re-reads the palette baked into the heading
-  }, [renderSessionItem, toggleCollapsedSection, appearance]);
+  const renderListItem = useCallback<ListRenderItem<InboxListItem>>(
+    ({ item }) => {
+      if (item.kind === "row") return renderSessionItem(item.session);
+      if (item.kind === "node") return <>{item.node}</>;
+      const { section, label, color, count, collapsed } = item;
+      return (
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            toggleCollapsedSection(section);
+          }}
+          activeOpacity={0.6}
+          accessibilityRole="header"
+          accessibilityState={{ expanded: !collapsed }}
+        >
+          {color ? (
+            <RNView style={[styles.sectionDot, { backgroundColor: color }]} />
+          ) : null}
+          <RNText style={styles.sectionTitle}>{label}</RNText>
+          <RNText style={styles.sectionCount}>{count}</RNText>
+          <Feather
+            name={collapsed ? "chevron-right" : "chevron-down"}
+            size={15}
+            color={Theme.textMuted0}
+            style={{ marginLeft: "auto" }}
+          />
+        </TouchableOpacity>
+      );
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- appearance re-reads the palette baked into the heading
+    },
+    [renderSessionItem, toggleCollapsedSection, appearance],
+  );
 
-  const filteredPinned = useMemo(() => chipFilter(pinned), [chipFilter, pinned]);
-  const filteredNew = useMemo(() => chipFilter(newSessions), [chipFilter, newSessions]);
-  const filteredNeedsInput = useMemo(() => chipFilter(needsInput), [chipFilter, needsInput]);
+  const filteredPinned = useMemo(
+    () => chipFilter(pinned),
+    [chipFilter, pinned],
+  );
+  const filteredNew = useMemo(
+    () => chipFilter(newSessions),
+    [chipFilter, newSessions],
+  );
+  const filteredNeedsInput = useMemo(
+    () => chipFilter(needsInput),
+    [chipFilter, needsInput],
+  );
   const filteredDone = useMemo(() => chipFilter(done), [chipFilter, done]);
-  const filteredDormant = useMemo(() => chipFilter(dormant), [chipFilter, dormant]);
-  const filteredWorking = useMemo(() => chipFilter(working), [chipFilter, working]);
-  const filteredStashed = useMemo(() => chipFilter(stashedSessions), [chipFilter, stashedSessions]);
+  const filteredDormant = useMemo(
+    () => chipFilter(dormant),
+    [chipFilter, dormant],
+  );
+  const filteredWorking = useMemo(
+    () => chipFilter(working),
+    [chipFilter, working],
+  );
+  const filteredStashed = useMemo(
+    () => chipFilter(stashedSessions),
+    [chipFilter, stashedSessions],
+  );
   // A stashed card's subagents ride it: they open from its conversation, and
   // "Kill all" names only the rows a kill does not already take down.
-  const stashedCards = useMemo(() => hiddenBucketTree(filteredStashed).topLevel, [filteredStashed]);
-  const filteredKilled = useMemo(() => chipFilter(dismissedOnly), [chipFilter, dismissedOnly]);
+  const stashedCards = useMemo(
+    () => hiddenBucketTree(filteredStashed).topLevel,
+    [filteredStashed],
+  );
+  const filteredKilled = useMemo(
+    () => chipFilter(dismissedOnly),
+    [chipFilter, dismissedOnly],
+  );
 
   // Schedules in the inbox (mirrors GlobalSessionPanel). The same per-user
   // webList the badges/dock subscribe to (Convex dedupes), partitioned into one
@@ -423,22 +701,36 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // Store-fed (StoreSyncBridge mounts useSyncTriggers): the schedule rows
   // paint from the cached roster at boot instead of waiting a round-trip.
   const { tasks: scheduleTaskRows, ready: schedulesReady } = useTriggers();
-  const scheduleTasks = (schedulesReady || scheduleTaskRows.length > 0 ? scheduleTaskRows : undefined) as TaskRow[] | undefined;
-  const schedulesSeenAt = useInboxStore((s) => s.clientState?.ui?.schedules_seen_at ?? 0);
+  const scheduleTasks = (
+    schedulesReady || scheduleTaskRows.length > 0 ? scheduleTaskRows : undefined
+  ) as TaskRow[] | undefined;
+  const schedulesSeenAt = useInboxStore(
+    (s) => s.clientState?.ui?.schedules_seen_at ?? 0,
+  );
   const schedulePartition = useMemo(
-    () => partitionTriggerInbox(scheduleTasks, visibleSessions, {
+    () =>
+      partitionTriggerInbox(scheduleTasks, visibleSessions, {
+        sessionsWithQueuedMessages,
+        seenAt: schedulesSeenAt,
+        focusedId: currentSessionId,
+      }),
+    [
+      scheduleTasks,
+      visibleSessions,
       sessionsWithQueuedMessages,
-      seenAt: schedulesSeenAt,
-      focusedId: currentSessionId,
-    }),
-    [scheduleTasks, visibleSessions, sessionsWithQueuedMessages, schedulesSeenAt, currentSessionId],
+      schedulesSeenAt,
+      currentSessionId,
+    ],
   );
   // Trigger absorption is no longer a client pass (sync-convergence C5): an
   // armed inject trigger or a live loop parks its home in DORMANT as data
   // (armed_trigger_kind / loop_state reach the shared classifier inside the
   // chokepoint), identically on web, mobile and the server. QUESTIONS renders
   // ahead of Needs You — same lift web ships; it was missing here.
-  const filteredQuestions = useMemo(() => chipFilter(questions), [chipFilter, questions]);
+  const filteredQuestions = useMemo(
+    () => chipFilter(questions),
+    [chipFilter, questions],
+  );
   const statusNeedsInput = filteredNeedsInput;
   const statusDone = filteredDone;
   const statusDormant = filteredDormant;
@@ -454,24 +746,42 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
       // taken. Once the live payload has arrived, an empty collection is a
       // real empty account — not an eternal skeleton.
       if (!hydrated || sessionsFirstLoad !== false) {
-        return [{ kind: 'node', key: 'skeleton', node: <SessionListSkeleton /> }];
+        return [
+          { kind: "node", key: "skeleton", node: <SessionListSkeleton /> },
+        ];
       }
-      return [{ kind: 'node', key: 'empty', node: (
-        <RNView style={styles.emptyInbox}>
-          <FontAwesome name="inbox" size={32} color={Theme.textMuted0} />
-          <RNText style={styles.emptyText}>No sessions yet</RNText>
-          <RNText style={styles.emptySubtext}>Sessions you run with the codecast CLI will appear here</RNText>
-        </RNView>
-      ) }];
+      return [
+        {
+          kind: "node",
+          key: "empty",
+          node: (
+            <RNView style={styles.emptyInbox}>
+              <FontAwesome name="inbox" size={32} color={Theme.textMuted0} />
+              <RNText style={styles.emptyText}>No sessions yet</RNText>
+              <RNText style={styles.emptySubtext}>
+                Sessions you run with the codecast CLI will appear here
+              </RNText>
+            </RNView>
+          ),
+        },
+      ];
     }
     if (activeSessions.length === 0) {
-      return [{ kind: 'node', key: 'empty', node: (
-        <RNView style={styles.emptyInbox}>
-          <FontAwesome name="inbox" size={32} color={Theme.textMuted0} />
-          <RNText style={styles.emptyText}>Inbox zero</RNText>
-          <RNText style={styles.emptySubtext}>All sessions stashed, closed, or idle</RNText>
-        </RNView>
-      ) }];
+      return [
+        {
+          kind: "node",
+          key: "empty",
+          node: (
+            <RNView style={styles.emptyInbox}>
+              <FontAwesome name="inbox" size={32} color={Theme.textMuted0} />
+              <RNText style={styles.emptyText}>Inbox zero</RNText>
+              <RNText style={styles.emptySubtext}>
+                All sessions stashed, closed, or idle
+              </RNText>
+            </RNView>
+          ),
+        },
+      ];
     }
     const countOf = (shown: InboxSession[], full: InboxSession[], n: number) =>
       sectionHeaderCount(shown, full, n, showSubagents);
@@ -483,7 +793,8 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
         mode: viewMode,
         showSubagents,
         focusedId: currentSessionId,
-        manualOrder: useInboxStore.getState().clientState?.ui?.inbox_manual_order,
+        manualOrder:
+          useInboxStore.getState().clientState?.ui?.inbox_manual_order,
         chipMatches,
       });
       return renderSection("All", flat, Theme.cyan, "all");
@@ -492,132 +803,297 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
     // not theme); the active set regroups by label or plan, with unfiled
     // sessions falling to auto-derived project groups — exactly web's layout.
     if (viewMode === "bucket" || viewMode === "plan") {
-      const active = [...filteredQuestions, ...filteredNew, ...statusNeedsInput, ...statusDone, ...filteredDormant, ...statusWorking];
-    sections.push(renderSection("Pinned", filteredPinned, Theme.magenta));
+      const active = [
+        ...filteredQuestions,
+        ...filteredNew,
+        ...statusNeedsInput,
+        ...statusDone,
+        ...filteredDormant,
+        ...statusWorking,
+      ];
+      sections.push(renderSection("Pinned", filteredPinned, Theme.magenta));
       if (viewMode === "bucket") {
-        const { labelGroups, projectGroups } = groupSessionsForLabelView(active, buckets, bucketByConv);
+        const { labelGroups, projectGroups } = groupSessionsForLabelView(
+          active,
+          buckets,
+          bucketByConv,
+        );
         for (const { bucket, items } of labelGroups)
-          sections.push(renderSection(bucket.name, items, labelHexColor(bucket.name), `bucket_${bucket._id}`));
+          sections.push(
+            renderSection(
+              bucket.name,
+              items,
+              labelHexColor(bucket.name),
+              `bucket_${bucket._id}`,
+            ),
+          );
         for (const { name, items } of projectGroups)
-          sections.push(renderSection(name, items, name === "other" ? Theme.textMuted0 : labelHexColor(name), `bucketproj_${name}`));
+          sections.push(
+            renderSection(
+              name,
+              items,
+              name === "other" ? Theme.textMuted0 : labelHexColor(name),
+              `bucketproj_${name}`,
+            ),
+          );
       } else {
         const st = useInboxStore.getState();
-        const { planGroups, projectGroups } = groupSessionsByPlan(active, { plans: planRows ?? undefined, placements: placed.placements, sessions: st.sessions, now: coarseNow });
+        const { planGroups, projectGroups } = groupSessionsByPlan(active, {
+          plans: planRows ?? undefined,
+          placements: placed.placements,
+          sessions: st.sessions,
+          now: coarseNow,
+        });
         for (const { key, label, items } of planGroups)
           sections.push(renderSection(label, items, "#2dd4bf", `plan_${key}`));
         for (const { name, items } of projectGroups)
-          sections.push(renderSection(name, items, name === "other" ? Theme.textMuted0 : labelHexColor(name), `planproj_${name}`));
+          sections.push(
+            renderSection(
+              name,
+              items,
+              name === "other" ? Theme.textMuted0 : labelHexColor(name),
+              `planproj_${name}`,
+            ),
+          );
       }
       return sections.flat();
     }
     // Questions lead: a session that asked you something is your move before
     // anything else, pinned or not — same order as the web panel.
-    sections.push(renderSection('Decisions', filteredQuestions, Theme.violet, "questions"));
+    sections.push(
+      renderSection("Decisions", filteredQuestions, Theme.violet, "questions"),
+    );
     // The header number is the section COUNT while no chip narrows the list
     // and the nested rows are on screen; shared sectionHeaderCount, so this
     // inbox and the web panel can't drift.
-    sections.push(renderSection("Pinned", filteredPinned, Theme.magenta, undefined, countOf(filteredPinned, pinned, placed.counts.pinned)));
-    sections.push(renderSection('New', filteredNew, Theme.blue, "New", countOf(filteredNew, newSessions, placed.counts.newSessions)));
+    sections.push(
+      renderSection(
+        "Pinned",
+        filteredPinned,
+        Theme.magenta,
+        undefined,
+        countOf(filteredPinned, pinned, placed.counts.pinned),
+      ),
+    );
+    sections.push(
+      renderSection(
+        "New",
+        filteredNew,
+        Theme.blue,
+        "New",
+        countOf(filteredNew, newSessions, placed.counts.newSessions),
+      ),
+    );
     // Top-down "who acts next": you (Needs You, Done to review), the agent
     // (Working), a machine (Dormant) — same order as the web panel.
-    sections.push(renderSection('Needs You', statusNeedsInput, Theme.accent, "Needs You", countOf(statusNeedsInput, needsInput, placed.counts.needsInput)));
-    sections.push(renderSection("Done", statusDone, Theme.cyan, undefined, countOf(statusDone, done, placed.counts.done)));
-    sections.push(renderSection("Working", statusWorking, Theme.greenBright, undefined, countOf(statusWorking, working, placed.counts.working)));
-    sections.push(renderSection('Dormant', statusDormant, Theme.blue, "Dormant", countOf(statusDormant, dormant, placed.counts.dormant)));
+    sections.push(
+      renderSection(
+        "Needs You",
+        statusNeedsInput,
+        Theme.accent,
+        "Needs You",
+        countOf(statusNeedsInput, needsInput, placed.counts.needsInput),
+      ),
+    );
+    sections.push(
+      renderSection(
+        "Done",
+        statusDone,
+        Theme.cyan,
+        undefined,
+        countOf(statusDone, done, placed.counts.done),
+      ),
+    );
+    sections.push(
+      renderSection(
+        "Working",
+        statusWorking,
+        Theme.greenBright,
+        undefined,
+        countOf(statusWorking, working, placed.counts.working),
+      ),
+    );
+    sections.push(
+      renderSection(
+        "Dormant",
+        statusDormant,
+        Theme.blue,
+        "Dormant",
+        countOf(statusDormant, dormant, placed.counts.dormant),
+      ),
+    );
     return sections.flat();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sessionsSig gates the sessions map; manualOrderKey gates the getState() manual-order read
-  }, [activeSessions, sessionsSig, sessionsFirstLoad, hydrated, filteredQuestions, filteredPinned, statusWorking, statusNeedsInput, statusDone, statusDormant, filteredNew, renderSection, viewMode, sortedAll, subsByParent, showSubagents, manualOrderKey, currentSessionId, chipMatches, buckets, bucketByConv, placed.counts, pinned, newSessions, needsInput, done, dormant, working, appearance, unreadByConv, coarseNow, planRows, placed]);
+  }, [
+    activeSessions,
+    sessionsSig,
+    sessionsFirstLoad,
+    hydrated,
+    filteredQuestions,
+    filteredPinned,
+    statusWorking,
+    statusNeedsInput,
+    statusDone,
+    statusDormant,
+    filteredNew,
+    renderSection,
+    viewMode,
+    sortedAll,
+    subsByParent,
+    showSubagents,
+    manualOrderKey,
+    currentSessionId,
+    chipMatches,
+    buckets,
+    bucketByConv,
+    placed.counts,
+    pinned,
+    newSessions,
+    needsInput,
+    done,
+    dormant,
+    working,
+    appearance,
+    unreadByConv,
+    coarseNow,
+    planRows,
+    placed,
+  ]);
 
   // Stashed (agent alive, kill-all) and Closed buckets — the web panel's two
   // hidden sections, collapsed by default behind count toggles.
-  const ListFooter = useMemo(() => (
-    <RNView>
-      <TriggerDock
-        rows={schedulePartition.rows}
-        unreadCount={schedulePartition.unreadCount}
-        nextRunAt={schedulePartition.nextRunAt}
-      />
-      <RNView style={styles.hiddenToggleRow}>
-        <TouchableOpacity
-          style={styles.hiddenToggle}
-          onPress={() => setShowStashed(prev => !prev)}
-          activeOpacity={0.7}
-        >
-          <FontAwesome name={showStashed ? "chevron-up" : "chevron-down"} size={11} color={Theme.textMuted0} />
-          <RNText style={styles.dismissedToggleText}>Stashed <RNText style={styles.sectionCount}>{stashedCards.length}</RNText></RNText>
-        </TouchableOpacity>
-        <RNView style={styles.hiddenToggleDivider} />
-        <TouchableOpacity
-          style={styles.hiddenToggle}
-          onPress={() => setShowKilled(prev => !prev)}
-          activeOpacity={0.7}
-        >
-          <FontAwesome name={showKilled ? "chevron-up" : "chevron-down"} size={11} color={Theme.textMuted0} />
-          <RNText style={styles.dismissedToggleText}>Closed <RNText style={styles.sectionCount}>{filteredKilled.length}</RNText></RNText>
-        </TouchableOpacity>
+  const ListFooter = useMemo(
+    () => (
+      <RNView>
+        <TriggerDock
+          rows={schedulePartition.rows}
+          unreadCount={schedulePartition.unreadCount}
+          nextRunAt={schedulePartition.nextRunAt}
+        />
+        <RNView style={styles.hiddenToggleRow}>
+          <TouchableOpacity
+            style={styles.hiddenToggle}
+            onPress={() => setShowStashed((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name={showStashed ? "chevron-up" : "chevron-down"}
+              size={11}
+              color={Theme.textMuted0}
+            />
+            <RNText style={styles.dismissedToggleText}>
+              Stashed{" "}
+              <RNText style={styles.sectionCount}>{stashedCards.length}</RNText>
+            </RNText>
+          </TouchableOpacity>
+          <RNView style={styles.hiddenToggleDivider} />
+          <TouchableOpacity
+            style={styles.hiddenToggle}
+            onPress={() => setShowKilled((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            <FontAwesome
+              name={showKilled ? "chevron-up" : "chevron-down"}
+              size={11}
+              color={Theme.textMuted0}
+            />
+            <RNText style={styles.dismissedToggleText}>
+              Closed{" "}
+              <RNText style={styles.sectionCount}>
+                {filteredKilled.length}
+              </RNText>
+            </RNText>
+          </TouchableOpacity>
+        </RNView>
+        {showStashed && stashedCards.length > 0 && (
+          <TouchableOpacity
+            onPress={() => confirmKillAllStashed(killAllIds(filteredStashed))}
+            style={styles.killAllBtn}
+            activeOpacity={0.7}
+          >
+            <RNText style={styles.killAllText}>Kill all stashed</RNText>
+          </TouchableOpacity>
+        )}
+        {showStashed && (
+          <RNView style={styles.dismissedSection}>
+            {stashedCards.length === 0 ? (
+              <RNText style={styles.dismissedEmpty}>No stashed sessions</RNText>
+            ) : (
+              stashedCards.map((s) => (
+                <HiddenSessionRow
+                  key={s._id}
+                  session={s as SessionData}
+                  variant="stashed"
+                  onPress={() => openSession(s._id)}
+                  onRestore={() => handleRestore(s._id)}
+                  onKill={() => reviewedKillOf(s)}
+                  held={heldKillId === s._id}
+                />
+              ))
+            )}
+          </RNView>
+        )}
+        {showKilled && (
+          <RNView style={styles.dismissedSection}>
+            {filteredKilled.length === 0 ? (
+              <RNText style={styles.dismissedEmpty}>No closed sessions</RNText>
+            ) : (
+              filteredKilled
+                .slice(0, 100)
+                .map((s) => (
+                  <HiddenSessionRow
+                    key={s._id}
+                    session={s as SessionData}
+                    variant="closed"
+                    onPress={() => openSession(s._id)}
+                    onRestore={() => handleRestore(s._id)}
+                  />
+                ))
+            )}
+            {filteredKilled.length > 100 && (
+              <RNText style={styles.dismissedEmpty}>
+                +{filteredKilled.length - 100} more
+              </RNText>
+            )}
+          </RNView>
+        )}
       </RNView>
-      {showStashed && stashedCards.length > 0 && (
-        <TouchableOpacity
-          onPress={() => confirmKillAllStashed(killAllIds(filteredStashed))}
-          style={styles.killAllBtn}
-          activeOpacity={0.7}
-        >
-          <RNText style={styles.killAllText}>Kill all stashed</RNText>
-        </TouchableOpacity>
-      )}
-      {showStashed && (
-        <RNView style={styles.dismissedSection}>
-          {stashedCards.length === 0 ? (
-            <RNText style={styles.dismissedEmpty}>No stashed sessions</RNText>
-          ) : (
-            stashedCards.map(s => (
-              <HiddenSessionRow
-                key={s._id}
-                session={s as SessionData}
-                variant="stashed"
-                onPress={() => openSession(s._id)}
-                onRestore={() => handleRestore(s._id)}
-                onKill={() => reviewedKillOf(s)}
-                held={heldKillId === s._id}
-              />
-            ))
-          )}
-        </RNView>
-      )}
-      {showKilled && (
-        <RNView style={styles.dismissedSection}>
-          {filteredKilled.length === 0 ? (
-            <RNText style={styles.dismissedEmpty}>No closed sessions</RNText>
-          ) : (
-            filteredKilled.slice(0, 100).map(s => (
-              <HiddenSessionRow
-                key={s._id}
-                session={s as SessionData}
-                variant="closed"
-                onPress={() => openSession(s._id)}
-                onRestore={() => handleRestore(s._id)}
-              />
-            ))
-          )}
-          {filteredKilled.length > 100 && (
-            <RNText style={styles.dismissedEmpty}>+{filteredKilled.length - 100} more</RNText>
-          )}
-        </RNView>
-      )}
-    </RNView>
-  ), [schedulePartition, showStashed, showKilled, filteredStashed, stashedCards, filteredKilled, openSession, handleRestore, confirmKillAllStashed, heldKillId, appearance, reviewedKillOf]);
+    ),
+    [
+      schedulePartition,
+      showStashed,
+      showKilled,
+      filteredStashed,
+      stashedCards,
+      filteredKilled,
+      openSession,
+      handleRestore,
+      confirmKillAllStashed,
+      heldKillId,
+      appearance,
+      reviewedKillOf,
+    ],
+  );
 
   // What the inbox is narrowed to, named in the title: a label or a project
   // picked in the slide-out panel. The clear mark beside it goes back to all.
-  const filterBucket = activeBucketFilter ? buckets[activeBucketFilter] : undefined;
+  const filterBucket = activeBucketFilter
+    ? buckets[activeBucketFilter]
+    : undefined;
   const filterName = filterBucket?.name ?? activeProjectFilter ?? null;
-  const filterColor = filterBucket ? labelHexColor(filterBucket.name) : activeProjectFilter ? projectColor(activeProjectFilter) : undefined;
+  const filterColor = filterBucket
+    ? labelHexColor(filterBucket.name)
+    : activeProjectFilter
+      ? projectColor(activeProjectFilter)
+      : undefined;
   const clearFilter = useCallback(() => {
     void Haptics.selectionAsync();
     setActiveBucketFilter(null);
     setActiveProjectFilter(null);
   }, [setActiveBucketFilter, setActiveProjectFilter]);
-  const shownCount = filterName ? chipFilter(activeSessions).length : headerCount;
+  const shownCount = filterName
+    ? chipFilter(activeSessions).length
+    : headerCount;
 
   // Pull-to-reveal: the list opens scrolled past a search row that sits above
   // its first section, so a short pull shows it and a longer one refreshes.
@@ -628,354 +1104,429 @@ export function InboxView({ panel = false, currentId, onOpenSession, onExit }: {
   // short list would open with the search row showing. Tuck it once the list
   // has a height, and again whenever a new filter replaces the rows.
   useEffect(() => {
-    if (listHeight > 0 && !searchOpen) listRef.current?.scrollToOffset({ offset: SEARCH_REVEAL_HEIGHT, animated: false });
+    if (listHeight > 0 && !searchOpen)
+      listRef.current?.scrollToOffset({
+        offset: SEARCH_REVEAL_HEIGHT,
+        animated: false,
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-tuck on measure and on a filter change only
   }, [listHeight > 0, activeProjectFilter, activeBucketFilter]);
 
   return (
     <InboxRowEnvProvider>
-    <SafeAreaView style={styles.container} edges={panel ? ['top', 'bottom', 'left'] : ['top']}>
-      <RNView style={styles.header}>
-        {panel ? <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => { void Haptics.selectionAsync(); onExit?.(); }}
-          activeOpacity={0.6}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-          accessibilityRole="button"
-          accessibilityLabel="Open the full inbox"
-        >
-          <Feather name="maximize-2" size={19} color={Theme.text} />
-        </TouchableOpacity> : <TouchableOpacity
-          style={styles.menuBtn}
-          onPress={() => { void Haptics.selectionAsync(); setInboxDrawerOpen(true); }}
-          activeOpacity={0.6}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-          accessibilityRole="button"
-          accessibilityLabel="Projects, labels and views"
-        >
-          <Feather name="menu" size={21} color={Theme.text} />
-        </TouchableOpacity>}
-        {filterName ? (
-          <RNView style={styles.filterTitle}>
-            <RNView style={[styles.filterDot, { backgroundColor: filterColor }]} />
-            <RNText style={[styles.headerTitle, styles.headerTitleShrink]} numberOfLines={1} onPress={panel ? onExit : () => setInboxDrawerOpen(true)}>{filterName}</RNText>
-            {shownCount > 0 && !isSearching && <RNText style={styles.headerCount}>{shownCount}</RNText>}
-            <TouchableOpacity onPress={clearFilter} hitSlop={10} accessibilityLabel="Show all sessions">
-              <Feather name="x-circle" size={17} color={Theme.textMuted0} />
+      <SafeAreaView
+        style={styles.container}
+        edges={panel ? ["top", "bottom", "left"] : ["top"]}
+      >
+        <RNView style={styles.header}>
+          {panel ? (
+            <TouchableOpacity
+              style={styles.menuBtn}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                onExit?.();
+              }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Open the full inbox"
+            >
+              <Feather name="maximize-2" size={19} color={Theme.text} />
             </TouchableOpacity>
-          </RNView>
-        ) : (
-          <>
-            <RNText style={styles.headerTitle} onPress={panel ? onExit : undefined}>Inbox</RNText>
-            {shownCount > 0 && !isSearching && <RNText style={styles.headerCount}>{shownCount}</RNText>}
-          </>
-        )}
-        {catchingUp && !isSearching && (
-          <RNView accessible accessibilityLabel="Syncing">
-            <LivePulse color={Theme.cyan} size={6} />
-          </RNView>
-        )}
-        {/* Title-side badges (counts that link elsewhere) sit here; the
-            panel's narrow header moves them down beside the order. */}
-        {!isSearching && !panel && <DecisionsBadge />}
-        <RNView style={{ flex: 1 }} />
-        {!searchOpen && (
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => setSearchOpen(true)}
-            activeOpacity={0.6}
-            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-            accessibilityLabel="Search conversations"
-          >
-            <Feather name="search" size={19} color={Theme.text} />
-          </TouchableOpacity>
-        )}
-        <ComposeButton />
-      </RNView>
-
-      {!isSearching && (panel ? <InboxLensBar stacked accessory={<DecisionsBadge />} /> : <InboxLensBar />)}
-
-      {(searchOpen || searchQuery.length > 0) && (
-        <RNView style={styles.searchContainer}>
-          <RNView style={styles.searchBarRow}>
-            <RNView style={styles.searchInputRow}>
-              <FontAwesome name="search" size={14} color={Theme.textMuted0} style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={handleSearchChange}
-                placeholder='Search sessions... "phrases", file: pr: commit:'
-                placeholderTextColor={Theme.textMuted0}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-                autoFocus
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
-                  <FontAwesome name="times-circle" size={16} color={Theme.textMuted0} />
-                </TouchableOpacity>
-              )}
-            </RNView>
-            <TouchableOpacity onPress={closeSearch} hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}>
-              <RNText style={styles.searchCancel}>Cancel</RNText>
-            </TouchableOpacity>
-          </RNView>
-        </RNView>
-      )}
-
-      {isSearching ? (
-        <SearchErrorBoundary resetKey={debouncedQuery}>
-          <SearchResults
-            query={searchQuery}
-            onOpenSession={openSession}
-          />
-        </SearchErrorBoundary>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={listData}
-          keyExtractor={inboxItemKey}
-          renderItem={renderListItem}
-          initialNumToRender={FIRST_PAINT_ROWS}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={Theme.textMuted}
-            />
-          }
-          onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
-          // At least a screen plus the search row tall, so even a short list
-          // opens with the row tucked above it.
-          contentContainerStyle={[activeSessions.length === 0 ? styles.emptyList : styles.listContent, { minHeight: listHeight + SEARCH_REVEAL_HEIGHT }]}
-          contentOffset={searchOpen ? undefined : { x: 0, y: SEARCH_REVEAL_HEIGHT }}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={searchOpen ? null : (
-            <TouchableOpacity style={styles.searchReveal} onPress={() => setSearchOpen(true)} activeOpacity={0.7}>
-              <FontAwesome name="search" size={13} color={Theme.textMuted0} />
-              <RNText style={styles.searchRevealText}>Search all conversations</RNText>
+          ) : (
+            <TouchableOpacity
+              style={styles.menuBtn}
+              onPress={() => {
+                void Haptics.selectionAsync();
+                setInboxDrawerOpen(true);
+              }}
+              activeOpacity={0.6}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Projects, labels and views"
+            >
+              <Feather name="menu" size={21} color={Theme.text} />
             </TouchableOpacity>
           )}
-          ListFooterComponent={ListFooter}
-        />
-      )}
-      {panel && <AreaBar />}
+          {filterName ? (
+            <RNView style={styles.filterTitle}>
+              <RNView
+                style={[styles.filterDot, { backgroundColor: filterColor }]}
+              />
+              <RNText
+                style={[styles.headerTitle, styles.headerTitleShrink]}
+                numberOfLines={1}
+                onPress={panel ? onExit : () => setInboxDrawerOpen(true)}
+              >
+                {filterName}
+              </RNText>
+              {shownCount > 0 && !isSearching && (
+                <RNText style={styles.headerCount}>{shownCount}</RNText>
+              )}
+              <TouchableOpacity
+                onPress={clearFilter}
+                hitSlop={10}
+                accessibilityLabel="Show all sessions"
+              >
+                <Feather name="x-circle" size={17} color={Theme.textMuted0} />
+              </TouchableOpacity>
+            </RNView>
+          ) : (
+            <>
+              <RNText
+                style={styles.headerTitle}
+                onPress={panel ? onExit : undefined}
+              >
+                Inbox
+              </RNText>
+              {shownCount > 0 && !isSearching && (
+                <RNText style={styles.headerCount}>{shownCount}</RNText>
+              )}
+            </>
+          )}
+          {catchingUp && !isSearching && (
+            <RNView accessible accessibilityLabel="Syncing">
+              <LivePulse color={Theme.cyan} size={6} />
+            </RNView>
+          )}
+          {/* Title-side badges (counts that link elsewhere) sit here; the
+            panel's narrow header moves them down beside the order. */}
+          {!isSearching && !panel && <DecisionsBadge />}
+          <RNView style={{ flex: 1 }} />
+          {!searchOpen && (
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={() => setSearchOpen(true)}
+              activeOpacity={0.6}
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+              accessibilityLabel="Search conversations"
+            >
+              <Feather name="search" size={19} color={Theme.text} />
+            </TouchableOpacity>
+          )}
+          <ComposeButton />
+        </RNView>
 
-    </SafeAreaView>
+        {!isSearching &&
+          (panel ? (
+            <InboxLensBar stacked accessory={<DecisionsBadge />} />
+          ) : (
+            <InboxLensBar />
+          ))}
+
+        {(searchOpen || searchQuery.length > 0) && (
+          <RNView style={styles.searchContainer}>
+            <RNView style={styles.searchBarRow}>
+              <RNView style={styles.searchInputRow}>
+                <FontAwesome
+                  name="search"
+                  size={14}
+                  color={Theme.textMuted0}
+                  style={{ marginRight: 8 }}
+                />
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  placeholder='Search sessions... "phrases", file: pr: commit:'
+                  placeholderTextColor={Theme.textMuted0}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={clearSearch}
+                    hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                  >
+                    <FontAwesome
+                      name="times-circle"
+                      size={16}
+                      color={Theme.textMuted0}
+                    />
+                  </TouchableOpacity>
+                )}
+              </RNView>
+              <TouchableOpacity
+                onPress={closeSearch}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+              >
+                <RNText style={styles.searchCancel}>Cancel</RNText>
+              </TouchableOpacity>
+            </RNView>
+          </RNView>
+        )}
+
+        {isSearching ? (
+          <SearchErrorBoundary resetKey={debouncedQuery}>
+            <SearchResults query={searchQuery} onOpenSession={openSession} />
+          </SearchErrorBoundary>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={listData}
+            keyExtractor={inboxItemKey}
+            renderItem={renderListItem}
+            initialNumToRender={FIRST_PAINT_ROWS}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={Theme.textMuted}
+              />
+            }
+            onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+            // At least a screen plus the search row tall, so even a short list
+            // opens with the row tucked above it.
+            contentContainerStyle={[
+              activeSessions.length === 0
+                ? styles.emptyList
+                : styles.listContent,
+              { minHeight: listHeight + SEARCH_REVEAL_HEIGHT },
+            ]}
+            contentOffset={
+              searchOpen ? undefined : { x: 0, y: SEARCH_REVEAL_HEIGHT }
+            }
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              searchOpen ? null : (
+                <TouchableOpacity
+                  style={styles.searchReveal}
+                  onPress={() => setSearchOpen(true)}
+                  activeOpacity={0.7}
+                >
+                  <FontAwesome
+                    name="search"
+                    size={13}
+                    color={Theme.textMuted0}
+                  />
+                  <RNText style={styles.searchRevealText}>
+                    Search all conversations
+                  </RNText>
+                </TouchableOpacity>
+              )
+            }
+            ListFooterComponent={ListFooter}
+          />
+        )}
+        {panel && <AreaBar />}
+      </SafeAreaView>
     </InboxRowEnvProvider>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.sm,
-    backgroundColor: Theme.bg,
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Theme.text,
-  },
-  headerTitleShrink: {
-    flexShrink: 1,
-  },
-  // The open count beside the title: a quiet figure, so the eye goes to the
-  // rows that wait rather than the total.
-  headerCount: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: Theme.textMuted0,
-    fontVariant: ['tabular-nums'],
-  },
-  menuBtn: {
-    width: 32,
-    height: 32,
-    marginLeft: -6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    flexShrink: 1,
-  },
-  filterDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-  },
-  headerIconBtn: {
-    width: 34,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerIconBtnActive: {
-    backgroundColor: Theme.bg,
-  },
-  searchBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  searchCancel: {
-    fontSize: 14,
-    color: Theme.blue,
-  },
-  searchReveal: {
-    height: 44,
-    marginHorizontal: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  searchRevealText: {
-    fontSize: 14,
-    color: Theme.textMuted0,
-  },
-  listContent: {
-    paddingBottom: Spacing.lg,
-  },
-  emptyList: {
-    flexGrow: 1,
-  },
-  emptyInbox: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Theme.textMuted,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Theme.textMuted0,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 18,
-    paddingBottom: 6,
-    backgroundColor: Theme.bg,
-  },
-  sectionDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Theme.textMuted,
-  },
-  sectionCount: {
-    fontSize: 13,
-    color: Theme.textMuted0,
-    fontVariant: ['tabular-nums'],
-  },
-  hiddenToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: Theme.bgHighlight,
-    marginTop: Spacing.sm,
-  },
-  hiddenToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    flexGrow: 1,
-  },
-  hiddenToggleDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 18,
-    backgroundColor: Theme.borderLight,
-  },
-  killAllBtn: {
-    alignSelf: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: Spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Theme.red + '60',
-  },
-  killAllText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Theme.red,
-  },
-  dismissedToggleText: {
-    fontSize: 13,
-    color: Theme.textMuted0,
-    fontWeight: '500',
-  },
-  dismissedSection: {
-    backgroundColor: Theme.bgAlt,
-  },
-  dismissedEmpty: {
-    fontSize: 13,
-    color: Theme.textMuted0,
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  // A row whose kill is waiting behind the undo bar.
-  heldKill: { opacity: 0.4 },
-  searchContainer: {
-    backgroundColor: Theme.bgAlt,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.xs,
-  },
-  searchInputRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Theme.bg,
-    borderRadius: 10,
-    paddingHorizontal: Spacing.md,
-    height: 34,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.borderLight,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Theme.text,
-    paddingVertical: 0,
-  },
-  conversationMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metaText: {
-    fontSize: 12,
-    color: Theme.textMuted,
-  },
-  metaSeparator: {
-    color: Theme.textMuted0,
-    marginHorizontal: 4,
-    fontSize: 12,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Theme.bg,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.sm,
+      backgroundColor: Theme.bg,
+      gap: 8,
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: Theme.text,
+    },
+    headerTitleShrink: {
+      flexShrink: 1,
+    },
+    // The open count beside the title: a quiet figure, so the eye goes to the
+    // rows that wait rather than the total.
+    headerCount: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    menuBtn: {
+      width: 32,
+      height: 32,
+      marginLeft: -6,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    filterTitle: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      flexShrink: 1,
+    },
+    filterDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+    },
+    headerIconBtn: {
+      width: 34,
+      height: 30,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headerIconBtnActive: {
+      backgroundColor: Theme.bg,
+    },
+    searchBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    searchCancel: {
+      fontSize: 14,
+      color: Theme.blue,
+    },
+    searchReveal: {
+      height: 44,
+      marginHorizontal: Spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    searchRevealText: {
+      fontSize: 14,
+      color: Theme.textMuted0,
+    },
+    listContent: {
+      paddingBottom: Spacing.lg,
+    },
+    emptyList: {
+      flexGrow: 1,
+    },
+    emptyInbox: {
+      alignItems: "center",
+      paddingVertical: 60,
+      gap: 8,
+    },
+    emptyText: {
+      fontSize: 17,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: Theme.textMuted0,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: Spacing.lg,
+      paddingTop: 18,
+      paddingBottom: 6,
+      backgroundColor: Theme.bg,
+    },
+    sectionDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: Theme.textMuted,
+    },
+    sectionCount: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      fontVariant: ["tabular-nums"],
+    },
+    hiddenToggleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderTopWidth: 1,
+      borderTopColor: Theme.bgHighlight,
+      marginTop: Spacing.sm,
+    },
+    hiddenToggle: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 14,
+      flexGrow: 1,
+    },
+    hiddenToggleDivider: {
+      width: StyleSheet.hairlineWidth,
+      height: 18,
+      backgroundColor: Theme.borderLight,
+    },
+    killAllBtn: {
+      alignSelf: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      marginBottom: Spacing.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: Theme.red + "60",
+    },
+    killAllText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.red,
+    },
+    dismissedToggleText: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      fontWeight: "500",
+    },
+    dismissedSection: {
+      backgroundColor: Theme.bgAlt,
+    },
+    dismissedEmpty: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      textAlign: "center",
+      paddingVertical: 20,
+    },
+    // A row whose kill is waiting behind the undo bar.
+    heldKill: { opacity: 0.4 },
+    searchContainer: {
+      backgroundColor: Theme.bgAlt,
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.xs,
+      paddingBottom: Spacing.xs,
+    },
+    searchInputRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: Theme.bg,
+      borderRadius: 10,
+      paddingHorizontal: Spacing.md,
+      height: 34,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.borderLight,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: Theme.text,
+      paddingVertical: 0,
+    },
+    conversationMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    metaText: {
+      fontSize: 12,
+      color: Theme.textMuted,
+    },
+    metaSeparator: {
+      color: Theme.textMuted0,
+      marginHorizontal: 4,
+      fontSize: 12,
+    },
+  }),
+);

@@ -11,10 +11,18 @@ import {
 } from "@codecast/web/store/mutativeMiddleware";
 
 function memoryDatabase(): MobileDispatchDatabase {
-  const rows = new Map<string, { principal_id: string; id: string; entry_json: string; ts: number }>();
+  const rows = new Map<
+    string,
+    { principal_id: string; id: string; entry_json: string; ts: number }
+  >();
   const mutate = (sql: string, params: unknown[]) => {
     if (sql.includes("INSERT INTO mobile_dispatch_outbox")) {
-      const [principalId, id, entryJson, ts] = params as [string, string, string, number];
+      const [principalId, id, entryJson, ts] = params as [
+        string,
+        string,
+        string,
+        number,
+      ];
       rows.set(`${principalId}:${id}`, {
         principal_id: principalId,
         id,
@@ -54,7 +62,9 @@ const entry = (id: string, ts: number): MobileDispatchOutboxEntry => ({
   ts,
 });
 
-function middlewareHarness(outbox: ReturnType<typeof createPrincipalDispatchOutbox>) {
+function middlewareHarness(
+  outbox: ReturnType<typeof createPrincipalDispatchOutbox>,
+) {
   let state: any;
   const wrapped = mutativeMiddleware(
     () => ({

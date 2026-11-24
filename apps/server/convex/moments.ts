@@ -22,7 +22,13 @@
 
 import { v } from "convex/values";
 import { gzipSync, strToU8 } from "fflate";
-import { action, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { verifyApiToken } from "./apiTokens";
@@ -31,13 +37,27 @@ import { ownDevice } from "./devices";
 import { scopeArgs } from "./lib/ingestScopeArgs";
 import { scopeOf, sourceByRef } from "./lib/ingestScope";
 import { resolveWorkspaceProject } from "./lib/projectRef";
-import { MOMENTS_30D_ROOT, MOMENTS_KEPT_ROOT, replaysBucketFromEnv } from "./lib/r2";
+import {
+  MOMENTS_30D_ROOT,
+  MOMENTS_KEPT_ROOT,
+  replaysBucketFromEnv,
+} from "./lib/r2";
 import { sha256Hex } from "./lib/hash";
 import { agentJudgeFields, judgeInputs } from "./momentsSchema";
-import { judgeRunRow, liveBodyKey, momentRefs, momentView, readKeptBody } from "./lib/momentBody";
+import {
+  judgeRunRow,
+  liveBodyKey,
+  momentRefs,
+  momentView,
+  readKeptBody,
+} from "./lib/momentBody";
 import { putChunk } from "./lib/replayChunks";
 import type { ModelCallResult } from "@codecast/shared/contracts/modelCall";
-import { linesSince, renderExpectations, type ExpectationsVersion } from "@codecast/shared/contracts/expectations";
+import {
+  linesSince,
+  renderExpectations,
+  type ExpectationsVersion,
+} from "@codecast/shared/contracts/expectations";
 import {
   DEFAULT_QUIET_MS,
   MOMENT_LIMITS,
@@ -50,8 +70,19 @@ import {
   type MomentWindow,
 } from "@codecast/shared/contracts/moments";
 import { readRulings, type Ruling } from "./judgeRetire";
-import { narrowBrief, type ExpectationsBrief, type JudgeHandoff } from "@codecast/shared/contracts/judges";
-import { judgeMoment, prepareJudge, readingOf, settleJudge, type Finishing, type JudgeOutcome } from "./lib/momentJudging";
+import {
+  narrowBrief,
+  type ExpectationsBrief,
+  type JudgeHandoff,
+} from "@codecast/shared/contracts/judges";
+import {
+  judgeMoment,
+  prepareJudge,
+  readingOf,
+  settleJudge,
+  type Finishing,
+  type JudgeOutcome,
+} from "./lib/momentJudging";
 
 /** Moments one claim hands a host. */
 const CLAIM_BATCH = 5;
@@ -76,11 +107,22 @@ const STALE_MS = MOMENT_LIMITS.retention_ms;
  * replay of history or a late batch keeps apart what happened apart. A moment
  * already being extracted is not reopened; the event opens the next.
  */
-export async function recordMomentEvents(ctx: { db: any }, source: Doc<"event_sources">, items: MomentEventItem[], now: number, opts: { due_at?: number; batch?: string } = {}): Promise<number> {
+export async function recordMomentEvents(
+  ctx: { db: any },
+  source: Doc<"event_sources">,
+  items: MomentEventItem[],
+  now: number,
+  opts: { due_at?: number; batch?: string } = {},
+): Promise<number> {
   const quiet = new Map<string, number>();
   const quietOf = async (kind: string) => {
     if (!quiet.has(kind)) {
-      const ex = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", source._id).eq("kind", kind)).first();
+      const ex = await ctx.db
+        .query("moment_extractors")
+        .withIndex("by_source_kind", (q: any) =>
+          q.eq("source_id", source._id).eq("kind", kind),
+        )
+        .first();
       quiet.set(kind, ex?.quiet_ms ?? DEFAULT_QUIET_MS);
     }
     return quiet.get(kind)!;
@@ -92,9 +134,20 @@ export async function recordMomentEvents(ctx: { db: any }, source: Doc<"event_so
     const refs = item.refs ? JSON.stringify(item.refs) : undefined;
     const waitingAll: Doc<"moments">[] = await ctx.db
       .query("moments")
-      .withIndex("by_source_kind_subject_status", (q: any) => q.eq("source_id", source._id).eq("kind", item.kind).eq("subject", item.subject).eq("status", "waiting"))
+      .withIndex("by_source_kind_subject_status", (q: any) =>
+        q
+          .eq("source_id", source._id)
+          .eq("kind", item.kind)
+          .eq("subject", item.subject)
+          .eq("status", "waiting"),
+      )
       .take(200);
-    const waiting = waitingAll.find((m) => item.at >= m.first_event_at - quietMs && item.at <= m.event_at + quietMs) ?? null;
+    const waiting =
+      waitingAll.find(
+        (m) =>
+          item.at >= m.first_event_at - quietMs &&
+          item.at <= m.event_at + quietMs,
+      ) ?? null;
     if (waiting) {
       const newest = item.at >= waiting.event_at;
       await ctx.db.patch(waiting._id, {
@@ -139,18 +192,45 @@ export async function recordMomentEvents(ctx: { db: any }, source: Doc<"event_so
  * does not count), else from its first event less the quiet window; to its
  * newest event, or when its facts were read.
  */
-async function windowOf(ctx: { db: any }, m: Doc<"moments">, quietMs: number, readAt?: number): Promise<MomentWindow> {
+async function windowOf(
+  ctx: { db: any },
+  m: Doc<"moments">,
+  quietMs: number,
+  readAt?: number,
+): Promise<MomentWindow> {
   const rows: Doc<"moments">[] = await ctx.db
     .query("moments")
-    .withIndex("by_source_kind_subject_status", (q: any) => q.eq("source_id", m.source_id).eq("kind", m.kind).eq("subject", m.subject))
+    .withIndex("by_source_kind_subject_status", (q: any) =>
+      q
+        .eq("source_id", m.source_id)
+        .eq("kind", m.kind)
+        .eq("subject", m.subject),
+    )
     .take(500);
-  const before = rows.filter((r) => r._id !== m._id && r.status !== "failed" && r.event_at < m.first_event_at).map((r) => r.event_at);
-  return momentWindow(m, { previous_event_at: before.length ? Math.max(...before) : null, quiet_ms: quietMs, read_at: readAt });
+  const before = rows
+    .filter(
+      (r) =>
+        r._id !== m._id &&
+        r.status !== "failed" &&
+        r.event_at < m.first_event_at,
+    )
+    .map((r) => r.event_at);
+  return momentWindow(m, {
+    previous_event_at: before.length ? Math.max(...before) : null,
+    quiet_ms: quietMs,
+    read_at: readAt,
+  });
 }
 
 // ── 2. Publish: a repo's extractors and judges ──
 
-const extractorArg = v.object({ kind: v.string(), path: v.string(), version: v.string(), quiet_ms: v.number(), timeout_ms: v.number() });
+const extractorArg = v.object({
+  kind: v.string(),
+  path: v.string(),
+  version: v.string(),
+  quiet_ms: v.number(),
+  timeout_ms: v.number(),
+});
 const judgeArg = v.object({
   name: v.string(),
   path: v.string(),
@@ -172,44 +252,108 @@ const judgeArg = v.object({
  * running (its runs stay).
  */
 export const publish = mutation({
-  args: { ...scopeArgs, source: v.string(), device_id: v.string(), root: v.string(), extractors: v.array(extractorArg), judges: v.array(judgeArg) },
+  args: {
+    ...scopeArgs,
+    source: v.string(),
+    device_id: v.string(),
+    root: v.string(),
+    extractors: v.array(extractorArg),
+    judges: v.array(judgeArg),
+  },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const source = await sourceByRef(ctx, userId, workspaceKey, args.source);
-    if (!(await ownDevice(ctx, userId, args.device_id))) throw new Error("Publish from a machine signed in as you: extractors run where they are published");
+    if (!(await ownDevice(ctx, userId, args.device_id)))
+      throw new Error(
+        "Publish from a machine signed in as you: extractors run where they are published",
+      );
     const now = Date.now();
 
     const kinds = new Set(args.extractors.map((e) => e.kind));
-    const existing: Doc<"moment_extractors">[] = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", source._id)).collect();
-    for (const row of existing) if (!kinds.has(row.kind)) await ctx.db.delete(row._id);
+    const existing: Doc<"moment_extractors">[] = await ctx.db
+      .query("moment_extractors")
+      .withIndex("by_source_kind", (q: any) => q.eq("source_id", source._id))
+      .collect();
+    for (const row of existing)
+      if (!kinds.has(row.kind)) await ctx.db.delete(row._id);
     for (const e of args.extractors) {
       const row = existing.find((r) => r.kind === e.kind);
-      const fields = { ...e, device_id: args.device_id, root: args.root, publisher_user_id: userId, published_at: now };
+      const fields = {
+        ...e,
+        device_id: args.device_id,
+        root: args.root,
+        publisher_user_id: userId,
+        published_at: now,
+      };
       if (row) await ctx.db.patch(row._id, fields);
-      else await ctx.db.insert("moment_extractors", { workspace: source.workspace, source_id: source._id, ...fields });
+      else
+        await ctx.db.insert("moment_extractors", {
+          workspace: source.workspace,
+          source_id: source._id,
+          ...fields,
+        });
     }
 
     const names = new Set(args.judges.map((j) => j.name));
-    const judges: Doc<"judges">[] = await ctx.db.query("judges").withIndex("by_source_name", (q: any) => q.eq("source_id", source._id)).collect();
-    for (const row of judges) if (!names.has(row.name) && !row.removed_at) await ctx.db.patch(row._id, { removed_at: now });
+    const judges: Doc<"judges">[] = await ctx.db
+      .query("judges")
+      .withIndex("by_source_name", (q: any) => q.eq("source_id", source._id))
+      .collect();
+    for (const row of judges)
+      if (!names.has(row.name) && !row.removed_at)
+        await ctx.db.patch(row._id, { removed_at: now });
     const problems: string[] = [];
     for (const j of args.judges) {
       const projectIds: Id<"projects">[] = [];
       for (const ref of j.projects) {
-        const project = await resolveWorkspaceProject(ctx, source.workspace, ref);
+        const project = await resolveWorkspaceProject(
+          ctx,
+          source.workspace,
+          ref,
+        );
         if (project) projectIds.push(project._id);
-        else problems.push(`${j.name}: no project "${ref}" in the source's workspace`);
+        else
+          problems.push(
+            `${j.name}: no project "${ref}" in the source's workspace`,
+          );
       }
-      if (!kinds.has(j.moment)) problems.push(`${j.name}: no extractor for moment kind "${j.moment}" (.codecast/moments/${j.moment}.ts)`);
+      if (!kinds.has(j.moment))
+        problems.push(
+          `${j.name}: no extractor for moment kind "${j.moment}" (.codecast/moments/${j.moment}.ts)`,
+        );
       // A review runs wherever a machine claims it, so it reads the moment from codecast, never from the extracting host.
-      if (j.agent && (source.config?.moment_storage ?? "host") !== "codecast") problems.push(`${j.name}: an agent judge reads moments kept in codecast; set it with cast sources set ${source.name} --moment-storage codecast`);
+      if (j.agent && (source.config?.moment_storage ?? "host") !== "codecast")
+        problems.push(
+          `${j.name}: an agent judge reads moments kept in codecast; set it with cast sources set ${source.name} --moment-storage codecast`,
+        );
       const { moment, ...rest } = j;
-      const fields = { ...rest, parts: rest.parts, agent: rest.agent, moment_kind: moment, project_ids: projectIds, publisher_user_id: userId, published_at: now, removed_at: undefined };
+      const fields = {
+        ...rest,
+        parts: rest.parts,
+        agent: rest.agent,
+        moment_kind: moment,
+        project_ids: projectIds,
+        publisher_user_id: userId,
+        published_at: now,
+        removed_at: undefined,
+      };
       const row = judges.find((r) => r.name === j.name);
       if (row) await ctx.db.patch(row._id, fields);
-      else await ctx.db.insert("judges", { workspace: source.workspace, ...(source.team_id ? { team_id: source.team_id } : {}), source_id: source._id, ...fields });
+      else
+        await ctx.db.insert("judges", {
+          workspace: source.workspace,
+          ...(source.team_id ? { team_id: source.team_id } : {}),
+          source_id: source._id,
+          ...fields,
+        });
     }
-    return { source: source.name, storage: source.config?.moment_storage ?? "host", extractors: args.extractors.length, judges: args.judges.length, problems };
+    return {
+      source: source.name,
+      storage: source.config?.moment_storage ?? "host",
+      extractors: args.extractors.length,
+      judges: args.judges.length,
+      problems,
+    };
   },
 });
 
@@ -219,7 +363,12 @@ export type MomentClaim = {
   moment: string;
   source: string;
   input: ExtractorInput;
-  extractor: { path: string; root: string; version: string; timeout_ms: number };
+  extractor: {
+    path: string;
+    root: string;
+    version: string;
+    timeout_ms: number;
+  };
   storage: "host" | "codecast";
 };
 
@@ -229,13 +378,21 @@ export type MomentClaim = {
  * lease that ran out goes again, up to EXTRACT_TRIES, then fails.
  */
 export const claim = mutation({
-  args: { api_token: v.string(), device_id: v.string(), limit: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    device_id: v.string(),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args): Promise<MomentClaim[]> => {
     const auth = await verifyApiToken(ctx, args.api_token);
-    if (!auth || !(await ownDevice(ctx, auth.userId, args.device_id))) throw new Error("Unauthorized");
+    if (!auth || !(await ownDevice(ctx, auth.userId, args.device_id)))
+      throw new Error("Unauthorized");
     const now = Date.now();
     const limit = Math.min(Math.max(1, args.limit ?? CLAIM_BATCH), 20);
-    const extractors: Doc<"moment_extractors">[] = await ctx.db.query("moment_extractors").withIndex("by_device", (q: any) => q.eq("device_id", args.device_id)).collect();
+    const extractors: Doc<"moment_extractors">[] = await ctx.db
+      .query("moment_extractors")
+      .withIndex("by_device", (q: any) => q.eq("device_id", args.device_id))
+      .collect();
     const out: MomentClaim[] = [];
     for (const ex of extractors) {
       if (out.length >= limit || ex.publisher_user_id !== auth.userId) continue;
@@ -244,22 +401,54 @@ export const claim = mutation({
       for (const status of ["waiting", "extracting"] as const) {
         const due: Doc<"moments">[] = await ctx.db
           .query("moments")
-          .withIndex("by_source_kind_status_due", (q: any) => q.eq("source_id", ex.source_id).eq("kind", ex.kind).eq("status", status).lte("due_at", now))
+          .withIndex("by_source_kind_status_due", (q: any) =>
+            q
+              .eq("source_id", ex.source_id)
+              .eq("kind", ex.kind)
+              .eq("status", status)
+              .lte("due_at", now),
+          )
           .take(limit);
         // Where the body goes is the source's setting when it is read, not when its first event came.
         const storage = source.config?.moment_storage ?? "host";
         for (const m of due) {
           if (out.length >= limit) break;
           if (m.attempts >= EXTRACT_TRIES) {
-            await ctx.db.patch(m._id, { status: "failed", error: m.error ?? "the extractor did not hand a moment back in three tries", updated_at: now });
+            await ctx.db.patch(m._id, {
+              status: "failed",
+              error:
+                m.error ??
+                "the extractor did not hand a moment back in three tries",
+              updated_at: now,
+            });
             continue;
           }
-          await ctx.db.patch(m._id, { status: "extracting", claim_device: args.device_id, attempts: m.attempts + 1, due_at: now + ex.timeout_ms + LEASE_SLACK_MS, storage, updated_at: now });
+          await ctx.db.patch(m._id, {
+            status: "extracting",
+            claim_device: args.device_id,
+            attempts: m.attempts + 1,
+            due_at: now + ex.timeout_ms + LEASE_SLACK_MS,
+            storage,
+            updated_at: now,
+          });
           out.push({
             moment: m.short_id,
             source: source.name,
-            input: { kind: m.kind, subject: m.subject, at: m.event_at, refs: m.refs_json ? JSON.parse(m.refs_json) : {}, events: m.events, moment: m.short_id, window: await windowOf(ctx, m, ex.quiet_ms) },
-            extractor: { path: ex.path, root: ex.root, version: ex.version, timeout_ms: ex.timeout_ms },
+            input: {
+              kind: m.kind,
+              subject: m.subject,
+              at: m.event_at,
+              refs: m.refs_json ? JSON.parse(m.refs_json) : {},
+              events: m.events,
+              moment: m.short_id,
+              window: await windowOf(ctx, m, ex.quiet_ms),
+            },
+            extractor: {
+              path: ex.path,
+              root: ex.root,
+              version: ex.version,
+              timeout_ms: ex.timeout_ms,
+            },
             storage,
           });
         }
@@ -269,8 +458,18 @@ export const claim = mutation({
   },
 });
 
-const liveJudges = async (ctx: any, m: Doc<"moments">): Promise<Doc<"judges">[]> =>
-  (await ctx.db.query("judges").withIndex("by_source_kind", (q: any) => q.eq("source_id", m.source_id).eq("moment_kind", m.kind)).collect())
+const liveJudges = async (
+  ctx: any,
+  m: Doc<"moments">,
+): Promise<Doc<"judges">[]> =>
+  (
+    await ctx.db
+      .query("judges")
+      .withIndex("by_source_kind", (q: any) =>
+        q.eq("source_id", m.source_id).eq("moment_kind", m.kind),
+      )
+      .collect()
+  )
     .filter((j: Doc<"judges">) => !j.removed_at)
     .slice(0, JUDGES_PER_MOMENT);
 
@@ -280,12 +479,31 @@ export const finishing = internalQuery({
   handler: async (ctx, args): Promise<Finishing> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const moment = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment)).first();
-    if (!moment || moment.status !== "extracting" || moment.claim_device !== args.device_id) throw new Error(`${args.moment} is not leased to this machine`);
-    const ex = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", moment.source_id).eq("kind", moment.kind)).first();
-    if (!ex || ex.publisher_user_id !== auth.userId) throw new Error("Unauthorized");
+    const moment = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment))
+      .first();
+    if (
+      !moment ||
+      moment.status !== "extracting" ||
+      moment.claim_device !== args.device_id
+    )
+      throw new Error(`${args.moment} is not leased to this machine`);
+    const ex = await ctx.db
+      .query("moment_extractors")
+      .withIndex("by_source_kind", (q: any) =>
+        q.eq("source_id", moment.source_id).eq("kind", moment.kind),
+      )
+      .first();
+    if (!ex || ex.publisher_user_id !== auth.userId)
+      throw new Error("Unauthorized");
     const source = (await ctx.db.get(moment.source_id))!;
-    return { moment, source, judges: await liveJudges(ctx, moment), window: await windowOf(ctx, moment, ex.quiet_ms) };
+    return {
+      moment,
+      source,
+      judges: await liveJudges(ctx, moment),
+      window: await windowOf(ctx, moment, ex.quiet_ms),
+    };
   },
 });
 
@@ -300,18 +518,36 @@ export const markFailed = internalMutation({
     if (!m || m.status !== "extracting") return;
     const now = Date.now();
     const again = args.retry && m.attempts < EXTRACT_TRIES;
-    await ctx.db.patch(m._id, { status: again ? "waiting" : "failed", error: args.error.slice(0, 500), due_at: again ? now + RETRY_AFTER_MS : m.due_at, claim_device: undefined, updated_at: now });
+    await ctx.db.patch(m._id, {
+      status: again ? "waiting" : "failed",
+      error: args.error.slice(0, 500),
+      due_at: again ? now + RETRY_AFTER_MS : m.due_at,
+      claim_device: undefined,
+      updated_at: now,
+    });
   },
 });
 
 /** The extractor declined the moment: kept as skipped with its reason, never judged. */
 export const markSkipped = internalMutation({
-  args: { moment_id: v.id("moments"), extractor_version: v.string(), reason: v.string() },
+  args: {
+    moment_id: v.id("moments"),
+    extractor_version: v.string(),
+    reason: v.string(),
+  },
   handler: async (ctx, args) => {
     const m = await ctx.db.get(args.moment_id);
     if (!m || m.status !== "extracting") return;
     const now = Date.now();
-    await ctx.db.patch(m._id, { status: "skipped", error: args.reason.slice(0, 500), extractor_version: args.extractor_version, extracted_at: now, due_at: now, claim_device: undefined, updated_at: now });
+    await ctx.db.patch(m._id, {
+      status: "skipped",
+      error: args.reason.slice(0, 500),
+      extractor_version: args.extractor_version,
+      extracted_at: now,
+      due_at: now,
+      claim_device: undefined,
+      updated_at: now,
+    });
   },
 });
 
@@ -339,7 +575,9 @@ export const markReady = internalMutation({
       gap_ms: args.gap_ms,
       blocks: args.blocks,
       body_bytes: args.body_bytes,
-      ...(args.body_key ? { body_key: args.body_key, body_expires_at: args.body_expires_at } : {}),
+      ...(args.body_key
+        ? { body_key: args.body_key, body_expires_at: args.body_expires_at }
+        : {}),
       error: undefined,
       claim_device: undefined,
       // The scope travels to this judging in the claim's snapshot (complete); the next reading is whole again.
@@ -351,7 +589,12 @@ export const markReady = internalMutation({
 });
 
 /** Where a codecast-stored body lives in the replays bucket: under its retention's prefix and its source, content addressed. */
-export function momentBodyKey(sourceId: string, shortId: string, sha: string, keep: boolean): string {
+export function momentBodyKey(
+  sourceId: string,
+  shortId: string,
+  sha: string,
+  keep: boolean,
+): string {
   return `${keep ? MOMENTS_KEPT_ROOT : MOMENTS_30D_ROOT}${sourceId}/${shortId}-${sha}.json.gz`;
 }
 
@@ -369,21 +612,51 @@ export const complete = action({
     output: v.optional(v.string()),
     error: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ moment: string; status: "ready" | "failed" | "waiting" | "skipped"; storage?: string; judged?: JudgeOutcome[]; judge_here?: JudgeHandoff; error?: string }> => {
-    const f: Finishing = await ctx.runQuery(internal.moments.finishing, { api_token: args.api_token, device_id: args.device_id, moment: args.moment });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    moment: string;
+    status: "ready" | "failed" | "waiting" | "skipped";
+    storage?: string;
+    judged?: JudgeOutcome[];
+    judge_here?: JudgeHandoff;
+    error?: string;
+  }> => {
+    const f: Finishing = await ctx.runQuery(internal.moments.finishing, {
+      api_token: args.api_token,
+      device_id: args.device_id,
+      moment: args.moment,
+    });
     if (args.error !== undefined || args.output === undefined) {
       const error = args.error || "the extractor printed nothing";
-      await ctx.runMutation(internal.moments.markFailed, { moment_id: f.moment._id, error, retry: true });
-      return { moment: args.moment, status: f.moment.attempts < EXTRACT_TRIES ? "waiting" : "failed", error };
+      await ctx.runMutation(internal.moments.markFailed, {
+        moment_id: f.moment._id,
+        error,
+        retry: true,
+      });
+      return {
+        moment: args.moment,
+        status: f.moment.attempts < EXTRACT_TRIES ? "waiting" : "failed",
+        error,
+      };
     }
     const parsed = parseExtractorOutput(args.output);
     if ("error" in parsed) {
       // The same code on the same data prints the same thing: no retry.
-      await ctx.runMutation(internal.moments.markFailed, { moment_id: f.moment._id, error: parsed.error, retry: false });
+      await ctx.runMutation(internal.moments.markFailed, {
+        moment_id: f.moment._id,
+        error: parsed.error,
+        retry: false,
+      });
       return { moment: args.moment, status: "failed", error: parsed.error };
     }
     if (parsed.skip) {
-      await ctx.runMutation(internal.moments.markSkipped, { moment_id: f.moment._id, extractor_version: args.extractor_version, reason: parsed.skip });
+      await ctx.runMutation(internal.moments.markSkipped, {
+        moment_id: f.moment._id,
+        extractor_version: args.extractor_version,
+        reason: parsed.skip,
+      });
       return { moment: args.moment, status: "skipped", error: parsed.skip };
     }
     const extractedAt = Date.now();
@@ -397,7 +670,10 @@ export const complete = action({
       event_at: f.moment.event_at,
       extracted_at: extractedAt,
       gap_ms: Math.max(0, factsAt - f.moment.event_at),
-      extractor: { path: `.codecast/moments/${f.moment.kind}.ts`, version: args.extractor_version },
+      extractor: {
+        path: `.codecast/moments/${f.moment.kind}.ts`,
+        version: args.extractor_version,
+      },
       window: { from: f.window.from, to: Math.max(f.window.to, factsAt) },
     };
     const json = JSON.stringify(record);
@@ -407,10 +683,23 @@ export const complete = action({
     if (storage === "codecast") {
       const bucket = replaysBucketFromEnv();
       if (!bucket) {
-        await ctx.runMutation(internal.moments.markFailed, { moment_id: f.moment._id, error: "moment storage is not configured (REPLAYS_R2_*)", retry: true });
-        return { moment: args.moment, status: "waiting", error: "storage is not configured" };
+        await ctx.runMutation(internal.moments.markFailed, {
+          moment_id: f.moment._id,
+          error: "moment storage is not configured (REPLAYS_R2_*)",
+          retry: true,
+        });
+        return {
+          moment: args.moment,
+          status: "waiting",
+          error: "storage is not configured",
+        };
       }
-      bodyKey = momentBodyKey(String(f.moment.source_id), f.moment.short_id, await sha256Hex(json), keep);
+      bodyKey = momentBodyKey(
+        String(f.moment.source_id),
+        f.moment.short_id,
+        await sha256Hex(json),
+        keep,
+      );
       await putChunk(bucket, bodyKey, gzipSync(strToU8(json)));
     }
     const won: boolean = await ctx.runMutation(internal.moments.markReady, {
@@ -421,12 +710,30 @@ export const complete = action({
       blocks: record.blocks.length,
       body_bytes: json.length,
       ...(momentWho(record) ? { who: momentWho(record)! } : {}),
-      ...(bodyKey ? { body_key: bodyKey, ...(keep ? {} : { body_expires_at: extractedAt + MOMENT_LIMITS.retention_ms }) } : {}),
+      ...(bodyKey
+        ? {
+            body_key: bodyKey,
+            ...(keep
+              ? {}
+              : { body_expires_at: extractedAt + MOMENT_LIMITS.retention_ms }),
+          }
+        : {}),
     });
     // Another hand back of this claim already settled it, and judged it.
     if (!won) return { moment: args.moment, status: "ready", storage };
-    const { judged, handoff } = await judgeMoment(ctx, f, record, f.moment.rejudge_lines);
-    return { moment: args.moment, status: "ready", storage, judged, ...(handoff ? { judge_here: handoff } : {}) };
+    const { judged, handoff } = await judgeMoment(
+      ctx,
+      f,
+      record,
+      f.moment.rejudge_lines,
+    );
+    return {
+      moment: args.moment,
+      status: "ready",
+      storage,
+      judged,
+      ...(handoff ? { judge_here: handoff } : {}),
+    };
   },
 });
 
@@ -434,23 +741,48 @@ export const complete = action({
 
 /** The expectations each project is graded against, at its current version. */
 export const briefsFor = internalQuery({
-  args: { project_ids: v.array(v.id("projects")), parts: v.optional(v.array(v.string())) },
-  handler: async (ctx, args): Promise<Array<ExpectationsBrief & { project_id: Id<"projects"> }>> => {
+  args: {
+    project_ids: v.array(v.id("projects")),
+    parts: v.optional(v.array(v.string())),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Array<ExpectationsBrief & { project_id: Id<"projects"> }>> => {
     const out: Array<ExpectationsBrief & { project_id: Id<"projects"> }> = [];
     for (const id of args.project_ids) {
       const project = await ctx.db.get(id);
       if (!project) continue;
-      const row = await ctx.db.query("project_expectations").withIndex("by_project_version", (q: any) => q.eq("project_id", id)).order("desc").first();
+      const row = await ctx.db
+        .query("project_expectations")
+        .withIndex("by_project_version", (q: any) => q.eq("project_id", id))
+        .order("desc")
+        .first();
       if (!row) continue;
-      const doc: ExpectationsVersion = { project: { id: String(id), title: project.title }, version: row.version, prefix: row.prefix, items: row.items, applied_at: row.created_at, how: row.how, summary: row.summary };
-      out.push(narrowBrief({
-        project_id: id,
-        project: project.title,
+      const doc: ExpectationsVersion = {
+        project: { id: String(id), title: project.title },
         version: row.version,
-        text: renderExpectations(doc, { brief: true }),
-        ids: row.items.filter((e: any) => e.status === "active").map((e: any) => e.id),
-        since: linesSince(row.items),
-      }, args.parts));
+        prefix: row.prefix,
+        items: row.items,
+        applied_at: row.created_at,
+        how: row.how,
+        summary: row.summary,
+      };
+      out.push(
+        narrowBrief(
+          {
+            project_id: id,
+            project: project.title,
+            version: row.version,
+            text: renderExpectations(doc, { brief: true }),
+            ids: row.items
+              .filter((e: any) => e.status === "active")
+              .map((e: any) => e.id),
+            since: linesSince(row.items),
+          },
+          args.parts,
+        ),
+      );
     }
     return out;
   },
@@ -462,7 +794,9 @@ export const recordRun = internalMutation({
     moment_id: v.id("moments"),
     status: v.union(v.literal("ok"), v.literal("failed"), v.literal("skipped")),
     reason: v.optional(v.string()),
-    expectations: v.array(v.object({ project_id: v.id("projects"), version: v.number() })),
+    expectations: v.array(
+      v.object({ project_id: v.id("projects"), version: v.number() }),
+    ),
     findings_json: v.optional(v.string()),
     findings: v.number(),
     uncited: v.optional(v.number()),
@@ -509,19 +843,45 @@ export const recordRun = internalMutation({
 export const judgedFinishing = internalQuery({
   args: { ...scopeArgs, device_id: v.optional(v.string()), moment: v.string() },
   handler: async (ctx, args): Promise<Finishing> => {
-    const moment = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment.trim())).first();
-    if (!moment || moment.status !== "ready") throw new Error(`${args.moment} is not a ready moment`);
-    const ex = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", moment.source_id).eq("kind", moment.kind)).first();
+    const moment = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) =>
+        q.eq("short_id", args.moment.trim()),
+      )
+      .first();
+    if (!moment || moment.status !== "ready")
+      throw new Error(`${args.moment} is not a ready moment`);
+    const ex = await ctx.db
+      .query("moment_extractors")
+      .withIndex("by_source_kind", (q: any) =>
+        q.eq("source_id", moment.source_id).eq("kind", moment.kind),
+      )
+      .first();
     if (args.device_id) {
       const auth = await verifyApiToken(ctx, args.api_token ?? "");
-      if (!auth || !ex || ex.device_id !== args.device_id || ex.publisher_user_id !== auth.userId) throw new Error("Unauthorized");
+      if (
+        !auth ||
+        !ex ||
+        ex.device_id !== args.device_id ||
+        ex.publisher_user_id !== auth.userId
+      )
+        throw new Error("Unauthorized");
     } else {
       const { workspaceKey } = await scopeOf(ctx, args);
-      if (moment.workspace !== workspaceKey) throw new Error(`No moment ${args.moment} in this workspace`);
+      if (moment.workspace !== workspaceKey)
+        throw new Error(`No moment ${args.moment} in this workspace`);
     }
     const source = (await ctx.db.get(moment.source_id))!;
-    if (source.config?.judge_on !== "subscription") throw new Error(`${source.name} judges on the API; a judgment made elsewhere is not taken`);
-    return { moment, source, judges: await liveJudges(ctx, moment), window: await windowOf(ctx, moment, ex?.quiet_ms ?? DEFAULT_QUIET_MS) };
+    if (source.config?.judge_on !== "subscription")
+      throw new Error(
+        `${source.name} judges on the API; a judgment made elsewhere is not taken`,
+      );
+    return {
+      moment,
+      source,
+      judges: await liveJudges(ctx, moment),
+      window: await windowOf(ctx, moment, ex?.quiet_ms ?? DEFAULT_QUIET_MS),
+    };
   },
 });
 
@@ -551,22 +911,63 @@ export const judgedForCli = action({
     record: v.string(),
     results: v.array(v.object({ judge: v.string(), result: judgedResult })),
   },
-  handler: async (ctx, args): Promise<{ moment: string; judged: JudgeOutcome[] }> => {
-    const { moment, clock, lines, record: recordJson, results, device_id, ...scope } = args;
-    const f: Finishing = await ctx.runQuery(internal.moments.judgedFinishing, { ...scope, ...(device_id ? { device_id } : {}), moment });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ moment: string; judged: JudgeOutcome[] }> => {
+    const {
+      moment,
+      clock,
+      lines,
+      record: recordJson,
+      results,
+      device_id,
+      ...scope
+    } = args;
+    const f: Finishing = await ctx.runQuery(internal.moments.judgedFinishing, {
+      ...scope,
+      ...(device_id ? { device_id } : {}),
+      moment,
+    });
     const record = JSON.parse(recordJson) as MomentRecord;
-    if (record.kind !== f.moment.kind || record.subject !== f.moment.subject) throw new Error(`the record handed back is not ${moment}'s`);
+    if (record.kind !== f.moment.kind || record.subject !== f.moment.subject)
+      throw new Error(`the record handed back is not ${moment}'s`);
     const reading = await readingOf(ctx, f, record, lines, clock);
     const judged: JudgeOutcome[] = [];
     for (const { judge: name, result: r } of results) {
       const judge = f.judges.find((j) => j.name === name);
       if (!judge) continue;
       const p = await prepareJudge(ctx, f, record, judge, reading);
-      if ("outcome" in p) { judged.push(p.outcome); continue; }
-      const result: ModelCallResult = r.ok && r.text !== undefined
-        ? { ok: true, text: r.text, usage: { input_tokens: r.input_tokens ?? 0, output_tokens: r.output_tokens ?? 0 }, cost_usd: 0, model: judge.model, stop_reason: r.stop_reason ?? null }
-        : { ok: false, reason: "failed", error: (r.error || "the subscription call gave no answer").slice(0, 500), cost_usd: 0, model: judge.model };
-      judged.push(await settleJudge(ctx, f, record, p, result, reading, "subscription"));
+      if ("outcome" in p) {
+        judged.push(p.outcome);
+        continue;
+      }
+      const result: ModelCallResult =
+        r.ok && r.text !== undefined
+          ? {
+              ok: true,
+              text: r.text,
+              usage: {
+                input_tokens: r.input_tokens ?? 0,
+                output_tokens: r.output_tokens ?? 0,
+              },
+              cost_usd: 0,
+              model: judge.model,
+              stop_reason: r.stop_reason ?? null,
+            }
+          : {
+              ok: false,
+              reason: "failed",
+              error: (r.error || "the subscription call gave no answer").slice(
+                0,
+                500,
+              ),
+              cost_usd: 0,
+              model: judge.model,
+            };
+      judged.push(
+        await settleJudge(ctx, f, record, p, result, reading, "subscription"),
+      );
     }
     return { moment, judged };
   },
@@ -576,27 +977,77 @@ export const judgedForCli = action({
 
 /** `cast line moments ls`: the workspace's newest moments, and its extractors and judges. */
 export const listForCli = query({
-  args: { ...scopeArgs, source: v.optional(v.string()), limit: v.optional(v.number()) },
+  args: {
+    ...scopeArgs,
+    source: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
-    const rows: Doc<"moments">[] = await ctx.db.query("moments").withIndex("by_workspace_created", (q: any) => q.eq("workspace", workspaceKey)).order("desc").take(Math.min(args.limit ?? 30, 200) * (source ? 4 : 1));
-    const moments = rows.filter((m) => !source || m.source_id === source._id).slice(0, Math.min(args.limit ?? 30, 200));
-    const sources = source ? [source] : await ctx.db.query("event_sources").withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspaceKey)).collect();
+    const source = args.source
+      ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+      : null;
+    const rows: Doc<"moments">[] = await ctx.db
+      .query("moments")
+      .withIndex("by_workspace_created", (q: any) =>
+        q.eq("workspace", workspaceKey),
+      )
+      .order("desc")
+      .take(Math.min(args.limit ?? 30, 200) * (source ? 4 : 1));
+    const moments = rows
+      .filter((m) => !source || m.source_id === source._id)
+      .slice(0, Math.min(args.limit ?? 30, 200));
+    const sources = source
+      ? [source]
+      : await ctx.db
+          .query("event_sources")
+          .withIndex("by_workspace_name", (q: any) =>
+            q.eq("workspace", workspaceKey),
+          )
+          .collect();
     const extractors = [];
     const judges = [];
     for (const s of sources) {
       const { ex, live } = await publishedOf(ctx, s._id);
-      for (const e of ex) extractors.push({ source: s.name, kind: e.kind, version: e.version, quiet_ms: e.quiet_ms, published_at: e.published_at });
-      for (const j of live) judges.push({ source: s.name, name: j.name, version: j.version, moment: j.moment_kind, model: j.model, mode: j.mode, projects: j.projects, judge_on: s.config?.judge_on ?? "api" });
+      for (const e of ex)
+        extractors.push({
+          source: s.name,
+          kind: e.kind,
+          version: e.version,
+          quiet_ms: e.quiet_ms,
+          published_at: e.published_at,
+        });
+      for (const j of live)
+        judges.push({
+          source: s.name,
+          name: j.name,
+          version: j.version,
+          moment: j.moment_kind,
+          model: j.model,
+          mode: j.mode,
+          projects: j.projects,
+          judge_on: s.config?.judge_on ?? "api",
+        });
     }
-    return { moments: moments.map((m) => momentView(m, Date.now())), extractors, judges };
+    return {
+      moments: moments.map((m) => momentView(m, Date.now())),
+      extractors,
+      judges,
+    };
   },
 });
 
 export async function publishedOf(ctx: any, sourceId: Id<"event_sources">) {
-  const ex: Doc<"moment_extractors">[] = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", sourceId)).collect();
-  const live: Doc<"judges">[] = (await ctx.db.query("judges").withIndex("by_source_name", (q: any) => q.eq("source_id", sourceId)).collect()).filter((j: Doc<"judges">) => !j.removed_at);
+  const ex: Doc<"moment_extractors">[] = await ctx.db
+    .query("moment_extractors")
+    .withIndex("by_source_kind", (q: any) => q.eq("source_id", sourceId))
+    .collect();
+  const live: Doc<"judges">[] = (
+    await ctx.db
+      .query("judges")
+      .withIndex("by_source_name", (q: any) => q.eq("source_id", sourceId))
+      .collect()
+  ).filter((j: Doc<"judges">) => !j.removed_at);
   return { ex, live };
 }
 
@@ -605,13 +1056,29 @@ export const showForCli = query({
   args: { ...scopeArgs, moment: v.string() },
   handler: async (ctx, args) => {
     const { workspaceKey } = await scopeOf(ctx, args);
-    const m = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment.trim())).first();
-    if (!m || m.workspace !== workspaceKey) throw new Error(`No moment ${args.moment} in this workspace`);
+    const m = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) =>
+        q.eq("short_id", args.moment.trim()),
+      )
+      .first();
+    if (!m || m.workspace !== workspaceKey)
+      throw new Error(`No moment ${args.moment} in this workspace`);
     const source = await ctx.db.get(m.source_id);
-    const runs = await ctx.db.query("judge_runs").withIndex("by_moment", (q: any) => q.eq("moment_id", m._id)).collect();
+    const runs = await ctx.db
+      .query("judge_runs")
+      .withIndex("by_moment", (q: any) => q.eq("moment_id", m._id))
+      .collect();
     return {
-      moment: { ...momentView(m, Date.now()), source: source?.name, refs: momentRefs(m) },
-      runs: runs.map((r: Doc<"judge_runs">) => ({ ...judgeRunRow(r), expectations: r.expectations.map((e) => e.version) })),
+      moment: {
+        ...momentView(m, Date.now()),
+        source: source?.name,
+        refs: momentRefs(m),
+      },
+      runs: runs.map((r: Doc<"judge_runs">) => ({
+        ...judgeRunRow(r),
+        expectations: r.expectations.map((e) => e.version),
+      })),
     };
   },
 });
@@ -627,19 +1094,36 @@ export const showForCli = query({
  * and lets go only under them, so a resample of every other line moves nothing.
  */
 export const retryForCli = mutation({
-  args: { ...scopeArgs, moments: v.array(v.string()), again: v.optional(v.boolean()), lines: v.optional(v.array(v.string())) },
+  args: {
+    ...scopeArgs,
+    moments: v.array(v.string()),
+    again: v.optional(v.boolean()),
+    lines: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const { workspaceKey } = await scopeOf(ctx, args);
     const now = Date.now();
     const out: Array<{ moment: string; status: string; retried: boolean }> = [];
     for (const ref of args.moments.slice(0, 200)) {
-      const m = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", ref.trim())).first();
-      if (!m || m.workspace !== workspaceKey) throw new Error(`No moment ${ref} in this workspace`);
+      const m = await ctx.db
+        .query("moments")
+        .withIndex("by_short_id", (q: any) => q.eq("short_id", ref.trim()))
+        .first();
+      if (!m || m.workspace !== workspaceKey)
+        throw new Error(`No moment ${ref} in this workspace`);
       if (m.status !== "failed" && !(args.again && m.status === "ready")) {
         out.push({ moment: m.short_id, status: m.status, retried: false });
         continue;
       }
-      await ctx.db.patch(m._id, { status: "waiting", attempts: 0, error: undefined, due_at: now, claim_device: undefined, rejudge_lines: args.lines?.length ? args.lines : undefined, updated_at: now });
+      await ctx.db.patch(m._id, {
+        status: "waiting",
+        attempts: 0,
+        error: undefined,
+        due_at: now,
+        claim_device: undefined,
+        rejudge_lines: args.lines?.length ? args.lines : undefined,
+        updated_at: now,
+      });
       out.push({ moment: m.short_id, status: "waiting", retried: true });
     }
     return out;
@@ -649,15 +1133,40 @@ export const retryForCli = mutation({
 /** A ready moment as `cast line moments rejudge` reads it: its judges, its window and where its kept body is. */
 export const rejudging = internalQuery({
   args: { ...scopeArgs, moment: v.string() },
-  handler: async (ctx, args): Promise<(Finishing & { body_key: string | null }) | { error: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<(Finishing & { body_key: string | null }) | { error: string }> => {
     const { workspaceKey } = await scopeOf(ctx, args);
-    const moment = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment.trim())).first();
-    if (!moment || moment.workspace !== workspaceKey) throw new Error(`No moment ${args.moment} in this workspace`);
-    if (moment.status !== "ready") return { error: `${moment.short_id} is ${moment.status}; only a ready moment is judged again` };
-    const ex = await ctx.db.query("moment_extractors").withIndex("by_source_kind", (q: any) => q.eq("source_id", moment.source_id).eq("kind", moment.kind)).first();
+    const moment = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) =>
+        q.eq("short_id", args.moment.trim()),
+      )
+      .first();
+    if (!moment || moment.workspace !== workspaceKey)
+      throw new Error(`No moment ${args.moment} in this workspace`);
+    if (moment.status !== "ready")
+      return {
+        error: `${moment.short_id} is ${moment.status}; only a ready moment is judged again`,
+      };
+    const ex = await ctx.db
+      .query("moment_extractors")
+      .withIndex("by_source_kind", (q: any) =>
+        q.eq("source_id", moment.source_id).eq("kind", moment.kind),
+      )
+      .first();
     const source = (await ctx.db.get(moment.source_id))!;
-    const kept = !!moment.body_key && (moment.body_expires_at == null || moment.body_expires_at > Date.now());
-    return { moment, source, judges: await liveJudges(ctx, moment), window: await windowOf(ctx, moment, ex?.quiet_ms ?? DEFAULT_QUIET_MS), body_key: kept ? moment.body_key! : null };
+    const kept =
+      !!moment.body_key &&
+      (moment.body_expires_at == null || moment.body_expires_at > Date.now());
+    return {
+      moment,
+      source,
+      judges: await liveJudges(ctx, moment),
+      window: await windowOf(ctx, moment, ex?.quiet_ms ?? DEFAULT_QUIET_MS),
+      body_key: kept ? moment.body_key! : null,
+    };
   },
 });
 
@@ -670,19 +1179,61 @@ export const rejudging = internalQuery({
  * scopes it as retryForCli's does.
  */
 export const rejudgeForCli = action({
-  args: { ...scopeArgs, moments: v.array(v.string()), lines: v.optional(v.array(v.string())) },
-  handler: async (ctx, args): Promise<Array<{ moment: string; judged?: JudgeOutcome[]; judge_here?: JudgeHandoff; error?: string }>> => {
+  args: {
+    ...scopeArgs,
+    moments: v.array(v.string()),
+    lines: v.optional(v.array(v.string())),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    Array<{
+      moment: string;
+      judged?: JudgeOutcome[];
+      judge_here?: JudgeHandoff;
+      error?: string;
+    }>
+  > => {
     const { moments, lines, ...scope } = args;
-    const out: Array<{ moment: string; judged?: JudgeOutcome[]; judge_here?: JudgeHandoff; error?: string }> = [];
+    const out: Array<{
+      moment: string;
+      judged?: JudgeOutcome[];
+      judge_here?: JudgeHandoff;
+      error?: string;
+    }> = [];
     for (const ref of moments.slice(0, 5)) {
-      const r = await ctx.runQuery(internal.moments.rejudging, { ...scope, moment: ref });
-      if ("error" in r) { out.push({ moment: ref, error: r.error }); continue; }
+      const r = await ctx.runQuery(internal.moments.rejudging, {
+        ...scope,
+        moment: ref,
+      });
+      if ("error" in r) {
+        out.push({ moment: ref, error: r.error });
+        continue;
+      }
       const body = await readKeptBody(r.body_key);
-      if (!body) { out.push({ moment: ref, error: "codecast does not keep this moment's body (host storage, or past its 30 days)" }); continue; }
+      if (!body) {
+        out.push({
+          moment: ref,
+          error:
+            "codecast does not keep this moment's body (host storage, or past its 30 days)",
+        });
+        continue;
+      }
       const { body_key: _, ...f } = r;
-      const record: MomentRecord = { ...body, window: { from: f.window.from, to: Math.max(f.window.to, body.at ?? body.event_at) } };
+      const record: MomentRecord = {
+        ...body,
+        window: {
+          from: f.window.from,
+          to: Math.max(f.window.to, body.at ?? body.event_at),
+        },
+      };
       const { judged, handoff } = await judgeMoment(ctx, f, record, lines);
-      out.push({ moment: ref, judged, ...(handoff ? { judge_here: handoff } : {}) });
+      out.push({
+        moment: ref,
+        judged,
+        ...(handoff ? { judge_here: handoff } : {}),
+      });
     }
     return out;
   },
@@ -693,7 +1244,11 @@ export const rulingsForCli = query({
   args: { ...scopeArgs, scopes: v.array(v.string()) },
   handler: async (ctx, args): Promise<Ruling[]> => {
     const { workspaceKey } = await scopeOf(ctx, args);
-    return await readRulings(ctx, workspaceKey, args.scopes.filter((s) => s.startsWith("evidence:")).slice(0, 20));
+    return await readRulings(
+      ctx,
+      workspaceKey,
+      args.scopes.filter((s) => s.startsWith("evidence:")).slice(0, 20),
+    );
   },
 });
 
@@ -701,8 +1256,14 @@ export const bodyKeyFor = internalQuery({
   args: { ...scopeArgs, moment: v.string() },
   handler: async (ctx, args): Promise<string | null> => {
     const { workspaceKey } = await scopeOf(ctx, args);
-    const m = await ctx.db.query("moments").withIndex("by_short_id", (q: any) => q.eq("short_id", args.moment.trim())).first();
-    if (!m || m.workspace !== workspaceKey) throw new Error(`No moment ${args.moment} in this workspace`);
+    const m = await ctx.db
+      .query("moments")
+      .withIndex("by_short_id", (q: any) =>
+        q.eq("short_id", args.moment.trim()),
+      )
+      .first();
+    if (!m || m.workspace !== workspaceKey)
+      throw new Error(`No moment ${args.moment} in this workspace`);
     return liveBodyKey(m, Date.now());
   },
 });
@@ -729,13 +1290,26 @@ export const prune = internalMutation({
     const now = Date.now();
     let cleared = 0;
     let dropped = 0;
-    const expired = await ctx.db.query("moments").withIndex("by_body_expires", (q: any) => q.gt("body_expires_at", 0).lte("body_expires_at", now)).take(500);
+    const expired = await ctx.db
+      .query("moments")
+      .withIndex("by_body_expires", (q: any) =>
+        q.gt("body_expires_at", 0).lte("body_expires_at", now),
+      )
+      .take(500);
     for (const m of expired) {
-      await ctx.db.patch(m._id, { body_key: undefined, body_expires_at: undefined });
+      await ctx.db.patch(m._id, {
+        body_key: undefined,
+        body_expires_at: undefined,
+      });
       cleared++;
     }
     for (const status of ["waiting", "failed", "skipped"] as const) {
-      const stale = await ctx.db.query("moments").withIndex("by_status_due", (q: any) => q.eq("status", status).lte("due_at", now - STALE_MS)).take(500);
+      const stale = await ctx.db
+        .query("moments")
+        .withIndex("by_status_due", (q: any) =>
+          q.eq("status", status).lte("due_at", now - STALE_MS),
+        )
+        .take(500);
       for (const m of stale) {
         await ctx.db.delete(m._id);
         dropped++;
@@ -752,7 +1326,10 @@ export const prune = internalMutation({
  * A body under moments-30d/ keeps its date: the bucket deletes it regardless.
  */
 export const keepBodies = internalMutation({
-  args: { source_id: v.id("event_sources"), cursor: v.optional(v.union(v.string(), v.null())) },
+  args: {
+    source_id: v.id("event_sources"),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
   handler: async (ctx, args) => {
     const now = Date.now();
     const page = await ctx.db
@@ -762,11 +1339,20 @@ export const keepBodies = internalMutation({
     let kept = 0;
     for (const m of page.page as Doc<"moments">[]) {
       // A body already past its date is gone from R2: prune unhooks it.
-      if (m.source_id !== args.source_id || !m.body_key?.startsWith(MOMENTS_KEPT_ROOT) || m.body_expires_at! <= now) continue;
+      if (
+        m.source_id !== args.source_id ||
+        !m.body_key?.startsWith(MOMENTS_KEPT_ROOT) ||
+        m.body_expires_at! <= now
+      )
+        continue;
       await ctx.db.patch(m._id, { body_expires_at: undefined });
       kept++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.moments.keepBodies, { source_id: args.source_id, cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.moments.keepBodies, {
+        source_id: args.source_id,
+        cursor: page.continueCursor,
+      });
     return { kept };
   },
 });

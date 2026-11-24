@@ -65,18 +65,24 @@ export type ByteCache = {
 // weekly so a CDN that starts sending the header gets its cache back.
 const OPAQUE_ORIGINS_KEY = "codecast:opaque-origins:v1";
 const OPAQUE_RETEST_MS = 7 * 24 * 3600_000;
-const SEEDED_OPAQUE_ORIGINS = ["https://avatars.slack-edge.com", "https://a.slack-edge.com"];
+const SEEDED_OPAQUE_ORIGINS = [
+  "https://avatars.slack-edge.com",
+  "https://a.slack-edge.com",
+];
 
 // origin -> when we learned it refuses. Seeds never expire.
 const opaqueOrigins = new Map<string, number>();
 
 function loadOpaqueOrigins(): void {
-  for (const origin of SEEDED_OPAQUE_ORIGINS) opaqueOrigins.set(origin, Infinity);
+  for (const origin of SEEDED_OPAQUE_ORIGINS)
+    opaqueOrigins.set(origin, Infinity);
   try {
     const raw = localStorage.getItem(OPAQUE_ORIGINS_KEY);
     if (!raw) return;
     const now = Date.now();
-    for (const [origin, at] of Object.entries(JSON.parse(raw) as Record<string, number>)) {
+    for (const [origin, at] of Object.entries(
+      JSON.parse(raw) as Record<string, number>,
+    )) {
       if (now - at < OPAQUE_RETEST_MS) opaqueOrigins.set(origin, at);
     }
   } catch {
@@ -103,7 +109,8 @@ function markOpaque(url: string): void {
   opaqueOrigins.set(origin, Date.now());
   try {
     const stored: Record<string, number> = {};
-    for (const [key, at] of opaqueOrigins) if (Number.isFinite(at)) stored[key] = at;
+    for (const [key, at] of opaqueOrigins)
+      if (Number.isFinite(at)) stored[key] = at;
     localStorage.setItem(OPAQUE_ORIGINS_KEY, JSON.stringify(stored));
   } catch {
     // Storage full or blocked: the verdict still stands for this session.
@@ -151,7 +158,8 @@ export function createByteCache(opts: ByteCacheOpts): ByteCache {
       // least recently STORED entries. An evicted image a surface still shows
       // just refetches on its next cold render — nothing breaks.
       const keys = await cache.keys();
-      for (let i = 0; i < keys.length - maxEntries; i++) void cache.delete(keys[i]);
+      for (let i = 0; i < keys.length - maxEntries; i++)
+        void cache.delete(keys[i]);
     } catch {
       // Losing a prune only means the cache runs a little over the cap.
     }
@@ -230,7 +238,8 @@ export function createByteCache(opts: ByteCacheOpts): ByteCache {
   function prefetch(urls: Array<string | null | undefined>): void {
     for (const url of urls) {
       if (!url || !canByteCache(url)) continue;
-      if (prefetchSeen.has(url) || memCache.has(url) || inflight.has(url)) continue;
+      if (prefetchSeen.has(url) || memCache.has(url) || inflight.has(url))
+        continue;
       prefetchSeen.add(url);
       prefetchQueue.push(url);
     }
@@ -273,7 +282,8 @@ export function createByteCache(opts: ByteCacheOpts): ByteCache {
     if (!url) return undefined;
     if (!canByteCache(url)) return url;
     const entry = memCache.get(url);
-    if (entry === undefined) return opts.whileResolving === "remote" ? url : undefined;
+    if (entry === undefined)
+      return opts.whileResolving === "remote" ? url : undefined;
     if (entry === null) return opts.onFailed === "remote" ? url : undefined;
     return entry;
   }

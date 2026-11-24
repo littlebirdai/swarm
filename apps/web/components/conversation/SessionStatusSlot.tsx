@@ -23,7 +23,14 @@ export function SessionStatusSlot({
   onRestart: () => void;
 }) {
   const { row, verdict } = useInterruptVerdict(conversationId);
-  if (!verdict || !row || !conversationId) return <AgentStatusPill agentStatus={agentStatus} disconnected={disconnected} live={live} />;
+  if (!verdict || !row || !conversationId)
+    return (
+      <AgentStatusPill
+        agentStatus={agentStatus}
+        disconnected={disconnected}
+        live={live}
+      />
+    );
   const failed = verdict === "failed";
   const act = () => {
     const store = useInboxStore.getState();
@@ -35,16 +42,22 @@ export function SessionStatusSlot({
     }
   };
   const tone = failed ? "text-sol-red" : "text-sol-yellow";
-  const chip = failed ? "border-sol-red/40 hover:bg-sol-red/10" : "border-sol-yellow/40 hover:bg-sol-yellow/10";
+  const chip = failed
+    ? "border-sol-red/40 hover:bg-sol-red/10"
+    : "border-sol-yellow/40 hover:bg-sol-yellow/10";
   return (
     <span
       data-cc-conv-status
       data-interrupt-verdict={verdict}
       className={`inline-flex items-center gap-1 px-1 text-meta flex-shrink-0 ${tone}`}
-      title={failed ? row.error ?? undefined : "No machine took the stop"}
+      title={failed ? (row.error ?? undefined) : "No machine took the stop"}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${failed ? "bg-sol-red" : "bg-sol-yellow"}`} />
-      <span className="hidden sm:inline cq-sq3">{failed ? "Stop failed" : "Stop not delivered"}</span>
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${failed ? "bg-sol-red" : "bg-sol-yellow"}`}
+      />
+      <span className="hidden sm:inline cq-sq3">
+        {failed ? "Stop failed" : "Stop not delivered"}
+      </span>
       <button
         type="button"
         onClick={act}

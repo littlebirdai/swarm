@@ -3,7 +3,11 @@
 // targets, the manifest counts, and how a moment is written. The timeline,
 // the repro, the rrweb converter and the Convex assembler all import these,
 // so "a failed request" means one thing everywhere.
-import { REPLAY_KEYS, REPLAY_LIMITS, type ReplayEvent } from "../contracts/replay";
+import {
+  REPLAY_KEYS,
+  REPLAY_LIMITS,
+  type ReplayEvent,
+} from "../contracts/replay";
 
 type NetworkEvent = Extract<ReplayEvent, { type: "network" }>;
 type ConsoleEvent = Extract<ReplayEvent, { type: "console" }>;
@@ -19,7 +23,10 @@ export function isSlowRequest(e: ReplayEvent): e is NetworkEvent {
   return e.type === "network" && e.ms >= REPLAY_LIMITS.network_slow_ms;
 }
 
-export type ReplayFailure = ErrorEvent | NetworkEvent | (ConsoleEvent & { level: "error" });
+export type ReplayFailure =
+  | ErrorEvent
+  | NetworkEvent
+  | (ConsoleEvent & { level: "error" });
 
 /**
  * A console line the recording SDK wrote about itself ("[SessionRecording] Too
@@ -27,12 +34,21 @@ export type ReplayFailure = ErrorEvent | NetworkEvent | (ConsoleEvent & { level:
  * the page did, so no reader lists it or counts it as a failure.
  */
 export function isRecorderNoise(e: ReplayEvent): boolean {
-  return e.type === "console" && /^\s*\[(?:SessionRecording|PostHog(?:\.js)?|posthog-js|rrweb|Sentry Replay|Replay)\b/i.test(e.message);
+  return (
+    e.type === "console" &&
+    /^\s*\[(?:SessionRecording|PostHog(?:\.js)?|posthog-js|rrweb|Sentry Replay|Replay)\b/i.test(
+      e.message,
+    )
+  );
 }
 
 /** Something went wrong here: a page error, a console error, or a failed request. */
 export function isFailure(e: ReplayEvent): e is ReplayFailure {
-  return e.type === "error" || (e.type === "console" && e.level === "error" && !isRecorderNoise(e)) || isFailedRequest(e);
+  return (
+    e.type === "error" ||
+    (e.type === "console" && e.level === "error" && !isRecorderNoise(e)) ||
+    isFailedRequest(e)
+  );
 }
 
 /**
@@ -42,28 +58,47 @@ export function isFailure(e: ReplayEvent): e is ReplayFailure {
  * picking by position alone would aim the repro at the symptom's cause and
  * miss the error the group is about.
  */
-export function primaryFailure(events: readonly ReplayEvent[]): ReplayFailure | undefined {
+export function primaryFailure(
+  events: readonly ReplayEvent[],
+): ReplayFailure | undefined {
   return (
     events.find((e): e is ErrorEvent => e.type === "error") ??
-    events.find((e): e is ReplayFailure => e.type === "console" && e.level === "error") ??
+    events.find(
+      (e): e is ReplayFailure => e.type === "console" && e.level === "error",
+    ) ??
     events.find(isFailedRequest)
   );
 }
 
 /** The manifest's counts (replays.counts), computed from the stream itself. */
-export function replayCounts(events: readonly ReplayEvent[]): { clicks: number; errors: number; failed_requests: number } {
-  let clicks = 0, errors = 0, failed = 0;
+export function replayCounts(events: readonly ReplayEvent[]): {
+  clicks: number;
+  errors: number;
+  failed_requests: number;
+} {
+  let clicks = 0,
+    errors = 0,
+    failed = 0;
   for (const e of events) {
     if (e.type === "click") clicks++;
-    else if (e.type === "error" || (e.type === "console" && e.level === "error")) errors++;
+    else if (
+      e.type === "error" ||
+      (e.type === "console" && e.level === "error")
+    )
+      errors++;
     else if (isFailedRequest(e)) failed++;
   }
   return { clicks, errors, failed_requests: failed };
 }
 
 /** Events in time order. Chunks arrive in order but a merged stream may not be; equal stamps keep their order. */
-export function sortReplayEvents(events: readonly ReplayEvent[]): ReplayEvent[] {
-  return events.map((e, i) => [e, i] as const).sort((a, b) => a[0].t - b[0].t || a[1] - b[1]).map(([e]) => e);
+export function sortReplayEvents(
+  events: readonly ReplayEvent[],
+): ReplayEvent[] {
+  return events
+    .map((e, i) => [e, i] as const)
+    .sort((a, b) => a[0].t - b[0].t || a[1] - b[1])
+    .map(([e]) => e);
 }
 
 /**
@@ -85,12 +120,17 @@ export function foldRepeatNavs(events: readonly ReplayEvent[]): ReplayEvent[] {
   return folded ? out : (events as ReplayEvent[]);
 }
 
-const s = (v: unknown, max: number): string | undefined => (typeof v === "string" ? v.slice(0, max) : undefined);
-const n = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const s = (v: unknown, max: number): string | undefined =>
+  typeof v === "string" ? v.slice(0, max) : undefined;
+const n = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) ? v : undefined;
 /** A click's landing point, both coordinates or neither, rounded to the pixel. */
 const xy = (raw: any): { x?: number; y?: number } => {
-  const x = n(raw?.x), y = n(raw?.y);
-  return x !== undefined && y !== undefined && x >= 0 && y >= 0 ? { x: Math.round(x), y: Math.round(y) } : {};
+  const x = n(raw?.x),
+    y = n(raw?.y);
+  return x !== undefined && y !== undefined && x >= 0 && y >= 0
+    ? { x: Math.round(x), y: Math.round(y) }
+    : {};
 };
 
 /**
@@ -100,7 +140,11 @@ const xy = (raw: any): { x?: number; y?: number } => {
  * Accepts the array itself or `{ events: [...] }`.
  */
 export function parseReplayEvents(body: unknown): ReplayEvent[] {
-  const list = Array.isArray(body) ? body : body && typeof body === "object" && Array.isArray((body as any).events) ? (body as any).events : [];
+  const list = Array.isArray(body)
+    ? body
+    : body && typeof body === "object" && Array.isArray((body as any).events)
+      ? (body as any).events
+      : [];
   const L = REPLAY_LIMITS;
   const out: ReplayEvent[] = [];
   for (const raw of list as any[]) {
@@ -111,22 +155,54 @@ export function parseReplayEvents(body: unknown): ReplayEvent[] {
     switch (raw.type) {
       case "nav": {
         const url = s(raw.url, L.url_max_chars);
-        if (url) e = { type: "nav", t, url, ...(s(raw.title, L.label_max_chars) ? { title: s(raw.title, L.label_max_chars) } : {}) };
+        if (url)
+          e = {
+            type: "nav",
+            t,
+            url,
+            ...(s(raw.title, L.label_max_chars)
+              ? { title: s(raw.title, L.label_max_chars) }
+              : {}),
+          };
         break;
       }
       case "click": {
-        const role = s(raw.role, 40), text = s(raw.text, L.label_max_chars), context = s(raw.context, L.label_max_chars);
-        e = { type: "click", t, label: s(raw.label, L.label_max_chars) ?? "", selector: s(raw.selector, L.selector_max_chars) ?? "", ...(role ? { role } : {}), ...(text ? { text } : {}), ...(context ? { context } : {}), ...xy(raw) };
+        const role = s(raw.role, 40),
+          text = s(raw.text, L.label_max_chars),
+          context = s(raw.context, L.label_max_chars);
+        e = {
+          type: "click",
+          t,
+          label: s(raw.label, L.label_max_chars) ?? "",
+          selector: s(raw.selector, L.selector_max_chars) ?? "",
+          ...(role ? { role } : {}),
+          ...(text ? { text } : {}),
+          ...(context ? { context } : {}),
+          ...xy(raw),
+        };
         break;
       }
       case "input":
-        e = { type: "input", t, label: s(raw.label, L.label_max_chars) ?? "", selector: s(raw.selector, L.selector_max_chars) ?? "", length: Math.max(0, Math.round(n(raw.length) ?? 0)), redacted: true };
+        e = {
+          type: "input",
+          t,
+          label: s(raw.label, L.label_max_chars) ?? "",
+          selector: s(raw.selector, L.selector_max_chars) ?? "",
+          length: Math.max(0, Math.round(n(raw.length) ?? 0)),
+          redacted: true,
+        };
         break;
       case "submit":
-        e = { type: "submit", t, label: s(raw.label, L.label_max_chars) ?? "", selector: s(raw.selector, L.selector_max_chars) ?? "" };
+        e = {
+          type: "submit",
+          t,
+          label: s(raw.label, L.label_max_chars) ?? "",
+          selector: s(raw.selector, L.selector_max_chars) ?? "",
+        };
         break;
       case "key":
-        if ((REPLAY_KEYS as readonly unknown[]).includes(raw.key)) e = { type: "key", t, key: raw.key };
+        if ((REPLAY_KEYS as readonly unknown[]).includes(raw.key))
+          e = { type: "key", t, key: raw.key };
         break;
       case "scroll": {
         const y = n(raw.y);
@@ -134,17 +210,32 @@ export function parseReplayEvents(body: unknown): ReplayEvent[] {
         break;
       }
       case "console":
-        if (raw.level === "warn" || raw.level === "error") e = { type: "console", t, level: raw.level, message: s(raw.message, L.console_message_max_chars) ?? "" };
+        if (raw.level === "warn" || raw.level === "error")
+          e = {
+            type: "console",
+            t,
+            level: raw.level,
+            message: s(raw.message, L.console_message_max_chars) ?? "",
+          };
         break;
       case "network": {
         const url = s(raw.url, L.url_max_chars);
-        if (url) e = { type: "network", t, method: (s(raw.method, 16) ?? "GET").toUpperCase(), url, status: n(raw.status) ?? 0, ms: n(raw.ms) ?? 0 };
+        if (url)
+          e = {
+            type: "network",
+            t,
+            method: (s(raw.method, 16) ?? "GET").toUpperCase(),
+            url,
+            status: n(raw.status) ?? 0,
+            ms: n(raw.ms) ?? 0,
+          };
         break;
       }
       case "error": {
         const message = s(raw.message, L.console_message_max_chars);
         const stack = s(raw.stack, L.error_stack_max_chars);
-        if (message) e = { type: "error", t, message, ...(stack ? { stack } : {}) };
+        if (message)
+          e = { type: "error", t, message, ...(stack ? { stack } : {}) };
         break;
       }
       case "view": {
@@ -156,10 +247,17 @@ export function parseReplayEvents(body: unknown): ReplayEvent[] {
         const name = s(raw.name, L.label_max_chars);
         if (!name) break;
         let data: Record<string, unknown> | undefined;
-        if (raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)) {
+        if (
+          raw.data &&
+          typeof raw.data === "object" &&
+          !Array.isArray(raw.data)
+        ) {
           try {
             const json = JSON.stringify(raw.data);
-            data = json.length <= L.mark_data_max_chars ? JSON.parse(json) : { _truncated: `${json.length} chars` };
+            data =
+              json.length <= L.mark_data_max_chars
+                ? JSON.parse(json)
+                : { _truncated: `${json.length} chars` };
           } catch {
             data = undefined;
           }
@@ -209,16 +307,34 @@ export function replayTParam(ms: number): string {
  * write it. A bare integer may also be an older link's ms: `alt` carries that
  * reading for the page to take when the seconds run past the recording.
  */
-export function parseReplayT(raw: string | null | undefined): { t: number; alt?: number } | null {
+export function parseReplayT(
+  raw: string | null | undefined,
+): { t: number; alt?: number } | null {
   const v = raw?.trim().toLowerCase();
   if (!v) return null;
   if (/^\d+(\.\d+)?$/.test(v)) {
     const n = Number(v);
-    return /^\d+$/.test(v) ? { t: Math.round(n * 1000), alt: n } : { t: Math.round(n * 1000) };
+    return /^\d+$/.test(v)
+      ? { t: Math.round(n * 1000), alt: n }
+      : { t: Math.round(n * 1000) };
   }
   const clock = /^(?:(\d+):)?(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/.exec(v);
-  if (clock) return { t: Math.round(((Number(clock[1] ?? 0) * 60 + Number(clock[2])) * 60 + Number(clock[3])) * 1000) };
+  if (clock)
+    return {
+      t: Math.round(
+        ((Number(clock[1] ?? 0) * 60 + Number(clock[2])) * 60 +
+          Number(clock[3])) *
+          1000,
+      ),
+    };
   const units = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+(?:\.\d+)?)s)?$/.exec(v);
-  if (units && (units[1] || units[2] || units[3])) return { t: Math.round(((Number(units[1] ?? 0) * 60 + Number(units[2] ?? 0)) * 60 + Number(units[3] ?? 0)) * 1000) };
+  if (units && (units[1] || units[2] || units[3]))
+    return {
+      t: Math.round(
+        ((Number(units[1] ?? 0) * 60 + Number(units[2] ?? 0)) * 60 +
+          Number(units[3] ?? 0)) *
+          1000,
+      ),
+    };
   return null;
 }

@@ -89,10 +89,7 @@ function linkWorkspace(entity: {
   return workspaceForResource(entity);
 }
 
-const entityTypeValidator = v.union(
-  v.literal("task"),
-  v.literal("plan"),
-);
+const entityTypeValidator = v.union(v.literal("task"), v.literal("plan"));
 
 const relationshipValidator = v.union(
   v.literal("discussion"),
@@ -114,9 +111,16 @@ export async function linkConversationToEntity(
   },
 ): Promise<{ id: any; created: boolean }> {
   const entity = await requireAccessibleLinkableEntity(
-    ctx, userId, input.entityType, input.entityId);
+    ctx,
+    userId,
+    input.entityType,
+    input.entityId,
+  );
   const conversation = await requireAccessibleConversation(
-    ctx, userId, input.conversationId);
+    ctx,
+    userId,
+    input.conversationId,
+  );
 
   const entityWorkspace = linkWorkspace(entity);
   requireWorkspaceMatch(
@@ -129,7 +133,8 @@ export async function linkConversationToEntity(
   const existing = await ctx.db
     .query("entity_conversations")
     .withIndex("by_entity", (q: any) =>
-      q.eq("entity_type", input.entityType).eq("entity_id", entityId))
+      q.eq("entity_type", input.entityType).eq("entity_id", entityId),
+    )
     .collect();
   const duplicate = existing.find(
     (row: any) =>
@@ -140,7 +145,8 @@ export async function linkConversationToEntity(
 
   const id = await ctx.db.insert("entity_conversations", {
     user_id: userId,
-    team_id: entityWorkspace.type === "team" ? entityWorkspace.teamId : undefined,
+    team_id:
+      entityWorkspace.type === "team" ? entityWorkspace.teamId : undefined,
     entity_type: input.entityType,
     entity_id: entityId,
     conversation_id: conversation._id,
@@ -188,11 +194,19 @@ export async function addConversationToWorkItem(
 ): Promise<void> {
   const field = entityType === "task" ? "conversation_ids" : "session_ids";
   const existing: any[] = (item as any)[field] || [];
-  const missing = !existing.some((id: any) => id.toString() === conversationId.toString());
-  const patch = { ...(missing ? { [field]: [...existing, conversationId] } : {}), ...extraPatch };
+  const missing = !existing.some(
+    (id: any) => id.toString() === conversationId.toString(),
+  );
+  const patch = {
+    ...(missing ? { [field]: [...existing, conversationId] } : {}),
+    ...extraPatch,
+  };
   if (Object.keys(patch).length > 0) await ctx.db.patch(item._id, patch);
   await linkConversationToEntityBestEffort(ctx, userId, {
-    entityType, entityId: String(item._id), conversationId, relationship: "work",
+    entityType,
+    entityId: String(item._id),
+    conversationId,
+    relationship: "work",
   });
 }
 
@@ -229,9 +243,19 @@ export const webUnlinkConversation = mutation({
     // visible to the caller still fails closed.
     try {
       await requireAccessibleLinkableEntity(
-        ctx, userId, row.entity_type as LinkableEntityType, row.entity_id);
+        ctx,
+        userId,
+        row.entity_type as LinkableEntityType,
+        row.entity_id,
+      );
     } catch (error) {
-      if (await linkableEntityExists(ctx, row.entity_type as LinkableEntityType, row.entity_id)) {
+      if (
+        await linkableEntityExists(
+          ctx,
+          row.entity_type as LinkableEntityType,
+          row.entity_id,
+        )
+      ) {
         throw error;
       }
       await requireAccessibleConversation(ctx, userId, row.conversation_id);
@@ -256,7 +280,11 @@ export const webListForEntity = query({
     let entity: any;
     try {
       entity = await requireAccessibleLinkableEntity(
-        ctx, userId, args.entity_type as LinkableEntityType, args.entity_id);
+        ctx,
+        userId,
+        args.entity_type as LinkableEntityType,
+        args.entity_id,
+      );
     } catch {
       return [];
     }
@@ -264,7 +292,10 @@ export const webListForEntity = query({
     const rows = await ctx.db
       .query("entity_conversations")
       .withIndex("by_entity", (q: any) =>
-        q.eq("entity_type", args.entity_type).eq("entity_id", String(entity._id)))
+        q
+          .eq("entity_type", args.entity_type)
+          .eq("entity_id", String(entity._id)),
+      )
       .collect();
 
     const result = [];
@@ -297,21 +328,29 @@ export const webListForConversation = query({
     if (!userId) return [];
 
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) {
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    ) {
       return [];
     }
 
     const rows = await ctx.db
       .query("entity_conversations")
       .withIndex("by_conversation", (q: any) =>
-        q.eq("conversation_id", args.conversation_id))
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
 
     const result = [];
     for (const row of rows) {
       try {
         await requireAccessibleLinkableEntity(
-          ctx, userId, row.entity_type as LinkableEntityType, row.entity_id);
+          ctx,
+          userId,
+          row.entity_type as LinkableEntityType,
+          row.entity_id,
+        );
         result.push(row);
       } catch {
         // omitted — entity gone or not visible to this caller
@@ -337,7 +376,9 @@ export async function linkedEntityIdsForConversation(
 ): Promise<string[]> {
   const rows = await ctx.db
     .query("entity_conversations")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .collect();
   const ids = new Set<string>();
   for (const row of rows) {

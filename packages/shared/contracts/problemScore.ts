@@ -50,12 +50,34 @@ export const PROBLEM_SCORE_SCHEMA = {
   additionalProperties: false,
   required: ["harm", "reach", "fixability", "score", "reason", "root_cause"],
   properties: {
-    harm: { type: "integer", description: "1 to 5: how badly the problem hurts the people it reaches, or the business." },
-    reach: { type: "integer", description: "1 to 5: how often it happens, across distinct people and conversations." },
-    fixability: { type: "integer", description: "1 to 5: how clear the cause is and how likely one change fixes it for good." },
-    score: { type: "integer", description: "1 to 100: the value of fixing this problem next." },
-    reason: { type: "string", description: "One line, under 200 characters, on why." },
-    root_cause: { type: "string", description: "A few words naming the mechanism that produces it, in general terms." },
+    harm: {
+      type: "integer",
+      description:
+        "1 to 5: how badly the problem hurts the people it reaches, or the business.",
+    },
+    reach: {
+      type: "integer",
+      description:
+        "1 to 5: how often it happens, across distinct people and conversations.",
+    },
+    fixability: {
+      type: "integer",
+      description:
+        "1 to 5: how clear the cause is and how likely one change fixes it for good.",
+    },
+    score: {
+      type: "integer",
+      description: "1 to 100: the value of fixing this problem next.",
+    },
+    reason: {
+      type: "string",
+      description: "One line, under 200 characters, on why.",
+    },
+    root_cause: {
+      type: "string",
+      description:
+        "A few words naming the mechanism that produces it, in general terms.",
+    },
   },
 } as const;
 
@@ -63,15 +85,20 @@ const DESCRIPTION_CHARS = 3_000;
 const FINDING_CHARS = 1_400;
 const SAMPLE_SIZE = 5;
 
-const clip = (t: string, max: number) => (t.length > max ? `${t.slice(0, max)}\n[cut]` : t);
+const clip = (t: string, max: number) =>
+  t.length > max ? `${t.slice(0, max)}\n[cut]` : t;
 
 /**
  * The findings a scorer reads in full: the most severe first, then the
  * newest, one per distinct opening so a problem with many copies of one
  * story still shows its spread.
  */
-export function sampleFindings<T extends { detail: string; severity?: number; at: number }>(rows: T[], n = SAMPLE_SIZE): T[] {
-  const ordered = [...rows].sort((a, b) => (b.severity ?? 0) - (a.severity ?? 0) || b.at - a.at);
+export function sampleFindings<
+  T extends { detail: string; severity?: number; at: number },
+>(rows: T[], n = SAMPLE_SIZE): T[] {
+  const ordered = [...rows].sort(
+    (a, b) => (b.severity ?? 0) - (a.severity ?? 0) || b.at - a.at,
+  );
   const out: T[] = [];
   const seen = new Set<string>();
   for (const r of ordered) {
@@ -87,7 +114,10 @@ export function sampleFindings<T extends { detail: string; severity?: number; at
 /** The scorer's one request: what the score is for, then the problem as data. */
 export function problemScorePrompt(p: ProblemScoreInput): string {
   const findings = p.sample
-    .map((f, i) => `<finding n="${i + 1}"${f.severity ? ` severity="${f.severity}"` : ""}>\n${clip(f.detail.trim(), FINDING_CHARS)}\n</finding>`)
+    .map(
+      (f, i) =>
+        `<finding n="${i + 1}"${f.severity ? ` severity="${f.severity}"` : ""}>\n${clip(f.detail.trim(), FINDING_CHARS)}\n</finding>`,
+    )
     .join("\n\n");
   return `A team runs AI agents that fix problems found in how its product's own agents treat the people they deal with. Reviews of real conversations filed findings, and findings with the same cause were grouped into problems. Only a few problems can be worked each hour, so they run in order of the value of fixing them, and your score sets that order.
 
@@ -111,19 +141,32 @@ ${findings}
 </problem>`;
 }
 
-const intIn = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v)) || lo));
+const intIn = (v: unknown, lo: number, hi: number) =>
+  Math.min(hi, Math.max(lo, Math.round(Number(v)) || lo));
 
 /** A structured reply as a score; null when it is not one. */
 export function parseProblemScore(text: string): ProblemScore | null {
   let d: Record<string, unknown>;
-  try { d = JSON.parse(text); } catch { return null; }
-  if (!d || typeof d !== "object" || typeof d.root_cause !== "string" || !d.root_cause.trim()) return null;
+  try {
+    d = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (
+    !d ||
+    typeof d !== "object" ||
+    typeof d.root_cause !== "string" ||
+    !d.root_cause.trim()
+  )
+    return null;
   return {
     score: intIn(d.score, 1, 100),
     harm: intIn(d.harm, 1, 5),
     reach: intIn(d.reach, 1, 5),
     fixability: intIn(d.fixability, 1, 5),
-    reason: String(d.reason ?? "").trim().slice(0, 300),
+    reason: String(d.reason ?? "")
+      .trim()
+      .slice(0, 300),
     root_cause: d.root_cause.trim().slice(0, 160),
   };
 }
@@ -150,14 +193,20 @@ export const FAMILIES_SCHEMA = {
         type: "object",
         additionalProperties: false,
         required: ["key", "name", "covers"],
-        properties: { key: { type: "string" }, name: { type: "string" }, covers: { type: "string" } },
+        properties: {
+          key: { type: "string" },
+          name: { type: "string" },
+          covers: { type: "string" },
+        },
       },
     },
   },
 } as const;
 
 /** The naming call: every distinct root-cause label with how many problems carry it, in, families out. */
-export function problemFamiliesPrompt(labels: Array<{ label: string; count: number }>): string {
+export function problemFamiliesPrompt(
+  labels: Array<{ label: string; count: number }>,
+): string {
   const list = labels.map((l) => `${l.count}\t${l.label}`).join("\n");
   return `Each line below is a short root-cause label a reviewer gave a problem found in how a product's AI agents treat the people they deal with, with how many problems carry it. Many labels name the same cause in different words.
 
@@ -173,15 +222,32 @@ ${list}
 
 export function parseFamilies(text: string): ProblemFamily[] | null {
   let d: any;
-  try { d = JSON.parse(text); } catch { return null; }
+  try {
+    d = JSON.parse(text);
+  } catch {
+    return null;
+  }
   if (!Array.isArray(d?.families)) return null;
   const seen = new Set<string>();
   const out: ProblemFamily[] = [];
   for (const f of d.families) {
-    const key = String(f?.key ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+    const key = String(f?.key ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 60);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    out.push({ key, name: String(f.name ?? key).trim().slice(0, 80), covers: String(f.covers ?? "").trim().slice(0, 300) });
+    out.push({
+      key,
+      name: String(f.name ?? key)
+        .trim()
+        .slice(0, 80),
+      covers: String(f.covers ?? "")
+        .trim()
+        .slice(0, 300),
+    });
   }
   return out.length ? out : null;
 }
@@ -204,7 +270,10 @@ export const ASSIGN_SCHEMA = {
 } as const;
 
 /** The assignment call: the families, then numbered labels, each placed in one family. */
-export function assignFamiliesPrompt(families: ProblemFamily[], labels: string[]): string {
+export function assignFamiliesPrompt(
+  families: ProblemFamily[],
+  labels: string[],
+): string {
   return `Below are families of root causes for problems found in how a product's AI agents treat people, then numbered root-cause labels. Place each label in the family whose cause it names. When none fits, use the key "other".
 
 Answer with one assignment per label number.
@@ -220,23 +289,34 @@ ${labels.map((l, i) => `${i + 1}\t${l}`).join("\n")}
 }
 
 /** Each label's family key by its index in the list sent; a key the families do not hold becomes "other". */
-export function parseAssignments(text: string, families: ProblemFamily[], count: number): Map<number, string> | null {
+export function parseAssignments(
+  text: string,
+  families: ProblemFamily[],
+  count: number,
+): Map<number, string> | null {
   let d: any;
-  try { d = JSON.parse(text); } catch { return null; }
+  try {
+    d = JSON.parse(text);
+  } catch {
+    return null;
+  }
   if (!Array.isArray(d?.assignments)) return null;
   const keys = new Set(families.map((f) => f.key));
   const out = new Map<number, string>();
   for (const a of d.assignments) {
     const n = Number(a?.n);
     if (!Number.isInteger(n) || n < 1 || n > count) continue;
-    const key = String(a?.key ?? "").trim().toLowerCase();
+    const key = String(a?.key ?? "")
+      .trim()
+      .toLowerCase();
     out.set(n - 1, keys.has(key) ? key : "other");
   }
   return out;
 }
 
 /** The label as families compare it: case and spacing folded. */
-export const labelKey = (label: string) => label.trim().toLowerCase().replace(/\s+/g, " ");
+export const labelKey = (label: string) =>
+  label.trim().toLowerCase().replace(/\s+/g, " ");
 
 // ── Keeping scores current ──────────────────────────────────────────────────
 
@@ -251,17 +331,43 @@ export const DEFAULT_PROBLEM_USD = 0.004;
  * current score first, newest first, then those with a finding filed after
  * their score, oldest score first.
  */
-export function dueForScoring<T extends { scored: { at: number; version: string } | null; last_finding_at: number; created_at: number }>(rows: T[]): T[] {
-  const unscored = rows.filter((r) => !r.scored || r.scored.version !== SCORE_VERSION).sort((a, b) => b.created_at - a.created_at);
-  const stale = rows.filter((r) => r.scored && r.scored.version === SCORE_VERSION && r.last_finding_at > r.scored.at).sort((a, b) => a.scored!.at - b.scored!.at);
+export function dueForScoring<
+  T extends {
+    scored: { at: number; version: string } | null;
+    last_finding_at: number;
+    created_at: number;
+  },
+>(rows: T[]): T[] {
+  const unscored = rows
+    .filter((r) => !r.scored || r.scored.version !== SCORE_VERSION)
+    .sort((a, b) => b.created_at - a.created_at);
+  const stale = rows
+    .filter(
+      (r) =>
+        r.scored &&
+        r.scored.version === SCORE_VERSION &&
+        r.last_finding_at > r.scored.at,
+    )
+    .sort((a, b) => a.scored!.at - b.scored!.at);
   return [...unscored, ...stale];
 }
 
 /** What the pass has spent in the 24 hours before `now`. */
-export const spentToday = (spend: Array<{ at: number; usd: number }>, now: number) => spend.filter((s) => s.at > now - 24 * 60 * 60_000).reduce((n, s) => n + s.usd, 0);
+export const spentToday = (
+  spend: Array<{ at: number; usd: number }>,
+  now: number,
+) =>
+  spend
+    .filter((s) => s.at > now - 24 * 60 * 60_000)
+    .reduce((n, s) => n + s.usd, 0);
 
 /** How many problems the cap still pays for at `perProblemUsd` each. */
-export function affordable(spend: Array<{ at: number; usd: number }>, now: number, perProblemUsd: number, capUsd = DAILY_CAP_USD): number {
+export function affordable(
+  spend: Array<{ at: number; usd: number }>,
+  now: number,
+  perProblemUsd: number,
+  capUsd = DAILY_CAP_USD,
+): number {
   const left = capUsd - spentToday(spend, now);
   return left > 0 ? Math.floor(left / Math.max(perProblemUsd, 1e-6)) : 0;
 }

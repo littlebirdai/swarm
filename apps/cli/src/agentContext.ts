@@ -105,7 +105,11 @@ function flagOf(option: Option, global = false): AgentContextFlag {
   const flag: AgentContextFlag = {
     flags: option.flags,
     description: option.description,
-    type: option.required ? "value" : option.optional ? "optional-value" : "boolean",
+    type: option.required
+      ? "value"
+      : option.optional
+        ? "optional-value"
+        : "boolean",
   };
   if (option.long) flag.long = option.long;
   if (option.short) flag.short = option.short;
@@ -119,12 +123,18 @@ function flagOf(option: Option, global = false): AgentContextFlag {
 }
 
 function argsOf(cmd: Command): AgentContextArgument[] {
-  return ((cmd as Command & CommandInternals).registeredArguments ?? []).map((arg) => {
-    const out: AgentContextArgument = { name: arg.name(), required: arg.required, variadic: arg.variadic };
-    if (arg.description) out.description = arg.description;
-    if (arg.defaultValue !== undefined) out.default = arg.defaultValue;
-    return out;
-  });
+  return ((cmd as Command & CommandInternals).registeredArguments ?? []).map(
+    (arg) => {
+      const out: AgentContextArgument = {
+        name: arg.name(),
+        required: arg.required,
+        variadic: arg.variadic,
+      };
+      if (arg.description) out.description = arg.description;
+      if (arg.defaultValue !== undefined) out.default = arg.defaultValue;
+      return out;
+    },
+  );
 }
 
 /** The options declared on the root, plus `--help`, which every command answers.
@@ -132,10 +142,17 @@ function argsOf(cmd: Command): AgentContextArgument[] {
  *  set it accepts, rather than treating `--help` as unsupported. */
 function globalFlags(program: Command): AgentContextFlag[] {
   const help = (program as Command & CommandInternals)._getHelpOption?.();
-  return [...program.options, ...(help ? [help] : [])].map((option) => flagOf(option, true));
+  return [...program.options, ...(help ? [help] : [])].map((option) =>
+    flagOf(option, true),
+  );
 }
 
-function walk(cmd: Command, path: string[], globals: AgentContextFlag[], out: AgentContextCommand[]): void {
+function walk(
+  cmd: Command,
+  path: string[],
+  globals: AgentContextFlag[],
+  out: AgentContextCommand[],
+): void {
   const children = cmd.commands as Command[];
   const own = cmd as Command & CommandInternals;
   out.push({
@@ -148,10 +165,13 @@ function walk(cmd: Command, path: string[], globals: AgentContextFlag[], out: Ag
     args: argsOf(cmd),
     hidden: own._hidden === true,
     destructive: isDestructivePath(path),
-    subcommands: children.map((child) => [...path, child.name()].join(" ")).sort(),
+    subcommands: children
+      .map((child) => [...path, child.name()].join(" "))
+      .sort(),
     runsBare: Boolean(own._actionHandler || own._defaultCommandName),
   });
-  for (const child of children) walk(child, [...path, child.name()], globals, out);
+  for (const child of children)
+    walk(child, [...path, child.name()], globals, out);
 }
 
 /**
@@ -161,10 +181,14 @@ function walk(cmd: Command, path: string[], globals: AgentContextFlag[], out: Ag
  * Pass a program with every group already activated, or the groups come out as
  * their placeholders.
  */
-export function buildAgentContext(program: Command, version: string): AgentContext {
+export function buildAgentContext(
+  program: Command,
+  version: string,
+): AgentContext {
   const globals = globalFlags(program);
   const commands: AgentContextCommand[] = [];
-  for (const child of program.commands as Command[]) walk(child, [child.name()], globals, commands);
+  for (const child of program.commands as Command[])
+    walk(child, [child.name()], globals, commands);
   commands.sort((a, b) => a.command.localeCompare(b.command));
   return {
     schemaVersion: AGENT_CONTEXT_SCHEMA_VERSION,
@@ -178,7 +202,9 @@ export function buildAgentContext(program: Command, version: string): AgentConte
  *  reports its size and names the flag that prints it. */
 export function formatAgentContextSummary(context: AgentContext): string {
   const destructive = context.commands.filter((cmd) => cmd.destructive).length;
-  const groups = context.commands.filter((cmd) => cmd.subcommands.length > 0).length;
+  const groups = context.commands.filter(
+    (cmd) => cmd.subcommands.length > 0,
+  ).length;
   return [
     `cast ${context.version}: ${context.commandCount} commands (${groups} with subcommands, ${destructive} destructive), schema v${context.schemaVersion}.`,
     "Run `cast agent-context --json` for the full machine-readable command surface.",

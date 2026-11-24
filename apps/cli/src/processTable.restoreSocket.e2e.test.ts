@@ -18,13 +18,19 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const pid of pids.splice(0)) { try { process.kill(pid, "SIGKILL"); } catch {} }
+  for (const pid of pids.splice(0)) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {}
+  }
   process.env.TMUX_TMPDIR = priorTmpdir;
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 async function startServer(session: string): Promise<number> {
-  expect((await tmuxRunAsync(["new-session", "-d", "-s", session])).status).toBe(0);
+  expect(
+    (await tmuxRunAsync(["new-session", "-d", "-s", session])).status,
+  ).toBe(0);
   const pid = (await liveTmuxServerPid())!;
   pids.push(pid);
   return pid;
@@ -41,7 +47,9 @@ test("an orphaned server retakes its socket with its sessions, and the newcomer 
 
   expect(await restoreTmuxServerSocket(fleet)).toBe(true);
   expect(await liveTmuxServerPid()).toBe(fleet);
-  expect((await tmuxRunAsync(["list-sessions", "-F", "#S"])).stdout.trim()).toBe("fleet");
+  expect(
+    (await tmuxRunAsync(["list-sessions", "-F", "#S"])).stdout.trim(),
+  ).toBe("fleet");
 }, 60_000);
 
 test("a pid that is gone restores nothing", async () => {

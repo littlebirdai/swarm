@@ -20,7 +20,13 @@ const KEPT_LEVELS = new Set(["warning", "error"]);
 const NUMERIC_LEVELS = ["verbose", "info", "warning", "error"];
 
 // `dir` may be a function: it is resolved at the first write, not at startup.
-function createRendererLog({ dir, appOrigin, fsImpl = fs, now = () => new Date(), maxBytes = MAX_BYTES }) {
+function createRendererLog({
+  dir,
+  appOrigin,
+  fsImpl = fs,
+  now = () => new Date(),
+  maxBytes = MAX_BYTES,
+}) {
   let resolved = null;
   const where = () => {
     if (resolved === null) {
@@ -36,10 +42,16 @@ function createRendererLog({ dir, appOrigin, fsImpl = fs, now = () => new Date()
       const { dir, file } = where();
       if (size === null) {
         fsImpl.mkdirSync(dir, { recursive: true });
-        try { size = fsImpl.statSync(file).size; } catch { size = 0; }
+        try {
+          size = fsImpl.statSync(file).size;
+        } catch {
+          size = 0;
+        }
       }
       if (size + Buffer.byteLength(line) > maxBytes) {
-        try { fsImpl.renameSync(file, `${file}.1`); } catch {}
+        try {
+          fsImpl.renameSync(file, `${file}.1`);
+        } catch {}
         size = 0;
       }
       fsImpl.appendFileSync(file, line);
@@ -50,17 +62,31 @@ function createRendererLog({ dir, appOrigin, fsImpl = fs, now = () => new Date()
   }
 
   function record(contents, args) {
-    const details = args[0] && typeof args[0] === "object" && "message" in args[0] ? args[0] : null;
-    const level = details ? details.level : NUMERIC_LEVELS[args[1]] ?? String(args[1]);
+    const details =
+      args[0] && typeof args[0] === "object" && "message" in args[0]
+        ? args[0]
+        : null;
+    const level = details
+      ? details.level
+      : (NUMERIC_LEVELS[args[1]] ?? String(args[1]));
     if (!KEPT_LEVELS.has(level)) return;
     let url;
-    try { url = new URL(contents.getURL()); } catch { return; }
+    try {
+      url = new URL(contents.getURL());
+    } catch {
+      return;
+    }
     if (url.origin !== appOrigin()) return;
-    const message = String(details ? details.message : args[2]).replace(/\n/g, "\n    ");
+    const message = String(details ? details.message : args[2]).replace(
+      /\n/g,
+      "\n    ",
+    );
     const source = details ? details.sourceId : args[4];
     const line = details ? details.lineNumber : args[3];
     const at = source ? ` (${String(source).split("/").pop()}:${line})` : "";
-    append(`${now().toISOString()} ${level.toUpperCase()} [${url.pathname}] ${message}${at}\n`);
+    append(
+      `${now().toISOString()} ${level.toUpperCase()} [${url.pathname}] ${message}${at}\n`,
+    );
   }
 
   return {

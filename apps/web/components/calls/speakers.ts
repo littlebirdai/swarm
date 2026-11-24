@@ -26,7 +26,10 @@ export function firstName(name: string | undefined): string {
  *  follow: a guest keeps the mark the room put on their name
  *  (callSpeakerName) and an agent's face is marked by its identity
  *  (markedName), so "Ada (guest): words" never reads as a teammate. */
-export function speakerShortName(name: string | undefined, identity?: string | null): string {
+export function speakerShortName(
+  name: string | undefined,
+  identity?: string | null,
+): string {
   return markedName(firstName(name), identity, name);
 }
 

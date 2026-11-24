@@ -13,10 +13,17 @@
 // server all validate against this one file, so a funnel that spans surfaces
 // cannot disagree with itself about property names.
 
-import { defineCatalog, type EventName, type EventProps } from "@platform/analytics/catalog";
+import {
+  defineCatalog,
+  type EventName,
+  type EventProps,
+} from "@platform/analytics/catalog";
 
 /** Where the events with a `platform` super property say they came from. */
-const SURFACE = { type: "string", values: ["web", "desktop", "mobile"] } as const;
+const SURFACE = {
+  type: "string",
+  values: ["web", "desktop", "mobile"],
+} as const;
 const COUNT = { type: "number" } as const;
 /** A UI location label: a hand-written constant at the call site, never user text. */
 const LOCATION = { type: "string", max: 64 } as const;
@@ -26,9 +33,20 @@ const LOCATION = { type: "string", max: 64 } as const;
  *  no trace of who killed it (jx7970z, 2026-10-06). Navigation keys stay out:
  *  they are most of the volume and none of the forensics. */
 export const TRACKED_SHORTCUTS = [
-  "session.close", "session.stash", "session.stashHide", "session.deferAdvance", "session.dormantAdvance",
-  "session.snooze", "session.pin", "session.markUnread", "session.moveToBucket", "session.rename",
-  "ui.undo", "ui.redo", "msg.fork", "conv.favorite",
+  "session.close",
+  "session.stash",
+  "session.stashHide",
+  "session.deferAdvance",
+  "session.dormantAdvance",
+  "session.snooze",
+  "session.pin",
+  "session.markUnread",
+  "session.moveToBucket",
+  "session.rename",
+  "ui.undo",
+  "ui.redo",
+  "msg.fork",
+  "conv.favorite",
 ] as const;
 
 export const CODECAST_EVENTS = defineCatalog({
@@ -48,18 +66,35 @@ export const CODECAST_EVENTS = defineCatalog({
   desktop_setup_started: { location: LOCATION },
   desktop_setup_finished: {
     ok: { type: "boolean" },
-    error: { type: "string", values: ["invalid_token", "unsupported_platform", "installer_failed", "threw"], optional: true },
+    error: {
+      type: "string",
+      values: [
+        "invalid_token",
+        "unsupported_platform",
+        "installer_failed",
+        "threw",
+      ],
+      optional: true,
+    },
   },
   // The way in for people who do not write code (the hosted assistant's
   // /welcome), from the marketing page or signup.
   assistant_path_clicked: { location: LOCATION },
   // The empty inbox's first run: which start a person with no machine chose.
-  first_run_start_chosen: { start: { type: "string", values: ["assistant", "machine", "cast_machine"] } },
+  first_run_start_chosen: {
+    start: { type: "string", values: ["assistant", "machine", "cast_machine"] },
+  },
   // The landing page tour film: a start, and each jump to a chapter.
   landing_tour_started: { chapter: COUNT },
-  landing_tour_chapter: { chapter: COUNT, from: { type: "string", values: ["chapter_list", "section_link"] } },
+  landing_tour_chapter: {
+    chapter: COUNT,
+    from: { type: "string", values: ["chapter_list", "section_link"] },
+  },
   // A click on a "Request early access" mail link, by what was asked for.
-  early_access_requested: { what: { type: "string", values: ["team", "org"] }, location: LOCATION },
+  early_access_requested: {
+    what: { type: "string", values: ["team", "org"] },
+    location: LOCATION,
+  },
 
   // Install and activation funnel (web server, personless).
   // `source` is the channel an install link was handed out on (codecast.sh/i/<source>):
@@ -79,13 +114,20 @@ export const CODECAST_EVENTS = defineCatalog({
     which: { type: "string", values: ["last", "current"] },
     trigger: { type: "string", values: ["manual", "monday"] },
   },
-  weekly_card_published: { show_projects: { type: "boolean" }, show_tokens: { type: "boolean" } },
-  weekly_card_share_pressed: { target: { type: "string", values: ["copy", "x", "bluesky", "reddit"] } },
+  weekly_card_published: {
+    show_projects: { type: "boolean" },
+    show_tokens: { type: "boolean" },
+  },
+  weekly_card_share_pressed: {
+    target: { type: "string", values: ["copy", "x", "bluesky", "reddit"] },
+  },
   weekly_card_viewed: {},
 
   // Install and activation funnel (Convex, identified by users._id).
   setup_token_generated: {},
-  cli_authed: { method: { type: "string", values: ["browser", "setup_token"] } },
+  cli_authed: {
+    method: { type: "string", values: ["browser", "setup_token"] },
+  },
   cli_daemon_connected: {
     cli_version: { type: "string", max: 32 },
     cli_platform: { type: "string", max: 32 },
@@ -93,7 +135,17 @@ export const CODECAST_EVENTS = defineCatalog({
   first_session_synced: {
     agent_type: {
       type: "string",
-      values: ["claude_code", "codex", "cursor", "gemini", "opencode", "pi", "grok", "muse", "antigravity"],
+      values: [
+        "claude_code",
+        "codex",
+        "cursor",
+        "gemini",
+        "opencode",
+        "pi",
+        "grok",
+        "muse",
+        "antigravity",
+      ],
     },
   },
 
@@ -104,7 +156,10 @@ export const CODECAST_EVENTS = defineCatalog({
   nux_tour_skipped: { step: COUNT },
 
   // Tours (web/tours): `tour` is a registry id, never user text.
-  tour_started: { tour: { type: "string", max: 32 }, replay: { type: "boolean" } },
+  tour_started: {
+    tour: { type: "string", max: 32 },
+    replay: { type: "boolean" },
+  },
   tour_finished: { tour: { type: "string", max: 32 }, step: COUNT },
   tour_skipped: { tour: { type: "string", max: 32 }, step: COUNT },
 
@@ -112,11 +167,22 @@ export const CODECAST_EVENTS = defineCatalog({
   shortcut_used: { action: { type: "string", values: TRACKED_SHORTCUTS } },
 
   // Tips.
-  tip_seen: { tip_id: { type: "string", max: 64 }, type: { type: "string", max: 16, optional: true } },
-  tip_dismissed: { tip_id: { type: "string", max: 64 }, type: { type: "string", max: 16, optional: true } },
-  tip_completed: { tip_id: { type: "string", max: 64 }, type: { type: "string", max: 16, optional: true } },
+  tip_seen: {
+    tip_id: { type: "string", max: 64 },
+    type: { type: "string", max: 16, optional: true },
+  },
+  tip_dismissed: {
+    tip_id: { type: "string", max: 64 },
+    type: { type: "string", max: 16, optional: true },
+  },
+  tip_completed: {
+    tip_id: { type: "string", max: 64 },
+    type: { type: "string", max: 16, optional: true },
+  },
   inline_tip_dismissed: { tip_id: { type: "string", max: 64 } },
-  tips_level_changed: { level: { type: "string", values: ["all", "subtle", "none"] } },
+  tips_level_changed: {
+    level: { type: "string", values: ["all", "subtle", "none"] },
+  },
 
   // Sync log health.
   synclog_apply: { direct: COUNT, refetch: COUNT, ratio: COUNT },
@@ -131,12 +197,18 @@ export const CODECAST_EVENTS = defineCatalog({
     window: { type: "string", max: 32 },
     visible: { type: "boolean" },
   },
-  synclog_crawl_healed: { namespace: { type: "string", values: ["tasks", "docs"] }, count: COUNT },
+  synclog_crawl_healed: {
+    namespace: { type: "string", values: ["tasks", "docs"] },
+    count: COUNT,
+  },
 
   client_resource_report: {
     platform: SURFACE,
     sync_role: { type: "string", values: ["host", "follower"] },
-    window_role: { type: "string", values: ["app", "tab", "people", "palette", "call_panel", "auxiliary"] },
+    window_role: {
+      type: "string",
+      values: ["app", "tab", "people", "palette", "call_panel", "auxiliary"],
+    },
     window_count: { ...COUNT, optional: true },
     heap_used_bytes: { ...COUNT, optional: true },
     heap_total_bytes: { ...COUNT, optional: true },
@@ -189,13 +261,18 @@ export const CODECAST_EVENTS = defineCatalog({
   // A huddle's media dropping under a person who never pressed End, and what
   // became of it. `reason` is LiveKit's DisconnectReason name; `ms` is how
   // long the person sat without the room.
-  call_media_lost: { reason: { type: "string", max: 32 }, rejoin: { type: "boolean" } },
+  call_media_lost: {
+    reason: { type: "string", max: 32 },
+    rejoin: { type: "boolean" },
+  },
   call_rejoined: { attempts: COUNT, ms: COUNT },
   call_rejoin_failed: { attempts: COUNT, ms: COUNT },
 });
 
 export type CodecastEventName = EventName<typeof CODECAST_EVENTS>;
-export type CodecastEventProps<N extends CodecastEventName> = EventProps<(typeof CODECAST_EVENTS)[N]>;
+export type CodecastEventProps<N extends CodecastEventName> = EventProps<
+  (typeof CODECAST_EVENTS)[N]
+>;
 
 /**
  * The env var that turns codecast telemetry off on a node surface, alongside

@@ -11,11 +11,21 @@ import { goalChip, type GoalRow } from "../lib/lineFlow";
 
 export function useGoalChip(ref: string | null | undefined) {
   const initiatives = useInitiatives();
-  const wsProjects = useWorkspaceCollection<GoalRow & { _id: string }>("projects");
+  const wsProjects = useWorkspaceCollection<GoalRow & { _id: string }>(
+    "projects",
+  );
   const head = ref?.split(":")[0] ?? "";
-  const named = useInboxStore((st) => (head ? ((st.projects as Record<string, GoalRow & { _id: string }>)[head] ?? null) : null));
+  const named = useInboxStore((st) =>
+    head
+      ? ((st.projects as Record<string, GoalRow & { _id: string }>)[head] ??
+        null)
+      : null,
+  );
   return useMemo(() => {
-    const projects = named && !wsProjects.includes(named) ? [...wsProjects, named] : wsProjects;
+    const projects =
+      named && !wsProjects.includes(named)
+        ? [...wsProjects, named]
+        : wsProjects;
     return goalChip(ref, initiatives as GoalRow[], projects);
   }, [ref, initiatives, wsProjects, named]);
 }

@@ -5,10 +5,19 @@
 import type { Source } from "@platform/assistant/sources";
 import { siteOf } from "../../lib/hostedReceipt";
 
-export function HostedSources({ sources, className = "" }: { sources: Source[]; className?: string }) {
+export function HostedSources({
+  sources,
+  className = "",
+}: {
+  sources: Source[];
+  className?: string;
+}) {
   if (sources.length === 0) return null;
   return (
-    <p data-cc-hosted-sources className={`not-prose flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[12.5px] text-sol-text-dim ${className}`}>
+    <p
+      data-cc-hosted-sources
+      className={`not-prose flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[12.5px] text-sol-text-dim ${className}`}
+    >
       <span>Sources</span>
       {sources.map((source, i) => (
         <span key={source.url} className="inline-flex items-baseline gap-x-1.5">

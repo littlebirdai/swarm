@@ -7,7 +7,7 @@ produce the defects it later pays for, and which role's work keeps coming back.
 
 Run the trace from {{project.dir}}, which does the git work for you:
 
-  cast flow fixloop --since 7d --json
+cast flow fixloop --since 7d --json
 
 It picks the week's fix commits (a commit on a bug task, in a change story of
 kind fix, or with a subject starting `fix:` or `fix(`, which is a naming
@@ -23,10 +23,10 @@ each confirmed regression file one signal through the door, so the flow reopens
 or files the cause through its normal path and the health board counts it
 against the role whose run introduced it:
 
-  cast signal add --kind regression --fingerprint szz:<introducing sha> \
-    --title "<what the fix repaired> introduced by <introducing sha short>" \
-    --role <the introducing role's handle, when the trace names one> \
-    --detail "<fix sha, introducing sha, session, run, the days between, and why you are sure>"
+cast signal add --kind regression --fingerprint szz:<introducing sha> \
+--title "<what the fix repaired> introduced by <introducing sha short>" \
+--role <the introducing role's handle, when the trace names one> \
+--detail "<fix sha, introducing sha, session, run, the days between, and why you are sure>"
 
 The fingerprint is the introducing sha, so a second fix of the same bad change
 next week counts toward the same cause instead of opening another. Record in

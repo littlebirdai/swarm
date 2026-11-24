@@ -10,9 +10,15 @@ function bigProseMirrorJson(paragraphs: number): string {
     content.push({
       type: "paragraph",
       content: [
-        { type: "text", text: `Paragraph ${i}: the quick brown fox jumps over the lazy dog. ` },
+        {
+          type: "text",
+          text: `Paragraph ${i}: the quick brown fox jumps over the lazy dog. `,
+        },
         { type: "text", marks: [{ type: "bold" }], text: "emphasis " },
-        { type: "text", text: "and more ordinary prose to pad the document out." },
+        {
+          type: "text",
+          text: "and more ordinary prose to pad the document out.",
+        },
       ],
     });
   }
@@ -43,13 +49,17 @@ describe("doc snapshot codec", () => {
   });
 
   test("reads legacy uncompressed rows verbatim", () => {
-    expect(readSnapshotContent({ content: '{"type":"doc"}' })).toBe('{"type":"doc"}');
+    expect(readSnapshotContent({ content: '{"type":"doc"}' })).toBe(
+      '{"type":"doc"}',
+    );
   });
 
   test("prefers compressed content when both fields are present", () => {
     const json = '{"type":"doc","content":[]}';
     const packed = packSnapshotContent(json);
-    expect(readSnapshotContent({ content: "STALE", content_gz: packed })).toBe(json);
+    expect(readSnapshotContent({ content: "STALE", content_gz: packed })).toBe(
+      json,
+    );
   });
 
   test("treats a missing/empty row as empty string", () => {

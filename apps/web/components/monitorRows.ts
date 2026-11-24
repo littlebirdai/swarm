@@ -28,7 +28,10 @@
 //      completed/failed notification keyed by the original tool-use-id.
 //   Plus a TaskStop tool_use naming the task id → "stopped".
 
-import { AGENT_IDLE_GRACE_MS, type OpenTaskReport } from "@codecast/shared/contracts";
+import {
+  AGENT_IDLE_GRACE_MS,
+  type OpenTaskReport,
+} from "@codecast/shared/contracts";
 import { agentStatusAt } from "../lib/liveness";
 
 export type MonitorStatus = "watching" | "ended" | "timed_out" | "stopped";
@@ -71,7 +74,11 @@ type ScanMessage = {
   content?: string;
   timestamp: number;
   tool_calls?: Array<{ id?: string; name?: string; input?: unknown }>;
-  tool_results?: Array<{ tool_use_id?: string; content?: unknown; is_error?: boolean }>;
+  tool_results?: Array<{
+    tool_use_id?: string;
+    content?: unknown;
+    is_error?: boolean;
+  }>;
 };
 
 // Notification fields both this module and the conversation's notification
@@ -93,16 +100,20 @@ export type ParsedTaskNotification = {
 // parsing the block, not to a person reading the transcript, so neither reaches
 // a surface.
 const ORPHAN_MARKER = "__orphan_summary__";
-const ORPHAN_MARKER_SENTENCE = /\s*Task ids in this notification beginning with [“"']?__orphan_summary[^.]*\.\s*/;
+const ORPHAN_MARKER_SENTENCE =
+  /\s*Task ids in this notification beginning with [“"']?__orphan_summary[^.]*\.\s*/;
 
 // The aggregate carries no tool-use-id — it belongs to a batch, not to one
 // armed watch — so surfaces name the batch by its own list instead of pinning
 // the whole notice on whichever id happened to come first.
-export function isOrphanSummaryNotification(n: Pick<ParsedTaskNotification, "taskIds">): boolean {
+export function isOrphanSummaryNotification(
+  n: Pick<ParsedTaskNotification, "taskIds">,
+): boolean {
   return n.taskIds.length > 1;
 }
 
-const TAG = (name: string, inner: string) => inner.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`))?.[1];
+const TAG = (name: string, inner: string) =>
+  inner.match(new RegExp(`<${name}>([\\s\\S]*?)</${name}>`))?.[1];
 
 // A `Bash` call the harness detaches into a background task — same standing
 // "a machine will wake this session" state as a Monitor, so it wears the same
@@ -111,14 +122,22 @@ const TAG = (name: string, inner: string) => inner.match(new RegExp(`<${name}>([
 // predicate.
 const BACKGROUND_SHELL_IDS = new Set(["Bash", "bash", "run_terminal_command"]);
 
-export function isBackgroundBashToolCall(tc: { name?: string; input?: unknown }): boolean {
+export function isBackgroundBashToolCall(tc: {
+  name?: string;
+  input?: unknown;
+}): boolean {
   if (!tc.name || !BACKGROUND_SHELL_IDS.has(tc.name)) return false;
   let input: any = tc.input;
   if (typeof input === "string") {
     // Cheap prefilter: condensed feeds call this for every Bash input, and
     // almost none are backgrounded — skip the parse unless the key appears.
-    if (!input.includes("run_in_background") && !input.includes('"background"')) return false;
-    try { input = JSON.parse(input); } catch { return false; }
+    if (!input.includes("run_in_background") && !input.includes('"background"'))
+      return false;
+    try {
+      input = JSON.parse(input);
+    } catch {
+      return false;
+    }
   }
   return input?.run_in_background === true || input?.background === true;
 }
@@ -132,7 +151,9 @@ export function decodeEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
-export function parseTaskNotificationBlock(block: string): ParsedTaskNotification {
+export function parseTaskNotificationBlock(
+  block: string,
+): ParsedTaskNotification {
   const taskIds = [...block.matchAll(/<task-id>([\s\S]*?)<\/task-id>/g)]
     .map((m) => m[1].trim())
     .filter((id) => id && !id.startsWith(ORPHAN_MARKER));
@@ -141,24 +162,32 @@ export function parseTaskNotificationBlock(block: string): ParsedTaskNotificatio
     taskIds,
     toolUseId: TAG("tool-use-id", block)?.trim(),
     status: TAG("status", block)?.trim() || "",
-    summary: (TAG("summary", block)?.trim() || "").replace(ORPHAN_MARKER_SENTENCE, " ").trim(),
+    summary: (TAG("summary", block)?.trim() || "")
+      .replace(ORPHAN_MARKER_SENTENCE, " ")
+      .trim(),
     event: TAG("event", block)?.trim(),
     outputFile: TAG("output-file", block)?.trim(),
   };
 }
 
 // A monitor-event notification's summary: `Monitor event: "<description>"`.
-export function isMonitorEventNotification(n: Pick<ParsedTaskNotification, "summary">): boolean {
+export function isMonitorEventNotification(
+  n: Pick<ParsedTaskNotification, "summary">,
+): boolean {
   return n.summary.startsWith("Monitor event:");
 }
 
 // The final notification for a monitor: `Monitor "<description>" stream ended`.
-export function isMonitorEndedNotification(n: Pick<ParsedTaskNotification, "summary">): boolean {
+export function isMonitorEndedNotification(
+  n: Pick<ParsedTaskNotification, "summary">,
+): boolean {
   return /^Monitor .* stream ended/.test(n.summary);
 }
 
 // The quoted description inside either monitor summary form.
-export function monitorNotificationDescription(n: Pick<ParsedTaskNotification, "summary">): string | undefined {
+export function monitorNotificationDescription(
+  n: Pick<ParsedTaskNotification, "summary">,
+): string | undefined {
   return n.summary.match(/[“"](.*?)[”"]/)?.[1];
 }
 
@@ -169,13 +198,23 @@ export function monitorNotificationDescription(n: Pick<ParsedTaskNotification, "
 // quoted description), and the exit code when the sentence carries one. The
 // orphan/no-completion-record notices are unquoted prose and yield undefined —
 // the surface falls back to the sentence itself.
-export type NotificationSummaryParts = { kind: string; description: string; exitCode?: number };
+export type NotificationSummaryParts = {
+  kind: string;
+  description: string;
+  exitCode?: number;
+};
 
-export function parseNotificationSummary(summary: string): NotificationSummaryParts | undefined {
+export function parseNotificationSummary(
+  summary: string,
+): NotificationSummaryParts | undefined {
   const m = summary.match(/^([A-Za-z][A-Za-z ]{0,40}?)\s*[“"](.+?)[”"]/);
   if (!m) return undefined;
   const exit = summary.match(/exit code (\d+)/);
-  return { kind: m[1].trim().toLowerCase(), description: m[2], exitCode: exit ? Number(exit[1]) : undefined };
+  return {
+    kind: m[1].trim().toLowerCase(),
+    description: m[2],
+    exitCode: exit ? Number(exit[1]) : undefined,
+  };
 }
 
 const TIMED_OUT_MARKER = "[Monitor timed out";
@@ -184,14 +223,16 @@ const TIMED_OUT_MARKER = "[Monitor timed out";
 // them, and an unanchored match also fired on a foreground command whose
 // OUTPUT quoted one (an agent grepping a transcript for these very phrases
 // birthed a phantom "running" row nothing could ever close).
-const BACKGROUND_STARTED_RE = /^\s*(?:Monitor started \(task ([\w-]+)|Command running in background with ID: ([\w-]+)|Command did not complete within its \d+s timeout and was moved to the background \(ID: ([\w-]+)\))/;
+const BACKGROUND_STARTED_RE =
+  /^\s*(?:Monitor started \(task ([\w-]+)|Command running in background with ID: ([\w-]+)|Command did not complete within its \d+s timeout and was moved to the background \(ID: ([\w-]+)\))/;
 export function backgroundStartedTaskId(content: string): string | undefined {
   const m = content.match(BACKGROUND_STARTED_RE);
   return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
 }
 // The timeout-promotion form alone — a FOREGROUND call's result that says the
 // harness moved it to the background, which births a row after the fact.
-const PROMOTED_TO_BACKGROUND_RE = /^\s*Command did not complete within its \d+s timeout and was moved to the background \(ID: /;
+const PROMOTED_TO_BACKGROUND_RE =
+  /^\s*Command did not complete within its \d+s timeout and was moved to the background \(ID: /;
 const TERMINAL_STATUSES = new Set(["completed", "failed", "killed", "stopped"]);
 
 const EMPTY: MonitorRow[] = [];
@@ -201,7 +242,9 @@ const EMPTY: MonitorRow[] = [];
 // bars, and re-runs only on real message sync.
 const rowsCache = new WeakMap<object, MonitorRow[]>();
 
-export function monitorRowsFor(messages: readonly ScanMessage[] | undefined): MonitorRow[] {
+export function monitorRowsFor(
+  messages: readonly ScanMessage[] | undefined,
+): MonitorRow[] {
   if (!messages?.length) return EMPTY;
   const cached = rowsCache.get(messages as object);
   if (cached) return cached;
@@ -216,33 +259,50 @@ export function monitorRowsFor(messages: readonly ScanMessage[] | undefined): Mo
   // (ID: …)") can birth its row after the fact — the call itself carried no
   // run_in_background, so nothing below armed it up front. Values are the raw
   // pieces a row needs; parsing the input is deferred to that (rare) result.
-  const foregroundBash = new Map<string, { msg: ScanMessage; input: unknown }>();
+  const foregroundBash = new Map<
+    string,
+    { msg: ScanMessage; input: unknown }
+  >();
 
   for (const msg of messages) {
     for (const tc of msg.tool_calls ?? []) {
       if (!tc?.name) continue;
       let input: any = tc.input;
       if (typeof input === "string") {
-        try { input = JSON.parse(input); } catch { input = {}; }
+        try {
+          input = JSON.parse(input);
+        } catch {
+          input = {};
+        }
       }
       const kind: MonitorRow["kind"] | undefined =
-        tc.name === "Monitor" ? "monitor"
-        : isBackgroundBashToolCall({ name: tc.name, input }) ? "background"
-        : undefined;
-      if (!kind && tc.name === "Bash" && tc.id) foregroundBash.set(tc.id, { msg, input });
+        tc.name === "Monitor"
+          ? "monitor"
+          : isBackgroundBashToolCall({ name: tc.name, input })
+            ? "background"
+            : undefined;
+      if (!kind && tc.name === "Bash" && tc.id)
+        foregroundBash.set(tc.id, { msg, input });
       if (kind && tc.id) {
         const row: MonitorRow = {
           kind,
           toolUseId: tc.id,
           startMessageId: msg._id,
-          description: (input?.description && String(input.description)) || (kind === "monitor" ? "background watch" : "background command"),
+          description:
+            (input?.description && String(input.description)) ||
+            (kind === "monitor" ? "background watch" : "background command"),
           command: (input?.command && String(input.command)) || "",
           persistent: !!input?.persistent,
           // Background tasks carry no timeout, and a persistent monitor's
           // timeout_ms is ignored by the harness (required input, but the
           // watch runs until TaskStop or session end) — neither gets one
           // here, so the defensive expiry below never applies to them.
-          timeoutMs: kind === "monitor" && !input?.persistent && typeof input?.timeout_ms === "number" ? input.timeout_ms : undefined,
+          timeoutMs:
+            kind === "monitor" &&
+            !input?.persistent &&
+            typeof input?.timeout_ms === "number"
+              ? input.timeout_ms
+              : undefined,
           startedAt: msg.timestamp,
           status: "watching",
           eventCount: 0,
@@ -271,7 +331,9 @@ export function monitorRowsFor(messages: readonly ScanMessage[] | undefined): Mo
           kind: "background",
           toolUseId: tr.tool_use_id,
           startMessageId: call?.msg._id ?? msg._id,
-          description: (input?.description && String(input.description)) || "background command",
+          description:
+            (input?.description && String(input.description)) ||
+            "background command",
           command: (input?.command && String(input.command)) || "",
           persistent: false,
           timeoutMs: undefined,
@@ -299,10 +361,19 @@ export function monitorRowsFor(messages: readonly ScanMessage[] | undefined): Mo
       }
     }
 
-    if (msg.role === "user" && msg.content && msg.content.includes("<task-notification>")) {
-      for (const block of msg.content.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? []) {
+    if (
+      msg.role === "user" &&
+      msg.content &&
+      msg.content.includes("<task-notification>")
+    ) {
+      for (const block of msg.content.match(
+        /<task-notification>[\s\S]*?<\/task-notification>/g,
+      ) ?? []) {
         const n = parseTaskNotificationBlock(block);
-        const row = (n.toolUseId && byToolUseId.get(n.toolUseId)) || (n.taskId && byTaskId.get(n.taskId)) || undefined;
+        const row =
+          (n.toolUseId && byToolUseId.get(n.toolUseId)) ||
+          (n.taskId && byTaskId.get(n.taskId)) ||
+          undefined;
         if (n.event) {
           if (!row) continue;
           if (n.event.startsWith(TIMED_OUT_MARKER)) {
@@ -315,17 +386,28 @@ export function monitorRowsFor(messages: readonly ScanMessage[] | undefined): Mo
             row.lastEvent = decodeEntities(n.event);
             row.lastEventAt = msg.timestamp;
           }
-        } else if (TERMINAL_STATUSES.has(n.status) || isMonitorEndedNotification(n)) {
+        } else if (
+          TERMINAL_STATUSES.has(n.status) ||
+          isMonitorEndedNotification(n)
+        ) {
           // "stopped" arrives on the orphan notice after a harness restart
           // ("No completion record was found …"); "killed" from an outside
           // teardown. Both mean the watch was cut, not that it finished.
           //
           // The orphan scan's aggregate names a whole batch and carries no
           // tool-use-id, so it ends every row it lists — not just the first.
-          const targets = n.toolUseId && row ? [row] : n.taskIds.map((id) => byTaskId.get(id)).filter((r): r is MonitorRow => !!r);
+          const targets =
+            n.toolUseId && row
+              ? [row]
+              : n.taskIds
+                  .map((id) => byTaskId.get(id))
+                  .filter((r): r is MonitorRow => !!r);
           for (const target of targets) {
             if (target.status === "watching") {
-              target.status = n.status === "killed" || n.status === "stopped" ? "stopped" : "ended";
+              target.status =
+                n.status === "killed" || n.status === "stopped"
+                  ? "stopped"
+                  : "ended";
             }
             target.endedAt ??= msg.timestamp;
             const exit = n.summary.match(/exit code (\d+)/);
@@ -363,19 +445,35 @@ const TIMEOUT_SLACK_MS = 2 * 60_000;
 // row armed after the boot is left entirely alone.
 const BOOT_SKEW_SLACK_MS = 60_000;
 
-export function effectiveMonitorStatus(row: MonitorRow, now: number, agentStartedAt?: number): MonitorStatus {
+export function effectiveMonitorStatus(
+  row: MonitorRow,
+  now: number,
+  agentStartedAt?: number,
+): MonitorStatus {
   if (row.status !== "watching") return row.status;
-  if (agentStartedAt !== undefined && row.startedAt < agentStartedAt - BOOT_SKEW_SLACK_MS) {
+  if (
+    agentStartedAt !== undefined &&
+    row.startedAt < agentStartedAt - BOOT_SKEW_SLACK_MS
+  ) {
     return "stopped";
   }
-  if (row.timeoutMs !== undefined && now - row.startedAt > row.timeoutMs + TIMEOUT_SLACK_MS) {
+  if (
+    row.timeoutMs !== undefined &&
+    now - row.startedAt > row.timeoutMs + TIMEOUT_SLACK_MS
+  ) {
     return "timed_out";
   }
   return row.status;
 }
 
-export function watchingMonitors(rows: MonitorRow[], now: number, agentStartedAt?: number): MonitorRow[] {
-  return rows.filter((r) => effectiveMonitorStatus(r, now, agentStartedAt) === "watching");
+export function watchingMonitors(
+  rows: MonitorRow[],
+  now: number,
+  agentStartedAt?: number,
+): MonitorRow[] {
+  return rows.filter(
+    (r) => effectiveMonitorStatus(r, now, agentStartedAt) === "watching",
+  );
 }
 
 // Whether the session hosting a watch can still be running it. A watch is a
@@ -397,14 +495,20 @@ export function watchingMonitors(rows: MonitorRow[], now: number, agentStartedAt
 // effectiveMonitorStatus over agent_started_at, and the harness itself writes
 // a "stopped" notice for the tasks a resume orphaned.
 export function isWatchHostDead(
-  session: Parameters<typeof agentStatusAt>[0] & { message_count?: number; inbox_killed_at?: number | null },
+  session: Parameters<typeof agentStatusAt>[0] & {
+    message_count?: number;
+    inbox_killed_at?: number | null;
+  },
   now: number,
 ): boolean {
   if (session.inbox_killed_at) return true;
   const status = agentStatusAt(session, now);
   if (status === "stopped") return true;
   if (status) return false;
-  return (session.message_count ?? 0) > 0 && now - (session.updated_at || 0) >= AGENT_IDLE_GRACE_MS;
+  return (
+    (session.message_count ?? 0) > 0 &&
+    now - (session.updated_at || 0) >= AGENT_IDLE_GRACE_MS
+  );
 }
 
 // ---- The daemon's report, merged with the message-derived rows -------------
@@ -420,11 +524,18 @@ export function isWatchHostDead(
 //     notice, a shell that died) — hide it rather than claim "running".
 // A watch armed AFTER the report is unknown to it and stands on the messages.
 // No report at all (an older daemon, a non-Claude agent): the messages decide.
-export type WatchHost = { open_tasks?: OpenTaskReport[] | null; open_tasks_at?: number | null; agent_started_at?: number | null };
+export type WatchHost = {
+  open_tasks?: OpenTaskReport[] | null;
+  open_tasks_at?: number | null;
+  agent_started_at?: number | null;
+};
 // The transcript's clock and the daemon's are close, not identical.
 const REPORT_SKEW_MS = 5_000;
 
-export function reportSaysDead(host: WatchHost, row: Pick<MonitorRow, "taskId" | "startedAt">): boolean {
+export function reportSaysDead(
+  host: WatchHost,
+  row: Pick<MonitorRow, "taskId" | "startedAt">,
+): boolean {
   if (!host.open_tasks || !host.open_tasks_at || !row.taskId) return false;
   if (row.startedAt > host.open_tasks_at - REPORT_SKEW_MS) return false;
   return !host.open_tasks.some((t) => t.id === row.taskId);
@@ -435,7 +546,9 @@ function rowFromReport(t: OpenTaskReport, reportedAt: number): MonitorRow {
     kind: t.kind === "monitor" ? "monitor" : "background",
     toolUseId: t.tool_use_id ?? `task:${t.id}`,
     taskId: t.id,
-    description: t.description || (t.kind === "monitor" ? "background watch" : "background command"),
+    description:
+      t.description ||
+      (t.kind === "monitor" ? "background watch" : "background command"),
     command: t.command ?? "",
     persistent: false,
     startedAt: t.started_at ?? reportedAt,
@@ -448,19 +561,26 @@ function rowFromReport(t: OpenTaskReport, reportedAt: number): MonitorRow {
 // still watching (own lifecycle, restart fence, the daemon's verdict), plus
 // the daemon's reported tasks the messages don't cover. Workflow tasks are
 // left out — the run has its own bar (WorkflowBar) fed by workflow_run_*.
-export function liveWatchRowsFor(host: WatchHost, messages: readonly ScanMessage[] | undefined, now: number): MonitorRow[] {
-  const fromMessages = watchingMonitors(monitorRowsFor(messages), now, host.agent_started_at ?? undefined)
-    .filter((r) => !reportSaysDead(host, r));
+export function liveWatchRowsFor(
+  host: WatchHost,
+  messages: readonly ScanMessage[] | undefined,
+  now: number,
+): MonitorRow[] {
+  const fromMessages = watchingMonitors(
+    monitorRowsFor(messages),
+    now,
+    host.agent_started_at ?? undefined,
+  ).filter((r) => !reportSaysDead(host, r));
   const report = host.open_tasks;
   const at = host.open_tasks_at;
   if (!report || !at) return fromMessages;
   // A report from before the current agent process booted describes shells
   // that died with the old one — it can retire rows (above) but adds none.
-  if (host.agent_started_at && at < host.agent_started_at - REPORT_SKEW_MS) return fromMessages;
+  if (host.agent_started_at && at < host.agent_started_at - REPORT_SKEW_MS)
+    return fromMessages;
   const covered = new Set(fromMessages.map((r) => r.taskId).filter(Boolean));
   const extra = report
     .filter((t) => t.kind !== "workflow" && !covered.has(t.id))
     .map((t) => rowFromReport(t, at));
   return extra.length ? [...fromMessages, ...extra] : fromMessages;
 }
-

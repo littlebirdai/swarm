@@ -11,13 +11,19 @@
 //   ... --clear               remove the gallery rows instead
 import { spawnSync } from "child_process";
 import { join } from "path";
-import { renderGalleryMessages, renderGalleryRecords, GALLERY_ID_PREFIX } from "../lib/renderGallery";
+import {
+  renderGalleryMessages,
+  renderGalleryRecords,
+  GALLERY_ID_PREFIX,
+} from "../lib/renderGallery";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(name);
 const value = (name: string) => {
   const i = args.indexOf(name);
-  return i >= 0 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : undefined;
+  return i >= 0 && args[i + 1] && !args[i + 1].startsWith("--")
+    ? args[i + 1]
+    : undefined;
 };
 
 const rows = flag("--clear") ? [] : renderGalleryMessages(Date.now());
@@ -43,7 +49,10 @@ const expression = `(() => {
 })()`;
 
 function run(cmd: string, argv: string[]): string {
-  const r = spawnSync(cmd, argv, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(cmd, argv, {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
   if (r.status !== 0) throw new Error(`${cmd} failed: ${r.stderr || r.stdout}`);
   return r.stdout.trim();
 }
@@ -54,18 +63,34 @@ if (flag("--print")) {
   console.log(run("cast", ["browser", "eval", expression]));
 } else if (flag("--mobile")) {
   const port = value("--mobile") ?? "8095";
-  const targets: Array<{ webSocketDebuggerUrl: string }> = await (await fetch(`http://localhost:${port}/json`)).json();
-  const evalScript = join(import.meta.dir, "../../../apps/mobile/scripts/hermes-eval.mjs");
+  const targets: Array<{ webSocketDebuggerUrl: string }> = await (
+    await fetch(`http://localhost:${port}/json`)
+  ).json();
+  const evalScript = join(
+    import.meta.dir,
+    "../../../apps/mobile/scripts/hermes-eval.mjs",
+  );
   // A dev client lists more than one page; the app's runtime is the one with the store.
   for (const t of targets) {
     let out = "";
-    try { out = run("bun", [evalScript, t.webSocketDebuggerUrl, expression, "10000"]); } catch { continue; }
+    try {
+      out = run("bun", [
+        evalScript,
+        t.webSocketDebuggerUrl,
+        expression,
+        "10000",
+      ]);
+    } catch {
+      continue;
+    }
     if (out.includes('"value"') && !out.includes("no __inboxStore")) {
       console.log(JSON.parse(out).result?.value ?? out);
       process.exit(0);
     }
   }
-  console.error(`no page on Metro :${port} holds the store; is the app running?`);
+  console.error(
+    `no page on Metro :${port} holds the store; is the app running?`,
+  );
   process.exit(1);
 } else {
   console.error("pass --web, --mobile [port] or --print");

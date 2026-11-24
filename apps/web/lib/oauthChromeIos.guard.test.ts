@@ -23,7 +23,9 @@ describe("Chrome iOS GitHub OAuth patch", () => {
     expect(impl).toContain("codecastIosOAuth");
     expect(impl).toContain('u.searchParams.set("state", packed)');
     expect(impl).toContain("location.replace");
-    expect(impl).toContain("return new Response(html, { status: 200, headers })");
+    expect(impl).toContain(
+      "return new Response(html, { status: 200, headers })",
+    );
   });
 
   test("callback recovers packed state and fails to /login", () => {
@@ -35,7 +37,10 @@ describe("Chrome iOS GitHub OAuth patch", () => {
 
   test("client hops with location.assign", () => {
     const client = readFileSync(
-      path.join(path.dirname(require.resolve("@convex-dev/auth/react")), "client.js"),
+      path.join(
+        path.dirname(require.resolve("@convex-dev/auth/react")),
+        "client.js",
+      ),
       "utf8",
     );
     expect(client).toContain("window.location.assign(url.toString())");

@@ -36,63 +36,159 @@ export type BeforeAfterProps = {
   foldSame?: boolean;
 };
 
-const same = (a: Answer, b: Answer) => (a.outcome ?? "") === (b.outcome ?? "") && a.words.trim() === b.words.trim();
+const same = (a: Answer, b: Answer) =>
+  (a.outcome ?? "") === (b.outcome ?? "") && a.words.trim() === b.words.trim();
 
 /** The score line: how many kept their outcome, how many moved, which flipped. */
 export function beforeAfterScore(rows: ReadonlyArray<BeforeAfterRow>) {
   const done = rows.filter((r) => r.after);
   const settled = rows.filter((r) => r.after || r.afterNote).length;
-  const kept = done.filter((r) => (r.before.outcome ?? "") === (r.after!.outcome ?? "")).length;
+  const kept = done.filter(
+    (r) => (r.before.outcome ?? "") === (r.after!.outcome ?? ""),
+  ).length;
   const moved = done.filter((r) => !same(r.before, r.after!)).length;
-  const flips = done.filter((r) => (r.before.outcome ?? "") !== (r.after!.outcome ?? ""));
+  const flips = done.filter(
+    (r) => (r.before.outcome ?? "") !== (r.after!.outcome ?? ""),
+  );
   const better = done.filter((r) => r.verdict === "better").length;
   const worse = done.filter((r) => r.verdict === "worse").length;
-  return { done: done.length, settled, total: rows.length, kept, moved, flips, better, worse };
+  return {
+    done: done.length,
+    settled,
+    total: rows.length,
+    kept,
+    moved,
+    flips,
+    better,
+    worse,
+  };
 }
 
-export function BeforeAfterTable({ rows, label, kind = "agent", title, beforeLabel = "It said", afterLabel = "It says now", foldSame = true }: BeforeAfterProps) {
+export function BeforeAfterTable({
+  rows,
+  label,
+  kind = "agent",
+  title,
+  beforeLabel = "It said",
+  afterLabel = "It says now",
+  foldSame = true,
+}: BeforeAfterProps) {
   const [showSame, setShowSame] = useState(!foldSame);
   const score = useMemo(() => beforeAfterScore(rows), [rows]);
   const sameRows = rows.filter((r) => r.after && same(r.before, r.after));
-  const shown = showSame ? rows : rows.filter((r) => !r.after || !same(r.before, r.after));
+  const shown = showSame
+    ? rows
+    : rows.filter((r) => !r.after || !same(r.before, r.after));
   const running = score.settled < score.total;
 
   return (
     <div className="lw-obj" data-line-widget="before-after">
       <div className="lw-obj-head">
         {label && <KindTag kind={kind}>{label}</KindTag>}
-        <span className="lw-obj-title">{title ?? `On ${rows.length} past ${rows.length === 1 ? "case" : "cases"}`}</span>
+        <span className="lw-obj-title">
+          {title ??
+            `On ${rows.length} past ${rows.length === 1 ? "case" : "cases"}`}
+        </span>
         <span className="lw-spacer" />
-        {running && <span className="lw-obj-meta"><span className="lw-spin" aria-hidden /> {score.settled} of {score.total} answered</span>}
+        {running && (
+          <span className="lw-obj-meta">
+            <span className="lw-spin" aria-hidden /> {score.settled} of{" "}
+            {score.total} answered
+          </span>
+        )}
       </div>
       <div className="lw-score" aria-live="polite">
-        <div><b>{score.kept} of {score.done || score.total}</b>kept their outcome</div>
-        <div><b>{score.moved}</b>{score.moved === 1 ? "answer moved" : "answers moved"}</div>
+        <div>
+          <b>
+            {score.kept} of {score.done || score.total}
+          </b>
+          kept their outcome
+        </div>
+        <div>
+          <b>{score.moved}</b>
+          {score.moved === 1 ? "answer moved" : "answers moved"}
+        </div>
         {(score.better > 0 || score.worse > 0) && (
-          <div><b><span className="lw-up">{score.better}</span> / <span className="lw-down">{score.worse}</span></b>better / worse on labeled cases</div>
+          <div>
+            <b>
+              <span className="lw-up">{score.better}</span> /{" "}
+              <span className="lw-down">{score.worse}</span>
+            </b>
+            better / worse on labeled cases
+          </div>
         )}
         {score.flips.length > 0 && (
           <div style={{ minWidth: 0 }}>
-            <b style={{ fontSize: "var(--lw-fs-base)" }}>{[...new Set(score.flips.map((f) => `${f.before.outcome ?? "none"} → ${f.after!.outcome ?? "none"}`))].join(", ")}</b>
+            <b style={{ fontSize: "var(--lw-fs-base)" }}>
+              {[
+                ...new Set(
+                  score.flips.map(
+                    (f) =>
+                      `${f.before.outcome ?? "none"} → ${f.after!.outcome ?? "none"}`,
+                  ),
+                ),
+              ].join(", ")}
+            </b>
             {score.flips.map((f) => f.caseRef ?? f.caseTitle).join(", ")}
           </div>
         )}
       </div>
       <table className="lw-ba">
         <thead>
-          <tr><th style={{ width: "28%" }}>Case</th><th>{beforeLabel}</th><th>{afterLabel}</th></tr>
+          <tr>
+            <th style={{ width: "28%" }}>Case</th>
+            <th>{beforeLabel}</th>
+            <th>{afterLabel}</th>
+          </tr>
         </thead>
         <tbody>
           {shown.map((r) => {
             const moved = r.after && !same(r.before, r.after);
             return (
-              <tr key={r.id} data-pending={r.after || r.afterNote ? undefined : ""} data-moved={moved ? r.verdict ?? "" : undefined}>
-                <td className="lw-ba-case">{r.caseTitle}<small>{[r.caseRef, r.note].filter(Boolean).join(" · ")}</small></td>
-                <td>{r.before.outcome && <div><OutcomeTag outcome={r.before.outcome} /></div>}{r.before.words}</td>
+              <tr
+                key={r.id}
+                data-pending={r.after || r.afterNote ? undefined : ""}
+                data-moved={moved ? (r.verdict ?? "") : undefined}
+              >
+                <td className="lw-ba-case">
+                  {r.caseTitle}
+                  <small>
+                    {[r.caseRef, r.note].filter(Boolean).join(" · ")}
+                  </small>
+                </td>
+                <td>
+                  {r.before.outcome && (
+                    <div>
+                      <OutcomeTag outcome={r.before.outcome} />
+                    </div>
+                  )}
+                  {r.before.words}
+                </td>
                 <td className="lw-ba-after">
-                  {!r.after ? (r.afterNote ? <span style={{ color: "var(--lw-ink-3)" }}>{r.afterNote}</span> : <span><span className="lw-spin" aria-hidden /> running</span>)
-                    : !moved ? <span style={{ color: "var(--lw-ink-3)" }}>Same answer</span>
-                    : <>{r.after.outcome && <div><OutcomeTag outcome={r.after.outcome} /></div>}{r.after.words}</>}
+                  {!r.after ? (
+                    r.afterNote ? (
+                      <span style={{ color: "var(--lw-ink-3)" }}>
+                        {r.afterNote}
+                      </span>
+                    ) : (
+                      <span>
+                        <span className="lw-spin" aria-hidden /> running
+                      </span>
+                    )
+                  ) : !moved ? (
+                    <span style={{ color: "var(--lw-ink-3)" }}>
+                      Same answer
+                    </span>
+                  ) : (
+                    <>
+                      {r.after.outcome && (
+                        <div>
+                          <OutcomeTag outcome={r.after.outcome} />
+                        </div>
+                      )}
+                      {r.after.words}
+                    </>
+                  )}
                 </td>
               </tr>
             );
@@ -100,8 +196,14 @@ export function BeforeAfterTable({ rows, label, kind = "agent", title, beforeLab
           {foldSame && sameRows.length > 0 && (
             <tr className="lw-ba-fold">
               <td colSpan={3}>
-                <button type="button" className="lw-link" onClick={() => setShowSame((v) => !v)}>
-                  {showSame ? "Fold the unchanged answers" : `${sameRows.length} kept the same answer, show them`}
+                <button
+                  type="button"
+                  className="lw-link"
+                  onClick={() => setShowSame((v) => !v)}
+                >
+                  {showSame
+                    ? "Fold the unchanged answers"
+                    : `${sameRows.length} kept the same answer, show them`}
                 </button>
               </td>
             </tr>

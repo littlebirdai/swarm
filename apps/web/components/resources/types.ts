@@ -31,7 +31,12 @@ export type ResourceMachine = {
   backgroundSessions?: string[];
 };
 
-export type ResourceSessionState = "working" | "needs_input" | "idle" | "hibernated" | "dead";
+export type ResourceSessionState =
+  | "working"
+  | "needs_input"
+  | "idle"
+  | "hibernated"
+  | "dead";
 
 export type ResourceSession = {
   sessionId: string;
@@ -46,7 +51,11 @@ export type ResourceSession = {
   pinned?: boolean;
 };
 
-export type OffloadReadiness = "ready" | "preflight_required" | "blocked" | "unsupported";
+export type OffloadReadiness =
+  | "ready"
+  | "preflight_required"
+  | "blocked"
+  | "unsupported";
 
 export type OffloadDestination = {
   deviceId: string;
@@ -67,31 +76,46 @@ export type OffloadCandidate = {
   confidence: "high" | "medium" | "low";
   /** A range: resident memory counts shared pages, so relief is never exact. */
   relief: { cpu?: number; rssLow?: number; rssHigh?: number };
-  staysLocal: Array<{ label: string; pid?: number; cpu?: number; rss?: number; why: string }>;
+  staysLocal: Array<{
+    label: string;
+    pid?: number;
+    cpu?: number;
+    rss?: number;
+    why: string;
+  }>;
   /** Every process the move stops on this machine, busiest first: the agent's
    *  tree, and what it left running outside it (`detached`: a tmux pane or a
    *  backgrounded job), which the source stops once the handoff succeeds. */
-  stops: Array<{ label: string; pid: number; cpu: number; rss: number; detached?: ResourceProcess["detached"] }>;
-  disruption: "idle" | "between_turns" | "mid_turn";
-  perDestination: Record<string, {
-    readiness: OffloadReadiness;
-    /** Hard stops. Never overridable from this surface. */
-    blockers: string[];
-    /** Checks that passed, from preflight or the server dry run. */
-    passed?: string[];
-    /**
-     * Prerequisites no automated check can prove (project secrets, local
-     * devices, browser logins). The user may attest to them per session;
-     * attesting never marks them verified.
-     */
-    pending: string[];
-    /** Worth knowing, never a reason to stay (helpers the laptop's hooks call that the host lacks). */
-    notes?: string[];
-    /** Why this destination fits or does not, from observed work (e.g. Xcode seen). */
-    fit?: string;
-    /** The source machine's dry run of this move, while it runs and once it answers. */
-    rehearsal?: OffloadRehearsal;
+  stops: Array<{
+    label: string;
+    pid: number;
+    cpu: number;
+    rss: number;
+    detached?: ResourceProcess["detached"];
   }>;
+  disruption: "idle" | "between_turns" | "mid_turn";
+  perDestination: Record<
+    string,
+    {
+      readiness: OffloadReadiness;
+      /** Hard stops. Never overridable from this surface. */
+      blockers: string[];
+      /** Checks that passed, from preflight or the server dry run. */
+      passed?: string[];
+      /**
+       * Prerequisites no automated check can prove (project secrets, local
+       * devices, browser logins). The user may attest to them per session;
+       * attesting never marks them verified.
+       */
+      pending: string[];
+      /** Worth knowing, never a reason to stay (helpers the laptop's hooks call that the host lacks). */
+      notes?: string[];
+      /** Why this destination fits or does not, from observed work (e.g. Xcode seen). */
+      fit?: string;
+      /** The source machine's dry run of this move, while it runs and once it answers. */
+      rehearsal?: OffloadRehearsal;
+    }
+  >;
   /** Observed evidence that the session needs macOS, if any. */
   requiresMac?: string;
   suggestedDestinationId?: string;
@@ -176,11 +200,18 @@ export type ResourceActions = {
   onRehearse?: (selections: OffloadSelection[]) => void;
   /** Always the safe mode: waits for a turn boundary, never interrupts. Returns the
    *  launch's client batch id, which its runs carry, or nothing when it did not start. */
-  onStartOffload?: (selections: OffloadSelection[], opts: { waitForTurnMs: number }) => string | undefined;
+  onStartOffload?: (
+    selections: OffloadSelection[],
+    opts: { waitForTurnMs: number },
+  ) => string | undefined;
   onRetry?: (batchId: string, sessionId: string) => void;
   onCancel?: (batchId: string) => void;
   /** Background priority for a session's processes on one machine, or back. */
-  onSetBackground?: (deviceId: string, sessionId: string, background: boolean) => void;
+  onSetBackground?: (
+    deviceId: string,
+    sessionId: string,
+    background: boolean,
+  ) => void;
 };
 
 export type ResourceMonitorProps = {

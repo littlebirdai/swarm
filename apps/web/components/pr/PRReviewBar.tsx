@@ -31,10 +31,16 @@ export function PRReviewBar({
           <span className="relative inline-flex h-2 w-2 rounded-full bg-sol-yellow" />
         </span>
         <p className="min-w-0 flex-1 text-left text-[12px] leading-snug text-sol-text-muted">
-          <button type="button" onClick={onFirst} className="text-left font-medium text-sol-text hover:underline underline-offset-2">
+          <button
+            type="button"
+            onClick={onFirst}
+            className="text-left font-medium text-sol-text hover:underline underline-offset-2"
+          >
             {count} {one ? "note" : "notes"} not sent yet.
           </button>{" "}
-          <span className="pr-review-hint">Only you can see {one ? "it" : "them"} until you finish your review.</span>
+          <span className="pr-review-hint">
+            Only you can see {one ? "it" : "them"} until you finish your review.
+          </span>
         </p>
         {children}
       </div>

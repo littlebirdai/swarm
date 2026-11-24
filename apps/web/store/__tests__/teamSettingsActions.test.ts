@@ -20,14 +20,27 @@ describe("team settings store actions", () => {
     _resetUndoStacks();
     calls = [];
     useInboxStore.setState({
-      teams: [{ _id: TEAM, name: "Old name", icon: "bolt", icon_color: "blue", role: "admin" }],
-      ...withTeamRoster([{ _id: ADA, name: "Ada", role: "member" }], { team: TEAM }),
+      teams: [
+        {
+          _id: TEAM,
+          name: "Old name",
+          icon: "bolt",
+          icon_color: "blue",
+          role: "admin",
+        },
+      ],
+      ...withTeamRoster([{ _id: ADA, name: "Ada", role: "member" }], {
+        team: TEAM,
+      }),
       pending: {},
     } as any);
-    useInboxStore.getState()._setDispatch(async (action: string, args: any[]) => {
-      calls.push({ action, args });
-      return { success: true };
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action: string, args: any[]) => {
+        calls.push({ action, args });
+        return { success: true };
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -45,7 +58,11 @@ describe("team settings store actions", () => {
     expect(now.teams[0].icon).toBe("bolt");
     expect(now.teamMembers[0].role).toBe("admin");
     await Promise.all([renamed, iconed, roled]);
-    expect(calls.map((c) => c.action)).toEqual(["renameTeam", "updateTeamIcon", "setTeamMemberRole"]);
+    expect(calls.map((c) => c.action)).toEqual([
+      "renameTeam",
+      "updateTeamIcon",
+      "setTeamMemberRole",
+    ]);
     expect(calls[0].args).toEqual([TEAM, "New name"]);
   });
 
@@ -61,6 +78,8 @@ describe("team settings store actions", () => {
     expect(performUndo()).toBeTruthy();
     expect(useInboxStore.getState().teams[0].name).toBe("Old name");
     await new Promise((r) => setTimeout(r, 20));
-    expect(calls.some((c) => c.action === "renameTeam" && c.args[1] === "Old name")).toBe(true);
+    expect(
+      calls.some((c) => c.action === "renameTeam" && c.args[1] === "Old name"),
+    ).toBe(true);
   });
 });

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { verifyTmuxSubmitAfterPaste, type TmuxSubmitVerifyIO } from "./daemon.js";
+import {
+  verifyTmuxSubmitAfterPaste,
+  type TmuxSubmitVerifyIO,
+} from "./daemon.js";
 import { PROMPT, scriptedIO } from "./test-helpers/tmuxSubmitVerifyIO.js";
 
 // The two sources that do not read the pane (ct-49539)
@@ -40,10 +43,13 @@ const SILENT_POST = `
 const PASTE_AT = 10_000;
 
 describe("verifyTmuxSubmitAfterPaste — hook and title evidence", () => {
-  const silent = (extra: Partial<TmuxSubmitVerifyIO>) => scriptedIO([SILENT_POST], extra);
+  const silent = (extra: Partial<TmuxSubmitVerifyIO>) =>
+    scriptedIO([SILENT_POST], extra);
 
   test("the hook reporting a turn after the paste is a delivered submit", async () => {
-    const { io, actions } = silent({ hookTurnStartedAt: async () => PASTE_AT + 1 });
+    const { io, actions } = silent({
+      hookTurnStartedAt: async () => PASTE_AT + 1,
+    });
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: SILENT_PRE,
       pasteConfirmed: true,
@@ -59,7 +65,9 @@ describe("verifyTmuxSubmitAfterPaste — hook and title evidence", () => {
   });
 
   test("a turn that started before the paste belongs to someone else", async () => {
-    const { io, actions } = silent({ hookTurnStartedAt: async () => PASTE_AT - 1 });
+    const { io, actions } = silent({
+      hookTurnStartedAt: async () => PASTE_AT - 1,
+    });
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: SILENT_PRE,
       pasteConfirmed: true,
@@ -172,9 +180,15 @@ describe("verifyTmuxSubmitAfterPaste — hook and title evidence", () => {
 });
 
 test("a payload observed by the Enter gate can leave the composer before the verifier starts", async () => {
-  const { io, actions } = scriptedIO(["────────────\n❯ \n────────────\nbypass permissions on"]);
+  const { io, actions } = scriptedIO([
+    "────────────\n❯ \n────────────\nbypass permissions on",
+  ]);
   const result = await verifyTmuxSubmitAfterPaste(io, {
-    prePaste: SILENT_PRE, pasteConfirmed: true, payloadObserved: true, contentPrefix: PROMPT, deadlineMs: 4000,
+    prePaste: SILENT_PRE,
+    pasteConfirmed: true,
+    payloadObserved: true,
+    contentPrefix: PROMPT,
+    deadlineMs: 4000,
   });
   expect(result.outcome).toBe("delivered");
   expect(result.evidence).toBe("payload_gone");
@@ -216,7 +230,10 @@ describe("verifyTmuxSubmitAfterPaste — a dialog took the keyboard", () => {
     // on an answer looks like this. The dialog was already there before the
     // paste — the pre-flight's business, not this submit's — so the loop must
     // neither report it as our block nor spend its bounded Enters on it.
-    const SETTLED_DIALOG = CODEX_PERMISSION.replace("⠙ Working (2s • esc to interrupt)\n", "");
+    const SETTLED_DIALOG = CODEX_PERMISSION.replace(
+      "⠙ Working (2s • esc to interrupt)\n",
+      "",
+    );
     const { io, actions } = scriptedIO([SETTLED_DIALOG + "\n"]);
     const res = await verifyTmuxSubmitAfterPaste(io, {
       prePaste: SETTLED_DIALOG,

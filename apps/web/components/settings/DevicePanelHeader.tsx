@@ -54,7 +54,11 @@ export function DevicePanelHeader({
               >
                 <DeviceDot online={d.online} />
                 <span className="font-medium">{deviceDisplayName(d)}</span>
-                <span className="opacity-60">{d.device_id === localDeviceId ? "this computer" : deviceKindLabel(d)}</span>
+                <span className="opacity-60">
+                  {d.device_id === localDeviceId
+                    ? "this computer"
+                    : deviceKindLabel(d)}
+                </span>
               </button>
             );
           })}
@@ -63,11 +67,15 @@ export function DevicePanelHeader({
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <DeviceDot online={selected.online} />
-          <span className="truncate font-medium text-sol-text">{deviceDisplayName(selected)}</span>
+          <span className="truncate font-medium text-sol-text">
+            {deviceDisplayName(selected)}
+          </span>
           {/* With a picker, the pills already name each machine's kind. */}
           {!showPicker && (
             <span className="shrink-0 text-xs text-sol-text-muted">
-              {selected.device_id === localDeviceId ? "this computer" : deviceKindLabel(selected)}
+              {selected.device_id === localDeviceId
+                ? "this computer"
+                : deviceKindLabel(selected)}
             </span>
           )}
           <ManagedDevicePill d={selected} />

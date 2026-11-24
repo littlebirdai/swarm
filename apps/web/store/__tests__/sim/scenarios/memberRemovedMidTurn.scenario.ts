@@ -19,7 +19,12 @@ scenario({ name: "memberRemovedMidTurn" }, async (w) => {
   const t = w.task("t", { owner: "ada", session: s });
   w.role("acme", "rev");
   const b = await w.device("bo", { scope: { team: "acme" } });
-  await b.host.bootstrap("tasks", api.tasks.webList, { team_id: w.idOf("acme"), workspace: "team", include_derived: true }, { select: (r: any) => r?.items ?? r });
+  await b.host.bootstrap(
+    "tasks",
+    api.tasks.webList,
+    { team_id: w.idOf("acme"), workspace: "team", include_derived: true },
+    { select: (r: any) => r?.items ?? r },
+  );
   await b.host.feed("anchors", api.anchors.listAnchors, () => ({}));
   await w.expect(b.host).shows(s);
 
@@ -39,8 +44,21 @@ scenario({ name: "memberRemovedMidTurn" }, async (w) => {
   await w.expect("bo").cannotRead(s);
   await w.expect("bo").cannotRead(t);
   await w.expect(b.host).hides(s);
-  await w.expect.server.row(s).has({ inbox_dismissed_at: undefined, inbox_killed_at: undefined });
+  await w.expect.server
+    .row(s)
+    .has({ inbox_dismissed_at: undefined, inbox_killed_at: undefined });
   // The refused kill wrote no viewer hide for bo.
-  const hide = (w.backend.db._tables.inbox_hides ?? []).find((h: any) => h.user_id === w.idOf("bo"));
-  if (hide) w.fail({ ...w.reportBase("expect no hide"), invariant: { id: "expect.noHide", meaning: "a refused kill writes no inbox_hides row" }, message: `bo's kill after his removal wrote ${w.labels.label(hide._id)}`, row: { table: "inbox_hides", id: hide._id, server: hide, replica: null } });
+  const hide = (w.backend.db._tables.inbox_hides ?? []).find(
+    (h: any) => h.user_id === w.idOf("bo"),
+  );
+  if (hide)
+    w.fail({
+      ...w.reportBase("expect no hide"),
+      invariant: {
+        id: "expect.noHide",
+        meaning: "a refused kill writes no inbox_hides row",
+      },
+      message: `bo's kill after his removal wrote ${w.labels.label(hide._id)}`,
+      row: { table: "inbox_hides", id: hide._id, server: hide, replica: null },
+    });
 });

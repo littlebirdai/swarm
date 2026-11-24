@@ -33,7 +33,13 @@ function tables(): Record<string, any[]> {
       },
     ],
     messages: [
-      { _id: "msg", conversation_id: "conv", role: "user", content: "hi", timestamp: 1 },
+      {
+        _id: "msg",
+        conversation_id: "conv",
+        role: "user",
+        content: "hi",
+        timestamp: 1,
+      },
     ],
   };
 }
@@ -49,8 +55,15 @@ function ctx(userId: string | null, t: Record<string, any[]>) {
   } as any;
 }
 
-const run = (uid: string | null, t: Record<string, any[]>, conversationId: string) =>
-  (getConversation as any)._handler(ctx(uid, t), { conversation_id: conversationId, limit: 1 });
+const run = (
+  uid: string | null,
+  t: Record<string, any[]>,
+  conversationId: string,
+) =>
+  (getConversation as any)._handler(ctx(uid, t), {
+    conversation_id: conversationId,
+    limit: 1,
+  });
 
 describe("getConversation with a non-conversation id", () => {
   test("a message id returns null instead of throwing", async () => {
@@ -59,7 +72,11 @@ describe("getConversation with a non-conversation id", () => {
   });
 
   test("a garbage string returns null instead of throwing", async () => {
-    const result = await run(OWNER, tables(), "k176a75w125a0hjktcdp31ec718dfv84");
+    const result = await run(
+      OWNER,
+      tables(),
+      "k176a75w125a0hjktcdp31ec718dfv84",
+    );
     expect(result).toBeNull();
   });
 
@@ -79,9 +96,19 @@ describe("transcript reads with a message id", () => {
     ["getConversationWithMeta", getConversationWithMeta, {}, null],
     ["listMessagesTail", listMessagesTail, { after_timestamp: 0 }, null],
     ["getNewMessages", getNewMessages, { after_timestamp: 0 }, null],
-    ["getMessagesAroundTimestamp", getMessagesAroundTimestamp, { center_timestamp: 1 }, null],
+    [
+      "getMessagesAroundTimestamp",
+      getMessagesAroundTimestamp,
+      { center_timestamp: 1 },
+      null,
+    ],
     ["getUserMessages", getUserMessages, {}, []],
-    ["listMessages", listMessages, { paginationOpts: { numItems: 10, cursor: null } }, { page: [], isDone: true, continueCursor: "" }],
+    [
+      "listMessages",
+      listMessages,
+      { paginationOpts: { numItems: 10, cursor: null } },
+      { page: [], isDone: true, continueCursor: "" },
+    ],
   ];
   for (const [name, fn, extra, empty] of cases) {
     // The fake db runs no validators; a v.id("conversations") arg is what
@@ -92,13 +119,19 @@ describe("transcript reads with a message id", () => {
     });
 
     test(`${name} reads a message id as not found`, async () => {
-      const result = await fn._handler(ctx(OWNER, tables()), { conversation_id: "msg", ...extra });
+      const result = await fn._handler(ctx(OWNER, tables()), {
+        conversation_id: "msg",
+        ...extra,
+      });
       expect(result).toEqual(empty);
     });
   }
 
   test("the watermark still resolves a real conversation", async () => {
-    const result = await (getTranscriptWatermark as any)._handler(ctx(OWNER, tables()), { conversation_id: "conv" });
+    const result = await (getTranscriptWatermark as any)._handler(
+      ctx(OWNER, tables()),
+      { conversation_id: "conv" },
+    );
     expect(result).toEqual({ message_count: 1, transcript_revision: 0 });
   });
 });

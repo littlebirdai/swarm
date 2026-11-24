@@ -1,5 +1,12 @@
 import { describe, expect, it, test } from "bun:test";
-import { isForeignSession, findEntityInStore, derivePeople, feedActorId, sessionOwnsTask, taskOwnerOf } from "./liveEntities";
+import {
+  isForeignSession,
+  findEntityInStore,
+  derivePeople,
+  feedActorId,
+  sessionOwnsTask,
+  taskOwnerOf,
+} from "./liveEntities";
 
 // Regression for "dismiss doesn't stick on a session assigned to me": the
 // resolver ignored the owner signals, so hideSessionInDraft treated an
@@ -15,29 +22,43 @@ describe("isForeignSession", () => {
   });
 
   it("owned_by_me makes a teammate-run session mine to triage", () => {
-    expect(isForeignSession({ user_id: OTHER, owned_by_me: true }, undefined, ME)).toBe(false);
+    expect(
+      isForeignSession({ user_id: OTHER, owned_by_me: true }, undefined, ME),
+    ).toBe(false);
   });
 
   it("owner_user_id matching me makes it mine", () => {
-    expect(isForeignSession({ user_id: OTHER, owner_user_id: ME }, undefined, ME)).toBe(false);
+    expect(
+      isForeignSession({ user_id: OTHER, owner_user_id: ME }, undefined, ME),
+    ).toBe(false);
   });
 
   it("owned_by_me outranks a stale is_own:false meta from a pre-assignment view", () => {
     expect(
-      isForeignSession({ user_id: OTHER, owned_by_me: true }, { is_own: false }, ME),
+      isForeignSession(
+        { user_id: OTHER, owned_by_me: true },
+        { is_own: false },
+        ME,
+      ),
     ).toBe(false);
   });
 
   it("is_own:false without any owner signal stays foreign", () => {
-    expect(isForeignSession({ user_id: OTHER }, { is_own: false }, ME)).toBe(true);
+    expect(isForeignSession({ user_id: OTHER }, { is_own: false }, ME)).toBe(
+      true,
+    );
   });
 
   it("is_own:true is definitive", () => {
-    expect(isForeignSession({ user_id: OTHER }, { is_own: true }, ME)).toBe(false);
+    expect(isForeignSession({ user_id: OTHER }, { is_own: true }, ME)).toBe(
+      false,
+    );
   });
 
   it("someone else's owner_user_id does not make it mine", () => {
-    expect(isForeignSession({ user_id: OTHER, owner_user_id: OTHER }, undefined, ME)).toBe(true);
+    expect(
+      isForeignSession({ user_id: OTHER, owner_user_id: OTHER }, undefined, ME),
+    ).toBe(true);
   });
 
   it("my own session is never foreign", () => {
@@ -45,20 +66,32 @@ describe("isForeignSession", () => {
   });
 
   it("a session I run that is assigned to someone else is foreign", () => {
-    expect(isForeignSession({ user_id: ME, owner_user_id: OTHER }, undefined, ME)).toBe(true);
     expect(
-      isForeignSession({ user_id: ME, owner_user_id: OTHER }, { is_own: true }, ME),
+      isForeignSession({ user_id: ME, owner_user_id: OTHER }, undefined, ME),
+    ).toBe(true);
+    expect(
+      isForeignSession(
+        { user_id: ME, owner_user_id: OTHER },
+        { is_own: true },
+        ME,
+      ),
     ).toBe(true);
   });
 
   it("a co-owner still sees a session another person primarily owns", () => {
     expect(
-      isForeignSession({ user_id: ME, owner_user_id: OTHER, owned_by_me: true }, undefined, ME),
+      isForeignSession(
+        { user_id: ME, owner_user_id: OTHER, owned_by_me: true },
+        undefined,
+        ME,
+      ),
     ).toBe(false);
   });
 
   it("thin row with no signals: author_name is the last-resort foreign marker", () => {
-    expect(isForeignSession({ author_name: "Samvit" }, undefined, ME)).toBe(true);
+    expect(isForeignSession({ author_name: "Samvit" }, undefined, ME)).toBe(
+      true,
+    );
     expect(isForeignSession({}, undefined, ME)).toBe(false);
   });
 });
@@ -69,10 +102,29 @@ describe("isForeignSession", () => {
 // the answer already, so the pill seeds itself from the store — this is what it
 // has to find.
 describe("findEntityInStore", () => {
-  const TASK = { _id: "kx1", short_id: "ct-38940", title: "Engine-tick timeouts", status: "in_progress" };
-  const OTHER_TEAM_TASK = { _id: "kx2", short_id: "ct-777", title: "Outreach copy", status: "open" };
-  const PLAN = { _id: "mx1", short_id: "pl-88", title: "Billing migration", status: "active" };
-  const CONV = { _id: "jx7c6zkfhz63vxwbaarvcmrg9h8ca720", short_id: "jx7c6zk", title: "Fork flicker" };
+  const TASK = {
+    _id: "kx1",
+    short_id: "ct-38940",
+    title: "Engine-tick timeouts",
+    status: "in_progress",
+  };
+  const OTHER_TEAM_TASK = {
+    _id: "kx2",
+    short_id: "ct-777",
+    title: "Outreach copy",
+    status: "open",
+  };
+  const PLAN = {
+    _id: "mx1",
+    short_id: "pl-88",
+    title: "Billing migration",
+    status: "active",
+  };
+  const CONV = {
+    _id: "jx7c6zkfhz63vxwbaarvcmrg9h8ca720",
+    short_id: "jx7c6zk",
+    title: "Fork flicker",
+  };
 
   const state = {
     tasks: { kx1: TASK },
@@ -87,12 +139,18 @@ describe("findEntityInStore", () => {
   };
 
   it("finds a task by short id and by Convex id", () => {
-    expect(findEntityInStore(state, "task", "ct-38940")?.title).toBe("Engine-tick timeouts");
-    expect(findEntityInStore(state, "task", "kx1")?.title).toBe("Engine-tick timeouts");
+    expect(findEntityInStore(state, "task", "ct-38940")?.title).toBe(
+      "Engine-tick timeouts",
+    );
+    expect(findEntityInStore(state, "task", "kx1")?.title).toBe(
+      "Engine-tick timeouts",
+    );
   });
 
   it("is case-insensitive on short ids", () => {
-    expect(findEntityInStore(state, "task", "CT-38940")?.title).toBe("Engine-tick timeouts");
+    expect(findEntityInStore(state, "task", "CT-38940")?.title).toBe(
+      "Engine-tick timeouts",
+    );
   });
 
   it("short-id indexing ignores inherited rows and keeps the last own duplicate", () => {
@@ -101,22 +159,32 @@ describe("findEntityInStore", () => {
     const inherited = { _id: "inherited", short_id: "ct-999" };
     const tasks = Object.assign(Object.create({ inherited }), { first, last });
     expect(findEntityInStore({ tasks }, "task", TASK.short_id)).toBe(last);
-    expect(findEntityInStore({ tasks }, "task", inherited.short_id)).toBeUndefined();
+    expect(
+      findEntityInStore({ tasks }, "task", inherited.short_id),
+    ).toBeUndefined();
   });
 
   it("falls back to the cross-team mention index", () => {
     // ct-777 belongs to another workspace, so it is not in `tasks` — but the
     // mention index carries it, which is exactly what that index is for.
-    expect(findEntityInStore(state, "task", "ct-777")?.title).toBe("Outreach copy");
+    expect(findEntityInStore(state, "task", "ct-777")?.title).toBe(
+      "Outreach copy",
+    );
   });
 
   it("finds a plan", () => {
-    expect(findEntityInStore(state, "plan", "pl-88")?.title).toBe("Billing migration");
+    expect(findEntityInStore(state, "plan", "pl-88")?.title).toBe(
+      "Billing migration",
+    );
   });
 
   it("finds a session by its 7-char short id, and by its full id", () => {
-    expect(findEntityInStore(state, "session", "jx7c6zk")?.title).toBe("Fork flicker");
-    expect(findEntityInStore(state, "session", CONV._id)?.title).toBe("Fork flicker");
+    expect(findEntityInStore(state, "session", "jx7c6zk")?.title).toBe(
+      "Fork flicker",
+    );
+    expect(findEntityInStore(state, "session", CONV._id)?.title).toBe(
+      "Fork flicker",
+    );
   });
 
   it("returns undefined for an object the client has never seen", () => {
@@ -135,7 +203,9 @@ describe("findEntityInStore", () => {
     // The index is memoized on the collection's identity. A pill must not
     // rescan thousands of rows, but it must also never serve a stale answer
     // after the collection is replaced.
-    expect(findEntityInStore(state, "task", "ct-38940")?.status).toBe("in_progress");
+    expect(findEntityInStore(state, "task", "ct-38940")?.status).toBe(
+      "in_progress",
+    );
     const moved = { ...state, tasks: { kx1: { ...TASK, status: "done" } } };
     expect(findEntityInStore(moved, "task", "ct-38940")?.status).toBe("done");
   });
@@ -151,7 +221,12 @@ describe("derivePeople", () => {
   const HOST = "users_alex";
   const BOT = "users_head";
   const rows = [
-    { user_id: HOST, acting_user_id: BOT, author_name: "Head of People", author_avatar: null },
+    {
+      user_id: HOST,
+      acting_user_id: BOT,
+      author_name: "Head of People",
+      author_avatar: null,
+    },
     { user_id: HOST, author_name: "Alexander Green", author_avatar: "a.png" },
     { user_id: HOST, author_name: "Alexander Green", author_avatar: "a.png" },
     { user_id: "users_david", author_name: "David Lu", author_avatar: null },
@@ -159,9 +234,27 @@ describe("derivePeople", () => {
 
   it("gives the bot its own pill and keeps the host's name and count", () => {
     expect(derivePeople(rows)).toEqual([
-      { id: HOST, name: "Alexander Green", image: "a.png", sessions: 2, isRole: false },
-      { id: BOT, name: "Head of People", image: null, sessions: 1, isRole: true },
-      { id: "users_david", name: "David Lu", image: null, sessions: 1, isRole: false },
+      {
+        id: HOST,
+        name: "Alexander Green",
+        image: "a.png",
+        sessions: 2,
+        isRole: false,
+      },
+      {
+        id: BOT,
+        name: "Head of People",
+        image: null,
+        sessions: 1,
+        isRole: true,
+      },
+      {
+        id: "users_david",
+        name: "David Lu",
+        image: null,
+        sessions: 1,
+        isRole: false,
+      },
     ]);
   });
 
@@ -176,7 +269,10 @@ describe("a task's one owning session", () => {
   const linked = [{ _id: "a", is_owner: true }, { _id: "b" }];
 
   test("the live session row decides: its active_task names the task", () => {
-    const sessions = { a: { active_task: { _id: "other" } }, b: { active_task: { _id: "t1" } } };
+    const sessions = {
+      a: { active_task: { _id: "other" } },
+      b: { active_task: { _id: "t1" } },
+    };
     expect(taskOwnerOf(linked, sessions, "t1")?._id).toBe("b");
     expect(sessionOwnsTask(linked[0], sessions.a, "t1")).toBe(false);
   });

@@ -1,4 +1,9 @@
-import { useLayoutEffect, useState, type DependencyList, type RefObject } from "react";
+import {
+  useLayoutEffect,
+  useState,
+  type DependencyList,
+  type RefObject,
+} from "react";
 import { flushSync } from "react-dom";
 
 // One observer for every hook, and one batch for every first answer. Every
@@ -26,7 +31,9 @@ function answerBeforePaint(w: Watch) {
     const due = [...firstAnswers];
     firstAnswers.clear();
     const answers = due.map((d) => [d, d.read()] as const);
-    flushSync(() => { for (const [d, v] of answers) d.set(v); });
+    flushSync(() => {
+      for (const [d, v] of answers) d.set(v);
+    });
   });
 }
 const watchesByTarget = new Map<Element, Set<Watch>>();
@@ -35,7 +42,8 @@ let shared: ResizeObserver | null = null;
 function observer(): ResizeObserver {
   shared ??= new ResizeObserver((entries) => {
     const due = new Set<Watch>();
-    for (const e of entries) for (const w of watchesByTarget.get(e.target) ?? []) due.add(w);
+    for (const e of entries)
+      for (const w of watchesByTarget.get(e.target) ?? []) due.add(w);
     for (const w of due) w.set(w.read());
   });
   return shared;
@@ -45,7 +53,11 @@ function watch(w: Watch, targets: Element[]): () => void {
   const ro = observer();
   for (const t of targets) {
     let set = watchesByTarget.get(t);
-    if (!set) { set = new Set(); watchesByTarget.set(t, set); ro.observe(t); }
+    if (!set) {
+      set = new Set();
+      watchesByTarget.set(t, set);
+      ro.observe(t);
+    }
     set.add(w);
   }
   answerBeforePaint(w);
@@ -55,7 +67,10 @@ function watch(w: Watch, targets: Element[]): () => void {
       const set = watchesByTarget.get(t);
       if (!set) continue;
       set.delete(w);
-      if (set.size === 0) { watchesByTarget.delete(t); ro.unobserve(t); }
+      if (set.size === 0) {
+        watchesByTarget.delete(t);
+        ro.unobserve(t);
+      }
     }
   };
 }
@@ -74,7 +89,10 @@ export function useLayoutFlag(
     const el = ref.current;
     if (!el || !enabled) return;
     // A window with no layout (a test's jsdom) has no observer: one answer stands.
-    if (typeof ResizeObserver === "undefined") { setFlag(read(el)); return; }
+    if (typeof ResizeObserver === "undefined") {
+      setFlag(read(el));
+      return;
+    }
     return watch({ read: () => read(el), set: setFlag }, [el, ...el.children]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps]);
@@ -90,6 +108,13 @@ export function useLayoutFlag(
  *  and a mount that painted unclamped and clamped a frame later changed the
  *  row's height under the conversation virtualizer, which moved scrollTop to
  *  match and visibly jumped the feed while scrolling up. */
-export function useOverflows(ref: RefObject<HTMLElement | null>, maxHeight: number, deps: DependencyList = []): boolean {
-  return useLayoutFlag(ref, (el) => el.scrollHeight > maxHeight, [maxHeight, ...deps]);
+export function useOverflows(
+  ref: RefObject<HTMLElement | null>,
+  maxHeight: number,
+  deps: DependencyList = [],
+): boolean {
+  return useLayoutFlag(ref, (el) => el.scrollHeight > maxHeight, [
+    maxHeight,
+    ...deps,
+  ]);
 }

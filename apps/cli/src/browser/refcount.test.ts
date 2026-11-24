@@ -17,15 +17,34 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { readState, setActiveTarget, writeState, type InstanceState } from "./instance.js";
-import { decideStop, HOLDER_STALE_MS, liveHolders, planStop, releaseSession } from "./refcount.js";
+import {
+  readState,
+  setActiveTarget,
+  writeState,
+  type InstanceState,
+} from "./instance.js";
+import {
+  decideStop,
+  HOLDER_STALE_MS,
+  liveHolders,
+  planStop,
+  releaseSession,
+} from "./refcount.js";
 
 const state = (
   tabsBySession: Record<string, string>,
   sessionSeenAt: Record<string, number> = {},
 ): InstanceState => ({
-  pid: 1, port: 0, userDataDir: "/tmp/none", headless: true, sourceProfile: null, channel: "chrome",
-  startedAt: 0, activeTargetId: null, tabsBySession, sessionSeenAt,
+  pid: 1,
+  port: 0,
+  userDataDir: "/tmp/none",
+  headless: true,
+  sourceProfile: null,
+  channel: "chrome",
+  startedAt: 0,
+  activeTargetId: null,
+  tabsBySession,
+  sessionSeenAt,
 });
 
 const NOW = 1_000_000_000;
@@ -34,34 +53,69 @@ describe("decideStop (engine-agnostic core)", () => {
   // The same contract the agent-browser adapter runs with holders taken from
   // `agent-browser session list`.
   test("last holder → teardown; others → release; --force → teardown naming them", () => {
-    expect(decideStop({ others: [], me: "me" })).toEqual({ action: "teardown", others: [] });
-    expect(decideStop({ others: ["me"], me: "me" })).toEqual({ action: "teardown", others: [] });
-    expect(decideStop({ others: ["a", "b"], me: "me" })).toEqual({ action: "release", others: ["a", "b"] });
-    expect(decideStop({ others: ["a"], me: "me", force: true })).toEqual({ action: "teardown", others: ["a"] });
+    expect(decideStop({ others: [], me: "me" })).toEqual({
+      action: "teardown",
+      others: [],
+    });
+    expect(decideStop({ others: ["me"], me: "me" })).toEqual({
+      action: "teardown",
+      others: [],
+    });
+    expect(decideStop({ others: ["a", "b"], me: "me" })).toEqual({
+      action: "release",
+      others: ["a", "b"],
+    });
+    expect(decideStop({ others: ["a"], me: "me", force: true })).toEqual({
+      action: "teardown",
+      others: ["a"],
+    });
   });
 
   test("no identity: refused while others hold, allowed when alone or forced", () => {
-    expect(decideStop({ others: ["a"], me: null })).toEqual({ action: "refuse", others: ["a"] });
-    expect(decideStop({ others: [], me: null })).toEqual({ action: "teardown", others: [] });
-    expect(decideStop({ others: ["a"], me: null, force: true })).toEqual({ action: "teardown", others: ["a"] });
+    expect(decideStop({ others: ["a"], me: null })).toEqual({
+      action: "refuse",
+      others: ["a"],
+    });
+    expect(decideStop({ others: [], me: null })).toEqual({
+      action: "teardown",
+      others: [],
+    });
+    expect(decideStop({ others: ["a"], me: null, force: true })).toEqual({
+      action: "teardown",
+      others: ["a"],
+    });
   });
 });
 
 describe("planStop", () => {
   test("the last holder tears the browser down", () => {
-    const plan = planStop(state({ "session:me": "AAA" }, { "session:me": NOW }), "session:me", { now: NOW });
+    const plan = planStop(
+      state({ "session:me": "AAA" }, { "session:me": NOW }),
+      "session:me",
+      { now: NOW },
+    );
     expect(plan.action).toBe("teardown");
     expect(plan.others).toEqual([]);
   });
 
   test("with another holder present, only the caller's tab is released", () => {
-    const s = state({ "session:me": "AAA", "session:other": "BBB" }, { "session:me": NOW, "session:other": NOW });
+    const s = state(
+      { "session:me": "AAA", "session:other": "BBB" },
+      { "session:me": NOW, "session:other": NOW },
+    );
     const plan = planStop(s, "session:me", { now: NOW });
-    expect(plan).toEqual({ action: "release", others: ["session:other"], myTabs: ["AAA"] });
+    expect(plan).toEqual({
+      action: "release",
+      others: ["session:other"],
+      myTabs: ["AAA"],
+    });
   });
 
   test("--force tears down anyway and names who is affected", () => {
-    const s = state({ "session:me": "AAA", "session:other": "BBB" }, { "session:me": NOW, "session:other": NOW });
+    const s = state(
+      { "session:me": "AAA", "session:other": "BBB" },
+      { "session:me": NOW, "session:other": NOW },
+    );
     const plan = planStop(s, "session:me", { now: NOW, force: true });
     expect(plan.action).toBe("teardown");
     expect(plan.others).toEqual(["session:other"]);
@@ -82,31 +136,56 @@ describe("planStop", () => {
   });
 
   test("a holder whose tab was closed no longer counts", () => {
-    const s = state({ "session:me": "AAA", "session:other": "BBB" }, { "session:me": NOW, "session:other": NOW });
-    const plan = planStop(s, "session:me", { now: NOW, liveTargetIds: new Set(["AAA"]) });
+    const s = state(
+      { "session:me": "AAA", "session:other": "BBB" },
+      { "session:me": NOW, "session:other": NOW },
+    );
+    const plan = planStop(s, "session:me", {
+      now: NOW,
+      liveTargetIds: new Set(["AAA"]),
+    });
     expect(plan.action).toBe("teardown");
   });
 
   test("the caller's own closed tab is not offered for release", () => {
-    const s = state({ "session:me": "AAA", "session:other": "BBB" }, { "session:me": NOW, "session:other": NOW });
-    const plan = planStop(s, "session:me", { now: NOW, liveTargetIds: new Set(["BBB"]) });
-    expect(plan).toEqual({ action: "release", others: ["session:other"], myTabs: [] });
+    const s = state(
+      { "session:me": "AAA", "session:other": "BBB" },
+      { "session:me": NOW, "session:other": NOW },
+    );
+    const plan = planStop(s, "session:me", {
+      now: NOW,
+      liveTargetIds: new Set(["BBB"]),
+    });
+    expect(plan).toEqual({
+      action: "release",
+      others: ["session:other"],
+      myTabs: [],
+    });
   });
 
   test("an unstamped legacy entry with a live tab still counts as a holder", () => {
     // Entries written before stamping existed carry no time. Erring towards
     // "still here" only delays a shutdown; erring the other way kills work.
-    const s = state({ "session:me": "AAA", "session:legacy": "BBB" }, { "session:me": NOW });
+    const s = state(
+      { "session:me": "AAA", "session:legacy": "BBB" },
+      { "session:me": NOW },
+    );
     expect(planStop(s, "session:me", { now: NOW }).action).toBe("release");
   });
 
   test("a caller with no identity is refused while others hold tabs", () => {
     const s = state({ "session:other": "BBB" }, { "session:other": NOW });
-    expect(planStop(s, null, { now: NOW })).toEqual({ action: "refuse", others: ["session:other"], myTabs: [] });
+    expect(planStop(s, null, { now: NOW })).toEqual({
+      action: "refuse",
+      others: ["session:other"],
+      myTabs: [],
+    });
     // …but with nobody holding anything, a human can stop it as before.
     expect(planStop(state({}), null, { now: NOW }).action).toBe("teardown");
     // …and --force still works for them.
-    expect(planStop(s, null, { now: NOW, force: true }).action).toBe("teardown");
+    expect(planStop(s, null, { now: NOW, force: true }).action).toBe(
+      "teardown",
+    );
   });
 
   test("liveHolders lists exactly the sessions that would be hit", () => {

@@ -35,7 +35,9 @@ export interface RemoteNoteMeta {
 
 const NOTES_PAGE = 100;
 
-export async function listRemoteVaults(convex: ConvexReactClient): Promise<RemoteVault[]> {
+export async function listRemoteVaults(
+  convex: ConvexReactClient,
+): Promise<RemoteVault[]> {
   const rows = await convex.query(api.vaultMirror.webListVaults, {});
   return rows.map((r) => ({
     id: r.vault_id,
@@ -71,8 +73,13 @@ export async function fetchRemoteNotes(
     // The server strips body_storage_id from the row but keeps its presence in
     // `has_body`; map defensively rather than casting, so a schema drift shows
     // up here as a missing flag instead of a lie about what's fetchable.
-    const rows = (res?.notes ?? []) as Array<Omit<RemoteNoteMeta, "has_body"> & { has_body?: boolean }>;
-    const notes: RemoteNoteMeta[] = rows.map((r) => ({ ...r, has_body: r.has_body ?? false }));
+    const rows = (res?.notes ?? []) as Array<
+      Omit<RemoteNoteMeta, "has_body"> & { has_body?: boolean }
+    >;
+    const notes: RemoteNoteMeta[] = rows.map((r) => ({
+      ...r,
+      has_body: r.has_body ?? false,
+    }));
     out.push(...notes);
     if (notes.length < NOTES_PAGE) break;
     after = notes[notes.length - 1]?.path;
@@ -87,7 +94,10 @@ export async function fetchRemoteBody(
   vaultId: string,
   path: string,
   deviceId?: string,
-): Promise<{ content: string | null; reason?: "not-uploaded" | "unreachable" }> {
+): Promise<{
+  content: string | null;
+  reason?: "not-uploaded" | "unreachable";
+}> {
   const res = await convex.query(api.vaultMirror.webGetNote, {
     vault_id: vaultId,
     path,
@@ -106,10 +116,17 @@ export async function fetchRemoteBody(
 
 /** Mirror metadata in the shape the explorer already renders, so a remote vault
  *  reuses the local tree, search index, and link resolution unchanged. */
-export function remoteNotesToFileTable(notes: RemoteNoteMeta[]): Record<string, VaultFileEntry> {
+export function remoteNotesToFileTable(
+  notes: RemoteNoteMeta[],
+): Record<string, VaultFileEntry> {
   const files: Record<string, VaultFileEntry> = {};
   for (const n of notes) {
-    files[n.path] = { path: n.path, mtime: n.mtime, size: n.size, dir: n.is_dir };
+    files[n.path] = {
+      path: n.path,
+      mtime: n.mtime,
+      size: n.size,
+      dir: n.is_dir,
+    };
   }
   return files;
 }

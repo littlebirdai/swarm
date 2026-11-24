@@ -39,7 +39,28 @@ const OTHERS_SHOWN = 3;
 /** Another open ask of the same thread, as the card lists it. */
 export type DockedAsk = { key: string; position: number; question: string };
 
-export function ModernDecisionDock({ question, kicker, aside, options, recommended, proceedingWith, proceedingLabel, held, onAnswer, text, onText, onAnswerText, onOpen, answerable, others = [], othersOpen, onOthersOpen, onPick, collapsed = false, onCollapsed }: {
+export function ModernDecisionDock({
+  question,
+  kicker,
+  aside,
+  options,
+  recommended,
+  proceedingWith,
+  proceedingLabel,
+  held,
+  onAnswer,
+  text,
+  onText,
+  onAnswerText,
+  onOpen,
+  answerable,
+  others = [],
+  othersOpen,
+  onOthersOpen,
+  onPick,
+  collapsed = false,
+  onCollapsed,
+}: {
   question: string;
   kicker?: ReactNode;
   aside?: ReactNode;
@@ -85,31 +106,58 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
       data-decision-collapse
       className="-my-1 -mr-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sol-text-dim transition-colors hover:bg-sol-bg-alt hover:text-sol-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
     >
-      {collapsed ? <ChevronUp aria-hidden className="h-4 w-4" /> : <ChevronDown aria-hidden className="h-4 w-4" />}
+      {collapsed ? (
+        <ChevronUp aria-hidden className="h-4 w-4" />
+      ) : (
+        <ChevronDown aria-hidden className="h-4 w-4" />
+      )}
     </button>
   );
-  const corner = (aside || fold) && <span className="inline-flex items-center gap-2">{aside}{fold}</span>;
-  if (collapsed && onCollapsed) return (
-    <ModernAskCard
-      kicker={
-        <button type="button" onClick={onOpen} title={`Open: ${shownQuestion}`} data-decision-collapsed-question className="group/q flex min-w-0 items-center gap-2 text-left">
-          {kicker && <span className="shrink-0">{kicker}</span>}
-          <span className="truncate text-ui font-medium text-sol-text group-hover/q:underline">{shownQuestion}</span>
-          <Maximize2 aria-hidden className="h-3.5 w-3.5 shrink-0 text-sol-text-dim opacity-0 transition-opacity group-hover/q:opacity-100" />
-        </button>
-      }
-      aside={corner}
-      data-decision-dock
-      data-decision-collapsed
-      className="!my-1 !py-2"
-    />
+  const corner = (aside || fold) && (
+    <span className="inline-flex items-center gap-2">
+      {aside}
+      {fold}
+    </span>
   );
+  if (collapsed && onCollapsed)
+    return (
+      <ModernAskCard
+        kicker={
+          <button
+            type="button"
+            onClick={onOpen}
+            title={`Open: ${shownQuestion}`}
+            data-decision-collapsed-question
+            className="group/q flex min-w-0 items-center gap-2 text-left"
+          >
+            {kicker && <span className="shrink-0">{kicker}</span>}
+            <span className="truncate text-ui font-medium text-sol-text group-hover/q:underline">
+              {shownQuestion}
+            </span>
+            <Maximize2
+              aria-hidden
+              className="h-3.5 w-3.5 shrink-0 text-sol-text-dim opacity-0 transition-opacity group-hover/q:opacity-100"
+            />
+          </button>
+        }
+        aside={corner}
+        data-decision-dock
+        data-decision-collapsed
+        className="!my-1 !py-2"
+      />
+    );
   return (
     <ModernAskCard
       kicker={kicker}
       aside={corner}
       question={
-        <button type="button" onClick={onOpen} title="Open the whole question, its reasoning and its keys" data-decision-question-open className="text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60">
+        <button
+          type="button"
+          onClick={onOpen}
+          title="Open the whole question, its reasoning and its keys"
+          data-decision-question-open
+          className="text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
+        >
           {shownQuestion}
         </button>
       }
@@ -117,7 +165,10 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
       className="!my-1"
     >
       {drawn && (
-        <div className="flex flex-wrap items-center gap-2" data-decision-options>
+        <div
+          className="flex flex-wrap items-center gap-2"
+          data-decision-options
+        >
           {options.map((o) => (
             <Button
               key={o.index}
@@ -129,15 +180,30 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
               onClick={() => onAnswer(o.index)}
               className="max-w-full"
             >
-              <span className="truncate">{o.label.replace(" (Recommended)", "")}</span>
-              {o.index === proceedingWith && <span className="shrink-0 text-meta font-normal opacity-80" data-decision-proceeding>proceeding with this</span>}
+              <span className="truncate">
+                {o.label.replace(" (Recommended)", "")}
+              </span>
+              {o.index === proceedingWith && (
+                <span
+                  className="shrink-0 text-meta font-normal opacity-80"
+                  data-decision-proceeding
+                >
+                  proceeding with this
+                </span>
+              )}
             </Button>
           ))}
         </div>
       )}
       <div className={`flex min-w-0 items-center gap-2 ${drawn ? "mt-2" : ""}`}>
         {onAnswerText ? (
-          <form className="flex min-w-0 flex-1 items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) onAnswerText(text.trim()); }}>
+          <form
+            className="flex min-w-0 flex-1 items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (text.trim()) onAnswerText(text.trim());
+            }}
+          >
             <Input
               value={text}
               onChange={(e) => onText(e.target.value)}
@@ -145,19 +211,44 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
               aria-label="Answer in your own words"
               className="h-control-md min-w-0 flex-1 text-ui"
             />
-            <Button type="submit" size="md" variant="outline" disabled={!text.trim()}>Send</Button>
+            <Button
+              type="submit"
+              size="md"
+              variant="outline"
+              disabled={!text.trim()}
+            >
+              Send
+            </Button>
           </form>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-meta text-sol-text-dim" data-decision-proceeding={!drawn && proceedingLabel ? "" : undefined}>
-            {!drawn && proceedingLabel ? `proceeding with ${proceedingLabel}` : null}
+          <span
+            className="min-w-0 flex-1 truncate text-meta text-sol-text-dim"
+            data-decision-proceeding={
+              !drawn && proceedingLabel ? "" : undefined
+            }
+          >
+            {!drawn && proceedingLabel
+              ? `proceeding with ${proceedingLabel}`
+              : null}
           </span>
         )}
-        <Button type="button" size="md" variant="ghost" onClick={onOpen} title="Open the whole question, its reasoning and its keys" data-decision-open>
-          <Maximize2 aria-hidden />Open
+        <Button
+          type="button"
+          size="md"
+          variant="ghost"
+          onClick={onOpen}
+          title="Open the whole question, its reasoning and its keys"
+          data-decision-open
+        >
+          <Maximize2 aria-hidden />
+          Open
         </Button>
       </div>
       {others.length > 0 && onPick && (
-        <ul className="-mx-2 mt-3 border-t border-sol-border pt-1.5" data-decision-others>
+        <ul
+          className="-mx-2 mt-3 border-t border-sol-border pt-1.5"
+          data-decision-others
+        >
           {rows.map((a) => (
             <li key={a.key}>
               <button
@@ -167,9 +258,14 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
                 data-decision-other={a.key}
                 className="flex h-control-sm w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-ui text-sol-text-muted transition-colors hover:bg-sol-bg-alt hover:text-sol-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"
               >
-                <span className="w-4 shrink-0 text-center tabular-nums text-sol-text-dim">{a.position}</span>
+                <span className="w-4 shrink-0 text-center tabular-nums text-sol-text-dim">
+                  {a.position}
+                </span>
                 <span className="min-w-0 flex-1 truncate">{a.question}</span>
-                <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-sol-text-dim" />
+                <ChevronRight
+                  aria-hidden
+                  className="h-4 w-4 shrink-0 text-sol-text-dim"
+                />
               </button>
             </li>
           ))}
@@ -177,7 +273,9 @@ export function ModernDecisionDock({ question, kicker, aside, options, recommend
             <li>
               <button
                 type="button"
-                onClick={() => (onOthersOpen ? onOthersOpen() : setOpenedHere(true))}
+                onClick={() =>
+                  onOthersOpen ? onOthersOpen() : setOpenedHere(true)
+                }
                 aria-expanded={false}
                 data-decision-others-more={others.length - rows.length}
                 className="flex h-control-sm w-full items-center gap-2 rounded-md px-2 text-left text-ui text-sol-text-dim transition-colors hover:bg-sol-bg-alt hover:text-sol-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/60"

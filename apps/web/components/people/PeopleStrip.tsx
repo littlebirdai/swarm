@@ -60,14 +60,23 @@ export function PeopleStrip({
       style={{ height: STRIP_ROW_H }}
       data-holding={data.sendingRoomKey ? "1" : undefined}
     >
-      <MemberFace member={data.me ?? {}} size={22} title="You" className="shrink-0" />
+      <MemberFace
+        member={data.me ?? {}}
+        size={22}
+        title="You"
+        className="shrink-0"
+      />
       <span className="people-strip-rule" aria-hidden="true" />
       <StripFaces
         wall={wall}
         data={data}
         callsEnabled={callsEnabled}
         onDescribe={onDescribe}
-        emptyText={data.members.length === 0 ? emptyRosterText(data.strayWorkspace, true) : null}
+        emptyText={
+          data.members.length === 0
+            ? emptyRosterText(data.strayWorkspace, true)
+            : null
+        }
       />
       {/* The huddle's join, in the one shape whose pulse can name a huddle it
           would otherwise offer nothing about. */}
@@ -78,7 +87,9 @@ export function PeopleStrip({
       <div className="people-strip-words min-w-0 flex-1 overflow-hidden text-meta">
         {desc ? (
           <div className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap leading-none">
-            <span className="shrink-0 font-medium text-sol-text">{desc.name}</span>
+            <span className="shrink-0 font-medium text-sol-text">
+              {desc.name}
+            </span>
             <span className={`truncate ${desc.tone}`}>{desc.text}</span>
           </div>
         ) : (
@@ -114,9 +125,13 @@ const StripFaces = memo(function StripFaces({
   emptyText: string | null;
 }) {
   const [showGone, setShowGone] = useState(false);
-  const goneNames = wall.gone.map((f) => f.member?.name || f.member?.email || "?").join(", ");
+  const goneNames = wall.gone
+    .map((f) => f.member?.name || f.member?.email || "?")
+    .join(", ");
   if (emptyText) {
-    return <span className="truncate text-meta text-sol-text-dim">{emptyText}</span>;
+    return (
+      <span className="truncate text-meta text-sol-text-dim">{emptyText}</span>
+    );
   }
   return (
     <div className="people-strip-faces flex min-w-0 shrink items-center gap-2">

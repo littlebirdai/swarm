@@ -15,7 +15,9 @@ export function useCopy() {
     clearTimeout(reset.current);
     reset.current = setTimeout(() => setState("idle"), 1400);
   };
-  const copy = async (get: () => Promise<string | undefined> | string | undefined) => {
+  const copy = async (
+    get: () => Promise<string | undefined> | string | undefined,
+  ) => {
     try {
       const text = await get();
       if (!text) return show("failed");

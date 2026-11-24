@@ -19,30 +19,45 @@ import { windowOrgTree } from "../../../store/orgSlice";
 
 /** Where an address under Org leads, or null for the chart. A role the store
  *  has not loaded yet is "wait": its session is not known until the tree is. */
-function homeOf(view: string | undefined, id: string | null, st: ReturnType<typeof useInboxStore.getState>): string | "wait" | null {
-  if (view === "goals" || id === "goals") return view === "goals" && id ? objectHref("initiative", id) : "/goals";
-  if (view === "projects" || id === "projects") return view === "projects" && id ? objectHref("project", id) : "/projects";
+function homeOf(
+  view: string | undefined,
+  id: string | null,
+  st: ReturnType<typeof useInboxStore.getState>,
+): string | "wait" | null {
+  if (view === "goals" || id === "goals")
+    return view === "goals" && id ? objectHref("initiative", id) : "/goals";
+  if (view === "projects" || id === "projects")
+    return view === "projects" && id ? objectHref("project", id) : "/projects";
   if (!id) return null;
   const object = orgObjectOfRef(id);
   if (!object) return null;
-  if (object.kind === "initiative" || object.kind === "project") return objectHref(object.kind, object.ref);
-  if (object.kind === "person") return `/team/${encodeURIComponent(object.ref)}`;
+  if (object.kind === "initiative" || object.kind === "project")
+    return objectHref(object.kind, object.ref);
+  if (object.kind === "person")
+    return `/team/${encodeURIComponent(object.ref)}`;
   const tree = windowOrgTree(st);
   if (!tree) return "wait";
-  const conv = tree.roles.find((r) => r.short_id?.toLowerCase() === object.ref)?.standing?.conversation_id;
+  const conv = tree.roles.find((r) => r.short_id?.toLowerCase() === object.ref)
+    ?.standing?.conversation_id;
   return conv ? `/conversation/${conv}` : null;
 }
 
 function GoHome({ to }: { to: string }) {
   const router = useRouter();
-  useWatchEffect(() => { router.replace(to); }, [to]);
+  useWatchEffect(() => {
+    router.replace(to);
+  }, [to]);
   return null;
 }
 
 export default function OrgObjectPage() {
   const params = useParams() as { view?: string; id?: string } | null;
   let id: string | null = null;
-  try { id = params?.id ? decodeURIComponent(params.id) : null; } catch { id = params?.id ?? null; }
+  try {
+    id = params?.id ? decodeURIComponent(params.id) : null;
+  } catch {
+    id = params?.id ?? null;
+  }
   const home = useInboxStore((st) => homeOf(params?.view, id, st));
   if (home === "wait") return <OrgTreeFeeder />;
   if (home) return <GoHome to={home} />;
@@ -53,7 +68,9 @@ export default function OrgObjectPage() {
           <OrgFeatureGate>
             <div className="h-full flex flex-col">
               <SlackReturnFlash />
-              <div className="flex-1 min-h-0"><ScopePageInner id={id} /></div>
+              <div className="flex-1 min-h-0">
+                <ScopePageInner id={id} />
+              </div>
             </div>
           </OrgFeatureGate>
         </DashboardLayout>

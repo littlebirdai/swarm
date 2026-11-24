@@ -41,7 +41,8 @@ export function useTriggerKillNotice() {
         ? `Also canceled trigger "${taskDisplayTitle(armed[0])}"`
         : `Also canceled ${armed.length} triggers bound to this session`,
       {
-        description: "Its next fire would have revived the session you just killed. Restoring the session re-arms it.",
+        description:
+          "Its next fire would have revived the session you just killed. Restoring the session re-arms it.",
         duration: 10000,
         action: {
           label: armed.length === 1 ? "Keep trigger" : "Keep triggers",
@@ -60,13 +61,23 @@ export function useTriggerKillNotice() {
 
   // Bulk kill (a selection, the stashed bucket's "Kill all"): every card
   // collapses out, the kill is one undo, and the notice is one aggregate.
-  const killManyWithNotice = useCallback((ids: string[]) => {
-    if (!ids.length) return;
-    const armed = new Map(ids.map((id) => [id, armedInjectTasksFor(storeTasks(), id)]));
-    void animatedHideSessions(ids, "kill").then((killed) => noticeCanceled(killed.flatMap((id) => armed.get(id) ?? [])));
-  }, [noticeCanceled]);
+  const killManyWithNotice = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return;
+      const armed = new Map(
+        ids.map((id) => [id, armedInjectTasksFor(storeTasks(), id)]),
+      );
+      void animatedHideSessions(ids, "kill").then((killed) =>
+        noticeCanceled(killed.flatMap((id) => armed.get(id) ?? [])),
+      );
+    },
+    [noticeCanceled],
+  );
   // Kill one session, saying what triggers died with it.
-  const killWithNotice = useCallback((id: string) => killManyWithNotice([id]), [killManyWithNotice]);
+  const killWithNotice = useCallback(
+    (id: string) => killManyWithNotice([id]),
+    [killManyWithNotice],
+  );
 
   // Restore a killed session, saying what triggers came back with it. The
   // re-arm itself happens server-side on the un-hide transition; this only
@@ -88,5 +99,7 @@ export function useTriggerKillNotice() {
 }
 
 function storeTasks(): TaskRow[] {
-  return Object.values((useInboxStore.getState() as any).agentTasks ?? {}) as TaskRow[];
+  return Object.values(
+    (useInboxStore.getState() as any).agentTasks ?? {},
+  ) as TaskRow[];
 }

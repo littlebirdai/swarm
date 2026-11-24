@@ -37,7 +37,8 @@ export function DeviceSettingsFrame({
         <SettingsSection title={title} icon={icon} padded>
           <p className="text-center text-sm text-sol-text-muted">
             No devices yet. Start the daemon with{" "}
-            <code className="font-mono text-sol-text">cast daemon</code> on a machine to manage it here.
+            <code className="font-mono text-sol-text">cast daemon</code> on a
+            machine to manage it here.
           </p>
         </SettingsSection>
       </SettingsPanel>
@@ -45,14 +46,20 @@ export function DeviceSettingsFrame({
   }
   return (
     <SettingsPanel className={className}>
-      <DevicePanelHeader devices={devices} selected={selected} onSelect={select} localDeviceId={localDeviceId} />
+      <DevicePanelHeader
+        devices={devices}
+        selected={selected}
+        onSelect={select}
+        localDeviceId={localDeviceId}
+      />
       {reports(selected) ? (
         children(selected)
       ) : (
         <SettingsSection title={title} icon={icon} padded>
           <p className="text-sm text-sol-text-muted">
             This machine&apos;s CLI is too old to report this. Update it with{" "}
-            <code className="font-mono text-sol-text">cast update</code>, and it will show up here.
+            <code className="font-mono text-sol-text">cast update</code>, and it
+            will show up here.
           </p>
         </SettingsSection>
       )}

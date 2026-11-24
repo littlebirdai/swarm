@@ -19,6 +19,8 @@ export type ChatVoiceStatus = "live" | "done" | "canceled";
  * it is not yet a message: it has not notified, so it must not tick an unread
  * badge or become a channel's last line. Both happen on finalize, once.
  */
-export function isLiveVoiceRow(row: { voice?: { status?: string } | null }): boolean {
+export function isLiveVoiceRow(row: {
+  voice?: { status?: string } | null;
+}): boolean {
   return row.voice?.status === "live";
 }

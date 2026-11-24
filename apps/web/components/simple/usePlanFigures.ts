@@ -7,12 +7,20 @@
 import { useMemo } from "react";
 import { planOf } from "@codecast/shared/contracts/assistant";
 import { useWallet } from "../../hooks/useWallet";
-import { LANE_COPY, accountLine, meterFill, meterOut, upgradesFrom } from "./lane";
+import {
+  LANE_COPY,
+  accountLine,
+  meterFill,
+  meterOut,
+  upgradesFrom,
+} from "./lane";
 import { useLaneConversations, useLaneTitles } from "./useLane";
 
 /** A day the way the plan screen says it: "October 21". */
 export function planDay(at: number | null): string | null {
-  return at ? new Date(at).toLocaleDateString([], { month: "long", day: "numeric" }) : null;
+  return at
+    ? new Date(at).toLocaleDateString([], { month: "long", day: "numeric" })
+    : null;
 }
 
 /** The month's meter alone: the wallet's figures, the plan they belong to,
@@ -23,7 +31,15 @@ export function usePlanMeter(feed = true) {
   // Until the first read lands there are no figures to show, only a quiet meter.
   const known = !!wallet || ready;
   const plan = planOf(wallet?.plan);
-  const figures = wallet ?? { used_usd: 0, reserved_usd: 0, cap_usd: plan.included_usd, topup_usd: 0, remaining_usd: plan.included_usd, period_end: null, conversations: [] };
+  const figures = wallet ?? {
+    used_usd: 0,
+    reserved_usd: 0,
+    cap_usd: plan.included_usd,
+    topup_usd: 0,
+    remaining_usd: plan.included_usd,
+    period_end: null,
+    conversations: [],
+  };
   return {
     wallet,
     known,
@@ -52,13 +68,17 @@ export function useAllowanceOut(enabled = true): string | null {
 export function usePlanFigures() {
   const meter = usePlanMeter();
   const { wallet, plan } = meter;
-  const upgrades = useMemo(() => new Set(upgradesFrom(plan.id).map((p) => p.id)), [plan.id]);
+  const upgrades = useMemo(
+    () => new Set(upgradesFrom(plan.id).map((p) => p.id)),
+    [plan.id],
+  );
   const names = useLaneTitles(useLaneConversations());
   const history = useMemo(
-    () => (wallet?.account ?? []).flatMap((line) => {
-      const said = accountLine(line, plan);
-      return said ? [{ ...said, at: line.at }] : [];
-    }),
+    () =>
+      (wallet?.account ?? []).flatMap((line) => {
+        const said = accountLine(line, plan);
+        return said ? [{ ...said, at: line.at }] : [];
+      }),
     [wallet?.account, plan],
   );
   return {

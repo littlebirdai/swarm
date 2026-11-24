@@ -12,12 +12,25 @@ export function mcpProxyPlugin(): Plugin {
     name: "codecast-mcp-proxy",
     config(_cfg, { mode }) {
       const env = loadEnv(mode, process.cwd(), "");
-      const convex = process.env.VITE_CONVEX_URL || env.VITE_CONVEX_URL || DEFAULT_CONVEX_URL;
-      const site = (env.CONVEX_SITE_URL || convex.replace(".convex.cloud", ".convex.site").replace(":3210", ":3211")).replace(/\/+$/, "");
+      const convex =
+        process.env.VITE_CONVEX_URL ||
+        env.VITE_CONVEX_URL ||
+        DEFAULT_CONVEX_URL;
+      const site = (
+        env.CONVEX_SITE_URL ||
+        convex
+          .replace(".convex.cloud", ".convex.site")
+          .replace(":3210", ":3211")
+      ).replace(/\/+$/, "");
       const proxy = Object.fromEntries(
         Object.entries(MCP_ROUTES).map(([path, backend]) => [
           `^${path.replace(/[.]/g, "\\.")}(\\?.*)?$`,
-          { target: site, changeOrigin: true, rewrite: (url: string) => backend + (url.includes("?") ? url.slice(url.indexOf("?")) : "") },
+          {
+            target: site,
+            changeOrigin: true,
+            rewrite: (url: string) =>
+              backend + (url.includes("?") ? url.slice(url.indexOf("?")) : ""),
+          },
         ]),
       );
       return { server: { proxy } };

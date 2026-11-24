@@ -27,10 +27,18 @@ import { NAV_ROW_SNIPPET_CHARS } from "@codecast/convex/convex/userMessagesFilte
 import { formatSessionMessage } from "../../components/sessionMessage";
 import { MID_WORK_REVIVE_MESSAGE } from "@codecast/shared/contracts";
 
-const msg = (id: string, content: string, timestamp = 0) => ({ _id: id, content, timestamp });
+const msg = (id: string, content: string, timestamp = 0) => ({
+  _id: id,
+  content,
+  timestamp,
+});
 
-const SESSION_WIRE = formatSessionMessage("jx7c6zk", "can you take the auth half?");
-const TRIGGER_WIRE = '<scheduled-task title="Nightly audit">run the audit</scheduled-task>';
+const SESSION_WIRE = formatSessionMessage(
+  "jx7c6zk",
+  "can you take the auth half?",
+);
+const TRIGGER_WIRE =
+  '<scheduled-task title="Nightly audit">run the audit</scheduled-task>';
 
 const MIXED = [
   msg("a", "fix the login bug"),
@@ -60,19 +68,26 @@ describe("buildNavigatorRows", () => {
   });
 
   test("session source resolves through the injected title lookup", () => {
-    const [row] = buildNavigatorRows([msg("b", SESSION_WIRE)], null, (id) => (id === "jx7c6zk" ? "Auth fix" : null));
+    const [row] = buildNavigatorRows([msg("b", SESSION_WIRE)], null, (id) =>
+      id === "jx7c6zk" ? "Auth fix" : null,
+    );
     expect(row.source).toBe("Auth fix");
     const [bare] = buildNavigatorRows([msg("b", SESSION_WIRE)]);
     expect(bare.source).toBe("jx7c6zk");
   });
 
   test("comment counts attach by message id", () => {
-    const rows = buildNavigatorRows([msg("a", "hi"), msg("d", "there")], new Map([["d", 2]]));
+    const rows = buildNavigatorRows(
+      [msg("a", "hi"), msg("d", "there")],
+      new Map([["d", 2]]),
+    );
     expect(rows.map((r) => r.commentCount)).toEqual([0, 2]);
   });
 
   test("slash commands keep the command label", () => {
-    const [row] = buildNavigatorRows([msg("x", "<command-name>/commit</command-name>")]);
+    const [row] = buildNavigatorRows([
+      msg("x", "<command-name>/commit</command-name>"),
+    ]);
     expect(row.isCmd).toBe(true);
     expect(row.display).toBe("/commit");
   });
@@ -88,22 +103,32 @@ describe("buildNavigatorRows", () => {
 
   test("a machine body that only looks like JSON keeps the raw text", () => {
     const brace = "{not json at all";
-    const [row] = buildNavigatorRows([msg("j2", formatSessionMessage("jx7c6zk", brace))]);
+    const [row] = buildNavigatorRows([
+      msg("j2", formatSessionMessage("jx7c6zk", brace)),
+    ]);
     expect(row.display).toBe(brace);
     const noType = '{"kind":"ping"}';
-    const [row2] = buildNavigatorRows([msg("j3", formatSessionMessage("jx7c6zk", noType))]);
+    const [row2] = buildNavigatorRows([
+      msg("j3", formatSessionMessage("jx7c6zk", noType)),
+    ]);
     expect(row2.display).toBe(noType);
   });
 
   test("a message of only zero width characters produces no row", () => {
-    const rows = buildNavigatorRows([msg("z", "\u200B\u200B"), msg("ok", "real prompt")]);
+    const rows = buildNavigatorRows([
+      msg("z", "\u200B\u200B"),
+      msg("ok", "real prompt"),
+    ]);
     expect(rows.map((r) => r._id)).toEqual(["ok"]);
     expect(rows[0].originalIndex).toBe(0);
   });
 
   test("a trigger whose body starts with its title drops the source line", () => {
     const [row] = buildNavigatorRows([
-      msg("t", '<scheduled-task title="Daily monitor: run X">Daily monitor: run X for the full protocol</scheduled-task>'),
+      msg(
+        "t",
+        '<scheduled-task title="Daily monitor: run X">Daily monitor: run X for the full protocol</scheduled-task>',
+      ),
     ]);
     expect(row.kind).toBe("schedule");
     expect(row.source).toBeUndefined();
@@ -114,7 +139,10 @@ describe("buildNavigatorRows", () => {
 
   test("a command tag with an empty name falls back to the cleaned content", () => {
     const [row] = buildNavigatorRows([
-      msg("cmd", "<command-name>/</command-name><command-args>build the thing</command-args>"),
+      msg(
+        "cmd",
+        "<command-name>/</command-name><command-args>build the thing</command-args>",
+      ),
     ]);
     expect(row.isCmd).toBe(true);
     expect(row.display).toBe("build the thing");
@@ -122,8 +150,16 @@ describe("buildNavigatorRows", () => {
 
   test("a row whose content reaches the server snippet cap is marked clipped", () => {
     const snippet = "y".repeat(NAV_ROW_SNIPPET_CHARS);
-    const rows = buildNavigatorRows([msg("short", "hi"), msg("long", snippet), msg("wire", formatSessionMessage("jx7c6zk", snippet))]);
-    expect(rows.map((r) => [r._id, r.clipped])).toEqual([["short", false], ["long", true], ["wire", true]]);
+    const rows = buildNavigatorRows([
+      msg("short", "hi"),
+      msg("long", snippet),
+      msg("wire", formatSessionMessage("jx7c6zk", snippet)),
+    ]);
+    expect(rows.map((r) => [r._id, r.clipped])).toEqual([
+      ["short", false],
+      ["long", true],
+      ["wire", true],
+    ]);
   });
 });
 
@@ -138,9 +174,15 @@ describe("navigatorRowBody", () => {
 
   test("a full body runs through the same pipeline: context tags stripped, wire payloads humanized", () => {
     const [row] = buildNavigatorRows([msg("long", snippet)]);
-    expect(navigatorRowBody(row, `${full}<system-reminder>noise</system-reminder>`)).toBe(full);
-    const [wire] = buildNavigatorRows([msg("wire", formatSessionMessage("jx7c6zk", snippet))]);
-    expect(navigatorRowBody(wire, formatSessionMessage("jx7c6zk", full))).toBe(full);
+    expect(
+      navigatorRowBody(row, `${full}<system-reminder>noise</system-reminder>`),
+    ).toBe(full);
+    const [wire] = buildNavigatorRows([
+      msg("wire", formatSessionMessage("jx7c6zk", snippet)),
+    ]);
+    expect(navigatorRowBody(wire, formatSessionMessage("jx7c6zk", full))).toBe(
+      full,
+    );
   });
 
   test("a full body that yields no row keeps the snippet", () => {
@@ -151,7 +193,10 @@ describe("navigatorRowBody", () => {
 
 describe("hiddenRowsNoun", () => {
   test("precise when one kind, plural by count", () => {
-    const rows = buildNavigatorRows([msg("1", SESSION_WIRE), msg("2", SESSION_WIRE)]).filter((r) => r.kind !== "user");
+    const rows = buildNavigatorRows([
+      msg("1", SESSION_WIRE),
+      msg("2", SESSION_WIRE),
+    ]).filter((r) => r.kind !== "user");
     expect(hiddenRowsNoun(rows)).toBe("sessions");
     expect(hiddenRowsNoun(rows.slice(0, 1))).toBe("session");
     const trigger = buildNavigatorRows([msg("3", TRIGGER_WIRE)]);
@@ -168,20 +213,43 @@ describe("filterNavigatorRows", () => {
   const rows = buildNavigatorRows(MIXED);
 
   test("hides the hidden kinds unless showHidden", () => {
-    expect(filterNavigatorRows(rows, { search: "", showHidden: false }).map((r) => r._id)).toEqual(["a", "d"]);
-    expect(filterNavigatorRows(rows, { search: "", showHidden: true }).map((r) => r._id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(
+      filterNavigatorRows(rows, { search: "", showHidden: false }).map(
+        (r) => r._id,
+      ),
+    ).toEqual(["a", "d"]);
+    expect(
+      filterNavigatorRows(rows, { search: "", showHidden: true }).map(
+        (r) => r._id,
+      ),
+    ).toEqual(["a", "b", "c", "d", "e"]);
   });
 
   test("search matches the display text and the source, case insensitive", () => {
-    expect(filterNavigatorRows(rows, { search: "TESTS", showHidden: false }).map((r) => r._id)).toEqual(["d"]);
-    expect(filterNavigatorRows(rows, { search: "jx7c6zk", showHidden: true }).map((r) => r._id)).toEqual(["b"]);
-    expect(filterNavigatorRows(rows, { search: "nightly", showHidden: true }).map((r) => r._id)).toEqual(["e"]);
-    expect(filterNavigatorRows(rows, { search: "jx7c6zk", showHidden: false })).toEqual([]);
+    expect(
+      filterNavigatorRows(rows, { search: "TESTS", showHidden: false }).map(
+        (r) => r._id,
+      ),
+    ).toEqual(["d"]);
+    expect(
+      filterNavigatorRows(rows, { search: "jx7c6zk", showHidden: true }).map(
+        (r) => r._id,
+      ),
+    ).toEqual(["b"]);
+    expect(
+      filterNavigatorRows(rows, { search: "nightly", showHidden: true }).map(
+        (r) => r._id,
+      ),
+    ).toEqual(["e"]);
+    expect(
+      filterNavigatorRows(rows, { search: "jx7c6zk", showHidden: false }),
+    ).toEqual([]);
   });
 });
 
 describe("matchSnippet", () => {
-  const text = "Hard data on all three threads: PILOT MARKER: email_messages.metadata carries the experiment id for every send";
+  const text =
+    "Hard data on all three threads: PILOT MARKER: email_messages.metadata carries the experiment id for every send";
 
   test("a hit before the radius returns the text unchanged", () => {
     expect(matchSnippet(text, "three")).toBe(text);
@@ -191,7 +259,9 @@ describe("matchSnippet", () => {
   test("a hit past the radius starts at a word boundary with an ellipsis", () => {
     const out = matchSnippet(text, "experiment");
     expect(out.startsWith("\u2026")).toBe(true);
-    expect(out).toBe("\u2026MARKER: email_messages.metadata carries the experiment id for every send");
+    expect(out).toBe(
+      "\u2026MARKER: email_messages.metadata carries the experiment id for every send",
+    );
     // The slice starts on a word, never inside one.
     expect(text.includes(" " + out.slice(1))).toBe(true);
     expect(matchIndex(out, "experiment")).toBeGreaterThan(0);
@@ -215,12 +285,19 @@ describe("formatTimeAgo", () => {
 });
 
 describe("sampleTicks", () => {
-  const rowsOf = (n: number) => Array.from({ length: n }, (_, i) => ({ _id: String(i), i }));
+  const rowsOf = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ _id: String(i), i }));
 
   test("5 rows under the cap give one tick per row", () => {
     const ticks = sampleTicks(rowsOf(5), 24, 3);
     expect(ticks.map((t) => t.row.i)).toEqual([0, 1, 2, 3, 4]);
-    expect(ticks.map((t) => t.active)).toEqual([false, false, false, true, false]);
+    expect(ticks.map((t) => t.active)).toEqual([
+      false,
+      false,
+      false,
+      true,
+      false,
+    ]);
   });
 
   test("200 rows sample to the cap, keeping first and last", () => {
@@ -239,7 +316,9 @@ describe("sampleTicks", () => {
       const ticks = sampleTicks(rowsOf(200), 24, active);
       expect(ticks.filter((t) => t.active).length).toBe(1);
       const lit = ticks.find((t) => t.active)!.row.i;
-      expect(Math.abs(lit - active)).toBeLessThanOrEqual(Math.ceil(199 / 23 / 2));
+      expect(Math.abs(lit - active)).toBeLessThanOrEqual(
+        Math.ceil(199 / 23 / 2),
+      );
     }
   });
 
@@ -252,7 +331,12 @@ describe("sampleTicks", () => {
 });
 
 describe("pickStickyFallback", () => {
-  const user = (id: string, content: string, timestamp: number) => ({ _id: id, role: "user" as const, content, timestamp });
+  const user = (id: string, content: string, timestamp: number) => ({
+    _id: id,
+    role: "user" as const,
+    content,
+    timestamp,
+  });
   const all = [
     user("p1", "first prompt", 100),
     user("p2", "second prompt", 200),
@@ -268,7 +352,9 @@ describe("pickStickyFallback", () => {
   });
 
   test("returns null when nothing sits above the window", () => {
-    expect(pickStickyFallback(all, new Set(["p1", "p2", "p3", "p4"]), 100)).toBeNull();
+    expect(
+      pickStickyFallback(all, new Set(["p1", "p2", "p3", "p4"]), 100),
+    ).toBeNull();
     expect(pickStickyFallback([], new Set(), Infinity)).toBeNull();
     expect(pickStickyFallback(undefined, new Set(), Infinity)).toBeNull();
   });
@@ -284,7 +370,9 @@ describe("navigatorHeaderLabels", () => {
   });
 
   test("no hidden rows means no chip label, singular placeholder", () => {
-    const labels = navigatorHeaderLabels(buildNavigatorRows([msg("a", "one prompt")]));
+    const labels = navigatorHeaderLabels(
+      buildNavigatorRows([msg("a", "one prompt")]),
+    );
     expect(labels.hiddenCount).toBe(0);
     expect(labels.chipLabel).toBe("");
     expect(labels.placeholder).toBe("Search 1 message");
@@ -311,7 +399,12 @@ describe("countCommentsByMessage", () => {
 });
 
 describe("pickStickyFallback against the top visible row", () => {
-  const user = (id: string, content: string, timestamp: number) => ({ _id: id, role: "user" as const, content, timestamp });
+  const user = (id: string, content: string, timestamp: number) => ({
+    _id: id,
+    role: "user" as const,
+    content,
+    timestamp,
+  });
   const all = [
     user("p1", "first prompt", 100),
     user("p2", "second prompt", 200),
@@ -349,7 +442,9 @@ describe("pickStickyFallback against the top visible row", () => {
       expect(isStickyEligible(notice.content)).toBe(false);
       expect(stickyPromptContent(notice.content)).toBeNull();
     }
-    expect(pickStickyFallback([...all, ...notices], new Set(["reply"]), 500)?.id).toBe("p3");
+    expect(
+      pickStickyFallback([...all, ...notices], new Set(["reply"]), 500)?.id,
+    ).toBe("p3");
     expect(pickStickyFallback(notices, new Set(), Infinity)).toBeNull();
   });
 });
@@ -358,12 +453,21 @@ describe("resolveStickyPrompt", () => {
   const sticky = [2, 10, 25];
 
   test("latest sticky row at or above the top visible row", () => {
-    expect(resolveStickyPrompt(sticky, 14, new Set([14, 15, 16]))).toEqual({ index: 10, hidden: false });
-    expect(resolveStickyPrompt(sticky, 30, new Set([30]))).toEqual({ index: 25, hidden: false });
+    expect(resolveStickyPrompt(sticky, 14, new Set([14, 15, 16]))).toEqual({
+      index: 10,
+      hidden: false,
+    });
+    expect(resolveStickyPrompt(sticky, 30, new Set([30]))).toEqual({
+      index: 25,
+      hidden: false,
+    });
   });
 
   test("hides when the prompt row is itself visible", () => {
-    expect(resolveStickyPrompt(sticky, 10, new Set([10, 11]))).toEqual({ index: 10, hidden: true });
+    expect(resolveStickyPrompt(sticky, 10, new Set([10, 11]))).toEqual({
+      index: 10,
+      hidden: true,
+    });
   });
 
   test("null when the reader is above every prompt", () => {
@@ -376,22 +480,42 @@ describe("huddles-thread screenshot: opening prompt vs capped cache", () => {
   test("the transcript-top prompt becomes list #1 and the current row", () => {
     const cached = [
       msg("go", "go", 200),
-      msg("e2e", "run the two-account livekt e2e - need to verify invites", 300),
+      msg(
+        "e2e",
+        "run the two-account livekt e2e - need to verify invites",
+        300,
+      ),
     ];
     const loaded = [
-      { _id: "startup", role: "user" as const, content: "there was this startup about 5 years ago", timestamp: 100 },
+      {
+        _id: "startup",
+        role: "user" as const,
+        content: "there was this startup about 5 years ago",
+        timestamp: 100,
+      },
       { _id: "go", role: "user" as const, content: "go", timestamp: 200 },
-      { _id: "e2e", role: "user" as const, content: "run the two-account livekt e2e - need to verify invites", timestamp: 300 },
+      {
+        _id: "e2e",
+        role: "user" as const,
+        content: "run the two-account livekt e2e - need to verify invites",
+        timestamp: 300,
+      },
     ];
     const sources = mergeNavigatorSources(cached, loaded);
     const rows = buildNavigatorRows(sources);
-    expect(rows.filter((r) => r.kind === "user").map((r) => [r._id, r.originalIndex + 1])).toEqual([
+    expect(
+      rows
+        .filter((r) => r.kind === "user")
+        .map((r) => [r._id, r.originalIndex + 1]),
+    ).toEqual([
       ["startup", 1],
       ["e2e", 2],
     ]);
     const timelineIds = ["startup", "reply", "go", "e2e"];
     const navIndices = [0, 2, 3];
-    expect(resolveNavigatorCurrentId(navIndices, timelineIds, 0, null)).toBe("startup");
+    expect(resolveNavigatorCurrentId(navIndices, timelineIds, 0, null)).toBe(
+      "startup",
+    );
   });
 });
 
@@ -402,27 +526,61 @@ describe("mergeNavigatorSources", () => {
       msg("p3", "newest prompt", 300),
     ];
     const loaded = [
-      { _id: "p1", role: "user" as const, content: "opening prompt", timestamp: 100 },
-      { _id: "p2", role: "user" as const, content: "later prompt", timestamp: 200 },
-      { _id: "a1", role: "assistant" as const, content: "reply", timestamp: 150 },
+      {
+        _id: "p1",
+        role: "user" as const,
+        content: "opening prompt",
+        timestamp: 100,
+      },
+      {
+        _id: "p2",
+        role: "user" as const,
+        content: "later prompt",
+        timestamp: 200,
+      },
+      {
+        _id: "a1",
+        role: "assistant" as const,
+        content: "reply",
+        timestamp: 150,
+      },
     ];
-    expect(mergeNavigatorSources(cached, loaded).map((m) => m._id)).toEqual(["p1", "p2", "p3"]);
+    expect(mergeNavigatorSources(cached, loaded).map((m) => m._id)).toEqual([
+      "p1",
+      "p2",
+      "p3",
+    ]);
   });
 
   test("prefers the loaded body when it is longer than the cached snippet", () => {
     const cached = [msg("p1", "opening", 100)];
     const loaded = [
-      { _id: "p1", role: "user" as const, content: "opening prompt with the rest of the body", timestamp: 100 },
+      {
+        _id: "p1",
+        role: "user" as const,
+        content: "opening prompt with the rest of the body",
+        timestamp: 100,
+      },
     ];
-    expect(mergeNavigatorSources(cached, loaded)[0].content).toBe("opening prompt with the rest of the body");
+    expect(mergeNavigatorSources(cached, loaded)[0].content).toBe(
+      "opening prompt with the rest of the body",
+    );
   });
 
   test("does not admit tool-result echoes from the loaded window", () => {
     const cached = [msg("p1", "opening prompt", 100)];
     const loaded = [
-      { _id: "tr", role: "user" as const, content: "", timestamp: 120, tool_results: [{ tool_use_id: "t1", content: "ok" }] },
+      {
+        _id: "tr",
+        role: "user" as const,
+        content: "",
+        timestamp: 120,
+        tool_results: [{ tool_use_id: "t1", content: "ok" }],
+      },
     ];
-    expect(mergeNavigatorSources(cached, loaded).map((m) => m._id)).toEqual(["p1"]);
+    expect(mergeNavigatorSources(cached, loaded).map((m) => m._id)).toEqual([
+      "p1",
+    ]);
   });
 });
 
@@ -440,7 +598,11 @@ describe("topVisibleIndexFromRects", () => {
   });
 
   test("a row fully above the viewport is not visible", () => {
-    const { topVisibleIndex, visible } = topVisibleIndexFromRects(rows, 100, 400);
+    const { topVisibleIndex, visible } = topVisibleIndexFromRects(
+      rows,
+      100,
+      400,
+    );
     expect(topVisibleIndex).toBe(2);
     expect(visible.has(0)).toBe(false);
     expect(visible.has(1)).toBe(false);
@@ -467,11 +629,14 @@ describe("resolveNavigatorCurrentId", () => {
   });
 
   test("stays on the opening prompt at scrollTop 0", () => {
-    expect(resolveNavigatorCurrentId([0, 2], ["u1", "a1", "u2"], 0, null)).toBe("u1");
+    expect(resolveNavigatorCurrentId([0, 2], ["u1", "a1", "u2"], 0, null)).toBe(
+      "u1",
+    );
   });
 });
 
-const interruptionNotice = "The user interrupted the previous turn on purpose. Any running unified exec processes may still be running in the background. If any tools/commands were aborted, they may have partially executed.";
+const interruptionNotice =
+  "The user interrupted the previous turn on purpose. Any running unified exec processes may still be running in the background. If any tools/commands were aborted, they may have partially executed.";
 
 const interruptionMessages = [
   interruptionNotice,
@@ -484,38 +649,56 @@ const interruptionMessages = [
 // briefings and bare nudges are not that, whichever sticky source they reach
 // through (timeline, cached user list, last-message fallback).
 describe("stickyPromptContent", () => {
-  it.each(interruptionMessages)("drops an automatic interruption notice: %s", (content) => {
-    expect(stickyPromptContent(content)).toBeNull();
-  });
+  it.each(interruptionMessages)(
+    "drops an automatic interruption notice: %s",
+    (content) => {
+      expect(stickyPromptContent(content)).toBeNull();
+    },
+  );
 
   it("keeps a human prompt about an interruption", () => {
-    const prompt = "I interrupted the previous turn. Please check which commands completed.";
+    const prompt =
+      "I interrupted the previous turn. Please check which commands completed.";
     expect(stickyPromptContent(prompt)).toBe(prompt);
   });
 
   it("drops an injected trigger run", () => {
-    const run = '<scheduled-task title="Market growth mandate — daily autonomous run" task-id="abc">\n# Market Growth Mandate\n\n**Goal: increase the match rate.**</scheduled-task>';
+    const run =
+      '<scheduled-task title="Market growth mandate — daily autonomous run" task-id="abc">\n# Market Growth Mandate\n\n**Goal: increase the match rate.**</scheduled-task>';
     expect(stickyPromptContent(run)).toBeNull();
   });
 
   it("drops a spawned run's opening briefing", () => {
-    const spawned = "[Codecast Task: Growth audit]\nTask ID: abc\nMode: spawn\n\nAudit budget allocation across markets.";
+    const spawned =
+      "[Codecast Task: Growth audit]\nTask ID: abc\nMode: spawn\n\nAudit budget allocation across markets.";
     expect(stickyPromptContent(spawned)).toBeNull();
   });
 
   it("drops a decision answer, tagged or legacy, and keeps a prompt that merely opens with the word", () => {
-    expect(stickyPromptContent('Decision: Approve\n<cast-decision id="d1" question="Set up the routine?"/>')).toBeNull();
+    expect(
+      stickyPromptContent(
+        'Decision: Approve\n<cast-decision id="d1" question="Set up the routine?"/>',
+      ),
+    ).toBeNull();
     expect(stickyPromptContent("Decision: Approve")).toBeNull();
-    const typed = "Decision: we go with the blue one.\nCan you update the note?";
+    const typed =
+      "Decision: we go with the blue one.\nCan you update the note?";
     expect(stickyPromptContent(typed)).not.toBeNull();
   });
 
   it("drops a filled Vault request's wake line, whole or cut to a preview, and keeps a prompt about the Vault", () => {
-    const ready = formatVaultReady({ short_id: "sec-4", name: "zz-stripe", kind: "key", vars: ["ZZ_STRIPE"] });
+    const ready = formatVaultReady({
+      short_id: "sec-4",
+      name: "zz-stripe",
+      kind: "key",
+      vars: ["ZZ_STRIPE"],
+    });
     expect(stickyPromptContent(ready)).toBeNull();
     expect(stickyPromptContent(ready.slice(0, 60))).toBeNull();
     expect(isStickyEligible(ready)).toBe(false);
-    expect(stickyPromptContent("Vault: zz-stripe is ready? check it")).not.toBeNull();
+    expect(
+      stickyPromptContent("Vault: zz-stripe is ready? check it"),
+    ).not.toBeNull();
   });
 
   it("drops a bare nudge", () => {
@@ -532,7 +715,8 @@ describe("stickyPromptContent", () => {
 // Its stored form is tag soup, so a sticky that only strips tags painted
 // "/model model opus" as the prompt.
 describe("stickyPromptContent: client commands", () => {
-  const invocation = "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args>opus</command-args>";
+  const invocation =
+    "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args>opus</command-args>";
 
   it("drops a slash command invocation", () => {
     expect(stickyPromptContent(invocation)).toBeNull();
@@ -542,7 +726,11 @@ describe("stickyPromptContent: client commands", () => {
   it("drops a typed slash command and its output", () => {
     expect(stickyPromptContent("/model opus")).toBeNull();
     expect(stickyPromptContent("/compact")).toBeNull();
-    expect(stickyPromptContent("<local-command-stdout>Set model to opus</local-command-stdout>")).toBeNull();
+    expect(
+      stickyPromptContent(
+        "<local-command-stdout>Set model to opus</local-command-stdout>",
+      ),
+    ).toBeNull();
   });
 
   it("drops the legacy stripped form older syncs persisted", () => {
@@ -550,8 +738,14 @@ describe("stickyPromptContent: client commands", () => {
   });
 
   it("drops `!` bash mode input and output", () => {
-    expect(stickyPromptContent("<bash-input>git status</bash-input>")).toBeNull();
-    expect(stickyPromptContent("<bash-stdout>clean</bash-stdout><bash-stderr></bash-stderr>")).toBeNull();
+    expect(
+      stickyPromptContent("<bash-input>git status</bash-input>"),
+    ).toBeNull();
+    expect(
+      stickyPromptContent(
+        "<bash-stdout>clean</bash-stdout><bash-stderr></bash-stderr>",
+      ),
+    ).toBeNull();
   });
 
   it("keeps an ask that opens with a pasted path", () => {
@@ -564,8 +758,12 @@ describe("stickyPromptContent: client commands", () => {
 // the command file's body with no markers. The body read as a typed prompt and
 // headed the sticky with the command's instructions.
 describe("slash command with an expanded body", () => {
-  const invocation = "<command-message>deploy</command-message>\n<command-name>/deploy</command-name>\n<command-args>web only</command-args>";
-  const body = "Ship the main checkout as it stands: every uncommitted change in it is committed to main, pushed, and deployed everywhere the repo deploys. ".repeat(3);
+  const invocation =
+    "<command-message>deploy</command-message>\n<command-name>/deploy</command-name>\n<command-args>web only</command-args>";
+  const body =
+    "Ship the main checkout as it stands: every uncommitted change in it is committed to main, pushed, and deployed everywhere the repo deploys. ".repeat(
+      3,
+    );
   const msgs = [
     { _id: "p1", role: "user", content: "fix the login bug", timestamp: 100 },
     { _id: "cmd", role: "user", content: invocation, timestamp: 1000 },
@@ -581,22 +779,34 @@ describe("slash command with an expanded body", () => {
   it("pairs them when the cached list holds the body first", () => {
     const bodyFirst = [msgs[0], msgs[2], msgs[1]];
     expect([...stickyEligibleIds(bodyFirst)].sort()).toEqual(["cmd", "p1"]);
-    expect(buildNavigatorRows(bodyFirst).map((r) => r._id)).toEqual(["p1", "cmd"]);
+    expect(buildNavigatorRows(bodyFirst).map((r) => r._id)).toEqual([
+      "p1",
+      "cmd",
+    ]);
   });
 
   it("keeps a long prompt typed well after a command", () => {
-    const later = [msgs[1], { _id: "typed", role: "user", content: body, timestamp: 60_000 }];
+    const later = [
+      msgs[1],
+      { _id: "typed", role: "user", content: body, timestamp: 60_000 },
+    ];
     expect(stickyEligibleIds(later).has("typed")).toBe(true);
     expect(stickyEligibleIds(later).has("cmd")).toBe(false);
   });
 
   it("lists the command once in the navigator, with its args", () => {
     const rows = buildNavigatorRows(msgs);
-    expect(rows.map((r) => [r._id, r.display])).toEqual([["p1", "fix the login bug"], ["cmd", "/deploy web only"]]);
+    expect(rows.map((r) => [r._id, r.display])).toEqual([
+      ["p1", "fix the login bug"],
+      ["cmd", "/deploy web only"],
+    ]);
   });
 
   it("names the command for the sticky body", () => {
-    expect(stickyCommand(invocation)).toEqual({ cmdName: "deploy", args: "web only" });
+    expect(stickyCommand(invocation)).toEqual({
+      cmdName: "deploy",
+      args: "web only",
+    });
     expect(stickyCommand("fix the login bug")).toBeNull();
   });
 });
@@ -608,12 +818,28 @@ describe("resolveNavigatorAuthors", () => {
     u_ashot: { name: "Ashot Petrosian" },
   };
   const lookup = (id: string) => people[id];
-  const from = (id: string, content: string, user?: string) => ({ ...msg(id, content), ...(user ? { from_user_id: user } : {}) });
-  const authorsOf = (rows: ReturnType<typeof buildNavigatorRows>, viewerId = "u_jason") =>
-    resolveNavigatorAuthors(rows, { ownerId: "u_jason", ownerName: "Jason Benn", viewerId, lookup });
+  const from = (id: string, content: string, user?: string) => ({
+    ...msg(id, content),
+    ...(user ? { from_user_id: user } : {}),
+  });
+  const authorsOf = (
+    rows: ReturnType<typeof buildNavigatorRows>,
+    viewerId = "u_jason",
+  ) =>
+    resolveNavigatorAuthors(rows, {
+      ownerId: "u_jason",
+      ownerName: "Jason Benn",
+      viewerId,
+      lookup,
+    });
 
   test("a thread only its owner wrote names nobody", () => {
-    const a = authorsOf(buildNavigatorRows([from("a", "fix it", "u_jason"), from("b", "now tests")]));
+    const a = authorsOf(
+      buildNavigatorRows([
+        from("a", "fix it", "u_jason"),
+        from("b", "now tests"),
+      ]),
+    );
     expect(a.attributed).toBe(false);
     expect(a.authors.map((x) => [x.label, x.count])).toEqual([["You", 2]]);
   });
@@ -621,15 +847,27 @@ describe("resolveNavigatorAuthors", () => {
   test("a teammate's direct send is theirs: by account, and by the wrapper's name", () => {
     const rows = buildNavigatorRows([
       from("a", "fix it", "u_jason"),
-      from("b", '<user-message from="Cam">\nI think it would be great', "u_cam"),
+      from(
+        "b",
+        '<user-message from="Cam">\nI think it would be great',
+        "u_cam",
+      ),
       from("c", '<user-message from="Cam">\nidk\n</user-message>'),
       from("d", "ship it", "u_jason"),
     ]);
     const a = authorsOf(rows);
     expect(a.attributed).toBe(true);
-    expect(rows.map((r) => a.byRow.get(r._id)?.label)).toEqual(["You", "Cam", "Cam", "You"]);
+    expect(rows.map((r) => a.byRow.get(r._id)?.label)).toEqual([
+      "You",
+      "Cam",
+      "Cam",
+      "You",
+    ]);
     // The wrapper-only row joins Cam's account rather than standing apart.
-    expect(a.authors.map((x) => [x.key, x.count, x.tone])).toEqual([["u_jason", 2, 0], ["u_cam", 2, 1]]);
+    expect(a.authors.map((x) => [x.key, x.count, x.tone])).toEqual([
+      ["u_jason", 2, 0],
+      ["u_cam", 2, 1],
+    ]);
   });
 
   test("the viewer is the unmarked voice; everyone else is colored in the order they first wrote", () => {
@@ -639,24 +877,53 @@ describe("resolveNavigatorAuthors", () => {
       from("c", "typed by ashot", "u_ashot"),
     ]);
     const a = authorsOf(rows, "u_ashot");
-    expect(a.authors.map((x) => [x.label, x.tone])).toEqual([["You", 0], ["Aivery", 1], ["Jason", 2]]);
+    expect(a.authors.map((x) => [x.label, x.tone])).toEqual([
+      ["You", 0],
+      ["Aivery", 1],
+      ["Jason", 2],
+    ]);
   });
 
   test("a viewer who wrote nothing leaves the owner unmarked", () => {
-    const rows = buildNavigatorRows([from("a", "owner row", "u_jason"), from("b", "hi", "u_cam")]);
+    const rows = buildNavigatorRows([
+      from("a", "owner row", "u_jason"),
+      from("b", "hi", "u_cam"),
+    ]);
     const a = authorsOf(rows, "u_ashot");
-    expect(a.authors.map((x) => [x.label, x.tone])).toEqual([["Jason", 0], ["Cam", 1]]);
+    expect(a.authors.map((x) => [x.label, x.tone])).toEqual([
+      ["Jason", 0],
+      ["Cam", 1],
+    ]);
   });
 
   test("rows say first names, and the whole name when two people share one", () => {
-    const people2: Record<string, { name: string }> = { u_a: { name: "Sam Ito" }, u_b: { name: "Sam Ray" }, u_c: { name: "Ashot Petrosian" } };
-    const rows = buildNavigatorRows([from("a", "draft the brief", "u_a"), from("b", "check the numbers", "u_b"), from("c", "ship the fix", "u_c")]);
-    const a = resolveNavigatorAuthors(rows, { ownerId: "u_c", lookup: (id) => people2[id] });
-    expect(a.authors.map((x) => x.label)).toEqual(["Ashot", "Sam Ito", "Sam Ray"]);
+    const people2: Record<string, { name: string }> = {
+      u_a: { name: "Sam Ito" },
+      u_b: { name: "Sam Ray" },
+      u_c: { name: "Ashot Petrosian" },
+    };
+    const rows = buildNavigatorRows([
+      from("a", "draft the brief", "u_a"),
+      from("b", "check the numbers", "u_b"),
+      from("c", "ship the fix", "u_c"),
+    ]);
+    const a = resolveNavigatorAuthors(rows, {
+      ownerId: "u_c",
+      lookup: (id) => people2[id],
+    });
+    expect(a.authors.map((x) => x.label)).toEqual([
+      "Ashot",
+      "Sam Ito",
+      "Sam Ray",
+    ]);
   });
 
   test("a thread only a teammate wrote in is still attributed: the owner did not write it", () => {
-    const a = authorsOf(buildNavigatorRows([from("a", '<user-message from="Cam">\nidk\n</user-message>', "u_cam")]));
+    const a = authorsOf(
+      buildNavigatorRows([
+        from("a", '<user-message from="Cam">\nidk\n</user-message>', "u_cam"),
+      ]),
+    );
     expect(a.attributed).toBe(true);
     expect(a.authors.map((x) => [x.label, x.tone])).toEqual([["Cam", 1]]);
   });
@@ -667,7 +934,10 @@ describe("resolveNavigatorAuthors", () => {
   });
 
   test("machine rows have no author", () => {
-    const rows = buildNavigatorRows([from("a", SESSION_WIRE, "u_ashot"), from("b", "mine", "u_jason")]);
+    const rows = buildNavigatorRows([
+      from("a", SESSION_WIRE, "u_ashot"),
+      from("b", "mine", "u_jason"),
+    ]);
     const a = authorsOf(rows);
     expect(a.byRow.has("a")).toBe(false);
     expect(a.attributed).toBe(false);
@@ -679,20 +949,72 @@ describe("resolveNavigatorAuthors", () => {
       from("b", '<user-message from="Cam">\nbroker calls', "u_cam"),
     ]);
     const authors = authorsOf(rows);
-    expect(filterNavigatorRows(rows, { search: "", showHidden: false, authors, authorKey: "u_cam" }).map((r) => r._id)).toEqual(["b"]);
-    expect(filterNavigatorRows(rows, { search: "cam", showHidden: false, authors }).map((r) => r._id)).toEqual(["b"]);
-    expect(filterNavigatorRows(rows, { search: "you", showHidden: false, authors }).map((r) => r._id)).toEqual(["a"]);
+    expect(
+      filterNavigatorRows(rows, {
+        search: "",
+        showHidden: false,
+        authors,
+        authorKey: "u_cam",
+      }).map((r) => r._id),
+    ).toEqual(["b"]);
+    expect(
+      filterNavigatorRows(rows, {
+        search: "cam",
+        showHidden: false,
+        authors,
+      }).map((r) => r._id),
+    ).toEqual(["b"]);
+    expect(
+      filterNavigatorRows(rows, {
+        search: "you",
+        showHidden: false,
+        authors,
+      }).map((r) => r._id),
+    ).toEqual(["a"]);
   });
 
   test("the sender survives merging the loaded window into the cache", () => {
-    const merged = mergeNavigatorSources([], [{ _id: "x", role: "user", content: "hi", timestamp: 1, from_user_id: "u_cam" }]);
+    const merged = mergeNavigatorSources(
+      [],
+      [
+        {
+          _id: "x",
+          role: "user",
+          content: "hi",
+          timestamp: 1,
+          from_user_id: "u_cam",
+        },
+      ],
+    );
     expect(merged[0].from_user_id).toBe("u_cam");
   });
 
   test("a message the viewer just sent is theirs while it has no account on it", () => {
-    const merged = mergeNavigatorSources([{ _id: "a", content: "owner row", timestamp: 0, from_user_id: "u_jason" }], [{ _id: "stub", role: "user", content: "on it", timestamp: 1, _isOptimistic: true }]);
+    const merged = mergeNavigatorSources(
+      [
+        {
+          _id: "a",
+          content: "owner row",
+          timestamp: 0,
+          from_user_id: "u_jason",
+        },
+      ],
+      [
+        {
+          _id: "stub",
+          role: "user",
+          content: "on it",
+          timestamp: 1,
+          _isOptimistic: true,
+        },
+      ],
+    );
     const rows = buildNavigatorRows(merged);
-    const a = resolveNavigatorAuthors(rows, { ownerId: "u_jason", viewerId: "u_ashot", lookup });
+    const a = resolveNavigatorAuthors(rows, {
+      ownerId: "u_jason",
+      viewerId: "u_ashot",
+      lookup,
+    });
     expect(a.byRow.get("stub")?.label).toBe("You");
   });
 });

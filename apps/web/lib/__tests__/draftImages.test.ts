@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { useInboxStore } from "../../store/inboxStore";
-import { persistDraftImages, restoreDraftImages, settleComposerAttachments, settleDraftImageUpload, pendingImageUploads, type PastedImage } from "../draftImages";
+import {
+  persistDraftImages,
+  restoreDraftImages,
+  settleComposerAttachments,
+  settleDraftImageUpload,
+  pendingImageUploads,
+  type PastedImage,
+} from "../draftImages";
 
 const pastedImage = (over: Partial<PastedImage> = {}): PastedImage => ({
   file: new File([], "shot.png", { type: "image/png" }),
@@ -17,7 +24,9 @@ describe("draftImages", () => {
   it("persists a still-uploading image to the draft at paste time", () => {
     persistDraftImages("conv1", "", [pastedImage()]);
 
-    const rows = useInboxStore.getState().getDraft("conv1")?.draft_image_storage_ids;
+    const rows = useInboxStore
+      .getState()
+      .getDraft("conv1")?.draft_image_storage_ids;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       previewUrl: "blob:http://local/abc-123",
@@ -33,7 +42,9 @@ describe("draftImages", () => {
     // (key flip); a freshly-pasted image must come back from the draft.
     persistDraftImages("conv1", "look at this", [pastedImage()]);
 
-    const restored = restoreDraftImages(useInboxStore.getState().getDraft("conv1"));
+    const restored = restoreDraftImages(
+      useInboxStore.getState().getDraft("conv1"),
+    );
     expect(restored).toHaveLength(1);
     expect(restored[0]).toMatchObject({
       previewUrl: "blob:http://local/abc-123",
@@ -41,7 +52,9 @@ describe("draftImages", () => {
     });
     expect(restored[0].file.name).toBe("shot.png");
     expect(restored[0].file.type).toBe("image/png");
-    expect(useInboxStore.getState().getDraft("conv1")?.draft_message).toBe("look at this");
+    expect(useInboxStore.getState().getDraft("conv1")?.draft_message).toBe(
+      "look at this",
+    );
   });
 
   it("settles an upload into the draft by previewUrl, with no composer mounted", () => {
@@ -49,9 +62,13 @@ describe("draftImages", () => {
 
     settleDraftImageUpload("blob:http://local/abc-123", "storage-1");
 
-    const rows = useInboxStore.getState().getDraft("conv1")?.draft_image_storage_ids;
+    const rows = useInboxStore
+      .getState()
+      .getDraft("conv1")?.draft_image_storage_ids;
     expect(rows[0]).toMatchObject({ storageId: "storage-1" });
-    const restored = restoreDraftImages(useInboxStore.getState().getDraft("conv1"));
+    const restored = restoreDraftImages(
+      useInboxStore.getState().getDraft("conv1"),
+    );
     expect(restored[0].uploading).toBe(false);
   });
 
@@ -62,8 +79,13 @@ describe("draftImages", () => {
     settleDraftImageUpload("blob:http://local/abc-123", "storage-1");
 
     expect(useInboxStore.getState().getDraft("stub1")).toBeUndefined();
-    const rows = useInboxStore.getState().getDraft("real1")?.draft_image_storage_ids;
-    expect(rows[0]).toMatchObject({ storageId: "storage-1", previewUrl: "blob:http://local/abc-123" });
+    const rows = useInboxStore
+      .getState()
+      .getDraft("real1")?.draft_image_storage_ids;
+    expect(rows[0]).toMatchObject({
+      storageId: "storage-1",
+      previewUrl: "blob:http://local/abc-123",
+    });
   });
 
   it("removes the row on a failed upload, clearing an otherwise-empty draft", () => {
@@ -85,23 +107,38 @@ describe("draftImages", () => {
   });
 
   it("restores uploaded rows and the legacy single-image draft shape", () => {
-    persistDraftImages("conv1", "", [pastedImage({ storageId: "storage-9", uploading: false })]);
-    const restored = restoreDraftImages(useInboxStore.getState().getDraft("conv1"));
-    expect(restored[0]).toMatchObject({ storageId: "storage-9", uploading: false });
+    persistDraftImages("conv1", "", [
+      pastedImage({ storageId: "storage-9", uploading: false }),
+    ]);
+    const restored = restoreDraftImages(
+      useInboxStore.getState().getDraft("conv1"),
+    );
+    expect(restored[0]).toMatchObject({
+      storageId: "storage-9",
+      uploading: false,
+    });
 
     const legacy = restoreDraftImages({
       draft_image_storage_id: "storage-old",
       draft_image_name: "old.png",
       draft_image_preview: "blob:http://local/old",
     });
-    expect(legacy[0]).toMatchObject({ storageId: "storage-old", previewUrl: "blob:http://local/old", uploading: false });
+    expect(legacy[0]).toMatchObject({
+      storageId: "storage-old",
+      previewUrl: "blob:http://local/old",
+      uploading: false,
+    });
   });
 
   it("settles composer images from storageId or the in-flight upload map", async () => {
     pendingImageUploads.clear();
     pendingImageUploads.set("blob:pending", Promise.resolve("storage-pending"));
     const attachments = await settleComposerAttachments([
-      { storageId: "storage-ready", previewUrl: "blob:ready", mime: "image/png" },
+      {
+        storageId: "storage-ready",
+        previewUrl: "blob:ready",
+        mime: "image/png",
+      },
       { previewUrl: "blob:pending", mime: "image/jpeg" },
       { previewUrl: "blob:missing", mime: "image/png" },
     ]);

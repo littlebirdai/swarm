@@ -1,10 +1,17 @@
 import { useMemo } from "react";
 import { captureException } from "@sentry/react";
-import { isVaultAssetPath, isVaultMarkdownPath } from "@codecast/shared/contracts";
+import {
+  isVaultAssetPath,
+  isVaultMarkdownPath,
+} from "@codecast/shared/contracts";
 import { useWatchEffect } from "./useWatchEffect";
 import { useVaultStore } from "../store/vaultStore";
 import { locateVault, VaultRequestError } from "../lib/vault/client";
-import { filesHref, resolveVaultTarget, sameNamedCheckoutPaths } from "../lib/vault/vaultHref";
+import {
+  filesHref,
+  resolveVaultTarget,
+  sameNamedCheckoutPaths,
+} from "../lib/vault/vaultHref";
 import { ancestorDirs } from "../lib/vault/explorerModel";
 import { inferHomeDir, resolveCustomPath } from "../lib/utils";
 
@@ -20,10 +27,17 @@ export function useVaultLocalPath(
   const scannedAt = useVaultStore((s) => s.scannedAt);
   const activeRoot = vaults.find((v) => v.id === activeVaultId)?.root;
   const target = useMemo(
-    () => localPath ? resolveVaultTarget(localPath, vaults, activeRoot) : null,
+    () =>
+      localPath ? resolveVaultTarget(localPath, vaults, activeRoot) : null,
     [localPath, vaults, activeRoot],
   );
-  const abs = localPath ? resolveCustomPath(localPath, inferHomeDir(vaults.map((v) => v.root)), activeRoot) : null;
+  const abs = localPath
+    ? resolveCustomPath(
+        localPath,
+        inferHomeDir(vaults.map((v) => v.root)),
+        activeRoot,
+      )
+    : null;
   const needsLocate = !!localPath && !target;
 
   useWatchEffect(() => {
@@ -43,23 +57,35 @@ export function useVaultLocalPath(
       for (const candidate of candidates) {
         const found = await locateVault(endpoint, candidate);
         if (cancelled) return;
-        if (found) return router.replace(filesHref({ localPath: candidate, line: targetLine }));
+        if (found)
+          return router.replace(
+            filesHref({ localPath: candidate, line: targetLine }),
+          );
       }
-      if (candidates.length) return router.replace(filesHref({ localPath: candidates[0], line: targetLine }));
-      useVaultStore.setState({ opError: `${abs} does not exist on this machine.` });
+      if (candidates.length)
+        return router.replace(
+          filesHref({ localPath: candidates[0], line: targetLine }),
+        );
+      useVaultStore.setState({
+        opError: `${abs} does not exist on this machine.`,
+      });
     })().catch((error: unknown) => {
       if (cancelled) return;
       captureException(error);
-      const detail = error instanceof VaultRequestError && error.status === 404
-        ? "Update Codecast on this machine to open files outside known folders."
-        : `${error instanceof Error ? error.message : String(error)}. Reload to retry.`;
+      const detail =
+        error instanceof VaultRequestError && error.status === 404
+          ? "Update Codecast on this machine to open files outside known folders."
+          : `${error instanceof Error ? error.message : String(error)}. Reload to retry.`;
       useVaultStore.setState({ opError: `Could not open ${abs}: ${detail}` });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [needsLocate, abs, endpoint]);
 
   useWatchEffect(() => {
-    if (!target || (connection !== "connected" && connection !== "cached")) return;
+    if (!target || (connection !== "connected" && connection !== "cached"))
+      return;
     const store = useVaultStore.getState();
     if (target.vaultId !== activeVaultId) {
       void store.selectVault(target.vaultId);
@@ -70,19 +96,33 @@ export function useVaultLocalPath(
     const { files } = store;
     let rel = target.rel;
     let entry = rel ? files[rel] : undefined;
-    if (rel && !entry && !Object.keys(files).some((p) => p.startsWith(`${rel}/`))) {
+    if (
+      rel &&
+      !entry &&
+      !Object.keys(files).some((p) => p.startsWith(`${rel}/`))
+    ) {
       const suffix = `/${rel}`;
-      const candidates = Object.keys(files).filter((p) => p.endsWith(suffix) && !files[p].dir);
+      const candidates = Object.keys(files).filter(
+        (p) => p.endsWith(suffix) && !files[p].dir,
+      );
       if (candidates.length === 1) {
         rel = candidates[0];
         entry = files[rel];
       }
     }
-    const isDir = !rel || !!entry?.dir || Object.keys(files).some((p) => p.startsWith(`${rel}/`));
+    const isDir =
+      !rel ||
+      !!entry?.dir ||
+      Object.keys(files).some((p) => p.startsWith(`${rel}/`));
     store.setLeftPaneTab("files");
     const openFile = (path: string) => {
       const st = useVaultStore.getState();
-      if (!st.showAllFiles && !isVaultMarkdownPath(path) && !isVaultAssetPath(path)) st.setShowAllFiles(true);
+      if (
+        !st.showAllFiles &&
+        !isVaultMarkdownPath(path) &&
+        !isVaultAssetPath(path)
+      )
+        st.setShowAllFiles(true);
       st.noteOpened(path);
       st.requestReveal(path);
       router.replace(filesHref({ path, line: targetLine }));
@@ -96,11 +136,16 @@ export function useVaultLocalPath(
       router.replace(filesHref());
       return;
     }
-    const existing = ancestorDirs(rel).filter((d) => files[d]?.dir || Object.keys(files).some((p) => p.startsWith(`${d}/`)));
+    const existing = ancestorDirs(rel).filter(
+      (d) =>
+        files[d]?.dir || Object.keys(files).some((p) => p.startsWith(`${d}/`)),
+    );
     if (existing.length) store.setDirsExpanded(existing, true);
     const notInVault = () => {
       useVaultStore.setState({ opError: `${target.abs} isn't in this vault.` });
-      useVaultStore.getState().openQuickSwitch(rel.slice(rel.lastIndexOf("/") + 1));
+      useVaultStore
+        .getState()
+        .openQuickSwitch(rel.slice(rel.lastIndexOf("/") + 1));
       router.replace(filesHref());
     };
     // The file list is a scan (rule-filtered, capped, maybe a stale cached
@@ -112,12 +157,16 @@ export function useVaultLocalPath(
       if (cancelled) return;
       if (row === null) return notInVault();
       if (row?.dir) {
-        useVaultStore.getState().setDirsExpanded([...ancestorDirs(row.path), row.path], true);
+        useVaultStore
+          .getState()
+          .setDirsExpanded([...ancestorDirs(row.path), row.path], true);
         router.replace(filesHref());
         return;
       }
       openFile(row?.path ?? rel);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [target, connection, activeVaultId, scannedAt, router, targetLine]);
 }

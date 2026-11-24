@@ -8,10 +8,19 @@ import { DEFAULT_WEB_URL } from "./config/readLocalConfig.js";
 /** POST to the CLI API; refusals throw (or exit) the way the caller's client does. */
 export type DocPost = (path: string, body: Record<string, any>) => Promise<any>;
 
-export async function renameDoc(post: DocPost, id: string, title: string, sessionId?: string | null): Promise<void> {
+export async function renameDoc(
+  post: DocPost,
+  id: string,
+  title: string,
+  sessionId?: string | null,
+): Promise<void> {
   const next = title.trim();
   if (!next) throw new Error("give the new title");
-  await post("/cli/docs/update", { id, title: next, ...(sessionId ? { session_id: sessionId } : {}) });
+  await post("/cli/docs/update", {
+    id,
+    title: next,
+    ...(sessionId ? { session_id: sessionId } : {}),
+  });
 }
 
 /** Turn the public link on and answer it: anyone with it can open the doc, signed in or not. */
@@ -27,12 +36,20 @@ export async function unshareDoc(post: DocPost, id: string): Promise<void> {
 }
 
 /** Archive takes the doc out of every list and makes it read only; unarchive brings it back as it was. */
-export async function setDocArchived(post: DocPost, id: string, archived: boolean): Promise<void> {
+export async function setDocArchived(
+  post: DocPost,
+  id: string,
+  archived: boolean,
+): Promise<void> {
   await post("/cli/docs/update", { id, archived });
 }
 
 /** File the doc under a project in its own workspace, or take it out of one (projectId ""). */
-export async function setDocProject(post: DocPost, id: string, projectId: string): Promise<void> {
+export async function setDocProject(
+  post: DocPost,
+  id: string,
+  projectId: string,
+): Promise<void> {
   await post("/cli/docs/update", { id, project_id: projectId });
 }
 

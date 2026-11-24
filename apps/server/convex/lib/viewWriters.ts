@@ -80,7 +80,9 @@ export async function runViewTransition<Table extends TableNames, Result>(
 
   const target = binding.coverageTarget;
   if (!target.revisionPrincipalId) {
-    throw new Error(`View binding for ${binding.table} lacks a revision principal`);
+    throw new Error(
+      `View binding for ${binding.table} lacks a revision principal`,
+    );
   }
   if (revisionMode === "advance") {
     await advanceLocalViewRevision(

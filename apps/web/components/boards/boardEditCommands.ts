@@ -3,7 +3,12 @@
 // formatting commands, so the selection, the caret and undo inside the editor
 // behave as in any text field; the plain editor (frame titles, arrow labels)
 // takes the marks as text.
-import { editorToMarks, formatKey, marksToHtml, toggleList } from "./boardMarks";
+import {
+  editorToMarks,
+  formatKey,
+  marksToHtml,
+  toggleList,
+} from "./boardMarks";
 
 export type FormatCommand = "bold" | "italic" | "strike" | "list" | "link";
 
@@ -13,19 +18,26 @@ export function activeBoardEditor(): HTMLElement | null {
   return a?.classList.contains("board-edit") ? a : null;
 }
 
-
 /**
  * A selection end between nodes (the whole editor selected, a caret between
  * lines) moved down into the nearest text, so a mark placed there lands inside
  * a line rather than becoming a line of its own.
  */
 function intoText(node: Node, offset: number, atEnd: boolean): [Node, number] {
-  const len = (n: Node) => (n.nodeType === 3 ? (n.textContent ?? "").length : n.childNodes.length);
+  const len = (n: Node) =>
+    n.nodeType === 3 ? (n.textContent ?? "").length : n.childNodes.length;
   while (node.nodeType === 1 && node.childNodes.length) {
     const kids = node.childNodes;
     // The start goes to the beginning of the node after it; the end to the close of the node before it.
-    if (atEnd) { const c = kids[offset > 0 ? offset - 1 : 0]; node = c; offset = offset > 0 ? len(c) : 0; }
-    else { const c = kids[Math.min(offset, kids.length - 1)]; node = c; offset = offset < kids.length ? 0 : len(c); }
+    if (atEnd) {
+      const c = kids[offset > 0 ? offset - 1 : 0];
+      node = c;
+      offset = offset > 0 ? len(c) : 0;
+    } else {
+      const c = kids[Math.min(offset, kids.length - 1)];
+      node = c;
+      offset = offset < kids.length ? 0 : len(c);
+    }
   }
   return [node, offset];
 }
@@ -38,16 +50,32 @@ function intoText(node: Node, offset: number, atEnd: boolean): [Node, number] {
  * drawn again from the result. A line is a line however it was made (Enter or
  * Shift+Enter).
  */
-export function toggleBullet(editor: HTMLElement, sel: Selection | null = document.getSelection()) {
+export function toggleBullet(
+  editor: HTMLElement,
+  sel: Selection | null = document.getSelection(),
+) {
   const doc = editor.ownerDocument;
-  const START = "\uE000", END = "\uE001";
-  const range = sel && sel.rangeCount && editor.contains(sel.getRangeAt(0).startContainer) ? sel.getRangeAt(0) : null;
+  const START = "\uE000",
+    END = "\uE001";
+  const range =
+    sel && sel.rangeCount && editor.contains(sel.getRangeAt(0).startContainer)
+      ? sel.getRangeAt(0)
+      : null;
   if (range) {
-    const e = doc.createRange(); const [ec, eo] = intoText(range.endContainer, range.endOffset, true); e.setStart(ec, eo); e.insertNode(doc.createTextNode(END));
-    const b = doc.createRange(); const [bc, bo] = intoText(range.startContainer, range.startOffset, false); b.setStart(bc, bo); b.insertNode(doc.createTextNode(START));
+    const e = doc.createRange();
+    const [ec, eo] = intoText(range.endContainer, range.endOffset, true);
+    e.setStart(ec, eo);
+    e.insertNode(doc.createTextNode(END));
+    const b = doc.createRange();
+    const [bc, bo] = intoText(range.startContainer, range.startOffset, false);
+    b.setStart(bc, bo);
+    b.insertNode(doc.createTextNode(START));
   }
   // A mark placed before a line's bullet hides the bullet from the reader: list lines are read here too.
-  const marked = editorToMarks(editor).replace(/^([\uE000\uE001]*)• /gm, "$1- ");
+  const marked = editorToMarks(editor).replace(
+    /^([\uE000\uE001]*)• /gm,
+    "$1- ",
+  );
   const at = marked.indexOf(START);
   const text = marked.split(START).join("").split(END).join("");
   const a = at >= 0 ? at : text.length;
@@ -64,34 +92,63 @@ export function toggleBullet(editor: HTMLElement, sel: Selection | null = docume
     sel.removeAllRanges();
     sel.addRange(c);
   }
-  editor.dispatchEvent(new (doc.defaultView ?? window).Event("input", { bubbles: true }));
+  editor.dispatchEvent(
+    new (doc.defaultView ?? window).Event("input", { bubbles: true }),
+  );
 }
-
 
 /**
  * Apply a format to the focused editor. `link` takes the address; with no
  * address it asks the caller to open its link field (returns "need-link").
  */
-export function applyFormat(cmd: FormatCommand, href?: string): "done" | "need-link" | "no-editor" {
+export function applyFormat(
+  cmd: FormatCommand,
+  href?: string,
+): "done" | "need-link" | "no-editor" {
   const ed = activeBoardEditor();
   if (!ed) return "no-editor";
   if (ed instanceof HTMLTextAreaElement) {
-    const r = cmd === "list"
-      ? toggleList(ed.value, ed.selectionStart, ed.selectionEnd)
-      : formatKey({ key: cmd === "bold" ? "b" : cmd === "italic" ? "i" : cmd === "strike" ? "x" : "k", metaKey: true, ctrlKey: false, shiftKey: cmd === "strike" }, ed.value, ed.selectionStart, ed.selectionEnd);
+    const r =
+      cmd === "list"
+        ? toggleList(ed.value, ed.selectionStart, ed.selectionEnd)
+        : formatKey(
+            {
+              key:
+                cmd === "bold"
+                  ? "b"
+                  : cmd === "italic"
+                    ? "i"
+                    : cmd === "strike"
+                      ? "x"
+                      : "k",
+              metaKey: true,
+              ctrlKey: false,
+              shiftKey: cmd === "strike",
+            },
+            ed.value,
+            ed.selectionStart,
+            ed.selectionEnd,
+          );
     if (!r) return "done";
     ed.value = r.value;
     ed.setSelectionRange(r.start, r.end);
     ed.dispatchEvent(new Event("input", { bubbles: true }));
     return "done";
   }
-  if (cmd === "list") { toggleBullet(ed); return "done"; }
+  if (cmd === "list") {
+    toggleBullet(ed);
+    return "done";
+  }
   if (cmd === "link") {
     if (!href) return "need-link";
     // With words selected they become the link; with none, the address goes in as its own link.
     if (document.getSelection()?.isCollapsed) {
       const shown = href.replace(/^https?:\/\//, "").replace(/\/$/, "");
-      document.execCommand("insertHTML", false, `<a href="${href.replace(/"/g, "&quot;")}">${shown.replace(/</g, "&lt;")}</a>&nbsp;`);
+      document.execCommand(
+        "insertHTML",
+        false,
+        `<a href="${href.replace(/"/g, "&quot;")}">${shown.replace(/</g, "&lt;")}</a>&nbsp;`,
+      );
     } else document.execCommand("createLink", false, href);
     return "done";
   }
@@ -99,7 +156,9 @@ export function applyFormat(cmd: FormatCommand, href?: string): "done" | "need-l
   // bold" and makes the words lighter. For the command, the title weight is off, so bold follows the marks.
   ed.classList.add("is-formatting");
   try {
-    document.execCommand(cmd === "bold" ? "bold" : cmd === "italic" ? "italic" : "strikeThrough");
+    document.execCommand(
+      cmd === "bold" ? "bold" : cmd === "italic" ? "italic" : "strikeThrough",
+    );
   } finally {
     ed.classList.remove("is-formatting");
   }
@@ -107,7 +166,12 @@ export function applyFormat(cmd: FormatCommand, href?: string): "done" | "need-l
 }
 
 /** The format a key press asks for (Cmd+B / Cmd+I / Cmd+Shift+X / Cmd+K), if any. */
-export function formatForKey(e: { key: string; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }): FormatCommand | null {
+export function formatForKey(e: {
+  key: string;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+}): FormatCommand | null {
   if (!(e.metaKey || e.ctrlKey)) return null;
   const k = e.key.toLowerCase();
   if (k === "b") return "bold";

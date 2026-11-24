@@ -4,7 +4,17 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, BellOff } from "lucide-react";
 import type { OpsWatch } from "./opsTypes";
-import { HEALTH_LOOK, alertSince, durationShort, isMutedAt, stampLabel, watchHealth, type Direction, type Pt, type Win } from "./metricModel";
+import {
+  HEALTH_LOOK,
+  alertSince,
+  durationShort,
+  isMutedAt,
+  stampLabel,
+  watchHealth,
+  type Direction,
+  type Pt,
+  type Win,
+} from "./metricModel";
 import type { SeriesPt } from "./metricSeries";
 import type { ChartMark } from "./metricEvents";
 
@@ -52,7 +62,12 @@ export type MetricChartProps = {
   /** The alert's announced episodes: the strip under the plot, and the bands where no values are held. */
   episodes?: Win[];
   /** The transitions the page lists, each drawn at the value that caused it (full charts only): filled when announced, hollow when read off the values. */
-  transitions?: readonly { at: number; kind: "crossed" | "recovered"; value: number | null; inferred?: boolean }[];
+  transitions?: readonly {
+    at: number;
+    kind: "crossed" | "recovered";
+    value: number | null;
+    inferred?: boolean;
+  }[];
   /** The watch's poll, to count the polls a stretch with no values missed (full charts); the drawing's step when absent. */
   poll_ms?: number;
   /** A value read just now, past the series' newest point: the newest dot, joined to the series by a dashed segment. */
@@ -60,17 +75,40 @@ export type MetricChartProps = {
 };
 
 /** A watch's state as a pill: how long an alert has run, a read error's glyph, nothing for a plain series that is reading. */
-export function HealthPill({ watch, now, since: episodeSince }: { watch: OpsWatch; now: number; /** When the running alert began (metricModel currentEpisodeSince); the values' own run when absent. */ since?: number | null }) {
+export function HealthPill({
+  watch,
+  now,
+  since: episodeSince,
+}: {
+  watch: OpsWatch;
+  now: number;
+  /** When the running alert began (metricModel currentEpisodeSince); the values' own run when absent. */ since?:
+    | number
+    | null;
+}) {
   const h = watchHealth(watch);
   const muted = isMutedAt(watch, now);
   if (h === "series" && !muted) return null;
   const look = HEALTH_LOOK[h];
   const since = h === "alert" ? (episodeSince ?? alertSince(watch)) : null;
   return (
-    <span className="mx-health" style={{ ["--ink" as string]: look.ink }} title={h === "error" || h === "retrying" ? watch.last_error : muted ? `Muted until ${stampLabel(watch.muted_until!)}` : undefined} data-health={h} data-muted={muted ? "" : undefined}>
+    <span
+      className="mx-health"
+      style={{ ["--ink" as string]: look.ink }}
+      title={
+        h === "error" || h === "retrying"
+          ? watch.last_error
+          : muted
+            ? `Muted until ${stampLabel(watch.muted_until!)}`
+            : undefined
+      }
+      data-health={h}
+      data-muted={muted ? "" : undefined}
+    >
       {h === "error" && <AlertTriangle aria-hidden />}
       {muted && <BellOff aria-label="muted" />}
-      {h === "series" ? "Muted" : look.label}{since ? ` ${durationShort(now - since)}` : ""}
+      {h === "series" ? "Muted" : look.label}
+      {since ? ` ${durationShort(now - since)}` : ""}
     </span>
   );
 }

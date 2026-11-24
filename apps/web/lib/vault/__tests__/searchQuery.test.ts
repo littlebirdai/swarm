@@ -25,7 +25,9 @@ describe("plain terms", () => {
   test("an unknown operator stays plain text", () => {
     // Only the core four are operators; `section:` isn't shipped yet and must
     // not silently drop the words the user typed.
-    expect(parseVaultQuery("section:intro raft").text).toBe("section:intro raft");
+    expect(parseVaultQuery("section:intro raft").text).toBe(
+      "section:intro raft",
+    );
   });
 });
 
@@ -37,7 +39,9 @@ describe("path:", () => {
   });
 
   test("quoted values may contain spaces", () => {
-    expect(parseVaultQuery('path:"daily notes"').paths).toEqual(["daily notes"]);
+    expect(parseVaultQuery('path:"daily notes"').paths).toEqual([
+      "daily notes",
+    ]);
   });
 
   test("repeats intersect", () => {
@@ -51,12 +55,16 @@ describe("path:", () => {
 describe("file:", () => {
   test("matches the basename without its extension", () => {
     const q = parseVaultQuery("file:consensus");
-    expect(fileMatchesQuery(q, "Notes/Distributed Consensus.md", "")).toBe(true);
+    expect(fileMatchesQuery(q, "Notes/Distributed Consensus.md", "")).toBe(
+      true,
+    );
     expect(fileMatchesQuery(q, "Consensus/Other.md", "")).toBe(false);
   });
 
   test("does not match on the extension itself", () => {
-    expect(fileMatchesQuery(parseVaultQuery("file:md"), "Notes/Raft.md", "")).toBe(false);
+    expect(
+      fileMatchesQuery(parseVaultQuery("file:md"), "Notes/Raft.md", ""),
+    ).toBe(false);
   });
 });
 
@@ -82,8 +90,15 @@ describe("quoted phrases", () => {
 
   test("phrase matching is case-insensitive and survives soft wraps", () => {
     const q = parseVaultQuery('"randomized timeout"');
-    expect(blockMatchesPhrases("Raft uses a Randomized\n  Timeout to avoid ties.", q.phrases)).toBe(true);
-    expect(blockMatchesPhrases("Raft uses a timeout that is randomized.", q.phrases)).toBe(false);
+    expect(
+      blockMatchesPhrases(
+        "Raft uses a Randomized\n  Timeout to avoid ties.",
+        q.phrases,
+      ),
+    ).toBe(true);
+    expect(
+      blockMatchesPhrases("Raft uses a timeout that is randomized.", q.phrases),
+    ).toBe(false);
   });
 
   test("no phrases means no constraint", () => {
@@ -101,19 +116,27 @@ describe("negation", () => {
     const q = parseVaultQuery("raft -paxos");
     expect(q.negations).toEqual(["paxos"]);
     expect(q.text).toBe("raft");
-    expect(fileMatchesQuery(q, "Notes/Raft.md", "Raft elects a leader.")).toBe(true);
-    expect(fileMatchesQuery(q, "Notes/Raft.md", "Unlike Paxos, Raft is simple.")).toBe(false);
+    expect(fileMatchesQuery(q, "Notes/Raft.md", "Raft elects a leader.")).toBe(
+      true,
+    );
+    expect(
+      fileMatchesQuery(q, "Notes/Raft.md", "Unlike Paxos, Raft is simple."),
+    ).toBe(false);
   });
 
   test("also drops on a path hit, so -archive excludes a folder", () => {
     const q = parseVaultQuery("-archive");
-    expect(fileMatchesQuery(q, "Archive/Old.md", "current thinking")).toBe(false);
+    expect(fileMatchesQuery(q, "Archive/Old.md", "current thinking")).toBe(
+      false,
+    );
   });
 
   test("a quoted negation may contain spaces", () => {
     const q = parseVaultQuery('-"work in progress"');
     expect(q.negations).toEqual(["work in progress"]);
-    expect(fileMatchesQuery(q, "Notes/A.md", "Work In Progress — do not read")).toBe(false);
+    expect(
+      fileMatchesQuery(q, "Notes/A.md", "Work In Progress — do not read"),
+    ).toBe(false);
   });
 
   test("a bare dash is not a negation", () => {
@@ -146,7 +169,9 @@ describe("dangling operators", () => {
 
 describe("combinations", () => {
   test("every operator at once", () => {
-    const q = parseVaultQuery('path:Notes file:raft tag:#distributed "log replication" leader -paxos');
+    const q = parseVaultQuery(
+      'path:Notes file:raft tag:#distributed "log replication" leader -paxos',
+    );
     expect(q).toMatchObject({
       paths: ["notes"],
       files: ["raft"],
@@ -161,9 +186,13 @@ describe("combinations", () => {
   test("filters compose over one file", () => {
     const q = parseVaultQuery("path:notes file:raft -paxos");
     expect(fileMatchesQuery(q, "Notes/Raft.md", "leader election")).toBe(true);
-    expect(fileMatchesQuery(q, "Notes/Raft.md", "compared to paxos")).toBe(false);
+    expect(fileMatchesQuery(q, "Notes/Raft.md", "compared to paxos")).toBe(
+      false,
+    );
     expect(fileMatchesQuery(q, "Other/Raft.md", "leader election")).toBe(false);
-    expect(fileMatchesQuery(q, "Notes/Consensus.md", "leader election")).toBe(false);
+    expect(fileMatchesQuery(q, "Notes/Consensus.md", "leader election")).toBe(
+      false,
+    );
   });
 
   test("operator names are case-insensitive", () => {

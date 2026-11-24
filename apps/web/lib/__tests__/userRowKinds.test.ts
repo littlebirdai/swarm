@@ -1,11 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { formatDecisionAnswer, formatVaultReady } from "@codecast/shared/contracts";
+import {
+  formatDecisionAnswer,
+  formatVaultReady,
+} from "@codecast/shared/contracts";
 import { classifyUserRows, pairCommandExpansions } from "../userRowKinds";
 
 let ts = 1;
-const row = (role: string, content: string, extra: Record<string, unknown> = {}) => ({ _id: `m${ts}`, role, content, timestamp: ts++, ...extra });
+const row = (
+  role: string,
+  content: string,
+  extra: Record<string, unknown> = {},
+) => ({ _id: `m${ts}`, role, content, timestamp: ts++, ...extra });
 const kindsOf = (msgs: any[]) => {
-  const timeline = msgs.map((m) => ({ type: "message" as const, data: m, timestamp: m.timestamp }));
+  const timeline = msgs.map((m) => ({
+    type: "message" as const,
+    data: m,
+    timestamp: m.timestamp,
+  }));
   const kinds = classifyUserRows(timeline, msgs, { agentType: "claude_code" });
   return { kinds, expansions: pairCommandExpansions(timeline, kinds) };
 };
@@ -14,7 +25,10 @@ describe("user row kinds", () => {
   test("a slash command takes the prompt it expanded to", () => {
     const msgs = [
       row("assistant", "Ready."),
-      row("user", "<command-message>deploy</command-message>\n<command-name>/deploy</command-name>\n<command-args>web</command-args>"),
+      row(
+        "user",
+        "<command-message>deploy</command-message>\n<command-name>/deploy</command-name>\n<command-args>web</command-args>",
+      ),
       row("user", "Base directory for this skill: /skills/deploy\n\n# Deploy"),
     ];
     const { kinds, expansions } = kindsOf(msgs);
@@ -24,16 +38,28 @@ describe("user row kinds", () => {
   });
 
   test("`!` bash input pairs with its output", () => {
-    const msgs = [row("assistant", "Ready."), row("user", "<bash-input>ls</bash-input>"), row("user", "<bash-stdout>a\nb</bash-stdout><bash-stderr></bash-stderr>")];
+    const msgs = [
+      row("assistant", "Ready."),
+      row("user", "<bash-input>ls</bash-input>"),
+      row("user", "<bash-stdout>a\nb</bash-stdout><bash-stderr></bash-stderr>"),
+    ];
     const { kinds, expansions } = kindsOf(msgs);
-    expect(kinds.get(msgs[1]._id)).toEqual({ kind: "bash_input", command: "ls" });
-    expect(expansions.bashByInput.get(msgs[1]._id)).toEqual({ stdout: "a\nb", stderr: "" });
+    expect(kinds.get(msgs[1]._id)).toEqual({
+      kind: "bash_input",
+      command: "ls",
+    });
+    expect(expansions.bashByInput.get(msgs[1]._id)).toEqual({
+      stdout: "a\nb",
+      stderr: "",
+    });
     expect(expansions.consumed.has(msgs[2]._id)).toBe(true);
   });
 
   test("a row after an ask is the poll's answer, whatever it says", () => {
     const msgs = [
-      row("assistant", "", { tool_calls: [{ id: "t1", name: "AskUserQuestion", input: "{}" }] }),
+      row("assistant", "", {
+        tool_calls: [{ id: "t1", name: "AskUserQuestion", input: "{}" }],
+      }),
       row("user", "<command-name>/deploy</command-name>"),
     ];
     expect(kindsOf(msgs).kinds.get(msgs[1]._id)?.kind).toBe("poll_response");
@@ -43,11 +69,26 @@ describe("user row kinds", () => {
   test("a vault-ready line and a decision answer are not typed by a person", () => {
     const msgs = [
       row("assistant", "Need a key."),
-      row("user", formatVaultReady({ short_id: "sec-1", name: "zz-stripe", kind: "key", vars: ["STRIPE_KEY"] })),
-      row("user", formatDecisionAnswer({ id: "ds-1", question: "Ship?", answer: "Yes" })),
+      row(
+        "user",
+        formatVaultReady({
+          short_id: "sec-1",
+          name: "zz-stripe",
+          kind: "key",
+          vars: ["STRIPE_KEY"],
+        }),
+      ),
+      row(
+        "user",
+        formatDecisionAnswer({ id: "ds-1", question: "Ship?", answer: "Yes" }),
+      ),
       row("user", "go on"),
     ];
     const { kinds } = kindsOf(msgs);
-    expect(msgs.slice(1).map((m) => kinds.get(m._id)?.kind)).toEqual(["vault_ready", "decision_answer", "normal"]);
+    expect(msgs.slice(1).map((m) => kinds.get(m._id)?.kind)).toEqual([
+      "vault_ready",
+      "decision_answer",
+      "normal",
+    ]);
   });
 });

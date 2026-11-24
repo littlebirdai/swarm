@@ -5,9 +5,18 @@ import { middleTruncate, splitPath } from "../middleTruncate";
 
 describe("splitPath", () => {
   test("splits the directories from the file name, keeping the last separator on the directory", () => {
-    expect(splitPath("apps/web/lib/server.ts")).toEqual({ dir: "apps/web/lib/", base: "server.ts" });
-    expect(splitPath("/Users/me/repo/a.ts")).toEqual({ dir: "/Users/me/repo/", base: "a.ts" });
-    expect(splitPath("C:\\repo\\src\\a.ts")).toEqual({ dir: "C:\\repo\\src\\", base: "a.ts" });
+    expect(splitPath("apps/web/lib/server.ts")).toEqual({
+      dir: "apps/web/lib/",
+      base: "server.ts",
+    });
+    expect(splitPath("/Users/me/repo/a.ts")).toEqual({
+      dir: "/Users/me/repo/",
+      base: "a.ts",
+    });
+    expect(splitPath("C:\\repo\\src\\a.ts")).toEqual({
+      dir: "C:\\repo\\src\\",
+      base: "a.ts",
+    });
   });
 
   test("a bare name has no directory, and a trailing slash stays on its last name", () => {
@@ -28,12 +37,17 @@ describe("middleTruncate", () => {
 
   test("keeps the first directory, the file name, and as many directories next to the file as fit", () => {
     expect(middleTruncate(path, 36)).toBe("apps/…/blocks/ModernRow.tsx");
-    expect(middleTruncate(path, 41)).toBe("apps/…/conversation/blocks/ModernRow.tsx");
-    for (const max of [20, 31, 40, 52]) expect(middleTruncate(path, max).length).toBeLessThanOrEqual(max);
+    expect(middleTruncate(path, 41)).toBe(
+      "apps/…/conversation/blocks/ModernRow.tsx",
+    );
+    for (const max of [20, 31, 40, 52])
+      expect(middleTruncate(path, max).length).toBeLessThanOrEqual(max);
   });
 
   test("an absolute path keeps its root", () => {
-    expect(middleTruncate("/Users/me/src/codecast/apps/web/lib/server.ts", 30)).toBe("/Users/…/web/lib/server.ts");
+    expect(
+      middleTruncate("/Users/me/src/codecast/apps/web/lib/server.ts", 30),
+    ).toBe("/Users/…/web/lib/server.ts");
   });
 
   test("with no room for a directory it drops them all, never the name", () => {

@@ -47,7 +47,10 @@ export function swapHeld(sessionId: string, now = Date.now()): boolean {
 
 /** A delivery that must wait for a take to finish: held with this reason, never spending its retries, and tried again after `recheckMs`. */
 export class SwapHeldError extends Error {
-  constructor(readonly holdReason: string, readonly recheckMs = 3000) {
+  constructor(
+    readonly holdReason: string,
+    readonly recheckMs = 3000,
+  ) {
     super(holdReason);
   }
 }
@@ -61,7 +64,9 @@ export type HerdTakeRequest = {
   force?: boolean;
 };
 
-export type HerdTakeResult = { ok: true; paneId: string; label: string } | { ok: false; error: string };
+export type HerdTakeResult =
+  | { ok: true; paneId: string; label: string }
+  | { ok: false; error: string };
 
 /**
  * What a progress event says about the step it belongs to. Events of one `step`
@@ -82,18 +87,24 @@ export type Busy = { kind: string; detail: string };
 export type Emit = (message: string, info?: StepInfo) => void;
 
 export function formatElapsed(sec: number): string {
-  return sec < 60 ? `${sec}s` : `${Math.floor(sec / 60)}m${String(sec % 60).padStart(2, "0")}s`;
+  return sec < 60
+    ? `${sec}s`
+    : `${Math.floor(sec / 60)}m${String(sec % 60).padStart(2, "0")}s`;
 }
 
 /** A progress event as one plain line. */
 export function formatProgress(message: string, elapsedSec?: number): string {
-  return elapsedSec === undefined ? message : `${message} · ${formatElapsed(elapsedSec)}`;
+  return elapsedSec === undefined
+    ? message
+    : `${message} · ${formatElapsed(elapsedSec)}`;
 }
 
 export type HerdTakeDeps = {
   agentType(sessionId: string): string;
   /** Where the session's agent runs now: a tmux pane, a bare process, or nowhere. */
-  liveTarget(sessionId: string): Promise<{ tmuxTarget: string | null; proc: { pid: number } | null }>;
+  liveTarget(
+    sessionId: string,
+  ): Promise<{ tmuxTarget: string | null; proc: { pid: number } | null }>;
   /** What keeps the session from being interrupted now, or null. `kind` changes when the cause does; `detail` is for the person. */
   busy(sessionId: string): Busy | null | Promise<Busy | null>;
   /** Whether a message to the session is mid-delivery. */
@@ -108,12 +119,22 @@ export type HerdTakeDeps = {
   prepareLaunch(sessionId: string): Promise<{ cwd: string; label: string }>;
   kill(tmuxSession: string, sessionId: string): Promise<void>;
   /** The line that starts claude on the session. It rewrites transcript files, so it runs only once the old agent is gone. */
-  buildLine(sessionId: string, cwd: string): Promise<{ line: string; note?: string }>;
+  buildLine(
+    sessionId: string,
+    cwd: string,
+  ): Promise<{ line: string; note?: string }>;
   /** Opens the tab, types the line, and returns the new pane's id. */
-  launch(req: HerdTakeRequest, launch: { cwd: string; label: string; line: string }): Promise<string>;
+  launch(
+    req: HerdTakeRequest,
+    launch: { cwd: string; label: string; line: string },
+  ): Promise<string>;
   closePane(req: HerdTakeRequest, paneId: string): Promise<void>;
   /** Resolves true once the new claude is running the session as a herdr agent; `tick` gets the elapsed seconds about every 5s. */
-  agentUp(sessionId: string, waitMs: number, tick: (elapsedSec: number) => void): Promise<boolean>;
+  agentUp(
+    sessionId: string,
+    waitMs: number,
+    tick: (elapsedSec: number) => void,
+  ): Promise<boolean>;
 };
 
 const fail = (error: string): HerdTakeResult => ({ ok: false, error });
@@ -136,7 +157,8 @@ export async function takeSessionIntoHerdr(
   emit: Emit,
   signal: AbortSignal,
 ): Promise<HerdTakeResult> {
-  if (takesInFlight.has(req.sessionId)) return fail("a take of this session is already running");
+  if (takesInFlight.has(req.sessionId))
+    return fail("a take of this session is already running");
   takesInFlight.add(req.sessionId);
   try {
     return await run(req, deps, emit, signal);
@@ -145,17 +167,29 @@ export async function takeSessionIntoHerdr(
   }
 }
 
-async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal: AbortSignal): Promise<HerdTakeResult> {
+async function run(
+  req: HerdTakeRequest,
+  deps: HerdTakeDeps,
+  emit: Emit,
+  signal: AbortSignal,
+): Promise<HerdTakeResult> {
   const { sessionId } = req;
   const agent = deps.agentType(sessionId);
-  if (agent !== "claude") return fail(`only claude sessions can be taken into herdr (this one is ${agent})`);
+  if (agent !== "claude")
+    return fail(
+      `only claude sessions can be taken into herdr (this one is ${agent})`,
+    );
 
-  const locate = async (): Promise<{ tmuxSession: string } | HerdTakeResult> => {
+  const locate = async (): Promise<
+    { tmuxSession: string } | HerdTakeResult
+  > => {
     const live = await deps.liveTarget(sessionId);
     if (live.tmuxTarget) return { tmuxSession: live.tmuxTarget.split(":")[0] };
-    return fail(live.proc
-      ? `the session already runs outside tmux (pid ${live.proc.pid}); nothing to take`
-      : "the session has no live tmux copy to take");
+    return fail(
+      live.proc
+        ? `the session already runs outside tmux (pid ${live.proc.pid}); nothing to take`
+        : "the session has no live tmux copy to take",
+    );
   };
   const cancelled = () => fail("cancelled while waiting for the agent");
 
@@ -174,12 +208,19 @@ async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal:
       emit(message, { step });
     } else if (at - lastSaid >= REEMIT_MS) {
       lastSaid = at;
-      emit(message, { step, elapsedSec: Math.round((at - waitingSince) / 1000) });
+      emit(message, {
+        step,
+        elapsedSec: Math.round((at - waitingSince) / 1000),
+      });
     }
   };
   /** Polls until the agent is idle. A result means the take is over. */
   const waitIdle = async (): Promise<HerdTakeResult | null> => {
-    for (let busy = await deps.busy(sessionId); busy; busy = await deps.busy(sessionId)) {
+    for (
+      let busy = await deps.busy(sessionId);
+      busy;
+      busy = await deps.busy(sessionId)
+    ) {
       if (signal.aborted) return cancelled();
       sayWaiting(busy);
       await deps.wait(BUSY_POLL_MS, signal);
@@ -195,7 +236,12 @@ async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal:
     emit("holding message delivery to the session");
     if (!req.force) {
       const drainUntil = Date.now() + DRAIN_MS;
-      while (deps.deliveryInFlight(sessionId) && Date.now() < drainUntil && !signal.aborted) await deps.wait(500, signal);
+      while (
+        deps.deliveryInFlight(sessionId) &&
+        Date.now() < drainUntil &&
+        !signal.aborted
+      )
+        await deps.wait(500, signal);
       if (signal.aborted) return cancelled();
       const busy = await deps.busy(sessionId);
       if (busy) return busy;
@@ -208,9 +254,15 @@ async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal:
     emit(`stopping tmux ${tmuxSession}`);
     await deps.kill(tmuxSession, sessionId);
     const after = await deps.liveTarget(sessionId);
-    if (after.tmuxTarget || after.proc) return fail(`the old copy is still running after the kill (${after.tmuxTarget ?? `pid ${after.proc!.pid}`}); not starting a second one`);
+    if (after.tmuxTarget || after.proc)
+      return fail(
+        `the old copy is still running after the kill (${after.tmuxTarget ?? `pid ${after.proc!.pid}`}); not starting a second one`,
+      );
 
-    const gone = (err: unknown) => fail(`the tmux copy is gone but the herdr tab did not open: ${err instanceof Error ? err.message : String(err)}. The next message resumes the session in tmux`);
+    const gone = (err: unknown) =>
+      fail(
+        `the tmux copy is gone but the herdr tab did not open: ${err instanceof Error ? err.message : String(err)}. The next message resumes the session in tmux`,
+      );
     let line: string;
     try {
       const built = await deps.buildLine(sessionId, cwd);
@@ -227,12 +279,21 @@ async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal:
       return gone(err);
     }
     emit(`starting claude in pane ${paneId}`);
-    if (await deps.agentUp(sessionId, AGENT_WAIT_MS, (sec) => emit("waiting for claude to come up", { step: "claude-up", elapsedSec: sec }))) {
+    if (
+      await deps.agentUp(sessionId, AGENT_WAIT_MS, (sec) =>
+        emit("waiting for claude to come up", {
+          step: "claude-up",
+          elapsedSec: sec,
+        }),
+      )
+    ) {
       return { ok: true, paneId, label };
     }
     // Closed while the hold still stands: a claude that came up late would otherwise sit beside the tmux resume the next message starts.
     await deps.closePane(req, paneId).catch(() => {});
-    return fail(`claude did not start on the session within ${AGENT_WAIT_MS / 1000}s; pane ${paneId} was closed and the next message resumes the session in tmux`);
+    return fail(
+      `claude did not start on the session within ${AGENT_WAIT_MS / 1000}s; pane ${paneId} was closed and the next message resumes the session in tmux`,
+    );
   };
 
   emit("looking for the session's tmux copy");
@@ -257,9 +318,14 @@ async function run(req: HerdTakeRequest, deps: HerdTakeDeps, emit: Emit, signal:
 }
 
 /** The daemon's port and loopback bearer, or null when no daemon has run here. */
-function daemonEndpoint(configDir: string): { port: number; token: string } | null {
+function daemonEndpoint(
+  configDir: string,
+): { port: number; token: string } | null {
   try {
-    const port = parseInt(fs.readFileSync(hookPortFile(configDir), "utf-8").trim(), 10);
+    const port = parseInt(
+      fs.readFileSync(hookPortFile(configDir), "utf-8").trim(),
+      10,
+    );
     const token = readIdentity(configDir)?.token ?? "";
     return port > 0 && token ? { port, token } : null;
   } catch {
@@ -276,18 +342,28 @@ export async function requestHerdTake(
   const daemon = daemonEndpoint(configDir);
   if (!daemon) return fail("the codecast daemon is not running (cast status)");
   try {
-    const res = await fetch(`http://127.0.0.1:${daemon.port}${HERD_TAKE_PATH}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${daemon.token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(req),
-    });
-    if (!res.ok || !res.body) return fail(`daemon answered HTTP ${res.status}${res.status === 404 ? " (it predates cast herd take; restart it with cast restart)" : ""}`);
+    const res = await fetch(
+      `http://127.0.0.1:${daemon.port}${HERD_TAKE_PATH}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${daemon.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req),
+      },
+    );
+    if (!res.ok || !res.body)
+      return fail(
+        `daemon answered HTTP ${res.status}${res.status === 404 ? " (it predates cast herd take; restart it with cast restart)" : ""}`,
+      );
     let result: HerdTakeResult | null = null;
     const read = (line: string) => {
       if (!line.trim()) return;
       const event = JSON.parse(line) as HerdTakeEvent;
       if (event.type === "progress") onProgress(event);
-      else if (event.type === "done") result = { ok: true, paneId: event.paneId, label: event.label };
+      else if (event.type === "done")
+        result = { ok: true, paneId: event.paneId, label: event.label };
       else if (event.type === "error") result = fail(event.error);
     };
     const decoder = new TextDecoder();
@@ -301,7 +377,9 @@ export async function requestHerdTake(
     read(buffered);
     return result ?? fail("the daemon ended the stream without a result");
   } catch (err) {
-    return fail(`could not reach the daemon: ${err instanceof Error ? err.message : String(err)}`);
+    return fail(
+      `could not reach the daemon: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -310,37 +388,63 @@ export async function requestHerdTake(
  * conversation id): a session id or its prefix, or a conversation id or its
  * prefix (the short id `cast sessions` prints).
  */
-export function resolveSessionRef(ref: string, sessionToConversation: Record<string, string>): { sessionId: string } | { error: string } {
+export function resolveSessionRef(
+  ref: string,
+  sessionToConversation: Record<string, string>,
+): { sessionId: string } | { error: string } {
   if (CLAUDE_UUID_RE.test(ref)) return { sessionId: ref };
   const entries = Object.entries(sessionToConversation);
   const exact = entries.find(([sid, cid]) => sid === ref || cid === ref);
-  const matches = exact ? [exact] : ref.length >= 6 ? entries.filter(([sid, cid]) => sid.startsWith(ref) || cid.startsWith(ref)) : [];
+  const matches = exact
+    ? [exact]
+    : ref.length >= 6
+      ? entries.filter(
+          ([sid, cid]) => sid.startsWith(ref) || cid.startsWith(ref),
+        )
+      : [];
   if (matches.length === 1) return { sessionId: matches[0][0] };
-  if (matches.length > 1) return { error: `"${ref}" matches ${matches.length} sessions; use more of the id` };
+  if (matches.length > 1)
+    return {
+      error: `"${ref}" matches ${matches.length} sessions; use more of the id`,
+    };
   return { error: `no session matches "${ref}" on this machine` };
 }
 
 /** Resolves after `ms`, or as soon as `signal` aborts. */
 export function abortableWait(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise<void>((resolve) => {
-    const done = () => { clearTimeout(timer); signal.removeEventListener("abort", done); resolve(); };
+    const done = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    };
     const timer = setTimeout(done, ms);
     signal.addEventListener("abort", done);
   });
 }
 
-export async function closeHerdrPane(socketPath: string, paneId: string): Promise<void> {
+export async function closeHerdrPane(
+  socketPath: string,
+  paneId: string,
+): Promise<void> {
   await herdrRequest(socketPath, "pane.close", { pane_id: paneId });
 }
 
 /** Polls `up` once a second until it holds or `waitMs` passes; `tick` gets the elapsed seconds about every 5s. */
-export async function pollUntilUp(up: () => Promise<boolean>, waitMs: number, tick: (elapsedSec: number) => void): Promise<boolean> {
+export async function pollUntilUp(
+  up: () => Promise<boolean>,
+  waitMs: number,
+  tick: (elapsedSec: number) => void,
+): Promise<boolean> {
   const startedAt = Date.now();
   let ticked = 0;
   while (Date.now() - startedAt < waitMs) {
     if (await up()) return true;
     const sec = Math.floor((Date.now() - startedAt) / 5000) * 5;
-    if (sec > ticked) { ticked = sec; tick(sec); }
+    if (sec > ticked) {
+      ticked = sec;
+      tick(sec);
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   return false;
@@ -362,11 +466,19 @@ export async function takeBusy(i: {
   subagentAgoMs: number;
   tail: () => Promise<string | null>;
 }): Promise<Busy | null> {
-  if (i.turnUnderway) return { kind: "turn", detail: `the turn to finish (${i.turnUnderway})` };
-  if (i.backgroundWork) return { kind: "background", detail: "background work to finish" };
-  if (i.subagentAgoMs < HIBERNATE_SUBAGENT_QUIET_MS) return { kind: "subagent", detail: `the subagent to finish (active ${Math.round(i.subagentAgoMs / 1000)}s ago)` };
+  if (i.turnUnderway)
+    return { kind: "turn", detail: `the turn to finish (${i.turnUnderway})` };
+  if (i.backgroundWork)
+    return { kind: "background", detail: "background work to finish" };
+  if (i.subagentAgoMs < HIBERNATE_SUBAGENT_QUIET_MS)
+    return {
+      kind: "subagent",
+      detail: `the subagent to finish (active ${Math.round(i.subagentAgoMs / 1000)}s ago)`,
+    };
   const tail = await i.tail();
-  return tail !== null && turnUnanswered(tail) ? { kind: "reply", detail: "the turn to finish (no reply yet)" } : null;
+  return tail !== null && turnUnanswered(tail)
+    ? { kind: "reply", detail: "the turn to finish (no reply yet)" }
+    : null;
 }
 
 /** What the route needs from the daemon. */
@@ -378,29 +490,62 @@ export type HerdTakeRoute = {
 };
 
 /** Streams the take's progress as one JSON event per line, ending with done or error. A client that hangs up cancels whatever has not yet killed the old copy. */
-export async function serveHerdTake(body: string, res: ServerResponse, route: HerdTakeRoute): Promise<void> {
+export async function serveHerdTake(
+  body: string,
+  res: ServerResponse,
+  route: HerdTakeRoute,
+): Promise<void> {
   const aborted = new AbortController();
-  res.on("close", () => { if (!res.writableFinished) aborted.abort(); });
+  res.on("close", () => {
+    if (!res.writableFinished) aborted.abort();
+  });
   const send = (event: HerdTakeEvent) => {
-    if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(event) + "\n");
+    if (!res.writableEnded && !res.destroyed)
+      res.write(JSON.stringify(event) + "\n");
   };
   let result: HerdTakeResult;
   res.writeHead(200, { "Content-Type": "application/x-ndjson" });
   try {
     const req = JSON.parse(body) as Partial<HerdTakeRequest>;
     // The id is typed into a shell line, and the workspace id is sent to herdr as is.
-    if (typeof req.sessionId !== "string" || !route.validSessionId(req.sessionId)
-      || typeof req.socketPath !== "string" || !(await route.socketPaths()).includes(req.socketPath)
-      || typeof req.workspaceId !== "string" || !/^[\w.:-]+$/.test(req.workspaceId)) {
-      result = { ok: false, error: "bad request: not a session, or not a herdr socket of this machine" };
+    if (
+      typeof req.sessionId !== "string" ||
+      !route.validSessionId(req.sessionId) ||
+      typeof req.socketPath !== "string" ||
+      !(await route.socketPaths()).includes(req.socketPath) ||
+      typeof req.workspaceId !== "string" ||
+      !/^[\w.:-]+$/.test(req.workspaceId)
+    ) {
+      result = {
+        ok: false,
+        error:
+          "bad request: not a session, or not a herdr socket of this machine",
+      };
     } else {
-      const take = { sessionId: req.sessionId, socketPath: req.socketPath, workspaceId: req.workspaceId, force: req.force === true };
-      result = await takeSessionIntoHerdr(take, route.deps(), (message, info) => send({ type: "progress", message, ...info }), aborted.signal);
+      const take = {
+        sessionId: req.sessionId,
+        socketPath: req.socketPath,
+        workspaceId: req.workspaceId,
+        force: req.force === true,
+      };
+      result = await takeSessionIntoHerdr(
+        take,
+        route.deps(),
+        (message, info) => send({ type: "progress", message, ...info }),
+        aborted.signal,
+      );
     }
   } catch (err) {
-    result = { ok: false, error: err instanceof Error ? err.message : String(err) };
+    result = {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
   if (!result.ok) route.log(`[HERD-TAKE] not taken: ${result.error}`);
-  send(result.ok ? { type: "done", paneId: result.paneId, label: result.label } : { type: "error", error: result.error });
+  send(
+    result.ok
+      ? { type: "done", paneId: result.paneId, label: result.label }
+      : { type: "error", error: result.error },
+  );
   res.end();
 }

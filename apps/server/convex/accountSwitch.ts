@@ -16,9 +16,17 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id, Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { getAuthenticatedUserId, enqueuePendingMessage } from "./pendingMessages";
+import {
+  getAuthenticatedUserId,
+  enqueuePendingMessage,
+} from "./pendingMessages";
 import { findSessionCommandByRequest } from "./daemonCommandUtils";
-import { classifyApiErrorBanner, CONTINUE_BANNER_KINDS, newestSignificantMessage, isBannerTurn } from "./inboxFilters";
+import {
+  classifyApiErrorBanner,
+  CONTINUE_BANNER_KINDS,
+  newestSignificantMessage,
+  isBannerTurn,
+} from "./inboxFilters";
 import {
   actedBlockedConversations,
   skippedBlockedWorkers,
@@ -69,18 +77,33 @@ import {
   findFlowDevice,
   runsOwnFleet,
 } from "./ccAccountsShared";
-import { awaitsManualTarget, decideSwitchAhead, dropLineHostRefused, holdsManualTarget, hostsLineWork } from "./ccSwitchAhead";
+import {
+  awaitsManualTarget,
+  decideSwitchAhead,
+  dropLineHostRefused,
+  holdsManualTarget,
+  hostsLineWork,
+} from "./ccSwitchAhead";
 import { poolUsageOverlay } from "./accountPool";
 import { deliverSessionNotificationToParties } from "./lib/sessionNotify";
 import { canOwnerOrTeamAccess } from "./privacy";
 import { recoveryFleet } from "./lib/hostRecovery";
-import { withSafetyBlock, describeDecision, peggedWindowLabel, oauthApprovalCode, CONTEXT_RECOVERY_DELAY_MS, fleetModels } from "@codecast/shared/contracts";
+import {
+  withSafetyBlock,
+  describeDecision,
+  peggedWindowLabel,
+  oauthApprovalCode,
+  CONTEXT_RECOVERY_DELAY_MS,
+  fleetModels,
+} from "@codecast/shared/contracts";
 import { spendCapsOf, withSpendCap } from "./lib/spendCaps";
-import { hasUndeliveredContinue, insertSwitchCommands } from "./lib/switchCommands";
+import {
+  hasUndeliveredContinue,
+  insertSwitchCommands,
+} from "./lib/switchCommands";
 import { pinModelLimitParks, splitModelLimitParks } from "./lib/modelLimitPins";
 
 export { insertSwitchCommands };
-
 
 // A revive targets the CURRENT incident, not history: pending_api_error flags
 // linger on sessions that died mid-banner weeks ago (first live run selected 51
@@ -122,14 +145,27 @@ async function listBlockedConversations(
   const recent = await ctx.db
     .query("conversations")
     .withIndex("by_user_pending_api_error", (q: any) =>
-      q.eq("user_id", userId).eq("pending_api_error", true).gt("updated_at", now - BLOCKED_WINDOW_MS))
+      q
+        .eq("user_id", userId)
+        .eq("pending_api_error", true)
+        .gt("updated_at", now - BLOCKED_WINDOW_MS),
+    )
     .order("desc")
     .take(1000);
-  const all: Doc<"conversations">[] = recent.map(withSafetyBlock).filter((c: Doc<"conversations">) => isBlockedConversation(c) && isCurrentBlock(c, now));
-  const topLevel = all.filter((c: Doc<"conversations">) => !isSubagentConversation(c));
+  const all: Doc<"conversations">[] = recent
+    .map(withSafetyBlock)
+    .filter(
+      (c: Doc<"conversations">) =>
+        isBlockedConversation(c) && isCurrentBlock(c, now),
+    );
+  const topLevel = all.filter(
+    (c: Doc<"conversations">) => !isSubagentConversation(c),
+  );
   const subagents = all.filter(isSubagentConversation);
   const acted = includeSafety
-    ? includeSubagents ? [...topLevel, ...subagents] : topLevel
+    ? includeSubagents
+      ? [...topLevel, ...subagents]
+      : topLevel
     : actedBlockedConversations(all, includeSubagents);
   const selected = cap === null ? acted : acted.slice(0, cap);
   return {
@@ -145,7 +181,11 @@ async function listBlockedConversations(
 // permanent "don't restart this" decision, whether the user made it with the
 // dismiss button (acknowledgeBlocked) or by leaving workers out of a revive
 // (dismissSkippedWorkers). Only a NEW banner re-flags a cleared row.
-const BLOCKED_FLAG_CLEAR = { pending_api_error: false, pending_api_error_kind: undefined, pending_api_error_at: undefined } as const;
+const BLOCKED_FLAG_CLEAR = {
+  pending_api_error: false,
+  pending_api_error_kind: undefined,
+  pending_api_error_at: undefined,
+} as const;
 
 // A revive that leaves the workers out dismisses them in the same gesture:
 // the user chose not to continue them, and nothing else ever will, so
@@ -168,7 +208,9 @@ function recoveryDecision(
   target?: DecisionTarget,
 ) {
   const activeEmail = fleetAccount(primary.cc_accounts, now).email;
-  const activeUsage = primary.cc_accounts?.profiles?.find((p) => p.email && p.email === activeEmail)?.usage;
+  const activeUsage = primary.cc_accounts?.profiles?.find(
+    (p) => p.email && p.email === activeEmail,
+  )?.usage;
   const pct = target ? usageStanding(target.usage, now).percent : null;
   return {
     kind,
@@ -209,32 +251,56 @@ async function workerParks(
   primary: Doc<"devices"> | undefined,
   skipped: Doc<"conversations">[],
   blocked: Doc<"conversations">[],
-): Promise<{ workers: Doc<"conversations">[]; parents: Doc<"conversations">[]; stations: Doc<"conversations">[] }> {
+): Promise<{
+  workers: Doc<"conversations">[];
+  parents: Doc<"conversations">[];
+  stations: Doc<"conversations">[];
+}> {
   const fetched = await parentsOf(ctx, skipped);
-  const stations = skipped.filter((c) => c.pending_api_error_kind === "limit" && isLiveStation(c, fetched));
+  const stations = skipped.filter(
+    (c) => c.pending_api_error_kind === "limit" && isLiveStation(c, fetched),
+  );
   const workers: Doc<"conversations">[] = [];
-  const parents = new Map<string, Doc<"conversations"> | null>(blocked.map((c) => [c._id, null]));
-  if (!primary?.cc_accounts?.fleet_store || !autoRecoveryEnabled(primary)) return { workers, parents: [], stations };
+  const parents = new Map<string, Doc<"conversations"> | null>(
+    blocked.map((c) => [c._id, null]),
+  );
+  if (!primary?.cc_accounts?.fleet_store || !autoRecoveryEnabled(primary))
+    return { workers, parents: [], stations };
   for (const worker of skipped) {
     const parentId = worker.parent_conversation_id;
-    const parent = parentId ? fetched.get(parentId) ?? null : null;
+    const parent = parentId ? (fetched.get(parentId) ?? null) : null;
     // A run's log has no agent to take a station's place.
-    if (worker.pending_api_error_kind !== "limit" || worker.agent_type === "codex" || !parentId || (parent && isWorkflowRunLog(parent))) continue;
+    if (
+      worker.pending_api_error_kind !== "limit" ||
+      worker.agent_type === "codex" ||
+      !parentId ||
+      (parent && isWorkflowRunLog(parent))
+    )
+      continue;
     if (!parents.has(parentId)) {
-      parents.set(parentId, parent && !isSubagentConversation(parent) && !parent.inbox_dismissed_at
-        ? {
-            ...parent,
-            pending_api_error: true,
-            pending_api_error_kind: "limit",
-            pending_api_error_at: blockedAt(worker),
-            model: worker.model ?? parent.model,
-          }
-        : null);
+      parents.set(
+        parentId,
+        parent && !isSubagentConversation(parent) && !parent.inbox_dismissed_at
+          ? {
+              ...parent,
+              pending_api_error: true,
+              pending_api_error_kind: "limit",
+              pending_api_error_at: blockedAt(worker),
+              model: worker.model ?? parent.model,
+            }
+          : null,
+      );
     }
     // A parent parked on its own already carries the recovery.
     if (parents.get(parentId)) workers.push(worker);
   }
-  return { workers, parents: [...parents.values()].filter((p): p is Doc<"conversations"> => !!p), stations };
+  return {
+    workers,
+    parents: [...parents.values()].filter(
+      (p): p is Doc<"conversations"> => !!p,
+    ),
+    stations,
+  };
 }
 
 // Each conversation's parent, read once.
@@ -245,7 +311,8 @@ async function parentsOf(
   const parents = new Map<string, Doc<"conversations"> | null>();
   for (const conv of convs) {
     const parentId = conv.parent_conversation_id;
-    if (parentId && !parents.has(parentId)) parents.set(parentId, await ctx.db.get(parentId));
+    if (parentId && !parents.has(parentId))
+      parents.set(parentId, await ctx.db.get(parentId));
   }
   return parents;
 }
@@ -257,9 +324,19 @@ async function parentsOf(
 // eleven onefix correctness reviews passed on nothing but Codex's limit reply,
 // and their changes went to a person to approve (2026-11-14). A station whose
 // row was dismissed or killed has left its run.
-function isLiveStation(conv: Doc<"conversations">, parents: Map<string, Doc<"conversations"> | null>): boolean {
-  const parent = conv.parent_conversation_id ? parents.get(conv.parent_conversation_id) : null;
-  return !!parent && isWorkflowRunLog(parent) && !conv.inbox_dismissed_at && !conv.inbox_killed_at;
+function isLiveStation(
+  conv: Doc<"conversations">,
+  parents: Map<string, Doc<"conversations"> | null>,
+): boolean {
+  const parent = conv.parent_conversation_id
+    ? parents.get(conv.parent_conversation_id)
+    : null;
+  return (
+    !!parent &&
+    isWorkflowRunLog(parent) &&
+    !conv.inbox_dismissed_at &&
+    !conv.inbox_killed_at
+  );
 }
 
 async function dismissSkippedWorkersAutomatically(
@@ -272,12 +349,18 @@ async function dismissSkippedWorkersAutomatically(
 }
 
 // The workers a revive that leaves them out dismisses: all but the live stations.
-async function dismissibleWorkers(ctx: { db: any }, skipped: Doc<"conversations">[]): Promise<Doc<"conversations">[]> {
+async function dismissibleWorkers(
+  ctx: { db: any },
+  skipped: Doc<"conversations">[],
+): Promise<Doc<"conversations">[]> {
   const parents = await parentsOf(ctx, skipped);
   return skipped.filter((c) => !isLiveStation(c, parents));
 }
 
-async function dismissSkippedWorkers(ctx: { db: any }, skipped: Doc<"conversations">[]): Promise<number> {
+async function dismissSkippedWorkers(
+  ctx: { db: any },
+  skipped: Doc<"conversations">[],
+): Promise<number> {
   const leaving = await dismissibleWorkers(ctx, skipped);
   for (const conv of leaving) await ctx.db.patch(conv._id, BLOCKED_FLAG_CLEAR);
   return leaving.length;
@@ -302,17 +385,31 @@ export const continueAllBlocked = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
 
     // limit + connection + fatal by default: all un-park with a plain continue
     // (the limit window rolled / the dead turn retries). auth-blocked sessions
     // need a switch (plain continue re-fails) and error-kind (statusful
     // 429/5xx, self-retrying) never enters the selection at all.
     const kinds = new Set(args.kinds ?? CONTINUE_BANNER_KINDS);
-    const { blocked: candidates, skipped, topLevelCount, subagentCount, totalBlocked } =
-      await listBlockedConversations(ctx, userId, args.include_subagents === true, false, null);
-    const blocked = actedBlockedConversations(candidates, args.include_subagents === true)
-      .filter((c) => kinds.has(c.pending_api_error_kind ?? "error"));
+    const {
+      blocked: candidates,
+      skipped,
+      topLevelCount,
+      subagentCount,
+      totalBlocked,
+    } = await listBlockedConversations(
+      ctx,
+      userId,
+      args.include_subagents === true,
+      false,
+      null,
+    );
+    const blocked = actedBlockedConversations(
+      candidates,
+      args.include_subagents === true,
+    ).filter((c) => kinds.has(c.pending_api_error_kind ?? "error"));
     if (args.dry_run) {
       return {
         continued: 0,
@@ -397,19 +494,45 @@ export const requestAccountSwitch = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
-    const replay = args.request_id !== undefined && await findSessionCommandByRequest(ctx, userId, args.request_id);
-    if (replay) return { devices: 1, conversations: 0, unreachable: 0, command_ids: [replay._id], replayed: true };
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
+    const replay =
+      args.request_id !== undefined &&
+      (await findSessionCommandByRequest(ctx, userId, args.request_id));
+    if (replay)
+      return {
+        devices: 1,
+        conversations: 0,
+        unreachable: 0,
+        command_ids: [replay._id],
+        replayed: true,
+      };
 
     const now = Date.now();
     const reviveWanted = args.continue_blocked !== false;
-    const scope = args.conversation_ids ? new Set<string>(args.conversation_ids) : null;
+    const scope = args.conversation_ids
+      ? new Set<string>(args.conversation_ids)
+      : null;
     const includeSubagents = args.include_subagents === true || scope !== null;
     const listed = reviveWanted
-      ? await listBlockedConversations(ctx, userId, includeSubagents, false, null)
-      : { blocked: [], skipped: [], topLevelCount: 0, subagentCount: 0, totalBlocked: 0 };
+      ? await listBlockedConversations(
+          ctx,
+          userId,
+          includeSubagents,
+          false,
+          null,
+        )
+      : {
+          blocked: [],
+          skipped: [],
+          topLevelCount: 0,
+          subagentCount: 0,
+          totalBlocked: 0,
+        };
     const { topLevelCount, subagentCount, totalBlocked } = listed;
-    const candidates = scope ? listed.blocked.filter((c) => scope.has(c._id)) : listed.blocked;
+    const candidates = scope
+      ? listed.blocked.filter((c) => scope.has(c._id))
+      : listed.blocked;
     // A scoped revive dismisses nothing: the caller named its targets, and the
     // workers it did not name are someone else's decision.
     const skipped = scope ? [] : listed.skipped;
@@ -427,9 +550,15 @@ export const requestAccountSwitch = mutation({
         dry_run: true,
       };
     }
-    const { online, primary: freshestPrimary } = await listOnlineDevices(ctx, userId, now);
+    const { online, primary: freshestPrimary } = await listOnlineDevices(
+      ctx,
+      userId,
+      now,
+    );
     const onlineById = new Map(online.map((d: any) => [d.device_id, d]));
-    const primary = args.device_id ? onlineById.get(args.device_id) : freshestPrimary;
+    const primary = args.device_id
+      ? onlineById.get(args.device_id)
+      : freshestPrimary;
 
     if (!primary && (args.profile || args.email)) {
       throw new Error(
@@ -459,8 +588,12 @@ export const requestAccountSwitch = mutation({
     // The primary does the swap, so its row is the switch's outcome; a revive
     // with no swap binds to the first device that recycles sessions.
     if (args.request_id !== undefined && res.commandIds.length > 0) {
-      const rows = await Promise.all(res.commandIds.map((id) => ctx.db.get(id)));
-      const bound = rows.find((r: any) => r?.target_device_id === primary?.device_id) ?? rows[0];
+      const rows = await Promise.all(
+        res.commandIds.map((id) => ctx.db.get(id)),
+      );
+      const bound =
+        rows.find((r: any) => r?.target_device_id === primary?.device_id) ??
+        rows[0];
       if (bound) await ctx.db.patch(bound._id, { request_id: args.request_id });
     }
     if ((args.profile || args.email) && res.devices === 0) {
@@ -478,18 +611,26 @@ export const requestAccountSwitch = mutation({
       for (const id of res.commandIds) {
         const row = await ctx.db.get(id);
         const device = row
-          ? onlineById.get(row.target_device_id) ?? (primary?.device_id === row.target_device_id ? primary : undefined)
+          ? (onlineById.get(row.target_device_id) ??
+            (primary?.device_id === row.target_device_id ? primary : undefined))
           : undefined;
         if (device) targeted.push(device);
       }
       if (primary) targeted.push(primary);
-      const email = args.email ?? targetAccountEmail(primary?.cc_accounts, { profile: args.profile, email: args.email });
+      const email =
+        args.email ??
+        targetAccountEmail(primary?.cc_accounts, {
+          profile: args.profile,
+          email: args.email,
+        });
       await stampManualRecovery(
         ctx,
         targeted,
         blocked,
         now,
-        (args.profile || args.email) ? { profile: args.profile, email } : undefined,
+        args.profile || args.email
+          ? { profile: args.profile, email }
+          : undefined,
       );
     }
 
@@ -524,16 +665,25 @@ async function recordManualRecovery(
   switchTo?: { profile?: string; email?: string },
 ): Promise<void> {
   const state = device.cc_auto_switch_state ?? {};
-  const keys = new Set(blocked
-    .filter((c) => c.pending_api_error_kind === "limit")
-    .map((c) => c.agent_type === "codex" ? AUTO_SWITCH_CODEX_CONTINUE_KEY : AUTO_SWITCH_CONTINUE_KEY));
+  const keys = new Set(
+    blocked
+      .filter((c) => c.pending_api_error_kind === "limit")
+      .map((c) =>
+        c.agent_type === "codex"
+          ? AUTO_SWITCH_CODEX_CONTINUE_KEY
+          : AUTO_SWITCH_CONTINUE_KEY,
+      ),
+  );
   const profiles = device.cc_accounts?.profiles ?? [];
   const switching = !!(switchTo?.profile || switchTo?.email);
   const targetEmail = switching
     ? targetAccountEmail(device.cc_accounts, switchTo!)
     : fleetAccount(device.cc_accounts, now).email;
-  const target = profiles.find((p) =>
-    (targetEmail && p.email === targetEmail) || (switching && switchTo?.profile && p.name === switchTo.profile));
+  const target = profiles.find(
+    (p) =>
+      (targetEmail && p.email === targetEmail) ||
+      (switching && switchTo?.profile && p.name === switchTo.profile),
+  );
   await ctx.db.patch(device._id, {
     cc_auto_switch_state: {
       ...state,
@@ -541,9 +691,16 @@ async function recordManualRecovery(
       last_action: "manual",
       // A switch with nothing parked still names its target, so the hold has
       // a decision to keep even when the banner was already empty.
-      last_decision: blocked.length > 0 || switching
-        ? recoveryDecision(device, switching ? "switch" : "continue", blocked.length, now, target ?? { email: targetEmail })
-        : undefined,
+      last_decision:
+        blocked.length > 0 || switching
+          ? recoveryDecision(
+              device,
+              switching ? "switch" : "continue",
+              blocked.length,
+              now,
+              target ?? { email: targetEmail },
+            )
+          : undefined,
       exhausted_at: undefined,
       attempts: appendAttempts(state.attempts, keys, now),
     },
@@ -581,7 +738,9 @@ export const enqueueSwitchContinue = internalMutation({
     const conversationId = args.conversation_ids[args.index];
     if (!conversationId) return;
     const conv = await ctx.db.get(conversationId);
-    const clientId = args.client_ids?.[conversationId] ?? `acct-switch-${args.command_id}-${conversationId}`;
+    const clientId =
+      args.client_ids?.[conversationId] ??
+      `acct-switch-${args.command_id}-${conversationId}`;
     // A continue already waiting is the retry. One already delivered under
     // this client id comes back from the dedupe inside enqueuePendingMessage,
     // so a daemon that did enqueue and a server backup do not double.
@@ -592,13 +751,17 @@ export const enqueueSwitchContinue = internalMutation({
       });
     }
     if (args.index + 1 >= args.conversation_ids.length) return;
-    await ctx.scheduler.runAfter(THROTTLE_CONTINUE_SPACING_MS, internal.accountSwitch.enqueueSwitchContinue, {
-      user_id: args.user_id,
-      command_id: args.command_id,
-      conversation_ids: args.conversation_ids,
-      index: args.index + 1,
-      client_ids: args.client_ids,
-    });
+    await ctx.scheduler.runAfter(
+      THROTTLE_CONTINUE_SPACING_MS,
+      internal.accountSwitch.enqueueSwitchContinue,
+      {
+        user_id: args.user_id,
+        command_id: args.command_id,
+        conversation_ids: args.conversation_ids,
+        index: args.index + 1,
+        client_ids: args.client_ids,
+      },
+    );
   },
 });
 
@@ -615,13 +778,16 @@ export const reviveAuthBlockedOnRemotes = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
 
     const devices: Doc<"devices">[] = await ctx.db
       .query("devices")
       .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
       .collect();
-    const remoteIds = new Set(devices.filter((d) => d.is_remote === true).map((d) => d.device_id));
+    const remoteIds = new Set(
+      devices.filter((d) => d.is_remote === true).map((d) => d.device_id),
+    );
     if (remoteIds.size === 0) return { continued: 0 };
     const now = Date.now();
     const { online, primary } = await listOnlineDevices(ctx, userId, now);
@@ -630,8 +796,12 @@ export const reviveAuthBlockedOnRemotes = mutation({
     const { blocked } = await listBlockedConversations(ctx, userId, false);
     // Only remotes that are up: an offline owner would route the restart to
     // the primary, which cannot reach the session.
-    const onlineRemotes = new Set(online.filter((d) => d.is_remote === true).map((d) => d.device_id));
-    const targets = blocked.filter((c) => isRemoteAuthBlocked(c, onlineRemotes));
+    const onlineRemotes = new Set(
+      online.filter((d) => d.is_remote === true).map((d) => d.device_id),
+    );
+    const targets = blocked.filter((c) =>
+      isRemoteAuthBlocked(c, onlineRemotes),
+    );
     // A process that read a signed-out login keeps it for its lifetime, so a
     // "continue" alone answers "Not logged in" again: the no-switch revive
     // restarts those sessions, and the resume reads the fresh credential.
@@ -668,21 +838,34 @@ const BLOCKED_NOTIFY_COOLDOWN_MS = 30 * 60 * 1000;
  * retry: the same request would fail the same way, and each retry would
  * re-park the session into a fresh banner forever. */
 export async function onFreshApiErrorPark(
-  ctx: { db?: any; scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    db?: any;
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
   kind: string,
   conversationId?: Id<"conversations">,
 ): Promise<void> {
-  if (kind === "limit" || kind === "auth") await scheduleAutoSwitchCheck(ctx, userId);
-  if (PACED_CONTINUE_KINDS.has(kind)) await scheduleThrottleContinue(ctx, userId);
+  if (kind === "limit" || kind === "auth")
+    await scheduleAutoSwitchCheck(ctx, userId);
+  if (PACED_CONTINUE_KINDS.has(kind))
+    await scheduleThrottleContinue(ctx, userId);
   // A full context heals by restarting the session fresh (handoff.ts); the
   // recovery re-checks the park when it fires, so a /compact typed first wins.
   if (kind === "context" && conversationId) {
-    await ctx.scheduler.runAfter(CONTEXT_RECOVERY_DELAY_MS, internal.handoff.recoverContext, { conversation_id: conversationId });
+    await ctx.scheduler.runAfter(
+      CONTEXT_RECOVERY_DELAY_MS,
+      internal.handoff.recoverContext,
+      { conversation_id: conversationId },
+    );
   }
-  await ctx.scheduler.runAfter(BLOCKED_NOTIFY_DEBOUNCE_MS, internal.accountSwitch.blockedNotifyCheck, {
-    user_id: userId,
-  });
+  await ctx.scheduler.runAfter(
+    BLOCKED_NOTIFY_DEBOUNCE_MS,
+    internal.accountSwitch.blockedNotifyCheck,
+    {
+      user_id: userId,
+    },
+  );
 }
 
 // The debounced check: recount the blocked set at fire time and notify once
@@ -695,7 +878,12 @@ export async function onFreshApiErrorPark(
 export const blockedNotifyCheck = internalMutation({
   args: { user_id: v.id("users") },
   handler: async (ctx, args) => {
-    const { blocked } = await listBlockedConversations(ctx, args.user_id, false, true);
+    const { blocked } = await listBlockedConversations(
+      ctx,
+      args.user_id,
+      false,
+      true,
+    );
     // Top-level sessions only: a parked worker is its parent session's to
     // handle, and its park neither raises nor re-raises the push.
     const notice = blockedIncidentNotice(blocked);
@@ -705,14 +893,18 @@ export const blockedNotifyCheck = internalMutation({
 
     const now = Date.now();
     const state = user.blocked_notify_state;
-    if (state && notice.newestPark <= state.last_park_ts) return { notified: false, reason: "covered" };
+    if (state && notice.newestPark <= state.last_park_ts)
+      return { notified: false, reason: "covered" };
     if (state && now - state.last_notified_at < BLOCKED_NOTIFY_COOLDOWN_MS) {
       return { notified: false, reason: "cooldown" };
     }
 
     // Stamp BEFORE delivering so a racing duplicate check can't double-push.
     await ctx.db.patch(user._id, {
-      blocked_notify_state: { last_notified_at: now, last_park_ts: notice.newestPark },
+      blocked_notify_state: {
+        last_notified_at: now,
+        last_park_ts: notice.newestPark,
+      },
     });
     const delivered = await deliverSessionNotificationToParties(
       ctx,
@@ -751,7 +943,8 @@ export const requestLoginFlow = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
 
     const now = Date.now();
     const target = args.device_id
@@ -774,19 +967,33 @@ export const requestLoginFlow = mutation({
     // a second one over it. (A stale pending row means the daemon died
     // mid-flow; starting over is exactly right.)
     const existing = target.cc_login_flow;
-    if (!args.force && existing?.status === "pending" && now - existing.started_at < LOGIN_FLOW_STALE_MS) {
-      return { device_id: target.device_id, email: existing.email, already_pending: true };
+    if (
+      !args.force &&
+      existing?.status === "pending" &&
+      now - existing.started_at < LOGIN_FLOW_STALE_MS
+    ) {
+      return {
+        device_id: target.device_id,
+        email: existing.email,
+        already_pending: true,
+      };
     }
 
     let email = target.cc_accounts?.active_email;
     const profile = args.profile;
     if (profile) {
       const row = target.cc_accounts?.profiles.find((p) => p.name === profile);
-      if (!row) throw new Error(`No saved profile "${profile}" on that machine`);
+      if (!row)
+        throw new Error(`No saved profile "${profile}" on that machine`);
       email = row.email;
     }
     await ctx.db.patch(target._id, {
-      cc_login_flow: { status: "pending" as const, email, ...(profile ? { profile } : {}), started_at: now },
+      cc_login_flow: {
+        status: "pending" as const,
+        email,
+        ...(profile ? { profile } : {}),
+        started_at: now,
+      },
     });
     const commandId = await ctx.db.insert("daemon_commands", {
       user_id: userId,
@@ -800,24 +1007,39 @@ export const requestLoginFlow = mutation({
       created_at: now,
       target_device_id: target.device_id,
     });
-    return { command_id: commandId, device_id: target.device_id, email, profile };
+    return {
+      command_id: commandId,
+      device_id: target.device_id,
+      email,
+      profile,
+    };
   },
 });
 
 // The daemon's report of the pending flow's code-paste URL. It refines the
 // pending stamp requestLoginFlow wrote and never restarts its clock.
 export const reportLoginFlowUrl = mutation({
-  args: { api_token: v.optional(v.string()), device_id: v.string(), url: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    device_id: v.string(),
+    url: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     const flow = device?.cc_login_flow;
-    if (!device || flow?.status !== "pending" || !/^https:\/\//.test(args.url)) return;
-    await ctx.db.patch(device._id, { cc_login_flow: { ...flow, url: args.url.slice(0, 4096) } });
+    if (!device || flow?.status !== "pending" || !/^https:\/\//.test(args.url))
+      return;
+    await ctx.db.patch(device._id, {
+      cc_login_flow: { ...flow, url: args.url.slice(0, 4096) },
+    });
   },
 });
 
@@ -825,7 +1047,12 @@ export const reportLoginFlowUrl = mutation({
 // waiting `claude auth login`. It travels in the clear: exchanging it needs
 // the PKCE verifier, which never leaves that CLI process.
 export const submitLoginCode = mutation({
-  args: { api_token: v.optional(v.string()), device_id: v.string(), started_at: v.number(), code: v.string() },
+  args: {
+    api_token: v.optional(v.string()),
+    device_id: v.string(),
+    started_at: v.number(),
+    code: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
@@ -833,7 +1060,11 @@ export const submitLoginCode = mutation({
     const device = await findFlowDevice(ctx, userId, args.device_id, now);
     if (!device) throw new Error("That device's daemon is offline");
     const flow = device.cc_login_flow;
-    if (flow?.status !== "pending" || flow.started_at !== args.started_at || now - flow.started_at >= LOGIN_FLOW_STALE_MS) {
+    if (
+      flow?.status !== "pending" ||
+      flow.started_at !== args.started_at ||
+      now - flow.started_at >= LOGIN_FLOW_STALE_MS
+    ) {
       throw new Error("This sign-in has ended. Start again.");
     }
     const code = oauthApprovalCode(args.code);
@@ -868,10 +1099,13 @@ export const completeLoginFlow = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     if (!device) return { revived: 0 };
 
@@ -931,7 +1165,8 @@ export const acknowledgeBlocked = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     let acknowledged = 0;
     for (const convId of args.conversation_ids.slice(0, 200)) {
       const conv = await ctx.db.get(convId);
@@ -957,20 +1192,33 @@ export const saveAccountProfile = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     if (!isValidProfileName(args.name)) {
-      throw new Error("Profile names: letters/digits/dot/dash/underscore, max 41 chars");
+      throw new Error(
+        "Profile names: letters/digits/dot/dash/underscore, max 41 chars",
+      );
     }
 
-    const { online, primary: freshestPrimary } = await listOnlineDevices(ctx, userId, Date.now());
+    const { online, primary: freshestPrimary } = await listOnlineDevices(
+      ctx,
+      userId,
+      Date.now(),
+    );
     const target = args.device_id
       ? online.find((d: any) => d.device_id === args.device_id)
       : freshestPrimary;
     if (!target) {
-      throw new Error(args.device_id ? "That device's daemon is offline" : "No online daemon to save the profile");
+      throw new Error(
+        args.device_id
+          ? "That device's daemon is offline"
+          : "No online daemon to save the profile",
+      );
     }
     if (target.is_remote) {
-      throw new Error("Remote devices run a pushed copy of the primary's credential — save profiles on the primary machine");
+      throw new Error(
+        "Remote devices run a pushed copy of the primary's credential — save profiles on the primary machine",
+      );
     }
 
     const commandId = await ctx.db.insert("daemon_commands", {
@@ -1000,9 +1248,12 @@ export const removeAccountProfile = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     if (!isValidProfileName(args.name)) {
-      throw new Error("Profile names: letters/digits/dot/dash/underscore, max 41 chars");
+      throw new Error(
+        "Profile names: letters/digits/dot/dash/underscore, max 41 chars",
+      );
     }
 
     const { online } = await listOnlineDevices(ctx, userId, Date.now());
@@ -1010,7 +1261,8 @@ export const removeAccountProfile = mutation({
     if (!target) throw new Error("That device's daemon is offline");
     const accounts = target.cc_accounts;
     const profile = accounts?.profiles.find((p) => p.name === args.name);
-    if (!accounts || !profile) throw new Error(`No saved profile "${args.name}" on that device`);
+    if (!accounts || !profile)
+      throw new Error(`No saved profile "${args.name}" on that device`);
     if (profile.email && profile.email === accounts.active_email) {
       throw new Error(
         `"${args.name}" is that machine's active login — switch to another account first`,
@@ -1048,10 +1300,13 @@ export const publishDeviceAccounts = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     if (!device) return { published: false };
     await ctx.db.patch(device._id, { cc_accounts: args.cc_accounts });
@@ -1073,8 +1328,15 @@ const AUTO_SWITCH_DEBOUNCE_MS = 45 * 1000;
 const MAX_ATTEMPT_HISTORY = 64;
 
 /** The switch state's attempt history with `keys` recorded at `at`, capped. */
-function appendAttempts(attempts: Array<{ profile: string; at: number }> | undefined, keys: Iterable<string>, at: number) {
-  return [...(attempts ?? []), ...[...keys].map((profile) => ({ profile, at }))].slice(-MAX_ATTEMPT_HISTORY);
+function appendAttempts(
+  attempts: Array<{ profile: string; at: number }> | undefined,
+  keys: Iterable<string>,
+  at: number,
+) {
+  return [
+    ...(attempts ?? []),
+    ...[...keys].map((profile) => ({ profile, at })),
+  ].slice(-MAX_ATTEMPT_HISTORY);
 }
 
 /**
@@ -1119,12 +1381,18 @@ export function codexResetCreditOffer(
  * The check is idempotent and self-gating (no-ops without the device flag), so
  * over-scheduling is harmless. */
 export async function scheduleAutoSwitchCheck(
-  ctx: { scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
 ): Promise<void> {
-  await ctx.scheduler.runAfter(AUTO_SWITCH_DEBOUNCE_MS, internal.accountSwitch.autoSwitchCheck, {
-    user_id: userId,
-  });
+  await ctx.scheduler.runAfter(
+    AUTO_SWITCH_DEBOUNCE_MS,
+    internal.accountSwitch.autoSwitchCheck,
+    {
+      user_id: userId,
+    },
+  );
 }
 
 // Burst-throttle recovery. A throttle park (kind "throttle": the provider's
@@ -1138,25 +1406,46 @@ export async function scheduleAutoSwitchCheck(
 // with no primary online the booking is unconditional — nothing to stamp, and
 // a duplicate tick costs one extra query.
 async function scheduleThrottleContinue(
-  ctx: { db?: any; scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    db?: any;
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
 ): Promise<void> {
   const now = Date.now();
-  const primary = ctx.db ? (await listOnlineDevices(ctx as { db: any }, userId, now)).primary : undefined;
+  const primary = ctx.db
+    ? (await listOnlineDevices(ctx as { db: any }, userId, now)).primary
+    : undefined;
   const state = primary?.cc_auto_switch_state ?? {};
-  if (primary && state.throttle_check_at && state.throttle_check_at > now) return;
+  if (primary && state.throttle_check_at && state.throttle_check_at > now)
+    return;
   const at = now + THROTTLE_CONTINUE_DELAY_MS;
-  await ctx.scheduler.runAfter(THROTTLE_CONTINUE_DELAY_MS, internal.accountSwitch.throttleContinueCheck, {
-    user_id: userId,
-  });
-  if (primary) await ctx.db.patch(primary._id, { cc_auto_switch_state: { ...state, throttle_check_at: at } });
+  await ctx.scheduler.runAfter(
+    THROTTLE_CONTINUE_DELAY_MS,
+    internal.accountSwitch.throttleContinueCheck,
+    {
+      user_id: userId,
+    },
+  );
+  if (primary)
+    await ctx.db.patch(primary._id, {
+      cc_auto_switch_state: { ...state, throttle_check_at: at },
+    });
 }
 
 // The client id of the loop's continue for a limit-parked row: bucketed so a
 // repeated pass inside the minute cannot queue a second row, and shared by
 // the probe and the batches it releases (limit_probe.bucket).
-function limitContinueClientIds(blocked: Array<{ _id: string }>, bucket: number): Record<string, string> {
-  return Object.fromEntries(blocked.map((conv) => [conv._id, `auto-switch-continue-${conv._id}-${bucket}`]));
+function limitContinueClientIds(
+  blocked: Array<{ _id: string }>,
+  bucket: number,
+): Record<string, string> {
+  return Object.fromEntries(
+    blocked.map((conv) => [
+      conv._id,
+      `auto-switch-continue-${conv._id}-${bucket}`,
+    ]),
+  );
 }
 
 // The account loop's "continue" for limit-parked rows. One row goes out as it
@@ -1166,14 +1455,28 @@ function limitContinueClientIds(blocked: Array<{ _id: string }>, bucket: number)
 // to store on the switch state (null when nothing was staged) and the
 // booked tick, for the caller's state write.
 async function continueLimitParks(
-  ctx: { db: any; scheduler: { runAt: (at: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    db: any;
+    scheduler: { runAt: (at: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
-  input: { blocked: Doc<"conversations">[]; online: Doc<"devices">[]; primary: Doc<"devices">; now: number },
-): Promise<{ restarted: number; probe: ReturnType<typeof pickLimitProbe>; throttle_check_at?: number }> {
+  input: {
+    blocked: Doc<"conversations">[];
+    online: Doc<"devices">[];
+    primary: Doc<"devices">;
+    now: number;
+  },
+): Promise<{
+  restarted: number;
+  probe: ReturnType<typeof pickLimitProbe>;
+  throttle_check_at?: number;
+}> {
   const { blocked, online, primary, now } = input;
   const probe = blocked.length > 1 ? pickLimitProbe(blocked, now) : null;
   const bucket = probe?.bucket ?? Math.floor(now / 60_000);
-  const sending = probe ? blocked.filter((c) => c._id === probe.conversation_id) : blocked;
+  const sending = probe
+    ? blocked.filter((c) => c._id === probe.conversation_id)
+    : blocked;
   const res = await insertSwitchCommands(ctx, userId, {
     profile: undefined,
     blocked: sending,
@@ -1185,7 +1488,9 @@ async function continueLimitParks(
   });
   if (!probe) return { restarted: res.restarted, probe: null };
   const at = now + THROTTLE_CONTINUE_SPACING_MS;
-  await ctx.scheduler.runAt(at, internal.accountSwitch.throttleContinueCheck, { user_id: userId });
+  await ctx.scheduler.runAt(at, internal.accountSwitch.throttleContinueCheck, {
+    user_id: userId,
+  });
   return { restarted: res.restarted, probe, throttle_check_at: at };
 }
 
@@ -1200,14 +1505,29 @@ export const throttleContinueCheck = internalMutation({
     const state = primary?.cc_auto_switch_state ?? {};
     const attempts = state.attempts ?? [];
     const writeState = async (extra: Record<string, unknown>) => {
-      if (primary) await ctx.db.patch(primary._id, { cc_auto_switch_state: { ...state, ...extra } });
+      if (primary)
+        await ctx.db.patch(primary._id, {
+          cc_auto_switch_state: { ...state, ...extra },
+        });
     };
     const book = async (at: number, extra: Record<string, unknown> = {}) => {
-      await ctx.scheduler.runAt(at, internal.accountSwitch.throttleContinueCheck, { user_id: args.user_id });
+      await ctx.scheduler.runAt(
+        at,
+        internal.accountSwitch.throttleContinueCheck,
+        { user_id: args.user_id },
+      );
       await writeState({ ...extra, throttle_check_at: at });
     };
-    const { blocked, skipped } = await listBlockedConversations(ctx, args.user_id, false);
-    const dismissed = await dismissSkippedWorkersAutomatically(ctx, primary, skipped);
+    const { blocked, skipped } = await listBlockedConversations(
+      ctx,
+      args.user_id,
+      false,
+    );
+    const dismissed = await dismissSkippedWorkersAutomatically(
+      ctx,
+      primary,
+      skipped,
+    );
 
     // A staged limit release in flight (continueLimitParks) comes first: the
     // probe's fate decides whether anything else leaves this tick.
@@ -1219,14 +1539,30 @@ export const throttleContinueCheck = internalMutation({
         // against the continue it already recorded (continueHasNewEvidence)
         // and lands on its exhausted branch, booked at the next known reset,
         // or on a switch where one is allowed.
-        await writeState({ limit_probe: undefined, throttle_check_at: undefined });
-        await ctx.scheduler.runAfter(0, internal.accountSwitch.autoSwitchCheck, { user_id: args.user_id });
-        return { acted: "probe_reparked", dismissed, probe: probe.conversation_id };
+        await writeState({
+          limit_probe: undefined,
+          throttle_check_at: undefined,
+        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.accountSwitch.autoSwitchCheck,
+          { user_id: args.user_id },
+        );
+        return {
+          acted: "probe_reparked",
+          dismissed,
+          probe: probe.conversation_id,
+        };
       }
       if (step.step === "settling") {
         const at = now + THROTTLE_CONTINUE_SPACING_MS;
         await book(at);
-        return { acted: "probe_settling", dismissed, probe: probe.conversation_id, next_check_at: at };
+        return {
+          acted: "probe_settling",
+          dismissed,
+          probe: probe.conversation_id,
+          next_check_at: at,
+        };
       }
       const res = await insertSwitchCommands(ctx, args.user_id, {
         profile: undefined,
@@ -1240,17 +1576,35 @@ export const throttleContinueCheck = internalMutation({
       if (step.remaining > 0) {
         const at = now + THROTTLE_CONTINUE_SPACING_MS;
         await book(at);
-        return { acted: "released", continued: res.messaged + res.restarted, dismissed, remaining: step.remaining, next_check_at: at };
+        return {
+          acted: "released",
+          continued: res.messaged + res.restarted,
+          dismissed,
+          remaining: step.remaining,
+          next_check_at: at,
+        };
       }
-      await writeState({ limit_probe: undefined, throttle_check_at: undefined });
+      await writeState({
+        limit_probe: undefined,
+        throttle_check_at: undefined,
+      });
       state.limit_probe = undefined;
       if (step.batch.length > 0) {
-        return { acted: "released", continued: res.messaged + res.restarted, dismissed, remaining: 0 };
+        return {
+          acted: "released",
+          continued: res.messaged + res.restarted,
+          dismissed,
+          remaining: 0,
+        };
       }
       // Nothing left to release: fall through to the paced throttle rows.
     }
 
-    const { batch, remaining, waiting, nextDueAt } = pickThrottleContinueBatch(blocked, now, attempts);
+    const { batch, remaining, waiting, nextDueAt } = pickThrottleContinueBatch(
+      blocked,
+      now,
+      attempts,
+    );
     if (batch.length === 0) {
       if (nextDueAt !== null) {
         await book(Math.max(nextDueAt, now + 1000));
@@ -1269,14 +1623,34 @@ export const throttleContinueCheck = internalMutation({
       continueBlocked: true,
       now,
     });
-    const nextAttempts = appendAttempts(attempts, batch.map((c) => throttleContinueAttemptKey(c._id)), now);
+    const nextAttempts = appendAttempts(
+      attempts,
+      batch.map((c) => throttleContinueAttemptKey(c._id)),
+      now,
+    );
     if (remaining > 0 || waiting > 0) {
-      const at = remaining > 0 ? now + THROTTLE_CONTINUE_SPACING_MS : Math.max(nextDueAt ?? now, now + THROTTLE_CONTINUE_SPACING_MS);
+      const at =
+        remaining > 0
+          ? now + THROTTLE_CONTINUE_SPACING_MS
+          : Math.max(nextDueAt ?? now, now + THROTTLE_CONTINUE_SPACING_MS);
       await book(at, { attempts: nextAttempts });
-      return { acted: "continued", continued: res.messaged + res.restarted, dismissed, remaining, waiting, next_check_at: at };
+      return {
+        acted: "continued",
+        continued: res.messaged + res.restarted,
+        dismissed,
+        remaining,
+        waiting,
+        next_check_at: at,
+      };
     }
     await writeState({ attempts: nextAttempts, throttle_check_at: undefined });
-    return { acted: "continued", continued: res.messaged + res.restarted, dismissed, remaining: 0, waiting: 0 };
+    return {
+      acted: "continued",
+      continued: res.messaged + res.restarted,
+      dismissed,
+      remaining: 0,
+      waiting: 0,
+    };
   },
 });
 
@@ -1291,11 +1665,15 @@ async function loadPrimaryForToggle(
 ): Promise<Doc<"devices">> {
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", deviceId),
+    )
     .first();
   if (!device) throw new Error("Unknown device");
   if (device.is_remote) {
-    throw new Error("Auto-switch runs on the primary machine — remotes mirror its account");
+    throw new Error(
+      "Auto-switch runs on the primary machine — remotes mirror its account",
+    );
   }
   return device;
 }
@@ -1330,7 +1708,8 @@ export const setAutoSwitchAccounts = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await loadPrimaryForToggle(ctx, userId, args.device_id);
     await ctx.db.patch(device._id, {
       cc_auto_switch: args.enabled,
@@ -1365,36 +1744,80 @@ async function enqueueMintFlow(
   target: Doc<"devices">,
   profile: string,
   opts: { force?: boolean; now: number },
-): Promise<{ device_id: string; profile: string; email?: string; started_at: number; already_pending?: boolean; command_id?: Id<"daemon_commands"> }> {
+): Promise<{
+  device_id: string;
+  profile: string;
+  email?: string;
+  started_at: number;
+  already_pending?: boolean;
+  command_id?: Id<"daemon_commands">;
+}> {
   const row = target.cc_accounts?.profiles.find((p) => p.name === profile);
   if (!row) throw new Error(`No saved profile "${profile}" on that machine`);
   const existing = target.cc_mint_flow;
-  if (!opts.force && existing?.profile === profile && existing?.status === "pending" && opts.now - existing.started_at < MINT_FLOW_STALE_MS) {
-    return { device_id: target.device_id, profile: existing.profile ?? profile, email: existing.email, started_at: existing.started_at, already_pending: true };
+  if (
+    !opts.force &&
+    existing?.profile === profile &&
+    existing?.status === "pending" &&
+    opts.now - existing.started_at < MINT_FLOW_STALE_MS
+  ) {
+    return {
+      device_id: target.device_id,
+      profile: existing.profile ?? profile,
+      email: existing.email,
+      started_at: existing.started_at,
+      already_pending: true,
+    };
   }
   const startedAt = Math.max(opts.now, (existing?.started_at ?? 0) + 1);
   await ctx.db.patch(target._id, {
-    cc_mint_flow: { status: "pending" as const, profile, email: row.email, started_at: startedAt },
+    cc_mint_flow: {
+      status: "pending" as const,
+      profile,
+      email: row.email,
+      started_at: startedAt,
+    },
   });
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "switch_account" as const,
-    args: JSON.stringify({ mint: profile, mint_started_at: startedAt, force: true }),
+    args: JSON.stringify({
+      mint: profile,
+      mint_started_at: startedAt,
+      force: true,
+    }),
     created_at: opts.now,
     target_device_id: target.device_id,
   });
-  return { command_id: commandId, device_id: target.device_id, profile, email: row.email, started_at: startedAt };
+  return {
+    command_id: commandId,
+    device_id: target.device_id,
+    profile,
+    email: row.email,
+    started_at: startedAt,
+  };
 }
 
-async function mintTarget(ctx: { db: any }, userId: Id<"users">, deviceIdArg: string | undefined, now: number): Promise<Doc<"devices">> {
+async function mintTarget(
+  ctx: { db: any },
+  userId: Id<"users">,
+  deviceIdArg: string | undefined,
+  now: number,
+): Promise<Doc<"devices">> {
   const target = deviceIdArg
     ? await findFlowDevice(ctx, userId, deviceIdArg, now)
     : (await listOnlineDevices(ctx, userId, now)).primary;
   if (!target) {
-    throw new Error(deviceIdArg ? "That device's daemon is offline" : "No online daemon on a primary (non-remote) machine");
+    throw new Error(
+      deviceIdArg
+        ? "That device's daemon is offline"
+        : "No online daemon on a primary (non-remote) machine",
+    );
   }
   if (target.is_remote) {
-    throw new Error("Remote devices run a pushed copy of the primary's credential — mint on the primary machine");
+    throw new Error(
+      "Remote devices run a pushed copy of the primary's credential — mint on the primary machine",
+    );
   }
   return target;
 }
@@ -1409,10 +1832,14 @@ export const requestMintToken = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const now = Date.now();
     const target = await mintTarget(ctx, userId, args.device_id, now);
-    return await enqueueMintFlow(ctx, userId, target, args.profile, { force: args.force === true, now });
+    return await enqueueMintFlow(ctx, userId, target, args.profile, {
+      force: args.force === true,
+      now,
+    });
   },
 });
 
@@ -1421,33 +1848,74 @@ export const cancelMintToken = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
     if (!userId) throw new Error("Authentication required");
-    const device = await ctx.db.query("devices")
-      .withIndex("by_user_device", q => q.eq("user_id", userId).eq("device_id", args.device_id)).first();
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
+      .first();
     if (!device) throw new Error("Unknown device");
-    if (device.cc_mint_flow?.status !== "pending" || device.cc_mint_flow.started_at !== args.started_at) return;
-    await ctx.db.patch(device._id, { cc_mint_flow: { ...device.cc_mint_flow, status: "cancelled", url: undefined, finished_at: Date.now() } });
+    if (
+      device.cc_mint_flow?.status !== "pending" ||
+      device.cc_mint_flow.started_at !== args.started_at
+    )
+      return;
+    await ctx.db.patch(device._id, {
+      cc_mint_flow: {
+        ...device.cc_mint_flow,
+        status: "cancelled",
+        url: undefined,
+        finished_at: Date.now(),
+      },
+    });
     await ctx.db.insert("daemon_commands", {
-      user_id: userId, command: "switch_account", target_device_id: device.device_id,
-      created_at: Date.now(), args: JSON.stringify({ cancel_mint: true, mint_started_at: args.started_at }),
+      user_id: userId,
+      command: "switch_account",
+      target_device_id: device.device_id,
+      created_at: Date.now(),
+      args: JSON.stringify({
+        cancel_mint: true,
+        mint_started_at: args.started_at,
+      }),
     });
   },
 });
 
 export const submitMintCode = mutation({
   args: {
-    device_id: v.string(), started_at: v.number(),
-    payload: v.object({ provider: v.string(), epk: v.string(), iv: v.string(), ct: v.string() }),
+    device_id: v.string(),
+    started_at: v.number(),
+    payload: v.object({
+      provider: v.string(),
+      epk: v.string(),
+      iv: v.string(),
+      ct: v.string(),
+    }),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx);
     if (!userId) throw new Error("Authentication required");
     const device = await mintTarget(ctx, userId, args.device_id, Date.now());
-    if (device.cc_mint_flow?.status !== "pending" || device.cc_mint_flow.started_at !== args.started_at
-      || Date.now() - args.started_at >= MINT_FLOW_STALE_MS) throw new Error("This mint has ended. Start again.");
-    if (args.payload.provider !== "claude-mint-code" || args.payload.ct.length > 8192) throw new Error("Invalid approval code");
+    if (
+      device.cc_mint_flow?.status !== "pending" ||
+      device.cc_mint_flow.started_at !== args.started_at ||
+      Date.now() - args.started_at >= MINT_FLOW_STALE_MS
+    )
+      throw new Error("This mint has ended. Start again.");
+    if (
+      args.payload.provider !== "claude-mint-code" ||
+      args.payload.ct.length > 8192
+    )
+      throw new Error("Invalid approval code");
     return await ctx.db.insert("daemon_commands", {
-      user_id: userId, command: "switch_account", target_device_id: device.device_id,
-      created_at: Date.now(), args: JSON.stringify({ mint_code: args.payload, mint_started_at: args.started_at }),
+      user_id: userId,
+      command: "switch_account",
+      target_device_id: device.device_id,
+      created_at: Date.now(),
+      args: JSON.stringify({
+        mint_code: args.payload,
+        mint_started_at: args.started_at,
+      }),
     });
   },
 });
@@ -1463,7 +1931,8 @@ export const removeSetupToken = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const now = Date.now();
     const target = await mintTarget(ctx, userId, args.device_id, now);
     const commandId = await ctx.db.insert("daemon_commands", {
@@ -1473,7 +1942,11 @@ export const removeSetupToken = mutation({
       created_at: now,
       target_device_id: target.device_id,
     });
-    return { command_id: commandId, device_id: target.device_id, profile: args.profile };
+    return {
+      command_id: commandId,
+      device_id: target.device_id,
+      profile: args.profile,
+    };
   },
 });
 
@@ -1485,7 +1958,11 @@ export const reportMintFlow = mutation({
   args: {
     api_token: v.optional(v.string()),
     device_id: v.string(),
-    status: v.union(v.literal("pending"), v.literal("confirmed"), v.literal("rejected")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("rejected"),
+    ),
     profile: v.string(),
     email: v.optional(v.string()),
     reason: v.optional(v.string()),
@@ -1494,15 +1971,22 @@ export const reportMintFlow = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     if (!device) return;
     const now = Date.now();
     const prior = device.cc_mint_flow;
-    if (prior?.status !== "pending" || (args.started_at !== undefined && args.started_at !== prior.started_at)) return;
+    if (
+      prior?.status !== "pending" ||
+      (args.started_at !== undefined && args.started_at !== prior.started_at)
+    )
+      return;
     // A pending report carrying the URL refines the pending stamp the request
     // wrote; it must not restart the clock or drop the email.
     if (args.status === "pending" && prior.profile !== args.profile) return;
@@ -1512,7 +1996,11 @@ export const reportMintFlow = mutation({
         profile: prior.profile,
         email: args.email ?? prior?.email,
         ...(args.reason ? { reason: args.reason } : {}),
-        ...(args.url ? { url: args.url } : args.status === "pending" && prior.url ? { url: prior.url } : {}),
+        ...(args.url
+          ? { url: args.url }
+          : args.status === "pending" && prior.url
+            ? { url: prior.url }
+            : {}),
         started_at: prior.started_at,
         ...(args.status !== "pending" ? { finished_at: now } : {}),
       },
@@ -1531,7 +2019,8 @@ export const setSessionTokens = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     await loadPrimaryForToggle(ctx, userId, args.device_id);
     return { enabled: true, mint: null };
   },
@@ -1549,15 +2038,28 @@ export const requestUsageRefresh = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const now = Date.now();
-    const { online, primary: freshestPrimary } = await listOnlineDevices(ctx, userId, now);
-    const target = args.device_id ? online.find((d) => d.device_id === args.device_id) : freshestPrimary;
+    const { online, primary: freshestPrimary } = await listOnlineDevices(
+      ctx,
+      userId,
+      now,
+    );
+    const target = args.device_id
+      ? online.find((d) => d.device_id === args.device_id)
+      : freshestPrimary;
     if (!target) {
-      throw new Error(args.device_id ? "That device's daemon is offline" : "No online daemon on a primary (non-remote) machine");
+      throw new Error(
+        args.device_id
+          ? "That device's daemon is offline"
+          : "No online daemon on a primary (non-remote) machine",
+      );
     }
     if (target.is_remote) {
-      throw new Error("Remote devices mirror the primary's account — refresh on the primary machine");
+      throw new Error(
+        "Remote devices mirror the primary's account — refresh on the primary machine",
+      );
     }
     const commandId = await ctx.db.insert("daemon_commands", {
       user_id: userId,
@@ -1580,7 +2082,8 @@ export const setAutoContinueAccounts = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await loadPrimaryForToggle(ctx, userId, args.device_id);
     await ctx.db.patch(device._id, {
       cc_auto_continue: args.enabled,
@@ -1603,11 +2106,17 @@ export const setRecoveryMode = mutation({
   args: {
     api_token: v.optional(v.string()),
     device_id: v.string(),
-    mode: v.union(v.literal("ask"), v.literal("auto"), v.literal("resume"), v.literal("off")),
+    mode: v.union(
+      v.literal("ask"),
+      v.literal("auto"),
+      v.literal("resume"),
+      v.literal("off"),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const device = await loadPrimaryForToggle(ctx, userId, args.device_id);
     await ctx.db.patch(device._id, {
       cc_recovery_ask: args.mode === "ask",
@@ -1648,12 +2157,18 @@ async function runningClaudeModels(
 ): Promise<string[]> {
   const recent: Doc<"conversations">[] = await ctx.db
     .query("conversations")
-    .withIndex("by_user_updated", (q: any) => q.eq("user_id", userId).gt("updated_at", now - RUNNING_MODELS_WINDOW_MS))
+    .withIndex("by_user_updated", (q: any) =>
+      q.eq("user_id", userId).gt("updated_at", now - RUNNING_MODELS_WINDOW_MS),
+    )
     .order("desc")
     .take(100);
   const sessions = new Map<string, Doc<"conversations">>();
   for (const c of [...recent, ...parked]) sessions.set(String(c._id), c);
-  return fleetModels([...sessions.values()].flatMap((c) => (c.agent_type !== "codex" && c.model ? [c.model] : [])));
+  return fleetModels(
+    [...sessions.values()].flatMap((c) =>
+      c.agent_type !== "codex" && c.model ? [c.model] : [],
+    ),
+  );
 }
 
 export const switchAheadCheck = internalMutation({
@@ -1661,15 +2176,36 @@ export const switchAheadCheck = internalMutation({
   args: { user_id: v.id("users"), device_id: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const { online, primary: laptop } = await listOnlineDevices(ctx, args.user_id, now);
-    const primary = await recoveryFleet(ctx, args.user_id, args.device_id, online, laptop);
+    const { online, primary: laptop } = await listOnlineDevices(
+      ctx,
+      args.user_id,
+      now,
+    );
+    const primary = await recoveryFleet(
+      ctx,
+      args.user_id,
+      args.device_id,
+      online,
+      laptop,
+    );
     const accounts = primary?.cc_accounts;
-    if (!primary || !accounts?.fleet_store || recoveryModeOf(primary) !== "auto") return { acted: "off" };
+    if (
+      !primary ||
+      !accounts?.fleet_store ||
+      recoveryModeOf(primary) !== "auto"
+    )
+      return { acted: "off" };
     const state = primary.cc_auto_switch_state ?? {};
     const fleet = fleetAccount(accounts, now);
     const models = await runningClaudeModels(ctx, args.user_id, now);
-    const profiles = dropLineHostRefused(await poolUsageOverlay(ctx, args.user_id, accounts.profiles), primary, fleet.email);
-    const fleetUsage = profiles.find((p) => p.email && p.email === fleet.email)?.usage;
+    const profiles = dropLineHostRefused(
+      await poolUsageOverlay(ctx, args.user_id, accounts.profiles),
+      primary,
+      fleet.email,
+    );
+    const fleetUsage = profiles.find(
+      (p) => p.email && p.email === fleet.email,
+    )?.usage;
     // The person just put the fleet here. Leaving it now continues the drain
     // onto the next account. In flight, the fleet email is still the account
     // they are leaving, and that meter's headroom must not pick the next hop.
@@ -1682,7 +2218,8 @@ export const switchAheadCheck = internalMutation({
       lastActionAt: state.last_action_at,
       decision: state.last_decision,
     };
-    if (holdsManualTarget(manualHold) || awaitsManualTarget(manualHold)) return { acted: "stay" };
+    if (holdsManualTarget(manualHold) || awaitsManualTarget(manualHold))
+      return { acted: "stay" };
     const decision = decideSwitchAhead({
       now,
       fleetEmail: fleet.email,
@@ -1706,10 +2243,16 @@ export const switchAheadCheck = internalMutation({
         ...state,
         last_action_at: now,
         last_action: `ahead:${decision.profile}`,
-        attempts: appendAttempts(state.attempts, [...(fleet.profile ? [fleet.profile] : []), decision.profile], now),
+        attempts: appendAttempts(
+          state.attempts,
+          [...(fleet.profile ? [fleet.profile] : []), decision.profile],
+          now,
+        ),
       },
     });
-    console.log(`switchAheadCheck: moving the fleet from "${fleet.profile ?? fleet.email}" to "${decision.profile}" before it runs out`);
+    console.log(
+      `switchAheadCheck: moving the fleet from "${fleet.profile ?? fleet.email}" to "${decision.profile}" before it runs out`,
+    );
     return { acted: "switch", profile: decision.profile };
   },
 });
@@ -1734,17 +2277,36 @@ export const autoSwitchCheck = internalMutation({
   args: { user_id: v.id("users"), device_id: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const { online, primary: laptop } = await listOnlineDevices(ctx, args.user_id, now);
-    const ownFleetHosts = new Set(online.filter(runsOwnFleet).map((d) => d.device_id));
+    const { online, primary: laptop } = await listOnlineDevices(
+      ctx,
+      args.user_id,
+      now,
+    );
+    const ownFleetHosts = new Set(
+      online.filter(runsOwnFleet).map((d) => d.device_id),
+    );
     const hostPass = !!args.device_id;
     if (!hostPass) {
       for (const device_id of ownFleetHosts) {
-        await ctx.scheduler.runAfter(0, internal.accountSwitch.autoSwitchCheck, { user_id: args.user_id, device_id });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.accountSwitch.autoSwitchCheck,
+          { user_id: args.user_id, device_id },
+        );
       }
     }
     // Every re-check this pass books is for the same machine.
-    const again = { user_id: args.user_id, ...(args.device_id ? { device_id: args.device_id } : {}) };
-    const primary = await recoveryFleet(ctx, args.user_id, args.device_id, online, laptop);
+    const again = {
+      user_id: args.user_id,
+      ...(args.device_id ? { device_id: args.device_id } : {}),
+    };
+    const primary = await recoveryFleet(
+      ctx,
+      args.user_id,
+      args.device_id,
+      online,
+      laptop,
+    );
     if (!primary) return { acted: "off" };
     // Ask-first: never change the account without the human approving. A
     // switch the loop would take becomes a PROPOSAL instead (recorded on the
@@ -1763,43 +2325,67 @@ export const autoSwitchCheck = internalMutation({
     // parked sessions on the account they are leaving, or hop to another, and
     // dismiss the workers the switch is about to continue.
     const heldFleet = fleetAccount(primary.cc_accounts, now);
-    const heldProfiles = await poolUsageOverlay(ctx, args.user_id, primary.cc_accounts?.profiles ?? []);
+    const heldProfiles = await poolUsageOverlay(
+      ctx,
+      args.user_id,
+      primary.cc_accounts?.profiles ?? [],
+    );
     const manualHold = {
       now,
       fleetEmail: heldFleet.email,
-      usage: heldProfiles.find((p) => p.email && p.email === heldFleet.email)?.usage,
+      usage: heldProfiles.find((p) => p.email && p.email === heldFleet.email)
+        ?.usage,
       lastAction: state.last_action,
       lastActionAt: state.last_action_at,
       decision: state.last_decision,
     };
-    if (holdsManualTarget(manualHold) || awaitsManualTarget(manualHold)) return { acted: "stay" };
+    if (holdsManualTarget(manualHold) || awaitsManualTarget(manualHold))
+      return { acted: "stay" };
     const attempts = state.attempts ?? [];
     // A host on its own fleet answers for its own Claude parks; everything
     // else (Codex parks included: their logins are per machine and the laptop
     // pass has always run them) stays with the person's pass.
     const inThisPass = (c: Doc<"conversations">) =>
-      c.agent_type !== "codex" && !!c.owner_device_id && ownFleetHosts.has(c.owner_device_id)
+      c.agent_type !== "codex" &&
+      !!c.owner_device_id &&
+      ownFleetHosts.has(c.owner_device_id)
         ? c.owner_device_id === args.device_id
         : !hostPass;
     const listedAll = await listBlockedConversations(ctx, args.user_id, false);
-    const listed = { blocked: listedAll.blocked.filter(inThisPass), skipped: listedAll.skipped.filter(inThisPass) };
+    const listed = {
+      blocked: listedAll.blocked.filter(inThisPass),
+      skipped: listedAll.skipped.filter(inThisPass),
+    };
     // A worker stopped on a limit is evidence about the account, and its
     // parent is the session to recover (workerParks): the parent stands in
     // for it below, and the worker stays blocked until the pass acts on it.
-    const { workers, parents, stations } = await workerParks(ctx, primary, listed.skipped, listed.blocked);
-    const skipped = listed.skipped.filter((c) => !workers.includes(c) && !stations.includes(c));
+    const { workers, parents, stations } = await workerParks(
+      ctx,
+      primary,
+      listed.skipped,
+      listed.blocked,
+    );
+    const skipped = listed.skipped.filter(
+      (c) => !workers.includes(c) && !stations.includes(c),
+    );
     const blocked = [...listed.blocked, ...parents, ...stations];
     const releaseWorkers = () => dismissSkippedWorkers(ctx, workers);
     // Before any account decision: the workers this pass will not act on leave
     // the blocked set now, whatever the pass decides about the rest.
-    const dismissed = await dismissSkippedWorkersAutomatically(ctx, primary, skipped);
+    const dismissed = await dismissSkippedWorkersAutomatically(
+      ctx,
+      primary,
+      skipped,
+    );
     // Continue-only mode acts on the current incident alone: a park older than
     // a full session window has already sat through a reset the user could
     // have used — resuming it now spends the fresh window on abandoned work.
     // (With auto-switch on the user opted into the wider BLOCKED_WINDOW_MS revive.)
     const recentEnough = (c: Doc<"conversations">): boolean =>
       allowSwitch || blockedAt(c) >= now - AUTO_CONTINUE_WINDOW_MS;
-    const limitBlocked = blocked.filter((c) => c.pending_api_error_kind === "limit" && recentEnough(c));
+    const limitBlocked = blocked.filter(
+      (c) => c.pending_api_error_kind === "limit" && recentEnough(c),
+    );
     // A park is evidence about the account the session RAN on, and a Codex
     // session does not run on a Claude account: its window, its reset time and
     // its reset credit are all Codex's. So each provider gets its own pass of
@@ -1816,11 +2402,26 @@ export const autoSwitchCheck = internalMutation({
     // (2026-11-21). Otherwise, with switching on, it moves alone onto an
     // account whose meter proves room on that model (pinModelLimitParks); with
     // none, it waits for its reset or a model change on its card.
-    const split = await splitModelLimitParks(ctx, limitBlocked.filter((c) => c.agent_type !== "codex"), await runningClaudeModels(ctx, args.user_id, now));
+    const split = await splitModelLimitParks(
+      ctx,
+      limitBlocked.filter((c) => c.agent_type !== "codex"),
+      await runningClaudeModels(ctx, args.user_id, now),
+    );
     const claudeLimit = split.fleet;
-    const pinned = allowSwitch ? await pinModelLimitParks(ctx, args.user_id, { parks: split.minority, online, primary, now }) : [];
-    const authParks = blocked.filter((c) => c.pending_api_error_kind === "auth" && recentEnough(c) &&
-      (!c.owner_device_id || c.owner_device_id === primary.device_id));
+    const pinned = allowSwitch
+      ? await pinModelLimitParks(ctx, args.user_id, {
+          parks: split.minority,
+          online,
+          primary,
+          now,
+        })
+      : [];
+    const authParks = blocked.filter(
+      (c) =>
+        c.pending_api_error_kind === "auth" &&
+        recentEnough(c) &&
+        (!c.owner_device_id || c.owner_device_id === primary.device_id),
+    );
     const { restart: authRestart, dead: authDead } = splitAuthParks(
       authParks,
       primary,
@@ -1830,12 +2431,26 @@ export const autoSwitchCheck = internalMutation({
     const activeDead = authDead.length > 0;
     const authSwitch = allowSwitch && activeDead ? authParks : [];
     const targets = [...claudeLimit, ...authSwitch];
-    if (targets.length === 0 && authRestart.length === 0 && codexLimit.length === 0) {
+    if (
+      targets.length === 0 &&
+      authRestart.length === 0 &&
+      codexLimit.length === 0
+    ) {
       if (authParks.length > 0 && !activeDead) {
         const retryAt = now + AUTO_SWITCH_PROBE_RETRY_MS;
-        if (!state.next_check_at || state.next_check_at <= now || retryAt < state.next_check_at) {
-          await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
-          await ctx.db.patch(primary._id, { cc_auto_switch_state: { ...state, next_check_at: retryAt } });
+        if (
+          !state.next_check_at ||
+          state.next_check_at <= now ||
+          retryAt < state.next_check_at
+        ) {
+          await ctx.scheduler.runAt(
+            retryAt,
+            internal.accountSwitch.autoSwitchCheck,
+            again,
+          );
+          await ctx.db.patch(primary._id, {
+            cc_auto_switch_state: { ...state, next_check_at: retryAt },
+          });
         }
         return { acted: "wait", next_check_at: retryAt };
       }
@@ -1852,7 +2467,9 @@ export const autoSwitchCheck = internalMutation({
           },
         });
       }
-      return pinned.length ? { acted: "model_pin", dismissed, pinned } : { acted: "nothing_blocked", dismissed };
+      return pinned.length
+        ? { acted: "model_pin", dismissed, pinned }
+        : { acted: "nothing_blocked", dismissed };
     }
     // Auto mode switches on its own. A proposal left over from ask mode would
     // keep the banner waiting for an approval that is not how this machine
@@ -1861,14 +2478,25 @@ export const autoSwitchCheck = internalMutation({
       state = { ...state, last_decision: undefined };
       await ctx.db.patch(primary._id, { cc_auto_switch_state: state });
     }
-    if (state.last_action_at && now - state.last_action_at < AUTO_SWITCH_COOLDOWN_MS) {
+    if (
+      state.last_action_at &&
+      now - state.last_action_at < AUTO_SWITCH_COOLDOWN_MS
+    ) {
       // A recent action is still settling — but don't just drop this check: a
       // session that re-parks DURING the cooldown stamps its banner now and
       // never again, so book a follow-up right after the cooldown expires
       // (deduped via next_check_at, cleared whenever an action is taken).
       const retryAt = state.last_action_at + AUTO_SWITCH_COOLDOWN_MS + 5_000;
-      if (!state.next_check_at || state.next_check_at <= now || retryAt < state.next_check_at) {
-        await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
+      if (
+        !state.next_check_at ||
+        state.next_check_at <= now ||
+        retryAt < state.next_check_at
+      ) {
+        await ctx.scheduler.runAt(
+          retryAt,
+          internal.accountSwitch.autoSwitchCheck,
+          again,
+        );
         await ctx.db.patch(primary._id, {
           cc_auto_switch_state: { ...state, next_check_at: retryAt },
         });
@@ -1884,10 +2512,29 @@ export const autoSwitchCheck = internalMutation({
     // The account the fleet runs on: the keychain login, or the launch profile
     // after a token switch (fleetAccount). Every "active" read below means this.
     const activeEmail = fleetAccount(primary.cc_accounts, now).email;
-    const activeProfiles = dropLineHostRefused(await poolUsageOverlay(ctx, args.user_id, primary.cc_accounts?.profiles ?? []), primary, activeEmail);
-    const activeProfile = activeProfiles.find((p) => p.email && p.email === activeEmail);
-    const buildDecision = (kind: RecoveryDecisionKind, target?: DecisionTarget) =>
-      recoveryDecision(primary, kind, claudeLimit.length + authSwitch.length, now, target);
+    const activeProfiles = dropLineHostRefused(
+      await poolUsageOverlay(
+        ctx,
+        args.user_id,
+        primary.cc_accounts?.profiles ?? [],
+      ),
+      primary,
+      activeEmail,
+    );
+    const activeProfile = activeProfiles.find(
+      (p) => p.email && p.email === activeEmail,
+    );
+    const buildDecision = (
+      kind: RecoveryDecisionKind,
+      target?: DecisionTarget,
+    ) =>
+      recoveryDecision(
+        primary,
+        kind,
+        claudeLimit.length + authSwitch.length,
+        now,
+        target,
+      );
 
     const recordAction = async (
       action: string,
@@ -1916,7 +2563,11 @@ export const autoSwitchCheck = internalMutation({
     const bookCodexFollowUp = async (): Promise<number | undefined> => {
       if (codexLimit.length === 0) return undefined;
       const at = now + AUTO_SWITCH_COOLDOWN_MS + 5_000;
-      await ctx.scheduler.runAt(at, internal.accountSwitch.autoSwitchCheck, again);
+      await ctx.scheduler.runAt(
+        at,
+        internal.accountSwitch.autoSwitchCheck,
+        again,
+      );
       return at;
     };
 
@@ -1962,7 +2613,9 @@ export const autoSwitchCheck = internalMutation({
           args: JSON.stringify({
             codex_reset_credit: { profile: codexDecision.profile },
             conversation_ids: codexLimit.map((c) => c._id),
-            session_ids: Object.fromEntries(codexLimit.map((c) => [c._id, c.session_id])),
+            session_ids: Object.fromEntries(
+              codexLimit.map((c) => [c._id, c.session_id]),
+            ),
             continue_blocked: true,
           }),
           created_at: now,
@@ -1975,35 +2628,71 @@ export const autoSwitchCheck = internalMutation({
           retryAt,
         );
         // A redeem that buys nothing must not strand the sessions.
-        await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
+        await ctx.scheduler.runAt(
+          retryAt,
+          internal.accountSwitch.autoSwitchCheck,
+          again,
+        );
         console.log(
           `autoSwitchCheck: redeeming a Codex reset credit on "${codexDecision.profile}" for ${codexLimit.length} parked conversation(s)`,
         );
-        return { acted: "redeem_reset_credit", profile: codexDecision.profile, conversations: codexLimit.length, commandId };
+        return {
+          acted: "redeem_reset_credit",
+          profile: codexDecision.profile,
+          conversations: codexLimit.length,
+          commandId,
+        };
       }
 
       if (codexDecision.action === "continue") {
-        const res = await continueLimitParks(ctx, args.user_id, { blocked: codexLimit, online, primary, now });
-        if (res.probe) state = { ...state, limit_probe: res.probe, throttle_check_at: res.throttle_check_at };
+        const res = await continueLimitParks(ctx, args.user_id, {
+          blocked: codexLimit,
+          online,
+          primary,
+          now,
+        });
+        if (res.probe)
+          state = {
+            ...state,
+            limit_probe: res.probe,
+            throttle_check_at: res.throttle_check_at,
+          };
         await recordAction("codex_continue", [AUTO_SWITCH_CODEX_CONTINUE_KEY]);
-        console.log(`autoSwitchCheck: continuing ${res.probe ? 1 : codexLimit.length} of ${codexLimit.length} Codex limit-parked conversation(s)`);
-        return { acted: "codex_continue", conversations: codexLimit.length, restarted: res.restarted };
+        console.log(
+          `autoSwitchCheck: continuing ${res.probe ? 1 : codexLimit.length} of ${codexLimit.length} Codex limit-parked conversation(s)`,
+        );
+        return {
+          acted: "codex_continue",
+          conversations: codexLimit.length,
+          restarted: res.restarted,
+        };
       }
 
       // Nothing to do for Codex right now, so hand back WHEN to look again:
       // Codex's own window reset, or the probe cadence.
-      const retryAt = codexDecision.action === "wait" || codexDecision.action === "exhausted"
-        ? codexDecision.retry_at
-        : now + AUTO_SWITCH_PROBE_RETRY_MS;
+      const retryAt =
+        codexDecision.action === "wait" || codexDecision.action === "exhausted"
+          ? codexDecision.retry_at
+          : now + AUTO_SWITCH_PROBE_RETRY_MS;
       // With Claude parks still to decide, that flow answers and owns the
       // booking — but it must book on the EARLIER of the two clocks. A Codex
       // park slept on the Claude account's reset would wait hours for a window
       // that says nothing about it (the 2026-09-03 "booked at the wrong
       // account's reset" gap, one provider over).
       if (!soleParks) return { retry_at: retryAt };
-      if (!state.next_check_at || state.next_check_at <= now || retryAt < state.next_check_at) {
-        await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
-        await ctx.db.patch(primary._id, { cc_auto_switch_state: { ...state, next_check_at: retryAt } });
+      if (
+        !state.next_check_at ||
+        state.next_check_at <= now ||
+        retryAt < state.next_check_at
+      ) {
+        await ctx.scheduler.runAt(
+          retryAt,
+          internal.accountSwitch.autoSwitchCheck,
+          again,
+        );
+        await ctx.db.patch(primary._id, {
+          cc_auto_switch_state: { ...state, next_check_at: retryAt },
+        });
       }
       return { acted: codexDecision.action, next_check_at: retryAt };
     };
@@ -2018,8 +2707,16 @@ export const autoSwitchCheck = internalMutation({
         now,
       });
       const retryAt = now + AUTO_SWITCH_COOLDOWN_MS + 5_000;
-      await recordAction("auth_restart", authRestart.map((c) => authRestartAttemptKey(c._id)), retryAt);
-      await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
+      await recordAction(
+        "auth_restart",
+        authRestart.map((c) => authRestartAttemptKey(c._id)),
+        retryAt,
+      );
+      await ctx.scheduler.runAt(
+        retryAt,
+        internal.accountSwitch.autoSwitchCheck,
+        again,
+      );
       console.log(
         `autoSwitchCheck: restarting ${authRestart.length} auth-parked conversation(s) on the current login`,
       );
@@ -2034,18 +2731,28 @@ export const autoSwitchCheck = internalMutation({
     }
 
     // The soonest either provider is worth another look.
-    const withCodexRetry = (at: number): number => Math.min(at, codexRetryAt ?? at);
+    const withCodexRetry = (at: number): number =>
+      Math.min(at, codexRetryAt ?? at);
 
     // A park is read as a fact about the account the session ran on: the
     // owning device's active login unless the row pins another account's
     // token. Only the former can wait on the active account's windows.
     const onlineById = new Map(online.map((d) => [d.device_id, d]));
     const parksOnActive = targets.filter((c) =>
-      parkedOnActiveAccount(c, (c.owner_device_id && onlineById.get(c.owner_device_id)) || primary, now),
+      parkedOnActiveAccount(
+        c,
+        (c.owner_device_id && onlineById.get(c.owner_device_id)) || primary,
+        now,
+      ),
     );
     // The models the fleet mostly runs, parked sessions included: an
     // account's model-scoped week counts only for those (fleetModels).
-    const fleetModelIds = await runningClaudeModels(ctx, args.user_id, now, targets);
+    const fleetModelIds = await runningClaudeModels(
+      ctx,
+      args.user_id,
+      now,
+      targets,
+    );
     const decision = decideAutoSwitch({
       now,
       // No resetCredit: a Codex reset credit clears a CODEX account's windows
@@ -2053,7 +2760,9 @@ export const autoSwitchCheck = internalMutation({
       // place it can be offered, so the wrong-provider redeem is impossible by
       // construction rather than by a filter that could be dropped.
       parkedAt: Math.max(...targets.map(blockedAt)),
-      activeParkedAt: parksOnActive.length ? Math.max(...parksOnActive.map(blockedAt)) : null,
+      activeParkedAt: parksOnActive.length
+        ? Math.max(...parksOnActive.map(blockedAt))
+        : null,
       activeEmail,
       activeSince: primary.cc_accounts?.active_since,
       profiles: activeProfiles,
@@ -2070,8 +2779,16 @@ export const autoSwitchCheck = internalMutation({
       // The daemon probes right after a switch; look again once that lands.
       // Not an action: no cooldown, no attempt, exhausted_at untouched.
       const retryAt = withCodexRetry(decision.retry_at);
-      if (!state.next_check_at || state.next_check_at <= now || retryAt < state.next_check_at) {
-        await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
+      if (
+        !state.next_check_at ||
+        state.next_check_at <= now ||
+        retryAt < state.next_check_at
+      ) {
+        await ctx.scheduler.runAt(
+          retryAt,
+          internal.accountSwitch.autoSwitchCheck,
+          again,
+        );
         await ctx.db.patch(primary._id, {
           cc_auto_switch_state: { ...state, next_check_at: retryAt },
         });
@@ -2081,15 +2798,18 @@ export const autoSwitchCheck = internalMutation({
 
     // A switch the loop would take while the person is still draining continues
     // onto the account they picked. The hold already refused a near-limit account.
-    const stayForManual = decision.action === "switch" && holdsManualTarget({
-      now,
-      fleetEmail: activeEmail,
-      usage: activeProfiles.find((p) => p.email && p.email === activeEmail)?.usage,
-      models: fleetModelIds,
-      lastAction: state.last_action,
-      lastActionAt: state.last_action_at,
-      decision: state.last_decision,
-    });
+    const stayForManual =
+      decision.action === "switch" &&
+      holdsManualTarget({
+        now,
+        fleetEmail: activeEmail,
+        usage: activeProfiles.find((p) => p.email && p.email === activeEmail)
+          ?.usage,
+        models: fleetModelIds,
+        lastAction: state.last_action,
+        lastActionAt: state.last_action_at,
+        decision: state.last_decision,
+      });
     if (decision.action === "continue" || stayForManual) {
       // Same no-switch revive the banner uses: a message where one can
       // reach the session, a restart (pin corrected) where it cannot. Two or
@@ -2097,10 +2817,36 @@ export const autoSwitchCheck = internalMutation({
       // A host's parks go out together: the staged release behind a probe
       // (throttleContinueCheck) keeps its bookkeeping on the laptop's row.
       const res = hostPass
-        ? { ...(await insertSwitchCommands(ctx, args.user_id, { profile: undefined, blocked: claudeLimit, online, primary, continueBlocked: true, now })), probe: null, throttle_check_at: undefined }
-        : await continueLimitParks(ctx, args.user_id, { blocked: claudeLimit, online, primary, now });
-      if (res.probe) state = { ...state, limit_probe: res.probe, throttle_check_at: res.throttle_check_at };
-      await recordAction("continue", [AUTO_SWITCH_CONTINUE_KEY], await bookCodexFollowUp(), buildDecision("continue", activeProfile));
+        ? {
+            ...(await insertSwitchCommands(ctx, args.user_id, {
+              profile: undefined,
+              blocked: claudeLimit,
+              online,
+              primary,
+              continueBlocked: true,
+              now,
+            })),
+            probe: null,
+            throttle_check_at: undefined,
+          }
+        : await continueLimitParks(ctx, args.user_id, {
+            blocked: claudeLimit,
+            online,
+            primary,
+            now,
+          });
+      if (res.probe)
+        state = {
+          ...state,
+          limit_probe: res.probe,
+          throttle_check_at: res.throttle_check_at,
+        };
+      await recordAction(
+        "continue",
+        [AUTO_SWITCH_CONTINUE_KEY],
+        await bookCodexFollowUp(),
+        buildDecision("continue", activeProfile),
+      );
       await releaseWorkers();
       return {
         acted: "continue",
@@ -2112,8 +2858,12 @@ export const autoSwitchCheck = internalMutation({
 
     if (decision.action === "switch") {
       const switched = targets;
-      const targetProfile = activeProfiles.find((p) => p.name === decision.profile);
-      const outgoingProfile = activeProfiles.find((p) => p.email && p.email === activeEmail);
+      const targetProfile = activeProfiles.find(
+        (p) => p.name === decision.profile,
+      );
+      const outgoingProfile = activeProfiles.find(
+        (p) => p.email && p.email === activeEmail,
+      );
       await insertSwitchCommands(ctx, args.user_id, {
         profile: decision.profile,
         blocked: switched,
@@ -2132,7 +2882,11 @@ export const autoSwitchCheck = internalMutation({
       console.log(
         `autoSwitchCheck: switching to "${decision.profile}" for ${claudeLimit.length} limit-parked + ${authSwitch.length} auth-parked conversation(s)`,
       );
-      return { acted: "switch", profile: decision.profile, conversations: switched.length };
+      return {
+        acted: "switch",
+        profile: decision.profile,
+        conversations: switched.length,
+      };
     }
 
     if (decision.action === "redeem_reset_credit") {
@@ -2141,7 +2895,9 @@ export const autoSwitchCheck = internalMutation({
       // Claude session. Named rather than cast away, so a future caller that
       // starts passing one fails loudly instead of quietly redeeming a credit
       // on behalf of the wrong provider.
-      throw new Error("autoSwitchCheck: a reset-credit redeem reached the Claude pass");
+      throw new Error(
+        "autoSwitchCheck: a reset-credit redeem reached the Claude pass",
+      );
     }
 
     // Ask-first: the active account cannot self-heal (we reached the switch
@@ -2152,7 +2908,12 @@ export const autoSwitchCheck = internalMutation({
     // human approves through the same requestAccountSwitch the manual button
     // calls, so the ask path and the manual path are one codepath.
     if (askFirst) {
-      const best = fallbackProfiles(activeProfiles, activeEmail, now, fleetModelIds)[0];
+      const best = fallbackProfiles(
+        activeProfiles,
+        activeEmail,
+        now,
+        fleetModelIds,
+      )[0];
       if (best) {
         const proposal = buildDecision("propose", best);
         const already =
@@ -2161,7 +2922,8 @@ export const autoSwitchCheck = internalMutation({
           state.last_decision.parked_count === proposal.parked_count &&
           state.last_decision.from_email === proposal.from_email &&
           state.last_decision.pegged_window === proposal.pegged_window &&
-          Math.round(state.last_decision.target_percent ?? -1) === Math.round(proposal.target_percent ?? -1);
+          Math.round(state.last_decision.target_percent ?? -1) ===
+            Math.round(proposal.target_percent ?? -1);
         // Only touch the row when the recommendation actually changed, so a
         // re-check that lands on the same proposal does not churn the state.
         if (!already) {
@@ -2174,8 +2936,11 @@ export const autoSwitchCheck = internalMutation({
         // sees is the same as no ask. Only when the recommended account
         // changes — a growing park count does not re-notify.
         const newAsk =
-          state.last_decision?.kind !== "propose" || state.last_decision.target_email !== best.email;
-        const anchor = [...claudeLimit].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))[0];
+          state.last_decision?.kind !== "propose" ||
+          state.last_decision.target_email !== best.email;
+        const anchor = [...claudeLimit].sort(
+          (a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
+        )[0];
         if (newAsk && anchor) {
           // The question leads the body too: the in-app list stores only the
           // body, the title reaches the phone push alone.
@@ -2191,14 +2956,29 @@ export const autoSwitchCheck = internalMutation({
         // The active window's reset can be hours away. Meters move sooner: the
         // named account pegs, a fuller one appears. Look again within a few
         // minutes so the stored ask matches the bars the person is reading.
-        const retryAt = Math.min(withCodexRetry(decision.retry_at), now + 3 * AUTO_SWITCH_PROBE_RETRY_MS);
-        if (!state.next_check_at || state.next_check_at <= now || retryAt < state.next_check_at) {
-          await ctx.scheduler.runAt(retryAt, internal.accountSwitch.autoSwitchCheck, again);
+        const retryAt = Math.min(
+          withCodexRetry(decision.retry_at),
+          now + 3 * AUTO_SWITCH_PROBE_RETRY_MS,
+        );
+        if (
+          !state.next_check_at ||
+          state.next_check_at <= now ||
+          retryAt < state.next_check_at
+        ) {
+          await ctx.scheduler.runAt(
+            retryAt,
+            internal.accountSwitch.autoSwitchCheck,
+            again,
+          );
         }
         console.log(
           `autoSwitchCheck: ask-first — recommending "${best.name}" for ${claudeLimit.length} limit-parked conversation(s), awaiting approval`,
         );
-        return { acted: "proposed", profile: best.name, conversations: claudeLimit.length };
+        return {
+          acted: "proposed",
+          profile: best.name,
+          conversations: claudeLimit.length,
+        };
       }
       // No saved account has room either — fall through to the exhausted path,
       // which is the honest state and does not stamp "spent" (allowSwitch off).
@@ -2212,7 +2992,9 @@ export const autoSwitchCheck = internalMutation({
     // for the active window to reset.
     const nextState = {
       ...state,
-      exhausted_at: allowSwitch ? state.exhausted_at ?? now : state.exhausted_at,
+      exhausted_at: allowSwitch
+        ? (state.exhausted_at ?? now)
+        : state.exhausted_at,
       next_check_at: state.next_check_at,
     };
     const exhaustedRetryAt = withCodexRetry(decision.retry_at);
@@ -2221,14 +3003,17 @@ export const autoSwitchCheck = internalMutation({
       state.next_check_at <= now ||
       exhaustedRetryAt < state.next_check_at
     ) {
-      await ctx.scheduler.runAt(exhaustedRetryAt, internal.accountSwitch.autoSwitchCheck, again);
+      await ctx.scheduler.runAt(
+        exhaustedRetryAt,
+        internal.accountSwitch.autoSwitchCheck,
+        again,
+      );
       nextState.next_check_at = exhaustedRetryAt;
     }
     await ctx.db.patch(primary._id, { cc_auto_switch_state: nextState });
     return { acted: "exhausted", next_check_at: nextState.next_check_at };
   },
 });
-
 
 // The pin a daemon sources when it resumes a conversation. The daemon used
 // to read the row's `cc_account` raw, so a session parked on a limit while
@@ -2252,13 +3037,18 @@ export const pinForResume = mutation({
     if (!(await canOwnerOrTeamAccess(ctx, userId, conv))) return null;
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     const pin = resumePinFor(conv, device ?? undefined, Date.now());
     // Only the session's runner corrects the stored pin: the pin names an
     // account on the runner's machines, and a teammate who can merely read the
     // session gets the answer for their own device without rewriting it.
-    if ((conv.cc_account ?? undefined) !== pin && String(conv.user_id) === String(userId)) {
+    if (
+      (conv.cc_account ?? undefined) !== pin &&
+      String(conv.user_id) === String(userId)
+    ) {
       await ctx.db.patch(conv._id, { cc_account: pin, cc_account_auto: true });
       console.log(
         `pinForResume: ${conv._id} parked (${conv.pending_api_error_kind}) on pin "${conv.cc_account}" — resuming under ${pin ? `"${pin}"` : "the keychain login"}`,
@@ -2325,7 +3115,11 @@ export const listStaleCodexSessions = query({
       .withIndex("by_user_id", (q) => q.eq("user_id", userId))
       .collect();
     const deviceById = new Map(devices.map((d) => [d.device_id, d]));
-    const live = await managedSessionsBeatingSince(ctx, now - CODEX_PANE_LIVE_MS, userId);
+    const live = await managedSessionsBeatingSince(
+      ctx,
+      now - CODEX_PANE_LIVE_MS,
+      userId,
+    );
     const out: Array<{
       conversation_id: Id<"conversations">;
       session_id: string;
@@ -2336,10 +3130,13 @@ export const listStaleCodexSessions = query({
     }> = [];
     const seen = new Set<string>();
     for (const session of live) {
-      if (!session.conversation_id || seen.has(session.conversation_id)) continue;
+      if (!session.conversation_id || seen.has(session.conversation_id))
+        continue;
       const conv = await ctx.db.get(session.conversation_id);
       if (!conv || !conv.codex_account) continue;
-      const device = conv.owner_device_id ? deviceById.get(conv.owner_device_id) : undefined;
+      const device = conv.owner_device_id
+        ? deviceById.get(conv.owner_device_id)
+        : undefined;
       if (!codexAccountNeedsRestart(conv, device)) continue;
       seen.add(session.conversation_id);
       out.push({
@@ -2383,7 +3180,8 @@ export const sweepStaleApiErrorFlags = internalMutation({
       });
       swept++;
     }
-    if (swept > 0) console.log(`sweepStaleApiErrorFlags: cleared ${swept} stale flag(s)`);
+    if (swept > 0)
+      console.log(`sweepStaleApiErrorFlags: cleared ${swept} stale flag(s)`);
     return { swept };
   },
 });
@@ -2402,17 +3200,24 @@ export const restampApiErrorFlags = internalMutation({
     const since = Date.now() - BLOCKED_WINDOW_MS;
     const recent = await ctx.db
       .query("conversations")
-      .withIndex("by_user_updated", (q) => q.eq("user_id", args.user_id).gt("updated_at", since))
+      .withIndex("by_user_updated", (q) =>
+        q.eq("user_id", args.user_id).gt("updated_at", since),
+      )
       .order("desc")
       .take(1000);
     let stamped = 0;
     for (const conv of recent) {
       const restamp = await decideRestamp(ctx, conv);
       if (!restamp) continue;
-      await ctx.db.patch(conv._id, { pending_api_error: true, pending_api_error_kind: restamp.kind, pending_api_error_at: restamp.at });
+      await ctx.db.patch(conv._id, {
+        pending_api_error: true,
+        pending_api_error_kind: restamp.kind,
+        pending_api_error_at: restamp.at,
+      });
       stamped++;
     }
-    if (stamped > 0) console.log(`restampApiErrorFlags: stamped ${stamped} conversation(s)`);
+    if (stamped > 0)
+      console.log(`restampApiErrorFlags: stamped ${stamped} conversation(s)`);
     return { scanned: recent.length, stamped };
   },
 });
@@ -2435,7 +3240,9 @@ async function decideRestamp(
 ): Promise<{ kind: string; at: number } | null> {
   const tail: Doc<"messages">[] = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .order("desc")
     .take(8);
   const newest = newestSignificantMessage(tail);
@@ -2443,7 +3250,12 @@ async function decideRestamp(
   const kind = classifyApiErrorBanner(newest.content);
   if (!kind) return null;
   // Idempotent: an already-correct stamp is not a change.
-  if (conv.pending_api_error === true && conv.pending_api_error_kind === kind && conv.pending_api_error_at != null) return null;
+  if (
+    conv.pending_api_error === true &&
+    conv.pending_api_error_kind === kind &&
+    conv.pending_api_error_at != null
+  )
+    return null;
   return { kind, at: newest.timestamp };
 }
 
@@ -2454,16 +3266,30 @@ export const restampStationPark = mutation({
   args: { api_token: v.optional(v.string()), conversation_id: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!userId) throw new Error("Authentication failed: invalid token or session");
+    if (!userId)
+      throw new Error("Authentication failed: invalid token or session");
     const convId = ctx.db.normalizeId("conversations", args.conversation_id);
     const conv = convId ? await ctx.db.get(convId) : null;
-    if (!conv || conv.user_id.toString() !== userId.toString() || conv.inbox_killed_at || conv.inbox_dismissed_at) return { kind: null };
-    if (conv.pending_api_error === true) return { kind: conv.pending_api_error_kind ?? "error" };
+    if (
+      !conv ||
+      conv.user_id.toString() !== userId.toString() ||
+      conv.inbox_killed_at ||
+      conv.inbox_dismissed_at
+    )
+      return { kind: null };
+    if (conv.pending_api_error === true)
+      return { kind: conv.pending_api_error_kind ?? "error" };
     // Only the quota parks the runner waits out: a context or auth park has its own recovery, which a restamp would race.
     const restamp = await decideRestamp(ctx, conv);
-    if (!restamp || (restamp.kind !== "limit" && restamp.kind !== "throttle")) return { kind: null };
-    await ctx.db.patch(conv._id, { pending_api_error: true, pending_api_error_kind: restamp.kind, pending_api_error_at: restamp.at });
-    if (isCurrentBlock({ pending_api_error_at: restamp.at }, Date.now())) await onFreshApiErrorPark(ctx, conv.user_id, restamp.kind, conv._id);
+    if (!restamp || (restamp.kind !== "limit" && restamp.kind !== "throttle"))
+      return { kind: null };
+    await ctx.db.patch(conv._id, {
+      pending_api_error: true,
+      pending_api_error_kind: restamp.kind,
+      pending_api_error_at: restamp.at,
+    });
+    if (isCurrentBlock({ pending_api_error_at: restamp.at }, Date.now()))
+      await onFreshApiErrorPark(ctx, conv.user_id, restamp.kind, conv._id);
     return { kind: restamp.kind };
   },
 });
@@ -2507,18 +3333,31 @@ export const reclassifyParkedApiErrorFlags = internalMutation({
   },
   handler: async (ctx, args) => {
     const dryRun = args.dry_run !== false;
-    const batch = Math.min(Math.max(Math.trunc(args.batch ?? RECLASSIFY_BATCH_DEFAULT), 1), RECLASSIFY_BATCH_MAX);
+    const batch = Math.min(
+      Math.max(Math.trunc(args.batch ?? RECLASSIFY_BATCH_DEFAULT), 1),
+      RECLASSIFY_BATCH_MAX,
+    );
     const page = await ctx.db
       .query("conversations")
       .withIndex("by_pending_api_error", (q) => q.eq("pending_api_error", true))
       .order("desc")
       .paginate({ cursor: args.cursor ?? null, numItems: batch });
 
-    const changes: { id: string; title?: string; agent_type?: string; from: string | null; to: string }[] = [];
+    const changes: {
+      id: string;
+      title?: string;
+      agent_type?: string;
+      from: string | null;
+      to: string;
+    }[] = [];
     let skippedSettled = 0;
     for (const conv of page.page) {
       // A killed or completed row is the human saying they are done with it.
-      if (conv.status !== "active" || conv.inbox_killed_at != null || isClosedSession(conv)) {
+      if (
+        conv.status !== "active" ||
+        conv.inbox_killed_at != null ||
+        isClosedSession(conv)
+      ) {
         skippedSettled++;
         continue;
       }
@@ -2554,7 +3393,6 @@ export const reclassifyParkedApiErrorFlags = internalMutation({
   },
 });
 
-
 // The web switcher's data: per device, the active account and saved profile
 // names the daemon reported on its heartbeat. Online devices are the live set;
 // a recently-seen offline PRIMARY is included too (marked `online: false`) so
@@ -2579,7 +3417,16 @@ export const listAccountProfiles = query({
     const legacyCodexAccounts = (
       cu: any,
     ):
-      | { active_email?: string; active_expires_at?: number; profiles: Array<{ name: string; email?: string; subscription?: string; usage?: any }> }
+      | {
+          active_email?: string;
+          active_expires_at?: number;
+          profiles: Array<{
+            name: string;
+            email?: string;
+            subscription?: string;
+            usage?: any;
+          }>;
+        }
       | undefined => {
       if (!cu || typeof cu !== "object") return undefined;
       const { plan_type, ...usage } = cu;
@@ -2587,7 +3434,9 @@ export const listAccountProfiles = query({
         profiles: [
           {
             name: "codex",
-            ...(typeof plan_type === "string" ? { subscription: plan_type } : {}),
+            ...(typeof plan_type === "string"
+              ? { subscription: plan_type }
+              : {}),
             usage,
           },
         ],
@@ -2595,51 +3444,60 @@ export const listAccountProfiles = query({
     };
     const shown = devices.filter(
       (d) =>
-        (isDeviceOnline(d, now) && (d.cc_accounts || d.codex_accounts || d.codex_usage)) ||
-        (!d.is_remote && !!d.cc_accounts && now - d.last_seen < OFFLINE_PRIMARY_GRACE_MS),
+        (isDeviceOnline(d, now) &&
+          (d.cc_accounts || d.codex_accounts || d.codex_usage)) ||
+        (!d.is_remote &&
+          !!d.cc_accounts &&
+          now - d.last_seen < OFFLINE_PRIMARY_GRACE_MS),
     );
     // A pool copy shows its holder's meter (poolUsageOverlay), the one home.
     const profilesOf = new Map<string, any[]>();
     const caps = await spendCapsOf(ctx, userId, now);
-    for (const d of shown) profilesOf.set(d.device_id, withSpendCap(await poolUsageOverlay(ctx, userId, d.cc_accounts?.profiles ?? []), caps));
+    for (const d of shown)
+      profilesOf.set(
+        d.device_id,
+        withSpendCap(
+          await poolUsageOverlay(ctx, userId, d.cc_accounts?.profiles ?? []),
+          caps,
+        ),
+      );
     return {
-      devices: shown
-        .map((d) => ({
-          device_id: d.device_id,
-          label: d.label,
-          is_remote: d.is_remote === true,
-          // A line host draws only the accounts opened to it, and refuses some.
-          line_host: hostsLineWork(d),
-          online: isDeviceOnline(d, now),
-          active_email: d.cc_accounts?.active_email,
-          // When the current login took over: a session whose last call predates
-          // it restarts on a cache that belongs to another account.
-          active_since: d.cc_accounts?.active_since,
-          // The profile sessions launch on when a token switch moved the fleet
-          // off the keychain login (fleetAccount); absent = the login.
-          launch_profile: d.cc_accounts?.launch_profile,
-          fleet_store: d.cc_accounts?.fleet_store,
-          login_flow: d.cc_login_flow,
-          session_tokens: true,
-          mint_flow: d.cc_mint_flow,
-          provider_key_pubkey: d.provider_key_pubkey,
-          profiles: profilesOf.get(d.device_id) ?? [],
-          codex_accounts: d.codex_accounts ?? legacyCodexAccounts(d.codex_usage),
-          auto_switch: d.cc_auto_switch === true,
-          auto_continue: isAutoContinueEnabled(d),
-          ask_first: d.cc_recovery_ask === true,
-          auto_switch_state: d.cc_auto_switch_state
-            ? {
-                last_action_at: d.cc_auto_switch_state.last_action_at,
-                last_action: d.cc_auto_switch_state.last_action,
-                exhausted_at: d.cc_auto_switch_state.exhausted_at,
-                // Why the account moved (or should move) — the park card and
-                // the settings page read this instead of guessing from the
-                // action string.
-                last_decision: d.cc_auto_switch_state.last_decision,
-              }
-            : undefined,
-        })),
+      devices: shown.map((d) => ({
+        device_id: d.device_id,
+        label: d.label,
+        is_remote: d.is_remote === true,
+        // A line host draws only the accounts opened to it, and refuses some.
+        line_host: hostsLineWork(d),
+        online: isDeviceOnline(d, now),
+        active_email: d.cc_accounts?.active_email,
+        // When the current login took over: a session whose last call predates
+        // it restarts on a cache that belongs to another account.
+        active_since: d.cc_accounts?.active_since,
+        // The profile sessions launch on when a token switch moved the fleet
+        // off the keychain login (fleetAccount); absent = the login.
+        launch_profile: d.cc_accounts?.launch_profile,
+        fleet_store: d.cc_accounts?.fleet_store,
+        login_flow: d.cc_login_flow,
+        session_tokens: true,
+        mint_flow: d.cc_mint_flow,
+        provider_key_pubkey: d.provider_key_pubkey,
+        profiles: profilesOf.get(d.device_id) ?? [],
+        codex_accounts: d.codex_accounts ?? legacyCodexAccounts(d.codex_usage),
+        auto_switch: d.cc_auto_switch === true,
+        auto_continue: isAutoContinueEnabled(d),
+        ask_first: d.cc_recovery_ask === true,
+        auto_switch_state: d.cc_auto_switch_state
+          ? {
+              last_action_at: d.cc_auto_switch_state.last_action_at,
+              last_action: d.cc_auto_switch_state.last_action,
+              exhausted_at: d.cc_auto_switch_state.exhausted_at,
+              // Why the account moved (or should move) — the park card and
+              // the settings page read this instead of guessing from the
+              // action string.
+              last_decision: d.cc_auto_switch_state.last_decision,
+            }
+          : undefined,
+      })),
     };
   },
 });

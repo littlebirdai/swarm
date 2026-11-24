@@ -11,9 +11,20 @@ import { ChevronDown } from "lucide-react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useInboxStore } from "../../store/inboxStore";
 import { closeTaskWithGuard } from "../../lib/taskActions";
-import { statusByKey, statusEntityOptions, statusWriteFields, taskStatusKey, useTeamTaskStatusList } from "../../lib/taskStatuses";
+import {
+  statusByKey,
+  statusEntityOptions,
+  statusWriteFields,
+  taskStatusKey,
+  useTeamTaskStatusList,
+} from "../../lib/taskStatuses";
 
-export type DropdownOption = { key: string; icon: any; label: string; color: string };
+export type DropdownOption = {
+  key: string;
+  icon: any;
+  label: string;
+  color: string;
+};
 
 export function PropertyDropdown({
   value,
@@ -34,7 +45,8 @@ export function PropertyDropdown({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -43,9 +55,17 @@ export function PropertyDropdown({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setOpen(false); return; }
-      const idx = options.findIndex((o) => o.label.toLowerCase().startsWith(e.key.toLowerCase()));
-      if (idx >= 0) { onChange(options[idx].key); setOpen(false); }
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      const idx = options.findIndex((o) =>
+        o.label.toLowerCase().startsWith(e.key.toLowerCase()),
+      );
+      if (idx >= 0) {
+        onChange(options[idx].key);
+        setOpen(false);
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
@@ -69,9 +89,14 @@ export function PropertyDropdown({
             return (
               <button
                 key={opt.key}
-                onClick={() => { onChange(opt.key); setOpen(false); }}
+                onClick={() => {
+                  onChange(opt.key);
+                  setOpen(false);
+                }}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-sol-bg-alt transition-colors ${
-                  opt.key === value ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted"
+                  opt.key === value
+                    ? "bg-sol-bg-highlight text-sol-text"
+                    : "text-sol-text-muted"
                 }`}
               >
                 <OptIcon className={`w-3.5 h-3.5 ${opt.color}`} />
@@ -85,8 +110,16 @@ export function PropertyDropdown({
   );
 }
 
-export function TaskStatusPicker({ task, shortcutHint }: {
-  task: { short_id?: string | null; status?: string | null; status_id?: string | null; team_id?: string | null };
+export function TaskStatusPicker({
+  task,
+  shortcutHint,
+}: {
+  task: {
+    short_id?: string | null;
+    status?: string | null;
+    status_id?: string | null;
+    team_id?: string | null;
+  };
   shortcutHint?: string;
 }) {
   const statuses = useTeamTaskStatusList(task.team_id ?? undefined);
@@ -98,10 +131,22 @@ export function TaskStatusPicker({ task, shortcutHint }: {
     if (!picked) return;
     const fields = statusWriteFields(picked);
     if (fields.status === "done" || fields.status === "dropped") {
-      closeTaskWithGuard(task.short_id, fields.status, undefined, fields.status_id);
+      closeTaskWithGuard(
+        task.short_id,
+        fields.status,
+        undefined,
+        fields.status_id,
+      );
     } else {
       useInboxStore.getState().updateTask(task.short_id, fields);
     }
   };
-  return <PropertyDropdown value={taskStatusKey(task as any, statuses)} options={options} onChange={onChange} shortcutHint={shortcutHint} />;
+  return (
+    <PropertyDropdown
+      value={taskStatusKey(task as any, statuses)}
+      options={options}
+      onChange={onChange}
+      shortcutHint={shortcutHint}
+    />
+  );
 }

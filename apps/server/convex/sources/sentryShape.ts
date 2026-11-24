@@ -44,35 +44,56 @@ export interface SentryTarget {
  */
 export function sentryTarget(
   connection: TokenConfig | undefined,
-  sourceConfig: { org?: string; projects?: string[]; environments?: string[] } | undefined,
+  sourceConfig:
+    | { org?: string; projects?: string[]; environments?: string[] }
+    | undefined,
 ): { ok: true; target: SentryTarget } | { ok: false; error: string } {
   const org = connection?.org || sourceConfig?.org;
-  if (!org || !SENTRY_SLUG.test(org)) return { ok: false, error: "The Sentry connection names no organization" };
-  if (sourceConfig?.org && connection?.org && sourceConfig.org !== connection.org) {
-    return { ok: false, error: `The source reads ${sourceConfig.org} but the Sentry connection is for ${connection.org}` };
+  if (!org || !SENTRY_SLUG.test(org))
+    return { ok: false, error: "The Sentry connection names no organization" };
+  if (
+    sourceConfig?.org &&
+    connection?.org &&
+    sourceConfig.org !== connection.org
+  ) {
+    return {
+      ok: false,
+      error: `The source reads ${sourceConfig.org} but the Sentry connection is for ${connection.org}`,
+    };
   }
-  const projects = (sourceConfig?.projects ?? []).map((p) => p.trim()).filter(Boolean);
+  const projects = (sourceConfig?.projects ?? [])
+    .map((p) => p.trim())
+    .filter(Boolean);
   const bad = projects.find((p) => !SENTRY_SLUG.test(p));
-  if (bad) return { ok: false, error: `"${bad}" is not a Sentry project slug or id` };
+  if (bad)
+    return { ok: false, error: `"${bad}" is not a Sentry project slug or id` };
   return {
     ok: true,
     target: {
       host: (connection?.host || SENTRY_DEFAULT_HOST).replace(/\/+$/, ""),
       org,
       projects,
-      environments: (sourceConfig?.environments ?? []).map((e) => e.trim()).filter(Boolean),
+      environments: (sourceConfig?.environments ?? [])
+        .map((e) => e.trim())
+        .filter(Boolean),
     },
   };
 }
 
-export const orgPath = (t: SentryTarget) => `${t.host}/api/0/organizations/${encodeURIComponent(t.org)}`;
+export const orgPath = (t: SentryTarget) =>
+  `${t.host}/api/0/organizations/${encodeURIComponent(t.org)}`;
 
 /** One page of the poll's list: unresolved, newest activity first, the last 24 hours. */
-export function issuesListUrl(t: SentryTarget, projectIds: string[], cursor?: string): string {
+export function issuesListUrl(
+  t: SentryTarget,
+  projectIds: string[],
+  cursor?: string,
+): string {
   const q = new URLSearchParams();
   // -1 is every project the token can see; no project param means only the
   // token owner's own projects.
-  for (const id of projectIds.length ? projectIds : ["-1"]) q.append("project", id);
+  for (const id of projectIds.length ? projectIds : ["-1"])
+    q.append("project", id);
   for (const env of t.environments) q.append("environment", env);
   q.set("query", "is:unresolved");
   q.set("sort", "date");
@@ -82,9 +103,12 @@ export function issuesListUrl(t: SentryTarget, projectIds: string[], cursor?: st
   return `${orgPath(t)}/issues/?${q}`;
 }
 
-export const issueUrl = (t: SentryTarget, issueId: string) => `${orgPath(t)}/issues/${encodeURIComponent(issueId)}/`;
-export const latestEventUrl = (t: SentryTarget, issueId: string) => `${issueUrl(t, issueId)}events/latest/`;
-export const projectsUrl = (t: SentryTarget) => `${orgPath(t)}/projects/?per_page=100`;
+export const issueUrl = (t: SentryTarget, issueId: string) =>
+  `${orgPath(t)}/issues/${encodeURIComponent(issueId)}/`;
+export const latestEventUrl = (t: SentryTarget, issueId: string) =>
+  `${issueUrl(t, issueId)}events/latest/`;
+export const projectsUrl = (t: SentryTarget) =>
+  `${orgPath(t)}/projects/?per_page=100`;
 
 /** The next page's cursor from Sentry's Link header, or null when there is none with results. */
 export function nextCursor(link: string | null): string | null {
@@ -135,7 +159,8 @@ export function statsBuckets(stats: unknown): Bucket[] | undefined {
   for (const row of rows) {
     if (!Array.isArray(row)) continue;
     const [sec, count] = row;
-    if (typeof sec === "number" && typeof count === "number" && count > 0) out.push({ hour: hourStart(sec * 1000), count });
+    if (typeof sec === "number" && typeof count === "number" && count > 0)
+      out.push({ hour: hourStart(sec * 1000), count });
   }
   return out;
 }
@@ -161,7 +186,8 @@ export function issueToMirror(issue: any): MirroredGroup | null {
   return {
     kind: "error",
     fp: sentryIssueFingerprint(id),
-    title: str(issue.title ?? issue.metadata?.title, 300) ?? `Sentry issue ${id}`,
+    title:
+      str(issue.title ?? issue.metadata?.title, 300) ?? `Sentry issue ${id}`,
     ...(str(issue.culprit, 300) ? { culprit: str(issue.culprit, 300) } : {}),
     ...(str(issue.level, 20) ? { level: str(issue.level, 20) } : {}),
     status,
@@ -180,19 +206,37 @@ export function issueToMirror(issue: any): MirroredGroup | null {
 
 /** The project an issue belongs to, as slug and id, for matching a source's project list. */
 export function issueProject(issue: any): { slug?: string; id?: string } {
-  return { slug: str(issue?.project?.slug, 64), id: str(issue?.project?.id, 32) };
+  return {
+    slug: str(issue?.project?.slug, 64),
+    id: str(issue?.project?.id, 32),
+  };
 }
 
 /** Whether a source reads this project and environment. Unknown values match only an unfiltered source. */
-export function targetReads(t: SentryTarget, at: { project_slug?: string; project_id?: string; environment?: string }): boolean {
-  if (t.projects.length && !t.projects.some((p) => p === at.project_slug || p === at.project_id)) return false;
-  if (t.environments.length && at.environment !== undefined && !t.environments.includes(at.environment)) return false;
+export function targetReads(
+  t: SentryTarget,
+  at: { project_slug?: string; project_id?: string; environment?: string },
+): boolean {
+  if (
+    t.projects.length &&
+    !t.projects.some((p) => p === at.project_slug || p === at.project_id)
+  )
+    return false;
+  if (
+    t.environments.length &&
+    at.environment !== undefined &&
+    !t.environments.includes(at.environment)
+  )
+    return false;
   return true;
 }
 
 /** The origin of the Sentry whose signed deliveries arrive here. */
 export function webhookHost(): string {
-  return (process.env[SENTRY_WEBHOOK_HOST_ENV] || SENTRY_DEFAULT_HOST).replace(/\/+$/, "");
+  return (process.env[SENTRY_WEBHOOK_HOST_ENV] || SENTRY_DEFAULT_HOST).replace(
+    /\/+$/,
+    "",
+  );
 }
 
 /**
@@ -200,7 +244,10 @@ export function webhookHost(): string {
  * sentry.io every *.sentry.io host (regional, org subdomains) is Sentry's
  * own; a self-hosted webhook host matches only its own origin.
  */
-export function onWebhookHost(host: string, hook: string = webhookHost()): boolean {
+export function onWebhookHost(
+  host: string,
+  hook: string = webhookHost(),
+): boolean {
   let a: URL;
   let b: URL;
   try {
@@ -212,7 +259,8 @@ export function onWebhookHost(host: string, hook: string = webhookHost()): boole
   if (a.protocol !== "https:" || a.port !== b.port) return false;
   const name = a.hostname.toLowerCase();
   const hookName = b.hostname.toLowerCase();
-  if (hookName === "sentry.io") return name === "sentry.io" || name.endsWith(".sentry.io");
+  if (hookName === "sentry.io")
+    return name === "sentry.io" || name.endsWith(".sentry.io");
   return name === hookName;
 }
 
@@ -230,33 +278,69 @@ export function sentryOrgFromUrl(...urls: unknown[]): string | null {
     } catch {
       continue;
     }
-    const path = /\/organizations\/([^/]+)\//.exec(url.pathname) ?? /\/api\/0\/projects\/([^/]+)\//.exec(url.pathname);
+    const path =
+      /\/organizations\/([^/]+)\//.exec(url.pathname) ??
+      /\/api\/0\/projects\/([^/]+)\//.exec(url.pathname);
     if (path && SENTRY_SLUG.test(path[1])) return path[1];
     const host = /^([a-z0-9][a-z0-9-]*)\.sentry\.io$/i.exec(url.hostname);
-    if (host && !["us", "de", "www", "api"].includes(host[1].toLowerCase())) return host[1];
+    if (host && !["us", "de", "www", "api"].includes(host[1].toLowerCase()))
+      return host[1];
   }
   return null;
 }
 
 /** What a webhook delivery asks of the mirror. */
 export type SentryWebhookWork =
-  | { kind: "issue"; org: string; issue_json: string; project_slug?: string; project_id?: string }
-  | { kind: "event"; org: string; issue_id: string; project_id?: string; environment?: string }
+  | {
+      kind: "issue";
+      org: string;
+      issue_json: string;
+      project_slug?: string;
+      project_id?: string;
+    }
+  | {
+      kind: "event";
+      org: string;
+      issue_id: string;
+      project_id?: string;
+      environment?: string;
+    }
   | { kind: "skip"; reason: string };
 
 /** The issue hook actions that change what the mirror shows. Assignment and comments do not. */
-export const ISSUE_ACTIONS = new Set(["created", "resolved", "unresolved", "ignored", "archived"]);
+export const ISSUE_ACTIONS = new Set([
+  "created",
+  "resolved",
+  "unresolved",
+  "ignored",
+  "archived",
+]);
 
 /** A verified delivery's body, read for the work it asks. Pure, so the route answers fast and the rules test without Convex. */
-export function parseSentryWebhook(resource: string | null, body: any): SentryWebhookWork {
+export function parseSentryWebhook(
+  resource: string | null,
+  body: any,
+): SentryWebhookWork {
   if (resource === "issue") {
     const issue = body?.data?.issue;
-    if (!ISSUE_ACTIONS.has(body?.action)) return { kind: "skip", reason: `issue ${body?.action ?? "?"}` };
+    if (!ISSUE_ACTIONS.has(body?.action))
+      return { kind: "skip", reason: `issue ${body?.action ?? "?"}` };
     if (!issue?.id) return { kind: "skip", reason: "no issue" };
-    const org = sentryOrgFromUrl(issue.url, issue.web_url, issue.permalink, issue.project_url);
+    const org = sentryOrgFromUrl(
+      issue.url,
+      issue.web_url,
+      issue.permalink,
+      issue.project_url,
+    );
     if (!org) return { kind: "skip", reason: "no organization in the payload" };
     const project = issueProject(issue);
-    return { kind: "issue", org, issue_json: JSON.stringify(issue), project_slug: project.slug, project_id: project.id };
+    return {
+      kind: "issue",
+      org,
+      issue_json: JSON.stringify(issue),
+      project_slug: project.slug,
+      project_id: project.id,
+    };
   }
   if (resource === "event_alert") {
     const event = body?.data?.event;
@@ -264,16 +348,24 @@ export function parseSentryWebhook(resource: string | null, body: any): SentryWe
     if (!issueId) return { kind: "skip", reason: "no issue id" };
     const org = sentryOrgFromUrl(event?.web_url, event?.url, event?.issue_url);
     if (!org) return { kind: "skip", reason: "no organization in the payload" };
-    return { kind: "event", org, issue_id: issueId, project_id: str(event?.project, 32), environment: str(event?.environment, 100) };
+    return {
+      kind: "event",
+      org,
+      issue_id: issueId,
+      project_id: str(event?.project, 32),
+      environment: str(event?.environment, 100),
+    };
   }
   return { kind: "skip", reason: `resource ${resource ?? "?"}` };
 }
 
-
 export type IssueStatus = "resolved" | "ignored" | "unresolved";
 
 /** Where a group's status is set for an outside writer: Sentry's own issue for a mirrored group, else the group row. */
-export function sentryStatusFor(group: { external?: { provider: string } }, status: GroupStatus): IssueStatus | null {
+export function sentryStatusFor(
+  group: { external?: { provider: string } },
+  status: GroupStatus,
+): IssueStatus | null {
   if (group.external?.provider !== "sentry" || status === "muted") return null;
   return status === "open" ? "unresolved" : status;
 }

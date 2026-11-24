@@ -3,13 +3,26 @@
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Columns2, FileCode, FileText, GitPullRequest, Image as ImageIcon, Paperclip } from "lucide-react";
+import {
+  ArrowUpRight,
+  Columns2,
+  FileCode,
+  FileText,
+  GitPullRequest,
+  Image as ImageIcon,
+  Paperclip,
+} from "lucide-react";
 import { useTeamTaskStatusList } from "../../lib/taskStatuses";
 import { openBrowserPane } from "../../lib/stage";
 import { pageFrameSrc, pageShareUrl } from "../../lib/publishedPageUrls";
 import { TaskStatusBadge } from "../TaskStatusBadge";
 import { ImageGalleryProvider, useImageGallery } from "../ImageGallery";
-import { useSyncTaskEvidence, useTaskEvidence, type TaskEvidencePage, type TaskEvidenceRow } from "../../hooks/useSyncTaskEvidence";
+import {
+  useSyncTaskEvidence,
+  useTaskEvidence,
+  type TaskEvidencePage,
+  type TaskEvidenceRow,
+} from "../../hooks/useSyncTaskEvidence";
 import { stationLabel, stationOf, type LineTask } from "../../lib/taskLine";
 import { ReviewVerdictChip } from "./StationStrip";
 import { ChangeGuideWalkthrough } from "./ChangeGuideWalkthrough";
@@ -29,29 +42,59 @@ type EvidenceTask = LineTask & {
 
 function PageCard({ page }: { page: TaskEvidencePage }) {
   return (
-    <div className="group flex flex-col w-[152px] shrink-0 rounded-lg border border-sol-border/40 bg-sol-card/40 overflow-hidden hover:border-sol-border transition-colors" data-evidence-page={page.slug}>
-      <a href={pageShareUrl(page.slug)} target="_blank" rel="noopener noreferrer" className="block h-[88px] bg-sol-bg-highlight/60" title="Open in full">
+    <div
+      className="group flex flex-col w-[152px] shrink-0 rounded-lg border border-sol-border/40 bg-sol-card/40 overflow-hidden hover:border-sol-border transition-colors"
+      data-evidence-page={page.slug}
+    >
+      <a
+        href={pageShareUrl(page.slug)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-[88px] bg-sol-bg-highlight/60"
+        title="Open in full"
+      >
         {page.thumbnail_url ? (
-          <img src={page.thumbnail_url} alt="" className="w-full h-full object-cover object-top" loading="lazy" />
+          <img
+            src={page.thumbnail_url}
+            alt=""
+            className="w-full h-full object-cover object-top"
+            loading="lazy"
+          />
         ) : (
-          <span className="flex items-center justify-center w-full h-full text-sol-text-dim"><FileText className="w-5 h-5" /></span>
+          <span className="flex items-center justify-center w-full h-full text-sol-text-dim">
+            <FileText className="w-5 h-5" />
+          </span>
         )}
       </a>
       <div className="px-2 py-1.5 min-w-0">
-        <div className="text-meta text-sol-text truncate" title={page.title}>{page.title}</div>
+        <div className="text-meta text-sol-text truncate" title={page.title}>
+          {page.title}
+        </div>
         <div className="mt-1 flex items-center gap-1 text-meta text-sol-text-dim">
           <span className="font-mono">v{page.version}</span>
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openBrowserPane({ kind: "url", url: pageFrameSrc(page.slug) }); }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openBrowserPane({ kind: "url", url: pageFrameSrc(page.slug) });
+            }}
             className="ml-auto inline-flex items-center gap-0.5 hover:text-sol-violet"
             title="Open beside your work, as a pane"
             aria-label="Open in a pane"
           >
-            <Columns2 className="w-3 h-3" />pane
+            <Columns2 className="w-3 h-3" />
+            pane
           </button>
-          <a href={pageShareUrl(page.slug)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 hover:text-sol-blue" title="Open in full">
-            <ArrowUpRight className="w-3 h-3" />open
+          <a
+            href={pageShareUrl(page.slug)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 hover:text-sol-blue"
+            title="Open in full"
+          >
+            <ArrowUpRight className="w-3 h-3" />
+            open
           </a>
         </div>
       </div>
@@ -72,9 +115,16 @@ function FilesChanged({ files }: { files: string[] }) {
           const fileName = parts.pop();
           const dirPath = parts.join("/");
           return (
-            <div key={f} className="flex items-center gap-1.5 text-xs font-mono py-0.5 pl-2 hover:bg-sol-bg-alt/20 rounded-r transition-colors min-w-0">
+            <div
+              key={f}
+              className="flex items-center gap-1.5 text-xs font-mono py-0.5 pl-2 hover:bg-sol-bg-alt/20 rounded-r transition-colors min-w-0"
+            >
               <FileText className="w-3 h-3 text-sol-text-dim/50 flex-shrink-0" />
-              {dirPath && <span className="text-sol-text-dim/50 truncate">{dirPath}/</span>}
+              {dirPath && (
+                <span className="text-sol-text-dim/50 truncate">
+                  {dirPath}/
+                </span>
+              )}
               <span className="text-sol-text-muted truncate">{fileName}</span>
             </div>
           );
@@ -100,11 +150,15 @@ function TaskEvidenceContent({ task }: { task: EvidenceTask }) {
   // The task row already carries the handoff fields; the evidence row adds
   // pages, docs, images and the PR. Either paints alone.
   const files = row?.files_changed ?? task.files_changed ?? [];
-  const verification = row?.verification_evidence ?? task.verification_evidence ?? null;
+  const verification =
+    row?.verification_evidence ?? task.verification_evidence ?? null;
   // A problem's execution status is its last run session's handoff, not the task's state:
   // "Blocked" beside an open problem contradicts its status, so a problem shows it only while it is blocked.
   const rawExecution = row?.execution_status ?? task.execution_status ?? null;
-  const execution = (task as { cause?: unknown }).cause && task.status !== "blocked" ? null : rawExecution;
+  const execution =
+    (task as { cause?: unknown }).cause && task.status !== "blocked"
+      ? null
+      : rawExecution;
   const verdict = row?.review_verdict ?? task.review_verdict ?? null;
   const stations = row?.stations ?? [];
   const docs = row?.docs ?? [];
@@ -114,20 +168,43 @@ function TaskEvidenceContent({ task }: { task: EvidenceTask }) {
   const groups = useMemo(() => {
     const current = stationOf(task);
     // The current station first, then the rest in the order the server gave.
-    return [...stations].sort((a, b) => Number(b.station === current) - Number(a.station === current));
+    return [...stations].sort(
+      (a, b) => Number(b.station === current) - Number(a.station === current),
+    );
   }, [stations, task.status, task.status_id]);
-  const empty = !guide && stations.length === 0 && docs.length === 0 && images.length === 0 && files.length === 0 && !verification && !pr && !verdict && !execution;
+  const empty =
+    !guide &&
+    stations.length === 0 &&
+    docs.length === 0 &&
+    images.length === 0 &&
+    files.length === 0 &&
+    !verification &&
+    !pr &&
+    !verdict &&
+    !execution;
 
   return (
     <div className="mb-6" data-task-evidence={empty ? "empty" : "filled"}>
       <h2 className="text-xs font-medium text-sol-text-dim uppercase tracking-wide mb-2 flex items-center gap-1.5">
         <Paperclip className="w-3.5 h-3.5" />
         Evidence
-        {execution && <TaskStatusBadge status={execution as any} type="execution" className="normal-case tracking-normal" />}
-        <ReviewVerdictChip verdict={verdict} className="normal-case tracking-normal" />
+        {execution && (
+          <TaskStatusBadge
+            status={execution as any}
+            type="execution"
+            className="normal-case tracking-normal"
+          />
+        )}
+        <ReviewVerdictChip
+          verdict={verdict}
+          className="normal-case tracking-normal"
+        />
       </h2>
       {empty ? (
-        <p className="text-xs text-sol-text-dim" data-evidence-empty>Nothing attached yet. A handoff, a published page or a review adds to this.</p>
+        <p className="text-xs text-sol-text-dim" data-evidence-empty>
+          Nothing attached yet. A handoff, a published page or a review adds to
+          this.
+        </p>
       ) : (
         <div className="border border-sol-border/30 rounded-lg bg-sol-bg-alt/20 p-4 space-y-4 border-l-2 border-l-sol-cyan/30">
           {/* The author's tour reads first: it is how the change wants to be reviewed. */}
@@ -135,27 +212,45 @@ function TaskEvidenceContent({ task }: { task: EvidenceTask }) {
           {groups.map((g) => (
             <div key={g.station || "unfiled"} data-evidence-station={g.station}>
               <div className="text-xs font-medium text-sol-text-dim mb-2">
-                {stationLabel(g.station, statuses)} <span className="text-sol-text-dim/60">· {g.pages.length} {g.pages.length === 1 ? "page" : "pages"}</span>
+                {stationLabel(g.station, statuses)}{" "}
+                <span className="text-sol-text-dim/60">
+                  · {g.pages.length} {g.pages.length === 1 ? "page" : "pages"}
+                </span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-                {g.pages.map((p) => <PageCard key={p.id} page={p} />)}
+                {g.pages.map((p) => (
+                  <PageCard key={p.id} page={p} />
+                ))}
               </div>
             </div>
           ))}
           {images.length > 0 && (
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-sol-text-dim mb-2"><ImageIcon className="w-3.5 h-3.5" />Images ({images.length})</div>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-sol-text-dim mb-2">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Images ({images.length})
+              </div>
               <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
                 {images.map((img, index) => (
                   <button
                     key={`${img.message_id}:${img.url}`}
                     type="button"
-                    onClick={() => gallery?.openList(images.map(({ url }) => ({ src: url, href: url })), index)}
+                    onClick={() =>
+                      gallery?.openList(
+                        images.map(({ url }) => ({ src: url, href: url })),
+                        index,
+                      )
+                    }
                     className="block w-[104px] h-[72px] shrink-0 rounded-md border border-sol-border/40 overflow-hidden bg-sol-bg-highlight/60 hover:border-sol-border"
                     title="Open the image"
                     aria-label={`Open evidence image ${index + 1} of ${images.length}`}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <img
+                      src={img.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   </button>
                 ))}
               </div>
@@ -163,13 +258,25 @@ function TaskEvidenceContent({ task }: { task: EvidenceTask }) {
           )}
           {docs.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-sol-text-dim mb-1.5">Docs</div>
+              <div className="text-xs font-medium text-sol-text-dim mb-1.5">
+                Docs
+              </div>
               <ul className="space-y-0.5">
                 {docs.map((d) => (
-                  <li key={d.id} className="text-xs min-w-0 flex items-center gap-1.5">
+                  <li
+                    key={d.id}
+                    className="text-xs min-w-0 flex items-center gap-1.5"
+                  >
                     <FileText className="w-3 h-3 text-sol-text-dim shrink-0" />
-                    <Link href={d.href} className="truncate text-sol-text-muted hover:text-sol-blue">{d.title}</Link>
-                    <span className="text-meta text-sol-text-dim shrink-0">{d.doc_type}</span>
+                    <Link
+                      href={d.href}
+                      className="truncate text-sol-text-muted hover:text-sol-blue"
+                    >
+                      {d.title}
+                    </Link>
+                    <span className="text-meta text-sol-text-dim shrink-0">
+                      {d.doc_type}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -179,19 +286,36 @@ function TaskEvidenceContent({ task }: { task: EvidenceTask }) {
           {pr && (
             <div className="text-xs flex items-center gap-1.5 min-w-0">
               <GitPullRequest className="w-3.5 h-3.5 text-sol-text-dim shrink-0" />
-              <a href={pr} target="_blank" rel="noopener noreferrer" className="truncate text-sol-cyan hover:underline">{pr}</a>
+              <a
+                href={pr}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="truncate text-sol-cyan hover:underline"
+              >
+                {pr}
+              </a>
             </div>
           )}
           {verification && (
             <div>
-              <div className="text-xs font-medium text-sol-text-dim mb-1.5">Verification</div>
-              <MarkdownRenderer content={verification} className="text-sm text-sol-text-muted prose-sm prose-invert max-w-none" />
+              <div className="text-xs font-medium text-sol-text-dim mb-1.5">
+                Verification
+              </div>
+              <MarkdownRenderer
+                content={verification}
+                className="text-sm text-sol-text-muted prose-sm prose-invert max-w-none"
+              />
             </div>
           )}
           {verdict?.note && (
             <div>
-              <div className="text-xs font-medium text-sol-text-dim mb-1.5">Review note</div>
-              <MarkdownRenderer content={verdict.note} className="text-sm text-sol-text-muted prose-sm prose-invert max-w-none" />
+              <div className="text-xs font-medium text-sol-text-dim mb-1.5">
+                Review note
+              </div>
+              <MarkdownRenderer
+                content={verdict.note}
+                className="text-sm text-sol-text-muted prose-sm prose-invert max-w-none"
+              />
             </div>
           )}
         </div>

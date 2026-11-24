@@ -74,7 +74,11 @@ export async function runHook(
   }
 
   const env = buildHookEnv(ctx, hook);
-  const { exitCode, output } = await execScript(scriptPath, ctx.worktreePath, env);
+  const { exitCode, output } = await execScript(
+    scriptPath,
+    ctx.worktreePath,
+    env,
+  );
 
   if (exitCode !== 0) {
     throw new HookError(

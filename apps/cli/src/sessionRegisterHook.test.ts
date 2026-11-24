@@ -10,15 +10,34 @@ let home: string;
 let hookFile: string;
 let bin: string;
 
-function run(payload: Record<string, unknown>, extraEnv: Record<string, string> = {}): void {
+function run(
+  payload: Record<string, unknown>,
+  extraEnv: Record<string, string> = {},
+): void {
   execFileSync("bash", [hookFile], {
     input: JSON.stringify(payload),
-    env: { ...process.env, CODECAST_SDK_SESSION: "", HOME: home, CODECAST_DIR: path.join(home, ".codecast"), PATH: `${bin}:${process.env.PATH}`, ...extraEnv },
+    env: {
+      ...process.env,
+      CODECAST_SDK_SESSION: "",
+      HOME: home,
+      CODECAST_DIR: path.join(home, ".codecast"),
+      PATH: `${bin}:${process.env.PATH}`,
+      ...extraEnv,
+    },
   });
 }
 
-function claim(sessionId: string): { pid: number; tty: string; launch_token: string } {
-  return JSON.parse(fs.readFileSync(path.join(home, ".codecast", "session-registry", `${sessionId}.json`), "utf-8"));
+function claim(sessionId: string): {
+  pid: number;
+  tty: string;
+  launch_token: string;
+} {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(home, ".codecast", "session-registry", `${sessionId}.json`),
+      "utf-8",
+    ),
+  );
 }
 
 beforeAll(() => {
@@ -27,18 +46,33 @@ beforeAll(() => {
   fs.writeFileSync(hookFile, SESSION_REGISTER_HOOK, { mode: 0o755 });
   bin = path.join(home, "bin");
   fs.mkdirSync(bin, { recursive: true });
-  fs.writeFileSync(path.join(bin, "python3"), "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n", { mode: 0o755 });
-  fs.writeFileSync(path.join(bin, "ps"), `#!/bin/sh
+  fs.writeFileSync(
+    path.join(bin, "python3"),
+    "#!/bin/sh\necho PYTHON_CALLED >&2\nexit 1\n",
+    { mode: 0o755 },
+  );
+  fs.writeFileSync(
+    path.join(bin, "ps"),
+    `#!/bin/sh
 if [ "$1" = "-o" ] && [ "$2" = "comm=" ]; then echo claude; exit 0; fi
 if [ "$1" = "-o" ] && [ "$2" = "ppid=" ]; then echo 1; exit 0; fi
 if [ "$1" = "-o" ] && [ "$2" = "tty=" ]; then echo ttys001; exit 0; fi
 exit 0
-`, { mode: 0o755 });
+`,
+    { mode: 0o755 },
+  );
 });
 
 test("a session on the SDK backend writes no claim: it has no terminal", () => {
-  run({ session_id: "sdk-sess", hook_event_name: "SessionStart" }, { CODECAST_SDK_SESSION: "1" });
-  expect(fs.existsSync(path.join(home, ".codecast", "session-registry", "sdk-sess.json"))).toBe(false);
+  run(
+    { session_id: "sdk-sess", hook_event_name: "SessionStart" },
+    { CODECAST_SDK_SESSION: "1" },
+  );
+  expect(
+    fs.existsSync(
+      path.join(home, ".codecast", "session-registry", "sdk-sess.json"),
+    ),
+  ).toBe(false);
   run({ session_id: "tty-sess", hook_event_name: "SessionStart" });
   expect(claim("tty-sess").tty).toBe("ttys001");
 });
@@ -67,7 +101,10 @@ describe("session-register hook", () => {
   });
 
   test("forwards the launch token", () => {
-    run({ session_id: "reg-tok", hook_event_name: "SessionStart" }, { CODECAST_LAUNCH_TOKEN: "tok-abc" });
+    run(
+      { session_id: "reg-tok", hook_event_name: "SessionStart" },
+      { CODECAST_LAUNCH_TOKEN: "tok-abc" },
+    );
     expect(claim("reg-tok").launch_token).toBe("tok-abc");
   });
 
@@ -75,7 +112,13 @@ describe("session-register hook", () => {
     const id = "reg-live";
     const dir = path.join(home, ".codecast", "session-registry");
     fs.mkdirSync(dir, { recursive: true });
-    const existing = { pid: process.pid, tty: "ttys999", ts: 1, term: "test", launch_token: "old" };
+    const existing = {
+      pid: process.pid,
+      tty: "ttys999",
+      ts: 1,
+      term: "test",
+      launch_token: "old",
+    };
     fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify(existing));
     run({ session_id: id, hook_event_name: "UserPromptSubmit" });
     expect(claim(id)).toEqual(existing);
@@ -87,7 +130,16 @@ describe("session-register hook", () => {
     const id = "reg-relaunch";
     const dir = path.join(home, ".codecast", "session-registry");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ pid: process.pid, tty: "ttys999", ts: 1, term: "test", launch_token: "" }));
+    fs.writeFileSync(
+      path.join(dir, `${id}.json`),
+      JSON.stringify({
+        pid: process.pid,
+        tty: "ttys999",
+        ts: 1,
+        term: "test",
+        launch_token: "",
+      }),
+    );
     run({ session_id: id, hook_event_name: "SessionStart", source: "resume" });
     expect(claim(id).tty).toBe("ttys001");
   });
@@ -96,7 +148,16 @@ describe("session-register hook", () => {
     const id = "reg-dead";
     const dir = path.join(home, ".codecast", "session-registry");
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, `${id}.json`), JSON.stringify({ pid: 99999999, tty: "ttys000", ts: 1, term: "test", launch_token: "" }));
+    fs.writeFileSync(
+      path.join(dir, `${id}.json`),
+      JSON.stringify({
+        pid: 99999999,
+        tty: "ttys000",
+        ts: 1,
+        term: "test",
+        launch_token: "",
+      }),
+    );
     run({ session_id: id, hook_event_name: "UserPromptSubmit" });
     expect(claim(id).tty).toBe("ttys001");
     expect(claim(id).pid).not.toBe(99999999);
@@ -105,15 +166,31 @@ describe("session-register hook", () => {
   describe("headless run parent declaration", () => {
     const configDir = () => path.join(home, ".codecast");
     const headless = (id: string, env: Record<string, string>) =>
-      run({ session_id: id, hook_event_name: "SessionStart", source: "startup" }, { CODECAST_DIR: "", CODECAST_CONVERSATION_ID: "", CLAUDE_CODE_ENTRYPOINT: "", ...env });
+      run(
+        { session_id: id, hook_event_name: "SessionStart", source: "startup" },
+        {
+          CODECAST_DIR: "",
+          CODECAST_CONVERSATION_ID: "",
+          CLAUDE_CODE_ENTRYPOINT: "",
+          ...env,
+        },
+      );
 
     test("names the conversation the run inherited", () => {
-      headless("hl-1", { CODECAST_CONVERSATION_ID: "jx7parent", CLAUDE_CODE_ENTRYPOINT: "sdk-cli" });
-      expect(declaredSpawnParent(configDir(), "hl-1")).toEqual({ conversationId: "jx7parent" });
+      headless("hl-1", {
+        CODECAST_CONVERSATION_ID: "jx7parent",
+        CLAUDE_CODE_ENTRYPOINT: "sdk-cli",
+      });
+      expect(declaredSpawnParent(configDir(), "hl-1")).toEqual({
+        conversationId: "jx7parent",
+      });
     });
 
     test("an interactive session declares nothing, even with a conversation id of its own", () => {
-      headless("hl-2", { CODECAST_CONVERSATION_ID: "jx7self", CLAUDE_CODE_ENTRYPOINT: "cli" });
+      headless("hl-2", {
+        CODECAST_CONVERSATION_ID: "jx7self",
+        CLAUDE_CODE_ENTRYPOINT: "cli",
+      });
       expect(declaredSpawnParent(configDir(), "hl-2")).toBeNull();
     });
 
@@ -123,19 +200,39 @@ describe("session-register hook", () => {
     });
 
     test("an Agent SDK run declares too", () => {
-      headless("hl-5", { CODECAST_CONVERSATION_ID: "jx7parent", CLAUDE_CODE_ENTRYPOINT: "sdk-py" });
-      expect(declaredSpawnParent(configDir(), "hl-5")).toEqual({ conversationId: "jx7parent" });
+      headless("hl-5", {
+        CODECAST_CONVERSATION_ID: "jx7parent",
+        CLAUDE_CODE_ENTRYPOINT: "sdk-py",
+      });
+      expect(declaredSpawnParent(configDir(), "hl-5")).toEqual({
+        conversationId: "jx7parent",
+      });
     });
 
     test("a resumed headless run declares nothing", () => {
-      run({ session_id: "hl-6", hook_event_name: "SessionStart", source: "resume" }, { CODECAST_CONVERSATION_ID: "jx7parent", CLAUDE_CODE_ENTRYPOINT: "sdk-cli" });
+      run(
+        {
+          session_id: "hl-6",
+          hook_event_name: "SessionStart",
+          source: "resume",
+        },
+        {
+          CODECAST_CONVERSATION_ID: "jx7parent",
+          CLAUDE_CODE_ENTRYPOINT: "sdk-cli",
+        },
+      );
       expect(declaredSpawnParent(configDir(), "hl-6")).toBeNull();
     });
 
     test("a declaration cast exec wrote first wins", () => {
       declareSpawnParent(configDir(), "hl-4", "caller-session");
-      headless("hl-4", { CODECAST_CONVERSATION_ID: "jx7parent", CLAUDE_CODE_ENTRYPOINT: "sdk-cli" });
-      expect(declaredSpawnParent(configDir(), "hl-4")).toEqual({ sessionId: "caller-session" });
+      headless("hl-4", {
+        CODECAST_CONVERSATION_ID: "jx7parent",
+        CLAUDE_CODE_ENTRYPOINT: "sdk-cli",
+      });
+      expect(declaredSpawnParent(configDir(), "hl-4")).toEqual({
+        sessionId: "caller-session",
+      });
     });
   });
 });

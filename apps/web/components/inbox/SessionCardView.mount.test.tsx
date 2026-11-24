@@ -9,7 +9,13 @@ import { MemoryRouter } from "react-router";
 import { useInboxStore, type InboxSession } from "../../store/inboxStore";
 import { SessionCardView, type SessionCardViewProps } from "./SessionCardView";
 import { SectionHeader } from "./SectionHeader";
-import { NavCount, NavSection, NeedsInputCount, RailHeading, SectionRow } from "../sidebar/navPrimitives";
+import {
+  NavCount,
+  NavSection,
+  NeedsInputCount,
+  RailHeading,
+  SectionRow,
+} from "../sidebar/navPrimitives";
 import { SearchField } from "../search/SearchField";
 import { SessionHit } from "../search/SessionHit";
 import { DEFAULT_IDENTITY_PREFS } from "../../lib/sessionIdentity";
@@ -41,7 +47,12 @@ const cardProps: SessionCardViewProps = {
   isFavorite: true,
   sessionLabel: "Payments",
   now: NOW,
-  chrome: { showModelBadge: false, showAgentIcon: true, showBranchPill: true, prefs: DEFAULT_IDENTITY_PREFS },
+  chrome: {
+    showModelBadge: false,
+    showAgentIcon: true,
+    showBranchPill: true,
+    prefs: DEFAULT_IDENTITY_PREFS,
+  },
   liveness: { isLive: true, pendingSend: false, restarting: false, draft: "" },
   viewerId: "me",
   author: null,
@@ -53,7 +64,8 @@ const cardProps: SessionCardViewProps = {
   onClose: noop,
 };
 
-const render = (el: React.ReactElement) => renderToStaticMarkup(<MemoryRouter>{el}</MemoryRouter>);
+const render = (el: React.ReactElement) =>
+  renderToStaticMarkup(<MemoryRouter>{el}</MemoryRouter>);
 
 test("the views render from props alone and leave the store untouched", () => {
   const before = useInboxStore.getState();
@@ -66,19 +78,49 @@ test("the views render from props alone and leave the store untouched", () => {
   expect(card).toContain("Payments");
   expect(card).toContain('title="Working"');
 
-  const sub = render(<SessionCardView {...cardProps} session={{ ...session, is_subagent: true, parent_conversation_id: "p" } as InboxSession} />);
+  const sub = render(
+    <SessionCardView
+      {...cardProps}
+      session={
+        {
+          ...session,
+          is_subagent: true,
+          parent_conversation_id: "p",
+        } as InboxSession
+      }
+    />,
+  );
   expect(sub).toContain('aria-label="Subagent"');
 
-  expect(render(<SectionHeader label="Needs you" count={3} color="text-sol-yellow" sectionKey="needs_input" collapsed={false} />))
-    .toContain('data-inbox-section-count="3"');
+  expect(
+    render(
+      <SectionHeader
+        label="Needs you"
+        count={3}
+        color="text-sol-yellow"
+        sectionKey="needs_input"
+        collapsed={false}
+      />,
+    ),
+  ).toContain('data-inbox-section-count="3"');
 
   const rail = render(
     <>
       <RailHeading label="Work" isNarrow={false} />
       <NeedsInputCount n={4} />
-      <NavSection label="Tasks" href="/tasks" isActive={false} isNarrow={false} icon={null} badge={<NavCount n={7} tone="bg-sol-cyan text-sol-bg" />}
-        expanded items={[{ id: "v1", name: "Ready to ship", onSelect: noop }]} />
-      <SectionRow row={{ id: "v2", name: "#eng", active: true, onSelect: noop }} />
+      <NavSection
+        label="Tasks"
+        href="/tasks"
+        isActive={false}
+        isNarrow={false}
+        icon={null}
+        badge={<NavCount n={7} tone="bg-sol-cyan text-sol-bg" />}
+        expanded
+        items={[{ id: "v1", name: "Ready to ship", onSelect: noop }]}
+      />
+      <SectionRow
+        row={{ id: "v2", name: "#eng", active: true, onSelect: noop }}
+      />
     </>,
   );
   expect(rail).toContain(">Work<");
@@ -92,7 +134,23 @@ test("the views render from props alone and leave the store untouched", () => {
         highlight="retry"
         selected
         hrefFor={(r) => `/conversation/${r.conversationId}`}
-        row={{ conversationId: "c-hero-1", title: "Webhook API half", isOwn: true, authorName: "Me", messageCount: 24, updatedAt: NOW, matchCount: 1, matches: [{ messageId: "m1", role: "user", content: "make the retry idempotent", timestamp: NOW }] }}
+        row={{
+          conversationId: "c-hero-1",
+          title: "Webhook API half",
+          isOwn: true,
+          authorName: "Me",
+          messageCount: 24,
+          updatedAt: NOW,
+          matchCount: 1,
+          matches: [
+            {
+              messageId: "m1",
+              role: "user",
+              content: "make the retry idempotent",
+              timestamp: NOW,
+            },
+          ],
+        }}
       />
     </>,
   );

@@ -18,10 +18,31 @@ import { prepareBrowserApp } from "./appIdentity.js";
 import * as path from "node:path";
 import { execFileSync, execSync, spawn } from "../proc.js";
 import { setTimeout as sleep } from "node:timers/promises";
-import { isCdpAlive, listTargets, type CdpClient, type CdpTarget } from "./cdp.js";
-import { enablePageDomains, isReachable, TabUnresponsive, type EnablePatience } from "./recovery.js";
-import { browserHome, clonePath, chromeUserDataRoot, type ChromeChannel } from "./profile.js";
-import { findChromeBinary, chromeBinaryProbes, isPidAlive, keychainArgs, ChromeNotFoundError } from "../workspace/chrome.js";
+import {
+  isCdpAlive,
+  listTargets,
+  type CdpClient,
+  type CdpTarget,
+} from "./cdp.js";
+import {
+  enablePageDomains,
+  isReachable,
+  TabUnresponsive,
+  type EnablePatience,
+} from "./recovery.js";
+import {
+  browserHome,
+  clonePath,
+  chromeUserDataRoot,
+  type ChromeChannel,
+} from "./profile.js";
+import {
+  findChromeBinary,
+  chromeBinaryProbes,
+  isPidAlive,
+  keychainArgs,
+  ChromeNotFoundError,
+} from "../workspace/chrome.js";
 import { acquireFileLock } from "../lockFile.js";
 import { linuxDisplayPlan } from "./hostScreen.js";
 import { desktopSession } from "../computer/desktopSession.js";
@@ -59,7 +80,14 @@ export interface InstanceState {
    * again from a registry (remote.ts recordedRemoteHost). A state file written
    * before they were recorded has only host and user.
    */
-  remote?: { host: string; user: string; sshPid?: number; keyPath?: string; remoteBaseDir?: string; homeDir?: string };
+  remote?: {
+    host: string;
+    user: string;
+    sshPid?: number;
+    keyPath?: string;
+    remoteBaseDir?: string;
+    homeDir?: string;
+  };
   /**
    * The tab each SESSION is working in, keyed by session id.
    *
@@ -93,7 +121,16 @@ export interface InstanceState {
    * makes "the page is 390 wide" a property of the tab rather than of one
    * command, which is what anyone checking a breakpoint expects.
    */
-  viewportByTab?: Record<string, { width: number; height: number; scale: number; mobile: boolean; userAgent?: string }>;
+  viewportByTab?: Record<
+    string,
+    {
+      width: number;
+      height: number;
+      scale: number;
+      mobile: boolean;
+      userAgent?: string;
+    }
+  >;
   /**
    * The last URL each tab was ASKED for, and where that request actually
    * landed.
@@ -186,22 +223,32 @@ export function clearState(): void {
  * is stopped here and the verdict is the exit this probe then observed. Only a
  * local browser: for a remote one the pid is its idle ssh tunnel.
  */
-export async function probeLiveness(state: InstanceState | null, patienceMs = 4000): Promise<LivenessVerdict> {
+export async function probeLiveness(
+  state: InstanceState | null,
+  patienceMs = 4000,
+): Promise<LivenessVerdict> {
   if (!state || !isPidAlive(state.pid)) return "exited";
   const before = processActivity(state.pid);
   const deadline = Date.now() + patienceMs;
   for (;;) {
     const left = deadline - Date.now();
     if (left <= 0) break;
-    if (await isCdpAlive(state.port, Math.min(Math.max(left, 250), 2000))) return "live";
+    if (await isCdpAlive(state.port, Math.min(Math.max(left, 250), 2000)))
+      return "live";
     if (!isPidAlive(state.pid)) return "exited";
-    if (deadline - Date.now() > 0) await sleep(Math.min(400, deadline - Date.now()));
+    if (deadline - Date.now() > 0)
+      await sleep(Math.min(400, deadline - Date.now()));
   }
   // The process asking is never the one hung. Nor is a remote browser's pid
   // evidence of anything: it is the `ssh -N` forward, which sleeps with no CPU
   // whenever nothing crosses it, and stopping it would cut a working browser
   // off and let a local one be launched over it.
-  if (state.pid === process.pid || state.remote || !isHung(before, processActivity(state.pid))) return "unverifiable";
+  if (
+    state.pid === process.pid ||
+    state.remote ||
+    !isHung(before, processActivity(state.pid))
+  )
+    return "unverifiable";
   await stopInstance(state);
   return isPidAlive(state.pid) ? "unverifiable" : "exited";
 }
@@ -223,9 +270,18 @@ export function processActivity(pid: number): ProcessActivity | null {
         const s = fs.readFileSync(`/proc/${pid}/task/${t}/stat`, "utf-8");
         return s.slice(s.lastIndexOf(")") + 2, s.lastIndexOf(")") + 3);
       });
-      return { cpu: Number(fields[11]) + Number(fields[12]), asleep: states.every((s) => s === "S" || s === "I") };
+      return {
+        cpu: Number(fields[11]) + Number(fields[12]),
+        asleep: states.every((s) => s === "S" || s === "I"),
+      };
     }
-    const [stat, time] = execFileSync("ps", ["-o", "stat=,time=", "-p", String(pid)], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim().split(/\s+/);
+    const [stat, time] = execFileSync(
+      "ps",
+      ["-o", "stat=,time=", "-p", String(pid)],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] },
+    )
+      .trim()
+      .split(/\s+/);
     return { cpu: parsePsTime(time), asleep: /^[SI]/.test(stat) };
   } catch {
     return null;
@@ -235,7 +291,9 @@ export function processActivity(pid: number): ProcessActivity | null {
 /** `ps` cputime ([[dd-]hh:]mm:ss[.cc]) in hundredths of a second. */
 export function parsePsTime(time: string): number {
   const [days, rest] = time.includes("-") ? time.split("-") : ["0", time];
-  const secs = rest.split(":").reduce((acc, part) => acc * 60 + Number(part), 0);
+  const secs = rest
+    .split(":")
+    .reduce((acc, part) => acc * 60 + Number(part), 0);
   return Math.round((Number(days) * 86400 + secs) * 100);
 }
 
@@ -244,19 +302,26 @@ export function parsePsTime(time: string): number {
  * process was asleep at both ends and its CPU time did not move (one tick of
  * slack for a timer wakeup). Anything unreadable is not evidence.
  */
-export function isHung(before: ProcessActivity | null, after: ProcessActivity | null): boolean {
+export function isHung(
+  before: ProcessActivity | null,
+  after: ProcessActivity | null,
+): boolean {
   if (!before || !after) return false;
   return before.asleep && after.asleep && after.cpu - before.cpu <= 1;
 }
 
 /** Is the recorded instance actually alive and answering CDP? */
-export async function isLive(state: InstanceState | null, patienceMs?: number): Promise<boolean> {
+export async function isLive(
+  state: InstanceState | null,
+  patienceMs?: number,
+): Promise<boolean> {
   return isReachable(await probeLiveness(state, patienceMs));
 }
 
 function chromeBinaryFor(channel: ChromeChannel): string {
   if (channel === "canary") {
-    const p = "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary";
+    const p =
+      "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary";
     if (fs.existsSync(p)) return p;
   }
   const bin = findChromeBinary();
@@ -313,7 +378,9 @@ export function chromeLaunchArgs(opts: LaunchOptions): string[] {
     // succeeds without hardware. The permission prompt is still real; the
     // second flag auto-accepts it browser-wide (fake-media launches are for
     // agent verification work, never a human's browsing).
-    ...(opts.fakeMedia ? ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"] : []),
+    ...(opts.fakeMedia
+      ? ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"]
+      : []),
     ...(opts.headless ? ["--headless=new"] : []),
     ...(opts.extensionDebugging ? ["--enable-unsafe-extension-debugging"] : []),
     ...keychainArgs(),
@@ -324,14 +391,21 @@ export function chromeLaunchArgs(opts: LaunchOptions): string[] {
 /** On macOS, spawning an app bundle's binary makes the OS activate it, so a
  *  headed launch goes through `open -g` instead. */
 function useOpenFor(bin: string, opts: LaunchOptions): boolean {
-  return process.platform === "darwin" && !opts.headless && bin.includes(".app/");
+  return (
+    process.platform === "darwin" && !opts.headless && bin.includes(".app/")
+  );
 }
 
 /** The last lines Chrome wrote before dying, minus the dbus and font noise every Linux launch prints. */
 export function chromeLogTail(file: string, lines = 6): string {
   let text = "";
-  try { text = fs.readFileSync(file, "utf-8"); } catch { return ""; }
-  return text.split("\n")
+  try {
+    text = fs.readFileSync(file, "utf-8");
+  } catch {
+    return "";
+  }
+  return text
+    .split("\n")
     .filter((l) => l.trim() && !/dbus|fontconfig|DevTools listening/i.test(l))
     .slice(-lines)
     .map((l) => `  ${l.slice(0, 300)}`)
@@ -347,7 +421,10 @@ export function chromeLogTail(file: string, lines = 6): string {
  * disk cannot be held by another machine, so such a lock is always stale. A
  * lock naming this machine is left for Chrome, which checks the pid itself.
  */
-export function clearForeignProfileLock(userDataDir: string, hostname = os.hostname()): boolean {
+export function clearForeignProfileLock(
+  userDataDir: string,
+  hostname = os.hostname(),
+): boolean {
   let target: string;
   try {
     target = fs.readlinkSync(path.join(userDataDir, "SingletonLock"));
@@ -357,17 +434,29 @@ export function clearForeignProfileLock(userDataDir: string, hostname = os.hostn
   const holder = target.replace(/-\d+$/, "");
   if (!holder || holder === hostname) return false;
   for (const name of ["SingletonLock", "SingletonCookie", "SingletonSocket"]) {
-    try { fs.unlinkSync(path.join(userDataDir, name)); } catch { /* absent */ }
+    try {
+      fs.unlinkSync(path.join(userDataDir, name));
+    } catch {
+      /* absent */
+    }
   }
   return true;
 }
 
-export async function launchManagedChrome(opts: LaunchOptions): Promise<number> {
+export async function launchManagedChrome(
+  opts: LaunchOptions,
+): Promise<number> {
   const channel = opts.channel ?? "chrome";
-  const linux = process.platform === "linux" ? linuxDisplayPlan(process.env, !!opts.headless) : null;
+  const linux =
+    process.platform === "linux"
+      ? linuxDisplayPlan(process.env, !!opts.headless)
+      : null;
   // A Mac login with no desktop session (a cloud Mac's service login before it
   // is signed in) has no WindowServer to paint into, and a headed launch dies.
-  const headless = linux ? linux.headless : !!opts.headless || (process.platform === "darwin" && desktopSession() === "none");
+  const headless = linux
+    ? linux.headless
+    : !!opts.headless ||
+      (process.platform === "darwin" && desktopSession() === "none");
   opts = { ...opts, headless };
   const prepared = prepareBrowserApp(chromeBinaryFor(channel), headless);
   const bin = prepared.binary;
@@ -377,9 +466,15 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
   if (prepared.branded) args.push("--disable-updater-scheduler");
   // /dev/shm is 64MB on a stock cloud image and Chrome dies silently when it fills.
   if (linux) args.splice(args.length - 1, 0, "--disable-dev-shm-usage");
-  const env = linux?.display ? { ...process.env, DISPLAY: linux.display } : process.env;
+  const env = linux?.display
+    ? { ...process.env, DISPLAY: linux.display }
+    : process.env;
   // Chrome's own account of a launch that dies; the error below quotes its tail.
-  const logPath = path.join(opts.userDataDir, "..", `${path.basename(opts.userDataDir)}.chrome.log`);
+  const logPath = path.join(
+    opts.userDataDir,
+    "..",
+    `${path.basename(opts.userDataDir)}.chrome.log`,
+  );
   const logFd = useOpenFor(bin, opts) ? "ignore" : fs.openSync(logPath, "w");
 
   // On macOS, spawning an app bundle's binary makes the OS activate it, so a
@@ -394,7 +489,11 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
         stdio: ["ignore", "ignore", "ignore"],
         detached: true,
       })
-    : spawn(bin, args, { stdio: ["ignore", logFd, logFd], detached: true, env });
+    : spawn(bin, args, {
+        stdio: ["ignore", logFd, logFd],
+        detached: true,
+        env,
+      });
   if (typeof logFd === "number") fs.closeSync(logFd);
   let spawnError: Error | null = null;
   child.on("error", (err) => {
@@ -415,7 +514,10 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
     // and helpers that inherit the flag but exit independently.
     for (const pid of strayPids(opts.userDataDir)) {
       try {
-        const cmd = execSync(`ps -o command= -p ${pid}`, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+        const cmd = execSync(`ps -o command= -p ${pid}`, {
+          encoding: "utf-8",
+          stdio: ["ignore", "pipe", "ignore"],
+        });
         if (!/--type=/.test(cmd)) return pid;
       } catch {
         /* the process went away between listing and inspecting it */
@@ -431,16 +533,23 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
   const launchedAt = Date.now();
   const deadline = launchedAt + 45_000;
   while (Date.now() < deadline) {
-    if (spawnError) throw new Error(`failed to spawn Chrome at '${bin}': ${(spawnError as Error).message}`);
+    if (spawnError)
+      throw new Error(
+        `failed to spawn Chrome at '${bin}': ${(spawnError as Error).message}`,
+      );
     // Under `open` the launcher exiting is normal and says nothing about
     // Chrome, so the "did it die?" check has to look at the browser itself.
-    const alive = useOpen ? strayPids(opts.userDataDir).length > 0 || Date.now() < launchedAt + 5000 : isPidAlive(child.pid);
+    const alive = useOpen
+      ? strayPids(opts.userDataDir).length > 0 || Date.now() < launchedAt + 5000
+      : isPidAlive(child.pid);
     if (!alive) {
       // Diagnose honestly: the dominant cause is Chrome's profile singleton —
       // another Chrome still holds this user-data-dir, so our launch forwarded
       // its command line to that instance and exited. Reporting this as a
       // debugging restriction sent agents into destructive recovery (--wipe).
-      const holders = strayPids(opts.userDataDir).filter((p) => p !== child.pid);
+      const holders = strayPids(opts.userDataDir).filter(
+        (p) => p !== child.pid,
+      );
       if (holders.length) {
         throw new Error(
           `Chrome exited immediately: another Chrome (pid ${holders[0]}) already holds this profile directory, ` +
@@ -454,7 +563,7 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
         said
           ? `Chrome exited before CDP came up. It said:\n${said}`
           : `Chrome exited before CDP came up. If this profile directory is Chrome's own default, that is expected — ` +
-            `since Chrome 136 the default profile cannot be driven over CDP; clone it instead.`,
+              `since Chrome 136 the default profile cannot be driven over CDP; clone it instead.`,
       );
     }
     if (await isCdpAlive(opts.port)) {
@@ -462,7 +571,9 @@ export async function launchManagedChrome(opts: LaunchOptions): Promise<number> 
       if (pid) return pid;
       // CDP answers but the process cannot be identified — vanishingly rare,
       // and returning a pid that is not Chrome's is worse than saying so.
-      throw new Error("Chrome started and answered CDP, but its process could not be identified");
+      throw new Error(
+        "Chrome started and answered CDP, but its process could not be identified",
+      );
     }
     await sleep(200);
   }
@@ -490,7 +601,9 @@ export async function freePort(): Promise<number> {
     srv.listen(0, "127.0.0.1", () => {
       const addr = srv.address();
       const port = typeof addr === "object" && addr ? addr.port : 0;
-      srv.close(() => (port ? resolve(port) : reject(new Error("could not allocate a port"))));
+      srv.close(() =>
+        port ? resolve(port) : reject(new Error("could not allocate a port")),
+      );
     });
   });
 }
@@ -507,10 +620,14 @@ export function strayPids(userDataDir: string): number[] {
     // because its `sh` execs a lone simple command; Debian's stays. Here that
     // would make `killStrays` shoot its own shell and never reach zero — the
     // same defect the computer helper lookup carried (ct-49945).
-    const out = execFileSync("pgrep", ["-f", "--", `--user-data-dir=${userDataDir}`], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    const out = execFileSync(
+      "pgrep",
+      ["-f", "--", `--user-data-dir=${userDataDir}`],
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
     return out
       .split("\n")
       .map((l) => parseInt(l.trim(), 10))
@@ -535,7 +652,10 @@ export function strayPids(userDataDir: string): number[] {
  * machine a live shared browser answers CDP slowly, and killing it here is how
  * one agent's "recovery" destroyed five other agents' sessions.
  */
-export function killStrayChrome(userDataDir: string, exceptPid?: number): number {
+export function killStrayChrome(
+  userDataDir: string,
+  exceptPid?: number,
+): number {
   let killed = 0;
   for (const pid of strayPids(userDataDir)) {
     if (pid === exceptPid) continue;
@@ -554,7 +674,10 @@ export function killStrayChrome(userDataDir: string, exceptPid?: number): number
  * Launching while one is still exiting hands our command line to a dying
  * Chrome — the launch "succeeds" and nothing listens.
  */
-export async function waitForStraysGone(userDataDir: string, timeoutMs = 5000): Promise<boolean> {
+export async function waitForStraysGone(
+  userDataDir: string,
+  timeoutMs = 5000,
+): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (strayPids(userDataDir).length === 0) return true;
@@ -629,11 +752,18 @@ export { TabUnresponsive };
  * ten seconds is long enough for any healthy page. A blocked tab must fail fast
  * and say how to recover, because the agent cannot see the window.
  */
-export async function attachToTarget(conn: CdpClient, targetId: string, patience?: EnablePatience): Promise<PageSession> {
-  const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", {
-    targetId,
-    flatten: true,
-  });
+export async function attachToTarget(
+  conn: CdpClient,
+  targetId: string,
+  patience?: EnablePatience,
+): Promise<PageSession> {
+  const { sessionId } = await conn.send<{ sessionId: string }>(
+    "Target.attachToTarget",
+    {
+      targetId,
+      flatten: true,
+    },
+  );
   await enablePageDomains(conn, sessionId, targetId, patience);
   return { conn, sessionId, targetId };
 }
@@ -661,11 +791,16 @@ export function pickTarget(
   explicit?: string,
   sessionId?: string | null,
 ): CdpTarget {
-  if (!targets.length) throw new Error("the browser has no open tabs — run `cast browser open <url>`");
+  if (!targets.length)
+    throw new Error(
+      "the browser has no open tabs — run `cast browser open <url>`",
+    );
   if (explicit) {
     const match =
       targets.find((t) => t.targetId === explicit) ||
-      targets.find((t) => t.targetId.toLowerCase().startsWith(explicit.toLowerCase())) ||
+      targets.find((t) =>
+        t.targetId.toLowerCase().startsWith(explicit.toLowerCase()),
+      ) ||
       targets.find((t) => t.url.includes(explicit));
     if (!match) throw new Error(`no tab matching '${explicit}'`);
     return match;
@@ -700,7 +835,9 @@ export function pickTarget(
     const match = targets.find((t) => t.targetId === state.activeTargetId);
     if (match) return match;
   }
-  return (free.length ? free : targets)[Math.max(0, (free.length ? free : targets).length - 1)];
+  return (free.length ? free : targets)[
+    Math.max(0, (free.length ? free : targets).length - 1)
+  ];
 }
 
 /**
@@ -710,7 +847,12 @@ export function pickTarget(
  * agents write this concurrently, and merging into a stale in-memory snapshot
  * would drop whichever claim landed in between.
  */
-export function setActiveTarget(state: InstanceState, targetId: string, sessionId?: string | null, now = Date.now()): void {
+export function setActiveTarget(
+  state: InstanceState,
+  targetId: string,
+  sessionId?: string | null,
+  now = Date.now(),
+): void {
   const current = readState() ?? state;
   const tabs = { ...(current.tabsBySession ?? {}) };
   const seen = { ...(current.sessionSeenAt ?? {}) };
@@ -725,25 +867,44 @@ export function setActiveTarget(state: InstanceState, targetId: string, sessionI
     (!sessionId || tabs[sessionId] === current.tabsBySession?.[sessionId]) &&
     !stampDue;
   if (unchanged) return;
-  writeState({ ...current, activeTargetId: targetId, tabsBySession: tabs, sessionSeenAt: seen });
+  writeState({
+    ...current,
+    activeTargetId: targetId,
+    tabsBySession: tabs,
+    sessionSeenAt: seen,
+  });
 }
 
 /** Record where a navigation was aimed and where it ended up. */
-export function recordNavigation(targetId: string, requested: string, landed: string): void {
+export function recordNavigation(
+  targetId: string,
+  requested: string,
+  landed: string,
+): void {
   const cur = readState();
   if (!cur) return;
-  writeState({ ...cur, navByTab: { ...(cur.navByTab ?? {}), [targetId]: { requested, landed } } });
+  writeState({
+    ...cur,
+    navByTab: { ...(cur.navByTab ?? {}), [targetId]: { requested, landed } },
+  });
 }
 
 /** Drop tabs that no longer exist, so the map cannot grow without bound. */
-export function pruneTabOwnership(state: InstanceState, liveTargetIds: Set<string>): void {
+export function pruneTabOwnership(
+  state: InstanceState,
+  liveTargetIds: Set<string>,
+): void {
   const tabs = state.tabsBySession ?? {};
-  const kept = Object.fromEntries(Object.entries(tabs).filter(([, id]) => liveTargetIds.has(id)));
+  const kept = Object.fromEntries(
+    Object.entries(tabs).filter(([, id]) => liveTargetIds.has(id)),
+  );
   // The per-tab maps are keyed by target id, so a closed tab leaves an entry
   // that can never be reached again. Prune them alongside ownership, or the
   // state file grows for the life of the browser.
-  const byTab = <T,>(m: Record<string, T> | undefined) =>
-    Object.fromEntries(Object.entries(m ?? {}).filter(([id]) => liveTargetIds.has(id)));
+  const byTab = <T>(m: Record<string, T> | undefined) =>
+    Object.fromEntries(
+      Object.entries(m ?? {}).filter(([id]) => liveTargetIds.has(id)),
+    );
   const nav = byTab(state.navByTab);
   const vp = byTab(state.viewportByTab);
   const shrank =
@@ -751,8 +912,16 @@ export function pruneTabOwnership(state: InstanceState, liveTargetIds: Set<strin
     Object.keys(nav).length !== Object.keys(state.navByTab ?? {}).length ||
     Object.keys(vp).length !== Object.keys(state.viewportByTab ?? {}).length;
   if (shrank) {
-    const seen = Object.fromEntries(Object.entries(state.sessionSeenAt ?? {}).filter(([sid]) => sid in kept));
-    writeState({ ...state, tabsBySession: kept, navByTab: nav, viewportByTab: vp, sessionSeenAt: seen });
+    const seen = Object.fromEntries(
+      Object.entries(state.sessionSeenAt ?? {}).filter(([sid]) => sid in kept),
+    );
+    writeState({
+      ...state,
+      tabsBySession: kept,
+      navByTab: nav,
+      viewportByTab: vp,
+      sessionSeenAt: seen,
+    });
   }
 }
 
@@ -785,7 +954,12 @@ const OBSERVER_SOURCE = `(() => {
 
 export async function settle(
   page: PageSession,
-  opts: { timeoutMs?: number; quietMs?: number; staleRequestMs?: number; domOnlyQuietMs?: number } = {},
+  opts: {
+    timeoutMs?: number;
+    quietMs?: number;
+    staleRequestMs?: number;
+    domOnlyQuietMs?: number;
+  } = {},
 ): Promise<{ settled: boolean; reason: string }> {
   const timeoutMs = opts.timeoutMs ?? 15_000;
   const quietMs = opts.quietMs ?? 500;
@@ -815,7 +989,12 @@ export async function settle(
   // A MutationObserver in the page is the cheapest DOM-quiet signal there is:
   // no polling of the tree, just a counter we read.
   await page.conn
-    .send("Runtime.evaluate", { expression: OBSERVER_SOURCE }, page.sessionId, 2_000)
+    .send(
+      "Runtime.evaluate",
+      { expression: OBSERVER_SOURCE },
+      page.sessionId,
+      2_000,
+    )
     .catch(() => {
       /* mid-navigation this never answers; the poll below re-arms it */
     });
@@ -855,7 +1034,12 @@ export async function settle(
       domQuietSince = 0;
       lastMutations = -1;
       await page.conn
-        .send("Runtime.evaluate", { expression: OBSERVER_SOURCE }, page.sessionId, 2_000)
+        .send(
+          "Runtime.evaluate",
+          { expression: OBSERVER_SOURCE },
+          page.sessionId,
+          2_000,
+        )
         .catch(() => {});
       continue;
     }
@@ -893,7 +1077,9 @@ export async function settle(
   }
 
   off();
-  const why = inflight.size ? `${inflight.size} request(s) still in flight` : "the page kept mutating";
+  const why = inflight.size
+    ? `${inflight.size} request(s) still in flight`
+    : "the page kept mutating";
   return { settled: false, reason: why };
 }
 

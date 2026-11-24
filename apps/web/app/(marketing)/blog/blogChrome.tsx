@@ -45,19 +45,52 @@ export function BlogNav({ active = "/blog" }: { active?: string }) {
  * Pass `wrap` for prose-heavy captures (transcript excerpts) whose long lines
  * should flow rather than scroll; leave it off for column-aligned output.
  */
-export function Terminal({ label, wrap = false, children }: { label: string; wrap?: boolean; children: ReactNode }) {
+export function Terminal({
+  label,
+  wrap = false,
+  children,
+}: {
+  label: string;
+  wrap?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="rounded-xl border shadow-xl overflow-hidden my-6" style={{ backgroundColor: SOL.base03, borderColor: "#094959" }}>
-      <div className="flex items-center gap-2 px-4 py-2.5" style={{ backgroundColor: SOL.base02, borderBottom: "1px solid #094959" }}>
+    <div
+      className="rounded-xl border shadow-xl overflow-hidden my-6"
+      style={{ backgroundColor: SOL.base03, borderColor: "#094959" }}
+    >
+      <div
+        className="flex items-center gap-2 px-4 py-2.5"
+        style={{
+          backgroundColor: SOL.base02,
+          borderBottom: "1px solid #094959",
+        }}
+      >
         <div className="flex gap-1.5">
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: SOL.red }} />
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: SOL.yellow }} />
-          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: SOL.green }} />
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: SOL.red }}
+          />
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: SOL.yellow }}
+          />
+          <div
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: SOL.green }}
+          />
         </div>
-        <span className="text-xs font-mono ml-2" style={{ color: SOL.base01 }}>{label}</span>
+        <span className="text-xs font-mono ml-2" style={{ color: SOL.base01 }}>
+          {label}
+        </span>
       </div>
       <div className="overflow-x-auto">
-        <pre className={`p-4 font-mono text-[12px] leading-relaxed${wrap ? " whitespace-pre-wrap break-words" : ""}`} style={{ color: SOL.base0 }}>{children}</pre>
+        <pre
+          className={`p-4 font-mono text-[12px] leading-relaxed${wrap ? " whitespace-pre-wrap break-words" : ""}`}
+          style={{ color: SOL.base0 }}
+        >
+          {children}
+        </pre>
       </div>
     </div>
   );
@@ -77,7 +110,10 @@ export function Cmd({ children }: { children: ReactNode }) {
 /** Section heading inside a post body. */
 export function H2({ children }: { children: ReactNode }) {
   return (
-    <h2 className="text-2xl font-bold font-mono tracking-tight mt-12 mb-4" style={{ color: SOL.base03 }}>
+    <h2
+      className="text-2xl font-bold font-mono tracking-tight mt-12 mb-4"
+      style={{ color: SOL.base03 }}
+    >
       {children}
     </h2>
   );
@@ -85,13 +121,20 @@ export function H2({ children }: { children: ReactNode }) {
 
 /** Body paragraph inside a post. */
 export function P({ children }: { children: ReactNode }) {
-  return <p className="text-[17px] leading-8 mb-5" style={{ color: SOL.base01 }}>{children}</p>;
+  return (
+    <p className="text-[17px] leading-8 mb-5" style={{ color: SOL.base01 }}>
+      {children}
+    </p>
+  );
 }
 
 /** Inline code inside post prose. */
 export function Code({ children }: { children: ReactNode }) {
   return (
-    <code className="font-mono text-[14px] px-1.5 py-0.5 rounded" style={{ backgroundColor: SOL.base2, color: SOL.base02 }}>
+    <code
+      className="font-mono text-[14px] px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: SOL.base2, color: SOL.base02 }}
+    >
       {children}
     </code>
   );
@@ -100,15 +143,33 @@ export function Code({ children }: { children: ReactNode }) {
 /** A figure with a mono caption: the content sits on a bordered card, or on
  *  the page itself when it brings its own frame (`bare`). `wide` lets it
  *  break out of the text column on desktop, for illustrations that need the room. */
-export function Figure({ caption, wide = false, bare = false, children }: { caption: ReactNode; wide?: boolean; bare?: boolean; children: ReactNode }) {
+export function Figure({
+  caption,
+  wide = false,
+  bare = false,
+  children,
+}: {
+  caption: ReactNode;
+  wide?: boolean;
+  bare?: boolean;
+  children: ReactNode;
+}) {
   return (
     <figure className={`my-8${wide ? " md:-mx-20" : ""}`}>
-      {bare ? children : (
-        <div className="rounded-xl border shadow-xl overflow-hidden" style={{ borderColor: SOL.base2, backgroundColor: SOL.base3 }}>
+      {bare ? (
+        children
+      ) : (
+        <div
+          className="rounded-xl border shadow-xl overflow-hidden"
+          style={{ borderColor: SOL.base2, backgroundColor: SOL.base3 }}
+        >
           {children}
         </div>
       )}
-      <figcaption className="mt-3 text-sm font-mono text-center" style={{ color: SOL.base1 }}>
+      <figcaption
+        className="mt-3 text-sm font-mono text-center"
+        style={{ color: SOL.base1 }}
+      >
         {caption}
       </figcaption>
     </figure>
@@ -124,24 +185,59 @@ export function isFramedShot(src: string): boolean {
 
 /** A screenshot with a mono caption. A framed shot (isFramedShot) shows as it
  *  is; a raw capture sits on the bordered card. */
-export function Screenshot({ src, alt, caption, wide = false, eager = false }: { src: string; alt: string; caption: ReactNode; wide?: boolean; eager?: boolean }) {
+export function Screenshot({
+  src,
+  alt,
+  caption,
+  wide = false,
+  eager = false,
+}: {
+  src: string;
+  alt: string;
+  caption: ReactNode;
+  wide?: boolean;
+  eager?: boolean;
+}) {
   return (
     <Figure caption={caption} wide={wide} bare={isFramedShot(src)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className="w-full h-auto block" loading={eager ? "eager" : "lazy"} />
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-auto block"
+        loading={eager ? "eager" : "lazy"}
+      />
     </Figure>
   );
 }
 
 /** Small captures shown at a fixed display width (the PNGs are 2x), centred on a
  *  tinted ground. Several images sit side by side and wrap on narrow screens. */
-export function CardShots({ images, width, caption }: { images: Array<{ src: string; alt: string }>; width: number; caption: ReactNode }) {
+export function CardShots({
+  images,
+  width,
+  caption,
+}: {
+  images: Array<{ src: string; alt: string }>;
+  width: number;
+  caption: ReactNode;
+}) {
   return (
     <Figure caption={caption}>
-      <div className="flex flex-wrap justify-center gap-6 px-4 py-6" style={{ backgroundColor: SOL.base2 }}>
+      <div
+        className="flex flex-wrap justify-center gap-6 px-4 py-6"
+        style={{ backgroundColor: SOL.base2 }}
+      >
         {images.map((image) => (
           // eslint-disable-next-line @next/next/no-img-element
-          <img key={image.src} src={image.src} alt={image.alt} loading="lazy" className="block max-w-full h-auto" style={{ width }} />
+          <img
+            key={image.src}
+            src={image.src}
+            alt={image.alt}
+            loading="lazy"
+            className="block max-w-full h-auto"
+            style={{ width }}
+          />
         ))}
       </div>
     </Figure>
@@ -149,14 +245,27 @@ export function CardShots({ images, width, caption }: { images: Array<{ src: str
 }
 
 /** One small capture; see CardShots. */
-export function CardShot({ src, alt, width, caption }: { src: string; alt: string; width: number; caption: ReactNode }) {
+export function CardShot({
+  src,
+  alt,
+  width,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  width: number;
+  caption: ReactNode;
+}) {
   return <CardShots images={[{ src, alt }]} width={width} caption={caption} />;
 }
 
 /** A prompt as it was typed to an agent, quoted in mono. */
 export function Prompt({ children }: { children: ReactNode }) {
   return (
-    <blockquote className="my-6 border-l-2 pl-5 font-mono text-[15px] leading-relaxed" style={{ borderColor: SOL.base1, color: SOL.base01 }}>
+    <blockquote
+      className="my-6 border-l-2 pl-5 font-mono text-[15px] leading-relaxed"
+      style={{ borderColor: SOL.base1, color: SOL.base01 }}
+    >
       {children}
     </blockquote>
   );

@@ -32,14 +32,25 @@ export function useShareSummaries(paths: string[]): {
   useWatchEffect(() => {
     const list = key ? key.split("\n") : [];
     if (list.length === 0) return;
-    void refresh({ paths: list, force: generation > 0 }).catch((err) => console.error("path stats refresh failed:", err));
+    void refresh({ paths: list, force: generation > 0 }).catch((err) =>
+      console.error("path stats refresh failed:", err),
+    );
   }, [key, generation, refresh]);
 
   const queries = useMemo(() => {
     const list = key ? key.split("\n") : [];
-    const out: Record<string, { query: typeof api.users.shareImpactForPaths; args: { path_prefixes: string[]; day_start: number } }> = {};
+    const out: Record<
+      string,
+      {
+        query: typeof api.users.shareImpactForPaths;
+        args: { path_prefixes: string[]; day_start: number };
+      }
+    > = {};
     for (let i = 0; i < list.length; i += BATCH) {
-      out[String(i)] = { query: api.users.shareImpactForPaths, args: { path_prefixes: list.slice(i, i + BATCH), day_start: dayStart } };
+      out[String(i)] = {
+        query: api.users.shareImpactForPaths,
+        args: { path_prefixes: list.slice(i, i + BATCH), day_start: dayStart },
+      };
     }
     return out;
   }, [key, dayStart]);
@@ -48,7 +59,8 @@ export function useShareSummaries(paths: string[]): {
   const summaries = useMemo(() => {
     const out: Record<string, PathShareSummary> = {};
     for (const value of Object.values(results)) {
-      if (value && !(value instanceof Error)) Object.assign(out, value as Record<string, PathShareSummary>);
+      if (value && !(value instanceof Error))
+        Object.assign(out, value as Record<string, PathShareSummary>);
     }
     return out;
   }, [results]);

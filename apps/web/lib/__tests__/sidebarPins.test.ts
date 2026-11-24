@@ -12,7 +12,9 @@ describe("isThreadsPin", () => {
 
   it("rejects other pins", () => {
     expect(isThreadsPin({ kind: "project", id: "threads" })).toBe(false);
-    expect(isThreadsPin({ kind: "channel", id: "chan1234567890123456789012345678" })).toBe(false);
+    expect(
+      isThreadsPin({ kind: "channel", id: "chan1234567890123456789012345678" }),
+    ).toBe(false);
     expect(isThreadsPin({ kind: "view", id: "v1" })).toBe(false);
   });
 

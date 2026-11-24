@@ -21,8 +21,16 @@ import {
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { useInboxStore } from "../../../store/inboxStore";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
-import { TEAM_ICONS, TEAM_COLORS, type TeamIconName, type TeamColorName } from "../../../components/TeamIcon";
-import { TeamIdentityPicker, type TeamIdentity } from "../../../components/team/TeamIdentityPicker";
+import {
+  TEAM_ICONS,
+  TEAM_COLORS,
+  type TeamIconName,
+  type TeamColorName,
+} from "../../../components/TeamIcon";
+import {
+  TeamIdentityPicker,
+  type TeamIdentity,
+} from "../../../components/team/TeamIdentityPicker";
 import { TeamTaskStatusEditor } from "../../../components/settings/TeamTaskStatusEditor";
 import { TeamFeaturesEditor } from "../../../components/settings/TeamFeaturesEditor";
 import { ManagedDevicesLink } from "../../../components/settings/ManagedDevicesEditor";
@@ -34,12 +42,18 @@ import { TeamDomainAccess } from "../../../components/settings/TeamDomainAccess"
 import { Github, TriangleAlert, Users } from "lucide-react";
 import { SelectBox } from "../../../components/ui/select-box";
 import {
-  SettingsField, SettingsPanel, SettingsSection, SettingsRow,
+  SettingsField,
+  SettingsPanel,
+  SettingsSection,
+  SettingsRow,
 } from "../../../components/settings/ui";
 import { TeamMachines } from "../../../components/settings/TeamMachines";
 import { TeamWorkspaceAgent } from "../../../components/settings/TeamWorkspaceAgent";
 import { SwitchReview } from "../../../components/consequential/ConsequentialSwitch";
-import { destroyTeamLedger, regulatedTeam } from "../../../components/consequential/deletionLedgers";
+import {
+  destroyTeamLedger,
+  regulatedTeam,
+} from "../../../components/consequential/deletionLedgers";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { modernPill } from "../../../components/ui/modernLook";
 
@@ -48,9 +62,13 @@ export default function TeamPage() {
   // Store-backed read: a populated cache paints the panel synchronously
   // instead of blanking it for the getCurrentUser round trip.
   const { user } = useCurrentUser();
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   const effectiveTeamId = activeTeamId;
-  const team = useInboxStore((s) => s.teams.find((t) => t?._id === effectiveTeamId));
+  const team = useInboxStore((s) =>
+    s.teams.find((t) => t?._id === effectiveTeamId),
+  );
   // Team settings and membership paint from the store at once and reach the
   // server through its dispatch, like createTeam and deleteTeam.
   const removeTeamMember = useInboxStore((s) => s.removeTeamMember);
@@ -71,7 +89,9 @@ export default function TeamPage() {
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
   const [isSavingTeamName, setIsSavingTeamName] = useState(false);
   const [isSavingIcon, setIsSavingIcon] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<Id<"users"> | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<Id<"users"> | null>(
+    null,
+  );
   const [isRemoving, setIsRemoving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTyped, setDeleteTyped] = useState("");
@@ -79,11 +99,19 @@ export default function TeamPage() {
   // A regulated team's delete takes its data with it, for good (regulatedDeletion.destroyTeam).
   const [destroyOpen, setDestroyOpen] = useState(false);
   const regulated = !!regulatedTeam(team ? [team] : [], team?._id);
-  const destroyPreview = useQueryNoThrow(api.regulatedDeletion.destroyPreview, destroyOpen && effectiveTeamId ? { team_id: effectiveTeamId } : "skip").data;
-  const [roleChangeInProgress, setRoleChangeInProgress] = useState<Id<"users"> | null>(null);
+  const destroyPreview = useQueryNoThrow(
+    api.regulatedDeletion.destroyPreview,
+    destroyOpen && effectiveTeamId ? { team_id: effectiveTeamId } : "skip",
+  ).data;
+  const [roleChangeInProgress, setRoleChangeInProgress] =
+    useState<Id<"users"> | null>(null);
   const [githubOrgName, setGithubOrgName] = useState("");
   const [isSyncingGithub, setIsSyncingGithub] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ imported: any[]; skipped: any[]; total: number } | null>(null);
+  const [syncResult, setSyncResult] = useState<{
+    imported: any[];
+    skipped: any[];
+    total: number;
+  } | null>(null);
 
   // The dialog belongs to one team. If the active team changes underneath it
   // (the delete landed from another window, or the workspace was switched),
@@ -112,8 +140,12 @@ export default function TeamPage() {
   };
 
   const identity: TeamIdentity = {
-    icon: (TEAM_ICONS as readonly string[]).includes(team?.icon ?? "") ? (team!.icon as TeamIconName) : TEAM_ICONS[0],
-    color: (TEAM_COLORS as readonly string[]).includes(team?.icon_color ?? "") ? (team!.icon_color as TeamColorName) : TEAM_COLORS[0],
+    icon: (TEAM_ICONS as readonly string[]).includes(team?.icon ?? "")
+      ? (team!.icon as TeamIconName)
+      : TEAM_ICONS[0],
+    color: (TEAM_COLORS as readonly string[]).includes(team?.icon_color ?? "")
+      ? (team!.icon_color as TeamColorName)
+      : TEAM_COLORS[0],
   };
 
   const handleIdentityChange = async (next: TeamIdentity) => {
@@ -161,7 +193,10 @@ export default function TeamPage() {
       setDeleteTyped("");
       toast.success(`Deleted ${name}`);
     } catch (error: any) {
-      toast.error(error?.message?.replace(/^.*Uncaught Error: /, "") || "Could not delete the team");
+      toast.error(
+        error?.message?.replace(/^.*Uncaught Error: /, "") ||
+          "Could not delete the team",
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -172,14 +207,22 @@ export default function TeamPage() {
     const name = team.name;
     setDestroyOpen(false);
     try {
-      await useInboxStore.getState().deleteTeam(effectiveTeamId, name, { permanent: true });
+      await useInboxStore
+        .getState()
+        .deleteTeam(effectiveTeamId, name, { permanent: true });
       toast.success(`Deleting ${name} and all its data`);
     } catch (error: any) {
-      toast.error(error?.message?.replace(/^.*Uncaught (Convex)?Error: /, "") || "Could not delete the team");
+      toast.error(
+        error?.message?.replace(/^.*Uncaught (Convex)?Error: /, "") ||
+          "Could not delete the team",
+      );
     }
   };
 
-  const handleRoleChange = async (memberId: Id<"users">, newRole: "member" | "admin") => {
+  const handleRoleChange = async (
+    memberId: Id<"users">,
+    newRole: "member" | "admin",
+  ) => {
     if (!user._id || !effectiveTeamId) return;
     setRoleChangeInProgress(memberId);
     try {
@@ -228,7 +271,8 @@ export default function TeamPage() {
     if (!timestamp) return { status: "offline", text: "Never connected" };
     const diff = Date.now() - timestamp;
     if (diff < 60000) return { status: "online", text: "Online" };
-    if (diff < 300000) return { status: "recent", text: getRelativeTime(timestamp) };
+    if (diff < 300000)
+      return { status: "recent", text: getRelativeTime(timestamp) };
     return { status: "offline", text: getRelativeTime(timestamp) };
   };
 
@@ -244,7 +288,8 @@ export default function TeamPage() {
         <SettingsSection title="Team" icon={Users} padded>
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <p className="max-w-prose text-sm text-sol-text-muted">
-              You are not part of a team yet. Create one to work with your teammates, or join one you were invited to.
+              You are not part of a team yet. Create one to work with your
+              teammates, or join one you were invited to.
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -254,7 +299,11 @@ export default function TeamPage() {
               >
                 Create a team
               </Button>
-              <Button size="sm" variant="outline" onClick={() => goTo("/settings/team/join")}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => goTo("/settings/team/join")}
+              >
                 Join a team
               </Button>
             </div>
@@ -282,7 +331,11 @@ export default function TeamPage() {
             <InviteModal
               teamId={effectiveTeamId}
               trigger={
-                <Button variant="outline" size="sm" className="border-sol-cyan text-sol-cyan">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-sol-cyan text-sol-cyan"
+                >
                   Invite
                 </Button>
               }
@@ -304,7 +357,8 @@ export default function TeamPage() {
                 size="sm"
                 onClick={handleSaveTeamName}
                 disabled={!teamName.trim() || isSavingTeamName}
-                variant="cyan" className="h-8"
+                variant="cyan"
+                className="h-8"
               >
                 {isSavingTeamName ? "..." : "Save"}
               </Button>
@@ -322,7 +376,9 @@ export default function TeamPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-sol-text">{team.name}</span>
+              <span className="text-sm font-medium text-sol-text">
+                {team.name}
+              </span>
               {isAdmin && (
                 <Button
                   variant="ghost"
@@ -336,7 +392,10 @@ export default function TeamPage() {
             </div>
           )}
         </SettingsRow>
-        <TeamWorkspaceAgent teamId={String(effectiveTeamId)} isAdmin={isAdmin} />
+        <TeamWorkspaceAgent
+          teamId={String(effectiveTeamId)}
+          isAdmin={isAdmin}
+        />
         {isAdmin && (
           <SettingsField label="Team icon">
             <TeamIdentityPicker
@@ -362,10 +421,14 @@ export default function TeamPage() {
               syncResult && (
                 <span>
                   <span className="text-sol-text">
-                    Imported {syncResult.imported.length} of {syncResult.total} members
+                    Imported {syncResult.imported.length} of {syncResult.total}{" "}
+                    members
                   </span>
                   {syncResult.skipped.length > 0 && (
-                    <span> · Skipped {syncResult.skipped.length} (already members)</span>
+                    <span>
+                      {" "}
+                      · Skipped {syncResult.skipped.length} (already members)
+                    </span>
                   )}
                 </span>
               )
@@ -398,17 +461,24 @@ export default function TeamPage() {
         icon={Users}
         actions={
           <span className="text-xs text-sol-text-muted">
-            {membersUnknown ? "Could not load members" : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
+            {membersUnknown
+              ? "Could not load members"
+              : `${memberCount} member${memberCount !== 1 ? "s" : ""}`}
           </span>
         }
       >
         {membersUnknown && (
-          <div className="px-4 py-3 text-xs text-sol-text-muted sm:px-5">The member list could not be loaded.</div>
+          <div className="px-4 py-3 text-xs text-sol-text-muted sm:px-5">
+            The member list could not be loaded.
+          </div>
         )}
         {people.map((member) => {
           const daemonStatus = getMemberDaemonStatus(member.daemon_last_seen);
           return (
-            <div key={member._id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5">
+            <div
+              key={member._id}
+              className="flex items-center justify-between gap-4 px-4 py-3 sm:px-5"
+            >
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative shrink-0">
                   <AvatarImg
@@ -417,23 +487,36 @@ export default function TeamPage() {
                     className="w-10 h-10 rounded-full"
                     fallback={
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sol-bg-highlight text-sm font-semibold text-sol-text">
-                        {member.name?.[0]?.toUpperCase() || member.email?.[0]?.toUpperCase() || "?"}
+                        {member.name?.[0]?.toUpperCase() ||
+                          member.email?.[0]?.toUpperCase() ||
+                          "?"}
                       </div>
                     }
                   />
-                  <div className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-sol-bg ${
-                    daemonStatus.status === "online" ? "bg-sol-green" :
-                    daemonStatus.status === "recent" ? "bg-sol-yellow" : "bg-sol-text-dim"
-                  }`} />
+                  <div
+                    className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-sol-bg ${
+                      daemonStatus.status === "online"
+                        ? "bg-sol-green"
+                        : daemonStatus.status === "recent"
+                          ? "bg-sol-yellow"
+                          : "bg-sol-text-dim"
+                    }`}
+                  />
                 </div>
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-baseline text-sm font-medium text-sol-text">
-                    <span className="truncate" title={member.name || undefined}>{member.name || "Unnamed"}</span>
+                    <span className="truncate" title={member.name || undefined}>
+                      {member.name || "Unnamed"}
+                    </span>
                     {member._id === user._id && (
-                      <span className="ml-2 shrink-0 text-xs text-sol-text-muted">(you)</span>
+                      <span className="ml-2 shrink-0 text-xs text-sol-text-muted">
+                        (you)
+                      </span>
                     )}
                     {member.is_bot && (
-                      <span className="ml-2 shrink-0 text-xs text-sol-text-muted">(agent)</span>
+                      <span className="ml-2 shrink-0 text-xs text-sol-text-muted">
+                        (agent)
+                      </span>
                     )}
                   </div>
                   <div className="truncate text-xs text-sol-text-muted">
@@ -455,11 +538,18 @@ export default function TeamPage() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="text-xs text-sol-text-dim">{daemonStatus.text}</span>
+                <span className="text-xs text-sol-text-dim">
+                  {daemonStatus.text}
+                </span>
                 {isAdmin && member._id !== user._id ? (
                   <SelectBox
                     value={member.role}
-                    onChange={(e) => handleRoleChange(member._id, e.target.value as "member" | "admin")}
+                    onChange={(e) =>
+                      handleRoleChange(
+                        member._id,
+                        e.target.value as "member" | "admin",
+                      )
+                    }
                     disabled={roleChangeInProgress === member._id}
                     aria-label={`Role for ${member.name || member.email || "member"}`}
                     className={`font-medium ${member.role === "admin" ? "text-sol-cyan" : "text-sol-text-muted"}`}
@@ -468,11 +558,13 @@ export default function TeamPage() {
                     <option value="admin">admin</option>
                   </SelectBox>
                 ) : (
-                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${
-                    member.role === "admin"
-                      ? "bg-sol-cyan/10 text-sol-cyan"
-                      : "bg-sol-bg-highlight/20 text-sol-text-muted"
-                  } ${modernPill({ tone: member.role === "admin" ? "cyan" : "neutral" })}`}>
+                  <span
+                    className={`rounded-md px-2 py-1 text-xs font-medium ${
+                      member.role === "admin"
+                        ? "bg-sol-cyan/10 text-sol-cyan"
+                        : "bg-sol-bg-highlight/20 text-sol-text-muted"
+                    } ${modernPill({ tone: member.role === "admin" ? "cyan" : "neutral" })}`}
+                  >
                     {member.role}
                   </span>
                 )}
@@ -492,7 +584,9 @@ export default function TeamPage() {
         })}
       </SettingsSection>
 
-      {isAdmin && effectiveTeamId && <TeamDomainAccess teamId={effectiveTeamId} />}
+      {isAdmin && effectiveTeamId && (
+        <TeamDomainAccess teamId={effectiveTeamId} />
+      )}
 
       {effectiveTeamId && <TeamMachines teamId={String(effectiveTeamId)} />}
 
@@ -500,13 +594,27 @@ export default function TeamPage() {
         <TeamFeaturesEditor teamId={effectiveTeamId} isAdmin={isAdmin} />
       )}
 
-      {isAdmin && effectiveTeamId && <ManagedDevicesLink teamId={String(effectiveTeamId)} />}
-      {isAdmin && effectiveTeamId && <AccessLogLink teamId={String(effectiveTeamId)} />}
-      {isAdmin && effectiveTeamId && <TeamReadKeys key={String(effectiveTeamId)} teamId={effectiveTeamId} teamName={team.name} />}
+      {isAdmin && effectiveTeamId && (
+        <ManagedDevicesLink teamId={String(effectiveTeamId)} />
+      )}
+      {isAdmin && effectiveTeamId && (
+        <AccessLogLink teamId={String(effectiveTeamId)} />
+      )}
+      {isAdmin && effectiveTeamId && (
+        <TeamReadKeys
+          key={String(effectiveTeamId)}
+          teamId={effectiveTeamId}
+          teamName={team.name}
+        />
+      )}
 
-      {effectiveTeamId && <TeamTemplateLearning teamId={String(effectiveTeamId)} />}
+      {effectiveTeamId && (
+        <TeamTemplateLearning teamId={String(effectiveTeamId)} />
+      )}
 
-      {effectiveTeamId && <TeamModelBudget teamId={effectiveTeamId} isAdmin={isAdmin} />}
+      {effectiveTeamId && (
+        <TeamModelBudget teamId={effectiveTeamId} isAdmin={isAdmin} />
+      )}
 
       {effectiveTeamId && (
         <TeamTaskStatusEditor
@@ -541,11 +649,13 @@ export default function TeamPage() {
           ) : (
             <SettingsRow
               label="Delete this team"
-              description={membersUnknown
-                ? "Every member loses access the moment you confirm."
-                : memberCount === 1
-                ? "You are the only member. The team ends the moment you confirm."
-                : `${memberCount} members lose access the moment you confirm.`}
+              description={
+                membersUnknown
+                  ? "Every member loses access the moment you confirm."
+                  : memberCount === 1
+                    ? "You are the only member. The team ends the moment you confirm."
+                    : `${memberCount} members lose access the moment you confirm.`
+              }
             >
               <Button
                 variant="outline"
@@ -562,28 +672,53 @@ export default function TeamPage() {
 
       {destroyOpen && (
         <SwitchReview
-          ledger={destroyTeamLedger({ team: team.name, preview: destroyPreview })}
+          ledger={destroyTeamLedger({
+            team: team.name,
+            preview: destroyPreview,
+          })}
           onClose={() => setDestroyOpen(false)}
           onConfirm={() => void handleDestroyTeam()}
         />
       )}
 
-      <Dialog open={deleteOpen} onOpenChange={(open) => { if (!open) closeDelete(); }}>
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!open) closeDelete();
+        }}
+      >
         <DialogContent className="bg-sol-bg border-sol-border">
           <DialogHeader>
-            <DialogTitle className="text-sol-text">Delete {team.name}?</DialogTitle>
+            <DialogTitle className="text-sol-text">
+              Delete {team.name}?
+            </DialogTitle>
             <DialogDescription className="text-sol-text-muted">
               This ends the team for every member, now.
             </DialogDescription>
           </DialogHeader>
           <ul className="space-y-1.5 text-sm text-sol-text-muted">
-            <li className="flex gap-2"><span className="text-sol-red">•</span>Every member loses access, and their workspace moves to another team or to personal.</li>
-            <li className="flex gap-2"><span className="text-sol-red">•</span>Sessions, tasks, docs and plans shared in this team stop being reachable. Personal work is untouched.</li>
-            <li className="flex gap-2"><span className="text-sol-red">•</span>Team chat and calls close, the invite link stops working, and the team&apos;s agent is retired.</li>
+            <li className="flex gap-2">
+              <span className="text-sol-red">•</span>Every member loses access,
+              and their workspace moves to another team or to personal.
+            </li>
+            <li className="flex gap-2">
+              <span className="text-sol-red">•</span>Sessions, tasks, docs and
+              plans shared in this team stop being reachable. Personal work is
+              untouched.
+            </li>
+            <li className="flex gap-2">
+              <span className="text-sol-red">•</span>Team chat and calls close,
+              the invite link stops working, and the team&apos;s agent is
+              retired.
+            </li>
           </ul>
           <div className="space-y-1.5">
-            <label htmlFor="delete-team-confirm" className="block text-xs text-sol-text-muted">
-              Type <span className="font-mono text-sol-red">{team.name}</span> to confirm
+            <label
+              htmlFor="delete-team-confirm"
+              className="block text-xs text-sol-text-muted"
+            >
+              Type <span className="font-mono text-sol-red">{team.name}</span>{" "}
+              to confirm
             </label>
             <Input
               id="delete-team-confirm"
@@ -593,13 +728,20 @@ export default function TeamPage() {
               autoComplete="off"
               spellCheck={false}
               disabled={isDeleting}
-              onKeyDown={(e) => { if (e.key === "Enter" && deleteNameMatches) void handleDeleteTeam(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && deleteNameMatches)
+                  void handleDeleteTeam();
+              }}
               className="bg-sol-bg border-sol-border text-sol-text"
               autoFocus
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDelete} disabled={isDeleting}>
+            <Button
+              variant="outline"
+              onClick={closeDelete}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
             <Button
@@ -613,12 +755,18 @@ export default function TeamPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!memberToRemove} onOpenChange={() => setMemberToRemove(null)}>
+      <Dialog
+        open={!!memberToRemove}
+        onOpenChange={() => setMemberToRemove(null)}
+      >
         <DialogContent className="bg-sol-bg border-sol-border">
           <DialogHeader>
-            <DialogTitle className="text-sol-text">Remove team member</DialogTitle>
+            <DialogTitle className="text-sol-text">
+              Remove team member
+            </DialogTitle>
             <DialogDescription className="text-sol-text-muted">
-              Are you sure you want to remove this member from the team? This action cannot be undone.
+              Are you sure you want to remove this member from the team? This
+              action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

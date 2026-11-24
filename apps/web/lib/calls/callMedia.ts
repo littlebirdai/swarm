@@ -1,5 +1,14 @@
-import { LocalParticipant, Room, Track, type Participant } from "livekit-client";
-import { peekOsPermissions, permissionHint, refreshOsPermissions } from "../osPermissions";
+import {
+  LocalParticipant,
+  Room,
+  Track,
+  type Participant,
+} from "livekit-client";
+import {
+  peekOsPermissions,
+  permissionHint,
+  refreshOsPermissions,
+} from "../osPermissions";
 import { callParticipantKind } from "@codecast/shared/contracts";
 import { isMediaDenial } from "./mediaDenial";
 import { noteDevices } from "./deviceRank";
@@ -27,7 +36,10 @@ export type ParticipantTile = {
  *  mean the same thing on both. */
 export function participantTiles(room: Room): ParticipantTile[] {
   const out: ParticipantTile[] = [];
-  const all: Participant[] = [room.localParticipant, ...room.remoteParticipants.values()];
+  const all: Participant[] = [
+    room.localParticipant,
+    ...room.remoteParticipants.values(),
+  ];
   for (const p of all) {
     const isLocal = p instanceof LocalParticipant;
     const base = {
@@ -46,7 +58,12 @@ export function participantTiles(room: Room): ParticipantTile[] {
       // frozen/black frame the tile can label) — a mute is not a removal.
       const track = pub && (isLocal || pub.isSubscribed) ? pub.track : null;
       if (!track) continue;
-      out.push({ ...base, kind, track, key: `${p.identity}:${kind}:${pub!.trackSid || track.sid || "local"}` });
+      out.push({
+        ...base,
+        kind,
+        track,
+        key: `${p.identity}:${kind}:${pub!.trackSid || track.sid || "local"}`,
+      });
     }
   }
   return out;
@@ -57,10 +74,16 @@ export function participantTiles(room: Room): ParticipantTile[] {
  *  video (StageVideo draws a placeholder for it): drawing it back on a screen
  *  it captures shows the stage inside itself, over and over. Last, because
  *  someone else's share is the one worth the big tile. */
-export function stageTiles(tiles: ParticipantTile[]): { screens: ParticipantTile[]; cameras: ParticipantTile[] } {
+export function stageTiles(tiles: ParticipantTile[]): {
+  screens: ParticipantTile[];
+  cameras: ParticipantTile[];
+} {
   const screens = tiles.filter((t) => t.kind === "screen");
   return {
-    screens: [...screens.filter((t) => !t.isLocal), ...screens.filter((t) => t.isLocal)],
+    screens: [
+      ...screens.filter((t) => !t.isLocal),
+      ...screens.filter((t) => t.isLocal),
+    ],
     cameras: tiles.filter((t) => t.kind === "camera"),
   };
 }
@@ -78,7 +101,10 @@ export { isMediaDenial };
 // versus a machine with no such device. The message is the fix, phrased for
 // the person holding the mouse; the notice that shows it carries the fix
 // button (`call.errorFix`).
-export async function mediaFailureReason(kind: "camera" | "microphone", err?: any): Promise<string> {
+export async function mediaFailureReason(
+  kind: "camera" | "microphone",
+  err?: any,
+): Promise<string> {
   const label = kind === "camera" ? "Camera" : "Microphone";
   if (err?.name === "NotFoundError" || err?.name === "OverconstrainedError") {
     return `No ${kind} found`;
@@ -86,7 +112,9 @@ export async function mediaFailureReason(kind: "camera" | "microphone", err?: an
   await refreshOsPermissions().catch(() => {});
   const hint = permissionHint(kind, peekOsPermissions()[kind]);
   if (hint) return hint;
-  return isMediaDenial(err) ? `${label} permission denied` : `${label} unavailable`;
+  return isMediaDenial(err)
+    ? `${label} permission denied`
+    : `${label} unavailable`;
 }
 
 /**
@@ -96,7 +124,10 @@ export async function mediaFailureReason(kind: "camera" | "microphone", err?: an
  * permission dialog. Without permission Chrome still lists the devices, only
  * without names — DeviceRows offers the one-time grant that names them.
  */
-export async function listDevices(kind: MediaDeviceKind, opts?: { prompt?: boolean }): Promise<MediaDeviceInfo[]> {
+export async function listDevices(
+  kind: MediaDeviceKind,
+  opts?: { prompt?: boolean },
+): Promise<MediaDeviceInfo[]> {
   try {
     const devices = await Room.getLocalDevices(kind, opts?.prompt !== false);
     noteDevices(kind, devices);
@@ -110,7 +141,10 @@ export async function listDevices(kind: MediaDeviceKind, opts?: { prompt?: boole
  *  then release both at once. Nothing is published and nothing stays open. */
 export async function grantDeviceNames(): Promise<boolean> {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
     for (const t of stream.getTracks()) t.stop();
     return true;
   } catch {
@@ -128,7 +162,10 @@ export async function grantDeviceNames(): Promise<boolean> {
 /** What a participant is doing with their microphone and screen, read off
  *  the media itself: the one reading for every surface that has no server
  *  row to ask (a guest has no seat), on a member's stage and a guest's alike. */
-export function participantFlags(p: Participant): { muted: boolean; sharing: boolean } {
+export function participantFlags(p: Participant): {
+  muted: boolean;
+  sharing: boolean;
+} {
   return { muted: !p.isMicrophoneEnabled, sharing: p.isScreenShareEnabled };
 }
 
@@ -141,7 +178,8 @@ export function guestMediaOf(room: Room | null): GuestMedia[] {
   if (!room) return [];
   const out: GuestMedia[] = [];
   for (const p of room.remoteParticipants.values()) {
-    if (callParticipantKind(p.identity) === "guest") out.push({ identity: p.identity, muted: participantFlags(p).muted });
+    if (callParticipantKind(p.identity) === "guest")
+      out.push({ identity: p.identity, muted: participantFlags(p).muted });
   }
   return out;
 }

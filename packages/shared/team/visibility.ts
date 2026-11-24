@@ -25,22 +25,30 @@ export const TEAM_VISIBILITY_OPTIONS: TeamVisibilityOption[] = [
     value: "activity",
     label: "Activity only",
     sees: "project names and session counts",
-    detail: "Teammates see that you are working and where, with no titles or content.",
+    detail:
+      "Teammates see that you are working and where, with no titles or content.",
   },
   {
     value: "summary",
     label: "Summary",
     sees: "titles and short summaries",
-    detail: "Teammates see what each session was about, not the conversation itself.",
+    detail:
+      "Teammates see what each session was about, not the conversation itself.",
   },
   {
     value: "full",
     label: "Full",
     sees: "the whole conversation",
-    detail: "Teammates can open and read every session you share with this team.",
+    detail:
+      "Teammates can open and read every session you share with this team.",
   },
 ];
 
-export function teamVisibilityOption(level: string | null | undefined): TeamVisibilityOption {
-  return TEAM_VISIBILITY_OPTIONS.find((o) => o.value === level) ?? TEAM_VISIBILITY_OPTIONS[3];
+export function teamVisibilityOption(
+  level: string | null | undefined,
+): TeamVisibilityOption {
+  return (
+    TEAM_VISIBILITY_OPTIONS.find((o) => o.value === level) ??
+    TEAM_VISIBILITY_OPTIONS[3]
+  );
 }

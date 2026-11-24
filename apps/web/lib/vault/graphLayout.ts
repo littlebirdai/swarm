@@ -75,19 +75,32 @@ const CHUNK = 15;
  * Radius grows with sqrt(n) so a big vault starts spread out instead of as a
  * dense ring the repulsion has to blow apart.
  */
-export function seedPosition(index: number, count: number): { x: number; y: number } {
+export function seedPosition(
+  index: number,
+  count: number,
+): { x: number; y: number } {
   const n = Math.max(count, 1);
   const radius = 10 * Math.sqrt(n);
   const angle = (2 * Math.PI * index) / n;
   return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
 }
 
-function seedPositions(graph: Graph, nodes: string[], given?: Float32Array): void {
+function seedPositions(
+  graph: Graph,
+  nodes: string[],
+  given?: Float32Array,
+): void {
   nodes.forEach((id, i) => {
     const x = given?.[i * 2];
     const y = given?.[i * 2 + 1];
-    const usable = Number.isFinite(x) && Number.isFinite(y) && !(x === 0 && y === 0);
-    graph.addNode(id, usable ? { x: x as number, y: y as number } : seedPosition(i, nodes.length));
+    const usable =
+      Number.isFinite(x) && Number.isFinite(y) && !(x === 0 && y === 0);
+    graph.addNode(
+      id,
+      usable
+        ? { x: x as number, y: y as number }
+        : seedPosition(i, nodes.length),
+    );
   });
 }
 
@@ -104,7 +117,10 @@ function snapshot(graph: Graph, nodes: string[]): Float32Array {
  * Start a layout. Ticks arrive via `onTick`, the last one with `done: true`.
  * Returns a cancel function; cancelling guarantees no further ticks.
  */
-export function runGraphLayout(input: LayoutInput, onTick: (tick: LayoutTick) => void): () => void {
+export function runGraphLayout(
+  input: LayoutInput,
+  onTick: (tick: LayoutTick) => void,
+): () => void {
   const { nodes, edges } = input;
   const total = input.iterations ?? DEFAULT_LAYOUT_ITERATIONS;
   let cancelled = false;
@@ -113,7 +129,12 @@ export function runGraphLayout(input: LayoutInput, onTick: (tick: LayoutTick) =>
   };
 
   if (nodes.length === 0) {
-    onTick({ positions: new Float32Array(0), iteration: total, total, done: true });
+    onTick({
+      positions: new Float32Array(0),
+      iteration: total,
+      total,
+      done: true,
+    });
     return cancel;
   }
 
@@ -131,7 +152,12 @@ export function runGraphLayout(input: LayoutInput, onTick: (tick: LayoutTick) =>
   if (nodes.length === 1) {
     graph.setNodeAttribute(nodes[0], "x", 0);
     graph.setNodeAttribute(nodes[0], "y", 0);
-    onTick({ positions: snapshot(graph, nodes), iteration: total, total, done: true });
+    onTick({
+      positions: snapshot(graph, nodes),
+      iteration: total,
+      total,
+      done: true,
+    });
     return cancel;
   }
 
@@ -139,7 +165,12 @@ export function runGraphLayout(input: LayoutInput, onTick: (tick: LayoutTick) =>
   // that throw would surface as an unhandled worker error rather than a
   // missing animation, so the case is handled here instead.
   if (total <= 0) {
-    onTick({ positions: snapshot(graph, nodes), iteration: 0, total, done: true });
+    onTick({
+      positions: snapshot(graph, nodes),
+      iteration: 0,
+      total,
+      done: true,
+    });
     return cancel;
   }
 
@@ -148,19 +179,31 @@ export function runGraphLayout(input: LayoutInput, onTick: (tick: LayoutTick) =>
   // this library's quadtree is SLOWER than brute force at every size measured
   // (60 iterations at 240 nodes: 16ms brute vs 263ms; at 1000 nodes: 279ms vs
   // 1647ms), so the "optimization" is a straight loss.
-  const settings = { ...forceAtlas2.inferSettings(graph), barnesHutOptimize: false };
+  const settings = {
+    ...forceAtlas2.inferSettings(graph),
+    barnesHutOptimize: false,
+  };
   const startedAt = Date.now();
   let done = 0;
 
   const step = () => {
     if (cancelled) return;
     const slice = Math.min(CHUNK, total - done);
-    forceAtlas2.assign(graph, { iterations: slice, settings, getEdgeWeight: null });
+    forceAtlas2.assign(graph, {
+      iterations: slice,
+      settings,
+      getEdgeWeight: null,
+    });
     done += slice;
     if (cancelled) return;
     const outOfTime = Date.now() - startedAt > TIME_BUDGET_MS;
     const finished = done >= total || outOfTime;
-    onTick({ positions: snapshot(graph, nodes), iteration: done, total, done: finished });
+    onTick({
+      positions: snapshot(graph, nodes),
+      iteration: done,
+      total,
+      done: finished,
+    });
     if (!finished) setTimeout(step, 0);
   };
   setTimeout(step, 0);

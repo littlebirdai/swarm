@@ -12,16 +12,14 @@ import { join } from "path";
 // can't be detected statically by table name, but they live in the same core
 // files this catches, and they go through the same wrapped ctx.db regardless.)
 const DIR = import.meta.dir;
-const TRACKED = [
-  "conversations",
-  "tasks",
-  "docs",
-  "plans",
-  "projects",
-];
+const TRACKED = ["conversations", "tasks", "docs", "plans", "projects"];
 
 function importsRawBuilder(src: string): boolean {
-  const blocks = [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']\.\/_generated\/server["']/g)];
+  const blocks = [
+    ...src.matchAll(
+      /import\s*\{([^}]*)\}\s*from\s*["']\.\/_generated\/server["']/g,
+    ),
+  ];
   return blocks.some((m) => /\b(mutation|internalMutation)\b/.test(m[1]));
 }
 
@@ -33,7 +31,8 @@ describe("change-feed write interceptor coverage", () => {
   test("no file that inserts a tracked table imports raw mutation builders", () => {
     const offenders: string[] = [];
     for (const f of readdirSync(DIR)) {
-      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts") continue;
+      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts")
+        continue;
       const src = readFileSync(join(DIR, f), "utf8");
       if (insertsTrackedTable(src) && importsRawBuilder(src)) offenders.push(f);
     }
@@ -49,7 +48,8 @@ describe("change-feed write interceptor coverage", () => {
   const RAW_BUILDER_ALLOWLIST: Record<string, string> = {
     "apnsVoip.ts": "VoIP push token bookkeeping (apns tables) — untracked",
     "artifacts.ts": "published pages, versions and comments — untracked",
-    "buckets.ts": "inbox_buckets / bucket_assignments through the revision-bound writer — untracked",
+    "buckets.ts":
+      "inbox_buckets / bucket_assignments through the revision-bound writer — untracked",
     "callChat.ts": "call room chat rows — untracked",
     "calls.ts": "call rooms and participants — untracked",
     "oauthConnectors.ts": "oauth connector state — untracked",
@@ -61,7 +61,8 @@ describe("change-feed write interceptor coverage", () => {
     const offenders: string[] = [];
     const trackedWriters: string[] = [];
     for (const f of readdirSync(DIR)) {
-      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts") continue;
+      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts")
+        continue;
       const src = readFileSync(join(DIR, f), "utf8");
       if (!importsRawBuilder(src)) continue;
       if (!(f in RAW_BUILDER_ALLOWLIST)) offenders.push(f);
@@ -89,12 +90,17 @@ describe("change-feed write interceptor coverage", () => {
     expect(typeof functions.mutation).toBe("function");
     expect(typeof functions.internalMutation).toBe("function");
 
-    const principalRevisions = readFileSync(join(DIR, "principalViewRevisions.ts"), "utf8");
+    const principalRevisions = readFileSync(
+      join(DIR, "principalViewRevisions.ts"),
+      "utf8",
+    );
     expect(principalRevisions).toContain('from "./localViewRevisions"');
     expect(principalRevisions).not.toContain('from "./localFirstCommands"');
     const neutral = readFileSync(join(DIR, "localViewRevisions.ts"), "utf8");
     expect(neutral).not.toContain('from "./functions"');
-    expect(neutral).not.toMatch(/import\s*\{[^}]*\b(query|mutation|internalMutation)\b[^}]*\}/);
+    expect(neutral).not.toMatch(
+      /import\s*\{[^}]*\b(query|mutation|internalMutation)\b[^}]*\}/,
+    );
   });
 });
 
@@ -118,8 +124,16 @@ describe("authorization boundary coverage", () => {
 
   test("webhook-only pull request writers stay internal", () => {
     const src = readFileSync(join(DIR, "pull_requests.ts"), "utf8");
-    for (const name of ["create", "syncPRFromGitHub", "linkPRToSession", "updatePRFiles", "updatePRState"]) {
-      expect(src).toMatch(new RegExp(`export const ${name} = internalMutation\\(`));
+    for (const name of [
+      "create",
+      "syncPRFromGitHub",
+      "linkPRToSession",
+      "updatePRFiles",
+      "updatePRState",
+    ]) {
+      expect(src).toMatch(
+        new RegExp(`export const ${name} = internalMutation\\(`),
+      );
     }
   });
 
@@ -132,7 +146,8 @@ describe("authorization boundary coverage", () => {
     const src = readFileSync(join(DIR, "githubWebhooks.ts"), "utf8");
     expect(src).not.toContain("api.pull_requests.");
 
-    const refs = src.match(/(?<![a-zA-Z.])[a-zA-Z]+\.pull_requests\.[a-zA-Z]+/g) ?? [];
+    const refs =
+      src.match(/(?<![a-zA-Z.])[a-zA-Z]+\.pull_requests\.[a-zA-Z]+/g) ?? [];
     expect(refs.length).toBeGreaterThan(0);
     expect(refs.filter((r) => !r.startsWith("internal."))).toEqual([]);
   });
@@ -178,7 +193,9 @@ describe("comments complete-view write choke", () => {
     expect(dispatch).toContain("patchCommentWithRevision");
     const commentConfig = dispatch.match(/comments:\s*\{([\s\S]*?)\n  \}/)?.[1];
     expect(commentConfig).toBeDefined();
-    expect(commentConfig).toContain('editable: new Set(["content", "resolved_at"])');
+    expect(commentConfig).toContain(
+      'editable: new Set(["content", "resolved_at"])',
+    );
     expect(dispatch).toContain("if (config.editable.has(k)) safe[k]");
 
     const users = readFileSync(join(DIR, "users.ts"), "utf8");
@@ -186,7 +203,9 @@ describe("comments complete-view write choke", () => {
     // Account deletion lives in accountDelete.ts: it deletes each conversation, whose delete reaches every client
     // through the sync log, and hands the conversation's own rows, comments among them, to purgeConversationRows.
     const accountDelete = readFileSync(join(DIR, "accountDelete.ts"), "utf8");
-    expect(accountDelete).toContain("internal.sessionDelete.purgeConversationRows");
+    expect(accountDelete).toContain(
+      "internal.sessionDelete.purgeConversationRows",
+    );
     expect(accountDelete).not.toContain('query("comments")');
 
     const merge = readFileSync(join(DIR, "admin_mergeUser.ts"), "utf8");
@@ -200,10 +219,13 @@ describe("comments complete-view write choke", () => {
     // forgets the command-id coverage strands its command in
     // acknowledged-awaiting-coverage forever under the v3 contracts.
     const comments = readFileSync(join(DIR, "comments.ts"), "utf8");
-    const commentSites = comments.match(/coverageCommandIds: \[commentsCommandIdCoverage\(/g) ?? [];
+    const commentSites =
+      comments.match(/coverageCommandIds: \[commentsCommandIdCoverage\(/g) ??
+      [];
     expect(commentSites.length).toBeGreaterThanOrEqual(5);
     const buckets = readFileSync(join(DIR, "buckets.ts"), "utf8");
-    const bucketSites = buckets.match(/coverageCommandIds: \[\{ kind: "command-id"/g) ?? [];
+    const bucketSites =
+      buckets.match(/coverageCommandIds: \[\{ kind: "command-id"/g) ?? [];
     expect(bucketSites.length).toBeGreaterThanOrEqual(3);
     // And both view queries must echo the caller's receipts.
     expect(comments).toContain("echoedCommandIdsForView(ctx, userId,");
@@ -217,18 +239,23 @@ describe("comments complete-view write choke", () => {
     // access without any comment write, so each must move the head forward or
     // regained access renders a frozen empty thread (matrix SRV-02).
     const conversations = readFileSync(join(DIR, "conversations.ts"), "utf8");
-    const advanceCalls = conversations.match(/advanceCommentsAccessRevision\(/g) ?? [];
+    const advanceCalls =
+      conversations.match(/advanceCommentsAccessRevision\(/g) ?? [];
     // setPrivacy, setTeamVisibility, setPrivacyBySessionId, reconfigureSession.
     expect(advanceCalls.length).toBeGreaterThanOrEqual(4);
     const writer = readFileSync(join(DIR, "commentViewWrites.ts"), "utf8");
-    expect(writer).toContain("export async function advanceCommentsAccessRevision");
+    expect(writer).toContain(
+      "export async function advanceCommentsAccessRevision",
+    );
   });
 });
 
 describe("small principal-view write chokes", () => {
   test("principal metadata and team writes pass through the central interceptor", () => {
     const functions = readFileSync(join(DIR, "functions.ts"), "utf8");
-    expect(functions).toContain("makePrincipalViewTrackedDb(makeChangeTrackedDb(ctx.db, collector))");
+    expect(functions).toContain(
+      "makePrincipalViewTrackedDb(makeChangeTrackedDb(ctx.db, collector))",
+    );
 
     const auth = readFileSync(join(DIR, "auth.ts"), "utf8");
     expect(auth).toContain("advanceCurrentUserViewRevision");
@@ -236,12 +263,14 @@ describe("small principal-view write chokes", () => {
     const principalTables = ["users", "teams", "team_memberships"];
     const offenders: string[] = [];
     for (const f of readdirSync(DIR)) {
-      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts") continue;
+      if (!f.endsWith(".ts") || f.endsWith(".test.ts") || f === "functions.ts")
+        continue;
       const src = readFileSync(join(DIR, f), "utf8");
       if (
-        principalTables.some((table) => src.includes(`.insert("${table}"`))
-        && importsRawBuilder(src)
-      ) offenders.push(f);
+        principalTables.some((table) => src.includes(`.insert("${table}"`)) &&
+        importsRawBuilder(src)
+      )
+        offenders.push(f);
     }
     expect(offenders).toEqual([]);
   });
@@ -283,7 +312,9 @@ describe("small principal-view write chokes", () => {
     );
 
     const dispatch = readFileSync(join(DIR, "dispatch.ts"), "utf8");
-    expect(dispatch).toContain('table === "conversations" && "is_favorite" in finalSafe');
+    expect(dispatch).toContain(
+      'table === "conversations" && "is_favorite" in finalSafe',
+    );
     expect(dispatch).toContain("patchConversationThroughFavoriteView");
     expect(dispatch).toContain("delete finalSafe.is_favorite");
   });

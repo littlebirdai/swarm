@@ -15,11 +15,28 @@ function fixture() {
   const db = makeFakeDb({
     tasks: [
       // Stored team key, but no team tag and no linked conversation: personal.
-      { _id: "task_stale", short_id: "ct-1", user_id: OWNER, workspace: `team:${TEAM}` },
-      { _id: "task_fine", short_id: "ct-2", user_id: OWNER, workspace: `user:${OWNER}` },
+      {
+        _id: "task_stale",
+        short_id: "ct-1",
+        user_id: OWNER,
+        workspace: `team:${TEAM}`,
+      },
+      {
+        _id: "task_fine",
+        short_id: "ct-2",
+        user_id: OWNER,
+        workspace: `user:${OWNER}`,
+      },
     ],
   });
-  const ctx = { db, scheduler: { runAfter: async (_ms: number, _fn: unknown, args: any) => { if (args?.task_ids) scheduled.push(args); } } } as any;
+  const ctx = {
+    db,
+    scheduler: {
+      runAfter: async (_ms: number, _fn: unknown, args: any) => {
+        if (args?.task_ids) scheduled.push(args);
+      },
+    },
+  } as any;
   return { db, ctx, scheduled };
 }
 
@@ -29,7 +46,9 @@ describe("teamScopeSweep", () => {
   test("applying a task's new key schedules the cut of its crossed edges", async () => {
     const { db, ctx, scheduled } = fixture();
     await run(sweepPage, ctx, { table: "tasks", apply: true });
-    expect(db._tables.tasks.find((t: any) => t._id === "task_stale").workspace).toBe(`user:${OWNER}`);
+    expect(
+      db._tables.tasks.find((t: any) => t._id === "task_stale").workspace,
+    ).toBe(`user:${OWNER}`);
     expect(scheduled).toEqual([{ task_ids: ["task_stale"] }]);
   });
 

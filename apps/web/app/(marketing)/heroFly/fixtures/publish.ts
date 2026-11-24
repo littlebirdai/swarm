@@ -26,7 +26,11 @@ export const PAGE = {
   ...OBJECTS.page,
   author: PEOPLE.me.name,
   views: 14,
-  session: { id: SESSIONS.lead.id, shortId: SESSIONS.lead.shortId, title: SESSIONS.lead.title },
+  session: {
+    id: SESSIONS.lead.id,
+    shortId: SESSIONS.lead.shortId,
+    title: SESSIONS.lead.title,
+  },
   attempts: [
     { label: "1st retry", share: 82 },
     { label: "2nd", share: 13 },
@@ -42,8 +46,18 @@ export const PAGE = {
   ],
   comments: [
     // Anchored on the chart (fractions of the generated page), clear of the discussion docked on the right.
-    { id: "hero-cm1", author: "Sarah Chen", text: "Can we page someone when an event reaches attempt 5?", anchor: { x: 0.418, y: 0.725 } },
-    { id: "hero-cm2", author: "Maya Ortiz", text: "Putting this chart on the billing dashboard.", anchor: { x: 0.31, y: 0.535 } },
+    {
+      id: "hero-cm1",
+      author: "Sarah Chen",
+      text: "Can we page someone when an event reaches attempt 5?",
+      anchor: { x: 0.418, y: 0.725 },
+    },
+    {
+      id: "hero-cm2",
+      author: "Maya Ortiz",
+      text: "Putting this chart on the billing dashboard.",
+      anchor: { x: 0.31, y: 0.535 },
+    },
   ],
 };
 

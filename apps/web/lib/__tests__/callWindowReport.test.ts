@@ -14,8 +14,18 @@ import { callWindowReport, type CallWindowPhase } from "../calls/callHandoff";
 // call panel and a separate floating-faces window apart. One window with three
 // sizes has nothing to arbitrate, so the flag went with the second window.
 
-const report = (_phase: CallWindowPhase, roomKey: string | null, windowRoom: string | null = "team/standup") =>
-  callWindowReport({ roomKey, windowRoom, muted: false, camera: false, scribe: false });
+const report = (
+  _phase: CallWindowPhase,
+  roomKey: string | null,
+  windowRoom: string | null = "team/standup",
+) =>
+  callWindowReport({
+    roomKey,
+    windowRoom,
+    muted: false,
+    camera: false,
+    scribe: false,
+  });
 
 describe("callWindowReport", () => {
   it("carries the URL's room on the first report, at phase idle", () => {
@@ -24,7 +34,13 @@ describe("callWindowReport", () => {
   });
 
   it("never reports a null room while the window has one in its address", () => {
-    for (const phase of ["idle", "ringing_out", "connecting", "connected", "error"] as CallWindowPhase[]) {
+    for (const phase of [
+      "idle",
+      "ringing_out",
+      "connecting",
+      "connected",
+      "error",
+    ] as CallWindowPhase[]) {
       expect(report(phase, null).room).toBe("team/standup");
     }
   });
@@ -36,7 +52,9 @@ describe("callWindowReport", () => {
   });
 
   it("prefers the room the call is actually in", () => {
-    expect(report("connected", "team/design", "team/standup").room).toBe("team/design");
+    expect(report("connected", "team/design", "team/standup").room).toBe(
+      "team/design",
+    );
   });
 
   it("reports no room only when the window was opened without one", () => {
@@ -46,7 +64,10 @@ describe("callWindowReport", () => {
   it("reports the mic as live when the call is not muted", () => {
     const base = { roomKey: "r", windowRoom: "r", camera: true, scribe: true };
     expect(callWindowReport({ ...base, muted: true })).toEqual({
-      room: "r", mic: false, camera: true, scribe: true,
+      room: "r",
+      mic: false,
+      camera: true,
+      scribe: true,
     });
     expect(callWindowReport({ ...base, muted: false }).mic).toBe(true);
   });

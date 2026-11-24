@@ -12,7 +12,12 @@
 // open the same review.
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../ui/dialog";
 import { KeyCap } from "../KeyCap";
 import { isMac } from "../../shortcuts/registry";
 import { useEventListener } from "../../hooks/useEventListener";
@@ -23,7 +28,13 @@ export type SwitchFigure = { value: string; label: string; tone?: "warn" };
 
 /** One fact: a short key and a value a glance takes in (a number, a name, a state). `list` names the things it covers. */
 /** `act`: a press that opens where the fact is managed ("Machines…"); it never does the review's act. */
-export type SwitchRow = { k: string; v: string; tone?: "warn" | "ok" | "bad"; list?: string[]; act?: { label: string; press: () => void } };
+export type SwitchRow = {
+  k: string;
+  v: string;
+  tone?: "warn" | "ok" | "bad";
+  list?: string[];
+  act?: { label: string; press: () => void };
+};
 
 export type SwitchLedger = {
   /** What turns on, as the control names it: "Auto-start". */
@@ -53,7 +64,11 @@ export type SwitchLedger = {
   typed?: { k: string; expect: string };
 };
 
-export type SwitchTriggerProps = { on: boolean; press: () => void; reviewing: boolean };
+export type SwitchTriggerProps = {
+  on: boolean;
+  press: () => void;
+  reviewing: boolean;
+};
 
 export type ConsequentialSwitchProps = {
   on: boolean;
@@ -72,22 +87,72 @@ export type ConsequentialSwitchProps = {
   onPick?: (option: string) => void;
 };
 
-const TONE = { warn: "text-sol-orange", ok: "text-sol-green", bad: "text-sol-red" } as const;
+const TONE = {
+  warn: "text-sol-orange",
+  ok: "text-sol-green",
+  bad: "text-sol-red",
+} as const;
 
-export function ConsequentialSwitch({ on, ledger, onTurnOn, onTurnOff, trigger, className, label = "Review", triggerProps, onPick }: ConsequentialSwitchProps) {
+export function ConsequentialSwitch({
+  on,
+  ledger,
+  onTurnOn,
+  onTurnOff,
+  trigger,
+  className,
+  label = "Review",
+  triggerProps,
+  onPick,
+}: ConsequentialSwitchProps) {
   const [reviewing, setReviewing] = useState(false);
   const press = () => (on ? onTurnOff() : setReviewing(true));
   return (
     <>
-      {trigger ? trigger({ on, press, reviewing }) : on ? (
-        <span className="inline-flex items-center gap-2" {...triggerProps} data-consequential="on">
-          <span className="inline-flex items-center gap-1 text-sol-green"><i aria-hidden className="h-1.5 w-1.5 rounded-full bg-sol-green" />On</span>
-          <button type="button" className={className} onClick={onTurnOff} data-consequential-off>Turn off</button>
+      {trigger ? (
+        trigger({ on, press, reviewing })
+      ) : on ? (
+        <span
+          className="inline-flex items-center gap-2"
+          {...triggerProps}
+          data-consequential="on"
+        >
+          <span className="inline-flex items-center gap-1 text-sol-green">
+            <i aria-hidden className="h-1.5 w-1.5 rounded-full bg-sol-green" />
+            On
+          </span>
+          <button
+            type="button"
+            className={className}
+            onClick={onTurnOff}
+            data-consequential-off
+          >
+            Turn off
+          </button>
         </span>
       ) : (
-        <button type="button" className={className} aria-haspopup="dialog" aria-expanded={reviewing} onClick={press} {...triggerProps} data-consequential="off">{label}</button>
+        <button
+          type="button"
+          className={className}
+          aria-haspopup="dialog"
+          aria-expanded={reviewing}
+          onClick={press}
+          {...triggerProps}
+          data-consequential="off"
+        >
+          {label}
+        </button>
       )}
-      {reviewing && <SwitchReview ledger={ledger} onClose={() => setReviewing(false)} onConfirm={() => { setReviewing(false); onTurnOn(); }} onPick={onPick} />}
+      {reviewing && (
+        <SwitchReview
+          ledger={ledger}
+          onClose={() => setReviewing(false)}
+          onConfirm={() => {
+            setReviewing(false);
+            onTurnOn();
+          }}
+          onPick={onPick}
+        />
+      )}
     </>
   );
 }
@@ -113,87 +178,202 @@ function useArmed(ms: number | undefined): boolean {
   }, [ms]);
   useWatchEffect(() => {
     rearm();
-    return () => { if (timer.current) clearTimeout(timer.current); };
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, [rearm]);
   useEventListener("focus", rearm, ms ? window : null);
-  useEventListener("visibilitychange", () => { if (document.visibilityState === "visible") rearm(); }, ms ? document : null);
+  useEventListener(
+    "visibilitychange",
+    () => {
+      if (document.visibilityState === "visible") rearm();
+    },
+    ms ? document : null,
+  );
   return armed;
 }
 
-export function SwitchReview({ ledger: l, onClose, onConfirm, onPick, children, armAfterMs }: { ledger: SwitchLedger; onClose: () => void; onConfirm: () => void; onPick?: (option: string) => void; children?: ReactNode; armAfterMs?: number }) {
+export function SwitchReview({
+  ledger: l,
+  onClose,
+  onConfirm,
+  onPick,
+  children,
+  armAfterMs,
+}: {
+  ledger: SwitchLedger;
+  onClose: () => void;
+  onConfirm: () => void;
+  onPick?: (option: string) => void;
+  children?: ReactNode;
+  armAfterMs?: number;
+}) {
   const cancel = useRef<HTMLButtonElement>(null);
   const [typed, setTyped] = useState("");
   const armed = useArmed(armAfterMs);
   const unmatched = !!l.typed && typed.trim() !== l.typed.expect.trim();
   const blocked = !!l.blocked || unmatched || !armed;
   // The modifier makes confirming a chord: a stray Enter, or one meant for the page behind, does nothing.
-  useEventListener("keydown", (e) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.stopPropagation(); onConfirm(); }
-  }, blocked ? null : document, CAPTURE);
+  useEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        onConfirm();
+      }
+    },
+    blocked ? null : document,
+    CAPTURE,
+  );
   const rows = l.stop ? [...l.rows, { k: "To stop", v: l.stop }] : l.rows;
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent
         hideClose
         // Focus rests on the back-out button, so Enter or Space on open backs out.
-        onOpenAutoFocus={(e) => { e.preventDefault(); cancel.current?.focus(); }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          cancel.current?.focus();
+        }}
         // One column that never grows past the dialog: every part may shrink, nothing may push the edge.
         // Taller than the window, it scrolls (the dialog's cap), so the buttons stay in reach.
         className="w-[30rem] max-w-[calc(100vw-1.5rem)] grid-cols-[minmax(0,1fr)] gap-0 overflow-x-hidden overflow-y-auto border-sol-border bg-sol-bg p-0 text-sol-text sm:rounded-xl [&>*]:min-w-0"
         data-switch-review={l.name}
       >
-        <header className="flex items-start justify-between gap-3 border-b border-sol-border/60 px-5 py-3.5" data-switch-part>
+        <header
+          className="flex items-start justify-between gap-3 border-b border-sol-border/60 px-5 py-3.5"
+          data-switch-part
+        >
           <DialogTitle className="flex min-w-0 flex-col gap-0.5 text-[15px] font-semibold leading-tight tracking-normal text-sol-text">
             <span className="truncate">{l.name}</span>
-            <span className="truncate text-[12.5px] font-normal text-sol-text-muted" title={l.subject} data-switch-subject>{l.subject}</span>
+            <span
+              className="truncate text-[12.5px] font-normal text-sol-text-muted"
+              title={l.subject}
+              data-switch-subject
+            >
+              {l.subject}
+            </span>
           </DialogTitle>
           {l.shift !== null && (
-            <span className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-meta tabular-nums text-sol-text-dim" aria-hidden data-switch-shift>
-              {l.shift?.[0] ?? "Off"} <span className="text-sol-text-dim/60">→</span> <b className="font-semibold text-sol-orange">{l.shift?.[1] ?? "On"}</b>
+            <span
+              className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-meta tabular-nums text-sol-text-dim"
+              aria-hidden
+              data-switch-shift
+            >
+              {l.shift?.[0] ?? "Off"}{" "}
+              <span className="text-sol-text-dim/60">→</span>{" "}
+              <b className="font-semibold text-sol-orange">
+                {l.shift?.[1] ?? "On"}
+              </b>
             </span>
           )}
         </header>
-        <DialogDescription className="sr-only">{l.name}: {l.subject}. {l.confirm}.</DialogDescription>
+        <DialogDescription className="sr-only">
+          {l.name}: {l.subject}. {l.confirm}.
+        </DialogDescription>
 
         {l.alert && (
-          <p className="flex items-center gap-2 bg-sol-red px-5 py-2.5 text-[14px] font-semibold text-sol-bg" role="alert" data-switch-alert data-switch-part>
-            <span aria-hidden>!</span><span className="min-w-0 truncate">{l.alert}</span>
+          <p
+            className="flex items-center gap-2 bg-sol-red px-5 py-2.5 text-[14px] font-semibold text-sol-bg"
+            role="alert"
+            data-switch-alert
+            data-switch-part
+          >
+            <span aria-hidden>!</span>
+            <span className="min-w-0 truncate">{l.alert}</span>
           </p>
         )}
 
         {l.hands && (
-          <div className="grid grid-cols-2 gap-px border-b border-sol-border/60 bg-sol-border/40 text-[12.5px] leading-snug" data-switch-hands data-switch-part>
-            <div className="flex min-w-0 flex-col gap-1 px-5 py-3" style={{ background: "color-mix(in srgb, var(--sol-orange) 12%, var(--sol-bg))" }}>
-              <b className="text-mark font-semibold uppercase tracking-wide text-sol-orange">It decides</b>
-              {l.hands.its.map((x) => <span key={x} className="text-sol-text">{x}</span>)}
+          <div
+            className="grid grid-cols-2 gap-px border-b border-sol-border/60 bg-sol-border/40 text-[12.5px] leading-snug"
+            data-switch-hands
+            data-switch-part
+          >
+            <div
+              className="flex min-w-0 flex-col gap-1 px-5 py-3"
+              style={{
+                background:
+                  "color-mix(in srgb, var(--sol-orange) 12%, var(--sol-bg))",
+              }}
+            >
+              <b className="text-mark font-semibold uppercase tracking-wide text-sol-orange">
+                It decides
+              </b>
+              {l.hands.its.map((x) => (
+                <span key={x} className="text-sol-text">
+                  {x}
+                </span>
+              ))}
             </div>
             <div className="flex min-w-0 flex-col gap-1 bg-sol-bg px-5 py-3">
-              <b className="text-mark font-semibold uppercase tracking-wide text-sol-green">You decide</b>
-              {l.hands.yours.map((x) => <span key={x} className="text-sol-text">{x}</span>)}
+              <b className="text-mark font-semibold uppercase tracking-wide text-sol-green">
+                You decide
+              </b>
+              {l.hands.yours.map((x) => (
+                <span key={x} className="text-sol-text">
+                  {x}
+                </span>
+              ))}
             </div>
           </div>
         )}
 
         {l.figures.length > 0 && (
           // As many tiles a row as fit; a narrow window wraps them instead of squeezing.
-          <dl className="flex flex-wrap gap-px border-b border-sol-border/60 bg-sol-border/40" data-switch-figures data-switch-part>
+          <dl
+            className="flex flex-wrap gap-px border-b border-sol-border/60 bg-sol-border/40"
+            data-switch-figures
+            data-switch-part
+          >
             {l.figures.map((f) => (
               // Tiles grow to fill their row, so a wrapped last row has no empty cell.
-              <div key={f.label} className="flex min-w-0 flex-[1_1_6.5rem] flex-col gap-0.5 bg-sol-bg px-4 py-3">
-                <dd className={`truncate text-[24px] font-semibold leading-none tabular-nums ${f.tone ? TONE[f.tone] : "text-sol-text"}`} title={f.value} data-switch-figure={f.label}>{f.value}</dd>
-                <dt className="text-meta leading-tight text-sol-text-muted">{f.label}</dt>
+              <div
+                key={f.label}
+                className="flex min-w-0 flex-[1_1_6.5rem] flex-col gap-0.5 bg-sol-bg px-4 py-3"
+              >
+                <dd
+                  className={`truncate text-[24px] font-semibold leading-none tabular-nums ${f.tone ? TONE[f.tone] : "text-sol-text"}`}
+                  title={f.value}
+                  data-switch-figure={f.label}
+                >
+                  {f.value}
+                </dd>
+                <dt className="text-meta leading-tight text-sol-text-muted">
+                  {f.label}
+                </dt>
               </div>
             ))}
           </dl>
         )}
 
         {l.pick && onPick && (
-          <div className="flex items-center gap-3 border-b border-sol-border/60 px-5 py-2.5 text-[12.5px]" role="group" aria-label={l.pick.k} data-switch-pick={l.pick.k} data-switch-part>
-            <span className="w-[6rem] shrink-0 truncate text-sol-text-dim">{l.pick.k}</span>
+          <div
+            className="flex items-center gap-3 border-b border-sol-border/60 px-5 py-2.5 text-[12.5px]"
+            role="group"
+            aria-label={l.pick.k}
+            data-switch-pick={l.pick.k}
+            data-switch-part
+          >
+            <span className="w-[6rem] shrink-0 truncate text-sol-text-dim">
+              {l.pick.k}
+            </span>
             <span className="inline-flex flex-wrap gap-1">
               {l.pick.options.map((o) => (
-                <button key={o} type="button" aria-pressed={o === l.pick!.value} onClick={() => onPick(o)} data-switch-pick-option={o}
-                  className="h-7 rounded-md border border-sol-border px-2.5 tabular-nums text-sol-text-muted hover:text-sol-text aria-pressed:border-sol-orange aria-pressed:bg-sol-orange/15 aria-pressed:text-sol-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50">
+                <button
+                  key={o}
+                  type="button"
+                  aria-pressed={o === l.pick!.value}
+                  onClick={() => onPick(o)}
+                  data-switch-pick-option={o}
+                  className="h-7 rounded-md border border-sol-border px-2.5 tabular-nums text-sol-text-muted hover:text-sol-text aria-pressed:border-sol-orange aria-pressed:bg-sol-orange/15 aria-pressed:text-sol-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50"
+                >
                   {o}
                 </button>
               ))}
@@ -203,22 +383,53 @@ export function SwitchReview({ ledger: l, onClose, onConfirm, onPick, children, 
 
         {children}
 
-        <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-2 px-5 py-3.5 text-[12.5px] leading-snug" data-switch-rows data-switch-part>
+        <dl
+          className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-2 px-5 py-3.5 text-[12.5px] leading-snug"
+          data-switch-rows
+          data-switch-part
+        >
           {rows.map((r) => (
             <div key={r.k} className="contents" data-switch-row={r.k}>
               <dt className="truncate text-sol-text-dim">{r.k}</dt>
               <dd className="min-w-0">
-                <span className={`block break-words ${"tone" in r && r.tone ? TONE[r.tone] : "text-sol-text"}`}>{r.v}</span>
-                {"list" in r && r.list?.map((x) => <span key={x} className="block break-words text-meta text-sol-text-muted">{x}</span>)}
-                {"act" in r && r.act && <button type="button" onClick={r.act.press} className="mt-0.5 text-meta text-sol-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50" data-switch-row-act>{r.act.label}</button>}
+                <span
+                  className={`block break-words ${"tone" in r && r.tone ? TONE[r.tone] : "text-sol-text"}`}
+                >
+                  {r.v}
+                </span>
+                {"list" in r &&
+                  r.list?.map((x) => (
+                    <span
+                      key={x}
+                      className="block break-words text-meta text-sol-text-muted"
+                    >
+                      {x}
+                    </span>
+                  ))}
+                {"act" in r && r.act && (
+                  <button
+                    type="button"
+                    onClick={r.act.press}
+                    className="mt-0.5 text-meta text-sol-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50"
+                    data-switch-row-act
+                  >
+                    {r.act.label}
+                  </button>
+                )}
               </dd>
             </div>
           ))}
         </dl>
 
         {l.typed && (
-          <label className="flex items-center gap-3 border-t border-sol-border/60 px-5 py-2.5 text-[12.5px]" data-switch-typed data-switch-part>
-            <span className="w-[6rem] shrink-0 truncate text-sol-text-dim">{l.typed.k}</span>
+          <label
+            className="flex items-center gap-3 border-t border-sol-border/60 px-5 py-2.5 text-[12.5px]"
+            data-switch-typed
+            data-switch-part
+          >
+            <span className="w-[6rem] shrink-0 truncate text-sol-text-dim">
+              {l.typed.k}
+            </span>
             <input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -232,13 +443,42 @@ export function SwitchReview({ ledger: l, onClose, onConfirm, onPick, children, 
           </label>
         )}
 
-        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-sol-border/60 bg-sol-bg-alt/40 px-5 py-3 sm:rounded-b-xl" data-switch-part>
-          <button ref={cancel} type="button" onClick={onClose} className="inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-sol-border px-3 text-[12.5px] text-sol-text-muted hover:text-sol-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50" data-switch-cancel>
+        <footer
+          className="flex flex-wrap items-center justify-between gap-2 border-t border-sol-border/60 bg-sol-bg-alt/40 px-5 py-3 sm:rounded-b-xl"
+          data-switch-part
+        >
+          <button
+            ref={cancel}
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-sol-border px-3 text-[12.5px] text-sol-text-muted hover:text-sol-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-blue/50"
+            data-switch-cancel
+          >
             {l.keep ?? "Keep off"} <KeyCap size="xs">esc</KeyCap>
           </button>
-          <Button type="button" variant="orange" size="sm" disabled={blocked} onClick={() => { if (!blocked) onConfirm(); }} title={l.blocked ?? l.confirm} className="ml-auto min-w-0 max-w-full" data-switch-confirm>
+          <Button
+            type="button"
+            variant="orange"
+            size="sm"
+            disabled={blocked}
+            onClick={() => {
+              if (!blocked) onConfirm();
+            }}
+            title={l.blocked ?? l.confirm}
+            className="ml-auto min-w-0 max-w-full"
+            data-switch-confirm
+          >
             <span className="min-w-0 truncate">{l.blocked ?? l.confirm}</span>
-            {!blocked && <span className="inline-flex shrink-0 items-center gap-0.5"><KeyCap size="xs" tone="onAccent">{isMac ? "⌘" : "ctrl"}</KeyCap><KeyCap size="xs" tone="onAccent">↵</KeyCap></span>}
+            {!blocked && (
+              <span className="inline-flex shrink-0 items-center gap-0.5">
+                <KeyCap size="xs" tone="onAccent">
+                  {isMac ? "⌘" : "ctrl"}
+                </KeyCap>
+                <KeyCap size="xs" tone="onAccent">
+                  ↵
+                </KeyCap>
+              </span>
+            )}
           </Button>
         </footer>
       </DialogContent>

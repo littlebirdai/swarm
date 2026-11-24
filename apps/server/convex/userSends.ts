@@ -18,9 +18,20 @@ export const record = internalMutation({
     by_person: v.boolean(),
     timestamp: v.number(),
   },
-  handler: async (ctx, { conversation_id, message_id, by_person, timestamp, ...send }): Promise<void> => {
+  handler: async (
+    ctx,
+    { conversation_id, message_id, by_person, timestamp, ...send },
+  ): Promise<void> => {
     const conversation = await ctx.db.get(conversation_id);
-    if (conversation) await recordSendFor(ctx, conversation, send, by_person, timestamp, message_id);
+    if (conversation)
+      await recordSendFor(
+        ctx,
+        conversation,
+        send,
+        by_person,
+        timestamp,
+        message_id,
+      );
   },
 });
 
@@ -52,17 +63,30 @@ export type PromptRow = {
 // (the profile feed's rule); the viewer always sees their own. Null when the
 // viewer is not a member of the team.
 export const teamDay = query({
-  args: { team_id: v.id("teams"), date: v.string(), timezone: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ date: string; rows: PromptRow[] } | null> => {
+  args: {
+    team_id: v.id("teams"),
+    date: v.string(),
+    timezone: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ date: string; rows: PromptRow[] } | null> => {
     const viewer = await getAuthUserId(ctx);
     if (!viewer) return null;
     const filter = await createTeamFeedFilter(ctx, args.team_id);
-    if (!filter.memberships.some((m) => String(m.user_id) === String(viewer))) return null;
+    if (!filter.memberships.some((m) => String(m.user_id) === String(viewer)))
+      return null;
     const { start, end } = dayBounds(args.date, args.timezone);
 
     const sends = await ctx.db
       .query("user_sends")
-      .withIndex("by_team_timestamp", (q) => q.eq("team_id", args.team_id).gte("timestamp", start).lt("timestamp", end))
+      .withIndex("by_team_timestamp", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .gte("timestamp", start)
+          .lt("timestamp", end),
+      )
       .take(DAY_SEND_CAP);
 
     const conversations = new Map<string, Doc<"conversations"> | null>();
@@ -71,14 +95,22 @@ export const teamDay = query({
     const rows: PromptRow[] = [];
     for (const send of sends) {
       const sender = String(send.user_id);
-      if (!bots.has(sender)) bots.set(sender, !!(await ctx.db.get(send.user_id))?.is_bot);
+      if (!bots.has(sender))
+        bots.set(sender, !!(await ctx.db.get(send.user_id))?.is_bot);
       if (bots.get(sender)) continue;
       const key = String(send.conversation_id);
-      if (!conversations.has(key)) conversations.set(key, await ctx.db.get(send.conversation_id));
+      if (!conversations.has(key))
+        conversations.set(key, await ctx.db.get(send.conversation_id));
       const c = conversations.get(key);
       if (!c) continue;
-      const mine = String(send.user_id) === String(viewer) || String(c.user_id) === String(viewer);
-      if (!mine && !(String(c.team_id) === String(args.team_id) && filter.isVisible(c))) continue;
+      const mine =
+        String(send.user_id) === String(viewer) ||
+        String(c.user_id) === String(viewer);
+      if (
+        !mine &&
+        !(String(c.team_id) === String(args.team_id) && filter.isVisible(c))
+      )
+        continue;
       rows.push({
         _id: `ps:${send.message_id}`,
         team_id: args.team_id,
@@ -130,13 +162,17 @@ export type MySendRow = {
   question?: string;
 };
 
-async function toMyRows(ctx: { db: any }, sends: Doc<"user_sends">[]): Promise<MySendRow[]> {
+async function toMyRows(
+  ctx: { db: any },
+  sends: Doc<"user_sends">[],
+): Promise<MySendRow[]> {
   const conversations = new Map<string, Doc<"conversations"> | null>();
   const rows: MySendRow[] = [];
   for (const send of sends) {
     if (send.decision?.picked) continue;
     const key = String(send.conversation_id);
-    if (!conversations.has(key)) conversations.set(key, await ctx.db.get(send.conversation_id));
+    if (!conversations.has(key))
+      conversations.set(key, await ctx.db.get(send.conversation_id));
     const c = conversations.get(key);
     // A test suite's session logged before its path was known as one.
     if (!c || isTestArtifactPath(c.project_path ?? "")) continue;
@@ -162,8 +198,15 @@ async function toMyRows(ctx: { db: any }, sends: Doc<"user_sends">[]): Promise<M
  *  keeps a subscription's read set to the sessions typed into lately).
  *  `nextBefore` is null once history is exhausted. */
 export const mine = query({
-  args: { before: v.optional(v.number()), after: v.optional(v.number()), limit: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ rows: MySendRow[]; nextBefore: number | null }> => {
+  args: {
+    before: v.optional(v.number()),
+    after: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ rows: MySendRow[]; nextBefore: number | null }> => {
     const viewer = await getAuthUserId(ctx);
     if (!viewer) return { rows: [], nextBefore: null };
     const limit = Math.max(1, Math.min(args.limit ?? 200, MY_PAGE_MAX));
@@ -171,7 +214,8 @@ export const mine = query({
       .query("user_sends")
       .withIndex("by_user_timestamp", (q) => {
         const base = q.eq("user_id", viewer);
-        if (args.before !== undefined && args.after !== undefined) return base.gt("timestamp", args.after).lt("timestamp", args.before);
+        if (args.before !== undefined && args.after !== undefined)
+          return base.gt("timestamp", args.after).lt("timestamp", args.before);
         if (args.before !== undefined) return base.lt("timestamp", args.before);
         if (args.after !== undefined) return base.gt("timestamp", args.after);
         return base;
@@ -179,7 +223,10 @@ export const mine = query({
       .order("desc")
       .take(limit);
     const full = sends.length === limit;
-    return { rows: await toMyRows(ctx, sends), nextBefore: full ? sends[sends.length - 1].timestamp : null };
+    return {
+      rows: await toMyRows(ctx, sends),
+      nextBefore: full ? sends[sends.length - 1].timestamp : null,
+    };
   },
 });
 
@@ -192,7 +239,9 @@ export const searchMine = query({
     if (!viewer || q.length < 2) return [];
     const sends = await ctx.db
       .query("user_sends")
-      .withSearchIndex("search_text", (s) => s.search("text", q).eq("user_id", viewer))
+      .withSearchIndex("search_text", (s) =>
+        s.search("text", q).eq("user_id", viewer),
+      )
       .take(MY_SEARCH_MAX);
     return await toMyRows(ctx, sends);
   },
@@ -201,10 +250,16 @@ export const searchMine = query({
 /** The whole logged text of one of the viewer's sends (up to SEND_TEXT_CAP). */
 export const fullText = query({
   args: { message_id: v.id("messages") },
-  handler: async (ctx, args): Promise<{ text: string; clipped: boolean } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ text: string; clipped: boolean } | null> => {
     const viewer = await getAuthUserId(ctx);
     if (!viewer) return null;
-    const send = await ctx.db.query("user_sends").withIndex("by_message", (q) => q.eq("message_id", args.message_id)).first();
+    const send = await ctx.db
+      .query("user_sends")
+      .withIndex("by_message", (q) => q.eq("message_id", args.message_id))
+      .first();
     if (!send || String(send.user_id) !== String(viewer)) return null;
     return { text: send.text, clipped: send.clipped };
   },
@@ -219,7 +274,8 @@ export const fullText = query({
 // answer is marked by `kind`, so a reader can drop the picks (a tap).
 
 const TYPED_PAGE_MAX = 1000;
-const PASTED_BLOCK_RE = /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
+const PASTED_BLOCK_RE =
+  /<pasted_content(?=[\s>])[^>]*>[\s\S]*?<\/pasted_content[^>]*>/g;
 // A paste the log cut at SEND_TEXT_CAP has lost its closing tag: the rest is paste.
 const CUT_PASTE_RE = /<pasted_content(?=[\s>])[^>]*>[\s\S]*$/;
 
@@ -233,11 +289,22 @@ export type TypedRow = {
 /** One page of the person's sends at or after `since`, oldest first.
  *  `next` is the cursor for the following page, null once the window is read. */
 export const typedSince = query({
-  args: { api_token: v.string(), since: v.number(), after: v.optional(v.number()), limit: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<{ messages: TypedRow[]; next: number | null }> => {
+  args: {
+    api_token: v.string(),
+    since: v.number(),
+    after: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ messages: TypedRow[]; next: number | null }> => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
-    const limit = Math.max(1, Math.min(args.limit ?? TYPED_PAGE_MAX, TYPED_PAGE_MAX));
+    const limit = Math.max(
+      1,
+      Math.min(args.limit ?? TYPED_PAGE_MAX, TYPED_PAGE_MAX),
+    );
     const sends: Doc<"user_sends">[] = await ctx.db
       .query("user_sends")
       .withIndex("by_user_timestamp", (q) =>
@@ -251,16 +318,27 @@ export const typedSince = query({
     const messages: TypedRow[] = [];
     for (const send of sends) {
       const key = String(send.conversation_id);
-      if (!conversations.has(key)) conversations.set(key, await ctx.db.get(send.conversation_id));
+      if (!conversations.has(key))
+        conversations.set(key, await ctx.db.get(send.conversation_id));
       const c = conversations.get(key);
       if (!c || isTestArtifactPath(c.project_path ?? "")) continue;
       messages.push({
         at: send.timestamp,
         session: c.short_id ?? key.slice(0, 7),
-        chars: send.text.replace(PASTED_BLOCK_RE, "").replace(CUT_PASTE_RE, "").trim().length,
-        kind: send.decision ? (send.decision.picked ? "decision_picked" : "decision_written") : "message",
+        chars: send.text
+          .replace(PASTED_BLOCK_RE, "")
+          .replace(CUT_PASTE_RE, "")
+          .trim().length,
+        kind: send.decision
+          ? send.decision.picked
+            ? "decision_picked"
+            : "decision_written"
+          : "message",
       });
     }
-    return { messages, next: sends.length === limit ? sends[sends.length - 1].timestamp : null };
+    return {
+      messages,
+      next: sends.length === limit ? sends[sends.length - 1].timestamp : null,
+    };
   },
 });

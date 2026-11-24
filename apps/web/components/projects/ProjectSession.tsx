@@ -7,22 +7,48 @@ import { InboxConversation } from "../../app/inbox/QueuePageClient";
 import { ContextChatInput } from "../ContextChatInput";
 import { useIsPhone } from "../../hooks/useIsPhone";
 import { useInboxStore } from "../../store/inboxStore";
-import { projectDefaultSessionOf, type ProjectRow, type RoleSeat } from "../../lib/projectDefaultSession";
+import {
+  projectDefaultSessionOf,
+  type ProjectRow,
+  type RoleSeat,
+} from "../../lib/projectDefaultSession";
 import { windowOrgTree } from "../../store/orgSlice";
 
-export function ProjectSession({ project, onOpenAbout }: { project: ProjectRow; onOpenAbout?: () => void }) {
+export function ProjectSession({
+  project,
+  onOpenAbout,
+}: {
+  project: ProjectRow;
+  onOpenAbout?: () => void;
+}) {
   const phone = useIsPhone();
-  const defaultId = useInboxStore((s) => projectDefaultSessionOf(project, s.sessions, windowOrgTree(s)?.roles as RoleSeat[] | undefined));
+  const defaultId = useInboxStore((s) =>
+    projectDefaultSessionOf(
+      project,
+      s.sessions,
+      windowOrgTree(s)?.roles as RoleSeat[] | undefined,
+    ),
+  );
   // The three fields the conversation takes from the row, not the row (its
   // ref flips on every heartbeat).
-  const isIdle = useInboxStore((s) => !!(defaultId && s.sessions[defaultId]?.is_idle));
-  const lastUserMessage = useInboxStore((s) => (defaultId ? s.sessions[defaultId]?.last_user_message : undefined));
-  const sessionError = useInboxStore((s) => (defaultId ? (s.sessions[defaultId] as any)?.session_error : undefined));
+  const isIdle = useInboxStore(
+    (s) => !!(defaultId && s.sessions[defaultId]?.is_idle),
+  );
+  const lastUserMessage = useInboxStore((s) =>
+    defaultId ? s.sessions[defaultId]?.last_user_message : undefined,
+  );
+  const sessionError = useInboxStore((s) =>
+    defaultId ? (s.sessions[defaultId] as any)?.session_error : undefined,
+  );
   // The page header already names the project; a session carrying the same
   // name keeps its header controls without saying it twice.
   const sameName = useInboxStore((s) => {
     const t = defaultId ? s.sessions[defaultId]?.title : undefined;
-    return !!t && !!project.title && t.trim().toLowerCase() === project.title.trim().toLowerCase();
+    return (
+      !!t &&
+      !!project.title &&
+      t.trim().toLowerCase() === project.title.trim().toLowerCase()
+    );
   });
 
   if (defaultId) {
@@ -42,25 +68,44 @@ export function ProjectSession({ project, onOpenAbout }: { project: ProjectRow; 
   }
   // No session yet: what the project is for (the header names it), over the
   // box that starts its session, in the middle of the page.
-  const about = (project.goal || project.description || "").split("\n").map((l) => l.trim()).find(Boolean);
+  const about = (project.goal || project.description || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .find(Boolean);
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col" data-project-conversation="none">
+    <div
+      className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+      data-project-conversation="none"
+    >
       {/* Above the middle, where the eye lands on a page that is mostly empty. */}
       <div className="flex-[2]" />
       <div className="w-full max-w-2xl mx-auto px-4 py-8">
-        {about
-          ? <p className="mb-5 text-[14px] leading-6 text-sol-text-muted line-clamp-3">{about}</p>
-          : onOpenAbout && (
-            <button type="button" onClick={onOpenAbout} className="mb-4 text-[13px] text-sol-text-dim underline decoration-dotted underline-offset-4 hover:text-sol-text" data-project-add-about>
+        {about ? (
+          <p className="mb-5 text-[14px] leading-6 text-sol-text-muted line-clamp-3">
+            {about}
+          </p>
+        ) : (
+          onOpenAbout && (
+            <button
+              type="button"
+              onClick={onOpenAbout}
+              className="mb-4 text-[13px] text-sol-text-dim underline decoration-dotted underline-offset-4 hover:text-sol-text"
+              data-project-add-about
+            >
               Say what this project is for
             </button>
-          )}
+          )
+        )}
         <ContextChatInput
           open
           inline
           contextType="project"
           contextTitle={project.title ?? "Project"}
-          getContextBody={() => [project.goal && `Goal: ${project.goal}`, project.description].filter(Boolean).join("\n\n")}
+          getContextBody={() =>
+            [project.goal && `Goal: ${project.goal}`, project.description]
+              .filter(Boolean)
+              .join("\n\n")
+          }
           projectPath={project.project_path}
           projectId={project._id}
           projectDefault

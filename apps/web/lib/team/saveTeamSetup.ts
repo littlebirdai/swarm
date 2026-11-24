@@ -3,9 +3,15 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
 import type { TeamVisibility } from "./visibilityLevels";
 import { useInboxStore } from "../../store/inboxStore";
-import { isMappedToTeam, type UserWorkspace } from "../../hooks/useTeamWorkspaceSuggestions";
+import {
+  isMappedToTeam,
+  type UserWorkspace,
+} from "../../hooks/useTeamWorkspaceSuggestions";
 
-type SetVisibility = (args: { team_id: Id<"teams">; visibility: TeamVisibility }) => Promise<unknown>;
+type SetVisibility = (args: {
+  team_id: Id<"teams">;
+  visibility: TeamVisibility;
+}) => Promise<unknown>;
 type MapDirectory = (args: {
   path_prefix: string;
   team_id: Id<"teams">;
@@ -32,9 +38,18 @@ export type SaveTeamSetupInput = {
  */
 export async function saveTeamSetup(
   input: SaveTeamSetupInput,
-  mutations: { setTeamVisibility: SetVisibility; updateDirectoryMapping: MapDirectory },
+  mutations: {
+    setTeamVisibility: SetVisibility;
+    updateDirectoryMapping: MapDirectory;
+  },
 ): Promise<{ mapped: number }> {
-  const { teamId, visibility, selectedPaths, allProjects, shareSince = null } = input;
+  const {
+    teamId,
+    visibility,
+    selectedPaths,
+    allProjects,
+    shareSince = null,
+  } = input;
   await mutations.setTeamVisibility({ team_id: teamId, visibility });
 
   let mapped = 0;
@@ -58,9 +73,14 @@ export async function saveTeamSetup(
  *  member's level goes through the store action every other surface uses
  *  (setTeamMembershipVisibility), so it paints at once and is classified. */
 export function useSaveTeamSetup() {
-  const setMembershipVisibility = useInboxStore((s) => s.setTeamMembershipVisibility);
-  const setTeamVisibility: SetVisibility = async ({ team_id, visibility }) => setMembershipVisibility(team_id, visibility);
-  const updateDirectoryMapping = useMutation(api.users.updateDirectoryTeamMapping);
+  const setMembershipVisibility = useInboxStore(
+    (s) => s.setTeamMembershipVisibility,
+  );
+  const setTeamVisibility: SetVisibility = async ({ team_id, visibility }) =>
+    setMembershipVisibility(team_id, visibility);
+  const updateDirectoryMapping = useMutation(
+    api.users.updateDirectoryTeamMapping,
+  );
   return (input: SaveTeamSetupInput) =>
     saveTeamSetup(input, { setTeamVisibility, updateDirectoryMapping });
 }

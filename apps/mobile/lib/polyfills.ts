@@ -29,7 +29,8 @@ if (typeof g.crypto?.randomUUID !== "function") {
   const cryptoObj = g.crypto ?? {};
   const bytes = (): Uint8Array => {
     const b = new Uint8Array(16);
-    if (typeof cryptoObj.getRandomValues === "function") cryptoObj.getRandomValues(b);
+    if (typeof cryptoObj.getRandomValues === "function")
+      cryptoObj.getRandomValues(b);
     else for (let i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
     return b;
   };

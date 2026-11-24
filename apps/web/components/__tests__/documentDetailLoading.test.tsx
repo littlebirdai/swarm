@@ -49,7 +49,12 @@ mock.module("../editor/CollabDocEditor", () => ({
 // package has no collab export), so the real editor module can never load
 // under bun test. On CI the editor stub alone did not keep it out.
 mock.module("@convex-dev/prosemirror-sync/tiptap", () => ({
-  useTiptapSync: () => ({ isLoading: false, initialContent: null, extension: null, create: async () => {} }),
+  useTiptapSync: () => ({
+    isLoading: false,
+    initialContent: null,
+    extension: null,
+    create: async () => {},
+  }),
 }));
 // Spread, not replaced: `mock.module` is process-global, and a sibling test
 // imports `matchScore` off this module.
@@ -98,13 +103,21 @@ describe("DocumentDetailLayout body modes", () => {
 
   // The review body's three empty-content states (opted out of edit mode).
   test("review: content not yet synced → loader, never a blank or 'empty' body", () => {
-    const html = render({ markdownContent: "", contentReady: false, defaultEditing: false });
+    const html = render({
+      markdownContent: "",
+      contentReady: false,
+      defaultEditing: false,
+    });
     expect(html).toContain("app-loader-bar");
     expect(html).not.toContain("Empty document");
   });
 
   test("review: confirmed-empty doc → the empty-document affordance, no loader", () => {
-    const html = render({ markdownContent: "", contentReady: true, defaultEditing: false });
+    const html = render({
+      markdownContent: "",
+      contentReady: true,
+      defaultEditing: false,
+    });
     expect(html).toContain("Empty document");
     expect(html).not.toContain("app-loader-bar");
   });
@@ -127,7 +140,11 @@ describe("DocumentDetailLayout body modes", () => {
 // as a static heading in the same spot.
 describe("DocumentDetailLayout titleInBody", () => {
   test("edit mode renders no separate title element", () => {
-    const html = render({ titleInBody: true, markdownContent: "# Real Title\n\nbody", contentReady: true });
+    const html = render({
+      titleInBody: true,
+      markdownContent: "# Real Title\n\nbody",
+      contentReady: true,
+    });
     expect(html).toContain('data-stub="collab-editor"');
     expect(html).not.toContain("<h1");
   });
@@ -157,7 +174,12 @@ describe("DocumentDetailLayout titleInBody", () => {
   });
 
   test("a doc that is only a title counts as empty in review mode", () => {
-    const html = render({ titleInBody: true, markdownContent: "# Just a Title\n", contentReady: true, defaultEditing: false });
+    const html = render({
+      titleInBody: true,
+      markdownContent: "# Just a Title\n",
+      contentReady: true,
+      defaultEditing: false,
+    });
     expect(html).toContain("Empty document");
     expect(html).toContain("Just a Title");
   });

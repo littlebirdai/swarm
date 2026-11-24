@@ -13,14 +13,49 @@ import { defaultConfigDir } from "../../config/configDir.js";
 import { isCloudMirrorEnabled, type Config } from "../../config/types.js";
 import { deviceId as localDeviceId } from "../../remote/device.js";
 import { claudeProjectDirName } from "../../projectPathResolver.js";
-import { remoteHome, sshBase, sshDestination, type RemoteHost } from "../../remote/session-move.js";
-import { featureSwitches, withMirrorLock, type ApplyResult, type MirrorStamp } from "./apply.js";
-import { pullHostMemory, sshMemoryReader, type PulledMemory } from "./memoryBack.js";
+import {
+  remoteHome,
+  sshBase,
+  sshDestination,
+  type RemoteHost,
+} from "../../remote/session-move.js";
+import {
+  featureSwitches,
+  withMirrorLock,
+  type ApplyResult,
+  type MirrorStamp,
+} from "./apply.js";
+import {
+  pullHostMemory,
+  sshMemoryReader,
+  type PulledMemory,
+} from "./memoryBack.js";
 import { buildMirrorBundle, sha256, type BuiltBundle } from "./bundle.js";
-import { MIRROR_MANAGED_ROOTS, collectMirrorSources, renderInventoryForHost, type Inventory, type MirrorSources } from "./inventory.js";
-import { TouchLedger, ledgerUnchanged, signLedger, type MirrorLedger } from "./ledger.js";
-import { projectDestination, projectPathMappings, readProjectRegistrations, unregisterProjectContext, type ProjectRegistration } from "./projectRefresh.js";
-import { AGENT_RUNTIME_ROOTS, collectProjectContextAsync, type ProjectContext } from "./discovery.js";
+import {
+  MIRROR_MANAGED_ROOTS,
+  collectMirrorSources,
+  renderInventoryForHost,
+  type Inventory,
+  type MirrorSources,
+} from "./inventory.js";
+import {
+  TouchLedger,
+  ledgerUnchanged,
+  signLedger,
+  type MirrorLedger,
+} from "./ledger.js";
+import {
+  projectDestination,
+  projectPathMappings,
+  readProjectRegistrations,
+  unregisterProjectContext,
+  type ProjectRegistration,
+} from "./projectRefresh.js";
+import {
+  AGENT_RUNTIME_ROOTS,
+  collectProjectContextAsync,
+  type ProjectContext,
+} from "./discovery.js";
 import { transformByKind, type MirrorKind } from "./transform.js";
 import { CLOUD_START_RUN_MS } from "@codecast/shared/contracts";
 
@@ -28,11 +63,16 @@ const gzipAsync = promisify(gzip);
 
 export const MIRROR_APPLY_COMMAND = `${HOST_PATH_EXPORT}; cast cloud mirror-apply --stdin`;
 export const MIRROR_PUSH_TIMEOUT_MS = 5 * 60_000;
-export const OLDER_HOST_REASON = "host cast older than this laptop — cast hosts provision";
+export const OLDER_HOST_REASON =
+  "host cast older than this laptop — cast hosts provision";
 export const NOT_LOGGED_IN_REASON = "not logged in on this laptop — cast login";
 
 /** Ownership refusals use a longer retry delay. */
-export const FINAL_REFUSALS: ReadonlySet<string> = new Set(["other_user", "other_device", "other_home"]);
+export const FINAL_REFUSALS: ReadonlySet<string> = new Set([
+  "other_user",
+  "other_device",
+  "other_home",
+]);
 export const MIRROR_RETRY_MS = 60_000;
 export const MIRROR_REFUSAL_RETRY_MS = 5 * 60_000;
 export const HOST_EDIT_REASON = "remote edit conflict";
@@ -91,7 +131,10 @@ export class MirrorSourceCache {
   readonly checks = new Map<MirrorLedger, Promise<boolean>>();
   stillHolds(ledger: MirrorLedger): Promise<boolean> {
     let check = this.checks.get(ledger);
-    if (!check) { check = ledgerUnchanged(ledger); this.checks.set(ledger, check); }
+    if (!check) {
+      check = ledgerUnchanged(ledger);
+      this.checks.set(ledger, check);
+    }
     return check;
   }
   /**
@@ -126,103 +169,225 @@ export interface BuildHomeMirrorOptions {
 }
 
 /** Collect + transform + bundle. Throws when the inventory refuses (size cap). */
-export async function buildHomeMirror(opts: BuildHomeMirrorOptions): Promise<HomeMirror> {
+export async function buildHomeMirror(
+  opts: BuildHomeMirrorOptions,
+): Promise<HomeMirror> {
   const home = opts.home ?? (process.env.HOME || os.homedir());
   const sources = opts.sources ?? new MirrorSourceCache();
-  const inv = renderInventoryForHost(await (sources.inventory ??= collectMirrorSources({ home, config: opts.config, localGitRoot: opts.localGitRoot, gitEnv: opts.gitEnv, ledger: sources.ledger })), opts.hostHome);
+  const inv = renderInventoryForHost(
+    await (sources.inventory ??= collectMirrorSources({
+      home,
+      config: opts.config,
+      localGitRoot: opts.localGitRoot,
+      gitEnv: opts.gitEnv,
+      ledger: sources.ledger,
+    })),
+    opts.hostHome,
+  );
   const projects = (opts.projects ?? []).filter((p) => !p.retired);
   const retired = (opts.projects ?? []).filter((p) => p.retired);
-  const canonicalProjects = [...projects].sort((a, b) => a.targetRoot.length - b.targetRoot.length || a.targetRoot.localeCompare(b.targetRoot));
+  const canonicalProjects = [...projects].sort(
+    (a, b) =>
+      a.targetRoot.length - b.targetRoot.length ||
+      a.targetRoot.localeCompare(b.targetRoot),
+  );
   const discoveries = new Map<string, ProjectContext>();
-  for (const project of projects) if (!discoveries.has(project.sourceRoot)) {
-    const discoveryKey = `${project.sourceRoot}\0${opts.narrowProjects ? "narrow" : "wide"}`;
-    let discovery = sources.discoveries.get(discoveryKey);
-    if (!discovery) {
-      discovery = (async () => {
-        sources.ledger.note(project.sourceRoot);
-        if (!(await fs.promises.stat(project.sourceRoot)).isDirectory()) throw new Error(`project context root is not a directory: ${project.sourceRoot}`);
-        return collectProjectContextAsync({ root: project.sourceRoot, home, includeTracked: !opts.narrowProjects, agentContextOnly: opts.narrowProjects, includeAncestors: true, config: opts.config, ledger: sources.ledger });
-      })();
-      sources.discoveries.set(discoveryKey, discovery);
+  for (const project of projects)
+    if (!discoveries.has(project.sourceRoot)) {
+      const discoveryKey = `${project.sourceRoot}\0${opts.narrowProjects ? "narrow" : "wide"}`;
+      let discovery = sources.discoveries.get(discoveryKey);
+      if (!discovery) {
+        discovery = (async () => {
+          sources.ledger.note(project.sourceRoot);
+          if (!(await fs.promises.stat(project.sourceRoot)).isDirectory())
+            throw new Error(
+              `project context root is not a directory: ${project.sourceRoot}`,
+            );
+          return collectProjectContextAsync({
+            root: project.sourceRoot,
+            home,
+            includeTracked: !opts.narrowProjects,
+            agentContextOnly: opts.narrowProjects,
+            includeAncestors: true,
+            config: opts.config,
+            ledger: sources.ledger,
+          });
+        })();
+        sources.discoveries.set(discoveryKey, discovery);
+      }
+      discoveries.set(project.sourceRoot, await discovery);
     }
-    discoveries.set(project.sourceRoot, await discovery);
-  }
-  const mappings = (project: ProjectRegistration) => projectPathMappings(project, home, opts.hostHome, discoveries.get(project.sourceRoot)?.files.map((f) => f.sourcePath));
-  const ctx = { fromHome: home, toHome: opts.hostHome, pathMappings: canonicalProjects.flatMap(mappings) };
+  const mappings = (project: ProjectRegistration) =>
+    projectPathMappings(
+      project,
+      home,
+      opts.hostHome,
+      discoveries.get(project.sourceRoot)?.files.map((f) => f.sourcePath),
+    );
+  const ctx = {
+    fromHome: home,
+    toHome: opts.hostHome,
+    pathMappings: canonicalProjects.flatMap(mappings),
+  };
   const scrubbed: string[] = [];
   const skipped = [...inv.skipped];
   const warnings = [...(inv.warnings ?? [])];
-  const entries: Array<{ path: string; kind: MirrorKind; mode: "0600" | "0700"; bytes: Buffer }> = [];
+  const entries: Array<{
+    path: string;
+    kind: MirrorKind;
+    mode: "0600" | "0700";
+    bytes: Buffer;
+  }> = [];
   const byPath = new Map<string, (typeof entries)[number]>();
-  const add = (e: { path: string; kind: MirrorKind; mode: "0600" | "0700"; bytes: Buffer }, context = ctx) => {
+  const add = (
+    e: { path: string; kind: MirrorKind; mode: "0600" | "0700"; bytes: Buffer },
+    context = ctx,
+  ) => {
     let transformed: ReturnType<typeof transformByKind>;
     try {
-      transformed = transformByKind(e.kind, e.bytes, context, { prescanned: true });
+      transformed = transformByKind(e.kind, e.bytes, context, {
+        prescanned: true,
+      });
       if (e.kind === "claude-mcp") {
         const source = JSON.parse(e.bytes.toString("utf8"));
         const projection = JSON.parse(transformed.bytes.toString("utf8"));
         for (const project of projects) {
           const settings = source.projects?.[project.sourceRoot];
           if (!settings) continue;
-          const scoped = transformByKind(e.kind, Buffer.from(JSON.stringify({ projects: { [project.sourceRoot]: settings } })), { fromHome: home, toHome: opts.hostHome, pathMappings: mappings(project) }, { prescanned: true });
-          Object.assign(projection.projects ??= {}, JSON.parse(scoped.bytes.toString("utf8")).projects);
+          const scoped = transformByKind(
+            e.kind,
+            Buffer.from(
+              JSON.stringify({ projects: { [project.sourceRoot]: settings } }),
+            ),
+            {
+              fromHome: home,
+              toHome: opts.hostHome,
+              pathMappings: mappings(project),
+            },
+            { prescanned: true },
+          );
+          Object.assign(
+            (projection.projects ??= {}),
+            JSON.parse(scoped.bytes.toString("utf8")).projects,
+          );
           transformed.scrubbed.push(...scoped.scrubbed);
         }
-        transformed.bytes = Buffer.from(JSON.stringify(projection, null, 2) + "\n");
+        transformed.bytes = Buffer.from(
+          JSON.stringify(projection, null, 2) + "\n",
+        );
       }
+    } catch (err) {
+      throw new Error(
+        `cannot transform required context ${e.path}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-    catch (err) { throw new Error(`cannot transform required context ${e.path}: ${err instanceof Error ? err.message : String(err)}`); }
     const existing = byPath.get(e.path);
     if (existing) {
-      if (!existing.bytes.equals(transformed.bytes) || existing.mode !== e.mode) throw new Error(`conflicting context sources for ${e.path}`);
+      if (!existing.bytes.equals(transformed.bytes) || existing.mode !== e.mode)
+        throw new Error(`conflicting context sources for ${e.path}`);
       return;
     }
     const entry = { ...e, bytes: transformed.bytes };
     entries.push(entry);
     byPath.set(e.path, entry);
-    for (const item of transformed.scrubbed) scrubbed.push(`${e.path}: ${item}`);
+    for (const item of transformed.scrubbed)
+      scrubbed.push(`${e.path}: ${item}`);
   };
   for (const e of inv.entries) {
     add(e);
     for (const project of projects) {
       const prefix = `.claude/projects/${claudeProjectDirName(project.sourceRoot)}/memory/`;
-      if (e.path.startsWith(prefix)) add({ ...e, path: `.claude/projects/${claudeProjectDirName(project.targetRoot)}/memory/${e.path.slice(prefix.length)}` }, { fromHome: home, toHome: opts.hostHome, pathMappings: mappings(project) });
+      if (e.path.startsWith(prefix))
+        add(
+          {
+            ...e,
+            path: `.claude/projects/${claudeProjectDirName(project.targetRoot)}/memory/${e.path.slice(prefix.length)}`,
+          },
+          {
+            fromHome: home,
+            toHome: opts.hostHome,
+            pathMappings: mappings(project),
+          },
+        );
     }
   }
   for (const project of projects) {
     const discovered = discoveries.get(project.sourceRoot)!;
     skipped.push(...discovered.skipped);
     warnings.push(...discovered.warnings);
-    const context = { fromHome: home, toHome: opts.hostHome, pathMappings: mappings(project) };
+    const context = {
+      fromHome: home,
+      toHome: opts.hostHome,
+      pathMappings: mappings(project),
+    };
     const strandedLinks = new Set<string>();
     for (const file of discovered.files) {
-      const dest = projectDestination(file.sourcePath, project, home, opts.hostHome);
+      const dest = projectDestination(
+        file.sourcePath,
+        project,
+        home,
+        opts.hostHome,
+      );
       // The host's checkout recreates a tracked link that leaves the project;
       // its files are of use only where that link, resolved on the host, lands.
       // Its target here may be another link (`.codex -> ../alias`), so the
       // host's landing is compared with this machine's first hop, not the real path.
       if (file.throughLink) {
         const link = file.throughLink;
-        const hostLink = path.posix.join(opts.hostHome, projectDestination(link.path, project, home, opts.hostHome));
-        const lands = path.posix.resolve(path.posix.dirname(hostLink), link.target);
+        const hostLink = path.posix.join(
+          opts.hostHome,
+          projectDestination(link.path, project, home, opts.hostHome),
+        );
+        const lands = path.posix.resolve(
+          path.posix.dirname(hostLink),
+          link.target,
+        );
         const firstHop = path.resolve(path.dirname(link.path), link.target);
         let hostFirstHop: string | null = null;
-        try { hostFirstHop = path.posix.join(opts.hostHome, projectDestination(firstHop, project, home, opts.hostHome)); } catch { /* outside home: nowhere the host can match */ }
+        try {
+          hostFirstHop = path.posix.join(
+            opts.hostHome,
+            projectDestination(firstHop, project, home, opts.hostHome),
+          );
+        } catch {
+          /* outside home: nowhere the host can match */
+        }
         if (lands !== hostFirstHop) {
-          if (!strandedLinks.has(link.path)) warnings.push(`${hostLink} -> ${link.target} resolves elsewhere on the host; the files behind it stay on this machine`);
+          if (!strandedLinks.has(link.path))
+            warnings.push(
+              `${hostLink} -> ${link.target} resolves elsewhere on the host; the files behind it stay on this machine`,
+            );
           strandedLinks.add(link.path);
           continue;
         }
       }
-      const scoped = file.scope === "project" || dest !== path.relative(home, file.sourcePath);
+      const scoped =
+        file.scope === "project" ||
+        dest !== path.relative(home, file.sourcePath);
       if (!scoped && dest === ".gitconfig") continue;
-      add({ path: dest, kind: file.kind, mode: file.mode, bytes: file.bytes }, scoped ? context : ctx);
+      add(
+        { path: dest, kind: file.kind, mode: file.mode, bytes: file.bytes },
+        scoped ? context : ctx,
+      );
     }
   }
-  const staleCommands = skipped.filter((s) => s.path.startsWith(".local/bin/") && /dangling/i.test(s.reason));
-  warnings.push(...staleCommands.map((s) => `omitted unavailable local command ${s.path}`));
-  const failures = skipped.filter((s) => !staleCommands.includes(s) && /unparseable|unreadable|read failed|failed to read|missing reference|dangling/i.test(s.reason));
-  if (failures.length) throw new Error(`incomplete context inventory: ${failures.map((s) => `${s.path}: ${s.reason}`).join("; ")}`);
+  const staleCommands = skipped.filter(
+    (s) => s.path.startsWith(".local/bin/") && /dangling/i.test(s.reason),
+  );
+  warnings.push(
+    ...staleCommands.map((s) => `omitted unavailable local command ${s.path}`),
+  );
+  const failures = skipped.filter(
+    (s) =>
+      !staleCommands.includes(s) &&
+      /unparseable|unreadable|read failed|failed to read|missing reference|dangling/i.test(
+        s.reason,
+      ),
+  );
+  if (failures.length)
+    throw new Error(
+      `incomplete context inventory: ${failures.map((s) => `${s.path}: ${s.reason}`).join("; ")}`,
+    );
   const built = buildMirrorBundle(entries, {
     source: {
       device_id: opts.deviceId ?? localDeviceId(),
@@ -232,14 +397,29 @@ export async function buildHomeMirror(opts: BuildHomeMirrorOptions): Promise<Hom
       cast_version: opts.castVersion ?? "",
     },
     target_home: opts.hostHome,
-    project_roots: projects.map((p) => path.posix.relative(opts.hostHome, p.targetRoot)),
+    project_roots: projects.map((p) =>
+      path.posix.relative(opts.hostHome, p.targetRoot),
+    ),
     // Codecast-owned paths ride along as unmanaged so a host on an older cast
     // releases one it used to manage (the statusline hook) instead of reporting
     // its own rewrite of it as a remote edit on every push.
-    unmanaged_roots: [...new Set([...AGENT_RUNTIME_ROOTS, ...CODECAST_OWNED_HOME_PATHS, ...retired.flatMap((p) => [path.posix.relative(opts.hostHome, p.targetRoot), `.claude/projects/${claudeProjectDirName(p.targetRoot)}/memory`])])],
-    managed_roots: [...new Set([...MIRROR_MANAGED_ROOTS, ...entries.map((e) => e.path)])],
+    unmanaged_roots: [
+      ...new Set([
+        ...AGENT_RUNTIME_ROOTS,
+        ...CODECAST_OWNED_HOME_PATHS,
+        ...retired.flatMap((p) => [
+          path.posix.relative(opts.hostHome, p.targetRoot),
+          `.claude/projects/${claudeProjectDirName(p.targetRoot)}/memory`,
+        ]),
+      ]),
+    ],
+    managed_roots: [
+      ...new Set([...MIRROR_MANAGED_ROOTS, ...entries.map((e) => e.path)]),
+    ],
     take_over: opts.takeOver ?? false,
-    features: featureSwitches(opts.config as Record<string, unknown> | null | undefined),
+    features: featureSwitches(
+      opts.config as Record<string, unknown> | null | undefined,
+    ),
     reconciled: opts.reconciled,
     skipped,
     scrubbed,
@@ -248,7 +428,12 @@ export async function buildHomeMirror(opts: BuildHomeMirrorOptions): Promise<Hom
   return {
     ...built,
     summary: {
-      files: built.header.files.map((f) => ({ path: f.path, kind: f.kind, mode: f.mode, size: f.size })),
+      files: built.header.files.map((f) => ({
+        path: f.path,
+        kind: f.kind,
+        mode: f.mode,
+        size: f.size,
+      })),
       skipped,
       scrubbed,
       excludesApplied: inv.excludesApplied,
@@ -273,19 +458,40 @@ export interface MirrorPushOutcome {
 }
 
 function lastJsonLine(out: string): unknown {
-  const line = out.trim().split("\n").reverse().find((l) => l.trimStart().startsWith("{"));
+  const line = out
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.trimStart().startsWith("{"));
   if (!line) return null;
-  try { return JSON.parse(line); } catch { return null; }
+  try {
+    return JSON.parse(line);
+  } catch {
+    return null;
+  }
 }
 
 function isApplyResult(value: unknown): value is ApplyResult {
   const r = value as ApplyResult | null;
-  return !!r && typeof r.hash === "string" && Array.isArray(r.applied) && Array.isArray(r.errors)
-    && Array.isArray(r.host_edited) && Array.isArray(r.pruned) && typeof r.unchanged === "number";
+  return (
+    !!r &&
+    typeof r.hash === "string" &&
+    Array.isArray(r.applied) &&
+    Array.isArray(r.errors) &&
+    Array.isArray(r.host_edited) &&
+    Array.isArray(r.pruned) &&
+    typeof r.unchanged === "number"
+  );
 }
 
 function applyFailure(r: ApplyResult): string {
-  return [r.refused, ...r.errors.map((e) => `${e.path}: ${e.error}`), ...r.host_edited.map((p) => `${p}: ${HOST_EDIT_REASON}`)].filter(Boolean).join("; ");
+  return [
+    r.refused,
+    ...r.errors.map((e) => `${e.path}: ${e.error}`),
+    ...r.host_edited.map((p) => `${p}: ${HOST_EDIT_REASON}`),
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 /**
@@ -294,10 +500,21 @@ function applyFailure(r: ApplyResult): string {
  * `unknown command` reply is an older host. Neither the bundle nor the
  * host's stdout ever appears in an error message.
  */
-async function mirrorSsh(host: RemoteHost, command: string, opts: { input?: Buffer; timeoutMs: number; signal?: AbortSignal; what?: string }): Promise<{ code: number | null; stdout: string; stderr: string }> {
+async function mirrorSsh(
+  host: RemoteHost,
+  command: string,
+  opts: {
+    input?: Buffer;
+    timeoutMs: number;
+    signal?: AbortSignal;
+    what?: string;
+  },
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   opts.signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
-    const child = spawn("ssh", [...sshBase(host), hostKey(host), command], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn("ssh", [...sshBase(host), hostKey(host), command], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     let failure: Error | undefined;
     const cancel = (error: Error) => {
       failure ??= error;
@@ -307,76 +524,149 @@ async function mirrorSsh(host: RemoteHost, command: string, opts: { input?: Buff
       child.stderr.destroy();
     };
     const abort = () => cancel(new Error("mirror operation aborted"));
-    const timer = setTimeout(() => cancel(new Error(`${opts.what ?? "mirror push"} timed out after ${Math.round(opts.timeoutMs / 1000)}s`)), opts.timeoutMs);
+    const timer = setTimeout(
+      () =>
+        cancel(
+          new Error(
+            `${opts.what ?? "mirror push"} timed out after ${Math.round(opts.timeoutMs / 1000)}s`,
+          ),
+        ),
+      opts.timeoutMs,
+    );
     opts.signal?.addEventListener("abort", abort, { once: true });
     if (opts.signal?.aborted) abort();
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d) => { stdout += d; if (stdout.length > 32 * 1024 * 1024) cancel(new Error("mirror reply exceeds receive limit")); });
-    child.stderr.on("data", (d) => { stderr = (stderr + d).slice(-4096); });
-    child.on("error", (err) => { failure ??= err; });
+    child.stdout.on("data", (d) => {
+      stdout += d;
+      if (stdout.length > 32 * 1024 * 1024)
+        cancel(new Error("mirror reply exceeds receive limit"));
+    });
+    child.stderr.on("data", (d) => {
+      stderr = (stderr + d).slice(-4096);
+    });
+    child.on("error", (err) => {
+      failure ??= err;
+    });
     child.on("close", async (code) => {
       clearTimeout(timer);
       opts.signal?.removeEventListener("abort", abort);
       if (failure && child.pid) {
         const deadline = performance.now() + 1_000;
         for (;;) {
-          try { process.kill(child.pid, 0); }
-          catch (error) {
+          try {
+            process.kill(child.pid, 0);
+          } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ESRCH") break;
-            reject(new Error("mirror SSH cleanup unconfirmed: cannot verify process exit"));
+            reject(
+              new Error(
+                "mirror SSH cleanup unconfirmed: cannot verify process exit",
+              ),
+            );
             return;
           }
           if (performance.now() >= deadline) {
-            reject(new Error("mirror SSH cleanup unconfirmed: process remains after close"));
+            reject(
+              new Error(
+                "mirror SSH cleanup unconfirmed: process remains after close",
+              ),
+            );
             return;
           }
           await new Promise((done) => setTimeout(done, 10));
         }
       }
-      if (failure) reject(failure); else resolve({ code, stdout, stderr });
+      if (failure) reject(failure);
+      else resolve({ code, stdout, stderr });
     });
     child.stdin.on("error", () => {});
     child.stdin.end(opts.input);
   });
 }
 
-export async function pushMirrorToHostAsync(host: RemoteHost, bundle: Buffer, opts: { timeoutMs?: number; signal?: AbortSignal; command?: string } = {}): Promise<MirrorPushOutcome> {
+export async function pushMirrorToHostAsync(
+  host: RemoteHost,
+  bundle: Buffer,
+  opts: { timeoutMs?: number; signal?: AbortSignal; command?: string } = {},
+): Promise<MirrorPushOutcome> {
   const command = `gzip -dc | ( ${opts.command ?? MIRROR_APPLY_COMMAND} )`;
-  const { code, stdout, stderr } = await mirrorSsh(host, command, { input: await gzipAsync(bundle), timeoutMs: opts.timeoutMs ?? MIRROR_PUSH_TIMEOUT_MS, signal: opts.signal });
+  const { code, stdout, stderr } = await mirrorSsh(host, command, {
+    input: await gzipAsync(bundle),
+    timeoutMs: opts.timeoutMs ?? MIRROR_PUSH_TIMEOUT_MS,
+    signal: opts.signal,
+  });
   const reply = lastJsonLine(stdout) as ApplyResult | null;
   // A file the host edited is a conflict (decision sd-216): the rest applied, but the push is not delivered until a human settles it or the laptop copy changes.
-  if (isApplyResult(reply) && (reply.errors.length || reply.host_edited.length)) {
-    return { pushed: false, hash: reply.hash, result: reply, reason: applyFailure(reply) };
+  if (
+    isApplyResult(reply) &&
+    (reply.errors.length || reply.host_edited.length)
+  ) {
+    return {
+      pushed: false,
+      hash: reply.hash,
+      result: reply,
+      reason: applyFailure(reply),
+    };
   }
   if (code === 0 && isApplyResult(reply) && !reply.refused) {
     return { pushed: true, hash: reply.hash, result: reply };
   }
   if (code === 3) {
-    return { pushed: false, reason: reply?.refused ?? "refused", result: reply ?? undefined };
+    return {
+      pushed: false,
+      reason: reply?.refused ?? "refused",
+      result: reply ?? undefined,
+    };
   }
-  if (!reply && stdout.trim().startsWith("{")) throw new Error("host returned an incomplete config mirror reply — update Codecast on the host and retry");
-  if (code !== 0 && /unsupported mirror bundle version|not a mirror bundle \(bad magic\)/.test(String((reply as unknown as { error?: string })?.error ?? ""))) return { pushed: false, reason: OLDER_HOST_REASON };
+  if (!reply && stdout.trim().startsWith("{"))
+    throw new Error(
+      "host returned an incomplete config mirror reply — update Codecast on the host and retry",
+    );
+  if (
+    code !== 0 &&
+    /unsupported mirror bundle version|not a mirror bundle \(bad magic\)/.test(
+      String((reply as unknown as { error?: string })?.error ?? ""),
+    )
+  )
+    return { pushed: false, reason: OLDER_HOST_REASON };
   // An older cast answers `unknown command`; a box with no cast on PATH at all
   // answers `not found` / exit 127. Both are cured by provisioning.
-  if (code === 127 || /unknown command|error: unknown|not found/i.test(stderr)) return { pushed: false, reason: OLDER_HOST_REASON };
+  if (code === 127 || /unknown command|error: unknown|not found/i.test(stderr))
+    return { pushed: false, reason: OLDER_HOST_REASON };
   const brief = stderr.trim().split("\n").filter(Boolean).pop()?.slice(0, 160);
-  throw new Error(`mirror push failed (exit ${code ?? "signal"})${brief ? `: ${brief}` : ""}`);
+  throw new Error(
+    `mirror push failed (exit ${code ?? "signal"})${brief ? `: ${brief}` : ""}`,
+  );
 }
 
 /** How long the stamp read may take: its reply lists every mirrored file (6.4 MB for 13,759 on 2026-10-05), and 20s ran out on a loaded laptop. */
 export const MIRROR_STAMP_TIMEOUT_MS = 120_000;
 
 /** The host stamp after verification against actual bytes and modes. */
-export async function readRemoteMirrorStamp(host: RemoteHost, timeoutMs = MIRROR_STAMP_TIMEOUT_MS, signal?: AbortSignal, command = MIRROR_APPLY_COMMAND.replace("--stdin", "--verify"), strict = false): Promise<MirrorStamp | null> {
-  const response = await mirrorSsh(host, command, { timeoutMs, signal, what: "reading the host's mirror stamp" });
-  if (strict && response.code !== 0) throw new Error(response.stderr.trim() || `mirror verification failed (exit ${response.code})`);
+export async function readRemoteMirrorStamp(
+  host: RemoteHost,
+  timeoutMs = MIRROR_STAMP_TIMEOUT_MS,
+  signal?: AbortSignal,
+  command = MIRROR_APPLY_COMMAND.replace("--stdin", "--verify"),
+  strict = false,
+): Promise<MirrorStamp | null> {
+  const response = await mirrorSsh(host, command, {
+    timeoutMs,
+    signal,
+    what: "reading the host's mirror stamp",
+  });
+  if (strict && response.code !== 0)
+    throw new Error(
+      response.stderr.trim() ||
+        `mirror verification failed (exit ${response.code})`,
+    );
   const out = response.code === 0 ? response.stdout : null;
   if (!out) return null;
   try {
     const parsed = lastJsonLine(out) as MirrorStamp | null;
     if (parsed === null) return null;
-    if (parsed && typeof parsed === "object" && typeof parsed.hash === "string") return parsed;
+    if (parsed && typeof parsed === "object" && typeof parsed.hash === "string")
+      return parsed;
     if (strict) throw new Error("receiver returned an invalid mirror stamp");
     return null;
   } catch (err) {
@@ -411,15 +701,22 @@ export function localStampsFile(): string {
 export function readLocalStamps(file = localStampsFile()): LocalMirrorStamps {
   try {
     const parsed = JSON.parse(fs.readFileSync(file, "utf-8"));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
   } catch {
     return {};
   }
 }
 
-export function writeLocalStamps(stamps: LocalMirrorStamps, file = localStampsFile()): void {
+export function writeLocalStamps(
+  stamps: LocalMirrorStamps,
+  file = localStampsFile(),
+): void {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  atomicWriteFile(file, JSON.stringify(stamps, null, 2) + "\n", { mode: 0o600 });
+  atomicWriteFile(file, JSON.stringify(stamps, null, 2) + "\n", {
+    mode: 0o600,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -453,20 +750,37 @@ async function queued<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prior = localQueues.get(key) ?? Promise.resolve();
   const run = prior.catch(() => {}).then(fn);
   localQueues.set(key, run);
-  try { return await run; } finally { if (localQueues.get(key) === run) localQueues.delete(key); }
+  try {
+    return await run;
+  } finally {
+    if (localQueues.get(key) === run) localQueues.delete(key);
+  }
 }
 
-function resolveDeps(partial: Partial<MirrorDeps> = {}, signal?: AbortSignal): MirrorDeps {
+function resolveDeps(
+  partial: Partial<MirrorDeps> = {},
+  signal?: AbortSignal,
+): MirrorDeps {
   const defaults = defaultDeps(signal);
   return {
-    ...defaults, ...partial, lock: partial.lock ?? (partial.readLocalStamps ? queued : defaults.lock),
-    retireProjects: partial.retireProjects ?? (partial.readLocalStamps ? async () => {} : defaults.retireProjects),
-    pullMemory: partial.pullMemory ?? (partial.readLocalStamps ? async () => ({ written: 0, reconciled: [] }) : defaults.pullMemory),
+    ...defaults,
+    ...partial,
+    lock: partial.lock ?? (partial.readLocalStamps ? queued : defaults.lock),
+    retireProjects:
+      partial.retireProjects ??
+      (partial.readLocalStamps ? async () => {} : defaults.retireProjects),
+    pullMemory:
+      partial.pullMemory ??
+      (partial.readLocalStamps
+        ? async () => ({ written: 0, reconciled: [] })
+        : defaults.pullMemory),
   };
 }
 
 /** Whether a receiver's answer (a --verify read or an apply result) says it keeps tracked files. */
-function receiverKeepsTracked(answer: { capabilities?: string[] } | null | undefined): boolean {
+function receiverKeepsTracked(
+  answer: { capabilities?: string[] } | null | undefined,
+): boolean {
   return !!answer?.capabilities?.includes("keeps-tracked");
 }
 
@@ -474,11 +788,19 @@ function receiverKeepsTracked(answer: { capabilities?: string[] } | null | undef
  * `keepsTracked` is what the receiver said this time; undefined when nothing
  * answered (a build or transport failure), which keeps the last answer.
  */
-async function saveHostStamp(deps: MirrorDeps, key: string, stamp: LocalMirrorStamp, keepsTracked?: boolean): Promise<void> {
+async function saveHostStamp(
+  deps: MirrorDeps,
+  key: string,
+  stamp: LocalMirrorStamp,
+  keepsTracked?: boolean,
+): Promise<void> {
   await deps.lock("stamps", async () => {
     const latest = deps.readLocalStamps();
     const keeps = keepsTracked ?? latest[key]?.keeps_tracked;
-    deps.writeLocalStamps({ ...latest, [key]: { ...stamp, ...(keeps ? { keeps_tracked: true } : {}) } });
+    deps.writeLocalStamps({
+      ...latest,
+      [key]: { ...stamp, ...(keeps ? { keeps_tracked: true } : {}) },
+    });
   });
 }
 
@@ -490,17 +812,34 @@ async function saveHostStamp(deps: MirrorDeps, key: string, stamp: LocalMirrorSt
  * a transform and a credential scan of every file (2026-09-22: 139s and 32s of
  * CPU per host per minute, freezing the daemon).
  */
-const buildCache = new Map<string, { hash: string; ledger: MirrorLedger; files: Map<string, string>; warnings: Set<string> }>();
+const buildCache = new Map<
+  string,
+  {
+    hash: string;
+    ledger: MirrorLedger;
+    files: Map<string, string>;
+    warnings: Set<string>;
+  }
+>();
 /**
  * The key carries the host's project set and the mirror config, so each change
  * to either leaves the old entry (a manifest of every file) behind for the
  * daemon's life. Past this many, the least recently built go.
  */
 export const BUILD_CACHE_CAP = 32;
-function rememberBuild(key: string, entry: { hash: string; ledger: MirrorLedger; files: Map<string, string>; warnings: Set<string> }): void {
+function rememberBuild(
+  key: string,
+  entry: {
+    hash: string;
+    ledger: MirrorLedger;
+    files: Map<string, string>;
+    warnings: Set<string>;
+  },
+): void {
   buildCache.delete(key);
   buildCache.set(key, entry);
-  while (buildCache.size > BUILD_CACHE_CAP) buildCache.delete(buildCache.keys().next().value!);
+  while (buildCache.size > BUILD_CACHE_CAP)
+    buildCache.delete(buildCache.keys().next().value!);
 }
 /** For tests: how many builds are remembered. */
 export function buildCacheSize(): number {
@@ -508,7 +847,10 @@ export function buildCacheSize(): number {
 }
 
 /** The paths whose content differs between two bundle manifests, for the log. */
-function changedPaths(before: Map<string, string>, after: Map<string, string>): string[] {
+function changedPaths(
+  before: Map<string, string>,
+  after: Map<string, string>,
+): string[] {
   const changed: string[] = [];
   for (const [p, sha] of after) if (before.get(p) !== sha) changed.push(p);
   for (const p of before.keys()) if (!after.has(p)) changed.push(p);
@@ -520,7 +862,10 @@ export function resetBuildCache(): void {
   buildCache.clear();
 }
 
-export async function mirrorHomeToHost(host: RemoteHost, opts: MirrorHomeOptions = {}): Promise<MirrorHomeOutcome> {
+export async function mirrorHomeToHost(
+  host: RemoteHost,
+  opts: MirrorHomeOptions = {},
+): Promise<MirrorHomeOutcome> {
   const deps = resolveDeps(opts.deps, opts.signal);
   return deps.lock(hostKey(host), async () => {
     const first = await mirrorUnderLock(host, opts, deps);
@@ -528,16 +873,26 @@ export async function mirrorHomeToHost(host: RemoteHost, opts: MirrorHomeOptions
     // retired by the push that found it gone; the push again, now, applies
     // without it, so the placement that found it does not fail on it.
     if (!first.retiredTargets) return first;
-    const { retiredTargets: _, ...second } = await mirrorUnderLock(host, opts, deps);
+    const { retiredTargets: _, ...second } = await mirrorUnderLock(
+      host,
+      opts,
+      deps,
+    );
     return second;
   });
 }
 
-async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: MirrorDeps): Promise<MirrorHomeOutcome & { retiredTargets?: boolean }> {
+async function mirrorUnderLock(
+  host: RemoteHost,
+  opts: MirrorHomeOptions,
+  deps: MirrorDeps,
+): Promise<MirrorHomeOutcome & { retiredTargets?: boolean }> {
   {
     const config = opts.config === undefined ? deps.readConfig() : opts.config;
-    if (!isCloudMirrorEnabled(config)) return { pushed: false, reason: "config mirror disabled", changed: 0 };
-    if (!config?.user_id) return { pushed: false, reason: NOT_LOGGED_IN_REASON, changed: 0 };
+    if (!isCloudMirrorEnabled(config))
+      return { pushed: false, reason: "config mirror disabled", changed: 0 };
+    if (!config?.user_id)
+      return { pushed: false, reason: NOT_LOGGED_IN_REASON, changed: 0 };
     opts.signal?.throwIfAborted();
     const key = hostKey(host);
     const projects = deps.readProjects(host);
@@ -545,18 +900,46 @@ async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: 
     // releases tracked files instead of deleting them; an older receiver gets
     // the wider bundle. The last answer picks the bundle the fast tick hashes;
     // the --verify read below decides what is sent.
-    const buildOpts: BuildHomeMirrorOptions & { hostHome: string } = { config, hostHome: remoteHome(host), takeOver: opts.takeOver, localGitRoot: opts.localGitRoot, projects, sources: opts.sources, narrowProjects: !!deps.readLocalStamps()[key]?.keeps_tracked };
-    const cacheKeyFor = () => JSON.stringify([key, buildOpts.hostHome, opts.takeOver ?? false, opts.localGitRoot ?? "", projects, config.cloud_mirror_include ?? "", config.cloud_mirror_exclude ?? "", buildOpts.narrowProjects]);
+    const buildOpts: BuildHomeMirrorOptions & { hostHome: string } = {
+      config,
+      hostHome: remoteHome(host),
+      takeOver: opts.takeOver,
+      localGitRoot: opts.localGitRoot,
+      projects,
+      sources: opts.sources,
+      narrowProjects: !!deps.readLocalStamps()[key]?.keeps_tracked,
+    };
+    const cacheKeyFor = () =>
+      JSON.stringify([
+        key,
+        buildOpts.hostHome,
+        opts.takeOver ?? false,
+        opts.localGitRoot ?? "",
+        projects,
+        config.cloud_mirror_include ?? "",
+        config.cloud_mirror_exclude ?? "",
+        buildOpts.narrowProjects,
+      ]);
     let cacheKey = cacheKeyFor();
     const build = async (): Promise<BuiltBundle> => {
       let built: BuiltBundle;
       try {
-        opts.onProgress?.("collecting agent configuration and referenced files…");
+        opts.onProgress?.(
+          "collecting agent configuration and referenced files…",
+        );
         built = await deps.build(buildOpts);
       } catch (err) {
         buildCache.delete(cacheKey);
         const at = deps.now().toISOString();
-        await saveHostStamp(deps, key, { hash: "", at, last_failure: { reason: err instanceof Error ? err.message : String(err), at, hash: "" } });
+        await saveHostStamp(deps, key, {
+          hash: "",
+          at,
+          last_failure: {
+            reason: err instanceof Error ? err.message : String(err),
+            at,
+            hash: "",
+          },
+        });
         throw err;
       }
       const { summary, ledger } = built as Partial<HomeMirror>;
@@ -564,16 +947,31 @@ async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: 
       const files = new Map(built.header.files.map((f) => [f.path, f.sha256]));
       if (previous && previous.hash !== built.hash) {
         const changed = changedPaths(previous.files, files);
-        deps.log(`bundle for ${key} changed (${changed.length} file(s)): ${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", …" : ""}`);
+        deps.log(
+          `bundle for ${key} changed (${changed.length} file(s)): ${changed.slice(0, 6).join(", ")}${changed.length > 6 ? ", …" : ""}`,
+        );
       }
       const warnings = summary?.warnings ?? [];
-      if (ledger) rememberBuild(cacheKey, { hash: built.hash, ledger, files, warnings: new Set(warnings) }); else buildCache.delete(cacheKey);
+      if (ledger)
+        rememberBuild(cacheKey, {
+          hash: built.hash,
+          ledger,
+          files,
+          warnings: new Set(warnings),
+        });
+      else buildCache.delete(cacheKey);
       // Compatibility warnings are worth a line when they are new. Any edit in a mirrored
       // file (memory notes change all day) rebuilds the bundle, and logging every warning
       // on each rebuild wrote ~10k lines a minute (2026-10-14).
       // A wake shows one line for them (dozens of docs name a macOS path); the dry run keeps each.
-      if (opts.onProgress && warnings.length) opts.onProgress(`context compatibility: ${warnings.length} file(s) name macOS-only commands or paths; cast hosts sync --dry-run lists them`);
-      else for (const warning of warnings) if (!previous?.warnings.has(warning)) deps.log(`context compatibility: ${warning}`);
+      if (opts.onProgress && warnings.length)
+        opts.onProgress(
+          `context compatibility: ${warnings.length} file(s) name macOS-only commands or paths; cast hosts sync --dry-run lists them`,
+        );
+      else
+        for (const warning of warnings)
+          if (!previous?.warnings.has(warning))
+            deps.log(`context compatibility: ${warning}`);
       return built;
     };
     let built: BuiltBundle | undefined;
@@ -582,23 +980,44 @@ async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: 
     const settle = async () => {
       const cached = opts.force ? undefined : buildCache.get(cacheKey);
       built = undefined;
-      if (cached && await (opts.sources?.stillHolds(cached.ledger) ?? ledgerUnchanged(cached.ledger))) hash = cached.hash;
-      else { built = await build(); hash = built.hash; }
+      if (
+        cached &&
+        (await (opts.sources?.stillHolds(cached.ledger) ??
+          ledgerUnchanged(cached.ledger)))
+      )
+        hash = cached.hash;
+      else {
+        built = await build();
+        hash = built.hash;
+      }
     };
     await settle();
     // The bytes, only when a push needs them. A change the ledger missed
     // surfaces here as a different hash; the push carries the fresh bundle
     // and the stamps record it.
     const bundle = async (): Promise<BuiltBundle> => {
-      if (!built) { built = await build(); hash = built.hash; }
+      if (!built) {
+        built = await build();
+        hash = built.hash;
+      }
       return built;
     };
     const mine = deps.readLocalStamps()[key];
     const at = deps.now().toISOString();
     if (opts.onlyIfChanged && !opts.force) {
-      if (mine?.hash === hash && !mine.last_failure) return { pushed: false, hash, skipped: "in step", changed: 0 };
+      if (mine?.hash === hash && !mine.last_failure)
+        return { pushed: false, hash, skipped: "in step", changed: 0 };
       if (mine?.last_failure?.hash === hash) {
-        if (deps.now().getTime() - Date.parse(mine.last_failure.at) < failureRetryDelayMs(mine.last_failure.reason)) return { pushed: false, reason: mine.last_failure.reason, skipped: "refused earlier", changed: 0 };
+        if (
+          deps.now().getTime() - Date.parse(mine.last_failure.at) <
+          failureRetryDelayMs(mine.last_failure.reason)
+        )
+          return {
+            pushed: false,
+            reason: mine.last_failure.reason,
+            skipped: "refused earlier",
+            changed: 0,
+          };
       }
     }
     try {
@@ -620,10 +1039,14 @@ async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: 
           buildOpts.reconciled = pulled.reconciled;
           // The pull just wrote laptop files this tick's shared collection read earlier; a bundle from those bytes would put the old memory back over the host's.
           opts.sources?.invalidate();
-          buildCache.delete(cacheKey); built = await build(); hash = built.hash;
+          buildCache.delete(cacheKey);
+          built = await build();
+          hash = built.hash;
         }
       } catch (err) {
-        deps.log(`memory from ${key} not read: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+        deps.log(
+          `memory from ${key} not read: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+        );
       }
       if (!opts.force && remote?.complete === true && remote.hash === hash) {
         await saveHostStamp(deps, key, { hash, at }, keepsTracked);
@@ -631,25 +1054,74 @@ async function mirrorUnderLock(host: RemoteHost, opts: MirrorHomeOptions, deps: 
       }
       opts.signal?.throwIfAborted();
       const wire = await bundle();
-      opts.onProgress?.(`syncing ${wire.header.files.length} configuration files (${(wire.bytes.length / 1024 / 1024).toFixed(1)} MiB)…`);
+      opts.onProgress?.(
+        `syncing ${wire.header.files.length} configuration files (${(wire.bytes.length / 1024 / 1024).toFixed(1)} MiB)…`,
+      );
       let r = await deps.push(host, wire.bytes);
       const keeps = r.result ? receiverKeepsTracked(r.result) : keepsTracked;
       let retiredTargets = false;
       if (r.result?.retired_projects?.length) {
-        await deps.retireProjects(host, r.result.retired_projects.map((root) => path.posix.join(remoteHome(host), root)));
-        retiredTargets = r.result.errors.every((e) => r.result!.retired_projects!.includes(e.path));
+        await deps.retireProjects(
+          host,
+          r.result.retired_projects.map((root) =>
+            path.posix.join(remoteHome(host), root),
+          ),
+        );
+        retiredTargets = r.result.errors.every((e) =>
+          r.result!.retired_projects!.includes(e.path),
+        );
       }
-      if (r.pushed && (!isApplyResult(r.result) || r.result.hash !== hash || r.hash !== hash || r.result.refused || r.result.errors.length || r.result.host_edited.length)) {
-        r = { ...r, pushed: false, reason: isApplyResult(r.result) ? applyFailure(r.result) || "receiver returned a different bundle hash" : "receiver returned an incomplete apply result" };
+      if (
+        r.pushed &&
+        (!isApplyResult(r.result) ||
+          r.result.hash !== hash ||
+          r.hash !== hash ||
+          r.result.refused ||
+          r.result.errors.length ||
+          r.result.host_edited.length)
+      ) {
+        r = {
+          ...r,
+          pushed: false,
+          reason: isApplyResult(r.result)
+            ? applyFailure(r.result) ||
+              "receiver returned a different bundle hash"
+            : "receiver returned an incomplete apply result",
+        };
       }
       if (r.pushed) {
         await saveHostStamp(deps, key, { hash, at }, keeps);
-        return { ...r, changed: (r.result?.applied.length ?? 0) + (r.result?.pruned.length ?? 0) };
+        return {
+          ...r,
+          changed:
+            (r.result?.applied.length ?? 0) + (r.result?.pruned.length ?? 0),
+        };
       }
-      await saveHostStamp(deps, key, { hash: "", at, last_failure: { reason: r.reason ?? "refused", at, hash } }, keeps);
-      return { ...r, changed: 0, ...(retiredTargets ? { retiredTargets } : {}) };
+      await saveHostStamp(
+        deps,
+        key,
+        {
+          hash: "",
+          at,
+          last_failure: { reason: r.reason ?? "refused", at, hash },
+        },
+        keeps,
+      );
+      return {
+        ...r,
+        changed: 0,
+        ...(retiredTargets ? { retiredTargets } : {}),
+      };
     } catch (err) {
-      await saveHostStamp(deps, key, { hash: "", at, last_failure: { reason: err instanceof Error ? err.message : String(err), at, hash } });
+      await saveHostStamp(deps, key, {
+        hash: "",
+        at,
+        last_failure: {
+          reason: err instanceof Error ? err.message : String(err),
+          at,
+          hash,
+        },
+      });
       throw err;
     }
   }
@@ -663,7 +1135,9 @@ export interface MirrorDeps {
   listHosts: () => Promise<RemoteHost[]>;
   readStamp: (host: RemoteHost) => Promise<MirrorStamp | null>;
   push: (host: RemoteHost, bundle: Buffer) => Promise<MirrorPushOutcome>;
-  build: (opts: Omit<BuildHomeMirrorOptions, "hostHome"> & { hostHome: string }) => Promise<BuiltBundle>;
+  build: (
+    opts: Omit<BuildHomeMirrorOptions, "hostHome"> & { hostHome: string },
+  ) => Promise<BuiltBundle>;
   readLocalStamps: () => LocalMirrorStamps;
   writeLocalStamps: (s: LocalMirrorStamps) => void;
   readConfig: () => Config | null;
@@ -675,7 +1149,11 @@ export interface MirrorDeps {
   readProjects: (host: RemoteHost) => ProjectRegistration[];
   retireProjects: (host: RemoteHost, roots: string[]) => Promise<void>;
   /** Bring the host's new and edited agent memories home before a push (memoryBack.ts). */
-  pullMemory: (host: RemoteHost, projects: ProjectRegistration[], stamp: MirrorStamp | null) => Promise<PulledMemory>;
+  pullMemory: (
+    host: RemoteHost,
+    projects: ProjectRegistration[],
+    stamp: MirrorStamp | null,
+  ) => Promise<PulledMemory>;
 }
 
 export interface MirrorTickOptions {
@@ -692,8 +1170,16 @@ const moduleLoggedFailures = new Set<string>();
 export function defaultDeps(signal?: AbortSignal): MirrorDeps {
   return {
     listHosts: async () => [],
-    readStamp: (host) => readRemoteMirrorStamp(host, MIRROR_STAMP_TIMEOUT_MS, signal),
-    pullMemory: (host, projects, stamp) => pullHostMemory({ laptopHome: process.env.HOME || os.homedir(), hostHome: remoteHome(host), projects, stamp, read: sshMemoryReader(host) }),
+    readStamp: (host) =>
+      readRemoteMirrorStamp(host, MIRROR_STAMP_TIMEOUT_MS, signal),
+    pullMemory: (host, projects, stamp) =>
+      pullHostMemory({
+        laptopHome: process.env.HOME || os.homedir(),
+        hostHome: remoteHome(host),
+        projects,
+        stamp,
+        read: sshMemoryReader(host),
+      }),
     push: (host, bundle) => pushMirrorToHostAsync(host, bundle, { signal }),
     build: buildHomeMirror,
     readLocalStamps: () => readLocalStamps(),
@@ -706,9 +1192,17 @@ export function defaultDeps(signal?: AbortSignal): MirrorDeps {
     // placement): wait out a whole placement rather than fail one that needed
     // exactly the work the holder is doing. A loaded laptop runs a holder's
     // walk and push past any shorter guess (two launches, 2026-10-04).
-    lock: (key, fn) => withMirrorLock(path.join(defaultConfigDir(), "mirror-locks", sha256(key)), fn, signal, CLOUD_START_RUN_MS),
+    lock: (key, fn) =>
+      withMirrorLock(
+        path.join(defaultConfigDir(), "mirror-locks", sha256(key)),
+        fn,
+        signal,
+        CLOUD_START_RUN_MS,
+      ),
     readProjects: (host) => readProjectRegistrations(host),
-    retireProjects: async (host, roots) => { for (const root of roots) await unregisterProjectContext(host, root); },
+    retireProjects: async (host, roots) => {
+      for (const root of roots) await unregisterProjectContext(host, root);
+    },
   };
 }
 
@@ -719,7 +1213,10 @@ export interface MirrorTickReport {
 }
 
 /** One pass over the caller's reachable hosts; failed fast ticks use bounded backoff. */
-export async function runMirrorTick(opts: MirrorTickOptions, partial: Partial<MirrorDeps> = {}): Promise<MirrorTickReport> {
+export async function runMirrorTick(
+  opts: MirrorTickOptions,
+  partial: Partial<MirrorDeps> = {},
+): Promise<MirrorTickReport> {
   const deps = resolveDeps(partial, opts.signal);
   const report: MirrorTickReport = { pushed: [], skipped: [], failed: [] };
   const config = deps.readConfig();
@@ -729,12 +1226,26 @@ export async function runMirrorTick(opts: MirrorTickOptions, partial: Partial<Mi
     opts.signal?.throwIfAborted();
     const key = hostKey(host);
     try {
-      const r = await mirrorHomeToHost(host, { config, deps, sources, signal: opts.signal, onlyIfChanged: opts.onlyIfChanged && !opts.verifyRemote });
+      const r = await mirrorHomeToHost(host, {
+        config,
+        deps,
+        sources,
+        signal: opts.signal,
+        onlyIfChanged: opts.onlyIfChanged && !opts.verifyRemote,
+      });
       if (r.pushed) {
         report.pushed.push(key);
-        deps.log(`mirrored ${r.changed} changed config file(s) to ${key} (${opts.reason}, ${(r.hash ?? "").slice(0, 8)})`);
-        for (const failure of deps.loggedFailures) if (failure.startsWith(`${key}|`)) deps.loggedFailures.delete(failure);
-      } else if (r.skipped === "in step" || r.skipped === "refused earlier" || r.reason === NOT_LOGGED_IN_REASON) {
+        deps.log(
+          `mirrored ${r.changed} changed config file(s) to ${key} (${opts.reason}, ${(r.hash ?? "").slice(0, 8)})`,
+        );
+        for (const failure of deps.loggedFailures)
+          if (failure.startsWith(`${key}|`))
+            deps.loggedFailures.delete(failure);
+      } else if (
+        r.skipped === "in step" ||
+        r.skipped === "refused earlier" ||
+        r.reason === NOT_LOGGED_IN_REASON
+      ) {
         report.skipped.push(key);
         if (r.reason) logFailureOnce(deps, key, r.reason, opts.reason);
       } else {
@@ -743,21 +1254,36 @@ export async function runMirrorTick(opts: MirrorTickOptions, partial: Partial<Mi
       }
     } catch (err) {
       report.failed.push(key);
-      logFailureOnce(deps, key, err instanceof Error ? err.message : String(err), opts.reason);
+      logFailureOnce(
+        deps,
+        key,
+        err instanceof Error ? err.message : String(err),
+        opts.reason,
+      );
     }
   }
   return report;
 }
 
-function logFailureOnce(deps: MirrorDeps, key: string, reason: string, tick: string): void {
+function logFailureOnce(
+  deps: MirrorDeps,
+  key: string,
+  reason: string,
+  tick: string,
+): void {
   const stampKey = `${key}|${reason}`;
   if (deps.loggedFailures.has(stampKey)) return;
   deps.loggedFailures.add(stampKey);
-  const hint = reason === "unprovisioned" ? " — cast hosts provision <id>"
-    : reason === "other_device" ? " — another laptop owns this host's config; cast hosts sync --take-over to take it"
-    : reason === "other_user" ? " — the host belongs to another codecast user"
-    : reason === "other_home" ? " — the bundle was built for a different home directory than the host's"
-    : "";
+  const hint =
+    reason === "unprovisioned"
+      ? " — cast hosts provision <id>"
+      : reason === "other_device"
+        ? " — another laptop owns this host's config; cast hosts sync --take-over to take it"
+        : reason === "other_user"
+          ? " — the host belongs to another codecast user"
+          : reason === "other_home"
+            ? " — the bundle was built for a different home directory than the host's"
+            : "";
   deps.log(`mirror to ${key} skipped (${tick}): ${reason}${hint}`);
 }
 

@@ -25,7 +25,12 @@
 // expands that tag into timed lines and keyframes when it delivers.
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { internalAction, internalMutation, internalQuery, mutation } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { recRoomKey, TRANSCRIBE_MAX_BYTES } from "@codecast/shared/contracts";
@@ -33,10 +38,23 @@ import { authorizeRoom } from "./callRooms";
 import { verifyApiToken } from "./apiTokens";
 import { canAccessConversation } from "./lib/access";
 import { beginCallRecord } from "./transcripts";
-import { callRecordingCallPrefix, callRecordingGetUrl, callRecordingKey, callRecordingsBucketFromEnv, r2Presign } from "./lib/r2";
+import {
+  callRecordingCallPrefix,
+  callRecordingGetUrl,
+  callRecordingKey,
+  callRecordingsBucketFromEnv,
+  r2Presign,
+} from "./lib/r2";
 import { syncCallVideo, teammateName } from "./lib/callRecordingRuns";
-import { extractAudioTrack, Mp4AudioError, urlByteSource } from "./lib/mp4Audio";
-import { SEGMENT_WRITE_BATCH, transcribeAudio } from "./lib/recordingTranscription";
+import {
+  extractAudioTrack,
+  Mp4AudioError,
+  urlByteSource,
+} from "./lib/mp4Audio";
+import {
+  SEGMENT_WRITE_BATCH,
+  transcribeAudio,
+} from "./lib/recordingTranscription";
 
 /** How long the client has to put the file once it asked: a long recording
  *  on a slow cellular upload. */
@@ -47,9 +65,14 @@ export const SCREEN_RECORDING_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 const VIDEO_TYPES = ["video/mp4", "video/quicktime"];
 
-async function ownScreenRecording(ctx: any, userId: Id<"users">, transcriptId: Id<"transcripts">) {
+async function ownScreenRecording(
+  ctx: any,
+  userId: Id<"users">,
+  transcriptId: Id<"transcripts">,
+) {
   const t = await ctx.db.get(transcriptId);
-  if (!t || !t.screen_recording || String(t.started_by) !== String(userId)) throw new Error("Screen recording not found");
+  if (!t || !t.screen_recording || String(t.started_by) !== String(userId))
+    throw new Error("Screen recording not found");
   return t;
 }
 
@@ -64,8 +87,19 @@ const BEGIN_ARGS = {
   width: v.optional(v.number()),
   height: v.optional(v.number()),
 };
-type BeginArgs = { conversation_id?: string; mime: string; size_bytes: number; duration_ms?: number; width?: number; height?: number };
-type Begun = { transcript_id: Id<"transcripts">; call: string; upload_url: string };
+type BeginArgs = {
+  conversation_id?: string;
+  mime: string;
+  size_bytes: number;
+  duration_ms?: number;
+  width?: number;
+  height?: number;
+};
+type Begun = {
+  transcript_id: Id<"transcripts">;
+  call: string;
+  upload_url: string;
+};
 
 export const begin = mutation({
   args: BEGIN_ARGS,
@@ -90,32 +124,61 @@ export const cliBegin = mutation({
  *  showing an agent things, short of a script filling the bucket. */
 export const SCREEN_RECORDINGS_PER_HOUR = 30;
 
-async function beginCore(ctx: any, userId: Id<"users">, args: BeginArgs): Promise<Begun> {
+async function beginCore(
+  ctx: any,
+  userId: Id<"users">,
+  args: BeginArgs,
+): Promise<Begun> {
   const mime = VIDEO_TYPES.includes(args.mime) ? args.mime : "video/mp4";
   const size = Math.round(args.size_bytes);
   if (!(size > 0) || size > SCREEN_RECORDING_MAX_BYTES) {
-    throw new Error(`A recording can be up to ${Math.round(SCREEN_RECORDING_MAX_BYTES / 1024 / 1024 / 1024)} GB`);
+    throw new Error(
+      `A recording can be up to ${Math.round(SCREEN_RECORDING_MAX_BYTES / 1024 / 1024 / 1024)} GB`,
+    );
   }
   const hourAgo = Date.now() - 60 * 60_000;
   let recent = 0;
-  for await (const r of ctx.db.query("transcripts").withIndex("by_creator_started", (q: any) => q.eq("started_by", userId).gt("started_at", hourAgo))) {
+  for await (const r of ctx.db
+    .query("transcripts")
+    .withIndex("by_creator_started", (q: any) =>
+      q.eq("started_by", userId).gt("started_at", hourAgo),
+    )) {
     if (r.screen_recording && ++recent >= SCREEN_RECORDINGS_PER_HOUR) {
-      throw new Error(`That is ${SCREEN_RECORDINGS_PER_HOUR} screen recordings in an hour; try again later`);
+      throw new Error(
+        `That is ${SCREEN_RECORDINGS_PER_HOUR} screen recordings in an hour; try again later`,
+      );
     }
   }
-  const convId = args.conversation_id ? ctx.db.normalizeId("conversations", args.conversation_id) : null;
+  const convId = args.conversation_id
+    ? ctx.db.normalizeId("conversations", args.conversation_id)
+    : null;
   const conv = convId ? await ctx.db.get(convId) : null;
-  if (args.conversation_id && (!conv || !(await canAccessConversation(ctx, userId, conv)))) throw new Error("Session not found");
+  if (
+    args.conversation_id &&
+    (!conv || !(await canAccessConversation(ctx, userId, conv)))
+  )
+    throw new Error("Session not found");
   const bucket = callRecordingsBucketFromEnv();
-  if (!bucket) throw new Error("Recording storage is not set up on this server");
+  if (!bucket)
+    throw new Error("Recording storage is not set up on this server");
   const roomKey = recRoomKey(crypto.randomUUID());
   // `{ rec: true }`: a fresh key nobody has started on belongs to its starter.
   const auth = await authorizeRoom(ctx, userId, roomKey, { rec: true });
   if (!auth.ok) throw new Error(`Cannot record: ${auth.reason}`);
-  const id = await beginCallRecord(ctx, { roomKey, teamId: auth.teamId, userId, routes: [], announce: false });
+  const id = await beginCallRecord(ctx, {
+    roomKey,
+    teamId: auth.teamId,
+    userId,
+    routes: [],
+    announce: false,
+  });
   const t = (await ctx.db.get(id))!;
   const requestedAt = Date.now();
-  const r2Key = callRecordingKey({ transcriptId: String(id), kind: "screen", requestedAt });
+  const r2Key = callRecordingKey({
+    transcriptId: String(id),
+    kind: "screen",
+    requestedAt,
+  });
   // The recording already happened: the record is over the moment it exists.
   await ctx.db.patch(id, {
     status: "ended",
@@ -131,14 +194,30 @@ async function beginCore(ctx: any, userId: Id<"users">, args: BeginArgs): Promis
       ...(args.height ? { height: Math.round(args.height) } : {}),
     },
   });
-  const uploadUrl = await r2Presign(bucket, "PUT", r2Key, UPLOAD_URL_SECONDS, undefined, undefined, { "content-length": String(size) });
+  const uploadUrl = await r2Presign(
+    bucket,
+    "PUT",
+    r2Key,
+    UPLOAD_URL_SECONDS,
+    undefined,
+    undefined,
+    { "content-length": String(size) },
+  );
   // An upload whose `uploaded` never arrives (the app killed mid-send) is
   // found once its URL has lapsed and processed then (probeUpload).
-  await ctx.scheduler.runAfter(UPLOAD_URL_SECONDS * 1000 + 60_000, internal.screenRecordings.probeUpload, { transcript_id: id });
+  await ctx.scheduler.runAfter(
+    UPLOAD_URL_SECONDS * 1000 + 60_000,
+    internal.screenRecordings.probeUpload,
+    { transcript_id: id },
+  );
   // A recording picked and never sent is nobody's: it is removed once the
   // person has had a fair while to send it (sweepUnsent). That holds for one
   // opened without a session too: nothing can ever send it.
-  await ctx.scheduler.runAfter(UNSENT_GRACE_MS, internal.screenRecordings.sweepUnsent, { transcript_id: id });
+  await ctx.scheduler.runAfter(
+    UNSENT_GRACE_MS,
+    internal.screenRecordings.sweepUnsent,
+    { transcript_id: id },
+  );
   return { transcript_id: id, call: t.short_id!, upload_url: uploadUrl };
 }
 
@@ -156,16 +235,30 @@ function wasSent(t: Doc<"transcripts">): boolean {
 /** Remove a recording entirely: its words, its file row, the record, and
  *  the object in the bucket (on a retrying action of its own). */
 async function removeRecording(ctx: any, t: Doc<"transcripts">): Promise<void> {
-  const segs = await ctx.db.query("transcript_segments").withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id)).collect();
+  const segs = await ctx.db
+    .query("transcript_segments")
+    .withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id))
+    .collect();
   for (const s of segs) await ctx.db.delete(s._id);
-  const rows = await ctx.db.query("call_recordings").withIndex("by_transcript", (q: any) => q.eq("transcript_id", t._id)).collect();
+  const rows = await ctx.db
+    .query("call_recordings")
+    .withIndex("by_transcript", (q: any) => q.eq("transcript_id", t._id))
+    .collect();
   for (const r of rows) await ctx.db.delete(r._id);
   await ctx.db.delete(t._id);
   // The whole call's prefix, now and again after the upload URL has lapsed:
   // a tile removed mid-upload can still land its bytes after this runs.
-  const sweep = { keys: [], prefixes: [callRecordingCallPrefix(String(t._id))], attempt: 0 };
+  const sweep = {
+    keys: [],
+    prefixes: [callRecordingCallPrefix(String(t._id))],
+    attempt: 0,
+  };
   await ctx.scheduler.runAfter(0, internal.callRecordings.deleteObjects, sweep);
-  await ctx.scheduler.runAfter(UPLOAD_URL_SECONDS * 1000 + 60_000, internal.callRecordings.deleteObjects, sweep);
+  await ctx.scheduler.runAfter(
+    UPLOAD_URL_SECONDS * 1000 + 60_000,
+    internal.callRecordings.deleteObjects,
+    sweep,
+  );
 }
 
 export const sweepUnsent = internalMutation({
@@ -210,7 +303,11 @@ export const cliUploaded = mutation({
   },
 });
 
-async function uploadedCore(ctx: any, userId: Id<"users">, transcriptId: Id<"transcripts">): Promise<void> {
+async function uploadedCore(
+  ctx: any,
+  userId: Id<"users">,
+  transcriptId: Id<"transcripts">,
+): Promise<void> {
   const t = await ownScreenRecording(ctx, userId, transcriptId);
   await startProcessing(ctx, t);
 }
@@ -221,7 +318,10 @@ async function uploadedCore(ctx: any, userId: Id<"users">, transcriptId: Id<"tra
  *  and never transcribes, appends and bills the words twice. */
 export const PROCESSING_LEASE_MS = 15 * 60_000;
 
-async function startProcessing(ctx: any, t: Doc<"transcripts">): Promise<boolean> {
+async function startProcessing(
+  ctx: any,
+  t: Doc<"transcripts">,
+): Promise<boolean> {
   if (!t.screen_recording) return false;
   // A result landed (words, or the verdict that there are none): done for good.
   if (t.transcribe_status !== "pending") return false;
@@ -230,8 +330,12 @@ async function startProcessing(ctx: any, t: Doc<"transcripts">): Promise<boolean
   // reaching its finally, and the recording would sit pending for good.
   const taken = t.screen_recording.processing_at;
   if (taken && Date.now() - taken < PROCESSING_LEASE_MS) return false;
-  await ctx.db.patch(t._id, { screen_recording: { ...t.screen_recording, processing_at: Date.now() } });
-  await ctx.scheduler.runAfter(0, internal.screenRecordings.processUpload, { transcript_id: t._id });
+  await ctx.db.patch(t._id, {
+    screen_recording: { ...t.screen_recording, processing_at: Date.now() },
+  });
+  await ctx.scheduler.runAfter(0, internal.screenRecordings.processUpload, {
+    transcript_id: t._id,
+  });
   return true;
 }
 
@@ -240,12 +344,18 @@ async function startProcessing(ctx: any, t: Doc<"transcripts">): Promise<boolean
 export const probeUpload = internalAction({
   args: { transcript_id: v.id("transcripts") },
   handler: async (ctx, args): Promise<{ started: boolean }> => {
-    const row: { r2_key: string; started: boolean } | null = await ctx.runQuery(internal.screenRecordings.forProbe, { transcript_id: args.transcript_id });
+    const row: { r2_key: string; started: boolean } | null = await ctx.runQuery(
+      internal.screenRecordings.forProbe,
+      { transcript_id: args.transcript_id },
+    );
     if (!row || row.started) return { started: false };
     const signed = await callRecordingGetUrl(row.r2_key, "fresh");
     const size = signed ? await objectSize(signed.url) : null;
     if (!size) return { started: false };
-    const started: boolean = await ctx.runMutation(internal.screenRecordings.startIfIdle, { transcript_id: args.transcript_id });
+    const started: boolean = await ctx.runMutation(
+      internal.screenRecordings.startIfIdle,
+      { transcript_id: args.transcript_id },
+    );
     return { started };
   },
 });
@@ -255,7 +365,10 @@ export const clearWords = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     const t = await ctx.db.get(args.transcript_id);
     if (!t?.screen_recording || t.last_seq === 0) return;
-    const segs = await ctx.db.query("transcript_segments").withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id)).collect();
+    const segs = await ctx.db
+      .query("transcript_segments")
+      .withIndex("by_transcript_seq", (q: any) => q.eq("transcript_id", t._id))
+      .collect();
     for (const s of segs) await ctx.db.delete(s._id);
     await ctx.db.patch(t._id, { last_seq: 0 });
   },
@@ -263,12 +376,20 @@ export const clearWords = internalMutation({
 
 export const forProbe = internalQuery({
   args: { transcript_id: v.id("transcripts") },
-  handler: async (ctx, args): Promise<{ r2_key: string; started: boolean } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ r2_key: string; started: boolean } | null> => {
     const t = await ctx.db.get(args.transcript_id);
     if (!t?.screen_recording) return null;
     // Started means a result landed, or a job still holds its lease.
-    const held = !!t.screen_recording.processing_at && Date.now() - t.screen_recording.processing_at < PROCESSING_LEASE_MS;
-    return { r2_key: t.screen_recording.r2_key, started: t.transcribe_status !== "pending" || held };
+    const held =
+      !!t.screen_recording.processing_at &&
+      Date.now() - t.screen_recording.processing_at < PROCESSING_LEASE_MS;
+    return {
+      r2_key: t.screen_recording.r2_key,
+      started: t.transcribe_status !== "pending" || held,
+    };
   },
 });
 
@@ -335,7 +456,10 @@ export const markUploaded = internalMutation({
     }
     await ctx.db.patch(t._id, {
       ended_at: t.started_at + args.duration_ms,
-      screen_recording: { ...t.screen_recording, ...(args.no_audio ? { no_audio: true } : {}) },
+      screen_recording: {
+        ...t.screen_recording,
+        ...(args.no_audio ? { no_audio: true } : {}),
+      },
     });
     await syncCallVideo(ctx, t._id);
   },
@@ -355,10 +479,13 @@ async function objectSize(url: string): Promise<number | null> {
 export const processUpload = internalAction({
   args: { transcript_id: v.id("transcripts") },
   handler: async (ctx, args): Promise<void> => {
-    const row: { r2_key: string; started_at: number; duration_ms: number } | null = await ctx.runQuery(
-      internal.screenRecordings.forProcess,
-      { transcript_id: args.transcript_id },
-    );
+    const row: {
+      r2_key: string;
+      started_at: number;
+      duration_ms: number;
+    } | null = await ctx.runQuery(internal.screenRecordings.forProcess, {
+      transcript_id: args.transcript_id,
+    });
     if (!row) return;
     let ok = false;
     try {
@@ -366,15 +493,22 @@ export const processUpload = internalAction({
       if (!signed) throw new Error("recordings bucket not configured");
       const size = await objectSize(signed.url);
       if (!size) throw new Error("the upload never arrived");
-      if (size > SCREEN_RECORDING_MAX_BYTES) throw new Error(`file is ${Math.round(size / 1024 / 1024)} MB`);
+      if (size > SCREEN_RECORDING_MAX_BYTES)
+        throw new Error(`file is ${Math.round(size / 1024 / 1024)} MB`);
       let audio: Awaited<ReturnType<typeof extractAudioTrack>> = null;
       let unreadable = false;
       try {
-        audio = await extractAudioTrack(urlByteSource(signed.url, size), { maxBytes: TRANSCRIBE_MAX_BYTES });
+        audio = await extractAudioTrack(urlByteSource(signed.url, size), {
+          maxBytes: TRANSCRIBE_MAX_BYTES,
+        });
       } catch (err) {
         // The video still plays and still shows; only the words are lost.
         if (!(err instanceof Mp4AudioError)) throw err;
-        console.error("[screenRecordings] no sound read", err.reason, err.message);
+        console.error(
+          "[screenRecordings] no sound read",
+          err.reason,
+          err.message,
+        );
         unreadable = true;
       }
       const durationMs = audio?.durationMs || row.duration_ms;
@@ -385,11 +519,25 @@ export const processUpload = internalAction({
         no_audio: !audio && !unreadable,
       });
       if (!audio) return;
-      const gate = { ctx, scope: { row: { table: "transcripts" as const, id: args.transcript_id } } };
-      const segments = await transcribeAudio(gate, new Blob([audio.bytes as Uint8Array<ArrayBuffer>], { type: "audio/mp4" }), "recording.m4a", durationMs);
+      const gate = {
+        ctx,
+        scope: {
+          row: { table: "transcripts" as const, id: args.transcript_id },
+        },
+      };
+      const segments = await transcribeAudio(
+        gate,
+        new Blob([audio.bytes as Uint8Array<ArrayBuffer>], {
+          type: "audio/mp4",
+        }),
+        "recording.m4a",
+        durationMs,
+      );
       // A retried job (the lease ran out on one that died) starts from no
       // words, so lines its predecessor wrote are not doubled.
-      await ctx.runMutation(internal.screenRecordings.clearWords, { transcript_id: args.transcript_id });
+      await ctx.runMutation(internal.screenRecordings.clearWords, {
+        transcript_id: args.transcript_id,
+      });
       for (let i = 0; i < segments.length; i += SEGMENT_WRITE_BATCH) {
         await ctx.runMutation(internal.transcripts.appendRecordingSegments, {
           transcript_id: args.transcript_id,
@@ -398,9 +546,15 @@ export const processUpload = internalAction({
       }
       ok = segments.length > 0;
     } catch (err) {
-      console.error("[screenRecordings] processing failed", String(err).slice(0, 300));
+      console.error(
+        "[screenRecordings] processing failed",
+        String(err).slice(0, 300),
+      );
     } finally {
-      await ctx.runMutation(internal.transcripts.finishRecordingTranscript, { transcript_id: args.transcript_id, ok });
+      await ctx.runMutation(internal.transcripts.finishRecordingTranscript, {
+        transcript_id: args.transcript_id,
+        ok,
+      });
     }
   },
 });

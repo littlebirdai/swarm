@@ -39,10 +39,16 @@ export function IssueLink({
       } ${className} ${modernPill({}, "modern:font-mono modern:font-normal modern:hover:text-sol-text")}`}
       style={{ "--issue-accent": look.accent } as CSSProperties}
     >
-      <Icon className={`${sm ? "w-3 h-3" : "w-2.5 h-2.5"} flex-shrink-0`} style={{ color: look.accent }} />
+      <Icon
+        className={`${sm ? "w-3 h-3" : "w-2.5 h-2.5"} flex-shrink-0`}
+        style={{ color: look.accent }}
+      />
       <span className="truncate">{external.identifier}</span>
       {external.last_error && (
-        <span className="w-1.5 h-1.5 rounded-full bg-sol-red flex-shrink-0" aria-label="Sync error" />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-sol-red flex-shrink-0"
+          aria-label="Sync error"
+        />
       )}
     </a>
   );

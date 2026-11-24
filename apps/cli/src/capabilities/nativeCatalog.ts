@@ -200,7 +200,9 @@ function text(value: unknown): string | undefined {
 }
 
 function count(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function scopeOf(value: unknown): CapabilityScope {
@@ -228,7 +230,9 @@ export function isUsablePluginName(value: string): boolean {
   if (/[\s@/\\]/.test(value)) return false;
   // Control characters are not names either. Written as a code point test so the
   // source stays plain ASCII rather than carrying the bytes it rejects.
-  return ![...value].some((ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f);
+  return ![...value].some(
+    (ch) => ch.charCodeAt(0) < 0x20 || ch.charCodeAt(0) === 0x7f,
+  );
 }
 
 /** `text()`, narrowed to names that may be composed into a plugin id. */
@@ -299,7 +303,8 @@ function parseAvailableRow(raw: unknown): NativePluginOffer | undefined {
   const rawId = text(raw.pluginId);
   const fromId = rawId ? splitPluginId(rawId) : undefined;
   const name = pluginName(raw.name) ?? pluginName(fromId?.name);
-  const marketplace = pluginName(raw.marketplaceName) ?? pluginName(fromId?.marketplace);
+  const marketplace =
+    pluginName(raw.marketplaceName) ?? pluginName(fromId?.marketplace);
   if (!name || !marketplace) return undefined;
   const description = text(raw.description);
   const version = text(raw.version);
@@ -328,10 +333,16 @@ function parseAvailableRow(raw: unknown): NativePluginOffer | undefined {
  */
 export function parsePluginListJson(input: string | unknown): NativePluginList {
   const doc = typeof input === "string" ? parseLooseJson(input) : input;
-  const rows = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+  const rows = (value: unknown): unknown[] =>
+    Array.isArray(value) ? value : [];
 
-  const installedRaw = Array.isArray(doc) ? doc : isRecord(doc) ? rows(doc.installed) : [];
-  const availableRaw = isRecord(doc) && !Array.isArray(doc) ? rows(doc.available) : [];
+  const installedRaw = Array.isArray(doc)
+    ? doc
+    : isRecord(doc)
+      ? rows(doc.installed)
+      : [];
+  const availableRaw =
+    isRecord(doc) && !Array.isArray(doc) ? rows(doc.available) : [];
 
   const installed: NativeInstalledPlugin[] = [];
   for (const row of installedRaw) {
@@ -361,13 +372,17 @@ function parsePluginSource(raw: unknown): NativePluginSource | undefined {
     // Only something with a scheme is reported as a url. A bare `owner/repo`
     // shorthand is kept verbatim under `other` rather than handed to a caller as
     // a url it would fail to open.
-    if (asString.includes("://")) return { kind: "url", raw: asString, url: asString };
+    if (asString.includes("://"))
+      return { kind: "url", raw: asString, url: asString };
     return { kind: "other", raw: asString };
   }
   if (!isRecord(raw)) return undefined;
   const declared = text(raw.source);
   const kind: NativePluginSource["kind"] =
-    declared === "git-subdir" || declared === "git" || declared === "url" || declared === "path"
+    declared === "git-subdir" ||
+    declared === "git" ||
+    declared === "url" ||
+    declared === "path"
       ? declared
       : "other";
   return {
@@ -380,11 +395,16 @@ function parsePluginSource(raw: unknown): NativePluginSource | undefined {
   };
 }
 
-function parseCatalogPlugin(raw: unknown, marketplace: string): NativePluginOffer | undefined {
+function parseCatalogPlugin(
+  raw: unknown,
+  marketplace: string,
+): NativePluginOffer | undefined {
   if (!isRecord(raw)) return undefined;
   const name = pluginName(raw.name);
   if (!name) return undefined;
-  const author = isRecord(raw.author) ? text(raw.author.name) : text(raw.author);
+  const author = isRecord(raw.author)
+    ? text(raw.author.name)
+    : text(raw.author);
   const tags = Array.isArray(raw.tags)
     ? raw.tags.map((t) => text(t)).filter((t): t is string => t !== undefined)
     : undefined;
@@ -492,8 +512,10 @@ export function resolvePluginRename(
   let current = name;
   while (Object.prototype.hasOwnProperty.call(renames, current)) {
     const next = renames[current];
-    if (next === null) return { name: null, renamed: true, chain, cycle: false };
-    if (seen.has(next)) return { name: current, renamed: current !== name, chain, cycle: true };
+    if (next === null)
+      return { name: null, renamed: true, chain, cycle: false };
+    if (seen.has(next))
+      return { name: current, renamed: current !== name, chain, cycle: true };
     seen.add(next);
     chain.push(next);
     current = next;
@@ -517,12 +539,17 @@ export function resolveOffer(
     ? catalog.marketplaces.find((m) => m.name === marketplace)
     : undefined;
   const resolution = resolvePluginRename(market?.renames, name);
-  if (resolution.name === null) return { offer: null, removed: true, renamedFrom: name };
+  if (resolution.name === null)
+    return { offer: null, removed: true, renamedFrom: name };
 
-  const wanted = marketplace ? `${resolution.name}@${marketplace}` : resolution.name;
+  const wanted = marketplace
+    ? `${resolution.name}@${marketplace}`
+    : resolution.name;
   const offer =
     catalog.available.find((o) => o.pluginId === wanted) ??
-    (marketplace ? undefined : catalog.available.find((o) => o.name === resolution.name)) ??
+    (marketplace
+      ? undefined
+      : catalog.available.find((o) => o.name === resolution.name)) ??
     null;
   return {
     offer,
@@ -587,17 +614,23 @@ export function parseTokenEstimate(raw: string): TokenEstimate | undefined {
   if (!match) return undefined;
   const value = Number(match[2].replace(/,/g, ""));
   if (!Number.isFinite(value)) return undefined;
-  const scale = match[3]?.toLowerCase() === "k" ? 1_000 : match[3]?.toLowerCase() === "m" ? 1_000_000 : 1;
+  const scale =
+    match[3]?.toLowerCase() === "k"
+      ? 1_000
+      : match[3]?.toLowerCase() === "m"
+        ? 1_000_000
+        : 1;
   return { tokens: Math.round(value * scale), underBound: match[1] === "<" };
 }
 
-const COMPONENT_LABELS: Array<{ label: string; key: keyof PluginComponents }> = [
-  { label: "Skills", key: "skills" },
-  { label: "Agents", key: "agents" },
-  { label: "Hooks", key: "hooks" },
-  { label: "MCP servers", key: "mcpServers" },
-  { label: "LSP servers", key: "lspServers" },
-];
+const COMPONENT_LABELS: Array<{ label: string; key: keyof PluginComponents }> =
+  [
+    { label: "Skills", key: "skills" },
+    { label: "Agents", key: "agents" },
+    { label: "Hooks", key: "hooks" },
+    { label: "MCP servers", key: "mcpServers" },
+    { label: "LSP servers", key: "lspServers" },
+  ];
 
 /** Component names as the inventory prints them: comma separated, with an
  *  optional trailing note in parentheses ("(harness-only — no model context
@@ -630,7 +663,13 @@ export function parsePluginDetails(stdout: string): PluginDetails | null {
   if (isPluginNotFound(body)) return null;
 
   const lines = body.split("\n");
-  const components: PluginComponents = { skills: [], agents: [], hooks: [], mcpServers: [], lspServers: [] };
+  const components: PluginComponents = {
+    skills: [],
+    agents: [],
+    hooks: [],
+    mcpServers: [],
+    lspServers: [],
+  };
   const perComponent: PluginComponentCost[] = [];
   let name: string | undefined;
   let version: string | undefined;
@@ -650,7 +689,11 @@ export function parsePluginDetails(stdout: string): PluginDetails | null {
 
     // The section headers are flush left too, so they are ruled out before the
     // first flush line is taken as the plugin's name.
-    if (/^(Component inventory|Projected token cost|Per-component)/.test(line.trim())) {
+    if (
+      /^(Component inventory|Projected token cost|Per-component)/.test(
+        line.trim(),
+      )
+    ) {
       sawSection = true;
       continue;
     }
@@ -676,7 +719,9 @@ export function parsePluginDetails(stdout: string): PluginDetails | null {
 
     const component = line.match(/^\s+(.+?)\s*\((\d+)\)\s*(.*)$/);
     if (component) {
-      const entry = COMPONENT_LABELS.find((c) => c.label === component[1].trim());
+      const entry = COMPONENT_LABELS.find(
+        (c) => c.label === component[1].trim(),
+      );
       if (entry) {
         sawSection = true;
         components[entry.key] = parseComponentNames(component[3]);
@@ -713,7 +758,12 @@ export function parsePluginDetails(stdout: string): PluginDetails | null {
     }
 
     // The first indented line before any section is the description.
-    if (description === undefined && name !== undefined && !sawSection && /^\s+\S/.test(line)) {
+    if (
+      description === undefined &&
+      name !== undefined &&
+      !sawSection &&
+      /^\s+\S/.test(line)
+    ) {
       description = line.trim();
     }
   }
@@ -733,7 +783,9 @@ export function parsePluginDetails(stdout: string): PluginDetails | null {
 /** What a set of plugins adds to every session. `underBound` survives the sum:
  *  a total built from ceilings is itself a ceiling, and rendering it as an exact
  *  figure would overstate what the tool actually measured. */
-export function sumAlwaysOn(details: Array<PluginDetails | null | undefined>): TokenEstimate {
+export function sumAlwaysOn(
+  details: Array<PluginDetails | null | undefined>,
+): TokenEstimate {
   let tokens = 0;
   let underBound = false;
   for (const d of details) {
@@ -753,8 +805,16 @@ function marketplacesRoot(home: string): string {
 }
 
 /** The catalog file for one cloned marketplace, or null if it is not there. */
-export function readMarketplaceCatalog(home: string, marketplace: string): NativeMarketplaceCatalog | null {
-  const file = path.join(marketplacesRoot(home), marketplace, ".claude-plugin", "marketplace.json");
+export function readMarketplaceCatalog(
+  home: string,
+  marketplace: string,
+): NativeMarketplaceCatalog | null {
+  const file = path.join(
+    marketplacesRoot(home),
+    marketplace,
+    ".claude-plugin",
+    "marketplace.json",
+  );
   try {
     return parseMarketplaceJson(fs.readFileSync(file, "utf-8"), marketplace);
   } catch {
@@ -770,11 +830,15 @@ export function readMarketplaceCatalog(home: string, marketplace: string): Nativ
  * is. Both are read and merged, because a marketplace can be cloned without the
  * registry mentioning it and registered without having been cloned yet.
  */
-export function readMarketplaceCatalogs(home: string): NativeMarketplaceCatalog[] {
+export function readMarketplaceCatalogs(
+  home: string,
+): NativeMarketplaceCatalog[] {
   const names = new Set<string>();
   for (const m of readKnownMarketplaces(home)) names.add(m.name);
   try {
-    for (const entry of fs.readdirSync(marketplacesRoot(home), { withFileTypes: true })) {
+    for (const entry of fs.readdirSync(marketplacesRoot(home), {
+      withFileTypes: true,
+    })) {
       if (entry.isDirectory()) names.add(entry.name);
     }
   } catch {
@@ -838,10 +902,16 @@ function defaultHome(): string {
  * and Claude Code prints its "not found" message on STDOUT with a non-zero exit,
  * so stdout is returned alongside the error rather than discarded.
  */
-function runClaude(args: string[], opts: NativeCatalogOptions): Promise<{ stdout: string; error?: string }> {
+function runClaude(
+  args: string[],
+  opts: NativeCatalogOptions,
+): Promise<{ stdout: string; error?: string }> {
   if (opts.run) return opts.run(args);
   if (!hasBin(CLAUDE_BINARY)) {
-    return Promise.resolve({ stdout: "", error: `${CLAUDE_BINARY} is not on PATH` });
+    return Promise.resolve({
+      stdout: "",
+      error: `${CLAUDE_BINARY} is not on PATH`,
+    });
   }
   return new Promise((resolve) => {
     execFile(
@@ -855,10 +925,13 @@ function runClaude(args: string[], opts: NativeCatalogOptions): Promise<{ stdout
       (err, stdout) => {
         const out = typeof stdout === "string" ? stdout : "";
         if (!err) return resolve({ stdout: out });
-        const killed = (err as NodeJS.ErrnoException & { killed?: boolean }).killed;
+        const killed = (err as NodeJS.ErrnoException & { killed?: boolean })
+          .killed;
         resolve({
           stdout: out,
-          error: killed ? `${CLAUDE_BINARY} timed out` : err.message.split("\n")[0],
+          error: killed
+            ? `${CLAUDE_BINARY} timed out`
+            : err.message.split("\n")[0],
         });
       },
     );
@@ -872,7 +945,9 @@ function runClaude(args: string[], opts: NativeCatalogOptions): Promise<{ stdout
  * Never throws and never rejects. A caller that gets `origin: "none"` has a
  * machine with no catalog at all, which is a thing to render, not an error.
  */
-export async function loadNativeCatalog(opts: NativeCatalogOptions = {}): Promise<NativeCatalog> {
+export async function loadNativeCatalog(
+  opts: NativeCatalogOptions = {},
+): Promise<NativeCatalog> {
   const home = opts.home ?? defaultHome();
 
   const fromDisk = (degraded?: string): NativeCatalog => {
@@ -893,7 +968,10 @@ export async function loadNativeCatalog(opts: NativeCatalogOptions = {}): Promis
 
   if (opts.preferDisk) return fromDisk();
 
-  const { stdout, error } = await runClaude(["plugin", "list", "--available", "--json"], opts);
+  const { stdout, error } = await runClaude(
+    ["plugin", "list", "--available", "--json"],
+    opts,
+  );
   if (error && !stdout.trim()) return fromDisk(error);
 
   const list = parsePluginListJson(stdout);
@@ -913,21 +991,27 @@ export async function loadNativeCatalog(opts: NativeCatalogOptions = {}): Promis
     const richer = marketplaces
       .find((m) => m.name === offer.marketplace)
       ?.plugins.find((p) => p.name === offer.name);
-    return richer ? { ...richer, ...offer, source: offer.source ?? richer.source } : offer;
+    return richer
+      ? { ...richer, ...offer, source: offer.source ?? richer.source }
+      : offer;
   });
 
   // Union in what the tool left out. It withholds anything already installed and
   // loadable, and an older binary that ignores `--available` withholds the lot,
   // so the tool's list on its own is a catalog with the user's own plugins cut
   // out of it.
-  const fromFiles = catalogOffers(marketplaces, new Set(enriched.map((o) => o.pluginId)));
+  const fromFiles = catalogOffers(
+    marketplaces,
+    new Set(enriched.map((o) => o.pluginId)),
+  );
 
   // A withheld offer that is NOT installed here is the signature of a binary
   // that ignored `--available`: install counts are then missing everywhere, and
   // a person looking at a catalog with no counts deserves the reason.
   const installedIds = new Set(list.installed.map((p) => p.pluginId));
   const availableFlagIgnored =
-    list.available.length === 0 && fromFiles.some((p) => !installedIds.has(p.pluginId));
+    list.available.length === 0 &&
+    fromFiles.some((p) => !installedIds.has(p.pluginId));
 
   const degraded =
     error ??
@@ -970,17 +1054,29 @@ export async function readPluginDetails(
   // that would land there as a flag is refused at the boundary rather than
   // trusted to have been filtered upstream.
   const { name, marketplace } = splitPluginId(pluginId);
-  if (!isUsablePluginName(name) || (marketplace !== undefined && !isUsablePluginName(marketplace))) {
-    return { details: null, error: `refusing to ask about a plugin named ${JSON.stringify(pluginId)}` };
+  if (
+    !isUsablePluginName(name) ||
+    (marketplace !== undefined && !isUsablePluginName(marketplace))
+  ) {
+    return {
+      details: null,
+      error: `refusing to ask about a plugin named ${JSON.stringify(pluginId)}`,
+    };
   }
-  const { stdout, error } = await runClaude(["plugin", "details", pluginId], opts);
+  const { stdout, error } = await runClaude(
+    ["plugin", "details", pluginId],
+    opts,
+  );
   const details = parsePluginDetails(stdout);
   if (details) return { details };
   // The tool prints its "not found" message on stdout and exits non-zero, so the
   // exit code alone would report a plugin without details as a fault. What it
   // printed is the better witness.
   if (isPluginNotFound(stdout)) return { details: null };
-  return { details: null, error: error ?? `${CLAUDE_BINARY} printed no plugin details` };
+  return {
+    details: null,
+    error: error ?? `${CLAUDE_BINARY} printed no plugin details`,
+  };
 }
 
 /* --------------------------------------------------------------------------
@@ -996,7 +1092,10 @@ export async function readPluginDetails(
  * already reads — `marketplace`, `version`, `projectPath`
  * (`fleetDiff.ts:217-247`).
  */
-export function toInventoryItems(installed: NativeInstalledPlugin[], source: string): InventoryItem[] {
+export function toInventoryItems(
+  installed: NativeInstalledPlugin[],
+  source: string,
+): InventoryItem[] {
   return installed.map((p) => ({
     kind: "plugin" as const,
     name: p.pluginId,

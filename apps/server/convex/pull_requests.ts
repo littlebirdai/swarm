@@ -4,9 +4,19 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireUser } from "./lib/auth";
-import { commitRecordedBy, isConversationLinkable, normalizeRepository } from "./lib/gitRefs";
+import {
+  commitRecordedBy,
+  isConversationLinkable,
+  normalizeRepository,
+} from "./lib/gitRefs";
 import { patchPullRequest } from "./prShepherd";
-import { linkPullRequestSessions, pullRequestsLinkedToConversation, syncPullRequestSessions, SESSION_CARD_MAX_SESSIONS, SESSION_CARD_PR_FIELDS } from "./lib/prSessions";
+import {
+  linkPullRequestSessions,
+  pullRequestsLinkedToConversation,
+  syncPullRequestSessions,
+  SESSION_CARD_MAX_SESSIONS,
+  SESSION_CARD_PR_FIELDS,
+} from "./lib/prSessions";
 import {
   canAccessConversation,
   canAccessPullRequest,
@@ -34,7 +44,11 @@ export async function recordPRMergedActivity(
   nextState: string,
 ): Promise<boolean> {
   if (previousState === "merged" || nextState !== "merged") return false;
-  const actorUserId = await resolveActorUserIdForTeam(ctx, pr.team_id, pr.author_github_username);
+  const actorUserId = await resolveActorUserIdForTeam(
+    ctx,
+    pr.team_id,
+    pr.author_github_username,
+  );
   if (!actorUserId) return false;
   await ctx.scheduler.runAfter(0, internal.teamActivity.recordTeamActivity, {
     team_id: pr.team_id,
@@ -54,18 +68,22 @@ export async function recordPRMergedActivity(
 export async function resolveActorUserIdForTeam(
   ctx: any,
   teamId: any,
-  githubUsername: string
+  githubUsername: string,
 ) {
   const user = await ctx.db
     .query("users")
-    .withIndex("by_github_username", (q: any) => q.eq("github_username", githubUsername))
+    .withIndex("by_github_username", (q: any) =>
+      q.eq("github_username", githubUsername),
+    )
     .first();
 
   if (!user) return null;
 
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", user._id).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", user._id).eq("team_id", teamId),
+    )
     .first();
 
   return membership ? user._id : null;
@@ -79,11 +97,7 @@ export const create = internalMutation({
     number: v.number(),
     title: v.string(),
     body: v.string(),
-    state: v.union(
-      v.literal("open"),
-      v.literal("closed"),
-      v.literal("merged")
-    ),
+    state: v.union(v.literal("open"), v.literal("closed"), v.literal("merged")),
     author_github_username: v.string(),
     linked_session_ids: v.array(v.id("conversations")),
   },
@@ -123,11 +137,7 @@ export const syncPRFromGitHub = internalMutation({
     number: v.number(),
     title: v.string(),
     body: v.string(),
-    state: v.union(
-      v.literal("open"),
-      v.literal("closed"),
-      v.literal("merged")
-    ),
+    state: v.union(v.literal("open"), v.literal("closed"), v.literal("merged")),
     author_github_username: v.string(),
     author_avatar_url: v.optional(v.string()),
     head_ref: v.optional(v.string()),
@@ -136,7 +146,9 @@ export const syncPRFromGitHub = internalMutation({
     base_sha: v.optional(v.string()),
     draft: v.optional(v.boolean()),
     requested_reviewers: v.optional(v.array(v.string())),
-    labels: v.optional(v.array(v.object({ name: v.string(), color: v.optional(v.string()) }))),
+    labels: v.optional(
+      v.array(v.object({ name: v.string(), color: v.optional(v.string()) })),
+    ),
     assignees: v.optional(v.array(v.string())),
     created_at: v.number(),
     updated_at: v.number(),
@@ -144,10 +156,15 @@ export const syncPRFromGitHub = internalMutation({
     closed_at: v.optional(v.number()),
     merge_commit_sha: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ pr_id: Id<"pull_requests">; created: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ pr_id: Id<"pull_requests">; created: boolean }> => {
     const existing = await ctx.db
       .query("pull_requests")
-      .withIndex("by_github_pr_id", (q) => q.eq("github_pr_id", args.github_pr_id))
+      .withIndex("by_github_pr_id", (q) =>
+        q.eq("github_pr_id", args.github_pr_id),
+      )
       .first();
 
     const fields = {
@@ -167,13 +184,16 @@ export const syncPRFromGitHub = internalMutation({
       updated_at: args.updated_at,
       merged_at: args.merged_at,
       closed_at: args.closed_at,
-      ...(args.merge_commit_sha ? { merge_commit_sha: args.merge_commit_sha.toLowerCase() } : {}),
+      ...(args.merge_commit_sha
+        ? { merge_commit_sha: args.merge_commit_sha.toLowerCase() }
+        : {}),
     };
 
     if (existing) {
       // A webhook may have moved the row past what the list says (a merge that
       // landed between the list call and this write); never rewind it.
-      if (existing.updated_at > args.updated_at) return { pr_id: existing._id, created: false };
+      if (existing.updated_at > args.updated_at)
+        return { pr_id: existing._id, created: false };
       const previousState = existing.state;
       await patchPullRequest(ctx, existing._id, fields);
       await recordPRMergedActivity(
@@ -208,19 +228,42 @@ const COMMIT_LINK_CAP = 100;
  * row was attributed to. Only sessions the pull request may show are linked,
  * by the same rule a branch match uses (lib/gitRefs.isConversationLinkable).
  */
-async function linkCommittingSessions(ctx: any, prId: Id<"pull_requests">, shas: string[]): Promise<Id<"conversations">[]> {
+async function linkCommittingSessions(
+  ctx: any,
+  prId: Id<"pull_requests">,
+  shas: string[],
+): Promise<Id<"conversations">[]> {
   const pr = await ctx.db.get(prId);
   if (!pr) throw new Error(`PR with id ${prId} not found`);
-  const authorId = await resolveActorUserIdForTeam(ctx, pr.team_id, pr.author_github_username);
+  const authorId = await resolveActorUserIdForTeam(
+    ctx,
+    pr.team_id,
+    pr.author_github_username,
+  );
   const found = new Map<string, Id<"conversations">>();
   for (const sha of shas.slice(0, COMMIT_LINK_CAP)) {
-    const commit = await ctx.db.query("commits").withIndex("by_sha", (q: any) => q.eq("sha", sha)).first();
+    const commit = await ctx.db
+      .query("commits")
+      .withIndex("by_sha", (q: any) => q.eq("sha", sha))
+      .first();
     const id = (await commitRecordedBy(ctx, sha)) ?? commit?.conversation_id;
     if (!id || found.has(String(id))) continue;
     const conv = await ctx.db.get(id);
-    if (conv && (await isConversationLinkable(ctx, conv, { userId: authorId, teamId: pr.team_id }))) found.set(String(id), id);
+    if (
+      conv &&
+      (await isConversationLinkable(ctx, conv, {
+        userId: authorId,
+        teamId: pr.team_id,
+      }))
+    )
+      found.set(String(id), id);
   }
-  const after = await linkPullRequestSessions(ctx, prId, [...found.values()], "committed");
+  const after = await linkPullRequestSessions(
+    ctx,
+    prId,
+    [...found.values()],
+    "committed",
+  );
   return after?.linked_session_ids ?? pr.linked_session_ids;
 }
 
@@ -229,7 +272,8 @@ export const linkPRToSession = internalMutation({
     pr_id: v.id("pull_requests"),
     commit_shas: v.array(v.string()),
   },
-  handler: async (ctx, args) => linkCommittingSessions(ctx, args.pr_id, args.commit_shas),
+  handler: async (ctx, args) =>
+    linkCommittingSessions(ctx, args.pr_id, args.commit_shas),
 });
 
 export const listPRsForTeam = query({
@@ -237,7 +281,7 @@ export const listPRsForTeam = query({
     team_id: v.id("teams"),
     repository: v.optional(v.string()),
     state: v.optional(
-      v.union(v.literal("open"), v.literal("closed"), v.literal("merged"))
+      v.union(v.literal("open"), v.literal("closed"), v.literal("merged")),
     ),
     limit: v.optional(v.number()),
   },
@@ -269,10 +313,16 @@ export const listPRsForTeam = query({
 });
 
 /** The row for `owner/repo#number`, before any access check. */
-async function pullRequestByNumber(ctx: any, repository: string, number: number) {
+async function pullRequestByNumber(
+  ctx: any,
+  repository: string,
+  number: number,
+) {
   return await ctx.db
     .query("pull_requests")
-    .withIndex("by_repository_number", (q: any) => q.eq("repository", normalizeRepository(repository)).eq("number", number))
+    .withIndex("by_repository_number", (q: any) =>
+      q.eq("repository", normalizeRepository(repository)).eq("number", number),
+    )
     .first();
 }
 
@@ -324,7 +374,9 @@ export const getPRById = query({
     if (!pr) return null;
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", pr.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", pr.team_id),
+      )
       .first();
     return membership ? pr : null;
   },
@@ -333,45 +385,54 @@ export const getPRById = query({
 export const updatePRCommits = internalMutation({
   args: {
     pr_id: v.id("pull_requests"),
-    commits: v.array(v.object({
-      sha: v.string(),
-      message: v.string(),
-      author_login: v.optional(v.string()),
-      author_name: v.optional(v.string()),
-      author_avatar_url: v.optional(v.string()),
-      committed_at: v.optional(v.number()),
-      url: v.optional(v.string()),
-    })),
+    commits: v.array(
+      v.object({
+        sha: v.string(),
+        message: v.string(),
+        author_login: v.optional(v.string()),
+        author_name: v.optional(v.string()),
+        author_avatar_url: v.optional(v.string()),
+        committed_at: v.optional(v.number()),
+        url: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const pr = await ctx.db.get(args.pr_id);
     if (!pr) return;
-    await ctx.db.patch(args.pr_id, { commits: args.commits, commits_count: args.commits.length });
-    await linkCommittingSessions(ctx, args.pr_id, args.commits.map((c) => c.sha));
+    await ctx.db.patch(args.pr_id, {
+      commits: args.commits,
+      commits_count: args.commits.length,
+    });
+    await linkCommittingSessions(
+      ctx,
+      args.pr_id,
+      args.commits.map((c) => c.sha),
+    );
   },
 });
 
 export const updatePRFiles = internalMutation({
   args: {
     pr_id: v.id("pull_requests"),
-    files: v.array(v.object({
-      filename: v.string(),
-      status: v.string(),
-      additions: v.number(),
-      deletions: v.number(),
-      changes: v.number(),
-      patch: v.optional(v.string()),
-    })),
+    files: v.array(
+      v.object({
+        filename: v.string(),
+        status: v.string(),
+        additions: v.number(),
+        deletions: v.number(),
+        changes: v.number(),
+        patch: v.optional(v.string()),
+      }),
+    ),
     additions: v.number(),
     deletions: v.number(),
     changed_files: v.number(),
     commits_count: v.number(),
     base_ref: v.optional(v.string()),
-    state: v.optional(v.union(
-      v.literal("open"),
-      v.literal("closed"),
-      v.literal("merged")
-    )),
+    state: v.optional(
+      v.union(v.literal("open"), v.literal("closed"), v.literal("merged")),
+    ),
     merged_at: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -408,17 +469,15 @@ export const updatePRFiles = internalMutation({
 export const updatePRState = internalMutation({
   args: {
     github_pr_id: v.number(),
-    state: v.union(
-      v.literal("open"),
-      v.literal("closed"),
-      v.literal("merged")
-    ),
+    state: v.union(v.literal("open"), v.literal("closed"), v.literal("merged")),
     merged_at: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const pr = await ctx.db
       .query("pull_requests")
-      .withIndex("by_github_pr_id", (q) => q.eq("github_pr_id", args.github_pr_id))
+      .withIndex("by_github_pr_id", (q) =>
+        q.eq("github_pr_id", args.github_pr_id),
+      )
       .first();
 
     if (!pr) {
@@ -447,9 +506,13 @@ export const backfillPullRequestSessions = internalMutation({
       .paginate({ cursor: args.cursor ?? null, numItems: 25 });
     for (const pr of page.page) await syncPullRequestSessions(ctx, pr);
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.pull_requests.backfillPullRequestSessions, {
-        cursor: page.continueCursor,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.pull_requests.backfillPullRequestSessions,
+        {
+          cursor: page.continueCursor,
+        },
+      );
     }
     return { synced: page.page.length, done: page.isDone };
   },
@@ -466,7 +529,10 @@ export const getPRsForConversation = query({
     if (!(await canAccessConversation(ctx, userId, conversation))) return [];
 
     const visible = [];
-    for (const pr of await pullRequestsLinkedToConversation(ctx, args.conversation_id)) {
+    for (const pr of await pullRequestsLinkedToConversation(
+      ctx,
+      args.conversation_id,
+    )) {
       if (await canAccessPullRequest(ctx, userId, pr)) visible.push(pr);
     }
     return visible;
@@ -490,14 +556,22 @@ export const sessionCardPRs = query({
   args: { conversation_ids: v.array(v.string()) },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const ids = [...new Set(args.conversation_ids.slice(0, SESSION_CARD_MAX_SESSIONS))];
+    const ids = [
+      ...new Set(args.conversation_ids.slice(0, SESSION_CARD_MAX_SESSIONS)),
+    ];
     const member = new Map<string, boolean>();
     const readable = async (pr: { team_id: Id<"teams"> }) => {
       const key = String(pr.team_id);
-      if (!member.has(key)) member.set(key, await canAccessPullRequest(ctx, userId, pr));
+      if (!member.has(key))
+        member.set(key, await canAccessPullRequest(ctx, userId, pr));
       return member.get(key)!;
     };
-    const links: { _id: Id<"pull_request_sessions">; pull_request_id: Id<"pull_requests">; conversation_id: Id<"conversations">; tier: "observed" | "committed" }[] = [];
+    const links: {
+      _id: Id<"pull_request_sessions">;
+      pull_request_id: Id<"pull_requests">;
+      conversation_id: Id<"conversations">;
+      tier: "observed" | "committed";
+    }[] = [];
     const pullRequests = new Map<string, Record<string, unknown>>();
     const denied = new Set<string>();
     let readBytes = 0;
@@ -520,8 +594,15 @@ export const sessionCardPRs = query({
         .take(SESSION_CARD_LINKS_SCANNED);
       // Past its first links, a session keeps its committed links before the
       // ones it only sat on the branch of; newest first within each.
-      const kept = [...rows.filter((r) => r.tier === "committed"), ...rows.filter((r) => r.tier !== "committed")].slice(0, SESSION_CARD_LINKS_PER_SESSION);
-      const fresh = new Set(kept.map((row) => String(row.pull_request_id)).filter((key) => !pullRequests.has(key) && !denied.has(key))).size;
+      const kept = [
+        ...rows.filter((r) => r.tier === "committed"),
+        ...rows.filter((r) => r.tier !== "committed"),
+      ].slice(0, SESSION_CARD_LINKS_PER_SESSION);
+      const fresh = new Set(
+        kept
+          .map((row) => String(row.pull_request_id))
+          .filter((key) => !pullRequests.has(key) && !denied.has(key)),
+      ).size;
       // Over the cap: this session waits (unanswered, so nothing of it is
       // pruned); a later one with fewer new pull requests may still fit.
       if (pullRequests.size + fresh > SESSION_CARD_MAX_PRS) continue;
@@ -534,15 +615,27 @@ export const sessionCardPRs = query({
         const key = String(row.pull_request_id);
         if (denied.has(key)) continue;
         if (!pullRequests.has(key)) {
-          if (readBytes > SESSION_CARD_READ_BUDGET) { stopped = true; break; }
+          if (readBytes > SESSION_CARD_READ_BUDGET) {
+            stopped = true;
+            break;
+          }
           const pr = await ctx.db.get(row.pull_request_id);
           if (pr) readBytes += utf8.encode(JSON.stringify(pr)).length;
-          if (!pr || !(await readable(pr))) { denied.add(key); continue; }
+          if (!pr || !(await readable(pr))) {
+            denied.add(key);
+            continue;
+          }
           const slim: Record<string, unknown> = {};
-          for (const field of SESSION_CARD_PR_FIELDS) if (pr[field] !== undefined) slim[field] = pr[field];
+          for (const field of SESSION_CARD_PR_FIELDS)
+            if (pr[field] !== undefined) slim[field] = pr[field];
           pullRequests.set(key, slim);
         }
-        links.push({ _id: row._id, pull_request_id: row.pull_request_id, conversation_id: row.conversation_id, tier: row.tier ?? "observed" });
+        links.push({
+          _id: row._id,
+          pull_request_id: row.pull_request_id,
+          conversation_id: row.conversation_id,
+          tier: row.tier ?? "observed",
+        });
       }
       if (stopped) break;
       // A session cut to its first links is answered for exactly those: the
@@ -567,14 +660,28 @@ export const getPRsForTimeline = query({
       .collect();
     // Each team's newest `limit`, merged: reading every PR a team has ran out of
     // memory or time on large teams (~900 failures in 6h, 2026-11-10).
-    const repository = args.repository ? normalizeRepository(args.repository) : undefined;
-    const prs = (await Promise.all(memberships.map((membership) => {
-      const newest = ctx.db
-        .query("pull_requests")
-        .withIndex("by_team_updated", (q: any) => q.eq("team_id", membership.team_id))
-        .order("desc");
-      return (repository ? newest.filter((q: any) => q.eq(q.field("repository"), repository)) : newest).take(limit);
-    }))).flat();
+    const repository = args.repository
+      ? normalizeRepository(args.repository)
+      : undefined;
+    const prs = (
+      await Promise.all(
+        memberships.map((membership) => {
+          const newest = ctx.db
+            .query("pull_requests")
+            .withIndex("by_team_updated", (q: any) =>
+              q.eq("team_id", membership.team_id),
+            )
+            .order("desc");
+          return (
+            repository
+              ? newest.filter((q: any) =>
+                  q.eq(q.field("repository"), repository),
+                )
+              : newest
+          ).take(limit);
+        }),
+      )
+    ).flat();
 
     prs.sort((a, b) => b.updated_at - a.updated_at);
     return prs.slice(0, limit);

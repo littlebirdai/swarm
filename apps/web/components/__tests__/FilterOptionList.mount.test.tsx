@@ -20,16 +20,34 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const options = [{ key: "", label: "Any" }, ...["alpha", "beta", "gamma", "delta"].map((l) => ({ key: l, label: l }))];
-const rowLabels = (el: HTMLElement) => [...el.querySelectorAll("button")].map((b) => b.textContent);
+const options = [
+  { key: "", label: "Any" },
+  ...["alpha", "beta", "gamma", "delta"].map((l) => ({ key: l, label: l })),
+];
+const rowLabels = (el: HTMLElement) =>
+  [...el.querySelectorAll("button")].map((b) => b.textContent);
 
 test("picked values sit under Any, including ones the source does not list", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () => {
-    root.render(<FilterOptionList options={options} value="gamma,gone" multi onChange={() => {}} />);
+    root.render(
+      <FilterOptionList
+        options={options}
+        value="gamma,gone"
+        multi
+        onChange={() => {}}
+      />,
+    );
   });
-  expect(rowLabels(container)).toEqual(["Any", "gamma", "gone", "alpha", "beta", "delta"]);
+  expect(rowLabels(container)).toEqual([
+    "Any",
+    "gamma",
+    "gone",
+    "alpha",
+    "beta",
+    "delta",
+  ]);
   root.unmount();
 });
 
@@ -37,11 +55,26 @@ test("a pick made while the menu is open does not reorder the rows", async () =>
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () => {
-    root.render(<FilterOptionList options={options} value="" multi onChange={() => {}} />);
+    root.render(
+      <FilterOptionList options={options} value="" multi onChange={() => {}} />,
+    );
   });
   await act(async () => {
-    root.render(<FilterOptionList options={options} value="delta" multi onChange={() => {}} />);
+    root.render(
+      <FilterOptionList
+        options={options}
+        value="delta"
+        multi
+        onChange={() => {}}
+      />,
+    );
   });
-  expect(rowLabels(container)).toEqual(["Any", "alpha", "beta", "gamma", "delta"]);
+  expect(rowLabels(container)).toEqual([
+    "Any",
+    "alpha",
+    "beta",
+    "gamma",
+    "delta",
+  ]);
   root.unmount();
 });

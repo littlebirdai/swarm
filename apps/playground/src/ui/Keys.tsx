@@ -4,7 +4,15 @@ import { KeyCap } from "../../../../apps/web/components/KeyCap";
 /** Keyboard keys, always as KeyCaps restyled by `.keys kbd` (base.css).
  *  Inside a control they are for eyes only (`hidden`): the control says its
  *  shortcut with `aria-keyshortcuts`. */
-export function Keys({ keys, hidden = false, children }: { keys: string[]; hidden?: boolean; children?: ReactNode }) {
+export function Keys({
+  keys,
+  hidden = false,
+  children,
+}: {
+  keys: string[];
+  hidden?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <span className="keys" aria-hidden={hidden || undefined}>
       {keys.map((k) => (
@@ -15,7 +23,9 @@ export function Keys({ keys, hidden = false, children }: { keys: string[]; hidde
   );
 }
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD = isMac ? "⌘" : "Ctrl";
 /** The modifier as `aria-keyshortcuts` names it. */
 export const MOD_ARIA = isMac ? "Meta" : "Control";

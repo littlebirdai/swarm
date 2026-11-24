@@ -37,8 +37,17 @@ const CURSOR_SHOW = enc("\x1b[?25h");
 
 /** Queries tmux answers itself; xterm must not answer them a second time. */
 const DROP: Uint8Array[] = [
-  "\x1b[c", "\x1b[0c", "\x1b[>c", "\x1b[>0c", "\x1b[>q", "\x1b[>0q", "\x1b[5n", "\x1b[6n",
-  ...[10, 11].flatMap((code) => ["\x07", "\x1b\\"].map((end) => `\x1b]${code};?${end}`)),
+  "\x1b[c",
+  "\x1b[0c",
+  "\x1b[>c",
+  "\x1b[>0c",
+  "\x1b[>q",
+  "\x1b[>0q",
+  "\x1b[5n",
+  "\x1b[6n",
+  ...[10, 11].flatMap((code) =>
+    ["\x07", "\x1b\\"].map((end) => `\x1b]${code};?${end}`),
+  ),
 ].map(enc);
 
 const PATTERNS = [...DROP, CURSOR_HIDE, CURSOR_SHOW];
@@ -78,7 +87,11 @@ export class PaneStreamFilter {
 
     // Hold back a trailing partial match; it completes with the next chunk.
     let end = buf.length;
-    for (let i = Math.max(0, buf.length - MAX_PATTERN + 1); i < buf.length; i++) {
+    for (
+      let i = Math.max(0, buf.length - MAX_PATTERN + 1);
+      i < buf.length;
+      i++
+    ) {
       if (buf[i] === ESC && isPatternPrefix(buf, i)) {
         this.carry = buf.slice(i);
         end = i;
@@ -89,17 +102,26 @@ export class PaneStreamFilter {
     // Fast path: nothing to rewrite.
     let firstEsc = -1;
     for (let i = 0; i < end; i++) {
-      if (buf[i] === ESC) { firstEsc = i; break; }
+      if (buf[i] === ESC) {
+        firstEsc = i;
+        break;
+      }
     }
     if (firstEsc < 0) return end === buf.length ? buf : buf.subarray(0, end);
 
     const parts: Uint8Array[] = [];
     let total = 0;
-    const push = (p: Uint8Array) => { parts.push(p); total += p.length; };
+    const push = (p: Uint8Array) => {
+      parts.push(p);
+      total += p.length;
+    };
     let from = 0;
     let i = firstEsc;
     while (i < end) {
-      if (buf[i] !== ESC) { i++; continue; }
+      if (buf[i] !== ESC) {
+        i++;
+        continue;
+      }
       let matched = 0;
       for (const pat of DROP) {
         if (startsWithAt(buf, i, pat)) {
@@ -128,11 +150,15 @@ export class PaneStreamFilter {
         i++;
       }
     }
-    if (parts.length === 0) return end === buf.length ? buf : buf.subarray(0, end);
+    if (parts.length === 0)
+      return end === buf.length ? buf : buf.subarray(0, end);
     push(buf.subarray(from, end));
     const out = new Uint8Array(total);
     let off = 0;
-    for (const p of parts) { out.set(p, off); off += p.length; }
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
     return out;
   }
 }

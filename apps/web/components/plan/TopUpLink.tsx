@@ -15,7 +15,11 @@ export function TopUpLink({ className }: { className?: string }) {
   const linkClass = `shrink-0 font-medium text-sol-orange underline-offset-2 hover:underline disabled:opacity-60 ${className ?? ""}`;
   if (!billing.topup) {
     return (
-      <button type="button" onClick={() => useInboxStore.getState().openSettingsModal("plan")} className={linkClass}>
+      <button
+        type="button"
+        onClick={() => useInboxStore.getState().openSettingsModal("plan")}
+        className={linkClass}
+      >
         See your plan
       </button>
     );

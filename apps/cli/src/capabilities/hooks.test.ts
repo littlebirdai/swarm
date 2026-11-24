@@ -14,18 +14,25 @@ function settings(seed?: unknown): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-hooks-"));
   dirs.push(dir);
   const file = path.join(dir, "settings.json");
-  if (seed !== undefined) fs.writeFileSync(file, JSON.stringify(seed, null, 2) + "\n");
+  if (seed !== undefined)
+    fs.writeFileSync(file, JSON.stringify(seed, null, 2) + "\n");
   return file;
 }
 const read = (file: string) => JSON.parse(fs.readFileSync(file, "utf-8"));
-afterEach(() => { for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
+});
 
 const CMD = "/home/u/.claude/hooks/codecast-status.sh";
 
 describe("installOwnedHook", () => {
   test("adds a blanket matcher under each event", () => {
     const file = settings();
-    installOwnedHook(["PreToolUse", "Stop"], CMD, { timeout: 5, settingsPath: file });
+    installOwnedHook(["PreToolUse", "Stop"], CMD, {
+      timeout: 5,
+      settingsPath: file,
+    });
     const doc = read(file);
     for (const event of ["PreToolUse", "Stop"]) {
       expect(doc.hooks[event]).toEqual([
@@ -38,7 +45,10 @@ describe("installOwnedHook", () => {
     const file = settings();
     installOwnedHook(["Stop"], CMD, { timeout: 5, settingsPath: file });
     const before = fs.statSync(file).mtimeMs;
-    const again = installOwnedHook(["Stop"], CMD, { timeout: 5, settingsPath: file });
+    const again = installOwnedHook(["Stop"], CMD, {
+      timeout: 5,
+      settingsPath: file,
+    });
     expect(again.wrote).toBe(false);
     expect(read(file).hooks.Stop[0].hooks).toHaveLength(1);
     expect(fs.statSync(file).mtimeMs).toBe(before);
@@ -46,7 +56,9 @@ describe("installOwnedHook", () => {
 
   test("keeps the user's own hooks in the same event", () => {
     const theirs = { type: "command", command: "/usr/local/bin/mine.sh" };
-    const file = settings({ hooks: { Stop: [{ matcher: "", hooks: [theirs] }] } });
+    const file = settings({
+      hooks: { Stop: [{ matcher: "", hooks: [theirs] }] },
+    });
     installOwnedHook(["Stop"], CMD, { timeout: 5, settingsPath: file });
     expect(read(file).hooks.Stop[0].hooks).toEqual([
       theirs,
@@ -55,7 +67,10 @@ describe("installOwnedHook", () => {
   });
 
   test("keeps a user matcher that is not the blanket one", () => {
-    const scoped = { matcher: "Bash", hooks: [{ type: "command", command: "/x.sh" }] };
+    const scoped = {
+      matcher: "Bash",
+      hooks: [{ type: "command", command: "/x.sh" }],
+    };
     const file = settings({ hooks: { Stop: [scoped] } });
     installOwnedHook(["Stop"], CMD, { settingsPath: file });
     const arr = read(file).hooks.Stop;
@@ -64,7 +79,10 @@ describe("installOwnedHook", () => {
   });
 
   test("leaves unrelated settings untouched", () => {
-    const file = settings({ model: "opus", permissions: { allow: ["Bash(ls)"] } });
+    const file = settings({
+      model: "opus",
+      permissions: { allow: ["Bash(ls)"] },
+    });
     installOwnedHook(["Stop"], CMD, { settingsPath: file });
     const doc = read(file);
     expect(doc.model).toBe("opus");
@@ -91,7 +109,10 @@ describe("installOwnedHook", () => {
 
   test("dryRun previews without touching the file", () => {
     const file = settings();
-    const plan = installOwnedHook(["Stop"], CMD, { settingsPath: file, dryRun: true });
+    const plan = installOwnedHook(["Stop"], CMD, {
+      settingsPath: file,
+      dryRun: true,
+    });
     expect(plan.wrote).toBe(false);
     expect(fs.existsSync(file)).toBe(false);
     expect(plan.writes).toEqual([["hooks", "Stop"]]);
@@ -109,14 +130,19 @@ describe("removeOwnedHook", () => {
   test("restores the file to exactly what it was before we touched it", () => {
     const original = { model: "opus", permissions: { allow: ["Bash(ls)"] } };
     const file = settings(original);
-    installOwnedHook(["PreToolUse", "Stop"], CMD, { timeout: 5, settingsPath: file });
+    installOwnedHook(["PreToolUse", "Stop"], CMD, {
+      timeout: 5,
+      settingsPath: file,
+    });
     removeOwnedHook(CMD, { settingsPath: file });
     expect(read(file)).toEqual(original);
   });
 
   test("leaves the user's own hooks in place", () => {
     const theirs = { type: "command", command: "/usr/local/bin/mine.sh" };
-    const file = settings({ hooks: { Stop: [{ matcher: "", hooks: [theirs] }] } });
+    const file = settings({
+      hooks: { Stop: [{ matcher: "", hooks: [theirs] }] },
+    });
     installOwnedHook(["Stop"], CMD, { settingsPath: file });
     removeOwnedHook(CMD, { settingsPath: file });
     expect(read(file).hooks.Stop).toEqual([{ matcher: "", hooks: [theirs] }]);
@@ -124,13 +150,22 @@ describe("removeOwnedHook", () => {
 
   test("removing a hook that is not there leaves the file byte for byte", () => {
     // A group with no `matcher` key and a key of its own, as other tools write.
-    const file = settings({ hooks: { PostCompact: [{ hooks: [{ type: "command", command: "/x.sh" }], note: "mine" }] } });
+    const file = settings({
+      hooks: {
+        PostCompact: [
+          { hooks: [{ type: "command", command: "/x.sh" }], note: "mine" },
+        ],
+      },
+    });
     const before = fs.readFileSync(file, "utf-8");
     removeOwnedHook(CMD, { settingsPath: file });
     expect(fs.readFileSync(file, "utf-8")).toBe(before);
     installOwnedHook(["PostCompact"], CMD, { settingsPath: file });
     expect(read(file).hooks.PostCompact[0]).toEqual({
-      hooks: [{ type: "command", command: "/x.sh" }, { type: "command", command: CMD }],
+      hooks: [
+        { type: "command", command: "/x.sh" },
+        { type: "command", command: CMD },
+      ],
       note: "mine",
     });
   });
@@ -164,7 +199,11 @@ describe("installOwnedStatusLine", () => {
     const file = settings({ model: "opus" });
     const result = installOwnedStatusLine(STATUSLINE, { settingsPath: file });
     expect(result.wrote).toBe(true);
-    expect(read(file).statusLine).toEqual({ type: "command", command: STATUSLINE, padding: 0 });
+    expect(read(file).statusLine).toEqual({
+      type: "command",
+      command: STATUSLINE,
+      padding: 0,
+    });
     expect(read(file).model).toBe("opus");
   });
 
@@ -182,7 +221,9 @@ describe("installOwnedStatusLine", () => {
   test("re-running it changes nothing", () => {
     const file = settings();
     installOwnedStatusLine(STATUSLINE, { settingsPath: file });
-    expect(installOwnedStatusLine(STATUSLINE, { settingsPath: file }).wrote).toBe(false);
+    expect(
+      installOwnedStatusLine(STATUSLINE, { settingsPath: file }).wrote,
+    ).toBe(false);
   });
 
   test("removal takes only ours and leaves a user's edit standing", () => {
@@ -196,7 +237,9 @@ describe("installOwnedStatusLine", () => {
     const doc = read(file);
     doc.statusLine.command = "~/bin/theirs.sh";
     fs.writeFileSync(file, JSON.stringify(doc, null, 2) + "\n");
-    expect(removeOwnedStatusLine({ settingsPath: file }).conflicts).toHaveLength(1);
+    expect(
+      removeOwnedStatusLine({ settingsPath: file }).conflicts,
+    ).toHaveLength(1);
     expect(read(file).statusLine.command).toBe("~/bin/theirs.sh");
   });
 

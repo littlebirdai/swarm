@@ -24,41 +24,119 @@ export interface AppSurface {
   alsoLandsOn?: string[];
 }
 
-const dash = (name: string, what: string): AppSurface => ({ name, path: `/${name}`, kind: "dashboard", what });
-const standalone = (name: string, what: string): AppSurface => ({ name, path: `/${name}`, kind: "standalone", what });
-const settings = (name: string, what: string): AppSurface => ({ name, path: `/${name}`, kind: "settings", what });
+const dash = (name: string, what: string): AppSurface => ({
+  name,
+  path: `/${name}`,
+  kind: "dashboard",
+  what,
+});
+const standalone = (name: string, what: string): AppSurface => ({
+  name,
+  path: `/${name}`,
+  kind: "standalone",
+  what,
+});
+const settings = (name: string, what: string): AppSurface => ({
+  name,
+  path: `/${name}`,
+  kind: "settings",
+  what,
+});
 
 export const APP_SURFACES: AppSurface[] = [
-  { ...dash("inbox", "the agent inbox: sessions grouped by who acts next"), alsoLandsOn: ["/conversation/"] },
+  {
+    ...dash("inbox", "the agent inbox: sessions grouped by who acts next"),
+    alsoLandsOn: ["/conversation/"],
+  },
   dash("feed", "team activity feed"),
-  dash("mods", "codecast mods: the panes, commands and blocks you and your agents added, each with its switch and logs"),
-  dash("changes", "the daily edition of what the team shipped and why (?d=YYYY-MM-DD picks the day)"),
-  dash("deploys", "every place the team's code goes live: what runs there, what waits on main, the press that sends it and every past deploy"),
-  dash("prompts", "a day of what each person typed into sessions, a column per person (?d=YYYY-MM-DD picks the day)"),
+  dash(
+    "mods",
+    "codecast mods: the panes, commands and blocks you and your agents added, each with its switch and logs",
+  ),
+  dash(
+    "changes",
+    "the daily edition of what the team shipped and why (?d=YYYY-MM-DD picks the day)",
+  ),
+  dash(
+    "deploys",
+    "every place the team's code goes live: what runs there, what waits on main, the press that sends it and every past deploy",
+  ),
+  dash(
+    "prompts",
+    "a day of what each person typed into sessions, a column per person (?d=YYYY-MM-DD picks the day)",
+  ),
   dash("crosstalk", "agents talking to each other across sessions"),
-  dash("goals", "every goal, with its owner, health and the projects serving it (/goals/<in-N> opens one)"),
-  dash("projects", "every project grouped by the goal it serves (/projects/<pj-…> opens its board)"),
-  dash("map", "every live session on one zoomable canvas, in piles you arrange, with the org's roles and reporting lines on top"),
-  dash("org", "the people and agent roles who carry the work, and what waits on you (/org/<or-N|@handle> opens one)"),
-  dash("browser", "a web page as a pane: the address rides the query string (?u=<url>)"),
-  dash("simulator", "an agent session's iOS simulator as a pane, live and touchable: the session rides the query string (?s=<session uuid>)"),
+  dash(
+    "goals",
+    "every goal, with its owner, health and the projects serving it (/goals/<in-N> opens one)",
+  ),
+  dash(
+    "projects",
+    "every project grouped by the goal it serves (/projects/<pj-…> opens its board)",
+  ),
+  dash(
+    "map",
+    "every live session on one zoomable canvas, in piles you arrange, with the org's roles and reporting lines on top",
+  ),
+  dash(
+    "org",
+    "the people and agent roles who carry the work, and what waits on you (/org/<or-N|@handle> opens one)",
+  ),
+  dash(
+    "browser",
+    "a web page as a pane: the address rides the query string (?u=<url>)",
+  ),
+  dash(
+    "simulator",
+    "an agent session's iOS simulator as a pane, live and touchable: the session rides the query string (?s=<session uuid>)",
+  ),
   dash("chat", "human channels and direct messages"),
   dash("search", "search across sessions, docs, tasks and people"),
   dash("notifications", "notification list"),
   dash("decisions", "decisions you own, and the team's"),
-  dash("flows", "the team's pipelines, each repo's change flow, main and release flow live; then its flows, one per owner role, and the pool run by hand; findings, problems, runs, cards, watch and closed"),
-  dash("expectations", "every project's expectations: how its product should behave, with breaks per line"),
-  dash("trial", "trial runs of a flow: each gate a card, answered as a rehearsal that ships nothing"),
-  dash("flows/pipeline", "one repository's pipeline: what runs on every change and every release, what waits on main, what is going out (?repo=<owner/repo>)"),
-  dash("flows/settings", "one project's flow: its finders, principles, check commands and limits, editable in its file"),
-  dash("decisions/stacks", "decision stacks: open first with progress and due, done ones folded"),
+  dash(
+    "flows",
+    "the team's pipelines, each repo's change flow, main and release flow live; then its flows, one per owner role, and the pool run by hand; findings, problems, runs, cards, watch and closed",
+  ),
+  dash(
+    "expectations",
+    "every project's expectations: how its product should behave, with breaks per line",
+  ),
+  dash(
+    "trial",
+    "trial runs of a flow: each gate a card, answered as a rehearsal that ships nothing",
+  ),
+  dash(
+    "flows/pipeline",
+    "one repository's pipeline: what runs on every change and every release, what waits on main, what is going out (?repo=<owner/repo>)",
+  ),
+  dash(
+    "flows/settings",
+    "one project's flow: its finders, principles, check commands and limits, editable in its file",
+  ),
+  dash(
+    "decisions/stacks",
+    "decision stacks: open first with progress and due, done ones folded",
+  ),
   dash("threads", "thread list"),
   dash("docs", "documents index"),
   dash("capabilities", "capability registry"),
-  dash("agent-features", "what codecast teaches your agents: features by category, switched per machine"),
-  dash("week", "the weekly card: your week with coding agents, its publish review and share buttons (staff only)"),
-  dash("files", "local markdown notes and files (?f=<path> opens one; old /vault?f= links land here)"),
-  dash("vault", "the team Vault: passwords, keys and sign-ins shared with agents (?s=sec-N opens one)"),
+  dash(
+    "agent-features",
+    "what codecast teaches your agents: features by category, switched per machine",
+  ),
+  dash(
+    "week",
+    "the weekly card: your week with coding agents, its publish review and share buttons (staff only)",
+  ),
+  dash(
+    "files",
+    "local markdown notes and files (?f=<path> opens one; old /vault?f= links land here)",
+  ),
+  dash(
+    "vault",
+    "the team Vault: passwords, keys and sign-ins shared with agents (?s=sec-N opens one)",
+  ),
   dash("pages", "published pages (alias /artifacts)"),
   dash("artifacts", "pre-rename alias of /pages"),
   dash("calls", "call history"),
@@ -66,23 +144,50 @@ export const APP_SURFACES: AppSurface[] = [
   dash("tasks", "tasks board"),
   dash("workflows", "dynamic workflow runs"),
   dash("routines", "DOT-graph orchestration"),
-  dash("triggers", "delayed, recurring and event-driven runs (alias /schedules)"),
-  dash("ops", "the product's transitions across sources: errors, jobs, checks, metrics and deploys on one timeline"),
-  dash("ops/issues", "error, job, check and metric groups with 72h sparklines, status and problem"),
-  dash("ops/replays", "session replays as semantic events, with repro and fix session"),
+  dash(
+    "triggers",
+    "delayed, recurring and event-driven runs (alias /schedules)",
+  ),
+  dash(
+    "ops",
+    "the product's transitions across sources: errors, jobs, checks, metrics and deploys on one timeline",
+  ),
+  dash(
+    "ops/issues",
+    "error, job, check and metric groups with 72h sparklines, status and problem",
+  ),
+  dash(
+    "ops/replays",
+    "session replays as semantic events, with repro and fix session",
+  ),
   dash("ops/metrics", "watched metrics with their threshold lines"),
   dash("ops/apps", "app connector readers, actions, grants and the call audit"),
   dash("schedules", "pre-rename alias of /triggers"),
   dash("sessions", "session list"),
-  dash("resources", "CPU, memory and processes per machine and session; offload suggestions"),
-  dash("anchor", "the workspace's agent: its root role, Head of People by default"),
+  dash(
+    "resources",
+    "CPU, memory and processes per machine and session; offload suggestions",
+  ),
+  dash(
+    "anchor",
+    "the workspace's agent: its root role, Head of People by default",
+  ),
   dash("team/activity", "team activity"),
   dash("team/charts", "team charts"),
   dash("admin/daemon-logs", "daemon logs"),
   dash("config", "config page"),
-  dash("memory", "Claude Code memories on this machine: link map, MEMORY.md load budget, editor"),
-  dash("evals", "prompt evals on this machine: every surface's trend, runs, attribution and bisects"),
-  dash("evals/sim", "Multiplayer sim history: scenarios by mode, invariants, failing runs as swim lanes"),
+  dash(
+    "memory",
+    "Claude Code memories on this machine: link map, MEMORY.md load budget, editor",
+  ),
+  dash(
+    "evals",
+    "prompt evals on this machine: every surface's trend, runs, attribution and bisects",
+  ),
+  dash(
+    "evals/sim",
+    "Multiplayer sim history: scenarios by mode, invariants, failing runs as swim lanes",
+  ),
   dash("repo", "repositories you can browse: history, source and every commit"),
   standalone("explore", "explore"),
   standalone("windows", "windows"),

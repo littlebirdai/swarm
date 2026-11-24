@@ -12,4 +12,7 @@ export type RunStart = {
 };
 
 export const tookPastStart = (run: RunStart): boolean =>
-  !!run.current_node_id && (run.node_statuses ?? []).some((n) => n.node_id !== run.current_node_id || n.status !== "pending");
+  !!run.current_node_id &&
+  (run.node_statuses ?? []).some(
+    (n) => n.node_id !== run.current_node_id || n.status !== "pending",
+  );

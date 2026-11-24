@@ -17,7 +17,6 @@
  * commands. Ground every claim in the product's actual behavior.
  */
 
-
 /** Categories in the order the docs Guides section shows them. */
 export const GUIDE_CATEGORIES = [
   "Agent features",
@@ -305,7 +304,12 @@ export function getGuide(slug: string): Guide | undefined {
 /** "August 7, 2026" for an ISO date, read as a calendar day (no timezone shift). */
 export function formatGuideDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export function guideHref(slug: string): string {

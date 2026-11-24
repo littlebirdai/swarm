@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { InvalidArgumentError } from "commander";
-import { countOption, nonNegativeCountOption, stateOption, unknownActionError, withSessionIdHint, SESSION_ID_HINT } from "./argChecks";
+import {
+  countOption,
+  nonNegativeCountOption,
+  stateOption,
+  unknownActionError,
+  withSessionIdHint,
+  SESSION_ID_HINT,
+} from "./argChecks";
 
 describe("countOption", () => {
   test("takes a whole number of 1 or more", () => {
@@ -23,7 +30,19 @@ describe("nonNegativeCountOption", () => {
 
 describe("stateOption", () => {
   test("passes every value the server's filter knows, aliases included", () => {
-    for (const ok of ["needs-input", "needs_input", "done", "working", "dormant", "hibernated", "idle", "pinned", "live", "blocked", "parked"]) {
+    for (const ok of [
+      "needs-input",
+      "needs_input",
+      "done",
+      "working",
+      "dormant",
+      "hibernated",
+      "idle",
+      "pinned",
+      "live",
+      "blocked",
+      "parked",
+    ]) {
       expect(stateOption(ok)).toBe(ok);
     }
   });
@@ -32,14 +51,20 @@ describe("stateOption", () => {
     expect(stateOption("ALL")).toBeUndefined();
   });
   test("refuses a value the server would read as no filter, naming the valid ones", () => {
-    expect(() => stateOption("bogus")).toThrow(/needs-input, done, working, dormant/);
+    expect(() => stateOption("bogus")).toThrow(
+      /needs-input, done, working, dormant/,
+    );
   });
 });
 
 describe("unknownActionError", () => {
   test("is null for a known or absent action", () => {
-    expect(unknownActionError("decisions", undefined, ["add", "delete"])).toBeNull();
-    expect(unknownActionError("decisions", "add", ["add", "delete"])).toBeNull();
+    expect(
+      unknownActionError("decisions", undefined, ["add", "delete"]),
+    ).toBeNull();
+    expect(
+      unknownActionError("decisions", "add", ["add", "delete"]),
+    ).toBeNull();
   });
   test("names the actions and suggests the near one", () => {
     const msg = unknownActionError("decisions", "ad", ["add", "delete"])!;
@@ -50,18 +75,24 @@ describe("unknownActionError", () => {
     ]);
   });
   test("offers no suggestion for a word near nothing", () => {
-    expect(unknownActionError("learn", "zzzzzzzz", ["add", "show"])).not.toContain("did you mean");
+    expect(
+      unknownActionError("learn", "zzzzzzzz", ["add", "show"]),
+    ).not.toContain("did you mean");
   });
 });
 
 describe("withSessionIdHint", () => {
   test("adds where to find ids to a not-found error only", () => {
-    expect(withSessionIdHint("Conversation not found")).toBe(`Conversation not found. ${SESSION_ID_HINT}`);
+    expect(withSessionIdHint("Conversation not found")).toBe(
+      `Conversation not found. ${SESSION_ID_HINT}`,
+    );
     expect(withSessionIdHint("Unauthorized")).toBe("Unauthorized");
   });
 
   // `cast read jx77txf 1:2` printed a bare "Error: Access denied".
   test("says why access is denied and what to do", () => {
-    expect(withSessionIdHint("Access denied")).toContain("private to its owner, or in a team you are not a member of");
+    expect(withSessionIdHint("Access denied")).toContain(
+      "private to its owner, or in a team you are not a member of",
+    );
   });
 });

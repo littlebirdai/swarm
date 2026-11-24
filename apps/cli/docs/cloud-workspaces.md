@@ -121,8 +121,8 @@ host before you pass it.
 
 The existing 12GiB volume was expanded to 32GiB, without creating an instance. One three-prompt invocation created these real Codecast installations:
 
-| Session | Worktree | Port |
-| --- | --- | --- |
+| Session | Worktree     | Port |
+| ------- | ------------ | ---- |
 | jx77bkw | cloud-bc9163 | 3221 |
 | jx72ss5 | cloud-5b222d | 3241 |
 | jx79tnw | cloud-1493ee | 3261 |
@@ -183,14 +183,14 @@ A failed preparation leaves the row parked with the error (`session_error`), whi
 
 The laptop supplies personal agent context and project documents to cloud hosts. Discovery is recursive and independent of Git ignore rules: instructions, overrides, working notes, rules, skills, plugins, prompts, hooks, scripts and their portable support files travel together. `AGENTS.md` and the `CLAUDE.md` symlink are also tracked in this repository, so fresh clones carry its development rules.
 
-| Source | Coverage |
-| --- | --- |
-| Personal agent directories | `.claude`, `.codex`, `.gemini`, `.grok`, `.opencode`, `.agents` and `.config/opencode`, including shared skill symlink aliases and portable plugin content |
-| Project context | Nested instruction files, Markdown and other text documents, agent configuration, `.mcp.json`, docs/scripts/support directories and referenced files, including ignored and untracked files |
-| Supporting context | In-home file references, relevant ancestor instructions and Claude project memory directories; transcripts and process state are excluded |
-| Git preferences | An allowlisted global configuration block and global ignore file; host Git identity and access remain owned by host provisioning |
-| Shell environment | `.bashrc`, `.bash_profile`, `.profile`, the zsh and fish startup files, `.inputrc`, `.tmux.conf`, `.cargo/env`, and every file they source (a brace list such as `~/.{aliases,exports}` included), home paths rewritten. Their exports travel as they are, keys included: they are the person's environment, carried to their own host like their logins |
-| Codecast features | The laptop's feature switches (every `*_enabled` in the snippet catalog, and `stable_mode`) ride the bundle header; the host takes them into its config before its refresh, so its agents get the same instruction sections, skills and hooks |
+| Source                     | Coverage                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personal agent directories | `.claude`, `.codex`, `.gemini`, `.grok`, `.opencode`, `.agents` and `.config/opencode`, including shared skill symlink aliases and portable plugin content                                                                                                                                                                                               |
+| Project context            | Nested instruction files, Markdown and other text documents, agent configuration, `.mcp.json`, docs/scripts/support directories and referenced files, including ignored and untracked files                                                                                                                                                              |
+| Supporting context         | In-home file references, relevant ancestor instructions and Claude project memory directories; transcripts and process state are excluded                                                                                                                                                                                                                |
+| Git preferences            | An allowlisted global configuration block and global ignore file; host Git identity and access remain owned by host provisioning                                                                                                                                                                                                                         |
+| Shell environment          | `.bashrc`, `.bash_profile`, `.profile`, the zsh and fish startup files, `.inputrc`, `.tmux.conf`, `.cargo/env`, and every file they source (a brace list such as `~/.{aliases,exports}` included), home paths rewritten. Their exports travel as they are, keys included: they are the person's environment, carried to their own host like their logins |
+| Codecast features          | The laptop's feature switches (every `*_enabled` in the snippet catalog, and `stable_mode`) ride the bundle header; the host takes them into its config before its refresh, so its agents get the same instruction sections, skills and hooks                                                                                                            |
 
 Symlinks are resolved into regular files at their logical destination, so every agent sees its own skill namespace. Cycles terminate; references and resolved paths use the same exclusion and size checks as ordinary files. Portable text receives home and project path rewrites. Binary support assets retain their bytes. macOS commands and paths can still require host tooling; copying a script does not install its interpreter or make an Apple framework available on Linux.
 
@@ -266,14 +266,14 @@ The job reaches the host only while the session works (its message count moving 
 
 An agent on the host (or a person on the laptop) has the same verbs, carried out by the laptop's daemon through Convex (`cloud.requestSync`, `cloud/syncRequests.ts`):
 
-| Verb | What it does |
-| --- | --- |
-| `cast sync status` | what differs, what stayed on each machine and why |
-| `cast sync pull` | the laptop's changes now: one tick of a running sync, or with none, the laptop checkout's changes since the session started, merged in (a file both changed keeps the host's version and is named) |
-| `cast sync pull <paths>` | exactly those files or folders from the laptop: a skipped one, or one outside the repo (`~/data/export.csv` lands in the host's home), up to 2 GB |
-| `cast sync pull --ref <branch>` | a branch or commit only the laptop has, as `laptop/<name>` |
-| `cast sync push [paths]` | this folder's changes to the laptop copy (starting one if none runs) |
-| `cast sync diff <path>` | the laptop's version against the host's |
+| Verb                            | What it does                                                                                                                                                                                       |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cast sync status`              | what differs, what stayed on each machine and why                                                                                                                                                  |
+| `cast sync pull`                | the laptop's changes now: one tick of a running sync, or with none, the laptop checkout's changes since the session started, merged in (a file both changed keeps the host's version and is named) |
+| `cast sync pull <paths>`        | exactly those files or folders from the laptop: a skipped one, or one outside the repo (`~/data/export.csv` lands in the host's home), up to 2 GB                                                  |
+| `cast sync pull --ref <branch>` | a branch or commit only the laptop has, as `laptop/<name>`                                                                                                                                         |
+| `cast sync push [paths]`        | this folder's changes to the laptop copy (starting one if none runs)                                                                                                                               |
+| `cast sync diff <path>`         | the laptop's version against the host's                                                                                                                                                            |
 
 Claude Code already tells an agent when a file it has read changes on disk, and its edit tool refuses to write over a changed file, so a landing during a turn is seen rather than clobbered.
 
@@ -304,7 +304,7 @@ cast hosts key --grant                        # gh auth status, then gh repo dep
 cast hosts provision --git-identity "Name <email>"
 ```
 
-**Grant it as a deploy key with write access** (recommended: one repo, and GitHub's default for a deploy key is read-only — `cast hosts ls` shows "read-only key … re-add it with write access" when that happened). The account-level key at `https://github.com/settings/ssh/new` is labelled *broad access* everywhere it is offered: it grants every repo you can reach, and the private key sits on the box as the user every agent session runs as (with passwordless sudo), so any agent there can use whatever the key can reach. A public key registers once across GitHub, so a second repo's `--grant` fails with "already in use"; the CLI explains the choice (remove it there, or use an account key). The devices page card says the same.
+**Grant it as a deploy key with write access** (recommended: one repo, and GitHub's default for a deploy key is read-only — `cast hosts ls` shows "read-only key … re-add it with write access" when that happened). The account-level key at `https://github.com/settings/ssh/new` is labelled _broad access_ everywhere it is offered: it grants every repo you can reach, and the private key sits on the box as the user every agent session runs as (with passwordless sudo), so any agent there can use whatever the key can reach. A public key registers once across GitHub, so a second repo's `--grant` fails with "already in use"; the CLI explains the choice (remove it there, or use an account key). The devices page card says the same.
 
 Identity: the host's commits carry the laptop's identity, resolved from the repo being prepared (so an `includeIf gitdir:` profile applies), else the laptop's global config, overridable with `--git-identity "Name <email>"` on `cast hosts key` and `cast hosts provision` — the escape hatch for a bot-owned box, which the CLI cannot detect. When there is nothing to mirror and the host has no global identity, the script writes `codecast <codecast@local>` **globally** rather than letting git invent `Ubuntu <ubuntu@ip-…internal>`; the repo-local placeholder that `cast remote move` used to write is gone, and an existing one is unset only after a real identity was mirrored. The `IdentitiesOnly` line of the ssh config block is `yes` once the device key is proven to push and `no` after a probe refused it, so while a bridge (below) is up a laptop agent full of unrelated keys cannot exhaust GitHub's six auth tries before the granted key is offered; a run that probes nothing (`cast hosts wake`, `cast cloud wake`, a provision outside a repo) keeps the registry's last word rather than resetting it.
 

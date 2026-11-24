@@ -11,7 +11,17 @@ import type { HeroChapter } from "./contract";
 export const chapter: HeroChapter = {
   id: "remote",
   parts: [
-    { key: "header", region: "desk.header", order: 10, Component: WorkerHeader },
-    { key: "tail", region: "desk.transcript", order: 60, Component: WorkerTail },
+    {
+      key: "header",
+      region: "desk.header",
+      order: 10,
+      Component: WorkerHeader,
+    },
+    {
+      key: "tail",
+      region: "desk.transcript",
+      order: 60,
+      Component: WorkerTail,
+    },
   ],
 };

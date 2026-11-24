@@ -15,7 +15,8 @@ import kitJs from "../kit/decision-kit.js" with { type: "text" };
 import kitGuide from "../../../docs/line/decision-kit/README.md" with { type: "text" };
 import { injectPageTheme } from "@codecast/shared/render";
 
-export const DECISION_KIT_LINE = '<link rel="stylesheet" href="cast:decision-kit">';
+export const DECISION_KIT_LINE =
+  '<link rel="stylesheet" href="cast:decision-kit">';
 export const DECISION_KIT_GUIDE: string = kitGuide;
 
 const KIT_TAG = /<link\b[^>]*\bhref\s*=\s*["']cast:decision-kit["'][^>]*>/gi;

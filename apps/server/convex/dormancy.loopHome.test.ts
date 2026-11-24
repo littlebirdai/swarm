@@ -3,7 +3,12 @@ import { isArmedLoopHome } from "./dormancy";
 import { LOOP_OVERDUE_GRACE_MS } from "@codecast/shared/contracts";
 
 const now = 1_788_200_000_000;
-const armed = { status: "armed", wakeup_at: now + 60_000, armed_at: now - 60_000, event_at: now - 60_000 };
+const armed = {
+  status: "armed",
+  wakeup_at: now + 60_000,
+  armed_at: now - 60_000,
+  event_at: now - 60_000,
+};
 
 describe("isArmedLoopHome", () => {
   test("a fresh armed wakeup parks the home", () => {
@@ -11,8 +16,18 @@ describe("isArmedLoopHome", () => {
   });
 
   test("machine-delivered last turn keeps the park; a human turn breaks it", () => {
-    expect(isArmedLoopHome({ loop_state: armed, last_message_preview: "<task-notification>…" }, now)).toBe(true);
-    expect(isArmedLoopHome({ loop_state: armed, last_message_preview: "hey can you check this" }, now)).toBe(false);
+    expect(
+      isArmedLoopHome(
+        { loop_state: armed, last_message_preview: "<task-notification>…" },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isArmedLoopHome(
+        { loop_state: armed, last_message_preview: "hey can you check this" },
+        now,
+      ),
+    ).toBe(false);
   });
 
   test("an overdue wakeup is a dead harness — no park", () => {
@@ -21,8 +36,15 @@ describe("isArmedLoopHome", () => {
   });
 
   test("waking and stopped never park (the active arms own waking)", () => {
-    expect(isArmedLoopHome({ loop_state: { ...armed, status: "waking", fired_at: now } }, now)).toBe(false);
-    expect(isArmedLoopHome({ loop_state: { ...armed, status: "stopped" } }, now)).toBe(false);
+    expect(
+      isArmedLoopHome(
+        { loop_state: { ...armed, status: "waking", fired_at: now } },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isArmedLoopHome({ loop_state: { ...armed, status: "stopped" } }, now),
+    ).toBe(false);
     expect(isArmedLoopHome({}, now)).toBe(false);
   });
 });

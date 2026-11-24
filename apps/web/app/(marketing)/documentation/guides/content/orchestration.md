@@ -66,9 +66,9 @@ Choose orchestration when the shape of the work isn't known up front and an agen
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The lead agent asks you about a task | Answer in its conversation. It carries on with the rest of the plan meanwhile |
-| Too many agents run at once for your machine | Tell the lead agent to run fewer tasks at a time |
-| A task is stuck in progress | Open the task. Its sessions and activity show where it stopped. Ask the lead agent to retry or split it |
+| What you notice                              | What to do                                                                                              |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| The lead agent asks you about a task         | Answer in its conversation. It carries on with the rest of the plan meanwhile                           |
+| Too many agents run at once for your machine | Tell the lead agent to run fewer tasks at a time                                                        |
+| A task is stuck in progress                  | Open the task. Its sessions and activity show where it stopped. Ask the lead agent to retry or split it |
 | The plan's tasks look wrong before it starts | Edit the plan first, or ask for a new breakdown. Orchestrating a bad plan builds the wrong thing faster |

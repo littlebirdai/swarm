@@ -2,7 +2,12 @@ import { useCallback, useState, useRef, useMemo, useEffect } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { useInboxStore, useTrackedStore, isConvexId, ensureHydrated } from "../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  isConvexId,
+  ensureHydrated,
+} from "../store/inboxStore";
 import { MESSAGE_PAGE_SIZE } from "../store/cacheRetention";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
@@ -14,7 +19,15 @@ import { HOSTED_AGENT_TYPE } from "@codecast/shared/contracts/assistant";
 import { rowSigExcluding } from "../store/wakeSig";
 import { withClearedInboxStamps } from "../store/syncProtocol";
 import { shareTokenArg } from "../lib/shareTokenScope";
-import { deepenConversation, fetchMessagesAround, fetchOlderMessages, fetchOlderPage, readForward, rereadAnchor, WARM_DEEP_ROWS } from "./inboxWarm";
+import {
+  deepenConversation,
+  fetchMessagesAround,
+  fetchOlderMessages,
+  fetchOlderPage,
+  readForward,
+  rereadAnchor,
+  WARM_DEEP_ROWS,
+} from "./inboxWarm";
 
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_PENDING: Message[] = [];
@@ -23,11 +36,15 @@ const EMPTY_PENDING: Message[] = [];
 // the still-streaming newest row is inside the subscribed range from the first
 // frame. null = cold (no cached rows yet); the cold-open effect resolves it
 // via IDB hydration or the one-shot snapshot.
-function initTailState(conversationId: string): { id: string; anchor: number | null } {
+function initTailState(conversationId: string): {
+  id: string;
+  anchor: number | null;
+} {
   const local = useInboxStore.getState().messages[conversationId];
   return {
     id: conversationId,
-    anchor: local && local.length > 0 ? local[local.length - 1].timestamp - 1 : null,
+    anchor:
+      local && local.length > 0 ? local[local.length - 1].timestamp - 1 : null,
   };
 }
 
@@ -44,7 +61,10 @@ const LIVENESS_ONLY_CONV_FIELDS = new Set([
   "last_active_at",
   "last_message_at",
 ]);
-function conversationRenderEqual(a: Record<string, any>, b: Record<string, any>): boolean {
+function conversationRenderEqual(
+  a: Record<string, any>,
+  b: Record<string, any>,
+): boolean {
   if (a === b) return true;
   // The message array is the primary render signal — a new/changed message must
   // always re-render (mergedMessages keeps a stable ref when nothing changed).
@@ -98,7 +118,10 @@ export type Message = {
   _sentBaselineTs?: number;
 };
 
-export { mergeUnconfirmedMessages, messagePageSyncKey } from "./conversationMessageMerge";
+export {
+  mergeUnconfirmedMessages,
+  messagePageSyncKey,
+} from "./conversationMessageMerge";
 
 // Below this many messages the navigator's bounded scan already reaches every
 // prompt, so the prompt-index backfill is not worth a mutation.
@@ -123,7 +146,7 @@ export function useConversationMessages(
   targetNonce?: number,
   // Open on the conversation's first page instead of the live tail (share-link
   // guests read from the beginning). An explicit target or highlight wins.
-  openAtStart?: boolean
+  openAtStart?: boolean,
 ) {
   // Follow the optimistic-create rekey. When a stub conversation resolves to
   // its real Convex id, rekeyId deletes the stub rows in the same store
@@ -131,7 +154,9 @@ export function useConversationMessages(
   // render through useDeferredValue (InboxConversation) do one more urgent
   // pass with the stale stub id. Without resolution that pass finds no rows,
   // flashes the full-pane loader, and remounts the whole conversation tree.
-  const conversationId = useInboxStore((s) => s.resolveLiveSessionId(requestedConversationId));
+  const conversationId = useInboxStore((s) =>
+    s.resolveLiveSessionId(requestedConversationId),
+  );
   const canQuery = isConvexId(conversationId);
   const convId = conversationId as Id<"conversations">;
   // Share-link viewers must PRESENT the token on every read — the server no
@@ -156,30 +181,48 @@ export function useConversationMessages(
   const targetMessageTimestamp = useQueryNoThrow(
     api.messages.getMessageTimestamp,
     canQuery && effectiveTargetMessageId
-      ? { conversation_id: convId, message_id: effectiveTargetMessageId as Id<"messages">, ...shareArg }
-      : "skip"
+      ? {
+          conversation_id: convId,
+          message_id: effectiveTargetMessageId as Id<"messages">,
+          ...shareArg,
+        }
+      : "skip",
   ).data;
 
   const cleanedHighlightQuery = highlightQuery?.replace(/^"|"$/g, "").trim();
   const highlightMessageResult = useQueryNoThrow(
     api.messages.findMessageByContent,
     canQuery && cleanedHighlightQuery
-      ? { conversation_id: convId, search_term: cleanedHighlightQuery, ...shareArg }
-      : "skip"
+      ? {
+          conversation_id: convId,
+          search_term: cleanedHighlightQuery,
+          ...shareArg,
+        }
+      : "skip",
   ).data;
 
   // The beginning is a target like any other: the around-window centered on
   // timestamp 0 is the first page, and no tail subscription runs for it.
-  const startTarget = !!openAtStart && !effectiveTargetMessageId && !cleanedHighlightQuery;
-  const effectiveTargetTimestamp = targetMessageTimestamp?.timestamp ?? targetTimestamp ?? highlightMessageResult?.timestamp ?? (startTarget ? 0 : undefined);
-  const highlightNotFound = !!(cleanedHighlightQuery && highlightMessageResult === null);
-  const targetNotFound = !!(effectiveTargetMessageId && targetMessageTimestamp === null);
+  const startTarget =
+    !!openAtStart && !effectiveTargetMessageId && !cleanedHighlightQuery;
+  const effectiveTargetTimestamp =
+    targetMessageTimestamp?.timestamp ??
+    targetTimestamp ??
+    highlightMessageResult?.timestamp ??
+    (startTarget ? 0 : undefined);
+  const highlightNotFound = !!(
+    cleanedHighlightQuery && highlightMessageResult === null
+  );
+  const targetNotFound = !!(
+    effectiveTargetMessageId && targetMessageTimestamp === null
+  );
   const hasTarget = !!(
     (effectiveTargetMessageId && !targetNotFound) ||
     (cleanedHighlightQuery && !highlightNotFound) ||
     startTarget
   );
-  const targetTimestampReady = hasTarget && effectiveTargetTimestamp !== undefined;
+  const targetTimestampReady =
+    hasTarget && effectiveTargetTimestamp !== undefined;
 
   // --- Mode: target vs normal ---
   const [targetMode, setTargetMode] = useState(hasTarget);
@@ -195,7 +238,10 @@ export function useConversationMessages(
   // on, and the end-jump would complete inside the re-engaged target window
   // ("down arrow just scrolls to the bottom of the top page"). Keyed by target
   // so a NEW deep-link mid-visit still engages target mode.
-  const targetKey = effectiveTargetMessageId ?? cleanedHighlightQuery ?? (startTarget ? "start" : null);
+  const targetKey =
+    effectiveTargetMessageId ??
+    cleanedHighlightQuery ??
+    (startTarget ? "start" : null);
   const targetKeyRef = useRef(targetKey);
   targetKeyRef.current = targetKey;
   const dismissedTargetKeyRef = useRef<string | null>(null);
@@ -205,7 +251,9 @@ export function useConversationMessages(
     jumpGenRef.current++;
     setTrackedConvId(conversationId);
     dismissedTargetKeyRef.current = null;
-    setTargetMode(!!(effectiveTargetMessageId || cleanedHighlightQuery || startTarget));
+    setTargetMode(
+      !!(effectiveTargetMessageId || cleanedHighlightQuery || startTarget),
+    );
     setJumpTimestamp(null);
     setJumpMode(null);
   }
@@ -249,7 +297,8 @@ export function useConversationMessages(
   // duration; the flip to "complete" re-triggers the sync effects and applies
   // the latest server state in one swap.
   const forkCopying = useInboxStore((s) => {
-    const meta: any = s.conversations[conversationId] ?? s.sessions[conversationId];
+    const meta: any =
+      s.conversations[conversationId] ?? s.sessions[conversationId];
     return meta?.fork_status === "copying";
   });
 
@@ -258,10 +307,15 @@ export function useConversationMessages(
   // The tail anchor is fixed per visit: local rows at or before it are
   // history, rows after it belong to the live tail subscription. null = not
   // yet determined (cold open, snapshot or hydration pending).
-  const [tailState, setTailState] = useState<{ id: string; anchor: number | null }>(() => initTailState(conversationId));
-  if (tailState.id !== conversationId) setTailState(initTailState(conversationId));
+  const [tailState, setTailState] = useState<{
+    id: string;
+    anchor: number | null;
+  }>(() => initTailState(conversationId));
+  if (tailState.id !== conversationId)
+    setTailState(initTailState(conversationId));
   const tailAnchorRef = useRef<number | null>(null);
-  tailAnchorRef.current = tailState.id === conversationId ? tailState.anchor : null;
+  tailAnchorRef.current =
+    tailState.id === conversationId ? tailState.anchor : null;
 
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const snapshotInFlightRef = useRef<string | null>(null);
@@ -280,8 +334,13 @@ export function useConversationMessages(
         ...shareTokenArg(conversationId),
       });
       const state = useInboxStore.getState();
-      const meta: any = state.conversations[conversationId] ?? state.sessions[conversationId];
-      if (meta?.fork_status === "copying" && (state.messages[conversationId]?.length ?? 0) > 0) return;
+      const meta: any =
+        state.conversations[conversationId] ?? state.sessions[conversationId];
+      if (
+        meta?.fork_status === "copying" &&
+        (state.messages[conversationId]?.length ?? 0) > 0
+      )
+        return;
       const page: Message[] = [...(res?.page ?? [])].reverse();
       state.setMessages(conversationId, page, {
         hasMoreAbove: res ? !res.isDone : false,
@@ -292,8 +351,10 @@ export function useConversationMessages(
         anchor: page.length ? page[page.length - 1].timestamp - 1 : 0,
       });
     } catch (err) {
-       
-      console.warn("[useConversationMessages] snapshot fetch failed", { conversationId, err });
+      console.warn("[useConversationMessages] snapshot fetch failed", {
+        conversationId,
+        err,
+      });
     } finally {
       snapshotInFlightRef.current = null;
       setSnapshotLoading(false);
@@ -304,19 +365,29 @@ export function useConversationMessages(
   // cached tail (zero network) or pay the one snapshot round trip.
   // eslint-disable-next-line no-restricted-syntax -- one-shot history load; the tail subscription is the live path
   useEffect(() => {
-    if (!useNormalMode || tailState.id !== conversationId || tailState.anchor !== null) return;
+    if (
+      !useNormalMode ||
+      tailState.id !== conversationId ||
+      tailState.anchor !== null
+    )
+      return;
     let cancelled = false;
     (async () => {
       await ensureHydrated(conversationId);
       if (cancelled) return;
       const local = useInboxStore.getState().messages[conversationId];
       if (local?.length) {
-        setTailState({ id: conversationId, anchor: local[local.length - 1].timestamp - 1 });
+        setTailState({
+          id: conversationId,
+          anchor: local[local.length - 1].timestamp - 1,
+        });
         return;
       }
       fetchSnapshot();
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [useNormalMode, tailState, conversationId, fetchSnapshot]);
 
   // A warmed tail (the inbox warm loop's newest page) is shorter than the
@@ -326,7 +397,12 @@ export function useConversationMessages(
   // already local. deepenConversation is a no-op on a full window.
   // eslint-disable-next-line no-restricted-syntax -- one-shot history backfill; the tail subscription is the live path
   useEffect(() => {
-    if (!useNormalMode || tailState.id !== conversationId || tailState.anchor === null) return;
+    if (
+      !useNormalMode ||
+      tailState.id !== conversationId ||
+      tailState.anchor === null
+    )
+      return;
     void deepenConversation(convex, conversationId, WARM_DEEP_ROWS);
   }, [useNormalMode, tailState.id, tailState.anchor, conversationId, convex]);
 
@@ -336,41 +412,86 @@ export function useConversationMessages(
   // window with the counts equal, where neither the tail nor the recovery
   // loop looks. The window is short; mergeMessages replaces changed copies.
   const hostedVisit = isHostedAgentType(
-    useInboxStore((st) => (st.conversations[conversationId] ?? st.sessions[conversationId])?.agent_type),
+    useInboxStore(
+      (st) =>
+        (st.conversations[conversationId] ?? st.sessions[conversationId])
+          ?.agent_type,
+    ),
   );
   // eslint-disable-next-line no-restricted-syntax -- one-shot heal per visit; the tail subscription is the live path
   useEffect(() => {
-    if (!useNormalMode || !hostedVisit || tailState.id !== conversationId || tailState.anchor === null) return;
-    const from = rereadAnchor(useInboxStore.getState().messages[conversationId], HOSTED_AGENT_TYPE);
+    if (
+      !useNormalMode ||
+      !hostedVisit ||
+      tailState.id !== conversationId ||
+      tailState.anchor === null
+    )
+      return;
+    const from = rereadAnchor(
+      useInboxStore.getState().messages[conversationId],
+      HOSTED_AGENT_TYPE,
+    );
     if (from === null) return;
     readForward(convex, convId, from).catch((err: unknown) => {
-      console.warn("[useConversationMessages] hosted heal failed", { conversationId, err });
+      console.warn("[useConversationMessages] hosted heal failed", {
+        conversationId,
+        err,
+      });
     });
     // Once per visit: the anchor settling is the visit's start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useNormalMode, hostedVisit, tailState.id, tailState.anchor === null, conversationId]);
+  }, [
+    useNormalMode,
+    hostedVisit,
+    tailState.id,
+    tailState.anchor === null,
+    conversationId,
+  ]);
 
   // The live tail. Anchored one ms before the newest known row so the
   // in-flight streaming row is always inside the subscribed range and its
   // in-place patches replace the local copy.
   const tailResult = useQueryNoThrow(
     api.conversations.listMessagesTail,
-    useNormalMode && tailState.id === conversationId && tailState.anchor !== null
-      ? { conversation_id: convId, after_timestamp: tailState.anchor, ...shareArg }
-      : "skip"
+    useNormalMode &&
+      tailState.id === conversationId &&
+      tailState.anchor !== null
+      ? {
+          conversation_id: convId,
+          after_timestamp: tailState.anchor,
+          ...shareArg,
+        }
+      : "skip",
   ).data;
-  useConvexSync(tailResult, useCallback((res: any) => {
-    if (!res) return;
-    const anchor = tailAnchorRef.current;
-    if (anchor === null) return;
-    if (forkCopying && (useInboxStore.getState().messages[conversationId]?.length ?? 0) > 0) return;
-    useInboxStore.getState().applyTailMessages(conversationId, anchor, res.messages ?? [], res.last_timestamp ?? null);
-    // A burst past the server cap: advance the anchor so the next subscription
-    // continues from where this result ended.
-    if (res.has_more && res.last_timestamp != null) {
-      setTailState({ id: conversationId, anchor: res.last_timestamp - 1 });
-    }
-  }, [conversationId, forkCopying]));
+  useConvexSync(
+    tailResult,
+    useCallback(
+      (res: any) => {
+        if (!res) return;
+        const anchor = tailAnchorRef.current;
+        if (anchor === null) return;
+        if (
+          forkCopying &&
+          (useInboxStore.getState().messages[conversationId]?.length ?? 0) > 0
+        )
+          return;
+        useInboxStore
+          .getState()
+          .applyTailMessages(
+            conversationId,
+            anchor,
+            res.messages ?? [],
+            res.last_timestamp ?? null,
+          );
+        // A burst past the server cap: advance the anchor so the next subscription
+        // continues from where this result ended.
+        if (res.has_more && res.last_timestamp != null) {
+          setTailState({ id: conversationId, anchor: res.last_timestamp - 1 });
+        }
+      },
+      [conversationId, forkCopying],
+    ),
+  );
 
   // Fork completion: the locally seeded window carries the PARENT's row ids;
   // the server's copied rows have new ids the tail (anchored on the seed)
@@ -394,7 +515,9 @@ export function useConversationMessages(
   // merges per key, so omitted fields keep their prior store values.
   const { data: remoteMeta } = useQueryNoThrow(
     api.conversations.getConversationWithMeta,
-    canQuery ? { conversation_id: convId, strip_volatile: true, ...shareArg } : "skip"
+    canQuery
+      ? { conversation_id: convId, strip_volatile: true, ...shareArg }
+      : "skip",
   );
 
   // The transcript watermark: message_count feeds the recovery poll,
@@ -402,22 +525,40 @@ export function useConversationMessages(
   // integers, so it re-pushes only when one of them actually moves.
   const watermark = useQueryNoThrow(
     api.conversations.getTranscriptWatermark,
-    canQuery ? { conversation_id: convId, ...shareArg } : "skip"
+    canQuery ? { conversation_id: convId, ...shareArg } : "skip",
   ).data;
-  useConvexSync(watermark, useCallback((w: any) => {
-    if (!w) return;
-    useInboxStore.getState().syncRecord("conversations", conversationId, w);
-  }, [conversationId]));
+  useConvexSync(
+    watermark,
+    useCallback(
+      (w: any) => {
+        if (!w) return;
+        useInboxStore.getState().syncRecord("conversations", conversationId, w);
+      },
+      [conversationId],
+    ),
+  );
 
-  useConvexSync(remoteMeta, useCallback((meta: any) => {
-    // getConversationWithMeta returns null for missing or access-denied — feeding
-    // that into syncRecord trips Object.keys(null) when an existing cache entry
-    // is present (inboxStore.ts merge branch). Skip the sync; the cached entry
-    // stays put through transient auth blips, and a truly-deleted conversation
-    // just stops receiving updates.
-    if (!meta) return;
-    useInboxStore.getState().syncRecord("conversations", conversationId, withClearedInboxStamps(meta));
-  }, [conversationId]));
+  useConvexSync(
+    remoteMeta,
+    useCallback(
+      (meta: any) => {
+        // getConversationWithMeta returns null for missing or access-denied — feeding
+        // that into syncRecord trips Object.keys(null) when an existing cache entry
+        // is present (inboxStore.ts merge branch). Skip the sync; the cached entry
+        // stays put through transient auth blips, and a truly-deleted conversation
+        // just stops receiving updates.
+        if (!meta) return;
+        useInboxStore
+          .getState()
+          .syncRecord(
+            "conversations",
+            conversationId,
+            withClearedInboxStamps(meta),
+          );
+      },
+      [conversationId],
+    ),
+  );
 
   // =============================================
   // USER MESSAGES: full (non-paginated) navigable list → store cache
@@ -427,11 +568,17 @@ export function useConversationMessages(
   // means those features never depend on which message window is paginated in.
   const userMessages = useQueryNoThrow(
     api.conversations.getUserMessages,
-    canQuery ? { conversation_id: convId, ...shareArg } : "skip"
+    canQuery ? { conversation_id: convId, ...shareArg } : "skip",
   ).data;
-  useConvexSync(userMessages, useCallback((msgs: any) => {
-    useInboxStore.getState().setUserMessages(conversationId, msgs);
-  }, [conversationId]));
+  useConvexSync(
+    userMessages,
+    useCallback(
+      (msgs: any) => {
+        useInboxStore.getState().setUserMessages(conversationId, msgs);
+      },
+      [conversationId],
+    ),
+  );
 
   // A long conversation written before the navigator's prompt index existed is
   // served by a bounded scan that can miss most of its prompts. Opening it asks
@@ -441,13 +588,20 @@ export function useConversationMessages(
   // leaves the kick to the next signed-in reader.
   const navIndexSize = useInboxStore((s) => {
     const meta = s.conversations[conversationId] ?? s.sessions[conversationId];
-    return !!s.currentUser && ((meta as { message_count?: number } | undefined)?.message_count ?? 0) >= NAV_INDEX_MIN_MESSAGES;
+    return (
+      !!s.currentUser &&
+      ((meta as { message_count?: number } | undefined)?.message_count ?? 0) >=
+        NAV_INDEX_MIN_MESSAGES
+    );
   });
   // eslint-disable-next-line no-restricted-syntax -- one fire-and-forget server kick per conversation
   useEffect(() => {
-    if (!canQuery || !navIndexSize || navIndexRequested.has(conversationId)) return;
+    if (!canQuery || !navIndexSize || navIndexRequested.has(conversationId))
+      return;
     navIndexRequested.add(conversationId);
-    useInboxStore.getState().requestNavPromptIndex(conversationId, shareArg.share_token);
+    useInboxStore
+      .getState()
+      .requestNavPromptIndex(conversationId, shareArg.share_token);
   }, [canQuery, navIndexSize, conversationId, shareArg]);
 
   // Safety net: server-vs-local watermark recovery.
@@ -466,7 +620,10 @@ export function useConversationMessages(
   // snapshot refetch. A transcript_revision jump (backfill edit behind the
   // tail anchor) also snapshot-refetches.
   const recoveryInFlightRef = useRef(false);
-  const countMismatchRef = useRef<{ id: string; ticks: number }>({ id: conversationId, ticks: 0 });
+  const countMismatchRef = useRef<{ id: string; ticks: number }>({
+    id: conversationId,
+    ticks: 0,
+  });
   const lastRevisionRef = useRef<{ id: string; rev: number } | null>(null);
   const settledRef = useRef<{ id: string; count: number } | null>(null);
   // eslint-disable-next-line no-restricted-syntax -- polled recovery; effect manages its own interval
@@ -476,7 +633,8 @@ export function useConversationMessages(
     const tick = async () => {
       if (recoveryInFlightRef.current) return;
       const state = useInboxStore.getState();
-      const meta = state.conversations[conversationId] ?? state.sessions[conversationId];
+      const meta =
+        state.conversations[conversationId] ?? state.sessions[conversationId];
       const local = state.messages[conversationId] ?? [];
       // While a fork copy is in flight the local seeded window is the complete
       // view and the server count is a moving partial — nothing to recover.
@@ -496,7 +654,8 @@ export function useConversationMessages(
         return;
       }
       const serverCount = (meta as any)?.message_count ?? 0;
-      if (countMismatchRef.current.id !== conversationId) countMismatchRef.current = { id: conversationId, ticks: 0 };
+      if (countMismatchRef.current.id !== conversationId)
+        countMismatchRef.current = { id: conversationId, ticks: 0 };
       if (serverCount === 0) return;
       if (local.length > serverCount) {
         // Local ahead can be a benign race (the tail delivered rows before the
@@ -515,20 +674,42 @@ export function useConversationMessages(
       // this count: the rows it is short of are older than the window held
       // here (a long thread opened on its tail), not missing from the end.
       // Until the server's count moves, reading forward again finds the same.
-      if (settledRef.current?.id === conversationId && settledRef.current.count === serverCount) return;
+      if (
+        settledRef.current?.id === conversationId &&
+        settledRef.current.count === serverCount
+      )
+        return;
 
       recoveryInFlightRef.current = true;
       try {
         const before = local.length;
-        const fetched = await readForward(convex, convId, rereadAnchor(local, (meta as any)?.agent_type) ?? 0);
-        const after = (useInboxStore.getState().messages[conversationId] ?? []).length;
-        if (fetched !== null && after <= before) settledRef.current = { id: conversationId, count: serverCount };
+        const fetched = await readForward(
+          convex,
+          convId,
+          rereadAnchor(local, (meta as any)?.agent_type) ?? 0,
+        );
+        const after = (useInboxStore.getState().messages[conversationId] ?? [])
+          .length;
+        if (fetched !== null && after <= before)
+          settledRef.current = { id: conversationId, count: serverCount };
         // null is unauth/no-access: a transient failure, logged so it doesn't
         // silently strand the UI in the loading state.
-        if (fetched === null) console.warn("[useConversationMessages] recovery got null (auth not ready?)", { conversationId });
-        else if (fetched > 0) console.log("[useConversationMessages] recovery fetched", { conversationId, fetched, serverCount });
+        if (fetched === null)
+          console.warn(
+            "[useConversationMessages] recovery got null (auth not ready?)",
+            { conversationId },
+          );
+        else if (fetched > 0)
+          console.log("[useConversationMessages] recovery fetched", {
+            conversationId,
+            fetched,
+            serverCount,
+          });
       } catch (err) {
-        console.warn("[useConversationMessages] recovery fetch failed", { conversationId, err });
+        console.warn("[useConversationMessages] recovery fetch failed", {
+          conversationId,
+          err,
+        });
       } finally {
         recoveryInFlightRef.current = false;
       }
@@ -546,14 +727,14 @@ export function useConversationMessages(
   // READ FROM STORE (primary source of truth - never waits on Convex)
   // =============================================
   const s = useTrackedStore([
-    s => s.messages[conversationId],
-    s => s.pendingMessages[conversationId],
+    (s) => s.messages[conversationId],
+    (s) => s.pendingMessages[conversationId],
     // Wake on render-relevant meta changes only — NOT the ~1s liveness bumps that
     // would otherwise re-render the whole ConversationView tree 4–5×/sec. The full
     // rows are still read live from `s` below; these deps just gate re-renders.
-    s => metaWakeSig(s.conversations[conversationId]),
-    s => metaWakeSig(s.sessions[conversationId]),
-    s => s.pagination[conversationId],
+    (s) => metaWakeSig(s.conversations[conversationId]),
+    (s) => metaWakeSig(s.sessions[conversationId]),
+    (s) => s.pagination[conversationId],
   ]);
   const storeMessages = s.messages[conversationId] ?? EMPTY_MESSAGES;
   const storePending = s.pendingMessages[conversationId] ?? EMPTY_PENDING;
@@ -568,14 +749,27 @@ export function useConversationMessages(
   // locally seeded value so loadedStartIndex/"older messages" UI doesn't bounce.
   const frozenForkCountRef = useRef<{ id: string; count: number } | null>(null);
   const storeMeta = useMemo(() => {
-    const merged: any = _convMeta && _sessMeta ? { ..._sessMeta, ..._convMeta } : _convMeta ?? _sessMeta;
+    const merged: any =
+      _convMeta && _sessMeta
+        ? { ..._sessMeta, ..._convMeta }
+        : (_convMeta ?? _sessMeta);
     if (merged?.fork_status === "copying") {
       if (frozenForkCountRef.current?.id !== conversationId) {
-        frozenForkCountRef.current = { id: conversationId, count: merged.message_count ?? 0 };
+        frozenForkCountRef.current = {
+          id: conversationId,
+          count: merged.message_count ?? 0,
+        };
       }
-      return { ...merged, message_count: Math.max(frozenForkCountRef.current.count, merged.message_count ?? 0) };
+      return {
+        ...merged,
+        message_count: Math.max(
+          frozenForkCountRef.current.count,
+          merged.message_count ?? 0,
+        ),
+      };
     }
-    if (frozenForkCountRef.current?.id === conversationId) frozenForkCountRef.current = null;
+    if (frozenForkCountRef.current?.id === conversationId)
+      frozenForkCountRef.current = null;
     return merged;
   }, [_convMeta, _sessMeta, conversationId]);
   const storePagination = s.pagination[conversationId];
@@ -593,14 +787,23 @@ export function useConversationMessages(
   // already holds everything at or before the new anchor.
   // eslint-disable-next-line no-restricted-syntax -- subscription-window management
   useEffect(() => {
-    if (!useNormalMode || tailState.id !== conversationId || tailState.anchor === null) return;
+    if (
+      !useNormalMode ||
+      tailState.id !== conversationId ||
+      tailState.anchor === null
+    )
+      return;
     const local = storeMessages;
     if (local.length === 0) return;
     const anchor = tailState.anchor;
     let inTail = 0;
-    for (let i = local.length - 1; i >= 0 && local[i].timestamp > anchor; i--) inTail++;
+    for (let i = local.length - 1; i >= 0 && local[i].timestamp > anchor; i--)
+      inTail++;
     if (inTail > 300) {
-      setTailState({ id: conversationId, anchor: local[local.length - 1].timestamp - 1 });
+      setTailState({
+        id: conversationId,
+        anchor: local[local.length - 1].timestamp - 1,
+      });
     }
   }, [useNormalMode, tailState, conversationId, storeMessages]);
 
@@ -641,7 +844,9 @@ export function useConversationMessages(
       // The initialized flag reads "nothing to fetch" for the tail, which
       // also keeps the around-window query off during the render that
       // leaves target mode (the state flips one render later).
-      const inLoadedTail = (useInboxStore.getState().messages[conversationId] ?? EMPTY_MESSAGES).some((m) => m._id === effectiveTargetMessageId);
+      const inLoadedTail = (
+        useInboxStore.getState().messages[conversationId] ?? EMPTY_MESSAGES
+      ).some((m) => m._id === effectiveTargetMessageId);
       targetInitializedRef.current = inLoadedTail;
       dismissedTargetKeyRef.current = inLoadedTail ? targetKey : null;
       // Set outright, not only on a change: the render-time sync above this
@@ -666,7 +871,11 @@ export function useConversationMessages(
   // subscription on a long session re-runs the whole window on every heartbeat.
   const aroundData = useQueryNoThrow(
     api.conversations.getMessagesAroundTimestamp,
-    canQuery && targetMode && !targetInitializedRef.current && jumpMode === null && targetTimestampReady
+    canQuery &&
+      targetMode &&
+      !targetInitializedRef.current &&
+      jumpMode === null &&
+      targetTimestampReady
       ? {
           conversation_id: convId,
           center_timestamp: effectiveTargetTimestamp!,
@@ -674,7 +883,7 @@ export function useConversationMessages(
           limit_after: 50,
           ...shareArg,
         }
-      : "skip"
+      : "skip",
   ).data;
 
   // eslint-disable-next-line no-restricted-syntax -- Convex query to local target state with ref guard
@@ -687,25 +896,39 @@ export function useConversationMessages(
     }
   }, [aroundData]);
 
-  const [targetLoadOlderTs, setTargetLoadOlderTs] = useState<number | undefined>(undefined);
-  const [targetLoadNewerTs, setTargetLoadNewerTs] = useState<number | undefined>(undefined);
+  const [targetLoadOlderTs, setTargetLoadOlderTs] = useState<
+    number | undefined
+  >(undefined);
+  const [targetLoadNewerTs, setTargetLoadNewerTs] = useState<
+    number | undefined
+  >(undefined);
   const [targetIsLoadingNewer, setTargetIsLoadingNewer] = useState(false);
 
   // eslint-disable-next-line no-restricted-syntax -- one-shot older page into the transient target window
   useEffect(() => {
     if (!canQuery || !targetMode || targetLoadOlderTs === undefined) return;
     let cancelled = false;
-    fetchOlderMessages(convex, conversationId, targetLoadOlderTs, WARM_DEEP_ROWS)
+    fetchOlderMessages(
+      convex,
+      conversationId,
+      targetLoadOlderTs,
+      WARM_DEEP_ROWS,
+    )
       .then((res: any) => {
         if (cancelled || !res?.messages) return;
         setTargetAroundData((prev: any) => {
           if (!prev) return prev;
           const existingIds = new Set(prev.messages.map((m: Message) => m._id));
-          const fresh = res.messages.filter((m: Message) => !existingIds.has(m._id));
-          if (fresh.length === 0) return { ...prev, has_more_above: res.has_more_above ?? false };
+          const fresh = res.messages.filter(
+            (m: Message) => !existingIds.has(m._id),
+          );
+          if (fresh.length === 0)
+            return { ...prev, has_more_above: res.has_more_above ?? false };
           return {
             ...prev,
-            messages: [...fresh, ...prev.messages].sort((a: Message, b: Message) => a.timestamp - b.timestamp),
+            messages: [...fresh, ...prev.messages].sort(
+              (a: Message, b: Message) => a.timestamp - b.timestamp,
+            ),
             has_more_above: res.has_more_above ?? false,
             oldest_timestamp: res.oldest_timestamp,
           };
@@ -713,31 +936,47 @@ export function useConversationMessages(
         setTargetHasMoreAbove(res.has_more_above ?? false);
       })
       .catch((err: unknown) => {
-        console.warn("[useConversationMessages] target loadOlder failed", { conversationId, err });
+        console.warn("[useConversationMessages] target loadOlder failed", {
+          conversationId,
+          err,
+        });
       })
       .finally(() => {
         if (cancelled) return;
         setTargetIsLoadingOlder(false);
         setTargetLoadOlderTs(undefined);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canQuery, targetMode, targetLoadOlderTs, convex, conversationId]);
 
   // eslint-disable-next-line no-restricted-syntax -- one-shot newer page into the transient target window
   useEffect(() => {
     if (!canQuery || !targetMode || targetLoadNewerTs === undefined) return;
     let cancelled = false;
-    fetchMessagesAround(convex, conversationId, targetLoadNewerTs, 0, WARM_DEEP_ROWS)
+    fetchMessagesAround(
+      convex,
+      conversationId,
+      targetLoadNewerTs,
+      0,
+      WARM_DEEP_ROWS,
+    )
       .then((res: any) => {
         if (cancelled || !res?.messages) return;
         setTargetAroundData((prev: any) => {
           if (!prev) return prev;
           const existingIds = new Set(prev.messages.map((m: Message) => m._id));
-          const fresh = res.messages.filter((m: Message) => !existingIds.has(m._id));
-          if (fresh.length === 0) return { ...prev, has_more_below: res.has_more_below ?? false };
+          const fresh = res.messages.filter(
+            (m: Message) => !existingIds.has(m._id),
+          );
+          if (fresh.length === 0)
+            return { ...prev, has_more_below: res.has_more_below ?? false };
           return {
             ...prev,
-            messages: [...prev.messages, ...fresh].sort((a: Message, b: Message) => a.timestamp - b.timestamp),
+            messages: [...prev.messages, ...fresh].sort(
+              (a: Message, b: Message) => a.timestamp - b.timestamp,
+            ),
             has_more_below: res.has_more_below ?? false,
             last_timestamp: res.last_timestamp,
           };
@@ -745,25 +984,30 @@ export function useConversationMessages(
         setTargetHasMoreBelow(res.has_more_below ?? false);
       })
       .catch((err: unknown) => {
-        console.warn("[useConversationMessages] target loadNewer failed", { conversationId, err });
+        console.warn("[useConversationMessages] target loadNewer failed", {
+          conversationId,
+          err,
+        });
       })
       .finally(() => {
         if (cancelled) return;
         setTargetIsLoadingNewer(false);
         setTargetLoadNewerTs(undefined);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [canQuery, targetMode, targetLoadNewerTs, convex, conversationId]);
 
   // =============================================
   // Unified message list: store for normal mode, local state for target mode
   // =============================================
   const rawMessages: Message[] = targetMode
-    // Prefer the local target copy; before the init effect copies it over, read
-    // the live around-window query directly so a warm (prefetched) result paints
-    // the right window on the FIRST frame instead of the stale tail. Falls back
-    // to the cached store list only while the around-window is still loading.
-    ? (targetAroundData?.messages ?? aroundData?.messages ?? mergedMessages)
+    ? // Prefer the local target copy; before the init effect copies it over, read
+      // the live around-window query directly so a warm (prefetched) result paints
+      // the right window on the FIRST frame instead of the stale tail. Falls back
+      // to the cached store list only while the around-window is still loading.
+      (targetAroundData?.messages ?? aroundData?.messages ?? mergedMessages)
     : mergedMessages;
 
   // Resolve image URLs as soon as messages arrive — BEFORE the virtualized
@@ -789,16 +1033,21 @@ export function useConversationMessages(
     if (Array.isArray(entries)) {
       const map: Record<string, string> = {};
       for (const [parentUuid, childId] of entries) {
-        if (typeof parentUuid !== "string" || typeof childId !== "string") continue;
+        if (typeof parentUuid !== "string" || typeof childId !== "string")
+          continue;
         map[parentUuid] = childId;
       }
       return map;
     }
     return (storeMeta?.child_by_parent_uuid ?? {}) as Record<string, string>;
-  }, [storeMeta?.child_by_parent_uuid_entries, storeMeta?.child_by_parent_uuid]);
+  }, [
+    storeMeta?.child_by_parent_uuid_entries,
+    storeMeta?.child_by_parent_uuid,
+  ]);
 
   const childConversationMap = useMemo(() => {
-    if (!childByParentUuidMap || Object.keys(childByParentUuidMap).length === 0) return {};
+    if (!childByParentUuidMap || Object.keys(childByParentUuidMap).length === 0)
+      return {};
     const map: Record<string, string> = {};
     for (const msg of rawMessages) {
       if (msg.message_uuid && childByParentUuidMap[msg.message_uuid]) {
@@ -820,7 +1069,7 @@ export function useConversationMessages(
   const [olderLoading, setOlderLoading] = useState(false);
 
   const isLoadingOlder = targetMode
-    ? (targetIsLoadingOlder || (!!jumpMode && !targetInitializedRef.current))
+    ? targetIsLoadingOlder || (!!jumpMode && !targetInitializedRef.current)
     : olderLoading;
 
   // In normal mode the "destination" of a jump-to-end is the live tail. While
@@ -837,20 +1086,37 @@ export function useConversationMessages(
         setTargetIsLoadingOlder(true);
         setTargetLoadOlderTs(msgs[0].timestamp);
       }
-    } else if ((useInboxStore.getState().pagination[conversationId]?.hasMoreAbove ?? false) && !olderLoading) {
+    } else if (
+      (useInboxStore.getState().pagination[conversationId]?.hasMoreAbove ??
+        false) &&
+      !olderLoading
+    ) {
       // History pages are one-shot fetches keyed by the oldest local
       // timestamp — no live subscription per page (the old usePaginatedQuery
       // kept every loaded page subscribed and re-executing on churn). 200 per
       // page matches MESSAGE_PAGE_MAX on getAllMessages, which ranges the
       // timestamp index so a long session does not rescan every newer row.
-      if (useInboxStore.getState().messages[conversationId]?.[0] === undefined) return;
+      if (useInboxStore.getState().messages[conversationId]?.[0] === undefined)
+        return;
       setOlderLoading(true);
-      fetchOlderPage(convex, conversationId, WARM_DEEP_ROWS).catch((err: unknown) => {
-         
-        console.warn("[useConversationMessages] loadOlder failed", { conversationId, err });
-      }).finally(() => setOlderLoading(false));
+      fetchOlderPage(convex, conversationId, WARM_DEEP_ROWS)
+        .catch((err: unknown) => {
+          console.warn("[useConversationMessages] loadOlder failed", {
+            conversationId,
+            err,
+          });
+        })
+        .finally(() => setOlderLoading(false));
     }
-  }, [targetMode, targetAroundData, targetHasMoreAbove, targetIsLoadingOlder, olderLoading, convex, conversationId]);
+  }, [
+    targetMode,
+    targetAroundData,
+    targetHasMoreAbove,
+    targetIsLoadingOlder,
+    olderLoading,
+    convex,
+    conversationId,
+  ]);
 
   const loadNewer = useCallback(() => {
     if (targetMode) {
@@ -892,7 +1158,10 @@ export function useConversationMessages(
       })
       .catch((err: unknown) => {
         if (gen !== jumpGenRef.current) return;
-        console.warn("[useConversationMessages] jumpToStart failed", { conversationId, err });
+        console.warn("[useConversationMessages] jumpToStart failed", {
+          conversationId,
+          err,
+        });
       })
       .finally(() => {
         if (gen !== jumpGenRef.current) return;
@@ -915,45 +1184,51 @@ export function useConversationMessages(
     setTargetIsLoadingNewer(false);
   }, []);
 
-  const jumpToTimestamp = useCallback((ts: number) => {
-    const gen = ++jumpGenRef.current;
-    targetInitializedRef.current = false;
-    setJumpTimestamp(ts);
-    setJumpMode("center");
-    setTargetMode(true);
-    setTargetHasMoreAbove(true);
-    setTargetHasMoreBelow(true);
-    setTargetLoadOlderTs(undefined);
-    setTargetLoadNewerTs(undefined);
-    setTargetIsLoadingOlder(true);
-    setTargetIsLoadingNewer(false);
-    void fetchMessagesAround(convex, conversationId, ts, 50, 50)
-      .then((res: any) => {
-        if (gen !== jumpGenRef.current) return;
-        if (!res?.messages) return;
-        targetInitializedRef.current = true;
-        setTargetIsLoadingOlder(false);
-        setTargetAroundData(res);
-        setTargetHasMoreAbove(res.has_more_above ?? false);
-        setTargetHasMoreBelow(res.has_more_below ?? false);
-      })
-      .catch((err: unknown) => {
-        if (gen !== jumpGenRef.current) return;
-        console.warn("[useConversationMessages] jumpToTimestamp failed", { conversationId, err });
-      })
-      .finally(() => {
-        if (gen !== jumpGenRef.current) return;
-        targetInitializedRef.current = true;
-        setTargetIsLoadingOlder(false);
-      });
-  }, [convex, conversationId]);
+  const jumpToTimestamp = useCallback(
+    (ts: number) => {
+      const gen = ++jumpGenRef.current;
+      targetInitializedRef.current = false;
+      setJumpTimestamp(ts);
+      setJumpMode("center");
+      setTargetMode(true);
+      setTargetHasMoreAbove(true);
+      setTargetHasMoreBelow(true);
+      setTargetLoadOlderTs(undefined);
+      setTargetLoadNewerTs(undefined);
+      setTargetIsLoadingOlder(true);
+      setTargetIsLoadingNewer(false);
+      void fetchMessagesAround(convex, conversationId, ts, 50, 50)
+        .then((res: any) => {
+          if (gen !== jumpGenRef.current) return;
+          if (!res?.messages) return;
+          targetInitializedRef.current = true;
+          setTargetIsLoadingOlder(false);
+          setTargetAroundData(res);
+          setTargetHasMoreAbove(res.has_more_above ?? false);
+          setTargetHasMoreBelow(res.has_more_below ?? false);
+        })
+        .catch((err: unknown) => {
+          if (gen !== jumpGenRef.current) return;
+          console.warn("[useConversationMessages] jumpToTimestamp failed", {
+            conversationId,
+            err,
+          });
+        })
+        .finally(() => {
+          if (gen !== jumpGenRef.current) return;
+          targetInitializedRef.current = true;
+          setTargetIsLoadingOlder(false);
+        });
+    },
+    [convex, conversationId],
+  );
 
   // =============================================
   // Compaction count + loaded_start_index
   // =============================================
   const compactionCount = useMemo(
     () => rawMessages.filter((m) => m.subtype === "compact_boundary").length,
-    [rawMessages]
+    [rawMessages],
   );
 
   const loadedStartIndex = useMemo(() => {
@@ -965,7 +1240,13 @@ export function useConversationMessages(
     if (!hasMoreAbove) return 0;
     const total = storeMeta?.message_count || rawMessages.length;
     return Math.max(0, total - rawMessages.length);
-  }, [targetMode, targetHasMoreAbove, hasMoreAbove, storeMeta?.message_count, rawMessages.length]);
+  }, [
+    targetMode,
+    targetHasMoreAbove,
+    hasMoreAbove,
+    storeMeta?.message_count,
+    rawMessages.length,
+  ]);
 
   // =============================================
   // Build conversation object FROM STORE (never null if store has pending)
@@ -973,18 +1254,38 @@ export function useConversationMessages(
   const hasPending = storePending.length > 0;
   const rawConversation: Record<string, any> | null = useMemo(() => {
     if (!storeMeta && !hasPending) return null;
-    if (!hasPending && targetMode && !targetAroundData && rawMessages.length === 0) return null;
+    if (
+      !hasPending &&
+      targetMode &&
+      !targetAroundData &&
+      rawMessages.length === 0
+    )
+      return null;
     // Return the conversation immediately with whatever messages are available.
     // The AgentSwitcher's own message_count === 0 guard prevents "new session" flash
     // for sessions that have messages but haven't hydrated from IDB yet.
     return {
-      ...(storeMeta || { _id: conversationId, status: "active", message_count: 0 }),
+      ...(storeMeta || {
+        _id: conversationId,
+        status: "active",
+        message_count: 0,
+      }),
       messages: rawMessages,
       loaded_start_index: loadedStartIndex,
       compaction_count: compactionCount,
       child_conversation_map: childConversationMap,
     };
-  }, [storeMeta, rawMessages, loadedStartIndex, compactionCount, childConversationMap, targetMode, targetAroundData, hasPending, conversationId]);
+  }, [
+    storeMeta,
+    rawMessages,
+    loadedStartIndex,
+    compactionCount,
+    childConversationMap,
+    targetMode,
+    targetAroundData,
+    hasPending,
+    conversationId,
+  ]);
 
   // Identity-stabilize against liveness-only churn: hand back the prior object when a
   // heartbeat changed nothing the view renders. This is what keeps a working session's
@@ -992,7 +1293,11 @@ export function useConversationMessages(
   const stableConversationRef = useRef<Record<string, any> | null>(null);
   const conversation = useMemo(() => {
     const prev = stableConversationRef.current;
-    if (prev && rawConversation && conversationRenderEqual(prev, rawConversation)) {
+    if (
+      prev &&
+      rawConversation &&
+      conversationRenderEqual(prev, rawConversation)
+    ) {
       return prev;
     }
     stableConversationRef.current = rawConversation;
@@ -1007,14 +1312,24 @@ export function useConversationMessages(
 
   // eslint-disable-next-line no-restricted-syntax -- reactive search triggers progressive older-message loading
   useEffect(() => {
-    if (!effectiveTargetMessageId || rawMessages.length === 0 || !targetMessageTimestamp) return;
+    if (
+      !effectiveTargetMessageId ||
+      rawMessages.length === 0 ||
+      !targetMessageTimestamp
+    )
+      return;
     const found = rawMessages.some((m) => m._id === effectiveTargetMessageId);
     if (found) {
       setIsSearchingForTarget(false);
       searchAttempts.current = 0;
       return;
     }
-    if (targetMode && targetHasMoreAbove && !targetIsLoadingOlder && searchAttempts.current < 20) {
+    if (
+      targetMode &&
+      targetHasMoreAbove &&
+      !targetIsLoadingOlder &&
+      searchAttempts.current < 20
+    ) {
       const oldest = rawMessages[0]?.timestamp;
       if (oldest !== undefined && targetMessageTimestamp.timestamp < oldest) {
         setIsSearchingForTarget(true);
@@ -1025,19 +1340,33 @@ export function useConversationMessages(
     } else {
       setIsSearchingForTarget(false);
     }
-  }, [effectiveTargetMessageId, rawMessages, targetMode, targetHasMoreAbove, targetIsLoadingOlder, targetMessageTimestamp]);
+  }, [
+    effectiveTargetMessageId,
+    rawMessages,
+    targetMode,
+    targetHasMoreAbove,
+    targetIsLoadingOlder,
+    targetMessageTimestamp,
+  ]);
 
   const highlightSearchAttempts = useRef(0);
   // eslint-disable-next-line no-restricted-syntax -- reactive highlight search triggers progressive older-message loading
   useEffect(() => {
     if (!highlightMessageResult || rawMessages.length === 0) return;
-    const found = rawMessages.some((m) => m._id === highlightMessageResult.message_id);
+    const found = rawMessages.some(
+      (m) => m._id === highlightMessageResult.message_id,
+    );
     if (found) {
       setIsSearchingForTarget(false);
       highlightSearchAttempts.current = 0;
       return;
     }
-    if (targetMode && targetHasMoreAbove && !targetIsLoadingOlder && highlightSearchAttempts.current < 20) {
+    if (
+      targetMode &&
+      targetHasMoreAbove &&
+      !targetIsLoadingOlder &&
+      highlightSearchAttempts.current < 20
+    ) {
       const oldest = rawMessages[0]?.timestamp;
       if (oldest !== undefined && highlightMessageResult.timestamp < oldest) {
         setIsSearchingForTarget(true);
@@ -1048,7 +1377,13 @@ export function useConversationMessages(
     } else {
       setIsSearchingForTarget(false);
     }
-  }, [highlightMessageResult, rawMessages, targetMode, targetHasMoreAbove, targetIsLoadingOlder]);
+  }, [
+    highlightMessageResult,
+    rawMessages,
+    targetMode,
+    targetHasMoreAbove,
+    targetIsLoadingOlder,
+  ]);
 
   // =============================================
   // Target found

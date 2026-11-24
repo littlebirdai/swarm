@@ -6,7 +6,11 @@ import { AUTH_JWT_STORAGE_KEY } from "../../../lib/localAuth";
 export { AUTH_JWT_STORAGE_KEY };
 
 function b64url(value: object): string {
-  return Buffer.from(JSON.stringify(value)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return Buffer.from(JSON.stringify(value))
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 export function issueFakeToken(principalId: string, sessionId = "s1"): string {
@@ -17,11 +21,19 @@ export function issueFakeToken(principalId: string, sessionId = "s1"): string {
 export function mapStorage(): Storage {
   const m = new Map<string, string>();
   return {
-    get length() { return m.size; },
+    get length() {
+      return m.size;
+    },
     key: (i: number) => [...m.keys()][i] ?? null,
     getItem: (k: string) => m.get(k) ?? null,
-    setItem: (k: string, v: string) => { m.set(k, v); },
-    removeItem: (k: string) => { m.delete(k); },
-    clear: () => { m.clear(); },
+    setItem: (k: string, v: string) => {
+      m.set(k, v);
+    },
+    removeItem: (k: string) => {
+      m.delete(k);
+    },
+    clear: () => {
+      m.clear();
+    },
   } as Storage;
 }

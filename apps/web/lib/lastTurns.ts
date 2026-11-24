@@ -3,11 +3,27 @@ import { stripMarkdown } from "./notificationText";
 import { parseAgentAuthoredMessage } from "../components/sessionMessage";
 
 /** `from` names another session or agent that wrote a user-role turn. */
-export type Turn = { _id: string; role: "user" | "assistant"; text: string; from?: string };
-type Row = { _id: string; role: string; content?: string | null; tool_results?: unknown[] | null; subtype?: string | null };
+export type Turn = {
+  _id: string;
+  role: "user" | "assistant";
+  text: string;
+  from?: string;
+};
+type Row = {
+  _id: string;
+  role: string;
+  content?: string | null;
+  tool_results?: unknown[] | null;
+  subtype?: string | null;
+};
 
 function readable(m: Row): Turn | null {
-  if ((m.role !== "user" && m.role !== "assistant") || m.subtype || m.tool_results?.length) return null;
+  if (
+    (m.role !== "user" && m.role !== "assistant") ||
+    m.subtype ||
+    m.tool_results?.length
+  )
+    return null;
   let text = m.content ?? "";
   let from: string | undefined;
   const envelope = m.role === "user" ? parseAgentAuthoredMessage(text) : null;
@@ -21,7 +37,9 @@ function readable(m: Row): Turn | null {
   }
   text = stripMarkdown(text).trim();
   if (!text) return null;
-  return from ? { _id: String(m._id), role: m.role, text, from } : { _id: String(m._id), role: m.role, text };
+  return from
+    ? { _id: String(m._id), role: m.role, text, from }
+    : { _id: String(m._id), role: m.role, text };
 }
 
 /** At most two turns, oldest first: the newest thing a person asked and the
@@ -30,7 +48,11 @@ function readable(m: Row): Turn | null {
 export function lastTurns(rows: readonly Row[]): Turn[] {
   const turns = rows.map(readable).filter((t): t is Turn => t !== null);
   let ask = -1;
-  for (let i = turns.length - 1; i >= 0; i--) if (turns[i].role === "user") { ask = i; break; }
+  for (let i = turns.length - 1; i >= 0; i--)
+    if (turns[i].role === "user") {
+      ask = i;
+      break;
+    }
   if (ask === -1) return turns.slice(-2);
   const newest = turns.length - 1;
   if (ask < newest) return [turns[ask], turns[newest]];

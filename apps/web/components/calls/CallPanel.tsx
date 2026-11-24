@@ -1,13 +1,29 @@
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { toast } from "sonner";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useTrackedStore } from "../../store/inboxStore";
 import { CallStage } from "./CallStage";
 import { CallFaces } from "./CallFaces";
-import { acceptInvite, setCallOutlivesWindow, takeOverCall } from "../../lib/calls/callManager";
-import { callWindowReport, callWindowSizeOnFailedJoin } from "../../lib/calls/callHandoff";
-import { getScribeStatus, subscribeScribe } from "../../lib/calls/transcription";
+import {
+  acceptInvite,
+  setCallOutlivesWindow,
+  takeOverCall,
+} from "../../lib/calls/callManager";
+import {
+  callWindowReport,
+  callWindowSizeOnFailedJoin,
+} from "../../lib/calls/callHandoff";
+import {
+  getScribeStatus,
+  subscribeScribe,
+} from "../../lib/calls/transcription";
 import {
   closeCallPanel,
   onCallRingAccept,
@@ -82,7 +98,10 @@ const TAKEOVER_DEADLINE_MS = 12_000;
 
 export function CallPanel() {
   const params = useMemo(
-    () => new URLSearchParams(typeof window === "undefined" ? "" : window.location.search),
+    () =>
+      new URLSearchParams(
+        typeof window === "undefined" ? "" : window.location.search,
+      ),
     [],
   );
   const roomKey = params.get("room");
@@ -91,12 +110,18 @@ export function CallPanel() {
   // call, in one window whose shape follows what is happening
   // (VoiceHostPanel). Everything below is the older shell's per-call window
   // with its circle sizes, kept until every desktop has updated.
-  if (isVoiceHost()) return <VoiceHostPanel urlRoom={roomKey} params={params} />;
+  if (isVoiceHost())
+    return <VoiceHostPanel urlRoom={roomKey} params={params} />;
   return <LegacyCallPanel roomKey={roomKey} params={params} />;
 }
 
-function LegacyCallPanel({ roomKey, params }: { roomKey: string | null; params: URLSearchParams }) {
-
+function LegacyCallPanel({
+  roomKey,
+  params,
+}: {
+  roomKey: string | null;
+  params: URLSearchParams;
+}) {
   // The size the shell opened this window in — it remembers the last one per
   // machine, and seeds it into the URL so the FIRST paint is already the right
   // shape rather than a stage that snaps to circles a frame later.
@@ -203,7 +228,11 @@ function LegacyCallPanel({ roomKey, params }: { roomKey: string | null; params: 
   // phase idle, before the join, and a null room there would wipe the room the
   // shell opened this window with. A close in that instant is a handback with
   // nothing to hand.
-  const scribe = useSyncExternalStore(subscribeScribe, getScribeStatus, getScribeStatus).active;
+  const scribe = useSyncExternalStore(
+    subscribeScribe,
+    getScribeStatus,
+    getScribeStatus,
+  ).active;
   useWatchEffect(() => {
     reportCallPanelState(
       callWindowReport({

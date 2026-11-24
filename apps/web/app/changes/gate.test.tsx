@@ -3,7 +3,10 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { featureOffCopy } from "@platform/flags";
 import { TEAM_FEATURE_CATALOG } from "../../lib/teamFeatures";
-import { realInboxStore, restoreInboxStoreAfterAll } from "../../components/__tests__/mockInboxStore";
+import {
+  realInboxStore,
+  restoreInboxStoreAfterAll,
+} from "../../components/__tests__/mockInboxStore";
 
 // The route holds the page's gates, so a rewritten ChangesPage cannot drop
 // them: no team gets the team line, a team with the flag off gets the shared
@@ -22,9 +25,18 @@ mock.module("../../store/inboxStore", () => ({
 }));
 restoreInboxStoreAfterAll();
 
-function render(team: { _id: string; features?: Record<string, boolean> } | null) {
-  fake.state = { teams: team ? [team] : [], clientState: { ui: { active_team_id: team?._id } } };
-  return renderToStaticMarkup(<ChangesGate><span>changes-page</span></ChangesGate>);
+function render(
+  team: { _id: string; features?: Record<string, boolean> } | null,
+) {
+  fake.state = {
+    teams: team ? [team] : [],
+    clientState: { ui: { active_team_id: team?._id } },
+  };
+  return renderToStaticMarkup(
+    <ChangesGate>
+      <span>changes-page</span>
+    </ChangesGate>,
+  );
 }
 
 test("no team: the team line, never the page", () => {
@@ -35,10 +47,14 @@ test("no team: the team line, never the page", () => {
 
 test("flag off: the off landing, never the page", () => {
   const html = render({ _id: "t1", features: { changes: false } });
-  expect(html).toContain(featureOffCopy(TEAM_FEATURE_CATALOG, "changes", false).title);
+  expect(html).toContain(
+    featureOffCopy(TEAM_FEATURE_CATALOG, "changes", false).title,
+  );
   expect(html).not.toContain("changes-page");
 });
 
 test("flag on: the page", () => {
-  expect(render({ _id: "t1", features: { changes: true } })).toContain("changes-page");
+  expect(render({ _id: "t1", features: { changes: true } })).toContain(
+    "changes-page",
+  );
 });

@@ -4,18 +4,50 @@
 // very event with the catalog's own matcher, and refused when a chord made from
 // it would not fire on this keyboard.
 import { createShortcutCatalog } from "@platform/keys";
-import { parseChord, resolveChord } from "@codecast/shared/contracts/keyBindings";
+import {
+  parseChord,
+  resolveChord,
+} from "@codecast/shared/contracts/keyBindings";
 
 const CODE_KEYS: Record<string, string> = {
-  BracketLeft: "[", BracketRight: "]", Backslash: "\\", Semicolon: ";", Quote: "'",
-  Comma: ",", Period: ".", Slash: "/", Backquote: "`", Minus: "-", Equal: "=",
-  Space: "space", Enter: "enter", NumpadEnter: "enter", Escape: "escape", Backspace: "backspace",
-  Delete: "delete", Tab: "tab", ArrowUp: "arrowup", ArrowDown: "arrowdown",
-  ArrowLeft: "arrowleft", ArrowRight: "arrowright", Home: "home", End: "end",
-  PageUp: "pageup", PageDown: "pagedown",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backslash: "\\",
+  Semicolon: ";",
+  Quote: "'",
+  Comma: ",",
+  Period: ".",
+  Slash: "/",
+  Backquote: "`",
+  Minus: "-",
+  Equal: "=",
+  Space: "space",
+  Enter: "enter",
+  NumpadEnter: "enter",
+  Escape: "escape",
+  Backspace: "backspace",
+  Delete: "delete",
+  Tab: "tab",
+  ArrowUp: "arrowup",
+  ArrowDown: "arrowdown",
+  ArrowLeft: "arrowleft",
+  ArrowRight: "arrowright",
+  Home: "home",
+  End: "end",
+  PageUp: "pageup",
+  PageDown: "pagedown",
 };
 
-const MODIFIER_KEYS = new Set(["Meta", "Control", "Alt", "Shift", "CapsLock", "Fn", "AltGraph", "OS"]);
+const MODIFIER_KEYS = new Set([
+  "Meta",
+  "Control",
+  "Alt",
+  "Shift",
+  "CapsLock",
+  "Fn",
+  "AltGraph",
+  "OS",
+]);
 
 export type RecordedChord = { chord: string } | { error: string } | null;
 
@@ -29,7 +61,11 @@ function keyFromCode(code: string): string | null {
   return CODE_KEYS[code] ?? null;
 }
 
-function chordFrom(e: KeyboardEvent, key: string, isMac: boolean): string | null {
+function chordFrom(
+  e: KeyboardEvent,
+  key: string,
+  isMac: boolean,
+): string | null {
   const mods = [
     e.ctrlKey && "ctrl",
     e.metaKey && (isMac ? "mod" : "meta"),
@@ -41,14 +77,23 @@ function chordFrom(e: KeyboardEvent, key: string, isMac: boolean): string | null
 }
 
 function firesOn(e: KeyboardEvent, chord: string, isMac: boolean): boolean {
-  const catalog = createShortcutCatalog([{ key: resolveChord(chord, isMac), action: "x", description: "" }], { isMac });
+  const catalog = createShortcutCatalog(
+    [{ key: resolveChord(chord, isMac), action: "x", description: "" }],
+    { isMac },
+  );
   return catalog.matchShortcut(e, catalog.shortcuts[0]);
 }
 
 /** null while only modifiers are down. */
-export function chordFromEvent(e: KeyboardEvent, isMac: boolean): RecordedChord {
+export function chordFromEvent(
+  e: KeyboardEvent,
+  isMac: boolean,
+): RecordedChord {
   if (MODIFIER_KEYS.has(e.key)) return null;
-  const candidates = [keyFromCode(e.code), e.key && [...e.key].length === 1 ? e.key.toLowerCase() : null];
+  const candidates = [
+    keyFromCode(e.code),
+    e.key && [...e.key].length === 1 ? e.key.toLowerCase() : null,
+  ];
   for (const key of candidates) {
     if (!key) continue;
     const chord = chordFrom(e, key, isMac);

@@ -20,7 +20,11 @@ import {
 const LINE_FLUSH_MS = 5_000;
 
 export interface PlacementReporter {
-  host(hostId: string, hostDeviceId?: string, movedFrom?: CloudPlacementProgress["moved_from"]): void;
+  host(
+    hostId: string,
+    hostDeviceId?: string,
+    movedFrom?: CloudPlacementProgress["moved_from"],
+  ): void;
   step(step: CloudPlacementStep): void;
   line(text: string): void;
   /** Send whatever is unsent and stop the timer. */
@@ -42,24 +46,42 @@ export function placementReporter(
   let inflight: Promise<void> = Promise.resolve();
 
   const push = () => {
-    if (timer) { clearTimeout(timer); timer = null; }
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
     if (!record) return;
     record = {
       ...record,
       steps: [...record.steps, ...pendingSteps.splice(0)],
-      lines: [...record.lines, ...pendingLines.splice(0)].slice(-CLOUD_PLACEMENT_LINES_MAX),
+      lines: [...record.lines, ...pendingLines.splice(0)].slice(
+        -CLOUD_PLACEMENT_LINES_MAX,
+      ),
       at: now(),
     };
     const snapshot = record;
-    try { persist?.(snapshot); } catch { /* a local copy must never fail the placement */ }
+    try {
+      persist?.(snapshot);
+    } catch {
+      /* a local copy must never fail the placement */
+    }
     if (!token) return;
-    inflight = inflight.then(() => send(snapshot).then(() => {}, () => {}));
+    inflight = inflight.then(() =>
+      send(snapshot).then(
+        () => {},
+        () => {},
+      ),
+    );
   };
 
   return {
     host(hostId, hostDeviceId, movedFrom) {
       // A new host replaces the old one whole: its device and why it was chosen go with it.
-      const { host_device_id: _device, moved_from: _moved, ...kept } = record ?? { steps: [], lines: [], started_at: started, at: started };
+      const {
+        host_device_id: _device,
+        moved_from: _moved,
+        ...kept
+      } = record ?? { steps: [], lines: [], started_at: started, at: started };
       record = {
         ...kept,
         token: token ?? "",
@@ -79,51 +101,93 @@ export function placementReporter(
       const clean = text.replace(/\x1b\[[0-9;]*m/g, "").trim();
       if (!clean) return;
       pendingLines.push(clean.slice(0, CLOUD_PLACEMENT_LINE_CHARS));
-      if (pendingLines.length > CLOUD_PLACEMENT_LINES_MAX) pendingLines.splice(0, pendingLines.length - CLOUD_PLACEMENT_LINES_MAX);
+      if (pendingLines.length > CLOUD_PLACEMENT_LINES_MAX)
+        pendingLines.splice(0, pendingLines.length - CLOUD_PLACEMENT_LINES_MAX);
       if (!timer && record) timer = setTimeout(push, LINE_FLUSH_MS);
     },
     async flush() {
       // Always one last write, so the record ends when the placement did and the last step gets its real duration.
       push();
-      if (timer) { clearTimeout(timer); timer = null; }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
       await inflight;
     },
   };
 }
 
 /** Where this machine keeps each conversation's last placement record: `cast remote timings` reads it. */
-export const placementTimingsDir = () => process.env.CAST_PLACEMENT_TIMINGS_DIR || codecastPath("cloud", "placements");
+export const placementTimingsDir = () =>
+  process.env.CAST_PLACEMENT_TIMINGS_DIR || codecastPath("cloud", "placements");
 
-export function savePlacementTimings(conversationId: string, record: CloudPlacementProgress): void {
+export function savePlacementTimings(
+  conversationId: string,
+  record: CloudPlacementProgress,
+): void {
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(conversationId)) return;
   const dir = placementTimingsDir();
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${conversationId}.json`);
   const { token: _token, ...kept } = record;
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify({ conversation_id: conversationId, ...kept }));
+  fs.writeFileSync(
+    tmp,
+    JSON.stringify({ conversation_id: conversationId, ...kept }),
+  );
   fs.renameSync(tmp, file);
   // This machine keeps its newest 50 placements.
-  const all = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => ({ f, at: fs.statSync(path.join(dir, f)).mtimeMs })).sort((a, b) => b.at - a.at);
-  for (const old of all.slice(50)) fs.rmSync(path.join(dir, old.f), { force: true });
+  const all = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => ({ f, at: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.at - a.at);
+  for (const old of all.slice(50))
+    fs.rmSync(path.join(dir, old.f), { force: true });
 }
 
-export interface PlacementTimingRow { step: string; ms: number }
+export interface PlacementTimingRow {
+  step: string;
+  ms: number;
+}
 
 /** Each step's duration: from its start to the next step's (the last runs to the record's last write). */
-export function placementDurations(record: Pick<CloudPlacementProgress, "steps" | "started_at" | "at">): { rows: PlacementTimingRow[]; totalMs: number } {
-  const rows = record.steps.map((s, i) => ({ step: s.step, ms: (record.steps[i + 1]?.at ?? record.at) - s.at }));
-  const lead = record.steps.length ? record.steps[0]!.at - record.started_at : 0;
-  return { rows: lead > 0 ? [{ step: "start up", ms: lead }, ...rows] : rows, totalMs: record.at - record.started_at };
+export function placementDurations(
+  record: Pick<CloudPlacementProgress, "steps" | "started_at" | "at">,
+): { rows: PlacementTimingRow[]; totalMs: number } {
+  const rows = record.steps.map((s, i) => ({
+    step: s.step,
+    ms: (record.steps[i + 1]?.at ?? record.at) - s.at,
+  }));
+  const lead = record.steps.length
+    ? record.steps[0]!.at - record.started_at
+    : 0;
+  return {
+    rows: lead > 0 ? [{ step: "start up", ms: lead }, ...rows] : rows,
+    totalMs: record.at - record.started_at,
+  };
 }
 
-export function readPlacementTimings(): Array<CloudPlacementProgress & { conversation_id: string }> {
+export function readPlacementTimings(): Array<
+  CloudPlacementProgress & { conversation_id: string }
+> {
   const dir = placementTimingsDir();
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter((f) => f.endsWith(".json")).flatMap((f) => {
-    try {
-      const r = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8"));
-      return Array.isArray(r?.steps) && typeof r.at === "number" && typeof r.started_at === "number" && typeof r.conversation_id === "string" ? [r] : [];
-    } catch { return []; }
-  }).sort((a, b) => b.at - a.at);
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .flatMap((f) => {
+      try {
+        const r = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8"));
+        return Array.isArray(r?.steps) &&
+          typeof r.at === "number" &&
+          typeof r.started_at === "number" &&
+          typeof r.conversation_id === "string"
+          ? [r]
+          : [];
+      } catch {
+        return [];
+      }
+    })
+    .sort((a, b) => b.at - a.at);
 }

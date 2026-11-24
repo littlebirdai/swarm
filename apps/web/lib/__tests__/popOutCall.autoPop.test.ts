@@ -63,7 +63,9 @@ describe("shouldAutoPopCall", () => {
   });
 
   it("does nothing when there is no call", () => {
-    expect(shouldAutoPopCall({ ...live, phase: "idle", roomKey: null })).toBe(false);
+    expect(shouldAutoPopCall({ ...live, phase: "idle", roomKey: null })).toBe(
+      false,
+    );
     expect(shouldAutoPopCall({ ...live, roomKey: null })).toBe(false);
   });
 });

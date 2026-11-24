@@ -62,13 +62,53 @@ export function SectionHeader({
   // Modern draws one quiet header for every section (ModernSectionHeader).
   const modern = useIsModernStyle();
   if (modern && !inRow) {
-    return <ModernSectionHeader label={label} count={count} color={color} sectionKey={sectionKey} collapsed={collapsed} monoLabel={monoLabel} landedColor={landedColor} onToggle={onToggle} action={action} icon={icon} states={states} facts={facts} nameLabel={nameLabel} hideCount={hideCount} />;
+    return (
+      <ModernSectionHeader
+        label={label}
+        count={count}
+        color={color}
+        sectionKey={sectionKey}
+        collapsed={collapsed}
+        monoLabel={monoLabel}
+        landedColor={landedColor}
+        onToggle={onToggle}
+        action={action}
+        icon={icon}
+        states={states}
+        facts={facts}
+        nameLabel={nameLabel}
+        hideCount={hideCount}
+      />
+    );
   }
   if (action) {
     return (
-      <div data-sv-sec-row className={`sticky top-0 z-10 flex items-center bg-sol-bg ${color}`}>
-        <SectionHeader label={label} count={count} color={color} sectionKey={sectionKey} collapsed={collapsed} monoLabel={monoLabel} landedColor={landedColor} onToggle={onToggle} inRow icon={icon} states={states} facts={facts} nameLabel={nameLabel} hideCount={hideCount} />
-        <span className="shrink-0 pr-3 border-b border-sol-border/30 self-stretch flex items-center" data-sv-sec-action>{action}</span>
+      <div
+        data-sv-sec-row
+        className={`sticky top-0 z-10 flex items-center bg-sol-bg ${color}`}
+      >
+        <SectionHeader
+          label={label}
+          count={count}
+          color={color}
+          sectionKey={sectionKey}
+          collapsed={collapsed}
+          monoLabel={monoLabel}
+          landedColor={landedColor}
+          onToggle={onToggle}
+          inRow
+          icon={icon}
+          states={states}
+          facts={facts}
+          nameLabel={nameLabel}
+          hideCount={hideCount}
+        />
+        <span
+          className="shrink-0 pr-3 border-b border-sol-border/30 self-stretch flex items-center"
+          data-sv-sec-action
+        >
+          {action}
+        </span>
       </div>
     );
   }
@@ -79,33 +119,73 @@ export function SectionHeader({
       data-inbox-section-count={count}
       onClick={onToggle}
       className={`${inRow ? "flex-1 min-w-0" : "sticky top-0 z-10 w-full"} px-3 py-1.5 bg-sol-bg border-b border-sol-border/30 flex items-center justify-between gap-2 ${color}`}
-      style={landedColor ? ({ "--hold-dest": landedColor } as CSSProperties) : undefined}
+      style={
+        landedColor
+          ? ({ "--hold-dest": landedColor } as CSSProperties)
+          : undefined
+      }
     >
-      {landedColor && <span key={landedColor} aria-hidden className="absolute inset-0 pointer-events-none animate-inbox-landed" />}
+      {landedColor && (
+        <span
+          key={landedColor}
+          aria-hidden
+          className="absolute inset-0 pointer-events-none animate-inbox-landed"
+        />
+      )}
       {monoLabel || nameLabel ? (
-        <span className={`text-meta font-semibold flex items-center gap-1.5 min-w-0 ${nameLabel ? "text-sol-text" : color}`}>
+        <span
+          className={`text-meta font-semibold flex items-center gap-1.5 min-w-0 ${nameLabel ? "text-sol-text" : color}`}
+        >
           {icon}
-          <span className={`truncate ${nameLabel ? "text-sm font-medium" : "font-mono"}`}>{label}</span>
+          <span
+            className={`truncate ${nameLabel ? "text-sm font-medium" : "font-mono"}`}
+          >
+            {label}
+          </span>
           {!hideCount && <span className="opacity-70 shrink-0">({count})</span>}
           {facts}
         </span>
       ) : (
-        <span className={`text-mark font-semibold uppercase tracking-wider ${color}`}>
+        <span
+          className={`text-mark font-semibold uppercase tracking-wider ${color}`}
+        >
           {label} ({count})
         </span>
       )}
       {states && (
         <span className="ml-auto flex items-center gap-2 shrink-0 font-mono text-meta tabular-nums">
-          {HEADER_STATES.map((k) => (states[k] ?? 0) > 0 && (
-            <span key={k} title={`${states[k]} ${ORG_STATE_META[k].label}`} className="flex items-center gap-1" style={{ color: ORG_STATE_META[k].color }}>
-              <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: ORG_STATE_META[k].color }} />
-              {states[k]}
-            </span>
-          ))}
+          {HEADER_STATES.map(
+            (k) =>
+              (states[k] ?? 0) > 0 && (
+                <span
+                  key={k}
+                  title={`${states[k]} ${ORG_STATE_META[k].label}`}
+                  className="flex items-center gap-1"
+                  style={{ color: ORG_STATE_META[k].color }}
+                >
+                  <span
+                    aria-hidden
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: ORG_STATE_META[k].color }}
+                  />
+                  {states[k]}
+                </span>
+              ),
+          )}
         </span>
       )}
-      <svg className={`w-3 h-3 transition-transform ${color} ${collapsed ? "" : "rotate-180"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      <svg
+        className={`w-3 h-3 transition-transform ${color} ${collapsed ? "" : "rotate-180"}`}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
     </button>
   );

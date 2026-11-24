@@ -7,7 +7,8 @@ import {
   entityRoute,
   isConvexId,
   entityTypeFromId,
-  entityReferenceLabel, entityShortLabel,
+  entityReferenceLabel,
+  entityShortLabel,
   parseRepoObjectId,
   type EntityType,
 } from "../lib/entityLinks";
@@ -46,13 +47,29 @@ export function DiffStat({
 }) {
   if (additions == null && deletions == null && files == null) return null;
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-meta ${className}`}>
-      {files != null && <span className="text-sol-text-dim">{files.toLocaleString()} file{files === 1 ? "" : "s"}</span>}
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-meta ${className}`}
+    >
+      {files != null && (
+        <span className="text-sol-text-dim">
+          {files.toLocaleString()} file{files === 1 ? "" : "s"}
+        </span>
+      )}
       {additions != null && additions > 0 && (
-        <span className={themed ? undefined : "text-sol-green"} style={themed ? { color: "var(--sol-green)" } : undefined}>+{additions.toLocaleString()}</span>
+        <span
+          className={themed ? undefined : "text-sol-green"}
+          style={themed ? { color: "var(--sol-green)" } : undefined}
+        >
+          +{additions.toLocaleString()}
+        </span>
       )}
       {deletions != null && deletions > 0 && (
-        <span className={themed ? undefined : "text-sol-red"} style={themed ? { color: "var(--sol-red)" } : undefined}>-{deletions.toLocaleString()}</span>
+        <span
+          className={themed ? undefined : "text-sol-red"}
+          style={themed ? { color: "var(--sol-red)" } : undefined}
+        >
+          -{deletions.toLocaleString()}
+        </span>
       )}
     </span>
   );
@@ -60,10 +77,18 @@ export function DiffStat({
 
 /** The separator between facts on one line. */
 export function MetaDot() {
-  return <span className="text-[color-mix(in_srgb,var(--sol-text-dim)_60%,transparent)]">·</span>;
+  return (
+    <span className="text-[color-mix(in_srgb,var(--sol-text-dim)_60%,transparent)]">
+      ·
+    </span>
+  );
 }
 
-export type DottedPart = { key: string; node: React.ReactNode; shrink?: boolean };
+export type DottedPart = {
+  key: string;
+  node: React.ReactNode;
+  shrink?: boolean;
+};
 
 /**
  * Facts on one wrapping line, dot-separated. Each item is bundled with its
@@ -71,12 +96,23 @@ export type DottedPart = { key: string; node: React.ReactNode; shrink?: boolean 
  * dot can never dangle at a line end; a `shrink` item truncates, every other
  * item keeps its width.
  */
-export function DottedRow({ parts, className = "" }: { parts: DottedPart[]; className?: string }) {
+export function DottedRow({
+  parts,
+  className = "",
+}: {
+  parts: DottedPart[];
+  className?: string;
+}) {
   if (parts.length === 0) return null;
   return (
-    <div className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-sol-text-muted ${className}`}>
+    <div
+      className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-sol-text-muted ${className}`}
+    >
       {parts.map((p, i) => (
-        <span key={p.key} className={`inline-flex items-center gap-1.5 ${p.shrink ? "min-w-0" : "flex-shrink-0"}`}>
+        <span
+          key={p.key}
+          className={`inline-flex items-center gap-1.5 ${p.shrink ? "min-w-0" : "flex-shrink-0"}`}
+        >
           {i > 0 && <MetaDot />}
           {p.node}
         </span>
@@ -85,7 +121,13 @@ export function DottedRow({ parts, className = "" }: { parts: DottedPart[]; clas
   );
 }
 
-function Person({ person, size }: { person: { name?: string; image?: string | null }; size: number }) {
+function Person({
+  person,
+  size,
+}: {
+  person: { name?: string; image?: string | null };
+  size: number;
+}) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
       <AuthorAvatar name={person.name} avatar={person.image} size={size} />
@@ -99,15 +141,35 @@ function Person({ person, size }: { person: { name?: string; image?: string | nu
  * "filed by" the creator. One person who filed a task for themselves is named
  * once (the tooltip says both roles), never twice. Nothing when nobody is known.
  */
-export function TaskPeople({ task, size = 12, className = "" }: { task: any; size?: number; className?: string }) {
+export function TaskPeople({
+  task,
+  size = 12,
+  className = "",
+}: {
+  task: any;
+  size?: number;
+  className?: string;
+}) {
   const { creator, assignee, samePerson } = taskPeople(task);
   if (!creator && !assignee) return null;
   const title = samePerson
     ? `Filed by and assigned to ${assignee?.name}`
-    : [assignee ? `Assigned to ${assignee.name}` : "Unassigned", creator ? `filed by ${creator.name}` : null].filter(Boolean).join(", ");
+    : [
+        assignee ? `Assigned to ${assignee.name}` : "Unassigned",
+        creator ? `filed by ${creator.name}` : null,
+      ]
+        .filter(Boolean)
+        .join(", ");
   return (
-    <span className={`inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-sol-text-muted ${className}`} title={title}>
-      {assignee ? <Person person={assignee} size={size} /> : <span className="text-sol-text-dim">Unassigned</span>}
+    <span
+      className={`inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-sol-text-muted ${className}`}
+      title={title}
+    >
+      {assignee ? (
+        <Person person={assignee} size={size} />
+      ) : (
+        <span className="text-sol-text-dim">Unassigned</span>
+      )}
       {creator && !samePerson && (
         <span className="inline-flex min-w-0 items-center gap-1 text-sol-text-dim">
           filed by <Person person={creator} size={size} />
@@ -129,7 +191,8 @@ export function AuthorAvatar({
   size?: number | string;
 }) {
   const dim = { width: size, height: size };
-  const fallbackSize = typeof size === "number" ? Math.round(size * 0.55) : "0.55em";
+  const fallbackSize =
+    typeof size === "number" ? Math.round(size * 0.55) : "0.55em";
   return (
     <AvatarImg
       src={avatar}
@@ -176,14 +239,22 @@ export function SessionSummaryBlock({
   return (
     <div className={`space-y-1 ${className}`}>
       {summary && (
-        <p className={`text-meta text-sol-text-muted leading-relaxed ${clamp ? "line-clamp-3" : ""} whitespace-pre-line`}>
+        <p
+          className={`text-meta text-sol-text-muted leading-relaxed ${clamp ? "line-clamp-3" : ""} whitespace-pre-line`}
+        >
           <FormattedSummary text={summary} />
         </p>
       )}
       {showPreview && (
         <div className="flex items-start gap-1 text-meta text-sol-text-dim leading-snug">
-          <span className="flex-shrink-0 font-mono text-sol-cyan/60">{role && role !== "user" ? `${role}:` : ">"}</span>
-          <span className={`${clamp ? "line-clamp-2" : "whitespace-pre-wrap"} min-w-0`}>{preview}</span>
+          <span className="flex-shrink-0 font-mono text-sol-cyan/60">
+            {role && role !== "user" ? `${role}:` : ">"}
+          </span>
+          <span
+            className={`${clamp ? "line-clamp-2" : "whitespace-pre-wrap"} min-w-0`}
+          >
+            {preview}
+          </span>
         </div>
       )}
     </div>

@@ -29,12 +29,21 @@ const themed = (variable: string): string =>
 // Every Tailwind color scale reads a variable that holds Tailwind's own value
 // (the plugin below), so a color theme can retune the scales and nothing else
 // changes (lib/theme/scales.ts).
-const scaleColors = Object.fromEntries(SCALES.map((s) => [s, Object.fromEntries(SHADES.map((n) => [n, themed(scaleVar(s, n))]))]));
-const scaleDefaults = Object.fromEntries(SCALES.flatMap((s) => SHADES.map((n) => [scaleVar(s, n), (twColors as any)[s][n] as string])));
+const scaleColors = Object.fromEntries(
+  SCALES.map((s) => [
+    s,
+    Object.fromEntries(SHADES.map((n) => [n, themed(scaleVar(s, n))])),
+  ]),
+);
+const scaleDefaults = Object.fromEntries(
+  SCALES.flatMap((s) =>
+    SHADES.map((n) => [scaleVar(s, n), (twColors as any)[s][n] as string]),
+  ),
+);
 
 const config: Config = {
-    darkMode: ["class"],
-    content: [
+  darkMode: ["class"],
+  content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -52,206 +61,196 @@ const config: Config = {
     "./tours/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-  	extend: {
-  		colors: {
-  			...scaleColors,
-  			sol: {
-  				base03: '#002b36',
-  				base02: '#073642',
-  				base01: '#586e75',
-  				base00: '#657b83',
-  				base0: '#839496',
-  				base1: '#93a1a1',
-  				base2: '#eee8d5',
-  				base3: '#fdf6e3',
-  				// The accents read class-only variables (--sol-class-*, globals.css)
-  				// that hold these Solarized hex values in every theme.
-  				yellow: themed('--sol-class-yellow'),
-  				orange: themed('--sol-class-orange'),
-  				amber: themed('--sol-class-amber'),
-  				red: themed('--sol-class-red'),
-  				magenta: themed('--sol-class-magenta'),
-  				violet: themed('--sol-class-violet'),
-  				blue: themed('--sol-class-blue'),
-  				cyan: themed('--sol-class-cyan'),
-  				green: themed('--sol-class-green'),
-  				bg: themed('--sol-bg'),
-  				'bg-alt': themed('--sol-bg-alt'),
-  				'bg-inset': themed('--sol-bg-inset'),
-  				'bg-highlight': themed('--sol-bg-highlight'),
-  				card: themed('--sol-card'),
-  				'card-hover': themed('--sol-card-hover'),
-  				border: themed('--sol-border'),
-  				text: themed('--sol-text'),
-  				'text-secondary': themed('--sol-text-secondary'),
-  				'text-muted': themed('--sol-text-muted'),
-  				'text-dim': themed('--sol-text-dim')
-  			},
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
-  			card: {
-  				DEFAULT: 'hsl(var(--card))',
-  				foreground: 'hsl(var(--card-foreground))'
-  			},
-  			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
-  				foreground: 'hsl(var(--popover-foreground))'
-  			},
-  			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
-  			},
-  			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
-  			},
-  			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
-  			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
-  			},
-  			destructive: {
-  				DEFAULT: 'hsl(var(--destructive))',
-  				foreground: 'hsl(var(--destructive-foreground))'
-  			},
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
-  			chart: {
-  				'1': 'hsl(var(--chart-1))',
-  				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
-  			}
-  		},
-  		fontFamily: {
-  			mono: [
-  				'var(--font-mono)',
-  				'monospace'
-  			],
-  			sans: [
-				'var(--font-ui)',
-				'sans-serif'
-  			],
-  			serif: [
-  				'var(--font-serif)',
-  				'Georgia',
-  				'serif'
-  			]
-  		},
-  		// The type scale: seven steps, size and line-height only (weight and
-  		// tracking stay with the element). 12px is the floor for words; `mark`
-  		// (11px) is for glyph-like marks only: a count in a small badge, a key
-  		// cap legend, a label set in capitals. Mirrored as --fs-* on :root in
-  		// app/globals.css for stylesheets. tailwind-merge knows these names
-  		// (lib/utils.ts), so cn() keeps them beside a text colour.
-  		fontSize: {
-  			mark: ['11px', { lineHeight: '14px' }],
-  			meta: ['12px', { lineHeight: '16px' }],
-  			ui: ['13px', { lineHeight: '18px' }],
-  			body: ['14px', { lineHeight: '20px' }],
-  			read: ['15px', { lineHeight: '24px' }],
-  			title: ['18px', { lineHeight: '24px' }],
-  			display: ['24px', { lineHeight: '30px' }]
-  		},
-  		typography: {
-  			DEFAULT: {
-  				css: {
-					fontFamily: 'var(--font-ui), sans-serif',
-  					code: {
-  						fontFamily: 'var(--font-mono), monospace'
-  					},
-  					// The plugin quotes inline code with literal backticks; a code span reads as code without them.
-  					'code::before': { content: 'none' },
-  					'code::after': { content: 'none' },
-  					pre: {
-  						fontFamily: 'var(--font-mono), monospace'
-  					}
-  				}
-  			},
-  			invert: {
-  				css: {
-					fontFamily: 'var(--font-ui), sans-serif'
-  				}
-  			}
-  		},
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)',
-  			// The Modern style's primitive system (app/globals.css; the variables
-  			// exist only under .modern-style): 6px controls, 10px cards and
-  			// popovers, 14px dialogs and sheets.
-  			control: 'var(--radius-control)',
-  			card: 'var(--radius-card)',
-  			dialog: 'var(--radius-dialog)'
-  		},
-  		// Control heights, usable by any spacing utility (h-, size-, min-h-).
-  		spacing: {
-  			'control-sm': 'var(--control-sm)',
-  			'control-md': 'var(--control-md)',
-  			'control-lg': 'var(--control-lg)'
-  		},
-  		// Elevation: only things that float cast a shadow.
-  		boxShadow: {
-  			popover: 'var(--shadow-popover)',
-  			dialog: 'var(--shadow-dialog)',
-  			toast: 'var(--shadow-toast)'
-  		},
-  		// Motion: hover and press, then popovers and dialogs. tailwindcss-animate
-  		// reads these too, so duration-pop also times an animate-in.
-  		transitionDuration: {
-  			press: 'var(--motion-press)',
-  			pop: 'var(--motion-pop)'
-  		},
-  		transitionTimingFunction: {
-  			ui: 'var(--motion-ease)'
-  		},
-  		keyframes: {
-  			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
-  			},
-  			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			},
-  			'effort-bump': {
-  				'0%, 100%': { transform: 'translateX(0)' },
-  				'25%': { transform: 'translateX(-2px)' },
-  				'60%': { transform: 'translateX(2px)' },
-  				'85%': { transform: 'translateX(-1px)' }
-  			},
-  			'fadeSlideIn': {
-  				'0%': {
-  					opacity: '0',
-  					transform: 'translateY(8px)'
-  				},
-  				'100%': {
-  					opacity: '1',
-  					transform: 'translateY(0)'
-  				}
-  			}
-  		},
-  		animation: {
-  			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'fadeSlideIn': 'fadeSlideIn 0.3s ease-out',
-  			'effort-bump': 'effort-bump 0.28s ease-out'
-  		}
-  	}
+    extend: {
+      colors: {
+        ...scaleColors,
+        sol: {
+          base03: "#002b36",
+          base02: "#073642",
+          base01: "#586e75",
+          base00: "#657b83",
+          base0: "#839496",
+          base1: "#93a1a1",
+          base2: "#eee8d5",
+          base3: "#fdf6e3",
+          // The accents read class-only variables (--sol-class-*, globals.css)
+          // that hold these Solarized hex values in every theme.
+          yellow: themed("--sol-class-yellow"),
+          orange: themed("--sol-class-orange"),
+          amber: themed("--sol-class-amber"),
+          red: themed("--sol-class-red"),
+          magenta: themed("--sol-class-magenta"),
+          violet: themed("--sol-class-violet"),
+          blue: themed("--sol-class-blue"),
+          cyan: themed("--sol-class-cyan"),
+          green: themed("--sol-class-green"),
+          bg: themed("--sol-bg"),
+          "bg-alt": themed("--sol-bg-alt"),
+          "bg-inset": themed("--sol-bg-inset"),
+          "bg-highlight": themed("--sol-bg-highlight"),
+          card: themed("--sol-card"),
+          "card-hover": themed("--sol-card-hover"),
+          border: themed("--sol-border"),
+          text: themed("--sol-text"),
+          "text-secondary": themed("--sol-text-secondary"),
+          "text-muted": themed("--sol-text-muted"),
+          "text-dim": themed("--sol-text-dim"),
+        },
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+      },
+      fontFamily: {
+        mono: ["var(--font-mono)", "monospace"],
+        sans: ["var(--font-ui)", "sans-serif"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+      },
+      // The type scale: seven steps, size and line-height only (weight and
+      // tracking stay with the element). 12px is the floor for words; `mark`
+      // (11px) is for glyph-like marks only: a count in a small badge, a key
+      // cap legend, a label set in capitals. Mirrored as --fs-* on :root in
+      // app/globals.css for stylesheets. tailwind-merge knows these names
+      // (lib/utils.ts), so cn() keeps them beside a text colour.
+      fontSize: {
+        mark: ["11px", { lineHeight: "14px" }],
+        meta: ["12px", { lineHeight: "16px" }],
+        ui: ["13px", { lineHeight: "18px" }],
+        body: ["14px", { lineHeight: "20px" }],
+        read: ["15px", { lineHeight: "24px" }],
+        title: ["18px", { lineHeight: "24px" }],
+        display: ["24px", { lineHeight: "30px" }],
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            fontFamily: "var(--font-ui), sans-serif",
+            code: {
+              fontFamily: "var(--font-mono), monospace",
+            },
+            // The plugin quotes inline code with literal backticks; a code span reads as code without them.
+            "code::before": { content: "none" },
+            "code::after": { content: "none" },
+            pre: {
+              fontFamily: "var(--font-mono), monospace",
+            },
+          },
+        },
+        invert: {
+          css: {
+            fontFamily: "var(--font-ui), sans-serif",
+          },
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+        // The Modern style's primitive system (app/globals.css; the variables
+        // exist only under .modern-style): 6px controls, 10px cards and
+        // popovers, 14px dialogs and sheets.
+        control: "var(--radius-control)",
+        card: "var(--radius-card)",
+        dialog: "var(--radius-dialog)",
+      },
+      // Control heights, usable by any spacing utility (h-, size-, min-h-).
+      spacing: {
+        "control-sm": "var(--control-sm)",
+        "control-md": "var(--control-md)",
+        "control-lg": "var(--control-lg)",
+      },
+      // Elevation: only things that float cast a shadow.
+      boxShadow: {
+        popover: "var(--shadow-popover)",
+        dialog: "var(--shadow-dialog)",
+        toast: "var(--shadow-toast)",
+      },
+      // Motion: hover and press, then popovers and dialogs. tailwindcss-animate
+      // reads these too, so duration-pop also times an animate-in.
+      transitionDuration: {
+        press: "var(--motion-press)",
+        pop: "var(--motion-pop)",
+      },
+      transitionTimingFunction: {
+        ui: "var(--motion-ease)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: {
+            height: "0",
+          },
+          to: {
+            height: "var(--radix-accordion-content-height)",
+          },
+        },
+        "accordion-up": {
+          from: {
+            height: "var(--radix-accordion-content-height)",
+          },
+          to: {
+            height: "0",
+          },
+        },
+        "effort-bump": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "25%": { transform: "translateX(-2px)" },
+          "60%": { transform: "translateX(2px)" },
+          "85%": { transform: "translateX(-1px)" },
+        },
+        fadeSlideIn: {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(8px)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0)",
+          },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        fadeSlideIn: "fadeSlideIn 0.3s ease-out",
+        "effort-bump": "effort-bump 0.28s ease-out",
+      },
+    },
   },
   plugins: [
     require("@tailwindcss/typography"),
@@ -263,7 +262,7 @@ const config: Config = {
     plugin(function ({ addBase }) {
       addBase({ ":root": scaleDefaults });
     }),
-      require("tailwindcss-animate")
-],
+    require("tailwindcss-animate"),
+  ],
 };
 export default config;

@@ -81,12 +81,14 @@ export const recordArgs = {
   task_ids: v.optional(v.array(v.id("tasks"))),
   plan_ids: v.optional(v.array(v.id("plans"))),
   project_ids: v.optional(v.array(v.id("projects"))),
-  issue: v.optional(v.object({
-    provider: v.string(),
-    key: v.string(),
-    url: v.optional(v.string()),
-    title: v.optional(v.string()),
-  })),
+  issue: v.optional(
+    v.object({
+      provider: v.string(),
+      key: v.string(),
+      url: v.optional(v.string()),
+      title: v.optional(v.string()),
+    }),
+  ),
   meta: v.optional(metaValidator),
   // Ingestion rows (external-data.md X3): the access key, the source and group
   // the transition belongs to, and its small render payload.
@@ -137,7 +139,10 @@ type RecordArgs = {
  * effort by design: an event about a real push must land even when the task id
  * in its commit message no longer resolves.
  */
-export async function recordExternalEvent(ctx: { db: any }, args: RecordArgs): Promise<Id<"external_events">> {
+export async function recordExternalEvent(
+  ctx: { db: any },
+  args: RecordArgs,
+): Promise<Id<"external_events">> {
   return (await recordExternalEventOnce(ctx, args)).id;
 }
 
@@ -146,7 +151,10 @@ export async function recordExternalEvent(ctx: { db: any }, args: RecordArgs): P
  * caller whose side effects (firing triggers, promoting) must happen once per
  * event, not once per retried delivery of it.
  */
-export async function recordExternalEventOnce(ctx: { db: any }, args: RecordArgs): Promise<{ id: Id<"external_events">; created: boolean }> {
+export async function recordExternalEventOnce(
+  ctx: { db: any },
+  args: RecordArgs,
+): Promise<{ id: Id<"external_events">; created: boolean }> {
   const existing = await ctx.db
     .query("external_events")
     .withIndex("by_dedupe_key", (q: any) => q.eq("dedupe_key", args.dedupe_key))
@@ -156,8 +164,14 @@ export async function recordExternalEventOnce(ctx: { db: any }, args: RecordArgs
   // A row paints only what it stores. An actor known by id alone renders as a
   // blank face, and a pull request known by id alone gets no link, so both are
   // filled here once rather than by every caller.
-  const user = args.actor_user_id && !args.actor_login ? await ctx.db.get(args.actor_user_id) : null;
-  const pr = args.pr_id && args.pr_number === undefined ? await ctx.db.get(args.pr_id) : null;
+  const user =
+    args.actor_user_id && !args.actor_login
+      ? await ctx.db.get(args.actor_user_id)
+      : null;
+  const pr =
+    args.pr_id && args.pr_number === undefined
+      ? await ctx.db.get(args.pr_id)
+      : null;
 
   const taskIds = args.task_ids ?? [];
   const id = await ctx.db.insert("external_events", {
@@ -166,7 +180,8 @@ export async function recordExternalEventOnce(ctx: { db: any }, args: RecordArgs
     repository: normalizeRepository(args.repository),
     kind: args.kind,
     actor_login: args.actor_login ?? user?.github_username ?? user?.name,
-    actor_avatar_url: args.actor_avatar_url ?? user?.github_avatar_url ?? user?.image,
+    actor_avatar_url:
+      args.actor_avatar_url ?? user?.github_avatar_url ?? user?.image,
     actor_user_id: args.actor_user_id,
     title: args.title,
     summary: args.summary,
@@ -191,7 +206,10 @@ export async function recordExternalEventOnce(ctx: { db: any }, args: RecordArgs
     dedupe_key: args.dedupe_key,
     created_at: args.created_at ?? Date.now(),
   });
-  await markEventDirty(ctx, { ...args, created_at: args.created_at ?? Date.now() });
+  await markEventDirty(ctx, {
+    ...args,
+    created_at: args.created_at ?? Date.now(),
+  });
   return { id, created: true };
 }
 
@@ -215,14 +233,17 @@ async function canReadEvent(
   event: Doc<"external_events">,
   keyCache: Map<string, boolean>,
 ): Promise<boolean> {
-  const key = event.workspace ?? (event.team_id ? `team:${event.team_id}` : undefined);
+  const key =
+    event.workspace ?? (event.team_id ? `team:${event.team_id}` : undefined);
   if (key && !keyCache.has(key)) {
     keyCache.set(key, await workspaceGrantsAccess(ctx, userId, key));
   }
   if (key && keyCache.get(key)) return true;
   if (!event.conversation_id) return false;
   const conversation = await ctx.db.get(event.conversation_id);
-  return conversation ? await canAccessConversation(ctx, userId, conversation) : false;
+  return conversation
+    ? await canAccessConversation(ctx, userId, conversation)
+    : false;
 }
 
 async function filterReadable(
@@ -247,7 +268,8 @@ export const listForTeam = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    const teamId = args.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
+    const teamId =
+      args.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
     if (!teamId) return [];
     await requireTeamMembership(ctx, userId, teamId);
 
@@ -255,7 +277,9 @@ export const listForTeam = query({
       .query("external_events")
       // Git and issue activity only: a product's ingestion rows (source_id
       // set) have their own timeline and never push these out of the feed.
-      .withIndex("by_team_source_created", (q) => q.eq("team_id", teamId).eq("source_id", undefined))
+      .withIndex("by_team_source_created", (q) =>
+        q.eq("team_id", teamId).eq("source_id", undefined),
+      )
       .order("desc")
       .take(args.limit ?? DEFAULT_LIMIT);
   },
@@ -269,11 +293,17 @@ export const listForConversation = query({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return [];
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return [];
 
     return await ctx.db
       .query("external_events")
-      .withIndex("by_conversation_created", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_created", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(args.limit ?? DEFAULT_LIMIT);
   },
@@ -328,7 +358,9 @@ async function listForContainer(
   if (!teamId) return [];
   const recent = await ctx.db
     .query("external_events")
-    .withIndex("by_team_source_created", (q: any) => q.eq("team_id", teamId).eq("source_id", undefined))
+    .withIndex("by_team_source_created", (q: any) =>
+      q.eq("team_id", teamId).eq("source_id", undefined),
+    )
     .order("desc")
     .take(SCAN_LIMIT);
   return await filterReadable(ctx, userId, recent.filter(match), limit);
@@ -343,13 +375,15 @@ export const listForPlan = query({
     const userId = await requireUser(ctx);
     const plan = await ctx.db.get(args.plan_id);
     if (!plan || !(await canAccessPlan(ctx, userId, plan))) return [];
-    const teamId = plan.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
+    const teamId =
+      plan.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
 
     return await listForContainer(
       ctx,
       userId,
       teamId,
-      (event) => !!event.plan_ids?.some((id) => String(id) === String(args.plan_id)),
+      (event) =>
+        !!event.plan_ids?.some((id) => String(id) === String(args.plan_id)),
       args.limit ?? DEFAULT_LIMIT,
     );
   },
@@ -364,13 +398,17 @@ export const listForProject = query({
     const userId = await requireUser(ctx);
     const project = await ctx.db.get(args.project_id);
     if (!project || !(await canAccessProject(ctx, userId, project))) return [];
-    const teamId = project.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
+    const teamId =
+      project.team_id ?? (await activeTeamMembershipFor(ctx, userId))?.teamId;
 
     return await listForContainer(
       ctx,
       userId,
       teamId,
-      (event) => !!event.project_ids?.some((id) => String(id) === String(args.project_id)),
+      (event) =>
+        !!event.project_ids?.some(
+          (id) => String(id) === String(args.project_id),
+        ),
       args.limit ?? DEFAULT_LIMIT,
     );
   },
@@ -387,10 +425,14 @@ export const listForRepository = query({
     const limit = args.limit ?? DEFAULT_LIMIT;
     const recent = await ctx.db
       .query("external_events")
-      .withIndex("by_repository_created", (q) => q.eq("repository", normalizeRepository(args.repository)))
+      .withIndex("by_repository_created", (q) =>
+        q.eq("repository", normalizeRepository(args.repository)),
+      )
       .order("desc")
       .take(SCAN_LIMIT);
-    const matching = args.branch ? recent.filter((e) => e.branch === args.branch) : recent;
+    const matching = args.branch
+      ? recent.filter((e) => e.branch === args.branch)
+      : recent;
     return await filterReadable(ctx, userId, matching, limit);
   },
 });

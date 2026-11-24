@@ -11,9 +11,23 @@ import assert from "node:assert/strict";
 // imports stay dynamic because react-dom and the mocked convex/react must load
 // after the DOM globals and the mock below.
 const { JSDOM } = await import("jsdom");
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh/", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://local.codecast.sh/", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const React = await import("react");
@@ -25,11 +39,18 @@ const outcomes = new Map<string, unknown>();
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convexReact,
-  useMutation: () => async (args: { op: string }) => { sent.push(args.op); return { command_id: `cmd${sent.length}` }; },
-  useQuery: (_ref: unknown, args: { command_id?: string } | "skip") => (args === "skip" ? undefined : outcomes.get(args.command_id!) ?? { state: "pending" }),
+  useMutation: () => async (args: { op: string }) => {
+    sent.push(args.op);
+    return { command_id: `cmd${sent.length}` };
+  },
+  useQuery: (_ref: unknown, args: { command_id?: string } | "skip") =>
+    args === "skip"
+      ? undefined
+      : (outcomes.get(args.command_id!) ?? { state: "pending" }),
 }));
 
-const { useCloudAgentLogin, useCloudAgentAction } = await import("./useProviderKeyCommand");
+const { useCloudAgentLogin, useCloudAgentAction } =
+  await import("./useProviderKeyCommand");
 const { createRoot } = await import("react-dom/client");
 
 test("check again after a failed sign-in start shows the machine's login, and the dialog checks once on open", async () => {
@@ -40,7 +61,13 @@ test("check again after a failed sign-in start shows the machine's login, and th
     return null;
   }
   const root = createRoot(document.getElementById("root")!);
-  const render = async () => { await act(async () => { root.render(React.createElement(React.StrictMode, null, React.createElement(Probe))); }); };
+  const render = async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(React.StrictMode, null, React.createElement(Probe)),
+      );
+    });
+  };
 
   await render();
   await render();
@@ -51,35 +78,68 @@ test("check again after a failed sign-in start shows the machine's login, and th
   assert.equal(hook.view.state, "signed_out");
 
   // Sign in, and the machine has no Codex CLI: the start fails and says why.
-  await act(async () => { await hook.signIn(); });
-  outcomes.set("cmd2", { state: "failed", error: "The Codex CLI isn't installed on this computer." });
+  await act(async () => {
+    await hook.signIn();
+  });
+  outcomes.set("cmd2", {
+    state: "failed",
+    error: "The Codex CLI isn't installed on this computer.",
+  });
   await render();
-  assert.deepEqual(hook.view, { state: "failed", error: "The Codex CLI isn't installed on this computer." });
+  assert.deepEqual(hook.view, {
+    state: "failed",
+    error: "The Codex CLI isn't installed on this computer.",
+  });
 
   // Installed, then "Check again": the new check's answer is the view, so signing in is offered again.
-  await act(async () => { await hook.recheck(); });
+  await act(async () => {
+    await hook.recheck();
+  });
   outcomes.set(`cmd${sent.length}`, { state: "done", login: "signed_out" });
   await render();
   assert.equal(hook.view.state, "signed_out");
 
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
 
   // A header action runs on the same watched command: its result (and the pull request it opened) is heard once, then it lets go.
   const heard: unknown[] = [];
   let action!: ReturnType<typeof useCloudAgentAction>;
   function ActionProbe() {
-    action = useCloudAgentAction("conv1", (outcome) => { heard.push(outcome); });
+    action = useCloudAgentAction("conv1", (outcome) => {
+      heard.push(outcome);
+    });
     return null;
   }
   const actionRoot = createRoot(document.getElementById("root")!);
-  const renderAction = async () => { await act(async () => { actionRoot.render(React.createElement(ActionProbe)); }); };
+  const renderAction = async () => {
+    await act(async () => {
+      actionRoot.render(React.createElement(ActionProbe));
+    });
+  };
   await renderAction();
-  await act(async () => { await action.run("create_pr"); });
+  await act(async () => {
+    await action.run("create_pr");
+  });
   assert.equal(action.pending, "create_pr");
-  outcomes.set(`cmd${sent.length}`, { state: "done", detail: "Opened a draft pull request.", url: "https://github.com/o/r/pull/7" });
+  outcomes.set(`cmd${sent.length}`, {
+    state: "done",
+    detail: "Opened a draft pull request.",
+    url: "https://github.com/o/r/pull/7",
+  });
   await renderAction();
   await renderAction();
-  assert.deepEqual(heard, [{ action: "create_pr", ok: true, text: "Opened a draft pull request.", url: "https://github.com/o/r/pull/7" }]);
+  assert.deepEqual(heard, [
+    {
+      action: "create_pr",
+      ok: true,
+      text: "Opened a draft pull request.",
+      url: "https://github.com/o/r/pull/7",
+    },
+  ]);
   assert.equal(action.pending, null);
-  await act(async () => { actionRoot.unmount(); });
+  await act(async () => {
+    actionRoot.unmount();
+  });
 });

@@ -16,7 +16,10 @@
 
 /** True only when both ids are known and equal, which is the sole case a
  *  caller may stand down on. */
-export function daemonBuildUnchanged(running: string | null | undefined, candidate: string | null | undefined): boolean {
+export function daemonBuildUnchanged(
+  running: string | null | undefined,
+  candidate: string | null | undefined,
+): boolean {
   return !!running && !!candidate && running === candidate;
 }
 

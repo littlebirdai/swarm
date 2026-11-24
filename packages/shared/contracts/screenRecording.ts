@@ -44,7 +44,10 @@ function openTag(ref: ScreenRecordingRef): string {
   return `<${TAG} call="${attr(ref.call)}"${id} duration="${formatCallTime(ref.durationMs)}">`;
 }
 
-export function formatScreenRecordingMessage(ref: ScreenRecordingRef, caption: string): string {
+export function formatScreenRecordingMessage(
+  ref: ScreenRecordingRef,
+  caption: string,
+): string {
   const head = openTag(ref);
   const body = `A screen recording (${ref.call}, ${formatCallTime(ref.durationMs)}): they recorded their screen while talking about it. ${commandsLine(ref.call)}`;
   const words = caption.trim();
@@ -58,11 +61,14 @@ function clockMs(s: string): number {
   return parts.reduce((t, n) => t * 60 + n, 0) * 1000;
 }
 
-const LINE_RE = /^\[(\d+:\d{2}(?::\d{2})?)\]\s+(.*?)(?:\s+\[Image [^\]]+\])*\s*$/;
+const LINE_RE =
+  /^\[(\d+:\d{2}(?::\d{2})?)\]\s+(.*?)(?:\s+\[Image [^\]]+\])*\s*$/;
 
 /** The tag and what came with it, or null for any other message. Takes the
  *  person's message and the agent's expanded copy alike. */
-export function parseScreenRecordingMessage(text: string | null | undefined): ParsedScreenRecording | null {
+export function parseScreenRecordingMessage(
+  text: string | null | undefined,
+): ParsedScreenRecording | null {
   if (!text) return null;
   const trimmed = text.trimStart();
   const open = trimmed.match(OPEN_RE);
@@ -71,14 +77,24 @@ export function parseScreenRecordingMessage(text: string | null | undefined): Pa
   for (const m of open[1].matchAll(/([a-z]+)="([^"]*)"/g)) attrs[m[1]] = m[2];
   if (!/^cl-\d+$/i.test(attrs.call ?? "")) return null;
   const close = trimmed.indexOf(`</${TAG}>`);
-  const inner = close >= 0 ? trimmed.slice(open[0].length, close) : trimmed.slice(open[0].length);
-  const caption = close >= 0 ? trimmed.slice(close + TAG.length + 3).trim() : "";
+  const inner =
+    close >= 0
+      ? trimmed.slice(open[0].length, close)
+      : trimmed.slice(open[0].length);
+  const caption =
+    close >= 0 ? trimmed.slice(close + TAG.length + 3).trim() : "";
   const lines: ParsedScreenRecording["lines"] = [];
   for (const raw of inner.split("\n")) {
     const m = raw.match(LINE_RE);
     if (m) lines.push({ atMs: clockMs(m[1]), text: m[2] });
   }
-  return { call: attrs.call.toLowerCase(), transcriptId: attrs.id || null, durationMs: clockMs(attrs.duration ?? "0:00"), caption, lines };
+  return {
+    call: attrs.call.toLowerCase(),
+    transcriptId: attrs.id || null,
+    durationMs: clockMs(attrs.duration ?? "0:00"),
+    caption,
+    lines,
+  };
 }
 
 /** Words a person says while pointing at something on screen. A line with
@@ -93,7 +109,10 @@ export type BriefSegment = { t0: number; t1: number; text: string };
 export function lineMomentMs(s: BriefSegment): number {
   const span = Math.max(0, s.t1 - s.t0);
   const hit = s.text.match(POINTING);
-  const at = hit?.index != null && s.text.length ? (hit.index + hit[0].length / 2) / s.text.length : 0.5;
+  const at =
+    hit?.index != null && s.text.length
+      ? (hit.index + hit[0].length / 2) / s.text.length
+      : 0.5;
   return Math.round(s.t0 + span * at);
 }
 
@@ -103,13 +122,19 @@ export const SCREEN_RECORDING_MAX_FRAMES = 12;
 
 /** Which lines get a picture: every one, up to the cap; past it the
  *  pointing lines first, then evenly spaced others. Indexes, in order. */
-export function framedLines(segments: readonly BriefSegment[], max = SCREEN_RECORDING_MAX_FRAMES): number[] {
+export function framedLines(
+  segments: readonly BriefSegment[],
+  max = SCREEN_RECORDING_MAX_FRAMES,
+): number[] {
   if (segments.length <= max) return segments.map((_, i) => i);
-  const pointing = segments.map((s, i) => (POINTING.test(s.text) ? i : -1)).filter((i) => i >= 0);
+  const pointing = segments
+    .map((s, i) => (POINTING.test(s.text) ? i : -1))
+    .filter((i) => i >= 0);
   const picked = new Set(pointing.slice(0, max));
   const rest = segments.map((_, i) => i).filter((i) => !picked.has(i));
   const room = max - picked.size;
-  for (let k = 0; k < room && rest.length; k++) picked.add(rest[Math.floor(((k + 0.5) * rest.length) / room)]);
+  for (let k = 0; k < room && rest.length; k++)
+    picked.add(rest[Math.floor(((k + 0.5) * rest.length) / room)]);
   return [...picked].sort((a, b) => a - b);
 }
 
@@ -137,19 +162,30 @@ export function screenRecordingBrief(opts: {
   const intro = `A screen recording (${ref.call}, ${formatCallTime(ref.durationMs)}): they recorded their screen while talking about it.`;
   const out: string[] = [head];
   if (opts.segments.length) {
-    out.push(`${intro} What they said, each line at its time in the video. Each [Image path] beside a line is a picture of their screen as they said it: open the ones you need to see what they meant.`, "");
+    out.push(
+      `${intro} What they said, each line at its time in the video. Each [Image path] beside a line is a picture of their screen as they said it: open the ones you need to see what they meant.`,
+      "",
+    );
     opts.segments.forEach((s, i) => {
       const frame = opts.frames.get(i);
-      out.push(`[${formatCallTime(s.t0)}] ${s.text}${frame ? ` [Image ${frame}]` : ""}`);
+      out.push(
+        `[${formatCallTime(s.t0)}] ${s.text}${frame ? ` [Image ${frame}]` : ""}`,
+      );
     });
-    out.push("", `Any other moment: \`cast call snap ${ref.call}@m:ss\` (\`${ref.call}:<line>\` by line, \`--crop\` for small text).`);
+    out.push(
+      "",
+      `Any other moment: \`cast call snap ${ref.call}@m:ss\` (\`${ref.call}:<line>\` by line, \`--crop\` for small text).`,
+    );
   } else {
     const why = opts.noAudio
       ? "The video has no sound (the microphone was off while recording), so there are no words; the screen is all there is."
       : opts.words === "pending"
         ? "Its words are still being transcribed."
         : "No words could be read out of its sound.";
-    out.push(`${intro} ${why}${opts.opening ? ` The screen at the start: [Image ${opts.opening}]` : ""}`, commandsLine(ref.call));
+    out.push(
+      `${intro} ${why}${opts.opening ? ` The screen at the start: [Image ${opts.opening}]` : ""}`,
+      commandsLine(ref.call),
+    );
   }
   out.push(`</${TAG}>`);
   const words = opts.caption.trim();

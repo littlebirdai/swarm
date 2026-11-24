@@ -7,7 +7,12 @@
 // Times are on the replay clock: ms since the stream's first event, the clock
 // the text timeline prints, the player shows and `rp-N@m:ss` names.
 import { REPLAY_LIMITS, type ReplayEvent } from "../contracts/replay";
-import { formatReplayTime, isFailedRequest, sortReplayEvents, urlPath } from "./events";
+import {
+  formatReplayTime,
+  isFailedRequest,
+  sortReplayEvents,
+  urlPath,
+} from "./events";
 import { clip } from "../changes/headline";
 
 export interface ReplayMoment {
@@ -34,7 +39,15 @@ export interface ReplayMomentOptions {
   window_ms?: number;
 }
 
-const ACTIONS = new Set<ReplayEvent["type"]>(["nav", "click", "input", "submit", "key", "scroll", "mark"]);
+const ACTIONS = new Set<ReplayEvent["type"]>([
+  "nav",
+  "click",
+  "input",
+  "submit",
+  "key",
+  "scroll",
+  "mark",
+]);
 
 /** The stream's clock zero: its first event's t. */
 export function replayClockStart(events: readonly ReplayEvent[]): number {
@@ -51,7 +64,11 @@ export function replayClockDuration(events: readonly ReplayEvent[]): number {
 }
 
 /** What the stream says about the moment `atMs` (replay clock). Events need not be sorted. */
-export function replayMoment(input: readonly ReplayEvent[], atMs: number, opts: ReplayMomentOptions = {}): ReplayMoment {
+export function replayMoment(
+  input: readonly ReplayEvent[],
+  atMs: number,
+  opts: ReplayMomentOptions = {},
+): ReplayMoment {
   const events = sortReplayEvents(input);
   const start = replayClockStart(events);
   const duration = replayClockDuration(events);
@@ -68,7 +85,11 @@ export function replayMoment(input: readonly ReplayEvent[], atMs: number, opts: 
     if (ACTIONS.has(e.type)) before.push(e);
   }
   // A moment before the first navigation is still on the page the recording opened on.
-  if (!nav) nav = (events.find((e) => e.type === "nav") as Extract<ReplayEvent, { type: "nav" }> | undefined) ?? null;
+  if (!nav)
+    nav =
+      (events.find((e) => e.type === "nav") as
+        | Extract<ReplayEvent, { type: "nav" }>
+        | undefined) ?? null;
   const near = (e: ReplayEvent) => Math.abs(e.t - raw) <= win;
   return {
     at_ms: at,
@@ -78,7 +99,9 @@ export function replayMoment(input: readonly ReplayEvent[], atMs: number, opts: 
     outline: view?.outline ?? null,
     outline_at_ms: view ? view.t - start : null,
     before: before.slice(-(opts.before ?? 8)),
-    console: events.filter((e) => (e.type === "console" || e.type === "error") && near(e)),
+    console: events.filter(
+      (e) => (e.type === "console" || e.type === "error") && near(e),
+    ),
     network: events.filter((e) => e.type === "network" && near(e)),
   };
 }
@@ -103,7 +126,18 @@ function eventLine(e: ReplayEvent, start: number): string {
     case "console":
       return `${at} console.${e.level} ${clip(e.message, 300)}`;
     case "error":
-      return `${at} ERROR ${clip(e.message, 300)}${e.stack ? `\n      ${clip(e.stack.split("\n").slice(1, 3).map((l) => l.trim()).join(" | "), 240)}` : ""}`;
+      return `${at} ERROR ${clip(e.message, 300)}${
+        e.stack
+          ? `\n      ${clip(
+              e.stack
+                .split("\n")
+                .slice(1, 3)
+                .map((l) => l.trim())
+                .join(" | "),
+              240,
+            )}`
+          : ""
+      }`;
     case "network":
       return `${at} ${isFailedRequest(e) ? "" : "slow "}${e.method} ${urlPath(e.url)} -> ${e.status || "failed"} (${Math.round(e.ms)} ms)`;
     case "view":
@@ -119,17 +153,42 @@ function eventLine(e: ReplayEvent, start: number): string {
  * rendered frame when there is one, which is what the page showed, and wins
  * over the stream's last outline.
  */
-export function formatReplayMoment(m: ReplayMoment, start: number, opts: { visible?: string | null; frame_url?: string | null } = {}): string {
-  const lines: string[] = [`at ${formatReplayTime(m.at_ms)} of ${formatReplayTime(m.duration_ms)}`];
+export function formatReplayMoment(
+  m: ReplayMoment,
+  start: number,
+  opts: { visible?: string | null; frame_url?: string | null } = {},
+): string {
+  const lines: string[] = [
+    `at ${formatReplayTime(m.at_ms)} of ${formatReplayTime(m.duration_ms)}`,
+  ];
   const url = opts.frame_url || m.url;
-  if (url) lines.push(`url: ${url}${m.title ? `  "${clip(m.title, 120)}"` : ""}`);
+  if (url)
+    lines.push(`url: ${url}${m.title ? `  "${clip(m.title, 120)}"` : ""}`);
   const outline = opts.visible?.trim() ? opts.visible.trim() : m.outline;
   if (outline) {
-    const from = opts.visible?.trim() ? "visible text (rendered frame)" : `outline (taken at ${formatReplayTime(m.outline_at_ms ?? 0)})`;
-    lines.push(`${from}:`, ...clip(outline, REPLAY_LIMITS.view_outline_max_chars).split("\n").map((l) => `  ${l}`));
+    const from = opts.visible?.trim()
+      ? "visible text (rendered frame)"
+      : `outline (taken at ${formatReplayTime(m.outline_at_ms ?? 0)})`;
+    lines.push(
+      `${from}:`,
+      ...clip(outline, REPLAY_LIMITS.view_outline_max_chars)
+        .split("\n")
+        .map((l) => `  ${l}`),
+    );
   }
-  lines.push(m.before.length ? "before:" : "before: nothing yet", ...m.before.map((e) => `  ${eventLine(e, start)}`));
-  if (m.console.length) lines.push("console and errors nearby:", ...m.console.map((e) => `  ${eventLine(e, start)}`));
-  if (m.network.length) lines.push("failed or slow requests nearby:", ...m.network.map((e) => `  ${eventLine(e, start)}`));
+  lines.push(
+    m.before.length ? "before:" : "before: nothing yet",
+    ...m.before.map((e) => `  ${eventLine(e, start)}`),
+  );
+  if (m.console.length)
+    lines.push(
+      "console and errors nearby:",
+      ...m.console.map((e) => `  ${eventLine(e, start)}`),
+    );
+  if (m.network.length)
+    lines.push(
+      "failed or slow requests nearby:",
+      ...m.network.map((e) => `  ${eventLine(e, start)}`),
+    );
   return lines.join("\n");
 }

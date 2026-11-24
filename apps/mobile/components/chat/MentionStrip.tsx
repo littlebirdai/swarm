@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { ChatAvatar } from '@/components/chat/MessageRow';
+import { useMemo } from "react";
+import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { ChatAvatar } from "@/components/chat/MessageRow";
 
 // The @-completion strip above the composer. Without it, mentioning someone on
 // a phone is a spelling test with notification stakes: a near-miss handle simply
@@ -26,11 +26,14 @@ export type MentionCandidate = {
 export function activeMentionQuery(draft: string): string | null {
   const m = /(^|\s)@([A-Za-z0-9][A-Za-z0-9_.-]*)?$/.exec(draft);
   if (!m) return null;
-  return (m[2] ?? '').toLowerCase();
+  return (m[2] ?? "").toLowerCase();
 }
 
 export function completeMention(draft: string, handle: string): string {
-  return draft.replace(/(^|\s)@([A-Za-z0-9][A-Za-z0-9_.-]*)?$/, `$1@${handle} `);
+  return draft.replace(
+    /(^|\s)@([A-Za-z0-9][A-Za-z0-9_.-]*)?$/,
+    `$1@${handle} `,
+  );
 }
 
 export function MentionStrip({
@@ -47,8 +50,10 @@ export function MentionStrip({
   const matches = useMemo(() => {
     if (query === null) return [];
     return members
-      .filter((m) =>
-        m.handle.toLowerCase().startsWith(query) || m.name.toLowerCase().includes(query),
+      .filter(
+        (m) =>
+          m.handle.toLowerCase().startsWith(query) ||
+          m.name.toLowerCase().includes(query),
       )
       .slice(0, 8);
   }, [members, query]);
@@ -69,35 +74,47 @@ export function MentionStrip({
           style={[styles.chip, m.isAgent && styles.chipAgent]}
           onPress={() => onPick(completeMention(draft, m.handle))}
         >
-          <ChatAvatar author={{ id: m.id, name: m.name, avatarUrl: m.avatarUrl, isAgent: m.isAgent }} size={24} />
-          <RNText style={[styles.chipText, m.isAgent && styles.chipTextAgent]}>@{m.handle}</RNText>
+          <ChatAvatar
+            author={{
+              id: m.id,
+              name: m.name,
+              avatarUrl: m.avatarUrl,
+              isAgent: m.isAgent,
+            }}
+            size={24}
+          />
+          <RNText style={[styles.chipText, m.isAgent && styles.chipTextAgent]}>
+            @{m.handle}
+          </RNText>
         </TouchableOpacity>
       ))}
     </ScrollView>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  strip: { maxHeight: 52 },
-  stripContent: {
-    gap: 8,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    height: 36,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    borderRadius: 18,
-    paddingLeft: 6,
-    paddingRight: 12,
-    backgroundColor: Theme.bgAlt,
-  },
-  chipAgent: { borderColor: Theme.violet + '77' },
-  chipText: { fontSize: 13.5, fontWeight: '600', color: Theme.textSecondary },
-  chipTextAgent: { color: Theme.violet },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    strip: { maxHeight: 52 },
+    stripContent: {
+      gap: 8,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: 8,
+      alignItems: "center",
+    },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      height: 36,
+      borderWidth: 1,
+      borderColor: Theme.border,
+      borderRadius: 18,
+      paddingLeft: 6,
+      paddingRight: 12,
+      backgroundColor: Theme.bgAlt,
+    },
+    chipAgent: { borderColor: Theme.violet + "77" },
+    chipText: { fontSize: 13.5, fontWeight: "600", color: Theme.textSecondary },
+    chipTextAgent: { color: Theme.violet },
+  }),
+);

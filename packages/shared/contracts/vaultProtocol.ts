@@ -112,7 +112,13 @@ export interface VaultOpResponse {
  *  "removed" is emitted by the reconcile scan (the watcher itself has no
  *  delete events); "reset" tells the client to re-run /vault/scan. */
 export type VaultWsEvent =
-  | { type: "add" | "change"; vault: string; path: string; mtime: number; size: number }
+  | {
+      type: "add" | "change";
+      vault: string;
+      path: string;
+      mtime: number;
+      size: number;
+    }
   | { type: "removed"; vault: string; path: string }
   | { type: "reset"; vault: string };
 
@@ -143,8 +149,20 @@ export const VAULT_MAX_SERVE_BYTES = 32 * 1024 * 1024;
  *  set renders as attachments (images inline, others as links). */
 export const VAULT_MARKDOWN_EXTENSIONS = [".md", ".markdown"] as const;
 export const VAULT_ASSET_EXTENSIONS = [
-  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".avif",
-  ".pdf", ".mp3", ".wav", ".m4a", ".mp4", ".webm", ".mov",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".avif",
+  ".pdf",
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".mp4",
+  ".webm",
+  ".mov",
 ] as const;
 
 /**
@@ -156,43 +174,152 @@ export const VAULT_ASSET_EXTENSIONS = [
  */
 export const VAULT_TEXT_EXTENSIONS = [
   // Web / app code
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts",
-  ".html", ".htm", ".css", ".scss", ".sass", ".less", ".vue", ".svelte", ".astro",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+  ".html",
+  ".htm",
+  ".css",
+  ".scss",
+  ".sass",
+  ".less",
+  ".vue",
+  ".svelte",
+  ".astro",
   // Other languages
-  ".py", ".rb", ".go", ".rs", ".java", ".kt", ".kts", ".swift", ".m", ".mm",
-  ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".php", ".pl", ".lua", ".r",
-  ".ex", ".exs", ".erl", ".hs", ".clj", ".scala", ".dart", ".zig", ".nim",
-  ".sql", ".graphql", ".gql", ".proto", ".sol",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".kt",
+  ".kts",
+  ".swift",
+  ".m",
+  ".mm",
+  ".c",
+  ".h",
+  ".cc",
+  ".cpp",
+  ".hpp",
+  ".cs",
+  ".php",
+  ".pl",
+  ".lua",
+  ".r",
+  ".ex",
+  ".exs",
+  ".erl",
+  ".hs",
+  ".clj",
+  ".scala",
+  ".dart",
+  ".zig",
+  ".nim",
+  ".sql",
+  ".graphql",
+  ".gql",
+  ".proto",
+  ".sol",
   // Shell / config / data
-  ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat",
-  ".json", ".jsonc", ".json5", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
-  ".env", ".properties", ".editorconfig", ".gitignore", ".gitattributes",
-  ".xml", ".csv", ".tsv", ".txt", ".text", ".log", ".diff", ".patch",
-  ".tf", ".tfvars", ".hcl", ".dockerfile", ".make", ".mk", ".cmake", ".gradle",
-  ".rst", ".org", ".tex", ".bib", ".adoc",
+  ".sh",
+  ".bash",
+  ".zsh",
+  ".fish",
+  ".ps1",
+  ".bat",
+  ".json",
+  ".jsonc",
+  ".json5",
+  ".yaml",
+  ".yml",
+  ".toml",
+  ".ini",
+  ".cfg",
+  ".conf",
+  ".env",
+  ".properties",
+  ".editorconfig",
+  ".gitignore",
+  ".gitattributes",
+  ".xml",
+  ".csv",
+  ".tsv",
+  ".txt",
+  ".text",
+  ".log",
+  ".diff",
+  ".patch",
+  ".tf",
+  ".tfvars",
+  ".hcl",
+  ".dockerfile",
+  ".make",
+  ".mk",
+  ".cmake",
+  ".gradle",
+  ".rst",
+  ".org",
+  ".tex",
+  ".bib",
+  ".adoc",
 ] as const;
 
 /** Text files with no extension at all. Lowercased comparison, so `makefile`
  *  and `Makefile` both match. */
 export const VAULT_TEXT_FILENAMES = [
-  "makefile", "dockerfile", "rakefile", "gemfile", "procfile", "brewfile",
-  "justfile", "vagrantfile", "jenkinsfile", "caddyfile",
-  "license", "licence", "notice", "authors", "contributors", "copying",
-  "readme", "changelog", "todo", "codeowners", "version",
+  "makefile",
+  "dockerfile",
+  "rakefile",
+  "gemfile",
+  "procfile",
+  "brewfile",
+  "justfile",
+  "vagrantfile",
+  "jenkinsfile",
+  "caddyfile",
+  "license",
+  "licence",
+  "notice",
+  "authors",
+  "contributors",
+  "copying",
+  "readme",
+  "changelog",
+  "todo",
+  "codeowners",
+  "version",
 ] as const;
 
 /** Directories never scanned or watched, matched on any path segment. */
 export const VAULT_IGNORED_SEGMENTS = [
-  ".git", ".obsidian", ".trash", "node_modules", ".DS_Store",
+  ".git",
+  ".obsidian",
+  ".trash",
+  "node_modules",
+  ".DS_Store",
 ] as const;
 
 /** Build output and vendored dependencies, ignored ON TOP of the list above
  *  when the vault root is a code repository. Kept off plain note vaults: a
  *  folder called "build" in someone's notes is a topic, not a target dir. */
 export const VAULT_REPO_IGNORED_SEGMENTS = [
-  "dist", "build", "out", "target", "coverage",
-  "vendor", "bower_components", "Pods", "DerivedData",
-  "__pycache__", "venv",
+  "dist",
+  "build",
+  "out",
+  "target",
+  "coverage",
+  "vendor",
+  "bower_components",
+  "Pods",
+  "DerivedData",
+  "__pycache__",
+  "venv",
   // Whole duplicate checkouts of the repo. Admitting these is the single worst
   // thing a docs browser can do: every note appears once per worktree, so
   // search returns twenty copies of the same file, backlinks fan out across
@@ -213,7 +340,10 @@ export const VAULT_REPO_IGNORED_SEGMENTS = [
  *  inside them is still caught by the ordinary segment rules, which is what
  *  keeps `.claude/worktrees/` out. */
 export const VAULT_REPO_ALLOWED_DOT_DIRS = [
-  ".github", ".claude", ".cursor", ".codex",
+  ".github",
+  ".claude",
+  ".cursor",
+  ".codex",
 ] as const;
 
 /** True for a dot-directory we deliberately keep, whatever .gitignore says. */
@@ -261,12 +391,18 @@ export function vaultFileKind(p: string): VaultFileKind {
 }
 
 export function isVaultIgnoredPath(p: string): boolean {
-  return p.split("/").some((seg) => (VAULT_IGNORED_SEGMENTS as readonly string[]).includes(seg));
+  return p
+    .split("/")
+    .some((seg) => (VAULT_IGNORED_SEGMENTS as readonly string[]).includes(seg));
 }
 
 /** The repo-only half of the rule, on ONE path segment. Callers walk segments
  *  themselves; vaultScope.isVaultPathIgnored is the predicate to use. */
 export function isRepoIgnoredSegment(seg: string): boolean {
-  if ((VAULT_REPO_IGNORED_SEGMENTS as readonly string[]).includes(seg)) return true;
-  return seg.startsWith(".") && !(VAULT_REPO_ALLOWED_DOT_DIRS as readonly string[]).includes(seg);
+  if ((VAULT_REPO_IGNORED_SEGMENTS as readonly string[]).includes(seg))
+    return true;
+  return (
+    seg.startsWith(".") &&
+    !(VAULT_REPO_ALLOWED_DOT_DIRS as readonly string[]).includes(seg)
+  );
 }

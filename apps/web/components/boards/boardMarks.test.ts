@@ -1,12 +1,28 @@
 import { describe, expect, test } from "bun:test";
-import { formatKey, hasMarks, markRuns, marksToHtml, richLines, toggleList, wrapRuns } from "./boardMarks";
+import {
+  formatKey,
+  hasMarks,
+  markRuns,
+  marksToHtml,
+  richLines,
+  toggleList,
+  wrapRuns,
+} from "./boardMarks";
 
-const key = (k: string, shift = false) => ({ key: k, metaKey: true, ctrlKey: false, shiftKey: shift });
+const key = (k: string, shift = false) => ({
+  key: k,
+  metaKey: true,
+  ctrlKey: false,
+  shiftKey: shift,
+});
 
 describe("board text marks", () => {
   test("list lines", () => {
     expect(richLines("Title\n- one\n2. two\nplain")).toEqual([
-      { kind: "text", text: "Title" }, { kind: "bullet", text: "one" }, { kind: "number", n: 2, text: "two" }, { kind: "text", text: "plain" },
+      { kind: "text", text: "Title" },
+      { kind: "bullet", text: "one" },
+      { kind: "number", n: 2, text: "two" },
+      { kind: "text", text: "plain" },
     ]);
   });
   test("hasMarks finds marks and lists, not plain text", () => {
@@ -18,7 +34,11 @@ describe("board text marks", () => {
   test("Cmd+B wraps and unwraps the selection", () => {
     const on = formatKey(key("b"), "ship now", 5, 8)!;
     expect(on).toEqual({ value: "ship **now**", start: 7, end: 10 });
-    expect(formatKey(key("b"), on.value, on.start, on.end)).toEqual({ value: "ship now", start: 5, end: 8 });
+    expect(formatKey(key("b"), on.value, on.start, on.end)).toEqual({
+      value: "ship now",
+      start: 5,
+      end: 8,
+    });
   });
   test("Cmd+I inside bold adds italic rather than eating a bold star", () => {
     expect(formatKey(key("i"), "**now**", 2, 5)!.value).toBe("***now***");
@@ -38,33 +58,65 @@ describe("list toggle", () => {
   test("bullets the touched lines and takes them off again", () => {
     const on = toggleList("Title\none\ntwo", 7, 12);
     expect(on.value).toBe("Title\n- one\n- two");
-    expect(toggleList(on.value, on.start, on.end).value).toBe("Title\none\ntwo");
+    expect(toggleList(on.value, on.start, on.end).value).toBe(
+      "Title\none\ntwo",
+    );
   });
 });
 
 describe("styled runs for export", () => {
   test("marks become runs; links keep their address", () => {
     expect(markRuns("ship **now** see [docs](https://x.dev)")).toEqual([
-      { t: "ship " }, { t: "now", b: true }, { t: " see " }, { t: "docs", href: "https://x.dev" },
+      { t: "ship " },
+      { t: "now", b: true },
+      { t: " see " },
+      { t: "docs", href: "https://x.dev" },
     ]);
   });
   test("wrapping keeps each word's style and breaks at spaces", () => {
-    const lines = wrapRuns("**Launch** the new checklist today", 10, (s) => s.length);
-    expect(lines.map((l) => l.map((r) => r.t).join("").trim())).toEqual(["Launch the", "new", "checklist", "today"]);
+    const lines = wrapRuns(
+      "**Launch** the new checklist today",
+      10,
+      (s) => s.length,
+    );
+    expect(
+      lines.map((l) =>
+        l
+          .map((r) => r.t)
+          .join("")
+          .trim(),
+      ),
+    ).toEqual(["Launch the", "new", "checklist", "today"]);
     expect(lines[0][0]).toEqual({ t: "Launch", b: true });
   });
   test("list lines get their mark", () => {
-    expect(wrapRuns("- one", 100, (s) => s.length)[0].map((r) => r.t).join("")).toBe("• one");
+    expect(
+      wrapRuns("- one", 100, (s) => s.length)[0]
+        .map((r) => r.t)
+        .join(""),
+    ).toBe("• one");
   });
 });
 
 describe("nested marks", () => {
   test("a bold link is bold and a link, whichever way the marks nest", () => {
-    expect(markRuns("see **[docs](https://x.io/d)** now")).toEqual([{ t: "see " }, { t: "docs", b: true, href: "https://x.io/d" }, { t: " now" }]);
-    expect(markRuns("[**docs**](https://x.io/d)")).toEqual([{ t: "docs", b: true, href: "https://x.io/d" }]);
-    expect(markRuns("**bold *both* end**")).toEqual([{ t: "bold ", b: true }, { t: "both", b: true, i: true }, { t: " end", b: true }]);
+    expect(markRuns("see **[docs](https://x.io/d)** now")).toEqual([
+      { t: "see " },
+      { t: "docs", b: true, href: "https://x.io/d" },
+      { t: " now" },
+    ]);
+    expect(markRuns("[**docs**](https://x.io/d)")).toEqual([
+      { t: "docs", b: true, href: "https://x.io/d" },
+    ]);
+    expect(markRuns("**bold *both* end**")).toEqual([
+      { t: "bold ", b: true },
+      { t: "both", b: true, i: true },
+      { t: " end", b: true },
+    ]);
   });
   test("a bold link round-trips through the editor's HTML", () => {
-    expect(marksToHtml("**[docs](https://x.io/d)**")).toBe('<div><a href="https://x.io/d"><b>docs</b></a></div>');
+    expect(marksToHtml("**[docs](https://x.io/d)**")).toBe(
+      '<div><a href="https://x.io/d"><b>docs</b></a></div>',
+    );
   });
 });

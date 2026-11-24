@@ -1,5 +1,37 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { awaitTrackedSessionCreateResult, computeInboxVisible, isFavoriteInStore, computeNewDividerIndex, dropLatchedFeedHasMore, feedPagePersistence, findReusableBlankSession, getSessionRenderKey, hydrateMergeValue, isConvexId, isSessionDismissed, isSessionStashed, orchestrationGroupLabelOf, PENDING_SEND_PRUNE_GRACE_MS, pendingSendConsumed, reconcilePendingSendForSession, resolveAssigneeInfo, resolveSessionAuthor, resolveShowOld, seedLiveInboxIdsFromCache, seedTeamInboxIdsFromCache, selectNavCollapsed, selectSessionRailOpen, SessionCreatePendingError, sessionsWithPendingSend, unionHydrate, useInboxStore, worktreeKeyOf, NEW_SESSION_HOLD_MS, releaseExpiredNewSessionHolds, type InboxSession } from "../inboxStore";
+import {
+  awaitTrackedSessionCreateResult,
+  computeInboxVisible,
+  isFavoriteInStore,
+  computeNewDividerIndex,
+  dropLatchedFeedHasMore,
+  feedPagePersistence,
+  findReusableBlankSession,
+  getSessionRenderKey,
+  hydrateMergeValue,
+  isConvexId,
+  isSessionDismissed,
+  isSessionStashed,
+  orchestrationGroupLabelOf,
+  PENDING_SEND_PRUNE_GRACE_MS,
+  pendingSendConsumed,
+  reconcilePendingSendForSession,
+  resolveAssigneeInfo,
+  resolveSessionAuthor,
+  resolveShowOld,
+  seedLiveInboxIdsFromCache,
+  seedTeamInboxIdsFromCache,
+  selectNavCollapsed,
+  selectSessionRailOpen,
+  SessionCreatePendingError,
+  sessionsWithPendingSend,
+  unionHydrate,
+  useInboxStore,
+  worktreeKeyOf,
+  NEW_SESSION_HOLD_MS,
+  releaseExpiredNewSessionHolds,
+  type InboxSession,
+} from "../inboxStore";
 import { convHasPendingSend, pendingRowsUnsettled } from "../inboxOverlays";
 import { _resetSnapshotLedger } from "../idbCollectionDiff";
 import { isPersistedStoreKey } from "../idbCache";
@@ -87,9 +119,18 @@ describe("inboxStore.setConversationAgent", () => {
         conv1: { ...baseSession, model: "claude-fable-5", effort: "high" },
       },
       conversations: {
-        conv1: { _id: "conv1", agent_type: "claude_code", model: "claude-fable-5", effort: "high" },
+        conv1: {
+          _id: "conv1",
+          agent_type: "claude_code",
+          model: "claude-fable-5",
+          effort: "high",
+        },
       },
-      currentConversation: { conversationId: "conv1", agentType: "claude_code", source: "sessions" },
+      currentConversation: {
+        conversationId: "conv1",
+        agentType: "claude_code",
+        source: "sessions",
+      },
       pending: {},
     });
 
@@ -110,7 +151,9 @@ describe("inboxStore.setConversationAgent", () => {
       effort: "high",
     });
     expect(useInboxStore.getState().conversations.conv1?.model).toBeUndefined();
-    expect(useInboxStore.getState().conversations.conv1?.agent_type).toBe("codex");
+    expect(useInboxStore.getState().conversations.conv1?.agent_type).toBe(
+      "codex",
+    );
   });
 
   it("accepts the new agent's model after the leftover stamp has been cleared", () => {
@@ -119,9 +162,17 @@ describe("inboxStore.setConversationAgent", () => {
         conv1: { ...baseSession, model: "claude-fable-5" },
       },
       conversations: {
-        conv1: { _id: "conv1", agent_type: "claude_code", model: "claude-fable-5" },
+        conv1: {
+          _id: "conv1",
+          agent_type: "claude_code",
+          model: "claude-fable-5",
+        },
       },
-      currentConversation: { conversationId: "conv1", agentType: "claude_code", source: "sessions" },
+      currentConversation: {
+        conversationId: "conv1",
+        agentType: "claude_code",
+        source: "sessions",
+      },
       pending: {},
     });
 
@@ -136,8 +187,12 @@ describe("inboxStore.setConversationAgent", () => {
       agent_type: "codex",
       model: "gpt-6-astra",
     });
-    expect(useInboxStore.getState().conversations.conv1?.model).toBe("gpt-6-astra");
-    expect(useInboxStore.getState().conversations.conv1?.agent_type).toBe("codex");
+    expect(useInboxStore.getState().conversations.conv1?.model).toBe(
+      "gpt-6-astra",
+    );
+    expect(useInboxStore.getState().conversations.conv1?.agent_type).toBe(
+      "codex",
+    );
   });
 
   it("still updates sessions-page state when there is no inbox session entry", () => {
@@ -244,14 +299,18 @@ describe("draft migration", () => {
 
 describe("getSessionRenderKey", () => {
   it("prefers stable session_id over _id to survive rekeys", () => {
-    expect(getSessionRenderKey({
-      _id: "jn7abc123def456ghi789jklmnopqrs",
-      session_id: "session-1",
-    } as InboxSession)).toBe("session-1");
+    expect(
+      getSessionRenderKey({
+        _id: "jn7abc123def456ghi789jklmnopqrs",
+        session_id: "session-1",
+      } as InboxSession),
+    ).toBe("session-1");
 
-    expect(getSessionRenderKey({
-      _id: "jn7abc123def456ghi789jklmnopqrs",
-    } as InboxSession)).toBe("jn7abc123def456ghi789jklmnopqrs");
+    expect(
+      getSessionRenderKey({
+        _id: "jn7abc123def456ghi789jklmnopqrs",
+      } as InboxSession),
+    ).toBe("jn7abc123def456ghi789jklmnopqrs");
   });
 
   it("returns same key before and after rekey", () => {
@@ -526,7 +585,9 @@ describe("placeSections (the placement chokepoint)", () => {
       new Set(["conv-new-pending"]),
     );
     expect(withPending.working.map((s) => s._id)).toContain("conv-new-pending");
-    expect(withPending.newSessions.map((s) => s._id)).not.toContain("conv-new-pending");
+    expect(withPending.newSessions.map((s) => s._id)).not.toContain(
+      "conv-new-pending",
+    );
 
     // Without a pending send the same session stays in New while engaged
     // (here: it's the session being viewed).
@@ -536,8 +597,12 @@ describe("placeSections (the placement chokepoint)", () => {
       undefined,
       { currentSessionId: "conv-new-pending" },
     );
-    expect(withoutPending.newSessions.map((s) => s._id)).toContain("conv-new-pending");
-    expect(withoutPending.working.map((s) => s._id)).not.toContain("conv-new-pending");
+    expect(withoutPending.newSessions.map((s) => s._id)).toContain(
+      "conv-new-pending",
+    );
+    expect(withoutPending.working.map((s) => s._id)).not.toContain(
+      "conv-new-pending",
+    );
   });
 
   it("hides a never-engaged blank (quick-create pre-warm) from every bucket", () => {
@@ -930,7 +995,6 @@ describe("placeSections (the placement chokepoint)", () => {
   });
 
   it("a pinned poll files under QUESTIONS once — asking outranks pinned, never duplicated into Needs You", () => {
-
     const pinnedPoll: InboxSession = {
       ...baseSession,
       _id: "conv-pinned-poll",
@@ -1002,9 +1066,21 @@ describe("placeSections (the placement chokepoint)", () => {
     // Flip the live status of every pinned session. Pin time is unchanged, so
     // the order must be byte-for-byte identical — no reshuffle on status churn.
     const churned = {
-      [oldestPin._id]: { ...oldestPin, agent_status: "idle" as const, is_idle: true },
-      [middlePin._id]: { ...middlePin, agent_status: "working" as const, is_idle: false },
-      [newestPin._id]: { ...newestPin, agent_status: "working" as const, is_idle: false },
+      [oldestPin._id]: {
+        ...oldestPin,
+        agent_status: "idle" as const,
+        is_idle: true,
+      },
+      [middlePin._id]: {
+        ...middlePin,
+        agent_status: "working" as const,
+        is_idle: false,
+      },
+      [newestPin._id]: {
+        ...newestPin,
+        agent_status: "working" as const,
+        is_idle: false,
+      },
     };
     const after = placeSections(churned, new Set());
     expect(after.pinned.map((s) => s._id)).toEqual([
@@ -1065,11 +1141,31 @@ describe("placeSections (the placement chokepoint)", () => {
   it("sinks deferred sessions to the bottom of Done", () => {
     // Same gesture, same rule: shift+backspace on a Done card must send it to
     // the bottom of the Done queue, not leave it in timestamp order.
-    const doneBase = { ...baseSession, message_count: 3, agent_status: "done" as const };
-    const early: InboxSession = { ...doneBase, _id: "conv-done-early", session_id: "sd-early", updated_at: Date.now() - 300 };
-    const late: InboxSession = { ...doneBase, _id: "conv-done-late", session_id: "sd-late", updated_at: Date.now() - 200 };
+    const doneBase = {
+      ...baseSession,
+      message_count: 3,
+      agent_status: "done" as const,
+    };
+    const early: InboxSession = {
+      ...doneBase,
+      _id: "conv-done-early",
+      session_id: "sd-early",
+      updated_at: Date.now() - 300,
+    };
+    const late: InboxSession = {
+      ...doneBase,
+      _id: "conv-done-late",
+      session_id: "sd-late",
+      updated_at: Date.now() - 200,
+    };
     // Deferred and OLDEST — a pure updated_at sort would put it first.
-    const deferred: InboxSession = { ...doneBase, _id: "conv-done-deferred", session_id: "sd-deferred", updated_at: Date.now() - 400, is_deferred: true };
+    const deferred: InboxSession = {
+      ...doneBase,
+      _id: "conv-done-deferred",
+      session_id: "sd-deferred",
+      updated_at: Date.now() - 400,
+      is_deferred: true,
+    };
 
     const { done } = placeSections(
       {
@@ -1090,19 +1186,53 @@ describe("placeSections (the placement chokepoint)", () => {
   it("a fresh defer lands below rows deferred before it", () => {
     // Deferring is "send to the end": with deferred rows already at the bottom,
     // the one just deferred goes under them, whatever its own event time.
-    const doneBase = { ...baseSession, message_count: 3, agent_status: "done" as const };
+    const doneBase = {
+      ...baseSession,
+      message_count: 3,
+      agent_status: "done" as const,
+    };
     const now = Date.now();
-    const plain: InboxSession = { ...doneBase, _id: "conv-plain", session_id: "sd-plain", updated_at: now - 300, turn_completed_at: now - 300 };
-    const deferredFirst: InboxSession = { ...doneBase, _id: "conv-deferred-first", session_id: "sd-d1", updated_at: now - 200, turn_completed_at: now - 200, is_deferred: true, inbox_deferred_at: now - 100 };
+    const plain: InboxSession = {
+      ...doneBase,
+      _id: "conv-plain",
+      session_id: "sd-plain",
+      updated_at: now - 300,
+      turn_completed_at: now - 300,
+    };
+    const deferredFirst: InboxSession = {
+      ...doneBase,
+      _id: "conv-deferred-first",
+      session_id: "sd-d1",
+      updated_at: now - 200,
+      turn_completed_at: now - 200,
+      is_deferred: true,
+      inbox_deferred_at: now - 100,
+    };
     // Oldest event time of all, deferred last: a time sort would lift it above deferredFirst.
-    const deferredLast: InboxSession = { ...doneBase, _id: "conv-deferred-last", session_id: "sd-d2", updated_at: now - 400, turn_completed_at: now - 400, is_deferred: true, inbox_deferred_at: now - 50 };
+    const deferredLast: InboxSession = {
+      ...doneBase,
+      _id: "conv-deferred-last",
+      session_id: "sd-d2",
+      updated_at: now - 400,
+      turn_completed_at: now - 400,
+      is_deferred: true,
+      inbox_deferred_at: now - 50,
+    };
 
     const { done } = placeSections(
-      { [deferredLast._id]: deferredLast, [deferredFirst._id]: deferredFirst, [plain._id]: plain },
+      {
+        [deferredLast._id]: deferredLast,
+        [deferredFirst._id]: deferredFirst,
+        [plain._id]: plain,
+      },
       new Set(),
     );
 
-    expect(done.map((s) => s._id)).toEqual(["conv-plain", "conv-deferred-first", "conv-deferred-last"]);
+    expect(done.map((s) => s._id)).toEqual([
+      "conv-plain",
+      "conv-deferred-first",
+      "conv-deferred-last",
+    ]);
   });
 });
 
@@ -1113,7 +1243,11 @@ describe("mergeMessages — sync-recovery safety net", () => {
   // guarantees that recovery depends on: idempotent append, gap fill,
   // no duplicates on overlap, no loss when the delta lands in chunks.
 
-  function msg(id: string, ts: number, role: "user" | "assistant" = "assistant") {
+  function msg(
+    id: string,
+    ts: number,
+    role: "user" | "assistant" = "assistant",
+  ) {
     return { _id: id, role, content: id, timestamp: ts } as any;
   }
 
@@ -1128,7 +1262,9 @@ describe("mergeMessages — sync-recovery safety net", () => {
   it("appends a delta when the server has more messages than the local store", () => {
     const store = useInboxStore.getState();
     store.setMessages("c1", [msg("m1", 1), msg("m2", 2), msg("m3", 3)]);
-    store.mergeMessages("c1", [msg("m4", 4), msg("m5", 5)], "append", { initialized: true });
+    store.mergeMessages("c1", [msg("m4", 4), msg("m5", 5)], "append", {
+      initialized: true,
+    });
 
     const out = useInboxStore.getState().messages.c1;
     expect(out.map((m: any) => m._id)).toEqual(["m1", "m2", "m3", "m4", "m5"]);
@@ -1140,7 +1276,12 @@ describe("mergeMessages — sync-recovery safety net", () => {
     // Server returns m3 (the last local) and the new ones — the watermark
     // fetch uses `>= last_timestamp` semantics in some paths, so overlap
     // happens. The store must not double the boundary message.
-    store.mergeMessages("c1", [msg("m3", 3), msg("m4", 4), msg("m5", 5)], "append", { initialized: true });
+    store.mergeMessages(
+      "c1",
+      [msg("m3", 3), msg("m4", 4), msg("m5", 5)],
+      "append",
+      { initialized: true },
+    );
 
     const out = useInboxStore.getState().messages.c1;
     expect(out.map((m: any) => m._id)).toEqual(["m1", "m2", "m3", "m4", "m5"]);
@@ -1153,15 +1294,26 @@ describe("mergeMessages — sync-recovery safety net", () => {
 
     store.setMessages("c1", [original, replay]);
 
-    expect(useInboxStore.getState().messages.c1.map((m: any) => m._id)).toEqual(["m1"]);
+    expect(useInboxStore.getState().messages.c1.map((m: any) => m._id)).toEqual(
+      ["m1"],
+    );
   });
 
   it("dedupes exact replayed server messages across recovery merges", () => {
     const store = useInboxStore.getState();
-    store.setMessages("c1", [{ ...msg("m1", 1), content: "same assistant text" }]);
-    store.mergeMessages("c1", [{ ...msg("m1-replay", 1), content: "same assistant text" }], "append", { initialized: true });
+    store.setMessages("c1", [
+      { ...msg("m1", 1), content: "same assistant text" },
+    ]);
+    store.mergeMessages(
+      "c1",
+      [{ ...msg("m1-replay", 1), content: "same assistant text" }],
+      "append",
+      { initialized: true },
+    );
 
-    expect(useInboxStore.getState().messages.c1.map((m: any) => m._id)).toEqual(["m1"]);
+    expect(useInboxStore.getState().messages.c1.map((m: any) => m._id)).toEqual(
+      ["m1"],
+    );
   });
 
   it("converges on the server set after a stall + recovery sequence", () => {
@@ -1176,16 +1328,22 @@ describe("mergeMessages — sync-recovery safety net", () => {
     for (let i = 4; i <= 53; i++) allNew.push(msg(`m${i}`, i));
 
     // First recovery page (20 messages).
-    store.mergeMessages("c1", allNew.slice(0, 20), "append", { initialized: true });
+    store.mergeMessages("c1", allNew.slice(0, 20), "append", {
+      initialized: true,
+    });
     expect(useInboxStore.getState().messages.c1.length).toBe(23);
 
     // Second recovery page (next 20). Real recovery sends `after_timestamp`
     // of the last local, but the store must be safe even if pages overlap.
-    store.mergeMessages("c1", allNew.slice(15, 35), "append", { initialized: true });
+    store.mergeMessages("c1", allNew.slice(15, 35), "append", {
+      initialized: true,
+    });
     expect(useInboxStore.getState().messages.c1.length).toBe(38);
 
     // Final recovery page.
-    store.mergeMessages("c1", allNew.slice(30), "append", { initialized: true });
+    store.mergeMessages("c1", allNew.slice(30), "append", {
+      initialized: true,
+    });
     const final = useInboxStore.getState().messages.c1;
     expect(final.length).toBe(53);
     // Strictly sorted by timestamp — recovery must not corrupt order.
@@ -1208,7 +1366,9 @@ describe("mergeMessages — sync-recovery safety net", () => {
     store.setMessages("c1", paginated);
 
     // Recovery merges newer messages.
-    store.mergeMessages("c1", [msg("m101", 101), msg("m102", 102)], "append", { initialized: true });
+    store.mergeMessages("c1", [msg("m101", 101), msg("m102", 102)], "append", {
+      initialized: true,
+    });
     expect(useInboxStore.getState().messages.c1.length).toBe(102);
 
     // PaginatedQuery re-fires with the same stale 100-item snapshot.
@@ -1224,7 +1384,12 @@ describe("mergeMessages — sync-recovery safety net", () => {
     const store = useInboxStore.getState();
     store.setMessages("c1", [msg("m1", 1), msg("m2", 2), msg("m3", 3)]);
     // No-op delta: server returned the same items we already had.
-    store.mergeMessages("c1", [msg("m1", 1), msg("m2", 2), msg("m3", 3)], "append", { initialized: true });
+    store.mergeMessages(
+      "c1",
+      [msg("m1", 1), msg("m2", 2), msg("m3", 3)],
+      "append",
+      { initialized: true },
+    );
 
     const out = useInboxStore.getState().messages.c1;
     expect(out.map((m: any) => m._id)).toEqual(["m1", "m2", "m3"]);
@@ -1239,10 +1404,21 @@ describe("syncTable sessions — liberal delta cache (never prune by absence)", 
   // in-window update that overlays) or killed — never because they aged out of
   // the server's narrow recent window. These pin that invariant plus the
   // cross-device dismissal path.
-  const active: InboxSession = { ...baseSession, _id: "a0000000000000000000000000000001", session_id: "s-active" };
-  const olderActive: InboxSession = { ...baseSession, _id: "a0000000000000000000000000000002", session_id: "s-older" };
+  const active: InboxSession = {
+    ...baseSession,
+    _id: "a0000000000000000000000000000001",
+    session_id: "s-active",
+  };
+  const olderActive: InboxSession = {
+    ...baseSession,
+    _id: "a0000000000000000000000000000002",
+    session_id: "s-older",
+  };
   const dismissed: InboxSession = {
-    ...baseSession, _id: "a0000000000000000000000000000003", session_id: "s-dismissed", inbox_dismissed_at: 50,
+    ...baseSession,
+    _id: "a0000000000000000000000000000003",
+    session_id: "s-dismissed",
+    inbox_dismissed_at: 50,
   };
 
   beforeEach(() => {
@@ -1270,21 +1446,25 @@ describe("syncTable sessions — liberal delta cache (never prune by absence)", 
 
     const s = useInboxStore.getState();
     expect(s.sessions[active._id]).toBeDefined();
-    expect(s.sessions[olderActive._id]).toBeDefined();  // not pruned
-    expect(s.sessions[dismissed._id]).toBeDefined();     // not pruned
+    expect(s.sessions[olderActive._id]).toBeDefined(); // not pruned
+    expect(s.sessions[dismissed._id]).toBeDefined(); // not pruned
     expect(isSessionDismissed(s.sessions[dismissed._id])).toBe(true);
   });
 
   it("applies a dismissal arriving in a later delta (e.g. dismissed on another device)", () => {
     const sync = useInboxStore.getState().syncTable;
     sync("sessions", [active]);
-    expect(isSessionDismissed(useInboxStore.getState().sessions[active._id])).toBe(false);
+    expect(
+      isSessionDismissed(useInboxStore.getState().sessions[active._id]),
+    ).toBe(false);
 
     // Another device dismissed it: the row comes back in-window with the flag
     // set, and the delta overlays the new field onto the cached row.
     sync("sessions", [{ ...active, inbox_dismissed_at: 1234 }]);
 
-    expect(isSessionDismissed(useInboxStore.getState().sessions[active._id])).toBe(true);
+    expect(
+      isSessionDismissed(useInboxStore.getState().sessions[active._id]),
+    ).toBe(true);
   });
 
   it("a killed session stays gone even though the server still returns it", () => {
@@ -1318,8 +1498,12 @@ describe("stash/kill a TEAMMATE's injected session forgets it (can't persist ser
   const THEM = "u".repeat(32);
   const FOREIGN = "f0000000000000000000000000000001";
   const MINE = "a0000000000000000000000000000001";
-  const mk = (id: string, owner: string): InboxSession =>
-    ({ ...baseSession, _id: id, session_id: `s-${id}`, user_id: owner });
+  const mk = (id: string, owner: string): InboxSession => ({
+    ...baseSession,
+    _id: id,
+    session_id: `s-${id}`,
+    user_id: owner,
+  });
 
   beforeEach(() => {
     useInboxStore.setState({
@@ -1347,7 +1531,9 @@ describe("stash/kill a TEAMMATE's injected session forgets it (can't persist ser
 
   it("a later live delta can NOT resurrect the forgotten foreign session", () => {
     useInboxStore.getState().stashSession(FOREIGN);
-    useInboxStore.getState().syncTable("sessions", [mk(FOREIGN, THEM)], { isDelta: true });
+    useInboxStore
+      .getState()
+      .syncTable("sessions", [mk(FOREIGN, THEM)], { isDelta: true });
     expect(useInboxStore.getState().sessions[FOREIGN]).toBeUndefined();
   });
 
@@ -1371,8 +1557,14 @@ describe("stash/kill a TEAMMATE's injected session forgets it (can't persist ser
   it("a thin foreign row (no session.user_id, conv.is_own=false) is deleted + excluded", () => {
     const THIN = "f0000000000000000000000000000002";
     useInboxStore.setState({
-      sessions: { ...useInboxStore.getState().sessions, [THIN]: { ...baseSession, _id: THIN, session_id: `s-${THIN}` } },
-      conversations: { ...useInboxStore.getState().conversations, [THIN]: { _id: THIN, is_own: false, user_id: THEM } as any },
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        [THIN]: { ...baseSession, _id: THIN, session_id: `s-${THIN}` },
+      },
+      conversations: {
+        ...useInboxStore.getState().conversations,
+        [THIN]: { _id: THIN, is_own: false, user_id: THEM } as any,
+      },
     } as any);
     useInboxStore.getState().stashSession(THIN);
     const s = useInboxStore.getState();
@@ -1384,7 +1576,10 @@ describe("stash/kill a TEAMMATE's injected session forgets it (can't persist ser
   it("a thin row with NO ownership signal anywhere is assumed mine (flag path)", () => {
     const UNKNOWN = "a0000000000000000000000000000002";
     useInboxStore.setState({
-      sessions: { ...useInboxStore.getState().sessions, [UNKNOWN]: { ...baseSession, _id: UNKNOWN, session_id: `s-${UNKNOWN}` } },
+      sessions: {
+        ...useInboxStore.getState().sessions,
+        [UNKNOWN]: { ...baseSession, _id: UNKNOWN, session_id: `s-${UNKNOWN}` },
+      },
     } as any);
     useInboxStore.getState().stashSession(UNKNOWN);
     const s = useInboxStore.getState();
@@ -1405,7 +1600,11 @@ describe("archiveDoc stays gone under delta (docs now protected)", () => {
 
   it("an archived doc is not re-added by a later docs delta sync", () => {
     const store = useInboxStore.getState();
-    const doc = { _id: "d0000000000000000000000000000001", title: "X", updated_at: 1 } as any;
+    const doc = {
+      _id: "d0000000000000000000000000000001",
+      title: "X",
+      updated_at: 1,
+    } as any;
     store.syncTable("docs", [doc], { isDelta: true });
     expect(useInboxStore.getState().docs[doc._id]).toBeDefined();
 
@@ -1458,7 +1657,10 @@ describe("pruneAbsentScope — a full workspace crawl propagates server deletion
     const personal = doc("d0000000000000000000000000000012", undefined);
     store.syncTable("docs", [mine, other, personal], { isDelta: true });
 
-    store.syncTable("docs", [mine], { isDelta: true, pruneAbsentScope: inTeam1 });
+    store.syncTable("docs", [mine], {
+      isDelta: true,
+      pruneAbsentScope: inTeam1,
+    });
     const s = useInboxStore.getState();
     expect(s.docs[mine._id]).toBeDefined();
     expect(s.docs[other._id]).toBeDefined();
@@ -1470,10 +1672,14 @@ describe("pruneAbsentScope — a full workspace crawl propagates server deletion
     const edited = doc("d0000000000000000000000000000020", "team1");
     store.syncTable("docs", [edited], { isDelta: true });
     useInboxStore.setState({
-      pending: { [`docs:${edited._id}:title`]: { type: "field", value: "local edit" } },
+      pending: {
+        [`docs:${edited._id}:title`]: { type: "field", value: "local edit" },
+      },
     } as any);
 
-    useInboxStore.getState().syncTable("docs", [], { isDelta: true, pruneAbsentScope: inTeam1 });
+    useInboxStore
+      .getState()
+      .syncTable("docs", [], { isDelta: true, pruneAbsentScope: inTeam1 });
     expect(useInboxStore.getState().docs[edited._id]).toBeDefined();
   });
 });
@@ -1487,7 +1693,12 @@ describe("big id-keyed collections are delta-by-default — a bare sync never wi
   // can never snapshot-prune the rows it omits. Deletions still work, but only
   // via the explicit exclude-pending path (kill / archive), never by omission.
   beforeEach(() => {
-    useInboxStore.setState({ tasks: {}, docs: {}, plans: {}, pending: {} } as any);
+    useInboxStore.setState({
+      tasks: {},
+      docs: {},
+      plans: {},
+      pending: {},
+    } as any);
   });
 
   for (const field of ["tasks", "docs", "plans"] as const) {
@@ -1499,13 +1710,19 @@ describe("big id-keyed collections are delta-by-default — a bare sync never wi
         updated_at: n,
       }));
       store.syncTable(field, rows as any, { isDelta: true });
-      expect(Object.keys((useInboxStore.getState() as any)[field])).toHaveLength(4);
+      expect(
+        Object.keys((useInboxStore.getState() as any)[field]),
+      ).toHaveLength(4);
 
       // No isDelta opt — relies on the registry default to stay additive. If it
       // ever snapshot-pruned again, rows 2-4 would vanish here.
       store.syncTable(field, [rows[0]] as any, {});
-      expect(Object.keys((useInboxStore.getState() as any)[field])).toHaveLength(4);
-      expect((useInboxStore.getState() as any)[field][rows[3]._id]).toBeDefined();
+      expect(
+        Object.keys((useInboxStore.getState() as any)[field]),
+      ).toHaveLength(4);
+      expect(
+        (useInboxStore.getState() as any)[field][rows[3]._id],
+      ).toBeDefined();
     });
   }
 });
@@ -1561,14 +1778,23 @@ describe("syncOverlay — churny overlay merged onto base rows", () => {
   // when nothing changed (so a heartbeat tick doesn't re-render every card).
   beforeEach(() => {
     useInboxStore.setState({
-      sessions: {}, conversations: {}, pending: {},
-      currentSessionId: null, clientStateInitialized: false, clientState: {},
+      sessions: {},
+      conversations: {},
+      pending: {},
+      currentSessionId: null,
+      clientStateInitialized: false,
+      clientState: {},
     } as any);
   });
 
   it("merges fields onto an existing row, skips unknown ids, and is a no-op when unchanged", () => {
     const store = useInboxStore.getState();
-    const a = { ...baseSession, _id: "a0000000000000000000000000000099", session_id: "s-a", agent_status: "idle" as const };
+    const a = {
+      ...baseSession,
+      _id: "a0000000000000000000000000000099",
+      session_id: "s-a",
+      agent_status: "idle" as const,
+    };
     store.syncTable("sessions", [a]);
 
     // Overlay flips liveness on the known row; the unknown id is ignored.
@@ -1578,7 +1804,9 @@ describe("syncOverlay — churny overlay merged onto base rows", () => {
     });
     const after = useInboxStore.getState().sessions[a._id];
     expect(after.agent_status).toBe("working");
-    expect(useInboxStore.getState().sessions["ghost000000000000000000000000000"]).toBeUndefined();
+    expect(
+      useInboxStore.getState().sessions["ghost000000000000000000000000000"],
+    ).toBeUndefined();
 
     // Re-applying the same value must preserve the row reference (no re-render).
     store.syncOverlay("sessions", { [a._id]: { agent_status: "working" } });
@@ -1593,8 +1821,12 @@ describe("preserveFields — base sync must not clobber the liveness overlay", (
   // liveness-on) still applies.
   beforeEach(() => {
     useInboxStore.setState({
-      sessions: {}, conversations: {}, pending: {},
-      currentSessionId: null, clientStateInitialized: false, clientState: {},
+      sessions: {},
+      conversations: {},
+      pending: {},
+      currentSessionId: null,
+      clientStateInitialized: false,
+      clientState: {},
     } as any);
   });
 
@@ -1602,20 +1834,48 @@ describe("preserveFields — base sync must not clobber the liveness overlay", (
     const store = useInboxStore.getState();
     const id = "a0000000000000000000000000000050";
     // Base seeds the row with NULL liveness (the include_liveness:false shape).
-    store.syncTable("sessions", [{ ...baseSession, _id: id, session_id: "s", agent_status: null, is_idle: null }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: id,
+        session_id: "s",
+        agent_status: null,
+        is_idle: null,
+      },
+    ]);
     // Overlay sets the live values.
-    store.syncOverlay("sessions", { [id]: { agent_status: "working", is_idle: false } });
+    store.syncOverlay("sessions", {
+      [id]: { agent_status: "working", is_idle: false },
+    });
     expect(useInboxStore.getState().sessions[id].agent_status).toBe("working");
 
     // A later base sync (still null liveness, stable field changed) must NOT clobber.
-    store.syncTable("sessions", [{ ...baseSession, _id: id, session_id: "s", title: "changed", agent_status: null, is_idle: null }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: id,
+        session_id: "s",
+        title: "changed",
+        agent_status: null,
+        is_idle: null,
+      },
+    ]);
     const after = useInboxStore.getState().sessions[id];
     expect(after.agent_status).toBe("working"); // overlay preserved
-    expect(after.is_idle).toBe(false);           // overlay preserved
-    expect(after.title).toBe("changed");          // stable applied
+    expect(after.is_idle).toBe(false); // overlay preserved
+    expect(after.title).toBe("changed"); // stable applied
 
     // A base sync carrying a REAL liveness value (crawl path) still applies.
-    store.syncTable("sessions", [{ ...baseSession, _id: id, session_id: "s", title: "changed", agent_status: "idle", is_idle: true }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: id,
+        session_id: "s",
+        title: "changed",
+        agent_status: "idle",
+        is_idle: true,
+      },
+    ]);
     expect(useInboxStore.getState().sessions[id].agent_status).toBe("idle");
   });
 });
@@ -1629,7 +1889,17 @@ describe("preserveFields — task list deltas must not strip cached detail joins
   // land on the row: they live in taskComments (lib/detailRows), and the row
   // keeps their count through a delta that carries none.
   const id = "task0000000000000000000000000077";
-  const listRow = { _id: id, short_id: "ct-77", title: "t", status: "open", priority: "high", created_at: 1, updated_at: 1, creator: { name: "a" }, plan: null };
+  const listRow = {
+    _id: id,
+    short_id: "ct-77",
+    title: "t",
+    status: "open",
+    priority: "high",
+    created_at: 1,
+    updated_at: 1,
+    creator: { name: "a" },
+    plan: null,
+  };
   const detailRow = {
     ...listRow,
     comments: [{ _id: "c1", created_at: 2, content: "hi" }],
@@ -1646,7 +1916,11 @@ describe("preserveFields — task list deltas must not strip cached detail joins
   it("a list delta keeps every detail join and applies the fields it does carry", () => {
     const store = useInboxStore.getState();
     store.syncRecord("tasks", id, detailRow);
-    store.syncTable("tasks", [{ ...listRow, title: "renamed", updated_at: 5, creator: { name: "b" } }], { isDelta: true });
+    store.syncTable(
+      "tasks",
+      [{ ...listRow, title: "renamed", updated_at: 5, creator: { name: "b" } }],
+      { isDelta: true },
+    );
     const after = (useInboxStore.getState().tasks as any)[id];
     expect(after.title).toBe("renamed");
     expect(after.creator).toEqual({ name: "b" }); // list-authoritative
@@ -1661,7 +1935,11 @@ describe("preserveFields — task list deltas must not strip cached detail joins
   it("a fresh detail push still replaces the joins", () => {
     const store = useInboxStore.getState();
     store.syncRecord("tasks", id, detailRow);
-    store.syncRecord("tasks", id, { ...detailRow, linked_conversations: [], comments: [] });
+    store.syncRecord("tasks", id, {
+      ...detailRow,
+      linked_conversations: [],
+      comments: [],
+    });
     const after = (useInboxStore.getState().tasks as any)[id];
     expect(after.linked_conversations).toEqual([]);
     expect(after.comments).toBeUndefined();
@@ -1713,7 +1991,9 @@ describe("dismiss is absolute — navigation/injection must not resurrect", () =
     const s = useInboxStore.getState();
     expect(isSessionDismissed(s.sessions[dismissed._id])).toBe(true);
     expect(s.sessions[dismissed._id].inbox_dismissed_at).toBe(100);
-    expect((s.conversations[dismissed._id] as any).inbox_dismissed_at).toBe(100);
+    expect((s.conversations[dismissed._id] as any).inbox_dismissed_at).toBe(
+      100,
+    );
   });
 
   it("navigateToSession routes a dismissed target through viewingDismissedId, not currentSessionId", () => {
@@ -1787,13 +2067,19 @@ describe("dismiss is absolute — navigation/injection must not resurrect", () =
     });
 
     useInboxStore.getState().killSession(realId);
-    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(true);
+    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(
+      true,
+    );
 
     useInboxStore.getState().navigateToSession(realId);
-    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(true);
+    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(
+      true,
+    );
 
     useInboxStore.getState().restoreSession(realId);
-    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(false);
+    expect(isSessionDismissed(useInboxStore.getState().sessions[realId])).toBe(
+      false,
+    );
   });
 
   it("stash then navigate then restore — stash survives the round trip", () => {
@@ -1818,11 +2104,15 @@ describe("dismiss is absolute — navigation/injection must not resurrect", () =
 
     // Navigation peeks (viewingDismissedId), never clears the flag.
     useInboxStore.getState().navigateToSession(realId);
-    expect(isSessionStashed(useInboxStore.getState().sessions[realId])).toBe(true);
+    expect(isSessionStashed(useInboxStore.getState().sessions[realId])).toBe(
+      true,
+    );
     expect(useInboxStore.getState().viewingDismissedId).toBe(realId);
 
     useInboxStore.getState().restoreSession(realId);
-    expect(isSessionStashed(useInboxStore.getState().sessions[realId])).toBe(false);
+    expect(isSessionStashed(useInboxStore.getState().sessions[realId])).toBe(
+      false,
+    );
   });
 
   it("dismissing a stashed session moves it to Dismissed (buckets exclusive)", () => {
@@ -1850,7 +2140,11 @@ describe("dismiss is absolute — navigation/injection must not resurrect", () =
 
   it("stashed sessions leave the active buckets into `stashed`", () => {
     const realId = "f".repeat(32);
-    const sess = { ...alive, _id: realId, inbox_stashed_at: Date.now() } as InboxSession;
+    const sess = {
+      ...alive,
+      _id: realId,
+      inbox_stashed_at: Date.now(),
+    } as InboxSession;
     const buckets = placeSections({ [realId]: sess }, new Set());
     expect(buckets.sorted).toHaveLength(0);
     expect(buckets.stashed.map((x) => x._id)).toEqual([realId]);
@@ -1882,20 +2176,36 @@ describe("kill/stash cascade takes the whole nested group", () => {
 
   beforeEach(() => {
     const rows = {
-      [LEAD]: mk(LEAD, { agent_team_name: "session-team", agent_name: "team-lead" }),
-      [TASK_SUB]: mk(TASK_SUB, { is_subagent: true, parent_conversation_id: LEAD }),
-      [TEAMMATE]: mk(TEAMMATE, { spawned_by_conversation_id: LEAD, agent_team_name: "session-team", agent_name: "review-worker" }),
+      [LEAD]: mk(LEAD, {
+        agent_team_name: "session-team",
+        agent_name: "team-lead",
+      }),
+      [TASK_SUB]: mk(TASK_SUB, {
+        is_subagent: true,
+        parent_conversation_id: LEAD,
+      }),
+      [TEAMMATE]: mk(TEAMMATE, {
+        spawned_by_conversation_id: LEAD,
+        agent_team_name: "session-team",
+        agent_name: "review-worker",
+      }),
       // cast-spawn lineage: spawned_by WITHOUT a team name stays first-class
       // (nestParentIdOf's agent_team_name gate) — the cascade must not take it.
       // The web list folds it under the lead for display only
       // (inboxStore.isSpawnedWorker); kills keep the shared rule.
       [SPAWN_NO_TEAM]: mk(SPAWN_NO_TEAM, { spawned_by_conversation_id: LEAD }),
-      [SPAWN_TEAM_LEAD]: mk(SPAWN_TEAM_LEAD, { spawned_by_conversation_id: LEAD, agent_team_name: "own-team", agent_name: "team-lead" }),
+      [SPAWN_TEAM_LEAD]: mk(SPAWN_TEAM_LEAD, {
+        spawned_by_conversation_id: LEAD,
+        agent_team_name: "own-team",
+        agent_name: "team-lead",
+      }),
       [FORK]: mk(FORK, { forked_from: LEAD }),
     };
     useInboxStore.setState({
       sessions: rows,
-      conversations: Object.fromEntries(Object.keys(rows).map((id) => [id, { _id: id } as any])),
+      conversations: Object.fromEntries(
+        Object.keys(rows).map((id) => [id, { _id: id } as any]),
+      ),
       currentSessionId: null,
       viewingDismissedId: null,
       clientState: {},
@@ -1907,14 +2217,30 @@ describe("kill/stash cascade takes the whole nested group", () => {
     const rows = useInboxStore.getState().sessions;
     const buckets = placeSections({
       ...rows,
-      [LEAD]: { ...rows[LEAD], agent_status: "working", is_idle: false, agent_status_updated_at: Date.now() },
-      [SPAWN_TEAM_LEAD]: { ...rows[SPAWN_TEAM_LEAD], status: "completed", agent_status: "done" },
-      [TEAMMATE]: { ...rows[TEAMMATE], spawned_by_conversation_id: SPAWN_TEAM_LEAD },
+      [LEAD]: {
+        ...rows[LEAD],
+        agent_status: "working",
+        is_idle: false,
+        agent_status_updated_at: Date.now(),
+      },
+      [SPAWN_TEAM_LEAD]: {
+        ...rows[SPAWN_TEAM_LEAD],
+        status: "completed",
+        agent_status: "done",
+      },
+      [TEAMMATE]: {
+        ...rows[TEAMMATE],
+        spawned_by_conversation_id: SPAWN_TEAM_LEAD,
+      },
     });
     expect(buckets.working.map((row) => row._id)).toContain(LEAD);
     expect(buckets.done.map((row) => row._id)).toContain(SPAWN_TEAM_LEAD);
-    expect(buckets.subsByParent.get(SPAWN_TEAM_LEAD)?.map((row) => row._id)).toContain(TEAMMATE);
-    expect(buckets.subsByParent.get(LEAD)?.map((row) => row._id) ?? []).not.toContain(SPAWN_TEAM_LEAD);
+    expect(
+      buckets.subsByParent.get(SPAWN_TEAM_LEAD)?.map((row) => row._id),
+    ).toContain(TEAMMATE);
+    expect(
+      buckets.subsByParent.get(LEAD)?.map((row) => row._id) ?? [],
+    ).not.toContain(SPAWN_TEAM_LEAD);
   });
 
   it("killing a lead dismisses its Task subagents AND its teammates", () => {
@@ -1946,7 +2272,11 @@ describe("kill/stash cascade takes the whole nested group", () => {
     expect(s.sessions[TASK_SUB].inbox_stashed_at ?? null).toBeNull();
     expect(isSessionStashed(s.sessions[TEAMMATE])).toBe(true);
     const stashed = placeSections(s.sessions, new Set()).stashed;
-    expect(hiddenBucketTree(stashed).subsByTop.get(LEAD)?.map((x) => x._id)).toContain(TASK_SUB);
+    expect(
+      hiddenBucketTree(stashed)
+        .subsByTop.get(LEAD)
+        ?.map((x) => x._id),
+    ).toContain(TASK_SUB);
 
     // Restoring the lead brings the subagent back under it: nothing to un-stamp.
     useInboxStore.getState().restoreSession(LEAD);
@@ -1964,21 +2294,31 @@ describe("kill/stash cascade takes the whole nested group", () => {
     const SELF = "f".repeat(32);
     useInboxStore.setState({
       sessions: {
-        [SELF]: mk(SELF, { spawned_by_conversation_id: SELF, agent_team_name: "session-team" }),
+        [SELF]: mk(SELF, {
+          spawned_by_conversation_id: SELF,
+          agent_team_name: "session-team",
+        }),
       },
       conversations: { [SELF]: { _id: SELF } as any },
     });
     useInboxStore.getState().killSession(SELF);
-    expect(isSessionDismissed(useInboxStore.getState().sessions[SELF])).toBe(true);
+    expect(isSessionDismissed(useInboxStore.getState().sessions[SELF])).toBe(
+      true,
+    );
   });
 });
 
 describe("NEW hold: the first send into a blank session", () => {
   beforeEach(() => {
-    useInboxStore.setState({ messages: {}, pendingMessages: {}, newSessionHolds: {}, sessions: {
-      blank: { ...baseSession, _id: "blank", message_count: 0 },
-      busy: { ...baseSession, _id: "busy", message_count: 4 },
-    } });
+    useInboxStore.setState({
+      messages: {},
+      pendingMessages: {},
+      newSessionHolds: {},
+      sessions: {
+        blank: { ...baseSession, _id: "blank", message_count: 0 },
+        busy: { ...baseSession, _id: "busy", message_count: 4 },
+      },
+    });
   });
 
   it("stamps a hold on the first send only, and never persists it", () => {
@@ -1993,9 +2333,13 @@ describe("NEW hold: the first send into a blank session", () => {
   });
 
   it("an expired hold releases on the sweep", () => {
-    useInboxStore.setState({ newSessionHolds: { gone: Date.now() - 1, live: Date.now() + 10_000 } });
+    useInboxStore.setState({
+      newSessionHolds: { gone: Date.now() - 1, live: Date.now() + 10_000 },
+    });
     releaseExpiredNewSessionHolds();
-    expect(Object.keys(useInboxStore.getState().newSessionHolds)).toEqual(["live"]);
+    expect(Object.keys(useInboxStore.getState().newSessionHolds)).toEqual([
+      "live",
+    ]);
   });
 });
 
@@ -2007,11 +2351,17 @@ describe("pending user messages must never be lost on reload", () => {
   // pendingMessages, and pendingMessages is a persisted key.
 
   beforeEach(() => {
-    useInboxStore.setState({ messages: {}, pendingMessages: {}, pagination: {} });
+    useInboxStore.setState({
+      messages: {},
+      pendingMessages: {},
+      pagination: {},
+    });
   });
 
   it("addOptimisticMessage lands the message in the persisted pendingMessages map", () => {
-    const clientId = useInboxStore.getState().addOptimisticMessage("c1", "hello world");
+    const clientId = useInboxStore
+      .getState()
+      .addOptimisticMessage("c1", "hello world");
 
     const pending = useInboxStore.getState().pendingMessages.c1;
     expect(pending).toHaveLength(1);
@@ -2057,13 +2407,21 @@ describe("pending user messages must never be lost on reload", () => {
     const clientId = store.addOptimisticMessage("c1", "delivered");
 
     // Unrelated server message arrives — the pending message must survive.
-    store.setMessages("c1", [{ _id: "s1", role: "assistant", content: "hi", timestamp: 1 } as any]);
+    store.setMessages("c1", [
+      { _id: "s1", role: "assistant", content: "hi", timestamp: 1 } as any,
+    ]);
     expect(useInboxStore.getState().pendingMessages.c1).toHaveLength(1);
 
     // The server echoes the user message back with the matching client_id.
     store.setMessages("c1", [
       { _id: "s1", role: "assistant", content: "hi", timestamp: 1 } as any,
-      { _id: "s2", role: "user", content: "delivered", client_id: clientId, timestamp: 2 } as any,
+      {
+        _id: "s2",
+        role: "user",
+        content: "delivered",
+        client_id: clientId,
+        timestamp: 2,
+      } as any,
     ]);
     expect(useInboxStore.getState().pendingMessages.c1).toHaveLength(0);
   });
@@ -2080,19 +2438,31 @@ describe("pending user messages must never be lost on reload", () => {
     store.settleOptimisticMessage("c1", clientId);
     const settled = useInboxStore.getState().pendingMessages.c1;
     expect(settled).toHaveLength(1);
-    expect(settled[0]).toMatchObject({ content: "continue", _clientId: clientId, _isSettled: true });
+    expect(settled[0]).toMatchObject({
+      content: "continue",
+      _clientId: clientId,
+      _isSettled: true,
+    });
     expect(settled[0]._isOptimistic).toBeUndefined();
     expect(convHasPendingSend(settled)).toBe(false);
     expect(pendingRowsUnsettled(settled)).toBe(false);
 
     // Unrelated rows arriving do not retire it.
-    store.setMessages("c1", [{ _id: "s1", role: "assistant", content: "working", timestamp: 1 } as any]);
+    store.setMessages("c1", [
+      { _id: "s1", role: "assistant", content: "working", timestamp: 1 } as any,
+    ]);
     expect(useInboxStore.getState().pendingMessages.c1).toHaveLength(1);
 
     // The echo does.
     store.setMessages("c1", [
       { _id: "s1", role: "assistant", content: "working", timestamp: 1 } as any,
-      { _id: "s2", role: "user", content: "continue", client_id: clientId, timestamp: 2 } as any,
+      {
+        _id: "s2",
+        role: "user",
+        content: "continue",
+        client_id: clientId,
+        timestamp: 2,
+      } as any,
     ]);
     expect(useInboxStore.getState().pendingMessages.c1).toHaveLength(0);
   });
@@ -2105,7 +2475,10 @@ describe("pending user messages must never be lost on reload", () => {
 
     const pending = useInboxStore.getState().pendingMessages.c1;
     expect(pending).toHaveLength(1);
-    expect(pending[0].images?.[0]).toMatchObject({ preview_url: "blob:fake", uploading: true });
+    expect(pending[0].images?.[0]).toMatchObject({
+      preview_url: "blob:fake",
+      uploading: true,
+    });
     expect(pending[0].images?.[0].storage_id).toBeUndefined();
   });
 
@@ -2134,11 +2507,16 @@ describe("pending user messages must never be lost on reload", () => {
       { media_type: "image/png", preview_url: "blob:b", uploading: true },
     ]);
 
-    store.resolvePendingUploads("c1", a, [{ media_type: "image/png", storage_id: "kg_a" }]);
+    store.resolvePendingUploads("c1", a, [
+      { media_type: "image/png", storage_id: "kg_a" },
+    ]);
 
     const pending = useInboxStore.getState().pendingMessages.c1;
     expect(pending[0].images?.[0]).toMatchObject({ storage_id: "kg_a" });
-    expect(pending[1].images?.[0]).toMatchObject({ preview_url: "blob:b", uploading: true });
+    expect(pending[1].images?.[0]).toMatchObject({
+      preview_url: "blob:b",
+      uploading: true,
+    });
   });
 });
 
@@ -2150,7 +2528,11 @@ describe("pending user messages must never be lost on reload", () => {
 // the real syncTable("sessions", ...) path end-to-end.
 describe("syncTable sessions — status flip without updated_at bump", () => {
   beforeEach(() => {
-    useInboxStore.setState({ sessions: {}, conversations: {}, pending: {} } as any);
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      pending: {},
+    } as any);
   });
 
   it("moves a session from Working to Needs You when only the status changes", () => {
@@ -2161,9 +2543,14 @@ describe("syncTable sessions — status flip without updated_at bump", () => {
     // change with no message written / no updated_at bump.
     const recentTs = Date.now();
     const working = {
-      ...baseSession, _id: "conv-flip", session_id: "sess-flip",
-      message_count: 5, agent_status: "working" as const, is_idle: false,
-      has_pending: false, updated_at: recentTs,
+      ...baseSession,
+      _id: "conv-flip",
+      session_id: "sess-flip",
+      message_count: 5,
+      agent_status: "working" as const,
+      is_idle: false,
+      has_pending: false,
+      updated_at: recentTs,
     };
     store.syncTable("sessions", [working]);
     let cat = placeSections(useInboxStore.getState().sessions, new Set());
@@ -2171,9 +2558,14 @@ describe("syncTable sessions — status flip without updated_at bump", () => {
 
     // Agent finished its turn: server recomputes idle/stopped, but writes no new
     // message, so updated_at is UNCHANGED.
-    store.syncTable("sessions", [{
-      ...working, agent_status: "idle" as const, is_idle: true, updated_at: recentTs,
-    }]);
+    store.syncTable("sessions", [
+      {
+        ...working,
+        agent_status: "idle" as const,
+        is_idle: true,
+        updated_at: recentTs,
+      },
+    ]);
     cat = placeSections(useInboxStore.getState().sessions, new Set());
     expect(cat.needsInput.map((s) => s._id)).toContain("conv-flip");
     expect(cat.working.map((s) => s._id)).not.toContain("conv-flip");
@@ -2182,9 +2574,14 @@ describe("syncTable sessions — status flip without updated_at bump", () => {
   it("preserves the session object ref across a heartbeat-only resend", () => {
     const store = useInboxStore.getState();
     const s = {
-      ...baseSession, _id: "conv-stable", session_id: "sess-stable",
-      message_count: 5, agent_status: "working" as const, is_idle: false,
-      has_pending: false, updated_at: 2000,
+      ...baseSession,
+      _id: "conv-stable",
+      session_id: "sess-stable",
+      message_count: 5,
+      agent_status: "working" as const,
+      is_idle: false,
+      has_pending: false,
+      updated_at: 2000,
     };
     store.syncTable("sessions", [s]);
     const first = useInboxStore.getState().sessions["conv-stable"];
@@ -2198,36 +2595,72 @@ describe("syncTable sessions — status flip without updated_at bump", () => {
 
 describe("syncTable sessions — stale optimistic pending-send reconcile", () => {
   const optimistic = (content: string, ts = 1) => ({
-    _id: `opt_${ts}`, role: "user" as const, content, timestamp: ts, _isOptimistic: true as const, _clientId: `opt_${ts}`,
+    _id: `opt_${ts}`,
+    role: "user" as const,
+    content,
+    timestamp: ts,
+    _isOptimistic: true as const,
+    _clientId: `opt_${ts}`,
   });
 
   beforeEach(() => {
     useInboxStore.setState({
-      sessions: {}, conversations: {}, pending: {}, pendingMessages: {}, currentSessionId: null,
+      sessions: {},
+      conversations: {},
+      pending: {},
+      pendingMessages: {},
+      currentSessionId: null,
     } as any);
   });
 
   it("retains a settled control command without pinning the session working", () => {
     const store = useInboxStore.getState();
-    useInboxStore.setState({ pendingMessages: { "conv-model": [optimistic("/model")] } } as any);
+    useInboxStore.setState({
+      pendingMessages: { "conv-model": [optimistic("/model")] },
+    } as any);
     // The agent picked up the command → status active. /model never echoes back as
     // a user-message row, so this is the only path that can clear the phantom.
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-model", session_id: "sess-model",
-      message_count: 3, agent_status: "working" as const, is_idle: false, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-model"]).toMatchObject([{ content: "/model", _isSettled: true }]);
-    expect(sessionsWithPendingSend(useInboxStore.getState().pendingMessages, Date.now()).has("conv-model")).toBe(false);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-model",
+        session_id: "sess-model",
+        message_count: 3,
+        agent_status: "working" as const,
+        is_idle: false,
+        updated_at: 10,
+      },
+    ]);
+    expect(
+      useInboxStore.getState().pendingMessages["conv-model"],
+    ).toMatchObject([{ content: "/model", _isSettled: true }]);
+    expect(
+      sessionsWithPendingSend(
+        useInboxStore.getState().pendingMessages,
+        Date.now(),
+      ).has("conv-model"),
+    ).toBe(false);
   });
 
   it("retains unconfirmed input when the session stops", () => {
     const store = useInboxStore.getState();
-    useInboxStore.setState({ pendingMessages: { "conv-dead": [optimistic("hello")] } } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-dead", session_id: "sess-dead",
-      message_count: 3, agent_status: "stopped" as const, is_idle: true, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-dead"]).toMatchObject([{ content: "hello" }]);
+    useInboxStore.setState({
+      pendingMessages: { "conv-dead": [optimistic("hello")] },
+    } as any);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-dead",
+        session_id: "sess-dead",
+        message_count: 3,
+        agent_status: "stopped" as const,
+        is_idle: true,
+        updated_at: 10,
+      },
+    ]);
+    expect(useInboxStore.getState().pendingMessages["conv-dead"]).toMatchObject(
+      [{ content: "hello" }],
+    );
   });
 
   it("does NOT prune the focused conversation (setMessages owns it via echo)", () => {
@@ -2236,23 +2669,44 @@ describe("syncTable sessions — stale optimistic pending-send reconcile", () =>
       pendingMessages: { "conv-open": [optimistic("typing...")] },
       currentSessionId: "conv-open",
     } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-open", session_id: "sess-open",
-      message_count: 3, agent_status: "working" as const, is_idle: false, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-open"]?.length).toBe(1);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-open",
+        session_id: "sess-open",
+        message_count: 3,
+        agent_status: "working" as const,
+        is_idle: false,
+        updated_at: 10,
+      },
+    ]);
+    expect(useInboxStore.getState().pendingMessages["conv-open"]?.length).toBe(
+      1,
+    );
   });
 
   it("does NOT prune an in-flight send the server has queued (has_pending=true)", () => {
     const store = useInboxStore.getState();
-    useInboxStore.setState({ pendingMessages: { "conv-fresh": [optimistic("just sent")] } } as any);
+    useInboxStore.setState({
+      pendingMessages: { "conv-fresh": [optimistic("just sent")] },
+    } as any);
     // The server accepted the send into its durable queue (has_pending true) but the
     // daemon hasn't picked it up yet (idle) — the optimistic must survive.
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-fresh", session_id: "sess-fresh",
-      message_count: 3, agent_status: "idle" as const, is_idle: true, has_pending: true, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-fresh"]?.length).toBe(1);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-fresh",
+        session_id: "sess-fresh",
+        message_count: 3,
+        agent_status: "idle" as const,
+        is_idle: true,
+        has_pending: true,
+        updated_at: 10,
+      },
+    ]);
+    expect(useInboxStore.getState().pendingMessages["conv-fresh"]?.length).toBe(
+      1,
+    );
   });
 
   it("prunes a leftover optimistic on an idle session with nothing queued (the /model & late-delivery case)", () => {
@@ -2262,24 +2716,46 @@ describe("syncTable sessions — stale optimistic pending-send reconcile", () =>
     // is the server-authoritative "this is stale" signal — must prune even without an
     // active/stopped status.
     const store = useInboxStore.getState();
-    useInboxStore.setState({ pendingMessages: { "conv-leftover": [optimistic("/model")] } } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-leftover", session_id: "sess-leftover",
-      message_count: 50, is_idle: true, has_pending: false, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-leftover"]).toMatchObject([{ content: "/model", _isSettled: true }]);
+    useInboxStore.setState({
+      pendingMessages: { "conv-leftover": [optimistic("/model")] },
+    } as any);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-leftover",
+        session_id: "sess-leftover",
+        message_count: 50,
+        is_idle: true,
+        has_pending: false,
+        updated_at: 10,
+      },
+    ]);
+    expect(
+      useInboxStore.getState().pendingMessages["conv-leftover"],
+    ).toMatchObject([{ content: "/model", _isSettled: true }]);
   });
 
   it("keeps a FAILED send so the user can retry, even after the agent goes active", () => {
     const store = useInboxStore.getState();
     useInboxStore.setState({
-      pendingMessages: { "conv-failed": [{ ...optimistic("oops"), _isFailed: true as const }] },
+      pendingMessages: {
+        "conv-failed": [{ ...optimistic("oops"), _isFailed: true as const }],
+      },
     } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-failed", session_id: "sess-failed",
-      message_count: 3, agent_status: "working" as const, is_idle: false, updated_at: 10,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-failed"]?.length).toBe(1);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-failed",
+        session_id: "sess-failed",
+        message_count: 3,
+        agent_status: "working" as const,
+        is_idle: false,
+        updated_at: 10,
+      },
+    ]);
+    expect(
+      useInboxStore.getState().pendingMessages["conv-failed"]?.length,
+    ).toBe(1);
   });
 
   it("does NOT prune on a STALE pre-send snapshot (the flicker regression)", () => {
@@ -2291,13 +2767,27 @@ describe("syncTable sessions — stale optimistic pending-send reconcile", () =>
     // keep it: the server has NOT advanced past the send, so nothing is consumed.
     const store = useInboxStore.getState();
     useInboxStore.setState({
-      pendingMessages: { "conv-flicker": [{ ...optimistic("just sent", 101), _sentBaselineTs: 100 }] },
+      pendingMessages: {
+        "conv-flicker": [
+          { ...optimistic("just sent", 101), _sentBaselineTs: 100 },
+        ],
+      },
     } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-flicker", session_id: "sess-flicker",
-      message_count: 5, agent_status: "idle" as const, is_idle: true, has_pending: false, updated_at: 100,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-flicker"]?.length).toBe(1);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-flicker",
+        session_id: "sess-flicker",
+        message_count: 5,
+        agent_status: "idle" as const,
+        is_idle: true,
+        has_pending: false,
+        updated_at: 100,
+      },
+    ]);
+    expect(
+      useInboxStore.getState().pendingMessages["conv-flicker"]?.length,
+    ).toBe(1);
   });
 
   it("prunes once the server advances PAST the send (idle, nothing queued)", () => {
@@ -2306,68 +2796,134 @@ describe("syncTable sessions — stale optimistic pending-send reconcile", () =>
     // answered, or a never-echoing /model). Now it's genuinely stale → prune.
     const store = useInboxStore.getState();
     useInboxStore.setState({
-      pendingMessages: { "conv-advanced": [{ ...optimistic("/model", 101), _sentBaselineTs: 100 }] },
+      pendingMessages: {
+        "conv-advanced": [
+          { ...optimistic("/model", 101), _sentBaselineTs: 100 },
+        ],
+      },
     } as any);
-    store.syncTable("sessions", [{
-      ...baseSession, _id: "conv-advanced", session_id: "sess-advanced",
-      message_count: 5, is_idle: true, has_pending: false, updated_at: 200,
-    }]);
-    expect(useInboxStore.getState().pendingMessages["conv-advanced"]).toMatchObject([{ content: "/model", _isSettled: true }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "conv-advanced",
+        session_id: "sess-advanced",
+        message_count: 5,
+        is_idle: true,
+        has_pending: false,
+        updated_at: 200,
+      },
+    ]);
+    expect(
+      useInboxStore.getState().pendingMessages["conv-advanced"],
+    ).toMatchObject([{ content: "/model", _isSettled: true }]);
   });
 });
 
 describe("pendingSendConsumed — server-advanced gate", () => {
-  const idleNoPending = { agent_status: "idle" as const, is_idle: true, has_pending: false };
+  const idleNoPending = {
+    agent_status: "idle" as const,
+    is_idle: true,
+    has_pending: false,
+  };
 
   it("never consumes via absence before the server advances past the send", () => {
     // updated_at == baseline → stale pre-send snapshot → not consumed.
-    expect(pendingSendConsumed({ ...idleNoPending, updated_at: 100 }, 100)).toBe(false);
+    expect(
+      pendingSendConsumed({ ...idleNoPending, updated_at: 100 }, 100),
+    ).toBe(false);
     // updated_at < baseline → even staler → not consumed.
-    expect(pendingSendConsumed({ ...idleNoPending, updated_at: 50 }, 100)).toBe(false);
+    expect(pendingSendConsumed({ ...idleNoPending, updated_at: 50 }, 100)).toBe(
+      false,
+    );
   });
 
   it("consumes via absence once updated_at moves past the baseline", () => {
-    expect(pendingSendConsumed({ ...idleNoPending, updated_at: 101 }, 100)).toBe(true);
+    expect(
+      pendingSendConsumed({ ...idleNoPending, updated_at: 101 }, 100),
+    ).toBe(true);
   });
 
   it("an ACTIVE status must advance past the send baseline", () => {
     // The daemon is provably acting — a positive signal, not absence.
-    expect(pendingSendConsumed(
-      { agent_status: "working", is_idle: false, has_pending: false, updated_at: 1 }, 100,
-    )).toBe(false);
+    expect(
+      pendingSendConsumed(
+        {
+          agent_status: "working",
+          is_idle: false,
+          has_pending: false,
+          updated_at: 1,
+        },
+        100,
+      ),
+    ).toBe(false);
   });
 
   it("a fresh has_pending send is never consumed even after the server advances", () => {
-    expect(pendingSendConsumed(
-      { agent_status: "idle", is_idle: true, has_pending: true, updated_at: 200 }, 100,
-    )).toBe(false);
+    expect(
+      pendingSendConsumed(
+        {
+          agent_status: "idle",
+          is_idle: true,
+          has_pending: true,
+          updated_at: 200,
+        },
+        100,
+      ),
+    ).toBe(false);
   });
 });
 
 describe("reconcilePendingSendForSession — prune grace window", () => {
   // ACTIVE status → pendingSendConsumed is true immediately; only the grace
   // window stands between a just-dispatched send and the prune.
-  const consumedSession = { agent_status: "working", is_idle: false, has_pending: false, updated_at: 999_999 } as any;
+  const consumedSession = {
+    agent_status: "working",
+    is_idle: false,
+    has_pending: false,
+    updated_at: 999_999,
+  } as any;
   const msg = (over: Record<string, unknown>) =>
-    ({ _id: "m1", _clientId: "m1", role: "user", content: "hi", _isOptimistic: true, ...over }) as any;
+    ({
+      _id: "m1",
+      _clientId: "m1",
+      role: "user",
+      content: "hi",
+      _isOptimistic: true,
+      ...over,
+    }) as any;
 
   it("keeps a just-sent message even when the session already reads consumed", () => {
     // The dispatch retry ladder hasn't had time to fail (and mark _isFailed);
     // pruning now would destroy the only copy of the user's text.
     const pm: Record<string, any[]> = { c1: [msg({ timestamp: Date.now() })] };
-    expect(reconcilePendingSendForSession(pm, "c1", consumedSession, null)).toBe(false);
+    expect(
+      reconcilePendingSendForSession(pm, "c1", consumedSession, null),
+    ).toBe(false);
     expect(pm.c1.length).toBe(1);
   });
 
   it("retains an unconfirmed send past the grace window", () => {
-    const pm: Record<string, any[]> = { c1: [msg({ timestamp: Date.now() - PENDING_SEND_PRUNE_GRACE_MS - 1 })] };
-    expect(reconcilePendingSendForSession(pm, "c1", consumedSession, null)).toBe(false);
+    const pm: Record<string, any[]> = {
+      c1: [msg({ timestamp: Date.now() - PENDING_SEND_PRUNE_GRACE_MS - 1 })],
+    };
+    expect(
+      reconcilePendingSendForSession(pm, "c1", consumedSession, null),
+    ).toBe(false);
     expect(pm.c1).toHaveLength(1);
   });
 
   it("keeps failed sends forever (the user may retry them)", () => {
-    const pm: Record<string, any[]> = { c1: [msg({ timestamp: Date.now() - PENDING_SEND_PRUNE_GRACE_MS - 1, _isFailed: true })] };
-    expect(reconcilePendingSendForSession(pm, "c1", consumedSession, null)).toBe(false);
+    const pm: Record<string, any[]> = {
+      c1: [
+        msg({
+          timestamp: Date.now() - PENDING_SEND_PRUNE_GRACE_MS - 1,
+          _isFailed: true,
+        }),
+      ],
+    };
+    expect(
+      reconcilePendingSendForSession(pm, "c1", consumedSession, null),
+    ).toBe(false);
     expect(pm.c1.length).toBe(1);
   });
 });
@@ -2376,19 +2932,66 @@ describe("reconcilePendingSendForSession: an approval's answer in a hosted conve
   // The hosted turn consumes the answer and never writes it to the
   // transcript, so no echo will retire its bubble.
   const answer = () =>
-    ({ _id: "a1", _clientId: "a1", role: "user", content: 'Decision: Approve\n<cast-decision id="d1" question="Send it?"/>', timestamp: Date.now(), _isOptimistic: true, _sentBaselineTs: 100 }) as any;
-  const hosted = (over: Record<string, unknown>) => ({ agent_type: "codecast", agent_status: "idle", is_idle: false, has_pending: false, updated_at: 100, ...over }) as any;
+    ({
+      _id: "a1",
+      _clientId: "a1",
+      role: "user",
+      content:
+        'Decision: Approve\n<cast-decision id="d1" question="Send it?"/>',
+      timestamp: Date.now(),
+      _isOptimistic: true,
+      _sentBaselineTs: 100,
+    }) as any;
+  const hosted = (over: Record<string, unknown>) =>
+    ({
+      agent_type: "codecast",
+      agent_status: "idle",
+      is_idle: false,
+      has_pending: false,
+      updated_at: 100,
+      ...over,
+    }) as any;
 
   // The decision the answer names, as the server has acknowledged it: no
   // local lock on its status, and no longer pending.
-  const taken = { sessionDecisions: { d1: { status: "answered" } }, pending: {} };
+  const taken = {
+    sessionDecisions: { d1: { status: "answered" } },
+    pending: {},
+  };
 
   it("settles once the row moves past the stamp it was sent at and the server holds the answer", () => {
     const pm: Record<string, any[]> = { c1: [answer()] };
-    expect(reconcilePendingSendForSession(pm, "c1", hosted({ updated_at: 100 }), null, undefined, taken)).toBe(false);
-    expect(reconcilePendingSendForSession(pm, "c1", hosted({ updated_at: 200, has_pending: true }), null, undefined, taken)).toBe(false);
+    expect(
+      reconcilePendingSendForSession(
+        pm,
+        "c1",
+        hosted({ updated_at: 100 }),
+        null,
+        undefined,
+        taken,
+      ),
+    ).toBe(false);
+    expect(
+      reconcilePendingSendForSession(
+        pm,
+        "c1",
+        hosted({ updated_at: 200, has_pending: true }),
+        null,
+        undefined,
+        taken,
+      ),
+    ).toBe(false);
     expect(convHasPendingSend(pm.c1)).toBe(true);
-    expect(reconcilePendingSendForSession(pm, "c1", hosted({ updated_at: 200 }), null, undefined, taken)).toBe(true);
+    expect(
+      reconcilePendingSendForSession(
+        pm,
+        "c1",
+        hosted({ updated_at: 200 }),
+        null,
+        undefined,
+        taken,
+      ),
+    ).toBe(true);
     expect(pm.c1[0]._isSettled).toBe(true);
     expect(convHasPendingSend(pm.c1)).toBe(false);
   });
@@ -2397,51 +3000,120 @@ describe("reconcilePendingSendForSession: an approval's answer in a hosted conve
     // A title or summary write moves the row while the answer waits in the
     // outbox: the decision's status is still under its local lock.
     const moved = hosted({ updated_at: 200 });
-    const locked = { sessionDecisions: { d1: { status: "answered" } }, pending: { "sessionDecisions:d1:status": { type: "field", value: "answered", ts: 150 } } };
+    const locked = {
+      sessionDecisions: { d1: { status: "answered" } },
+      pending: {
+        "sessionDecisions:d1:status": {
+          type: "field",
+          value: "answered",
+          ts: 150,
+        },
+      },
+    };
     const pm: Record<string, any[]> = { c1: [answer()] };
-    expect(reconcilePendingSendForSession(pm, "c1", moved, null, undefined, locked)).toBe(false);
-    expect(reconcilePendingSendForSession(pm, "c1", moved, null, undefined, { sessionDecisions: { d1: { status: "pending" } }, pending: {} })).toBe(false);
+    expect(
+      reconcilePendingSendForSession(pm, "c1", moved, null, undefined, locked),
+    ).toBe(false);
+    expect(
+      reconcilePendingSendForSession(pm, "c1", moved, null, undefined, {
+        sessionDecisions: { d1: { status: "pending" } },
+        pending: {},
+      }),
+    ).toBe(false);
     expect(reconcilePendingSendForSession(pm, "c1", moved, null)).toBe(false);
     expect(pm.c1[0]._isSettled).toBeUndefined();
   });
 
   it("locks the decision's status under the key the settle reads", () => {
     useInboxStore.setState({
-      sessionDecisions: { d1: { _id: "d1", conversation_id: "c1", session_id: "s", question: "Send it?", options: [{ label: "Approve" }], blocking: true, status: "pending" } } as any,
+      sessionDecisions: {
+        d1: {
+          _id: "d1",
+          conversation_id: "c1",
+          session_id: "s",
+          question: "Send it?",
+          options: [{ label: "Approve" }],
+          blocking: true,
+          status: "pending",
+        },
+      } as any,
       pending: {},
     } as any);
     useInboxStore.getState().answerDecision("d1", { index: 0 });
-    expect((useInboxStore.getState().pending as any)["sessionDecisions:d1:status"]?.type).toBe("field");
-    useInboxStore.setState({ sessionDecisions: {}, pending: {}, pendingMessages: {} } as any);
+    expect(
+      (useInboxStore.getState().pending as any)["sessionDecisions:d1:status"]
+        ?.type,
+    ).toBe("field");
+    useInboxStore.setState({
+      sessionDecisions: {},
+      pending: {},
+      pendingMessages: {},
+    } as any);
   });
 
   it("settles on the liveness overlay, which is all a finished conversation may still get", () => {
     useInboxStore.setState({
-      sessions: { c1: { _id: "c1", agent_type: "codecast", agent_status: "working", has_pending: false, updated_at: 100 } } as any,
+      sessions: {
+        c1: {
+          _id: "c1",
+          agent_type: "codecast",
+          agent_status: "working",
+          has_pending: false,
+          updated_at: 100,
+        },
+      } as any,
       sessionDecisions: { d1: { _id: "d1", status: "answered" } } as any,
       pending: {},
       pendingMessages: { c1: [answer()] } as any,
     } as any);
-    useInboxStore.getState().syncOverlay("sessions", { c1: { updated_at: 200, agent_status: "done" } });
-    expect(useInboxStore.getState().pendingMessages.c1[0]._isSettled).toBe(true);
-    useInboxStore.setState({ sessions: {}, pendingMessages: {}, sessionDecisions: {} } as any);
+    useInboxStore.getState().syncOverlay("sessions", {
+      c1: { updated_at: 200, agent_status: "done" },
+    });
+    expect(useInboxStore.getState().pendingMessages.c1[0]._isSettled).toBe(
+      true,
+    );
+    useInboxStore.setState({
+      sessions: {},
+      pendingMessages: {},
+      sessionDecisions: {},
+    } as any);
   });
 
   it("a failed answer sent again reads as on its way, then settles like any other", () => {
-    useInboxStore.setState({ pendingMessages: { c1: [{ ...answer(), _isOptimistic: undefined, _isFailed: true }] } } as any);
+    useInboxStore.setState({
+      pendingMessages: {
+        c1: [{ ...answer(), _isOptimistic: undefined, _isFailed: true }],
+      },
+    } as any);
     useInboxStore.getState().markOptimisticAsRetrying("c1", "a1");
     const row = useInboxStore.getState().pendingMessages.c1[0];
     expect(row._isFailed).toBeUndefined();
     expect(row._isOptimistic).toBe(true);
     const pm: Record<string, any[]> = { c1: [{ ...row }] };
-    expect(reconcilePendingSendForSession(pm, "c1", hosted({ updated_at: 200 }), null, undefined, taken)).toBe(true);
+    expect(
+      reconcilePendingSendForSession(
+        pm,
+        "c1",
+        hosted({ updated_at: 200 }),
+        null,
+        undefined,
+        taken,
+      ),
+    ).toBe(true);
     expect(pm.c1[0]._isSettled).toBe(true);
     useInboxStore.setState({ pendingMessages: {} } as any);
   });
 
   it("waits for its echo in a conversation whose agent writes one", () => {
     const pm: Record<string, any[]> = { c1: [answer()] };
-    expect(reconcilePendingSendForSession(pm, "c1", hosted({ agent_type: "claude_code", updated_at: 200 }), null)).toBe(false);
+    expect(
+      reconcilePendingSendForSession(
+        pm,
+        "c1",
+        hosted({ agent_type: "claude_code", updated_at: 200 }),
+        null,
+      ),
+    ).toBe(false);
     expect(pm.c1[0]._isSettled).toBeUndefined();
   });
 });
@@ -2476,21 +3148,29 @@ describe("session-view recording (MRU order + unread divider anchor)", () => {
   });
 
   it("MRU is exact: the session you just opened is strictly the most recent (no tie with the one you left)", () => {
-    clock = 1000; useInboxStore.getState().setCurrentSession("A");
-    clock = 2000; useInboxStore.getState().setCurrentSession("B");
-    clock = 3000; useInboxStore.getState().setCurrentSession("C");
+    clock = 1000;
+    useInboxStore.getState().setCurrentSession("A");
+    clock = 2000;
+    useInboxStore.getState().setCurrentSession("B");
+    clock = 3000;
+    useInboxStore.getState().setCurrentSession("C");
 
     const { _lastViewedAt } = useInboxStore.getState();
-    const order = ["A", "B", "C"].sort((a, b) => (_lastViewedAt[b] ?? 0) - (_lastViewedAt[a] ?? 0));
+    const order = ["A", "B", "C"].sort(
+      (a, b) => (_lastViewedAt[b] ?? 0) - (_lastViewedAt[a] ?? 0),
+    );
     expect(order).toEqual(["C", "B", "A"]);
     // The just-left session (B) must NOT share the current session's timestamp.
     expect(_lastViewedAt.B).toBeLessThan(_lastViewedAt.C);
   });
 
   it("freezes the divider anchor at where you left off, and holds it across the visit", () => {
-    clock = 1000; useInboxStore.getState().setCurrentSession("A"); // open A
-    clock = 2000; useInboxStore.getState().setCurrentSession("B"); // leave A at 2000
-    clock = 5000; useInboxStore.getState().setCurrentSession("A"); // come back to A
+    clock = 1000;
+    useInboxStore.getState().setCurrentSession("A"); // open A
+    clock = 2000;
+    useInboxStore.getState().setCurrentSession("B"); // leave A at 2000
+    clock = 5000;
+    useInboxStore.getState().setCurrentSession("A"); // come back to A
 
     // Anchor for A is the moment you left it last time — messages after t=2000 are "New".
     expect(useInboxStore.getState()._seenUpToAt.A).toBe(2000);
@@ -2499,10 +3179,14 @@ describe("session-view recording (MRU order + unread divider anchor)", () => {
   });
 
   it("re-opening the session you're already on advances MRU but never moves the divider", () => {
-    clock = 1000; useInboxStore.getState().setCurrentSession("A");
-    clock = 2000; useInboxStore.getState().setCurrentSession("B");
-    clock = 5000; useInboxStore.getState().setCurrentSession("A"); // anchor.A = 2000
-    clock = 6000; useInboxStore.getState().setCurrentSession("A"); // same session again
+    clock = 1000;
+    useInboxStore.getState().setCurrentSession("A");
+    clock = 2000;
+    useInboxStore.getState().setCurrentSession("B");
+    clock = 5000;
+    useInboxStore.getState().setCurrentSession("A"); // anchor.A = 2000
+    clock = 6000;
+    useInboxStore.getState().setCurrentSession("A"); // same session again
 
     expect(useInboxStore.getState()._seenUpToAt.A).toBe(2000); // divider unchanged
     expect(useInboxStore.getState()._lastViewedAt.A).toBe(6000); // MRU advanced
@@ -2515,8 +3199,10 @@ describe("session-view recording (MRU order + unread divider anchor)", () => {
         B: { ...baseSession, _id: "B" },
       },
     });
-    clock = 1000; useInboxStore.getState().navigateToSession("A");
-    clock = 2000; useInboxStore.getState().navigateToSession("B");
+    clock = 1000;
+    useInboxStore.getState().navigateToSession("A");
+    clock = 2000;
+    useInboxStore.getState().navigateToSession("B");
     const s = useInboxStore.getState();
     expect(s._lastViewedAt.A).toBe(1000);
     expect(s._lastViewedAt.B).toBe(2000);
@@ -2571,10 +3257,17 @@ describe("computeNewDividerIndex — unread band is (seenUpToAt, enteredAt]", ()
   it("never marks your own message as new, and moves past what it proves you read", () => {
     // Left at 2000; an agent row at 3000, your own message at 4000 (typed in the
     // terminal), then an agent reply at 4500. You had read through 4000.
-    const rows = [{ timestamp: 1000 }, { timestamp: 3000 }, { timestamp: 4000, own: true }, { timestamp: 4500 }];
+    const rows = [
+      { timestamp: 1000 },
+      { timestamp: 3000 },
+      { timestamp: 4000, own: true },
+      { timestamp: 4500 },
+    ];
     const isOwn = (r: { own?: boolean }) => !!r.own;
     expect(computeNewDividerIndex(rows, 2000, 5000, isOwn)).toBe(3);
-    expect(computeNewDividerIndex(rows.slice(0, 3), 2000, 5000, isOwn)).toBe(-1);
+    expect(computeNewDividerIndex(rows.slice(0, 3), 2000, 5000, isOwn)).toBe(
+      -1,
+    );
   });
 
   it("falls back to the open interval when entry time is unknown", () => {
@@ -2585,7 +3278,12 @@ describe("computeNewDividerIndex — unread band is (seenUpToAt, enteredAt]", ()
 
 describe("orchestration grouping", () => {
   const WT = "/Users/x/src/codecast/.codecast/worktrees/arch-hardening-top-six";
-  const PLAN = { _id: "pl1", short_id: "pl-85", title: "Architecture hardening", status: "done" };
+  const PLAN = {
+    _id: "pl1",
+    short_id: "pl-85",
+    title: "Architecture hardening",
+    status: "done",
+  };
   const mk = (id: string, over: Partial<InboxSession> = {}): InboxSession => ({
     ...baseSession,
     _id: id,
@@ -2597,18 +3295,38 @@ describe("orchestration grouping", () => {
   });
 
   it("worktreeKeyOf parses worktree paths and prefers explicit worktree_name", () => {
-    expect(worktreeKeyOf(mk("a", { project_path: WT }))).toBe("arch-hardening-top-six");
-    expect(worktreeKeyOf(mk("b", { git_root: "/Users/x/proj/.conductor/fix-auth" }))).toBe("fix-auth");
-    expect(worktreeKeyOf(mk("c", { worktree_name: "explicit", project_path: WT }))).toBe("explicit");
-    expect(worktreeKeyOf(mk("d", { project_path: "/Users/x/src/codecast" }))).toBeNull();
+    expect(worktreeKeyOf(mk("a", { project_path: WT }))).toBe(
+      "arch-hardening-top-six",
+    );
+    expect(
+      worktreeKeyOf(mk("b", { git_root: "/Users/x/proj/.conductor/fix-auth" })),
+    ).toBe("fix-auth");
+    expect(
+      worktreeKeyOf(mk("c", { worktree_name: "explicit", project_path: WT })),
+    ).toBe("explicit");
+    expect(
+      worktreeKeyOf(mk("d", { project_path: "/Users/x/src/codecast" })),
+    ).toBeNull();
   });
 
   it("orchestrationGroupLabelOf prefers the plan, then the worktree, else null", () => {
-    expect(orchestrationGroupLabelOf(mk("a", { active_plan: PLAN }))).toBe("pl-85 · Architecture hardening");
-    expect(orchestrationGroupLabelOf(mk("b", { project_path: WT }))).toBe("⑂ arch-hardening-top-six");
+    expect(orchestrationGroupLabelOf(mk("a", { active_plan: PLAN }))).toBe(
+      "pl-85 · Architecture hardening",
+    );
+    expect(orchestrationGroupLabelOf(mk("b", { project_path: WT }))).toBe(
+      "⑂ arch-hardening-top-six",
+    );
     // plan wins even when a worktree is also present
-    expect(orchestrationGroupLabelOf(mk("c", { active_plan: PLAN, project_path: WT }))).toBe("pl-85 · Architecture hardening");
-    expect(orchestrationGroupLabelOf(mk("d", { project_path: "/Users/x/src/codecast" }))).toBeNull();
+    expect(
+      orchestrationGroupLabelOf(
+        mk("c", { active_plan: PLAN, project_path: WT }),
+      ),
+    ).toBe("pl-85 · Architecture hardening");
+    expect(
+      orchestrationGroupLabelOf(
+        mk("d", { project_path: "/Users/x/src/codecast" }),
+      ),
+    ).toBeNull();
   });
 
   it("sessions sharing a plan stay in their status buckets — the status view never clusters by plan", () => {
@@ -2617,15 +3335,31 @@ describe("orchestration grouping", () => {
     // undercounting the sidebar's needs-input badge. Grouping by plan is now
     // exclusively the "By plan" view's job (groupSessionsByPlan).
     const sessions = {
-      a: mk("a", { active_plan: PLAN, project_path: "/Users/x/src/codecast", updated_at: Date.now() - 300 }),
-      b: mk("b", { active_plan: PLAN, project_path: "/Users/x/src/codecast", updated_at: Date.now() - 400 }),
+      a: mk("a", {
+        active_plan: PLAN,
+        project_path: "/Users/x/src/codecast",
+        updated_at: Date.now() - 300,
+      }),
+      b: mk("b", {
+        active_plan: PLAN,
+        project_path: "/Users/x/src/codecast",
+        updated_at: Date.now() - 400,
+      }),
       wt1: mk("wt1", { project_path: WT, updated_at: Date.now() - 300 }),
       wt2: mk("wt2", { project_path: WT, updated_at: Date.now() - 400 }),
-      main: mk("main", { project_path: "/Users/x/src/codecast", updated_at: Date.now() - 200 }),
+      main: mk("main", {
+        project_path: "/Users/x/src/codecast",
+        updated_at: Date.now() - 200,
+      }),
     };
     const r = placeSections(sessions, new Set());
-    const flat = new Set([...r.pinned, ...r.newSessions, ...r.needsInput, ...r.working].map((s) => s._id));
-    for (const id of ["a", "b", "wt1", "wt2", "main"]) expect(flat.has(id)).toBe(true);
+    const flat = new Set(
+      [...r.pinned, ...r.newSessions, ...r.needsInput, ...r.working].map(
+        (s) => s._id,
+      ),
+    );
+    for (const id of ["a", "b", "wt1", "wt2", "main"])
+      expect(flat.has(id)).toBe(true);
   });
 
   it("a plan-bound session nested under a conversation parent still nests, never a loose card", () => {
@@ -2668,7 +3402,9 @@ describe("isConvexId — the guard for message-id-keyed queries", () => {
   });
 
   it("rejects the serverpending_ queued-row prefix", () => {
-    expect(isConvexId("serverpending_jx7bymh2ctsex27p4ez7ekrvjh883gr4")).toBe(false);
+    expect(isConvexId("serverpending_jx7bymh2ctsex27p4ez7ekrvjh883gr4")).toBe(
+      false,
+    );
   });
 
   it("rejects commit-/pr- timeline ids and the empty string", () => {
@@ -2686,14 +3422,20 @@ describe("unionHydrate — cache as the floor (jx799py repro)", () => {
   it("backfills cached rows the live window omits; live wins per-id", () => {
     // IDB has the full set (N=5). The live payload is a recent-window subset (2).
     const idb = Object.fromEntries(
-      Array.from({ length: 5 }, (_, i) => [`t${i}`, { _id: `t${i}`, title: `idb-${i}` }]),
+      Array.from({ length: 5 }, (_, i) => [
+        `t${i}`,
+        { _id: `t${i}`, title: `idb-${i}` },
+      ]),
     );
     const liveWindow = {
       t0: { _id: "t0", title: "live-0" },
       t1: { _id: "t1", title: "live-1" },
     };
 
-    const merged = unionHydrate(idb, liveWindow) as Record<string, { _id: string; title: string }>;
+    const merged = unionHydrate(idb, liveWindow) as Record<
+      string,
+      { _id: string; title: string }
+    >;
 
     // Full set survives — NOT collapsed to the 2-row live window.
     expect(Object.keys(merged).length).toBe(5);
@@ -2715,9 +3457,14 @@ describe("unionHydrate — cache as the floor (jx799py repro)", () => {
 
   it("keeps the populated collection identity when the cache adds no rows", () => {
     const cached = { a: { _id: "a", title: "cached" } };
-    const live = { a: { _id: "a", title: "live" }, b: { _id: "b", title: "new" } };
+    const live = {
+      a: { _id: "a", title: "live" },
+      b: { _id: "b", title: "new" },
+    };
     expect(unionHydrate(cached, live)).toBe(live);
-    expect(unionHydrate({ a: undefined }, { a: undefined })).toEqual({ a: undefined });
+    expect(unionHydrate({ a: undefined }, { a: undefined })).toEqual({
+      a: undefined,
+    });
   });
 });
 
@@ -2775,7 +3522,9 @@ describe("inboxStore.beginOptimisticSession", () => {
     // The first message renders as pending BEFORE the server returns an id —
     // keyed under the stub (no session doc exists yet, exactly like the modal path).
     const clientId = store.addOptimisticMessage(stubId, "hello world");
-    expect(useInboxStore.getState().pendingMessages[stubId]?.[0]?.content).toBe("hello world");
+    expect(useInboxStore.getState().pendingMessages[stubId]?.[0]?.content).toBe(
+      "hello world",
+    );
 
     await ready;
 
@@ -2798,20 +3547,25 @@ describe("inboxStore.beginOptimisticSession", () => {
     const { stubId, ready } = store.beginOptimisticSession({
       agentType: "claude_code",
       projectPath: "/repo",
-      create: () => new Promise<string>((resolve) => { resolveCreate = resolve; }),
+      create: () =>
+        new Promise<string>((resolve) => {
+          resolveCreate = resolve;
+        }),
     });
     store.addOptimisticMessage(stubId, "hello world");
 
-    store.syncTable("sessions", [{
-      ...baseSession,
-      _id: REAL_ID,
-      session_id: stubId,
-      title: "New session",
-      project_path: "/repo",
-      message_count: 0,
-      is_idle: true,
-      has_pending: false,
-    }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: REAL_ID,
+        session_id: stubId,
+        title: "New session",
+        project_path: "/repo",
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+      },
+    ]);
 
     const state = useInboxStore.getState();
     expect(state.sessions[stubId]).toBeUndefined();
@@ -2848,7 +3602,9 @@ describe("inboxStore.beginOptimisticSession", () => {
       create: async () => REAL_ID,
     });
     const clientId = store.addOptimisticMessage(stubId, "keep me pending");
-    const parked = Promise.reject(new DispatchNotWiredError("createSession", true));
+    const parked = Promise.reject(
+      new DispatchNotWiredError("createSession", true),
+    );
     // Mirror beginOptimisticSession.fire(): the rejected create remains durable
     // in the outbox while the in-memory promise reports "pending, not failed".
     parked.catch(() => {});
@@ -2861,25 +3617,28 @@ describe("inboxStore.beginOptimisticSession", () => {
     // Let the rejected in-memory create settle before live sync supplies the
     // server row. The old path rethrew immediately and never observed this rekey.
     await new Promise((resolve) => setTimeout(resolve, 0));
-    store.syncTable("sessions", [{
-      ...baseSession,
-      _id: REAL_ID,
-      session_id: stubId,
-      project_path: "/repo",
-    }]);
+    store.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: REAL_ID,
+        session_id: stubId,
+        project_path: "/repo",
+      },
+    ]);
 
     expect(await outcome).toEqual({ id: REAL_ID, error: null });
-    const pending = useInboxStore.getState().pendingMessages[REAL_ID]?.[0] as any;
+    const pending = useInboxStore.getState().pendingMessages[
+      REAL_ID
+    ]?.[0] as any;
     expect(pending?._clientId).toBe(clientId);
     expect(pending?._isFailed).not.toBe(true);
   });
 
   it("classifies a bounded tracked-create timeout as durable pending work", async () => {
     const neverResolves = new Promise<string>(() => {});
-    const error = await awaitTrackedSessionCreateResult(
-      neverResolves,
-      1,
-    ).catch((caught) => caught);
+    const error = await awaitTrackedSessionCreateResult(neverResolves, 1).catch(
+      (caught) => caught,
+    );
 
     expect(error).toBeInstanceOf(SessionCreatePendingError);
     expect(error).toBeInstanceOf(DispatchNotWiredError);
@@ -2893,12 +3652,17 @@ describe("inboxStore.beginOptimisticSession", () => {
   describe("deferCreate", () => {
     it("seeds the stub locally but fires no create until materialize()", () => {
       let creates = 0;
-      const { stubId, materialize } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        deferCreate: true,
-        create: async () => { creates++; return REAL_ID; },
-      });
+      const { stubId, materialize } = useInboxStore
+        .getState()
+        .beginOptimisticSession({
+          agentType: "claude_code",
+          projectPath: "/repo",
+          deferCreate: true,
+          create: async () => {
+            creates++;
+            return REAL_ID;
+          },
+        });
       const state = useInboxStore.getState();
       // Local rows exist so the popup renders + can hold a draft...
       expect(state.conversations[stubId]?.title).toBe("New session");
@@ -2912,16 +3676,23 @@ describe("inboxStore.beginOptimisticSession", () => {
 
     it("materialize() fires the create exactly once and resolves the real id", async () => {
       let creates = 0;
-      const { stubId, materialize } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        deferCreate: true,
-        create: async () => { creates++; return REAL_ID; },
-      });
+      const { stubId, materialize } = useInboxStore
+        .getState()
+        .beginOptimisticSession({
+          agentType: "claude_code",
+          projectPath: "/repo",
+          deferCreate: true,
+          create: async () => {
+            creates++;
+            return REAL_ID;
+          },
+        });
       const p1 = materialize();
       // Tracked the instant materialize fires, so a concurrent send (awaitConvexId)
       // resolves against the in-flight create instead of polling.
-      expect(useInboxStore.getState().pendingSessionCreates[stubId]).toBeDefined();
+      expect(
+        useInboxStore.getState().pendingSessionCreates[stubId],
+      ).toBeDefined();
       const p2 = materialize(); // idempotent — typed-then-submit must not double-create
       expect(await p1).toBe(REAL_ID);
       expect(await p2).toBe(REAL_ID);
@@ -2935,8 +3706,15 @@ describe("inboxStore.beginOptimisticSession", () => {
     const captureCreate = (fn: () => void | Promise<void>) => {
       const orig = useInboxStore.getState().createSession;
       const calls: any[] = [];
-      useInboxStore.setState({ createSession: ((opts: any) => { calls.push(opts); return Promise.resolve(REAL_ID); }) as any });
-      const done = (async () => fn())().finally(() => useInboxStore.setState({ createSession: orig as any }));
+      useInboxStore.setState({
+        createSession: ((opts: any) => {
+          calls.push(opts);
+          return Promise.resolve(REAL_ID);
+        }) as any,
+      });
+      const done = (async () => fn())().finally(() =>
+        useInboxStore.setState({ createSession: orig as any }),
+      );
       return { calls, done };
     };
 
@@ -2954,31 +3732,73 @@ describe("inboxStore.beginOptimisticSession", () => {
         // EXACT production wiring (ComposeView / DashboardLayout): the deferred
         // create sources the project from the live stub via createSessionFromStub,
         // never the begin-time `path`.
-        create: (sid) => useInboxStore.getState().createSessionFromStub(sid, { agentType: "claude_code", projectPath: "/repo", gitRoot: "/repo" }),
+        create: (sid) =>
+          useInboxStore.getState().createSessionFromStub(sid, {
+            agentType: "claude_code",
+            projectPath: "/repo",
+            gitRoot: "/repo",
+          }),
       });
       store.updateSessionProject(stubId, "/other-repo");
       const { calls, done } = captureCreate(() => materialize());
       await done;
       expect(calls.length).toBe(1);
-      expect(calls[0]).toMatchObject({ project_path: "/other-repo", git_root: "/other-repo", session_id: stubId });
+      expect(calls[0]).toMatchObject({
+        project_path: "/other-repo",
+        git_root: "/other-repo",
+        session_id: stubId,
+      });
     });
 
     it("createSessionFromStub sources project + agent from the live stub row, not the fallback", async () => {
       useInboxStore.setState({
-        sessions: { stub1: { _id: "stub1", session_id: "stub1", project_path: "/switched", git_root: "/switched", agent_type: "codex", updated_at: 1, message_count: 0, is_idle: true, has_pending: false } as InboxSession },
+        sessions: {
+          stub1: {
+            _id: "stub1",
+            session_id: "stub1",
+            project_path: "/switched",
+            git_root: "/switched",
+            agent_type: "codex",
+            updated_at: 1,
+            message_count: 0,
+            is_idle: true,
+            has_pending: false,
+          } as InboxSession,
+        },
         conversations: {},
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1", { agentType: "claude_code", projectPath: "/fallback", gitRoot: "/fallback" }); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1", {
+          agentType: "claude_code",
+          projectPath: "/fallback",
+          gitRoot: "/fallback",
+        });
+      });
       await done;
       expect(calls.length).toBe(1);
-      expect(calls[0]).toMatchObject({ project_path: "/switched", git_root: "/switched", agent_type: "codex", session_id: "stub1" });
+      expect(calls[0]).toMatchObject({
+        project_path: "/switched",
+        git_root: "/switched",
+        agent_type: "codex",
+        session_id: "stub1",
+      });
     });
 
     it("createSessionFromStub falls back when the stub row is missing", async () => {
       useInboxStore.setState({ sessions: {}, conversations: {} });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("ghost", { agentType: "gemini", projectPath: "/fallback" }); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("ghost", {
+          agentType: "gemini",
+          projectPath: "/fallback",
+        });
+      });
       await done;
-      expect(calls[0]).toMatchObject({ project_path: "/fallback", git_root: "/fallback", agent_type: "gemini", session_id: "ghost" });
+      expect(calls[0]).toMatchObject({
+        project_path: "/fallback",
+        git_root: "/fallback",
+        agent_type: "gemini",
+        session_id: "ghost",
+      });
     });
 
     // The "isolated worktree" toggle is a global mode (isolatedWorktreeMode); the
@@ -2987,20 +3807,52 @@ describe("inboxStore.beginOptimisticSession", () => {
     // switch (reconfigureSession was the only path passing `isolated`).
     it("createSessionFromStub forwards isolated when the worktree toggle is on", async () => {
       useInboxStore.setState({
-        sessions: { stub1: { _id: "stub1", session_id: "stub1", project_path: "/repo", git_root: "/repo", agent_type: "claude_code", updated_at: 1, message_count: 0, is_idle: true, has_pending: false } as InboxSession },
+        sessions: {
+          stub1: {
+            _id: "stub1",
+            session_id: "stub1",
+            project_path: "/repo",
+            git_root: "/repo",
+            agent_type: "claude_code",
+            updated_at: 1,
+            message_count: 0,
+            is_idle: true,
+            has_pending: false,
+          } as InboxSession,
+        },
         isolatedWorktreeMode: true,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ isolated: true, project_path: "/repo", session_id: "stub1" });
+      expect(calls[0]).toMatchObject({
+        isolated: true,
+        project_path: "/repo",
+        session_id: "stub1",
+      });
     });
 
     it("createSessionFromStub omits isolated when the worktree toggle is off", async () => {
       useInboxStore.setState({
-        sessions: { stub1: { _id: "stub1", session_id: "stub1", project_path: "/repo", git_root: "/repo", agent_type: "claude_code", updated_at: 1, message_count: 0, is_idle: true, has_pending: false } as InboxSession },
+        sessions: {
+          stub1: {
+            _id: "stub1",
+            session_id: "stub1",
+            project_path: "/repo",
+            git_root: "/repo",
+            agent_type: "claude_code",
+            updated_at: 1,
+            message_count: 0,
+            is_idle: true,
+            has_pending: false,
+          } as InboxSession,
+        },
         isolatedWorktreeMode: false,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
       expect(calls[0].isolated).toBeUndefined();
     });
@@ -3010,14 +3862,36 @@ describe("inboxStore.beginOptimisticSession", () => {
     // decided by the machine STAMPED on the stub (the composer derives cloud mode
     // from the same stamp), never by the cloudSessionMode flag, and REPLACES
     // isolated rather than joining it: the worktree is made on the host.
-    const stubOn = (target: string | undefined, path = "/Users/me/repo") => ({
-      _id: "stub1", session_id: "stub1", project_path: path, git_root: path, agent_type: "claude_code",
-      updated_at: 1, message_count: 0, is_idle: true, has_pending: false,
-      ...(target ? { target_device_id: target } : {}),
-    }) as InboxSession;
+    const stubOn = (target: string | undefined, path = "/Users/me/repo") =>
+      ({
+        _id: "stub1",
+        session_id: "stub1",
+        project_path: path,
+        git_root: path,
+        agent_type: "claude_code",
+        updated_at: 1,
+        message_count: 0,
+        is_idle: true,
+        has_pending: false,
+        ...(target ? { target_device_id: target } : {}),
+      }) as InboxSession;
     const rosterWithHost = [
-      { device_id: "laptop", is_remote: false, online: true, last_seen: 2, platform: "darwin", local_project_roots: ["/Users/me/repo"] },
-      { device_id: "cloud-linux", is_remote: true, online: false, last_seen: 1, platform: "linux", local_project_roots: ["/home/ubuntu/work/repo"] },
+      {
+        device_id: "laptop",
+        is_remote: false,
+        online: true,
+        last_seen: 2,
+        platform: "darwin",
+        local_project_roots: ["/Users/me/repo"],
+      },
+      {
+        device_id: "cloud-linux",
+        is_remote: true,
+        online: false,
+        last_seen: 1,
+        platform: "linux",
+        local_project_roots: ["/home/ubuntu/work/repo"],
+      },
     ];
 
     it("createSessionFromStub parks on the stamped cloud host for a laptop folder (flag off)", async () => {
@@ -3027,9 +3901,16 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSessionMode: false,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", target_device_id: "cloud-linux", project_path: "/Users/me/repo", session_id: "stub1" });
+      expect(calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        target_device_id: "cloud-linux",
+        project_path: "/Users/me/repo",
+        session_id: "stub1",
+      });
       expect(calls[0].isolated).toBeUndefined();
     });
 
@@ -3041,9 +3922,14 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSharedCheckout: false,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", cloud_workspace: "isolated" });
+      expect(calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        cloud_workspace: "isolated",
+      });
       expect(calls[0].isolated).toBeUndefined();
     });
 
@@ -3055,36 +3941,80 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSharedCheckout: true,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", cloud_workspace: "shared" });
+      expect(calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        cloud_workspace: "shared",
+      });
       expect(calls[0].isolated).toBeUndefined();
       // The optimistic row carries the mode beside the park, so the card's chip is right from t=0.
-      const row = useInboxStore.getState().sessions[REAL_ID] ?? useInboxStore.getState().sessions.stub1;
+      const row =
+        useInboxStore.getState().sessions[REAL_ID] ??
+        useInboxStore.getState().sessions.stub1;
       expect(row?.cloud_workspace ?? "shared").toBe("shared");
     });
 
     it("createSessionFromStub forwards cloud_start_from: checkout by default, origin_main when picked, origin_main under a shared checkout, nothing without a cloud device (ct-49433)", async () => {
-      useInboxStore.setState({ sessions: { stub1: stubOn("cloud-linux") }, cloudSessionMode: true, cloudSharedCheckout: false, machineRoster: rosterWithHost, clientState: { ui: {} } as any });
-      const a = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      useInboxStore.setState({
+        sessions: { stub1: stubOn("cloud-linux") },
+        cloudSessionMode: true,
+        cloudSharedCheckout: false,
+        machineRoster: rosterWithHost,
+        clientState: { ui: {} } as any,
+      });
+      const a = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await a.done;
-      expect(a.calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", cloud_workspace: "isolated", cloud_start_from: "checkout" });
+      expect(a.calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        cloud_workspace: "isolated",
+        cloud_start_from: "checkout",
+      });
 
-      useInboxStore.setState({ sessions: { stub1: stubOn("cloud-linux") }, cloudSessionMode: true, cloudSharedCheckout: false, machineRoster: rosterWithHost });
+      useInboxStore.setState({
+        sessions: { stub1: stubOn("cloud-linux") },
+        cloudSessionMode: true,
+        cloudSharedCheckout: false,
+        machineRoster: rosterWithHost,
+      });
       useInboxStore.getState().setCloudStartFrom("origin_main");
-      expect(useInboxStore.getState().clientState.ui?.cloud_start_from).toBe("origin_main");
-      const b = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      expect(useInboxStore.getState().clientState.ui?.cloud_start_from).toBe(
+        "origin_main",
+      );
+      const b = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await b.done;
       expect(b.calls[0]).toMatchObject({ cloud_start_from: "origin_main" });
 
-      useInboxStore.setState({ sessions: { stub1: stubOn("cloud-linux") }, cloudSessionMode: true, cloudSharedCheckout: true, machineRoster: rosterWithHost });
+      useInboxStore.setState({
+        sessions: { stub1: stubOn("cloud-linux") },
+        cloudSessionMode: true,
+        cloudSharedCheckout: true,
+        machineRoster: rosterWithHost,
+      });
       useInboxStore.getState().setCloudStartFrom("checkout");
-      const c = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const c = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await c.done;
-      expect(c.calls[0]).toMatchObject({ cloud_workspace: "shared", cloud_start_from: "origin_main" });
+      expect(c.calls[0]).toMatchObject({
+        cloud_workspace: "shared",
+        cloud_start_from: "origin_main",
+      });
 
-      useInboxStore.setState({ sessions: { stub1: stubOn("laptop") }, cloudSessionMode: false, machineRoster: rosterWithHost });
-      const d = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      useInboxStore.setState({
+        sessions: { stub1: stubOn("laptop") },
+        cloudSessionMode: false,
+        machineRoster: rosterWithHost,
+      });
+      const d = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await d.done;
       expect(d.calls[0].cloud_start_from).toBeUndefined();
       expect(d.calls[0].cloud_device_id).toBeUndefined();
@@ -3098,15 +4028,24 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSharedCheckout: true,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ target_device_id: "laptop", isolated: true });
+      expect(calls[0]).toMatchObject({
+        target_device_id: "laptop",
+        isolated: true,
+      });
       expect(calls[0].cloud_workspace).toBeUndefined();
       expect(calls[0].cloud_device_id).toBeUndefined();
     });
 
     it("setCloudSessionMode resets cloudSharedCheckout either way and leaves isolatedWorktreeMode untouched (ct-49428)", () => {
-      useInboxStore.setState({ isolatedWorktreeMode: true, cloudSessionMode: false, cloudSharedCheckout: false });
+      useInboxStore.setState({
+        isolatedWorktreeMode: true,
+        cloudSessionMode: false,
+        cloudSharedCheckout: false,
+      });
       useInboxStore.getState().setCloudSessionMode(true);
       expect(useInboxStore.getState().cloudSharedCheckout).toBe(false);
       useInboxStore.getState().setCloudSharedCheckout(true);
@@ -3121,26 +4060,51 @@ describe("inboxStore.beginOptimisticSession", () => {
     });
 
     it("createSession stamps cloud_workspace on the optimistic cloud row (ct-49428)", async () => {
-      useInboxStore.setState({ sessions: {}, conversations: {}, machineRoster: rosterWithHost });
+      useInboxStore.setState({
+        sessions: {},
+        conversations: {},
+        machineRoster: rosterWithHost,
+      });
       const orig = useInboxStore.getState().createSession;
       // The real createSession seeds the optimistic row before the server call; a rejected
       // server call is fine here — the row is what this test reads.
-      const p = orig({ agent_type: "claude_code", project_path: "/Users/me/repo", session_id: "stub-ws", cloud_device_id: "cloud-linux", target_device_id: "cloud-linux", cloud_workspace: "shared" }).catch(() => {});
+      const p = orig({
+        agent_type: "claude_code",
+        project_path: "/Users/me/repo",
+        session_id: "stub-ws",
+        cloud_device_id: "cloud-linux",
+        target_device_id: "cloud-linux",
+        cloud_workspace: "shared",
+      }).catch(() => {});
       const row = useInboxStore.getState().sessions["stub-ws"];
-      expect(row).toMatchObject({ owner_device_id: "cloud-linux", cloud_placement: "pending", cloud_workspace: "shared" });
+      expect(row).toMatchObject({
+        owner_device_id: "cloud-linux",
+        cloud_placement: "pending",
+        cloud_workspace: "shared",
+      });
       await p;
     });
 
     it("createSessionFromStub starts natively for a folder the host already holds", async () => {
       useInboxStore.setState({
-        sessions: { stub1: stubOn("cloud-linux", "/home/ubuntu/work/repo/.codecast/worktrees/x") },
+        sessions: {
+          stub1: stubOn(
+            "cloud-linux",
+            "/home/ubuntu/work/repo/.codecast/worktrees/x",
+          ),
+        },
         isolatedWorktreeMode: true,
         cloudSessionMode: true,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ target_device_id: "cloud-linux", isolated: true });
+      expect(calls[0]).toMatchObject({
+        target_device_id: "cloud-linux",
+        isolated: true,
+      });
       expect(calls[0].cloud_device_id).toBeUndefined();
     });
 
@@ -3151,7 +4115,9 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSessionMode: true,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
       expect(calls[0]).toMatchObject({ target_device_id: "cloud-linux" });
       expect(calls[0].cloud_device_id).toBeUndefined();
@@ -3165,22 +4131,38 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSessionMode: true,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ target_device_id: "laptop", isolated: true });
+      expect(calls[0]).toMatchObject({
+        target_device_id: "laptop",
+        isolated: true,
+      });
       expect(calls[0].cloud_device_id).toBeUndefined();
     });
 
     it("createSessionFromStub parks a pathless stub stamped on the host", async () => {
       useInboxStore.setState({
-        sessions: { stub1: { ...stubOn("cloud-linux"), project_path: undefined, git_root: undefined } as InboxSession },
+        sessions: {
+          stub1: {
+            ...stubOn("cloud-linux"),
+            project_path: undefined,
+            git_root: undefined,
+          } as InboxSession,
+        },
         isolatedWorktreeMode: false,
         cloudSessionMode: false,
         machineRoster: rosterWithHost,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", target_device_id: "cloud-linux" });
+      expect(calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        target_device_id: "cloud-linux",
+      });
     });
 
     it("createSessionFromStub parks a laptop path on a host-only roster (no local device) rather than starting it in the host's main checkout", async () => {
@@ -3190,9 +4172,15 @@ describe("inboxStore.beginOptimisticSession", () => {
         cloudSessionMode: false,
         machineRoster: [rosterWithHost[1]],
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
-      expect(calls[0]).toMatchObject({ cloud_device_id: "cloud-linux", target_device_id: "cloud-linux", project_path: "/Users/me/repo" });
+      expect(calls[0]).toMatchObject({
+        cloud_device_id: "cloud-linux",
+        target_device_id: "cloud-linux",
+        project_path: "/Users/me/repo",
+      });
       expect(calls[0].isolated).toBeUndefined();
     });
 
@@ -3201,9 +4189,19 @@ describe("inboxStore.beginOptimisticSession", () => {
         sessions: { stub1: stubOn("laptop", "/repo") },
         isolatedWorktreeMode: true,
         cloudSessionMode: true,
-        machineRoster: [{ device_id: "laptop", is_remote: false, online: true, last_seen: 2, platform: "darwin" }],
+        machineRoster: [
+          {
+            device_id: "laptop",
+            is_remote: false,
+            online: true,
+            last_seen: 2,
+            platform: "darwin",
+          },
+        ],
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().createSessionFromStub("stub1"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().createSessionFromStub("stub1");
+      });
       await done;
       expect(calls[0].cloud_device_id).toBeUndefined();
       expect(calls[0].isolated).toBe(true);
@@ -3214,13 +4212,31 @@ describe("inboxStore.beginOptimisticSession", () => {
     // createSessionFromStub means isolated reaches that path too.
     it("ensureSessionCreated forwards isolated through the self-heal create path", async () => {
       useInboxStore.setState({
-        sessions: { stub2: { _id: "stub2", session_id: "stub2", project_path: "/repo", git_root: "/repo", agent_type: "claude_code", updated_at: 1, message_count: 0, is_idle: true, has_pending: false } as InboxSession },
+        sessions: {
+          stub2: {
+            _id: "stub2",
+            session_id: "stub2",
+            project_path: "/repo",
+            git_root: "/repo",
+            agent_type: "claude_code",
+            updated_at: 1,
+            message_count: 0,
+            is_idle: true,
+            has_pending: false,
+          } as InboxSession,
+        },
         isolatedWorktreeMode: true,
       });
-      const { calls, done } = captureCreate(() => { useInboxStore.getState().ensureSessionCreated("stub2"); });
+      const { calls, done } = captureCreate(() => {
+        useInboxStore.getState().ensureSessionCreated("stub2");
+      });
       await done;
       expect(calls.length).toBe(1);
-      expect(calls[0]).toMatchObject({ isolated: true, project_path: "/repo", session_id: "stub2" });
+      expect(calls[0]).toMatchObject({
+        isolated: true,
+        project_path: "/repo",
+        session_id: "stub2",
+      });
     });
 
     it("an abandoned (never-materialized) stub is prunable — Escape strands nothing", () => {
@@ -3258,12 +4274,17 @@ describe("inboxStore.beginOptimisticSession", () => {
     it("reuses a matching blank session — no create fired", async () => {
       useInboxStore.setState({ sessions: { [REAL_ID]: blank() } });
       let created = false;
-      const { stubId, ready } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        reuse: true,
-        create: async () => { created = true; return "x".repeat(32); },
-      });
+      const { stubId, ready } = useInboxStore
+        .getState()
+        .beginOptimisticSession({
+          agentType: "claude_code",
+          projectPath: "/repo",
+          reuse: true,
+          create: async () => {
+            created = true;
+            return "x".repeat(32);
+          },
+        });
       expect(stubId).toBe(REAL_ID);
       expect(await ready).toBe(REAL_ID);
       expect(created).toBe(false);
@@ -3279,7 +4300,9 @@ describe("inboxStore.beginOptimisticSession", () => {
         agentType: "claude_code",
         projectPath: "/repo",
         reuse: true,
-        create: async () => { throw new Error("must not create"); },
+        create: async () => {
+          throw new Error("must not create");
+        },
       });
       expect(second.stubId).toBe(first.stubId);
       expect(await second.ready).toBe(REAL_ID);
@@ -3294,26 +4317,38 @@ describe("inboxStore.beginOptimisticSession", () => {
       ["worktree", { worktree_name: "wt" }],
       ["subagent", { is_subagent: true }],
       ["a teammate's", { user_id: "u".repeat(32) }],
-      ["stale (outside the reuse window)", { started_at: Date.now() - 13 * 60 * 60 * 1000 }],
-    ])("creates fresh when the only blank candidate is %s", async (_label, extra) => {
-      useInboxStore.setState({ sessions: { [REAL_ID]: blank(extra as Partial<InboxSession>) } });
-      const { stubId, ready } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        reuse: true,
-        create: async () => "x".repeat(32),
-      });
-      expect(stubId).not.toBe(REAL_ID);
-      await ready;
-    });
+      [
+        "stale (outside the reuse window)",
+        { started_at: Date.now() - 13 * 60 * 60 * 1000 },
+      ],
+    ])(
+      "creates fresh when the only blank candidate is %s",
+      async (_label, extra) => {
+        useInboxStore.setState({
+          sessions: { [REAL_ID]: blank(extra as Partial<InboxSession>) },
+        });
+        const { stubId, ready } = useInboxStore
+          .getState()
+          .beginOptimisticSession({
+            agentType: "claude_code",
+            projectPath: "/repo",
+            reuse: true,
+            create: async () => "x".repeat(32),
+          });
+        expect(stubId).not.toBe(REAL_ID);
+        await ready;
+      },
+    );
 
     it("without reuse, a matching blank session is ignored (modal/isolated path unchanged)", async () => {
       useInboxStore.setState({ sessions: { [REAL_ID]: blank() } });
-      const { stubId, ready } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        create: async () => "x".repeat(32),
-      });
+      const { stubId, ready } = useInboxStore
+        .getState()
+        .beginOptimisticSession({
+          agentType: "claude_code",
+          projectPath: "/repo",
+          create: async () => "x".repeat(32),
+        });
       expect(stubId).not.toBe(REAL_ID);
       await ready;
     });
@@ -3330,11 +4365,15 @@ describe("inboxStore.beginOptimisticSession", () => {
       const store = useInboxStore.getState();
       // Stale snapshot: the row looks like a reusable blank.
       store.syncTable("sessions", [blank()]);
-      expect(findReusableBlankSession(useInboxStore.getState() as any, reuseArgs)).toBe(REAL_ID);
+      expect(
+        findReusableBlankSession(useInboxStore.getState() as any, reuseArgs),
+      ).toBe(REAL_ID);
       // Live list lands showing it actually has messages — reuse must drop it
       // rather than route a first message into that existing conversation.
       store.syncTable("sessions", [blank({ message_count: 4 })]);
-      expect(findReusableBlankSession(useInboxStore.getState() as any, reuseArgs)).toBeNull();
+      expect(
+        findReusableBlankSession(useInboxStore.getState() as any, reuseArgs),
+      ).toBeNull();
     });
   });
 
@@ -3346,13 +4385,17 @@ describe("inboxStore.beginOptimisticSession", () => {
   // renders the full-pane loader and remounts the whole conversation tree.
   describe("resolveLiveSessionId across the rekey", () => {
     it("maps the dead stub id to the live real id after the create resolves", async () => {
-      const { stubId, ready } = useInboxStore.getState().beginOptimisticSession({
-        agentType: "claude_code",
-        projectPath: "/repo",
-        create: async () => REAL_ID,
-      });
+      const { stubId, ready } = useInboxStore
+        .getState()
+        .beginOptimisticSession({
+          agentType: "claude_code",
+          projectPath: "/repo",
+          create: async () => REAL_ID,
+        });
       // Before the rekey the stub row is live — resolves to itself.
-      expect(useInboxStore.getState().resolveLiveSessionId(stubId)).toBe(stubId);
+      expect(useInboxStore.getState().resolveLiveSessionId(stubId)).toBe(
+        stubId,
+      );
 
       await ready;
 
@@ -3361,10 +4404,14 @@ describe("inboxStore.beginOptimisticSession", () => {
       // The stale id a deferred render still holds must follow the rekey to
       // the live row instead of resolving to nothing.
       expect(state.resolveLiveSessionId(stubId)).toBe(REAL_ID);
-      expect(state.conversations[state.resolveLiveSessionId(stubId)]).toBeDefined();
+      expect(
+        state.conversations[state.resolveLiveSessionId(stubId)],
+      ).toBeDefined();
       // Real ids and unknown ids keep their identity (deep links, not-found).
       expect(state.resolveLiveSessionId(REAL_ID)).toBe(REAL_ID);
-      expect(state.resolveLiveSessionId("nonexistent-stub")).toBe("nonexistent-stub");
+      expect(state.resolveLiveSessionId("nonexistent-stub")).toBe(
+        "nonexistent-stub",
+      );
     });
   });
 });
@@ -3382,10 +4429,23 @@ describe("pruneGhostSessions — verified removal of GC'd blanks", () => {
   const CREATING = "p9hf8s0dq1xand83hr0e7";
 
   beforeEach(() => {
-    const mk = (id: string): InboxSession => ({ ...baseSession, _id: id, session_id: id });
+    const mk = (id: string): InboxSession => ({
+      ...baseSession,
+      _id: id,
+      session_id: id,
+    });
     seedCurrentSession({
-      sessions: { [GONE]: mk(GONE), [CURRENT]: mk(CURRENT), [SENDING]: mk(SENDING), [STUB]: mk(STUB), [CREATING]: mk(CREATING) },
-      conversations: { [GONE]: { _id: GONE } as any, [CURRENT]: { _id: CURRENT } as any },
+      sessions: {
+        [GONE]: mk(GONE),
+        [CURRENT]: mk(CURRENT),
+        [SENDING]: mk(SENDING),
+        [STUB]: mk(STUB),
+        [CREATING]: mk(CREATING),
+      },
+      conversations: {
+        [GONE]: { _id: GONE } as any,
+        [CURRENT]: { _id: CURRENT } as any,
+      },
       messages: { [GONE]: [] },
       pendingMessages: { [SENDING]: [{ _id: "m1", content: "hi" }] as any },
       pendingSessionCreates: { [CREATING]: Promise.resolve("x") },
@@ -3427,7 +4487,9 @@ describe("pruneGhostSessions — verified removal of GC'd blanks", () => {
   // still unsettled. Nothing can settle that send, so the guard kept the row
   // forever. A proven deletion drops it, and an open one goes when the view moves.
   it("drops a server-deleted session even with an unsettled send", () => {
-    useInboxStore.getState().pruneGhostSessions([SENDING], { serverDeleted: true });
+    useInboxStore
+      .getState()
+      .pruneGhostSessions([SENDING], { serverDeleted: true });
     const s = useInboxStore.getState();
     expect(s.sessions[SENDING]).toBeUndefined();
     expect(s.pendingMessages[SENDING]).toBeUndefined();
@@ -3435,7 +4497,9 @@ describe("pruneGhostSessions — verified removal of GC'd blanks", () => {
   });
 
   it("defers a server-deleted open session until the view moves off it", () => {
-    useInboxStore.getState().pruneGhostSessions([CURRENT], { serverDeleted: true });
+    useInboxStore
+      .getState()
+      .pruneGhostSessions([CURRENT], { serverDeleted: true });
     expect(useInboxStore.getState().sessions[CURRENT]).toBeDefined();
     useInboxStore.getState().navigateToSession(GONE);
     expect(useInboxStore.getState().currentSessionId).toBe(GONE);
@@ -3449,29 +4513,44 @@ describe("pruneGhostSessions — verified removal of GC'd blanks", () => {
 // 32-char Convex ids (the stub guard), so these use a realistic id.
 describe("inboxStore local-first state mutations", () => {
   const CID = "abcdefghijklmnopqrstuvwxyz123456"; // 32-char convex-shaped id
-  let dispatches: Array<{ action: string; args: any; patches: any; result: any }>;
+  let dispatches: Array<{
+    action: string;
+    args: any;
+    patches: any;
+    result: any;
+  }>;
 
   beforeEach(() => {
     dispatches = [];
     useInboxStore.setState({
-      sessions: {}, conversations: {}, plans: {}, projects: {}, favorites: [],
-      drafts: {}, clientState: {}, currentSessionId: null, pending: {}, currentConversation: {},
+      sessions: {},
+      conversations: {},
+      plans: {},
+      projects: {},
+      favorites: [],
+      drafts: {},
+      clientState: {},
+      currentSessionId: null,
+      pending: {},
+      currentConversation: {},
     });
-    useInboxStore.getState()._setDispatch(async (action, args, patches, result) => {
-      dispatches.push({ action, args, patches, result });
-      if (result?.receiptActionVersion === 1) {
-        return {
-          receiptVersion: 1,
-          commandId: result.commandId,
-          commandName: `${action}/test`,
-          status: "acknowledged",
-          result: null,
-          coverage: [],
-          retryUntil: null,
-        };
-      }
-      return null;
-    });
+    useInboxStore
+      .getState()
+      ._setDispatch(async (action, args, patches, result) => {
+        dispatches.push({ action, args, patches, result });
+        if (result?.receiptActionVersion === 1) {
+          return {
+            receiptVersion: 1,
+            commandId: result.commandId,
+            commandName: `${action}/test`,
+            status: "acknowledged",
+            result: null,
+            coverage: [],
+            retryUntil: null,
+          };
+        }
+        return null;
+      });
   });
 
   it("patchConversation writes conv + session locally, dispatches a conversations patch, and protects the field", () => {
@@ -3501,7 +4580,10 @@ describe("inboxStore local-first state mutations", () => {
     expect(s.conversations[CID]?.is_favorite).toBe(true);
     expect((s.sessions[CID] as any)?.is_favorite).toBe(true);
     expect((s.favorites as any[]).some((f) => f._id === CID)).toBe(true);
-    expect(dispatches.find((d) => d.action === "toggleFavorite")?.patches?.conversations?.[CID]?.is_favorite).toBe(true);
+    expect(
+      dispatches.find((d) => d.action === "toggleFavorite")?.patches
+        ?.conversations?.[CID]?.is_favorite,
+    ).toBe(true);
     // Toggling back removes it from the list.
     useInboxStore.getState().toggleFavorite(CID);
     s = useInboxStore.getState();
@@ -3513,7 +4595,9 @@ describe("inboxStore local-first state mutations", () => {
     // Opening a conversation seeds conversations[id] as { _id, is_own }; the star
     // is lit from the session row and the favorites list.
     useInboxStore.setState({
-      sessions: { [CID]: { ...baseSession, _id: CID, is_favorite: true } as any },
+      sessions: {
+        [CID]: { ...baseSession, _id: CID, is_favorite: true } as any,
+      },
       conversations: { [CID]: { _id: CID, is_own: true } as any },
       favorites: [{ _id: CID }],
     });
@@ -3527,7 +4611,9 @@ describe("inboxStore local-first state mutations", () => {
     // Opened while unfavorited, then favorited on another device: the session
     // row is live, the conversations row still holds the old visit.
     useInboxStore.setState({
-      sessions: { [CID]: { ...baseSession, _id: CID, is_favorite: true } as any },
+      sessions: {
+        [CID]: { ...baseSession, _id: CID, is_favorite: true } as any,
+      },
       conversations: { [CID]: { _id: CID, is_favorite: false } as any },
       favorites: [{ _id: CID }],
     });
@@ -3537,7 +4623,9 @@ describe("inboxStore local-first state mutations", () => {
 
   it("a favorites push that predates an in-flight unfavorite cannot relight the star", () => {
     useInboxStore.setState({
-      sessions: { [CID]: { ...baseSession, _id: CID, is_favorite: true } as any },
+      sessions: {
+        [CID]: { ...baseSession, _id: CID, is_favorite: true } as any,
+      },
       conversations: { [CID]: { _id: CID, is_favorite: true } as any },
       favorites: [{ _id: CID }],
     });
@@ -3555,21 +4643,34 @@ describe("inboxStore local-first state mutations", () => {
   });
 
   it("setPrivacy updates local privacy and dispatches the setPrivacy side-effect", () => {
-    useInboxStore.setState({ conversations: { [CID]: { _id: CID, is_private: false, team_visibility: "summary" } } });
+    useInboxStore.setState({
+      conversations: {
+        [CID]: { _id: CID, is_private: false, team_visibility: "summary" },
+      },
+    });
     useInboxStore.getState().setPrivacy(CID, true);
     const s = useInboxStore.getState();
     expect(s.conversations[CID]?.is_private).toBe(true);
     expect(s.conversations[CID]?.team_visibility).toBe("private");
-    expect(dispatches.find((d) => d.action === "setPrivacy")?.args).toEqual([CID, true]);
+    expect(dispatches.find((d) => d.action === "setPrivacy")?.args).toEqual([
+      CID,
+      true,
+    ]);
   });
 
   it("setTeamVisibility clears private and dispatches the side-effect", () => {
-    useInboxStore.setState({ conversations: { [CID]: { _id: CID, is_private: true, team_visibility: "private" } } });
+    useInboxStore.setState({
+      conversations: {
+        [CID]: { _id: CID, is_private: true, team_visibility: "private" },
+      },
+    });
     useInboxStore.getState().setTeamVisibility(CID, "full");
     const s = useInboxStore.getState();
     expect(s.conversations[CID]?.is_private).toBe(false);
     expect(s.conversations[CID]?.team_visibility).toBe("full");
-    expect(dispatches.find((d) => d.action === "setTeamVisibility")?.args).toEqual([CID, "full"]);
+    expect(
+      dispatches.find((d) => d.action === "setTeamVisibility")?.args,
+    ).toEqual([CID, "full"]);
   });
 
   // The team feed renders its own cached rows and the inbox session for a
@@ -3580,39 +4681,76 @@ describe("inboxStore local-first state mutations", () => {
       sessions: { [CID]: { ...baseSession, _id: CID, is_private: false } },
       conversations: {},
       feedConversations: {
-        "team1|": [{ _id: CID, is_own: true, is_private: false, team_visibility: "summary" }, { _id: "other", is_own: false }],
+        "team1|": [
+          {
+            _id: CID,
+            is_own: true,
+            is_private: false,
+            team_visibility: "summary",
+          },
+          { _id: "other", is_own: false },
+        ],
         "team1|repo": [{ _id: CID, is_own: true, is_private: false }],
       } as any,
     });
     useInboxStore.getState().setPrivacy(CID, true);
     let s = useInboxStore.getState();
     expect((s.sessions[CID] as any).is_private).toBe(true);
-    expect((s.feedConversations as any)["team1|"][0]).toMatchObject({ is_private: true, team_visibility: "private" });
+    expect((s.feedConversations as any)["team1|"][0]).toMatchObject({
+      is_private: true,
+      team_visibility: "private",
+    });
     expect((s.feedConversations as any)["team1|repo"][0].is_private).toBe(true);
-    expect((s.feedConversations as any)["team1|"][1]).toEqual({ _id: "other", is_own: false });
+    expect((s.feedConversations as any)["team1|"][1]).toEqual({
+      _id: "other",
+      is_own: false,
+    });
 
     useInboxStore.getState().setTeamVisibility(CID, "full");
     s = useInboxStore.getState();
-    expect((s.sessions[CID] as any)).toMatchObject({ is_private: false, team_visibility: "full" });
-    expect((s.feedConversations as any)["team1|"][0]).toMatchObject({ is_private: false, team_visibility: "full" });
-    expect((s.feedConversations as any)["team1|repo"][0]).toMatchObject({ is_private: false, team_visibility: "full" });
+    expect(s.sessions[CID] as any).toMatchObject({
+      is_private: false,
+      team_visibility: "full",
+    });
+    expect((s.feedConversations as any)["team1|"][0]).toMatchObject({
+      is_private: false,
+      team_visibility: "full",
+    });
+    expect((s.feedConversations as any)["team1|repo"][0]).toMatchObject({
+      is_private: false,
+      team_visibility: "full",
+    });
   });
 
   it("updatePlan mutates the plan by short_id, protects the field, and dispatches updatePlan", () => {
-    useInboxStore.setState({ plans: { plan1: { _id: "plan1", short_id: "pl-9", status: "active" } as any } });
+    useInboxStore.setState({
+      plans: {
+        plan1: { _id: "plan1", short_id: "pl-9", status: "active" } as any,
+      },
+    });
     useInboxStore.getState().updatePlan("pl-9", { status: "done" });
     const s = useInboxStore.getState();
     expect(s.plans.plan1?.status).toBe("done");
     expect(s.pending["plans:plan1:status"]).toBeTruthy();
-    expect(dispatches.find((d) => d.action === "updatePlan")?.args).toEqual(["pl-9", { status: "done" }]);
+    expect(dispatches.find((d) => d.action === "updatePlan")?.args).toEqual([
+      "pl-9",
+      { status: "done" },
+    ]);
   });
 
   it("updateProject mutates the project by id and dispatches updateProject", () => {
-    useInboxStore.setState({ projects: { proj1: { _id: "proj1", title: "P", status: "active" } as any } });
+    useInboxStore.setState({
+      projects: {
+        proj1: { _id: "proj1", title: "P", status: "active" } as any,
+      },
+    });
     useInboxStore.getState().updateProject("proj1", { status: "archived" });
     const s = useInboxStore.getState();
     expect(s.projects.proj1?.status).toBe("archived");
-    expect(dispatches.find((d) => d.action === "updateProject")?.args).toEqual(["proj1", { status: "archived" }]);
+    expect(dispatches.find((d) => d.action === "updateProject")?.args).toEqual([
+      "proj1",
+      { status: "archived" },
+    ]);
   });
 
   // A charter clear (null, [] or "") travels on the wire as given, but the
@@ -3620,8 +4758,28 @@ describe("inboxStore local-first state mutations", () => {
   // clear as undefined so the field lock equals the echo and retires; stored
   // as null or [] the lock would re-assert the clear over every push.
   it("updateProject stores a cleared charter field as absent, dispatches the clear verbatim, and the echo retires the lock", () => {
-    useInboxStore.setState({ projects: { proj1: { _id: "proj1", title: "P", status: "active", priority: "p1", success_metrics: ["a"], goal: "g", owner_role_id: "role1", updated_at: 1 } as any }, pending: {} });
-    useInboxStore.getState().updateProject("proj1", { priority: null, success_metrics: [], goal: "", owner_role_id: null, non_goals: ["keep"] });
+    useInboxStore.setState({
+      projects: {
+        proj1: {
+          _id: "proj1",
+          title: "P",
+          status: "active",
+          priority: "p1",
+          success_metrics: ["a"],
+          goal: "g",
+          owner_role_id: "role1",
+          updated_at: 1,
+        } as any,
+      },
+      pending: {},
+    });
+    useInboxStore.getState().updateProject("proj1", {
+      priority: null,
+      success_metrics: [],
+      goal: "",
+      owner_role_id: null,
+      non_goals: ["keep"],
+    });
     let s = useInboxStore.getState();
     const row = s.projects.proj1 as any;
     expect(row.priority).toBeUndefined();
@@ -3631,16 +4789,44 @@ describe("inboxStore local-first state mutations", () => {
     expect(row.non_goals).toEqual(["keep"]);
     expect(row.updated_at).toBeGreaterThan(1);
     for (const f of ["priority", "success_metrics", "goal", "owner_role_id"]) {
-      expect(s.pending[`projects:proj1:${f}`]).toMatchObject({ type: "field", value: undefined });
+      expect(s.pending[`projects:proj1:${f}`]).toMatchObject({
+        type: "field",
+        value: undefined,
+      });
     }
-    expect(s.pending["projects:proj1:non_goals"]).toMatchObject({ type: "field", value: ["keep"] });
-    expect(dispatches.find((d) => d.action === "updateProject")?.args).toEqual(["proj1", { priority: null, success_metrics: [], goal: "", owner_role_id: null, non_goals: ["keep"] }]);
+    expect(s.pending["projects:proj1:non_goals"]).toMatchObject({
+      type: "field",
+      value: ["keep"],
+    });
+    expect(dispatches.find((d) => d.action === "updateProject")?.args).toEqual([
+      "proj1",
+      {
+        priority: null,
+        success_metrics: [],
+        goal: "",
+        owner_role_id: null,
+        non_goals: ["keep"],
+      },
+    ]);
     // The server echo: the cleared fields absent, the kept list as stored.
-    useInboxStore.getState().syncRecord("projects", "proj1", { _id: "proj1", title: "P", status: "active", non_goals: ["keep"], updated_at: row.updated_at + 1 });
+    useInboxStore.getState().syncRecord("projects", "proj1", {
+      _id: "proj1",
+      title: "P",
+      status: "active",
+      non_goals: ["keep"],
+      updated_at: row.updated_at + 1,
+    });
     s = useInboxStore.getState();
-    for (const f of ["priority", "success_metrics", "goal", "owner_role_id", "non_goals"]) {
+    for (const f of [
+      "priority",
+      "success_metrics",
+      "goal",
+      "owner_role_id",
+      "non_goals",
+    ]) {
       expect(s.pending[`projects:proj1:${f}`]).toBeUndefined();
-      if (f !== "non_goals") expect((s.projects.proj1 as any)[f]).toBeUndefined();
+      if (f !== "non_goals")
+        expect((s.projects.proj1 as any)[f]).toBeUndefined();
     }
   });
 
@@ -3652,16 +4838,49 @@ describe("inboxStore local-first state mutations", () => {
     useInboxStore.setState({ plans: {}, pending: {} });
     useInboxStore.getState().updatePlan("pl-9", { priority: "p1" });
     expect(Object.keys(useInboxStore.getState().plans)).toEqual([]);
-    ingestPlanDetail({ _id: "plan1", short_id: "pl-9", title: "T", status: "active", task_ids: ["t1"], updated_at: 1, tasks: [{ _id: "t1" }], sessions: [], doc_content: "# big", comments: [], author: { name: "A" } });
+    ingestPlanDetail({
+      _id: "plan1",
+      short_id: "pl-9",
+      title: "T",
+      status: "active",
+      task_ids: ["t1"],
+      updated_at: 1,
+      tasks: [{ _id: "t1" }],
+      sessions: [],
+      doc_content: "# big",
+      comments: [],
+      author: { name: "A" },
+    });
     let row = useInboxStore.getState().plans.plan1 as any;
-    expect(row).toMatchObject({ _id: "plan1", short_id: "pl-9", title: "T", task_ids: ["t1"] });
-    for (const join of ["tasks", "sessions", "doc_content", "comments", "author"]) expect(row[join]).toBeUndefined();
+    expect(row).toMatchObject({
+      _id: "plan1",
+      short_id: "pl-9",
+      title: "T",
+      task_ids: ["t1"],
+    });
+    for (const join of [
+      "tasks",
+      "sessions",
+      "doc_content",
+      "comments",
+      "author",
+    ])
+      expect(row[join]).toBeUndefined();
     useInboxStore.getState().updatePlan("pl-9", { priority: "p0" });
     row = useInboxStore.getState().plans.plan1 as any;
     expect(row.priority).toBe("p0");
-    expect(useInboxStore.getState().pending["plans:plan1:priority"]).toMatchObject({ type: "field", value: "p0" });
+    expect(
+      useInboxStore.getState().pending["plans:plan1:priority"],
+    ).toMatchObject({ type: "field", value: "p0" });
     // A later detail push (the pre-echo snapshot) does not undo the edit.
-    ingestPlanDetail({ _id: "plan1", short_id: "pl-9", title: "T", status: "active", updated_at: 1, tasks: [] });
+    ingestPlanDetail({
+      _id: "plan1",
+      short_id: "pl-9",
+      title: "T",
+      status: "active",
+      updated_at: 1,
+      tasks: [],
+    });
     expect((useInboxStore.getState().plans.plan1 as any).priority).toBe("p0");
     // Null (an access verdict) and a foreign shape seed nothing.
     ingestPlanDetail(null);
@@ -3670,18 +4889,43 @@ describe("inboxStore local-first state mutations", () => {
   });
 
   it("updatePlan stores a cleared charter field as absent and dispatches the clear verbatim", () => {
-    useInboxStore.setState({ plans: { plan1: { _id: "plan1", short_id: "pl-9", status: "active", priority: "p2", non_goals: ["x"] } as any }, pending: {} });
-    useInboxStore.getState().updatePlan("pl-9", { priority: null, non_goals: [] });
+    useInboxStore.setState({
+      plans: {
+        plan1: {
+          _id: "plan1",
+          short_id: "pl-9",
+          status: "active",
+          priority: "p2",
+          non_goals: ["x"],
+        } as any,
+      },
+      pending: {},
+    });
+    useInboxStore
+      .getState()
+      .updatePlan("pl-9", { priority: null, non_goals: [] });
     const s = useInboxStore.getState();
     expect((s.plans.plan1 as any).priority).toBeUndefined();
     expect((s.plans.plan1 as any).non_goals).toBeUndefined();
-    expect(s.pending["plans:plan1:priority"]).toMatchObject({ type: "field", value: undefined });
-    expect(dispatches.find((d) => d.action === "updatePlan")?.args).toEqual(["pl-9", { priority: null, non_goals: [] }]);
+    expect(s.pending["plans:plan1:priority"]).toMatchObject({
+      type: "field",
+      value: undefined,
+    });
+    expect(dispatches.find((d) => d.action === "updatePlan")?.args).toEqual([
+      "pl-9",
+      { priority: null, non_goals: [] },
+    ]);
   });
 
   it("convCommand applies the optimistic session patch and dispatches the command verbatim", async () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } } });
-    await useInboxStore.getState().convCommand(CID, "restartSession", undefined, { status: "starting" } as any);
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+    });
+    await useInboxStore
+      .getState()
+      .convCommand(CID, "restartSession", undefined, {
+        status: "starting",
+      } as any);
     const s = useInboxStore.getState();
     expect((s.sessions[CID] as any)?.status).toBe("starting");
     const d = dispatches.find((d) => d.action === "convCommand");
@@ -3690,25 +4934,33 @@ describe("inboxStore local-first state mutations", () => {
   });
 
   it("markNotificationRead flips read locally, protects it, and dispatches", () => {
-    useInboxStore.setState({ notifications: { [CID]: { _id: CID, read: false, created_at: 1 } } });
+    useInboxStore.setState({
+      notifications: { [CID]: { _id: CID, read: false, created_at: 1 } },
+    });
     useInboxStore.getState().markNotificationRead(CID);
     const s = useInboxStore.getState();
     expect(s.notifications[CID]?.read).toBe(true);
     expect(s.pending[`notifications:${CID}:read`]).toBeTruthy();
-    expect(dispatches.find((d) => d.action === "markNotificationRead")?.args).toEqual([CID]);
+    expect(
+      dispatches.find((d) => d.action === "markNotificationRead")?.args,
+    ).toEqual([CID]);
   });
 
   it("markAllNotificationsRead flips every unread notification and dispatches once", () => {
-    useInboxStore.setState({ notifications: {
-      a: { _id: "a", read: false, created_at: 1 },
-      b: { _id: "b", read: true, created_at: 2 },
-      c: { _id: "c", read: false, created_at: 3 },
-    } });
+    useInboxStore.setState({
+      notifications: {
+        a: { _id: "a", read: false, created_at: 1 },
+        b: { _id: "b", read: true, created_at: 2 },
+        c: { _id: "c", read: false, created_at: 3 },
+      },
+    });
     useInboxStore.getState().markAllNotificationsRead();
     const s = useInboxStore.getState();
     expect(s.notifications.a?.read).toBe(true);
     expect(s.notifications.c?.read).toBe(true);
-    expect(dispatches.filter((d) => d.action === "markAllNotificationsRead").length).toBe(1);
+    expect(
+      dispatches.filter((d) => d.action === "markAllNotificationsRead").length,
+    ).toBe(1);
   });
 
   it("an optimistic add→delete keeps the client identity needed to delete after replay", async () => {
@@ -3717,7 +4969,9 @@ describe("inboxStore local-first state mutations", () => {
       currentUser: { _id: "user1", name: "Me" } as any,
     });
     await useInboxStore.getState().addComment(CID, "queued comment");
-    const optimistic = Object.values(useInboxStore.getState().comments)[0] as any;
+    const optimistic = Object.values(
+      useInboxStore.getState().comments,
+    )[0] as any;
     expect(optimistic?.client_id).toMatch(/^commentstub-/);
 
     await useInboxStore.getState().deleteComment(optimistic._id);
@@ -3759,10 +5013,12 @@ describe("inboxStore local-first state mutations", () => {
     ).toBe("after");
 
     await acknowledged;
-    useInboxStore.getState().syncTable("comments", [{
-      ...comment,
-      content: "after",
-    }]);
+    useInboxStore.getState().syncTable("comments", [
+      {
+        ...comment,
+        content: "after",
+      },
+    ]);
     expect(
       useInboxStore.getState().pending[`comments:${CID}:content`],
     ).toBeUndefined();
@@ -3779,21 +5035,27 @@ describe("inboxStore local-first state mutations", () => {
       created_at: 1,
     } as any;
     useInboxStore.setState({ comments: { [CID]: comment }, pending: {} });
-    useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => ({
-      receiptVersion: 1,
-      commandId: result.commandId,
-      commandName: "comments.update/v2",
-      status: "rejected",
-      rejection: {
-        code: "FORBIDDEN",
-        message: "Conversation access was revoked",
-      },
-      coverage: [],
-      retryUntil: null,
-    }));
+    useInboxStore
+      .getState()
+      ._setDispatch(async (_action, _args, _patches, result) => ({
+        receiptVersion: 1,
+        commandId: result.commandId,
+        commandName: "comments.update/v2",
+        status: "rejected",
+        rejection: {
+          code: "FORBIDDEN",
+          message: "Conversation access was revoked",
+        },
+        coverage: [],
+        retryUntil: null,
+      }));
 
-    const pending = useInboxStore.getState().editComment(CID, "optimistic after");
-    expect(useInboxStore.getState().comments[CID]?.content).toBe("optimistic after");
+    const pending = useInboxStore
+      .getState()
+      .editComment(CID, "optimistic after");
+    expect(useInboxStore.getState().comments[CID]?.content).toBe(
+      "optimistic after",
+    );
     expect(
       useInboxStore.getState().pending[`comments:${CID}:content`]?.value,
     ).toBe("optimistic after");
@@ -3802,8 +5064,9 @@ describe("inboxStore local-first state mutations", () => {
       name: "CommandReceiptRejectedError",
       code: "FORBIDDEN",
     });
-    expect(useInboxStore.getState().comments[CID]?.content)
-      .toBe("authoritative before");
+    expect(useInboxStore.getState().comments[CID]?.content).toBe(
+      "authoritative before",
+    );
     expect(
       useInboxStore.getState().pending[`comments:${CID}:content`],
     ).toBeUndefined();
@@ -3820,28 +5083,30 @@ describe("inboxStore local-first state mutations", () => {
       created_at: 1,
     } as any;
     useInboxStore.setState({ comments: { [CID]: comment }, pending: {} });
-    useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => {
-      const local = result.localResult;
-      return local.content === "B"
-        ? {
-            receiptVersion: 1,
-            commandId: result.commandId,
-            commandName: "comments.update/v2",
-            status: "rejected",
-            rejection: { code: "FORBIDDEN", message: "Rejected older edit" },
-            coverage: [],
-            retryUntil: null,
-          }
-        : {
-            receiptVersion: 1,
-            commandId: result.commandId,
-            commandName: "comments.update/v2",
-            status: "acknowledged",
-            result: { commentId: CID },
-            coverage: [],
-            retryUntil: null,
-          };
-    });
+    useInboxStore
+      .getState()
+      ._setDispatch(async (_action, _args, _patches, result) => {
+        const local = result.localResult;
+        return local.content === "B"
+          ? {
+              receiptVersion: 1,
+              commandId: result.commandId,
+              commandName: "comments.update/v2",
+              status: "rejected",
+              rejection: { code: "FORBIDDEN", message: "Rejected older edit" },
+              coverage: [],
+              retryUntil: null,
+            }
+          : {
+              receiptVersion: 1,
+              commandId: result.commandId,
+              commandName: "comments.update/v2",
+              status: "acknowledged",
+              result: { commentId: CID },
+              coverage: [],
+              retryUntil: null,
+            };
+      });
 
     const older = useInboxStore.getState().editComment(CID, "B");
     const newer = useInboxStore.getState().editComment(CID, "C");
@@ -3861,30 +5126,38 @@ describe("inboxStore local-first state mutations", () => {
       currentUser: { _id: "user1", name: "Me" } as any,
       pending: {},
     });
-    useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => ({
-      receiptVersion: 1,
-      commandId: result.commandId,
-      commandName: "comments.create/v2",
-      status: "rejected",
-      rejection: {
-        code: "FORBIDDEN",
-        message: "Conversation access was revoked",
-      },
-      coverage: [],
-      retryUntil: null,
-    }));
+    useInboxStore
+      .getState()
+      ._setDispatch(async (_action, _args, _patches, result) => ({
+        receiptVersion: 1,
+        commandId: result.commandId,
+        commandName: "comments.create/v2",
+        status: "rejected",
+        rejection: {
+          code: "FORBIDDEN",
+          message: "Conversation access was revoked",
+        },
+        coverage: [],
+        retryUntil: null,
+      }));
 
     const pending = useInboxStore.getState().addComment(CID, "must not ghost");
-    const optimistic = Object.values(useInboxStore.getState().comments)[0] as any;
+    const optimistic = Object.values(
+      useInboxStore.getState().comments,
+    )[0] as any;
     expect(optimistic?.client_id).toMatch(/^commentstub-/);
-    expect(useInboxStore.getState().pending[`comments:${optimistic._id}`]).toBeTruthy();
+    expect(
+      useInboxStore.getState().pending[`comments:${optimistic._id}`],
+    ).toBeTruthy();
 
     await expect(pending).rejects.toMatchObject({
       name: "CommandReceiptRejectedError",
       code: "FORBIDDEN",
     });
     expect(useInboxStore.getState().comments[optimistic._id]).toBeUndefined();
-    expect(useInboxStore.getState().pending[`comments:${optimistic._id}`]).toBeUndefined();
+    expect(
+      useInboxStore.getState().pending[`comments:${optimistic._id}`],
+    ).toBeUndefined();
   });
 
   it("restores an optimistically deleted real comment when its receipt is rejected", async () => {
@@ -3898,18 +5171,20 @@ describe("inboxStore local-first state mutations", () => {
       created_at: 1,
     } as any;
     useInboxStore.setState({ comments: { [CID]: comment }, pending: {} });
-    useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => ({
-      receiptVersion: 1,
-      commandId: result.commandId,
-      commandName: "comments.delete/v2",
-      status: "rejected",
-      rejection: {
-        code: "FORBIDDEN",
-        message: "Cannot delete this comment",
-      },
-      coverage: [],
-      retryUntil: null,
-    }));
+    useInboxStore
+      .getState()
+      ._setDispatch(async (_action, _args, _patches, result) => ({
+        receiptVersion: 1,
+        commandId: result.commandId,
+        commandName: "comments.delete/v2",
+        status: "rejected",
+        rejection: {
+          code: "FORBIDDEN",
+          message: "Cannot delete this comment",
+        },
+        coverage: [],
+        retryUntil: null,
+      }));
 
     const pending = useInboxStore.getState().deleteComment(CID);
     expect(useInboxStore.getState().comments[CID]).toBeUndefined();
@@ -3928,15 +5203,17 @@ describe("inboxStore local-first state mutations", () => {
   it("applies an acknowledged create-label assignment from its durable continuation", async () => {
     const bucketId = "bucket00000000000000000000000000";
     useInboxStore.setState({ buckets: {}, bucketAssignments: {}, pending: {} });
-    useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => ({
-      receiptVersion: 1,
-      commandId: result.commandId,
-      commandName: "buckets.create/v2",
-      status: "acknowledged",
-      result: { bucketId },
-      coverage: [],
-      retryUntil: null,
-    }));
+    useInboxStore
+      .getState()
+      ._setDispatch(async (_action, _args, _patches, result) => ({
+        receiptVersion: 1,
+        commandId: result.commandId,
+        commandName: "buckets.create/v2",
+        status: "acknowledged",
+        result: { bucketId },
+        coverage: [],
+        retryUntil: null,
+      }));
 
     await useInboxStore.getState().createBucket(
       { name: "Durable label" },
@@ -3948,8 +5225,9 @@ describe("inboxStore local-first state mutations", () => {
     );
 
     expect(
-      (Object.values(useInboxStore.getState().bucketAssignments) as any[])
-        .find((row) => row.conversation_id === CID),
+      (Object.values(useInboxStore.getState().bucketAssignments) as any[]).find(
+        (row) => row.conversation_id === CID,
+      ),
     ).toMatchObject({
       conversation_id: CID,
       bucket_id: bucketId,
@@ -3960,28 +5238,81 @@ describe("inboxStore local-first state mutations", () => {
     const GOAL = "goal0000000000000000000000000000";
     const REAL = "proj0000000000000000000000000000";
     const STUB = "projstub-test-1";
-    const goalRow = (project_ids: string[]) => ({ _id: GOAL, short_id: "in-1", title: "Grow", status: "active", project_ids, health: "none", workspace: "user:user1", user_id: "user1", created_at: 1, updated_at: 1 }) as any;
-    const serverRow = { _id: REAL, client_key: STUB, short_id: "pj-x", title: "Launch", status: "active", workspace: "user:user1", user_id: "user1", created_at: 2, updated_at: 2 };
-    const acknowledge = (gate?: Promise<void>) => useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => {
-      await gate;
-      return { receiptVersion: 1, commandId: result.commandId, commandName: "projects.create/v2", status: "acknowledged", result: { id: REAL, short_id: "pj-x", row: serverRow }, coverage: [], retryUntil: null };
-    });
-    const create = () => useInboxStore.getState().createProject(
-      { title: "Launch", client_key: STUB, workspace: "personal" },
-      { version: 1, kind: "attachToInitiative", initiativeId: GOAL },
-    );
+    const goalRow = (project_ids: string[]) =>
+      ({
+        _id: GOAL,
+        short_id: "in-1",
+        title: "Grow",
+        status: "active",
+        project_ids,
+        health: "none",
+        workspace: "user:user1",
+        user_id: "user1",
+        created_at: 1,
+        updated_at: 1,
+      }) as any;
+    const serverRow = {
+      _id: REAL,
+      client_key: STUB,
+      short_id: "pj-x",
+      title: "Launch",
+      status: "active",
+      workspace: "user:user1",
+      user_id: "user1",
+      created_at: 2,
+      updated_at: 2,
+    };
+    const acknowledge = (gate?: Promise<void>) =>
+      useInboxStore
+        .getState()
+        ._setDispatch(async (_action, _args, _patches, result) => {
+          await gate;
+          return {
+            receiptVersion: 1,
+            commandId: result.commandId,
+            commandName: "projects.create/v2",
+            status: "acknowledged",
+            result: { id: REAL, short_id: "pj-x", row: serverRow },
+            coverage: [],
+            retryUntil: null,
+          };
+        });
+    const create = () =>
+      useInboxStore
+        .getState()
+        .createProject(
+          { title: "Launch", client_key: STUB, workspace: "personal" },
+          { version: 1, kind: "attachToInitiative", initiativeId: GOAL },
+        );
     beforeEach(() => {
-      useInboxStore.setState({ currentUser: { _id: "user1" }, projects: {}, initiatives: { [GOAL]: goalRow(["projA"]) }, pending: {} } as any);
+      useInboxStore.setState({
+        currentUser: { _id: "user1" },
+        projects: {},
+        initiatives: { [GOAL]: goalRow(["projA"]) },
+        pending: {},
+      } as any);
     });
 
     it("paints the stub under the goal at once, then moves both to the real id", async () => {
       let release!: () => void;
-      acknowledge(new Promise<void>((r) => { release = r; }));
+      acknowledge(
+        new Promise<void>((r) => {
+          release = r;
+        }),
+      );
       const done = create();
       let s = useInboxStore.getState() as any;
-      expect(s.projects[STUB]).toMatchObject({ _id: STUB, client_key: STUB, title: "Launch", workspace: "user:user1" });
+      expect(s.projects[STUB]).toMatchObject({
+        _id: STUB,
+        client_key: STUB,
+        title: "Launch",
+        workspace: "user:user1",
+      });
       expect(s.initiatives[GOAL].project_ids).toEqual(["projA", STUB]);
-      expect(s.pending[`initiatives:${GOAL}:project_ids`]?.value).toEqual(["projA", STUB]);
+      expect(s.pending[`initiatives:${GOAL}:project_ids`]?.value).toEqual([
+        "projA",
+        STUB,
+      ]);
       release();
       await done;
       s = useInboxStore.getState() as any;
@@ -3989,14 +5320,27 @@ describe("inboxStore local-first state mutations", () => {
       expect(s.projects[REAL]).toMatchObject({ _id: REAL, title: "Launch" });
       expect(s.initiatives[GOAL].project_ids).toEqual(["projA", REAL]);
       // The lock holds the real id, so the server's echo retires it.
-      expect(s.pending[`initiatives:${GOAL}:project_ids`]?.value).toEqual(["projA", REAL]);
-      useInboxStore.getState().syncTable("initiatives", [goalRow(["projA", REAL])]);
-      expect((useInboxStore.getState() as any).pending[`initiatives:${GOAL}:project_ids`]).toBeUndefined();
+      expect(s.pending[`initiatives:${GOAL}:project_ids`]?.value).toEqual([
+        "projA",
+        REAL,
+      ]);
+      useInboxStore
+        .getState()
+        .syncTable("initiatives", [goalRow(["projA", REAL])]);
+      expect(
+        (useInboxStore.getState() as any).pending[
+          `initiatives:${GOAL}:project_ids`
+        ],
+      ).toBeUndefined();
     });
 
     it("a feed push that lands before the answer supersedes the stub by its key", async () => {
       let release!: () => void;
-      acknowledge(new Promise<void>((r) => { release = r; }));
+      acknowledge(
+        new Promise<void>((r) => {
+          release = r;
+        }),
+      );
       const done = create();
       useInboxStore.getState().syncTable("projects", [serverRow]);
       let s = useInboxStore.getState() as any;
@@ -4012,16 +5356,24 @@ describe("inboxStore local-first state mutations", () => {
 
     it("the goal's own push before the answer keeps the real id, and no lock holds the stub", async () => {
       let release!: () => void;
-      acknowledge(new Promise<void>((r) => { release = r; }));
+      acknowledge(
+        new Promise<void>((r) => {
+          release = r;
+        }),
+      );
       const done = create();
       // The server attaches the project in the create's transaction, so both
       // feeds can push before the acknowledgement does.
       useInboxStore.getState().syncTable("projects", [serverRow]);
-      useInboxStore.getState().syncTable("initiatives", [goalRow(["projA", REAL])]);
+      useInboxStore
+        .getState()
+        .syncTable("initiatives", [goalRow(["projA", REAL])]);
       let s = useInboxStore.getState() as any;
       expect(s.initiatives[GOAL].project_ids).toEqual(["projA", REAL]);
-      const holdsStub = () => Object.values((useInboxStore.getState() as any).pending)
-        .some((p: any) => Array.isArray(p?.value) && p.value.includes(STUB));
+      const holdsStub = () =>
+        Object.values((useInboxStore.getState() as any).pending).some(
+          (p: any) => Array.isArray(p?.value) && p.value.includes(STUB),
+        );
       expect(holdsStub()).toBe(false);
       release();
       await done;
@@ -4031,11 +5383,20 @@ describe("inboxStore local-first state mutations", () => {
     });
 
     it("a refused create leaves no stub behind, in the projects or the goal", async () => {
-      useInboxStore.getState()._setDispatch(async (_action, _args, _patches, result) => ({
-        receiptVersion: 1, commandId: result.commandId, commandName: "projects.create/v2", status: "rejected",
-        rejection: { code: "FORBIDDEN", message: "Not allowed" }, coverage: [], retryUntil: null,
-      }));
-      await expect(create()).rejects.toMatchObject({ name: "CommandReceiptRejectedError" });
+      useInboxStore
+        .getState()
+        ._setDispatch(async (_action, _args, _patches, result) => ({
+          receiptVersion: 1,
+          commandId: result.commandId,
+          commandName: "projects.create/v2",
+          status: "rejected",
+          rejection: { code: "FORBIDDEN", message: "Not allowed" },
+          coverage: [],
+          retryUntil: null,
+        }));
+      await expect(create()).rejects.toMatchObject({
+        name: "CommandReceiptRejectedError",
+      });
       const s = useInboxStore.getState() as any;
       expect(s.projects[STUB]).toBeUndefined();
       expect(s.pending[`projects:${STUB}`]).toBeUndefined();
@@ -4051,50 +5412,91 @@ describe("inboxStore local-first state mutations", () => {
   // silence as "restored elsewhere" and un-hid the row on every crawl — the
   // "I keep dismissing these and they keep coming back" loop (ct-39383).
   it("killSession on an unopened session (no conversations meta) still dispatches the dismiss", () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } }, conversations: {} });
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+      conversations: {},
+    });
     useInboxStore.getState().killSession(CID);
     const s = useInboxStore.getState();
     expect(s.sessions[CID]?.inbox_dismissed_at).toBeTruthy();
-    const d = dispatches.find((d) => d.patches?.conversations?.[CID]?.inbox_dismissed_at);
-    expect(d?.patches?.conversations?.[CID]?.inbox_dismissed_at).toBeTypeOf("number");
+    const d = dispatches.find(
+      (d) => d.patches?.conversations?.[CID]?.inbox_dismissed_at,
+    );
+    expect(d?.patches?.conversations?.[CID]?.inbox_dismissed_at).toBeTypeOf(
+      "number",
+    );
     // The in-flight local value stays protected until the server echo.
     expect(s.pending[`sessions:${CID}:inbox_dismissed_at`]).toBeTruthy();
   });
 
   it("stashSession on an unopened session still dispatches the stash", () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } }, conversations: {} });
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+      conversations: {},
+    });
     useInboxStore.getState().stashSession(CID);
-    const d = dispatches.find((d) => d.patches?.conversations?.[CID]?.inbox_stashed_at);
-    expect(d?.patches?.conversations?.[CID]?.inbox_stashed_at).toBeTypeOf("number");
+    const d = dispatches.find(
+      (d) => d.patches?.conversations?.[CID]?.inbox_stashed_at,
+    );
+    expect(d?.patches?.conversations?.[CID]?.inbox_stashed_at).toBeTypeOf(
+      "number",
+    );
   });
 
   it("pinSession on an unopened session still dispatches the pin", () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } }, conversations: {} });
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+      conversations: {},
+    });
     useInboxStore.getState().pinSession(CID);
-    const d = dispatches.find((d) => d.patches?.conversations?.[CID]?.inbox_pinned_at !== undefined);
-    expect(d?.patches?.conversations?.[CID]?.inbox_pinned_at).toBeTypeOf("number");
+    const d = dispatches.find(
+      (d) => d.patches?.conversations?.[CID]?.inbox_pinned_at !== undefined,
+    );
+    expect(d?.patches?.conversations?.[CID]?.inbox_pinned_at).toBeTypeOf(
+      "number",
+    );
   });
 
   it("deferSession on an unopened session still dispatches the defer", () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } }, conversations: {} });
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+      conversations: {},
+    });
     useInboxStore.getState().deferSession(CID);
-    const d = dispatches.find((d) => d.patches?.conversations?.[CID]?.inbox_deferred_at !== undefined);
-    expect(d?.patches?.conversations?.[CID]?.inbox_deferred_at).toBeTypeOf("number");
+    const d = dispatches.find(
+      (d) => d.patches?.conversations?.[CID]?.inbox_deferred_at !== undefined,
+    );
+    expect(d?.patches?.conversations?.[CID]?.inbox_deferred_at).toBeTypeOf(
+      "number",
+    );
   });
 
   it("restoreSession on an unopened session dispatches the un-dismiss as a null tombstone", () => {
     useInboxStore.setState({
-      sessions: { [CID]: { ...baseSession, _id: CID, inbox_dismissed_at: 123 } },
+      sessions: {
+        [CID]: { ...baseSession, _id: CID, inbox_dismissed_at: 123 },
+      },
       conversations: {},
     });
     useInboxStore.getState().restoreSession(CID);
-    const d = dispatches.find((d) => d.patches?.conversations?.[CID] && "inbox_dismissed_at" in d.patches.conversations[CID]);
+    const d = dispatches.find(
+      (d) =>
+        d.patches?.conversations?.[CID] &&
+        "inbox_dismissed_at" in d.patches.conversations[CID],
+    );
     expect(d?.patches?.conversations?.[CID]?.inbox_dismissed_at).toBeNull();
   });
 
   it("non-triage session field writes do NOT dispatch through the sessions mapping", async () => {
-    useInboxStore.setState({ sessions: { [CID]: { ...baseSession, _id: CID } }, conversations: {} });
-    await useInboxStore.getState().convCommand(CID, "restartSession", undefined, { status: "starting" } as any);
+    useInboxStore.setState({
+      sessions: { [CID]: { ...baseSession, _id: CID } },
+      conversations: {},
+    });
+    await useInboxStore
+      .getState()
+      .convCommand(CID, "restartSession", undefined, {
+        status: "starting",
+      } as any);
     for (const d of dispatches) {
       expect(d.patches?.conversations?.[CID]?.status).toBeUndefined();
     }
@@ -4107,22 +5509,34 @@ describe("inboxStore local-first state mutations", () => {
 // out-of-window session even when the live/crawl feeds would never resend it.
 describe("inbox window — injected old sessions persist", () => {
   beforeEach(() => {
-    useInboxStore.setState({ sessions: {}, conversations: {}, currentSessionId: null } as any);
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      currentSessionId: null,
+    } as any);
   });
 
   it("injectSession keeps a >30d-old session in the store and selects it", () => {
     const old = Date.now() - 90 * 24 * 60 * 60 * 1000;
     useInboxStore.getState().injectSession({
-      ...baseSession, _id: "old-conv", session_id: "old-sess", updated_at: old,
+      ...baseSession,
+      _id: "old-conv",
+      session_id: "old-sess",
+      updated_at: old,
     });
     const st = useInboxStore.getState();
     expect(st.sessions["old-conv"]).toBeDefined();
     expect(st.currentSessionId).toBe("old-conv");
 
     // A live-feed delta that omits the old session must NOT evict it (delta cache).
-    st.syncTable("sessions", [{
-      ...baseSession, _id: "recent", session_id: "recent-sess", updated_at: Date.now(),
-    }]);
+    st.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "recent",
+        session_id: "recent-sess",
+        updated_at: Date.now(),
+      },
+    ]);
     expect(useInboxStore.getState().sessions["old-conv"]).toBeDefined();
   });
 });
@@ -4133,21 +5547,36 @@ describe("inbox window — injected old sessions persist", () => {
 // server dispatch); the server mutation persists the same set authoritatively.
 describe("inbox markSessionsDismissed — bulk local dismiss", () => {
   beforeEach(() => {
-    useInboxStore.setState({ sessions: {}, conversations: {}, currentSessionId: null } as any);
+    useInboxStore.setState({
+      sessions: {},
+      conversations: {},
+      currentSessionId: null,
+    } as any);
   });
 
   it("dismisses only the listed sessions and leaves the rest active", () => {
-    const mk = (id: string): InboxSession => ({ ...baseSession, _id: id, session_id: `s-${id}`, updated_at: 1 });
+    const mk = (id: string): InboxSession => ({
+      ...baseSession,
+      _id: id,
+      session_id: `s-${id}`,
+      updated_at: 1,
+    });
     useInboxStore.setState({
       sessions: { a: mk("a"), b: mk("b"), keep: mk("keep") },
-      conversations: { a: { _id: "a" }, b: { _id: "b" }, keep: { _id: "keep" } },
+      conversations: {
+        a: { _id: "a" },
+        b: { _id: "b" },
+        keep: { _id: "keep" },
+      },
     } as any);
 
     useInboxStore.getState().markSessionsDismissed(["a", "b"]);
     const st = useInboxStore.getState();
     expect(isSessionDismissed(st.sessions["a"])).toBe(true);
     expect(isSessionDismissed(st.sessions["b"])).toBe(true);
-    expect((st.conversations["a"] as any).inbox_dismissed_at).toBeGreaterThan(0);
+    expect((st.conversations["a"] as any).inbox_dismissed_at).toBeGreaterThan(
+      0,
+    );
     expect(isSessionDismissed(st.sessions["keep"])).toBe(false);
 
     // Categorization reflects it: a/b in dismissed bucket, keep stays out.
@@ -4158,7 +5587,15 @@ describe("inbox markSessionsDismissed — bulk local dismiss", () => {
 
   it("does not overwrite an already-dismissed timestamp", () => {
     const st = useInboxStore.getState();
-    st.syncTable("sessions", [{ ...baseSession, _id: "d", session_id: "sd", updated_at: 1, inbox_dismissed_at: 555 }]);
+    st.syncTable("sessions", [
+      {
+        ...baseSession,
+        _id: "d",
+        session_id: "sd",
+        updated_at: 1,
+        inbox_dismissed_at: 555,
+      },
+    ]);
     st.markSessionsDismissed(["d"]);
     expect(useInboxStore.getState().sessions["d"].inbox_dismissed_at).toBe(555);
   });
@@ -4168,24 +5605,52 @@ describe("inbox markSessionsDismissed — bulk local dismiss", () => {
 // the display must DERIVE the avatar/name from the live roster (not the stored,
 // server-enriched assignee_info which lags a round-trip).
 describe("resolveAssigneeInfo", () => {
-  const members = [{ _id: "u1", name: "Jason", github_avatar_url: "jpg", github_username: "jbenn" }];
-  const currentUser = { _id: "u2", name: "Ashot", image: "apng", github_username: "ashot" };
+  const members = [
+    {
+      _id: "u1",
+      name: "Jason",
+      github_avatar_url: "jpg",
+      github_username: "jbenn",
+    },
+  ];
+  const currentUser = {
+    _id: "u2",
+    name: "Ashot",
+    image: "apng",
+    github_username: "ashot",
+  };
 
   it("prefers the live roster over a stale stored assignee_info (the instant-reassign case)", () => {
     const stale = { name: "Old Person", image: "old.png" };
-    expect(resolveAssigneeInfo("u1", stale, members, currentUser)).toEqual({ name: "Jason", image: "jpg", github_username: "jbenn" });
+    expect(resolveAssigneeInfo("u1", stale, members, currentUser)).toEqual({
+      name: "Jason",
+      image: "jpg",
+      github_username: "jbenn",
+    });
   });
 
   it("resolves the current user even when not in the team roster", () => {
-    expect(resolveAssigneeInfo("u2", null, members, currentUser)).toEqual({ name: "Ashot", image: "apng", github_username: "ashot" });
+    expect(resolveAssigneeInfo("u2", null, members, currentUser)).toEqual({
+      name: "Ashot",
+      image: "apng",
+      github_username: "ashot",
+    });
   });
 
   it("returns null for no assignee and falls back to the server value for unknown ids", () => {
-    expect(resolveAssigneeInfo(null, { name: "x" }, members, currentUser)).toBe(null);
-    expect(resolveAssigneeInfo("u9", { name: "Server Enriched" }, members, currentUser)).toEqual({ name: "Server Enriched" });
+    expect(resolveAssigneeInfo(null, { name: "x" }, members, currentUser)).toBe(
+      null,
+    );
+    expect(
+      resolveAssigneeInfo(
+        "u9",
+        { name: "Server Enriched" },
+        members,
+        currentUser,
+      ),
+    ).toEqual({ name: "Server Enriched" });
   });
 });
-
 
 describe("hiding a local-only stub — stash/dismiss mean delete", () => {
   // A stub from beginOptimisticSession whose server create failed can never be
@@ -4202,7 +5667,12 @@ describe("hiding a local-only stub — stash/dismiss mean delete", () => {
         [stub]: { ...baseSession, _id: stub, session_id: stub },
         // message_count > 0: a blank `real` would be a hidden pre-warm,
         // invisible to the post-dismiss next-pick by design.
-        [real]: { ...baseSession, _id: real, session_id: real, message_count: 3 },
+        [real]: {
+          ...baseSession,
+          _id: real,
+          session_id: real,
+          message_count: 3,
+        },
       },
       conversations: {
         [stub]: { _id: stub } as any,
@@ -4256,8 +5726,20 @@ describe("killSessions — bulk kill from the Stashed bucket", () => {
     const ts = Date.now() - 1000;
     useInboxStore.setState({
       sessions: {
-        [a]: { ...baseSession, _id: a, session_id: a, message_count: 2, inbox_stashed_at: ts },
-        [b]: { ...baseSession, _id: b, session_id: b, message_count: 2, inbox_stashed_at: ts },
+        [a]: {
+          ...baseSession,
+          _id: a,
+          session_id: a,
+          message_count: 2,
+          inbox_stashed_at: ts,
+        },
+        [b]: {
+          ...baseSession,
+          _id: b,
+          session_id: b,
+          message_count: 2,
+          inbox_stashed_at: ts,
+        },
       },
       conversations: { [a]: { _id: a } as any, [b]: { _id: b } as any },
       currentSessionId: null,
@@ -4277,36 +5759,85 @@ describe("killSessions — bulk kill from the Stashed bucket", () => {
   });
 });
 
-
-import { computePlanProgress, mergeLiveTasks, deriveDocDisplayTitle } from "../../lib/liveEntities";
+import {
+  computePlanProgress,
+  mergeLiveTasks,
+  deriveDocDisplayTitle,
+} from "../../lib/liveEntities";
 
 describe("liveEntities derivers (system-level local-first fix)", () => {
   const members = [{ _id: "u1", name: "Jason", github_avatar_url: "j.png" }];
 
   it("computePlanProgress mirrors server recalcProgress (dropped excluded; backlog→open)", () => {
-    const tasks = [{ status: "done" }, { status: "done" }, { status: "in_progress" }, { status: "open" }, { status: "backlog" }, { status: "dropped" }];
-    expect(computePlanProgress(tasks)).toEqual({ total: 5, done: 2, in_progress: 1, open: 2 });
+    const tasks = [
+      { status: "done" },
+      { status: "done" },
+      { status: "in_progress" },
+      { status: "open" },
+      { status: "backlog" },
+      { status: "dropped" },
+    ];
+    expect(computePlanProgress(tasks)).toEqual({
+      total: 5,
+      done: 2,
+      in_progress: 1,
+      open: 2,
+    });
   });
 
   it("mergeLiveTasks overlays live status + re-derives assignee, keeping snapshot-only fields", () => {
-    const snapshot = [{ _id: "t1", status: "open", assignee: "u0", assignee_info: { name: "Old" }, origin_session: { x: 1 } }];
+    const snapshot = [
+      {
+        _id: "t1",
+        status: "open",
+        assignee: "u0",
+        assignee_info: { name: "Old" },
+        origin_session: { x: 1 },
+      },
+    ];
     const store = { t1: { _id: "t1", status: "done", assignee: "u1" } };
     const [r] = mergeLiveTasks(snapshot, store as any, members, null);
-    expect(r.status).toBe("done");                 // live raw field overlaid
-    expect(r.assignee_info).toEqual({ name: "Jason", image: "j.png", github_username: undefined }); // re-derived from roster
-    expect(r.origin_session).toEqual({ x: 1 });    // server-only snapshot field preserved
+    expect(r.status).toBe("done"); // live raw field overlaid
+    expect(r.assignee_info).toEqual({
+      name: "Jason",
+      image: "j.png",
+      github_username: undefined,
+    }); // re-derived from roster
+    expect(r.origin_session).toEqual({ x: 1 }); // server-only snapshot field preserved
   });
 
   it("mergeLiveTasks returns the same reference when nothing diverges (memo-stable)", () => {
-    const snapshot = [{ _id: "t1", status: "open", assignee: "u1", assignee_info: { name: "Jason", image: "j.png", github_username: undefined } }];
+    const snapshot = [
+      {
+        _id: "t1",
+        status: "open",
+        assignee: "u1",
+        assignee_info: {
+          name: "Jason",
+          image: "j.png",
+          github_username: undefined,
+        },
+      },
+    ];
     const store = { t1: { _id: "t1", status: "open", assignee: "u1" } };
-    expect(mergeLiveTasks(snapshot, store as any, members, null)[0]).toBe(snapshot[0]);
+    expect(mergeLiveTasks(snapshot, store as any, members, null)[0]).toBe(
+      snapshot[0],
+    );
   });
 
   it("deriveDocDisplayTitle parses a plan-mode doc heading, else undefined", () => {
-    expect(deriveDocDisplayTitle({ source: "plan_mode", content: "# My Plan\nbody" })).toBe("My Plan");
-    expect(deriveDocDisplayTitle({ source: "note", content: "# X" })).toBeUndefined();
-    expect(deriveDocDisplayTitle({ source: "plan_mode", content: "no heading" })).toBeUndefined();
+    expect(
+      deriveDocDisplayTitle({
+        source: "plan_mode",
+        content: "# My Plan\nbody",
+      }),
+    ).toBe("My Plan");
+    expect(
+      deriveDocDisplayTitle({ source: "note", content: "# X" }),
+    ).toBeUndefined();
+    expect(
+      deriveDocDisplayTitle({ source: "plan_mode", content: "no heading" }),
+    ).toBeUndefined();
   });
 });
 
@@ -4319,14 +5850,36 @@ describe("resolveSessionAuthor", () => {
   ];
 
   it("a role's standing session is shown as its role's given name and face, never its bot user's title", () => {
-    const role = { _id: "or1", short_id: "or-1", name: "Cam's Engineering Co-worker", handle: "cam-coworker", avatar: "hare", status: "active", tenure_kind: "standing" as const, given_name: "Hazel" };
+    const role = {
+      _id: "or1",
+      short_id: "or-1",
+      name: "Cam's Engineering Co-worker",
+      handle: "cam-coworker",
+      avatar: "hare",
+      status: "active",
+      tenure_kind: "standing" as const,
+      given_name: "Hazel",
+    };
     const bot = { _id: "bot1", name: "Cam's Engineering Co-worker" } as any;
-    expect(resolveSessionAuthor({ user_id: "u2", acting_user_id: "bot1", standing_role_id: "or1", role }, null, me, [...roster, bot]))
-      .toEqual({ name: "Hazel", avatar: null, face: "hare", role });
+    expect(
+      resolveSessionAuthor(
+        {
+          user_id: "u2",
+          acting_user_id: "bot1",
+          standing_role_id: "or1",
+          role,
+        },
+        null,
+        me,
+        [...roster, bot],
+      ),
+    ).toEqual({ name: "Hazel", avatar: null, face: "hare", role });
   });
 
   it("returns null for the current user's own session (user_id === me)", () => {
-    expect(resolveSessionAuthor({ user_id: "me" }, null, me, roster)).toBeNull();
+    expect(
+      resolveSessionAuthor({ user_id: "me" }, null, me, roster),
+    ).toBeNull();
   });
 
   it("returns null when there is no author identity at all (user-scoped default = mine)", () => {
@@ -4334,56 +5887,121 @@ describe("resolveSessionAuthor", () => {
   });
 
   it("resolves a teammate from the live roster by user_id (name + avatar)", () => {
-    expect(resolveSessionAuthor({ user_id: "u2" }, null, me, roster)).toEqual({ name: "Jason Park", avatar: "jason.png" });
+    expect(resolveSessionAuthor({ user_id: "u2" }, null, me, roster)).toEqual({
+      name: "Jason Park",
+      avatar: "jason.png",
+    });
   });
 
   it("falls back to email when the roster member has no name", () => {
-    expect(resolveSessionAuthor({ user_id: "u3" }, null, me, roster)).toEqual({ name: "kim@x.com", avatar: undefined });
+    expect(resolveSessionAuthor({ user_id: "u3" }, null, me, roster)).toEqual({
+      name: "kim@x.com",
+      avatar: undefined,
+    });
   });
 
   it("prefers the live roster over the source-provided author fields (instant rename)", () => {
-    const r = resolveSessionAuthor({ user_id: "u2", author_name: "Stale Name", author_avatar: "stale.png" }, null, me, roster);
+    const r = resolveSessionAuthor(
+      { user_id: "u2", author_name: "Stale Name", author_avatar: "stale.png" },
+      null,
+      me,
+      roster,
+    );
     expect(r).toEqual({ name: "Jason Park", avatar: "jason.png" });
   });
 
   it("uses source author fields when the author isn't on the roster (cross-team)", () => {
-    const r = resolveSessionAuthor({ user_id: "ghost", author_name: "Outsider", author_avatar: "out.png" }, null, me, roster);
+    const r = resolveSessionAuthor(
+      { user_id: "ghost", author_name: "Outsider", author_avatar: "out.png" },
+      null,
+      me,
+      roster,
+    );
     expect(r).toEqual({ name: "Outsider", avatar: "out.png" });
   });
 
   it("shows the palette author (no user_id, only author_name) — team source already excluded own sessions", () => {
-    expect(resolveSessionAuthor({ author_name: "Sam", author_avatar: "sam.png" }, null, me, roster)).toEqual({ name: "Sam", avatar: "sam.png" });
+    expect(
+      resolveSessionAuthor(
+        { author_name: "Sam", author_avatar: "sam.png" },
+        null,
+        me,
+        roster,
+      ),
+    ).toEqual({ name: "Sam", avatar: "sam.png" });
   });
 
   it("returns null for an unnamed non-roster author (better blank than a raw id)", () => {
-    expect(resolveSessionAuthor({ user_id: "ghost" }, null, me, roster)).toBeNull();
+    expect(
+      resolveSessionAuthor({ user_id: "ghost" }, null, me, roster),
+    ).toBeNull();
   });
 
   it("before currentUser loads: own synced row (user_id, no author_name) stays unlabeled — no self-flash", () => {
-    expect(resolveSessionAuthor({ user_id: "me" }, null, null, roster)).toBeNull();
-    expect(resolveSessionAuthor({ user_id: "u2" }, null, undefined, roster)).toBeNull();
+    expect(
+      resolveSessionAuthor({ user_id: "me" }, null, null, roster),
+    ).toBeNull();
+    expect(
+      resolveSessionAuthor({ user_id: "u2" }, null, undefined, roster),
+    ).toBeNull();
   });
 
   it("before currentUser loads: an explicit author_name still marks not-mine (display stays roster-first)", () => {
-    expect(resolveSessionAuthor({ user_id: "u2", author_name: "Stale Name", author_avatar: "stale.png" }, null, null, roster)).toEqual({ name: "Jason Park", avatar: "jason.png" });
+    expect(
+      resolveSessionAuthor(
+        {
+          user_id: "u2",
+          author_name: "Stale Name",
+          author_avatar: "stale.png",
+        },
+        null,
+        null,
+        roster,
+      ),
+    ).toEqual({ name: "Jason Park", avatar: "jason.png" });
     // off-roster author: source fields carry the display
-    expect(resolveSessionAuthor({ user_id: "ghost", author_name: "Outsider", author_avatar: "out.png" }, null, null, roster)).toEqual({ name: "Outsider", avatar: "out.png" });
+    expect(
+      resolveSessionAuthor(
+        { user_id: "ghost", author_name: "Outsider", author_avatar: "out.png" },
+        null,
+        null,
+        roster,
+      ),
+    ).toEqual({ name: "Outsider", avatar: "out.png" });
   });
 
   // -- conversation-meta source: rescues rows cached before injection carried author --
 
   it("author-less cached row + conv meta (is_own:false, user_id): resolves via roster — the stale-cache fix", () => {
-    const conv = { user_id: "u2", is_own: false, user: { name: "Jason Park", avatar_url: "meta.png" } };
-    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({ name: "Jason Park", avatar: "jason.png" });
+    const conv = {
+      user_id: "u2",
+      is_own: false,
+      user: { name: "Jason Park", avatar_url: "meta.png" },
+    };
+    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({
+      name: "Jason Park",
+      avatar: "jason.png",
+    });
   });
 
   it("conv meta user display when author isn't on the roster", () => {
-    const conv = { user_id: "ghost", is_own: false, user: { name: "Old Member", avatar_url: "old.png" } };
-    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({ name: "Old Member", avatar: "old.png" });
+    const conv = {
+      user_id: "ghost",
+      is_own: false,
+      user: { name: "Old Member", avatar_url: "old.png" },
+    };
+    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({
+      name: "Old Member",
+      avatar: "old.png",
+    });
   });
 
   it("conv.is_own:true is definitive — never labels my own viewed session, even with a user object", () => {
-    const conv = { user_id: "me", is_own: true, user: { name: "Me", avatar_url: "me.png" } };
+    const conv = {
+      user_id: "me",
+      is_own: true,
+      user: { name: "Me", avatar_url: "me.png" },
+    };
     expect(resolveSessionAuthor({}, conv, me, roster)).toBeNull();
   });
 
@@ -4392,14 +6010,34 @@ describe("resolveSessionAuthor", () => {
   });
 
   it("conv meta works before currentUser loads (is_own verdict needs no 'me')", () => {
-    const conv = { user_id: "u2", is_own: false, user: { name: "Jason Park", avatar_url: "meta.png" } };
-    expect(resolveSessionAuthor({}, conv, null, roster)).toEqual({ name: "Jason Park", avatar: "jason.png" });
+    const conv = {
+      user_id: "u2",
+      is_own: false,
+      user: { name: "Jason Park", avatar_url: "meta.png" },
+    };
+    expect(resolveSessionAuthor({}, conv, null, roster)).toEqual({
+      name: "Jason Park",
+      avatar: "jason.png",
+    });
   });
 
   it("conv meta without is_own still resolves ownership by user_id comparison", () => {
-    const conv = { user_id: "u2", user: { name: "Jason Park", avatar_url: "meta.png" } };
-    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({ name: "Jason Park", avatar: "jason.png" });
-    expect(resolveSessionAuthor({}, { user_id: "me", user: { name: "Me" } }, me, roster)).toBeNull();
+    const conv = {
+      user_id: "u2",
+      user: { name: "Jason Park", avatar_url: "meta.png" },
+    };
+    expect(resolveSessionAuthor({}, conv, me, roster)).toEqual({
+      name: "Jason Park",
+      avatar: "jason.png",
+    });
+    expect(
+      resolveSessionAuthor(
+        {},
+        { user_id: "me", user: { name: "Me" } },
+        me,
+        roster,
+      ),
+    ).toBeNull();
   });
 });
 
@@ -4412,7 +6050,11 @@ describe("resolveSessionAuthor", () => {
 // before any network. Regression for ct-35795.
 describe("feed pagination latch — dropLatchedFeedHasMore + feedCursors", () => {
   beforeEach(() => {
-    useInboxStore.setState({ feedConversations: {}, feedHasMore: {}, feedCursors: {} });
+    useInboxStore.setState({
+      feedConversations: {},
+      feedHasMore: {},
+      feedCursors: {},
+    });
   });
 
   // Every fetched row must stay cached: the feed's exhaustiveness (and the
@@ -4420,7 +6062,11 @@ describe("feed pagination latch — dropLatchedFeedHasMore + feedCursors", () =>
   // rows. A 2000-row cap used to silently evict the oldest on deep scrolls.
   it("mergeFeedConversations keeps every row ever merged, sorted newest-first", () => {
     const merge = useInboxStore.getState().mergeFeedConversations;
-    const page = (from: number, n: number) => Array.from({ length: n }, (_, i) => ({ _id: `c${from + i}`, updated_at: from + i }));
+    const page = (from: number, n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        _id: `c${from + i}`,
+        updated_at: from + i,
+      }));
     for (let i = 0; i < 5; i++) merge("k|", page(i * 1000, 1000));
     merge("k|", [{ _id: "c0", updated_at: 99999 }]); // an update moves a row, never duplicates it
     const rows = useInboxStore.getState().feedConversations["k|"];
@@ -4465,16 +6111,27 @@ describe("feed pagination latch — dropLatchedFeedHasMore + feedCursors", () =>
 // Regression for ct-36577.
 describe("feedPagePersistence — null cursor is only durable with evidence", () => {
   it("trusts a continuation cursor unconditionally", () => {
-    expect(feedPagePersistence({ rowCount: 0, nextCursor: "abc" })).toEqual({ cursor: "abc", hasMore: true });
-    expect(feedPagePersistence({ rowCount: 20, nextCursor: '{"v":2,"m":{}}' })).toEqual({ cursor: '{"v":2,"m":{}}', hasMore: true });
+    expect(feedPagePersistence({ rowCount: 0, nextCursor: "abc" })).toEqual({
+      cursor: "abc",
+      hasMore: true,
+    });
+    expect(
+      feedPagePersistence({ rowCount: 20, nextCursor: '{"v":2,"m":{}}' }),
+    ).toEqual({ cursor: '{"v":2,"m":{}}', hasMore: true });
   });
 
   it("trusts end-of-history only when the final page carried rows", () => {
-    expect(feedPagePersistence({ rowCount: 3, nextCursor: null })).toEqual({ cursor: null, hasMore: false });
+    expect(feedPagePersistence({ rowCount: 3, nextCursor: null })).toEqual({
+      cursor: null,
+      hasMore: false,
+    });
   });
 
   it("an empty page with a null cursor keeps the existing resume point", () => {
-    expect(feedPagePersistence({ rowCount: 0, nextCursor: null })).toEqual({ cursor: undefined, hasMore: false });
+    expect(feedPagePersistence({ rowCount: 0, nextCursor: null })).toEqual({
+      cursor: undefined,
+      hasMore: false,
+    });
   });
 });
 
@@ -4486,9 +6143,24 @@ describe("feedPagePersistence — null cursor is only durable with evidence", ()
 // permanent loader. closeTab must promote it in the inbox deep-link form.
 describe("closeTab — promoted tab must not be a redirect-page route", () => {
   const convId = "jx70p2wf110d36kd6y3cdw339x8858c0";
-  const tabA = { id: "tab_a", title: "inbox", path: `/conversation/${convId}`, createdAt: 1 };
-  const tabB = { id: "tab_b", title: "inbox", path: `/inbox?s=${convId}`, createdAt: 2 };
-  const tabC = { id: "tab_c", title: "ashot", path: "/team/ashot", createdAt: 3 };
+  const tabA = {
+    id: "tab_a",
+    title: "inbox",
+    path: `/conversation/${convId}`,
+    createdAt: 1,
+  };
+  const tabB = {
+    id: "tab_b",
+    title: "inbox",
+    path: `/inbox?s=${convId}`,
+    createdAt: 2,
+  };
+  const tabC = {
+    id: "tab_c",
+    title: "ashot",
+    path: "/team/ashot",
+    createdAt: 3,
+  };
 
   beforeEach(() => {
     useInboxStore.setState({ tabs: [tabA, tabB], activeTabId: "tab_b" });
@@ -4519,10 +6191,17 @@ describe("closeTab — promoted tab must not be a redirect-page route", () => {
   });
 
   it("does not rewrite the diff route — that pane is a real page, not a redirect", () => {
-    const diffTab = { id: "tab_d", title: "diff", path: `/conversation/${convId}/diff`, createdAt: 1 };
+    const diffTab = {
+      id: "tab_d",
+      title: "diff",
+      path: `/conversation/${convId}/diff`,
+      createdAt: 1,
+    };
     useInboxStore.setState({ tabs: [diffTab, tabB], activeTabId: "tab_b" });
     useInboxStore.getState().closeTab("tab_b");
-    expect(useInboxStore.getState().tabs[0].path).toBe(`/conversation/${convId}/diff`);
+    expect(useInboxStore.getState().tabs[0].path).toBe(
+      `/conversation/${convId}/diff`,
+    );
   });
 });
 
@@ -4535,7 +6214,11 @@ describe("switchTab — each tab freezes and restores its own frame", () => {
   const tabB = { id: "tab_b", title: "chat", path: "/chat", createdAt: 2 };
 
   beforeEach(() => {
-    useInboxStore.setState({ tabs: [tabA, tabB], activeTabId: "tab_a", sidePanelSessionId: null });
+    useInboxStore.setState({
+      tabs: [tabA, tabB],
+      activeTabId: "tab_a",
+      sidePanelSessionId: null,
+    });
   });
 
   it("restores each tab's frame — rail state, widths, nav collapse, rail subject", () => {
@@ -4576,7 +6259,10 @@ describe("switchTab — each tab freezes and restores its own frame", () => {
     // Old clients persisted partial shapes ({ context: { presentation } },
     // no pane key). Adopting one wholesale would leave workspace slots
     // undefined and crash the layout; such slots must be skipped.
-    const legacy = { ...tabB, workspace: { context: { presentation: "split" } } } as any;
+    const legacy = {
+      ...tabB,
+      workspace: { context: { presentation: "split" } },
+    } as any;
     useInboxStore.setState({ tabs: [tabA, legacy], activeTabId: "tab_a" });
     const before = useInboxStore.getState().workspace;
 
@@ -4626,10 +6312,33 @@ describe("inboxStore fork stub lifecycle", () => {
 
   function seedStub() {
     seedCurrentSession({
-      sessions: { [STUB]: { ...baseSession, _id: STUB, session_id: STUB, forked_from: "parent1" } as InboxSession },
-      conversations: { [STUB]: { _id: STUB, session_id: STUB, fork_status: "copying", message_count: 2 } },
-      messages: { [STUB]: [{ _id: "m1", role: "user", timestamp: 1 }, { _id: "m2", role: "assistant", timestamp: 2 }] },
-      pendingMessages: { [STUB]: [{ _id: "p1", role: "user", timestamp: 3, _isOptimistic: true }] },
+      sessions: {
+        [STUB]: {
+          ...baseSession,
+          _id: STUB,
+          session_id: STUB,
+          forked_from: "parent1",
+        } as InboxSession,
+      },
+      conversations: {
+        [STUB]: {
+          _id: STUB,
+          session_id: STUB,
+          fork_status: "copying",
+          message_count: 2,
+        },
+      },
+      messages: {
+        [STUB]: [
+          { _id: "m1", role: "user", timestamp: 1 },
+          { _id: "m2", role: "assistant", timestamp: 2 },
+        ],
+      },
+      pendingMessages: {
+        [STUB]: [
+          { _id: "p1", role: "user", timestamp: 3, _isOptimistic: true },
+        ],
+      },
       currentSessionId: STUB,
       optimisticForkChildren: [{ _id: STUB, parent_message_uuid: "u2" }],
     } as any);
@@ -4665,7 +6374,6 @@ describe("inboxStore fork stub lifecycle", () => {
   });
 });
 
-
 describe("dismiss/kill advances in the ACTIVE view order, like j/k", () => {
   // Three waiting-for-input sessions whose grouped order and time order
   // DISAGREE, so the test can tell which ordering the advance used.
@@ -4677,7 +6385,11 @@ describe("dismiss/kill advances in the ACTIVE view order, like j/k", () => {
   // A settled row, with the status stamped when the turn ended: the grouped
   // queue orders by that stamp (shared inboxSortTime, ct-49550), the time view
   // by started_at, and the two fixtures below disagree on purpose.
-  const waiting = (id: string, updated_at: number, started_at: number): InboxSession => ({
+  const waiting = (
+    id: string,
+    updated_at: number,
+    started_at: number,
+  ): InboxSession => ({
     ...baseSession,
     _id: id,
     session_id: `sess-${id.slice(0, 1)}`,
@@ -4764,8 +6476,16 @@ describe("computeInboxVisible — the authoritative active set (working-set memb
     is_idle: true,
     updated_at: Date.now() - ageMs,
   });
-  const state = (sessions: Record<string, InboxSession>, ui: Record<string, unknown> = {}) =>
-    ({ sessions, clientState: { ui }, currentUser: null, teamInboxIds: new Set<string>() }) as any;
+  const state = (
+    sessions: Record<string, InboxSession>,
+    ui: Record<string, unknown> = {},
+  ) =>
+    ({
+      sessions,
+      clientState: { ui },
+      currentUser: null,
+      teamInboxIds: new Set<string>(),
+    }) as any;
 
   it("drops a row outside the 30-day recent window from every count — cached for search, never counted", () => {
     const live = needsInputRow("liveactive");
@@ -4788,7 +6508,9 @@ describe("computeInboxVisible — the authoritative active set (working-set memb
     // authoritative on one live client). Show-old only reveals FOLDED members.
     const live = needsInputRow("liveactive2");
     const old = needsInputRow("oldcruft2", 40 * 24 * 60 * 60 * 1000);
-    const res = computeInboxVisible(state({ [live._id]: live, [old._id]: old }, { inbox_show_old: true }));
+    const res = computeInboxVisible(
+      state({ [live._id]: live, [old._id]: old }, { inbox_show_old: true }),
+    );
     expect(Object.keys(res.visibleSessions)).toEqual([live._id]);
     expect(res.oldCount).toBe(0); // a nonmember is not "old" — it is not in the set at all
   });
@@ -4796,32 +6518,58 @@ describe("computeInboxVisible — the authoritative active set (working-set memb
   it("show-old selects shown + folded INSIDE the computation (the 12h fold gap)", () => {
     const now = Date.now();
     const fresh = { ...needsInputRow("freshrow"), updated_at: now };
-    const edge = { ...needsInputRow("edgerow"), updated_at: now - 11 * 60 * 60 * 1000 };
-    const folded = { ...needsInputRow("foldedrow"), updated_at: now - 24 * 60 * 60 * 1000 };
-    const sessions = { [fresh._id]: fresh, [edge._id]: edge, [folded._id]: folded };
+    const edge = {
+      ...needsInputRow("edgerow"),
+      updated_at: now - 11 * 60 * 60 * 1000,
+    };
+    const folded = {
+      ...needsInputRow("foldedrow"),
+      updated_at: now - 24 * 60 * 60 * 1000,
+    };
+    const sessions = {
+      [fresh._id]: fresh,
+      [edge._id]: edge,
+      [folded._id]: folded,
+    };
 
     // Off: the first row past the 12h gap (the cut) folds; the oldest row
     // before the gap stays (shared computeFold).
     const off = computeInboxVisible(state(sessions, { inbox_show_old: false }));
-    expect(Object.keys(off.visibleSessions).sort()).toEqual([fresh._id, edge._id].sort());
+    expect(Object.keys(off.visibleSessions).sort()).toEqual(
+      [fresh._id, edge._id].sort(),
+    );
     expect(off.oldCount).toBe(1);
 
     // On: the folded member renders; oldCount still names the folded set.
     const on = computeInboxVisible(state(sessions, { inbox_show_old: true }));
-    expect(Object.keys(on.visibleSessions).sort()).toEqual([fresh._id, edge._id, folded._id].sort());
+    expect(Object.keys(on.visibleSessions).sort()).toEqual(
+      [fresh._id, edge._id, folded._id].sort(),
+    );
     expect(on.oldCount).toBe(1);
   });
 
   it("never hides a working session with current activity", () => {
-    const working = { ...needsInputRow("workingnow"), agent_status: "working", is_idle: false };
-    const res = computeInboxVisible(state({ [working._id]: working }, { inbox_show_old: false }));
+    const working = {
+      ...needsInputRow("workingnow"),
+      agent_status: "working",
+      is_idle: false,
+    };
+    const res = computeInboxVisible(
+      state({ [working._id]: working }, { inbox_show_old: false }),
+    );
     const cat = placeSections(res.visibleSessions, new Set());
     expect(cat.working.map((s) => s._id)).toEqual([working._id]);
   });
 
   it("pinned rows hold their seat through the pinned window even when aged out of recent", () => {
-    const pinned = { ...needsInputRow("pinnedold", 60 * 24 * 60 * 60 * 1000), is_pinned: true, inbox_pinned_at: Date.now() };
-    const res = computeInboxVisible(state({ [pinned._id]: pinned }, { inbox_show_old: false }));
+    const pinned = {
+      ...needsInputRow("pinnedold", 60 * 24 * 60 * 60 * 1000),
+      is_pinned: true,
+      inbox_pinned_at: Date.now(),
+    };
+    const res = computeInboxVisible(
+      state({ [pinned._id]: pinned }, { inbox_show_old: false }),
+    );
     expect(Object.keys(res.visibleSessions)).toEqual([pinned._id]);
     const cat = placeSections(res.visibleSessions, new Set());
     expect(cat.pinned.map((s) => s._id)).toEqual([pinned._id]);
@@ -4831,9 +6579,18 @@ describe("computeInboxVisible — the authoritative active set (working-set memb
     const live = needsInputRow("livea");
     const old1 = needsInputRow("old1", 40 * 24 * 60 * 60 * 1000);
     const old2 = needsInputRow("old2", 40 * 24 * 60 * 60 * 1000);
-    const st = state({ [live._id]: live, [old1._id]: old1, [old2._id]: old2 }, { inbox_show_old: false });
-    const panel = placeSections(computeInboxVisible(st).visibleSessions, new Set()).needsInput.length;
-    const badge = placeSections(computeInboxVisible(st).visibleSessions, new Set()).needsInput.length;
+    const st = state(
+      { [live._id]: live, [old1._id]: old1, [old2._id]: old2 },
+      { inbox_show_old: false },
+    );
+    const panel = placeSections(
+      computeInboxVisible(st).visibleSessions,
+      new Set(),
+    ).needsInput.length;
+    const badge = placeSections(
+      computeInboxVisible(st).visibleSessions,
+      new Set(),
+    ).needsInput.length;
     expect(panel).toBe(1);
     expect(badge).toBe(panel);
   });
@@ -4936,7 +6693,10 @@ describe("liveInboxIds persistence + synced show-old", () => {
       useInboxStore.getState().setTeamInboxIds(["a", "b"], "team1");
       const st = useInboxStore.getState();
       expect([...st.teamInboxIds].sort()).toEqual(["a", "b"]);
-      expect(st.teamInboxIdSnapshot).toEqual({ team_id: "team1", ids: ["a", "b"] });
+      expect(st.teamInboxIdSnapshot).toEqual({
+        team_id: "team1",
+        ids: ["a", "b"],
+      });
     });
 
     // Raw setState for the ui prefs: syncTable's stamped-bag LWW is orthogonal
@@ -4957,7 +6717,10 @@ describe("liveInboxIds persistence + synced show-old", () => {
       // team scope, matching team: seed
       setUi({ inbox_scope: "team", active_team_id: "team1" });
       seedTeamInboxIdsFromCache(snap);
-      expect([...useInboxStore.getState().teamInboxIds].sort()).toEqual(["x", "y"]);
+      expect([...useInboxStore.getState().teamInboxIds].sort()).toEqual([
+        "x",
+        "y",
+      ]);
     });
 
     it("cold-boot seed never clobbers a team payload that raced hydration", () => {
@@ -4978,9 +6741,13 @@ describe("liveInboxIds persistence + synced show-old", () => {
     // all-clients setting; stale values still linger in server client_state
     // docs. resolveShowOld must ignore them forever: a legacy `false` never
     // hides, a legacy `true` never overrides an explicit inbox_show_old.
-    useInboxStore.getState().syncTable("clientState", { ui: { show_old_sessions: false } });
+    useInboxStore
+      .getState()
+      .syncTable("clientState", { ui: { show_old_sessions: false } });
     expect(resolveShowOld(useInboxStore.getState().clientState.ui)).toBe(true);
-    useInboxStore.getState().syncTable("clientState", { ui: { show_old_sessions: true, inbox_show_old: false } });
+    useInboxStore.getState().syncTable("clientState", {
+      ui: { show_old_sessions: true, inbox_show_old: false },
+    });
     expect(resolveShowOld(useInboxStore.getState().clientState.ui)).toBe(false);
   });
 });
@@ -5013,7 +6780,13 @@ describe("clearDisownedClaims: the claims byIds confirmed are no longer mine", (
       sessions: {
         [DISOWNED]: foreignOwned(DISOWNED),
         [STILL_MINE]: foreignOwned(STILL_MINE),
-        [MY_OWN_RUN]: { ...baseSession, _id: MY_OWN_RUN, user_id: ME, owned_by_me: true, owner_user_id: ME },
+        [MY_OWN_RUN]: {
+          ...baseSession,
+          _id: MY_OWN_RUN,
+          user_id: ME,
+          owned_by_me: true,
+          owner_user_id: ME,
+        },
       },
     });
   });
@@ -5037,10 +6810,19 @@ describe("clearDisownedClaims: the claims byIds confirmed are no longer mine", (
   it("leaves another user's ownership alone", () => {
     const PLAIN = "jx7plain00000000000000000000ddd0";
     useInboxStore.setState({
-      sessions: { [PLAIN]: { ...baseSession, _id: PLAIN, user_id: BOT, owner_user_id: "kd74rxrw000000000000000000000sam" } },
+      sessions: {
+        [PLAIN]: {
+          ...baseSession,
+          _id: PLAIN,
+          user_id: BOT,
+          owner_user_id: "kd74rxrw000000000000000000000sam",
+        },
+      },
     });
     useInboxStore.getState().clearDisownedClaims([PLAIN]);
-    expect(useInboxStore.getState().sessions[PLAIN].owner_user_id).toBe("kd74rxrw000000000000000000000sam");
+    expect(useInboxStore.getState().sessions[PLAIN].owner_user_id).toBe(
+      "kd74rxrw000000000000000000000sam",
+    );
   });
 
   it("no-ops when the current user is unknown (cold boot before the user query lands)", () => {
@@ -5052,7 +6834,11 @@ describe("clearDisownedClaims: the claims byIds confirmed are no longer mine", (
   it("after the clear, the disowned row is dropped by the mine-scope filter even with show-old on", async () => {
     const { filterInboxScope } = await import("../inboxStore");
     useInboxStore.getState().clearDisownedClaims([DISOWNED]);
-    const scoped = filterInboxScope(useInboxStore.getState().sessions, "mine", ME);
+    const scoped = filterInboxScope(
+      useInboxStore.getState().sessions,
+      "mine",
+      ME,
+    );
     expect(Object.keys(scoped).sort()).toEqual([MY_OWN_RUN, STILL_MINE].sort());
   });
 });
@@ -5066,26 +6852,48 @@ describe("a snapshot collection stays pruned across boot hydration", () => {
   // until the next push pruned memory again.
   const KEEP = "k97aaaaaaaaaaaaaaaaaaaaaaaaaaaa1";
   const GONE = "k97bbbbbbbbbbbbbbbbbbbbbbbbbbbb2";
-  const row = (_id: string) => ({ _id, conversation_id: "c1", status: "pending", question: "q", created_at: 1 }) as any;
+  const row = (_id: string) =>
+    ({
+      _id,
+      conversation_id: "c1",
+      status: "pending",
+      question: "q",
+      created_at: 1,
+    }) as any;
 
   it("hydration does not resurrect a row the landed snapshot omits", () => {
     _resetSnapshotLedger();
     useInboxStore.setState({ sessionDecisions: {} } as any);
-    const cached = { [KEEP]: row(KEEP), [GONE]: row(GONE), temp_stub: row("temp_stub") };
+    const cached = {
+      [KEEP]: row(KEEP),
+      [GONE]: row(GONE),
+      temp_stub: row("temp_stub"),
+    };
 
     // Before any snapshot lands the cache is the floor, exactly as before.
-    expect(Object.keys(hydrateMergeValue("sessionDecisions", cached, {}).value as object)).toEqual([KEEP, GONE, "temp_stub"]);
+    expect(
+      Object.keys(
+        hydrateMergeValue("sessionDecisions", cached, {}).value as object,
+      ),
+    ).toEqual([KEEP, GONE, "temp_stub"]);
 
     useInboxStore.getState().syncTable("sessionDecisions", [row(KEEP)]);
     const live = useInboxStore.getState().sessionDecisions;
-    const merged = hydrateMergeValue("sessionDecisions", cached, live).value as Record<string, unknown>;
+    const merged = hydrateMergeValue("sessionDecisions", cached, live)
+      .value as Record<string, unknown>;
     expect(Object.keys(merged).sort()).toEqual([KEEP, "temp_stub"].sort());
   });
 
   it("a delta collection keeps the cache as its floor", () => {
     const cached = { [KEEP]: { _id: KEEP }, [GONE]: { _id: GONE } };
-    useInboxStore.getState().syncTable("tasks", [{ _id: KEEP, title: "t" }] as any);
-    const merged = hydrateMergeValue("tasks", cached, useInboxStore.getState().tasks).value as Record<string, unknown>;
+    useInboxStore
+      .getState()
+      .syncTable("tasks", [{ _id: KEEP, title: "t" }] as any);
+    const merged = hydrateMergeValue(
+      "tasks",
+      cached,
+      useInboxStore.getState().tasks,
+    ).value as Record<string, unknown>;
     expect(Object.keys(merged)).toContain(GONE);
   });
 });

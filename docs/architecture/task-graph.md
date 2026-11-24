@@ -58,12 +58,12 @@ because `readiness` already names the line's grounding verdict (LE5).
 
 A wait is a blocker on something that is not a task. Kinds:
 
-| kind | met when | fails when |
-|---|---|---|
-| `pr_merged` | the PR merges | the PR closes without merging |
+| kind              | met when                                  | fails when                                                                                                     |
+| ----------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pr_merged`       | the PR merges                             | the PR closes without merging                                                                                  |
 | `pr_checks_green` | the PR's `checks_state` becomes `success` | the PR merges or closes before its checks go green; red checks on an open PR stay waiting (the chip shows red) |
-| `decision` | the `sd-N` decision is answered | it is dismissed or withdrawn |
-| `time` | the clock passes `at` | never |
+| `decision`        | the `sd-N` decision is answered           | it is dismissed or withdrawn                                                                                   |
+| `time`            | the clock passes `at`                     | never                                                                                                          |
 
 Waits live on the task row (`tasks.waits`), so they sync to every client with
 the row and have exactly one home. Each entry: `id` (stable within the task),
@@ -144,13 +144,13 @@ way, because someone has to re-plan.
 `parseBlockerRef` in `packages/shared/tasks/graph.ts`, used by the CLI flags,
 the web's add-blocker palette and the server:
 
-| input | means |
-|---|---|
-| `ct-123` | task blocker (`blocked_by`) |
-| `#42`, `owner/repo#42`, a PR URL | `pr_merged` |
-| the same with `:checks` (alias `:ci`) | `pr_checks_green` |
-| `sd-412` | `decision` |
-| `30m`, `2h`, `3d`, an ISO date or datetime | `time` |
+| input                                      | means                       |
+| ------------------------------------------ | --------------------------- |
+| `ct-123`                                   | task blocker (`blocked_by`) |
+| `#42`, `owner/repo#42`, a PR URL           | `pr_merged`                 |
+| the same with `:checks` (alias `:ci`)      | `pr_checks_green`           |
+| `sd-412`                                   | `decision`                  |
+| `30m`, `2h`, `3d`, an ISO date or datetime | `time`                      |
 
 A bare `#42` resolves its repository from the task's project, then the
 caller's git remote (CLI), and fails with the candidates when ambiguous.
@@ -230,7 +230,7 @@ Review in the real app
 ```
 
 The plan guidance in `snippets.ts` and the `cast-plan` skill teach this form
-and the one rule agents get backwards: say what a step *needs* ("Review needs
+and the one rule agents get backwards: say what a step _needs_ ("Review needs
 Build"), never what comes first.
 
 `cast plan template save <plan>` stores a plan's steps and edges as a

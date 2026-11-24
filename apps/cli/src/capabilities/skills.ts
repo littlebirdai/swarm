@@ -33,7 +33,10 @@ export interface MaterializeResult {
 }
 
 /** Where the shared content lives. */
-export function sharedSkillDir(name: string, home = process.env.HOME || os.homedir()): string {
+export function sharedSkillDir(
+  name: string,
+  home = process.env.HOME || os.homedir(),
+): string {
   return path.join(home, ".agents", "skills", name);
 }
 
@@ -85,7 +88,11 @@ export function materializeSkill(
  * layout's) — replacing it with a link would delete content we do not own, so
  * it is left standing and refreshed as a copy instead.
  */
-function ensureLink(contentDir: string, linkPath: string, files: SkillFile[]): "symlink" | "copy" {
+function ensureLink(
+  contentDir: string,
+  linkPath: string,
+  files: SkillFile[],
+): "symlink" | "copy" {
   fs.mkdirSync(path.dirname(linkPath), { recursive: true });
 
   let stat: fs.Stats | undefined;
@@ -97,7 +104,8 @@ function ensureLink(contentDir: string, linkPath: string, files: SkillFile[]): "
 
   if (stat?.isSymbolicLink()) {
     try {
-      if (fs.realpathSync(linkPath) === fs.realpathSync(contentDir)) return "symlink";
+      if (fs.realpathSync(linkPath) === fs.realpathSync(contentDir))
+        return "symlink";
       fs.unlinkSync(linkPath); // our old link to an old location: retarget
     } catch {
       fs.unlinkSync(linkPath); // dangling: replace
@@ -116,7 +124,12 @@ function ensureLink(contentDir: string, linkPath: string, files: SkillFile[]): "
         existing = undefined;
       }
       if (existing !== file.content) {
-        writeHarnessFile(target, file.content, `skill:${path.basename(linkPath)}`, { mode: file.mode });
+        writeHarnessFile(
+          target,
+          file.content,
+          `skill:${path.basename(linkPath)}`,
+          { mode: file.mode },
+        );
       }
     }
     return "copy";
@@ -128,7 +141,11 @@ function ensureLink(contentDir: string, linkPath: string, files: SkillFile[]): "
   } catch {
     // The probe: this filesystem will not link. Copy instead, and say so.
     for (const file of files) {
-      writeHarnessFile(path.join(linkPath, file.relPath), file.content, `skill:${path.basename(linkPath)}`);
+      writeHarnessFile(
+        path.join(linkPath, file.relPath),
+        file.content,
+        `skill:${path.basename(linkPath)}`,
+      );
     }
     return "copy";
   }
@@ -142,7 +159,10 @@ import {
   sanitizeForeignText,
   type AgentClientId,
 } from "@codecast/shared/contracts";
-import { PORTABLE_SKILL_FIELDS, CLAUDE_ONLY_SKILL_FIELDS } from "./manifests.js";
+import {
+  PORTABLE_SKILL_FIELDS,
+  CLAUDE_ONLY_SKILL_FIELDS,
+} from "./manifests.js";
 
 export interface EmitSkillInput {
   /** Parsed frontmatter, portable and extended fields mixed. */
@@ -167,7 +187,10 @@ export interface EmitSkillInput {
  * of the text, the only place it reaches a model on a machine we write, and a
  * second implementation here is exactly how sanitizers diverge.
  */
-export function emitSkillFrontmatter(input: EmitSkillInput, target: AgentClientId): string {
+export function emitSkillFrontmatter(
+  input: EmitSkillInput,
+  target: AgentClientId,
+): string {
   const out: Record<string, unknown> = {};
 
   for (const field of PORTABLE_SKILL_FIELDS) {

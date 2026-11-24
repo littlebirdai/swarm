@@ -20,7 +20,15 @@ import { replaceGlobals } from "../../test-helpers/globals";
 // The convex half of (a), the heartbeat sweep, is pinned in
 // apps/server/convex/calls.test.ts.
 
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConnectionState, DisconnectReason, RoomEvent } from "livekit-client";
 import { useInboxStore } from "../../store/inboxStore";
@@ -33,8 +41,10 @@ import { RING_STUB_MS } from "../calls/ringStubs";
 // `mock.module` replaces a module for the whole test process, so a partial
 // stand-in breaks other files' tests wherever they sit in the alphabet.
 
-const realLivekit = { ...await import("livekit-client") };
-afterAll(() => { mock.module("livekit-client", () => realLivekit); });
+const realLivekit = { ...(await import("livekit-client")) };
+afterAll(() => {
+  mock.module("livekit-client", () => realLivekit);
+});
 
 /** A Room that remembers its listeners so a test can fire the SFU's events. */
 class FakeRoom {
@@ -47,7 +57,11 @@ class FakeRoom {
     name: "Me",
     metadata: undefined as string | undefined,
     setMicrophoneEnabled: async () => {},
-    publishTrack: async (t: any) => ({ muted: false, track: t, mute: async () => {} }),
+    publishTrack: async (t: any) => ({
+      muted: false,
+      track: t,
+      mute: async () => {},
+    }),
     getTrackPublication: () => undefined,
   };
   constructor() {
@@ -76,8 +90,10 @@ class FakeRoom {
 
 mock.module("livekit-client", () => ({ ...realLivekit, Room: FakeRoom }));
 
-const realSounds = { ...await import("../sounds") };
-afterAll(() => { mock.module("../sounds", () => realSounds); });
+const realSounds = { ...(await import("../sounds")) };
+afterAll(() => {
+  mock.module("../sounds", () => realSounds);
+});
 const soundLog: string[] = [];
 mock.module("../sounds", () => ({
   ...realSounds,
@@ -87,9 +103,12 @@ mock.module("../sounds", () => ({
 
 /** The scribe's stop, held open so a test can ask what the seat did while
  *  the local teardown was still running. */
-const realTranscription = { ...await import("../calls/transcription") };
-afterAll(() => { mock.module("../calls/transcription", () => realTranscription); });
-let scribeStopping: { promise: Promise<void>; resolve: () => void } | null = null;
+const realTranscription = { ...(await import("../calls/transcription")) };
+afterAll(() => {
+  mock.module("../calls/transcription", () => realTranscription);
+});
+let scribeStopping: { promise: Promise<void>; resolve: () => void } | null =
+  null;
 let scribeStops = 0;
 mock.module("../calls/transcription", () => ({
   ...realTranscription,
@@ -103,10 +122,17 @@ const callManager = await import("../calls/callManager");
 const { inHuddle } = await import("../calls/huddlePresence");
 const { callDockSurface } = await import("../../hooks/useWalkie");
 
-const restoreDocument = replaceGlobals({ document: {
-  createElement: () => ({ style: {}, dataset: {} as any, appendChild() {}, remove() {} }),
-  body: { appendChild() {} },
-} });
+const restoreDocument = replaceGlobals({
+  document: {
+    createElement: () => ({
+      style: {},
+      dataset: {} as any,
+      appendChild() {},
+      remove() {},
+    }),
+    body: { appendChild() {} },
+  },
+});
 afterAll(restoreDocument);
 
 let mutations: Array<{ name: string; args: any }> = [];
@@ -124,7 +150,8 @@ const convex = {
   query: async () => ({}),
 };
 
-const named = (suffix: string) => mutations.filter((c) => c.name.endsWith(suffix));
+const named = (suffix: string) =>
+  mutations.filter((c) => c.name.endsWith(suffix));
 
 const ROOM = "dm:me:them";
 const S = () => useInboxStore.getState();
@@ -132,8 +159,12 @@ const S = () => useInboxStore.getState();
 /** The occupancy feed landing, exactly as useCallSync hands it to the store,
  *  with the sync window's held publish delivered now rather than 33ms on: the
  *  seat watcher is a store subscriber, and this is the visit it gets. */
-function occupancy(rows: Array<{ user_id: string; walkie_joined_at?: number }>) {
-  S().syncTable("callOccupancy", { [ROOM]: rows.map((r) => ({ user_name: r.user_id, muted: true, ...r })) });
+function occupancy(
+  rows: Array<{ user_id: string; walkie_joined_at?: number }>,
+) {
+  S().syncTable("callOccupancy", {
+    [ROOM]: rows.map((r) => ({ user_name: r.user_id, muted: true, ...r })),
+  });
   flushSyncPublishes();
 }
 
@@ -148,7 +179,13 @@ beforeEach(() => {
   heartbeatAnswer = { ok: true };
   scribeStopping = null;
   scribeStops = 0;
-  S().setCallState({ phase: "idle", roomKey: null, muted: true, error: null, speaking: [] });
+  S().setCallState({
+    phase: "idle",
+    roomKey: null,
+    muted: true,
+    error: null,
+    speaking: [],
+  });
   occupancy([]);
   callManager.bindConvex(convex);
 });
@@ -166,8 +203,14 @@ describe("the ring out is on the row before the invite lands", () => {
   // The store outlives a test: a live stub from the last one is withdrawn
   // (an expired clock is how the engine withdraws one too).
   beforeEach(() => {
-    const stale = (S().myCalls?.outgoing ?? []).filter((r: any) => String(r._id).startsWith("stub:")).map((r: any) => ({ ...r, until: 0 }));
-    S().syncTable("myCalls", { incoming: [], outgoing: stale, membership: null });
+    const stale = (S().myCalls?.outgoing ?? [])
+      .filter((r: any) => String(r._id).startsWith("stub:"))
+      .map((r: any) => ({ ...r, until: 0 }));
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: stale,
+      membership: null,
+    });
     flushSyncPublishes();
     expect(S().myCalls.outgoing).toEqual([]);
   });
@@ -178,7 +221,8 @@ describe("the ring out is on the row before the invite lands", () => {
     callManager.bindConvex({
       ...convex,
       mutation: async (fn: any, args: any) => {
-        if (!getFunctionName(fn).endsWith("invite")) return convex.mutation(fn, args);
+        if (!getFunctionName(fn).endsWith("invite"))
+          return convex.mutation(fn, args);
         await gate;
         return { results: [{ to_user: "them", busy: false, cooldown: false }] };
       },
@@ -189,7 +233,9 @@ describe("the ring out is on the row before the invite lands", () => {
     flushSyncPublishes();
     // MUTATION CHECK: drop the ringStubs(…, true) call in ringInto and this
     // reads an empty outgoing list while the mutation is in flight.
-    expect(S().myCalls.outgoing).toMatchObject([{ room_key: ROOM, to_user: "them", status: "ringing" }]);
+    expect(S().myCalls.outgoing).toMatchObject([
+      { room_key: ROOM, to_user: "them", status: "ringing" },
+    ]);
     expect(String(S().myCalls.outgoing[0]._id).startsWith("stub:")).toBe(true);
     // Cancel on a stub sends nothing: there is no invite to cancel yet.
     await callManager.cancelOutgoing(String(S().myCalls.outgoing[0]._id));
@@ -198,8 +244,22 @@ describe("the ring out is on the row before the invite lands", () => {
     await ringing;
     flushSyncPublishes();
     // Rung: the stub stands until the server's own list lands, a tick later.
-    expect(S().myCalls.outgoing).toMatchObject([{ to_user: "them", status: "ringing" }]);
-    S().syncTable("myCalls", { incoming: [], outgoing: [{ _id: "i1", room_key: ROOM, to_user: "them", to_name: "Them", status: "ringing" }], membership: null });
+    expect(S().myCalls.outgoing).toMatchObject([
+      { to_user: "them", status: "ringing" },
+    ]);
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: [
+        {
+          _id: "i1",
+          room_key: ROOM,
+          to_user: "them",
+          to_name: "Them",
+          status: "ringing",
+        },
+      ],
+      membership: null,
+    });
     flushSyncPublishes();
     expect(S().myCalls.outgoing.map((r: any) => String(r._id))).toEqual(["i1"]);
   });
@@ -208,7 +268,8 @@ describe("the ring out is on the row before the invite lands", () => {
     callManager.bindConvex({
       ...convex,
       mutation: async (fn: any, args: any) => {
-        if (!getFunctionName(fn).endsWith("invite")) return convex.mutation(fn, args);
+        if (!getFunctionName(fn).endsWith("invite"))
+          return convex.mutation(fn, args);
         await new Promise(() => {});
         return {};
       },
@@ -219,18 +280,48 @@ describe("the ring out is on the row before the invite lands", () => {
     flushSyncPublishes();
     expect(S().myCalls.outgoing.map((r: any) => r.to_user)).toEqual(["them"]);
     // My own seat write re-pushes getMyCalls before the invite exists.
-    S().syncTable("myCalls", { incoming: [], outgoing: [], membership: { room_key: ROOM } });
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: [],
+      membership: { room_key: ROOM },
+    });
     flushSyncPublishes();
     // MUTATION CHECK: take the merge off the myCalls registry entry and this
     // reads an empty list: the stub was replaced a tick before the row.
     expect(S().myCalls.outgoing.map((r: any) => r.to_user)).toEqual(["them"]);
     expect(S().myCalls.membership).toEqual({ room_key: ROOM });
     // The server lists them: the stub is gone, the row stands alone.
-    S().syncTable("myCalls", { incoming: [], outgoing: [{ _id: "i1", room_key: ROOM, to_user: "them", to_name: "Them", status: "ringing" }], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: [
+        {
+          _id: "i1",
+          room_key: ROOM,
+          to_user: "them",
+          to_name: "Them",
+          status: "ringing",
+        },
+      ],
+      membership: null,
+    });
     flushSyncPublishes();
     expect(S().myCalls.outgoing.map((r: any) => String(r._id))).toEqual(["i1"]);
     // A stub past its clock never outlives a push.
-    S().syncTable("myCalls", { incoming: [], outgoing: [{ _id: "stub:x:y", room_key: "x", to_user: "y", to_name: "Y", status: "ringing", created_at: 0, until: 1 }], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: [
+        {
+          _id: "stub:x:y",
+          room_key: "x",
+          to_user: "y",
+          to_name: "Y",
+          status: "ringing",
+          created_at: 0,
+          until: 1,
+        },
+      ],
+      membership: null,
+    });
     flushSyncPublishes();
     expect(S().myCalls.outgoing).toEqual([]);
   });
@@ -239,8 +330,14 @@ describe("the ring out is on the row before the invite lands", () => {
     callManager.bindConvex({
       ...convex,
       mutation: async (fn: any, args: any) => {
-        if (!getFunctionName(fn).endsWith("invite")) return convex.mutation(fn, args);
-        return { results: [{ to_user: "them", busy: false, cooldown: true }, { to_user: "other", busy: false, cooldown: false }] };
+        if (!getFunctionName(fn).endsWith("invite"))
+          return convex.mutation(fn, args);
+        return {
+          results: [
+            { to_user: "them", busy: false, cooldown: true },
+            { to_user: "other", busy: false, cooldown: false },
+          ],
+        };
       },
     } as any);
     S().syncTable("myCalls", { incoming: [], outgoing: [], membership: null });
@@ -260,14 +357,19 @@ describe("the ring out is on the row before the invite lands", () => {
       },
     } as any);
     S().syncTable("myCalls", { incoming: [], outgoing: [], membership: null });
-    const started = callManager.startHuddle({ roomKey: ROOM, toUserIds: ["them"] });
+    const started = callManager.startHuddle({
+      roomKey: ROOM,
+      toUserIds: ["them"],
+    });
     await settle();
     flushSyncPublishes();
     // Still joining (the token has not come back), and the ring is already up.
     // MUTATION CHECK: move ringStubs(…, true) in startHuddleHere below the
     // join and this reads an empty outgoing list here.
     expect(S().call.phase).not.toBe("connected");
-    expect(S().myCalls.outgoing).toMatchObject([{ room_key: ROOM, to_user: "them", status: "ringing" }]);
+    expect(S().myCalls.outgoing).toMatchObject([
+      { room_key: ROOM, to_user: "them", status: "ringing" },
+    ]);
     releaseToken();
     await started;
     flushSyncPublishes();
@@ -299,31 +401,50 @@ describe("the ring out is on the row before the invite lands", () => {
           return { url: "wss://sfu.example", token: "tok" };
         },
         mutation: async (fn: any, args: any) => {
-          if (!getFunctionName(fn).endsWith("invite")) return convex.mutation(fn, args);
+          if (!getFunctionName(fn).endsWith("invite"))
+            return convex.mutation(fn, args);
           mutations.push({ name: getFunctionName(fn), args });
           await inviteGate;
-          return { results: [{ to_user: "them", busy: false, cooldown: false }] };
+          return {
+            results: [{ to_user: "them", busy: false, cooldown: false }],
+          };
         },
       } as any);
-      S().syncTable("myCalls", { incoming: [], outgoing: [], membership: null });
-      const started = callManager.startHuddle({ roomKey: ROOM, toUserIds: ["them"] });
+      S().syncTable("myCalls", {
+        incoming: [],
+        outgoing: [],
+        membership: null,
+      });
+      const started = callManager.startHuddle({
+        roomKey: ROOM,
+        toUserIds: ["them"],
+      });
       await settle();
       flushSyncPublishes();
-      expect(S().myCalls.outgoing).toMatchObject([{ to_user: "them", status: "ringing", until: T0 + RING_STUB_MS }]);
+      expect(S().myCalls.outgoing).toMatchObject([
+        { to_user: "them", status: "ringing", until: T0 + RING_STUB_MS },
+      ]);
       // The join lands 20s in, past the first clock, and the invite goes out.
       now = T0 + 20_000;
       releaseToken();
       // The join has a timer or two in it after the token; wait on the clock.
-      for (let i = 0; i < 200 && named("invite").length === 0; i++) await new Promise((r) => setTimeout(r, 10));
+      for (let i = 0; i < 200 && named("invite").length === 0; i++)
+        await new Promise((r) => setTimeout(r, 10));
       expect(named("invite")).toHaveLength(1);
       flushSyncPublishes();
       // MUTATION CHECK: skip the re-stub for a person the list already shows
       // ringing (stub included) and the clock stays at the press's.
       expect(S().myCalls.outgoing).toHaveLength(1);
-      expect(S().myCalls.outgoing).toMatchObject([{ to_user: "them", status: "ringing", until: now + RING_STUB_MS }]);
+      expect(S().myCalls.outgoing).toMatchObject([
+        { to_user: "them", status: "ringing", until: now + RING_STUB_MS },
+      ]);
       // A push with no row for them, inside the invite's round trip: the
       // stub stands, because its clock is live.
-      S().syncTable("myCalls", { incoming: [], outgoing: [], membership: { room_key: ROOM } });
+      S().syncTable("myCalls", {
+        incoming: [],
+        outgoing: [],
+        membership: { room_key: ROOM },
+      });
       flushSyncPublishes();
       expect(S().myCalls.outgoing.map((r: any) => r.to_user)).toEqual(["them"]);
       releaseInvite();
@@ -334,7 +455,19 @@ describe("the ring out is on the row before the invite lands", () => {
   });
 
   test("a person the server already lists as ringing gets no second row", async () => {
-    S().syncTable("myCalls", { incoming: [], outgoing: [{ _id: "i1", room_key: ROOM, to_user: "them", to_name: "Them", status: "ringing" }], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [],
+      outgoing: [
+        {
+          _id: "i1",
+          room_key: ROOM,
+          to_user: "them",
+          to_name: "Them",
+          status: "ringing",
+        },
+      ],
+      membership: null,
+    });
     await callManager.ringInto(ROOM, ["them"]);
     flushSyncPublishes();
     expect(S().myCalls.outgoing.map((r: any) => String(r._id))).toEqual(["i1"]);
@@ -344,7 +477,12 @@ describe("the ring out is on the row before the invite lands", () => {
 // ── the ring stops at the press ─────────────────────────────────────────────
 
 describe("answering a ring stops it before the server answers", () => {
-  const RING = { _id: "in1", room_key: ROOM, from_user: "them", from_name: "Them" };
+  const RING = {
+    _id: "in1",
+    room_key: ROOM,
+    from_user: "them",
+    from_name: "Them",
+  };
 
   for (const [press, act] of [
     ["Join", () => callManager.acceptInvite("in1", ROOM)],
@@ -360,14 +498,22 @@ describe("answering a ring stops it before the server answers", () => {
           return convex.mutation(fn, args);
         },
       } as any);
-      S().syncTable("myCalls", { incoming: [RING], outgoing: [], membership: null });
+      S().syncTable("myCalls", {
+        incoming: [RING],
+        outgoing: [],
+        membership: null,
+      });
       const done = act();
       // The respondInvite round trip is still out: the card and the ring
       // sound read this list, so it must already be empty.
       expect(S().myCalls.incoming).toEqual([]);
       // MUTATION CHECK: take the incoming merge off the myCalls registry
       // entry and the push that still names the invite rings again.
-      S().syncTable("myCalls", { incoming: [RING], outgoing: [], membership: null });
+      S().syncTable("myCalls", {
+        incoming: [RING],
+        outgoing: [],
+        membership: null,
+      });
       expect(S().myCalls.incoming).toEqual([]);
       answer();
       await done;
@@ -376,19 +522,35 @@ describe("answering a ring stops it before the server answers", () => {
   }
 
   test("the check before answering holds the ring, and closing it lets the ring back", () => {
-    S().syncTable("myCalls", { incoming: [RING], outgoing: [], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [RING],
+      outgoing: [],
+      membership: null,
+    });
     callManager.holdRing("in1");
     expect(S().myCalls.incoming).toEqual([]);
-    S().syncTable("myCalls", { incoming: [RING], outgoing: [], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [RING],
+      outgoing: [],
+      membership: null,
+    });
     expect(S().myCalls.incoming).toEqual([]);
     callManager.releaseRing(RING);
     expect(S().myCalls.incoming.map((r: any) => r._id)).toEqual(["in1"]);
-    S().syncTable("myCalls", { incoming: [RING], outgoing: [], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [RING],
+      outgoing: [],
+      membership: null,
+    });
     expect(S().myCalls.incoming.map((r: any) => r._id)).toEqual(["in1"]);
   });
 
   test("another ring still rings", () => {
-    S().syncTable("myCalls", { incoming: [{ ...RING, _id: "in2" }], outgoing: [], membership: null });
+    S().syncTable("myCalls", {
+      incoming: [{ ...RING, _id: "in2" }],
+      outgoing: [],
+      membership: null,
+    });
     expect(S().myCalls.incoming.map((r: any) => r._id)).toEqual(["in2"]);
   });
 });
@@ -408,7 +570,8 @@ describe("a LiveKit reconnect is still the call", () => {
     // auto-scribe watch lose their room, the dock paints "connecting".
     expect(S().call.phase).toBe("connected");
     expect(inHuddle(S())).toBe(true);
-    const seatedRoomKey = S().call.phase === "connected" ? S().call.roomKey : null;
+    const seatedRoomKey =
+      S().call.phase === "connected" ? S().call.roomKey : null;
     expect(seatedRoomKey).toBe(ROOM);
 
     room().emit(RoomEvent.ConnectionStateChanged, ConnectionState.Connected);
@@ -435,7 +598,12 @@ describe("hanging up frees the seat before the scribe's teardown", () => {
     await callManager.joinCall(ROOM, { intent: "deliberate" });
     mutations = [];
     let resolve!: () => void;
-    scribeStopping = { promise: new Promise<void>((r) => { resolve = r; }), resolve: () => resolve() };
+    scribeStopping = {
+      promise: new Promise<void>((r) => {
+        resolve = r;
+      }),
+      resolve: () => resolve(),
+    };
 
     const leaving = callManager.leaveCall();
     await settle();
@@ -447,7 +615,10 @@ describe("hanging up frees the seat before the scribe's teardown", () => {
     expect(named("leaveRoom")).toHaveLength(1);
     // End is a hang-up: the server stops a recording at once when the last
     // teammate hangs up, rather than holding it for a reload.
-    expect(named("leaveRoom")[0].args).toEqual({ room_key: ROOM, hangup: true });
+    expect(named("leaveRoom")[0].args).toEqual({
+      room_key: ROOM,
+      hangup: true,
+    });
     // The call is over for the person while the flush still runs: the row
     // lets go on End, not seconds later when the pipes have closed.
     // MUTATION CHECK: move setCall({ phase: "idle" }) back below stopScribe
@@ -475,7 +646,8 @@ describe("hanging up frees the seat before the scribe's teardown", () => {
 
 describe("the media dropping under a person who never pressed End", () => {
   const waitFor = async (ok: () => boolean) => {
-    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 0));
+    for (let i = 0; i < 200 && !ok(); i++)
+      await new Promise((r) => setTimeout(r, 0));
   };
 
   test("rejoins the same room with the seat, the phase and the mute intact", async () => {
@@ -497,7 +669,12 @@ describe("the media dropping under a person who never pressed End", () => {
     expect(room()).not.toBe(first);
     expect(room().state).toBe(ConnectionState.Connected);
     expect(named("joinRoom").map((c) => c.args.room_key)).toEqual([ROOM]);
-    expect(S().call).toMatchObject({ phase: "connected", roomKey: ROOM, muted: false, reconnecting: false });
+    expect(S().call).toMatchObject({
+      phase: "connected",
+      roomKey: ROOM,
+      muted: false,
+      reconnecting: false,
+    });
     // A rejoin is not an arrival: no join chime, no leave chime.
     expect(soundLog).toEqual([]);
   });
@@ -517,7 +694,11 @@ describe("the media dropping under a person who never pressed End", () => {
 
     first.emit(RoomEvent.Disconnected);
     await waitFor(() => mints >= 2);
-    expect(S().call).toMatchObject({ phase: "connected", roomKey: ROOM, reconnecting: true });
+    expect(S().call).toMatchObject({
+      phase: "connected",
+      roomKey: ROOM,
+      reconnecting: true,
+    });
     // Each attempt re-takes the seat, so the lease never lapses under it.
     expect(named("joinRoom").length).toBeGreaterThanOrEqual(1);
     expect(named("leaveRoom")).toHaveLength(0);
@@ -526,7 +707,11 @@ describe("the media dropping under a person who never pressed End", () => {
     const after = mints;
     await new Promise((r) => setTimeout(r, 2_500));
     expect(mints).toBe(after);
-    expect(S().call).toMatchObject({ phase: "idle", roomKey: null, reconnecting: false });
+    expect(S().call).toMatchObject({
+      phase: "idle",
+      roomKey: null,
+      reconnecting: false,
+    });
   });
 
   test("a handoff to another window of mine is still not a rejoin", async () => {
@@ -554,7 +739,10 @@ describe("the media dropping under a person who never pressed End", () => {
 
 describe("a seat re-taken after a sweep keeps its walkie stamp", () => {
   test("the recovery join re-sends walkie_join for a seat that was stamped", async () => {
-    await callManager.joinCall(ROOM, { intent: "deliberate", walkieJoin: true });
+    await callManager.joinCall(ROOM, {
+      intent: "deliberate",
+      walkieJoin: true,
+    });
     expect(named("joinRoom")[0].args.walkie_join).toBe(true);
     mutations = [];
 
@@ -582,7 +770,10 @@ describe("a seat re-taken after a sweep keeps its walkie stamp", () => {
   });
 
   test("the stamp ends with the seat: the next join into the same room starts clean", async () => {
-    await callManager.joinCall(ROOM, { intent: "deliberate", walkieJoin: true });
+    await callManager.joinCall(ROOM, {
+      intent: "deliberate",
+      walkieJoin: true,
+    });
     await callManager.leaveCall();
     mutations = [];
     await callManager.joinCall(ROOM, { intent: "listen" });
@@ -593,7 +784,13 @@ describe("a seat re-taken after a sweep keeps its walkie stamp", () => {
 // ── (g) the chime follows the roster ────────────────────────────────────────
 
 describe("the join chime follows the roster, not the SFU", () => {
-  const peer = (identity: string) => ({ identity, name: identity, metadata: undefined, getTrackPublication: () => undefined, trackPublications: new Map() });
+  const peer = (identity: string) => ({
+    identity,
+    name: identity,
+    metadata: undefined,
+    getTrackPublication: () => undefined,
+    trackPublications: new Map(),
+  });
 
   test("a peer whose seat already landed chimes at once", async () => {
     await callManager.joinCall(ROOM, { intent: "deliberate" });
@@ -641,16 +838,17 @@ describe("the join chime follows the roster, not the SFU", () => {
 // ── (e) the linger draws ────────────────────────────────────────────────────
 
 describe("the walkie's own linger is drawn, not hidden", () => {
-  const status = (over: Record<string, unknown>) => ({
-    sending: null,
-    incoming: null,
-    liveRoom: null,
-    unavailable: null,
-    canReply: false,
-    asr: "live",
-    error: null,
-    ...over,
-  }) as any;
+  const status = (over: Record<string, unknown>) =>
+    ({
+      sending: null,
+      incoming: null,
+      liveRoom: null,
+      unavailable: null,
+      canReply: false,
+      asr: "live",
+      error: null,
+      ...over,
+    }) as any;
 
   test("my seat lingering after Stop is still the walkie's surface", () => {
     // MUTATION CHECK: restore the `return "none"` for a quiet own seat and
@@ -661,6 +859,12 @@ describe("the walkie's own linger is drawn, not hidden", () => {
     expect(callDockSurface(linger, seated, { expanded: false })).toBe("walkie");
     expect(callDockSurface(linger, seated, { expanded: true })).toBe("walkie");
     // Once the seat is released nothing is held, and nothing draws.
-    expect(callDockSurface(status({}), { roomKey: null, phase: "idle" }, { expanded: false })).toBe("none");
+    expect(
+      callDockSurface(
+        status({}),
+        { roomKey: null, phase: "idle" },
+        { expanded: false },
+      ),
+    ).toBe("none");
   });
 });

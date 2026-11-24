@@ -4,4 +4,17 @@
  * extension into its own Chrome (apps/cli/src/browser/hostExtension.ts).
  * Everything else in this directory is for developing it.
  */
-export const SHIPPED = ["manifest.json", "background.js", "page.js", "options.html", "options.js", "popup.html", "popup.js", "offscreen.html", "offscreen.js", "status.js", "brand.css", "icons"];
+export const SHIPPED = [
+  "manifest.json",
+  "background.js",
+  "page.js",
+  "options.html",
+  "options.js",
+  "popup.html",
+  "popup.js",
+  "offscreen.html",
+  "offscreen.js",
+  "status.js",
+  "brand.css",
+  "icons",
+];

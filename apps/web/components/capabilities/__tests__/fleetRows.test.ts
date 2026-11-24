@@ -40,7 +40,11 @@ import { type CapabilityDevice, type CatalogEntry } from "../CapabilityCard";
 /** A machine in the roster. `reportedAt: null` is the store's "never sent an
  *  inventory"; a number is a report that ARRIVED, which is not the same as one
  *  we could read — that distinction is carried by the report map. */
-function machine(deviceId: string, name: string, reportedAt: number | null = 1_000): CapabilityDevice {
+function machine(
+  deviceId: string,
+  name: string,
+  reportedAt: number | null = 1_000,
+): CapabilityDevice {
   return {
     deviceId,
     name,
@@ -51,7 +55,9 @@ function machine(deviceId: string, name: string, reportedAt: number | null = 1_0
   };
 }
 
-function item(over: Partial<FleetInventoryItem> & { kind: string; name: string }): FleetInventoryItem {
+function item(
+  over: Partial<FleetInventoryItem> & { kind: string; name: string },
+): FleetInventoryItem {
   return { scope: "user", enabled: true, ...over };
 }
 
@@ -63,15 +69,17 @@ const plugin = (name: string, over: Partial<FleetInventoryItem> = {}) =>
 
 describe("reader extras survive the fleet fold", () => {
   test("source and command stay on the grid row", () => {
-    const rows = buildFleetRows(
-      [machine("a", "laptop")],
-      {
-        a: [
-          skill("deploy", { source: "/Users/me/.claude/skills/deploy/SKILL.md" }),
-          item({ kind: "mcp", name: "db", command: "npx db-mcp", url: undefined }),
-        ],
-      },
-    );
+    const rows = buildFleetRows([machine("a", "laptop")], {
+      a: [
+        skill("deploy", { source: "/Users/me/.claude/skills/deploy/SKILL.md" }),
+        item({
+          kind: "mcp",
+          name: "db",
+          command: "npx db-mcp",
+          url: undefined,
+        }),
+      ],
+    });
     expect(rowFor(rows, "skill:deploy").source).toContain("SKILL.md");
     expect(rowFor(rows, "mcp:db").command).toBe("npx db-mcp");
   });
@@ -79,7 +87,10 @@ describe("reader extras survive the fleet fold", () => {
 
 function rowFor(rows: FleetGridRow[], key: string): FleetGridRow {
   const row = rows.find((r) => r.key === key);
-  if (!row) throw new Error(`no row ${key}; built: ${rows.map((r) => r.key).join(", ") || "(none)"}`);
+  if (!row)
+    throw new Error(
+      `no row ${key}; built: ${rows.map((r) => r.key).join(", ") || "(none)"}`,
+    );
   return row;
 }
 
@@ -135,10 +146,15 @@ describe("a machine that told us nothing is never drawn as a machine with nothin
     // redundant: this is the one the report map alone cannot answer, and it
     // errs toward `unknown`, which is the state that invents no drift.
     const devices = [machine("a", "MacBook"), machine("b", "Studio", null)];
-    const reports = { a: [skill("deep-research")], b: [skill("deep-research")] };
+    const reports = {
+      a: [skill("deep-research")],
+      b: [skill("deep-research")],
+    };
     expect(hasReadableReport(devices[1], reports)).toBe(false);
     const rows = buildFleetRows(devices, reports);
-    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe("unknown");
+    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe(
+      "unknown",
+    );
   });
 });
 
@@ -152,7 +168,9 @@ describe("a machine that told us nothing is never drawn as a machine with nothin
 // every capability the rest of the fleet holds drawn as `absent` down its whole
 // column, and every one of those rows badged drift.
 describe("a row with no entries is only an answer when it PARSED to none", () => {
-  const row = (over: Partial<CapabilityStateRow> & { _id: string; device_id: string }): CapabilityStateRow => ({
+  const row = (
+    over: Partial<CapabilityStateRow> & { _id: string; device_id: string },
+  ): CapabilityStateRow => ({
     client: "claude_code",
     scope_key: "",
     reported_at: 1_000,
@@ -170,22 +188,41 @@ describe("a row with no entries is only an answer when it PARSED to none", () =>
     // the first to lose one (`CapabilityStateRow.entries_json`). Seeding it as
     // empty renders the richest machine as the emptiest.
     const reports = buildFleetReports({
-      r1: row({ _id: "r1", device_id: "a", entries_json: inventory("deep-research") }),
-      r2: row({ _id: "r2", device_id: "b", entries_omitted: true, entry_count: 412 }),
+      r1: row({
+        _id: "r1",
+        device_id: "a",
+        entries_json: inventory("deep-research"),
+      }),
+      r2: row({
+        _id: "r2",
+        device_id: "b",
+        entries_omitted: true,
+        entry_count: 412,
+      }),
     });
     expect(reports.b).toBeUndefined();
 
     const devices = [machine("a", "MacBook"), machine("b", "Studio")];
     const rows = buildFleetRows(devices, reports);
     // The whole point: `unknown`, not `absent`, and therefore no verdict.
-    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe("unknown");
+    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe(
+      "unknown",
+    );
     expect(rowFor(rows, "skill:deep-research").status).toBe("not_comparable");
-    expect(summarizeFleet(rows, devices, reports)).toMatchObject({ reporting: 1, silent: 1, drift: 0 });
+    expect(summarizeFleet(rows, devices, reports)).toMatchObject({
+      reporting: 1,
+      silent: 1,
+      drift: 0,
+    });
   });
 
   test("a payload that would not parse is NOT an empty machine either", () => {
     const reports = buildFleetReports({
-      r1: row({ _id: "r1", device_id: "a", entries_json: inventory("deep-research") }),
+      r1: row({
+        _id: "r1",
+        device_id: "a",
+        entries_json: inventory("deep-research"),
+      }),
       r2: row({ _id: "r2", device_id: "b", entries_json: "{not json" }),
     });
     expect(reports.b).toBeUndefined();
@@ -195,12 +232,21 @@ describe("a row with no entries is only an answer when it PARSED to none", () =>
     // The mirror image, so the guard above cannot be "call every empty row
     // unknown". A bare machine reported, and its column must read `absent`.
     const reports = buildFleetReports({
-      r1: row({ _id: "r1", device_id: "a", entries_json: inventory("deep-research") }),
+      r1: row({
+        _id: "r1",
+        device_id: "a",
+        entries_json: inventory("deep-research"),
+      }),
       r2: row({ _id: "r2", device_id: "b", entries_json: inventory() }),
     });
     expect(reports.b).toEqual([]);
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], reports);
-    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe("absent");
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      reports,
+    );
+    expect(rowFor(rows, "skill:deep-research").byDevice.b.status).toBe(
+      "absent",
+    );
   });
 
   test("one client's missing payload does not silence a machine another client answered for", () => {
@@ -208,8 +254,19 @@ describe("a row with no entries is only an answer when it PARSED to none", () =>
     // not skip the machine, or a Codex report going missing would blank a
     // column Claude Code answered in full.
     const reports = buildFleetReports({
-      r1: row({ _id: "r1", device_id: "a", client: "claude_code", entries_json: inventory("deploy") }),
-      r2: row({ _id: "r2", device_id: "a", client: "codex", entries_omitted: true, entry_count: 9 }),
+      r1: row({
+        _id: "r1",
+        device_id: "a",
+        client: "claude_code",
+        entries_json: inventory("deploy"),
+      }),
+      r2: row({
+        _id: "r2",
+        device_id: "a",
+        client: "codex",
+        entries_omitted: true,
+        entry_count: 9,
+      }),
     });
     expect(reports.a?.map((i) => i.name)).toEqual(["deploy"]);
   });
@@ -217,7 +274,12 @@ describe("a row with no entries is only an answer when it PARSED to none", () =>
   test("the union across clients and scopes is still one machine's inventory", () => {
     const reports = buildFleetReports({
       r1: row({ _id: "r1", device_id: "a", entries_json: inventory("deploy") }),
-      r2: row({ _id: "r2", device_id: "a", scope_key: "repo:acme", entries_json: inventory("review") }),
+      r2: row({
+        _id: "r2",
+        device_id: "a",
+        scope_key: "repo:acme",
+        entries_json: inventory("review"),
+      }),
     });
     expect(reports.a?.map((i) => [i.name, i.scope])).toEqual([
       ["deploy", "user"],
@@ -239,26 +301,38 @@ describe("a row with no entries is only an answer when it PARSED to none", () =>
 
 describe("scopes stack — the bug the shared move existed to kill", () => {
   test("a capability declared twice on one machine keeps both scopes", () => {
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], {
-      a: [skill("deep-research", { scope: "project" }), skill("deep-research", { scope: "user" })],
-      b: [skill("deep-research", { scope: "user" })],
-    });
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      {
+        a: [
+          skill("deep-research", { scope: "project" }),
+          skill("deep-research", { scope: "user" }),
+        ],
+        b: [skill("deep-research", { scope: "user" })],
+      },
+    );
     const row = rowFor(rows, "skill:deep-research");
     // Narrowest first, and BOTH present. A single `scope` field would have
     // dropped one of them, which is the whole reason to track scope at all.
-    expect(row.cells.map((c) => c.scopes)).toEqual([["project", "user"], ["user"]]);
+    expect(row.cells.map((c) => c.scopes)).toEqual([
+      ["project", "user"],
+      ["user"],
+    ]);
     // Two scopes on one machine is not two machines disagreeing.
     expect(row.status).toBe("in_sync");
   });
 
   test("switched off at one scope and on at another is ON here", () => {
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], {
-      a: [
-        plugin("x@official", { scope: "project", enabled: false }),
-        plugin("x@official", { scope: "user", enabled: true }),
-      ],
-      b: [plugin("x@official", { scope: "user", enabled: true })],
-    });
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      {
+        a: [
+          plugin("x@official", { scope: "project", enabled: false }),
+          plugin("x@official", { scope: "user", enabled: true }),
+        ],
+        b: [plugin("x@official", { scope: "user", enabled: true })],
+      },
+    );
     const row = rowFor(rows, "plugin:x@official");
     expect(row.byDevice.a.enabled).toBe(true);
     expect(row.status).toBe("in_sync");
@@ -269,10 +343,18 @@ describe("scopes stack — the bug the shared move existed to kill", () => {
 
 describe("display facts join on the diff's own row key", () => {
   test("a slug reported by one machine reaches the row", () => {
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], {
-      a: [skill("deep-research", { slug: "lib/deep-research", cost: { tokens: 900 } as never })],
-      b: [skill("deep-research")],
-    });
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      {
+        a: [
+          skill("deep-research", {
+            slug: "lib/deep-research",
+            cost: { tokens: 900 } as never,
+          }),
+        ],
+        b: [skill("deep-research")],
+      },
+    );
     expect(rowFor(rows, "skill:deep-research").slug).toBe("lib/deep-research");
   });
 
@@ -280,10 +362,18 @@ describe("display facts join on the diff's own row key", () => {
     // The join is the case-folded key. A key spelled a second way here — the
     // separator, the folding, anything — silently loses the slug on exactly
     // this input, and nothing else on the page would notice.
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], {
-      a: [skill("Domain-Search")],
-      b: [skill("domain-search", { slug: "lib/domain-search", marketplace: "official" })],
-    });
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      {
+        a: [skill("Domain-Search")],
+        b: [
+          skill("domain-search", {
+            slug: "lib/domain-search",
+            marketplace: "official",
+          }),
+        ],
+      },
+    );
     expect(rows).toHaveLength(1);
     const row = rowFor(rows, "skill:domain-search");
     expect(row.identity).toBe("Domain-Search"); // first spelling displayed
@@ -292,10 +382,13 @@ describe("display facts join on the diff's own row key", () => {
   });
 
   test("a later blank never erases an earlier value", () => {
-    const rows = buildFleetRows([machine("a", "MacBook"), machine("b", "Studio")], {
-      a: [skill("deep-research", { slug: "lib/deep-research" })],
-      b: [skill("deep-research")],
-    });
+    const rows = buildFleetRows(
+      [machine("a", "MacBook"), machine("b", "Studio")],
+      {
+        a: [skill("deep-research", { slug: "lib/deep-research" })],
+        b: [skill("deep-research")],
+      },
+    );
     expect(rowFor(rows, "skill:deep-research").slug).toBe("lib/deep-research");
   });
 });
@@ -307,12 +400,20 @@ describe("driftKeys escalate a verdict, they never invent one", () => {
   const reports = { a: [skill("deep-research")], b: [skill("deep-research")] };
 
   test("an in-sync row named by the store becomes drift", () => {
-    const rows = buildFleetRows(devices, reports, new Set(["skill:deep-research"]));
+    const rows = buildFleetRows(
+      devices,
+      reports,
+      new Set(["skill:deep-research"]),
+    );
     expect(rowFor(rows, "skill:deep-research").status).toBe("drift");
   });
 
   test("a not_comparable row is left alone — one machine cannot disagree with itself", () => {
-    const rows = buildFleetRows([machine("a", "MacBook")], { a: [skill("deep-research")] }, new Set(["skill:deep-research"]));
+    const rows = buildFleetRows(
+      [machine("a", "MacBook")],
+      { a: [skill("deep-research")] },
+      new Set(["skill:deep-research"]),
+    );
     expect(rowFor(rows, "skill:deep-research").status).toBe("not_comparable");
   });
 });
@@ -427,7 +528,9 @@ describe("broken is a fact about one machine, not a disagreement", () => {
   });
 
   test("downloaded and switched off is an offer, not a break", () => {
-    expect(isBroken(cell({ enabled: false, installed: true, status: "disabled" }))).toBe(false);
+    expect(
+      isBroken(cell({ enabled: false, installed: true, status: "disabled" })),
+    ).toBe(false);
   });
 
   test("a kind that never reports `installed` is never broken", () => {
@@ -443,14 +546,22 @@ describe("broken is a fact about one machine, not a disagreement", () => {
     const row = rowFor(rows, "plugin:x@official");
     expect(row.status).toBe("not_comparable");
     expect(needsAttention(row)).toBe(true);
-    expect(summarizeFleet(rows, devices, reports)).toMatchObject({ broken: 1, drift: 0, comparable: false });
+    expect(summarizeFleet(rows, devices, reports)).toMatchObject({
+      broken: 1,
+      drift: 0,
+      comparable: false,
+    });
   });
 });
 
 // ----------------------------------------------------------- the counters
 
 describe("no stat can show a different number of rows than the view it opens", () => {
-  const devices = [machine("a", "MacBook"), machine("b", "Studio"), machine("c", "m1", null)];
+  const devices = [
+    machine("a", "MacBook"),
+    machine("b", "Studio"),
+    machine("c", "m1", null),
+  ];
   const reports = {
     a: [
       skill("only-here"),
@@ -470,22 +581,31 @@ describe("no stat can show a different number of rows than the view it opens", (
   test("every count is its filter applied to the same rows", () => {
     for (const [name, predicate] of Object.entries(FLEET_FILTERS)) {
       if (name === "all") continue;
-      expect([name, counts[name as keyof typeof counts]]).toEqual([name, rows.filter(predicate).length]);
+      expect([name, counts[name as keyof typeof counts]]).toEqual([
+        name,
+        rows.filter(predicate).length,
+      ]);
     }
   });
 
   test("the roster numbers separate reporting from silent", () => {
-    expect(counts).toMatchObject({ devices: 3, reporting: 2, silent: 1, comparable: true });
+    expect(counts).toMatchObject({
+      devices: 3,
+      reporting: 2,
+      silent: 1,
+      comparable: true,
+    });
   });
 
   test("a silent machine never counts as missing it", () => {
     // `absentCount` is reporting machines only. Counting the silent one would
     // make every row on the page read "missing somewhere".
     expect(rowFor(rows, "plugin:behind@official").absentCount).toBe(0);
-    expect(FLEET_FILTERS.missing(rowFor(rows, "plugin:behind@official"))).toBe(false);
+    expect(FLEET_FILTERS.missing(rowFor(rows, "plugin:behind@official"))).toBe(
+      false,
+    );
   });
 });
-
 
 // -------------------------------------------------------------- the column
 
@@ -499,7 +619,9 @@ describe("the short pin", () => {
   });
 
   test("a url is left whole", () => {
-    expect(shortPin("https://mcp.example.com/sse")).toBe("https://mcp.example.com/sse");
+    expect(shortPin("https://mcp.example.com/sse")).toBe(
+      "https://mcp.example.com/sse",
+    );
   });
 
   test("nothing in, nothing out", () => {
@@ -513,16 +635,25 @@ describe("the short pin", () => {
 describe("total, like the diff under it", () => {
   test("no devices", () => {
     expect(buildFleetRows([], {})).toEqual([]);
-    expect(summarizeFleet([], [], {})).toMatchObject({ devices: 0, reporting: 0, comparable: false });
+    expect(summarizeFleet([], [], {})).toMatchObject({
+      devices: 0,
+      reporting: 0,
+      comparable: false,
+    });
   });
 
   test("a report the roster has no device for is ignored, not a phantom column", () => {
-    const rows = buildFleetRows([machine("a", "MacBook")], { a: [skill("x")], ghost: [skill("y")] });
+    const rows = buildFleetRows([machine("a", "MacBook")], {
+      a: [skill("x")],
+      ghost: [skill("y")],
+    });
     expect(rows.map((r) => r.key)).toEqual(["skill:x"]);
   });
 
   test("an entry with no name is dropped rather than keyed on a blank", () => {
-    const rows = buildFleetRows([machine("a", "MacBook")], { a: [skill("  "), skill("real")] });
+    const rows = buildFleetRows([machine("a", "MacBook")], {
+      a: [skill("  "), skill("real")],
+    });
     expect(rows.map((r) => r.key)).toEqual(["skill:real"]);
   });
 
@@ -553,12 +684,18 @@ describe("the store's drift verdict reaches the grid", () => {
 
   test("a plugin's row key is <kind>:<name@marketplace>, lowercased", () => {
     const rows = buildFleetRows(devices, {
-      a: [plugin("Code-Simplifier", { marketplace: "Claude-Plugins-Official" })],
-      b: [plugin("Code-Simplifier", { marketplace: "Claude-Plugins-Official" })],
+      a: [
+        plugin("Code-Simplifier", { marketplace: "Claude-Plugins-Official" }),
+      ],
+      b: [
+        plugin("Code-Simplifier", { marketplace: "Claude-Plugins-Official" }),
+      ],
     });
     // The old scheme produced `plugin:Code-Simplifier` — wrong case, no
     // marketplace — so a store key could never match it.
-    expect(rows.map((r) => r.key)).toEqual(["plugin:code-simplifier@claude-plugins-official"]);
+    expect(rows.map((r) => r.key)).toEqual([
+      "plugin:code-simplifier@claude-plugins-official",
+    ]);
   });
 
   test("a store drift key flips an otherwise in-sync row", () => {
@@ -577,7 +714,9 @@ describe("the store's drift verdict reaches the grid", () => {
     // same pair `selectCapabilityIndex` keys its drift rows with
     // (store/capabilities.ts:999-1001), and feeds the result back in as the
     // drift key. It fails the moment either side re-spells the key.
-    const identity = capabilityIdentity("plugin", "Frontend-Design", { marketplace: "Official" });
+    const identity = capabilityIdentity("plugin", "Frontend-Design", {
+      marketplace: "Official",
+    });
     expect(identity).toBeDefined();
     const storeKey = capabilityRowKey("plugin", identity!);
 
@@ -606,7 +745,9 @@ describe("the store's drift verdict reaches the grid", () => {
       },
       new Set(["plugin:frontend-design@official"]),
     );
-    expect(rowFor(rows, "plugin:frontend-design@official").status).toBe("drift");
+    expect(rowFor(rows, "plugin:frontend-design@official").status).toBe(
+      "drift",
+    );
   });
 
   test("one machine knowing a library slug does not split the row in two", () => {
@@ -625,8 +766,11 @@ describe("the store's drift verdict reaches the grid", () => {
   });
 
   test("a drift key that matches nothing is inert, not an invented row", () => {
-    const rows = buildFleetRows(devices, { a: [skill("deploy")], b: [skill("deploy")] },
-      new Set(["skill:does-not-exist"]));
+    const rows = buildFleetRows(
+      devices,
+      { a: [skill("deploy")], b: [skill("deploy")] },
+      new Set(["skill:does-not-exist"]),
+    );
     expect(rows).toHaveLength(1);
     expect(rowFor(rows, "skill:deploy").status).toBe("in_sync");
   });

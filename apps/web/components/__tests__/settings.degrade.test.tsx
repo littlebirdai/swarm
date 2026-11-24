@@ -11,7 +11,12 @@
 // Run: cd apps/web && bun test --isolate components/__tests__/settings.degrade.test.tsx
 import { describe, expect, test } from "bun:test";
 import type { SettingsSectionId } from "../../lib/settingsSections";
-import { describeFailures, installDom, installMissingBackend, seedViewer } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+} from "../../test-helpers/missingBackend";
 
 const { mountSurface } = installDom("https://app.test/inbox");
 await installMissingBackend();
@@ -19,7 +24,17 @@ await seedViewer();
 
 const { useInboxStore } = await import("../../store/inboxStore");
 // The machine roster is persisted, so a viewer who has a daemon has it cached.
-useInboxStore.getState().setMachineRoster([{ device_id: "degrade-laptop", label: "Dana's laptop", platform: "darwin", is_remote: false, online: true, last_seen: Date.now(), local_project_roots: ["/Users/dana/src"] }] as any);
+useInboxStore.getState().setMachineRoster([
+  {
+    device_id: "degrade-laptop",
+    label: "Dana's laptop",
+    platform: "darwin",
+    is_remote: false,
+    online: true,
+    last_seen: Date.now(),
+    local_project_roots: ["/Users/dana/src"],
+  },
+] as any);
 const { MemoryRouter } = await import("react-router");
 const { SettingsModal } = await import("../settings/SettingsModal");
 
@@ -51,25 +66,37 @@ const SECTIONS: Record<SettingsSectionId, true> = {
 
 describe("settings sections with every query missing", () => {
   for (const section of Object.keys(SECTIONS) as SettingsSectionId[]) {
-    test(section, async () => {
-      useInboxStore.getState().openSettingsModal(section);
-      const modal = await mountSurface(<MemoryRouter><SettingsModal /></MemoryRouter>);
-      try {
-        expect(describeFailures(modal)).toBe("");
-        const dialog = modal.container.querySelector('[role="dialog"][aria-label="Settings"]');
-        expect(dialog).not.toBeNull();
-        expect(dialog!.querySelector("h2")?.textContent?.length).toBeGreaterThan(0);
-        // The section's own body rendered something of its own.
-        const body = dialog!.querySelector("header + div");
-        const text = body?.textContent?.trim() ?? "";
-        expect(text.length).toBeGreaterThan(0);
-        // A failed read is said, not shown as a wait that never ends or as
-        // an empty answer the server never gave.
-        expect(text).not.toMatch(/Loading[^.]*…/);
-        expect(text).not.toMatch(/\b0 members/);
-      } finally {
-        await modal.unmount();
-      }
-    }, 60_000);
+    test(
+      section,
+      async () => {
+        useInboxStore.getState().openSettingsModal(section);
+        const modal = await mountSurface(
+          <MemoryRouter>
+            <SettingsModal />
+          </MemoryRouter>,
+        );
+        try {
+          expect(describeFailures(modal)).toBe("");
+          const dialog = modal.container.querySelector(
+            '[role="dialog"][aria-label="Settings"]',
+          );
+          expect(dialog).not.toBeNull();
+          expect(
+            dialog!.querySelector("h2")?.textContent?.length,
+          ).toBeGreaterThan(0);
+          // The section's own body rendered something of its own.
+          const body = dialog!.querySelector("header + div");
+          const text = body?.textContent?.trim() ?? "";
+          expect(text.length).toBeGreaterThan(0);
+          // A failed read is said, not shown as a wait that never ends or as
+          // an empty answer the server never gave.
+          expect(text).not.toMatch(/Loading[^.]*…/);
+          expect(text).not.toMatch(/\b0 members/);
+        } finally {
+          await modal.unmount();
+        }
+      },
+      60_000,
+    );
   }
 });

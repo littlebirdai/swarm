@@ -44,16 +44,24 @@ let announced: DesktopApp | null = null;
 // The channel is the floor; the lock manager is the crash guard on top of
 // it. Without locks the windows still tell each other hello and goodbye.
 function hasChannel(): boolean {
-  return typeof window !== "undefined" && typeof BroadcastChannel !== "undefined";
+  return (
+    typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
+  );
 }
-function locks(): { request: Function; query: () => Promise<{ held?: { name?: string }[] }> } | null {
+function locks(): {
+  request: Function;
+  query: () => Promise<{ held?: { name?: string }[] }>;
+} | null {
   const l = typeof navigator !== "undefined" ? (navigator as any).locks : null;
-  return l && typeof l.request === "function" && typeof l.query === "function" ? l : null;
+  return l && typeof l.request === "function" && typeof l.query === "function"
+    ? l
+    : null;
 }
 
 function setPresent(next: Partial<Record<DesktopApp, boolean>>): void {
-  const same =
-    Object.keys({ ...present, ...next }).every((k) => !!present[k as DesktopApp] === !!next[k as DesktopApp]);
+  const same = Object.keys({ ...present, ...next }).every(
+    (k) => !!present[k as DesktopApp] === !!next[k as DesktopApp],
+  );
   if (same) return;
   present = { ...next };
   for (const cb of watchers) cb();
@@ -101,7 +109,9 @@ function post(msg: Message): void {
  * once (DashboardLayout). `onOpen` receives a path another window handed to
  * THIS app window.
  */
-export function installAppWindowRegistry(onOpen: (path: string | null) => void): void {
+export function installAppWindowRegistry(
+  onOpen: (path: string | null) => void,
+): void {
   if (installed || !hasChannel()) return;
   installed = true;
   channel = new BroadcastChannel(CHANNEL);
@@ -110,7 +120,8 @@ export function installAppWindowRegistry(onOpen: (path: string | null) => void):
     if (!msg || typeof msg !== "object" || !isDesktopApp(msg.app)) return;
     if (msg.type === "hello") setPresent({ ...present, [msg.app]: true });
     else if (msg.type === "bye") setPresent({ ...present, [msg.app]: false });
-    else if (msg.type === "open" && msg.app === announced) onOpen(typeof msg.path === "string" ? msg.path : null);
+    else if (msg.type === "open" && msg.app === announced)
+      onOpen(typeof msg.path === "string" ? msg.path : null);
     // A hello or a bye is a moment to re-read the truth: a goodbye may have
     // died with its window, and two windows may have raced for one app.
     if (msg.type !== "open") void refreshAppWindowPresence();
@@ -123,7 +134,8 @@ export function installAppWindowRegistry(onOpen: (path: string | null) => void):
   window.addEventListener?.("focus", () => void refreshAppWindowPresence());
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") void refreshAppWindowPresence();
+      if (document.visibilityState === "visible")
+        void refreshAppWindowPresence();
     });
   }
 }
@@ -147,16 +159,20 @@ export function announceAppWindow(app: DesktopApp): () => void {
   };
   const l = locks();
   if (l) {
-    void l.request(LOCK_PREFIX + app, { ifAvailable: true }, (lock: unknown) => {
-      // Another window already IS this app (two breakouts on an older
-      // shell): hold nothing, announce nothing, and stay a plain window as
-      // far as the registry is concerned.
-      if (!lock || released) return;
-      hello();
-      return new Promise<void>((resolve) => {
-        release = resolve;
-      });
-    });
+    void l.request(
+      LOCK_PREFIX + app,
+      { ifAvailable: true },
+      (lock: unknown) => {
+        // Another window already IS this app (two breakouts on an older
+        // shell): hold nothing, announce nothing, and stay a plain window as
+        // far as the registry is concerned.
+        if (!lock || released) return;
+        hello();
+        return new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      },
+    );
   } else hello();
   const bye = () => {
     if (released) return;
@@ -176,7 +192,10 @@ export function announceAppWindow(app: DesktopApp): () => void {
 
 /** Hand `path` to `app`'s window over the channel (null: raise it). True
  *  when one exists to take it; the caller then stands down. */
-export function requestAppWindowOpen(app: DesktopApp, path: string | null): boolean {
+export function requestAppWindowOpen(
+  app: DesktopApp,
+  path: string | null,
+): boolean {
   if (!present[app] || !channel) return false;
   post({ type: "open", app, path });
   return true;

@@ -5,7 +5,15 @@
  * Pure data; no runtime imports.
  */
 
-export const LOCAL_MIRROR_STATUSES = ["starting", "live", "paused", "conflict", "local_edit", "error", "stopping"] as const;
+export const LOCAL_MIRROR_STATUSES = [
+  "starting",
+  "live",
+  "paused",
+  "conflict",
+  "local_edit",
+  "error",
+  "stopping",
+] as const;
 export type LocalMirrorStatus = (typeof LOCAL_MIRROR_STATUSES)[number];
 
 /** two_way: edits travel both ways. from_cloud: the laptop copy only watches the cloud. */
@@ -13,9 +21,24 @@ export const LOCAL_MIRROR_MODES = ["two_way", "from_cloud"] as const;
 export type LocalMirrorMode = (typeof LOCAL_MIRROR_MODES)[number];
 
 /** Why a file stayed on its own machine (cloud/syncSide.ts names each in words). */
-export const SYNC_SKIP_REASONS = ["rebuilt", "media", "binary", "large", "total", "live", "repo", "special", "never"] as const;
+export const SYNC_SKIP_REASONS = [
+  "rebuilt",
+  "media",
+  "binary",
+  "large",
+  "total",
+  "live",
+  "repo",
+  "special",
+  "never",
+] as const;
 export type SyncSkipReason = (typeof SYNC_SKIP_REASONS)[number];
-export interface SyncSkipped { path: string; reason: SyncSkipReason; bytes?: number; side: "laptop" | "cloud" }
+export interface SyncSkipped {
+  path: string;
+  reason: SyncSkipReason;
+  bytes?: number;
+  side: "laptop" | "cloud";
+}
 
 /** Each reason in words, the same in `cast sync status` and the app. */
 export const SYNC_SKIP_WORDS: Record<SyncSkipReason, string> = {
@@ -35,20 +58,37 @@ export const SYNC_SKIP_WORDS: Record<SyncSkipReason, string> = {
  * and build folders as one group, then everything else largest first, the
  * first `shown` of them named and the rest counted.
  */
-export function groupSyncSkipped<T extends { path: string; reason: SyncSkipReason; bytes?: number }>(items: readonly T[], shown = 8): { rebuilt: T[]; named: T[]; more: number } {
+export function groupSyncSkipped<
+  T extends { path: string; reason: SyncSkipReason; bytes?: number },
+>(items: readonly T[], shown = 8): { rebuilt: T[]; named: T[]; more: number } {
   const rebuilt = items.filter((s) => s.reason === "rebuilt");
-  const rest = items.filter((s) => s.reason !== "rebuilt").sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0));
-  return { rebuilt, named: rest.slice(0, shown), more: Math.max(0, rest.length - shown) };
+  const rest = items
+    .filter((s) => s.reason !== "rebuilt")
+    .sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0));
+  return {
+    rebuilt,
+    named: rest.slice(0, shown),
+    more: Math.max(0, rest.length - shown),
+  };
 }
 
 /** "big.mov (300 MB): over the per-file limit". */
-export function describeSyncSkipped(s: { path: string; reason: SyncSkipReason; bytes?: number }): string {
-  const size = s.bytes ? ` (${s.bytes >= 1048576 ? `${Math.round(s.bytes / 1048576)} MB` : `${Math.round(s.bytes / 1024)} KB`})` : "";
+export function describeSyncSkipped(s: {
+  path: string;
+  reason: SyncSkipReason;
+  bytes?: number;
+}): string {
+  const size = s.bytes
+    ? ` (${s.bytes >= 1048576 ? `${Math.round(s.bytes / 1048576)} MB` : `${Math.round(s.bytes / 1024)} KB`})`
+    : "";
   return `${s.path}${size}: ${SYNC_SKIP_WORDS[s.reason]}`;
 }
 
 /** A person's pick for files changed on both sides. */
-export interface MirrorResolve { keep: "laptop" | "cloud"; paths?: string[] }
+export interface MirrorResolve {
+  keep: "laptop" | "cloud";
+  paths?: string[];
+}
 
 export interface LocalMirror {
   /** The laptop running the mirror. */
@@ -83,8 +123,15 @@ export interface MirrorDevice {
 }
 
 /** The repository's name: the last path segment of a git remote url or of a checkout path. */
-export function repoNameOf(remoteUrl?: string | null, path?: string | null): string | null {
-  const fromUrl = remoteUrl?.replace(/\.git$/, "").split(/[/:]/).filter(Boolean).pop();
+export function repoNameOf(
+  remoteUrl?: string | null,
+  path?: string | null,
+): string | null {
+  const fromUrl = remoteUrl
+    ?.replace(/\.git$/, "")
+    .split(/[/:]/)
+    .filter(Boolean)
+    .pop();
   if (fromUrl) return fromUrl;
   // A cloud worktree path: ~/work/<repo>/.codecast/worktrees/<name>, or the host checkout ~/work/<repo>.
   const m = path?.match(/\/work\/([^/]+)(?:\/|$)/);
@@ -100,22 +147,60 @@ export function repoNameOf(remoteUrl?: string | null, path?: string | null): str
  */
 export function mirrorLaptops(
   devices: readonly MirrorDevice[],
-  conv: { git_remote_url?: string | null; project_path?: string | null; cloud_seed?: { device_id?: string | null; laptop_root?: string | null } | null },
+  conv: {
+    git_remote_url?: string | null;
+    project_path?: string | null;
+    cloud_seed?: {
+      device_id?: string | null;
+      laptop_root?: string | null;
+    } | null;
+  },
   now: number,
   onlineMs: number,
 ): Array<{ device_id: string; root: string; online: boolean }> {
   const name = repoNameOf(conv.git_remote_url, conv.project_path);
   if (!name) return [];
-  const out: Array<{ device_id: string; root: string; online: boolean; seen: number; seeded: boolean }> = [];
+  const out: Array<{
+    device_id: string;
+    root: string;
+    online: boolean;
+    seen: number;
+    seeded: boolean;
+  }> = [];
   for (const d of devices) {
     if (d.is_remote) continue;
-    const seeded = !!conv.cloud_seed?.device_id && conv.cloud_seed.device_id === d.device_id;
-    const root = (seeded && conv.cloud_seed?.laptop_root && (d.local_project_roots ?? []).includes(conv.cloud_seed.laptop_root))
-      ? conv.cloud_seed.laptop_root
-      : (d.local_project_roots ?? []).filter((r) => r.split("/").filter(Boolean).pop() === name && !r.includes("/.codecast/")).sort((a, b) => a.length - b.length)[0];
+    const seeded =
+      !!conv.cloud_seed?.device_id && conv.cloud_seed.device_id === d.device_id;
+    const root =
+      seeded &&
+      conv.cloud_seed?.laptop_root &&
+      (d.local_project_roots ?? []).includes(conv.cloud_seed.laptop_root)
+        ? conv.cloud_seed.laptop_root
+        : (d.local_project_roots ?? [])
+            .filter(
+              (r) =>
+                r.split("/").filter(Boolean).pop() === name &&
+                !r.includes("/.codecast/"),
+            )
+            .sort((a, b) => a.length - b.length)[0];
     if (!root) continue;
-    out.push({ device_id: d.device_id, root, online: now - d.last_seen < onlineMs, seen: d.last_seen, seeded });
+    out.push({
+      device_id: d.device_id,
+      root,
+      online: now - d.last_seen < onlineMs,
+      seen: d.last_seen,
+      seeded,
+    });
   }
-  out.sort((a, b) => Number(b.online) - Number(a.online) || Number(b.seeded) - Number(a.seeded) || b.seen - a.seen);
-  return out.map(({ device_id, root, online }) => ({ device_id, root, online }));
+  out.sort(
+    (a, b) =>
+      Number(b.online) - Number(a.online) ||
+      Number(b.seeded) - Number(a.seeded) ||
+      b.seen - a.seen,
+  );
+  return out.map(({ device_id, root, online }) => ({
+    device_id,
+    root,
+    online,
+  }));
 }

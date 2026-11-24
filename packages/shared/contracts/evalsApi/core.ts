@@ -5,7 +5,12 @@
 // fields (CodecastRunFields), the guard's marks and the staleness words. PURE
 // isomorphic data: no Node or DOM APIs.
 
-import { RUN_ROW_CORE_FIELDS, rowProblems, type FieldSpec, type RunRowCore } from "@platform/evals/contract";
+import {
+  RUN_ROW_CORE_FIELDS,
+  rowProblems,
+  type FieldSpec,
+  type RunRowCore,
+} from "@platform/evals/contract";
 
 export type {
   BatchStats,
@@ -45,7 +50,14 @@ export {
 // ── Primitives ──────────────────────────────────────────────────────────────
 
 /** The marks the dry-run guard writes to calls.log, one per outcome. */
-export const GUARD_STATUSES = ["SERVED", "UNSERVED", "LIVE", "REFUSED", "UNKNOWN", "HELP"] as const;
+export const GUARD_STATUSES = [
+  "SERVED",
+  "UNSERVED",
+  "LIVE",
+  "REFUSED",
+  "UNKNOWN",
+  "HELP",
+] as const;
 export type GuardStatus = (typeof GUARD_STATUSES)[number];
 
 /** calls.log marks counted per rep. */
@@ -80,20 +92,41 @@ export interface CodecastRunFields {
 /** One run folder under EVALS_HOME/runs, as EVALS_HOME/index/runs.jsonl holds it. A cache: always rebuildable from the folder. Its id is the folder name, `<surface>-<freeze8>-seed<rep>-<stamp>`. */
 export type RunRow = RunRowCore & CodecastRunFields;
 
-const GUARD_KEYS: readonly (keyof GuardCounts)[] = ["served", "unserved", "live", "refused", "unknown", "help"];
-const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const GUARD_KEYS: readonly (keyof GuardCounts)[] = [
+  "served",
+  "unserved",
+  "live",
+  "refused",
+  "unknown",
+  "help",
+];
+const isNum = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v);
 
 /** Every RunRow field in the order a problem list names them: the shared fields, with codecast's in the places they always stood. */
-const RUN_ROW_FIELDS: Record<keyof CodecastRunFields | keyof typeof RUN_ROW_CORE_FIELDS, FieldSpec> = (() => {
+const RUN_ROW_FIELDS: Record<
+  keyof CodecastRunFields | keyof typeof RUN_ROW_CORE_FIELDS,
+  FieldSpec
+> = (() => {
   const fields: Record<string, FieldSpec> = {};
   for (const [field, kind] of Object.entries(RUN_ROW_CORE_FIELDS)) {
     fields[field] = kind;
     if (field === "treePatch") fields.sourceHash = "string?";
   }
-  fields.guard = { name: "guard", ok: (v) => !!v && typeof v === "object" && GUARD_KEYS.every((k) => isNum((v as Record<string, unknown>)[k])) };
+  fields.guard = {
+    name: "guard",
+    ok: (v) =>
+      !!v &&
+      typeof v === "object" &&
+      GUARD_KEYS.every((k) => isNum((v as Record<string, unknown>)[k])),
+  };
   fields.scoreVersions = "number";
-  return fields as Record<keyof CodecastRunFields | keyof typeof RUN_ROW_CORE_FIELDS, FieldSpec>;
+  return fields as Record<
+    keyof CodecastRunFields | keyof typeof RUN_ROW_CORE_FIELDS,
+    FieldSpec
+  >;
 })();
 
 /** Why a value is not a RunRow, one line per field; empty when it is one. The index writer and its tests hold every row to this. */
-export const runRowProblems = (value: unknown): string[] => rowProblems(value, RUN_ROW_FIELDS);
+export const runRowProblems = (value: unknown): string[] =>
+  rowProblems(value, RUN_ROW_FIELDS);

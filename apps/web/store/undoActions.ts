@@ -5,7 +5,11 @@
 // grouping that makes a multi-row gesture one undo.
 import { askRetireInstead } from "../lib/seatKill";
 import { soundDormant } from "../lib/sounds";
-import { isFavoriteInStore, useInboxStore, type InboxSession } from "./inboxStore";
+import {
+  isFavoriteInStore,
+  useInboxStore,
+  type InboxSession,
+} from "./inboxStore";
 import type { UserRest } from "@codecast/shared/contracts";
 import { registerUndoRevert } from "./undo/onRevert";
 import { USER_REST_LABEL } from "./undo/policies/sessions";
@@ -29,12 +33,19 @@ const ENTER_WAIT_MS = 1000;
  * snaps it to zero height and grows it back: the flash this replaces.
  */
 export function animateSessionEnter(id: string, leaving?: Element | null) {
-  if (typeof document === "undefined" || typeof MutationObserver === "undefined") return;
+  if (
+    typeof document === "undefined" ||
+    typeof MutationObserver === "undefined"
+  )
+    return;
   const selector = `[data-session-id="${id}"]`;
   // Already on screen: nothing is entering, and animating it would blink it.
   // A row moving between sections is the exception: the card on screen is the
   // one leaving, and the entrance belongs to the copy that mounts in its place.
-  const entering = () => Array.from(document.querySelectorAll(selector)).find((el) => el !== leaving);
+  const entering = () =>
+    Array.from(document.querySelectorAll(selector)).find(
+      (el) => el !== leaving,
+    );
   if (entering()) return;
   const observer = new MutationObserver(() => {
     const card = entering();
@@ -45,10 +56,14 @@ export function animateSessionEnter(id: string, leaving?: Element | null) {
     // plus subagent cards) so it never coasts on a short row or clips a tall one.
     target.style.setProperty("--row-h", `${target.offsetHeight}px`);
     target.classList.add("session-entering");
-    target.addEventListener("animationend", () => {
-      target.classList.remove("session-entering");
-      target.style.removeProperty("--row-h");
-    }, { once: true });
+    target.addEventListener(
+      "animationend",
+      () => {
+        target.classList.remove("session-entering");
+        target.style.removeProperty("--row-h");
+      },
+      { once: true },
+    );
   });
   const timer = setTimeout(() => stop(), ENTER_WAIT_MS);
   function stop() {
@@ -62,26 +77,34 @@ export type HideSessionMode = "stash" | "kill";
 /** `hidden` = "Stash and hide": the stash survives trigger wakes (stash mode only). */
 export type HideSessionOpts = { hidden?: boolean };
 
-type SessionExit = { card: Element | null; done: Promise<void>; cutShort: () => void };
+type SessionExit = {
+  card: Element | null;
+  done: Promise<void>;
+  cutShort: () => void;
+};
 
 /** Collapse a session card out of its list. Done at once when the card is not
  *  on screen. `cutShort` stops a collapse still running and shows the card
  *  whole again (the write it waited for ran early). */
 function startSessionExit(id: string): SessionExit {
-  const card = typeof document === "undefined" ? null : document.querySelector(`[data-session-id="${id}"]`);
+  const card =
+    typeof document === "undefined"
+      ? null
+      : document.querySelector(`[data-session-id="${id}"]`);
   const wrapper = card?.parentElement as HTMLElement | null | undefined;
-  if (!wrapper) return { card: null, done: Promise.resolve(), cutShort: () => {} };
+  if (!wrapper)
+    return { card: null, done: Promise.resolve(), cutShort: () => {} };
   // Measure the real height (parent + any subagent rows) so the collapse
   // animates the whole stack, not just the first 80px the old cap allowed.
-  wrapper.style.setProperty('--row-h', `${wrapper.offsetHeight}px`);
-  wrapper.classList.add('session-dismissing');
+  wrapper.style.setProperty("--row-h", `${wrapper.offsetHeight}px`);
+  wrapper.classList.add("session-dismissing");
   let finished = false;
   const done = new Promise<void>((resolve) => {
     const finish = () => {
       finished = true;
       resolve();
     };
-    wrapper.addEventListener('animationend', finish, { once: true });
+    wrapper.addEventListener("animationend", finish, { once: true });
     setTimeout(finish, 250);
   });
   return {
@@ -90,8 +113,8 @@ function startSessionExit(id: string): SessionExit {
     cutShort: () => {
       if (finished) return;
       finished = true;
-      wrapper.classList.remove('session-dismissing');
-      wrapper.style.removeProperty('--row-h');
+      wrapper.classList.remove("session-dismissing");
+      wrapper.style.removeProperty("--row-h");
     },
   };
 }
@@ -104,7 +127,10 @@ function startSessionExit(id: string): SessionExit {
  * (deferUndoGesture) and takes it back, rather than taking back an older
  * entry and letting this one land over its redo.
  */
-function afterSessionExits(ids: string[], commit: (leaving: Map<string, Element | null>) => void): Promise<void> {
+function afterSessionExits(
+  ids: string[],
+  commit: (leaving: Map<string, Element | null>) => void,
+): Promise<void> {
   const exits = ids.map((id) => [id, startSessionExit(id)] as const);
   const leaving = new Map(exits.map(([id, exit]) => [id, exit.card]));
   const run = deferUndoGesture(() => {
@@ -121,15 +147,24 @@ function afterSessionExits(ids: string[], commit: (leaving: Map<string, Element 
 const KILL_DISPATCH_ROWS = 500;
 
 /** Animate a session card sliding out, then stash or kill it. */
-export function animatedHideSession(id: string, mode: HideSessionMode, opts?: HideSessionOpts) {
+export function animatedHideSession(
+  id: string,
+  mode: HideSessionMode,
+  opts?: HideSessionOpts,
+) {
   void animatedHideSessions([id], mode, opts);
 }
 
 /** Stash or kill a selection as one gesture: every card collapses out, then
  *  all of them are hidden together as one undo. A seat asks to be retired
  *  instead of killed and is left out. Resolves to the ids it hid. */
-export async function animatedHideSessions(ids: string[], mode: HideSessionMode, opts?: HideSessionOpts): Promise<string[]> {
-  const list = mode === "kill" ? ids.filter((id) => !askRetireInstead(id)) : ids;
+export async function animatedHideSessions(
+  ids: string[],
+  mode: HideSessionMode,
+  opts?: HideSessionOpts,
+): Promise<string[]> {
+  const list =
+    mode === "kill" ? ids.filter((id) => !askRetireInstead(id)) : ids;
   if (list.length === 0) return list;
   await afterSessionExits(list, () => {
     const store = useInboxStore.getState();
@@ -137,9 +172,13 @@ export async function animatedHideSessions(ids: string[], mode: HideSessionMode,
       if (list.length === 1) store.killSession(list[0]!);
       else if (list.length <= KILL_DISPATCH_ROWS) store.killSessions(list);
       else {
-        undoAsOne(`Killed ${counted(list.length, "session")} (agents stay stopped on undo)`, () => {
-          for (let i = 0; i < list.length; i += KILL_DISPATCH_ROWS) store.killSessions(list.slice(i, i + KILL_DISPATCH_ROWS));
-        });
+        undoAsOne(
+          `Killed ${counted(list.length, "session")} (agents stay stopped on undo)`,
+          () => {
+            for (let i = 0; i < list.length; i += KILL_DISPATCH_ROWS)
+              store.killSessions(list.slice(i, i + KILL_DISPATCH_ROWS));
+          },
+        );
       }
     } else {
       const verb = opts?.hidden ? "Stashed and hid" : "Stashed";
@@ -162,7 +201,8 @@ export async function animatedCloseSessions(ids: string[]): Promise<void> {
     else if (ids.length <= KILL_DISPATCH_ROWS) store.closeSessions(ids);
     else {
       undoAsOne(`Closed ${counted(ids.length, "session")}`, () => {
-        for (let i = 0; i < ids.length; i += KILL_DISPATCH_ROWS) store.closeSessions(ids.slice(i, i + KILL_DISPATCH_ROWS));
+        for (let i = 0; i < ids.length; i += KILL_DISPATCH_ROWS)
+          store.closeSessions(ids.slice(i, i + KILL_DISPATCH_ROWS));
       });
     }
   });
@@ -172,7 +212,10 @@ export async function animatedCloseSessions(ids: string[]): Promise<void> {
  *  collapses out of its section, and once every collapse has ended they are
  *  filed together (one undo) and grow into the section they land in. Dormant
  *  sounds its own cue, once per gesture however many rows it files. */
-export async function animatedSetSessionRest(ids: string | string[], rest: UserRest): Promise<void> {
+export async function animatedSetSessionRest(
+  ids: string | string[],
+  rest: UserRest,
+): Promise<void> {
   const list = typeof ids === "string" ? [ids] : ids;
   if (list.length === 0) return;
   if (rest === "dormant") soundDormant();
@@ -195,26 +238,41 @@ export async function animatedSetSessionRest(ids: string | string[], rest: UserR
  * section, the multi-selection menu and the selection bar all land here.
  * Killed rows are skipped; the rest file as one undo.
  */
-export function fileSessionsAsRest(ids: string[], rest: UserRest): Promise<void> {
+export function fileSessionsAsRest(
+  ids: string[],
+  rest: UserRest,
+): Promise<void> {
   const store = useInboxStore.getState();
-  const rows = ids.map((id) => store.sessions[id]).filter((row): row is InboxSession => !!row);
+  const rows = ids
+    .map((id) => store.sessions[id])
+    .filter((row): row is InboxSession => !!row);
   const live = rows.filter((row) => !row.inbox_killed_at);
   if (live.length === 0) {
-    if (rows.length) toast.error("A killed session can't be filed — restore it first");
+    if (rows.length)
+      toast.error("A killed session can't be filed — restore it first");
     return Promise.resolve();
   }
-  return animatedSetSessionRest(live.map((row) => row._id), rest);
+  return animatedSetSessionRest(
+    live.map((row) => row._id),
+    rest,
+  );
 }
 
 // An undo that un-hides a session row plays the row's entrance, whichever
 // gesture hid it: a stash, a kill, a snooze, a teammate's row the hide forgot.
-const HIDE_FIELDS = new Set(["inbox_dismissed_at", "inbox_stashed_at", "inbox_killed_at", "inbox_snoozed_until"]);
+const HIDE_FIELDS = new Set([
+  "inbox_dismissed_at",
+  "inbox_stashed_at",
+  "inbox_killed_at",
+  "inbox_snoozed_until",
+]);
 registerUndoRevert("sessions", (rows) => {
   for (const { id, cells } of rows) {
     const unhid = cells.some((c) =>
       c.field === undefined
         ? c.hadBefore && !c.hadAfter
-        : HIDE_FIELDS.has(c.field) && !!c.after && !c.before);
+        : HIDE_FIELDS.has(c.field) && !!c.after && !c.before,
+    );
     if (unhid) animateSessionEnter(id);
   }
 });
@@ -222,7 +280,9 @@ registerUndoRevert("sessions", (rows) => {
 export type SessionToggle = "pin" | "favorite";
 
 const toggleIsOn = (state: any, id: string, kind: SessionToggle) =>
-  kind === "pin" ? !!state.sessions[id]?.is_pinned : isFavoriteInStore(state, id);
+  kind === "pin"
+    ? !!state.sessions[id]?.is_pinned
+    : isFavoriteInStore(state, id);
 
 /**
  * Pin or favorite a selection the way its first row goes, so a mixed
@@ -230,17 +290,37 @@ const toggleIsOn = (state: any, id: string, kind: SessionToggle) =>
  * already in that end state are left alone, and the one undo and its toast
  * count only the rows that changed.
  */
-export function toggleSessionsLikeFirst(ids: string[], kind: SessionToggle): void {
+export function toggleSessionsLikeFirst(
+  ids: string[],
+  kind: SessionToggle,
+): void {
   if (ids.length === 0) return;
   const state = useInboxStore.getState() as any;
   const on = toggleIsOn(state, ids[0]!, kind);
   const changing = ids.filter((id) => toggleIsOn(state, id, kind) === on);
-  const verb = kind === "pin" ? (on ? "Unpinned" : "Pinned") : on ? "Unfavorited" : "Favorited";
-  const many = changing.length > 1 ? ` ${counted(changing.length, "session")}` : "";
-  const confirm = kind === "pin" ? `${verb}${many}` : on ? `Removed${many} from favorites` : `Added${many} to favorites`;
+  const verb =
+    kind === "pin"
+      ? on
+        ? "Unpinned"
+        : "Pinned"
+      : on
+        ? "Unfavorited"
+        : "Favorited";
+  const many =
+    changing.length > 1 ? ` ${counted(changing.length, "session")}` : "";
+  const confirm =
+    kind === "pin"
+      ? `${verb}${many}`
+      : on
+        ? `Removed${many} from favorites`
+        : `Added${many} to favorites`;
   gestureToast(confirm, () =>
-    undoAsOne((entries) => `${verb} ${counted(entries.length, "session")}`, () => {
-      for (const id of changing) kind === "pin" ? state.pinSession(id) : state.toggleFavorite(id);
-    }),
+    undoAsOne(
+      (entries) => `${verb} ${counted(entries.length, "session")}`,
+      () => {
+        for (const id of changing)
+          kind === "pin" ? state.pinSession(id) : state.toggleFavorite(id);
+      },
+    ),
   );
 }

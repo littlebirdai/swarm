@@ -26,12 +26,20 @@ const RAISES = ["Page.bringToFront", "Target.activateTarget", "/json/activate"];
 
 /** Files allowed to raise, each with the reason it is the human's own ask. */
 const ALLOWED: Record<string, string> = {
-  "browser/focusHttp.ts": "the web's open-tab link: a deliberate raise, stamped with noteDeliberateRaise so the sentinel spares it",
-  "browser/cli.ts": "`tab --show` and `bringtofront`: raises the human asked for by flag",
-  "browser/bridge/host.ts": "serves Target.activateTarget to bridge clients; the method name in a switch, not a call",
+  "browser/focusHttp.ts":
+    "the web's open-tab link: a deliberate raise, stamped with noteDeliberateRaise so the sentinel spares it",
+  "browser/cli.ts":
+    "`tab --show` and `bringtofront`: raises the human asked for by flag",
+  "browser/bridge/host.ts":
+    "serves Target.activateTarget to bridge clients; the method name in a switch, not a call",
 };
 
-const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__", "test-helpers"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "__fixtures__",
+  "test-helpers",
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -39,7 +47,8 @@ function walk(dir: string, out: string[] = []): string[] {
       if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
       continue;
     }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
+    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
+      continue;
     out.push(path.join(dir, entry.name));
   }
   return out;
@@ -66,7 +75,9 @@ describe("no code path raises a browser window over the human", () => {
   });
 
   test("every allowlist entry still raises (no stale entries)", () => {
-    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual([]);
+    expect(Object.keys(ALLOWED).filter((rel) => !seenAllowed.has(rel))).toEqual(
+      [],
+    );
   });
 });
 
@@ -100,7 +111,9 @@ function createsInForeground(window: string): boolean {
   // Nor is a comparison: the guardrails test a client's method name against it.
   if (/[!=]==\s*"Target\.createTarget"/.test(window)) return false;
   if (/background:\s*true/.test(window)) return false;
-  return !BACKGROUND_PARAMS.some((p) => window.includes(`"Target.createTarget", ${p.expr}`));
+  return !BACKGROUND_PARAMS.some((p) =>
+    window.includes(`"Target.createTarget", ${p.expr}`),
+  );
 }
 
 describe("every tab an agent opens comes up behind the human", () => {
@@ -111,7 +124,9 @@ describe("every tab an agent opens comes up behind the human", () => {
     for (const { line, n } of codeLines(fs.readFileSync(file, "utf8"))) {
       if (!line.includes('"Target.createTarget"')) continue;
       if (createsInForeground(lines.slice(n - 1, n + 2).join("\n"))) {
-        offenders.push(`${rel}:${n} creates a tab in the foreground; pass background: true`);
+        offenders.push(
+          `${rel}:${n} creates a tab in the foreground; pass background: true`,
+        );
       }
     }
   }
@@ -123,7 +138,9 @@ describe("every tab an agent opens comes up behind the human", () => {
   test("the params objects trusted as background really are", () => {
     for (const { file, decl } of BACKGROUND_PARAMS) {
       const text = fs.readFileSync(path.join(SRC, file), "utf8");
-      const built = [...text.matchAll(new RegExp(`${decl}\\s*[:=]\\s*\\{[^}]*\\}`, "g"))].map((m) => m[0]);
+      const built = [
+        ...text.matchAll(new RegExp(`${decl}\\s*[:=]\\s*\\{[^}]*\\}`, "g")),
+      ].map((m) => m[0]);
       expect(built.length).toBeGreaterThan(0);
       expect(built.filter((b) => !/background:\s*true/.test(b))).toEqual([]);
     }
@@ -132,10 +149,15 @@ describe("every tab an agent opens comes up behind the human", () => {
   // The scan above only proves the tree is clean today. This proves the rule
   // would catch the regression it was written for.
   test("a create without the flag is caught, one with it is not", () => {
-    const bare = 'conn.send<{ targetId: string }>("Target.createTarget", { url })';
+    const bare =
+      'conn.send<{ targetId: string }>("Target.createTarget", { url })';
     expect(createsInForeground(bare)).toBe(true);
-    expect(createsInForeground(bare.replace("{ url }", "{ url, background: true }"))).toBe(false);
-    expect(createsInForeground('conn.send("Target.createTarget", NEW_TAB)')).toBe(false);
+    expect(
+      createsInForeground(bare.replace("{ url }", "{ url, background: true }")),
+    ).toBe(false);
+    expect(
+      createsInForeground('conn.send("Target.createTarget", NEW_TAB)'),
+    ).toBe(false);
     expect(createsInForeground('case "Target.createTarget": {')).toBe(false);
   });
 });

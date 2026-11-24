@@ -16,7 +16,14 @@ import type { ResourceMachine, ResourceSession } from "./types";
 
 export { fmtBytes, fmtCpu };
 
-export const KINDS: ResourceKind[] = ["agent", "tool", "browser", "simulator", "app", "system"];
+export const KINDS: ResourceKind[] = [
+  "agent",
+  "tool",
+  "browser",
+  "simulator",
+  "app",
+  "system",
+];
 export const KIND_LABEL: Record<ResourceKind, string> = {
   agent: "Agents",
   tool: "Tools",
@@ -28,7 +35,11 @@ export const KIND_LABEL: Record<ResourceKind, string> = {
 
 export type Usage = { cpu: number; rss: number; count: number };
 const zero = (): Usage => ({ cpu: 0, rss: 0, count: 0 });
-const add = (u: Usage, cpu: number, rss: number, count = 1) => { u.cpu += cpu; u.rss += rss; u.count += count; };
+const add = (u: Usage, cpu: number, rss: number, count = 1) => {
+  u.cpu += cpu;
+  u.rss += rss;
+  u.count += count;
+};
 
 export type AttributionRow = {
   key: string;
@@ -52,21 +63,47 @@ function owners(p: ResourceProcess): string[] {
   return [...ids].sort();
 }
 
-export function attribute(deviceId: string, snap: MachineResourceSnapshot): AttributionRow[] {
+export function attribute(
+  deviceId: string,
+  snap: MachineResourceSnapshot,
+): AttributionRow[] {
   const rows = new Map<string, AttributionRow>();
-  const row = (key: string, init: () => Omit<AttributionRow, "usage" | "byKind" | "processes" | "key" | "deviceId">) => {
+  const row = (
+    key: string,
+    init: () => Omit<
+      AttributionRow,
+      "usage" | "byKind" | "processes" | "key" | "deviceId"
+    >,
+  ) => {
     let r = rows.get(key);
-    if (!r) { r = { key, deviceId, usage: zero(), byKind: {}, processes: [], ...init() }; rows.set(key, r); }
+    if (!r) {
+      r = {
+        key,
+        deviceId,
+        usage: zero(),
+        byKind: {},
+        processes: [],
+        ...init(),
+      };
+      rows.set(key, r);
+    }
     return r;
   };
   const listed: Record<string, Usage> = {};
   for (const p of snap.processes) {
     const ids = owners(p);
-    const r = ids.length === 0
-      ? row(`${deviceId}:unattributed`, () => ({ type: "unattributed" }))
-      : ids.length === 1
-        ? row(`${deviceId}:s:${ids[0]}`, () => ({ type: "session", sessionId: ids[0] }))
-        : row(`${deviceId}:shared:${ids.join(",")}`, () => ({ type: "shared", sharedWith: ids }));
+    const r =
+      ids.length === 0
+        ? row(`${deviceId}:unattributed`, () => ({ type: "unattributed" }))
+        : ids.length === 1
+          ? row(`${deviceId}:s:${ids[0]}`, () => ({
+              type: "session",
+              sessionId: ids[0],
+            }))
+          : row(`${deviceId}:shared:${ids.join(",")}`, () => ({
+              type: "shared",
+              sharedWith: ids,
+            }));
     r.processes.push(p);
     add(r.usage, p.cpu, p.rss);
     add((r.byKind[p.kind] ??= zero()), p.cpu, p.rss);
@@ -77,7 +114,11 @@ export function attribute(deviceId: string, snap: MachineResourceSnapshot): Attr
   const remainderByKind: Partial<Record<ResourceKind, Usage>> = {};
   for (const g of snap.groups) {
     const l = listed[g.kind] ?? zero();
-    const extra = { cpu: Math.max(0, g.cpu - l.cpu), rss: Math.max(0, g.rss - l.rss), count: Math.max(0, g.processCount - l.count) };
+    const extra = {
+      cpu: Math.max(0, g.cpu - l.cpu),
+      rss: Math.max(0, g.rss - l.rss),
+      count: Math.max(0, g.processCount - l.count),
+    };
     if (extra.cpu || extra.rss || extra.count) {
       add(remainder, extra.cpu, extra.rss, extra.count);
       remainderByKind[g.kind] = extra;
@@ -87,15 +128,22 @@ export function attribute(deviceId: string, snap: MachineResourceSnapshot): Attr
     const u = row(`${deviceId}:unattributed`, () => ({ type: "unattributed" }));
     u.remainder = remainder;
     add(u.usage, remainder.cpu, remainder.rss, remainder.count);
-    for (const [k, v] of Object.entries(remainderByKind) as [ResourceKind, Usage][]) add((u.byKind[k] ??= zero()), v.cpu, v.rss, v.count);
+    for (const [k, v] of Object.entries(remainderByKind) as [
+      ResourceKind,
+      Usage,
+    ][])
+      add((u.byKind[k] ??= zero()), v.cpu, v.rss, v.count);
   }
-  for (const r of rows.values()) r.processes.sort((a, b) => b.cpu - a.cpu || b.rss - a.rss);
+  for (const r of rows.values())
+    r.processes.sort((a, b) => b.cpu - a.cpu || b.rss - a.rss);
   return [...rows.values()];
 }
 
 /** Totals straight from the machine's per-kind groups (every process). */
 /** The machine reported its vitals but could not list processes (ps timed out under load). */
-export const processesUnavailable = (snap: MachineResourceSnapshot | undefined) => !!snap && snap.sample.processCount === undefined;
+export const processesUnavailable = (
+  snap: MachineResourceSnapshot | undefined,
+) => !!snap && snap.sample.processCount === undefined;
 
 export function machineTotals(snap: MachineResourceSnapshot): Usage {
   const t = zero();
@@ -106,10 +154,14 @@ export function machineTotals(snap: MachineResourceSnapshot): Usage {
 export type Freshness = "cold" | "live" | "stale" | "offline";
 
 export function freshness(m: ResourceMachine, now: number): Freshness {
-  if (!m.snapshot || m.receivedAt === undefined) return m.online ? "cold" : "offline";
+  if (!m.snapshot || m.receivedAt === undefined)
+    return m.online ? "cold" : "offline";
   // A freshly received report can still carry an old (or future-dated) sample.
   const at = m.snapshot.sample.at;
-  const stale = now - m.receivedAt > RESOURCE_STALE_MS || now - at > RESOURCE_STALE_MS || at > now + 30_000;
+  const stale =
+    now - m.receivedAt > RESOURCE_STALE_MS ||
+    now - at > RESOURCE_STALE_MS ||
+    at > now + 30_000;
   // A fresh report is itself proof of life. The device heartbeat is a separate,
   // heavier call that drops out for minutes on an overloaded machine, so it
   // must not hide the one machine whose load matters most right then.
@@ -117,8 +169,10 @@ export function freshness(m: ResourceMachine, now: number): Freshness {
   return m.online ? "stale" : "offline";
 }
 
-export const memoryUsed = (p: ResourcePoint) => Math.max(0, p.memoryTotal - p.memoryAvailable);
-export const memoryUsedPct = (p: ResourcePoint) => (p.memoryTotal > 0 ? (memoryUsed(p) / p.memoryTotal) * 100 : undefined);
+export const memoryUsed = (p: ResourcePoint) =>
+  Math.max(0, p.memoryTotal - p.memoryAvailable);
+export const memoryUsedPct = (p: ResourcePoint) =>
+  p.memoryTotal > 0 ? (memoryUsed(p) / p.memoryTotal) * 100 : undefined;
 
 /**
  * How loaded a machine is right now, 0 to 100: its busiest of CPU and memory
@@ -126,10 +180,15 @@ export const memoryUsedPct = (p: ResourcePoint) => (p.memoryTotal > 0 ? (memoryU
  * (elevated memory pressure reads at least 80, critical at least 95).
  */
 export function loadPercent(p: ResourcePoint): number {
-  const floor = p.pressure === "critical" ? 95 : p.pressure === "elevated" ? 80 : 0;
-  return Math.min(100, Math.max(floor, p.cpuPercent ?? 0, memoryUsedPct(p) ?? 0));
+  const floor =
+    p.pressure === "critical" ? 95 : p.pressure === "elevated" ? 80 : 0;
+  return Math.min(
+    100,
+    Math.max(floor, p.cpuPercent ?? 0, memoryUsedPct(p) ?? 0),
+  );
 }
-export const loadPerCore = (p: ResourcePoint) => p.load1 / Math.max(1, p.logicalCpus);
+export const loadPerCore = (p: ResourcePoint) =>
+  p.load1 / Math.max(1, p.logicalCpus);
 
 // ---- grouping ----
 
@@ -138,7 +197,14 @@ export type SortBy = "name" | "state" | "cpu" | "memory" | "procs" | "idle";
 export type SortDir = "asc" | "desc";
 export type Sort = { by: SortBy; dir: SortDir };
 /** The direction a column sorts in when first picked: biggest and most idle first, names and states in order. */
-export const DEFAULT_SORT_DIR: Record<SortBy, SortDir> = { name: "asc", state: "asc", cpu: "desc", memory: "desc", procs: "desc", idle: "desc" };
+export const DEFAULT_SORT_DIR: Record<SortBy, SortDir> = {
+  name: "asc",
+  state: "asc",
+  cpu: "desc",
+  memory: "desc",
+  procs: "desc",
+  idle: "desc",
+};
 const STATE_ORDER = ["working", "needs_input", "idle", "hibernated", "dead"];
 
 export type TableRow = {
@@ -168,11 +234,17 @@ export function projectName(path?: string): string {
 
 function merge(into: TableRow, r: TableRow) {
   add(into.usage, r.usage.cpu, r.usage.rss, r.usage.count);
-  for (const [k, v] of Object.entries(r.byKind) as [ResourceKind, Usage][]) add((into.byKind[k] ??= zero()), v.cpu, v.rss, v.count);
+  for (const [k, v] of Object.entries(r.byKind) as [ResourceKind, Usage][])
+    add((into.byKind[k] ??= zero()), v.cpu, v.rss, v.count);
   into.processes.push(...r.processes);
-  for (const d of r.deviceIds) if (!into.deviceIds.includes(d)) into.deviceIds.push(d);
+  for (const d of r.deviceIds)
+    if (!into.deviceIds.includes(d)) into.deviceIds.push(d);
   (into.children ??= []).push(r);
-  if (r.lastActiveAt && (!into.lastActiveAt || r.lastActiveAt > into.lastActiveAt)) into.lastActiveAt = r.lastActiveAt;
+  if (
+    r.lastActiveAt &&
+    (!into.lastActiveAt || r.lastActiveAt > into.lastActiveAt)
+  )
+    into.lastActiveAt = r.lastActiveAt;
 }
 
 export function buildRows(
@@ -186,20 +258,29 @@ export function buildRows(
     if (!m.snapshot) continue;
     for (const a of attribute(m.deviceId, m.snapshot)) {
       const session = a.sessionId ? byId.get(a.sessionId) : undefined;
-      const shared = a.sharedWith?.map((id) => byId.get(id)).filter((s): s is ResourceSession => !!s);
+      const shared = a.sharedWith
+        ?.map((id) => byId.get(id))
+        .filter((s): s is ResourceSession => !!s);
       base.push({
         key: a.key,
         type: a.type,
-        label: a.type === "session"
-          ? session?.title ?? `Session ${a.sessionId!.slice(0, 7)} (not in your fleet)`
-          : a.type === "shared"
-            ? a.processes.map((p) => p.name).filter((n, i, all) => all.indexOf(n) === i).slice(0, 2).join(", ")
-            : "Not attributed to a session",
-        sublabel: a.type === "shared"
-          ? `shared by ${a.sharedWith!.length} sessions, counted once`
-          : a.type === "unattributed"
-            ? `${machines.length > 1 ? `${m.name} · ` : ""}apps, system and tools whose owner is unknown`
-            : undefined,
+        label:
+          a.type === "session"
+            ? (session?.title ??
+              `Session ${a.sessionId!.slice(0, 7)} (not in your fleet)`)
+            : a.type === "shared"
+              ? a.processes
+                  .map((p) => p.name)
+                  .filter((n, i, all) => all.indexOf(n) === i)
+                  .slice(0, 2)
+                  .join(", ")
+              : "Not attributed to a session",
+        sublabel:
+          a.type === "shared"
+            ? `shared by ${a.sharedWith!.length} sessions, counted once`
+            : a.type === "unattributed"
+              ? `${machines.length > 1 ? `${m.name} · ` : ""}apps, system and tools whose owner is unknown`
+              : undefined,
         deviceIds: [m.deviceId],
         session,
         sharedWith: shared,
@@ -213,40 +294,99 @@ export function buildRows(
     }
   }
   // Sessions the samples list no processes for still need a row, or a parked one could not be resumed here.
-  const shown = new Set(base.filter((r) => r.session).map((r) => r.session!.sessionId));
-  const reporting = new Set(machines.filter((m) => m.snapshot).map((m) => m.deviceId));
+  const shown = new Set(
+    base.filter((r) => r.session).map((r) => r.session!.sessionId),
+  );
+  const reporting = new Set(
+    machines.filter((m) => m.snapshot).map((m) => m.deviceId),
+  );
   for (const s of sessions) {
-    if (shown.has(s.sessionId) || !s.deviceId || !reporting.has(s.deviceId) || s.state === "dead") continue;
+    if (
+      shown.has(s.sessionId) ||
+      !s.deviceId ||
+      !reporting.has(s.deviceId) ||
+      s.state === "dead"
+    )
+      continue;
     base.push({
-      key: `${s.deviceId}:s:${s.sessionId}`, type: "session", label: s.title,
-      deviceIds: [s.deviceId], session: s, usage: zero(), byKind: {}, processes: [], lastActiveAt: s.lastActiveAt,
-      unmeasured: processesUnavailable(machines.find((m) => m.deviceId === s.deviceId)?.snapshot) ? "list_unavailable" : "no_processes",
+      key: `${s.deviceId}:s:${s.sessionId}`,
+      type: "session",
+      label: s.title,
+      deviceIds: [s.deviceId],
+      session: s,
+      usage: zero(),
+      byKind: {},
+      processes: [],
+      lastActiveAt: s.lastActiveAt,
+      unmeasured: processesUnavailable(
+        machines.find((m) => m.deviceId === s.deviceId)?.snapshot,
+      )
+        ? "list_unavailable"
+        : "no_processes",
     });
   }
   if (groupBy === "session") return base;
   const groups = new Map<string, TableRow>();
   for (const r of base) {
-    let key: string; let label: string; let type: TableRow["type"];
+    let key: string;
+    let label: string;
+    let type: TableRow["type"];
     if (groupBy === "machine") {
-      key = `m:${r.deviceIds[0]}`; type = "machine";
-      label = machines.find((m) => m.deviceId === r.deviceIds[0])?.name ?? r.deviceIds[0];
+      key = `m:${r.deviceIds[0]}`;
+      type = "machine";
+      label =
+        machines.find((m) => m.deviceId === r.deviceIds[0])?.name ??
+        r.deviceIds[0];
     } else if (groupBy === "project") {
-      if (r.type !== "session") { groups.set(r.key, r); continue; }
-      key = `p:${r.session?.projectPath ?? ""}`; type = "project"; label = projectName(r.session?.projectPath);
+      if (r.type !== "session") {
+        groups.set(r.key, r);
+        continue;
+      }
+      key = `p:${r.session?.projectPath ?? ""}`;
+      type = "project";
+      label = projectName(r.session?.projectPath);
     } else {
       // kind: split each row's usage by process kind
-      for (const [k, v] of Object.entries(r.byKind) as [ResourceKind, Usage][]) {
-        const g = groups.get(`k:${k}`) ?? { key: `k:${k}`, label: KIND_LABEL[k], type: "kind" as const, deviceIds: [], usage: zero(), byKind: {}, processes: [], children: [] };
+      for (const [k, v] of Object.entries(r.byKind) as [
+        ResourceKind,
+        Usage,
+      ][]) {
+        const g = groups.get(`k:${k}`) ?? {
+          key: `k:${k}`,
+          label: KIND_LABEL[k],
+          type: "kind" as const,
+          deviceIds: [],
+          usage: zero(),
+          byKind: {},
+          processes: [],
+          children: [],
+        };
         groups.set(`k:${k}`, g);
         add(g.usage, v.cpu, v.rss, v.count);
         add((g.byKind[k] ??= zero()), v.cpu, v.rss, v.count);
         g.processes.push(...r.processes.filter((p) => p.kind === k));
-        for (const d of r.deviceIds) if (!g.deviceIds.includes(d)) g.deviceIds.push(d);
-        g.children!.push({ ...r, key: `${r.key}:${k}`, usage: { ...v }, byKind: { [k]: v }, processes: r.processes.filter((p) => p.kind === k), remainder: undefined });
+        for (const d of r.deviceIds)
+          if (!g.deviceIds.includes(d)) g.deviceIds.push(d);
+        g.children!.push({
+          ...r,
+          key: `${r.key}:${k}`,
+          usage: { ...v },
+          byKind: { [k]: v },
+          processes: r.processes.filter((p) => p.kind === k),
+          remainder: undefined,
+        });
       }
       continue;
     }
-    const g = groups.get(key) ?? { key, label, type, deviceIds: [], usage: zero(), byKind: {}, processes: [] };
+    const g = groups.get(key) ?? {
+      key,
+      label,
+      type,
+      deviceIds: [],
+      usage: zero(),
+      byKind: {},
+      processes: [],
+    };
     groups.set(key, g);
     merge(g, r);
   }
@@ -257,35 +397,71 @@ export function sortRows(rows: TableRow[], sort: Sort): TableRow[] {
   const { by, dir } = sort;
   const usage = by === "cpu" || by === "memory" || by === "procs";
   const key = (r: TableRow): number | string | undefined =>
-    by === "name" ? r.label
-    : by === "state" ? (r.session ? STATE_ORDER.indexOf(r.session.state) : undefined)
-    : by === "cpu" ? r.usage.cpu
-    : by === "memory" ? r.usage.rss
-    : by === "procs" ? r.usage.count
-    : r.lastActiveAt === undefined ? undefined : -r.lastActiveAt;
+    by === "name"
+      ? r.label
+      : by === "state"
+        ? r.session
+          ? STATE_ORDER.indexOf(r.session.state)
+          : undefined
+        : by === "cpu"
+          ? r.usage.cpu
+          : by === "memory"
+            ? r.usage.rss
+            : by === "procs"
+              ? r.usage.count
+              : r.lastActiveAt === undefined
+                ? undefined
+                : -r.lastActiveAt;
   const cmp = (a: TableRow, b: TableRow) => {
     // The unattributed row always sits last: it is context, not a candidate.
     const tail = (r: TableRow) => (r.type === "unattributed" ? 1 : 0);
     if (tail(a) !== tail(b)) return tail(a) - tail(b);
-    if (usage && !!a.unmeasured !== !!b.unmeasured) return Number(!!a.unmeasured) - Number(!!b.unmeasured);
-    const ka = key(a), kb = key(b);
-    if ((ka === undefined) !== (kb === undefined)) return ka === undefined ? 1 : -1;
-    const c = typeof ka === "string" ? ka.localeCompare(kb as string) : ((ka as number) ?? 0) - ((kb as number) ?? 0);
+    if (usage && !!a.unmeasured !== !!b.unmeasured)
+      return Number(!!a.unmeasured) - Number(!!b.unmeasured);
+    const ka = key(a),
+      kb = key(b);
+    if ((ka === undefined) !== (kb === undefined))
+      return ka === undefined ? 1 : -1;
+    const c =
+      typeof ka === "string"
+        ? ka.localeCompare(kb as string)
+        : ((ka as number) ?? 0) - ((kb as number) ?? 0);
     return (dir === "asc" ? c : -c) || a.label.localeCompare(b.label);
   };
-  return [...rows].sort(cmp).map((r) => (r.children ? { ...r, children: sortRows(r.children, sort) } : r));
+  return [...rows]
+    .sort(cmp)
+    .map((r) =>
+      r.children ? { ...r, children: sortRows(r.children, sort) } : r,
+    );
 }
 
 // ---- formatting ----
 
 /** How a process outside its session's tree was started, as a short tag. */
-export function outsideLabel(detached: ResourceProcess["detached"]): string | undefined {
-  return detached === "tmux" ? "tmux" : detached === "background" ? "background" : detached ? "outside tree" : undefined;
+export function outsideLabel(
+  detached: ResourceProcess["detached"],
+): string | undefined {
+  return detached === "tmux"
+    ? "tmux"
+    : detached === "background"
+      ? "background"
+      : detached
+        ? "outside tree"
+        : undefined;
 }
 
 /** Process names with the outside ones tagged: "ffmpeg (tmux), bun". */
-export function namedStops(ps: Array<{ label: string; detached?: ResourceProcess["detached"] }>, max = 4): string {
-  const shown = ps.slice(0, max).map((p) => (outsideLabel(p.detached) ? `${p.label} (${outsideLabel(p.detached)})` : p.label));
+export function namedStops(
+  ps: Array<{ label: string; detached?: ResourceProcess["detached"] }>,
+  max = 4,
+): string {
+  const shown = ps
+    .slice(0, max)
+    .map((p) =>
+      outsideLabel(p.detached)
+        ? `${p.label} (${outsideLabel(p.detached)})`
+        : p.label,
+    );
   return `${shown.join(", ")}${ps.length > max ? `, +${ps.length - max} more` : ""}`;
 }
 

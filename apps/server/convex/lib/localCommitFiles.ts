@@ -5,4 +5,10 @@ import { v } from "convex/values";
 // repos.ts for a value: repos.ts reaches gitActivity.ts back through
 // lib/access.ts, so a top-level read across that edge throws a TDZ
 // ReferenceError whenever repos.ts loads first.
-export const localCommitFiles = v.array(v.object({ filename: v.string(), additions: v.number(), deletions: v.number() }));
+export const localCommitFiles = v.array(
+  v.object({
+    filename: v.string(),
+    additions: v.number(),
+    deletions: v.number(),
+  }),
+);

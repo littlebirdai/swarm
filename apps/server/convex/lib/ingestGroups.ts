@@ -60,7 +60,12 @@ export function pruneBuckets(buckets: Bucket[], now: number): Bucket[] {
  * window. An occurrence older than the window is counted on the group but
  * has no hour left to land in.
  */
-export function addToBuckets(buckets: Bucket[], at: number, n: number, now: number): Bucket[] {
+export function addToBuckets(
+  buckets: Bucket[],
+  at: number,
+  n: number,
+  now: number,
+): Bucket[] {
   const out = pruneBuckets(buckets, now).map((b) => ({ ...b }));
   const hour = hourStart(at);
   if (hour < oldestHour(now) || n <= 0) return out;
@@ -94,12 +99,20 @@ export function pruneDays(days: DayBucket[], now: number): DayBucket[] {
  */
 export function seedDays(buckets: Bucket[]): DayBucket[] {
   const byDay = new Map<number, number>();
-  for (const b of buckets) byDay.set(dayStart(b.hour), (byDay.get(dayStart(b.hour)) ?? 0) + b.count);
-  return [...byDay].map(([day, count]) => ({ day, count })).sort((a, b) => a.day - b.day);
+  for (const b of buckets)
+    byDay.set(dayStart(b.hour), (byDay.get(dayStart(b.hour)) ?? 0) + b.count);
+  return [...byDay]
+    .map(([day, count]) => ({ day, count }))
+    .sort((a, b) => a.day - b.day);
 }
 
 /** One thing a job's failures said, how often, and over when (failureMessageKey). */
-export type MessageTally = { key: string; count: number; first_seen: number; last_seen: number };
+export type MessageTally = {
+  key: string;
+  count: number;
+  first_seen: number;
+  last_seen: number;
+};
 
 /** How many distinct failure messages a job group keeps apart; the rest count under OTHER_MESSAGES. */
 export const MESSAGE_KEYS_MAX = 12;
@@ -110,11 +123,18 @@ export const OTHER_MESSAGES = "(other messages)";
  * MESSAGE_KEYS_MAX distinct keys a new one counts under OTHER_MESSAGES, so the
  * rows always sum to every failure counted since the tally began.
  */
-export function tallyMessages(prev: MessageTally[] | undefined, items: { message?: string; at: number }[]): MessageTally[] {
+export function tallyMessages(
+  prev: MessageTally[] | undefined,
+  items: { message?: string; at: number }[],
+): MessageTally[] {
   const out = (prev ?? []).map((m) => ({ ...m }));
   for (const it of items) {
     let key = failureMessageKey(it.message) || "(no message)";
-    if (!out.some((m) => m.key === key) && out.filter((m) => m.key !== OTHER_MESSAGES).length >= MESSAGE_KEYS_MAX) key = OTHER_MESSAGES;
+    if (
+      !out.some((m) => m.key === key) &&
+      out.filter((m) => m.key !== OTHER_MESSAGES).length >= MESSAGE_KEYS_MAX
+    )
+      key = OTHER_MESSAGES;
     const hit = out.find((m) => m.key === key);
     if (hit) {
       hit.count += 1;
@@ -126,10 +146,20 @@ export function tallyMessages(prev: MessageTally[] | undefined, items: { message
 }
 
 /** The days with `n` more occurrences on the day of `at`, pruned to the window; a group without days is seeded from its hours first. */
-export function addToDays(days: DayBucket[] | undefined, buckets: Bucket[], at: number, n: number, now: number): DayBucket[] {
+export function addToDays(
+  days: DayBucket[] | undefined,
+  buckets: Bucket[],
+  at: number,
+  n: number,
+  now: number,
+): DayBucket[] {
   const out = pruneDays(days ?? seedDays(buckets), now).map((d) => ({ ...d }));
   const day = dayStart(at);
-  if (n <= 0 || day < dayStart(now) - (GROUP_RULES.day_buckets - 1) * DAY_MS_COUNTS) return out;
+  if (
+    n <= 0 ||
+    day < dayStart(now) - (GROUP_RULES.day_buckets - 1) * DAY_MS_COUNTS
+  )
+    return out;
   const hit = out.find((d) => d.day === day);
   if (hit) hit.count += n;
   else out.push({ day, count: n });
@@ -149,9 +179,16 @@ export const EVENT_NAME_OTHER = "(other)";
  * each name pruned to the bucket window (72 hours). A name with nothing left
  * in the window is dropped, which frees its place for a new one.
  */
-export function countEventNames(prev: readonly EventNameCounts[] | undefined, events: readonly { name: string; at: number }[], now: number): EventNameCounts[] {
-  const byName = new Map((prev ?? []).map((e) => [e.name, pruneBuckets(e.buckets, now)] as const));
-  for (const [name, buckets] of byName) if (!buckets.length) byName.delete(name);
+export function countEventNames(
+  prev: readonly EventNameCounts[] | undefined,
+  events: readonly { name: string; at: number }[],
+  now: number,
+): EventNameCounts[] {
+  const byName = new Map(
+    (prev ?? []).map((e) => [e.name, pruneBuckets(e.buckets, now)] as const),
+  );
+  for (const [name, buckets] of byName)
+    if (!buckets.length) byName.delete(name);
   const names = new Set(byName.keys());
   const tally = new Map<string, Map<number, number>>();
   for (const e of events) {
@@ -166,7 +203,8 @@ export function countEventNames(prev: readonly EventNameCounts[] | undefined, ev
   }
   for (const [name, hours] of tally) {
     let buckets = byName.get(name) ?? [];
-    for (const [hour, n] of hours) buckets = addToBuckets(buckets, hour, n, now);
+    for (const [hour, n] of hours)
+      buckets = addToBuckets(buckets, hour, n, now);
     if (buckets.length) byName.set(name, buckets);
   }
   return [...byName].map(([name, buckets]) => ({ name, buckets }));
@@ -191,7 +229,9 @@ export function trailingMean(buckets: Bucket[], hour: number): number {
  * ("3f2a9c1") has digits but no order, so it is never read as one.
  */
 function releaseParts(release: string): number[] | null {
-  const m = /^(?:[^@\s]+@)?v?(\d+(?:\.\d+)+)(?:[+\-_][\w.\-]*)?$/i.exec(release.trim());
+  const m = /^(?:[^@\s]+@)?v?(\d+(?:\.\d+)+)(?:[+\-_][\w.\-]*)?$/i.exec(
+    release.trim(),
+  );
   const version = m?.[1];
   return version ? version.split(".").map(Number) : null;
 }
@@ -250,12 +290,23 @@ export const FLAP_WINDOW_MS = 7 * 24 * HOUR_MS;
 const FLAP_KEEP = 12;
 
 /** The flips to failing with one more at `at`, inside the window. */
-export function addFailure(failedAt: number[] | undefined, at: number): number[] {
-  return [...(failedAt ?? []).filter((t) => t > at - FLAP_WINDOW_MS && t !== at), at].sort((a, b) => a - b).slice(-FLAP_KEEP);
+export function addFailure(
+  failedAt: number[] | undefined,
+  at: number,
+): number[] {
+  return [
+    ...(failedAt ?? []).filter((t) => t > at - FLAP_WINDOW_MS && t !== at),
+    at,
+  ]
+    .sort((a, b) => a - b)
+    .slice(-FLAP_KEEP);
 }
 
 /** A resolve the rules make themselves (a recovery, the vendor's): it names no person. */
-function resolvedBy(next: GroupState, via: Exclude<ResolvedVia, "person">): void {
+function resolvedBy(
+  next: GroupState,
+  via: Exclude<ResolvedVia, "person">,
+): void {
   next.resolved_via = via;
   next.resolved_by = undefined;
 }
@@ -279,12 +330,27 @@ export interface TransitionAt {
 }
 
 /** The transition `prev` makes into an announcement record. */
-function transitionAt(prev: GroupState | null, transition: Transition, at: number): TransitionAt {
-  return prev?.status === "resolved" && prev.resolved_at !== undefined ? { transition, at, reopens: prev.resolved_at } : { transition, at };
+function transitionAt(
+  prev: GroupState | null,
+  transition: Transition,
+  at: number,
+): TransitionAt {
+  return prev?.status === "resolved" && prev.resolved_at !== undefined
+    ? { transition, at, reopens: prev.resolved_at }
+    : { transition, at };
 }
 
-function coolingDown(state: GroupState, transition: Transition, at: number, cooldownMs: number): boolean {
-  return state.last_transition === transition && state.last_transition_at !== undefined && at - state.last_transition_at < cooldownMs;
+function coolingDown(
+  state: GroupState,
+  transition: Transition,
+  at: number,
+  cooldownMs: number,
+): boolean {
+  return (
+    state.last_transition === transition &&
+    state.last_transition_at !== undefined &&
+    at - state.last_transition_at < cooldownMs
+  );
 }
 
 /** Ignored and muted groups keep counting and never announce. */
@@ -292,7 +358,11 @@ function silenced(status: GroupStatus): boolean {
   return status === "ignored" || status === "muted";
 }
 
-function announce(next: GroupState, transition: Transition, at: number): { next: GroupState; transition: Transition } {
+function announce(
+  next: GroupState,
+  transition: Transition,
+  at: number,
+): { next: GroupState; transition: Transition } {
   next.last_transition = transition;
   next.last_transition_at = at;
   return { next, transition };
@@ -303,12 +373,17 @@ function announce(next: GroupState, transition: Transition, at: number): { next:
  * failure: a check, and a watched metric inside or across its line. Both
  * announce only when the state flips, so one rule serves them.
  */
-const STATE_TRANSITIONS: Partial<Record<GroupKind, { failed: Transition; recovered: Transition }>> = {
+const STATE_TRANSITIONS: Partial<
+  Record<GroupKind, { failed: Transition; recovered: Transition }>
+> = {
   check: { failed: "check_failed", recovered: "check_recovered" },
   metric: { failed: "metric_alert", recovered: "metric_recovered" },
 };
 
-function firstOccurrence(occ: Occurrence, now: number): { next: GroupState; transition?: Transition } {
+function firstOccurrence(
+  occ: Occurrence,
+  now: number,
+): { next: GroupState; transition?: Transition } {
   const base: GroupState = {
     kind: occ.kind,
     status: "open",
@@ -317,14 +392,30 @@ function firstOccurrence(occ: Occurrence, now: number): { next: GroupState; tran
     last_seen: occ.at,
     buckets: addToBuckets([], occ.at, 1, now),
     days: addToDays([], [], occ.at, 1, now),
-    ...(occ.release ? { first_release: occ.release, last_release: occ.release } : {}),
+    ...(occ.release
+      ? { first_release: occ.release, last_release: occ.release }
+      : {}),
   };
   const state = STATE_TRANSITIONS[occ.kind];
   if (state) {
     // A state seen ok first is on record so its first failure is a flip; its
     // count and buckets measure failures only.
-    if (occ.ok !== false) return { next: { ...base, status: "resolved", count: 0, buckets: [], days: [], meta: { ok: true } } };
-    return announce({ ...base, meta: { ok: false }, failed_at: [occ.at] }, state.failed, occ.at);
+    if (occ.ok !== false)
+      return {
+        next: {
+          ...base,
+          status: "resolved",
+          count: 0,
+          buckets: [],
+          days: [],
+          meta: { ok: true },
+        },
+      };
+    return announce(
+      { ...base, meta: { ok: false }, failed_at: [occ.at] },
+      state.failed,
+      occ.at,
+    );
   }
   return announce(base, occ.kind === "job" ? "job_failed" : "new", occ.at);
 }
@@ -335,7 +426,11 @@ function firstOccurrence(occ: Occurrence, now: number): { next: GroupState; tran
  * time: buckets are pruned against it, and only an occurrence in the current
  * hour can spike or burst, so a backfilled batch never announces either.
  */
-export function applyOccurrence(prev: GroupState | null, occ: Occurrence, now: number): { next: GroupState; transition?: Transition } {
+export function applyOccurrence(
+  prev: GroupState | null,
+  occ: Occurrence,
+  now: number,
+): { next: GroupState; transition?: Transition } {
   if (!prev) return firstOccurrence(occ, now);
 
   const next: GroupState = {
@@ -378,11 +473,21 @@ export function applyOccurrence(prev: GroupState | null, occ: Occurrence, now: n
   if (prev.status === "resolved") {
     // Old clients still running the release before the fix are not a
     // regression; anything from the fixed release on, or unordered, is.
-    if (prev.kind !== "job" && prev.resolved_in && occ.release && isOlderRelease(occ.release, prev.resolved_in)) return { next };
+    if (
+      prev.kind !== "job" &&
+      prev.resolved_in &&
+      occ.release &&
+      isOlderRelease(occ.release, prev.resolved_in)
+    )
+      return { next };
     next.status = "open";
     next.regressed_at = occ.at;
     next.regressed_in = occ.release;
-    return announce(next, prev.kind === "job" ? "job_failed" : "regressed", occ.at);
+    return announce(
+      next,
+      prev.kind === "job" ? "job_failed" : "regressed",
+      occ.at,
+    );
   }
 
   if (hour !== hourStart(now)) return { next };
@@ -390,13 +495,20 @@ export function applyOccurrence(prev: GroupState | null, occ: Occurrence, now: n
 
   if (prev.kind === "job") {
     // The burst window is the clock hour the buckets keep, not a sliding hour.
-    if (inHour >= GROUP_RULES.job_burst_count && !coolingDown(prev, "job_failed", occ.at, GROUP_RULES.job_cooldown_ms)) {
+    if (
+      inHour >= GROUP_RULES.job_burst_count &&
+      !coolingDown(prev, "job_failed", occ.at, GROUP_RULES.job_cooldown_ms)
+    ) {
       return announce(next, "job_failed", occ.at);
     }
     return { next };
   }
 
-  if ((prev.kind === "error" || prev.kind === "log") && spikes(prev, next, hour, occ.at)) return announce(next, "spike", occ.at);
+  if (
+    (prev.kind === "error" || prev.kind === "log") &&
+    spikes(prev, next, hour, occ.at)
+  )
+    return announce(next, "spike", occ.at);
   return { next };
 }
 
@@ -406,7 +518,12 @@ export function applyOccurrence(prev: GroupState | null, occ: Occurrence, now: n
  * born this hour already said "new"; its first hour has no baseline to spike
  * against.
  */
-function spikes(prev: GroupState, next: GroupState, hour: number, at: number): boolean {
+function spikes(
+  prev: GroupState,
+  next: GroupState,
+  hour: number,
+  at: number,
+): boolean {
   if (prev.first_seen >= hour) return false;
   const inHour = bucketCount(next.buckets, hour);
   return (
@@ -417,12 +534,17 @@ function spikes(prev: GroupState, next: GroupState, hour: number, at: number): b
 }
 
 /** A batch's occurrences of one group, applied oldest first, with every transition they made. */
-export function foldOccurrences(prev: GroupState | null, occurrences: Occurrence[], now: number): { next: GroupState | null; transitions: TransitionAt[] } {
+export function foldOccurrences(
+  prev: GroupState | null,
+  occurrences: Occurrence[],
+  now: number,
+): { next: GroupState | null; transitions: TransitionAt[] } {
   let state = prev;
   const transitions: TransitionAt[] = [];
   for (const occ of [...occurrences].sort((a, b) => a.at - b.at)) {
     const step = applyOccurrence(state, occ, now);
-    if (step.transition) transitions.push(transitionAt(state, step.transition, occ.at));
+    if (step.transition)
+      transitions.push(transitionAt(state, step.transition, occ.at));
     state = step.next;
   }
   return { next: state, transitions };
@@ -453,10 +575,20 @@ export interface MirrorSnapshot {
 }
 
 /** Our buckets with the vendor's hours laid over them, pruned to the window. */
-export function overlayBuckets(buckets: Bucket[], hourly: Bucket[], now: number): Bucket[] {
-  const byHour = new Map(pruneBuckets(buckets, now).map((b) => [b.hour, b.count]));
-  for (const b of pruneBuckets(hourly, now)) byHour.set(hourStart(b.hour), b.count);
-  return [...byHour].filter(([, count]) => count > 0).map(([hour, count]) => ({ hour, count })).sort((a, b) => a.hour - b.hour);
+export function overlayBuckets(
+  buckets: Bucket[],
+  hourly: Bucket[],
+  now: number,
+): Bucket[] {
+  const byHour = new Map(
+    pruneBuckets(buckets, now).map((b) => [b.hour, b.count]),
+  );
+  for (const b of pruneBuckets(hourly, now))
+    byHour.set(hourStart(b.hour), b.count);
+  return [...byHour]
+    .filter(([, count]) => count > 0)
+    .map(([hour, count]) => ({ hour, count }))
+    .sort((a, b) => a.hour - b.hour);
 }
 
 /**
@@ -471,12 +603,22 @@ export function overlayBuckets(buckets: Bucket[], hourly: Bucket[], now: number)
  * the vendor shows nothing newer than the resolve, and regresses once it does,
  * the occurrence path's rule.
  */
-export function applyMirror(prev: GroupState | null, snap: MirrorSnapshot, now: number, since: number): { next: GroupState; transitions: TransitionAt[] } {
+export function applyMirror(
+  prev: GroupState | null,
+  snap: MirrorSnapshot,
+  now: number,
+  since: number,
+): { next: GroupState; transitions: TransitionAt[] } {
   const delta = Math.max(0, snap.count - (prev?.count ?? 0));
-  const buckets = snap.hourly ? overlayBuckets(prev?.buckets ?? [], snap.hourly, now) : addToBuckets(prev?.buckets ?? [], snap.last_seen, delta, now);
+  const buckets = snap.hourly
+    ? overlayBuckets(prev?.buckets ?? [], snap.hourly, now)
+    : addToBuckets(prev?.buckets ?? [], snap.last_seen, delta, now);
   // A first read's count is the vendor's whole history, which belongs to no one day: its days start from the hours it reports.
-  const days = prev ? addToDays(prev.days, prev.buckets, snap.last_seen, delta, now) : seedDays(buckets);
-  const firstRelease = prev?.first_release ?? snap.first_release ?? snap.release;
+  const days = prev
+    ? addToDays(prev.days, prev.buckets, snap.last_seen, delta, now)
+    : seedDays(buckets);
+  const firstRelease =
+    prev?.first_release ?? snap.first_release ?? snap.release;
   const lastRelease = snap.release ?? prev?.last_release;
   const base = {
     kind: snap.kind,
@@ -488,17 +630,36 @@ export function applyMirror(prev: GroupState | null, snap: MirrorSnapshot, now: 
     ...(firstRelease ? { first_release: firstRelease } : {}),
     ...(lastRelease ? { last_release: lastRelease } : {}),
   };
-  const none = (next: GroupState) => ({ next, transitions: [] as TransitionAt[] });
-  const one = (next: GroupState, transition: Transition, at: number) => ({ next: announce(next, transition, at).next, transitions: [transitionAt(prev, transition, at)] });
+  const none = (next: GroupState) => ({
+    next,
+    transitions: [] as TransitionAt[],
+  });
+  const one = (next: GroupState, transition: Transition, at: number) => ({
+    next: announce(next, transition, at).next,
+    transitions: [transitionAt(prev, transition, at)],
+  });
 
   if (!prev) {
     const next: GroupState = {
       ...base,
       status: snap.status,
-      ...(snap.regressed ? { regressed_at: snap.last_seen, ...(snap.release ? { regressed_in: snap.release } : {}) } : {}),
-      ...(snap.status === "resolved" ? { resolved_at: now, resolved_via: "vendor" as const, ...(snap.resolved_in ? { resolved_in: snap.resolved_in } : {}) } : {}),
+      ...(snap.regressed
+        ? {
+            regressed_at: snap.last_seen,
+            ...(snap.release ? { regressed_in: snap.release } : {}),
+          }
+        : {}),
+      ...(snap.status === "resolved"
+        ? {
+            resolved_at: now,
+            resolved_via: "vendor" as const,
+            ...(snap.resolved_in ? { resolved_in: snap.resolved_in } : {}),
+          }
+        : {}),
     };
-    return snap.status === "open" && snap.first_seen >= since ? one(next, "new", snap.first_seen) : none(next);
+    return snap.status === "open" && snap.first_seen >= since
+      ? one(next, "new", snap.first_seen)
+      : none(next);
   }
 
   const next: GroupState = { ...prev, ...base };
@@ -522,7 +683,8 @@ export function applyMirror(prev: GroupState | null, snap: MirrorSnapshot, now: 
     return none(next);
   }
   if (prev.status === "resolved") {
-    if (!snap.regressed && snap.last_seen <= (prev.resolved_at ?? 0)) return none(next);
+    if (!snap.regressed && snap.last_seen <= (prev.resolved_at ?? 0))
+      return none(next);
     next.status = "open";
     next.regressed_at = snap.last_seen;
     next.regressed_in = snap.release;
@@ -530,21 +692,30 @@ export function applyMirror(prev: GroupState | null, snap: MirrorSnapshot, now: 
   }
   // Open here and open there. A regression the vendor reports that this group
   // has not announced since its last resolve (both read between two polls).
-  const announced = prev.regressed_at !== undefined && prev.regressed_at >= (prev.resolved_at ?? 0);
+  const announced =
+    prev.regressed_at !== undefined &&
+    prev.regressed_at >= (prev.resolved_at ?? 0);
   if (snap.regressed && !announced) {
     next.regressed_at = snap.last_seen;
     next.regressed_in = snap.release;
     return one(next, "regressed", snap.last_seen);
   }
   const hour = hourStart(now);
-  if (hourStart(snap.last_seen) === hour && (prev.kind === "error" || prev.kind === "log") && spikes(prev, next, hour, now)) {
+  if (
+    hourStart(snap.last_seen) === hour &&
+    (prev.kind === "error" || prev.kind === "log") &&
+    spikes(prev, next, hour, now)
+  ) {
     return one(next, "spike", now);
   }
   return none(next);
 }
 
 /** How a status change moves a source's groups_open counter. */
-export function openGroupsDelta(prev: GroupStatus | undefined, next: GroupStatus): number {
+export function openGroupsDelta(
+  prev: GroupStatus | undefined,
+  next: GroupStatus,
+): number {
   return (next === "open" ? 1 : 0) - (prev === "open" ? 1 : 0);
 }
 
@@ -575,16 +746,31 @@ export type SamplePin = "first" | "release" | "day";
 const PIN_DAY_MS = 24 * 3600_000;
 
 /** The pin each kept sample carries, in `keep`'s order: the oldest sample of a batch earns each pin once. */
-export function samplePins(keep: readonly Pick<SampleInput, "at" | "release">[], prior: { samples: number; last_release?: string; last_seen?: number } | null): (SamplePin | undefined)[] {
+export function samplePins(
+  keep: readonly Pick<SampleInput, "at" | "release">[],
+  prior: { samples: number; last_release?: string; last_seen?: number } | null,
+): (SamplePin | undefined)[] {
   const out: (SamplePin | undefined)[] = keep.map(() => undefined);
-  const order = keep.map((k, i) => ({ at: k.at, release: k.release, i })).sort((a, b) => a.at - b.at);
+  const order = keep
+    .map((k, i) => ({ at: k.at, release: k.release, i }))
+    .sort((a, b) => a.at - b.at);
   const releases = new Set<string>();
   const days = new Set<number>();
   for (const [n, k] of order.entries()) {
     const day = Math.floor(k.at / PIN_DAY_MS);
     if (n === 0 && (!prior || prior.samples === 0)) out[k.i] = "first";
-    else if (k.release && k.release !== prior?.last_release && !releases.has(k.release)) out[k.i] = "release";
-    else if (prior?.last_seen !== undefined && day > Math.floor(prior.last_seen / PIN_DAY_MS) && !days.has(day)) out[k.i] = "day";
+    else if (
+      k.release &&
+      k.release !== prior?.last_release &&
+      !releases.has(k.release)
+    )
+      out[k.i] = "release";
+    else if (
+      prior?.last_seen !== undefined &&
+      day > Math.floor(prior.last_seen / PIN_DAY_MS) &&
+      !days.has(day)
+    )
+      out[k.i] = "day";
     if (k.release) releases.add(k.release);
     days.add(day);
   }
@@ -599,10 +785,15 @@ export const SAMPLE_TRIM_LOOKAHEAD = 8;
  * `over`: unpinned ones first, then day and release pins, oldest first; the
  * first sample only when nothing else is left.
  */
-export function samplesToTrim<T extends { at: number; pin?: string }>(oldest: readonly T[], over: number): T[] {
+export function samplesToTrim<T extends { at: number; pin?: string }>(
+  oldest: readonly T[],
+  over: number,
+): T[] {
   if (over <= 0) return [];
   const rank = (r: T) => (!r.pin ? 0 : r.pin === "first" ? 2 : 1);
-  return [...oldest].sort((a, b) => rank(a) - rank(b) || a.at - b.at).slice(0, over);
+  return [...oldest]
+    .sort((a, b) => rank(a) - rank(b) || a.at - b.at)
+    .slice(0, over);
 }
 
 export type ItemPlan =
@@ -621,28 +812,69 @@ export type ItemPlan =
       /** Fields the group's meta takes from this occurrence beyond the rules' own (a metric's value and line). */
       meta?: MetricMeta | CheckPassMeta;
     }
-  | { type: "deploy"; version: string; sha?: string; environment?: string; at: number; url?: string; actor?: string; previous_sha?: string; commits?: Array<{ sha: string; subject: string; author?: string }> }
+  | {
+      type: "deploy";
+      version: string;
+      sha?: string;
+      environment?: string;
+      at: number;
+      url?: string;
+      actor?: string;
+      previous_sha?: string;
+      commits?: Array<{ sha: string; subject: string; author?: string }>;
+    }
   /** Accepted and counted, never grouped: analytics events, logs below warn, replay manifests (X5 owns those). */
   | { type: "count" };
 
 function titleOf(text: string): string {
   // An error that says itself twice ("X failed: msg: msg") is titled once, so every surface the group reaches reads it once.
-  return errorTitle(text.split("\n")[0].trim() || text.trim()).title.slice(0, INGEST_LIMITS.title_chars);
+  return errorTitle(text.split("\n")[0].trim() || text.trim()).title.slice(
+    0,
+    INGEST_LIMITS.title_chars,
+  );
 }
 
 function json(value: Record<string, unknown> | undefined): string | undefined {
   return value && Object.keys(value).length ? JSON.stringify(value) : undefined;
 }
 
-function group(kind: GroupKind, fp: string, rest: Omit<Extract<ItemPlan, { type: "group" }>, "type" | "kind" | "fp" | "fingerprint">): ItemPlan {
-  return { type: "group", kind, fp, fingerprint: groupFingerprint(undefined, kind, fp), ...rest };
+function group(
+  kind: GroupKind,
+  fp: string,
+  rest: Omit<
+    Extract<ItemPlan, { type: "group" }>,
+    "type" | "kind" | "fp" | "fingerprint"
+  >,
+): ItemPlan {
+  return {
+    type: "group",
+    kind,
+    fp,
+    fingerprint: groupFingerprint(undefined, kind, fp),
+    ...rest,
+  };
 }
 
 /** What one validated item does to the store. */
-export function planItem(item: IngestItem, envelope: { release?: string; environment?: string }): ItemPlan {
+export function planItem(
+  item: IngestItem,
+  envelope: { release?: string; environment?: string },
+): ItemPlan {
   const { release, environment } = envelope;
-  const occurrence = (kind: GroupKind, extra: Partial<Occurrence> = {}): Occurrence => ({ kind, at: item.at, ...(release ? { release } : {}), ...extra });
-  const sampleBase = { at: item.at, ...(release ? { release } : {}), ...(environment ? { environment } : {}) };
+  const occurrence = (
+    kind: GroupKind,
+    extra: Partial<Occurrence> = {},
+  ): Occurrence => ({
+    kind,
+    at: item.at,
+    ...(release ? { release } : {}),
+    ...extra,
+  });
+  const sampleBase = {
+    at: item.at,
+    ...(release ? { release } : {}),
+    ...(environment ? { environment } : {}),
+  };
   switch (item.type) {
     case "error":
       return group("error", sdkErrorFingerprint(item), {
@@ -668,7 +900,12 @@ export function planItem(item: IngestItem, envelope: { release?: string; environ
         title: titleOf(item.message),
         level: item.level,
         occurrence: occurrence("log"),
-        sample: { ...sampleBase, message: item.message, level: item.level, context_json: json(item.context) },
+        sample: {
+          ...sampleBase,
+          message: item.message,
+          level: item.level,
+          context_json: json(item.context),
+        },
       });
     case "job_failed":
       return group("job", jobFingerprint(item.job), {
@@ -677,18 +914,34 @@ export function planItem(item: IngestItem, envelope: { release?: string; environ
         sample: {
           ...sampleBase,
           message: item.error,
-          context_json: json({ ...(item.attempt !== undefined ? { attempt: item.attempt } : {}), ...(item.job_id ? { job_id: item.job_id } : {}) }),
+          context_json: json({
+            ...(item.attempt !== undefined ? { attempt: item.attempt } : {}),
+            ...(item.job_id ? { job_id: item.job_id } : {}),
+          }),
         },
       });
     case "check":
       return group("check", checkFingerprint(item.id), {
         title: item.title ?? item.id,
         occurrence: occurrence("check", { ok: item.ok }),
-        sample: { ...sampleBase, message: item.detail ?? (item.ok ? "ok" : "failed") },
+        sample: {
+          ...sampleBase,
+          message: item.detail ?? (item.ok ? "ok" : "failed"),
+        },
         ...(item.ok !== false ? { meta: { last_ok_at: item.at } } : {}),
       });
     case "deploy":
-      return { type: "deploy", version: item.version, sha: item.sha, environment: item.environment ?? environment, at: item.at, url: item.url, actor: item.actor, previous_sha: item.previous_sha, commits: item.commits };
+      return {
+        type: "deploy",
+        version: item.version,
+        sha: item.sha,
+        environment: item.environment ?? environment,
+        at: item.at,
+        url: item.url,
+        actor: item.actor,
+        previous_sha: item.previous_sha,
+        commits: item.commits,
+      };
     case "event":
     case "replay":
     // A moment event is kept as a moment (moments.ts recordMomentEvents, learning-loop.md LL7), not grouped.
@@ -712,14 +965,23 @@ export interface ReplayRef {
  * recording of the same failure on the same page counts on one group, which
  * opens, regresses and promotes by the same rules an error does.
  */
-export function planReplayIssue(issue: ReplayIssue, replay: ReplayRef): Extract<ItemPlan, { type: "group" }> {
+export function planReplayIssue(
+  issue: ReplayIssue,
+  replay: ReplayRef,
+): Extract<ItemPlan, { type: "group" }> {
   const at = replay.started_at + Math.max(0, issue.t);
   return group("replay_issue", issue.fp, {
     title: issue.title.slice(0, INGEST_LIMITS.title_chars),
     culprit: issue.route,
     level: issue.kind,
     occurrence: { kind: "replay_issue", at },
-    sample: { at, message: issue.message, url: issue.url, user: replay.user, replay_external_id: replay.external_id },
+    sample: {
+      at,
+      message: issue.message,
+      url: issue.url,
+      user: replay.user,
+      replay_external_id: replay.external_id,
+    },
   }) as Extract<ItemPlan, { type: "group" }>;
 }
 
@@ -744,7 +1006,11 @@ export interface MetricMeta {
 }
 
 /** Whether a value is across the watch's line: an "above" watch alerts past it, a "below" watch under it. */
-export function metricCrosses(value: number, threshold: number, direction: MetricDirection): boolean {
+export function metricCrosses(
+  value: number,
+  threshold: number,
+  direction: MetricDirection,
+): boolean {
   return direction === "above" ? value > threshold : value < threshold;
 }
 
@@ -755,18 +1021,35 @@ export function metricCrosses(value: number, threshold: number, direction: Metri
  * the watch's short id, so renaming the watch keeps its group.
  */
 export function planMetric(
-  watch: { short_id: string; name: string; threshold: number; direction: MetricDirection; id?: string },
+  watch: {
+    short_id: string;
+    name: string;
+    threshold: number;
+    direction: MetricDirection;
+    id?: string;
+  },
   value: number,
   at: number,
   /** The monitor's verdict (contracts/metricMonitor nextMonitorState) when it is more than this one value, and the sample's words when there is no value (missing data). */
   opts: { ok?: boolean; message?: string } = {},
 ): Extract<ItemPlan, { type: "group" }> {
-  const crossed = opts.ok === undefined ? metricCrosses(value, watch.threshold, watch.direction) : !opts.ok;
+  const crossed =
+    opts.ok === undefined
+      ? metricCrosses(value, watch.threshold, watch.direction)
+      : !opts.ok;
   const line = `${watch.direction} ${watch.threshold}`;
   return group("metric", metricFingerprint(watch.short_id), {
     title: titleOf(`${watch.name} ${line}`),
     occurrence: { kind: "metric", at, ok: !crossed },
-    sample: { at, message: opts.message ?? `${watch.name} = ${value} (alerts ${line})` },
-    meta: { value, threshold: watch.threshold, direction: watch.direction, ...(watch.id ? { metric_watch_id: watch.id } : {}) },
+    sample: {
+      at,
+      message: opts.message ?? `${watch.name} = ${value} (alerts ${line})`,
+    },
+    meta: {
+      value,
+      threshold: watch.threshold,
+      direction: watch.direction,
+      ...(watch.id ? { metric_watch_id: watch.id } : {}),
+    },
   }) as Extract<ItemPlan, { type: "group" }>;
 }

@@ -1,6 +1,10 @@
 import { useRef, useState, type RefObject } from "react";
 import { Send } from "lucide-react";
-import { chatPlainText, formatChatCopy, type ChatCopyPart } from "../lib/chatCopy";
+import {
+  chatPlainText,
+  formatChatCopy,
+  type ChatCopyPart,
+} from "../lib/chatCopy";
 import { sendToSession } from "../lib/sendToSession";
 import { useInboxStore } from "../store/inboxStore";
 import { useMountEffect } from "./useMountEffect";
@@ -23,7 +27,8 @@ function rangeOf(node: Node): Range {
  *  needs layout, so the fragment is measured off screen for a moment. */
 function fragmentText(range: Range): string {
   const holder = document.createElement("div");
-  holder.style.cssText = "position:fixed;left:-99999px;top:0;white-space:pre-wrap";
+  holder.style.cssText =
+    "position:fixed;left:-99999px;top:0;white-space:pre-wrap";
   holder.appendChild(range.cloneContents());
   document.body.appendChild(holder);
   const text = holder.innerText;
@@ -33,12 +38,18 @@ function fragmentText(range: Range): string {
 
 /** The selection as chat lines, or null when the browser's own copy is right:
  *  nothing of a message is selected, or the selection sits inside one body. */
-export function selectedChatParts(container: HTMLElement, byId: Map<string, ChatMessageView>): ChatCopyPart[] | null {
+export function selectedChatParts(
+  container: HTMLElement,
+  byId: Map<string, ChatMessageView>,
+): ChatCopyPart[] | null {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
   const range = sel.getRangeAt(0);
   if (!container.contains(range.commonAncestorContainer)) return null;
-  const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+  const start =
+    range.startContainer instanceof Element
+      ? range.startContainer
+      : range.startContainer.parentElement;
   const startBody = start?.closest(BODY);
   if (startBody && startBody.contains(range.endContainer)) return null;
 
@@ -46,12 +57,19 @@ export function selectedChatParts(container: HTMLElement, byId: Map<string, Chat
   for (const row of Array.from(container.querySelectorAll<HTMLElement>(ROW))) {
     if (!range.intersectsNode(row)) continue;
     const msg = byId.get(row.dataset.messageId ?? "");
-    if (!msg || msg.deletedAt || msg.agentStatus === "thinking" || msg.agentStatus === "streaming") continue;
+    if (
+      !msg ||
+      msg.deletedAt ||
+      msg.agentStatus === "thinking" ||
+      msg.agentStatus === "streaming"
+    )
+      continue;
     const body = row.querySelector(BODY);
     let text = chatPlainText(msg.content);
     if (body) {
       const whole = rangeOf(body);
-      const before = range.compareBoundaryPoints(Range.START_TO_START, whole) > 0;
+      const before =
+        range.compareBoundaryPoints(Range.START_TO_START, whole) > 0;
       const after = range.compareBoundaryPoints(Range.END_TO_END, whole) < 0;
       if (before || after) {
         if (!range.intersectsNode(body)) continue;
@@ -61,14 +79,17 @@ export function selectedChatParts(container: HTMLElement, byId: Map<string, Chat
         text = fragmentText(part);
       }
     }
-    if (text.trim()) parts.push({ author: msg.author.name, createdAt: msg.createdAt, text });
+    if (text.trim())
+      parts.push({ author: msg.author.name, createdAt: msg.createdAt, text });
   }
   return parts.length ? parts : null;
 }
 
 function channelLabel(channelId?: string): string | null {
   if (!channelId) return null;
-  const ch = useInboxStore.getState().chatChannels[channelId] as { name?: string; kind?: string } | undefined;
+  const ch = useInboxStore.getState().chatChannels[channelId] as
+    | { name?: string; kind?: string }
+    | undefined;
   if (!ch) return null;
   return ch.kind === "dm" ? "a direct message" : ch.name ? `#${ch.name}` : null;
 }
@@ -98,7 +119,11 @@ export function useChatSelection(
 ) {
   const byIdRef = useRef(new Map<string, ChatMessageView>());
   byIdRef.current = new Map(messages.map((m) => [m.id, m]));
-  const [pop, setPop] = useState<{ top: number; left: number; text: string } | null>(null);
+  const [pop, setPop] = useState<{
+    top: number;
+    left: number;
+    text: string;
+  } | null>(null);
 
   // The container is the caller's own element, set before effects run.
   useMountEffect(() => {
@@ -120,14 +145,18 @@ export function useChatSelection(
       const range = sel.getRangeAt(0);
       if (!el.contains(range.commonAncestorContainer)) return setPop(null);
       const parts: ChatCopyPart[] | null =
-        selectedChatParts(el, byIdRef.current) ?? oneBodyPart(range, byIdRef.current);
+        selectedChatParts(el, byIdRef.current) ??
+        oneBodyPart(range, byIdRef.current);
       const out = parts && formatChatCopy(parts);
       if (!out) return setPop(null);
       const wrap = el.parentElement!.getBoundingClientRect();
       const rect = range.getBoundingClientRect();
       setPop({
         top: Math.max(4, rect.top - wrap.top - 34),
-        left: Math.min(Math.max(8, rect.left - wrap.left + rect.width / 2), wrap.width - 8),
+        left: Math.min(
+          Math.max(8, rect.left - wrap.left + rect.width / 2),
+          wrap.width - 8,
+        ),
         text: out.text,
       });
     };
@@ -174,11 +203,19 @@ export function useChatSelection(
 }
 
 /** A selection inside one message: its words, under that message's header. */
-function oneBodyPart(range: Range, byId: Map<string, ChatMessageView>): ChatCopyPart[] | null {
-  const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+function oneBodyPart(
+  range: Range,
+  byId: Map<string, ChatMessageView>,
+): ChatCopyPart[] | null {
+  const start =
+    range.startContainer instanceof Element
+      ? range.startContainer
+      : range.startContainer.parentElement;
   const row = start?.closest<HTMLElement>(ROW);
   const msg = row && byId.get(row.dataset.messageId ?? "");
   if (!msg) return null;
   const text = fragmentText(range);
-  return text.trim() ? [{ author: msg.author.name, createdAt: msg.createdAt, text }] : null;
+  return text.trim()
+    ? [{ author: msg.author.name, createdAt: msg.createdAt, text }]
+    : null;
 }

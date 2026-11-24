@@ -5,7 +5,9 @@ import { getFunctionName } from "convex/server";
 import { linkChannel } from "./slackSync";
 
 const realFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = realFetch; });
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
 
 /** Slack as two tokens see it: the bot is in the private channel; the person is or is not. */
 function slack(personIsMember: boolean) {
@@ -14,10 +16,22 @@ function slack(personIsMember: boolean) {
     const method = String(url).split("/api/")[1];
     const token = String(init.headers.Authorization).replace("Bearer ", "");
     calls.push({ method, token });
-    const channel = { id: "CPRIV", name: "secret-plans", is_private: true, is_member: true };
+    const channel = {
+      id: "CPRIV",
+      name: "secret-plans",
+      is_private: true,
+      is_member: true,
+    };
     if (method === "conversations.info") {
-      if (token === "xoxb-bot") return new Response(JSON.stringify({ ok: true, channel }));
-      return new Response(JSON.stringify(personIsMember ? { ok: true, channel } : { ok: false, error: "channel_not_found" }));
+      if (token === "xoxb-bot")
+        return new Response(JSON.stringify({ ok: true, channel }));
+      return new Response(
+        JSON.stringify(
+          personIsMember
+            ? { ok: true, channel }
+            : { ok: false, error: "channel_not_found" },
+        ),
+      );
     }
     return new Response(JSON.stringify({ ok: true }));
   }) as unknown as typeof fetch;
@@ -31,12 +45,28 @@ function ctxFor(userToken: string | null) {
     ctx: {
       async runQuery(ref: any) {
         const name = getFunctionName(ref);
-        if (name.includes("resolveLinkAuth")) return { ok: true, user_id: "u1", team_id: "t1", bot_token: "xoxb-bot", bot_user_id: "UBOT", user_token: userToken, workspace_id: "T1", existing_link_id: null };
+        if (name.includes("resolveLinkAuth"))
+          return {
+            ok: true,
+            user_id: "u1",
+            team_id: "t1",
+            bot_token: "xoxb-bot",
+            bot_user_id: "UBOT",
+            user_token: userToken,
+            workspace_id: "T1",
+            existing_link_id: null,
+          };
         return null;
       },
       async runMutation(ref: any) {
         mutations.push(getFunctionName(ref));
-        return { link_id: "link_1", team_id: "t1", chat_channel_name: "plans", slack_channel_name: "secret-plans", actor_name: null };
+        return {
+          link_id: "link_1",
+          team_id: "t1",
+          chat_channel_name: "plans",
+          slack_channel_name: "secret-plans",
+          actor_name: null,
+        };
       },
       scheduler: { async runAfter() {} },
     } as any,

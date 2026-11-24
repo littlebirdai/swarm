@@ -1,6 +1,9 @@
 // The desktop shell folds its window visibility into document.hidden and
 // dispatches visibilitychange through applyShellVisibility.
-export function whileWindowVisible(start: (resumed: boolean) => () => void, onResume?: () => void): () => void {
+export function whileWindowVisible(
+  start: (resumed: boolean) => () => void,
+  onResume?: () => void,
+): () => void {
   if (typeof document === "undefined") return start(false);
   const doc = document;
   let stop: (() => void) | undefined;
@@ -32,20 +35,25 @@ export function visibleInterval(tick: () => void, ms: number): () => void {
   }, tick);
 }
 
-export function visibleAnimationLoop(tick: (now: number) => void | false): () => void {
+export function visibleAnimationLoop(
+  tick: (now: number) => void | false,
+): () => void {
   const run = (now: number) => {
     if (tick(now) === false) stop();
   };
-  const stop = whileWindowVisible(() => {
-    let running = true;
-    let frame = requestAnimationFrame(function next(now) {
-      run(now);
-      if (running) frame = requestAnimationFrame(next);
-    });
-    return () => {
-      running = false;
-      cancelAnimationFrame(frame);
-    };
-  }, () => run(performance.now()));
+  const stop = whileWindowVisible(
+    () => {
+      let running = true;
+      let frame = requestAnimationFrame(function next(now) {
+        run(now);
+        if (running) frame = requestAnimationFrame(next);
+      });
+      return () => {
+        running = false;
+        cancelAnimationFrame(frame);
+      };
+    },
+    () => run(performance.now()),
+  );
   return stop;
 }

@@ -19,17 +19,30 @@ const ROUNDS = 30;
 const HOP_MS = 2 * 60_000;
 
 scenario({ name: "agentPingPong" }, async (w) => {
-  w.team("acme", { features: { chat: true } }).user("ada", ["acme"]).user("bo", ["acme"]);
+  w.team("acme", { features: { chat: true } })
+    .user("ada", ["acme"])
+    .user("bo", ["acme"]);
   // Session mentions resolve by short id (`@jx` + 5 characters).
-  const ping = w.session("ada", "ping", { agentStatus: "working", row: { short_id: "jxpinga" } });
-  const pong = w.session("bo", "pong", { agentStatus: "working", row: { short_id: "jxpongb" } });
+  const ping = w.session("ada", "ping", {
+    agentStatus: "working",
+    row: { short_id: "jxpinga" },
+  });
+  const pong = w.session("bo", "pong", {
+    agentStatus: "working",
+    row: { short_id: "jxpongb" },
+  });
 
   // The opening line is the thread root every reply goes under.
   await w.agent(ping).says("acme/general", "ping", ["jxpongb"]);
   await w.settle();
   const opened = w.actors.log.find((e) => e.actor === `agent.${ping}`);
-  if (!opened?.ok) throw new Error(`sim world: agentPingPong's opening line was refused: ${opened?.error}`);
-  const thread = w.labels.label(String((opened.result as { message_id: string }).message_id));
+  if (!opened?.ok)
+    throw new Error(
+      `sim world: agentPingPong's opening line was refused: ${opened?.error}`,
+    );
+  const thread = w.labels.label(
+    String((opened.result as { message_id: string }).message_id),
+  );
 
   for (let i = 0; i < ROUNDS; i++) {
     await w.agent(pong).says("acme/general", "pong", ["jxpinga"], { thread });
@@ -42,33 +55,69 @@ const WORKERS = 6;
 
 scenario({ name: "agentPingPongOwnSessions" }, async (w) => {
   w.team("acme", { features: { chat: true } }).user("ada", ["acme"]);
-  const lead = w.session("ada", "lead", { agentStatus: "working", row: { short_id: "jxleadx" } });
+  const lead = w.session("ada", "lead", {
+    agentStatus: "working",
+    row: { short_id: "jxleadx" },
+  });
   const workers = Array.from({ length: WORKERS }, (_, i) =>
-    w.session("ada", `worker${i}`, { agentStatus: "working", row: { short_id: `jxwork${i}` } }));
+    w.session("ada", `worker${i}`, {
+      agentStatus: "working",
+      row: { short_id: `jxwork${i}` },
+    }),
+  );
 
   await w.agent(lead).says("acme/general", "fan out");
   await w.settle();
   const opened = w.actors.log.find((e) => e.actor === `agent.${lead}`);
-  if (!opened?.ok) throw new Error(`sim world: agentPingPongOwnSessions' opening line was refused: ${opened?.error}`);
-  const thread = w.labels.label(String((opened.result as { message_id: string }).message_id));
+  if (!opened?.ok)
+    throw new Error(
+      `sim world: agentPingPongOwnSessions' opening line was refused: ${opened?.error}`,
+    );
+  const thread = w.labels.label(
+    String((opened.result as { message_id: string }).message_id),
+  );
 
-  await w.agent(lead).says("acme/general", "report in", workers.map((_, i) => `jxwork${i}`), { thread });
+  await w.agent(lead).says(
+    "acme/general",
+    "report in",
+    workers.map((_, i) => `jxwork${i}`),
+    { thread },
+  );
   await w.settle();
-  for (const s of workers) await w.agent(s).says("acme/general", "done", [], { thread });
+  for (const s of workers)
+    await w.agent(s).says("acme/general", "done", [], { thread });
 
   const step = "expect every answer reached the lead";
   await w.settleAs(step);
-  const answers = w.actors.log.filter((e) => workers.some((s) => e.actor === `agent.${s}`));
-  const missed = answers.find((e) => !e.ok || (e.result as { session_relay?: { delivered?: boolean } })?.session_relay?.delivered !== true);
+  const answers = w.actors.log.filter((e) =>
+    workers.some((s) => e.actor === `agent.${s}`),
+  );
+  const missed = answers.find(
+    (e) =>
+      !e.ok ||
+      (e.result as { session_relay?: { delivered?: boolean } })?.session_relay
+        ?.delivered !== true,
+  );
   if (answers.length !== WORKERS || missed) {
-    const result = missed?.result as { message_id?: string; session_relay?: { skipped?: string | null } } | undefined;
+    const result = missed?.result as
+      | { message_id?: string; session_relay?: { skipped?: string | null } }
+      | undefined;
     w.fail({
       ...w.reportBase(step),
-      invariant: { id: "expect.answersRelayed", meaning: "each worker's answer to its lead's mention is relayed to the lead" },
+      invariant: {
+        id: "expect.answersRelayed",
+        meaning:
+          "each worker's answer to its lead's mention is relayed to the lead",
+      },
       message: missed
-        ? `${missed.actor}'s answer was not relayed: ${missed.ok ? result?.session_relay?.skipped ?? "not delivered" : missed.error}`
+        ? `${missed.actor}'s answer was not relayed: ${missed.ok ? (result?.session_relay?.skipped ?? "not delivered") : missed.error}`
         : `${answers.length} answers sent, expected ${WORKERS}`,
-      row: { table: "chat_messages", id: String(result?.message_id ?? w.idOf(lead)), server: null, replica: null },
+      row: {
+        table: "chat_messages",
+        id: String(result?.message_id ?? w.idOf(lead)),
+        server: null,
+        replica: null,
+      },
     });
   }
 });

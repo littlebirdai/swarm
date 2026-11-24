@@ -16,12 +16,20 @@ import { Modal } from "../ui/Modal";
 import { useAppState } from "./appState";
 import s from "./ForkModal.module.css";
 
-export function ForkModal({ from, onClose }: { from: number; onClose: () => void }) {
+export function ForkModal({
+  from,
+  onClose,
+}: {
+  from: number;
+  onClose: () => void;
+}) {
   const { app, versionByNumber } = useAppState();
   const { me } = useIdentity();
   const forks = versionByNumber.get(from)?.forks ?? [];
   const fork = useVisitorMutation(api.apps.fork);
-  const [name, setName] = useState(() => forkName(app.name, me.name, APP_NAME_MAX));
+  const [name, setName] = useState(() =>
+    forkName(app.name, me.name, APP_NAME_MAX),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +38,11 @@ export function ForkModal({ from, onClose }: { from: number; onClose: () => void
     setBusy(true);
     setError(null);
     try {
-      const made = await fork({ app_id: app.id, number: from, name: name.trim() });
+      const made = await fork({
+        app_id: app.id,
+        number: from,
+        name: name.trim(),
+      });
       onClose();
       navigate(roomUrl(made.slug));
     } catch (err) {
@@ -41,12 +53,18 @@ export function ForkModal({ from, onClose }: { from: number; onClose: () => void
 
   return (
     <Modal onClose={onClose} label={`Fork v${from}`} className={s.modal}>
-      <form className={s.body} onSubmit={(e) => {
-        e.preventDefault();
-        void submit();
-      }}>
+      <form
+        className={s.body}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
         <h2 className={s.title}>Fork v{from}</h2>
-        <p className={s.lede}>A new app with v{from}'s code and a copy of today's data. Its own room, its own link.</p>
+        <p className={s.lede}>
+          A new app with v{from}'s code and a copy of today's data. Its own
+          room, its own link.
+        </p>
         {forks.length > 0 && (
           <p className={s.already}>
             <ForkedInto forks={forks} />. Join it, or make your own.
@@ -65,8 +83,18 @@ export function ForkModal({ from, onClose }: { from: number; onClose: () => void
         </label>
         {error && <p className={s.error}>{error}</p>}
         <div className={s.actions}>
-          <Button type="button" size="md" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="ink" size="md" busy={busy} disabled={!name.trim()}>Fork it</Button>
+          <Button type="button" size="md" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="ink"
+            size="md"
+            busy={busy}
+            disabled={!name.trim()}
+          >
+            Fork it
+          </Button>
         </div>
       </form>
     </Modal>
@@ -81,7 +109,8 @@ export function ForkedInto({ forks }: { forks: ForkOf[] }) {
   if (!latest) return null;
   return (
     <span>
-      {nameFor(latest.by, me.id)} forked this into <Link to={appUrl(latest.slug)}>{latest.name}</Link>
+      {nameFor(latest.by, me.id)} forked this into{" "}
+      <Link to={appUrl(latest.slug)}>{latest.name}</Link>
       {forks.length > 1 && `, and ${forks.length - 1} more`}
     </span>
   );

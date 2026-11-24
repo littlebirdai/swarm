@@ -6,7 +6,15 @@
 // node's timeout. The hand reads finished with no pin, the runner asks it for
 // its handoff, and it pins dormant on the check, which holds it until it hands
 // off or the node times out.
-import { describe, test, expect, beforeEach, afterEach, setSystemTime, spyOn } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeEach,
+  afterEach,
+  setSystemTime,
+  spyOn,
+} from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
@@ -22,14 +30,18 @@ const builders = ["implement", "implement_line"];
 
 // The station with the shipped line's own edges out of it, between a start and
 // the two places they lead: verify, and the stopped exit.
-const graphFor = (id: string, timeout = 600) => parseWorkflowSource(`digraph line {
+const graphFor = (id: string, timeout = 600) =>
+  parseWorkflowSource(`digraph line {
   start [shape=Mdiamond]
   ${id} [label="Build", backend=session, agent=claude, timeout=${timeout}, prompt="build it"]
   verify [shape=parallelogram, script="true"]
   exit [shape=Msquare]
   stopped [shape=Msquare, label="Stopped", stop="$handoff_note"]
   start -> ${id}
-  ${shipped.edges.filter((e) => e.from === id).map((e) => `${id} -> ${e.to} [condition="${e.condition}"]`).join("\n  ")}
+  ${shipped.edges
+    .filter((e) => e.from === id)
+    .map((e) => `${id} -> ${e.to} [condition="${e.condition}"]`)
+    .join("\n  ")}
   verify -> exit
 }`);
 
@@ -55,7 +67,10 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
   let awakeShift: number;
   let awakeSpy: { mockRestore(): void };
   let loadSpy: { mockRestore(): void } | undefined;
-  const jump = (ms: number) => { setSystemTime(new Date(Date.now() + ms)); awakeShift += ms; };
+  const jump = (ms: number) => {
+    setSystemTime(new Date(Date.now() + ms));
+    awakeShift += ms;
+  };
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-wf-late-"));
@@ -64,7 +79,12 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
     logs = [];
     console.log = (...args: any[]) => logs.push(args.join(" "));
     calls = [];
-    task = { short_id: "ct-9", title: "Fix it", status: "in_progress", execution_status: "" };
+    task = {
+      short_id: "ct-9",
+      title: "Fix it",
+      status: "in_progress",
+      execution_status: "",
+    };
     reads = 0;
     handoffAt = 0;
     handoffStatus = "done";
@@ -74,22 +94,43 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
     limitReads = () => false;
     awakeShift = 0;
     const realAwake = performance.now.bind(performance);
-    awakeSpy = spyOn(performance, "now").mockImplementation(() => realAwake() + awakeShift);
+    awakeSpy = spyOn(performance, "now").mockImplementation(
+      () => realAwake() + awakeShift,
+    );
     globalThis.fetch = (async (url: any, init: any) => {
       const route = String(url).replace(/^https?:\/\/[^/]+/, "");
       const body = JSON.parse(init?.body || "{}");
       calls.push({ route, body });
-      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
-      if (route === "/cli/spawn") return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
+      const reply = (v: unknown) =>
+        new Response(JSON.stringify(v), { status: 200 });
+      if (route === "/cli/spawn")
+        return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
       if (route === "/cli/inbox") {
         reads++;
         if (reads === jumpAt) jump(jumpMs);
-        if (reads === handoffAt) task = { ...task, status: "in_review", execution_status: handoffStatus, verification_evidence: "cannot build: x" };
+        if (reads === handoffAt)
+          task = {
+            ...task,
+            status: "in_review",
+            execution_status: handoffStatus,
+            verification_evidence: "cannot build: x",
+          };
         // The hand ended its turn on a backgrounded check: live, needs input, nothing pinned.
-        return reply({ sessions: [{ id: "conv_hand", work_state: "needs_input", is_live: true, message_count: 40, ...(limitReads(reads) ? { blocked_on: "limit" } : {}) }] });
+        return reply({
+          sessions: [
+            {
+              id: "conv_hand",
+              work_state: "needs_input",
+              is_live: true,
+              message_count: 40,
+              ...(limitReads(reads) ? { blocked_on: "limit" } : {}),
+            },
+          ],
+        });
       }
       // Asked for its handoff, the hand pins dormant on its check.
-      if (route === "/cli/messages/send") pinned = { state: "Waiting on the project check", status: "dormant" };
+      if (route === "/cli/messages/send")
+        pinned = { state: "Waiting on the project check", status: "dormant" };
       if (route === "/cli/sessions/state/get") return reply(pinned);
       if (route === "/cli/work/get") return reply(task);
       return reply({ ok: true });
@@ -106,33 +147,61 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
     fs.rmSync(tmpDir, { recursive: true });
   });
 
-  const run = (id: string, timeout?: number) => runWorkflow(graphFor(id, timeout), { cwd: tmpDir, runId: "run-1", runSession: "conv_run", taskId: "ct-9", apiToken: "tok", convexSiteUrl: "https://convex.test", pollIntervalMs: 1 } as RunOptions);
-  const reached = (id: string) => calls.some((c) => c.route === "/cli/workflow-runs/progress" && c.body.node_id === id);
-  const failReason = () => calls.filter((c) => c.route === "/cli/workflow-runs/progress" && c.body.fail_reason).map((c) => String(c.body.fail_reason)).pop() ?? "";
+  const run = (id: string, timeout?: number) =>
+    runWorkflow(graphFor(id, timeout), {
+      cwd: tmpDir,
+      runId: "run-1",
+      runSession: "conv_run",
+      taskId: "ct-9",
+      apiToken: "tok",
+      convexSiteUrl: "https://convex.test",
+      pollIntervalMs: 1,
+    } as RunOptions);
+  const reached = (id: string) =>
+    calls.some(
+      (c) => c.route === "/cli/workflow-runs/progress" && c.body.node_id === id,
+    );
+  const failReason = () =>
+    calls
+      .filter(
+        (c) => c.route === "/cli/workflow-runs/progress" && c.body.fail_reason,
+      )
+      .map((c) => String(c.body.fail_reason))
+      .pop() ?? "";
 
   test("the shipped builders route only on their handoff", () => {
     for (const id of builders) {
       const out = shipped.edges.filter((e) => e.from === id);
       expect(out.length).toBeGreaterThan(0);
-      expect(out.every((e) => /\bhandoff\b/.test(e.condition ?? ""))).toBe(true);
+      expect(out.every((e) => /\bhandoff\b/.test(e.condition ?? ""))).toBe(
+        true,
+      );
     }
   });
 
-  test.each(builders)("%s: a done handoff nine minutes after the turn ended routes to verify", async (id) => {
-    // ct-60270 th719815g: the handoff came 555s after the node closed.
-    jumpAt = 6;
-    jumpMs = 9 * 60_000;
-    handoffAt = 8;
-    expect(await run(id)).toBe("completed");
-    expect(reached("verify")).toBe(true);
-    expect(failReason()).not.toContain("no outgoing edge");
-    expect(reads).toBe(8);
-    const asks = calls.filter((c) => c.route === "/cli/messages/send");
-    expect(asks.length).toBe(1);
-    expect(asks[0]!.body.body).toContain("--status dormant");
-  }, 30000);
+  test.each(builders)(
+    "%s: a done handoff nine minutes after the turn ended routes to verify",
+    async (id) => {
+      // ct-60270 th719815g: the handoff came 555s after the node closed.
+      jumpAt = 6;
+      jumpMs = 9 * 60_000;
+      handoffAt = 8;
+      expect(await run(id)).toBe("completed");
+      expect(reached("verify")).toBe(true);
+      expect(failReason()).not.toContain("no outgoing edge");
+      expect(reads).toBe(8);
+      const asks = calls.filter((c) => c.route === "/cli/messages/send");
+      expect(asks.length).toBe(1);
+      expect(asks[0]!.body.body).toContain("--status dormant");
+    },
+    30000,
+  );
 
-  test.each(builders.flatMap((id) => ["needs_context", "blocked"].map((s) => [id, s] as const)))(
+  test.each(
+    builders.flatMap((id) =>
+      ["needs_context", "blocked"].map((s) => [id, s] as const),
+    ),
+  )(
     "%s: a late %s handoff routes to stopped, never a dead end",
     async (id, status) => {
       handoffAt = 8;
@@ -144,46 +213,70 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
     30000,
   );
 
-  test.each(builders)("%s: a hand that never hands off ends at the node's timeout, not later", async (id) => {
-    jumpAt = 5;
-    jumpMs = 11 * 60_000;
-    expect(await run(id)).toBe("failed");
-    expect(reads).toBe(5);
-    // The node's failed report is what stops its hand (workflow_runs.stopStationHands).
-    expect(calls.some((c) => c.route === "/cli/workflow-runs/progress" && c.body.node_id === id && c.body.node_status === "failed")).toBe(true);
-    expect(failReason()).toContain("ran 10m, its station's limit");
-    expect(failReason()).toMatch(/^hand jx7hand killed after \d+m at \w+ \(it ran 10m, its station's limit\)$/);
-  }, 30000);
+  test.each(builders)(
+    "%s: a hand that never hands off ends at the node's timeout, not later",
+    async (id) => {
+      jumpAt = 5;
+      jumpMs = 11 * 60_000;
+      expect(await run(id)).toBe("failed");
+      expect(reads).toBe(5);
+      // The node's failed report is what stops its hand (workflow_runs.stopStationHands).
+      expect(
+        calls.some(
+          (c) =>
+            c.route === "/cli/workflow-runs/progress" &&
+            c.body.node_id === id &&
+            c.body.node_status === "failed",
+        ),
+      ).toBe(true);
+      expect(failReason()).toContain("ran 10m, its station's limit");
+      expect(failReason()).toMatch(
+        /^hand jx7hand killed after \d+m at \w+ \(it ran 10m, its station's limit\)$/,
+      );
+    },
+    30000,
+  );
 
   // A hand waiting on work it declared shows no transcript growth for as long as the work takes, and lives to its
   // cap (Implement and Prove set timeout=10800), never only the 30-minute quiet window.
   const waits: Array<[string, (n: number) => Record<string, unknown>]> = [
     ["pins dormant on its check", () => ({})],
-    ["reads waiting on its background work", (n) => n >= 2 ? { work_state: "dormant", agent_status: "waiting" } : {}],
-    ["has a daemon gone dark", (n) => n >= 2 ? { is_live: false } : {}],
-    ["reads dormant on its own dormant pin", (n) => {
-      if (n >= 2) pinned = { state: "Waiting on the eval replay", status: "dormant" };
-      return n >= 2 ? { work_state: "dormant", is_live: true } : {};
-    }],
+    [
+      "reads waiting on its background work",
+      (n) => (n >= 2 ? { work_state: "dormant", agent_status: "waiting" } : {}),
+    ],
+    ["has a daemon gone dark", (n) => (n >= 2 ? { is_live: false } : {})],
+    [
+      "reads dormant on its own dormant pin",
+      (n) => {
+        if (n >= 2)
+          pinned = { state: "Waiting on the eval replay", status: "dormant" };
+        return n >= 2 ? { work_state: "dormant", is_live: true } : {};
+      },
+    ],
   ];
-  test.each(waits)("a hand that %s for 45 minutes is not killed, and routes on its handoff after", async (_, rowAt) => {
-    // An idle machine: a loaded one stretches the quiet window past 45 minutes, and the test would prove nothing.
-    loadSpy = spyOn(nodeOs, "loadavg").mockReturnValue([0, 0, 0]);
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      const res = await realFetch(url, init);
-      if (!String(url).endsWith("/cli/inbox")) return res;
-      const body = await res.json();
-      Object.assign(body.sessions[0], rowAt(reads));
-      return new Response(JSON.stringify(body), { status: 200 });
-    }) as typeof fetch;
-    jumpAt = 5;
-    jumpMs = 45 * 60_000;
-    handoffAt = 8;
-    expect(await run("implement", 10800)).toBe("completed");
-    expect(reached("verify")).toBe(true);
-    expect(failReason()).not.toContain("killed after");
-  }, 30000);
+  test.each(waits)(
+    "a hand that %s for 45 minutes is not killed, and routes on its handoff after",
+    async (_, rowAt) => {
+      // An idle machine: a loaded one stretches the quiet window past 45 minutes, and the test would prove nothing.
+      loadSpy = spyOn(nodeOs, "loadavg").mockReturnValue([0, 0, 0]);
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        const res = await realFetch(url, init);
+        if (!String(url).endsWith("/cli/inbox")) return res;
+        const body = await res.json();
+        Object.assign(body.sessions[0], rowAt(reads));
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as typeof fetch;
+      jumpAt = 5;
+      jumpMs = 45 * 60_000;
+      handoffAt = 8;
+      expect(await run("implement", 10800)).toBe("completed");
+      expect(reached("verify")).toBe(true);
+      expect(failReason()).not.toContain("killed after");
+    },
+    30000,
+  );
 
   test("a snoozed hand that declared no wait is killed at its quiet window, not its cap", async () => {
     // A person's snooze (or a filed rest, or a standing trigger) reads dormant with nothing at work and no dormant pin.
@@ -193,110 +286,173 @@ describe("workflow/runner (a builder's handoff lands after its turn ends)", () =
       const res = await realFetch(url, init);
       if (!String(url).endsWith("/cli/inbox")) return res;
       const body = await res.json();
-      Object.assign(body.sessions[0], { work_state: "dormant", agent_status: "idle" });
+      Object.assign(body.sessions[0], {
+        work_state: "dormant",
+        agent_status: "idle",
+      });
       return new Response(JSON.stringify(body), { status: 200 });
     }) as typeof fetch;
     jumpAt = 5;
     jumpMs = 45 * 60_000;
     expect(await run("implement", 10800)).toBe("failed");
-    expect(failReason()).toMatch(/^hand jx7hand killed after \d+m at implement \(it showed no work for 30m\)$/);
+    expect(failReason()).toMatch(
+      /^hand jx7hand killed after \d+m at implement \(it showed no work for 30m\)$/,
+    );
   }, 30000);
 
-  test.each(builders)("%s: a hand parked on its task's wait outlives the node's timeout and routes on its handoff after", async (id) => {
-    // Nine Build hands committed their fix, recorded a wait until a spent
-    // eval budget rolled over, pinned dormant, and were killed at 90m (2026-10-23).
-    task = { ...task, waiting_since: Date.now(), waits: [{ id: "w1", kind: "time", at: Date.now() + 6 * 3_600_000, state: "waiting", added_at: Date.now() }] };
-    jumpAt = 5;
-    jumpMs = 11 * 60_000;
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      // The wait clears at the 7th read, and the hand hands off at the 9th.
-      if (String(url).endsWith("/cli/inbox") && reads === 6) task = { ...task, waiting_since: undefined, waits: [{ ...task.waits[0], state: "met" }] };
-      return realFetch(url, init);
-    }) as typeof fetch;
-    handoffAt = 9;
-    expect(await run(id)).toBe("completed");
-    expect(reached("verify")).toBe(true);
-    expect(logs.some((l) => l.includes("its task waits (until"))).toBe(true);
-    expect(failReason()).not.toContain("killed after");
-  }, 30000);
+  test.each(builders)(
+    "%s: a hand parked on its task's wait outlives the node's timeout and routes on its handoff after",
+    async (id) => {
+      // Nine Build hands committed their fix, recorded a wait until a spent
+      // eval budget rolled over, pinned dormant, and were killed at 90m (2026-10-23).
+      task = {
+        ...task,
+        waiting_since: Date.now(),
+        waits: [
+          {
+            id: "w1",
+            kind: "time",
+            at: Date.now() + 6 * 3_600_000,
+            state: "waiting",
+            added_at: Date.now(),
+          },
+        ],
+      };
+      jumpAt = 5;
+      jumpMs = 11 * 60_000;
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        // The wait clears at the 7th read, and the hand hands off at the 9th.
+        if (String(url).endsWith("/cli/inbox") && reads === 6)
+          task = {
+            ...task,
+            waiting_since: undefined,
+            waits: [{ ...task.waits[0], state: "met" }],
+          };
+        return realFetch(url, init);
+      }) as typeof fetch;
+      handoffAt = 9;
+      expect(await run(id)).toBe("completed");
+      expect(reached("verify")).toBe(true);
+      expect(logs.some((l) => l.includes("its task waits (until"))).toBe(true);
+      expect(failReason()).not.toContain("killed after");
+    },
+    30000,
+  );
 
-  test.each(builders)("%s: a hand parked on a usage limit outlives the node's timeout and routes on its handoff after", async (id) => {
-    // 18 hands sat on Claude's "wait for limit reset" dialog after the pool's
-    // accounts hit their limits, and were killed at their node timeout (2026-10-24).
-    limitReads = (n) => n >= 3 && n <= 6;
-    jumpAt = 5;
-    jumpMs = 11 * 60_000;
-    handoffAt = 9;
-    expect(await run(id)).toBe("completed");
-    expect(reached("verify")).toBe(true);
-    expect(logs.some((l) => l.includes("parked on limit"))).toBe(true);
-    expect(failReason()).not.toContain("killed after");
-  }, 30000);
+  test.each(builders)(
+    "%s: a hand parked on a usage limit outlives the node's timeout and routes on its handoff after",
+    async (id) => {
+      // 18 hands sat on Claude's "wait for limit reset" dialog after the pool's
+      // accounts hit their limits, and were killed at their node timeout (2026-10-24).
+      limitReads = (n) => n >= 3 && n <= 6;
+      jumpAt = 5;
+      jumpMs = 11 * 60_000;
+      handoffAt = 9;
+      expect(await run(id)).toBe("completed");
+      expect(reached("verify")).toBe(true);
+      expect(logs.some((l) => l.includes("parked on limit"))).toBe(true);
+      expect(failReason()).not.toContain("killed after");
+    },
+    30000,
+  );
 
-  test.each(builders)("%s: a hand on a weekly-limit banner whose flag was cleared has it re-stamped, and parks", async (id) => {
-    // 56 onefix Build hands answered their brief with "You've hit your weekly limit · resets …" while their rows
-    // read no park (a Dismiss cleared it), and were killed at 480m (2026-11-18).
-    let flag: string | null = null;
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
-      const onBanner = reads >= 3 && reads <= 6;
-      if (route === "/cli/accounts/restamp-park") {
-        calls.push({ route, body: JSON.parse(init?.body || "{}") });
-        if (onBanner) flag = "limit";
-        return new Response(JSON.stringify({ kind: flag }), { status: 200 });
-      }
-      const res = await realFetch(url, init);
-      if (route !== "/cli/inbox") return res;
-      const body = await res.json();
-      // The banner turn, then the resumed turn, which lifts the flag: the transcript grows at each.
-      if (reads > 6) flag = null;
-      body.sessions[0].message_count = reads < 3 ? 40 : reads <= 6 ? 41 : 42;
-      if (flag) body.sessions[0].blocked_on = flag;
-      return new Response(JSON.stringify(body), { status: 200 });
-    }) as typeof fetch;
-    jumpAt = 5;
-    jumpMs = 11 * 60_000;
-    handoffAt = 9;
-    expect(await run(id)).toBe("completed");
-    expect(reached("verify")).toBe(true);
-    expect(logs.some((l) => l.includes("parked on limit"))).toBe(true);
-    expect(failReason()).not.toContain("killed after");
-    // One restamp per transcript length while the flag reads clear, none while it reads set.
-    expect(calls.filter((c) => c.route === "/cli/accounts/restamp-park").length).toBe(3);
-  }, 30000);
+  test.each(builders)(
+    "%s: a hand on a weekly-limit banner whose flag was cleared has it re-stamped, and parks",
+    async (id) => {
+      // 56 onefix Build hands answered their brief with "You've hit your weekly limit · resets …" while their rows
+      // read no park (a Dismiss cleared it), and were killed at 480m (2026-11-18).
+      let flag: string | null = null;
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+        const onBanner = reads >= 3 && reads <= 6;
+        if (route === "/cli/accounts/restamp-park") {
+          calls.push({ route, body: JSON.parse(init?.body || "{}") });
+          if (onBanner) flag = "limit";
+          return new Response(JSON.stringify({ kind: flag }), { status: 200 });
+        }
+        const res = await realFetch(url, init);
+        if (route !== "/cli/inbox") return res;
+        const body = await res.json();
+        // The banner turn, then the resumed turn, which lifts the flag: the transcript grows at each.
+        if (reads > 6) flag = null;
+        body.sessions[0].message_count = reads < 3 ? 40 : reads <= 6 ? 41 : 42;
+        if (flag) body.sessions[0].blocked_on = flag;
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as typeof fetch;
+      jumpAt = 5;
+      jumpMs = 11 * 60_000;
+      handoffAt = 9;
+      expect(await run(id)).toBe("completed");
+      expect(reached("verify")).toBe(true);
+      expect(logs.some((l) => l.includes("parked on limit"))).toBe(true);
+      expect(failReason()).not.toContain("killed after");
+      // One restamp per transcript length while the flag reads clear, none while it reads set.
+      expect(
+        calls.filter((c) => c.route === "/cli/accounts/restamp-park").length,
+      ).toBe(3);
+    },
+    30000,
+  );
 
-  test.each(builders)("%s: a killed hand is never held as parked", async (id) => {
-    globalThis.fetch = (async (url: any) => {
-      const route = String(url).replace(/^https?:\/\/[^/]+/, "");
-      calls.push({ route, body: {} });
-      const reply = (v: unknown) => new Response(JSON.stringify(v), { status: 200 });
-      if (route === "/cli/spawn") return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
-      if (route === "/cli/inbox") return reply({ sessions: [{ id: "conv_hand", work_state: "needs_input", is_live: false, is_killed: true, message_count: 40, blocked_on: "limit" }] });
-      if (route === "/cli/accounts/restamp-park") return reply({ kind: "limit" });
-      if (route === "/cli/work/get") return reply(task);
-      return reply({ ok: true });
-    }) as typeof fetch;
-    await run(id);
-    expect(logs.some((l) => l.includes("parked on limit"))).toBe(false);
-    expect(calls.some((c) => c.route === "/cli/accounts/restamp-park")).toBe(false);
-  }, 30000);
+  test.each(builders)(
+    "%s: a killed hand is never held as parked",
+    async (id) => {
+      globalThis.fetch = (async (url: any) => {
+        const route = String(url).replace(/^https?:\/\/[^/]+/, "");
+        calls.push({ route, body: {} });
+        const reply = (v: unknown) =>
+          new Response(JSON.stringify(v), { status: 200 });
+        if (route === "/cli/spawn")
+          return reply({ conversation_id: "conv_hand", short_id: "jx7hand" });
+        if (route === "/cli/inbox")
+          return reply({
+            sessions: [
+              {
+                id: "conv_hand",
+                work_state: "needs_input",
+                is_live: false,
+                is_killed: true,
+                message_count: 40,
+                blocked_on: "limit",
+              },
+            ],
+          });
+        if (route === "/cli/accounts/restamp-park")
+          return reply({ kind: "limit" });
+        if (route === "/cli/work/get") return reply(task);
+        return reply({ ok: true });
+      }) as typeof fetch;
+      await run(id);
+      expect(logs.some((l) => l.includes("parked on limit"))).toBe(false);
+      expect(calls.some((c) => c.route === "/cli/accounts/restamp-park")).toBe(
+        false,
+      );
+    },
+    30000,
+  );
 
-  test.each(builders)("%s: a hand parked on a connection error still ends at the node's timeout", async (id) => {
-    limitReads = () => true;
-    jumpAt = 5;
-    jumpMs = 11 * 60_000;
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: any, init: any) => {
-      const res = await realFetch(url, init);
-      if (!String(url).endsWith("/cli/inbox")) return res;
-      const body = await res.json();
-      body.sessions[0].blocked_on = "connection";
-      return new Response(JSON.stringify(body), { status: 200 });
-    }) as typeof fetch;
-    expect(await run(id)).toBe("failed");
-    expect(failReason()).toContain("ran 10m, its station's limit");
-    expect(failReason()).toMatch(/^hand jx7hand killed after \d+m at \w+ \(it ran 10m, its station's limit\)$/);
-  }, 30000);
+  test.each(builders)(
+    "%s: a hand parked on a connection error still ends at the node's timeout",
+    async (id) => {
+      limitReads = () => true;
+      jumpAt = 5;
+      jumpMs = 11 * 60_000;
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = (async (url: any, init: any) => {
+        const res = await realFetch(url, init);
+        if (!String(url).endsWith("/cli/inbox")) return res;
+        const body = await res.json();
+        body.sessions[0].blocked_on = "connection";
+        return new Response(JSON.stringify(body), { status: 200 });
+      }) as typeof fetch;
+      expect(await run(id)).toBe("failed");
+      expect(failReason()).toContain("ran 10m, its station's limit");
+      expect(failReason()).toMatch(
+        /^hand jx7hand killed after \d+m at \w+ \(it ran 10m, its station's limit\)$/,
+      );
+    },
+    30000,
+  );
 });

@@ -45,7 +45,8 @@ import {
   type NormalizedInventory,
   type NormalizedReport,
   listCapabilityState,
-  getDeviceCapabilityState,} from "./capabilities";
+  getDeviceCapabilityState,
+} from "./capabilities";
 import {
   CATALOG_STALE_MS,
   LIVENESS_WRITE_INTERVAL_MS,
@@ -82,7 +83,9 @@ function ctx(userId: string | null, tables: Record<string, any[]>) {
 
 async function tokenTables(extra: Record<string, any[]> = {}, owner = OWNER) {
   return {
-    api_tokens: [{ _id: "tok_1", user_id: owner, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "tok_1", user_id: owner, token_hash: await hashToken(TOKEN) },
+    ],
     users: [{ _id: OWNER }, { _id: STRANGER }],
     devices: [],
     capability_state: [],
@@ -96,7 +99,12 @@ function inventory(items: any[], marketplaces: any[] = []): string {
   return JSON.stringify({ items, marketplaces });
 }
 
-const SKILL = { kind: "skill", name: "domain-search", scope: "user", enabled: true };
+const SKILL = {
+  kind: "skill",
+  name: "domain-search",
+  scope: "user",
+  enabled: true,
+};
 const PLUGIN = {
   kind: "plugin",
   name: "code-simplifier@official",
@@ -121,7 +129,10 @@ function stateRow(over: Record<string, any>): Record<string, any> {
     client: "claude",
     scope_key: "",
     entries_json: json,
-    entries_hash: "error" in normalized ? "unreadable" : canonicalHash(normalized.inventory),
+    entries_hash:
+      "error" in normalized
+        ? "unreadable"
+        : canonicalHash(normalized.inventory),
     entry_count: 1,
     reported_at: Date.now(),
     ...over,
@@ -134,7 +145,9 @@ describe("normalizeReport", () => {
   test("keeps a kind it has never heard of", () => {
     // A kind we do not model yet is still something the user has. An allow-list
     // here would make a newer daemon's new kind vanish without a trace.
-    const result = normalizeReport(inventory([{ kind: "widget", name: "thing" }])) as NormalizedReport;
+    const result = normalizeReport(
+      inventory([{ kind: "widget", name: "thing" }]),
+    ) as NormalizedReport;
     expect(result.inventory.items.map((i) => i.kind)).toEqual(["widget"]);
   });
 
@@ -143,12 +156,16 @@ describe("normalizeReport", () => {
     // prefix, and every consumer keyed on the name — the fleet fold, the
     // observation row — would then merge two different capabilities and hide
     // the second one's drift. Refusal loses each honestly instead.
-    const result = normalizeReport(inventory([
-      { kind: "skill", name: "n".repeat(MAX_NAME_CHARS) + "-alpha" },
-      { kind: "skill", name: "n".repeat(MAX_NAME_CHARS) + "-beta" },
-      SKILL,
-    ])) as NormalizedReport;
-    expect(result.inventory.items.map((i) => i.name)).toEqual(["domain-search"]);
+    const result = normalizeReport(
+      inventory([
+        { kind: "skill", name: "n".repeat(MAX_NAME_CHARS) + "-alpha" },
+        { kind: "skill", name: "n".repeat(MAX_NAME_CHARS) + "-beta" },
+        SKILL,
+      ]),
+    ) as NormalizedReport;
+    expect(result.inventory.items.map((i) => i.name)).toEqual([
+      "domain-search",
+    ]);
   });
 
   test("drops entries with no name, and survives non-objects", () => {
@@ -162,21 +179,38 @@ describe("normalizeReport", () => {
     // readdir order is not stable across machines or even across runs. If the
     // hash followed it, every scan would look like a change and the gate below
     // would never fire.
-    const a = normalizeReport(inventory([{ kind: "skill", name: "b" }, { kind: "skill", name: "a" }])) as NormalizedReport;
-    const b = normalizeReport(inventory([{ kind: "skill", name: "a" }, { kind: "skill", name: "b" }])) as NormalizedReport;
+    const a = normalizeReport(
+      inventory([
+        { kind: "skill", name: "b" },
+        { kind: "skill", name: "a" },
+      ]),
+    ) as NormalizedReport;
+    const b = normalizeReport(
+      inventory([
+        { kind: "skill", name: "a" },
+        { kind: "skill", name: "b" },
+      ]),
+    ) as NormalizedReport;
     expect(a.json).toBe(b.json);
     expect(canonicalHash(a.inventory)).toBe(canonicalHash(b.inventory));
   });
 
   test("meta key order does not change the hash either", () => {
-    const a = normalizeReport(inventory([{ ...PLUGIN, meta: { sha: "x", marketplace: "m" } }])) as NormalizedReport;
-    const b = normalizeReport(inventory([{ ...PLUGIN, meta: { marketplace: "m", sha: "x" } }])) as NormalizedReport;
+    const a = normalizeReport(
+      inventory([{ ...PLUGIN, meta: { sha: "x", marketplace: "m" } }]),
+    ) as NormalizedReport;
+    const b = normalizeReport(
+      inventory([{ ...PLUGIN, meta: { marketplace: "m", sha: "x" } }]),
+    ) as NormalizedReport;
     expect(a.json).toBe(b.json);
   });
 
   test("only an explicit false is switched off", () => {
     const result = normalizeReport(
-      inventory([{ kind: "skill", name: "a" }, { kind: "skill", name: "b", enabled: false }]),
+      inventory([
+        { kind: "skill", name: "a" },
+        { kind: "skill", name: "b", enabled: false },
+      ]),
     ) as NormalizedReport;
     expect(result.inventory.items.map((i) => i.enabled)).toEqual([true, false]);
   });
@@ -189,7 +223,9 @@ describe("normalizeReport", () => {
 
   test("unparseable and oversize payloads are refusals, not throws", () => {
     expect(normalizeReport("{not json")).toEqual({ error: "unparseable_json" });
-    expect(normalizeReport("x".repeat(MAX_REPORT_CHARS + 1))).toEqual({ error: "payload_too_large" });
+    expect(normalizeReport("x".repeat(MAX_REPORT_CHARS + 1))).toEqual({
+      error: "payload_too_large",
+    });
   });
 
   test("a huge inventory is truncated to the byte budget and says how much", () => {
@@ -227,7 +263,8 @@ describe("normalizeReport", () => {
     // A single item near the field-cap ceiling. If the byte-budget loop broke
     // on it instead of skipping it, every item sorted after it would be lost.
     const meta: Record<string, string> = {};
-    for (let i = 0; i < 16; i++) meta[`k${String(i).padStart(2, "0")}${"x".repeat(57)}`] = "v".repeat(400);
+    for (let i = 0; i < 16; i++)
+      meta[`k${String(i).padStart(2, "0")}${"x".repeat(57)}`] = "v".repeat(400);
     const oversize = {
       kind: "skill",
       name: "aaa-first-by-sort",
@@ -236,12 +273,18 @@ describe("normalizeReport", () => {
       meta,
     };
     const result = normalizeReport(
-      inventory([oversize, { kind: "skill", name: "bbb" }, { kind: "skill", name: "ccc" }]),
+      inventory([
+        oversize,
+        { kind: "skill", name: "bbb" },
+        { kind: "skill", name: "ccc" },
+      ]),
     ) as NormalizedReport;
     // Prove the fixture actually crosses the cap, so the test cannot rot into
     // asserting nothing when a field cap shrinks.
     const parsed = parseInventory(inventory([oversize]))!;
-    expect(JSON.stringify(parsed.items[0]).length).toBeGreaterThan(MAX_ITEM_CHARS);
+    expect(JSON.stringify(parsed.items[0]).length).toBeGreaterThan(
+      MAX_ITEM_CHARS,
+    );
     expect(result.count).toBe(2);
     expect(result.dropped).toBe(1);
     expect(result.inventory.items.map((i) => i.name)).toEqual(["bbb", "ccc"]);
@@ -253,20 +296,29 @@ describe("normalizeReport", () => {
       name: `p-${i}@m`,
       description: "d".repeat(300),
     }));
-    const result = normalizeReport(inventory(many, [{ name: "official", repo: "a/b" }])) as NormalizedReport;
+    const result = normalizeReport(
+      inventory(many, [{ name: "official", repo: "a/b" }]),
+    ) as NormalizedReport;
     expect(result.dropped).toBeGreaterThan(0);
-    expect(result.inventory.marketplaces).toEqual([{ name: "official", repo: "a/b", scope: "user" }]);
+    expect(result.inventory.marketplaces).toEqual([
+      { name: "official", repo: "a/b", scope: "user" },
+    ]);
   });
 
   test("parseInventory is the same reduction the write path applies", () => {
     // One parser for both directions. If the read path had its own, a row could
     // be validated on the way in and rendered raw on the way out — which is
     // exactly how a hostile field reaches the fold.
-    const json = inventory([{ ...SKILL, scope: "nonsense", meta: { sha: 7, ok: "yes" } }]);
+    const json = inventory([
+      { ...SKILL, scope: "nonsense", meta: { sha: 7, ok: "yes" } },
+    ]);
     expect(parseInventory(json)).toEqual(
       (normalizeReport(json) as NormalizedReport).inventory,
     );
-    expect(parseInventory(json)!.items[0]).toMatchObject({ scope: "user", meta: { ok: "yes" } });
+    expect(parseInventory(json)!.items[0]).toMatchObject({
+      scope: "user",
+      meta: { ok: "yes" },
+    });
   });
 
   test("bytes that are not JSON are undefined, not an empty inventory", () => {
@@ -310,7 +362,9 @@ describe("sanitizeReported", () => {
     expect(sanitizeReported("evil\u0007name", 100)).toBeNull();
     expect(sanitizeReported("evil\u001b[2Jname", 100)).toBeNull();
     // Prose keeps newline and tab; an identity keeps neither.
-    expect(sanitizeReported("line one\nline two", 100)).toBe("line one\nline two");
+    expect(sanitizeReported("line one\nline two", 100)).toBe(
+      "line one\nline two",
+    );
     expect(sanitizeReported("a\tb", 100, "identity")).toBeNull();
   });
 
@@ -326,14 +380,20 @@ describe("sanitizeReported", () => {
   });
 
   test("an absolute path passes only where a path is the content", () => {
-    for (const path of ["/Users/ashot/.claude/skills/x", "~/.claude unreadable", "C:\\Users\\x"]) {
+    for (const path of [
+      "/Users/ashot/.claude/skills/x",
+      "~/.claude unreadable",
+      "C:\\Users\\x",
+    ]) {
       expect(sanitizeReported(path, 400, "source")).toBe(path);
       expect(sanitizeReported(path, 400, "diagnostic")).toBe(path);
       expect(sanitizeReported(path, 400, "text")).toBeNull();
       expect(sanitizeReported(path, 400, "identity")).toBeNull();
     }
     // A command line that CONTAINS a path is not a bare path.
-    expect(sanitizeReported("node /Users/ashot/server.js", 400)).toBe("node /Users/ashot/server.js");
+    expect(sanitizeReported("node /Users/ashot/server.js", 400)).toBe(
+      "node /Users/ashot/server.js",
+    );
   });
 
   test("diagnostic combines prose rules with path-as-content", () => {
@@ -347,25 +407,37 @@ describe("sanitizeReported", () => {
     expect(sanitizeReported("~/.claude unreadable", 500, "text")).toBeNull();
     // Over its cap it is clipped, never refused — a shortened stack trace
     // beats a machine that reads as clean.
-    expect(sanitizeReported("e".repeat(600), 500, "diagnostic")).toBe("e".repeat(500));
+    expect(sanitizeReported("e".repeat(600), 500, "diagnostic")).toBe(
+      "e".repeat(500),
+    );
     // The absolute rules still hold in every class.
     expect(sanitizeReported("boom\u0007", 500, "diagnostic")).toBeNull();
-    expect(sanitizeReported("AWS_SECRET=sk-live-abc", 500, "diagnostic")).toBeNull();
+    expect(
+      sanitizeReported("AWS_SECRET=sk-live-abc", 500, "diagnostic"),
+    ).toBeNull();
   });
 
   test("every ingest funnels through it: an item's fields obey their classes", () => {
     const result = normalizeReport(
-      inventory([{
-        kind: "skill",
-        name: "domain-search",
-        description: "/Users/ashot/private-layout", // a bare path in prose leaks the disk
-        source: "/Users/ashot/.claude/skills/domain-search/SKILL.md",
-        meta: { command: "/usr/local/bin/server", env: "TOKEN=abc123", ok: "yes" },
-      }]),
+      inventory([
+        {
+          kind: "skill",
+          name: "domain-search",
+          description: "/Users/ashot/private-layout", // a bare path in prose leaks the disk
+          source: "/Users/ashot/.claude/skills/domain-search/SKILL.md",
+          meta: {
+            command: "/usr/local/bin/server",
+            env: "TOKEN=abc123",
+            ok: "yes",
+          },
+        },
+      ]),
     ) as NormalizedReport;
     const item = result.inventory.items[0];
     expect(item.description).toBeUndefined();
-    expect(item.source).toBe("/Users/ashot/.claude/skills/domain-search/SKILL.md");
+    expect(item.source).toBe(
+      "/Users/ashot/.claude/skills/domain-search/SKILL.md",
+    );
     // meta values are machine-local extras — a command path is content, an env
     // VALUE never is.
     expect(item.meta).toEqual({ command: "/usr/local/bin/server", ok: "yes" });
@@ -424,7 +496,9 @@ describe("reportInventory", () => {
 
   test("an identical resend after the liveness window touches only reported_at", async () => {
     const stale = Date.now() - LIVENESS_WRITE_INTERVAL_MS - 1000;
-    const tables = await tokenTables({ capability_state: [stateRow({ reported_at: stale })] });
+    const tables = await tokenTables({
+      capability_state: [stateRow({ reported_at: stale })],
+    });
     const c = ctx(null, tables);
     const result = await (reportInventory as any)._handler(c, {
       api_token: TOKEN,
@@ -469,7 +543,8 @@ describe("reportInventory", () => {
     // either would store nothing, and the machine would then read as clean —
     // "could not look" merged into "nothing installed", the exact distinction
     // `last_error` exists to keep.
-    const trace = "EACCES: permission denied\n    at readdir (~/.claude/skills)";
+    const trace =
+      "EACCES: permission denied\n    at readdir (~/.claude/skills)";
     const tables = await tokenTables({ capability_state: [stateRow({})] });
     const c = ctx(null, tables);
     await (reportInventory as any)._handler(c, {
@@ -487,7 +562,9 @@ describe("reportInventory", () => {
       entries_json: inventory([SKILL]),
       scan_error: long,
     });
-    expect(tables.capability_state[0].last_error).toBe(long.slice(0, MAX_DESCRIPTION_CHARS));
+    expect(tables.capability_state[0].last_error).toBe(
+      long.slice(0, MAX_DESCRIPTION_CHARS),
+    );
   });
 
   test("a fixed machine stops reporting its old error", async () => {
@@ -568,7 +645,9 @@ describe("reportInventory", () => {
       entries_json: inventory([SKILL]),
     });
     expect(defaulted.status).toBe("created");
-    expect(tables.capability_state.find((r: any) => r.device_id === "dev_b").client).toBe("claude");
+    expect(
+      tables.capability_state.find((r: any) => r.device_id === "dev_b").client,
+    ).toBe("claude");
   });
 
   test("truncation is recorded on the row", async () => {
@@ -636,7 +715,13 @@ describe("reportInventory", () => {
   test("a new project scope past the cap evicts the oldest project row, never the machine-wide one", async () => {
     const rows = [stateRow({ _id: "cs_user", scope_key: "", reported_at: 1 })];
     for (let i = 1; i < MAX_SCOPE_ROWS_PER_DEVICE; i++) {
-      rows.push(stateRow({ _id: `cs_proj_${i}`, scope_key: `git:repo-${i}`, reported_at: 1000 + i }));
+      rows.push(
+        stateRow({
+          _id: `cs_proj_${i}`,
+          scope_key: `git:repo-${i}`,
+          reported_at: 1000 + i,
+        }),
+      );
     }
     const tables = await tokenTables({ capability_state: rows });
     const c = ctx(null, tables);
@@ -650,7 +735,9 @@ describe("reportInventory", () => {
     // The oldest PROJECT row goes; the machine-wide row — the one the mirror
     // renders — is older still and must survive.
     expect(c.db._deleted).toEqual(["cs_proj_1"]);
-    expect(tables.capability_state.some((r: any) => r._id === "cs_user")).toBe(true);
+    expect(tables.capability_state.some((r: any) => r._id === "cs_user")).toBe(
+      true,
+    );
     expect(tables.capability_state).toHaveLength(MAX_SCOPE_ROWS_PER_DEVICE);
   });
 
@@ -687,7 +774,11 @@ describe("reportInventory", () => {
 /* ========================================================================== */
 
 describe("ingestObservation", () => {
-  const ingest = (c: any, over: Record<string, any> = {}, raw: Record<string, any> = {}) =>
+  const ingest = (
+    c: any,
+    over: Record<string, any> = {},
+    raw: Record<string, any> = {},
+  ) =>
     (ingestObservation as any)._handler(c, {
       user_id: OWNER,
       device_id: "dev_a",
@@ -726,32 +817,63 @@ describe("ingestObservation", () => {
 
     // The everyday case: an env-assignment prefix is a normal way to launch an
     // MCP server, and the sanitizer refuses it in every class.
-    await ingest(c, {}, {
-      name: "honest",
-      manifest: { mcp: [{ name: "srv", command: "NODE_ENV=production node server.js" }] },
-    });
-    const honest = tables.capability_observation.find((r: any) => r.name === "honest");
+    await ingest(
+      c,
+      {},
+      {
+        name: "honest",
+        manifest: {
+          mcp: [{ name: "srv", command: "NODE_ENV=production node server.js" }],
+        },
+      },
+    );
+    const honest = tables.capability_observation.find(
+      (r: any) => r.name === "honest",
+    );
     expect(JSON.parse(honest.manifest_json).mcp).toEqual([{ name: "srv" }]);
     expect(honest.surfaces).toContain("mcp_stdio_command");
     expect(honest.truncated).toBe(true);
 
     // The adversarial case: one bell character appended to the bin path.
-    await ingest(c, {}, { name: "bell", manifest: { bin: ["bin/evil\u0007"], allowedTools: ["Bash"] } });
-    const bell = tables.capability_observation.find((r: any) => r.name === "bell");
+    await ingest(
+      c,
+      {},
+      {
+        name: "bell",
+        manifest: { bin: ["bin/evil\u0007"], allowedTools: ["Bash"] },
+      },
+    );
+    const bell = tables.capability_observation.find(
+      (r: any) => r.name === "bell",
+    );
     expect(JSON.parse(bell.manifest_json).bin).toBeUndefined();
-    expect(bell.surfaces).toEqual(expect.arrayContaining(["ships_bin", "declares_allowed_tools"]));
+    expect(bell.surfaces).toEqual(
+      expect.arrayContaining(["ships_bin", "declares_allowed_tools"]),
+    );
     expect(bell.truncated).toBe(true);
 
     // The whole MCP entry refused: nothing stored, the surface survives.
-    await ingest(c, {}, { name: "gone", manifest: { mcp: [{ command: "X=1 evil" }] } });
-    const gone = tables.capability_observation.find((r: any) => r.name === "gone");
+    await ingest(
+      c,
+      {},
+      { name: "gone", manifest: { mcp: [{ command: "X=1 evil" }] } },
+    );
+    const gone = tables.capability_observation.find(
+      (r: any) => r.name === "gone",
+    );
     expect(JSON.parse(gone.manifest_json).mcp).toBeUndefined();
     expect(gone.surfaces).toContain("mcp_stdio_command");
     expect(gone.truncated).toBe(true);
 
     // The flattened observation shape reads the same raw structure.
-    await ingest(c, {}, { name: "flat", manifest: undefined, bin: ["bin/tool\u0007"] });
-    const flat = tables.capability_observation.find((r: any) => r.name === "flat");
+    await ingest(
+      c,
+      {},
+      { name: "flat", manifest: undefined, bin: ["bin/tool\u0007"] },
+    );
+    const flat = tables.capability_observation.find(
+      (r: any) => r.name === "flat",
+    );
     expect(flat.surfaces).toContain("ships_bin");
     expect(flat.truncated).toBe(true);
   });
@@ -762,12 +884,19 @@ describe("ingestObservation", () => {
     // carry the full surface set, because consent reads it.
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    const payload = { manifest: { mcp: [{ name: "evil", command: "evil\u0007run" }], allowedTools: ["Bash"] } };
+    const payload = {
+      manifest: {
+        mcp: [{ name: "evil", command: "evil\u0007run" }],
+        allowedTools: ["Bash"],
+      },
+    };
     await ingest(c, {}, payload);
     const second = await ingest(c, { device_id: "dev_b" }, payload);
     expect(second.confirmed).toBe(true);
     const row = tables.capability_observation[0];
-    expect(row.surfaces).toEqual(expect.arrayContaining(["mcp_stdio_command", "declares_allowed_tools"]));
+    expect(row.surfaces).toEqual(
+      expect.arrayContaining(["mcp_stdio_command", "declares_allowed_tools"]),
+    );
     expect(row.truncated).toBe(true);
   });
 
@@ -776,16 +905,22 @@ describe("ingestObservation", () => {
     // a non-blank string is something the machine genuinely reported.
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    await ingest(c, {}, {
-      name: "junky",
-      manifest: {
-        bin: [],
-        scripts: "not-a-list",
-        hooks: [7, null, "   "],
-        mcp: [{ name: "clean-remote", url: "https://x.dev/mcp" }],
+    await ingest(
+      c,
+      {},
+      {
+        name: "junky",
+        manifest: {
+          bin: [],
+          scripts: "not-a-list",
+          hooks: [7, null, "   "],
+          mcp: [{ name: "clean-remote", url: "https://x.dev/mcp" }],
+        },
       },
-    });
-    const row = tables.capability_observation.find((r: any) => r.name === "junky");
+    );
+    const row = tables.capability_observation.find(
+      (r: any) => r.name === "junky",
+    );
     expect(row.surfaces).toEqual(["mcp_remote_url"]);
     expect(row.truncated).toBeUndefined();
   });
@@ -796,7 +931,9 @@ describe("ingestObservation", () => {
     // as a manifest change and resets the other's device agreement.
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    expect(await ingest(c, {}, { name: "n".repeat(MAX_NAME_CHARS) + "-alpha" })).toEqual({
+    expect(
+      await ingest(c, {}, { name: "n".repeat(MAX_NAME_CHARS) + "-alpha" }),
+    ).toEqual({
       status: "rejected",
       reason: "missing_identity",
     });
@@ -810,7 +947,11 @@ describe("ingestObservation", () => {
     const row = tables.capability_observation[0];
     expect(row.manifest_hash).not.toBe("attacker-chosen");
     expect(row.manifest_hash).toBe(
-      manifestHash(normalizeManifest({ mcp: [{ name: "evil", command: "npx -y @evil/thing" }] }).manifest),
+      manifestHash(
+        normalizeManifest({
+          mcp: [{ name: "evil", command: "npx -y @evil/thing" }],
+        }).manifest,
+      ),
     );
   });
 
@@ -838,7 +979,10 @@ describe("ingestObservation", () => {
     expect(tables.capability_observation[0].confirmed).toBe(false);
     const second = await ingest(c, { device_id: "dev_b" });
     expect(second.confirmed).toBe(true);
-    expect(tables.capability_observation[0].device_ids).toEqual(["dev_a", "dev_b"]);
+    expect(tables.capability_observation[0].device_ids).toEqual([
+      "dev_a",
+      "dev_b",
+    ]);
   });
 
   test("a changed manifest resets the agreement to the machine that saw it", async () => {
@@ -847,9 +991,16 @@ describe("ingestObservation", () => {
     await ingest(c);
     await ingest(c, { device_id: "dev_b" });
     expect(tables.capability_observation[0].confirmed).toBe(true);
-    const changed = await ingest(c, { device_id: "dev_b" }, {
-      manifest: { mcp: [{ name: "evil", command: "npx -y @evil/thing@2" }], bin: ["bin/payload"] },
-    });
+    const changed = await ingest(
+      c,
+      { device_id: "dev_b" },
+      {
+        manifest: {
+          mcp: [{ name: "evil", command: "npx -y @evil/thing@2" }],
+          bin: ["bin/payload"],
+        },
+      },
+    );
     expect(changed.status).toBe("updated");
     const row = tables.capability_observation[0];
     expect(row.confirmed).toBe(false);
@@ -861,9 +1012,15 @@ describe("ingestObservation", () => {
   test("env VALUES never reach the stored manifest — names only", async () => {
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    await ingest(c, {}, {
-      manifest: { envKeys: ["GITHUB_TOKEN", "AWS_KEY=sk-live-secret", "not a name"] },
-    });
+    await ingest(
+      c,
+      {},
+      {
+        manifest: {
+          envKeys: ["GITHUB_TOKEN", "AWS_KEY=sk-live-secret", "not a name"],
+        },
+      },
+    );
     const stored = JSON.parse(tables.capability_observation[0].manifest_json);
     expect(stored.envKeys).toEqual(["GITHUB_TOKEN"]);
   });
@@ -871,13 +1028,27 @@ describe("ingestObservation", () => {
   test("structure implies surfaces: bin, hooks and allowed-tools each classify", async () => {
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    await ingest(c, {}, {
-      name: "loaded",
-      manifest: { bin: ["bin/tool"], hooks: ["PostToolUse"], "allowed-tools": ["Bash"] },
-    });
-    const row = tables.capability_observation.find((r: any) => r.name === "loaded");
+    await ingest(
+      c,
+      {},
+      {
+        name: "loaded",
+        manifest: {
+          bin: ["bin/tool"],
+          hooks: ["PostToolUse"],
+          "allowed-tools": ["Bash"],
+        },
+      },
+    );
+    const row = tables.capability_observation.find(
+      (r: any) => r.name === "loaded",
+    );
     expect(row.surfaces).toEqual(
-      expect.arrayContaining(["ships_bin", "declares_hooks", "declares_allowed_tools"]),
+      expect.arrayContaining([
+        "ships_bin",
+        "declares_hooks",
+        "declares_allowed_tools",
+      ]),
     );
     expect(row.surfaces).not.toContain("mcp_stdio_command");
   });
@@ -885,9 +1056,18 @@ describe("ingestObservation", () => {
   test("a manifest list over its cap stores truncated:true, never a silent cut", async () => {
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    await ingest(c, {}, {
-      manifest: { bin: Array.from({ length: MAX_MANIFEST_LIST + 5 }, (_, i) => `bin/t${i}`) },
-    });
+    await ingest(
+      c,
+      {},
+      {
+        manifest: {
+          bin: Array.from(
+            { length: MAX_MANIFEST_LIST + 5 },
+            (_, i) => `bin/t${i}`,
+          ),
+        },
+      },
+    );
     const row = tables.capability_observation[0];
     expect(row.truncated).toBe(true);
     expect(JSON.parse(row.manifest_json).bin).toHaveLength(MAX_MANIFEST_LIST);
@@ -896,12 +1076,20 @@ describe("ingestObservation", () => {
   test("malformed input is a refusal, not a throw and not a row", async () => {
     const tables = await tokenTables();
     const c = ctx(null, tables);
-    expect(await ingest(c, { raw_json: "{not json" })).toEqual({ status: "rejected", reason: "unparseable_json" });
-    expect(await ingest(c, { raw_json: JSON.stringify({ manifest: {} }) })).toEqual({
+    expect(await ingest(c, { raw_json: "{not json" })).toEqual({
+      status: "rejected",
+      reason: "unparseable_json",
+    });
+    expect(
+      await ingest(c, { raw_json: JSON.stringify({ manifest: {} }) }),
+    ).toEqual({
       status: "rejected",
       reason: "missing_identity",
     });
-    expect(await ingest(c, { device_id: " " })).toEqual({ status: "rejected", reason: "invalid_device_id" });
+    expect(await ingest(c, { device_id: " " })).toEqual({
+      status: "rejected",
+      reason: "invalid_device_id",
+    });
     expect(tables.capability_observation).toHaveLength(0);
   });
 });
@@ -933,9 +1121,9 @@ describe("capabilityTables", () => {
           "capability_bindings.by_team_updated",
         ];
         if (allowed.includes(`${name}.${index.indexDescriptor}`)) continue;
-        expect(`${name}.${index.indexDescriptor} starts with ${index.fields[0]}`).toBe(
-          `${name}.${index.indexDescriptor} starts with user_id`,
-        );
+        expect(
+          `${name}.${index.indexDescriptor} starts with ${index.fields[0]}`,
+        ).toBe(`${name}.${index.indexDescriptor} starts with user_id`);
       }
     }
     // Public data only. A new table skipping the tenant rule must show up here
@@ -949,7 +1137,10 @@ describe("capabilityTables", () => {
 describe("webList", () => {
   test("unauthenticated reads an empty fleet instead of throwing", async () => {
     const tables = await tokenTables({ capability_state: [stateRow({})] });
-    expect(await (webList as any)._handler(ctx(null, tables), {})).toEqual({ items: [], truncated: false });
+    expect(await (webList as any)._handler(ctx(null, tables), {})).toEqual({
+      items: [],
+      truncated: false,
+    });
   });
 
   test("a listing that hit its cap says so", async () => {
@@ -958,7 +1149,10 @@ describe("webList", () => {
     // those machines as gone.
     const tables = await tokenTables({
       capability_state: Array.from({ length: 260 }, (_, i) =>
-        stateRow({ _id: `cs_${i}`, device_id: `dev_${String(i).padStart(3, "0")}` }),
+        stateRow({
+          _id: `cs_${i}`,
+          device_id: `dev_${String(i).padStart(3, "0")}`,
+        }),
       ),
     });
     const result = await (webList as any)._handler(ctx(OWNER, tables), {});
@@ -974,7 +1168,10 @@ describe("webList", () => {
 
   test("returns only my machines", async () => {
     const tables = await tokenTables({
-      capability_state: [stateRow({ _id: "mine" }), stateRow({ _id: "theirs", user_id: STRANGER })],
+      capability_state: [
+        stateRow({ _id: "mine" }),
+        stateRow({ _id: "theirs", user_id: STRANGER }),
+      ],
     });
     const result = await (webList as any)._handler(ctx(OWNER, tables), {});
     expect(result.items.map((i: any) => i._id)).toEqual(["mine"]);
@@ -993,7 +1190,9 @@ describe("webList", () => {
 
   test("include_entries:false answers with metadata only", async () => {
     const tables = await tokenTables({ capability_state: [stateRow({})] });
-    const result = await (webList as any)._handler(ctx(OWNER, tables), { include_entries: false });
+    const result = await (webList as any)._handler(ctx(OWNER, tables), {
+      include_entries: false,
+    });
     expect(result.items[0].entries_json).toBeUndefined();
     expect(result.items[0].entries_omitted).toBe(false);
     expect(result.items[0].entry_count).toBe(1);
@@ -1001,9 +1200,14 @@ describe("webList", () => {
 
   test("device_id narrows to one machine", async () => {
     const tables = await tokenTables({
-      capability_state: [stateRow({ _id: "a", device_id: "dev_a" }), stateRow({ _id: "b", device_id: "dev_b" })],
+      capability_state: [
+        stateRow({ _id: "a", device_id: "dev_a" }),
+        stateRow({ _id: "b", device_id: "dev_b" }),
+      ],
     });
-    const result = await (webList as any)._handler(ctx(OWNER, tables), { device_id: "dev_b" });
+    const result = await (webList as any)._handler(ctx(OWNER, tables), {
+      device_id: "dev_b",
+    });
     expect(result.items.map((i: any) => i._id)).toEqual(["b"]);
   });
 
@@ -1015,11 +1219,15 @@ describe("webList", () => {
       capability_state: [stateRow({ _id: "a", device_id: "dev_a" })],
     });
     for (const bad of ["d".repeat(201), "/etc/machine-id", "dev\u0007a"]) {
-      const result = await (webList as any)._handler(ctx(OWNER, tables), { device_id: bad });
+      const result = await (webList as any)._handler(ctx(OWNER, tables), {
+        device_id: bad,
+      });
       expect(result.items).toEqual([]);
     }
     // A blank filter still means "no filter", same as omitting it.
-    const all = await (webList as any)._handler(ctx(OWNER, tables), { device_id: "  " });
+    const all = await (webList as any)._handler(ctx(OWNER, tables), {
+      device_id: "  ",
+    });
     expect(all.items).toHaveLength(1);
   });
 });
@@ -1032,7 +1240,8 @@ describe("foldFleet", () => {
   const reports = (map: Record<string, NormalizedInventory>) =>
     new Map(Object.entries(map).map(([k, v]) => [k, [v]]));
   const inv = (items: any[], marketplaces: any[] = []): NormalizedInventory =>
-    (normalizeReport(inventory(items, marketplaces)) as NormalizedReport).inventory;
+    (normalizeReport(inventory(items, marketplaces)) as NormalizedReport)
+      .inventory;
 
   test("most machines have it and one does not — the row the product exists for", () => {
     const folded = foldFleet(
@@ -1049,7 +1258,10 @@ describe("foldFleet", () => {
   test("exactly one machine having it reads as unique, not as loss", () => {
     // Often deliberate — a work laptop, a scratch skill. Calling it drift would
     // make the page shout about every one-off a person ever wrote.
-    const folded = foldFleet(devices("a", "b"), reports({ a: inv([SKILL]), b: inv([]) }));
+    const folded = foldFleet(
+      devices("a", "b"),
+      reports({ a: inv([SKILL]), b: inv([]) }),
+    );
     expect(folded.rows[0].status).toBe("unique");
     expect(folded.summary.uniqueToOne).toBe(1);
   });
@@ -1079,13 +1291,19 @@ describe("foldFleet", () => {
       reports({
         a: inv([PLUGIN]),
         b: inv([PLUGIN]),
-        c: inv([{ ...PLUGIN, meta: { marketplace: "official", sha: "bbbb222" } }]),
+        c: inv([
+          { ...PLUGIN, meta: { marketplace: "official", sha: "bbbb222" } },
+        ]),
       }),
     );
     const row = folded.rows[0];
     expect(row.pinDrift).toBe(true);
     expect(row.baselinePin).toBe("aaaa111");
-    expect(row.cells.map((c) => c.status)).toEqual(["same", "same", "pin_differs"]);
+    expect(row.cells.map((c) => c.status)).toEqual([
+      "same",
+      "same",
+      "pin_differs",
+    ]);
   });
 
   test("a machine with the plugin but no sha is an unknown pin, not a different one", () => {
@@ -1093,7 +1311,9 @@ describe("foldFleet", () => {
       devices("a", "b"),
       reports({
         a: inv([PLUGIN]),
-        b: inv([{ kind: "plugin", name: "code-simplifier@official", scope: "user" }]),
+        b: inv([
+          { kind: "plugin", name: "code-simplifier@official", scope: "user" },
+        ]),
       }),
     );
     expect(folded.rows[0].pinDrift).toBe(false);
@@ -1111,22 +1331,36 @@ describe("foldFleet", () => {
     });
     const folded = foldFleet(
       devices("a", "b"),
-      reports({ a: inv([server("/Users/ashot")]), b: inv([server("/home/build")]) }),
+      reports({
+        a: inv([server("/Users/ashot")]),
+        b: inv([server("/home/build")]),
+      }),
     );
     expect(folded.rows[0].status).toBe("in_sync");
     expect(folded.rows[0].pins).toEqual([]);
   });
 
   test("a remote MCP server's url IS a pin, ignoring a trailing slash", () => {
-    const at = (url: string) => ({ kind: "mcp", name: "gh", scope: "user", meta: { url } });
+    const at = (url: string) => ({
+      kind: "mcp",
+      name: "gh",
+      scope: "user",
+      meta: { url },
+    });
     const same = foldFleet(
       devices("a", "b"),
-      reports({ a: inv([at("https://x.dev/mcp")]), b: inv([at("https://x.dev/mcp/")]) }),
+      reports({
+        a: inv([at("https://x.dev/mcp")]),
+        b: inv([at("https://x.dev/mcp/")]),
+      }),
     );
     expect(same.rows[0].pinDrift).toBe(false);
     const moved = foldFleet(
       devices("a", "b"),
-      reports({ a: inv([at("https://x.dev/mcp")]), b: inv([at("https://y.dev/mcp")]) }),
+      reports({
+        a: inv([at("https://x.dev/mcp")]),
+        b: inv([at("https://y.dev/mcp")]),
+      }),
     );
     expect(moved.rows[0].pinDrift).toBe(true);
   });
@@ -1152,7 +1386,10 @@ describe("foldFleet", () => {
       devices("a", "b"),
       reports({ a: inv([SKILL]), b: inv([{ ...SKILL, enabled: false }]) }),
     );
-    expect(folded.rows[0].cells.map((c) => c.status)).toEqual(["same", "disabled"]);
+    expect(folded.rows[0].cells.map((c) => c.status)).toEqual([
+      "same",
+      "disabled",
+    ]);
     expect(folded.rows[0].disabledCount).toBe(1);
     expect(folded.rows[0].status).toBe("drift");
   });
@@ -1181,8 +1418,16 @@ describe("foldFleet", () => {
   });
 
   test("drift sorts before agreement, and state drift before pin drift", () => {
-    const other = { kind: "skill", name: "agreed", scope: "user", enabled: true };
-    const drifted = { ...PLUGIN, meta: { marketplace: "official", sha: "zzz" } };
+    const other = {
+      kind: "skill",
+      name: "agreed",
+      scope: "user",
+      enabled: true,
+    };
+    const drifted = {
+      ...PLUGIN,
+      meta: { marketplace: "official", sha: "zzz" },
+    };
     const folded = foldFleet(
       devices("a", "b", "c"),
       reports({
@@ -1191,7 +1436,11 @@ describe("foldFleet", () => {
         c: inv([other, drifted]),
       }),
     );
-    expect(folded.rows.map((r) => r.status)).toEqual(["drift", "drift", "in_sync"]);
+    expect(folded.rows.map((r) => r.status)).toEqual([
+      "drift",
+      "drift",
+      "in_sync",
+    ]);
     // A machine missing it entirely outranks a machine merely behind on a sha.
     expect(folded.rows[0].stateDrift).toBe(true);
     expect(folded.rows[0].kind).toBe("skill");
@@ -1216,7 +1465,13 @@ describe("foldFleet", () => {
       ],
       marketplaces: [{ name: null }, { name: "official", repo: 5 }],
     } as unknown as NormalizedInventory;
-    const folded = foldFleet(devices("a", "b"), new Map([["a", [junk]], ["b", [inv([SKILL])]]]));
+    const folded = foldFleet(
+      devices("a", "b"),
+      new Map([
+        ["a", [junk]],
+        ["b", [inv([SKILL])]],
+      ]),
+    );
     expect(folded.rows.map((r) => r.key).sort()).toEqual([
       "marketplace:official",
       "mcp:gh",
@@ -1243,33 +1498,54 @@ describe("foldFleet", () => {
       ],
       marketplaces: [],
     } as unknown as NormalizedInventory;
-    const folded = foldFleet(devices("a", "b"), new Map([["a", [raw]], ["b", [inv([SKILL])]]]));
+    const folded = foldFleet(
+      devices("a", "b"),
+      new Map([
+        ["a", [raw]],
+        ["b", [inv([SKILL])]],
+      ]),
+    );
     expect(folded.rows.map((r) => r.key)).toEqual(["skill:domain-search"]);
   });
 
   test("an inventory whose arrays are missing or are not arrays is an empty column", () => {
     for (const wrong of [{}, { items: "nope", marketplaces: 3 }, null]) {
-      const folded = foldFleet(devices("a", "b"), new Map([
-        ["a", [wrong as unknown as NormalizedInventory]],
-        ["b", [inv([SKILL])]],
-      ]));
-      expect(folded.rows[0].cells.map((c) => c.status)).toEqual(["absent", "same"]);
+      const folded = foldFleet(
+        devices("a", "b"),
+        new Map([
+          ["a", [wrong as unknown as NormalizedInventory]],
+          ["b", [inv([SKILL])]],
+        ]),
+      );
+      expect(folded.rows[0].cells.map((c) => c.status)).toEqual([
+        "absent",
+        "same",
+      ]);
     }
     // …and so is a device whose report list is not a list at all.
-    const folded = foldFleet(devices("a", "b"), new Map([
-      ["a", "nonsense" as unknown as NormalizedInventory[]],
-      ["b", [inv([SKILL])]],
-    ]));
-    expect(folded.rows[0].cells.map((c) => c.status)).toEqual(["absent", "same"]);
+    const folded = foldFleet(
+      devices("a", "b"),
+      new Map([
+        ["a", "nonsense" as unknown as NormalizedInventory[]],
+        ["b", [inv([SKILL])]],
+      ]),
+    );
+    expect(folded.rows[0].cells.map((c) => c.status)).toEqual([
+      "absent",
+      "same",
+    ]);
   });
 
   test("several rows for one machine fold into one column", () => {
     // The server stores one row per (device, client, scope), so a caller hands us
     // several reports for one machine. Nothing it reported may be lost.
-    const folded = foldFleet(devices("a", "b"), new Map([
-      ["a", [inv([SKILL]), inv([PLUGIN])]],
-      ["b", [inv([SKILL])]],
-    ]));
+    const folded = foldFleet(
+      devices("a", "b"),
+      new Map([
+        ["a", [inv([SKILL]), inv([PLUGIN])]],
+        ["b", [inv([SKILL])]],
+      ]),
+    );
     expect(folded.rows).toHaveLength(2);
     expect(folded.devices).toHaveLength(2);
   });
@@ -1300,15 +1576,26 @@ describe("webFleetDiff", () => {
       ["Laptop", true],
       ["Mac mini", false],
     ]);
-    expect(result.rows[0].cells.map((c: any) => c.status)).toEqual(["same", "unknown"]);
+    expect(result.rows[0].cells.map((c: any) => c.status)).toEqual([
+      "same",
+      "unknown",
+    ]);
   });
 
   test("two reporting machines produce a real verdict", async () => {
     const tables = await tokenTables({
       devices: devicesTable,
       capability_state: [
-        stateRow({ _id: "a", device_id: "dev_a", entries_json: inventory([SKILL, PLUGIN]) }),
-        stateRow({ _id: "b", device_id: "dev_b", entries_json: inventory([SKILL]) }),
+        stateRow({
+          _id: "a",
+          device_id: "dev_a",
+          entries_json: inventory([SKILL, PLUGIN]),
+        }),
+        stateRow({
+          _id: "b",
+          device_id: "dev_b",
+          entries_json: inventory([SKILL]),
+        }),
       ],
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
@@ -1321,12 +1608,24 @@ describe("webFleetDiff", () => {
     const tables = await tokenTables({
       devices: devicesTable,
       capability_state: [
-        stateRow({ _id: "mine", device_id: "dev_a", entries_json: inventory([SKILL]) }),
-        stateRow({ _id: "theirs", user_id: STRANGER, device_id: "dev_x", entries_json: inventory([PLUGIN]) }),
+        stateRow({
+          _id: "mine",
+          device_id: "dev_a",
+          entries_json: inventory([SKILL]),
+        }),
+        stateRow({
+          _id: "theirs",
+          user_id: STRANGER,
+          device_id: "dev_x",
+          entries_json: inventory([PLUGIN]),
+        }),
       ],
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
-    expect(result.devices.map((d: any) => d.deviceId)).toEqual(["dev_a", "dev_b"]);
+    expect(result.devices.map((d: any) => d.deviceId)).toEqual([
+      "dev_a",
+      "dev_b",
+    ]);
     expect(result.rows.map((r: any) => r.kind)).toEqual(["skill"]);
   });
 
@@ -1337,7 +1636,11 @@ describe("webFleetDiff", () => {
       devices: [devicesTable[0]],
       capability_state: [
         stateRow({ _id: "a", device_id: "dev_a" }),
-        stateRow({ _id: "ghost", device_id: "dev_gone", entries_json: inventory([PLUGIN]) }),
+        stateRow({
+          _id: "ghost",
+          device_id: "dev_gone",
+          entries_json: inventory([PLUGIN]),
+        }),
       ],
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
@@ -1355,24 +1658,39 @@ describe("webFleetDiff", () => {
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
     expect(result.devices.every((d: any) => d.reported)).toBe(true);
-    expect(result.rows[0].cells.map((c: any) => c.status)).toEqual(["same", "absent"]);
+    expect(result.rows[0].cells.map((c: any) => c.status)).toEqual([
+      "same",
+      "absent",
+    ]);
   });
 
   test("filters narrow the rows but never the summary", async () => {
     const tables = await tokenTables({
       devices: devicesTable,
       capability_state: [
-        stateRow({ _id: "a", device_id: "dev_a", entries_json: inventory([SKILL, PLUGIN]) }),
-        stateRow({ _id: "b", device_id: "dev_b", entries_json: inventory([SKILL]) }),
+        stateRow({
+          _id: "a",
+          device_id: "dev_a",
+          entries_json: inventory([SKILL, PLUGIN]),
+        }),
+        stateRow({
+          _id: "b",
+          device_id: "dev_b",
+          entries_json: inventory([SKILL]),
+        }),
       ],
     });
     const c = ctx(OWNER, tables);
-    const kinds = await (webFleetDiff as any)._handler(c, { kinds: ["plugin"] });
+    const kinds = await (webFleetDiff as any)._handler(c, {
+      kinds: ["plugin"],
+    });
     expect(kinds.rows.map((r: any) => r.kind)).toEqual(["plugin"]);
     // A count that shrinks when you filter is a count nobody can act on.
     expect(kinds.summary.total).toBe(2);
 
-    const drifting = await (webFleetDiff as any)._handler(c, { include_in_sync: false });
+    const drifting = await (webFleetDiff as any)._handler(c, {
+      include_in_sync: false,
+    });
     expect(drifting.rows.map((r: any) => r.status)).toEqual(["unique"]);
   });
 
@@ -1380,13 +1698,25 @@ describe("webFleetDiff", () => {
     const tables = await tokenTables({
       devices: devicesTable,
       capability_state: [
-        stateRow({ _id: "a", device_id: "dev_a", entries_json: inventory([SKILL]) }),
-        stateRow({ _id: "b", device_id: "dev_b", entries_json: inventory([PLUGIN]) }),
+        stateRow({
+          _id: "a",
+          device_id: "dev_a",
+          entries_json: inventory([SKILL]),
+        }),
+        stateRow({
+          _id: "b",
+          device_id: "dev_b",
+          entries_json: inventory([PLUGIN]),
+        }),
       ],
     });
-    const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), { device_ids: ["dev_a"] });
+    const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {
+      device_ids: ["dev_a"],
+    });
     expect(result.devices.map((d: any) => d.deviceId)).toEqual(["dev_a"]);
-    expect(result.rows.every((r: any) => r.status === "not_comparable")).toBe(true);
+    expect(result.rows.every((r: any) => r.status === "not_comparable")).toBe(
+      true,
+    );
   });
 
   test("every machine that reported reads as reported, past any fleet-wide row cap", async () => {
@@ -1394,16 +1724,32 @@ describe("webFleetDiff", () => {
     // order, so the machines that sorted last got none and rendered as "never
     // reported" — the module's own `unknown` versus `absent` distinction broken
     // by its own bound, on a machine that had just reported.
-    const ids = Array.from({ length: 10 }, (_, i) => `dev_${String(i).padStart(2, "0")}`);
+    const ids = Array.from(
+      { length: 10 },
+      (_, i) => `dev_${String(i).padStart(2, "0")}`,
+    );
     const states: any[] = [];
     for (const id of ids) {
-      states.push(stateRow({ _id: `${id}_user`, device_id: id, scope_key: "" }));
+      states.push(
+        stateRow({ _id: `${id}_user`, device_id: id, scope_key: "" }),
+      );
       for (let s = 1; s < MAX_SCOPE_ROWS_PER_DEVICE; s++) {
-        states.push(stateRow({ _id: `${id}_p${s}`, device_id: id, scope_key: `git:repo-${s}` }));
+        states.push(
+          stateRow({
+            _id: `${id}_p${s}`,
+            device_id: id,
+            scope_key: `git:repo-${s}`,
+          }),
+        );
       }
     }
     const tables = await tokenTables({
-      devices: ids.map((id, i) => ({ _id: `d${i}`, user_id: OWNER, device_id: id, label: id })),
+      devices: ids.map((id, i) => ({
+        _id: `d${i}`,
+        user_id: OWNER,
+        device_id: id,
+        label: id,
+      })),
       capability_state: states,
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
@@ -1412,12 +1758,17 @@ describe("webFleetDiff", () => {
     expect(result.devices_truncated).toBe(false);
     // Identical inventories, so every cell agrees. One "unknown" here would be
     // the lie.
-    expect(new Set(result.rows[0].cells.map((c: any) => c.status))).toEqual(new Set(["same"]));
+    expect(new Set(result.rows[0].cells.map((c: any) => c.status))).toEqual(
+      new Set(["same"]),
+    );
   });
 
   test("a fleet past the device cap drops columns rather than inventing unknown ones", async () => {
     const count = MAX_FLEET_DEVICES + 5;
-    const ids = Array.from({ length: count }, (_, i) => `dev_${String(i).padStart(3, "0")}`);
+    const ids = Array.from(
+      { length: count },
+      (_, i) => `dev_${String(i).padStart(3, "0")}`,
+    );
     const tables = await tokenTables({
       // The oldest five are the ones we can afford to leave out; `last_seen`
       // decides, so the machines a person is using keep their columns.
@@ -1428,7 +1779,9 @@ describe("webFleetDiff", () => {
         label: id,
         last_seen: i < 5 ? 1 : 1000 + i,
       })),
-      capability_state: ids.map((id) => stateRow({ _id: `cs_${id}`, device_id: id })),
+      capability_state: ids.map((id) =>
+        stateRow({ _id: `cs_${id}`, device_id: id }),
+      ),
     });
     const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {});
     expect(result.devices).toHaveLength(MAX_FLEET_DEVICES);
@@ -1439,18 +1792,26 @@ describe("webFleetDiff", () => {
     const shown = result.devices.map((d: any) => d.deviceId);
     expect([...shown].sort()).toEqual(shown);
     // Nothing reads as unknown: a machine we chose not to compare has no column.
-    expect(result.rows[0].cells.every((c: any) => c.status !== "unknown")).toBe(true);
+    expect(result.rows[0].cells.every((c: any) => c.status !== "unknown")).toBe(
+      true,
+    );
   });
 
   test("limit truncates and says so", async () => {
     const tables = await tokenTables({
       devices: devicesTable,
       capability_state: [
-        stateRow({ _id: "a", device_id: "dev_a", entries_json: inventory([SKILL, PLUGIN]) }),
+        stateRow({
+          _id: "a",
+          device_id: "dev_a",
+          entries_json: inventory([SKILL, PLUGIN]),
+        }),
         stateRow({ _id: "b", device_id: "dev_b", entries_json: inventory([]) }),
       ],
     });
-    const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), { limit: 1 });
+    const result = await (webFleetDiff as any)._handler(ctx(OWNER, tables), {
+      limit: 1,
+    });
     expect(result.rows).toHaveLength(1);
     expect(result.truncated).toBe(true);
   });
@@ -1477,7 +1838,12 @@ describe("catalog cache", () => {
       origin: "official",
       entries: [entry()],
     });
-    expect(first).toEqual({ inserted: 1, updated: 0, unchanged: 0, skipped: 0 });
+    expect(first).toEqual({
+      inserted: 1,
+      updated: 0,
+      unchanged: 0,
+      skipped: 0,
+    });
 
     const second = await (upsertCatalogEntries as any)._handler(c, {
       source: "marketplace",
@@ -1494,35 +1860,54 @@ describe("catalog cache", () => {
     const tables = await tokenTables();
     const c = ctx(null, tables);
     await (upsertCatalogEntries as any)._handler(c, {
-      source: "marketplace", origin: "official", entries: [entry()],
+      source: "marketplace",
+      origin: "official",
+      entries: [entry()],
     });
     const result = await (upsertCatalogEntries as any)._handler(c, {
-      source: "marketplace", origin: "official", entries: [entry({ description: "Now with fewer bugs" })],
+      source: "marketplace",
+      origin: "official",
+      entries: [entry({ description: "Now with fewer bugs" })],
     });
     expect(result.updated).toBe(1);
-    expect(tables.capability_catalog_cache[0].description).toBe("Now with fewer bugs");
+    expect(tables.capability_catalog_cache[0].description).toBe(
+      "Now with fewer bugs",
+    );
   });
 
   test("a slug that does not belong to its source is refused", async () => {
     // Slugs render as identities. A marketplace publishing under `builtin/`
     // would look like ours.
     const tables = await tokenTables();
-    const result = await (upsertCatalogEntries as any)._handler(ctx(null, tables), {
-      source: "marketplace",
-      origin: "official",
-      entries: [entry({ slug: "builtin/memory" }), entry()],
+    const result = await (upsertCatalogEntries as any)._handler(
+      ctx(null, tables),
+      {
+        source: "marketplace",
+        origin: "official",
+        entries: [entry({ slug: "builtin/memory" }), entry()],
+      },
+    );
+    expect(result).toEqual({
+      inserted: 1,
+      updated: 0,
+      unchanged: 0,
+      skipped: 1,
     });
-    expect(result).toEqual({ inserted: 1, updated: 0, unchanged: 0, skipped: 1 });
-    expect(tables.capability_catalog_cache.map((r: any) => r.slug)).toEqual(["mkt/official/code-simplifier"]);
+    expect(tables.capability_catalog_cache.map((r: any) => r.slug)).toEqual([
+      "mkt/official/code-simplifier",
+    ]);
   });
 
   test("an over-long slug is skipped rather than clipped into a different identity", async () => {
     const tables = await tokenTables();
-    const result = await (upsertCatalogEntries as any)._handler(ctx(null, tables), {
-      source: "marketplace",
-      origin: "official",
-      entries: [entry({ slug: "mkt/official/" + "x".repeat(300) })],
-    });
+    const result = await (upsertCatalogEntries as any)._handler(
+      ctx(null, tables),
+      {
+        source: "marketplace",
+        origin: "official",
+        entries: [entry({ slug: "mkt/official/" + "x".repeat(300) })],
+      },
+    );
     expect(result.skipped).toBe(1);
     expect(tables.capability_catalog_cache).toHaveLength(0);
   });
@@ -1541,7 +1926,17 @@ describe("catalog cache", () => {
   test("browse requires a signed-in reader", async () => {
     const tables = await tokenTables({
       capability_catalog_cache: [
-        { _id: "c1", slug: "mkt/official/a", source: "marketplace", origin: "official", kind: "plugin", name: "A", entry_json: "{}", entry_hash: "h", fetched_at: 1 },
+        {
+          _id: "c1",
+          slug: "mkt/official/a",
+          source: "marketplace",
+          origin: "official",
+          kind: "plugin",
+          name: "A",
+          entry_json: "{}",
+          entry_hash: "h",
+          fetched_at: 1,
+        },
       ],
     });
     const anon = await (webCatalogList as any)._handler(ctx(null, tables), {
@@ -1558,9 +1953,15 @@ describe("catalog cache", () => {
     const tables = await tokenTables({
       capability_catalog_cache: [
         {
-          _id: "c1", slug: "mkt/official/a", source: "marketplace", origin: "official",
-          kind: "plugin", name: "A", entry_json: JSON.stringify({ cost: { alwaysOn: 800 } }),
-          entry_hash: "h", fetched_at: 42,
+          _id: "c1",
+          slug: "mkt/official/a",
+          source: "marketplace",
+          origin: "official",
+          kind: "plugin",
+          name: "A",
+          entry_json: JSON.stringify({ cost: { alwaysOn: 800 } }),
+          entry_hash: "h",
+          fetched_at: 42,
         },
       ],
     });
@@ -1628,7 +2029,17 @@ describe("catalog cache", () => {
   test("a corrupt detail blob renders the card without it", async () => {
     const tables = await tokenTables({
       capability_catalog_cache: [
-        { _id: "c1", slug: "mkt/official/a", source: "marketplace", origin: "official", kind: "plugin", name: "A", entry_json: "{{{", entry_hash: "h", fetched_at: 1 },
+        {
+          _id: "c1",
+          slug: "mkt/official/a",
+          source: "marketplace",
+          origin: "official",
+          kind: "plugin",
+          name: "A",
+          entry_json: "{{{",
+          entry_hash: "h",
+          fetched_at: 1,
+        },
       ],
     });
     const result = await (webCatalogList as any)._handler(ctx(OWNER, tables), {
@@ -1641,13 +2052,38 @@ describe("catalog cache", () => {
     const now = Date.now();
     const tables = await tokenTables({
       capability_catalog_cache: [
-        { _id: "old", slug: "mkt/o/a", source: "marketplace", origin: "o", kind: "plugin", name: "A", entry_json: "{}", entry_hash: "h", fetched_at: now - CATALOG_STALE_MS - 1000 },
-        { _id: "new", slug: "mkt/o/b", source: "marketplace", origin: "o", kind: "plugin", name: "B", entry_json: "{}", entry_hash: "h", fetched_at: now },
+        {
+          _id: "old",
+          slug: "mkt/o/a",
+          source: "marketplace",
+          origin: "o",
+          kind: "plugin",
+          name: "A",
+          entry_json: "{}",
+          entry_hash: "h",
+          fetched_at: now - CATALOG_STALE_MS - 1000,
+        },
+        {
+          _id: "new",
+          slug: "mkt/o/b",
+          source: "marketplace",
+          origin: "o",
+          kind: "plugin",
+          name: "B",
+          entry_json: "{}",
+          entry_hash: "h",
+          fetched_at: now,
+        },
       ],
     });
-    const result = await (sweepCatalogCache as any)._handler(ctx(null, tables), {});
+    const result = await (sweepCatalogCache as any)._handler(
+      ctx(null, tables),
+      {},
+    );
     expect(result).toEqual({ deleted: 1 });
-    expect(tables.capability_catalog_cache.map((r: any) => r._id)).toEqual(["new"]);
+    expect(tables.capability_catalog_cache.map((r: any) => r._id)).toEqual([
+      "new",
+    ]);
   });
 });
 
@@ -1663,12 +2099,18 @@ describe("deleteDeviceState", () => {
         stateRow({ _id: "other", device_id: "dev_a", user_id: STRANGER }),
       ],
     });
-    const result = await (deleteDeviceState as any)._handler(ctx(null, tables), {
-      user_id: OWNER,
-      device_id: "dev_a",
-    });
+    const result = await (deleteDeviceState as any)._handler(
+      ctx(null, tables),
+      {
+        user_id: OWNER,
+        device_id: "dev_a",
+      },
+    );
     expect(result).toEqual({ deleted: 2 });
-    expect(tables.capability_state.map((r: any) => r._id).sort()).toEqual(["b1", "other"]);
+    expect(tables.capability_state.map((r: any) => r._id).sort()).toEqual([
+      "b1",
+      "other",
+    ]);
   });
 });
 
@@ -1686,7 +2128,9 @@ describe("listCapabilityState / getDeviceCapabilityState", () => {
         stateRow({ _id: "cs_theirs", user_id: "u_other", device_id: "dev_x" }),
       ],
     });
-    const rows = await (listCapabilityState as any)._handler(ctx(null, t), { api_token: TOKEN });
+    const rows = await (listCapabilityState as any)._handler(ctx(null, t), {
+      api_token: TOKEN,
+    });
     expect(rows).toHaveLength(1);
     expect(rows[0].device_id).toBe("dev_a");
     expect(typeof rows[0].entries_json).toBe("string");
@@ -1697,7 +2141,11 @@ describe("listCapabilityState / getDeviceCapabilityState", () => {
     const t = await tokenTables({
       capability_state: [
         stateRow({ _id: "cs_u", device_id: "dev_a", scope_key: "" }),
-        stateRow({ _id: "cs_p", device_id: "dev_a", scope_key: "git:github.com/o/r" }),
+        stateRow({
+          _id: "cs_p",
+          device_id: "dev_a",
+          scope_key: "git:github.com/o/r",
+        }),
         stateRow({ _id: "cs_b", device_id: "dev_b", scope_key: "" }),
       ],
     });
@@ -1706,11 +2154,14 @@ describe("listCapabilityState / getDeviceCapabilityState", () => {
       device_id: "dev_a",
     });
     expect(all).toHaveLength(2);
-    const scoped = await (getDeviceCapabilityState as any)._handler(ctx(null, t), {
-      api_token: TOKEN,
-      device_id: "dev_a",
-      scope_key: "git:github.com/o/r",
-    });
+    const scoped = await (getDeviceCapabilityState as any)._handler(
+      ctx(null, t),
+      {
+        api_token: TOKEN,
+        device_id: "dev_a",
+        scope_key: "git:github.com/o/r",
+      },
+    );
     expect(scoped).toHaveLength(1);
     expect(scoped[0].hash).toBeDefined();
   });
@@ -1718,7 +2169,9 @@ describe("listCapabilityState / getDeviceCapabilityState", () => {
   test("a bad token is refused, not given an empty list", async () => {
     const t = await tokenTables({ capability_state: [stateRow({})] });
     await expect(
-      (listCapabilityState as any)._handler(ctx(null, t), { api_token: "nope" }),
+      (listCapabilityState as any)._handler(ctx(null, t), {
+        api_token: "nope",
+      }),
     ).rejects.toThrow("Unauthorized");
   });
 });
@@ -1739,7 +2192,9 @@ describe("webList since watermark", () => {
     const first = await (webList as any)._handler(ctx(OWNER, t), {});
     expect(first.items).toHaveLength(2);
     const max = Math.max(...first.items.map((i: any) => i.reported_at));
-    const second = await (webList as any)._handler(ctx(OWNER, t), { since: max });
+    const second = await (webList as any)._handler(ctx(OWNER, t), {
+      since: max,
+    });
     expect(second.items).toHaveLength(0);
   });
 
@@ -1750,7 +2205,9 @@ describe("webList since watermark", () => {
         stateRow({ _id: "cs_2", device_id: "dev_b", reported_at: 3000 }),
       ],
     });
-    const delta = await (webList as any)._handler(ctx(OWNER, t), { since: 1000 });
+    const delta = await (webList as any)._handler(ctx(OWNER, t), {
+      since: 1000,
+    });
     expect(delta.items).toHaveLength(1);
     expect(delta.items[0].device_id).toBe("dev_b");
   });

@@ -2,12 +2,7 @@
   "asOf": "2026-01-15T18:10:00.000Z",
   "notes": "Red list #18: a three person huddle where one commitment changes hands, one is asked of a person not on the call, and two ideas are dropped.",
   "label": {
-    "owners": [
-      "Dana",
-      "Lucia",
-      "Lucia",
-      "Ravi"
-    ]
+    "owners": ["Dana", "Lucia", "Lucia", "Ravi"]
   },
   "snapshot": {
     "kind": "huddle",

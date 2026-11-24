@@ -46,7 +46,9 @@ export function rosterSig(members: any[] | null | undefined): string {
  * rooms keep their number — the row dims it rather than dropping it, because
  * muting a room is not the same as having read it.
  */
-export function dmBadgesByMember(rail: ChatChannelView[]): Map<string, DmBadge> {
+export function dmBadgesByMember(
+  rail: ChatChannelView[],
+): Map<string, DmBadge> {
   const out = new Map<string, DmBadge>();
   for (const ch of rail) {
     if (ch?.kind !== "dm") continue;
@@ -107,7 +109,9 @@ export function isStrayWorkspace(
 ): boolean {
   const rows = teams ?? [];
   if (!activeTeamId || rows.length === 0) return false;
-  return !rows.some((t) => t?._id != null && String(t._id) === String(activeTeamId));
+  return !rows.some(
+    (t) => t?._id != null && String(t._id) === String(activeTeamId),
+  );
 }
 
 /**
@@ -125,5 +129,7 @@ export const STRAY_WORKSPACE = "You are not in this workspace.";
  *  the fix-it sentence for a surface (the strip) with one line to spend. */
 export function emptyRosterText(stray: boolean, short = false): string {
   if (!stray) return "No teammates yet.";
-  return short ? STRAY_WORKSPACE : `${STRAY_WORKSPACE} Switch workspace in the main window.`;
+  return short
+    ? STRAY_WORKSPACE
+    : `${STRAY_WORKSPACE} Switch workspace in the main window.`;
 }

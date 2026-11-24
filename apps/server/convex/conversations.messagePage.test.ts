@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  MESSAGE_PAGE_MAX,
-  pageConversationMessages,
-} from "./conversations";
+import { MESSAGE_PAGE_MAX, pageConversationMessages } from "./conversations";
 import { makeFakeDb } from "./testDb";
 
 const CONV = "conversations_1" as any;

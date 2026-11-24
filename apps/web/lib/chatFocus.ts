@@ -43,9 +43,16 @@ export function clearChatFocus(): void {
  *  The thread compare is exact — a room on screen does not cover its threads,
  *  nor a thread its room — mirroring chatToastTier's "already on screen"
  *  rule, which this predicate feeds. */
-export function isChatContextOnScreen(channelId: string, threadRootId?: string): boolean {
+export function isChatContextOnScreen(
+  channelId: string,
+  threadRootId?: string,
+): boolean {
   for (const h of holds) {
-    if (h.channelId === channelId && (h.threadRootId ?? undefined) === (threadRootId ?? undefined)) return true;
+    if (
+      h.channelId === channelId &&
+      (h.threadRootId ?? undefined) === (threadRootId ?? undefined)
+    )
+      return true;
   }
   return false;
 }

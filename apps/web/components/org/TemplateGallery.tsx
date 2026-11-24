@@ -8,8 +8,19 @@ import { useState } from "react";
 import { ArrowRight, Search } from "lucide-react";
 import { RoleFace } from "./RoleFace";
 import type { TemplateRoutine } from "@codecast/shared/contracts/orgTemplateManifest";
-import { humanSetupCount, isDefaultLeadTemplate, requiredInputs } from "./orgTemplateSpec";
-import { cadenceWords, cannotHireReason, displayTitle, templateTools, type BuiltinHire, type CatalogTemplate } from "./templateCatalog";
+import {
+  humanSetupCount,
+  isDefaultLeadTemplate,
+  requiredInputs,
+} from "./orgTemplateSpec";
+import {
+  cadenceWords,
+  cannotHireReason,
+  displayTitle,
+  templateTools,
+  type BuiltinHire,
+  type CatalogTemplate,
+} from "./templateCatalog";
 import { Button } from "../ui/button";
 
 /** What a hire costs the person, in counts: answers it cannot go without,
@@ -17,11 +28,25 @@ import { Button } from "../ui/button";
  *  steps only they can do. */
 function askWords(t: CatalogTemplate): string[] {
   const m = t.manifest;
-  const n = (count: number, one: string, many = `${one}s`) => count ? [`${count} ${count === 1 ? one : many}`] : [];
-  return [...n(requiredInputs(m).length, "answer"), ...n(t.asks.secrets, "secret"), ...n(t.asks.authority, "permission"), ...n(humanSetupCount(m), "setup step")];
+  const n = (count: number, one: string, many = `${one}s`) =>
+    count ? [`${count} ${count === 1 ? one : many}`] : [];
+  return [
+    ...n(requiredInputs(m).length, "answer"),
+    ...n(t.asks.secrets, "secret"),
+    ...n(t.asks.authority, "permission"),
+    ...n(humanSetupCount(m), "setup step"),
+  ];
 }
 
-export function TemplateGallery({ templates, ready, projectCount, onPick, error, builtins = [], onPickBuiltin }: {
+export function TemplateGallery({
+  templates,
+  ready,
+  projectCount,
+  onPick,
+  error,
+  builtins = [],
+  onPickBuiltin,
+}: {
   templates: CatalogTemplate[];
   ready: boolean;
   /** Projects this workspace can lead a role on; zero means no card can hire. */
@@ -35,82 +60,205 @@ export function TemplateGallery({ templates, ready, projectCount, onPick, error,
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   // The project's default lead leads the gallery too; the rest keep the catalog's order.
-  const ordered = [...templates].sort((a, b) => Number(isDefaultLeadTemplate(b.template_id)) - Number(isDefaultLeadTemplate(a.template_id)));
-  const shown = q ? ordered.filter((t) => `${t.name} ${t.description} ${t.template_id} ${t.manifest.routines.map((r) => r.title).join(" ")}`.toLowerCase().includes(q)) : ordered;
-  const shownBuiltins = q ? builtins.filter((b) => `${b.name} ${b.description} ${b.handle} ${b.does.join(" ")}`.toLowerCase().includes(q)) : builtins;
-  const builtinCards = shownBuiltins.map((b) => <BuiltinCard key={b.id} hire={b} onPick={() => onPickBuiltin?.(b.id)} />);
+  const ordered = [...templates].sort(
+    (a, b) =>
+      Number(isDefaultLeadTemplate(b.template_id)) -
+      Number(isDefaultLeadTemplate(a.template_id)),
+  );
+  const shown = q
+    ? ordered.filter((t) =>
+        `${t.name} ${t.description} ${t.template_id} ${t.manifest.routines.map((r) => r.title).join(" ")}`
+          .toLowerCase()
+          .includes(q),
+      )
+    : ordered;
+  const shownBuiltins = q
+    ? builtins.filter((b) =>
+        `${b.name} ${b.description} ${b.handle} ${b.does.join(" ")}`
+          .toLowerCase()
+          .includes(q),
+      )
+    : builtins;
+  const builtinCards = shownBuiltins.map((b) => (
+    <BuiltinCard key={b.id} hire={b} onPick={() => onPickBuiltin?.(b.id)} />
+  ));
   if (!ready && templates.length === 0) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2" aria-busy="true" data-template-gallery="loading">
+      <div
+        className="grid gap-3 sm:grid-cols-2"
+        aria-busy="true"
+        data-template-gallery="loading"
+      >
         {builtinCards}
-        {[0, 1].map((i) => <div key={i} className="h-[196px] rounded-xl border border-sol-border/40 bg-sol-bg-alt/60 animate-pulse" />)}
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="h-[196px] rounded-xl border border-sol-border/40 bg-sol-bg-alt/60 animate-pulse"
+          />
+        ))}
       </div>
     );
   }
   if (templates.length === 0) {
     return (
       <div className="flex flex-col gap-3" data-template-gallery="empty">
-        {builtinCards.length > 0 && <div className="grid gap-3 sm:grid-cols-2">{builtinCards}</div>}
-        <div className="rounded-xl border border-dashed border-sol-border/60 px-5 py-8 text-center" data-template-gallery-empty>
-          <p className="text-[14px] font-semibold text-sol-text" style={{ fontFamily: "var(--font-serif)" }}>{builtinCards.length ? "No templates to hire yet" : "Nothing to hire yet"}</p>
-          <p className="mx-auto mt-1.5 max-w-[380px] text-[12.5px] leading-relaxed text-sol-text-muted">{error ? "The catalog could not be read right now. Try again in a moment." : "No template has been published for this workspace, and Codecast has not published a shared one to it. A template is a release folder a publisher puts on the record:"}</p>
-          {!error && <pre className="mx-auto mt-3 inline-block rounded-lg border border-sol-border/50 bg-sol-bg-alt px-3 py-2 text-left text-meta leading-relaxed text-sol-text" style={{ fontFamily: "var(--font-mono)" }}>cast org template publish &lt;folder&gt; --team &lt;team&gt;</pre>}
+        {builtinCards.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">{builtinCards}</div>
+        )}
+        <div
+          className="rounded-xl border border-dashed border-sol-border/60 px-5 py-8 text-center"
+          data-template-gallery-empty
+        >
+          <p
+            className="text-[14px] font-semibold text-sol-text"
+            style={{ fontFamily: "var(--font-serif)" }}
+          >
+            {builtinCards.length
+              ? "No templates to hire yet"
+              : "Nothing to hire yet"}
+          </p>
+          <p className="mx-auto mt-1.5 max-w-[380px] text-[12.5px] leading-relaxed text-sol-text-muted">
+            {error
+              ? "The catalog could not be read right now. Try again in a moment."
+              : "No template has been published for this workspace, and Codecast has not published a shared one to it. A template is a release folder a publisher puts on the record:"}
+          </p>
+          {!error && (
+            <pre
+              className="mx-auto mt-3 inline-block rounded-lg border border-sol-border/50 bg-sol-bg-alt px-3 py-2 text-left text-meta leading-relaxed text-sol-text"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              cast org template publish &lt;folder&gt; --team &lt;team&gt;
+            </pre>
+          )}
         </div>
       </div>
     );
   }
   return (
-    <div className="flex flex-col gap-3" data-template-gallery={shown.length + shownBuiltins.length}>
+    <div
+      className="flex flex-col gap-3"
+      data-template-gallery={shown.length + shownBuiltins.length}
+    >
       {templates.length + builtins.length > 3 && (
         <label className="relative block">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-sol-text-dim" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a role" className="h-9 w-full rounded-lg border border-sol-border/50 bg-sol-bg-alt pl-8 pr-2.5 text-[13px] text-sol-text outline-none focus:border-sol-cyan" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a role"
+            className="h-9 w-full rounded-lg border border-sol-border/50 bg-sol-bg-alt pl-8 pr-2.5 text-[13px] text-sol-text outline-none focus:border-sol-cyan"
+          />
         </label>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         {builtinCards}
-        {shown.map((t) => <TemplateCard key={`${t.workspace}:${t.template_id}`} template={t} reason={cannotHireReason(t, projectCount)} onPick={() => onPick(t.template_id)} />)}
+        {shown.map((t) => (
+          <TemplateCard
+            key={`${t.workspace}:${t.template_id}`}
+            template={t}
+            reason={cannotHireReason(t, projectCount)}
+            onPick={() => onPick(t.template_id)}
+          />
+        ))}
       </div>
-      {shown.length === 0 && shownBuiltins.length === 0 && <p className="text-[12px] text-sol-text-dim">No template matches that.</p>}
+      {shown.length === 0 && shownBuiltins.length === 0 && (
+        <p className="text-[12px] text-sol-text-dim">
+          No template matches that.
+        </p>
+      )}
     </div>
   );
 }
 
 /** A role codecast itself offers (org-staffing.md S6, S30): the same card
  *  shape as a template, hired through its own path, asking nothing here. */
-function BuiltinCard({ hire, onPick }: { hire: BuiltinHire; onPick: () => void }) {
+function BuiltinCard({
+  hire,
+  onPick,
+}: {
+  hire: BuiltinHire;
+  onPick: () => void;
+}) {
   return (
     <article
       className="group relative flex flex-col gap-3 rounded-xl border border-sol-border/50 p-4 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-sol-cyan/60 hover:shadow-[0_10px_30px_-18px_color-mix(in_srgb,var(--sol-cyan)_60%,transparent)]"
-      style={{ background: "linear-gradient(160deg, color-mix(in srgb, var(--sol-cyan) 8%, var(--sol-card)) 0%, var(--sol-card) 42%)" }}
+      style={{
+        background:
+          "linear-gradient(160deg, color-mix(in srgb, var(--sol-cyan) 8%, var(--sol-card)) 0%, var(--sol-card) 42%)",
+      }}
       data-template-card={hire.id}
       data-builtin-hire={hire.id}
       data-hireable="true"
     >
       <header className="flex items-start gap-3">
-        <RoleFace role={{ handle: hire.handle, name: hire.name, icon: null }} size={44} className="shrink-0 rounded-full ring-2 ring-sol-bg" />
+        <RoleFace
+          role={{ handle: hire.handle, name: hire.name, icon: null }}
+          size={44}
+          className="shrink-0 rounded-full ring-2 ring-sol-bg"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="truncate text-[15px] font-semibold text-sol-text" style={{ fontFamily: "var(--font-serif)" }}>{hire.name}</h3>
-            <span className="shrink-0 text-meta text-sol-text-dim" style={{ fontFamily: "var(--font-mono)" }}>@{hire.handle}</span>
+            <h3
+              className="truncate text-[15px] font-semibold text-sol-text"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              {hire.name}
+            </h3>
+            <span
+              className="shrink-0 text-meta text-sol-text-dim"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              @{hire.handle}
+            </span>
           </div>
-          <p className="mt-0.5 line-clamp-3 text-[12px] leading-snug text-sol-text-muted">{hire.description}</p>
+          <p className="mt-0.5 line-clamp-3 text-[12px] leading-snug text-sol-text-muted">
+            {hire.description}
+          </p>
         </div>
       </header>
       <ul className="flex flex-wrap gap-1.5" aria-label="What it does">
-        {hire.does.map((w) => <li key={w} className="rounded-md px-1.5 py-0.5 text-meta leading-tight text-sol-text-muted" style={{ background: "color-mix(in srgb, var(--sol-border) 22%, transparent)" }}>{w}</li>)}
+        {hire.does.map((w) => (
+          <li
+            key={w}
+            className="rounded-md px-1.5 py-0.5 text-meta leading-tight text-sol-text-muted"
+            style={{
+              background:
+                "color-mix(in srgb, var(--sol-border) 22%, transparent)",
+            }}
+          >
+            {w}
+          </li>
+        ))}
       </ul>
       <footer className="mt-auto flex items-center justify-between gap-2 pt-1">
-        <span className="text-meta text-sol-text-dim">built in · asks nothing at hire</span>
-        <Button type="button" variant="cyan" size="sm" onClick={onPick} className="rounded-lg" data-template-card-hire>
-          Hire <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
+        <span className="text-meta text-sol-text-dim">
+          built in · asks nothing at hire
+        </span>
+        <Button
+          type="button"
+          variant="cyan"
+          size="sm"
+          onClick={onPick}
+          className="rounded-lg"
+          data-template-card-hire
+        >
+          Hire{" "}
+          <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
         </Button>
       </footer>
     </article>
   );
 }
 
-function TemplateCard({ template: t, reason, onPick }: { template: CatalogTemplate; reason: string | null; onPick: () => void }) {
+function TemplateCard({
+  template: t,
+  reason,
+  onPick,
+}: {
+  template: CatalogTemplate;
+  reason: string | null;
+  onPick: () => void;
+}) {
   const routines: TemplateRoutine[] = t.manifest.routines;
   const acts = routines.filter((r) => r.mode === "apply").length;
   const byCodecast = t.workspace === "codecast";
@@ -118,43 +266,124 @@ function TemplateCard({ template: t, reason, onPick }: { template: CatalogTempla
   return (
     <article
       className={`group relative flex flex-col gap-3 rounded-xl border p-4 transition-[transform,box-shadow,border-color] duration-200 ${reason ? "border-sol-border/40" : "border-sol-border/50 hover:-translate-y-0.5 hover:border-sol-violet/60 hover:shadow-[0_10px_30px_-18px_color-mix(in_srgb,var(--sol-violet)_60%,transparent)]"}`}
-      style={{ background: "linear-gradient(160deg, color-mix(in srgb, var(--sol-violet) 7%, var(--sol-card)) 0%, var(--sol-card) 42%)" }}
+      style={{
+        background:
+          "linear-gradient(160deg, color-mix(in srgb, var(--sol-violet) 7%, var(--sol-card)) 0%, var(--sol-card) 42%)",
+      }}
       data-template-card={t.template_id}
       data-hireable={reason ? "false" : "true"}
     >
       <header className="flex items-start gap-3">
-        <RoleFace role={{ avatar: t.avatar, handle: t.template_id, name: t.name, icon: null }} size={44} className="shrink-0 rounded-full ring-2 ring-sol-bg" />
+        <RoleFace
+          role={{
+            avatar: t.avatar,
+            handle: t.template_id,
+            name: t.name,
+            icon: null,
+          }}
+          size={44}
+          className="shrink-0 rounded-full ring-2 ring-sol-bg"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <h3 className="truncate text-[15px] font-semibold text-sol-text" style={{ fontFamily: "var(--font-serif)" }}>{t.name}</h3>
-            <span className="shrink-0 text-meta text-sol-text-dim" style={{ fontFamily: "var(--font-mono)" }}>{t.latest.version}</span>
+            <h3
+              className="truncate text-[15px] font-semibold text-sol-text"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              {t.name}
+            </h3>
+            <span
+              className="shrink-0 text-meta text-sol-text-dim"
+              style={{ fontFamily: "var(--font-mono)" }}
+            >
+              {t.latest.version}
+            </span>
           </div>
-          <p className="mt-0.5 line-clamp-3 text-[12px] leading-snug text-sol-text-muted">{t.description}</p>
+          <p className="mt-0.5 line-clamp-3 text-[12px] leading-snug text-sol-text-muted">
+            {t.description}
+          </p>
         </div>
       </header>
       <ul className="flex flex-wrap gap-1.5" aria-label="What it asks for">
-        {leads && <li className="rounded-md px-1.5 py-0.5 text-meta font-semibold leading-tight text-sol-violet" style={{ background: "color-mix(in srgb, var(--sol-violet) 14%, transparent)" }} data-template-card-leads>Leads the project</li>}
-        <li className="text-meta leading-[18px] text-sol-text-muted" data-template-asks>{askWords(t).length ? `Asks ${askWords(t).join(" · ")}` : "Asks nothing at hire"}</li>
+        {leads && (
+          <li
+            className="rounded-md px-1.5 py-0.5 text-meta font-semibold leading-tight text-sol-violet"
+            style={{
+              background:
+                "color-mix(in srgb, var(--sol-violet) 14%, transparent)",
+            }}
+            data-template-card-leads
+          >
+            Leads the project
+          </li>
+        )}
+        <li
+          className="text-meta leading-[18px] text-sol-text-muted"
+          data-template-asks
+        >
+          {askWords(t).length
+            ? `Asks ${askWords(t).join(" · ")}`
+            : "Asks nothing at hire"}
+        </li>
       </ul>
       <div className="min-w-0">
-        <p className="text-mark font-semibold uppercase tracking-[0.08em] text-sol-text-dim">Runs {routines.length} routine{routines.length === 1 ? "" : "s"}{acts ? ` · ${acts} act${acts === 1 ? "s" : ""} once you allow it` : ""}</p>
+        <p className="text-mark font-semibold uppercase tracking-[0.08em] text-sol-text-dim">
+          Runs {routines.length} routine{routines.length === 1 ? "" : "s"}
+          {acts
+            ? ` · ${acts} act${acts === 1 ? "s" : ""} once you allow it`
+            : ""}
+        </p>
         <ul className="mt-1 space-y-0.5">
           {routines.slice(0, 4).map((r) => (
-            <li key={r.id} className="flex items-baseline justify-between gap-2 text-meta">
-              <span className="truncate text-sol-text">{displayTitle(t.manifest, r.title)}</span>
-              <span className="shrink-0 text-sol-text-dim">{cadenceWords(r.every)}</span>
+            <li
+              key={r.id}
+              className="flex items-baseline justify-between gap-2 text-meta"
+            >
+              <span className="truncate text-sol-text">
+                {displayTitle(t.manifest, r.title)}
+              </span>
+              <span className="shrink-0 text-sol-text-dim">
+                {cadenceWords(r.every)}
+              </span>
             </li>
           ))}
-          {routines.length > 4 && <li className="text-meta text-sol-text-dim">and {routines.length - 4} more</li>}
+          {routines.length > 4 && (
+            <li className="text-meta text-sol-text-dim">
+              and {routines.length - 4} more
+            </li>
+          )}
         </ul>
       </div>
       <ToolsRow template={t} />
-      {reason && <p className="mt-auto rounded-md px-2 py-1.5 text-meta leading-snug text-sol-text-muted" style={{ background: "color-mix(in srgb, var(--sol-yellow) 10%, transparent)" }} data-template-card-reason>{reason}</p>}
-      <footer className={`flex items-center justify-between gap-2 pt-1 ${reason ? "" : "mt-auto"}`}>
-        <span className="text-meta text-sol-text-dim">{byCodecast ? "" : "Your workspace's copy"}</span>
+      {reason && (
+        <p
+          className="mt-auto rounded-md px-2 py-1.5 text-meta leading-snug text-sol-text-muted"
+          style={{
+            background:
+              "color-mix(in srgb, var(--sol-yellow) 10%, transparent)",
+          }}
+          data-template-card-reason
+        >
+          {reason}
+        </p>
+      )}
+      <footer
+        className={`flex items-center justify-between gap-2 pt-1 ${reason ? "" : "mt-auto"}`}
+      >
+        <span className="text-meta text-sol-text-dim">
+          {byCodecast ? "" : "Your workspace's copy"}
+        </span>
         {!reason && (
-          <Button type="button" variant="violet" size="sm" onClick={onPick} className="rounded-lg" data-template-card-hire>
-            Hire <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
+          <Button
+            type="button"
+            variant="violet"
+            size="sm"
+            onClick={onPick}
+            className="rounded-lg"
+            data-template-card-hire
+          >
+            Hire{" "}
+            <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
           </Button>
         )}
       </footer>
@@ -164,16 +393,64 @@ function TemplateCard({ template: t, reason, onPick }: { template: CatalogTempla
 
 /** What the role brings to the job: the commands it runs and the skills it
  *  reads, by name, shipped and versioned with the template. */
-export function ToolsRow({ template: t, max = 4 }: { template: Pick<CatalogTemplate, "manifest">; max?: number }) {
+export function ToolsRow({
+  template: t,
+  max = 4,
+}: {
+  template: Pick<CatalogTemplate, "manifest">;
+  max?: number;
+}) {
   const { commands, skills } = templateTools(t.manifest);
   if (!commands.length && !skills.length) return null;
   return (
-    <div className="min-w-0" data-template-tools={commands.length + skills.length}>
-      <p className="text-mark font-semibold uppercase tracking-[0.08em] text-sol-text-dim">Ships {commands.length ? `${commands.length} tool${commands.length === 1 ? "" : "s"}` : ""}{commands.length && skills.length ? " · " : ""}{skills.length ? `${skills.length} skill${skills.length === 1 ? "" : "s"}` : ""}</p>
+    <div
+      className="min-w-0"
+      data-template-tools={commands.length + skills.length}
+    >
+      <p className="text-mark font-semibold uppercase tracking-[0.08em] text-sol-text-dim">
+        Ships{" "}
+        {commands.length
+          ? `${commands.length} tool${commands.length === 1 ? "" : "s"}`
+          : ""}
+        {commands.length && skills.length ? " · " : ""}
+        {skills.length
+          ? `${skills.length} skill${skills.length === 1 ? "" : "s"}`
+          : ""}
+      </p>
       <ul className="mt-1 flex flex-wrap gap-1">
-        {commands.slice(0, max).map((id) => <li key={id} className="rounded px-1.5 py-px text-meta text-sol-text" style={{ fontFamily: "var(--font-mono)", background: "color-mix(in srgb, var(--sol-cyan) 12%, transparent)" }} data-template-tool={id}>{id}</li>)}
-        {commands.length > max && <li className="px-0.5 text-meta text-sol-text-dim">+{commands.length - max}</li>}
-        {!commands.length && skills.slice(0, max).map((id) => <li key={id} className="rounded px-1.5 py-px text-meta text-sol-text-muted" style={{ fontFamily: "var(--font-mono)", background: "color-mix(in srgb, var(--sol-border) 22%, transparent)" }}>{id}</li>)}
+        {commands.slice(0, max).map((id) => (
+          <li
+            key={id}
+            className="rounded px-1.5 py-px text-meta text-sol-text"
+            style={{
+              fontFamily: "var(--font-mono)",
+              background:
+                "color-mix(in srgb, var(--sol-cyan) 12%, transparent)",
+            }}
+            data-template-tool={id}
+          >
+            {id}
+          </li>
+        ))}
+        {commands.length > max && (
+          <li className="px-0.5 text-meta text-sol-text-dim">
+            +{commands.length - max}
+          </li>
+        )}
+        {!commands.length &&
+          skills.slice(0, max).map((id) => (
+            <li
+              key={id}
+              className="rounded px-1.5 py-px text-meta text-sol-text-muted"
+              style={{
+                fontFamily: "var(--font-mono)",
+                background:
+                  "color-mix(in srgb, var(--sol-border) 22%, transparent)",
+              }}
+            >
+              {id}
+            </li>
+          ))}
       </ul>
     </div>
   );

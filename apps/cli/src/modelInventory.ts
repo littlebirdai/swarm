@@ -8,7 +8,10 @@
 
 import { execFile } from "./proc.js";
 import crypto from "crypto";
-import { AGENT_CLIENTS, type DeviceModelInventory } from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  type DeviceModelInventory,
+} from "@codecast/shared/contracts";
 import { hasBin } from "./doctorClients.js";
 
 const REFRESH_MS = 6 * 60 * 60 * 1000;
@@ -17,7 +20,10 @@ const MAX_IDS_PER_CLIENT = 800;
 
 /** `opencode models` prints one `provider/model` id per line. */
 export function parseOpencodeModels(stdout: string): string[] {
-  return stdout.split("\n").map((l) => l.trim()).filter((l) => /^\S+\/\S+$/.test(l));
+  return stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => /^\S+\/\S+$/.test(l));
 }
 
 /** `pi --list-models` prints an aligned table: provider, model, then capability
@@ -26,21 +32,33 @@ export function parsePiModels(stdout: string): string[] {
   return stdout
     .split("\n")
     .map((l) => l.trim().split(/\s+/))
-    .filter((cols) => cols.length >= 2 && cols[0] !== "provider" && /^[a-z0-9]/.test(cols[0]))
+    .filter(
+      (cols) =>
+        cols.length >= 2 && cols[0] !== "provider" && /^[a-z0-9]/.test(cols[0]),
+    )
     .map((cols) => `${cols[0]}/${cols[1]}`);
 }
 
-const COLLECTORS: { id: "opencode" | "pi"; args: string[]; parse: (stdout: string) => string[] }[] = [
+const COLLECTORS: {
+  id: "opencode" | "pi";
+  args: string[];
+  parse: (stdout: string) => string[];
+}[] = [
   { id: "opencode", args: ["models"], parse: parseOpencodeModels },
   { id: "pi", args: ["--list-models"], parse: parsePiModels },
 ];
 
 function run(binary: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(binary, args, { timeout: COLLECT_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
-      if (err) reject(err);
-      else resolve(stdout);
-    });
+    execFile(
+      binary,
+      args,
+      { timeout: COLLECT_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+      (err, stdout) => {
+        if (err) reject(err);
+        else resolve(stdout);
+      },
+    );
   });
 }
 
@@ -49,7 +67,6 @@ let lastCollectedAt = 0;
 let lastSentHash: string | null = null;
 let inFlight = false;
 
-
 /** Collect every installed dynamic client's listing. Exported for tests/doctor. */
 export async function collectModelInventory(): Promise<DeviceModelInventory | null> {
   const clients: DeviceModelInventory["clients"] = {};
@@ -57,14 +74,20 @@ export async function collectModelInventory(): Promise<DeviceModelInventory | nu
     const binary = AGENT_CLIENTS[c.id].binary;
     if (!hasBin(binary)) continue;
     try {
-      const ids = [...new Set(c.parse(await run(binary, c.args)))].sort().slice(0, MAX_IDS_PER_CLIENT);
+      const ids = [...new Set(c.parse(await run(binary, c.args)))]
+        .sort()
+        .slice(0, MAX_IDS_PER_CLIENT);
       if (ids.length > 0) clients[c.id] = ids;
     } catch {
       // A hung/failed listing just leaves this client out; the next refresh retries.
     }
   }
   if (Object.keys(clients).length === 0) return null;
-  const hash = crypto.createHash("sha1").update(JSON.stringify(clients)).digest("hex").slice(0, 16);
+  const hash = crypto
+    .createHash("sha1")
+    .update(JSON.stringify(clients))
+    .digest("hex")
+    .slice(0, 16);
   return { hash, collected_at: Date.now(), clients };
 }
 
@@ -84,7 +107,9 @@ export function ensureModelInventoryFresh(): void {
 }
 
 /** The inventory to attach to this beat — only when the server hasn't seen it. */
-export function pendingModelInventoryPayload(): DeviceModelInventory | undefined {
+export function pendingModelInventoryPayload():
+  | DeviceModelInventory
+  | undefined {
   return cached && cached.hash !== lastSentHash ? cached : undefined;
 }
 

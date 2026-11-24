@@ -29,27 +29,27 @@ The most important finding: most of the hard pieces exist, split between
 codecast and Averil (`~/src/eaiden`). This initiative is mostly an assembly
 and extraction job, not a build.
 
-| Piece | Where it lives today | State |
-| --- | --- | --- |
-| A watchable, steerable inbox of agent work, tasks, approvals (`cast decide`), routines (triggers), published pages | codecast web, mobile, desktop | Production, built for engineers |
-| Cloud machine running the codecast daemon, sessions sync back like local ones | codecast cloud hosts (`hosts/create.ts`, `cloud/prepare.ts`, `convex/cloud.ts`) | Works, but each host is an EC2 instance in the engineer's own AWS account, and placing a session on it needs their laptop online |
-| Browser and desktop control on a Linux host | `cast browser`, `cast computer` Linux provider | Works, built for one person per machine |
-| pi as a supported client | `contracts/agentClients.ts` (pi entry), `parser.ts` `parsePiSessionFile` | Production, but only as a local CLI in tmux: messages are typed into its TUI, and the parser drops pi's per-message cost |
-| Bring-your-own provider keys, encrypted to the device and passed to pi and opencode | `contracts/providerKeys.ts`, `providerKeyLaunch.ts` | Production; no path where codecast pays |
-| Gmail connector with encrypted tokens, incremental send scope | `convex/googleOAuth.ts` | Built, but nothing reads the tokens: no agent can use it yet. Google sign-in is off in codecast (on in Whisk via the same `@platform/auth`) |
-| Server-side model calls on our own key | `convex/lib/anthropic.ts` (titles, summaries, ask) | Production; single calls, no agent loop |
-| Agent definitions (named agents, model choice, tool sets) as Convex rows | codecast agent definitions (jx75060) | Production |
-| Per-person cloud box with session lifecycle, idle by tool activity, Linux user per person, proven isolation | Averil `packages/box` | Production on Fly |
-| Per-person computer: headed Chrome on a volume, live view from a phone, takeover | Averil `packages/browser`, `packages/computer` | Production, being hardened (PLAN-COMPUTER) |
-| Trust ladder: every gated tool call judged mechanically, unmapped actions refused | Averil `packages/core/src/ladder` | Production |
-| Wallet: per-person period cap, cost reserved before a run in the same SQL statement that checks the cap, trued up after | Averil `gauntlet/reservation.ts`, `jobs/budget.ts` | Production |
-| Credential broker: the agent holds a worthless stand-in, a proxy injects the real token per request and scrubs it from the reply | Averil PLAN-SUITE | Designed, partly built |
-| Sealed OAuth tokens (Google refresh tokens encrypted at rest) | Averil `users.refresh_token_sealed` | Production |
-| Channels: text the assistant over iMessage (Linq), SMS, Telegram, email; a Mac relay for reading/sending a person's own iMessages | Averil gateway adapters, desktop app | Production |
-| Gmail engine: multi-tenant mirror, labels, lanes, drafts, send, a CLI that takes a per-user token from env | Whisk (`~/src/mail`) | Production; tokens stored in plaintext |
-| Shared auth, push, analytics, local-first engine, rate limits | `@platform/*` | Production |
-| Billing, plans, Stripe, wallet | nowhere in codecast, Whisk or `@platform` | Missing (Averil has a wallet, no Stripe) |
-| A harness we control and meter ourselves | nowhere (Averil drives opencode; codecast launches third-party CLIs) | Missing |
+| Piece                                                                                                                             | Where it lives today                                                            | State                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| A watchable, steerable inbox of agent work, tasks, approvals (`cast decide`), routines (triggers), published pages                | codecast web, mobile, desktop                                                   | Production, built for engineers                                                                                                             |
+| Cloud machine running the codecast daemon, sessions sync back like local ones                                                     | codecast cloud hosts (`hosts/create.ts`, `cloud/prepare.ts`, `convex/cloud.ts`) | Works, but each host is an EC2 instance in the engineer's own AWS account, and placing a session on it needs their laptop online            |
+| Browser and desktop control on a Linux host                                                                                       | `cast browser`, `cast computer` Linux provider                                  | Works, built for one person per machine                                                                                                     |
+| pi as a supported client                                                                                                          | `contracts/agentClients.ts` (pi entry), `parser.ts` `parsePiSessionFile`        | Production, but only as a local CLI in tmux: messages are typed into its TUI, and the parser drops pi's per-message cost                    |
+| Bring-your-own provider keys, encrypted to the device and passed to pi and opencode                                               | `contracts/providerKeys.ts`, `providerKeyLaunch.ts`                             | Production; no path where codecast pays                                                                                                     |
+| Gmail connector with encrypted tokens, incremental send scope                                                                     | `convex/googleOAuth.ts`                                                         | Built, but nothing reads the tokens: no agent can use it yet. Google sign-in is off in codecast (on in Whisk via the same `@platform/auth`) |
+| Server-side model calls on our own key                                                                                            | `convex/lib/anthropic.ts` (titles, summaries, ask)                              | Production; single calls, no agent loop                                                                                                     |
+| Agent definitions (named agents, model choice, tool sets) as Convex rows                                                          | codecast agent definitions (jx75060)                                            | Production                                                                                                                                  |
+| Per-person cloud box with session lifecycle, idle by tool activity, Linux user per person, proven isolation                       | Averil `packages/box`                                                           | Production on Fly                                                                                                                           |
+| Per-person computer: headed Chrome on a volume, live view from a phone, takeover                                                  | Averil `packages/browser`, `packages/computer`                                  | Production, being hardened (PLAN-COMPUTER)                                                                                                  |
+| Trust ladder: every gated tool call judged mechanically, unmapped actions refused                                                 | Averil `packages/core/src/ladder`                                               | Production                                                                                                                                  |
+| Wallet: per-person period cap, cost reserved before a run in the same SQL statement that checks the cap, trued up after           | Averil `gauntlet/reservation.ts`, `jobs/budget.ts`                              | Production                                                                                                                                  |
+| Credential broker: the agent holds a worthless stand-in, a proxy injects the real token per request and scrubs it from the reply  | Averil PLAN-SUITE                                                               | Designed, partly built                                                                                                                      |
+| Sealed OAuth tokens (Google refresh tokens encrypted at rest)                                                                     | Averil `users.refresh_token_sealed`                                             | Production                                                                                                                                  |
+| Channels: text the assistant over iMessage (Linq), SMS, Telegram, email; a Mac relay for reading/sending a person's own iMessages | Averil gateway adapters, desktop app                                            | Production                                                                                                                                  |
+| Gmail engine: multi-tenant mirror, labels, lanes, drafts, send, a CLI that takes a per-user token from env                        | Whisk (`~/src/mail`)                                                            | Production; tokens stored in plaintext                                                                                                      |
+| Shared auth, push, analytics, local-first engine, rate limits                                                                     | `@platform/*`                                                                   | Production                                                                                                                                  |
+| Billing, plans, Stripe, wallet                                                                                                    | nowhere in codecast, Whisk or `@platform`                                       | Missing (Averil has a wallet, no Stripe)                                                                                                    |
+| A harness we control and meter ourselves                                                                                          | nowhere (Averil drives opencode; codecast launches third-party CLIs)            | Missing                                                                                                                                     |
 
 What blocks a person with no machine today, concretely: every session start
 (`enqueueStartSession` in `convex/devices.ts`) becomes a command for a daemon
@@ -203,8 +203,8 @@ One identity, one consent flow, and the agent never holds a key.
   Slack, Todoist, banks later), then the person's own browser session in their
   computer for everything else. No open skill marketplace; OpenClaw's took
   hundreds of malicious skills in two months.
-- **iMessage splits in two.** Talking *to* the assistant over iMessage needs no
-  Mac: Averil's Linq number already does it. Reading and sending *as* the
+- **iMessage splits in two.** Talking _to_ the assistant over iMessage needs no
+  Mac: Averil's Linq number already does it. Reading and sending _as_ the
   person needs their Mac running the Averil desktop app as a relay. Most
   non-technical people want the first; offer the second as an add-on.
 
@@ -243,14 +243,14 @@ ledger has real per-job costs and should replace them before prices are set.
 
 A starting shape, all numbers to be set from that data:
 
-| | Free | Plus | Pro |
-| --- | --- | --- | --- |
-| Monthly usage included | small (tens of tasks) | most people's month | heavy use |
-| Models | fast models | Sonnet-class | Opus for hard work |
-| Routines (scheduled work) | a few, daily at most | many | many, frequent |
-| Connectors | mail, calendar | all curated | all, plus Mac relay |
-| Personal computer (browser) | no | yes, sleeps when idle | yes, longer awake |
-| Over the limit | waits for next month | asks, then top-up | asks, then top-up |
+|                             | Free                  | Plus                  | Pro                 |
+| --------------------------- | --------------------- | --------------------- | ------------------- |
+| Monthly usage included      | small (tens of tasks) | most people's month   | heavy use           |
+| Models                      | fast models           | Sonnet-class          | Opus for hard work  |
+| Routines (scheduled work)   | a few, daily at most  | many                  | many, frequent      |
+| Connectors                  | mail, calendar        | all curated           | all, plus Mac relay |
+| Personal computer (browser) | no                    | yes, sleeps when idle | yes, longer awake   |
+| Over the limit              | waits for next month  | asks, then top-up     | asks, then top-up   |
 
 Developers keep bringing their own subscription and machine exactly as today;
 this is an addition, not a replacement.
@@ -277,15 +277,15 @@ The person never sees a repo, a terminal, a model name, a session id or the
 word "agent" unless they go looking. The codecast primitives stay; their names
 and defaults change.
 
-| Codecast today | What they see |
-| --- | --- |
-| Session | A conversation, or a job ("Planning the Lisbon trip") |
-| Inbox of sessions | Home: what's done, what's waiting on you, what's running |
-| `cast decide` | An approval card: "Send this reply to Dana?" with the draft |
-| Trigger | A routine: "Every weekday at 8, tidy my inbox" |
-| Task | A to-do the assistant tracks, or one it gives you |
-| Published page | A report or itinerary you can open and share |
-| Team | Household or small team sharing an assistant |
+| Codecast today    | What they see                                               |
+| ----------------- | ----------------------------------------------------------- |
+| Session           | A conversation, or a job ("Planning the Lisbon trip")       |
+| Inbox of sessions | Home: what's done, what's waiting on you, what's running    |
+| `cast decide`     | An approval card: "Send this reply to Dana?" with the draft |
+| Trigger           | A routine: "Every weekday at 8, tidy my inbox"              |
+| Task              | A to-do the assistant tracks, or one it gives you           |
+| Published page    | A report or itinerary you can open and share                |
+| Team              | Household or small team sharing an assistant                |
 
 **Onboarding, three screens:** sign in with Google, connect mail and calendar,
 then the assistant does one useful thing immediately from what it can see

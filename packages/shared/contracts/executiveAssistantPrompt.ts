@@ -16,7 +16,8 @@ const GLOBAL_RULE = `You see what {person} sees, in every workspace they are in,
 const TEAM_RULE = `You see what {person} sees in {reach}, and nothing more: you run as them, and this is the one workspace you work in. Every verb carries \`--team {team}\`.`;
 
 /** The job, as the charter on the role's page states it. */
-export const EXECUTIVE_ASSISTANT_JOB = EXECUTIVE_ASSISTANT_OPENING.split("\n\n")[1];
+export const EXECUTIVE_ASSISTANT_JOB =
+  EXECUTIVE_ASSISTANT_OPENING.split("\n\n")[1];
 
 export type AssistantOpeningFacts = {
   /** The person like name the role wears (roleIdentity). */
@@ -27,14 +28,26 @@ export type AssistantOpeningFacts = {
   team?: string;
 };
 
-export function executiveAssistantOpening(facts: AssistantOpeningFacts): string {
+export function executiveAssistantOpening(
+  facts: AssistantOpeningFacts,
+): string {
   const global = facts.reach.reach === "global";
-  const reach = global ? `everything ${facts.person} works on` : (facts.team ?? "the team");
-  const fill = (t: string) => t
-    .split("{name}").join(facts.name)
-    .split("{person}").join(facts.person)
-    .split("{reach}").join(reach)
-    .split("{team}").join(facts.team ?? "the team")
-    .split("{team_flag}").join(global ? " with `--team` when the lead is a team's" : "");
-  return fill(EXECUTIVE_ASSISTANT_OPENING).split("{reach_rule}").join(fill(global ? GLOBAL_RULE : TEAM_RULE));
+  const reach = global
+    ? `everything ${facts.person} works on`
+    : (facts.team ?? "the team");
+  const fill = (t: string) =>
+    t
+      .split("{name}")
+      .join(facts.name)
+      .split("{person}")
+      .join(facts.person)
+      .split("{reach}")
+      .join(reach)
+      .split("{team}")
+      .join(facts.team ?? "the team")
+      .split("{team_flag}")
+      .join(global ? " with `--team` when the lead is a team's" : "");
+  return fill(EXECUTIVE_ASSISTANT_OPENING)
+    .split("{reach_rule}")
+    .join(fill(global ? GLOBAL_RULE : TEAM_RULE));
 }

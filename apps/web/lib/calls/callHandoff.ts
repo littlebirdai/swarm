@@ -17,7 +17,12 @@ import { getScribeStatus } from "./transcription";
  *
  * Null when there is no call to move.
  */
-export function callHandoffState(): { room: string; mic: boolean; camera: boolean; scribe: boolean } | null {
+export function callHandoffState(): {
+  room: string;
+  mic: boolean;
+  camera: boolean;
+  scribe: boolean;
+} | null {
   const { call } = useInboxStore.getState();
   if (!call.roomKey || call.phase === "idle") return null;
   return {
@@ -39,7 +44,12 @@ export function callHandoffState(): { room: string; mic: boolean; camera: boolea
 // rather than in the component because they are a decision table, not a
 // rendering concern.
 
-export type CallWindowPhase = "idle" | "ringing_out" | "connecting" | "connected" | "error";
+export type CallWindowPhase =
+  | "idle"
+  | "ringing_out"
+  | "connecting"
+  | "connected"
+  | "error";
 
 /**
  * `close` — this window has stopped being useful and should go.
@@ -96,7 +106,9 @@ export function callWindowSizeOnFailedJoin(s: {
  * the window that DOES hold the call is sitting in, taking its occupancy, its
  * heartbeat and its transcript authorization with it.
  */
-export function callWindowLeaveGesture(held: boolean): WindowExit & { hangUp: boolean } {
+export function callWindowLeaveGesture(
+  held: boolean,
+): WindowExit & { hangUp: boolean } {
   return held
     ? { close: true, ended: true, hangUp: true }
     : { close: true, ended: false, hangUp: false };
@@ -160,7 +172,8 @@ const LIVEKIT_DUPLICATE_IDENTITY = 2;
 const LIVEKIT_PARTICIPANT_REMOVED = 4;
 
 function reasonName(reason: unknown): string {
-  if (typeof reason === "string") return reason.toUpperCase().replace(/-/g, "_");
+  if (typeof reason === "string")
+    return reason.toUpperCase().replace(/-/g, "_");
   return "";
 }
 
@@ -204,7 +217,8 @@ export function shouldYieldCallOnDisconnect(
 ): boolean {
   if (isDuplicateIdentityDisconnect(reason)) return true;
   if (opts.elsewhere) return true;
-  if (opts.outlivesWindow && isParticipantRemovedDisconnect(reason)) return true;
+  if (opts.outlivesWindow && isParticipantRemovedDisconnect(reason))
+    return true;
   return false;
 }
 

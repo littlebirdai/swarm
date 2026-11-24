@@ -3,12 +3,31 @@
 // functions over the manifest and the instance's state, shared by the CLI verbs
 // (orgTemplateRun.ts, which hold the lock and the receipt) and the server
 // (convex/orgTemplates.ts, which holds the instance row).
-import { instanceReadiness, type EvidenceRecord, type HeldAuthority, type RoutineReadiness } from "./orgTemplateReadiness";
-import { fillAnswers, intervalMs, type OrgTemplate, type TemplateInput } from "./orgTemplateManifest";
+import {
+  instanceReadiness,
+  type EvidenceRecord,
+  type HeldAuthority,
+  type RoutineReadiness,
+} from "./orgTemplateReadiness";
+import {
+  fillAnswers,
+  intervalMs,
+  type OrgTemplate,
+  type TemplateInput,
+} from "./orgTemplateManifest";
 
-export type EvidenceState = { status: "pass" | "fail"; observed_at: number; source: string; detail?: Record<string, string> };
+export type EvidenceState = {
+  status: "pass" | "fail";
+  observed_at: number;
+  source: string;
+  detail?: Record<string, string>;
+};
 export type ScoreState = { value: string; observed_at: number; source: string };
-export type SetupState = { status: "open" | "done" | "skipped"; done_at?: number; evidence?: string };
+export type SetupState = {
+  status: "open" | "done" | "skipped";
+  done_at?: number;
+  evidence?: string;
+};
 export type InstanceState = {
   evidence?: Record<string, EvidenceState>;
   scoreboard?: Record<string, ScoreState>;
@@ -20,7 +39,15 @@ export type InstanceState = {
 };
 
 const href = (value: string | undefined, label: string): string => {
-  if (!value || !/^(https?:\/\/|ct-\d+|pl-\d+|tr-\d+|doc:[a-z0-9]+|jx[a-z0-9]+)/i.test(value)) throw new Error(`${label} must be a link or a codecast short id a person can open`);
+  if (
+    !value ||
+    !/^(https?:\/\/|ct-\d+|pl-\d+|tr-\d+|doc:[a-z0-9]+|jx[a-z0-9]+)/i.test(
+      value,
+    )
+  )
+    throw new Error(
+      `${label} must be a link or a codecast short id a person can open`,
+    );
   return value;
 };
 function pairs(raw: string[] = [], label: string): Record<string, string> {
@@ -34,10 +61,21 @@ function pairs(raw: string[] = [], label: string): Record<string, string> {
 }
 
 /** One record per check, replacing the last (H6). A pass without an openable source is refused. */
-export function recordEvidence(manifest: OrgTemplate, state: InstanceState, check: string, input: { status: string; source?: string; detail?: string[]; now?: number }): EvidenceState {
-  if (!(manifest.evidence ?? []).some((e) => e.id === check)) throw new Error(`Not an evidence check of this template: ${check}`);
-  if (input.status !== "pass" && input.status !== "fail") throw new Error("--status must be pass or fail");
-  const record: EvidenceState = { status: input.status, observed_at: input.now ?? Date.now(), source: href(input.source, "--source") };
+export function recordEvidence(
+  manifest: OrgTemplate,
+  state: InstanceState,
+  check: string,
+  input: { status: string; source?: string; detail?: string[]; now?: number },
+): EvidenceState {
+  if (!(manifest.evidence ?? []).some((e) => e.id === check))
+    throw new Error(`Not an evidence check of this template: ${check}`);
+  if (input.status !== "pass" && input.status !== "fail")
+    throw new Error("--status must be pass or fail");
+  const record: EvidenceState = {
+    status: input.status,
+    observed_at: input.now ?? Date.now(),
+    source: href(input.source, "--source"),
+  };
   const detail = pairs(input.detail, "--detail");
   if (Object.keys(detail).length) record.detail = detail;
   (state.evidence ??= {})[check] = record;
@@ -51,16 +89,29 @@ export function recordEvidence(manifest: OrgTemplate, state: InstanceState, chec
  * declare keys and both record through here, so `cast org template report`
  * and `cast initiative report` read and refuse the same way.
  */
-export function recordScores(declaring: { scoreboard?: Array<{ key: string }> }, state: Pick<InstanceState, "scoreboard">, entries: string[], input: { source?: string; observedAt?: number; what?: string }): Record<string, ScoreState> {
+export function recordScores(
+  declaring: { scoreboard?: Array<{ key: string }> },
+  state: Pick<InstanceState, "scoreboard">,
+  entries: string[],
+  input: { source?: string; observedAt?: number; what?: string },
+): Record<string, ScoreState> {
   const declared = new Set((declaring.scoreboard ?? []).map((s) => s.key));
   const values = pairs(entries, "A scoreboard value");
-  if (!Object.keys(values).length) throw new Error("Give at least one key=value");
+  if (!Object.keys(values).length)
+    throw new Error("Give at least one key=value");
   const source = href(input.source, "--source");
   const written: Record<string, ScoreState> = {};
   for (const [key, value] of Object.entries(values)) {
-    if (!declared.has(key)) throw new Error(`Not a scoreboard key of ${input.what ?? "this template"}: ${key}${declared.size ? ` (declared: ${[...declared].join(", ")})` : ""}`);
+    if (!declared.has(key))
+      throw new Error(
+        `Not a scoreboard key of ${input.what ?? "this template"}: ${key}${declared.size ? ` (declared: ${[...declared].join(", ")})` : ""}`,
+      );
     if (!value.trim()) throw new Error(`Empty value for ${key}`);
-    written[key] = (state.scoreboard ??= {})[key] = { value, observed_at: input.observedAt ?? Date.now(), source };
+    written[key] = (state.scoreboard ??= {})[key] = {
+      value,
+      observed_at: input.observedAt ?? Date.now(),
+      source,
+    };
   }
   return written;
 }
@@ -70,13 +121,27 @@ export function recordScores(declaring: { scoreboard?: Array<{ key: string }> },
  * person's to do. Either is marked by whoever sees it done, the role included.
  * The role's own item needs evidence a person can open; reopening clears it.
  */
-export function markSetup(manifest: OrgTemplate, state: InstanceState, id: string, input: { status: string; evidence?: string; now?: number }): SetupState {
+export function markSetup(
+  manifest: OrgTemplate,
+  state: InstanceState,
+  id: string,
+  input: { status: string; evidence?: string; now?: number },
+): SetupState {
   const item = (manifest.setup ?? []).find((s) => s.id === id);
   if (!item) throw new Error(`Not a setup item of this template: ${id}`);
-  if (!["open", "done", "skipped"].includes(input.status)) throw new Error("Status must be open, done or skipped");
-  const next: SetupState = input.status === "done"
-    ? { status: "done", done_at: input.now ?? Date.now(), evidence: item.who === "role" ? href(input.evidence, "--evidence") : input.evidence }
-    : { status: input.status as "open" | "skipped" };
+  if (!["open", "done", "skipped"].includes(input.status))
+    throw new Error("Status must be open, done or skipped");
+  const next: SetupState =
+    input.status === "done"
+      ? {
+          status: "done",
+          done_at: input.now ?? Date.now(),
+          evidence:
+            item.who === "role"
+              ? href(input.evidence, "--evidence")
+              : input.evidence,
+        }
+      : { status: input.status as "open" | "skipped" };
   (state.setup ??= {})[id] = next;
   return next;
 }
@@ -88,44 +153,133 @@ export function markSetup(manifest: OrgTemplate, state: InstanceState, id: strin
  * instance row carries them for the role page. Absent before the host step.
  */
 /** A setup item's words as its host filled them at bind; `needs` names the answers its guide is missing. */
-export type SetupText = Record<string, { title: string; price?: string; guide?: string; needs?: string[] }>;
+export type SetupText = Record<
+  string,
+  { title: string; price?: string; guide?: string; needs?: string[] }
+>;
 /** `needs`: the hire's answers this item's words are missing, which the page asks for in place. */
-export type SetupRow = { id: string; title: string; who: "human" | "role"; status: SetupState["status"]; unlocks: string[]; price?: string; how?: string; guide?: string; evidence?: string; needs: SetupNeed[] };
+export type SetupRow = {
+  id: string;
+  title: string;
+  who: "human" | "role";
+  status: SetupState["status"];
+  unlocks: string[];
+  price?: string;
+  how?: string;
+  guide?: string;
+  evidence?: string;
+  needs: SetupNeed[];
+};
 /** An answer a setup item's words are missing: the field the page shows in place. */
-export type SetupNeed = { key: string; label: string; kind: TemplateInput["kind"]; choices?: string[] };
-export function setupRows(manifest: OrgTemplate, state: InstanceState, text: SetupText = {}): SetupRow[] {
+export type SetupNeed = {
+  key: string;
+  label: string;
+  kind: TemplateInput["kind"];
+  choices?: string[];
+};
+export function setupRows(
+  manifest: OrgTemplate,
+  state: InstanceState,
+  text: SetupText = {},
+): SetupRow[] {
   return (manifest.setup ?? []).map((item) => {
     // The title and price are filled here from the answers as they stand, so an
     // answer given after the hire shows at once and a missing one is marked;
     // the host's text is used only for words with tokens the host alone knows.
     const hostOnly = (t: string) => /\{\{(?!input\.)[^{}]+\}\}/.test(t);
-    const title = hostOnly(item.title) && text[item.id]?.title ? { text: text[item.id]!.title, needs: [] } : fillAnswers(item.title, manifest, state.config);
-    const price = item.price === undefined ? undefined : hostOnly(item.price) && text[item.id]?.price ? { text: text[item.id]!.price!, needs: [] } : fillAnswers(item.price, manifest, state.config);
+    const title =
+      hostOnly(item.title) && text[item.id]?.title
+        ? { text: text[item.id]!.title, needs: [] }
+        : fillAnswers(item.title, manifest, state.config);
+    const price =
+      item.price === undefined
+        ? undefined
+        : hostOnly(item.price) && text[item.id]?.price
+          ? { text: text[item.id]!.price!, needs: [] }
+          : fillAnswers(item.price, manifest, state.config);
     const inputs = new Map((manifest.inputs ?? []).map((i) => [i.key, i]));
-    const needs = [...new Set([...title.needs, ...(price?.needs ?? []), ...(text[item.id]?.needs ?? []).filter((k) => !state.config?.[k])])]
-      .flatMap((key) => { const i = inputs.get(key); return i && i.kind !== "secret" ? [{ key, label: i.label, kind: i.kind, ...(i.choices ? { choices: i.choices } : {}) }] : []; });
-    return { id: item.id, title: title.text, who: item.who, status: state.setup?.[item.id]?.status ?? "open", unlocks: item.unlocks ?? [], price: price?.text, how: item.how, guide: text[item.id]?.guide, evidence: state.setup?.[item.id]?.evidence, needs };
+    const needs = [
+      ...new Set([
+        ...title.needs,
+        ...(price?.needs ?? []),
+        ...(text[item.id]?.needs ?? []).filter((k) => !state.config?.[k]),
+      ]),
+    ].flatMap((key) => {
+      const i = inputs.get(key);
+      return i && i.kind !== "secret"
+        ? [
+            {
+              key,
+              label: i.label,
+              kind: i.kind,
+              ...(i.choices ? { choices: i.choices } : {}),
+            },
+          ]
+        : [];
+    });
+    return {
+      id: item.id,
+      title: title.text,
+      who: item.who,
+      status: state.setup?.[item.id]?.status ?? "open",
+      unlocks: item.unlocks ?? [],
+      price: price?.text,
+      how: item.how,
+      guide: text[item.id]?.guide,
+      evidence: state.setup?.[item.id]?.evidence,
+      needs,
+    };
   });
 }
 /** The one ask (H5): the first open human item in the manifest's order, which is the author's value order. A skipped item is not open, so the ask moves past it. */
-export function nextHumanAsk(manifest: OrgTemplate, state: InstanceState, text?: SetupText): SetupRow | undefined {
-  return setupRows(manifest, state, text).find((row) => row.who === "human" && row.status === "open");
+export function nextHumanAsk(
+  manifest: OrgTemplate,
+  state: InstanceState,
+  text?: SetupText,
+): SetupRow | undefined {
+  return setupRows(manifest, state, text).find(
+    (row) => row.who === "human" && row.status === "open",
+  );
 }
 
-export function readiness(manifest: OrgTemplate, state: InstanceState, trust: "understand" | "decide" | "direct", now = Date.now()): Record<string, RoutineReadiness> {
-  const evidence: EvidenceRecord[] = Object.entries(state.evidence ?? {}).map(([check, r]) => ({ check, status: r.status, observed_at: r.observed_at }));
-  return instanceReadiness({
-    routines: manifest.routines,
-    authority: (manifest.authority ?? []).map((a) => ({ id: a.id, kind: a.kind })),
-    evidence: (manifest.evidence ?? []).map((e) => ({ id: e.id, max_age_ms: intervalMs(e.max_age) })),
-  }, { trust, authority: state.authority ?? [], evidence }, now);
+export function readiness(
+  manifest: OrgTemplate,
+  state: InstanceState,
+  trust: "understand" | "decide" | "direct",
+  now = Date.now(),
+): Record<string, RoutineReadiness> {
+  const evidence: EvidenceRecord[] = Object.entries(state.evidence ?? {}).map(
+    ([check, r]) => ({ check, status: r.status, observed_at: r.observed_at }),
+  );
+  return instanceReadiness(
+    {
+      routines: manifest.routines,
+      authority: (manifest.authority ?? []).map((a) => ({
+        id: a.id,
+        kind: a.kind,
+      })),
+      evidence: (manifest.evidence ?? []).map((e) => ({
+        id: e.id,
+        max_age_ms: intervalMs(e.max_age),
+      })),
+    },
+    { trust, authority: state.authority ?? [], evidence },
+    now,
+  );
 }
 
 /** The lines the loader prepends for a routine, so the run knows its mode and why (H6). */
-export function readinessHeader(routine: string, r: RoutineReadiness | undefined): string {
+export function readinessHeader(
+  routine: string,
+  r: RoutineReadiness | undefined,
+): string {
   if (!r) return "";
   const lines = [`Mode now: ${r.mode}.`];
-  if (r.missing.length) lines.push(`Not met for ${routine}: ${r.missing.join("; ")}.`);
-  if (r.mode === "propose") lines.push("Propose mode: read, draft and report; make no external change, spend nothing, publish nothing.");
+  if (r.missing.length)
+    lines.push(`Not met for ${routine}: ${r.missing.join("; ")}.`);
+  if (r.mode === "propose")
+    lines.push(
+      "Propose mode: read, draft and report; make no external change, spend nothing, publish nothing.",
+    );
   return lines.join("\n");
 }

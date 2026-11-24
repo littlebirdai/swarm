@@ -12,8 +12,10 @@ export function conversationPatchChanges(
   conversation: Doc<"conversations">,
   patch: Partial<Doc<"conversations">>,
 ): boolean {
-  return Object.entries(patch).some(([field, value]) =>
-    !sameProjection((conversation as Record<string, unknown>)[field], value));
+  return Object.entries(patch).some(
+    ([field, value]) =>
+      !sameProjection((conversation as Record<string, unknown>)[field], value),
+  );
 }
 
 /**
@@ -26,7 +28,10 @@ export function conversationPatchChanges(
  */
 export async function patchConversationThroughFavoriteView(
   ctx: MutationCtx,
-  knownConversation: Pick<Doc<"conversations">, "_id" | "user_id" | "is_favorite">,
+  knownConversation: Pick<
+    Doc<"conversations">,
+    "_id" | "user_id" | "is_favorite"
+  >,
   patch: Partial<Doc<"conversations">>,
   revisionMode: RevisionMode,
 ): Promise<{
@@ -39,13 +44,17 @@ export async function patchConversationThroughFavoriteView(
   if (String(conversation.user_id) !== String(knownConversation.user_id)) {
     throw new Error("Favorite write crossed its bound principal");
   }
-  if ("user_id" in patch && String(patch.user_id) !== String(conversation.user_id)) {
+  if (
+    "user_id" in patch &&
+    String(patch.user_id) !== String(conversation.user_id)
+  ) {
     throw new Error("Favorite writer cannot transfer conversation ownership");
   }
 
   const changes = conversationPatchChanges(conversation, patch);
   const beforeFavorite = !!conversation.is_favorite;
-  const afterFavorite = "is_favorite" in patch ? !!patch.is_favorite : beforeFavorite;
+  const afterFavorite =
+    "is_favorite" in patch ? !!patch.is_favorite : beforeFavorite;
   const favoriteChanged = beforeFavorite !== afterFavorite;
   if (changes) await ctx.db.patch(conversation._id, patch);
 
@@ -81,7 +90,12 @@ export async function toggleFavoriteWithRevision(
   ctx: MutationCtx,
   conversation: Doc<"conversations">,
 ): Promise<boolean> {
-  const result = await setFavoriteWithRevision(ctx, conversation, !conversation.is_favorite, "advance");
+  const result = await setFavoriteWithRevision(
+    ctx,
+    conversation,
+    !conversation.is_favorite,
+    "advance",
+  );
   return result.isFavorite;
 }
 

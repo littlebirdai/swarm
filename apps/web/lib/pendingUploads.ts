@@ -10,8 +10,12 @@
 export const pendingImageUploads = new Map<string, Promise<string | null>>();
 
 /** The upload's storage id, or null when it failed or nothing is uploading. */
-export function awaitUpload(previewUrl: string | undefined): Promise<string | null> {
-  return (previewUrl && pendingImageUploads.get(previewUrl)) || Promise.resolve(null);
+export function awaitUpload(
+  previewUrl: string | undefined,
+): Promise<string | null> {
+  return (
+    (previewUrl && pendingImageUploads.get(previewUrl)) || Promise.resolve(null)
+  );
 }
 
 /** Forget a settled upload and free its blob. The revoke waits a beat so a
@@ -20,7 +24,8 @@ export function awaitUpload(previewUrl: string | undefined): Promise<string | nu
 export function releaseUpload(previewUrl: string | undefined) {
   if (!previewUrl) return;
   pendingImageUploads.delete(previewUrl);
-  if (previewUrl.startsWith("blob:")) setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
+  if (previewUrl.startsWith("blob:"))
+    setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
 }
 
 /** An attachment as a send carries it: `storage_id` is empty while uploading,
@@ -28,7 +33,9 @@ export function releaseUpload(previewUrl: string | undefined) {
 type UploadingAttachment = { storage_id: string; preview_url?: string };
 
 /** True while any attachment is still uploading (no storage id yet). */
-export function hasPendingUploads(attachments: readonly UploadingAttachment[] | undefined): boolean {
+export function hasPendingUploads(
+  attachments: readonly UploadingAttachment[] | undefined,
+): boolean {
   return !!attachments?.some((a) => !a.storage_id);
 }
 
@@ -36,6 +43,8 @@ export function hasPendingUploads(attachments: readonly UploadingAttachment[] | 
 export function deliverableAttachments<T extends UploadingAttachment>(
   attachments: readonly T[] | undefined,
 ): Omit<T, "preview_url">[] | undefined {
-  const done = attachments?.filter((a) => a.storage_id).map(({ preview_url: _p, ...a }) => a);
+  const done = attachments
+    ?.filter((a) => a.storage_id)
+    .map(({ preview_url: _p, ...a }) => a);
   return done?.length ? done : undefined;
 }

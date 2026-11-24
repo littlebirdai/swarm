@@ -10,16 +10,26 @@ export const WEBHOOK_PAYLOAD_MAX_BYTES = 900_000;
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 
 function shrink(value: unknown, maxString: number, maxItems: number): unknown {
-  if (typeof value === "string") return value.length > maxString ? value.slice(0, maxString) : value;
-  if (Array.isArray(value)) return value.slice(0, maxItems).map((v) => shrink(v, maxString, maxItems));
+  if (typeof value === "string")
+    return value.length > maxString ? value.slice(0, maxString) : value;
+  if (Array.isArray(value))
+    return value.slice(0, maxItems).map((v) => shrink(v, maxString, maxItems));
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, shrink(v, maxString, maxItems)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [
+        k,
+        shrink(v, maxString, maxItems),
+      ]),
+    );
   }
   return value;
 }
 
 /** The payload unchanged when it fits; otherwise the same JSON with long strings and lists cut until it does. */
-export function fitWebhookPayload(payload: string, maxBytes = WEBHOOK_PAYLOAD_MAX_BYTES): string {
+export function fitWebhookPayload(
+  payload: string,
+  maxBytes = WEBHOOK_PAYLOAD_MAX_BYTES,
+): string {
   if (bytes(payload) <= maxBytes) return payload;
   let parsed: unknown;
   try {
@@ -27,8 +37,14 @@ export function fitWebhookPayload(payload: string, maxBytes = WEBHOOK_PAYLOAD_MA
   } catch {
     return "{}";
   }
-  for (let maxString = 8192, maxItems = 500; maxString >= 64; maxString >>= 1, maxItems >>= 1) {
-    const fitted = JSON.stringify(shrink(parsed, maxString, Math.max(maxItems, 1)));
+  for (
+    let maxString = 8192, maxItems = 500;
+    maxString >= 64;
+    maxString >>= 1, maxItems >>= 1
+  ) {
+    const fitted = JSON.stringify(
+      shrink(parsed, maxString, Math.max(maxItems, 1)),
+    );
     if (bytes(fitted) <= maxBytes) return fitted;
   }
   return "{}";

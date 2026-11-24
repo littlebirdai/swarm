@@ -41,11 +41,16 @@ export function activeWorkspaceKey(
 }
 
 /** True when the row's access key equals the viewer's active key. */
-export function inWorkspace(row: WorkspaceScoped, key: WorkspaceKey | null | undefined): boolean {
+export function inWorkspace(
+  row: WorkspaceScoped,
+  key: WorkspaceKey | null | undefined,
+): boolean {
   if (!key) return false;
   if (row.workspace) return row.workspace === key;
   // Legacy row without a stored key: the raw tag is the pre-backfill truth.
-  return key.startsWith("team:") ? `team:${row.team_id ?? ""}` === key : !row.team_id;
+  return key.startsWith("team:")
+    ? `team:${row.team_id ?? ""}` === key
+    : !row.team_id;
 }
 
 /**
@@ -55,7 +60,10 @@ export function inWorkspace(row: WorkspaceScoped, key: WorkspaceKey | null | und
  * the team case; for the personal case it cannot know the viewer and admits
  * only key-less/user-keyed rows.
  */
-export function inActiveWorkspace(row: WorkspaceScoped, activeTeamId?: string | null): boolean {
+export function inActiveWorkspace(
+  row: WorkspaceScoped,
+  activeTeamId?: string | null,
+): boolean {
   if (activeTeamId) return inWorkspace(row, `team:${activeTeamId}`);
   if (row.workspace) return row.workspace.startsWith("user:");
   return !row.team_id;
@@ -79,8 +87,14 @@ export function filterToWorkspace<T extends WorkspaceScoped>(
 
 /** The viewer's active workspace key, read off store state: the active-team
  *  pointer, else the viewer's own personal key. Null while the viewer is unknown. */
-export function activeWorkspaceKeyOf(s: { clientState: { ui?: { active_team_id?: string | null } }; currentUser?: { _id?: unknown } | null }): WorkspaceKey | null {
-  return activeWorkspaceKey(s.clientState.ui?.active_team_id, s.currentUser?._id ? String(s.currentUser._id) : null);
+export function activeWorkspaceKeyOf(s: {
+  clientState: { ui?: { active_team_id?: string | null } };
+  currentUser?: { _id?: unknown } | null;
+}): WorkspaceKey | null {
+  return activeWorkspaceKey(
+    s.clientState.ui?.active_team_id,
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
 }
 
 /** A workspace's name for a person: the team's name, "your personal
@@ -90,7 +104,8 @@ export function workspaceDisplayName(
   teams: ReadonlyArray<{ _id?: string; name?: string }> | null | undefined,
   viewerId: string | null | undefined,
 ): string {
-  if (ws.kind === "team") return (teams ?? []).find((t) => t?._id === ws.id)?.name ?? "another team";
+  if (ws.kind === "team")
+    return (teams ?? []).find((t) => t?._id === ws.id)?.name ?? "another team";
   return ws.id === viewerId ? "your personal workspace" : "another workspace";
 }
 
@@ -101,12 +116,18 @@ export function workspaceKeyOfRow(row: WorkspaceScoped): WorkspaceKey | null {
 }
 
 /** A row's workspace as a ref, from its stored key (or the legacy team tag). */
-export function workspaceRefOf(row: WorkspaceScoped): { kind: "team" | "user"; id: string } | null {
+export function workspaceRefOf(
+  row: WorkspaceScoped,
+): { kind: "team" | "user"; id: string } | null {
   const m = workspaceKeyOfRow(row)?.match(/^(team|user):(.+)$/);
   return m ? { kind: m[1] as "team" | "user", id: m[2] } : null;
 }
 
 /** A workspace key as the args a scoped Convex query takes: a team's id, or personal. */
-export function scopeArgsOf(workspace: string | null | undefined): { workspace: "team"; team_id: Id<"teams"> } | { workspace: "personal" } {
-  return workspace?.startsWith("team:") ? { workspace: "team", team_id: workspace.slice(5) as Id<"teams"> } : { workspace: "personal" };
+export function scopeArgsOf(
+  workspace: string | null | undefined,
+): { workspace: "team"; team_id: Id<"teams"> } | { workspace: "personal" } {
+  return workspace?.startsWith("team:")
+    ? { workspace: "team", team_id: workspace.slice(5) as Id<"teams"> }
+    : { workspace: "personal" };
 }

@@ -61,15 +61,16 @@
   outline: 2px solid color-mix(in srgb, var(--sol-blue) 60%, transparent);
   outline-offset: 1px;
 }
-.rt[data-surface="stage"] :is(
-  .rt-passage-head,
-  .rt-recap-head,
-  .rt-add,
-  .rt-btn,
-  .rt-seg-btn,
-  .rt-note-btn,
-  .rt-event-agent
-):focus-visible {
+.rt[data-surface="stage"]
+  :is(
+    .rt-passage-head,
+    .rt-recap-head,
+    .rt-add,
+    .rt-btn,
+    .rt-seg-btn,
+    .rt-note-btn,
+    .rt-event-agent
+  ):focus-visible {
   outline-color: color-mix(in srgb, var(--sol-cyan) 60%, transparent);
 }
 
@@ -213,7 +214,9 @@
   height: 22px;
   border-radius: 4px;
   color: var(--sol-text-muted);
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 /* The stage's view control lives in the 44px stage header, not this row:
    24px positions fit it with room to spare. */
@@ -247,7 +250,10 @@
   background: color-mix(in srgb, var(--sol-text) 5%, transparent);
   box-shadow: inset 0 0 0 1px transparent;
   color: var(--sol-text-muted);
-  transition: width 180ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 120ms, background 120ms;
+  transition:
+    width 180ms cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 120ms,
+    background 120ms;
 }
 .rt-find:hover {
   background: color-mix(in srgb, var(--sol-text) 8%, transparent);
@@ -258,7 +264,8 @@
 }
 .rt-find:focus-within {
   background: var(--sol-card);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sol-cyan) 55%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--sol-cyan) 55%, transparent);
 }
 .rt-find-icon {
   flex-shrink: 0;
@@ -295,7 +302,9 @@
   height: 20px;
   border-radius: 4px;
   color: var(--sol-text-muted);
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 .rt-find-btn:hover:not(:disabled) {
   color: var(--sol-text);
@@ -909,7 +918,9 @@ button.rt-event-agent:hover {
   font-size: var(--rt-secondary);
   color: var(--sol-text-muted);
   border-radius: 6px;
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 .rt-tasks-add {
   padding: 2px 6px;
@@ -952,7 +963,9 @@ button.rt-event-agent:hover {
   border-radius: 4px;
   color: var(--sol-text-dim);
   opacity: 0;
-  transition: opacity 120ms, color 120ms;
+  transition:
+    opacity 120ms,
+    color 120ms;
 }
 .rt-task:hover .rt-task-unlink,
 .rt-task-unlink:focus-visible {
@@ -991,19 +1004,54 @@ button.rt-event-agent:hover {
 }
 
 /* Modern (.modern-style): labels and controls in the interface sans; clocks and ids keep mono. */
-.rt-density-label:is(.modern-style *), .rt-seg-btn-labeled:is(.modern-style *), .rt-divider:is(.modern-style *), .rt-recap-items-label:is(.modern-style *) { font-family: var(--font-ui, system-ui, sans-serif); }
+.rt-density-label:is(.modern-style *),
+.rt-seg-btn-labeled:is(.modern-style *),
+.rt-divider:is(.modern-style *),
+.rt-recap-items-label:is(.modern-style *) {
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
 
 /* ── Modern (.modern-style on <html>): the thread's controls are the app's
    primitives (components/ui/modernLook.ts): the segmented tray with the live
    position raised in the card on the hairline, buttons at the control radius
    and height. The colours stay the room's own. ── */
-.modern-style .rt-seg { gap: 2px; border-radius: var(--radius-control); background-color: color-mix(in srgb, var(--sol-text) 6%, transparent); }
-.modern-style .rt-seg-btn { height: 24px; border-radius: 4px; }
-.modern-style .rt-seg-btn[aria-checked="true"] { background-color: var(--sol-card); box-shadow: 0 0 0 1px var(--sol-border); }
-.modern-style .rt-seg-btn-labeled { font-weight: 500; }
-.modern-style .rt-find { height: 28px; border-radius: var(--radius-control); background-color: color-mix(in srgb, var(--sol-text) 6%, transparent); }
-.modern-style .rt-find:focus-within { background-color: var(--sol-card); box-shadow: 0 0 0 1px var(--sol-border), 0 0 0 3px color-mix(in srgb, var(--focus-ring) 35%, transparent); }
-.modern-style .rt-find-input { font-family: var(--font-ui, system-ui, sans-serif); }
-.modern-style .rt-btn { height: var(--control-md); padding: 0 14px; border-radius: var(--radius-control); }
+.modern-style .rt-seg {
+  gap: 2px;
+  border-radius: var(--radius-control);
+  background-color: color-mix(in srgb, var(--sol-text) 6%, transparent);
+}
+.modern-style .rt-seg-btn {
+  height: 24px;
+  border-radius: 4px;
+}
+.modern-style .rt-seg-btn[aria-checked="true"] {
+  background-color: var(--sol-card);
+  box-shadow: 0 0 0 1px var(--sol-border);
+}
+.modern-style .rt-seg-btn-labeled {
+  font-weight: 500;
+}
+.modern-style .rt-find {
+  height: 28px;
+  border-radius: var(--radius-control);
+  background-color: color-mix(in srgb, var(--sol-text) 6%, transparent);
+}
+.modern-style .rt-find:focus-within {
+  background-color: var(--sol-card);
+  box-shadow:
+    0 0 0 1px var(--sol-border),
+    0 0 0 3px color-mix(in srgb, var(--focus-ring) 35%, transparent);
+}
+.modern-style .rt-find-input {
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.modern-style .rt-btn {
+  height: var(--control-md);
+  padding: 0 14px;
+  border-radius: var(--radius-control);
+}
 .modern-style .rt-btn:focus-visible,
-.modern-style .rt-seg-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.modern-style .rt-seg-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

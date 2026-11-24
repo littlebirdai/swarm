@@ -4,22 +4,39 @@ import * as path from "node:path";
 import { HARNESS_HOOKS } from "@codecast/shared/contracts";
 import { BUNDLED_SKILLS } from "./bundledSkills";
 import {
-  CODECAST_HOOK_SCRIPTS, CODECAST_OWNED_HOME_PATHS, CODECAST_SKILL_NAMES, ORCH_AGENT_FILES, ORCH_MARKER, ORCH_SKILL_REL,
-  STABLE_FEED_HOOK_FILE, isCodecastHookCommand, isCodecastOwnedHomePath,
+  CODECAST_HOOK_SCRIPTS,
+  CODECAST_OWNED_HOME_PATHS,
+  CODECAST_SKILL_NAMES,
+  ORCH_AGENT_FILES,
+  ORCH_MARKER,
+  ORCH_SKILL_REL,
+  STABLE_FEED_HOOK_FILE,
+  isCodecastHookCommand,
+  isCodecastOwnedHomePath,
 } from "./codecastOwned";
 
-const indexSrc = fs.readFileSync(path.join(import.meta.dir, "index.ts"), "utf-8");
+const indexSrc = fs.readFileSync(
+  path.join(import.meta.dir, "index.ts"),
+  "utf-8",
+);
 // The hook installers (which name the hook file) live in stableContextHooks.ts, split out of stableContext.ts.
-const stableSrc = ["stableContext.ts", "stableContextHooks.ts"].map((f) => fs.readFileSync(path.join(import.meta.dir, f), "utf-8")).join("\n");
+const stableSrc = ["stableContext.ts", "stableContextHooks.ts"]
+  .map((f) => fs.readFileSync(path.join(import.meta.dir, f), "utf-8"))
+  .join("\n");
 
 describe("CODECAST_HOOK_SCRIPTS is the set the installers actually write", () => {
   test("every hook HARNESS_HOOKS registers is listed, and nothing else is but the retired one", () => {
-    const registered = new Set<string>(HARNESS_HOOKS.filter((h) => h.kind === "hook").map((h) => h.file));
+    const registered = new Set<string>(
+      HARNESS_HOOKS.filter((h) => h.kind === "hook").map((h) => h.file),
+    );
     expect(registered.size).toBeGreaterThan(0);
     const listed = new Set<string>(CODECAST_HOOK_SCRIPTS);
     for (const name of registered) expect(listed.has(name)).toBe(true);
     // The retired Bash edit capture stays owned: settings.json copies elsewhere may still name it.
-    for (const name of listed) expect(registered.has(name) || name === "codecast-shell-changes.sh").toBe(true);
+    for (const name of listed)
+      expect(registered.has(name) || name === "codecast-shell-changes.sh").toBe(
+        true,
+      );
   });
 
   test("stableContext.ts derives its hook file name from the shared list", () => {
@@ -30,11 +47,17 @@ describe("CODECAST_HOOK_SCRIPTS is the set the installers actually write", () =>
 
   test("index.ts uses the shared orchestration names", () => {
     expect(indexSrc).toContain("ORCH_MARKER");
-    expect(indexSrc).not.toContain('const ORCH_MARKER = "/.codecast/orchestration/"');
+    expect(indexSrc).not.toContain(
+      'const ORCH_MARKER = "/.codecast/orchestration/"',
+    );
     expect(indexSrc).toContain("ORCH_AGENT_FILES");
     expect(indexSrc).toContain("ORCH_SKILL_REL");
     expect(ORCH_MARKER).toBe("/.codecast/orchestration/");
-    expect([...ORCH_AGENT_FILES]).toEqual(["implementer.md", "reviewer.md", "critic.md"]);
+    expect([...ORCH_AGENT_FILES]).toEqual([
+      "implementer.md",
+      "reviewer.md",
+      "critic.md",
+    ]);
     expect(ORCH_SKILL_REL).toBe(".claude/skills/codecast-orchestrate");
   });
 });
@@ -71,28 +94,52 @@ describe("isCodecastOwnedHomePath", () => {
     expect([...CODECAST_SKILL_NAMES].sort()).toEqual([...names].sort());
     expect(names.length).toBeGreaterThan(0);
     for (const name of names) {
-      expect(isCodecastOwnedHomePath(`.claude/skills/${name}/SKILL.md`)).toBe(true);
-      expect(isCodecastOwnedHomePath(`.claude/skills/${name}-fork/SKILL.md`)).toBe(false);
+      expect(isCodecastOwnedHomePath(`.claude/skills/${name}/SKILL.md`)).toBe(
+        true,
+      );
+      expect(
+        isCodecastOwnedHomePath(`.claude/skills/${name}-fork/SKILL.md`),
+      ).toBe(false);
     }
   });
 
   test("owned paths and their children are owned; siblings are not", () => {
-    expect(isCodecastOwnedHomePath(".claude/skills/codecast-orchestrate/SKILL.md")).toBe(true);
+    expect(
+      isCodecastOwnedHomePath(".claude/skills/codecast-orchestrate/SKILL.md"),
+    ).toBe(true);
     expect(isCodecastOwnedHomePath(".claude/agents/reviewer.md")).toBe(true);
     expect(isCodecastOwnedHomePath(".claude/hooks/task-pulse.sh")).toBe(true);
-    expect(isCodecastOwnedHomePath(".claude/hooks/codecast-prompt.sh")).toBe(true);
-    expect(isCodecastOwnedHomePath(".codecast/hooks/stable-feed-codex.sh")).toBe(true);
-    expect(isCodecastOwnedHomePath(".claude/skills/my-skill/SKILL.md")).toBe(false);
+    expect(isCodecastOwnedHomePath(".claude/hooks/codecast-prompt.sh")).toBe(
+      true,
+    );
+    expect(
+      isCodecastOwnedHomePath(".codecast/hooks/stable-feed-codex.sh"),
+    ).toBe(true);
+    expect(isCodecastOwnedHomePath(".claude/skills/my-skill/SKILL.md")).toBe(
+      false,
+    );
     expect(isCodecastOwnedHomePath(".claude/agents/mine.md")).toBe(false);
     expect(isCodecastOwnedHomePath(".claude/hooks/mine.sh")).toBe(false);
-    expect(isCodecastOwnedHomePath(".claude/skills/codecast-orchestrate-fork/SKILL.md")).toBe(false);
+    expect(
+      isCodecastOwnedHomePath(
+        ".claude/skills/codecast-orchestrate-fork/SKILL.md",
+      ),
+    ).toBe(false);
   });
 
   test("the table covers the hook scripts plus the statusline hook, the skill, the three agents and .codecast", () => {
     expect(CODECAST_OWNED_HOME_PATHS).toContain(".codecast");
-    expect(CODECAST_OWNED_HOME_PATHS).toContain(".claude/hooks/codecast-statusline.sh");
-    expect(CODECAST_OWNED_HOME_PATHS).toContain(".claude/hooks/codecast-shell-changes.sh");
-    expect(CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/hooks/"))).toHaveLength(10);
-    expect(CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/agents/"))).toHaveLength(3);
+    expect(CODECAST_OWNED_HOME_PATHS).toContain(
+      ".claude/hooks/codecast-statusline.sh",
+    );
+    expect(CODECAST_OWNED_HOME_PATHS).toContain(
+      ".claude/hooks/codecast-shell-changes.sh",
+    );
+    expect(
+      CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/hooks/")),
+    ).toHaveLength(10);
+    expect(
+      CODECAST_OWNED_HOME_PATHS.filter((p) => p.startsWith(".claude/agents/")),
+    ).toHaveLength(3);
   });
 });

@@ -23,15 +23,24 @@ describe("branchSizeOf", () => {
 
 describe("originSizeSinceFork", () => {
   test("origin total minus the prefix a completed fork copied", () => {
-    expect(originSizeSinceFork([{ fork_copied: 1321, fork_status: "complete" }], 1394)).toBe(73);
+    expect(
+      originSizeSinceFork(
+        [{ fork_copied: 1321, fork_status: "complete" }],
+        1394,
+      ),
+    ).toBe(73);
   });
 
   test("a copy in flight cannot vouch for the prefix", () => {
-    expect(originSizeSinceFork([{ fork_copied: 400, fork_status: "copying" }], 1394)).toBeUndefined();
+    expect(
+      originSizeSinceFork([{ fork_copied: 400, fork_status: "copying" }], 1394),
+    ).toBeUndefined();
   });
 
   test("a client stub cannot vouch: it only knows the history it had loaded", () => {
-    expect(originSizeSinceFork([{ fork_copied: 834, optimistic: true }], 1394)).toBeUndefined();
+    expect(
+      originSizeSinceFork([{ fork_copied: 834, optimistic: true }], 1394),
+    ).toBeUndefined();
   });
 
   test("the first row that can vouch wins over stubs and in-flight copies", () => {
@@ -48,10 +57,17 @@ describe("originSizeSinceFork", () => {
   });
 
   test("no origin count known means no number", () => {
-    expect(originSizeSinceFork([{ fork_copied: 1321, fork_status: "complete" }], undefined)).toBeUndefined();
+    expect(
+      originSizeSinceFork(
+        [{ fork_copied: 1321, fork_status: "complete" }],
+        undefined,
+      ),
+    ).toBeUndefined();
   });
 
   test("never negative when counts race", () => {
-    expect(originSizeSinceFork([{ fork_copied: 10, fork_status: "complete" }], 8)).toBe(0);
+    expect(
+      originSizeSinceFork([{ fork_copied: 10, fork_status: "complete" }], 8),
+    ).toBe(0);
   });
 });

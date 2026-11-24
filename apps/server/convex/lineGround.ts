@@ -14,7 +14,11 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { parseJsonBlock, STRONG_MODEL, type SurfaceRequest } from "./lib/anthropic";
+import {
+  parseJsonBlock,
+  STRONG_MODEL,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { runModelCall, type CallScope } from "./modelCalls";
 import { patchTask } from "./lib/taskWrite";
 import { predictionPatch } from "./predictions";
@@ -49,14 +53,34 @@ export const GROUND_AUTHOR = "ground";
 export const GROUND_MAX_TOKENS = 2000;
 
 /** The request one cause's ground call posts; ./evals replays exactly it. */
-export function groundRequest(cause: GroundCauseInput, brief: GoalsBrief, now: number): SurfaceRequest {
+export function groundRequest(
+  cause: GroundCauseInput,
+  brief: GoalsBrief,
+  now: number,
+): SurfaceRequest {
   const { system, prompt } = groundCausePrompt(cause, brief, now);
-  return { model: STRONG_MODEL, system, prompt, max_tokens: GROUND_MAX_TOKENS, output_schema: groundOutputSchema(groundPlacingProjects(cause, brief), [...briefGoalRefs(brief)]) };
+  return {
+    model: STRONG_MODEL,
+    system,
+    prompt,
+    max_tokens: GROUND_MAX_TOKENS,
+    output_schema: groundOutputSchema(groundPlacingProjects(cause, brief), [
+      ...briefGoalRefs(brief),
+    ]),
+  };
 }
 
 /** An open cause no one has grounded and no run holds. */
-export function isUngroundedCause(task: Doc<"tasks"> | null): task is Doc<"tasks"> {
-  return !!task && task.source === "signal" && task.status === "open" && !task.readiness && !task.workflow_run_id;
+export function isUngroundedCause(
+  task: Doc<"tasks"> | null,
+): task is Doc<"tasks"> {
+  return (
+    !!task &&
+    task.source === "signal" &&
+    task.status === "open" &&
+    !task.readiness &&
+    !task.workflow_run_id
+  );
 }
 
 /** How far past `limit` a pass reads for causes it can pay for. */
@@ -69,17 +93,24 @@ const GROUND_SCAN = 25;
  * and they took five of every pass's eight while Union's grounding fell
  * behind by 877 (2026-10-26).
  */
-export async function ungroundedCauses(ctx: { db: any }, limit: number, now = Date.now()): Promise<Doc<"tasks">[]> {
+export async function ungroundedCauses(
+  ctx: { db: any },
+  limit: number,
+  now = Date.now(),
+): Promise<Doc<"tasks">[]> {
   const rows: Doc<"tasks">[] = await ctx.db
     .query("tasks")
-    .withIndex("by_source_status_readiness", (q: any) => q.eq("source", "signal").eq("status", "open").eq("readiness", undefined))
+    .withIndex("by_source_status_readiness", (q: any) =>
+      q.eq("source", "signal").eq("status", "open").eq("readiness", undefined),
+    )
     .order("asc")
     .take(limit * GROUND_SCAN);
   const room = new Map<string, boolean>();
   const out: Doc<"tasks">[] = [];
   for (const task of rows) {
     if (!isUngroundedCause(task) || !task.workspace) continue;
-    if (!room.has(task.workspace)) room.set(task.workspace, await budgetHasRoom(ctx, task.workspace, now));
+    if (!room.has(task.workspace))
+      room.set(task.workspace, await budgetHasRoom(ctx, task.workspace, now));
     if (!room.get(task.workspace)) continue;
     out.push(task);
     if (out.length >= limit) break;
@@ -87,14 +118,28 @@ export async function ungroundedCauses(ctx: { db: any }, limit: number, now = Da
   return out;
 }
 
-
 /** A cause nothing has placed (LM1): its project, if any, is a default, so ground names it. */
-export const needsPlacing = (task: Doc<"tasks">) => !!task.cause?.placed && !isPlaced(task.cause.placed);
+export const needsPlacing = (task: Doc<"tasks">) =>
+  !!task.cause?.placed && !isPlaced(task.cause.placed);
 
-export async function groundInput(ctx: { db: any }, task: Doc<"tasks">): Promise<GroundCauseInput> {
-  const filedUnder: Doc<"projects"> | null = needsPlacing(task) && task.project_id ? await ctx.db.get(task.project_id) : null;
-  const signals = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).order("desc").take(SIGNALS_SHOWN);
-  const comments = await ctx.db.query("task_comments").withIndex("by_task_created", (q: any) => q.eq("task_id", task._id)).order("desc").take(COMMENTS_SHOWN);
+export async function groundInput(
+  ctx: { db: any },
+  task: Doc<"tasks">,
+): Promise<GroundCauseInput> {
+  const filedUnder: Doc<"projects"> | null =
+    needsPlacing(task) && task.project_id
+      ? await ctx.db.get(task.project_id)
+      : null;
+  const signals = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .order("desc")
+    .take(SIGNALS_SHOWN);
+  const comments = await ctx.db
+    .query("task_comments")
+    .withIndex("by_task_created", (q: any) => q.eq("task_id", task._id))
+    .order("desc")
+    .take(COMMENTS_SHOWN);
   return {
     short_id: task.short_id,
     title: task.title,
@@ -104,14 +149,42 @@ export async function groundInput(ctx: { db: any }, task: Doc<"tasks">): Promise
     signal_count: task.cause?.signal_count,
     first_seen: task.cause?.first_seen,
     last_seen: task.cause?.last_seen,
-    signals: signals.map((s: any) => ({ source: s.source, kind: s.kind, title: s.title, subject: s.subject, goal_hint: s.goal_hint, detail_md: s.detail_md, observed_at: s.observed_at })),
-    comments: comments.reverse().map((c: any) => ({ author: c.author, text: c.text ?? "", created_at: c.created_at })),
-    ...(needsPlacing(task) ? { placing: filedUnder ? { filed_under: { short_id: filedUnder.short_id ?? String(filedUnder._id), title: filedUnder.title } } : {} } : {}),
+    signals: signals.map((s: any) => ({
+      source: s.source,
+      kind: s.kind,
+      title: s.title,
+      subject: s.subject,
+      goal_hint: s.goal_hint,
+      detail_md: s.detail_md,
+      observed_at: s.observed_at,
+    })),
+    comments: comments.reverse().map((c: any) => ({
+      author: c.author,
+      text: c.text ?? "",
+      created_at: c.created_at,
+    })),
+    ...(needsPlacing(task)
+      ? {
+          placing: filedUnder
+            ? {
+                filed_under: {
+                  short_id: filedUnder.short_id ?? String(filedUnder._id),
+                  title: filedUnder.title,
+                },
+              }
+            : {},
+        }
+      : {}),
   };
 }
 
 /** One cause to ground, and where its call is charged: its workspace's budget and its project. */
-type GroundJob = { task_id: Id<"tasks">; scope: CallScope; cause: GroundCauseInput; brief: GoalsBrief };
+type GroundJob = {
+  task_id: Id<"tasks">;
+  scope: CallScope;
+  cause: GroundCauseInput;
+  brief: GoalsBrief;
+};
 
 export const inputs = internalQuery({
   args: { limit: v.number() },
@@ -119,10 +192,22 @@ export const inputs = internalQuery({
     const jobs: GroundJob[] = [];
     for (const task of await ungroundedCauses(ctx, limit)) {
       if (!task.workspace) continue;
-      const scope: CallScope = { workspace: task.workspace, ...(task.team_id ? { team_id: task.team_id } : {}), ...(task.project_id ? { project_id: task.project_id } : {}) };
+      const scope: CallScope = {
+        workspace: task.workspace,
+        ...(task.team_id ? { team_id: task.team_id } : {}),
+        ...(task.project_id ? { project_id: task.project_id } : {}),
+      };
       // A cause being placed reads every project's charter: its own project is only a default.
-      const brief = await causeBrief(ctx, needsPlacing(task) ? { workspace: task.workspace } : task);
-      jobs.push({ task_id: task._id, scope, cause: await groundInput(ctx, task), brief });
+      const brief = await causeBrief(
+        ctx,
+        needsPlacing(task) ? { workspace: task.workspace } : task,
+      );
+      jobs.push({
+        task_id: task._id,
+        scope,
+        cause: await groundInput(ctx, task),
+        brief,
+      });
     }
     return jobs;
   },
@@ -133,30 +218,61 @@ export const inputs = internalQuery({
  * (a person may have grounded it meanwhile). A reply that cannot be read
  * leaves the cause needing a person, with the reason, rather than asking again.
  */
-export async function recordGroundCore(ctx: any, taskId: Id<"tasks">, outcome: { fields: GroundFields } | { error: string }, now: number): Promise<"grounded" | "unreadable" | "skipped"> {
+export async function recordGroundCore(
+  ctx: any,
+  taskId: Id<"tasks">,
+  outcome: { fields: GroundFields } | { error: string },
+  now: number,
+): Promise<"grounded" | "unreadable" | "skipped"> {
   const task: Doc<"tasks"> | null = await ctx.db.get(taskId);
   if (!isUngroundedCause(task)) return "skipped";
   if ("fields" in outcome) {
     const { project, prediction, ...f } = outcome.fields;
-    const placed = project && needsPlacing(task) ? await placeCause(ctx, task, project) : null;
-    const predicted = prediction ? await predictionPatch(ctx, { ...task, goal_ref: f.goal_ref }, prediction, now).catch((err: Error) => err) : null;
+    const placed =
+      project && needsPlacing(task)
+        ? await placeCause(ctx, task, project)
+        : null;
+    const predicted = prediction
+      ? await predictionPatch(
+          ctx,
+          { ...task, goal_ref: f.goal_ref },
+          prediction,
+          now,
+        ).catch((err: Error) => err)
+      : null;
     await patchTask(ctx, task, {
       ...f,
       ...(predicted && !(predicted instanceof Error) ? predicted : {}),
       ...(placed ? { project_id: placed.to?._id } : {}),
-      ...(task.cause ? { cause: { ...task.cause, grounded_count: task.cause.signal_count, ...(placed ? { placed: "ground" as const } : {}) } } : {}),
+      ...(task.cause
+        ? {
+            cause: {
+              ...task.cause,
+              grounded_count: task.cause.signal_count,
+              ...(placed ? { placed: "ground" as const } : {}),
+            },
+          }
+        : {}),
       updated_at: now,
     });
     await insertTaskComment(ctx, task._id, {
       author: GROUND_AUTHOR,
       comment_type: "note",
-      text: `${groundedWords(f)}${placed ? ` ${placedWords(placed)}` : ""}${predicted ? predicted instanceof Error ? ` Prediction not kept (${predicted.message}): ${prediction}` : ` Predicts ${prediction}` : ""}`,
+      text: `${groundedWords(f)}${placed ? ` ${placedWords(placed)}` : ""}${predicted ? (predicted instanceof Error ? ` Prediction not kept (${predicted.message}): ${prediction}` : ` Predicts ${prediction}`) : ""}`,
     });
     return "grounded";
   }
   const note = `The ground step could not read its answer (${outcome.error}). Ground it by hand: cast task update ${task.short_id} --goal-ref <ref> --category <kind> --risk <level> --readiness <state>`;
-  await patchTask(ctx, task, { readiness: "needs_context", readiness_note: note.slice(0, 500), updated_at: now });
-  await insertTaskComment(ctx, task._id, { author: GROUND_AUTHOR, comment_type: "note", text: note });
+  await patchTask(ctx, task, {
+    readiness: "needs_context",
+    readiness_note: note.slice(0, 500),
+    updated_at: now,
+  });
+  await insertTaskComment(ctx, task._id, {
+    author: GROUND_AUTHOR,
+    comment_type: "note",
+    text: note,
+  });
   return "unreadable";
 }
 
@@ -168,26 +284,55 @@ type Placed = { to: Doc<"projects"> | null; from: Doc<"projects"> | null };
  * project keeps that one as where it was first filed (filed_for_project_id).
  * Null when the ref names no project in the cause's workspace.
  */
-async function placeCause(ctx: any, task: Doc<"tasks">, ref: string): Promise<Placed | null> {
-  const rows: Doc<"projects">[] = await ctx.db.query("projects").withIndex("by_workspace", (q: any) => q.eq("workspace", task.workspace)).take(2000);
+async function placeCause(
+  ctx: any,
+  task: Doc<"tasks">,
+  ref: string,
+): Promise<Placed | null> {
+  const rows: Doc<"projects">[] = await ctx.db
+    .query("projects")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", task.workspace))
+    .take(2000);
   // The brief names a project by its short id, else its id (goals.gatherGoalsBrief).
-  const to = ref === NO_GOAL ? null : rows.find((p) => (p.short_id ?? String(p._id)) === ref) ?? null;
+  const to =
+    ref === NO_GOAL
+      ? null
+      : (rows.find((p) => (p.short_id ?? String(p._id)) === ref) ?? null);
   if (!to && ref !== NO_GOAL) return null;
-  const from: Doc<"projects"> | null = task.project_id ? await ctx.db.get(task.project_id) : null;
+  const from: Doc<"projects"> | null = task.project_id
+    ? await ctx.db.get(task.project_id)
+    : null;
   if (String(to?._id) === String(task.project_id)) return { to, from };
-  const signals: Doc<"signals">[] = await ctx.db.query("signals").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).collect();
+  const signals: Doc<"signals">[] = await ctx.db
+    .query("signals")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .collect();
   for (const row of signals) {
-    const filedFor = row.filed_for_project_id ?? (row.project_id && String(row.project_id) !== String(to?._id) ? row.project_id : undefined);
-    await ctx.db.patch(row._id, { project_id: to?._id, ...(filedFor ? { filed_for_project_id: filedFor } : {}) });
+    const filedFor =
+      row.filed_for_project_id ??
+      (row.project_id && String(row.project_id) !== String(to?._id)
+        ? row.project_id
+        : undefined);
+    await ctx.db.patch(row._id, {
+      project_id: to?._id,
+      ...(filedFor ? { filed_for_project_id: filedFor } : {}),
+    });
   }
   return { to, from };
 }
 
 /** What ground's placement adds to its note: where the cause now lives, and where a default had filed it. */
 function placedWords({ to, from }: Placed): string {
-  if (String(from?._id) === String(to?._id)) return to ? `Belongs in ${to.title}, where it was filed.` : "Belongs in no project.";
-  const moved = from ? `, moved from ${from.title}, where it was filed by default` : "";
-  return to ? `Placed in ${to.title}${moved}.` : `Belongs in no project${moved}.`;
+  if (String(from?._id) === String(to?._id))
+    return to
+      ? `Belongs in ${to.title}, where it was filed.`
+      : "Belongs in no project.";
+  const moved = from
+    ? `, moved from ${from.title}, where it was filed by default`
+    : "";
+  return to
+    ? `Placed in ${to.title}${moved}.`
+    : `Belongs in no project${moved}.`;
 }
 
 /**
@@ -198,13 +343,32 @@ function placedWords({ to, from }: Placed): string {
  * no run holds; a run reads its findings itself. A note from before counts
  * were kept is taken as written over one finding.
  */
-export async function regroundWhenRegrouped(ctx: { db: any }, taskId: Id<"tasks">, now: number): Promise<boolean> {
+export async function regroundWhenRegrouped(
+  ctx: { db: any },
+  taskId: Id<"tasks">,
+  now: number,
+): Promise<boolean> {
   const task: Doc<"tasks"> | null = await ctx.db.get(taskId);
-  if (!task || task.source !== "signal" || task.status !== "open" || task.workflow_run_id || !task.readiness || !task.cause) return false;
+  if (
+    !task ||
+    task.source !== "signal" ||
+    task.status !== "open" ||
+    task.workflow_run_id ||
+    !task.readiness ||
+    !task.cause
+  )
+    return false;
   const was = Math.max(1, task.cause.grounded_count ?? 1);
   const held = task.cause.signal_count;
   if (held === 0 || (held < was * 2 && held * 2 > was)) return false;
-  await patchTask(ctx, task, { goal_ref: undefined, category: undefined, risk: undefined, readiness: undefined, readiness_note: undefined, updated_at: now });
+  await patchTask(ctx, task, {
+    goal_ref: undefined,
+    category: undefined,
+    risk: undefined,
+    readiness: undefined,
+    readiness_note: undefined,
+    updated_at: now,
+  });
   return true;
 }
 
@@ -212,18 +376,40 @@ const groundFieldsValidator = v.object({
   goal_ref: v.string(),
   category: v.union(...LINE_CATEGORIES.map((c) => v.literal(c))),
   risk: v.union(v.literal("low"), v.literal("review"), v.literal("plan")),
-  readiness: v.union(v.literal("ready"), v.literal("needs_context"), v.literal("not_actionable")),
+  readiness: v.union(
+    v.literal("ready"),
+    v.literal("needs_context"),
+    v.literal("not_actionable"),
+  ),
   readiness_note: v.string(),
   prediction: v.optional(v.string()),
   project: v.optional(v.string()),
 });
 
 export const record = internalMutation({
-  args: { task_id: v.id("tasks"), fields: v.optional(groundFieldsValidator), error: v.optional(v.string()) },
-  handler: async (ctx, args) => recordGroundCore(ctx, args.task_id, args.fields ? { fields: args.fields } : { error: args.error ?? "no answer" }, Date.now()),
+  args: {
+    task_id: v.id("tasks"),
+    fields: v.optional(groundFieldsValidator),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) =>
+    recordGroundCore(
+      ctx,
+      args.task_id,
+      args.fields
+        ? { fields: args.fields }
+        : { error: args.error ?? "no answer" },
+      Date.now(),
+    ),
 });
 
-export type GroundSweepResult = { grounded: number; unreadable: number; unanswered: number; unbudgeted: number; skipped?: string };
+export type GroundSweepResult = {
+  grounded: number;
+  unreadable: number;
+  unanswered: number;
+  unbudgeted: number;
+  skipped?: string;
+};
 
 /**
  * One pass: ground up to GROUND_BATCH of the oldest ungrounded causes. A call
@@ -236,20 +422,69 @@ export type GroundSweepResult = { grounded: number; unreadable: number; unanswer
 export const sweep = internalAction({
   args: {},
   handler: async (ctx): Promise<GroundSweepResult> => {
-    if (!process.env.ANTHROPIC_API_KEY) return { grounded: 0, unreadable: 0, unanswered: 0, unbudgeted: 0, skipped: "no model key" };
-    const jobs: GroundJob[] = await ctx.runQuery(internal.lineGround.inputs, { limit: GROUND_BATCH });
+    if (!process.env.ANTHROPIC_API_KEY)
+      return {
+        grounded: 0,
+        unreadable: 0,
+        unanswered: 0,
+        unbudgeted: 0,
+        skipped: "no model key",
+      };
+    const jobs: GroundJob[] = await ctx.runQuery(internal.lineGround.inputs, {
+      limit: GROUND_BATCH,
+    });
     const now = Date.now();
-    const result: GroundSweepResult = { grounded: 0, unreadable: 0, unanswered: 0, unbudgeted: 0 };
-    await Promise.all(jobs.map(async (job) => {
-      const req = groundRequest(job.cause, job.brief, now);
-      const reply = await runModelCall(ctx, job.scope, "grouping", { model: req.model, system: req.system, prompt: req.prompt, max_tokens: req.max_tokens, output: "text", output_schema: req.output_schema }, "Line ground", 60_000);
-      if (!reply.ok) { if (reply.reason === "budget") result.unbudgeted++; else result.unanswered++; return; }
-      const outcome = parseGroundReply(parseJsonBlock(reply.text), briefGoalRefs(job.brief), groundPlacingProjects(job.cause, job.brief), briefReadTargets(job.brief));
-      const status: string = await ctx.runMutation(internal.lineGround.record, "fields" in outcome ? { task_id: job.task_id, fields: outcome.fields } : { task_id: job.task_id, error: outcome.error });
-      if (status === "grounded") result.grounded++;
-      else if (status === "unreadable") result.unreadable++;
-    }));
-    if (jobs.length === GROUND_BATCH && result.unanswered === 0 && result.unbudgeted === 0) await ctx.scheduler.runAfter(0, internal.lineGround.sweep, {});
+    const result: GroundSweepResult = {
+      grounded: 0,
+      unreadable: 0,
+      unanswered: 0,
+      unbudgeted: 0,
+    };
+    await Promise.all(
+      jobs.map(async (job) => {
+        const req = groundRequest(job.cause, job.brief, now);
+        const reply = await runModelCall(
+          ctx,
+          job.scope,
+          "grouping",
+          {
+            model: req.model,
+            system: req.system,
+            prompt: req.prompt,
+            max_tokens: req.max_tokens,
+            output: "text",
+            output_schema: req.output_schema,
+          },
+          "Line ground",
+          60_000,
+        );
+        if (!reply.ok) {
+          if (reply.reason === "budget") result.unbudgeted++;
+          else result.unanswered++;
+          return;
+        }
+        const outcome = parseGroundReply(
+          parseJsonBlock(reply.text),
+          briefGoalRefs(job.brief),
+          groundPlacingProjects(job.cause, job.brief),
+          briefReadTargets(job.brief),
+        );
+        const status: string = await ctx.runMutation(
+          internal.lineGround.record,
+          "fields" in outcome
+            ? { task_id: job.task_id, fields: outcome.fields }
+            : { task_id: job.task_id, error: outcome.error },
+        );
+        if (status === "grounded") result.grounded++;
+        else if (status === "unreadable") result.unreadable++;
+      }),
+    );
+    if (
+      jobs.length === GROUND_BATCH &&
+      result.unanswered === 0 &&
+      result.unbudgeted === 0
+    )
+      await ctx.scheduler.runAfter(0, internal.lineGround.sweep, {});
     return result;
   },
 });

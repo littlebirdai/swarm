@@ -8,7 +8,10 @@ declare const useThingStore: { getState(): { rows: Record<string, string> } };
 /** The same callback for the life of the caller; it reads the clock when called. */
 export function useFrozenAge(): (ts: number) => string {
   const fixed = useContext(Instant);
-  return useCallback((ts: number) => String((fixed ?? Date.now()) - ts), [fixed]);
+  return useCallback(
+    (ts: number) => String((fixed ?? Date.now()) - ts),
+    [fixed],
+  );
 }
 
 /** The instant is read per render, and the callback is made from it. */
@@ -19,7 +22,13 @@ export function useMovingAge(): (ts: number) => string {
 
 /** An object of functions from useMemo: `age` reads the clock, `name` reads nothing. */
 export function useFormatters() {
-  return useMemo(() => ({ age: (ts: number) => String(Date.now() - ts), name: (s: string) => s.trim() }), []);
+  return useMemo(
+    () => ({
+      age: (ts: number) => String(Date.now() - ts),
+      name: (s: string) => s.trim(),
+    }),
+    [],
+  );
 }
 
 /** A tuple whose first item reads the clock. */

@@ -2,18 +2,18 @@ Most tools let an agent change your code. Codecast also lets an agent change the
 
 ## What a mod adds to the app
 
-| What | Where you see it | What happens |
-|---|---|---|
-| Panes | A tab of their own, or one cell of a split | A full page drawn by the mod. Its header shows the version and revision, with **Logs** and **All mods** buttons. |
-| Palette commands | A **Mods** group in the command palette | Panes open as tabs; commands run in place, with no page change. A failure shows as a toast. |
-| Sidebar sections | Under the app's nav | A titled section, such as "Open bugs", whose contents the mod draws. |
-| Blocks | Messages, docs, comments and cards | The mod claims a block type (`bug`, `incident`) and every place markdown renders draws that block through it. With the mod off, the block reads as plain code. |
-| Object kinds | A board, a page per object, and pills | New first-class objects with their own numbering, statuses and typed fields. |
-| A local half | Your own machines | Code that can read files and processes on a machine you approved, feeding values to the panes. |
+| What             | Where you see it                           | What happens                                                                                                                                                   |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Panes            | A tab of their own, or one cell of a split | A full page drawn by the mod. Its header shows the version and revision, with **Logs** and **All mods** buttons.                                               |
+| Palette commands | A **Mods** group in the command palette    | Panes open as tabs; commands run in place, with no page change. A failure shows as a toast.                                                                    |
+| Sidebar sections | Under the app's nav                        | A titled section, such as "Open bugs", whose contents the mod draws.                                                                                           |
+| Blocks           | Messages, docs, comments and cards         | The mod claims a block type (`bug`, `incident`) and every place markdown renders draws that block through it. With the mod off, the block reads as plain code. |
+| Object kinds     | A board, a page per object, and pills      | New first-class objects with their own numbering, statuses and typed fields.                                                                                   |
+| A local half     | Your own machines                          | Code that can read files and processes on a machine you approved, feeding values to the panes.                                                                 |
 
 Mods are drawn with codecast's own cards, tables, stats, charts, tabs and pills, so a mod looks native rather than embedded. They read your sessions, tasks, plans and pull requests from the app's local store, so a pane fills instantly and updates as sessions move.
 
-![The Fleet Pulse mod open as a pane in codecast: four stat tiles (working, needs you, done, parked) over a table of sessions waiting on the viewer](/blog/field-manual/mods-pane.webp "Fleet Pulse, a small mod, running as a tab inside the app. The tiles and the &quot;Waiting on you&quot; table read straight from the local store, so they update as sessions move.")
+![The Fleet Pulse mod open as a pane in codecast: four stat tiles (working, needs you, done, parked) over a table of sessions waiting on the viewer](/blog/field-manual/mods-pane.webp 'Fleet Pulse, a small mod, running as a tab inside the app. The tiles and the "Waiting on you" table read straight from the local store, so they update as sessions move.')
 
 ## Building one in the thread
 

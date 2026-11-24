@@ -6,7 +6,10 @@
 // on the laptop (/Users/me/code/repo) becomes the box's (/home/me/code/repo).
 // Only the caller's own machines, and only while online: an offline one is
 // refused with why, never swapped for another.
-import { deviceDisplayName, normalizeGitOrigin } from "@codecast/shared/contracts";
+import {
+  deviceDisplayName,
+  normalizeGitOrigin,
+} from "@codecast/shared/contracts";
 import { compareVersions } from "@codecast/shared/contracts/orgTemplateManifest";
 import { isDeviceOnline } from "../ccAccountsShared";
 
@@ -27,9 +30,14 @@ type PlaceDevice = {
 };
 
 /** A machine's name as people read it; a row with no label yet reads by its id. */
-export const placeName = (row: PlaceDevice): string => (row.label ? deviceDisplayName(row as any) : row.display_name?.trim() || row.device_id.slice(0, 8));
+export const placeName = (row: PlaceDevice): string =>
+  row.label
+    ? deviceDisplayName(row as any)
+    : row.display_name?.trim() || row.device_id.slice(0, 8);
 
-export type DevicePlace = { device: string; project_path: string; row: PlaceDevice } | { refusal: string };
+export type DevicePlace =
+  | { device: string; project_path: string; row: PlaceDevice }
+  | { refusal: string };
 
 /**
  * The run's place on `target` (a device id of the caller's), given the caller's own devices, the folder the run was
@@ -44,19 +52,44 @@ export function placeRunOnDevice(o: {
   now: number;
 }): DevicePlace {
   const row = o.devices.find((d) => d.device_id === o.target);
-  if (!row) return { refusal: `${o.target} is not one of your machines (cast devices ls lists them)` };
+  if (!row)
+    return {
+      refusal: `${o.target} is not one of your machines (cast devices ls lists them)`,
+    };
   const name = placeName(row);
-  if (!isDeviceOnline(row, o.now)) return { refusal: `${name} is offline, so the run cannot start there: bring its daemon back, or run with --device here` };
-  if (o.asker && o.asker === o.target && o.project_path) return { device: row.device_id, project_path: o.project_path, row };
+  if (!isDeviceOnline(row, o.now))
+    return {
+      refusal: `${name} is offline, so the run cannot start there: bring its daemon back, or run with --device here`,
+    };
+  if (o.asker && o.asker === o.target && o.project_path)
+    return { device: row.device_id, project_path: o.project_path, row };
   const cli = row.cli_version || row.version;
-  if (!cli || !/^\d+\.\d+\.\d+$/.test(cli) || compareVersions(cli, PLACED_RUN_MIN_CLI) < 0) {
-    return { refusal: `${name} runs cast ${cli || "of an unknown version"}, and a run placed there needs ${PLACED_RUN_MIN_CLI} or later: update it (cast update there, or its Update button in Settings), then run this again` };
+  if (
+    !cli ||
+    !/^\d+\.\d+\.\d+$/.test(cli) ||
+    compareVersions(cli, PLACED_RUN_MIN_CLI) < 0
+  ) {
+    return {
+      refusal: `${name} runs cast ${cli || "of an unknown version"}, and a run placed there needs ${PLACED_RUN_MIN_CLI} or later: update it (cast update there, or its Update button in Settings), then run this again`,
+    };
   }
   const origin = o.origin ? normalizeGitOrigin(o.origin) : null;
-  if (!origin) return { refusal: `the run's folder names no git origin, so ${name} cannot find its checkout of it` };
-  const same = (c: { origin?: string | null }) => !!c.origin && normalizeGitOrigin(c.origin) === origin;
+  if (!origin)
+    return {
+      refusal: `the run's folder names no git origin, so ${name} cannot find its checkout of it`,
+    };
+  const same = (c: { origin?: string | null }) =>
+    !!c.origin && normalizeGitOrigin(c.origin) === origin;
   // A line slot is a checkout the machine offers for runs; any checkout its git plane reports will do after it.
-  const checkout = (row.line_slots ?? []).find(same) ?? (row.git_plane ?? []).find(same);
-  if (!checkout) return { refusal: `${name} has no checkout of ${origin}: clone it there, then run this again` };
-  return { device: row.device_id, project_path: checkout.root.replace(/\/+$/, "") || "/", row };
+  const checkout =
+    (row.line_slots ?? []).find(same) ?? (row.git_plane ?? []).find(same);
+  if (!checkout)
+    return {
+      refusal: `${name} has no checkout of ${origin}: clone it there, then run this again`,
+    };
+  return {
+    device: row.device_id,
+    project_path: checkout.root.replace(/\/+$/, "") || "/",
+    row,
+  };
 }

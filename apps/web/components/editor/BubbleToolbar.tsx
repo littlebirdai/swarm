@@ -121,7 +121,9 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
             <Italic className="w-3.5 h-3.5" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => (editor.chain().focus() as any).toggleUnderline().run()}
+            onClick={() =>
+              (editor.chain().focus() as any).toggleUnderline().run()
+            }
             isActive={editor.isActive("underline")}
             title={`Underline (${MOD}+U)`}
           >
@@ -142,7 +144,9 @@ export function BubbleToolbar({ editor }: BubbleToolbarProps) {
             <Code className="w-3.5 h-3.5" />
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => (editor.chain().focus() as any).toggleHighlight().run()}
+            onClick={() =>
+              (editor.chain().focus() as any).toggleHighlight().run()
+            }
             isActive={editor.isActive("highlight")}
             title="Highlight"
           >

@@ -1,34 +1,78 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useActiveTeamFeature } from '@/lib/teamFeatures';
-import { StyleSheet, FlatList, TouchableOpacity, View as RNView, KeyboardAvoidingView, Platform, AppState, Animated } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import * as Haptics from 'expo-haptics';
-import { copyToClipboard } from '@/lib/clipboard';
-import { setChatFocus, clearChatFocus } from '@/lib/chatFocus';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
-import { useMutation } from 'convex/react';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { useInboxStore, selectChannelReadMarker } from '@codecast/web/store/inboxStore';
-import { useChannelMessages, useChannelMessagesSync, useChatRail, useSupersededChannelId } from '@codecast/web/hooks/useChatSync';
-import { useOpenThreadPrefetch, useThreadPrefetch } from '@codecast/web/hooks/useThreadPrefetch';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { lineGroupKey, buildChatTimeline, dmOtherIds, memberHandle, plainPreview } from '@codecast/shared/chat';
-import { channelHuddleMemberIds, chatRoomKey } from '@codecast/shared/contracts';
-import { HuddleButton } from '@/components/calls/SessionHuddleButton';
-import { MessageRow, DayDivider, NewDivider, ChatAvatar, fromChatView, type MobileChatMessage } from '@/components/chat/MessageRow';
-import { threadRootOf } from '@codecast/web/components/chat/chatTypes';
-import { channelDisplayName } from '@codecast/web/lib/chatViews';
-import { type MentionCandidate } from '@/components/chat/MentionStrip';
-import { useSessionIdentityLookup } from '@/components/identity';
-import { ChatComposerBar } from '@/components/chat/ChatComposerBar';
-import { MessageActionsSheet, type MessageAction } from '@/components/chat/MessageActionsSheet';
-import { ImageViewer } from '@/components/chat/ImageViewer';
-import { TypingRow } from '@/components/chat/TypingRow';
-import type { ChatAttachmentArg } from '@/components/chat/chatUpload';
-import { appAlert } from '@/lib/popups';
-import { teamMembersOf } from '@codecast/web/lib/activeTeam';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useActiveTeamFeature } from "@/lib/teamFeatures";
+import {
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  View as RNView,
+  KeyboardAvoidingView,
+  Platform,
+  AppState,
+  Animated,
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import * as Haptics from "expo-haptics";
+import { copyToClipboard } from "@/lib/clipboard";
+import { setChatFocus, clearChatFocus } from "@/lib/chatFocus";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  useLocalSearchParams,
+  useRouter,
+  Stack,
+  useFocusEffect,
+} from "expo-router";
+import { useMutation } from "convex/react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import {
+  useInboxStore,
+  selectChannelReadMarker,
+} from "@codecast/web/store/inboxStore";
+import {
+  useChannelMessages,
+  useChannelMessagesSync,
+  useChatRail,
+  useSupersededChannelId,
+} from "@codecast/web/hooks/useChatSync";
+import {
+  useOpenThreadPrefetch,
+  useThreadPrefetch,
+} from "@codecast/web/hooks/useThreadPrefetch";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import {
+  lineGroupKey,
+  buildChatTimeline,
+  dmOtherIds,
+  memberHandle,
+  plainPreview,
+} from "@codecast/shared/chat";
+import {
+  channelHuddleMemberIds,
+  chatRoomKey,
+} from "@codecast/shared/contracts";
+import { HuddleButton } from "@/components/calls/SessionHuddleButton";
+import {
+  MessageRow,
+  DayDivider,
+  NewDivider,
+  ChatAvatar,
+  fromChatView,
+  type MobileChatMessage,
+} from "@/components/chat/MessageRow";
+import { threadRootOf } from "@codecast/web/components/chat/chatTypes";
+import { channelDisplayName } from "@codecast/web/lib/chatViews";
+import { type MentionCandidate } from "@/components/chat/MentionStrip";
+import { useSessionIdentityLookup } from "@/components/identity";
+import { ChatComposerBar } from "@/components/chat/ChatComposerBar";
+import {
+  MessageActionsSheet,
+  type MessageAction,
+} from "@/components/chat/MessageActionsSheet";
+import { ImageViewer } from "@/components/chat/ImageViewer";
+import { TypingRow } from "@/components/chat/TypingRow";
+import type { ChatAttachmentArg } from "@/components/chat/chatUpload";
+import { appAlert } from "@/lib/popups";
+import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 // One channel. An inverted FlatList (the only scroll model that keeps a chat
 // pinned to the newest message on mobile without fighting the keyboard), the
@@ -43,7 +87,10 @@ import { teamMembersOf } from '@codecast/web/lib/activeTeam';
 
 export default function ChatChannelScreen() {
   const Theme = useTheme();
-  const { id, m: targetParam } = useLocalSearchParams<{ id: string; m?: string }>();
+  const { id, m: targetParam } = useLocalSearchParams<{
+    id: string;
+    m?: string;
+  }>();
   // A DM opened this tick has a stub id; once the server row lands the stub
   // is gone and its forwarding address is the real room.
   const superseded = useSupersededChannelId(id);
@@ -56,7 +103,7 @@ export default function ChatChannelScreen() {
   // feeder (live newest page, older pages on demand), and every gesture is a
   // store action that paints before the server hears of it.
   const currentUser = useInboxStore((s) => s.currentUser) as any;
-  const viewerId = currentUser?._id ? String(currentUser._id) : '';
+  const viewerId = currentUser?._id ? String(currentUser._id) : "";
 
   // Chat is a per-team opt-in; a deep link into an off team's channel must
   // not subscribe (the server refuses). Unknown (cold) still feeds: the
@@ -71,9 +118,11 @@ export default function ChatChannelScreen() {
   // the prefetch fills both while the app runs; the list says so at the
   // bottom until the live page brings it.
   const newerComing = useInboxStore((s) => {
-    const target = typeof targetParam === 'string' ? targetParam : undefined;
+    const target = typeof targetParam === "string" ? targetParam : undefined;
     if (target && !s.chatMessages[target]) return true;
-    const tip = (s.chatRail ?? []).find((r: any) => String(r.channel_id) === channelId)?.last_message?._id;
+    const tip = (s.chatRail ?? []).find(
+      (r: any) => String(r.channel_id) === channelId,
+    )?.last_message?._id;
     return !!tip && !s.chatMessages[tip];
   });
   const teamMembers = useInboxStore(teamMembersOf) as any[];
@@ -95,7 +144,8 @@ export default function ChatChannelScreen() {
         id: String(m._id),
         handle,
         name: m.name || handle,
-        avatarUrl: (m as any).github_avatar_url || (m as any).image || undefined,
+        avatarUrl:
+          (m as any).github_avatar_url || (m as any).image || undefined,
         isAgent: (m as any).is_bot,
       });
     }
@@ -109,8 +159,13 @@ export default function ChatChannelScreen() {
     [mentionCandidates],
   );
 
-  const [sheetTarget, setSheetTarget] = useState<MobileChatMessage | null>(null);
-  const [editing, setEditing] = useState<{ messageId: string; content: string } | null>(null);
+  const [sheetTarget, setSheetTarget] = useState<MobileChatMessage | null>(
+    null,
+  );
+  const [editing, setEditing] = useState<{
+    messageId: string;
+    content: string;
+  } | null>(null);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -120,7 +175,10 @@ export default function ChatChannelScreen() {
   // opened. The live mark advances while you read — computing against it would
   // erase your place mid-scroll. Frozen once the room resolves (the cached rail
   // usually holds it on the first frame).
-  const entryReadAtRef = useRef<{ channelId: string; at: number | undefined } | null>(null);
+  const entryReadAtRef = useRef<{
+    channelId: string;
+    at: number | undefined;
+  } | null>(null);
   if (railRow && entryReadAtRef.current?.channelId !== channelId) {
     entryReadAtRef.current = { channelId, at: railRow.lastReadAt ?? 0 };
   }
@@ -129,8 +187,11 @@ export default function ChatChannelScreen() {
   // re-rendering the list more than once a second, and only while needed.
   const [now, setNow] = useState(() => Date.now());
   const anyThinking = views.some(
-    (m) => m.agentStatus === 'thinking' || m.agentStatus === 'streaming'
-      || m.threadAgentStatus === 'thinking' || m.threadAgentStatus === 'streaming',
+    (m) =>
+      m.agentStatus === "thinking" ||
+      m.agentStatus === "streaming" ||
+      m.threadAgentStatus === "thinking" ||
+      m.threadAgentStatus === "streaming",
   );
   useEffect(() => {
     if (!anyThinking) return;
@@ -144,7 +205,7 @@ export default function ChatChannelScreen() {
   // mark is the newest row in the ROOM, replies included, so a badge a thread
   // reply raised clears too (web's rule).
   const focusedRef = useRef(false);
-  const appActiveRef = useRef(AppState.currentState === 'active');
+  const appActiveRef = useRef(AppState.currentState === "active");
   const newestId = views.at(-1)?.id;
   const markIfPresent = useCallback(() => {
     if (!focusedRef.current || !appActiveRef.current) return;
@@ -164,21 +225,26 @@ export default function ChatChannelScreen() {
     }, [markIfPresent, channelId]),
   );
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      appActiveRef.current = s === 'active';
-      if (s === 'active') markIfPresent();
+    const sub = AppState.addEventListener("change", (s) => {
+      appActiveRef.current = s === "active";
+      if (s === "active") markIfPresent();
     });
     return () => sub.remove();
   }, [markIfPresent]);
-  useEffect(() => { markIfPresent(); }, [newestId, markIfPresent]);
+  useEffect(() => {
+    markIfPresent();
+  }, [newestId, markIfPresent]);
 
   // Sends paint in this tick (the store's send action writes the row and
   // journals the mutation); a refused send turns the row red with Retry.
-  const onSend = useCallback((content: string, attachments: ChatAttachmentArg[]) => {
-    useInboxStore.getState().sendChatMessage(channelId, content, {
-      attachments: attachments.length ? (attachments as any) : undefined,
-    });
-  }, [channelId]);
+  const onSend = useCallback(
+    (content: string, attachments: ChatAttachmentArg[]) => {
+      useInboxStore.getState().sendChatMessage(channelId, content, {
+        attachments: attachments.length ? (attachments as any) : undefined,
+      });
+    },
+    [channelId],
+  );
 
   const onSubmitEdit = useCallback((messageId: string, content: string) => {
     useInboxStore.getState().editChatMessage(messageId, content);
@@ -202,7 +268,9 @@ export default function ChatChannelScreen() {
 
   // The shared views, folded through the SAME timeline rules the web uses.
   const rows = useMemo(() => {
-    const all = views.map((v) => fromChatView(v, chatMessages[v.id], identityFor));
+    const all = views.map((v) =>
+      fromChatView(v, chatMessages[v.id], identityFor),
+    );
     // A reply also sent to the channel names the thread it belongs to: the
     // root's opening words, read from the store (the root may be off the page).
     for (const m of all) {
@@ -215,7 +283,8 @@ export default function ChatChannelScreen() {
         authorId: msg.author.id,
         groupKey: lineGroupKey(msg.author, msg.contextSession?.id),
         createdAt: msg.createdAt,
-        pendingAgent: msg.agentStatus === 'thinking' || msg.agentStatus === 'streaming',
+        pendingAgent:
+          msg.agentStatus === "thinking" || msg.agentStatus === "streaming",
         deleted: !!msg.deletedAt,
         view: msg,
       })),
@@ -227,8 +296,12 @@ export default function ChatChannelScreen() {
   // Every thread on the page, newest first, fetched into the store before
   // anyone taps it: a thread opens on its replies, never on a spinner.
   const threadRoots = useMemo(
-    () => views.filter((v) => (v.replyCount ?? 0) > 0).reverse().slice(0, 20)
-      .map((v) => ({ id: v.id, lastReplyAt: v.lastReplyAt })),
+    () =>
+      views
+        .filter((v) => (v.replyCount ?? 0) > 0)
+        .reverse()
+        .slice(0, 20)
+        .map((v) => ({ id: v.id, lastReplyAt: v.lastReplyAt })),
     [views],
   );
   useThreadPrefetch(threadRoots);
@@ -246,19 +319,25 @@ export default function ChatChannelScreen() {
   const targetTriesRef = useRef(0);
   const doneTargetRef = useRef<string | null>(null);
   useEffect(() => {
-    const target = typeof targetParam === 'string' ? targetParam : undefined;
+    const target = typeof targetParam === "string" ? targetParam : undefined;
     if (!target || doneTargetRef.current === target) return;
     // The store first: a cached or prefetched row answers without a page.
     const row = useInboxStore.getState().chatMessages[target] as any;
     if (row?.thread_root_id) {
       doneTargetRef.current = target;
       router.replace({
-        pathname: '/chat/thread/[id]',
-        params: { id: String(row.thread_root_id), channel: String(channelId), m: target },
+        pathname: "/chat/thread/[id]",
+        params: {
+          id: String(row.thread_root_id),
+          channel: String(channelId),
+          m: target,
+        },
       } as never);
       return;
     }
-    const index = inverted.findIndex((it: any) => it.kind === 'message' && it.message?.id === target);
+    const index = inverted.findIndex(
+      (it: any) => it.kind === "message" && it.message?.id === target,
+    );
     if (index >= 0) {
       doneTargetRef.current = target;
       setHighlightId(target);
@@ -266,7 +345,15 @@ export default function ChatChannelScreen() {
       // notification that named that line is a scroll away from the bottom
       // and back — skip it. A permalink into history still jumps.
       if (index > 2) {
-        setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true }), 250);
+        setTimeout(
+          () =>
+            listRef.current?.scrollToIndex({
+              index,
+              viewPosition: 0.5,
+              animated: true,
+            }),
+          250,
+        );
       }
       setTimeout(() => setHighlightId(null), 3200);
       return;
@@ -279,7 +366,16 @@ export default function ChatChannelScreen() {
       // Give up quietly: the person is in the right room, which is the point.
       doneTargetRef.current = target;
     }
-  }, [targetParam, inverted, feed.loading, feed.hasMoreAbove, loadOlder, loadingOlder, router, channelId]);
+  }, [
+    targetParam,
+    inverted,
+    feed.loading,
+    feed.hasMoreAbove,
+    loadOlder,
+    loadingOlder,
+    router,
+    channelId,
+  ]);
 
   // ── Scroll pill ───────────────────────────────────────────────────────────
   // Away from the newest message, a pill offers the way back — and counts what
@@ -288,7 +384,11 @@ export default function ChatChannelScreen() {
   const missedBaseRef = useRef<string | undefined>(undefined);
   const [missed, setMissed] = useState(0);
   useEffect(() => {
-    if (!awayFromBottom) { setMissed(0); missedBaseRef.current = newestId ? String(newestId) : undefined; return; }
+    if (!awayFromBottom) {
+      setMissed(0);
+      missedBaseRef.current = newestId ? String(newestId) : undefined;
+      return;
+    }
     if (!newestId) return;
     if (missedBaseRef.current !== String(newestId)) setMissed((n) => n + 1);
     missedBaseRef.current = String(newestId);
@@ -304,87 +404,140 @@ export default function ChatChannelScreen() {
   // ── Long-press sheet ──────────────────────────────────────────────────────
   const onLongPress = useCallback((message: MobileChatMessage) => {
     if (message.pending || message.failed || message.deletedAt) return;
-    if (Platform.OS === 'ios') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === "ios")
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSheetTarget(message);
   }, []);
 
   // Object form + cast: the typed-route union regenerates only when Metro runs.
-  const pushThread = useCallback((rootId: string, focusId?: string) => {
-    router.push({
-      pathname: '/chat/thread/[id]',
-      params: { id: rootId, channel: String(channelId), ...(focusId ? { m: focusId } : {}) },
-    } as never);
-  }, [router, channelId]);
+  const pushThread = useCallback(
+    (rootId: string, focusId?: string) => {
+      router.push({
+        pathname: "/chat/thread/[id]",
+        params: {
+          id: rootId,
+          channel: String(channelId),
+          ...(focusId ? { m: focusId } : {}),
+        },
+      } as never);
+    },
+    [router, channelId],
+  );
 
-  const onSheetAction = useCallback((action: MessageAction) => {
-    const message = sheetTarget;
-    if (!message) return;
-    if (action.kind === 'react') {
-      toggleReaction(message.id, action.emoji);
-    } else if (action.kind === 'reply') {
-      pushThread(threadRootOf(message));
-    } else if (action.kind === 'copy') {
-      copyToClipboard(message.content);
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (action.kind === 'edit') {
-      setEditing({ messageId: message.id, content: message.content });
-    } else if (action.kind === 'delete') {
-      appAlert('Delete message?', 'It will show as deleted for everyone.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => useInboxStore.getState().deleteChatMessage(message.id) },
-      ]);
-    }
-  }, [sheetTarget, toggleReaction, pushThread]);
+  const onSheetAction = useCallback(
+    (action: MessageAction) => {
+      const message = sheetTarget;
+      if (!message) return;
+      if (action.kind === "react") {
+        toggleReaction(message.id, action.emoji);
+      } else if (action.kind === "reply") {
+        pushThread(threadRootOf(message));
+      } else if (action.kind === "copy") {
+        copyToClipboard(message.content);
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
+      } else if (action.kind === "edit") {
+        setEditing({ messageId: message.id, content: message.content });
+      } else if (action.kind === "delete") {
+        appAlert("Delete message?", "It will show as deleted for everyone.", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () =>
+              useInboxStore.getState().deleteChatMessage(message.id),
+          },
+        ]);
+      }
+    },
+    [sheetTarget, toggleReaction, pushThread],
+  );
 
-  const renderItem = useCallback(({ item }: { item: (typeof rows)[number] }) => {
-    if (item.kind === 'day') return <DayDivider label={item.label} />;
-    if (item.kind === 'new') return <NewDivider />;
-    const view = (item.message as any).view as MobileChatMessage;
-    return (
-      <RNView style={view.id === highlightId ? styles.highlight : undefined}>
-        <MessageRow
-          message={view}
-          grouped={item.grouped}
-          now={now}
-          knownMentionHandles={knownHandles}
-          onOpenThread={pushThread}
-          onThreadPressIn={prefetchThread}
-          onLongPress={onLongPress}
-          onToggleReaction={toggleReaction}
-          onStopAgent={(mid) => void stopAnchor({ message_id: mid as any })}
-          onRetrySend={onRetrySend}
-          onOpenImage={setViewerUri}
-        />
-      </RNView>
-    );
-  }, [now, highlightId, knownHandles, pushThread, prefetchThread, onLongPress, toggleReaction, stopAnchor, onRetrySend]);
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof rows)[number] }) => {
+      if (item.kind === "day") return <DayDivider label={item.label} />;
+      if (item.kind === "new") return <NewDivider />;
+      const view = (item.message as any).view as MobileChatMessage;
+      return (
+        <RNView style={view.id === highlightId ? styles.highlight : undefined}>
+          <MessageRow
+            message={view}
+            grouped={item.grouped}
+            now={now}
+            knownMentionHandles={knownHandles}
+            onOpenThread={pushThread}
+            onThreadPressIn={prefetchThread}
+            onLongPress={onLongPress}
+            onToggleReaction={toggleReaction}
+            onStopAgent={(mid) => void stopAnchor({ message_id: mid as any })}
+            onRetrySend={onRetrySend}
+            onOpenImage={setViewerUri}
+          />
+        </RNView>
+      );
+    },
+    [
+      now,
+      highlightId,
+      knownHandles,
+      pushThread,
+      prefetchThread,
+      onLongPress,
+      toggleReaction,
+      stopAnchor,
+      onRetrySend,
+    ],
+  );
 
   // ── Header identity ───────────────────────────────────────────────────────
-  const isDm = channel?.kind === 'dm';
+  const isDm = channel?.kind === "dm";
   const dmOthers = useMemo(
     () => (isDm ? dmOtherIds(channel?.dm_key, viewerId) : []),
     [isDm, channel?.dm_key, viewerId],
   );
-  const counterpart = dmOthers.length === 1 ? memberById.get(dmOthers[0]) : undefined;
+  const counterpart =
+    dmOthers.length === 1 ? memberById.get(dmOthers[0]) : undefined;
   const roomName = isDm
-    ? channelDisplayName({ name: channel?.name ?? '', kind: 'dm', dmMemberIds: dmOthers }, teamMembers)
-    : channel?.name ?? 'channel';
+    ? channelDisplayName(
+        { name: channel?.name ?? "", kind: "dm", dmMemberIds: dmOthers },
+        teamMembers,
+      )
+    : (channel?.name ?? "channel");
   const presence = counterpart?.presence_state as string | undefined;
   const presenceColor =
-    presence === 'active' ? Theme.green : presence === 'idle' ? Theme.accent : Theme.textMuted0;
+    presence === "active"
+      ? Theme.green
+      : presence === "idle"
+        ? Theme.accent
+        : Theme.textMuted0;
   const presenceLabel =
-    presence === 'active' ? 'Active now' : presence === 'idle' ? 'Idle' : presence === 'away' ? 'Away' : 'Offline';
+    presence === "active"
+      ? "Active now"
+      : presence === "idle"
+        ? "Idle"
+        : presence === "away"
+          ? "Away"
+          : "Offline";
 
-  const nameOf = useCallback((uid: string) => {
-    const m = memberById.get(uid);
-    return m?.name?.split(/\s+/)[0] || m?.github_username || '';
-  }, [memberById]);
+  const nameOf = useCallback(
+    (uid: string) => {
+      const m = memberById.get(uid);
+      return m?.name?.split(/\s+/)[0] || m?.github_username || "";
+    },
+    [memberById],
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <RNView style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} style={styles.back} accessibilityLabel="Back">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={styles.back}
+          accessibilityLabel="Back"
+        >
           <FontAwesome name="chevron-left" size={18} color={Theme.text} />
         </TouchableOpacity>
         {isDm && counterpart ? (
@@ -400,24 +553,36 @@ export default function ChatChannelScreen() {
         ) : (
           <RNView style={styles.headGlyph}>
             <FontAwesome
-              name={isDm ? 'user' : channel?.is_private || channel?.kind === 'private' ? 'lock' : 'hashtag'}
+              name={
+                isDm
+                  ? "user"
+                  : channel?.is_private || channel?.kind === "private"
+                    ? "lock"
+                    : "hashtag"
+              }
               size={15}
               color={Theme.textMuted}
             />
           </RNView>
         )}
         <RNView style={styles.headMain}>
-          <RNText style={styles.title} numberOfLines={1}>{roomName}</RNText>
+          <RNText style={styles.title} numberOfLines={1}>
+            {roomName}
+          </RNText>
           {isDm && counterpart ? (
             <RNView style={styles.presenceRow}>
-              <RNView style={[styles.presenceDot, { backgroundColor: presenceColor }]} />
+              <RNView
+                style={[styles.presenceDot, { backgroundColor: presenceColor }]}
+              />
               <RNText style={styles.presenceText}>{presenceLabel}</RNText>
             </RNView>
           ) : channel?.topic ? (
-            <RNText style={styles.topic} numberOfLines={1}>{channel.topic}</RNText>
+            <RNText style={styles.topic} numberOfLines={1}>
+              {channel.topic}
+            </RNText>
           ) : null}
         </RNView>
-        {channel && channel.kind !== 'community' && (
+        {channel && channel.kind !== "community" && (
           <HuddleButton
             roomKey={chatRoomKey({
               id: channelId,
@@ -428,15 +593,27 @@ export default function ChatChannelScreen() {
             })}
             teamId={channel.team_id ? String(channel.team_id) : null}
             ring={isDm ? dmOthers : undefined}
-            channelMemberCount={channelHuddleMemberIds(channel.kind, railRow?.memberIds, teamMembers)?.length}
-            anchorTitle={isDm ? (dmOthers.length > 1 ? `with ${roomName}` : undefined) : `#${channel.name}`}
+            channelMemberCount={
+              channelHuddleMemberIds(
+                channel.kind,
+                railRow?.memberIds,
+                teamMembers,
+              )?.length
+            }
+            anchorTitle={
+              isDm
+                ? dmOthers.length > 1
+                  ? `with ${roomName}`
+                  : undefined
+                : `#${channel.name}`
+            }
           />
         )}
       </RNView>
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
         <RNView style={styles.listWrap}>
@@ -453,12 +630,16 @@ export default function ChatChannelScreen() {
             onScrollToIndexFailed={() => {}}
             ListHeaderComponent={
               feed.loading && newerComing && inverted.length > 0 ? (
-                <RNText style={styles.loadingOlder}>Loading new messages…</RNText>
+                <RNText style={styles.loadingOlder}>
+                  Loading new messages…
+                </RNText>
               ) : null
             }
             ListFooterComponent={
               loadingOlder ? (
-                <RNText style={styles.loadingOlder}>Loading earlier messages…</RNText>
+                <RNText style={styles.loadingOlder}>
+                  Loading earlier messages…
+                </RNText>
               ) : null
             }
             ListEmptyComponent={
@@ -469,33 +650,56 @@ export default function ChatChannelScreen() {
                   {/* Fabric's inverted list leaves empty/footer components
                       untransformed — no counter-flip (verified on device). */}
                   <RNView>
-                    <RNText style={styles.emptyTitle}>{isDm ? roomName : `#${channel?.name ?? 'channel'}`} is quiet</RNText>
-                    <RNText style={styles.emptySub}>Say something to start it off.</RNText>
+                    <RNText style={styles.emptyTitle}>
+                      {isDm ? roomName : `#${channel?.name ?? "channel"}`} is
+                      quiet
+                    </RNText>
+                    <RNText style={styles.emptySub}>
+                      Say something to start it off.
+                    </RNText>
                   </RNView>
                 </RNView>
               )
             }
-            contentContainerStyle={inverted.length === 0 ? styles.emptyList : undefined}
+            contentContainerStyle={
+              inverted.length === 0 ? styles.emptyList : undefined
+            }
             // A drag or a tap on the transcript puts the keyboard away; a tap
             // on a link, reaction or image acts first time ('handled'). A row
             // takes every tap for its long-press menu, so MessageRow dismisses
             // on a plain tap itself. 'interactive' is iOS-only.
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            keyboardDismissMode={
+              Platform.OS === "ios" ? "interactive" : "on-drag"
+            }
             keyboardShouldPersistTaps="handled"
           />
           {awayFromBottom && (
-            <TouchableOpacity style={styles.jumpPill} onPress={jumpToNow} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.jumpPill}
+              onPress={jumpToNow}
+              activeOpacity={0.85}
+            >
               <FontAwesome name="chevron-down" size={14} color={Theme.bg} />
-              {missed > 0 && <RNText style={styles.jumpCount}>{missed > 99 ? '99+' : missed}</RNText>}
+              {missed > 0 && (
+                <RNText style={styles.jumpCount}>
+                  {missed > 99 ? "99+" : missed}
+                </RNText>
+              )}
             </TouchableOpacity>
           )}
         </RNView>
 
-        <TypingRow channelId={String(channelId)} viewerId={viewerId} nameOf={nameOf} />
+        <TypingRow
+          channelId={String(channelId)}
+          viewerId={viewerId}
+          nameOf={nameOf}
+        />
         <ChatComposerBar
           atScreenBottom
           channelId={String(channelId)}
-          placeholder={isDm ? `Message ${roomName}` : `Message #${channel?.name ?? ''}`}
+          placeholder={
+            isDm ? `Message ${roomName}` : `Message #${channel?.name ?? ""}`
+          }
           mentionCandidates={mentionCandidates}
           editing={editing}
           onCancelEdit={() => setEditing(null)}
@@ -516,64 +720,86 @@ export default function ChatChannelScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: Theme.bg },
-  flex: { flex: 1 },
-  listWrap: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 4,
-    paddingRight: Spacing.md,
-    minHeight: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Theme.border + '80',
-  },
-  back: { width: 36, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headGlyph: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: Theme.bgHighlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headMain: { flex: 1, minWidth: 0 },
-  title: { fontSize: 15.5, fontWeight: '700', color: Theme.text },
-  topic: { fontSize: 12, color: Theme.textMuted, marginTop: 1 },
-  presenceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  presenceDot: { width: 8, height: 8, borderRadius: 4 },
-  presenceText: { fontSize: 12, color: Theme.textMuted },
-  loadingOlder: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: Theme.textMuted0,
-    paddingVertical: 8,
-  },
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyList: { flexGrow: 1 },
-  emptyTitle: { fontSize: 15, fontWeight: '600', color: Theme.textSecondary, textAlign: 'center' },
-  emptySub: { fontSize: 13, color: Theme.textMuted0, textAlign: 'center', marginTop: 4 },
-  highlight: { backgroundColor: Theme.accent + '1E' },
-  jumpPill: {
-    position: 'absolute',
-    right: 14,
-    bottom: 12,
-    minWidth: 44,
-    height: 44,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    backgroundColor: Theme.blue,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  jumpCount: { fontSize: 13, fontWeight: '700', color: Theme.bg },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: Theme.bg },
+    flex: { flex: 1 },
+    listWrap: { flex: 1 },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingLeft: 4,
+      paddingRight: Spacing.md,
+      minHeight: 56,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Theme.border + "80",
+    },
+    back: {
+      width: 36,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headGlyph: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      backgroundColor: Theme.bgHighlight,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    headMain: { flex: 1, minWidth: 0 },
+    title: { fontSize: 15.5, fontWeight: "700", color: Theme.text },
+    topic: { fontSize: 12, color: Theme.textMuted, marginTop: 1 },
+    presenceRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      marginTop: 2,
+    },
+    presenceDot: { width: 8, height: 8, borderRadius: 4 },
+    presenceText: { fontSize: 12, color: Theme.textMuted },
+    loadingOlder: {
+      textAlign: "center",
+      fontSize: 12,
+      color: Theme.textMuted0,
+      paddingVertical: 8,
+    },
+    emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+    emptyList: { flexGrow: 1 },
+    emptyTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: Theme.textSecondary,
+      textAlign: "center",
+    },
+    emptySub: {
+      fontSize: 13,
+      color: Theme.textMuted0,
+      textAlign: "center",
+      marginTop: 4,
+    },
+    highlight: { backgroundColor: Theme.accent + "1E" },
+    jumpPill: {
+      position: "absolute",
+      right: 14,
+      bottom: 12,
+      minWidth: 44,
+      height: 44,
+      borderRadius: 22,
+      paddingHorizontal: 14,
+      backgroundColor: Theme.blue,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      shadowColor: "#000",
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
+    },
+    jumpCount: { fontSize: 13, fontWeight: "700", color: Theme.bg },
+  }),
+);

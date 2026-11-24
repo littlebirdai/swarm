@@ -8,7 +8,10 @@
 import { signInExpired } from "@codecast/shared/contracts/cloudAgents";
 
 /** Whether the login's access token has run out (a login with no expiry has not). */
-export function codexAccessExpired(summary: Pick<CodexAuthSummary, "access_expires_at">, now = Date.now()): boolean {
+export function codexAccessExpired(
+  summary: Pick<CodexAuthSummary, "access_expires_at">,
+  now = Date.now(),
+): boolean {
   return signInExpired(summary.access_expires_at, now);
 }
 
@@ -42,9 +45,14 @@ export function jwtClaims(token: unknown): Record<string, any> | null {
 }
 
 /** Whether Codex has no credential here at all: an API key, in auth.json or the environment, still runs it. */
-export function codexCliSignedOut(raw: string | null, env: Record<string, string | undefined> = process.env): boolean {
+export function codexCliSignedOut(
+  raw: string | null,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
   const auth = decodeCodexAuth(raw);
-  return !auth.usable && !auth.api_key && !env.CODEX_API_KEY && !env.OPENAI_API_KEY;
+  return (
+    !auth.usable && !auth.api_key && !env.CODEX_API_KEY && !env.OPENAI_API_KEY
+  );
 }
 
 /** Decode identity from an auth.json blob. The id_token is a JWT whose payload
@@ -62,17 +70,24 @@ export function decodeCodexAuth(raw: string | null): CodexAuthSummary {
   const summary: CodexAuthSummary = {
     usable: !!(tokens && (tokens.refresh_token || tokens.access_token)),
   };
-  if (!summary.usable && typeof parsed?.OPENAI_API_KEY === "string" && parsed.OPENAI_API_KEY) summary.api_key = true;
+  if (
+    !summary.usable &&
+    typeof parsed?.OPENAI_API_KEY === "string" &&
+    parsed.OPENAI_API_KEY
+  )
+    summary.api_key = true;
   if (typeof tokens?.account_id === "string" && tokens.account_id) {
     summary.account_id = tokens.account_id;
   }
   const lastRefresh = Date.parse(parsed?.last_refresh ?? "");
   if (Number.isFinite(lastRefresh)) summary.last_refresh = lastRefresh;
   const claims = jwtClaims(tokens?.id_token);
-  if (typeof claims?.email === "string" && claims.email) summary.email = claims.email;
+  if (typeof claims?.email === "string" && claims.email)
+    summary.email = claims.email;
   const plan = claims?.["https://api.openai.com/auth"]?.chatgpt_plan_type;
   if (typeof plan === "string" && plan) summary.plan = plan;
   const exp = jwtClaims(tokens?.access_token)?.exp;
-  if (typeof exp === "number" && Number.isFinite(exp)) summary.access_expires_at = exp * 1000;
+  if (typeof exp === "number" && Number.isFinite(exp))
+    summary.access_expires_at = exp * 1000;
   return summary;
 }

@@ -15,14 +15,24 @@
 // is away is paused as it starts, and all of them resume on the way back.
 // An animation the app paused itself is left as it was.
 
-type Pausable = Pick<Animation, "playState" | "pause" | "play"> & { effect: Pick<AnimationEffect, "getComputedTiming"> | null };
+type Pausable = Pick<Animation, "playState" | "pause" | "play"> & {
+  effect: Pick<AnimationEffect, "getComputedTiming"> | null;
+};
 
 type IdleDocument = {
   hasFocus(): boolean;
   visibilityState: string;
   getAnimations(): Pausable[];
-  addEventListener(type: string, listener: (event: Event) => void, capture?: boolean): void;
-  removeEventListener(type: string, listener: (event: Event) => void, capture?: boolean): void;
+  addEventListener(
+    type: string,
+    listener: (event: Event) => void,
+    capture?: boolean,
+  ): void;
+  removeEventListener(
+    type: string,
+    listener: (event: Event) => void,
+    capture?: boolean,
+  ): void;
 };
 
 type IdleWindow = {
@@ -39,7 +49,10 @@ function endless(animation: Pausable): boolean {
 }
 
 /** Start following the window's focus and visibility. Returns the uninstall. */
-export function followWindowIdle(doc: IdleDocument, win: IdleWindow): () => void {
+export function followWindowIdle(
+  doc: IdleDocument,
+  win: IdleWindow,
+): () => void {
   const held = new Set<Pausable>();
   let idle = false;
 
@@ -55,8 +68,11 @@ export function followWindowIdle(doc: IdleDocument, win: IdleWindow): () => void
 
   // An element that mounts while the window is away starts its animation then.
   const onStart = (event: Event) => {
-    const target = event.target as { getAnimations?: (options?: { subtree: boolean }) => Pausable[] } | null;
-    for (const animation of target?.getAnimations?.({ subtree: true }) ?? []) hold(animation);
+    const target = event.target as {
+      getAnimations?: (options?: { subtree: boolean }) => Pausable[];
+    } | null;
+    for (const animation of target?.getAnimations?.({ subtree: true }) ?? [])
+      hold(animation);
   };
 
   const update = () => {

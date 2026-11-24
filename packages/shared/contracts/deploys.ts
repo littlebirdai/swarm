@@ -5,7 +5,12 @@
 // go out together in one deploy; a deploy the team's own path records (a
 // `cast ship mark`, a source's deploy item) is the same object. Pure types and
 // rules here; the server, the CLI and the web all read them.
-import { carryingDeploys, deployIsLive, type AttemptMerge, type DeployRow } from "./causeHistory";
+import {
+  carryingDeploys,
+  deployIsLive,
+  type AttemptMerge,
+  type DeployRow,
+} from "./causeHistory";
 
 export const DAY = 24 * 60 * 60 * 1000;
 
@@ -19,7 +24,13 @@ export const DEPLOY_SHORT_ID_RE = /^dp-\d+$/i;
  * live:      a marker says the version runs on the target.
  * failed / cancelled: it ended without going live.
  */
-export const DEPLOY_STATUSES = ["requested", "running", "live", "failed", "cancelled"] as const;
+export const DEPLOY_STATUSES = [
+  "requested",
+  "running",
+  "live",
+  "failed",
+  "cancelled",
+] as const;
 export type DeployStatus = (typeof DEPLOY_STATUSES)[number];
 
 /**
@@ -27,7 +38,10 @@ export type DeployStatus = (typeof DEPLOY_STATUSES)[number];
  * carries it, and how a run's url in a message finds its deploy. Null for any other url.
  */
 export function actionsRunKey(url: string | null | undefined): string | null {
-  const m = /github\.com\/[^/\s]+\/[^/\s]+\/actions\/runs\/(\d+)(?:\/attempts\/(\d+))?/i.exec(url ?? "");
+  const m =
+    /github\.com\/[^/\s]+\/[^/\s]+\/actions\/runs\/(\d+)(?:\/attempts\/(\d+))?/i.exec(
+      url ?? "",
+    );
   if (!m) return null;
   return m[2] && m[2] !== "1" ? `${m[1]}/attempts/${m[2]}` : m[1]!;
 }
@@ -38,12 +52,25 @@ export function actionsRunKey(url: string | null | undefined): string | null {
  * (`[line.deploy] trigger`). `outside`: the team's own deploy path, recorded
  * when its marker arrived (a deploy button elsewhere, a CI job, a laptop).
  */
-export const DEPLOY_TRIGGERS = ["person", "role", "schedule", "count", "outside"] as const;
+export const DEPLOY_TRIGGERS = [
+  "person",
+  "role",
+  "schedule",
+  "count",
+  "outside",
+] as const;
 export type DeployTrigger = (typeof DEPLOY_TRIGGERS)[number];
 
 // The `[line.deploy]` profile section lives in its own leaf, so a reader of
 // the profile (the daemon) need not load the deploy history behind this file.
-export { LINE_DEPLOY_DEFAULTS, LINE_DEPLOY_KEYS, LINE_DEPLOY_TRIGGERS, normalizeDeployTarget, type LineDeployProfile, type LineDeployTrigger } from "./lineDeploy";
+export {
+  LINE_DEPLOY_DEFAULTS,
+  LINE_DEPLOY_KEYS,
+  LINE_DEPLOY_TRIGGERS,
+  normalizeDeployTarget,
+  type LineDeployProfile,
+  type LineDeployTrigger,
+} from "./lineDeploy";
 
 /**
  * How a deploy is known to carry a fix. `sent`: the line's deploy stage sent
@@ -51,7 +78,10 @@ export { LINE_DEPLOY_DEFAULTS, LINE_DEPLOY_KEYS, LINE_DEPLOY_TRIGGERS, normalize
  * `deployed after the merge`: the rule a recorded deploy is read by
  * (causeHistory carryingDeploys).
  */
-export type DeployCarriedHow = "sent" | "same commit" | "deployed after the merge";
+export type DeployCarriedHow =
+  | "sent"
+  | "same commit"
+  | "deployed after the merge";
 
 /** One fix a deploy carried: the problem, the run that built it, the card that shipped it, the merge. */
 export type DeployCarry = {
@@ -64,9 +94,20 @@ export type DeployCarry = {
   how: DeployCarriedHow;
 };
 
-export type DeployCommit = { sha: string; subject: string; author?: string; conversation_id?: string; task_ids?: string[] };
+export type DeployCommit = {
+  sha: string;
+  subject: string;
+  author?: string;
+  conversation_id?: string;
+  task_ids?: string[];
+};
 
-export type DeployStartedBy = { kind: "person" | "role" | "line" | "source" | "cli"; name: string; user_id?: string; role_id?: string };
+export type DeployStartedBy = {
+  kind: "person" | "role" | "line" | "source" | "cli";
+  name: string;
+  user_id?: string;
+  role_id?: string;
+};
 
 /** A merge the waiting set and the carry rule read: a line run's recorded merge. */
 export type DeployMerge = {
@@ -84,13 +125,24 @@ export type DeployMerge = {
 };
 
 const asAttempt = (m: DeployMerge): AttemptMerge => ({
-  sha: m.sha, branch: m.branch, into: m.into, at: m.at, prUrl: m.pr_url ?? null, repository: null, mainAt: m.main_at ?? null,
+  sha: m.sha,
+  branch: m.branch,
+  into: m.into,
+  at: m.at,
+  prUrl: m.pr_url ?? null,
+  repository: null,
+  mainAt: m.main_at ?? null,
 });
 
 /** The merges no live deploy has carried yet: what the deploy stage would send. Oldest first. */
-export function waitingMerges(merges: ReadonlyArray<DeployMerge>, deploys: ReadonlyArray<DeployRow>): DeployMerge[] {
+export function waitingMerges(
+  merges: ReadonlyArray<DeployMerge>,
+  deploys: ReadonlyArray<DeployRow>,
+): DeployMerge[] {
   return merges
-    .filter((m) => carryingDeploys(asAttempt(m), deploys, m.run_id).length === 0)
+    .filter(
+      (m) => carryingDeploys(asAttempt(m), deploys, m.run_id).length === 0,
+    )
     .sort((a, b) => a.at - b.at);
 }
 
@@ -99,25 +151,48 @@ export function waitingMerges(merges: ReadonlyArray<DeployMerge>, deploys: Reado
  * is the first live one on its target whose code holds the merge.
  * `deploys` holds every deploy of the project (this one included).
  */
-export function carriedBy(deploy: DeployRow, merges: ReadonlyArray<DeployMerge>, deploys: ReadonlyArray<DeployRow>): DeployCarry[] {
+export function carriedBy(
+  deploy: DeployRow,
+  merges: ReadonlyArray<DeployMerge>,
+  deploys: ReadonlyArray<DeployRow>,
+): DeployCarry[] {
   if (!deployIsLive(deploy)) return [];
   const out: DeployCarry[] = [];
   for (const m of [...merges].sort((a, b) => a.at - b.at)) {
-    const hit = carryingDeploys(asAttempt(m), deploys, m.run_id).find((d) => d.id === deploy._id);
+    const hit = carryingDeploys(asAttempt(m), deploys, m.run_id).find(
+      (d) => d.id === deploy._id,
+    );
     if (!hit) continue;
     out.push({
-      task_id: m.task_id, run_id: m.run_id, ...(m.decision_id ? { decision_id: m.decision_id } : {}),
-      merge_sha: m.sha, merged_at: m.at, ...(m.pr_url ? { pr_url: m.pr_url } : {}), how: hit.how,
+      task_id: m.task_id,
+      run_id: m.run_id,
+      ...(m.decision_id ? { decision_id: m.decision_id } : {}),
+      merge_sha: m.sha,
+      merged_at: m.at,
+      ...(m.pr_url ? { pr_url: m.pr_url } : {}),
+      how: hit.how,
     });
   }
   return out;
 }
 
 /** What one carried problem did after the deploy: its findings in the window, and whether one reopened it. */
-export type DeployAfterProblem = { task_id: string; findings: number; reopened: boolean; first_at: number | null };
+export type DeployAfterProblem = {
+  task_id: string;
+  findings: number;
+  reopened: boolean;
+  first_at: number | null;
+};
 
 /** An error group the window saw start or come back. */
-export type DeployAfterError = { group_id: string; short_id: string; title: string; kind: "new" | "regressed"; at: number; count: number };
+export type DeployAfterError = {
+  group_id: string;
+  short_id: string;
+  title: string;
+  kind: "new" | "regressed";
+  at: number;
+  count: number;
+};
 
 /**
  * What happened after a deploy, over its window: from going live to the next
@@ -137,11 +212,27 @@ export type DeployAfter = {
   quiet: boolean;
 };
 
-export function summarizeAfter(from: number, to: number, open: boolean, problems: DeployAfterProblem[], errors: DeployAfterError[]): DeployAfter {
+export function summarizeAfter(
+  from: number,
+  to: number,
+  open: boolean,
+  problems: DeployAfterProblem[],
+  errors: DeployAfterError[],
+): DeployAfter {
   const regressions = problems.filter((p) => p.findings > 0).length;
   const reopened = problems.filter((p) => p.reopened).length;
   const newErrors = errors.filter((e) => e.kind === "new").length;
-  return { from, to, open, problems, errors, regressions, reopened, new_errors: newErrors, quiet: regressions === 0 && errors.length === 0 };
+  return {
+    from,
+    to,
+    open,
+    problems,
+    errors,
+    regressions,
+    reopened,
+    new_errors: newErrors,
+    quiet: regressions === 0 && errors.length === 0,
+  };
 }
 
 /** Which path pushed a deploy. The dev watcher's pushes are not deploys (dev pushes, TargetDevPush). */
@@ -162,16 +253,29 @@ export type LiveCandidate = {
  * or a re-sent status can go live after a deploy created later, so creation order is not what runs. `target` and
  * `repository` narrow them (a row naming no repository matches any).
  */
-export function liveDeploys<T extends LiveCandidate>(rows: ReadonlyArray<T>, opts: { target?: string; repository?: string | null } = {}): T[] {
+export function liveDeploys<T extends LiveCandidate>(
+  rows: ReadonlyArray<T>,
+  opts: { target?: string; repository?: string | null } = {},
+): T[] {
   return rows
-    .filter((d) => d.status === "live" && (!opts.target || d.target === opts.target)
-      && (!d.repository || !opts.repository || d.repository === opts.repository))
-    .sort((a, b) => (b.live_at ?? b.created_at) - (a.live_at ?? a.created_at) || (b._creationTime ?? 0) - (a._creationTime ?? 0));
+    .filter(
+      (d) =>
+        d.status === "live" &&
+        (!opts.target || d.target === opts.target) &&
+        (!d.repository || !opts.repository || d.repository === opts.repository),
+    )
+    .sort(
+      (a, b) =>
+        (b.live_at ?? b.created_at) - (a.live_at ?? a.created_at) ||
+        (b._creationTime ?? 0) - (a._creationTime ?? 0),
+    );
 }
 
 /** The live deploy among `rows` that went live last (liveDeploys). */
-export const liveDeployOf = <T extends LiveCandidate>(rows: ReadonlyArray<T>, opts: { target?: string; repository?: string | null } = {}): T | undefined =>
-  liveDeploys(rows, opts)[0];
+export const liveDeployOf = <T extends LiveCandidate>(
+  rows: ReadonlyArray<T>,
+  opts: { target?: string; repository?: string | null } = {},
+): T | undefined => liveDeploys(rows, opts)[0];
 
 /**
  * Who put a name on a target (changesDeploy.addedBy): the deploy (`deploy`, dp-N) or dev push (`dev_push`, `deploy`
@@ -216,7 +320,13 @@ export type DeployView = {
   version: string | null;
   url: string | null;
   commits: DeployCommit[];
-  carries: Array<DeployCarry & { task_short_id: string | null; task_title: string | null; decision_short_id: string | null }>;
+  carries: Array<
+    DeployCarry & {
+      task_short_id: string | null;
+      task_title: string | null;
+      decision_short_id: string | null;
+    }
+  >;
   note: string | null;
   /** What a deploy of a target asked for (deploys.md DP13): main's head, an earlier sha again, or the rollback; null for a line's deploy or a marker. */
   action?: "deploy" | "redeploy" | "rollback" | null;
@@ -247,16 +357,24 @@ export type DeployStepView = {
 };
 
 /** When a deploy counts on a chart: when it went live, else when it was asked for. */
-export const deployAt = (d: Pick<DeployView, "live_at" | "created_at">) => d.live_at ?? d.created_at;
+export const deployAt = (d: Pick<DeployView, "live_at" | "created_at">) =>
+  d.live_at ?? d.created_at;
 
 /** One line for a deploy's state, the words every surface uses. */
-export function deployStateWords(d: Pick<DeployView, "status" | "carries">, after?: Pick<DeployAfter, "regressions" | "new_errors" | "quiet" | "open"> | null): string {
+export function deployStateWords(
+  d: Pick<DeployView, "status" | "carries">,
+  after?: Pick<
+    DeployAfter,
+    "regressions" | "new_errors" | "quiet" | "open"
+  > | null,
+): string {
   if (d.status === "requested") return "waiting for its machine";
   if (d.status === "running") return "going out";
   if (d.status === "failed") return "failed";
   if (d.status === "cancelled") return "cancelled";
   if (!after) return "live";
   if (after.regressions) return `${after.regressions} came back`;
-  if (after.new_errors) return `${after.new_errors} new error${after.new_errors === 1 ? "" : "s"}`;
+  if (after.new_errors)
+    return `${after.new_errors} new error${after.new_errors === 1 ? "" : "s"}`;
   return after.open ? "live, quiet so far" : "quiet";
 }

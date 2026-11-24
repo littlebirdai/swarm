@@ -11,7 +11,8 @@ function dir(): string {
   return d;
 }
 afterEach(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 const write = (p: string, c: string) => {
@@ -44,7 +45,9 @@ describe("judgeOwnedFile — the three-hash compare", () => {
   });
 
   test("no record yet: first install writes", () => {
-    expect(judgeOwnedFile(undefined, undefined, NEW)).toEqual({ action: "write" });
+    expect(judgeOwnedFile(undefined, undefined, NEW)).toEqual({
+      action: "write",
+    });
   });
 });
 
@@ -112,7 +115,11 @@ describe("reconcileOwnedFile — edits survive, deletions are respected", () => 
     // called for unowned paths. Pin the pure function's contract instead: an
     // edited file with a record is a conflict, not a write, so even a caller
     // bug cannot silently clobber user content that diverged.
-    const verdict = judgeOwnedFile({ wroteHash: contentHash("something else") }, "not ours at all\n", "desired\n");
+    const verdict = judgeOwnedFile(
+      { wroteHash: contentHash("something else") },
+      "not ours at all\n",
+      "desired\n",
+    );
     expect(verdict.action).toBe("conflict");
   });
 });

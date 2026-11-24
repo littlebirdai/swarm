@@ -146,12 +146,16 @@ const ARCHIVE_TYPES = new Set([
   "application/vnd.android.package-archive",
 ]);
 
-export function fileKind(mediaType: string | undefined, name?: string): FileKind {
-  const type = mediaType && mediaType !== "application/octet-stream"
-    ? mediaType
-    : name
-      ? mediaTypeForFile(name)
-      : (mediaType ?? "application/octet-stream");
+export function fileKind(
+  mediaType: string | undefined,
+  name?: string,
+): FileKind {
+  const type =
+    mediaType && mediaType !== "application/octet-stream"
+      ? mediaType
+      : name
+        ? mediaTypeForFile(name)
+        : (mediaType ?? "application/octet-stream");
   // SVG is text the browser will happily execute from our storage origin, so it
   // is never previewed as an image — it reads as a download like any document.
   if (type === "image/svg+xml") return "binary";
@@ -162,7 +166,12 @@ export function fileKind(mediaType: string | undefined, name?: string): FileKind
   if (SHEET_TYPES.has(type)) return type.startsWith("text/") ? "text" : "sheet";
   if (DOC_TYPES.has(type)) return "doc";
   if (ARCHIVE_TYPES.has(type)) return "archive";
-  if (type.startsWith("text/") || type === "application/json" || type === "application/yaml" || type === "application/xml") {
+  if (
+    type.startsWith("text/") ||
+    type === "application/json" ||
+    type === "application/yaml" ||
+    type === "application/xml"
+  ) {
     return "text";
   }
   return "binary";
@@ -170,7 +179,13 @@ export function fileKind(mediaType: string | undefined, name?: string): FileKind
 
 /** Kinds the conversation can show inline without leaving the page. */
 export function isPreviewableKind(kind: FileKind): boolean {
-  return kind === "image" || kind === "pdf" || kind === "video" || kind === "audio" || kind === "text";
+  return (
+    kind === "image" ||
+    kind === "pdf" ||
+    kind === "video" ||
+    kind === "audio" ||
+    kind === "text"
+  );
 }
 
 /** Short size for a card: "812 B", "24 KB", "1.4 MB". */

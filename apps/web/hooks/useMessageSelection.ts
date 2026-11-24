@@ -6,7 +6,13 @@ import { useInboxStore } from "../store/inboxStore";
 
 type TimelineItem = {
   type: string;
-  data: { _id: string; role?: string; message_uuid?: string; content?: string; subtype?: string };
+  data: {
+    _id: string;
+    role?: string;
+    message_uuid?: string;
+    content?: string;
+    subtype?: string;
+  };
   timestamp: number;
 };
 
@@ -29,14 +35,22 @@ export function useMessageSelection({
   timeline: TimelineItem[];
   virtualizer: { scrollToIndex: (index: number, opts?: any) => void } | null;
   onForkFromMessage?: (messageUuid: string) => void;
-  onSelectMessage?: (messageUuid: string | null, content: string | null) => void;
+  onSelectMessage?: (
+    messageUuid: string | null,
+    content: string | null,
+  ) => void;
   enabled?: boolean;
 }) {
   const selectedIndex = useForkNavigationStore((s) => s.selectedIndex);
   const setSelectedIndex = useForkNavigationStore((s) => s.setSelectedIndex);
 
   const getUserMessageIndices = useCallback((): number[] => {
-    const SKIP_PREFIXES = ["[Request interrupted", "<task-notification>", "<system-reminder>", 'Background agent "'];
+    const SKIP_PREFIXES = [
+      "[Request interrupted",
+      "<task-notification>",
+      "<system-reminder>",
+      'Background agent "',
+    ];
     const indices: number[] = [];
     for (let i = 0; i < timeline.length; i++) {
       const item = timeline[i];
@@ -44,91 +58,122 @@ export function useMessageSelection({
       if (item.data.role !== "human" && item.data.role !== "user") continue;
       if (item.data.subtype) continue;
       const content = (item.data.content || "").trim();
-      if (!content || isCompactionSummaryMessage(content) || SKIP_PREFIXES.some(p => content.startsWith(p))) continue;
+      if (
+        !content ||
+        isCompactionSummaryMessage(content) ||
+        SKIP_PREFIXES.some((p) => content.startsWith(p))
+      )
+        continue;
       indices.push(i);
     }
     return indices;
   }, [timeline]);
 
-  const selectAndNotify = useCallback((index: number | null) => {
-    setSelectedIndex(index);
-    if (index === null) {
-      onSelectMessage?.(null, null);
-      return;
-    }
-    const item = timeline[index];
-    if (item?.type === "message" && item.data.message_uuid) {
-      onSelectMessage?.(item.data.message_uuid, item.data.content || null);
-    }
-    if (index !== null && virtualizer) {
-      virtualizer.scrollToIndex(index, { align: "center" });
-    }
-  }, [timeline, virtualizer, setSelectedIndex, onSelectMessage]);
+  const selectAndNotify = useCallback(
+    (index: number | null) => {
+      setSelectedIndex(index);
+      if (index === null) {
+        onSelectMessage?.(null, null);
+        return;
+      }
+      const item = timeline[index];
+      if (item?.type === "message" && item.data.message_uuid) {
+        onSelectMessage?.(item.data.message_uuid, item.data.content || null);
+      }
+      if (index !== null && virtualizer) {
+        virtualizer.scrollToIndex(index, { align: "center" });
+      }
+    },
+    [timeline, virtualizer, setSelectedIndex, onSelectMessage],
+  );
 
-  usePaneShortcutAction('msg.clearSelection', useCallback((): boolean | void => {
-    // Escape priority: an open inline-comment editor handles its own Esc (cancel),
-    // so defer to it; otherwise leave inline-review mode before clearing a message
-    // selection. The global dispatcher runs before any in-region handler, so this
-    // is where review-exit on Escape has to live.
-    const store = useInboxStore.getState();
-    if (store.reviewEditingId) return false;
-    if (store.reviewMessageId) {
-      store.setReviewTarget(null);
-      store.setReviewEditingId(null);
-      return true;
-    }
-    if (!enabled || selectedIndex === null) return false;
-    selectAndNotify(null);
-  }, [enabled, selectedIndex, selectAndNotify]));
-
-  usePaneShortcutAction('msg.next', useCallback((): boolean | void => {
-    if (!enabled || isInputFocused()) return false;
-    const indices = getUserMessageIndices();
-    if (indices.length === 0) return false;
-    if (selectedIndex === null) {
-      selectAndNotify(indices[indices.length - 1]);
-      return;
-    }
-    const currentPos = indices.indexOf(selectedIndex);
-    if (currentPos === -1) {
-      const closest = indices.reduce((best, idx) =>
-        Math.abs(idx - selectedIndex) < Math.abs(best - selectedIndex) ? idx : best
-      );
-      selectAndNotify(closest);
-      return;
-    }
-    const next = currentPos < indices.length - 1 ? indices[currentPos + 1] : selectedIndex;
-    selectAndNotify(next);
-  }, [enabled, selectedIndex, getUserMessageIndices, selectAndNotify]));
-
-  usePaneShortcutAction('msg.prev', useCallback((): boolean | void => {
-    if (!enabled || isInputFocused()) return false;
-    const indices = getUserMessageIndices();
-    if (indices.length === 0) return false;
-    if (selectedIndex === null) {
-      selectAndNotify(indices[indices.length - 1]);
-      return;
-    }
-    const currentPos = indices.indexOf(selectedIndex);
-    if (currentPos === -1) {
-      const closest = indices.reduce((best, idx) =>
-        Math.abs(idx - selectedIndex) < Math.abs(best - selectedIndex) ? idx : best
-      );
-      selectAndNotify(closest);
-      return;
-    }
-    const next = currentPos > 0 ? indices[currentPos - 1] : selectedIndex;
-    selectAndNotify(next);
-  }, [enabled, selectedIndex, getUserMessageIndices, selectAndNotify]));
-
-  usePaneShortcutAction('msg.fork', useCallback((): boolean | void => {
-    if (!enabled || selectedIndex === null) return false;
-    const item = timeline[selectedIndex];
-    if (item?.type === "message" && item.data.message_uuid && onForkFromMessage) {
+  usePaneShortcutAction(
+    "msg.clearSelection",
+    useCallback((): boolean | void => {
+      // Escape priority: an open inline-comment editor handles its own Esc (cancel),
+      // so defer to it; otherwise leave inline-review mode before clearing a message
+      // selection. The global dispatcher runs before any in-region handler, so this
+      // is where review-exit on Escape has to live.
+      const store = useInboxStore.getState();
+      if (store.reviewEditingId) return false;
+      if (store.reviewMessageId) {
+        store.setReviewTarget(null);
+        store.setReviewEditingId(null);
+        return true;
+      }
+      if (!enabled || selectedIndex === null) return false;
       selectAndNotify(null);
-      onForkFromMessage(item.data.message_uuid);
-    }
-  }, [enabled, selectedIndex, timeline, onForkFromMessage, selectAndNotify]));
+    }, [enabled, selectedIndex, selectAndNotify]),
+  );
+
+  usePaneShortcutAction(
+    "msg.next",
+    useCallback((): boolean | void => {
+      if (!enabled || isInputFocused()) return false;
+      const indices = getUserMessageIndices();
+      if (indices.length === 0) return false;
+      if (selectedIndex === null) {
+        selectAndNotify(indices[indices.length - 1]);
+        return;
+      }
+      const currentPos = indices.indexOf(selectedIndex);
+      if (currentPos === -1) {
+        const closest = indices.reduce((best, idx) =>
+          Math.abs(idx - selectedIndex) < Math.abs(best - selectedIndex)
+            ? idx
+            : best,
+        );
+        selectAndNotify(closest);
+        return;
+      }
+      const next =
+        currentPos < indices.length - 1
+          ? indices[currentPos + 1]
+          : selectedIndex;
+      selectAndNotify(next);
+    }, [enabled, selectedIndex, getUserMessageIndices, selectAndNotify]),
+  );
+
+  usePaneShortcutAction(
+    "msg.prev",
+    useCallback((): boolean | void => {
+      if (!enabled || isInputFocused()) return false;
+      const indices = getUserMessageIndices();
+      if (indices.length === 0) return false;
+      if (selectedIndex === null) {
+        selectAndNotify(indices[indices.length - 1]);
+        return;
+      }
+      const currentPos = indices.indexOf(selectedIndex);
+      if (currentPos === -1) {
+        const closest = indices.reduce((best, idx) =>
+          Math.abs(idx - selectedIndex) < Math.abs(best - selectedIndex)
+            ? idx
+            : best,
+        );
+        selectAndNotify(closest);
+        return;
+      }
+      const next = currentPos > 0 ? indices[currentPos - 1] : selectedIndex;
+      selectAndNotify(next);
+    }, [enabled, selectedIndex, getUserMessageIndices, selectAndNotify]),
+  );
+
+  usePaneShortcutAction(
+    "msg.fork",
+    useCallback((): boolean | void => {
+      if (!enabled || selectedIndex === null) return false;
+      const item = timeline[selectedIndex];
+      if (
+        item?.type === "message" &&
+        item.data.message_uuid &&
+        onForkFromMessage
+      ) {
+        selectAndNotify(null);
+        onForkFromMessage(item.data.message_uuid);
+      }
+    }, [enabled, selectedIndex, timeline, onForkFromMessage, selectAndNotify]),
+  );
 
   return { selectedIndex };
 }

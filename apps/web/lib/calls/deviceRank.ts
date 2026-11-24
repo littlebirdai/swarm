@@ -16,7 +16,11 @@
 
 export type DeviceKind = "audioinput" | "audiooutput" | "videoinput";
 
-export const DEVICE_KINDS: DeviceKind[] = ["audioinput", "audiooutput", "videoinput"];
+export const DEVICE_KINDS: DeviceKind[] = [
+  "audioinput",
+  "audiooutput",
+  "videoinput",
+];
 
 /** The clientState.ui key holding each kind's ranking. */
 export const DEVICE_RANK_KEY = {
@@ -35,36 +39,51 @@ type Device = Pick<MediaDeviceInfo, "deviceId" | "label">;
  *  "communications") is its own entry, meaning "follow the OS"; anything else
  *  is its label, or its id while the browser withholds labels. */
 export function deviceKey(d: Device): string {
-  if (d.deviceId === "default" || d.deviceId === "communications") return d.deviceId;
+  if (d.deviceId === "default" || d.deviceId === "communications")
+    return d.deviceId;
   return d.label || `id:${d.deviceId}`;
 }
 
 /** The ranking after the person picks `picked` from `present`. */
-export function rankAfterPick(rank: string[], picked: Device, present: Device[]): string[] {
+export function rankAfterPick(
+  rank: string[],
+  picked: Device,
+  present: Device[],
+): string[] {
   const key = deviceKey(picked);
   const here = new Set(present.map(deviceKey));
   const rest = rank.filter((k) => k !== key);
   const at = rest.findIndex((k) => here.has(k));
-  const next = at < 0 ? [...rest, key] : [...rest.slice(0, at), key, ...rest.slice(at)];
+  const next =
+    at < 0 ? [...rest, key] : [...rest.slice(0, at), key, ...rest.slice(at)];
   return next.slice(0, MAX_RANK);
 }
 
 /** The device to open: the best-ranked one plugged in, else `fallbackId`
  *  when it is plugged in, else the system default, else the first listed.
  *  Empty when nothing is listed. */
-export function resolveDevice(rank: string[] | undefined, devices: Device[], fallbackId?: string): string {
+export function resolveDevice(
+  rank: string[] | undefined,
+  devices: Device[],
+  fallbackId?: string,
+): string {
   if (devices.length === 0) return "";
   for (const k of rank ?? []) {
     const d = devices.find((d) => deviceKey(d) === k);
     if (d) return d.deviceId;
   }
-  if (fallbackId && devices.some((d) => d.deviceId === fallbackId)) return fallbackId;
+  if (fallbackId && devices.some((d) => d.deviceId === fallbackId))
+    return fallbackId;
   return (devices.find((d) => d.deviceId === "default") ?? devices[0]).deviceId;
 }
 
 /** Whether a live capture is on this device: by id, or by label where the
  *  browser reports the id another way. */
-export function trackOnDevice(track: MediaStreamTrack, kind: DeviceKind, deviceId: string): boolean {
+export function trackOnDevice(
+  track: MediaStreamTrack,
+  kind: DeviceKind,
+  deviceId: string,
+): boolean {
   if (track.getSettings?.().deviceId === deviceId) return true;
   const label = knownDevices(kind)?.find((d) => d.deviceId === deviceId)?.label;
   return !!label && label === track.label;
@@ -89,11 +108,16 @@ export function noteDevices(kind: DeviceKind, devices: Device[]): void {
 }
 
 export async function refreshDevices(): Promise<void> {
-  const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+  const md =
+    typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
   if (!md?.enumerateDevices) return;
   try {
     const all = await md.enumerateDevices();
-    for (const kind of DEVICE_KINDS) noteDevices(kind, all.filter((d) => d.kind === kind));
+    for (const kind of DEVICE_KINDS)
+      noteDevices(
+        kind,
+        all.filter((d) => d.kind === kind),
+      );
   } catch {}
 }
 
@@ -104,7 +128,8 @@ export function onDevicesChanged(fn: () => void): () => void {
 }
 
 function watch(): void {
-  const md = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+  const md =
+    typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
   if (watching || !md?.addEventListener) return;
   watching = true;
   void refreshDevices();

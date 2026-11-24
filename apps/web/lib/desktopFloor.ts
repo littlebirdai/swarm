@@ -21,12 +21,17 @@ export function cmpVersions(a: string, b: string): number {
 
 // The running desktop app's version from a user agent, or null when the agent
 // is not a Codecast shell.
-export function parseShellVersion(userAgent: string | null | undefined): string | null {
+export function parseShellVersion(
+  userAgent: string | null | undefined,
+): string | null {
   if (!userAgent || !/ Electron\//.test(userAgent)) return null;
   return userAgent.match(/ Codecast\/(\d+(?:\.\d+)+)/)?.[1] ?? null;
 }
 
-export function isBelowFloor(shellVersion: string | null, floor: string | null | undefined): boolean {
+export function isBelowFloor(
+  shellVersion: string | null,
+  floor: string | null | undefined,
+): boolean {
   if (!shellVersion || !floor) return false;
   return cmpVersions(floor, shellVersion) > 0;
 }
@@ -37,6 +42,12 @@ export function isBelowFloor(shellVersion: string | null, floor: string | null |
 // failed update into an app that restarts every boot.
 export const FLOOR_REQUEST_INTERVAL_MS = 30 * 60_000;
 
-export function floorRequestDue(now: number, lastRequestedAt: number | null): boolean {
-  return lastRequestedAt == null || now - lastRequestedAt >= FLOOR_REQUEST_INTERVAL_MS;
+export function floorRequestDue(
+  now: number,
+  lastRequestedAt: number | null,
+): boolean {
+  return (
+    lastRequestedAt == null ||
+    now - lastRequestedAt >= FLOOR_REQUEST_INTERVAL_MS
+  );
 }

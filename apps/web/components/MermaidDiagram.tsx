@@ -19,23 +19,25 @@ let configuredTheme: "dark" | "light" | null = null;
 function configureMermaid(m: Mermaid, theme: "dark" | "light") {
   if (configuredTheme === theme) return;
   configuredTheme = theme;
-  m.initialize(theme === "dark"
-    ? {
-      startOnLoad: false,
-      theme: "dark",
-      themeVariables: {
-        darkMode: true,
-        background: "#0f1117",
-        primaryColor: "#1e2535",
-        primaryTextColor: "#c9d1d9",
-        primaryBorderColor: "#30363d",
-        lineColor: "#8b949e",
-        secondaryColor: "#161b22",
-        tertiaryColor: "#21262d",
-      },
-      fontFamily: "inherit",
-    }
-    : { startOnLoad: false, theme: "default", fontFamily: "inherit" });
+  m.initialize(
+    theme === "dark"
+      ? {
+          startOnLoad: false,
+          theme: "dark",
+          themeVariables: {
+            darkMode: true,
+            background: "#0f1117",
+            primaryColor: "#1e2535",
+            primaryTextColor: "#c9d1d9",
+            primaryBorderColor: "#30363d",
+            lineColor: "#8b949e",
+            secondaryColor: "#161b22",
+            tertiaryColor: "#21262d",
+          },
+          fontFamily: "inherit",
+        }
+      : { startOnLoad: false, theme: "default", fontFamily: "inherit" },
+  );
 }
 
 let idCounter = 0;
@@ -51,7 +53,10 @@ export function MermaidDiagram({ code }: { code: string }) {
     setError(null);
 
     loadMermaid()
-      .then((m) => { configureMermaid(m, theme); return m.render(id.current, code); })
+      .then((m) => {
+        configureMermaid(m, theme);
+        return m.render(id.current, code);
+      })
       .then(({ svg }) => {
         if (cancelled || !ref.current) return;
         ref.current.innerHTML = svg;
@@ -66,7 +71,9 @@ export function MermaidDiagram({ code }: { code: string }) {
         setError(err?.message ?? "Failed to render diagram");
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [code, theme]);
 
   // Distinct keys on the two branches. Both are a bare <div> in the same

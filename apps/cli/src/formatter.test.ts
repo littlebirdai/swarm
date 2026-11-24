@@ -36,8 +36,13 @@ function result(sessions: any[], counts: Record<string, number> = {}) {
   return {
     sessions,
     counts: {
-      working: 0, needs_input: 0, idle: sessions.length, pinned: 0, live: 0,
-      total: sessions.length, ...counts,
+      working: 0,
+      needs_input: 0,
+      idle: sessions.length,
+      pinned: 0,
+      live: 0,
+      total: sessions.length,
+      ...counts,
     } as any,
     scope: "you",
   };
@@ -55,7 +60,9 @@ describe("formatMonitor marks unverifiable liveness", () => {
       .find((l) => l.includes("Ship the thing")) ?? "";
 
   test("a live row keeps the filled dot", () => {
-    expect(badgeLine({ is_live: true, agent_status: "working" })).toContain("●");
+    expect(badgeLine({ is_live: true, agent_status: "working" })).toContain(
+      "●",
+    );
   });
 
   test("mid-work with no heartbeat prints the dim ?", () => {
@@ -71,7 +78,11 @@ describe("formatMonitor marks unverifiable liveness", () => {
   });
 
   test("a killed row was torn down, not lost — hollow ring, no ?", () => {
-    const line = badgeLine({ is_live: false, is_killed: true, agent_status: "working" });
+    const line = badgeLine({
+      is_live: false,
+      is_killed: true,
+      agent_status: "working",
+    });
     expect(line).toContain("○");
     expect(line).not.toContain("?");
   });
@@ -79,7 +90,9 @@ describe("formatMonitor marks unverifiable liveness", () => {
 
 describe("formatMonitor renders the killed marker", () => {
   test("a killed row is badged `killed`", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true })]), { all: true }));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true })]), { all: true }),
+    );
     expect(out).toContain("killed");
     expect(out).toContain("Ship the thing");
   });
@@ -93,7 +106,9 @@ describe("formatMonitor renders the killed marker", () => {
   // the ONLY thing distinguishing a retired session from a live-but-quiet one.
   // Without the marker these two rows render identically.
   test("killed and ordinary idle rows do not render identically", () => {
-    const killedOut = strip(formatMonitor(result([session({ is_killed: true })]), { all: true }));
+    const killedOut = strip(
+      formatMonitor(result([session({ is_killed: true })]), { all: true }),
+    );
     const idleOut = strip(formatMonitor(result([session()]), { all: true }));
     expect(killedOut).not.toBe(idleOut);
   });
@@ -101,14 +116,22 @@ describe("formatMonitor renders the killed marker", () => {
   // A killed row stays pinned-visible; both tags must show, not one replacing
   // the other — pinned is why it is still listed, killed is what it is.
   test("a killed AND pinned row shows both tags", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true, is_pinned: true })]), { all: true }));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true, is_pinned: true })]), {
+        all: true,
+      }),
+    );
     expect(out).toContain("killed");
     expect(out).toContain("pinned");
   });
 
   test("the killed tag rides the state badge line, next to the work state", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true })]), { all: true }));
-    const badgeLine = out.split("\n").find((l) => l.includes("Ship the thing"))!;
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true })]), { all: true }),
+    );
+    const badgeLine = out
+      .split("\n")
+      .find((l) => l.includes("Ship the thing"))!;
     expect(badgeLine).toMatch(/idle\s+killed/);
   });
 });
@@ -129,25 +152,33 @@ describe("formatMonitor default view collapses killed rows", () => {
 
   // Pinning changes sort order, not grouping — it does not add a group.
   test("pinning a killed row does not surface it in the default view", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true, is_pinned: true })])));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true, is_pinned: true })])),
+    );
     expect(out).not.toContain("Ship the thing");
     expect(out).not.toContain("killed");
   });
 
   test("-a reveals the row and its killed badge", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true })]), { all: true }));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true })]), { all: true }),
+    );
     expect(out).toContain("Ship the thing");
     expect(out).toContain("killed");
   });
 
   test("--state idle also reveals it", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true })]), { state: "idle" }));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true })]), { state: "idle" }),
+    );
     expect(out).toContain("killed");
   });
 
   // The summary line is the ONLY killed signal in the default view.
   test("the summary still reports the killed count in the default view", () => {
-    const out = strip(formatMonitor(result([session({ is_killed: true })], { killed: 1 })));
+    const out = strip(
+      formatMonitor(result([session({ is_killed: true })], { killed: 1 })),
+    );
     expect(out.split("\n")[1]).toContain("killed 1");
   });
 });
@@ -247,7 +278,9 @@ describe("formatFeedResults location + activity lines", () => {
       formatFeedResults({
         conversations: [
           feedConv({
-            recent_files: ["/Users/x/src/app/.codecast/worktrees/fix-auth/src/a.ts"],
+            recent_files: [
+              "/Users/x/src/app/.codecast/worktrees/fix-auth/src/a.ts",
+            ],
           }),
         ],
         scope: "global",
@@ -259,17 +292,25 @@ describe("formatFeedResults location + activity lines", () => {
   test("summary line renders only for non-working sessions", () => {
     const base = { idle_summary: "Repaired 26 searches; watching conversion." };
     const idle = strip(
-      formatFeedResults({ conversations: [feedConv({ ...base, work_state: "needs_input" })], scope: "g" } as any),
+      formatFeedResults({
+        conversations: [feedConv({ ...base, work_state: "needs_input" })],
+        scope: "g",
+      } as any),
     );
     const working = strip(
-      formatFeedResults({ conversations: [feedConv({ ...base, work_state: "working" })], scope: "g" } as any),
+      formatFeedResults({
+        conversations: [feedConv({ ...base, work_state: "working" })],
+        scope: "g",
+      } as any),
     );
     expect(idle).toContain("summary: Repaired 26 searches");
     expect(working).not.toContain("summary:");
   });
 
   test("a card with none of the new fields renders exactly as before", () => {
-    const out = strip(formatFeedResults({ conversations: [feedConv()], scope: "g" } as any));
+    const out = strip(
+      formatFeedResults({ conversations: [feedConv()], scope: "g" } as any),
+    );
     expect(out).toContain("Budget mandate");
     expect(out).toContain("the founding goal");
     expect(out).not.toContain("worktree");
@@ -279,7 +320,9 @@ describe("formatFeedResults location + activity lines", () => {
 
 describe("worktreeFromPath", () => {
   test("extracts the worktree segment", () => {
-    expect(worktreeFromPath("/a/.codecast/worktrees/fix-auth/src/x.ts")).toBe("fix-auth");
+    expect(worktreeFromPath("/a/.codecast/worktrees/fix-auth/src/x.ts")).toBe(
+      "fix-auth",
+    );
     expect(worktreeFromPath("/a/src/x.ts")).toBeUndefined();
     expect(worktreeFromPath(undefined)).toBeUndefined();
   });
@@ -288,12 +331,18 @@ describe("worktreeFromPath", () => {
 describe("feed machine label discrimination", () => {
   test("hidden when every card is your own on one machine; shown across all once two machines appear", () => {
     const solo = strip(
-      formatFeedResults({ conversations: [feedConv({ machine: "mbp" })], scope: "g" } as any),
+      formatFeedResults({
+        conversations: [feedConv({ machine: "mbp" })],
+        scope: "g",
+      } as any),
     );
     expect(solo).not.toContain("on mbp");
     const mixed = strip(
       formatFeedResults({
-        conversations: [feedConv({ machine: "mbp" }), feedConv({ machine: "mac-studio" })],
+        conversations: [
+          feedConv({ machine: "mbp" }),
+          feedConv({ machine: "mac-studio" }),
+        ],
         scope: "g",
       } as any),
     );
@@ -304,16 +353,21 @@ describe("feed machine label discrimination", () => {
 
 describe("feedFilePath", () => {
   test("relativizes against the project and the worktree copy", () => {
-    expect(feedFilePath("/Users/x/src/app/apps/cli/src/a.ts", "/Users/x/src/app")).toBe(
-      "apps/cli/src/a.ts",
-    );
     expect(
-      feedFilePath("/Users/x/src/app/.codecast/worktrees/fix-auth/apps/cli/src/a.ts", "/Users/x/src/app"),
+      feedFilePath("/Users/x/src/app/apps/cli/src/a.ts", "/Users/x/src/app"),
+    ).toBe("apps/cli/src/a.ts");
+    expect(
+      feedFilePath(
+        "/Users/x/src/app/.codecast/worktrees/fix-auth/apps/cli/src/a.ts",
+        "/Users/x/src/app",
+      ),
     ).toBe("apps/cli/src/a.ts");
   });
 
   test("keeps a foreign absolute path visibly absolute", () => {
-    expect(feedFilePath("/Users/ec2-user/work/repo/src/a.ts", "/Users/x/src/app")).toContain("/Users/ec2-user");
+    expect(
+      feedFilePath("/Users/ec2-user/work/repo/src/a.ts", "/Users/x/src/app"),
+    ).toContain("/Users/ec2-user");
   });
 });
 
@@ -339,7 +393,10 @@ describe("formatReadResult surfaces collapsed StructuredOutput payloads", () => 
         content: "",
         timestamp: new Date().toISOString(),
         tool_calls: [
-          { name: "StructuredOutput", input: JSON.stringify({ findings: [{ a: 1 }] }) },
+          {
+            name: "StructuredOutput",
+            input: JSON.stringify({ findings: [{ a: 1 }] }),
+          },
         ],
       },
     ],
@@ -358,16 +415,22 @@ describe("formatReadResult surfaces collapsed StructuredOutput payloads", () => 
   });
 
   test("ordinary tool calls get no hint", () => {
-    const out = strip(formatReadResult({
-      ...readResult,
-      messages: [{
-        line: 2,
-        role: "assistant",
-        content: "",
-        timestamp: new Date().toISOString(),
-        tool_calls: [{ name: "Bash", input: JSON.stringify({ command: "ls" }) }],
-      }],
-    }));
+    const out = strip(
+      formatReadResult({
+        ...readResult,
+        messages: [
+          {
+            line: 2,
+            role: "assistant",
+            content: "",
+            timestamp: new Date().toISOString(),
+            tool_calls: [
+              { name: "Bash", input: JSON.stringify({ command: "ls" }) },
+            ],
+          },
+        ],
+      }),
+    );
     expect(out).not.toContain("--full");
   });
 });
@@ -376,58 +439,138 @@ describe("formatReadResult surfaces collapsed StructuredOutput payloads", () => 
 // state badge plus last activity age. Messages sent to sessions quiet past the
 // one hour prompt cache rebuild their whole context, and agents could not see
 // from search or context results that a session was old, killed, or ended.
-import { formatSearchResults, formatContextResults, formatSessionPresence } from "./formatter";
+import {
+  formatSearchResults,
+  formatContextResults,
+  formatSessionPresence,
+} from "./formatter";
 
 describe("session presence on search, context, and feed", () => {
-  const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const hoursAgo = (h: number) =>
+    new Date(Date.now() - h * 3600_000).toISOString();
 
   test("formatSessionPresence shows badge and age, and the age alone without liveness facts", () => {
-    expect(strip(formatSessionPresence({ work_state: "working", is_live: true, updated_at: new Date().toISOString() })))
-      .toBe("● working | just now");
-    expect(strip(formatSessionPresence({ work_state: "idle", is_killed: true, updated_at: hoursAgo(3) })))
-      .toBe("○ idle killed | 3 hours ago");
-    expect(strip(formatSessionPresence({ updated_at: hoursAgo(3) }))).toBe("3 hours ago");
+    expect(
+      strip(
+        formatSessionPresence({
+          work_state: "working",
+          is_live: true,
+          updated_at: new Date().toISOString(),
+        }),
+      ),
+    ).toBe("● working | just now");
+    expect(
+      strip(
+        formatSessionPresence({
+          work_state: "idle",
+          is_killed: true,
+          updated_at: hoursAgo(3),
+        }),
+      ),
+    ).toBe("○ idle killed | 3 hours ago");
+    expect(strip(formatSessionPresence({ updated_at: hoursAgo(3) }))).toBe(
+      "3 hours ago",
+    );
   });
 
   test("a completed row reads ended unless it is live again or killed", () => {
     const at = hoursAgo(2);
-    expect(strip(formatSessionPresence({ work_state: "done", is_completed: true, updated_at: at }))).toBe("○ done ended | 2 hours ago");
-    expect(strip(formatSessionPresence({ work_state: "working", is_live: true, is_completed: true, updated_at: at }))).not.toContain("ended");
-    expect(strip(formatSessionPresence({ work_state: "idle", is_killed: true, is_completed: true, updated_at: at }))).not.toContain("ended");
+    expect(
+      strip(
+        formatSessionPresence({
+          work_state: "done",
+          is_completed: true,
+          updated_at: at,
+        }),
+      ),
+    ).toBe("○ done ended | 2 hours ago");
+    expect(
+      strip(
+        formatSessionPresence({
+          work_state: "working",
+          is_live: true,
+          is_completed: true,
+          updated_at: at,
+        }),
+      ),
+    ).not.toContain("ended");
+    expect(
+      strip(
+        formatSessionPresence({
+          work_state: "idle",
+          is_killed: true,
+          is_completed: true,
+          updated_at: at,
+        }),
+      ),
+    ).not.toContain("ended");
   });
 
   test("search result meta carries the badge", () => {
-    const out = strip(formatSearchResults({
-      total_matches: 1,
-      conversations: [{
-        id: "jx7abcdef", title: "Old auth work", project_path: null, updated_at: hoursAgo(5),
-        message_count: 40, work_state: "idle", is_killed: true, matches: [], context: [],
-      }],
-    }));
+    const out = strip(
+      formatSearchResults({
+        total_matches: 1,
+        conversations: [
+          {
+            id: "jx7abcdef",
+            title: "Old auth work",
+            project_path: null,
+            updated_at: hoursAgo(5),
+            message_count: 40,
+            work_state: "idle",
+            is_killed: true,
+            matches: [],
+            context: [],
+          },
+        ],
+      }),
+    );
     expect(out).toContain("jx7abcd | ○ idle killed | 5 hours ago | 40 msgs");
   });
 
   test("a partial operator answer says where it stopped", () => {
-    const out = strip(formatSearchResults({
-      total_matches: 0,
-      conversations: [],
-      truncated: ["file:src/a.ts read the newest 4000 edits; add before: or after: to reach others"],
-    }));
+    const out = strip(
+      formatSearchResults({
+        total_matches: 0,
+        conversations: [],
+        truncated: [
+          "file:src/a.ts read the newest 4000 edits; add before: or after: to reach others",
+        ],
+      }),
+    );
     expect(out).toContain("Partial: file:src/a.ts read the newest 4000 edits");
     expect(out).toContain("No matches found.");
   });
 
   test("context rows carry the badge in place of a bare date", () => {
-    const out = strip(formatContextResults({
-      query: "auth",
-      sessions: [{ id: "jx7live01", title: "Auth now", project_path: null, updated_at: new Date().toISOString(), message_count: 3, match_type: "text", work_state: "working", is_live: true }],
-      related_files: [],
-    }));
+    const out = strip(
+      formatContextResults({
+        query: "auth",
+        sessions: [
+          {
+            id: "jx7live01",
+            title: "Auth now",
+            project_path: null,
+            updated_at: new Date().toISOString(),
+            message_count: 3,
+            match_type: "text",
+            work_state: "working",
+            is_live: true,
+          },
+        ],
+        related_files: [],
+      }),
+    );
     expect(out).toContain('[jx7live] ● working | just now - "Auth now"');
   });
 
   test("the feed card keeps its badge and age", () => {
-    const out = strip(formatFeedResults({ conversations: [feedConv({ is_live: true })], scope: "g" } as any));
+    const out = strip(
+      formatFeedResults({
+        conversations: [feedConv({ is_live: true })],
+        scope: "g",
+      } as any),
+    );
     expect(out).toContain("● working | just now");
   });
 });
@@ -441,53 +584,90 @@ describe("cast read --ask output", () => {
 
   test("the answer leads, then the read commands, then the cost line", async () => {
     const { formatAskResult } = await import("./formatter");
-    const out = strip(formatAskResult({
-      conversation: { id: "x", short_id: "jx77tbn", title: "Study", lines: 118 },
-      question: "is idea 4 a gap?",
-      answer: "Mostly not: collab_grants covers it (msg 493).",
-      cited_lines: [493, 494],
-      scanned_lines: 118,
-      scan_complete: true,
-      shown_lines: 118,
-      matched_lines: 20,
-      model: "claude-haiku-4-5-20251001",
-      usage: { input_tokens: 23_456, output_tokens: 312, cost_usd: 0.025 },
-      took_ms: 8400,
-    }));
+    const out = strip(
+      formatAskResult({
+        conversation: {
+          id: "x",
+          short_id: "jx77tbn",
+          title: "Study",
+          lines: 118,
+        },
+        question: "is idea 4 a gap?",
+        answer: "Mostly not: collab_grants covers it (msg 493).",
+        cited_lines: [493, 494],
+        scanned_lines: 118,
+        scan_complete: true,
+        shown_lines: 118,
+        matched_lines: 20,
+        model: "claude-haiku-4-5-20251001",
+        usage: { input_tokens: 23_456, output_tokens: 312, cost_usd: 0.025 },
+        took_ms: 8400,
+      }),
+    );
     const lines = out.split("\n");
     expect(lines[3]).toBe("Mostly not: collab_grants covers it (msg 493).");
     expect(out).toContain("read: cast read jx77tbn 493:494");
-    expect(out).toContain("claude-haiku-4-5 · read 118 lines, 20 matched, showed 118 · 23.5k in / 312 out, $0.025 · 8.4s");
+    expect(out).toContain(
+      "claude-haiku-4-5 · read 118 lines, 20 matched, showed 118 · 23.5k in / 312 out, $0.025 · 8.4s",
+    );
   });
 
   test("an incomplete read says which stretch it skipped, and tail citations read back from the end", async () => {
     const { formatAskResult } = await import("./formatter");
-    const out = strip(formatAskResult({
-      conversation: { id: "x", short_id: "jx7csbd", title: "Whale", lines: 3000 },
-      question: "where did it end up?",
-      answer: "Reverted at the end (msg -4), after msg 12 first added it.",
-      cited_lines: [12, -4, -40],
-      scanned_lines: 3000,
-      scan_complete: false,
-      unread: { after: 1500, before: -1500 },
-      shown_lines: 400,
-      matched_lines: 30,
-      model: "claude-haiku-4-5-20251001",
-      usage: { input_tokens: 50_000, output_tokens: 300, cost_usd: 0.05 },
-      took_ms: 90_000,
-    }));
+    const out = strip(
+      formatAskResult({
+        conversation: {
+          id: "x",
+          short_id: "jx7csbd",
+          title: "Whale",
+          lines: 3000,
+        },
+        question: "where did it end up?",
+        answer: "Reverted at the end (msg -4), after msg 12 first added it.",
+        cited_lines: [12, -4, -40],
+        scanned_lines: 3000,
+        scan_complete: false,
+        unread: { after: 1500, before: -1500 },
+        shown_lines: 400,
+        matched_lines: 30,
+        model: "claude-haiku-4-5-20251001",
+        usage: { input_tokens: 50_000, output_tokens: 300, cost_usd: 0.05 },
+        took_ms: 90_000,
+      }),
+    );
     expect(out).toContain("3000+ lines");
-    expect(out).toContain("read: cast read jx7csbd -40  cast read jx7csbd -4  cast read jx7csbd 12");
-    expect(out).toContain("read 3000 lines (too long to read whole: msg 1500 to -1500 not read)");
+    expect(out).toContain(
+      "read: cast read jx7csbd -40  cast read jx7csbd -4  cast read jx7csbd 12",
+    );
+    expect(out).toContain(
+      "read 3000 lines (too long to read whole: msg 1500 to -1500 not read)",
+    );
   });
 });
 
 describe("formatReadResult names what any client's tool did", () => {
   test("a Codex command row (the cloud agents' mirrors) shows its command", () => {
-    const out = strip(formatReadResult({
-      conversation: { id: "jx78hw6aaaa", title: "t" },
-      messages: [{ line: 1, role: "assistant", content: "", tool_calls: [{ name: "commandExecution", input: JSON.stringify({ command: "cat README", cwd: "/workspace" }) }] }],
-    } as any));
+    const out = strip(
+      formatReadResult({
+        conversation: { id: "jx78hw6aaaa", title: "t" },
+        messages: [
+          {
+            line: 1,
+            role: "assistant",
+            content: "",
+            tool_calls: [
+              {
+                name: "commandExecution",
+                input: JSON.stringify({
+                  command: "cat README",
+                  cwd: "/workspace",
+                }),
+              },
+            ],
+          },
+        ],
+      } as any),
+    );
     expect(out).toContain("commandExecution cat README");
   });
 });
@@ -497,28 +677,58 @@ describe("formatReadResult names what any client's tool did", () => {
 // with sed. A page fits the budget and names the range that continues it, and
 // turns that hold only tool results stop printing as bare headers.
 describe("formatReadResult fits a page an agent can read whole", () => {
-  const conversation = { id: "jx7abcd1234", title: "Long", project_path: "/p", message_count: 40, updated_at: new Date().toISOString() };
+  const conversation = {
+    id: "jx7abcd1234",
+    title: "Long",
+    project_path: "/p",
+    message_count: 40,
+    updated_at: new Date().toISOString(),
+  };
   const at = new Date().toISOString();
-  const said = (line: number, text: string) => ({ line, role: "assistant", content: text, timestamp: at });
-  const resultOnly = (line: number) => ({ line, role: "user", content: "", timestamp: at, tool_results: [{ content: "ok" }] });
+  const said = (line: number, text: string) => ({
+    line,
+    role: "assistant",
+    content: text,
+    timestamp: at,
+  });
+  const resultOnly = (line: number) => ({
+    line,
+    role: "user",
+    content: "",
+    timestamp: at,
+    tool_results: [{ content: "ok" }],
+  });
 
   test("a turn holding only tool results prints nothing unless --full", () => {
-    const result = { conversation, messages: [said(1, "hello"), resultOnly(2)] };
+    const result = {
+      conversation,
+      messages: [said(1, "hello"), resultOnly(2)],
+    };
     expect(strip(formatReadResult(result))).not.toContain("2: [user]");
-    expect(strip(formatReadResult(result, { full: true }))).toContain("<TOOL_RESULTS>");
+    expect(strip(formatReadResult(result, { full: true }))).toContain(
+      "<TOOL_RESULTS>",
+    );
   });
 
   test("a forward read stops at the budget and names the rest", () => {
-    const messages = Array.from({ length: 10 }, (_, i) => said(i + 1, "x".repeat(1000)));
-    const out = strip(formatReadResult({ conversation, messages }, { maxChars: 3500 }));
+    const messages = Array.from({ length: 10 }, (_, i) =>
+      said(i + 1, "x".repeat(1000)),
+    );
+    const out = strip(
+      formatReadResult({ conversation, messages }, { maxChars: 3500 }),
+    );
     expect(out).toContain("   3: ");
     expect(out).not.toContain("   4: ");
     expect(out).toContain("continue: cast read jx7abcd 4:10");
   });
 
   test("a tail read keeps its newest messages", () => {
-    const messages = Array.from({ length: 10 }, (_, i) => said(i - 10, "x".repeat(1000)));
-    const out = strip(formatReadResult({ conversation, messages }, { maxChars: 3500 }));
+    const messages = Array.from({ length: 10 }, (_, i) =>
+      said(i - 10, "x".repeat(1000)),
+    );
+    const out = strip(
+      formatReadResult({ conversation, messages }, { maxChars: 3500 }),
+    );
     expect(out).toContain("  -1: ");
     expect(out).not.toContain("  -4: ");
     expect(out).toContain("7 older messages cut");
@@ -526,7 +736,12 @@ describe("formatReadResult fits a page an agent can read whole", () => {
   });
 
   test("one message larger than the budget is cut, naming the rest", () => {
-    const out = strip(formatReadResult({ conversation, messages: [said(1, "y".repeat(5000)), said(2, "z")] }, { maxChars: 100 }));
+    const out = strip(
+      formatReadResult(
+        { conversation, messages: [said(1, "y".repeat(5000)), said(2, "z")] },
+        { maxChars: 100 },
+      ),
+    );
     expect(out).not.toContain("y".repeat(5000));
     expect(out).toContain("whole: cast read jx7abcd 1 --full --json");
     expect(out).toContain("continue: cast read jx7abcd 2:2");
@@ -535,31 +750,69 @@ describe("formatReadResult fits a page an agent can read whole", () => {
   // Every block kept and still past the budget used to index past the end
   // (`blocks[kept.length].line` of undefined): -n 4 --full on a worker's report.
   test("a read of one message larger than the budget does not crash", () => {
-    const out = strip(formatReadResult({ conversation, messages: [said(-1, "w".repeat(5000))] }, { maxChars: 100 }));
+    const out = strip(
+      formatReadResult(
+        { conversation, messages: [said(-1, "w".repeat(5000))] },
+        { maxChars: 100 },
+      ),
+    );
     expect(out).toContain("message -1 is");
     expect(out).toContain("whole: cast read jx7abcd -1 --full --json");
   });
 
   test("a short read names the total and how to reach the end", () => {
     const messages = Array.from({ length: 20 }, (_, i) => said(i + 1, "hi"));
-    const out = strip(formatReadResult({ conversation: { ...conversation, message_count: 108 }, messages }));
-    expect(out).toContain("lines 1-20 of 108; next: cast read jx7abcd 21:40; latest: cast read jx7abcd -n 10");
+    const out = strip(
+      formatReadResult({
+        conversation: { ...conversation, message_count: 108 },
+        messages,
+      }),
+    );
+    expect(out).toContain(
+      "lines 1-20 of 108; next: cast read jx7abcd 21:40; latest: cast read jx7abcd -n 10",
+    );
   });
 
   test("a tail read on a long session names the earlier range, and says the total is a guess", () => {
     const messages = Array.from({ length: 5 }, (_, i) => said(i - 5, "hi"));
-    const out = strip(formatReadResult({ conversation: { ...conversation, message_count: 9000, message_count_exact: false }, messages }));
-    expect(out).toContain("the last 5 of about 9000 lines, counted back from the end; earlier: cast read jx7abcd -10:-6");
+    const out = strip(
+      formatReadResult({
+        conversation: {
+          ...conversation,
+          message_count: 9000,
+          message_count_exact: false,
+        },
+        messages,
+      }),
+    );
+    expect(out).toContain(
+      "the last 5 of about 9000 lines, counted back from the end; earlier: cast read jx7abcd -10:-6",
+    );
   });
 
   test("a grep read counts its matches and pages on from the last one", () => {
-    const out = strip(formatReadResult({ conversation, messages: [said(4, "retry cap"), said(31, "retry cap")], grep: { matches: 2, searched: 900, more: true } }, { grep: "retry cap" }));
-    expect(out).toContain('2+ messages contain "retry cap"; more: cast read jx7abcd 32: --grep "retry cap"');
+    const out = strip(
+      formatReadResult(
+        {
+          conversation,
+          messages: [said(4, "retry cap"), said(31, "retry cap")],
+          grep: { matches: 2, searched: 900, more: true },
+        },
+        { grep: "retry cap" },
+      ),
+    );
+    expect(out).toContain(
+      '2+ messages contain "retry cap"; more: cast read jx7abcd 32: --grep "retry cap"',
+    );
   });
 
   test("no budget prints everything", () => {
-    const messages = Array.from({ length: 10 }, (_, i) => said(i + 1, "x".repeat(1000)));
-    expect(strip(formatReadResult({ conversation, messages }))).toContain("  10: ");
+    const messages = Array.from({ length: 10 }, (_, i) =>
+      said(i + 1, "x".repeat(1000)),
+    );
+    expect(strip(formatReadResult({ conversation, messages }))).toContain(
+      "  10: ",
+    );
   });
 });
 
@@ -568,16 +821,38 @@ describe("formatReadResult fits a page an agent can read whole", () => {
 describe("cast search output", () => {
   const result = {
     total_matches: 2,
-    conversations: [{
-      id: "jx7abcd1234", title: "Retry work", project_path: "/p", updated_at: new Date().toISOString(), message_count: 300,
-      matches: [{ line: 1, role: "user", content: "the retry cap", timestamp: "", message_id: "k57msg" }, { line: 2, role: "assistant", content: "kept the retry cap", timestamp: "" }],
-      context: [],
-    }],
+    conversations: [
+      {
+        id: "jx7abcd1234",
+        title: "Retry work",
+        project_path: "/p",
+        updated_at: new Date().toISOString(),
+        message_count: 300,
+        matches: [
+          {
+            line: 1,
+            role: "user",
+            content: "the retry cap",
+            timestamp: "",
+            message_id: "k57msg",
+          },
+          {
+            line: 2,
+            role: "assistant",
+            content: "kept the retry cap",
+            timestamp: "",
+          },
+        ],
+        context: [],
+      },
+    ],
   };
 
   test("matches print without rank numbers, a message id opens the match in place, and the footer names --grep", async () => {
     const { formatSearchResults } = await import("./formatter");
-    const out = strip(formatSearchResults(result as any, { text: "retry cap" }));
+    const out = strip(
+      formatSearchResults(result as any, { text: "retry cap" }),
+    );
     expect(out).not.toMatch(/^\s+1: /m);
     expect(out).toContain("↳ cast read jx7abcd#k57msg -c 3");
     expect(out).toContain('cast read <id> --grep "retry cap"');
@@ -585,7 +860,9 @@ describe("cast search output", () => {
 
   test("-l prints one line per session with its match count", async () => {
     const { formatSearchSessions } = await import("./formatter");
-    const out = strip(formatSearchSessions(result as any, { text: "retry cap" })).split("\n");
+    const out = strip(
+      formatSearchSessions(result as any, { text: "retry cap" }),
+    ).split("\n");
     expect(out[0]).toMatch(/^jx7abcd  2 matches +Retry work  .*300 msgs/);
     expect(out[1]).toBe('inside one: cast read <id> --grep "retry cap"');
   });
@@ -594,12 +871,21 @@ describe("cast search output", () => {
 import { fitReadPage } from "./formatRead";
 
 describe("fitReadPage around a linked message", () => {
-  const block = (line: number, size: number) => ({ line, text: `${line}:` + "x".repeat(size) });
+  const block = (line: number, size: number) => ({
+    line,
+    text: `${line}:` + "x".repeat(size),
+  });
 
   test("keeps the linked message when long context before it fills the page", () => {
     // Three long turns before line 236 used to fill the page, so the read
     // "around linked message (line 236)" ended at 235 and never showed 236.
-    const blocks = [block(233, 9000), block(234, 9000), block(235, 9000), block(236, 500), block(237, 500)];
+    const blocks = [
+      block(233, 9000),
+      block(234, 9000),
+      block(235, 9000),
+      block(236, 500),
+      block(237, 500),
+    ];
     const page = fitReadPage(blocks, 24_000, "jx7abcd", 236);
     const text = page.texts.join("");
     expect(text).toContain("236:");
@@ -613,7 +899,12 @@ describe("fitReadPage around a linked message", () => {
   test("a linked message larger than the page takes half of it and keeps the reply", () => {
     // A Line run's re-brief to a station is often over 24K; the station's
     // reaction after it is what a reader following the link came for.
-    const page = fitReadPage([block(10, 100), block(11, 30_000), block(12, 100)], 24_000, "jx7abcd", 11);
+    const page = fitReadPage(
+      [block(10, 100), block(11, 30_000), block(12, 100)],
+      24_000,
+      "jx7abcd",
+      11,
+    );
     const text = page.texts.join("");
     expect(text).toContain("cast read jx7abcd 11 --full --json");
     expect(text).toContain("10:");
@@ -623,7 +914,10 @@ describe("fitReadPage around a linked message", () => {
 
   test("a page that fits is returned whole", () => {
     const blocks = [block(1, 10), block(2, 10)];
-    expect(fitReadPage(blocks, 24_000, "jx7abcd", 2)).toEqual({ texts: blocks.map((b) => b.text), cut: false });
+    expect(fitReadPage(blocks, 24_000, "jx7abcd", 2)).toEqual({
+      texts: blocks.map((b) => b.text),
+      cut: false,
+    });
   });
 });
 
@@ -643,7 +937,15 @@ describe("formatReadResult with a shared short id", () => {
       updated_at: new Date().toISOString(),
     },
     messages: [
-      { line: 2, role: "assistant", content: "", timestamp: new Date().toISOString(), tool_calls: [{ name: "StructuredOutput", input: JSON.stringify({ findings: [] }) }] },
+      {
+        line: 2,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+        tool_calls: [
+          { name: "StructuredOutput", input: JSON.stringify({ findings: [] }) },
+        ],
+      },
     ],
   };
 
@@ -661,14 +963,24 @@ describe("formatReadResult with a shared short id", () => {
   });
 
   test("names the other session and uses longer prefixes everywhere", () => {
-    const out = strip(formatReadResult({
-      ...base,
-      conversation: {
-        ...base.conversation,
-        same_short_id: [{ id: "jx78gqj0geycnazw7w0grcj4bx8hrj99", title: "Test PR 16123 on Mac", updated_at: new Date().toISOString() }],
-      },
-    }));
-    expect(out).toContain("2 sessions share the short id jx78gqj. This is jx78gqjj");
+    const out = strip(
+      formatReadResult({
+        ...base,
+        conversation: {
+          ...base.conversation,
+          same_short_id: [
+            {
+              id: "jx78gqj0geycnazw7w0grcj4bx8hrj99",
+              title: "Test PR 16123 on Mac",
+              updated_at: new Date().toISOString(),
+            },
+          ],
+        },
+      }),
+    );
+    expect(out).toContain(
+      "2 sessions share the short id jx78gqj. This is jx78gqjj",
+    );
     expect(out).toContain("cast read jx78gqj0   Test PR 16123 on Mac");
     expect(out).toContain("cast read jx78gqjj 2 --full");
     expect(out).toContain("   jx78gqjj | ");

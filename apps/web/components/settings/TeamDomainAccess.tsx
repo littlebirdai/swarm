@@ -18,13 +18,20 @@ import { useInboxStore } from "../../store/inboxStore";
  * Off until an admin turns it on; the domain is the admin's own.
  */
 export function TeamDomainAccess({ teamId }: { teamId: Id<"teams"> }) {
-  const settings = useQueryNoThrow(api.teamDiscovery.discoverySettings, { team_id: teamId }).data;
-  const requests = useQueryNoThrow(api.teamDiscovery.pendingRequests, { team_id: teamId }).data ?? [];
+  const settings = useQueryNoThrow(api.teamDiscovery.discoverySettings, {
+    team_id: teamId,
+  }).data;
+  const requests =
+    useQueryNoThrow(api.teamDiscovery.pendingRequests, { team_id: teamId })
+      .data ?? [];
   const setDiscoverable = useMutation(api.teamDiscovery.setDiscoverable);
   const decide = useMutation(api.teamDiscovery.decideRequest);
   const [busy, setBusy] = useState<string | null>(null);
   const nudge = useDiscoveryNudge(teamId);
-  const teamName = useInboxStore((s) => (s.teams || []).find((t: any) => String(t._id) === String(teamId))?.name) as string | undefined;
+  const teamName = useInboxStore(
+    (s) =>
+      (s.teams || []).find((t: any) => String(t._id) === String(teamId))?.name,
+  ) as string | undefined;
   if (!settings) return null;
 
   const domain = settings.enabled_domain ?? settings.admin_domain;
@@ -32,18 +39,35 @@ export function TeamDomainAccess({ teamId }: { teamId: Id<"teams"> }) {
   // The team is open to one domain and this admin's proven address is at
   // another (they moved their account, or another admin opened it): turning
   // it on again opens it to theirs, so offer that as one press.
-  const switchTo = settings.enabled_domain && canOpen && settings.admin_domain !== settings.enabled_domain ? settings.admin_domain : null;
+  const switchTo =
+    settings.enabled_domain &&
+    canOpen &&
+    settings.admin_domain !== settings.enabled_domain
+      ? settings.admin_domain
+      : null;
   const toggle = (on: boolean) => {
     setBusy("toggle");
     setDiscoverable({ team_id: teamId, enabled: on })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not change that"))
+      .catch((err) =>
+        toast.error(
+          err instanceof Error ? err.message : "Could not change that",
+        ),
+      )
       .finally(() => setBusy(null));
   };
-  const answer = (requestId: Id<"team_join_requests">, approve: boolean, who: string) => {
+  const answer = (
+    requestId: Id<"team_join_requests">,
+    approve: boolean,
+    who: string,
+  ) => {
     setBusy(requestId);
     decide({ request_id: requestId, approve })
-      .then(() => toast.success(approve ? `${who} joined the team` : `Declined ${who}`))
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Could not do that"))
+      .then(() =>
+        toast.success(approve ? `${who} joined the team` : `Declined ${who}`),
+      )
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "Could not do that"),
+      )
       .finally(() => setBusy(null));
   };
 
@@ -67,10 +91,16 @@ export function TeamDomainAccess({ teamId }: { teamId: Id<"teams"> }) {
       }
     >
       <SettingsRow
-        label={domain ? `Let @${domain} coworkers find this team` : "Let coworkers find this team"}
+        label={
+          domain
+            ? `Let @${domain} coworkers find this team`
+            : "Let coworkers find this team"
+        }
         description={
           canOpen || settings.enabled_domain
-            ? !settings.enabled_domain && nudge && nudge.coworkers_outside > 0 ? coworkersLine(nudge, teamName || "this team") : undefined
+            ? !settings.enabled_domain && nudge && nudge.coworkers_outside > 0
+              ? coworkersLine(nudge, teamName || "this team")
+              : undefined
             : settings.admin_domain
               ? `Confirm you hold your @${settings.admin_domain} address first (sign in with GitHub, Google or Apple, or confirm it from the banner).`
               : undefined
@@ -85,7 +115,12 @@ export function TeamDomainAccess({ teamId }: { teamId: Id<"teams"> }) {
       </SettingsRow>
       {switchTo && (
         <SettingsRow label={`Open to @${switchTo} instead`}>
-          <Button size="sm" variant="outline" disabled={busy === "toggle"} onClick={() => toggle(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy === "toggle"}
+            onClick={() => toggle(true)}
+          >
             Switch
           </Button>
         </SettingsRow>
@@ -99,11 +134,27 @@ export function TeamDomainAccess({ teamId }: { teamId: Id<"teams"> }) {
             description={`${r.email ?? ""} asked to join`}
           >
             <div className="flex items-center gap-2">
-              {r.image && <AvatarImg src={r.image} alt="" className="h-6 w-6 rounded-full" />}
-              <Button size="sm" variant="outline" disabled={busy === r._id} onClick={() => answer(r._id, false, who)}>
+              {r.image && (
+                <AvatarImg
+                  src={r.image}
+                  alt=""
+                  className="h-6 w-6 rounded-full"
+                />
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy === r._id}
+                onClick={() => answer(r._id, false, who)}
+              >
                 Decline
               </Button>
-              <Button size="sm" variant="cyan" disabled={busy === r._id} onClick={() => answer(r._id, true, who)}>
+              <Button
+                size="sm"
+                variant="cyan"
+                disabled={busy === r._id}
+                onClick={() => answer(r._id, true, who)}
+              >
                 Let in
               </Button>
             </div>

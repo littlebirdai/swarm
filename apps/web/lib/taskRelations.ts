@@ -29,7 +29,11 @@ import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 import { waitIsOn } from "../store/taskGraphDraft";
 import { counted, undoAsOne } from "../store/undo/labels";
 import { storeStatusOf, type BoardTask } from "./taskBlockers";
-import { filterByWorkspace, inWorkspace, workspaceKeyOfRow } from "./workspaceScope";
+import {
+  filterByWorkspace,
+  inWorkspace,
+  workspaceKeyOfRow,
+} from "./workspaceScope";
 
 // ---------------------------------------------------------------------------
 // The Blocked by row
@@ -43,24 +47,57 @@ import { filterByWorkspace, inWorkspace, workspaceKeyOfRow } from "./workspaceSc
  * removal names. A wait carries its own state; a met one stays listed until removed.
  */
 export type BlockerLine =
-  | { key: string; kind: "task"; ref: string; raws: string[]; state: "open" | "met" | "missing" | "unknown"; status?: string }
+  | {
+      key: string;
+      kind: "task";
+      ref: string;
+      raws: string[];
+      state: "open" | "met" | "missing" | "unknown";
+      status?: string;
+    }
   | { key: string; kind: "wait"; wait: TaskWait };
 
 /** Every blocker of `task`, task blockers in `blocked_by` order then waits:
  *  the shared entries readiness filters, so this row and readiness agree. */
-export function blockerLines(task: GraphTask, statusOf: StatusOf): BlockerLine[] {
-  const lines: BlockerLine[] = taskBlockerEntries(task, statusOf).map(({ blocker: b, raws }) => {
-    const state = "missing" in b ? "missing" : isCleared(b) ? "met" : b.status === UNKNOWN_BLOCKER_STATUS ? "unknown" : "open";
-    const status = "status" in b && b.status !== UNKNOWN_BLOCKER_STATUS ? b.status : undefined;
-    return { key: `task:${b.ref}`, kind: "task", ref: b.ref, raws, state, ...(status ? { status } : {}) };
-  });
-  for (const w of task.waits ?? []) lines.push({ key: `wait:${w.id}`, kind: "wait", wait: w });
+export function blockerLines(
+  task: GraphTask,
+  statusOf: StatusOf,
+): BlockerLine[] {
+  const lines: BlockerLine[] = taskBlockerEntries(task, statusOf).map(
+    ({ blocker: b, raws }) => {
+      const state =
+        "missing" in b
+          ? "missing"
+          : isCleared(b)
+            ? "met"
+            : b.status === UNKNOWN_BLOCKER_STATUS
+              ? "unknown"
+              : "open";
+      const status =
+        "status" in b && b.status !== UNKNOWN_BLOCKER_STATUS
+          ? b.status
+          : undefined;
+      return {
+        key: `task:${b.ref}`,
+        kind: "task",
+        ref: b.ref,
+        raws,
+        state,
+        ...(status ? { status } : {}),
+      };
+    },
+  );
+  for (const w of task.waits ?? [])
+    lines.push({ key: `wait:${w.id}`, kind: "wait", wait: w });
   return lines;
 }
 
 /** The store's tasks that were found while working on `task` (TG5), in its workspace. */
 const foundDuringIndexes = new WeakMap<object, Map<string, TaskItem[]>>();
-export function foundHereOf(task: Pick<TaskItem, "short_id" | "workspace" | "team_id">, tasks: Record<string, TaskItem>): TaskItem[] {
+export function foundHereOf(
+  task: Pick<TaskItem, "short_id" | "workspace" | "team_id">,
+  tasks: Record<string, TaskItem>,
+): TaskItem[] {
   let index = foundDuringIndexes.get(tasks);
   if (!index) {
     index = new Map();
@@ -69,17 +106,22 @@ export function foundHereOf(task: Pick<TaskItem, "short_id" | "workspace" | "tea
       const row = tasks[id];
       if (typeof row.found_during !== "string") continue;
       let rows = index.get(row.found_during);
-      if (!rows) index.set(row.found_during, rows = []);
+      if (!rows) index.set(row.found_during, (rows = []));
       rows.push(row);
     }
     foundDuringIndexes.set(tasks, index);
   }
   const key = workspaceKeyOfRow(task);
-  return (index.get(task.short_id) ?? []).filter((row) => inWorkspace(row, key)).sort((a, b) => a.created_at - b.created_at);
+  return (index.get(task.short_id) ?? [])
+    .filter((row) => inWorkspace(row, key))
+    .sort((a, b) => a.created_at - b.created_at);
 }
 
 /** The store's tasks in `task`'s own workspace: what its relations may name. */
-function sameWorkspace(tasks: Record<string, TaskItem>, task: Pick<TaskItem, "workspace" | "team_id">): TaskItem[] {
+function sameWorkspace(
+  tasks: Record<string, TaskItem>,
+  task: Pick<TaskItem, "workspace" | "team_id">,
+): TaskItem[] {
   return filterByWorkspace(Object.values(tasks), workspaceKeyOfRow(task));
 }
 
@@ -87,7 +129,11 @@ function sameWorkspace(tasks: Record<string, TaskItem>, task: Pick<TaskItem, "wo
  *  (still waiting, or met for good): the server would return it and write
  *  nothing, so a second one is never painted. A replaceable one
  *  (waitIsReplaceable): the new wait takes its place (addWaitDraft). */
-function hasWaitOn(task: Pick<TaskItem, "waits">, target: WaitTarget, is: (w: TaskWait) => boolean): boolean {
+function hasWaitOn(
+  task: Pick<TaskItem, "waits">,
+  target: WaitTarget,
+  is: (w: TaskWait) => boolean,
+): boolean {
   return (task.waits ?? []).some((w) => is(w) && waitIsOn(w, target));
 }
 const isWaiting = (w: TaskWait) => w.state === "waiting";
@@ -115,7 +161,8 @@ export type RelationItem = {
 export type RelationTask = { ref: string; title?: string; status?: string };
 
 /** The task links a mode edits on `t`. */
-const linksOf = (t: TaskItem, mode: RelationMode): string[] => (mode === "blocker" ? t.blocked_by : t.related) ?? [];
+const linksOf = (t: TaskItem, mode: RelationMode): string[] =>
+  (mode === "blocker" ? t.blocked_by : t.related) ?? [];
 
 /** Where a row sits: list rows carry their plan and project ids untyped. */
 type Placed = { plan_id?: string; project_id?: string; project_path?: string };
@@ -136,7 +183,10 @@ function nearness(t: TaskItem, target: TaskItem): number {
 /** A wait's clause, its PR named in full once the repository is known, so
  *  the palette row, the toast and the remove button word one wait the same way. */
 export const clauseOf = (target: WaitTarget, opts: WaitLabelOptions = {}) =>
-  waitClause(target, { ...opts, fullRef: "repository" in target && !!target.repository });
+  waitClause(target, {
+    ...opts,
+    fullRef: "repository" in target && !!target.repository,
+  });
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -146,7 +196,8 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 export function blockerForms(targets: TaskItem[], now = Date.now()): string[] {
   const d = new Date(now + 3 * 86_400_000);
   const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} 09:00`;
-  const pr = targets.length > 0 && targets.every(hasProject) ? "#42" : "owner/repo#42";
+  const pr =
+    targets.length > 0 && targets.every(hasProject) ? "#42" : "owner/repo#42";
   return ["ct-12", pr, `${pr}:checks`, "sd-4", "2h", date];
 }
 
@@ -154,14 +205,28 @@ export function blockerForms(targets: TaskItem[], now = Date.now()): string[] {
  *  An error is only an error once no task title matches either.
  *  `unrecognized`: the query has none of the mode's shapes, so the hint
  *  lists the forms rather than the error. */
-export function parseRelationQuery(search: string, mode: RelationMode, now = Date.now(), timeZone = localTimeZone()):
-  { pick: RelationItem["pick"] } | { error: string; unrecognized?: true } | null {
+export function parseRelationQuery(
+  search: string,
+  mode: RelationMode,
+  now = Date.now(),
+  timeZone = localTimeZone(),
+):
+  | { pick: RelationItem["pick"] }
+  | { error: string; unrecognized?: true }
+  | null {
   const text = search.trim();
   if (!text) return null;
   const ref = parseBlockerRef(text, { now, timeZone });
-  if (!ref.ok) return ref.unrecognized ? { error: ref.error, unrecognized: true } : { error: ref.error };
+  if (!ref.ok)
+    return ref.unrecognized
+      ? { error: ref.error, unrecognized: true }
+      : { error: ref.error };
   if (ref.kind === "task") return { pick: { kind: "task", ref: ref.ref } };
-  if (mode === "related") return { error: `A related link is to a task (ct-12), not ${text}`, unrecognized: true };
+  if (mode === "related")
+    return {
+      error: `A related link is to a task (ct-12), not ${text}`,
+      unrecognized: true,
+    };
   return { pick: { kind: "wait", target: waitTargetOf(ref) } };
 }
 
@@ -171,12 +236,25 @@ export function parseRelationQuery(search: string, mode: RelationMode, now = Dat
  * workspace, built on first use, so marking every candidate reads the
  * collection once.
  */
-function loopChecker(tasks: Record<string, TaskItem>): (task: TaskItem, ref: string) => string | null {
-  const byWorkspace = new Map<string | null, (task: string, blocker: string) => string | null>();
+function loopChecker(
+  tasks: Record<string, TaskItem>,
+): (task: TaskItem, ref: string) => string | null {
+  const byWorkspace = new Map<
+    string | null,
+    (task: string, blocker: string) => string | null
+  >();
   return (task, ref) => {
     const key = workspaceKeyOfRow(task);
     let check = byWorkspace.get(key);
-    if (!check) byWorkspace.set(key, (check = dependencyLoopChecker(sameWorkspace(tasks, task).filter((t) => !isTerminalTaskStatus(t.status)))));
+    if (!check)
+      byWorkspace.set(
+        key,
+        (check = dependencyLoopChecker(
+          sameWorkspace(tasks, task).filter(
+            (t) => !isTerminalTaskStatus(t.status),
+          ),
+        )),
+      );
     return check(task.short_id, ref);
   };
 }
@@ -195,7 +273,9 @@ export function relationItems(
 ): RelationItem[] {
   const target = targets[0];
   if (!target) return [];
-  const linked = new Set(targets.flatMap((t) => [t.short_id, ...linksOf(t, mode)]));
+  const linked = new Set(
+    targets.flatMap((t) => [t.short_id, ...linksOf(t, mode)]),
+  );
   const rows = sameWorkspace(tasks, target);
   const byShort = new Map(rows.map((t) => [t.short_id, t]));
   const loops = loopChecker(tasks);
@@ -206,44 +286,81 @@ export function relationItems(
     if (parsed.pick.kind === "wait") {
       const wait = parsed.pick.target;
       const on = clauseOf(wait, { now, timeZone });
-      const has = (is: (w: TaskWait) => boolean) => (t: TaskItem) => hasWaitOn(t, wait, is);
-      const hint = targets.every(has(isWaiting)) ? "already waiting"
-        : targets.every(has(stands)) ? "already set"
-        : targets.some(has((w) => w.state === "failed")) ? "replaces the failed wait" : undefined;
-      out.push({ key: `wait:${search.trim()}`, label: `Wait ${on}`, ...(hint ? { hint } : {}), pick: parsed.pick });
+      const has = (is: (w: TaskWait) => boolean) => (t: TaskItem) =>
+        hasWaitOn(t, wait, is);
+      const hint = targets.every(has(isWaiting))
+        ? "already waiting"
+        : targets.every(has(stands))
+          ? "already set"
+          : targets.some(has((w) => w.state === "failed"))
+            ? "replaces the failed wait"
+            : undefined;
+      out.push({
+        key: `wait:${search.trim()}`,
+        label: `Wait ${on}`,
+        ...(hint ? { hint } : {}),
+        pick: parsed.pick,
+      });
     } else {
       // A pasted ref that is already linked is still listed, saying why a pick would change nothing.
       const ref = parsed.pick.ref;
       const self = targets.some((t) => t.short_id === ref);
       const already = targets.every((t) => linksOf(t, mode).includes(ref));
       const item = taskItem(mode, ref, byShort.get(ref), targets, loops);
-      const hint = self ? "this task" : already ? (mode === "blocker" ? "already a blocker" : "already linked") : item.hint;
+      const hint = self
+        ? "this task"
+        : already
+          ? mode === "blocker"
+            ? "already a blocker"
+            : "already linked"
+          : item.hint;
       out.push({ ...item, ...(hint ? { hint } : {}) });
     }
   }
   const loose = rows
-    .filter((t) =>
-      !linked.has(t.short_id) &&
-      !out.some((i) => i.pick.kind === "task" && i.pick.ref === t.short_id) &&
-      !isTerminalTaskStatus(t.status) &&
-      isActiveTask(t) &&
-      !String(t._id).startsWith("temp_") &&
-      (q === "" || t.title?.toLowerCase().includes(q) || t.short_id.toLowerCase().includes(q)))
-    .sort((a, b) => nearness(a, target) - nearness(b, target) || b.updated_at - a.updated_at)
+    .filter(
+      (t) =>
+        !linked.has(t.short_id) &&
+        !out.some((i) => i.pick.kind === "task" && i.pick.ref === t.short_id) &&
+        !isTerminalTaskStatus(t.status) &&
+        isActiveTask(t) &&
+        !String(t._id).startsWith("temp_") &&
+        (q === "" ||
+          t.title?.toLowerCase().includes(q) ||
+          t.short_id.toLowerCase().includes(q)),
+    )
+    .sort(
+      (a, b) =>
+        nearness(a, target) - nearness(b, target) ||
+        b.updated_at - a.updated_at,
+    )
     .slice(0, 8);
-  for (const t of loose) out.push(taskItem(mode, t.short_id, t, targets, loops));
+  for (const t of loose)
+    out.push(taskItem(mode, t.short_id, t, targets, loops));
   return out;
 }
 
-function taskItem(mode: RelationMode, ref: string, row: TaskItem | undefined, targets: TaskItem[], loops: ReturnType<typeof loopChecker>): RelationItem {
-  const loop = mode === "blocker" && targets.some((t) => t.short_id !== ref && loops(t, ref));
+function taskItem(
+  mode: RelationMode,
+  ref: string,
+  row: TaskItem | undefined,
+  targets: TaskItem[],
+  loops: ReturnType<typeof loopChecker>,
+): RelationItem {
+  const loop =
+    mode === "blocker" &&
+    targets.some((t) => t.short_id !== ref && loops(t, ref));
   return {
     key: `task:${ref}`,
     label: row?.title ? `${ref}  ${row.title}` : ref,
     task: { ref, title: row?.title, status: row?.status },
     // A ref the store does not hold may name no task, or one in another
     // workspace: only the server can say, so the row does not pass for a known one.
-    ...(loop ? { hint: "would close a loop", warn: true } : row ? {} : { hint: "not loaded: the server will check it" }),
+    ...(loop
+      ? { hint: "would close a loop", warn: true }
+      : row
+        ? {}
+        : { hint: "not loaded: the server will check it" }),
     pick: { kind: "task", ref },
   };
 }
@@ -256,46 +373,95 @@ function taskItem(mode: RelationMode, ref: string, row: TaskItem | undefined, ta
  *  to say if the write waits in the outbox instead. */
 export type RelationPickResult =
   | { ok: false; message: string }
-  | { ok: true; message: string; pending?: true; parked?: string; landed: Promise<string> };
+  | {
+      ok: true;
+      message: string;
+      pending?: true;
+      parked?: string;
+      landed: Promise<string>;
+    };
 
 /**
  * Write a palette pick onto every target that lacks it, as one undo. A task
  * blocker that would close a loop is refused here with the server's own words
  * (dependencyLoopChecker), so nothing paints that the echo would take back.
  */
-export function applyRelationPick(mode: RelationMode, targets: TaskItem[], pick: RelationItem["pick"]): RelationPickResult {
+export function applyRelationPick(
+  mode: RelationMode,
+  targets: TaskItem[],
+  pick: RelationItem["pick"],
+): RelationPickResult {
   const s = useInboxStore.getState();
-  const nameOf = (ts: TaskItem[]) => (ts.length === 1 ? ts[0]!.short_id : `${ts.length} tasks`);
+  const nameOf = (ts: TaskItem[]) =>
+    ts.length === 1 ? ts[0]!.short_id : `${ts.length} tasks`;
   const waits = (ts: TaskItem[]) => (ts.length === 1 ? "waits" : "wait");
   const names = nameOf(targets);
-  const sent = (message: string, writes: Promise<unknown>[]) => ({ ok: true as const, message, landed: Promise.all(writes).then(() => message) });
+  const sent = (message: string, writes: Promise<unknown>[]) => ({
+    ok: true as const,
+    message,
+    landed: Promise.all(writes).then(() => message),
+  });
   if (pick.kind === "wait") {
     const on = clauseOf(pick.target);
     const fresh = targets.filter((t) => !hasWaitOn(t, pick.target, stands));
     if (!fresh.length) {
-      const waiting = targets.every((t) => hasWaitOn(t, pick.target, isWaiting));
-      return { ok: false, message: waiting ? `${names} already ${waits(targets)} ${on}` : `${names} already ${targets.length === 1 ? "has" : "have"} a wait ${on}` };
+      const waiting = targets.every((t) =>
+        hasWaitOn(t, pick.target, isWaiting),
+      );
+      return {
+        ok: false,
+        message: waiting
+          ? `${names} already ${waits(targets)} ${on}`
+          : `${names} already ${targets.length === 1 ? "has" : "have"} a wait ${on}`,
+      };
     }
-    const writes = undoAsOne(`Made ${counted(fresh.length, "task")} wait ${on}`, () =>
-      fresh.map((t) => s.addWait(t.short_id, { id: newWaitId(), target: pick.target })));
+    const writes = undoAsOne(
+      `Made ${counted(fresh.length, "task")} wait ${on}`,
+      () =>
+        fresh.map((t) =>
+          s.addWait(t.short_id, { id: newWaitId(), target: pick.target }),
+        ),
+    );
     const done = `${nameOf(fresh)} ${waits(fresh)} ${on}`;
     // The server may meet the wait at once (a PR already merged or green, a
     // decision already answered): its note says so.
     const landed = Promise.all(writes).then((results) => {
-      const notes = results.map((r: any) => (r?.met ? r.wait?.note : undefined));
+      const notes = results.map((r: any) =>
+        r?.met ? r.wait?.note : undefined,
+      );
       return notes.every(Boolean) ? `${done}: ${notes[0]}` : done;
     });
-    if (!isPrWaitTarget(pick.target)) return { ok: true, message: done, landed };
+    if (!isPrWaitTarget(pick.target))
+      return { ok: true, message: done, landed };
     const parked = `${nameOf(fresh)} will wait ${on} once it reaches the server`;
-    return { ok: true, pending: true, message: `Checking PR ${prRef(pick.target, { fullRef: true })} for ${nameOf(fresh)}…`, parked, landed };
+    return {
+      ok: true,
+      pending: true,
+      message: `Checking PR ${prRef(pick.target, { fullRef: true })} for ${nameOf(fresh)}…`,
+      parked,
+      landed,
+    };
   }
-  if (targets.some((t) => t.short_id === pick.ref)) return { ok: false, message: `A task can't ${mode === "blocker" ? "wait on" : "relate to"} itself` };
+  if (targets.some((t) => t.short_id === pick.ref))
+    return {
+      ok: false,
+      message: `A task can't ${mode === "blocker" ? "wait on" : "relate to"} itself`,
+    };
   const fresh = targets.filter((t) => !linksOf(t, mode).includes(pick.ref));
   if (!fresh.length) {
-    return { ok: false, message: mode === "blocker" ? `${names} already ${waits(targets)} on ${pick.ref}` : `${names} already linked to ${pick.ref}` };
+    return {
+      ok: false,
+      message:
+        mode === "blocker"
+          ? `${names} already ${waits(targets)} on ${pick.ref}`
+          : `${names} already linked to ${pick.ref}`,
+    };
   }
   if (mode === "related") {
-    const writes = undoAsOne(`Linked ${counted(fresh.length, "task")} to ${pick.ref}`, () => fresh.map((t) => s.relateTasks(t.short_id, pick.ref)));
+    const writes = undoAsOne(
+      `Linked ${counted(fresh.length, "task")} to ${pick.ref}`,
+      () => fresh.map((t) => s.relateTasks(t.short_id, pick.ref)),
+    );
     return sent(`Linked ${nameOf(fresh)} and ${pick.ref}`, writes);
   }
   const loops = loopChecker(s.tasks as Record<string, TaskItem>);
@@ -303,7 +469,10 @@ export function applyRelationPick(mode: RelationMode, targets: TaskItem[], pick:
     const loop = loops(t, pick.ref);
     if (loop) return { ok: false, message: loop };
   }
-  const writes = undoAsOne(`Made ${counted(fresh.length, "task")} wait on ${pick.ref}`, () => fresh.map((t) => s.addBlocker(t.short_id, pick.ref)));
+  const writes = undoAsOne(
+    `Made ${counted(fresh.length, "task")} wait on ${pick.ref}`,
+    () => fresh.map((t) => s.addBlocker(t.short_id, pick.ref)),
+  );
   return sent(`${nameOf(fresh)} ${waits(fresh)} on ${pick.ref}`, writes);
 }
 
@@ -316,15 +485,25 @@ export function reportRelationPick(res: RelationPickResult): void {
     toast.error(res.message);
     return;
   }
-  const id = res.pending ? toast.loading(res.message) : toast.success(res.message);
+  const id = res.pending
+    ? toast.loading(res.message)
+    : toast.success(res.message);
   res.landed.then(
-    (done) => { if (res.pending || done !== res.message) toast.success(done, { id }); },
+    (done) => {
+      if (res.pending || done !== res.message) toast.success(done, { id });
+    },
     // Parked for the outbox: still on its way, so the check becomes a plain note.
-    (error) => (isRefusedDispatchError(error) ? toast.dismiss(id) : res.parked && toast(res.parked, { id })),
+    (error) =>
+      isRefusedDispatchError(error)
+        ? toast.dismiss(id)
+        : res.parked && toast(res.parked, { id }),
   );
 }
 
 /** The Blocked by row's lines for a task, read from the store. */
-export function storeBlockerLines(task: BoardTask, tasks: Record<string, any>): BlockerLine[] {
+export function storeBlockerLines(
+  task: BoardTask,
+  tasks: Record<string, any>,
+): BlockerLine[] {
   return blockerLines(task, storeStatusOf(tasks, task));
 }

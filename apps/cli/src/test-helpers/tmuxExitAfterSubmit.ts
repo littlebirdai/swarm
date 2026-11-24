@@ -2,7 +2,10 @@ export {};
 
 let input = "";
 let composer = "";
-const render = () => process.stdout.write(`\x1b[2J\x1b[H${"─".repeat(80)}\r\n❯ ${composer}\r\n${"─".repeat(80)}\r\n  bypass permissions on (shift+tab to cycle)`);
+const render = () =>
+  process.stdout.write(
+    `\x1b[2J\x1b[H${"─".repeat(80)}\r\n❯ ${composer}\r\n${"─".repeat(80)}\r\n  bypass permissions on (shift+tab to cycle)`,
+  );
 process.stdin.setRawMode(true);
 process.stdin.setEncoding("utf8");
 process.stdout.write("\x1b[?2004h");
@@ -18,7 +21,10 @@ process.stdin.on("data", (chunk: string) => {
     } else if ("\x1b[200~".startsWith(input)) {
       return;
     } else if (input[0] === "\r") {
-      process.stdout.write("\x1b[2J\x1b[HResume this session with:\r\nclaude --resume fixture\r\n$ ", () => process.exit(1));
+      process.stdout.write(
+        "\x1b[2J\x1b[HResume this session with:\r\nclaude --resume fixture\r\n$ ",
+        () => process.exit(1),
+      );
       process.stdin.pause();
       return;
     } else {

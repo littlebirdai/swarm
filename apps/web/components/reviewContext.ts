@@ -24,7 +24,9 @@ export type ReviewComposer = {
   attachSend?: (send: (() => void) | null) => void;
 };
 
-export const ReviewComposerContext = React.createContext<ReviewComposer | null>(null);
+export const ReviewComposerContext = React.createContext<ReviewComposer | null>(
+  null,
+);
 
 export function useReviewComposer(): ReviewComposer | null {
   return React.useContext(ReviewComposerContext);

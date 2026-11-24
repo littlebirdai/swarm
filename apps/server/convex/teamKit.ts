@@ -41,10 +41,21 @@ import {
   MAX_PATH_CHARS,
 } from "./capabilitiesSchema";
 
-export const KIT_KINDS = ["skill", "command", "subagent", "instructions"] as const;
+export const KIT_KINDS = [
+  "skill",
+  "command",
+  "subagent",
+  "instructions",
+] as const;
 export type KitKind = (typeof KIT_KINDS)[number];
 
-export const KIT_APPLIED_STATUSES = ["installed", "pending_consent", "conflict", "error", "removed"] as const;
+export const KIT_APPLIED_STATUSES = [
+  "installed",
+  "pending_consent",
+  "conflict",
+  "error",
+  "removed",
+] as const;
 
 export interface KitFile {
   path: string;
@@ -52,7 +63,11 @@ export interface KitFile {
   executable: boolean;
 }
 
-const kitFileValidator = v.object({ path: v.string(), size: v.number(), executable: v.boolean() });
+const kitFileValidator = v.object({
+  path: v.string(),
+  size: v.number(),
+  executable: v.boolean(),
+});
 
 /* ==========================================================================
  * Pure helpers
@@ -60,19 +75,34 @@ const kitFileValidator = v.object({ path: v.string(), size: v.number(), executab
 
 /** The workspace a publish lands in: the named team (membership required),
  *  else the caller's personal kit. Never guessed from a pointer. */
-async function kitWorkspaceFor(ctx: any, userId: Id<"users">, teamId: Id<"teams"> | undefined) {
+async function kitWorkspaceFor(
+  ctx: any,
+  userId: Id<"users">,
+  teamId: Id<"teams"> | undefined,
+) {
   if (teamId) await requireTeamMembership(ctx, userId, teamId);
-  const workspace = computeWorkspaceKey({ user_id: userId, team_id: teamId }, null);
+  const workspace = computeWorkspaceKey(
+    { user_id: userId, team_id: teamId },
+    null,
+  );
   return { workspace, owner: String(teamId ?? userId), team_id: teamId };
 }
 
 /** `authored/<workspace owner id>/<kind>/<name>`, or null when unusable. */
-export function kitSlug(owner: string, kind: string, name: string): string | null {
+export function kitSlug(
+  owner: string,
+  kind: string,
+  name: string,
+): string | null {
   if (!(KIT_KINDS as readonly string[]).includes(kind)) return null;
-  return formatCapabilitySlug({ source: "authored", segments: [owner, kind, name] });
+  return formatCapabilitySlug({
+    source: "authored",
+    segments: [owner, kind, name],
+  });
 }
 
-const SCRIPT_EXTENSIONS = /\.(sh|bash|zsh|fish|py|js|mjs|cjs|ts|mts|rb|pl|php|ps1|bat|cmd|lua|go|swift)$/i;
+const SCRIPT_EXTENSIONS =
+  /\.(sh|bash|zsh|fish|py|js|mjs|cjs|ts|mts|rb|pl|php|ps1|bat|cmd|lua|go|swift)$/i;
 
 /** Frontmatter keys that turn prose into something more. A key counts when it
  *  carries a value inline or on the indented lines below it. */
@@ -85,7 +115,8 @@ function frontmatterKeys(body: string): Set<string> {
     const m = /^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$/.exec(line);
     if (!m) return;
     const next = lines[i + 1] ?? "";
-    if (m[2]!.trim() !== "" || /^\s+\S/.test(next)) found.add(m[1]!.toLowerCase().replace(/_/g, "-"));
+    if (m[2]!.trim() !== "" || /^\s+\S/.test(next))
+      found.add(m[1]!.toLowerCase().replace(/_/g, "-"));
   });
   return found;
 }
@@ -96,10 +127,17 @@ function frontmatterKeys(body: string): Set<string> {
  * `allowed-tools` / `hooks` in the main body's frontmatter declare their
  * surfaces. Every item is prose; one with nothing else installs without asking.
  */
-export function deriveKitSurfaces(files: readonly KitFile[], mainBody: string): ExecutionSurface[] {
+export function deriveKitSurfaces(
+  files: readonly KitFile[],
+  mainBody: string,
+): ExecutionSurface[] {
   const manifest: CapabilityManifest = {};
-  const bin = files.filter((f) => f.executable || /(^|\/)bin\//.test(f.path)).map((f) => f.path);
-  const scripts = files.filter((f) => SCRIPT_EXTENSIONS.test(f.path)).map((f) => f.path);
+  const bin = files
+    .filter((f) => f.executable || /(^|\/)bin\//.test(f.path))
+    .map((f) => f.path);
+  const scripts = files
+    .filter((f) => SCRIPT_EXTENSIONS.test(f.path))
+    .map((f) => f.path);
   if (bin.length) manifest.bin = bin;
   if (scripts.length) manifest.scripts = scripts;
   const keys = frontmatterKeys(mainBody);
@@ -112,7 +150,8 @@ export function deriveKitSurfaces(files: readonly KitFile[], mainBody: string): 
 function kitPath(value: string): string | null {
   const path = sanitizeReported(value, MAX_PATH_CHARS, "identity");
   if (!path || path.includes("\\")) return null;
-  if (path.split("/").some((seg) => seg === "" || seg === "." || seg === "..")) return null;
+  if (path.split("/").some((seg) => seg === "" || seg === "." || seg === ".."))
+    return null;
   return path;
 }
 
@@ -154,11 +193,17 @@ function versionView(row: any, includeBody: boolean) {
 }
 
 /** Everyone a workspace's items reach: the team's members, or its owner. */
-async function workspaceMemberIds(ctx: any, workspace: string): Promise<string[]> {
+async function workspaceMemberIds(
+  ctx: any,
+  workspace: string,
+): Promise<string[]> {
   const ws = parseWorkspaceKey(workspace);
   if (!ws) return [];
   if (ws.type === "personal") return [String(ws.userId)];
-  const rows = await ctx.db.query("team_memberships").withIndex("by_team_id", (q: any) => q.eq("team_id", ws.teamId)).collect();
+  const rows = await ctx.db
+    .query("team_memberships")
+    .withIndex("by_team_id", (q: any) => q.eq("team_id", ws.teamId))
+    .collect();
   return rows.map((m: any) => String(m.user_id));
 }
 
@@ -166,7 +211,10 @@ async function workspaceMemberIds(ctx: any, workspace: string): Promise<string[]
 async function bumpRevisions(ctx: any, userIds: readonly string[]) {
   for (const id of userIds) {
     const user = await ctx.db.get(id);
-    if (user) await ctx.db.patch(id, { capability_revision: (user.capability_revision ?? 0) + 1 });
+    if (user)
+      await ctx.db.patch(id, {
+        capability_revision: (user.capability_revision ?? 0) + 1,
+      });
   }
 }
 
@@ -176,7 +224,11 @@ async function bumpRevisions(ctx: any, userIds: readonly string[]) {
 
 /** Every item in the workspaces this user holds, optionally one workspace,
  *  optionally only rows updated after `since`. */
-export async function listKitItemsFor(ctx: any, userId: Id<"users">, opts: { workspace?: string; since?: number } = {}) {
+export async function listKitItemsFor(
+  ctx: any,
+  userId: Id<"users">,
+  opts: { workspace?: string; since?: number } = {},
+) {
   const held = [...(await heldKeysFor(ctx, userId))];
   const keys = opts.workspace ? held.filter((k) => k === opts.workspace) : held;
   const out: any[] = [];
@@ -185,7 +237,9 @@ export async function listKitItemsFor(ctx: any, userId: Id<"users">, opts: { wor
       .query("team_kit_items")
       .withIndex("by_workspace_updated", (q: any) => {
         const scoped = q.eq("workspace", key);
-        return opts.since === undefined ? scoped : scoped.gt("updated_at", opts.since);
+        return opts.since === undefined
+          ? scoped
+          : scoped.gt("updated_at", opts.since);
       })
       .take(MAX_KIT_ITEMS);
     out.push(...rows);
@@ -196,9 +250,14 @@ export async function listKitItemsFor(ctx: any, userId: Id<"users">, opts: { wor
 /** The item at `slug`, or null when it does not exist or the caller holds no
  *  key for its workspace (the two are indistinguishable on purpose). */
 async function readableItem(ctx: any, userId: Id<"users">, slug: string) {
-  const item = await ctx.db.query("team_kit_items").withIndex("by_slug", (q: any) => q.eq("slug", slug)).first();
+  const item = await ctx.db
+    .query("team_kit_items")
+    .withIndex("by_slug", (q: any) => q.eq("slug", slug))
+    .first();
   if (!item || item.removed_at !== undefined) return null;
-  return (await workspaceGrantsAccess(ctx, userId, item.workspace)) ? item : null;
+  return (await workspaceGrantsAccess(ctx, userId, item.workspace))
+    ? item
+    : null;
 }
 
 async function requireTokenUser(ctx: any, token: string): Promise<Id<"users">> {
@@ -234,31 +293,60 @@ export interface PublishKitArgs {
 
 type PublishResult =
   | { status: "rejected"; reason: string }
-  | { status: "created" | "unchanged"; slug: string; item_id: string; version: number; folder_hash: string; surfaces: string[] };
+  | {
+      status: "created" | "unchanged";
+      slug: string;
+      item_id: string;
+      version: number;
+      folder_hash: string;
+      surfaces: string[];
+    };
 
 /** The one publish: the CLI route calls it, and the daemon runs the same
  *  route when the web asks a machine to share an item. */
-export async function publishKit(ctx: any, userId: Id<"users">, args: PublishKitArgs): Promise<PublishResult> {
-  const rejected = (reason: string) => ({ status: "rejected" as const, reason });
-  const { workspace, owner, team_id } = await kitWorkspaceFor(ctx, userId, args.team_id);
+export async function publishKit(
+  ctx: any,
+  userId: Id<"users">,
+  args: PublishKitArgs,
+): Promise<PublishResult> {
+  const rejected = (reason: string) => ({
+    status: "rejected" as const,
+    reason,
+  });
+  const { workspace, owner, team_id } = await kitWorkspaceFor(
+    ctx,
+    userId,
+    args.team_id,
+  );
   const slug = kitSlug(owner, args.kind, args.name);
   if (!slug) return rejected("invalid_name");
-  if (!FOLDER_HASH.test(args.folder_hash)) return rejected("invalid_folder_hash");
-  if (args.files.length === 0 || args.files.length > MAX_KIT_FILES) return rejected("invalid_files");
+  if (!FOLDER_HASH.test(args.folder_hash))
+    return rejected("invalid_folder_hash");
+  if (args.files.length === 0 || args.files.length > MAX_KIT_FILES)
+    return rejected("invalid_files");
   const files: KitFile[] = [];
   for (const f of args.files) {
     const path = kitPath(f.path);
-    if (!path || !Number.isFinite(f.size) || f.size < 0) return rejected("invalid_files");
+    if (!path || !Number.isFinite(f.size) || f.size < 0)
+      return rejected("invalid_files");
     files.push({ path, size: Math.floor(f.size), executable: f.executable });
   }
   files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   // A body the sanitizer refuses (control characters, a secret assignment at
   // the top) is refused whole rather than stored cleaned.
-  const mainBody = args.main_body.trim() === "" ? "" : sanitizeReported(args.main_body, MAX_KIT_MAIN_BODY_CHARS, "body");
+  const mainBody =
+    args.main_body.trim() === ""
+      ? ""
+      : sanitizeReported(args.main_body, MAX_KIT_MAIN_BODY_CHARS, "body");
   if (mainBody === null) return rejected("main_body_rejected");
-  const description = sanitizeReported(args.description, MAX_DESCRIPTION_CHARS, "text") ?? undefined;
-  const note = sanitizeReported(args.note, MAX_DESCRIPTION_CHARS, "text") ?? undefined;
-  const deviceId = args.device_id ? identityText(args.device_id, 200) : undefined;
+  const description =
+    sanitizeReported(args.description, MAX_DESCRIPTION_CHARS, "text") ??
+    undefined;
+  const note =
+    sanitizeReported(args.note, MAX_DESCRIPTION_CHARS, "text") ?? undefined;
+  const deviceId = args.device_id
+    ? identityText(args.device_id, 200)
+    : undefined;
 
   const blob = await ctx.db.system.get(args.storage_id);
   if (!blob) return rejected("archive_missing");
@@ -268,20 +356,30 @@ export async function publishKit(ctx: any, userId: Id<"users">, args: PublishKit
   }
 
   const now = Date.now();
-  let item = await ctx.db.query("team_kit_items").withIndex("by_slug", (q: any) => q.eq("slug", slug)).first();
-  if (item && item.workspace !== workspace) return rejected("slug_in_other_workspace");
+  let item = await ctx.db
+    .query("team_kit_items")
+    .withIndex("by_slug", (q: any) => q.eq("slug", slug))
+    .first();
+  if (item && item.workspace !== workspace)
+    return rejected("slug_in_other_workspace");
 
   if (item) {
     const same = await ctx.db
       .query("team_kit_versions")
-      .withIndex("by_item_hash", (q: any) => q.eq("item_id", item._id).eq("folder_hash", args.folder_hash))
+      .withIndex("by_item_hash", (q: any) =>
+        q.eq("item_id", item._id).eq("folder_hash", args.folder_hash),
+      )
       .first();
     if (same) {
       // Same bytes: the existing version answers, and the fresh upload is
       // an orphan nobody will ever read.
-      if (same.storage_id !== args.storage_id) await ctx.storage.delete(args.storage_id);
+      if (same.storage_id !== args.storage_id)
+        await ctx.storage.delete(args.storage_id);
       // Republishing an older version's bytes makes it current again.
-      if (item.current_hash !== same.folder_hash || item.removed_at !== undefined) {
+      if (
+        item.current_hash !== same.folder_hash ||
+        item.removed_at !== undefined
+      ) {
         await ctx.db.patch(item._id, {
           current_version: same.version,
           current_hash: same.folder_hash,
@@ -291,7 +389,14 @@ export async function publishKit(ctx: any, userId: Id<"users">, args: PublishKit
         });
         await bumpRevisions(ctx, await workspaceMemberIds(ctx, workspace));
       }
-      return { status: "unchanged", slug, item_id: item._id, version: same.version, folder_hash: same.folder_hash, surfaces: same.surfaces };
+      return {
+        status: "unchanged",
+        slug,
+        item_id: item._id,
+        version: same.version,
+        folder_hash: same.folder_hash,
+        surfaces: same.surfaces,
+      };
     }
   }
 
@@ -344,8 +449,16 @@ export async function publishKit(ctx: any, userId: Id<"users">, args: PublishKit
     created_at: now,
   });
   // A new current version must reach machines whose bindings did not change.
-  if (version > 1) await bumpRevisions(ctx, await workspaceMemberIds(ctx, workspace));
-  return { status: "created", slug, item_id: item._id, version, folder_hash: args.folder_hash, surfaces };
+  if (version > 1)
+    await bumpRevisions(ctx, await workspaceMemberIds(ctx, workspace));
+  return {
+    status: "created",
+    slug,
+    item_id: item._id,
+    version,
+    folder_hash: args.folder_hash,
+    surfaces,
+  };
 }
 
 export const publishKitItem = mutation({
@@ -376,7 +489,11 @@ export const publishKitItem = mutation({
 /** One version of an item (current unless `version` is given): metadata and a
  *  download URL for the archive. Null when the caller cannot read it. */
 export const getKitVersion = query({
-  args: { api_token: v.string(), slug: v.string(), version: v.optional(v.number()) },
+  args: {
+    api_token: v.string(),
+    slug: v.string(),
+    version: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireTokenUser(ctx, args.api_token);
     const item = await readableItem(ctx, userId, args.slug);
@@ -384,7 +501,9 @@ export const getKitVersion = query({
     const wanted = args.version ?? item.current_version;
     const row = await (ctx.db as any)
       .query("team_kit_versions")
-      .withIndex("by_item_version", (q: any) => q.eq("item_id", item._id).eq("version", wanted))
+      .withIndex("by_item_version", (q: any) =>
+        q.eq("item_id", item._id).eq("version", wanted),
+      )
       .first();
     if (!row) return null;
     return {
@@ -402,10 +521,18 @@ export const getKitVersion = query({
 });
 
 export const listKitItems = query({
-  args: { api_token: v.string(), team_id: v.optional(v.id("teams")), personal: v.optional(v.boolean()) },
+  args: {
+    api_token: v.string(),
+    team_id: v.optional(v.id("teams")),
+    personal: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireTokenUser(ctx, args.api_token);
-    const workspace = args.team_id ? `team:${args.team_id}` : args.personal ? `user:${userId}` : undefined;
+    const workspace = args.team_id
+      ? `team:${args.team_id}`
+      : args.personal
+        ? `user:${userId}`
+        : undefined;
     const items = await listKitItemsFor(ctx, userId, { workspace });
     return { items: items.filter((i) => i.removed_at === undefined) };
   },
@@ -425,17 +552,28 @@ export const reportKitApplied = mutation({
   args: {
     api_token: v.string(),
     device_id: v.string(),
-    items: v.array(v.object({ slug: v.string(), hash: v.string(), status: v.string(), detail: v.optional(v.string()) })),
+    items: v.array(
+      v.object({
+        slug: v.string(),
+        hash: v.string(),
+        status: v.string(),
+        detail: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireTokenUser(ctx, args.api_token);
     const deviceId = identityText(args.device_id, 200);
-    if (!deviceId) return { status: "rejected" as const, reason: "invalid_device_id" };
-    if (args.items.length > MAX_KIT_APPLIED_PER_DEVICE) return { status: "rejected" as const, reason: "too_many_items" };
+    if (!deviceId)
+      return { status: "rejected" as const, reason: "invalid_device_id" };
+    if (args.items.length > MAX_KIT_APPLIED_PER_DEVICE)
+      return { status: "rejected" as const, reason: "too_many_items" };
     const now = Date.now();
     const existing = await (ctx.db as any)
       .query("team_kit_applied")
-      .withIndex("by_user_device_slug", (q: any) => q.eq("user_id", userId).eq("device_id", deviceId))
+      .withIndex("by_user_device_slug", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", deviceId),
+      )
       .collect();
     const bySlug = new Map<string, any>(existing.map((r: any) => [r.slug, r]));
     const seen = new Set<string>();
@@ -444,23 +582,49 @@ export const reportKitApplied = mutation({
       const slug = identityText(raw.slug, 200);
       const hash = identityText(raw.hash, 128);
       if (!slug?.startsWith("authored/") || !hash) continue;
-      if (!(KIT_APPLIED_STATUSES as readonly string[]).includes(raw.status) || raw.status === "removed") continue;
+      if (
+        !(KIT_APPLIED_STATUSES as readonly string[]).includes(raw.status) ||
+        raw.status === "removed"
+      )
+        continue;
       seen.add(slug);
-      const detail = sanitizeReported(raw.detail, MAX_DESCRIPTION_CHARS, "diagnostic") ?? undefined;
+      const detail =
+        sanitizeReported(raw.detail, MAX_DESCRIPTION_CHARS, "diagnostic") ??
+        undefined;
       const row = bySlug.get(slug);
       if (row) {
-        if (row.hash === hash && row.status === raw.status && row.detail === detail) continue;
-        await ctx.db.patch(row._id, { hash, status: raw.status, detail, updated_at: now } as any);
+        if (
+          row.hash === hash &&
+          row.status === raw.status &&
+          row.detail === detail
+        )
+          continue;
+        await ctx.db.patch(row._id, {
+          hash,
+          status: raw.status,
+          detail,
+          updated_at: now,
+        } as any);
       } else {
         await (ctx.db as any).insert("team_kit_applied", {
-          user_id: userId, device_id: deviceId, slug, hash, status: raw.status, detail, updated_at: now,
+          user_id: userId,
+          device_id: deviceId,
+          slug,
+          hash,
+          status: raw.status,
+          detail,
+          updated_at: now,
         });
       }
       written++;
     }
     for (const row of existing) {
       if (seen.has(row.slug) || row.status === "removed") continue;
-      await ctx.db.patch(row._id, { status: "removed", detail: undefined, updated_at: now } as any);
+      await ctx.db.patch(row._id, {
+        status: "removed",
+        detail: undefined,
+        updated_at: now,
+      } as any);
       written++;
     }
     return { status: "recorded" as const, written };
@@ -490,7 +654,11 @@ export const webVersions = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     const item = await ctx.db.get(args.item_id);
-    if (!item || !(await workspaceGrantsAccess(ctx, userId, (item as any).workspace))) return [];
+    if (
+      !item ||
+      !(await workspaceGrantsAccess(ctx, userId, (item as any).workspace))
+    )
+      return [];
     const rows = await (ctx.db as any)
       .query("team_kit_versions")
       .withIndex("by_item_version", (q: any) => q.eq("item_id", args.item_id))
@@ -514,15 +682,22 @@ export const webVersions = query({
  * stays (marked removed) so the delta feed carries the removal, and every
  * binding that turns it on is switched off so machines uninstall it.
  */
-export async function removeKitItem(ctx: any, userId: Id<"users">, itemId: Id<"team_kit_items">) {
+export async function removeKitItem(
+  ctx: any,
+  userId: Id<"users">,
+  itemId: Id<"team_kit_items">,
+) {
   const item = await ctx.db.get(itemId);
-  if (!item || !(await workspaceGrantsAccess(ctx, userId, item.workspace))) throw new Error("Not found");
+  if (!item || !(await workspaceGrantsAccess(ctx, userId, item.workspace)))
+    throw new Error("Not found");
   if (String(item.author_user_id) !== String(userId)) {
     const ws = parseWorkspaceKey(item.workspace);
-    if (ws?.type !== "team") throw new Error("Forbidden: only the author can remove this item");
+    if (ws?.type !== "team")
+      throw new Error("Forbidden: only the author can remove this item");
     await requireTeamAdmin(ctx, userId, ws.teamId);
   }
-  if (item.removed_at !== undefined) return { status: "already_removed" as const, disabled: 0 };
+  if (item.removed_at !== undefined)
+    return { status: "already_removed" as const, disabled: 0 };
   const now = Date.now();
   await ctx.db.patch(item._id, { removed_at: now, updated_at: now });
 
@@ -531,9 +706,14 @@ export async function removeKitItem(ctx: any, userId: Id<"users">, itemId: Id<"t
   const memberIds = await workspaceMemberIds(ctx, item.workspace);
   const rows: any[] = [];
   for (const memberId of memberIds) {
-    rows.push(...(await ctx.db.query("capability_bindings")
-      .withIndex("by_user_scope", (q: any) => q.eq("user_id", memberId).eq("capability_slug", item.slug))
-      .collect()));
+    rows.push(
+      ...(await ctx.db
+        .query("capability_bindings")
+        .withIndex("by_user_scope", (q: any) =>
+          q.eq("user_id", memberId).eq("capability_slug", item.slug),
+        )
+        .collect()),
+    );
   }
   let disabled = 0;
   for (const row of rows) {
@@ -561,8 +741,12 @@ export const removeKitItemForToken = mutation({
   args: { api_token: v.string(), slug: v.string() },
   handler: async (ctx, args) => {
     const userId = await requireTokenUser(ctx, args.api_token);
-    const item = await (ctx.db as any).query("team_kit_items").withIndex("by_slug", (q: any) => q.eq("slug", args.slug)).first();
-    if (!item || !(await workspaceGrantsAccess(ctx, userId, item.workspace))) return { status: "not_found" as const, disabled: 0 };
+    const item = await (ctx.db as any)
+      .query("team_kit_items")
+      .withIndex("by_slug", (q: any) => q.eq("slug", args.slug))
+      .first();
+    if (!item || !(await workspaceGrantsAccess(ctx, userId, item.workspace)))
+      return { status: "not_found" as const, disabled: 0 };
     return await removeKitItem(ctx, userId, item._id);
   },
 });
@@ -572,21 +756,45 @@ export const removeKitItemForToken = mutation({
  * already the latest), minus those the person already answered for that
  * hash: a consent for pending_consent, an adoption for conflict.
  */
-async function awaitingAnswer(ctx: any, userId: Id<"users">, status: "pending_consent" | "conflict") {
+async function awaitingAnswer(
+  ctx: any,
+  userId: Id<"users">,
+  status: "pending_consent" | "conflict",
+) {
   const purpose = status === "conflict" ? "adopt" : undefined;
   const rows = await ctx.db
     .query("team_kit_applied")
     .withIndex("by_user_updated", (q: any) => q.eq("user_id", userId))
     .take(MAX_KIT_APPLIED_PER_DEVICE * 4);
-  const out: Array<{ device_id: string; slug: string; hash: string; detail?: string }> = [];
+  const out: Array<{
+    device_id: string;
+    slug: string;
+    hash: string;
+    detail?: string;
+  }> = [];
   for (const r of rows) {
     if (r.status !== status) continue;
     const answers = await ctx.db
       .query("capability_consents")
-      .withIndex("by_user_device_slug", (q: any) => q.eq("user_id", userId).eq("device_id", r.device_id).eq("capability_slug", r.slug))
+      .withIndex("by_user_device_slug", (q: any) =>
+        q
+          .eq("user_id", userId)
+          .eq("device_id", r.device_id)
+          .eq("capability_slug", r.slug),
+      )
       .collect();
-    if (answers.some((c: any) => c.manifest_hash === r.hash && c.purpose === purpose)) continue;
-    out.push({ device_id: r.device_id, slug: r.slug, hash: r.hash, ...(purpose ? { detail: r.detail } : {}) });
+    if (
+      answers.some(
+        (c: any) => c.manifest_hash === r.hash && c.purpose === purpose,
+      )
+    )
+      continue;
+    out.push({
+      device_id: r.device_id,
+      slug: r.slug,
+      hash: r.hash,
+      ...(purpose ? { detail: r.detail } : {}),
+    });
   }
   return out;
 }
@@ -612,14 +820,23 @@ export const webKitConflicts = query({
 
 /** The answer on one of the viewer's own machines: run this build (Allow),
  *  or replace the colliding file with the kit's copy (adopt). */
-async function answerOnOwnDevice(ctx: any, args: { device_id: string; slug: string; hash: string }, purpose?: "adopt") {
+async function answerOnOwnDevice(
+  ctx: any,
+  args: { device_id: string; slug: string; hash: string },
+  purpose?: "adopt",
+) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Authentication required");
-  if (!(await ownDevice(ctx, userId, args.device_id))) throw new Error("Unknown device");
+  if (!(await ownDevice(ctx, userId, args.device_id)))
+    throw new Error("Unknown device");
   return await recordConsent(
     ctx,
     String(userId),
-    { device_id: args.device_id, capability_slug: args.slug, manifest_hash: args.hash },
+    {
+      device_id: args.device_id,
+      capability_slug: args.slug,
+      manifest_hash: args.hash,
+    },
     purpose,
   );
 }
@@ -641,18 +858,31 @@ export const adoptKitItem = mutation({
 export async function requestKitPublish(
   ctx: any,
   userId: Id<"users">,
-  args: { device_id: string; kind: string; name: string; team_id?: Id<"teams">; note?: string; client_key?: string },
+  args: {
+    device_id: string;
+    kind: string;
+    name: string;
+    team_id?: Id<"teams">;
+    note?: string;
+    client_key?: string;
+  },
 ) {
   const device = await ownDevice(ctx, userId, args.device_id);
   if (!device) throw new Error("Unknown device");
   const { owner } = await kitWorkspaceFor(ctx, userId, args.team_id);
   const slug = kitSlug(owner, args.kind, args.name);
   if (!slug) throw new Error("Invalid kit item name");
-  const note = sanitizeReported(args.note, MAX_DESCRIPTION_CHARS, "text") ?? undefined;
+  const note =
+    sanitizeReported(args.note, MAX_DESCRIPTION_CHARS, "text") ?? undefined;
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "cap_publish" as const,
-    args: JSON.stringify({ kind: args.kind, name: args.name, ...(args.team_id ? { team_id: args.team_id } : {}), ...(note ? { note } : {}) }),
+    args: JSON.stringify({
+      kind: args.kind,
+      name: args.name,
+      ...(args.team_id ? { team_id: args.team_id } : {}),
+      ...(note ? { note } : {}),
+    }),
     created_at: Date.now(),
     target_device_id: device.device_id,
   });

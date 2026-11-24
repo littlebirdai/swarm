@@ -29,18 +29,32 @@ import { createInterface } from "node:readline";
 
 import type { ComputerClient } from "../src/computer/client.js";
 import { readInstance } from "../src/computer/instance.js";
-import type { ComputerActionResult, ComputerSnapshotResult } from "../src/computer/types.js";
-import { buildFixture, fixtureClient, fixtureStatus as status, launchFixture, scriptSource, type Fixture } from "../src/test-helpers/computerBenchFixture.js";
+import type {
+  ComputerActionResult,
+  ComputerSnapshotResult,
+} from "../src/computer/types.js";
+import {
+  buildFixture,
+  fixtureClient,
+  fixtureStatus as status,
+  launchFixture,
+  scriptSource,
+  type Fixture,
+} from "../src/test-helpers/computerBenchFixture.js";
 
 const WORK = path.join(os.tmpdir(), "cc-bench");
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function flag(args: string[], name: string): string | undefined {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 }
 
-async function until(check: () => boolean | Promise<boolean>, timeoutMs = 5_000): Promise<boolean> {
+async function until(
+  check: () => boolean | Promise<boolean>,
+  timeoutMs = 5_000,
+): Promise<boolean> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     if (await check()) return true;
@@ -49,15 +63,45 @@ async function until(check: () => boolean | Promise<boolean>, timeoutMs = 5_000)
   return check();
 }
 
-type Sample = { pointer?: { from: [number, number]; to: [number, number]; moved: number }; focus?: { before: number; after: number; activated: string[] }; landed: boolean; frontKept: boolean; cursorKept: boolean; path?: string; error?: string };
-type Row = { name: string; samples: Sample[]; note?: string; skipped?: string; /** Apps that came to the front while the row set up: a setup bug. */ setupActivated?: number[] };
-type Report = { label: string; technique: string; stamp: string; at: string; load: number; rows: Row[] };
+type Sample = {
+  pointer?: { from: [number, number]; to: [number, number]; moved: number };
+  focus?: { before: number; after: number; activated: string[] };
+  landed: boolean;
+  frontKept: boolean;
+  cursorKept: boolean;
+  path?: string;
+  error?: string;
+};
+type Row = {
+  name: string;
+  samples: Sample[];
+  note?: string;
+  skipped?: string;
+  /** Apps that came to the front while the row set up: a setup bug. */ setupActivated?: number[];
+};
+type Report = {
+  label: string;
+  technique: string;
+  stamp: string;
+  at: string;
+  load: number;
+  rows: Row[];
+};
 
-type Observation = { front: number; cursor: [number, number]; moved: number; activations: number[] };
+type Observation = {
+  front: number;
+  cursor: [number, number];
+  moved: number;
+  activations: number[];
+};
 
 /** The observer process: one JSON line per mark, covering the time since the last. */
 async function startObserver() {
-  const child = spawn(buildFixture(scriptSource("computer-desktop-observer.swift")), [], { stdio: ["pipe", "pipe", "inherit"] });
+  const child = spawn(
+    buildFixture(scriptSource("computer-desktop-observer.swift")),
+    [],
+    { stdio: ["pipe", "pipe", "inherit"] },
+  );
   const lines = createInterface({ input: child.stdout! });
   const waiting: ((line: string) => void)[] = [];
   lines.on("line", (line) => waiting.shift()?.(line));
@@ -82,12 +126,17 @@ type Subject = {
   /** Presses per action, for a target that needs a double press. */
   clickCount?: number;
   /** A drag to this offset from the point, or a scroll, instead of a click. */
-  gesture?: { kind: "drag"; dx: number; dy: number } | { kind: "scroll"; direction: "up" | "down" };
+  gesture?:
+    | { kind: "drag"; dx: number; dy: number }
+    | { kind: "scroll"; direction: "up" | "down" };
   afterPress?: () => Promise<void>;
   cleanup: () => Promise<void>;
 };
 
-type Context = { client: ComputerClient; read: (p: Record<string, unknown>) => Promise<ComputerSnapshotResult> };
+type Context = {
+  client: ComputerClient;
+  read: (p: Record<string, unknown>) => Promise<ComputerSnapshotResult>;
+};
 
 const tmpFile = (name: string, contents: string | Buffer) => {
   const file = path.join(WORK, name);
@@ -110,7 +159,12 @@ function frameOf(snapshot: ComputerSnapshotResult, index: number) {
   return frame;
 }
 
-const centerOf = (frame: { x: number; y: number; width: number; height: number }) => ({
+const centerOf = (frame: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => ({
   x: Math.round(frame.x + frame.width / 2),
   y: Math.round(frame.y + frame.height / 2),
 });
@@ -123,15 +177,24 @@ function pidsOf(pattern: string): number[] {
 /** The main process of an app started with `marker` in its arguments (not a helper). */
 function mainPid(marker: string): number | undefined {
   for (const pid of pidsOf(marker)) {
-    const args = spawnSync("ps", ["-o", "args=", "-p", String(pid)], { encoding: "utf8" }).stdout;
+    const args = spawnSync("ps", ["-o", "args=", "-p", String(pid)], {
+      encoding: "utf8",
+    }).stdout;
     if (!args.includes("--type=") && !args.includes("Helper")) return pid;
   }
   return undefined;
 }
 
 /** Calls `expression` in the first page target a DevTools port lists. */
-async function cdpEvaluate(port: number, expression: string, pick: (t: { type: string; url: string }) => boolean = (t) => t.type === "page") {
-  const targets = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()) as { type: string; url: string; webSocketDebuggerUrl: string }[];
+async function cdpEvaluate(
+  port: number,
+  expression: string,
+  pick: (t: { type: string; url: string }) => boolean = (t) =>
+    t.type === "page",
+) {
+  const targets = (await (
+    await fetch(`http://127.0.0.1:${port}/json`)
+  ).json()) as { type: string; url: string; webSocketDebuggerUrl: string }[];
   const target = targets.find(pick);
   if (!target) throw new Error(`no page on DevTools port ${port}`);
   const ws = new WebSocket(target.webSocketDebuggerUrl);
@@ -140,9 +203,17 @@ async function cdpEvaluate(port: number, expression: string, pick: (t: { type: s
     ws.onerror = reject;
   });
   try {
-    const reply = await new Promise<{ result?: { result?: { value?: unknown } } }>((resolve) => {
+    const reply = await new Promise<{
+      result?: { result?: { value?: unknown } };
+    }>((resolve) => {
       ws.onmessage = (m) => resolve(JSON.parse(String(m.data)));
-      ws.send(JSON.stringify({ id: 1, method: "Runtime.evaluate", params: { expression, returnByValue: true } }));
+      ws.send(
+        JSON.stringify({
+          id: 1,
+          method: "Runtime.evaluate",
+          params: { expression, returnByValue: true },
+        }),
+      );
     });
     return reply.result?.result?.value;
   } finally {
@@ -197,16 +268,32 @@ function stripeServer() {
   });
   card.mount("#card");
 </script></body>`;
-  const server = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Response(html, { headers: { "content-type": "text/html" } }) });
-  return { url: `http://127.0.0.1:${server.port}/`, stop: () => server.stop(true) };
+  const server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    fetch: () =>
+      new Response(html, { headers: { "content-type": "text/html" } }),
+  });
+  return {
+    url: `http://127.0.0.1:${server.port}/`,
+    stop: () => server.stop(true),
+  };
 }
 
 /** The bench fixture's 2000-row table: a wheel scroll moves its scroll bar,
  *  which the tree reports. Each scroll goes down; it never reaches the end. */
 async function fixtureScroll(ctx: Context): Promise<Subject> {
   const fixture = await launchFixture();
-  const params = { app: `pid:${fixture.pid}`, windowId: fixture.windows["Bench Table"] };
-  const position = async () => Number(/scroll bar ([\d.]+)/.exec((await ctx.read({ ...params, noScreenshot: true })).snapshot.treeText)?.[1] ?? 0);
+  const params = {
+    app: `pid:${fixture.pid}`,
+    windowId: fixture.windows["Bench Table"],
+  };
+  const position = async () =>
+    Number(
+      /scroll bar ([\d.]+)/.exec(
+        (await ctx.read({ ...params, noScreenshot: true })).snapshot.treeText,
+      )?.[1] ?? 0,
+    );
   let last = 0;
   let moves = 0;
   return {
@@ -233,7 +320,10 @@ async function fixtureCanvas(): Promise<Subject> {
   const fixture = await launchFixture();
   return {
     pid: fixture.pid,
-    params: { app: `pid:${fixture.pid}`, windowId: fixture.windows["Bench Canvas"] },
+    params: {
+      app: `pid:${fixture.pid}`,
+      windowId: fixture.windows["Bench Canvas"],
+    },
     // The canvas fills the top 120 points of the 200 point content.
     point: async () => ({ x: 210, y: 90 }),
     count: async () => Number(status(fixture).canvasClicks ?? 0),
@@ -241,28 +331,52 @@ async function fixtureCanvas(): Promise<Subject> {
   };
 }
 
-async function swiftui(zone: "button" | "tap" | "drag", ctx: Context): Promise<Subject> {
-  const fixture: Fixture = await launchFixture([], scriptSource("computer-swiftui-fixture.swift"));
-  const params = { app: `pid:${fixture.pid}`, windowId: fixture.windows["SwiftUI Probe"] };
+async function swiftui(
+  zone: "button" | "tap" | "drag",
+  ctx: Context,
+): Promise<Subject> {
+  const fixture: Fixture = await launchFixture(
+    [],
+    scriptSource("computer-swiftui-fixture.swift"),
+  );
+  const params = {
+    app: `pid:${fixture.pid}`,
+    windowId: fixture.windows["SwiftUI Probe"],
+  };
   return {
     pid: fixture.pid,
     params,
     point: async () => {
       if (zone !== "button") {
         // The tap and drag zones have no element: the fixture reports where they are.
-        const zoneCenter = () => (status(fixture).zones as Record<string, [number, number]> | undefined)?.[zone];
+        const zoneCenter = () =>
+          (
+            status(fixture).zones as
+              | Record<string, [number, number]>
+              | undefined
+          )?.[zone];
         await until(async () => !!zoneCenter(), 5_000);
         const center = zoneCenter();
         if (!center) throw new Error(`the fixture reported no ${zone} zone`);
         return { x: Math.round(center[0]), y: Math.round(center[1]) };
       }
       const snapshot = await ctx.read({ ...params, noScreenshot: true });
-      const index = elementLine(snapshot.snapshot.treeText, /^button.*Probe Button/);
+      const index = elementLine(
+        snapshot.snapshot.treeText,
+        /^button.*Probe Button/,
+      );
       if (index === undefined) throw new Error("no button in the tree");
       return centerOf(frameOf(snapshot, index));
     },
-    count: async () => Number(status(fixture)[{ button: "buttonPresses", tap: "taps", drag: "drags" }[zone]] ?? 0),
-    ...(zone === "drag" ? { gesture: { kind: "drag" as const, dx: 70, dy: 0 } } : {}),
+    count: async () =>
+      Number(
+        status(fixture)[
+          { button: "buttonPresses", tap: "taps", drag: "drags" }[zone]
+        ] ?? 0,
+      ),
+    ...(zone === "drag"
+      ? { gesture: { kind: "drag" as const, dx: 70, dy: 0 } }
+      : {}),
     cleanup: async () => void fixture.child.kill(),
   };
 }
@@ -270,7 +384,16 @@ async function swiftui(zone: "button" | "tap" | "drag", ctx: Context): Promise<S
 /** A document opened at the back in a stock app. Closing presses the
  *  window's close button (answering a save sheet with don't save), and quits
  *  the app only when this run launched it. */
-async function openDocument(ctx: Context, app: string, executable: string, file: string): Promise<{ pid: number; params: Record<string, unknown>; close: () => Promise<void> }> {
+async function openDocument(
+  ctx: Context,
+  app: string,
+  executable: string,
+  file: string,
+): Promise<{
+  pid: number;
+  params: Record<string, unknown>;
+  close: () => Promise<void>;
+}> {
   const wasRunning = mainPid(executable) !== undefined;
   spawnSync("open", ["-g", "-a", app, file]);
   let pid = 0;
@@ -279,19 +402,29 @@ async function openDocument(ctx: Context, app: string, executable: string, file:
   await until(async () => {
     pid = mainPid(executable) ?? 0;
     if (!pid) return false;
-    const listed = await ctx.client.listWindows({ app: `pid:${pid}` }).catch(() => undefined);
+    const listed = await ctx.client
+      .listWindows({ app: `pid:${pid}` })
+      .catch(() => undefined);
     const window = listed?.windows.find((w) => w.title?.includes(title));
     if (!window) return false;
     params = { app: `pid:${pid}`, windowId: window.id };
     // Listed by the window server is not yet readable: wait for the app to answer.
-    return !!(await ctx.read({ ...params, noScreenshot: true }).catch(() => undefined))?.snapshot.treeText.includes("standard window");
+    return !!(
+      await ctx.read({ ...params, noScreenshot: true }).catch(() => undefined)
+    )?.snapshot.treeText.includes("standard window");
   }, 90_000);
   if (!params.windowId) throw new Error(`${app} never showed ${title}`);
   const press = async (pattern: RegExp) => {
-    const tree = (await ctx.read({ ...params, noScreenshot: true })).snapshot.treeText;
+    const tree = (await ctx.read({ ...params, noScreenshot: true })).snapshot
+      .treeText;
     const index = elementLine(tree, pattern);
     if (index === undefined) return false;
-    await ctx.client.action("click", { ...params, elementIndex: index, cursor: false, noScreenshot: true });
+    await ctx.client.action("click", {
+      ...params,
+      elementIndex: index,
+      cursor: false,
+      noScreenshot: true,
+    });
     return true;
   };
   return {
@@ -314,12 +447,23 @@ async function openDocument(ctx: Context, app: string, executable: string, file:
  *  end, which a marker typed after it proves (typing reaches a background
  *  window already). */
 async function textedit(ctx: Context): Promise<Subject> {
-  const original = Array.from({ length: 6 }, (_, i) => `line ${i + 1} of the background press test`).join("\n");
-  const doc = await openDocument(ctx, "TextEdit", "TextEdit.app/Contents/MacOS/TextEdit", tmpFile("bg-textedit.txt", original));
+  const original = Array.from(
+    { length: 6 },
+    (_, i) => `line ${i + 1} of the background press test`,
+  ).join("\n");
+  const doc = await openDocument(
+    ctx,
+    "TextEdit",
+    "TextEdit.app/Contents/MacOS/TextEdit",
+    tmpFile("bg-textedit.txt", original),
+  );
   const { params } = doc;
   const textArea = async () => {
     const snapshot = await ctx.read({ ...params, noScreenshot: true });
-    const index = elementLine(snapshot.snapshot.treeText, /^text (entry )?area/);
+    const index = elementLine(
+      snapshot.snapshot.treeText,
+      /^text (entry )?area/,
+    );
     if (index === undefined) throw new Error("no text area");
     return { snapshot, index, frame: frameOf(snapshot, index) };
   };
@@ -328,14 +472,26 @@ async function textedit(ctx: Context): Promise<Subject> {
     params,
     point: async () => {
       const { index, frame } = await textArea();
-      await ctx.client.action("setValue", { ...params, elementIndex: index, value: original });
+      await ctx.client.action("setValue", {
+        ...params,
+        elementIndex: index,
+        value: original,
+      });
       // The insertion point goes to the start, where a marker would show the press missed.
       await ctx.client.action("hotkey", { ...params, key: "cmd+up" });
-      return { x: Math.round(frame.x + frame.width - 40), y: Math.round(frame.y + frame.height - 30) };
+      return {
+        x: Math.round(frame.x + frame.width - 40),
+        y: Math.round(frame.y + frame.height - 30),
+      };
     },
     count: async () => {
       const tree = (await textArea()).snapshot.snapshot.treeText;
-      return (tree.split("\n").find((l) => /^\s*\d+ text (entry )?area/.test(l))?.match(/test@/g) ?? []).length;
+      return (
+        tree
+          .split("\n")
+          .find((l) => /^\s*\d+ text (entry )?area/.test(l))
+          ?.match(/test@/g) ?? []
+      ).length;
     },
     afterPress: async () => {
       await ctx.client.action("typeText", { ...params, text: "@" });
@@ -351,11 +507,18 @@ async function finder(ctx: Context): Promise<Subject> {
   const root = path.join(WORK, "bg-finder");
   fs.rmSync(root, { recursive: true, force: true });
   let dir = root;
-  for (let depth = 1; depth <= 8; depth++) fs.mkdirSync((dir = path.join(dir, `depth-${depth}`)), { recursive: true });
-  const doc = await openDocument(ctx, "Finder", "Finder.app/Contents/MacOS/Finder", root);
+  for (let depth = 1; depth <= 8; depth++)
+    fs.mkdirSync((dir = path.join(dir, `depth-${depth}`)), { recursive: true });
+  const doc = await openDocument(
+    ctx,
+    "Finder",
+    "Finder.app/Contents/MacOS/Finder",
+    root,
+  );
   const { params } = doc;
   const depth = async () => {
-    const title = (await ctx.read({ ...params, noScreenshot: true })).snapshot.window.title;
+    const title = (await ctx.read({ ...params, noScreenshot: true })).snapshot
+      .window.title;
     return Number(/depth-(\d+)/.exec(title)?.[1] ?? 0);
   };
   return {
@@ -375,8 +538,16 @@ async function finder(ctx: Context): Promise<Subject> {
 
 /** Preview: a toolbar toggle a press flips, and a form field on the page a
  *  press focuses. */
-async function preview(part: "toolbar" | "page", ctx: Context): Promise<Subject> {
-  const doc = await openDocument(ctx, "Preview", "Preview.app/Contents/MacOS/Preview", tmpFile("bg-form.pdf", formPdf()));
+async function preview(
+  part: "toolbar" | "page",
+  ctx: Context,
+): Promise<Subject> {
+  const doc = await openDocument(
+    ctx,
+    "Preview",
+    "Preview.app/Contents/MacOS/Preview",
+    tmpFile("bg-form.pdf", formPdf()),
+  );
   const { params } = doc;
   const read = () => ctx.read({ ...params, noScreenshot: true });
   const find = async (pattern: RegExp, what: string) => {
@@ -389,14 +560,23 @@ async function preview(part: "toolbar" | "page", ctx: Context): Promise<Subject>
     // The Inspector checkbox: each press flips its value, and accessibility
     // turns it back off between presses.
     const inspector = () => find(/^checkbox Inspector/, "Inspector checkbox");
-    const inspectorOn = async () => Number(/checkbox Inspector, Value: 1/.test((await read()).snapshot.treeText));
+    const inspectorOn = async () =>
+      Number(
+        /checkbox Inspector, Value: 1/.test((await read()).snapshot.treeText),
+      );
     return {
       pid: doc.pid,
       params,
       point: async () => {
         if (await inspectorOn()) {
-          await ctx.client.action("click", { ...params, elementIndex: (await inspector()).index, cursor: false, noScreenshot: true });
-          if (!(await until(async () => (await inspectorOn()) === 0, 3_000))) throw new Error("the Inspector stayed on");
+          await ctx.client.action("click", {
+            ...params,
+            elementIndex: (await inspector()).index,
+            cursor: false,
+            noScreenshot: true,
+          });
+          if (!(await until(async () => (await inspectorOn()) === 0, 3_000)))
+            throw new Error("the Inspector stayed on");
         }
         const { snapshot, index } = await inspector();
         return centerOf(frameOf(snapshot, index));
@@ -405,14 +585,24 @@ async function preview(part: "toolbar" | "page", ctx: Context): Promise<Subject>
       cleanup: doc.close,
     };
   }
-  const fieldFocused = async () => Number(/focused UI element is \d+ text field/.test((await read()).snapshot.treeText));
+  const fieldFocused = async () =>
+    Number(
+      /focused UI element is \d+ text field/.test(
+        (await read()).snapshot.treeText,
+      ),
+    );
   return {
     pid: doc.pid,
     params,
     point: async () => {
-      if (await fieldFocused()) await ctx.client.action("pressKey", { ...params, key: "escape" });
-      if (!(await until(async () => (await fieldFocused()) === 0, 3_000))) throw new Error("the form field kept focus");
-      const { snapshot, index } = await find(/^text field/, "form field on the page");
+      if (await fieldFocused())
+        await ctx.client.action("pressKey", { ...params, key: "escape" });
+      if (!(await until(async () => (await fieldFocused()) === 0, 3_000)))
+        throw new Error("the form field kept focus");
+      const { snapshot, index } = await find(
+        /^text field/,
+        "form field on the page",
+      );
       return centerOf(frameOf(snapshot, index));
     },
     count: fieldFocused,
@@ -420,13 +610,20 @@ async function preview(part: "toolbar" | "page", ctx: Context): Promise<Subject>
   };
 }
 
-const ELECTRON = path.join(import.meta.dir, "../../../node_modules/.bun/electron@44.3.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
+const ELECTRON = path.join(
+  import.meta.dir,
+  "../../../node_modules/.bun/electron@44.3.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+);
 
 /** A Chromium page read back over DevTools: Chrome as its own instance on a
  *  throwaway profile, or an Electron app of our own. Neither may take the
  *  front while it starts: Chrome starts with no window and opens the page as
  *  a background window over DevTools; the Electron window shows inactive. */
-async function chromium(kind: "chrome" | "electron", ctx: Context, mode: "click" | "scroll" | "stripe" | "drag" = "click"): Promise<Subject> {
+async function chromium(
+  kind: "chrome" | "electron",
+  ctx: Context,
+  mode: "click" | "scroll" | "stripe" | "drag" = "click",
+): Promise<Subject> {
   const port = kind === "chrome" ? 9333 : 9334;
   const server = mode === "stripe" ? stripeServer() : undefined;
   const profile = path.join(WORK, `${kind}-profile`);
@@ -436,32 +633,78 @@ async function chromium(kind: "chrome" | "electron", ctx: Context, mode: "click"
       ? `file://${tmpFile("bg-page.html", `<!doctype html><title>bg page</title><body style="margin:0"><button id="b" style="width:100vw;height:100vh;font-size:40px">PRESS</button></body>`)}`
       : mode === "drag"
         ? `file://${tmpFile("bg-drag.html", `<!doctype html><title>bg drag</title><body style="margin:0;height:100vh;background:#cfc"><script>${DRAG_RECORDER}</script></body>`)}`
+        : mode === "scroll"
+          ? `file://${tmpFile("bg-tall.html", `<!doctype html><title>bg tall</title><body style="margin:0"><div style="height:40000px;background:linear-gradient(#fff,#88f)">TALL</div></body>`)}`
+          : server!.url;
+  const probe =
+    mode === "click"
+      ? HIT_RECORDER
       : mode === "scroll"
-        ? `file://${tmpFile("bg-tall.html", `<!doctype html><title>bg tall</title><body style="margin:0"><div style="height:40000px;background:linear-gradient(#fff,#88f)">TALL</div></body>`)}`
-        : server!.url;
-  const probe = mode === "click" ? HIT_RECORDER : mode === "scroll" ? "window.scrollY" : mode === "drag" ? "window.__drags" : STRIPE_COMPLETES;
+        ? "window.scrollY"
+        : mode === "drag"
+          ? "window.__drags"
+          : STRIPE_COMPLETES;
   let pid = 0;
   let child: ReturnType<typeof spawn> | undefined;
   if (kind === "chrome") {
-    child = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
-      `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, "--no-first-run", "--no-default-browser-check", "--no-startup-window",
-    ], { stdio: "ignore" });
-    await until(async () => !!(await fetch(`http://127.0.0.1:${port}/json/version`).catch(() => undefined)), 60_000);
-    const version = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()) as { webSocketDebuggerUrl: string };
+    child = spawn(
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      [
+        `--user-data-dir=${profile}`,
+        `--remote-debugging-port=${port}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--no-startup-window",
+      ],
+      { stdio: "ignore" },
+    );
+    await until(
+      async () =>
+        !!(await fetch(`http://127.0.0.1:${port}/json/version`).catch(
+          () => undefined,
+        )),
+      60_000,
+    );
+    const version = (await (
+      await fetch(`http://127.0.0.1:${port}/json/version`)
+    ).json()) as { webSocketDebuggerUrl: string };
     const ws = new WebSocket(version.webSocketDebuggerUrl);
     await new Promise((resolve) => (ws.onopen = resolve));
-    ws.send(JSON.stringify({ id: 1, method: "Target.createTarget", params: { url: page, newWindow: true, background: true } }));
+    ws.send(
+      JSON.stringify({
+        id: 1,
+        method: "Target.createTarget",
+        params: { url: page, newWindow: true, background: true },
+      }),
+    );
     await new Promise((resolve) => (ws.onmessage = resolve));
     ws.close();
   } else {
-    child = spawn(ELECTRON, [path.join(import.meta.dir, "computer-electron-fixture.cjs"), String(port), page], { stdio: "ignore" });
+    child = spawn(
+      ELECTRON,
+      [
+        path.join(import.meta.dir, "computer-electron-fixture.cjs"),
+        String(port),
+        page,
+      ],
+      { stdio: "ignore" },
+    );
   }
   pid = child.pid!;
-  const pick = (t: { type: string; url: string }) => t.type === "page" && (t.url.startsWith("file:") || (!!server && t.url.startsWith(server.url)));
-  await until(async () => (await cdpEvaluate(port, probe, pick).catch(() => undefined)) !== undefined, 60_000);
+  const pick = (t: { type: string; url: string }) =>
+    t.type === "page" &&
+    (t.url.startsWith("file:") || (!!server && t.url.startsWith(server.url)));
+  await until(
+    async () =>
+      (await cdpEvaluate(port, probe, pick).catch(() => undefined)) !==
+      undefined,
+    60_000,
+  );
   let params: Record<string, unknown> = { app: `pid:${pid}` };
   await until(async () => {
-    const listed = await ctx.client.listWindows({ app: `pid:${pid}` }).catch(() => undefined);
+    const listed = await ctx.client
+      .listWindows({ app: `pid:${pid}` })
+      .catch(() => undefined);
     const window = listed?.windows.find((w) => w.width > 300);
     if (window) params = { app: `pid:${pid}`, windowId: window.id };
     return !!window;
@@ -471,32 +714,63 @@ async function chromium(kind: "chrome" | "electron", ctx: Context, mode: "click"
     pid,
     params,
     point: async () => {
-      const { width, height } = (await ctx.read({ ...params, noScreenshot: true })).snapshot.window;
+      const { width, height } = (
+        await ctx.read({ ...params, noScreenshot: true })
+      ).snapshot.window;
       if (mode === "stripe") {
         // From an empty, unfocused card each time, pressed in the middle of
         // the card's iframe: the window's toolbar sits above the page.
-        const rect = (await cdpEvaluate(port, STRIPE_RESET, pick)) as { x: number; y: number; toolbar: number };
+        const rect = (await cdpEvaluate(port, STRIPE_RESET, pick)) as {
+          x: number;
+          y: number;
+          toolbar: number;
+        };
         return { x: Math.round(rect.x), y: Math.round(rect.y + rect.toolbar) };
       }
       return { x: Math.round(width / 2), y: Math.round(height / 2) };
     },
-    ...(mode === "scroll" ? { gesture: { kind: "scroll" as const, direction: "down" as const } } : {}),
-    ...(mode === "drag" ? { gesture: { kind: "drag" as const, dx: 120, dy: 40 } } : {}),
+    ...(mode === "scroll"
+      ? { gesture: { kind: "scroll" as const, direction: "down" as const } }
+      : {}),
+    ...(mode === "drag"
+      ? { gesture: { kind: "drag" as const, dx: 120, dy: 40 } }
+      : {}),
     count: async () => {
       for (let attempt = 0; ; attempt++) {
-        const value = await cdpEvaluate(port, mode === "scroll" ? "Math.floor(window.scrollY / 10)" : probe, pick).catch((err) => (attempt < 4 ? undefined : Promise.reject(err)));
+        const value = await cdpEvaluate(
+          port,
+          mode === "scroll" ? "Math.floor(window.scrollY / 10)" : probe,
+          pick,
+        ).catch((err) => (attempt < 4 ? undefined : Promise.reject(err)));
         if (typeof value === "number") return value;
         await sleep(250);
       }
     },
     // The card number, expiry, CVC and ZIP in one run: the Card Element moves
     // between its fields by itself, the way a person types it.
-    ...(mode === "stripe" ? { afterPress: async () => void (await ctx.client.action("typeText", { ...params, text: "4242424242424242123412312345", noScreenshot: true })) } : {}),
+    ...(mode === "stripe"
+      ? {
+          afterPress: async () =>
+            void (await ctx.client.action("typeText", {
+              ...params,
+              text: "4242424242424242123412312345",
+              noScreenshot: true,
+            })),
+        }
+      : {}),
     cleanup: async () => {
-      if (process.env.BGMOUSE_DEBUG) console.log(`    ${kind} log: ${await cdpEvaluate(port, mode === "stripe" ? "JSON.stringify(window.__log)" : mode === "drag" ? "JSON.stringify(window.__dlog)" : HIT_LOG, pick).catch(String)}`);
+      if (process.env.BGMOUSE_DEBUG)
+        console.log(
+          `    ${kind} log: ${await cdpEvaluate(port, mode === "stripe" ? "JSON.stringify(window.__log)" : mode === "drag" ? "JSON.stringify(window.__dlog)" : HIT_LOG, pick).catch(String)}`,
+        );
       server?.stop();
       child?.kill("SIGTERM");
-      await until(() => pidsOf(`user-data-dir=${profile}`).length === 0 && pidsOf("computer-electron-fixture").length === 0, 10_000);
+      await until(
+        () =>
+          pidsOf(`user-data-dir=${profile}`).length === 0 &&
+          pidsOf("computer-electron-fixture").length === 0,
+        10_000,
+      );
     },
   };
 }
@@ -511,7 +785,9 @@ function formPdf(): Buffer {
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
   ];
   const content = "BT /Helv 18 Tf 100 680 Td (Background press probe) Tj ET";
-  objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  objects.push(
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+  );
   let body = "%PDF-1.4\n";
   const offsets: number[] = [];
   objects.forEach((object, i) => {
@@ -549,7 +825,10 @@ async function run(args: string[]): Promise<void> {
   const out = flag(args, "out") ?? path.join(WORK, `bgmouse-${label}.json`);
   const names = (flag(args, "rows") ?? Object.keys(ROWS).join(",")).split(",");
   const client = fixtureClient(flag(args, "helper"));
-  const ctx: Context = { client, read: (p) => client.getAppState(p) as Promise<ComputerSnapshotResult> };
+  const ctx: Context = {
+    client,
+    read: (p) => client.getAppState(p) as Promise<ComputerSnapshotResult>,
+  };
   const observer = await startObserver();
   const rows: Row[] = [];
   try {
@@ -570,7 +849,11 @@ async function run(args: string[]): Promise<void> {
             row.skipped = `the target app was frontmost (front ${start.front}, target ${subject.pid})`;
             break;
           }
-          const sample: Sample = { landed: false, frontKept: false, cursorKept: false };
+          const sample: Sample = {
+            landed: false,
+            frontKept: false,
+            cursorKept: false,
+          };
           try {
             const gesture = subject.gesture;
             const method = gesture?.kind ?? "click";
@@ -579,7 +862,12 @@ async function run(args: string[]): Promise<void> {
                 ? { toX: point.x + gesture.dx, toY: point.y + gesture.dy }
                 : gesture?.kind === "scroll"
                   ? { direction: gesture.direction, pages: 1 }
-                  : { ...(subject.clickCount ? { clickCount: subject.clickCount } : {}), mouse: true };
+                  : {
+                      ...(subject.clickCount
+                        ? { clickCount: subject.clickCount }
+                        : {}),
+                      mouse: true,
+                    };
             const result = (await client.action(method, {
               ...subject.params,
               ...point,
@@ -591,15 +879,32 @@ async function run(args: string[]): Promise<void> {
             })) as ComputerActionResult;
             sample.path = String(result.action?.path ?? "");
           } catch (err) {
-            sample.error = err instanceof Error ? err.message.split("\n")[0] : String(err);
+            sample.error =
+              err instanceof Error ? err.message.split("\n")[0] : String(err);
           }
           const end = await observer.mark();
           await subject.afterPress?.();
-          sample.landed = await until(async () => (await subject!.count()) >= before + 1, 3_000);
-          sample.frontKept = end.front === start.front && end.activations.length === 0;
-          if (!sample.frontKept) sample.focus = { before: start.front, after: end.front, activated: end.activations.map((pid) => `${pid} ${bundleOf(pid) ?? "?"}`) };
+          sample.landed = await until(
+            async () => (await subject!.count()) >= before + 1,
+            3_000,
+          );
+          sample.frontKept =
+            end.front === start.front && end.activations.length === 0;
+          if (!sample.frontKept)
+            sample.focus = {
+              before: start.front,
+              after: end.front,
+              activated: end.activations.map(
+                (pid) => `${pid} ${bundleOf(pid) ?? "?"}`,
+              ),
+            };
           sample.cursorKept = end.moved < 1;
-          if (!sample.cursorKept) sample.pointer = { from: start.cursor, to: end.cursor, moved: end.moved };
+          if (!sample.cursorKept)
+            sample.pointer = {
+              from: start.cursor,
+              to: end.cursor,
+              moved: end.moved,
+            };
           row.samples.push(sample);
           await sleep(300);
         }
@@ -614,14 +919,25 @@ async function run(args: string[]): Promise<void> {
     observer.stop();
     client.shutdown();
   }
-  const report: Report = { label, technique, stamp, at: new Date().toISOString(), load: os.loadavg()[0]!, rows };
+  const report: Report = {
+    label,
+    technique,
+    stamp,
+    at: new Date().toISOString(),
+    load: os.loadavg()[0]!,
+    rows,
+  };
   fs.writeFileSync(out, JSON.stringify(report, null, 2));
   console.log(`\nwrote ${out} (load ${report.load.toFixed(0)})`);
 }
 
 /** The bundle id of a running app, read from LaunchServices. */
 function bundleOf(pid: number): string | undefined {
-  const out = spawnSync("lsappinfo", ["info", "-only", "bundleid", String(pid)], { encoding: "utf8" }).stdout;
+  const out = spawnSync(
+    "lsappinfo",
+    ["info", "-only", "bundleid", String(pid)],
+    { encoding: "utf8" },
+  ).stdout;
   return /"CFBundleIdentifier"="([^"]+)"/.exec(out)?.[1];
 }
 
@@ -640,33 +956,67 @@ async function focusTest(args: string[]): Promise<void> {
   try {
     for (const scenario of cases) {
       const client = fixtureClient(flag(args, "helper"));
-      const fixture = await launchFixture([], scriptSource("computer-swiftui-fixture.swift"));
-      const params = { app: `pid:${fixture.pid}`, windowId: fixture.windows["SwiftUI Probe"], noScreenshot: true, cursor: false };
+      const fixture = await launchFixture(
+        [],
+        scriptSource("computer-swiftui-fixture.swift"),
+      );
+      const params = {
+        app: `pid:${fixture.pid}`,
+        windowId: fixture.windows["SwiftUI Probe"],
+        noScreenshot: true,
+        cursor: false,
+      };
       const result: Record<string, unknown> = { scenario };
       try {
-        const snapshot = (await client.getAppState(params)) as ComputerSnapshotResult;
-        const index = elementLine(snapshot.snapshot.treeText, /^visible text TAP ZONE/);
+        const snapshot = (await client.getAppState(
+          params,
+        )) as ComputerSnapshotResult;
+        const index = elementLine(
+          snapshot.snapshot.treeText,
+          /^visible text TAP ZONE/,
+        );
         const point = centerOf(frameOf(snapshot, index!));
         const human = (await observer.mark()).front;
         const humanBundle = bundleOf(human);
-        if (!humanBundle) throw new Error(`no bundle id for the front app ${human}`);
+        if (!humanBundle)
+          throw new Error(`no bundle id for the front app ${human}`);
         const helperPid = readInstance()?.pid;
         const press = client
-          .action("click", { ...params, ...point, mouse: true, backgroundMouse: "activate", backgroundHoldMs: 1_200 })
-          .then((r) => (r as ComputerActionResult).action?.verification as Record<string, unknown> | undefined)
+          .action("click", {
+            ...params,
+            ...point,
+            mouse: true,
+            backgroundMouse: "activate",
+            backgroundHoldMs: 1_200,
+          })
+          .then(
+            (r) =>
+              (r as ComputerActionResult).action?.verification as
+                | Record<string, unknown>
+                | undefined,
+          )
           .catch((err: unknown) => ({ error: String(err).split("\n")[0] }));
         await sleep(350);
-        if (scenario === "killed" && helperPid) process.kill(helperPid, "SIGKILL");
-        if (scenario === "stopped" && helperPid) process.kill(helperPid, "SIGSTOP");
+        if (scenario === "killed" && helperPid)
+          process.kill(helperPid, "SIGKILL");
+        if (scenario === "stopped" && helperPid)
+          process.kill(helperPid, "SIGSTOP");
         const started = Date.now();
         spawnSync("open", ["-b", "com.apple.finder"]);
         const finder = mainPid("Finder.app/Contents/MacOS/Finder");
-        const switched = await until(async () => (await observer.mark()).front === finder, 5_000);
+        const switched = await until(
+          async () => (await observer.mark()).front === finder,
+          5_000,
+        );
         result.switched = switched;
         result.switchMs = Date.now() - started;
-        if (scenario === "stopped" && helperPid) process.kill(helperPid, "SIGCONT");
+        if (scenario === "stopped" && helperPid)
+          process.kill(helperPid, "SIGCONT");
         spawnSync("open", ["-b", humanBundle]);
-        result.returned = await until(async () => (await observer.mark()).front === human, 5_000);
+        result.returned = await until(
+          async () => (await observer.mark()).front === human,
+          5_000,
+        );
         result.press = await press;
         result.landed = Number(status(fixture).taps ?? 0) > 0;
       } catch (err) {
@@ -683,7 +1033,14 @@ async function focusTest(args: string[]): Promise<void> {
     observer.stop();
   }
   const out = flag(args, "out") ?? path.join(WORK, "bgmouse-focus.json");
-  fs.writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), load: os.loadavg()[0], results }, null, 2));
+  fs.writeFileSync(
+    out,
+    JSON.stringify(
+      { at: new Date().toISOString(), load: os.loadavg()[0], results },
+      null,
+      2,
+    ),
+  );
   console.log(`\nwrote ${out}`);
 }
 
@@ -692,25 +1049,41 @@ function cell(row: Row | undefined): string {
   if (row.skipped) return `skipped: ${row.skipped}`;
   if (!row.samples.length) return row.note ?? "no samples";
   const n = row.samples.length;
-  const count = (key: "landed" | "frontKept" | "cursorKept") => row.samples.filter((s) => s[key]).length;
+  const count = (key: "landed" | "frontKept" | "cursorKept") =>
+    row.samples.filter((s) => s[key]).length;
   const routes = new Map<string, number>();
   for (const s of row.samples) {
-    const route = s.error ? (s.landed ? "refused but landed" : "refused") : s.path || "?";
+    const route = s.error
+      ? s.landed
+        ? "refused but landed"
+        : "refused"
+      : s.path || "?";
     routes.set(route, (routes.get(route) ?? 0) + 1);
   }
   const errors = [...new Set(row.samples.map((s) => s.error).filter(Boolean))];
-  const setup = row.setupActivated ? `SETUP ACTIVATED ${row.setupActivated.join(",")}; ` : "";
+  const setup = row.setupActivated
+    ? `SETUP ACTIVATED ${row.setupActivated.join(",")}; `
+    : "";
   return `${setup}landed ${count("landed")}/${n}, front kept ${count("frontKept")}/${n}, pointer kept ${count("cursorKept")}/${n} [${[...routes].map(([r, c]) => `${r} ${c}`).join(", ")}]${errors.length ? ` (${errors[0]!.slice(0, 70)})` : ""}${row.note ? ` ${row.note}` : ""}`;
 }
 
 const line = (row: Row) => `${row.name.padEnd(16)} ${cell(row)}`;
 
 function compare(files: string[]): void {
-  const reports = files.map((f) => JSON.parse(fs.readFileSync(f, "utf8")) as Report);
-  const names = [...new Set(reports.flatMap((r) => r.rows.map((row) => row.name)))];
-  console.log(`| App | ${reports.map((r) => `${r.label} (load ${r.load.toFixed(0)})`).join(" | ")} |`);
+  const reports = files.map(
+    (f) => JSON.parse(fs.readFileSync(f, "utf8")) as Report,
+  );
+  const names = [
+    ...new Set(reports.flatMap((r) => r.rows.map((row) => row.name))),
+  ];
+  console.log(
+    `| App | ${reports.map((r) => `${r.label} (load ${r.load.toFixed(0)})`).join(" | ")} |`,
+  );
   console.log(`|---|${reports.map(() => "---").join("|")}|`);
-  for (const name of names) console.log(`| ${name} | ${reports.map((r) => cell(r.rows.find((row) => row.name === name))).join(" | ")} |`);
+  for (const name of names)
+    console.log(
+      `| ${name} | ${reports.map((r) => cell(r.rows.find((row) => row.name === name))).join(" | ")} |`,
+    );
 }
 
 const [verb, ...rest] = process.argv.slice(2);
@@ -718,6 +1091,8 @@ if (verb === "run") await run(rest);
 else if (verb === "focus") await focusTest(rest);
 else if (verb === "compare" && rest.length >= 1) compare(rest);
 else {
-  console.log("usage: bun scripts/computer-bgmouse-matrix.ts run [--technique skylight|activate|pid] [--stamp screen|local|none] [--rows a,b] [--reps n] [--out f.json]\n       bun scripts/computer-bgmouse-matrix.ts compare <a.json> [b.json ...]");
+  console.log(
+    "usage: bun scripts/computer-bgmouse-matrix.ts run [--technique skylight|activate|pid] [--stamp screen|local|none] [--rows a,b] [--reps n] [--out f.json]\n       bun scripts/computer-bgmouse-matrix.ts compare <a.json> [b.json ...]",
+  );
   process.exit(1);
 }

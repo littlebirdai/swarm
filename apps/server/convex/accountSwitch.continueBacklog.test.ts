@@ -18,18 +18,38 @@ afterEach(() => setSystemTime());
 
 function fixture(now: number) {
   const device = {
-    _id: "devices_primary", user_id: "users_owner", device_id: "mac", last_seen: now,
-    cc_auto_continue: true, cc_auto_switch: false, cc_auto_switch_state: {} as any,
+    _id: "devices_primary",
+    user_id: "users_owner",
+    device_id: "mac",
+    last_seen: now,
+    cc_auto_continue: true,
+    cc_auto_switch: false,
+    cc_auto_switch_state: {} as any,
   };
   const conv = {
-    _id: "conversations_parked", user_id: "users_owner", session_id: "session-parked", agent_type: "claude_code",
-    owner_device_id: "mac", pending_api_error: true, pending_api_error_kind: "throttle",
-    pending_api_error_at: now - 5 * 60_000, updated_at: now - 5 * 60_000,
+    _id: "conversations_parked",
+    user_id: "users_owner",
+    session_id: "session-parked",
+    agent_type: "claude_code",
+    owner_device_id: "mac",
+    pending_api_error: true,
+    pending_api_error_kind: "throttle",
+    pending_api_error_at: now - 5 * 60_000,
+    updated_at: now - 5 * 60_000,
   };
-  const tables: Record<string, any[]> = { devices: [device], conversations: [conv], daemon_commands: [], pending_messages: [] };
+  const tables: Record<string, any[]> = {
+    devices: [device],
+    conversations: [conv],
+    daemon_commands: [],
+    pending_messages: [],
+  };
   const db = makeFakeDb(tables);
   const scheduler = { async runAt() {}, async runAfter() {} };
-  const tick = () => (throttleContinueCheck as any)._handler({ db, scheduler }, { user_id: "users_owner" });
+  const tick = () =>
+    (throttleContinueCheck as any)._handler(
+      { db, scheduler },
+      { user_id: "users_owner" },
+    );
   return { device, tables, tick };
 }
 
@@ -39,7 +59,9 @@ describe("paced continue while an earlier continue is still undelivered", () => 
     setSystemTime(new Date(start));
     const f = fixture(start);
     await f.tick();
-    const afterFirst = f.tables.pending_messages.filter((m) => m.content === "continue");
+    const afterFirst = f.tables.pending_messages.filter(
+      (m) => m.content === "continue",
+    );
     expect(afterFirst).toHaveLength(1);
     expect(afterFirst[0].status).toBe("pending");
 
@@ -47,7 +69,9 @@ describe("paced continue while an earlier continue is still undelivered", () => 
     setSystemTime(new Date(start + 60_000));
     f.device.last_seen = start + 60_000;
     await f.tick();
-    const continues = f.tables.pending_messages.filter((m) => m.content === "continue");
+    const continues = f.tables.pending_messages.filter(
+      (m) => m.content === "continue",
+    );
     expect(continues).toHaveLength(1);
   });
 
@@ -56,13 +80,21 @@ describe("paced continue while an earlier continue is still undelivered", () => 
     setSystemTime(new Date(start));
     const f = fixture(start);
     await f.tick();
-    expect(f.tables.pending_messages.filter((m) => m.content === "continue")).toHaveLength(1);
-    expect(f.device.cc_auto_switch_state.attempts?.some((a: any) => a.profile.startsWith("throttle-continue:"))).toBe(true);
+    expect(
+      f.tables.pending_messages.filter((m) => m.content === "continue"),
+    ).toHaveLength(1);
+    expect(
+      f.device.cc_auto_switch_state.attempts?.some((a: any) =>
+        a.profile.startsWith("throttle-continue:"),
+      ),
+    ).toBe(true);
     f.tables.pending_messages[0].status = "complete";
     setSystemTime(new Date(start + 60_000));
     f.device.last_seen = start + 60_000;
     await f.tick();
-    expect(f.tables.pending_messages.filter((m) => m.content === "continue")).toHaveLength(1);
+    expect(
+      f.tables.pending_messages.filter((m) => m.content === "continue"),
+    ).toHaveLength(1);
   });
 
   test("a painted auto-switch client id does not bypass the undelivered guard", async () => {
@@ -90,7 +122,12 @@ describe("paced continue while an earlier continue is still undelivered", () => 
       conversations: [conv],
       daemon_commands: [],
       pending_messages: [
-        { conversation_id: conv._id, content: "continue", status: "pending", client_id: "old" },
+        {
+          conversation_id: conv._id,
+          content: "continue",
+          status: "pending",
+          client_id: "old",
+        },
       ],
     };
     const db = makeFakeDb(tables);
@@ -100,8 +137,12 @@ describe("paced continue while an earlier continue is still undelivered", () => 
       primary: device as any,
       continueBlocked: true,
       now,
-      continueClientIds: { [conv._id]: `auto-switch-continue-${conv._id}-${Math.floor(now / 60_000)}` },
+      continueClientIds: {
+        [conv._id]: `auto-switch-continue-${conv._id}-${Math.floor(now / 60_000)}`,
+      },
     });
-    expect(tables.pending_messages.filter((m) => m.content === "continue")).toHaveLength(1);
+    expect(
+      tables.pending_messages.filter((m) => m.content === "continue"),
+    ).toHaveLength(1);
   });
 });

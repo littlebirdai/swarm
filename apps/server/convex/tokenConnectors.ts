@@ -18,7 +18,12 @@
 // `getTokenCredential` is internal and answers only the adapters.
 
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./functions";
 import type { Id } from "./_generated/dataModel";
 import { getAuthenticatedUserId } from "./pendingMessages";
 import { internal } from "./_generated/api";
@@ -29,11 +34,23 @@ import {
   type AppId,
 } from "@codecast/shared/contracts";
 import { encryptRefreshToken, decryptRefreshToken } from "./googleOAuth";
-import { connectionForWork, connectionRowFor, stillAuthorized } from "./oauthConnectors";
+import {
+  connectionForWork,
+  connectionRowFor,
+  stillAuthorized,
+} from "./oauthConnectors";
 import { parseWorkspaceKey, workspaceKey } from "./lib/accessKeys";
 import { resumeSourcesOnConnect } from "./lib/sourceHealth";
-import { POSTHOG_PROJECT_ID, SENTRY_SLUG } from "@codecast/shared/contracts/ingest";
-import { internalHostRefusal, jsonOf, tokenHttp, type FetchLike } from "./lib/tokenHttp";
+import {
+  POSTHOG_PROJECT_ID,
+  SENTRY_SLUG,
+} from "@codecast/shared/contracts/ingest";
+import {
+  internalHostRefusal,
+  jsonOf,
+  tokenHttp,
+  type FetchLike,
+} from "./lib/tokenHttp";
 
 export type { FetchLike };
 
@@ -57,15 +74,24 @@ export function connectionSecretsKey(): string | null {
 /** The key for a feature that cannot work without it (the Vault, mod secrets); a deployment without one throws, naming the feature and the var. */
 export function connectionKey(feature: string): string {
   const key = connectionSecretsKey();
-  if (!key) throw new Error(`${feature} is not configured on this deployment: set ${CONNECTION_SECRETS_KEY_ENV} in its environment`);
+  if (!key)
+    throw new Error(
+      `${feature} is not configured on this deployment: set ${CONNECTION_SECRETS_KEY_ENV} in its environment`,
+    );
   return key;
 }
 
-export function encryptConnectionSecret(plaintext: string, key: string): Promise<string> {
+export function encryptConnectionSecret(
+  plaintext: string,
+  key: string,
+): Promise<string> {
   return encryptRefreshToken(plaintext, key, TOKEN_CONNECTION_HKDF_INFO);
 }
 
-export function decryptConnectionSecret(enc: string, key: string): Promise<string | null> {
+export function decryptConnectionSecret(
+  enc: string,
+  key: string,
+): Promise<string | null> {
   return decryptRefreshToken(enc, key, TOKEN_CONNECTION_HKDF_INFO);
 }
 
@@ -77,7 +103,10 @@ export function decryptConnectionSecret(enc: string, key: string): Promise<strin
 export const SIGNED_CONNECTION = "";
 
 /** A connection's display label and account id for a signed app connection: its base url's host. */
-export function signedAppAccount(baseUrl: string): { label: string; account_id: string } {
+export function signedAppAccount(baseUrl: string): {
+  label: string;
+  account_id: string;
+} {
   return { label: new URL(baseUrl).host, account_id: baseUrl };
 }
 
@@ -101,7 +130,10 @@ export interface TokenProvider {
   what: string;
   /** The connected account from the validate response, or null when the
    *  answer is not the shape this provider gives (a login page, a proxy). */
-  account: (body: any, config: TokenConfig) => { label: string; account_id: string } | null;
+  account: (
+    body: any,
+    config: TokenConfig,
+  ) => { label: string; account_id: string } | null;
 }
 
 // A Sentry slug and a PostHog project id, spelled once for connections and
@@ -111,24 +143,36 @@ export { SENTRY_SLUG };
 const sentry: TokenProvider = {
   id: "sentry",
   urlKeys: ["host"],
-  check: (c) => (SENTRY_SLUG.test(c.org) ? null : `"${c.org}" is not a Sentry organization slug`),
+  check: (c) =>
+    SENTRY_SLUG.test(c.org)
+      ? null
+      : `"${c.org}" is not a Sentry organization slug`,
   validateUrl: (c) => `${c.host}/api/0/organizations/${c.org}/`,
   what: "organization",
   account: (j, c) =>
     j && typeof j === "object" && (j.slug || j.id)
-      ? { label: String(j.name ?? j.slug ?? c.org), account_id: String(j.id ?? j.slug) }
+      ? {
+          label: String(j.name ?? j.slug ?? c.org),
+          account_id: String(j.id ?? j.slug),
+        }
       : null,
 };
 
 const posthog: TokenProvider = {
   id: "posthog",
   urlKeys: ["host"],
-  check: (c) => (POSTHOG_PROJECT_ID.test(c.project_id) ? null : `PostHog project id must be a number, got "${c.project_id}"`),
+  check: (c) =>
+    POSTHOG_PROJECT_ID.test(c.project_id)
+      ? null
+      : `PostHog project id must be a number, got "${c.project_id}"`,
   validateUrl: (c) => `${c.host}/api/projects/${c.project_id}/`,
   what: "project",
   account: (j, c) =>
     j && typeof j === "object" && j.id !== undefined
-      ? { label: String(j.name ?? `project ${c.project_id}`), account_id: String(j.id) }
+      ? {
+          label: String(j.name ?? `project ${c.project_id}`),
+          account_id: String(j.id),
+        }
       : null,
 };
 
@@ -146,10 +190,17 @@ const app: TokenProvider = {
       : null,
 };
 
-export const TOKEN_PROVIDERS: Record<TokenConnectorId, TokenProvider> = { sentry, posthog, app };
+export const TOKEN_PROVIDERS: Record<TokenConnectorId, TokenProvider> = {
+  sentry,
+  posthog,
+  app,
+};
 
 export function isTokenConnectorId(value: unknown): value is TokenConnectorId {
-  return typeof value === "string" && Object.prototype.hasOwnProperty.call(TOKEN_PROVIDERS, value);
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(TOKEN_PROVIDERS, value)
+  );
 }
 
 /* ==========================================================================
@@ -161,11 +212,15 @@ const MAX_CONFIG_VALUE_CHARS = 512;
 
 /** A pasted token: trimmed, printable ASCII with no spaces. Anything else is a
  *  paste accident (a newline, a quoted value) or a header injection. */
-export function parseToken(raw: string): { ok: true; token: string } | { ok: false; error: string } {
+export function parseToken(
+  raw: string,
+): { ok: true; token: string } | { ok: false; error: string } {
   const token = raw.trim();
   if (!token) return { ok: false, error: "Paste the token" };
-  if (token.length > MAX_TOKEN_CHARS) return { ok: false, error: "That token is too long" };
-  if (!/^[\x21-\x7e]+$/.test(token)) return { ok: false, error: "A token has no spaces or line breaks" };
+  if (token.length > MAX_TOKEN_CHARS)
+    return { ok: false, error: "That token is too long" };
+  if (!/^[\x21-\x7e]+$/.test(token))
+    return { ok: false, error: "A token has no spaces or line breaks" };
   return { ok: true, token };
 }
 
@@ -180,7 +235,14 @@ export function normalizeBaseUrl(raw: string): string | null {
   } catch {
     return null;
   }
-  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) return null;
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    return null;
   if (internalHostRefusal(url.href)) return null;
   return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
 }
@@ -199,7 +261,11 @@ export function parseTokenConfig(
   const fields = APP_DESCRIPTORS[provider].tokenConfig ?? [];
   const known = new Set(fields.map((f) => f.key));
   for (const key of Object.keys(raw)) {
-    if (!known.has(key)) return { ok: false, error: `Unknown setting "${key}" for ${APP_DESCRIPTORS[provider].name}` };
+    if (!known.has(key))
+      return {
+        ok: false,
+        error: `Unknown setting "${key}" for ${APP_DESCRIPTORS[provider].name}`,
+      };
   }
   const p = TOKEN_PROVIDERS[provider];
   const config: TokenConfig = {};
@@ -209,10 +275,15 @@ export function parseTokenConfig(
       if (field.optional) continue;
       return { ok: false, error: `${field.label} is required` };
     }
-    if (value.length > MAX_CONFIG_VALUE_CHARS) return { ok: false, error: `${field.label} is too long` };
+    if (value.length > MAX_CONFIG_VALUE_CHARS)
+      return { ok: false, error: `${field.label} is too long` };
     if (p.urlKeys.includes(field.key)) {
       const url = normalizeBaseUrl(value);
-      if (!url) return { ok: false, error: `${field.label} must be an https URL, got "${value}"` };
+      if (!url)
+        return {
+          ok: false,
+          error: `${field.label} must be an https URL, got "${value}"`,
+        };
       config[field.key] = url;
     } else {
       config[field.key] = value;
@@ -236,18 +307,30 @@ export async function validateToken(
   token: string,
   config: TokenConfig,
   fetchImpl: FetchLike = fetch,
-): Promise<{ ok: true; label: string; account_id: string } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; label: string; account_id: string } | { ok: false; error: string }
+> {
   const p = TOKEN_PROVIDERS[provider];
   const name = APP_DESCRIPTORS[provider].name;
   const url = p.validateUrl(config);
-  const res = await tokenHttp(fetchImpl, { url, token, vendor: name, timeoutMs: 10_000, maxBytes: 1024 * 1024 });
+  const res = await tokenHttp(fetchImpl, {
+    url,
+    token,
+    vendor: name,
+    timeoutMs: 10_000,
+    maxBytes: 1024 * 1024,
+  });
   if (res.failure) return { ok: false, error: res.error! };
-  if (res.status === 401 || res.status === 403) return { ok: false, error: `${name} refused the token (${res.status})` };
-  if (res.status === 404) return { ok: false, error: `${name} has no ${p.what} at ${url}` };
-  if (!res.ok) return { ok: false, error: `${name} answered ${res.status} at ${url}` };
+  if (res.status === 401 || res.status === 403)
+    return { ok: false, error: `${name} refused the token (${res.status})` };
+  if (res.status === 404)
+    return { ok: false, error: `${name} has no ${p.what} at ${url}` };
+  if (!res.ok)
+    return { ok: false, error: `${name} answered ${res.status} at ${url}` };
   const body = jsonOf(res.text) ?? null;
   const account = p.account(body, config);
-  if (!account) return { ok: false, error: `${url} did not answer like ${name}` };
+  if (!account)
+    return { ok: false, error: `${url} did not answer like ${name}` };
   return { ok: true, ...account };
 }
 
@@ -277,19 +360,35 @@ export const connectWithToken = action({
     team: v.optional(v.string()),
     api_token: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; id?: string; label?: string; error?: string }> => {
-    if (!isTokenConnectorId(args.provider)) return { ok: false, error: "unknown provider" };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; id?: string; label?: string; error?: string }> => {
+    if (!isTokenConnectorId(args.provider))
+      return { ok: false, error: "unknown provider" };
     const descriptor = APP_DESCRIPTORS[args.provider as AppId];
-    const scope: AppConnectionScope = isAppConnectionScope(args.scope) ? args.scope : "team";
+    const scope: AppConnectionScope = isAppConnectionScope(args.scope)
+      ? args.scope
+      : "team";
     if (!descriptor.scopes.includes(scope)) {
-      return { ok: false, error: `${descriptor.name} connects at ${descriptor.scopes.join(" or ")} scope only` };
+      return {
+        ok: false,
+        error: `${descriptor.name} connects at ${descriptor.scopes.join(" or ")} scope only`,
+      };
     }
-    const me: ConnectTarget | null = await ctx.runQuery(internal.tokenConnectors.connectTarget, {
-      api_token: args.api_token,
-      ...(scope === "team" ? { team: args.team ?? "" } : {}),
-    });
+    const me: ConnectTarget | null = await ctx.runQuery(
+      internal.tokenConnectors.connectTarget,
+      {
+        api_token: args.api_token,
+        ...(scope === "team" ? { team: args.team ?? "" } : {}),
+      },
+    );
     if (!me) return { ok: false, error: "not signed in" };
-    if (scope === "team" && !me.team_id) return { ok: false, error: me.error ?? `Name the team to connect ${descriptor.name} for` };
+    if (scope === "team" && !me.team_id)
+      return {
+        ok: false,
+        error: me.error ?? `Name the team to connect ${descriptor.name} for`,
+      };
     // An app connector with no secret: codecast signs every request, so there
     // is no token to validate or encrypt. Nothing is called now either, since
     // the app accepts the signature only once its codecast.json names the
@@ -298,16 +397,21 @@ export const connectWithToken = action({
       const parsed = parseTokenConfig(args.provider, args.config ?? {});
       if (!parsed.ok) return parsed;
       const account = signedAppAccount(parsed.config.base_url);
-      const stored = await ctx.runMutation(internal.tokenConnectors.storeTokenConnection, {
-        provider: args.provider,
-        user_id: String(me.user_id),
-        team_id: scope === "team" ? String(me.team_id) : undefined,
-        access_token_enc: SIGNED_CONNECTION,
-        config: parsed.config,
-        account_label: account.label,
-        account_id: account.account_id,
-      });
-      return stored.ok ? { ok: true, id: stored.id, label: account.label } : stored;
+      const stored = await ctx.runMutation(
+        internal.tokenConnectors.storeTokenConnection,
+        {
+          provider: args.provider,
+          user_id: String(me.user_id),
+          team_id: scope === "team" ? String(me.team_id) : undefined,
+          access_token_enc: SIGNED_CONNECTION,
+          config: parsed.config,
+          account_label: account.label,
+          account_id: account.account_id,
+        },
+      );
+      return stored.ok
+        ? { ok: true, id: stored.id, label: account.label }
+        : stored;
     }
     const key = connectionSecretsKey();
     if (!key) return { ok: false, error: TOKEN_CONNECTIONS_NOT_CONFIGURED };
@@ -316,34 +420,52 @@ export const connectWithToken = action({
     if (!token.ok) return token;
     const parsed = parseTokenConfig(args.provider, args.config ?? {});
     if (!parsed.ok) return parsed;
-    const account = await validateToken(args.provider, token.token, parsed.config);
+    const account = await validateToken(
+      args.provider,
+      token.token,
+      parsed.config,
+    );
     if (!account.ok) return account;
 
-    const stored = await ctx.runMutation(internal.tokenConnectors.storeTokenConnection, {
-      provider: args.provider,
-      user_id: String(me.user_id),
-      team_id: scope === "team" ? String(me.team_id) : undefined,
-      access_token_enc: await encryptConnectionSecret(token.token, key),
-      config: parsed.config,
-      account_label: account.label,
-      account_id: account.account_id,
-    });
-    return stored.ok ? { ok: true, id: stored.id, label: account.label } : stored;
+    const stored = await ctx.runMutation(
+      internal.tokenConnectors.storeTokenConnection,
+      {
+        provider: args.provider,
+        user_id: String(me.user_id),
+        team_id: scope === "team" ? String(me.team_id) : undefined,
+        access_token_enc: await encryptConnectionSecret(token.token, key),
+        config: parsed.config,
+        account_label: account.label,
+        account_id: account.account_id,
+      },
+    );
+    return stored.ok
+      ? { ok: true, id: stored.id, label: account.label }
+      : stored;
   },
 });
 
-export type ConnectTarget = { user_id: Id<"users">; team_id?: Id<"teams">; error?: string };
+export type ConnectTarget = {
+  user_id: Id<"users">;
+  team_id?: Id<"teams">;
+  error?: string;
+};
 
 /**
  * The team a ref names among `teams` (the caller's own): an exact id, else a
  * name, case-insensitively. Null when nothing or more than one team matches.
  */
-export function teamFromRef<T extends { _id: string; name?: string }>(teams: T[], ref: string): T | null {
+export function teamFromRef<T extends { _id: string; name?: string }>(
+  teams: T[],
+  ref: string,
+): T | null {
   const needle = ref.trim();
   if (!needle) return null;
   const byId = teams.find((t) => String(t._id) === needle);
   if (byId) return byId;
-  const byName = teams.filter((t) => (t.name ?? "").trim().toLowerCase() === needle.toLowerCase());
+  const byName = teams.filter(
+    (t) => (t.name ?? "").trim().toLowerCase() === needle.toLowerCase(),
+  );
   return byName.length === 1 ? byName[0] : null;
 }
 
@@ -359,11 +481,21 @@ export const connectTarget = internalQuery({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
     if (args.team === undefined) return { user_id: userId };
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (q) => q.eq("user_id", userId)).take(200);
-    const teams = (await Promise.all(memberships.map((m) => ctx.db.get(m.team_id)))).filter((t): t is NonNullable<typeof t> => !!t);
-    const team = teamFromRef(teams.map((t) => ({ ...t, _id: String(t._id) })), args.team);
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+      .take(200);
+    const teams = (
+      await Promise.all(memberships.map((m) => ctx.db.get(m.team_id)))
+    ).filter((t): t is NonNullable<typeof t> => !!t);
+    const team = teamFromRef(
+      teams.map((t) => ({ ...t, _id: String(t._id) })),
+      args.team,
+    );
     if (team) return { user_id: userId, team_id: team._id as Id<"teams"> };
-    const yours = teams.length ? `your teams: ${teams.map((t) => t.name).join(", ")}` : "you are in no team";
+    const yours = teams.length
+      ? `your teams: ${teams.map((t) => t.name).join(", ")}`
+      : "you are in no team";
     return {
       user_id: userId,
       error: args.team.trim()
@@ -390,7 +522,11 @@ export const storeTokenConnection = internalMutation({
     account_label: v.optional(v.string()),
     account_id: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ ok: boolean; id?: string; error?: string }> => storeConnection(ctx, args),
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; id?: string; error?: string }> =>
+    storeConnection(ctx, args),
 });
 
 export interface StoreConnectionArgs {
@@ -404,14 +540,22 @@ export interface StoreConnectionArgs {
 }
 
 /** storeTokenConnection's body, for a mutation that stores a connection in its own transaction (ingest.createSource). */
-export async function storeConnection(ctx: { db: any; scheduler: any }, args: StoreConnectionArgs): Promise<{ ok: boolean; id?: string; error?: string }> {
+export async function storeConnection(
+  ctx: { db: any; scheduler: any },
+  args: StoreConnectionArgs,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
   {
-    if (!isTokenConnectorId(args.provider)) return { ok: false, error: "unknown provider" };
+    if (!isTokenConnectorId(args.provider))
+      return { ok: false, error: "unknown provider" };
     const userId = (ctx.db as any).normalizeId("users", args.user_id);
-    const teamId = args.team_id ? (ctx.db as any).normalizeId("teams", args.team_id) : undefined;
-    if (!userId || (args.team_id && !teamId)) return { ok: false, error: "bad_ids" };
+    const teamId = args.team_id
+      ? (ctx.db as any).normalizeId("teams", args.team_id)
+      : undefined;
+    if (!userId || (args.team_id && !teamId))
+      return { ok: false, error: "bad_ids" };
     const scopeRow = teamId ? { team_id: teamId } : { scope_user_id: userId };
-    if (!(await stillAuthorized(ctx, scopeRow, userId))) return { ok: false, error: "not_a_member" };
+    if (!(await stillAuthorized(ctx, scopeRow, userId)))
+      return { ok: false, error: "not_a_member" };
 
     const now = Date.now();
     const credential = {
@@ -426,8 +570,19 @@ export async function storeConnection(ctx: { db: any; scheduler: any }, args: St
     // The workspace's sources of this provider read through this connection:
     // one stopped on a lost connection polls again, and an app source fetches
     // its manifest (scheduled, so after commit).
-    await resumeSourcesOnConnect(ctx, args.provider, workspaceKey(teamId ? { type: "team", teamId } : { type: "personal", userId }), now);
-    const existing = await connectionRowFor(ctx, args.provider, teamId ? { team_id: teamId } : { user_id: userId });
+    await resumeSourcesOnConnect(
+      ctx,
+      args.provider,
+      workspaceKey(
+        teamId ? { type: "team", teamId } : { type: "personal", userId },
+      ),
+      now,
+    );
+    const existing = await connectionRowFor(
+      ctx,
+      args.provider,
+      teamId ? { team_id: teamId } : { user_id: userId },
+    );
     if (existing) {
       await (ctx.db as any).patch(existing._id, {
         ...credential,
@@ -467,7 +622,11 @@ export async function storeConnection(ctx: { db: any; scheduler: any }, args: St
  * it reads through.
  */
 export const tokenConnectionFor = internalQuery({
-  args: { provider: v.string(), team_id: v.optional(v.id("teams")), user_id: v.optional(v.id("users")) },
+  args: {
+    provider: v.string(),
+    team_id: v.optional(v.id("teams")),
+    user_id: v.optional(v.id("users")),
+  },
   handler: async (ctx, args) => {
     if (!isTokenConnectorId(args.provider)) return null;
     const row = await connectionForWork(ctx, args.provider, args);
@@ -503,7 +662,8 @@ export const tokenConnectionRow = internalQuery({
  */
 export const getTokenCredential = internalAction({
   args: { connection_id: v.string() },
-  handler: async (ctx, args): Promise<TokenCredential> => await readTokenCredential(ctx, args.connection_id),
+  handler: async (ctx, args): Promise<TokenCredential> =>
+    await readTokenCredential(ctx, args.connection_id),
 });
 
 export type TokenCredential =
@@ -511,11 +671,22 @@ export type TokenCredential =
   | { ok: false; error: string };
 
 /** getTokenCredential's body, for an adapter already running in an action (no action-in-action hop). */
-export async function readTokenCredential(ctx: { runQuery: (...a: any[]) => Promise<any> }, connectionId: string): Promise<TokenCredential> {
-  const row: any = await ctx.runQuery(internal.tokenConnectors.tokenConnectionRow, { connection_id: connectionId });
-  if (!row || row.pending) return { ok: false, error: "no_connection: the connection was removed" };
-  if (!isTokenConnectorId(row.provider)) return { ok: false, error: `not a token connection (${row.provider})` };
-  if (row.access_token_enc === SIGNED_CONNECTION && APP_DESCRIPTORS[row.provider as AppId].tokenOptional) {
+export async function readTokenCredential(
+  ctx: { runQuery: (...a: any[]) => Promise<any> },
+  connectionId: string,
+): Promise<TokenCredential> {
+  const row: any = await ctx.runQuery(
+    internal.tokenConnectors.tokenConnectionRow,
+    { connection_id: connectionId },
+  );
+  if (!row || row.pending)
+    return { ok: false, error: "no_connection: the connection was removed" };
+  if (!isTokenConnectorId(row.provider))
+    return { ok: false, error: `not a token connection (${row.provider})` };
+  if (
+    row.access_token_enc === SIGNED_CONNECTION &&
+    APP_DESCRIPTORS[row.provider as AppId].tokenOptional
+  ) {
     return { ok: true, provider: row.provider, token: "", config: row.config };
   }
   const key = connectionSecretsKey();
@@ -523,7 +694,10 @@ export async function readTokenCredential(ctx: { runQuery: (...a: any[]) => Prom
   const token = await decryptConnectionSecret(row.access_token_enc, key);
   const name = APP_DESCRIPTORS[row.provider as AppId].name;
   if (!token) {
-    return { ok: false, error: `${name} token undecryptable (${CONNECTION_SECRETS_KEY_ENV} rotated?): reconnect ${name}` };
+    return {
+      ok: false,
+      error: `${name} token undecryptable (${CONNECTION_SECRETS_KEY_ENV} rotated?): reconnect ${name}`,
+    };
   }
   return { ok: true, provider: row.provider, token, config: row.config };
 }
@@ -536,12 +710,23 @@ export async function tokenFor(
   ctx: { runQuery: (...a: any[]) => Promise<any> },
   connectionId: string | null,
   provider: TokenConnectorId,
-): Promise<{ ok: true; token: string; config: TokenConfig } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; token: string; config: TokenConfig }
+  | { ok: false; error: string }
+> {
   const name = APP_DESCRIPTORS[provider].name;
-  if (!connectionId) return { ok: false, error: `No ${name} connection in this source's workspace: connect it with \`cast integrations connect ${provider} --team <name>\` (or \`--personal\` for a personal source)` };
+  if (!connectionId)
+    return {
+      ok: false,
+      error: `No ${name} connection in this source's workspace: connect it with \`cast integrations connect ${provider} --team <name>\` (or \`--personal\` for a personal source)`,
+    };
   const cred = await readTokenCredential(ctx, connectionId);
   if (!cred.ok) return cred;
-  if (cred.provider !== provider) return { ok: false, error: `The source's connection is ${cred.provider}, not ${name}` };
+  if (cred.provider !== provider)
+    return {
+      ok: false,
+      error: `The source's connection is ${cred.provider}, not ${name}`,
+    };
   return { ok: true, token: cred.token, config: cred.config };
 }
 
@@ -554,16 +739,24 @@ export async function tokenFor(
  */
 export async function connectionIdForSource(
   ctx: { db: any },
-  source: { provider: string; connection_id?: any; workspace: string; owner_user_id: any },
+  source: {
+    provider: string;
+    connection_id?: any;
+    workspace: string;
+    owner_user_id: any;
+  },
 ): Promise<string | null> {
   const ws = parseWorkspaceKey(source.workspace);
   if (!ws) return null;
-  const scope = ws.type === "team" ? { team_id: ws.teamId } : { user_id: ws.userId };
+  const scope =
+    ws.type === "team" ? { team_id: ws.teamId } : { user_id: ws.userId };
   const belongs = (row: any) =>
     !!row &&
     row.provider === source.provider &&
     !row.pending_confirm_hash &&
-    (ws.type === "team" ? String(row.team_id) === String(ws.teamId) : !row.team_id && String(row.scope_user_id) === String(ws.userId));
+    (ws.type === "team"
+      ? String(row.team_id) === String(ws.teamId)
+      : !row.team_id && String(row.scope_user_id) === String(ws.userId));
   if (source.connection_id) {
     const named = await ctx.db.get(source.connection_id);
     return belongs(named) ? String(named._id) : null;

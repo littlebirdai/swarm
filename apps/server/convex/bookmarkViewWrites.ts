@@ -11,7 +11,9 @@ import { bookmarksCoverageTarget } from "./smallViewContracts";
 
 export type BookmarkViewWriter = ViewWriter<"bookmarks">;
 
-function bookmarkBinding(principalId: Id<"users">): ViewWriterBinding<"bookmarks"> {
+function bookmarkBinding(
+  principalId: Id<"users">,
+): ViewWriterBinding<"bookmarks"> {
   return {
     table: "bookmarks",
     label: "bookmark",
@@ -41,7 +43,12 @@ export async function runBookmarkViewTransition<Result>(
   revisionMode: RevisionMode,
   transition: (writer: BookmarkViewWriter) => Promise<Result>,
 ) {
-  return await runViewTransition(ctx, bookmarkBinding(principalId), revisionMode, transition);
+  return await runViewTransition(
+    ctx,
+    bookmarkBinding(principalId),
+    revisionMode,
+    transition,
+  );
 }
 
 export async function insertBookmarkWithRevision(
@@ -88,7 +95,12 @@ export async function moveBookmarkPrincipalWithRevision(
   await ctx.db.patch(authoritative._id, { user_id: toPrincipalId });
   for (const principalId of [authoritative.user_id, toPrincipalId]) {
     const target = bookmarksCoverageTarget(principalId);
-    await advanceLocalViewRevision(ctx, principalId, target.contractId, target.viewKey);
+    await advanceLocalViewRevision(
+      ctx,
+      principalId,
+      target.contractId,
+      target.viewKey,
+    );
   }
   return true;
 }

@@ -22,10 +22,10 @@ Fan out subagents, one per angle, each reporting a short brief:
   for the session where it was first asked for. What problem was the human
   solving, in their words?
 - Decisions: `cast decisions --search "<keywords>"` and `cast search
-  "decided|chose|went with|instead of"` for every choice made along the
+"decided|chose|went with|instead of"` for every choice made along the
   way and its reason.
 - Attempts: every session that touched the files (`cast context --file
-  <path>`), what each tried, what it abandoned and why.
+<path>`), what each tried, what it abandoned and why.
 - Board: the tasks and plans filed for it, what closed, what stalled.
 - Current state: what the code does today versus the acceptance criteria.
 

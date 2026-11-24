@@ -18,7 +18,12 @@ import { objectHref } from "@codecast/shared/entities";
 import { cn } from "../../../lib/utils";
 import type { ProposalRef } from "../../company/companyModel";
 import { lightChanges, useChangeLit } from "./changeLight";
-import { proposalChangeHref, useLineOpen, useProposalOpen, type LineTarget } from "./lineOpen";
+import {
+  proposalChangeHref,
+  useLineOpen,
+  useProposalOpen,
+  type LineTarget,
+} from "./lineOpen";
 import "./lines.css";
 
 /** How far one level of depth indents a line's chevron. */
@@ -72,12 +77,35 @@ export type ObjectLineProps = {
 function ownClick(e: React.SyntheticEvent): boolean {
   const target = e.target as Element;
   if (!e.currentTarget.contains(target)) return true;
-  return !!target.closest?.("a, button, input, textarea, select, [role='menuitem'], [data-line-stop]");
+  return !!target.closest?.(
+    "a, button, input, textarea, select, [role='menuitem'], [data-line-stop]",
+  );
 }
 
 const NO_CHANGES: readonly string[] = [];
 
-export function ObjectLine({ kind, id, target, glyph, title, sub, owner: ownerCell, hideOwner, face: faceCell, state, measure, date, depth = 0, expanded, onToggle, ghost, selected, action, className, ...data }: ObjectLineProps) {
+export function ObjectLine({
+  kind,
+  id,
+  target,
+  glyph,
+  title,
+  sub,
+  owner: ownerCell,
+  hideOwner,
+  face: faceCell,
+  state,
+  measure,
+  date,
+  depth = 0,
+  expanded,
+  onToggle,
+  ghost,
+  selected,
+  action,
+  className,
+  ...data
+}: ObjectLineProps) {
   const { open, onLinkClick } = useLineOpen();
   const owner = hideOwner ? null : ownerCell;
   const face = hideOwner ? null : faceCell;
@@ -92,13 +120,30 @@ export function ObjectLine({ kind, id, target, glyph, title, sub, owner: ownerCe
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" && target) { e.preventDefault(); open(target); }
-    else if (expandable && (e.key === " " || (e.key === "ArrowRight" && !expanded) || (e.key === "ArrowLeft" && expanded))) { e.preventDefault(); onToggle!(); }
+    if (e.key === "Enter" && target) {
+      e.preventDefault();
+      open(target);
+    } else if (
+      expandable &&
+      (e.key === " " ||
+        (e.key === "ArrowRight" && !expanded) ||
+        (e.key === "ArrowLeft" && expanded))
+    ) {
+      e.preventDefault();
+      onToggle!();
+    }
   };
   // The light runs both ways: pointing at this line lights its cards in the
   // conversation, and pointing at one of those cards lights this line.
   const lit = useChangeLit(ghost?.changeIds ?? NO_CHANGES) && !!ghost;
-  const light = ghost ? { onMouseEnter: () => lightChanges(ghost.changeIds), onMouseLeave: () => lightChanges(null), onFocus: () => lightChanges(ghost.changeIds), onBlur: () => lightChanges(null) } : {};
+  const light = ghost
+    ? {
+        onMouseEnter: () => lightChanges(ghost.changeIds),
+        onMouseLeave: () => lightChanges(null),
+        onFocus: () => lightChanges(ghost.changeIds),
+        onBlur: () => lightChanges(null),
+      }
+    : {};
 
   return (
     <div
@@ -122,30 +167,103 @@ export function ObjectLine({ kind, id, target, glyph, title, sub, owner: ownerCe
       data-selected={selected || undefined}
       {...data}
     >
-      {expandable
-        ? <button type="button" className="ol-chev" aria-label={expanded ? `Fold ${title}` : `Open ${title} here`} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onToggle!(); }} data-line-chev><ChevronRight className="h-3 w-3" /></button>
-        : <span className="ol-chev" aria-hidden style={{ cursor: "default" }} />}
-      <span className="ol-glyph" aria-hidden>{glyph}</span>
+      {expandable ? (
+        <button
+          type="button"
+          className="ol-chev"
+          aria-label={expanded ? `Fold ${title}` : `Open ${title} here`}
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle!();
+          }}
+          data-line-chev
+        >
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      ) : (
+        <span className="ol-chev" aria-hidden style={{ cursor: "default" }} />
+      )}
+      <span className="ol-glyph" aria-hidden>
+        {glyph}
+      </span>
       <span className="ol-title">
-        {target
-          ? <Link href={objectHref(target.kind, target.ref)} className="ol-name" title={title} onClick={onLinkClick(target)} tabIndex={-1} data-line-title>{title}</Link>
-          : <span className="ol-name" title={title} data-line-title>{title}</span>}
-        {sub != null && sub !== false && <span className="ol-sub" title={typeof sub === "string" ? sub : undefined} data-line-sub>{sub}</span>}
-        {face != null && <span className="ol-face" aria-hidden>{face}</span>}
+        {target ? (
+          <Link
+            href={objectHref(target.kind, target.ref)}
+            className="ol-name"
+            title={title}
+            onClick={onLinkClick(target)}
+            tabIndex={-1}
+            data-line-title
+          >
+            {title}
+          </Link>
+        ) : (
+          <span className="ol-name" title={title} data-line-title>
+            {title}
+          </span>
+        )}
+        {sub != null && sub !== false && (
+          <span
+            className="ol-sub"
+            title={typeof sub === "string" ? sub : undefined}
+            data-line-sub
+          >
+            {sub}
+          </span>
+        )}
+        {face != null && (
+          <span className="ol-face" aria-hidden>
+            {face}
+          </span>
+        )}
         {action != null && <span className="ol-act">{action}</span>}
       </span>
-      {owner != null && <span className="ol-owner" data-line-owner>{owner}</span>}
+      {owner != null && (
+        <span className="ol-owner" data-line-owner>
+          {owner}
+        </span>
+      )}
       {ghost ? (
-        ghost.quiet
-          ? <span className="ol-answer" aria-hidden data-line-answer="" />
-          : ghost.proposal
-          ? <Link href={proposalChangeHref(ghost.proposal)} className="ol-answer" onClick={answer(ghost.proposal)} data-line-answer={ghost.proposal.short_id} title="Answer in the conversation">{ghost.proposal.short_id}<span className="ol-answer-words"> · answer in the conversation</span></Link>
-          : <span className="ol-answer" data-line-answer="">answer in the conversation</span>
+        ghost.quiet ? (
+          <span className="ol-answer" aria-hidden data-line-answer="" />
+        ) : ghost.proposal ? (
+          <Link
+            href={proposalChangeHref(ghost.proposal)}
+            className="ol-answer"
+            onClick={answer(ghost.proposal)}
+            data-line-answer={ghost.proposal.short_id}
+            title="Answer in the conversation"
+          >
+            {ghost.proposal.short_id}
+            <span className="ol-answer-words">
+              {" "}
+              · answer in the conversation
+            </span>
+          </Link>
+        ) : (
+          <span className="ol-answer" data-line-answer="">
+            answer in the conversation
+          </span>
+        )
       ) : (
         <>
-          {state != null && <span className="ol-state" data-line-state>{state}</span>}
-          {measure != null && <span className="ol-measure" data-line-measure>{measure}</span>}
-          {date != null && <span className="ol-date" data-line-date>{date}</span>}
+          {state != null && (
+            <span className="ol-state" data-line-state>
+              {state}
+            </span>
+          )}
+          {measure != null && (
+            <span className="ol-measure" data-line-measure>
+              {measure}
+            </span>
+          )}
+          {date != null && (
+            <span className="ol-date" data-line-date>
+              {date}
+            </span>
+          )}
         </>
       )}
     </div>
@@ -153,6 +271,21 @@ export function ObjectLine({ kind, id, target, glyph, title, sub, owner: ownerCe
 }
 
 /** What a line opens to in place: the prose under its title, indented to it. */
-export function LineBody({ depth = 0, children, ...data }: { depth?: number; children: ReactNode } & Record<`data-${string}`, string | number | undefined>) {
-  return <div className="ol-body" style={{ "--ol-indent": `${depth * INDENT}px` } as CSSProperties} {...data}>{children}</div>;
+export function LineBody({
+  depth = 0,
+  children,
+  ...data
+}: { depth?: number; children: ReactNode } & Record<
+  `data-${string}`,
+  string | number | undefined
+>) {
+  return (
+    <div
+      className="ol-body"
+      style={{ "--ol-indent": `${depth * INDENT}px` } as CSSProperties}
+      {...data}
+    >
+      {children}
+    </div>
+  );
 }

@@ -13,7 +13,10 @@
 
 import { NativeEventEmitter, NativeModules } from "react-native";
 import type { ConvexReactClient } from "convex/react";
-import { openAsrPcmSession, type AsrPcmSession } from "@codecast/web/lib/calls/asrPipe";
+import {
+  openAsrPcmSession,
+  type AsrPcmSession,
+} from "@codecast/web/lib/calls/asrPipe";
 import { callsNativeAvailable } from "./calls/livekitNative";
 
 export type AsrCapture = {
@@ -30,7 +33,11 @@ function b64ToInt16(b64: string): Int16Array {
   const binary = globalThis.atob(b64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+  return new Int16Array(
+    bytes.buffer,
+    bytes.byteOffset,
+    Math.floor(bytes.byteLength / 2),
+  );
 }
 
 /**
@@ -54,9 +61,15 @@ export async function startAsrCapture(opts: {
   const LiveKitModule = NativeModules.LivekitReactNativeModule;
   if (!LiveKitModule?.createAudioSinkListener) return null;
 
-  let stream: { getAudioTracks(): any[]; getTracks(): { stop(): void }[] } | null = null;
+  let stream: {
+    getAudioTracks(): any[];
+    getTracks(): { stop(): void }[];
+  } | null = null;
   try {
-    stream = await webrtc.mediaDevices.getUserMedia({ audio: true, video: false });
+    stream = await webrtc.mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
+    });
   } catch {
     return null;
   }
@@ -84,7 +97,11 @@ export async function startAsrCapture(opts: {
     sub = null;
     if (tag) {
       try {
-        LiveKitModule.deleteAudioSinkListener(tag, track._peerConnectionId ?? -1, track.id);
+        LiveKitModule.deleteAudioSinkListener(
+          tag,
+          track._peerConnectionId ?? -1,
+          track.id,
+        );
       } catch {}
       tag = null;
     }
@@ -127,15 +144,27 @@ export async function startAsrCapture(opts: {
 
   try {
     const emitter = new NativeEventEmitter(LiveKitModule);
-    sub = emitter.addListener("LK_AUDIO_DATA", (event: { id?: string; data?: string }) => {
-      if (closed || !tag || event?.id !== tag || typeof event.data !== "string") return;
-      const samples = b64ToInt16(event.data);
-      if (!samples.length) return;
-      // WebRTC audio processing delivers 10 ms frames, so N samples × 100 is
-      // the capture rate. See LKAudioProcessingAdapter.toPCMBuffer.
-      session?.feedInt16(samples, samples.length * 100);
-    });
-    tag = LiveKitModule.createAudioSinkListener(track._peerConnectionId ?? -1, track.id);
+    sub = emitter.addListener(
+      "LK_AUDIO_DATA",
+      (event: { id?: string; data?: string }) => {
+        if (
+          closed ||
+          !tag ||
+          event?.id !== tag ||
+          typeof event.data !== "string"
+        )
+          return;
+        const samples = b64ToInt16(event.data);
+        if (!samples.length) return;
+        // WebRTC audio processing delivers 10 ms frames, so N samples × 100 is
+        // the capture rate. See LKAudioProcessingAdapter.toPCMBuffer.
+        session?.feedInt16(samples, samples.length * 100);
+      },
+    );
+    tag = LiveKitModule.createAudioSinkListener(
+      track._peerConnectionId ?? -1,
+      track.id,
+    );
     attachSession();
   } catch {
     close();

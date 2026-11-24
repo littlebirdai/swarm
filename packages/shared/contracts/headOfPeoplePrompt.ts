@@ -66,8 +66,14 @@ Your job is to keep the company's structure true to how the work runs: which are
 /** The job, as the charter on the role's page states it. */
 export const HEAD_OF_PEOPLE_JOB = HEAD_OF_PEOPLE_OPENING.split("\n\n")[1];
 
-export function headOfPeopleOpening(facts: { workspace: string; person: string }): string {
-  return HEAD_OF_PEOPLE_OPENING.split("{workspace}").join(facts.workspace).split("{person}").join(facts.person);
+export function headOfPeopleOpening(facts: {
+  workspace: string;
+  person: string;
+}): string {
+  return HEAD_OF_PEOPLE_OPENING.split("{workspace}")
+    .join(facts.workspace)
+    .split("{person}")
+    .join(facts.person);
 }
 
 export type HeadOfPeoplePromptFacts = {
@@ -80,11 +86,20 @@ export type HeadOfPeoplePromptFacts = {
   /** The --team flag every verb carries, when the run names one. */
   team?: string;
   /** The Head of People's proposals still open, oldest first, as facts the reference states. */
-  open?: ReadonlyArray<{ short_id: string; title: string; decided: number; total: number; created_at?: number }>;
+  open?: ReadonlyArray<{
+    short_id: string;
+    title: string;
+    decided: number;
+    total: number;
+    created_at?: number;
+  }>;
 };
 
 export function headOfPeoplePrompt(facts: HeadOfPeoplePromptFacts): string {
-  const text = HEAD_OF_PEOPLE_PROMPT.split("{workspace}").join(facts.workspace).split("{person}").join(facts.person);
+  const text = HEAD_OF_PEOPLE_PROMPT.split("{workspace}")
+    .join(facts.workspace)
+    .split("{person}")
+    .join(facts.person);
   return `${text}\n\n${headOfPeopleReference(facts)}\n`;
 }
 
@@ -92,15 +107,32 @@ function headOfPeopleReference(facts: HeadOfPeoplePromptFacts): string {
   const team = facts.team ? ` --team ${JSON.stringify(facts.team)}` : "";
   const example = {
     title: "Name the ads session",
-    summary_md: "Your daily ads session becomes the Growth lead, under the Matching lead.",
+    summary_md:
+      "Your daily ads session becomes the Growth lead, under the Matching lead.",
     mode: facts.mode ?? "review",
     changes: [
       {
-        change: { kind: "role", name: "Growth lead", handle: "growth", seat: { existing: "jx7abcd", title: "Daily ads spend" }, scope: { projects: ["pr-12"] }, charter: "Keeps paid acquisition on budget and pointed at the funnel." },
+        change: {
+          kind: "role",
+          name: "Growth lead",
+          handle: "growth",
+          seat: { existing: "jx7abcd", title: "Daily ads spend" },
+          scope: { projects: ["pr-12"] },
+          charter:
+            "Keeps paid acquisition on budget and pointed at the funnel.",
+        },
         rationale: "It has steered ad spend every day for 81 days.",
-        evidence: [{ label: "the ads session", href: "https://codecast.sh/conversation/jx7abcd" }],
+        evidence: [
+          {
+            label: "the ads session",
+            href: "https://codecast.sh/conversation/jx7abcd",
+          },
+        ],
       },
-      { change: { kind: "move", handle: "growth", reports_to: "@matching" }, rationale: "Its work lands in the funnel the Matching lead owns." },
+      {
+        change: { kind: "move", handle: "growth", reports_to: "@matching" },
+        rationale: "Its work lands in the funnel the Matching lead owns.",
+      },
     ],
   };
   return [
@@ -114,7 +146,16 @@ function headOfPeopleReference(facts: HeadOfPeoplePromptFacts): string {
     `- \`cast org propose${team} --spec <file>\` (\`--spec -\` reads stdin): posts a proposal and prints its short id and each change's number.`,
     `- \`cast org proposals${team}\`: the proposals still open; \`cast org proposal op-N\` shows one with its changes and their numbers. \`cast org revise op-N\` changes one of yours: it amends or removes a change that still waits and adds a new one, which is how a rejected change is replaced; \`--supersedes op-N\` on propose replaces one of yours.`,
     `- \`cast link <id>\`: the link to a session, task, plan or project, for a change's evidence.`,
-    ...(facts.open?.length ? [``, `Still open:`, ...facts.open.map((o) => `- ${o.short_id} "${o.title}", ${o.decided} of ${o.total} changes decided${o.created_at ? `, posted ${postedAgo(o.created_at, facts.now ?? Date.now())}` : ""}.`)] : []),
+    ...(facts.open?.length
+      ? [
+          ``,
+          `Still open:`,
+          ...facts.open.map(
+            (o) =>
+              `- ${o.short_id} "${o.title}", ${o.decided} of ${o.total} changes decided${o.created_at ? `, posted ${postedAgo(o.created_at, facts.now ?? Date.now())}` : ""}.`,
+          ),
+        ]
+      : []),
     ``,
     `A small proposal:`,
     ``,
@@ -151,8 +192,15 @@ function postedAgo(at: number, now: number): string {
 }
 
 /** The spec as it reads best: its fields one per line, each change on one line. */
-function compactJson(spec: { changes: unknown[] } & Record<string, unknown>): string {
-  const head = Object.entries(spec).filter(([k]) => k !== "changes").map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`);
-  const changes = spec.changes.map((c, i) => `    ${JSON.stringify(c)}${i < spec.changes.length - 1 ? "," : ""}`);
+function compactJson(
+  spec: { changes: unknown[] } & Record<string, unknown>,
+): string {
+  const head = Object.entries(spec)
+    .filter(([k]) => k !== "changes")
+    .map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`);
+  const changes = spec.changes.map(
+    (c, i) =>
+      `    ${JSON.stringify(c)}${i < spec.changes.length - 1 ? "," : ""}`,
+  );
   return ["{", ...head, `  "changes": [`, ...changes, "  ]", "}"].join("\n");
 }

@@ -15,7 +15,10 @@ export const CHAT_PAGE_SIZE = 50;
  *  paint their images from local cache. Audio and video stay out: a recording
  *  or a video resolves its URL when its player mounts, and the player streams
  *  it. Returns the message rows. */
-export function ingestChatPage(data: any, convex: ConvexReactClient): ChatMessageRow[] {
+export function ingestChatPage(
+  data: any,
+  convex: ConvexReactClient,
+): ChatMessageRow[] {
   if (!data || data.unavailable) return [];
   const messages: ChatMessageRow[] = data.messages ?? [
     ...(data.message ? [data.message] : []),
@@ -26,11 +29,27 @@ export function ingestChatPage(data: any, convex: ConvexReactClient): ChatMessag
   if (data.channel) syncTable("chatChannels", [data.channel]);
   if (messages.length) syncTable("chatMessages", messages);
   if (data.authors) syncTable("chatAuthors", data.authors);
-  if (data.reactions) syncTable("chatReactions", data.reactions, chatReactionSyncOpts(messages.map(row => row._id)));
+  if (data.reactions)
+    syncTable(
+      "chatReactions",
+      data.reactions,
+      chatReactionSyncOpts(messages.map((row) => row._id)),
+    );
   // The server's per-root reply rollups. Without them a thread this client
   // never opened shows no affordance at all.
-  if (data.threads) syncTable("chatThreadSummaries", data.threads.map((thread: any) => ({ ...thread, _id: String(thread.root_id) })));
-  const images = messages.flatMap(m => (m.attachments ?? []).filter(a => a.storage_id && attachmentKind(a) === "image").map(a => a.storage_id));
+  if (data.threads)
+    syncTable(
+      "chatThreadSummaries",
+      data.threads.map((thread: any) => ({
+        ...thread,
+        _id: String(thread.root_id),
+      })),
+    );
+  const images = messages.flatMap((m) =>
+    (m.attachments ?? [])
+      .filter((a) => a.storage_id && attachmentKind(a) === "image")
+      .map((a) => a.storage_id),
+  );
   if (images.length) prefetchStorageImageUrls(convex, images);
   return messages;
 }
@@ -55,7 +74,11 @@ export function chatReactionSyncOpts(messageIds: Iterable<string>) {
   return {
     isDelta: true,
     pruneAbsentScope: (row: any) => scope.has(String(row?.message_id)),
-    transform: (draft: any, table: Record<string, ChatReactionRow>, incoming: ChatReactionRow[]) => {
+    transform: (
+      draft: any,
+      table: Record<string, ChatReactionRow>,
+      incoming: ChatReactionRow[],
+    ) => {
       const confirmed = new Set<string>();
       for (const row of incoming) {
         confirmed.add(`${row.message_id}\x1f${row.user_id}\x1f${row.emoji}`);
@@ -65,7 +88,9 @@ export function chatReactionSyncOpts(messageIds: Iterable<string>) {
         if (!row || !scope.has(String(row.message_id))) continue;
         if (isConvexId(id)) continue;
         // A stub whose server twin is in this authoritative page.
-        if (confirmed.has(`${row.message_id}\x1f${row.user_id}\x1f${row.emoji}`)) {
+        if (
+          confirmed.has(`${row.message_id}\x1f${row.user_id}\x1f${row.emoji}`)
+        ) {
           delete table[id];
           delete draft.pending[`chatReactions:${id}`];
         }

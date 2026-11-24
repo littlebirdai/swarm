@@ -1,6 +1,13 @@
 "use client";
 import { useState, useRef } from "react";
-import { CreateChipCaret, createChipClass, createMenuItemClass, CREATE_MENU_CLASS, CREATE_MENU_SEARCH_CLASS, CREATE_MENU_SECTION_CLASS } from "./CreateDialog";
+import {
+  CreateChipCaret,
+  createChipClass,
+  createMenuItemClass,
+  CREATE_MENU_CLASS,
+  CREATE_MENU_SEARCH_CLASS,
+  CREATE_MENU_SECTION_CLASS,
+} from "./CreateDialog";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { Bot, User, Search, Check, X } from "lucide-react";
 import type { AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
@@ -44,14 +51,20 @@ export function AssigneeSelect({
     if (!open) return;
     setTimeout(() => inputRef.current?.focus(), 0);
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
   const agentOptions: AssigneeOption[] = [
-    { id: "agent:claude_code", name: "Claude Code", type: "agent", section: "Agents" },
+    {
+      id: "agent:claude_code",
+      name: "Claude Code",
+      type: "agent",
+      section: "Agents",
+    },
     { id: "agent:codex", name: "Codex", type: "agent", section: "Agents" },
     { id: "agent:gemini", name: "Gemini", type: "agent", section: "Agents" },
   ];
@@ -59,7 +72,12 @@ export function AssigneeSelect({
   const { people, roles } = useRolesAndPeopleOptions(teamMembers ?? NO_MEMBERS);
   const memberOptions: AssigneeOption[] = [...people, ...roles].map((o) => ({
     id: o.key,
-    name: currentUser && o.key === currentUser._id ? `${o.label} (you)` : o.hint ? `${o.label} ${o.hint}` : o.label,
+    name:
+      currentUser && o.key === currentUser._id
+        ? `${o.label} (you)`
+        : o.hint
+          ? `${o.label} ${o.hint}`
+          : o.label,
     type: "user" as const,
     info: o.info,
     section: o.section,
@@ -68,7 +86,9 @@ export function AssigneeSelect({
   const allOptions: AssigneeOption[] = [...agentOptions, ...memberOptions];
 
   const filtered = search.trim()
-    ? allOptions.filter((o) => o.name.toLowerCase().includes(search.toLowerCase()))
+    ? allOptions.filter((o) =>
+        o.name.toLowerCase().includes(search.toLowerCase()),
+      )
     : allOptions;
 
   const select = (opt: AssigneeOption | null) => {
@@ -78,15 +98,39 @@ export function AssigneeSelect({
   };
 
   const agentColor = (id: string) =>
-    id === "agent:codex" ? "text-blue-400" : id === "agent:gemini" ? "text-amber-400" : "text-sol-violet";
+    id === "agent:codex"
+      ? "text-blue-400"
+      : id === "agent:gemini"
+        ? "text-amber-400"
+        : "text-sol-violet";
 
-  const renderAvatar = (opt: { id?: string; name: string; info?: AssigneeInfo; type?: string }) => {
-    if (opt.type === "agent") return <Bot className={`w-4 h-4 ${agentColor(opt.id || "")}`} />;
-    return <AssigneeFace info={opt.info ?? { name: opt.name.replace(" (you)", "") }} size={16} hover={false} />;
+  const renderAvatar = (opt: {
+    id?: string;
+    name: string;
+    info?: AssigneeInfo;
+    type?: string;
+  }) => {
+    if (opt.type === "agent")
+      return <Bot className={`w-4 h-4 ${agentColor(opt.id || "")}`} />;
+    return (
+      <AssigneeFace
+        info={opt.info ?? { name: opt.name.replace(" (you)", "") }}
+        size={16}
+        hover={false}
+      />
+    );
   };
 
   const currentOpt = value
-    ? allOptions.find((o) => o.id === value) || (valueInfo ? { id: value, name: valueInfo.name, info: valueInfo, type: "user" as const } : null)
+    ? allOptions.find((o) => o.id === value) ||
+      (valueInfo
+        ? {
+            id: value,
+            name: valueInfo.name,
+            info: valueInfo,
+            type: "user" as const,
+          }
+        : null)
     : null;
 
   return (
@@ -97,11 +141,18 @@ export function AssigneeSelect({
         className={createChipClass(!!value, open)}
         aria-expanded={open}
       >
-        {currentOpt
-          ? renderAvatar({ ...currentOpt, id: currentOpt.id, type: value?.startsWith("agent:") ? "agent" : "user" })
-          : <User className="w-3.5 h-3.5" />
-        }
-        <span className="max-w-[10rem] truncate">{currentOpt ? currentOpt.name.replace(" (you)", "") : "Assignee"}</span>
+        {currentOpt ? (
+          renderAvatar({
+            ...currentOpt,
+            id: currentOpt.id,
+            type: value?.startsWith("agent:") ? "agent" : "user",
+          })
+        ) : (
+          <User className="w-3.5 h-3.5" />
+        )}
+        <span className="max-w-[10rem] truncate">
+          {currentOpt ? currentOpt.name.replace(" (you)", "") : "Assignee"}
+        </span>
         <CreateChipCaret open={open} />
       </button>
       {open && (
@@ -140,12 +191,16 @@ export function AssigneeSelect({
                 >
                   {renderAvatar(opt)}
                   <span className="flex-1 text-left truncate">{opt.name}</span>
-                  {opt.id === value && <Check className="w-3.5 h-3.5 text-sol-cyan flex-shrink-0" />}
+                  {opt.id === value && (
+                    <Check className="w-3.5 h-3.5 text-sol-cyan flex-shrink-0" />
+                  )}
                 </button>
               </div>
             ))}
             {filtered.length === 0 && (
-              <div className="px-2 py-2 text-xs text-sol-text-dim">Nobody matches</div>
+              <div className="px-2 py-2 text-xs text-sol-text-dim">
+                Nobody matches
+              </div>
             )}
           </div>
         </div>

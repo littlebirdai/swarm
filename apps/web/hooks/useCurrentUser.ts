@@ -43,7 +43,11 @@ function identityKey(row: Record<string, unknown>): string {
   for (const k in row) {
     if (CURRENT_USER_CHURN.has(k)) continue;
     const v = row[k];
-    key += k + ":" + (v !== null && typeof v === "object" ? JSON.stringify(v) : String(v)) + ";";
+    key +=
+      k +
+      ":" +
+      (v !== null && typeof v === "object" ? JSON.stringify(v) : String(v)) +
+      ";";
   }
   return key;
 }

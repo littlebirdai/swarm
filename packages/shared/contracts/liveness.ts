@@ -62,7 +62,9 @@ export function confineToOwningDevice(
   verdict: LivenessVerdict,
   probedOnOwningDevice: boolean,
 ): LivenessVerdict {
-  return verdict === "exited" && !probedOnOwningDevice ? "unverifiable" : verdict;
+  return verdict === "exited" && !probedOnOwningDevice
+    ? "unverifiable"
+    : verdict;
 }
 
 /**

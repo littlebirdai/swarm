@@ -1,9 +1,24 @@
 import { spawn, spawnSync, whichBin, type ChildProcess } from "../proc.js";
-import { existsSync, writeFileSync, unlinkSync, openSync, readFileSync, readdirSync, statSync, mkdirSync, copyFileSync, renameSync, rmSync } from "fs";
+import {
+  existsSync,
+  writeFileSync,
+  unlinkSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  mkdirSync,
+  copyFileSync,
+  renameSync,
+  rmSync,
+} from "fs";
 import { dirname } from "path";
 import { tmuxRun } from "../tmux.js";
 import { withTmuxSession } from "../tmuxRoute.js";
-import { appendModelEffortFlags, formatPrintCommand } from "../launchCommand.js";
+import {
+  appendModelEffortFlags,
+  formatPrintCommand,
+} from "../launchCommand.js";
 
 export interface AgentHandle {
   id: string;
@@ -33,7 +48,10 @@ export interface SpawnOpts {
 }
 
 /** The client's effort flag for `effort`, as every other launch path writes it. */
-function effortArgs(agentType: "claude" | "codex", effort: string | undefined): string[] {
+function effortArgs(
+  agentType: "claude" | "codex",
+  effort: string | undefined,
+): string[] {
   const args: string[] = [];
   appendModelEffortFlags(args, { agentType, requestedEffort: effort });
   return args;
@@ -73,7 +91,10 @@ export interface Sandbox {
   workingDir: string;
 
   // Core execution
-  execCommand(command: string, opts?: { cwd?: string; timeout?: number; env?: Record<string, string> }): ExecResult;
+  execCommand(
+    command: string,
+    opts?: { cwd?: string; timeout?: number; env?: Record<string, string> },
+  ): ExecResult;
   spawnAgent(opts: SpawnOpts): AgentHandle;
 
   // File operations
@@ -91,7 +112,11 @@ export interface Sandbox {
   deleteDirectory(path: string, recursive?: boolean): void;
 
   // Search operations
-  grep(pattern: string, path: string, opts?: { glob?: string; maxResults?: number }): string[];
+  grep(
+    pattern: string,
+    path: string,
+    opts?: { glob?: string; maxResults?: number },
+  ): string[];
   glob(pattern: string, opts?: { cwd?: string }): string[];
 
   // Git operations
@@ -115,7 +140,10 @@ export class LocalSandbox implements Sandbox {
     this.workingDir = workingDir || process.cwd();
   }
 
-  execCommand(command: string, opts?: { cwd?: string; timeout?: number; env?: Record<string, string> }): ExecResult {
+  execCommand(
+    command: string,
+    opts?: { cwd?: string; timeout?: number; env?: Record<string, string> },
+  ): ExecResult {
     const result = spawnSync("sh", ["-c", command], {
       encoding: "utf-8",
       cwd: opts?.cwd || this.workingDir,
@@ -174,7 +202,7 @@ export class LocalSandbox implements Sandbox {
 
   listDirectory(path: string): DirEntry[] {
     if (!existsSync(path)) return [];
-    return readdirSync(path, { withFileTypes: true }).map(d => ({
+    return readdirSync(path, { withFileTypes: true }).map((d) => ({
       name: d.name,
       isFile: d.isFile(),
       isDirectory: d.isDirectory(),
@@ -189,12 +217,18 @@ export class LocalSandbox implements Sandbox {
     rmSync(path, { recursive, force: recursive });
   }
 
-  grep(pattern: string, path: string, opts?: { glob?: string; maxResults?: number }): string[] {
+  grep(
+    pattern: string,
+    path: string,
+    opts?: { glob?: string; maxResults?: number },
+  ): string[] {
     const args = ["-r", "-l", "--color=never"];
     if (opts?.glob) args.push("--include", opts.glob);
     args.push(pattern, path);
     const result = spawnSync("grep", args, {
-      encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 30_000,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 30_000,
     });
     if (result.status !== 0 && result.status !== 1) return [];
     const lines = (result.stdout || "").trim().split("\n").filter(Boolean);
@@ -203,16 +237,23 @@ export class LocalSandbox implements Sandbox {
 
   glob(pattern: string, opts?: { cwd?: string }): string[] {
     const cwd = opts?.cwd || this.workingDir;
-    const result = spawnSync("find", [cwd, "-path", `*${pattern}*`, "-type", "f"], {
-      encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 10_000,
-    });
+    const result = spawnSync(
+      "find",
+      [cwd, "-path", `*${pattern}*`, "-type", "f"],
+      {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 10_000,
+      },
+    );
     if (result.status !== 0) return [];
     return (result.stdout || "").trim().split("\n").filter(Boolean);
   }
 
   gitExec(args: string[], opts?: { cwd?: string }): ExecResult {
     const result = spawnSync("git", args, {
-      encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"],
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
       cwd: opts?.cwd || this.workingDir,
     });
     return {
@@ -229,7 +270,11 @@ export class LocalSandbox implements Sandbox {
   gitCommit(message: string, trailers?: Record<string, string>): ExecResult {
     let fullMessage = message;
     if (trailers && Object.keys(trailers).length > 0) {
-      fullMessage += "\n\n" + Object.entries(trailers).map(([k, v]) => `${k}: ${v}`).join("\n");
+      fullMessage +=
+        "\n\n" +
+        Object.entries(trailers)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join("\n");
     }
     this.gitExec(["add", "-A"]);
     return this.gitExec(["commit", "-m", fullMessage]);
@@ -264,20 +309,32 @@ function whichSync(cmd: string): boolean {
 
 function readLogTail(path: string, lines: number): string {
   if (!existsSync(path)) return "";
-  const r = spawnSync("tail", ["-n", String(lines), path], { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
-  return r.status === 0 ? (r.stdout || "") : "";
+  const r = spawnSync("tail", ["-n", String(lines), path], {
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  return r.status === 0 ? r.stdout || "" : "";
 }
 
 export function parseAgentMarkers(output: string): AgentOutput["markers"] {
   const lines = output.split("\n");
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
-    const blockedMatch = line.match(/^(?:\*\*)?(?:Status:\s*)?BLOCKED(?:\*\*)?[:\s]+(.+)/i);
-    if (blockedMatch) return { status: "blocked", detail: blockedMatch[1].trim() };
-    const needsMatch = line.match(/^(?:\*\*)?(?:Status:\s*)?NEEDS_CONTEXT(?:\*\*)?[:\s]+(.+)/i);
-    if (needsMatch) return { status: "needs_context", detail: needsMatch[1].trim() };
-    const concernsMatch = line.match(/^(?:\*\*)?(?:Status:\s*)?DONE_WITH_CONCERNS(?:\*\*)?[:\s]+(.+)/i);
-    if (concernsMatch) return { status: "done_with_concerns", detail: concernsMatch[1].trim() };
+    const blockedMatch = line.match(
+      /^(?:\*\*)?(?:Status:\s*)?BLOCKED(?:\*\*)?[:\s]+(.+)/i,
+    );
+    if (blockedMatch)
+      return { status: "blocked", detail: blockedMatch[1].trim() };
+    const needsMatch = line.match(
+      /^(?:\*\*)?(?:Status:\s*)?NEEDS_CONTEXT(?:\*\*)?[:\s]+(.+)/i,
+    );
+    if (needsMatch)
+      return { status: "needs_context", detail: needsMatch[1].trim() };
+    const concernsMatch = line.match(
+      /^(?:\*\*)?(?:Status:\s*)?DONE_WITH_CONCERNS(?:\*\*)?[:\s]+(.+)/i,
+    );
+    if (concernsMatch)
+      return { status: "done_with_concerns", detail: concernsMatch[1].trim() };
   }
   return { status: null, detail: "" };
 }
@@ -293,16 +350,23 @@ export class ClaudeCodeRuntime implements AgentRuntime {
     const log = logPath(opts.sessionName);
     const logFd = openSync(log, "w");
 
-    const child = spawn("claude", [
-      "-p", opts.prompt,
-      "--model", opts.model,
-      ...effortArgs("claude", opts.effort),
-      "--permission-mode", "bypassPermissions",
-    ], {
-      cwd: opts.workingDir,
-      stdio: ["ignore", logFd, logFd],
-      detached: true,
-    });
+    const child = spawn(
+      "claude",
+      [
+        "-p",
+        opts.prompt,
+        "--model",
+        opts.model,
+        ...effortArgs("claude", opts.effort),
+        "--permission-mode",
+        "bypassPermissions",
+      ],
+      {
+        cwd: opts.workingDir,
+        stdio: ["ignore", logFd, logFd],
+        detached: true,
+      },
+    );
     child.unref();
 
     const handle: AgentHandle = {
@@ -321,7 +385,9 @@ export class ClaudeCodeRuntime implements AgentRuntime {
     const child = childProcesses.get(handle.id);
     if (child) return child.exitCode === null;
     if (!handle.pid) return false;
-    const r = spawnSync("kill", ["-0", String(handle.pid)], { stdio: ["pipe", "pipe", "pipe"] });
+    const r = spawnSync("kill", ["-0", String(handle.pid)], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     return r.status === 0;
   }
 
@@ -338,7 +404,9 @@ export class ClaudeCodeRuntime implements AgentRuntime {
       return;
     }
     if (handle.pid) {
-      spawnSync("kill", [String(handle.pid)], { stdio: ["pipe", "pipe", "pipe"] });
+      spawnSync("kill", [String(handle.pid)], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
     }
     childProcesses.delete(handle.id);
   }
@@ -355,15 +423,21 @@ export class CodexRuntime implements AgentRuntime {
     const log = logPath(opts.sessionName);
     const logFd = openSync(log, "w");
 
-    const child = spawn("codex", [
-      "exec", opts.prompt,
-      "-m", opts.model,
-      ...effortArgs("codex", opts.effort),
-    ], {
-      cwd: opts.workingDir,
-      stdio: ["ignore", logFd, logFd],
-      detached: true,
-    });
+    const child = spawn(
+      "codex",
+      [
+        "exec",
+        opts.prompt,
+        "-m",
+        opts.model,
+        ...effortArgs("codex", opts.effort),
+      ],
+      {
+        cwd: opts.workingDir,
+        stdio: ["ignore", logFd, logFd],
+        detached: true,
+      },
+    );
     child.unref();
 
     const handle: AgentHandle = {
@@ -382,7 +456,9 @@ export class CodexRuntime implements AgentRuntime {
     const child = childProcesses.get(handle.id);
     if (child) return child.exitCode === null;
     if (!handle.pid) return false;
-    const r = spawnSync("kill", ["-0", String(handle.pid)], { stdio: ["pipe", "pipe", "pipe"] });
+    const r = spawnSync("kill", ["-0", String(handle.pid)], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     return r.status === 0;
   }
 
@@ -399,7 +475,9 @@ export class CodexRuntime implements AgentRuntime {
       return;
     }
     if (handle.pid) {
-      spawnSync("kill", [String(handle.pid)], { stdio: ["pipe", "pipe", "pipe"] });
+      spawnSync("kill", [String(handle.pid)], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
     }
     childProcesses.delete(handle.id);
   }
@@ -418,8 +496,20 @@ export class TmuxRuntime implements AgentRuntime {
 
     // The pane's command runs through sh, and a task's model is anyone's to
     // write: every argument is quoted.
-    tmuxRun(["new-session", "-d", "-s", opts.sessionName, "-c", opts.workingDir,
-      formatPrintCommand("claude", ["--model", opts.model, ...effortArgs("claude", opts.effort), "--dangerously-skip-permissions"])]);
+    tmuxRun([
+      "new-session",
+      "-d",
+      "-s",
+      opts.sessionName,
+      "-c",
+      opts.workingDir,
+      formatPrintCommand("claude", [
+        "--model",
+        opts.model,
+        ...effortArgs("claude", opts.effort),
+        "--dangerously-skip-permissions",
+      ]),
+    ]);
 
     this.waitForReady(opts.sessionName);
 
@@ -434,7 +524,9 @@ export class TmuxRuntime implements AgentRuntime {
     tmuxRun(["send-keys", "-t", opts.sessionName, "Enter"]);
     spawnSync("sleep", ["0.2"]);
     tmuxRun(["send-keys", "-t", opts.sessionName, "Enter"]);
-    try { unlinkSync(promptFile); } catch {}
+    try {
+      unlinkSync(promptFile);
+    } catch {}
 
     return {
       id: opts.sessionName,
@@ -447,7 +539,15 @@ export class TmuxRuntime implements AgentRuntime {
   private waitForReady(sessionName: string, maxWaitMs = 30000): void {
     const start = Date.now();
     while (Date.now() - start < maxWaitMs) {
-      const pane = tmuxRun(["capture-pane", "-p", "-J", "-t", `${sessionName}:0.0`, "-S", "-50"]);
+      const pane = tmuxRun([
+        "capture-pane",
+        "-p",
+        "-J",
+        "-t",
+        `${sessionName}:0.0`,
+        "-S",
+        "-50",
+      ]);
       if (pane.status === 0 && pane.stdout.includes("❯")) return;
       spawnSync("sleep", ["0.5"]);
     }
@@ -458,7 +558,15 @@ export class TmuxRuntime implements AgentRuntime {
   }
 
   getOutput(handle: AgentHandle, lines = 500): AgentOutput {
-    const r = tmuxRun(["capture-pane", "-p", "-J", "-t", `${handle.id}:0.0`, "-S", `-${lines}`]);
+    const r = tmuxRun([
+      "capture-pane",
+      "-p",
+      "-J",
+      "-t",
+      `${handle.id}:0.0`,
+      "-S",
+      `-${lines}`,
+    ]);
     const text = r.status === 0 ? r.stdout : "";
     return { text, markers: parseAgentMarkers(text) };
   }
@@ -472,5 +580,7 @@ export function detectRuntime(): AgentRuntime {
   if (whichSync("claude")) return new ClaudeCodeRuntime();
   if (whichSync("codex")) return new CodexRuntime();
   if (whichSync("tmux")) return new TmuxRuntime();
-  throw new Error("No agent runtime available. Install claude, codex, or tmux.");
+  throw new Error(
+    "No agent runtime available. Install claude, codex, or tmux.",
+  );
 }

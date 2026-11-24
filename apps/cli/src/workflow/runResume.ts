@@ -29,9 +29,19 @@ export const runPaneName = (runId: string): string => `wf-${runId.slice(-6)}`;
  * 2026-10-23, and every fleet listing asks every server, so message delivery
  * waited 40s on average.
  */
-export const runPaneLaunchLine = (cast: string[], runId: string): string => `exec ${cast.join(" ")} workflow run-daemon ${runId}`;
+export const runPaneLaunchLine = (cast: string[], runId: string): string =>
+  `exec ${cast.join(" ")} workflow run-daemon ${runId}`;
 
-const SHELLS = new Set(["bash", "zsh", "sh", "fish", "dash", "ksh", "tcsh", "csh"]);
+const SHELLS = new Set([
+  "bash",
+  "zsh",
+  "sh",
+  "fish",
+  "dash",
+  "ksh",
+  "tcsh",
+  "csh",
+]);
 /** A fresh pane's runner has this long to claim the run before the pane counts as dead. */
 export const PANE_CLAIM_GRACE_S = 120;
 
@@ -43,7 +53,10 @@ export const PANE_CLAIM_GRACE_S = 120;
  * pane still running something other than its shell, or created moments ago,
  * stays; a pane back at its shell (the runner exited) is replaced.
  */
-export function paneReplaceable(pane: { command: string; createdS: number } | null, nowS: number): boolean {
+export function paneReplaceable(
+  pane: { command: string; createdS: number } | null,
+  nowS: number,
+): boolean {
   if (!pane) return true;
   if (!SHELLS.has(pane.command.replace(/^-/, ""))) return false;
   return nowS - pane.createdS >= PANE_CLAIM_GRACE_S;
@@ -59,25 +72,72 @@ export const DEAD_RUN_PANE_IDLE_S = 30 * 60;
  * but each kept its session: 1,420 across the five Union line hosts on
  * 2026-10-27, about 100 a host a day.
  */
-export function deadRunPanes(panes: ReadonlyArray<{ session: string; command: string; activityS: number }>, nowS: number): string[] {
-  return [...new Set(panes.filter((p) => p.session.startsWith("wf-") && SHELLS.has(p.command.replace(/^-/, "")) && nowS - p.activityS >= DEAD_RUN_PANE_IDLE_S).map((p) => p.session))];
+export function deadRunPanes(
+  panes: ReadonlyArray<{ session: string; command: string; activityS: number }>,
+  nowS: number,
+): string[] {
+  return [
+    ...new Set(
+      panes
+        .filter(
+          (p) =>
+            p.session.startsWith("wf-") &&
+            SHELLS.has(p.command.replace(/^-/, "")) &&
+            nowS - p.activityS >= DEAD_RUN_PANE_IDLE_S,
+        )
+        .map((p) => p.session),
+    ),
+  ];
 }
 
 /** Close them, through the daemon's tmux (`tmux` runs one command and resolves to its output, rejecting on failure).
  *  Async because the listing walks every tmux server: done synchronously it froze the daemon's loop for 30 to 80s under load. */
-export async function closeDeadRunPanes(tmux: (args: string[]) => Promise<string>, log: (line: string) => void, nowS = Date.now() / 1000): Promise<void> {
+export async function closeDeadRunPanes(
+  tmux: (args: string[]) => Promise<string>,
+  log: (line: string) => void,
+  nowS = Date.now() / 1000,
+): Promise<void> {
   let listed = "";
-  try { listed = await tmux(["list-panes", "-a", "-F", "#{session_name}|#{pane_current_command}|#{session_activity}"]); } catch { return; }
-  const panes = listed.trim().split("\n").filter(Boolean).map((l) => { const [session, command, activity] = l.split("|"); return { session: session ?? "", command: command ?? "", activityS: Number(activity) || 0 }; });
+  try {
+    listed = await tmux([
+      "list-panes",
+      "-a",
+      "-F",
+      "#{session_name}|#{pane_current_command}|#{session_activity}",
+    ]);
+  } catch {
+    return;
+  }
+  const panes = listed
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => {
+      const [session, command, activity] = l.split("|");
+      return {
+        session: session ?? "",
+        command: command ?? "",
+        activityS: Number(activity) || 0,
+      };
+    });
   for (const session of deadRunPanes(panes, nowS)) {
-    try { await tmux(["kill-session", "-t", `=${session}`]); log(`[WORKFLOW] closed ${session}: its runner was gone and its shell idle`); } catch { /* gone */ }
+    try {
+      await tmux(["kill-session", "-t", `=${session}`]);
+      log(
+        `[WORKFLOW] closed ${session}: its runner was gone and its shell idle`,
+      );
+    } catch {
+      /* gone */
+    }
   }
 }
 
 /** The pid driving `runId` on this machine, or null when no live process does. */
 export function liveRunnerPid(runId: string): number | null {
   try {
-    const pid = Number(JSON.parse(fs.readFileSync(runnerPidFile(runId), "utf-8")).pid);
+    const pid = Number(
+      JSON.parse(fs.readFileSync(runnerPidFile(runId), "utf-8")).pid,
+    );
     return isPidAlive(pid) ? pid : null;
   } catch {
     return null;
@@ -92,8 +152,17 @@ export function liveRunnerPid(runId: string): number | null {
  * asked again), once per re-pin, and only while the daemon may still resume
  * the run, so a stopped runner is always started again.
  */
-export function restartsForNewerFlow(run: { status: string; restart_at?: number | null }, restartedFor: number | undefined, mayResume: boolean): boolean {
-  return run.status === "paused" && !!run.restart_at && restartedFor !== run.restart_at && mayResume;
+export function restartsForNewerFlow(
+  run: { status: string; restart_at?: number | null },
+  restartedFor: number | undefined,
+  mayResume: boolean,
+): boolean {
+  return (
+    run.status === "paused" &&
+    !!run.restart_at &&
+    restartedFor !== run.restart_at &&
+    mayResume
+  );
 }
 
 /**
@@ -102,16 +171,23 @@ export function restartsForNewerFlow(run: { status: string; restart_at?: number 
  * the live holder. A holder that died (SIGKILL, a reboot) leaves a pid file
  * naming no process, which the next claim takes over.
  */
-export function claimRun(runId: string): { release: () => void } | { heldBy: number } {
+export function claimRun(
+  runId: string,
+): { release: () => void } | { heldBy: number } {
   const held = liveRunnerPid(runId);
   if (held && held !== process.pid) return { heldBy: held };
   const file = runnerPidFile(runId);
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  fs.writeFileSync(file, JSON.stringify({ pid: process.pid, at: Date.now() }), { mode: 0o600 });
+  fs.writeFileSync(file, JSON.stringify({ pid: process.pid, at: Date.now() }), {
+    mode: 0o600,
+  });
   const release = () => {
     process.removeListener("exit", release);
     try {
-      if (Number(JSON.parse(fs.readFileSync(file, "utf-8")).pid) === process.pid) fs.unlinkSync(file);
+      if (
+        Number(JSON.parse(fs.readFileSync(file, "utf-8")).pid) === process.pid
+      )
+        fs.unlinkSync(file);
     } catch {}
   };
   process.once("exit", release);
@@ -129,15 +205,20 @@ export function claimRun(runId: string): { release: () => void } | { heldBy: num
 // answer are the ones on disk.
 
 /** What a runner loaded, by file: its graph's files and its own code. Two stamps differ when any changed. */
-export function runnerStamp(graph: { sources?: string[] }, codeFiles: string[] = runnerCodeFiles()): string {
-  return [...(graph.sources ?? []), ...codeFiles].map((f) => {
-    try {
-      const s = fs.statSync(f);
-      return `${f}:${s.mtimeMs}:${s.size}`;
-    } catch {
-      return `${f}:-`;
-    }
-  }).join("\n");
+export function runnerStamp(
+  graph: { sources?: string[] },
+  codeFiles: string[] = runnerCodeFiles(),
+): string {
+  return [...(graph.sources ?? []), ...codeFiles]
+    .map((f) => {
+      try {
+        const s = fs.statSync(f);
+        return `${f}:${s.mtimeMs}:${s.size}`;
+      } catch {
+        return `${f}:-`;
+      }
+    })
+    .join("\n");
 }
 
 /** The runner's own code: the workflow modules beside this one (a source checkout) with the briefs they bundle (presenter.md), and the executable running them. */
@@ -145,7 +226,9 @@ export function runnerCodeFiles(): string[] {
   const files = [process.execPath];
   try {
     const dir = path.dirname(fileURLToPath(import.meta.url));
-    for (const f of fs.readdirSync(dir)) if (/\.(ts|js|md)$/.test(f) && !/\.test\./.test(f)) files.push(path.join(dir, f));
+    for (const f of fs.readdirSync(dir))
+      if (/\.(ts|js|md)$/.test(f) && !/\.test\./.test(f))
+        files.push(path.join(dir, f));
   } catch {}
   return files;
 }
@@ -155,13 +238,20 @@ export function runnerCodeFiles(): string[] {
  * go first, so the new runner takes the run; the row is left as the answer
  * left it, so the new runner finds the gate answered.
  */
-export async function handOffRun(runId: string, argv: string[]): Promise<never> {
+export async function handOffRun(
+  runId: string,
+  argv: string[],
+): Promise<never> {
   const file = runnerPidFile(runId);
   try {
-    if (Number(JSON.parse(fs.readFileSync(file, "utf-8")).pid) === process.pid) fs.unlinkSync(file);
+    if (Number(JSON.parse(fs.readFileSync(file, "utf-8")).pid) === process.pid)
+      fs.unlinkSync(file);
   } catch {}
   const { spawn } = await import("../proc.js");
-  const child = spawn(argv[0], argv.slice(1), { stdio: "inherit", env: process.env });
+  const child = spawn(argv[0], argv.slice(1), {
+    stdio: "inherit",
+    env: process.env,
+  });
   const code = await new Promise<number>((resolve) => {
     child.on("exit", (c) => resolve(c ?? 1));
     child.on("error", () => resolve(1));
@@ -189,7 +279,13 @@ export function checkpointPath(runDir: string, runId: string): string {
   return path.join(runDir, "runs", `${runId.replace(/[^\w-]/g, "")}.json`);
 }
 
-export function writeCheckpoint(runDir: string, runId: string, state: WorkflowRunState, nodeOutcomes: Record<string, NodeOutcome>, next?: string): void {
+export function writeCheckpoint(
+  runDir: string,
+  runId: string,
+  state: WorkflowRunState,
+  nodeOutcomes: Record<string, NodeOutcome>,
+  next?: string,
+): void {
   const file = checkpointPath(runDir, runId);
   const body: RunCheckpoint = {
     run_id: runId,
@@ -209,11 +305,20 @@ export function writeCheckpoint(runDir: string, runId: string, state: WorkflowRu
   } catch {}
 }
 
-export function readCheckpoint(runDir: string, runId: string): RunCheckpoint | null {
+export function readCheckpoint(
+  runDir: string,
+  runId: string,
+): RunCheckpoint | null {
   const read = (dir: string): RunCheckpoint | null => {
     try {
-      const cp = JSON.parse(fs.readFileSync(checkpointPath(dir, runId), "utf-8"));
-      return cp?.run_id === runId && typeof cp.node_id === "string" && cp.context ? cp : null;
+      const cp = JSON.parse(
+        fs.readFileSync(checkpointPath(dir, runId), "utf-8"),
+      );
+      return cp?.run_id === runId &&
+        typeof cp.node_id === "string" &&
+        cp.context
+        ? cp
+        : null;
     } catch {
       return null;
     }
@@ -237,7 +342,13 @@ export function readCheckpoint(runDir: string, runId: string): RunCheckpoint | n
 export interface ResumeRow {
   status: string;
   current_node_id?: string | null;
-  node_statuses?: Array<{ node_id: string; status: string; outcome?: string | null; session_id?: string | null; completed_at?: number | null }>;
+  node_statuses?: Array<{
+    node_id: string;
+    status: string;
+    outcome?: string | null;
+    session_id?: string | null;
+    completed_at?: number | null;
+  }>;
   gate_node_id?: string | null;
   gate_response?: string | null;
   /** The chosen option's own words, when a decision answered the gate (workflow_runs answeredOptionLabel). */
@@ -251,7 +362,9 @@ export interface ResumeRow {
 
 /** A row is mid-run when it is live and a runner reported past its start. */
 export function isMidRun(row: ResumeRow): boolean {
-  return (row.status === "running" || row.status === "paused") && tookPastStart(row);
+  return (
+    (row.status === "running" || row.status === "paused") && tookPastStart(row)
+  );
 }
 
 export interface ResumePoint {
@@ -275,9 +388,14 @@ export interface ResumePoint {
  * instruction the card wrote for it, and a Revise answered by its key alone
  * otherwise sent the build back with nothing to do differently (sd-1415).
  */
-export function withOptionWords(response: string, words?: string | null): string {
+export function withOptionWords(
+  response: string,
+  words?: string | null,
+): string {
   const key = response.trim();
-  return words?.trim() && /^\[?\w{1,3}\]?$/.test(key) ? `${key}: ${words.trim()}` : response;
+  return words?.trim() && /^\[?\w{1,3}\]?$/.test(key)
+    ? `${key}: ${words.trim()}`
+    : response;
 }
 
 /**
@@ -285,9 +403,13 @@ export function withOptionWords(response: string, words?: string | null): string
  * within one attempt; a resume at a station and a person's answer at a gate
  * each start the next attempt, so neither lands on a spent count.
  */
-export function clearVisits(visitCounts: Record<string, number>, context: Record<string, string>): void {
+export function clearVisits(
+  visitCounts: Record<string, number>,
+  context: Record<string, string>,
+): void {
   for (const id of Object.keys(visitCounts)) delete visitCounts[id];
-  for (const key of Object.keys(context)) if (key.endsWith(".visits")) delete context[key];
+  for (const key of Object.keys(context))
+    if (key.endsWith(".visits")) delete context[key];
 }
 
 /**
@@ -297,7 +419,11 @@ export function clearVisits(visitCounts: Record<string, number>, context: Record
  * shows, and a gate answered while nothing drove the run is answered there.
  * Null when the node the row stands at is not in the graph.
  */
-export function resumePoint(graph: WorkflowGraph, row: ResumeRow, checkpoint: RunCheckpoint | null): ResumePoint | null {
+export function resumePoint(
+  graph: WorkflowGraph,
+  row: ResumeRow,
+  checkpoint: RunCheckpoint | null,
+): ResumePoint | null {
   // A runner that died between finishing a node and reporting the next one
   // left the row on the finished node and the checkpoint on the next: the
   // checkpoint's route stands, so the finished node does not run twice.
@@ -305,13 +431,19 @@ export function resumePoint(graph: WorkflowGraph, row: ResumeRow, checkpoint: Ru
   // checkpoint was written: the station a person named stands, and the visits
   // the earlier attempt used count no more (max_visits stops a loop within
   // one attempt). A checkpoint written since the resume is this attempt's own.
-  const newAttempt = !!row.visits_reset_at && !(checkpoint && checkpoint.at > row.visits_reset_at);
+  const newAttempt =
+    !!row.visits_reset_at &&
+    !(checkpoint && checkpoint.at > row.visits_reset_at);
   // A fanout's branch runs only inside its fanout: resumed on its own it skips its siblings and passes the fanin
   // without their output (Union's review resumed alone, its CI never run, 2026-11-21). A row a branch moved onto
   // its own id stands at the fanout.
   const reported = row.current_node_id || checkpoint?.node_id;
-  const rowNode = reported ? fanoutOf(graph, reported) ?? reported : reported;
-  const routedOn = !newAttempt && !!checkpoint && !checkpoint.started && checkpoint.completed[checkpoint.completed.length - 1] === rowNode;
+  const rowNode = reported ? (fanoutOf(graph, reported) ?? reported) : reported;
+  const routedOn =
+    !newAttempt &&
+    !!checkpoint &&
+    !checkpoint.started &&
+    checkpoint.completed[checkpoint.completed.length - 1] === rowNode;
   const nodeId = routedOn ? checkpoint!.node_id : rowNode;
   if (!nodeId || !graph.nodes.has(nodeId)) return null;
   const node = graph.nodes.get(nodeId)!;
@@ -322,7 +454,8 @@ export function resumePoint(graph: WorkflowGraph, row: ResumeRow, checkpoint: Ru
   let node_outcomes: Record<string, NodeOutcome>;
   let context: Record<string, string>;
   if (atCheckpoint) {
-    ({ visit_counts, completed, node_outcomes, context } = structuredClone(atCheckpoint));
+    ({ visit_counts, completed, node_outcomes, context } =
+      structuredClone(atCheckpoint));
     // A started node counted its visit; it counts again when it runs.
     if (atCheckpoint.started && visit_counts[nodeId]) visit_counts[nodeId]--;
   } else {
@@ -333,10 +466,15 @@ export function resumePoint(graph: WorkflowGraph, row: ResumeRow, checkpoint: Ru
     // keeps the values the run had made: its worktree, its proof's files. The row's outcomes below still decide history.
     context = checkpoint ? structuredClone(checkpoint.context) : {};
     const done = (row.node_statuses ?? [])
-      .filter((n) => n.node_id !== nodeId && (n.status === "completed" || n.status === "failed"))
+      .filter(
+        (n) =>
+          n.node_id !== nodeId &&
+          (n.status === "completed" || n.status === "failed"),
+      )
       .sort((a, b) => (a.completed_at ?? 0) - (b.completed_at ?? 0));
     for (const n of done) {
-      const outcome = n.outcome || (n.status === "failed" ? "failure" : "success");
+      const outcome =
+        n.outcome || (n.status === "failed" ? "failure" : "success");
       visit_counts[n.node_id] = 1;
       completed.push(n.node_id);
       node_outcomes[n.node_id] = outcome;
@@ -353,24 +491,75 @@ export function resumePoint(graph: WorkflowGraph, row: ResumeRow, checkpoint: Ru
   // A gate asked again on a graph that has grown stations before it since the
   // run passed there (a lost card picked up on the graph file as it is now):
   // the run first makes what the gate now reads, from the earliest such station.
-  const unmade = node.type === "human" && !asked ? unmadeBefore(graph, nodeId, completed) : null;
-  if (unmade) return { node_id: unmade, visit_counts, completed, node_outcomes, context, gate: null, hands: {}, finished: [], from: atCheckpoint ? "checkpoint" : "row" };
-  const gate = node.type === "human"
-    ? { node_id: nodeId, response: asked && row.gate_response ? withOptionWords(row.gate_response, row.gate_answer) : null, open: asked && row.status === "paused" && (!!row.gate_decision_id || !!row.gate_card) }
-    : null;
-  const finished = node.type === "parallel_fanout" && atCheckpoint?.started ? (atCheckpoint.context[`${nodeId}.finished`] ?? "").split(" ").filter(Boolean) : [];
-  const stations = node.type === "parallel_fanout" ? graph.edges.filter((e) => e.from === nodeId).map((e) => e.to).filter((id) => !finished.includes(id)) : [nodeId];
+  const unmade =
+    node.type === "human" && !asked
+      ? unmadeBefore(graph, nodeId, completed)
+      : null;
+  if (unmade)
+    return {
+      node_id: unmade,
+      visit_counts,
+      completed,
+      node_outcomes,
+      context,
+      gate: null,
+      hands: {},
+      finished: [],
+      from: atCheckpoint ? "checkpoint" : "row",
+    };
+  const gate =
+    node.type === "human"
+      ? {
+          node_id: nodeId,
+          response:
+            asked && row.gate_response
+              ? withOptionWords(row.gate_response, row.gate_answer)
+              : null,
+          open:
+            asked &&
+            row.status === "paused" &&
+            (!!row.gate_decision_id || !!row.gate_card),
+        }
+      : null;
+  const finished =
+    node.type === "parallel_fanout" && atCheckpoint?.started
+      ? (atCheckpoint.context[`${nodeId}.finished`] ?? "")
+          .split(" ")
+          .filter(Boolean)
+      : [];
+  const stations =
+    node.type === "parallel_fanout"
+      ? graph.edges
+          .filter((e) => e.from === nodeId)
+          .map((e) => e.to)
+          .filter((id) => !finished.includes(id))
+      : [nodeId];
   const hands: Record<string, string> = {};
   for (const id of stations) {
     const hand = atCheckpoint?.context[`${id}.conversation_id`];
     if (hand && graph.nodes.get(id)?.backend === "session") hands[id] = hand;
   }
-  return { node_id: nodeId, visit_counts, completed, node_outcomes, context, gate, hands, finished, from: atCheckpoint ? "checkpoint" : "row" };
+  return {
+    node_id: nodeId,
+    visit_counts,
+    completed,
+    node_outcomes,
+    context,
+    gate,
+    hands,
+    finished,
+    from: atCheckpoint ? "checkpoint" : "row",
+  };
 }
 
 /** The fanout `nodeId` is a branch of, or null. */
 export function fanoutOf(graph: WorkflowGraph, nodeId: string): string | null {
-  return graph.edges.find((e) => e.to === nodeId && graph.nodes.get(e.from)?.type === "parallel_fanout")?.from ?? null;
+  return (
+    graph.edges.find(
+      (e) =>
+        e.to === nodeId && graph.nodes.get(e.from)?.type === "parallel_fanout",
+    )?.from ?? null
+  );
 }
 
 /**
@@ -379,7 +568,11 @@ export function fanoutOf(graph: WorkflowGraph, nodeId: string): string | null {
  * not completed, the first one entered from a station it has (the latest such
  * entry wins). Null when any way straight into the target is from a completed one.
  */
-export function unmadeBefore(graph: WorkflowGraph, target: string, completed: string[]): string | null {
+export function unmadeBefore(
+  graph: WorkflowGraph,
+  target: string,
+  completed: string[],
+): string | null {
   const done = new Map(completed.map((id, i) => [id, i]));
   // Entered the target straight from a station it made: nothing is missing.
   if (graph.edges.some((e) => e.to === target && done.has(e.from))) return null;

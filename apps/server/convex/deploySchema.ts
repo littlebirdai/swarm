@@ -13,7 +13,12 @@ import { v } from "convex/values";
 const liveReader = v.union(
   v.object({ kind: v.literal("marker") }),
   v.object({ kind: v.literal("github-status"), context: v.string() }),
-  v.object({ kind: v.literal("json"), url: v.string(), sha_field: v.string(), version_field: v.optional(v.string()) }),
+  v.object({
+    kind: v.literal("json"),
+    url: v.string(),
+    sha_field: v.string(),
+    version_field: v.optional(v.string()),
+  }),
 );
 
 const nullableString = v.union(v.string(), v.null());
@@ -60,9 +65,19 @@ export const deployTables = {
     runs: v.union(v.literal("here"), v.literal("push")),
     live: liveReader,
     rollback: v.optional(v.string()),
-    policy: v.union(v.literal("press"), v.literal("release"), v.literal("auto")),
+    policy: v.union(
+      v.literal("press"),
+      v.literal("release"),
+      v.literal("auto"),
+    ),
     paths: v.array(v.string()),
-    ship_stage: v.optional(v.union(v.literal("before_push"), v.literal("after_push"), v.literal("press"))),
+    ship_stage: v.optional(
+      v.union(
+        v.literal("before_push"),
+        v.literal("after_push"),
+        v.literal("press"),
+      ),
+    ),
     // The Actions workflow file its deploys run as (deploy.yml): each run on the default branch records a deploy.
     workflow: v.optional(v.string()),
     // The checkout that published it and the machine it is on: where a deploy of it runs.
@@ -74,7 +89,14 @@ export const deployTables = {
     head_sha: v.optional(v.string()),
     head_at: v.optional(v.number()),
     // What a json reader last read, so a poll records a deploy only when it changes.
-    last_read: v.optional(v.object({ sha: v.optional(v.string()), version: v.optional(v.string()), at: v.number(), error: v.optional(v.string()) })),
+    last_read: v.optional(
+      v.object({
+        sha: v.optional(v.string()),
+        version: v.optional(v.string()),
+        at: v.number(),
+        error: v.optional(v.string()),
+      }),
+    ),
     // A target the checkout no longer declares keeps its row (its deploys still name it) and stops showing.
     retired_at: v.optional(v.number()),
     published_at: v.number(),
@@ -100,8 +122,7 @@ export const deployTables = {
     url: v.optional(v.string()),
     started_at: v.number(),
     updated_at: v.number(),
-  })
-    .index("by_repository_sha", ["repository", "sha"]),
+  }).index("by_repository_sha", ["repository", "sha"]),
 
   // A workflow that runs on pull requests as well as pushes: CI, which red
   // main judges. A push-only workflow (a release, a publish) is never rerun.
@@ -115,8 +136,7 @@ export const deployTables = {
     seen_at: v.number(),
     workspace: v.optional(v.string()),
     team_id: v.optional(v.id("teams")),
-  })
-    .index("by_repository_path", ["repository", "path"]),
+  }).index("by_repository_path", ["repository", "path"]),
 
   // One CI run on a repository's default branch as red main judges it
   // (docs/architecture/main-red.md), in its pinned workspace: rerunning after
@@ -139,7 +159,15 @@ export const deployTables = {
     sha: v.string(),
     seq: v.number(),
     url: v.optional(v.string()),
-    state: v.union(v.literal("judging"), v.literal("rerunning"), v.literal("unproven"), v.literal("green"), v.literal("red"), v.literal("recovered"), v.literal("lost")),
+    state: v.union(
+      v.literal("judging"),
+      v.literal("rerunning"),
+      v.literal("unproven"),
+      v.literal("green"),
+      v.literal("red"),
+      v.literal("recovered"),
+      v.literal("lost"),
+    ),
     // Every job that ran (the jobs API), and whether it passed.
     jobs: v.array(v.object({ name: v.string(), ok: v.boolean() })),
     // The failed jobs that are not aggregates of other failed jobs: a culprit's identity.
@@ -151,7 +179,14 @@ export const deployTables = {
     // A red not yet placed: it waits for the runs before it to settle, until this plus the hold deadline.
     held_since: v.optional(v.number()),
     // A held red's question to GitHub: which candidate commits with no run here yet still have one going.
-    candidates_probe: v.optional(v.object({ at: v.number(), answered: v.boolean(), failed: v.boolean(), pending: v.array(v.string()) })),
+    candidates_probe: v.optional(
+      v.object({
+        at: v.number(),
+        answered: v.boolean(),
+        failed: v.boolean(),
+        pending: v.array(v.string()),
+      }),
+    ),
     // Why reading the run from GitHub last failed (judge retries twice before the run is lost).
     judge_error: v.optional(v.string()),
     at: v.number(),
@@ -172,7 +207,12 @@ export const deployTables = {
     payload: mainRedPayloadValidator,
     jobs: v.array(v.object({ workflow: v.string(), job: v.string() })),
     newest_red_seq: v.number(),
-    status: v.union(v.literal("red"), v.literal("fixed"), v.literal("green"), v.literal("expired")),
+    status: v.union(
+      v.literal("red"),
+      v.literal("fixed"),
+      v.literal("green"),
+      v.literal("expired"),
+    ),
     // When a run last ran one of its jobs.
     seen_at: v.number(),
     // Who was told of this culprit commit: a conversation id, or `task:<user id>`. Any later culprit row for the
@@ -184,8 +224,17 @@ export const deployTables = {
     updated_at: v.number(),
   })
     .index("by_repository_status", ["repository", "status"])
-    .index("by_scope_status_created", ["workspace", "repository", "status", "created_at"])
-    .index("by_scope_culprit", ["workspace", "repository", "payload.culprit_sha"]),
+    .index("by_scope_status_created", [
+      "workspace",
+      "repository",
+      "status",
+      "created_at",
+    ])
+    .index("by_scope_culprit", [
+      "workspace",
+      "repository",
+      "payload.culprit_sha",
+    ]),
 
   // One pass of `cast ship checkout` (the /deploy path): what it committed,
   // what it held back, and each deploy step's result, so a ship is visible
@@ -203,21 +252,36 @@ export const deployTables = {
     base: v.optional(v.string()),
     pushed: v.optional(v.string()),
     pr_url: v.optional(v.string()),
-    commits: v.array(v.object({ sha: v.optional(v.string()), message: v.string(), files: v.number(), session_id: v.optional(v.string()), conversation_id: v.optional(v.id("conversations")) })),
-    held: v.array(v.object({ group: v.string(), paths: v.number(), note: v.optional(v.string()) })),
-    deploys: v.array(v.object({
-      name: v.string(),
-      stage: v.string(),
-      ok: v.boolean(),
-      target: v.optional(v.string()),
-      // The deploy it recorded (dp-N), for a step that names a target.
-      deploy: v.optional(v.string()),
-      output: v.optional(v.string()),
-    })),
+    commits: v.array(
+      v.object({
+        sha: v.optional(v.string()),
+        message: v.string(),
+        files: v.number(),
+        session_id: v.optional(v.string()),
+        conversation_id: v.optional(v.id("conversations")),
+      }),
+    ),
+    held: v.array(
+      v.object({
+        group: v.string(),
+        paths: v.number(),
+        note: v.optional(v.string()),
+      }),
+    ),
+    deploys: v.array(
+      v.object({
+        name: v.string(),
+        stage: v.string(),
+        ok: v.boolean(),
+        target: v.optional(v.string()),
+        // The deploy it recorded (dp-N), for a step that names a target.
+        deploy: v.optional(v.string()),
+        output: v.optional(v.string()),
+      }),
+    ),
     started_at: v.number(),
     finished_at: v.number(),
-  })
-    .index("by_workspace_finished", ["workspace", "finished_at"]),
+  }).index("by_workspace_finished", ["workspace", "finished_at"]),
 
   // One repository's pipeline (docs/architecture/pipeline.md PL6;
   // contracts/pipeline.ts): its change and release flows as its checkout
@@ -236,14 +300,26 @@ export const deployTables = {
     head_at: v.optional(v.number()),
     // The checkout's path on device_id's machine, and the default branch's last commits with their paths.
     root: v.optional(v.string()),
-    recent: v.optional(v.object({ paths: v.array(v.string()), commits: v.array(v.object({ sha: v.string(), subject: v.string(), at: v.number(), files: v.array(v.number()) })), dropped: v.number() })),
+    recent: v.optional(
+      v.object({
+        paths: v.array(v.string()),
+        commits: v.array(
+          v.object({
+            sha: v.string(),
+            subject: v.string(),
+            at: v.number(),
+            files: v.array(v.number()),
+          }),
+        ),
+        dropped: v.number(),
+      }),
+    ),
     // A hash of what was published, so a republish of the same files writes nothing.
     hash: v.string(),
     publisher_user_id: v.id("users"),
     published_at: v.number(),
     updated_at: v.number(),
-  })
-    .index("by_workspace_repository", ["workspace", "repository"]),
+  }).index("by_workspace_repository", ["workspace", "repository"]),
 
   // One checkout of a repository on one device (contracts/checkouts.ts,
   // ct-98780): where it stands against origin's default branch, its
@@ -266,13 +342,17 @@ export const deployTables = {
     updated_at: v.number(),
     // Asks a person made from the pipeline page on a stuck checkout (checkouts.ask): contracts/checkouts CheckoutPageAsk.
     // A report never writes them; the page reads them as told while the episode they were made in lasts.
-    asks: v.optional(v.array(v.object({
-      at: v.number(),
-      since: v.number(),
-      files: v.number(),
-      to: v.union(v.literal("session"), v.literal("finding")),
-      conversation_id: v.optional(v.string()),
-    }))),
+    asks: v.optional(
+      v.array(
+        v.object({
+          at: v.number(),
+          since: v.number(),
+          files: v.number(),
+          to: v.union(v.literal("session"), v.literal("finding")),
+          conversation_id: v.optional(v.string()),
+        }),
+      ),
+    ),
   })
     .index("by_device_path", ["device_id", "path"])
     .index("by_workspace_repository", ["workspace", "repository"]),

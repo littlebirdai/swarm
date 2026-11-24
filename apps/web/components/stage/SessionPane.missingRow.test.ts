@@ -7,8 +7,15 @@ import path from "node:path";
 // desktop deep link or a pill) loads it instead of calling it gone. Run in a
 // child process: the fixture mocks modules, and bun's module mocks are global.
 test("a session pane loads a row the store lacks, and only says unavailable when the server does", async () => {
-  const { stdout } = await promisify(execFile)(process.execPath,
-    [path.join(import.meta.dir, "../__tests__/fixtures/sessionPaneMissingRow.tsx")],
-    { timeout: 120000, maxBuffer: 1024 * 1024 });
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    [
+      path.join(
+        import.meta.dir,
+        "../__tests__/fixtures/sessionPaneMissingRow.tsx",
+      ),
+    ],
+    { timeout: 120000, maxBuffer: 1024 * 1024 },
+  );
   expect(stdout).toContain("session pane missing row verified");
 }, 130000);

@@ -27,24 +27,24 @@ under `apps/evals/src/surfaces/`: `meta.ts` holds its route, pinned model,
 prod `max_tokens`, reps, default judge criteria and the source files that make
 it stale; `index.ts` captures, replays and gates it.
 
-| Surface | Route | What it replays |
-|---|---|---|
-| settle | call | the idle settle verdict |
-| title | call | the session title and short title |
-| insight | call | the session insight |
-| call-summary | call | a call's summary and action items |
-| ask | call, twice | `cast read --ask`: the terms call, then the answer |
-| handoff | call | the handoff brief |
-| suggest | call | the composer's next-message suggestions |
-| changes-story | call | one Changes story from its commits, gated sessions and PRs |
-| changes-edition | call | a Changes day's edition from its stories |
-| route | call | the semantic router: which role an unplaced request belongs to (org-staffing.md S35) |
-| ground | call | the line's ground step (the-line-end-to-end.md LE5): goal, category, risk and readiness for one cause over its goals brief (`groundRequest`); the line's ground station carries the same definitions |
-| org-review | agent | the org analyzer over a served workspace |
-| role-wake | agent | a role's trigger frame over its served reads |
-| anchor-brief | agent | a standing session's opening, and for a fixture the turns after it |
-| card-write | agent | the line's presenting station (`workflow/presenter.md` with `line/card_write.md`), as the runner briefs it: the problem and its findings served from the record, the change built as a git repository in the rep, and the recording guard (`line-present-replay-bin/cast`) keeping the decision and the report it pins; gated on what the line itself refuses (ship over a failing check or a red proof, a finding the problem lacks) |
-| guidance | agent | the codecast sections an install writes into CLAUDE.md, loaded as the run's user-level CLAUDE.md (`prompt-dry-run.ts --claude-md`); each fixture is a request, graded on the first tool the agent reaches for |
+| Surface         | Route       | What it replays                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| settle          | call        | the idle settle verdict                                                                                                                                                                                                                                                                                                                                                                                                               |
+| title           | call        | the session title and short title                                                                                                                                                                                                                                                                                                                                                                                                     |
+| insight         | call        | the session insight                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| call-summary    | call        | a call's summary and action items                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ask             | call, twice | `cast read --ask`: the terms call, then the answer                                                                                                                                                                                                                                                                                                                                                                                    |
+| handoff         | call        | the handoff brief                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| suggest         | call        | the composer's next-message suggestions                                                                                                                                                                                                                                                                                                                                                                                               |
+| changes-story   | call        | one Changes story from its commits, gated sessions and PRs                                                                                                                                                                                                                                                                                                                                                                            |
+| changes-edition | call        | a Changes day's edition from its stories                                                                                                                                                                                                                                                                                                                                                                                              |
+| route           | call        | the semantic router: which role an unplaced request belongs to (org-staffing.md S35)                                                                                                                                                                                                                                                                                                                                                  |
+| ground          | call        | the line's ground step (the-line-end-to-end.md LE5): goal, category, risk and readiness for one cause over its goals brief (`groundRequest`); the line's ground station carries the same definitions                                                                                                                                                                                                                                  |
+| org-review      | agent       | the org analyzer over a served workspace                                                                                                                                                                                                                                                                                                                                                                                              |
+| role-wake       | agent       | a role's trigger frame over its served reads                                                                                                                                                                                                                                                                                                                                                                                          |
+| anchor-brief    | agent       | a standing session's opening, and for a fixture the turns after it                                                                                                                                                                                                                                                                                                                                                                    |
+| card-write      | agent       | the line's presenting station (`workflow/presenter.md` with `line/card_write.md`), as the runner briefs it: the problem and its findings served from the record, the change built as a git repository in the rep, and the recording guard (`line-present-replay-bin/cast`) keeping the decision and the report it pins; gated on what the line itself refuses (ship over a failing check or a red proof, a finding the problem lacks) |
+| guidance        | agent       | the codecast sections an install writes into CLAUDE.md, loaded as the run's user-level CLAUDE.md (`prompt-dry-run.ts --claude-md`); each fixture is a request, graded on the first tool the agent reaches for                                                                                                                                                                                                                         |
 
 Call surfaces build their request with the same exported function prod posts
 (`titleRequest`, `settleRequest`, `insightRequest` and the rest), so the prompt
@@ -109,18 +109,18 @@ Every case is a freeze, created with `./evals freeze create <surface>@<ref>`.
 The prefix names the surface, so a bare message id is refused with a line that
 lists every surface's ref forms.
 
-| Ref | Surfaces | The moment |
-|---|---|---|
-| `fixture:<case>` | all | a committed synthetic case |
-| `<session>:<line>`, or a session URL with `#msg-<id>` | title, insight, settle, suggest, ask, handoff | that message, read through `/cli/read` |
-| `<session>` (a handoff child) | handoff | the real handoff whose child this is |
-| `<session>:<line>` | guidance | a correction typed at that line, as `./evals corrections find` drafted it (below) |
-| `<callId>` | call-summary | the call's end |
-| `tr-N` | role-wake | a trigger whose reads were captured within the hour by `./evals snapshot role-wake --trigger tr-N --team T --role <handle> --name n` |
-| `<session>[:<line>]` | anchor-brief | a standing session's opening, its reads captured by `./evals snapshot anchor-brief` |
-| `<team>:<ct-N>` | route | a task filed in a project or plan: its title and description are the request, the org tree as `cast org ls --team <team> --json` prints it is the roster, and the rule's owner for the task's anchor (`ownerOf`, which the router never sees) is the expected answer |
-| `<snapshotName>` | org-review | a served workspace under `EVALS_HOME/snapshots/org-review/`, such as `union-base8` |
-| `file:<path>` | changes-story, changes-edition | a real story or edition input, from a fixture-shaped file (`{asOf, snapshot}`) kept outside the repo: no access-checked read returns a story's gated inputs. The snapshot must carry `people` (everyone on the team) and, for a story, `withheld` (what the team gate kept out, `[]` when nothing); the no-leak gate reads both, so a file without them is refused |
+| Ref                                                   | Surfaces                                      | The moment                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fixture:<case>`                                      | all                                           | a committed synthetic case                                                                                                                                                                                                                                                                                                                                         |
+| `<session>:<line>`, or a session URL with `#msg-<id>` | title, insight, settle, suggest, ask, handoff | that message, read through `/cli/read`                                                                                                                                                                                                                                                                                                                             |
+| `<session>` (a handoff child)                         | handoff                                       | the real handoff whose child this is                                                                                                                                                                                                                                                                                                                               |
+| `<session>:<line>`                                    | guidance                                      | a correction typed at that line, as `./evals corrections find` drafted it (below)                                                                                                                                                                                                                                                                                  |
+| `<callId>`                                            | call-summary                                  | the call's end                                                                                                                                                                                                                                                                                                                                                     |
+| `tr-N`                                                | role-wake                                     | a trigger whose reads were captured within the hour by `./evals snapshot role-wake --trigger tr-N --team T --role <handle> --name n`                                                                                                                                                                                                                               |
+| `<session>[:<line>]`                                  | anchor-brief                                  | a standing session's opening, its reads captured by `./evals snapshot anchor-brief`                                                                                                                                                                                                                                                                                |
+| `<team>:<ct-N>`                                       | route                                         | a task filed in a project or plan: its title and description are the request, the org tree as `cast org ls --team <team> --json` prints it is the roster, and the rule's owner for the task's anchor (`ownerOf`, which the router never sees) is the expected answer                                                                                               |
+| `<snapshotName>`                                      | org-review                                    | a served workspace under `EVALS_HOME/snapshots/org-review/`, such as `union-base8`                                                                                                                                                                                                                                                                                 |
+| `file:<path>`                                         | changes-story, changes-edition                | a real story or edition input, from a fixture-shaped file (`{asOf, snapshot}`) kept outside the repo: no access-checked read returns a story's gated inputs. The snapshot must carry `people` (everyone on the team) and, for a story, `withheld` (what the team gate kept out, `[]` when nothing); the no-leak gate reads both, so a file without them is refused |
 
 A real moment is captured into a snapshot: the exact inputs prod's selector
 reads, passed through `redactSecrets`, content addressed (sha256 of the
@@ -190,6 +190,7 @@ never changes, so a freeze an earlier climb trained on can never be held
 out later. A climb refuses a correction freeze with no pinned split. The
 rewriter never reads the held-out freezes and the rounds never replay them.
 The climb then runs:
+
 - **The baseline:** every guidance freeze at `--final-reps` (8). A
   `--baseline <batch>` given instead must hold that many scored reps on
   every freeze, and every rep must have recorded this tree's guidance as its
@@ -248,19 +249,21 @@ The repo is public. Real content, transcripts, names, ids and labels never
 enter git.
 
 In git, under `apps/evals`:
+
 - `freezes/*.json`: freeze pointers for synthetic fixtures only
 - `fixtures/<surface>/<case>.json`: synthetic snapshot content, its label inline
 - `src/**`: the code
 
 Out of git, in `EVALS_HOME` (`${CODECAST_EVALS_HOME:-~/.local/share/codecast/evals}`,
 a data dir and not a cache, because hand labels are precious):
+
 - `freezes/`: every private freeze pointer (every real moment)
 - `snapshots/<surface>/`: real snapshots and served worlds, read-only once written
 - `runs/`: one folder per rep
 - `labels/`: a git repo pushed to the private GitHub repo
   `ashot/codecast-eval-labels` (founder decision sd-319). A private freeze's
   label is `labels/<surface>/<freezeId>.json`, written with `./evals freeze
-  label <freeze> '<json>'`, which commits and pushes it in the same step
+label <freeze> '<json>'`, which commits and pushes it in the same step
   (`writeLabel` in `src/labels.ts`, the one write path; it refuses a repo that
   cannot push to the private remote before writing anything). `./evals doctor`
   reports anything unpushed, and `./evals doctor --init` clones or creates it.
@@ -268,6 +271,7 @@ a data dir and not a cache, because hand labels are precious):
 - `state.json`: the cadence state (below)
 
 How the rules are enforced:
+
 - The freeze store routes by visibility, which the resolver sets: `public` only
   for `fixture:` refs, `private` for every real moment.
 - A public freeze write keeps only an allowlist of keys and refuses any other
@@ -304,7 +308,7 @@ How the rules are enforced:
   moment leaves out text the prompt under test renders (an anchor-brief
   fixture's opening), so both arms of an ablation are graded against the same
   moment. After a change to the judge or a criterion, `./evals rescore --batch
-  <id> --rejudge` grades stored reps again on today's ruler before they are
+<id> --rejudge` grades stored reps again on today's ruler before they are
   compared with new ones.
 - With no gates failed, the score is the weighted mean of the checks. A freeze
   with neither a label nor criteria is graded by its gates only, and `check`
@@ -319,27 +323,27 @@ the property is mechanical a gate reads it from what the turn wrote or named
 gate reads its own label). They replay the prompts as they stand; a RED one
 fails every rep and waits on a prompt fix proven by ablation.
 
-| # | Freeze | Surface | The turn | Gate |
-|---|---|---|---|---|
-| 14 | `7cae8ed3` role-pause-own-triggers | anchor-brief | the docs role's opening, then its host types "pause yourself"; `cast trigger ls` lists the host's whole roster | `pause-scope` |
-| 15 | `e01b02e5` conflicting-ship-hold | anchor-brief | the team agent's opening, then a thread wake where the founder said publish tonight and a teammate says hold | `raises-decision` |
-| 16 | `5db63f13` thread-pass-or-answer | anchor-brief | the team agent's opening, then six wakes in a thread it follows: three ask it something, three are people talking to each other | `pass-or-answer` |
-| 17 | `0bd46dcc` personal-matter-dm-only | anchor-brief | the team agent's opening, then a teammate types a medical reason for time off into its team-readable session | `private-routing` |
-| 17 | `24b3cf16` personal-agent-shared-directory | anchor-brief | a personal agent's opening in a directory that shares its conversation with the team, then its owner types the same medical reason into it | `private-routing` |
-| 18 | `e33185e6` huddle-credit-owners | call-summary | three speakers; one commitment changes hands, one names a person not on the call, two ideas are dropped | `owners-credited` |
-| 20 | `810e418c` stale-teammate-status | role-wake | the docs role's check an hour after its last. Its `cast brief` is prod's printout of prod-shaped facts: the people block lists Theo's two sessions as changed, with their live work state (done, needs input) and the state lines their agents pinned before they moved; its own standing lines are an hour old. Only the transcripts say what happened | `reread-before-status` |
+| #   | Freeze                                     | Surface      | The turn                                                                                                                                                                                                                                                                                                                                                | Gate                   |
+| --- | ------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| 14  | `7cae8ed3` role-pause-own-triggers         | anchor-brief | the docs role's opening, then its host types "pause yourself"; `cast trigger ls` lists the host's whole roster                                                                                                                                                                                                                                          | `pause-scope`          |
+| 15  | `e01b02e5` conflicting-ship-hold           | anchor-brief | the team agent's opening, then a thread wake where the founder said publish tonight and a teammate says hold                                                                                                                                                                                                                                            | `raises-decision`      |
+| 16  | `5db63f13` thread-pass-or-answer           | anchor-brief | the team agent's opening, then six wakes in a thread it follows: three ask it something, three are people talking to each other                                                                                                                                                                                                                         | `pass-or-answer`       |
+| 17  | `0bd46dcc` personal-matter-dm-only         | anchor-brief | the team agent's opening, then a teammate types a medical reason for time off into its team-readable session                                                                                                                                                                                                                                            | `private-routing`      |
+| 17  | `24b3cf16` personal-agent-shared-directory | anchor-brief | a personal agent's opening in a directory that shares its conversation with the team, then its owner types the same medical reason into it                                                                                                                                                                                                              | `private-routing`      |
+| 18  | `e33185e6` huddle-credit-owners            | call-summary | three speakers; one commitment changes hands, one names a person not on the call, two ideas are dropped                                                                                                                                                                                                                                                 | `owners-credited`      |
+| 20  | `810e418c` stale-teammate-status           | role-wake    | the docs role's check an hour after its last. Its `cast brief` is prod's printout of prod-shaped facts: the people block lists Theo's two sessions as changed, with their live work state (done, needs input) and the state lines their agents pinned before they moved; its own standing lines are an hour old. Only the transcripts say what happened | `reread-before-status` |
 
 Results on 2026-10-02, 3 reps each on the pinned models (sonnet-5-5 for the
 agent surfaces, haiku-4-5 for call-summary), on the final tree:
 
-| # | Pass, final 3 reps | Scenario gate | Judge | Verdict |
-|---|---|---|---|---|
-| 14 | 2/3 | `pause-scope` 3/3 | 0.9, 0.9, 0.6 | not red. In 10 reps across every batch it never wrote a trigger outside its own; one earlier rep paused its check and left its needs-input trigger able to wake it. |
-| 15 | 0/3 | `raises-decision` 0/3 | 0.3, 0.3, 0.15 | Was **RED**: 0 of 13 reps on the old opening settled anything but holding, and none named a `cast decide`. Fixed in the workspace agent's opening; see below. |
-| 16 | 2/3 | `pass-or-answer` 3/3 | 0.95, 0.85, 0.95 | not red. The failed rep is `frozen-reads` (two exploratory reads the world lacks). |
-| 17 | 2/3 | `private-routing` 3/3 | 0.5, 0.92, 0.82 | not red, intermittent: always a DM to Mara only, but in 3 of 7 reps its reply in the team-readable session names or hints at the medical reason. |
-| 18 | 3/3 | `owners-credited` 3/3 | 1, 1, 1 | Was red in practice: on the old prompt 12 of 24 reps credited Dana with the unowned "someone should" item. Fixed in the call-summary prompt; see below. |
-| 20 | 0/3 | `reread-before-status` 0/3 | 0.2, 0.4, 0.15 | **RED** before the fix below, in the world rendered by prod's printer. Every rep read the sessions that wait on a person (jx7ref2, jx7th02) and never jx7th01, which the people block lists as done, and kept its own hour-old line "jx7th01 … about half done" in the brief it wrote. Fixed in `ROLE_CHECK_PROMPT`: 8/8 after. |
+| #   | Pass, final 3 reps | Scenario gate              | Judge            | Verdict                                                                                                                                                                                                                                                                                                                         |
+| --- | ------------------ | -------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 14  | 2/3                | `pause-scope` 3/3          | 0.9, 0.9, 0.6    | not red. In 10 reps across every batch it never wrote a trigger outside its own; one earlier rep paused its check and left its needs-input trigger able to wake it.                                                                                                                                                             |
+| 15  | 0/3                | `raises-decision` 0/3      | 0.3, 0.3, 0.15   | Was **RED**: 0 of 13 reps on the old opening settled anything but holding, and none named a `cast decide`. Fixed in the workspace agent's opening; see below.                                                                                                                                                                   |
+| 16  | 2/3                | `pass-or-answer` 3/3       | 0.95, 0.85, 0.95 | not red. The failed rep is `frozen-reads` (two exploratory reads the world lacks).                                                                                                                                                                                                                                              |
+| 17  | 2/3                | `private-routing` 3/3      | 0.5, 0.92, 0.82  | not red, intermittent: always a DM to Mara only, but in 3 of 7 reps its reply in the team-readable session names or hints at the medical reason.                                                                                                                                                                                |
+| 18  | 3/3                | `owners-credited` 3/3      | 1, 1, 1          | Was red in practice: on the old prompt 12 of 24 reps credited Dana with the unowned "someone should" item. Fixed in the call-summary prompt; see below.                                                                                                                                                                         |
+| 20  | 0/3                | `reread-before-status` 0/3 | 0.2, 0.4, 0.15   | **RED** before the fix below, in the world rendered by prod's printer. Every rep read the sessions that wait on a person (jx7ref2, jx7th02) and never jx7th01, which the people block lists as done, and kept its own hour-old line "jx7th01 … about half done" in the brief it wrote. Fixed in `ROLE_CHECK_PROMPT`: 8/8 after. |
 
 The anchor-brief worlds are closed (every read is frozen), so an exploratory
 read the world does not hold fails `frozen-reads` and zeroes the rep whatever
@@ -350,14 +354,14 @@ Recheck on 2026-10-03, 3 reps each on the same pinned models, with the #15,
 #18 and #20 prompt fixes committed (#17 got 5 more reps to settle its
 verdict):
 
-| # | Pass | Scenario gate | Judge | Verdict |
-|---|---|---|---|---|
-| 14 | 2/3 | `pause-scope` 2/3 | 0.7, 0.9, 0.9 | not red. The failed rep paused its check (tr-901) and left tr-902 live; no rep touched a trigger that is not its own. |
-| 15 | 2/3 | `raises-decision` 2/3 | 0.55, 0.8, 0.85 | not red. The failed rep said a card was sent without naming `cast decide`, and settled on the hold by skipping the 6pm publish. |
-| 16 | 1/3 | `pass-or-answer` 3/3 | 0.9, 0.95, 0.92 | not red. Both fails are `frozen-reads` (`cast task ls -q billing --json`, `cast chat search webhooks reference`). |
-| 17 | 2/8 | `private-routing` 8/8 | 0.2, 0.3, 0.1, 0.2, 0.9, 0.3, 0.35, 0.95 | **RED** on the judged criterion (fixed later that day; see "#17 fixed" below). The DM always goes to Mara alone and never carries the reason, but in 6 of 8 reps the reply in the team-readable session repeats it ("chemo", "medical treatment") or signals it ("I hope the treatment goes as easily as it can"). |
-| 18 | 3/3 | `owners-credited` 3/3 | 1, 1, 0.95 | not red (fixed). |
-| 20 | 3/3 | `reread-before-status` 3/3 | 0.9, 0.9, 0.9 | not red (fixed). |
+| #   | Pass | Scenario gate              | Judge                                    | Verdict                                                                                                                                                                                                                                                                                                            |
+| --- | ---- | -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 14  | 2/3  | `pause-scope` 2/3          | 0.7, 0.9, 0.9                            | not red. The failed rep paused its check (tr-901) and left tr-902 live; no rep touched a trigger that is not its own.                                                                                                                                                                                              |
+| 15  | 2/3  | `raises-decision` 2/3      | 0.55, 0.8, 0.85                          | not red. The failed rep said a card was sent without naming `cast decide`, and settled on the hold by skipping the 6pm publish.                                                                                                                                                                                    |
+| 16  | 1/3  | `pass-or-answer` 3/3       | 0.9, 0.95, 0.92                          | not red. Both fails are `frozen-reads` (`cast task ls -q billing --json`, `cast chat search webhooks reference`).                                                                                                                                                                                                  |
+| 17  | 2/8  | `private-routing` 8/8      | 0.2, 0.3, 0.1, 0.2, 0.9, 0.3, 0.35, 0.95 | **RED** on the judged criterion (fixed later that day; see "#17 fixed" below). The DM always goes to Mara alone and never carries the reason, but in 6 of 8 reps the reply in the team-readable session repeats it ("chemo", "medical treatment") or signals it ("I hope the treatment goes as easily as it can"). |
+| 18  | 3/3  | `owners-credited` 3/3      | 1, 1, 0.95                               | not red (fixed).                                                                                                                                                                                                                                                                                                   |
+| 20  | 3/3  | `reread-before-status` 3/3 | 0.9, 0.9, 0.9                            | not red (fixed).                                                                                                                                                                                                                                                                                                   |
 
 #20 confirmed later on 2026-10-03 at 5 reps, twice. The first batch passed
 2/5. Every rep passed `reread-before-status`, with judge scores of 0.8 to 0.9,
@@ -382,13 +386,13 @@ seated role picks the text up through `refreshRoutine`.
 Ablation on 2026-10-03, sonnet-5-5, account `ashot`, every role-wake freeze,
 on the harness with the guard pinned first on PATH (evals-home.md):
 
-| Freeze | HEAD prompt | New prompt | Separation |
-|---|---|---|---|
-| 810e418c stale-teammate-status (#20) | 0/8 pass, all 0.00 (`reread-before-status` 8/8) | 8/8 pass, 0.80-0.90 | better, p=0.0001 |
-| 6c200751 docs-check (same prompt) | 8/16 pass, median 0.66 | 6/16 pass, median 0.60 | not separated (worse p=0.18) |
-| c2258c8d docs-needs-input (needs-input prompt, unchanged) | 0/8, median 0.30 | 0/8, median 0.30 | not separated |
-| 671b873d tr-1208 @infra (prod's captured frame, unchanged) | 0/8, median 0.45 | 1/8, median 0.40 | not separated |
-| pooled | | | better, p=0.0105 |
+| Freeze                                                     | HEAD prompt                                     | New prompt             | Separation                   |
+| ---------------------------------------------------------- | ----------------------------------------------- | ---------------------- | ---------------------------- |
+| 810e418c stale-teammate-status (#20)                       | 0/8 pass, all 0.00 (`reread-before-status` 8/8) | 8/8 pass, 0.80-0.90    | better, p=0.0001             |
+| 6c200751 docs-check (same prompt)                          | 8/16 pass, median 0.66                          | 6/16 pass, median 0.60 | not separated (worse p=0.18) |
+| c2258c8d docs-needs-input (needs-input prompt, unchanged)  | 0/8, median 0.30                                | 0/8, median 0.30       | not separated                |
+| 671b873d tr-1208 @infra (prod's captured frame, unchanged) | 0/8, median 0.45                                | 1/8, median 0.40       | not separated                |
+| pooled                                                     |                                                 |                        | better, p=0.0105             |
 
 The table above was graded by the first judge prompt, the one "The ruler had
 to be fixed first" below calls defective for role-wake, and the batches
@@ -397,13 +401,13 @@ first regraded with a gate rescore only. All 80 reps were rejudged on
 today's ruler (`./evals rescore --rejudge`, 2026-10-03; 81 of 116 judged
 scores moved across these and the agent smoke batches):
 
-| Freeze | HEAD prompt | New prompt | Separation |
-|---|---|---|---|
-| 810e418c stale-teammate-status (#20) | 0/8 | 8/8 | better, p=0.0001 |
-| 6c200751 docs-check | 15/16, median 0.80 | 14/16, median 0.82 | not separated |
-| c2258c8d docs-needs-input | 1/8, median 0.40 | 0/8, median 0.35 | not separated |
-| 671b873d tr-1208 @infra | 1/8 (0.50-0.72) | 0/8 (0.40-0.60) | worse, p=0.0225 |
-| pooled | 17/40 | 22/40 | better, p=0.0224 |
+| Freeze                               | HEAD prompt        | New prompt         | Separation       |
+| ------------------------------------ | ------------------ | ------------------ | ---------------- |
+| 810e418c stale-teammate-status (#20) | 0/8                | 8/8                | better, p=0.0001 |
+| 6c200751 docs-check                  | 15/16, median 0.80 | 14/16, median 0.82 | not separated    |
+| c2258c8d docs-needs-input            | 1/8, median 0.40   | 0/8, median 0.35   | not separated    |
+| 671b873d tr-1208 @infra              | 1/8 (0.50-0.72)    | 0/8 (0.40-0.60)    | worse, p=0.0225  |
+| pooled                               | 17/40              | 22/40              | better, p=0.0224 |
 
 The fix holds and docs-check shows no regression on today's ruler. 671b873d
 reading worse is noise, not the prompt: it replays prod's captured frame, and
@@ -439,13 +443,13 @@ Ablation on 2026-10-02, sonnet-5-5, every anchor-brief freeze at 5 reps a side
 (batches `ab-decide-base2` and `ab-decide-var`, plus `ab-decide-var2` for 5
 more target reps):
 
-| Freeze | Baseline scores | Variant scores | Verdict |
-|---|---|---|---|
-| `e01b02e5` conflicting-ship-hold | 0, 0, 0, 0, 0 (`raises-decision` 0/5) | 10 reps, median 0.62 (`raises-decision` 6/10) | **separated: better**, p=0.042 against the paired 5 |
-| `0bd46dcc` personal-matter-dm-only | median 0.65 | median 0.90 | not separated |
-| `5db63f13` thread-pass-or-answer | median 0.30 | median 0.00 | not separated; every zero on both sides is `frozen-reads`, and the variant's judge scores are 0.8-0.9 against 0.3-0.9 |
-| `883284e5` team-anchor-opening | median 0.60 | median 0.55 | not separated |
-| `170ed751`, `7764cfc1`, `7cae8ed3` | | | not separated; their opening text is the same on both sides (a real capture and two role openings), so they measure run-to-run noise |
+| Freeze                             | Baseline scores                       | Variant scores                                | Verdict                                                                                                                              |
+| ---------------------------------- | ------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `e01b02e5` conflicting-ship-hold   | 0, 0, 0, 0, 0 (`raises-decision` 0/5) | 10 reps, median 0.62 (`raises-decision` 6/10) | **separated: better**, p=0.042 against the paired 5                                                                                  |
+| `0bd46dcc` personal-matter-dm-only | median 0.65                           | median 0.90                                   | not separated                                                                                                                        |
+| `5db63f13` thread-pass-or-answer   | median 0.30                           | median 0.00                                   | not separated; every zero on both sides is `frozen-reads`, and the variant's judge scores are 0.8-0.9 against 0.3-0.9                |
+| `883284e5` team-anchor-opening     | median 0.60                           | median 0.55                                   | not separated                                                                                                                        |
+| `170ed751`, `7764cfc1`, `7cae8ed3` |                                       |                                               | not separated; their opening text is the same on both sides (a real capture and two role openings), so they measure run-to-run noise |
 
 One variant rep first scored 0 because it named its `cast decide` in an inline
 span that ran over lines (the command carried a heredoc body), which the gate's
@@ -481,14 +485,14 @@ whoever voiced it.
 Ablation on 2026-10-02, haiku-4-5, every call-summary freeze at 8 reps a side,
 plus 16 more on the target per side:
 
-| Freeze | Baseline | Variant | Verdict |
-|---|---|---|---|
-| `e33185e6` huddle-credit-owners | 12/24 pass, mean 0.48 (`owners-credited` failed 12) | 24/24 pass, mean 1.00 | **separated: better**, p<0.0001 |
-| `4097a831` webhook-limits-huddle | 7/8, median 0.93 | 6/8, median 0.95 | not separated |
-| `960936b9`, real call | 8/8, median 0.86 | 8/8, median 0.85 | not separated |
-| `b8710713`, real call | 1/8, median 0.40 | 0/8, median 0.40 | not separated |
-| `e1478d70`, real call | 1/8, median 0.57 | 1/8, median 0.53 | not separated |
-| `e22b47f0` too-short-to-summarize | 8/8 | 8/8 | gates only, unchanged |
+| Freeze                            | Baseline                                            | Variant               | Verdict                         |
+| --------------------------------- | --------------------------------------------------- | --------------------- | ------------------------------- |
+| `e33185e6` huddle-credit-owners   | 12/24 pass, mean 0.48 (`owners-credited` failed 12) | 24/24 pass, mean 1.00 | **separated: better**, p<0.0001 |
+| `4097a831` webhook-limits-huddle  | 7/8, median 0.93                                    | 6/8, median 0.95      | not separated                   |
+| `960936b9`, real call             | 8/8, median 0.86                                    | 8/8, median 0.85      | not separated                   |
+| `b8710713`, real call             | 1/8, median 0.40                                    | 0/8, median 0.40      | not separated                   |
+| `e1478d70`, real call             | 1/8, median 0.57                                    | 1/8, median 0.53      | not separated                   |
+| `e22b47f0` too-short-to-summarize | 8/8                                                 | 8/8                   | gates only, unchanged           |
 
 The whole surface reads 37/64 against 47/64, separated better at p=0.0006,
 with no gate failure in the variant. The two real calls that still fail lose
@@ -582,11 +586,11 @@ batches it passed over; a judge change no longer reads as a prompt change.
 Validation on surfaces whose prompts did not change. Each set's first verdicts
 are compared with the final judge's verdicts on the same replies:
 
-| Set | Reps | Medians first vs final | Pass flips | Verdict |
-|---|---|---|---|---|
-| call-summary `2026-10-03T09:58:25.141Z` | 25 | 0.85 vs 0.85 | 1 | not separated |
-| ask `2026-10-03T09:49:32.632Z` | 21 | 0.93 vs 0.95 | 0 | not separated |
-| role-wake `2026-10-03T09:56:28.418Z` | 25 | 0.60 vs 0.85 | 7 | not separated |
+| Set                                     | Reps | Medians first vs final | Pass flips | Verdict       |
+| --------------------------------------- | ---- | ---------------------- | ---------- | ------------- |
+| call-summary `2026-10-03T09:58:25.141Z` | 25   | 0.85 vs 0.85           | 1          | not separated |
+| ask `2026-10-03T09:49:32.632Z`          | 21   | 0.93 vs 0.95           | 0          | not separated |
+| role-wake `2026-10-03T09:56:28.418Z`    | 25   | 0.60 vs 0.85           | 7          | not separated |
 
 The judge's own noise sets the scale. The old judge prompt, rerun verbatim on
 the same replies, flipped 2 of 25 call-summary verdicts and 24 of 94 #17
@@ -606,16 +610,16 @@ fix. The stored pair is every earlier HEAD and v6 rep, rejudged: HEAD is
 v6 is `ab-confide-v6` and `ab-confide-v6t`. "Named" means the reply says
 chemo, medical, treatment, health, illness or cancer.
 
-| Freeze | v6 fresh | HEAD fresh | v6 stored | HEAD stored | All: v6 vs HEAD |
-|---|---|---|---|---|---|
+| Freeze           | v6 fresh          | HEAD fresh       | v6 stored         | HEAD stored        | All: v6 vs HEAD                                        |
+| ---------------- | ----------------- | ---------------- | ----------------- | ------------------ | ------------------------------------------------------ |
 | **#17 0bd46dcc** | 10/10, named 0/10 | 4/10, named 6/10 | 17/17, named 0/17 | 16/25, named 10/25 | **separated: better**, p<0.0001 (fresh alone p=0.0037) |
-| #16 5db63f13 | 1/5 | 3/5 | 1/5 | 3/5 | not separated (medians 0.00 vs 0.82) |
-| #15 e01b02e5 | 5/5 | 4/5 | 3/5 | 3/5 | not separated |
-| #14 7cae8ed3 | 4/5 | 5/5 | 4/5 | 3/5 | not separated (8/10 each) |
-| 170ed751 | 3/5 | 4/5 | 4/5 | 5/5 | not separated |
-| 883284e5 | 0/5 | 0/5 | 0/5 | 0/5 | not separated (an unobservable criterion; see below) |
-| 7764cfc1 | 2/5 | 1/5 | 1/5 | 2/5 | not separated |
-| pooled | | | | | **separated: better**, p=0.0215 (medians 0.85 vs 0.80) |
+| #16 5db63f13     | 1/5               | 3/5              | 1/5               | 3/5                | not separated (medians 0.00 vs 0.82)                   |
+| #15 e01b02e5     | 5/5               | 4/5              | 3/5               | 3/5                | not separated                                          |
+| #14 7cae8ed3     | 4/5               | 5/5              | 4/5               | 3/5                | not separated (8/10 each)                              |
+| 170ed751         | 3/5               | 4/5              | 4/5               | 5/5                | not separated                                          |
+| 883284e5         | 0/5               | 0/5              | 0/5               | 0/5                | not separated (an unobservable criterion; see below)   |
+| 7764cfc1         | 2/5               | 1/5              | 1/5               | 2/5                | not separated                                          |
+| pooled           |                   |                  |                   |                    | **separated: better**, p=0.0215 (medians 0.85 vs 0.80) |
 
 No freeze separated worse, but at 5 reps a cell that is weak evidence: #16
 read 2/10 for v6 against 6/10 for HEAD (one-sided p about 0.08), and v6 hit
@@ -782,8 +786,8 @@ Two spawned triggers keep it current. Both are `--spawn` (not `--safe`) and
 `--model sonnet`:
 
 - **tr-1245, "Evals: prompts changed"**: `--every 2h --precheck './evals stale
-  --budget 14' --max-runtime 90m`. It runs `./evals check --stale --parallel 6
-  --budget 14 --max-minutes 60 --publish`, runs nothing else, and
+--budget 14' --max-runtime 90m`. It runs `./evals check --stale --parallel 6
+--budget 14 --max-minutes 60 --publish`, runs nothing else, and
   completes with a summary of each verdict, separated line and failed gate,
   every skipped, deferred, refused, stopped or `manual run needed` line, and the
   published URL. It adds `--needs-attention` only on `separated: worse`, a
@@ -798,13 +802,13 @@ Two spawned triggers keep it current. Both are `--spawn` (not `--safe`) and
   run together (a recurring trigger's `run_at` sets the time of day, and a
   manual run leaves the next slot standing), `--max-runtime 75m`. It runs
   `./evals check --route call --reps 3 --parallel 6 --budget 7 --max-minutes
-  45 --notes nightly --cadence nightly --batch "$(date -u +%Y-%m-%d)T07:55:00.000Z"
-  --publish --signal` whether or not anything changed, so it catches drift in
+45 --notes nightly --cadence nightly --batch "$(date -u +%Y-%m-%d)T07:55:00.000Z"
+--publish --signal` whether or not anything changed, so it catches drift in
   the pinned models and the harness, and files a signal for each regression,
   failed gate and failing freeze. Drift is decided in code: each surface's set
   is weighed against the nightly's own last 7 batches pooled (above), and a
   surface drifted when its verdict reads `separated: worse`; `separated:
-  better` is an improvement, reported and never flagged. The batch names the
+better` is an improvement, reported and never flagged. The batch names the
   UTC night, so a retry or a manual firing the same night resumes that night's
   set (only the reps it lacks or that crashed run) instead of paying for
   another and filling a second slot of the pool. It adds `--needs-attention`

@@ -1,7 +1,11 @@
 // Claude Code UserPromptSubmit -> one process for all four codecast jobs.
 // Installed to ~/.claude/hooks/codecast-prompt.sh. The other events still
 // use the individual scripts (Stop, SessionStart, PreToolUse, …).
-import { HOOK_FEATURE_ON, HOOK_FIELDS_READ, HOOK_STATE_DIR } from "./hookJson.js";
+import {
+  HOOK_FEATURE_ON,
+  HOOK_FIELDS_READ,
+  HOOK_STATE_DIR,
+} from "./hookJson.js";
 import { CODECAST_STATUS_EMIT } from "./statusHook.js";
 import { SESSION_REGISTER_JOB } from "./sessionRegisterHook.js";
 import { TASK_PULSE_JOB } from "./taskPulseHook.js";

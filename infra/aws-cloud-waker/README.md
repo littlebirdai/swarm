@@ -14,7 +14,14 @@ The operator configures these server-only environment variables:
 - `CAST_CLOUD_WAKE_HOSTS`, an explicit JSON array, maximum 32 entries:
 
 ```json
-[{"ownerUserId":"<registered Codecast user id>","deviceId":"<registered remote device id>","instanceId":"i-084309c56a91e15ff","region":"us-west-2"}]
+[
+  {
+    "ownerUserId": "<registered Codecast user id>",
+    "deviceId": "<registered remote device id>",
+    "instanceId": "i-084309c56a91e15ff",
+    "region": "us-west-2"
+  }
+]
 ```
 
 The owner/device tuple must match both the conversation owner and a registered remote device. Neither a task nor an API caller supplies an AWS target. Invalid configuration logs a sanitized warning and disables server ownership: no server AWS call is allowed, while existing local scheduling remains available. AWS credentials and signing details are never stored on device rows; audit metadata contains only the request timestamp, attempts, lease, sanitized error code and AWS request ID.

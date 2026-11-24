@@ -57,10 +57,13 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       tabs: [],
       currentUser: { _id: ME },
     } as any);
-    useInboxStore.getState()._setDispatch(async (action: string, args: any[]) => {
-      calls.push({ action, args });
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action: string, args: any[]) => {
+        calls.push({ action, args });
+        return null;
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -72,7 +75,9 @@ describe("chat: reads, supersede and the rail's numbers", () => {
   describe("a channel create that is still in flight", () => {
     it("re-drives the messages typed into the stub once the real channel lands", async () => {
       const stubId = useInboxStore.getState().createChatChannel("design");
-      const clientId = useInboxStore.getState().sendChatMessage(stubId, "first!");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(stubId, "first!");
 
       // The dispatch that just went out names the stub, and the server handler
       // refuses a stub id — a refusal the outbox reads as success. Without a
@@ -82,7 +87,13 @@ describe("chat: reads, supersede and the rail's numbers", () => {
 
       const realId = serverId("chanreal");
       useInboxStore.getState().syncTable("chatChannels", [
-        { _id: realId, client_id: stubId, name: "design", created_at: 1, updated_at: 1 },
+        {
+          _id: realId,
+          client_id: stubId,
+          name: "design",
+          created_at: 1,
+          updated_at: 1,
+        },
       ]);
       await tick();
 
@@ -92,18 +103,30 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       // somehow land cannot double-post.
       expect(sends[1].args[0]).toBe(realId);
       expect(sends[1].args[2]).toBe(clientId);
-      expect(useInboxStore.getState().chatMessages[clientId].channel_id).toBe(realId);
+      expect(useInboxStore.getState().chatMessages[clientId].channel_id).toBe(
+        realId,
+      );
     });
 
     it("re-drives a send that had already been marked failed, and clears the failure", async () => {
       const stubId = useInboxStore.getState().createChatChannel("design");
-      const clientId = useInboxStore.getState().sendChatMessage(stubId, "hello");
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(stubId, "hello");
       useInboxStore.getState().markChatSendFailed(clientId, "offline");
-      expect(useInboxStore.getState().chatMessages[clientId]._failedAt).toBeGreaterThan(0);
+      expect(
+        useInboxStore.getState().chatMessages[clientId]._failedAt,
+      ).toBeGreaterThan(0);
 
       const realId = serverId("chanreal");
       useInboxStore.getState().syncTable("chatChannels", [
-        { _id: realId, client_id: stubId, name: "design", created_at: 1, updated_at: 1 },
+        {
+          _id: realId,
+          client_id: stubId,
+          name: "design",
+          created_at: 1,
+          updated_at: 1,
+        },
       ]);
       await tick();
 
@@ -117,14 +140,24 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       useInboxStore.setState({
         tabs: [
           { id: "t1", path: `/chat/${stubId}`, title: "Chat" },
-          { id: "t2", path: `/chat/${stubId}?m=${serverId("msgx")}`, title: "Chat" },
+          {
+            id: "t2",
+            path: `/chat/${stubId}?m=${serverId("msgx")}`,
+            title: "Chat",
+          },
           { id: "t3", path: "/inbox", title: "Inbox" },
         ],
       } as any);
 
       const realId = serverId("chanreal");
       useInboxStore.getState().syncTable("chatChannels", [
-        { _id: realId, client_id: stubId, name: "design", created_at: 1, updated_at: 1 },
+        {
+          _id: realId,
+          client_id: stubId,
+          name: "design",
+          created_at: 1,
+          updated_at: 1,
+        },
       ]);
 
       const paths = useInboxStore.getState().tabs.map((t: any) => t.path);
@@ -141,11 +174,20 @@ describe("chat: reads, supersede and the rail's numbers", () => {
     const reply = serverId("msgreply");
 
     beforeEach(() => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: root, channel_id: CHANNEL, user_id: THEM, content: "root", created_at: 100, updated_at: 100 },
+        {
+          _id: root,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "root",
+          created_at: 100,
+          updated_at: 100,
+        },
         {
           _id: reply,
           channel_id: CHANNEL,
@@ -189,15 +231,29 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       const GONE = serverId("gonedm");
       const st = useInboxStore.getState();
       st.syncTable("chatChannels", [
-        { _id: GONE, kind: "dm", dm_key: `t:${ME}:other`, created_at: 1, updated_at: 1 },
+        {
+          _id: GONE,
+          kind: "dm",
+          dm_key: `t:${ME}:other`,
+          created_at: 1,
+          updated_at: 1,
+        },
       ] as any);
       st.syncTable("chatChannels", [
-        { _id: "chatstub-new", kind: "dm", dm_key: `t:${ME}:third`, created_at: 2, updated_at: 2 },
+        {
+          _id: "chatstub-new",
+          kind: "dm",
+          dm_key: `t:${ME}:third`,
+          created_at: 2,
+          updated_at: 2,
+        },
       ] as any);
 
       const ids = (railLive: boolean) => {
         _resetChatRailMemo();
-        return selectChatRail(chatState(), ME, undefined, "team", railLive).map((r) => String(r.id));
+        return selectChatRail(chatState(), ME, undefined, "team", railLive).map(
+          (r) => String(r.id),
+        );
       };
       // Cold rail: absence means nothing yet, so both still show.
       expect(ids(false)).toContain(GONE);
@@ -229,14 +285,30 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       // yesterday while the server says 12 newer lines exist. The rail shows
       // the held room (no badge, yesterday's line) so opening it matches; the
       // prefetcher brings the newest page and the rail moves with it.
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("msgold"), channel_id: CHANNEL, user_id: THEM, content: "yesterday", created_at: 100, updated_at: 100 },
+        {
+          _id: serverId("msgold"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "yesterday",
+          created_at: 100,
+          updated_at: 100,
+        },
       ]);
       useInboxStore.getState().syncTable("chatReads", [
-        { _id: serverId("read1"), channel_id: CHANNEL, user_id: ME, last_read_at: 150, notify_level: "all", updated_at: 150 },
+        {
+          _id: serverId("read1"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          last_read_at: 150,
+          notify_level: "all",
+          updated_at: 150,
+        },
       ]);
       useInboxStore.getState().syncTable("chatRail", [
         {
@@ -246,7 +318,12 @@ describe("chat: reads, supersede and the rail's numbers", () => {
           unread_mentions: 3,
           notify_level: "all",
           joined: true,
-          last_message: { _id: tip, user_id: THEM, created_at: 9000, preview: "newest" },
+          last_message: {
+            _id: tip,
+            user_id: THEM,
+            created_at: 9000,
+            preview: "newest",
+          },
         },
       ]);
 
@@ -258,7 +335,14 @@ describe("chat: reads, supersede and the rail's numbers", () => {
       expect(rail[0].sortAt).toBe(100);
 
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: tip, channel_id: CHANNEL, user_id: THEM, content: "**newest**", created_at: 9000, updated_at: 9000 },
+        {
+          _id: tip,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "**newest**",
+          created_at: 9000,
+          updated_at: 9000,
+        },
       ]);
       _resetChatRailMemo();
       rail = selectChatRail(chatState(), ME);
@@ -269,13 +353,39 @@ describe("chat: reads, supersede and the rail's numbers", () => {
 
     it("previews the newest line the room shows: a thread reply stays in its thread", () => {
       const root = serverId("msgroot");
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: root, channel_id: CHANNEL, user_id: THEM, content: "the root", created_at: 100, updated_at: 100 },
-        { _id: serverId("msgreply"), channel_id: CHANNEL, user_id: THEM, content: "a reply", created_at: 200, updated_at: 200, thread_root_id: root },
-        { _id: serverId("msgthink"), channel_id: CHANNEL, user_id: THEM, content: "", created_at: 300, updated_at: 300, author_kind: "agent", agent_status: "thinking" },
+        {
+          _id: root,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "the root",
+          created_at: 100,
+          updated_at: 100,
+        },
+        {
+          _id: serverId("msgreply"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "a reply",
+          created_at: 200,
+          updated_at: 200,
+          thread_root_id: root,
+        },
+        {
+          _id: serverId("msgthink"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "",
+          created_at: 300,
+          updated_at: 300,
+          author_kind: "agent",
+          agent_status: "thinking",
+        },
       ]);
 
       _resetChatRailMemo();
@@ -286,15 +396,38 @@ describe("chat: reads, supersede and the rail's numbers", () => {
     });
 
     it("tallies locally as soon as the page holds the rail's own newest message", () => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("msgold"), channel_id: CHANNEL, user_id: THEM, content: "read", created_at: 100, updated_at: 100 },
-        { _id: tip, channel_id: CHANNEL, user_id: THEM, content: "newest", created_at: 9000, updated_at: 9000 },
+        {
+          _id: serverId("msgold"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "read",
+          created_at: 100,
+          updated_at: 100,
+        },
+        {
+          _id: tip,
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "newest",
+          created_at: 9000,
+          updated_at: 9000,
+        },
       ]);
       useInboxStore.getState().syncTable("chatReads", [
-        { _id: serverId("read1"), channel_id: CHANNEL, user_id: ME, last_read_at: 150, notify_level: "all", updated_at: 150 },
+        {
+          _id: serverId("read1"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          last_read_at: 150,
+          notify_level: "all",
+          updated_at: 150,
+        },
       ]);
       useInboxStore.getState().syncTable("chatRail", [
         {
@@ -304,7 +437,12 @@ describe("chat: reads, supersede and the rail's numbers", () => {
           unread_mentions: 3,
           notify_level: "all",
           joined: true,
-          last_message: { _id: tip, user_id: THEM, created_at: 9000, preview: "newest" },
+          last_message: {
+            _id: tip,
+            user_id: THEM,
+            created_at: 9000,
+            preview: "newest",
+          },
         },
       ]);
 
@@ -315,11 +453,20 @@ describe("chat: reads, supersede and the rail's numbers", () => {
     });
 
     it("clears when this viewer's mark is past everything the server knows about", () => {
-      useInboxStore.getState().syncTable("chatChannels", [
-        { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
-      ]);
+      useInboxStore
+        .getState()
+        .syncTable("chatChannels", [
+          { _id: CHANNEL, name: "general", created_at: 1, updated_at: 1 },
+        ]);
       useInboxStore.getState().syncTable("chatMessages", [
-        { _id: serverId("msgold"), channel_id: CHANNEL, user_id: THEM, content: "old", created_at: 100, updated_at: 100 },
+        {
+          _id: serverId("msgold"),
+          channel_id: CHANNEL,
+          user_id: THEM,
+          content: "old",
+          created_at: 100,
+          updated_at: 100,
+        },
       ]);
       useInboxStore.getState().syncTable("chatRail", [
         {
@@ -329,11 +476,23 @@ describe("chat: reads, supersede and the rail's numbers", () => {
           unread_mentions: 3,
           notify_level: "all",
           joined: true,
-          last_message: { _id: tip, user_id: THEM, created_at: 9000, preview: "newest" },
+          last_message: {
+            _id: tip,
+            user_id: THEM,
+            created_at: 9000,
+            preview: "newest",
+          },
         },
       ]);
       useInboxStore.getState().syncTable("chatReads", [
-        { _id: serverId("read1"), channel_id: CHANNEL, user_id: ME, last_read_at: 9000, notify_level: "all", updated_at: 9000 },
+        {
+          _id: serverId("read1"),
+          channel_id: CHANNEL,
+          user_id: ME,
+          last_read_at: 9000,
+          notify_level: "all",
+          updated_at: 9000,
+        },
       ]);
 
       _resetChatRailMemo();
@@ -348,15 +507,42 @@ describe("chat: reads, supersede and the rail's numbers", () => {
   it("the reaction selector and foldReactions are the same rule", () => {
     const messageId = serverId("msgr");
     const rows = [
-      { _id: serverId("rx1"), message_id: messageId, user_id: ME, emoji: "🎉", created_at: 10 },
-      { _id: serverId("rx2"), message_id: messageId, user_id: THEM, emoji: "🎉", created_at: 20 },
-      { _id: serverId("rx3"), message_id: messageId, user_id: THEM, emoji: "🚀", created_at: 30 },
-      { _id: serverId("rx4"), message_id: serverId("other"), user_id: THEM, emoji: "👍", created_at: 40 },
+      {
+        _id: serverId("rx1"),
+        message_id: messageId,
+        user_id: ME,
+        emoji: "🎉",
+        created_at: 10,
+      },
+      {
+        _id: serverId("rx2"),
+        message_id: messageId,
+        user_id: THEM,
+        emoji: "🎉",
+        created_at: 20,
+      },
+      {
+        _id: serverId("rx3"),
+        message_id: messageId,
+        user_id: THEM,
+        emoji: "🚀",
+        created_at: 30,
+      },
+      {
+        _id: serverId("rx4"),
+        message_id: serverId("other"),
+        user_id: THEM,
+        emoji: "👍",
+        created_at: 40,
+      },
     ];
     useInboxStore.getState().syncTable("chatReactions", rows);
 
     const viaSelector = selectChatReactions(chatState(), messageId, ME);
-    const viaFold = foldReactions(rows.filter((r) => r.message_id === messageId) as any, ME);
+    const viaFold = foldReactions(
+      rows.filter((r) => r.message_id === messageId) as any,
+      ME,
+    );
     expect(viaSelector).toEqual(viaFold);
     expect(viaSelector.map((r) => [r.emoji, r.count, r.mine])).toEqual([
       ["🎉", 2, true],
@@ -367,10 +553,26 @@ describe("chat: reads, supersede and the rail's numbers", () => {
 
 describe("the rail is scoped to the active team", () => {
   it("channels cached from another team stay out of the rail", () => {
-    useInboxStore.getState().syncTable("chatChannels", [
-      { _id: "chanteamA1234567890123456789012a", name: "ours", team_id: "teamA", created_at: 1, updated_at: 1 },
-      { _id: "chanteamB1234567890123456789012b", name: "theirs", team_id: "teamB", created_at: 1, updated_at: 1 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatChannels",
+      [
+        {
+          _id: "chanteamA1234567890123456789012a",
+          name: "ours",
+          team_id: "teamA",
+          created_at: 1,
+          updated_at: 1,
+        },
+        {
+          _id: "chanteamB1234567890123456789012b",
+          name: "theirs",
+          team_id: "teamB",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      { isDelta: true },
+    );
     _resetChatRailMemo();
     const names = selectChatRail(chatState(), ME, "teamA").map((c) => c.name);
     expect(names).toContain("ours");
@@ -383,15 +585,43 @@ describe("thread affordances from server summaries", () => {
   const ROOT = "rootsumm123456789012345678901234";
 
   it("a thread this client never opened still shows its rollup", () => {
-    useInboxStore.getState().syncTable("chatChannels", [
-      { _id: CHAN, name: "general", team_id: "teamA", created_at: 1, updated_at: 1 },
-    ], { isDelta: true });
-    useInboxStore.getState().syncTable("chatMessages", [
-      { _id: ROOT, channel_id: CHAN, user_id: "them", content: "root", created_at: 100, updated_at: 100 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatChannels",
+      [
+        {
+          _id: CHAN,
+          name: "general",
+          team_id: "teamA",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      { isDelta: true },
+    );
+    useInboxStore.getState().syncTable(
+      "chatMessages",
+      [
+        {
+          _id: ROOT,
+          channel_id: CHAN,
+          user_id: "them",
+          content: "root",
+          created_at: 100,
+          updated_at: 100,
+        },
+      ],
+      { isDelta: true },
+    );
     // The server's summary — no local reply rows exist at all.
     useInboxStore.getState().syncTable("chatThreadSummaries", [
-      { _id: ROOT, root_id: ROOT, reply_count: 5, last_reply_at: 500, reply_user_ids: ["bot1"], agent_status: "thinking" },
+      {
+        _id: ROOT,
+        root_id: ROOT,
+        reply_count: 5,
+        last_reply_at: 500,
+        reply_user_ids: ["bot1"],
+        agent_status: "thinking",
+      },
     ]);
 
     const view = toMessageView(
@@ -399,7 +629,9 @@ describe("thread affordances from server summaries", () => {
       {
         members: new Map(),
         viewerId: "me",
-        rollups: threadRollups(Object.values(useInboxStore.getState().chatMessages)),
+        rollups: threadRollups(
+          Object.values(useInboxStore.getState().chatMessages),
+        ),
         summaries: useInboxStore.getState().chatThreadSummaries as any,
       },
     );
@@ -408,15 +640,29 @@ describe("thread affordances from server summaries", () => {
   });
 
   it("local rows win once they are FRESHER — the optimistic reply bumps instantly", () => {
-    useInboxStore.getState().syncTable("chatMessages", [
-      { _id: "replyfresh1234567890123456789012", channel_id: CHAN, thread_root_id: ROOT, user_id: "me", content: "new", created_at: 900, updated_at: 900 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatMessages",
+      [
+        {
+          _id: "replyfresh1234567890123456789012",
+          channel_id: CHAN,
+          thread_root_id: ROOT,
+          user_id: "me",
+          content: "new",
+          created_at: 900,
+          updated_at: 900,
+        },
+      ],
+      { isDelta: true },
+    );
     const view = toMessageView(
       useInboxStore.getState().chatMessages[ROOT] as any,
       {
         members: new Map(),
         viewerId: "me",
-        rollups: threadRollups(Object.values(useInboxStore.getState().chatMessages)),
+        rollups: threadRollups(
+          Object.values(useInboxStore.getState().chatMessages),
+        ),
         summaries: useInboxStore.getState().chatThreadSummaries as any,
       },
     );
@@ -430,9 +676,19 @@ describe("thread affordances from server summaries", () => {
 
 describe("the workspace law (lib/workspaceScope) applies to chat", () => {
   it("the personal workspace shows NO channels — they are all team-tagged", () => {
-    useInboxStore.getState().syncTable("chatChannels", [
-      { _id: "chanpersonal12345678901234567890", name: "ours", team_id: "teamA", created_at: 1, updated_at: 1 },
-    ], { isDelta: true });
+    useInboxStore.getState().syncTable(
+      "chatChannels",
+      [
+        {
+          _id: "chanpersonal12345678901234567890",
+          name: "ours",
+          team_id: "teamA",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
+      { isDelta: true },
+    );
     _resetChatRailMemo();
     // undefined teamId IS the personal workspace, same as tasks/docs/plans.
     const names = selectChatRail(chatState(), ME, undefined).map((c) => c.name);

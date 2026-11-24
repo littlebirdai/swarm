@@ -11,9 +11,17 @@ import type { ChatChannelRow, ChatRailRow } from "../store/chatSlice";
 import { useDebounce } from "./useDebounce";
 import { inWorkspace } from "../lib/workspaceScope";
 import { teamIdForPath } from "../lib/vault/scopeModel";
-import { matchScore, mergeMentionSuggestions, mentionViewTimes } from "../lib/mentionRanking";
+import {
+  matchScore,
+  mergeMentionSuggestions,
+  mentionViewTimes,
+} from "../lib/mentionRanking";
 import { mergeEntityRows } from "../lib/universalSearch";
-import { identityLine, identityRowOf, type IdentityPrefs } from "../lib/sessionIdentity";
+import {
+  identityLine,
+  identityRowOf,
+  type IdentityPrefs,
+} from "../lib/sessionIdentity";
 import { identityPrefsNow } from "./useIdentityPrefs";
 import { teamMembersOf } from "../lib/activeTeam";
 
@@ -29,12 +37,22 @@ export type MentionScope =
 const RECENT_LIMIT_PER_TYPE = 6;
 const SEARCH_LIMIT_PER_TYPE = 12;
 
-function inScope(item: { workspace?: string | null; team_id?: string | null; user_id?: string | null }, scope: MentionScope): boolean {
+function inScope(
+  item: {
+    workspace?: string | null;
+    team_id?: string | null;
+    user_id?: string | null;
+  },
+  scope: MentionScope,
+): boolean {
   if (scope.kind === "any") return true;
   if (scope.kind === "team") return inWorkspace(item, `team:${scope.teamId}`);
   // Personal is the viewer's own key. A row with no stored key (a session, a
   // legacy row) passes on "no team", so its owner is checked here.
-  return inWorkspace(item, `user:${scope.userId}`) && (item.user_id ? String(item.user_id) === scope.userId : true);
+  return (
+    inWorkspace(item, `user:${scope.userId}`) &&
+    (item.user_id ? String(item.user_id) === scope.userId : true)
+  );
 }
 
 const EMPTY_SERVER_ITEMS: MentionItem[] = [];
@@ -49,7 +67,14 @@ export const SERVER_MENTION_TYPES = ["session", "task", "doc", "plan"];
  *  the personal workspace and misses every teammate session. */
 export function sessionMentionTeamId(
   s: Pick<ReturnType<typeof useInboxStore.getState>, "sessions">,
-  row: { team_id?: string | null; git_root?: string | null; project_path?: string | null } | null | undefined,
+  row:
+    | {
+        team_id?: string | null;
+        git_root?: string | null;
+        project_path?: string | null;
+      }
+    | null
+    | undefined,
 ): string | null {
   if (row?.team_id) return String(row.team_id);
   const path = row?.git_root || row?.project_path;
@@ -77,7 +102,11 @@ export function useActiveMentionScope(): MentionScope {
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
   const userId = useInboxStore((s) => s.currentUser?._id);
   return useMemo(
-    () => mentionScopeFor(activeTeamId ? String(activeTeamId) : null, userId ? String(userId) : null),
+    () =>
+      mentionScopeFor(
+        activeTeamId ? String(activeTeamId) : null,
+        userId ? String(userId) : null,
+      ),
     [activeTeamId, userId],
   );
 }
@@ -120,7 +149,10 @@ export function useMentionServerSearch(
   // mention that has drifted into prose settles on zero matches instead of a
   // dropdown full of strangers.
   const items = useMemo(
-    () => (wantNow && settled && results ? results.filter((m) => mentionItemMatches(m, current)) : EMPTY_SERVER_ITEMS),
+    () =>
+      wantNow && settled && results
+        ? results.filter((m) => mentionItemMatches(m, current))
+        : EMPTY_SERVER_ITEMS,
     [wantNow, settled, results, current],
   );
   return {
@@ -139,7 +171,9 @@ export function labelMentionItems(s: {
   bucketAssignments?: Record<string, BucketAssignmentItem>;
 }): MentionItem[] {
   const counts = new Map<string, number>();
-  for (const bucketId of Object.values(convBucketMap(s.bucketAssignments || {}))) {
+  for (const bucketId of Object.values(
+    convBucketMap(s.bucketAssignments || {}),
+  )) {
     if (bucketId) counts.set(bucketId, (counts.get(bucketId) ?? 0) + 1);
   }
   return Object.values(s.buckets || {})
@@ -160,10 +194,13 @@ export function labelMentionItems(s: {
 // Chat channels as `#` suggestions: the scope's team rooms a person can name
 // in prose (never DMs, never archived). Ordered by the rail's own activity
 // clock, and the viewer's unread count rides along as the detail line.
-export function channelMentionItems(s: {
-  chatChannels?: Record<string, ChatChannelRow>;
-  chatRail?: ChatRailRow[];
-}, scope: MentionScope): MentionItem[] {
+export function channelMentionItems(
+  s: {
+    chatChannels?: Record<string, ChatChannelRow>;
+    chatRail?: ChatRailRow[];
+  },
+  scope: MentionScope,
+): MentionItem[] {
   const rail = new Map((s.chatRail || []).map((r) => [r.channel_id, r]));
   return Object.values(s.chatChannels || {})
     .filter((c) => c.kind !== "dm" && !c.archived_at && !!c.name)
@@ -171,9 +208,16 @@ export function channelMentionItems(s: {
     .map((c) => {
       const r = rail.get(String(c._id));
       return {
-        id: String(c._id), type: "channel", label: c.name,
-        sublabel: c.topic || undefined, channelKind: c.kind ?? "public",
-        updatedAt: Math.max(r?.sort_at ?? 0, r?.last_message?.created_at ?? 0, c.updated_at ?? 0),
+        id: String(c._id),
+        type: "channel",
+        label: c.name,
+        sublabel: c.topic || undefined,
+        channelKind: c.kind ?? "public",
+        updatedAt: Math.max(
+          r?.sort_at ?? 0,
+          r?.last_message?.created_at ?? 0,
+          c.updated_at ?? 0,
+        ),
         unread: r?.unread || undefined,
       };
     });
@@ -185,7 +229,8 @@ export function channelMentionItems(s: {
 export function mentionItemMatches(m: MentionItem, query: string): boolean {
   const q = query.trim().toLowerCase();
   // A closed task is history: it answers only to its short id.
-  if (m.type === "task" && isTerminalTaskStatus(m.status)) return !!q && !!m.shortId && m.shortId.toLowerCase().includes(q);
+  if (m.type === "task" && isTerminalTaskStatus(m.status))
+    return !!q && !!m.shortId && m.shortId.toLowerCase().includes(q);
   if (!q) return !m.worker;
   // A personified session answers to its NAME as well as its title: the
   // dropdown shows "Dune", so typing "dune" has to find it (session-characters
@@ -216,15 +261,36 @@ export function chatMentionOffers(m: MentionItem, query: string): boolean {
   return true;
 }
 
-const mentionFilterCache = new WeakMap<MentionItem[], { query: string; personify: IdentityPrefs; chat: boolean; result: MentionItem[] }>();
+const mentionFilterCache = new WeakMap<
+  MentionItem[],
+  {
+    query: string;
+    personify: IdentityPrefs;
+    chat: boolean;
+    result: MentionItem[];
+  }
+>();
 
-export function filterMentionItems(items: MentionItem[], query: string, chat = false): MentionItem[] {
+export function filterMentionItems(
+  items: MentionItem[],
+  query: string,
+  chat = false,
+): MentionItem[] {
   const q = query.trim().toLowerCase();
   const personify = identityPrefsNow();
   const previous = mentionFilterCache.get(items);
-  const source = previous && previous.personify === personify && previous.chat === chat && previous.query && q.startsWith(previous.query)
-    ? previous.result : items;
-  const result = source.filter(item => (!chat || chatMentionOffers(item, q)) && mentionItemMatches(item, q));
+  const source =
+    previous &&
+    previous.personify === personify &&
+    previous.chat === chat &&
+    previous.query &&
+    q.startsWith(previous.query)
+      ? previous.result
+      : items;
+  const result = source.filter(
+    (item) =>
+      (!chat || chatMentionOffers(item, q)) && mentionItemMatches(item, q),
+  );
   mentionFilterCache.set(items, { query: q, personify, chat, result });
   return result;
 }
@@ -232,27 +298,57 @@ export function filterMentionItems(items: MentionItem[], query: string, chat = f
 let previousMentionInputs: unknown[] = [];
 let previousMentionItems: MentionItem[] = [];
 
-export function buildMentionItems(s: ReturnType<typeof useInboxStore.getState>, scope: MentionScope): MentionItem[] {
+export function buildMentionItems(
+  s: ReturnType<typeof useInboxStore.getState>,
+  scope: MentionScope,
+): MentionItem[] {
   const personify = identityPrefsNow();
   const inputs = [
-    scope.kind, scope.kind === "team" ? scope.teamId : scope.kind === "personal" ? scope.userId : "",
-    s.mentionIndex, s.tasks, s.docs, s.plans, s.sessions, teamMembersOf(s), s.chatSlackPeople,
-    s.buckets, s.bucketAssignments, s.recentVisits, s._lastViewedAt, personify,
+    scope.kind,
+    scope.kind === "team"
+      ? scope.teamId
+      : scope.kind === "personal"
+        ? scope.userId
+        : "",
+    s.mentionIndex,
+    s.tasks,
+    s.docs,
+    s.plans,
+    s.sessions,
+    teamMembersOf(s),
+    s.chatSlackPeople,
+    s.buckets,
+    s.bucketAssignments,
+    s.recentVisits,
+    s._lastViewedAt,
+    personify,
   ];
-  if (inputs.length === previousMentionInputs.length && inputs.every((value, i) => value === previousMentionInputs[i])) return previousMentionItems;
+  if (
+    inputs.length === previousMentionInputs.length &&
+    inputs.every((value, i) => value === previousMentionInputs[i])
+  )
+    return previousMentionItems;
   const idx = s.mentionIndex || { tasks: {}, docs: {}, plans: {} };
-  const merged = (windowRows: Record<string, any>, storeRows: Record<string, any>) =>
-    mergeEntityRows<any>(windowRows, storeRows).filter((row) => inScope(row, scope));
+  const merged = (
+    windowRows: Record<string, any>,
+    storeRows: Record<string, any>,
+  ) =>
+    mergeEntityRows<any>(windowRows, storeRows).filter((row) =>
+      inScope(row, scope),
+    );
   const now = Date.now();
   const items: MentionItem[] = [
     ...teamMembersOf(s).map((m) => {
       const handle = memberHandle(m) ?? undefined;
       return {
-        id: String(m._id), type: "person", label: m.name || m.github_username || "Unknown",
+        id: String(m._id),
+        type: "person",
+        label: m.name || m.github_username || "Unknown",
         sublabel: handle ? `@${handle}` : m.email,
         image: m.image || m.github_avatar_url,
         shortId: m.github_username ? `@${m.github_username}` : undefined,
-        handle, isBot: !!m.is_bot,
+        handle,
+        isBot: !!m.is_bot,
       };
     }),
     // People in the team's Slack workspace with no codecast account. One
@@ -261,36 +357,80 @@ export function buildMentionItems(s: ReturnType<typeof useInboxStore.getState>, 
     // first and reaches Slack only when no teammate matches.
     ...(scope.kind === "team"
       ? Object.values(s.chatSlackPeople || {})
-        .filter((p) => p.team_id === scope.teamId && !p.codecast_user_id && !!p.handle && !matchHandle(teamMembersOf(s), p.handle))
-        .map((p) => ({
-          id: `slack:${p.slack_user_id}`, type: "person", label: p.name,
-          sublabel: `@${p.handle}`, image: p.avatar_url ?? undefined,
-          handle: p.handle!, slack: true,
-        }))
+          .filter(
+            (p) =>
+              p.team_id === scope.teamId &&
+              !p.codecast_user_id &&
+              !!p.handle &&
+              !matchHandle(teamMembersOf(s), p.handle),
+          )
+          .map((p) => ({
+            id: `slack:${p.slack_user_id}`,
+            type: "person",
+            label: p.name,
+            sublabel: `@${p.handle}`,
+            image: p.avatar_url ?? undefined,
+            handle: p.handle!,
+            slack: true,
+          }))
       : []),
     ...labelMentionItems(s),
     ...merged(idx.tasks, s.tasks).map((t) => ({
-      id: t._id, type: "task", label: t.title, sublabel: t.short_id, shortId: t.short_id,
-      status: t.status, priority: t.priority, updatedAt: t.updated_at,
+      id: t._id,
+      type: "task",
+      label: t.title,
+      sublabel: t.short_id,
+      shortId: t.short_id,
+      status: t.status,
+      priority: t.priority,
+      updatedAt: t.updated_at,
     })),
     ...merged(idx.docs, s.docs).map((d) => ({
-      id: d._id, type: "doc", label: d.title, sublabel: d.doc_type,
-      docType: d.doc_type, updatedAt: d.updated_at,
+      id: d._id,
+      type: "doc",
+      label: d.title,
+      sublabel: d.doc_type,
+      docType: d.doc_type,
+      updatedAt: d.updated_at,
     })),
     ...merged(idx.plans, s.plans).map((p) => ({
-      id: p._id, type: "plan", label: p.title, sublabel: p.short_id, shortId: p.short_id,
-      status: p.status, goal: p.goal, updatedAt: p.updated_at,
+      id: p._id,
+      type: "plan",
+      label: p.title,
+      sublabel: p.short_id,
+      shortId: p.short_id,
+      status: p.status,
+      goal: p.goal,
+      updatedAt: p.updated_at,
     })),
-    ...Object.values(s.sessions).filter((sess) => inScope(sess, scope)).map((sess) => ({
-      id: sess._id, type: "session", label: sess.title || "Untitled Session",
-      sublabel: sess.idle_summary || undefined, shortId: sess._id.slice(0, 7).toLowerCase(),
-      messageCount: sess.message_count, projectPath: sess.git_root || sess.project_path,
-      status: agentStatusAt(sess, now), awake: sessionAwakeAt(sess, now) || undefined, agentType: sess.agent_type,
-      model: sess.model ?? undefined, updatedAt: sess.updated_at, idleSummary: sess.idle_summary,
-      identity: identityRowOf(sess as never), worker: !!sess.is_subagent || undefined,
-    })),
+    ...Object.values(s.sessions)
+      .filter((sess) => inScope(sess, scope))
+      .map((sess) => ({
+        id: sess._id,
+        type: "session",
+        label: sess.title || "Untitled Session",
+        sublabel: sess.idle_summary || undefined,
+        shortId: sess._id.slice(0, 7).toLowerCase(),
+        messageCount: sess.message_count,
+        projectPath: sess.git_root || sess.project_path,
+        status: agentStatusAt(sess, now),
+        awake: sessionAwakeAt(sess, now) || undefined,
+        agentType: sess.agent_type,
+        model: sess.model ?? undefined,
+        updatedAt: sess.updated_at,
+        idleSummary: sess.idle_summary,
+        identity: identityRowOf(sess as never),
+        worker: !!sess.is_subagent || undefined,
+      })),
   ];
-  const result = mergeMentionSuggestions(items, [], mentionViewTimes(s), Infinity, "", personify);
+  const result = mergeMentionSuggestions(
+    items,
+    [],
+    mentionViewTimes(s),
+    Infinity,
+    "",
+    personify,
+  );
   previousMentionInputs = inputs;
   previousMentionItems = result;
   return result;
@@ -300,11 +440,28 @@ export function useMentionQuery(scope: MentionScope = { kind: "any" }) {
   const kind = scope.kind;
   const teamId = scope.kind === "team" ? scope.teamId : "";
   const userId = scope.kind === "personal" ? scope.userId : "";
-  return useCallback(async (rawQ: string): Promise<MentionItem[]> => {
-    const s = useInboxStore.getState();
-    return mergeMentionSuggestions(
-      filterMentionItems(buildMentionItems(s, kind === "team" ? { kind, teamId } : kind === "personal" ? { kind, userId } : { kind }), rawQ),
-      [], mentionViewTimes(s), rawQ.trim() ? SEARCH_LIMIT_PER_TYPE : RECENT_LIMIT_PER_TYPE, rawQ, identityPrefsNow(),
-    );
-  }, [kind, teamId, userId]);
+  return useCallback(
+    async (rawQ: string): Promise<MentionItem[]> => {
+      const s = useInboxStore.getState();
+      return mergeMentionSuggestions(
+        filterMentionItems(
+          buildMentionItems(
+            s,
+            kind === "team"
+              ? { kind, teamId }
+              : kind === "personal"
+                ? { kind, userId }
+                : { kind },
+          ),
+          rawQ,
+        ),
+        [],
+        mentionViewTimes(s),
+        rawQ.trim() ? SEARCH_LIMIT_PER_TYPE : RECENT_LIMIT_PER_TYPE,
+        rawQ,
+        identityPrefsNow(),
+      );
+    },
+    [kind, teamId, userId],
+  );
 }

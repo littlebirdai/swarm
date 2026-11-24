@@ -25,16 +25,24 @@ export interface NarrateOptions {
   write?: (line: string) => void;
 }
 
-export async function narrated<T>(what: string, step: Promise<T>, opts: NarrateOptions = {}): Promise<T> {
+export async function narrated<T>(
+  what: string,
+  step: Promise<T>,
+  opts: NarrateOptions = {},
+): Promise<T> {
   const afterMs = opts.afterMs ?? 1500;
   const everyMs = opts.everyMs ?? 5000;
-  const write = opts.write ?? ((line: string) => process.stderr.write(fmt.muted(line) + "\n"));
+  const write =
+    opts.write ??
+    ((line: string) => process.stderr.write(fmt.muted(line) + "\n"));
   const started = Date.now();
   const elapsed = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
   let spoke = false;
   let timer: ReturnType<typeof setTimeout>;
   const tick = () => {
-    write(`  still ${what} (${elapsed()})${spoke || !opts.hint ? "" : `; ${opts.hint}`}`);
+    write(
+      `  still ${what} (${elapsed()})${spoke || !opts.hint ? "" : `; ${opts.hint}`}`,
+    );
     spoke = true;
     timer = setTimeout(tick, everyMs);
   };
@@ -42,7 +50,8 @@ export async function narrated<T>(what: string, step: Promise<T>, opts: NarrateO
   try {
     const result = await step;
     clearTimeout(timer);
-    if (spoke && Date.now() - started >= afterMs * 2) write(`  finished ${what} after ${elapsed()}`);
+    if (spoke && Date.now() - started >= afterMs * 2)
+      write(`  finished ${what} after ${elapsed()}`);
     return result;
   } catch (err) {
     clearTimeout(timer);

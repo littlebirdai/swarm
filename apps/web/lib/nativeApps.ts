@@ -24,24 +24,27 @@ export const NATIVE_APP_COPY: Record<
   mac: {
     name: "Codecast for Mac",
     requires: "macOS on Apple Silicon",
-    pitch: "Native notifications, a menu bar presence, global shortcuts, and meeting detection.",
+    pitch:
+      "Native notifications, a menu bar presence, global shortcuts, and meeting detection.",
     cta: "Download for macOS",
     nudge: "Get the desktop app for a faster, native experience",
   },
   ios: {
     name: "Codecast for iPhone and iPad",
     requires: "iOS 17 or later",
-    pitch: "A push when an agent needs you. Read, reply and approve from anywhere.",
+    pitch:
+      "A push when an agent needs you. Read, reply and approve from anywhere.",
     cta: "Get it on the App Store",
     nudge: "Codecast is on the App Store: get a push when an agent needs you",
   },
 };
 
 /** The client-state key that records a user closing this app's nudge. */
-export const NATIVE_APP_DISMISS_KEY: Record<NativeApp, keyof ClientDismissed> = {
-  mac: "desktop_app",
-  ios: "ios_app",
-};
+export const NATIVE_APP_DISMISS_KEY: Record<NativeApp, keyof ClientDismissed> =
+  {
+    mac: "desktop_app",
+    ios: "ios_app",
+  };
 
 export type PlatformFacts = {
   userAgent: string;
@@ -64,7 +67,10 @@ export function readPlatformFacts(): PlatformFacts | null {
  * Android and nothing inside either app. iPadOS reports itself as a Mac, so a
  * Mac with more than one touch point is an iPad.
  */
-export function nativeAppFor(facts: PlatformFacts | null, inDesktopShell: boolean): NativeApp | null {
+export function nativeAppFor(
+  facts: PlatformFacts | null,
+  inDesktopShell: boolean,
+): NativeApp | null {
   if (!facts || inDesktopShell) return null;
   if (/iPhone|iPad|iPod/.test(facts.userAgent)) return "ios";
   if (/Mac/.test(facts.platform) || /Macintosh/.test(facts.userAgent)) {
@@ -79,5 +85,7 @@ export function nativeAppOffer(): NativeApp | null {
 
 /** One analytics call per app, so every surface reports into the same funnel. */
 export function trackNativeAppClick(app: NativeApp, location: string): void {
-  track(app === "mac" ? "desktop_download_clicked" : "ios_app_clicked", { location });
+  track(app === "mac" ? "desktop_download_clicked" : "ios_app_clicked", {
+    location,
+  });
 }

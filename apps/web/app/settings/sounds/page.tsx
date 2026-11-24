@@ -1,15 +1,27 @@
 import { useState } from "react";
 import {
-  MessageSquare, MousePointerClick, Phone, Play, Radio, Terminal, Volume2, VolumeX,
+  MessageSquare,
+  MousePointerClick,
+  Phone,
+  Play,
+  Radio,
+  Terminal,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useInboxStore, type ClientUI } from "../../../store/inboxStore";
 import { Switch } from "../../../components/ui/switch";
 import { Slider } from "../../../components/ui/slider";
 import { Button } from "../../../components/ui/button";
-import { SettingsPanel, SettingsRow, SettingsSection } from "../../../components/settings/ui";
 import {
-  previewSoundCategory, SOUND_CATEGORIES,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
+import {
+  previewSoundCategory,
+  SOUND_CATEGORIES,
   type SoundCategory,
 } from "../../../lib/sounds";
 import { useWalkieDoor } from "../../../hooks/useWalkie";
@@ -29,7 +41,9 @@ const CATEGORY_ICONS: Record<SoundCategory, LucideIcon> = {
  *  auditioned. Previews play even for a switched-off category — hearing a cue
  *  is the only honest basis for deciding whether to enable it. */
 export default function SoundsSettingsPage() {
-  const enabled = useInboxStore((s) => s.clientState?.ui?.sounds_enabled !== false);
+  const enabled = useInboxStore(
+    (s) => s.clientState?.ui?.sounds_enabled !== false,
+  );
   const updateUI = useInboxStore((s) => s.updateClientUI);
 
   return (
@@ -38,7 +52,13 @@ export default function SoundsSettingsPage() {
         title="Sound"
         icon={enabled ? Volume2 : VolumeX}
         description="Sound preferences sync across your devices. Agent-controlled tabs stay quiet."
-        actions={<Switch checked={enabled} onCheckedChange={(v) => updateUI({ sounds_enabled: v })} aria-label="Sound effects" />}
+        actions={
+          <Switch
+            checked={enabled}
+            onCheckedChange={(v) => updateUI({ sounds_enabled: v })}
+            aria-label="Sound effects"
+          />
+        }
       >
         <VolumeRow disabled={!enabled} />
       </SettingsSection>
@@ -48,7 +68,14 @@ export default function SoundsSettingsPage() {
         description="Choose which moments make a sound. The play button previews each one."
       >
         {SOUND_CATEGORIES.map((c) => (
-          <CategoryRow key={c.id} id={c.id} prefKey={c.key} label={c.label} desc={c.desc} masterOn={enabled} />
+          <CategoryRow
+            key={c.id}
+            id={c.id}
+            prefKey={c.key}
+            label={c.label}
+            desc={c.desc}
+            masterOn={enabled}
+          />
         ))}
       </SettingsSection>
 
@@ -97,7 +124,13 @@ function VolumeRow({ disabled }: { disabled: boolean }) {
   );
 }
 
-function CategoryRow({ id, prefKey, label, desc, masterOn }: {
+function CategoryRow({
+  id,
+  prefKey,
+  label,
+  desc,
+  masterOn,
+}: {
   id: SoundCategory;
   prefKey: keyof ClientUI;
   label: string;
@@ -105,7 +138,9 @@ function CategoryRow({ id, prefKey, label, desc, masterOn }: {
   masterOn: boolean;
 }) {
   const on = useInboxStore((s) => s.clientState?.ui?.[prefKey] !== false);
-  const snoozedUntil = useInboxStore((s) => (id === "chat" ? s.clientState?.ui?.chat_snooze_until ?? 0 : 0));
+  const snoozedUntil = useInboxStore((s) =>
+    id === "chat" ? (s.clientState?.ui?.chat_snooze_until ?? 0) : 0,
+  );
   const updateUI = useInboxStore((s) => s.updateClientUI);
   const snoozed = snoozedUntil > Date.now();
   return (
@@ -118,7 +153,11 @@ function CategoryRow({ id, prefKey, label, desc, masterOn }: {
           {desc}
           {snoozed && (
             <span className="mt-0.5 block text-sol-orange">
-              Snoozed until {new Date(snoozedUntil).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              Snoozed until{" "}
+              {new Date(snoozedUntil).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
               {" · "}
               <button
                 type="button"
@@ -143,7 +182,13 @@ function CategoryRow({ id, prefKey, label, desc, masterOn }: {
   );
 }
 
-function PreviewButton({ label, onClick }: { label: string; onClick: () => void }) {
+function PreviewButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -170,7 +215,11 @@ function WalkieSection() {
         description="A teammate holding push-to-talk in your DM is heard out loud here, the moment they say it. Turn this off and their voice message still arrives in the chat with its transcript — it just waits to be read."
         alignTop
       >
-        <Switch checked={open} onCheckedChange={setOpen} aria-label="Let teammates talk to me" />
+        <Switch
+          checked={open}
+          onCheckedChange={setOpen}
+          aria-label="Let teammates talk to me"
+        />
       </SettingsRow>
       <WalkieCuesBlock />
     </SettingsSection>

@@ -46,13 +46,28 @@ export function genUpdatedAt(rng: Rng, epoch: number): number {
   return epoch - between(rng, 31 * GEN_DAY, 40 * GEN_DAY);
 }
 
-const AGENT_STATUSES = [undefined, undefined, "working", "idle", "idle", "done", "dormant", "waiting", "stopped", "permission_blocked"] as const;
+const AGENT_STATUSES = [
+  undefined,
+  undefined,
+  "working",
+  "idle",
+  "idle",
+  "done",
+  "dormant",
+  "waiting",
+  "stopped",
+  "permission_blocked",
+] as const;
 
 // The user's rest verdict (inbox_rest / inbox_rest_at), drawn from a stream
 // seeded by the row's own tag rather than the world rng: added after the
 // seeded worlds were pinned by the convergence suite, so the existing worlds
 // keep every row they had and only gain this field. Current 70% of the time.
-function genUserRest(tag: string, updated_at: number, row: Record<string, unknown>): void {
+function genUserRest(
+  tag: string,
+  updated_at: number,
+  row: Record<string, unknown>,
+): void {
   let h = 2166136261;
   for (const ch of tag) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   const rng = makeRng(h >>> 0);
@@ -65,11 +80,20 @@ function genUserRest(tag: string, updated_at: number, row: Record<string, unknow
 
 // `leadTag` names an earlier row this one may join as an agent-team teammate
 // (spawned_by + agent_team_name — a rider of that lead's placement).
-export function genProjectableRow(rng: Rng, epoch: number, tag: string, leadTag?: string): ProjectableInboxRow & Record<string, unknown> {
+export function genProjectableRow(
+  rng: Rng,
+  epoch: number,
+  tag: string,
+  leadTag?: string,
+): ProjectableInboxRow & Record<string, unknown> {
   const updated_at = genUpdatedAt(rng, epoch);
   const row: ProjectableInboxRow & Record<string, unknown> = {
     _id: convexIdFor(tag),
-    status: chance(rng, 0.85) ? "active" : chance(rng, 0.8) ? "completed" : "failed",
+    status: chance(rng, 0.85)
+      ? "active"
+      : chance(rng, 0.8)
+        ? "completed"
+        : "failed",
     updated_at,
     message_count: chance(rng, 0.08) ? 0 : between(rng, 1, 40),
     title: chance(rng, 0.03) ? "[Using: claude]" : `Session ${tag}`,
@@ -80,29 +104,59 @@ export function genProjectableRow(rng: Rng, epoch: number, tag: string, leadTag?
     has_pending_messages: chance(rng, 0.05),
   };
   if (chance(rng, 0.04)) row.is_subagent = true;
-  if (chance(rng, 0.03)) { row.parent_conversation_id = convexIdFor("parent"); row.parent_message_uuid = chance(rng, 0.5) ? "m1" : undefined; }
-  if (leadTag && chance(rng, 0.1)) { row.spawned_by_conversation_id = convexIdFor(leadTag); row.agent_team_name = "team"; }
-  if (chance(rng, 0.12)) row.inbox_pinned_at = epoch - between(rng, 0, 40 * GEN_DAY);
-  if (chance(rng, 0.1)) row.inbox_dismissed_at = epoch - between(rng, 0, 40 * GEN_DAY);
-  if (chance(rng, 0.08)) row.inbox_stashed_at = epoch - between(rng, 0, 40 * GEN_DAY);
-  if (chance(rng, 0.05)) row.inbox_killed_at = epoch - between(rng, 0, 10 * GEN_DAY);
+  if (chance(rng, 0.03)) {
+    row.parent_conversation_id = convexIdFor("parent");
+    row.parent_message_uuid = chance(rng, 0.5) ? "m1" : undefined;
+  }
+  if (leadTag && chance(rng, 0.1)) {
+    row.spawned_by_conversation_id = convexIdFor(leadTag);
+    row.agent_team_name = "team";
+  }
+  if (chance(rng, 0.12))
+    row.inbox_pinned_at = epoch - between(rng, 0, 40 * GEN_DAY);
+  if (chance(rng, 0.1))
+    row.inbox_dismissed_at = epoch - between(rng, 0, 40 * GEN_DAY);
+  if (chance(rng, 0.08))
+    row.inbox_stashed_at = epoch - between(rng, 0, 40 * GEN_DAY);
+  if (chance(rng, 0.05))
+    row.inbox_killed_at = epoch - between(rng, 0, 10 * GEN_DAY);
   if (chance(rng, 0.1)) row.owned_by_me = true;
   if (chance(rng, 0.04)) row.anchor_id = "anchors_1";
-  if (chance(rng, 0.08)) row.armed_trigger_kind = pick(rng, ["standing", "once", "none"]);
-  if (chance(rng, 0.05)) row.loop_state = { status: "armed", wakeup_at: epoch + (chance(rng, 0.5) ? GEN_HOUR : -GEN_HOUR), event_at: epoch - GEN_HOUR };
-  if (chance(rng, 0.08)) { row.settle_verdict = "done"; row.settle_verdict_at = updated_at + (chance(rng, 0.7) ? 1 : -1); }
-  if (chance(rng, 0.06)) row.thread_state_status = pick(rng, ["done", "blocked", "working"]);
+  if (chance(rng, 0.08))
+    row.armed_trigger_kind = pick(rng, ["standing", "once", "none"]);
+  if (chance(rng, 0.05))
+    row.loop_state = {
+      status: "armed",
+      wakeup_at: epoch + (chance(rng, 0.5) ? GEN_HOUR : -GEN_HOUR),
+      event_at: epoch - GEN_HOUR,
+    };
+  if (chance(rng, 0.08)) {
+    row.settle_verdict = "done";
+    row.settle_verdict_at = updated_at + (chance(rng, 0.7) ? 1 : -1);
+  }
+  if (chance(rng, 0.06))
+    row.thread_state_status = pick(rng, ["done", "blocked", "working"]);
   if (chance(rng, 0.05)) row.pending_api_error = true;
-  if (chance(rng, 0.05)) row.inbox_dormant_at = updated_at + (chance(rng, 0.7) ? 1 : -1);
+  if (chance(rng, 0.05))
+    row.inbox_dormant_at = updated_at + (chance(rng, 0.7) ? 1 : -1);
   genUserRest(tag, updated_at, row);
   if (chance(rng, 0.3)) row.last_turn_allows_park = chance(rng, 0.6);
   return row;
 }
 
-export function genProjectableRows(seed: number, count: number, epoch: number): Array<ProjectableInboxRow & Record<string, unknown>> {
+export function genProjectableRows(
+  seed: number,
+  count: number,
+  epoch: number,
+): Array<ProjectableInboxRow & Record<string, unknown>> {
   const rng = makeRng(seed);
   return Array.from({ length: count }, (_, i) =>
-    genProjectableRow(rng, epoch, `s${seed}r${i}`, i > 0 ? `s${seed}r${between(rng, 0, i)}` : undefined),
+    genProjectableRow(
+      rng,
+      epoch,
+      `s${seed}r${i}`,
+      i > 0 ? `s${seed}r${between(rng, 0, i)}` : undefined,
+    ),
   );
 }
 
@@ -118,10 +172,20 @@ export type GenWorld = {
   session_owners: Array<Record<string, any>>;
 };
 
-export function genWorld(seed: number, count: number, epoch: number, me: string): GenWorld {
+export function genWorld(
+  seed: number,
+  count: number,
+  epoch: number,
+  me: string,
+): GenWorld {
   const rng = makeRng(seed);
   const askRng = makeRng(seed ^ 0x5eed);
-  const world: GenWorld = { conversations: [], managed_sessions: [], session_decisions: [], session_owners: [] };
+  const world: GenWorld = {
+    conversations: [],
+    managed_sessions: [],
+    session_decisions: [],
+    session_owners: [],
+  };
   for (let i = 0; i < count; i++) {
     const tag = `w${seed}c${i}`;
     const _id = convexIdFor(tag);
@@ -138,28 +202,53 @@ export function genWorld(seed: number, count: number, epoch: number, me: string)
     };
     if (conv.message_count === 0) delete conv.last_message_role;
     // An agent-team teammate of an earlier row: a rider of that lead's placement.
-    if (i > 0 && chance(rng, 0.1)) { conv.spawned_by_conversation_id = convexIdFor(`w${seed}c${between(rng, 0, i)}`); conv.agent_team_name = "team"; }
-    if (chance(rng, 0.12)) conv.inbox_pinned_at = epoch - between(rng, 0, 40 * GEN_DAY);
-    if (chance(rng, 0.1)) conv.inbox_dismissed_at = epoch - between(rng, 0, 40 * GEN_DAY);
-    if (chance(rng, 0.08)) conv.inbox_stashed_at = epoch - between(rng, 0, 40 * GEN_DAY);
-    if (chance(rng, 0.04)) conv.inbox_killed_at = epoch - between(rng, 0, 10 * GEN_DAY);
+    if (i > 0 && chance(rng, 0.1)) {
+      conv.spawned_by_conversation_id = convexIdFor(
+        `w${seed}c${between(rng, 0, i)}`,
+      );
+      conv.agent_team_name = "team";
+    }
+    if (chance(rng, 0.12))
+      conv.inbox_pinned_at = epoch - between(rng, 0, 40 * GEN_DAY);
+    if (chance(rng, 0.1))
+      conv.inbox_dismissed_at = epoch - between(rng, 0, 40 * GEN_DAY);
+    if (chance(rng, 0.08))
+      conv.inbox_stashed_at = epoch - between(rng, 0, 40 * GEN_DAY);
+    if (chance(rng, 0.04))
+      conv.inbox_killed_at = epoch - between(rng, 0, 10 * GEN_DAY);
     if (chance(rng, 0.04)) conv.anchor_id = "anchors_1";
-    if (chance(rng, 0.08)) conv.armed_trigger_kind = pick(rng, ["standing", "once"]);
-    if (chance(rng, 0.06)) conv.thread_state_status = pick(rng, ["done", "blocked"]);
+    if (chance(rng, 0.08))
+      conv.armed_trigger_kind = pick(rng, ["standing", "once"]);
+    if (chance(rng, 0.06))
+      conv.thread_state_status = pick(rng, ["done", "blocked"]);
     if (chance(rng, 0.05)) conv.pending_api_error = true;
     if (chance(rng, 0.05)) conv.inbox_dormant_at = updated_at + 1;
     genUserRest(tag, updated_at, conv);
     if (chance(rng, 0.05)) conv.has_pending_messages = true;
     world.conversations.push(conv);
     if (chance(rng, 0.45)) {
-      const agent_status = pick(rng, ["working", "idle", "done", "dormant", "waiting", "stopped", "permission_blocked"] as const);
+      const agent_status = pick(rng, [
+        "working",
+        "idle",
+        "done",
+        "dormant",
+        "waiting",
+        "stopped",
+        "permission_blocked",
+      ] as const);
       world.managed_sessions.push({
         _id: `ms_${tag}`,
         user_id: me,
         conversation_id: _id,
-        last_heartbeat: epoch - (chance(rng, 0.85) ? between(rng, 0, 20_000) : between(rng, 5 * GEN_MIN, GEN_DAY)),
+        last_heartbeat:
+          epoch -
+          (chance(rng, 0.85)
+            ? between(rng, 0, 20_000)
+            : between(rng, 5 * GEN_MIN, GEN_DAY)),
         agent_status,
-        agent_status_updated_at: epoch - between(rng, 0, chance(rng, 0.8) ? 30 * GEN_MIN : 3 * GEN_HOUR),
+        agent_status_updated_at:
+          epoch -
+          between(rng, 0, chance(rng, 0.8) ? 30 * GEN_MIN : 3 * GEN_HOUR),
       });
     }
     if (chance(rng, 0.05)) {
@@ -167,8 +256,24 @@ export function genWorld(seed: number, count: number, epoch: number, me: string)
       // advisory filed into a named stack (lift). Drawn from their own stream
       // so the main stream, and every world a seed names, stays as it was.
       const kind = askRng();
-      const ask = kind < 0.7 ? { blocking: true } : kind < 0.85 ? { blocking: false, default_option: 0 } : { blocking: false, default_option: 0, stack_id: convexIdFor(`stack${tag}`) };
-      world.session_decisions.push({ _id: `sd_${tag}`, user_id: me, conversation_id: _id, status: "pending", created_at: epoch - GEN_MIN, ...ask });
+      const ask =
+        kind < 0.7
+          ? { blocking: true }
+          : kind < 0.85
+            ? { blocking: false, default_option: 0 }
+            : {
+                blocking: false,
+                default_option: 0,
+                stack_id: convexIdFor(`stack${tag}`),
+              };
+      world.session_decisions.push({
+        _id: `sd_${tag}`,
+        user_id: me,
+        conversation_id: _id,
+        status: "pending",
+        created_at: epoch - GEN_MIN,
+        ...ask,
+      });
     }
   }
   return world;
@@ -181,38 +286,65 @@ export function genWorld(seed: number, count: number, epoch: number, me: string)
 // written relative to the fixture epoch ("E-2h", "E+30m", "E-31d") so a reader
 // sees the rule a row exercises instead of a 13-digit number. `step` values
 // (ms) are added per index to the base row's numeric fields.
-export type FixtureRepeat = { count: number; idPrefix: string; row: Record<string, unknown>; step?: Record<string, number> };
-export type FixtureRowSpec = Record<string, unknown> | { repeat: FixtureRepeat };
+export type FixtureRepeat = {
+  count: number;
+  idPrefix: string;
+  row: Record<string, unknown>;
+  step?: Record<string, number>;
+};
+export type FixtureRowSpec =
+  | Record<string, unknown>
+  | { repeat: FixtureRepeat };
 
-const UNIT_MS: Record<string, number> = { ms: 1, s: 1000, m: GEN_MIN, h: GEN_HOUR, d: GEN_DAY };
+const UNIT_MS: Record<string, number> = {
+  ms: 1,
+  s: 1000,
+  m: GEN_MIN,
+  h: GEN_HOUR,
+  d: GEN_DAY,
+};
 
 // "E", "E-2h", "E+30m", "E-30d-1ms": the epoch plus any chain of offsets.
 export function resolveEpochRelative(value: unknown, epoch: number): unknown {
   if (typeof value !== "string") return value;
   if (!/^E(?:[+-]\d+(?:\.\d+)?(?:ms|s|m|h|d)?)*$/.test(value)) return value;
   let out = epoch;
-  for (const m of value.slice(1).matchAll(/([+-]\d+(?:\.\d+)?)(ms|s|m|h|d)?/g)) {
+  for (const m of value
+    .slice(1)
+    .matchAll(/([+-]\d+(?:\.\d+)?)(ms|s|m|h|d)?/g)) {
     out += Number(m[1]) * UNIT_MS[m[2] ?? "ms"];
   }
   return out;
 }
 
-function resolveRow(row: Record<string, unknown>, epoch: number): Record<string, unknown> {
+function resolveRow(
+  row: Record<string, unknown>,
+  epoch: number,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(row)) {
-    out[k] = v && typeof v === "object" && !Array.isArray(v)
-      ? resolveRow(v as Record<string, unknown>, epoch)
-      : resolveEpochRelative(v, epoch);
+    out[k] =
+      v && typeof v === "object" && !Array.isArray(v)
+        ? resolveRow(v as Record<string, unknown>, epoch)
+        : resolveEpochRelative(v, epoch);
   }
   // Ids are written as tags: the row's own, and the parent / lead pointers
   // that name another row of the fixture.
-  for (const k of ["_id", "parent_conversation_id", "spawned_by_conversation_id"]) {
-    if (typeof out[k] === "string" && (out[k] as string).length !== 32) out[k] = convexIdFor(out[k] as string);
+  for (const k of [
+    "_id",
+    "parent_conversation_id",
+    "spawned_by_conversation_id",
+  ]) {
+    if (typeof out[k] === "string" && (out[k] as string).length !== 32)
+      out[k] = convexIdFor(out[k] as string);
   }
   return out;
 }
 
-export function expandFixtureRows(specs: FixtureRowSpec[], epoch: number): Array<Record<string, unknown>> {
+export function expandFixtureRows(
+  specs: FixtureRowSpec[],
+  epoch: number,
+): Array<Record<string, unknown>> {
   const out: Array<Record<string, unknown>> = [];
   for (const spec of specs) {
     const rep = (spec as { repeat?: FixtureRepeat }).repeat;
@@ -222,7 +354,10 @@ export function expandFixtureRows(specs: FixtureRowSpec[], epoch: number): Array
     }
     const base = resolveRow(rep.row, epoch);
     for (let i = 0; i < rep.count; i++) {
-      const row: Record<string, unknown> = { ...base, _id: convexIdFor(`${rep.idPrefix}${i}`) };
+      const row: Record<string, unknown> = {
+        ...base,
+        _id: convexIdFor(`${rep.idPrefix}${i}`),
+      };
       for (const [field, delta] of Object.entries(rep.step ?? {})) {
         row[field] = (Number(base[field]) || 0) + delta * i;
       }

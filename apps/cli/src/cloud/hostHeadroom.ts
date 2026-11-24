@@ -13,10 +13,21 @@
 
 import { parseLinuxMemory, parseMacMemory } from "../systemResources.js";
 import { readRepoNeed, tooSmallFor, type RepoNeed } from "../repoNeed.js";
-import { hostState, readHosts, resolveCloudHost, toRemoteHost, type CloudHost } from "../browser/cloudHost.js";
+import {
+  hostState,
+  readHosts,
+  resolveCloudHost,
+  toRemoteHost,
+  type CloudHost,
+} from "../browser/cloudHost.js";
 import { ssh } from "../remote/session-move.js";
 import type { HostFacts } from "../hosts/providers/types.js";
-import { CLOUD_HOST_SIZES, RUN_LIMIT_HOLD_MINUTES, runEndsAt, runMinutesLeft } from "@codecast/shared/contracts";
+import {
+  CLOUD_HOST_SIZES,
+  RUN_LIMIT_HOLD_MINUTES,
+  runEndsAt,
+  runMinutesLeft,
+} from "@codecast/shared/contracts";
 
 export { readRepoNeed, tooSmallFor, type RepoNeed };
 
@@ -27,8 +38,9 @@ const MIN_AVAILABLE = 1 * GiB;
 /** Swap this full means the working set already exceeds RAM: the next spike is an OOM kill. */
 const MAX_SWAP_USED = 0.8;
 
-const PROBE = "uname -s; echo ---; if [ -r /proc/meminfo ]; then cat /proc/meminfo; echo ---; cat /proc/pressure/memory 2>/dev/null;"
-  + " else vm_stat; echo ---; sysctl vm.swapusage kern.memorystatus_vm_pressure_level hw.memsize; fi";
+const PROBE =
+  "uname -s; echo ---; if [ -r /proc/meminfo ]; then cat /proc/meminfo; echo ---; cat /proc/pressure/memory 2>/dev/null;" +
+  " else vm_stat; echo ---; sysctl vm.swapusage kern.memorystatus_vm_pressure_level hw.memsize; fi";
 
 export interface Headroom {
   fit: boolean;
@@ -58,25 +70,48 @@ export function headroomFromProbe(out: string): Headroom {
     swapTotal = Number(first.match(/^SwapTotal:\s+(\d+)/m)?.[1]) * 1024;
   } else {
     const total = Number(second.match(/hw\.memsize:\s*(\d+)/)?.[1]);
-    const mem = parseMacMemory(first, second, second.split("\n").find((l) => l.startsWith("kern.memorystatus")) ?? "", total);
+    const mem = parseMacMemory(
+      first,
+      second,
+      second.split("\n").find((l) => l.startsWith("kern.memorystatus")) ?? "",
+      total,
+    );
     memoryAvailable = mem.memoryAvailable;
     if (Number.isFinite(total) && total > 0) memoryTotal = total;
     pressure = mem.pressure;
   }
-  const why = pressure === "critical" || pressure === "elevated" ? `memory pressure ${pressure}`
-    : memoryAvailable !== undefined && memoryAvailable < MIN_AVAILABLE ? `${gb(memoryAvailable)} GB of memory free`
-    : swapUsed !== undefined && swapTotal && swapTotal > 0 && swapUsed / swapTotal >= MAX_SWAP_USED ? `swap ${gb(swapUsed)} of ${gb(swapTotal)} GB used`
-    : undefined;
-  return { fit: !why, ...(why ? { why } : {}), ...(memoryAvailable !== undefined ? { memoryAvailable } : {}), ...(memoryTotal !== undefined ? { memoryTotal } : {}) };
+  const why =
+    pressure === "critical" || pressure === "elevated"
+      ? `memory pressure ${pressure}`
+      : memoryAvailable !== undefined && memoryAvailable < MIN_AVAILABLE
+        ? `${gb(memoryAvailable)} GB of memory free`
+        : swapUsed !== undefined &&
+            swapTotal &&
+            swapTotal > 0 &&
+            swapUsed / swapTotal >= MAX_SWAP_USED
+          ? `swap ${gb(swapUsed)} of ${gb(swapTotal)} GB used`
+          : undefined;
+  return {
+    fit: !why,
+    ...(why ? { why } : {}),
+    ...(memoryAvailable !== undefined ? { memoryAvailable } : {}),
+    ...(memoryTotal !== undefined ? { memoryTotal } : {}),
+  };
 }
 
 export function probeHeadroom(host: CloudHost, run = ssh): Headroom {
   try {
     return headroomFromProbe(run(toRemoteHost(host), PROBE, PROBE_TIMEOUT_MS));
   } catch (err) {
-    const e = err as { code?: string; stderr?: string | Buffer; message?: string };
-    const detail = e.code === "ETIMEDOUT" ? `no answer over ssh within ${PROBE_TIMEOUT_MS / 1000}s`
-      : `memory probe failed: ${(e.stderr?.toString() || e.message || String(err)).trim().split("\n").pop()}`;
+    const e = err as {
+      code?: string;
+      stderr?: string | Buffer;
+      message?: string;
+    };
+    const detail =
+      e.code === "ETIMEDOUT"
+        ? `no answer over ssh within ${PROBE_TIMEOUT_MS / 1000}s`
+        : `memory probe failed: ${(e.stderr?.toString() || e.message || String(err)).trim().split("\n").pop()}`;
     return { fit: false, why: detail };
   }
 }
@@ -93,7 +128,11 @@ function placementDeps(): HostChoiceDeps {
   const facts = new Map<string, HostFacts | null>();
   const factsOf = (host: CloudHost): HostFacts | null => {
     if (!facts.has(host.id)) {
-      try { facts.set(host.id, hostState(host)); } catch { facts.set(host.id, null); }
+      try {
+        facts.set(host.id, hostState(host));
+      } catch {
+        facts.set(host.id, null);
+      }
     }
     return facts.get(host.id)!;
   };
@@ -102,8 +141,12 @@ function placementDeps(): HostChoiceDeps {
     hosts: readHosts,
     state: (host) => factsOf(host)?.state ?? "unknown",
     runLeft: (host) => {
-      const startedAt = host.maxRunMinutes ? factsOf(host)?.startedAt : undefined;
-      return startedAt === undefined ? undefined : runMinutesLeft(runEndsAt(startedAt, host.maxRunMinutes!), Date.now());
+      const startedAt = host.maxRunMinutes
+        ? factsOf(host)?.startedAt
+        : undefined;
+      return startedAt === undefined
+        ? undefined
+        : runMinutesLeft(runEndsAt(startedAt, host.maxRunMinutes!), Date.now());
     },
     probe: (host) => probeHeadroom(host),
   };
@@ -133,7 +176,9 @@ export interface HostChoice {
 
 /** The smallest offered size whose memory covers the need, never below the one asked for. */
 export function sizeFor(need: RepoNeed | undefined, atLeast: string): string {
-  const fits = CLOUD_HOST_SIZES.filter((s) => s.memory_gb * GiB * 0.9 >= (need?.memoryBytes ?? 0));
+  const fits = CLOUD_HOST_SIZES.filter(
+    (s) => s.memory_gb * GiB * 0.9 >= (need?.memoryBytes ?? 0),
+  );
   const floor = CLOUD_HOST_SIZES.find((s) => s.type === atLeast);
   const pick = fits.find((s) => !floor || s.memory_gb >= floor.memory_gb);
   return pick?.type ?? atLeast;
@@ -166,52 +211,109 @@ export function chooseCloudHost(
 ): HostChoice {
   const asked = deps.resolve(hostArg);
   const awake = (h: CloudHost) => deps.state(h) === "running";
-  const endsIn = (h: CloudHost) => { const left = deps.runLeft(h); return left !== undefined && left < RUN_LIMIT_HOLD_MINUTES ? left : undefined; };
+  const endsIn = (h: CloudHost) => {
+    const left = deps.runLeft(h);
+    return left !== undefined && left < RUN_LIMIT_HOLD_MINUTES
+      ? left
+      : undefined;
+  };
   if (!asked.address || !awake(asked)) return { host: asked, moved: false };
   const askedEndsIn = endsIn(asked);
-  const room: Headroom = askedEndsIn !== undefined ? { fit: false, why: `reaches its run limit in ${askedEndsIn} min` } : deps.probe(asked);
+  const room: Headroom =
+    askedEndsIn !== undefined
+      ? { fit: false, why: `reaches its run limit in ${askedEndsIn} min` }
+      : deps.probe(asked);
   const small = tooSmallFor(room, opts.need);
-  const free = room.memoryAvailable !== undefined ? `${gb(room.memoryAvailable)} GB free` : "free memory unknown";
-  if (room.fit && !small && (!opts.fallback || (room.memoryAvailable ?? 0) >= ROOMY)) return { host: asked, moved: false };
+  const free =
+    room.memoryAvailable !== undefined
+      ? `${gb(room.memoryAvailable)} GB free`
+      : "free memory unknown";
+  if (
+    room.fit &&
+    !small &&
+    (!opts.fallback || (room.memoryAvailable ?? 0) >= ROOMY)
+  )
+    return { host: asked, moved: false };
   const full = `${asked.id} has no room for another session (${room.why})`;
   if (!opts.fallback) {
     if (room.fit) return { host: asked, moved: false, small };
-    throw new Error(`${full}: free memory there (stop sessions on it), or start this session in its own worktree so it can go to another host`);
+    throw new Error(
+      `${full}: free memory there (stop sessions on it), or start this session in its own worktree so it can go to another host`,
+    );
   }
   const platform = (h: CloudHost) => h.platform ?? "linux";
-  const samePlatformFirst = (a: CloudHost, b: CloudHost) => Number(platform(b) === platform(asked)) - Number(platform(a) === platform(asked));
+  const samePlatformFirst = (a: CloudHost, b: CloudHost) =>
+    Number(platform(b) === platform(asked)) -
+    Number(platform(a) === platform(asked));
   // A host reserved for one job (devices.reserved_for) is never a fallback; it takes work only when named.
-  const others = deps.hosts().filter((h) => h.id !== asked.id && h.deviceId && !h.reservedFor);
+  const others = deps
+    .hosts()
+    .filter((h) => h.id !== asked.id && h.deviceId && !h.reservedFor);
   const best = others
     .filter((h) => h.address && awake(h) && endsIn(h) === undefined)
     .map((h) => ({ h, room: deps.probe(h) }))
-    .filter((c) => c.room.fit && !tooSmallFor(c.room, opts.need) && (room.fit && !small ? (c.room.memoryAvailable ?? 0) >= ROOMY : true))
-    .sort((a, b) => samePlatformFirst(a.h, b.h) || (b.room.memoryAvailable ?? 0) - (a.room.memoryAvailable ?? 0))[0];
-  const why = !room.fit ? room.why! : small ? `too small: ${small}` : `only ${free}`;
+    .filter(
+      (c) =>
+        c.room.fit &&
+        !tooSmallFor(c.room, opts.need) &&
+        (room.fit && !small ? (c.room.memoryAvailable ?? 0) >= ROOMY : true),
+    )
+    .sort(
+      (a, b) =>
+        samePlatformFirst(a.h, b.h) ||
+        (b.room.memoryAvailable ?? 0) - (a.room.memoryAvailable ?? 0),
+    )[0];
+  const why = !room.fit
+    ? room.why!
+    : small
+      ? `too small: ${small}`
+      : `only ${free}`;
   const lead = `${asked.id} ${!room.fit ? `has no room for another session (${why})` : small ? `is ${why}` : `is tight (${why})`}`;
   if (best) {
-    log(`${lead}: placing on ${best.h.id} instead (${best.room.memoryAvailable !== undefined ? `${gb(best.room.memoryAvailable)} GB free` : "has room"})`);
+    log(
+      `${lead}: placing on ${best.h.id} instead (${best.room.memoryAvailable !== undefined ? `${gb(best.room.memoryAvailable)} GB free` : "has room"})`,
+    );
     return { host: best.h, moved: true, from: asked, why };
   }
   if (room.fit && !small) return { host: asked, moved: false };
   let capped = "";
   if (opts.autoscale) {
-    const sleeping = others.filter((h) => deps.state(h) === "stopped").sort((a, b) => samePlatformFirst(a, b) || Number(!!b.autoscaled) - Number(!!a.autoscaled))[0];
+    const sleeping = others
+      .filter((h) => deps.state(h) === "stopped")
+      .sort(
+        (a, b) =>
+          samePlatformFirst(a, b) ||
+          Number(!!b.autoscaled) - Number(!!a.autoscaled),
+      )[0];
     if (sleeping) {
       log(`${lead}: waking ${sleeping.id} (autoscale)`);
       return { host: sleeping, moved: true, from: asked, why };
     }
-    const added = deps.hosts().filter((h) => h.autoscaled && deps.state(h) !== "missing").length;
+    const added = deps
+      .hosts()
+      .filter((h) => h.autoscaled && deps.state(h) !== "missing").length;
     if (added < opts.autoscale.maxExtra) {
       const size = sizeFor(opts.need, opts.autoscale.size);
-      log(`${lead}: launching a ${size} like ${opts.autoscale.template.id} (autoscale, ${added + 1} of ${opts.autoscale.maxExtra})`);
-      return { host: opts.autoscale.template, moved: true, from: asked, why, launch: { like: opts.autoscale.template, size } };
+      log(
+        `${lead}: launching a ${size} like ${opts.autoscale.template.id} (autoscale, ${added + 1} of ${opts.autoscale.maxExtra})`,
+      );
+      return {
+        host: opts.autoscale.template,
+        moved: true,
+        from: asked,
+        why,
+        launch: { like: opts.autoscale.template, size },
+      };
     }
     capped = `; autoscale already added ${added} of ${opts.autoscale.maxExtra} hosts`;
   }
   if (room.fit) {
-    log(`${asked.id} is ${why}, and no host that fits is awake${capped}: placing there anyway`);
+    log(
+      `${asked.id} is ${why}, and no host that fits is awake${capped}: placing there anyway`,
+    );
     return { host: asked, moved: false, small };
   }
-  throw new Error(`${full}, and no other awake cloud host has room${capped}: free memory there (stop sessions on it), add a cloud host, or move this session to a laptop`);
+  throw new Error(
+    `${full}, and no other awake cloud host has room${capped}: free memory there (stop sessions on it), add a cloud host, or move this session to a laptop`,
+  );
 }

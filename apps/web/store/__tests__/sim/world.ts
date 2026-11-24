@@ -19,21 +19,43 @@
 // principal views) a deployed mutation gets.
 
 import { v } from "convex/values";
-import { inboxEpoch, type AgentStatus, type TeamFeatures } from "@codecast/shared/contracts";
-import { GEN_MIN, convexIdFor } from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
-import { genTeamWorld, teamIdFor, userIdFor, type WorldRow } from "@codecast/shared/contracts/__fixtures__/teamWorldGen";
+import {
+  inboxEpoch,
+  type AgentStatus,
+  type TeamFeatures,
+} from "@codecast/shared/contracts";
+import {
+  GEN_MIN,
+  convexIdFor,
+} from "@codecast/shared/contracts/__fixtures__/inboxProjectionGen";
+import {
+  genTeamWorld,
+  teamIdFor,
+  userIdFor,
+  type WorldRow,
+} from "@codecast/shared/contracts/__fixtures__/teamWorldGen";
 import { hashToken } from "@codecast/convex/convex/apiTokens";
 import { internalMutation } from "@codecast/convex/convex/functions";
 import { patchConversationVisibility } from "@codecast/convex/convex/lib/conversationVisibility";
 import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
-import { makeSimBackend, type Principal, type SimBackend, type SimClient } from "@codecast/convex/convex/simBackend.testing";
+import {
+  makeSimBackend,
+  type Principal,
+  type SimBackend,
+  type SimClient,
+} from "@codecast/convex/convex/simBackend.testing";
 import { SimLabels } from "./labels";
 import { Net, type Delivery } from "./net";
 import * as realm from "./realm";
 import { INBOX_RECOVERY_STALE_MS } from "../../../hooks/useRecoveryPoll";
 import { makeActors, type Actors } from "./actors";
 import { SimDevice } from "./device";
-import { windowOnline, type BootScope, type SimWindow, type SimWindowWorld } from "./window";
+import {
+  windowOnline,
+  type BootScope,
+  type SimWindow,
+  type SimWindowWorld,
+} from "./window";
 import { scopeSweep } from "./invariantReads";
 
 export interface WorldOptions {
@@ -95,7 +117,8 @@ export const tokenFor = (user: string): string => `sim-token-${user}`;
 /** The device id the user's daemon reports. */
 export const daemonDeviceFor = (user: string): string => `sim-daemon-${user}`;
 /** A session's Claude session id, which managed_sessions and heartbeats key on. */
-export const sessionIdFor = (conversationId: string): string => `sim-session-${conversationId}`;
+export const sessionIdFor = (conversationId: string): string =>
+  `sim-session-${conversationId}`;
 
 // The fixture module genesis runs through the router. Internal, so no client
 // can reach it.
@@ -107,11 +130,20 @@ const GENESIS = {
     },
   }),
   stampConversations: internalMutation({
-    args: { stamps: v.array(v.object({ id: v.id("conversations"), team_id: v.optional(v.id("teams")), is_private: v.boolean() })) },
+    args: {
+      stamps: v.array(
+        v.object({
+          id: v.id("conversations"),
+          team_id: v.optional(v.id("teams")),
+          is_private: v.boolean(),
+        }),
+      ),
+    },
     handler: async (ctx, { stamps }) => {
       for (const { id, ...updates } of stamps) {
         const conversation = await ctx.db.get(id);
-        if (!conversation) throw new Error(`sim genesis: no conversation ${id}`);
+        if (!conversation)
+          throw new Error(`sim genesis: no conversation ${id}`);
         await patchConversationVisibility(ctx, conversation as any, updates);
       }
     },
@@ -133,14 +165,26 @@ export class SimWorld implements SimWindowWorld {
   /** After a clock jump, each host runs the recovery polls the app would have (SimWindow.recoveryPoll). */
   afterAdvance(ms: number): void {
     if (ms < INBOX_RECOVERY_STALE_MS) return;
-    for (const w of this.windows.values()) if (w.role === "host" && !w.closed) w.recoveryPoll();
+    for (const w of this.windows.values())
+      if (w.role === "host" && !w.closed) w.recoveryPoll();
   }
 
   private readonly opts: WorldOptions;
-  private readonly teams = new Map<string, TeamOptions & { members: string[] }>();
+  private readonly teams = new Map<
+    string,
+    TeamOptions & { members: string[] }
+  >();
   private readonly users: string[] = [];
-  private readonly sessions: { user: string; name: string; opts: SessionOptions }[] = [];
-  private readonly workItems: { kind: WorkKind; name: string; opts: WorkItemOptions }[] = [];
+  private readonly sessions: {
+    user: string;
+    name: string;
+    opts: SessionOptions;
+  }[] = [];
+  private readonly workItems: {
+    kind: WorkKind;
+    name: string;
+    opts: WorkItemOptions;
+  }[] = [];
   private readonly triggers: { name: string; opts: TriggerOptions }[] = [];
   private readonly roles: { team: string; handle: string }[] = [];
   private _backend: SimBackend | null = null;
@@ -165,7 +209,10 @@ export class SimWorld implements SimWindowWorld {
       onDeliver: opts.onDeliver,
       afterDeliver: opts.afterDeliver,
     });
-    realm.attachRealm({ timers: this.net, serverCall: () => this._backend?.activeCall() ?? null });
+    realm.attachRealm({
+      timers: this.net,
+      serverCall: () => this._backend?.activeCall() ?? null,
+    });
     this.actors = makeActors(this);
   }
 
@@ -173,7 +220,8 @@ export class SimWorld implements SimWindowWorld {
 
   team(name: string, opts: TeamOptions = {}): this {
     this.declaring(`team("${name}")`);
-    if (this.teams.has(name)) throw new Error(`sim world: team "${name}" declared twice`);
+    if (this.teams.has(name))
+      throw new Error(`sim world: team "${name}" declared twice`);
     this.teams.set(name, { ...opts, members: [] });
     return this;
   }
@@ -181,10 +229,14 @@ export class SimWorld implements SimWindowWorld {
   /** A user and the teams they belong to; the first user listed in a team is its admin. */
   user(name: string, teams: string[] = []): this {
     this.declaring(`user("${name}")`);
-    if (this.users.includes(name)) throw new Error(`sim world: user "${name}" declared twice`);
+    if (this.users.includes(name))
+      throw new Error(`sim world: user "${name}" declared twice`);
     for (const t of teams) {
       const team = this.teams.get(t);
-      if (!team) throw new Error(`sim world: user "${name}" joins team "${t}", which is not declared; call team("${t}") first`);
+      if (!team)
+        throw new Error(
+          `sim world: user "${name}" joins team "${t}", which is not declared; call team("${t}") first`,
+        );
       team.members.push(name);
     }
     this.users.push(name);
@@ -223,8 +275,14 @@ export class SimWorld implements SimWindowWorld {
   role(team: string, handle: string): string {
     this.declaring(`role("${team}", "${handle}")`);
     const t = this.teams.get(team);
-    if (!t) throw new Error(`sim world: role "${handle}" in undeclared team "${team}"`);
-    if (!t.features?.org) throw new Error(`sim world: role "${handle}" needs team("${team}", { features: { org: true } })`);
+    if (!t)
+      throw new Error(
+        `sim world: role "${handle}" in undeclared team "${team}"`,
+      );
+    if (!t.features?.org)
+      throw new Error(
+        `sim world: role "${handle}" needs team("${team}", { features: { org: true } })`,
+      );
     this.roles.push({ team, handle });
     return `role:${team}/${handle}`;
   }
@@ -232,7 +290,10 @@ export class SimWorld implements SimWindowWorld {
   // -- Running --
 
   get backend(): SimBackend {
-    if (!this._backend) throw new Error("sim world: the backend exists after `await world.start()`");
+    if (!this._backend)
+      throw new Error(
+        "sim world: the backend exists after `await world.start()`",
+      );
     return this._backend;
   }
 
@@ -279,8 +340,12 @@ export class SimWorld implements SimWindowWorld {
     const taken = new Set(this.devices.map((d) => d.name));
     let name = opts.name ?? user;
     for (let i = 2; !opts.name && taken.has(name); i++) name = `${user}${i}`;
-    if (taken.has(name)) throw new Error(`sim world: a device named "${name}" already exists`);
-    const scope: BootScope | undefined = opts.scope && opts.scope !== "mine" ? { team: this.idOf(opts.scope.team) } : opts.scope;
+    if (taken.has(name))
+      throw new Error(`sim world: a device named "${name}" already exists`);
+    const scope: BootScope | undefined =
+      opts.scope && opts.scope !== "mine"
+        ? { team: this.idOf(opts.scope.team) }
+        : opts.scope;
     const device = new SimDevice(this, { userId: this.idOf(user) }, name);
     this.devices.push(device);
     return device.start({ followers: opts.followers, scope });
@@ -331,22 +396,33 @@ export class SimWorld implements SimWindowWorld {
   private async genesis(): Promise<void> {
     const gen = genTeamWorld({
       users: this.users,
-      teams: [...this.teams].map(([name, t]) => ({ name, members: t.members, features: t.features })),
+      teams: [...this.teams].map(([name, t]) => ({
+        name,
+        members: t.members,
+        features: t.features,
+      })),
       rowsPerUser: this.opts.rowsPerUser ?? DEFAULT_ROWS_PER_USER,
       seed: this.seed,
       epoch: this.epoch,
     });
     for (const name of this.users) this.labels.register(userIdFor(name), name);
-    for (const name of this.teams.keys()) this.labels.register(teamIdFor(name), name);
+    for (const name of this.teams.keys())
+      this.labels.register(teamIdFor(name), name);
 
-    const homeTeam = new Map<string, string | undefined>(gen.users.map((u) => [u._id, u.team_id]));
+    const homeTeam = new Map<string, string | undefined>(
+      gen.users.map((u) => [u._id, u.team_id]),
+    );
     const conversations: WorldRow[] = [];
     const managed: WorldRow[] = [];
     const stamps: { id: string; team_id?: string; is_private: boolean }[] = [];
     const draw = realm.stream("genesis");
     const stamp = (row: WorldRow, isPrivate: boolean) => {
       const team_id = homeTeam.get(row.user_id);
-      stamps.push({ id: row._id, ...(team_id ? { team_id } : {}), is_private: isPrivate });
+      stamps.push({
+        id: row._id,
+        ...(team_id ? { team_id } : {}),
+        is_private: isPrivate,
+      });
     };
 
     for (const name of this.users) {
@@ -357,7 +433,8 @@ export class SimWorld implements SimWindowWorld {
         this.labels.register(conv._id, `${name}/g${i}`);
         stamp(conv, draw() < 0.5);
       });
-      for (const ms of world.managed_sessions) managed.push({ ...ms, session_id: sessionIdFor(ms.conversation_id) });
+      for (const ms of world.managed_sessions)
+        managed.push({ ...ms, session_id: sessionIdFor(ms.conversation_id) });
     }
     for (const { user, name, opts } of this.sessions) {
       const _id = convexIdFor(`session:${user}/${name}`);
@@ -407,7 +484,9 @@ export class SimWorld implements SimWindowWorld {
       api_tokens: tokens,
       conversations,
       managed_sessions: managed,
-      session_decisions: this.users.flatMap((n) => gen.perUser[n].session_decisions),
+      session_decisions: this.users.flatMap(
+        (n) => gen.perUser[n].session_decisions,
+      ),
       session_owners: this.users.flatMap((n) => gen.perUser[n].session_owners),
       // The armed trigger behind each generated session's armed_trigger_kind.
       agent_tasks: gen.agent_tasks,
@@ -434,20 +513,32 @@ export class SimWorld implements SimWindowWorld {
     await this.backend.runInternal(`${GENESIS_MODULE}:addMembers`, {
       rows: gen.team_memberships.map(({ _id, ...row }) => row),
     });
-    await this.backend.runInternal(`${GENESIS_MODULE}:stampConversations`, { stamps });
+    await this.backend.runInternal(`${GENESIS_MODULE}:stampConversations`, {
+      stamps,
+    });
 
     // 3. Chat channels, roles, work items and triggers through their real create mutations.
     for (const [team, t] of this.teams) {
       if (!t.features?.chat || !t.members.length) continue;
       this.nextLabel.set("chat_channels", `chan:${team}/general`);
-      await this.clientAs(t.members[0]).mutation("chat:createChannel", { team_id: teamIdFor(team), name: "general", is_default: true });
+      await this.clientAs(t.members[0]).mutation("chat:createChannel", {
+        team_id: teamIdFor(team),
+        name: "general",
+        is_default: true,
+      });
     }
     for (const { team, handle } of this.roles) {
       this.nextLabel.set("org_roles", `role:${team}/${handle}`);
       const admin = this.teams.get(team)!.members[0];
-      await this.clientAs(admin).mutation("orgRoles:create", { team_id: teamIdFor(team), name: handle, handle, provision: true });
+      await this.clientAs(admin).mutation("orgRoles:create", {
+        team_id: teamIdFor(team),
+        name: handle,
+        handle,
+        provision: true,
+      });
     }
-    for (const { kind, name, opts } of this.workItems) await this.createWorkItem(kind, name, opts);
+    for (const { kind, name, opts } of this.workItems)
+      await this.createWorkItem(kind, name, opts);
     for (const { name, opts } of this.triggers) {
       this.nextLabel.set("agent_tasks", `trigger:${name}`);
       await this.daemonClientAs(opts.owner).mutation("agentTasks:createTask", {
@@ -458,28 +549,54 @@ export class SimWorld implements SimWindowWorld {
         originating_session_ref: this.idOf(opts.session),
       });
     }
-    const unclaimed = [...this.nextLabel].map(([table, label]) => `${label} (${table})`);
-    if (unclaimed.length) throw new Error(`sim world: genesis created no row for ${unclaimed.join(", ")}`);
+    const unclaimed = [...this.nextLabel].map(
+      ([table, label]) => `${label} (${table})`,
+    );
+    if (unclaimed.length)
+      throw new Error(
+        `sim world: genesis created no row for ${unclaimed.join(", ")}`,
+      );
 
     await this.assertSweepClean("genesis");
   }
 
-  private async createWorkItem(kind: WorkKind, name: string, opts: WorkItemOptions): Promise<void> {
+  private async createWorkItem(
+    kind: WorkKind,
+    name: string,
+    opts: WorkItemOptions,
+  ): Promise<void> {
     const table = `${kind}s`;
     this.nextLabel.set(table, `${kind}:${name}`);
     // The CLI sends its own session id, which the server resolves by session_id.
-    const conversation_id = opts.session ? sessionIdFor(this.idOf(opts.session)) : undefined;
+    const conversation_id = opts.session
+      ? sessionIdFor(this.idOf(opts.session))
+      : undefined;
     const client = this.daemonClientAs(opts.owner);
-    if (kind === "task") await client.mutation("tasks:create", { title: name, conversation_id });
-    else if (kind === "doc") await client.mutation("docs:create", { title: name, content: `sim doc ${name}`, conversation_id });
-    else await client.mutation("plans:create", { title: name, goal: `sim plan ${name}`, conversation_id });
+    if (kind === "task")
+      await client.mutation("tasks:create", { title: name, conversation_id });
+    else if (kind === "doc")
+      await client.mutation("docs:create", {
+        title: name,
+        content: `sim doc ${name}`,
+        conversation_id,
+      });
+    else
+      await client.mutation("plans:create", {
+        title: name,
+        goal: `sim plan ${name}`,
+        conversation_id,
+      });
   }
 
   /**
    * teamScopeSweep over every work-item table reports no stale and no missing
    * workspace key, and writes nothing. Genesis ends here; invariants reuse it.
    */
-  sweepFindings(): Promise<{ findings: any[]; missing: number; writes: number }> {
+  sweepFindings(): Promise<{
+    findings: any[];
+    missing: number;
+    writes: number;
+  }> {
     return scopeSweep(this.backend);
   }
 
@@ -487,8 +604,8 @@ export class SimWorld implements SimWindowWorld {
     const { findings, missing, writes } = await this.sweepFindings();
     if (!findings.length && !missing && !writes) return;
     throw new Error(
-      `sim world: ${when} gate failed: teamScopeSweep found ${findings.length} stale and ${missing} missing workspace keys`
-      + ` and wrote ${writes} rows\n${this.labels.relabel(JSON.stringify(findings, null, 2))}`,
+      `sim world: ${when} gate failed: teamScopeSweep found ${findings.length} stale and ${missing} missing workspace keys` +
+        ` and wrote ${writes} rows\n${this.labels.relabel(JSON.stringify(findings, null, 2))}`,
     );
   }
 
@@ -505,7 +622,11 @@ export class SimWorld implements SimWindowWorld {
     this.labels.onInsert(table, id);
   }
 
-  private workItem(kind: WorkKind, name: string, opts: WorkItemOptions): string {
+  private workItem(
+    kind: WorkKind,
+    name: string,
+    opts: WorkItemOptions,
+  ): string {
     this.declaring(`${kind}("${name}")`);
     this.requireUser(opts.owner);
     this.workItems.push({ kind, name, opts });
@@ -513,10 +634,16 @@ export class SimWorld implements SimWindowWorld {
   }
 
   private declaring(what: string): void {
-    if (this.started) throw new Error(`sim world: ${what} after start(); declare the world before the first async verb`);
+    if (this.started)
+      throw new Error(
+        `sim world: ${what} after start(); declare the world before the first async verb`,
+      );
   }
 
   private requireUser(name: string): void {
-    if (!this.users.includes(name)) throw new Error(`sim world: user "${name}" is not declared; call user("${name}", teams) first`);
+    if (!this.users.includes(name))
+      throw new Error(
+        `sim world: user "${name}" is not declared; call user("${name}", teams) first`,
+      );
   }
 }

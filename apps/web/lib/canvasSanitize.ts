@@ -22,7 +22,16 @@ const PURIFY_CONFIG = {
   FORCE_BODY: true,
   // DOMPurify keeps these by default; we don't want embeds, forms, external
   // stylesheets, or <base>/<meta> rewrites in untrusted content.
-  FORBID_TAGS: ["script", "iframe", "object", "embed", "base", "form", "meta", "link"],
+  FORBID_TAGS: [
+    "script",
+    "iframe",
+    "object",
+    "embed",
+    "base",
+    "form",
+    "meta",
+    "link",
+  ],
   FORBID_ATTR: ["ping", "formaction", "srcset", "srcdoc"],
   // <use> is off DOMPurify's default allowlist because it can pull content from
   // external URLs. Same-document references (href="#id") are how SVG deduplicates
@@ -33,16 +42,35 @@ const PURIFY_CONFIG = {
 
 export function isSafeCanvasLink(href: unknown): href is string {
   const base = "https://codecast.invalid/";
-  return typeof href === "string" && URL.canParse(href, base) && /^(https?:|mailto:|tel:)$/.test(new URL(href, base).protocol);
+  return (
+    typeof href === "string" &&
+    URL.canParse(href, base) &&
+    /^(https?:|mailto:|tel:)$/.test(new URL(href, base).protocol)
+  );
 }
 
 // Presentation attributes that take url(#id) syntax (mask, filter, clip-path,
 // fill/stroke with paint servers) go through the same CSS scrubber as style —
 // local fragments survive, remote fetches become "none".
-const URL_ATTRS = ["mask", "filter", "clip-path", "fill", "stroke", "cursor", "marker", "marker-start", "marker-mid", "marker-end"];
+const URL_ATTRS = [
+  "mask",
+  "filter",
+  "clip-path",
+  "fill",
+  "stroke",
+  "cursor",
+  "marker",
+  "marker-start",
+  "marker-mid",
+  "marker-end",
+];
 
 function takeHref(el: Element): string {
-  const href = el.getAttribute("href") ?? el.getAttributeNS("http://www.w3.org/1999/xlink", "href") ?? el.getAttribute("xlink:href") ?? "";
+  const href =
+    el.getAttribute("href") ??
+    el.getAttributeNS("http://www.w3.org/1999/xlink", "href") ??
+    el.getAttribute("xlink:href") ??
+    "";
   el.removeAttributeNS("http://www.w3.org/1999/xlink", "href");
   el.removeAttribute("xlink:href");
   return href;

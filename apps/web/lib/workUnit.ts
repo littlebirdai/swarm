@@ -12,7 +12,10 @@ import { useTabContext } from "./tabParams";
 import { sessionLiveAt } from "./liveness";
 import { useCoarseNow } from "../hooks/useCoarseNow";
 
-export function taskFacePath(task: { _id: string; short_id?: string | null }): string {
+export function taskFacePath(task: {
+  _id: string;
+  short_id?: string | null;
+}): string {
   return `/tasks/${task.short_id || task._id}`;
 }
 
@@ -30,7 +33,9 @@ export function useSwitchFace(): (path: string) => void {
 export function useLeafShowing(path: string): string | null {
   return useInboxStore((s) => {
     const tab = s.tabs.find((t) => t.id === s.activeTabId);
-    return tab?.layout ? leavesOf(tab.layout).find((l) => l.path === path)?.id ?? null : null;
+    return tab?.layout
+      ? (leavesOf(tab.layout).find((l) => l.path === path)?.id ?? null)
+      : null;
   });
 }
 
@@ -48,13 +53,20 @@ const RECENT_ACTIVITY_MS = 15 * 60 * 1000;
  *  say the comment will reach it (convex tasks.ts deliverCommentToOwner
  *  relays a person's comment). Wakes on whether it works and on its
  *  identity, never on heartbeat churn. Null otherwise. */
-export function useWorkingOwner(ownerSessionId: string | null | undefined): Record<string, any> | null {
+export function useWorkingOwner(
+  ownerSessionId: string | null | undefined,
+): Record<string, any> | null {
   const now = useCoarseNow(30_000);
   const sig = useInboxStore((s) => {
     const r: any = ownerSessionId ? s.sessions[ownerSessionId] : null;
     if (!r || r.status === "completed" || r.inbox_killed_at) return "";
-    const working = sessionLiveAt(r, now) || now - (r.updated_at ?? 0) < RECENT_ACTIVITY_MS;
-    return working ? `${r.title}|${r.character_name}|${r.character_avatar}|${r.agent_type}` : "";
+    const working =
+      sessionLiveAt(r, now) || now - (r.updated_at ?? 0) < RECENT_ACTIVITY_MS;
+    return working
+      ? `${r.title}|${r.character_name}|${r.character_avatar}|${r.agent_type}`
+      : "";
   });
-  return sig && ownerSessionId ? (useInboxStore.getState().sessions[ownerSessionId] as any) : null;
+  return sig && ownerSessionId
+    ? (useInboxStore.getState().sessions[ownerSessionId] as any)
+    : null;
 }

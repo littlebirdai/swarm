@@ -10,7 +10,9 @@ export { useSwitchWorkspace as useSwitchActiveTeam } from "@codecast/web/hooks/u
 
 /** The active team id from the mirror; unset is the personal workspace. */
 export function useActiveTeamId(): string | undefined {
-  return useInboxStore((s) => s.clientState.ui?.active_team_id ?? undefined) as string | undefined;
+  return useInboxStore((s) => s.clientState.ui?.active_team_id ?? undefined) as
+    | string
+    | undefined;
 }
 
 export function useActiveTeam() {

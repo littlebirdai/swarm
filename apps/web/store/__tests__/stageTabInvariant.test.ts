@@ -79,7 +79,11 @@ describe("stageCloseLeaf", () => {
   });
 
   it("a tab collapsing onto a conversation leaf lands on the /inbox?s= spelling, never the redirect route", () => {
-    state().stageInsertLeaf("root", "right", "/conversation/jx7abc00nvbf8jnk1234567890abcdef");
+    state().stageInsertLeaf(
+      "root",
+      "right",
+      "/conversation/jx7abc00nvbf8jnk1234567890abcdef",
+    );
     const first = leavesOf(activeTab().layout!)[0];
     state().stageCloseLeaf(first.id);
     const t = activeTab();
@@ -88,7 +92,11 @@ describe("stageCloseLeaf", () => {
   });
 
   it("stageExpandLeaf applies the same spelling rule", () => {
-    const id = state().stageInsertLeaf("root", "right", "/conversation/jx7abc00nvbf8jnk1234567890abcdef")!;
+    const id = state().stageInsertLeaf(
+      "root",
+      "right",
+      "/conversation/jx7abc00nvbf8jnk1234567890abcdef",
+    )!;
     state().stageExpandLeaf(id);
     expect(activeTab().path).toBe("/inbox?s=jx7abc00nvbf8jnk1234567890abcdef");
     expect(activeTab().layout).toBeUndefined();
@@ -99,16 +107,22 @@ describe("stageCloseLeaf", () => {
   // reads rows already in the store: a teammate's session showed "This session
   // is no longer available" instead of loading through the inbox.
   it("a plain tab navigated to a conversation takes the /inbox?s= spelling", () => {
-    state().updateTab("t1", { path: "/conversation/jx7abc00nvbf8jnk1234567890abcdef" });
+    state().updateTab("t1", {
+      path: "/conversation/jx7abc00nvbf8jnk1234567890abcdef",
+    });
     expect(activeTab().path).toBe("/inbox?s=jx7abc00nvbf8jnk1234567890abcdef");
     expect(activeTab().layout).toBeUndefined();
   });
 
   it("a split tab's focused leaf keeps the pane spelling", () => {
     state().stageInsertLeaf("root", "right", "/docs");
-    state().updateTab("t1", { path: "/conversation/jx7abc00nvbf8jnk1234567890abcdef" });
+    state().updateTab("t1", {
+      path: "/conversation/jx7abc00nvbf8jnk1234567890abcdef",
+    });
     const t = activeTab();
-    expect(findLeaf(t.layout!, t.focusedLeafId!)!.path).toBe("/conversation/jx7abc00nvbf8jnk1234567890abcdef");
+    expect(findLeaf(t.layout!, t.focusedLeafId!)!.path).toBe(
+      "/conversation/jx7abc00nvbf8jnk1234567890abcdef",
+    );
   });
 });
 
@@ -117,7 +131,15 @@ describe("the inbox tab's ?s= sync on a split stage", () => {
     declareViewNav("gesture");
     useInboxStore.setState({
       sessions: {
-        sX: { _id: "sX", session_id: "s-x", updated_at: Date.now(), agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false },
+        sX: {
+          _id: "sX",
+          session_id: "s-x",
+          updated_at: Date.now(),
+          agent_type: "claude_code",
+          message_count: 1,
+          is_idle: true,
+          has_pending: false,
+        },
       },
       currentSessionId: null,
       viewingDismissedId: null,
@@ -137,9 +159,24 @@ describe("the inbox tab's ?s= sync on a split stage", () => {
 
   it("a peek at a stashed session (a fork chip's switch to a stashed branch) moves the focused inbox leaf too", () => {
     declareViewNav("gesture");
-    const row = (id: string, extra: object = {}) => ({ _id: id, session_id: `s-${id}`, updated_at: Date.now(), agent_type: "codex", message_count: 1, is_idle: true, has_pending: false, ...extra });
+    const row = (id: string, extra: object = {}) => ({
+      _id: id,
+      session_id: `s-${id}`,
+      updated_at: Date.now(),
+      agent_type: "codex",
+      message_count: 1,
+      is_idle: true,
+      has_pending: false,
+      ...extra,
+    });
     useInboxStore.setState({
-      sessions: { root: row("root"), branch: row("branch", { forked_from: "root", inbox_stashed_at: Date.now() }) },
+      sessions: {
+        root: row("root"),
+        branch: row("branch", {
+          forked_from: "root",
+          inbox_stashed_at: Date.now(),
+        }),
+      },
       currentSessionId: null,
       viewingDismissedId: null,
       tabs: [tab({ path: "/inbox", title: "Inbox" })],
@@ -154,17 +191,30 @@ describe("the inbox tab's ?s= sync on a split stage", () => {
     expect(state().currentSessionId).toBe("root");
     // The pane renders its leaf's ?s= once it loses focus: it must name the branch shown,
     // or the pane falls back to the origin and stops following the branch.
-    expect(findLeaf(activeTab().layout!, inboxLeaf.id)!.path).toBe("/inbox?s=branch");
+    expect(findLeaf(activeTab().layout!, inboxLeaf.id)!.path).toBe(
+      "/inbox?s=branch",
+    );
     // Leaving the peek hands the leaf back to the current session.
     state().clearSelection();
-    expect(findLeaf(activeTab().layout!, inboxLeaf.id)!.path).toBe("/inbox?s=root");
+    expect(findLeaf(activeTab().layout!, inboxLeaf.id)!.path).toBe(
+      "/inbox?s=root",
+    );
   });
 });
 
 describe("healTabPaths layouts", () => {
   it("drops a malformed layout but keeps the tab's plain path", () => {
     const healed = healTabPaths([
-      tab({ layout: { type: "split", id: "x", dir: "row", children: [], sizes: [] } as any, focusedLeafId: "nope" }),
+      tab({
+        layout: {
+          type: "split",
+          id: "x",
+          dir: "row",
+          children: [],
+          sizes: [],
+        } as any,
+        focusedLeafId: "nope",
+      }),
     ]);
     expect(healed[0].layout).toBeUndefined();
     expect(healed[0].focusedLeafId).toBeUndefined();
@@ -177,7 +227,10 @@ describe("healTabPaths layouts", () => {
     // An older client rewrote path without touching the layout:
     const stale = { ...withLayout, path: "/feed" };
     const healed = healTabPaths([stale]);
-    const focused = findLeaf(healed[0].layout as any, healed[0].focusedLeafId as string)!;
+    const focused = findLeaf(
+      healed[0].layout as any,
+      healed[0].focusedLeafId as string,
+    )!;
     expect(focused.path).toBe("/feed");
   });
 

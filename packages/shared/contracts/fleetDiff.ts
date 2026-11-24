@@ -253,7 +253,11 @@ export interface FleetDiff {
 /** Narrowest scope first, as `toInvocableList` orders them (apps/cli/src/capabilities/inventory.ts:398).
  *  This is a ranking, so it is spelled out rather than borrowed from a
  *  declaration list that happens to read the same way today. */
-const SCOPE_ORDER = ["local", "project", "user"] as const satisfies readonly ObservedScope[];
+const SCOPE_ORDER = [
+  "local",
+  "project",
+  "user",
+] as const satisfies readonly ObservedScope[];
 
 /**
  * The order that breaks a tie between rows of equal interest. Kinds that run
@@ -280,7 +284,12 @@ const KIND_ORDER = [
 
 /** Most precise first. A machine on a weaker kind than the row is compared on
  *  did not answer the question the row is asking. */
-const PIN_STRENGTH = ["sha", "version", "url", "repo"] as const satisfies readonly PinKind[];
+const PIN_STRENGTH = [
+  "sha",
+  "version",
+  "url",
+  "repo",
+] as const satisfies readonly PinKind[];
 
 /**
  * Compile-time completeness. `normalizeItem` drops any kind not in `KIND_ORDER`
@@ -289,9 +298,15 @@ const PIN_STRENGTH = ["sha", "version", "url", "repo"] as const satisfies readon
  * instead.
  */
 type Ranked<T extends never> = T;
-type _EveryKindIsRanked = Ranked<Exclude<FleetRowKind, (typeof KIND_ORDER)[number]>>;
-type _EveryScopeIsRanked = Ranked<Exclude<ObservedScope, (typeof SCOPE_ORDER)[number]>>;
-type _EveryPinKindIsRanked = Ranked<Exclude<PinKind, (typeof PIN_STRENGTH)[number]>>;
+type _EveryKindIsRanked = Ranked<
+  Exclude<FleetRowKind, (typeof KIND_ORDER)[number]>
+>;
+type _EveryScopeIsRanked = Ranked<
+  Exclude<ObservedScope, (typeof SCOPE_ORDER)[number]>
+>;
+type _EveryPinKindIsRanked = Ranked<
+  Exclude<PinKind, (typeof PIN_STRENGTH)[number]>
+>;
 
 const KNOWN_KINDS = new Set<FleetRowKind>(KIND_ORDER);
 
@@ -361,7 +376,10 @@ export function capabilityIdentity(
  * that spells it itself is a second definition of identity, waiting to disagree
  * with this one on the first input where case or separator matters.
  */
-export function fleetRowKey(kind: FleetRowKind | string, identity: string): string {
+export function fleetRowKey(
+  kind: FleetRowKind | string,
+  identity: string,
+): string {
   return `${kind}:${identity.toLowerCase()}`;
 }
 
@@ -376,7 +394,10 @@ export function fleetRowKey(kind: FleetRowKind | string, identity: string): stri
  * afford. A remote server's URL has no such problem and a changed URL is real
  * drift, so that one counts.
  */
-function pinOf(kind: FleetRowKind, meta?: Record<string, string>): Pin | undefined {
+function pinOf(
+  kind: FleetRowKind,
+  meta?: Record<string, string>,
+): Pin | undefined {
   switch (kind) {
     case "plugin": {
       // Claude Code records `gitCommitSha` per install, so pinning is read, not
@@ -420,7 +441,9 @@ function normalizeItem(raw: unknown): NormalizedItem | undefined {
   if (!KNOWN_KINDS.has(kind)) return undefined;
   const meta = isRecord(raw.meta)
     ? (Object.fromEntries(
-        Object.entries(raw.meta).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+        Object.entries(raw.meta).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
       ) as Record<string, string>)
     : undefined;
   const identity = capabilityIdentity(kind, raw.name as string, meta);
@@ -468,7 +491,9 @@ function normalizeMarketplace(raw: unknown): NormalizedItem | undefined {
 function readReport(inventory: unknown): NormalizedItem[] | undefined {
   if (!isRecord(inventory)) return undefined;
   const rawItems = Array.isArray(inventory.items) ? inventory.items : undefined;
-  const rawMarketplaces = Array.isArray(inventory.marketplaces) ? inventory.marketplaces : undefined;
+  const rawMarketplaces = Array.isArray(inventory.marketplaces)
+    ? inventory.marketplaces
+    : undefined;
   if (!rawItems && !rawMarketplaces) return undefined;
 
   const out: NormalizedItem[] = [];
@@ -505,7 +530,12 @@ interface Fold {
  * does, which is arbitrary but keeps the answer independent of the order the
  * reports arrived in.
  */
-function supersedes(next: Pin, nextRank: number, current: Pin | undefined, currentRank: number): boolean {
+function supersedes(
+  next: Pin,
+  nextRank: number,
+  current: Pin | undefined,
+  currentRank: number,
+): boolean {
   if (!current) return true;
   if (nextRank !== currentRank) return nextRank < currentRank;
   const strength = pinStrength(next.kind) - pinStrength(current.kind);
@@ -529,7 +559,10 @@ function modal(values: string[]): string | undefined {
   let best: string | undefined;
   let bestCount = 0;
   for (const [value, count] of counts) {
-    if (count > bestCount || (count === bestCount && best !== undefined && value < best)) {
+    if (
+      count > bestCount ||
+      (count === bestCount && best !== undefined && value < best)
+    ) {
       best = value;
       bestCount = count;
     }
@@ -541,7 +574,8 @@ function modal(values: string[]): string | undefined {
 function strongestKind(pins: Pin[]): PinKind | undefined {
   let best: PinKind | undefined;
   for (const pin of pins) {
-    if (best === undefined || pinStrength(pin.kind) < pinStrength(best)) best = pin.kind;
+    if (best === undefined || pinStrength(pin.kind) < pinStrength(best))
+      best = pin.kind;
   }
   return best;
 }
@@ -620,7 +654,11 @@ export function buildFleetDiff(reports: DeviceReport[]): FleetDiff {
     if (index === undefined) {
       index = devices.length;
       deviceIndex.set(deviceId, index);
-      devices.push({ deviceId, label: text(report.deviceLabel) ?? deviceId, reported: false });
+      devices.push({
+        deviceId,
+        label: text(report.deviceLabel) ?? deviceId,
+        reported: false,
+      });
     } else if (devices[index].label === deviceId) {
       // A later row for the same machine may be the one carrying its label.
       devices[index].label = text(report.deviceLabel) ?? deviceId;
@@ -637,15 +675,26 @@ export function buildFleetDiff(reports: DeviceReport[]): FleetDiff {
       const key = fleetRowKey(item.kind, item.identity);
       let row = rows.get(key);
       if (!row) {
-        row = { key, kind: item.kind, identity: item.identity, description: item.description, byDevice: new Map() };
+        row = {
+          key,
+          kind: item.kind,
+          identity: item.identity,
+          description: item.description,
+          byDevice: new Map(),
+        };
         rows.set(key, row);
       }
-      if (!row.description && item.description) row.description = item.description;
+      if (!row.description && item.description)
+        row.description = item.description;
 
       const rank = scopeRank(item.scope);
       let fold = row.byDevice.get(deviceId);
       if (!fold) {
-        fold = { enabled: false, pinRank: SCOPE_ORDER.length, scopes: new Set() };
+        fold = {
+          enabled: false,
+          pinRank: SCOPE_ORDER.length,
+          scopes: new Set(),
+        };
         row.byDevice.set(deviceId, fold);
       }
       // Scopes stack rather than override (apps/cli/src/capabilities/inventory.ts:19-22), so one scope
@@ -653,7 +702,8 @@ export function buildFleetDiff(reports: DeviceReport[]): FleetDiff {
       // `claude plugin list --json` reports. The same goes for the bytes on
       // disk: one declaration finding them is enough.
       fold.enabled = fold.enabled || item.enabled;
-      if (item.installed !== undefined) fold.installed = (fold.installed ?? false) || item.installed;
+      if (item.installed !== undefined)
+        fold.installed = (fold.installed ?? false) || item.installed;
       if (item.pin && supersedes(item.pin, rank, fold.pin, fold.pinRank)) {
         fold.pin = item.pin;
         fold.pinRank = rank;
@@ -696,19 +746,35 @@ export function buildFleetDiff(reports: DeviceReport[]): FleetDiff {
 /** The fold described on `FleetDevice`. Reports with no timestamp cannot be put
  *  in order, so the first error one of them carries is the one that stands. */
 function foldColumnMeta(column: FleetDevice, report: DeviceReport): void {
-  const at = typeof report.reportedAt === "number" && Number.isFinite(report.reportedAt) ? report.reportedAt : undefined;
-  if (at !== undefined && (column.reportedAt === undefined || at > column.reportedAt)) {
+  const at =
+    typeof report.reportedAt === "number" && Number.isFinite(report.reportedAt)
+      ? report.reportedAt
+      : undefined;
+  if (
+    at !== undefined &&
+    (column.reportedAt === undefined || at > column.reportedAt)
+  ) {
     column.reportedAt = at;
     column.lastError = text(report.lastError);
-  } else if (column.reportedAt === undefined && column.lastError === undefined) {
+  } else if (
+    column.reportedAt === undefined &&
+    column.lastError === undefined
+  ) {
     column.lastError = text(report.lastError);
   }
-  if (typeof report.entryCount === "number" && Number.isFinite(report.entryCount)) {
+  if (
+    typeof report.entryCount === "number" &&
+    Number.isFinite(report.entryCount)
+  ) {
     column.entryCount = (column.entryCount ?? 0) + report.entryCount;
   }
 }
 
-function buildRow(accumulator: RowAccumulator, devices: FleetDevice[], comparable: boolean): FleetDiffRow {
+function buildRow(
+  accumulator: RowAccumulator,
+  devices: FleetDevice[],
+  comparable: boolean,
+): FleetDiffRow {
   // Two pin lists, and the difference is the whole of `pinDrift`'s meaning.
   // `livePins` is what the fleet is RUNNING; `heldPins` includes machines that
   // have it switched off. A plugin switched off everywhere at two different
@@ -745,22 +811,39 @@ function buildRow(accumulator: RowAccumulator, devices: FleetDevice[], comparabl
   // question, so it is an unknown pin — exactly how a machine with no pin at
   // all is treated, and for the same reason: calling it drift would cry wolf.
   const pinKind = strongestKind(livePins) ?? strongestKind(heldPins);
-  const comparablePins = livePins.filter((p) => p.kind === pinKind).map((p) => p.value);
+  const comparablePins = livePins
+    .filter((p) => p.kind === pinKind)
+    .map((p) => p.value);
   const baselinePin = modal(comparablePins);
-  const pins = [...new Set(heldPins.filter((p) => p.kind === pinKind).map((p) => p.value))].sort();
+  const pins = [
+    ...new Set(heldPins.filter((p) => p.kind === pinKind).map((p) => p.value)),
+  ].sort();
   const pinDrift = new Set(comparablePins).size > 1;
   // Whether a machine has it, and whether it is switched on, is one axis; the
   // pin is the other. Machines disagree on the first axis when they are not all
   // in the same one of its three states — on, off, or missing.
-  const stateDrift = [activeCount, disabledCount, absentCount].filter((n) => n > 0).length > 1;
+  const stateDrift =
+    [activeCount, disabledCount, absentCount].filter((n) => n > 0).length > 1;
 
   const cells: FleetDiffCell[] = devices.map((device) => {
     if (!device.reported) {
-      return { deviceId: device.deviceId, status: "unknown", present: false, enabled: false, scopes: [] };
+      return {
+        deviceId: device.deviceId,
+        status: "unknown",
+        present: false,
+        enabled: false,
+        scopes: [],
+      };
     }
     const fold = accumulator.byDevice.get(device.deviceId);
     if (!fold) {
-      return { deviceId: device.deviceId, status: "absent", present: false, enabled: false, scopes: [] };
+      return {
+        deviceId: device.deviceId,
+        status: "absent",
+        present: false,
+        enabled: false,
+        scopes: [],
+      };
     }
     const behind =
       fold.pin !== undefined &&

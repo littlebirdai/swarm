@@ -19,7 +19,9 @@ const MONO = /codeFont|Mono\.\w+|JetBrainsMono-/;
 function styleBody(src: string, key: string): string | null {
   const one = src.match(new RegExp(`^\\s+${key}: \\{[^\\n]*\\},?$`, "m"));
   if (one) return one[0];
-  const many = src.match(new RegExp(`^(\\s+)${key}: \\{\\n([\\s\\S]*?)^\\1\\},?$`, "m"));
+  const many = src.match(
+    new RegExp(`^(\\s+)${key}: \\{\\n([\\s\\S]*?)^\\1\\},?$`, "m"),
+  );
   return many ? many[2] : null;
 }
 
@@ -31,30 +33,81 @@ const STYLES: Record<string, string[]> = {
   "components/session/StructuredResultBlock.tsx": ["mono"],
   "components/MarkdownRenderer.tsx": ["refPath"],
   "components/session/NewSessionSheet.tsx": ["folderInput", "folderChipText"],
-  "app/session/[id].tsx": ["toolRunText", "toolCallInput", "toolCallResult", "bashPrompt"],
+  "app/session/[id].tsx": [
+    "toolRunText",
+    "toolCallInput",
+    "toolCallResult",
+    "bashPrompt",
+  ],
 };
 
 /** Lines that must keep naming a mono face where they draw code-like text. */
-const LINES: Record<string, Array<[what: string, pattern: RegExp, count?: number]>> = {
-  "components/CodeText.tsx": [["highlighted code and ANSI output", /<RNText style=\{\[codeFont, style\]\} selectable[=>]/g, 2]],
-  "components/MarkdownRenderer.tsx": [["fenced code lines", /<HighlightedCodeText content=\{line \|\| ' '\} style=\{\{[^}]*fontFamily: 'JetBrainsMono-Regular'/g]],
+const LINES: Record<
+  string,
+  Array<[what: string, pattern: RegExp, count?: number]>
+> = {
+  "components/CodeText.tsx": [
+    [
+      "highlighted code and ANSI output",
+      /<RNText style=\{\[codeFont, style\]\} selectable[=>]/g,
+      2,
+    ],
+  ],
+  "components/MarkdownRenderer.tsx": [
+    [
+      "fenced code lines",
+      /<HighlightedCodeText content=\{line \|\| ' '\} style=\{\{[^}]*fontFamily: 'JetBrainsMono-Regular'/g,
+    ],
+  ],
   "app/session/[id].tsx": [
-    ["the branch chip", /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}>\{conversation\.git_branch\}/g],
+    [
+      "the branch chip",
+      /style=\{\[styles\.metaChipText, codeFont\]\} numberOfLines=\{1\}>\{conversation\.git_branch\}/g,
+    ],
     ["a vault secret's name", /style=\{\[styles\.vaultReadyText, codeFont,/g],
-    ["a local slash command and its output", /styles\.systemRailText, codeFont,/g, 2],
-    ["a trigger's id on a delivery failure", /<CodeRuns text=\{`\$\{frame\?\.trigger \? `\$\{frame\.trigger\} · ` : ''\}\$\{what\}`\} \/>/g],
-    ["slash commands and their arguments", /codeLabel=\{!!(?:cmdName|kind\.cmdName)\}/g, 2],
+    [
+      "a local slash command and its output",
+      /styles\.systemRailText, codeFont,/g,
+      2,
+    ],
+    [
+      "a trigger's id on a delivery failure",
+      /<CodeRuns text=\{`\$\{frame\?\.trigger \? `\$\{frame\.trigger\} · ` : ''\}\$\{what\}`\} \/>/g,
+    ],
+    [
+      "slash commands and their arguments",
+      /codeLabel=\{!!(?:cmdName|kind\.cmdName)\}/g,
+      2,
+    ],
     ["ids in an escalation caption", /<CodeRuns text=\{caption\} \/>/g],
   ],
-  "components/TaskItem.tsx": [["task ids", /\[styles\.(?:shortId|subtaskCount), codeFont\]/g, 2]],
-  "components/PlanItem.tsx": [["plan ids", /\[styles\.shortId, codeFont\]\}>\{plan\.short_id\}/g]],
-  "components/decisions/QueueMeta.tsx": [["decision ids", /\[styles\.dim, codeFont,/g]],
+  "components/TaskItem.tsx": [
+    ["task ids", /\[styles\.(?:shortId|subtaskCount), codeFont\]/g, 2],
+  ],
+  "components/PlanItem.tsx": [
+    ["plan ids", /\[styles\.shortId, codeFont\]\}>\{plan\.short_id\}/g],
+  ],
+  "components/decisions/QueueMeta.tsx": [
+    ["decision ids", /\[styles\.dim, codeFont,/g],
+  ],
   "components/session/FlowCard.tsx": [
-    ["a run's task id and a repository's name", /\[styles\.task, codeFont,/g, 4],
+    [
+      "a run's task id and a repository's name",
+      /\[styles\.task, codeFont,/g,
+      4,
+    ],
     ["ids and hashes in the now line", /<CodeRuns text=\{body\} \/>/g],
   ],
-  "components/session/CastCommandBlock.tsx": [["vault names, vault commands and a command's target", /\[styles\.summary(?:Text|Muted), codeFont\]/g, 3]],
-  "components/session/NewSessionSheet.tsx": [["the machine's name", /code=\{!!selectedDevice\}/g]],
+  "components/session/CastCommandBlock.tsx": [
+    [
+      "vault names, vault commands and a command's target",
+      /\[styles\.summary(?:Text|Muted), codeFont\]/g,
+      3,
+    ],
+  ],
+  "components/session/NewSessionSheet.tsx": [
+    ["the machine's name", /code=\{!!selectedDevice\}/g],
+  ],
 };
 
 describe("code-like text stays mono under Modern", () => {

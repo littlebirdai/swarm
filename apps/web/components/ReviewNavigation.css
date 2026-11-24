@@ -17,7 +17,9 @@
 .cc-review-tray[data-applies] .cc-review-tray-jump:hover:not(:disabled) {
   background: color-mix(in srgb, var(--sol-violet) 8%, transparent);
 }
-.cc-review-tray[data-applies] .cc-review-tray-jump:hover:not(:disabled) .cc-review-tray-quote {
+.cc-review-tray[data-applies]
+  .cc-review-tray-jump:hover:not(:disabled)
+  .cc-review-tray-quote {
   color: var(--sol-violet);
 }
 .cc-review-tray-jump:focus-visible,
@@ -38,7 +40,8 @@
   gap: 0.3rem;
   padding: 0.15rem 0.5rem 0.15rem 0.55rem;
   border: none;
-  border-left: 2px solid color-mix(in srgb, var(--sol-cyan) 70%, var(--sol-border));
+  border-left: 2px solid
+    color-mix(in srgb, var(--sol-cyan) 70%, var(--sol-border));
   border-radius: 0 4px 4px 0;
   background: color-mix(in srgb, var(--sol-bg) 82%, transparent);
   backdrop-filter: blur(4px);
@@ -50,7 +53,9 @@
   white-space: nowrap;
   cursor: pointer;
   animation: fadeIn 150ms ease-out;
-  transition: color 120ms, border-color 120ms;
+  transition:
+    color 120ms,
+    border-color 120ms;
 }
 .cc-review-edge svg {
   color: var(--sol-cyan);
@@ -59,8 +64,12 @@
   color: var(--sol-text);
   border-left-color: var(--sol-cyan);
 }
-.cc-review-edge[data-direction="above"] { top: 6px; }
-.cc-review-edge[data-direction="below"] { bottom: 6px; }
+.cc-review-edge[data-direction="above"] {
+  top: 6px;
+}
+.cc-review-edge[data-direction="below"] {
+  bottom: 6px;
+}
 /* A note pinned on an image leads its row with the picture and a dot where
    the pin sits, so a batch of several reads at a glance. */
 .cc-review-tray-thumb {
@@ -110,13 +119,29 @@
   line-height: 1.4;
   margin-right: 0.4rem;
 }
-.cc-review-tray-verdict[data-verdict="approve"] { color: var(--sol-violet); }
+.cc-review-tray-verdict[data-verdict="approve"] {
+  color: var(--sol-violet);
+}
 .cc-review-tray-verdict[data-verdict="reject"],
-.cc-review-tray-verdict[data-verdict="cut"] { color: color-mix(in srgb, var(--sol-red) 80%, var(--sol-text)); }
-.cc-review-tray-verdict[data-verdict="note"] { color: var(--sol-text-muted); }
-.cc-review-tray-item[data-review-answer="approve"] { border-left-color: color-mix(in srgb, var(--sol-violet) 70%, var(--sol-border)); }
-.cc-review-tray-item[data-review-answer="reject"] { border-left-color: color-mix(in srgb, var(--sol-red) 60%, var(--sol-border)); }
-.cc-review-tray-item[data-review-answer="note"] { border-left-color: var(--sol-border); }
+.cc-review-tray-verdict[data-verdict="cut"] {
+  color: color-mix(in srgb, var(--sol-red) 80%, var(--sol-text));
+}
+.cc-review-tray-verdict[data-verdict="note"] {
+  color: var(--sol-text-muted);
+}
+.cc-review-tray-item[data-review-answer="approve"] {
+  border-left-color: color-mix(
+    in srgb,
+    var(--sol-violet) 70%,
+    var(--sol-border)
+  );
+}
+.cc-review-tray-item[data-review-answer="reject"] {
+  border-left-color: color-mix(in srgb, var(--sol-red) 60%, var(--sol-border));
+}
+.cc-review-tray-item[data-review-answer="note"] {
+  border-left-color: var(--sol-border);
+}
 .cc-review-tray-sentence {
   display: inline;
   font-style: normal;
@@ -129,4 +154,6 @@
 .cc-review-tray-list.cc-review-tray-list-grow {
   max-height: min(24rem, 50vh);
 }
-.cc-review-tray-jump:disabled { cursor: default; }
+.cc-review-tray-jump:disabled {
+  cursor: default;
+}

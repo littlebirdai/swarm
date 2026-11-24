@@ -92,7 +92,10 @@ function isObject(v: unknown): v is Record<string, unknown> {
  * ChatGPT-mode blob carries `OPENAI_API_KEY: null` BESIDE its tokens, so the
  * JWT decides whenever tokens are present.
  */
-export function codexAuthHealth(raw: string | null, now = Date.now()): AuthGate {
+export function codexAuthHealth(
+  raw: string | null,
+  now = Date.now(),
+): AuthGate {
   if (raw === null) return { ship: null, reason: "no codex login" };
   const parsed = parseJson(raw);
   if (!isObject(parsed)) return { ship: null, reason: "malformed" };
@@ -100,11 +103,22 @@ export function codexAuthHealth(raw: string | null, now = Date.now()): AuthGate 
   const lastRefresh = summary.last_refresh;
   const tokens = isObject(parsed.tokens) ? parsed.tokens : undefined;
   if (summary.usable && tokens) {
-    if (summary.access_expires_at === undefined) return { ship: null, reason: "malformed", ...(lastRefresh !== undefined ? { lastRefresh } : {}) };
-    if (codexAccessExpired(summary, now)) return { ship: null, reason: "access token expired", ...(lastRefresh !== undefined ? { lastRefresh } : {}) };
+    if (summary.access_expires_at === undefined)
+      return {
+        ship: null,
+        reason: "malformed",
+        ...(lastRefresh !== undefined ? { lastRefresh } : {}),
+      };
+    if (codexAccessExpired(summary, now))
+      return {
+        ship: null,
+        reason: "access token expired",
+        ...(lastRefresh !== undefined ? { lastRefresh } : {}),
+      };
     return { ship: raw, ...(lastRefresh !== undefined ? { lastRefresh } : {}) };
   }
-  if (summary.api_key) return { ship: raw, ...(lastRefresh !== undefined ? { lastRefresh } : {}) };
+  if (summary.api_key)
+    return { ship: raw, ...(lastRefresh !== undefined ? { lastRefresh } : {}) };
   return { ship: null, reason: "logged-out stub" };
 }
 
@@ -117,13 +131,19 @@ export function geminiAuthHealth(raw: string | null): AuthGate {
   if (raw === null) return { ship: null, reason: "no gemini login" };
   const parsed = parseJson(raw);
   if (!isObject(parsed)) return { ship: null, reason: "malformed" };
-  if (typeof parsed.refresh_token === "string" && parsed.refresh_token) return { ship: raw };
+  if (typeof parsed.refresh_token === "string" && parsed.refresh_token)
+    return { ship: raw };
   return { ship: null, reason: "no refresh token" };
 }
 
 /** `expires`/`expires_at` in seconds or milliseconds → epoch ms, or undefined when absent/unparseable. */
 function expiryMs(v: unknown): number | undefined {
-  const n = typeof v === "number" ? v : typeof v === "string" && /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN;
+  const n =
+    typeof v === "number"
+      ? v
+      : typeof v === "string" && /^\d+(\.\d+)?$/.test(v)
+        ? Number(v)
+        : NaN;
   if (!Number.isFinite(n) || n <= 0) return undefined;
   return n < 1e12 ? n * 1000 : n;
 }
@@ -143,14 +163,29 @@ export function grokAuthHealth(raw: string | null, now = Date.now()): AuthGate {
   if (raw === null) return { ship: null, reason: "no grok login" };
   const parsed = parseJson(raw);
   if (!isObject(parsed)) return { ship: null, reason: "malformed" };
-  if (Object.values(parsed).some((entry) => isObject(entry) && typeof entry.refresh_token === "string" && entry.refresh_token)) {
-    return { ship: null, reason: "grok.com sign-in rotates its refresh token; each host signs in itself" };
+  if (
+    Object.values(parsed).some(
+      (entry) =>
+        isObject(entry) &&
+        typeof entry.refresh_token === "string" &&
+        entry.refresh_token,
+    )
+  ) {
+    return {
+      ship: null,
+      reason:
+        "grok.com sign-in rotates its refresh token; each host signs in itself",
+    };
   }
   let expired = false;
   for (const entry of Object.values(parsed)) {
-    if (!isObject(entry) || typeof entry.key !== "string" || !entry.key) continue;
+    if (!isObject(entry) || typeof entry.key !== "string" || !entry.key)
+      continue;
     const exp = expiryMs(entry.expires_at ?? entry.expires);
-    if (exp !== undefined && exp <= now) { expired = true; continue; }
+    if (exp !== undefined && exp <= now) {
+      expired = true;
+      continue;
+    }
     return { ship: raw };
   }
   return { ship: null, reason: expired ? "every key expired" : "no key" };
@@ -161,7 +196,10 @@ export function grokAuthHealth(raw: string | null, now = Date.now()): AuthGate {
  * whose `expires` is past (their refresh may rotate), keep api/api_key/
  * wellknown entries; null when nothing remains. Returns the filtered blob.
  */
-export function filterProviderAuthMap(raw: string | null, now = Date.now()): AuthGate {
+export function filterProviderAuthMap(
+  raw: string | null,
+  now = Date.now(),
+): AuthGate {
   if (raw === null) return { ship: null, reason: "no login" };
   const parsed = parseJson(raw);
   if (!isObject(parsed)) return { ship: null, reason: "malformed" };
@@ -171,11 +209,18 @@ export function filterProviderAuthMap(raw: string | null, now = Date.now()): Aut
     if (!isObject(entry)) continue;
     if (entry.type === "oauth") {
       const exp = expiryMs(entry.expires);
-      if (exp !== undefined && exp <= now) { dropped++; continue; }
+      if (exp !== undefined && exp <= now) {
+        dropped++;
+        continue;
+      }
     }
     kept[provider] = entry;
   }
-  if (!Object.keys(kept).length) return { ship: null, reason: dropped ? "every entry expired" : "no entries" };
+  if (!Object.keys(kept).length)
+    return {
+      ship: null,
+      reason: dropped ? "every entry expired" : "no entries",
+    };
   return { ship: JSON.stringify(kept, null, 2) + "\n" };
 }
 
@@ -202,15 +247,57 @@ export interface AgentAuthSource {
   remapHome?: boolean;
 }
 
-const xdgData = (home: string, env: NodeJS.ProcessEnv) => env.XDG_DATA_HOME || path.join(home, ".local", "share");
+const xdgData = (home: string, env: NodeJS.ProcessEnv) =>
+  env.XDG_DATA_HOME || path.join(home, ".local", "share");
 
 export const AGENT_AUTH_SOURCES: readonly AgentAuthSource[] = [
-  { id: "codex", client: "codex", localPath: (h, e) => path.join(e.CODEX_HOME || path.join(h, ".codex"), "auth.json"), remotePath: "~/.codex/auth.json", gate: codexAuthHealth },
-  { id: "grok", client: "grok", localPath: (h, e) => path.join(e.GROK_HOME || path.join(h, ".grok"), "auth.json"), remotePath: "~/.grok/auth.json", gate: grokAuthHealth },
-  { id: "gemini", client: "gemini", localPath: (h) => path.join(h, ".gemini", "oauth_creds.json"), remotePath: "~/.gemini/oauth_creds.json", gate: (raw) => geminiAuthHealth(raw) },
-  { id: "gemini-accounts", client: "gemini", localPath: (h) => path.join(h, ".gemini", "google_accounts.json"), remotePath: "~/.gemini/google_accounts.json", gate: (raw) => (raw === null ? { ship: null, reason: "absent" } : { ship: raw }), requires: "gemini", login: "gemini" },
-  { id: "opencode", client: "opencode", localPath: (h, e) => path.join(xdgData(h, e), "opencode", "auth.json"), remotePath: "~/.local/share/opencode/auth.json", gate: filterProviderAuthMap },
-  { id: "pi", client: "pi", localPath: (h) => path.join(h, ".pi", "agent", "auth.json"), remotePath: "~/.pi/agent/auth.json", gate: filterProviderAuthMap },
+  {
+    id: "codex",
+    client: "codex",
+    localPath: (h, e) =>
+      path.join(e.CODEX_HOME || path.join(h, ".codex"), "auth.json"),
+    remotePath: "~/.codex/auth.json",
+    gate: codexAuthHealth,
+  },
+  {
+    id: "grok",
+    client: "grok",
+    localPath: (h, e) =>
+      path.join(e.GROK_HOME || path.join(h, ".grok"), "auth.json"),
+    remotePath: "~/.grok/auth.json",
+    gate: grokAuthHealth,
+  },
+  {
+    id: "gemini",
+    client: "gemini",
+    localPath: (h) => path.join(h, ".gemini", "oauth_creds.json"),
+    remotePath: "~/.gemini/oauth_creds.json",
+    gate: (raw) => geminiAuthHealth(raw),
+  },
+  {
+    id: "gemini-accounts",
+    client: "gemini",
+    localPath: (h) => path.join(h, ".gemini", "google_accounts.json"),
+    remotePath: "~/.gemini/google_accounts.json",
+    gate: (raw) =>
+      raw === null ? { ship: null, reason: "absent" } : { ship: raw },
+    requires: "gemini",
+    login: "gemini",
+  },
+  {
+    id: "opencode",
+    client: "opencode",
+    localPath: (h, e) => path.join(xdgData(h, e), "opencode", "auth.json"),
+    remotePath: "~/.local/share/opencode/auth.json",
+    gate: filterProviderAuthMap,
+  },
+  {
+    id: "pi",
+    client: "pi",
+    localPath: (h) => path.join(h, ".pi", "agent", "auth.json"),
+    remotePath: "~/.pi/agent/auth.json",
+    gate: filterProviderAuthMap,
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -228,7 +315,10 @@ export function presentLogin(raw: string | null): AuthGate {
  * is live, the codex rule, so the host never refreshes the laptop's grant
  * away. `expiresField` names the expiry (an ISO date or epoch seconds/ms).
  */
-export function liveOAuthLogin(expiresField: string, format: "json" | "toml" = "json") {
+export function liveOAuthLogin(
+  expiresField: string,
+  format: "json" | "toml" = "json",
+) {
   return (raw: string | null, now: number): AuthGate => {
     if (raw === null) return { ship: null, reason: "no login" };
     let expiry: unknown;
@@ -237,17 +327,26 @@ export function liveOAuthLogin(expiresField: string, format: "json" | "toml" = "
       if (!isObject(parsed)) return { ship: null, reason: "malformed" };
       expiry = parsed[expiresField];
     } else {
-      expiry = new RegExp(`^\\s*${expiresField}\\s*=\\s*"?([^"\\n]+)"?`, "m").exec(raw)?.[1];
+      expiry = new RegExp(
+        `^\\s*${expiresField}\\s*=\\s*"?([^"\\n]+)"?`,
+        "m",
+      ).exec(raw)?.[1];
     }
-    const ms = typeof expiry === "string" && !/^\d+(\.\d+)?$/.test(expiry) ? Date.parse(expiry) : expiryMs(expiry);
+    const ms =
+      typeof expiry === "string" && !/^\d+(\.\d+)?$/.test(expiry)
+        ? Date.parse(expiry)
+        : expiryMs(expiry);
     if (ms === undefined || Number.isNaN(ms)) return { ship: raw };
-    return ms > now ? { ship: raw } : { ship: null, reason: "access token expired" };
+    return ms > now
+      ? { ship: raw }
+      : { ship: null, reason: "access token expired" };
   };
 }
 
 /** Where a CLI keeps its config on this OS: macOS's Library folder, else its dotfile path. */
 function platformPath(darwin: string, other: string) {
-  return (home: string) => path.join(home, process.platform === "darwin" ? darwin : other);
+  return (home: string) =>
+    path.join(home, process.platform === "darwin" ? darwin : other);
 }
 
 // The daemon reads the gh login every minute to notice a change, and
@@ -262,34 +361,71 @@ function platformPath(darwin: string, other: string) {
 const GH_TOKEN_TTL_MS = 30 * 60_000;
 const GH_TOKEN_RETRY_MS = 10 * 60_000;
 const GH_TOKEN_ARGS = ["auth", "token", "--hostname", "github.com"];
-let ghTokenCache: { dir: string; hosts: string; token: string; at: number } | null = null;
+let ghTokenCache: {
+  dir: string;
+  hosts: string;
+  token: string;
+  at: number;
+} | null = null;
 
-const ghTokenOptions = (env: NodeJS.ProcessEnv) => ({ encoding: "utf-8" as const, timeout: 10_000, env: { ...env, PATH: agentSpawnPath() } });
+const ghTokenOptions = (env: NodeJS.ProcessEnv) => ({
+  encoding: "utf-8" as const,
+  timeout: 10_000,
+  env: { ...env, PATH: agentSpawnPath() },
+});
 
-const ghConfigDir = (home: string, env: NodeJS.ProcessEnv) => env.GH_CONFIG_DIR || path.join(env.XDG_CONFIG_HOME || path.join(home, ".config"), "gh");
+const ghConfigDir = (home: string, env: NodeJS.ProcessEnv) =>
+  env.GH_CONFIG_DIR ||
+  path.join(env.XDG_CONFIG_HOME || path.join(home, ".config"), "gh");
 
 /** hosts.yml and its folder, or null when gh is not logged in here. */
-function ghHosts(home: string, env: NodeJS.ProcessEnv): { dir: string; hosts: string } | null {
+function ghHosts(
+  home: string,
+  env: NodeJS.ProcessEnv,
+): { dir: string; hosts: string } | null {
   const dir = ghConfigDir(home, env);
-  try { return { dir, hosts: fs.readFileSync(path.join(dir, "hosts.yml"), "utf-8") }; } catch { return null; }
+  try {
+    return {
+      dir,
+      hosts: fs.readFileSync(path.join(dir, "hosts.yml"), "utf-8"),
+    };
+  } catch {
+    return null;
+  }
 }
 
 const ghTokenInline = (hosts: string) => /^\s+oauth_token:\s*\S/m.test(hosts);
 
 /** The remembered answer ("" for a failed ask) while it is still good, else undefined. */
-function cachedGhToken(dir: string, hosts: string, now: number): string | undefined {
+function cachedGhToken(
+  dir: string,
+  hosts: string,
+  now: number,
+): string | undefined {
   const c = ghTokenCache;
   if (!c || c.dir !== dir || c.hosts !== hosts) return undefined;
-  return now - c.at < (c.token ? GH_TOKEN_TTL_MS : GH_TOKEN_RETRY_MS) ? c.token : undefined;
+  return now - c.at < (c.token ? GH_TOKEN_TTL_MS : GH_TOKEN_RETRY_MS)
+    ? c.token
+    : undefined;
 }
 
-function rememberGhToken(dir: string, hosts: string, stdout: string | undefined, now: number): string {
+function rememberGhToken(
+  dir: string,
+  hosts: string,
+  stdout: string | undefined,
+  now: number,
+): string {
   const token = (stdout ?? "").trim();
   ghTokenCache = { dir, hosts, token, at: now };
   return token;
 }
 
-function ghKeychainToken(dir: string, hosts: string, env: NodeJS.ProcessEnv, now: number): string {
+function ghKeychainToken(
+  dir: string,
+  hosts: string,
+  env: NodeJS.ProcessEnv,
+  now: number,
+): string {
   const cached = cachedGhToken(dir, hosts, now);
   if (cached !== undefined) return cached;
   const r = spawnSync("gh", GH_TOKEN_ARGS, ghTokenOptions(env));
@@ -297,11 +433,23 @@ function ghKeychainToken(dir: string, hosts: string, env: NodeJS.ProcessEnv, now
 }
 
 /** Ask gh for the keychain token without holding the event loop, so the next readGhLogin answers from the cache. */
-export async function primeGhToken(home: string, env: NodeJS.ProcessEnv = process.env, now = Date.now()): Promise<void> {
+export async function primeGhToken(
+  home: string,
+  env: NodeJS.ProcessEnv = process.env,
+  now = Date.now(),
+): Promise<void> {
   const found = ghHosts(home, env);
-  if (!found || ghTokenInline(found.hosts) || cachedGhToken(found.dir, found.hosts, now) !== undefined) return;
+  if (
+    !found ||
+    ghTokenInline(found.hosts) ||
+    cachedGhToken(found.dir, found.hosts, now) !== undefined
+  )
+    return;
   let stdout = "";
-  try { stdout = (await execFileAsync("gh", GH_TOKEN_ARGS, ghTokenOptions(env))).stdout; } catch {}
+  try {
+    stdout = (await execFileAsync("gh", GH_TOKEN_ARGS, ghTokenOptions(env)))
+      .stdout;
+  } catch {}
   rememberGhToken(found.dir, found.hosts, stdout, now);
 }
 
@@ -311,7 +459,11 @@ export async function primeGhToken(home: string, env: NodeJS.ProcessEnv = proces
  * `gh auth token` and the file is written with it inline, gh's own format when
  * no keyring is present (the host has none).
  */
-export function readGhLogin(home: string, env: NodeJS.ProcessEnv, now = Date.now()): string | null {
+export function readGhLogin(
+  home: string,
+  env: NodeJS.ProcessEnv,
+  now = Date.now(),
+): string | null {
   const found = ghHosts(home, env);
   if (!found) return null;
   const { dir, hosts } = found;
@@ -319,10 +471,14 @@ export function readGhLogin(home: string, env: NodeJS.ProcessEnv, now = Date.now
   const token = ghKeychainToken(dir, hosts, env, now);
   if (!token) return null;
   const user = /^github\.com:[\s\S]*?^\s+user:\s*(\S+)/m.exec(hosts)?.[1];
-  const protocol = /^github\.com:[\s\S]*?^\s+git_protocol:\s*(\S+)/m.exec(hosts)?.[1] ?? "https";
+  const protocol =
+    /^github\.com:[\s\S]*?^\s+git_protocol:\s*(\S+)/m.exec(hosts)?.[1] ??
+    "https";
   return [
     "github.com:",
-    ...(user ? ["    users:", `        ${user}:`, `            oauth_token: ${token}`] : []),
+    ...(user
+      ? ["    users:", `        ${user}:`, `            oauth_token: ${token}`]
+      : []),
     `    git_protocol: ${protocol}`,
     `    oauth_token: ${token}`,
     ...(user ? [`    user: ${user}`] : []),
@@ -333,24 +489,143 @@ export function readGhLogin(home: string, env: NodeJS.ProcessEnv, now = Date.now
 const homeFile = (rel: string) => (home: string) => path.join(home, rel);
 
 export const TOOL_AUTH_SOURCES: readonly AgentAuthSource[] = [
-  { id: "gh", localPath: (h, e) => path.join(ghConfigDir(h, e), "hosts.yml"), remotePath: "~/.config/gh/hosts.yml", gate: presentLogin, read: readGhLogin },
-  { id: "cloudflare", localPath: platformPath("Library/Preferences/cloudflare/config/default.json", ".config/cloudflare/config/default.json"), remotePath: "~/.config/cloudflare/config/default.json", gate: liveOAuthLogin("expiration_time") },
-  { id: "wrangler", localPath: (h, e) => fs.existsSync(path.join(h, ".wrangler/config/default.toml")) ? path.join(h, ".wrangler/config/default.toml") : platformPath("Library/Preferences/.wrangler/config/default.toml", ".config/.wrangler/config/default.toml")(h), remotePath: "~/.wrangler/config/default.toml", gate: liveOAuthLogin("expiration_time", "toml") },
-  { id: "convex", localPath: homeFile(".convex/config.json"), remotePath: "~/.convex/config.json", gate: presentLogin },
-  { id: "aws-config", localPath: (h, e) => e.AWS_CONFIG_FILE || path.join(h, ".aws/config"), remotePath: "~/.aws/config", gate: presentLogin, remapHome: true, login: "aws" },
-  { id: "aws-credentials", localPath: (h, e) => e.AWS_SHARED_CREDENTIALS_FILE || path.join(h, ".aws/credentials"), remotePath: "~/.aws/credentials", gate: presentLogin, login: "aws" },
-  { id: "railway", localPath: homeFile(".railway/config.json"), remotePath: "~/.railway/config.json", gate: presentLogin, remapHome: true },
-  { id: "fly", localPath: homeFile(".fly/config.yml"), remotePath: "~/.fly/config.yml", gate: presentLogin, remapHome: true },
-  { id: "vercel", localPath: platformPath("Library/Application Support/com.vercel.cli/auth.json", ".local/share/com.vercel.cli/auth.json"), remotePath: "~/.local/share/com.vercel.cli/auth.json", gate: presentLogin },
-  { id: "netlify", localPath: platformPath("Library/Preferences/netlify/config.json", ".config/netlify/config.json"), remotePath: "~/.config/netlify/config.json", gate: presentLogin },
-  { id: "supabase", localPath: homeFile(".supabase/access-token"), remotePath: "~/.supabase/access-token", gate: presentLogin },
-  { id: "stripe", localPath: (h, e) => path.join(e.XDG_CONFIG_HOME || path.join(h, ".config"), "stripe/config.toml"), remotePath: "~/.config/stripe/config.toml", gate: presentLogin, remapHome: true },
-  { id: "expo", localPath: homeFile(".expo/state.json"), remotePath: "~/.expo/state.json", gate: presentLogin },
-  { id: "kube", localPath: homeFile(".kube/config"), remotePath: "~/.kube/config", gate: presentLogin, remapHome: true },
-  { id: "npm", localPath: homeFile(".npmrc"), remotePath: "~/.npmrc", gate: presentLogin, remapHome: true },
-  { id: "netrc", localPath: homeFile(".netrc"), remotePath: "~/.netrc", gate: presentLogin },
-  { id: "pgpass", localPath: homeFile(".pgpass"), remotePath: "~/.pgpass", gate: presentLogin },
-  { id: "git-credentials", localPath: homeFile(".git-credentials"), remotePath: "~/.git-credentials", gate: presentLogin },
+  {
+    id: "gh",
+    localPath: (h, e) => path.join(ghConfigDir(h, e), "hosts.yml"),
+    remotePath: "~/.config/gh/hosts.yml",
+    gate: presentLogin,
+    read: readGhLogin,
+  },
+  {
+    id: "cloudflare",
+    localPath: platformPath(
+      "Library/Preferences/cloudflare/config/default.json",
+      ".config/cloudflare/config/default.json",
+    ),
+    remotePath: "~/.config/cloudflare/config/default.json",
+    gate: liveOAuthLogin("expiration_time"),
+  },
+  {
+    id: "wrangler",
+    localPath: (h, e) =>
+      fs.existsSync(path.join(h, ".wrangler/config/default.toml"))
+        ? path.join(h, ".wrangler/config/default.toml")
+        : platformPath(
+            "Library/Preferences/.wrangler/config/default.toml",
+            ".config/.wrangler/config/default.toml",
+          )(h),
+    remotePath: "~/.wrangler/config/default.toml",
+    gate: liveOAuthLogin("expiration_time", "toml"),
+  },
+  {
+    id: "convex",
+    localPath: homeFile(".convex/config.json"),
+    remotePath: "~/.convex/config.json",
+    gate: presentLogin,
+  },
+  {
+    id: "aws-config",
+    localPath: (h, e) => e.AWS_CONFIG_FILE || path.join(h, ".aws/config"),
+    remotePath: "~/.aws/config",
+    gate: presentLogin,
+    remapHome: true,
+    login: "aws",
+  },
+  {
+    id: "aws-credentials",
+    localPath: (h, e) =>
+      e.AWS_SHARED_CREDENTIALS_FILE || path.join(h, ".aws/credentials"),
+    remotePath: "~/.aws/credentials",
+    gate: presentLogin,
+    login: "aws",
+  },
+  {
+    id: "railway",
+    localPath: homeFile(".railway/config.json"),
+    remotePath: "~/.railway/config.json",
+    gate: presentLogin,
+    remapHome: true,
+  },
+  {
+    id: "fly",
+    localPath: homeFile(".fly/config.yml"),
+    remotePath: "~/.fly/config.yml",
+    gate: presentLogin,
+    remapHome: true,
+  },
+  {
+    id: "vercel",
+    localPath: platformPath(
+      "Library/Application Support/com.vercel.cli/auth.json",
+      ".local/share/com.vercel.cli/auth.json",
+    ),
+    remotePath: "~/.local/share/com.vercel.cli/auth.json",
+    gate: presentLogin,
+  },
+  {
+    id: "netlify",
+    localPath: platformPath(
+      "Library/Preferences/netlify/config.json",
+      ".config/netlify/config.json",
+    ),
+    remotePath: "~/.config/netlify/config.json",
+    gate: presentLogin,
+  },
+  {
+    id: "supabase",
+    localPath: homeFile(".supabase/access-token"),
+    remotePath: "~/.supabase/access-token",
+    gate: presentLogin,
+  },
+  {
+    id: "stripe",
+    localPath: (h, e) =>
+      path.join(
+        e.XDG_CONFIG_HOME || path.join(h, ".config"),
+        "stripe/config.toml",
+      ),
+    remotePath: "~/.config/stripe/config.toml",
+    gate: presentLogin,
+    remapHome: true,
+  },
+  {
+    id: "expo",
+    localPath: homeFile(".expo/state.json"),
+    remotePath: "~/.expo/state.json",
+    gate: presentLogin,
+  },
+  {
+    id: "kube",
+    localPath: homeFile(".kube/config"),
+    remotePath: "~/.kube/config",
+    gate: presentLogin,
+    remapHome: true,
+  },
+  {
+    id: "npm",
+    localPath: homeFile(".npmrc"),
+    remotePath: "~/.npmrc",
+    gate: presentLogin,
+    remapHome: true,
+  },
+  {
+    id: "netrc",
+    localPath: homeFile(".netrc"),
+    remotePath: "~/.netrc",
+    gate: presentLogin,
+  },
+  {
+    id: "pgpass",
+    localPath: homeFile(".pgpass"),
+    remotePath: "~/.pgpass",
+    gate: presentLogin,
+  },
+  {
+    id: "git-credentials",
+    localPath: homeFile(".git-credentials"),
+    remotePath: "~/.git-credentials",
+    gate: presentLogin,
+  },
 ];
 
 /**
@@ -359,14 +634,22 @@ export const TOOL_AUTH_SOURCES: readonly AgentAuthSource[] = [
  * every OS.
  */
 export const GCLOUD_LOGIN_DIR = ".config/gcloud";
-const GCLOUD_SKIP = /^(?:logs|cache|surface_data|virtenv)(?:\/|$)|\.lock$|(?:^|\/)\.last_[^/]*$/;
+const GCLOUD_SKIP =
+  /^(?:logs|cache|surface_data|virtenv)(?:\/|$)|\.lock$|(?:^|\/)\.last_[^/]*$/;
 
-export function collectGcloudLogin(home: string, env: NodeJS.ProcessEnv): AgentAuthFile[] {
+export function collectGcloudLogin(
+  home: string,
+  env: NodeJS.ProcessEnv,
+): AgentAuthFile[] {
   const root = env.CLOUDSDK_CONFIG || path.join(home, GCLOUD_LOGIN_DIR);
   const out: AgentAuthFile[] = [];
   const walk = (rel: string) => {
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(path.join(root, rel), { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(path.join(root, rel), { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const e of entries) {
       const child = rel ? `${rel}/${e.name}` : e.name;
       if (GCLOUD_SKIP.test(child)) continue;
@@ -374,12 +657,23 @@ export function collectGcloudLogin(home: string, env: NodeJS.ProcessEnv): AgentA
       else if (e.isFile()) {
         const bytes = fs.readFileSync(path.join(root, child));
         if (bytes.length > 4 * 1024 * 1024) continue;
-        out.push({ path: `~/${GCLOUD_LOGIN_DIR}/${child}`, content: bytes.toString("base64"), mode: 0o600, encoding: "base64" });
+        out.push({
+          path: `~/${GCLOUD_LOGIN_DIR}/${child}`,
+          content: bytes.toString("base64"),
+          mode: 0o600,
+          encoding: "base64",
+        });
       }
     }
   };
   walk("");
-  return out.some((f) => /(?:^|\/)(?:credentials\.db|application_default_credentials\.json)$/.test(f.path)) ? out : [];
+  return out.some((f) =>
+    /(?:^|\/)(?:credentials\.db|application_default_credentials\.json)$/.test(
+      f.path,
+    ),
+  )
+    ? out
+    : [];
 }
 
 // ---------------------------------------------------------------------------
@@ -398,18 +692,36 @@ export type HostLogins = { off: string[] } | { only: string[] };
 export const hostLoginName = (s: AgentAuthSource) => s.login ?? s.id;
 
 /** Every name a host's login setting accepts. */
-export const HOST_LOGIN_NAMES: readonly string[] = [...new Set([...AGENT_AUTH_SOURCES, ...TOOL_AUTH_SOURCES].map(hostLoginName)), "gcloud"];
+export const HOST_LOGIN_NAMES: readonly string[] = [
+  ...new Set([...AGENT_AUTH_SOURCES, ...TOOL_AUTH_SOURCES].map(hostLoginName)),
+  "gcloud",
+];
 
-export function hostLoginTravels(logins: HostLogins | undefined, name: string): boolean {
+export function hostLoginTravels(
+  logins: HostLogins | undefined,
+  name: string,
+): boolean {
   if (!logins) return true;
-  return "only" in logins ? logins.only.includes(name) : !logins.off.includes(name);
+  return "only" in logins
+    ? logins.only.includes(name)
+    : !logins.off.includes(name);
 }
 
 /** A comma list from the command line as setting names; throws naming any it does not know. */
 export function parseHostLoginNames(list: string): string[] {
-  const names = [...new Set(list.split(",").map((n) => n.trim()).filter(Boolean))];
+  const names = [
+    ...new Set(
+      list
+        .split(",")
+        .map((n) => n.trim())
+        .filter(Boolean),
+    ),
+  ];
   const unknown = names.filter((n) => !HOST_LOGIN_NAMES.includes(n));
-  if (unknown.length) throw new Error(`unknown login${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")}; known: ${HOST_LOGIN_NAMES.join(", ")}`);
+  if (unknown.length)
+    throw new Error(
+      `unknown login${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")}; known: ${HOST_LOGIN_NAMES.join(", ")}`,
+    );
   return names;
 }
 
@@ -418,38 +730,61 @@ export function parseHostLoginNames(list: string): string[] {
  * itself when there is nothing to change. Throws on two options at once or
  * a name it does not know.
  */
-export function hostLoginSetting(current: HostLogins | undefined, o: { off?: string; only?: string; on?: string; all?: boolean }): HostLogins | undefined {
-  const given = (["off", "only", "on", "all"] as const).filter((k) => o[k] !== undefined && o[k] !== false);
-  if (given.length > 1) throw new Error(`use one of --off, --only, --on and --all, not ${given.map((k) => `--${k}`).join(" and ")}`);
+export function hostLoginSetting(
+  current: HostLogins | undefined,
+  o: { off?: string; only?: string; on?: string; all?: boolean },
+): HostLogins | undefined {
+  const given = (["off", "only", "on", "all"] as const).filter(
+    (k) => o[k] !== undefined && o[k] !== false,
+  );
+  if (given.length > 1)
+    throw new Error(
+      `use one of --off, --only, --on and --all, not ${given.map((k) => `--${k}`).join(" and ")}`,
+    );
   if (o.all) return { off: [] };
   if (o.off !== undefined) return { off: parseHostLoginNames(o.off) };
   if (o.only !== undefined) return { only: parseHostLoginNames(o.only) };
   if (o.on === undefined || !current) return current;
   const names = parseHostLoginNames(o.on);
-  return "only" in current ? { only: [...new Set([...current.only, ...names])] } : { off: current.off.filter((n) => !names.includes(n)) };
+  return "only" in current
+    ? { only: [...new Set([...current.only, ...names])] }
+    : { off: current.off.filter((n) => !names.includes(n)) };
 }
 
 /** One kept file from the receiver (session-move parseAgentAuthReceiverOutput's `kept`), as the line that says why and what to do. */
 export function keptLoginNote(kept: string): string {
   const owned = /^(.*) host-owned$/.exec(kept);
-  if (owned) return `${owned[1]} kept: the host's own file, never pushed from this laptop (remove it there to let this laptop's login replace it)`;
+  if (owned)
+    return `${owned[1]} kept: the host's own file, never pushed from this laptop (remove it there to let this laptop's login replace it)`;
   return `${kept} — the host's copy is newer; run codex login on this machine to re-own the grant`;
 }
 
 /** The setting in a few words, for `cast hosts ls`. */
 export function describeHostLogins(logins: HostLogins | undefined): string {
   if (!logins) return "all";
-  if ("only" in logins) return logins.only.length ? `only ${logins.only.join(", ")}` : "none but claude";
+  if ("only" in logins)
+    return logins.only.length
+      ? `only ${logins.only.join(", ")}`
+      : "none but claude";
   return logins.off.length ? `all but ${logins.off.join(", ")}` : "all";
 }
 
 /** The exact filenames the daemon's fs.watch reacts to, per source directory. */
-export const AGENT_AUTH_WATCH_FILES: ReadonlySet<string> = new Set(["auth.json", "oauth_creds.json", "google_accounts.json", "settings.json"]);
+export const AGENT_AUTH_WATCH_FILES: ReadonlySet<string> = new Set([
+  "auth.json",
+  "oauth_creds.json",
+  "google_accounts.json",
+  "settings.json",
+]);
 
 /** The directories the daemon watches for a login change (existing ones only). */
-export function agentAuthWatchDirs(home: string, env: NodeJS.ProcessEnv = process.env): string[] {
+export function agentAuthWatchDirs(
+  home: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   const dirs = new Set<string>();
-  for (const s of AGENT_AUTH_SOURCES) dirs.add(path.dirname(s.localPath(home, env)));
+  for (const s of AGENT_AUTH_SOURCES)
+    dirs.add(path.dirname(s.localPath(home, env)));
   dirs.add(path.join(home, ".claude"));
   return [...dirs];
 }
@@ -458,7 +793,9 @@ export function agentAuthWatchDirs(home: string, env: NodeJS.ProcessEnv = proces
 // settings.json env allow-list
 // ---------------------------------------------------------------------------
 
-const PROVIDER_ENV_NAMES: ReadonlySet<string> = new Set(PROVIDER_KEYS.flatMap((p) => p.envVars));
+const PROVIDER_ENV_NAMES: ReadonlySet<string> = new Set(
+  PROVIDER_KEYS.flatMap((p) => p.envVars),
+);
 const API_KEY_NAME = /^[A-Z][A-Z0-9_]*_API_KEY$/;
 
 export interface MirrorEnvRead {
@@ -467,13 +804,19 @@ export interface MirrorEnvRead {
 }
 
 /** Why a settings.json env key must not reach the host, or null when it may. */
-export function mirrorEnvSkipReason(key: string, value: unknown, home: string): string | null {
-  if (key === "ANTHROPIC_API_KEY") return "never mirrored (it would move every claude on the host off the subscription)";
+export function mirrorEnvSkipReason(
+  key: string,
+  value: unknown,
+  home: string,
+): string | null {
+  if (key === "ANTHROPIC_API_KEY")
+    return "never mirrored (it would move every claude on the host off the subscription)";
   if (MIRROR_EXCLUDED_ENV_VARS.includes(key)) return "codecast-owned";
   if (key === "CLAUDE_CONFIG_DIR") return "laptop path";
   if (/_BASE_URL$/.test(key)) return "routing";
   if (/PROXY/i.test(key)) return "proxy";
-  if (!API_KEY_NAME.test(key) && !PROVIDER_ENV_NAMES.has(key)) return "not a provider key";
+  if (!API_KEY_NAME.test(key) && !PROVIDER_ENV_NAMES.has(key))
+    return "not a provider key";
   if (typeof value !== "string") return "not a string";
   if (!value) return "empty";
   if (home && value.includes(home)) return "contains the laptop home";
@@ -494,7 +837,9 @@ export function readClaudeSettingsEnvForMirror(home: string): MirrorEnvRead {
   const out: MirrorEnvRead = { env: {}, skipped: [] };
   let parsed: unknown;
   try {
-    parsed = JSON.parse(fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"));
+    parsed = JSON.parse(
+      fs.readFileSync(path.join(home, ".claude", "settings.json"), "utf-8"),
+    );
   } catch {
     return out;
   }
@@ -534,7 +879,9 @@ export interface CollectedBundle {
 }
 
 /** The file's text (through a symlink: a dotfile-managed auth file is still the login), "missing", or "not a regular file". */
-function readIfFile(file: string): { text: string } | "missing" | "not a regular file" {
+function readIfFile(
+  file: string,
+): { text: string } | "missing" | "not a regular file" {
   try {
     const st = fs.statSync(file);
     if (!st.isFile()) return "not a regular file";
@@ -564,26 +911,65 @@ export function collectAgentAuthBundle(opts: CollectOptions): CollectedBundle {
   for (const source of [...AGENT_AUTH_SOURCES, ...TOOL_AUTH_SOURCES]) {
     if (!hostLoginTravels(opts.logins, hostLoginName(source))) continue;
     const read = readIfFile(source.localPath(opts.home, env));
-    if (read === "missing") { absent.push(source.remotePath); continue; }
-    if (typeof read === "string") { skipped.push({ id: source.id, reason: read }); continue; }
+    if (read === "missing") {
+      absent.push(source.remotePath);
+      continue;
+    }
+    if (typeof read === "string") {
+      skipped.push({ id: source.id, reason: read });
+      continue;
+    }
     const text = source.read ? source.read(opts.home, env) : read.text;
-    if (text === null) { skipped.push({ id: source.id, reason: "no login" }); continue; }
-    if (source.remapHome && !opts.hostHome && text.includes(opts.home)) { skipped.push({ id: source.id, reason: "names laptop paths and no host home was given" }); continue; }
-    const raw = source.remapHome && opts.hostHome ? remapHome(text, opts.home, opts.hostHome) : text;
+    if (text === null) {
+      skipped.push({ id: source.id, reason: "no login" });
+      continue;
+    }
+    if (source.remapHome && !opts.hostHome && text.includes(opts.home)) {
+      skipped.push({
+        id: source.id,
+        reason: "names laptop paths and no host home was given",
+      });
+      continue;
+    }
+    const raw =
+      source.remapHome && opts.hostHome
+        ? remapHome(text, opts.home, opts.hostHome)
+        : text;
     // One file that still names the laptop's home stays behind on its own. As a
     // whole-bundle refusal (assertNoLaptopPaths) the trust store's laptop paths
     // kept every login, Codex's included, off every host: the line's review
     // hands there failed with 401 (union-line-1 to 5, 2026-10-23).
-    if (opts.home && opts.home !== "/" && raw.includes(opts.home)) { skipped.push({ id: source.id, reason: "names laptop paths" }); continue; }
-    if (source.requires && !shipped.has(source.requires)) { skipped.push({ id: source.id, reason: `${source.requires} not shipped` }); continue; }
+    if (opts.home && opts.home !== "/" && raw.includes(opts.home)) {
+      skipped.push({ id: source.id, reason: "names laptop paths" });
+      continue;
+    }
+    if (source.requires && !shipped.has(source.requires)) {
+      skipped.push({ id: source.id, reason: `${source.requires} not shipped` });
+      continue;
+    }
     const gate = source.gate(raw, now);
-    if (gate.ship === null) { skipped.push({ id: source.id, reason: gate.reason ?? "not pushable" }); continue; }
+    if (gate.ship === null) {
+      skipped.push({ id: source.id, reason: gate.reason ?? "not pushable" });
+      continue;
+    }
     shipped.add(source.id);
-    files.push({ path: source.remotePath, content: gate.ship, mode: 0o600, ...(gate.lastRefresh !== undefined ? { last_refresh: gate.lastRefresh } : {}) });
+    files.push({
+      path: source.remotePath,
+      content: gate.ship,
+      mode: 0o600,
+      ...(gate.lastRefresh !== undefined
+        ? { last_refresh: gate.lastRefresh }
+        : {}),
+    });
   }
-  if (hostLoginTravels(opts.logins, "gcloud")) files.push(...collectGcloudLogin(opts.home, env));
+  if (hostLoginTravels(opts.logins, "gcloud"))
+    files.push(...collectGcloudLogin(opts.home, env));
   const bundle: AgentAuthBundle = {
-    origin: { user_id: opts.userId, device_id: opts.deviceId, pushed_at: new Date(now).toISOString() },
+    origin: {
+      user_id: opts.userId,
+      device_id: opts.deviceId,
+      pushed_at: new Date(now).toISOString(),
+    },
     files,
     absent,
     codexTrustPaths: [...(opts.codexTrustPaths ?? [])],
@@ -598,8 +984,21 @@ export function collectAgentAuthBundle(opts: CollectOptions): CollectedBundle {
 }
 
 /** A trust-only bundle: no files, no env, no stamp on the host — just the trust table(s). */
-export function trustOnlyBundle(origin: { userId: string; deviceId: string }, paths: string[], now = Date.now()): AgentAuthBundle {
-  return { origin: { user_id: origin.userId, device_id: origin.deviceId, pushed_at: new Date(now).toISOString() }, files: [], absent: [], codexTrustPaths: [...paths] };
+export function trustOnlyBundle(
+  origin: { userId: string; deviceId: string },
+  paths: string[],
+  now = Date.now(),
+): AgentAuthBundle {
+  return {
+    origin: {
+      user_id: origin.userId,
+      device_id: origin.deviceId,
+      pushed_at: new Date(now).toISOString(),
+    },
+    files: [],
+    absent: [],
+    codexTrustPaths: [...paths],
+  };
 }
 
 /** sha256 of a canonical serialization (sorted, without pushed_at) — the daemon's change signal. */
@@ -607,9 +1006,20 @@ export function bundleHash(bundle: AgentAuthBundle): string {
   const canonical = {
     user_id: bundle.origin.user_id,
     device_id: bundle.origin.device_id,
-    files: [...bundle.files].sort((a, b) => a.path.localeCompare(b.path)).map((f) => ({ path: f.path, content: f.content, mode: f.mode, last_refresh: f.last_refresh ?? null })),
+    files: [...bundle.files]
+      .sort((a, b) => a.path.localeCompare(b.path))
+      .map((f) => ({
+        path: f.path,
+        content: f.content,
+        mode: f.mode,
+        last_refresh: f.last_refresh ?? null,
+      })),
     absent: [...bundle.absent].sort(),
-    claudeEnv: bundle.claudeEnv ? Object.keys(bundle.claudeEnv).sort().map((k) => [k, bundle.claudeEnv![k]]) : null,
+    claudeEnv: bundle.claudeEnv
+      ? Object.keys(bundle.claudeEnv)
+          .sort()
+          .map((k) => [k, bundle.claudeEnv![k]])
+      : null,
     codexTrustPaths: [...bundle.codexTrustPaths].sort(),
   };
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
@@ -621,19 +1031,34 @@ export function bundleHash(bundle: AgentAuthBundle): string {
  * construction and are not checked (a Linux laptop and the host can share
  * `/home/<user>`).
  */
-export function assertNoLaptopPaths(bundle: AgentAuthBundle, home: string): void {
+export function assertNoLaptopPaths(
+  bundle: AgentAuthBundle,
+  home: string,
+): void {
   if (!home || home === "/") return;
   for (const [k, v] of Object.entries(bundle.claudeEnv ?? {})) {
-    if (v.includes(home)) throw new Error(`env ${k} carries the laptop home path`);
+    if (v.includes(home))
+      throw new Error(`env ${k} carries the laptop home path`);
   }
   for (const f of bundle.files) {
-    if (f.content.includes(home)) throw new Error(`${f.path} carries the laptop home path`);
+    if (f.content.includes(home))
+      throw new Error(`${f.path} carries the laptop home path`);
   }
 }
 
 /** The bundle's one-line description for logs: which harnesses ship. */
 export function describeBundle(bundle: AgentAuthBundle): string {
-  const ids = [...new Set(bundle.files.map((f) => [...AGENT_AUTH_SOURCES, ...TOOL_AUTH_SOURCES].find((s) => s.remotePath === f.path)?.id ?? (f.path.startsWith(`~/${GCLOUD_LOGIN_DIR}/`) ? "gcloud" : f.path)))].filter((id) => id !== "gemini-accounts");
+  const ids = [
+    ...new Set(
+      bundle.files.map(
+        (f) =>
+          [...AGENT_AUTH_SOURCES, ...TOOL_AUTH_SOURCES].find(
+            (s) => s.remotePath === f.path,
+          )?.id ??
+          (f.path.startsWith(`~/${GCLOUD_LOGIN_DIR}/`) ? "gcloud" : f.path),
+      ),
+    ),
+  ].filter((id) => id !== "gemini-accounts");
   const env = bundle.claudeEnv ? Object.keys(bundle.claudeEnv).length : 0;
   return `${ids.length ? ids.join(", ") : "no logins"}${env ? `, ${env} env key${env === 1 ? "" : "s"}` : ""}${bundle.codexTrustPaths.length ? `, trust ${bundle.codexTrustPaths.length}` : ""}`;
 }
@@ -659,19 +1084,40 @@ export function agentAuthHostKey(host: RemoteHost): string {
  * login naming laptop paths is rewritten to it) and the same login setting.
  * `homeOf` is session-move's remoteHome (a value import of it here would be a cycle).
  */
-export function agentAuthPushGroups(hosts: RemoteHost[], homeOf: (h: RemoteHost) => string): Array<{ key: string; hostHome: string; logins?: HostLogins; hosts: RemoteHost[] }> {
-  const groups = new Map<string, { key: string; hostHome: string; logins?: HostLogins; hosts: RemoteHost[] }>();
+export function agentAuthPushGroups(
+  hosts: RemoteHost[],
+  homeOf: (h: RemoteHost) => string,
+): Array<{
+  key: string;
+  hostHome: string;
+  logins?: HostLogins;
+  hosts: RemoteHost[];
+}> {
+  const groups = new Map<
+    string,
+    { key: string; hostHome: string; logins?: HostLogins; hosts: RemoteHost[] }
+  >();
   for (const h of hosts) {
     const hostHome = homeOf(h);
     const key = JSON.stringify([hostHome, h.logins ?? null]);
-    const g = groups.get(key) ?? { key, hostHome, ...(h.logins ? { logins: h.logins } : {}), hosts: [] };
+    const g = groups.get(key) ?? {
+      key,
+      hostHome,
+      ...(h.logins ? { logins: h.logins } : {}),
+      hosts: [],
+    };
     g.hosts.push(h);
     groups.set(key, g);
   }
   return [...groups.values()];
 }
 
-export function planAgentAuthPush(hosts: RemoteHost[], hash: string, lastByHost: ReadonlyMap<string, string>, opts: { onlyIfChanged?: boolean } = {}): RemoteHost[] {
+export function planAgentAuthPush(
+  hosts: RemoteHost[],
+  hash: string,
+  lastByHost: ReadonlyMap<string, string>,
+  opts: { onlyIfChanged?: boolean } = {},
+): RemoteHost[] {
   if (!opts.onlyIfChanged) return [...hosts];
   return hosts.filter((h) => lastByHost.get(agentAuthHostKey(h)) !== hash);
 }
@@ -684,8 +1130,21 @@ export function planAgentAuthPush(hosts: RemoteHost[], hash: string, lastByHost:
  * Every launchable agent whose login the bundle ships gets its CLI too: a
  * cloud session with `--agent opencode` must not find an auth file and no binary.
  */
-export type InstallableClient = "claude" | "codex" | "gemini" | "grok" | "opencode" | "pi";
-export const INSTALLABLE_CLIENTS: readonly InstallableClient[] = ["claude", "codex", "gemini", "grok", "opencode", "pi"];
+export type InstallableClient =
+  | "claude"
+  | "codex"
+  | "gemini"
+  | "grok"
+  | "opencode"
+  | "pi";
+export const INSTALLABLE_CLIENTS: readonly InstallableClient[] = [
+  "claude",
+  "codex",
+  "gemini",
+  "grok",
+  "opencode",
+  "pi",
+];
 
 /** The first `x.y.z` in a `--version` output ("2.1.263 (Claude Code)", "codex-cli 0.153.4"). */
 export function parseClientVersion(out: string): string | undefined {
@@ -699,14 +1158,28 @@ export function parseClientVersion(out: string): string | undefined {
  * absent binaries are left out. `opts.path` replaces the PATH entirely
  * (tests: a dir of stubs).
  */
-export function readInstalledClientVersions(opts: { path?: string; env?: NodeJS.ProcessEnv } = {}): Partial<Record<InstallableClient, string>> {
+export function readInstalledClientVersions(
+  opts: { path?: string; env?: NodeJS.ProcessEnv } = {},
+): Partial<Record<InstallableClient, string>> {
   const out: Partial<Record<InstallableClient, string>> = {};
   const home = (opts.env ?? process.env).HOME;
-  const spawnEnv = { ...(opts.env ?? process.env), PATH: opts.path ?? agentSpawnPath(home && `${home}/.opencode/bin`, home && `${home}/.grok/bin`) };
+  const spawnEnv = {
+    ...(opts.env ?? process.env),
+    PATH:
+      opts.path ??
+      agentSpawnPath(
+        home && `${home}/.opencode/bin`,
+        home && `${home}/.grok/bin`,
+      ),
+  };
   for (const bin of INSTALLABLE_CLIENTS) {
     const found = whichBin(bin, spawnEnv.PATH);
     if (!found) continue;
-    const r = spawnSync(found, ["--version"], { encoding: "utf-8", env: spawnEnv, timeout: 15_000 });
+    const r = spawnSync(found, ["--version"], {
+      encoding: "utf-8",
+      env: spawnEnv,
+      timeout: 15_000,
+    });
     const version = parseClientVersion(`${r.stdout ?? ""}\n${r.stderr ?? ""}`);
     if (version) out[bin] = version;
   }

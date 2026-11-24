@@ -15,12 +15,21 @@ import { windowOrgTree } from "../../../store/orgSlice";
  *  it, so a message repaints no line. */
 function lineTreeSig(tree: OrgTree | null | undefined): string {
   if (!tree) return "";
-  const counts = (c: Record<string, number> | undefined) => (c ? Object.values(c).join(",") : "");
+  const counts = (c: Record<string, number> | undefined) =>
+    c ? Object.values(c).join(",") : "";
   // Which sessions are live and where: a sheet's Now and its people on a project read them.
-  const sessions = (list: readonly { _id: string; state: string; project_path?: string | null }[]) => list.map((x) => `${x._id}:${x.state}:${x.project_path ?? ""}`).join(",");
+  const sessions = (
+    list: readonly {
+      _id: string;
+      state: string;
+      project_path?: string | null;
+    }[],
+  ) => list.map((x) => `${x._id}:${x.state}:${x.project_path ?? ""}`).join(",");
   let sig = orgRolesSig(tree);
-  for (const r of tree.roles) sig += `\n#${r._id}|${r.charter ?? ""}|${r.status}|${r.host_user_id}|${r.created_at}|${r.scope.project_ids.join(",")}|${r.standing?.conversation_id ?? ""}|${r.standing?.state ?? ""}|${r.standing?.state_status ?? ""}|${r.standing?.state_line ?? ""}|${counts(r.counts)}|${sessions(r.sessions)}`;
-  for (const p of tree.people) sig += `\n&${p.user_id}|${p.name}|${p.image ?? ""}|${p.is_me ? 1 : 0}|${p.role}|${p.presence ?? ""}|${counts(p.counts)}|${sessions(p.sessions)}`;
+  for (const r of tree.roles)
+    sig += `\n#${r._id}|${r.charter ?? ""}|${r.status}|${r.host_user_id}|${r.created_at}|${r.scope.project_ids.join(",")}|${r.standing?.conversation_id ?? ""}|${r.standing?.state ?? ""}|${r.standing?.state_status ?? ""}|${r.standing?.state_line ?? ""}|${counts(r.counts)}|${sessions(r.sessions)}`;
+  for (const p of tree.people)
+    sig += `\n&${p.user_id}|${p.name}|${p.image ?? ""}|${p.is_me ? 1 : 0}|${p.role}|${p.presence ?? ""}|${counts(p.counts)}|${sessions(p.sessions)}`;
   return sig;
 }
 

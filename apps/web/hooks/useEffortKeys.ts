@@ -8,7 +8,12 @@ export const EFFORT_SCOPE_ATTR = "data-effort-scope";
 
 /** Whether a surface for `conversationId` takes an effort key, given the
  *  scope focus sits in (null: in no marked surface) and whether a modal is up. */
-export function ownsEffortKey(o: { scope: string | null | undefined; conversationId: string; focusOnly: boolean; modalOpen: boolean }): boolean {
+export function ownsEffortKey(o: {
+  scope: string | null | undefined;
+  conversationId: string;
+  focusOnly: boolean;
+  modalOpen: boolean;
+}): boolean {
   return o.scope ? o.scope === o.conversationId : !o.focusOnly && !o.modalOpen;
 }
 
@@ -25,13 +30,32 @@ export function useEffortKeys(
   opts: { blank: boolean; enabled: boolean; focusOnly: boolean },
 ): void {
   const { blank, enabled, focusOnly } = opts;
-  const step = useCallback((dir: 1 | -1) => {
-    if (!enabled || !conversationId) return false;
-    const scope = (document.activeElement as HTMLElement | null)?.closest?.(`[${EFFORT_SCOPE_ATTR}]`)?.getAttribute(EFFORT_SCOPE_ATTR);
-    if (!ownsEffortKey({ scope, conversationId, focusOnly, modalOpen: hasOpenModal() })) return false;
-    return stepEffort(conversationId, dir, blank);
-  }, [enabled, conversationId, focusOnly, blank]);
+  const step = useCallback(
+    (dir: 1 | -1) => {
+      if (!enabled || !conversationId) return false;
+      const scope = (document.activeElement as HTMLElement | null)
+        ?.closest?.(`[${EFFORT_SCOPE_ATTR}]`)
+        ?.getAttribute(EFFORT_SCOPE_ATTR);
+      if (
+        !ownsEffortKey({
+          scope,
+          conversationId,
+          focusOnly,
+          modalOpen: hasOpenModal(),
+        })
+      )
+        return false;
+      return stepEffort(conversationId, dir, blank);
+    },
+    [enabled, conversationId, focusOnly, blank],
+  );
   // Pane-scoped: of a split's conversations only the active pane's answers.
-  usePaneShortcutAction("conv.effortUp", useCallback(() => step(1), [step]));
-  usePaneShortcutAction("conv.effortDown", useCallback(() => step(-1), [step]));
+  usePaneShortcutAction(
+    "conv.effortUp",
+    useCallback(() => step(1), [step]),
+  );
+  usePaneShortcutAction(
+    "conv.effortDown",
+    useCallback(() => step(-1), [step]),
+  );
 }

@@ -10,7 +10,11 @@ export default function RepoSearchPage() {
 
   return (
     <RepoSectionPage tab="search" accent="var(--sol-cyan)">
-      <RepoSearchContent repository={`${params.owner}/${params.name}`} q={q} family={family} />
+      <RepoSearchContent
+        repository={`${params.owner}/${params.name}`}
+        q={q}
+        family={family}
+      />
     </RepoSectionPage>
   );
 }

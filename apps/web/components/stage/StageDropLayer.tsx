@@ -105,14 +105,25 @@ export function StageDropLayer({
     (e: React.DragEvent) => {
       if (!enabled || !dragCarriesPane(e.dataTransfer)) return;
       // A target inside the stage took this drag (an org card, an inbox section): it is not a split.
-      if (e.isDefaultPrevented()) { setHover(null); return; }
+      if (e.isDefaultPrevented()) {
+        setHover(null);
+        return;
+      }
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       const el = ref.current;
       if (!el) return;
       const box = el.getBoundingClientRect();
-      let zone = resolveDropZone(geo, { width: box.width, height: box.height }, e.clientX - box.left, e.clientY - box.top);
-      if (!zone) { setHover(null); return; }
+      let zone = resolveDropZone(
+        geo,
+        { width: box.width, height: box.height },
+        e.clientX - box.left,
+        e.clientY - box.top,
+      );
+      if (!zone) {
+        setHover(null);
+        return;
+      }
       const payload = activePaneDrag();
       const path = payload?.path ?? "/__incoming";
       // A MOVE of one of this stage's own panes predicts against the tree
@@ -120,7 +131,9 @@ export function StageDropLayer({
       // the drop produces (never the pane in both places), and the pane cap
       // doesn't count the slot the move frees up.
       const movingLeafId =
-        payload?.from?.kind === "leaf" && findLeaf(root, payload.from.leafId) ? payload.from.leafId : null;
+        payload?.from?.kind === "leaf" && findLeaf(root, payload.from.leafId)
+          ? payload.from.leafId
+          : null;
       // Any zone on the moving pane itself — its center OR its edges — is a
       // no-op: a pane can't drop into itself. The veil holds steady (no
       // target, no blink) so the gesture reads as "not here", not "nothing".
@@ -130,11 +143,19 @@ export function StageDropLayer({
         setHover((prev) =>
           prev && prev.key === key
             ? prev
-            : { key, zone: selfZone, geometry: geo, newLeafId: null, title: null },
+            : {
+                key,
+                zone: selfZone,
+                geometry: geo,
+                newLeafId: null,
+                title: null,
+              },
         );
         return;
       }
-      const predictionRoot = movingLeafId ? (removeLeaf(root, movingLeafId) ?? root) : root;
+      const predictionRoot = movingLeafId
+        ? (removeLeaf(root, movingLeafId) ?? root)
+        : root;
       let predicted = predictDrop(predictionRoot, zone, path);
       // At the pane cap an edge can't split; degrade to "open here" so the
       // gesture still means something instead of going dead.
@@ -142,13 +163,23 @@ export function StageDropLayer({
         zone = { kind: "center", leafId: zone.leafId };
         predicted = predictDrop(predictionRoot, zone, path);
       }
-      if (!predicted) { setHover(null); return; }
+      if (!predicted) {
+        setHover(null);
+        return;
+      }
       const key = JSON.stringify(zone);
-      const title = payload?.title ?? (payload ? pathLabel(payload.path) : null);
+      const title =
+        payload?.title ?? (payload ? pathLabel(payload.path) : null);
       setHover((prev) =>
         prev && prev.key === key
           ? prev
-          : { key, zone, geometry: predicted.geometry, newLeafId: predicted.newLeafId, title },
+          : {
+              key,
+              zone,
+              geometry: predicted.geometry,
+              newLeafId: predicted.newLeafId,
+              title,
+            },
       );
     },
     [enabled, geo, root],
@@ -181,19 +212,33 @@ export function StageDropLayer({
     >
       {children}
       {hover && (
-        <div className="stage-drop-veil absolute inset-0 z-40 pointer-events-none" aria-hidden>
+        <div
+          className="stage-drop-veil absolute inset-0 z-40 pointer-events-none"
+          aria-hidden
+        >
           {hover.geometry.leaves.map((l) => {
             const isNew = l.id === hover.newLeafId;
             return (
               <div
                 key={l.id}
                 className={`stage-drop-cell${isNew ? " stage-drop-cell--target" : ""}`}
-                style={{ left: `${l.rect.left}%`, top: `${l.rect.top}%`, width: `${l.rect.width}%`, height: `${l.rect.height}%` }}
+                style={{
+                  left: `${l.rect.left}%`,
+                  top: `${l.rect.top}%`,
+                  width: `${l.rect.width}%`,
+                  height: `${l.rect.height}%`,
+                }}
               >
                 {isNew && (
                   <div className="stage-drop-chip">
-                    <span className="stage-drop-chip__verb">{hover.zone.kind === "center" ? "Open here" : "Split"}</span>
-                    {hover.title && <span className="stage-drop-chip__title">{hover.title}</span>}
+                    <span className="stage-drop-chip__verb">
+                      {hover.zone.kind === "center" ? "Open here" : "Split"}
+                    </span>
+                    {hover.title && (
+                      <span className="stage-drop-chip__title">
+                        {hover.title}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

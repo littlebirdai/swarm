@@ -6,9 +6,22 @@ import type { SwitchLedger } from "../../components/consequential/ConsequentialS
 import type { LiveFlow } from "../../hooks/useLiveFlow";
 import { causeName } from "../lineFlow";
 import { problemListName } from "./problemTable";
-import { scoreOf, type ProblemScoreFacts, type ScoredTask } from "./problemScore";
+import {
+  scoreOf,
+  type ProblemScoreFacts,
+  type ScoredTask,
+} from "./problemScore";
 
-type QueueTask = ScoredTask & { _id: string; short_id?: string; title?: string; project_id?: string | null; cause?: { signal_count?: number; named?: { name: string; for: string } | null } | null };
+type QueueTask = ScoredTask & {
+  _id: string;
+  short_id?: string;
+  title?: string;
+  project_id?: string | null;
+  cause?: {
+    signal_count?: number;
+    named?: { name: string; for: string } | null;
+  } | null;
+};
 
 /** One problem in a live flow's queue, in start order. */
 export type LiveQueueRow = {
@@ -23,13 +36,21 @@ export type LiveQueueRow = {
 };
 
 /** The queue's rows, in the live flow's start order. A task the store does not hold yet still has its place, by id. */
-export function liveQueue(flow: Pick<LiveFlow, "queue">, tasks: Readonly<Record<string, QueueTask | undefined>>): LiveQueueRow[] {
+export function liveQueue(
+  flow: Pick<LiveFlow, "queue">,
+  tasks: Readonly<Record<string, QueueTask | undefined>>,
+): LiveQueueRow[] {
   return flow.queue.map((q) => {
     const t = tasks[q.task_id];
     return {
       taskId: q.task_id,
       ref: t?.short_id ?? null,
-      name: t ? problemListName({ title: t.title ?? t.short_id ?? "", name: causeName(t as never) }) : "Loading",
+      name: t
+        ? problemListName({
+            title: t.title ?? t.short_id ?? "",
+            name: causeName(t as never),
+          })
+        : "Loading",
       score: scoreOf(t),
       findings: t?.cause?.signal_count ?? 0,
       projectId: t?.project_id ?? null,
@@ -47,11 +68,21 @@ export function liveFlowLedger(flow: LiveFlow, queued: number): SwitchLedger {
     figures: [
       { value: String(queued), label: "in the queue" },
       { value: String(flow.load.cap), label: "at once" },
-      { value: perDay == null ? "No limit" : String(perDay), label: "a day", ...(perDay == null ? { tone: "warn" as const } : {}) },
+      {
+        value: perDay == null ? "No limit" : String(perDay),
+        label: "a day",
+        ...(perDay == null ? { tone: "warn" as const } : {}),
+      },
     ],
     rows: [
       { k: "Runs", v: flow.flow.label },
-      { k: "Takes from", v: flow.sources ? `${flow.sources.length} ${flow.sources.length === 1 ? "source" : "sources"}` : "Every source", ...(flow.sources ? { list: flow.sources } : {}) },
+      {
+        k: "Takes from",
+        v: flow.sources
+          ? `${flow.sources.length} ${flow.sources.length === 1 ? "source" : "sources"}`
+          : "Every source",
+        ...(flow.sources ? { list: flow.sources } : {}),
+      },
       { k: "Order", v: "Best score first" },
       { k: "Cards go to", v: "Each problem's area lead" },
     ],
@@ -61,12 +92,20 @@ export function liveFlowLedger(flow: LiveFlow, queued: number): SwitchLedger {
 }
 
 /** The ledger for moving a team's live flow onto another library flow: the same queue, switch and settings, a new graph for every new run. */
-export function moveFlowLedger(from: string, to: string, steps: number, queued: number): SwitchLedger {
+export function moveFlowLedger(
+  from: string,
+  to: string,
+  steps: number,
+  queued: number,
+): SwitchLedger {
   return {
     name: "Live flow",
     subject: to,
     shift: [from, to],
-    figures: [{ value: String(steps), label: steps === 1 ? "step" : "steps" }, { value: String(queued), label: "in the queue" }],
+    figures: [
+      { value: String(steps), label: steps === 1 ? "step" : "steps" },
+      { value: String(queued), label: "in the queue" },
+    ],
     rows: [
       { k: "New runs", v: to },
       { k: "Runs going now", v: `Finish on ${from}` },

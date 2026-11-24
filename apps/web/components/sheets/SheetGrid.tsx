@@ -4,19 +4,55 @@
 // never a frame behind. Only the visible window of cells renders; gridlines
 // are one line per visible row/column; selections, other people's ranges and
 // the fill handle are overlays drawn per pane and clipped to it.
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { ArtifactPresence } from "@codecast/shared/artifacts";
-import { cellNum, colLetters, rectContains, type Rect, type TabData, type Workbook } from "@codecast/shared/artifacts/sheets";
+import {
+  cellNum,
+  colLetters,
+  rectContains,
+  type Rect,
+  type TabData,
+  type Workbook,
+} from "@codecast/shared/artifacts/sheets";
 import { CursorTag } from "../live/LiveCursors";
 import { CursorArrow } from "../presence/CursorArrow";
-import { fitNumber, paintCell, tint, type Paint, type PaintContext } from "./cellPaint";
+import {
+  fitNumber,
+  paintCell,
+  tint,
+  type Paint,
+  type PaintContext,
+} from "./cellPaint";
 import type { AxisLayout } from "./layout";
-import { BOTTOM_ROOM, COL_HEADER_H, ROW_HEADER_W, hitTest, type GridHit } from "./gridGeometry";
+import {
+  BOTTOM_ROOM,
+  COL_HEADER_H,
+  ROW_HEADER_W,
+  hitTest,
+  type GridHit,
+} from "./gridGeometry";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 
 const OVERSCAN_PX = 200;
 
-export type Outline = { key: string; rect: Rect; color: string; presence?: ArtifactPresence; dashed?: boolean; fill?: boolean; label?: ReactNode };
+export type Outline = {
+  key: string;
+  rect: Rect;
+  color: string;
+  presence?: ArtifactPresence;
+  dashed?: boolean;
+  fill?: boolean;
+  label?: ReactNode;
+};
 
 export type GridProps = {
   tab: TabData;
@@ -43,7 +79,11 @@ export type GridProps = {
   onUnhide?: (axis: "col" | "row", at: number) => void;
   onDoubleClick: (hit: GridHit) => void;
   onContextMenu: (hit: GridHit, e: React.MouseEvent) => void;
-  onResizeStart: (axis: "col" | "row", index: number, e: React.PointerEvent) => void;
+  onResizeStart: (
+    axis: "col" | "row",
+    index: number,
+    e: React.PointerEvent,
+  ) => void;
   /** Double-click on a column's right edge: fit it to its content. */
   onAutoFit?: (col: number) => void;
   onFillStart: (e: React.PointerEvent) => void;
@@ -54,7 +94,13 @@ export type GridProps = {
 type Win = { r0: number; r1: number; c0: number; c1: number };
 
 /** Where a pane's local (0,0) sits in axis px: local = offset - origin. */
-type Pane = { name: "corner" | "top" | "left" | "main"; ox: number; oy: number; rows: [number, number]; cols: [number, number] };
+type Pane = {
+  name: "corner" | "top" | "left" | "main";
+  ox: number;
+  oy: number;
+  rows: [number, number];
+  cols: [number, number];
+};
 
 export const SheetGrid = memo(function SheetGrid(p: GridProps) {
   const { cols, rows, frozenRows, frozenCols, scrollerRef } = p;
@@ -67,8 +113,10 @@ export const SheetGrid = memo(function SheetGrid(p: GridProps) {
     if (!el) return;
     const vw = el.clientWidth - ROW_HEADER_W - frozenW;
     const vh = el.clientHeight - COL_HEADER_H - frozenH;
-    const x0 = frozenW + el.scrollLeft - OVERSCAN_PX, x1 = frozenW + el.scrollLeft + vw + OVERSCAN_PX;
-    const y0 = frozenH + el.scrollTop - OVERSCAN_PX, y1 = frozenH + el.scrollTop + vh + OVERSCAN_PX;
+    const x0 = frozenW + el.scrollLeft - OVERSCAN_PX,
+      x1 = frozenW + el.scrollLeft + vw + OVERSCAN_PX;
+    const y0 = frozenH + el.scrollTop - OVERSCAN_PX,
+      y1 = frozenH + el.scrollTop + vh + OVERSCAN_PX;
     const next: Win = {
       c0: Math.max(frozenCols + 1, cols.indexAt(Math.max(frozenW, x0))),
       c1: cols.indexAt(x1),
@@ -77,10 +125,17 @@ export const SheetGrid = memo(function SheetGrid(p: GridProps) {
     };
     setWin((w) => {
       // Only re-render when the window moves past the overscan margin.
-      const inside = next.c0 >= w.c0 && next.c1 <= w.c1 && next.r0 >= w.r0 && next.r1 <= w.r1;
-      const far = w.c1 - w.c0 - (next.c1 - next.c0) > 30 || w.r1 - w.r0 - (next.r1 - next.r0) > 60;
+      const inside =
+        next.c0 >= w.c0 &&
+        next.c1 <= w.c1 &&
+        next.r0 >= w.r0 &&
+        next.r1 <= w.r1;
+      const far =
+        w.c1 - w.c0 - (next.c1 - next.c0) > 30 ||
+        w.r1 - w.r0 - (next.r1 - next.r0) > 60;
       if (inside && !far) return w;
-      const pad = (a: number, b: number, n: number, max: number, min: number) => [Math.max(min, a - n), Math.min(max, b + n)] as const;
+      const pad = (a: number, b: number, n: number, max: number, min: number) =>
+        [Math.max(min, a - n), Math.min(max, b + n)] as const;
       const [c0, c1] = pad(next.c0, next.c1, 2, cols.count, frozenCols + 1);
       const [r0, r1] = pad(next.r0, next.r1, 8, rows.count, frozenRows + 1);
       return { c0, c1, r0, r1 };
@@ -118,48 +173,143 @@ export const SheetGrid = memo(function SheetGrid(p: GridProps) {
 
   const panes: Pane[] = useMemo(
     () => [
-      { name: "corner", ox: -ROW_HEADER_W, oy: -COL_HEADER_H, rows: [1, frozenRows], cols: [1, frozenCols] },
-      { name: "top", ox: frozenW, oy: -COL_HEADER_H, rows: [1, frozenRows], cols: [win.c0, win.c1] },
-      { name: "left", ox: -ROW_HEADER_W, oy: frozenH, rows: [win.r0, win.r1], cols: [1, frozenCols] },
-      { name: "main", ox: frozenW, oy: frozenH, rows: [win.r0, win.r1], cols: [win.c0, win.c1] },
+      {
+        name: "corner",
+        ox: -ROW_HEADER_W,
+        oy: -COL_HEADER_H,
+        rows: [1, frozenRows],
+        cols: [1, frozenCols],
+      },
+      {
+        name: "top",
+        ox: frozenW,
+        oy: -COL_HEADER_H,
+        rows: [1, frozenRows],
+        cols: [win.c0, win.c1],
+      },
+      {
+        name: "left",
+        ox: -ROW_HEADER_W,
+        oy: frozenH,
+        rows: [win.r0, win.r1],
+        cols: [1, frozenCols],
+      },
+      {
+        name: "main",
+        ox: frozenW,
+        oy: frozenH,
+        rows: [win.r0, win.r1],
+        cols: [win.c0, win.c1],
+      },
     ],
     [frozenRows, frozenCols, frozenW, frozenH, win],
   );
 
-  const totalW = cols.total, totalH = rows.total;
+  const totalW = cols.total,
+    totalH = rows.total;
   const paneStyle = (pane: Pane): CSSProperties => {
-    const w = pane.name === "corner" || pane.name === "left" ? ROW_HEADER_W + frozenW : totalW - frozenW;
-    const h = pane.name === "corner" || pane.name === "top" ? COL_HEADER_H + frozenH : totalH - frozenH;
-    return { position: "relative", width: w, height: h, overflow: "hidden", flexShrink: 0 };
+    const w =
+      pane.name === "corner" || pane.name === "left"
+        ? ROW_HEADER_W + frozenW
+        : totalW - frozenW;
+    const h =
+      pane.name === "corner" || pane.name === "top"
+        ? COL_HEADER_H + frozenH
+        : totalH - frozenH;
+    return {
+      position: "relative",
+      width: w,
+      height: h,
+      overflow: "hidden",
+      flexShrink: 0,
+    };
   };
 
   const handleDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const t = e.target as HTMLElement;
-    if (t.closest("[data-sheet-resize]") || t.closest("[data-sheet-fill]") || t.closest("[data-sheet-filter]") || t.closest("a")) return;
+    if (
+      t.closest("[data-sheet-resize]") ||
+      t.closest("[data-sheet-fill]") ||
+      t.closest("[data-sheet-filter]") ||
+      t.closest("a")
+    )
+      return;
     const el = scrollerRef.current!;
-    p.onPointerDown(hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY), e);
+    p.onPointerDown(
+      hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY),
+      e,
+    );
   };
   const handleDouble = (e: React.MouseEvent) => {
     const el = scrollerRef.current!;
-    p.onDoubleClick(hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY));
+    p.onDoubleClick(
+      hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY),
+    );
   };
   const handleContext = (e: React.MouseEvent) => {
     const el = scrollerRef.current!;
-    p.onContextMenu(hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY), e);
+    p.onContextMenu(
+      hitTest(el, cols, rows, frozenW, frozenH, e.clientX, e.clientY),
+      e,
+    );
   };
 
   const renderPane = (pane: Pane) => (
-    <div key={pane.name} style={paneStyle(pane)} data-sheet-pane={pane.name} className={pane.name === "corner" || pane.name === "left" ? "sheet-pane-frozen-x" : undefined}>
+    <div
+      key={pane.name}
+      style={paneStyle(pane)}
+      data-sheet-pane={pane.name}
+      className={
+        pane.name === "corner" || pane.name === "left"
+          ? "sheet-pane-frozen-x"
+          : undefined
+      }
+    >
       <PaneBands pane={pane} cols={cols} rows={rows} paintCtx={p.paintCtx} />
       <PaneLines pane={pane} cols={cols} rows={rows} />
-      <PaneCells pane={pane} tab={p.tab} wb={p.wb} version={p.version} cols={cols} rows={rows} paintCtx={p.paintCtx} flash={p.flash} />
+      <PaneCells
+        pane={pane}
+        tab={p.tab}
+        wb={p.wb}
+        version={p.version}
+        cols={cols}
+        rows={rows}
+        paintCtx={p.paintCtx}
+        flash={p.flash}
+      />
       <PaneOverlays pane={pane} {...p} />
       {(pane.name === "corner" || pane.name === "top") && (
-        <ColHeaders pane={pane} cols={cols} rows={rows} sel={p.sel} active={p.active} onResizeStart={p.onResizeStart} onAutoFit={p.onAutoFit} hidden={p.tab.hiddenCols} onUnhide={p.onUnhide} />
+        <ColHeaders
+          pane={pane}
+          cols={cols}
+          rows={rows}
+          sel={p.sel}
+          active={p.active}
+          onResizeStart={p.onResizeStart}
+          onAutoFit={p.onAutoFit}
+          hidden={p.tab.hiddenCols}
+          onUnhide={p.onUnhide}
+        />
       )}
-      {(pane.name === "corner" || pane.name === "left") && <RowHeaders pane={pane} rows={rows} cols={cols} sel={p.sel} active={p.active} onResizeStart={p.onResizeStart} hidden={p.tab.hiddenRows} onUnhide={p.onUnhide} />}
-      {pane.name === "corner" && <div className="sheet-corner" style={{ width: ROW_HEADER_W, height: COL_HEADER_H }} />}
+      {(pane.name === "corner" || pane.name === "left") && (
+        <RowHeaders
+          pane={pane}
+          rows={rows}
+          cols={cols}
+          sel={p.sel}
+          active={p.active}
+          onResizeStart={p.onResizeStart}
+          hidden={p.tab.hiddenRows}
+          onUnhide={p.onUnhide}
+        />
+      )}
+      {pane.name === "corner" && (
+        <div
+          className="sheet-corner"
+          style={{ width: ROW_HEADER_W, height: COL_HEADER_H }}
+        />
+      )}
     </div>
   );
 
@@ -172,13 +322,29 @@ export const SheetGrid = memo(function SheetGrid(p: GridProps) {
       onDoubleClick={handleDouble}
       onContextMenu={handleContext}
     >
-      <div style={{ width: ROW_HEADER_W + totalW, height: COL_HEADER_H + totalH + BOTTOM_ROOM, position: "relative" }}>
-        <div className="sheet-band-top" style={{ height: COL_HEADER_H + frozenH, width: ROW_HEADER_W + totalW }}>
-          <div className="sheet-sticky-left" style={{ zIndex: 4 }}>{renderPane(panes[0])}</div>
+      <div
+        style={{
+          width: ROW_HEADER_W + totalW,
+          height: COL_HEADER_H + totalH + BOTTOM_ROOM,
+          position: "relative",
+        }}
+      >
+        <div
+          className="sheet-band-top"
+          style={{
+            height: COL_HEADER_H + frozenH,
+            width: ROW_HEADER_W + totalW,
+          }}
+        >
+          <div className="sheet-sticky-left" style={{ zIndex: 4 }}>
+            {renderPane(panes[0])}
+          </div>
           {renderPane(panes[1])}
         </div>
         <div style={{ display: "flex", width: ROW_HEADER_W + totalW }}>
-          <div className="sheet-sticky-left" style={{ zIndex: 2 }}>{renderPane(panes[2])}</div>
+          <div className="sheet-sticky-left" style={{ zIndex: 2 }}>
+            {renderPane(panes[2])}
+          </div>
           {renderPane(panes[3])}
         </div>
       </div>
@@ -188,19 +354,44 @@ export const SheetGrid = memo(function SheetGrid(p: GridProps) {
 
 // ── Table bands (under the cells, so blank cells inside a table keep their stripe) ──
 
-const PaneBands = memo(function PaneBands({ pane, cols, rows, paintCtx }: { pane: Pane; cols: AxisLayout; rows: AxisLayout; paintCtx: PaintContext }) {
-  const [r0, r1] = pane.rows, [c0, c1] = pane.cols;
+const PaneBands = memo(function PaneBands({
+  pane,
+  cols,
+  rows,
+  paintCtx,
+}: {
+  pane: Pane;
+  cols: AxisLayout;
+  rows: AxisLayout;
+  paintCtx: PaintContext;
+}) {
+  const [r0, r1] = pane.rows,
+    [c0, c1] = pane.cols;
   if (r1 < r0 || c1 < c0 || !paintCtx.tables.length) return null;
   const out: ReactNode[] = [];
   for (const t of paintCtx.tables) {
-    const cs = Math.max(t.rect.c0, c0), ce = Math.min(t.rect.c1, c1);
+    const cs = Math.max(t.rect.c0, c0),
+      ce = Math.min(t.rect.c1, c1);
     if (cs > ce) continue;
-    const x = cols.offset(cs) - pane.ox, w = cols.offset(ce + 1) - cols.offset(cs);
+    const x = cols.offset(cs) - pane.ox,
+      w = cols.offset(ce + 1) - cols.offset(cs);
     for (let r = Math.max(t.rect.r0, r0); r <= Math.min(t.rect.r1, r1); r++) {
       const head = r === t.rect.r0;
       if (!head && (!t.banded || (r - t.rect.r0) % 2 !== 0)) continue;
       if (rows.sizeOf(r) === 0) continue;
-      out.push(<div key={`${t.key}:${r}`} className="sheet-band" style={{ left: x, top: rows.offset(r) - pane.oy, width: w, height: rows.sizeOf(r), background: tint(t.color, head ? 22 : 7) }} />);
+      out.push(
+        <div
+          key={`${t.key}:${r}`}
+          className="sheet-band"
+          style={{
+            left: x,
+            top: rows.offset(r) - pane.oy,
+            width: w,
+            height: rows.sizeOf(r),
+            background: tint(t.color, head ? 22 : 7),
+          }}
+        />,
+      );
     }
   }
   return <>{out}</>;
@@ -208,21 +399,44 @@ const PaneBands = memo(function PaneBands({ pane, cols, rows, paintCtx }: { pane
 
 // ── Lines ───────────────────────────────────────────────────────────────────
 
-const PaneLines = memo(function PaneLines({ pane, cols, rows }: { pane: Pane; cols: AxisLayout; rows: AxisLayout }) {
+const PaneLines = memo(function PaneLines({
+  pane,
+  cols,
+  rows,
+}: {
+  pane: Pane;
+  cols: AxisLayout;
+  rows: AxisLayout;
+}) {
   const out: ReactNode[] = [];
-  const [c0, c1] = pane.cols, [r0, r1] = pane.rows;
+  const [c0, c1] = pane.cols,
+    [r0, r1] = pane.rows;
   if (c1 < c0 || r1 < r0) return null;
-  const top = rows.offset(r0) - pane.oy, bottom = rows.offset(r1 + 1) - pane.oy;
-  const left = cols.offset(c0) - pane.ox, right = cols.offset(c1 + 1) - pane.ox;
+  const top = rows.offset(r0) - pane.oy,
+    bottom = rows.offset(r1 + 1) - pane.oy;
+  const left = cols.offset(c0) - pane.ox,
+    right = cols.offset(c1 + 1) - pane.ox;
   for (let c = c0; c <= c1; c++) {
     if (cols.sizeOf(c) === 0) continue;
     const x = cols.offset(c + 1) - pane.ox - 1;
-    out.push(<div key={`v${c}`} className="sheet-line" style={{ left: x, top, width: 1, height: bottom - top }} />);
+    out.push(
+      <div
+        key={`v${c}`}
+        className="sheet-line"
+        style={{ left: x, top, width: 1, height: bottom - top }}
+      />,
+    );
   }
   for (let r = r0; r <= r1; r++) {
     if (rows.sizeOf(r) === 0) continue;
     const y = rows.offset(r + 1) - pane.oy - 1;
-    out.push(<div key={`h${r}`} className="sheet-line" style={{ left, top: y, width: right - left, height: 1 }} />);
+    out.push(
+      <div
+        key={`h${r}`}
+        className="sheet-line"
+        style={{ left, top: y, width: right - left, height: 1 }}
+      />,
+    );
   }
   return <>{out}</>;
 });
@@ -230,26 +444,56 @@ const PaneLines = memo(function PaneLines({ pane, cols, rows }: { pane: Pane; co
 // ── Cells ───────────────────────────────────────────────────────────────────
 
 /** solid: a merged cell, painted over the gridlines it covers. */
-type CellBox = { x: number; y: number; w: number; h: number; spill: number; solid?: boolean };
+type CellBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  spill: number;
+  solid?: boolean;
+};
 
 const Cell = memo(
-  function Cell({ box, paint, a1, flash }: { box: CellBox; paint: Paint; a1: string; flash?: boolean }) {
+  function Cell({
+    box,
+    paint,
+    a1,
+    flash,
+  }: {
+    box: CellBox;
+    paint: Paint;
+    a1: string;
+    flash?: boolean;
+  }) {
     const style: CSSProperties = {
       left: box.x,
       top: box.y,
       width: box.w + box.spill,
       height: box.h,
-      justifyContent: paint.align === "right" ? "flex-end" : paint.align === "center" ? "center" : "flex-start",
+      justifyContent:
+        paint.align === "right"
+          ? "flex-end"
+          : paint.align === "center"
+            ? "center"
+            : "flex-start",
       fontWeight: paint.bold ? 600 : undefined,
       fontStyle: paint.italic ? "italic" : undefined,
       textDecoration: paint.underline ? "underline" : undefined,
       color: paint.color,
       whiteSpace: paint.wrap ? "normal" : "pre",
       alignItems: paint.wrap ? "flex-start" : undefined,
-      background: box.solid && paint.fill ? `linear-gradient(${paint.fill}, ${paint.fill}), var(--sheet-bg)` : paint.fill ?? (box.spill || box.solid ? "var(--sheet-bg)" : undefined),
+      background:
+        box.solid && paint.fill
+          ? `linear-gradient(${paint.fill}, ${paint.fill}), var(--sheet-bg)`
+          : (paint.fill ??
+            (box.spill || box.solid ? "var(--sheet-bg)" : undefined)),
       zIndex: box.spill || box.solid ? 1 : undefined,
       paddingRight: paint.padRight ? 26 : undefined,
-      fontSize: paint.check ? "18px" : paint.size ? `${paint.size}px` : undefined,
+      fontSize: paint.check
+        ? "18px"
+        : paint.size
+          ? `${paint.size}px`
+          : undefined,
     };
     if (paint.bd) {
       const b = "1px solid var(--sheet-border-strong)";
@@ -266,18 +510,31 @@ const Cell = memo(
         style={paint.picker === "list" ? { ...style, paddingRight: 22 } : style}
       >
         {paint.chip ? (
-          <span className="sheet-chip" style={{ background: paint.chip.fill, color: paint.chip.color }}>
+          <span
+            className="sheet-chip"
+            style={{ background: paint.chip.fill, color: paint.chip.color }}
+          >
             {paint.text}
           </span>
         ) : (
           <span className="sheet-cell-text">{paint.text}</span>
         )}
-        {paint.picker === "list" && <span className="sheet-cell-caret" aria-hidden />}
+        {paint.picker === "list" && (
+          <span className="sheet-cell-caret" aria-hidden />
+        )}
       </div>
     );
   },
   (a, b) =>
-    a.box.x === b.box.x && a.box.y === b.box.y && a.box.w === b.box.w && a.box.h === b.box.h && a.box.spill === b.box.spill && a.box.solid === b.box.solid && a.a1 === b.a1 && a.flash === b.flash && samePaint(a.paint, b.paint),
+    a.box.x === b.box.x &&
+    a.box.y === b.box.y &&
+    a.box.w === b.box.w &&
+    a.box.h === b.box.h &&
+    a.box.spill === b.box.spill &&
+    a.box.solid === b.box.solid &&
+    a.a1 === b.a1 &&
+    a.flash === b.flash &&
+    samePaint(a.paint, b.paint),
 );
 
 function samePaint(a: Paint, b: Paint): boolean {
@@ -322,33 +579,83 @@ const PaneCells = memo(function PaneCells({
   paintCtx: PaintContext;
   flash?: Set<string>;
 }) {
-  const [c0, c1] = pane.cols, [r0, r1] = pane.rows;
+  const [c0, c1] = pane.cols,
+    [r0, r1] = pane.rows;
   if (c1 < c0 || r1 < r0) return null;
   const out: ReactNode[] = [];
   const tabId = tab.meta.id;
   // Sparse tabs: walk the stored cells when there are fewer of them than visible slots.
   const slots = (c1 - c0 + 1) * (r1 - r0 + 1);
   /** "Is empty" rules color blank cells, so those cells draw too. */
-  const blankRules = paintCtx.conds.filter((c) => c.rule === "empty" && c.tab === tabId);
+  const blankRules = paintCtx.conds.filter(
+    (c) => c.rule === "empty" && c.tab === tabId,
+  );
   const seen = new Set<number>();
   const visit = (col: number, row: number) => {
-    if (rows.sizeOf(row) === 0 || cols.sizeOf(col) === 0 || seen.has(cellNum(col, row))) return;
+    if (
+      rows.sizeOf(row) === 0 ||
+      cols.sizeOf(col) === 0 ||
+      seen.has(cellNum(col, row))
+    )
+      return;
     seen.add(cellNum(col, row));
     // A merged range draws once, from its top-left, across the whole range; the cells under it stay hidden.
-    const merge = paintCtx.merges?.find((m) => col >= m.rect.c0 && col <= m.rect.c1 && row >= m.rect.r0 && row <= m.rect.r1);
+    const merge = paintCtx.merges?.find(
+      (m) =>
+        col >= m.rect.c0 &&
+        col <= m.rect.c1 &&
+        row >= m.rect.r0 &&
+        row <= m.rect.r1,
+    );
     if (merge && (col !== merge.rect.c0 || row !== merge.rect.r0)) return;
     const el = tab.cells.get(cellNum(col, row));
     // A cell without input still draws when a comment is anchored to it, an array formula spills into it, or it heads a merge.
     const info = wb.cell(tabId, col, row);
-    if (!el && !info?.spilled && !merge && !paintCtx.comments?.has(cellNum(col, row)) && !blankRules.some((c) => rectContains(c.rect, col, row))) return;
-    let paint = paintCell(el, info?.value ?? null, info?.implied, col, row, paintCtx);
-    if (!paint.text && !paint.fill && !paint.bd && !paint.comment && !merge) return;
+    if (
+      !el &&
+      !info?.spilled &&
+      !merge &&
+      !paintCtx.comments?.has(cellNum(col, row)) &&
+      !blankRules.some((c) => rectContains(c.rect, col, row))
+    )
+      return;
+    let paint = paintCell(
+      el,
+      info?.value ?? null,
+      info?.implied,
+      col,
+      row,
+      paintCtx,
+    );
+    if (!paint.text && !paint.fill && !paint.bd && !paint.comment && !merge)
+      return;
     // An automatic-format number rounds to its column rather than being cut off.
-    if (el && typeof info?.value === "number" && !el.nf && !info.implied && !paint.wrap) paint = { ...paint, text: fitNumber(paint.text, info.value, cols.sizeOf(col), paint.size) };
+    if (
+      el &&
+      typeof info?.value === "number" &&
+      !el.nf &&
+      !info.implied &&
+      !paint.wrap
+    )
+      paint = {
+        ...paint,
+        text: fitNumber(paint.text, info.value, cols.sizeOf(col), paint.size),
+      };
     let spill = 0;
-    if (paint.align === "left" && !paint.wrap && !paint.chip && paint.text && typeof info?.value === "string") {
+    if (
+      paint.align === "left" &&
+      !paint.wrap &&
+      !paint.chip &&
+      paint.text &&
+      typeof info?.value === "string"
+    ) {
       // Text runs on into empty neighbours, like Sheets.
-      const approx = paint.text.length * 7.6 * ((paint.size ?? 13) / 13) * (paint.bold ? 1.05 : 1) + 14;
+      const approx =
+        paint.text.length *
+          7.6 *
+          ((paint.size ?? 13) / 13) *
+          (paint.bold ? 1.05 : 1) +
+        14;
       let c = col + 1;
       while (approx > cols.sizeOf(col) + spill && c <= c1 && c - col < 12) {
         const n = tab.cells.get(cellNum(c, row));
@@ -362,8 +669,21 @@ const PaneCells = memo(function PaneCells({
         key={`${col}:${row}`}
         box={
           merge
-            ? { x: cols.offset(col) - pane.ox, y: rows.offset(row) - pane.oy, w: cols.offset(merge.rect.c1 + 1) - cols.offset(col), h: rows.offset(merge.rect.r1 + 1) - rows.offset(row), spill: 0, solid: true }
-            : { x: cols.offset(col) - pane.ox, y: rows.offset(row) - pane.oy, w: cols.sizeOf(col), h: rows.sizeOf(row), spill }
+            ? {
+                x: cols.offset(col) - pane.ox,
+                y: rows.offset(row) - pane.oy,
+                w: cols.offset(merge.rect.c1 + 1) - cols.offset(col),
+                h: rows.offset(merge.rect.r1 + 1) - rows.offset(row),
+                spill: 0,
+                solid: true,
+              }
+            : {
+                x: cols.offset(col) - pane.ox,
+                y: rows.offset(row) - pane.oy,
+                w: cols.sizeOf(col),
+                h: rows.sizeOf(row),
+                spill,
+              }
         }
         paint={paint}
         a1={`${colLetters(col)}${row}`}
@@ -373,22 +693,48 @@ const PaneCells = memo(function PaneCells({
   };
   if (tab.cells.size < slots) {
     for (const n of tab.cells.keys()) {
-      const col = n % 32768, row = Math.floor(n / 32768);
+      const col = n % 32768,
+        row = Math.floor(n / 32768);
       if (col >= c0 && col <= c1 && row >= r0 && row <= r1) visit(col, row);
     }
     for (const n of paintCtx.comments?.keys() ?? []) {
-      const col = n % 32768, row = Math.floor(n / 32768);
-      if (!tab.cells.has(n) && col >= c0 && col <= c1 && row >= r0 && row <= r1) visit(col, row);
+      const col = n % 32768,
+        row = Math.floor(n / 32768);
+      if (!tab.cells.has(n) && col >= c0 && col <= c1 && row >= r0 && row <= r1)
+        visit(col, row);
     }
-    for (const m of paintCtx.merges ?? []) if (m.rect.c0 >= c0 && m.rect.c0 <= c1 && m.rect.r0 >= r0 && m.rect.r0 <= r1 && !tab.cells.has(cellNum(m.rect.c0, m.rect.r0))) visit(m.rect.c0, m.rect.r0);
+    for (const m of paintCtx.merges ?? [])
+      if (
+        m.rect.c0 >= c0 &&
+        m.rect.c0 <= c1 &&
+        m.rect.r0 >= r0 &&
+        m.rect.r0 <= r1 &&
+        !tab.cells.has(cellNum(m.rect.c0, m.rect.r0))
+      )
+        visit(m.rect.c0, m.rect.r0);
     for (const sp of wb.spillRects(tabId))
       for (let row = Math.max(sp.r0, r0); row <= Math.min(sp.r1, r1); row++)
-        for (let col = Math.max(sp.c0, c0); col <= Math.min(sp.c1, c1); col++) if (!tab.cells.has(cellNum(col, row)) && !paintCtx.comments?.has(cellNum(col, row))) visit(col, row);
+        for (let col = Math.max(sp.c0, c0); col <= Math.min(sp.c1, c1); col++)
+          if (
+            !tab.cells.has(cellNum(col, row)) &&
+            !paintCtx.comments?.has(cellNum(col, row))
+          )
+            visit(col, row);
     for (const c of blankRules)
-      for (let row = Math.max(c.rect.r0, r0); row <= Math.min(c.rect.r1, r1); row++)
-        for (let col = Math.max(c.rect.c0, c0); col <= Math.min(c.rect.c1, c1); col++) visit(col, row);
+      for (
+        let row = Math.max(c.rect.r0, r0);
+        row <= Math.min(c.rect.r1, r1);
+        row++
+      )
+        for (
+          let col = Math.max(c.rect.c0, c0);
+          col <= Math.min(c.rect.c1, c1);
+          col++
+        )
+          visit(col, row);
   } else {
-    for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) visit(col, row);
+    for (let row = r0; row <= r1; row++)
+      for (let col = c0; col <= c1; col++) visit(col, row);
   }
   return <>{out}</>;
 });
@@ -427,11 +773,25 @@ function ColHeaders({
       <div
         key={c}
         className={`sheet-colhead ${inSel ? (fullCol ? "is-full" : "is-sel") : ""} ${c === active.col ? "is-active" : ""}`}
-        style={{ left: cols.offset(c) - pane.ox, width: w, height: COL_HEADER_H }}
+        style={{
+          left: cols.offset(c) - pane.ox,
+          width: w,
+          height: COL_HEADER_H,
+        }}
       >
         {colLetters(c)}
-        {hidden?.has(c - 1) && <UnhideMark axis="col" at={c} onUnhide={onUnhide} />}
-        <div data-sheet-resize="col" className="sheet-resize-col" onPointerDown={(e) => onResizeStart("col", c, e)} onDoubleClick={(e) => { e.stopPropagation(); onAutoFit?.(c); }} />
+        {hidden?.has(c - 1) && (
+          <UnhideMark axis="col" at={c} onUnhide={onUnhide} />
+        )}
+        <div
+          data-sheet-resize="col"
+          className="sheet-resize-col"
+          onPointerDown={(e) => onResizeStart("col", c, e)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onAutoFit?.(c);
+          }}
+        />
       </div>,
     );
   }
@@ -439,7 +799,15 @@ function ColHeaders({
 }
 
 /** Where hidden columns or rows sit: a mark on the next header that shows them again. */
-function UnhideMark({ axis, at, onUnhide }: { axis: "col" | "row"; at: number; onUnhide?: GridProps["onUnhide"] }) {
+function UnhideMark({
+  axis,
+  at,
+  onUnhide,
+}: {
+  axis: "col" | "row";
+  at: number;
+  onUnhide?: GridProps["onUnhide"];
+}) {
   return (
     <button
       type="button"
@@ -456,7 +824,25 @@ function UnhideMark({ axis, at, onUnhide }: { axis: "col" | "row"; at: number; o
   );
 }
 
-function RowHeaders({ pane, rows, cols, sel, active, onResizeStart, hidden, onUnhide }: { pane: Pane; rows: AxisLayout; cols: AxisLayout; sel: Rect; active: { row: number }; onResizeStart: GridProps["onResizeStart"]; hidden?: ReadonlySet<number>; onUnhide?: GridProps["onUnhide"] }) {
+function RowHeaders({
+  pane,
+  rows,
+  cols,
+  sel,
+  active,
+  onResizeStart,
+  hidden,
+  onUnhide,
+}: {
+  pane: Pane;
+  rows: AxisLayout;
+  cols: AxisLayout;
+  sel: Rect;
+  active: { row: number };
+  onResizeStart: GridProps["onResizeStart"];
+  hidden?: ReadonlySet<number>;
+  onUnhide?: GridProps["onUnhide"];
+}) {
   const [r0, r1] = pane.rows;
   const out: ReactNode[] = [];
   const fullRow = sel.c0 === 1 && sel.c1 >= cols.count;
@@ -470,11 +856,21 @@ function RowHeaders({ pane, rows, cols, sel, active, onResizeStart, hidden, onUn
       <div
         key={r}
         className={`sheet-rowhead ${inSel ? (fullRow ? "is-full" : "is-sel") : ""} ${r === active.row ? "is-active" : ""} ${hiddenAbove ? "has-hidden-above" : ""}`}
-        style={{ top: rows.offset(r) - pane.oy, height: h, width: ROW_HEADER_W }}
+        style={{
+          top: rows.offset(r) - pane.oy,
+          height: h,
+          width: ROW_HEADER_W,
+        }}
       >
         {r}
-        {hidden?.has(r - 1) && <UnhideMark axis="row" at={r} onUnhide={onUnhide} />}
-        <div data-sheet-resize="row" className="sheet-resize-row" onPointerDown={(e) => onResizeStart("row", r, e)} />
+        {hidden?.has(r - 1) && (
+          <UnhideMark axis="row" at={r} onUnhide={onUnhide} />
+        )}
+        <div
+          data-sheet-resize="row"
+          className="sheet-resize-row"
+          onPointerDown={(e) => onResizeStart("row", r, e)}
+        />
       </div>,
     );
   }
@@ -484,30 +880,64 @@ function RowHeaders({ pane, rows, cols, sel, active, onResizeStart, hidden, onUn
 // ── Overlays ────────────────────────────────────────────────────────────────
 
 function rectBox(pane: Pane, cols: AxisLayout, rows: AxisLayout, r: Rect) {
-  const c1 = Math.min(r.c1, cols.count), r1 = Math.min(r.r1, rows.count);
-  const x = cols.offset(r.c0) - pane.ox, y = rows.offset(r.r0) - pane.oy;
-  return { x, y, w: cols.offset(c1 + 1) - cols.offset(r.c0), h: rows.offset(r1 + 1) - rows.offset(r.r0) };
+  const c1 = Math.min(r.c1, cols.count),
+    r1 = Math.min(r.r1, rows.count);
+  const x = cols.offset(r.c0) - pane.ox,
+    y = rows.offset(r.r0) - pane.oy;
+  return {
+    x,
+    y,
+    w: cols.offset(c1 + 1) - cols.offset(r.c0),
+    h: rows.offset(r1 + 1) - rows.offset(r.r0),
+  };
 }
 
 function PaneOverlays(p: GridProps & { pane: Pane }) {
   const { pane, cols, rows, sel, active, outlines, readOnly } = p;
   const s = rectBox(pane, cols, rows, sel);
-  const ar = p.activeRect ?? { c0: active.col, c1: active.col, r0: active.row, r1: active.row };
+  const ar = p.activeRect ?? {
+    c0: active.col,
+    c1: active.col,
+    r0: active.row,
+    r1: active.row,
+  };
   const a = rectBox(pane, cols, rows, ar);
-  const multi = sel.c0 !== ar.c0 || sel.c1 !== ar.c1 || sel.r0 !== ar.r0 || sel.r1 !== ar.r1;
+  const multi =
+    sel.c0 !== ar.c0 ||
+    sel.c1 !== ar.c1 ||
+    sel.r0 !== ar.r0 ||
+    sel.r1 !== ar.r1;
   return (
     <>
       {outlines.map((o) => {
         const b = rectBox(pane, cols, rows, o.rect);
         const agent = o.presence?.kind === "agent";
         return (
-          <div key={o.key} className="sheet-outline" data-sheet-outline={o.key} style={{ left: b.x - 1, top: b.y - 1, width: b.w + 1, height: b.h + 1, borderColor: o.color, borderStyle: o.dashed ? "dashed" : "solid", background: o.fill ? `color-mix(in srgb, ${o.color} 6%, transparent)` : undefined }}>
-            {o.presence && !agent && (
-              // Above the range's top edge; a range on row 1 has its tag under it instead.
-              <span className={`sheet-outline-tag ${o.rect.r0 <= 1 ? "sheet-outline-tag-under" : "sheet-outline-tag-top"}`}>
-                <CursorTag p={o.presence} />
-              </span>
-            )}
+          <div
+            key={o.key}
+            className="sheet-outline"
+            data-sheet-outline={o.key}
+            style={{
+              left: b.x - 1,
+              top: b.y - 1,
+              width: b.w + 1,
+              height: b.h + 1,
+              borderColor: o.color,
+              borderStyle: o.dashed ? "dashed" : "solid",
+              background: o.fill
+                ? `color-mix(in srgb, ${o.color} 6%, transparent)`
+                : undefined,
+            }}
+          >
+            {o.presence &&
+              !agent && (
+                // Above the range's top edge; a range on row 1 has its tag under it instead.
+                <span
+                  className={`sheet-outline-tag ${o.rect.r0 <= 1 ? "sheet-outline-tag-under" : "sheet-outline-tag-top"}`}
+                >
+                  <CursorTag p={o.presence} />
+                </span>
+              )}
             {o.presence && agent && (
               <>
                 <span className="sheet-outline-arrow">
@@ -534,9 +964,24 @@ function PaneOverlays(p: GridProps & { pane: Pane }) {
           }}
         />
       )}
-      <div className="sheet-sel" style={{ left: s.x - 1, top: s.y - 1, width: s.w + 1, height: s.h + 1 }} />
-      {multi && <div className="sheet-active" style={{ left: a.x, top: a.y, width: a.w - 1, height: a.h - 1 }} />}
-      {!readOnly && <div data-sheet-fill className="sheet-fill-handle" style={{ left: s.x + s.w - 4, top: s.y + s.h - 4 }} onPointerDown={p.onFillStart} />}
+      <div
+        className="sheet-sel"
+        style={{ left: s.x - 1, top: s.y - 1, width: s.w + 1, height: s.h + 1 }}
+      />
+      {multi && (
+        <div
+          className="sheet-active"
+          style={{ left: a.x, top: a.y, width: a.w - 1, height: a.h - 1 }}
+        />
+      )}
+      {!readOnly && (
+        <div
+          data-sheet-fill
+          className="sheet-fill-handle"
+          style={{ left: s.x + s.w - 4, top: s.y + s.h - 4 }}
+          onPointerDown={p.onFillStart}
+        />
+      )}
     </>
   );
 }

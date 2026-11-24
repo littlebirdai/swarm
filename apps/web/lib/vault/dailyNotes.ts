@@ -25,10 +25,28 @@ export const DEFAULT_DAILY_SETTINGS: DailyNoteSettings = {
 const pad = (n: number, width = 2) => String(n).padStart(width, "0");
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 /** Format a date with the token subset Obsidian users actually type.
  *  Longest tokens first so YYYY isn't eaten by YY. */
@@ -80,7 +98,12 @@ export function adjacentDailyNote(
   const current = dailyNotePath(date, settings);
   const prefix = settings.folder ? `${settings.folder}/` : "";
   const candidates = paths
-    .filter((p) => p.startsWith(prefix) && p.endsWith(".md") && !p.slice(prefix.length).includes("/"))
+    .filter(
+      (p) =>
+        p.startsWith(prefix) &&
+        p.endsWith(".md") &&
+        !p.slice(prefix.length).includes("/"),
+    )
     .sort();
   if (!candidates.length) return null;
   if (direction === 1) return candidates.find((p) => p > current) ?? null;
@@ -99,14 +122,22 @@ export function adjacentDailyNote(
  *  one that silently drops content is not. */
 export function expandTemplate(
   body: string,
-  vars: { title: string; date?: Date; dateFormat?: string; timeFormat?: string },
+  vars: {
+    title: string;
+    date?: Date;
+    dateFormat?: string;
+    timeFormat?: string;
+  },
 ): string {
   const now = vars.date ?? new Date();
   const dateFmt = vars.dateFormat ?? "YYYY-MM-DD";
   const timeFmt = vars.timeFormat ?? "HH:mm";
-  return body.replace(/\{\{(title|date|time)(?::([^}]+))?\}\}/g, (_m, kind: string, fmt?: string) => {
-    if (kind === "title") return vars.title;
-    if (kind === "date") return formatDate(now, fmt || dateFmt);
-    return formatDate(now, fmt || timeFmt);
-  });
+  return body.replace(
+    /\{\{(title|date|time)(?::([^}]+))?\}\}/g,
+    (_m, kind: string, fmt?: string) => {
+      if (kind === "title") return vars.title;
+      if (kind === "date") return formatDate(now, fmt || dateFmt);
+      return formatDate(now, fmt || timeFmt);
+    },
+  );
 }

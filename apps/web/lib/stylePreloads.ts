@@ -18,14 +18,20 @@
 
 /** rrweb's own test for the links it waits on: rel is exactly "preload" and the href's file is .css. `as="style"` is the boot script's. */
 function isStylePreload(link: Element): boolean {
-  if ((link.getAttribute("rel") ?? "").trim().toLowerCase() !== "preload") return false;
-  if ((link.getAttribute("as") ?? "").trim().toLowerCase() === "style") return true;
+  if ((link.getAttribute("rel") ?? "").trim().toLowerCase() !== "preload")
+    return false;
+  if ((link.getAttribute("as") ?? "").trim().toLowerCase() === "style")
+    return true;
   const href = link.getAttribute("href") ?? "";
   return /\.css$/i.test(href.split(/[?#]/)[0]);
 }
 
 /** Remove every stylesheet preload link from the document. Returns how many it removed. */
-export function dropStylePreloads(doc: Document | undefined = typeof document === "undefined" ? undefined : document): number {
+export function dropStylePreloads(
+  doc: Document | undefined = typeof document === "undefined"
+    ? undefined
+    : document,
+): number {
   if (!doc) return 0;
   let removed = 0;
   for (const link of Array.from(doc.querySelectorAll("link[rel]"))) {

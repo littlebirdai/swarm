@@ -7,7 +7,10 @@ import { MemoryRouter } from "react-router";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import type { ConversationData } from "../../conversation/types";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/",
+  pretendToBeVisual: true,
+});
 const sizes = new WeakMap<Element, number>();
 let onRectRead: ((el: HTMLElement) => void) | undefined;
 let onHeightRead: ((el: HTMLElement) => void) | undefined;
@@ -18,124 +21,379 @@ let paneHidden = false;
 let scrollerReads = 0;
 // A row's height by its key, for a test whose rows unmount and mount again.
 const keyedSizes = new Map<string, number>();
-const height = (el: Element) => paneHidden || (el as HTMLElement).style.height === "0px" ? 0 : sizes.get(el) ?? keyedSizes.get((el as HTMLElement).dataset?.vkey ?? "") ?? (el.hasAttribute("data-sv-feed") ? 500 : 50);
+const height = (el: Element) =>
+  paneHidden || (el as HTMLElement).style.height === "0px"
+    ? 0
+    : (sizes.get(el) ??
+      keyedSizes.get((el as HTMLElement).dataset?.vkey ?? "") ??
+      (el.hasAttribute("data-sv-feed") ? 500 : 50));
 /** Every observer reports each of its targets again, as a browser does when a pane hides or shows. */
 const reportAllBoxes = () => {
   for (const observer of [...observers]) {
-    const entries = [...observer.targets].filter((el) => el.isConnected).map((el) => ({ target: el, contentRect: { width: paneHidden ? 0 : 700, height: height(el) }, borderBoxSize: [{ blockSize: height(el), inlineSize: paneHidden ? 0 : 700 }] }));
-    if (entries.length) observer.callback(entries as unknown as ResizeObserverEntry[], observer as unknown as ResizeObserver);
+    const entries = [...observer.targets]
+      .filter((el) => el.isConnected)
+      .map((el) => ({
+        target: el,
+        contentRect: { width: paneHidden ? 0 : 700, height: height(el) },
+        borderBoxSize: [
+          { blockSize: height(el), inlineSize: paneHidden ? 0 : 700 },
+        ],
+      }));
+    if (entries.length)
+      observer.callback(
+        entries as unknown as ResizeObserverEntry[],
+        observer as unknown as ResizeObserver,
+      );
   }
 };
 class TestResizeObserver {
   targets = new Set<Element>();
-  constructor(public callback: ResizeObserverCallback) { observers.add(this); }
+  constructor(public callback: ResizeObserverCallback) {
+    observers.add(this);
+  }
   observe(el: Element) {
     this.targets.add(el);
     queueMicrotask(() => {
-      if (this.targets.has(el) && el.isConnected) this.callback([{ target: el, borderBoxSize: [{ blockSize: height(el), inlineSize: 700 }] } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver);
+      if (this.targets.has(el) && el.isConnected)
+        this.callback(
+          [
+            {
+              target: el,
+              borderBoxSize: [{ blockSize: height(el), inlineSize: 700 }],
+            } as unknown as ResizeObserverEntry,
+          ],
+          this as unknown as ResizeObserver,
+        );
     });
   }
-  unobserve(el: Element) { this.targets.delete(el); }
-  disconnect() { this.targets.clear(); observers.delete(this); }
+  unobserve(el: Element) {
+    this.targets.delete(el);
+  }
+  disconnect() {
+    this.targets.clear();
+    observers.delete(this);
+  }
 }
 Object.defineProperties(dom.window.HTMLElement.prototype, {
   scrollTop: {
-    get() { return offsets.get(this) ?? 0; },
+    get() {
+      return offsets.get(this) ?? 0;
+    },
     set(value: number) {
-      const next = Math.max(0, Math.min(value, Math.max(0, this.scrollHeight - this.clientHeight)));
+      const next = Math.max(
+        0,
+        Math.min(value, Math.max(0, this.scrollHeight - this.clientHeight)),
+      );
       if (next === (offsets.get(this) ?? 0)) return;
       offsets.set(this, next);
-      queueMicrotask(() => { if (this.isConnected) this.dispatchEvent(new dom.window.Event("scroll")); });
+      queueMicrotask(() => {
+        if (this.isConnected)
+          this.dispatchEvent(new dom.window.Event("scroll"));
+      });
     },
   },
-  offsetHeight: { get() { onHeightRead?.(this); return height(this); } },
-  offsetWidth: { get() { return 700; } },
-  clientHeight: { get() { if (this.hasAttribute("data-sv-feed")) scrollerReads++; return height(this); } },
-  clientWidth: { get() { return 700; } },
-  scrollHeight: { get() { if (this.hasAttribute("data-sv-feed")) scrollerReads++; return this.hasAttribute("data-sv-feed") ? Number.parseFloat(this.querySelector("[data-vkey]")?.parentElement.style.height ?? "500") : height(this); } },
-  offsetParent: { get() { return dom.window.document.body; } },
+  offsetHeight: {
+    get() {
+      onHeightRead?.(this);
+      return height(this);
+    },
+  },
+  offsetWidth: {
+    get() {
+      return 700;
+    },
+  },
+  clientHeight: {
+    get() {
+      if (this.hasAttribute("data-sv-feed")) scrollerReads++;
+      return height(this);
+    },
+  },
+  clientWidth: {
+    get() {
+      return 700;
+    },
+  },
+  scrollHeight: {
+    get() {
+      if (this.hasAttribute("data-sv-feed")) scrollerReads++;
+      return this.hasAttribute("data-sv-feed")
+        ? Number.parseFloat(
+            this.querySelector("[data-vkey]")?.parentElement.style.height ??
+              "500",
+          )
+        : height(this);
+    },
+  },
+  offsetParent: {
+    get() {
+      return dom.window.document.body;
+    },
+  },
 });
-dom.window.HTMLElement.prototype.getBoundingClientRect = function () { onRectRead?.(this); const width = paneHidden ? 0 : 700; return { x: 0, y: 0, top: 0, left: 0, right: width, bottom: height(this), width, height: height(this), toJSON() {} }; };
-dom.window.HTMLElement.prototype.scrollTo = function (x: any, y?: number) { this.scrollTop = typeof x === "object" ? x.top ?? this.scrollTop : y ?? 0; };
+dom.window.HTMLElement.prototype.getBoundingClientRect = function () {
+  onRectRead?.(this);
+  const width = paneHidden ? 0 : 700;
+  return {
+    x: 0,
+    y: 0,
+    top: 0,
+    left: 0,
+    right: width,
+    bottom: height(this),
+    width,
+    height: height(this),
+    toJSON() {},
+  };
+};
+dom.window.HTMLElement.prototype.scrollTo = function (x: any, y?: number) {
+  this.scrollTop = typeof x === "object" ? (x.top ?? this.scrollTop) : (y ?? 0);
+};
 dom.window.HTMLElement.prototype.scrollIntoView = () => {};
 dom.window.HTMLCanvasElement.prototype.getContext = (() => null) as any;
 (dom.window as any).ResizeObserver = TestResizeObserver;
-(dom.window as any).matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
-const restore = replaceGlobals({ window: dom.window, Document: dom.window.Document, Event: dom.window.Event, CustomEvent: dom.window.CustomEvent, document: dom.window.document, navigator: dom.window.navigator, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, DOMRect: dom.window.DOMRect, getComputedStyle: dom.window.getComputedStyle.bind(dom.window), ResizeObserver: TestResizeObserver, requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window), cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window), localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true });
-afterAll(() => { closeDomWindow(dom); restore(); });
-if (process.env.TEST_LEGACY_LIST === "1") localStorage.setItem("vlistLegacy", "1");
+(dom.window as any).matchMedia = () => ({
+  matches: false,
+  addEventListener() {},
+  removeEventListener() {},
+  addListener() {},
+  removeListener() {},
+});
+const restore = replaceGlobals({
+  window: dom.window,
+  Document: dom.window.Document,
+  Event: dom.window.Event,
+  CustomEvent: dom.window.CustomEvent,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  HTMLElement: dom.window.HTMLElement,
+  Element: dom.window.Element,
+  Node: dom.window.Node,
+  DOMRect: dom.window.DOMRect,
+  getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+  ResizeObserver: TestResizeObserver,
+  requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
+  cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
+  localStorage: dom.window.localStorage,
+  IS_REACT_ACT_ENVIRONMENT: true,
+});
+afterAll(() => {
+  closeDomWindow(dom);
+  restore();
+});
+if (process.env.TEST_LEGACY_LIST === "1")
+  localStorage.setItem("vlistLegacy", "1");
 const { applyShellVisibility } = await import("../../../lib/windowRole");
-const { useBottomAnchoredList } = await import("../../../hooks/useBottomAnchoredList");
+const { useBottomAnchoredList } =
+  await import("../../../hooks/useBottomAnchoredList");
 const { ConversationView } = await import("../../ConversationView");
 const { useInboxStore } = await import("../../../store/inboxStore");
-const useAuth = () => ({ isLoading: false, isAuthenticated: false, fetchAccessToken: async () => null });
-const client = { clearAuth() {}, setAuth() {}, watchQuery() { return { onUpdate() { return () => {}; }, localQueryResult() { return undefined; }, journal() { return undefined; } }; }, connectionState() { return { isWebSocketConnected: true }; }, subscribeToConnectionState() { return () => {}; }, mutation() { throw Error("Unexpected mutation"); }, query() { return Promise.resolve(undefined); } } as any;
+const useAuth = () => ({
+  isLoading: false,
+  isAuthenticated: false,
+  fetchAccessToken: async () => null,
+});
+const client = {
+  clearAuth() {},
+  setAuth() {},
+  watchQuery() {
+    return {
+      onUpdate() {
+        return () => {};
+      },
+      localQueryResult() {
+        return undefined;
+      },
+      journal() {
+        return undefined;
+      },
+    };
+  },
+  connectionState() {
+    return { isWebSocketConnected: true };
+  },
+  subscribeToConnectionState() {
+    return () => {};
+  },
+  mutation() {
+    throw Error("Unexpected mutation");
+  },
+  query() {
+    return Promise.resolve(undefined);
+  },
+} as any;
 const empty: never[] = [];
-const conversation: ConversationData = { _id: "perf-fixture" as any, title: "Resize fixture", messages: Array.from({ length: 80 }, (_, i) => ({ _id: `perf-row-${i}`, role: "assistant", timestamp: 1_000_000 + i * 1000, content: `Message ${i}` })), message_count: 800, agent_type: "codex", status: "completed" };
+const conversation: ConversationData = {
+  _id: "perf-fixture" as any,
+  title: "Resize fixture",
+  messages: Array.from({ length: 80 }, (_, i) => ({
+    _id: `perf-row-${i}`,
+    role: "assistant",
+    timestamp: 1_000_000 + i * 1000,
+    content: `Message ${i}`,
+  })),
+  message_count: 800,
+  agent_type: "codex",
+  status: "completed",
+};
 
-for (const messageCount of [80, 800]) test(`a measured row resize keeps geometry and progress current for ${messageCount} messages`, async () => {
-  const host = document.createElement("div"); document.body.append(host);
-  const root = createRoot(host);
-  const errors = spyOn(console, "error");
-  let commits = 0;
-  try {
-    await act(async () => { root.render(<ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><Profiler id="transcript" onRender={() => commits++}><ConversationView conversation={{ ...conversation, _id: `fixture-${messageCount}` as any, messages: conversation.messages.map(m => ({ ...m, _id: `${messageCount}-${m._id}` })), message_count: messageCount }} commits={empty} pullRequests={empty} backHref="/" hideHeader showMessageInput={false} isOwner={false} /></Profiler></MemoryRouter></ConvexProviderWithAuth>); });
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
-    expect(errors.mock.calls.filter((args) => args.some((arg) => String(arg).includes("flushSync was called")))).toEqual([]);
-    const feed = host.querySelector<HTMLElement>("[data-sv-feed]")!;
-    await act(async () => {
-      feed.dispatchEvent(new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }));
-      feed.scrollTop -= 800;
-      await new Promise(resolve => setTimeout(resolve, 250));
-    });
-    const rows = [...host.querySelectorAll<HTMLElement>("[data-vkey]")];
-    expect(rows.length).toBeGreaterThan(2);
-    const row = rows.at(-2)!;
-    const container = row.parentElement!;
-    const resize = async () => act(async () => {
-      sizes.set(row, height(row) + 8);
-      for (const observer of observers) if (observer.targets.has(row)) observer.callback([{ target: row, borderBoxSize: [{ blockSize: height(row), inlineSize: 700 }] } as unknown as ResizeObserverEntry], observer as unknown as ResizeObserver);
-    });
-    await resize();
-    const beforeHeight = Number.parseFloat(container.style.height);
-    const beforeCommits = commits;
-    await resize();
-    expect(Number.parseFloat(container.style.height)).toBe(beforeHeight + 8);
-    const progress = host.querySelector<HTMLElement>("[data-cc-scroll-progress]");
-    expect(progress).not.toBeNull();
-    if (messageCount > 150) {
-      expect(commits).toBe(beforeCommits);
-    } else {
-      expect(Number.parseFloat(progress!.style.height)).toBeCloseTo(feed.scrollTop / (feed.scrollHeight - feed.clientHeight) * 100, 2);
+for (const messageCount of [80, 800])
+  test(`a measured row resize keeps geometry and progress current for ${messageCount} messages`, async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const errors = spyOn(console, "error");
+    let commits = 0;
+    try {
+      await act(async () => {
+        root.render(
+          <ConvexProviderWithAuth client={client} useAuth={useAuth}>
+            <MemoryRouter>
+              <Profiler id="transcript" onRender={() => commits++}>
+                <ConversationView
+                  conversation={{
+                    ...conversation,
+                    _id: `fixture-${messageCount}` as any,
+                    messages: conversation.messages.map((m) => ({
+                      ...m,
+                      _id: `${messageCount}-${m._id}`,
+                    })),
+                    message_count: messageCount,
+                  }}
+                  commits={empty}
+                  pullRequests={empty}
+                  backHref="/"
+                  hideHeader
+                  showMessageInput={false}
+                  isOwner={false}
+                />
+              </Profiler>
+            </MemoryRouter>
+          </ConvexProviderWithAuth>,
+        );
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      });
+      expect(
+        errors.mock.calls.filter((args) =>
+          args.some((arg) => String(arg).includes("flushSync was called")),
+        ),
+      ).toEqual([]);
+      const feed = host.querySelector<HTMLElement>("[data-sv-feed]")!;
+      await act(async () => {
+        feed.dispatchEvent(
+          new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }),
+        );
+        feed.scrollTop -= 800;
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      });
+      const rows = [...host.querySelectorAll<HTMLElement>("[data-vkey]")];
+      expect(rows.length).toBeGreaterThan(2);
+      const row = rows.at(-2)!;
+      const container = row.parentElement!;
+      const resize = async () =>
+        act(async () => {
+          sizes.set(row, height(row) + 8);
+          for (const observer of observers)
+            if (observer.targets.has(row))
+              observer.callback(
+                [
+                  {
+                    target: row,
+                    borderBoxSize: [
+                      { blockSize: height(row), inlineSize: 700 },
+                    ],
+                  } as unknown as ResizeObserverEntry,
+                ],
+                observer as unknown as ResizeObserver,
+              );
+        });
+      await resize();
+      const beforeHeight = Number.parseFloat(container.style.height);
+      const beforeCommits = commits;
+      await resize();
+      expect(Number.parseFloat(container.style.height)).toBe(beforeHeight + 8);
+      const progress = host.querySelector<HTMLElement>(
+        "[data-cc-scroll-progress]",
+      );
+      expect(progress).not.toBeNull();
+      if (messageCount > 150) {
+        expect(commits).toBe(beforeCommits);
+      } else {
+        expect(Number.parseFloat(progress!.style.height)).toBeCloseTo(
+          (feed.scrollTop / (feed.scrollHeight - feed.clientHeight)) * 100,
+          2,
+        );
+      }
+    } finally {
+      await act(() => root.unmount());
+      host.remove();
+      errors.mockRestore();
     }
-  } finally { await act(() => root.unmount()); host.remove(); errors.mockRestore(); }
-}, 30_000);
+  }, 30_000);
 
 test("a pane that hides and comes back keeps every row's height and place, and reads no layout for a reader mid-transcript", async () => {
-  const host = document.createElement("div"); document.body.append(host);
+  const host = document.createElement("div");
+  document.body.append(host);
   const root = createRoot(host);
   let commits = 0;
   try {
-    await act(async () => { root.render(<ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><Profiler id="transcript" onRender={() => commits++}><ConversationView conversation={{ ...conversation, _id: "hidden-pane-fixture" as any, messages: conversation.messages.map(m => ({ ...m, _id: `hidden-${m._id}` })), message_count: 800 }} commits={empty} pullRequests={empty} backHref="/" hideHeader showMessageInput={false} isOwner={false} /></Profiler></MemoryRouter></ConvexProviderWithAuth>); });
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
+    await act(async () => {
+      root.render(
+        <ConvexProviderWithAuth client={client} useAuth={useAuth}>
+          <MemoryRouter>
+            <Profiler id="transcript" onRender={() => commits++}>
+              <ConversationView
+                conversation={{
+                  ...conversation,
+                  _id: "hidden-pane-fixture" as any,
+                  messages: conversation.messages.map((m) => ({
+                    ...m,
+                    _id: `hidden-${m._id}`,
+                  })),
+                  message_count: 800,
+                }}
+                commits={empty}
+                pullRequests={empty}
+                backHref="/"
+                hideHeader
+                showMessageInput={false}
+                isOwner={false}
+              />
+            </Profiler>
+          </MemoryRouter>
+        </ConvexProviderWithAuth>,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
     const feed = host.querySelector<HTMLElement>("[data-sv-feed]")!;
     // The reader wheels up into the middle of the transcript: a load is armed
     // and stays armed, far from the top.
     await act(async () => {
-      feed.dispatchEvent(new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }));
+      feed.dispatchEvent(
+        new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }),
+      );
       feed.scrollTop -= 800;
-      await new Promise(resolve => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     });
     const rows = [...host.querySelectorAll<HTMLElement>("[data-vkey]")];
     expect(rows.length).toBeGreaterThan(2);
     const container = rows[0].parentElement!;
     // Rows of different heights, so a lost measurement shows.
     await act(async () => {
-      rows.forEach((row, i) => keyedSizes.set(row.dataset.vkey!, 60 + (i % 5) * 20));
+      rows.forEach((row, i) =>
+        keyedSizes.set(row.dataset.vkey!, 60 + (i % 5) * 20),
+      );
       reportAllBoxes();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
-    const placed = () => [...host.querySelectorAll<HTMLElement>("[data-vkey]")].map((row) => `${row.dataset.vkey}@${row.style.top}`).join(" ");
+    const placed = () =>
+      [...host.querySelectorAll<HTMLElement>("[data-vkey]")]
+        .map((row) => `${row.dataset.vkey}@${row.style.top}`)
+        .join(" ");
     const heightBefore = container.style.height;
     const placedBefore = placed();
     const offsetBefore = feed.scrollTop;
@@ -148,7 +406,7 @@ test("a pane that hides and comes back keeps every row's height and place, and r
     await act(async () => {
       paneHidden = true;
       reportAllBoxes();
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 150));
     });
     // A pane with no viewport draws no rows; what it must keep is their heights.
     expect(container.style.height).toBe(heightBefore);
@@ -157,7 +415,7 @@ test("a pane that hides and comes back keeps every row's height and place, and r
     await act(async () => {
       paneHidden = false;
       reportAllBoxes();
-      await new Promise(resolve => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     });
     expect(container.style.height).toBe(heightBefore);
     expect(placed()).toBe(placedBefore);
@@ -166,26 +424,56 @@ test("a pane that hides and comes back keeps every row's height and place, and r
     // per row, and the armed load never read the page.
     expect(commits - commitsBefore).toBeLessThanOrEqual(4);
     expect(scrollerReads).toBeLessThanOrEqual(6);
-  } finally { paneHidden = false; keyedSizes.clear(); await act(() => root.unmount()); host.remove(); }
+  } finally {
+    paneHidden = false;
+    keyedSizes.clear();
+    await act(() => root.unmount());
+    host.remove();
+  }
 }, 30_000);
 
 test("size repair reads all row heights before changing geometry", async () => {
   const interval = globalThis.setInterval;
   const ticks: (() => void)[] = [];
-  const timer = spyOn(globalThis, "setInterval").mockImplementation(((callback: () => void, delay: number, ...args: unknown[]) => {
+  const timer = spyOn(globalThis, "setInterval").mockImplementation(((
+    callback: () => void,
+    delay: number,
+    ...args: unknown[]
+  ) => {
     if (delay === 1000) ticks.push(callback);
     return interval(callback, delay === 1000 ? 60_000 : delay, ...args);
   }) as typeof setInterval);
-  const host = document.createElement("div"); document.body.append(host);
+  const host = document.createElement("div");
+  document.body.append(host);
   const root = createRoot(host);
   try {
-    await act(async () => { root.render(<ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><ConversationView conversation={{ ...conversation, _id: "repair-fixture" as any }} commits={empty} pullRequests={empty} backHref="/" hideHeader showMessageInput={false} isOwner={false} /></MemoryRouter></ConvexProviderWithAuth>); });
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
+    await act(async () => {
+      root.render(
+        <ConvexProviderWithAuth client={client} useAuth={useAuth}>
+          <MemoryRouter>
+            <ConversationView
+              conversation={{ ...conversation, _id: "repair-fixture" as any }}
+              commits={empty}
+              pullRequests={empty}
+              backHref="/"
+              hideHeader
+              showMessageInput={false}
+              isOwner={false}
+            />
+          </MemoryRouter>
+        </ConvexProviderWithAuth>,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
     const feed = host.querySelector<HTMLElement>("[data-sv-feed]")!;
     await act(async () => {
-      feed.dispatchEvent(new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }));
+      feed.dispatchEvent(
+        new dom.window.WheelEvent("wheel", { deltaY: -800, bubbles: true }),
+      );
       feed.scrollTop -= 800;
-      await new Promise(resolve => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     });
     const rows = [...host.querySelectorAll<HTMLElement>("[data-vkey]")];
     expect(rows.length).toBeGreaterThan(2);
@@ -193,8 +481,13 @@ test("size repair reads all row heights before changing geometry", async () => {
     const tracked = new Set(rows);
     const parentHeights: string[] = [];
     for (const row of rows) sizes.set(row, height(row) + 8);
-    onHeightRead = el => { if (tracked.has(el)) parentHeights.push(container.style.height); };
-    await act(async () => { feed.dispatchEvent(new dom.window.Event("scrollend")); await new Promise(resolve => setTimeout(resolve, 200)); });
+    onHeightRead = (el) => {
+      if (tracked.has(el)) parentHeights.push(container.style.height);
+    };
+    await act(async () => {
+      feed.dispatchEvent(new dom.window.Event("scrollend"));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
     await act(async () => {
       for (const tick of ticks) tick();
       onHeightRead = undefined;
@@ -204,32 +497,95 @@ test("size repair reads all row heights before changing geometry", async () => {
     expect(container.style.height).not.toBe(parentHeights[0]);
   } finally {
     onHeightRead = undefined;
-    await act(() => root.unmount()); host.remove(); timer.mockRestore();
+    await act(() => root.unmount());
+    host.remove();
+    timer.mockRestore();
   }
 }, 30_000);
 
 test("fold mode draws the person's message and what the agent said, as bubbles, and nothing else", async () => {
-  const host = document.createElement("div"); document.body.append(host);
+  const host = document.createElement("div");
+  document.body.append(host);
   const root = createRoot(host);
-  const say = { id: "say-1", name: "Bash", input: JSON.stringify({ command: `cast say "One funnel: introductions per week."` }) };
-  const data = { ...conversation, _id: "fold-clean" as any, messages: [
-    { _id: "clean-u1", role: "user", timestamp: 1_000_000, content: "What is your focus?" },
-    { _id: "clean-a1", role: "assistant", timestamp: 1_001_000, content: "Let me look at the funnel first.", tool_calls: [say] },
-    { _id: "clean-a2", role: "assistant", timestamp: 1_002_000, content: "Said it." },
-  ] } as any;
-  const view = <ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><ConversationView conversation={data} commits={empty} pullRequests={empty} backHref="/" hideHeader showMessageInput={false} isOwner={false} initialDensity="condensed" foldWorkingTurns openAtTop /></MemoryRouter></ConvexProviderWithAuth>;
+  const say = {
+    id: "say-1",
+    name: "Bash",
+    input: JSON.stringify({
+      command: `cast say "One funnel: introductions per week."`,
+    }),
+  };
+  const data = {
+    ...conversation,
+    _id: "fold-clean" as any,
+    messages: [
+      {
+        _id: "clean-u1",
+        role: "user",
+        timestamp: 1_000_000,
+        content: "What is your focus?",
+      },
+      {
+        _id: "clean-a1",
+        role: "assistant",
+        timestamp: 1_001_000,
+        content: "Let me look at the funnel first.",
+        tool_calls: [say],
+      },
+      {
+        _id: "clean-a2",
+        role: "assistant",
+        timestamp: 1_002_000,
+        content: "Said it.",
+      },
+    ],
+  } as any;
+  const view = (
+    <ConvexProviderWithAuth client={client} useAuth={useAuth}>
+      <MemoryRouter>
+        <ConversationView
+          conversation={data}
+          commits={empty}
+          pullRequests={empty}
+          backHref="/"
+          hideHeader
+          showMessageInput={false}
+          isOwner={false}
+          initialDensity="condensed"
+          foldWorkingTurns
+          openAtTop
+        />
+      </MemoryRouter>
+    </ConvexProviderWithAuth>
+  );
   const anchors = (useInboxStore.getState() as any).anchors;
   try {
     // The page asks for fold mode; the seat's own switch decides it.
-    await act(async () => { root.render(view); });
+    await act(async () => {
+      root.render(view);
+    });
     expect(host.textContent).toContain("Let me look at the funnel first.");
-    await act(async () => { useInboxStore.setState({ anchors: { ...anchors, "seat-fold": { _id: "seat-fold", conversation_id: "fold-clean", clean_chat: true } } } as any); });
+    await act(async () => {
+      useInboxStore.setState({
+        anchors: {
+          ...anchors,
+          "seat-fold": {
+            _id: "seat-fold",
+            conversation_id: "fold-clean",
+            clean_chat: true,
+          },
+        },
+      } as any);
+    });
     expect(host.textContent).toContain("What is your focus?");
     expect(host.textContent).toContain("One funnel: introductions per week.");
     expect(host.textContent).not.toContain("Let me look at the funnel first.");
     expect(host.textContent).not.toContain("Said it.");
     expect(host.querySelectorAll("[data-cc-bubble]").length).toBe(2);
-  } finally { useInboxStore.setState({ anchors } as any); await act(() => root.unmount()); host.remove(); }
+  } finally {
+    useInboxStore.setState({ anchors } as any);
+    await act(() => root.unmount());
+    host.remove();
+  }
 }, 30_000);
 
 test("the transcript cancels queued size repair when hidden and checks once on return", () => {
@@ -237,27 +593,57 @@ test("the transcript cancels queued size repair when hidden and checks once on r
   document.body.append(host);
   const root = createRoot(host);
   jest.useFakeTimers();
-  const idle = { requestIdleCallback: (fn: () => void) => setTimeout(fn, 100), cancelIdleCallback: clearTimeout };
+  const idle = {
+    requestIdleCallback: (fn: () => void) => setTimeout(fn, 100),
+    cancelIdleCallback: clearTimeout,
+  };
   const restoreIdle = replaceGlobals(idle);
   const request = spyOn(globalThis, "requestIdleCallback");
-  const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
+  const advance = (ms: number) =>
+    act(() => {
+      jest.advanceTimersByTime(ms);
+    });
   try {
-    act(() => { root.render(<ConvexProviderWithAuth client={client} useAuth={useAuth}><MemoryRouter><ConversationView conversation={{ ...conversation, _id: "visibility-fixture" as any }} backHref="/" hideHeader showMessageInput={false} isOwner={false} openAtTop /></MemoryRouter></ConvexProviderWithAuth>); });
+    act(() => {
+      root.render(
+        <ConvexProviderWithAuth client={client} useAuth={useAuth}>
+          <MemoryRouter>
+            <ConversationView
+              conversation={{
+                ...conversation,
+                _id: "visibility-fixture" as any,
+              }}
+              backHref="/"
+              hideHeader
+              showMessageInput={false}
+              isOwner={false}
+              openAtTop
+            />
+          </MemoryRouter>
+        </ConvexProviderWithAuth>,
+      );
+    });
     const rows = new Set(host.querySelectorAll<HTMLElement>("[data-index]"));
     expect(rows.size).toBeGreaterThan(1);
     let rowReads = 0;
-    onHeightRead = (el) => { if (rows.has(el)) rowReads++; };
+    onHeightRead = (el) => {
+      if (rows.has(el)) rowReads++;
+    };
 
     advance(1000);
     expect(request).toHaveBeenCalledTimes(1);
     expect(rowReads).toBe(0);
 
-    act(() => { applyShellVisibility(false); });
+    act(() => {
+      applyShellVisibility(false);
+    });
     advance(3000);
     expect(request).toHaveBeenCalledTimes(1);
     expect(rowReads).toBe(0);
 
-    act(() => { applyShellVisibility(true); });
+    act(() => {
+      applyShellVisibility(true);
+    });
     expect(rowReads).toBe(rows.size);
     advance(999);
     expect(rowReads).toBe(rows.size);
@@ -265,7 +651,10 @@ test("the transcript cancels queued size repair when hidden and checks once on r
     expect(rowReads).toBe(2 * rows.size);
   } finally {
     onHeightRead = undefined;
-    act(() => { root.unmount(); applyShellVisibility(true); });
+    act(() => {
+      root.unmount();
+      applyShellVisibility(true);
+    });
     request.mockRestore();
     restoreIdle();
     jest.useRealTimers();
@@ -277,40 +666,67 @@ test("the anchored list suspends its repair and legacy landing timers while hidd
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  const advance = (ms: number) => act(() => { jest.advanceTimersByTime(ms); });
+  const advance = (ms: number) =>
+    act(() => {
+      jest.advanceTimersByTime(ms);
+    });
   function List() {
-    const list = useBottomAnchoredList({ count: 30, getItemKey: (index) => `row-${index}`, estimateSize: () => 50, cacheNamespace: "visibility-fixture", initialIndex: 0 });
-    return <div ref={list.containerRef} data-sv-feed>
-      <div style={{ height: list.virtualizer.getTotalSize() }}>
-        {list.virtualizer.getVirtualItems().map((item) => <div key={item.key} data-index={item.index} data-vkey={item.key} />)}
+    const list = useBottomAnchoredList({
+      count: 30,
+      getItemKey: (index) => `row-${index}`,
+      estimateSize: () => 50,
+      cacheNamespace: "visibility-fixture",
+      initialIndex: 0,
+    });
+    return (
+      <div ref={list.containerRef} data-sv-feed>
+        <div style={{ height: list.virtualizer.getTotalSize() }}>
+          {list.virtualizer.getVirtualItems().map((item) => (
+            <div key={item.key} data-index={item.index} data-vkey={item.key} />
+          ))}
+        </div>
       </div>
-    </div>;
+    );
   }
 
   jest.useFakeTimers();
   try {
-    act(() => { applyShellVisibility(false); root.render(<List />); });
+    act(() => {
+      applyShellVisibility(false);
+      root.render(<List />);
+    });
     const scroller = host.querySelector("[data-sv-feed]");
     const rows = new Set(host.querySelectorAll<HTMLElement>("[data-index]"));
     expect(rows.size).toBeGreaterThan(1);
     let repairReads = 0;
     let landingReads = 0;
-    onHeightRead = (el) => { if (rows.has(el)) repairReads++; };
-    onRectRead = (el) => { if (el === scroller) landingReads++; };
+    onHeightRead = (el) => {
+      if (rows.has(el)) repairReads++;
+    };
+    onRectRead = (el) => {
+      if (el === scroller) landingReads++;
+    };
 
     advance(1500);
     expect(repairReads).toBe(0);
     expect(landingReads).toBe(0);
 
-    act(() => { applyShellVisibility(true); });
+    act(() => {
+      applyShellVisibility(true);
+    });
     expect(repairReads).toBe(rows.size);
     expect(landingReads).toBe(process.env.TEST_LEGACY_LIST === "1" ? 1 : 0);
-    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
     expect(repairReads).toBe(rows.size);
     expect(landingReads).toBe(process.env.TEST_LEGACY_LIST === "1" ? 1 : 0);
   } finally {
     onHeightRead = onRectRead = undefined;
-    act(() => { root.unmount(); applyShellVisibility(true); });
+    act(() => {
+      root.unmount();
+      applyShellVisibility(true);
+    });
     jest.useRealTimers();
     host.remove();
   }

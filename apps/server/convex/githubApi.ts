@@ -8,7 +8,7 @@ import { extractSessionTrailer } from "@codecast/shared/blame";
 const GITHUB_API_BASE = "https://api.github.com";
 
 async function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -26,16 +26,21 @@ export function githubErrorMessage(status: number, rawBody: string): string {
   try {
     parsed = JSON.parse(rawBody);
   } catch {
-    return rawBody.trim() ? `${status}: ${rawBody.trim()}` : `GitHub returned ${status}`;
+    return rawBody.trim()
+      ? `${status}: ${rawBody.trim()}`
+      : `GitHub returned ${status}`;
   }
 
   const details: string[] = Array.isArray(parsed?.errors)
     ? parsed.errors
         .map((e: any) => (typeof e === "string" ? e : e?.message))
-        .filter((m: any): m is string => typeof m === "string" && m.trim() !== "")
+        .filter(
+          (m: any): m is string => typeof m === "string" && m.trim() !== "",
+        )
     : [];
   if (details.length) return details.join("; ");
-  if (typeof parsed?.message === "string" && parsed.message.trim()) return parsed.message;
+  if (typeof parsed?.message === "string" && parsed.message.trim())
+    return parsed.message;
   return `GitHub returned ${status}`;
 }
 
@@ -48,8 +53,8 @@ async function githubFetch(
   const response = await fetch(url, {
     method: init.method,
     headers: {
-      "Authorization": `Bearer ${token}`,
-      "Accept": "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "Content-Type": "application/json",
     },
@@ -68,7 +73,9 @@ async function githubFetch(
 function splitRepository(repository: string): [string, string] {
   const [owner, repo] = repository.split("/");
   if (!owner || !repo) {
-    throw new Error(`Invalid repository format: ${repository}. Expected: owner/repo`);
+    throw new Error(
+      `Invalid repository format: ${repository}. Expected: owner/repo`,
+    );
   }
   return [owner, repo];
 }
@@ -91,8 +98,8 @@ export const postPRComment = internalAction({
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${args.github_access_token}`,
-        "Accept": "application/vnd.github+json",
+        Authorization: `Bearer ${args.github_access_token}`,
+        Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "Content-Type": "application/json",
       },
@@ -138,7 +145,7 @@ export const submitPRReview = internalAction({
     event: v.union(
       v.literal("APPROVE"),
       v.literal("REQUEST_CHANGES"),
-      v.literal("COMMENT")
+      v.literal("COMMENT"),
     ),
     body: v.optional(v.string()),
     commit_id: v.optional(v.string()),
@@ -171,8 +178,25 @@ export const submitPRReview = internalAction({
 
 /** The line comments GitHub attached to one review, with the ids it gave them. */
 export const listReviewComments = internalAction({
-  args: { repository: v.string(), pr_number: v.number(), review_id: v.number(), github_access_token: v.string() },
-  handler: async (_ctx, args): Promise<Array<{ id: number; path: string; line?: number; start_line?: number; body: string; html_url?: string }>> => {
+  args: {
+    repository: v.string(),
+    pr_number: v.number(),
+    review_id: v.number(),
+    github_access_token: v.string(),
+  },
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<
+    Array<{
+      id: number;
+      path: string;
+      line?: number;
+      start_line?: number;
+      body: string;
+      html_url?: string;
+    }>
+  > => {
     const [owner, repo] = splitRepository(args.repository);
     const data = await githubFetch(
       `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}/reviews/${args.review_id}/comments?per_page=100`,
@@ -183,7 +207,9 @@ export const listReviewComments = internalAction({
       id: c.id as number,
       path: c.path as string,
       line: (c.line ?? c.original_line ?? undefined) as number | undefined,
-      start_line: (c.start_line ?? c.original_start_line ?? undefined) as number | undefined,
+      start_line: (c.start_line ?? c.original_start_line ?? undefined) as
+        | number
+        | undefined,
       body: c.body as string,
       html_url: c.html_url as string | undefined,
     }));
@@ -192,7 +218,11 @@ export const listReviewComments = internalAction({
 
 /** Reopen a closed pull request. GitHub refuses when the branch is gone. */
 export const reopenPullRequest = internalAction({
-  args: { repository: v.string(), pr_number: v.number(), github_access_token: v.string() },
+  args: {
+    repository: v.string(),
+    pr_number: v.number(),
+    github_access_token: v.string(),
+  },
   handler: async (_ctx, args): Promise<{ state: string }> => {
     const [owner, repo] = splitRepository(args.repository);
     const data = await githubFetch(
@@ -235,7 +265,12 @@ export const updatePullRequest = internalAction({
  * exposes both only through GraphQL, keyed by the pull request's node id.
  */
 export const setPullRequestDraft = internalAction({
-  args: { repository: v.string(), pr_number: v.number(), draft: v.boolean(), github_access_token: v.string() },
+  args: {
+    repository: v.string(),
+    pr_number: v.number(),
+    draft: v.boolean(),
+    github_access_token: v.string(),
+  },
   handler: async (_ctx, args): Promise<{ draft: boolean }> => {
     const [owner, name] = splitRepository(args.repository);
     const { data } = await ghGraphQL(
@@ -246,9 +281,14 @@ export const setPullRequestDraft = internalAction({
       args.github_access_token,
     );
     const pull = data?.repository?.pullRequest;
-    if (!pull?.id) throw new Error(`Pull request ${args.repository}#${args.pr_number} not found`);
+    if (!pull?.id)
+      throw new Error(
+        `Pull request ${args.repository}#${args.pr_number} not found`,
+      );
     if (!!pull.isDraft === args.draft) return { draft: args.draft };
-    const field = args.draft ? "convertPullRequestToDraft" : "markPullRequestReadyForReview";
+    const field = args.draft
+      ? "convertPullRequestToDraft"
+      : "markPullRequestReadyForReview";
     const result = await ghGraphQL(
       `mutation($id: ID!) { ${field}(input: { pullRequestId: $id }) { pullRequest { isDraft } } }`,
       { id: pull.id },
@@ -272,12 +312,22 @@ export const setRequestedReviewers = internalAction({
     const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}/requested_reviewers`;
     let data: any = null;
     if (args.remove?.length) {
-      data = await githubFetch(url, args.github_access_token, { method: "DELETE", body: { reviewers: args.remove } });
+      data = await githubFetch(url, args.github_access_token, {
+        method: "DELETE",
+        body: { reviewers: args.remove },
+      });
     }
     if (args.add?.length) {
-      data = await githubFetch(url, args.github_access_token, { method: "POST", body: { reviewers: args.add } });
+      data = await githubFetch(url, args.github_access_token, {
+        method: "POST",
+        body: { reviewers: args.add },
+      });
     }
-    return { requested_reviewers: (data?.requested_reviewers ?? []).map((r: any) => r.login as string) };
+    return {
+      requested_reviewers: (data?.requested_reviewers ?? []).map(
+        (r: any) => r.login as string,
+      ),
+    };
   },
 });
 
@@ -288,8 +338,20 @@ export const setRequestedReviewers = internalAction({
  * same two answers `gh pr merge` reads before it offers `--admin`.
  */
 export const pullRequestMergeability = internalAction({
-  args: { repository: v.string(), pr_number: v.number(), github_access_token: v.string() },
-  handler: async (_ctx, args): Promise<{ id: string; merge_state: string; can_bypass: boolean; head_sha: string | null }> => {
+  args: {
+    repository: v.string(),
+    pr_number: v.number(),
+    github_access_token: v.string(),
+  },
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<{
+    id: string;
+    merge_state: string;
+    can_bypass: boolean;
+    head_sha: string | null;
+  }> => {
     const [owner, name] = splitRepository(args.repository);
     const { data } = await ghGraphQL(
       `query($owner: String!, $name: String!, $number: Int!) {
@@ -301,7 +363,10 @@ export const pullRequestMergeability = internalAction({
       args.github_access_token,
     );
     const pr = data?.repository?.pullRequest;
-    if (!pr?.id) throw new Error(`Pull request ${args.repository}#${args.pr_number} not found`);
+    if (!pr?.id)
+      throw new Error(
+        `Pull request ${args.repository}#${args.pr_number} not found`,
+      );
     return {
       id: pr.id,
       merge_state: String(pr.mergeStateStatus ?? "UNKNOWN"),
@@ -325,7 +390,11 @@ export const mergePullRequest = internalAction({
   args: {
     repository: v.string(),
     pr_number: v.number(),
-    method: v.union(v.literal("merge"), v.literal("squash"), v.literal("rebase")),
+    method: v.union(
+      v.literal("merge"),
+      v.literal("squash"),
+      v.literal("rebase"),
+    ),
     github_access_token: v.string(),
     delete_branch: v.optional(v.boolean()),
     head_ref: v.optional(v.string()),
@@ -334,7 +403,15 @@ export const mergePullRequest = internalAction({
     expected_head_sha: v.optional(v.string()),
     bypass_node_id: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ merged: boolean; sha?: string; message?: string; branch_deleted: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    merged: boolean;
+    sha?: string;
+    message?: string;
+    branch_deleted: boolean;
+  }> => {
     const [owner, repo] = splitRepository(args.repository);
     let data: { merged?: boolean; sha?: string; message?: string };
     if (args.bypass_node_id) {
@@ -344,18 +421,29 @@ export const mergePullRequest = internalAction({
             pullRequest { merged mergeCommit { oid } }
           }
         }`,
-        { id: args.bypass_node_id, method: args.method.toUpperCase(), head: args.expected_head_sha ?? null },
+        {
+          id: args.bypass_node_id,
+          method: args.method.toUpperCase(),
+          head: args.expected_head_sha ?? null,
+        },
         args.github_access_token,
         true,
       );
-      if (result.errors?.length) throw new Error(result.errors.map((e) => e.message).join("; "));
+      if (result.errors?.length)
+        throw new Error(result.errors.map((e) => e.message).join("; "));
       const merged = result.data?.mergePullRequest?.pullRequest;
       data = { merged: !!merged?.merged, sha: merged?.mergeCommit?.oid };
     } else {
       data = await githubFetch(
         `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}/merge`,
         args.github_access_token,
-        { method: "PUT", body: { merge_method: args.method, ...(args.expected_head_sha ? { sha: args.expected_head_sha } : {}) } },
+        {
+          method: "PUT",
+          body: {
+            merge_method: args.method,
+            ...(args.expected_head_sha ? { sha: args.expected_head_sha } : {}),
+          },
+        },
       );
     }
 
@@ -372,11 +460,19 @@ export const mergePullRequest = internalAction({
         );
         branchDeleted = true;
       } catch (error) {
-        console.warn(`[githubApi] merged #${args.pr_number} but could not delete ${args.head_ref}:`, error);
+        console.warn(
+          `[githubApi] merged #${args.pr_number} but could not delete ${args.head_ref}:`,
+          error,
+        );
       }
     }
 
-    return { merged: !!data.merged, sha: data.sha, message: data.message, branch_deleted: branchDeleted };
+    return {
+      merged: !!data.merged,
+      sha: data.sha,
+      message: data.message,
+      branch_deleted: branchDeleted,
+    };
   },
 });
 
@@ -390,7 +486,9 @@ export const setAutoMerge = internalAction({
     repository: v.string(),
     pr_number: v.number(),
     enabled: v.boolean(),
-    method: v.optional(v.union(v.literal("merge"), v.literal("squash"), v.literal("rebase"))),
+    method: v.optional(
+      v.union(v.literal("merge"), v.literal("squash"), v.literal("rebase")),
+    ),
     expected_head_sha: v.optional(v.string()),
     github_access_token: v.string(),
   },
@@ -404,13 +502,20 @@ export const setAutoMerge = internalAction({
       args.github_access_token,
     );
     const id = data?.repository?.pullRequest?.id;
-    if (!id) throw new Error(`Pull request ${args.repository}#${args.pr_number} not found`);
+    if (!id)
+      throw new Error(
+        `Pull request ${args.repository}#${args.pr_number} not found`,
+      );
     if (args.enabled) {
       await ghGraphQL(
         `mutation($id: ID!, $method: PullRequestMergeMethod, $head: GitObjectID) {
           enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: $method, expectedHeadOid: $head }) { pullRequest { id } }
         }`,
-        { id, method: (args.method ?? "squash").toUpperCase(), head: args.expected_head_sha ?? null },
+        {
+          id,
+          method: (args.method ?? "squash").toUpperCase(),
+          head: args.expected_head_sha ?? null,
+        },
         args.github_access_token,
       );
     } else {
@@ -440,7 +545,12 @@ export const updatePullRequestBranch = internalAction({
     const data = await githubFetch(
       `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}/update-branch`,
       args.github_access_token,
-      { method: "PUT", body: args.expected_head_sha ? { expected_head_sha: args.expected_head_sha } : {} },
+      {
+        method: "PUT",
+        body: args.expected_head_sha
+          ? { expected_head_sha: args.expected_head_sha }
+          : {},
+      },
     );
     return { message: data?.message };
   },
@@ -475,10 +585,12 @@ export const postCommentToGitHub = internalAction({
     comment_id: commentIdValidator,
   },
   handler: async (ctx, args) => {
-    const [owner, repo] = args.repository.split('/');
+    const [owner, repo] = args.repository.split("/");
 
     if (!owner || !repo) {
-      throw new Error(`Invalid repository format: ${args.repository}. Expected: owner/repo`);
+      throw new Error(
+        `Invalid repository format: ${args.repository}. Expected: owner/repo`,
+      );
     }
 
     const maxRetries = 3;
@@ -507,8 +619,8 @@ export const postCommentToGitHub = internalAction({
         const response = await fetch(url, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${args.github_access_token}`,
-            "Accept": "application/vnd.github+json",
+            Authorization: `Bearer ${args.github_access_token}`,
+            Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
             "Content-Type": "application/json",
           },
@@ -516,7 +628,9 @@ export const postCommentToGitHub = internalAction({
         });
 
         if (response.status === 403) {
-          const rateLimitRemaining = response.headers.get("X-RateLimit-Remaining");
+          const rateLimitRemaining = response.headers.get(
+            "X-RateLimit-Remaining",
+          );
           const rateLimitReset = response.headers.get("X-RateLimit-Reset");
 
           if (rateLimitRemaining === "0" && rateLimitReset) {
@@ -524,7 +638,9 @@ export const postCommentToGitHub = internalAction({
             const waitTime = Math.min(resetTime - Date.now(), 60000);
 
             if (waitTime > 0 && attempt < maxRetries - 1) {
-              console.log(`Rate limited. Waiting ${waitTime}ms before retry...`);
+              console.log(
+                `Rate limited. Waiting ${waitTime}ms before retry...`,
+              );
               await sleep(waitTime);
               continue;
             }
@@ -533,7 +649,9 @@ export const postCommentToGitHub = internalAction({
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`GitHub API error: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error(
+            `GitHub API error: ${response.status} ${response.statusText} - ${errorText}`,
+          );
         }
 
         const githubComment = await response.json();
@@ -548,19 +666,22 @@ export const postCommentToGitHub = internalAction({
           github_comment_id: githubComment.id,
           github_comment_url: githubComment.html_url,
         };
-
       } catch (error) {
         lastError = error as Error;
 
         if (attempt < maxRetries - 1) {
           const backoffTime = Math.min(1000 * Math.pow(2, attempt), 10000);
-          console.log(`Attempt ${attempt + 1} failed. Retrying in ${backoffTime}ms...`);
+          console.log(
+            `Attempt ${attempt + 1} failed. Retrying in ${backoffTime}ms...`,
+          );
           await sleep(backoffTime);
         }
       }
     }
 
-    throw new Error(`Failed to post GitHub comment after ${maxRetries} attempts: ${lastError?.message}`);
+    throw new Error(
+      `Failed to post GitHub comment after ${maxRetries} attempts: ${lastError?.message}`,
+    );
   },
 });
 
@@ -576,7 +697,9 @@ export const syncRepositoryCommits = internalAction({
     const [owner, repo] = args.repository.split("/");
 
     if (!owner || !repo) {
-      throw new Error(`Invalid repository format: ${args.repository}. Expected: owner/repo`);
+      throw new Error(
+        `Invalid repository format: ${args.repository}. Expected: owner/repo`,
+      );
     }
 
     const perPage = args.per_page ?? 100;
@@ -593,8 +716,8 @@ export const syncRepositoryCommits = internalAction({
 
       const response = await fetch(url, {
         headers: {
-          "Authorization": `Bearer ${args.github_access_token}`,
-          "Accept": "application/vnd.github+json",
+          Authorization: `Bearer ${args.github_access_token}`,
+          Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
         },
       });
@@ -615,8 +738,8 @@ export const syncRepositoryCommits = internalAction({
         const commitUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${commit.sha}`;
         const detailResponse = await fetch(commitUrl, {
           headers: {
-            "Authorization": `Bearer ${args.github_access_token}`,
-            "Accept": "application/vnd.github+json",
+            Authorization: `Bearer ${args.github_access_token}`,
+            Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
           },
         });
@@ -628,28 +751,34 @@ export const syncRepositoryCommits = internalAction({
 
         const commitDetail = await detailResponse.json();
 
-        const files = commitDetail.files?.map((file: any) => {
-          let patch = file.patch;
-          if (patch && patch.length > MAX_PATCH_SIZE) {
-            patch = patch.substring(0, MAX_PATCH_SIZE) + "\n... [truncated, patch too large]";
-          }
-          return {
-            filename: file.filename,
-            status: file.status,
-            additions: file.additions || 0,
-            deletions: file.deletions || 0,
-            changes: file.changes || 0,
-            patch,
-          };
-        }) || [];
+        const files =
+          commitDetail.files?.map((file: any) => {
+            let patch = file.patch;
+            if (patch && patch.length > MAX_PATCH_SIZE) {
+              patch =
+                patch.substring(0, MAX_PATCH_SIZE) +
+                "\n... [truncated, patch too large]";
+            }
+            return {
+              filename: file.filename,
+              status: file.status,
+              additions: file.additions || 0,
+              deletions: file.deletions || 0,
+              changes: file.changes || 0,
+              patch,
+            };
+          }) || [];
 
         try {
           await ctx.runMutation(api.commits.addCommit, {
             sha: commit.sha,
             message: commit.commit.message,
-            author_name: commit.commit.author?.name || commit.author?.login || "Unknown",
+            author_name:
+              commit.commit.author?.name || commit.author?.login || "Unknown",
             author_email: commit.commit.author?.email || "",
-            timestamp: new Date(commit.commit.author?.date || commit.commit.committer?.date).getTime(),
+            timestamp: new Date(
+              commit.commit.author?.date || commit.commit.committer?.date,
+            ).getTime(),
             files_changed: commitDetail.files?.length || 0,
             insertions: commitDetail.stats?.additions || 0,
             deletions: commitDetail.stats?.deletions || 0,
@@ -686,8 +815,8 @@ export const getUserRepositories = internalAction({
 
     const response = await fetch(url, {
       headers: {
-        "Authorization": `Bearer ${args.github_access_token}`,
-        "Accept": "application/vnd.github+json",
+        Authorization: `Bearer ${args.github_access_token}`,
+        Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
@@ -721,21 +850,25 @@ export const getPRFiles = internalAction({
     const [owner, repo] = args.repository.split("/");
 
     if (!owner || !repo) {
-      throw new Error(`Invalid repository format: ${args.repository}. Expected: owner/repo`);
+      throw new Error(
+        `Invalid repository format: ${args.repository}. Expected: owner/repo`,
+      );
     }
 
     const prUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}`;
     const prResponse = await fetch(prUrl, {
       headers: {
-        "Authorization": `Bearer ${args.github_access_token}`,
-        "Accept": "application/vnd.github+json",
+        Authorization: `Bearer ${args.github_access_token}`,
+        Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
 
     if (!prResponse.ok) {
       const errorText = await prResponse.text();
-      throw new Error(`GitHub API error fetching PR: ${prResponse.status} ${errorText}`);
+      throw new Error(
+        `GitHub API error fetching PR: ${prResponse.status} ${errorText}`,
+      );
     }
 
     const prData = await prResponse.json();
@@ -743,15 +876,17 @@ export const getPRFiles = internalAction({
     const filesUrl = `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.pr_number}/files?per_page=100`;
     const filesResponse = await fetch(filesUrl, {
       headers: {
-        "Authorization": `Bearer ${args.github_access_token}`,
-        "Accept": "application/vnd.github+json",
+        Authorization: `Bearer ${args.github_access_token}`,
+        Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
 
     if (!filesResponse.ok) {
       const errorText = await filesResponse.text();
-      throw new Error(`GitHub API error fetching files: ${filesResponse.status} ${errorText}`);
+      throw new Error(
+        `GitHub API error fetching files: ${filesResponse.status} ${errorText}`,
+      );
     }
 
     const filesData = await filesResponse.json();
@@ -759,7 +894,9 @@ export const getPRFiles = internalAction({
     const files = filesData.map((file: any) => {
       let patch = file.patch;
       if (patch && patch.length > MAX_PATCH_SIZE) {
-        patch = patch.substring(0, MAX_PATCH_SIZE) + "\n... [truncated, patch too large]";
+        patch =
+          patch.substring(0, MAX_PATCH_SIZE) +
+          "\n... [truncated, patch too large]";
       }
       return {
         filename: file.filename,
@@ -779,8 +916,14 @@ export const getPRFiles = internalAction({
       commits_count: prData.commits,
       base_ref: prData.base?.ref,
       head_ref: prData.head?.ref,
-      state: prData.merged ? "merged" : prData.state === "closed" ? "closed" : "open",
-      merged_at: prData.merged_at ? new Date(prData.merged_at).getTime() : undefined,
+      state: prData.merged
+        ? "merged"
+        : prData.state === "closed"
+          ? "closed"
+          : "open",
+      merged_at: prData.merged_at
+        ? new Date(prData.merged_at).getTime()
+        : undefined,
     };
   },
 });
@@ -796,7 +939,10 @@ const MAX_BLOB_BYTES = 1024 * 1024;
 
 function repoParts(repository: string): [string, string] {
   const [owner, repo] = repository.split("/");
-  if (!owner || !repo) throw new Error(`Invalid repository format: ${repository}. Expected: owner/repo`);
+  if (!owner || !repo)
+    throw new Error(
+      `Invalid repository format: ${repository}. Expected: owner/repo`,
+    );
   return [owner, repo];
 }
 
@@ -813,18 +959,33 @@ function ghHeaders(token: string) {
  * A 404 through an App token usually means the installation does not cover the
  * repository, which reads nothing like "not found" to whoever asked.
  */
-async function ghFetch(url: string, token: string, accept?: string): Promise<any> {
+async function ghFetch(
+  url: string,
+  token: string,
+  accept?: string,
+): Promise<any> {
   const headers = ghHeaders(token);
-  const response = await fetch(url, { headers: accept ? { ...headers, Accept: accept } : headers });
+  const response = await fetch(url, {
+    headers: accept ? { ...headers, Accept: accept } : headers,
+  });
   if (response.status === 404) {
-    throw new Error(`GitHub returned 404 for ${url} — the ref or path does not exist, or the installation does not cover this repository`);
+    throw new Error(
+      `GitHub returned 404 for ${url} — the ref or path does not exist, or the installation does not cover this repository`,
+    );
   }
-  if (response.status === 403 && response.headers.get("X-RateLimit-Remaining") === "0") {
+  if (
+    response.status === 403 &&
+    response.headers.get("X-RateLimit-Remaining") === "0"
+  ) {
     const reset = response.headers.get("X-RateLimit-Reset");
-    throw new Error(`GitHub rate limit reached${reset ? `, resets at ${new Date(Number(reset) * 1000).toISOString()}` : ""}`);
+    throw new Error(
+      `GitHub rate limit reached${reset ? `, resets at ${new Date(Number(reset) * 1000).toISOString()}` : ""}`,
+    );
   }
   if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `GitHub API error: ${response.status} ${await response.text()}`,
+    );
   }
   return await response.json();
 }
@@ -851,11 +1012,15 @@ async function ghGraphQL(
     body: JSON.stringify({ query, variables }),
   });
   if (!response.ok) {
-    throw new Error(`GitHub GraphQL error: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `GitHub GraphQL error: ${response.status} ${await response.text()}`,
+    );
   }
   const body = await response.json();
   if (body.errors?.length && !soft) {
-    throw new Error(`GitHub GraphQL error: ${body.errors.map((e: any) => e.message).join("; ")}`);
+    throw new Error(
+      `GitHub GraphQL error: ${body.errors.map((e: any) => e.message).join("; ")}`,
+    );
   }
   return { data: body.data, errors: body.errors };
 }
@@ -879,7 +1044,10 @@ export const setReviewThreadResolved = internalAction({
     resolved: v.boolean(),
     github_access_token: v.string(),
   },
-  handler: async (_ctx, args): Promise<{ thread_id: string | null; changed: boolean }> => {
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<{ thread_id: string | null; changed: boolean }> => {
     const [owner, name] = repoParts(args.repository);
     let threadId = args.thread_id ?? null;
     let isResolved: boolean | null = null;
@@ -914,7 +1082,11 @@ export const setReviewThreadResolved = internalAction({
         );
         const threads = data?.repository?.pullRequest?.reviewThreads;
         for (const thread of threads?.nodes ?? []) {
-          if ((thread.comments?.nodes ?? []).some((c: any) => c.databaseId === args.github_comment_id)) {
+          if (
+            (thread.comments?.nodes ?? []).some(
+              (c: any) => c.databaseId === args.github_comment_id,
+            )
+          ) {
             threadId = thread.id;
             isResolved = !!thread.isResolved;
             break;
@@ -926,9 +1098,12 @@ export const setReviewThreadResolved = internalAction({
     }
 
     if (!threadId) return { thread_id: null, changed: false };
-    if (isResolved === args.resolved) return { thread_id: threadId, changed: false };
+    if (isResolved === args.resolved)
+      return { thread_id: threadId, changed: false };
 
-    const field = args.resolved ? "resolveReviewThread" : "unresolveReviewThread";
+    const field = args.resolved
+      ? "resolveReviewThread"
+      : "unresolveReviewThread";
     await ghGraphQL(
       `mutation($id: ID!) { ${field}(input: { threadId: $id }) { thread { id isResolved } } }`,
       { id: threadId },
@@ -950,7 +1125,10 @@ export const listBranches = internalAction({
   },
   handler: async (_ctx, args) => {
     const [owner, repo] = repoParts(args.repository);
-    const repoInfo = await ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, args.github_access_token);
+    const repoInfo = await ghFetch(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}`,
+      args.github_access_token,
+    );
     const branches = await ghFetch(
       `${GITHUB_API_BASE}/repos/${owner}/${repo}/branches?per_page=100`,
       args.github_access_token,
@@ -1011,14 +1189,24 @@ export const getBlob = internalAction({
       throw new Error(`${args.path} is a directory, not a file`);
     }
     if (typeof data.size === "number" && data.size > MAX_BLOB_BYTES) {
-      return { content: "", size: data.size, truncated: true, sha: data.sha as string };
+      return {
+        content: "",
+        size: data.size,
+        truncated: true,
+        sha: data.sha as string,
+      };
     }
     // GitHub returns base64 with newlines, which atob rejects.
-    const raw = typeof data.content === "string" ? atob(data.content.replace(/\n/g, "")) : "";
+    const raw =
+      typeof data.content === "string"
+        ? atob(data.content.replace(/\n/g, ""))
+        : "";
     const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0));
     return {
       content: new TextDecoder().decode(bytes),
-      ...(/\.(png|jpe?g|webp|gif|ico|avif)$/i.test(args.path) ? { base64: data.content.replace(/\s/g, "") } : {}),
+      ...(/\.(png|jpe?g|webp|gif|ico|avif)$/i.test(args.path)
+        ? { base64: data.content.replace(/\s/g, "") }
+        : {}),
       size: data.size as number,
       truncated: false,
       sha: data.sha as string,
@@ -1026,12 +1214,27 @@ export const getBlob = internalAction({
   },
 });
 
-async function commitSummaries(owner: string, repo: string, shas: string[], token: string): Promise<Record<string, any>> {
+async function commitSummaries(
+  owner: string,
+  repo: string,
+  shas: string[],
+  token: string,
+): Promise<Record<string, any>> {
   const summaries: Record<string, any> = {};
   for (let start = 0; start < shas.length; start += 50) {
     const batch = shas.slice(start, start + 50);
-    const fields = batch.map((sha, i) => `c${i}: object(expression: ${gqlString(sha)}) { ... on Commit { oid messageHeadline committedDate additions deletions changedFilesIfAvailable author { name user { login avatarUrl } } } }`).join("\n");
-    const result = await ghGraphQL(`query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { ${fields} } }`, { owner, repo }, token, true);
+    const fields = batch
+      .map(
+        (sha, i) =>
+          `c${i}: object(expression: ${gqlString(sha)}) { ... on Commit { oid messageHeadline committedDate additions deletions changedFilesIfAvailable author { name user { login avatarUrl } } } }`,
+      )
+      .join("\n");
+    const result = await ghGraphQL(
+      `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { ${fields} } }`,
+      { owner, repo },
+      token,
+      true,
+    );
     batch.forEach((sha, i) => {
       const commit = result.data?.repository?.[`c${i}`];
       if (commit?.oid) summaries[sha] = commit;
@@ -1064,18 +1267,27 @@ export const listCommits = internalAction({
       `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits?${params.toString()}`,
       args.github_access_token,
     );
-    const summaries = await commitSummaries(owner, repo, data.map((commit: any) => commit.sha), args.github_access_token);
+    const summaries = await commitSummaries(
+      owner,
+      repo,
+      data.map((commit: any) => commit.sha),
+      args.github_access_token,
+    );
     return {
       commits: data.map((commit: any) => ({
         sha: commit.sha as string,
         additions: summaries[commit.sha]?.additions as number | undefined,
         deletions: summaries[commit.sha]?.deletions as number | undefined,
-        changed_files: summaries[commit.sha]?.changedFilesIfAvailable as number | undefined,
+        changed_files: summaries[commit.sha]?.changedFilesIfAvailable as
+          | number
+          | undefined,
         message: (commit.commit?.message ?? "") as string,
         author_name: (commit.commit?.author?.name ?? "") as string,
         author_login: commit.author?.login as string | undefined,
         author_avatar_url: commit.author?.avatar_url as string | undefined,
-        timestamp: new Date(commit.commit?.author?.date ?? commit.commit?.committer?.date ?? 0).getTime(),
+        timestamp: new Date(
+          commit.commit?.author?.date ?? commit.commit?.committer?.date ?? 0,
+        ).getTime(),
         html_url: commit.html_url as string,
       })),
     };
@@ -1146,7 +1358,9 @@ export const compare = internalAction({
         author_name: (commit.commit?.author?.name ?? "") as string,
         author_login: commit.author?.login as string | undefined,
         author_avatar_url: commit.author?.avatar_url as string | undefined,
-        timestamp: new Date(commit.commit?.author?.date ?? commit.commit?.committer?.date ?? 0).getTime(),
+        timestamp: new Date(
+          commit.commit?.author?.date ?? commit.commit?.committer?.date ?? 0,
+        ).getTime(),
       })),
       files: (data.files ?? []).map((file: any) => {
         // Same cap as getPRFiles. A generated lockfile diff alone can outrun
@@ -1220,7 +1434,9 @@ export const getBlame = internalAction({
         session: extractSessionTrailer(range.commit?.message) ?? undefined,
         author_name: range.commit?.author?.name as string | undefined,
         author_login: range.commit?.author?.user?.login as string | undefined,
-        author_avatar_url: range.commit?.author?.user?.avatarUrl as string | undefined,
+        author_avatar_url: range.commit?.author?.user?.avatarUrl as
+          | string
+          | undefined,
         committed_at: new Date(range.commit?.committedDate ?? 0).getTime(),
       })),
     };
@@ -1243,9 +1459,19 @@ export const getRepoMeta = internalAction({
   handler: async (_ctx, args) => {
     const [owner, repo] = repoParts(args.repository);
     const [info, languages, counts] = await Promise.all([
-      ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, args.github_access_token),
-      ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/languages`, args.github_access_token),
-      ghGraphQL('query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(states: OPEN) { totalCount } } }', { owner, repo }, args.github_access_token),
+      ghFetch(
+        `${GITHUB_API_BASE}/repos/${owner}/${repo}`,
+        args.github_access_token,
+      ),
+      ghFetch(
+        `${GITHUB_API_BASE}/repos/${owner}/${repo}/languages`,
+        args.github_access_token,
+      ),
+      ghGraphQL(
+        "query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(states: OPEN) { totalCount } } }",
+        { owner, repo },
+        args.github_access_token,
+      ),
     ]);
     return {
       private: !!info.private,
@@ -1257,7 +1483,9 @@ export const getRepoMeta = internalAction({
       stargazers_count: (info.stargazers_count ?? 0) as number,
       forks_count: (info.forks_count ?? 0) as number,
       open_issues_count: (info.open_issues_count ?? 0) as number,
-      open_pulls_count: counts.data?.repository?.pullRequests?.totalCount as number | undefined,
+      open_pulls_count: counts.data?.repository?.pullRequests?.totalCount as
+        | number
+        | undefined,
       pushed_at: info.pushed_at ? new Date(info.pushed_at).getTime() : null,
       archived: !!info.archived,
       html_url: info.html_url as string,
@@ -1278,15 +1506,26 @@ export const listTags = internalAction({
       `${GITHUB_API_BASE}/repos/${owner}/${repo}/tags?per_page=100`,
       args.github_access_token,
     );
-    const summaries = await commitSummaries(owner, repo, (data ?? []).map((tag: any) => tag.commit?.sha).filter(Boolean), args.github_access_token);
+    const summaries = await commitSummaries(
+      owner,
+      repo,
+      (data ?? []).map((tag: any) => tag.commit?.sha).filter(Boolean),
+      args.github_access_token,
+    );
     return {
       truncated: data.length === 100,
       tags: (data ?? []).map((tag: any) => ({
         name: tag.name as string,
         sha: tag.commit?.sha as string,
-        subject: summaries[tag.commit?.sha]?.messageHeadline as string | undefined,
-        committed_at: summaries[tag.commit?.sha]?.committedDate ? new Date(summaries[tag.commit.sha].committedDate).getTime() : undefined,
-        author_login: summaries[tag.commit?.sha]?.author?.user?.login as string | undefined,
+        subject: summaries[tag.commit?.sha]?.messageHeadline as
+          | string
+          | undefined,
+        committed_at: summaries[tag.commit?.sha]?.committedDate
+          ? new Date(summaries[tag.commit.sha].committedDate).getTime()
+          : undefined,
+        author_login: summaries[tag.commit?.sha]?.author?.user?.login as
+          | string
+          | undefined,
       })),
     };
   },
@@ -1308,14 +1547,21 @@ export const getReadme = internalAction({
   handler: async (_ctx, args) => {
     const [owner, repo] = repoParts(args.repository);
     const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/readme?ref=${encodeURIComponent(args.ref)}`;
-    const response = await fetch(url, { headers: ghHeaders(args.github_access_token) });
+    const response = await fetch(url, {
+      headers: ghHeaders(args.github_access_token),
+    });
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${await response.text()}`);
+      throw new Error(
+        `GitHub API error: ${response.status} ${await response.text()}`,
+      );
     }
     const data = await response.json();
     // GitHub returns base64 with newlines in it, which atob rejects.
-    const raw = typeof data.content === "string" ? atob(data.content.replace(/\n/g, "")) : "";
+    const raw =
+      typeof data.content === "string"
+        ? atob(data.content.replace(/\n/g, ""))
+        : "";
     const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0));
     return {
       path: data.path as string,
@@ -1366,7 +1612,9 @@ export const lastCommitsForPaths = internalAction({
         args.github_access_token,
       );
       const entries = data?.repository?.object?.entries ?? [];
-      paths = entries.map((entry: any) => (dir ? `${dir}/${entry.name}` : (entry.name as string)));
+      paths = entries.map((entry: any) =>
+        dir ? `${dir}/${entry.name}` : (entry.name as string),
+      );
     }
 
     for (let start = 0; start < paths.length; start += LAST_COMMIT_CHUNK) {
@@ -1406,7 +1654,9 @@ export const lastCommitsForPaths = internalAction({
           committed_at: new Date(commit.committedDate ?? 0).getTime(),
           author_name: commit.author?.name as string | undefined,
           author_login: commit.author?.user?.login as string | undefined,
-          author_avatar_url: commit.author?.user?.avatarUrl as string | undefined,
+          author_avatar_url: commit.author?.user?.avatarUrl as
+            | string
+            | undefined,
         };
       });
     }
@@ -1456,17 +1706,31 @@ export const listBranchDetails = internalAction({
 
     // The default branch name is a literal inside the query, so it has to be
     // known before the branch list is asked for. One cheap call buys it.
-    const head = await ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}`, args.github_access_token);
+    const head = await ghFetch(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}`,
+      args.github_access_token,
+    );
     const defaultBranch = (head.default_branch ?? null) as string | null;
 
-    let result = await ghGraphQL(build(defaultBranch), { owner, repo }, args.github_access_token, true);
+    let result = await ghGraphQL(
+      build(defaultBranch),
+      { owner, repo },
+      args.github_access_token,
+      true,
+    );
     if (result.errors?.length) {
-      result = await ghGraphQL(build(null), { owner, repo }, args.github_access_token);
+      result = await ghGraphQL(
+        build(null),
+        { owner, repo },
+        args.github_access_token,
+      );
     }
 
     const repository = result.data?.repository;
     return {
-      default_branch: (repository?.defaultBranchRef?.name ?? defaultBranch ?? "") as string,
+      default_branch: (repository?.defaultBranchRef?.name ??
+        defaultBranch ??
+        "") as string,
       truncated: (repository?.refs?.nodes?.length ?? 0) === 100,
       branches: (repository?.refs?.nodes ?? []).map((node: any) => {
         const pr = node.associatedPullRequests?.nodes?.[0];
@@ -1477,10 +1741,18 @@ export const listBranchDetails = internalAction({
           committed_at: new Date(node.target?.committedDate ?? 0).getTime(),
           author_name: node.target?.author?.name as string | undefined,
           author_login: node.target?.author?.user?.login as string | undefined,
-          author_avatar_url: node.target?.author?.user?.avatarUrl as string | undefined,
-          ahead_by: node.compare ? (node.compare.behindBy as number) : undefined,
-          behind_by: node.compare ? (node.compare.aheadBy as number) : undefined,
-          open_pr: pr ? { number: pr.number as number, title: pr.title as string } : null,
+          author_avatar_url: node.target?.author?.user?.avatarUrl as
+            | string
+            | undefined,
+          ahead_by: node.compare
+            ? (node.compare.behindBy as number)
+            : undefined,
+          behind_by: node.compare
+            ? (node.compare.aheadBy as number)
+            : undefined,
+          open_pr: pr
+            ? { number: pr.number as number, title: pr.title as string }
+            : null,
         };
       }),
     };
@@ -1513,8 +1785,14 @@ export const searchCode = internalAction({
       args.github_access_token,
       "application/vnd.github.text-match+json",
     );
-    if ((data.items ?? []).some((item: any) => !belongsToSearchRepository(item, args.repository))) {
-      throw new Error("GitHub code search returned a result outside the requested repository");
+    if (
+      (data.items ?? []).some(
+        (item: any) => !belongsToSearchRepository(item, args.repository),
+      )
+    ) {
+      throw new Error(
+        "GitHub code search returned a result outside the requested repository",
+      );
     }
     return {
       ref_scoped: false,
@@ -1526,7 +1804,9 @@ export const searchCode = internalAction({
         html_url: item.html_url as string,
         matches: (item.text_matches ?? []).map((match: any) => ({
           fragment: (match.fragment ?? "") as string,
-          indices: (match.matches ?? []).map((m: any) => m.indices as [number, number]),
+          indices: (match.matches ?? []).map(
+            (m: any) => m.indices as [number, number],
+          ),
         })),
       })),
     };
@@ -1573,9 +1853,13 @@ export function mapPull(pull: any) {
     draft: !!pull.draft,
     head_sha: pull.head?.sha as string | undefined,
     base_sha: pull.base?.sha as string | undefined,
-    requested_reviewers: (pull.requested_reviewers ?? []).map((r: any) => r.login as string),
+    requested_reviewers: (pull.requested_reviewers ?? []).map(
+      (r: any) => r.login as string,
+    ),
     merged_at: pull.merged_at ? new Date(pull.merged_at).getTime() : null,
-    merge_commit_sha: (pull.merged_at ? pull.merge_commit_sha ?? undefined : undefined) as string | undefined,
+    merge_commit_sha: (pull.merged_at
+      ? (pull.merge_commit_sha ?? undefined)
+      : undefined) as string | undefined,
     created_at: pull.created_at ? new Date(pull.created_at).getTime() : null,
     updated_at: pull.updated_at ? new Date(pull.updated_at).getTime() : null,
     closed_at: pull.closed_at ? new Date(pull.closed_at).getTime() : null,
@@ -1594,7 +1878,11 @@ export function mapPull(pull: any) {
 
 /** The commits on a pull request's head branch, oldest first, as GitHub lists them. */
 export const listPRCommits = internalAction({
-  args: { repository: v.string(), pr_number: v.number(), github_access_token: v.string() },
+  args: {
+    repository: v.string(),
+    pr_number: v.number(),
+    github_access_token: v.string(),
+  },
   handler: async (_ctx, args): Promise<PRCommit[]> => {
     const [owner, repo] = repoParts(args.repository);
     const data: any[] = [];
@@ -1611,22 +1899,36 @@ export const listPRCommits = internalAction({
       message: (c.commit?.message ?? "") as string,
       author_login: (c.author?.login ?? undefined) as string | undefined,
       author_name: (c.commit?.author?.name ?? undefined) as string | undefined,
-      author_avatar_url: (c.author?.avatar_url ?? undefined) as string | undefined,
-      committed_at: c.commit?.committer?.date ? new Date(c.commit.committer.date).getTime() : undefined,
+      author_avatar_url: (c.author?.avatar_url ?? undefined) as
+        | string
+        | undefined,
+      committed_at: c.commit?.committer?.date
+        ? new Date(c.commit.committer.date).getTime()
+        : undefined,
       url: (c.html_url ?? undefined) as string | undefined,
     }));
   },
 });
 
 export const listPRChecks = internalAction({
-  args: { repository: v.string(), sha: v.string(), github_access_token: v.string() },
-  handler: async (_ctx, args): Promise<import("./lib/gitRefs").CheckEntry[]> => {
+  args: {
+    repository: v.string(),
+    sha: v.string(),
+    github_access_token: v.string(),
+  },
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<import("./lib/gitRefs").CheckEntry[]> => {
     const [owner, repo] = repoParts(args.repository);
     const base = `${GITHUB_API_BASE}/repos/${owner}/${repo}/commits/${encodeURIComponent(args.sha)}`;
     const readPages = async (path: string, field: string) => {
       const rows: any[] = [];
       for (let page = 1; ; page++) {
-        const data = await ghFetch(`${base}/${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`, args.github_access_token);
+        const data = await ghFetch(
+          `${base}/${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`,
+          args.github_access_token,
+        );
         const batch = data[field] ?? [];
         rows.push(...batch);
         if (batch.length < 100 || rows.length >= data.total_count) return rows;
@@ -1642,17 +1944,26 @@ export const listPRChecks = internalAction({
         status: run.status as string,
         conclusion: run.conclusion ?? undefined,
         url: run.html_url ?? run.details_url ?? undefined,
-        updated_at: Date.parse(run.completed_at ?? run.started_at ?? "") || Date.now(),
+        updated_at:
+          Date.parse(run.completed_at ?? run.started_at ?? "") || Date.now(),
         external_id: String(run.id),
-        suite_id: run.check_suite?.id == null ? undefined : String(run.check_suite.id),
+        suite_id:
+          run.check_suite?.id == null ? undefined : String(run.check_suite.id),
         app: run.app?.slug ?? undefined,
       })),
       ...statuses.map((status) => ({
         name: status.context as string,
         status: status.state === "pending" ? "in_progress" : "completed",
-        conclusion: status.state === "pending" ? undefined : status.state === "success" ? "success" : "failure",
+        conclusion:
+          status.state === "pending"
+            ? undefined
+            : status.state === "success"
+              ? "success"
+              : "failure",
         url: status.target_url ?? undefined,
-        updated_at: Date.parse(status.updated_at ?? status.created_at ?? "") || Date.now(),
+        updated_at:
+          Date.parse(status.updated_at ?? status.created_at ?? "") ||
+          Date.now(),
         external_id: `status:${status.context}`,
       })),
     ];
@@ -1661,11 +1972,24 @@ export const listPRChecks = internalAction({
 
 /** The jobs of one GitHub Actions run, by name, with how each ended (null while running). */
 export const listRunJobs = internalAction({
-  args: { repository: v.string(), run_id: v.string(), github_access_token: v.string() },
-  handler: async (_ctx, args): Promise<Array<{ name: string; conclusion: string | null }>> => {
+  args: {
+    repository: v.string(),
+    run_id: v.string(),
+    github_access_token: v.string(),
+  },
+  handler: async (
+    _ctx,
+    args,
+  ): Promise<Array<{ name: string; conclusion: string | null }>> => {
     const [owner, repo] = repoParts(args.repository);
-    const data = await ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${encodeURIComponent(args.run_id)}/jobs?per_page=100`, args.github_access_token);
-    return (data.jobs ?? []).map((j: any) => ({ name: String(j.name), conclusion: j.conclusion ?? null }));
+    const data = await ghFetch(
+      `${GITHUB_API_BASE}/repos/${owner}/${repo}/actions/runs/${encodeURIComponent(args.run_id)}/jobs?per_page=100`,
+      args.github_access_token,
+    );
+    return (data.jobs ?? []).map((j: any) => ({
+      name: String(j.name),
+      conclusion: j.conclusion ?? null,
+    }));
   },
 });
 
@@ -1683,11 +2007,20 @@ export type MappedPull = ReturnType<typeof mapPull>;
 
 /** One pull request by number, in the same shape as a list entry. Null on 404. */
 export const getPull = internalAction({
-  args: { repository: v.string(), number: v.number(), github_access_token: v.string() },
+  args: {
+    repository: v.string(),
+    number: v.number(),
+    github_access_token: v.string(),
+  },
   handler: async (_ctx, args): Promise<MappedPull | null> => {
     const [owner, repo] = repoParts(args.repository);
     try {
-      return mapPull(await ghFetch(`${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.number}`, args.github_access_token));
+      return mapPull(
+        await ghFetch(
+          `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls/${args.number}`,
+          args.github_access_token,
+        ),
+      );
     } catch (error: any) {
       if (/returned 404/.test(error?.message ?? "")) return null;
       throw error;

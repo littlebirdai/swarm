@@ -15,6 +15,7 @@ Skills are model-invoked capabilities that Claude autonomously uses based on tas
 ## When This Skill Applies
 
 This skill activates when the user's request involves:
+
 - Creating or understanding plugin skills
 - Skill template or reference needs
 - Skill development patterns
@@ -58,11 +59,13 @@ Skills support these frontmatter fields:
 The description field is crucial - it tells Claude when to invoke the skill.
 
 **Good description patterns:**
+
 ```yaml
 description: This skill should be used when the user asks to "specific phrase", "another phrase", mentions "keyword", or discusses topic-area.
 ```
 
 **Include:**
+
 - Specific trigger phrases users might say
 - Keywords that indicate relevance
 - Topic areas the skill covers

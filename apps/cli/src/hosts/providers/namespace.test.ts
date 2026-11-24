@@ -4,14 +4,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { CloudHost } from "../../browser/cloudHost";
 import { estimateHostCost } from "../cli";
-import { FAKE_BOX, installFakeNamespace } from "../../test-helpers/fakeNamespace";
+import {
+  FAKE_BOX,
+  installFakeNamespace,
+} from "../../test-helpers/fakeNamespace";
 import { hostProvider, hostSleeps, isMacHost } from "./registry";
 import { namespaceProvider, NamespaceCliFailed } from "./namespace";
 import { bootNamespace } from "./namespaceStart";
 
 const host: CloudHost = {
-  id: "box123", provider: "namespace", region: "iad", platform: "linux", user: "devbox", keyPath: "/k/cast-box.key",
-  address: "cast-box", proxyCommand: "/b/devbox ssh-proxy cast-box",
+  id: "box123",
+  provider: "namespace",
+  region: "iad",
+  platform: "linux",
+  user: "devbox",
+  keyPath: "/k/cast-box.key",
+  address: "cast-box",
+  proxyCommand: "/b/devbox ssh-proxy cast-box",
 };
 const STARTED = "2026-11-17T10:00:00Z";
 
@@ -28,19 +37,34 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+  for (const [k, v] of Object.entries(saved))
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
   fs.rmSync(root, { recursive: true, force: true });
 });
 
 describe("namespace provider state", () => {
   test("running: the nsc instance names its start, the address is the box name", () => {
-    fake.set("nsc-list", JSON.stringify([{ created_at: STARTED, shape: {}, labels: {} }]));
-    expect(namespaceProvider.state(host)).toEqual({ state: "running", address: "cast-box", startedAt: Date.parse(STARTED) });
-    expect(fake.calls()).toEqual([["devbox", "list", "-o", "json"], ["nsc", "list", "--label", "devbox.id=box123", "-o", "json"]]);
+    fake.set(
+      "nsc-list",
+      JSON.stringify([{ created_at: STARTED, shape: {}, labels: {} }]),
+    );
+    expect(namespaceProvider.state(host)).toEqual({
+      state: "running",
+      address: "cast-box",
+      startedAt: Date.parse(STARTED),
+    });
+    expect(fake.calls()).toEqual([
+      ["devbox", "list", "-o", "json"],
+      ["nsc", "list", "--label", "devbox.id=box123", "-o", "json"],
+    ]);
   });
 
   test("stopped: nsc prints the literal null", () => {
-    expect(namespaceProvider.state(host)).toEqual({ state: "stopped", address: "cast-box" });
+    expect(namespaceProvider.state(host)).toEqual({
+      state: "stopped",
+      address: "cast-box",
+    });
   });
 
   test("missing: a box absent from devbox list, without asking nsc", () => {
@@ -78,14 +102,18 @@ describe("namespace provider state", () => {
   test("a missing devbox binary says it is not installed", () => {
     fs.rmSync(path.join(fake.bin, "devbox"));
     process.env.PATH = path.join(root, "empty");
-    expect(() => namespaceProvider.state(host)).toThrow("the devbox CLI is not installed");
+    expect(() => namespaceProvider.state(host)).toThrow(
+      "the devbox CLI is not installed",
+    );
   });
 });
 
 describe("the async state read", () => {
   test("is the same instance the sync read finds, or null when stopped", async () => {
     fake.set("nsc-list", JSON.stringify([{ created_at: STARTED }]));
-    expect(await namespaceProvider.describeAsync!(host)).toEqual({ created_at: STARTED });
+    expect(await namespaceProvider.describeAsync!(host)).toEqual({
+      created_at: STARTED,
+    });
     fs.rmSync(path.join(fake.state, "nsc-list"));
     expect(await namespaceProvider.describeAsync!(host)).toBeNull();
   });
@@ -95,12 +123,15 @@ describe("the async state read", () => {
     await expect(namespaceProvider.describeAsync!(host)).rejects.toThrow();
     fs.rmSync(path.join(fake.state, "nsc-fail"));
     fake.set("nsc-list", "{broken");
-    await expect(namespaceProvider.describeAsync!(host)).rejects.toThrow("not JSON");
+    await expect(namespaceProvider.describeAsync!(host)).rejects.toThrow(
+      "not JSON",
+    );
   });
 });
 
 describe("forgetting a Devbox host", () => {
-  const key = () => path.join(fake.home, ".namespace", "ssh", "cast-box.devbox.namespace.key");
+  const key = () =>
+    path.join(fake.home, ".namespace", "ssh", "cast-box.devbox.namespace.key");
   const ssh = () => key().replace(/\.key$/, ".ssh");
   beforeEach(() => {
     fs.mkdirSync(path.dirname(key()), { recursive: true });
@@ -121,7 +152,12 @@ describe("namespace provider inspect, stop and capabilities", () => {
   test("inspect carries the name, linux and the shape", () => {
     fake.set("nsc-list", JSON.stringify([{ created_at: STARTED }]));
     expect(namespaceProvider.inspect(host)).toEqual({
-      state: "running", address: "cast-box", startedAt: Date.parse(STARTED), name: "cast-box", platform: "linux", instanceType: "2 vCPU / 4 GB",
+      state: "running",
+      address: "cast-box",
+      startedAt: Date.parse(STARTED),
+      name: "cast-box",
+      platform: "linux",
+      instanceType: "2 vCPU / 4 GB",
     });
     fake.set("devbox-list", "[]");
     expect(namespaceProvider.inspect(host)).toEqual({ state: "missing" });
@@ -130,45 +166,82 @@ describe("namespace provider inspect, stop and capabilities", () => {
   test("stop forces the box by name", () => {
     namespaceProvider.stop(host);
     expect(fake.calls()).toEqual([["devbox", "stop", "--force", "cast-box"]]);
-    expect(() => namespaceProvider.stop({ ...host, address: undefined })).toThrow("no box name");
+    expect(() =>
+      namespaceProvider.stop({ ...host, address: undefined }),
+    ).toThrow("no box name");
   });
 
   test("the registry knows it: sleeps, not a Mac, cannot image, clone or resize", () => {
     expect(hostProvider(host)).toBe(namespaceProvider);
     expect(hostSleeps(host)).toBe(true);
     expect(isMacHost(host)).toBe(false);
-    expect([namespaceProvider.images, namespaceProvider.clones, namespaceProvider.resizes, namespaceProvider.macOnly]).toEqual([false, false, false, false]);
+    expect([
+      namespaceProvider.images,
+      namespaceProvider.clones,
+      namespaceProvider.resizes,
+      namespaceProvider.macOnly,
+    ]).toEqual([false, false, false, false]);
   });
 
   test("cost is unknown for a Devbox and still priced for aws", () => {
-    expect(estimateHostCost({ host, instanceType: "2 vCPU / 4 GB", state: "running", volumeGiB: undefined }).line).toBe("awake: rate unknown for 2 vCPU / 4 GB, disk size unknown");
+    expect(
+      estimateHostCost({
+        host,
+        instanceType: "2 vCPU / 4 GB",
+        state: "running",
+        volumeGiB: undefined,
+      }).line,
+    ).toBe("awake: rate unknown for 2 vCPU / 4 GB, disk size unknown");
     const aws: CloudHost = { ...host, id: "i-1", provider: "aws" };
-    expect(estimateHostCost({ host: aws, instanceType: "t3.medium", state: "running" }).hourlyUsd).toBe(0.0416);
+    expect(
+      estimateHostCost({
+        host: aws,
+        instanceType: "t3.medium",
+        state: "running",
+      }).hourlyUsd,
+    ).toBe(0.0416);
   });
 });
 
 describe("starting a Devbox", () => {
   const hooks = () => {
     const seen: string[] = [];
-    return { seen, onProgress: (m: string) => seen.push(`progress:${m}`), onPhase: (p: string) => seen.push(`phase:${p}`) } as const;
+    return {
+      seen,
+      onProgress: (m: string) => seen.push(`progress:${m}`),
+      onPhase: (p: string) => seen.push(`phase:${p}`),
+    } as const;
   };
 
   test("a stopped box reports booting and starts nothing itself: the ssh wait starts it", async () => {
     const h = hooks();
-    expect(await bootNamespace(host, h as any)).toEqual({ address: "cast-box", wasRunning: false });
+    expect(await bootNamespace(host, h as any)).toEqual({
+      address: "cast-box",
+      wasRunning: false,
+    });
     expect(h.seen).toEqual(["progress:starting cast-box", "phase:booting"]);
-    expect(fake.calls().filter((c) => c[0] === "devbox").every((c) => c[1] === "list")).toBe(true);
+    expect(
+      fake
+        .calls()
+        .filter((c) => c[0] === "devbox")
+        .every((c) => c[1] === "list"),
+    ).toBe(true);
   });
 
   test("a running box is already up", async () => {
     fake.set("nsc-list", JSON.stringify([{ created_at: STARTED }]));
     const h = hooks();
-    expect(await bootNamespace(host, h as any)).toEqual({ address: "cast-box", wasRunning: true });
+    expect(await bootNamespace(host, h as any)).toEqual({
+      address: "cast-box",
+      wasRunning: true,
+    });
     expect(h.seen).toEqual([]);
   });
 
   test("a deleted box is gone, with the way to forget it", async () => {
     fake.set("devbox-list", "[]");
-    await expect(bootNamespace(host, hooks() as any)).rejects.toThrow("cast hosts rm box123");
+    await expect(bootNamespace(host, hooks() as any)).rejects.toThrow(
+      "cast hosts rm box123",
+    );
   });
 });

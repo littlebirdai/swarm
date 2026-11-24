@@ -22,15 +22,27 @@ function Frame({ children }: { children: React.ReactNode }) {
 
 /** A published page in the conversation that made it: framed when its link stands alone, a pill inside a sentence. */
 export function PageInConversationFigure() {
-  return <Frame><ConversationMock /></Frame>;
+  return (
+    <Frame>
+      <ConversationMock />
+    </Frame>
+  );
 }
 
 /** The screens a reader meets when a page has a password, an email gate or an expiry. */
 export function GateScreensFigure() {
-  return <Frame><GateScreens /></Frame>;
+  return (
+    <Frame>
+      <GateScreens />
+    </Frame>
+  );
 }
 
 /** A reader pins a note, the owner sends it, the agent gets it as one message. */
 export function CommentFlowFigure() {
-  return <Frame><CommentFlow /></Frame>;
+  return (
+    <Frame>
+      <CommentFlow />
+    </Frame>
+  );
 }

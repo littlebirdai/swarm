@@ -14,7 +14,9 @@ const PERMISSION_PATTERNS = [
   /Proceed with execution\?/i,
 ];
 
-export function detectPermissionPrompt(content: string): PermissionPrompt | null {
+export function detectPermissionPrompt(
+  content: string,
+): PermissionPrompt | null {
   const hasYesNoPrompt = content.match(/\[y\/n\]\s*$/i);
   const hasAllowKeyword = content.match(/allow|permission|approve|proceed/i);
 
@@ -45,19 +47,21 @@ export function detectPermissionPrompt(content: string): PermissionPrompt | null
 function extractToolName(content: string): string {
   const lowerContent = content.toLowerCase();
 
-  if (lowerContent.includes('bash') || lowerContent.includes('shell') || lowerContent.includes('command')) {
-    return 'Bash';
+  if (
+    lowerContent.includes("bash") ||
+    lowerContent.includes("shell") ||
+    lowerContent.includes("command")
+  ) {
+    return "Bash";
   }
-  if (lowerContent.includes('write') || lowerContent.includes('edit')) {
-    return 'Edit';
+  if (lowerContent.includes("write") || lowerContent.includes("edit")) {
+    return "Edit";
   }
-  if (lowerContent.includes('read')) {
-    return 'Read';
+  if (lowerContent.includes("read")) {
+    return "Read";
   }
 
-  const toolPatterns = [
-    /(?:tool|allow)\s+['"]?(\w+)['"]?\s+(?:tool)?/i,
-  ];
+  const toolPatterns = [/(?:tool|allow)\s+['"]?(\w+)['"]?\s+(?:tool)?/i];
 
   for (const pattern of toolPatterns) {
     const match = content.match(pattern);
@@ -66,11 +70,11 @@ function extractToolName(content: string): string {
     }
   }
 
-  return 'unknown';
+  return "unknown";
 }
 
 function extractArgumentsPreview(content: string): string {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const relevantLines: string[] = [];
 
   for (let i = 0; i < Math.min(lines.length, 5); i++) {
@@ -80,6 +84,6 @@ function extractArgumentsPreview(content: string): string {
     }
   }
 
-  const preview = relevantLines.join(' ').substring(0, 200);
+  const preview = relevantLines.join(" ").substring(0, 200);
   return preview || content.substring(0, 200);
 }

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { classifyLivePaneFor, isCodexLoginScreen, isCodexUpdateDialog } from "./tmuxPaneState.js";
+import {
+  classifyLivePaneFor,
+  isCodexLoginScreen,
+  isCodexUpdateDialog,
+} from "./tmuxPaneState.js";
 import { inputGuard } from "./daemon.js";
 
 // codex 0.169.0 after its login stopped refreshing, captured verbatim from
@@ -44,7 +48,11 @@ describe("codex at its login screen", () => {
 
   test("delivery holds with the login step, not as a human answer", async () => {
     let caught: any;
-    try { await inputGuard(async () => SIGNED_OUT)(); } catch (err) { caught = err; }
+    try {
+      await inputGuard(async () => SIGNED_OUT)();
+    } catch (err) {
+      caught = err;
+    }
     expect(caught?.holdReason).toContain("codex login");
     expect(caught?.holdReason).not.toContain("human answer");
   });

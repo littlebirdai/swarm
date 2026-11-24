@@ -69,10 +69,20 @@ export function useConvexSync<T>(
       if (latest !== undefined && !refused(latest)) syncRef.current(latest);
     };
     let cancelQuiet: (() => void) | null = null;
-    const timer = setTimeout(() => { cancelQuiet = whenInputQuiet(flush, TYPING_MAX_DEFER_MS); }, coalesceMs);
-    cancelRef.current = () => { clearTimeout(timer); cancelQuiet?.(); };
+    const timer = setTimeout(() => {
+      cancelQuiet = whenInputQuiet(flush, TYPING_MAX_DEFER_MS);
+    }, coalesceMs);
+    cancelRef.current = () => {
+      clearTimeout(timer);
+      cancelQuiet?.();
+    };
   }, [data, sync, coalesceMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => () => { cancelRef.current?.(); }, []);
+  useEffect(
+    () => () => {
+      cancelRef.current?.();
+    },
+    [],
+  );
 }

@@ -1,10 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { docOrigin, docOriginClass, isHumanDocOrigin, isOnHumanShelf, docSourceForPlanSource, DOC_TYPES, DOC_TYPE_LABELS, docTypeLabel, docMentionExcerpt, renderDocMentionExcerpt, filterDocsByShelf, compareDocsDefault } from "./index";
+import {
+  docOrigin,
+  docOriginClass,
+  isHumanDocOrigin,
+  isOnHumanShelf,
+  docSourceForPlanSource,
+  DOC_TYPES,
+  DOC_TYPE_LABELS,
+  docTypeLabel,
+  docMentionExcerpt,
+  renderDocMentionExcerpt,
+  filterDocsByShelf,
+  compareDocsDefault,
+} from "./index";
 
 describe("docOrigin", () => {
   test("only an explicit human stamp is human", () => {
     expect(docOrigin({ source: "human" })).toBe("human");
-    for (const source of ["agent", "plan_mode", "file_sync", "inline_extract", "import"]) {
+    for (const source of [
+      "agent",
+      "plan_mode",
+      "file_sync",
+      "inline_extract",
+      "import",
+    ]) {
       expect(docOrigin({ source })).toBe("agent");
     }
   });
@@ -48,19 +67,34 @@ describe("isOnHumanShelf", () => {
 describe("docSourceForPlanSource", () => {
   test("only a human plan yields a human plan-body doc", () => {
     expect(docSourceForPlanSource("human")).toBe("human");
-    for (const s of ["agent", "promoted", "template", "fork", "imported", undefined, null]) {
+    for (const s of [
+      "agent",
+      "promoted",
+      "template",
+      "fork",
+      "imported",
+      undefined,
+      null,
+    ]) {
       expect(docSourceForPlanSource(s as any)).toBe("agent");
     }
   });
 });
 
 describe("title = leading heading", () => {
-  const { leadingHeading, docTitleFromContent, setTitleHeading, withTitleHeading, stripTitleHeading } =
-    require("./index") as typeof import("./index");
+  const {
+    leadingHeading,
+    docTitleFromContent,
+    setTitleHeading,
+    withTitleHeading,
+    stripTitleHeading,
+  } = require("./index") as typeof import("./index");
 
   test("leadingHeading reads only a heading that opens the body", () => {
     expect(leadingHeading("# Auth notes\n\nbody")).toBe("Auth notes");
-    expect(leadingHeading("\n\n  ## Second level  \nbody")).toBe("Second level");
+    expect(leadingHeading("\n\n  ## Second level  \nbody")).toBe(
+      "Second level",
+    );
     expect(leadingHeading("# Closing hashes ##")).toBe("Closing hashes");
     expect(leadingHeading("#")).toBe("");
     expect(leadingHeading("intro\n\n# Later heading")).toBeNull();
@@ -90,12 +124,16 @@ describe("title = leading heading", () => {
 
   test("setTitleHeading replaces the leading heading and keeps the body", () => {
     expect(setTitleHeading("New", "# Old\n\nbody")).toBe("# New\n\nbody");
-    expect(setTitleHeading("New", "## Old level two\nbody")).toBe("# New\nbody");
+    expect(setTitleHeading("New", "## Old level two\nbody")).toBe(
+      "# New\nbody",
+    );
     expect(setTitleHeading("New", "plain body")).toBe("# New\n\nplain body");
     expect(setTitleHeading("New", "")).toBe("# New\n");
     expect(setTitleHeading("New", undefined)).toBe("# New\n");
     expect(setTitleHeading("  ", "body")).toBe("#\n\nbody");
-    expect(setTitleHeading("New", "---\nk: v\n---\n# Old\nbody")).toBe("---\nk: v\n---\n# New\nbody");
+    expect(setTitleHeading("New", "---\nk: v\n---\n# Old\nbody")).toBe(
+      "---\nk: v\n---\n# New\nbody",
+    );
   });
 
   test("withTitleHeading only adds a heading when there is none", () => {
@@ -105,11 +143,15 @@ describe("title = leading heading", () => {
   });
 
   test("stripTitleHeading drops the leading heading and the blank line after it", () => {
-    expect(stripTitleHeading("# T\n\nbody\n\n# Section")).toBe("body\n\n# Section");
+    expect(stripTitleHeading("# T\n\nbody\n\n# Section")).toBe(
+      "body\n\n# Section",
+    );
     expect(stripTitleHeading("# T\nbody")).toBe("body");
     expect(stripTitleHeading("# T")).toBe("");
     expect(stripTitleHeading("plain\n\n# later")).toBe("plain\n\n# later");
-    expect(stripTitleHeading("---\nk: v\n---\n# T\n\nbody")).toBe("---\nk: v\n---\nbody");
+    expect(stripTitleHeading("---\nk: v\n---\n# T\n\nbody")).toBe(
+      "---\nk: v\n---\nbody",
+    );
     expect(stripTitleHeading("")).toBe("");
   });
 
@@ -140,7 +182,10 @@ describe("docMentionExcerpt", () => {
   const long = [
     "# Plan",
     "",
-    ...Array.from({ length: 60 }, (_, i) => `intro line ${i} with some words to fill it out`),
+    ...Array.from(
+      { length: 60 },
+      (_, i) => `intro line ${i} with some words to fill it out`,
+    ),
     "## Workstreams",
     "```",
     "# not a heading, inside a fence",
@@ -162,7 +207,11 @@ describe("docMentionExcerpt", () => {
     expect(ex.excerpt.length).toBeLessThanOrEqual(500);
     expect(long.startsWith(ex.excerpt + "\n")).toBe(true);
     const lines = long.split("\n");
-    expect(ex.outline.map((o) => o.heading)).toEqual(["## Workstreams", "### W0 Signal", "## Execution"]);
+    expect(ex.outline.map((o) => o.heading)).toEqual([
+      "## Workstreams",
+      "### W0 Signal",
+      "## Execution",
+    ]);
     for (const o of ex.outline) expect(lines[o.line - 1]).toBe(o.heading);
   });
 
@@ -176,7 +225,12 @@ describe("docMentionExcerpt", () => {
 
 describe("filterDocsByShelf", () => {
   const human = { _id: "h", source: "human", updated_at: 1 };
-  const starredAgent = { _id: "s", source: "agent", pinned: true, updated_at: 2 };
+  const starredAgent = {
+    _id: "s",
+    source: "agent",
+    pinned: true,
+    updated_at: 2,
+  };
   const agent = { _id: "a", source: "agent", updated_at: 3 };
   const mined = { _id: "m", source: "file_sync", updated_at: 4 };
   const all = [human, starredAgent, agent, mined];
@@ -196,6 +250,11 @@ describe("filterDocsByShelf", () => {
     expect(ids("all")).toEqual(["h", "s", "a", "m"]);
   });
   test("default order puts starred first, then newest updated", () => {
-    expect([...all].sort(compareDocsDefault).map((d) => d._id)).toEqual(["s", "m", "a", "h"]);
+    expect([...all].sort(compareDocsDefault).map((d) => d._id)).toEqual([
+      "s",
+      "m",
+      "a",
+      "h",
+    ]);
   });
 });

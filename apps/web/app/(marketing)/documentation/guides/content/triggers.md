@@ -80,11 +80,11 @@ The iPhone app has the same line in its inbox; long-press a row there to **Run n
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| A trigger didn't fire on time | Check that the computer it runs on is awake and connected, then click **Run now** |
-| An event trigger never fires | Connect GitHub or Linear under **Settings**, **Integrations**, and check the trigger names the right repository |
-| A recurring trigger keeps showing **skipped** | Nothing changed since its last run, so it saved the run. Click **Run now** to force one |
-| Runs are filling a conversation | Ask the agent to move the duty to a fresh session per run |
+| What you notice                               | What to do                                                                                                      |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| A trigger didn't fire on time                 | Check that the computer it runs on is awake and connected, then click **Run now**                               |
+| An event trigger never fires                  | Connect GitHub or Linear under **Settings**, **Integrations**, and check the trigger names the right repository |
+| A recurring trigger keeps showing **skipped** | Nothing changed since its last run, so it saved the run. Click **Run now** to force one                         |
+| Runs are filling a conversation               | Ask the agent to move the duty to a fresh session per run                                                       |
 
 For a fixed sequence of steps with approval gates, see [Workflows](/documentation/workflows). To run a whole plan across many agents, see [Orchestration](/documentation/orchestration).

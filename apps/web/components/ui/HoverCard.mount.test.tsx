@@ -6,7 +6,10 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://app.test/", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://app.test/",
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -21,18 +24,32 @@ const restoreGlobals = replaceGlobals({
   FocusEvent: dom.window.FocusEvent,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-(globalThis as any).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
-(globalThis as any).getComputedStyle ??= dom.window.getComputedStyle.bind(dom.window);
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+(globalThis as any).getComputedStyle ??= dom.window.getComputedStyle.bind(
+  dom.window,
+);
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const React = await import("react");
 const { act } = React;
 const { createRoot } = await import("react-dom/client");
 const { HoverCard } = await import("./HoverCard");
 
-const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)));
+const wait = (ms: number) =>
+  act(() => new Promise<void>((r) => setTimeout(r, ms)));
 const fire = (el: Element, type: "mouseover" | "mouseout") =>
-  act(() => { el.dispatchEvent(new dom.window.MouseEvent(type, { bubbles: true, relatedTarget: null })); });
+  act(() => {
+    el.dispatchEvent(
+      new dom.window.MouseEvent(type, { bubbles: true, relatedTarget: null }),
+    );
+  });
 const card = () => document.querySelector("[data-test-card]");
 
 test("stays open while the pointer moves from the trigger onto the card, closes after leaving it", async () => {

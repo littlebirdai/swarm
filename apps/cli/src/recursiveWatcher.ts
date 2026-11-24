@@ -1,14 +1,18 @@
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as path from "path";
-import { watch as chokidarWatch, type FSWatcher as ChokidarWatcher } from "chokidar";
+import {
+  watch as chokidarWatch,
+  type FSWatcher as ChokidarWatcher,
+} from "chokidar";
 import { walkFiles, type WalkFile } from "./fsWalk.js";
 import type { ScanPolicy } from "./workers/scanTypes.js";
 
 export type WatcherEvent = "add" | "change" | "unlink";
 type WatcherCallback = (filePath: string, eventType: WatcherEvent) => void;
 
-const supportsRecursiveWatch = process.platform === "darwin" || process.platform === "win32";
+const supportsRecursiveWatch =
+  process.platform === "darwin" || process.platform === "win32";
 
 // Floor between two safety-net rescans of the tree (native path). The rescan
 // exists only to catch files whose change bun's coalescing dropped, so it may
@@ -18,7 +22,10 @@ const supportsRecursiveWatch = process.platform === "darwin" || process.platform
 const DEFAULT_RESCAN_INTERVAL_MS = 2_000;
 
 /** Whether `relDir` and every ancestor of it pass `dirFilter`. */
-export function dirAllowedUnder(dirFilter: (relativeDirPath: string) => boolean, relDir: string): boolean {
+export function dirAllowedUnder(
+  dirFilter: (relativeDirPath: string) => boolean,
+  relDir: string,
+): boolean {
   if (!relDir || relDir === ".") return true;
   let prefix = "";
   for (const seg of relDir.split(path.sep)) {
@@ -44,7 +51,10 @@ export function chokidarIgnored(
   return (target, stats) => {
     const rel = path.relative(watchPath, target);
     if (!rel || rel.startsWith("..")) return false;
-    return !dirAllowedUnder(dirFilter, stats?.isDirectory() ? rel : path.dirname(rel));
+    return !dirAllowedUnder(
+      dirFilter,
+      stats?.isDirectory() ? rel : path.dirname(rel),
+    );
   };
 }
 
@@ -155,9 +165,14 @@ export class RecursiveWatcher extends EventEmitter {
 
     // Open the watch BEFORE priming, so nothing written during the walk is
     // missed; the probe path below is correct for an unprimed file (it emits).
-    this.fsWatcher = fs.watch(this.watchPath, { recursive: true }, (_eventType, filename) => {
-      if (gen === this.generation) this.onNativeEvent(filename == null ? null : String(filename));
-    });
+    this.fsWatcher = fs.watch(
+      this.watchPath,
+      { recursive: true },
+      (_eventType, filename) => {
+        if (gen === this.generation)
+          this.onNativeEvent(filename == null ? null : String(filename));
+      },
+    );
 
     this.fsWatcher.on("error", (err: Error) => {
       if (gen === this.generation) this.emit("error", err);
@@ -168,7 +183,11 @@ export class RecursiveWatcher extends EventEmitter {
     // chokidar's ignoreInitial). Async: the tree can hold tens of thousands of
     // files, and this also runs on every wake-from-sleep restart.
     const existing: WalkFile[] = [];
-    this.primed = this.walkTree(gen, false, this.onExisting ? (f) => existing.push(f) : undefined)
+    this.primed = this.walkTree(
+      gen,
+      false,
+      this.onExisting ? (f) => existing.push(f) : undefined,
+    )
       .then(async () => {
         if (gen !== this.generation) return;
         this.isPrimed = true;
@@ -178,7 +197,10 @@ export class RecursiveWatcher extends EventEmitter {
         if (gen !== this.generation) return;
         this.emit("ready");
         this.requestRescan();
-      }).catch(error => { if (gen === this.generation) this.emit("error", error); });
+      })
+      .catch((error) => {
+        if (gen === this.generation) this.emit("error", error);
+      });
   }
 
   // One native event. Some bun builds coalesce a same-tick burst of
@@ -201,15 +223,28 @@ export class RecursiveWatcher extends EventEmitter {
       const rel = path.relative(this.watchPath, full);
       const depth = rel.split(path.sep).length;
       if (rel.startsWith("..") || !this.isDirAllowed(path.dirname(rel))) return;
-      if (depth <= this.maxDepth && this.filter(rel) && this.isDirAllowed(path.dirname(rel))) {
+      if (
+        depth <= this.maxDepth &&
+        this.filter(rel) &&
+        this.isDirAllowed(path.dirname(rel))
+      ) {
         this.scheduleProbe(full);
       } else {
         // A directory appearing (a new project or session subdir) is rare and
         // structural: whatever landed inside it in the same burst has no event
         // of its own, so don't make it wait out the throttle.
         const gen = this.generation;
-        fs.promises.stat(full)
-          .then((st) => { if (gen === this.generation && st.isDirectory() && depth < this.maxDepth && this.isDirAllowed(rel)) this.requestRescan(true); })
+        fs.promises
+          .stat(full)
+          .then((st) => {
+            if (
+              gen === this.generation &&
+              st.isDirectory() &&
+              depth < this.maxDepth &&
+              this.isDirAllowed(rel)
+            )
+              this.requestRescan(true);
+          })
           .catch(() => {});
         return;
       }
@@ -221,10 +256,13 @@ export class RecursiveWatcher extends EventEmitter {
     const existing = this.probeTimers.get(full);
     if (existing) clearTimeout(existing);
     const gen = this.generation;
-    this.probeTimers.set(full, setTimeout(() => {
-      this.probeTimers.delete(full);
-      void this.probe(gen, full);
-    }, this.debounceMs));
+    this.probeTimers.set(
+      full,
+      setTimeout(() => {
+        this.probeTimers.delete(full);
+        void this.probe(gen, full);
+      }, this.debounceMs),
+    );
   }
 
   private async probe(gen: number, full: string): Promise<void> {
@@ -234,7 +272,8 @@ export class RecursiveWatcher extends EventEmitter {
     } catch {
       // Deleted before the probe ran. A file this watcher had seen is an
       // unlink worth reporting; one it never recorded was a transient.
-      if (gen === this.generation && this.knownMtime.delete(full)) this.callback(full, "unlink");
+      if (gen === this.generation && this.knownMtime.delete(full))
+        this.callback(full, "unlink");
       return;
     }
     if (gen !== this.generation || !stat.isFile()) return;
@@ -244,7 +283,12 @@ export class RecursiveWatcher extends EventEmitter {
     this.noteMtime(full, stat.mtimeMs, true, !this.isPrimed);
   }
 
-  private noteMtime(full: string, mtime: number, emit: boolean, force = false): void {
+  private noteMtime(
+    full: string,
+    mtime: number,
+    emit: boolean,
+    force = false,
+  ): void {
     const prev = this.knownMtime.get(full);
     if (prev !== undefined && mtime <= prev && !force) return;
     if (prev === undefined || mtime > prev) this.knownMtime.set(full, mtime);
@@ -262,7 +306,10 @@ export class RecursiveWatcher extends EventEmitter {
     }
     const wait = urgent
       ? this.debounceMs
-      : Math.max(this.debounceMs, this.lastRescanEndedAt + this.rescanIntervalMs - Date.now());
+      : Math.max(
+          this.debounceMs,
+          this.lastRescanEndedAt + this.rescanIntervalMs - Date.now(),
+        );
     if (this.rescanTimer) {
       if (!urgent) return;
       clearTimeout(this.rescanTimer); // pull a throttled walk forward
@@ -270,7 +317,9 @@ export class RecursiveWatcher extends EventEmitter {
     this.rescanTimer = setTimeout(() => {
       this.rescanTimer = null;
       const gen = this.generation;
-      void this.runRescan().catch(error => { if (gen === this.generation) this.emit("error", error); });
+      void this.runRescan().catch((error) => {
+        if (gen === this.generation) this.emit("error", error);
+      });
     }, wait);
   }
 
@@ -293,16 +342,32 @@ export class RecursiveWatcher extends EventEmitter {
   // Walk the tree, recording each filter-matching file's mtime. With emit=true,
   // fire the callback for any file that is new or whose mtime advanced since it
   // was last seen; emit=false only records state (priming).
-  private async walkTree(gen: number, emit: boolean, collect?: (f: WalkFile) => void): Promise<void> {
+  private async walkTree(
+    gen: number,
+    emit: boolean,
+    collect?: (f: WalkFile) => void,
+  ): Promise<void> {
     const unseen = emit ? new Set(this.knownMtime.keys()) : new Set<string>();
     await walkFiles(
       this.watchPath,
-      { maxDepth: this.maxDepth, dirFilter: this.dirFilter, fileFilter: this.filter, policy: this.scanPolicy, signal: this.scanController.signal },
+      {
+        maxDepth: this.maxDepth,
+        dirFilter: this.dirFilter,
+        fileFilter: this.filter,
+        policy: this.scanPolicy,
+        signal: this.scanController.signal,
+      },
       (f) => {
         if (gen !== this.generation) return;
         unseen.delete(f.path);
         collect?.(f);
-        this.noteMtime(f.path, f.stat.mtimeMs, emit || this.mode === "native" && f.stat.mtimeMs >= this.primingStartedAt + 1);
+        this.noteMtime(
+          f.path,
+          f.stat.mtimeMs,
+          emit ||
+            (this.mode === "native" &&
+              f.stat.mtimeMs >= this.primingStartedAt + 1),
+        );
       },
     );
     for (const file of unseen) {
@@ -350,20 +415,31 @@ export class RecursiveWatcher extends EventEmitter {
       this.emit("error", err instanceof Error ? err : new Error(String(err)));
     });
 
-    const ready = new Promise<void>(resolve => {
+    const ready = new Promise<void>((resolve) => {
       const signal = this.scanController.signal;
-      const done = () => { signal.removeEventListener("abort", done); resolve(); };
+      const done = () => {
+        signal.removeEventListener("abort", done);
+        resolve();
+      };
       this.chokidarWatcher!.once("ready", done);
       signal.addEventListener("abort", done, { once: true });
     });
     const existing: WalkFile[] = [];
-    this.primed = this.walkTree(gen, false, this.onExisting ? f => existing.push(f) : undefined).then(async () => {
-      await ready;
-      if (gen !== this.generation) return;
-      this.isPrimed = true;
-      await this.onExisting?.(existing);
-      if (gen === this.generation) this.emit("ready");
-    }).catch(error => { if (gen === this.generation) this.emit("error", error); });
+    this.primed = this.walkTree(
+      gen,
+      false,
+      this.onExisting ? (f) => existing.push(f) : undefined,
+    )
+      .then(async () => {
+        await ready;
+        if (gen !== this.generation) return;
+        this.isPrimed = true;
+        await this.onExisting?.(existing);
+        if (gen === this.generation) this.emit("ready");
+      })
+      .catch((error) => {
+        if (gen === this.generation) this.emit("error", error);
+      });
   }
 
   stop(): void {

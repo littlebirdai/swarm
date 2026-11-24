@@ -1,4 +1,14 @@
-import { array, count, nonEmptyString, object, oneOf, parser, positiveInteger, responseObject, tagged } from "./parse";
+import {
+  array,
+  count,
+  nonEmptyString,
+  object,
+  oneOf,
+  parser,
+  positiveInteger,
+  responseObject,
+  tagged,
+} from "./parse";
 import { readServerBehind, readUpgradeRequired, readV1 } from "./version";
 import { response } from "./response";
 
@@ -32,13 +42,21 @@ const helloRequest = object({
   runtimes: array(object({ host: nonEmptyString, isolation: nonEmptyString })),
   capacity,
 });
-const helloResponse = response(tagged("status", {
-  ok: responseObject({ status: oneOf("ok"), version: positiveInteger, policy }),
-  upgrade_required: readUpgradeRequired,
-  server_behind: readServerBehind,
-}));
+const helloResponse = response(
+  tagged("status", {
+    ok: responseObject({
+      status: oneOf("ok"),
+      version: positiveInteger,
+      policy,
+    }),
+    upgrade_required: readUpgradeRequired,
+    server_behind: readServerBehind,
+  }),
+);
 const heartbeatRequest = object({ ...linkedDaemon, capacity });
-const heartbeatResponse = response(responseObject({ v: readV1, policy_revision: positiveInteger }));
+const heartbeatResponse = response(
+  responseObject({ v: readV1, policy_revision: positiveInteger }),
+);
 const policyGetRequest = object(linkedDaemon);
 const policyGetResponse = response(responseObject({ v: readV1, policy }));
 

@@ -14,7 +14,13 @@ import { TaskCommentStream, type TaskOwnerRef } from "./TaskCommentStream";
 import { MarkdownRenderer } from "../tools/MarkdownRenderer";
 import "../threads/threads.css";
 
-export function TaskInlineThread({ taskId, newSince, focusComposer = false, owner, children }: {
+export function TaskInlineThread({
+  taskId,
+  newSince,
+  focusComposer = false,
+  owner,
+  children,
+}: {
   taskId: string;
   /** The task's owning session, when the surface knows it (the comment box says it will see the comment). */
   owner?: TaskOwnerRef | null;
@@ -33,11 +39,22 @@ export function TaskInlineThread({ taskId, newSince, focusComposer = false, owne
       {desc && (
         <details className="th-task-desc">
           <summary>Description</summary>
-          <MarkdownRenderer content={desc} className="text-sm text-sol-text prose-sm prose-invert max-w-none" />
+          <MarkdownRenderer
+            content={desc}
+            className="text-sm text-sol-text prose-sm prose-invert max-w-none"
+          />
         </details>
       )}
       {children}
-      <TaskCommentStream shortId={task?.short_id} comments={comments} composerAutoOpen composerAutoFocus={focusComposer} newSince={newSince} clampComments owner={owner} />
+      <TaskCommentStream
+        shortId={task?.short_id}
+        comments={comments}
+        composerAutoOpen
+        composerAutoFocus={focusComposer}
+        newSince={newSince}
+        clampComments
+        owner={owner}
+      />
     </>
   );
 }

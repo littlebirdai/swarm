@@ -1,7 +1,25 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Button } from "../ui/button";
-import { AlertTriangle, Loader2, MonitorUp, RotateCw, Trash2, Users } from "lucide-react";
-import { recordingFailureWords, recordingSubject, type CallView } from "@codecast/shared/contracts";
+import {
+  AlertTriangle,
+  Loader2,
+  MonitorUp,
+  RotateCw,
+  Trash2,
+  Users,
+} from "lucide-react";
+import {
+  recordingFailureWords,
+  recordingSubject,
+  type CallView,
+} from "@codecast/shared/contracts";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
 import { useStableMediaSrcs } from "../../hooks/useStableMediaSrcs";
@@ -86,9 +104,12 @@ import { modernButton } from "../ui/modernLook";
  *  place before it mounts. */
 // The cap leaves room for the page's header, the toolbar and the thread's
 // floor of about nine lines (callMedia.css) without the page scrolling.
-const CALL_VIDEO_BOX = "call-video-box relative aspect-video max-h-[min(46vh,calc(100dvh-520px))] min-h-[180px] w-full overflow-hidden bg-black";
-const CALL_VIDEO_FRAME = "dark overflow-hidden rounded-lg bg-black ring-1 ring-sol-border/30";
-const CALL_VIDEO_BAR = "flex min-h-[34px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/[0.06] bg-sol-bg px-2.5 py-1.5 font-mono text-meta text-sol-text-muted";
+const CALL_VIDEO_BOX =
+  "call-video-box relative aspect-video max-h-[min(46vh,calc(100dvh-520px))] min-h-[180px] w-full overflow-hidden bg-black";
+const CALL_VIDEO_FRAME =
+  "dark overflow-hidden rounded-lg bg-black ring-1 ring-sol-border/30";
+const CALL_VIDEO_BAR =
+  "flex min-h-[34px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-white/[0.06] bg-sol-bg px-2.5 py-1.5 font-mono text-meta text-sol-text-muted";
 
 /** The player's place, held before there is anything to play (the thread
  *  says the call was filmed and the recordings have not answered yet), so the
@@ -110,7 +131,10 @@ export type CallVideoHandle = {
   /** Show the call at `callMs`. False when no video covers that moment.
    *  `view` (a link's `view=screen`) switches to the screen it names when
    *  one covers the moment, the room playing under it; else the room. */
-  seek: (callMs: number, opts?: { play?: boolean; view?: CallView | null }) => boolean;
+  seek: (
+    callMs: number,
+    opts?: { play?: boolean; view?: CallView | null },
+  ) => boolean;
 };
 
 export function CallVideoPlayer({
@@ -134,7 +158,11 @@ export function CallVideoPlayer({
   /** The host's own controls on the toolbar (copy a moment, delete).
    *  `callMs` is the toolbar's clock, which moves once a second; `now()`
    *  reads the exact moment, for whatever a press copies. */
-  actions?: (at: { callMs: number; file: CallVideoFile; now: () => number }) => ReactNode;
+  actions?: (at: {
+    callMs: number;
+    file: CallVideoFile;
+    now: () => number;
+  }) => ReactNode;
   /** A moment the page asked for that no video shows (a line clicked, a
    *  `?t=` link): said under the picture until the next seek that lands. */
   missedMs?: number | null;
@@ -151,27 +179,42 @@ export function CallVideoPlayer({
    *  in the address. */
   onViewPick?: (view: CallView | null) => void;
   /** The transcript's lines: the seek bar is colored by who was talking. */
-  segments?: ReadonlyArray<{ speaker_id: string; speaker_name: string; t0: number; t1?: number }>;
+  segments?: ReadonlyArray<{
+    speaker_id: string;
+    speaker_name: string;
+    t0: number;
+    t1?: number;
+  }>;
   className?: string;
 }) {
   const playable = useMemo(() => playableFiles(files), [files]);
   const voices = useMemo(() => voiceRuns(segments ?? []), [segments]);
-  const spans = useMemo(() => filmedSpans(files, callStartedAt), [files, callStartedAt]);
+  const spans = useMemo(
+    () => filmedSpans(files, callStartedAt),
+    [files, callStartedAt],
+  );
   // What can lead: the room's files, or a screen file in a run whose room
   // file was lost (better a silent screen than nothing).
   const leads = useMemo(() => {
     const rooms = playable.filter((f) => f.kind === "composite");
     const roomRuns = new Set(rooms.map((f) => f.run_id ?? f.id));
-    return [...rooms, ...playable.filter((f) => f.kind === "screen" && !roomRuns.has(f.run_id ?? f.id))].sort(
-      (a, b) => a.started_at! - b.started_at!,
-    );
+    return [
+      ...rooms,
+      ...playable.filter(
+        (f) => f.kind === "screen" && !roomRuns.has(f.run_id ?? f.id),
+      ),
+    ].sort((a, b) => a.started_at! - b.started_at!);
   }, [playable]);
 
   const [mainId, setMainId] = useState<string | null>(null);
   const [screenId, setScreenId] = useState<string | null>(null);
   const main = leads.find((f) => f.id === mainId) ?? leads[0] ?? null;
-  const screen = screenId ? (playable.find((f) => f.id === screenId) ?? null) : null;
-  const [callMs, setCallMs] = useState(() => (main ? callMsOf(main, callStartedAt, 0) : 0));
+  const screen = screenId
+    ? (playable.find((f) => f.id === screenId) ?? null)
+    : null;
+  const [callMs, setCallMs] = useState(() =>
+    main ? callMsOf(main, callStartedAt, 0) : 0,
+  );
 
   const mainEl = useRef<HTMLVideoElement | null>(null);
   const screenEl = useRef<HTMLVideoElement | null>(null);
@@ -193,15 +236,25 @@ export function CallVideoPlayer({
   // The URL each file plays from (see URLS above).
   const media = useStableMediaSrcs(files);
   // Elements whose metadata has arrived, by element key (LOADING above).
-  const [loadedKeys, setLoadedKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [loadedKeys, setLoadedKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const noteLoaded = (f: CallVideoFile) => {
     const key = media.keyOf(f);
     setLoadedKeys((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
   };
   const srcOf = (f: CallVideoFile) => media.srcOf(f);
 
-  const driver = () => (screen && screenEl.current ? { el: screenEl.current, file: screen } : main && mainEl.current ? { el: mainEl.current, file: main } : null);
-  const follower = () => (screen && screenEl.current && main && mainEl.current ? { el: mainEl.current, file: main } : null);
+  const driver = () =>
+    screen && screenEl.current
+      ? { el: screenEl.current, file: screen }
+      : main && mainEl.current
+        ? { el: mainEl.current, file: main }
+        : null;
+  const follower = () =>
+    screen && screenEl.current && main && mainEl.current
+      ? { el: mainEl.current, file: main }
+      : null;
 
   // The last moment and play state seen, for resuming after a refused URL
   // (an errored element has already lost both), and the exact moment for
@@ -212,7 +265,9 @@ export function CallVideoPlayer({
   // player and its host's actions for nothing anyone could see.
   const showAt = (at: number) => {
     lastSeen.current.callMs = at;
-    setCallMs((prev) => (Math.floor(prev / 1000) === Math.floor(at / 1000) ? prev : at));
+    setCallMs((prev) =>
+      Math.floor(prev / 1000) === Math.floor(at / 1000) ? prev : at,
+    );
   };
   const report = () => {
     const d = driver();
@@ -233,7 +288,8 @@ export function CallVideoPlayer({
     const target = fileSecondsAt(f.file, callStartedAt, at);
     if (target === null) return void f.el.pause();
     if (Math.abs(f.el.currentTime - target) > 0.3) f.el.currentTime = target;
-    if (f.el.playbackRate !== d.el.playbackRate) f.el.playbackRate = d.el.playbackRate;
+    if (f.el.playbackRate !== d.el.playbackRate)
+      f.el.playbackRate = d.el.playbackRate;
     if (d.el.paused !== f.el.paused) {
       if (d.el.paused) f.el.pause();
       else playRoom(f.el);
@@ -267,15 +323,24 @@ export function CallVideoPlayer({
     setMainId(file.id);
   };
 
-  const seek = (at: number, opts: { play?: boolean; view?: CallView | null } = {}): boolean => {
+  const seek = (
+    at: number,
+    opts: { play?: boolean; view?: CallView | null } = {},
+  ): boolean => {
     const play = opts.play ?? true;
     // A link that names a screen (a frame of it was cited): show that screen
     // at the moment, with the room's file brought there underneath for the
     // voices. The same rule the frame was located by, so it is the same file.
-    const asked = opts.view?.screen ? videoAt(playable, callStartedAt, at, "screen", opts.view.identity) : null;
+    const asked = opts.view?.screen
+      ? videoAt(playable, callStartedAt, at, "screen", opts.view.identity)
+      : null;
     // A screen that is itself a lead (its run's room file was lost) plays as
     // the main picture, below.
-    if (asked && asked.file.kind === "screen" && !leads.some((f) => f.id === asked.file.id)) {
+    if (
+      asked &&
+      asked.file.kind === "screen" &&
+      !leads.some((f) => f.id === asked.file.id)
+    ) {
       if (asked.file.id === screen?.id && screenEl.current) {
         screenEl.current.currentTime = asked.seconds;
         if (play) void screenEl.current.play().catch(() => {});
@@ -284,7 +349,8 @@ export function CallVideoPlayer({
         setScreenId(asked.file.id);
       }
       const room = videoAt(leads, callStartedAt, at);
-      if (room && room.file.kind === "composite") showMain(room.file, room.seconds, play);
+      if (room && room.file.kind === "composite")
+        showMain(room.file, room.seconds, play);
       showAt(at);
       onTime?.(at, play);
       return true;
@@ -310,12 +376,17 @@ export function CallVideoPlayer({
   /** Switch the view to a screen file (or back to the room), at the moment
    *  the picture is at now; a screen that was not up now jumps to its start. */
   const pickView = (file: CallVideoFile | null) => {
-    onViewPick?.(file ? { screen: true, identity: file.participant_identity ?? null } : null);
+    onViewPick?.(
+      file
+        ? { screen: true, identity: file.participant_identity ?? null }
+        : null,
+    );
     if (!file) {
       const s = screenEl.current;
       const playing = !!s && !s.paused;
       setScreenId(null);
-      if (main && mainEl.current && playing) void mainEl.current.play().catch(() => {});
+      if (main && mainEl.current && playing)
+        void mainEl.current.play().catch(() => {});
       return;
     }
     // Already the view: nothing to switch, and nothing to leave waiting for
@@ -328,38 +399,48 @@ export function CallVideoPlayer({
       // The share is at another moment: bring the room there too.
       const at = callMsOf(file, callStartedAt, 0);
       const hit = videoAt(leads, callStartedAt, at);
-      if (hit && hit.file.kind === "composite") showMain(hit.file, hit.seconds, playing);
+      if (hit && hit.file.kind === "composite")
+        showMain(hit.file, hit.seconds, playing);
     }
     setScreenId(file.id);
   };
 
-  const onLoaded = (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const p = pending.current.get(file.id);
-    if (!p) return;
-    pending.current.delete(file.id);
-    const el = e.currentTarget;
-    el.currentTime = p.seconds;
-    if (p.play) void el.play().catch(() => {});
-    report();
-  };
-  const onLoadedFile = (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    media.loaded(file.id);
-    onLoaded(file)(e);
-  };
+  const onLoaded =
+    (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      const p = pending.current.get(file.id);
+      if (!p) return;
+      pending.current.delete(file.id);
+      const el = e.currentTarget;
+      el.currentTime = p.seconds;
+      if (p.play) void el.play().catch(() => {});
+      report();
+    };
+  const onLoadedFile =
+    (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      media.loaded(file.id);
+      onLoaded(file)(e);
+    };
 
   /** The element refused its URL (expired, or the window rolled): carry on
    *  from the same moment on whatever URL comes next. */
-  const onError = (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    // A seek still waiting for this file (a `?t=` landing, a line pressed
-    // before the element loaded) is where the person asked to be: keep it
-    // over where the element last was, which on a fresh element is 0. Only
-    // an element that never loaded can have one (onLoaded takes it).
-    pending.current.set(file.id, pending.current.get(file.id) ?? resumePoint(file, e.currentTarget));
-    media.refused(file.id);
-  };
+  const onError =
+    (file: CallVideoFile) => (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      // A seek still waiting for this file (a `?t=` landing, a line pressed
+      // before the element loaded) is where the person asked to be: keep it
+      // over where the element last was, which on a fresh element is 0. Only
+      // an element that never loaded can have one (onLoaded takes it).
+      pending.current.set(
+        file.id,
+        pending.current.get(file.id) ?? resumePoint(file, e.currentTarget),
+      );
+      media.refused(file.id);
+    };
   /** Where a file's element should come back to: the moment last seen. */
   const resumePoint = (file: CallVideoFile, el?: HTMLVideoElement | null) => ({
-    seconds: fileSecondsAt(file, callStartedAt, lastSeen.current.callMs) ?? el?.currentTime ?? 0,
+    seconds:
+      fileSecondsAt(file, callStartedAt, lastSeen.current.callMs) ??
+      el?.currentTime ??
+      0,
     play: lastSeen.current.playing,
   });
   const retry = (file: CallVideoFile) => {
@@ -374,10 +455,14 @@ export function CallVideoPlayer({
       report();
       follow();
     },
-    onPlay: (e: React.SyntheticEvent<HTMLVideoElement>) => isDriver(e.currentTarget) && (report(), follow()),
-    onPause: (e: React.SyntheticEvent<HTMLVideoElement>) => isDriver(e.currentTarget) && (report(), follow()),
-    onSeeked: (e: React.SyntheticEvent<HTMLVideoElement>) => isDriver(e.currentTarget) && (report(), follow()),
-    onRateChange: (e: React.SyntheticEvent<HTMLVideoElement>) => isDriver(e.currentTarget) && follow(),
+    onPlay: (e: React.SyntheticEvent<HTMLVideoElement>) =>
+      isDriver(e.currentTarget) && (report(), follow()),
+    onPause: (e: React.SyntheticEvent<HTMLVideoElement>) =>
+      isDriver(e.currentTarget) && (report(), follow()),
+    onSeeked: (e: React.SyntheticEvent<HTMLVideoElement>) =>
+      isDriver(e.currentTarget) && (report(), follow()),
+    onRateChange: (e: React.SyntheticEvent<HTMLVideoElement>) =>
+      isDriver(e.currentTarget) && follow(),
   };
 
   // A screen that ends while the room goes on hands the view back to the
@@ -414,7 +499,10 @@ export function CallVideoPlayer({
   // else their next). A share that is not up at this moment is still offered,
   // dimmed, and jumps to where it began.
   const runId = main.run_id ?? main.id;
-  const runScreens = playable.filter((f) => f.kind === "screen" && (f.run_id ?? f.id) === runId && f.id !== main.id);
+  const runScreens = playable.filter(
+    (f) =>
+      f.kind === "screen" && (f.run_id ?? f.id) === runId && f.id !== main.id,
+  );
   const chips = screenChips(runScreens, callStartedAt, callMs);
   const runIndex = leads.findIndex((f) => f.id === main.id);
   const shown = screen ?? main;
@@ -428,7 +516,11 @@ export function CallVideoPlayer({
     // class makes every sol token inside (the toolbar's words) read on it
     // whatever theme the page is in.
     <div className={`${CALL_VIDEO_FRAME} ${className}`}>
-      <div ref={boxRef} className={CALL_VIDEO_BOX} aria-busy={!shownLoaded && !dead ? true : undefined}>
+      <div
+        ref={boxRef}
+        className={CALL_VIDEO_BOX}
+        aria-busy={!shownLoaded && !dead ? true : undefined}
+      >
         <video
           key={media.keyOf(main)}
           ref={mainRef}
@@ -479,9 +571,14 @@ export function CallVideoPlayer({
             voices={voices}
           />
         )}
-        {!shownLoaded && !dead && <div className={CALL_VIDEO_LOADING} aria-hidden="true" />}
+        {!shownLoaded && !dead && (
+          <div className={CALL_VIDEO_LOADING} aria-hidden="true" />
+        )}
         {dead && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/85 px-6 text-center text-[12px] text-sol-text-muted" role="status">
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/85 px-6 text-center text-[12px] text-sol-text-muted"
+            role="status"
+          >
             {refreshing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-sol-text-dim motion-reduce:animate-none" />
@@ -505,7 +602,10 @@ export function CallVideoPlayer({
       {/* What the picture cannot say for itself: the moment asked for has no
           video, or the room's own file is gone and this is all there is. */}
       {(missed || main.kind === "screen") && (
-        <div className="space-y-0.5 border-t border-white/[0.06] bg-sol-bg px-2.5 py-1.5 text-meta leading-snug text-sol-text-muted" role="status">
+        <div
+          className="space-y-0.5 border-t border-white/[0.06] bg-sol-bg px-2.5 py-1.5 text-meta leading-snug text-sol-text-muted"
+          role="status"
+        >
           {missed && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span>
@@ -514,7 +614,9 @@ export function CallVideoPlayer({
               {missed.jump && (
                 <button
                   type="button"
-                  onClick={() => (onJump ? onJump(missed.jump!.ms) : seek(missed.jump!.ms))}
+                  onClick={() =>
+                    onJump ? onJump(missed.jump!.ms) : seek(missed.jump!.ms)
+                  }
                   className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-meta text-sol-text transition-colors hover:bg-white/[0.12]"
                 >
                   {missed.jump.words}
@@ -522,18 +624,34 @@ export function CallVideoPlayer({
               )}
             </p>
           )}
-          {main.kind === "screen" && <p>The room's video was lost. This is {recordingSubject(main)}, without sound.</p>}
+          {main.kind === "screen" && (
+            <p>
+              The room's video was lost. This is {recordingSubject(main)},
+              without sound.
+            </p>
+          )}
         </div>
       )}
       <div className={CALL_VIDEO_BAR}>
         {chips.length > 0 && (
-          <span className="flex items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5" role="radiogroup" aria-label="What to watch">
-            <ViewChip active={!screen} onClick={() => pickView(null)} title="The room as everyone saw it, with every voice">
+          <span
+            className="flex items-center gap-0.5 rounded-md bg-white/[0.05] p-0.5"
+            role="radiogroup"
+            aria-label="What to watch"
+          >
+            <ViewChip
+              active={!screen}
+              onClick={() => pickView(null)}
+              title="The room as everyone saw it, with every voice"
+            >
               <Users className="h-3 w-3" /> Room
             </ViewChip>
             {chips.map(({ file: f, up, at, several }) => {
               const label = recordingSubject(f, "label");
-              const sharer = screen && (screen.participant_identity ?? screen.id) === (f.participant_identity ?? f.id);
+              const sharer =
+                screen &&
+                (screen.participant_identity ?? screen.id) ===
+                  (f.participant_identity ?? f.id);
               return (
                 <ViewChip
                   key={f.participant_identity ?? f.id}
@@ -548,14 +666,21 @@ export function CallVideoPlayer({
                 >
                   <MonitorUp className="h-3 w-3" /> {label}
                   <ParticipantTag identity={f.participant_identity} />
-                  {several && !up && <span className="text-sol-text-dim">· {formatCallTime(at)}</span>}
+                  {several && !up && (
+                    <span className="text-sol-text-dim">
+                      · {formatCallTime(at)}
+                    </span>
+                  )}
                 </ViewChip>
               );
             })}
           </span>
         )}
         {leads.length > 1 && (
-          <span className="flex items-center gap-0.5" aria-label="Recordings of this call">
+          <span
+            className="flex items-center gap-0.5"
+            aria-label="Recordings of this call"
+          >
             <span className="mr-1 text-sol-text-dim">
               Recording {runIndex + 1} of {leads.length}
             </span>
@@ -568,7 +693,9 @@ export function CallVideoPlayer({
                   onClick={() => seek(callMsOf(f, callStartedAt, 0))}
                   aria-current={i === runIndex || undefined}
                   className={`rounded px-1.5 py-0.5 tabular-nums transition-colors ${
-                    i === runIndex ? "bg-white/10 text-sol-text" : "hover:bg-white/[0.06] hover:text-sol-text"
+                    i === runIndex
+                      ? "bg-white/10 text-sol-text"
+                      : "hover:bg-white/[0.06] hover:text-sol-text"
                   }`}
                   title={`Recording ${i + 1} of ${leads.length}, from ${from} in the call`}
                 >
@@ -606,7 +733,11 @@ function ViewChip({
       onClick={onClick}
       title={title}
       className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors ${
-        active ? "bg-sol-violet/15 text-sol-violet" : dim ? "text-sol-text-dim hover:text-sol-text-muted" : "hover:bg-white/[0.06] hover:text-sol-text"
+        active
+          ? "bg-sol-violet/15 text-sol-violet"
+          : dim
+            ? "text-sol-text-dim hover:text-sol-text-muted"
+            : "hover:bg-white/[0.06] hover:text-sol-text"
       } modern:min-h-6 modern:rounded-control`}
     >
       {children}
@@ -637,7 +768,14 @@ export function CallVideoNoticeLine({
   if (notice.kind === "live") {
     return (
       <div className="flex items-center gap-2.5 rounded-lg bg-sol-red/[0.06] px-3 py-2 text-[12px] text-sol-text-secondary ring-1 ring-inset ring-sol-red/15">
-        <RecordingMark status={notice.run.composite?.status === "recording" ? "recording" : "starting"} startedAt={notice.run.startedAt} />
+        <RecordingMark
+          status={
+            notice.run.composite?.status === "recording"
+              ? "recording"
+              : "starting"
+          }
+          startedAt={notice.run.startedAt}
+        />
         <span>Recording now. The video plays here once it stops.</span>
       </div>
     );
@@ -663,7 +801,9 @@ export function CallVideoNoticeLine({
   if (quiet) {
     return (
       <p className="flex items-start gap-2 text-[12px] italic text-sol-text-dim">
-        <span className="min-w-0">{recordingFailureWords(notice.run.error)}</span>
+        <span className="min-w-0">
+          {recordingFailureWords(notice.run.error)}
+        </span>
         {clear}
       </p>
     );
@@ -687,7 +827,11 @@ export function CallVideoNoticeLine({
  *  goes away on Esc from anywhere in it, a press outside, or focus leaving.
  *  Focus lands on the question, not on Delete (as RecordConfirm does for
  *  Record): a stray Enter after the first press must not destroy the film. */
-export function DeleteRecordingButton({ onConfirm }: { onConfirm: () => void }) {
+export function DeleteRecordingButton({
+  onConfirm,
+}: {
+  onConfirm: () => void;
+}) {
   const [asking, setAsking] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
   useWatchEffect(() => {
@@ -715,7 +859,8 @@ export function DeleteRecordingButton({ onConfirm }: { onConfirm: () => void }) 
       role="group"
       aria-label="Delete this recording?"
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setAsking(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+          setAsking(false);
       }}
     >
       <span className="text-sol-text-secondary">Delete for everyone?</span>

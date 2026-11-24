@@ -51,7 +51,9 @@ export type CursorState = ReadonlyMap<string, CallCursor>;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-export function encodeCursorMessage(msg: CursorMessage): Uint8Array<ArrayBuffer> {
+export function encodeCursorMessage(
+  msg: CursorMessage,
+): Uint8Array<ArrayBuffer> {
   const bytes = encoder.encode(JSON.stringify(msg));
   // A fresh ArrayBuffer, never a shared one: the LiveKit publish signature asks for it.
   const out = new Uint8Array(new ArrayBuffer(bytes.byteLength));
@@ -67,12 +69,25 @@ export function decodeCursorMessage(payload: Uint8Array): CursorMessage | null {
   } catch {
     return null;
   }
-  if (!raw || raw.t !== "cursor" || typeof raw.sid !== "string" || !raw.sid) return null;
+  if (!raw || raw.t !== "cursor" || typeof raw.sid !== "string" || !raw.sid)
+    return null;
   const at = typeof raw.at === "number" && Number.isFinite(raw.at) ? raw.at : 0;
   if (raw.gone === true) return { t: "cursor", sid: raw.sid, gone: true, at };
-  if (typeof raw.nx !== "number" || typeof raw.ny !== "number" || !Number.isFinite(raw.nx) || !Number.isFinite(raw.ny)) return null;
+  if (
+    typeof raw.nx !== "number" ||
+    typeof raw.ny !== "number" ||
+    !Number.isFinite(raw.nx) ||
+    !Number.isFinite(raw.ny)
+  )
+    return null;
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
-  return { t: "cursor", sid: raw.sid, nx: clamp(raw.nx), ny: clamp(raw.ny), at };
+  return {
+    t: "cursor",
+    sid: raw.sid,
+    nx: clamp(raw.nx),
+    ny: clamp(raw.ny),
+    at,
+  };
 }
 
 /**
@@ -95,7 +110,14 @@ export function applyCursorMessage(
     next.delete(identity);
     return next;
   }
-  next.set(identity, { identity, name, sid: msg.sid, nx: msg.nx, ny: msg.ny, at: msg.at || receivedAt });
+  next.set(identity, {
+    identity,
+    name,
+    sid: msg.sid,
+    nx: msg.nx,
+    ny: msg.ny,
+    at: msg.at || receivedAt,
+  });
   return next;
 }
 
@@ -145,10 +167,13 @@ function armExpiry() {
   expiryTimer = null;
   const at = nextCursorExpiryAt(state);
   if (at === null) return;
-  expiryTimer = setTimeout(() => {
-    expiryTimer = null;
-    setState(expireCursors(state, Date.now()));
-  }, Math.max(0, at - Date.now()) + 16);
+  expiryTimer = setTimeout(
+    () => {
+      expiryTimer = null;
+      setState(expireCursors(state, Date.now()));
+    },
+    Math.max(0, at - Date.now()) + 16,
+  );
 }
 
 export function subscribeCallCursors(fn: Listener): () => void {
@@ -167,10 +192,15 @@ export function resetCallCursors() {
 }
 
 /** The cursors over the share `sid`, as the shell draws them. Pure, for tests. */
-export function cursorsOnShare(state: CursorState, sid: string | null | undefined): ShareCursor[] {
+export function cursorsOnShare(
+  state: CursorState,
+  sid: string | null | undefined,
+): ShareCursor[] {
   if (!sid) return [];
   const out: ShareCursor[] = [];
-  for (const c of state.values()) if (c.sid === sid) out.push({ id: c.identity, name: c.name, nx: c.nx, ny: c.ny });
+  for (const c of state.values())
+    if (c.sid === sid)
+      out.push({ id: c.identity, name: c.name, nx: c.nx, ny: c.ny });
   return out;
 }
 
@@ -180,7 +210,9 @@ let forwardedAny = false;
 // Tell the shell which cursors point at my own share. An empty list goes out
 // once, when the last one leaves or the share stops, and then stays quiet.
 function forwardShareCursors() {
-  const sid = boundRoom?.localParticipant?.getTrackPublication(Track.Source.ScreenShare)?.trackSid;
+  const sid = boundRoom?.localParticipant?.getTrackPublication(
+    Track.Source.ScreenShare,
+  )?.trackSid;
   const list = cursorsOnShare(state, sid);
   if (!list.length && !forwardedAny) return;
   forwardedAny = list.length > 0;
@@ -191,15 +223,31 @@ function forwardShareCursors() {
  *  room handlers are attached; the handlers die with the room. */
 export function bindCallCursors(room: Room): void {
   boundRoom = room;
-  room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
-    if (topic !== CURSOR_TOPIC || !participant) return;
-    const msg = decodeCursorMessage(payload);
-    if (!msg) return;
-    // The label is the name the room knows them by, a guest marked as one
-    // (callSpeakerName): a guest's name is whatever they typed, and over a
-    // shared screen it must not pass for a teammate's.
-    setState(applyCursorMessage(state, participant.identity, callSpeakerName(participant.identity, participant.name), msg, Date.now()));
-  });
+  room.on(
+    RoomEvent.DataReceived,
+    (
+      payload: Uint8Array,
+      participant?: RemoteParticipant,
+      _kind?: unknown,
+      topic?: string,
+    ) => {
+      if (topic !== CURSOR_TOPIC || !participant) return;
+      const msg = decodeCursorMessage(payload);
+      if (!msg) return;
+      // The label is the name the room knows them by, a guest marked as one
+      // (callSpeakerName): a guest's name is whatever they typed, and over a
+      // shared screen it must not pass for a teammate's.
+      setState(
+        applyCursorMessage(
+          state,
+          participant.identity,
+          callSpeakerName(participant.identity, participant.name),
+          msg,
+          Date.now(),
+        ),
+      );
+    },
+  );
   // My share starting or stopping changes which cursors are mine to show.
   room.on(RoomEvent.LocalTrackPublished, forwardShareCursors);
   room.on(RoomEvent.LocalTrackUnpublished, forwardShareCursors);
@@ -219,14 +267,23 @@ export function shouldSendCursor(now: number, lastAt: number): boolean {
 
 async function publish(room: Room, msg: CursorMessage) {
   try {
-    await room.localParticipant.publishData(encodeCursorMessage(msg), { reliable: false, topic: CURSOR_TOPIC });
+    await room.localParticipant.publishData(encodeCursorMessage(msg), {
+      reliable: false,
+      topic: CURSOR_TOPIC,
+    });
   } catch {
     // A room mid teardown drops the packet; the next move sends again.
   }
 }
 
 /** My pointer over the share `sid`, normalized to its frame. Paced. */
-export function sendCursor(room: Room | null, sid: string, nx: number, ny: number, now = Date.now()): boolean {
+export function sendCursor(
+  room: Room | null,
+  sid: string,
+  nx: number,
+  ny: number,
+  now = Date.now(),
+): boolean {
   if (!room) return false;
   if (!shouldSendCursor(now, lastSentAt)) return false;
   lastSentAt = now;

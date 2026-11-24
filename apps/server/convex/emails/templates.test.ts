@@ -13,13 +13,25 @@ import {
 } from "./templates";
 
 const ALL: Array<{ name: string; email: RenderedEmail }> = [
-  { name: "verifyEmail", email: verifyEmail({ code: "A1B2C3", email: "dev@example.com" }) },
-  { name: "passwordReset", email: passwordReset({ code: "X9Y8Z7", email: "dev@example.com" }) },
+  {
+    name: "verifyEmail",
+    email: verifyEmail({ code: "A1B2C3", email: "dev@example.com" }),
+  },
+  {
+    name: "passwordReset",
+    email: passwordReset({ code: "X9Y8Z7", email: "dev@example.com" }),
+  },
   {
     name: "passwordChanged",
-    email: passwordChanged({ email: "dev@example.com", changedAt: 1755172800000 }),
+    email: passwordChanged({
+      email: "dev@example.com",
+      changedAt: 1755172800000,
+    }),
   },
-  { name: "welcome", email: welcome({ email: "dev@example.com", name: "Ada" }) },
+  {
+    name: "welcome",
+    email: welcome({ email: "dev@example.com", name: "Ada" }),
+  },
   {
     name: "teamInvite",
     email: teamInvite({
@@ -39,7 +51,14 @@ const ALL: Array<{ name: string; email: RenderedEmail }> = [
       settingsUrl: "https://codecast.sh/settings",
     }),
   },
-  { name: "confirmNewEmail", email: confirmNewEmail({ code: "481516", email: "dev@example.com", expiryMinutes: 15 }) },
+  {
+    name: "confirmNewEmail",
+    email: confirmNewEmail({
+      code: "481516",
+      email: "dev@example.com",
+      expiryMinutes: 15,
+    }),
+  },
   {
     name: "emailChanged",
     email: emailChanged({
@@ -80,7 +99,9 @@ describe("every template", () => {
       expect(email.html).toContain("codecast.sh");
 
       // Only https links.
-      const hrefs = [...email.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+      const hrefs = [...email.html.matchAll(/href="([^"]+)"/g)].map(
+        (m) => m[1],
+      );
       expect(hrefs.length).toBeGreaterThan(0);
       for (const href of hrefs) {
         expect(href).toStartWith("https://");
@@ -109,7 +130,11 @@ describe("codes", () => {
   });
 
   test("the change-email code leads the subject and names the address it moves the account to", () => {
-    const e = confirmNewEmail({ code: "481516", email: "dev@example.com", expiryMinutes: 15 });
+    const e = confirmNewEmail({
+      code: "481516",
+      email: "dev@example.com",
+      expiryMinutes: 15,
+    });
     expect(e.subject).toStartWith("481516");
     expect(e.text).toContain("481516");
     expect(e.text).toContain("dev@example.com");
@@ -168,7 +193,10 @@ describe("escaping", () => {
 
 describe("content specifics", () => {
   test("security notice shows account and UTC timestamp", () => {
-    const e = passwordChanged({ email: "dev@example.com", changedAt: Date.UTC(2026, 7, 14, 12, 30) });
+    const e = passwordChanged({
+      email: "dev@example.com",
+      changedAt: Date.UTC(2026, 7, 14, 12, 30),
+    });
     expect(e.html).toContain("2026-08-14 12:30 UTC");
     expect(e.text).toContain("dev@example.com");
   });

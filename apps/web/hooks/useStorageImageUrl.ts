@@ -39,7 +39,10 @@ const PERSIST_KEY = "codecast:imageUrls:v1";
 const PERSIST_MAX = 800;
 
 try {
-  const raw = typeof localStorage !== "undefined" ? localStorage.getItem(PERSIST_KEY) : null;
+  const raw =
+    typeof localStorage !== "undefined"
+      ? localStorage.getItem(PERSIST_KEY)
+      : null;
   if (raw) {
     const entries = JSON.parse(raw);
     if (entries && typeof entries === "object") {
@@ -60,10 +63,15 @@ function schedulePersist() {
     persistScheduled = false;
     try {
       if (typeof localStorage === "undefined") return;
-      const entries = [...urlCache].filter(([, url]) => typeof url === "string");
+      const entries = [...urlCache].filter(
+        ([, url]) => typeof url === "string",
+      );
       // Map iteration is insertion order (persisted-oldest first), so slicing
       // from the end keeps the most recently resolved ids under the cap.
-      localStorage.setItem(PERSIST_KEY, JSON.stringify(Object.fromEntries(entries.slice(-PERSIST_MAX))));
+      localStorage.setItem(
+        PERSIST_KEY,
+        JSON.stringify(Object.fromEntries(entries.slice(-PERSIST_MAX))),
+      );
     } catch {
       // Quota exceeded / private mode: in-memory cache still works.
     }
@@ -110,12 +118,18 @@ function scheduleFlush(convex: ReturnType<typeof useConvex>, delayMs = 0) {
     pendingIds.clear();
     if (ids.length === 0) return;
     try {
-      const urls: Record<string, string | null> | null = await convex.query(api.images.getImageUrls, {
-        storageIds: ids,
-        ...(guestImageScope
-          ? { conversation_id: guestImageScope, ...shareTokenArg(guestImageScope) }
-          : {}),
-      });
+      const urls: Record<string, string | null> | null = await convex.query(
+        api.images.getImageUrls,
+        {
+          storageIds: ids,
+          ...(guestImageScope
+            ? {
+                conversation_id: guestImageScope,
+                ...shareTokenArg(guestImageScope),
+              }
+            : {}),
+        },
+      );
       const unresolved: string[] = [];
       const resolvedUrls: string[] = [];
       for (const id of ids) {
@@ -155,7 +169,7 @@ function scheduleFlush(convex: ReturnType<typeof useConvex>, delayMs = 0) {
 function requestUrl(
   convex: ReturnType<typeof useConvex>,
   storageId: string,
-  onResolved: () => void
+  onResolved: () => void,
 ): () => void {
   if (urlCache.has(storageId)) {
     onResolved();
@@ -182,7 +196,7 @@ function requestUrl(
 // dropped and mount-time interest retries it.
 export function prefetchStorageImageUrls(
   convex: ReturnType<typeof useConvex>,
-  storageIds: Array<string | undefined | null>
+  storageIds: Array<string | undefined | null>,
 ) {
   let queued = false;
   const knownUrls: string[] = [];
@@ -209,7 +223,9 @@ export function prefetchStorageImageUrls(
  * Cached results are returned synchronously on first render (no flash on
  * remount), cache misses resolve via a single batched query.
  */
-export function useStorageImageUrl(storageId: string | undefined | null): string | null | undefined {
+export function useStorageImageUrl(
+  storageId: string | undefined | null,
+): string | null | undefined {
   const convex = useConvex();
   const [, forceRender] = useReducer((c: number) => c + 1, 0);
 
@@ -237,7 +253,7 @@ export function useStorageImageUrl(storageId: string | undefined | null): string
  * batching as the singular hook.
  */
 export function useStorageImageUrls(
-  storageIds: ReadonlyArray<string | undefined | null>
+  storageIds: ReadonlyArray<string | undefined | null>,
 ): Record<string, string | null> {
   const convex = useConvex();
   const [, forceRender] = useReducer((c: number) => c + 1, 0);
@@ -251,7 +267,7 @@ export function useStorageImageUrls(
       unsubscribes.push(
         requestUrl(convex, id, () => {
           if (!cancelled) forceRender();
-        })
+        }),
       );
     }
     return () => {
@@ -273,7 +289,9 @@ export function useStorageImageUrls(
  * storage object missing, string = src to render — a local object URL when the
  * bytes are cached, else the serving URL (byte-fetch failed; let <img> try).
  */
-export function useStorageImageSrc(storageId: string | undefined | null): string | null | undefined {
+export function useStorageImageSrc(
+  storageId: string | undefined | null,
+): string | null | undefined {
   const url = useStorageImageUrl(storageId);
   const src = imageBytes.useSrc(typeof url === "string" ? url : undefined);
   if (typeof url !== "string") return url;

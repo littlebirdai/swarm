@@ -30,8 +30,15 @@ import {
   SquareArrowOutUpRight,
   Trash2,
 } from "lucide-react";
-import { isVaultMarkdownPath, isVaultAssetPath } from "@codecast/shared/contracts";
-import { canRevealLocally, fileManagerName, revealVaultPath } from "../../lib/vault/reveal";
+import {
+  isVaultMarkdownPath,
+  isVaultAssetPath,
+} from "@codecast/shared/contracts";
+import {
+  canRevealLocally,
+  fileManagerName,
+  revealVaultPath,
+} from "../../lib/vault/reveal";
 import {
   ancestorDirs,
   baseName,
@@ -47,7 +54,12 @@ import {
   type FlatRow,
   type TreeNode,
 } from "../../lib/vault/explorerModel";
-import { ContextMenu, CtxItem, CtxSeparator, useContextMenu } from "../ui/context-menu";
+import {
+  ContextMenu,
+  CtxItem,
+  CtxSeparator,
+  useContextMenu,
+} from "../ui/context-menu";
 import { isBookmarked, type BookmarkInput } from "../../lib/vault/bookmarks";
 import { useVaultBookmarks } from "../../lib/vault/bookmarksHost";
 import { useVaultStore } from "../../store/vaultStore";
@@ -59,8 +71,14 @@ export type { TreeNode };
 const CONFIRM_DELETE_MS = 3000;
 
 function rowIcon(node: TreeNode, isExpanded: boolean) {
-  if (node.dir) return isExpanded ? <FolderOpen className="w-3.5 h-3.5" /> : <Folder className="w-3.5 h-3.5" />;
-  if (isVaultMarkdownPath(node.path)) return <FileText className="w-3.5 h-3.5" />;
+  if (node.dir)
+    return isExpanded ? (
+      <FolderOpen className="w-3.5 h-3.5" />
+    ) : (
+      <Folder className="w-3.5 h-3.5" />
+    );
+  if (isVaultMarkdownPath(node.path))
+    return <FileText className="w-3.5 h-3.5" />;
   if (isVaultAssetPath(node.path)) return <ImageIcon className="w-3.5 h-3.5" />;
   return <File className="w-3.5 h-3.5" />;
 }
@@ -122,7 +140,11 @@ function RenameInput({
       }}
       // Clicking away accepts a valid name and abandons an invalid one, so a
       // rejected name can never leave the row stuck in edit mode.
-      onBlur={() => (renameError(value, suffix, siblings, currentName) ? onCancel() : commit())}
+      onBlur={() =>
+        renameError(value, suffix, siblings, currentName)
+          ? onCancel()
+          : commit()
+      }
       className={`flex-1 min-w-0 bg-sol-bg text-sol-text text-[13px] px-1 py-0 rounded-sm border outline-none ${
         error ? "border-sol-red" : "border-sol-cyan"
       }`}
@@ -153,24 +175,42 @@ export const VaultExplorer = memo(function VaultExplorer({
   const bookmarks = useVaultBookmarks();
 
   const showAllFiles = useVaultStore((s) => s.showAllFiles);
-  const visible = useMemo(() => visibleVaultFiles(files, showAllFiles), [files, showAllFiles]);
-  const tree = useMemo(() => buildVaultTree(visible, sortMode), [visible, sortMode]);
-  const rows = useMemo(() => flattenTree(tree, expandedDirs), [tree, expandedDirs]);
+  const visible = useMemo(
+    () => visibleVaultFiles(files, showAllFiles),
+    [files, showAllFiles],
+  );
+  const tree = useMemo(
+    () => buildVaultTree(visible, sortMode),
+    [visible, sortMode],
+  );
+  const rows = useMemo(
+    () => flattenTree(tree, expandedDirs),
+    [tree, expandedDirs],
+  );
 
   const [focusIndex, setFocusIndex] = useState(-1);
   // Payload `null` is the vault root — the menu you get right-clicking empty space.
-  const { menu, open: openMenu, openAt: openMenuAt, close: closeMenuState } = useContextMenu<TreeNode | null>();
+  const {
+    menu,
+    open: openMenu,
+    openAt: openMenuAt,
+    close: closeMenuState,
+  } = useContextMenu<TreeNode | null>();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // Reveal only makes sense for files physically on this machine; a mirrored
   // vault has nothing local to point Finder at.
-  const localFiles = useVaultStore((s) => !!s.endpoint && !s.isRemote) && canRevealLocally();
+  const localFiles =
+    useVaultStore((s) => !!s.endpoint && !s.isRemote) && canRevealLocally();
   const fileManager = useMemo(() => fileManagerName(), []);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useWatchEffect(() => () => {
-    if (confirmTimer.current) clearTimeout(confirmTimer.current);
-  }, []);
+  useWatchEffect(
+    () => () => {
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    },
+    [],
+  );
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -184,7 +224,9 @@ export const VaultExplorer = memo(function VaultExplorer({
   // it changes from outside (quick switcher, wiki link click).
   useWatchEffect(() => {
     if (!activePath) return;
-    const collapsed = ancestorDirs(activePath).filter((a) => !useVaultStore.getState().expandedDirs[a]);
+    const collapsed = ancestorDirs(activePath).filter(
+      (a) => !useVaultStore.getState().expandedDirs[a],
+    );
     if (collapsed.length) setDirsExpanded(collapsed, true);
   }, [activePath, setDirsExpanded]);
 
@@ -250,7 +292,8 @@ export const VaultExplorer = memo(function VaultExplorer({
       // The open note moved out from under the URL — follow it, whether it was
       // renamed itself or carried along inside a renamed folder.
       if (activePath === path) onOpen(to);
-      else if (activePath?.startsWith(`${path}/`)) onOpen(to + activePath.slice(path.length));
+      else if (activePath?.startsWith(`${path}/`))
+        onOpen(to + activePath.slice(path.length));
     },
     [renamePath, setRenameTarget, activePath, onOpen],
   );
@@ -263,7 +306,8 @@ export const VaultExplorer = memo(function VaultExplorer({
       } catch {
         return;
       }
-      if (activePath === node.path || activePath?.startsWith(`${node.path}/`)) onOpen(null);
+      if (activePath === node.path || activePath?.startsWith(`${node.path}/`))
+        onOpen(null);
     },
     [deletePath, closeMenu, activePath, onOpen],
   );
@@ -284,7 +328,10 @@ export const VaultExplorer = memo(function VaultExplorer({
       const move = (delta: number) => {
         e.preventDefault();
         setFocusIndex((i) => {
-          const next = Math.max(0, Math.min(rows.length - 1, (i === -1 ? 0 : i) + delta));
+          const next = Math.max(
+            0,
+            Math.min(rows.length - 1, (i === -1 ? 0 : i) + delta),
+          );
           virtualizer.scrollToIndex(next, { align: "auto" });
           return next;
         });
@@ -310,10 +357,13 @@ export const VaultExplorer = memo(function VaultExplorer({
         const row = rows[focusIndex];
         if (!row) return;
         e.preventDefault();
-        if (row.node.dir && expandedDirs[row.node.path]) toggleDir(row.node.path);
+        if (row.node.dir && expandedDirs[row.node.path])
+          toggleDir(row.node.path);
         else {
           // Jump to parent folder.
-          const idx = rows.findIndex((r) => r.node.path === parentDir(row.node.path));
+          const idx = rows.findIndex(
+            (r) => r.node.path === parentDir(row.node.path),
+          );
           if (idx >= 0) {
             setFocusIndex(idx);
             virtualizer.scrollToIndex(idx, { align: "auto" });
@@ -321,7 +371,15 @@ export const VaultExplorer = memo(function VaultExplorer({
         }
       }
     },
-    [rows, focusIndex, activate, expandedDirs, toggleDir, virtualizer, setRenameTarget],
+    [
+      rows,
+      focusIndex,
+      activate,
+      expandedDirs,
+      toggleDir,
+      virtualizer,
+      setRenameTarget,
+    ],
   );
 
   const menuNode = menu?.payload ?? null;
@@ -333,14 +391,17 @@ export const VaultExplorer = memo(function VaultExplorer({
   const menuBookmark: BookmarkInput | null = menuNode
     ? { kind: menuNode.dir ? "folder" : "note", path: menuNode.path }
     : null;
-  const menuBookmarked = !!menuBookmark && isBookmarked(bookmarks, menuBookmark);
+  const menuBookmarked =
+    !!menuBookmark && isBookmarked(bookmarks, menuBookmark);
   // Notes, their attachments, and folders can be renamed or trashed. Code is
   // read-only — see the menu items below. So is anything listed only because
   // "show ignored files" is on: the daemon's write scope never widens.
   const menuEditable =
     !!menuNode &&
     !menuNode.ignored &&
-    (menuNode.dir || isVaultMarkdownPath(menuNode.path) || isVaultAssetPath(menuNode.path));
+    (menuNode.dir ||
+      isVaultMarkdownPath(menuNode.path) ||
+      isVaultAssetPath(menuNode.path));
 
   return (
     <div
@@ -357,11 +418,14 @@ export const VaultExplorer = memo(function VaultExplorer({
         <div className="px-3 py-6 text-xs leading-5 text-sol-text-muted text-center">
           No files here yet.
           <div className="mt-1 text-sol-text-dim">
-            Right-click here, or use the new note button above, to write the first one.
+            Right-click here, or use the new note button above, to write the
+            first one.
           </div>
         </div>
       ) : (
-        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+        <div
+          style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+        >
           {virtualizer.getVirtualItems().map((vi) => {
             const row = rows[vi.index];
             if (!row) return null;
@@ -382,7 +446,9 @@ export const VaultExplorer = memo(function VaultExplorer({
                   : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text"
             }`;
             const chevron = node.dir ? (
-              <ChevronRight className={`w-3 h-3 flex-shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+              <ChevronRight
+                className={`w-3 h-3 flex-shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+              />
             ) : (
               <span className="w-3 flex-shrink-0" />
             );
@@ -391,19 +457,34 @@ export const VaultExplorer = memo(function VaultExplorer({
                 key={vi.key}
                 data-index={vi.index}
                 ref={virtualizer.measureElement}
-                style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vi.start}px)` }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${vi.start}px)`,
+                }}
                 onContextMenu={(e) => {
                   setFocusIndex(vi.index);
                   openMenu(e, node);
                 }}
               >
                 {isRenaming ? (
-                  <div className={rowClass} style={{ paddingLeft: 8 + depth * 14 }} title={node.path}>
+                  <div
+                    className={rowClass}
+                    style={{ paddingLeft: 8 + depth * 14 }}
+                    title={node.path}
+                  >
                     {chevron}
-                    <span className="flex-shrink-0 opacity-70">{rowIcon(node, isExpanded)}</span>
+                    <span className="flex-shrink-0 opacity-70">
+                      {rowIcon(node, isExpanded)}
+                    </span>
                     <RenameInput
                       {...splitEntryName(node.path, node.dir)}
-                      siblings={siblingNames(Object.keys(files), parentDir(node.path))}
+                      siblings={siblingNames(
+                        Object.keys(files),
+                        parentDir(node.path),
+                      )}
                       currentName={baseName(node.path)}
                       onCommit={(name) => void commitRename(node.path, name)}
                       onCancel={() => setRenameTarget(null)}
@@ -421,10 +502,16 @@ export const VaultExplorer = memo(function VaultExplorer({
                     style={{ paddingLeft: 8 + depth * 14 }}
                   >
                     {chevron}
-                    <span className="flex-shrink-0 opacity-70">{rowIcon(node, isExpanded)}</span>
-                    <span className="truncate">{node.dir ? node.name : noteDisplayName(node.name)}</span>
+                    <span className="flex-shrink-0 opacity-70">
+                      {rowIcon(node, isExpanded)}
+                    </span>
+                    <span className="truncate">
+                      {node.dir ? node.name : noteDisplayName(node.name)}
+                    </span>
                     {node.dir && node.noteCount > 0 && (
-                      <span className="ml-auto pr-1 text-meta text-sol-text-dim tabular-nums">{node.noteCount}</span>
+                      <span className="ml-auto pr-1 text-meta text-sol-text-dim tabular-nums">
+                        {node.noteCount}
+                      </span>
                     )}
                   </button>
                 )}
@@ -453,10 +540,16 @@ export const VaultExplorer = memo(function VaultExplorer({
             )}
             {(!menuNode || menuNode.dir) && (
               <>
-                <CtxItem icon={FilePlus2} onSelect={() => void create(menuDir, "note")}>
+                <CtxItem
+                  icon={FilePlus2}
+                  onSelect={() => void create(menuDir, "note")}
+                >
                   New note
                 </CtxItem>
-                <CtxItem icon={FolderPlus} onSelect={() => void create(menuDir, "folder")}>
+                <CtxItem
+                  icon={FolderPlus}
+                  onSelect={() => void create(menuDir, "folder")}
+                >
                   New folder
                 </CtxItem>
               </>
@@ -468,9 +561,11 @@ export const VaultExplorer = memo(function VaultExplorer({
                   icon={FolderOpen}
                   onSelect={() => {
                     closeMenu();
-                    void revealVaultPath(menuNode.path, "reveal").then((err) => {
-                      if (err) useVaultStore.setState({ opError: err });
-                    });
+                    void revealVaultPath(menuNode.path, "reveal").then(
+                      (err) => {
+                        if (err) useVaultStore.setState({ opError: err });
+                      },
+                    );
                   }}
                 >
                   Show in {fileManager}
@@ -480,9 +575,11 @@ export const VaultExplorer = memo(function VaultExplorer({
                     icon={ExternalLink}
                     onSelect={() => {
                       closeMenu();
-                      void revealVaultPath(menuNode.path, "open").then((err) => {
-                        if (err) useVaultStore.setState({ opError: err });
-                      });
+                      void revealVaultPath(menuNode.path, "open").then(
+                        (err) => {
+                          if (err) useVaultStore.setState({ opError: err });
+                        },
+                      );
                     }}
                   >
                     Open in default app
@@ -536,14 +633,20 @@ export const VaultExplorer = memo(function VaultExplorer({
                         if (confirmDelete !== menuNode.path) {
                           e.preventDefault();
                           setConfirmDelete(menuNode.path);
-                          if (confirmTimer.current) clearTimeout(confirmTimer.current);
-                          confirmTimer.current = setTimeout(() => setConfirmDelete(null), CONFIRM_DELETE_MS);
+                          if (confirmTimer.current)
+                            clearTimeout(confirmTimer.current);
+                          confirmTimer.current = setTimeout(
+                            () => setConfirmDelete(null),
+                            CONFIRM_DELETE_MS,
+                          );
                           return;
                         }
                         void remove(menuNode);
                       }}
                     >
-                      {confirmDelete === menuNode.path ? "Really delete?" : "Delete"}
+                      {confirmDelete === menuNode.path
+                        ? "Really delete?"
+                        : "Delete"}
                     </CtxItem>
                   </>
                 )}

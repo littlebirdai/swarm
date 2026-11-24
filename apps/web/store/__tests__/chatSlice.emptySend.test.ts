@@ -20,14 +20,22 @@ describe("chat store slice: a blank line never reaches chat.sendMessage", () => 
     calls = [];
     _resetChatRailMemo();
     useInboxStore.setState({
-      chatChannels: {}, chatMessages: {}, chatReactions: {}, chatReads: {}, chatRail: [], pending: {},
+      chatChannels: {},
+      chatMessages: {},
+      chatReactions: {},
+      chatReads: {},
+      chatRail: [],
+      pending: {},
       currentUser: { _id: ME },
     } as any);
     useInboxStore.getState()._clearDispatch(owner);
-    useInboxStore.getState()._setDispatch(async (action, args) => {
-      calls.push({ action, args });
-      return { message_id: serverId("msg1") };
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args) => {
+        calls.push({ action, args });
+        return { message_id: serverId("msg1") };
+      },
+      { owner },
+    );
   });
 
   afterEach(() => {
@@ -45,16 +53,23 @@ describe("chat store slice: a blank line never reaches chat.sendMessage", () => 
 
   it("editing an unsent line down to blank dispatches nothing", async () => {
     useInboxStore.getState()._clearDispatch(owner);
-    useInboxStore.getState()._setDispatch(async (action, args) => {
-      calls.push({ action, args });
-      throw new Error("offline");
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args) => {
+        calls.push({ action, args });
+        throw new Error("offline");
+      },
+      { owner },
+    );
     const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "hello");
     await settle();
     const before = sends().length;
     useInboxStore.getState().editChatMessage(clientId, "  ");
     await settle();
-    expect(sends().slice(before).filter((c) => !String(c.args[1] ?? "").trim())).toHaveLength(0);
+    expect(
+      sends()
+        .slice(before)
+        .filter((c) => !String(c.args[1] ?? "").trim()),
+    ).toHaveLength(0);
     const row = useInboxStore.getState().chatMessages[clientId] as any;
     expect(row._failedAt).toBeTruthy();
     expect(row._failReason).toBe("A message needs text or an attachment");
@@ -66,16 +81,27 @@ describe("chat store slice: a blank line never reaches chat.sendMessage", () => 
       chatMessages: {
         ...s.chatMessages,
         [clientId]: {
-          _id: clientId, client_id: clientId, channel_id: CHANNEL, user_id: ME, author_kind: "user",
-          content: "", attachments: [{ type: "image", preview_url: "blob:dead", storage_id: "" }],
-          created_at: Date.now(), updated_at: Date.now(), _failedAt: Date.now(),
+          _id: clientId,
+          client_id: clientId,
+          channel_id: CHANNEL,
+          user_id: ME,
+          author_kind: "user",
+          content: "",
+          attachments: [
+            { type: "image", preview_url: "blob:dead", storage_id: "" },
+          ],
+          created_at: Date.now(),
+          updated_at: Date.now(),
+          _failedAt: Date.now(),
         },
       },
     }));
     useInboxStore.getState().retryChatSend(clientId);
     await settle();
     expect(sends()).toHaveLength(0);
-    expect((useInboxStore.getState().chatMessages[clientId] as any)._failReason).toBe("A message needs text or an attachment");
+    expect(
+      (useInboxStore.getState().chatMessages[clientId] as any)._failReason,
+    ).toBe("A message needs text or an attachment");
   });
 
   it("sending only spaces leaves no row behind", async () => {

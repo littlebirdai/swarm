@@ -44,7 +44,7 @@ Click a task to open it. Its status moves through **Backlog**, **Open**, **In Pr
 - **Plan** links the plan the task belongs to.
 - **Blocks** and **Blocked by** show what has to finish first. A task waiting on another doesn't show as ready until that one is done.
 - **Activity** is the running log: status changes and the agent's progress notes.
-- **Leave a comment** at the bottom. When a session is working on the task, the comment also goes to that session (*Also sends to this session*), so you can steer the work from the task page.
+- **Leave a comment** at the bottom. When a session is working on the task, the comment also goes to that session (_Also sends to this session_), so you can steer the work from the task page.
 
 ## A plan's page
 

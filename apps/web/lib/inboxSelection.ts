@@ -22,10 +22,19 @@ type InboxSelectionState = {
 export const useInboxSelection = create<InboxSelectionState>((set, get) => ({
   ids: [],
   anchorId: null,
-  set: (ids, anchorId) => set({ ids: [...new Set(ids)], anchorId: anchorId === undefined ? ids[ids.length - 1] ?? null : anchorId }),
+  set: (ids, anchorId) =>
+    set({
+      ids: [...new Set(ids)],
+      anchorId:
+        anchorId === undefined ? (ids[ids.length - 1] ?? null) : anchorId,
+    }),
   toggle: (id) => {
     const { ids } = get();
-    set(ids.includes(id) ? { ids: ids.filter((x) => x !== id), anchorId: id } : { ids: [...ids, id], anchorId: id });
+    set(
+      ids.includes(id)
+        ? { ids: ids.filter((x) => x !== id), anchorId: id }
+        : { ids: [...ids, id], anchorId: id },
+    );
   },
   range: (id, order) => {
     const { ids, anchorId } = get();
@@ -51,9 +60,12 @@ export function selectionIdsFor(id: string): string[] {
   return picked.includes(id) ? picked : [id];
 }
 
-
 /** Cmd/Ctrl-click toggles, Shift-click ranges, a plain click is not a selection gesture. */
-export function selectionGesture(e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }): "toggle" | "range" | null {
+export function selectionGesture(e: {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+}): "toggle" | "range" | null {
   if (e.shiftKey) return "range";
   if (e.metaKey || e.ctrlKey) return "toggle";
   return null;

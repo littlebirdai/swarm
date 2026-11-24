@@ -34,11 +34,41 @@ export const PRESENCE_META: Record<
     glyph: "" | "moon" | "minus";
   }
 > = {
-  active: { label: "Active", badge: "pres-active", text: "text-sol-cyan", avatar: "", glyph: "" },
-  idle: { label: "Idle", badge: "pres-idle", text: "text-sol-yellow", avatar: "", glyph: "" },
-  away: { label: "Away", badge: "pres-away", text: "text-sol-text-muted", avatar: "pres-av-away", glyph: "moon" },
-  offline: { label: "Offline", badge: "", text: "text-sol-text-dim", avatar: "pres-av-offline", glyph: "" },
-  busy: { label: "Busy", badge: "pres-busy", text: "text-sol-red", avatar: "", glyph: "minus" },
+  active: {
+    label: "Active",
+    badge: "pres-active",
+    text: "text-sol-cyan",
+    avatar: "",
+    glyph: "",
+  },
+  idle: {
+    label: "Idle",
+    badge: "pres-idle",
+    text: "text-sol-yellow",
+    avatar: "",
+    glyph: "",
+  },
+  away: {
+    label: "Away",
+    badge: "pres-away",
+    text: "text-sol-text-muted",
+    avatar: "pres-av-away",
+    glyph: "moon",
+  },
+  offline: {
+    label: "Offline",
+    badge: "",
+    text: "text-sol-text-dim",
+    avatar: "pres-av-offline",
+    glyph: "",
+  },
+  busy: {
+    label: "Busy",
+    badge: "pres-busy",
+    text: "text-sol-red",
+    avatar: "",
+    glyph: "minus",
+  },
 };
 
 export function memberPresenceState(member: any): PresenceState {
@@ -222,13 +252,21 @@ export function presenceLine(member: any, now: number): string {
 // timezone is missing/invalid or matches the viewer's (no news there).
 const timezoneClocks = new Map<string, Intl.DateTimeFormat>();
 
-export function localTimeLine(timezone: string | undefined, now: number): string {
+export function localTimeLine(
+  timezone: string | undefined,
+  now: number,
+): string {
   if (!timezone) return "";
   try {
-    if (timezone === Intl.DateTimeFormat().resolvedOptions().timeZone) return "";
+    if (timezone === Intl.DateTimeFormat().resolvedOptions().timeZone)
+      return "";
     let clock = timezoneClocks.get(timezone);
     if (!clock) {
-      clock = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: timezone });
+      clock = new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: timezone,
+      });
       timezoneClocks.set(timezone, clock);
     }
     return clock.format(now);
@@ -258,8 +296,12 @@ export function memberFleetSummary(
   memberId: string,
   opts: FleetBandOpts,
 ): FleetSummary | null {
-  const mine = sessions.filter((s) => s && String(s.user_id ?? "") === memberId);
-  return mine.length ? fleetSummariesByMember(mine, opts).get(memberId) ?? null : null;
+  const mine = sessions.filter(
+    (s) => s && String(s.user_id ?? "") === memberId,
+  );
+  return mine.length
+    ? (fleetSummariesByMember(mine, opts).get(memberId) ?? null)
+    : null;
 }
 
 /** The same counts for EVERY member in one pass. A roster of twenty faces asks
@@ -274,7 +316,13 @@ export function fleetSummariesByMember(
     if (!uid) continue;
     let f = out.get(uid);
     if (!f) {
-      f = { working: 0, needsYou: 0, topStatus: null, topTitle: null, topSessionKey: null };
+      f = {
+        working: 0,
+        needsYou: 0,
+        topStatus: null,
+        topTitle: null,
+        topSessionKey: null,
+      };
       out.set(uid, f);
     }
     const band = fleetBandFor(s, opts);
@@ -283,7 +331,10 @@ export function fleetSummariesByMember(
     // Quote the most actionable live status line: prefer a needsYou session's,
     // else any running one's.
     const status = (s as any).thread_state_status;
-    if (status && (band === "needsYou" || (band === "running" && !f.topStatus))) {
+    if (
+      status &&
+      (band === "needsYou" || (band === "running" && !f.topStatus))
+    ) {
       f.topStatus = status;
       f.topSessionKey = (s as any).session_id ?? s._id;
     }
@@ -296,7 +347,6 @@ export function fleetSummariesByMember(
   }
   return out;
 }
-
 
 export interface PresenceActivityCtx {
   /** Coarse clock (useCoarseNow), never Date.now() in render. */
@@ -358,7 +408,8 @@ function huddleLine(member: any, ctx: PresenceActivityCtx): string {
     const memberId = String(member?._id ?? "");
     const viewerId = String(ctx.viewerId ?? "");
     const others = roster.filter((m) => String(m.user_id) !== memberId);
-    const withViewer = !!viewerId && others.some((m) => String(m.user_id) === viewerId);
+    const withViewer =
+      !!viewerId && others.some((m) => String(m.user_id) === viewerId);
     const rest = others
       .filter((m) => String(m.user_id) !== viewerId)
       .map((m) => (m.user_name ?? "").trim())
@@ -367,7 +418,9 @@ function huddleLine(member: any, ctx: PresenceActivityCtx): string {
     // "with you" earns the different preposition: it is the one huddle the
     // reader can act on without asking who is in it.
     if (withViewer) {
-      return rest.length ? `in a huddle with you and ${nameList(rest)}` : "in a huddle with you";
+      return rest.length
+        ? `in a huddle with you and ${nameList(rest)}`
+        : "in a huddle with you";
     }
     if (rest.length) return `in a huddle · ${nameList(rest)}`;
     // Alone in a room they opened, waiting for someone to walk in.
@@ -386,7 +439,10 @@ function huddleLine(member: any, ctx: PresenceActivityCtx): string {
  * window, a roster row — prints THIS, so they can never phrase the same
  * situation two ways.
  */
-export function presenceActivityLine(member: any, ctx: PresenceActivityCtx): string {
+export function presenceActivityLine(
+  member: any,
+  ctx: PresenceActivityCtx,
+): string {
   if (ctx.engagement === "talking-to-me") return "talking on the walkie";
   if (ctx.engagement === "speaking") return "talking in a huddle with you";
 
@@ -414,7 +470,9 @@ export function presenceActivityLine(member: any, ctx: PresenceActivityCtx): str
   if (state === "busy") return "busy";
   if (state === "idle") {
     const at = member?.presence_input_at;
-    return typeof at === "number" ? `idle ${compactDuration(ctx.now - at)}` : "idle";
+    return typeof at === "number"
+      ? `idle ${compactDuration(ctx.now - at)}`
+      : "idle";
   }
   if (state === "away") return "away";
   if (state === "active") return "active now";
@@ -483,10 +541,16 @@ export function teammateWhereabouts(
     const followed = followingId !== null && id === followingId;
     const online = memberPresenceState(m) !== "offline";
     const name = memberDisplayName(m);
-    const conversationId = online && m.viewing_conversation_id ? String(m.viewing_conversation_id) : null;
+    const conversationId =
+      online && m.viewing_conversation_id
+        ? String(m.viewing_conversation_id)
+        : null;
     let score: number;
     if (conversationId || followed) {
-      score = Math.min(matchScore(teammateRowText(name), q), followed ? matchScore(`stop following ${name}`, q) : Infinity);
+      score = Math.min(
+        matchScore(teammateRowText(name), q),
+        followed ? matchScore(`stop following ${name}`, q) : Infinity,
+      );
     } else {
       if (!q) continue;
       score = matchScore(name, q);
@@ -532,7 +596,11 @@ export function viewersOf(
   for (const m of members ?? []) {
     const id = m?._id ? String(m._id) : "";
     if (!id || id === viewerId) continue;
-    if (!m.viewing_conversation_id || String(m.viewing_conversation_id) !== conversationId) continue;
+    if (
+      !m.viewing_conversation_id ||
+      String(m.viewing_conversation_id) !== conversationId
+    )
+      continue;
     if (memberPresenceState(m) === "offline") continue;
     out.push(m);
   }
@@ -550,7 +618,9 @@ export function viewersSig(
   viewerId: string | null,
 ): string {
   const viewers = viewersOf(members, conversationId, viewerId);
-  return viewers.length === 0 ? "" : viewers.map((m) => String(m._id)).join(",");
+  return viewers.length === 0
+    ? ""
+    : viewers.map((m) => String(m._id)).join(",");
 }
 
 /** "Ann is here", "Ann and Bob are here", "Ann, Bob and 2 others are here". */
@@ -558,7 +628,9 @@ export function viewersLabel(names: readonly string[]): string {
   const first = (n: string) => n.split(/\s+/)[0] || n;
   if (names.length === 0) return "";
   if (names.length === 1) return `${names[0]} is here`;
-  if (names.length === 2) return `${first(names[0])} and ${first(names[1])} are here`;
-  if (names.length === 3) return `${first(names[0])}, ${first(names[1])} and ${first(names[2])} are here`;
+  if (names.length === 2)
+    return `${first(names[0])} and ${first(names[1])} are here`;
+  if (names.length === 3)
+    return `${first(names[0])}, ${first(names[1])} and ${first(names[2])} are here`;
   return `${first(names[0])}, ${first(names[1])} and ${names.length - 2} others are here`;
 }

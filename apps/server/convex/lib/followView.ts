@@ -5,6 +5,12 @@ import { v } from "convex/values";
 // report and the read, so the three cannot drift.
 export const followViewValidator = v.object({
   panel: v.optional(v.string()),
-  diff: v.optional(v.object({ file: v.string(), line: v.optional(v.number()), base: v.optional(v.string()) })),
+  diff: v.optional(
+    v.object({
+      file: v.string(),
+      line: v.optional(v.number()),
+      base: v.optional(v.string()),
+    }),
+  ),
   scroll: v.optional(v.object({ key: v.string(), offset: v.number() })),
 });

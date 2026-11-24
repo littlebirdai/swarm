@@ -27,13 +27,23 @@ let port = 0;
 const gitInits: string[] = [];
 
 function deps(): BrowseDeps {
-  return { ...defaultBrowseDeps, home: () => home, gitInit: async (p) => { gitInits.push(p); } };
+  return {
+    ...defaultBrowseDeps,
+    home: () => home,
+    gitInit: async (p) => {
+      gitInits.push(p);
+    },
+  };
 }
 
 function api(pathAndQuery: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`http://127.0.0.1:${port}${pathAndQuery}`, {
     ...init,
-    headers: { Origin: ORIGIN, Authorization: `Bearer ${TOKEN}`, ...(init.headers ?? {}) },
+    headers: {
+      Origin: ORIGIN,
+      Authorization: `Bearer ${TOKEN}`,
+      ...(init.headers ?? {}),
+    },
   });
 }
 
@@ -44,7 +54,8 @@ beforeAll(async () => {
   fs.mkdirSync(path.join(home, "src", ".hidden"), { recursive: true });
   fs.writeFileSync(path.join(home, "src", "README.md"), "not a dir\n");
   server = http.createServer((req, res) => {
-    if (handleFsBrowseHttp(req, res, { token: TOKEN, log: () => {} }, deps())) return;
+    if (handleFsBrowseHttp(req, res, { token: TOKEN, log: () => {} }, deps()))
+      return;
     res.writeHead(404);
     res.end();
   });
@@ -73,7 +84,11 @@ describe("listDirectories", () => {
     expect(l.home).toBe(home);
     expect(l.exists).toBe(true);
     expect(l.dirs).toEqual([
-      { name: "codecast", path: path.join(home, "src", "codecast"), repo: true },
+      {
+        name: "codecast",
+        path: path.join(home, "src", "codecast"),
+        repo: true,
+      },
       { name: "notes", path: path.join(home, "src", "notes"), repo: false },
     ]);
   });
@@ -85,17 +100,28 @@ describe("listDirectories", () => {
 
   test("a missing directory reports exists=false rather than failing", async () => {
     const l = (await listDirectories("~/nope", false, deps()))!;
-    expect(l).toEqual({ home, path: path.join(home, "nope"), exists: false, dirs: [] });
+    expect(l).toEqual({
+      home,
+      path: path.join(home, "nope"),
+      exists: false,
+      dirs: [],
+    });
   });
 });
 
 describe("createProjectDir", () => {
   test("creates the folder and git-inits it once; a second call is a no-op", async () => {
     const made = (await createProjectDir("~/src/fresh", deps()))!;
-    expect(made).toEqual({ path: path.join(home, "src", "fresh"), created: true });
+    expect(made).toEqual({
+      path: path.join(home, "src", "fresh"),
+      created: true,
+    });
     expect(fs.statSync(made.path).isDirectory()).toBe(true);
     expect(gitInits).toEqual([made.path]);
-    expect(await createProjectDir("~/src/fresh", deps())).toEqual({ path: made.path, created: false });
+    expect(await createProjectDir("~/src/fresh", deps())).toEqual({
+      path: made.path,
+      created: false,
+    });
     expect(gitInits.length).toBe(1);
   });
 
@@ -120,16 +146,27 @@ describe("HTTP", () => {
   });
 
   test("POST /fs/mkdir creates a folder", async () => {
-    const res = await api("/fs/mkdir", { method: "POST", body: JSON.stringify({ path: "~/src/via-http" }) });
+    const res = await api("/fs/mkdir", {
+      method: "POST",
+      body: JSON.stringify({ path: "~/src/via-http" }),
+    });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ path: path.join(home, "src", "via-http"), created: true });
+    expect(await res.json()).toEqual({
+      path: path.join(home, "src", "via-http"),
+      created: true,
+    });
   });
 
   test("missing token or foreign origin is refused", async () => {
-    const noToken = await fetch(`http://127.0.0.1:${port}/fs/dirs?path=~`, { headers: { Origin: ORIGIN } });
+    const noToken = await fetch(`http://127.0.0.1:${port}/fs/dirs?path=~`, {
+      headers: { Origin: ORIGIN },
+    });
     expect(noToken.status).toBe(403);
     const badOrigin = await fetch(`http://127.0.0.1:${port}/fs/dirs?path=~`, {
-      headers: { Origin: "https://evil.example", Authorization: `Bearer ${TOKEN}` },
+      headers: {
+        Origin: "https://evil.example",
+        Authorization: `Bearer ${TOKEN}`,
+      },
     });
     expect(badOrigin.status).toBe(403);
   });
@@ -140,26 +177,53 @@ describe("HTTP", () => {
 });
 
 test("GET /fs/exists answers which absolute paths are directories on this machine", async () => {
-  const q = [path.join(home, "src", "codecast"), path.join(home, "src", "gone"), "relative"].map((p) => `p=${encodeURIComponent(p)}`).join("&");
+  const q = [
+    path.join(home, "src", "codecast"),
+    path.join(home, "src", "gone"),
+    "relative",
+  ]
+    .map((p) => `p=${encodeURIComponent(p)}`)
+    .join("&");
   const res = await api(`/fs/exists?${q}`);
   expect(res.status).toBe(200);
   const body = await res.json();
   expect(body.home).toBe(home);
-  expect(body.exists).toEqual({ [path.join(home, "src", "codecast")]: true, [path.join(home, "src", "gone")]: false });
+  expect(body.exists).toEqual({
+    [path.join(home, "src", "codecast")]: true,
+    [path.join(home, "src", "gone")]: false,
+  });
 });
 
 test("GET /fs/files matches a folder's files, names before directories, and skips dependency folders", async () => {
   const root = path.join(home, "src", "notes");
-  for (const f of ["components/MessageInput.tsx", "lib/message.ts", "messages/readme.md", "node_modules/x/message.js", ".cache/message.txt"]) {
+  for (const f of [
+    "components/MessageInput.tsx",
+    "lib/message.ts",
+    "messages/readme.md",
+    "node_modules/x/message.js",
+    ".cache/message.txt",
+  ]) {
     fs.mkdirSync(path.dirname(path.join(root, f)), { recursive: true });
     fs.writeFileSync(path.join(root, f), "");
   }
-  const res = await api(`/fs/files?root=${encodeURIComponent("~/src/notes")}&q=message`);
+  const res = await api(
+    `/fs/files?root=${encodeURIComponent("~/src/notes")}&q=message`,
+  );
   expect(res.status).toBe(200);
   const body = await res.json();
-  expect(body).toEqual({ root, exists: true, files: ["lib/message.ts", "components/MessageInput.tsx", "messages/readme.md"] });
+  expect(body).toEqual({
+    root,
+    exists: true,
+    files: [
+      "lib/message.ts",
+      "components/MessageInput.tsx",
+      "messages/readme.md",
+    ],
+  });
 
-  const missing = await (await api(`/fs/files?root=${encodeURIComponent("~/src/gone")}&q=x`)).json();
+  const missing = await (
+    await api(`/fs/files?root=${encodeURIComponent("~/src/gone")}&q=x`)
+  ).json();
   expect(missing.exists).toBe(false);
   expect((await api("/fs/files?root=relative&q=x")).status).toBe(400);
 });

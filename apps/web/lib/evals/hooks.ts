@@ -28,7 +28,10 @@ export function useEvalsConnection() {
   useWatchEffect(() => {
     if (useEvalsStore.getState().connection === "idle") void connect(convex);
   }, [connect, convex]);
-  const retry = useCallback(() => void connect(convex, { force: true }), [connect, convex]);
+  const retry = useCallback(
+    () => void connect(convex, { force: true }),
+    [connect, convex],
+  );
 
   const slow = connection === "no-daemon" && reason === "daemon-slow";
   const [attempt, setAttempt] = useState(0);
@@ -39,7 +42,8 @@ export function useEvalsConnection() {
       setRetryAt(null);
       return;
     }
-    const wait = EVALS_SLOW_RETRY_MS[Math.min(attempt, EVALS_SLOW_RETRY_MS.length - 1)];
+    const wait =
+      EVALS_SLOW_RETRY_MS[Math.min(attempt, EVALS_SLOW_RETRY_MS.length - 1)];
     setRetryAt(Date.now() + wait);
     const t = setTimeout(() => {
       setAttempt((n) => n + 1);
@@ -51,4 +55,5 @@ export function useEvalsConnection() {
 }
 
 /** One route's cached answer, the client's verbs and the change feed, over codecast's routes (sim, search, run files, patches, bisect writes). */
-export const { useEvalsResource, useEvalsClient, useEvalsChanges } = evalsHooks<EvalsRoutes>();
+export const { useEvalsResource, useEvalsClient, useEvalsChanges } =
+  evalsHooks<EvalsRoutes>();

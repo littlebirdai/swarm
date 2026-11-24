@@ -33,14 +33,21 @@ const CLOSE_BRACE = 0x7d;
 
 /** True when `buf` holds `part` at `at`. */
 function holds(buf: Buffer, part: Buffer, at: number): boolean {
-  return at + part.length <= buf.length && buf.compare(part, 0, part.length, at, at + part.length) === 0;
+  return (
+    at + part.length <= buf.length &&
+    buf.compare(part, 0, part.length, at, at + part.length) === 0
+  );
 }
 
 /** The decimal integer at `at`, and where it ends; null when there is none. */
-function readUint(buf: Buffer, at: number): { value: number; end: number } | null {
+function readUint(
+  buf: Buffer,
+  at: number,
+): { value: number; end: number } | null {
   let i = at;
   let value = 0;
-  while (i < buf.length && i - at < 15 && buf[i] >= 0x30 && buf[i] <= 0x39) value = value * 10 + (buf[i++] - 0x30);
+  while (i < buf.length && i - at < 15 && buf[i] >= 0x30 && buf[i] <= 0x39)
+    value = value * 10 + (buf[i++] - 0x30);
   return i === at ? null : { value, end: i };
 }
 
@@ -51,7 +58,10 @@ function readUint(buf: Buffer, at: number): { value: number; end: number } | nul
  * never looked at them. Settle waits read only request start and finish.
  * The extension drops the same set at the source (background.js).
  */
-export const UNRELAYED_EVENTS: ReadonlySet<string> = new Set(["Network.webSocketFrameReceived", "Network.webSocketFrameSent"]);
+export const UNRELAYED_EVENTS: ReadonlySet<string> = new Set([
+  "Network.webSocketFrameReceived",
+  "Network.webSocketFrameSent",
+]);
 
 export interface EventFrame {
   tabId: number;
@@ -64,7 +74,8 @@ export interface EventFrame {
 
 /** A tab event, routed from its first bytes; null for any other message. */
 export function readEventFrame(buf: Buffer): EventFrame | null {
-  if (buf[buf.length - 1] !== CLOSE_BRACE || !holds(buf, EVENT_HEAD, 0)) return null;
+  if (buf[buf.length - 1] !== CLOSE_BRACE || !holds(buf, EVENT_HEAD, 0))
+    return null;
   const tab = readUint(buf, EVENT_HEAD.length);
   if (!tab) return null;
   let at = tab.end;
@@ -82,27 +93,44 @@ export function readEventFrame(buf: Buffer): EventFrame | null {
   let i = start;
   // CDP method names are plain identifiers; an escape means some other shape.
   while (i < buf.length && buf[i] !== QUOTE && buf[i] !== BACKSLASH) i++;
-  if (buf[i] !== QUOTE || i === start || !holds(buf, EVENT_PARAMS, i + 1)) return null;
-  const frame: EventFrame = { tabId: tab.value, method: buf.toString("latin1", start, i), params: buf.subarray(i + 1 + EVENT_PARAMS.length, buf.length - 1) };
+  if (buf[i] !== QUOTE || i === start || !holds(buf, EVENT_PARAMS, i + 1))
+    return null;
+  const frame: EventFrame = {
+    tabId: tab.value,
+    method: buf.toString("latin1", start, i),
+    params: buf.subarray(i + 1 + EVENT_PARAMS.length, buf.length - 1),
+  };
   if (session) frame.session = session;
   return frame;
 }
 
 /** A successful reply's id and its `result` as JSON bytes; null for anything else (errors included). */
-export function readReplyFrame(buf: Buffer): { id: number; result: Buffer } | null {
-  if (buf[buf.length - 1] !== CLOSE_BRACE || !holds(buf, REPLY_HEAD, 0)) return null;
+export function readReplyFrame(
+  buf: Buffer,
+): { id: number; result: Buffer } | null {
+  if (buf[buf.length - 1] !== CLOSE_BRACE || !holds(buf, REPLY_HEAD, 0))
+    return null;
   const id = readUint(buf, REPLY_HEAD.length);
   if (!id || !holds(buf, REPLY_OK, id.end)) return null;
-  return { id: id.value, result: buf.subarray(id.end + REPLY_OK.length, buf.length - 1) };
+  return {
+    id: id.value,
+    result: buf.subarray(id.end + REPLY_OK.length, buf.length - 1),
+  };
 }
 
 /** The id of an extension reply without decoding it, so a pending request can choose the byte path. */
 export function replyId(buf: Buffer): number | null {
-  return holds(buf, REPLY_HEAD, 0) ? (readUint(buf, REPLY_HEAD.length)?.value ?? null) : null;
+  return holds(buf, REPLY_HEAD, 0)
+    ? (readUint(buf, REPLY_HEAD.length)?.value ?? null)
+    : null;
 }
 
 /** A CDP event for one client session, its params spliced in as bytes. */
-export function eventMessage(method: string, params: Buffer, sessionId: string): Buffer {
+export function eventMessage(
+  method: string,
+  params: Buffer,
+  sessionId: string,
+): Buffer {
   return Buffer.concat([
     Buffer.from(`{"method":${JSON.stringify(method)},"params":`),
     params,
@@ -111,9 +139,17 @@ export function eventMessage(method: string, params: Buffer, sessionId: string):
 }
 
 /** A CDP reply, its result spliced in as bytes. */
-export function replyMessage(id: number, result: Buffer, sessionId?: string): Buffer {
+export function replyMessage(
+  id: number,
+  result: Buffer,
+  sessionId?: string,
+): Buffer {
   const session = sessionId ? `,"sessionId":${JSON.stringify(sessionId)}` : "";
-  return Buffer.concat([Buffer.from(`{"id":${id}${session},"result":`), result, Buffer.from("}")]);
+  return Buffer.concat([
+    Buffer.from(`{"id":${id}${session},"result":`),
+    result,
+    Buffer.from("}"),
+  ]);
 }
 
 /** A result that is already JSON bytes: sent as it is, never parsed by the host. */
@@ -166,12 +202,16 @@ export class TrafficMeter {
     if (at - this.since < this.windowMs) return;
     if (this.report && this.total >= this.heavyBytes) {
       const mb = (b: number) => `${(b / MB).toFixed(b < 10 * MB ? 1 : 0)} MB`;
-      const top = [...this.byKey].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 5);
+      const top = [...this.byKey]
+        .sort((a, b) => b[1].bytes - a[1].bytes)
+        .slice(0, 5);
       const to = [...this.bySession].sort((a, b) => b[1] - a[1]).slice(0, 4);
       this.report(
         `heavy relay traffic: ${mb(this.total)} from the extension in ${Math.round((at - this.since) / 1000)}s — ` +
           top.map(([k, v]) => `${k} ${mb(v.bytes)} x${v.n}`).join(", ") +
-          (to.length ? `; to ${to.map(([k, v]) => `${k} ${mb(v)}`).join(", ")}` : ""),
+          (to.length
+            ? `; to ${to.map(([k, v]) => `${k} ${mb(v)}`).join(", ")}`
+            : ""),
       );
     }
     this.byKey.clear();

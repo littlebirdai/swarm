@@ -22,19 +22,30 @@ const usedListeners = new Set<(action: ShortcutAction) => void>();
 /** Hear every action a key dispatched, after its handler ran. A handled key
  *  stops at the capture-phase dispatcher, so a window keydown listener never
  *  sees it; this is how such a listener learns the key was pressed. */
-export function subscribeShortcutUsed(fn: (action: ShortcutAction) => void): () => void {
+export function subscribeShortcutUsed(
+  fn: (action: ShortcutAction) => void,
+): () => void {
   usedListeners.add(fn);
-  return () => { usedListeners.delete(fn); };
+  return () => {
+    usedListeners.delete(fn);
+  };
 }
 
-const runtime = createShortcutRuntime(shortcutCatalog, {
-  ...KEY_OWNERSHIP,
-  onShortcutUsed: (action: ShortcutAction) => {
-    onShortcutUsed(action);
-    if (trackedShortcuts.has(action)) track("shortcut_used", { action: action as (typeof TRACKED_SHORTCUTS)[number] });
-    for (const fn of [...usedListeners]) fn(action);
+const runtime = createShortcutRuntime(
+  shortcutCatalog,
+  {
+    ...KEY_OWNERSHIP,
+    onShortcutUsed: (action: ShortcutAction) => {
+      onShortcutUsed(action);
+      if (trackedShortcuts.has(action))
+        track("shortcut_used", {
+          action: action as (typeof TRACKED_SHORTCUTS)[number],
+        });
+      for (const fn of [...usedListeners]) fn(action);
+    },
   },
-}, import.meta.hot?.data.shortcutRuntime);
+  import.meta.hot?.data.shortcutRuntime,
+);
 
 if (import.meta.hot) import.meta.hot.data.shortcutRuntime = runtime;
 
@@ -48,7 +59,10 @@ export const useShortcutContext = kit.useShortcutContext;
 /** A shortcut that acts on the pane it is mounted in. Visited tabs stay
  *  mounted hidden and a split shows several panes, so every copy of a page
  *  registers; only the copy in the active pane may answer, the rest decline. */
-export function usePaneShortcutAction(action: ShortcutAction, handler: () => boolean | void): void {
+export function usePaneShortcutAction(
+  action: ShortcutAction,
+  handler: () => boolean | void,
+): void {
   const active = useTabActive();
   useShortcutAction(action, () => (active ? handler() : false));
 }

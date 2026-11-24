@@ -46,7 +46,8 @@ export const CODECAST_DESKTOP_ACCESSIBILITY: AccessibilityGrant = {
 };
 
 /** The profile's identifier: stable per team, so installing a newer one replaces the old. */
-export const profileIdentifier = (teamId: string) => `sh.codecast.team.${teamId}`;
+export const profileIdentifier = (teamId: string) =>
+  `sh.codecast.team.${teamId}`;
 
 /** Characters of the secret shown in the token list (after the cc_enr_ prefix). */
 const TOKEN_PREFIX_CHARS = 6;
@@ -54,10 +55,14 @@ const TOKEN_PREFIX_CHARS = 6;
 function newEnrollmentToken(): string {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
-  return ENROLLMENT_TOKEN_PREFIX + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return (
+    ENROLLMENT_TOKEN_PREFIX +
+    Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+  );
 }
 
-const createTokenDef = createApiTokenDefinitions({ onEvent: apiTokenEvents }).mutations.createToken;
+const createTokenDef = createApiTokenDefinitions({ onEvent: apiTokenEvents })
+  .mutations.createToken;
 
 async function requireUser(ctx: any): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
@@ -71,7 +76,10 @@ async function liveTeam(ctx: any, teamId: Id<"teams">): Promise<Doc<"teams">> {
   return team;
 }
 
-async function tokenByPlaintext(ctx: any, token: string): Promise<Doc<"team_enrollment_tokens"> | null> {
+async function tokenByPlaintext(
+  ctx: any,
+  token: string,
+): Promise<Doc<"team_enrollment_tokens"> | null> {
   if (!isEnrollmentToken(token)) return null;
   const hash = await hashToken(token);
   return await ctx.db
@@ -88,7 +96,9 @@ export const setTeamPolicy = mutation({
     await requireTeamAdmin(ctx, userId, args.team_id);
     await liveTeam(ctx, args.team_id);
     const policy = parseTeamPolicy(args.policy);
-    await ctx.db.patch(args.team_id, { policy: Object.keys(policy).length ? policy : undefined });
+    await ctx.db.patch(args.team_id, {
+      policy: Object.keys(policy).length ? policy : undefined,
+    });
     return { policy };
   },
 });
@@ -101,15 +111,28 @@ export const adminOverview = query({
     if (!userId) return null;
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .first();
     if (membership?.role !== "admin") return null;
     const [tokens, enrollments] = await Promise.all([
-      ctx.db.query("team_enrollment_tokens").withIndex("by_team", (q) => q.eq("team_id", args.team_id)).collect(),
-      ctx.db.query("device_enrollments").withIndex("by_team", (q) => q.eq("team_id", args.team_id)).collect(),
+      ctx.db
+        .query("team_enrollment_tokens")
+        .withIndex("by_team", (q) => q.eq("team_id", args.team_id))
+        .collect(),
+      ctx.db
+        .query("device_enrollments")
+        .withIndex("by_team", (q) => q.eq("team_id", args.team_id))
+        .collect(),
     ]);
     const people = new Map<string, Doc<"users"> | null>();
-    for (const id of new Set(enrollments.map((e) => e.user_id).filter(Boolean).map(String))) {
+    for (const id of new Set(
+      enrollments
+        .map((e) => e.user_id)
+        .filter(Boolean)
+        .map(String),
+    )) {
       people.set(id, await ctx.db.get(id as Id<"users">));
     }
     const tokenNames = new Map(tokens.map((t) => [String(t._id), t.name]));
@@ -119,7 +142,9 @@ export const adminOverview = query({
       if (!e.user_id || e.status !== "active") continue;
       const device = await ctx.db
         .query("devices")
-        .withIndex("by_user_device", (q) => q.eq("user_id", e.user_id!).eq("device_id", e.device_id))
+        .withIndex("by_user_device", (q) =>
+          q.eq("user_id", e.user_id!).eq("device_id", e.device_id),
+        )
         .first();
       if (device) lastSeen.set(String(e._id), device.last_seen);
     }
@@ -133,10 +158,15 @@ export const adminOverview = query({
           created_at: t.created_at,
           revoked_at: t.revoked_at ?? null,
           last_used_at: t.last_used_at ?? null,
-          devices: enrollments.filter((e) => e.token_id === t._id && e.status !== "revoked").length,
+          devices: enrollments.filter(
+            (e) => e.token_id === t._id && e.status !== "revoked",
+          ).length,
         })),
       devices: enrollments
-        .sort((a, b) => (b.enrolled_at ?? b.created_at) - (a.enrolled_at ?? a.created_at))
+        .sort(
+          (a, b) =>
+            (b.enrolled_at ?? b.created_at) - (a.enrolled_at ?? a.created_at),
+        )
         .map((e) => {
           const person = e.user_id ? people.get(String(e.user_id)) : null;
           return {
@@ -151,7 +181,9 @@ export const adminOverview = query({
             created_at: e.created_at,
             enrolled_at: e.enrolled_at ?? null,
             // Bucketed to the minute: the device row moves on every heartbeat.
-            last_seen: lastSeen.has(String(e._id)) ? Math.floor(lastSeen.get(String(e._id))! / 60_000) * 60_000 : null,
+            last_seen: lastSeen.has(String(e._id))
+              ? Math.floor(lastSeen.get(String(e._id))! / 60_000) * 60_000
+              : null,
           };
         }),
     };
@@ -166,7 +198,10 @@ export const createEnrollmentToken = mutation({
     await requireTeamAdmin(ctx, userId, args.team_id);
     await liveTeam(ctx, args.team_id);
     const token = newEnrollmentToken();
-    const prefix = token.slice(0, ENROLLMENT_TOKEN_PREFIX.length + TOKEN_PREFIX_CHARS);
+    const prefix = token.slice(
+      0,
+      ENROLLMENT_TOKEN_PREFIX.length + TOKEN_PREFIX_CHARS,
+    );
     const name = args.name.trim().slice(0, 80) || "Enrollment token";
     const tokenId = await ctx.db.insert("team_enrollment_tokens", {
       team_id: args.team_id,
@@ -188,7 +223,8 @@ export const revokeEnrollmentToken = mutation({
     const row = await ctx.db.get(args.token_id);
     if (!row) throw new Error("No such token");
     await requireTeamAdmin(ctx, userId, row.team_id);
-    if (!row.revoked_at) await ctx.db.patch(row._id, { revoked_at: Date.now() });
+    if (!row.revoked_at)
+      await ctx.db.patch(row._id, { revoked_at: Date.now() });
   },
 });
 
@@ -210,11 +246,18 @@ export const revokeDeviceEnrollment = mutation({
     if (!row.user_id) return;
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", row.user_id!).eq("device_id", row.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", row.user_id!).eq("device_id", row.device_id),
+      )
       .first();
-    if (device && device.enrolled_team_id === row.team_id) await ctx.db.patch(device._id, { enrolled_team_id: undefined });
-    const tokens = await ctx.db.query("api_tokens").withIndex("by_user_id", (q) => q.eq("user_id", row.user_id!)).collect();
-    for (const t of tokens) if (t.device_id === row.device_id) await ctx.db.delete(t._id);
+    if (device && device.enrolled_team_id === row.team_id)
+      await ctx.db.patch(device._id, { enrolled_team_id: undefined });
+    const tokens = await ctx.db
+      .query("api_tokens")
+      .withIndex("by_user_id", (q) => q.eq("user_id", row.user_id!))
+      .collect();
+    for (const t of tokens)
+      if (t.device_id === row.device_id) await ctx.db.delete(t._id);
   },
 });
 
@@ -246,23 +289,34 @@ export const buildEnrollmentProfile = mutation({
   args: {
     team_id: v.id("teams"),
     token: v.string(),
-    mdm: v.optional(v.union(...(MDM_VENDORS.map((m) => v.literal(m.id)) as [any, ...any[]]))),
+    mdm: v.optional(
+      v.union(...(MDM_VENDORS.map((m) => v.literal(m.id)) as [any, ...any[]])),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     await requireTeamAdmin(ctx, userId, args.team_id);
     const team = await liveTeam(ctx, args.team_id);
     const row = await tokenByPlaintext(ctx, args.token);
-    if (!row || row.team_id !== args.team_id || row.revoked_at) throw new Error("That enrollment token is not active for this team");
+    if (!row || row.team_id !== args.team_id || row.revoked_at)
+      throw new Error("That enrollment token is not active for this team");
     const policy: TeamPolicy = parseTeamPolicy(team.policy);
     const mobileconfig = buildMobileconfig({
       teamName: team.name,
       identifier: profileIdentifier(String(team._id)),
       uuids: [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()],
-      policy: { ...policy, enrollment_token: args.token, user_email: mdmEmailVariable(args.mdm) },
+      policy: {
+        ...policy,
+        enrollment_token: args.token,
+        user_email: mdmEmailVariable(args.mdm),
+      },
       accessibility: [CODECAST_DESKTOP_ACCESSIBILITY],
     });
-    const slug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "team";
+    const slug =
+      team.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "team";
     return { filename: `codecast-${slug}.mobileconfig`, mobileconfig };
   },
 });
@@ -282,21 +336,42 @@ export const enroll = internalMutation({
   },
   handler: async (ctx, args): Promise<EnrollResponse> => {
     const row = await tokenByPlaintext(ctx, args.enrollment_token);
-    if (!row) return { ok: false, error: "This enrollment token is not valid. Ask your IT admin for a new configuration profile." };
-    if (row.revoked_at) return { ok: false, error: "This enrollment token was revoked. Ask your IT admin for a new configuration profile." };
+    if (!row)
+      return {
+        ok: false,
+        error:
+          "This enrollment token is not valid. Ask your IT admin for a new configuration profile.",
+      };
+    if (row.revoked_at)
+      return {
+        ok: false,
+        error:
+          "This enrollment token was revoked. Ask your IT admin for a new configuration profile.",
+      };
     const team = await ctx.db.get(row.team_id);
-    if (!team || team.deleted_at) return { ok: false, error: "The team this device enrolls into no longer exists." };
+    if (!team || team.deleted_at)
+      return {
+        ok: false,
+        error: "The team this device enrolls into no longer exists.",
+      };
     const deviceId = args.device_id.trim();
-    if (!deviceId || deviceId.length > 200) return { ok: false, error: "Missing device_id" };
+    if (!deviceId || deviceId.length > 200)
+      return { ok: false, error: "Missing device_id" };
     const email = args.email?.trim().toLowerCase() || undefined;
     const now = Date.now();
     await ctx.db.patch(row._id, { last_used_at: now });
     const existing = await ctx.db
       .query("device_enrollments")
-      .withIndex("by_team_device", (q) => q.eq("team_id", row.team_id).eq("device_id", deviceId))
+      .withIndex("by_team_device", (q) =>
+        q.eq("team_id", row.team_id).eq("device_id", deviceId),
+      )
       .first();
     if (existing?.status === "revoked") {
-      return { ok: false, error: `${team.name}'s admins removed this device. Ask them to allow it again.`, removed_by: team.name };
+      return {
+        ok: false,
+        error: `${team.name}'s admins removed this device. Ask them to allow it again.`,
+        removed_by: team.name,
+      };
     }
     const facts = {
       token_id: row._id,
@@ -317,7 +392,13 @@ export const enroll = internalMutation({
         ...facts,
       });
     }
-    return { ok: true, enrollment_id: String(enrollmentId), team_id: String(team._id), team_name: team.name, policy: parseTeamPolicy(team.policy) };
+    return {
+      ok: true,
+      enrollment_id: String(enrollmentId),
+      team_id: String(team._id),
+      team_name: team.name,
+      policy: parseTeamPolicy(team.policy),
+    };
   },
 });
 
@@ -337,9 +418,14 @@ export const enrollmentPreview = query({
 });
 
 /** Does the signed-in person match the person the profile names? */
-export function enrollmentEmailMatches(expected: string | undefined, actual: string | undefined): boolean {
+export function enrollmentEmailMatches(
+  expected: string | undefined,
+  actual: string | undefined,
+): boolean {
   if (!expected) return true;
-  return !!actual && actual.trim().toLowerCase() === expected.trim().toLowerCase();
+  return (
+    !!actual && actual.trim().toLowerCase() === expected.trim().toLowerCase()
+  );
 }
 
 /**
@@ -353,25 +439,60 @@ export const completeEnrollment = mutation({
     const userId = await requireUser(ctx);
     const id = ctx.db.normalizeId("device_enrollments", args.enrollment_id);
     const row = id ? await ctx.db.get(id) : null;
-    if (!row) throw accessError("NOT_FOUND", "This enrollment was not found. Run the sign-in from the device again.");
-    if (row.status === "revoked") throw accessError("FORBIDDEN", "This device's enrollment was revoked by its team's admins.");
-    if (row.device_id !== args.device_id) throw accessError("FORBIDDEN", "This enrollment belongs to a different device.");
+    if (!row)
+      throw accessError(
+        "NOT_FOUND",
+        "This enrollment was not found. Run the sign-in from the device again.",
+      );
+    if (row.status === "revoked")
+      throw accessError(
+        "FORBIDDEN",
+        "This device's enrollment was revoked by its team's admins.",
+      );
+    if (row.device_id !== args.device_id)
+      throw accessError(
+        "FORBIDDEN",
+        "This enrollment belongs to a different device.",
+      );
     const team = await liveTeam(ctx, row.team_id);
     const token = await ctx.db.get(row.token_id);
-    if (!token || token.revoked_at) throw accessError("FORBIDDEN", "This device's enrollment token was revoked. Ask your IT admin for a new profile.");
+    if (!token || token.revoked_at)
+      throw accessError(
+        "FORBIDDEN",
+        "This device's enrollment token was revoked. Ask your IT admin for a new profile.",
+      );
     const user = await ctx.db.get(userId);
     if (!enrollmentEmailMatches(row.email, user?.email)) {
-      throw accessError("FORBIDDEN", `This device is enrolled for ${row.email}. Sign in as ${row.email} to finish (you are signed in as ${user?.email ?? "another account"}).`);
+      throw accessError(
+        "FORBIDDEN",
+        `This device is enrolled for ${row.email}. Sign in as ${row.email} to finish (you are signed in as ${user?.email ?? "another account"}).`,
+      );
     }
-    await addTeamMember(ctx, userId, team, "Enrolled a managed device", token.created_by);
+    await addTeamMember(
+      ctx,
+      userId,
+      team,
+      "Enrolled a managed device",
+      token.created_by,
+    );
     const now = Date.now();
-    await ctx.db.patch(row._id, { status: "active", user_id: userId, enrolled_at: row.enrolled_at ?? now });
+    await ctx.db.patch(row._id, {
+      status: "active",
+      user_id: userId,
+      enrolled_at: row.enrolled_at ?? now,
+    });
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q) => q.eq("user_id", userId).eq("device_id", row.device_id))
+      .withIndex("by_user_device", (q) =>
+        q.eq("user_id", userId).eq("device_id", row.device_id),
+      )
       .first();
-    if (device && device.enrolled_team_id !== row.team_id) await ctx.db.patch(device._id, { enrolled_team_id: row.team_id });
-    const minted = await createTokenDef.handler(ctx, { name: args.name, device_id: args.device_id });
+    if (device && device.enrolled_team_id !== row.team_id)
+      await ctx.db.patch(device._id, { enrolled_team_id: row.team_id });
+    const minted = await createTokenDef.handler(ctx, {
+      name: args.name,
+      device_id: args.device_id,
+    });
     return { ...minted, team_id: team._id, team_name: team.name };
   },
 });
@@ -386,5 +507,9 @@ export const completeEnrollment = mutation({
 export const publishRefusal = internalQuery({
   args: { api_token: v.string(), workspace: v.optional(v.string()) },
   handler: async (ctx, args) =>
-    teamPolicyRefusal(ctx, { apiToken: args.api_token, workspace: args.workspace }, "public_sharing_disabled"),
+    teamPolicyRefusal(
+      ctx,
+      { apiToken: args.api_token, workspace: args.workspace },
+      "public_sharing_disabled",
+    ),
 });

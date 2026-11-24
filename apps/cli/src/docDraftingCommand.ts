@@ -1,5 +1,9 @@
 import type { Command } from "commander";
-import { LAB_FLAGS, LAB_TRIMS, TRIM_REASON } from "@codecast/shared/docs/drafting";
+import {
+  LAB_FLAGS,
+  LAB_TRIMS,
+  TRIM_REASON,
+} from "@codecast/shared/docs/drafting";
 import { stdinText } from "./sendBody.js";
 
 // `cast doc` drafting verbs: the same editing aids the doc page has
@@ -27,7 +31,10 @@ function lazy(deps: DocDraftingDeps, name: ActionName) {
   };
 }
 
-export function registerDocDraftingCommands(doc: Command, deps: DocDraftingDeps): void {
+export function registerDocDraftingCommands(
+  doc: Command,
+  deps: DocDraftingDeps,
+): void {
   const idHelp = deps.docId?.help ?? "Document ID";
   const idParse = deps.docId?.parse ?? ((value: string) => value);
   doc
@@ -57,9 +64,15 @@ export function registerDocDraftingCommands(doc: Command, deps: DocDraftingDeps)
     .argument("<text>", stdinText("The text as it shows now"))
     .argument("[versions...]", "Versions to add")
     .option("--pick <n>", "Show version n (0 is the original)")
-    .option("--settle [n]", "Keep the version shown (or version n) as plain text and drop the others")
+    .option(
+      "--settle [n]",
+      "Keep the version shown (or version n) as plain text and drop the others",
+    )
     .option("--drop <n>", "Drop version n (not the one showing)")
-    .option("--nth <n>", "Which occurrence of the text, when it appears more than once")
+    .option(
+      "--nth <n>",
+      "Which occurrence of the text, when it appears more than once",
+    )
     .option("--ai", "Mark the added versions as a model's")
     .option("--human", "Mark the added versions as a person's")
     .action(lazy(deps, "alt"));
@@ -78,24 +91,33 @@ export function registerDocDraftingCommands(doc: Command, deps: DocDraftingDeps)
 
   doc
     .command("revive")
-    .description("Bring ghosted text back (one stretch, or every ghost with --all)")
+    .description(
+      "Bring ghosted text back (one stretch, or every ghost with --all)",
+    )
     .argument("<id>", idHelp, idParse)
     .argument("[text]", stdinText("Ghosted text to revive"))
     .option("--all", "Revive every ghost")
-    .option("--reason <reason>", `Only ghosts with this reason (e.g. ${TRIM_REASON})`)
+    .option(
+      "--reason <reason>",
+      `Only ghosts with this reason (e.g. ${TRIM_REASON})`,
+    )
     .option("--nth <n>", "Which occurrence of the text")
     .action(lazy(deps, "revive"));
 
   doc
     .command("cuts")
-    .description("Make the proposed cuts: delete text ghosted as a trim (or every ghost with --all)")
+    .description(
+      "Make the proposed cuts: delete text ghosted as a trim (or every ghost with --all)",
+    )
     .argument("<id>", idHelp, idParse)
     .option("--all", "Delete every ghosted stretch, not only proposed cuts")
     .action(lazy(deps, "cuts"));
 
   doc
     .command("flag")
-    .description(`Mark text with a finding (${LAB_FLAGS.map((f) => f.flag).join(", ")}); --clear removes marks`)
+    .description(
+      `Mark text with a finding (${LAB_FLAGS.map((f) => f.flag).join(", ")}); --clear removes marks`,
+    )
     .argument("<id>", idHelp, idParse)
     .argument("[text]", stdinText("Exact text to mark"))
     .argument("[kind]", "Kind of finding", "weak")
@@ -118,7 +140,10 @@ export function registerDocDraftingCommands(doc: Command, deps: DocDraftingDeps)
     .argument("<id>", idHelp, idParse)
     .option("--set <text>", stdinText("Replace the Overflow"))
     .option("--append <text>", stdinText("Add a paragraph to the Overflow"))
-    .option("--stash <text>", stdinText("Move this exact text from the doc into the Overflow"))
+    .option(
+      "--stash <text>",
+      stdinText("Move this exact text from the doc into the Overflow"),
+    )
     .option("--nth <n>", "Which occurrence of the stashed text")
     .option("--clear", "Empty the Overflow")
     .action(lazy(deps, "overflow"));

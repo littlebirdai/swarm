@@ -24,103 +24,239 @@ const calls = {
   navigates: [] as string[],
   toasts: [] as Array<[string, string]>,
   backendSwitches: [] as Array<[string, string, boolean]>,
-  reset() { this.switches = []; this.forks = []; this.actions = []; this.navigates = []; this.toasts = []; this.backendSwitches = []; },
+  reset() {
+    this.switches = [];
+    this.forks = [];
+    this.actions = [];
+    this.navigates = [];
+    this.toasts = [];
+    this.backendSwitches = [];
+  },
 };
 // The live session meta the panel reads (its session id gates the backend rows).
 let liveMeta: Record<string, unknown> | undefined;
 
 const storeState = {
-  sessions: { conv1: { _id: "conv1", title: "Fix the auth race", agent_type: "claude_code", project_path: "/p", git_root: "/p" } } as Record<string, any>,
+  sessions: {
+    conv1: {
+      _id: "conv1",
+      title: "Fix the auth race",
+      agent_type: "claude_code",
+      project_path: "/p",
+      git_root: "/p",
+    },
+  } as Record<string, any>,
   conversations: {} as Record<string, any>,
   currentUser: { _id: "u1", default_models: {} },
   clientState: { ui: {} } as Record<string, any>,
   machineRoster: [],
   getConvexId: (id: string) => id,
-  requestNavigate: (id: string) => { calls.navigates.push(id); },
+  requestNavigate: (id: string) => {
+    calls.navigates.push(id);
+  },
   syncTable() {},
   setConversationModel() {},
   addOptimisticMessage: () => "c1",
   sendMessage() {},
   sessionCommands: {} as Record<string, any>,
-  switchClaudeBackend: (_requestId: string, convId: string, backend: string, interrupt?: boolean) => { calls.backendSwitches.push([convId, backend, !!interrupt]); return Promise.resolve(); },
+  switchClaudeBackend: (
+    _requestId: string,
+    convId: string,
+    backend: string,
+    interrupt?: boolean,
+  ) => {
+    calls.backendSwitches.push([convId, backend, !!interrupt]);
+    return Promise.resolve();
+  },
 };
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLButtonElement", "HTMLTextAreaElement", "HTMLInputElement", "HTMLAnchorElement", "Element", "Node", "Event", "PointerEvent", "MouseEvent", "KeyboardEvent", "FocusEvent", "CustomEvent", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "ResizeObserver", "DOMRect", "MutationObserver"]) {
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh", pretendToBeVisual: true },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "HTMLButtonElement",
+    "HTMLTextAreaElement",
+    "HTMLInputElement",
+    "HTMLAnchorElement",
+    "Element",
+    "Node",
+    "Event",
+    "PointerEvent",
+    "MouseEvent",
+    "KeyboardEvent",
+    "FocusEvent",
+    "CustomEvent",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "ResizeObserver",
+    "DOMRect",
+    "MutationObserver",
+  ]) {
     const v = (dom.window as any)[key];
-    if (v !== undefined) Object.defineProperty(globalThis, key, { value: v, configurable: true, writable: true });
+    if (v !== undefined)
+      Object.defineProperty(globalThis, key, {
+        value: v,
+        configurable: true,
+        writable: true,
+      });
   }
-  if (!(globalThis as any).ResizeObserver) (globalThis as any).ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
-  if (!(globalThis as any).PointerEvent) (globalThis as any).PointerEvent = (globalThis as any).MouseEvent;
+  if (!(globalThis as any).ResizeObserver)
+    (globalThis as any).ResizeObserver = class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+  if (!(globalThis as any).PointerEvent)
+    (globalThis as any).PointerEvent = (globalThis as any).MouseEvent;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
   const h = React.createElement;
 
-  const useInboxStore = Object.assign((selector?: (s: typeof storeState) => unknown) => (selector ? selector(storeState) : storeState), {
-    getState: () => storeState,
-    setState() {},
-    subscribe: () => () => {},
-  });
-  mock.module("../../store/inboxStore", () => ({ ...realInboxStore, useInboxStore, isConvexId: (id: string) => /^[a-z0-9]{32}$/.test(id) }));
-  mock.module("../../store/mutativeMiddleware", () => ({ DispatchNotWiredError: class extends Error { parked = false; }, isParkedDispatchError: () => false }));
+  const useInboxStore = Object.assign(
+    (selector?: (s: typeof storeState) => unknown) =>
+      selector ? selector(storeState) : storeState,
+    {
+      getState: () => storeState,
+      setState() {},
+      subscribe: () => () => {},
+    },
+  );
+  mock.module("../../store/inboxStore", () => ({
+    ...realInboxStore,
+    useInboxStore,
+    isConvexId: (id: string) => /^[a-z0-9]{32}$/.test(id),
+  }));
+  mock.module("../../store/mutativeMiddleware", () => ({
+    DispatchNotWiredError: class extends Error {
+      parked = false;
+    },
+    isParkedDispatchError: () => false,
+  }));
   mock.module("convex/react", () => ({
     useMutation: () => () => Promise.resolve(),
-    useConvex: () => ({ action: (ref: unknown, args: Record<string, unknown>) => { calls.actions.push([ref, args]); return Promise.resolve({ session: { conversation_id: "newconv", short_id: "jx7new1", agent_type: args.agent_type } }); } }),
+    useConvex: () => ({
+      action: (ref: unknown, args: Record<string, unknown>) => {
+        calls.actions.push([ref, args]);
+        return Promise.resolve({
+          session: {
+            conversation_id: "newconv",
+            short_id: "jx7new1",
+            agent_type: args.agent_type,
+          },
+        });
+      },
+    }),
   }));
-  mock.module("../../hooks/useDynamicModels", () => ({ useDynamicModels: () => ({ dynamic: false, featured: [], all: [] }) }));
-  mock.module("../../hooks/useLiveSessionMeta", () => ({ useLiveSessionMeta: () => liveMeta, liveSessionMetaOf: () => liveMeta }));
-  mock.module("../../hooks/useSyncAgentDefinitions", () => ({ useAgentDefinitions: () => [] }));
-  mock.module("../../lib/conversationProcessor", () => ({ formatModel: (m: string) => m }));
+  mock.module("../../hooks/useDynamicModels", () => ({
+    useDynamicModels: () => ({ dynamic: false, featured: [], all: [] }),
+  }));
+  mock.module("../../hooks/useLiveSessionMeta", () => ({
+    useLiveSessionMeta: () => liveMeta,
+    liveSessionMetaOf: () => liveMeta,
+  }));
+  mock.module("../../hooks/useSyncAgentDefinitions", () => ({
+    useAgentDefinitions: () => [],
+  }));
+  mock.module("../../lib/conversationProcessor", () => ({
+    formatModel: (m: string) => m,
+  }));
   const realAgentActions = await import("../../lib/sessionAgentActions");
   mock.module("../../lib/sessionAgentActions", () => ({
     ...realAgentActions,
-    switchSessionAgent: (row: { _id: string }, t: string) => { calls.switches.push([row._id, t]); return Promise.resolve(); },
-    forkSessionAsAgent: (row: { _id: string }, t: string) => { calls.forks.push([row._id, t]); return { sessionId: "fork-stub", ready: Promise.resolve("fork-real") }; },
+    switchSessionAgent: (row: { _id: string }, t: string) => {
+      calls.switches.push([row._id, t]);
+      return Promise.resolve();
+    },
+    forkSessionAsAgent: (row: { _id: string }, t: string) => {
+      calls.forks.push([row._id, t]);
+      return { sessionId: "fork-stub", ready: Promise.resolve("fork-real") };
+    },
   }));
-  mock.module("sonner", () => ({ toast: { success: (m: string) => calls.toasts.push(["success", m]), error: (m: string) => calls.toasts.push(["error", m]) } }));
+  mock.module("sonner", () => ({
+    toast: {
+      success: (m: string) => calls.toasts.push(["success", m]),
+      error: (m: string) => calls.toasts.push(["error", m]),
+    },
+  }));
   // The chip tooltip is Radix plumbing the assertions never hover; render the chip bare.
   const realShortcutsHelp = await import("../KeyboardShortcutsHelp");
-  mock.module("../KeyboardShortcutsHelp", () => ({ ...realShortcutsHelp, ShortcutTooltip: ({ children }: { children: React.ReactNode }) => h(React.Fragment, null, children), KeyCap: ({ children }: any) => h("kbd", null, children) }));
+  mock.module("../KeyboardShortcutsHelp", () => ({
+    ...realShortcutsHelp,
+    ShortcutTooltip: ({ children }: { children: React.ReactNode }) =>
+      h(React.Fragment, null, children),
+    KeyCap: ({ children }: any) => h("kbd", null, children),
+  }));
 
   ({ createRoot } = await import("react-dom/client"));
   menu = await import("../ui/dropdown-menu");
   mod = await import("../SessionControlMenu");
 }, 120_000);
 
-beforeEach(() => { calls.reset(); if (root) { React.act(() => root!.unmount()); root = null; } });
+beforeEach(() => {
+  calls.reset();
+  if (root) {
+    React.act(() => root!.unmount());
+    root = null;
+  }
+});
 
-const q = <T extends Element = HTMLElement>(sel: string) => document.querySelector<T>(sel);
+const q = <T extends Element = HTMLElement>(sel: string) =>
+  document.querySelector<T>(sel);
 const qa = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
-const click = (el: Element) => React.act(() => { el.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 })); });
-const flush = () => React.act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+const click = (el: Element) =>
+  React.act(() => {
+    el.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
+  });
+const flush = () =>
+  React.act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
 
 let root: ReturnType<typeof createRoot> | null = null;
-function mount(props: Partial<import("../SessionControlMenu").SessionControlPanelProps> = {}) {
+function mount(
+  props: Partial<import("../SessionControlMenu").SessionControlPanelProps> = {},
+) {
   const h = React.createElement;
   const closes: number[] = [];
   const modelPicks: Array<{ model?: string; effort?: string }> = [];
   // A fresh root each time: the panel's step state must not leak between mounts.
   if (root) React.act(() => root!.unmount());
   root = createRoot(document.getElementById("root")!);
-  React.act(() => root!.render(
-    h(menu.DropdownMenu, { open: true, modal: false },
-      h(menu.DropdownMenuTrigger, { asChild: true }, h("button", null, "badge")),
-      h(menu.DropdownMenuContent, null,
-        h(mod.SessionControlPanel, {
-          conversationId: "conv1",
-          agentType: "claude_code",
-          model: "claude-opus-4-8",
-          effort: "high",
-          messageCount: 12,
-          onModelSelect: (sel) => modelPicks.push(sel),
-          onClose: () => closes.push(1),
-          ...props,
-        }),
+  React.act(() =>
+    root!.render(
+      h(
+        menu.DropdownMenu,
+        { open: true, modal: false },
+        h(
+          menu.DropdownMenuTrigger,
+          { asChild: true },
+          h("button", null, "badge"),
+        ),
+        h(
+          menu.DropdownMenuContent,
+          null,
+          h(mod.SessionControlPanel, {
+            conversationId: "conv1",
+            agentType: "claude_code",
+            model: "claude-opus-4-8",
+            effort: "high",
+            messageCount: 12,
+            onModelSelect: (sel) => modelPicks.push(sel),
+            onClose: () => closes.push(1),
+            ...props,
+          }),
+        ),
       ),
     ),
-  ));
+  );
   // Radix positions and focuses the content in passive effects; let them settle.
   React.act(() => {});
   return { closes, modelPicks };
@@ -132,7 +268,19 @@ test("a live claude session: identity line, model rows, effort chips", () => {
   expect(panel).toBeTruthy();
   expect(q("[data-session-state]")!.textContent).toContain("Live session");
   const text = panel.textContent ?? "";
-  for (const label of ["Model", "Fable", "Opus", "Sonnet", "Haiku", "Effort", "Move this session", "Switch agent", "Fork as", "Hand off to", "seeded with a brief"]) {
+  for (const label of [
+    "Model",
+    "Fable",
+    "Opus",
+    "Sonnet",
+    "Haiku",
+    "Effort",
+    "Move this session",
+    "Switch agent",
+    "Fork as",
+    "Hand off to",
+    "seeded with a brief",
+  ]) {
     expect(text).toContain(label);
   }
 });
@@ -140,15 +288,27 @@ test("a live claude session: identity line, model rows, effort chips", () => {
 const openVerb = (verb: string) => {
   const row = q(`[data-move-row="${verb}"]`)!;
   // Radix items select on pointerup after a pointermove, or on Enter/Space.
-  React.act(() => { row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
+  React.act(() => {
+    row.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+  });
 };
-const agentRow = (agent: string) => q(`[data-pick-step] [data-agent-row="${agent}"]`)!;
-const pickAgent = (agent: string) => React.act(() => { agentRow(agent).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
+const agentRow = (agent: string) =>
+  q(`[data-pick-step] [data-agent-row="${agent}"]`)!;
+const pickAgent = (agent: string) =>
+  React.act(() => {
+    agentRow(agent).dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+  });
 
 test("the switch list honors canSessionBecomeAgent: current ringed and inert, cursor inert with its reason, codex switches", () => {
   mount();
   // The main panel is three calm rows, not a grid of agents.
-  expect(qa("[data-move-row]").map((r) => r.getAttribute("data-move-row"))).toEqual(["switch", "fork", "handoff"]);
+  expect(
+    qa("[data-move-row]").map((r) => r.getAttribute("data-move-row")),
+  ).toEqual(["switch", "fork", "handoff"]);
   expect(q("[data-agent-row]")).toBeNull();
 
   openVerb("switch");
@@ -193,7 +353,10 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
   expect(text).toContain("Haiku brief");
 
   // Pick a model: the menu stays open (keepOpen) and the submit names it.
-  const row = qa("[data-handoff-step] [role=menuitem]").find((el) => el.textContent?.includes("GPT-5.5") && !el.textContent?.includes("Sol"))!;
+  const row = qa("[data-handoff-step] [role=menuitem]").find(
+    (el) =>
+      el.textContent?.includes("GPT-5.5") && !el.textContent?.includes("Sol"),
+  )!;
   click(row);
   expect(q("[data-handoff-step]")).toBeTruthy();
   expect(q("[data-handoff-submit]")!.textContent).toContain("GPT-5.5");
@@ -201,28 +364,50 @@ test("the hand-off step shows the chosen agent's models, takes a direction, and 
   const ta = q<HTMLTextAreaElement>("[data-handoff-step] textarea")!;
   expect(ta.placeholder).toContain("do first");
   React.act(() => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!;
     setter.call(ta, "Finish the migration test");
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   });
   click(q("[data-handoff-submit]")!);
   await flush();
   expect(calls.actions.length).toBe(1);
-  expect(calls.actions[0][1]).toEqual({ conversation_id: "conv1", agent_type: "codex", model: "gpt-5.5", effort: undefined, direction: "Finish the migration test" });
+  expect(calls.actions[0][1]).toEqual({
+    conversation_id: "conv1",
+    agent_type: "codex",
+    model: "gpt-5.5",
+    effort: undefined,
+    direction: "Finish the migration test",
+  });
   expect(calls.toasts).toEqual([["success", "Handed off to jx7new1 on Codex"]]);
   expect(calls.navigates).toEqual(["newconv"]);
   expect(closes.length).toBe(1);
 
   // Back from the configuration returns to the agent list, and from there to the panel.
   // Gemini has no model rail; it is offered once pinned (it is not a default pin).
-  storeState.currentUser = { ...storeState.currentUser, pinned_agents: ["claude_code", "codex", "gemini"] } as typeof storeState.currentUser;
+  storeState.currentUser = {
+    ...storeState.currentUser,
+    pinned_agents: ["claude_code", "codex", "gemini"],
+  } as typeof storeState.currentUser;
   mount();
   openVerb("handoff");
   pickAgent("gemini");
-  expect(q("[data-handoff-step]")!.textContent).toContain("launches with its own configured model");
-  click(qa("[data-handoff-step] button").find((b) => b.textContent?.trim() === "Back")!);
+  expect(q("[data-handoff-step]")!.textContent).toContain(
+    "launches with its own configured model",
+  );
+  click(
+    qa("[data-handoff-step] button").find(
+      (b) => b.textContent?.trim() === "Back",
+    )!,
+  );
   expect(q("[data-pick-step]")!.getAttribute("data-pick-step")).toBe("handoff");
-  click(qa("[data-pick-step] button").find((b) => b.textContent?.trim() === "Back")!);
+  click(
+    qa("[data-pick-step] button").find(
+      (b) => b.textContent?.trim() === "Back",
+    )!,
+  );
   expect(q("[data-pick-step]")).toBeNull();
   expect(q("[data-session-control-panel]")).toBeTruthy();
   storeState.currentUser = { _id: "u1", default_models: {} };
@@ -238,21 +423,42 @@ test("a blank session and an agent with no model rail read their state on the id
 
   // Gemini has no modelConfig in the agent registry, so it has no model rail.
   mount({ agentType: "gemini", model: undefined, effort: undefined });
-  expect(q("[data-session-state]")!.textContent).toContain("keeps the model it launched with");
-  expect(q("[data-session-control-panel]")!.textContent).not.toContain("Effort");
+  expect(q("[data-session-state]")!.textContent).toContain(
+    "keeps the model it launched with",
+  );
+  expect(q("[data-session-control-panel]")!.textContent).not.toContain(
+    "Effort",
+  );
 });
 
 // ── Runs in (tmux / Agent SDK) ───────────────────────────────────────────────
 
 const pressBackend = (b: string) => {
   const row = q(`[data-backend-row="${b}"]`)!;
-  React.act(() => { row.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
+  React.act(() => {
+    row.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+  });
 };
 
 function liveClaude(fields: Record<string, unknown>) {
-  liveMeta = { sessionId: "11111111-2222-4333-8444-555555555555", agentType: "claude_code", model: "claude-opus-4-8", effort: "high" };
+  liveMeta = {
+    sessionId: "11111111-2222-4333-8444-555555555555",
+    agentType: "claude_code",
+    model: "claude-opus-4-8",
+    effort: "high",
+  };
   const now = Date.now();
-  storeState.sessions.conv1 = { ...storeState.sessions.conv1, session_id: liveMeta.sessionId, last_heartbeat: now, updated_at: now, agent_status_updated_at: now, is_connected: true, ...fields };
+  storeState.sessions.conv1 = {
+    ...storeState.sessions.conv1,
+    session_id: liveMeta.sessionId,
+    last_heartbeat: now,
+    updated_at: now,
+    agent_status_updated_at: now,
+    is_connected: true,
+    ...fields,
+  };
 }
 
 test("a live tmux Claude session offers the Agent SDK as a plain switch", async () => {
@@ -260,13 +466,22 @@ test("a live tmux Claude session offers the Agent SDK as a plain switch", async 
   try {
     mount();
     const rows = qa("[data-backend-row]");
-    expect(rows.map((r) => r.getAttribute("data-backend-row"))).toEqual(["tmux", "sdk"]);
-    expect(q('[data-backend-row="tmux"]')!.getAttribute("data-current")).toBe("true");
-    expect(q('[data-backend-row="sdk"]')!.textContent).toContain("Never parked");
+    expect(rows.map((r) => r.getAttribute("data-backend-row"))).toEqual([
+      "tmux",
+      "sdk",
+    ]);
+    expect(q('[data-backend-row="tmux"]')!.getAttribute("data-current")).toBe(
+      "true",
+    );
+    expect(q('[data-backend-row="sdk"]')!.textContent).toContain(
+      "Never parked",
+    );
     pressBackend("sdk");
     await flush();
     expect(calls.backendSwitches).toEqual([["conv1", "sdk", false]]);
-    expect(q('[data-move-row="fork"]')!.textContent).toContain("on another agent");
+    expect(q('[data-move-row="fork"]')!.textContent).toContain(
+      "on another agent",
+    );
   } finally {
     liveMeta = undefined;
   }
@@ -276,8 +491,12 @@ test("an SDK session mid-turn names the interrupt on the terminal row, and its f
   liveClaude({ agent_status: "working", claude_backend: "sdk" });
   try {
     mount();
-    expect(q('[data-backend-row="sdk"]')!.getAttribute("data-current")).toBe("true");
-    expect(q('[data-backend-row="tmux"]')!.textContent).toContain("Stop the turn, run in a terminal");
+    expect(q('[data-backend-row="sdk"]')!.getAttribute("data-current")).toBe(
+      "true",
+    );
+    expect(q('[data-backend-row="tmux"]')!.textContent).toContain(
+      "Stop the turn, run in a terminal",
+    );
     pressBackend("tmux");
     await flush();
     expect(calls.backendSwitches).toEqual([["conv1", "tmux", true]]);
@@ -289,10 +508,24 @@ test("an SDK session mid-turn names the interrupt on the terminal row, and its f
 
 test("a refused switch says why under the rows; a blank or non-Claude session shows no backend rows", () => {
   liveClaude({ agent_status: "idle", claude_backend: null });
-  storeState.sessionCommands = { r1: { _id: "r1", conversation_id: "conv1", kind: "backend", backend: "sdk", command: "switch_claude_backend", requested_at: Date.now() - 2000, executed_at: Date.now() - 1000, result: null, error: "Stays in the terminal: Claude Code 2.0.1 is older than 2.1.248" } };
+  storeState.sessionCommands = {
+    r1: {
+      _id: "r1",
+      conversation_id: "conv1",
+      kind: "backend",
+      backend: "sdk",
+      command: "switch_claude_backend",
+      requested_at: Date.now() - 2000,
+      executed_at: Date.now() - 1000,
+      result: null,
+      error: "Stays in the terminal: Claude Code 2.0.1 is older than 2.1.248",
+    },
+  };
   try {
     mount();
-    expect(q("[data-backend-failed]")!.textContent).toContain("older than 2.1.248");
+    expect(q("[data-backend-failed]")!.textContent).toContain(
+      "older than 2.1.248",
+    );
     mount({ messageCount: 0 });
     expect(q("[data-backend-rows]")).toBeNull();
     mount({ agentType: "codex" });

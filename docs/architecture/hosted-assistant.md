@@ -264,7 +264,7 @@ How it is wired:
 - **Connect is switched on separately.** `whisk.connectAvailable` (every
   Connect button, /welcome's connect step) answers true only with
   `WHISK_CONNECT_OPEN=1` on top of the settings (`lib/whisk.ts
-  whiskConnectOpen`), because a deployment can hold Whisk's secrets before
+whiskConnectOpen`), because a deployment can hold Whisk's secrets before
   Whisk serves its `/connect` page and code exchange. Set it once that ships
   (the mail repo's `convex/connect.ts` and `AppConnect`). A connect returns
   to the origin it started on when that is the site, a subdomain of it, or
@@ -280,19 +280,19 @@ How it is wired:
 Parallel implementers own disjoint files. Shared files (schema, registry,
 routes) are edited only by the stage named here.
 
-| Piece | Files | Notes |
-| --- | --- | --- |
-| Harness `@platform/agent` | `~/src/platform/packages/agent/**`, vendored by `scripts/vendor-platform.sh` | Runtime-neutral. pi-agent-core loop, tool definitions with a risk level, the gate, the meter, the model router, history conversion. Tested on pi-ai's faux provider. |
-| Foundation | `convex/schema.ts`, `packages/shared/contracts/agentClients.ts`, `packages/shared/contracts/assistant.ts` (new) | All new tables, the `codecast` agent client entry, shared types (plans, risk levels, tool names). Lands first; nothing else edits these files. |
-| Turn engine | `convex/assistant/turns.ts`, `convex/assistant/history.ts`, `convex/assistant/entry.ts` | Lease, run, stream, persist, continue, hooks from the composer, triggers and decisions. |
-| Assistant tools | `convex/assistant/tools/*.ts` | Mail and calendar (through Whisk), codecast verbs (tasks, docs, routines, approvals), web fetch and search. |
-| Wallet | `convex/wallet.ts`, `convex/lib/wallet.ts` | Period budget, reservation in the same mutation that checks the cap, true-up, ledger, queries for the UI. |
-| Billing | `~/src/platform/packages/billing/**`, `convex/billing.ts`, its route in `convex/http.ts` | Stripe over fetch (no SDK), checkout, portal, signed webhook. Prices and limits come from the `PLANS` catalog (see Plans); `@platform/billing` takes them as input and holds none of its own. Env-gated: no keys means plans are granted by hand and the upgrade button says so. |
-| Google identity and connectors | `convex/auth.ts`, `platform/packages/auth` web provider list, `components/AuthProviderButtons.tsx`, `convex/googleOAuth.ts` | Google sign-in (env-gated on `AUTH_GOOGLE_ID`), Calendar scope, an internal token getter the tools call. |
-| pi cost | `apps/cli/src/parser.ts` | Read pi's per-message `usage.cost` into `usage_totals`. |
-| Hosted mode (web) | Removed in 675dda920. What remains is `apps/web/components/simple/**` (the assistant mark, privacy note, connect toast and the shared wording such as `askFirst.ts`) and `app/settings/plan/page.tsx` | The web app has one mode; the assistant is reached from the main app's DashboardLayout. |
-| Onboarding | `apps/web/app/login/page.tsx`, `apps/web/app/signup/page.tsx` | The separate `/welcome` onboarding was removed with hosted mode in 675dda920; sign in and sign up are the app's own pages. |
-| Hosted mode (mobile) | `apps/mobile/components/hosted/**`, the tabs, `app/session/[id].tsx` | The same mode in the phone's tabs. |
+| Piece                          | Files                                                                                                                                                                                                 | Notes                                                                                                                                                                                                                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Harness `@platform/agent`      | `~/src/platform/packages/agent/**`, vendored by `scripts/vendor-platform.sh`                                                                                                                          | Runtime-neutral. pi-agent-core loop, tool definitions with a risk level, the gate, the meter, the model router, history conversion. Tested on pi-ai's faux provider.                                                                                                             |
+| Foundation                     | `convex/schema.ts`, `packages/shared/contracts/agentClients.ts`, `packages/shared/contracts/assistant.ts` (new)                                                                                       | All new tables, the `codecast` agent client entry, shared types (plans, risk levels, tool names). Lands first; nothing else edits these files.                                                                                                                                   |
+| Turn engine                    | `convex/assistant/turns.ts`, `convex/assistant/history.ts`, `convex/assistant/entry.ts`                                                                                                               | Lease, run, stream, persist, continue, hooks from the composer, triggers and decisions.                                                                                                                                                                                          |
+| Assistant tools                | `convex/assistant/tools/*.ts`                                                                                                                                                                         | Mail and calendar (through Whisk), codecast verbs (tasks, docs, routines, approvals), web fetch and search.                                                                                                                                                                      |
+| Wallet                         | `convex/wallet.ts`, `convex/lib/wallet.ts`                                                                                                                                                            | Period budget, reservation in the same mutation that checks the cap, true-up, ledger, queries for the UI.                                                                                                                                                                        |
+| Billing                        | `~/src/platform/packages/billing/**`, `convex/billing.ts`, its route in `convex/http.ts`                                                                                                              | Stripe over fetch (no SDK), checkout, portal, signed webhook. Prices and limits come from the `PLANS` catalog (see Plans); `@platform/billing` takes them as input and holds none of its own. Env-gated: no keys means plans are granted by hand and the upgrade button says so. |
+| Google identity and connectors | `convex/auth.ts`, `platform/packages/auth` web provider list, `components/AuthProviderButtons.tsx`, `convex/googleOAuth.ts`                                                                           | Google sign-in (env-gated on `AUTH_GOOGLE_ID`), Calendar scope, an internal token getter the tools call.                                                                                                                                                                         |
+| pi cost                        | `apps/cli/src/parser.ts`                                                                                                                                                                              | Read pi's per-message `usage.cost` into `usage_totals`.                                                                                                                                                                                                                          |
+| Hosted mode (web)              | Removed in 675dda920. What remains is `apps/web/components/simple/**` (the assistant mark, privacy note, connect toast and the shared wording such as `askFirst.ts`) and `app/settings/plan/page.tsx` | The web app has one mode; the assistant is reached from the main app's DashboardLayout.                                                                                                                                                                                          |
+| Onboarding                     | `apps/web/app/login/page.tsx`, `apps/web/app/signup/page.tsx`                                                                                                                                         | The separate `/welcome` onboarding was removed with hosted mode in 675dda920; sign in and sign up are the app's own pages.                                                                                                                                                       |
+| Hosted mode (mobile)           | `apps/mobile/components/hosted/**`, the tabs, `app/session/[id].tsx`                                                                                                                                  | The same mode in the phone's tabs.                                                                                                                                                                                                                                               |
 
 ## Data model
 
@@ -314,7 +314,7 @@ New tables (foundation stage writes all of them):
   `topup_usd`, `stripe_customer_id`, `stripe_subscription_id`,
   `subscription_status`.
 - `wallet_ledger`: `user_id`, `kind` (`reserve | release | charge | grant |
-  topup | period_reset`), `amount_usd`, `turn_id`, `conversation_id`,
+topup | period_reset`), `amount_usd`, `turn_id`, `conversation_id`,
   `model`, `at`.
 
 A hosted conversation is an ordinary `conversations` row with
@@ -642,13 +642,13 @@ and comment titles) into a message sent as the owner, and nothing bounds how
 often it fires. Admitting event routines later needs the turn engine to treat
 the frame's "What fired this run" block as untrusted input first.
 
-| | free | plus | pro |
-| --- | --- | --- | --- |
-| Price | $0 | $20/mo | $60/mo |
-| Usage included | $2/mo | $12/mo | $40/mo |
-| Default model | Haiku 5.5 | Sonnet 5.5 | Sonnet 5.5, Opus 5.5 for hard work |
-| Routines | 3, at most daily | 25 | unlimited |
-| Concurrent turns | 1 | 2 | 3 |
+|                  | free             | plus       | pro                                |
+| ---------------- | ---------------- | ---------- | ---------------------------------- |
+| Price            | $0               | $20/mo     | $60/mo                             |
+| Usage included   | $2/mo            | $12/mo     | $40/mo                             |
+| Default model    | Haiku 5.5        | Sonnet 5.5 | Sonnet 5.5, Opus 5.5 for hard work |
+| Routines         | 3, at most daily | 25         | unlimited                          |
+| Concurrent turns | 1                | 2          | 3                                  |
 
 ### Who the Free plan serves
 
@@ -781,7 +781,7 @@ the main app:
   (a `BillingStatus`: `available`, the priced `plans`, and whether a
   `topup` can be bought) and calls `billing.startCheckout` with `{ plan }`
   or `{ topup_usd }`. It gets back a `BillingRedirect` (`{ ok: true, url,
-  via }` or `{ ok: false, code, error }`) and opens `url`; Stripe returns
+via }` or `{ ok: false, code, error }`) and opens `url`; Stripe returns
   the person to `/settings/plan?billing=done|topup|canceled` (`BILLING_RETURN`
   in `@codecast/shared/contracts/assistant`, which the server's return URLs,
   the plan page and the return note all read). `useBillingReturn` (web
@@ -815,7 +815,7 @@ How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
   (`empty.installCli`), with its starters and the new conversation button as
   the only ways in, and project chips follow `gitChips`.
 - **A hosted conversation** is the session screen (`app/session/[id].tsx
-  SessionScreen`), the same one every conversation opens in, so it keeps
+SessionScreen`), the same one every conversation opens in, so it keeps
   rename, share, search, the message navigator, deep links to a message
   (`?message=`) and focus after a create (`?focus=1`). The screen reads the
   row's agent (`isHostedAgentType`) and drops what a conversation with no
@@ -852,7 +852,7 @@ How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
   minute coverage pass (`usePendingMessageCoverage`, mounted in
   `StoreSyncBridge` as on the web) is the backstop. The phone draws it as a
   quiet note only when it says more than the step does (`lane.ts
-  answerNote`, the web's `approvalAnswerAddsToReceipt`).
+answerNote`, the web's `approvalAnswerAddsToReceipt`).
 - **Inbox rows and words.** In hosted mode a row is its title, its time and
   one quiet line (`inbox.rowInternals` hides the status word, the summary
   bullets, the caret line and the agent, model and message count): where it
@@ -862,7 +862,7 @@ How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
   `killed`, …), and the two folded lists show only once something is in one.
   Alerts name the assistant by its display name and word its events
   "replied" and "needs your OK" (`lib/notificationTypes.ts
-  notificationAgentName`, `notificationTypeLabel`, shared with the web bell).
+notificationAgentName`, `notificationTypeLabel`, shared with the web bell).
 - **Time zone.** `StoreSyncBridge` mounts the web's `useAdoptTimezone`, so a
   phone-only account's profile takes the phone's zone and the assistant
   places "8am" on the person's clock. The approval card says a time and a
@@ -880,7 +880,7 @@ How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
   list, the inbox dock and the web triggers page, and `triggerEndWords` names
   it in the mode's noun. A row says its schedule in the web routine row's
   words (`lane.ts routineSchedule` over `hostedSchedule.ts
-  describeHostedCadence` and `hostedNextWords`), reading the routine's
+describeHostedCadence` and `hostedNextWords`), reading the routine's
   wall-clock `cadence`: "Weekdays at 8:00 AM. Tomorrow". An empty list in hosted mode shows the web's routine
   examples (`hostedSchedule.ts routineExamples`); each opens the inbox's new
   conversation sheet with the ask typed in (`/(tabs)/inbox?ask=`). Each
@@ -900,7 +900,7 @@ How hosted mode is wired on the phone (`apps/mobile`, built 2026-10-06):
   `@codecast/shared/render/codecastMark`, shared with the web's `Logo`).
 - **Old addresses.** `/simple/...` links go where the web sends them
   (`lib/laneRedirect.ts`) and on to the phone's screen (`lib/linkRoutes.ts
-  PAGE_ROUTES`): home to the inbox, approvals to `/decisions`, routines to
+PAGE_ROUTES`): home to the inbox, approvals to `/decisions`, routines to
   the Tasks tab's routines segment (`?segment=routines`, which the tab
   reads), plan and connections to their settings pages. The web's short
   page names (`/approvals`, `/plan`, `/mail`, `/integrations`, `/routines`)
@@ -1080,11 +1080,11 @@ How onboarding was wired at `/welcome`, kept as the design record. The page, its
   Routines, and where it arrives (`turns.ts approveWords` with the person's
   zone).
 - **Steps in flight** read in the present progressive (`@platform/assistant
-  stepOngoing`: "Searching the web for ..."); "Waiting for your go-ahead to"
+stepOngoing`: "Searching the web for ..."); "Waiting for your go-ahead to"
   only while the conversation is parked (`HostedAskingContext` into the
   receipt). The status line says "Writing..." once reply text streams.
 - **Lists.** To-dos follow the Assistant scope (`assistantScope.ts
-  isAssistantTask`: no project or plan, made by hand or in an assistant
+isAssistantTask`: no project or plan, made by hand or in an assistant
   conversation; `create_task` now stamps `created_from_conversation`) and on
   Personal start ungrouped, newest first (`hostedPersonalView`). Saved views
   that arrange by person or agents are hidden in hosted mode and start
@@ -1265,7 +1265,7 @@ both themes, and in developer mode, which is unchanged.
   suggestion follow their surfaces. Send is the web's ring, then ink disc
   (`hostedTheme.ts sendDisc`). A step that made one thing is the web's made
   line, and a note it wrote is the web's note card (`components/hosted/
-  Steps.tsx`, over `lib/madeLine.ts`, moved out of `HostedMadeLine`).
+Steps.tsx`, over `lib/madeLine.ts`, moved out of `HostedMadeLine`).
 - **Approvals** are the web's card (`lib/hostedApproval.ts`: `planForCard`,
   `yesWords`, `isHostedApproval`, now shared): Yes in the accent, Not now,
   Always allow as a quiet third, what Yes does above the buttons.
@@ -1407,17 +1407,17 @@ surface gated through `lib/surfaces.ts`.
 Two throwaway email accounts (prefix `claude8+fresh` at almostcandid.com),
 no machine, no mail, Free plan, 1440 wide.
 
-| Step | What happened | Evidence |
-| --- | --- | --- |
-| Marketing page, signed out | "Don't write code?" card on the first screen, "For everyone" in the nav. The card goes to `/welcome`. | [marketing](https://convex.codecast.sh/api/storage/34b87081-cb42-4615-acbb-e928314ee818) |
-| `/welcome` sign in | Apple, then "Continue with email", then GitHub quietly. No Google on this deployment. | [welcome](https://convex.codecast.sh/api/storage/3eebdae2-f386-46e3-905d-13586b0be1d7) |
-| Email sign-up | The form stays in /welcome's look (`?email=signup`). No mailed code was asked for. | [sign-up](https://convex.codecast.sh/api/storage/cf30553d-731c-4e8d-b035-b6945f88ff6f) |
-| Start | "What can I take off your plate?", three asks, a composer, "Mail and calendar are coming soon. Use Whisk for mail now." | [start](https://convex.codecast.sh/api/storage/c3b468dd-2152-4f44-8b54-026a8f17f5af) |
-| First ask (account A, typed) | "Check current prices for the three best rated robot vacuums for a small apartment". The answer came in 11 s from one web search, with sources, titled "Robot vacuums compared", and a "Do this every week?" offer underneath. The shell was in hosted mode (Inbox, Approvals, To-dos, Notes, Routines, usage meter). Turn `g988yh1gq6rvm4de8qs0mash4d8fvh8t`, $0.035, Haiku. | [answer](https://convex.codecast.sh/api/storage/d5ab42b0-f8c6-4e30-987b-03eb7b89c838) |
-| Routine offer, then approval | Tapping the offer sent "Do this for me every week." The assistant asked: Set up the routine "Weekly robot vacuum price check"? It showed the plan and the When line, with Yes and Not now. Approvals showed 1 and the inbox row read "OK?". Turn `g981h2h01wfnqw01x84p4sk53s8fv6dq` (waiting on the call). | [approval](https://convex.codecast.sh/api/storage/50f4a11c-eed9-43f5-b402-71c90116922c) |
-| Not now | The receipt reads "Didn't set up the routine ... (you said not now)", then a one-line acknowledgement. The Approvals count cleared and Routines stayed empty (it shows its examples). Turn `g9852a0rn0mfht39wr9c489gqs8fv4kk`. | [not now](https://convex.codecast.sh/api/storage/825ea3a9-1596-419a-9555-f12ec1a1e490), [routines](https://convex.codecast.sh/api/storage/bef73385-41e0-41d8-b15d-bd105b8a9417) |
-| First ask (account B, a starter tapped on a bare `/welcome`) | Landed straight in `/conversation/<id>` about 2 s after the tap, with no stop at `/inbox` (the fix below). It drafted the note in the reading face, with Copy. Conversation `jx74j39q11sp1rpz2df455d8f98fvh82`, turn `g98bv7zethm0ep4qh99kyb03bd8ftgfe`. | [answer](https://convex.codecast.sh/api/storage/0fec3feb-e00d-4454-b90e-02a2a3ee8038) |
-| Stop | A follow-up research ask, stopped after its first search. The transcript reads "Stopped. I won't do anything more on this." and the composer returns to "Reply, or ask a follow-up". Turn `g9860mr1s94fyv28sh1rtfjehn8ftkfb`, stored as `done` (the schema has no separate stopped reason). | [stop](https://convex.codecast.sh/api/storage/6c850d63-f53d-4a11-b3b9-d6e568910560) |
+| Step                                                         | What happened                                                                                                                                                                                                                                                                                                                                                                 | Evidence                                                                                                                                                                        |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Marketing page, signed out                                   | "Don't write code?" card on the first screen, "For everyone" in the nav. The card goes to `/welcome`.                                                                                                                                                                                                                                                                         | [marketing](https://convex.codecast.sh/api/storage/34b87081-cb42-4615-acbb-e928314ee818)                                                                                        |
+| `/welcome` sign in                                           | Apple, then "Continue with email", then GitHub quietly. No Google on this deployment.                                                                                                                                                                                                                                                                                         | [welcome](https://convex.codecast.sh/api/storage/3eebdae2-f386-46e3-905d-13586b0be1d7)                                                                                          |
+| Email sign-up                                                | The form stays in /welcome's look (`?email=signup`). No mailed code was asked for.                                                                                                                                                                                                                                                                                            | [sign-up](https://convex.codecast.sh/api/storage/cf30553d-731c-4e8d-b035-b6945f88ff6f)                                                                                          |
+| Start                                                        | "What can I take off your plate?", three asks, a composer, "Mail and calendar are coming soon. Use Whisk for mail now."                                                                                                                                                                                                                                                       | [start](https://convex.codecast.sh/api/storage/c3b468dd-2152-4f44-8b54-026a8f17f5af)                                                                                            |
+| First ask (account A, typed)                                 | "Check current prices for the three best rated robot vacuums for a small apartment". The answer came in 11 s from one web search, with sources, titled "Robot vacuums compared", and a "Do this every week?" offer underneath. The shell was in hosted mode (Inbox, Approvals, To-dos, Notes, Routines, usage meter). Turn `g988yh1gq6rvm4de8qs0mash4d8fvh8t`, $0.035, Haiku. | [answer](https://convex.codecast.sh/api/storage/d5ab42b0-f8c6-4e30-987b-03eb7b89c838)                                                                                           |
+| Routine offer, then approval                                 | Tapping the offer sent "Do this for me every week." The assistant asked: Set up the routine "Weekly robot vacuum price check"? It showed the plan and the When line, with Yes and Not now. Approvals showed 1 and the inbox row read "OK?". Turn `g981h2h01wfnqw01x84p4sk53s8fv6dq` (waiting on the call).                                                                    | [approval](https://convex.codecast.sh/api/storage/50f4a11c-eed9-43f5-b402-71c90116922c)                                                                                         |
+| Not now                                                      | The receipt reads "Didn't set up the routine ... (you said not now)", then a one-line acknowledgement. The Approvals count cleared and Routines stayed empty (it shows its examples). Turn `g9852a0rn0mfht39wr9c489gqs8fv4kk`.                                                                                                                                                | [not now](https://convex.codecast.sh/api/storage/825ea3a9-1596-419a-9555-f12ec1a1e490), [routines](https://convex.codecast.sh/api/storage/bef73385-41e0-41d8-b15d-bd105b8a9417) |
+| First ask (account B, a starter tapped on a bare `/welcome`) | Landed straight in `/conversation/<id>` about 2 s after the tap, with no stop at `/inbox` (the fix below). It drafted the note in the reading face, with Copy. Conversation `jx74j39q11sp1rpz2df455d8f98fvh82`, turn `g98bv7zethm0ep4qh99kyb03bd8ftgfe`.                                                                                                                      | [answer](https://convex.codecast.sh/api/storage/0fec3feb-e00d-4454-b90e-02a2a3ee8038)                                                                                           |
+| Stop                                                         | A follow-up research ask, stopped after its first search. The transcript reads "Stopped. I won't do anything more on this." and the composer returns to "Reply, or ask a follow-up". Turn `g9860mr1s94fyv28sh1rtfjehn8ftkfb`, stored as `done` (the schema has no separate stopped reason).                                                                                   | [stop](https://convex.codecast.sh/api/storage/6c850d63-f53d-4a11-b3b9-d6e568910560)                                                                                             |
 
 Found and fixed in this pass:
 
@@ -1448,12 +1448,12 @@ A throwaway password account (`claude8+gate1791400546` at almostcandid.com),
 no machine, no mail, Free plan, 1440 wide, on `http://127.0.0.1:3200`
 against prod. Conversation `jx7d3ckk45qjrrqpd1te7gnwbd8fvn7s`.
 
-| Step | What happened | Evidence |
-| --- | --- | --- |
-| Sign-up and first ask | No code at sign-up (`AUTH_EMAIL_VERIFICATION` is unset). The first ask stopped on the `verify` notice with a code field, and the code arrived by mail within seconds. Turn `g981ctq1w7yhxdnmhxyaj25qh18fvrb6`, reason `budget`, $0, nothing reserved. | [verify](https://convex.codecast.sh/api/storage/e3e3b5ab-d8a5-4555-91df-b70684c64cb8) |
-| Wrong code, then the right one | "That code is not right" under the field. The mailed code proved the address and the ask ran by itself: a note drafted and saved, no retyping. Turn `g98cjtarxp9ykyg9xf5hxda7sn8fvcj2`. The mailbox claim and the day's Free spend rows were written. | [answer](https://convex.codecast.sh/api/storage/123fef62-63eb-44b5-9ba7-7bddf6f1f88c) |
-| A once routine, Yes | "In 3 minutes, remind me once to drink a glass of water": the approval card, Yes, "Set up the routine Drink water · Done" (turn `g980sch7sj79d8h2q5rhj87f498ftb4m` asked, the next ran it). It fired on its own as "Routine · Drink water", and the conversation came back to the top of Inbox as New with the count on the rail. | [fired](https://convex.codecast.sh/api/storage/e37395d3-4362-486e-99f6-04445a252019) |
-| A daily routine, Yes, then cancel | "Every day at 9am, send me one short gardening tip": card, Yes, Routines listed it ("Every day at 9:00 AM, Next: tomorrow"). "Please cancel the daily gardening tip routine" stopped it without asking ("Stopped a routine", "Cancelled."), and the card's receipt now reads Stopped. | turns `g980ekqg6aesv5t6ay8q9g0xy58fvnx2`, `g98aj7mam5sc07cpsw57bpc88d8fvt5y` |
+| Step                              | What happened                                                                                                                                                                                                                                                                                                                     | Evidence                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Sign-up and first ask             | No code at sign-up (`AUTH_EMAIL_VERIFICATION` is unset). The first ask stopped on the `verify` notice with a code field, and the code arrived by mail within seconds. Turn `g981ctq1w7yhxdnmhxyaj25qh18fvrb6`, reason `budget`, $0, nothing reserved.                                                                             | [verify](https://convex.codecast.sh/api/storage/e3e3b5ab-d8a5-4555-91df-b70684c64cb8) |
+| Wrong code, then the right one    | "That code is not right" under the field. The mailed code proved the address and the ask ran by itself: a note drafted and saved, no retyping. Turn `g98cjtarxp9ykyg9xf5hxda7sn8fvcj2`. The mailbox claim and the day's Free spend rows were written.                                                                             | [answer](https://convex.codecast.sh/api/storage/123fef62-63eb-44b5-9ba7-7bddf6f1f88c) |
+| A once routine, Yes               | "In 3 minutes, remind me once to drink a glass of water": the approval card, Yes, "Set up the routine Drink water · Done" (turn `g980sch7sj79d8h2q5rhj87f498ftb4m` asked, the next ran it). It fired on its own as "Routine · Drink water", and the conversation came back to the top of Inbox as New with the count on the rail. | [fired](https://convex.codecast.sh/api/storage/e37395d3-4362-486e-99f6-04445a252019)  |
+| A daily routine, Yes, then cancel | "Every day at 9am, send me one short gardening tip": card, Yes, Routines listed it ("Every day at 9:00 AM, Next: tomorrow"). "Please cancel the daily gardening tip routine" stopped it without asking ("Stopped a routine", "Cancelled."), and the card's receipt now reads Stopped.                                             | turns `g980ekqg6aesv5t6ay8q9g0xy58fvnx2`, `g98aj7mam5sc07cpsw57bpc88d8fvt5y`          |
 
 Found in this pass and still open:
 

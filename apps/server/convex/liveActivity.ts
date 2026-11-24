@@ -32,11 +32,23 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { listLiveManagedSessions } from "./lib/liveSessions";
-import { coalesceLiveActivityRefresh, scheduleLiveActivityRefresh } from "./lib/liveActivityRefresh";
-import { deriveConversationVerdict, auqQuestionPreview, notifPreview } from "./notifications";
+import {
+  coalesceLiveActivityRefresh,
+  scheduleLiveActivityRefresh,
+} from "./lib/liveActivityRefresh";
+import {
+  deriveConversationVerdict,
+  auqQuestionPreview,
+  notifPreview,
+} from "./notifications";
 import { needsInputKind, HEARTBEAT_ALIVE_MS } from "./inboxFilters";
 import { isAgentSpawnedConversation } from "./ccAccountsShared";
-import { APNS_BUNDLE_ID, apnsTokenIsDead, sendApns, type ApnsEnvironment } from "./apns";
+import {
+  APNS_BUNDLE_ID,
+  apnsTokenIsDead,
+  sendApns,
+  type ApnsEnvironment,
+} from "./apns";
 import { readPresence } from "./pushRouter";
 import { pushesStrippedFor } from "./lib/pushPrivacy";
 import {
@@ -65,7 +77,10 @@ const ENVIRONMENT = v.union(v.literal("production"), v.literal("sandbox"));
 
 // ── The device's side ────────────────────────────────────────────────────────
 
-async function rowFor(ctx: any, userId: Id<"users">): Promise<Doc<"live_activities"> | null> {
+async function rowFor(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<Doc<"live_activities"> | null> {
   return ctx.db
     .query("live_activities")
     .withIndex("by_user", (q: any) => q.eq("user_id", userId))
@@ -102,13 +117,16 @@ export const registerPushToStartToken = mutation({
     if (!userId) throw new Error("Not authenticated");
     const token = args.token.toLowerCase();
     const existing = await rowFor(ctx, userId);
-    const changed = existing?.push_to_start_token !== token || existing?.environment !== args.environment;
+    const changed =
+      existing?.push_to_start_token !== token ||
+      existing?.environment !== args.environment;
     await upsertRow(ctx, userId, {
       push_to_start_token: token,
       push_to_start_token_at: Date.now(),
       environment: args.environment,
     });
-    if (changed) await scheduleLiveActivityRefresh(ctx, userId, { urgent: true });
+    if (changed)
+      await scheduleLiveActivityRefresh(ctx, userId, { urgent: true });
     return { ok: true };
   },
 });
@@ -117,7 +135,11 @@ export const registerPushToStartToken = mutation({
 // itself) and this is its id and update token. Binding it is what lets updates
 // and the end address it; the immediate refresh brings the picture current.
 export const reportActivity = mutation({
-  args: { activity_id: v.string(), token: v.string(), environment: ENVIRONMENT },
+  args: {
+    activity_id: v.string(),
+    token: v.string(),
+    environment: ENVIRONMENT,
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
@@ -144,7 +166,8 @@ export const reportActivityEnded = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
     const row = await rowFor(ctx, userId);
-    if (!row || row.activity_id !== args.activity_id) return { ok: true, cleared: false };
+    if (!row || row.activity_id !== args.activity_id)
+      return { ok: true, cleared: false };
     await ctx.db.patch(row._id, {
       activity_id: undefined,
       activity_token: undefined,
@@ -167,12 +190,18 @@ export const currentState = query({
     const user = await ctx.db.get(userId);
     const enabled = user?.notification_preferences?.live_activity !== false;
     const now = Date.now();
-    const sessions = enabled ? await collectLiveActivitySessions(ctx, userId, now) : [];
+    const sessions = enabled
+      ? await collectLiveActivitySessions(ctx, userId, now)
+      : [];
     const state = deriveLiveActivityState(sessions, now);
     const row = await rowFor(ctx, userId);
     const quiet = isLiveActivityQuiet(state);
-    const startPending = !!row?.start_sent_at && now - row.start_sent_at < LIVE_ACTIVITY_START_GRACE_MS;
-    const dismissed = !!row?.dismissed_status_key && row.dismissed_status_key === liveActivityStatusKey(state);
+    const startPending =
+      !!row?.start_sent_at &&
+      now - row.start_sent_at < LIVE_ACTIVITY_START_GRACE_MS;
+    const dismissed =
+      !!row?.dismissed_status_key &&
+      row.dismissed_status_key === liveActivityStatusKey(state);
     return {
       enabled,
       state,
@@ -181,7 +210,8 @@ export const currentState = query({
       has_push_to_start: !!row?.push_to_start_token,
       // The app may start the activity itself: something is live, nothing is
       // bound or in flight, and the person did not just swipe this picture away.
-      may_start: enabled && !quiet && !row?.activity_id && !startPending && !dismissed,
+      may_start:
+        enabled && !quiet && !row?.activity_id && !startPending && !dismissed,
     };
   },
 });
@@ -205,8 +235,15 @@ function firstLine(text: string | undefined | null): string | null {
 // design; a hidden row was filed away by the person.
 function isStripCandidate(conv: any): boolean {
   if (!conv || !conv.message_count) return false;
-  if (conv.inbox_killed_at || conv.inbox_stashed_at || conv.inbox_dismissed_at) return false;
-  if (conv.is_subagent || conv.is_workflow_sub || conv.parent_conversation_id || conv.worktree_name) return false;
+  if (conv.inbox_killed_at || conv.inbox_stashed_at || conv.inbox_dismissed_at)
+    return false;
+  if (
+    conv.is_subagent ||
+    conv.is_workflow_sub ||
+    conv.parent_conversation_id ||
+    conv.worktree_name
+  )
+    return false;
   if (isAgentSpawnedConversation(conv) || conv.agent_task_id) return false;
   return true;
 }
@@ -236,7 +273,9 @@ export function liveActivitySessionOf(
       : null;
   const dead = kind === "stopped" || kind === "unresponsive";
   const broken = conv.pending_api_error === true || !!conv.session_error;
-  const status = broken ? "failed" : liveActivityStatusOf(verdict.state, { failed: dead });
+  const status = broken
+    ? "failed"
+    : liveActivityStatusOf(verdict.state, { failed: dead });
   if (!status) return null;
 
   const title =
@@ -248,12 +287,17 @@ export function liveActivitySessionOf(
   if (status === "waiting") {
     detail =
       auqQuestionPreview(verdict.lastMsg) ??
-      (verdict.lastMsg?.role === "assistant" ? notifPreview(verdict.lastMsg.content, LIVE_ACTIVITY_DETAIL_LIMIT) : null) ??
+      (verdict.lastMsg?.role === "assistant"
+        ? notifPreview(verdict.lastMsg.content, LIVE_ACTIVITY_DETAIL_LIMIT)
+        : null) ??
       conv.idle_summary ??
       "Waiting for your input";
   } else if (status === "failed") {
     detail = conv.session_error
-      ? clipLiveActivityText(String(conv.session_error), LIVE_ACTIVITY_DETAIL_LIMIT)
+      ? clipLiveActivityText(
+          String(conv.session_error),
+          LIVE_ACTIVITY_DETAIL_LIMIT,
+        )
       : conv.pending_api_error
         ? "Parked on an API error"
         : "The agent stopped";
@@ -276,8 +320,15 @@ export function liveActivitySessionOf(
 
 // A strip row with its words taken out: the project as its title, and a
 // detail only the status implies.
-export function stripLiveActivitySession(row: LiveActivitySessionInput): LiveActivitySessionInput {
-  const detail = row.status === "waiting" ? "Waiting for your input" : row.status === "failed" ? "The agent stopped" : null;
+export function stripLiveActivitySession(
+  row: LiveActivitySessionInput,
+): LiveActivitySessionInput {
+  const detail =
+    row.status === "waiting"
+      ? "Waiting for your input"
+      : row.status === "failed"
+        ? "The agent stopped"
+        : null;
   return { ...row, title: row.project ?? "Session", detail };
 }
 
@@ -306,7 +357,11 @@ export async function collectLiveActivitySessions(
     const conv = await ctx.db.get(session.conversation_id);
     if (!isStripCandidate(conv)) continue;
     const verdict = await deriveConversationVerdict(ctx, conv, session, now);
-    const row = liveActivitySessionOf(conv, verdict, session.agent_status_updated_at ?? conv.updated_at);
+    const row = liveActivitySessionOf(
+      conv,
+      verdict,
+      session.agent_status_updated_at ?? conv.updated_at,
+    );
     if (row) out.push(strip ? stripLiveActivitySession(row) : row);
   }
   return out;
@@ -340,13 +395,21 @@ export interface LiveActivityConditions {
 }
 
 // Pure. Tested directly; performLiveActivityRefresh only executes it.
-export function resolveLiveActivityPush(c: LiveActivityConditions): LiveActivityDecision {
-  const startPending = c.startSentAt !== null && c.now - c.startSentAt < LIVE_ACTIVITY_START_GRACE_MS;
+export function resolveLiveActivityPush(
+  c: LiveActivityConditions,
+): LiveActivityDecision {
+  const startPending =
+    c.startSentAt !== null &&
+    c.now - c.startSentAt < LIVE_ACTIVITY_START_GRACE_MS;
   if (c.quiet) {
     if (c.activityBound) return { action: "end" };
     // A start went out and the id has not landed yet: nothing to end until it
     // does (the device's report re-runs this), so wait out the grace.
-    if (startPending) return { action: "wait", at: c.startSentAt! + LIVE_ACTIVITY_START_GRACE_MS };
+    if (startPending)
+      return {
+        action: "wait",
+        at: c.startSentAt! + LIVE_ACTIVITY_START_GRACE_MS,
+      };
     return { action: "none" };
   }
   if (c.activityBound) {
@@ -356,12 +419,18 @@ export function resolveLiveActivityPush(c: LiveActivityConditions): LiveActivity
     if (!urgent && c.now < ready) return { action: "wait", at: ready };
     return { action: "update", urgent };
   }
-  if (startPending) return { action: "wait", at: c.startSentAt! + LIVE_ACTIVITY_START_GRACE_MS };
+  if (startPending)
+    return {
+      action: "wait",
+      at: c.startSentAt! + LIVE_ACTIVITY_START_GRACE_MS,
+    };
   if (!c.hasStartToken) return { action: "none" };
   // The person swiped this exact picture away. A new event earns a new strip.
-  if (c.dismissedStatusKey !== null && c.dismissedStatusKey === c.statusKey) return { action: "none" };
+  if (c.dismissedStatusKey !== null && c.dismissedStatusKey === c.statusKey)
+    return { action: "none" };
   // At the desktop: the strip waits until they step away, checked each sweep.
-  if (c.present) return { action: "wait", at: c.now + LIVE_ACTIVITY_SWEEP_INTERVAL_MS };
+  if (c.present)
+    return { action: "wait", at: c.now + LIVE_ACTIVITY_SWEEP_INTERVAL_MS };
   return { action: "start" };
 }
 
@@ -374,13 +443,18 @@ export async function performLiveActivityRefresh(
 ): Promise<{ action: string; reason?: string }> {
   const row = await rowFor(ctx, userId);
   if (!row) return { action: "none", reason: "no_row" };
-  if (due !== undefined && row.refresh_due_at !== due) return { action: "none", reason: "superseded" };
-  if (row.refresh_due_at !== undefined) await ctx.db.patch(row._id, { refresh_due_at: undefined });
+  if (due !== undefined && row.refresh_due_at !== due)
+    return { action: "none", reason: "superseded" };
+  if (row.refresh_due_at !== undefined)
+    await ctx.db.patch(row._id, { refresh_due_at: undefined });
 
   const now = Date.now();
   const user = await ctx.db.get(userId);
-  const enabled = !!user && user.notification_preferences?.live_activity !== false;
-  const sessions = enabled ? await collectLiveActivitySessions(ctx, userId, now) : [];
+  const enabled =
+    !!user && user.notification_preferences?.live_activity !== false;
+  const sessions = enabled
+    ? await collectLiveActivitySessions(ctx, userId, now)
+    : [];
   const state = deriveLiveActivityState(sessions, now);
   const quiet = isLiveActivityQuiet(state);
   const stateKey = liveActivityStateKey(state);
@@ -430,7 +504,10 @@ export async function performLiveActivityRefresh(
         token: startToken!,
         environment: row.environment,
         content_state: state,
-        alert: { title: state.headline, body: state.detail ?? strapline(state) },
+        alert: {
+          title: state.headline,
+          body: state.detail ?? strapline(state),
+        },
         urgent: true,
         now,
       });
@@ -478,7 +555,9 @@ export async function performLiveActivityRefresh(
       break;
     }
     case "wait": {
-      await coalesceLiveActivityRefresh(ctx, userId, { delayMs: decision.at - now });
+      await coalesceLiveActivityRefresh(ctx, userId, {
+        delayMs: decision.at - now,
+      });
       return { action: "wait" };
     }
     case "none":
@@ -488,10 +567,16 @@ export async function performLiveActivityRefresh(
   // While anything is on the strip (or a start is in flight), keep a sweep
   // coming: the next linger expiry if one is sooner, else the interval. The
   // scheduler yields to a pending fire that is already sooner.
-  const running = !quiet || decision.action === "start" || (row.start_sent_at && !activityBound);
+  const running =
+    !quiet ||
+    decision.action === "start" ||
+    (row.start_sent_at && !activityBound);
   if (running) {
     const expiry = nextLiveActivityExpiry(sessions, now);
-    const at = Math.min(expiry ?? Infinity, now + LIVE_ACTIVITY_SWEEP_INTERVAL_MS);
+    const at = Math.min(
+      expiry ?? Infinity,
+      now + LIVE_ACTIVITY_SWEEP_INTERVAL_MS,
+    );
     await coalesceLiveActivityRefresh(ctx, userId, { delayMs: at - now });
   }
   return { action: decision.action };
@@ -506,13 +591,19 @@ function strapline(state: LiveActivityContentState): string {
 }
 
 export const requestRefresh = internalMutation({
-  args: { user_id: v.id("users"), urgent: v.optional(v.boolean()), delayMs: v.optional(v.number()) },
-  handler: (ctx, args): Promise<boolean> => coalesceLiveActivityRefresh(ctx, args.user_id, args),
+  args: {
+    user_id: v.id("users"),
+    urgent: v.optional(v.boolean()),
+    delayMs: v.optional(v.number()),
+  },
+  handler: (ctx, args): Promise<boolean> =>
+    coalesceLiveActivityRefresh(ctx, args.user_id, args),
 });
 
 export const refresh = internalMutation({
   args: { user_id: v.id("users"), due: v.optional(v.number()) },
-  handler: (ctx, args) => performLiveActivityRefresh(ctx, args.user_id, args.due),
+  handler: (ctx, args) =>
+    performLiveActivityRefresh(ctx, args.user_id, args.due),
 });
 
 // ── The APNs send ────────────────────────────────────────────────────────────
@@ -531,22 +622,34 @@ export interface LiveActivityPushArgs {
 // `attributes` its non-state fields (none); both only on a start. `stale-date`
 // always, so a dead server greys the strip out instead of lying. The end
 // carries the final picture and a dismissal date so "All clear" lingers.
-export function buildLiveActivityPayload(args: LiveActivityPushArgs): Record<string, unknown> {
+export function buildLiveActivityPayload(
+  args: LiveActivityPushArgs,
+): Record<string, unknown> {
   const seconds = Math.floor(args.now / 1000);
   const aps: Record<string, unknown> = {
     timestamp: seconds,
     event: args.event,
     "content-state": args.content_state,
     "stale-date": Math.floor((args.now + LIVE_ACTIVITY_STALE_MS) / 1000),
-    "relevance-score": args.content_state.waiting > 0 ? 100 : args.content_state.live > 0 ? 50 : 10,
+    "relevance-score":
+      args.content_state.waiting > 0
+        ? 100
+        : args.content_state.live > 0
+          ? 50
+          : 10,
   };
   if (args.event === "start") {
     aps["attributes-type"] = LIVE_ACTIVITY_ATTRIBUTES_TYPE;
     aps.attributes = {};
-    aps.alert = args.alert ?? { title: args.content_state.headline, body: strapline(args.content_state) };
+    aps.alert = args.alert ?? {
+      title: args.content_state.headline,
+      body: strapline(args.content_state),
+    };
   }
   if (args.event === "end") {
-    aps["dismissal-date"] = Math.floor((args.now + LIVE_ACTIVITY_DISMISS_AFTER_MS) / 1000);
+    aps["dismissal-date"] = Math.floor(
+      (args.now + LIVE_ACTIVITY_DISMISS_AFTER_MS) / 1000,
+    );
   }
   return { aps };
 }
@@ -583,7 +686,11 @@ export const push = internalAction({
         activity_id: args.activity_id,
       });
     }
-    console.error(`APNs live activity ${args.event} failed:`, res.status, res.reason);
+    console.error(
+      `APNs live activity ${args.event} failed:`,
+      res.status,
+      res.reason,
+    );
     return res;
   },
 });
@@ -640,7 +747,12 @@ export const probeLiveActivityConfig = internalAction({
       pushType: "liveactivity",
       priority: 10,
       environment: args.environment,
-      payload: buildLiveActivityPayload({ event: "start", content_state: state, urgent: true, now }),
+      payload: buildLiveActivityPayload({
+        event: "start",
+        content_state: state,
+        urgent: true,
+        now,
+      }),
     });
     return {
       ...res,

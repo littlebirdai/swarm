@@ -21,7 +21,11 @@ import { canAccessConversation } from "./lib/access";
 import { proseAnchorValidator } from "./lib/proseAnchorValidator";
 import { isQuoteRow } from "./lib/quoteRows";
 import { sessionWaiting } from "./lib/sendOutcome";
-import { deliveredOutcome, PROSE_ANCHOR_MAX_CHARS, type SendOutcome } from "@codecast/shared/comments";
+import {
+  deliveredOutcome,
+  PROSE_ANCHOR_MAX_CHARS,
+  type SendOutcome,
+} from "@codecast/shared/comments";
 
 /** Most quotes one save or send carries; a batch is a handful. */
 export const MAX_QUOTES_PER_CALL = 100;
@@ -58,14 +62,23 @@ export function parseQuoteDrafts(raw: unknown): QuoteDraftInput[] {
   const out: QuoteDraftInput[] = [];
   for (const item of raw.slice(0, MAX_QUOTES_PER_CALL)) {
     const d = item as Record<string, unknown> | null;
-    if (!d || typeof d.client_id !== "string" || !d.client_id || typeof d.block_index !== "number" || !Number.isFinite(d.block_index)) continue;
+    if (
+      !d ||
+      typeof d.client_id !== "string" ||
+      !d.client_id ||
+      typeof d.block_index !== "number" ||
+      !Number.isFinite(d.block_index)
+    )
+      continue;
     out.push({
       client_id: d.client_id,
       ...(typeof d.message_id === "string" ? { message_id: d.message_id } : {}),
       block_index: d.block_index,
       quote: typeof d.quote === "string" ? d.quote : "",
       body: typeof d.body === "string" ? d.body : "",
-      ...(d.verdict === "approve" || d.verdict === "cut" ? { verdict: d.verdict } : {}),
+      ...(d.verdict === "approve" || d.verdict === "cut"
+        ? { verdict: d.verdict }
+        : {}),
       ...(typeof d.created_at === "number" ? { created_at: d.created_at } : {}),
     });
   }
@@ -73,21 +86,33 @@ export function parseQuoteDrafts(raw: unknown): QuoteDraftInput[] {
 }
 
 /** The caller's quote row with this batch item id, if any. */
-async function ownQuote(ctx: Ctx, userId: Id<"users">, clientId: string): Promise<Doc<"review_comments"> | null> {
+async function ownQuote(
+  ctx: Ctx,
+  userId: Id<"users">,
+  clientId: string,
+): Promise<Doc<"review_comments"> | null> {
   const rows: Doc<"review_comments">[] = await ctx.db
     .query("review_comments")
-    .withIndex("by_author_client_id", (q: any) => q.eq("author_user_id", userId).eq("client_id", clientId))
+    .withIndex("by_author_client_id", (q: any) =>
+      q.eq("author_user_id", userId).eq("client_id", clientId),
+    )
     .collect();
   return rows.find(isQuoteRow) ?? null;
 }
 
 /** The message id when it names a message of this conversation, else undefined. */
-async function messageIn(ctx: Ctx, conversationId: Id<"conversations">, messageId?: string): Promise<Id<"messages"> | undefined> {
+async function messageIn(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+  messageId?: string,
+): Promise<Id<"messages"> | undefined> {
   if (!messageId) return undefined;
   const id = ctx.db.normalizeId("messages", messageId);
   if (!id) return undefined;
   const message = await ctx.db.get(id);
-  return message && String(message.conversation_id) === String(conversationId) ? id : undefined;
+  return message && String(message.conversation_id) === String(conversationId)
+    ? id
+    : undefined;
 }
 
 /**
@@ -101,22 +126,34 @@ export async function saveQuotes(
   conversationId: Id<"conversations">,
   drafts: QuoteDraftInput[],
 ): Promise<{ saved: number }> {
-  if (drafts.length > MAX_QUOTES_PER_CALL) throw new Error(`At most ${MAX_QUOTES_PER_CALL} quotes per save`);
+  if (drafts.length > MAX_QUOTES_PER_CALL)
+    throw new Error(`At most ${MAX_QUOTES_PER_CALL} quotes per save`);
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) throw new Error("Conversation not found");
+  if (
+    !conversation ||
+    !(await canAccessConversation(ctx, userId, conversation))
+  )
+    throw new Error("Conversation not found");
   const now = Date.now();
   let saved = 0;
   for (const draft of drafts) {
     const fields = {
       message_id: await messageIn(ctx, conversationId, draft.message_id),
       block_index: draft.block_index,
-      prose_anchor: { text: draft.quote.slice(0, PROSE_ANCHOR_MAX_CHARS), index: draft.block_index },
+      prose_anchor: {
+        text: draft.quote.slice(0, PROSE_ANCHOR_MAX_CHARS),
+        index: draft.block_index,
+      },
       verdict: draft.verdict,
       content: draft.body.slice(0, MAX_NOTE_CHARS),
     };
     const existing = await ownQuote(ctx, userId, draft.client_id);
     if (existing) {
-      if (existing.sent_at !== undefined || String(existing.conversation_id) !== String(conversationId)) continue;
+      if (
+        existing.sent_at !== undefined ||
+        String(existing.conversation_id) !== String(conversationId)
+      )
+        continue;
       await ctx.db.patch(existing._id, { ...fields, updated_at: now });
     } else {
       await ctx.db.insert("review_comments", {
@@ -136,8 +173,13 @@ export async function saveQuotes(
 }
 
 /** Drop the caller's unsent quotes by batch item id. Sent ones are records and stay. */
-export async function removeQuotes(ctx: Ctx, userId: Id<"users">, clientIds: string[]): Promise<{ removed: number }> {
-  if (clientIds.length > MAX_QUOTES_PER_CALL) throw new Error(`At most ${MAX_QUOTES_PER_CALL} quotes per remove`);
+export async function removeQuotes(
+  ctx: Ctx,
+  userId: Id<"users">,
+  clientIds: string[],
+): Promise<{ removed: number }> {
+  if (clientIds.length > MAX_QUOTES_PER_CALL)
+    throw new Error(`At most ${MAX_QUOTES_PER_CALL} quotes per remove`);
   let removed = 0;
   for (const clientId of clientIds) {
     const row = await ownQuote(ctx, userId, clientId);
@@ -169,7 +211,11 @@ export async function stampQuotesSent(
     const row = await ownQuote(ctx, userId, clientId);
     if (!row) continue;
     if (row.sent_at === undefined) {
-      await ctx.db.patch(row._id, { sent_at: now, sent_to_conversation_id: conversationId, sent_client_id: messageClientId });
+      await ctx.db.patch(row._id, {
+        sent_at: now,
+        sent_to_conversation_id: conversationId,
+        sent_client_id: messageClientId,
+      });
     } else if (row.sent_client_id !== messageClientId) {
       continue;
     }
@@ -179,8 +225,14 @@ export async function stampQuotesSent(
 }
 
 /** Queue-time half of a send carrying quotes: read the session's state before the enqueue changes it. */
-export async function quotesWaiting(ctx: Ctx, conversationId: Id<"conversations">, quoteClientIds?: string[]) {
-  return quoteClientIds?.length ? await sessionWaiting(ctx, conversationId) : null;
+export async function quotesWaiting(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+  quoteClientIds?: string[],
+) {
+  return quoteClientIds?.length
+    ? await sessionWaiting(ctx, conversationId)
+    : null;
 }
 
 export const save = mutation({
@@ -211,13 +263,22 @@ export const listForConversation = query({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return [];
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return [];
     const rows = await ctx.db
       .query("review_comments")
-      .withIndex("by_conversation", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .collect();
     return rows
-      .filter((row) => isQuoteRow(row) && String(row.author_user_id) === String(userId))
+      .filter(
+        (row) =>
+          isQuoteRow(row) && String(row.author_user_id) === String(userId),
+      )
       .sort((a, b) => a.created_at - b.created_at)
       .map((row) => ({
         _id: row._id,

@@ -29,7 +29,12 @@ describe("windowManagerStore visual state", () => {
 
     s.restoreWindow(id);
     expect(win(id).visualState).toBe("maximized");
-    expect(win(id)).toMatchObject({ x: 0, y: 0, width: VIEWPORT.width, height: VIEWPORT.height });
+    expect(win(id)).toMatchObject({
+      x: 0,
+      y: 0,
+      width: VIEWPORT.width,
+      height: VIEWPORT.height,
+    });
 
     // A second restore (the un-maximize toggle) returns to the pre-maximize bounds.
     s.restoreWindow(id);

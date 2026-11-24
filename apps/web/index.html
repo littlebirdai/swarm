@@ -1,23 +1,46 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"
+    />
     <title>Codecast: all your coding agents in one workspace</title>
     <!-- Safari on iOS draws its native "Open in the App Store" strip from this; the id matches SITE_LINKS.appStore. -->
     <meta name="apple-itunes-app" content="app-id=6757820850" />
-    <meta name="description" content="Every session you run with Claude Code, Codex, Cursor, OpenCode and pi, on any machine, in one place: searchable, steerable from your phone, and linked to the code it wrote. Bring your team in when you want, with chat, calls, tasks and docs your agents work in too." />
-    <meta property="og:title" content="Codecast: all your coding agents in one workspace" />
-    <meta property="og:description" content="Your team and its coding agents in one workspace. Every Claude Code, Codex, Cursor, OpenCode and pi session, searchable and linked to the code it wrote." />
+    <meta
+      name="description"
+      content="Every session you run with Claude Code, Codex, Cursor, OpenCode and pi, on any machine, in one place: searchable, steerable from your phone, and linked to the code it wrote. Bring your team in when you want, with chat, calls, tasks and docs your agents work in too."
+    />
+    <meta
+      property="og:title"
+      content="Codecast: all your coding agents in one workspace"
+    />
+    <meta
+      property="og:description"
+      content="Your team and its coding agents in one workspace. Every Claude Code, Codex, Cursor, OpenCode and pi session, searchable and linked to the code it wrote."
+    />
     <meta property="og:site_name" content="codecast" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://codecast.sh" />
     <meta property="og:image" content="https://codecast.sh/logo-final.png" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Codecast: all your coding agents in one workspace" />
-    <meta name="twitter:description" content="Your team and its coding agents in one workspace. Every Claude Code, Codex, Cursor, OpenCode and pi session, searchable and linked to the code it wrote." />
+    <meta
+      name="twitter:title"
+      content="Codecast: all your coding agents in one workspace"
+    />
+    <meta
+      name="twitter:description"
+      content="Your team and its coding agents in one workspace. Every Claude Code, Codex, Cursor, OpenCode and pi session, searchable and linked to the code it wrote."
+    />
     <meta name="twitter:image" content="https://codecast.sh/logo-final.png" />
-    <link rel="alternate" type="application/rss+xml" title="Codecast blog" href="/blog/rss.xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Codecast blog"
+      href="/blog/rss.xml"
+    />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -30,59 +53,87 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
       media="print"
-      onload="this.media='all'"
+      onload="this.media = 'all'"
     />
     <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+      />
     </noscript>
     <script>
-      (function() {
+      (function () {
         // The homepage is light Classic for every visitor (its hero renders the
         // real app's views, and globals.css restyles them under .dark and
         // .minimal-style); the visitor's own theme starts when the app does.
         // The same paths as lib/themeBootLock.ts, whose lock ThemeProvider starts with.
-        if (location.pathname === '/') return;
+        if (location.pathname === "/") return;
         // A share link is mostly opened by people who have never used the
         // app: with no saved choice, the page follows their system.
-        var saved = localStorage.getItem('codecast-theme');
-        var theme = saved || (location.pathname.indexOf('/share/') === 0 && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        var saved = localStorage.getItem("codecast-theme");
+        var theme =
+          saved ||
+          (location.pathname.indexOf("/share/") === 0 &&
+          window.matchMedia &&
+          matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
         // A guest's meeting page (app/meet) is the call's dark room whatever
         // the system asks for: the loader before it must not flash light.
-        if (location.pathname.indexOf('/meet/') === 0) theme = 'dark';
+        if (location.pathname.indexOf("/meet/") === 0) theme = "dark";
         document.documentElement.classList.add(theme);
-        var visualStyle = localStorage.getItem('codecast-visual-style');
+        var visualStyle = localStorage.getItem("codecast-visual-style");
         // Modern has its own key (components/ThemeProvider.tsx says why) and
         // sits on Classic, so it never carries the Minimal class. With the key
         // unset Modern is the default, except for an old Minimal choice
         // (lib/modernStyle.ts).
-        var modern = localStorage.getItem('codecast-modern-style');
-        var minimal = visualStyle === 'minimal' || visualStyle === 'codex';
-        if (modern === '1' || (modern === null && !minimal)) {
-          document.documentElement.classList.add('modern-style');
+        var modern = localStorage.getItem("codecast-modern-style");
+        var minimal = visualStyle === "minimal" || visualStyle === "codex";
+        if (modern === "1" || (modern === null && !minimal)) {
+          document.documentElement.classList.add("modern-style");
         } else if (minimal) {
-          document.documentElement.classList.add('minimal-style');
+          document.documentElement.classList.add("minimal-style");
         }
         // The color theme, as ThemeProvider cached it (lib/theme/colorTheme.ts),
         // or the default one when nothing is cached (plugins/colorThemeBoot.ts).
         try {
-          var cachedTheme = localStorage.getItem('codecast-color-theme');
-          var themeVars = (cachedTheme ? JSON.parse(cachedTheme) : window.__ccDefaultColorTheme || {})[theme] || {};
+          var cachedTheme = localStorage.getItem("codecast-color-theme");
+          var themeVars =
+            (cachedTheme
+              ? JSON.parse(cachedTheme)
+              : window.__ccDefaultColorTheme || {})[theme] || {};
           var names = Object.keys(themeVars);
-          for (var i = 0; i < names.length; i++) document.documentElement.style.setProperty(names[i], themeVars[names[i]]);
-          if (names.length) document.documentElement.setAttribute('data-theme-vars', names.join(' '));
+          for (var i = 0; i < names.length; i++)
+            document.documentElement.style.setProperty(
+              names[i],
+              themeVars[names[i]],
+            );
+          if (names.length)
+            document.documentElement.setAttribute(
+              "data-theme-vars",
+              names.join(" "),
+            );
         } catch (e) {}
       })();
     </script>
     <script>
       // A see-through desktop window (the shell's --transparent-window: the
       // palette, the rings, the agent dock) paints nothing while it boots.
-      if (window.__CODECAST_ELECTRON__ && window.__CODECAST_ELECTRON__.isTransparentWindow) {
-        document.documentElement.classList.add('transparent-window');
+      if (
+        window.__CODECAST_ELECTRON__ &&
+        window.__CODECAST_ELECTRON__.isTransparentWindow
+      ) {
+        document.documentElement.classList.add("transparent-window");
       }
     </script>
     <style>
-      html.transparent-window, html.transparent-window body { background: transparent !important; }
-      html.transparent-window #boot-shell { display: none; }
+      html.transparent-window,
+      html.transparent-window body {
+        background: transparent !important;
+      }
+      html.transparent-window #boot-shell {
+        display: none;
+      }
     </style>
     <style>
       /* Mirrors AppLoader.tsx (monochrome mark + hairline shimmer on sol-bg) so
@@ -95,16 +146,29 @@
         gap: 20px;
         align-items: center;
         justify-content: center;
-        background: #FBF5E2;
+        background: #fbf5e2;
         color: #657b83;
         opacity: 1;
         z-index: 2147483647;
       }
-      html.dark #boot-shell { background: #002b36; }
-      html.minimal-style #boot-shell { background: #ffffff; color: #72726f; }
-      html.dark.minimal-style #boot-shell { background: #161615; color: #898781; }
-      html.hosted-mode.minimal-style #boot-shell#boot-shell { background: var(--pd-bg); color: var(--pd-ink-faint); }
-      #boot-shell[data-hidden="true"] { display: none; }
+      html.dark #boot-shell {
+        background: #002b36;
+      }
+      html.minimal-style #boot-shell {
+        background: #ffffff;
+        color: #72726f;
+      }
+      html.dark.minimal-style #boot-shell {
+        background: #161615;
+        color: #898781;
+      }
+      html.hosted-mode.minimal-style #boot-shell#boot-shell {
+        background: var(--pd-bg);
+        color: var(--pd-ink-faint);
+      }
+      #boot-shell[data-hidden="true"] {
+        display: none;
+      }
       #boot-shell .indicator {
         display: flex;
         flex-direction: column;
@@ -114,7 +178,9 @@
         opacity: 0;
         animation: boot-loader-reveal 100ms ease-out 1s forwards;
       }
-      #boot-shell .mark { opacity: 0.45; }
+      #boot-shell .mark {
+        opacity: 0.45;
+      }
       #boot-shell .bar {
         position: relative;
         width: 120px;
@@ -142,11 +208,18 @@
         animation: boot-loader-slide 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
       }
       @keyframes boot-loader-slide {
-        0% { transform: translateX(-40px); }
-        100% { transform: translateX(124px); }
+        0% {
+          transform: translateX(-40px);
+        }
+        100% {
+          transform: translateX(124px);
+        }
       }
       @keyframes boot-loader-reveal {
-        to { visibility: visible; opacity: 1; }
+        to {
+          visibility: visible;
+          opacity: 1;
+        }
       }
       /* What a boot that will not finish offers: its state and two ways out.
          The static shell shows it after 8s (the bundle never ran or hung);
@@ -159,18 +232,40 @@
         flex-direction: column;
         align-items: center;
         gap: 12px;
-        font: 12px "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+        font:
+          12px "JetBrains Mono",
+          ui-monospace,
+          SFMono-Regular,
+          monospace;
       }
       /* Modern's interface face (globals.css .modern-style --font-ui), spelled
          out for a boot whose stylesheet has not arrived. */
       html.modern-style .boot-stuck,
       html.modern-style[data-cc-handoff] #cc-handoff {
-        font-family: "Instrument Sans Variable", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+        font-family:
+          "Instrument Sans Variable",
+          "Instrument Sans",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
       }
-      #boot-shell .boot-stuck { visibility: hidden; animation: boot-loader-reveal 100ms ease-out 8s forwards; }
-      .boot-stuck .state-offline, html[data-offline] .boot-stuck .state-slow { display: none; }
-      html[data-offline] .boot-stuck .state-offline { display: inline; }
-      .boot-stuck .actions { display: flex; align-items: center; gap: 16px; }
+      #boot-shell .boot-stuck {
+        visibility: hidden;
+        animation: boot-loader-reveal 100ms ease-out 8s forwards;
+      }
+      .boot-stuck .state-offline,
+      html[data-offline] .boot-stuck .state-slow {
+        display: none;
+      }
+      html[data-offline] .boot-stuck .state-offline {
+        display: inline;
+      }
+      .boot-stuck .actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
       .boot-stuck button {
         font: inherit;
         color: inherit;
@@ -184,32 +279,47 @@
         border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
         border-radius: 6px;
       }
-      .boot-stuck .state, .boot-stuck button:not(.primary) { opacity: 0.85; }
-      .boot-stuck button:hover { opacity: 1; }
-      .boot-stuck button.primary:hover { border-color: color-mix(in srgb, currentColor 65%, transparent); }
+      .boot-stuck .state,
+      .boot-stuck button:not(.primary) {
+        opacity: 0.85;
+      }
+      .boot-stuck button:hover {
+        opacity: 1;
+      }
+      .boot-stuck button.primary:hover {
+        border-color: color-mix(in srgb, currentColor 65%, transparent);
+      }
       /* Out of the page once the app paints, not just transparent: an
          invisible full-window layer stays composited for the life of the app
          and its bar animation keeps running on the main thread. */
-      #root:not(:empty) ~ #boot-shell { display: none; }
+      #root:not(:empty) ~ #boot-shell {
+        display: none;
+      }
 
       /* Desktop hand-off screen. Shown when the page is sent to the desktop
          app (lib/desktopHandoff.ts showHandoffScreen): on the pre-boot path the
          app never loads, so this is plain markup revealed by one attribute on
          <html>; the React fallback (OpenInDesktopHandoff.tsx) reveals the same
          markup. Opaque on purpose — nothing behind it should show. */
-      #cc-handoff { display: none; }
-      html[data-cc-handoff] #boot-shell { display: none; }
+      #cc-handoff {
+        display: none;
+      }
+      html[data-cc-handoff] #boot-shell {
+        display: none;
+      }
       html[data-cc-handoff] #cc-handoff {
         position: fixed;
         inset: 0;
         display: grid;
         place-items: center;
         padding: 1rem;
-        background: #FBF5E2;
+        background: #fbf5e2;
         font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
         z-index: 2147483647;
       }
-      html.dark[data-cc-handoff] #cc-handoff { background: #002b36; }
+      html.dark[data-cc-handoff] #cc-handoff {
+        background: #002b36;
+      }
       #cc-handoff .card {
         position: relative;
         width: 100%;
@@ -222,12 +332,25 @@
         box-shadow: 0 25px 50px -12px rgba(42, 161, 152, 0.1);
         animation: cc-handoff-in 200ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      html.dark #cc-handoff .card { background: #073642; color: #fdf6e3; }
-      @keyframes cc-handoff-in {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
+      html.dark #cc-handoff .card {
+        background: #073642;
+        color: #fdf6e3;
       }
-      #cc-handoff .head { display: flex; align-items: center; gap: 0.75rem; }
+      @keyframes cc-handoff-in {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      #cc-handoff .head {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
       #cc-handoff .icon {
         display: grid;
         place-items: center;
@@ -238,9 +361,22 @@
         background: rgba(42, 161, 152, 0.1);
         color: #2aa198;
       }
-      #cc-handoff .title { font-size: 0.875rem; font-weight: 500; line-height: 1.25; }
-      #cc-handoff .sub { font-size: 0.75rem; line-height: 1.25; color: #657b83; }
-      #cc-handoff .actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.25rem; }
+      #cc-handoff .title {
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.25;
+      }
+      #cc-handoff .sub {
+        font-size: 0.75rem;
+        line-height: 1.25;
+        color: #657b83;
+      }
+      #cc-handoff .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+      }
       #cc-handoff button {
         font: inherit;
         cursor: pointer;
@@ -251,19 +387,28 @@
       #cc-handoff .primary {
         border: 0;
         background: #2aa198;
-        color: #FBF5E2;
+        color: #fbf5e2;
         font-weight: 500;
         transition: opacity 150ms;
       }
-      #cc-handoff .primary:hover { opacity: 0.9; }
+      #cc-handoff .primary:hover {
+        opacity: 0.9;
+      }
       #cc-handoff .secondary {
         border: 1px solid #93a1a1;
         background: transparent;
         color: #657b83;
-        transition: color 150ms, border-color 150ms;
+        transition:
+          color 150ms,
+          border-color 150ms;
       }
-      html.dark #cc-handoff .secondary { border-color: #586e75; }
-      #cc-handoff .secondary:hover { color: inherit; border-color: rgba(42, 161, 152, 0.4); }
+      html.dark #cc-handoff .secondary {
+        border-color: #586e75;
+      }
+      #cc-handoff .secondary:hover {
+        color: inherit;
+        border-color: rgba(42, 161, 152, 0.4);
+      }
       #cc-handoff .tertiary {
         border: 0;
         background: transparent;
@@ -274,11 +419,23 @@
         text-underline-offset: 3px;
         text-decoration-color: rgba(101, 123, 131, 0.4);
       }
-      #cc-handoff .tertiary:hover { color: inherit; }
+      #cc-handoff .tertiary:hover {
+        color: inherit;
+      }
       /* Revealed when the browser refused to close the tab. */
-      #cc-handoff .kept { display: none; margin-top: 0.75rem; font-size: var(--fs-meta, 12px); line-height: 1.6; color: #657b83; }
-      html[data-cc-handoff-kept] #cc-handoff .kept { display: block; }
-      #cc-handoff .keys { white-space: nowrap; }
+      #cc-handoff .kept {
+        display: none;
+        margin-top: 0.75rem;
+        font-size: var(--fs-meta, 12px);
+        line-height: 1.6;
+        color: #657b83;
+      }
+      html[data-cc-handoff-kept] #cc-handoff .kept {
+        display: block;
+      }
+      #cc-handoff .keys {
+        white-space: nowrap;
+      }
       #cc-handoff kbd {
         display: inline-flex;
         align-items: center;
@@ -292,10 +449,15 @@
         line-height: 1;
         border: 1px solid rgba(147, 161, 161, 0.5);
         border-radius: 4px;
-        background: #FBF5E2;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        background: #fbf5e2;
+        box-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.12),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
-      html.dark #cc-handoff kbd { background: #002b36; border-color: rgba(88, 110, 117, 0.5); }
+      html.dark #cc-handoff kbd {
+        background: #002b36;
+        border-color: rgba(88, 110, 117, 0.5);
+      }
       #cc-handoff .dismiss {
         position: absolute;
         top: 0.5rem;
@@ -306,7 +468,9 @@
         line-height: 1;
         padding: 0.25rem 0.5rem;
       }
-      #cc-handoff .dismiss:hover { color: inherit; }
+      #cc-handoff .dismiss:hover {
+        color: inherit;
+      }
       #cc-handoff .always {
         display: flex;
         align-items: center;
@@ -317,37 +481,81 @@
         cursor: pointer;
         user-select: none;
       }
-      #cc-handoff .always input { accent-color: #2aa198; cursor: pointer; }
+      #cc-handoff .always input {
+        accent-color: #2aa198;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body class="font-mono">
     <div id="root"></div>
     <div id="boot-shell">
       <div class="indicator" aria-hidden="true">
-        <svg class="mark" width="44" height="44" viewBox="290 340 440 340" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path fill="currentColor" d="M484.642334,414.398438 C441.085785,414.100739 407.961426,431.836365 389.038177,470.938019 C359.991791,530.957275 397.919464,599.922302 462.212036,610.452393 C488.377197,614.737732 512.859131,609.315125 534.993835,594.283020 C536.985901,592.930176 538.769653,590.998291 541.395325,590.790649 C542.830750,592.057068 542.358704,593.648865 542.360229,595.064209 C542.383118,615.894470 542.245728,636.725830 542.454224,657.553894 C542.495239,661.645569 540.944946,663.478516 537.347595,664.804260 C457.310547,694.300720 365.884827,658.371399 330.527679,577.853210 C318.822357,551.196838 314.364532,523.336731 317.783875,494.457825 C326.474518,421.058838 381.311096,368.253448 444.614929,354.822266 C476.047852,348.153107 507.120667,349.994629 537.405273,361.541992 C541.135986,362.964569 542.456543,364.823730 542.420715,368.821503 C542.237122,389.316772 542.366028,409.814758 542.335571,430.311707 C542.333191,431.888306 542.886780,433.635895 541.039673,435.579559 C524.470764,423.311615 505.857056,415.935822 484.642334,414.398438z"/>
-          <path fill="currentColor" d="M595.160889,540.159180 C602.995361,532.661072 610.436890,525.255066 618.219727,518.227051 C621.594788,515.179443 621.862915,513.288818 618.369263,510.015167 C605.976135,498.402374 593.950073,486.398682 581.638672,474.697052 C578.746277,471.947968 577.631470,469.026062 577.653381,465.050171 C577.786804,440.902161 577.692810,416.752869 577.674988,392.604004 C577.673828,390.969238 577.674927,389.334503 577.674927,387.822937 C580.475952,386.927032 581.524963,388.753571 582.754211,389.949341 C611.163818,417.584045 639.573853,445.218567 667.919434,472.919006 C680.901062,485.605255 693.661133,498.519287 706.712463,511.132599 C709.948914,514.260376 709.647461,516.128052 706.514099,519.115662 C674.820679,549.334167 643.279907,579.712769 611.649353,609.997375 C601.908936,619.323242 592.027832,628.502197 582.202148,637.738831 C581.252808,638.631287 580.419067,639.758240 578.788452,639.713379 C577.032288,638.391235 577.739929,636.409241 577.736206,634.708374 C577.682861,610.393066 577.748169,586.077332 577.625610,561.762512 C577.608215,558.319458 578.534119,555.799866 581.153076,553.487549 C585.892944,549.302612 590.338135,544.783875 595.160889,540.159180z"/>
+        <svg
+          class="mark"
+          width="44"
+          height="44"
+          viewBox="290 340 440 340"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill="currentColor"
+            d="M484.642334,414.398438 C441.085785,414.100739 407.961426,431.836365 389.038177,470.938019 C359.991791,530.957275 397.919464,599.922302 462.212036,610.452393 C488.377197,614.737732 512.859131,609.315125 534.993835,594.283020 C536.985901,592.930176 538.769653,590.998291 541.395325,590.790649 C542.830750,592.057068 542.358704,593.648865 542.360229,595.064209 C542.383118,615.894470 542.245728,636.725830 542.454224,657.553894 C542.495239,661.645569 540.944946,663.478516 537.347595,664.804260 C457.310547,694.300720 365.884827,658.371399 330.527679,577.853210 C318.822357,551.196838 314.364532,523.336731 317.783875,494.457825 C326.474518,421.058838 381.311096,368.253448 444.614929,354.822266 C476.047852,348.153107 507.120667,349.994629 537.405273,361.541992 C541.135986,362.964569 542.456543,364.823730 542.420715,368.821503 C542.237122,389.316772 542.366028,409.814758 542.335571,430.311707 C542.333191,431.888306 542.886780,433.635895 541.039673,435.579559 C524.470764,423.311615 505.857056,415.935822 484.642334,414.398438z"
+          />
+          <path
+            fill="currentColor"
+            d="M595.160889,540.159180 C602.995361,532.661072 610.436890,525.255066 618.219727,518.227051 C621.594788,515.179443 621.862915,513.288818 618.369263,510.015167 C605.976135,498.402374 593.950073,486.398682 581.638672,474.697052 C578.746277,471.947968 577.631470,469.026062 577.653381,465.050171 C577.786804,440.902161 577.692810,416.752869 577.674988,392.604004 C577.673828,390.969238 577.674927,389.334503 577.674927,387.822937 C580.475952,386.927032 581.524963,388.753571 582.754211,389.949341 C611.163818,417.584045 639.573853,445.218567 667.919434,472.919006 C680.901062,485.605255 693.661133,498.519287 706.712463,511.132599 C709.948914,514.260376 709.647461,516.128052 706.514099,519.115662 C674.820679,549.334167 643.279907,579.712769 611.649353,609.997375 C601.908936,619.323242 592.027832,628.502197 582.202148,637.738831 C581.252808,638.631287 580.419067,639.758240 578.788452,639.713379 C577.032288,638.391235 577.739929,636.409241 577.736206,634.708374 C577.682861,610.393066 577.748169,586.077332 577.625610,561.762512 C577.608215,558.319458 578.534119,555.799866 581.153076,553.487549 C585.892944,549.302612 590.338135,544.783875 595.160889,540.159180z"
+          />
         </svg>
         <div class="bar"></div>
       </div>
       <div class="boot-stuck">
-        <span class="state"><span class="state-slow">Taking longer than usual</span><span class="state-offline">Offline · reloads when back</span></span>
+        <span class="state"
+          ><span class="state-slow">Taking longer than usual</span
+          ><span class="state-offline">Offline · reloads when back</span></span
+        >
         <div class="actions">
-          <button type="button" class="primary" data-boot-action="reload">Reload</button>
-          <button type="button" data-boot-action="clear">Clear cache &amp; reload</button>
+          <button type="button" class="primary" data-boot-action="reload">
+            Reload
+          </button>
+          <button type="button" data-boot-action="clear">
+            Clear cache &amp; reload
+          </button>
         </div>
       </div>
     </div>
     <div id="cc-handoff">
       <div class="card" role="dialog" aria-label="Opened in Codecast desktop">
-        <button class="dismiss" data-cc-handoff-action="browser" aria-label="Dismiss">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <button
+          class="dismiss"
+          data-cc-handoff-action="browser"
+          aria-label="Dismiss"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
         <div class="head">
           <span class="icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <rect width="20" height="14" x="2" y="3" rx="2" />
               <path d="M8 21h8M12 17v4" />
             </svg>
@@ -358,13 +566,21 @@
           </div>
         </div>
         <div class="actions">
-          <button class="primary" data-cc-handoff-action="close">Close this tab</button>
-          <button class="secondary" data-cc-handoff-action="browser">Open in browser</button>
-          <button class="tertiary" data-cc-handoff-action="retry">Didn&rsquo;t open? Reopen desktop app</button>
+          <button class="primary" data-cc-handoff-action="close">
+            Close this tab
+          </button>
+          <button class="secondary" data-cc-handoff-action="browser">
+            Open in browser
+          </button>
+          <button class="tertiary" data-cc-handoff-action="retry">
+            Didn&rsquo;t open? Reopen desktop app
+          </button>
         </div>
         <p class="kept">
           Your browser kept this tab open. Close it with
-          <span class="keys"><kbd data-cc-handoff-modifier>⌘</kbd><kbd>W</kbd></span>
+          <span class="keys"
+            ><kbd data-cc-handoff-modifier>⌘</kbd><kbd>W</kbd></span
+          >
         </p>
         <label class="always">
           <input type="checkbox" data-cc-handoff-action="always" />
@@ -379,30 +595,57 @@
       // deploy) but never IndexedDB, which holds writes not yet sent.
       (function () {
         var root = document.documentElement;
-        function syncOnline() { root.toggleAttribute('data-offline', !navigator.onLine); }
+        function syncOnline() {
+          root.toggleAttribute("data-offline", !navigator.onLine);
+        }
         function stuck() {
-          var notes = document.querySelectorAll('.boot-stuck');
+          var notes = document.querySelectorAll(".boot-stuck");
           for (var i = 0; i < notes.length; i++) {
-            if (notes[i].getClientRects().length && getComputedStyle(notes[i]).visibility === 'visible') return true;
+            if (
+              notes[i].getClientRects().length &&
+              getComputedStyle(notes[i]).visibility === "visible"
+            )
+              return true;
           }
           return false;
         }
         function clearAndReload() {
-          var sw = navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (regs) {
-            return Promise.all(regs.map(function (r) { return r.unregister(); }));
-          }) : Promise.resolve();
-          var cache = window.caches ? caches.keys().then(function (keys) {
-            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-          }) : Promise.resolve();
-          Promise.all([sw, cache]).catch(function () {}).then(function () { location.reload(); });
+          var sw = navigator.serviceWorker
+            ? navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(
+                  regs.map(function (r) {
+                    return r.unregister();
+                  }),
+                );
+              })
+            : Promise.resolve();
+          var cache = window.caches
+            ? caches.keys().then(function (keys) {
+                return Promise.all(
+                  keys.map(function (k) {
+                    return caches.delete(k);
+                  }),
+                );
+              })
+            : Promise.resolve();
+          Promise.all([sw, cache])
+            .catch(function () {})
+            .then(function () {
+              location.reload();
+            });
         }
         syncOnline();
-        addEventListener('offline', syncOnline);
-        addEventListener('online', function () { syncOnline(); if (stuck()) location.reload(); });
-        document.addEventListener('click', function (e) {
-          var b = e.target.closest && e.target.closest('.boot-stuck [data-boot-action]');
+        addEventListener("offline", syncOnline);
+        addEventListener("online", function () {
+          syncOnline();
+          if (stuck()) location.reload();
+        });
+        document.addEventListener("click", function (e) {
+          var b =
+            e.target.closest &&
+            e.target.closest(".boot-stuck [data-boot-action]");
           if (!b) return;
-          if (b.getAttribute('data-boot-action') === 'clear') clearAndReload();
+          if (b.getAttribute("data-boot-action") === "clear") clearAndReload();
           else location.reload();
         });
       })();

@@ -40,17 +40,27 @@ export function Chapters() {
   const [on, setOn] = useState(false);
   useMountEffect(() => {
     const seen = new Map<string, number>();
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
-      let best: string | null = null;
-      let ratio = 0;
-      for (const c of CHAPTERS) {
-        const r = seen.get(c.id) ?? 0;
-        if (r > ratio) { ratio = r; best = c.id; }
-      }
-      setActive(best);
-      setOn(best !== null);
-    }, { threshold: [0, 0.1, 0.25, 0.5, 0.75, 1], rootMargin: "-30% 0px -40% 0px" });
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries)
+          seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+        let best: string | null = null;
+        let ratio = 0;
+        for (const c of CHAPTERS) {
+          const r = seen.get(c.id) ?? 0;
+          if (r > ratio) {
+            ratio = r;
+            best = c.id;
+          }
+        }
+        setActive(best);
+        setOn(best !== null);
+      },
+      {
+        threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+        rootMargin: "-30% 0px -40% 0px",
+      },
+    );
     for (const c of CHAPTERS) {
       const el = document.getElementById(c.id);
       if (el) io.observe(el);
@@ -64,7 +74,12 @@ export function Chapters() {
         {CHAPTERS.map((c) => (
           <a key={c.id} href={`#${c.id}`} aria-current={active === c.id}>
             <Tile k={c.k} size={22} className="og-ch-tile" />
-            <span className="og-ch-label" style={{ color: active === c.id ? INK : MUTED }}>{c.label}</span>
+            <span
+              className="og-ch-label"
+              style={{ color: active === c.id ? INK : MUTED }}
+            >
+              {c.label}
+            </span>
           </a>
         ))}
       </div>

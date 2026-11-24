@@ -8,9 +8,9 @@ test("an argument refusal answers 400 with its sentence, never the arguments, an
   const token = "cc_" + "t".repeat(40);
   const value = "zz-FAKE-VALUE-123";
   const thrown = new Error(
-    `ArgumentValidationError: Object contains extra field \`from_a_newer_cli\` that is not in the validator.\n\n`
-    + `Object: {api_token: "${token}", kind: "key", name: "zz-x", payload: {value: "${value}"}, personal: true, from_a_newer_cli: 1.0}\n`
-    + `Validator: v.object({api_token: v.optional(v.string()), kind: v.string(), name: v.string(), payload: v.any()})`,
+    `ArgumentValidationError: Object contains extra field \`from_a_newer_cli\` that is not in the validator.\n\n` +
+      `Object: {api_token: "${token}", kind: "key", name: "zz-x", payload: {value: "${value}"}, personal: true, from_a_newer_cli: 1.0}\n` +
+      `Validator: v.object({api_token: v.optional(v.string()), kind: v.string(), name: v.string(), payload: v.any()})`,
   );
   const warn = spyOn(console, "warn").mockImplementation(() => {});
   const reply = cliErrorReply(thrown, "/cli/vault/create");
@@ -26,15 +26,41 @@ test("an argument refusal answers 400 with its sentence, never the arguments, an
 });
 
 test("a ConvexError keeps its code and status; any other throw passes its message", () => {
-  expect(cliErrorReply(Object.assign(new Error("x"), { data: { code: "NOT_FOUND", message: "No such task" } }), "/cli/x")).toEqual({ status: 404, body: { code: "NOT_FOUND", message: "No such task", error: "No such task" } });
-  expect(cliErrorReply(new Error("Unauthorized: sign in"), "/cli/x")).toEqual({ status: 401, body: { error: "Unauthorized: sign in" } });
-  expect(cliErrorReply(new Error("boom"), "/cli/x")).toEqual({ status: 500, body: { error: "boom" } });
+  expect(
+    cliErrorReply(
+      Object.assign(new Error("x"), {
+        data: { code: "NOT_FOUND", message: "No such task" },
+      }),
+      "/cli/x",
+    ),
+  ).toEqual({
+    status: 404,
+    body: { code: "NOT_FOUND", message: "No such task", error: "No such task" },
+  });
+  expect(cliErrorReply(new Error("Unauthorized: sign in"), "/cli/x")).toEqual({
+    status: 401,
+    body: { error: "Unauthorized: sign in" },
+  });
+  expect(cliErrorReply(new Error("boom"), "/cli/x")).toEqual({
+    status: 500,
+    body: { error: "boom" },
+  });
 });
 
 test("only a field mismatch blames the version; a wrong value is the call's own", () => {
   const warn = spyOn(console, "warn").mockImplementation(() => {});
-  const extra = cliErrorReply(new Error("ArgumentValidationError: Object contains extra field `x` that is not in the validator."), "/cli/x");
-  const value = cliErrorReply(new Error("ArgumentValidationError: Value does not match validator.\nPath: .conversation_id\nValue: \"abc\""), "/cli/review/add");
+  const extra = cliErrorReply(
+    new Error(
+      "ArgumentValidationError: Object contains extra field `x` that is not in the validator.",
+    ),
+    "/cli/x",
+  );
+  const value = cliErrorReply(
+    new Error(
+      'ArgumentValidationError: Value does not match validator.\nPath: .conversation_id\nValue: "abc"',
+    ),
+    "/cli/review/add",
+  );
   warn.mockRestore();
   expect(String(extra.body.error)).toContain("cast update");
   expect(String(value.body.error)).toContain("Path: .conversation_id");

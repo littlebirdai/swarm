@@ -1,17 +1,99 @@
 import { parseGoalMessage } from "@codecast/shared/contracts/sessionGoal";
-import { isCommandMessage, isStrippedCommand, isSkillExpansion, isBackgroundAgentStoppedNotice, backgroundAgentStoppedName, parseBashInput, parseBashOutput, commandExpansionName, isCodexTurnAbortedMessage, isInterruptNotice } from "../../lib/conversationProcessor";
-import { hasAgentSetupMarker, isBootstrapPrompt, isPollResponsePayload, parseScreenRecordingMessage, parseWorkflowHarnessFrame, sessionMessageIntentOf } from "@codecast/shared/contracts";
-import { classifyApiErrorBanner, isNoResponseStub, CLIENT_ERROR_BANNER_PREFIX, parseDecisionAnswer, parseVaultReady, isSessionEscalationMessage, parseSessionEscalation, isAgentSwitchNotice, parseAgentSwitchNotice, isMachineSwitchNotice, parseMachineSwitchNotice, isModelSwitchCommandName, isModelSwitchStdout, modelSwitchStdoutLabel } from "@codecast/shared/contracts";
-import { isAskTool, isPlanWriteToolCall, isShellTool } from "@codecast/shared/render";
-import { isBackgroundBashToolCall, parseTaskNotificationBlock } from "../monitorRows";
-import { isCompactionSummaryMessage, stripMentionContext, stripPastedContent } from "@codecast/shared/contracts";
-import { jointAuthors, parseJointMessage } from "@codecast/shared/contracts/jointMessage";
+import {
+  isCommandMessage,
+  isStrippedCommand,
+  isSkillExpansion,
+  isBackgroundAgentStoppedNotice,
+  backgroundAgentStoppedName,
+  parseBashInput,
+  parseBashOutput,
+  commandExpansionName,
+  isCodexTurnAbortedMessage,
+  isInterruptNotice,
+} from "../../lib/conversationProcessor";
+import {
+  hasAgentSetupMarker,
+  isBootstrapPrompt,
+  isPollResponsePayload,
+  parseScreenRecordingMessage,
+  parseWorkflowHarnessFrame,
+  sessionMessageIntentOf,
+} from "@codecast/shared/contracts";
+import {
+  classifyApiErrorBanner,
+  isNoResponseStub,
+  CLIENT_ERROR_BANNER_PREFIX,
+  parseDecisionAnswer,
+  parseVaultReady,
+  isSessionEscalationMessage,
+  parseSessionEscalation,
+  isAgentSwitchNotice,
+  parseAgentSwitchNotice,
+  isMachineSwitchNotice,
+  parseMachineSwitchNotice,
+  isModelSwitchCommandName,
+  isModelSwitchStdout,
+  modelSwitchStdoutLabel,
+} from "@codecast/shared/contracts";
+import {
+  isAskTool,
+  isPlanWriteToolCall,
+  isShellTool,
+} from "@codecast/shared/render";
+import {
+  isBackgroundBashToolCall,
+  parseTaskNotificationBlock,
+} from "../monitorRows";
+import {
+  isCompactionSummaryMessage,
+  stripMentionContext,
+  stripPastedContent,
+} from "@codecast/shared/contracts";
+import {
+  jointAuthors,
+  parseJointMessage,
+} from "@codecast/shared/contracts/jointMessage";
 import { parseLineChat } from "@codecast/shared/contracts/lineChat";
-import { parseInboundSessionMessage, isSessionMessage, isAgentMessage, parseAgentAuthoredMessage, parseUnwrappedSessionReport, parseUserMessage, parseProposalMessage, parseTaskCommentMessage, parseDecisionDiscussion, isTeammateFramingOnly, isSpawnedTaskPrompt, parseSpawnedTaskPrompt, parseChatWakePrompt, parseHuddleSummaryTag, isToolResultCarrier } from "../sessionMessage";
-import { parseCastCommandString, stripCdPrefix, isDecideCastCommand, isFlowObjectCastCommand, isVaultRequestCastCommand, sayTextOf, type ParsedCastCommand, type DecideArgs } from "../castCommand";
+import {
+  parseInboundSessionMessage,
+  isSessionMessage,
+  isAgentMessage,
+  parseAgentAuthoredMessage,
+  parseUnwrappedSessionReport,
+  parseUserMessage,
+  parseProposalMessage,
+  parseTaskCommentMessage,
+  parseDecisionDiscussion,
+  isTeammateFramingOnly,
+  isSpawnedTaskPrompt,
+  parseSpawnedTaskPrompt,
+  parseChatWakePrompt,
+  parseHuddleSummaryTag,
+  isToolResultCarrier,
+} from "../sessionMessage";
+import {
+  parseCastCommandString,
+  stripCdPrefix,
+  isDecideCastCommand,
+  isFlowObjectCastCommand,
+  isVaultRequestCastCommand,
+  sayTextOf,
+  type ParsedCastCommand,
+  type DecideArgs,
+} from "../castCommand";
 import { hasRichMarkdown } from "../../lib/richMarkdown";
-import { parseContextRecovery, parseSessionHandoff } from "../../lib/sessionHandoff";
-import type { Message, ParsedApiError, ParsedContextBlock, TeammateMessagePart, ToolCall, UserMessageKind } from "./types";
+import {
+  parseContextRecovery,
+  parseSessionHandoff,
+} from "../../lib/sessionHandoff";
+import type {
+  Message,
+  ParsedApiError,
+  ParsedContextBlock,
+  TeammateMessagePart,
+  ToolCall,
+  UserMessageKind,
+} from "./types";
 
 // Cached: this runs seven regex passes over the full message body and is called
 // from renderItem/first-in-sequence logic for every visible row on every feed
@@ -23,16 +105,18 @@ export function stripSystemTags(content: string): string {
   const hit = STRIP_SYSTEM_TAGS_CACHE.get(content);
   if (hit !== undefined) return hit;
   const out = stripMentionContext(stripPastedContent(content))
-    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
-    .replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, '')
-    .replace(/<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g, '')
-    .replace(/<local-command-stderr>[\s\S]*?<\/local-command-stderr>/g, '')
-    .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, '')
-    .replace(/<\/?(?:command-(?:name|message|args)|antml:[a-z_]+)[^>]*>/g, '')
-    .replace(/^\s*Caveat:.*$/gm, '')
-    .replace(/\n{3,}/g, '\n\n');
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
+    .replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "")
+    .replace(/<local-command-stdout>[\s\S]*?<\/local-command-stdout>/g, "")
+    .replace(/<local-command-stderr>[\s\S]*?<\/local-command-stderr>/g, "")
+    .replace(/<local-command-caveat>[\s\S]*?<\/local-command-caveat>/g, "")
+    .replace(/<\/?(?:command-(?:name|message|args)|antml:[a-z_]+)[^>]*>/g, "")
+    .replace(/^\s*Caveat:.*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n");
   if (STRIP_SYSTEM_TAGS_CACHE.size > 2000) {
-    STRIP_SYSTEM_TAGS_CACHE.delete(STRIP_SYSTEM_TAGS_CACHE.keys().next().value!);
+    STRIP_SYSTEM_TAGS_CACHE.delete(
+      STRIP_SYSTEM_TAGS_CACHE.keys().next().value!,
+    );
   }
   STRIP_SYSTEM_TAGS_CACHE.set(content, out);
   return out;
@@ -41,22 +125,36 @@ export function stripSystemTags(content: string): string {
 // Assistant stub the timeline renders as nothing (see renderTimelineItem).
 // Fork-point selection and branch-chip anchoring must treat it as invisible:
 // a fork recorded against it would have no message to render its chips under.
-export function isHiddenStubMessage(msg: { role?: string; content?: string }): boolean {
-  return msg.role === "assistant" && isNoResponseStub(stripSystemTags(msg.content || ""));
+export function isHiddenStubMessage(msg: {
+  role?: string;
+  content?: string;
+}): boolean {
+  return (
+    msg.role === "assistant" &&
+    isNoResponseStub(stripSystemTags(msg.content || ""))
+  );
 }
 
 // Can this message host branch chips? Only user/assistant blocks render a
 // BranchSelector, and hidden stubs render nothing at all. Both picking a fork
 // point and placing the chips must agree on this, or a fork lands on a message
 // with no UI to show it.
-export function canAnchorForkChips(msg: { role?: string; content?: string; message_uuid?: string }): boolean {
+export function canAnchorForkChips(msg: {
+  role?: string;
+  content?: string;
+  message_uuid?: string;
+}): boolean {
   if (!msg.message_uuid || isHiddenStubMessage(msg)) return false;
-  return msg.role === "assistant" || (msg.role === "user" && !!msg.content?.trim());
+  return (
+    msg.role === "assistant" || (msg.role === "user" && !!msg.content?.trim())
+  );
 }
 
 // The slash command a sticky prompt names, when its message is an invocation
 // (only one followed by its command body is ever sticky: stickyEligibleIds).
-export function stickyCommand(content: string): { cmdName: string; args: string } | null {
+export function stickyCommand(
+  content: string,
+): { cmdName: string; args: string } | null {
   const t = stripSystemTags(content).trim();
   if (!isCommandMessage(t) && !isStrippedCommand(t)) return null;
   const parsed = parseCommandInvocation(content);
@@ -64,7 +162,9 @@ export function stickyCommand(content: string): { cmdName: string; args: string 
 }
 
 export function cleanStickyContent(content: string): string {
-  const stMatch = content.match(/<scheduled-task\s+title="([^"]*)"[^>]*>([\s\S]*?)<\/scheduled-task>/);
+  const stMatch = content.match(
+    /<scheduled-task\s+title="([^"]*)"[^>]*>([\s\S]*?)<\/scheduled-task>/,
+  );
   if (stMatch) {
     const title = stMatch[1].replace(/&quot;/g, '"');
     const prompt = stMatch[2].trim();
@@ -76,46 +176,71 @@ export function cleanStickyContent(content: string): string {
     // "title — prompt" would stutter, so prefer the prompt alone when it
     // subsumes the title.
     if (!spawned.prompt) return spawned.title;
-    return spawned.prompt.startsWith(spawned.title) ? spawned.prompt : `${spawned.title} — ${spawned.prompt}`;
+    return spawned.prompt.startsWith(spawned.title)
+      ? spawned.prompt
+      : `${spawned.title} — ${spawned.prompt}`;
   }
   const workflowFrame = parseWorkflowHarnessFrame(content.trimStart());
   if (workflowFrame) return workflowFrame.body;
   // A person's words from a line workspace's chat: the frame, its brief, what they had open and the reply note are context for the agent.
   const lineChat = parseLineChat(content);
   if (lineChat) return lineChat.body;
-  return stripSystemTags(content)
-    .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
-    .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
-    .replace(/<scheduled-task[^>]*>[\s\S]*?<\/scheduled-task>/g, "")
-    .replace(/\[Image[:\s][^\]]*\]/gi, "")
-    .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
-    // Any other wrapper tag goes; an HTML comment the person typed is their text, shown as the message body shows it.
-    .replace(/<(?!!--)[^>]+>/g, "")
-    .trim();
+  return (
+    stripSystemTags(content)
+      .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
+      .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
+      .replace(/<scheduled-task[^>]*>[\s\S]*?<\/scheduled-task>/g, "")
+      .replace(/\[Image[:\s][^\]]*\]/gi, "")
+      .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
+      // Any other wrapper tag goes; an HTML comment the person typed is their text, shown as the message body shows it.
+      .replace(/<(?!!--)[^>]+>/g, "")
+      .trim()
+  );
 }
 
 // The remedy for an "auth" card, per client. opencode authenticates via its own
 // CLI (`opencode auth login`) in a separate terminal; pi and Claude/Codex re-auth
 // with `/login` typed into the running session. Naming the exact fix — and letting
 // the user copy it — is what turns a dead session into a one-step recovery.
-export function authRemedy(agentType?: string): { command: string; where: string; inPane: boolean } {
+export function authRemedy(agentType?: string): {
+  command: string;
+  where: string;
+  inPane: boolean;
+} {
   if (agentType === "opencode") {
-    return { command: "opencode auth login", where: "in a terminal", inPane: false };
+    return {
+      command: "opencode auth login",
+      where: "in a terminal",
+      inPane: false,
+    };
   }
   if (agentType === "cursor") {
-    return { command: "cursor-agent login", where: "in a terminal on that machine", inPane: false };
+    return {
+      command: "cursor-agent login",
+      where: "in a terminal on that machine",
+      inPane: false,
+    };
   }
   // pi, claude_code, codex, and anything else re-auth with /login in the session.
   return { command: "/login", where: "in its terminal", inPane: true };
 }
 
-export function parseApiErrorContent(content?: string | null): ParsedApiError | null {
+export function parseApiErrorContent(
+  content?: string | null,
+): ParsedApiError | null {
   if (!content) return null;
   const trimmed = content.trim();
   if (!trimmed) return null;
 
   if (classifyApiErrorBanner(trimmed) === "safety") {
-    return { message: trimmed.replace(/^Safety stop:\s*(?:misalignment_policy_violation\s*·\s*)?/, ""), errorType: "misalignment_policy_violation", isSafety: true };
+    return {
+      message: trimmed.replace(
+        /^Safety stop:\s*(?:misalignment_policy_violation\s*·\s*)?/,
+        "",
+      ),
+      errorType: "misalignment_policy_violation",
+      isSafety: true,
+    };
   }
 
   // Marked opencode/pi provider error: strip the marker, classify (auth vs
@@ -125,9 +250,15 @@ export function parseApiErrorContent(content?: string | null): ParsedApiError | 
     const body = trimmed.slice(CLIENT_ERROR_BANNER_PREFIX.length).trim();
     const kind = classifyApiErrorBanner(trimmed);
     if (kind === "auth") {
-      return { message: body || "This session needs authentication.", isAuth: true };
+      return {
+        message: body || "This session needs authentication.",
+        isAuth: true,
+      };
     }
-    return { message: body || "The model could not complete this turn.", isClientError: true };
+    return {
+      message: body || "The model could not complete this turn.",
+      isClientError: true,
+    };
   }
 
   // Banner detection (auth / limit / connection / fatal) shares the backend's
@@ -142,10 +273,14 @@ export function parseApiErrorContent(content?: string | null): ParsedApiError | 
   const isThrottle = bannerKind === "throttle";
   const isFatal = bannerKind === "fatal";
   if (bannerKind === "context") {
-    return { message: "The conversation no longer fits in the model's context window.", isContext: true };
+    return {
+      message: "The conversation no longer fits in the model's context window.",
+      isContext: true,
+    };
   }
   const match = trimmed.match(/^API Error:\s*(\d{3})\s*([\s\S]*)$/i);
-  if (!isAuth && !isLimit && !isConnection && !isThrottle && !isFatal && !match) return null;
+  if (!isAuth && !isLimit && !isConnection && !isThrottle && !isFatal && !match)
+    return null;
 
   // The status code may be the leading "API Error: NNN" (generic form) or
   // embedded in an auth banner ("Please run /login · API Error: 401 …").
@@ -164,7 +299,11 @@ export function parseApiErrorContent(content?: string | null): ParsedApiError | 
       }
 
       const parsedError = parsed.error;
-      if (parsedError && typeof parsedError === "object" && !Array.isArray(parsedError)) {
+      if (
+        parsedError &&
+        typeof parsedError === "object" &&
+        !Array.isArray(parsedError)
+      ) {
         const errorRecord = parsedError as Record<string, unknown>;
         if (typeof errorRecord.type === "string") {
           errorType = errorRecord.type;
@@ -202,17 +341,32 @@ export function parseApiErrorContent(content?: string | null): ParsedApiError | 
     } else if (isConnection) {
       // The card heading already says the error part, so keep just the detail
       // ("Connection closed mid-response. The response above may be incomplete.").
-      message = trimmed.replace(/^api error:?\s*/i, "").trim() || "The connection to the provider dropped.";
+      message =
+        trimmed.replace(/^api error:?\s*/i, "").trim() ||
+        "The connection to the provider dropped.";
     } else if (isThrottle) {
       // The heading says "rate limited"; keep the explanation and what the pane showed.
       const detail = trimmed.replace(/^rate limited\s*·\s*/i, "").trim();
-      message = detail ? detail.charAt(0).toUpperCase() + detail.slice(1) : "The provider's per-minute rate limit rejected the request.";
+      message = detail
+        ? detail.charAt(0).toUpperCase() + detail.slice(1)
+        : "The provider's per-minute rate limit rejected the request.";
     } else {
-      message = statusCode === 500 ? "Internal server error" : "API request failed";
+      message =
+        statusCode === 500 ? "Internal server error" : "API request failed";
     }
   }
 
-  return { statusCode: isThrottle ? 429 : statusCode, message, errorType, requestId, isAuth, isLimit, isConnection, isThrottle, isFatal };
+  return {
+    statusCode: isThrottle ? 429 : statusCode,
+    message,
+    errorType,
+    requestId,
+    isAuth,
+    isLimit,
+    isConnection,
+    isThrottle,
+    isFatal,
+  };
 }
 
 // Guess which provider an opencode auth failure is about, from its message text.
@@ -229,40 +383,58 @@ export function detectProviderFromError(message: string): string | undefined {
 
 export function summarizeBashCommand(cmd: string): string {
   let c = stripCdPrefix(cmd);
-  c = c.replace(/\/Users\/\w+\//g, '~/');
-  c = c.replace(/\/home\/\w+\//g, '~/');
+  c = c.replace(/\/Users\/\w+\//g, "~/");
+  c = c.replace(/\/home\/\w+\//g, "~/");
   const rgMatch = c.match(/^(rg|grep|ripgrep)\s+([\s\S]*)$/);
   if (rgMatch) {
     const args = rgMatch[2];
     const patternMatch = args.match(/(?:^|\s)(?:-e\s+)?['"]([^'"]+)['"]/);
-    const bareMatch = patternMatch ? null : args.match(/(?:^|\s)(?:-[a-zA-Z]+\s+)*([^\s-]\S*)/);
+    const bareMatch = patternMatch
+      ? null
+      : args.match(/(?:^|\s)(?:-[a-zA-Z]+\s+)*([^\s-]\S*)/);
     const pattern = patternMatch?.[1] || bareMatch?.[1] || "";
-    if (pattern) return `rg "${pattern.length > 40 ? pattern.slice(0, 40) + "..." : pattern}"`;
+    if (pattern)
+      return `rg "${pattern.length > 40 ? pattern.slice(0, 40) + "..." : pattern}"`;
   }
   const sedMatch = c.match(/^sed\s+.*?\s+(\S+)\s*$/);
   if (sedMatch) {
-    const file = sedMatch[1].split('/').pop() || sedMatch[1];
+    const file = sedMatch[1].split("/").pop() || sedMatch[1];
     return `sed ${file}`;
   }
-  if (c.startsWith('git ')) {
+  if (c.startsWith("git ")) {
     const parts = c.split(/\s+/);
-    const meaningful = parts.filter(p => !p.startsWith('-') || p === '--staged' || p === '--cached' || p === '--stat' || p === '--short').slice(0, 4);
-    return meaningful.join(' ');
+    const meaningful = parts
+      .filter(
+        (p) =>
+          !p.startsWith("-") ||
+          p === "--staged" ||
+          p === "--cached" ||
+          p === "--stat" ||
+          p === "--short",
+      )
+      .slice(0, 4);
+    return meaningful.join(" ");
   }
-  return c.length > 80 ? c.slice(0, 80) + '...' : c;
+  return c.length > 80 ? c.slice(0, 80) + "..." : c;
 }
 
 // Cached by tool-call object (identity-stable in the store): the JSON.parse of
 // a Bash tool's input showed up as a per-render scroll cost.
-const PARSE_CAST_COMMAND_CACHE = new WeakMap<ToolCall, ParsedCastCommand | null>();
+const PARSE_CAST_COMMAND_CACHE = new WeakMap<
+  ToolCall,
+  ParsedCastCommand | null
+>();
 export function parseCastCommand(tool: ToolCall): ParsedCastCommand | null {
   if (!isShellTool(tool.name)) return null;
-  if (PARSE_CAST_COMMAND_CACHE.has(tool)) return PARSE_CAST_COMMAND_CACHE.get(tool)!;
+  if (PARSE_CAST_COMMAND_CACHE.has(tool))
+    return PARSE_CAST_COMMAND_CACHE.get(tool)!;
   let out: ParsedCastCommand | null = null;
   try {
     const input = JSON.parse(tool.input);
     out = parseCastCommandString(String(input.command || input.cmd || ""));
-  } catch { out = null; }
+  } catch {
+    out = null;
+  }
   PARSE_CAST_COMMAND_CACHE.set(tool, out);
   return out;
 }
@@ -288,7 +460,13 @@ function extractPlanContent(text: string): string | null {
   return null;
 }
 
-const STICKY_NOISE_PREFIXES = ["[Request interrupted", "<task-notification>", "Your task is to create a detailed summary", "Full transcript available at:", "[Codecast import]"];
+const STICKY_NOISE_PREFIXES = [
+  "[Request interrupted",
+  "<task-notification>",
+  "Your task is to create a detailed summary",
+  "Full transcript available at:",
+  "[Codecast import]",
+];
 
 // A person's words delivered under a wrapper that names them: the sender and
 // the body the bubble draws. The message navigator reads the sender from here
@@ -304,8 +482,15 @@ export function directUserOf(t: string): { from: string; body: string } | null {
   // comment on the task this session owns, or a person discussing a decision
   // the session presents: their words under a quote of the row, task or
   // decision they were looking at; the reply note for the agent stays out.
-  const quoted = parseProposalMessage(t) ?? parseTaskCommentMessage(t) ?? parseDecisionDiscussion(t);
-  if (quoted) return { from: quoted.from, body: quoted.about ? `> ${quoted.about}\n\n${quoted.body}` : quoted.body };
+  const quoted =
+    parseProposalMessage(t) ??
+    parseTaskCommentMessage(t) ??
+    parseDecisionDiscussion(t);
+  if (quoted)
+    return {
+      from: quoted.from,
+      body: quoted.about ? `> ${quoted.about}\n\n${quoted.body}` : quoted.body,
+    };
   // A person talking with a project's line from its workspace's chat: their
   // words, the brief and the reply note left out of the bubble.
   const lineChat = parseLineChat(t);
@@ -322,7 +507,13 @@ export function directUserOf(t: string): { from: string; body: string } | null {
 // What a clean thread keeps of the user side: rows a person wrote (a message,
 // an answer to a decision, a chat mention, a filled vault slot). Rows a
 // machine sent (triggers, briefs, handoffs, colleagues' messages) draw nothing.
-export const FOLD_KEPT_USER_KINDS = new Set<UserMessageKind["kind"]>(['normal', 'direct_user', 'decision_answer', 'chat_wake', 'vault_ready']);
+export const FOLD_KEPT_USER_KINDS = new Set<UserMessageKind["kind"]>([
+  "normal",
+  "direct_user",
+  "decision_answer",
+  "chat_wake",
+  "vault_ready",
+]);
 
 // Dedup key for matching a still-pending message against its eventual JSONL echo.
 // The daemon collapses newlines to spaces on inject (injectViaTmux) and a few control
@@ -334,7 +525,8 @@ export function normalizePendingContent(s: string): string {
   // </command-args>"). Canonicalize both to "/cmd args" so they match and the pending bubble
   // drops once the echo lands (otherwise the command renders twice).
   const cmd = parseCommandInvocation(s || "");
-  if (cmd.cmdName) return `/${cmd.cmdName}${cmd.args ? " " + cmd.args.replace(/\s+/g, " ").trim() : ""}`;
+  if (cmd.cmdName)
+    return `/${cmd.cmdName}${cmd.args ? " " + cmd.args.replace(/\s+/g, " ").trim() : ""}`;
   return (s || "")
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
     .replace(/[\u0000-\u001f]+/g, " ")
@@ -348,53 +540,68 @@ export function classifyUserMessage(
   immediatePrev?: Message | null,
   contextPrev?: Message | null,
 ): UserMessageKind {
-  const hasUserImages = msg.images?.some(img => !img.tool_use_id);
+  const hasUserImages = msg.images?.some((img) => !img.tool_use_id);
   // A row carrying tool results is the harness answering tool calls; a person never
   // types into one. Any text on it ("Tool loaded.", a fork directive) is the harness's
   // postscript — the parser now folds it into the result, and rows synced before that
   // still carry it as content, so the text alone never makes this a prompt.
   if (isToolResultCarrier(msg) && !hasUserImages) {
-    return { kind: 'tool_results_only' };
+    return { kind: "tool_results_only" };
   }
   const content = msg.content;
   if (!content || !content.trim()) {
-    return hasUserImages ? { kind: 'normal' } : { kind: 'empty' };
+    return hasUserImages ? { kind: "normal" } : { kind: "empty" };
   }
   const t = stripPastedContent(content).trim();
-  const tNoReminders = t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, '').trim();
+  const tNoReminders = t
+    .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
+    .replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "")
+    .trim();
   const tStripped = stripSystemTags(t).trim();
   const handoff = parseSessionHandoff(tNoReminders);
-  if (handoff) return { kind: 'session_handoff', handoff };
+  if (handoff) return { kind: "session_handoff", handoff };
   const recovery = parseContextRecovery(tNoReminders);
-  if (recovery) return { kind: 'context_recovery', recovery };
-  if (tNoReminders.startsWith('<scheduled-task')) return { kind: 'scheduled_task' };
+  if (recovery) return { kind: "context_recovery", recovery };
+  if (tNoReminders.startsWith("<scheduled-task"))
+    return { kind: "scheduled_task" };
   const goalFrame = parseGoalMessage(tNoReminders);
-  if (goalFrame) return { kind: 'goal_round', frame: goalFrame };
+  if (goalFrame) return { kind: "goal_round", frame: goalFrame };
   // The brief that seats or re-seats a standing agent: the session's context,
   // written by a machine, so it folds to one row that opens it.
-  if (isBootstrapPrompt(tNoReminders)) return { kind: 'role_brief' };
+  if (isBootstrapPrompt(tNoReminders)) return { kind: "role_brief" };
   const workflowFrame = parseWorkflowHarnessFrame(tNoReminders);
-  if (workflowFrame) return { kind: 'workflow_frame', frame: workflowFrame.kind, body: workflowFrame.body };
+  if (workflowFrame)
+    return {
+      kind: "workflow_frame",
+      frame: workflowFrame.kind,
+      body: workflowFrame.body,
+    };
   // A spawned schedule run's opening prompt (plain-text wire format from
   // taskScheduler.buildPrompt) gets the same rich block as injected schedules.
-  if (isSpawnedTaskPrompt(tNoReminders)) return { kind: 'scheduled_task' };
+  if (isSpawnedTaskPrompt(tNoReminders)) return { kind: "scheduled_task" };
   const direct = directUserOf(t);
-  if (direct) return { kind: 'direct_user', ...direct };
+  if (direct) return { kind: "direct_user", ...direct };
   if (isSessionEscalationMessage(tNoReminders)) {
     const escalation = parseSessionEscalation(tNoReminders);
-    if (escalation) return { kind: 'session_escalation', escalation };
+    if (escalation) return { kind: "session_escalation", escalation };
   }
   // A screen recording the person sent (shared/contracts/screenRecording):
   // their message as they wrote it, or the agent's copy with its lines.
   const screen = parseScreenRecordingMessage(tNoReminders);
-  if (screen) return { kind: 'screen_recording', recording: screen };
+  if (screen) return { kind: "screen_recording", recording: screen };
   const sessionMsg = parseInboundSessionMessage(t);
   if (sessionMsg) {
     // A huddle that ended in this session's room: the digest rides the
     // session-message rail, but it is a call artifact, not a teammate's words.
     const huddle = parseHuddleSummaryTag(sessionMsg.body);
-    if (huddle) return { kind: 'huddle_summary', huddle };
-    return { kind: 'session_message', from: sessionMsg.from, body: sessionMsg.body, name: sessionMsg.name, intent: sessionMsg.intent };
+    if (huddle) return { kind: "huddle_summary", huddle };
+    return {
+      kind: "session_message",
+      from: sessionMsg.from,
+      body: sessionMsg.body,
+      name: sessionMsg.name,
+      intent: sessionMsg.intent,
+    };
   }
   // Truncated wrappers (a preview slice, a torn JSONL line) still carry the
   // opening tag with `from=`, which is enough to keep them off the human rail.
@@ -402,76 +609,126 @@ export function classifyUserMessage(
     const authored = parseAgentAuthoredMessage(t);
     if (authored) {
       const huddle = parseHuddleSummaryTag(authored.body);
-      if (huddle) return { kind: 'huddle_summary', huddle };
+      if (huddle) return { kind: "huddle_summary", huddle };
       const intent = sessionMessageIntentOf(t);
-      return { kind: 'session_message', from: authored.from, body: authored.body, ...(intent !== 'request' ? { intent } : {}) };
+      return {
+        kind: "session_message",
+        from: authored.from,
+        body: authored.body,
+        ...(intent !== "request" ? { intent } : {}),
+      };
     }
   }
   // A subagent reporting back to its parent arrives in the same shape under its
   // own tag, so it rides the same rail instead of reading as the human's words.
   if (isAgentMessage(t)) {
     const report = parseAgentAuthoredMessage(t);
-    if (report) return { kind: 'session_message', from: report.from, body: report.body, variant: 'agent' };
+    if (report)
+      return {
+        kind: "session_message",
+        from: report.from,
+        body: report.body,
+        variant: "agent",
+      };
   }
   {
     const huddle = parseHuddleSummaryTag(tNoReminders);
-    if (huddle) return { kind: 'huddle_summary', huddle };
+    if (huddle) return { kind: "huddle_summary", huddle };
   }
   const chatWake = parseChatWakePrompt(t);
-  if (chatWake) return { kind: 'chat_wake', wake: chatWake };
+  if (chatWake) return { kind: "chat_wake", wake: chatWake };
   const vaultReady = parseVaultReady(tNoReminders);
-  if (vaultReady) return { kind: 'vault_ready', vault: vaultReady };
+  if (vaultReady) return { kind: "vault_ready", vault: vaultReady };
   const decisionAnswer = parseDecisionAnswer(tNoReminders);
-  if (decisionAnswer) return { kind: 'decision_answer', decision: decisionAnswer };
-  if (isPollResponsePayload(t)) return { kind: 'poll_response' };
-  if (immediatePrev?.role === 'assistant' && immediatePrev?.tool_calls?.some(tc => isAskTool(tc.name))) {
-    return { kind: 'poll_response' };
+  if (decisionAnswer)
+    return { kind: "decision_answer", decision: decisionAnswer };
+  if (isPollResponsePayload(t)) return { kind: "poll_response" };
+  if (
+    immediatePrev?.role === "assistant" &&
+    immediatePrev?.tool_calls?.some((tc) => isAskTool(tc.name))
+  ) {
+    return { kind: "poll_response" };
   }
-  if (!tStripped) return { kind: 'noise' };
+  if (!tStripped) return { kind: "noise" };
   // `!` bash mode: the typed command and its output arrive as two consecutive
   // user messages; they pair up into one terminal block at render time.
   const bashCmd = parseBashInput(tNoReminders);
-  if (bashCmd !== null) return { kind: 'bash_input', command: bashCmd };
+  if (bashCmd !== null) return { kind: "bash_input", command: bashCmd };
   const bashOut = parseBashOutput(tNoReminders);
-  if (bashOut) return { kind: 'bash_output', stdout: bashOut.stdout, stderr: bashOut.stderr };
+  if (bashOut)
+    return {
+      kind: "bash_output",
+      stdout: bashOut.stdout,
+      stderr: bashOut.stderr,
+    };
   if (isCommandMessage(tNoReminders)) {
     if (isModelSwitchStdout(tNoReminders)) {
-      return { kind: "agent_switch", toLabel: modelSwitchStdoutLabel(tNoReminders) || "new model" };
+      return {
+        kind: "agent_switch",
+        toLabel: modelSwitchStdoutLabel(tNoReminders) || "new model",
+      };
     }
     if (isSkillExpansion(t)) {
-      const cmdMatch = t.match(/<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/);
-      return { kind: 'skill_expansion', cmdName: cmdMatch?.[1]?.replace(/^\//, "") };
+      const cmdMatch = t.match(
+        /<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/,
+      );
+      return {
+        kind: "skill_expansion",
+        cmdName: cmdMatch?.[1]?.replace(/^\//, ""),
+      };
     }
-    if (immediatePrev?.role === 'user' && immediatePrev?.content && isCommandMessage(immediatePrev.content)) {
-      const cmdMatch = t.match(/<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/) ||
-                       immediatePrev.content.match(/<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/);
-      return { kind: 'skill_expansion', cmdName: cmdMatch?.[1]?.replace(/^\//, "") };
+    if (
+      immediatePrev?.role === "user" &&
+      immediatePrev?.content &&
+      isCommandMessage(immediatePrev.content)
+    ) {
+      const cmdMatch =
+        t.match(
+          /<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/,
+        ) ||
+        immediatePrev.content.match(
+          /<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/,
+        );
+      return {
+        kind: "skill_expansion",
+        cmdName: cmdMatch?.[1]?.replace(/^\//, ""),
+      };
     }
     // Hide /compact commands — the compact_boundary system message handles the visual separator
-    const cmdName = t.match(/<command-(?:name|message)>\/?compact<\/command-(?:name|message)>/);
-    if (cmdName || t === '/compact') return { kind: 'compaction_prompt' };
+    const cmdName = t.match(
+      /<command-(?:name|message)>\/?compact<\/command-(?:name|message)>/,
+    );
+    if (cmdName || t === "/compact") return { kind: "compaction_prompt" };
     const parsedCmd = parseCommandInvocation(tNoReminders);
     if (isModelSwitchCommandName(parsedCmd.cmdName)) {
-      const label = parsedCmd.cmdName === "effort"
-        ? `${parsedCmd.args || "effort"} effort`
-        : (parsedCmd.args || "new model");
+      const label =
+        parsedCmd.cmdName === "effort"
+          ? `${parsedCmd.args || "effort"} effort`
+          : parsedCmd.args || "new model";
       return { kind: "agent_switch", toLabel: label };
     }
-    return { kind: 'command' };
+    return { kind: "command" };
   }
   // Legacy stored form: command tags were stripped at sync time, leaving "name\n/name\nargs".
   // isCommandMessage misses it (no leading tag/slash), so catch it explicitly.
-  if (isStrippedCommand(tNoReminders)) return { kind: 'command' };
+  if (isStrippedCommand(tNoReminders)) return { kind: "command" };
   // Only Codex emits <turn_aborted>; classify by the message, not the conversation's
   // CURRENT agent_type, which changes when the conversation is switched to another agent.
-  if (isCodexTurnAbortedMessage(t)) return { kind: 'interrupt', tone: 'amber' };
-  if (isInterruptNotice(t)) return { kind: 'interrupt', tone: 'sky' };
+  if (isCodexTurnAbortedMessage(t)) return { kind: "interrupt", tone: "amber" };
+  if (isInterruptNotice(t)) return { kind: "interrupt", tone: "sky" };
   if (isAgentSwitchNotice(tNoReminders) || msg.subtype === "agent_switch") {
     const parsed = parseAgentSwitchNotice(tNoReminders);
-    return { kind: "agent_switch", toLabel: parsed?.toLabel || "new agent", fromLabel: parsed?.fromLabel };
+    return {
+      kind: "agent_switch",
+      toLabel: parsed?.toLabel || "new agent",
+      fromLabel: parsed?.fromLabel,
+    };
   }
   if (isModelSwitchStdout(tNoReminders)) {
-    return { kind: "agent_switch", toLabel: modelSwitchStdoutLabel(tNoReminders) || "new model" };
+    return {
+      kind: "agent_switch",
+      toLabel: modelSwitchStdoutLabel(tNoReminders) || "new model",
+    };
   }
   if (isMachineSwitchNotice(tNoReminders) || msg.subtype === "machine_switch") {
     const parsed = parseMachineSwitchNotice(tNoReminders);
@@ -482,90 +739,141 @@ export function classifyUserMessage(
       machineChanged: parsed?.machineChanged ?? true,
     };
   }
-  if (isBackgroundAgentStoppedNotice(t)) return { kind: 'background_agent_stopped', agentName: backgroundAgentStoppedName(t) ?? undefined };
-  if (isSkillExpansion(t)) return { kind: 'skill_expansion' };
+  if (isBackgroundAgentStoppedNotice(t))
+    return {
+      kind: "background_agent_stopped",
+      agentName: backgroundAgentStoppedName(t) ?? undefined,
+    };
+  if (isSkillExpansion(t)) return { kind: "skill_expansion" };
   if (isTaskNotification(t)) {
-    const stripped = t.replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '').trim();
-    if (!stripped || stripped.length < 4 || stripped.startsWith('Read the output file to retrieve the result:') || stripped.startsWith('Full transcript available at:')) return { kind: 'task_notification' };
+    const stripped = t
+      .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
+      .trim();
+    if (
+      !stripped ||
+      stripped.length < 4 ||
+      stripped.startsWith("Read the output file to retrieve the result:") ||
+      stripped.startsWith("Full transcript available at:")
+    )
+      return { kind: "task_notification" };
   }
-  if (immediatePrev?.role === 'assistant' && immediatePrev?.tool_calls?.some(tc => tc.name === 'Task' || tc.name === 'Agent')) {
-    if (!tStripped) return { kind: 'task_prompt' };
+  if (
+    immediatePrev?.role === "assistant" &&
+    immediatePrev?.tool_calls?.some(
+      (tc) => tc.name === "Task" || tc.name === "Agent",
+    )
+  ) {
+    if (!tStripped) return { kind: "task_prompt" };
   }
-  if (isCompactionPromptMessage(t)) return { kind: 'compaction_prompt' };
-  if (t.startsWith('Read the output file to retrieve the result:') || t.startsWith('Full transcript available at:')) return { kind: 'noise' };
-  if (immediatePrev?.role === 'user') {
+  if (isCompactionPromptMessage(t)) return { kind: "compaction_prompt" };
+  if (
+    t.startsWith("Read the output file to retrieve the result:") ||
+    t.startsWith("Full transcript available at:")
+  )
+    return { kind: "noise" };
+  if (immediatePrev?.role === "user") {
     const echoCmd = commandExpansionName(immediatePrev, msg);
-    if (echoCmd !== null) return { kind: 'skill_expansion', cmdName: echoCmd };
+    if (echoCmd !== null) return { kind: "skill_expansion", cmdName: echoCmd };
   }
-  if (contextPrev?.role === 'system' && contextPrev?.subtype === 'compact_boundary') {
-    if (!tStripped) return { kind: 'noise' };
-    return { kind: 'compaction_summary' };
+  if (
+    contextPrev?.role === "system" &&
+    contextPrev?.subtype === "compact_boundary"
+  ) {
+    if (!tStripped) return { kind: "noise" };
+    return { kind: "compaction_summary" };
   }
-  if (t.includes('<teammate-message')) {
+  if (t.includes("<teammate-message")) {
     const leftover = t
-      .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, '')
-      .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '')
+      .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
+      .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
       .trim();
     // Pure teammate tags, or tags wrapped only in the harness's framing boilerplate, are
     // a teammate broadcast — render as a teammate event (no human avatar), not a user turn.
     if (!leftover || isTeammateFramingOnly(leftover)) {
-      return { kind: 'teammate_events' };
+      return { kind: "teammate_events" };
     }
   }
   const planContent = extractPlanContent(t);
-  if (planContent) return { kind: 'plan', planContent };
+  if (planContent) return { kind: "plan", planContent };
   const displayable = t
-    .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, '')
-    .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, '')
-    .replace(/\[Image[:\s][^\]]*\]/gi, '')
-    .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, '')
+    .replace(/<task-notification>[\s\S]*?<\/task-notification>/g, "")
+    .replace(/<teammate-message\s+[^>]*>[\s\S]*?<\/teammate-message>/g, "")
+    .replace(/\[Image[:\s][^\]]*\]/gi, "")
+    .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
     .trim();
   if (!displayable) {
-    if (!immediatePrev && !contextPrev) return { kind: 'normal' };
-    return hasUserImages ? { kind: 'normal' } : { kind: 'noise' };
+    if (!immediatePrev && !contextPrev) return { kind: "normal" };
+    return hasUserImages ? { kind: "normal" } : { kind: "noise" };
   }
   // The summary renders as the summary card wherever its boundary row sorts.
-  if (isCompactionSummaryMessage(displayable)) return { kind: 'compaction_summary' };
-  if (displayable.startsWith("Please continue the conversation")) return { kind: 'continuation' };
-  if (STICKY_NOISE_PREFIXES.some(p => displayable.startsWith(p))) {
-    return { kind: 'noise' };
+  if (isCompactionSummaryMessage(displayable))
+    return { kind: "compaction_summary" };
+  if (displayable.startsWith("Please continue the conversation"))
+    return { kind: "continuation" };
+  if (STICKY_NOISE_PREFIXES.some((p) => displayable.startsWith(p))) {
+    return { kind: "noise" };
   }
   // `cast send --raw` drops the session-message wrapper (the flag is for
   // slash commands). The body still arrives as a user-role turn, so without
   // this it renders under the human's name and avatar.
   const unwrappedReport = parseUnwrappedSessionReport(t);
   if (unwrappedReport) {
-    return { kind: 'session_message', from: unwrappedReport.from, body: unwrappedReport.body, name: unwrappedReport.name };
+    return {
+      kind: "session_message",
+      from: unwrappedReport.from,
+      body: unwrappedReport.body,
+      name: unwrappedReport.name,
+    };
   }
-  return { kind: 'normal' };
+  return { kind: "normal" };
 }
 
 export function isStickyWorthy(kind: UserMessageKind): boolean {
   // The sticky pill surfaces what the human said. Machine-delivered kinds
   // (session messages, teammate broadcasts, trigger runs) never qualify.
-  return kind.kind === 'normal' || kind.kind === 'plan' || kind.kind === 'decision_answer';
+  return (
+    kind.kind === "normal" ||
+    kind.kind === "plan" ||
+    kind.kind === "decision_answer"
+  );
 }
 
 export function findMatchingChild(
   prompt: string,
-  childConversations?: Array<{ _id: string; title: string; is_subagent?: boolean; first_message_preview?: string }>,
+  childConversations?: Array<{
+    _id: string;
+    title: string;
+    is_subagent?: boolean;
+    first_message_preview?: string;
+  }>,
 ): string | undefined {
   if (!childConversations || !prompt) return undefined;
-  const subagents = childConversations.filter(c => c.is_subagent && c.first_message_preview);
+  const subagents = childConversations.filter(
+    (c) => c.is_subagent && c.first_message_preview,
+  );
   if (subagents.length === 0) return undefined;
 
   const promptStart = prompt.slice(0, 100).toLowerCase().trim();
 
   for (const child of subagents) {
-    const preview = child.first_message_preview!.slice(0, 100).toLowerCase().trim();
-    if (promptStart === preview || promptStart.startsWith(preview) || preview.startsWith(promptStart)) {
+    const preview = child
+      .first_message_preview!.slice(0, 100)
+      .toLowerCase()
+      .trim();
+    if (
+      promptStart === preview ||
+      promptStart.startsWith(preview) ||
+      preview.startsWith(promptStart)
+    ) {
       return child._id;
     }
   }
   return undefined;
 }
 
-export function parseSpawnResult(content: string): { agentName?: string; teamName?: string; agentId?: string } | null {
+export function parseSpawnResult(
+  content: string,
+): { agentName?: string; teamName?: string; agentId?: string } | null {
   if (!content.startsWith("Spawned successfully")) return null;
   const lines = content.split("\n");
   const fields: Record<string, string> = {};
@@ -573,23 +881,51 @@ export function parseSpawnResult(content: string): { agentName?: string; teamNam
     const m = line.match(/^(\w+):\s*(.+)$/);
     if (m) fields[m[1]] = m[2].trim();
   }
-  return { agentName: fields.name, teamName: fields.team_name, agentId: fields.agent_id };
+  return {
+    agentName: fields.name,
+    teamName: fields.team_name,
+    agentId: fields.agent_id,
+  };
 }
 
 export function getFileExtension(filePath: string): string | undefined {
   const ext = filePath.split(".").pop()?.toLowerCase();
   const langMap: Record<string, string> = {
-    ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
-    py: "python", rb: "ruby", go: "go", rs: "rust", java: "java",
-    cpp: "cpp", c: "c", h: "c", hpp: "cpp", cs: "csharp",
-    json: "json", yaml: "yaml", yml: "yaml", md: "markdown",
-    html: "html", css: "css", scss: "scss", sql: "sql",
-    sh: "bash", bash: "bash", zsh: "bash", swift: "swift", kt: "kotlin",
+    ts: "typescript",
+    tsx: "typescript",
+    js: "javascript",
+    jsx: "javascript",
+    py: "python",
+    rb: "ruby",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    cpp: "cpp",
+    c: "c",
+    h: "c",
+    hpp: "cpp",
+    cs: "csharp",
+    json: "json",
+    yaml: "yaml",
+    yml: "yaml",
+    md: "markdown",
+    html: "html",
+    css: "css",
+    scss: "scss",
+    sql: "sql",
+    sh: "bash",
+    bash: "bash",
+    zsh: "bash",
+    swift: "swift",
+    kt: "kotlin",
   };
   return ext ? langMap[ext] : undefined;
 }
 
-export function isAlwaysVisibleToolCall(tc: ToolCall, result?: { content?: string }): boolean {
+export function isAlwaysVisibleToolCall(
+  tc: ToolCall,
+  result?: { content?: string },
+): boolean {
   // Monitor, background Bash, Workflow, and ScheduleWakeup stay visible in
   // condensed feeds: all are standing state the reader needs to know is armed
   // (a watch, a detached command, a running multi-agent fleet, a loop's next
@@ -599,13 +935,28 @@ export function isAlwaysVisibleToolCall(tc: ToolCall, result?: { content?: strin
   // authored twin of AskUserQuestion — the card is the ask, not a command.
   // A command whose output carries the setup marker holds a card the person
   // must act on (AgentToolSetupCard), so it stays out of the receipt too.
-// A `cast say` is the agent talking to the reader, so it reads as prose.
+  // A `cast say` is the agent talking to the reader, so it reads as prose.
   // A `cast flow` command that draws a flow object (a run its card follows
   // live, a flow the session defined) stays visible like a running workflow.
   // A `cast vault request` card holds the field the person fills. A workflow
   // agent's StructuredOutput is what its whole session was run to produce.
   if (hasAgentSetupMarker(result?.content)) return true;
-  return isPlanWriteToolCall(tc) || tc.name === "StructuredOutput" || isAskTool(tc.name) || tc.name === "SendUserFile" || tc.name === "Monitor" || tc.name === "monitor" || tc.name === "Workflow" || tc.name === "workflow" || tc.name === "ScheduleWakeup" || isBackgroundBashToolCall(tc) || isDecideCastCommand(parseCastCommand(tc)) || isFlowObjectCastCommand(parseCastCommand(tc)) || isVaultRequestCastCommand(parseCastCommand(tc)) || isSayToolCall(tc);
+  return (
+    isPlanWriteToolCall(tc) ||
+    tc.name === "StructuredOutput" ||
+    isAskTool(tc.name) ||
+    tc.name === "SendUserFile" ||
+    tc.name === "Monitor" ||
+    tc.name === "monitor" ||
+    tc.name === "Workflow" ||
+    tc.name === "workflow" ||
+    tc.name === "ScheduleWakeup" ||
+    isBackgroundBashToolCall(tc) ||
+    isDecideCastCommand(parseCastCommand(tc)) ||
+    isFlowObjectCastCommand(parseCastCommand(tc)) ||
+    isVaultRequestCastCommand(parseCastCommand(tc)) ||
+    isSayToolCall(tc)
+  );
 }
 
 /** A `cast say`: the agent's words to the person, carried by the command line. */
@@ -616,10 +967,18 @@ export function isSayToolCall(tc: ToolCall): boolean {
 // What a clean thread keeps of an agent's tool calls beside its `cast say`s:
 // the ones addressed to the person or waiting on them (a question, a
 // decision, a field to fill, a delivered file, a setup card to act on).
-export function isCleanVisibleToolCall(tc: ToolCall, result?: { content?: string }): boolean {
+export function isCleanVisibleToolCall(
+  tc: ToolCall,
+  result?: { content?: string },
+): boolean {
   if (hasAgentSetupMarker(result?.content)) return true;
   const cast = parseCastCommand(tc);
-  return isAskTool(tc.name) || tc.name === "SendUserFile" || isDecideCastCommand(cast) || isVaultRequestCastCommand(cast);
+  return (
+    isAskTool(tc.name) ||
+    tc.name === "SendUserFile" ||
+    isDecideCastCommand(cast) ||
+    isVaultRequestCastCommand(cast)
+  );
 }
 
 // A row that is nothing but tool calls: one-line receipts, not prose. The
@@ -629,7 +988,8 @@ export function isCleanVisibleToolCall(tc: ToolCall, result?: { content?: string
 export function isToolReceiptRow(msg: Message, showThinking: boolean): boolean {
   if (msg.role !== "assistant") return false;
   if (msg.content && msg.content.trim().length > 0) return false;
-  if (showThinking && msg.thinking && msg.thinking.trim().length > 0) return false;
+  if (showThinking && msg.thinking && msg.thinking.trim().length > 0)
+    return false;
   return (msg.tool_calls?.length ?? 0) > 0;
 }
 
@@ -639,12 +999,20 @@ export function isToolReceiptRow(msg: Message, showThinking: boolean): boolean {
 // `id:` line must not be read as the cancel's target. An ask piped through
 // `tail` loses its `id:` line, so the listing line that pairs a short id with
 // the question (`● sd-12  <question>`) names it too.
-export function decideOutputId(output: string, verb: DecideArgs["verb"], question?: string | null): string | null {
+export function decideOutputId(
+  output: string,
+  verb: DecideArgs["verb"],
+  question?: string | null,
+): string | null {
   const clean = output.replace(/\x1b\[[0-9;]*m/g, "");
   const ID = "(sd-\\d+|[a-z0-9]{20,})\\b";
-  if (verb === "cancel") return clean.match(new RegExp(`Decision withdrawn:\\s*${ID}`))?.[1] ?? null;
-  if (verb === "edit") return clean.match(new RegExp(`Decision updated:\\s*${ID}`))?.[1] ?? null;
-  const line = clean.match(new RegExp(`^\\s*id:\\s*${ID}(?:\\s+\\(([a-z0-9]{20,})\\))?`, "m"));
+  if (verb === "cancel")
+    return clean.match(new RegExp(`Decision withdrawn:\\s*${ID}`))?.[1] ?? null;
+  if (verb === "edit")
+    return clean.match(new RegExp(`Decision updated:\\s*${ID}`))?.[1] ?? null;
+  const line = clean.match(
+    new RegExp(`^\\s*id:\\s*${ID}(?:\\s+\\(([a-z0-9]{20,})\\))?`, "m"),
+  );
   if (line) return line[2] ?? line[1];
   const head = question?.trim().slice(0, 40);
   if (!head) return null;
@@ -668,9 +1036,15 @@ export function decideOutputId(output: string, verb: DecideArgs["verb"], questio
 // The stripped form is what older sync versions persisted; isStrippedCommand
 // (conversationProcessor) recognizes it so it still classifies + renders as a command.
 
-export function parseCommandInvocation(raw: string): { cmdName: string; args: string } {
+export function parseCommandInvocation(raw: string): {
+  cmdName: string;
+  args: string;
+} {
   const stripImages = (s: string) =>
-    s.replace(/\[Image[:\s][^\]]*\]/gi, "").replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "").trim();
+    s
+      .replace(/\[Image[:\s][^\]]*\]/gi, "")
+      .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
+      .trim();
   const content = raw
     .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, "")
     .replace(/<task-reminder>[\s\S]*?<\/task-reminder>/g, "")
@@ -680,10 +1054,14 @@ export function parseCommandInvocation(raw: string): { cmdName: string; args: st
     content.match(/<command-message>([^<]*)<\/command-message>/);
   if (nameMatch) {
     const argsMatch = content.match(/<command-args>([\s\S]*?)<\/command-args>/);
-    return { cmdName: nameMatch[1].replace(/^\//, "").trim(), args: stripImages(argsMatch?.[1] ?? "") };
+    return {
+      cmdName: nameMatch[1].replace(/^\//, "").trim(),
+      args: stripImages(argsMatch?.[1] ?? ""),
+    };
   }
   const stripped = isStrippedCommand(content);
-  if (stripped) return { cmdName: stripped.cmdName, args: stripImages(stripped.rest) };
+  if (stripped)
+    return { cmdName: stripped.cmdName, args: stripImages(stripped.rest) };
   const slash = content.match(/^\/([\w-]+)([\s\S]*)$/);
   if (slash) return { cmdName: slash[1], args: stripImages(slash[2] ?? "") };
   return { cmdName: "", args: stripImages(content) };
@@ -701,11 +1079,13 @@ export function cleanCommandExpansion(raw: string): string {
 }
 
 function isTaskNotification(content: string): boolean {
-  return content.trim().startsWith('<task-notification>');
+  return content.trim().startsWith("<task-notification>");
 }
 
 export function parseTaskNotification(content: string) {
-  const match = content.match(/<task-notification>[\s\S]*?<\/task-notification>/);
+  const match = content.match(
+    /<task-notification>[\s\S]*?<\/task-notification>/,
+  );
   return match ? parseTaskNotificationBlock(match[0]) : null;
 }
 
@@ -713,8 +1093,11 @@ function isCompactionPromptMessage(content: string): boolean {
   const trimmed = content.trim();
   if (!trimmed) return false;
   return (
-    trimmed.includes("Your task is to create a detailed summary of the conversation so far") ||
-    (trimmed.startsWith("Your task is to create a detailed summary") && trimmed.includes("<summary>"))
+    trimmed.includes(
+      "Your task is to create a detailed summary of the conversation so far",
+    ) ||
+    (trimmed.startsWith("Your task is to create a detailed summary") &&
+      trimmed.includes("<summary>"))
   );
 }
 
@@ -727,25 +1110,39 @@ export function extractCompactionSummaryContent(content: string): string {
   return content.replace(/<analysis>[\s\S]*?<\/analysis>/gi, "").trim();
 }
 
-export function parseSkillBlocks(text: string): { parts: Array<{ type: 'text' | 'skill'; content: string; skillName?: string; skillDesc?: string; skillPath?: string }>} {
-  if (!text || typeof text !== 'string') {
-    return { parts: [{ type: 'text', content: String(text || '') }] };
+export function parseSkillBlocks(text: string): {
+  parts: Array<{
+    type: "text" | "skill";
+    content: string;
+    skillName?: string;
+    skillDesc?: string;
+    skillPath?: string;
+  }>;
+} {
+  if (!text || typeof text !== "string") {
+    return { parts: [{ type: "text", content: String(text || "") }] };
   }
-  const parts: Array<{ type: 'text' | 'skill'; content: string; skillName?: string; skillDesc?: string; skillPath?: string }> = [];
+  const parts: Array<{
+    type: "text" | "skill";
+    content: string;
+    skillName?: string;
+    skillDesc?: string;
+    skillPath?: string;
+  }> = [];
   const skillRegex = /<skill>([\s\S]*?)<\/skill>/g;
   let lastIndex = 0;
   let match;
   while ((match = skillRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       const before = text.slice(lastIndex, match.index).trim();
-      if (before) parts.push({ type: 'text', content: before });
+      if (before) parts.push({ type: "text", content: before });
     }
     const inner = match[1];
     const nameMatch = inner.match(/<name>(.*?)<\/name>/);
     const pathMatch = inner.match(/<path>(.*?)<\/path>/);
     const descMatch = inner.match(/description:\s*(.+)/);
     parts.push({
-      type: 'skill',
+      type: "skill",
       content: match[0],
       skillName: nameMatch?.[1],
       skillDesc: descMatch?.[1]?.trim(),
@@ -755,35 +1152,40 @@ export function parseSkillBlocks(text: string): { parts: Array<{ type: 'text' | 
   }
   if (lastIndex < text.length) {
     const remaining = text.slice(lastIndex).trim();
-    if (remaining) parts.push({ type: 'text', content: remaining });
+    if (remaining) parts.push({ type: "text", content: remaining });
   }
-  if (parts.length === 0) parts.push({ type: 'text', content: text });
+  if (parts.length === 0) parts.push({ type: "text", content: text });
   return { parts };
 }
 
-export function parseContextBlocks(text: string): { contexts: ParsedContextBlock[]; remaining: string } {
+export function parseContextBlocks(text: string): {
+  contexts: ParsedContextBlock[];
+  remaining: string;
+} {
   const contexts: ParsedContextBlock[] = [];
-  const remaining = text.replace(
-    /<context\s+type="([^"]+)"\s+title="([^"]+)"(?:\s+id="([^"]+)")?\s*>\s*([\s\S]*?)\s*<\/context>\s*/g,
-    (_, type, title, tagId, inner) => {
-      const ctx: ParsedContextBlock = { type, title };
-      if (tagId) ctx.id = tagId;
-      const idMatch = inner.match(/ID:\s*(\S+)/);
-      const statusMatch = inner.match(/Status:\s*(\S+)/);
-      const priorityMatch = inner.match(/Priority:\s*(\S+)/);
-      if (!ctx.id && idMatch) ctx.id = idMatch[1];
-      if (statusMatch) ctx.status = statusMatch[1];
-      if (priorityMatch) ctx.priority = priorityMatch[1];
-      contexts.push(ctx);
-      return "";
-    }
-  ).trim();
+  const remaining = text
+    .replace(
+      /<context\s+type="([^"]+)"\s+title="([^"]+)"(?:\s+id="([^"]+)")?\s*>\s*([\s\S]*?)\s*<\/context>\s*/g,
+      (_, type, title, tagId, inner) => {
+        const ctx: ParsedContextBlock = { type, title };
+        if (tagId) ctx.id = tagId;
+        const idMatch = inner.match(/ID:\s*(\S+)/);
+        const statusMatch = inner.match(/Status:\s*(\S+)/);
+        const priorityMatch = inner.match(/Priority:\s*(\S+)/);
+        if (!ctx.id && idMatch) ctx.id = idMatch[1];
+        if (statusMatch) ctx.status = statusMatch[1];
+        if (priorityMatch) ctx.priority = priorityMatch[1];
+        contexts.push(ctx);
+        return "";
+      },
+    )
+    .trim();
   return { contexts, remaining };
 }
 
 export function parseTeammateMessages(text: string): TeammateMessagePart[] {
-  if (!text || typeof text !== 'string') {
-    return [{ type: 'text', content: String(text || '') }];
+  if (!text || typeof text !== "string") {
+    return [{ type: "text", content: String(text || "") }];
   }
   const parts: TeammateMessagePart[] = [];
   const regex = /<teammate-message\s+([^>]*)>([\s\S]*?)<\/teammate-message>/g;
@@ -792,7 +1194,7 @@ export function parseTeammateMessages(text: string): TeammateMessagePart[] {
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       const before = text.slice(lastIndex, match.index).trim();
-      if (before) parts.push({ type: 'text', content: before });
+      if (before) parts.push({ type: "text", content: before });
     }
     const attrs = match[1];
     const inner = match[2].trim();
@@ -800,8 +1202,8 @@ export function parseTeammateMessages(text: string): TeammateMessagePart[] {
     const colorMatch = attrs.match(/color="([^"]+)"/);
     const summaryMatch = attrs.match(/summary="([^"]+)"/);
     parts.push({
-      type: 'teammate',
-      teammateId: idMatch?.[1] || 'agent',
+      type: "teammate",
+      teammateId: idMatch?.[1] || "agent",
       color: colorMatch?.[1],
       summary: summaryMatch?.[1],
       content: inner,
@@ -810,12 +1212,15 @@ export function parseTeammateMessages(text: string): TeammateMessagePart[] {
   }
   if (lastIndex < text.length) {
     const remaining = text.slice(lastIndex).trim();
-    if (remaining) parts.push({ type: 'text', content: remaining });
+    if (remaining) parts.push({ type: "text", content: remaining });
   }
   return parts;
 }
 
-export function sameStringArray(a: readonly string[], b: readonly string[]): boolean {
+export function sameStringArray(
+  a: readonly string[],
+  b: readonly string[],
+): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
@@ -826,7 +1231,13 @@ export function sameStringArray(a: readonly string[], b: readonly string[]): boo
 // synthetic transcript, producing an assistant copy WITHOUT the
 // "workflow_event" subtype — detect by content so those copies still render
 // as the card instead of raw JSON.
-export function parseWorkflowEventContent(content: string | undefined): Record<string, any> | null {
+export function parseWorkflowEventContent(
+  content: string | undefined,
+): Record<string, any> | null {
   if (!content || !content.startsWith('{"__wf"')) return null;
-  try { return JSON.parse(content); } catch { return null; }
+  try {
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
 }

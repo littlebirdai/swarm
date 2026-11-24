@@ -5,7 +5,10 @@
 // The labels and the vocabulary they describe are shared with the CLI, so a new
 // `--on` event shows up here without a second edit. Re-exported because this
 // module is where the trigger surfaces already look for them.
-import { TRIGGER_EVENT_LABELS, triggerEventLabel } from "@codecast/shared/contracts";
+import {
+  TRIGGER_EVENT_LABELS,
+  triggerEventLabel,
+} from "@codecast/shared/contracts";
 export { TRIGGER_EVENT_LABELS, triggerEventLabel };
 
 // Compact duration for countdowns and intervals: "45s", "12m", "2h 30m", "3d 4h".
@@ -37,7 +40,8 @@ export function fmtClock(ts: number, anchor: number = Date.now()): string {
 // "resumes 2026-11-17T10:02:00.000Z"): each ISO-8601 instant becomes the
 // viewer's local clock, and with `now` how far off it is ("Nov 17 5:02 AM,
 // in 2d 22h"). Text without one comes back unchanged.
-const ISO_INSTANT_RE = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})/g;
+const ISO_INSTANT_RE =
+  /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})/g;
 export function readableTimes(text: string, now?: number): string {
   return text.replace(ISO_INSTANT_RE, (iso) => {
     const at = Date.parse(iso);
@@ -50,7 +54,12 @@ export function readableTimes(text: string, now?: number): string {
 }
 
 const DURATION_RE = /^(\d+)\s*(s|sec|m|min|h|hr|hour|d|day)s?$/i;
-const DURATION_UNIT_NAMES: Record<string, string> = { s: "second", m: "minute", h: "hour", d: "day" };
+const DURATION_UNIT_NAMES: Record<string, string> = {
+  s: "second",
+  m: "minute",
+  h: "hour",
+  d: "day",
+};
 
 // "8h" -> "8 hours", "30m" -> "30 minutes", "1d" -> "1 day". Falls back to the raw token if unrecognized.
 export function humanizeDurationToken(token: string): string {
@@ -77,7 +86,9 @@ export function describeTaskCadence(task: {
   if (task.schedule_type === "event") {
     // triggerEventLabel reverse-maps a raw webhook filter too, so an old
     // trigger armed on "pull_request" reads as words rather than a field name.
-    return task.event_filter ? `on ${triggerEventLabel(task.event_filter)}` : "on event";
+    return task.event_filter
+      ? `on ${triggerEventLabel(task.event_filter)}`
+      : "on event";
   }
   return "one-time";
 }
@@ -95,7 +106,7 @@ export const TASK_OVERDUE_MS = 2 * 60_000;
 // so the wording can't drift between the dock, the rows, and the strip.
 export function taskStateLabel(
   task: { status: string; run_at?: number },
-  now: number
+  now: number,
 ): string {
   if (task.status === "paused") return "paused";
   if (task.status === "running") return "running";
@@ -110,9 +121,13 @@ export function taskStateLabel(
 // True when a scheduled task has sat unclaimed past the overdue threshold.
 export function isTaskOverdue(
   task: { status: string; run_at?: number },
-  now: number
+  now: number,
 ): boolean {
-  return task.status === "scheduled" && task.run_at !== undefined && now - task.run_at >= TASK_OVERDUE_MS;
+  return (
+    task.status === "scheduled" &&
+    task.run_at !== undefined &&
+    now - task.run_at >= TASK_OVERDUE_MS
+  );
 }
 
 // Extract the human-readable cadence from `cast trigger add` args. The three timing flags are
@@ -122,13 +137,16 @@ export function parseTriggerCadence(args: string): string | null {
   // prompt (e.g. "review --in depth") can't be mistaken for real timing flags.
   const flags = args.replace(/^\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/, "");
   const grab = (name: string) => {
-    const m = flags.match(new RegExp(`(?:^|\\s)--${name}[=\\s]+("[^"]*"|'[^']*'|\\S+)`));
+    const m = flags.match(
+      new RegExp(`(?:^|\\s)--${name}[=\\s]+("[^"]*"|'[^']*'|\\S+)`),
+    );
     return m ? m[1].replace(/^['"]|['"]$/g, "").trim() : null;
   };
   const isDuration = (v: string) => DURATION_RE.test(v);
 
   const every = grab("every");
-  if (every && isDuration(every)) return `every ${humanizeDurationToken(every)}`;
+  if (every && isDuration(every))
+    return `every ${humanizeDurationToken(every)}`;
   const on = grab("on");
   if (on) return `on ${triggerEventLabel(on)}`;
   const delay = grab("in");

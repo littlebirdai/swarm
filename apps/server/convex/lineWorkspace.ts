@@ -7,15 +7,49 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { createDataContext } from "./data";
-import { canReadRun, isLiveRunStatus, withAgentSessions } from "./workflow_runs";
+import {
+  canReadRun,
+  isLiveRunStatus,
+  withAgentSessions,
+} from "./workflow_runs";
 import { findConversationByAnyRef } from "./conversationSessionLookup";
 import { pageConversationMessages } from "./conversations";
 import { checkConversationAccess } from "./privacy";
-import { canAccessProject, canAccessTask, resolveWorkspaceKey } from "./lib/access";
-import { normalizeRepository, parseOwnerRepo, parsePrRef } from "@codecast/shared/contracts";
-import { CARD_GATE_NODE_ID, isLineRun, passedUnansweredCard } from "@codecast/shared/contracts/changeCard";
-import { causeHistory, closedAtStep, earlierFixes, failedAtStation, historyBrief, reportArgument, reportFieldWords, runEnd, saidSlot, signalQuotes, type AttemptOutcome, type OccurrenceRow, type RunSaid } from "@codecast/shared/contracts/causeHistory";
-import { guessPhase, halfOfPhase, phaseOfStation } from "@codecast/shared/contracts/linePhases";
+import {
+  canAccessProject,
+  canAccessTask,
+  resolveWorkspaceKey,
+} from "./lib/access";
+import {
+  normalizeRepository,
+  parseOwnerRepo,
+  parsePrRef,
+} from "@codecast/shared/contracts";
+import {
+  CARD_GATE_NODE_ID,
+  isLineRun,
+  passedUnansweredCard,
+} from "@codecast/shared/contracts/changeCard";
+import {
+  causeHistory,
+  closedAtStep,
+  earlierFixes,
+  failedAtStation,
+  historyBrief,
+  reportArgument,
+  reportFieldWords,
+  runEnd,
+  saidSlot,
+  signalQuotes,
+  type AttemptOutcome,
+  type OccurrenceRow,
+  type RunSaid,
+} from "@codecast/shared/contracts/causeHistory";
+import {
+  guessPhase,
+  halfOfPhase,
+  phaseOfStation,
+} from "@codecast/shared/contracts/linePhases";
 import { verifyApiToken } from "./apiTokens";
 import { projectDeployViews } from "./deploys";
 import { labelFinding } from "./judgeReview";
@@ -26,13 +60,22 @@ export const STATION_INPUT_MAX_CHARS = 40_000;
 const LABELS_CAP = 2000;
 
 /** One label's identity: one verdict per person per decision. */
-export const lineLabelKey = (runId: string, nodeId: string, userId: string) => `${runId}:${nodeId}:${userId}`;
+export const lineLabelKey = (runId: string, nodeId: string, userId: string) =>
+  `${runId}:${nodeId}:${userId}`;
 
 /** Whether `conversationId` is the session a run started for one of its stations. */
-async function isStationOfRun(ctx: any, run: any, conversationId: string): Promise<boolean> {
+async function isStationOfRun(
+  ctx: any,
+  run: any,
+  conversationId: string,
+): Promise<boolean> {
   for (const n of run.node_statuses ?? []) {
     if (!n.session_id) continue;
-    const conv: any = await findConversationByAnyRef(ctx, n.session_id, run.user_id);
+    const conv: any = await findConversationByAnyRef(
+      ctx,
+      n.session_id,
+      run.user_id,
+    );
     if (conv && String(conv._id) === conversationId) return true;
   }
   return false;
@@ -46,16 +89,23 @@ async function isStationOfRun(ctx: any, run: any, conversationId: string): Promi
  * `_id` is the conversation id, so the answer lands in the store keyed by it.
  */
 export const stationInput = query({
-  args: { conversation_id: v.id("conversations"), run_id: v.optional(v.id("workflow_runs")) },
+  args: {
+    conversation_id: v.id("conversations"),
+    run_id: v.optional(v.id("workflow_runs")),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv) return null;
-    let allowed = (await checkConversationAccess(ctx, userId, conv as any)) !== "denied";
+    let allowed =
+      (await checkConversationAccess(ctx, userId, conv as any)) !== "denied";
     if (!allowed && args.run_id) {
       const run = await ctx.db.get(args.run_id);
-      allowed = !!run && (await canReadRun(ctx, userId, run)) && (await isStationOfRun(ctx, run, String(conv._id)));
+      allowed =
+        !!run &&
+        (await canReadRun(ctx, userId, run)) &&
+        (await isStationOfRun(ctx, run, String(conv._id)));
     }
     if (!allowed) return null;
     const brief = await stationBrief(ctx, conv._id);
@@ -71,10 +121,26 @@ export const stationInput = query({
 });
 
 /** The first message a station's session was given (the brief), whole; the caller has checked access. Try replays it (lineActions.ts). */
-export async function stationBrief(ctx: any, conversationId: Id<"conversations">): Promise<{ text: string; at: number | null; found: boolean }> {
-  const { messages } = await pageConversationMessages(ctx.db, conversationId, { order: "asc", limit: 12 });
-  const first = messages.find((m: any) => m.role === "user" && !m.is_encrypted && typeof m.content === "string" && m.content.trim());
-  return { text: first?.content ?? "", at: first?.timestamp ?? null, found: !!first };
+export async function stationBrief(
+  ctx: any,
+  conversationId: Id<"conversations">,
+): Promise<{ text: string; at: number | null; found: boolean }> {
+  const { messages } = await pageConversationMessages(ctx.db, conversationId, {
+    order: "asc",
+    limit: 12,
+  });
+  const first = messages.find(
+    (m: any) =>
+      m.role === "user" &&
+      !m.is_encrypted &&
+      typeof m.content === "string" &&
+      m.content.trim(),
+  );
+  return {
+    text: first?.content ?? "",
+    at: first?.timestamp ?? null,
+    found: !!first,
+  };
 }
 
 /** A label as every reader gets it. */
@@ -99,9 +165,12 @@ export const labels = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    const { workspaceKey } = await createDataContext(ctx, args.team_id
-      ? { userId, workspace: "team", team_id: args.team_id }
-      : { userId, workspace: "personal" });
+    const { workspaceKey } = await createDataContext(
+      ctx,
+      args.team_id
+        ? { userId, workspace: "team", team_id: args.team_id }
+        : { userId, workspace: "personal" },
+    );
     const rows = await ctx.db
       .query("line_labels")
       .withIndex("by_workspace_at", (q) => q.eq("workspace", workspaceKey))
@@ -131,15 +200,31 @@ export const label = mutation({
     const findingId = ctx.db.normalizeId("signals", args.run_id);
     if (findingId) {
       const step = args.node_id.trim();
-      return await labelFinding(ctx, userId, findingId, step, lineLabelKey(String(findingId), step, String(userId)), args.verdict, args.note?.trim().slice(0, 4000) || undefined);
+      return await labelFinding(
+        ctx,
+        userId,
+        findingId,
+        step,
+        lineLabelKey(String(findingId), step, String(userId)),
+        args.verdict,
+        args.note?.trim().slice(0, 4000) || undefined,
+      );
     }
     const runId = ctx.db.normalizeId("workflow_runs", args.run_id);
     const run = runId ? await ctx.db.get(runId) : null;
-    if (!run || !(await canReadRun(ctx, userId, run))) throw new Error("Not found");
+    if (!run || !(await canReadRun(ctx, userId, run)))
+      throw new Error("Not found");
     const node = args.node_id.trim();
-    if (!node || !(run.node_statuses ?? []).some((n: any) => n.node_id === node)) throw new Error("No such step in this run");
+    if (
+      !node ||
+      !(run.node_statuses ?? []).some((n: any) => n.node_id === node)
+    )
+      throw new Error("No such step in this run");
     const key = lineLabelKey(String(run._id), node, String(userId));
-    const had = await ctx.db.query("line_labels").withIndex("by_key", (q) => q.eq("key", key)).first();
+    const had = await ctx.db
+      .query("line_labels")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
     if (args.verdict === null) {
       if (had) await ctx.db.delete(had._id);
       return null;
@@ -177,7 +262,10 @@ const OCCURRENCES_CAP = 1500;
 const DEPLOY_SCAN = 400;
 
 /** The project, when the viewer may read it. */
-async function readableProject(ctx: any, projectId: Id<"projects">): Promise<any | null> {
+async function readableProject(
+  ctx: any,
+  projectId: Id<"projects">,
+): Promise<any | null> {
   const userId = await getAuthUserId(ctx);
   if (!userId) return null;
   const project = await ctx.db.get(projectId);
@@ -199,15 +287,24 @@ export const occurrences = query({
     const since = Date.now() - HISTORY_WINDOW_MS;
     const rows = await ctx.db
       .query("signals")
-      .withIndex("by_project_created", (q) => q.eq("project_id", args.project_id).gte("created_at", since))
+      .withIndex("by_project_created", (q) =>
+        q.eq("project_id", args.project_id).gte("created_at", since),
+      )
       .order("desc")
       .take(OCCURRENCES_CAP);
-    const byTask = new Map<string, { observed: number[]; reopened: number[]; sources: Set<string> }>();
+    const byTask = new Map<
+      string,
+      { observed: number[]; reopened: number[]; sources: Set<string> }
+    >();
     for (const s of rows) {
       // A retired copy repeats another finding's message: one occurrence, counted once.
       if (!s.task_id || s.retired) continue;
       const key = String(s.task_id);
-      const row = byTask.get(key) ?? { observed: [], reopened: [], sources: new Set<string>() };
+      const row = byTask.get(key) ?? {
+        observed: [],
+        reopened: [],
+        sources: new Set<string>(),
+      };
       const at = s.observed_at ?? s.created_at;
       row.observed.push(at);
       if (s.reopened) row.reopened.push(at);
@@ -230,7 +327,11 @@ export const occurrences = query({
 });
 
 /** The repositories a project's code lives in: its team's published checkouts at the project's path, and any the caller read off the project's merges. */
-export async function projectRepositories(ctx: any, project: any, named: ReadonlyArray<string>): Promise<string[]> {
+export async function projectRepositories(
+  ctx: any,
+  project: any,
+  named: ReadonlyArray<string>,
+): Promise<string[]> {
   const out = new Set<string>();
   for (const r of named) {
     const repo = parseOwnerRepo(r);
@@ -238,9 +339,13 @@ export async function projectRepositories(ctx: any, project: any, named: Readonl
   }
   const path: string | undefined = project.project_path;
   if (path && project.team_id) {
-    const sources = await ctx.db.query("repo_sources").withIndex("by_team_id", (q: any) => q.eq("team_id", project.team_id)).take(200);
+    const sources = await ctx.db
+      .query("repo_sources")
+      .withIndex("by_team_id", (q: any) => q.eq("team_id", project.team_id))
+      .take(200);
     for (const s of sources) {
-      if (s.root === path || path.startsWith(`${s.root}/`)) out.add(normalizeRepository(s.repository));
+      if (s.root === path || path.startsWith(`${s.root}/`))
+        out.add(normalizeRepository(s.repository));
     }
   }
   return [...out].slice(0, 8);
@@ -254,7 +359,10 @@ export async function projectRepositories(ctx: any, project: any, named: Readonl
  * the timeline says so rather than guess.
  */
 export const deploys = query({
-  args: { project_id: v.id("projects"), repositories: v.optional(v.array(v.string())) },
+  args: {
+    project_id: v.id("projects"),
+    repositories: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const project = await readableProject(ctx, args.project_id);
     if (!project) return [];
@@ -263,8 +371,17 @@ export const deploys = query({
 });
 
 /** A project's deploys over the history window, newest first: the deploys query and a cause's history read the same list. */
-async function projectDeploys(ctx: any, project: any, repositories: ReadonlyArray<string>) {
-  return await projectDeployViews(ctx, project, await projectRepositories(ctx, project, repositories), Date.now() - HISTORY_WINDOW_MS);
+async function projectDeploys(
+  ctx: any,
+  project: any,
+  repositories: ReadonlyArray<string>,
+) {
+  return await projectDeployViews(
+    ctx,
+    project,
+    await projectRepositories(ctx, project, repositories),
+    Date.now() - HISTORY_WINDOW_MS,
+  );
 }
 
 /** Causes and cards per cause one project's card read covers. */
@@ -274,7 +391,15 @@ const CARDS_PER_CAUSE = 20;
 /** A line card as the history reads it: the answer and the card's own words, never its examples or proof. */
 const shapeCard = (d: any, projectId: string) => {
   const c = d.card && typeof d.card === "object" ? d.card : null;
-  const diff = c?.diff && typeof c.diff.files === "number" ? { files: c.diff.files, added: c.diff.added ?? 0, removed: c.diff.removed ?? 0, ...(c.diff.pr ? { pr: c.diff.pr } : {}) } : undefined;
+  const diff =
+    c?.diff && typeof c.diff.files === "number"
+      ? {
+          files: c.diff.files,
+          added: c.diff.added ?? 0,
+          removed: c.diff.removed ?? 0,
+          ...(c.diff.pr ? { pr: c.diff.pr } : {}),
+        }
+      : undefined;
   return {
     _id: String(d._id),
     project_id: projectId,
@@ -283,22 +408,37 @@ const shapeCard = (d: any, projectId: string) => {
     ...(d.short_id ? { short_id: d.short_id } : {}),
     status: d.status,
     // Who it was asked of.
-    ...(d.asked_user_ids?.length ? { asked_user_ids: d.asked_user_ids.map(String) } : {}),
+    ...(d.asked_user_ids?.length
+      ? { asked_user_ids: d.asked_user_ids.map(String) }
+      : {}),
     ...(d.gate_node_id ? { gate_node_id: d.gate_node_id } : {}),
     options: (d.options ?? []).map((o: any) => ({ label: o.label })),
-    ...(typeof d.answer_index === "number" ? { answer_index: d.answer_index } : {}),
-    ...(d.answer_text ? { answer_text: String(d.answer_text).slice(0, 2000) } : {}),
+    ...(typeof d.answer_index === "number"
+      ? { answer_index: d.answer_index }
+      : {}),
+    ...(d.answer_text
+      ? { answer_text: String(d.answer_text).slice(0, 2000) }
+      : {}),
     ...(d.resolved_at ? { resolved_at: d.resolved_at } : {}),
     created_at: d.created_at,
-    ...(c ? {
-      card: {
-        ...(c.headline ? { headline: c.headline } : {}),
-        ...(c.change ? { change: c.change } : {}),
-        ...(c.wrong ? { wrong: c.wrong } : {}),
-        ...(c.recommend ? { recommend: { verdict: c.recommend.verdict, ...(c.recommend.why ? { why: c.recommend.why } : {}) } } : {}),
-        ...(diff ? { diff } : {}),
-      },
-    } : {}),
+    ...(c
+      ? {
+          card: {
+            ...(c.headline ? { headline: c.headline } : {}),
+            ...(c.change ? { change: c.change } : {}),
+            ...(c.wrong ? { wrong: c.wrong } : {}),
+            ...(c.recommend
+              ? {
+                  recommend: {
+                    verdict: c.recommend.verdict,
+                    ...(c.recommend.why ? { why: c.recommend.why } : {}),
+                  },
+                }
+              : {}),
+            ...(diff ? { diff } : {}),
+          },
+        }
+      : {}),
   };
 };
 
@@ -315,12 +455,22 @@ export const cards = query({
     const project = await readableProject(ctx, args.project_id);
     if (!userId || !project) return [];
     const projectId = String(project._id);
-    const tasks = await ctx.db.query("tasks").withIndex("by_project_id", (q) => q.eq("project_id", args.project_id)).order("desc").take(CARDS_CAUSES_CAP);
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_project_id", (q) => q.eq("project_id", args.project_id))
+      .order("desc")
+      .take(CARDS_CAUSES_CAP);
     const out: ReturnType<typeof shapeCard>[] = [];
     for (const task of tasks) {
       if (!task.cause || !(await canAccessTask(ctx, userId, task))) continue;
-      const rows = await ctx.db.query("session_decisions").withIndex("by_task", (q) => q.eq("task_id", task._id)).order("desc").take(CARDS_PER_CAUSE);
-      for (const d of rows) if (d.workflow_run_id && d.status !== "pending") out.push(shapeCard(d, projectId));
+      const rows = await ctx.db
+        .query("session_decisions")
+        .withIndex("by_task", (q) => q.eq("task_id", task._id))
+        .order("desc")
+        .take(CARDS_PER_CAUSE);
+      for (const d of rows)
+        if (d.workflow_run_id && d.status !== "pending")
+          out.push(shapeCard(d, projectId));
     }
     return out;
   },
@@ -342,13 +492,27 @@ function clipWords(text: string, max = SAID_MAX_CHARS): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= max) return flat;
   const cut = flat.slice(0, max);
-  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
-  return end > max / 3 ? cut.slice(0, end + 1) : `${cut.slice(0, max - 1).trimEnd()}…`;
+  const end = Math.max(
+    cut.lastIndexOf(". "),
+    cut.lastIndexOf("! "),
+    cut.lastIndexOf("? "),
+  );
+  return end > max / 3
+    ? cut.slice(0, end + 1)
+    : `${cut.slice(0, max - 1).trimEnd()}…`;
 }
 
 /** A station's result in its own words: its `cast state` result, its handoff note, or the line it printed, with a JSON report read by its field. */
-export function stationSaid(node: { result_preview?: string; session?: { result?: string; handoff?: { note?: string } } | null }): string | null {
-  const raw = (node.session?.result || node.session?.handoff?.note || node.result_preview || "").trim();
+export function stationSaid(node: {
+  result_preview?: string;
+  session?: { result?: string; handoff?: { note?: string } } | null;
+}): string | null {
+  const raw = (
+    node.session?.result ||
+    node.session?.handoff?.note ||
+    node.result_preview ||
+    ""
+  ).trim();
   if (!raw) return null;
   const field = reportFieldWords(stationReport(node));
   if (field) return clipWords(field);
@@ -357,26 +521,65 @@ export function stationSaid(node: { result_preview?: string; session?: { result?
 }
 
 /** A station's JSON report, when its result carries one. */
-function stationReport(node: { result_preview?: string; session?: { result?: string; handoff?: { note?: string } } | null }): unknown {
-  const raw = (node.session?.result || node.session?.handoff?.note || node.result_preview || "").trim();
-  const json = raw.startsWith("{") ? raw : raw.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
-  try { return json ? JSON.parse(json) : null; } catch { return null; }
+function stationReport(node: {
+  result_preview?: string;
+  session?: { result?: string; handoff?: { note?: string } } | null;
+}): unknown {
+  const raw = (
+    node.session?.result ||
+    node.session?.handoff?.note ||
+    node.result_preview ||
+    ""
+  ).trim();
+  const json = raw.startsWith("{")
+    ? raw
+    : raw.match(/```json\s*([\s\S]*?)```/)?.[1]?.trim();
+  try {
+    return json ? JSON.parse(json) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** What a run's stations found, proposed and built, placed by the line's phases (shared/contracts/linePhases), and the argument a close made. */
 export function runSaid(run: { node_statuses?: any[] }): RunSaid {
-  const out: RunSaid = { found: null, proposed: null, built: null, argued: null };
+  const out: RunSaid = {
+    found: null,
+    proposed: null,
+    built: null,
+    argued: null,
+  };
   const line = isLineRun(run);
-  const nodes = [...(run.node_statuses ?? [])].sort((a, b) => (a.started_at ?? 0) - (b.started_at ?? 0));
+  const nodes = [...(run.node_statuses ?? [])].sort(
+    (a, b) => (a.started_at ?? 0) - (b.started_at ?? 0),
+  );
   for (const n of nodes) {
     if (n.status !== "completed" || !n.session_id) continue;
-    const phase = line ? phaseOfStation(n.node_id) ?? guessPhase(n.node_id, n.label ?? "") : guessPhase(n.node_id, n.label ?? "", true);
-    const slot = saidSlot(n.node_id, halfOfPhase(phase) === "diagnose" ? "diagnose" : phase === "build" ? "build" : null);
+    const phase = line
+      ? (phaseOfStation(n.node_id) ?? guessPhase(n.node_id, n.label ?? ""))
+      : guessPhase(n.node_id, n.label ?? "", true);
+    const slot = saidSlot(
+      n.node_id,
+      halfOfPhase(phase) === "diagnose"
+        ? "diagnose"
+        : phase === "build"
+          ? "build"
+          : null,
+    );
     const words = slot ? stationSaid(n) : null;
     if (slot && words) out[slot] = words;
     // The station's own words (its pinned state, its result), where a close names who owns the fix.
-    const raw = [n.session?.state, n.session?.result, n.session?.handoff?.note, n.result_preview].filter((x) => typeof x === "string").join("\n");
-    out.argued = reportArgument(stationReport(n), raw.replace(/```[\s\S]*?```/g, " ")) ?? out.argued;
+    const raw = [
+      n.session?.state,
+      n.session?.result,
+      n.session?.handoff?.note,
+      n.result_preview,
+    ]
+      .filter((x) => typeof x === "string")
+      .join("\n");
+    out.argued =
+      reportArgument(stationReport(n), raw.replace(/```[\s\S]*?```/g, " ")) ??
+      out.argued;
   }
   return out;
 }
@@ -388,8 +591,13 @@ const STOP_REPORT_MAX_CHARS = 900;
  *  what it would try next, that section too, since that is what the next run most needs and it sits at the end. */
 function stopReportWords(report: string): string {
   const at = report.search(/^.*\b(?:try next|would try|next steps?)\b.*$/im);
-  const head = clipWords(at > 0 ? report.slice(0, at) : report, STOP_REPORT_MAX_CHARS);
-  return at > 0 ? `${head} ${clipWords(report.slice(at), STOP_REPORT_MAX_CHARS)}` : head;
+  const head = clipWords(
+    at > 0 ? report.slice(0, at) : report,
+    STOP_REPORT_MAX_CHARS,
+  );
+  return at > 0
+    ? `${head} ${clipWords(report.slice(at), STOP_REPORT_MAX_CHARS)}`
+    : head;
 }
 
 /** A run's end in plain words; the web's run report says more, from the graph it draws. `report`: the handoff the
@@ -401,27 +609,69 @@ function runOutcomeWords(run: any, report?: string | null): AttemptOutcome {
   if (end === "dropped") return { end, text: "Dropped at the decision." };
   if (end === "dissolved") {
     const step = closedAtStep(ended!.node);
-    return { end, text: step === "dissolve" ? "Closed without a change: the problem did not reproduce." : `Closed without a change at ${step.replace(/_/g, " ")}.` };
+    return {
+      end,
+      text:
+        step === "dissolve"
+          ? "Closed without a change: the problem did not reproduce."
+          : `Closed without a change at ${step.replace(/_/g, " ")}.`,
+    };
   }
-  if (end === "parked") return { end, text: "Parked: the problem was not ready to build." };
-  if (run.status === "running" || run.status === "paused" || run.status === "pending") return { end, text: "Still running." };
-  const why = typeof run.fail_reason === "string" ? run.fail_reason.trim().replace(/\.$/, "") : "";
-  if (run.status === "failed") return { end, text: why ? `Stopped: ${clipWords(why, 200)}.`.replace(/\.\.$/, ".") : "Stopped." };
+  if (end === "parked")
+    return { end, text: "Parked: the problem was not ready to build." };
+  if (
+    run.status === "running" ||
+    run.status === "paused" ||
+    run.status === "pending"
+  )
+    return { end, text: "Still running." };
+  const why =
+    typeof run.fail_reason === "string"
+      ? run.fail_reason.trim().replace(/\.$/, "")
+      : "";
+  if (run.status === "failed")
+    return {
+      end,
+      text: why
+        ? `Stopped: ${clipWords(why, 200)}.`.replace(/\.\.$/, ".")
+        : "Stopped.",
+    };
   // A run that finished without an end of its own: its card went unanswered, or a step failed on the way out.
-  if (passedUnansweredCard(run.node_statuses) || run.node_statuses?.some((n: any) => n.node_id === CARD_GATE_NODE_ID && n.outcome === "failure")) return { end, text: "Not shipped: its card was never answered." };
+  if (
+    passedUnansweredCard(run.node_statuses) ||
+    run.node_statuses?.some(
+      (n: any) => n.node_id === CARD_GATE_NODE_ID && n.outcome === "failure",
+    )
+  )
+    return { end, text: "Not shipped: its card was never answered." };
   const gaveUp = failedAtStation(run.node_statuses);
-  if (gaveUp) return { end, text: `Stopped at ${gaveUp.replace(/_/g, " ")}${report?.trim() ? `. Its report: ${stopReportWords(report)}` : "."}` };
-  const failed = [...(run.node_statuses ?? [])].reverse().find((n: any) => n.status === "failed");
-  if (failed) return { end, text: `Finished without a change: ${String(failed.node_id).replace(/_/g, " ")} failed.` };
+  if (gaveUp)
+    return {
+      end,
+      text: `Stopped at ${gaveUp.replace(/_/g, " ")}${report?.trim() ? `. Its report: ${stopReportWords(report)}` : "."}`,
+    };
+  const failed = [...(run.node_statuses ?? [])]
+    .reverse()
+    .find((n: any) => n.status === "failed");
+  if (failed)
+    return {
+      end,
+      text: `Finished without a change: ${String(failed.node_id).replace(/_/g, " ")} failed.`,
+    };
   return { end, text: "Finished without a change." };
 }
 
 /** A cause's own occurrences over the history window (the project-wide read in `occurrences`, for one cause). */
-async function causeOccurrences(ctx: any, task: any): Promise<OccurrenceRow & { quotes: Map<number, string> }> {
+async function causeOccurrences(
+  ctx: any,
+  task: any,
+): Promise<OccurrenceRow & { quotes: Map<number, string> }> {
   const since = Date.now() - HISTORY_WINDOW_MS;
   const rows = await ctx.db
     .query("signals")
-    .withIndex("by_task", (q: any) => q.eq("task_id", task._id).gte("created_at", since))
+    .withIndex("by_task", (q: any) =>
+      q.eq("task_id", task._id).gte("created_at", since),
+    )
     .order("desc")
     .take(OCCURRENCES_CAP);
   const observed: number[] = [];
@@ -437,9 +687,15 @@ async function causeOccurrences(ctx: any, task: any): Promise<OccurrenceRow & { 
     sources.add(s.source);
   }
   return {
-    _id: String(task._id), task_id: String(task._id), project_id: String(task.project_id ?? ""),
-    observed: observed.sort((a, b) => a - b), reopened: reopened.sort((a, b) => a - b), sources: [...sources].sort(),
-    since, capped: rows.length >= OCCURRENCES_CAP, quotes,
+    _id: String(task._id),
+    task_id: String(task._id),
+    project_id: String(task.project_id ?? ""),
+    observed: observed.sort((a, b) => a - b),
+    reopened: reopened.sort((a, b) => a - b),
+    sources: [...sources].sort(),
+    since,
+    capped: rows.length >= OCCURRENCES_CAP,
+    quotes,
   };
 }
 
@@ -451,37 +707,72 @@ async function causeOccurrences(ctx: any, task: any): Promise<OccurrenceRow & { 
  * caller has checked the viewer may read the task. `exceptRunId` leaves out
  * the run asking, so a run is never its own earlier attempt.
  */
-export async function causeHistoryForTask(ctx: any, task: any, exceptRunId?: string) {
-  const rows = await ctx.db.query("workflow_runs").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).order("desc").take(HISTORY_RUNS_CAP);
+export async function causeHistoryForTask(
+  ctx: any,
+  task: any,
+  exceptRunId?: string,
+) {
+  const rows = await ctx.db
+    .query("workflow_runs")
+    .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+    .order("desc")
+    .take(HISTORY_RUNS_CAP);
   const budget = { reads: HISTORY_SESSION_READS };
   const runs: any[] = [];
   for (const r of rows) runs.push(await withAgentSessions(ctx, r, budget));
-  const decisions = (await ctx.db.query("session_decisions").withIndex("by_task", (q: any) => q.eq("task_id", task._id)).order("desc").take(HISTORY_RUNS_CAP * 3))
+  const decisions = (
+    await ctx.db
+      .query("session_decisions")
+      .withIndex("by_task", (q: any) => q.eq("task_id", task._id))
+      .order("desc")
+      .take(HISTORY_RUNS_CAP * 3)
+  )
     .filter((d: any) => d.workflow_run_id)
     .map((d: any) => shapeCard(d, String(task.project_id ?? "")));
   const project = task.project_id ? await ctx.db.get(task.project_id) : null;
-  const named = runs.map((r) => parsePrRef(r.merge?.pr_url)?.repository).filter((x): x is string => !!x);
+  const named = runs
+    .map((r) => parsePrRef(r.merge?.pr_url)?.repository)
+    .filter((x): x is string => !!x);
   // Only a deploy that went live carried anything.
-  const deploys = project ? (await projectDeploys(ctx, project, named)).filter((d) => d.status === "live") : [];
+  const deploys = project
+    ? (await projectDeploys(ctx, project, named)).filter(
+        (d) => d.status === "live",
+      )
+    : [];
   const saidById = new Map(runs.map((r) => [String(r._id), runSaid(r)]));
-  const endedId = String(rows.find((r: any) => !isLiveRunStatus(r.status))?._id ?? "");
+  const endedId = String(
+    rows.find((r: any) => !isLiveRunStatus(r.status))?._id ?? "",
+  );
   const { quotes, ...occurrences } = await causeOccurrences(ctx, task);
   const history = causeHistory({
     task,
-    runs: runs.map((r) => ({ ...r, _id: String(r._id), updated_at: r.updated_at ?? r.created_at })),
+    runs: runs.map((r) => ({
+      ...r,
+      _id: String(r._id),
+      updated_at: r.updated_at ?? r.created_at,
+    })),
     decisions,
     signals: [],
     occurrences,
     quoteAt: (at) => quotes.get(at) ?? null,
     deploys,
-    said: (id) => saidById.get(id) ?? { found: null, proposed: null, built: null },
+    said: (id) =>
+      saidById.get(id) ?? { found: null, proposed: null, built: null },
     // The problem's handoff is its newest station's: the report of the newest run that ended, never of an earlier one.
-    outcome: (r: any) => runOutcomeWords(r, String(r._id) === endedId ? task.verification_evidence : null),
+    outcome: (r: any) =>
+      runOutcomeWords(
+        r,
+        String(r._id) === endedId ? task.verification_evidence : null,
+      ),
     // The project's own watch, as the web's timeline reads it (useLineWorkspace), so the two agree on a held fix.
     watchDays: project?.line_profile?.watch_days ?? null,
     now: Date.now(),
   });
-  return { history, brief: historyBrief(history, exceptRunId, BRIEF_MAX_CHARS), earlier: earlierFixes(history, exceptRunId) };
+  return {
+    history,
+    brief: historyBrief(history, exceptRunId, BRIEF_MAX_CHARS),
+    earlier: earlierFixes(history, exceptRunId),
+  };
 }
 
 /**
@@ -490,13 +781,32 @@ export async function causeHistoryForTask(ctx: any, task: any, exceptRunId?: str
  * is not found or not the caller's to read.
  */
 export const cliCauseHistory = query({
-  args: { api_token: v.string(), short_id: v.string(), except_run_id: v.optional(v.string()) },
+  args: {
+    api_token: v.string(),
+    short_id: v.string(),
+    except_run_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new Error("Unauthorized");
-    const task = await ctx.db.query("tasks").withIndex("by_short_id", (q) => q.eq("short_id", args.short_id)).first();
+    const task = await ctx.db
+      .query("tasks")
+      .withIndex("by_short_id", (q) => q.eq("short_id", args.short_id))
+      .first();
     if (!task || !(await canAccessTask(ctx, auth.userId, task))) return null;
-    const { history, brief, earlier } = await causeHistoryForTask(ctx, task, args.except_run_id);
-    return { task: task.short_id, title: task.title, brief, earlier, regressed: history.regressed, attempts: history.attempts.length, history };
+    const { history, brief, earlier } = await causeHistoryForTask(
+      ctx,
+      task,
+      args.except_run_id,
+    );
+    return {
+      task: task.short_id,
+      title: task.title,
+      brief,
+      earlier,
+      regressed: history.regressed,
+      attempts: history.attempts.length,
+      history,
+    };
   },
 });

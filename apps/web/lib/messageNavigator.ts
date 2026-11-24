@@ -6,13 +6,23 @@
 
 import { isTurnInterruptionNotice } from "@codecast/shared/contracts";
 import { isCommandMessage, cleanContent } from "./conversationProcessor";
-import { isStickyEligible, stickyPromptContent, stickyEligibleIds, commandBodyInvocationIndex } from "./stickyPrompt";
+import {
+  isStickyEligible,
+  stickyPromptContent,
+  stickyEligibleIds,
+  commandBodyInvocationIndex,
+} from "./stickyPrompt";
 import {
   parseMachineDeliveredMessage,
   isBareNudge,
   type MachineDeliveredKind,
 } from "../components/sessionMessage";
-import { NAV_ROW_SNIPPET_CHARS, stripContextTags, filterUserMessages, type FilterableMessage } from "@codecast/convex/convex/userMessagesFilter";
+import {
+  NAV_ROW_SNIPPET_CHARS,
+  stripContextTags,
+  filterUserMessages,
+  type FilterableMessage,
+} from "@codecast/convex/convex/userMessagesFilter";
 import type { PromptImage } from "./messagePreview";
 import { formatShortDate } from "./utils";
 import { directUserOf } from "../components/conversation/classify";
@@ -49,7 +59,14 @@ export type NavigatorRow = {
   pending?: boolean;
 };
 
-export type NavigatorSourceMessage = { _id: string; content?: string; timestamp: number; images?: PromptImage[]; from_user_id?: string; pending?: boolean };
+export type NavigatorSourceMessage = {
+  _id: string;
+  content?: string;
+  timestamp: number;
+  images?: PromptImage[];
+  from_user_id?: string;
+  pending?: boolean;
+};
 
 export const MACHINE_KIND_LABEL: Record<HiddenKind, string> = {
   schedule: "trigger", // user-facing vocabulary is "trigger" (ct-38953); the kind key mirrors the wire tag
@@ -60,19 +77,29 @@ export const MACHINE_KIND_LABEL: Record<HiddenKind, string> = {
 };
 
 function getCommandLabel(content: string): string | null {
-  const m = content.match(/<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/);
+  const m = content.match(
+    /<command-(?:name|message)>([^<]*)<\/command-(?:name|message)>/,
+  );
   const name = m?.[1].replace(/^\//, "").trim();
   if (!name) return null;
-  const args = content.match(/<command-args>([\s\S]*?)<\/command-args>/)?.[1]?.trim();
+  const args = content
+    .match(/<command-args>([\s\S]*?)<\/command-args>/)?.[1]
+    ?.trim();
   return `/${name}${args ? ` ${args}` : ""}`;
 }
 
-export function processUserMessage(content: string): { display: string; isCmd: boolean } {
+export function processUserMessage(content: string): {
+  display: string;
+  isCmd: boolean;
+} {
   const isCmd = isCommandMessage(content);
   if (isCmd) {
     // A command tag with an empty name carries no information, so it falls
     // back to the cleaned content like an unlabeled command.
-    return { display: getCommandLabel(content) ?? cleanContent(content), isCmd: true };
+    return {
+      display: getCommandLabel(content) ?? cleanContent(content),
+      isCmd: true,
+    };
   }
   return { display: cleanContent(content), isCmd: false };
 }
@@ -92,7 +119,11 @@ function humanizeWirePayload(body: string): string {
   if (!body.startsWith("{")) return body;
   try {
     const parsed = JSON.parse(body);
-    if (parsed && typeof parsed === "object" && typeof parsed.type === "string") {
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.type === "string"
+    ) {
       return parsed.type.replace(/_/g, " ");
     }
   } catch {
@@ -132,10 +163,18 @@ export type NavigatorAuthor = {
 // The color each tone wears, in order, as a Solarized accent name: web reads
 // `var(--sol-<name>)`, the phone `Theme[<name>]`, so a person has one color on
 // both. Tone 0, the unmarked voice, has none.
-const AUTHOR_TONE_NAMES = ["orange", "magenta", "green", "violet", "yellow"] as const;
+const AUTHOR_TONE_NAMES = [
+  "orange",
+  "magenta",
+  "green",
+  "violet",
+  "yellow",
+] as const;
 export type AuthorToneName = (typeof AUTHOR_TONE_NAMES)[number];
 export function authorToneName(tone: number): AuthorToneName | null {
-  return tone > 0 ? AUTHOR_TONE_NAMES[(tone - 1) % AUTHOR_TONE_NAMES.length] : null;
+  return tone > 0
+    ? AUTHOR_TONE_NAMES[(tone - 1) % AUTHOR_TONE_NAMES.length]
+    : null;
 }
 
 // The tone as a theme color for the web, shared by a person's rail ticks and face.
@@ -160,22 +199,35 @@ export type NavigatorAuthorship = {
 
 // Who sent each human row, through the same resolver the transcript's
 // bubbles use (lib/messageSender), so a row and its bubble name one person.
-export function resolveNavigatorAuthors(rows: NavigatorRow[], ctx: SenderContext): NavigatorAuthorship {
+export function resolveNavigatorAuthors(
+  rows: NavigatorRow[],
+  ctx: SenderContext,
+): NavigatorAuthorship {
   const ownerKey = ctx.ownerId ?? "owner";
   const viewerId = ctx.viewerId;
   // Pass 1: each row's sender as a key, name and face.
-  const picks: { row: NavigatorRow; key: string; name: string; image?: string | null }[] = [];
+  const picks: {
+    row: NavigatorRow;
+    key: string;
+    name: string;
+    image?: string | null;
+  }[] = [];
   const keyByName = new Map<string, string>();
   for (const row of rows) {
     if (row.kind !== "user") continue;
     const sender = resolveMessageSender(row, ctx);
     picks.push({ row, ...sender });
-    if (!sender.key.startsWith("name:") && sender.name !== "Someone") keyByName.set(sender.name.toLowerCase(), sender.key);
+    if (!sender.key.startsWith("name:") && sender.name !== "Someone")
+      keyByName.set(sender.name.toLowerCase(), sender.key);
   }
   // Pass 2: a name a wrapper carries joins the account of that name, so one
   // person is one author however each of their rows arrived.
-  const keyOf = (pick: (typeof picks)[number]) => (pick.key.startsWith("name:") ? keyByName.get(pick.name.toLowerCase()) ?? pick.key : pick.key);
-  const plainKey = viewerId && picks.some((p) => keyOf(p) === viewerId) ? viewerId : ownerKey;
+  const keyOf = (pick: (typeof picks)[number]) =>
+    pick.key.startsWith("name:")
+      ? (keyByName.get(pick.name.toLowerCase()) ?? pick.key)
+      : pick.key;
+  const plainKey =
+    viewerId && picks.some((p) => keyOf(p) === viewerId) ? viewerId : ownerKey;
   const byKey = new Map<string, NavigatorAuthor>();
   const byRow = new Map<string, NavigatorAuthor>();
   let nextTone = 1;
@@ -183,7 +235,14 @@ export function resolveNavigatorAuthors(rows: NavigatorRow[], ctx: SenderContext
     const key = keyOf(pick);
     let a = byKey.get(key);
     if (!a) {
-      a = { key, name: pick.name, label: viewerId && key === viewerId ? "You" : pick.name, image: pick.image, tone: key === plainKey ? 0 : nextTone++, count: 0 };
+      a = {
+        key,
+        name: pick.name,
+        label: viewerId && key === viewerId ? "You" : pick.name,
+        image: pick.image,
+        tone: key === plainKey ? 0 : nextTone++,
+        count: 0,
+      };
       byKey.set(key, a);
     }
     if (!a.image && pick.image) a.image = pick.image;
@@ -195,9 +254,19 @@ export function resolveNavigatorAuthors(rows: NavigatorRow[], ctx: SenderContext
   for (const a of authors) {
     if (a.label !== a.name) continue;
     const first = firstName(a.name);
-    if (!authors.some((o) => o !== a && firstName(o.name).toLowerCase() === first.toLowerCase())) a.label = first;
+    if (
+      !authors.some(
+        (o) =>
+          o !== a && firstName(o.name).toLowerCase() === first.toLowerCase(),
+      )
+    )
+      a.label = first;
   }
-  return { byRow, authors, attributed: authors.some((a) => a.key !== ownerKey) };
+  return {
+    byRow,
+    authors,
+    attributed: authors.some((a) => a.key !== ownerKey),
+  };
 }
 
 export function formatTimeAgo(ts: number, now: number = Date.now()): string {
@@ -242,25 +311,55 @@ export function buildNavigatorRows(
     if (machine) {
       const sourceText =
         machine.kind === "session"
-          ? resolveSessionTitle?.(machine.source) ?? machine.source
+          ? (resolveSessionTitle?.(machine.source) ?? machine.source)
           : machine.source;
       const display = humanizeWirePayload(machine.body);
       // A trigger title is usually the prompt's first line, so the source
       // line would only repeat the body; drop it when the body already
       // carries it. Session sources are titles, never the body.
-      const source = display.toLowerCase().startsWith(sourceText.toLowerCase()) ? undefined : sourceText;
-      rows.push({ _id: m._id, ...(images?.length ? { images } : {}), display, isCmd: false, timestamp: m.timestamp, commentCount, kind: machine.kind, source, originalIndex: -1, clipped });
+      const source = display.toLowerCase().startsWith(sourceText.toLowerCase())
+        ? undefined
+        : sourceText;
+      rows.push({
+        _id: m._id,
+        ...(images?.length ? { images } : {}),
+        display,
+        isCmd: false,
+        timestamp: m.timestamp,
+        commentCount,
+        kind: machine.kind,
+        source,
+        originalIndex: -1,
+        clipped,
+      });
       continue;
     }
     const user = processUserMessage(content);
     if (!user.isCmd && isBareNudge(user.display)) {
-      rows.push({ _id: m._id, display: "", isCmd: false, timestamp: m.timestamp, commentCount, kind: "continue", originalIndex: -1, clipped: false });
+      rows.push({
+        _id: m._id,
+        display: "",
+        isCmd: false,
+        timestamp: m.timestamp,
+        commentCount,
+        kind: "continue",
+        originalIndex: -1,
+        clipped: false,
+      });
       continue;
     }
-    if (stripInvisible(user.display).trim().length === 0 && !images?.length) continue;
+    if (stripInvisible(user.display).trim().length === 0 && !images?.length)
+      continue;
     const wireFrom = directUserOf(content.trim())?.from;
     rows.push({
-      _id: m._id, ...(images?.length ? { images } : {}), ...user, timestamp: m.timestamp, commentCount, kind: "user", originalIndex: humanOrdinal++, clipped,
+      _id: m._id,
+      ...(images?.length ? { images } : {}),
+      ...user,
+      timestamp: m.timestamp,
+      commentCount,
+      kind: "user",
+      originalIndex: humanOrdinal++,
+      clipped,
       ...(m.from_user_id ? { fromUserId: m.from_user_id } : {}),
       ...(wireFrom ? { wireFrom } : {}),
       ...(m.pending ? { pending: true } : {}),
@@ -281,7 +380,14 @@ export function navigatorRowBody(
 ): string {
   if (fullContent === undefined) return row.display;
   const [rebuilt] = buildNavigatorRows(
-    [{ _id: row._id, content: stripContextTags(fullContent), timestamp: row.timestamp, images: row.images }],
+    [
+      {
+        _id: row._id,
+        content: stripContextTags(fullContent),
+        timestamp: row.timestamp,
+        images: row.images,
+      },
+    ],
     undefined,
     resolveSessionTitle,
   );
@@ -303,7 +409,8 @@ export function navigatorHeaderLabels(rows: NavigatorRow[]): {
     humanCount,
     hiddenCount: hidden.length,
     placeholder: `Search ${humanCount} message${humanCount === 1 ? "" : "s"}`,
-    chipLabel: hidden.length > 0 ? `${hidden.length} ${hiddenRowsNoun(hidden)}` : "",
+    chipLabel:
+      hidden.length > 0 ? `${hidden.length} ${hiddenRowsNoun(hidden)}` : "",
   };
 }
 
@@ -327,17 +434,30 @@ export function countCommentsByMessage(
 // `authorKey` names one, and lets a search for a name find what they sent.
 export function filterNavigatorRows(
   rows: NavigatorRow[],
-  { search, showHidden, authors, authorKey }: { search: string; showHidden: boolean; authors?: NavigatorAuthorship; authorKey?: string | null },
+  {
+    search,
+    showHidden,
+    authors,
+    authorKey,
+  }: {
+    search: string;
+    showHidden: boolean;
+    authors?: NavigatorAuthorship;
+    authorKey?: string | null;
+  },
 ): NavigatorRow[] {
   let pool = showHidden ? rows : rows.filter((m) => m.kind === "user");
-  if (authorKey && authors) pool = pool.filter((m) => authors.byRow.get(m._id)?.key === authorKey);
+  if (authorKey && authors)
+    pool = pool.filter((m) => authors.byRow.get(m._id)?.key === authorKey);
   if (!search) return pool;
   const q = search.toLowerCase();
   const nameOf = (m: NavigatorRow) => {
     const a = authors?.attributed ? authors.byRow.get(m._id) : undefined;
     return a ? `${a.label} ${a.name}` : "";
   };
-  return pool.filter((m) => `${m.display} ${m.source ?? ""} ${nameOf(m)}`.toLowerCase().includes(q));
+  return pool.filter((m) =>
+    `${m.display} ${m.source ?? ""} ${nameOf(m)}`.toLowerCase().includes(q),
+  );
 }
 
 // Where the first case insensitive hit of `query` sits in `text`, or -1.
@@ -352,7 +472,11 @@ export function matchIndex(text: string, query: string): number {
 // boundary shortly before the hit, prefixed with an ellipsis, so the reader
 // sees why the row matched. Short rows and early hits keep their normal
 // start; no hit returns the text unchanged.
-export function matchSnippet(text: string, query: string, radius: number = 40): string {
+export function matchSnippet(
+  text: string,
+  query: string,
+  radius: number = 40,
+): string {
   const hit = matchIndex(text, query);
   if (hit <= radius) return text;
   let start = hit - radius;
@@ -367,14 +491,19 @@ export type NavigatorTick<R> = { row: R; active: boolean };
 // row gets a tick; above it the ticks map onto the row list by rounding, so
 // the first and last rows always have one. The active row lights the tick
 // nearest it, so a row between two sampled ones still shows where you are.
-export function sampleTicks<R>(rows: R[], max: number, activeIndex: number = -1): NavigatorTick<R>[] {
+export function sampleTicks<R>(
+  rows: R[],
+  max: number,
+  activeIndex: number = -1,
+): NavigatorTick<R>[] {
   const total = rows.length;
   const displayCount = Math.min(total, max);
   const scale = total <= max ? 1 : (displayCount - 1) / (total - 1);
   const activeTick = activeIndex < 0 ? -1 : Math.round(activeIndex * scale);
   const ticks: NavigatorTick<R>[] = [];
   for (let i = 0; i < displayCount; i++) {
-    const mappedIndex = total <= max ? i : Math.round((i / (displayCount - 1)) * (total - 1));
+    const mappedIndex =
+      total <= max ? i : Math.round((i / (displayCount - 1)) * (total - 1));
     ticks.push({ row: rows[mappedIndex], active: i === activeTick });
   }
   return ticks;
@@ -382,10 +511,18 @@ export function sampleTicks<R>(rows: R[], max: number, activeIndex: number = -1)
 
 // The bar under the tick minimap the active tick lands on, from the current
 // message or, when it is not a navigator row, the scroll progress.
-export function activeTickIndex(rows: { _id: string }[], currentMessageId: string | null, scrollProgress: number): number {
+export function activeTickIndex(
+  rows: { _id: string }[],
+  currentMessageId: string | null,
+  scrollProgress: number,
+): number {
   const total = rows.length;
-  const currentIndex = currentMessageId ? rows.findIndex((m) => m._id === currentMessageId) : -1;
-  return currentIndex >= 0 ? currentIndex : Math.min(total - 1, Math.floor(scrollProgress * total));
+  const currentIndex = currentMessageId
+    ? rows.findIndex((m) => m._id === currentMessageId)
+    : -1;
+  return currentIndex >= 0
+    ? currentIndex
+    : Math.min(total - 1, Math.floor(scrollProgress * total));
 }
 
 export type StickySourceMessage = {
@@ -411,14 +548,24 @@ export function pickStickyFallback(
   beforeTs: number,
   afterTs = -Infinity,
   eligibleIds: Set<string> = stickyEligibleIds(userMessages ?? []),
-): { id: string; content: string; fromUserId?: string; timestamp: number } | null {
+): {
+  id: string;
+  content: string;
+  fromUserId?: string;
+  timestamp: number;
+} | null {
   if (!userMessages || userMessages.length === 0) return null;
   for (let i = userMessages.length - 1; i >= 0; i--) {
     const msg = userMessages[i];
     if (msg.timestamp <= afterTs) return null;
     if (msg.role !== "user" || msg.timestamp >= beforeTs) continue;
     if (loadedIds.has(msg._id) || !eligibleIds.has(msg._id)) continue;
-    return { id: msg._id, content: msg.content, fromUserId: msg.from_user_id, timestamp: msg.timestamp };
+    return {
+      id: msg._id,
+      content: msg.content,
+      fromUserId: msg.from_user_id,
+      timestamp: msg.timestamp,
+    };
   }
   return null;
 }
@@ -433,7 +580,8 @@ export function resolveStickyPrompt(
 ): { index: number; hidden: boolean } | null {
   for (let i = stickyIndices.length - 1; i >= 0; i--) {
     const idx = stickyIndices[i];
-    if (idx <= topVisibleIndex) return { index: idx, hidden: visibleIndexSet.has(idx) };
+    if (idx <= topVisibleIndex)
+      return { index: idx, hidden: visibleIndexSet.has(idx) };
   }
   return null;
 }
@@ -444,18 +592,21 @@ export function resolveStickyPrompt(
 // those loaded rows have to join the navigator or #1 is a later prompt.
 export function mergeNavigatorSources(
   cached: NavigatorSourceMessage[] | null | undefined,
-  loaded: Array<{
-    _id: string;
-    role?: string;
-    content?: string;
-    timestamp: number;
-    images?: PromptImage[];
-    tool_results?: FilterableMessage["tool_results"];
-    subtype?: string;
-    from_user_id?: string;
-    _isOptimistic?: boolean;
-    _isQueued?: boolean;
-  }> | null | undefined,
+  loaded:
+    | Array<{
+        _id: string;
+        role?: string;
+        content?: string;
+        timestamp: number;
+        images?: PromptImage[];
+        tool_results?: FilterableMessage["tool_results"];
+        subtype?: string;
+        from_user_id?: string;
+        _isOptimistic?: boolean;
+        _isQueued?: boolean;
+      }>
+    | null
+    | undefined,
 ): NavigatorSourceMessage[] {
   const byId = new Map<string, NavigatorSourceMessage>();
   for (const m of cached ?? []) byId.set(m._id, m);
@@ -467,7 +618,11 @@ export function mergeNavigatorSources(
     if (existing) {
       const loadedContent = m.content ?? "";
       if (loadedContent.length > (existing.content?.length ?? 0)) {
-        byId.set(m._id, { ...existing, content: loadedContent, images: m.images ?? existing.images });
+        byId.set(m._id, {
+          ...existing,
+          content: loadedContent,
+          images: m.images ?? existing.images,
+        });
       }
       continue;
     }
@@ -485,12 +640,17 @@ export function mergeNavigatorSources(
   }
   for (const m of filterUserMessages(extras)) {
     byId.set(m._id, {
-      _id: m._id, content: m.content, timestamp: m.timestamp, images: m.images,
+      _id: m._id,
+      content: m.content,
+      timestamp: m.timestamp,
+      images: m.images,
       ...(m.from_user_id ? { from_user_id: m.from_user_id } : {}),
       ...(pendingIds.has(m._id) ? { pending: true } : {}),
     });
   }
-  return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp || a._id.localeCompare(b._id));
+  return [...byId.values()].sort(
+    (a, b) => a.timestamp - b.timestamp || a._id.localeCompare(b._id),
+  );
 }
 
 export type ViewportRect = { index: number; top: number; bottom: number };
@@ -533,7 +693,11 @@ export function resolveNavigatorCurrentId(
   fallbackId: string | null,
 ): string | null {
   if (navigatorIndices.length === 0) return fallbackId;
-  const resolved = resolveStickyPrompt(navigatorIndices, topVisibleIndex, new Set());
+  const resolved = resolveStickyPrompt(
+    navigatorIndices,
+    topVisibleIndex,
+    new Set(),
+  );
   if (resolved) {
     const id = timelineIds[resolved.index];
     return typeof id === "string" && id.length > 0 ? id : fallbackId;

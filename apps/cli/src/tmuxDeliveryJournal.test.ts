@@ -2,13 +2,31 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pendingMessageFinished, prepareTmuxDelivery, TMUX_PASTE_WRITE_CAP, TmuxDeliveryExhaustedError, TmuxDeliveryJournal } from "./tmuxDeliveryJournal.js";
+import {
+  pendingMessageFinished,
+  prepareTmuxDelivery,
+  TMUX_PASTE_WRITE_CAP,
+  TmuxDeliveryExhaustedError,
+  TmuxDeliveryJournal,
+} from "./tmuxDeliveryJournal.js";
 
 const dirs: string[] = [];
 const stores: TmuxDeliveryJournal[] = [];
-function file() { const dir = mkdtempSync(join(tmpdir(), "tmux-journal-")); dirs.push(dir); return join(dir, "journal.sqlite"); }
-function open(path = file()) { const store = new TmuxDeliveryJournal(path); stores.push(store); return store; }
-afterEach(() => { for (const store of stores.splice(0)) store.close(); for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true }); });
+function file() {
+  const dir = mkdtempSync(join(tmpdir(), "tmux-journal-"));
+  dirs.push(dir);
+  return join(dir, "journal.sqlite");
+}
+function open(path = file()) {
+  const store = new TmuxDeliveryJournal(path);
+  stores.push(store);
+  return store;
+}
+afterEach(() => {
+  for (const store of stores.splice(0)) store.close();
+  for (const dir of dirs.splice(0))
+    rmSync(dir, { recursive: true, force: true });
+});
 const identity = { messageId: "message-a", conversationId: "conversation" };
 const generation = JSON.stringify(["100", "/socket", "%1", "200", "300"]);
 const query = async () => ({ stdout: "100|/socket|%1|200|300" });
@@ -19,11 +37,24 @@ test("a receipt survives a new connection and keeps an unresolved pane exclusive
   expect(first.begin(identity, generation, "continue").fresh).toBe(true);
   const restarted = open(path);
   expect(restarted.begin(identity, generation, "continue").fresh).toBe(false);
-  expect(() => restarted.begin({ ...identity, messageId: "message-b" }, generation, "next")).toThrow("earlier message");
-  expect(() => restarted.begin(identity, generation, "changed")).toThrow("identity changed");
+  expect(() =>
+    restarted.begin(
+      { ...identity, messageId: "message-b" },
+      generation,
+      "next",
+    ),
+  ).toThrow("earlier message");
+  expect(() => restarted.begin(identity, generation, "changed")).toThrow(
+    "identity changed",
+  );
   restarted.advance(identity.messageId, "verified");
-  expect(first.begin({ ...identity, messageId: "message-b" }, generation, "continue").fresh).toBe(true);
-  expect(first.begin(identity, generation, "continue").receipt.phase).toBe("verified");
+  expect(
+    first.begin({ ...identity, messageId: "message-b" }, generation, "continue")
+      .fresh,
+  ).toBe(true);
+  expect(first.begin(identity, generation, "continue").receipt.phase).toBe(
+    "verified",
+  );
 });
 
 test("server acknowledgment releases a receipt after the process died before verification", async () => {
@@ -31,9 +62,27 @@ test("server acknowledgment releases a receipt after the process died before ver
   store.begin(identity, generation, "continue");
   store.advance(identity.messageId, "submit");
   const next = { ...identity, messageId: "message-b" };
-  await expect(prepareTmuxDelivery("target", next, query, async () => false, store)).rejects.toThrow("earlier message");
-  await expect(prepareTmuxDelivery("target", next, query, async () => { throw new Error("offline"); }, store)).rejects.toThrow("reconciliation failed");
-  await prepareTmuxDelivery("target", next, query, async id => id === identity.messageId, store);
+  await expect(
+    prepareTmuxDelivery("target", next, query, async () => false, store),
+  ).rejects.toThrow("earlier message");
+  await expect(
+    prepareTmuxDelivery(
+      "target",
+      next,
+      query,
+      async () => {
+        throw new Error("offline");
+      },
+      store,
+    ),
+  ).rejects.toThrow("reconciliation failed");
+  await prepareTmuxDelivery(
+    "target",
+    next,
+    query,
+    async (id) => id === identity.messageId,
+    store,
+  );
   expect(store.begin(next, generation, "continue").fresh).toBe(true);
 });
 
@@ -42,29 +91,53 @@ test("a replaced pane allows an unsubmitted write only after the old pane is def
   store.begin(identity, generation, "continue");
   const exec = async (argv: string[]) => {
     // The old pane is looked up on the socket it lived on (pane ids are per server).
-    const args = argv[0] === "-S" ? (expect(argv[1]).toBe("/socket"), argv.slice(2)) : argv;
+    const args =
+      argv[0] === "-S"
+        ? (expect(argv[1]).toBe("/socket"), argv.slice(2))
+        : argv;
     if (args[0] === "list-panes") return { stdout: "%2\n" };
     if (args[3] === "%1") throw new Error("can't find pane: %1");
     return { stdout: "100|/socket|%2|201|301" };
   };
-  const resolved = await prepareTmuxDelivery("new", identity, exec, async () => false, store);
+  const resolved = await prepareTmuxDelivery(
+    "new",
+    identity,
+    exec,
+    async () => false,
+    store,
+  );
   expect(resolved.prior).toBeNull();
-  expect(store.begin(identity, resolved.generation, "continue").fresh).toBe(true);
+  expect(store.begin(identity, resolved.generation, "continue").fresh).toBe(
+    true,
+  );
 });
 
 test("an unreadable old pane and a submit with unknown outcome never authorize replay", async () => {
   const store = open();
   store.begin(identity, generation, "continue");
   const exec = async (argv: string[]) => {
-    const args = argv[0] === "-S" ? (expect(argv[1]).toBe("/socket"), argv.slice(2)) : argv;
+    const args =
+      argv[0] === "-S"
+        ? (expect(argv[1]).toBe("/socket"), argv.slice(2))
+        : argv;
     if (args[0] === "list-panes") return { stdout: "%1\n%2\n" };
     if (args[3] === "%1") throw new Error("timeout");
     return { stdout: "100|/socket|%2|201|301" };
   };
-  await expect(prepareTmuxDelivery("new", identity, exec, async () => false, store)).rejects.toThrow("timeout");
+  await expect(
+    prepareTmuxDelivery("new", identity, exec, async () => false, store),
+  ).rejects.toThrow("timeout");
   store.advance(identity.messageId, "submit");
-  const prepared = await prepareTmuxDelivery("new", identity, exec, async () => false, store);
-  expect(() => store.begin(identity, prepared.generation, "continue")).toThrow("not been reconciled");
+  const prepared = await prepareTmuxDelivery(
+    "new",
+    identity,
+    exec,
+    async () => false,
+    store,
+  );
+  expect(() => store.begin(identity, prepared.generation, "continue")).toThrow(
+    "not been reconciled",
+  );
 });
 
 // A session that moved to a tmux server of its own left its old pane on the
@@ -76,11 +149,20 @@ test("a pane on a server that is gone counts as gone when the session moved serv
   const exec = async (argv: string[]) => {
     if (argv[0] === "-S") {
       expect(argv[1]).toBe("/socket");
-      throw Object.assign(new Error("no server"), { code: 1, stderr: "no server running on /socket\n" });
+      throw Object.assign(new Error("no server"), {
+        code: 1,
+        stderr: "no server running on /socket\n",
+      });
     }
     return { stdout: "900|/own-socket|%0|901|902" };
   };
-  const resolved = await prepareTmuxDelivery("new", identity, exec, async () => false, store);
+  const resolved = await prepareTmuxDelivery(
+    "new",
+    identity,
+    exec,
+    async () => false,
+    store,
+  );
   expect(resolved.prior).toBeNull();
 });
 
@@ -95,10 +177,20 @@ test("a confirmed exited agent permits retry only in a replacement terminal", as
   store.begin(identity, generation, "continue");
   store.advance(identity.messageId, "submit");
   store.recordTerminalExit(identity.messageId);
-  expect(() => store.begin(identity, generation, "continue")).toThrow("exited terminal");
-  const resolved = await prepareTmuxDelivery("new", identity, async () => ({ stdout: "100|/socket|%2|201|301" }), async () => false, store);
+  expect(() => store.begin(identity, generation, "continue")).toThrow(
+    "exited terminal",
+  );
+  const resolved = await prepareTmuxDelivery(
+    "new",
+    identity,
+    async () => ({ stdout: "100|/socket|%2|201|301" }),
+    async () => false,
+    store,
+  );
   expect(resolved.prior).toBeNull();
-  expect(store.begin(identity, resolved.generation, "continue").fresh).toBe(true);
+  expect(store.begin(identity, resolved.generation, "continue").fresh).toBe(
+    true,
+  );
   expect(store.get(identity.messageId)?.terminalExited).toBe(0);
 });
 
@@ -108,11 +200,28 @@ test("a submit into a pane that is definitively gone replays once the echo windo
   store.advance(identity.messageId, "submit");
   // The tmux server restarted on the same socket: every pane of the old one is gone.
   const restarted = async () => ({ stdout: "101|/socket|%2|201|301" });
-  const early = await prepareTmuxDelivery("new", identity, restarted, async () => false, store);
-  expect(() => store.begin(identity, early.generation, "continue")).toThrow("not been reconciled");
-  const settled = await prepareTmuxDelivery("new", identity, restarted, async () => false, store, { settleMs: 0 });
+  const early = await prepareTmuxDelivery(
+    "new",
+    identity,
+    restarted,
+    async () => false,
+    store,
+  );
+  expect(() => store.begin(identity, early.generation, "continue")).toThrow(
+    "not been reconciled",
+  );
+  const settled = await prepareTmuxDelivery(
+    "new",
+    identity,
+    restarted,
+    async () => false,
+    store,
+    { settleMs: 0 },
+  );
   expect(settled.prior).toBeNull();
-  expect(store.begin(identity, settled.generation, "continue").fresh).toBe(true);
+  expect(store.begin(identity, settled.generation, "continue").fresh).toBe(
+    true,
+  );
 });
 
 test("a verification in a pane that is gone vouches for nothing in its replacement", async () => {
@@ -120,30 +229,69 @@ test("a verification in a pane that is gone vouches for nothing in its replaceme
   store.begin(identity, generation, "continue");
   store.advance(identity.messageId, "verified");
   const restarted = async () => ({ stdout: "101|/socket|%2|201|301" });
-  await expect(prepareTmuxDelivery("new", identity, restarted, async () => false, store)).rejects.toThrow("replaced");
+  await expect(
+    prepareTmuxDelivery("new", identity, restarted, async () => false, store),
+  ).rejects.toThrow("replaced");
   // The server has its echo: the old pane's verification was right after all.
-  expect((await prepareTmuxDelivery("new", identity, restarted, async () => true, store)).prior?.phase).toBe("verified");
-  const settled = await prepareTmuxDelivery("new", identity, restarted, async () => false, store, { settleMs: 0 });
+  expect(
+    (
+      await prepareTmuxDelivery(
+        "new",
+        identity,
+        restarted,
+        async () => true,
+        store,
+      )
+    ).prior?.phase,
+  ).toBe("verified");
+  const settled = await prepareTmuxDelivery(
+    "new",
+    identity,
+    restarted,
+    async () => false,
+    store,
+    { settleMs: 0 },
+  );
   expect(settled.prior).toBeNull();
-  expect(store.begin(identity, settled.generation, "continue").fresh).toBe(true);
+  expect(store.begin(identity, settled.generation, "continue").fresh).toBe(
+    true,
+  );
 });
 
 test("a message that can never be delivered again stops guarding its pane", async () => {
-  const lookup = (answer: string | Error) => ({ getPendingMessageStatus: async () => { if (answer instanceof Error) throw answer; return answer; } });
+  const lookup = (answer: string | Error) => ({
+    getPendingMessageStatus: async () => {
+      if (answer instanceof Error) throw answer;
+      return answer;
+    },
+  });
   expect(await pendingMessageFinished(lookup("delivered"), "m")).toBe(true);
   expect(await pendingMessageFinished(lookup("cancelled"), "m")).toBe(true);
-  expect(await pendingMessageFinished(lookup(new Error("Uncaught Error: Message not found")), "m")).toBe(true);
+  expect(
+    await pendingMessageFinished(
+      lookup(new Error("Uncaught Error: Message not found")),
+      "m",
+    ),
+  ).toBe(true);
   expect(await pendingMessageFinished(lookup("pending"), "m")).toBe(false);
-  expect(await pendingMessageFinished(lookup("undeliverable"), "m")).toBe(false);
-  await expect(pendingMessageFinished(lookup(new Error("offline")), "m")).rejects.toThrow("offline");
+  expect(await pendingMessageFinished(lookup("undeliverable"), "m")).toBe(
+    false,
+  );
+  await expect(
+    pendingMessageFinished(lookup(new Error("offline")), "m"),
+  ).rejects.toThrow("offline");
 });
 
 test("a settled paste whose message stopped retrying frees the pane for the next message", async () => {
   const store = open();
   store.begin(identity, generation, "continue");
   const next = { ...identity, messageId: "message-b" };
-  await expect(prepareTmuxDelivery("target", next, query, async () => false, store)).rejects.toThrow("earlier message");
-  await prepareTmuxDelivery("target", next, query, async () => false, store, { settleMs: 0 });
+  await expect(
+    prepareTmuxDelivery("target", next, query, async () => false, store),
+  ).rejects.toThrow("earlier message");
+  await prepareTmuxDelivery("target", next, query, async () => false, store, {
+    settleMs: 0,
+  });
   expect(store.get(identity.messageId)).toBeNull();
   expect(store.begin(next, generation, "next").fresh).toBe(true);
 });
@@ -153,8 +301,17 @@ test("a settled submit keeps the pane even when its message is unacknowledged", 
   store.begin(identity, generation, "continue");
   store.advance(identity.messageId, "submit");
   const next = { ...identity, messageId: "message-b" };
-  await expect(prepareTmuxDelivery("target", next, query, async () => false, store, { settleMs: 0 })).rejects.toThrow("earlier message");
-  await expect(prepareTmuxDelivery("target", next, query, async () => false, store, { settleMs: 0, submitSpent: async () => false })).rejects.toThrow("earlier message");
+  await expect(
+    prepareTmuxDelivery("target", next, query, async () => false, store, {
+      settleMs: 0,
+    }),
+  ).rejects.toThrow("earlier message");
+  await expect(
+    prepareTmuxDelivery("target", next, query, async () => false, store, {
+      settleMs: 0,
+      submitSpent: async () => false,
+    }),
+  ).rejects.toThrow("earlier message");
 });
 
 // jx742pa, 2026-11-11: a starved agent drew two sends into one turn, so the
@@ -166,10 +323,20 @@ test("a settled submit an idle agent has taken frees the pane for the next messa
   store.advance(identity.messageId, "submit");
   const next = { ...identity, messageId: "message-b" };
   let probed = 0;
-  const submitSpent = async () => { probed++; return true; };
-  await expect(prepareTmuxDelivery("target", next, query, async () => false, store, { submitSpent })).rejects.toThrow("earlier message");
+  const submitSpent = async () => {
+    probed++;
+    return true;
+  };
+  await expect(
+    prepareTmuxDelivery("target", next, query, async () => false, store, {
+      submitSpent,
+    }),
+  ).rejects.toThrow("earlier message");
   expect(probed).toBe(0);
-  await prepareTmuxDelivery("target", next, query, async () => false, store, { settleMs: 0, submitSpent });
+  await prepareTmuxDelivery("target", next, query, async () => false, store, {
+    settleMs: 0,
+    submitSpent,
+  });
   expect(store.get(identity.messageId)).toBeNull();
   expect(store.begin(next, generation, "next").fresh).toBe(true);
 });
@@ -178,9 +345,37 @@ test("a verification the server never acknowledged is reported once the receipt 
   const store = open();
   store.begin(identity, generation, "continue");
   store.advance(identity.messageId, "verified");
-  expect((await prepareTmuxDelivery("target", identity, query, async () => false, store)).unacknowledged).toBe(false);
-  expect((await prepareTmuxDelivery("target", identity, query, async () => true, store, { settleMs: 0 })).unacknowledged).toBe(false);
-  const settled = await prepareTmuxDelivery("target", identity, query, async () => false, store, { settleMs: 0 });
+  expect(
+    (
+      await prepareTmuxDelivery(
+        "target",
+        identity,
+        query,
+        async () => false,
+        store,
+      )
+    ).unacknowledged,
+  ).toBe(false);
+  expect(
+    (
+      await prepareTmuxDelivery(
+        "target",
+        identity,
+        query,
+        async () => true,
+        store,
+        { settleMs: 0 },
+      )
+    ).unacknowledged,
+  ).toBe(false);
+  const settled = await prepareTmuxDelivery(
+    "target",
+    identity,
+    query,
+    async () => false,
+    store,
+    { settleMs: 0 },
+  );
   expect(settled.unacknowledged).toBe(true);
   expect(settled.prior?.phase).toBe("verified");
 });
@@ -192,7 +387,10 @@ test("a message is written at most TMUX_PASTE_WRITE_CAP times, then refused loud
   const store = open();
   for (let write = 1; write <= TMUX_PASTE_WRITE_CAP; write++) {
     const { receipt, fresh } = store.begin(identity, generation, "continue");
-    expect({ fresh, writes: receipt.writes }).toEqual({ fresh: true, writes: write });
+    expect({ fresh, writes: receipt.writes }).toEqual({
+      fresh: true,
+      writes: write,
+    });
     expect(store.get(identity.messageId)?.writes).toBe(write);
     store.advance(identity.messageId, "submit");
     store.release(identity.messageId);
@@ -200,13 +398,24 @@ test("a message is written at most TMUX_PASTE_WRITE_CAP times, then refused loud
   expect(store.get(identity.messageId)).toBeNull();
   expect(store.writesOf(identity.messageId)).toBe(TMUX_PASTE_WRITE_CAP);
   let error: unknown;
-  try { store.begin(identity, generation, "continue"); } catch (e) { error = e; }
+  try {
+    store.begin(identity, generation, "continue");
+  } catch (e) {
+    error = e;
+  }
   expect(error).toBeInstanceOf(TmuxDeliveryExhaustedError);
-  expect((error as TmuxDeliveryExhaustedError).writes).toBe(TMUX_PASTE_WRITE_CAP);
-  expect(String(error)).toMatch(/^Error: INJECT_EXHAUSTED: written into the pane 3 times/);
+  expect((error as TmuxDeliveryExhaustedError).writes).toBe(
+    TMUX_PASTE_WRITE_CAP,
+  );
+  expect(String(error)).toMatch(
+    /^Error: INJECT_EXHAUSTED: written into the pane 3 times/,
+  );
   expect((error as TmuxDeliveryExhaustedError).submitted).toBe(true);
   // Nothing was written: the pane is free for the next message.
-  expect(store.begin({ ...identity, messageId: "message-b" }, generation, "next").fresh).toBe(true);
+  expect(
+    store.begin({ ...identity, messageId: "message-b" }, generation, "next")
+      .fresh,
+  ).toBe(true);
 });
 
 test("a payload already at the prompt is submitted after the cap, and the submit is not a write", () => {
@@ -217,8 +426,13 @@ test("a payload already at the prompt is submitted after the cap, and the submit
     store.begin(identity, generation, "continue");
     store.release(identity.messageId);
   }
-  const { receipt, fresh } = store.begin(identity, generation, "continue", { atPrompt: true });
-  expect({ fresh, writes: receipt.writes }).toEqual({ fresh: true, writes: TMUX_PASTE_WRITE_CAP });
+  const { receipt, fresh } = store.begin(identity, generation, "continue", {
+    atPrompt: true,
+  });
+  expect({ fresh, writes: receipt.writes }).toEqual({
+    fresh: true,
+    writes: TMUX_PASTE_WRITE_CAP,
+  });
   expect(store.writesOf(identity.messageId)).toBe(TMUX_PASTE_WRITE_CAP);
 });
 
@@ -231,7 +445,11 @@ test("a message whose writes never got an Enter is exhausted as never submitted"
     store.release(identity.messageId);
   }
   let error: unknown;
-  try { store.begin(identity, generation, "continue"); } catch (e) { error = e; }
+  try {
+    store.begin(identity, generation, "continue");
+  } catch (e) {
+    error = e;
+  }
   expect(error).toBeInstanceOf(TmuxDeliveryExhaustedError);
   expect((error as TmuxDeliveryExhaustedError).submitted).toBe(false);
   // One submitted write among them is enough to say it may have run.
@@ -270,21 +488,40 @@ test("the write count survives a reopen and a replaced pane", async () => {
 // stalled on a session that never came up (its attempt is spent), while a
 // receipt keeps guarding its pane until delivery or a cancel.
 test("pendingMessageOutcome tells a stalled message from an open one; receipts still finish only on delivery or cancel", async () => {
-  const { pendingMessageOutcome, pendingMessageFinished } = await import("./tmuxDeliveryJournal.js");
-  const at = (status: string) => ({ getPendingMessageStatus: async () => status });
+  const { pendingMessageOutcome, pendingMessageFinished } =
+    await import("./tmuxDeliveryJournal.js");
+  const at = (status: string) => ({
+    getPendingMessageStatus: async () => status,
+  });
   expect(await pendingMessageOutcome(at("undeliverable"), "m")).toBe("stalled");
   expect(await pendingMessageOutcome(at("failed"), "m")).toBe("stalled");
   expect(await pendingMessageOutcome(at("injected"), "m")).toBe("open");
   expect(await pendingMessageOutcome(at("cancelled"), "m")).toBe("cancelled");
-  expect(await pendingMessageOutcome({ getPendingMessageStatus: async () => { throw new Error("Message not found"); } }, "m")).toBe("delivered");
+  expect(
+    await pendingMessageOutcome(
+      {
+        getPendingMessageStatus: async () => {
+          throw new Error("Message not found");
+        },
+      },
+      "m",
+    ),
+  ).toBe("delivered");
   expect(await pendingMessageFinished(at("undeliverable"), "m")).toBe(false);
   expect(await pendingMessageFinished(at("delivered"), "m")).toBe(true);
 });
 
 test("a paste an older daemon typed without the delivery id is the same payload when the new one retries it stamped", () => {
   const path = file();
-  const frame = '<session-message from="jx7abcd">\nrebase on main\n</session-message>';
+  const frame =
+    '<session-message from="jx7abcd">\nrebase on main\n</session-message>';
   expect(open(path).begin(identity, generation, frame).fresh).toBe(true);
   const restarted = open(path);
-  expect(restarted.begin(identity, generation, frame.replace('">', '" delivery="message-a">')).fresh).toBe(false);
+  expect(
+    restarted.begin(
+      identity,
+      generation,
+      frame.replace('">', '" delivery="message-a">'),
+    ).fresh,
+  ).toBe(false);
 });

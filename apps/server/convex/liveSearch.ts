@@ -10,7 +10,12 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { canAccessDoc } from "./lib/access";
 import { resolveWorkspaceKey } from "./lib/accessKeys";
-import { artifactSearchText, isArtifactDocType, searchSnippet, type ArtifactElement } from "@codecast/shared/artifacts";
+import {
+  artifactSearchText,
+  isArtifactDocType,
+  searchSnippet,
+  type ArtifactElement,
+} from "@codecast/shared/artifacts";
 
 /** How long after a write the text is redrawn: edits inside it share one reindex. */
 export const SEARCH_REINDEX_MS = 20_000;
@@ -18,11 +23,17 @@ export const SEARCH_REINDEX_MS = 20_000;
 const INDEX_ROWS_MAX = 6000;
 
 /** Ask for a reindex unless one is already on its way. Called inside the write's transaction. */
-export async function scheduleLiveSearch(ctx: any, head: { _id: any; search_due?: number }, docId: Id<"docs">) {
+export async function scheduleLiveSearch(
+  ctx: any,
+  head: { _id: any; search_due?: number },
+  docId: Id<"docs">,
+) {
   // A marker older than a few reindex windows belongs to a job that failed: ask again.
   if (head.search_due && Date.now() - head.search_due < 5 * 60_000) return;
   await ctx.db.patch(head._id, { search_due: Date.now() });
-  await ctx.scheduler.runAfter(SEARCH_REINDEX_MS, internal.liveSearch.reindex, { doc_id: docId });
+  await ctx.scheduler.runAfter(SEARCH_REINDEX_MS, internal.liveSearch.reindex, {
+    doc_id: docId,
+  });
 }
 
 /**
@@ -31,35 +42,71 @@ export async function scheduleLiveSearch(ctx: any, head: { _id: any; search_due?
  * (the row's first line) or its workspace (moved between personal and team).
  */
 export async function ensureLiveSearch(ctx: any, docId: Id<"docs">) {
-  const row = await ctx.db.query("live_search").withIndex("by_doc", (q: any) => q.eq("doc_id", docId)).first();
+  const row = await ctx.db
+    .query("live_search")
+    .withIndex("by_doc", (q: any) => q.eq("doc_id", docId))
+    .first();
   if (row) {
     const doc = await ctx.db.get(docId);
     if (!doc) return;
-    if (row.text.split("\n", 1)[0] === (doc.title ?? "") && row.workspace === (await resolveWorkspaceKey(ctx, doc))) return;
+    if (
+      row.text.split("\n", 1)[0] === (doc.title ?? "") &&
+      row.workspace === (await resolveWorkspaceKey(ctx, doc))
+    )
+      return;
   }
-  const head = await ctx.db.query("live_heads").withIndex("by_doc", (q: any) => q.eq("doc_id", docId)).first();
+  const head = await ctx.db
+    .query("live_heads")
+    .withIndex("by_doc", (q: any) => q.eq("doc_id", docId))
+    .first();
   if (head) await scheduleLiveSearch(ctx, head, docId);
   // Nothing written yet (no head): its title alone is the text, indexed now.
-  else await ctx.scheduler.runAfter(0, internal.liveSearch.reindex, { doc_id: docId });
+  else
+    await ctx.scheduler.runAfter(0, internal.liveSearch.reindex, {
+      doc_id: docId,
+    });
 }
 
 export const reindex = internalMutation({
   args: { doc_id: v.id("docs") },
   handler: async (ctx, args) => {
-    const head = await ctx.db.query("live_heads").withIndex("by_doc", (q: any) => q.eq("doc_id", args.doc_id)).first();
-    if (head?.search_due) await ctx.db.patch(head._id, { search_due: undefined });
+    const head = await ctx.db
+      .query("live_heads")
+      .withIndex("by_doc", (q: any) => q.eq("doc_id", args.doc_id))
+      .first();
+    if (head?.search_due)
+      await ctx.db.patch(head._id, { search_due: undefined });
     const doc = await ctx.db.get(args.doc_id);
-    const existing = await ctx.db.query("live_search").withIndex("by_doc", (q: any) => q.eq("doc_id", args.doc_id)).first();
+    const existing = await ctx.db
+      .query("live_search")
+      .withIndex("by_doc", (q: any) => q.eq("doc_id", args.doc_id))
+      .first();
     if (!doc || !isArtifactDocType(doc.doc_type)) {
       if (existing) await ctx.db.delete(existing._id);
       return;
     }
     const rows = await ctx.db
       .query("live_elements")
-      .withIndex("by_doc_layer_key", (q: any) => q.eq("doc_id", args.doc_id).eq("layer", "main"))
+      .withIndex("by_doc_layer_key", (q: any) =>
+        q.eq("doc_id", args.doc_id).eq("layer", "main"),
+      )
       .take(INDEX_ROWS_MAX);
-    const elements = rows.filter((r: any) => !r.deleted).map((r: any) => ({ ...(r.fields ?? {}), key: r.key, kind: r.kind, rev: r.rev }) as ArtifactElement);
-    const fields = { workspace: await resolveWorkspaceKey(ctx, doc), text: artifactSearchText(doc.title ?? "", elements), at: Date.now() };
+    const elements = rows
+      .filter((r: any) => !r.deleted)
+      .map(
+        (r: any) =>
+          ({
+            ...(r.fields ?? {}),
+            key: r.key,
+            kind: r.kind,
+            rev: r.rev,
+          }) as ArtifactElement,
+      );
+    const fields = {
+      workspace: await resolveWorkspaceKey(ctx, doc),
+      text: artifactSearchText(doc.title ?? "", elements),
+      at: Date.now(),
+    };
     if (existing) await ctx.db.patch(existing._id, fields);
     else await ctx.db.insert("live_search", { doc_id: args.doc_id, ...fields });
   },
@@ -73,10 +120,25 @@ export const search = query({
     const q = args.query.trim();
     if (!userId || q.length < 2) return [];
     const limit = Math.min(args.limit ?? 8, 20);
-    const memberships = await ctx.db.query("team_memberships").withIndex("by_user_id", (x: any) => x.eq("user_id", userId)).take(50);
-    const keys = [`user:${userId}`, ...memberships.map((m: any) => `team:${m.team_id}`)];
+    const memberships = await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (x: any) => x.eq("user_id", userId))
+      .take(50);
+    const keys = [
+      `user:${userId}`,
+      ...memberships.map((m: any) => `team:${m.team_id}`),
+    ];
     // Every workspace the viewer belongs to, each hit saying where it lives; most recently changed first across them.
-    const out: Array<{ _id: string; title: string; doc_type: string; snippet: string; updated_at?: number; where: string; words: number; rank: number }> = [];
+    const out: Array<{
+      _id: string;
+      title: string;
+      doc_type: string;
+      snippet: string;
+      updated_at?: number;
+      where: string;
+      words: number;
+      rank: number;
+    }> = [];
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
     const seen = new Set<string>();
     const teamNames = new Map<string, string>();
@@ -87,31 +149,45 @@ export const search = query({
     for (const key of keys) {
       const hits = await ctx.db
         .query("live_search")
-        .withSearchIndex("search_text", (s: any) => s.search("text", q).eq("workspace", key))
+        .withSearchIndex("search_text", (s: any) =>
+          s.search("text", q).eq("workspace", key),
+        )
         .take(limit);
       for (const [rank, h] of hits.entries()) {
         if (seen.has(String(h.doc_id))) continue;
         seen.add(String(h.doc_id));
         const doc = await ctx.db.get(h.doc_id);
-        if (!doc || doc.archived_at || !isArtifactDocType(doc.doc_type)) continue;
+        if (!doc || doc.archived_at || !isArtifactDocType(doc.doc_type))
+          continue;
         if (!(await canAccessDoc(ctx, userId, doc))) continue;
         // The text's first line is the title; a title-only artifact has no words inside to show.
         const nl = h.text.indexOf("\n");
         const lower = h.text.toLowerCase();
         out.push({
-          _id: String(doc._id), title: doc.title, doc_type: doc.doc_type,
+          _id: String(doc._id),
+          title: doc.title,
+          doc_type: doc.doc_type,
           snippet: nl < 0 ? "" : searchSnippet(h.text.slice(nl + 1), q),
-          updated_at: doc.updated_at, where: teamNames.get(key) ?? "Personal",
-          words: words.filter((w) => lower.includes(w)).length, rank,
+          updated_at: doc.updated_at,
+          where: teamNames.get(key) ?? "Personal",
+          words: words.filter((w) => lower.includes(w)).length,
+          rank,
         });
       }
     }
     // An artifact named for the words comes first; then the one holding more of the words; then the
     // search's own relevance within its workspace; then the most recently changed.
     const lq = q.toLowerCase();
-    const named = (h: { title: string }) => (h.title.toLowerCase().includes(lq) ? 0 : 1);
+    const named = (h: { title: string }) =>
+      h.title.toLowerCase().includes(lq) ? 0 : 1;
     return out
-      .sort((a, b) => named(a) - named(b) || b.words - a.words || a.rank - b.rank || (b.updated_at ?? 0) - (a.updated_at ?? 0))
+      .sort(
+        (a, b) =>
+          named(a) - named(b) ||
+          b.words - a.words ||
+          a.rank - b.rank ||
+          (b.updated_at ?? 0) - (a.updated_at ?? 0),
+      )
       .slice(0, limit)
       .map(({ words: _w, rank: _r, ...hit }) => hit);
   },
@@ -125,16 +201,26 @@ export const search = query({
 export const backfill = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("docs").paginate({ numItems: 50, cursor: args.cursor ?? null });
+    const page = await ctx.db
+      .query("docs")
+      .paginate({ numItems: 50, cursor: args.cursor ?? null });
     let queued = 0;
     for (const doc of page.page) {
       if (!isArtifactDocType(doc.doc_type) || doc.archived_at) continue;
-      const row = await ctx.db.query("live_search").withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id)).first();
+      const row = await ctx.db
+        .query("live_search")
+        .withIndex("by_doc", (q: any) => q.eq("doc_id", doc._id))
+        .first();
       if (row) continue;
-      await ctx.scheduler.runAfter(0, internal.liveSearch.reindex, { doc_id: doc._id });
+      await ctx.scheduler.runAfter(0, internal.liveSearch.reindex, {
+        doc_id: doc._id,
+      });
       queued++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.liveSearch.backfill, { cursor: page.continueCursor });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.liveSearch.backfill, {
+        cursor: page.continueCursor,
+      });
     return { queued, done: page.isDone };
   },
 });

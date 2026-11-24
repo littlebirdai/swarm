@@ -9,9 +9,14 @@ import { slackApi } from "./slackApi";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-const isMedia = (mime: string) => mime.startsWith("image/") || mime.startsWith("video/");
+const isMedia = (mime: string) =>
+  mime.startsWith("image/") || mime.startsWith("video/");
 
-export async function mirrorFiles(ctx: ActionCtx, install: Doc<"slack_installations">, files: any[]): Promise<{ attachments: ChatAttachment[]; extra: string[] }> {
+export async function mirrorFiles(
+  ctx: ActionCtx,
+  install: Doc<"slack_installations">,
+  files: any[],
+): Promise<{ attachments: ChatAttachment[]; extra: string[] }> {
   const attachments: ChatAttachment[] = [];
   const extra: string[] = [];
   for (const f of files ?? []) {
@@ -21,12 +26,16 @@ export async function mirrorFiles(ctx: ActionCtx, install: Doc<"slack_installati
     const url = f.url_private_download || f.url_private;
     if (isMedia(mime) && url && size > 0 && size <= MAX_FILE_BYTES) {
       try {
-        const resp = await fetch(url, { headers: { Authorization: `Bearer ${install.bot_token}` } });
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${install.bot_token}` },
+        });
         // A token without access to the file gets Slack's sign-in page back,
         // often as a 200: only real media bytes become an attachment.
         if (resp.ok && isMedia(resp.headers.get("content-type") ?? "")) {
           const blob = await resp.blob();
-          const storageId = await ctx.storage.store(new Blob([await blob.arrayBuffer()], { type: mime }));
+          const storageId = await ctx.storage.store(
+            new Blob([await blob.arrayBuffer()], { type: mime }),
+          );
           attachments.push({
             storage_id: storageId,
             name: f.name ? String(f.name).slice(0, 120) : undefined,
@@ -48,9 +57,12 @@ export async function mirrorFiles(ctx: ActionCtx, install: Doc<"slack_installati
 
 // The link line mirrorFiles leaves when a file could not be read, with the
 // Slack file id its permalink carries (…slack.com/files/<user>/<file>/<name>).
-const FILE_LINK_LINE = /^📎 \[.*\]\(https:\/\/[^/\s)]+\.slack\.com\/files\/[^/\s)]+\/(F[A-Z0-9]+)\/[^\s)]*\)$/;
+const FILE_LINK_LINE =
+  /^📎 \[.*\]\(https:\/\/[^/\s)]+\.slack\.com\/files\/[^/\s)]+\/(F[A-Z0-9]+)\/[^\s)]*\)$/;
 
-export function slackFileLinkLines(content: string): Array<{ line: string; file_id: string }> {
+export function slackFileLinkLines(
+  content: string,
+): Array<{ line: string; file_id: string }> {
   const out: Array<{ line: string; file_id: string }> = [];
   for (const line of content.split("\n")) {
     const m = FILE_LINK_LINE.exec(line);
@@ -61,16 +73,25 @@ export function slackFileLinkLines(content: string): Array<{ line: string; file_
 
 // Every link line in a mirrored line's content that the token can now read,
 // as attachments, with those lines dropped from the content.
-export async function recoverLinkedFiles(ctx: ActionCtx, install: Doc<"slack_installations">, content: string): Promise<{ attachments: ChatAttachment[]; content: string }> {
+export async function recoverLinkedFiles(
+  ctx: ActionCtx,
+  install: Doc<"slack_installations">,
+  content: string,
+): Promise<{ attachments: ChatAttachment[]; content: string }> {
   const attachments: ChatAttachment[] = [];
   let rest = content;
   for (const { line, file_id } of slackFileLinkLines(content)) {
-    const info = await slackApi(install.bot_token, "files.info", { file: file_id });
+    const info = await slackApi(install.bot_token, "files.info", {
+      file: file_id,
+    });
     if (!info.ok || !info.file) continue;
     const mirrored = await mirrorFiles(ctx, install, [info.file]);
     if (mirrored.attachments.length === 0) continue;
     attachments.push(...mirrored.attachments);
-    rest = rest.split("\n").filter((l) => l !== line).join("\n");
+    rest = rest
+      .split("\n")
+      .filter((l) => l !== line)
+      .join("\n");
   }
   return { attachments, content: rest.trim() };
 }

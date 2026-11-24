@@ -9,8 +9,8 @@ Left: every session builds the same program again, and memory runs out. Right: e
 
 ## Turn it on
 
-1. Open **Settings** and choose **Agent Features** under *Machines*, then pick the computer your agents run on.
-2. Find **Typecheck** under *Hands on the machine*, switch it on, and confirm with **Turn on Typecheck**.
+1. Open **Settings** and choose **Agent Features** under _Machines_, then pick the computer your agents run on.
+2. Find **Typecheck** under _Hands on the machine_, switch it on, and confirm with **Turn on Typecheck**.
 3. New sessions on that computer use the shared typecheck from then on.
 
 ![The Typecheck card in Agent features, switched on](/documentation/typecheck/typecheck-feature.webp "Typecheck is one switch per computer.")
@@ -40,13 +40,13 @@ Each separate copy of a repository (a worktree) gets its own shared typecheck, b
 
 ## When something is off
 
-| What you notice | What to do |
-|-----------------|------------|
-| The first check takes minutes | Expected: it is building the program. Later checks take seconds |
-| The agent says a check is still running on a loaded machine | Let it finish and ask again. Starting another typecheck adds to the load that made it slow |
-| Hundreds of errors nobody wrote | The project list likely points at the wrong configuration. Ask the agent to compare it with the project's own typecheck script |
-| Errors look stale after installing packages | Ask the agent to restart the typecheck for that project |
-| Agents still run their own typecheck | Check Typecheck is on for that computer, and start a new session |
+| What you notice                                             | What to do                                                                                                                     |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| The first check takes minutes                               | Expected: it is building the program. Later checks take seconds                                                                |
+| The agent says a check is still running on a loaded machine | Let it finish and ask again. Starting another typecheck adds to the load that made it slow                                     |
+| Hundreds of errors nobody wrote                             | The project list likely points at the wrong configuration. Ask the agent to compare it with the project's own typecheck script |
+| Errors look stale after installing packages                 | Ask the agent to restart the typecheck for that project                                                                        |
+| Agents still run their own typecheck                        | Check Typecheck is on for that computer, and start a new session                                                               |
 
 ## For agents and scripts
 

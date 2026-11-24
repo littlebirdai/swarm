@@ -25,7 +25,11 @@ export type DecisionAreasSliceActions = {
 
 export function createDecisionAreasSlice(): DecisionAreasSliceActions {
   return {
-    applyDecisionAreas: action(function (this: any, _teamId: string, assignments: AreaAssignment[]) {
+    applyDecisionAreas: action(function (
+      this: any,
+      _teamId: string,
+      assignments: AreaAssignment[],
+    ) {
       const given = new Map(assignments.map((a) => [String(a.user_id), a]));
       for (const m of teamMembersOf(this)) {
         if (m.is_bot) continue;
@@ -35,7 +39,11 @@ export function createDecisionAreasSlice(): DecisionAreasSliceActions {
       }
     }) as DecisionAreasSliceActions["applyDecisionAreas"],
 
-    shareOutDecisions: action(function (this: any, _teamId: string, moves: ShareOutMoveInput[]) {
+    shareOutDecisions: action(function (
+      this: any,
+      _teamId: string,
+      moves: ShareOutMoveInput[],
+    ) {
       const me = String(this.currentUser?._id ?? "");
       const now = Date.now();
       for (const mv of moves) {

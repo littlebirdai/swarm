@@ -22,7 +22,10 @@ import type { ComputerActionMethod, ComputerScreenshotData } from "./types.js";
 export interface RemoteSocket {
   send(data: string | Buffer, options?: { binary: boolean }): void;
   close(code?: number, reason?: string): void;
-  on(event: "message", fn: (raw: Buffer | string, isBinary?: boolean) => void): unknown;
+  on(
+    event: "message",
+    fn: (raw: Buffer | string, isBinary?: boolean) => void,
+  ): unknown;
   on(event: "close", fn: () => void): unknown;
 }
 
@@ -44,7 +47,11 @@ export interface ServeComputerOptions {
 export const CLOSE_NOT_GRANTED = 4403;
 
 /** Encode one screenshot frame. */
-export function screenshotFrame(id: number, contentType: string, bytes: Buffer): Buffer {
+export function screenshotFrame(
+  id: number,
+  contentType: string,
+  bytes: Buffer,
+): Buffer {
   const ct = Buffer.from(contentType, "utf-8");
   const head = Buffer.alloc(6);
   head.writeUInt32BE(id >>> 0, 0);
@@ -52,15 +59,23 @@ export function screenshotFrame(id: number, contentType: string, bytes: Buffer):
   return Buffer.concat([head, ct, bytes]);
 }
 
-export function parseScreenshotFrame(frame: Buffer): { id: number; contentType: string; bytes: Buffer } | null {
+export function parseScreenshotFrame(
+  frame: Buffer,
+): { id: number; contentType: string; bytes: Buffer } | null {
   if (frame.length < 6) return null;
   const ctLen = frame.readUInt16BE(4);
   if (frame.length < 6 + ctLen) return null;
-  return { id: frame.readUInt32BE(0), contentType: frame.subarray(6, 6 + ctLen).toString("utf-8"), bytes: frame.subarray(6 + ctLen) };
+  return {
+    id: frame.readUInt32BE(0),
+    contentType: frame.subarray(6, 6 + ctLen).toString("utf-8"),
+    bytes: frame.subarray(6 + ctLen),
+  };
 }
 
 /** The helper's pixels as bytes: the file it wrote, removed once read. */
-export function takeScreenshotBytes(shot: ComputerScreenshotData): { bytes: Buffer; meta: Record<string, unknown> } | null {
+export function takeScreenshotBytes(
+  shot: ComputerScreenshotData,
+): { bytes: Buffer; meta: Record<string, unknown> } | null {
   const { path: file, expiresAt: _e, ...meta } = shot;
   if (!file) return null;
   let bytes: Buffer;
@@ -70,20 +85,35 @@ export function takeScreenshotBytes(shot: ComputerScreenshotData): { bytes: Buff
   } catch {
     return null;
   }
-  return { bytes, meta: { ...meta, bytes: bytes.length, contentType: `image/${shot.format}` } };
+  return {
+    bytes,
+    meta: { ...meta, bytes: bytes.length, contentType: `image/${shot.format}` },
+  };
 }
 
-async function call(client: ComputerClientLike, method: string, params: Record<string, unknown>): Promise<unknown> {
+async function call(
+  client: ComputerClientLike,
+  method: string,
+  params: Record<string, unknown>,
+): Promise<unknown> {
   switch (method) {
-    case "capabilities": return client.capabilities();
-    case "listApps": return client.listApps();
-    case "listWindows": return client.listWindows(params);
-    case "getAppState": return client.getAppState(params);
-    default: return client.action(method as ComputerActionMethod, params);
+    case "capabilities":
+      return client.capabilities();
+    case "listApps":
+      return client.listApps();
+    case "listWindows":
+      return client.listWindows(params);
+    case "getAppState":
+      return client.getAppState(params);
+    default:
+      return client.action(method as ComputerActionMethod, params);
   }
 }
 
-export function serveComputerSocket(ws: RemoteSocket, o: ServeComputerOptions): void {
+export function serveComputerSocket(
+  ws: RemoteSocket,
+  o: ServeComputerOptions,
+): void {
   const now = o.now ?? Date.now;
   let client: Promise<ComputerClientLike> | null = null;
   let closed = false;
@@ -92,41 +122,88 @@ export function serveComputerSocket(ws: RemoteSocket, o: ServeComputerOptions): 
   o.log(`[COMPUTER-REMOTE] ${where} connected`);
 
   const sweep = setInterval(() => {
-    const why = remoteRefusal(o.hostEntry(), { host: o.host, session: o.session, method: "listApps", params: {} }, o.laptop, now());
+    const why = remoteRefusal(
+      o.hostEntry(),
+      { host: o.host, session: o.session, method: "listApps", params: {} },
+      o.laptop,
+      now(),
+    );
     if (why) {
       o.log(`[COMPUTER-REMOTE] ${where} cut off: ${why.split(". Ask")[0]}`);
       ws.close(CLOSE_NOT_GRANTED, "grant revoked");
     }
   }, o.sweepMs ?? 2_000);
 
-  const reply = (id: number, body: { ok: true; result: unknown } | { ok: false; error: { code: string; message: string } }) => {
+  const reply = (
+    id: number,
+    body:
+      | { ok: true; result: unknown }
+      | { ok: false; error: { code: string; message: string } },
+  ) => {
     if (!closed) ws.send(JSON.stringify({ id, ...body }));
   };
 
   const handle = async (raw: string): Promise<void> => {
     let req: { id?: unknown; method?: unknown; params?: unknown };
-    try { req = JSON.parse(raw); } catch { return; }
+    try {
+      req = JSON.parse(raw);
+    } catch {
+      return;
+    }
     const id = typeof req.id === "number" ? req.id : -1;
     const method = typeof req.method === "string" ? req.method : "";
-    const params = req.params && typeof req.params === "object" && !Array.isArray(req.params) ? { ...(req.params as Record<string, unknown>) } : {};
-    const why = remoteRefusal(o.hostEntry(), { host: o.host, session: o.session, method, params }, o.laptop, now());
+    const params =
+      req.params && typeof req.params === "object" && !Array.isArray(req.params)
+        ? { ...(req.params as Record<string, unknown>) }
+        : {};
+    const why = remoteRefusal(
+      o.hostEntry(),
+      { host: o.host, session: o.session, method, params },
+      o.laptop,
+      now(),
+    );
     if (why) {
-      o.log(`[COMPUTER-REMOTE] ${where} refused ${method}: ${why.split(". Ask")[0]}`);
-      return reply(id, { ok: false, error: { code: "remote_refused", message: why } });
+      o.log(
+        `[COMPUTER-REMOTE] ${where} refused ${method}: ${why.split(". Ask")[0]}`,
+      );
+      return reply(id, {
+        ok: false,
+        error: { code: "remote_refused", message: why },
+      });
     }
     // Where the helper writes its capture is this laptop's business, never the caller's.
     if ("screenshotDir" in params) params.screenshotDir = screenshotDir();
     o.onFirstUse?.(o.host);
-    o.log(`[COMPUTER-REMOTE] ${where} ${method}${typeof params.app === "string" ? ` ${params.app}` : ""}`);
+    o.log(
+      `[COMPUTER-REMOTE] ${where} ${method}${typeof params.app === "string" ? ` ${params.app}` : ""}`,
+    );
     try {
       client ??= o.client();
-      const result = await call(await client, method, params) as { screenshot?: ComputerScreenshotData | null } | null;
-      const shot = result && typeof result === "object" && result.screenshot ? takeScreenshotBytes(result.screenshot) : null;
-      if (shot && !closed) ws.send(screenshotFrame(id, String(shot.meta.contentType), shot.bytes), { binary: true });
-      reply(id, { ok: true, result: shot ? { ...result, screenshot: shot.meta } : result });
+      const result = (await call(await client, method, params)) as {
+        screenshot?: ComputerScreenshotData | null;
+      } | null;
+      const shot =
+        result && typeof result === "object" && result.screenshot
+          ? takeScreenshotBytes(result.screenshot)
+          : null;
+      if (shot && !closed)
+        ws.send(
+          screenshotFrame(id, String(shot.meta.contentType), shot.bytes),
+          { binary: true },
+        );
+      reply(id, {
+        ok: true,
+        result: shot ? { ...result, screenshot: shot.meta } : result,
+      });
     } catch (err) {
       const e = asComputerError(err);
-      reply(id, { ok: false, error: { code: e.code, message: e instanceof ComputerError ? e.message : String(err) } });
+      reply(id, {
+        ok: false,
+        error: {
+          code: e.code,
+          message: e instanceof ComputerError ? e.message : String(err),
+        },
+      });
     }
   };
 
@@ -139,6 +216,9 @@ export function serveComputerSocket(ws: RemoteSocket, o: ServeComputerOptions): 
     closed = true;
     clearInterval(sweep);
     o.log(`[COMPUTER-REMOTE] ${where} left`);
-    void client?.then((c) => c.shutdown(), () => {});
+    void client?.then(
+      (c) => c.shutdown(),
+      () => {},
+    );
   });
 }

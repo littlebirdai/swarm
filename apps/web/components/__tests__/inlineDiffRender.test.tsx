@@ -28,7 +28,17 @@ const DIFF = [
   ...Array.from({ length: 10 }, (_, i) => ` filler line ${i + 11}`),
 ].join("\n");
 
-const MEMO = ["# Memo", "", "Intro prose.", "", "````cast-diff", DIFF, "````", "", "Closing prose."].join("\n");
+const MEMO = [
+  "# Memo",
+  "",
+  "Intro prose.",
+  "",
+  "````cast-diff",
+  DIFF,
+  "````",
+  "",
+  "Closing prose.",
+].join("\n");
 
 describe("inline diff rendering", () => {
   test("a cast-diff fence in a message body renders file cards, not a code block", () => {
@@ -56,20 +66,26 @@ describe("inline diff rendering", () => {
   test("without MessageIdentity the diff is inert; with it, every file offers line comments", () => {
     fileDiffRenders.length = 0;
     renderToStaticMarkup(<InlineDiff raw={DIFF} />);
-    expect(fileDiffRenders.map((r) => !!r.options?.enableGutterUtility)).toEqual([false, false]);
+    expect(
+      fileDiffRenders.map((r) => !!r.options?.enableGutterUtility),
+    ).toEqual([false, false]);
     fileDiffRenders.length = 0;
     renderToStaticMarkup(
       <MessageIdentityProvider conversationId="conv1" messageId="msg1">
         <InlineDiff raw={DIFF} />
       </MessageIdentityProvider>,
     );
-    expect(fileDiffRenders.map((r) => !!r.options?.enableGutterUtility)).toEqual([true, true]);
+    expect(
+      fileDiffRenders.map((r) => !!r.options?.enableGutterUtility),
+    ).toEqual([true, true]);
   });
 
   test("a whole-file diff can open its unchanged lines; the header expands them all", () => {
     fileDiffRenders.length = 0;
     renderToStaticMarkup(<InlineDiff raw={DIFF} />);
-    const modified = fileDiffRenders.find((r) => !r.fileDiff.isPartial && r.fileDiff.type === "change")!;
+    const modified = fileDiffRenders.find(
+      (r) => !r.fileDiff.isPartial && r.fileDiff.type === "change",
+    )!;
     expect(modified.options?.hunkSeparators).toBe("line-info");
     expect(modified.options?.expandUnchanged).toBe(false);
   });

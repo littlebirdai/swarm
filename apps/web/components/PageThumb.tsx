@@ -44,11 +44,26 @@ export function PageThumb({
   return <LivePreview slug={slug} version={version} title={title} />;
 }
 
-function LivePreview({ slug, version, title }: { slug: string; version: number; title?: string }) {
+function LivePreview({
+  slug,
+  version,
+  title,
+}: {
+  slug: string;
+  version: number;
+  title?: string;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const scale = useDerivedSize(boxRef, (w) => (w > 0 ? w / CAPTURE_W : 0), () => 0);
+  const scale = useDerivedSize(
+    boxRef,
+    (w) => (w > 0 ? w / CAPTURE_W : 0),
+    () => 0,
+  );
   return (
-    <div ref={boxRef} className="relative w-full h-full overflow-hidden bg-white pointer-events-none">
+    <div
+      ref={boxRef}
+      className="relative w-full h-full overflow-hidden bg-white pointer-events-none"
+    >
       {scale > 0 && (
         <iframe
           src={pagePreviewSrc(slug, version)}
@@ -59,7 +74,11 @@ function LivePreview({ slug, version, title }: { slug: string; version: number; 
           sandbox="allow-scripts"
           scrolling="no"
           className="absolute top-0 left-0 border-0 origin-top-left"
-          style={{ width: CAPTURE_W, height: CAPTURE_H, transform: `scale(${scale})` }}
+          style={{
+            width: CAPTURE_W,
+            height: CAPTURE_H,
+            transform: `scale(${scale})`,
+          }}
         />
       )}
     </div>

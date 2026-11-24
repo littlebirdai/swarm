@@ -8,7 +8,9 @@ describe("splitHighlightedLines", () => {
   });
 
   it("re-closes and re-opens a span that crosses a newline", () => {
-    const lines = splitHighlightedLines('<span class="token comment">/* one\ntwo */</span>');
+    const lines = splitHighlightedLines(
+      '<span class="token comment">/* one\ntwo */</span>',
+    );
     expect(lines).toEqual([
       '<span class="token comment">/* one</span>',
       '<span class="token comment">two */</span>',
@@ -16,7 +18,9 @@ describe("splitHighlightedLines", () => {
   });
 
   it("keeps nested spans balanced on every line", () => {
-    const lines = splitHighlightedLines('<span class="a"><span class="b">x\ny</span>z</span>');
+    const lines = splitHighlightedLines(
+      '<span class="a"><span class="b">x\ny</span>z</span>',
+    );
     expect(lines).toEqual([
       '<span class="a"><span class="b">x</span></span>',
       '<span class="a"><span class="b">y</span>z</span>',
@@ -24,13 +28,20 @@ describe("splitHighlightedLines", () => {
   });
 
   it("leaves a line with no markup alone", () => {
-    expect(splitHighlightedLines("plain &amp; escaped")).toEqual(["plain &amp; escaped"]);
+    expect(splitHighlightedLines("plain &amp; escaped")).toEqual([
+      "plain &amp; escaped",
+    ]);
   });
 });
 
 describe("highlightLines", () => {
   it("matches the file's line count for a real grammar", () => {
-    const code = ["const a = 1;", "/* a comment", "   that spans lines */", "const b = 2;"].join("\n");
+    const code = [
+      "const a = 1;",
+      "/* a comment",
+      "   that spans lines */",
+      "const b = 2;",
+    ].join("\n");
     const lines = highlightLines(code, "typescript");
     expect(lines).not.toBeNull();
     expect(lines!.length).toBe(4);

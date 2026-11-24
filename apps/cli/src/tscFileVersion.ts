@@ -6,9 +6,19 @@ const SOURCE_MAP_COMMENT = /^\/\/[@#] source[M]appingURL=(.+)\r?\n?$/;
 
 /** The text as tsc reads a file: a byte order mark names the encoding and is dropped. */
 function textAsTscReads(bytes: Buffer): string {
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) return Buffer.from(bytes.subarray(0, bytes.length & ~1)).swap16().toString("utf16le", 2);
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) return bytes.toString("utf16le", 2);
-  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return bytes.toString("utf8", 3);
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff)
+    return Buffer.from(bytes.subarray(0, bytes.length & ~1))
+      .swap16()
+      .toString("utf16le", 2);
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe)
+    return bytes.toString("utf16le", 2);
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xef &&
+    bytes[1] === 0xbb &&
+    bytes[2] === 0xbf
+  )
+    return bytes.toString("utf8", 3);
   return bytes.toString("utf8");
 }
 
@@ -35,6 +45,7 @@ function withoutSourceMapComment(text: string): string {
 /** The version tsc records for a file's content: the sha256 of its text, source map comment aside (tsc's getSourceFileVersionAsHashFromText). */
 export function tscFileVersion(bytes: Buffer): string {
   let text = textAsTscReads(bytes);
-  if (/\/\/[@#] source[M]appingURL=(.+)\r?\n?$/.test(text)) text = withoutSourceMapComment(text);
+  if (/\/\/[@#] source[M]appingURL=(.+)\r?\n?$/.test(text))
+    text = withoutSourceMapComment(text);
   return createHash("sha256").update(text).digest("hex");
 }

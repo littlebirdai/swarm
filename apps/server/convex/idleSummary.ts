@@ -61,16 +61,29 @@ export function isRefusalProse(text: string): boolean {
 export const SETTLE_VERDICTS = ["done", "needs_input"] as const;
 export type SettleVerdict = (typeof SETTLE_VERDICTS)[number];
 
-export function parseSettleVerdict(raw: string | null | undefined): SettleVerdict | null {
-  const word = (raw ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return (SETTLE_VERDICTS as readonly string[]).includes(word) ? (word as SettleVerdict) : null;
+export function parseSettleVerdict(
+  raw: string | null | undefined,
+): SettleVerdict | null {
+  const word = (raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  return (SETTLE_VERDICTS as readonly string[]).includes(word)
+    ? (word as SettleVerdict)
+    : null;
 }
 
 // Split the classifier's two-line reply. Tolerates a missing VERDICT line (older
 // prompt shape, or a model that skipped it) by returning the whole text as the
 // summary with no verdict.
-export function parseSettleReply(raw: string): { verdict: SettleVerdict | null; summary: string } {
-  const text = raw.replace(/^```(?:\w+)?\s*/i, "").replace(/\s*```$/i, "").trim();
+export function parseSettleReply(raw: string): {
+  verdict: SettleVerdict | null;
+  summary: string;
+} {
+  const text = raw
+    .replace(/^```(?:\w+)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
   let verdict: SettleVerdict | null = null;
   const summaryLines: string[] = [];
   for (const line of text.split("\n")) {
@@ -94,12 +107,21 @@ export const setIdleSummary = internalMutation({
   args: {
     conversation_id: v.id("conversations"),
     idle_summary: v.optional(v.string()),
-    settle_verdict: v.optional(v.union(...SETTLE_VERDICTS.map((s) => v.literal(s)))),
+    settle_verdict: v.optional(
+      v.union(...SETTLE_VERDICTS.map((s) => v.literal(s))),
+    ),
   },
   handler: (ctx, args) => performSetIdleSummary(ctx, args),
 });
 
-export async function performSetIdleSummary(ctx: any, args: { conversation_id: any; idle_summary?: string; settle_verdict?: SettleVerdict }): Promise<void> {
+export async function performSetIdleSummary(
+  ctx: any,
+  args: {
+    conversation_id: any;
+    idle_summary?: string;
+    settle_verdict?: SettleVerdict;
+  },
+): Promise<void> {
   {
     const patch: Record<string, unknown> = {};
     if (args.idle_summary !== undefined) patch.idle_summary = args.idle_summary;
@@ -109,14 +131,22 @@ export async function performSetIdleSummary(ctx: any, args: { conversation_id: a
       patch.settle_verdict = args.settle_verdict;
       patch.settle_verdict_at = Date.now();
     }
-    if (Object.keys(patch).length) await ctx.db.patch(args.conversation_id, patch);
+    if (Object.keys(patch).length)
+      await ctx.db.patch(args.conversation_id, patch);
     // A session under a role that ended a turn asking something in prose tells
     // its role now that the verdict says so (org-staffing.md S28); stalls and
     // declared blocks were routed at settle time (notifications).
     if (args.settle_verdict === "needs_input") {
       const conv = await ctx.db.get(args.conversation_id);
-      if (conv && (conv.org_role_id || conv.standing_role_id) && conv.thread_state_status !== "blocked") {
-        await routeUpWaitingSession(ctx, conv, { why: "waiting", since: conv.updated_at ?? Date.now() });
+      if (
+        conv &&
+        (conv.org_role_id || conv.standing_role_id) &&
+        conv.thread_state_status !== "blocked"
+      ) {
+        await routeUpWaitingSession(ctx, conv, {
+          why: "waiting",
+          since: conv.updated_at ?? Date.now(),
+        });
       }
     }
   }
@@ -133,7 +163,11 @@ export const SETTLE_FINAL_HEAD_CHARS = 900;
 export const SETTLE_FINAL_TAIL_CHARS = 3200;
 export const SETTLE_CONTEXT_CHARS = 350;
 
-export type SettleTailMessage = { role: string; content: string; isFinal: boolean };
+export type SettleTailMessage = {
+  role: string;
+  content: string;
+  isFinal: boolean;
+};
 
 // Rendered pages, canvases and long code blocks carry no verdict signal and
 // swamp the window; keep a marker so the model knows a report was delivered.
@@ -141,7 +175,10 @@ function stripBulkyBlocks(text: string): string {
   return text
     .replace(/```cast-canvas[\s\S]*?```/g, "[canvas report]")
     .replace(/```(?:html|svg)[\s\S]*?```/g, "[rendered block]")
-    .replace(/```[\w-]*\n([\s\S]{600,}?)```/g, (m) => `[code block, ${m.length} chars]`);
+    .replace(
+      /```[\w-]*\n([\s\S]{600,}?)```/g,
+      (m) => `[code block, ${m.length} chars]`,
+    );
 }
 
 // Keep the END of a long final message (that is where the ask is), with a
@@ -156,7 +193,12 @@ export function shapeFinalMessage(text: string): string {
 // the settle eval (apps/evals/src/surfaces/settle) so what the model is
 // graded on is what it sees in prod.
 export function shapeSettleTail(
-  newestFirst: Array<{ role?: string; content?: string | null; tool_results?: unknown[] | null; tool_calls?: unknown[] | null }>,
+  newestFirst: Array<{
+    role?: string;
+    content?: string | null;
+    tool_results?: unknown[] | null;
+    tool_calls?: unknown[] | null;
+  }>,
 ): SettleTailMessage[] {
   const kept = newestFirst.filter(isSummarizableMessage).reverse();
   const lastAssistant = [...kept].reverse().find((m) => m.role === "assistant");
@@ -166,7 +208,9 @@ export function shapeSettleTail(
     return {
       role: m.role || "user",
       isFinal,
-      content: isFinal ? shapeFinalMessage(raw) : stripBulkyBlocks(raw).slice(0, SETTLE_CONTEXT_CHARS),
+      content: isFinal
+        ? shapeFinalMessage(raw)
+        : stripBulkyBlocks(raw).slice(0, SETTLE_CONTEXT_CHARS),
     };
   });
   // The transcript's very last entry is a tool CALL that never got its result:
@@ -180,14 +224,32 @@ export function shapeSettleTail(
   // human's note) arrived after the final text: the stop then answered
   // something external, and the halted call is a wrap-up, not the work.
   const newest = newestFirst[0];
-  const finalIdx = lastAssistant ? newestFirst.indexOf(lastAssistant as any) : -1;
-  const textArrivedAfterFinal = finalIdx > 0 && newestFirst.slice(0, finalIdx).some(
-    (m) => m.role === "user" && !!(m.content || "").trim() && !m.tool_results?.length,
-  );
+  const finalIdx = lastAssistant
+    ? newestFirst.indexOf(lastAssistant as any)
+    : -1;
+  const textArrivedAfterFinal =
+    finalIdx > 0 &&
+    newestFirst
+      .slice(0, finalIdx)
+      .some(
+        (m) =>
+          m.role === "user" &&
+          !!(m.content || "").trim() &&
+          !m.tool_results?.length,
+      );
   const haltedMidCall =
-    !!newest && newest.role === "assistant" && !!newest.tool_calls?.length && !(newest.content || "").trim() && !textArrivedAfterFinal;
+    !!newest &&
+    newest.role === "assistant" &&
+    !!newest.tool_calls?.length &&
+    !(newest.content || "").trim() &&
+    !textArrivedAfterFinal;
   if (haltedMidCall && shaped.length) {
-    shaped.push({ role: "note", isFinal: false, content: "After the final message the agent issued a tool call and stopped before it returned — it halted mid-work with no closing message." });
+    shaped.push({
+      role: "note",
+      isFinal: false,
+      content:
+        "After the final message the agent issued a tool call and stopped before it returned — it halted mid-work with no closing message.",
+    });
   }
   return shaped;
 }
@@ -202,7 +264,7 @@ export const getMessagesForSummary = internalQuery({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("desc")
       .take(SETTLE_TAIL_MESSAGES);
@@ -216,7 +278,9 @@ export function buildSettlePrompt(messages: SettleTailMessage[]): string {
     .map((m) => {
       if (m.role === "note") return `Note: ${m.content}`;
       const who = m.role === "assistant" ? "Assistant" : "User";
-      return m.isFinal ? `${who} [FINAL MESSAGE — the settle]: ${m.content}` : `${who}: ${m.content}`;
+      return m.isFinal
+        ? `${who} [FINAL MESSAGE — the settle]: ${m.content}`
+        : `${who}: ${m.content}`;
     })
     .join("\n\n");
 
@@ -244,7 +308,11 @@ ${messageText}`;
 
 /** The settle classifier request prod posts for a shaped tail. */
 export function settleRequest(tail: SettleTailMessage[]): SurfaceRequest {
-  return { model: CHEAP_MODEL, max_tokens: 200, prompt: buildSettlePrompt(tail) };
+  return {
+    model: CHEAP_MODEL,
+    max_tokens: 200,
+    prompt: buildSettlePrompt(tail),
+  };
 }
 
 export const generateIdleSummary = internalAction({
@@ -254,17 +322,25 @@ export const generateIdleSummary = internalAction({
   handler: async (ctx, args) => {
     if (!process.env.ANTHROPIC_API_KEY) return;
 
-    const messages = await ctx.runQuery(internal.idleSummary.getMessagesForSummary, {
-      conversation_id: args.conversation_id,
-    });
+    const messages = await ctx.runQuery(
+      internal.idleSummary.getMessagesForSummary,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
 
     if (messages.length === 0) return;
 
     try {
-      const reply = await callModel({ ...settleRequest(messages), label: "Idle summary", gate: { ctx, scope: { conversationId: args.conversation_id } } });
+      const reply = await callModel({
+        ...settleRequest(messages),
+        label: "Idle summary",
+        gate: { ctx, scope: { conversationId: args.conversation_id } },
+      });
       if (!reply) return;
       const { verdict, summary } = parseSettleReply(reply.text);
-      const usableSummary = summary && isUsableIdleSummary(summary) ? summary : undefined;
+      const usableSummary =
+        summary && isUsableIdleSummary(summary) ? summary : undefined;
 
       // The verdict is written even when the summary line fails the prose
       // guards — the two are independent claims about the same settle. A
@@ -299,28 +375,42 @@ export const generateIdleSummary = internalAction({
 // top-level settled row with content whose agent made no declaration and whose
 // verdict does not already cover this settle.
 export const classifySettle = internalMutation({
-  args: { conversation_id: v.id("conversations"), status_ts: v.optional(v.number()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    status_ts: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || !conv.message_count) return { scheduled: false, reason: "no_content" };
-    if (conv.is_subagent || conv.is_workflow_sub) return { scheduled: false, reason: "subagent" };
+    if (!conv || !conv.message_count)
+      return { scheduled: false, reason: "no_content" };
+    if (conv.is_subagent || conv.is_workflow_sub)
+      return { scheduled: false, reason: "subagent" };
     if (conv.inbox_killed_at) return { scheduled: false, reason: "killed" };
     if (isClosedSession(conv)) return { scheduled: false, reason: "closed" };
     const session = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     // Scheduled off a specific status change: a newer change has its own run.
-    if (args.status_ts !== undefined && session?.agent_status_updated_at !== args.status_ts) {
+    if (
+      args.status_ts !== undefined &&
+      session?.agent_status_updated_at !== args.status_ts
+    ) {
       return { scheduled: false, reason: "superseded" };
     }
     // A declaration outranks the classifier; don't spend the call.
     const st = session?.agent_status;
-    if (st === "dormant" || st === "done" || st === "waiting") return { scheduled: false, reason: "declared" };
-    if (st && st !== "idle") return { scheduled: false, reason: `status_${st}` };
-    if (conv.settle_verdict_at && conv.settle_verdict_at >= conv.updated_at) return { scheduled: false, reason: "current" };
-    await ctx.scheduler.runAfter(0, internal.idleSummary.generateIdleSummary, { conversation_id: conv._id });
+    if (st === "dormant" || st === "done" || st === "waiting")
+      return { scheduled: false, reason: "declared" };
+    if (st && st !== "idle")
+      return { scheduled: false, reason: `status_${st}` };
+    if (conv.settle_verdict_at && conv.settle_verdict_at >= conv.updated_at)
+      return { scheduled: false, reason: "current" };
+    await ctx.scheduler.runAfter(0, internal.idleSummary.generateIdleSummary, {
+      conversation_id: conv._id,
+    });
     return { scheduled: true };
   },
 });
-

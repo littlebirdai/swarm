@@ -16,7 +16,10 @@ import {
   webTools as platformWebTools,
   type WebDeps as PlatformWebDeps,
 } from "@platform/assistant/web";
-import { isMachineDeliveredMessage, parseDecisionAnswer } from "@codecast/shared/contracts";
+import {
+  isMachineDeliveredMessage,
+  parseDecisionAnswer,
+} from "@codecast/shared/contracts";
 import { CHEAP_MODEL, postMessages } from "../../lib/anthropic";
 import { fetchPublicPage } from "../../lib/publicFetch";
 import type { VendorGate } from "../../lib/vendorGuard";
@@ -40,20 +43,32 @@ export interface WebDeps {
   gate?: VendorGate;
 }
 
-const USER_AGENT = "Mozilla/5.0 (compatible; CodecastAssistant/1.0; +https://codecast.sh)";
+const USER_AGENT =
+  "Mozilla/5.0 (compatible; CodecastAssistant/1.0; +https://codecast.sh)";
 
 /** The package's web deps on codecast's transport. search_web gets the
  *  Messages API only while the deployment's key is set. */
 function webDeps(deps: WebDeps): PlatformWebDeps {
   return {
-    readPage: (url, request) => fetchPublicPage(url, { ...request, fetch: deps.fetch }),
-    ...(process.env.ANTHROPIC_API_KEY && deps.gate ? { messages: (req, opts) => postMessages(req, { ...opts, gate: deps.gate! }) } : {}),
+    readPage: (url, request) =>
+      fetchPublicPage(url, { ...request, fetch: deps.fetch }),
+    ...(process.env.ANTHROPIC_API_KEY && deps.gate
+      ? {
+          messages: (req, opts) =>
+            postMessages(req, { ...opts, gate: deps.gate! }),
+        }
+      : {}),
     searchModel: CHEAP_MODEL,
     userAgent: USER_AGENT,
   };
 }
 
-export const { isPersonTyped, pageAllowedWithoutAsking, turnRows, searchesBefore } = turnRowRules({
+export const {
+  isPersonTyped,
+  pageAllowedWithoutAsking,
+  turnRows,
+  searchesBefore,
+} = turnRowRules({
   isDecisionAnswer: (text) => !!parseDecisionAnswer(text),
   isMachineDelivered: isMachineDeliveredMessage,
 });
@@ -65,7 +80,10 @@ export function fetchPageTool(deps: WebDeps = {}): Tool {
   return platformFetchPageTool(webDeps(deps));
 }
 
-export function searchWebTool(deps: WebDeps = {}, searches = { made: 0 }): Tool {
+export function searchWebTool(
+  deps: WebDeps = {},
+  searches = { made: 0 },
+): Tool {
   return platformSearchWebTool(webDeps(deps), searches);
 }
 

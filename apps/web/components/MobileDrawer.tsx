@@ -47,7 +47,9 @@ export function MobileDrawer({
         )}
       >
         <div className="cc-mobile-drawer-head flex items-center justify-between shrink-0 pl-4 pr-1 border-b border-sol-border/30">
-          <SheetTitle className="text-xs font-medium text-sol-text-dim uppercase tracking-wide">{title}</SheetTitle>
+          <SheetTitle className="text-xs font-medium text-sol-text-dim uppercase tracking-wide">
+            {title}
+          </SheetTitle>
           <SheetClose
             aria-label={`Close ${title.toLowerCase()}`}
             className="cc-touch-target flex items-center justify-center rounded-md text-sol-text-muted hover:text-sol-text hover:bg-sol-bg transition-colors [&>svg]:h-[18px] [&>svg]:w-[18px]"

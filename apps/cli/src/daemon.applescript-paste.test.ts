@@ -16,13 +16,41 @@ import { pollDeclineText, pollMenuSteps } from "./pollMessage";
 import { blockAt, functionBlock } from "./test-helpers/sourceRegion";
 
 const source = readFileSync(join(import.meta.dir, "daemon.ts"), "utf8");
-const helpers = ["buildAppleScript", "writeKittyInjectionPayload", "writeTerminalInjectionScript"]
-  .map(name => functionBlock(source, name).text).join("\n").replace(/^export /gm, "");
-const { buildAppleScript, writeKittyInjectionPayload, writeTerminalInjectionScript } = new Function(
-  "fs", "path", "randomUUID", "CONFIG_DIR", "prepareInjectedContent", "PASTE_START", "PASTE_END", "pollDeclineText", "pollMenuSteps",
+const helpers = [
+  "buildAppleScript",
+  "writeKittyInjectionPayload",
+  "writeTerminalInjectionScript",
+]
+  .map((name) => functionBlock(source, name).text)
+  .join("\n")
+  .replace(/^export /gm, "");
+const {
+  buildAppleScript,
+  writeKittyInjectionPayload,
+  writeTerminalInjectionScript,
+} = new Function(
+  "fs",
+  "path",
+  "randomUUID",
+  "CONFIG_DIR",
+  "prepareInjectedContent",
+  "PASTE_START",
+  "PASTE_END",
+  "pollDeclineText",
+  "pollMenuSteps",
   new Bun.Transpiler({ loader: "ts" }).transformSync(helpers) +
     "; return { buildAppleScript, writeKittyInjectionPayload, writeTerminalInjectionScript };",
-)(fs, path, randomUUID, "", prepareInjectedContent, PASTE_START, PASTE_END, pollDeclineText, pollMenuSteps);
+)(
+  fs,
+  path,
+  randomUUID,
+  "",
+  prepareInjectedContent,
+  PASTE_START,
+  PASTE_END,
+  pollDeclineText,
+  pollMenuSteps,
+);
 
 const MULTILINE = 'first \\\\ path and "quotes"\nsecond line\nthird line';
 const MENU_WITH_TEXT_FIELD = { keys: ["4"], text: MULTILINE };
@@ -40,7 +68,9 @@ describe("buildAppleScript multiline paste", () => {
 
     expect(script).toContain('(ASCII character 27) & "[200~"');
     expect(script).toContain('(ASCII character 27) & "[201~"');
-    expect(script).toContain('first \\\\\\\\ path and \\"quotes\\"\nsecond line\nthird line');
+    expect(script).toContain(
+      'first \\\\\\\\ path and \\"quotes\\"\nsecond line\nthird line',
+    );
     expect(script).not.toContain("\x1b[200~");
     expect(script).not.toContain("\x1b[201~");
   });
@@ -55,7 +85,9 @@ describe("buildAppleScript multiline paste", () => {
       false,
     );
 
-    expect(script).toContain('first \\\\\\\\ path and \\"quotes\\" second line third line');
+    expect(script).toContain(
+      'first \\\\\\\\ path and \\"quotes\\" second line third line',
+    );
     expect(script).not.toContain("[200~");
     expect(script).not.toContain("[201~");
     expect(script).not.toContain("\nsecond line");
@@ -121,25 +153,43 @@ describe("direct terminal message submission", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     const submission = blockAt(body, start).text;
 
-    expect(submission).toContain("paste: () => t.sendText(content, beforeInput)");
+    expect(submission).toContain(
+      "paste: () => t.sendText(content, beforeInput)",
+    );
     expect(submission.match(/sendText\(/g)).toHaveLength(1);
     expect(submission.match(/sendKey\(/g)).toHaveLength(1);
-    const submit = submission.slice(submission.indexOf("submit: async () => {"));
+    const submit = submission.slice(
+      submission.indexOf("submit: async () => {"),
+    );
     expect(submit).toContain("await beforeInput?.()");
-    expect(submit.indexOf("await beforeInput?.()")).toBeLessThan(submit.indexOf('await t.sendKey("Enter")'));
+    expect(submit.indexOf("await beforeInput?.()")).toBeLessThan(
+      submit.indexOf('await t.sendKey("Enter")'),
+    );
 
-    for (const name of ["injectViaKitty", "injectViaWezTerm", "injectViaHerdr"]) {
-      expect(functionBlock(source, name).text).toContain("await injectThroughPane(");
+    for (const name of [
+      "injectViaKitty",
+      "injectViaWezTerm",
+      "injectViaHerdr",
+    ]) {
+      expect(functionBlock(source, name).text).toContain(
+        "await injectThroughPane(",
+      );
     }
   });
 
   test("each transport runs the input guard right before it writes message text", () => {
-    expect(functionBlock(source, "kittySendText").text).toContain("await beforeInput?.()");
+    expect(functionBlock(source, "kittySendText").text).toContain(
+      "await beforeInput?.()",
+    );
     for (const name of ["injectViaWezTerm", "injectViaHerdr"]) {
       const body = functionBlock(source, name).text;
-      const send = body.slice(body.indexOf("sendText: async (text, beforeInput) => {"));
+      const send = body.slice(
+        body.indexOf("sendText: async (text, beforeInput) => {"),
+      );
       expect(send.indexOf("await beforeInput?.()")).toBeGreaterThanOrEqual(0);
-      expect(send.indexOf("await beforeInput?.()")).toBeLessThan(send.indexOf("sendKey:"));
+      expect(send.indexOf("await beforeInput?.()")).toBeLessThan(
+        send.indexOf("sendKey:"),
+      );
     }
   });
 });

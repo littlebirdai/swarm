@@ -1,5 +1,9 @@
 import { Video } from "lucide-react";
-import { callMomentHref, describeClockSpans, spanStartSecond } from "@codecast/shared/contracts";
+import {
+  callMomentHref,
+  describeClockSpans,
+  spanStartSecond,
+} from "@codecast/shared/contracts";
 
 /**
  * Which part of a call was filmed, in the call's own clock: `video 4:40-7:20`.
@@ -28,7 +32,10 @@ export function CallVideoStretchChip({
   );
   if (!callRef) {
     return (
-      <span className={look} title="The parts of the call that were filmed. The lines said in them carry a red rail">
+      <span
+        className={look}
+        title="The parts of the call that were filmed. The lines said in them carry a red rail"
+      >
         {body}
       </span>
     );

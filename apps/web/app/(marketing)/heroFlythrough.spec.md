@@ -26,14 +26,14 @@ Companion documents: `heroFly/ARCHITECTURE.md` (the sandbox, the container/view 
 
 ### Easing kit (`heroFly/timeline.ts`, all pure)
 
-| name | definition | use |
-|---|---|---|
-| `glide` | cubic-bezier(0.65, 0, 0.35, 1) | camera transits |
-| `settle` | cubic-bezier(0.16, 1, 0.3, 1) | camera arrivals, row pushes, UI fades |
-| `out` | cubic-bezier(0.4, 0, 1, 1) | exits |
-| `DROP` | damped spring w=14, zeta=0.62 (about 7% overshoot, lands in 0.55s) | anything landing |
-| `SETTLE` | spring w=10, zeta=0.86 (no visible overshoot, 0.7s) | pops settling into place |
-| `SNAP` | spring w=24, zeta=0.72 | dots, badges, button presses, pill pops |
+| name     | definition                                                         | use                                     |
+| -------- | ------------------------------------------------------------------ | --------------------------------------- |
+| `glide`  | cubic-bezier(0.65, 0, 0.35, 1)                                     | camera transits                         |
+| `settle` | cubic-bezier(0.16, 1, 0.3, 1)                                      | camera arrivals, row pushes, UI fades   |
+| `out`    | cubic-bezier(0.4, 0, 1, 1)                                         | exits                                   |
+| `DROP`   | damped spring w=14, zeta=0.62 (about 7% overshoot, lands in 0.55s) | anything landing                        |
+| `SETTLE` | spring w=10, zeta=0.86 (no visible overshoot, 0.7s)                | pops settling into place                |
+| `SNAP`   | spring w=24, zeta=0.72                                             | dots, badges, button presses, pill pops |
 
 Spring: `x(s) = 1 - e^(-zeta*w*s) * (cos(wd*s) + (zeta*w/wd) * sin(wd*s))`, `wd = w*sqrt(1 - zeta^2)`, `x = 0` for `s < 0`, bent to land on exactly 1 at 2.5s so nothing drifts past a cut or the seam.
 
@@ -49,20 +49,20 @@ There is no card flip, no card back and no overview: windows appear and leave as
 
 World px; x right, y down, z toward the viewer; `pos` is the surface centre. The route is one loop: out east to the phone and the pair, back to the desk, down to the board, east along the south to automation and the team, up to the pull request, west along the top to the page, down the west side to memory, and home to the desk.
 
-| id | surface | size | pos | rot (x, y, z) | regions (px from top-left) |
-|---|---|---|---|---|---|
-| `desk` | the desktop app window | 1180x680 | (0, 0, 0) | 0, 0, 0 | `sidebar` 0,0 200x680; `list` 200,0 340x680; `header` 540,0 640x48; `transcript` 540,48 640x512 (bottom-anchored); `composer` 540,560 640x120; `side` 800,64 360x460 (overlay); `inset` 700,430 460x230 (overlay) |
-| `phone` | iPhone, mobile app in its light theme (its default) | 300x620, radius 44, bezel | (860, 30, 180) | 0, -16, -2 | `main` 276x572 (the screen under the notch) |
-| `pairA` | worker session, Webhook API half | 540x320 | (1500, -250, -100) | 0, -8, 0 | `header` 540x44; `transcript` 0,44 540x276 (bottom) |
-| `pairB` | worker session, Dashboard retry UI | 540x320 | (1560, 140, -20) | 0, -8, 0 | same as pairA |
-| `board` | tasks and plan | 1000x520 | (80, 900, -20) | 24, 0, 0 (tilted back like paper) | `main` |
-| `auto` | triggers and a workflow run | 900x520 | (1400, 980, -60) | 16, -6, 0 | `main` |
-| `team` | channel, huddle, org | 980x600 | (2500, 360, -80) | 0, -10, 0 | `main` |
-| `pr` | the pull request page | 900x560 | (2400, -800, -120) | -8, -8, 0 | `main` |
-| `page` | the published page | 900x560 | (0, -1000, -260) | -10, 0, 0 (pinned at the top) | `main` |
-| `palette` | command palette search | 720x420 | (-1380, -160, -100) | 0, 12, 0 | `main` |
-| `blame` | a file with session blame | 900x380 | (-1400, 380, -40) | 0, 10, 0 | `main` |
-| `label3w` | world text "3 weeks later" | 44px mono | (-760, -560, 260) | 0 | |
+| id        | surface                                             | size                      | pos                 | rot (x, y, z)                     | regions (px from top-left)                                                                                                                                                                                        |
+| --------- | --------------------------------------------------- | ------------------------- | ------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desk`    | the desktop app window                              | 1180x680                  | (0, 0, 0)           | 0, 0, 0                           | `sidebar` 0,0 200x680; `list` 200,0 340x680; `header` 540,0 640x48; `transcript` 540,48 640x512 (bottom-anchored); `composer` 540,560 640x120; `side` 800,64 360x460 (overlay); `inset` 700,430 460x230 (overlay) |
+| `phone`   | iPhone, mobile app in its light theme (its default) | 300x620, radius 44, bezel | (860, 30, 180)      | 0, -16, -2                        | `main` 276x572 (the screen under the notch)                                                                                                                                                                       |
+| `pairA`   | worker session, Webhook API half                    | 540x320                   | (1500, -250, -100)  | 0, -8, 0                          | `header` 540x44; `transcript` 0,44 540x276 (bottom)                                                                                                                                                               |
+| `pairB`   | worker session, Dashboard retry UI                  | 540x320                   | (1560, 140, -20)    | 0, -8, 0                          | same as pairA                                                                                                                                                                                                     |
+| `board`   | tasks and plan                                      | 1000x520                  | (80, 900, -20)      | 24, 0, 0 (tilted back like paper) | `main`                                                                                                                                                                                                            |
+| `auto`    | triggers and a workflow run                         | 900x520                   | (1400, 980, -60)    | 16, -6, 0                         | `main`                                                                                                                                                                                                            |
+| `team`    | channel, huddle, org                                | 980x600                   | (2500, 360, -80)    | 0, -10, 0                         | `main`                                                                                                                                                                                                            |
+| `pr`      | the pull request page                               | 900x560                   | (2400, -800, -120)  | -8, -8, 0                         | `main`                                                                                                                                                                                                            |
+| `page`    | the published page                                  | 900x560                   | (0, -1000, -260)    | -10, 0, 0 (pinned at the top)     | `main`                                                                                                                                                                                                            |
+| `palette` | command palette search                              | 720x420                   | (-1380, -160, -100) | 0, 12, 0                          | `main`                                                                                                                                                                                                            |
+| `blame`   | a file with session blame                           | 900x380                   | (-1400, 380, -40)   | 0, 10, 0                          | `main`                                                                                                                                                                                                            |
+| `label3w` | world text "3 weeks later"                          | 44px mono                 | (-760, -560, 260)   | 0                                 |                                                                                                                                                                                                                   |
 
 A surface is rendered only during the transits either side of a hold that sees it (`Hold.sees`), and fades in and out with the move; everything else is culled with `visibility`.
 
@@ -70,47 +70,47 @@ A surface is rendered only during the transits either side of a hold that sees i
 
 `(x, y, z | pitch, yaw, roll | dist)`. Mobile overrides (`CAMERA_MOBILE`, index-aligned) frame each hold's hero element tighter at about 1.2x and use pitch 48, dist -8000 for the overview.
 
-| hold | t | pose | sees | arriving transit |
-|---|---|---|---|---|
-| overview | 0.0 to 0.9 | (570, -20, 0 \| 34, -6, 0 \| -5000) | all | |
-| inbox | 2.4 to 8.2 | (0, 0, 0 \| 3, -4, 0 \| -40) | desk | glide down, roll peaks -2 |
-| conversation | 9.0 to 14.4 | (250, 0, 0 \| 2, -5, 0 \| 80) | desk | ease in |
-| fan out | 15.0 to 17.6 | (60, 0, 0 \| 2, -6, 0 \| 0) | desk | ease out |
-| workers boot | 18.6 to 20.6 | (1530, -55, -60 \| 0, 8, -1.5 \| -400) | pairA, pairB, phone | crest -600 |
-| permission | 21.4 to 23.2 | (250, 120, 0 \| 2, -4, 0 \| 60) | desk | crest -700 |
-| phone | 24.2 to 26.6 | (860, 30, 180 \| 0, 16, 2 \| 70) | phone, desk | crest -500, roll +3 |
-| payoff | 27.0 to 27.8 | (560, 20, 110 \| 0, 8, 1 \| -560) | phone, desk | pull back |
-| talk | 28.8 to 33.6 | (1530, -55, -60 \| 0, 8, -1.5 \| -400) | pairA, pairB | crest -600 |
-| decide | 35.0 to 39.6 | (390, -50, 0 \| 2, -4, 0 \| 60) | desk | crest -900, roll +2 |
-| track | 41.0 to 46.4 | (80, 780, -40 \| -22, 0, 0 \| -260) | board, desk | crest -1100, roll -3 (the big swoop) |
-| automate | 47.8 to 52.6 | (1400, 940, -60 \| -14, 6, 0 \| -100) | auto, board | crest -500 |
-| team | 53.8 to 60.4 | (2500, 360, -80 \| 0, 10, 0 \| -80) | team | crest -800, roll +2 |
-| GitHub | 61.8 to 67.4 | (2400, -800, -120 \| 8, 8, 0 \| -80) | pr, team | crest -700 |
-| publish | 69.0 to 73.4 | (0, -1000, -260 \| 10, 0, 0 \| -80) | page | crest -1200, roll -2 (long pan west) |
-| palette | 74.8 to 77.0 | (-1380, -160, -100 \| 0, -12, 0 \| -20) | palette | crest -500, past `label3w` |
-| blame | 77.6 to 79.6 | (-1400, 380, -40 \| -2, -10, 0 \| -120) | blame, palette | short glide down |
-| anywhere | 80.4 to 81.4 | (340, 205, 0 \| 2, -4, 0 \| 60) | desk | crest -600 |
-| overview | 82.3 to 84.0 | same as 0.0 | all | seam |
+| hold         | t            | pose                                    | sees                | arriving transit                     |
+| ------------ | ------------ | --------------------------------------- | ------------------- | ------------------------------------ |
+| overview     | 0.0 to 0.9   | (570, -20, 0 \| 34, -6, 0 \| -5000)     | all                 |                                      |
+| inbox        | 2.4 to 8.2   | (0, 0, 0 \| 3, -4, 0 \| -40)            | desk                | glide down, roll peaks -2            |
+| conversation | 9.0 to 14.4  | (250, 0, 0 \| 2, -5, 0 \| 80)           | desk                | ease in                              |
+| fan out      | 15.0 to 17.6 | (60, 0, 0 \| 2, -6, 0 \| 0)             | desk                | ease out                             |
+| workers boot | 18.6 to 20.6 | (1530, -55, -60 \| 0, 8, -1.5 \| -400)  | pairA, pairB, phone | crest -600                           |
+| permission   | 21.4 to 23.2 | (250, 120, 0 \| 2, -4, 0 \| 60)         | desk                | crest -700                           |
+| phone        | 24.2 to 26.6 | (860, 30, 180 \| 0, 16, 2 \| 70)        | phone, desk         | crest -500, roll +3                  |
+| payoff       | 27.0 to 27.8 | (560, 20, 110 \| 0, 8, 1 \| -560)       | phone, desk         | pull back                            |
+| talk         | 28.8 to 33.6 | (1530, -55, -60 \| 0, 8, -1.5 \| -400)  | pairA, pairB        | crest -600                           |
+| decide       | 35.0 to 39.6 | (390, -50, 0 \| 2, -4, 0 \| 60)         | desk                | crest -900, roll +2                  |
+| track        | 41.0 to 46.4 | (80, 780, -40 \| -22, 0, 0 \| -260)     | board, desk         | crest -1100, roll -3 (the big swoop) |
+| automate     | 47.8 to 52.6 | (1400, 940, -60 \| -14, 6, 0 \| -100)   | auto, board         | crest -500                           |
+| team         | 53.8 to 60.4 | (2500, 360, -80 \| 0, 10, 0 \| -80)     | team                | crest -800, roll +2                  |
+| GitHub       | 61.8 to 67.4 | (2400, -800, -120 \| 8, 8, 0 \| -80)    | pr, team            | crest -700                           |
+| publish      | 69.0 to 73.4 | (0, -1000, -260 \| 10, 0, 0 \| -80)     | page                | crest -1200, roll -2 (long pan west) |
+| palette      | 74.8 to 77.0 | (-1380, -160, -100 \| 0, -12, 0 \| -20) | palette             | crest -500, past `label3w`           |
+| blame        | 77.6 to 79.6 | (-1400, 380, -40 \| -2, -10, 0 \| -120) | blame, palette      | short glide down                     |
+| anywhere     | 80.4 to 81.4 | (340, 205, 0 \| 2, -4, 0 \| 60)         | desk                | crest -600                           |
+| overview     | 82.3 to 84.0 | same as 0.0                             | all                 | seam                                 |
 
 ## Scenes
 
 Scene table (also `window.__heroFly.scenes` and the 13 chapter ticks; a tick seeks to the chapter's hold).
 
-| # | id | tick | start | end | hold | caption |
-|---|---|---|---|---|---|---|
-| 1 | inbox | Inbox | 0 | 9 | 2.4 | Every agent session, live. Claude Code, Codex, Cursor, Gemini and pi in one inbox. |
-| 2 | conversation | Steer | 9 | 15 | 9.0 | Open any session to watch it work, and steer it mid-run. |
-| 3 | fanout | Fan out | 15 | 21 | 15.0 | One lead spawns workers, and every session lands in the same inbox. |
-| 4 | phone | Chat | 21 | 28 | 21.4 | A worker has a question. Answer it in chat from your phone, and it carries on. |
-| 5 | talk | Agents talk | 28 | 34 | 28.8 | Sessions message each other, and fork to try another way. |
-| 6 | decide | Decide | 34 | 40 | 35.0 | Agents queue the calls only you can make, with every option priced out. |
-| 7 | work | Track | 40 | 47 | 41.0 | Tasks come straight out of the conversation, and agents claim them. |
-| 8 | automation | Automate | 47 | 53 | 47.8 | Triggers and workflows keep the work moving while you are away. |
-| 9 | team | Team | 53 | 61 | 53.8 | Your team sees the same sessions, talks in the same channels, and huddles live. |
-| 10 | integrations | GitHub | 61 | 68 | 61.8 | Pull requests know the sessions behind them, from checks to merge. |
-| 11 | publish | Publish | 68 | 74 | 69.0 | Publish a result as a page your team can comment on. |
-| 12 | memory | Memory | 74 | 80 | 74.8 | Weeks later, anyone can find why a line of code exists. |
-| 13 | remote | Anywhere | 80 | 84 | 80.4 | Sessions run on your laptop, a cloud host or in a browser, all in one place. |
+| #   | id           | tick        | start | end | hold | caption                                                                            |
+| --- | ------------ | ----------- | ----- | --- | ---- | ---------------------------------------------------------------------------------- |
+| 1   | inbox        | Inbox       | 0     | 9   | 2.4  | Every agent session, live. Claude Code, Codex, Cursor, Gemini and pi in one inbox. |
+| 2   | conversation | Steer       | 9     | 15  | 9.0  | Open any session to watch it work, and steer it mid-run.                           |
+| 3   | fanout       | Fan out     | 15    | 21  | 15.0 | One lead spawns workers, and every session lands in the same inbox.                |
+| 4   | phone        | Chat        | 21    | 28  | 21.4 | A worker has a question. Answer it in chat from your phone, and it carries on.     |
+| 5   | talk         | Agents talk | 28    | 34  | 28.8 | Sessions message each other, and fork to try another way.                          |
+| 6   | decide       | Decide      | 34    | 40  | 35.0 | Agents queue the calls only you can make, with every option priced out.            |
+| 7   | work         | Track       | 40    | 47  | 41.0 | Tasks come straight out of the conversation, and agents claim them.                |
+| 8   | automation   | Automate    | 47    | 53  | 47.8 | Triggers and workflows keep the work moving while you are away.                    |
+| 9   | team         | Team        | 53    | 61  | 53.8 | Your team sees the same sessions, talks in the same channels, and huddles live.    |
+| 10  | integrations | GitHub      | 61    | 68  | 61.8 | Pull requests know the sessions behind them, from checks to merge.                 |
+| 11  | publish      | Publish     | 68    | 74  | 69.0 | Publish a result as a page your team can comment on.                               |
+| 12  | memory       | Memory      | 74    | 80  | 74.8 | Weeks later, anyone can find why a line of code exists.                            |
+| 13  | remote       | Anywhere    | 80    | 84  | 80.4 | Sessions run on your laptop, a cloud host or in a browser, all in one place.       |
 
 ## Chapters
 
@@ -220,14 +220,14 @@ The pair sits dashboard worker west, API worker east and a step lower; the phone
 
 World-level siblings of the surfaces, each on a quadratic Bezier between two anchors (`regionPt` or `localToWorld`), owned by the chapter that causes them:
 
-| id | cue | from | to | carries |
-|---|---|---|---|---|
-| `fanout.spawnA`, `fanout.spawnB` | workerRow - 0.6 | desk transcript spawn blocks | desk list worker rows | the new worker |
-| `phone.question` | 21.2 | the foot of the API worker's pane | its place in the phone's feed | the worker's question |
-| `phone.answered` (arc) | 27.1 | Alex's message on the phone | the API worker's header | the answer |
-| `talk.envelope`, `talk.envelopeBack` | messageSent, replySent | pairA, pairB | pairB, pairA | the message and its reply |
-| `work.task` | taskLands - 1.4 | the lead's transcript | the board's top row | the task |
-| `integrations.merged` | 67.5 | the PR header | the page's version chip | the merge |
+| id                                   | cue                    | from                              | to                            | carries                   |
+| ------------------------------------ | ---------------------- | --------------------------------- | ----------------------------- | ------------------------- |
+| `fanout.spawnA`, `fanout.spawnB`     | workerRow - 0.6        | desk transcript spawn blocks      | desk list worker rows         | the new worker            |
+| `phone.question`                     | 21.2                   | the foot of the API worker's pane | its place in the phone's feed | the worker's question     |
+| `phone.answered` (arc)               | 27.1                   | Alex's message on the phone       | the API worker's header       | the answer                |
+| `talk.envelope`, `talk.envelopeBack` | messageSent, replySent | pairA, pairB                      | pairB, pairA                  | the message and its reply |
+| `work.task`                          | taskLands - 1.4        | the lead's transcript             | the board's top row           | the task                  |
+| `integrations.merged`                | 67.5                   | the PR header                     | the page's version chip       | the merge                 |
 
 ## Poster frame
 

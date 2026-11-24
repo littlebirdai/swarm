@@ -25,7 +25,11 @@ export function archiveDir(): string {
   return codecastPath("land", "archive");
 }
 
-async function git(cwd: string, args: string[], env: NodeJS.ProcessEnv = {}): Promise<string> {
+async function git(
+  cwd: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = {},
+): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
     encoding: "utf-8",
     timeout: 300_000,
@@ -39,10 +43,23 @@ async function git(cwd: string, args: string[], env: NodeJS.ProcessEnv = {}): Pr
  * The tree's change as a binary patch from its base, limited to files of the
  * given verdicts (all of them when `only` is omitted).
  */
-export async function treePatch(tree: TreeReport, only?: FileVerdict[]): Promise<string> {
-  const files = new Set(tree.files.filter((f) => !only || only.includes(f.verdict)).map((f) => f.path));
+export async function treePatch(
+  tree: TreeReport,
+  only?: FileVerdict[],
+): Promise<string> {
+  const files = new Set(
+    tree.files
+      .filter((f) => !only || only.includes(f.verdict))
+      .map((f) => f.path),
+  );
   if (files.size === 0) return "";
-  const whole = await withWorkingIndex(tree.path, (env) => git(tree.path, ["diff", "--cached", "--binary", "--no-renames", tree.base], env));
+  const whole = await withWorkingIndex(tree.path, (env) =>
+    git(
+      tree.path,
+      ["diff", "--cached", "--binary", "--no-renames", tree.base],
+      env,
+    ),
+  );
   return only ? filterPatch(whole, files) : whole;
 }
 
@@ -64,11 +81,25 @@ export function archiveName(tree: TreeReport, now = new Date()): string {
   return `${day}-${tree.repo}-${leaf}`;
 }
 
-export interface PruneResult { path: string; archived: string | null; branchRef: string | null; error?: string }
+export interface PruneResult {
+  path: string;
+  archived: string | null;
+  branchRef: string | null;
+  error?: string;
+}
 
 /** Archive one tree's work and release it. The caller has already decided the tree may go. */
-export async function pruneTree(tree: TreeReport, repoRoot: string): Promise<PruneResult> {
-  if (tree.primary) return { path: tree.path, archived: null, branchRef: null, error: "a main checkout is never pruned" };
+export async function pruneTree(
+  tree: TreeReport,
+  repoRoot: string,
+): Promise<PruneResult> {
+  if (tree.primary)
+    return {
+      path: tree.path,
+      archived: null,
+      branchRef: null,
+      error: "a main checkout is never pruned",
+    };
   let archived: string | null = null;
   if (tree.files.length > 0) {
     const dir = archiveDir();
@@ -76,11 +107,26 @@ export async function pruneTree(tree: TreeReport, repoRoot: string): Promise<Pru
     const name = archiveName(tree);
     archived = path.join(dir, `${name}.patch`);
     fs.writeFileSync(archived, await treePatch(tree));
-    fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify({
-      repo: tree.repo, path: tree.path, branch: tree.branch, head: tree.head, base: tree.base,
-      verdict: tree.verdict, reason: tree.reason, counts: tree.counts, owner: tree.owner,
-      lastActivity: new Date(tree.lastActivity).toISOString(), prunedAt: new Date().toISOString(),
-    }, null, 2));
+    fs.writeFileSync(
+      path.join(dir, `${name}.json`),
+      JSON.stringify(
+        {
+          repo: tree.repo,
+          path: tree.path,
+          branch: tree.branch,
+          head: tree.head,
+          base: tree.base,
+          verdict: tree.verdict,
+          reason: tree.reason,
+          counts: tree.counts,
+          owner: tree.owner,
+          lastActivity: new Date(tree.lastActivity).toISOString(),
+          prunedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      ),
+    );
   }
 
   // The branch outlives the tree under an archive ref; the branch name itself is freed.
@@ -92,13 +138,18 @@ export async function pruneTree(tree: TreeReport, repoRoot: string): Promise<Pru
 
   const ws = locateWorktree(tree.path);
   const workspaces = await import("../workspace/index.js");
-  if (ws && ws.repoRoot.replace(/\/+$/, "") === repoRoot.replace(/\/+$/, "") && workspaces.readState(ws.repoRoot, ws.name)) {
+  if (
+    ws &&
+    ws.repoRoot.replace(/\/+$/, "") === repoRoot.replace(/\/+$/, "") &&
+    workspaces.readState(ws.repoRoot, ws.name)
+  ) {
     await workspaces.releaseWorkspace(ws.repoRoot, ws.name);
   } else {
     const trash = moveToTrash(tree.path);
     await git(repoRoot, ["worktree", "prune"]);
     deleteInBackground(trash);
   }
-  if (tree.branch) await git(repoRoot, ["branch", "-D", tree.branch]).catch(() => "");
+  if (tree.branch)
+    await git(repoRoot, ["branch", "-D", tree.branch]).catch(() => "");
   return { path: tree.path, archived, branchRef };
 }

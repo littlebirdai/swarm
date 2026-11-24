@@ -15,8 +15,7 @@ import {
 /** First line of every in-place switch notice. Historical rows match this too. */
 export const AGENT_SWITCH_NOTICE_PREFIX = "[codecast] Now using";
 
-const NOTICE_LINE_RE =
-  /^\[codecast\] Now using (.+?)(?: \(was (.+?)\))?\.\s*$/;
+const NOTICE_LINE_RE = /^\[codecast\] Now using (.+?)(?: \(was (.+?)\))?\.\s*$/;
 
 export type AgentSwitchNotice = {
   /** Caption after "Now using", e.g. "Codex" or "Codex · GPT-5.6 Sol". */
@@ -38,7 +37,10 @@ export function modelDisplayLabel(
   return model;
 }
 
-function composeLabel(agentType: string | undefined | null, model?: string | null): string {
+function composeLabel(
+  agentType: string | undefined | null,
+  model?: string | null,
+): string {
   const agent = agentDisplayName(agentType);
   const modelLabel = modelDisplayLabel(agentType, model);
   return modelLabel ? `${agent} · ${modelLabel}` : agent;
@@ -52,8 +54,10 @@ export function formatAgentSwitchNotice(opts: {
   fromModel?: string | null;
 }): string {
   const toLabel = composeLabel(opts.toAgent, opts.toModel);
-  const fromChanged = (opts.fromAgent && opts.fromAgent !== opts.toAgent)
-    || (opts.fromModel != null && opts.fromModel !== (opts.toModel ?? opts.fromModel));
+  const fromChanged =
+    (opts.fromAgent && opts.fromAgent !== opts.toAgent) ||
+    (opts.fromModel != null &&
+      opts.fromModel !== (opts.toModel ?? opts.fromModel));
   const fromLabel = fromChanged
     ? composeLabel(opts.fromAgent ?? opts.toAgent, opts.fromModel)
     : undefined;
@@ -63,17 +67,24 @@ export function formatAgentSwitchNotice(opts: {
   return `${head}\n\nThis session continues here. History above is the same thread.`;
 }
 
-export function isAgentSwitchNotice(content: string | null | undefined): boolean {
+export function isAgentSwitchNotice(
+  content: string | null | undefined,
+): boolean {
   if (!content) return false;
   return content.trimStart().startsWith(AGENT_SWITCH_NOTICE_PREFIX);
 }
 
-export function parseAgentSwitchNotice(content: string | null | undefined): AgentSwitchNotice | null {
+export function parseAgentSwitchNotice(
+  content: string | null | undefined,
+): AgentSwitchNotice | null {
   if (!isAgentSwitchNotice(content)) return null;
   const first = (content ?? "").trim().split("\n", 1)[0] ?? "";
   const m = first.match(NOTICE_LINE_RE);
   if (!m) {
-    const rest = first.slice(AGENT_SWITCH_NOTICE_PREFIX.length).trim().replace(/\.$/, "");
+    const rest = first
+      .slice(AGENT_SWITCH_NOTICE_PREFIX.length)
+      .trim()
+      .replace(/\.$/, "");
     return rest ? { toLabel: rest } : null;
   }
   return {
@@ -85,7 +96,9 @@ export function parseAgentSwitchNotice(content: string | null | undefined): Agen
 const MODEL_CMD_NAMES = new Set(["model", "effort"]);
 
 /** Slash commands that are a model/effort switch, not a user prompt. */
-export function isModelSwitchCommandName(cmdName: string | null | undefined): boolean {
+export function isModelSwitchCommandName(
+  cmdName: string | null | undefined,
+): boolean {
   return !!cmdName && MODEL_CMD_NAMES.has(cmdName.toLowerCase());
 }
 
@@ -98,11 +111,16 @@ const MODEL_STDOUT_RE =
 const EFFORT_STDOUT_RE =
   /<local-command-stdout>[^<]*Set effort level to (?:\u001b\[\d+m)*(low|medium|high|xhigh|max)/i;
 
-export function modelSwitchStdoutLabel(content: string | null | undefined): string | null {
+export function modelSwitchStdoutLabel(
+  content: string | null | undefined,
+): string | null {
   if (!content) return null;
   const model = content.match(MODEL_STDOUT_RE);
   if (model) {
-    const name = model[1].replace(/\s+and saved.*$/i, "").replace(/\s+for this session.*$/i, "").trim();
+    const name = model[1]
+      .replace(/\s+and saved.*$/i, "")
+      .replace(/\s+for this session.*$/i, "")
+      .trim();
     return name || null;
   }
   const effort = content.match(EFFORT_STDOUT_RE);
@@ -110,6 +128,8 @@ export function modelSwitchStdoutLabel(content: string | null | undefined): stri
   return null;
 }
 
-export function isModelSwitchStdout(content: string | null | undefined): boolean {
+export function isModelSwitchStdout(
+  content: string | null | undefined,
+): boolean {
   return modelSwitchStdoutLabel(content) != null;
 }

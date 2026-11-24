@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import { DEFAULT_OAUTH_PROVIDERS, useProviderSignIn, type OAuthProviderId, type ProviderButton } from "@platform/auth/web";
+import {
+  DEFAULT_OAUTH_PROVIDERS,
+  useProviderSignIn,
+  type OAuthProviderId,
+  type ProviderButton,
+} from "@platform/auth/web";
 import { api } from "@codecast/convex/convex/_generated/api";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { bridge } from "../lib/desktop";
@@ -34,17 +39,36 @@ const BUTTON_CLASS: Record<OAuthProviderId, string> = {
     "w-full py-3 px-4 bg-[#24292e] hover:bg-[#1a1e22] disabled:bg-[#24292e]/50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-sol-cyan/50 focus:ring-offset-2 focus:ring-offset-sol-bg flex items-center justify-center gap-2",
 };
 
-const ICON_FILL_RULE: Partial<Record<OAuthProviderId, "evenodd">> = { github: "evenodd" };
+const ICON_FILL_RULE: Partial<Record<OAuthProviderId, "evenodd">> = {
+  github: "evenodd",
+};
 
 /** A provider's mark, as its sign-in button shows it (also the lane's
  *  "Connect Google" button). */
-export function ProviderGlyph({ button, className = "w-5 h-5" }: { button: ProviderButton; className?: string }) {
+export function ProviderGlyph({
+  button,
+  className = "w-5 h-5",
+}: {
+  button: ProviderButton;
+  className?: string;
+}) {
   return (
-    <svg className={className} fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <svg
+      className={className}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
       {button.iconParts ? (
-        button.iconParts.map((part) => <path key={part.fill} d={part.d} fill={part.fill} />)
+        button.iconParts.map((part) => (
+          <path key={part.fill} d={part.d} fill={part.fill} />
+        ))
       ) : (
-        <path d={button.iconPath} fillRule={ICON_FILL_RULE[button.id]} clipRule={ICON_FILL_RULE[button.id]} />
+        <path
+          d={button.iconPath}
+          fillRule={ICON_FILL_RULE[button.id]}
+          clipRule={ICON_FILL_RULE[button.id]}
+        />
       )}
     </svg>
   );
@@ -72,15 +96,22 @@ export function AuthProviderButtons({
 }) {
   const openExternal = bridge("openExternal");
   const offered = useQueryNoThrow(api.auth.signInProviders, {}).data;
-  const { buttons, start, cancel, nonce, loading, error, desktopBrowserAuth } = useProviderSignIn({
-    verb,
-    redirectTo: slackProviderRedirect(redirectTo),
-    pendingDeposit: api.cliAuth.pendingDeposit,
-    desktop: openExternal
-      ? { openExternal, deviceName: "Codecast Desktop", origin: window.location.origin }
-      : null,
-    providers: offered?.google ? ["google", ...DEFAULT_OAUTH_PROVIDERS] : DEFAULT_OAUTH_PROVIDERS,
-  });
+  const { buttons, start, cancel, nonce, loading, error, desktopBrowserAuth } =
+    useProviderSignIn({
+      verb,
+      redirectTo: slackProviderRedirect(redirectTo),
+      pendingDeposit: api.cliAuth.pendingDeposit,
+      desktop: openExternal
+        ? {
+            openExternal,
+            deviceName: "Codecast Desktop",
+            origin: window.location.origin,
+          }
+        : null,
+      providers: offered?.google
+        ? ["google", ...DEFAULT_OAUTH_PROVIDERS]
+        : DEFAULT_OAUTH_PROVIDERS,
+    });
 
   if (nonce) {
     return (
@@ -118,12 +149,21 @@ export function AuthProviderButtons({
             data-provider={p.id}
           >
             <ProviderGlyph button={p} />
-            {labelFor ? labelFor(p.id, p.label) : `Sign ${verb} with ${p.label}`}
+            {labelFor
+              ? labelFor(p.id, p.label)
+              : `Sign ${verb} with ${p.label}`}
           </button>
         ))}
         {children}
       </div>
-      {error && <p role="alert" className="mt-3 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="mt-3 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
+        >
+          {error}
+        </p>
+      )}
       {desktopBrowserAuth && (
         <p className="mt-3 text-sm text-sol-text-dim text-center">
           Sign-in opens in your browser.

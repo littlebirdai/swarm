@@ -14,13 +14,31 @@ const DAY = 24 * HOUR;
 export const FACETS = ["source", "kind", "type", "level", "status"] as const;
 export type Facet = (typeof FACETS)[number];
 
-export const FACET_LABEL: Record<Facet, string> = { source: "Source", kind: "Kind", type: "Type", level: "Level", status: "Status" };
+export const FACET_LABEL: Record<Facet, string> = {
+  source: "Source",
+  kind: "Kind",
+  type: "Type",
+  level: "Level",
+  status: "Status",
+};
 
 /** Severities. Anything else a vendor puts in its level field (request, rage_click, job) is a type of event, not how loud it is. */
-export const LEVELS = new Set(["fatal", "critical", "error", "warning", "warn", "info", "log", "debug"]);
+export const LEVELS = new Set([
+  "fatal",
+  "critical",
+  "error",
+  "warning",
+  "warn",
+  "info",
+  "log",
+  "debug",
+]);
 
 /** A raw level field split into a level and a type: `error` is a level, `rage_click` a type. */
-export function splitLevel(raw: string | null | undefined): { level: string | null; type: string | null } {
+export function splitLevel(raw: string | null | undefined): {
+  level: string | null;
+  type: string | null;
+} {
   const v = raw?.toLowerCase() || null;
   if (!v) return { level: null, type: null };
   return LEVELS.has(v) ? { level: v, type: null } : { level: null, type: v };
@@ -31,26 +49,40 @@ export function eventFacets(e: OpsEvent): Record<Facet, string | null> {
   const status = e.data?.transition ?? (isReleaseMarker(e) ? "deploy" : e.kind);
   return {
     source: eventSourceName(e),
-    kind: isReleaseMarker(e) ? "deploy" : e.data?.group_kind ?? null,
+    kind: isReleaseMarker(e) ? "deploy" : (e.data?.group_kind ?? null),
     ...splitLevel(e.data?.level),
     status,
   };
 }
 
 /** The filter a query string names: facet values (any of, within a facet; all facets must hold) and free words. */
-export type TimelineFilter = { facets: Record<Facet, Set<string>>; text: string };
+export type TimelineFilter = {
+  facets: Record<Facet, Set<string>>;
+  text: string;
+};
 
-const emptyFacets = (): Record<Facet, Set<string>> => ({ source: new Set(), kind: new Set(), type: new Set(), level: new Set(), status: new Set() });
+const emptyFacets = (): Record<Facet, Set<string>> => ({
+  source: new Set(),
+  kind: new Set(),
+  type: new Set(),
+  level: new Set(),
+  status: new Set(),
+});
 
 /**
  * `source:web,api kind:error checkout failed`: a facet token is `<facet>:<a,b>`,
  * anything else is text. A value with a space is quoted (`source:"my app"`).
  */
-export function parseTimelineQuery(q: string | null | undefined): TimelineFilter {
+export function parseTimelineQuery(
+  q: string | null | undefined,
+): TimelineFilter {
   const facets = emptyFacets();
   const words: string[] = [];
   const value = String.raw`(?:"[^"]*"|[^\s,"]+)`;
-  const re = new RegExp(String.raw`(\w+):(${value}(?:,${value})*)|"[^"]*"|\S+`, "g");
+  const re = new RegExp(
+    String.raw`(\w+):(${value}(?:,${value})*)|"[^"]*"|\S+`,
+    "g",
+  );
   for (const m of (q ?? "").matchAll(re)) {
     const facet = m[1] as Facet | undefined;
     if (facet && (FACETS as readonly string[]).includes(facet)) {
@@ -63,7 +95,8 @@ export function parseTimelineQuery(q: string | null | undefined): TimelineFilter
   return { facets, text: words.join(" ").trim() };
 }
 
-const quote = (v: string) => (/[\s,"]/.test(v) ? `"${v.replace(/"/g, "")}"` : v);
+const quote = (v: string) =>
+  /[\s,"]/.test(v) ? `"${v.replace(/"/g, "")}"` : v;
 
 export function formatTimelineQuery(f: TimelineFilter): string {
   const parts: string[] = [];
@@ -76,7 +109,12 @@ export function formatTimelineQuery(f: TimelineFilter): string {
 }
 
 /** The query with one facet value turned on or off. */
-export function toggleFacet(q: string | null | undefined, facet: Facet, value: string, only = false): string {
+export function toggleFacet(
+  q: string | null | undefined,
+  facet: Facet,
+  value: string,
+  only = false,
+): string {
   const f = parseTimelineQuery(q);
   const set = f.facets[facet];
   if (only) {
@@ -100,8 +138,10 @@ export function admits(e: OpsEvent, f: TimelineFilter, skip?: Facet): boolean {
     if (set.size && !(v[facet] && set.has(v[facet]!))) return false;
   }
   if (f.text) {
-    const hay = `${e.title} ${e.data?.group_short_id ?? ""} ${e.data?.release ?? ""} ${e.data?.environment ?? ""} ${e.meta?.deploy ?? ""}`.toLowerCase();
-    for (const word of f.text.toLowerCase().split(/\s+/)) if (word && !hay.includes(word.replace(/^"|"$/g, ""))) return false;
+    const hay =
+      `${e.title} ${e.data?.group_short_id ?? ""} ${e.data?.release ?? ""} ${e.data?.environment ?? ""} ${e.meta?.deploy ?? ""}`.toLowerCase();
+    for (const word of f.text.toLowerCase().split(/\s+/))
+      if (word && !hay.includes(word.replace(/^"|"$/g, ""))) return false;
   }
   return true;
 }
@@ -111,7 +151,10 @@ export function admits(e: OpsEvent, f: TimelineFilter, skip?: Facet): boolean {
  * picked, Datadog style: a facet's counts ignore its own selection, so picking
  * one value never zeroes its siblings.
  */
-export function facetCounts(events: readonly OpsEvent[], f: TimelineFilter): Record<Facet, { value: string; n: number }[]> {
+export function facetCounts(
+  events: readonly OpsEvent[],
+  f: TimelineFilter,
+): Record<Facet, { value: string; n: number }[]> {
   const out = {} as Record<Facet, { value: string; n: number }[]>;
   for (const facet of FACETS) {
     const counts = new Map<string, number>();
@@ -122,7 +165,9 @@ export function facetCounts(events: readonly OpsEvent[], f: TimelineFilter): Rec
     }
     // A picked value stays listed at zero, so it can be turned off.
     for (const v of f.facets[facet]) if (!counts.has(v)) counts.set(v, 0);
-    out[facet] = [...counts].map(([value, n]) => ({ value, n })).sort((a, b) => b.n - a.n || a.value.localeCompare(b.value));
+    out[facet] = [...counts]
+      .map(([value, n]) => ({ value, n }))
+      .sort((a, b) => b.n - a.n || a.value.localeCompare(b.value));
   }
   return out;
 }
@@ -137,7 +182,10 @@ export type RowsView = "transitions" | "occurrences";
  * (`request`, `rage_click`): the type stays the type, and the level comes
  * from what happened, so a 404 reads warning and a 502 error, never "request".
  */
-export function sampleLevel(x: Pick<OpsSample, "level" | "message">, g?: Pick<OpsGroup, "kind" | "level">): { level: string | null; type: string | null } {
+export function sampleLevel(
+  x: Pick<OpsSample, "level" | "message">,
+  g?: Pick<OpsGroup, "kind" | "level">,
+): { level: string | null; type: string | null } {
   const own = splitLevel(x.level);
   const theirs = splitLevel(g?.level);
   const type = own.type ?? theirs.type;
@@ -145,7 +193,8 @@ export function sampleLevel(x: Pick<OpsSample, "level" | "message">, g?: Pick<Op
   if (level) return { level, type };
   const req = requestLine(x.message);
   if (req) return { level: requestLevel(req), type: type ?? "request" };
-  if (type === "rage_click" || type === "dead_click") return { level: "warning", type };
+  if (type === "rage_click" || type === "dead_click")
+    return { level: "warning", type };
   // A failed CI check or job is an error: its occurrence is the failure, and the vendor sends no level for it.
   return { level: g && LOUD_KINDS.has(g.kind) ? "error" : null, type };
 }
@@ -157,9 +206,19 @@ const LOUD_KINDS: ReadonlySet<string> = new Set(["error", "check", "job"]);
 export const UNKNOWN_KIND = "other";
 
 /** An occurrence under the facets that apply to it: its source, its issue's kind, its level and type. Status is a transition's. */
-export function sampleFacets(x: Pick<OpsSample, "source_id" | "group_id" | "level"> & Partial<Pick<OpsSample, "message">>, sources: ReadonlyMap<string, Pick<OpsSource, "name">>, groups: ReadonlyMap<string, Pick<OpsGroup, "kind" | "level">>): Record<Facet, string | null> {
+export function sampleFacets(
+  x: Pick<OpsSample, "source_id" | "group_id" | "level"> &
+    Partial<Pick<OpsSample, "message">>,
+  sources: ReadonlyMap<string, Pick<OpsSource, "name">>,
+  groups: ReadonlyMap<string, Pick<OpsGroup, "kind" | "level">>,
+): Record<Facet, string | null> {
   const g = groups.get(x.group_id);
-  return { source: sources.get(x.source_id)?.name ?? null, kind: g?.kind ?? UNKNOWN_KIND, ...sampleLevel(x, g), status: null };
+  return {
+    source: sources.get(x.source_id)?.name ?? null,
+    kind: g?.kind ?? UNKNOWN_KIND,
+    ...sampleLevel(x, g),
+    status: null,
+  };
 }
 
 /**
@@ -170,22 +229,40 @@ export function sampleFacets(x: Pick<OpsSample, "source_id" | "group_id" | "leve
 export const OFF_BY_DEFAULT_KINDS = new Set(["metric"]);
 
 /** Whether an occurrence passes the filter: each facet it has a value for, and the words over its message, url, user and release. */
-export function admitsSample(v: Record<Facet, string | null>, x: Pick<OpsSample, "message" | "url" | "release" | "environment" | "user">, f: TimelineFilter, skip?: Facet): boolean {
-  if (skip !== "kind" && !f.facets.kind.size && v.kind && OFF_BY_DEFAULT_KINDS.has(v.kind)) return false;
+export function admitsSample(
+  v: Record<Facet, string | null>,
+  x: Pick<OpsSample, "message" | "url" | "release" | "environment" | "user">,
+  f: TimelineFilter,
+  skip?: Facet,
+): boolean {
+  if (
+    skip !== "kind" &&
+    !f.facets.kind.size &&
+    v.kind &&
+    OFF_BY_DEFAULT_KINDS.has(v.kind)
+  )
+    return false;
   for (const facet of FACETS) {
     if (facet === skip || facet === "status") continue;
     const set = f.facets[facet];
     if (set.size && !(v[facet] && set.has(v[facet]!))) return false;
   }
   if (f.text) {
-    const hay = `${x.message ?? ""} ${x.url ?? ""} ${x.release ?? ""} ${x.environment ?? ""} ${x.user?.email ?? ""} ${x.user?.name ?? ""} ${x.user?.id ?? ""}`.toLowerCase();
-    for (const word of f.text.toLowerCase().split(/\s+/)) if (word && !hay.includes(word.replace(/^"|"$/g, ""))) return false;
+    const hay =
+      `${x.message ?? ""} ${x.url ?? ""} ${x.release ?? ""} ${x.environment ?? ""} ${x.user?.email ?? ""} ${x.user?.name ?? ""} ${x.user?.id ?? ""}`.toLowerCase();
+    for (const word of f.text.toLowerCase().split(/\s+/))
+      if (word && !hay.includes(word.replace(/^"|"$/g, ""))) return false;
   }
   return true;
 }
 
 /** A facet value with how many rows show with it picked. `off`: left out of the list until picked (OFF_BY_DEFAULT_KINDS), so its count is not part of the listed total. */
-export type FacetRow = { value: string; n: number; off?: boolean; /** The rows with no value under this facet, so the group adds up to the rows kept. */ none?: boolean };
+export type FacetRow = {
+  value: string;
+  n: number;
+  off?: boolean;
+  /** The rows with no value under this facet, so the group adds up to the rows kept. */ none?: boolean;
+};
 
 /**
  * facetCounts for occurrences: each facet's values with how many would show
@@ -193,7 +270,16 @@ export type FacetRow = { value: string; n: number; off?: boolean; /** The rows w
  * marked off and listed last, so the counts of the values that are on add up
  * to the rows listed.
  */
-export function sampleFacetCounts<T extends Pick<OpsSample, "message" | "url" | "release" | "environment" | "user">>(rows: readonly T[], facetsOf: (x: T) => Record<Facet, string | null>, f: TimelineFilter): Record<Facet, FacetRow[]> {
+export function sampleFacetCounts<
+  T extends Pick<
+    OpsSample,
+    "message" | "url" | "release" | "environment" | "user"
+  >,
+>(
+  rows: readonly T[],
+  facetsOf: (x: T) => Record<Facet, string | null>,
+  f: TimelineFilter,
+): Record<Facet, FacetRow[]> {
   const out = {} as Record<Facet, FacetRow[]>;
   for (const facet of FACETS) {
     const counts = new Map<string, number>();
@@ -207,10 +293,23 @@ export function sampleFacetCounts<T extends Pick<OpsSample, "message" | "url" | 
       }
       for (const v of f.facets[facet]) if (!counts.has(v)) counts.set(v, 0);
     }
-    const off = (value: string) => facet === "kind" && !f.facets.kind.size && OFF_BY_DEFAULT_KINDS.has(value);
-    out[facet] = [...counts].map(([value, n]) => (off(value) ? { value, n, off: true } : { value, n })).sort((a, b) => Number(!!a.off) - Number(!!b.off) || b.n - a.n || a.value.localeCompare(b.value));
+    const off = (value: string) =>
+      facet === "kind" &&
+      !f.facets.kind.size &&
+      OFF_BY_DEFAULT_KINDS.has(value);
+    out[facet] = [...counts]
+      .map(([value, n]) =>
+        off(value) ? { value, n, off: true } : { value, n },
+      )
+      .sort(
+        (a, b) =>
+          Number(!!a.off) - Number(!!b.off) ||
+          b.n - a.n ||
+          a.value.localeCompare(b.value),
+      );
     // The rows with no value close the group, so its counts add up to the rows kept.
-    if (none && counts.size && !f.facets[facet].size) out[facet].push({ value: "", n: none, none: true });
+    if (none && counts.size && !f.facets[facet].size)
+      out[facet].push({ value: "", n: none, none: true });
   }
   return out;
 }
@@ -228,10 +327,18 @@ export const RANGE_PRESETS = [
 export type RangePreset = (typeof RANGE_PRESETS)[number]["key"];
 
 /** A range: a preset that ends now (and moves with it), or a fixed span from a brush, a cluster or a jump. */
-export type TimeRange = { from: number; to: number; preset: RangePreset | null };
+export type TimeRange = {
+  from: number;
+  to: number;
+  preset: RangePreset | null;
+};
 
 /** `win`: a preset ("24h"), or a fixed span as two epoch ms joined by "~" ("1730600000000~1730686400000"). */
-export function parseRange(win: string | null | undefined, now: number, fallback: RangePreset = "24h"): TimeRange {
+export function parseRange(
+  win: string | null | undefined,
+  now: number,
+  fallback: RangePreset = "24h",
+): TimeRange {
   const preset = RANGE_PRESETS.find((p) => p.key === win);
   if (preset) return { from: now - preset.ms, to: now, preset: preset.key };
   const m = /^(\d{10,})~(\d{10,})$/.exec(win ?? "");
@@ -244,12 +351,17 @@ export function parseRange(win: string | null | undefined, now: number, fallback
   return { from: now - p.ms, to: now, preset: p.key };
 }
 
-export function formatRange(r: Pick<TimeRange, "from" | "to" | "preset">): string {
+export function formatRange(
+  r: Pick<TimeRange, "from" | "to" | "preset">,
+): string {
   return r.preset ?? `${Math.round(r.from)}~${Math.round(r.to)}`;
 }
 
 /** The smallest preset that holds every event of the last 30 days; a quiet month opens on 24h. */
-export function fitPreset(events: readonly Pick<OpsEvent, "created_at">[], now: number): RangePreset {
+export function fitPreset(
+  events: readonly Pick<OpsEvent, "created_at">[],
+  now: number,
+): RangePreset {
   const widest = RANGE_PRESETS[RANGE_PRESETS.length - 1];
   let oldest = 0;
   for (const e of events) {
@@ -270,44 +382,82 @@ export function dayRange(dateValue: string, now: number): TimeRange | null {
 }
 
 /** Ticks an axis this many pixels wide holds without labels touching (a label is about 64px). */
-export const tickBudget = (px: number) => (px > 0 ? Math.max(2, Math.min(8, Math.floor(px / 64))) : 8);
+export const tickBudget = (px: number) =>
+  px > 0 ? Math.max(2, Math.min(8, Math.floor(px / 64))) : 8;
 
 /** The axis ticks for a range: a sensible step, aligned, at most `max` of them (fewer on a narrow axis). */
-export function rangeTicks(r: Pick<TimeRange, "from" | "to">, max = 8): { x: number; at: number }[] {
+export function rangeTicks(
+  r: Pick<TimeRange, "from" | "to">,
+  max = 8,
+): { x: number; at: number }[] {
   const span = r.to - r.from;
-  const steps = [5 * 60_000, 10 * 60_000, 30 * 60_000, HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY, 2 * DAY, 7 * DAY, 14 * DAY];
+  const steps = [
+    5 * 60_000,
+    10 * 60_000,
+    30 * 60_000,
+    HOUR,
+    3 * HOUR,
+    6 * HOUR,
+    12 * HOUR,
+    DAY,
+    2 * DAY,
+    7 * DAY,
+    14 * DAY,
+  ];
   const step = steps.find((s) => span / s <= max) ?? 14 * DAY;
   const out: { x: number; at: number }[] = [];
   const tz = new Date().getTimezoneOffset() * 60_000;
   // Day steps align to local midnight; shorter ones to the clock.
-  const align = (t: number) => (step >= DAY ? Math.ceil((t - tz) / step) * step + tz : Math.ceil(t / step) * step);
-  for (let at = align(r.from); at <= r.to; at += step) out.push({ x: (at - r.from) / span, at });
+  const align = (t: number) =>
+    step >= DAY
+      ? Math.ceil((t - tz) / step) * step + tz
+      : Math.ceil(t / step) * step;
+  for (let at = align(r.from); at <= r.to; at += step)
+    out.push({ x: (at - r.from) / span, at });
   return out;
 }
 
 /** A row's time: with the date once a range spans more than two days or is `dated` (windowDated), with seconds inside an hour. */
 export function fmtTime(at: number, span: number, dated = false): string {
   const d = new Date(at);
-  if (span > 2 * 86_400_000) return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: span <= HOUR ? "2-digit" : undefined });
+  if (span > 2 * 86_400_000)
+    return d.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  const time = d.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+    second: span <= HOUR ? "2-digit" : undefined,
+  });
   return dated ? `${shortDay(at)} ${time}` : time;
 }
 
-const shortDay = (at: number) => new Date(at).toLocaleDateString([], { month: "short", day: "numeric" });
+const shortDay = (at: number) =>
+  new Date(at).toLocaleDateString([], { month: "short", day: "numeric" });
 const dayKey = (at: number) => new Date(at).toDateString();
 
 /**
  * Whether a window's times need their date to be read: it crosses midnight or
  * is not today. A clock time alone ("5:47 PM") is only a moment inside today.
  */
-export function windowDated(r: Pick<TimeRange, "from" | "to">, now: number): boolean {
+export function windowDated(
+  r: Pick<TimeRange, "from" | "to">,
+  now: number,
+): boolean {
   return dayKey(r.from) !== dayKey(r.to) || dayKey(r.to) !== dayKey(now);
 }
 
 /** A held window as its chip reads it: "Oct 20 5:47 PM to Oct 21 4:35 PM", the second date dropped when both ends share a day, both dropped inside today. */
-export function fmtWindow(r: Pick<TimeRange, "from" | "to">, now: number): string {
+export function fmtWindow(
+  r: Pick<TimeRange, "from" | "to">,
+  now: number,
+): string {
   const span = r.to - r.from;
-  if (span > 2 * DAY) return `${fmtTime(r.from, span)} to ${fmtTime(r.to, span)}`;
+  if (span > 2 * DAY)
+    return `${fmtTime(r.from, span)} to ${fmtTime(r.to, span)}`;
   const dated = windowDated(r, now);
   const sameDay = dayKey(r.from) === dayKey(r.to);
   return `${fmtTime(r.from, span, dated)} to ${fmtTime(r.to, span, dated && !sameDay)}`;
@@ -322,7 +472,14 @@ export const isMidnight = (at: number) => {
 // ── Histogram ──
 
 /** `unknown`: nothing was recorded for this span (before a counter's first day, past a list's reach), which is not a zero. */
-export type HistBin = { from: number; to: number; parts: Record<string, number>; total: number; unknown?: boolean; /** The counter has nothing here, so the bar is drawn from what the client keeps (transitions, issues, replays): at least this many. */ estimated?: boolean };
+export type HistBin = {
+  from: number;
+  to: number;
+  parts: Record<string, number>;
+  total: number;
+  unknown?: boolean;
+  /** The counter has nothing here, so the bar is drawn from what the client keeps (transitions, issues, replays): at least this many. */ estimated?: boolean;
+};
 
 /** A point some kept trail leaves: when, and how many it stands for. */
 export type TrailPoint = { at: number; n: number };
@@ -334,7 +491,10 @@ export type TrailPoint = { at: number; n: number };
  * nothing is. Each trail is summed per bin and the largest wins, since one
  * event can show in more than one of them.
  */
-export function fillEstimates(bins: readonly HistBin[], trails: readonly (readonly TrailPoint[])[]): HistBin[] {
+export function fillEstimates(
+  bins: readonly HistBin[],
+  trails: readonly (readonly TrailPoint[])[],
+): HistBin[] {
   return bins.map((b) => {
     if (!b.unknown && b.total > 0) return b;
     let est = 0;
@@ -343,13 +503,33 @@ export function fillEstimates(bins: readonly HistBin[], trails: readonly (readon
       for (const p of trail) if (p.at >= b.from && p.at < b.to) n += p.n;
       est = Math.max(est, n);
     }
-    return est > 0 ? { from: b.from, to: b.to, parts: { estimated: est }, total: est, estimated: true } : b;
+    return est > 0
+      ? {
+          from: b.from,
+          to: b.to,
+          parts: { estimated: est },
+          total: est,
+          estimated: true,
+        }
+      : b;
   });
 }
 
 /** A bin width for a span: about `target` bars, on a round step. */
 export function binWidth(span: number, target = 48): number {
-  const steps = [60_000, 5 * 60_000, 10 * 60_000, 15 * 60_000, 30 * 60_000, HOUR, 2 * HOUR, 3 * HOUR, 6 * HOUR, 12 * HOUR, DAY];
+  const steps = [
+    60_000,
+    5 * 60_000,
+    10 * 60_000,
+    15 * 60_000,
+    30 * 60_000,
+    HOUR,
+    2 * HOUR,
+    3 * HOUR,
+    6 * HOUR,
+    12 * HOUR,
+    DAY,
+  ];
   return steps.find((s) => span / s <= target) ?? DAY;
 }
 
@@ -363,7 +543,16 @@ export const STREAM_BUCKET_REACH = 72 * HOUR;
  * so the first and last bar start and end on a bin edge. The lanes under the
  * chart draw on this same span, so a date is one vertical line through both.
  */
-export function streamAxis(range: Pick<TimeRange, "from" | "to">, mode: StreamMode): { volume: boolean; daily: boolean; width: number; from: number; to: number } {
+export function streamAxis(
+  range: Pick<TimeRange, "from" | "to">,
+  mode: StreamMode,
+): {
+  volume: boolean;
+  daily: boolean;
+  width: number;
+  from: number;
+  to: number;
+} {
   const span = Math.max(1, range.to - range.from);
   const volume = mode === "volume" && span >= 6 * HOUR;
   const daily = volume && span > STREAM_BUCKET_REACH + HOUR;
@@ -375,10 +564,22 @@ export function streamAxis(range: Pick<TimeRange, "from" | "to">, mode: StreamMo
 }
 
 /** Points counted into bins across a range, stacked by `stack`'s key. */
-export function histogram<T>(points: readonly T[], at: (p: T) => number, stack: (p: T) => string, weight: (p: T) => number, r: Pick<TimeRange, "from" | "to">, width = binWidth(r.to - r.from)): HistBin[] {
+export function histogram<T>(
+  points: readonly T[],
+  at: (p: T) => number,
+  stack: (p: T) => string,
+  weight: (p: T) => number,
+  r: Pick<TimeRange, "from" | "to">,
+  width = binWidth(r.to - r.from),
+): HistBin[] {
   const start = Math.floor(r.from / width) * width;
   const n = Math.max(1, Math.ceil((r.to - start) / width));
-  const bins: HistBin[] = Array.from({ length: n }, (_, i) => ({ from: start + i * width, to: start + (i + 1) * width, parts: {}, total: 0 }));
+  const bins: HistBin[] = Array.from({ length: n }, (_, i) => ({
+    from: start + i * width,
+    to: start + (i + 1) * width,
+    parts: {},
+    total: 0,
+  }));
   for (const p of points) {
     const t = at(p);
     if (t < r.from || t > r.to) continue;
@@ -396,11 +597,21 @@ export function histogram<T>(points: readonly T[], at: (p: T) => number, stack: 
  * as points a histogram counts: the volume under the transitions, so a spike
  * that made no new group still shows. Stacked by the group's level, else kind.
  */
-export function occurrencePoints(groups: readonly Pick<OpsGroup, "buckets" | "level" | "kind" | "source_id">[]): { at: number; key: string; n: number; source_id: string }[] {
+export function occurrencePoints(
+  groups: readonly Pick<OpsGroup, "buckets" | "level" | "kind" | "source_id">[],
+): { at: number; key: string; n: number; source_id: string }[] {
   const out: { at: number; key: string; n: number; source_id: string }[] = [];
   for (const g of groups) {
-    const key = (g.level ?? (g.kind === "error" ? "error" : g.kind)).toLowerCase();
-    for (const b of g.buckets ?? []) out.push({ at: b.hour + HOUR / 2, key, n: b.count, source_id: g.source_id });
+    const key = (
+      g.level ?? (g.kind === "error" ? "error" : g.kind)
+    ).toLowerCase();
+    for (const b of g.buckets ?? [])
+      out.push({
+        at: b.hour + HOUR / 2,
+        key,
+        n: b.count,
+        source_id: g.source_id,
+      });
   }
   return out;
 }
@@ -410,29 +621,68 @@ export function occurrencePoints(groups: readonly Pick<OpsGroup, "buckets" | "le
  * (event_source_stats.days, 30 days): the server's series, not the rows a
  * reader has loaded. A day before every source's first counted day is unknown.
  */
-export function counterBins(sources: readonly Pick<OpsSource, "days">[], r: Pick<TimeRange, "from" | "to">): HistBin[] {
+export function counterBins(
+  sources: readonly Pick<OpsSource, "days">[],
+  r: Pick<TimeRange, "from" | "to">,
+): HistBin[] {
   const first = Math.floor(r.from / DAY) * DAY;
   const out: HistBin[] = [];
-  const since = sources.map((s) => (s.days ?? []).reduce<string | null>((a, d) => (a === null || d.day < a ? d.day : a), null)).filter((x): x is string => !!x).sort()[0] ?? null;
+  const since =
+    sources
+      .map((s) =>
+        (s.days ?? []).reduce<string | null>(
+          (a, d) => (a === null || d.day < a ? d.day : a),
+          null,
+        ),
+      )
+      .filter((x): x is string => !!x)
+      .sort()[0] ?? null;
   const totals = new Map<string, number>();
-  for (const s of sources) for (const d of s.days ?? []) totals.set(d.day, (totals.get(d.day) ?? 0) + d.events);
+  for (const s of sources)
+    for (const d of s.days ?? [])
+      totals.set(d.day, (totals.get(d.day) ?? 0) + d.events);
   for (let from = first; from < r.to; from += DAY) {
     const day = new Date(from).toISOString().slice(0, 10);
     const known = !!since && day >= since;
     const n = totals.get(day) ?? 0;
-    out.push({ from, to: from + DAY, parts: known && n ? { events: n } : {}, total: known ? n : 0, ...(known ? {} : { unknown: true }) });
+    out.push({
+      from,
+      to: from + DAY,
+      parts: known && n ? { events: n } : {},
+      total: known ? n : 0,
+      ...(known ? {} : { unknown: true }),
+    });
   }
   return out;
 }
 
 /** Bins wholly older than the oldest row a list holds, while older rows may still exist: unknown, not empty. */
-export function markUnloaded(bins: readonly HistBin[], oldestLoaded: number | null, more: boolean): HistBin[] {
+export function markUnloaded(
+  bins: readonly HistBin[],
+  oldestLoaded: number | null,
+  more: boolean,
+): HistBin[] {
   if (!more || oldestLoaded === null) return [...bins];
-  return bins.map((b) => (b.to <= oldestLoaded && b.total === 0 ? { ...b, unknown: true } : b));
+  return bins.map((b) =>
+    b.to <= oldestLoaded && b.total === 0 ? { ...b, unknown: true } : b,
+  );
 }
 
 /** Stack order and ink for levels and kinds: loud at the bottom. */
-export const STACK_ORDER = ["fatal", "critical", "error", "warning", "warn", "job", "check", "replay_issue", "metric", "info", "log", "debug"];
+export const STACK_ORDER = [
+  "fatal",
+  "critical",
+  "error",
+  "warning",
+  "warn",
+  "job",
+  "check",
+  "replay_issue",
+  "metric",
+  "info",
+  "log",
+  "debug",
+];
 export const STACK_INK: Record<string, string> = {
   fatal: "var(--sol-magenta)",
   critical: "var(--sol-magenta)",
@@ -491,14 +741,16 @@ export const SERIES_LABEL: Record<string, string> = {
   unmatched: "not matching the filter",
   estimated: "estimated",
 };
-export const seriesLabel = (k: string) => SERIES_LABEL[k] ?? k.replace(/_/g, " ");
+export const seriesLabel = (k: string) =>
+  SERIES_LABEL[k] ?? k.replace(/_/g, " ");
 
 /** The top of a count axis: the max rounded up to 1, 2 or 5 times a power of ten. */
 export function niceMax(max: number): number {
   if (max <= 1) return 1;
   const p = 10 ** Math.floor(Math.log10(max));
   // Fine steps keep the tallest bar near the top: 260 reads against 300, not 500.
-  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (Number.isInteger(m * p) && m * p >= max) return m * p;
+  for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10])
+    if (Number.isInteger(m * p) && m * p >= max) return m * p;
   return 10 * p;
 }
 
@@ -526,7 +778,11 @@ export function stackKeys(bins: readonly HistBin[]): string[] {
  * would touch: closer than `minPx`. A cluster is placed at its first mark.
  * Measured in pixels, so a narrow window clusters more instead of overlapping.
  */
-export function clusterByPixels<T extends { x: number }>(marks: readonly T[], widthPx: number, minPx: number): { x: number; marks: T[] }[] {
+export function clusterByPixels<T extends { x: number }>(
+  marks: readonly T[],
+  widthPx: number,
+  minPx: number,
+): { x: number; marks: T[] }[] {
   const sorted = [...marks].sort((a, b) => a.x - b.x);
   const out: { x: number; marks: T[] }[] = [];
   const gap = widthPx > 0 ? minPx / widthPx : 0.05;
@@ -539,7 +795,8 @@ export function clusterByPixels<T extends { x: number }>(marks: readonly T[], wi
 }
 
 /** A lane bubble's width in pixels: a diamond for one mark, a pill sized to its count's digits for more (ops.css .ops-tl-cluster). */
-export const lanePillPx = (n: number) => (n > 1 ? Math.max(20, 10 + 6.5 * String(n).length) : 13);
+export const lanePillPx = (n: number) =>
+  n > 1 ? Math.max(20, 10 + 6.5 * String(n).length) : 13;
 
 /**
  * A lane's marks as bubbles that never overlap and never cross the track's
@@ -547,20 +804,37 @@ export const lanePillPx = (n: number) => (n > 1 ? Math.max(20, 10 + 6.5 * String
  * real widths, would touch, and each bubble's centre is held half its width
  * inside the track. `px` is the centre in pixels; `x` the same as a fraction.
  */
-export function laneClusters<T extends { x: number }>(marks: readonly T[], widthPx: number, gapPx = 3): { x: number; px: number; marks: T[] }[] {
-  if (widthPx <= 0) return clusterByPixels(marks, 0, 0).map((c) => ({ ...c, px: 0 }));
+export function laneClusters<T extends { x: number }>(
+  marks: readonly T[],
+  widthPx: number,
+  gapPx = 3,
+): { x: number; px: number; marks: T[] }[] {
+  if (widthPx <= 0)
+    return clusterByPixels(marks, 0, 0).map((c) => ({ ...c, px: 0 }));
   type C = { lo: number; hi: number; marks: T[] };
   const centre = (c: C) => {
     const half = lanePillPx(c.marks.length) / 2;
-    return Math.min(widthPx - half, Math.max(half, ((c.lo + c.hi) / 2) * widthPx));
+    return Math.min(
+      widthPx - half,
+      Math.max(half, ((c.lo + c.hi) / 2) * widthPx),
+    );
   };
-  let cs: C[] = clusterByPixels(marks, widthPx, 1).map((c) => ({ lo: c.marks[0].x, hi: c.marks[c.marks.length - 1].x, marks: c.marks }));
-  for (let merged = true; merged; ) {
+  let cs: C[] = clusterByPixels(marks, widthPx, 1).map((c) => ({
+    lo: c.marks[0].x,
+    hi: c.marks[c.marks.length - 1].x,
+    marks: c.marks,
+  }));
+  for (let merged = true; merged;) {
     merged = false;
     const out: C[] = [];
     for (const c of cs) {
       const last = out[out.length - 1];
-      if (last && centre(c) - centre(last) < (lanePillPx(last.marks.length) + lanePillPx(c.marks.length)) / 2 + gapPx) {
+      if (
+        last &&
+        centre(c) - centre(last) <
+          (lanePillPx(last.marks.length) + lanePillPx(c.marks.length)) / 2 +
+            gapPx
+      ) {
         last.hi = c.hi;
         last.marks.push(...c.marks);
         merged = true;
@@ -568,23 +842,38 @@ export function laneClusters<T extends { x: number }>(marks: readonly T[], width
     }
     cs = out;
   }
-  return cs.map((c) => ({ x: centre(c) / widthPx, px: centre(c), marks: c.marks }));
+  return cs.map((c) => ({
+    x: centre(c) / widthPx,
+    px: centre(c),
+    marks: c.marks,
+  }));
 }
 
 /** A cluster's span in time, for a click that narrows the stream to its marks. */
-export function clusterSpan(marks: readonly { event: Pick<OpsEvent, "created_at"> }[]): { from: number; to: number } {
+export function clusterSpan(
+  marks: readonly { event: Pick<OpsEvent, "created_at"> }[],
+): { from: number; to: number } {
   const ts = marks.map((m) => m.event.created_at);
   const from = Math.min(...ts);
   const to = Math.max(...ts);
   // A single moment widens to a minute either side, so the list shows it.
-  return to - from < 60_000 ? { from: from - 60_000, to: to + 60_000 } : { from, to };
+  return to - from < 60_000
+    ? { from: from - 60_000, to: to + 60_000 }
+    : { from, to };
 }
 
 /** Whether a group passes the stream's kind, type and level facets (the volume read from its buckets). */
-export function admitsGroup(g: Pick<OpsGroup, "kind" | "level">, f: TimelineFilter): boolean {
+export function admitsGroup(
+  g: Pick<OpsGroup, "kind" | "level">,
+  f: TimelineFilter,
+): boolean {
   const { level, type } = splitLevel(g.level);
   const { kind, level: levels, type: types } = f.facets;
-  return (!kind.size || kind.has(g.kind)) && (!levels.size || (!!level && levels.has(level))) && (!types.size || (!!type && types.has(type)));
+  return (
+    (!kind.size || kind.has(g.kind)) &&
+    (!levels.size || (!!level && levels.has(level))) &&
+    (!types.size || (!!type && types.has(type)))
+  );
 }
 
 /**
@@ -593,24 +882,60 @@ export function admitsGroup(g: Pick<OpsGroup, "kind" | "level">, f: TimelineFilt
  * occurrence list leaves out until picked. The chart's hourly bars and the
  * list's "kept of N" both read this, so they are one number.
  */
-export function streamGroups<G extends Pick<OpsGroup, "kind" | "level" | "source_id">>(groups: readonly G[], sourceIds: ReadonlySet<string> | null, f: TimelineFilter): G[] {
-  return groups.filter((g) => (!sourceIds || sourceIds.has(g.source_id)) && admitsGroup(g, f) && (f.facets.kind.size > 0 || !OFF_BY_DEFAULT_KINDS.has(g.kind)));
+export function streamGroups<
+  G extends Pick<OpsGroup, "kind" | "level" | "source_id">,
+>(
+  groups: readonly G[],
+  sourceIds: ReadonlySet<string> | null,
+  f: TimelineFilter,
+): G[] {
+  return groups.filter(
+    (g) =>
+      (!sourceIds || sourceIds.has(g.source_id)) &&
+      admitsGroup(g, f) &&
+      (f.facets.kind.size > 0 || !OFF_BY_DEFAULT_KINDS.has(g.kind)),
+  );
 }
 
 /** Occurrences per hour across a window from the stream's groups (streamGroups), on the histogram's one edge rule. */
-export function hourlyVolumeBins(groups: readonly OpsGroup[], sourceIds: ReadonlySet<string> | null, f: TimelineFilter, r: Pick<TimeRange, "from" | "to">, width?: number): HistBin[] {
-  return histogram(occurrencePoints(streamGroups(groups, sourceIds, f)), (p) => p.at, (p) => p.key, (p) => p.n, r, width);
+export function hourlyVolumeBins(
+  groups: readonly OpsGroup[],
+  sourceIds: ReadonlySet<string> | null,
+  f: TimelineFilter,
+  r: Pick<TimeRange, "from" | "to">,
+  width?: number,
+): HistBin[] {
+  return histogram(
+    occurrencePoints(streamGroups(groups, sourceIds, f)),
+    (p) => p.at,
+    (p) => p.key,
+    (p) => p.n,
+    r,
+    width,
+  );
 }
 
 /** Whether a filter asks for more than a server series can split by: words, a status, or (for the day counters) any facet past source. */
-export function filterBeyond(f: TimelineFilter, series: "groups" | "counter"): boolean {
+export function filterBeyond(
+  f: TimelineFilter,
+  series: "groups" | "counter",
+): boolean {
   if (f.text || f.facets.status.size) return true;
-  return series === "counter" && (f.facets.kind.size + f.facets.type.size + f.facets.level.size > 0);
+  return (
+    series === "counter" &&
+    f.facets.kind.size + f.facets.type.size + f.facets.level.size > 0
+  );
 }
 
 /** A moment as every panel prints it: "Nov 3, 11:55:03 AM", the table's format with seconds. */
 export function fmtStamp(at: number): string {
-  return new Date(at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return new Date(at).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 // ── The filtered volume ──
@@ -625,7 +950,10 @@ export const UNMATCHED = "unmatched";
  * where the filtered thing started against the whole. The matched count is
  * never more than the bin holds; a bin the counter could not see stays unknown.
  */
-export function overlayBins(total: readonly HistBin[], rows: readonly { at: number; key: string }[]): { bins: HistBin[]; matched: number } {
+export function overlayBins(
+  total: readonly HistBin[],
+  rows: readonly { at: number; key: string }[],
+): { bins: HistBin[]; matched: number } {
   let matched = 0;
   const bins = total.map((b) => {
     const parts: Record<string, number> = {};
@@ -651,26 +979,56 @@ export function overlayBins(total: readonly HistBin[], rows: readonly { at: numb
  * issue stream, over the same time range (and, for Sentry, the same level).
  * Null for a source whose vendor has no such page here.
  */
-export function vendorStreamUrl(source: Pick<OpsSource, "provider" | "vendor_web_url" | "config">, r: Pick<TimeRange, "from" | "to">, f?: TimelineFilter): string | null {
+export function vendorStreamUrl(
+  source: Pick<OpsSource, "provider" | "vendor_web_url" | "config">,
+  r: Pick<TimeRange, "from" | "to">,
+  f?: TimelineFilter,
+): string | null {
   const org = source.config?.org;
-  const base = (source.vendor_web_url ?? (source.provider === "sentry" && org ? `https://sentry.io/organizations/${encodeURIComponent(org)}/issues/` : ""))?.replace(/\/+$/, "");
+  const base = (
+    source.vendor_web_url ??
+    (source.provider === "sentry" && org
+      ? `https://sentry.io/organizations/${encodeURIComponent(org)}/issues/`
+      : "")
+  )?.replace(/\/+$/, "");
   if (!base) return null;
   const iso = (t: number) => new Date(t).toISOString();
   if (source.provider === "posthog") {
-    const q = { kind: "DataTableNode", full: true, source: { kind: "EventsQuery", select: ["*", "event", "person", "timestamp"], orderBy: ["timestamp DESC"], after: iso(r.from), before: iso(r.to) } };
+    const q = {
+      kind: "DataTableNode",
+      full: true,
+      source: {
+        kind: "EventsQuery",
+        select: ["*", "event", "person", "timestamp"],
+        orderBy: ["timestamp DESC"],
+        after: iso(r.from),
+        before: iso(r.to),
+      },
+    };
     return `${base}/activity/explore#q=${encodeURIComponent(JSON.stringify(q))}`;
   }
   if (source.provider === "sentry") {
-    const params = new URLSearchParams({ start: iso(r.from).slice(0, 19), end: iso(r.to).slice(0, 19), utc: "true" });
+    const params = new URLSearchParams({
+      start: iso(r.from).slice(0, 19),
+      end: iso(r.to).slice(0, 19),
+      utc: "true",
+    });
     const level = f ? [...f.facets.level] : [];
-    if (level.length) params.set("query", level.map((l) => `level:${l}`).join(" OR "));
+    if (level.length)
+      params.set("query", level.map((l) => `level:${l}`).join(" OR "));
     return `${base}/?${params}`;
   }
   return null;
 }
 
 /** The recording that showed an issue nearest a moment: one running then, else the closest start. */
-export function nearestReplay<R extends { group_ids: readonly string[]; started_at: number; duration_ms?: number | null }>(replays: readonly R[], groupId: string, at: number): R | null {
+export function nearestReplay<
+  R extends {
+    group_ids: readonly string[];
+    started_at: number;
+    duration_ms?: number | null;
+  },
+>(replays: readonly R[], groupId: string, at: number): R | null {
   let best: R | null = null;
   let gap = Infinity;
   for (const r of replays) {
@@ -692,12 +1050,28 @@ export function nearestReplay<R extends { group_ids: readonly string[]; started_
  * estimated. The chart draws these and the list's "kept of N" counts them,
  * so the two never disagree.
  */
-export function streamDayBins(sources: readonly Pick<OpsSource, "_id" | "days" | "last_event_at">[], groups: readonly OpsGroup[], sourceIds: ReadonlySet<string> | null, filter: TimelineFilter, range: Pick<TimeRange, "from" | "to">, rows: readonly { at: number }[]): HistBin[] {
+export function streamDayBins(
+  sources: readonly Pick<OpsSource, "_id" | "days" | "last_event_at">[],
+  groups: readonly OpsGroup[],
+  sourceIds: ReadonlySet<string> | null,
+  filter: TimelineFilter,
+  range: Pick<TimeRange, "from" | "to">,
+  rows: readonly { at: number }[],
+): HistBin[] {
   const inScope = sources.filter((s) => !sourceIds || sourceIds.has(s._id));
   const gs = streamGroups(groups, sourceIds, filter);
-  const filled = fillEstimates(counterBins(inScope, range), [rows.map((p) => ({ at: p.at, n: 1 })), occurrencePoints(gs)]);
+  const filled = fillEstimates(counterBins(inScope, range), [
+    rows.map((p) => ({ at: p.at, n: 1 })),
+    occurrencePoints(gs),
+  ]);
   // Past the newest sign of life from every source in scope nothing arrived: those days are silence, not missing data.
-  const lastAt = Math.max(0, ...inScope.map((s) => s.last_event_at ?? 0), ...groups.filter((g) => !sourceIds || sourceIds.has(g.source_id)).map((g) => g.last_seen));
+  const lastAt = Math.max(
+    0,
+    ...inScope.map((s) => s.last_event_at ?? 0),
+    ...groups
+      .filter((g) => !sourceIds || sourceIds.has(g.source_id))
+      .map((g) => g.last_seen),
+  );
   return knownSilence(filled, lastAt || null);
 }
 
@@ -707,7 +1081,11 @@ export function matchedOnly(bins: readonly HistBin[]): HistBin[] {
     if (!(UNMATCHED in b.parts)) return b;
     const parts = { ...b.parts };
     delete parts[UNMATCHED];
-    return { ...b, parts, total: Object.values(parts).reduce((n, x) => n + x, 0) };
+    return {
+      ...b,
+      parts,
+      total: Object.values(parts).reduce((n, x) => n + x, 0),
+    };
   });
 }
 
@@ -717,7 +1095,9 @@ export function matchedOnly(bins: readonly HistBin[]): HistBin[] {
 export const FOLD_MIN = 3;
 
 /** One line of the occurrence list: a kept occurrence, or the occurrences of one issue inside a burst folded into one line. */
-export type OccurrenceItem<T> = { kind: "one"; sample: T } | { kind: "run"; key: string; samples: T[]; from: number; to: number };
+export type OccurrenceItem<T> =
+  | { kind: "one"; sample: T }
+  | { kind: "run"; key: string; samples: T[]; from: number; to: number };
 
 /** A burst is occurrences no further apart than this, spanning no more than FOLD_SPAN: two issues interleaving inside it fold into one line each. */
 export const FOLD_GAP = 10 * 60_000;
@@ -734,20 +1114,34 @@ export const FOLD_SPAN = HOUR;
  * expanding it holds while older pages load under it. An issue seen fewer
  * than `min` times in a burst keeps its rows.
  */
-export function foldRepeats<T extends Pick<OpsSample, "_id" | "group_id" | "at">>(samples: readonly T[], min = FOLD_MIN): OccurrenceItem<T>[] {
+export function foldRepeats<
+  T extends Pick<OpsSample, "_id" | "group_id" | "at">,
+>(samples: readonly T[], min = FOLD_MIN): OccurrenceItem<T>[] {
   const out: OccurrenceItem<T>[] = [];
-  for (let i = 0; i < samples.length; ) {
+  for (let i = 0; i < samples.length;) {
     let j = i + 1;
-    while (j < samples.length && Math.abs(samples[j - 1].at - samples[j].at) <= FOLD_GAP && Math.abs(samples[i].at - samples[j].at) <= FOLD_SPAN) j++;
+    while (
+      j < samples.length &&
+      Math.abs(samples[j - 1].at - samples[j].at) <= FOLD_GAP &&
+      Math.abs(samples[i].at - samples[j].at) <= FOLD_SPAN
+    )
+      j++;
     const burst = samples.slice(i, j);
     const by = new Map<string, T[]>();
-    for (const x of burst) by.set(x.group_id, [...(by.get(x.group_id) ?? []), x]);
+    for (const x of burst)
+      by.set(x.group_id, [...(by.get(x.group_id) ?? []), x]);
     for (const x of burst) {
       const run = by.get(x.group_id)!;
       if (run.length < min) out.push({ kind: "one", sample: x });
       else if (run[0] === x) {
         const ats = run.map((r) => r.at);
-        out.push({ kind: "run", key: `run:${x._id}`, samples: run, from: Math.min(...ats), to: Math.max(...ats) });
+        out.push({
+          kind: "run",
+          key: `run:${x._id}`,
+          samples: run,
+          from: Math.min(...ats),
+          to: Math.max(...ats),
+        });
       }
     }
     i = j;
@@ -756,6 +1150,15 @@ export function foldRepeats<T extends Pick<OpsSample, "_id" | "group_id" | "at">
 }
 
 /** The ids the list's keys walk, in order: a folded run is its newest row until it is opened, then every row in it. */
-export function foldedIds<T extends Pick<OpsSample, "_id">>(items: readonly OccurrenceItem<T>[], expanded: ReadonlySet<string>): string[] {
-  return items.flatMap((it) => (it.kind === "one" ? [it.sample._id] : expanded.has(it.key) ? it.samples.map((x) => x._id) : [it.samples[0]._id]));
+export function foldedIds<T extends Pick<OpsSample, "_id">>(
+  items: readonly OccurrenceItem<T>[],
+  expanded: ReadonlySet<string>,
+): string[] {
+  return items.flatMap((it) =>
+    it.kind === "one"
+      ? [it.sample._id]
+      : expanded.has(it.key)
+        ? it.samples.map((x) => x._id)
+        : [it.samples[0]._id],
+  );
 }

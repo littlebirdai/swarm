@@ -14,19 +14,29 @@ import {
 
 describe("extractMentionHandles", () => {
   it("finds handles at boundaries and lowercases them", () => {
-    expect(extractMentionHandles("hey @Maya and (@devin): look")).toEqual(["maya", "devin"]);
+    expect(extractMentionHandles("hey @Maya and (@devin): look")).toEqual([
+      "maya",
+      "devin",
+    ]);
   });
 
   it("ignores emails, paths and mid-word at-signs", () => {
-    expect(extractMentionHandles("mail me at a@b.com or /path/@thing")).toEqual([]);
+    expect(extractMentionHandles("mail me at a@b.com or /path/@thing")).toEqual(
+      [],
+    );
   });
 
   it("drops scope words and duplicates", () => {
-    expect(extractMentionHandles("@here @maya @maya @channel @everyone")).toEqual(["maya"]);
+    expect(
+      extractMentionHandles("@here @maya @maya @channel @everyone"),
+    ).toEqual(["maya"]);
   });
 
   it("caps at MAX_MENTIONS", () => {
-    const text = Array.from({ length: MAX_MENTIONS + 5 }, (_, i) => `@user${i}`).join(" ");
+    const text = Array.from(
+      { length: MAX_MENTIONS + 5 },
+      (_, i) => `@user${i}`,
+    ).join(" ");
     expect(extractMentionHandles(text).length).toBe(MAX_MENTIONS);
   });
 });
@@ -47,7 +57,9 @@ describe("the member vocabulary", () => {
   });
 
   it("humans answer to github first, then the email local part", () => {
-    expect(memberHandle({ github_username: "Ashot", email: "x@y.z" })).toBe("ashot");
+    expect(memberHandle({ github_username: "Ashot", email: "x@y.z" })).toBe(
+      "ashot",
+    );
     expect(memberHandle({ email: "dev.in@y.z" })).toBe(null); // dot fails the strict local rule
     expect(memberHandle({ email: "devin@y.z" })).toBe("devin");
   });

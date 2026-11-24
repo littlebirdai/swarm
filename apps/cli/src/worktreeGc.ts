@@ -57,14 +57,18 @@ import { MERGED_REF_PREFIX, worktreeMatchesMergedBack } from "./mergeBack.js";
 import { runTreeNames, runTreesOf } from "./workflow/runDirs.js";
 
 /** The run trees of a checkout that a live run still works in, or null when that cannot be told. */
-export type RunTreesInUse = (repoRoot: string) => Promise<ReadonlySet<string> | null>;
+export type RunTreesInUse = (
+  repoRoot: string,
+) => Promise<ReadonlySet<string> | null>;
 
 /**
  * Run trees in use, from the ids of the runs live on this machine (null: cannot
  * tell). The ids are read once and each checkout's trees once, however many
  * worktrees a sweep asks about.
  */
-export function runTreesInUseVia(liveRunIds: () => Promise<ReadonlySet<string> | null>): RunTreesInUse {
+export function runTreesInUseVia(
+  liveRunIds: () => Promise<ReadonlySet<string> | null>,
+): RunTreesInUse {
   let ids: Promise<ReadonlySet<string> | null> | null = null;
   const byRepo = new Map<string, Set<string> | null>();
   return async (repoRoot) => {
@@ -85,7 +89,11 @@ export type GcVerdict =
 // the idle terminal reaper both release worktrees), so none of them may be a
 // synchronous spawn — a sync `git fetch` alone stalls the HTTP server, the
 // Convex subscriptions and tmux injection for its whole duration (ct-49542).
-async function git(cwd: string, args: string[], timeoutMs = 30_000): Promise<string> {
+async function git(
+  cwd: string,
+  args: string[],
+  timeoutMs = 30_000,
+): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
     encoding: "utf-8",
     timeout: timeoutMs,
@@ -120,15 +128,21 @@ export function keepReason(probe: WorktreeProbe): string | null {
   // Why: a squash or rebase merge rewrites the commits, so the branch still
   // counts as ahead while its content is already on the base (ct-49542).
   if (probe.contentInBase) return null;
-  if (probe.aheadOfOrigin === null) return "cannot tell whether its commits are on origin";
-  if (probe.aheadOfOrigin > 0) return `${probe.aheadOfOrigin} commit(s) not on origin`;
+  if (probe.aheadOfOrigin === null)
+    return "cannot tell whether its commits are on origin";
+  if (probe.aheadOfOrigin > 0)
+    return `${probe.aheadOfOrigin} commit(s) not on origin`;
   return null;
 }
 
 /** The default branch origin points at, or main. */
 async function originDefault(cwd: string): Promise<string> {
   try {
-    return (await git(cwd, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])).replace(/^origin\//, "") || "main";
+    return (
+      (
+        await git(cwd, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+      ).replace(/^origin\//, "") || "main"
+    );
   } catch {
     return "main";
   }
@@ -172,7 +186,12 @@ async function contentAlreadyInBase(
 ): Promise<boolean> {
   let baseTree: string;
   try {
-    baseTree = await git(worktreePath, ["rev-parse", "--verify", "--quiet", `${baseOid}^{tree}`]);
+    baseTree = await git(worktreePath, [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      `${baseOid}^{tree}`,
+    ]);
   } catch {
     return false;
   }
@@ -180,7 +199,12 @@ async function contentAlreadyInBase(
     return await caps.runWithFallback(
       "merge-tree-write-tree",
       async () => {
-        const out = await git(worktreePath, ["merge-tree", "--write-tree", baseOid, "HEAD"]);
+        const out = await git(worktreePath, [
+          "merge-tree",
+          "--write-tree",
+          baseOid,
+          "HEAD",
+        ]);
         const merged = out.split("\n")[0]?.trim();
         return Boolean(merged) && merged === baseTree;
       },
@@ -200,26 +224,55 @@ async function contentAlreadyInBase(
  */
 export async function probeWorktree(
   worktreePath: string,
-  opts: { capabilities?: GitCapabilityStore; repoKey?: string; startPoint?: string; seedBase?: string; fetch?: boolean } | null = {},
+  opts: {
+    capabilities?: GitCapabilityStore;
+    repoKey?: string;
+    startPoint?: string;
+    seedBase?: string;
+    fetch?: boolean;
+  } | null = {},
 ): Promise<WorktreeProbe> {
   opts ??= {};
   const dirty = (await git(worktreePath, ["status", "--porcelain"])).length > 0;
-  if (opts.fetch !== false) await fetchPrune(worktreePath, opts.repoKey ?? worktreePath);
+  if (opts.fetch !== false)
+    await fetchPrune(worktreePath, opts.repoKey ?? worktreePath);
   let aheadOfOrigin: number | null = null;
   let contentInBase = false;
   try {
     const base = `origin/${await originDefault(worktreePath)}`;
-    const baseOid = await git(worktreePath, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
-    aheadOfOrigin = parseInt(await git(worktreePath, ["rev-list", "--count", `${baseOid}..HEAD`]), 10);
+    const baseOid = await git(worktreePath, [
+      "rev-parse",
+      "--verify",
+      "--quiet",
+      `${base}^{commit}`,
+    ]);
+    aheadOfOrigin = parseInt(
+      await git(worktreePath, ["rev-list", "--count", `${baseOid}..HEAD`]),
+      10,
+    );
     if (Number.isNaN(aheadOfOrigin)) aheadOfOrigin = null;
     contentInBase =
       aheadOfOrigin === 0 ||
-      (await contentAlreadyInBase(worktreePath, baseOid, opts.capabilities ?? createGitCapabilityStore()));
+      (await contentAlreadyInBase(
+        worktreePath,
+        baseOid,
+        opts.capabilities ?? createGitCapabilityStore(),
+      ));
   } catch {
     aheadOfOrigin = null;
   }
-  if (!opts.startPoint || !opts.seedBase) return { dirty, aheadOfOrigin, contentInBase };
-  return { dirty, aheadOfOrigin, contentInBase, hostOnlyWork: await hostOnlyWorkSince(worktreePath, opts.startPoint, opts.seedBase) };
+  if (!opts.startPoint || !opts.seedBase)
+    return { dirty, aheadOfOrigin, contentInBase };
+  return {
+    dirty,
+    aheadOfOrigin,
+    contentInBase,
+    hostOnlyWork: await hostOnlyWorkSince(
+      worktreePath,
+      opts.startPoint,
+      opts.seedBase,
+    ),
+  };
 }
 
 /**
@@ -229,12 +282,23 @@ export async function probeWorktree(
  * null when the ref is gone or git fails: the caller falls through to the
  * dirty/ahead rules, which keep the worktree.
  */
-async function hostOnlyWorkSince(worktreePath: string, startPoint: string, seedBase: string): Promise<boolean | null> {
+async function hostOnlyWorkSince(
+  worktreePath: string,
+  startPoint: string,
+  seedBase: string,
+): Promise<boolean | null> {
   try {
-    if ((await git(worktreePath, ["rev-parse", "HEAD"])) !== seedBase) return true;
-    const seedTree = await git(worktreePath, ["rev-parse", `${startPoint}^{tree}`]);
+    if ((await git(worktreePath, ["rev-parse", "HEAD"])) !== seedBase)
+      return true;
+    const seedTree = await git(worktreePath, [
+      "rev-parse",
+      `${startPoint}^{tree}`,
+    ]);
     // Read the way the seed was taken (cloud/syncSide.ts), gitignored files included.
-    return (await runSide<SnapshotResult>({ op: "snapshot", cwd: worktreePath })).tree !== seedTree;
+    return (
+      (await runSide<SnapshotResult>({ op: "snapshot", cwd: worktreePath }))
+        .tree !== seedTree
+    );
   } catch {
     return null;
   }
@@ -253,33 +317,57 @@ export async function releaseSessionWorktree(
   if (!cwd) return { action: "skipped", reason: "no cwd" };
   const wt = locateWorktree(cwd);
   if (!wt) return { action: "skipped", reason: "not a codecast worktree" };
-  const worktreePath = path.join(wt.repoRoot, ".codecast", "worktrees", wt.name);
-  if (!fs.existsSync(worktreePath)) return { action: "skipped", reason: "already gone" };
+  const worktreePath = path.join(
+    wt.repoRoot,
+    ".codecast",
+    "worktrees",
+    wt.name,
+  );
+  if (!fs.existsSync(worktreePath))
+    return { action: "skipped", reason: "already gone" };
   if (isShared) {
     try {
       if (await isShared(worktreePath)) {
-        return { action: "kept", name: wt.name, path: worktreePath, reason: "another session uses this worktree" };
+        return {
+          action: "kept",
+          name: wt.name,
+          path: worktreePath,
+          reason: "another session uses this worktree",
+        };
       }
     } catch {
-      return { action: "kept", name: wt.name, path: worktreePath, reason: "cannot verify exclusive session ownership" };
+      return {
+        action: "kept",
+        name: wt.name,
+        path: worktreePath,
+        reason: "cannot verify exclusive session ownership",
+      };
     }
   }
   const runTree = !!runTreesInUse && runTreeNames(wt.repoRoot).has(wt.name);
   if (runTree) {
     const inUse = await runTreesInUse(wt.repoRoot).catch(() => null);
-    const reason = !inUse ? "cannot tell whether a live run works in it" : inUse.has(wt.name) ? "a live run works in it" : null;
+    const reason = !inUse
+      ? "cannot tell whether a live run works in it"
+      : inUse.has(wt.name)
+        ? "a live run works in it"
+        : null;
     if (reason) {
       log(`[WORKTREE-GC] kept ${wt.name}: ${reason}`);
       return { action: "kept", name: wt.name, path: worktreePath, reason };
     }
-    return removeWorktree(wt.repoRoot, wt.name, worktreePath, log, { keepBranch: true });
+    return removeWorktree(wt.repoRoot, wt.name, worktreePath, log, {
+      keepBranch: true,
+    });
   }
   const reason = await contentKeepReason(worktreePath, wt.repoRoot);
   if (reason) {
     log(`[WORKTREE-GC] kept ${wt.name}: ${reason}`);
     return { action: "kept", name: wt.name, path: worktreePath, reason };
   }
-  return removeWorktree(wt.repoRoot, wt.name, worktreePath, log, { keepBranch: false });
+  return removeWorktree(wt.repoRoot, wt.name, worktreePath, log, {
+    keepBranch: false,
+  });
 }
 
 /**
@@ -289,20 +377,31 @@ export async function releaseSessionWorktree(
  * daemon's sweep (land/sweep.ts). `repoRoot` keys the fetch, so releasing
  * ten worktrees of one repo fetches once.
  */
-export async function contentKeepReason(worktreePath: string, repoRoot: string, opts: { fetch?: boolean } = {}): Promise<string | null> {
+export async function contentKeepReason(
+  worktreePath: string,
+  repoRoot: string,
+  opts: { fetch?: boolean } = {},
+): Promise<string | null> {
   let probe: WorktreeProbe;
   try {
     // A seeded workspace's state carries the seed the verdict is judged against.
     const ws = await import("./workspace/index.js");
     const wt = locateWorktree(worktreePath);
     const state = wt ? ws.readState(wt.repoRoot, wt.name) : null;
-    probe = await probeWorktree(worktreePath, { repoKey: repoRoot, startPoint: state?.startPoint, seedBase: state?.seedBase, fetch: opts.fetch });
+    probe = await probeWorktree(worktreePath, {
+      repoKey: repoRoot,
+      startPoint: state?.startPoint,
+      seedBase: state?.seedBase,
+      fetch: opts.fetch,
+    });
   } catch (err) {
     return `git probe failed: ${(err as Error).message.split("\n")[0]}`;
   }
   // A worker whose every change is already in its parent's checkout
   // (mergeBack.ts) holds nothing the parent lacks, pushed or not.
-  return (await worktreeMatchesMergedBack(worktreePath).catch(() => false)) ? null : keepReason(probe);
+  return (await worktreeMatchesMergedBack(worktreePath).catch(() => false))
+    ? null
+    : keepReason(probe);
 }
 
 /**
@@ -314,12 +413,23 @@ export async function contentKeepReason(worktreePath: string, repoRoot: string, 
  * using with 116 tracked files gone (ct-52977). The bytes are deleted in the
  * background.
  */
-export async function releaseTree(repoRoot: string, worktreePath: string): Promise<void> {
+export async function releaseTree(
+  repoRoot: string,
+  worktreePath: string,
+): Promise<void> {
   // `git worktree prune` never drops a locked entry: a tree trashed while locked stays listed,
   // and its branch stays checked out by a ghost no `git worktree add` can get past. Claude Code
   // locks its agent worktrees with the agent's pid.
   const gitDir = treeGitDir(worktreePath);
-  const lock = gitDir ? (() => { try { return fs.readFileSync(path.join(gitDir, "locked"), "utf-8").trim(); } catch { return null; } })() : null;
+  const lock = gitDir
+    ? (() => {
+        try {
+          return fs.readFileSync(path.join(gitDir, "locked"), "utf-8").trim();
+        } catch {
+          return null;
+        }
+      })()
+    : null;
   if (lock !== null) {
     if (lockHolds(lock)) throw new Error(`locked${lock ? `: ${lock}` : ""}`);
     await git(repoRoot, ["worktree", "unlock", worktreePath]);
@@ -337,13 +447,21 @@ export async function releaseTree(repoRoot: string, worktreePath: string): Promi
 }
 
 /** A worktree lock holds while the pid it names is alive; a lock that names none was a person's, and holds. */
-export function lockHolds(reason: string | undefined, isAlive: (pid: number) => boolean = pidAlive): boolean {
+export function lockHolds(
+  reason: string | undefined,
+  isAlive: (pid: number) => boolean = pidAlive,
+): boolean {
   const pid = /\bpid[\s:=]*(\d+)/i.exec(reason ?? "")?.[1];
   return pid ? isAlive(Number(pid)) : true;
 }
 
 function pidAlive(pid: number): boolean {
-  try { process.kill(pid, 0); return true; } catch (err) { return (err as NodeJS.ErrnoException).code === "EPERM"; }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === "EPERM";
+  }
 }
 
 /** Unlink a trashed tree off this process's loop; the workspace trash sweep catches what this misses. */
@@ -356,12 +474,30 @@ export function deleteInBackground(dir: string): void {
 }
 
 /** Remove a session's worktree (releaseTree), then its branch unless asked to keep it. */
-async function removeWorktree(repoRoot: string, name: string, worktreePath: string, log: (m: string) => void, opts: { keepBranch: boolean }): Promise<GcVerdict> {
+async function removeWorktree(
+  repoRoot: string,
+  name: string,
+  worktreePath: string,
+  log: (m: string) => void,
+  opts: { keepBranch: boolean },
+): Promise<GcVerdict> {
   try {
-    const tracked = !!(await import("./workspace/index.js")).readState(repoRoot, name);
+    const tracked = !!(await import("./workspace/index.js")).readState(
+      repoRoot,
+      name,
+    );
     await releaseTree(repoRoot, worktreePath);
-    if (!tracked && !opts.keepBranch) try { await git(repoRoot, ["branch", "-D", `codecast/${name}`]); } catch { /* branch may be named otherwise */ }
-    try { await git(repoRoot, ["update-ref", "-d", `${MERGED_REF_PREFIX}${name}`]); } catch { /* never merged back */ }
+    if (!tracked && !opts.keepBranch)
+      try {
+        await git(repoRoot, ["branch", "-D", `codecast/${name}`]);
+      } catch {
+        /* branch may be named otherwise */
+      }
+    try {
+      await git(repoRoot, ["update-ref", "-d", `${MERGED_REF_PREFIX}${name}`]);
+    } catch {
+      /* never merged back */
+    }
     log(`[WORKTREE-GC] released ${name} (${worktreePath})`);
     return { action: "released", name, path: worktreePath };
   } catch (err) {
@@ -392,41 +528,82 @@ export async function releaseSessionMadeWorktrees(
   sessionId: string,
   cwd: string,
   log: (m: string) => void = () => {},
-  deps: { claudeProjects?: string; processCwds?: () => Promise<string[] | null> } = {},
+  deps: {
+    claudeProjects?: string;
+    processCwds?: () => Promise<string[] | null>;
+  } = {},
 ): Promise<GcVerdict[]> {
   let repoRoot: string;
   try {
-    repoRoot = path.dirname(await git(cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]));
+    repoRoot = path.dirname(
+      await git(cwd, [
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-common-dir",
+      ]),
+    );
   } catch {
     return [];
   }
   const { listStates } = await import("./workspace/contract.js");
   const kept: GcVerdict[] = [];
   const candidates = new Set<string>();
-  const real = (p: string) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+  const real = (p: string) => {
+    try {
+      return fs.realpathSync(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
   const own = real(cwd);
-  const holdsCwd = (tree: string) => { const t = real(tree); return own === t || own.startsWith(`${t}/`); };
+  const holdsCwd = (tree: string) => {
+    const t = real(tree);
+    return own === t || own.startsWith(`${t}/`);
+  };
   for (const s of listStates(repoRoot)) {
-    if (!s.sessions?.includes(sessionId) || path.resolve(s.path) === path.resolve(repoRoot) || !fs.existsSync(s.path) || holdsCwd(s.path)) continue;
-    if (s.sessions.some((other) => other !== sessionId)) kept.push({ action: "kept", name: s.name, path: s.path, reason: "another session acquired it too" });
+    if (
+      !s.sessions?.includes(sessionId) ||
+      path.resolve(s.path) === path.resolve(repoRoot) ||
+      !fs.existsSync(s.path) ||
+      holdsCwd(s.path)
+    )
+      continue;
+    if (s.sessions.some((other) => other !== sessionId))
+      kept.push({
+        action: "kept",
+        name: s.name,
+        path: s.path,
+        reason: "another session acquired it too",
+      });
     else candidates.add(s.path);
   }
-  const agents = subagentIds(deps.claudeProjects ?? path.join(process.env.HOME || "", ".claude", "projects"), sessionId);
+  const agents = subagentIds(
+    deps.claudeProjects ??
+      path.join(process.env.HOME || "", ".claude", "projects"),
+    sessionId,
+  );
   if (agents.size > 0) {
     const { parseWorktreeList } = await import("./land/scan.js");
-    for (const e of parseWorktreeList(await git(repoRoot, ["worktree", "list", "--porcelain"]))) {
+    for (const e of parseWorktreeList(
+      await git(repoRoot, ["worktree", "list", "--porcelain"]),
+    )) {
       const id = /\/\.claude\/worktrees\/agent-([0-9a-z]+)$/.exec(e.path)?.[1];
       if (id && agents.has(id)) candidates.add(e.path);
     }
   }
   if (candidates.size === 0) return kept;
-  const cwds = await (deps.processCwds ?? (async () => (await import("./land/scan.js")).readProcessCwds()))();
+  const cwds = await (
+    deps.processCwds ??
+    (async () => (await import("./land/scan.js")).readProcessCwds())
+  )();
   const out: GcVerdict[] = [...kept];
   for (const tree of candidates) {
     const name = path.basename(tree);
     const reason = !cwds
       ? "could not read which processes sit in it"
-      : cwds.some((c) => c === tree || c.startsWith(`${tree}/`)) ? "a running process sits in it" : await contentKeepReason(tree, repoRoot);
+      : cwds.some((c) => c === tree || c.startsWith(`${tree}/`))
+        ? "a running process sits in it"
+        : await contentKeepReason(tree, repoRoot);
     if (reason) {
       out.push({ action: "kept", name, path: tree, reason });
       continue;
@@ -435,10 +612,19 @@ export async function releaseSessionMadeWorktrees(
       await releaseTree(repoRoot, tree);
       out.push({ action: "released", name, path: tree });
     } catch (err) {
-      out.push({ action: "kept", name, path: tree, reason: `remove failed: ${(err as Error).message.split("\n")[0]}` });
+      out.push({
+        action: "kept",
+        name,
+        path: tree,
+        reason: `remove failed: ${(err as Error).message.split("\n")[0]}`,
+      });
     }
   }
-  for (const v of out) if (v.action !== "skipped") log(`[WORKTREE-GC] ${v.action} ${v.name}${v.action === "kept" ? `: ${v.reason}` : ` (${v.path})`}`);
+  for (const v of out)
+    if (v.action !== "skipped")
+      log(
+        `[WORKTREE-GC] ${v.action} ${v.name}${v.action === "kept" ? `: ${v.reason}` : ` (${v.path})`}`,
+      );
   return out;
 }
 
@@ -446,10 +632,18 @@ export async function releaseSessionMadeWorktrees(
 function subagentIds(projects: string, sessionId: string): Set<string> {
   const ids = new Set<string>();
   let dirs: string[] = [];
-  try { dirs = fs.readdirSync(projects); } catch { return ids; }
+  try {
+    dirs = fs.readdirSync(projects);
+  } catch {
+    return ids;
+  }
   for (const d of dirs) {
     let files: string[] = [];
-    try { files = fs.readdirSync(path.join(projects, d, sessionId, "subagents")); } catch { continue; }
+    try {
+      files = fs.readdirSync(path.join(projects, d, sessionId, "subagents"));
+    } catch {
+      continue;
+    }
     for (const f of files) {
       const m = /^agent-([0-9a-z]+)\.jsonl$/.exec(f);
       if (m) ids.add(m[1]);

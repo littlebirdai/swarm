@@ -1,17 +1,23 @@
-import type { FileHandle } from 'node:fs/promises';
-import { readCompleteLines } from '../transcriptWindow.js';
-import { INGEST_MAX_BYTES } from './ingestTypes.js';
+import type { FileHandle } from "node:fs/promises";
+import { readCompleteLines } from "../transcriptWindow.js";
+import { INGEST_MAX_BYTES } from "./ingestTypes.js";
 
 export class MetadataWindowExhausted extends Error {
   constructor(readonly maximumBytes: number) {
     super(`metadata read allowance exhausted (${maximumBytes} bytes)`);
-    this.name = 'MetadataWindowExhausted';
+    this.name = "MetadataWindowExhausted";
   }
 }
 
 function checkWindow(size: number, initialBytes: number, maximumBytes: number) {
-  if (![size, initialBytes, maximumBytes].every(Number.isSafeInteger) || size < 0 || initialBytes < 1 || maximumBytes < initialBytes || maximumBytes > INGEST_MAX_BYTES) {
-    throw new RangeError('invalid metadata read window');
+  if (
+    ![size, initialBytes, maximumBytes].every(Number.isSafeInteger) ||
+    size < 0 ||
+    initialBytes < 1 ||
+    maximumBytes < initialBytes ||
+    maximumBytes > INGEST_MAX_BYTES
+  ) {
+    throw new RangeError("invalid metadata read window");
   }
 }
 
@@ -40,11 +46,15 @@ export async function readCompleteMetadataHead(
       // pass on a head of megabytes of blank lines, which every pass rereads.
       for (let i = from; firstNativeByte < 0 && i < length; i++) {
         const byte = buffer[i];
-        if (byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d) firstNativeByte = i;
+        if (byte !== 0x20 && byte !== 0x09 && byte !== 0x0a && byte !== 0x0d)
+          firstNativeByte = i;
       }
-      const last = buffer.subarray(from,length).lastIndexOf(0x0a);
+      const last = buffer.subarray(from, length).lastIndexOf(0x0a);
       if (last >= 0) lastComplete = from + last;
-      const cut = bytes.indexOf(0x0a, Math.max(from, target - 1, firstNativeByte));
+      const cut = bytes.indexOf(
+        0x0a,
+        Math.max(from, target - 1, firstNativeByte),
+      );
       if (cut >= 0 && firstNativeByte >= 0) return cut;
       if (!atEof) return -1;
       exhausted = available < size;
@@ -80,14 +90,22 @@ export async function* readCompleteMetadataTail(
     let read = 0;
     while (read < added) {
       checkpoint();
-      const { bytesRead } = await fd.read(next, read, added - read, nextStart + read);
+      const { bytesRead } = await fd.read(
+        next,
+        read,
+        added - read,
+        nextStart + read,
+      );
       checkpoint();
-      if (bytesRead === 0) throw new Error('metadata source shortened');
+      if (bytesRead === 0) throw new Error("metadata source shortened");
       read += bytesRead;
     }
     buffer = next;
     start = nextStart;
-    if (extent === Math.min(size, initialBytes) && buffer[buffer.length - 1] !== 0x0a) {
+    if (
+      extent === Math.min(size, initialBytes) &&
+      buffer[buffer.length - 1] !== 0x0a
+    ) {
       onIncomplete();
       checkpoint();
     }
@@ -96,10 +114,19 @@ export async function* readCompleteMetadataTail(
       if (lastLf >= 0) unexaminedEnd = start + lastLf + 1;
     }
     const firstLf = buffer.indexOf(0x0a);
-    const completeStart = start === 0 ? 0 : firstLf < 0 ? undefined : start + firstLf + 1;
-    if (unexaminedEnd !== undefined && completeStart !== undefined && completeStart < unexaminedEnd) {
+    const completeStart =
+      start === 0 ? 0 : firstLf < 0 ? undefined : start + firstLf + 1;
+    if (
+      unexaminedEnd !== undefined &&
+      completeStart !== undefined &&
+      completeStart < unexaminedEnd
+    ) {
       checkpoint();
-      const content = buffer.toString('utf8', completeStart - start, unexaminedEnd - start);
+      const content = buffer.toString(
+        "utf8",
+        completeStart - start,
+        unexaminedEnd - start,
+      );
       unexaminedEnd = completeStart;
       yield content;
       checkpoint();

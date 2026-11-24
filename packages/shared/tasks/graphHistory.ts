@@ -14,7 +14,13 @@ export type GraphClause = { verb: string; refs?: string[]; text?: string };
 
 export type GraphChange = { tone: GraphTone; clauses: GraphClause[] };
 
-const GRAPH_FIELDS = new Set(["blocked_by", "waits", "related", "found_during", "superseded_by"]);
+const GRAPH_FIELDS = new Set([
+  "blocked_by",
+  "waits",
+  "related",
+  "found_during",
+  "superseded_by",
+]);
 
 const LIST_SEPARATOR = ", ";
 
@@ -29,7 +35,11 @@ export function parseStoredList(value?: string | null): string[] {
 }
 
 /** The change a graph history row records, or null for any other row. */
-export function graphChange(row: { field?: string; old_value?: string; new_value?: string }): GraphChange | null {
+export function graphChange(row: {
+  field?: string;
+  old_value?: string;
+  new_value?: string;
+}): GraphChange | null {
   if (!row.field || !GRAPH_FIELDS.has(row.field)) return null;
   const [from, to] = [row.old_value ?? "", row.new_value ?? ""];
   switch (row.field) {
@@ -40,41 +50,106 @@ export function graphChange(row: { field?: string; old_value?: string; new_value
       const removed = was.filter((r) => !now.includes(r));
       const blocking = row.field === "blocked_by";
       const clauses: GraphClause[] = [];
-      if (added.length) clauses.push({ verb: blocking ? "made it wait on" : "marked it related to", refs: added });
-      if (removed.length) clauses.push({ verb: blocking ? (added.length ? "and removed" : "removed blocker") : added.length ? "and unmarked" : "unmarked related", refs: removed });
-      return clauses.length ? { tone: blocking ? (added.length ? "blocked" : "met") : "link", clauses } : null;
+      if (added.length)
+        clauses.push({
+          verb: blocking ? "made it wait on" : "marked it related to",
+          refs: added,
+        });
+      if (removed.length)
+        clauses.push({
+          verb: blocking
+            ? added.length
+              ? "and removed"
+              : "removed blocker"
+            : added.length
+              ? "and unmarked"
+              : "unmarked related",
+          refs: removed,
+        });
+      return clauses.length
+        ? {
+            tone: blocking ? (added.length ? "blocked" : "met") : "link",
+            clauses,
+          }
+        : null;
     }
     case "found_during":
       return to
-        ? { tone: "link", clauses: [{ verb: "found it while working on", refs: [to] }] }
-        : { tone: "link", clauses: [{ verb: "cleared found during", refs: [from] }] };
+        ? {
+            tone: "link",
+            clauses: [{ verb: "found it while working on", refs: [to] }],
+          }
+        : {
+            tone: "link",
+            clauses: [{ verb: "cleared found during", refs: [from] }],
+          };
     case "superseded_by":
       return to
-        ? { tone: "link", clauses: [{ verb: "superseded it with", refs: [to] }] }
-        : { tone: "link", clauses: [{ verb: "brought it back from", refs: [from] }] };
+        ? {
+            tone: "link",
+            clauses: [{ verb: "superseded it with", refs: [to] }],
+          }
+        : {
+            tone: "link",
+            clauses: [{ verb: "brought it back from", refs: [from] }],
+          };
     case "waits": {
       // A wait's own line is its clause: "Waiting on PR #42" reads "made it wait on PR #42".
       if (!from) {
         const { state, clause, note } = waitLineParts(to);
-        if (state === "waiting") return { tone: "blocked", clauses: [{ verb: "made it wait", text: clause }] };
-        return { tone: "met", clauses: [clause ? { verb: "made it wait", text: `${clause}, ${note}` } : { verb: "made it wait, already met:", text: to }] };
+        if (state === "waiting")
+          return {
+            tone: "blocked",
+            clauses: [{ verb: "made it wait", text: clause }],
+          };
+        return {
+          tone: "met",
+          clauses: [
+            clause
+              ? { verb: "made it wait", text: `${clause}, ${note}` }
+              : { verb: "made it wait, already met:", text: to },
+          ],
+        };
       }
       if (!to) {
         const { state, clause } = waitLineParts(from);
-        if (!clause) return { tone: "met", clauses: [{ verb: "removed the wait:", text: from }] };
-        return { tone: "met", clauses: [{ verb: state === "waiting" ? "stopped waiting" : "removed the wait", text: clause }] };
+        if (!clause)
+          return {
+            tone: "met",
+            clauses: [{ verb: "removed the wait:", text: from }],
+          };
+        return {
+          tone: "met",
+          clauses: [
+            {
+              verb:
+                state === "waiting" ? "stopped waiting" : "removed the wait",
+              text: clause,
+            },
+          ],
+        };
       }
       const { state, clause, note } = waitLineParts(to);
-      if (state === "waiting") return { tone: "blocked", clauses: [{ verb: "reopened the wait", text: clause }] };
+      if (state === "waiting")
+        return {
+          tone: "blocked",
+          clauses: [{ verb: "reopened the wait", text: clause }],
+        };
       if (state === "failed") {
         return {
           tone: "failed",
           clauses: clause
-            ? [{ verb: "marked the wait", text: clause }, { verb: note ? "failed:" : "failed", text: note }]
+            ? [
+                { verb: "marked the wait", text: clause },
+                { verb: note ? "failed:" : "failed", text: note },
+              ]
             : [{ verb: "marked the wait failed:", text: to }],
         };
       }
-      return { tone: "met", clauses: [{ verb: "saw the wait met:", text: to }] };
+      return {
+        tone: "met",
+        clauses: [{ verb: "saw the wait met:", text: to }],
+      };
     }
   }
   return null;
@@ -82,5 +157,7 @@ export function graphChange(row: { field?: string; old_value?: string; new_value
 
 /** A graph change as plain words after its actor: "made it wait on PR #42". */
 export function graphChangeText(change: GraphChange): string {
-  return change.clauses.map((c) => [c.verb, c.refs?.join(", "), c.text].filter(Boolean).join(" ")).join(" ");
+  return change.clauses
+    .map((c) => [c.verb, c.refs?.join(", "), c.text].filter(Boolean).join(" "))
+    .join(" ");
 }

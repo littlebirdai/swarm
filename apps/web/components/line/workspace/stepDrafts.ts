@@ -6,8 +6,15 @@ import { useSyncExternalStore } from "react";
 
 let drafts: Readonly<Record<string, string>> = {};
 const listeners = new Set<() => void>();
-const emit = () => { for (const l of listeners) l(); };
-const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
+const emit = () => {
+  for (const l of listeners) l();
+};
+const subscribe = (l: () => void) => {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+};
 
 /** Set a step's unsaved text; null drops it. */
 export function setStepDraft(stepId: string, text: string | null) {
@@ -24,4 +31,8 @@ export function setStepDraft(stepId: string, text: string | null) {
 
 /** One step's unsaved text, or null. */
 export const useStepDraft = (stepId: string | null | undefined) =>
-  useSyncExternalStore(subscribe, () => (stepId ? drafts[stepId] ?? null : null), () => null);
+  useSyncExternalStore(
+    subscribe,
+    () => (stepId ? (drafts[stepId] ?? null) : null),
+    () => null,
+  );

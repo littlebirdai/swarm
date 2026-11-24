@@ -10,7 +10,11 @@ const FILE_TAG_RE = /\[File (.+?) · upload ([A-Za-z0-9]{8,})\]/g;
 /** A file name that fits inside the tag and on disk: no path, brackets or line breaks. */
 export function safeFileName(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? "";
-  const cleaned = base.replace(/[\[\]\n\r\t\0]/g, "").replace(/·/g, "-").trim().slice(0, 120);
+  const cleaned = base
+    .replace(/[\[\]\n\r\t\0]/g, "")
+    .replace(/·/g, "-")
+    .trim()
+    .slice(0, 120);
   return cleaned && cleaned !== "." && cleaned !== ".." ? cleaned : "file";
 }
 
@@ -27,7 +31,10 @@ export function appendFileTags(text: string, files: AttachedFileRef[]): string {
 }
 
 export function parseFileTags(text: string): AttachedFileRef[] {
-  return [...text.matchAll(FILE_TAG_RE)].map((m) => ({ name: m[1], storageId: m[2] }));
+  return [...text.matchAll(FILE_TAG_RE)].map((m) => ({
+    name: m[1],
+    storageId: m[2],
+  }));
 }
 
 /** Replaces each tag with what `resolve` gives for it: the local path as

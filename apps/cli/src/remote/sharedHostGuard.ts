@@ -20,5 +20,4 @@ export const SHARED_HOST_REFUSAL =
   "this is a shared host and this user is not its admin: no laptop logins go here, each person signs in on the host with their own accounts";
 
 /** Prefix for a remote command (SHARED_HOST_REFUSAL holds no single quote, so it quotes as is) that receives a credential on stdin: on a shared host, as anyone but the marker's admin, drain it, say why, exit 4. */
-export const SHARED_HOST_PUSH_GUARD =
-  `if [ -e ${SHARED_HOST_MARKER} ] && ! grep -qx "admin=$(id -un)" ${SHARED_HOST_MARKER}; then cat >/dev/null; echo '${SHARED_HOST_REFUSAL}' >&2; exit ${SHARED_HOST_REFUSED_STATUS}; fi; `;
+export const SHARED_HOST_PUSH_GUARD = `if [ -e ${SHARED_HOST_MARKER} ] && ! grep -qx "admin=$(id -un)" ${SHARED_HOST_MARKER}; then cat >/dev/null; echo '${SHARED_HOST_REFUSAL}' >&2; exit ${SHARED_HOST_REFUSED_STATUS}; fi; `;

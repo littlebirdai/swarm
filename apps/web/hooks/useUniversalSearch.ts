@@ -7,11 +7,18 @@
 //
 // Imports stay relative and free of web-only modules: the phone bundles this.
 import { useMemo, useState } from "react";
-import { parseSessionQuery, sessionQuerySearches } from "@codecast/shared/search";
+import {
+  parseSessionQuery,
+  sessionQuerySearches,
+} from "@codecast/shared/search";
 import { useWatchEffect } from "./useWatchEffect";
 import { useRemoteSearch } from "./useRemoteSearch";
 import { useObjectSearch, type ObjectGroup } from "./useObjectSearch";
-import { useInstantSessionRows, mergeSearchRows, type SessionSearchRow } from "../lib/instantSessionSearch";
+import {
+  useInstantSessionRows,
+  mergeSearchRows,
+  type SessionSearchRow,
+} from "../lib/instantSessionSearch";
 
 export type SearchRange = "all" | "7d" | "30d" | "90d";
 export const SEARCH_RANGES: { key: SearchRange; label: string }[] = [
@@ -21,7 +28,11 @@ export const SEARCH_RANGES: { key: SearchRange; label: string }[] = [
   { key: "90d", label: "Past 3 months" },
 ];
 const DAY = 24 * 60 * 60 * 1000;
-export const SEARCH_RANGE_MS: Record<Exclude<SearchRange, "all">, number> = { "7d": 7 * DAY, "30d": 30 * DAY, "90d": 90 * DAY };
+export const SEARCH_RANGE_MS: Record<Exclude<SearchRange, "all">, number> = {
+  "7d": 7 * DAY,
+  "30d": 30 * DAY,
+  "90d": 90 * DAY,
+};
 
 export const SEARCH_PAGE_SIZE = 20;
 /** Rows a kind lists at most; a count at the cap reads "50+". */
@@ -35,43 +46,77 @@ export type SearchFilters = {
   range: SearchRange;
   sort: "recent" | "relevance";
 };
-export const NO_SEARCH_FILTERS: SearchFilters = { mineOnly: false, userOnly: false, range: "all", sort: "recent" };
+export const NO_SEARCH_FILTERS: SearchFilters = {
+  mineOnly: false,
+  userOnly: false,
+  range: "all",
+  sort: "recent",
+};
 
 /** How many of the filters narrow the results, for a control that counts them. */
 export function activeFilterCount(f: SearchFilters): number {
-  return Number(f.mineOnly) + Number(f.userOnly) + Number(f.range !== "all") + Number(f.sort !== "recent");
+  return (
+    Number(f.mineOnly) +
+    Number(f.userOnly) +
+    Number(f.range !== "all") +
+    Number(f.sort !== "recent")
+  );
 }
 
-export function useUniversalSearch(query: string, filters: SearchFilters, opts: {
-  /** Conversations asked of the server; a surface raises it to page. */
-  limit: number;
-  /** The team whose chat to search; none skips chat. */
-  chatTeamId?: string | null;
-  chatLimit?: number;
-}) {
+export function useUniversalSearch(
+  query: string,
+  filters: SearchFilters,
+  opts: {
+    /** Conversations asked of the server; a surface raises it to page. */
+    limit: number;
+    /** The team whose chat to search; none skips chat. */
+    chatTeamId?: string | null;
+    chatLimit?: number;
+  },
+) {
   const { mineOnly, userOnly, range, sort } = filters;
   const { limit, chatTeamId, chatLimit = 10 } = opts;
 
   // Anchor "now" per range pick so the `since` arg is stable across renders:
   // a fresh Date.now() every render would churn the subscription.
   const sinceBase = useMemo(() => Date.now(), [range]);
-  const since = range === "all" ? undefined : sinceBase - SEARCH_RANGE_MS[range];
+  const since =
+    range === "all" ? undefined : sinceBase - SEARCH_RANGE_MS[range];
 
   // Every workspace the viewer belongs to, as the header search does: a
   // person's own sessions are findable from any workspace, the way their
   // routines and the rest of the viewer's objects already are. Each row from
   // a team carries its name.
   const remote = useRemoteSearch(query, {
-    enabled: true, limit, userOnly, mineOnly, since, sort, debounceMs: 300, allTeams: true,
-    chatTeamId, chatLimit,
+    enabled: true,
+    limit,
+    userOnly,
+    mineOnly,
+    since,
+    sort,
+    debounceMs: 300,
+    allTeams: true,
+    chatTeamId,
+    chatLimit,
   });
-  const { debouncedQuery, contentData: freshData, titleData, searchError } = remote;
+  const {
+    debouncedQuery,
+    contentData: freshData,
+    titleData,
+    searchError,
+  } = remote;
 
   // The same parser the server runs: its errors show before a round trip, and
   // its text (operators removed) is what gets marked in each hit.
-  const parsedQuery = useMemo(() => parseSessionQuery(debouncedQuery), [debouncedQuery]);
+  const parsedQuery = useMemo(
+    () => parseSessionQuery(debouncedQuery),
+    [debouncedQuery],
+  );
   const liveQuery = useMemo(() => parseSessionQuery(query), [query]);
-  const searchActive = debouncedQuery.length >= 2 && parsedQuery.errors.length === 0 && sessionQuerySearches(parsedQuery);
+  const searchActive =
+    debouncedQuery.length >= 2 &&
+    parsedQuery.errors.length === 0 &&
+    sessionQuerySearches(parsedQuery);
 
   // Stale-while-revalidate: keep the previous result set on screen while a new
   // query or filter loads. Skeletons only show on the very first search.
@@ -84,30 +129,56 @@ export function useUniversalSearch(query: string, filters: SearchFilters, opts: 
   }, [searchActive]);
   const searchData = freshData ?? (searchActive ? lastData : null);
 
-  const contentRows = (searchData?.results ?? []) as unknown as SessionSearchRow[];
+  const contentRows = (searchData?.results ??
+    []) as unknown as SessionSearchRow[];
   // Instant tier: sessions already in the store, matched off the RAW query, so
   // there are real rows before either server tier answers. "My prompts only"
   // filters by message role, which a cached row cannot judge, so the instant
   // tier stands down then, as the title tier does.
-  const instantRows = useInstantSessionRows(userOnly ? "" : query, SEARCH_PAGE_SIZE, { mineOnly });
+  const instantRows = useInstantSessionRows(
+    userOnly ? "" : query,
+    SEARCH_PAGE_SIZE,
+    { mineOnly },
+  );
   const sessionRows = useMemo(
-    () => mergeSearchRows(contentRows, titleData?.results as any, instantRows) as SessionSearchRow[],
+    () =>
+      mergeSearchRows(
+        contentRows,
+        titleData?.results as any,
+        instantRows,
+      ) as SessionSearchRow[],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [searchData, titleData, instantRows],
   );
 
   // Every other kind, as the person types. An operator query (file:, pr:)
   // names conversations only. Time narrows objects as it narrows conversations.
-  const objectQuery = query.trim().length >= 2 && liveQuery.errors.length === 0 && !liveQuery.hasFilters ? query : "";
-  const allObjectGroups = useObjectSearch(objectQuery, { cap: SEARCH_KIND_CAP });
+  const objectQuery =
+    query.trim().length >= 2 &&
+    liveQuery.errors.length === 0 &&
+    !liveQuery.hasFilters
+      ? query
+      : "";
+  const allObjectGroups = useObjectSearch(objectQuery, {
+    cap: SEARCH_KIND_CAP,
+  });
   const objectGroups: ObjectGroup[] = useMemo(
-    () => since == null ? allObjectGroups : allObjectGroups
-      .map((g) => ({ ...g, hits: g.hits.filter((h) => h.at == null || h.at >= since) }))
-      .filter((g) => g.hits.length > 0),
+    () =>
+      since == null
+        ? allObjectGroups
+        : allObjectGroups
+            .map((g) => ({
+              ...g,
+              hits: g.hits.filter((h) => h.at == null || h.at >= since),
+            }))
+            .filter((g) => g.hits.length > 0),
     [allObjectGroups, since],
   );
   const chatHits = useMemo(
-    () => (since == null ? remote.chatHits : remote.chatHits.filter((h) => (h.created_at ?? 0) >= since)),
+    () =>
+      since == null
+        ? remote.chatHits
+        : remote.chatHits.filter((h) => (h.created_at ?? 0) >= since),
     [remote.chatHits, since],
   );
 
@@ -131,10 +202,15 @@ export function useUniversalSearch(query: string, filters: SearchFilters, opts: 
     totalSessions: Math.max(serverSessions, sessionRows.length),
     // Pagination is a content-search concept: title rows don't count against it.
     remaining: Math.max(0, serverSessions - contentRows.length),
-    isLoading: searchActive && !searchError && (!freshData || query.trim() !== debouncedQuery.trim()),
+    isLoading:
+      searchActive &&
+      !searchError &&
+      (!freshData || query.trim() !== debouncedQuery.trim()),
     /** A value the parser could not read, or one the server could not resolve. */
     queryErrors: (parsedQuery.errors.length
       ? parsedQuery.errors
-      : searchData && "error" in searchData && searchData.error ? [searchData.error as string] : []) as string[],
+      : searchData && "error" in searchData && searchData.error
+        ? [searchData.error as string]
+        : []) as string[],
   };
 }

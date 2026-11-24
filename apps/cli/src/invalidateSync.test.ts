@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { InvalidateSync, delay, exponentialBackoffDelay, createBackoff } from "./invalidateSync.js";
+import {
+  InvalidateSync,
+  delay,
+  exponentialBackoffDelay,
+  createBackoff,
+} from "./invalidateSync.js";
 
 const waitFor = async (pred: () => boolean, timeout = 5000): Promise<void> => {
   const start = Date.now();
@@ -88,9 +93,12 @@ describe("InvalidateSync", () => {
 describe("InvalidateSync debounce", () => {
   it("coalesces a burst of invalidations into a single run", async () => {
     let executed = 0;
-    const sync = new InvalidateSync(async () => {
-      executed++;
-    }, { debounceMs: 100, maxWaitMs: 1000 });
+    const sync = new InvalidateSync(
+      async () => {
+        executed++;
+      },
+      { debounceMs: 100, maxWaitMs: 1000 },
+    );
 
     // Fire several events within the debounce window — should collapse to one run.
     sync.invalidate();
@@ -108,9 +116,12 @@ describe("InvalidateSync debounce", () => {
 
   it("flushes via maxWait when events never pause", async () => {
     let executed = 0;
-    const sync = new InvalidateSync(async () => {
-      executed++;
-    }, { debounceMs: 100, maxWaitMs: 250 });
+    const sync = new InvalidateSync(
+      async () => {
+        executed++;
+      },
+      { debounceMs: 100, maxWaitMs: 250 },
+    );
 
     // Keep resetting the debounce faster than debounceMs; maxWait must still fire.
     for (let i = 0; i < 8; i++) {
@@ -123,9 +134,12 @@ describe("InvalidateSync debounce", () => {
 
   it("invalidateAndAwait bypasses debounce and runs promptly", async () => {
     let executed = 0;
-    const sync = new InvalidateSync(async () => {
-      executed++;
-    }, { debounceMs: 5000, maxWaitMs: 10000 });
+    const sync = new InvalidateSync(
+      async () => {
+        executed++;
+      },
+      { debounceMs: 5000, maxWaitMs: 10000 },
+    );
 
     await sync.invalidateAndAwait();
     expect(executed).toBe(1);
@@ -133,9 +147,12 @@ describe("InvalidateSync debounce", () => {
 
   it("stop() cancels a pending debounced run", async () => {
     let executed = 0;
-    const sync = new InvalidateSync(async () => {
-      executed++;
-    }, { debounceMs: 100 });
+    const sync = new InvalidateSync(
+      async () => {
+        executed++;
+      },
+      { debounceMs: 100 },
+    );
 
     sync.invalidate();
     sync.stop();
@@ -148,19 +165,28 @@ describe("InvalidateSync debounce", () => {
 describe("createBackoff maxRetries", () => {
   it("gives up after maxRetries consecutive failures instead of looping forever", async () => {
     let calls = 0;
-    const bounded = createBackoff({ minDelay: 1, maxDelay: 5, maxRetries: 4, onError: () => {} });
+    const bounded = createBackoff({
+      minDelay: 1,
+      maxDelay: 5,
+      maxRetries: 4,
+      onError: () => {},
+    });
     await expect(
       bounded(async () => {
         calls++;
         throw new Error("always fails");
-      })
+      }),
     ).rejects.toThrow("always fails");
     expect(calls).toBe(4);
   });
 
   it("retries indefinitely when maxRetries is unset (legacy behavior)", async () => {
     let calls = 0;
-    const unbounded = createBackoff({ minDelay: 1, maxDelay: 3, onError: () => {} });
+    const unbounded = createBackoff({
+      minDelay: 1,
+      maxDelay: 3,
+      onError: () => {},
+    });
     const result = await unbounded(async () => {
       calls++;
       if (calls < 6) throw new Error("transient");
@@ -183,7 +209,12 @@ describe("InvalidateSync give-up", () => {
         attempts++;
         throw new Error("permanent failure");
       },
-      { maxRetries: 3, onGiveUp: () => { gaveUp++; } }
+      {
+        maxRetries: 3,
+        onGiveUp: () => {
+          gaveUp++;
+        },
+      },
     );
 
     sync.invalidate();

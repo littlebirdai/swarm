@@ -30,7 +30,12 @@
 
 import { redactSecrets } from "../redact.js";
 import { tmuxRun } from "../tmux.js";
-import { hasSessionServer, sessionServerSockets, targetSession, withTmuxSession } from "../tmuxRoute.js";
+import {
+  hasSessionServer,
+  sessionServerSockets,
+  targetSession,
+  withTmuxSession,
+} from "../tmuxRoute.js";
 import { TMUX_SESSION_SOCKET_PREFIX } from "@codecast/shared/contracts";
 import {
   PANE_CAPTURE_INTERVAL_MS,
@@ -72,7 +77,9 @@ export interface PaneStreamDeps {
   /** Publish to the relay. Returns the relay's answer, or null if the push
    *  itself failed (network, server down). `input` is whatever the viewer typed
    *  since the previous push, as hex. */
-  push: (msg: PaneFramePush) => Promise<{ stop: boolean; input?: string; fast?: boolean } | null>;
+  push: (
+    msg: PaneFramePush,
+  ) => Promise<{ stop: boolean; input?: string; fast?: boolean } | null>;
   /** Type raw bytes into the pane. */
   write: (target: string, bytes: number[]) => void;
   now: () => number;
@@ -112,7 +119,10 @@ const MAX_PUSH_FAILURES = 6;
  * working. Pure w.r.t. its deps so the whole protocol is testable without tmux
  * or a network.
  */
-export async function runPaneStream(target: string, deps: PaneStreamDeps): Promise<void> {
+export async function runPaneStream(
+  target: string,
+  deps: PaneStreamDeps,
+): Promise<void> {
   let lastFrame: string | null = null;
   let lastPushAt = 0;
   let failures = 0;
@@ -129,7 +139,9 @@ export async function runPaneStream(target: string, deps: PaneStreamDeps): Promi
   // A lease is already live when the command is dispatched — this is the
   // backstop for a relay that stops answering, not the real deadline.
   const hardDeadline = deps.now() + PANE_LEASE_MS * 30;
-  const clip = deps.clipboard ? clipboardWatch(deps.clipboard, deps.now, deps.log) : null;
+  const clip = deps.clipboard
+    ? clipboardWatch(deps.clipboard, deps.now, deps.log)
+    : null;
   clip?.maintain();
 
   for (;;) {
@@ -154,7 +166,8 @@ export async function runPaneStream(target: string, deps: PaneStreamDeps): Promi
     // someone is focused on the pane it is worth several a second instead —
     // not for the picture, which hasn't moved, but because this request is the
     // only thing that collects their keystrokes.
-    const heartbeat = fast || deps.now() < typingUntil ? PANE_INPUT_POLL_MS : PANE_HEARTBEAT_MS;
+    const heartbeat =
+      fast || deps.now() < typingUntil ? PANE_INPUT_POLL_MS : PANE_HEARTBEAT_MS;
     const due = deps.now() - lastPushAt >= heartbeat;
     if (changed || due) {
       const answer = await deps.push(
@@ -212,7 +225,9 @@ export async function runPaneStream(target: string, deps: PaneStreamDeps): Promi
     clip?.maintain();
     clip?.tick();
     await deps.sleep(
-      fast || deps.now() < typingUntil ? PANE_TYPING_INTERVAL_MS : PANE_CAPTURE_INTERVAL_MS,
+      fast || deps.now() < typingUntil
+        ? PANE_TYPING_INTERVAL_MS
+        : PANE_CAPTURE_INTERVAL_MS,
     );
   }
 }
@@ -244,7 +259,11 @@ export function splitLoneEscape(bytes: number[]): number[][] {
 }
 
 /** The bridge's window: arm on input, poll inside it, offer each new buffer once. */
-export function clipboardWatch(deps: PaneClipboardDeps, now: () => number, log?: (msg: string) => void) {
+export function clipboardWatch(
+  deps: PaneClipboardDeps,
+  now: () => number,
+  log?: (msg: string) => void,
+) {
   let until = 0;
   let baseline = new Set<string>();
   let lastCheck = 0;
@@ -254,7 +273,11 @@ export function clipboardWatch(deps: PaneClipboardDeps, now: () => number, log?:
   let known: string[] | null = null;
   let lastMaintain = -Infinity;
   const list = (): string[] | null => {
-    try { return deps.list(); } catch { return null; }
+    try {
+      return deps.list();
+    } catch {
+      return null;
+    }
   };
   return {
     /** Once per capture-loop pass; looks at tmux at most every PANE_CLIPBOARD_MAINTAIN_MS. */
@@ -291,7 +314,9 @@ export function clipboardWatch(deps: PaneClipboardDeps, now: () => number, log?:
       for (const n of names) baseline.add(n);
       if (!fresh) return;
       let text: string | null = null;
-      try { text = deps.read(fresh); } catch {}
+      try {
+        text = deps.read(fresh);
+      } catch {}
       if (!text) return;
       // Redact the whole text first: a cut made before it could split a
       // secret so the pattern no longer matches.
@@ -314,10 +339,13 @@ export function clipboardWatch(deps: PaneClipboardDeps, now: () => number, log?:
  * box included. Only tmux's own auto-named buffers (buffer0, buffer1, ...)
  * count; the daemon's paste buffers have other names.
  */
-export function paneBufferReader(target: string): Pick<PaneClipboardDeps, "list" | "read" | "close"> | null {
+export function paneBufferReader(
+  target: string,
+): Pick<PaneClipboardDeps, "list" | "read" | "close"> | null {
   const session = targetSession(target);
   if (!session || !hasSessionServer(session)) return null;
-  const tmux = (args: string[]) => withTmuxSession(session, () => tmuxRun(args));
+  const tmux = (args: string[]) =>
+    withTmuxSession(session, () => tmuxRun(args));
   // tmux's default set-clipboard is "external", which ignores an app's OSC 52
   // copy; "on" also keeps it as a buffer. Set on this session's own server
   // only (it serves this one agent session), never on the shared one, and
@@ -339,7 +367,13 @@ export function paneBufferReader(target: string): Pick<PaneClipboardDeps, "list"
     }
   };
   const enable = (): boolean => {
-    const clients = tmux(["list-clients", "-t", session, "-F", "#{client_name}"]);
+    const clients = tmux([
+      "list-clients",
+      "-t",
+      session,
+      "-F",
+      "#{client_name}",
+    ]);
     if (clients.status !== 0 || clients.stdout.trim()) {
       disable();
       return false;
@@ -347,7 +381,12 @@ export function paneBufferReader(target: string): Pick<PaneClipboardDeps, "list"
     if (enabled) return true;
     const marker = tmux(["show-options", "-sv", CLIPBOARD_WAS]);
     const current = tmux(["show-options", "-sv", "set-clipboard"]);
-    previous = marker.status === 0 && marker.stdout.trim() ? marker.stdout.trim() : current.status === 0 ? current.stdout.trim() : null;
+    previous =
+      marker.status === 0 && marker.stdout.trim()
+        ? marker.stdout.trim()
+        : current.status === 0
+          ? current.stdout.trim()
+          : null;
     if (previous && previous !== "on") {
       tmux(["set-option", "-s", CLIPBOARD_WAS, previous]);
       tmux(["set-option", "-s", "set-clipboard", "on"]);
@@ -361,7 +400,10 @@ export function paneBufferReader(target: string): Pick<PaneClipboardDeps, "list"
       if (!enable()) return null;
       const r = tmux(["list-buffers", "-F", "#{buffer_name}"]);
       if (r.status !== 0) return r.stderr.includes("no buffers") ? [] : null;
-      return r.stdout.split("\n").map((l) => l.trim()).filter((n) => /^buffer\d+$/.test(n));
+      return r.stdout
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((n) => /^buffer\d+$/.test(n));
     },
     read: (name) => {
       if (!/^buffer\d+$/.test(name)) return null;
@@ -394,7 +436,8 @@ export function restoreStrandedClipboardBridges(): number {
 }
 
 /** Colors (SGR) and the other escapes capture-pane -e emits, OSC 8 links included. */
-const ESCAPE_RE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
+const ESCAPE_RE =
+  /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-_])/g;
 
 /** Cells a row's text takes, counting anything past U+1100 as wide: an overcount only joins a row that did not wrap, never misses one that did. */
 function cellWidth(text: string): number {
@@ -433,7 +476,8 @@ export function redactFrame(frame: string, cols: number): string {
       continue;
     }
     const chars = [...redacted];
-    for (let i = 0; i < end - start; i++) out.push(chars.slice(i * cols, (i + 1) * cols).join(""));
+    for (let i = 0; i < end - start; i++)
+      out.push(chars.slice(i * cols, (i + 1) * cols).join(""));
   }
   return out.join("\n");
 }
@@ -471,7 +515,10 @@ export function capturePane(target: string): PaneSnapshot | null {
   if (r.status !== 0) return null;
   const nl = r.stdout.indexOf("\n");
   if (nl < 0) return null;
-  const [cols, rows, cx, cy] = r.stdout.slice(0, nl).split("|").map((n) => parseInt(n, 10));
+  const [cols, rows, cx, cy] = r.stdout
+    .slice(0, nl)
+    .split("|")
+    .map((n) => parseInt(n, 10));
   if (!cols || !rows) return null;
   return {
     // capture-pane ends with a newline; keeping it would add a phantom row.
@@ -547,11 +594,15 @@ export function startPaneStream(
   };
   const run = runPaneStream(target, full)
     .catch((err) => {
-      full.log?.(`[PANE] ${target}: stream error ${err instanceof Error ? err.message : String(err)}`);
+      full.log?.(
+        `[PANE] ${target}: stream error ${err instanceof Error ? err.message : String(err)}`,
+      );
     })
     .finally(() => {
       active.delete(target);
-      try { full.clipboard?.close?.(); } catch {}
+      try {
+        full.clipboard?.close?.();
+      } catch {}
     });
   active.set(target, run);
 }

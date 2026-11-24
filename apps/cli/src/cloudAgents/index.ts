@@ -7,21 +7,48 @@ import { managedProviderKey } from "../providerKeyStore.js";
 import { CodexCloudAdapter } from "./codex.js";
 import { CursorCloudAdapter } from "./cursor.js";
 import { OpenAIAgentsAdapter } from "./openaiAgents.js";
-import type { AnyCloudAgentAdapter, CloudAgentDeviceCode, CloudAgentLoginCommand } from "./types.js";
+import type {
+  AnyCloudAgentAdapter,
+  CloudAgentDeviceCode,
+  CloudAgentLoginCommand,
+} from "./types.js";
 
 export { CloudAgentRegistry, type CloudAgentRuntime } from "./registry.js";
-export { CloudAgentHoldError, CloudAgentSetupError, CloudAgentBusyError, CloudAgentUnsentError, logTag, type CloudAgentDeviceCode, type CloudAgentGit, type CloudAgentLoginCommand, type CloudAgentLoginState } from "./types.js";
-export { readMetaJson, withMirrorSynced, writeMirrorSynced } from "./transcript.js";
+export {
+  CloudAgentHoldError,
+  CloudAgentSetupError,
+  CloudAgentBusyError,
+  CloudAgentUnsentError,
+  logTag,
+  type CloudAgentDeviceCode,
+  type CloudAgentGit,
+  type CloudAgentLoginCommand,
+  type CloudAgentLoginState,
+} from "./types.js";
+export {
+  readMetaJson,
+  withMirrorSynced,
+  writeMirrorSynced,
+} from "./transcript.js";
 
 export interface CloudAgentAdapterDeps {
   /** Run a provider's own sign-in command on this machine (the daemon's utility tmux pane). */
-  runLogin?: (command: CloudAgentLoginCommand) => Promise<CloudAgentDeviceCode | void>;
+  runLogin?: (
+    command: CloudAgentLoginCommand,
+  ) => Promise<CloudAgentDeviceCode | void>;
 }
 
-export function cloudAgentAdapters(configDir = defaultConfigDir(), deps: CloudAgentAdapterDeps = {}): AnyCloudAgentAdapter[] {
+export function cloudAgentAdapters(
+  configDir = defaultConfigDir(),
+  deps: CloudAgentAdapterDeps = {},
+): AnyCloudAgentAdapter[] {
   return [
-    new CursorCloudAdapter({ readKey: () => managedProviderKey("cursor", configDir) }),
+    new CursorCloudAdapter({
+      readKey: () => managedProviderKey("cursor", configDir),
+    }),
     new CodexCloudAdapter({ runLogin: deps.runLogin }),
-    new OpenAIAgentsAdapter({ readKey: () => managedProviderKey("openai", configDir) }),
+    new OpenAIAgentsAdapter({
+      readKey: () => managedProviderKey("openai", configDir),
+    }),
   ];
 }

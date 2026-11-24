@@ -12,10 +12,26 @@
  * when one does not.
  */
 
-export type ParityArea = "repo" | "files" | "folder" | "tool" | "mcp" | "config" | "login" | "env" | "service" | "machine";
+export type ParityArea =
+  | "repo"
+  | "files"
+  | "folder"
+  | "tool"
+  | "mcp"
+  | "config"
+  | "login"
+  | "env"
+  | "service"
+  | "machine";
 
 /** carried: copied over. installed: the host got its own copy. present: already there and verified. */
-export type ParityStatus = "planned" | "carried" | "installed" | "present" | "skipped" | "failed";
+export type ParityStatus =
+  | "planned"
+  | "carried"
+  | "installed"
+  | "present"
+  | "skipped"
+  | "failed";
 
 export interface ParityItem {
   key: string;
@@ -47,7 +63,18 @@ export interface ParityReport {
   counts: Record<ParityStatus, number>;
 }
 
-const AREA_ORDER: ParityArea[] = ["repo", "files", "folder", "config", "login", "env", "tool", "mcp", "service", "machine"];
+const AREA_ORDER: ParityArea[] = [
+  "repo",
+  "files",
+  "folder",
+  "config",
+  "login",
+  "env",
+  "tool",
+  "mcp",
+  "service",
+  "machine",
+];
 
 export const AREA_TITLES: Record<ParityArea, string> = {
   repo: "Repositories",
@@ -69,34 +96,69 @@ export class ParityLedger {
   readonly scope: string[] = [];
 
   /** Something a step will carry or install. Returns its key. Re-planning keeps the first entry. */
-  plan(area: ParityArea, name: string, opts: { detail?: string; paths?: string[] } = {}): string {
+  plan(
+    area: ParityArea,
+    name: string,
+    opts: { detail?: string; paths?: string[] } = {},
+  ): string {
     const key = parityKey(area, name);
-    if (!this.items.has(key)) this.items.set(key, { key, area, name, status: "planned", ...opts });
+    if (!this.items.has(key))
+      this.items.set(key, { key, area, name, status: "planned", ...opts });
     return key;
   }
 
   /** Something that will not go, and why. Overrides a plan. */
-  skip(area: ParityArea, name: string, reason: string, opts: { detail?: string; fix?: string; paths?: string[] } = {}): string {
+  skip(
+    area: ParityArea,
+    name: string,
+    reason: string,
+    opts: { detail?: string; fix?: string; paths?: string[] } = {},
+  ): string {
     const key = parityKey(area, name);
     const prev = this.items.get(key);
     // Only what this skip says: an earlier plan's paths or fix belong to what was planned, not to why it stays.
-    this.set({ key, area, name, detail: opts.detail ?? prev?.detail, status: "skipped", reason, ...(opts.fix ? { fix: opts.fix } : {}), ...(opts.paths ? { paths: opts.paths } : {}) });
+    this.set({
+      key,
+      area,
+      name,
+      detail: opts.detail ?? prev?.detail,
+      status: "skipped",
+      reason,
+      ...(opts.fix ? { fix: opts.fix } : {}),
+      ...(opts.paths ? { paths: opts.paths } : {}),
+    });
     return key;
   }
 
   /** A step's outcome for a planned item. An unplanned key is added, so an outcome is never lost. */
-  settle(key: string, status: Exclude<ParityStatus, "planned">, opts: { reason?: string; fix?: string; detail?: string } = {}): void {
+  settle(
+    key: string,
+    status: Exclude<ParityStatus, "planned">,
+    opts: { reason?: string; fix?: string; detail?: string } = {},
+  ): void {
     const prev = this.items.get(key);
     const [area, ...rest] = key.split(":");
     // A new outcome brings its own reason and fix; the previous one's do not carry over.
-    const { fix: _fix, reason: _reason, ...kept } = prev ?? { key, area: area as ParityArea, name: rest.join(":"), status };
+    const {
+      fix: _fix,
+      reason: _reason,
+      ...kept
+    } = prev ?? { key, area: area as ParityArea, name: rest.join(":"), status };
     this.set({ ...kept, ...opts, detail: opts.detail ?? prev?.detail, status });
   }
 
   /** Settle every still-planned item that `match` selects. */
-  settleWhere(match: (item: ParityItem) => boolean, status: Exclude<ParityStatus, "planned">, opts: { reason?: string; fix?: string } = {}): number {
+  settleWhere(
+    match: (item: ParityItem) => boolean,
+    status: Exclude<ParityStatus, "planned">,
+    opts: { reason?: string; fix?: string } = {},
+  ): number {
     let n = 0;
-    for (const item of this.items.values()) if (item.status === "planned" && match(item)) { this.settle(item.key, status, opts); n++; }
+    for (const item of this.items.values())
+      if (item.status === "planned" && match(item)) {
+        this.settle(item.key, status, opts);
+        n++;
+      }
     return n;
   }
 
@@ -109,10 +171,16 @@ export class ParityLedger {
   }
 
   private set(item: ParityItem): void {
-    if ((item.status === "skipped" || item.status === "failed") && !item.reason?.trim()) {
-      throw new Error(`parity item ${item.key} is ${item.status} without a reason`);
+    if (
+      (item.status === "skipped" || item.status === "failed") &&
+      !item.reason?.trim()
+    ) {
+      throw new Error(
+        `parity item ${item.key} is ${item.status} without a reason`,
+      );
     }
-    if (item.status !== "skipped" && item.status !== "failed") delete item.reason;
+    if (item.status !== "skipped" && item.status !== "failed")
+      delete item.reason;
     this.items.set(item.key, item);
   }
 
@@ -121,31 +189,79 @@ export class ParityLedger {
    * step was meant to report on it and did not.
    */
   /** The report as it would read if the run ended now, leaving the ledger itself untouched. */
-  snapshot(meta: { laptop: string; target: string; unsettled: string; now?: Date }): ParityReport {
+  snapshot(meta: {
+    laptop: string;
+    target: string;
+    unsettled: string;
+    now?: Date;
+  }): ParityReport {
     const copy = new ParityLedger();
     for (const i of this.items.values()) copy.items.set(i.key, { ...i });
     copy.scope.push(...this.scope);
     return copy.finish(meta);
   }
 
-  finish(meta: { laptop: string; target: string; dryRun?: boolean; now?: Date; unsettled?: string }): ParityReport {
+  finish(meta: {
+    laptop: string;
+    target: string;
+    dryRun?: boolean;
+    now?: Date;
+    unsettled?: string;
+  }): ParityReport {
     if (!meta.dryRun) {
       for (const item of this.items.values()) {
-        if (item.status === "planned") this.set({ ...item, status: "failed", reason: meta.unsettled ?? "no step reported what happened to it" });
+        if (item.status === "planned")
+          this.set({
+            ...item,
+            status: "failed",
+            reason: meta.unsettled ?? "no step reported what happened to it",
+          });
       }
     }
-    const items = this.all().sort((a, b) =>
-      AREA_ORDER.indexOf(a.area) - AREA_ORDER.indexOf(b.area) || STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || a.name.localeCompare(b.name));
-    const counts = { planned: 0, carried: 0, installed: 0, present: 0, skipped: 0, failed: 0 } as Record<ParityStatus, number>;
+    const items = this.all().sort(
+      (a, b) =>
+        AREA_ORDER.indexOf(a.area) - AREA_ORDER.indexOf(b.area) ||
+        STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) ||
+        a.name.localeCompare(b.name),
+    );
+    const counts = {
+      planned: 0,
+      carried: 0,
+      installed: 0,
+      present: 0,
+      skipped: 0,
+      failed: 0,
+    } as Record<ParityStatus, number>;
     for (const i of items) counts[i.status]++;
-    return { version: 1, created_at: (meta.now ?? new Date()).toISOString(), laptop: meta.laptop, target: meta.target, dry_run: !!meta.dryRun, scope: [...this.scope], items, counts };
+    return {
+      version: 1,
+      created_at: (meta.now ?? new Date()).toISOString(),
+      laptop: meta.laptop,
+      target: meta.target,
+      dry_run: !!meta.dryRun,
+      scope: [...this.scope],
+      items,
+      counts,
+    };
   }
 }
 
-const STATUS_ORDER: ParityStatus[] = ["failed", "skipped", "planned", "carried", "installed", "present"];
+const STATUS_ORDER: ParityStatus[] = [
+  "failed",
+  "skipped",
+  "planned",
+  "carried",
+  "installed",
+  "present",
+];
 
 const STATUS_WORD: Record<ParityStatus, string> = {
-  planned: "will carry", carried: "carried", installed: "installed", present: "present", skipped: "skipped", failed: "FAILED",
+  planned: "will carry",
+  carried: "carried",
+  installed: "installed",
+  present: "present",
+  skipped: "skipped",
+  failed: "FAILED",
 };
 
 /** How many paths of a grouped item the terminal shows before "and N more". */
@@ -155,30 +271,66 @@ const PATHS_SHOWN = 8;
  * The report for a terminal. Every skipped and failed item gets its own line
  * with its reason. Items that made it are summed per area unless `all`.
  */
-export function renderParityText(r: ParityReport, opts: { all?: boolean } = {}): string {
+export function renderParityText(
+  r: ParityReport,
+  opts: { all?: boolean } = {},
+): string {
   const lines: string[] = [];
   const c = r.counts;
   const done = c.carried + c.installed + c.present;
-  lines.push(r.dry_run
-    ? `Dry run for ${r.laptop}: ${c.planned} to carry, ${c.skipped} staying behind`
-    : `${r.laptop} → ${r.target}: ${done} carried or installed, ${c.skipped} skipped, ${c.failed} failed`);
+  lines.push(
+    r.dry_run
+      ? `Dry run for ${r.laptop}: ${c.planned} to carry, ${c.skipped} staying behind`
+      : `${r.laptop} → ${r.target}: ${done} carried or installed, ${c.skipped} skipped, ${c.failed} failed`,
+  );
   for (const area of AREA_ORDER) {
     const items = r.items.filter((i) => i.area === area);
     if (!items.length) continue;
-    const ok = items.filter((i) => i.status === "carried" || i.status === "installed" || i.status === "present" || i.status === "planned");
-    const gaps = items.filter((i) => i.status === "skipped" || i.status === "failed");
-    lines.push("", `${AREA_TITLES[area]}  ${ok.length} ${r.dry_run ? "to carry" : "ok"}${gaps.length ? `, ${gaps.length} not` : ""}`);
+    const ok = items.filter(
+      (i) =>
+        i.status === "carried" ||
+        i.status === "installed" ||
+        i.status === "present" ||
+        i.status === "planned",
+    );
+    const gaps = items.filter(
+      (i) => i.status === "skipped" || i.status === "failed",
+    );
+    lines.push(
+      "",
+      `${AREA_TITLES[area]}  ${ok.length} ${r.dry_run ? "to carry" : "ok"}${gaps.length ? `, ${gaps.length} not` : ""}`,
+    );
     const shown = opts.all ? items : gaps;
     for (const i of shown) {
-      lines.push(`  ${STATUS_WORD[i.status].padEnd(10)} ${i.name}${i.detail ? ` (${i.detail})` : ""}${i.reason ? `: ${i.reason}` : ""}`);
+      lines.push(
+        `  ${STATUS_WORD[i.status].padEnd(10)} ${i.name}${i.detail ? ` (${i.detail})` : ""}${i.reason ? `: ${i.reason}` : ""}`,
+      );
       if (i.fix) lines.push(`             fix: ${i.fix}`);
       if (i.paths?.length && (gaps.includes(i) || opts.all)) {
-        for (const p of i.paths.slice(0, opts.all ? i.paths.length : PATHS_SHOWN)) lines.push(`             ${p}`);
-        if (!opts.all && i.paths.length > PATHS_SHOWN) lines.push(`             and ${i.paths.length - PATHS_SHOWN} more (--all lists them)`);
+        for (const p of i.paths.slice(
+          0,
+          opts.all ? i.paths.length : PATHS_SHOWN,
+        ))
+          lines.push(`             ${p}`);
+        if (!opts.all && i.paths.length > PATHS_SHOWN)
+          lines.push(
+            `             and ${i.paths.length - PATHS_SHOWN} more (--all lists them)`,
+          );
       }
     }
-    if (!opts.all && ok.length) lines.push(`  ${ok.length > 6 ? `${ok.slice(0, 6).map((i) => i.name).join(", ")} and ${ok.length - 6} more` : ok.map((i) => i.name).join(", ")}`);
+    if (!opts.all && ok.length)
+      lines.push(
+        `  ${
+          ok.length > 6
+            ? `${ok
+                .slice(0, 6)
+                .map((i) => i.name)
+                .join(", ")} and ${ok.length - 6} more`
+            : ok.map((i) => i.name).join(", ")
+        }`,
+      );
   }
-  if (r.scope.length) lines.push("", "Read from this laptop:", ...r.scope.map((s) => `  ${s}`));
+  if (r.scope.length)
+    lines.push("", "Read from this laptop:", ...r.scope.map((s) => `  ${s}`));
   return lines.join("\n");
 }

@@ -93,7 +93,11 @@ export function runTriggerPrecheck(opts: {
         // Own process group, so the timeout kill reaches the whole pipeline.
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
-        env: scrubAgentEnv({ ...process.env, PATH: agentSpawnPath(), ...opts.env }),
+        env: scrubAgentEnv({
+          ...process.env,
+          PATH: agentSpawnPath(),
+          ...opts.env,
+        }),
       });
     } catch (err) {
       settle({ error: err instanceof Error ? err.message : String(err) });
@@ -115,7 +119,8 @@ export function runTriggerPrecheck(opts: {
     child.stderr?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string) => {
       output = appendTail(output, chunk);
-      if (stdout.length + chunk.length > TRIGGER_PRECHECK_STATE_CHARS) stdoutTruncated = true;
+      if (stdout.length + chunk.length > TRIGGER_PRECHECK_STATE_CHARS)
+        stdoutTruncated = true;
       stdout = (stdout + chunk).slice(0, TRIGGER_PRECHECK_STATE_CHARS);
     });
     child.stderr?.on("data", (chunk: string) => {
@@ -127,7 +132,9 @@ export function runTriggerPrecheck(opts: {
       // says nothing about the check — leave exitCode absent so `timedOut` is
       // the only thing read.
       // A timed-out command reports once everything it started is ended.
-      void ending.then(() => settle(timedOut || typeof code !== "number" ? {} : { exitCode: code }));
+      void ending.then(() =>
+        settle(timedOut || typeof code !== "number" ? {} : { exitCode: code }),
+      );
     });
   });
 }

@@ -41,7 +41,9 @@ async function decode(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   // fall back to an <img> for browsers/types it rejects.
   if (typeof createImageBitmap === "function") {
     try {
-      return await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions);
+      return await createImageBitmap(file, {
+        imageOrientation: "from-image",
+      } as ImageBitmapOptions);
     } catch {
       /* fall through to <img> */
     }
@@ -61,13 +63,23 @@ async function decode(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   }
 }
 
-function dims(source: ImageBitmap | HTMLImageElement): { w: number; h: number } {
-  const w = (source as ImageBitmap).width ?? (source as HTMLImageElement).naturalWidth;
-  const h = (source as ImageBitmap).height ?? (source as HTMLImageElement).naturalHeight;
+function dims(source: ImageBitmap | HTMLImageElement): {
+  w: number;
+  h: number;
+} {
+  const w =
+    (source as ImageBitmap).width ?? (source as HTMLImageElement).naturalWidth;
+  const h =
+    (source as ImageBitmap).height ??
+    (source as HTMLImageElement).naturalHeight;
   return { w, h };
 }
 
-async function encode(canvas: HTMLCanvasElement | OffscreenCanvas, type: string, quality: number): Promise<Blob | null> {
+async function encode(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+  type: string,
+  quality: number,
+): Promise<Blob | null> {
   if (typeof (canvas as OffscreenCanvas).convertToBlob === "function") {
     try {
       return await (canvas as OffscreenCanvas).convertToBlob({ type, quality });
@@ -76,22 +88,31 @@ async function encode(canvas: HTMLCanvasElement | OffscreenCanvas, type: string,
     }
   }
   return await new Promise<Blob | null>((resolve) =>
-    (canvas as HTMLCanvasElement).toBlob((b) => resolve(b), type, quality)
+    (canvas as HTMLCanvasElement).toBlob((b) => resolve(b), type, quality),
   );
 }
 
 // Decode an image and draw it onto a canvas no larger than MAX_EDGE on its
 // longest side. Null when the bytes have no size or no 2D context exists.
-export async function drawFitted(blob: Blob): Promise<{ canvas: HTMLCanvasElement | OffscreenCanvas; ctx: CanvasRenderingContext2D; w: number; h: number } | null> {
+export async function drawFitted(blob: Blob): Promise<{
+  canvas: HTMLCanvasElement | OffscreenCanvas;
+  ctx: CanvasRenderingContext2D;
+  w: number;
+  h: number;
+} | null> {
   const source = await decode(blob);
   const { w: srcW, h: srcH } = dims(source);
   if (!srcW || !srcH) return null;
   const scale = Math.min(1, MAX_EDGE / Math.max(srcW, srcH));
   const w = Math.max(1, Math.round(srcW * scale));
   const h = Math.max(1, Math.round(srcH * scale));
-  const canvas: HTMLCanvasElement | OffscreenCanvas = typeof OffscreenCanvas === "function"
-    ? new OffscreenCanvas(w, h)
-    : Object.assign(document.createElement("canvas"), { width: w, height: h });
+  const canvas: HTMLCanvasElement | OffscreenCanvas =
+    typeof OffscreenCanvas === "function"
+      ? new OffscreenCanvas(w, h)
+      : Object.assign(document.createElement("canvas"), {
+          width: w,
+          height: h,
+        });
   const ctx = (canvas as HTMLCanvasElement).getContext("2d");
   if (!ctx) return null;
   ctx.drawImage(source as CanvasImageSource, 0, 0, w, h);
@@ -100,7 +121,9 @@ export async function drawFitted(blob: Blob): Promise<{ canvas: HTMLCanvasElemen
 }
 
 // The canvas as WebP, or JPEG where the platform won't produce WebP.
-export async function encodeCompact(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Blob | null> {
+export async function encodeCompact(
+  canvas: HTMLCanvasElement | OffscreenCanvas,
+): Promise<Blob | null> {
   const webp = await encode(canvas, "image/webp", WEBP_QUALITY);
   if (webp && webp.type === "image/webp") return webp;
   return (await encode(canvas, "image/jpeg", JPEG_QUALITY)) ?? webp;
@@ -121,7 +144,10 @@ export async function compressImage(file: File): Promise<File> {
     const outType = blob.type;
     const ext = outType === "image/webp" ? "webp" : "jpg";
     const baseName = file.name?.replace(/\.[^./\\]+$/, "") || "image";
-    return new File([blob], `${baseName}.${ext}`, { type: outType, lastModified: file.lastModified });
+    return new File([blob], `${baseName}.${ext}`, {
+      type: outType,
+      lastModified: file.lastModified,
+    });
   } catch {
     // Best-effort: any failure (decode, canvas, encode, OOM) keeps the original.
     return file;

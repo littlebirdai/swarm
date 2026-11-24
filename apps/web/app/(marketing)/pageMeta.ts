@@ -36,5 +36,8 @@ export function usePageMeta(title: string | null, description: string) {
  */
 export function useRouteMeta(path: string) {
   const entry = seoFor(path);
-  usePageMeta(entry?.title ?? DEFAULT_TITLE, entry?.description ?? DEFAULT_DESCRIPTION);
+  usePageMeta(
+    entry?.title ?? DEFAULT_TITLE,
+    entry?.description ?? DEFAULT_DESCRIPTION,
+  );
 }

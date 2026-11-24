@@ -1,12 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import { SNIPPET_CATALOG, TEAM_FEATURES } from "@codecast/shared/contracts";
-import { isRecentlyShipped, newSnippetsFor, snippetIntroKey } from "./newSnippets";
+import {
+  isRecentlyShipped,
+  newSnippetsFor,
+  snippetIntroKey,
+} from "./newSnippets";
 
 const DAY = 24 * 60 * 60 * 1000;
 
 // Pin the clock relative to a real catalog entry so the tests keep passing as
 // the catalog ages: "now" is 10 days after the newest ship date.
-const newest = SNIPPET_CATALOG.reduce((m, s) => Math.max(m, Date.parse(s.shipped)), 0);
+const newest = SNIPPET_CATALOG.reduce(
+  (m, s) => Math.max(m, Date.parse(s.shipped)),
+  0,
+);
 const NOW = newest + 10 * DAY;
 const newestSlugs = SNIPPET_CATALOG.filter(
   (s) => NOW - Date.parse(s.shipped) < 45 * DAY,
@@ -16,8 +23,12 @@ const aSlug = newestSlugs[0];
 const oldAccount = newest - 200 * DAY;
 // A team with every opt-in feature on, so gated snippets (chat, calls) count
 // as available in the "offers everything new" case.
-const allOn = [{ features: Object.fromEntries(TEAM_FEATURES.map((f) => [f.key, true])) }];
-const device = (snippets: Record<string, boolean> = {}) => ({ settings: { snippets } });
+const allOn = [
+  { features: Object.fromEntries(TEAM_FEATURES.map((f) => [f.key, true])) },
+];
+const device = (snippets: Record<string, boolean> = {}) => ({
+  settings: { snippets },
+});
 
 describe("newSnippetsFor", () => {
   test("offers recently shipped snippets to an account that predates them", () => {
@@ -40,8 +51,11 @@ describe("newSnippetsFor", () => {
       teams: [{ features: {} }],
       now: NOW,
     });
-    for (const slug of gated) expect(got.map((s) => s.slug)).not.toContain(slug);
-    expect(got.map((s) => s.slug).sort()).toEqual(newestSlugs.filter((s) => !gated.includes(s)).sort());
+    for (const slug of gated)
+      expect(got.map((s) => s.slug)).not.toContain(slug);
+    expect(got.map((s) => s.slug).sort()).toEqual(
+      newestSlugs.filter((s) => !gated.includes(s)).sort(),
+    );
   });
 
   test("offers nothing to a brand-new account", () => {

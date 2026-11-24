@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, setDefaultTimeout } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  setDefaultTimeout,
+} from "bun:test";
 import { _resetUndoStacks } from "@platform/engine";
 import { useInboxStore, type InboxSession } from "../inboxStore";
 import { performUndo } from "../undoStack";
@@ -46,22 +53,40 @@ afterEach(uninstallSim);
 
 // Rows every window on the device shows and the live window carries: what a
 // user can click on, and what a stale push could bring back.
-const visibleIds = async (server: SimServer, ...devices: Device[]): Promise<string[]> => {
-  const live = new Set((await server.base()).sessions.map((s: any) => String(s._id)));
-  const shown = devices.flatMap((d) => d.windows).map((w) => new Set(w.visibleIds()));
-  return [...live].filter((id) => shown.every((s) => s.has(id)) && !server.conv(id).inbox_pinned_at).sort();
+const visibleIds = async (
+  server: SimServer,
+  ...devices: Device[]
+): Promise<string[]> => {
+  const live = new Set(
+    (await server.base()).sessions.map((s: any) => String(s._id)),
+  );
+  const shown = devices
+    .flatMap((d) => d.windows)
+    .map((w) => new Set(w.visibleIds()));
+  return [...live]
+    .filter(
+      (id) => shown.every((s) => s.has(id)) && !server.conv(id).inbox_pinned_at,
+    )
+    .sort();
 };
 
-const everyWindow = (devices: Device[]): Replica[] => devices.flatMap((d) => d.windows);
+const everyWindow = (devices: Device[]): Replica[] =>
+  devices.flatMap((d) => d.windows);
 
 /** Per window: whether `id` is out of every active bucket. */
-const hiddenEverywhere = (windows: Replica[], id: string): Record<string, boolean> => {
+const hiddenEverywhere = (
+  windows: Replica[],
+  id: string,
+): Record<string, boolean> => {
   const out: Record<string, boolean> = {};
   for (const w of windows) out[w.name] = !w.shows(id);
   return out;
 };
 /** Per window: whether `id` is gone from the rendered set entirely (killed). */
-const goneEverywhere = (windows: Replica[], id: string): Record<string, boolean> => {
+const goneEverywhere = (
+  windows: Replica[],
+  id: string,
+): Record<string, boolean> => {
   const out: Record<string, boolean> = {};
   for (const w of windows) out[w.name] = !w.membership().includes(id);
   return out;
@@ -78,7 +103,9 @@ describe("a kill from a follower window stays killed", () => {
     // A live push captured BEFORE the gesture — the window's subscription
     // result still in flight when the user clicks.
     const stale = await server.base();
-    expect(stale.sessions.some((s: any) => s._id === q && !s.inbox_dismissed_at)).toBe(true);
+    expect(
+      stale.sessions.some((s: any) => s._id === q && !s.inbox_dismissed_at),
+    ).toBe(true);
 
     // The follower kills q: its own store hides the row at once, the bridge
     // announces it, the mut offers it to the host. Nothing delivered yet.
@@ -95,8 +122,15 @@ describe("a kill from a follower window stays killed", () => {
 
     // The stale live push lands on the host after the gesture. Without a lock
     // it would re-show q; the lock the bridge planted must hold it hidden.
-    await A.host.withStore(() => useInboxStore.getState().syncTable("sessions", stale.sessions as unknown as InboxSession[]));
-    expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": true, "A-w1": true });
+    await A.host.withStore(() =>
+      useInboxStore
+        .getState()
+        .syncTable("sessions", stale.sessions as unknown as InboxSession[]),
+    );
+    expect(hiddenEverywhere(A.windows, q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+    });
 
     // The host's ordinary feeds: the live window (which never carries a
     // killed row) and the log (which carries the kill, and the server's
@@ -104,22 +138,39 @@ describe("a kill from a follower window stays killed", () => {
     // follower: the row is now gone from both, not merely dismissed.
     await A.host.receiveAll();
     await A.drain();
-    expect(goneEverywhere(A.windows, q)).toEqual({ "A-host": true, "A-w1": true });
+    expect(goneEverywhere(A.windows, q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+    });
 
     // Device B learns the same way: log first, then its follower.
     await B.host.receiveAll();
     await B.drain();
-    expect(goneEverywhere(everyWindow([A, B]), q)).toEqual({ "A-host": true, "A-w1": true, "B-host": true, "B-w1": true });
+    expect(goneEverywhere(everyWindow([A, B]), q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+      "B-host": true,
+      "B-w1": true,
+    });
 
     // A pin from B's follower rides the same paths the other way.
     await B.followers[0].pin(p);
     await B.drain();
     await A.host.receiveAll();
     await A.drain();
-    for (const w of everyWindow([A, B])) expect({ w: w.name, pinned: (w.state.sessions as any)[p]?.is_pinned }).toEqual({ w: w.name, pinned: true });
+    for (const w of everyWindow([A, B]))
+      expect({
+        w: w.name,
+        pinned: (w.state.sessions as any)[p]?.is_pinned,
+      }).toEqual({ w: w.name, pinned: true });
 
     await settleAndAssertConverged(server, everyWindow([A, B]));
-    expect(goneEverywhere(everyWindow([A, B]), q)).toEqual({ "A-host": true, "A-w1": true, "B-host": true, "B-w1": true });
+    expect(goneEverywhere(everyWindow([A, B]), q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+      "B-host": true,
+      "B-w1": true,
+    });
   });
 
   // A kill bridged from A-w1 leaves A-host exactly the sender's locks, which
@@ -141,7 +192,10 @@ describe("a kill from a follower window stays killed", () => {
     advance(GEN_MIN);
     await A.host.receiveAll();
     await A.drain();
-    expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": false, "A-w1": false });
+    expect(hiddenEverywhere(A.windows, q)).toEqual({
+      "A-host": false,
+      "A-w1": false,
+    });
     await settleAndAssertConverged(server, everyWindow([A, B]));
   });
 });
@@ -149,7 +203,9 @@ describe("a kill from a follower window stays killed", () => {
 describe("randomized interleavings across four windows on two devices", () => {
   it("any order of gestures, replication, bridge messages, payloads, ranges, floors, retention, reconnects and epoch ticks converges", async () => {
     // Replay one seed with SIM_SEEDS=25 (comma separated).
-    const seeds = process.env.SIM_SEEDS ? process.env.SIM_SEEDS.split(",").map(Number) : [81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92];
+    const seeds = process.env.SIM_SEEDS
+      ? process.env.SIM_SEEDS.split(",").map(Number)
+      : [81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92];
     const healedSeeds: string[] = [];
     for (const seed of seeds) {
       resetClock();
@@ -170,7 +226,9 @@ describe("randomized interleavings across four windows on two devices", () => {
         const target = pickShown(w, rng);
         const hidden = pickHidden(w, rng);
         if (roll < 0.22) {
-          await SERVER_EVENTS[eventNames[Math.floor(rng() * eventNames.length)]](server, rng, step);
+          await SERVER_EVENTS[
+            eventNames[Math.floor(rng() * eventNames.length)]
+          ](server, rng, step);
         } else if (roll < 0.3 && target) {
           await w.pin(target);
         } else if (roll < 0.36 && target) {
@@ -203,7 +261,9 @@ describe("randomized interleavings across four windows on two devices", () => {
           // and replication interleave with feeds and gestures.
           await d.deliver(1 + Math.floor(rng() * 3));
         } else {
-          advance([15_000, GEN_MIN, 5 * GEN_MIN, GEN_HOUR][Math.floor(rng() * 4)]);
+          advance(
+            [15_000, GEN_MIN, 5 * GEN_MIN, GEN_HOUR][Math.floor(rng() * 4)],
+          );
         }
         if (rng() < 0.5) advance(Math.floor(rng() * 20_000));
       }
@@ -214,7 +274,9 @@ describe("randomized interleavings across four windows on two devices", () => {
     // heal names a lock or a placement the channels left wrong (seeds 83 and
     // 86 were a late replicated write over a newer lock, seed 110 a child
     // ask the server did not roll up). Printed so a reader sees which.
-    console.log(`[sim:multi-window] seeds converged through the heal: ${healedSeeds.join(", ") || "none"}`);
+    console.log(
+      `[sim:multi-window] seeds converged through the heal: ${healedSeeds.join(", ") || "none"}`,
+    );
     expect(healedSeeds).toEqual([]);
   });
 });
@@ -226,7 +288,11 @@ describe("retention passes a replica's cursor", () => {
     const B = await bootReplica(server, "B", 2);
     const [q, r, s] = await visibleIds(server, A);
     // A blank row A cached, that the GC deletes while A is away.
-    const blank = newConversation("blank1", { message_count: 0, last_message_role: undefined, started_at: now() - GEN_DAY });
+    const blank = newConversation("blank1", {
+      message_count: 0,
+      last_message_role: undefined,
+      started_at: now() - GEN_DAY,
+    });
     await server.insert(blank);
     await A.host.receiveAll();
     await A.drain();
@@ -247,11 +313,23 @@ describe("retention passes a replica's cursor", () => {
     A.host.online = true;
     await A.host.catchUp();
     await A.drain();
-    expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": true, "A-w1": true });
-    expect(hiddenEverywhere(A.windows, r)).toEqual({ "A-host": false, "A-w1": false });
+    expect(hiddenEverywhere(A.windows, q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+    });
+    expect(hiddenEverywhere(A.windows, r)).toEqual({
+      "A-host": false,
+      "A-w1": false,
+    });
     for (const w of A.windows) {
-      expect({ w: w.name, pinned: (w.state.sessions as any)[s]?.is_pinned }).toEqual({ w: w.name, pinned: true });
-      expect({ w: w.name, blank: (w.state.sessions as any)[blank._id] }).toEqual({ w: w.name, blank: undefined });
+      expect({
+        w: w.name,
+        pinned: (w.state.sessions as any)[s]?.is_pinned,
+      }).toEqual({ w: w.name, pinned: true });
+      expect({
+        w: w.name,
+        blank: (w.state.sessions as any)[blank._id],
+      }).toEqual({ w: w.name, blank: undefined });
     }
     await settleAndAssertConverged(server, [...A.windows, B]);
   });
@@ -308,7 +386,10 @@ describe("a follower undoes its own stash", () => {
     _resetUndoStacks();
     await w1.stash(q);
     await A.drain();
-    expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": true, "A-w1": true });
+    expect(hiddenEverywhere(A.windows, q)).toEqual({
+      "A-host": true,
+      "A-w1": true,
+    });
 
     // What the host persists for q from here on.
     const persisted: Array<Record<string, unknown> | undefined> = [];
@@ -320,7 +401,10 @@ describe("a follower undoes its own stash", () => {
       expect(await w1.withStore(() => performUndo())).toBe(true);
       expect(w1.shows(q)).toBe(true);
       await A.drain();
-      expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": false, "A-w1": false });
+      expect(hiddenEverywhere(A.windows, q)).toEqual({
+        "A-host": false,
+        "A-w1": false,
+      });
       expect(persisted.length).toBeGreaterThan(0);
       expect(persisted.at(-1)?.inbox_stashed_at ?? null).toBe(null);
     } finally {
@@ -330,7 +414,10 @@ describe("a follower undoes its own stash", () => {
     // The server took the undo too: the host's feeds and the log keep it shown.
     await A.host.receiveAll();
     await A.drain();
-    expect(hiddenEverywhere(A.windows, q)).toEqual({ "A-host": false, "A-w1": false });
+    expect(hiddenEverywhere(A.windows, q)).toEqual({
+      "A-host": false,
+      "A-w1": false,
+    });
     await settleAndAssertConverged(server, A.windows);
   });
 });

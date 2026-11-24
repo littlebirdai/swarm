@@ -35,7 +35,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 
-const checkModule = path.resolve(process.env.CHECK_MODULE ?? path.join(import.meta.dir, "../src/check.ts"));
+const checkModule = path.resolve(
+  process.env.CHECK_MODULE ?? path.join(import.meta.dir, "../src/check.ts"),
+);
 const check = (await import(checkModule)) as typeof import("../src/check.ts");
 
 if (process.argv[2] === "--watcher") {
@@ -44,14 +46,27 @@ if (process.argv[2] === "--watcher") {
   process.exit(0);
 }
 
-const tsDir = process.env.TS_DIR ?? path.dirname(Bun.resolveSync("typescript/package.json", import.meta.dir));
-process.env.CODECAST_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "check-e2e-home-"));
+const tsDir =
+  process.env.TS_DIR ??
+  path.dirname(Bun.resolveSync("typescript/package.json", import.meta.dir));
+process.env.CODECAST_DIR = fs.mkdtempSync(
+  path.join(os.tmpdir(), "check-e2e-home-"),
+);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const watchers: ChildProcess[] = [];
 
 /** A git tree with this repo's TypeScript installed, on branch `fix` over `main`. */
-function makeTree(base: Record<string, string>, fix: Record<string, string>): { root: string; git: (...a: string[]) => void; put: (f: string, t: string) => void } {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "check-e2e-")));
+function makeTree(
+  base: Record<string, string>,
+  fix: Record<string, string>,
+): {
+  root: string;
+  git: (...a: string[]) => void;
+  put: (f: string, t: string) => void;
+} {
+  const root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "check-e2e-")),
+  );
   const git = (...a: string[]) => {
     const r = spawnSync("git", ["-C", root, ...a], { encoding: "utf8" });
     if (r.status) throw new Error(`git ${a.join(" ")}: ${r.stderr}`);
@@ -62,12 +77,21 @@ function makeTree(base: Record<string, string>, fix: Record<string, string>): { 
   };
   fs.mkdirSync(path.join(root, "node_modules/.bin"), { recursive: true });
   fs.symlinkSync(tsDir, path.join(root, "node_modules/typescript"));
-  fs.symlinkSync("../typescript/bin/tsc", path.join(root, "node_modules/.bin/tsc"));
+  fs.symlinkSync(
+    "../typescript/bin/tsc",
+    path.join(root, "node_modules/.bin/tsc"),
+  );
   git("init", "-q", "-b", "main");
   git("config", "user.email", "e2e@example.com");
   git("config", "user.name", "e2e");
   put(".gitignore", "node_modules\n");
-  put("app/tsconfig.json", JSON.stringify({ compilerOptions: { strict: true, noEmit: true, skipLibCheck: true }, include: ["*.ts"] }));
+  put(
+    "app/tsconfig.json",
+    JSON.stringify({
+      compilerOptions: { strict: true, noEmit: true, skipLibCheck: true },
+      include: ["*.ts"],
+    }),
+  );
   for (const [f, t] of Object.entries(base)) put(f, t);
   git("add", "-A");
   git("commit", "-qm", "base");
@@ -83,24 +107,62 @@ const start = (root: string) => {
   const dir = check.watchDir(root, project.name);
   fs.mkdirSync(dir, { recursive: true });
   const log = fs.openSync(check.logPath(dir), "a");
-  const child = spawn(process.execPath, [import.meta.path, "--watcher", root, project.name, project.tsconfig], { stdio: ["ignore", log, log], env: process.env });
+  const child = spawn(
+    process.execPath,
+    [import.meta.path, "--watcher", root, project.name, project.tsconfig],
+    { stdio: ["ignore", log, log], env: process.env },
+  );
   watchers.push(child);
 };
-const ask = async (root: string) => (await check.checkProject(project, root, { start, budgetMs: 600_000, maxWatchers: 8 })).errors;
-const fresh = (root: string) => (spawnSync(process.execPath, [path.join(tsDir, "bin/tsc"), "--noEmit", "--pretty", "false", "-p", project.tsconfig], { cwd: root, encoding: "utf8" }).stdout.match(/error TS/g) ?? []).length;
-const passing = (root: string) => !!check.readWatchState(check.watchDir(root, project.name))?.inProgress;
+const ask = async (root: string) =>
+  (
+    await check.checkProject(project, root, {
+      start,
+      budgetMs: 600_000,
+      maxWatchers: 8,
+    })
+  ).errors;
+const fresh = (root: string) =>
+  (
+    spawnSync(
+      process.execPath,
+      [
+        path.join(tsDir, "bin/tsc"),
+        "--noEmit",
+        "--pretty",
+        "false",
+        "-p",
+        project.tsconfig,
+      ],
+      { cwd: root, encoding: "utf8" },
+    ).stdout.match(/error TS/g) ?? []
+  ).length;
+const passing = (root: string) =>
+  !!check.readWatchState(check.watchDir(root, project.name))?.inProgress;
 
 /** Many exported functions, so checking the file takes the checker a few seconds (E2E_HEAVY sets how many, for a slower machine). */
-const heavy = Array.from({ length: Number(process.env.E2E_HEAVY ?? 12_000) }, (_, i) => `export function f${i}<T extends { a: number }>(v: T): T & { b${i}: string } { return { ...v, b${i}: String(v.a + ${i}) }; }`).join("\n");
+const heavy = Array.from(
+  { length: Number(process.env.E2E_HEAVY ?? 12_000) },
+  (_, i) =>
+    `export function f${i}<T extends { a: number }>(v: T): T & { b${i}: string } { return { ...v, b${i}: String(v.a + ${i}) }; }`,
+).join("\n");
 
 const results: string[] = [];
 const report = (name: string, said: number, truth: number, extra = "") => {
-  results.push(`${name}: cast check said ${said}, a one-off tsc says ${truth}${extra} → ${said === truth ? "ok" : "STALE"}`);
+  results.push(
+    `${name}: cast check said ${said}, a one-off tsc says ${truth}${extra} → ${said === truth ? "ok" : "STALE"}`,
+  );
 };
 
 async function duringAPass(): Promise<void> {
   const withY = `${heavy}\nexport const y = 2;\n`;
-  const { root, put } = makeTree({ "lib/a.ts": withY, "app/b.ts": "import { y } from '../lib/a';\nexport const z = y;\n" }, { "app/c.ts": "export {};\n" });
+  const { root, put } = makeTree(
+    {
+      "lib/a.ts": withY,
+      "app/b.ts": "import { y } from '../lib/a';\nexport const z = y;\n",
+    },
+    { "app/c.ts": "export {};\n" },
+  );
   await ask(root);
   put("lib/a.ts", `${heavy}\n`);
   const deadline = Date.now() + 30_000;
@@ -110,7 +172,11 @@ async function duringAPass(): Promise<void> {
   const said = await ask(root);
   if (process.env.E2E_DEBUG) {
     const dir = check.watchDir(root, project.name);
-    console.log(check.readWatchState(dir), check.filesNotAsChecked?.(dir), fs.readFileSync(check.logPath(dir), "utf8").slice(-1500));
+    console.log(
+      check.readWatchState(dir),
+      check.filesNotAsChecked?.(dir),
+      fs.readFileSync(check.logPath(dir), "utf8").slice(-1500),
+    );
   }
   report("during-a-pass", said, fresh(root));
 }
@@ -119,12 +185,22 @@ async function heldReplace(): Promise<void> {
   // The branch drops `old` and adds `y`, so a program mixing the two sides
   // reports a missing export whichever way it is mixed.
   const { root, git } = makeTree(
-    { "lib/a.ts": "export const x = 1;\nexport const old = 0;\n", "app/b.ts": "import { x, old } from '../lib/a';\nexport const z = x + old;\n" },
-    { "lib/a.ts": "export const x = 1;\nexport const y = 2;\n", "app/b.ts": "import { x, y } from '../lib/a';\nexport const z = x + y;\n" },
+    {
+      "lib/a.ts": "export const x = 1;\nexport const old = 0;\n",
+      "app/b.ts":
+        "import { x, old } from '../lib/a';\nexport const z = x + old;\n",
+    },
+    {
+      "lib/a.ts": "export const x = 1;\nexport const y = 2;\n",
+      "app/b.ts": "import { x, y } from '../lib/a';\nexport const z = x + y;\n",
+    },
   );
   await ask(root);
   // Something has the branch's copy open while the tree goes to the base and back.
-  const holder = spawn("sh", ["-c", "exec 3< lib/a.ts; sleep 600"], { cwd: root, stdio: "ignore" });
+  const holder = spawn("sh", ["-c", "exec 3< lib/a.ts; sleep 600"], {
+    cwd: root,
+    stdio: "ignore",
+  });
   await sleep(300);
   git("checkout", "-q", "--detach", "main");
   await sleep(2_000);
@@ -138,20 +214,42 @@ async function heldReplace(): Promise<void> {
   const afterTouch = await ask(root);
   holder.kill();
   report("held-replace, on the base", onBase, baseTruth);
-  report("held-replace, back on the branch", said, fresh(root), `; after a touch it said ${afterTouch}`);
+  report(
+    "held-replace, back on the branch",
+    said,
+    fresh(root),
+    `; after a touch it said ${afterTouch}`,
+  );
 }
 
 async function newFile(): Promise<void> {
-  const { root, put } = makeTree({ "app/b.ts": "export const z = 1;\n" }, { "app/c.ts": "export {};\n" });
+  const { root, put } = makeTree(
+    { "app/b.ts": "export const z = 1;\n" },
+    { "app/c.ts": "export {};\n" },
+  );
   await ask(root);
   put("app/x.ts", "export const n: number = 'not a number';\n");
   report("new-file", await ask(root), fresh(root));
 }
 
 async function configEdit(): Promise<void> {
-  const { root, put } = makeTree({ "app/b.ts": "const unused = 1;\nexport const z = 1;\n" }, { "app/c.ts": "export {};\n" });
+  const { root, put } = makeTree(
+    { "app/b.ts": "const unused = 1;\nexport const z = 1;\n" },
+    { "app/c.ts": "export {};\n" },
+  );
   await ask(root);
-  put("app/tsconfig.json", JSON.stringify({ compilerOptions: { strict: true, noEmit: true, skipLibCheck: true, noUnusedLocals: true }, include: ["*.ts"] }));
+  put(
+    "app/tsconfig.json",
+    JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        noEmit: true,
+        skipLibCheck: true,
+        noUnusedLocals: true,
+      },
+      include: ["*.ts"],
+    }),
+  );
   report("config-edit", await ask(root), fresh(root));
 }
 
@@ -164,5 +262,7 @@ try {
 } finally {
   for (const w of watchers) w.kill("SIGTERM");
 }
-console.log(`${os.platform()} · ${path.basename(checkModule)}\n${results.map((r) => `  ${r}`).join("\n")}`);
+console.log(
+  `${os.platform()} · ${path.basename(checkModule)}\n${results.map((r) => `  ${r}`).join("\n")}`,
+);
 process.exit(results.every((r) => r.endsWith("ok")) ? 0 : 1);

@@ -38,15 +38,15 @@ version, its health and its recent decisions, each opening what it judged.
 
 ## LL2. The objects
 
-| Object | What it is |
-|---|---|
-| **Expectation** | One sentence about how the product should behave, quoted from where a person said it. Versioned. |
-| **Moment** | One thing that happened, frozen with what's needed to judge it. Optional: only when codecast judges. |
-| **Finding** | Something that broke an expectation: what, how bad, a quote, a link to where it happened, and which judge (and version) said so. |
-| **Problem** | Findings with one root cause. The only unit of work. |
-| **Change** | One attempt to fix a problem, with proof that it failed before and passes after. |
-| **Decision** | A question to a person, with an owner they can talk to. |
-| **Outcome** | After ship: the problem stayed fixed, or came back. |
+| Object          | What it is                                                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Expectation** | One sentence about how the product should behave, quoted from where a person said it. Versioned.                                 |
+| **Moment**      | One thing that happened, frozen with what's needed to judge it. Optional: only when codecast judges.                             |
+| **Finding**     | Something that broke an expectation: what, how bad, a quote, a link to where it happened, and which judge (and version) said so. |
+| **Problem**     | Findings with one root cause. The only unit of work.                                                                             |
+| **Change**      | One attempt to fix a problem, with proof that it failed before and passes after.                                                 |
+| **Decision**    | A question to a person, with an owner they can talk to.                                                                          |
+| **Outcome**     | After ship: the problem stayed fixed, or came back.                                                                              |
 
 Every object has one home, and every result names the version of the step that
 produced it when that step has one: codecast's judges and extractors by their
@@ -137,6 +137,7 @@ the card.
    - attempt records remain: `createAttempt` (`backend/src/lib/agentWatch/remediations.ts`) still has two callers, an agent tool (`lib/agent/tools/issueTools.ts`) and the clusters route, and the regression triage still requeues attempts.
 
    Codecast's start switch decides when problems start (LL3). A finding marked wrong opens a problem against the AgentWatch judge or the builder of its input (LL11), fixed by a codecast session in Union's repo.
+
 2. **One judge moves to moments, in shadow.** Union's repo holds the comms judge's codecast twin (`union-mobile/.codecast/judges/comms.md`, `mode: shadow`) and its extractor (`union-mobile/.codecast/moments/contact-conversation.ts`). The comparison runs on the host (`~/.local/share/codecast/moments-shadow/union-comms-shadow/`): it replays contacts through the extractor and the judge, compares the findings with AgentWatch's, files nothing and writes nothing to Union. Union's backend posts no moment events yet.
 3. **Judges move one at a time.** When a judge's shadow run matches or beats it, its file turns `mode: live` (LL8), and Union deletes its version of that judge.
 
@@ -164,7 +165,13 @@ A product that brings moments posts one line through its ingest source (the
 same door errors and deploys use, `POST /cli/ingest/<key>`):
 
 ```json
-{ "type": "moment", "kind": "conversation", "subject": "thread_81", "at": "2026-10-09T14:00:00Z", "refs": { "message": "m_9" } }
+{
+  "type": "moment",
+  "kind": "conversation",
+  "subject": "thread_81",
+  "at": "2026-10-09T14:00:00Z",
+  "refs": { "message": "m_9" }
+}
 ```
 
 - **Kept and coalesced.** Each event lands on the one waiting moment of its
@@ -185,7 +192,7 @@ same door errors and deploys use, `POST /cli/ingest/<key>`):
   window and timeout (`// quiet: 10m`, `// timeout: 90s`). The shape and the
   checks are `shared/contracts/moments.ts`.
 - **It runs where it was published.** `cast line moments publish --source
-  <name>` sends a checkout's extractors and judges, each at its file's git
+<name>` sends a checkout's extractors and judges, each at its file's git
   blob sha, and names this machine as the one that runs them. Its daemon
   claims due moments every minute (`/cli/moments/claim`), runs each extractor
   in the checkout the way a line station runs a script (its own process, the
@@ -197,7 +204,7 @@ same door errors and deploys use, `POST /cli/ingest/<key>`):
   conversations, so its body stays on the extractor's machine
   (`~/.local/share/codecast/moments-shadow/`, 30 days) unless someone sets
   the source's moment storage to codecast (`cast sources set <name>
-  --moment-storage codecast`). Then the body goes to R2 beside replays and
+--moment-storage codecast`). Then the body goes to R2 beside replays and
   the row points at it. How long it stays is the source's retention
   (`--moment-retention`): 30d by default, under `moments-30d/` where the
   bucket's 30 day rule deletes it, or keep, under `moments/`, which no rule
@@ -410,7 +417,7 @@ LL4's "improve a judge", as built (`convex/judgeReview.ts`,
   repeated trials: each version of a change is judged once, a few sessions
   in all. The trial's route before it (`agentwatch-trial-judge.cast`, now
   retired) armed an edited copy of `.codecast`, measured draws with `cast
-  line judges base` and separated the edit with `cast line judges ab`, five
+line judges base` and separated the edit with `cast line judges ab`, five
   runs a side on a budget; those commands remain for a judge whose calls are
   cheap enough to measure that way.
 
@@ -420,7 +427,7 @@ A trial runs the whole flow for real beside the live one, and stops at the
 decision card (`convex/lineTrial.ts`).
 
 - **The project.** `projects.line_trial` (`cast line trial on --project <ref>
-  --graph <file>`) makes a project a trial and names the graph its runs start
+--graph <file>`) makes a project a trial and names the graph its runs start
   and the checkout they start from. Its expectations are seeded by copying
   another project's lines: a proposal whose every line is word for word a line
   another project in the workspace holds now, citing that line's id, applies
@@ -513,21 +520,21 @@ decision card (`convex/lineTrial.ts`).
   runner started (`runResume.ts runnerStamp`), it hands the run to a fresh
   `cast workflow run-daemon`, which resumes at the answered gate and reads the
   graph file again (`daemonGraph.ts`, on any resume). `cast line trial
-  restart` stops the runners already waiting on older code; the daemon's
+restart` stops the runners already waiting on older code; the daemon's
   sweep resumes each at the same card (a waiting trial card counts as an open
   gate, `gate_card`), and `cast line trial rerun <ct-N> --reask` asks a
   waiting card again on current stations.
 - **What it costs.** `lineTrial.spend` (`cast line trial`, the page's header)
   reports two kinds that never add. Billed money: the team's model budget by
   purpose since the trial began, the money billed outside codecast (`cast
-  line trial spend add --billed-by <key>`, grouped by that key; the same
+line trial spend add --billed-by <key>`, grouped by that key; the same
   amount and words within an hour is refused as a repeat unless `--force`,
   and `spend rm <at>` takes an entry back), and any line-run session on a
   metered provider key. Subscription use: the line runs' Claude Code and Codex
   sessions, which run on the machine's logins and bill nothing; their tokens,
   their API list price as an equivalent only, and the quota of the accounts
   they run on (the usage snapshots each machine reports, the source `cast
-  usage` reads). The dispatcher's `cap_usd` limits billed money; quota at the
+usage` reads). The dispatcher's `cap_usd` limits billed money; quota at the
   `cast usage` warning line (85%) holds runs (`lineTrial.trialRoom`).
 
 ## LL13. Closing a problem without a fix
@@ -603,7 +610,6 @@ reads it.
 What a replay cannot see: Union's database and Union's own models (the
 sandbox refuses both, so a station that would measure says it could not), and
 codecast state that moved since the run (reads are live).
-
 
 ## LL15. Scoring and families of problems
 

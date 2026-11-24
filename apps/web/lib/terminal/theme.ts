@@ -37,8 +37,11 @@ const BASE = {
 export function terminalIslandVars(): Record<string, string> | null {
   if (!isModernStyle() || isDarkTheme()) return null;
   try {
-    const cached = JSON.parse(localStorage.getItem(COLOR_THEME_CACHE_KEY) || "null");
-    if (cached?.dark?.["--sol-bg"]) return cached.dark as Record<string, string>;
+    const cached = JSON.parse(
+      localStorage.getItem(COLOR_THEME_CACHE_KEY) || "null",
+    );
+    if (cached?.dark?.["--sol-bg"])
+      return cached.dark as Record<string, string>;
   } catch {}
   return themeVars(DEFAULT_THEME.dark, "dark");
 }
@@ -48,7 +51,10 @@ function deepen(color: string, by: number): string {
   const m = /^#([0-9a-f]{6})$/i.exec(color.trim());
   if (!m) return color;
   const n = parseInt(m[1], 16);
-  const ch = (shift: number) => Math.round(((n >> shift) & 255) * (1 - by)).toString(16).padStart(2, "0");
+  const ch = (shift: number) =>
+    Math.round(((n >> shift) & 255) * (1 - by))
+      .toString(16)
+      .padStart(2, "0");
   return `#${ch(16)}${ch(8)}${ch(0)}`;
 }
 
@@ -56,7 +62,10 @@ export function buildTerminalTheme(): ITheme {
   const root = getComputedStyle(document.documentElement);
   const island = terminalIslandVars();
   // Reads the island's variable when there is one, the root's otherwise.
-  const styles = { getPropertyValue: (name: string) => island?.[name] ?? root.getPropertyValue(name) } as CSSStyleDeclaration;
+  const styles = {
+    getPropertyValue: (name: string) =>
+      island?.[name] ?? root.getPropertyValue(name),
+  } as CSSStyleDeclaration;
   const dark = island ? true : isDarkTheme();
   const pageBg = cssVar(styles, "--sol-bg", dark ? BASE.base03 : BASE.base3);
   // Modern in dark: a step below the page, for the same reason as the island.

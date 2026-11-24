@@ -20,4 +20,5 @@ export class ScanCancelled extends Error {}
 
 /** Hand the event loop back between batches. A walk that never yields pins the
  *  loop for as long as the disk takes, and nothing is delivered meanwhile. */
-export const yieldScanBatch = () => new Promise<void>((resolve) => setImmediate(resolve));
+export const yieldScanBatch = () =>
+  new Promise<void>((resolve) => setImmediate(resolve));

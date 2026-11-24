@@ -1,14 +1,21 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { codeThreadRootKey, type CodeAnchorText } from "@codecast/shared/comments";
+import {
+  codeThreadRootKey,
+  type CodeAnchorText,
+} from "@codecast/shared/comments";
 import { repoObjectGitHubUrl } from "@codecast/shared/entities";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useRepoLocation } from "../../../../../components/repo/useRepoFamily";
 import { GitPullRequest } from "lucide-react";
 import { RepoPageShell } from "../../../../../components/repo/RepoPageShell";
-import { FileDiffLayout, type DiffFile, type FileLineThreads } from "../../../../../components/FileDiffLayout";
+import {
+  FileDiffLayout,
+  type DiffFile,
+  type FileLineThreads,
+} from "../../../../../components/FileDiffLayout";
 import { MenuKeyCaps } from "../../../../../components/KeyboardShortcutsHelp";
 import { LoadingSkeleton } from "../../../../../components/LoadingSkeleton";
 import { Button } from "../../../../../components/ui/button";
@@ -16,9 +23,16 @@ import { PRChecks } from "../../../../../components/pr/PRChecks";
 import { PRCommits } from "../../../../../components/pr/PRCommits";
 import { PRGuide } from "../../../../../components/pr/PRGuide";
 import { PRHeader } from "../../../../../components/pr/PRHeader";
-import { MergeMenu, MoreMenu, ReviewMenu } from "../../../../../components/pr/PRActions";
+import {
+  MergeMenu,
+  MoreMenu,
+  ReviewMenu,
+} from "../../../../../components/pr/PRActions";
 import { ShipControl } from "../../../../../components/ShipControl";
-import { PRLineThread, type NoteMode } from "../../../../../components/pr/PRThread";
+import {
+  PRLineThread,
+  type NoteMode,
+} from "../../../../../components/pr/PRThread";
 import { PRReviewBar } from "../../../../../components/pr/PRReviewBar";
 import { PRTimeline } from "../../../../../components/pr/PRTimeline";
 import { PRTabBar } from "../../../../../components/pr/PRTabBar";
@@ -31,10 +45,19 @@ import { landOn, useDiffAddress } from "../../../../../hooks/useDiffAddress";
 import { useFollowScroll } from "../../../../../hooks/useFollowSurface";
 import { useLinkedSessions } from "../../../../../hooks/useLinkedSessions";
 import { useQueryNoThrow } from "../../../../../hooks/useQueryNoThrow";
-import { useSyncPRExternalEvents, useExternalEvents } from "../../../../../hooks/useSyncExternalEvents";
-import { useCodeComments, useSyncPRCodeComments } from "../../../../../hooks/useSyncCodeComments";
+import {
+  useSyncPRExternalEvents,
+  useExternalEvents,
+} from "../../../../../hooks/useSyncExternalEvents";
+import {
+  useCodeComments,
+  useSyncPRCodeComments,
+} from "../../../../../hooks/useSyncCodeComments";
 import { setCodeThreadResolved } from "../../../../../hooks/useLineComments";
-import { useSyncPullRequest, usePullRequest } from "../../../../../hooks/useSyncTimeline";
+import {
+  useSyncPullRequest,
+  usePullRequest,
+} from "../../../../../hooks/useSyncTimeline";
 import { usePRDetails } from "../../../../../hooks/usePRDetails";
 import { usePRLookup } from "../../../../../hooks/usePRLookup";
 import { useInboxStore } from "../../../../../store/inboxStore";
@@ -57,7 +80,11 @@ import {
   unresolvedThreadCount,
   type CodeCommentRow,
 } from "../../../../../lib/prView";
-import { diffLineKey, parseDiffLineKey, type DiffLineAnchor } from "../../../../../lib/patchParser";
+import {
+  diffLineKey,
+  parseDiffLineKey,
+  type DiffLineAnchor,
+} from "../../../../../lib/patchParser";
 import { usePageMeta } from "../../../../(marketing)/pageMeta";
 import { accentVar } from "../../../../../lib/externalEvents";
 import { TitlebarStrip } from "../../../../../lib/pageLayout";
@@ -76,18 +103,26 @@ const api = _api as any;
 
 type Tab = PrView;
 
-
-
 /** Where the header ends, in the scroller's own coordinates: the scroll
  *  position at which the tab bar reaches the top. Measured from the header,
  *  not the bar, because a stuck sticky bar reports where it is stuck. */
 function headerBottom(root: HTMLElement): number {
   const band = root.querySelector<HTMLElement>(".pr-band");
   if (!band) return 0;
-  return band.getBoundingClientRect().bottom - root.getBoundingClientRect().top + root.scrollTop;
+  return (
+    band.getBoundingClientRect().bottom -
+    root.getBoundingClientRect().top +
+    root.scrollTop
+  );
 }
 
-function PRUnavailable({ repository, number, reason, error, retry }: {
+function PRUnavailable({
+  repository,
+  number,
+  reason,
+  error,
+  retry,
+}: {
   repository: string;
   number: number;
   reason?: string;
@@ -99,21 +134,45 @@ function PRUnavailable({ repository, number, reason, error, retry }: {
   return (
     <div className="h-full flex flex-col items-center justify-center text-sol-text-muted">
       <GitPullRequest className="w-10 h-10 mb-3 opacity-30" />
-      <h2 className="text-base font-medium mb-1">{needsInstallation ? "Repository is not connected" : notFound ? "Pull request not found" : "Couldn’t load pull request"}</h2>
+      <h2 className="text-base font-medium mb-1">
+        {needsInstallation
+          ? "Repository is not connected"
+          : notFound
+            ? "Pull request not found"
+            : "Couldn’t load pull request"}
+      </h2>
       <p className="text-[13px] mb-2">
-        #{number} in <code className="font-mono text-sol-violet">{repository}</code>
+        #{number} in{" "}
+        <code className="font-mono text-sol-violet">{repository}</code>
       </p>
-      {needsInstallation ? <p className="text-[12px] mb-4 max-w-md text-center leading-relaxed">
-        A repository is here once the GitHub App is installed on{" "}
-        <code className="font-mono">{repository.split("/")[0]}</code> for one of your teams.{" "}
-        <Link href="/settings/integrations" className="text-sol-cyan hover:underline">
-          Open integrations
-        </Link>{" "}
-        to install it there, or to add this repository to an install that exists.
-      </p> : <p role={error ? "alert" : undefined} className="text-[12px] mb-4 max-w-md text-center leading-relaxed">
-        {error || (notFound ? "GitHub could not find this pull request with the connected account." : "This pull request is not available locally yet. Try loading it again.")}
-      </p>}
-      <Button variant="outline" className="mb-2" onClick={retry}>Try again</Button>
+      {needsInstallation ? (
+        <p className="text-[12px] mb-4 max-w-md text-center leading-relaxed">
+          A repository is here once the GitHub App is installed on{" "}
+          <code className="font-mono">{repository.split("/")[0]}</code> for one
+          of your teams.{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-sol-cyan hover:underline"
+          >
+            Open integrations
+          </Link>{" "}
+          to install it there, or to add this repository to an install that
+          exists.
+        </p>
+      ) : (
+        <p
+          role={error ? "alert" : undefined}
+          className="text-[12px] mb-4 max-w-md text-center leading-relaxed"
+        >
+          {error ||
+            (notFound
+              ? "GitHub could not find this pull request with the connected account."
+              : "This pull request is not available locally yet. Try loading it again.")}
+        </p>
+      )}
+      <Button variant="outline" className="mb-2" onClick={retry}>
+        Try again
+      </Button>
       <a
         href={repoObjectGitHubUrl({ type: "pr", repository, number })}
         target="_blank"
@@ -145,17 +204,28 @@ export function PRContent({
   // one) is asked from GitHub once, through the team's install; the store row
   // then arrives on the feed above. Only after that ask has answered does the
   // page say "not found".
-  const lookup = usePRLookup(repository, number, !pr && prFeed.ready && isAuthenticated);
+  const lookup = usePRLookup(
+    repository,
+    number,
+    !pr && prFeed.ready && isAuthenticated,
+  );
 
   useSyncPRExternalEvents(prId);
   useSyncPRCodeComments(prId);
-  const events = useExternalEvents(useCallback((e: any) => e.pr_id === prId, [prId]));
-  const comments = useCodeComments(useCallback((c: any) => c.pull_request_id === prId, [prId]));
+  const events = useExternalEvents(
+    useCallback((e: any) => e.pr_id === prId, [prId]),
+  );
+  const comments = useCodeComments(
+    useCallback((c: any) => c.pull_request_id === prId, [prId]),
+  );
   const reviewsQuery = useQueryNoThrow(
     api.reviews.getReviewsForPR,
     prId ? { pull_request_id: prId } : "skip",
   );
-  const reviews = useMemo(() => (reviewsQuery.data as any[]) ?? [], [reviewsQuery.data]);
+  const reviews = useMemo(
+    () => (reviewsQuery.data as any[]) ?? [],
+    [reviewsQuery.data],
+  );
 
   const createComment = useMutation(api.codeComments.create);
   const setPrShepherd = useInboxStore((s) => s.setPrShepherd);
@@ -166,9 +236,13 @@ export function PRContent({
   const loc = useRepoLocation();
   const family = loc.family;
   const tab = prViewOf(loc.pathname);
-  const setTab = useCallback((view: Tab) => {
-    if (view !== tab) router.push(prViewHref(repository, number, view, family));
-  }, [router, repository, number, family, tab]);
+  const setTab = useCallback(
+    (view: Tab) => {
+      if (view !== tab)
+        router.push(prViewHref(repository, number, view, family));
+    },
+    [router, repository, number, family, tab],
+  );
   // The page's one scroller, which the address lands in.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const filesHref = useCallback(
@@ -184,12 +258,21 @@ export function PRContent({
   });
   useFollowScroll("pr", rootRef);
 
-  const details = usePRDetails(prId, pr?.head_sha, isAuthenticated && (tab === "commits" || tab === "checks") ? tab : null);
-  const [composing, setComposing] = useState<{ file: string; anchor: DiffLineAnchor; anchorLines?: CodeAnchorText } | null>(null);
+  const details = usePRDetails(
+    prId,
+    pr?.head_sha,
+    isAuthenticated && (tab === "commits" || tab === "checks") ? tab : null,
+  );
+  const [composing, setComposing] = useState<{
+    file: string;
+    anchor: DiffLineAnchor;
+    anchorLines?: CodeAnchorText;
+  } | null>(null);
 
   // The review: where a new note goes (held, or out at once), a preference
   // that follows the person; the notes waiting; and the menu that sends them.
-  const noteMode: NoteMode = useInboxStore((s) => s.clientState.ui?.pr_note_mode) ?? "review";
+  const noteMode: NoteMode =
+    useInboxStore((s) => s.clientState.ui?.pr_note_mode) ?? "review";
   const setNoteMode = useCallback((mode: NoteMode) => {
     useInboxStore.getState().updateClientUI({ pr_note_mode: mode });
   }, []);
@@ -199,51 +282,78 @@ export function PRContent({
   const notes = useMemo(() => pendingNotes(comments), [comments]);
   // The bar's copy of the review leaves with the last note; so does its open state.
   useWatchEffect(() => {
-    if (notes.length === 0) setReviewOpen((open) => (open === "bar" ? false : open));
+    if (notes.length === 0)
+      setReviewOpen((open) => (open === "bar" ? false : open));
   }, [notes.length]);
 
   // When the reader last had this pull request open. Read once, so the line
   // the timeline draws does not move while they read; written on the way out.
   const [lastSeenAt] = useState<number | undefined>(() =>
-    prId ? useInboxStore.getState().clientState.ui?.pr_last_seen?.[prId] : undefined);
+    prId
+      ? useInboxStore.getState().clientState.ui?.pr_last_seen?.[prId]
+      : undefined,
+  );
   useWatchEffect(() => {
     if (!prId || !isAuthenticated) return;
     return () => {
       const all = useInboxStore.getState().clientState.ui?.pr_last_seen ?? {};
-      useInboxStore.getState().updateClientUI({ pr_last_seen: { ...all, [prId]: Date.now() } });
+      useInboxStore
+        .getState()
+        .updateClientUI({ pr_last_seen: { ...all, [prId]: Date.now() } });
     };
   }, [prId, isAuthenticated]);
 
   // Viewed files: the reader's own mark, synced with the rest of their prefs.
-  const viewedFiles = useInboxStore((s) => (prId ? s.clientState.ui?.pr_viewed_files?.[prId] : undefined));
+  const viewedFiles = useInboxStore((s) =>
+    prId ? s.clientState.ui?.pr_viewed_files?.[prId] : undefined,
+  );
   const viewedSet = useMemo(() => new Set(viewedFiles ?? []), [viewedFiles]);
-  const toggleViewed = useCallback((filename: string) => {
-    if (!prId) return;
-    const all = useInboxStore.getState().clientState.ui?.pr_viewed_files ?? {};
-    const current = new Set(all[prId] ?? []);
-    if (current.has(filename)) current.delete(filename);
-    else current.add(filename);
-    useInboxStore.getState().updateClientUI({ pr_viewed_files: { ...all, [prId]: [...current] } });
-  }, [prId]);
+  const toggleViewed = useCallback(
+    (filename: string) => {
+      if (!prId) return;
+      const all =
+        useInboxStore.getState().clientState.ui?.pr_viewed_files ?? {};
+      const current = new Set(all[prId] ?? []);
+      if (current.has(filename)) current.delete(filename);
+      else current.add(filename);
+      useInboxStore
+        .getState()
+        .updateClientUI({ pr_viewed_files: { ...all, [prId]: [...current] } });
+    },
+    [prId],
+  );
 
   // Walking the threads: n and p move through the open ones in file order;
   // a jump from the timeline or the review menu lands on one directly. Every
   // one of them is a trip to the thread's address.
   const landing = useMemo(
-    () => (target?.anchor ? { file: target.file, key: diffLineKey(target.anchor) } : null),
+    () =>
+      target?.anchor
+        ? { file: target.file, key: diffLineKey(target.anchor) }
+        : null,
     [target],
   );
-  const jumpTo = useCallback((file: string, key: string) => {
-    goTo(file, parseDiffLineKey(key));
-  }, [goTo]);
-  const jumpToComment = useCallback((comment: CodeCommentRow) => {
-    if (!comment.file_path || comment.line_number === undefined) return;
-    jumpTo(comment.file_path, diffLineKey(commentAnchor(comment)));
-  }, [jumpTo]);
+  const jumpTo = useCallback(
+    (file: string, key: string) => {
+      goTo(file, parseDiffLineKey(key));
+    },
+    [goTo],
+  );
+  const jumpToComment = useCallback(
+    (comment: CodeCommentRow) => {
+      if (!comment.file_path || comment.line_number === undefined) return;
+      jumpTo(comment.file_path, diffLineKey(commentAnchor(comment)));
+    },
+    [jumpTo],
+  );
 
   const sessions = useLinkedSessions(pr?.linked_session_ids ?? []);
   const sessionChoices = useMemo(
-    () => sessions.map((s: any) => ({ id: s._id as string, title: (s.title as string) || "Untitled session" })),
+    () =>
+      sessions.map((s: any) => ({
+        id: s._id as string,
+        title: (s.title as string) || "Untitled session",
+      })),
     [sessions],
   );
 
@@ -305,57 +415,93 @@ export function PRContent({
       threadsFor: (filename) => threadsByFile.get(filename),
       render: (filename, anchor, items, placement) => (
         <div data-pr-thread={`${filename}|${diffLineKey(anchor)}`}>
-        <PRLineThread
-          repository={repository}
-          threadKey={codeThreadRootKey(repository, pr?.head_sha ?? "", { file_path: filename, line_number: anchor.lineNumber })}
-          comments={items as CodeCommentRow[]}
-          authed={isAuthenticated}
-          lineNumber={anchor.lineNumber}
-          lineEnd={anchor.lineEnd}
-          placement={placement}
-          noteMode={noteMode}
-          onNoteMode={setNoteMode}
-          pendingCount={notes.length}
-          landed={!!landing && landing.file === filename && landing.key === diffLineKey(anchor)}
-          onReply={(content) =>
-            post({
+          <PRLineThread
+            repository={repository}
+            threadKey={codeThreadRootKey(repository, pr?.head_sha ?? "", {
               file_path: filename,
-              // The anchor is the first line either way; line_end is set only
-              // when the comment covers a run, which is what GitHub expects.
               line_number: anchor.lineNumber,
-              line_end: anchor.lineEnd,
-              // A reply belongs on the side its thread sits on; an empty thread
-              // is the composer the hover handle just opened, so take the side
-              // of the row it opened on.
-              side: items.length ? threadSide(items as CodeCommentRow[]) : anchor.side,
-              content,
-              // A reply sent before the root's server row lands would carry a
-              // stub id the validator rejects; post it unparented instead.
-              parent_id: serverCommentId((items as CodeCommentRow[])[0]?._id),
-              // A new thread keeps the text it was written on; a reply inherits
-              // its root's on the server.
-              ...(items.length === 0 && composing?.file === filename ? { anchor_lines: composing.anchorLines } : {}),
-            })
-          }
-          onResolve={(resolved) => setCodeThreadResolved(items as CodeCommentRow[], resolved)}
-          onClose={() => setComposing(null)}
-          onFinishReview={() => setReviewOpen("bar")}
-          linkHref={prViewHref(repository, number, "files", family, formatDiffHash({ file: filename, anchor }))}
-          onSelectLines={() => goTo(filename, anchor, { scroll: false })}
-        />
+            })}
+            comments={items as CodeCommentRow[]}
+            authed={isAuthenticated}
+            lineNumber={anchor.lineNumber}
+            lineEnd={anchor.lineEnd}
+            placement={placement}
+            noteMode={noteMode}
+            onNoteMode={setNoteMode}
+            pendingCount={notes.length}
+            landed={
+              !!landing &&
+              landing.file === filename &&
+              landing.key === diffLineKey(anchor)
+            }
+            onReply={(content) =>
+              post({
+                file_path: filename,
+                // The anchor is the first line either way; line_end is set only
+                // when the comment covers a run, which is what GitHub expects.
+                line_number: anchor.lineNumber,
+                line_end: anchor.lineEnd,
+                // A reply belongs on the side its thread sits on; an empty thread
+                // is the composer the hover handle just opened, so take the side
+                // of the row it opened on.
+                side: items.length
+                  ? threadSide(items as CodeCommentRow[])
+                  : anchor.side,
+                content,
+                // A reply sent before the root's server row lands would carry a
+                // stub id the validator rejects; post it unparented instead.
+                parent_id: serverCommentId((items as CodeCommentRow[])[0]?._id),
+                // A new thread keeps the text it was written on; a reply inherits
+                // its root's on the server.
+                ...(items.length === 0 && composing?.file === filename
+                  ? { anchor_lines: composing.anchorLines }
+                  : {}),
+              })
+            }
+            onResolve={(resolved) =>
+              setCodeThreadResolved(items as CodeCommentRow[], resolved)
+            }
+            onClose={() => setComposing(null)}
+            onFinishReview={() => setReviewOpen("bar")}
+            linkHref={prViewHref(
+              repository,
+              number,
+              "files",
+              family,
+              formatDiffHash({ file: filename, anchor }),
+            )}
+            onSelectLines={() => goTo(filename, anchor, { scroll: false })}
+          />
         </div>
       ),
       onComment: (filename, anchor, _code, anchorLines) => {
         if (anchor) setComposing({ file: filename, anchor, anchorLines });
       },
     }),
-    [threadsByFile, isAuthenticated, post, repository, pr?.head_sha, noteMode, setNoteMode, notes.length, landing, number, family, goTo, composing],
+    [
+      threadsByFile,
+      isAuthenticated,
+      post,
+      repository,
+      pr?.head_sha,
+      noteMode,
+      setNoteMode,
+      notes.length,
+      landing,
+      number,
+      family,
+      goTo,
+      composing,
+    ],
   );
 
   // What the tree shows beside each file: open threads, waiting notes, viewed.
   const threadMarks = useMemo(() => fileThreadMarks(comments), [comments]);
   const openThreadStops = useMemo(
-    () => threadStops(pr?.files ?? [], comments).filter((s) => s.open && !s.pending),
+    () =>
+      threadStops(pr?.files ?? [], comments).filter(
+        (s) => s.open && !s.pending,
+      ),
     [pr?.files, comments],
   );
   const fileMarks = useCallback(
@@ -377,8 +523,15 @@ export function PRContent({
     const el = e.target as HTMLElement | null;
     if (keyBelongsElsewhere(el)) return;
     // The actions below match their own modifiers; the tab digits are plain keys.
-    const hit = !e.metaKey && !e.ctrlKey && !e.altKey && PR_TABS.find((t) => t.digit === e.key);
-    if (hit) { setTab(hit.key); return; }
+    const hit =
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      PR_TABS.find((t) => t.digit === e.key);
+    if (hit) {
+      setTab(hit.key);
+      return;
+    }
     if (matchesAction(e, "pr.review") && isAuthenticated) {
       e.preventDefault();
       setReviewOpen((v) => (v ? false : notes.length > 0 ? "bar" : "header"));
@@ -391,11 +544,18 @@ export function PRContent({
       // Where the reader stands is any thread they landed on, open or not; the
       // walk continues from there to the next open one.
       const all = threadStops(pr?.files ?? [], comments);
-      const at = landing ? all.findIndex((s) => s.file === landing.file && s.key === landing.key) : -1;
+      const at = landing
+        ? all.findIndex((s) => s.file === landing.file && s.key === landing.key)
+        : -1;
       for (let step = 1; step <= all.length; step++) {
-        const index = forward ? (at + step) % all.length : (at - step + all.length * 2) % all.length;
+        const index = forward
+          ? (at + step) % all.length
+          : (at - step + all.length * 2) % all.length;
         const stop = all[index];
-        if (stop.open && !stop.pending) { jumpTo(stop.file, stop.key); return; }
+        if (stop.open && !stop.pending) {
+          jumpTo(stop.file, stop.key);
+          return;
+        }
       }
     }
   });
@@ -403,20 +563,28 @@ export function PRContent({
   // On its own (the public page) the window is this pull request's; inside
   // the app the dashboard titles its window.
   usePageMeta(
-    family === "standalone" && pr ? `${pr.title} · #${number} · ${repository}` : null,
+    family === "standalone" && pr
+      ? `${pr.title} · #${number} · ${repository}`
+      : null,
     pr?.body ? String(pr.body).slice(0, 200) : "",
   );
 
   // A fragment that names a file belongs to the files view: an address
   // written without the view still lands there.
   useWatchEffect(() => {
-    if (target && tab === "conversation") router.replace(filesHref(formatDiffHash(target)), { scroll: false });
+    if (target && tab === "conversation")
+      router.replace(filesHref(formatDiffHash(target)), { scroll: false });
   }, [target, tab]);
 
   // A comment's or a review's address lands on it, a quarter of the way down.
   const commentsReady = comments.length > 0 || reviews.length > 0;
   useWatchEffect(() => {
-    if (tab !== "conversation" || !/^#(comment|review)-/.test(loc.hash) || !commentsReady) return;
+    if (
+      tab !== "conversation" ||
+      !/^#(comment|review)-/.test(loc.hash) ||
+      !commentsReady
+    )
+      return;
     const id = loc.hash.slice(1);
     return landOn(
       () => rootRef.current,
@@ -431,7 +599,8 @@ export function PRContent({
   useWatchEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const onScroll = () => setPastHeader(root.scrollTop > headerBottom(root) - 1);
+    const onScroll = () =>
+      setPastHeader(root.scrollTop > headerBottom(root) - 1);
     root.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => root.removeEventListener("scroll", onScroll);
@@ -444,31 +613,45 @@ export function PRContent({
     if (lastTab.current === tab) return;
     lastTab.current = tab;
     const root = rootRef.current;
-    if (root && root.scrollTop > headerBottom(root)) root.scrollTop = headerBottom(root);
+    if (root && root.scrollTop > headerBottom(root))
+      root.scrollTop = headerBottom(root);
   }, [tab]);
-
 
   // Built once per change of the PR's files: a new array on every render
   // (a comment arriving) handed the diff view new input each time.
   const prFiles = pr?.files;
-  const files: DiffFile[] = useMemo(() => (prFiles ?? []).map((f: any) => ({
-    filename: f.filename,
-    status: f.status,
-    additions: f.additions,
-    deletions: f.deletions,
-    changes: f.changes,
-    patch: f.patch,
-  })), [prFiles]);
+  const files: DiffFile[] = useMemo(
+    () =>
+      (prFiles ?? []).map((f: any) => ({
+        filename: f.filename,
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+        changes: f.changes,
+        patch: f.patch,
+      })),
+    [prFiles],
+  );
 
   if (!pr) {
     const error = prFeed.error?.message || lookup.error;
     if (!error && !lookup.reason) return <LoadingSkeleton />;
-    return <PRUnavailable repository={repository} number={number} reason={lookup.reason} error={error} retry={() => { prFeed.retry(); lookup.retry(); }} />;
+    return (
+      <PRUnavailable
+        repository={repository}
+        number={number}
+        reason={lookup.reason}
+        error={error}
+        retry={() => {
+          prFeed.retry();
+          lookup.retry();
+        }}
+      />
+    );
   }
 
-
-  const openComments = unresolvedThreadCount(comments) || (pr.unresolved_review_count ?? 0);
-
+  const openComments =
+    unresolvedThreadCount(comments) || (pr.unresolved_review_count ?? 0);
 
   // The page is one scroller, like any web page: the header goes up with the
   // content, the tab bar stays in reach at the top, and every view, files
@@ -478,7 +661,11 @@ export function PRContent({
       ref={rootRef}
       className="pr-page h-full overflow-y-auto flex flex-col [&>*]:shrink-0"
       data-main-scroll
-      style={{ ["--pr-accent" as string]: accentVar(PR_STATE_META[prStateKey(pr)].accent) }}
+      style={{
+        ["--pr-accent" as string]: accentVar(
+          PR_STATE_META[prStateKey(pr)].accent,
+        ),
+      }}
     >
       {/* Modern: the page header names the place (Code › repo › Pull
           requests › PR #n) and the way back; the PR's own band below keeps
@@ -487,7 +674,12 @@ export function PRContent({
         legacy={<TitlebarStrip />}
         title={`PR #${number}`}
         icon={GitPullRequest}
-        share={<ShareControl label="pull request" path={`/pr/${repository}/${number}`} />}
+        share={
+          <ShareControl
+            label="pull request"
+            path={`/pr/${repository}/${number}`}
+          />
+        }
       />
       <PRHeader
         pr={pr}
@@ -499,7 +691,11 @@ export function PRContent({
         linkedSessionIds={pr.linked_session_ids ?? []}
         checksHref={prViewHref(repository, number, "checks", family)}
         filesHref={prViewHref(repository, number, "files", family)}
-        onOpenComments={openThreadStops.length ? () => jumpTo(openThreadStops[0].file, openThreadStops[0].key) : undefined}
+        onOpenComments={
+          openThreadStops.length
+            ? () => jumpTo(openThreadStops[0].file, openThreadStops[0].key)
+            : undefined
+        }
         sessionChoices={sessionChoices}
         onSetShepherd={(conversationId, enabled) =>
           setPrShepherd(pr._id, conversationId, enabled)
@@ -516,12 +712,23 @@ export function PRContent({
                 onOpenChange={(open) => setReviewOpen(open ? "header" : false)}
                 sessionChoices={sessionChoices}
                 openThreads={openThreadStops.length}
-                onWalk={() => jumpTo(openThreadStops[0].file, openThreadStops[0].key)}
+                onWalk={() =>
+                  jumpTo(openThreadStops[0].file, openThreadStops[0].key)
+                }
               />
             )}
-            {isAuthenticated && pr.state === "open" && <ShipControl target={{ kind: "pull_request", id: String(pr._id) }} size="compact" />}
+            {isAuthenticated && pr.state === "open" && (
+              <ShipControl
+                target={{ kind: "pull_request", id: String(pr._id) }}
+                size="compact"
+              />
+            )}
             {isAuthenticated && <MergeMenu pr={pr} />}
-            <MoreMenu pr={pr} canWrite={isAuthenticated} onEditTitle={editTitle} />
+            <MoreMenu
+              pr={pr}
+              canWrite={isAuthenticated}
+              onEditTitle={editTitle}
+            />
           </>
         )}
       />
@@ -559,7 +766,17 @@ export function PRContent({
                 if (target) setCodeThreadResolved([target], resolved);
               }}
               onNavigate={(path) => router.push(path)}
-              anchorLink={(anchor) => flow.shareUrl(prViewHref(repository, number, "conversation", family, `#${anchor}`))}
+              anchorLink={(anchor) =>
+                flow.shareUrl(
+                  prViewHref(
+                    repository,
+                    number,
+                    "conversation",
+                    family,
+                    `#${anchor}`,
+                  ),
+                )
+              }
             />
           )}
           {tab === "files" &&
@@ -572,7 +789,12 @@ export function PRContent({
                 files={files}
                 flow={flow}
                 // The name opens the whole file as the pull request has it.
-                fileHref={pr.head_sha ? (path) => repoBlobHref(repository, pr.head_sha, path, family) : undefined}
+                fileHref={
+                  pr.head_sha
+                    ? (path) =>
+                        repoBlobHref(repository, pr.head_sha, path, family)
+                    : undefined
+                }
                 lineThreads={lineThreads}
                 fileMarks={fileMarks}
                 onToggleViewed={isAuthenticated ? toggleViewed : undefined}
@@ -581,37 +803,86 @@ export function PRContent({
                   // what is still open, and the one key that moves them on.
                   <div className="px-3 py-2 border-b border-sol-border/50 text-meta text-sol-text-muted flex items-center gap-2 flex-wrap">
                     <span>
-                      <span className={viewedSet.size >= files.length ? "text-sol-green" : "text-sol-text"}>{viewedSet.size}</span>
-                      <span className="text-sol-text-dim"> of {files.length} viewed</span>
+                      <span
+                        className={
+                          viewedSet.size >= files.length
+                            ? "text-sol-green"
+                            : "text-sol-text"
+                        }
+                      >
+                        {viewedSet.size}
+                      </span>
+                      <span className="text-sol-text-dim">
+                        {" "}
+                        of {files.length} viewed
+                      </span>
                     </span>
-                    <span className="pr-seg-track !w-auto flex-1 min-w-[3rem]" aria-hidden>
-                      <span className="pr-seg" style={{ width: `${(Math.min(viewedSet.size, files.length) / files.length) * 100}%`, background: accentVar("green") }} />
+                    <span
+                      className="pr-seg-track !w-auto flex-1 min-w-[3rem]"
+                      aria-hidden
+                    >
+                      <span
+                        className="pr-seg"
+                        style={{
+                          width: `${(Math.min(viewedSet.size, files.length) / files.length) * 100}%`,
+                          background: accentVar("green"),
+                        }}
+                      />
                     </span>
                     {openThreadStops.length > 0 && (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 rounded-full bg-sol-cyan/10 px-2 py-0.5 text-sol-cyan hover:bg-sol-cyan/20 transition-colors"
-                        title={withShortcut("Jump to the next open thread", "pr.nextThread")}
-                        onClick={() => jumpTo(openThreadStops[0].file, openThreadStops[0].key)}
+                        title={withShortcut(
+                          "Jump to the next open thread",
+                          "pr.nextThread",
+                        )}
+                        onClick={() =>
+                          jumpTo(
+                            openThreadStops[0].file,
+                            openThreadStops[0].key,
+                          )
+                        }
                       >
                         {openThreadStops.length} open
-                        <MenuKeyCaps action="pr.nextThread" className="contents" />
+                        <MenuKeyCaps
+                          action="pr.nextThread"
+                          className="contents"
+                        />
                       </button>
                     )}
                   </div>
                 }
               />
             ))}
-          {tab === "guide" && <PRGuide pr={pr} stepHref={filesHref} authed={isAuthenticated} />}
-          {tab === "commits" && <PRCommits repository={repository} commits={pr.commits} total={pr.commits_count} read={details} />}
-          {tab === "checks" && <PRChecks checks={pr.checks} read={details} pr={isAuthenticated && pr.state === "open" ? pr : undefined} sessionChoices={sessionChoices} />}
+          {tab === "guide" && (
+            <PRGuide pr={pr} stepHref={filesHref} authed={isAuthenticated} />
+          )}
+          {tab === "commits" && (
+            <PRCommits
+              repository={repository}
+              commits={pr.commits}
+              total={pr.commits_count}
+              read={details}
+            />
+          )}
+          {tab === "checks" && (
+            <PRChecks
+              checks={pr.checks}
+              read={details}
+              pr={isAuthenticated && pr.state === "open" ? pr : undefined}
+              sessionChoices={sessionChoices}
+            />
+          )}
         </div>
-
-
       </div>
 
       {isAuthenticated && notes.length > 0 && (
-        <PRReviewBar count={notes.length} centered={tab === "files"} onFirst={() => jumpToComment(notes[0])}>
+        <PRReviewBar
+          count={notes.length}
+          centered={tab === "files"}
+          onFirst={() => jumpToComment(notes[0])}
+        >
           <ReviewMenu
             placement="bar"
             pr={pr}

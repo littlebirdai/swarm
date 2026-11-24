@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, afterAll } from "bun:test";
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
 import { getPosition, setPosition, clearPosition } from "./positionTracker.js";

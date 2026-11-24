@@ -12,7 +12,14 @@ export function useArtifactContentSearch(): {
   matches: (doc: { _id: string }) => boolean;
   snippets: Map<string, string>;
   /** Every hit, with where it lives, for a list that shows hits from outside its own workspace. */
-  hits: Array<{ _id: string; title: string; doc_type: string; snippet: string; updated_at?: number; where: string }>;
+  hits: Array<{
+    _id: string;
+    title: string;
+    doc_type: string;
+    snippet: string;
+    updated_at?: number;
+    where: string;
+  }>;
   /** The query being answered (trimmed, debounced). */
   query: string;
   /** Whether the content answer for these typed words (the list's own query, read in the same render) is still on its way. */
@@ -20,29 +27,51 @@ export function useArtifactContentSearch(): {
 } {
   const [query, setQuery] = useState("");
   const q = useDebounce(query.trim(), 250);
-  const { data: answer, error } = useQueryNoThrow(api.liveSearch.search, q.length >= 2 ? { query: q, limit: 20 } : "skip");
+  const { data: answer, error } = useQueryNoThrow(
+    api.liveSearch.search,
+    q.length >= 2 ? { query: q, limit: 20 } : "skip",
+  );
   // While more letters of the same words are on their way, the last answer stays on screen, so rows don't
   // flash out and back. New words drop it: rows for the old words would read as wrong results.
   const last = useRef<{ q: string; data: unknown }>({ q: "", data: undefined });
   if (answer !== undefined) last.current = { q, data: answer };
-  const held = answer === undefined && q.length >= 2 && last.current.q && q.startsWith(last.current.q) ? last.current.data : undefined;
+  const held =
+    answer === undefined &&
+    q.length >= 2 &&
+    last.current.q &&
+    q.startsWith(last.current.q)
+      ? last.current.data
+      : undefined;
   // Held rows that can't hold the longer words (in their title or the words shown) go at once.
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-  const data = answer ?? (held as any[] | undefined)?.filter((h) => {
-    const text = `${h.title ?? ""} ${h.snippet ?? ""}`.toLowerCase();
-    return words.every((w) => text.includes(w));
-  });
+  const data =
+    answer ??
+    (held as any[] | undefined)?.filter((h) => {
+      const text = `${h.title ?? ""} ${h.snippet ?? ""}`.toLowerCase();
+      return words.every((w) => text.includes(w));
+    });
   // An answer counts only for the words still typed: replacing them drops it at once, not a debounce later.
   const typedExtends = query.trim().toLowerCase().startsWith(q.toLowerCase());
   const snippets = useMemo(() => {
     const m = new Map<string, string>();
-    if (q.length >= 2 && typedExtends) for (const h of (data as any[] | undefined) ?? []) m.set(String(h._id), String(h.snippet ?? ""));
+    if (q.length >= 2 && typedExtends)
+      for (const h of (data as any[] | undefined) ?? [])
+        m.set(String(h._id), String(h.snippet ?? ""));
     return m;
   }, [data, q, typedExtends]);
-  const matches = useCallback((doc: { _id: string }) => snippets.has(doc._id), [snippets]);
-  const hits = useMemo(() => (q.length >= 2 && typedExtends ? ((data as any[] | undefined) ?? []) : []), [data, q, typedExtends]);
+  const matches = useCallback(
+    (doc: { _id: string }) => snippets.has(doc._id),
+    [snippets],
+  );
+  const hits = useMemo(
+    () =>
+      q.length >= 2 && typedExtends ? ((data as any[] | undefined) ?? []) : [],
+    [data, q, typedExtends],
+  );
   const pendingFor = useCallback(
-    (typed: string) => typed.trim().length >= 2 && (q !== typed.trim() || (answer === undefined && !error)),
+    (typed: string) =>
+      typed.trim().length >= 2 &&
+      (q !== typed.trim() || (answer === undefined && !error)),
     [q, answer, error],
   );
   return { setQuery, matches, snippets, hits, query: q, pendingFor };

@@ -11,16 +11,28 @@ import { formatCountdown } from "@codecast/shared/contracts";
 // after the banner's own timestamp. Lets the card say "the window reset at
 // 8:40pm" instead of "paused until the limit resets" hours after the fact.
 // Returns undefined when the banner carries no parseable reset.
-export function parseLimitResetAt(message: string, bannerTs?: number): number | undefined {
+export function parseLimitResetAt(
+  message: string,
+  bannerTs?: number,
+): number | undefined {
   if (bannerTs == null) return undefined;
-  const m = message.match(/resets?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i);
+  const m = message.match(
+    /resets?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*\(([^)]+)\)/i,
+  );
   if (!m) return undefined;
   let hour = Number(m[1]) % 12;
   if (m[3].toLowerCase() === "pm") hour += 12;
   const minute = Number(m[2] ?? "0");
   try {
-    const parts = new Intl.DateTimeFormat("en-US", { timeZone: m[4], hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(new Date(bannerTs));
-    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: m[4],
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(bannerTs));
+    const get = (t: string) =>
+      Number(parts.find((p) => p.type === t)?.value ?? "0");
     const bannerMins = get("hour") * 60 + get("minute") + get("second") / 60;
     let delta = hour * 60 + minute - bannerMins;
     if (delta < 0) delta += 24 * 60;
@@ -48,22 +60,41 @@ export function limitWindowLabel(message: string): string {
 // can check the card against the terminal. Undefined when the banner names no
 // reset.
 export function limitResetAsPrinted(message: string): string | undefined {
-  const m = message.match(/resets?\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s*\(([^)]+)\)/i);
+  const m = message.match(
+    /resets?\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s*\(([^)]+)\)/i,
+  );
   return m ? `${m[1].replace(/\s+/g, "")} ${m[2]}` : undefined;
 }
 
 // The reset instant in the viewer's clock: "7:00 AM" today, "tomorrow 7:00 AM",
 // or "Mon 7:00 AM" further out. `now` is the viewer's clock; the day words are
 // relative to it, so a card left open overnight keeps reading true.
-export function formatResetLocal(resetAt: number, now: number, timeZone?: string): string {
-  const opts: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit", ...(timeZone ? { timeZone } : {}) };
+export function formatResetLocal(
+  resetAt: number,
+  now: number,
+  timeZone?: string,
+): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
+  };
   const time = new Intl.DateTimeFormat("en-US", opts).format(new Date(resetAt));
-  const dayOf = (ts: number) => new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", ...(timeZone ? { timeZone } : {}) }).format(new Date(ts));
+  const dayOf = (ts: number) =>
+    new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      ...(timeZone ? { timeZone } : {}),
+    }).format(new Date(ts));
   const today = dayOf(now);
   const target = dayOf(resetAt);
   if (target === today) return time;
   if (target === dayOf(now + 86_400_000)) return `tomorrow ${time}`;
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", ...(timeZone ? { timeZone } : {}) }).format(new Date(resetAt));
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    ...(timeZone ? { timeZone } : {}),
+  }).format(new Date(resetAt));
   return `${weekday} ${time}`;
 }
 

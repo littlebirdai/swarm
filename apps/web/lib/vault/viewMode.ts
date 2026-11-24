@@ -57,7 +57,10 @@ export function vaultViewMode(path: string | null): VaultViewMode {
   return modeByPath.get(key(path)) ?? "reading";
 }
 
-export function setVaultViewMode(path: string, mode: VaultViewMode): VaultViewMode {
+export function setVaultViewMode(
+  path: string,
+  mode: VaultViewMode,
+): VaultViewMode {
   modeByPath.set(key(path), mode);
   if (mode !== "reading") lastEditMode = mode;
   return mode;
@@ -65,14 +68,20 @@ export function setVaultViewMode(path: string, mode: VaultViewMode): VaultViewMo
 
 /** The edit chord: into the way you last edited, or back out to reading. */
 export function toggleVaultEditMode(path: string): VaultViewMode {
-  return setVaultViewMode(path, vaultViewMode(path) === "reading" ? lastEditMode : "reading");
+  return setVaultViewMode(
+    path,
+    vaultViewMode(path) === "reading" ? lastEditMode : "reading",
+  );
 }
 
 /** The source chord: raw bytes, or back to live preview once you're done
  *  looking. From reading it goes straight to source rather than stepping
  *  through live preview — jumping to the raw file is the whole point of it. */
 export function toggleVaultSourceMode(path: string): VaultViewMode {
-  return setVaultViewMode(path, vaultViewMode(path) === "source" ? "live" : "source");
+  return setVaultViewMode(
+    path,
+    vaultViewMode(path) === "source" ? "live" : "source",
+  );
 }
 
 /** Test seam: forget every remembered mode. */

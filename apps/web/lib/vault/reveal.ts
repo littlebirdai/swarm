@@ -21,10 +21,15 @@ export function canRevealLocally(): boolean {
 
 /** Show `path` in the file manager, or open it in its default application.
  *  Returns an error message for the UI, or null on success. */
-export async function revealVaultPath(path: string, mode: RevealMode = "reveal"): Promise<string | null> {
+export async function revealVaultPath(
+  path: string,
+  mode: RevealMode = "reveal",
+): Promise<string | null> {
   const { endpoint, activeVaultId, isRemote } = useVaultStore.getState();
-  if (isRemote) return "This vault is mirrored from another machine — its files aren't on this device.";
-  if (!endpoint || !activeVaultId) return "Not connected to this machine's daemon.";
+  if (isRemote)
+    return "This vault is mirrored from another machine — its files aren't on this device.";
+  if (!endpoint || !activeVaultId)
+    return "Not connected to this machine's daemon.";
   try {
     await vaultOp(endpoint, activeVaultId, { op: "reveal", path, mode });
     return null;

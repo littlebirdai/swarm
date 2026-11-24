@@ -10,7 +10,10 @@ import type { Extension } from "@codemirror/state";
 import { registerRichEditor } from "../../lib/undoWalk";
 
 /** The extension to install, and the call that registers a view built with it. */
-export function codeMirrorUndoGuard(): { extension: Extension; register: (view: EditorView) => () => void } {
+export function codeMirrorUndoGuard(): {
+  extension: Extension;
+  register: (view: EditorView) => () => void;
+} {
   const listeners = new Set<() => void>();
   return {
     extension: EditorView.updateListener.of((update) => {
@@ -19,7 +22,10 @@ export function codeMirrorUndoGuard(): { extension: Extension; register: (view: 
     register: (view) =>
       registerRichEditor(view.contentDOM, {
         on: (_event, fn) => listeners.add(fn),
-        can: () => ({ undo: () => undoDepth(view.state) > 0, redo: () => redoDepth(view.state) > 0 }),
+        can: () => ({
+          undo: () => undoDepth(view.state) > 0,
+          redo: () => redoDepth(view.state) > 0,
+        }),
       }),
   };
 }

@@ -20,7 +20,14 @@ export type RoleLineProps = {
   underReportsTo?: boolean;
 } & Pick<ObjectLineProps, "depth" | "sub" | "selected">;
 
-export function RoleLine({ line, now, ghost, underReportsTo, sub, ...rest }: RoleLineProps) {
+export function RoleLine({
+  line,
+  now,
+  ghost,
+  underReportsTo,
+  sub,
+  ...rest
+}: RoleLineProps) {
   const { role } = line;
   const facts = roleFacts(line, now);
   // Named by its title, as the map, the strip and the sheets name it; the
@@ -33,7 +40,13 @@ export function RoleLine({ line, now, ghost, underReportsTo, sub, ...rest }: Rol
       target={ghost ? undefined : { kind: "role", ref: role.short_id }}
       glyph={<RoleFace role={role} size={18} />}
       title={words.subtitle}
-      sub={sub === undefined ? (words.name !== words.subtitle ? words.name : null) : sub}
+      sub={
+        sub === undefined
+          ? words.name !== words.subtitle
+            ? words.name
+            : null
+          : sub
+      }
       {...facts}
       hideOwner={underReportsTo}
       ghost={ghost}

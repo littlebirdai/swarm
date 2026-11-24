@@ -28,7 +28,8 @@ const FAKE_HELPER = path.join(import.meta.dir, "__fixtures__", "fakeHelper.ts");
  * matches what they wait for.
  */
 const HELPER_LAUNCH_TIMEOUT_MS = 30_000;
-const helperTest = (name: string, body: () => void | Promise<void>) => test(name, body, HELPER_LAUNCH_TIMEOUT_MS);
+const helperTest = (name: string, body: () => void | Promise<void>) =>
+  test(name, body, HELPER_LAUNCH_TIMEOUT_MS);
 
 const cleanups: Array<() => void> = [];
 function cleanup(): void {
@@ -63,7 +64,9 @@ function withEnv(vars: Record<string, string>): void {
   });
 }
 
-function makeClient(overrides: Partial<ConstructorParameters<typeof ComputerClient>[0]> = {}): ComputerClient {
+function makeClient(
+  overrides: Partial<ConstructorParameters<typeof ComputerClient>[0]> = {},
+): ComputerClient {
   const launches: string[] = [];
   const client = new ComputerClient({
     version: "1.0.0",
@@ -82,7 +85,13 @@ function makeClient(overrides: Partial<ConstructorParameters<typeof ComputerClie
       };
       return {
         ...launch,
-        args: [...launch.args, "--test-parent-pid", String(process.pid), "--test-pid-file", pidFile],
+        args: [
+          ...launch.args,
+          "--test-parent-pid",
+          String(process.pid),
+          "--test-pid-file",
+          pidFile,
+        ],
       };
     },
   });
@@ -109,211 +118,293 @@ describe("ComputerClient", () => {
     const tokenPath = path.join(home, "token");
     const socketPath = path.join(home, "helper.sock");
     fs.writeFileSync(tokenPath, "test-token");
-    const parent = Bun.spawn([process.execPath, "-e", "setInterval(() => {}, 1000)"], { stdout: "ignore", stderr: "ignore" });
+    const parent = Bun.spawn(
+      [process.execPath, "-e", "setInterval(() => {}, 1000)"],
+      { stdout: "ignore", stderr: "ignore" },
+    );
     cleanups.push(() => parent.kill());
-    const helper = Bun.spawn([
-      process.execPath, FAKE_HELPER, "--agent", socketPath, "--token-file", tokenPath,
-      "--test-parent-pid", String(parent.pid),
-    ], { stdout: "ignore", stderr: "ignore" });
+    const helper = Bun.spawn(
+      [
+        process.execPath,
+        FAKE_HELPER,
+        "--agent",
+        socketPath,
+        "--token-file",
+        tokenPath,
+        "--test-parent-pid",
+        String(parent.pid),
+      ],
+      { stdout: "ignore", stderr: "ignore" },
+    );
     cleanups.push(() => helper.kill());
-    for (let attempt = 0; attempt < 400 && !fs.existsSync(socketPath); attempt++) await Bun.sleep(20);
+    for (
+      let attempt = 0;
+      attempt < 400 && !fs.existsSync(socketPath);
+      attempt++
+    )
+      await Bun.sleep(20);
     expect(fs.existsSync(socketPath)).toBe(true);
     parent.kill();
     await parent.exited;
     expect(await helper.exited).toBe(0);
   });
 
-  helperTest("cleanup stops the helper before restoring and deleting its test home", async () => {
-    const previous = process.env.CODECAST_DIR;
-    const home = isolatedHome();
-    await makeClient().capabilities();
-    const state = readInstance()!;
-    cleanup();
-    expect(process.env.CODECAST_DIR).toBe(previous);
-    expect(fs.existsSync(home)).toBe(false);
-    expect(fs.existsSync(state.socketDir)).toBe(false);
-    for (let attempt = 0; attempt < 100 && !(await pidGone(state.pid)); attempt++) await Bun.sleep(100);
-    expect(await pidGone(state.pid)).toBe(true);
-  });
+  helperTest(
+    "cleanup stops the helper before restoring and deleting its test home",
+    async () => {
+      const previous = process.env.CODECAST_DIR;
+      const home = isolatedHome();
+      await makeClient().capabilities();
+      const state = readInstance()!;
+      cleanup();
+      expect(process.env.CODECAST_DIR).toBe(previous);
+      expect(fs.existsSync(home)).toBe(false);
+      expect(fs.existsSync(state.socketDir)).toBe(false);
+      for (
+        let attempt = 0;
+        attempt < 100 && !(await pidGone(state.pid));
+        attempt++
+      )
+        await Bun.sleep(100);
+      expect(await pidGone(state.pid)).toBe(true);
+    },
+  );
 
-  helperTest("launches a helper, records it, and destroys the token file once connected", async () => {
-    isolatedHome();
-    const client = makeClient();
-    const caps = await client.capabilities();
-    expect(caps.protocolVersion).toBe(1);
-    expect(caps.providerVersion).toBe("1.0.0");
+  helperTest(
+    "launches a helper, records it, and destroys the token file once connected",
+    async () => {
+      isolatedHome();
+      const client = makeClient();
+      const caps = await client.capabilities();
+      expect(caps.protocolVersion).toBe(1);
+      expect(caps.providerVersion).toBe("1.0.0");
 
-    const state = readInstance();
-    expect(state).not.toBeNull();
-    expect(state!.token).toMatch(/^[0-9a-f]{64}$/);
-    expect(fs.statSync(state!.socketPath).mode & 0o777).toBeLessThanOrEqual(0o600);
-    // The token lives only in memory and in instance.json at 0600 after the
-    // connect; leaving the file on disk would widen the window a local process
-    // has to read it.
-    expect(fs.existsSync(path.join(state!.socketDir, "helper.token"))).toBe(false);
-    expect(fs.statSync(state!.socketDir).mode & 0o777).toBe(0o700);
-  });
+      const state = readInstance();
+      expect(state).not.toBeNull();
+      expect(state!.token).toMatch(/^[0-9a-f]{64}$/);
+      expect(fs.statSync(state!.socketPath).mode & 0o777).toBeLessThanOrEqual(
+        0o600,
+      );
+      // The token lives only in memory and in instance.json at 0600 after the
+      // connect; leaving the file on disk would widen the window a local process
+      // has to read it.
+      expect(fs.existsSync(path.join(state!.socketDir, "helper.token"))).toBe(
+        false,
+      );
+      expect(fs.statSync(state!.socketDir).mode & 0o777).toBe(0o700);
+    },
+  );
 
-  helperTest("a second client reuses the running helper instead of launching another", async () => {
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_LAUNCH_LOG: log });
+  helperTest(
+    "a second client reuses the running helper instead of launching another",
+    async () => {
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_LAUNCH_LOG: log });
 
-    const first = makeClient();
-    await first.capabilities();
-    first.shutdown();
+      const first = makeClient();
+      await first.capabilities();
+      first.shutdown();
 
-    const second = makeClient();
-    const result = (await second.listApps()) as unknown as { helperPid: number };
-    expect(result.helperPid).toBe(readInstance()!.pid);
-    expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
-  });
+      const second = makeClient();
+      const result = (await second.listApps()) as unknown as {
+        helperPid: number;
+      };
+      expect(result.helperPid).toBe(readInstance()!.pid);
+      expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
+    },
+  );
 
-  helperTest("a second client answers from the helper's cached handshake instead of asking again", async () => {
-    // Every `cast computer` step is a new process. The helper's answer cannot
-    // change while it lives, so asking again cost a round trip per step for
-    // nothing. FAKE_REQUIRE_HANDSHAKE proves the skip is safe: the helper
-    // remembers the first handshake for its whole life, as the real one does.
-    const home = isolatedHome();
-    const shakes = path.join(home, "handshakes.log");
-    withEnv({ FAKE_HANDSHAKE_LOG: shakes, FAKE_REQUIRE_HANDSHAKE: "1" });
+  helperTest(
+    "a second client answers from the helper's cached handshake instead of asking again",
+    async () => {
+      // Every `cast computer` step is a new process. The helper's answer cannot
+      // change while it lives, so asking again cost a round trip per step for
+      // nothing. FAKE_REQUIRE_HANDSHAKE proves the skip is safe: the helper
+      // remembers the first handshake for its whole life, as the real one does.
+      const home = isolatedHome();
+      const shakes = path.join(home, "handshakes.log");
+      withEnv({ FAKE_HANDSHAKE_LOG: shakes, FAKE_REQUIRE_HANDSHAKE: "1" });
 
-    const first = makeClient();
-    await first.capabilities();
-    first.shutdown();
+      const first = makeClient();
+      await first.capabilities();
+      first.shutdown();
 
-    const second = makeClient();
-    const caps = await second.capabilities();
-    expect(caps.providerVersion).toBe("1.0.0");
-    const result = (await second.listApps()) as unknown as { helperPid: number };
-    expect(result.helperPid).toBe(readInstance()!.pid);
-    expect(fs.readFileSync(shakes, "utf-8").trim().split("\n")).toHaveLength(1);
-  });
+      const second = makeClient();
+      const caps = await second.capabilities();
+      expect(caps.providerVersion).toBe("1.0.0");
+      const result = (await second.listApps()) as unknown as {
+        helperPid: number;
+      };
+      expect(result.helperPid).toBe(readInstance()!.pid);
+      expect(fs.readFileSync(shakes, "utf-8").trim().split("\n")).toHaveLength(
+        1,
+      );
+    },
+  );
 
-  helperTest("cached caps from another release do not stand in for the handshake", async () => {
-    // A CLI with no version claim adopts and caches a 0.9.0 helper; a CLI of
-    // this release must still see the mismatch and relaunch, exactly as it
-    // would with no cache at all.
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
+  helperTest(
+    "cached caps from another release do not stand in for the handshake",
+    async () => {
+      // A CLI with no version claim adopts and caches a 0.9.0 helper; a CLI of
+      // this release must still see the mismatch and relaunch, exactly as it
+      // would with no cache at all.
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
 
-    const unclaimed = makeClient({ version: undefined });
-    expect((await unclaimed.capabilities()).providerVersion).toBe("0.9.0");
-    unclaimed.shutdown();
+      const unclaimed = makeClient({ version: undefined });
+      expect((await unclaimed.capabilities()).providerVersion).toBe("0.9.0");
+      unclaimed.shutdown();
 
-    const current = makeClient();
-    expect((await current.capabilities()).providerVersion).toBe("1.0.0");
-    expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(2);
-  });
+      const current = makeClient();
+      expect((await current.capabilities()).providerVersion).toBe("1.0.0");
+      expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(2);
+    },
+  );
 
-  helperTest("a helper that dies mid-session is re-handshaken, not talked to as a stranger", async () => {
-    // Found by A7's granted e2e on a real Mac (ct-49523). The helper's identity
-    // check lives in the handshake: it learns which binary may drive it from
-    // the `castBinary` that request carries, and remembers it per process. So a
-    // reconnect that skips the handshake is refused by the fresh helper with
-    // `permission_denied: computer agent peer is not authorized` — a message
-    // that sends whoever reads it to System Settings, when the grant is fine
-    // and the connection is what broke. `shutdown()` already clears the cached
-    // capabilities for exactly this reason; an unexpected close must too.
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_LAUNCH_LOG: log, FAKE_REQUIRE_HANDSHAKE: "1" });
+  helperTest(
+    "a helper that dies mid-session is re-handshaken, not talked to as a stranger",
+    async () => {
+      // Found by A7's granted e2e on a real Mac (ct-49523). The helper's identity
+      // check lives in the handshake: it learns which binary may drive it from
+      // the `castBinary` that request carries, and remembers it per process. So a
+      // reconnect that skips the handshake is refused by the fresh helper with
+      // `permission_denied: computer agent peer is not authorized` — a message
+      // that sends whoever reads it to System Settings, when the grant is fine
+      // and the connection is what broke. `shutdown()` already clears the cached
+      // capabilities for exactly this reason; an unexpected close must too.
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_LAUNCH_LOG: log, FAKE_REQUIRE_HANDSHAKE: "1" });
 
-    const client = makeClient();
-    const first = (await client.listApps()) as unknown as { helperPid: number };
-    expect(first.helperPid).toBe(readInstance()!.pid);
+      const client = makeClient();
+      const first = (await client.listApps()) as unknown as {
+        helperPid: number;
+      };
+      expect(first.helperPid).toBe(readInstance()!.pid);
 
-    // The helper dies under the client, the way a crash or a reap does.
-    process.kill(readInstance()!.pid, "SIGKILL");
-    await Bun.sleep(200);
+      // The helper dies under the client, the way a crash or a reap does.
+      process.kill(readInstance()!.pid, "SIGKILL");
+      await Bun.sleep(200);
 
-    const second = (await client.listApps()) as unknown as { helperPid: number };
-    expect(second.helperPid).not.toBe(first.helperPid);
-    expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(2);
-  });
+      const second = (await client.listApps()) as unknown as {
+        helperPid: number;
+      };
+      expect(second.helperPid).not.toBe(first.helperPid);
+      expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(2);
+    },
+  );
 
-  helperTest("two invocations racing to launch produce one helper", async () => {
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_LAUNCH_LOG: log });
+  helperTest(
+    "two invocations racing to launch produce one helper",
+    async () => {
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_LAUNCH_LOG: log });
 
-    const clients = [makeClient(), makeClient()];
-    await Promise.all(clients.map((c) => c.capabilities()));
-    expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
-  });
+      const clients = [makeClient(), makeClient()];
+      await Promise.all(clients.map((c) => c.capabilities()));
+      expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
+    },
+  );
 
-  helperTest("a helper from another release is terminated and relaunched, not reused", async () => {
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    // The first launch answers as the previous release; the relaunch answers
-    // as this one, which is the post-update case in design 3.3.
-    withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
+  helperTest(
+    "a helper from another release is terminated and relaunched, not reused",
+    async () => {
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      // The first launch answers as the previous release; the relaunch answers
+      // as this one, which is the post-update case in design 3.3.
+      withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
 
-    const client = makeClient();
-    const caps = await client.capabilities();
-    expect(caps.providerVersion).toBe("1.0.0");
-    const launches = fs.readFileSync(log, "utf-8").trim().split("\n");
-    expect(launches).toHaveLength(2);
-    // The old helper is gone: reusing it would mean driving last release's
-    // renderer through this release's client.
-    expect(isAlive(Number(launches[0]))).toBe(false);
-    expect(readInstance()!.pid).toBe(Number(launches[1]));
-  });
+      const client = makeClient();
+      const caps = await client.capabilities();
+      expect(caps.providerVersion).toBe("1.0.0");
+      const launches = fs.readFileSync(log, "utf-8").trim().split("\n");
+      expect(launches).toHaveLength(2);
+      // The old helper is gone: reusing it would mean driving last release's
+      // renderer through this release's client.
+      expect(isAlive(Number(launches[0]))).toBe(false);
+      expect(readInstance()!.pid).toBe(Number(launches[1]));
+    },
+  );
 
-  helperTest("with no version claimed, a helper of any version is reused", async () => {
-    // Why: a CLI that carries no embedded helper adopts whatever is installed
-    // at the fixed path, so it has no release identity to hold that bundle to.
-    // Claiming one anyway would terminate a working helper and relaunch the
-    // very same bundle, which reports the very same version — a refusal loop
-    // rather than a mismatch (ct-49672). The protocol check below is the real
-    // compatibility gate and is unconditional either way.
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
+  helperTest(
+    "with no version claimed, a helper of any version is reused",
+    async () => {
+      // Why: a CLI that carries no embedded helper adopts whatever is installed
+      // at the fixed path, so it has no release identity to hold that bundle to.
+      // Claiming one anyway would terminate a working helper and relaunch the
+      // very same bundle, which reports the very same version — a refusal loop
+      // rather than a mismatch (ct-49672). The protocol check below is the real
+      // compatibility gate and is unconditional either way.
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_LAUNCH_LOG: log, FAKE_VERSION_SEQUENCE: "0.9.0,1.0.0" });
 
-    const client = makeClient({ version: undefined });
-    const caps = await client.capabilities();
-    expect(caps.providerVersion).toBe("0.9.0");
-    expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
-  });
+      const client = makeClient({ version: undefined });
+      const caps = await client.capabilities();
+      expect(caps.providerVersion).toBe("0.9.0");
+      expect(fs.readFileSync(log, "utf-8").trim().split("\n")).toHaveLength(1);
+    },
+  );
 
-  helperTest("a helper on another protocol version fails as provider_incompatible", async () => {
-    const home = isolatedHome();
-    const log = path.join(home, "launches.log");
-    withEnv({ FAKE_PROTOCOL_VERSION: "7", FAKE_LAUNCH_LOG: log });
-    const client = makeClient();
-    const err = await client.capabilities().catch((e) => e);
-    expect(err).toBeInstanceOf(ComputerError);
-    expect((err as ComputerError).code).toBe("provider_incompatible");
-    // The mismatched helper is stopped and a fresh one tried once. Reattaching
-    // to the same live helper only repeated the answer and reset its idle timer.
-    const launches = fs.readFileSync(log, "utf-8").trim().split("\n");
-    expect(launches).toHaveLength(2);
-    expect(isAlive(Number(launches[0]))).toBe(false);
-  });
+  helperTest(
+    "a helper on another protocol version fails as provider_incompatible",
+    async () => {
+      const home = isolatedHome();
+      const log = path.join(home, "launches.log");
+      withEnv({ FAKE_PROTOCOL_VERSION: "7", FAKE_LAUNCH_LOG: log });
+      const client = makeClient();
+      const err = await client.capabilities().catch((e) => e);
+      expect(err).toBeInstanceOf(ComputerError);
+      expect((err as ComputerError).code).toBe("provider_incompatible");
+      // The mismatched helper is stopped and a fresh one tried once. Reattaching
+      // to the same live helper only repeated the answer and reset its idle timer.
+      const launches = fs.readFileSync(log, "utf-8").trim().split("\n");
+      expect(launches).toHaveLength(2);
+      expect(isAlive(Number(launches[0]))).toBe(false);
+    },
+  );
 
-  helperTest("a helper error keeps its code and carries the recovery", async () => {
-    isolatedHome();
-    withEnv({
-      FAKE_ERROR_METHODS: JSON.stringify({
-        getAppState: { code: "element_not_found", message: "element 42 is stale; run get-app-state again and use a fresh element index" },
-      }),
-    });
-    const client = makeClient();
-    const err = (await client.getAppState({ app: "com.apple.TextEdit" }).catch((e) => e)) as ComputerError;
-    expect(err.code).toBe("element_not_found");
-    expect(err.toJSON().recovery[0]).toContain("get-app-state");
-  });
+  helperTest(
+    "a helper error keeps its code and carries the recovery",
+    async () => {
+      isolatedHome();
+      withEnv({
+        FAKE_ERROR_METHODS: JSON.stringify({
+          getAppState: {
+            code: "element_not_found",
+            message:
+              "element 42 is stale; run get-app-state again and use a fresh element index",
+          },
+        }),
+      });
+      const client = makeClient();
+      const err = (await client
+        .getAppState({ app: "com.apple.TextEdit" })
+        .catch((e) => e)) as ComputerError;
+      expect(err.code).toBe("element_not_found");
+      expect(err.toJSON().recovery[0]).toContain("get-app-state");
+    },
+  );
 
-  helperTest("a code this CLI does not know reads as accessibility_error, not as success", async () => {
-    isolatedHome();
-    withEnv({ FAKE_ERROR_METHODS: JSON.stringify({ listApps: { code: "quantum_flux", message: "something new" } }) });
-    const client = makeClient();
-    const err = (await client.listApps().catch((e) => e)) as ComputerError;
-    expect(err.code).toBe("accessibility_error");
-    expect(err.message).toContain("quantum_flux");
-  });
+  helperTest(
+    "a code this CLI does not know reads as accessibility_error, not as success",
+    async () => {
+      isolatedHome();
+      withEnv({
+        FAKE_ERROR_METHODS: JSON.stringify({
+          listApps: { code: "quantum_flux", message: "something new" },
+        }),
+      });
+      const client = makeClient();
+      const err = (await client.listApps().catch((e) => e)) as ComputerError;
+      expect(err.code).toBe("accessibility_error");
+      expect(err.message).toContain("quantum_flux");
+    },
+  );
 
   helperTest("a request carrying the wrong token is refused", async () => {
     isolatedHome();
@@ -329,21 +420,35 @@ describe("ComputerClient", () => {
     expect(err.message).toContain("token");
   });
 
-  helperTest("a request that times out fails alone; one beside it is still answered", async () => {
-    isolatedHome();
-    withEnv({ FAKE_HANG_METHODS: "listApps,click" });
-    const client = makeClient({ requestTimeoutMs: 400 });
+  helperTest(
+    "a request that times out fails alone; one beside it is still answered",
+    async () => {
+      isolatedHome();
+      withEnv({ FAKE_HANG_METHODS: "listApps,click" });
+      const client = makeClient({ requestTimeoutMs: 400 });
 
-    const failure = (p: Promise<unknown>) => p.then(() => null, (e) => e as ComputerError);
-    const [hung, answered] = await Promise.all([failure(client.listApps()), client.listWindows({ app: "x" })]);
-    expect(hung!.code).toBe("action_timeout");
-    expect((answered as unknown as { method: string }).method).toBe("listWindows");
+      const failure = (p: Promise<unknown>) =>
+        p.then(
+          () => null,
+          (e) => e as ComputerError,
+        );
+      const [hung, answered] = await Promise.all([
+        failure(client.listApps()),
+        client.listWindows({ app: "x" }),
+      ]);
+      expect(hung!.code).toBe("action_timeout");
+      expect((answered as unknown as { method: string }).method).toBe(
+        "listWindows",
+      );
 
-    // A mutation that got no answer may have landed, and the error says so.
-    const click = (await failure(client.action("click", { app: "x", elementIndex: 1 })))!;
-    expect(click.code).toBe("action_timeout");
-    expect(click.message).toContain("whether it took effect is unknown");
-  });
+      // A mutation that got no answer may have landed, and the error says so.
+      const click = (await failure(
+        client.action("click", { app: "x", elementIndex: 1 }),
+      ))!;
+      expect(click.code).toBe("action_timeout");
+      expect(click.message).toContain("whether it took effect is unknown");
+    },
+  );
 
   helperTest("a busy helper is reported busy, never killed", async () => {
     isolatedHome();
@@ -351,7 +456,10 @@ describe("ComputerClient", () => {
     // what an overloaded helper looks like from outside.
     writeInstance({
       pid: process.pid,
-      socketPath: path.join(os.tmpdir(), `codecast-computer-missing-${process.pid}.sock`),
+      socketPath: path.join(
+        os.tmpdir(),
+        `codecast-computer-missing-${process.pid}.sock`,
+      ),
       socketDir: os.tmpdir(),
       token: "a".repeat(64),
       helperPath: "/nowhere",
@@ -366,14 +474,19 @@ describe("ComputerClient", () => {
     expect(readInstance()?.pid).toBe(process.pid);
   });
 
-  helperTest("a helper that dies on launch fails with its exit, not with a timeout", async () => {
-    isolatedHome();
-    withEnv({ FAKE_EXIT_BEFORE_BIND: "3" });
-    const client = makeClient({ connectTimeoutMs: 30_000 });
-    const err = (await client.capabilities().catch((e) => e)) as ComputerError;
-    expect(err.code).toBe("accessibility_error");
-    expect(err.message).toContain("code 3");
-  });
+  helperTest(
+    "a helper that dies on launch fails with its exit, not with a timeout",
+    async () => {
+      isolatedHome();
+      withEnv({ FAKE_EXIT_BEFORE_BIND: "3" });
+      const client = makeClient({ connectTimeoutMs: 30_000 });
+      const err = (await client
+        .capabilities()
+        .catch((e) => e)) as ComputerError;
+      expect(err.code).toBe("accessibility_error");
+      expect(err.message).toContain("code 3");
+    },
+  );
 
   helperTest("terminate stops the helper and forgets it", async () => {
     isolatedHome();
@@ -385,27 +498,37 @@ describe("ComputerClient", () => {
     expect(isAlive(pid)).toBe(false);
   });
 
-  helperTest("--restore-window stamps the deliberate raise before the request goes out", async () => {
-    isolatedHome();
-    const order: string[] = [];
-    const client = makeClient({
-      stampRaise: () => order.push("stamped"),
-      helperLaunch: (socketPath, tokenPath) => ({
-        cmd: process.execPath,
-        args: [FAKE_HELPER, "--agent", socketPath, "--token-file", tokenPath],
-      }),
-    });
-    await client.getAppState({ app: "com.apple.TextEdit", restoreWindow: true });
-    expect(order).toEqual(["stamped"]);
+  helperTest(
+    "--restore-window stamps the deliberate raise before the request goes out",
+    async () => {
+      isolatedHome();
+      const order: string[] = [];
+      const client = makeClient({
+        stampRaise: () => order.push("stamped"),
+        helperLaunch: (socketPath, tokenPath) => ({
+          cmd: process.execPath,
+          args: [FAKE_HELPER, "--agent", socketPath, "--token-file", tokenPath],
+        }),
+      });
+      await client.getAppState({
+        app: "com.apple.TextEdit",
+        restoreWindow: true,
+      });
+      expect(order).toEqual(["stamped"]);
 
-    order.length = 0;
-    await client.getAppState({ app: "com.apple.TextEdit" });
-    expect(order).toEqual([]);
-  });
+      order.length = 0;
+      await client.getAppState({ app: "com.apple.TextEdit" });
+      expect(order).toEqual([]);
+    },
+  );
 });
 
 describe("normalizeActionResult", () => {
-  const base = { snapshot: {}, screenshot: null, screenshotStatus: { state: "skipped", reason: "no_screenshot_flag" } } as unknown as ComputerActionResult;
+  const base = {
+    snapshot: {},
+    screenshot: null,
+    screenshotStatus: { state: "skipped", reason: "no_screenshot_flag" },
+  } as unknown as ComputerActionResult;
 
   test("fills a missing verification from the action path", () => {
     for (const [pathName, reason] of [
@@ -413,14 +536,20 @@ describe("normalizeActionResult", () => {
       ["clipboard", "clipboard_paste"],
       ["accessibility", "accessibility_action_unasserted"],
     ] as const) {
-      const out = normalizeActionResult({ ...base, action: { path: pathName } });
+      const out = normalizeActionResult({
+        ...base,
+        action: { path: pathName },
+      });
       expect(out.action?.verification).toEqual({ state: "unverified", reason });
     }
   });
 
   test("leaves a verification the helper already reported", () => {
     const verification = { state: "verified", property: "value" } as const;
-    const out = normalizeActionResult({ ...base, action: { path: "accessibility", verification } });
+    const out = normalizeActionResult({
+      ...base,
+      action: { path: "accessibility", verification },
+    });
     expect(out.action?.verification).toBe(verification);
   });
 

@@ -25,7 +25,13 @@ export const FADE_MS = 600;
 /** A second undo inside this window fires the milestone tip that names the timeline. */
 export const MILESTONE_WINDOW_MS = 10_000;
 
-export type WalkPhase = "idle" | "armed" | "peek" | "fading" | "hovered" | "pinned";
+export type WalkPhase =
+  | "idle"
+  | "armed"
+  | "peek"
+  | "fading"
+  | "hovered"
+  | "pinned";
 
 export type WalkState = {
   phase: WalkPhase;
@@ -57,42 +63,60 @@ export type WalkEvent =
   /** The card was closed from elsewhere (Esc, a row opened, the chord). */
   | { type: "closed" };
 
-export const WALK_IDLE: WalkState = { phase: "idle", lastUndoAt: null, milestone: false };
+export const WALK_IDLE: WalkState = {
+  phase: "idle",
+  lastUndoAt: null,
+  milestone: false,
+};
 
 export function walk(state: WalkState, event: WalkEvent): WalkState {
   const s = state.milestone ? { ...state, milestone: false } : state;
   switch (event.type) {
     case "step": {
-      const milestone = event.dir === "undo" && s.lastUndoAt !== null && event.at - s.lastUndoAt <= MILESTONE_WINDOW_MS;
+      const milestone =
+        event.dir === "undo" &&
+        s.lastUndoAt !== null &&
+        event.at - s.lastUndoAt <= MILESTONE_WINDOW_MS;
       const lastUndoAt = event.dir === "undo" ? event.at : s.lastUndoAt;
       const phase: WalkPhase = !event.held
-        ? s.phase === "pinned" ? "pinned" : "idle"
-        : s.phase === "idle" ? "armed"
-        // A second step inside the delay opens the peek at once: the user is walking.
-        : s.phase === "armed" || s.phase === "fading" ? "peek"
-        : s.phase;
+        ? s.phase === "pinned"
+          ? "pinned"
+          : "idle"
+        : s.phase === "idle"
+          ? "armed"
+          : // A second step inside the delay opens the peek at once: the user is walking.
+            s.phase === "armed" || s.phase === "fading"
+            ? "peek"
+            : s.phase;
       return { phase, lastUndoAt, milestone };
     }
     case "peekTimer":
       return s.phase === "armed" ? { ...s, phase: "peek" } : s;
     case "pin":
       // Not from hovered: that peek takes no keys, so only a press pins it.
-      return s.phase === "peek" || s.phase === "fading" ? { ...s, phase: "pinned" } : s;
+      return s.phase === "peek" || s.phase === "fading"
+        ? { ...s, phase: "pinned" }
+        : s;
     case "release":
       if (s.phase === "armed") return { ...s, phase: "idle" };
-      if (s.phase === "peek") return { ...s, phase: event.hovered ? "hovered" : "fading" };
+      if (s.phase === "peek")
+        return { ...s, phase: event.hovered ? "hovered" : "fading" };
       return s;
     case "pointerEnter":
       return s.phase === "fading" ? { ...s, phase: "hovered" } : s;
     case "pointerLeave":
       return s.phase === "hovered" ? { ...s, phase: "fading" } : s;
     case "cardPress":
-      return s.phase === "peek" || s.phase === "fading" || s.phase === "hovered" ? { ...s, phase: "pinned" } : s;
+      return s.phase === "peek" || s.phase === "fading" || s.phase === "hovered"
+        ? { ...s, phase: "pinned" }
+        : s;
     case "fadeTimer":
       return s.phase === "fading" ? { ...s, phase: "idle" } : s;
     case "otherKey":
       // A pinned card owns its keys; anything earlier ends the walk.
-      return s.phase === "pinned" || s.phase === "idle" ? s : { ...s, phase: "idle" };
+      return s.phase === "pinned" || s.phase === "idle"
+        ? s
+        : { ...s, phase: "idle" };
     case "closed":
       return s.phase === "idle" ? s : { ...s, phase: "idle" };
   }
@@ -104,7 +128,9 @@ export function walkTakesPinKey(state: WalkState): boolean {
 }
 
 /** What the timeline card shows for a walk state. */
-export function walkView(state: WalkState): { open: false } | { open: true; mode: "peek" | "interactive" } {
+export function walkView(
+  state: WalkState,
+): { open: false } | { open: true; mode: "peek" | "interactive" } {
   switch (state.phase) {
     case "peek":
     case "fading":
@@ -118,9 +144,13 @@ export function walkView(state: WalkState): { open: false } | { open: true; mode
 }
 
 /** The one timer a walk state runs, and the event it feeds back. */
-export function walkTimer(state: WalkState): { ms: number; event: WalkEvent } | null {
-  if (state.phase === "armed") return { ms: PEEK_DELAY_MS, event: { type: "peekTimer" } };
-  if (state.phase === "fading") return { ms: FADE_MS, event: { type: "fadeTimer" } };
+export function walkTimer(
+  state: WalkState,
+): { ms: number; event: WalkEvent } | null {
+  if (state.phase === "armed")
+    return { ms: PEEK_DELAY_MS, event: { type: "peekTimer" } };
+  if (state.phase === "fading")
+    return { ms: FADE_MS, event: { type: "fadeTimer" } };
   return null;
 }
 
@@ -133,17 +163,27 @@ export function walkTimer(state: WalkState): { ms: number; event: WalkEvent } | 
  * brings the draft back.
  */
 type StepHistory = {
-  items: readonly { id: string; ts: number; undoneAt?: number; redoneAt?: number }[];
+  items: readonly {
+    id: string;
+    ts: number;
+    undoneAt?: number;
+    redoneAt?: number;
+  }[];
   undoOrder: readonly string[];
   redoOrder: readonly string[];
 };
 
-export function fieldOwnsStep(dir: "undo" | "redo", lastEditAt: number | undefined, history: StepHistory): boolean {
+export function fieldOwnsStep(
+  dir: "undo" | "redo",
+  lastEditAt: number | undefined,
+  history: StepHistory,
+): boolean {
   if (lastEditAt === undefined) return false;
   const id = (dir === "undo" ? history.undoOrder : history.redoOrder)[0];
   const entry = id ? history.items.find((i) => i.id === id) : undefined;
   if (!entry) return true;
-  const since = dir === "undo" ? undoKeyboardSince(entry) : (entry.undoneAt ?? entry.ts);
+  const since =
+    dir === "undo" ? undoKeyboardSince(entry) : (entry.undoneAt ?? entry.ts);
   return lastEditAt > since;
 }
 
@@ -165,7 +205,10 @@ export function fieldOwnsStep(dir: "undo" | "redo", lastEditAt: number | undefin
  * input, so when none arrived by the next task the browser had nothing and
  * `fallback` runs the app's step.
  */
-export function createFieldUndoGuard(opts: { now: () => number; defer: (fn: () => void) => void }) {
+export function createFieldUndoGuard(opts: {
+  now: () => number;
+  defer: (fn: () => void) => void;
+}) {
   const edits = new WeakMap<object, number>();
   // Fields with a check already waiting: one key press can reach the step
   // more than once (each binding it matches), and gets one fallback.
@@ -199,13 +242,21 @@ export function createFieldUndoGuard(opts: { now: () => number; defer: (fn: () =
      * edited has none: the browser's undo would do nothing, so the press is
      * the app's, whatever the frame-wide `nativeCan` says.
      */
-    keepsWithText(field: object, fallback: () => void, nativeCan?: boolean): boolean {
+    keepsWithText(
+      field: object,
+      fallback: () => void,
+      nativeCan?: boolean,
+    ): boolean {
       if (!edits.has(field)) return false;
       return fieldHasStep(field, fallback, nativeCan);
     },
   };
 
-  function fieldHasStep(field: object, fallback: () => void, nativeCan: boolean | undefined): boolean {
+  function fieldHasStep(
+    field: object,
+    fallback: () => void,
+    nativeCan: boolean | undefined,
+  ): boolean {
     if (nativeCan === false) {
       edits.delete(field);
       return false;
@@ -228,9 +279,16 @@ export function createFieldUndoGuard(opts: { now: () => number; defer: (fn: () =
  *  ⌘Z from one of them is the app's, never the browser's. The desktop main
  *  process asks the same question (apps/desktop/editUndo.js
  *  EDITABLE_PROBE); undoWalk.test pins the two answers together. */
-const NON_TEXT_INPUT = /^(button|checkbox|radio|submit|reset|range|color|file|image|hidden|date|time|datetime-local|month|week)$/i;
+const NON_TEXT_INPUT =
+  /^(button|checkbox|radio|submit|reset|range|color|file|image|hidden|date|time|datetime-local|month|week)$/i;
 
-type ControlLike = { tagName?: string; type?: string; readOnly?: boolean; disabled?: boolean; isContentEditable?: boolean };
+type ControlLike = {
+  tagName?: string;
+  type?: string;
+  readOnly?: boolean;
+  disabled?: boolean;
+  isContentEditable?: boolean;
+};
 
 /**
  * A focused control that edits text and so keeps its own undo: a writable
@@ -238,12 +296,15 @@ type ControlLike = { tagName?: string; type?: string; readOnly?: boolean; disabl
  * its own keys). A checkbox, radio, date, range or read-only field is not one,
  * whatever the browser's frame-wide undo says.
  */
-export function isTextEditingControl(el: EventTarget | null | undefined): boolean {
+export function isTextEditingControl(
+  el: EventTarget | null | undefined,
+): boolean {
   const f = el as ControlLike | null | undefined;
   if (!f) return false;
   if (f.isContentEditable === true || f.tagName === "IFRAME") return true;
   if (f.tagName === "TEXTAREA") return !f.readOnly && !f.disabled;
-  if (f.tagName === "INPUT") return !f.readOnly && !f.disabled && !NON_TEXT_INPUT.test(f.type ?? "");
+  if (f.tagName === "INPUT")
+    return !f.readOnly && !f.disabled && !NON_TEXT_INPUT.test(f.type ?? "");
   return false;
 }
 
@@ -251,9 +312,15 @@ export function isTextEditingControl(el: EventTarget | null | undefined): boolea
  *  judges a field empty; null for anything with no text to read (a non-text
  *  control, a frame). */
 export function fieldHoldsText(el: Element): boolean | null {
-  const f = el as { tagName?: string; isContentEditable?: boolean; value?: string; textContent?: string | null };
+  const f = el as {
+    tagName?: string;
+    isContentEditable?: boolean;
+    value?: string;
+    textContent?: string | null;
+  };
   if (!isTextEditingControl(el)) return null;
-  if (f.tagName === "INPUT" || f.tagName === "TEXTAREA") return (f.value ?? "") !== "";
+  if (f.tagName === "INPUT" || f.tagName === "TEXTAREA")
+    return (f.value ?? "") !== "";
   if (f.isContentEditable) return !!(f.textContent ?? "").trim();
   return null;
 }
@@ -275,7 +342,10 @@ export type RichEditor = {
 const registeredEditors = new WeakMap<object, RichEditor>();
 
 /** Declare `el` an editor with its own history. Returns the unregister. */
-export function registerRichEditor(el: Element, editor: RichEditor): () => void {
+export function registerRichEditor(
+  el: Element,
+  editor: RichEditor,
+): () => void {
   registeredEditors.set(el, editor);
   return () => {
     if (registeredEditors.get(el) === editor) registeredEditors.delete(el);
@@ -288,11 +358,16 @@ export function richEditorOf(el: unknown): RichEditor | null {
     if (registered) return registered;
   }
   const ed = (el as { editor?: Partial<RichEditor> } | null)?.editor;
-  return ed && typeof ed.on === "function" && typeof ed.can === "function" ? (ed as RichEditor) : null;
+  return ed && typeof ed.on === "function" && typeof ed.can === "function"
+    ? (ed as RichEditor)
+    : null;
 }
 
 /** The editor's own answer to "is there a step left", when it gives one. */
-export function richEditorCanStep(ed: RichEditor, dir: "undo" | "redo"): boolean | undefined {
+export function richEditorCanStep(
+  ed: RichEditor,
+  dir: "undo" | "redo",
+): boolean | undefined {
   try {
     const can = ed.can()[dir];
     return typeof can === "function" ? !!can() : undefined;

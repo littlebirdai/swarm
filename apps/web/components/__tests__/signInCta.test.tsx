@@ -13,7 +13,11 @@ type Device = Parameters<typeof SignInCta>[0]["device"];
 function render(device: Device) {
   return renderToStaticMarkup(
     <ConvexProvider client={client}>
-      <SignInCta device={device} authSessionIds={["s1", "s2"]} disabled={false} />
+      <SignInCta
+        device={device}
+        authSessionIds={["s1", "s2"]}
+        disabled={false}
+      />
     </ConvexProvider>,
   );
 }

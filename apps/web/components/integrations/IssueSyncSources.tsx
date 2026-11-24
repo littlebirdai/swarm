@@ -26,7 +26,13 @@ import { formatRelative } from "../../lib/utils";
 import { Switch } from "../ui/switch";
 import { ConsequentialSwitch } from "../consequential/ConsequentialSwitch";
 import { issuePushLedger, issueSpawnLedger } from "../consequential/ledgers";
-import { ConfirmButton, LedgerLine, QuietButton, StatusDot, type DotTone } from "./parts";
+import {
+  ConfirmButton,
+  LedgerLine,
+  QuietButton,
+  StatusDot,
+  type DotTone,
+} from "./parts";
 
 const api = _api as any;
 
@@ -64,27 +70,37 @@ function DelegationSettings({ source }: { source: any }) {
     <div className="mt-2 space-y-2 rounded-md bg-sol-bg-highlight/30 px-3 py-2.5">
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="block">
-          <span className="text-mark uppercase tracking-wider text-sol-text-dim">Delegate label</span>
+          <span className="text-mark uppercase tracking-wider text-sol-text-dim">
+            Delegate label
+          </span>
           <input
             type="text"
             defaultValue={source.delegate_label ?? "agent"}
             placeholder="agent"
             onBlur={(e) => {
               const value = e.target.value.trim();
-              if (value !== (source.delegate_label ?? "agent")) set({ delegate_label: value });
+              if (value !== (source.delegate_label ?? "agent"))
+                set({ delegate_label: value });
             }}
             className="mt-1 h-7 w-full rounded border border-sol-border bg-sol-bg px-2 font-mono text-xs text-sol-text focus:border-sol-cyan focus:outline-none"
           />
         </label>
         <label className="block">
-          <span className="text-mark uppercase tracking-wider text-sol-text-dim">Delegate assignee</span>
+          <span className="text-mark uppercase tracking-wider text-sol-text-dim">
+            Delegate assignee
+          </span>
           <input
             type="text"
             defaultValue={source.delegate_assignee ?? ""}
-            placeholder={source.provider === "github" ? "github login" : "linear user id, email or name"}
+            placeholder={
+              source.provider === "github"
+                ? "github login"
+                : "linear user id, email or name"
+            }
             onBlur={(e) => {
               const value = e.target.value.trim();
-              if (value !== (source.delegate_assignee ?? "")) set({ delegate_assignee: value });
+              if (value !== (source.delegate_assignee ?? ""))
+                set({ delegate_assignee: value });
             }}
             className="mt-1 h-7 w-full rounded border border-sol-border bg-sol-bg px-2 font-mono text-xs text-sol-text focus:border-sol-cyan focus:outline-none"
           />
@@ -96,10 +112,21 @@ function DelegationSettings({ source }: { source: any }) {
         </span>
         <ConsequentialSwitch
           on={!!source.auto_spawn}
-          ledger={issueSpawnLedger({ provider, source: source.name, label: source.delegate_label ?? "agent", assignee: source.delegate_assignee || undefined })}
+          ledger={issueSpawnLedger({
+            provider,
+            source: source.name,
+            label: source.delegate_label ?? "agent",
+            assignee: source.delegate_assignee || undefined,
+          })}
           onTurnOn={() => set({ auto_spawn: true })}
           onTurnOff={() => set({ auto_spawn: false })}
-          trigger={({ on, press }) => <Switch checked={on} onCheckedChange={press} aria-label="Spawn a session on delegation" />}
+          trigger={({ on, press }) => (
+            <Switch
+              checked={on}
+              onCheckedChange={press}
+              aria-label="Spawn a session on delegation"
+            />
+          )}
         />
       </div>
       <div className="flex items-center justify-between gap-4">
@@ -111,7 +138,13 @@ function DelegationSettings({ source }: { source: any }) {
           ledger={issuePushLedger({ provider, source: source.name })}
           onTurnOn={() => set({ push_new_tasks: true })}
           onTurnOff={() => set({ push_new_tasks: false })}
-          trigger={({ on, press }) => <Switch checked={on} onCheckedChange={press} aria-label="Push new tasks to the provider" />}
+          trigger={({ on, press }) => (
+            <Switch
+              checked={on}
+              onCheckedChange={press}
+              aria-label="Push new tasks to the provider"
+            />
+          )}
         />
       </div>
     </div>
@@ -150,7 +183,9 @@ function SourceRow({ source }: { source: any }) {
               className="flex min-w-0 items-center gap-1.5 text-left text-xs font-medium text-sol-text hover:text-sol-cyan"
               aria-expanded={open}
             >
-              <ChevronDown className={`h-3 w-3 shrink-0 text-sol-text-dim transition-transform ${open ? "" : "-rotate-90"}`} />
+              <ChevronDown
+                className={`h-3 w-3 shrink-0 text-sol-text-dim transition-transform ${open ? "" : "-rotate-90"}`}
+              />
               <span className="truncate">{source.name}</span>
             </button>
             <span className="shrink-0 rounded bg-sol-bg-highlight px-1.5 py-[1px] font-mono text-meta text-sol-text-dim">
@@ -165,7 +200,13 @@ function SourceRow({ source }: { source: any }) {
                 <Link
                   href={`/projects/${source.project_id}`}
                   onClick={(event) => {
-                    if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+                    if (
+                      event.button === 0 &&
+                      !event.metaKey &&
+                      !event.ctrlKey &&
+                      !event.shiftKey &&
+                      !event.altKey
+                    ) {
                       useInboxStore.getState().closeSettingsModal();
                     }
                   }}
@@ -176,22 +217,34 @@ function SourceRow({ source }: { source: any }) {
               ) : (
                 "project pending"
               ),
-              source.last_synced_at ? `synced ${formatRelative(source.last_synced_at)}` : "never synced",
-              source.last_webhook_at ? `webhook ${formatRelative(source.last_webhook_at)}` : null,
+              source.last_synced_at
+                ? `synced ${formatRelative(source.last_synced_at)}`
+                : "never synced",
+              source.last_webhook_at
+                ? `webhook ${formatRelative(source.last_webhook_at)}`
+                : null,
             ]}
           />
           {source.last_error && (
-            <p className="mt-1 pl-[18px] text-meta leading-relaxed text-sol-red">{source.last_error}</p>
+            <p className="mt-1 pl-[18px] text-meta leading-relaxed text-sol-red">
+              {source.last_error}
+            </p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <QuietButton onClick={runSync} busy={syncing} title="Pull the provider's issues now">
+          <QuietButton
+            onClick={runSync}
+            busy={syncing}
+            title="Pull the provider's issues now"
+          >
             <RefreshCw className="h-3 w-3" />
             Sync
           </QuietButton>
           <button
             type="button"
-            onClick={() => update(source._id, { status: paused ? "active" : "paused" })}
+            onClick={() =>
+              update(source._id, { status: paused ? "active" : "paused" })
+            }
             className="text-meta text-sol-text-muted hover:text-sol-text"
           >
             {paused ? "Resume" : "Pause"}
@@ -209,7 +262,13 @@ function SourceRow({ source }: { source: any }) {
 }
 
 /** The picker: what this connection can import, and where its tasks should land. */
-function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => void }) {
+function ImportPicker({
+  provider,
+  onDone,
+}: {
+  provider: Provider;
+  onDone: () => void;
+}) {
   const listCandidates = useAction(api.issueSync.listRemoteCandidates);
   const addSource = useInboxStore((s) => s.addIssueSyncSource);
   const projects = useWorkspaceCollection<any>("projects");
@@ -252,7 +311,9 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
       name: picked.name,
       url: picked.url,
       project_id: projectId || undefined,
-      project_name: projectId ? projects.find((p) => p._id === projectId)?.title : picked.name,
+      project_name: projectId
+        ? projects.find((p) => p._id === projectId)?.title
+        : picked.name,
     });
     toast.success(`Importing ${picked.name}`);
     onDone();
@@ -263,7 +324,8 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
       {loading ? (
         <div className="flex items-center gap-2 py-2 text-xs text-sol-text-muted">
           <Loader2 className="h-3 w-3 animate-spin" />
-          Asking {provider === "github" ? "GitHub" : "Linear"} what you can import
+          Asking {provider === "github" ? "GitHub" : "Linear"} what you can
+          import
         </div>
       ) : error ? (
         <div className="space-y-2">
@@ -272,7 +334,8 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
         </div>
       ) : !candidates || candidates.length === 0 ? (
         <p className="py-1 text-xs text-sol-text-muted">
-          Nothing to import — the connection can see no {provider === "github" ? "repositories" : "teams or projects"}.
+          Nothing to import — the connection can see no{" "}
+          {provider === "github" ? "repositories" : "teams or projects"}.
         </p>
       ) : (
         <>
@@ -287,14 +350,20 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
                   disabled={taken}
                   onClick={() => setPicked(c)}
                   className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors ${
-                    active ? "bg-sol-cyan/10 text-sol-cyan" : "text-sol-text hover:bg-sol-bg-highlight"
+                    active
+                      ? "bg-sol-cyan/10 text-sol-cyan"
+                      : "text-sol-text hover:bg-sol-bg-highlight"
                   } disabled:cursor-not-allowed disabled:opacity-45`}
                 >
                   <span className="truncate">{c.name}</span>
                   <span className="shrink-0 font-mono text-meta text-sol-text-dim">
                     {KIND_LABEL[c.kind] ?? c.kind}
                   </span>
-                  {taken && <span className="ml-auto shrink-0 text-meta text-sol-text-dim">imported</span>}
+                  {taken && (
+                    <span className="ml-auto shrink-0 text-meta text-sol-text-dim">
+                      imported
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -310,7 +379,9 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
                   onChange={(e) => setProjectId(e.target.value)}
                   className="mt-1 h-7 w-full rounded border border-sol-border bg-sol-bg px-2 text-xs text-sol-text focus:border-sol-cyan focus:outline-none"
                 >
-                  <option value="">Create a project named “{picked.name}”</option>
+                  <option value="">
+                    Create a project named “{picked.name}”
+                  </option>
                   {projects.map((p) => (
                     <option key={p._id} value={p._id}>
                       {p.title}
@@ -319,7 +390,10 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
                 </select>
               </label>
               <div className="mt-2 flex items-center gap-2">
-                <QuietButton onClick={confirmImport} className="border-sol-cyan text-sol-cyan">
+                <QuietButton
+                  onClick={confirmImport}
+                  className="border-sol-cyan text-sol-cyan"
+                >
                   Import {picked.name}
                 </QuietButton>
                 <button
@@ -343,7 +417,13 @@ function ImportPicker({ provider, onDone }: { provider: Provider; onDone: () => 
  * provider is connected — there is nothing to import through a connection that
  * does not exist.
  */
-export function IssueSyncSources({ provider, connected }: { provider: Provider; connected: boolean }) {
+export function IssueSyncSources({
+  provider,
+  connected,
+}: {
+  provider: Provider;
+  connected: boolean;
+}) {
   const sources = useIssueSyncSources(provider);
   const [importing, setImporting] = useState(false);
 
@@ -360,11 +440,14 @@ export function IssueSyncSources({ provider, connected }: { provider: Provider; 
           Import
         </QuietButton>
       </div>
-      {importing && <ImportPicker provider={provider} onDone={() => setImporting(false)} />}
+      {importing && (
+        <ImportPicker provider={provider} onDone={() => setImporting(false)} />
+      )}
       {sources.length === 0 ? (
         !importing && (
           <p className="mt-1.5 text-xs leading-relaxed text-sol-text-muted">
-            Nothing imported yet. Import a {provider === "github" ? "repository" : "team or project"} and its
+            Nothing imported yet. Import a{" "}
+            {provider === "github" ? "repository" : "team or project"} and its
             issues become tasks in a codecast project, both ways.
           </p>
         )

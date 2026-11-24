@@ -32,18 +32,29 @@ import { cpus, loadavg } from "node:os";
 import { ComputerClient } from "../src/computer/client.js";
 
 type Row = { name: string; ms: number[] };
-type Report = { at: string; load: number[]; runs: number; app: string; clis: Record<string, string>; rows: Row[] };
+type Report = {
+  at: string;
+  load: number[];
+  runs: number;
+  app: string;
+  clis: Record<string, string>;
+  rows: Row[];
+};
 
 const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b);
   if (!sorted.length) return NaN;
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+  return sorted.length % 2
+    ? sorted[mid]!
+    : (sorted[mid - 1]! + sorted[mid]!) / 2;
 };
 
 function flags(args: string[], name: string): string[] {
   const out: string[] = [];
-  for (let i = 0; i < args.length; i++) if (args[i] === `--${name}` && args[i + 1] !== undefined) out.push(args[++i]!);
+  for (let i = 0; i < args.length; i++)
+    if (args[i] === `--${name}` && args[i + 1] !== undefined)
+      out.push(args[++i]!);
   return out;
 }
 
@@ -53,15 +64,32 @@ function commands(app: string): Record<string, string[]> {
   return {
     version: ["--version"],
     "list-apps": ["computer", "list-apps"],
-    "get-app-state": ["computer", "get-app-state", "--app", app, "--no-screenshot"],
+    "get-app-state": [
+      "computer",
+      "get-app-state",
+      "--app",
+      app,
+      "--no-screenshot",
+    ],
   };
 }
 
-function exec(cli: string, args: string[]): { ms: number; status: number | null; out: string; err: string } {
+function exec(
+  cli: string,
+  args: string[],
+): { ms: number; status: number | null; out: string; err: string } {
   const [bin, ...pre] = cli.split(" ").filter(Boolean);
   const started = performance.now();
-  const r = spawnSync(bin!, [...pre, ...args], { encoding: "utf-8", maxBuffer: 64 << 20 });
-  return { ms: performance.now() - started, status: r.status, out: r.stdout, err: r.stderr };
+  const r = spawnSync(bin!, [...pre, ...args], {
+    encoding: "utf-8",
+    maxBuffer: 64 << 20,
+  });
+  return {
+    ms: performance.now() - started,
+    status: r.status,
+    out: r.stdout,
+    err: r.stderr,
+  };
 }
 
 /** The same requests over one warm connection: the helper's share of a call. */
@@ -96,7 +124,8 @@ async function run(args: string[]): Promise<void> {
       return [spec.slice(0, at), spec.slice(at + 1)];
     }),
   );
-  if (!Object.keys(clis).length) clis.src = `bun ${path.join(import.meta.dir, "..", "src", "main.ts")}`;
+  if (!Object.keys(clis).length)
+    clis.src = `bun ${path.join(import.meta.dir, "..", "src", "main.ts")}`;
   const runs = Number(flags(args, "runs")[0] ?? 15);
   const app = flags(args, "app")[0] ?? "com.apple.finder";
   const out = flags(args, "out")[0];
@@ -108,7 +137,10 @@ async function run(args: string[]): Promise<void> {
   for (const [name, cli] of Object.entries(clis)) {
     for (const [cmd, argv] of Object.entries(cmds)) {
       const r = exec(cli, argv);
-      if (r.status !== 0) throw new Error(`${name} ${cmd} exited ${r.status}: ${r.err.trim().slice(0, 400)}`);
+      if (r.status !== 0)
+        throw new Error(
+          `${name} ${cmd} exited ${r.status}: ${r.err.trim().slice(0, 400)}`,
+        );
     }
   }
 
@@ -119,7 +151,10 @@ async function run(args: string[]): Promise<void> {
       for (const [name, cli] of Object.entries(clis)) {
         const key = `${name}:${cmd}`;
         const r = exec(cli, argv);
-        if (r.status !== 0) throw new Error(`${key} exited ${r.status}: ${r.err.trim().slice(0, 400)}`);
+        if (r.status !== 0)
+          throw new Error(
+            `${key} exited ${r.status}: ${r.err.trim().slice(0, 400)}`,
+          );
         (samples.get(key) ?? samples.set(key, []).get(key)!).push(r.ms);
       }
     }
@@ -129,11 +164,20 @@ async function run(args: string[]): Promise<void> {
   const rows: Row[] = [...samples].map(([name, ms]) => ({ name, ms }));
   rows.push(
     ...(helperFrom
-      ? (JSON.parse(fs.readFileSync(helperFrom, "utf-8")) as Report).rows.filter((r) => r.name.startsWith("helper:"))
+      ? (
+          JSON.parse(fs.readFileSync(helperFrom, "utf-8")) as Report
+        ).rows.filter((r) => r.name.startsWith("helper:"))
       : await helperTimes(app, runs)),
   );
 
-  const report: Report = { at: new Date().toISOString(), load: [loadBefore, loadavg()[0]!], runs, app, clis, rows };
+  const report: Report = {
+    at: new Date().toISOString(),
+    load: [loadBefore, loadavg()[0]!],
+    runs,
+    app,
+    clis,
+    rows,
+  };
   print(report);
   if (out) {
     fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -142,7 +186,9 @@ async function run(args: string[]): Promise<void> {
 }
 
 /** exec median, and for computer verbs the overhead: exec minus helper. */
-function summarize(report: Report): Map<string, { exec: number; overhead?: number }> {
+function summarize(
+  report: Report,
+): Map<string, { exec: number; overhead?: number }> {
   const byName = new Map(report.rows.map((r) => [r.name, median(r.ms)]));
   const out = new Map<string, { exec: number; overhead?: number }>();
   for (const row of report.rows) {
@@ -150,19 +196,31 @@ function summarize(report: Report): Map<string, { exec: number; overhead?: numbe
     const verb = row.name.slice(row.name.indexOf(":") + 1);
     const helper = byName.get(`helper:${verb}`);
     const exec = median(row.ms);
-    out.set(row.name, { exec, overhead: helper === undefined ? undefined : exec - helper });
+    out.set(row.name, {
+      exec,
+      overhead: helper === undefined ? undefined : exec - helper,
+    });
   }
   return out;
 }
 
-const fmtMs = (ms: number | undefined) => (ms === undefined || Number.isNaN(ms) ? "-" : `${Math.round(ms)} ms`);
+const fmtMs = (ms: number | undefined) =>
+  ms === undefined || Number.isNaN(ms) ? "-" : `${Math.round(ms)} ms`;
 
 function print(report: Report): void {
-  console.log(`${report.at}  load ${report.load.map((l) => l.toFixed(0)).join("→")} on ${cpus().length} cores  runs ${report.runs}  app ${report.app}`);
-  for (const [name, cli] of Object.entries(report.clis)) console.log(`  ${name} = ${cli}`);
-  for (const row of report.rows.filter((r) => r.name.startsWith("helper:"))) console.log(`  ${row.name.padEnd(28)} ${fmtMs(median(row.ms)).padStart(9)}`);
+  console.log(
+    `${report.at}  load ${report.load.map((l) => l.toFixed(0)).join("→")} on ${cpus().length} cores  runs ${report.runs}  app ${report.app}`,
+  );
+  for (const [name, cli] of Object.entries(report.clis))
+    console.log(`  ${name} = ${cli}`);
+  for (const row of report.rows.filter((r) => r.name.startsWith("helper:")))
+    console.log(
+      `  ${row.name.padEnd(28)} ${fmtMs(median(row.ms)).padStart(9)}`,
+    );
   for (const [name, s] of summarize(report)) {
-    console.log(`  ${name.padEnd(28)} exec ${fmtMs(s.exec).padStart(9)}   overhead ${fmtMs(s.overhead).padStart(9)}`);
+    console.log(
+      `  ${name.padEnd(28)} exec ${fmtMs(s.exec).padStart(9)}   overhead ${fmtMs(s.overhead).padStart(9)}`,
+    );
   }
 }
 
@@ -172,8 +230,13 @@ function compare(a: Report, b: Report): void {
   for (const [name, x] of sa) {
     const y = sb.get(name);
     if (!y) continue;
-    const ratio = x.overhead && y.overhead ? `${(x.overhead / y.overhead).toFixed(1)}x` : "";
-    console.log(`${name.padEnd(28)} overhead ${fmtMs(x.overhead).padStart(9)} → ${fmtMs(y.overhead).padStart(9)}  ${ratio}`);
+    const ratio =
+      x.overhead && y.overhead
+        ? `${(x.overhead / y.overhead).toFixed(1)}x`
+        : "";
+    console.log(
+      `${name.padEnd(28)} overhead ${fmtMs(x.overhead).padStart(9)} → ${fmtMs(y.overhead).padStart(9)}  ${ratio}`,
+    );
   }
 }
 
@@ -181,9 +244,13 @@ const [verb, ...rest] = process.argv.slice(2);
 if (verb === "run") await run(rest);
 else if (verb === "stop-helper") await new ComputerClient().terminate();
 else if (verb === "compare" && rest.length === 2) {
-  const [a, b] = rest.map((f) => JSON.parse(fs.readFileSync(f!, "utf-8")) as Report);
+  const [a, b] = rest.map(
+    (f) => JSON.parse(fs.readFileSync(f!, "utf-8")) as Report,
+  );
   compare(a!, b!);
 } else {
-  console.error("usage: computer-startup-bench.ts run [--cli name=command]... [--runs n] [--app id] [--helper-from report.json] [--out file] | compare a.json b.json | stop-helper");
+  console.error(
+    "usage: computer-startup-bench.ts run [--cli name=command]... [--runs n] [--app id] [--helper-from report.json] [--out file] | compare a.json b.json | stop-helper",
+  );
   process.exit(2);
 }

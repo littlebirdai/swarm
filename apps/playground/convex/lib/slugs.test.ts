@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { APP_NAME_MAX, SLUG_STEM_MAX, cleanAppName, isSlug, makeSlug, nameFromPrompt, slugStem } from "./slugs";
+import {
+  APP_NAME_MAX,
+  SLUG_STEM_MAX,
+  cleanAppName,
+  isSlug,
+  makeSlug,
+  nameFromPrompt,
+  slugStem,
+} from "./slugs";
 
 describe("slugs", () => {
   test("a stem is lowercase ascii words joined by hyphens", () => {
@@ -8,7 +16,9 @@ describe("slugs", () => {
   });
 
   test("a long name is cut on a word boundary", () => {
-    const stem = slugStem("a guestbook where every visitor plants a tiny planet");
+    const stem = slugStem(
+      "a guestbook where every visitor plants a tiny planet",
+    );
     expect(stem).toBe("a-guestbook-where-every-visitor");
     expect(stem.length).toBeLessThanOrEqual(SLUG_STEM_MAX);
   });
@@ -28,7 +38,16 @@ describe("slugs", () => {
   });
 
   test("isSlug refuses anything a route or a typo could produce", () => {
-    for (const bad of ["", "Frog", "frog--choir", "-frog", "frog-", "frog/choir", "a".repeat(60), 7]) {
+    for (const bad of [
+      "",
+      "Frog",
+      "frog--choir",
+      "-frog",
+      "frog-",
+      "frog/choir",
+      "a".repeat(60),
+      7,
+    ]) {
       expect(isSlug(bad)).toBe(false);
     }
   });
@@ -43,11 +62,21 @@ describe("app names", () => {
   });
 
   test("nameFromPrompt keeps the subject of the first clause", () => {
-    expect(nameFromPrompt("a frog choir, one note per person")).toBe("Frog choir");
-    expect(nameFromPrompt("make me a guestbook where every visitor plants a tiny planet")).toBe("Guestbook");
-    expect(nameFromPrompt("Build a pixel art board for the whole office")).toBe("Pixel art board");
+    expect(nameFromPrompt("a frog choir, one note per person")).toBe(
+      "Frog choir",
+    );
+    expect(
+      nameFromPrompt(
+        "make me a guestbook where every visitor plants a tiny planet",
+      ),
+    ).toBe("Guestbook");
+    expect(nameFromPrompt("Build a pixel art board for the whole office")).toBe(
+      "Pixel art board",
+    );
     expect(nameFromPrompt("snake game with power ups")).toBe("Snake game");
-    expect(nameFromPrompt("Please create the tiniest drum machine ever made")).toBe("Tiniest drum machine ever");
+    expect(
+      nameFromPrompt("Please create the tiniest drum machine ever made"),
+    ).toBe("Tiniest drum machine ever");
     expect(nameFromPrompt("   ")).toBe("Untitled");
   });
 });

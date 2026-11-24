@@ -18,14 +18,23 @@
 // The pointer is fetched once per process (short TTL, so a long-lived daemon
 // notices a team switch) and shared by every subcommand.
 
-import { workspaceFeatureEnabled, type TeamFeatureKey, type TeamFeatures } from "@codecast/shared/contracts";
+import {
+  workspaceFeatureEnabled,
+  type TeamFeatureKey,
+  type TeamFeatures,
+} from "@codecast/shared/contracts";
 
 export type Workspace =
   | { kind: "team"; teamId: string; name?: string }
   | { kind: "personal" };
 
 export type WorkspaceRoster = {
-  teams: Array<{ _id: string; name: string; role?: string; features?: TeamFeatures }>;
+  teams: Array<{
+    _id: string;
+    name: string;
+    role?: string;
+    features?: TeamFeatures;
+  }>;
   activeTeamId: string | null;
   userId?: string;
 };
@@ -48,14 +57,21 @@ export function clearWorkspaceCache(): void {
  * (the CLI passes its authenticated cliPost).
  */
 export async function loadWorkspaceRoster(
-  fetchRoster: () => Promise<{ teams?: any[]; active_team_id?: string | null; user_id?: string }>,
+  fetchRoster: () => Promise<{
+    teams?: any[];
+    active_team_id?: string | null;
+    user_id?: string;
+  }>,
   now: number = Date.now(),
 ): Promise<WorkspaceRoster> {
   if (cache && now - cache.at < WORKSPACE_TTL_MS) return cache.roster;
   const raw = await fetchRoster();
   const roster: WorkspaceRoster = {
     teams: (raw?.teams ?? []).filter(Boolean).map((t: any) => ({
-      _id: String(t._id), name: String(t.name ?? ""), role: t.role, features: t.features,
+      _id: String(t._id),
+      name: String(t.name ?? ""),
+      role: t.role,
+      features: t.features,
     })),
     activeTeamId: raw?.active_team_id ? String(raw.active_team_id) : null,
     userId: raw?.user_id ? String(raw.user_id) : undefined,
@@ -70,7 +86,9 @@ export async function loadWorkspaceRoster(
 export const PERSONAL_WORKSPACE_WORDS = ["personal", "me"] as const;
 
 export function namesPersonalWorkspace(wanted: string): boolean {
-  return (PERSONAL_WORKSPACE_WORDS as readonly string[]).includes(wanted.trim().toLowerCase());
+  return (PERSONAL_WORKSPACE_WORDS as readonly string[]).includes(
+    wanted.trim().toLowerCase(),
+  );
 }
 
 /** Match a `--team` value against the roster by id, exact name, or slug-ish
@@ -81,7 +99,11 @@ export function matchTeam(
 ): { _id: string; name: string } | null {
   const w = wanted.trim().toLowerCase();
   if (!w) return null;
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
   return (
     roster.teams.find((t) => t._id.toLowerCase() === w) ??
     roster.teams.find((t) => t.name.toLowerCase() === w) ??
@@ -129,7 +151,8 @@ export function resolveWorkspaceForWrite(
     const hit = matchTeam(roster, explicitTeam);
     if (hit) return { kind: "team", teamId: hit._id, name: hit.name };
     if (namesPersonalWorkspace(explicitTeam)) {
-      if (opts.teamRequired) throw new WorkspaceUnresolved(noTeamMessage(roster));
+      if (opts.teamRequired)
+        throw new WorkspaceUnresolved(noTeamMessage(roster));
       return { kind: "personal" };
     }
     throw new WorkspaceUnresolved(unknownTeamMessage(roster, explicitTeam));
@@ -149,7 +172,10 @@ function teamList(roster: WorkspaceRoster): string {
   return roster.teams.map((t) => `  ${t.name}  ${t._id}`).join("\n");
 }
 
-export function unknownTeamMessage(roster: WorkspaceRoster, wanted: string): string {
+export function unknownTeamMessage(
+  roster: WorkspaceRoster,
+  wanted: string,
+): string {
   return `No team matching "${wanted}". Your teams:\n${teamList(roster)}\n  personal  your own workspace`;
 }
 
@@ -172,13 +198,17 @@ export function workspaceArgs(ws: Workspace): { team_id?: string } {
  *  shell whose active team is a team can still list and file personal work.
  *  Nothing is sent when the person named no workspace: the route's own
  *  default (the directory rule, the session's team) stays in force. */
-export function workspaceScope(ws: Workspace): { workspace: "team"; team_id: string } | { workspace: "personal" } {
-  return ws.kind === "team" ? { workspace: "team", team_id: ws.teamId } : { workspace: "personal" };
+export function workspaceScope(
+  ws: Workspace,
+): { workspace: "team"; team_id: string } | { workspace: "personal" } {
+  return ws.kind === "team"
+    ? { workspace: "team", team_id: ws.teamId }
+    : { workspace: "personal" };
 }
 
 /** How to name the resolved workspace in output. */
 export function workspaceLabel(ws: Workspace): string {
-  return ws.kind === "team" ? (ws.name || ws.teamId) : "personal";
+  return ws.kind === "team" ? ws.name || ws.teamId : "personal";
 }
 
 /**
@@ -187,8 +217,16 @@ export function workspaceLabel(ws: Workspace): string {
  * case any of the person's teams having it on counts (shared rule:
  * workspaceFeatureEnabled). Unknown team in the roster = off, never everything.
  */
-export function workspaceHasFeature(roster: WorkspaceRoster, ws: Workspace, key: TeamFeatureKey): boolean {
-  return workspaceFeatureEnabled(roster.teams, ws.kind === "team" ? ws.teamId : null, key);
+export function workspaceHasFeature(
+  roster: WorkspaceRoster,
+  ws: Workspace,
+  key: TeamFeatureKey,
+): boolean {
+  return workspaceFeatureEnabled(
+    roster.teams,
+    ws.kind === "team" ? ws.teamId : null,
+    key,
+  );
 }
 
 /**
@@ -203,10 +241,14 @@ export async function otherWorkspacesWith(
   has: (ws: Workspace) => Promise<boolean>,
 ): Promise<Workspace[]> {
   const others: Workspace[] = [
-    ...roster.teams.filter((t) => current.kind !== "team" || t._id !== current.teamId).map((t): Workspace => ({ kind: "team", teamId: t._id, name: t.name })),
+    ...roster.teams
+      .filter((t) => current.kind !== "team" || t._id !== current.teamId)
+      .map((t): Workspace => ({ kind: "team", teamId: t._id, name: t.name })),
     ...(current.kind === "team" ? [{ kind: "personal" } as Workspace] : []),
   ];
-  const found = await Promise.all(others.map((ws) => has(ws).catch(() => false)));
+  const found = await Promise.all(
+    others.map((ws) => has(ws).catch(() => false)),
+  );
   return others.filter((_, i) => found[i]);
 }
 

@@ -44,7 +44,11 @@ import {
 } from "./daemon.js";
 import { livenessFromTmuxState } from "./tmuxPaneState.js";
 // The managed browser's readers, held to the same rule below (ct-49625).
-import { BrowserNotLive, isReachable, livenessProblem } from "./browser/recovery.js";
+import {
+  BrowserNotLive,
+  isReachable,
+  livenessProblem,
+} from "./browser/recovery.js";
 import { authorizesReap } from "./browser/engineReap.js";
 import type { InstanceState } from "./browser/instance.js";
 
@@ -76,9 +80,12 @@ const TEARDOWN_VERBS = [
 
 /** Files allowed to compare verdict literals, each with the reason. */
 const ALLOWED_COMPARISON: Record<string, string> = {
-  "contracts/liveness.ts": "defines the vocabulary; authorizesTeardown and confineToOwningDevice are the comparisons everyone else reuses",
-  "index.ts": "`cast accounts verify` grades a stored credential with its own ProfileAudit verdict, which borrows the word `unverifiable` and decides nothing about a process",
-  "ccAccounts.ts": "matchProfileForCredential grades a stored profile against a credential — same borrowed word, and it names a profile, never a process (ct-49526)",
+  "contracts/liveness.ts":
+    "defines the vocabulary; authorizesTeardown and confineToOwningDevice are the comparisons everyone else reuses",
+  "index.ts":
+    "`cast accounts verify` grades a stored credential with its own ProfileAudit verdict, which borrows the word `unverifiable` and decides nothing about a process",
+  "ccAccounts.ts":
+    "matchProfileForCredential grades a stored profile against a credential — same borrowed word, and it names a profile, never a process (ct-49526)",
 };
 
 /**
@@ -99,12 +106,19 @@ const ALLOWED_COMPARISON: Record<string, string> = {
  * by writing the gate, and loses it the moment the gate goes. ct-49683.
  */
 function softensUnverifiable(line: string): boolean {
-  return line.includes("authorizesTeardown(")
-    && /"unverifiable"/.test(line)
-    && !/"(?:live|exited)"/.test(line);
+  return (
+    line.includes("authorizesTeardown(") &&
+    /"unverifiable"/.test(line) &&
+    !/"(?:live|exited)"/.test(line)
+  );
 }
 
-const SKIP_DIRS = new Set(["node_modules", "dist", "__fixtures__", "test-helpers"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "__fixtures__",
+  "test-helpers",
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -112,7 +126,8 @@ function walk(dir: string, out: string[] = []): string[] {
       if (!SKIP_DIRS.has(entry.name)) walk(path.join(dir, entry.name), out);
       continue;
     }
-    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
+    if (!entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts"))
+      continue;
     out.push(path.join(dir, entry.name));
   }
   return out;
@@ -123,9 +138,10 @@ function sources(): Array<{ rel: string; text: string }> {
   for (const root of ROOTS) {
     for (const file of walk(root)) {
       // Shared contracts keep their directory so the two roots never collide.
-      const rel = root === HERE
-        ? path.relative(HERE, file)
-        : path.join("contracts", path.relative(root, file));
+      const rel =
+        root === HERE
+          ? path.relative(HERE, file)
+          : path.join("contracts", path.relative(root, file));
       out.push({ rel, text: fs.readFileSync(file, "utf8") });
     }
   }
@@ -147,14 +163,18 @@ describe("liveness verdicts are only ever read through authorizesTeardown", () =
       // TmuxLiveState shares the words "exited" and "unknown" with the verdict
       // vocabulary, so only a line that also handles a VERDICT is in scope.
       const producer = VERDICT_PRODUCERS.find((p) => line.includes(p));
-      const comparesVerdict = COMPARISON.test(line) && (producer !== undefined || line.includes("unverifiable"));
+      const comparesVerdict =
+        COMPARISON.test(line) &&
+        (producer !== undefined || line.includes("unverifiable"));
       if (!comparesVerdict) continue;
       if (softensUnverifiable(line)) continue;
       if (rel in ALLOWED_COMPARISON) {
         seenAllowed.add(rel);
         continue;
       }
-      offenders.push(`${rel}:${n} compares a liveness verdict instead of asking authorizesTeardown`);
+      offenders.push(
+        `${rel}:${n} compares a liveness verdict instead of asking authorizesTeardown`,
+      );
     }
   }
 
@@ -163,7 +183,9 @@ describe("liveness verdicts are only ever read through authorizesTeardown", () =
   });
 
   test("every allowlist entry still earns its place", () => {
-    expect([...Object.keys(ALLOWED_COMPARISON)].filter((f) => !seenAllowed.has(f))).toEqual([]);
+    expect(
+      [...Object.keys(ALLOWED_COMPARISON)].filter((f) => !seenAllowed.has(f)),
+    ).toEqual([]);
   });
 });
 
@@ -201,10 +223,24 @@ describe("the migrated gates answer safely for every verdict", () => {
 
   test("the stale-status watchdog never completes a session it could not verify", () => {
     // Below the threshold nothing is established, so nothing is marked done.
-    expect(shouldMarkSessionCompleted({ status: "idle", ageMs: 60_000, hasLiveAgentProcess: false })).toBe(false);
+    expect(
+      shouldMarkSessionCompleted({
+        status: "idle",
+        ageMs: 60_000,
+        hasLiveAgentProcess: false,
+      }),
+    ).toBe(false);
     // Past it, only this device's own process table may say so.
-    expect(shouldMarkSessionCompleted({ status: "idle", ageMs: 60 * 60_000, hasLiveAgentProcess: false })).toBe(true);
-    expect(authorizesTeardown(confineToOwningDevice("exited", false))).toBe(false);
+    expect(
+      shouldMarkSessionCompleted({
+        status: "idle",
+        ageMs: 60 * 60_000,
+        hasLiveAgentProcess: false,
+      }),
+    ).toBe(true);
+    expect(authorizesTeardown(confineToOwningDevice("exited", false))).toBe(
+      false,
+    );
   });
 });
 
@@ -230,13 +266,17 @@ describe("a failed process probe never completes a session", () => {
   });
 
   test("a probe that finds the agent keeps the session", async () => {
-    const verdict = await staleSessionVerdictFromProbe(STALE, async () => ({ pid: 42 }));
+    const verdict = await staleSessionVerdictFromProbe(STALE, async () => ({
+      pid: 42,
+    }));
     expect(verdict).toBe("live");
     expect(authorizesTeardown(verdict)).toBe(false);
   });
 
   test("a throw and an empty answer are not the same verdict", async () => {
-    const thrown = await staleSessionVerdictFromProbe(STALE, async () => { throw new Error("boom"); });
+    const thrown = await staleSessionVerdictFromProbe(STALE, async () => {
+      throw new Error("boom");
+    });
     const empty = await staleSessionVerdictFromProbe(STALE, async () => null);
     expect(thrown).not.toBe(empty);
   });
@@ -262,15 +302,20 @@ const BROWSER_DIR = "browser" + path.sep;
 
 /** Ends or replaces the machine's one Chrome, or takes a session's tab from it. */
 const BROWSER_TEARDOWN_VERBS = [
-  "launchManagedChrome(", "startLocalBrowser(", "killStrayChrome(", "stopInstance(",
+  "launchManagedChrome(",
+  "startLocalBrowser(",
+  "killStrayChrome(",
+  "stopInstance(",
   // The tab reaper ends a session's tab and its daemon rather than the browser,
   // which is the same decision at a smaller scale and needs the same gate.
-  "closeSessionTab(", "closeTargetLater(",
+  "closeSessionTab(",
+  "closeTargetLater(",
 ];
 
 /** Browser files allowed to name a verdict word, with the reason. */
 const BROWSER_ALLOWED_COMPARISON: Record<string, string> = {
-  "browser/recovery.ts": "defines `isReachable`, the positive-contact gate the rest of the browser reads verdicts through; it authorizes nothing",
+  "browser/recovery.ts":
+    "defines `isReachable`, the positive-contact gate the rest of the browser reads verdicts through; it authorizes nothing",
 };
 
 /** A comparison against any verdict word, with nothing else required of the line. */
@@ -298,7 +343,9 @@ describe("the browser reads verdicts only through isReachable and authorizesTear
         seenAllowed.add(rel);
         continue;
       }
-      offenders.push(`${rel}:${n} names a liveness verdict; ask isReachable or authorizesTeardown`);
+      offenders.push(
+        `${rel}:${n} names a liveness verdict; ask isReachable or authorizesTeardown`,
+      );
     }
   }
 
@@ -307,7 +354,11 @@ describe("the browser reads verdicts only through isReachable and authorizesTear
   });
 
   test("every browser allowlist entry still earns its place", () => {
-    expect(Object.keys(BROWSER_ALLOWED_COMPARISON).filter((f) => !seenAllowed.has(f))).toEqual([]);
+    expect(
+      Object.keys(BROWSER_ALLOWED_COMPARISON).filter(
+        (f) => !seenAllowed.has(f),
+      ),
+    ).toEqual([]);
   });
 
   // The shape is legal anywhere; spreading it is not. A second site means two
@@ -335,11 +386,15 @@ describe("a file that can end a browser or a tab asks authorizesTeardown", () =>
   for (const { rel, text } of browserSources()) {
     const producesVerdict = VERDICT_PRODUCERS.some((p) => text.includes(p));
     const calls = BROWSER_TEARDOWN_VERBS.filter((verb) =>
-      codeLines(text).some(({ line }) => line.includes(verb) && !line.includes(`function ${verb}`)),
+      codeLines(text).some(
+        ({ line }) => line.includes(verb) && !line.includes(`function ${verb}`),
+      ),
     );
     if (!producesVerdict || calls.length === 0) continue;
     if (text.includes("authorizesTeardown(")) continue;
-    offenders.push(`${rel} calls ${calls.join(", ")} on a liveness verdict without authorizesTeardown`);
+    offenders.push(
+      `${rel} calls ${calls.join(", ")} on a liveness verdict without authorizesTeardown`,
+    );
   }
 
   test("no browser file tears down on an unasked verdict", () => {
@@ -349,7 +404,9 @@ describe("a file that can end a browser or a tab asks authorizesTeardown", () =>
   test("the files that can tear something down are still covered", () => {
     const covered = browserSources()
       .filter((f) => VERDICT_PRODUCERS.some((p) => f.text.includes(p)))
-      .filter((f) => BROWSER_TEARDOWN_VERBS.some((verb) => f.text.includes(verb)))
+      .filter((f) =>
+        BROWSER_TEARDOWN_VERBS.some((verb) => f.text.includes(verb)),
+      )
       .map((f) => f.rel);
     expect(covered).toContain("browser/managedBrowser.ts");
     expect(covered).toContain("browser/cli.ts");
@@ -385,8 +442,12 @@ describe("the browser's guidance follows the verdict", () => {
   });
 
   test("the error the CLI catches carries the verdict, not a boolean", () => {
-    expect(authorizesTeardown(new BrowserNotLive("unverifiable", null).liveness)).toBe(false);
-    expect(authorizesTeardown(new BrowserNotLive("exited", null).liveness)).toBe(true);
+    expect(
+      authorizesTeardown(new BrowserNotLive("unverifiable", null).liveness),
+    ).toBe(false);
+    expect(
+      authorizesTeardown(new BrowserNotLive("exited", null).liveness),
+    ).toBe(true);
   });
 });
 
@@ -410,7 +471,8 @@ describe("the tab reaper softens unverifiable, and only unverifiable", () => {
   });
 
   test("idleness only ever adds a verdict; it never takes the strict gate away", () => {
-    expect(LIVENESS_VERDICTS.filter((v) => authorizesReap(v, false)))
-      .toEqual(LIVENESS_VERDICTS.filter(authorizesTeardown));
+    expect(LIVENESS_VERDICTS.filter((v) => authorizesReap(v, false))).toEqual(
+      LIVENESS_VERDICTS.filter(authorizesTeardown),
+    );
   });
 });

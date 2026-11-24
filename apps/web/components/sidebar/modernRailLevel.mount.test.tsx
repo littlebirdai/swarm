@@ -11,7 +11,10 @@ import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 import { offlineConvexClient } from "../../test-helpers/offlineConvex";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/ops", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/ops",
+  pretendToBeVisual: true,
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -56,8 +59,14 @@ async function levels() {
     api = useRailLevel<L>(route, ALL);
     return null;
   }
-  const at = async (route: L | null) => { await act(async () => root.render(<Probe route={route} />)); return api!.level; };
-  const press = async (f: (a: NonNullable<typeof api>) => void) => { await act(async () => f(api!)); return api!.level; };
+  const at = async (route: L | null) => {
+    await act(async () => root.render(<Probe route={route} />));
+    return api!.level;
+  };
+  const press = async (f: (a: NonNullable<typeof api>) => void) => {
+    await act(async () => f(api!));
+    return api!.level;
+  };
   return { at, press, done: () => act(async () => root.unmount()) };
 }
 
@@ -129,8 +138,10 @@ test("the Modern rail at /ops, after the tab showed a chat room, renders the roo
       </TeamFeatureOverride.Provider>
     </ConvexProvider>
   );
-  const levelOpen = () => !host.querySelector("[data-sidebar-drill]")!.hasAttribute("inert");
-  const rootOpen = () => !host.querySelector("[data-sidebar-scroll]")!.hasAttribute("inert");
+  const levelOpen = () =>
+    !host.querySelector("[data-sidebar-drill]")!.hasAttribute("inert");
+  const rootOpen = () =>
+    !host.querySelector("[data-sidebar-scroll]")!.hasAttribute("inert");
 
   // The tab's stored path renders first: Chat's level, as the route belongs to it.
   await act(async () => root.render(rail("/chat/c1")));
@@ -140,8 +151,11 @@ test("the Modern rail at /ops, after the tab showed a chat room, renders the roo
   expect(levelOpen()).toBe(false);
   expect(rootOpen()).toBe(true);
   const scroll = host.querySelector("[data-sidebar-scroll]")!;
-  for (const group of ["top", "team", "work", "automation", "code"]) expect(scroll.querySelector(`[data-rail-group="${group}"]`)).not.toBeNull();
-  expect(scroll.querySelector('a[href="/ops"][aria-current="page"]')).not.toBeNull();
+  for (const group of ["top", "team", "work", "automation", "code"])
+    expect(scroll.querySelector(`[data-rail-group="${group}"]`)).not.toBeNull();
+  expect(
+    scroll.querySelector('a[href="/ops"][aria-current="page"]'),
+  ).not.toBeNull();
   // A full load straight onto /ops starts on the root rail too.
   await act(async () => root.unmount());
   const fresh = createRoot(host);

@@ -45,7 +45,8 @@ function fakeDb(seed: Record<string, any[]> = {}) {
             collect: async () => rows,
             first: async () => rows[0] ?? null,
             unique: async () => {
-              if (rows.length > 1) throw new Error("Expected a unique indexed row");
+              if (rows.length > 1)
+                throw new Error("Expected a unique indexed row");
               return rows[0] ?? null;
             },
             take: async (n: number) => rows.slice(0, n),
@@ -98,7 +99,9 @@ describe("findActiveBucketByExactName", () => {
 
   test("matches case-insensitively but exactly — never the substring sibling", async () => {
     expect((await findActiveBucketByExactName(buckets, "api"))?._id).toBe("b1");
-    expect((await findActiveBucketByExactName(buckets, "APIV2"))?._id).toBe("b2");
+    expect((await findActiveBucketByExactName(buckets, "APIV2"))?._id).toBe(
+      "b2",
+    );
   });
 
   test("ignores archived labels and unknown names", async () => {
@@ -144,7 +147,9 @@ describe("resolveOrCreateBucket", () => {
   test("blank name is rejected", async () => {
     const db = fakeDb();
     const ctx = { db } as any;
-    await expect(resolveOrCreateBucket(ctx, USER, "   ")).rejects.toThrow(/required/i);
+    await expect(resolveOrCreateBucket(ctx, USER, "   ")).rejects.toThrow(
+      /required/i,
+    );
   });
 });
 
@@ -171,11 +176,19 @@ describe("assignConversationToBucketForUser", () => {
 });
 
 describe("rename and archive take the exact label only", () => {
-  const buckets = [{ _id: "b1", name: "apiv2" }, { _id: "b2", name: "Frontend" }, { _id: "b3", name: "old", archived_at: 1 }];
+  const buckets = [
+    { _id: "b1", name: "apiv2" },
+    { _id: "b2", name: "Frontend" },
+    { _id: "b3", name: "old", archived_at: 1 },
+  ];
 
   test("a substring of another label is refused, naming the labels there are", async () => {
-    await expect(requireExactLabel(buckets, "api")).rejects.toThrow(/No label named "api". Your labels: Frontend, apiv2/);
-    await expect(requireExactLabel(buckets, "old")).rejects.toThrow(/No label named/);
+    await expect(requireExactLabel(buckets, "api")).rejects.toThrow(
+      /No label named "api". Your labels: Frontend, apiv2/,
+    );
+    await expect(requireExactLabel(buckets, "old")).rejects.toThrow(
+      /No label named/,
+    );
   });
 
   test("the exact name matches, whatever its case", async () => {
@@ -185,7 +198,10 @@ describe("rename and archive take the exact label only", () => {
 });
 
 describe("matchBucketByName (existing helper, used by the read filters)", () => {
-  const buckets = [{ _id: "b1", name: "backend" }, { _id: "b2", name: "frontend" }] as any[];
+  const buckets = [
+    { _id: "b1", name: "backend" },
+    { _id: "b2", name: "frontend" },
+  ] as any[];
 
   test("exact wins, substring falls back, miss lists the catalog", () => {
     expect((matchBucketByName(buckets, "backend") as any)._id).toBe("b1");
@@ -197,7 +213,10 @@ describe("matchBucketByName (existing helper, used by the read filters)", () => 
 
 describe("buckets v2 complete view and command receipts", () => {
   test("auth unavailability is explicit and cannot masquerade as an empty catalog", async () => {
-    const result = await (webListV2 as any)._handler(webCtx(fakeDb(), null), {});
+    const result = await (webListV2 as any)._handler(
+      webCtx(fakeDb(), null),
+      {},
+    );
     expect(result).toEqual({
       contractId: "buckets.principal/v2",
       viewKey: "buckets:principal",
@@ -244,7 +263,15 @@ describe("buckets v2 complete view and command receipts", () => {
 
   test("update and assignment each cover the same complete atomic view", async () => {
     const db = fakeDb({
-      inbox_buckets: [{ _id: "b1", user_id: USER, name: "Before", created_at: 1, updated_at: 1 }],
+      inbox_buckets: [
+        {
+          _id: "b1",
+          user_id: USER,
+          name: "Before",
+          created_at: 1,
+          updated_at: 1,
+        },
+      ],
       conversations: [{ _id: "c1", user_id: USER }],
     });
     const ctx = webCtx(db);
@@ -271,8 +298,18 @@ describe("buckets v2 complete view and command receipts", () => {
     // ownership.
     const db = fakeDb({
       conversations: [
-        { _id: "shared", user_id: "someone-else", team_id: "t1", is_private: false },
-        { _id: "private", user_id: "someone-else", team_id: "t1", is_private: true },
+        {
+          _id: "shared",
+          user_id: "someone-else",
+          team_id: "t1",
+          is_private: false,
+        },
+        {
+          _id: "private",
+          user_id: "someone-else",
+          team_id: "t1",
+          is_private: true,
+        },
       ],
       team_memberships: [
         { user_id: USER, team_id: "t1", visibility: "full" },
@@ -287,7 +324,9 @@ describe("buckets v2 complete view and command receipts", () => {
     });
     expect(created.status).toBe("acknowledged");
     const bucketId = (created as any).result.bucketId;
-    expect(db._tables.bucket_assignments.map((a: any) => a.conversation_id)).toEqual(["shared"]);
+    expect(
+      db._tables.bucket_assignments.map((a: any) => a.conversation_id),
+    ).toEqual(["shared"]);
 
     const assigned = await (webAssignV2 as any)._handler(ctx, {
       command_id: "cmd-assign-shared",

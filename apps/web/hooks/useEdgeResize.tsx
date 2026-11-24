@@ -6,7 +6,12 @@ import { useCallback, useRef, useState } from "react";
 // persists per client under `storageKey`; a saved width outside [min, max]
 // falls back to `fallback`.
 
-export function loadEdgeWidth(storageKey: string, min: number, fallback: number, max = Infinity): number {
+export function loadEdgeWidth(
+  storageKey: string,
+  min: number,
+  fallback: number,
+  max = Infinity,
+): number {
   if (typeof window === "undefined") return fallback;
   const v = Number(window.localStorage.getItem(storageKey));
   return v >= min && v <= max ? v : fallback;
@@ -31,7 +36,14 @@ export function useEdgeResize({
   onCommit?: (width: number) => void;
 }) {
   const [width, setWidth] = useState(
-    () => initial ?? loadEdgeWidth(storageKey, min, fallback, typeof max === "number" ? max : Infinity),
+    () =>
+      initial ??
+      loadEdgeWidth(
+        storageKey,
+        min,
+        fallback,
+        typeof max === "number" ? max : Infinity,
+      ),
   );
   const dragging = useRef(false);
 
@@ -40,7 +52,10 @@ export function useEdgeResize({
       e.preventDefault();
       const startX = e.clientX;
       const startW = width;
-      const hi = Math.max(min, typeof max === "number" ? max : max(e.currentTarget));
+      const hi = Math.max(
+        min,
+        typeof max === "number" ? max : max(e.currentTarget),
+      );
       let latest = startW;
       dragging.current = true;
       document.body.style.cursor = "col-resize";
@@ -71,6 +86,16 @@ export function useEdgeResize({
 
 /** The left-edge handle: invisible at rest, a hairline in `--edge-resize-accent`
  *  (cyan by default) on hover and drag. Its panel must be positioned. */
-export function EdgeResizeHandle({ onResizeDown }: { onResizeDown: (e: React.PointerEvent<HTMLElement>) => void }) {
-  return <div className="edge-resize" onPointerDown={onResizeDown} title="Drag to resize" />;
+export function EdgeResizeHandle({
+  onResizeDown,
+}: {
+  onResizeDown: (e: React.PointerEvent<HTMLElement>) => void;
+}) {
+  return (
+    <div
+      className="edge-resize"
+      onPointerDown={onResizeDown}
+      title="Drag to resize"
+    />
+  );
 }

@@ -4,7 +4,13 @@ import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { canAccessProject, canAccessTask, canAccessPlan, canAccessDoc, requireAccessibleProject } from "./lib/access";
+import {
+  canAccessProject,
+  canAccessTask,
+  canAccessPlan,
+  canAccessDoc,
+  requireAccessibleProject,
+} from "./lib/access";
 import { nextShortId } from "./counters";
 
 // Project updates: posts on a project's Updates tab (human status posts and
@@ -26,8 +32,11 @@ const MAX_BODY = 20_000;
 const MAX_COMMENT = 4_000;
 const MAX_TITLE = 200;
 
-
-async function requireUpdate(ctx: any, userId: Id<"users">, updateId: Id<"project_updates">) {
+async function requireUpdate(
+  ctx: any,
+  userId: Id<"users">,
+  updateId: Id<"project_updates">,
+) {
   const update = await ctx.db.get(updateId);
   if (!update) throw new Error("Update not found");
   const project = await ctx.db.get(update.project_id);
@@ -143,7 +152,12 @@ export type TimelineEvent = {
     body: string;
   };
   text?: string;
-  task?: { short_id?: string; title: string; status: string; priority?: string };
+  task?: {
+    short_id?: string;
+    title: string;
+    status: string;
+    priority?: string;
+  };
   old_value?: string;
   new_value?: string;
   plan?: { short_id?: string; title: string; status: string };
@@ -167,10 +181,16 @@ const TIMELINE_MAX_PLANS = 200;
 const TIMELINE_MAX_DOCS = 200;
 
 function snippet(text: string): string {
-  return text.length > TIMELINE_SNIPPET ? `${text.slice(0, TIMELINE_SNIPPET)}…` : text;
+  return text.length > TIMELINE_SNIPPET
+    ? `${text.slice(0, TIMELINE_SNIPPET)}…`
+    : text;
 }
 
-async function userName(ctx: any, cache: Map<string, string>, userId?: string): Promise<string | undefined> {
+async function userName(
+  ctx: any,
+  cache: Map<string, string>,
+  userId?: string,
+): Promise<string | undefined> {
   if (!userId) return undefined;
   const key = String(userId);
   if (cache.has(key)) return cache.get(key);
@@ -229,7 +249,9 @@ export async function buildProjectTimeline(
     )
     .order("desc")
     .take(TIMELINE_MAX_UPDATE_COMMENTS);
-  const updateById = new Map<string, any>(updates.map((u: any) => [String(u._id), u]));
+  const updateById = new Map<string, any>(
+    updates.map((u: any) => [String(u._id), u]),
+  );
   for (const c of updateComments) {
     const u = updateById.get(String(c.update_id));
     push({
@@ -239,7 +261,13 @@ export async function buildProjectTimeline(
       actor_kind: c.author_kind,
       text: snippet(c.text),
       update: u
-        ? { id: String(u._id), short_id: u.short_id, title: u.title, kind: u.kind, body: "" }
+        ? {
+            id: String(u._id),
+            short_id: u.short_id,
+            title: u.title,
+            kind: u.kind,
+            body: "",
+          }
         : undefined,
     });
   }
@@ -281,7 +309,8 @@ export async function buildProjectTimeline(
       .take(TIMELINE_PER_TASK_ROWS);
     for (const h of history) {
       if (h.action !== "updated" || h.field !== "status") continue;
-      if (h.new_value === "done" || h.new_value === "dropped") sawTerminal.add(String(t._id));
+      if (h.new_value === "done" || h.new_value === "dropped")
+        sawTerminal.add(String(t._id));
       push({
         ts: h.created_at,
         type: "task_status",
@@ -377,7 +406,8 @@ export const webList = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const project = await ctx.db.get(args.project_id);
-    if (!project || !(await canAccessProject(ctx, userId, project))) return null;
+    if (!project || !(await canAccessProject(ctx, userId, project)))
+      return null;
     return updatesWithComments(ctx, args.project_id);
   },
 });
@@ -392,8 +422,12 @@ export const webTimeline = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
     const project = await ctx.db.get(args.project_id);
-    if (!project || !(await canAccessProject(ctx, userId, project))) return null;
-    return buildProjectTimeline(ctx, userId, project, { limit: args.limit, since: args.since });
+    if (!project || !(await canAccessProject(ctx, userId, project)))
+      return null;
+    return buildProjectTimeline(ctx, userId, project, {
+      limit: args.limit,
+      since: args.since,
+    });
   },
 });
 
@@ -408,15 +442,25 @@ export const webPost = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
     if (!args.body.trim()) throw new Error("Update body is empty");
-    const project = await requireAccessibleProject(ctx, userId, args.project_id);
+    const project = await requireAccessibleProject(
+      ctx,
+      userId,
+      args.project_id,
+    );
     // An outbox replay of the same post lands on the row the first made.
     if (args.client_key) {
       const recent = await ctx.db
         .query("project_updates")
-        .withIndex("by_project_created", (q: any) => q.eq("project_id", project._id))
+        .withIndex("by_project_created", (q: any) =>
+          q.eq("project_id", project._id),
+        )
         .order("desc")
         .take(50);
-      const same = recent.find((u: any) => u.client_key === args.client_key && String(u.user_id) === String(userId));
+      const same = recent.find(
+        (u: any) =>
+          u.client_key === args.client_key &&
+          String(u.user_id) === String(userId),
+      );
       if (same) return { id: same._id, short_id: same.short_id };
     }
     const user = await ctx.db.get(userId);
@@ -465,7 +509,8 @@ export const webEdit = mutation({
     if (!userId) throw new Error("Unauthorized");
     const { update } = await requireUpdate(ctx, userId, args.id);
     // Only the author edits their words.
-    if (String(update.author_user_id) !== String(userId)) throw new Error("Update not found");
+    if (String(update.author_user_id) !== String(userId))
+      throw new Error("Update not found");
     const now = Date.now();
     const patch: any = { updated_at: now, edited_at: now };
     if (args.body !== undefined) {
@@ -522,11 +567,14 @@ export const post = mutation({
     if (args.conversation_id) {
       const conv = await ctx.db
         .query("conversations")
-        .withIndex("by_session_id", (q: any) => q.eq("session_id", args.conversation_id!))
+        .withIndex("by_session_id", (q: any) =>
+          q.eq("session_id", args.conversation_id!),
+        )
         .first();
       // Only link a session the poster owns — the id names their own agent run,
       // never a handle onto someone else's conversation.
-      if (conv && String(conv.user_id) === String(auth.userId)) conversation_id = conv._id;
+      if (conv && String(conv.user_id) === String(auth.userId))
+        conversation_id = conv._id;
     }
 
     // Same rule as task comments: a post from inside a session is an agent's.
@@ -534,12 +582,17 @@ export const post = mutation({
     // to someone else's session) must not strip authorship from the poster.
     // A role's standing session posts as the role's bot user (lib/actor).
     const fromAgent = !!conversation_id;
-    const conversation = conversation_id ? await ctx.db.get(conversation_id) : null;
+    const conversation = conversation_id
+      ? await ctx.db.get(conversation_id)
+      : null;
     const actor = await resolveActor(ctx, auth.userId, conversation);
     const kind = args.kind ?? "update";
     const result = await insertUpdate(ctx, project, {
       user_id: actor.kind === "role" ? actor.user_id : auth.userId,
-      author: actor.kind === "role" ? (actor.name ?? "role") : (user?.name || user?.email || "unknown"),
+      author:
+        actor.kind === "role"
+          ? (actor.name ?? "role")
+          : user?.name || user?.email || "unknown",
       author_user_id: fromAgent ? undefined : auth.userId,
       author_kind: fromAgent ? "agent" : "user",
       kind,
@@ -560,7 +613,8 @@ export const listUpdates = query({
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.id);
-    if (!project || !(await canAccessProject(ctx, auth.userId, project))) return null;
+    if (!project || !(await canAccessProject(ctx, auth.userId, project)))
+      return null;
     return updatesWithComments(ctx, args.id);
   },
 });
@@ -591,9 +645,12 @@ export const comment = mutation({
     if (args.conversation_id) {
       const conv = await ctx.db
         .query("conversations")
-        .withIndex("by_session_id", (q: any) => q.eq("session_id", args.conversation_id!))
+        .withIndex("by_session_id", (q: any) =>
+          q.eq("session_id", args.conversation_id!),
+        )
         .first();
-      if (conv && String(conv.user_id) === String(auth.userId)) conversation_id = conv._id;
+      if (conv && String(conv.user_id) === String(auth.userId))
+        conversation_id = conv._id;
     }
     const fromAgent = !!conversation_id;
     const id = await insertComment(ctx, update, {
@@ -618,7 +675,8 @@ export const timeline = query({
     const auth = await verifyApiToken(ctx, args.api_token, false);
     if (!auth) throw new Error("Unauthorized");
     const project = await ctx.db.get(args.id);
-    if (!project || !(await canAccessProject(ctx, auth.userId, project))) return null;
+    if (!project || !(await canAccessProject(ctx, auth.userId, project)))
+      return null;
     return buildProjectTimeline(ctx, auth.userId, project, {
       limit: args.limit,
       since: args.since,

@@ -2,7 +2,10 @@ import type { Context, Hono, Next } from "hono";
 import { stream } from "hono/streaming";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import { SHARED_OBJECT_KINDS, type SharedObjectKind } from "@codecast/shared/entities";
+import {
+  SHARED_OBJECT_KINDS,
+  type SharedObjectKind,
+} from "@codecast/shared/entities";
 import { fetchShared } from "./shareData";
 
 /**
@@ -47,7 +50,8 @@ const SSR_DIR = join(import.meta.dirname, "../dist-ssr");
 // Share HTML is personal-ish only in the sense of being token-gated; the token
 // is in the URL, so per-URL edge caching leaks nothing beyond what the URL
 // already grants.
-const SHARE_HTML_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+const SHARE_HTML_CACHE =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 const REDIRECT_CACHE = "public, max-age=0, s-maxage=300";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{6,80}$/;
@@ -73,8 +77,14 @@ const SHARE_ENTRY = "src/shareBoot.tsx";
  * slower. */
 async function sharePreloadLinks(): Promise<string> {
   try {
-    const raw = await readFile(join(DIST_DIR, ".vite", "manifest.json"), "utf-8");
-    const manifest = JSON.parse(raw) as Record<string, { file: string; imports?: string[] }>;
+    const raw = await readFile(
+      join(DIST_DIR, ".vite", "manifest.json"),
+      "utf-8",
+    );
+    const manifest = JSON.parse(raw) as Record<
+      string,
+      { file: string; imports?: string[] }
+    >;
     if (!manifest[SHARE_ENTRY]) return "";
     const files: string[] = [];
     const seen = new Set<string>();
@@ -87,7 +97,9 @@ async function sharePreloadLinks(): Promise<string> {
       for (const next of entry.imports ?? []) walk(next);
     };
     walk(SHARE_ENTRY);
-    return files.map((f) => `<link rel="modulepreload" crossorigin href="/${f}">`).join("");
+    return files
+      .map((f) => `<link rel="modulepreload" crossorigin href="/${f}">`)
+      .join("");
   } catch {
     return "";
   }
@@ -101,10 +113,18 @@ async function loadShell(): Promise<Shell | null> {
     const rootTag = '<div id="root">';
     const rootAt = html.indexOf(rootTag);
     const bodyEnd = html.lastIndexOf("</body>");
-    if (rootAt === -1 || bodyEnd === -1) return { html, pre: html, mid: "", tail: "" };
+    if (rootAt === -1 || bodyEnd === -1)
+      return { html, pre: html, mid: "", tail: "" };
     const preEnd = rootAt + rootTag.length;
-    const pre = html.slice(0, preEnd).replace("</head>", `${await sharePreloadLinks()}</head>`);
-    return { html, pre, mid: html.slice(preEnd, bodyEnd), tail: html.slice(bodyEnd) };
+    const pre = html
+      .slice(0, preEnd)
+      .replace("</head>", `${await sharePreloadLinks()}</head>`);
+    return {
+      html,
+      pre,
+      mid: html.slice(preEnd, bodyEnd),
+      tail: html.slice(bodyEnd),
+    };
   } catch {
     return null;
   }
@@ -119,13 +139,22 @@ export function getShell(): Promise<Shell | null> {
 // The SSR bundle is a build artifact; a server without it (a partial build, a
 // dev checkout) still serves the payload-only shell.
 
-type RenderShare = (kind: string, path: string, data: unknown, now: number) => string | null;
+type RenderShare = (
+  kind: string,
+  path: string,
+  data: unknown,
+  now: number,
+) => string | null;
 let rendererPromise: Promise<RenderShare | null> | null = null;
 
 function getRenderer(): Promise<RenderShare | null> {
   if (!rendererPromise) {
     rendererPromise = import(join(SSR_DIR, "share-ssr.mjs"))
-      .then((m) => (typeof m.renderShare === "function" ? (m.renderShare as RenderShare) : null))
+      .then((m) =>
+        typeof m.renderShare === "function"
+          ? (m.renderShare as RenderShare)
+          : null,
+      )
       .catch((err: unknown) => {
         // Loud on purpose. The fallback is invisible to visitors (the page
         // still works, just later), which is how a broken SSR build once went
@@ -213,14 +242,16 @@ function shareHandler(kind: SharedObjectKind) {
         }
       }
       await out.write(markup + shell.mid);
-      if (json) await out.write(`<script>window.__SHARE_PRELOAD__=${json}</script>`);
+      if (json)
+        await out.write(`<script>window.__SHARE_PRELOAD__=${json}</script>`);
       await out.write(shell.tail);
     });
   };
 }
 
 export function registerShareRoutes(app: Hono) {
-  for (const kind of SHARED_OBJECT_KINDS) app.get(`/share/${kind}/:token`, shareHandler(kind));
+  for (const kind of SHARED_OBJECT_KINDS)
+    app.get(`/share/${kind}/:token`, shareHandler(kind));
 
   // Whole-conversation share links: resolve the token server-side and skip the
   // intermediate app boot entirely.
@@ -228,7 +259,8 @@ export function registerShareRoutes(app: Hono) {
     const token = c.req.param("token") ?? "";
     if (!TOKEN_RE.test(token)) return next();
     const result = await fetchShared("conversation", token);
-    const id = (result?.value as { conversation_id?: string } | null)?.conversation_id;
+    const id = (result?.value as { conversation_id?: string } | null)
+      ?.conversation_id;
     // No id: unknown token (client renders its invalid-link page) or a convex
     // deploy that predates the field — either way the SPA path still works.
     if (!id) {
@@ -238,6 +270,9 @@ export function registerShareRoutes(app: Hono) {
       return c.html(shell.html);
     }
     c.header("Cache-Control", REDIRECT_CACHE);
-    return c.redirect(`/conversation/${id}?share=${encodeURIComponent(token)}`, 302);
+    return c.redirect(
+      `/conversation/${id}?share=${encodeURIComponent(token)}`,
+      302,
+    );
   });
 }

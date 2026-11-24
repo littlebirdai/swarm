@@ -70,7 +70,9 @@ function trimNumber(n: number): string {
 
 /** A selector safe to paste back into a shell. */
 export function quoteSelector(value: string): string {
-  return /^[A-Za-z0-9._:/-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
+  return /^[A-Za-z0-9._:/-]+$/.test(value)
+    ? value
+    : `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 export interface FollowUpTarget {
@@ -83,16 +85,23 @@ export interface FollowUpTarget {
 /** The `get-app-state` an agent should run next, with the window selector that
  *  still resolves — dropped entirely when the window moved out from under it. */
 export function followUpCommand(target: FollowUpTarget): string {
-  const parts = ["cast computer get-app-state", `--app ${quoteSelector(target.app)}`];
-  if (typeof target.windowId === "number") parts.push(`--window-id ${target.windowId}`);
-  else if (typeof target.windowIndex === "number") parts.push(`--window-index ${target.windowIndex}`);
+  const parts = [
+    "cast computer get-app-state",
+    `--app ${quoteSelector(target.app)}`,
+  ];
+  if (typeof target.windowId === "number")
+    parts.push(`--window-id ${target.windowId}`);
+  else if (typeof target.windowIndex === "number")
+    parts.push(`--window-index ${target.windowIndex}`);
   return parts.join(" ");
 }
 
 function screenshotLine(result: ComputerSnapshotResult): string {
   const status = result.screenshotStatus;
-  if (status.state === "skipped") return "  Screenshot skipped (--no-screenshot)";
-  if (status.state === "failed") return `  Screenshot failed (${status.code}): ${status.message}`;
+  if (status.state === "skipped")
+    return "  Screenshot skipped (--no-screenshot)";
+  if (status.state === "failed")
+    return `  Screenshot failed (${status.code}): ${status.message}`;
   const shot = result.screenshot;
   if (!shot) return "  Screenshot captured but not returned";
   const engine = status.metadata?.engine;
@@ -109,7 +118,9 @@ function screenshotLine(result: ComputerSnapshotResult): string {
   // clicks at twice the intended offset and reads as a broken tool.
   const offset = crop ? ` + ${crop.x},${crop.y}` : "";
   const mapping =
-    shot.scale === 1 && !crop ? "pixels are window points" : `coordinate x/y = screenshot pixels / ${scale}${offset}`;
+    shot.scale === 1 && !crop
+      ? "pixels are window points"
+      : `coordinate x/y = screenshot pixels / ${scale}${offset}`;
   return `  Screenshot captured (${parts.join(", ")}; ${mapping}${engine ? `, ${engine}` : ""})`;
 }
 
@@ -128,8 +139,14 @@ function formatSnapshotHeader(result: ComputerSnapshotResult): string[] {
   const app = snapshot.app;
   const win = snapshot.window;
   const id = typeof win.id === "number" ? `id:${win.id} ` : "";
-  const at = typeof win.x === "number" && typeof win.y === "number" ? ` @ ${win.x},${win.y}` : "";
-  const focused = typeof snapshot.focusedElementId === "number" ? `#${snapshot.focusedElementId}` : "none";
+  const at =
+    typeof win.x === "number" && typeof win.y === "number"
+      ? ` @ ${win.x},${win.y}`
+      : "";
+  const focused =
+    typeof snapshot.focusedElementId === "number"
+      ? `#${snapshot.focusedElementId}`
+      : "none";
   return [
     `${app.name} (pid ${app.pid}${app.bundleId ? `, ${app.bundleId}` : ""})`,
     `  Window: ${id}"${win.title}" (${win.width}x${win.height}${at})`,
@@ -143,16 +160,28 @@ function formatSnapshotHeader(result: ComputerSnapshotResult): string[] {
  * Header, blank line, then the tree: whole, cut down to what `filter` asks
  * for, or (for `--diff`) only what changed since this window's last snapshot.
  */
-export function formatSnapshot(result: ComputerSnapshotResult, filter: TreeFilter = {}, diff = false): string {
+export function formatSnapshot(
+  result: ComputerSnapshotResult,
+  filter: TreeFilter = {},
+  diff = false,
+): string {
   const header = formatSnapshotHeader(result).join("\n");
   return `${header}\n\n${treeBody(result, filter, diff)}`;
 }
 
-function treeBody(result: ComputerSnapshotResult, filter: TreeFilter, diff: boolean): string {
+function treeBody(
+  result: ComputerSnapshotResult,
+  filter: TreeFilter,
+  diff: boolean,
+): string {
   const tree = result.snapshot.treeText;
   if (diff) {
-    if (result.baselineTreeText === undefined) return `No earlier snapshot of this window to compare with; the whole tree:\n${tree}`;
-    return formatDiff(diffTrees(result.baselineTreeText, tree)) ?? `The window changed substantially; the whole tree:\n${tree}`;
+    if (result.baselineTreeText === undefined)
+      return `No earlier snapshot of this window to compare with; the whole tree:\n${tree}`;
+    return (
+      formatDiff(diffTrees(result.baselineTreeText, tree)) ??
+      `The window changed substantially; the whole tree:\n${tree}`
+    );
   }
   if (filter.find === undefined && filter.under === undefined) return tree;
   const cut = filterTree(tree, filter);
@@ -162,7 +191,9 @@ function treeBody(result: ComputerSnapshotResult, filter: TreeFilter, diff: bool
     : `Nothing matches '${filter.find}'${filter.under !== undefined ? ` under ${filter.under}` : ""}.`;
 }
 
-function verificationPhrase(verification: ComputerActionVerification | undefined): string {
+function verificationPhrase(
+  verification: ComputerActionVerification | undefined,
+): string {
   if (!verification) return "unverified (verification metadata unavailable)";
   return verification.state === "verified"
     ? `verified (${words(verification.property)})`
@@ -178,18 +209,31 @@ function verificationPhrase(verification: ComputerActionVerification | undefined
  * noise: the sentence names the window the helper fell back to and prints its
  * whole tree, and the follow-up command drops the stale window selector.
  */
-export function formatAction(method: string, appSelector: string, result: ComputerActionResult, filter: TreeFilter = {}): string {
+export function formatAction(
+  method: string,
+  appSelector: string,
+  result: ComputerActionResult,
+  filter: TreeFilter = {},
+): string {
   const action = result.action;
   const verification = action?.verification;
   const verified = verification?.state === "verified";
   const label = ACTION_LABEL[method] ?? method;
-  const via = action?.path ? ` via ${action.path}${action.actionName && action.path === "accessibility" ? ` (${action.actionName})` : ""}` : "";
-  const windowChanged = verification?.state === "unverified" && verification.reason === "window_changed";
+  const via = action?.path
+    ? ` via ${action.path}${action.actionName && action.path === "accessibility" ? ` (${action.actionName})` : ""}`
+    : "";
+  const windowChanged =
+    verification?.state === "unverified" &&
+    verification.reason === "window_changed";
   const sentence = `${label} ${verified ? "completed" : "attempted"}${via}, ${verificationPhrase(verification)}.`;
   const verdict = verdictLine(actionVerdict(result));
   const win = result.snapshot.window;
   if (windowChanged) {
-    const follow = followUpCommand({ app: appSelector, windowId: null, windowIndex: null });
+    const follow = followUpCommand({
+      app: appSelector,
+      windowId: null,
+      windowIndex: null,
+    });
     return [
       sentence,
       verdict,
@@ -199,25 +243,38 @@ export function formatAction(method: string, appSelector: string, result: Comput
   }
   if (result.baselineTreeText === undefined) {
     // A helper from before the diff: say how to look instead.
-    const follow = followUpCommand({ app: appSelector, windowId: action?.targetWindowId ?? win.id, windowIndex: action?.targetWindowIndex });
+    const follow = followUpCommand({
+      app: appSelector,
+      windowId: action?.targetWindowId ?? win.id,
+      windowIndex: action?.targetWindowIndex,
+    });
     return `${sentence} ${result.snapshot.elementCount} visible elements in current window. Use \`${follow}\` to inspect.\n${verdict}`;
   }
-  const body = filter.find !== undefined || filter.under !== undefined
-    ? treeBody(result, filter, false)
-    : (formatDiff(diffTrees(result.baselineTreeText, result.snapshot.treeText), {
-        synthetic: action?.path === "synthetic",
-        background: verification?.state === "unverified" && verification.reason === "background_input",
-        pixels: pixelVerdict(result.pixelChange),
-      }) ??
-      `The window changed substantially; the whole tree:\n${result.snapshot.treeText}`);
+  const body =
+    filter.find !== undefined || filter.under !== undefined
+      ? treeBody(result, filter, false)
+      : (formatDiff(
+          diffTrees(result.baselineTreeText, result.snapshot.treeText),
+          {
+            synthetic: action?.path === "synthetic",
+            background:
+              verification?.state === "unverified" &&
+              verification.reason === "background_input",
+            pixels: pixelVerdict(result.pixelChange),
+          },
+        ) ??
+        `The window changed substantially; the whole tree:\n${result.snapshot.treeText}`);
   return `${sentence}\n${verdict}\n${body}`;
 }
 
 /** What `--json` says changed, in place of the raw baseline tree and pixel regions. */
-export function jsonChanges(result: ComputerSnapshotResult & Pick<ComputerActionResult, "pixelChange">): Record<string, unknown> | undefined {
+export function jsonChanges(
+  result: ComputerSnapshotResult & Pick<ComputerActionResult, "pixelChange">,
+): Record<string, unknown> | undefined {
   if (result.baselineTreeText === undefined) return undefined;
   const diff = diffTrees(result.baselineTreeText, result.snapshot.treeText);
-  const line = (l: { index: number | null; body: string }) => (l.index === null ? l.body : `${l.index} ${l.body}`);
+  const line = (l: { index: number | null; body: string }) =>
+    l.index === null ? l.body : `${l.index} ${l.body}`;
   return {
     added: diff.added.map(line),
     removed: diff.removed.map(line),
@@ -228,10 +285,14 @@ export function jsonChanges(result: ComputerSnapshotResult & Pick<ComputerAction
 }
 
 export function formatApps(result: ComputerListAppsResult): string {
-  if (!result.apps.length) return "No running apps with a regular activation policy.";
+  if (!result.apps.length)
+    return "No running apps with a regular activation policy.";
   const width = Math.max(...result.apps.map((a) => a.name.length));
   return result.apps
-    .map((a) => `${a.name.padEnd(width)}  ${a.bundleId ?? "(no bundle id)"}  pid ${a.pid}`)
+    .map(
+      (a) =>
+        `${a.name.padEnd(width)}  ${a.bundleId ?? "(no bundle id)"}  pid ${a.pid}`,
+    )
     .join("\n");
 }
 
@@ -242,8 +303,15 @@ export function formatWindows(result: ComputerListWindowsResult): string {
   }
   const rows = result.windows.map((w) => {
     const id = typeof w.id === "number" ? `id:${w.id}` : "id:?";
-    const at = typeof w.x === "number" && typeof w.y === "number" ? ` @ ${w.x},${w.y}` : "";
-    const flags = [w.isMain ? "main" : null, w.isMinimized ? "minimized" : null, w.isOffscreen ? "offscreen" : null]
+    const at =
+      typeof w.x === "number" && typeof w.y === "number"
+        ? ` @ ${w.x},${w.y}`
+        : "";
+    const flags = [
+      w.isMain ? "main" : null,
+      w.isMinimized ? "minimized" : null,
+      w.isOffscreen ? "offscreen" : null,
+    ]
       .filter(Boolean)
       .join(", ");
     return `  [${w.index}] ${id} "${w.title}" (${w.width}x${w.height}${at})${flags ? ` — ${flags}` : ""}`;

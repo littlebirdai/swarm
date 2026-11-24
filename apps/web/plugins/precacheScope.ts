@@ -43,11 +43,16 @@ export function appShellFiles(bundle: OutputBundle): Set<string> {
     // A dynamic entry Rollup merged into a chunk without a facade: cut it only
     // when everything in the chunk is runtime-only.
     const ids = Object.keys(chunk.modules);
-    return ids.length > 0 && ids.every((id) => RUNTIME_ONLY_ENTRIES.some((re) => re.test(id)));
+    return (
+      ids.length > 0 &&
+      ids.every((id) => RUNTIME_ONLY_ENTRIES.some((re) => re.test(id)))
+    );
   };
 
   const keep = new Set<string>();
-  const queue = Object.values(bundle).filter((c): c is OutputChunk => c.type === "chunk" && c.isEntry);
+  const queue = Object.values(bundle).filter(
+    (c): c is OutputChunk => c.type === "chunk" && c.isEntry,
+  );
   const visit = (file: string, dynamic: boolean) => {
     const next = bundle[file];
     if (next?.type !== "chunk" || keep.has(file)) return;
@@ -59,7 +64,8 @@ export function appShellFiles(bundle: OutputBundle): Set<string> {
     if (keep.has(chunk.fileName)) continue;
     keep.add(chunk.fileName);
     for (const css of chunk.viteMetadata?.importedCss ?? []) keep.add(css);
-    for (const asset of chunk.viteMetadata?.importedAssets ?? []) keep.add(asset);
+    for (const asset of chunk.viteMetadata?.importedAssets ?? [])
+      keep.add(asset);
     for (const file of chunk.imports) visit(file, false);
     for (const file of chunk.dynamicImports) visit(file, true);
   }
@@ -76,7 +82,9 @@ type ManifestEntry = { url: string; revision: string | null; size: number };
  */
 export function precacheScope(): {
   plugin: Plugin;
-  manifestTransform: (entries: ManifestEntry[]) => Promise<{ manifest: ManifestEntry[]; warnings: string[] }>;
+  manifestTransform: (
+    entries: ManifestEntry[],
+  ) => Promise<{ manifest: ManifestEntry[]; warnings: string[] }>;
 } {
   let keep: Set<string> | null = null;
   let assetsDir = "assets";

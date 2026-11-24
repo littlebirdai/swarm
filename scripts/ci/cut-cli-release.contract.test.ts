@@ -13,12 +13,17 @@ import { describe, expect, test } from "bun:test";
 
 type Workflow = { jobs: Record<string, { steps: any[] }> };
 const read = async (file: string) =>
-  Bun.YAML.parse(await Bun.file(new URL(`../../.github/workflows/${file}`, import.meta.url)).text()) as Workflow;
+  Bun.YAML.parse(
+    await Bun.file(
+      new URL(`../../.github/workflows/${file}`, import.meta.url),
+    ).text(),
+  ) as Workflow;
 
 // Bun's YAML parser: no dependency, and the same runtime CI pins.
 const cut = await read("cut-cli-release.yml");
 const finalize = await read("finalize-cli-release.yml");
-const script = (file: string) => Bun.file(new URL(`../../apps/cli/scripts/${file}`, import.meta.url)).text();
+const script = (file: string) =>
+  Bun.file(new URL(`../../apps/cli/scripts/${file}`, import.meta.url)).text();
 const binaries = await script("build-binaries.sh");
 const deploy = await script("deploy.sh");
 
@@ -42,7 +47,9 @@ describe("the builder verifies the helper it embedded", () => {
     // codesign, spctl and the tar unpack live in the script, where they are
     // graded by the same function the CLI uses before it swaps a helper in.
     const run = step(VERIFY_HELPER).run;
-    expect(run).toContain("bun scripts/computer-helper-release.ts verify ../web/binaries");
+    expect(run).toContain(
+      "bun scripts/computer-helper-release.ts verify ../web/binaries",
+    );
     expect(run).not.toContain("codesign");
     expect(run).not.toContain("spctl");
   });
@@ -81,7 +88,9 @@ describe("both release paths build the helper once", () => {
   });
 
   test("the same script verifies the result after the darwin binaries are signed", () => {
-    expect(binaries.indexOf("Signing macOS binaries")).toBeLessThan(binaries.indexOf("computer-helper-release.ts verify"));
+    expect(binaries.indexOf("Signing macOS binaries")).toBeLessThan(
+      binaries.indexOf("computer-helper-release.ts verify"),
+    );
   });
 });
 
@@ -89,21 +98,29 @@ describe("the manifest carries the helper as part of the darwin artifacts", () =
   const run = step(MANIFEST).run;
 
   test("the hash comes from the verify step's record, not a fresh hash of a file", () => {
-    expect(run).toContain(`'.artifacts[$artifact] // "none"' computer-helper.json`);
+    expect(run).toContain(
+      `'.artifacts[$artifact] // "none"' computer-helper.json`,
+    );
   });
 
   test("only an artifact that carries a helper gets the field", () => {
-    expect(run).toContain('(if $helper == "none" then {} else {computer_helper_sha256: $helper} end)');
+    expect(run).toContain(
+      '(if $helper == "none" then {} else {computer_helper_sha256: $helper} end)',
+    );
   });
 
   test("the record reaches finalize inside the dispatched manifest", () => {
-    expect(step(DISPATCH).run).toContain('-f "artifact_manifest=$(cat "$RUNNER_TEMP/release-manifest.json")"');
+    expect(step(DISPATCH).run).toContain(
+      '-f "artifact_manifest=$(cat "$RUNNER_TEMP/release-manifest.json")"',
+    );
   });
 });
 
 describe("finalize refuses a manifest that misdescribes the helper", () => {
-  const validate = (finalize.jobs.finalize.steps as any[]).find((s) =>
-    typeof s.run === "string" && s.run.includes("artifact manifest must contain exactly five entries"),
+  const validate = (finalize.jobs.finalize.steps as any[]).find(
+    (s) =>
+      typeof s.run === "string" &&
+      s.run.includes("artifact manifest must contain exactly five entries"),
   );
 
   test("a darwin entry must name a helper", () => {
@@ -115,11 +132,15 @@ describe("finalize refuses a manifest that misdescribes the helper", () => {
   });
 
   test("a linux or windows entry must not", () => {
-    expect(validate.run).toContain(`'.artifacts[$artifact] | has("computer_helper_sha256") | not'`);
+    expect(validate.run).toContain(
+      `'.artifacts[$artifact] | has("computer_helper_sha256") | not'`,
+    );
   });
 
   test("one helper per release: both darwin entries must agree", () => {
-    expect(validate.run).toContain("the two darwin artifacts carry different cast computer helpers");
+    expect(validate.run).toContain(
+      "the two darwin artifacts carry different cast computer helpers",
+    );
   });
 });
 
@@ -128,7 +149,10 @@ describe("the builder builds the commit it was dispatched on", () => {
     // A macOS job can wait many minutes for a runner. Checking out `main` at job
     // start built whatever landed in that window, against a daemon build id
     // stamp committed for the dispatched tree.
-    const checkout = steps.find((s) => typeof s.uses === "string" && s.uses.startsWith("actions/checkout@"));
+    const checkout = steps.find(
+      (s) =>
+        typeof s.uses === "string" && s.uses.startsWith("actions/checkout@"),
+    );
     expect(checkout?.with?.ref).toBe("${{ github.sha }}");
   });
 });
@@ -136,6 +160,8 @@ describe("the builder builds the commit it was dispatched on", () => {
 describe("only main ships", () => {
   test("a dispatch from another branch runs only as a dry run", () => {
     // Only codecast-sh/codecast releases; a fork's dispatch builds nothing.
-    expect((cut.jobs.build as any).if).toBe("github.repository == 'codecast-sh/codecast' && (github.ref == 'refs/heads/main' || inputs.dry_run)");
+    expect((cut.jobs.build as any).if).toBe(
+      "github.repository == 'codecast-sh/codecast' && (github.ref == 'refs/heads/main' || inputs.dry_run)",
+    );
   });
 });

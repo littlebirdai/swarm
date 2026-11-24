@@ -1,5 +1,12 @@
 import { describe, expect, it } from "bun:test";
-import { SLOW_SYNC_FS_MS, reportSpawnTimeout, setSlowSyncFsThresholdForTests, setSlowSyncSink, timeSync, timeSyncFs } from "./slowSync.js";
+import {
+  SLOW_SYNC_FS_MS,
+  reportSpawnTimeout,
+  setSlowSyncFsThresholdForTests,
+  setSlowSyncSink,
+  timeSync,
+  timeSyncFs,
+} from "./slowSync.js";
 
 function busyWait(ms: number): void {
   const until = performance.now() + ms;
@@ -11,13 +18,24 @@ describe("slow sync reporting", () => {
     const seen: string[] = [];
     setSlowSyncSink((m) => seen.push(m));
     try {
-      const out = timeSync("SLOW-SYNC-FS", 20, "walkDirsSync", () => "/tmp/tree", () => { busyWait(40); return 7; });
+      const out = timeSync(
+        "SLOW-SYNC-FS",
+        20,
+        "walkDirsSync",
+        () => "/tmp/tree",
+        () => {
+          busyWait(40);
+          return 7;
+        },
+      );
       expect(out).toBe(7);
     } finally {
       setSlowSyncSink(null);
     }
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatch(/^\[SLOW-SYNC-FS\] walkDirsSync blocked the event loop \d+ms: \/tmp\/tree$/);
+    expect(seen[0]).toMatch(
+      /^\[SLOW-SYNC-FS\] walkDirsSync blocked the event loop \d+ms: \/tmp\/tree$/,
+    );
   });
 
   it("stays silent under the threshold and after the sink is cleared", () => {
@@ -33,24 +51,35 @@ describe("slow sync reporting", () => {
     const seen: string[] = [];
     setSlowSyncSink((m) => seen.push(m));
     try {
-      expect(() => timeSync("SLOW-SYNC-SPAWN", 10, "execSync", "boom", () => { busyWait(30); throw new Error("nope"); })).toThrow("nope");
+      expect(() =>
+        timeSync("SLOW-SYNC-SPAWN", 10, "execSync", "boom", () => {
+          busyWait(30);
+          throw new Error("nope");
+        }),
+      ).toThrow("nope");
     } finally {
       setSlowSyncSink(null);
     }
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toContain("[SLOW-SYNC-SPAWN] execSync blocked the event loop");
+    expect(seen[0]).toContain(
+      "[SLOW-SYNC-SPAWN] execSync blocked the event loop",
+    );
   });
 
   it("timeSyncFs uses the filesystem threshold", () => {
     const seen: string[] = [];
     setSlowSyncSink((m) => seen.push(m));
     try {
-      timeSyncFs("readAvailableSkills", "global", () => busyWait(SLOW_SYNC_FS_MS + 30));
+      timeSyncFs("readAvailableSkills", "global", () =>
+        busyWait(SLOW_SYNC_FS_MS + 30),
+      );
     } finally {
       setSlowSyncSink(null);
     }
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatch(/^\[SLOW-SYNC-FS\] readAvailableSkills blocked the event loop \d+ms: global$/);
+    expect(seen[0]).toMatch(
+      /^\[SLOW-SYNC-FS\] readAvailableSkills blocked the event loop \d+ms: global$/,
+    );
   });
 
   it("a test threshold of zero makes every timed fs call report, and null restores the default", () => {
@@ -77,6 +106,8 @@ describe("slow sync reporting", () => {
     } finally {
       setSlowSyncSink(null);
     }
-    expect(seen).toEqual(["[SPAWN-TIMEOUT] security killed after 30000ms: find-generic-password -s x -w"]);
+    expect(seen).toEqual([
+      "[SPAWN-TIMEOUT] security killed after 30000ms: find-generic-password -s x -w",
+    ]);
   });
 });

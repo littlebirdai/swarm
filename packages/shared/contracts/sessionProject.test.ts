@@ -1,9 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { projectParentIdOf, sessionProjectId, type SessionProjectRow } from "./sessionProject";
+import {
+  projectParentIdOf,
+  sessionProjectId,
+  type SessionProjectRow,
+} from "./sessionProject";
 
 type Row = SessionProjectRow & { _id: string };
 
-function lookupOf(rows: Row[], tasks: Record<string, string> = {}, plans: Record<string, string> = {}, taskPlans: Record<string, string> = {}) {
+function lookupOf(
+  rows: Row[],
+  tasks: Record<string, string> = {},
+  plans: Record<string, string> = {},
+  taskPlans: Record<string, string> = {},
+) {
   const byId = new Map(rows.map((r) => [r._id, r]));
   return {
     session: (id: string) => byId.get(id),
@@ -16,42 +25,87 @@ function lookupOf(rows: Row[], tasks: Record<string, string> = {}, plans: Record
 describe("sessionProjectId", () => {
   test("a session's own project wins over its task and its parent", () => {
     const parent: Row = { _id: "p", project_id: "proj-parent" };
-    const child: Row = { _id: "c", project_id: "proj-own", active_task_id: "t1", parent_conversation_id: "p" };
-    expect(sessionProjectId(child, lookupOf([parent, child], { t1: "proj-task" }))).toBe("proj-own");
+    const child: Row = {
+      _id: "c",
+      project_id: "proj-own",
+      active_task_id: "t1",
+      parent_conversation_id: "p",
+    };
+    expect(
+      sessionProjectId(child, lookupOf([parent, child], { t1: "proj-task" })),
+    ).toBe("proj-own");
   });
 
   test("a bound task names the project before the parent does", () => {
     const parent: Row = { _id: "p", project_id: "proj-parent" };
-    const child: Row = { _id: "c", active_task_id: "t1", parent_conversation_id: "p" };
-    expect(sessionProjectId(child, lookupOf([parent, child], { t1: "proj-task" }))).toBe("proj-task");
+    const child: Row = {
+      _id: "c",
+      active_task_id: "t1",
+      parent_conversation_id: "p",
+    };
+    expect(
+      sessionProjectId(child, lookupOf([parent, child], { t1: "proj-task" })),
+    ).toBe("proj-task");
   });
 
   test("a bound plan names the project when the task has none", () => {
-    const s: Row = { _id: "s", active_task_id: "t-loose", active_plan_id: "pl1" };
-    expect(sessionProjectId(s, lookupOf([s], {}, { pl1: "proj-plan" }))).toBe("proj-plan");
+    const s: Row = {
+      _id: "s",
+      active_task_id: "t-loose",
+      active_plan_id: "pl1",
+    };
+    expect(sessionProjectId(s, lookupOf([s], {}, { pl1: "proj-plan" }))).toBe(
+      "proj-plan",
+    );
   });
 
   test("a task with no project of its own takes its plan's project", () => {
     const s: Row = { _id: "s", active_task_id: "t1" };
-    expect(sessionProjectId(s, lookupOf([s], {}, { pl1: "proj-plan" }, { t1: "pl1" }))).toBe("proj-plan");
+    expect(
+      sessionProjectId(
+        s,
+        lookupOf([s], {}, { pl1: "proj-plan" }, { t1: "pl1" }),
+      ),
+    ).toBe("proj-plan");
   });
 
   test("a task's own project wins over its plan's and over the bound plan's", () => {
     const s: Row = { _id: "s", active_task_id: "t1", active_plan_id: "pl2" };
-    expect(sessionProjectId(s, lookupOf([s], { t1: "proj-task" }, { pl1: "proj-plan", pl2: "proj-other" }, { t1: "pl1" }))).toBe("proj-task");
+    expect(
+      sessionProjectId(
+        s,
+        lookupOf(
+          [s],
+          { t1: "proj-task" },
+          { pl1: "proj-plan", pl2: "proj-other" },
+          { t1: "pl1" },
+        ),
+      ),
+    ).toBe("proj-task");
   });
 
   test("a worker under a project lead, bound to a plan-only task, works in the task's plan's project", () => {
     const lead: Row = { _id: "lead", project_id: "proj-lead" };
-    const w: Row = { _id: "w", parent_conversation_id: "lead", active_task_id: "t1" };
-    expect(sessionProjectId(w, lookupOf([lead, w], {}, { pl1: "proj-plan" }, { t1: "pl1" }))).toBe("proj-plan");
+    const w: Row = {
+      _id: "w",
+      parent_conversation_id: "lead",
+      active_task_id: "t1",
+    };
+    expect(
+      sessionProjectId(
+        w,
+        lookupOf([lead, w], {}, { pl1: "proj-plan" }, { t1: "pl1" }),
+      ),
+    ).toBe("proj-plan");
   });
 
   test("workers of workers inherit the project of the session at the top", () => {
     const lead: Row = { _id: "lead", project_id: "proj" };
     const worker: Row = { _id: "w", parent_conversation_id: "lead" };
     const spawned: Row = { _id: "s", spawned_by_conversation_id: "w" };
-    expect(sessionProjectId(spawned, lookupOf([lead, worker, spawned]))).toBe("proj");
+    expect(sessionProjectId(spawned, lookupOf([lead, worker, spawned]))).toBe(
+      "proj",
+    );
   });
 
   test("moving the parent moves its workers, since nothing was copied", () => {
@@ -81,8 +135,16 @@ describe("sessionProjectId", () => {
 
 describe("projectParentIdOf", () => {
   test("the parent link comes before the spawner", () => {
-    expect(projectParentIdOf({ _id: "x", parent_conversation_id: "p", spawned_by_conversation_id: "s" })).toBe("p");
-    expect(projectParentIdOf({ _id: "x", spawned_by_conversation_id: "s" })).toBe("s");
+    expect(
+      projectParentIdOf({
+        _id: "x",
+        parent_conversation_id: "p",
+        spawned_by_conversation_id: "s",
+      }),
+    ).toBe("p");
+    expect(
+      projectParentIdOf({ _id: "x", spawned_by_conversation_id: "s" }),
+    ).toBe("s");
     expect(projectParentIdOf({ _id: "x" })).toBeNull();
   });
 });
@@ -102,11 +164,14 @@ describe("sessionProjectId with a shared memo", () => {
     { _id: "under-cycle", parent_conversation_id: "c1" },
   ];
   const lookup = lookupOf(rows);
-  const alone = Object.fromEntries(rows.map((r) => [r._id, sessionProjectId(r, lookup)]));
+  const alone = Object.fromEntries(
+    rows.map((r) => [r._id, sessionProjectId(r, lookup)]),
+  );
   for (const order of [rows, [...rows].reverse()]) {
     test(`matches the per-row answers (${order === rows ? "parents first" : "children first"})`, () => {
       const memo = new Map<string, string | null>();
-      for (const r of order) expect(sessionProjectId(r, lookup, memo)).toBe(alone[r._id]);
+      for (const r of order)
+        expect(sessionProjectId(r, lookup, memo)).toBe(alone[r._id]);
     });
   }
 });

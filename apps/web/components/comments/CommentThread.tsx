@@ -28,7 +28,13 @@ import { useWatchEffect } from "../../hooks/useWatchEffect";
 // reader's news starts; `scopeKey` keys the draft and typing presence when
 // the thread is not a conversation's (a decision's).
 
-export type ThreadAddInput = { content: string; messageId?: string; parentCommentId?: string; filePath?: string; lineNumber?: number };
+export type ThreadAddInput = {
+  content: string;
+  messageId?: string;
+  parentCommentId?: string;
+  filePath?: string;
+  lineNumber?: number;
+};
 
 export function CommentThread({
   thread,
@@ -73,7 +79,10 @@ export function CommentThread({
   onAdd: (input: ThreadAddInput) => void | Promise<void>;
   onEdit: (commentId: string, content: string) => void | Promise<void>;
   onDelete: (commentId: string) => void | Promise<void>;
-  onAskAgent?: (messageId?: string, fileAnchor?: { filePath: string; lineNumber?: number }) => void | Promise<void>;
+  onAskAgent?: (
+    messageId?: string,
+    fileAnchor?: { filePath: string; lineNumber?: number },
+  ) => void | Promise<void>;
   /** Offer Ping in the tools; off where the surface has its own ask control
    *  (a decision's "Discuss with …"). Retry on a failed reply stays. */
   pingAgent?: boolean;
@@ -90,50 +99,114 @@ export function CommentThread({
   const [composingOwn, setComposing] = useState(false);
   // A resolved thread folds to one line until someone opens it.
   const [openResolved, setOpenResolved] = useState(false);
-  useWatchEffect(() => { if (composeSignal !== undefined && composeSignal >= 0) setComposing(true); }, [composeSignal]);
+  useWatchEffect(() => {
+    if (composeSignal !== undefined && composeSignal >= 0) setComposing(true);
+  }, [composeSignal]);
 
   const agentName = useConversationSpeaker(conversationId, agentType).name;
   // What each reply answers: the parent's author and opening words.
-  const replyTargets = new Map(thread.comments.map((c) => [c._id, { name: commentAuthorName(c, currentUserId, agentName).split(" ")[0], excerpt: messageExcerpt(c.content, 48) }]));
+  const replyTargets = new Map(
+    thread.comments.map((c) => [
+      c._id,
+      {
+        name: commentAuthorName(c, currentUserId, agentName).split(" ")[0],
+        excerpt: messageExcerpt(c.content, 48),
+      },
+    ]),
+  );
   const firstNew = firstUnreadIndex(thread.comments, readAt, currentUserId);
-  const fileAnchor = thread.filePath ? { filePath: thread.filePath, lineNumber: thread.lineNumber } : undefined;
-  const anchorKey = thread.messageId ?? (fileAnchor ? fileThreadKey(fileAnchor.filePath, fileAnchor.lineNumber) : undefined);
-  const askAgent = onAskAgent ? () => onAskAgent(thread.messageId, fileAnchor) : undefined;
+  const fileAnchor = thread.filePath
+    ? { filePath: thread.filePath, lineNumber: thread.lineNumber }
+    : undefined;
+  const anchorKey =
+    thread.messageId ??
+    (fileAnchor
+      ? fileThreadKey(fileAnchor.filePath, fileAnchor.lineNumber)
+      : undefined);
+  const askAgent = onAskAgent
+    ? () => onAskAgent(thread.messageId, fileAnchor)
+    : undefined;
 
   const writable = canWrite && authed;
   const composing = writable && (!composeOnDemand || composingOwn);
   const hasComments = thread.comments.length > 0;
-  const closeComposer = () => { setComposing(false); setReplyTo(null); onComposerClose?.(); };
+  const closeComposer = () => {
+    setComposing(false);
+    setReplyTo(null);
+    onComposerClose?.();
+  };
   // Reply moves the caret into this thread's box, whether it was open or not.
   const rootRef = useRef<HTMLDivElement>(null);
-  const focusComposer = () => requestAnimationFrame(() => rootRef.current?.querySelector<HTMLTextAreaElement>(".cc-cmt-composer textarea")?.focus());
-  const startReply = (c: Comment) => { setReplyTo(c); setComposing(true); focusComposer(); };
+  const focusComposer = () =>
+    requestAnimationFrame(() =>
+      rootRef.current
+        ?.querySelector<HTMLTextAreaElement>(".cc-cmt-composer textarea")
+        ?.focus(),
+    );
+  const startReply = (c: Comment) => {
+    setReplyTo(c);
+    setComposing(true);
+    focusComposer();
+  };
 
   // With comments, each card's own Reply opens the box; the row offers it only to start a thread.
   const showReply = writable && composeOnDemand && !composing && !hasComments;
   // The last word is a failed agent reply: its own Retry asks again.
-  const lastFailed = hasComments && agentReplyState(thread.comments[thread.comments.length - 1]) === "failed";
+  const lastFailed =
+    hasComments &&
+    agentReplyState(thread.comments[thread.comments.length - 1]) === "failed";
   // Asking the agent and resolving need no box: a signed-in reader may do both.
-  const showPing = authed && pingAgent && !!askAgent && hasComments && !lastFailed && !(composeOnDemand && composing) && !isAgentAnswering(thread.comments);
+  const showPing =
+    authed &&
+    pingAgent &&
+    !!askAgent &&
+    hasComments &&
+    !lastFailed &&
+    !(composeOnDemand && composing) &&
+    !isAgentAnswering(thread.comments);
   const showResolve = authed && !!onResolve && hasComments;
   // The thread's own actions ride in each card's hover tools, so a quiet
   // thread draws no row of buttons under itself.
-  const threadTools = showPing || showResolve ? (
-    <>
-      {showPing && <PingAgentButton conversationId={conversationId} agentType={agentType} onClick={() => void askAgent!()} compact />}
-      {showResolve && <ResolveTool resolved={thread.resolved} onToggle={() => onResolve!(!thread.resolved)} />}
-      <span className="cc-cmt-tools-sep" aria-hidden />
-    </>
-  ) : undefined;
+  const threadTools =
+    showPing || showResolve ? (
+      <>
+        {showPing && (
+          <PingAgentButton
+            conversationId={conversationId}
+            agentType={agentType}
+            onClick={() => void askAgent!()}
+            compact
+          />
+        )}
+        {showResolve && (
+          <ResolveTool
+            resolved={thread.resolved}
+            onToggle={() => onResolve!(!thread.resolved)}
+          />
+        )}
+        <span className="cc-cmt-tools-sep" aria-hidden />
+      </>
+    ) : undefined;
 
   if (thread.resolved && hasComments && !openResolved) {
     const first = thread.comments[0];
     return (
-      <div className={"cc-thread cc-thread-" + variant + " cc-thread-folded"} data-comment-thread data-comment-thread-folded>
+      <div
+        className={"cc-thread cc-thread-" + variant + " cc-thread-folded"}
+        data-comment-thread
+        data-comment-thread-folded
+      >
         {header}
-        <button type="button" className="cc-thread-fold" onClick={() => setOpenResolved(true)}>
+        <button
+          type="button"
+          className="cc-thread-fold"
+          onClick={() => setOpenResolved(true)}
+        >
           <CheckCircle2 className="cc-thread-fold-icon" />
-          <span className="cc-thread-fold-text">{messageExcerpt(first.content, 120) ?? commentAuthorName(first, currentUserId, agentName)}</span>
+          <span className="cc-thread-fold-text">
+            {messageExcerpt(first.content, 120) ??
+              commentAuthorName(first, currentUserId, agentName)}
+          </span>
           <span className="cc-thread-fold-count">{thread.comments.length}</span>
         </button>
       </div>
@@ -141,21 +214,43 @@ export function CommentThread({
   }
 
   return (
-    <div ref={rootRef} className={"cc-thread cc-thread-" + variant + (thread.resolved ? " cc-thread-is-resolved" : "")} data-comment-thread>
+    <div
+      ref={rootRef}
+      className={
+        "cc-thread cc-thread-" +
+        variant +
+        (thread.resolved ? " cc-thread-is-resolved" : "")
+      }
+      data-comment-thread
+    >
       {header}
       {hasComments && (
         <div className="cc-thread-list">
           {thread.comments.map((c, i) => (
             <Fragment key={c._id}>
-              {i === firstNew && <div className="cc-thread-new" data-comment-new-line>New</div>}
+              {i === firstNew && (
+                <div className="cc-thread-new" data-comment-new-line>
+                  New
+                </div>
+              )}
               <CommentCard
                 conversationId={conversationId}
                 comment={c}
-                continued={i !== firstNew && continuesPrevious(thread.comments[i - 1], c)}
-                fresh={firstNew >= 0 && i >= firstNew && !isOwnComment(c, currentUserId)}
+                continued={
+                  i !== firstNew && continuesPrevious(thread.comments[i - 1], c)
+                }
+                fresh={
+                  firstNew >= 0 &&
+                  i >= firstNew &&
+                  !isOwnComment(c, currentUserId)
+                }
                 currentUserId={currentUserId}
                 agentType={agentType}
-                replyingTo={c.parent_comment_id ? replyTargets.get(c.parent_comment_id) : undefined}
+                replyingTo={
+                  c.parent_comment_id
+                    ? replyTargets.get(c.parent_comment_id)
+                    : undefined
+                }
                 // Thread actions act on the whole thread, so they ride on its first card.
                 threadTools={i === 0 ? threadTools : undefined}
                 onReply={writable ? startReply : undefined}
@@ -169,7 +264,12 @@ export function CommentThread({
       )}
       {showReply && (
         <div className="cc-thread-foot">
-          <button type="button" className="cc-comment-btn" onClick={() => setComposing(true)} data-comment-reply>
+          <button
+            type="button"
+            className="cc-comment-btn"
+            onClick={() => setComposing(true)}
+            data-comment-reply
+          >
             <MessageSquarePlus className="w-3 h-3" /> Comment
           </button>
         </div>
@@ -190,9 +290,18 @@ export function CommentThread({
           scopeKey={scopeKey}
           mentionTeamId={mentionTeamId}
           chatMentionMode={!!mentionTeamId}
-          placeholder={replyTo ? "Reply…" : placeholder ?? (hasComments ? "Reply…" : "Comment…")}
+          placeholder={
+            replyTo
+              ? "Reply…"
+              : (placeholder ?? (hasComments ? "Reply…" : "Comment…"))
+          }
           onSubmit={(content) => {
-            const sent = onAdd({ content, messageId: thread.messageId, parentCommentId: replyTo?._id, ...fileAnchor });
+            const sent = onAdd({
+              content,
+              messageId: thread.messageId,
+              parentCommentId: replyTo?._id,
+              ...fileAnchor,
+            });
             if (composeOnDemand) closeComposer();
             return sent;
           }}

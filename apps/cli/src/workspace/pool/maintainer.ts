@@ -21,7 +21,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { lockfileNames, maintainPool } from "./manager.js";
-import { POOL_MAX_SLOTS, demandFile, desiredPoolSizeForRepo } from "./demand.js";
+import {
+  POOL_MAX_SLOTS,
+  demandFile,
+  desiredPoolSizeForRepo,
+} from "./demand.js";
 
 const DEFAULT_PERIOD_MS = 30_000;
 
@@ -77,7 +81,8 @@ export function startPoolMaintainer(
     }
     running = true;
     try {
-      const size = opts.size ?? desiredPoolSizeForRepo(repoRoot, Date.now(), maxSlots);
+      const size =
+        opts.size ?? desiredPoolSizeForRepo(repoRoot, Date.now(), maxSlots);
       await maintain(repoRoot, size);
     } catch (err) {
       log(`pool maintainer error: ${(err as Error).message}`);
@@ -99,11 +104,18 @@ export function startPoolMaintainer(
   if (opts.watch !== false) {
     for (const target of watchTargets(repoRoot)) {
       try {
-        const w = fs.watch(target.path, { persistent: false }, (_event, filename) => {
-          if (target.only && !String(filename ?? "").includes(target.only)) return;
-          log(`pool maintainer: change detected at ${target.only ?? target.path}`);
-          void tick();
-        });
+        const w = fs.watch(
+          target.path,
+          { persistent: false },
+          (_event, filename) => {
+            if (target.only && !String(filename ?? "").includes(target.only))
+              return;
+            log(
+              `pool maintainer: change detected at ${target.only ?? target.path}`,
+            );
+            void tick();
+          },
+        );
         watchers.push(w);
       } catch {
         // Path may not exist (e.g., no lockfile yet). Skip silently.
@@ -117,7 +129,9 @@ export function startPoolMaintainer(
       stopped = true;
       if (timer) clearInterval(timer);
       for (const w of watchers) {
-        try { w.close(); } catch {}
+        try {
+          w.close();
+        } catch {}
       }
     },
     async tickNow() {

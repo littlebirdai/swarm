@@ -18,11 +18,20 @@ async function makeCtx(tasks: any[]) {
       { _id: OWNER, name: "Owner", github_username: "owner" },
       { _id: BOB, name: "Bob", github_username: "bob" },
     ],
-    api_tokens: [{ _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "token_1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
     tasks,
     task_history: [],
     entity_subscriptions: [],
-    conversations: [{ _id: "conversations_1", session_id: "sess-1", user_id: OWNER, status: "active" }],
+    conversations: [
+      {
+        _id: "conversations_1",
+        session_id: "sess-1",
+        user_id: OWNER,
+        status: "active",
+      },
+    ],
   };
   const emitted: any[] = [];
   const subscribed: any[] = [];
@@ -37,7 +46,11 @@ async function makeCtx(tasks: any[]) {
     return patchInPlace(id, patch);
   };
   const ctx = {
-    auth: { async getUserIdentity() { return null; } },
+    auth: {
+      async getUserIdentity() {
+        return null;
+      },
+    },
     db,
     scheduler: { runAfter: async () => null },
     async runMutation(_ref: unknown, args: any) {
@@ -51,13 +64,26 @@ async function makeCtx(tasks: any[]) {
   return { ctx, tables, emitted, subscribed };
 }
 
-const task = () => ({ _id: "tasks_1", short_id: "ct-1", title: "ct-1", user_id: OWNER, status: "open", source: "agent" });
-const assigned = (emitted: any[]) => emitted.filter((e) => e.event_type === "task_assigned");
+const task = () => ({
+  _id: "tasks_1",
+  short_id: "ct-1",
+  title: "ct-1",
+  user_id: OWNER,
+  status: "open",
+  source: "agent",
+});
+const assigned = (emitted: any[]) =>
+  emitted.filter((e) => e.event_type === "task_assigned");
 
 describe("tasks.update self-assign guard", () => {
   test("assignee 'me' resolves to the actor: no task_assigned, no assignee enrollment", async () => {
     const { ctx, tables, emitted, subscribed } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1", status: "in_progress", assignee: "me" });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "in_progress",
+      assignee: "me",
+    });
     expect(tables.tasks[0].assignee).toBe(OWNER);
     expect(assigned(emitted)).toEqual([]);
     expect(subscribed.filter((s) => s.reason === "assignee")).toEqual([]);
@@ -65,14 +91,25 @@ describe("tasks.update self-assign guard", () => {
 
   test("assigning someone else still notifies and enrolls them", async () => {
     const { ctx, emitted, subscribed } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1", assignee: "bob" });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      assignee: "bob",
+    });
     expect(assigned(emitted).map((e) => e.direct_recipient_id)).toEqual([BOB]);
-    expect(subscribed.filter((s) => s.reason === "assignee").map((s) => s.user_id)).toEqual([BOB]);
+    expect(
+      subscribed.filter((s) => s.reason === "assignee").map((s) => s.user_id),
+    ).toEqual([BOB]);
   });
 
   test("an agent claim (session binding, no assignee) leaves assignee unset", async () => {
     const { ctx, tables, emitted } = await makeCtx([task()]);
-    await (update as any)._handler(ctx, { api_token: TOKEN, short_id: "ct-1", status: "in_progress", conversation_id: "sess-1" });
+    await (update as any)._handler(ctx, {
+      api_token: TOKEN,
+      short_id: "ct-1",
+      status: "in_progress",
+      conversation_id: "sess-1",
+    });
     expect(tables.tasks[0].status).toBe("in_progress");
     expect(tables.tasks[0].assignee).toBeUndefined();
     expect(assigned(emitted)).toEqual([]);

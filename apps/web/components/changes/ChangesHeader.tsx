@@ -11,7 +11,12 @@ import type { LiveRow, WorksRow } from "../../hooks/useSyncChanges";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { formatDateSmart } from "../../lib/utils";
 import { Pill } from "../feed/ExternalEventRow";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { PageHeader } from "../ui/page-header";
 import { areaFill, areaLabel } from "./areaColor";
 import { plural } from "./format";
@@ -19,7 +24,13 @@ import { InTheWorks } from "./InTheWorks";
 import { AreaDot, Tip } from "./StoryParts";
 import { useAreaColors } from "./storyContext";
 import { KeyHint } from "./useChangesKeys";
-import { hasFilters, toggleArea, type ChangesUrl, type SetChangesUrl, type Zoom } from "./useChangesUrlState";
+import {
+  hasFilters,
+  toggleArea,
+  type ChangesUrl,
+  type SetChangesUrl,
+  type Zoom,
+} from "./useChangesUrlState";
 import { modernButton, modernChip } from "../ui/modernLook";
 
 export type FilterOptions = {
@@ -27,9 +38,18 @@ export type FilterOptions = {
   people: { id: string; name: string }[];
 };
 
-function RepoPicker({ repos, repo, onPick }: { repos: { repo: string; commits: number }[]; repo: string | undefined; onPick: (repo: string) => void }) {
+function RepoPicker({
+  repos,
+  repo,
+  onPick,
+}: {
+  repos: { repo: string; commits: number }[];
+  repo: string | undefined;
+  onPick: (repo: string) => void;
+}) {
   // A repository with no recent work (an old link) still lists, so there is a way back to the ranked ones.
-  if (repo && !repos.some((r) => r.repo === repo)) repos = [...repos, { repo, commits: 0 }];
+  if (repo && !repos.some((r) => r.repo === repo))
+    repos = [...repos, { repo, commits: 0 }];
   if (repos.length < 2 || !repo) return null;
   return (
     <DropdownMenu>
@@ -41,8 +61,16 @@ function RepoPicker({ repos, repo, onPick }: { repos: { repo: string; commits: n
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[14rem]">
         {repos.map((r) => (
-          <DropdownMenuItem key={r.repo} onSelect={() => onPick(r.repo)} className="flex items-center justify-between gap-4 font-mono text-meta">
-            <span className={r.repo === repo ? "text-sol-text" : "text-sol-text/70"}>{r.repo}</span>
+          <DropdownMenuItem
+            key={r.repo}
+            onSelect={() => onPick(r.repo)}
+            className="flex items-center justify-between gap-4 font-mono text-meta"
+          >
+            <span
+              className={r.repo === repo ? "text-sol-text" : "text-sol-text/70"}
+            >
+              {r.repo}
+            </span>
             <span className="tabular-nums text-sol-text-dim">{r.commits}</span>
           </DropdownMenuItem>
         ))}
@@ -51,14 +79,26 @@ function RepoPicker({ repos, repo, onPick }: { repos: { repo: string; commits: n
   );
 }
 
-function Chip({ active, onClick, children, color }: { active: boolean; onClick: () => void; children: React.ReactNode; color?: string }) {
+function Chip({
+  active,
+  onClick,
+  children,
+  color,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  color?: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={`inline-flex h-[22px] items-center gap-1.5 rounded-full border px-2 font-mono text-meta transition-colors ${
-        active ? "border-sol-border/70 text-sol-text" : "border-sol-border/25 text-sol-text/60 hover:border-sol-border/50 hover:text-sol-text"
+        active
+          ? "border-sol-border/70 text-sol-text"
+          : "border-sol-border/25 text-sol-text/60 hover:border-sol-border/50 hover:text-sol-text"
       } ${modernChip({ active }, "modern:font-sans")}`}
       style={active && color ? { background: color } : undefined}
     >
@@ -67,7 +107,14 @@ function Chip({ active, onClick, children, color }: { active: boolean; onClick: 
   );
 }
 
-function FilterBar({ url, setUrl, options, inputRef, personName, className }: {
+function FilterBar({
+  url,
+  setUrl,
+  options,
+  inputRef,
+  personName,
+  className,
+}: {
   /** Where it sits: under the masthead (Classic) or in the page header's second row (Modern). */
   className: string;
   url: ChangesUrl;
@@ -80,7 +127,7 @@ function FilterBar({ url, setUrl, options, inputRef, personName, className }: {
   // outside (Escape, clear filters, a pasted link) resets the field.
   const [q, setQ] = useState(url.q ?? "");
   useWatchEffect(() => {
-    setQ((typed) => ((url.q ?? "") !== typed.trim() ? url.q ?? "" : typed));
+    setQ((typed) => ((url.q ?? "") !== typed.trim() ? (url.q ?? "") : typed));
   }, [url.q]);
   const colors = useAreaColors();
   return (
@@ -97,25 +144,52 @@ function FilterBar({ url, setUrl, options, inputRef, personName, className }: {
         className="h-[22px] w-44 rounded-full border border-sol-border/30 bg-transparent px-2.5 font-mono text-meta text-sol-text outline-none placeholder:text-sol-text/40 focus:border-sol-border/70"
       />
       {options.areas.map((a) => (
-        <Chip key={a} active={url.areas.includes(a)} onClick={() => setUrl((s) => toggleArea(s, a))} color={areaFill(a, 14, colors)}>
+        <Chip
+          key={a}
+          active={url.areas.includes(a)}
+          onClick={() => setUrl((s) => toggleArea(s, a))}
+          color={areaFill(a, 14, colors)}
+        >
           <AreaDot area={a} />
           {areaLabel(a)}
         </Chip>
       ))}
       {options.people.map((p) => (
-        <Chip key={p.id} active={url.person === p.id} onClick={() => setUrl({ person: url.person === p.id ? undefined : p.id })}>
+        <Chip
+          key={p.id}
+          active={url.person === p.id}
+          onClick={() =>
+            setUrl({ person: url.person === p.id ? undefined : p.id })
+          }
+        >
           {p.name}
         </Chip>
       ))}
       {url.person && !options.people.some((p) => p.id === url.person) && (
-        <Chip active onClick={() => setUrl({ person: undefined })}>{personName(url.person)}</Chip>
+        <Chip active onClick={() => setUrl({ person: undefined })}>
+          {personName(url.person)}
+        </Chip>
       )}
-      <Chip active={url.risk} onClick={() => setUrl((s) => ({ ...s, risk: !s.risk }))}>risks</Chip>
-      <Chip active={url.branches === "all"} onClick={() => setUrl((s) => ({ ...s, branches: s.branches === "all" ? "main" : "all" }))}>all branches</Chip>
+      <Chip
+        active={url.risk}
+        onClick={() => setUrl((s) => ({ ...s, risk: !s.risk }))}
+      >
+        risks
+      </Chip>
+      <Chip
+        active={url.branches === "all"}
+        onClick={() =>
+          setUrl((s) => ({
+            ...s,
+            branches: s.branches === "all" ? "main" : "all",
+          }))
+        }
+      >
+        all branches
+      </Chip>
     </div>
   );
 }
-
 
 /** What is live, one surface per item: its version (or short sha for a deploy), and how many stories wait behind it. */
 function LiveLine({ live }: { live: readonly LiveRow[] }) {
@@ -127,17 +201,28 @@ function LiveLine({ live }: { live: readonly LiveRow[] }) {
         const label = l.version ?? l.sha.slice(0, 7);
         const tip = `${l.surface} ${label}, ${l.kind === "deploy" ? "deployed" : "shipped"} ${formatDateSmart(l.at)}${l.waiting ? `. ${plural(l.waiting, "story", "stories")} landed since.` : ""}`;
         return (
-          <Tip key={l.surface} text={l.deploy ? `${tip} Opens ${l.deploy}.` : tip}>
+          <Tip
+            key={l.surface}
+            text={l.deploy ? `${tip} Opens ${l.deploy}.` : tip}
+          >
             {/* A deploy opens its deploy object: what it carried and what happened after (deploys.md). */}
             {l.deploy ? (
-              <Link href={entityRoute("deploy", l.deploy) ?? "#"} className="tabular-nums hover:text-[var(--sol-green)]" data-deploy-ref={l.deploy}>
+              <Link
+                href={entityRoute("deploy", l.deploy) ?? "#"}
+                className="tabular-nums hover:text-[var(--sol-green)]"
+                data-deploy-ref={l.deploy}
+              >
                 {l.surface} <span className="text-sol-text/75">{label}</span>
-                {l.waiting > 0 && <span className="text-sol-text-dim"> +{l.waiting}</span>}
+                {l.waiting > 0 && (
+                  <span className="text-sol-text-dim"> +{l.waiting}</span>
+                )}
               </Link>
             ) : (
               <span className="tabular-nums">
                 {l.surface} <span className="text-sol-text/75">{label}</span>
-                {l.waiting > 0 && <span className="text-sol-text-dim"> +{l.waiting}</span>}
+                {l.waiting > 0 && (
+                  <span className="text-sol-text-dim"> +{l.waiting}</span>
+                )}
               </span>
             )}
           </Tip>
@@ -147,7 +232,17 @@ function LiveLine({ live }: { live: readonly LiveRow[] }) {
   );
 }
 
-function Toggle({ open, onClick, children, buttonRef }: { open: boolean; onClick: () => void; children: ReactNode; buttonRef?: RefObject<HTMLButtonElement | null> }) {
+function Toggle({
+  open,
+  onClick,
+  children,
+  buttonRef,
+}: {
+  open: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  buttonRef?: RefObject<HTMLButtonElement | null>;
+}) {
   return (
     <button
       ref={buttonRef}
@@ -155,7 +250,9 @@ function Toggle({ open, onClick, children, buttonRef }: { open: boolean; onClick
       onClick={onClick}
       aria-expanded={open}
       className={`inline-flex h-[24px] items-center gap-1.5 rounded-md border px-2 font-mono text-meta transition-colors ${
-        open ? "border-sol-border/60 text-sol-text" : "border-sol-border/30 text-sol-text-muted hover:text-sol-text"
+        open
+          ? "border-sol-border/60 text-sol-text"
+          : "border-sol-border/30 text-sol-text-muted hover:text-sol-text"
       } ${modernButton({ variant: "outline", size: "sm" }, "modern:font-sans")}`}
     >
       {children}
@@ -164,7 +261,13 @@ function Toggle({ open, onClick, children, buttonRef }: { open: boolean; onClick
 }
 
 /** How far out the timeline reads: by age (the default), or one level everywhere. */
-function ZoomControl({ zoom, onZoom }: { zoom: Zoom | undefined; onZoom: (z: Zoom | undefined) => void }) {
+function ZoomControl({
+  zoom,
+  onZoom,
+}: {
+  zoom: Zoom | undefined;
+  onZoom: (z: Zoom | undefined) => void;
+}) {
   const levels: Array<[Zoom | undefined, string, string]> = [
     [undefined, "auto", "Recent days in full, older ones further out"],
     ["changes", "changes", "Every change, day by day"],
@@ -172,7 +275,11 @@ function ZoomControl({ zoom, onZoom }: { zoom: Zoom | undefined; onZoom: (z: Zoo
     ["weeks", "weeks", "Each week told whole"],
   ];
   return (
-    <div role="radiogroup" aria-label="Zoom" className="inline-flex h-[24px] items-center rounded-md border border-sol-border/30 p-px">
+    <div
+      role="radiogroup"
+      aria-label="Zoom"
+      className="inline-flex h-[24px] items-center rounded-md border border-sol-border/30 p-px"
+    >
       {levels.map(([z, label, tip]) => (
         <Tip key={label} text={tip}>
           <button
@@ -213,25 +320,44 @@ export function TimelineHeader(props: {
   const live = props.live.length > 0;
   const filterShown = props.filterOpen || filtering;
   // The masthead's parts, drawn by whichever header is up.
-  const repoPicker = <RepoPicker repos={props.repos} repo={props.repo} onPick={(repo) => setUrl({ repo, story: undefined }, "push")} />;
+  const repoPicker = (
+    <RepoPicker
+      repos={props.repos}
+      repo={props.repo}
+      onPick={(repo) => setUrl({ repo, story: undefined }, "push")}
+    />
+  );
   const controls = (
     <>
-          <ZoomControl zoom={url.zoom} onZoom={(zoom) => setUrl({ zoom })} />
-          {moving > 0 && (
-            <Toggle open={props.worksOpen} onClick={props.onToggleWorks}>
-              in progress <span className="tabular-nums text-sol-text-dim">{moving}</span>
-            </Toggle>
-          )}
-          <Toggle open={filterShown} onClick={props.onToggleFilter} buttonRef={props.filterToggleRef}>
-            <ListFilter className="h-3 w-3" />
-            filter
-            <KeyHint action="changes.filter" />
-          </Toggle>
+      <ZoomControl zoom={url.zoom} onZoom={(zoom) => setUrl({ zoom })} />
+      {moving > 0 && (
+        <Toggle open={props.worksOpen} onClick={props.onToggleWorks}>
+          in progress{" "}
+          <span className="tabular-nums text-sol-text-dim">{moving}</span>
+        </Toggle>
+      )}
+      <Toggle
+        open={filterShown}
+        onClick={props.onToggleFilter}
+        buttonRef={props.filterToggleRef}
+      >
+        <ListFilter className="h-3 w-3" />
+        filter
+        <KeyHint action="changes.filter" />
+      </Toggle>
     </>
   );
-  const filterBar = (className: string) => filterShown && (
-    <FilterBar className={className} url={url} setUrl={setUrl} options={props.options} inputRef={props.filterRef} personName={props.personName} />
-  );
+  const filterBar = (className: string) =>
+    filterShown && (
+      <FilterBar
+        className={className}
+        url={url}
+        setUrl={setUrl}
+        options={props.options}
+        inputRef={props.filterRef}
+        personName={props.personName}
+      />
+    );
   // Classic and Minimal: the masthead at the top of the page's column, the
   // work in progress opening inside it. Modern: the page header, pinned (the
   // work in progress opens at the top of the page, ChangesPage); chg-root
@@ -241,13 +367,15 @@ export function TimelineHeader(props: {
       legacy={
         <header className="pt-6" data-changes-header>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="chg-ui text-[20px] font-semibold text-sol-text">Changes</h1>
+            <h1 className="chg-ui text-[20px] font-semibold text-sol-text">
+              Changes
+            </h1>
             {repoPicker}
-            <div className="ml-auto flex items-center gap-2">
-              {controls}
-            </div>
+            <div className="ml-auto flex items-center gap-2">{controls}</div>
           </div>
-          <div className="mt-1.5"><LiveLine live={props.live} /></div>
+          <div className="mt-1.5">
+            <LiveLine live={props.live} />
+          </div>
           {filterBar("mt-3")}
           {props.worksOpen && <TimelineWorks works={props.works} />}
         </header>

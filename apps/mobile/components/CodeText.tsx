@@ -1,17 +1,22 @@
-import React, { useMemo } from 'react';
-import { StyleSheet } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Text as RNText } from '@/components/Themed';
-import { copyToClipboard } from '@/lib/clipboard';
-import { openLink } from '@/lib/links';
-import { useMessageLongPress } from '@/components/MessageLongPress';
+import React, { useMemo } from "react";
+import { StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
+import { Text as RNText } from "@/components/Themed";
+import { copyToClipboard } from "@/lib/clipboard";
+import { openLink } from "@/lib/links";
+import { useMessageLongPress } from "@/components/MessageLongPress";
 // The URL vocabulary is shared with the deep-link router and the plain-text
 // surfaces (lib/linkRoutes) — markdown prose, bash output and a tapped link all
 // recognise and normalise the same thing.
-import { URL_SOURCE, urlPattern, trimUrlTail, shortenUrl } from '@/lib/linkRoutes';
-import { Theme, themedStyles } from '@/constants/Theme';
-import { codeFont } from '@/constants/fonts';
-import { ansiSpans } from '@codecast/web/lib/ansi';
+import {
+  URL_SOURCE,
+  urlPattern,
+  trimUrlTail,
+  shortenUrl,
+} from "@/lib/linkRoutes";
+import { Theme, themedStyles } from "@/constants/Theme";
+import { codeFont } from "@/constants/fonts";
+import { ansiSpans } from "@codecast/web/lib/ansi";
 
 // Links and highlighted code, shared by the markdown renderer, diffs and the
 // plain-text tool output surfaces.
@@ -25,7 +30,7 @@ export function useLinkLongPress(url: string): () => void {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
   return messageLongPress
-    ? () => messageLongPress([{ label: 'Copy link', text: url, icon: 'link' }])
+    ? () => messageLongPress([{ label: "Copy link", text: url, icon: "link" }])
     : copy;
 }
 
@@ -34,12 +39,24 @@ export function useLinkLongPress(url: string): () => void {
  * same way (in-app for codecast objects, in-app browser otherwise) and all
  * carry the same long-press-to-copy affordance.
  */
-export function LinkText({ url, label, isUser, style }: { url: string; label?: React.ReactNode; isUser?: boolean; style?: any }) {
+export function LinkText({
+  url,
+  label,
+  isUser,
+  style,
+}: {
+  url: string;
+  label?: React.ReactNode;
+  isUser?: boolean;
+  style?: any;
+}) {
   const onLongPress = useLinkLongPress(url);
   return (
     <RNText
       style={style ?? (isUser ? styles.linkTextUser : styles.linkText)}
-      onPress={() => { void openLink(url); }}
+      onPress={() => {
+        void openLink(url);
+      }}
       onLongPress={onLongPress}
     >
       {label ?? shortenUrl(url)}
@@ -52,44 +69,77 @@ export function LinkText({ url, label, isUser, style }: { url: string; label?: R
  * markdown (bash output, raw tool results, the verbatim prompt view). Those
  * used to render a `cast publish` link or a PR URL as dead text.
  */
-export function linkifyPlainText(text: string, keyPrefix = '', isUser = false): React.ReactNode[] {
+export function linkifyPlainText(
+  text: string,
+  keyPrefix = "",
+  isUser = false,
+): React.ReactNode[] {
   const pattern = urlPattern();
   const out: React.ReactNode[] = [];
   let last = 0;
   let key = 0;
   let m: RegExpExecArray | null;
   while ((m = pattern.exec(text)) !== null) {
-    if (m.index > last) out.push(<RNText key={`${keyPrefix}t${key++}`}>{text.slice(last, m.index)}</RNText>);
+    if (m.index > last)
+      out.push(
+        <RNText key={`${keyPrefix}t${key++}`}>
+          {text.slice(last, m.index)}
+        </RNText>,
+      );
     const url = trimUrlTail(m[0]);
-    out.push(<LinkText key={`${keyPrefix}u${key++}`} url={url} label={url} isUser={isUser} />);
+    out.push(
+      <LinkText
+        key={`${keyPrefix}u${key++}`}
+        url={url}
+        label={url}
+        isUser={isUser}
+      />,
+    );
     const tail = m[0].slice(url.length);
     if (tail) out.push(<RNText key={`${keyPrefix}p${key++}`}>{tail}</RNText>);
     last = m.index + m[0].length;
   }
   if (last === 0) return [text];
-  if (last < text.length) out.push(<RNText key={`${keyPrefix}t${key++}`}>{text.slice(last)}</RNText>);
+  if (last < text.length)
+    out.push(<RNText key={`${keyPrefix}t${key++}`}>{text.slice(last)}</RNText>);
   return out;
 }
 
 // `link: true` spans are rendered pressable instead of merely colored. The URL
 // pattern comes first so it wins the overlap merge — a URL contains `//`, `:`
 // and digits, each of which another rule would otherwise claim a piece of.
-const SYNTAX_PATTERNS: Array<{ regex: RegExp; color: string; link?: boolean }> = [
-  { regex: new RegExp(URL_SOURCE, 'g'), color: Theme.blue, link: true },
-  { regex: /\/\/.*$/gm, color: '#586e75' },
-  { regex: /\/\*[\s\S]*?\*\//gm, color: '#586e75' },
-  { regex: /#.*$/gm, color: '#586e75' },
-  { regex: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g, color: '#2aa198' },
-  { regex: /\b(import|export|from|default|return|if|else|for|while|do|switch|case|break|continue|function|const|let|var|class|extends|new|this|try|catch|finally|throw|async|await|yield|typeof|instanceof|in|of|void|delete|true|false|null|undefined|enum|interface|type|implements|abstract|static|public|private|protected|readonly|override|declare|namespace|module|require|super|as|is)\b/g, color: '#859900' },
-  { regex: /\b\d+(\.\d+)?\b/g, color: '#d33682' },
-  { regex: /[{}()[\]]/g, color: '#657b83' },
-  { regex: /=&gt;|=>|===|!==|==|!=|<=|>=|&&|\|\||[+\-*/%=<>!&|^~?:]/g, color: '#cb4b16' },
-];
+const SYNTAX_PATTERNS: Array<{ regex: RegExp; color: string; link?: boolean }> =
+  [
+    { regex: new RegExp(URL_SOURCE, "g"), color: Theme.blue, link: true },
+    { regex: /\/\/.*$/gm, color: "#586e75" },
+    { regex: /\/\*[\s\S]*?\*\//gm, color: "#586e75" },
+    { regex: /#.*$/gm, color: "#586e75" },
+    {
+      regex: /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+      color: "#2aa198",
+    },
+    {
+      regex:
+        /\b(import|export|from|default|return|if|else|for|while|do|switch|case|break|continue|function|const|let|var|class|extends|new|this|try|catch|finally|throw|async|await|yield|typeof|instanceof|in|of|void|delete|true|false|null|undefined|enum|interface|type|implements|abstract|static|public|private|protected|readonly|override|declare|namespace|module|require|super|as|is)\b/g,
+      color: "#859900",
+    },
+    { regex: /\b\d+(\.\d+)?\b/g, color: "#d33682" },
+    { regex: /[{}()[\]]/g, color: "#657b83" },
+    {
+      regex: /=&gt;|=>|===|!==|==|!=|<=|>=|&&|\|\||[+\-*/%=<>!&|^~?:]/g,
+      color: "#cb4b16",
+    },
+  ];
 
 type CodeSpan = { text: string; color?: string; link?: boolean };
 
 function highlightSyntax(code: string): CodeSpan[] {
-  const spans: Array<{ start: number; end: number; color: string; link?: boolean }> = [];
+  const spans: Array<{
+    start: number;
+    end: number;
+    color: string;
+    link?: boolean;
+  }> = [];
   for (const { regex, color, link } of SYNTAX_PATTERNS) {
     regex.lastIndex = 0;
     let m;
@@ -109,14 +159,24 @@ function highlightSyntax(code: string): CodeSpan[] {
   let pos = 0;
   for (const s of merged) {
     if (s.start > pos) result.push({ text: code.slice(pos, s.start) });
-    result.push({ text: code.slice(s.start, s.end), color: s.color, link: s.link });
+    result.push({
+      text: code.slice(s.start, s.end),
+      color: s.color,
+      link: s.link,
+    });
     pos = s.end;
   }
   if (pos < code.length) result.push({ text: code.slice(pos) });
   return result;
 }
 
-export function HighlightedCodeText({ content, style }: { content: string; style: any }) {
+export function HighlightedCodeText({
+  content,
+  style,
+}: {
+  content: string;
+  style: any;
+}) {
   const inMessage = !!useMessageLongPress();
   const parts = useMemo(() => highlightSyntax(content), [content]);
   return (
@@ -128,27 +188,39 @@ export function HighlightedCodeText({ content, style }: { content: string; style
           const url = trimUrlTail(p.text);
           return (
             <RNText key={i}>
-              <LinkText url={url} label={url} style={{ color: p.color, textDecorationLine: 'underline' }} />
+              <LinkText
+                url={url}
+                label={url}
+                style={{ color: p.color, textDecorationLine: "underline" }}
+              />
               {p.text.slice(url.length)}
             </RNText>
           );
         }
-        return p.color ? <RNText key={i} style={{ color: p.color }}>{p.text}</RNText> : p.text;
+        return p.color ? (
+          <RNText key={i} style={{ color: p.color }}>
+            {p.text}
+          </RNText>
+        ) : (
+          p.text
+        );
       })}
     </RNText>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  linkText: {
-    color: Theme.cyan,
-    textDecorationLine: 'underline',
-  },
-  linkTextUser: {
-    color: Theme.userBubble,
-    textDecorationLine: 'underline',
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    linkText: {
+      color: Theme.cyan,
+      textDecorationLine: "underline",
+    },
+    linkTextUser: {
+      color: Theme.userBubble,
+      textDecorationLine: "underline",
+    },
+  }),
+);
 
 /** Command output with its terminal colors, and its URLs tappable. */
 export function AnsiText({ text, style }: { text: string; style: any }) {
@@ -158,9 +230,16 @@ export function AnsiText({ text, style }: { text: string; style: any }) {
     <RNText style={[codeFont, style]} selectable={!inMessage}>
       {spans.map((sp, i) => {
         const body = linkifyPlainText(sp.text, `a${i}`);
-        return sp.color || sp.bold
-          ? <RNText key={i} style={{ color: sp.color, fontWeight: sp.bold ? '700' : undefined }}>{body}</RNText>
-          : <React.Fragment key={i}>{body}</React.Fragment>;
+        return sp.color || sp.bold ? (
+          <RNText
+            key={i}
+            style={{ color: sp.color, fontWeight: sp.bold ? "700" : undefined }}
+          >
+            {body}
+          </RNText>
+        ) : (
+          <React.Fragment key={i}>{body}</React.Fragment>
+        );
       })}
     </RNText>
   );

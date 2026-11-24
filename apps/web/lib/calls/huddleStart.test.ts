@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 
 // The gate in front of every huddle start: an empty room waits for the
 // confirm dialog, a live room is joined at once, and a window with no dialog
@@ -16,15 +24,22 @@ afterAll(() => {
 mock.module("./actions", () => ({
   ...realActions,
   joinCall: async (roomKey: string) => void calls.push(`join ${roomKey}`),
-  startHuddle: async (o: { roomKey: string; toUserIds: string[] }) => void calls.push(`start ${o.roomKey} ${o.toUserIds.join(",")}`),
+  startHuddle: async (o: { roomKey: string; toUserIds: string[] }) =>
+    void calls.push(`start ${o.roomKey} ${o.toUserIds.join(",")}`),
   acceptInvite: async (id: string) => void calls.push(`accept ${id}`),
   declineInvite: async (id: string) => void calls.push(`decline ${id}`),
   holdRing: async (id: string) => void calls.push(`hold ${id}`),
-  releaseRing: async (inv: { _id: unknown }) => void calls.push(`release ${inv._id}`),
+  releaseRing: async (inv: { _id: unknown }) =>
+    void calls.push(`release ${inv._id}`),
 }));
 let UI: Record<string, unknown> = {};
-const storeHook = Object.assign(() => undefined, { getState: () => ({ callOccupancy: OCCUPANCY, clientState: { ui: UI } }) });
-mock.module("../../store/inboxStore", () => ({ ...realStore, useInboxStore: storeHook }));
+const storeHook = Object.assign(() => undefined, {
+  getState: () => ({ callOccupancy: OCCUPANCY, clientState: { ui: UI } }),
+});
+mock.module("../../store/inboxStore", () => ({
+  ...realStore,
+  useInboxStore: storeHook,
+}));
 
 const gate = await import("./huddleStart");
 

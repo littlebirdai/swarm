@@ -14,9 +14,7 @@ compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 
-routes = [
-  { pattern = "replay.codecast.sh", custom_domain = true },
-]
+routes = [{ pattern = "replay.codecast.sh", custom_domain = true }]
 
 [assets]
 directory = "./public"

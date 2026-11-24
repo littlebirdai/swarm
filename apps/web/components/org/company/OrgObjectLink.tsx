@@ -6,7 +6,16 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { objectHref, type OrgObjectKind } from "@codecast/shared/entities";
 
-export function OrgObjectLink({ kind, objRef, className, style, title, children, stop, ...data }: {
+export function OrgObjectLink({
+  kind,
+  objRef,
+  className,
+  style,
+  title,
+  children,
+  stop,
+  ...data
+}: {
   kind: OrgObjectKind;
   /** The object's short ref (`or-7`, `pj-…`, `in-2`) or a person's handle. */
   objRef: string;

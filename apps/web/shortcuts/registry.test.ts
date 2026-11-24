@@ -1,6 +1,12 @@
 import { test, expect, describe } from "bun:test";
 import { createShortcutCatalog } from "@platform/keys";
-import { SHORTCUTS, inputGuardBypass, hasOpenModal, type ShortcutAction, type ShortcutDef } from "./registry";
+import {
+  SHORTCUTS,
+  inputGuardBypass,
+  hasOpenModal,
+  type ShortcutAction,
+  type ShortcutDef,
+} from "./registry";
 import { HELP_SECTIONS } from "./sections";
 
 // The "?" panel renders one section per context in HELP_SECTIONS; a def whose
@@ -17,7 +23,9 @@ describe("shortcuts help covers the whole catalog", () => {
 
   test("help sections carry no dead contexts", () => {
     const defWhens = new Set(SHORTCUTS.map((d) => d.when));
-    const dead = HELP_SECTIONS.map((s) => s.when).filter((w) => !defWhens.has(w));
+    const dead = HELP_SECTIONS.map((s) => s.when).filter(
+      (w) => !defWhens.has(w),
+    );
     expect(dead).toEqual([]);
   });
 });
@@ -67,21 +75,42 @@ describe("inputGuardBypass", () => {
   });
 
   test("true bypasses regardless of content", () => {
-    expect(inputGuardBypass(def(true), { tagName: "TEXTAREA", value: "draft" })).toBe(true);
+    expect(
+      inputGuardBypass(def(true), { tagName: "TEXTAREA", value: "draft" }),
+    ).toBe(true);
   });
 
   test("absent never bypasses", () => {
-    expect(inputGuardBypass(def(undefined), { tagName: "TEXTAREA", value: "" })).toBe(false);
+    expect(
+      inputGuardBypass(def(undefined), { tagName: "TEXTAREA", value: "" }),
+    ).toBe(false);
   });
 
   test("whenEmpty fires in an empty textarea, defers when text is present", () => {
-    expect(inputGuardBypass(def("whenEmpty"), { tagName: "TEXTAREA", value: "" })).toBe(true);
-    expect(inputGuardBypass(def("whenEmpty"), { tagName: "TEXTAREA", value: "half-typed message" })).toBe(false);
+    expect(
+      inputGuardBypass(def("whenEmpty"), { tagName: "TEXTAREA", value: "" }),
+    ).toBe(true);
+    expect(
+      inputGuardBypass(def("whenEmpty"), {
+        tagName: "TEXTAREA",
+        value: "half-typed message",
+      }),
+    ).toBe(false);
   });
 
   test("whenEmpty handles contentEditable via textContent", () => {
-    expect(inputGuardBypass(def("whenEmpty"), { isContentEditable: true, textContent: "  \n" })).toBe(true);
-    expect(inputGuardBypass(def("whenEmpty"), { isContentEditable: true, textContent: "doc text" })).toBe(false);
+    expect(
+      inputGuardBypass(def("whenEmpty"), {
+        isContentEditable: true,
+        textContent: "  \n",
+      }),
+    ).toBe(true);
+    expect(
+      inputGuardBypass(def("whenEmpty"), {
+        isContentEditable: true,
+        textContent: "doc text",
+      }),
+    ).toBe(false);
   });
 
   test("whenEmpty stays suppressed for pseudo-inputs and null targets", () => {
@@ -104,17 +133,30 @@ describe("worksInModal is restricted to app-chrome shortcuts", () => {
   // The effort keys act only on the composer that holds focus (the compose
   // popup is a modal); the conversation behind a modal declines them
   // (hooks/useEffortKeys).
-  const ALLOWED: ShortcutAction[] = ["ui.openSettings", "palette.toggle", "session.composeDock", "conv.effortUp", "conv.effortDown"];
+  const ALLOWED: ShortcutAction[] = [
+    "ui.openSettings",
+    "palette.toggle",
+    "session.composeDock",
+    "conv.effortUp",
+    "conv.effortDown",
+  ];
 
   test("only the allowlisted actions fire while a modal is open", () => {
-    const flagged = SHORTCUTS.filter((s) => s.worksInModal).map((s) => s.action);
+    const flagged = SHORTCUTS.filter((s) => s.worksInModal).map(
+      (s) => s.action,
+    );
     for (const action of flagged) expect(ALLOWED).toContain(action);
   });
 
   test("background-acting shortcuts are never flagged", () => {
     const background: ShortcutAction[] = [
-      "session.next", "session.close", "session.stash", "compose.focus",
-      "permission.approve", "permission.deny", "msg.sendAdvance",
+      "session.next",
+      "session.close",
+      "session.stash",
+      "compose.focus",
+      "permission.approve",
+      "permission.deny",
+      "msg.sendAdvance",
     ];
     for (const def of SHORTCUTS.filter((s) => background.includes(s.action))) {
       expect(def.worksInModal).toBeUndefined();
@@ -151,7 +193,9 @@ describe("hasOpenModal", () => {
   // elsewhere (draft confirm, settings) still does.
   test("a modal containing the host does not block it", () => {
     const host = {};
-    (globalThis as any).document = stub([{ contains: (el: unknown) => el === host }]);
+    (globalThis as any).document = stub([
+      { contains: (el: unknown) => el === host },
+    ]);
     try {
       expect(hasOpenModal(host as Element)).toBe(false);
       expect(hasOpenModal()).toBe(true);
@@ -227,7 +271,9 @@ describe("the people wall chord", () => {
     expect(catalog.getShortcutsForAction("people.wall")).toHaveLength(1);
     expect(catalog.formatShortcutLabel("people.wall")).toBe("⌘⇧P");
     // Listed with the other unscoped chords, which is the panel's Global block.
-    expect(catalog.getShortcutsByContext(undefined).map((d) => d.action)).toContain("people.wall");
+    expect(
+      catalog.getShortcutsByContext(undefined).map((d) => d.action),
+    ).toContain("people.wall");
   });
 });
 
@@ -261,31 +307,55 @@ describe("the recents search chord", () => {
 // chord is one undo, not the whole stack at key-repeat speed.
 describe("the undo chords", () => {
   const keyEvent = (over: Partial<KeyboardEvent>) =>
-    ({ key: "z", code: "KeyZ", ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...over }) as KeyboardEvent;
+    ({
+      key: "z",
+      code: "KeyZ",
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+      shiftKey: false,
+      ...over,
+    }) as KeyboardEvent;
   const resolve = (isMac: boolean, e: KeyboardEvent) => {
     const catalog = createShortcutCatalog(SHORTCUTS, { isMac });
     return catalog.shortcuts.find((d) => catalog.matchShortcut(e, d))?.action;
   };
-  const UNDO_ACTIONS: ShortcutAction[] = ["ui.undo", "ui.redo", "ui.undoHistory"];
+  const UNDO_ACTIONS: ShortcutAction[] = [
+    "ui.undo",
+    "ui.redo",
+    "ui.undoHistory",
+  ];
 
   test("meta+z is undo on mac, and ctrl+z still is", () => {
     expect(resolve(true, keyEvent({ metaKey: true }))).toBe("ui.undo");
     expect(resolve(true, keyEvent({ ctrlKey: true }))).toBe("ui.undo");
-    expect(resolve(true, keyEvent({ metaKey: true, shiftKey: true }))).toBe("ui.redo");
-    expect(resolve(true, keyEvent({ metaKey: true, altKey: true }))).toBe("ui.undoHistory");
+    expect(resolve(true, keyEvent({ metaKey: true, shiftKey: true }))).toBe(
+      "ui.redo",
+    );
+    expect(resolve(true, keyEvent({ metaKey: true, altKey: true }))).toBe(
+      "ui.undoHistory",
+    );
   });
 
   test("ctrl+z, ctrl+shift+z and ctrl+y off mac", () => {
     expect(resolve(false, keyEvent({ ctrlKey: true }))).toBe("ui.undo");
-    expect(resolve(false, keyEvent({ ctrlKey: true, shiftKey: true }))).toBe("ui.redo");
-    expect(resolve(false, keyEvent({ key: "y", code: "KeyY", ctrlKey: true }))).toBe("ui.redo");
-    expect(resolve(false, keyEvent({ ctrlKey: true, altKey: true }))).toBe("ui.undoHistory");
+    expect(resolve(false, keyEvent({ ctrlKey: true, shiftKey: true }))).toBe(
+      "ui.redo",
+    );
+    expect(
+      resolve(false, keyEvent({ key: "y", code: "KeyY", ctrlKey: true })),
+    ).toBe("ui.redo");
+    expect(resolve(false, keyEvent({ ctrlKey: true, altKey: true }))).toBe(
+      "ui.undoHistory",
+    );
   });
 
   // ⌃Y is the system yank in a mac text field (it pastes what ⌃K killed), so
   // it is redo off mac only.
   test("ctrl+y is no app chord on mac", () => {
-    expect(resolve(true, keyEvent({ key: "y", code: "KeyY", ctrlKey: true }))).toBeUndefined();
+    expect(
+      resolve(true, keyEvent({ key: "y", code: "KeyY", ctrlKey: true })),
+    ).toBeUndefined();
   });
 
   // Undo and redo reach their handler from every field, empty or not: the
@@ -294,10 +364,16 @@ describe("the undo chords", () => {
   // A draft a triage step seeded into the composer has none, so the press
   // must reach the handler there too.
   test("undo and redo reach the handler from any field, which decides", () => {
-    for (const def of SHORTCUTS.filter((d) => d.action === "ui.undo" || d.action === "ui.redo")) {
+    for (const def of SHORTCUTS.filter(
+      (d) => d.action === "ui.undo" || d.action === "ui.redo",
+    )) {
       expect(def.skipInputCheck).toBe(true);
-      expect(inputGuardBypass(def, { tagName: "TEXTAREA", value: "" })).toBe(true);
-      expect(inputGuardBypass(def, { tagName: "TEXTAREA", value: "draft" })).toBe(true);
+      expect(inputGuardBypass(def, { tagName: "TEXTAREA", value: "" })).toBe(
+        true,
+      );
+      expect(
+        inputGuardBypass(def, { tagName: "TEXTAREA", value: "draft" }),
+      ).toBe(true);
     }
   });
 
@@ -308,18 +384,32 @@ describe("the undo chords", () => {
     const fromField = (isMac: boolean, e: KeyboardEvent, value: string) => {
       const catalog = createShortcutCatalog(SHORTCUTS, { isMac });
       return catalog.shortcuts.find(
-        (d) => catalog.matchShortcut(e, d) && inputGuardBypass(d, { tagName: "TEXTAREA", value }),
+        (d) =>
+          catalog.matchShortcut(e, d) &&
+          inputGuardBypass(d, { tagName: "TEXTAREA", value }),
       )?.action;
     };
     for (const value of ["", "draft"]) {
-      expect(fromField(true, keyEvent({ metaKey: true, altKey: true }), value)).toBe("ui.undoHistory");
-      expect(fromField(false, keyEvent({ ctrlKey: true, altKey: true }), value)).toBeUndefined();
-      expect(fromField(false, keyEvent({ key: "ż", ctrlKey: true, altKey: true }), value)).toBeUndefined();
+      expect(
+        fromField(true, keyEvent({ metaKey: true, altKey: true }), value),
+      ).toBe("ui.undoHistory");
+      expect(
+        fromField(false, keyEvent({ ctrlKey: true, altKey: true }), value),
+      ).toBeUndefined();
+      expect(
+        fromField(
+          false,
+          keyEvent({ key: "ż", ctrlKey: true, altKey: true }),
+          value,
+        ),
+      ).toBeUndefined();
     }
   });
 
   test("undo and redo never repeat while held", () => {
-    const defs = SHORTCUTS.filter((d) => d.action === "ui.undo" || d.action === "ui.redo");
+    const defs = SHORTCUTS.filter(
+      (d) => d.action === "ui.undo" || d.action === "ui.redo",
+    );
     expect(defs.length).toBe(4);
     for (const def of defs) expect(def.noRepeat).toBe(true);
   });
@@ -340,14 +430,27 @@ describe("the undo chords", () => {
 describe("Changes keys", () => {
   test("toggles fire once per press, steps repeat", () => {
     const changes = SHORTCUTS.filter((d) => d.when === "changes");
-    const once = [...new Set(changes.filter((d) => d.noRepeat).map((d) => d.action))].sort();
+    const once = [
+      ...new Set(changes.filter((d) => d.noRepeat).map((d) => d.action)),
+    ].sort();
     expect(once).toEqual([
-      "changes.copyLink", "changes.evidence", "changes.filter", "changes.open", "changes.risks", "changes.today",
+      "changes.copyLink",
+      "changes.evidence",
+      "changes.filter",
+      "changes.open",
+      "changes.risks",
+      "changes.today",
     ]);
     for (const action of ["changes.next", "changes.prev"]) {
-      expect(changes.filter((d) => d.action === action).every((d) => !d.noRepeat)).toBe(true);
+      expect(
+        changes.filter((d) => d.action === action).every((d) => !d.noRepeat),
+      ).toBe(true);
     }
     // Both evidence bindings, e and enter.
-    expect(changes.filter((d) => d.action === "changes.evidence").every((d) => d.noRepeat)).toBe(true);
+    expect(
+      changes
+        .filter((d) => d.action === "changes.evidence")
+        .every((d) => d.noRepeat),
+    ).toBe(true);
   });
 });

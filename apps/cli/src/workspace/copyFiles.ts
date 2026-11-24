@@ -29,7 +29,15 @@ export function validateRelativePath(rel: string): void {
   if (
     !rel ||
     /[\\:\x00-\x1f\x7f]/.test(rel) ||
-    rel.split("/").some((part) => !part || part === "." || part === ".." || part.toLowerCase() === ".git")
+    rel
+      .split("/")
+      .some(
+        (part) =>
+          !part ||
+          part === "." ||
+          part === ".." ||
+          part.toLowerCase() === ".git",
+      )
   ) {
     throw new Error(`unsafe workspace copy path: ${JSON.stringify(rel)}`);
   }
@@ -46,7 +54,8 @@ export function sourceStat(root: string, rel: string): fs.Stats | undefined {
     current = path.join(current, part);
     stat = fs.lstatSync(current, { throwIfNoEntry: false });
     if (!stat) return undefined;
-    if (stat.isSymbolicLink()) throw new Error(`workspace copy refuses symlink: ${rel}`);
+    if (stat.isSymbolicLink())
+      throw new Error(`workspace copy refuses symlink: ${rel}`);
   }
   return stat;
 }
@@ -66,7 +75,10 @@ export class InvalidWorkspaceManifest extends Error {
  *  manifest that does not parse, and rethrows anything else, so a caller can
  *  tell the two apart. A manifest that declares nothing returns an empty list
  *  — that is a project with nothing to copy, not a broken one. */
-export function manifestCopyEntries(root: string, failMessage = "invalid workspace manifest; fix .codecast/workspace.toml before copying setup files"): string[] {
+export function manifestCopyEntries(
+  root: string,
+  failMessage = "invalid workspace manifest; fix .codecast/workspace.toml before copying setup files",
+): string[] {
   try {
     return resolveManifest(root).setup.copy;
   } catch (err) {
@@ -87,7 +99,11 @@ export interface CollectCopyOptions {
  * expands into its regular files. An entry that does not exist is skipped —
  * a project declaring .env.production on a machine that has none is normal.
  */
-export function collectCopyFiles(root: string, entries: readonly string[], opts: CollectCopyOptions = {}): string[] {
+export function collectCopyFiles(
+  root: string,
+  entries: readonly string[],
+  opts: CollectCopyOptions = {},
+): string[] {
   const files = new Set<string>();
   const visit = (rel: string): void => {
     validateRelativePath(rel);
@@ -98,7 +114,8 @@ export function collectCopyFiles(root: string, entries: readonly string[], opts:
     const stat = sourceStat(root, rel);
     if (!stat) return;
     if (stat.isDirectory()) {
-      for (const child of fs.readdirSync(path.join(root, rel))) visit(`${rel}/${child}`);
+      for (const child of fs.readdirSync(path.join(root, rel)))
+        visit(`${rel}/${child}`);
     } else if (stat.isFile()) {
       files.add(rel);
     } else {
@@ -116,6 +133,9 @@ export function containedRemotePath(destRoot: string, rel: string): string {
   validateRelativePath(rel);
   const joined = path.posix.join(destRoot, rel.split(path.sep).join("/"));
   const fence = destRoot.endsWith("/") ? destRoot : `${destRoot}/`;
-  if (!joined.startsWith(fence)) throw new Error(`workspace copy escapes the destination: ${JSON.stringify(rel)}`);
+  if (!joined.startsWith(fence))
+    throw new Error(
+      `workspace copy escapes the destination: ${JSON.stringify(rel)}`,
+    );
   return joined;
 }

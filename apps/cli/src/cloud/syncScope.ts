@@ -11,13 +11,24 @@ import { readLocalConfig } from "../config/readLocalConfig.js";
 import { parseManifest } from "../workspace/manifest.js";
 import type { SyncScope } from "./syncSide.js";
 
-const list = (raw: string | undefined) => (raw ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+const list = (raw: string | undefined) =>
+  (raw ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
 
-export function readSyncScope(repoRoot: string, config = readLocalConfig()): SyncScope | undefined {
+export function readSyncScope(
+  repoRoot: string,
+  config = readLocalConfig(),
+): SyncScope | undefined {
   let spec: { always: string[]; never: string[] } | undefined;
   const file = path.join(repoRoot, ".codecast", "workspace.toml");
   if (fs.existsSync(file)) {
-    try { spec = parseManifest(file)?.sync; } catch { /* a broken manifest is reported where it is used; the defaults still apply */ }
+    try {
+      spec = parseManifest(file)?.sync;
+    } catch {
+      /* a broken manifest is reported where it is used; the defaults still apply */
+    }
   }
   const always = [...(spec?.always ?? []), ...list(config?.sync_always)];
   const never = [...(spec?.never ?? []), ...list(config?.sync_never)];

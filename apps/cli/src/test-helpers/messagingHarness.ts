@@ -22,11 +22,19 @@ import type * as net from "node:net";
 import { hasBinary } from "./binaryProbe.js";
 import { pollUntil } from "./pollUntil.js";
 import { machineClaudeFeatureCache } from "./claudeFeatureCache.js";
-import { shellQuote, spawnTmuxPane as spawnPane, type SpawnTmuxPaneOptions } from "./tmuxPane.js";
+import {
+  shellQuote,
+  spawnTmuxPane as spawnPane,
+  type SpawnTmuxPaneOptions,
+} from "./tmuxPane.js";
 import { randomUUID } from "node:crypto";
 import { Database } from "bun:sqlite";
 import { AGENT_CLIENTS, type AgentClientId } from "@codecast/shared/contracts";
-import { writeShimScript, cleanupShimScript, type ShimOptions } from "./fakeClaudeShim.js";
+import {
+  writeShimScript,
+  cleanupShimScript,
+  type ShimOptions,
+} from "./fakeClaudeShim.js";
 import { tmuxRun } from "../tmux.js";
 import { injectViaTmux } from "../daemon.js";
 import { classifyLivePaneFor, type TmuxLiveState } from "../tmuxPaneState.js";
@@ -94,10 +102,13 @@ export function spawnTmuxPane(opts: SpawnTmuxPaneOptions): void {
 export function spawnHarness(opts: HarnessOptions = {}): Harness {
   const tmuxPrefix = opts.tmuxPrefix ?? "cc-claude-test";
   const tmuxSession = `${tmuxPrefix}-${randomUUID().slice(0, 8)}`;
-  const cwd = opts.cwd ?? fs.mkdtempSync(path.join(os.tmpdir(), "codecast-test-cwd-"));
+  const cwd =
+    opts.cwd ?? fs.mkdtempSync(path.join(os.tmpdir(), "codecast-test-cwd-"));
   recordPaneCwd(cwd);
   const sessionId = opts.sessionId ?? randomUUID();
-  const shimPath = opts.command ? null : writeShimScript({ ...opts, sessionId });
+  const shimPath = opts.command
+    ? null
+    : writeShimScript({ ...opts, sessionId });
   const exitStatusPath = opts.fatal && shimPath ? `${shimPath}.exit` : null;
 
   // The shim writes its transcript under $HOME/.claude/projects, exactly where
@@ -105,7 +116,8 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
   // deletes a directory inside the human's ~/.claude — unless the caller named
   // a home, which it does when the daemon has to find the transcript itself.
   const ownedHome = !opts.home;
-  const homeDir = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "codecast-test-home-"));
+  const homeDir =
+    opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "codecast-test-home-"));
 
   // The shim must be discoverable as `claude` on PATH so an invocation of
   // `claude` lands on it. We do this by symlinking (or copying) it to a
@@ -113,7 +125,11 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
   const env: Record<string, string> = {
     ...process.env,
     HOME: homeDir,
-    PATH: [...(shimPath ? [path.dirname(shimPath)] : []), ...(opts.pathPrefix ?? []), process.env.PATH ?? ""].join(":"),
+    PATH: [
+      ...(shimPath ? [path.dirname(shimPath)] : []),
+      ...(opts.pathPrefix ?? []),
+      process.env.PATH ?? "",
+    ].join(":"),
     FAKE_CLAUDE_SESSION_ID: sessionId,
   };
 
@@ -126,7 +142,8 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
   // unrelated bash/tmux startup failures still make the session disappear.
   let shimCommand: string;
   if (opts.command) shimCommand = opts.command;
-  else if (exitStatusPath) shimCommand = `tmux set-option -p remain-on-exit on && { ${shellQuote(shimPath!)}; status=$?; printf '%s' "$status" > ${shellQuote(exitStatusPath)}; exit "$status"; }`;
+  else if (exitStatusPath)
+    shimCommand = `tmux set-option -p remain-on-exit on && { ${shellQuote(shimPath!)}; status=$?; printf '%s' "$status" > ${shellQuote(exitStatusPath)}; exit "$status"; }`;
   else shimCommand = `exec ${shellQuote(shimPath!)}`;
   // HOME goes in the BODY, not in the tmux client's environment: a pane
   // inherits the tmux SERVER's environment, and the server outlives any one
@@ -141,7 +158,15 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
   ACTIVE_SESSIONS.add(tmuxSession);
 
   const projectDirName = cwd.replace(/\//g, "-");
-  const jsonlPath = opts.jsonlPath ?? path.join(homeDir, ".claude", "projects", projectDirName, `${sessionId}.jsonl`);
+  const jsonlPath =
+    opts.jsonlPath ??
+    path.join(
+      homeDir,
+      ".claude",
+      "projects",
+      projectDirName,
+      `${sessionId}.jsonl`,
+    );
 
   return {
     tmuxSession,
@@ -150,7 +175,15 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
     sessionId,
     jsonlPath,
     capturePane(): string {
-      return tmuxRun(["capture-pane", "-p", "-J", "-t", tmuxSession, "-S", "-50"]).stdout;
+      return tmuxRun([
+        "capture-pane",
+        "-p",
+        "-J",
+        "-t",
+        tmuxSession,
+        "-S",
+        "-50",
+      ]).stdout;
     },
     paneHasPrompt(): boolean {
       const content = this.capturePane();
@@ -158,14 +191,18 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
     },
     paneExitCode(): number | null {
       const state = tmuxRun([
-        "display-message", "-p", "-t", tmuxSession,
+        "display-message",
+        "-p",
+        "-t",
+        tmuxSession,
         "#{pane_dead}:#{pane_dead_status}",
       ]);
       if (state.status !== 0) return null;
       const [dead, rawCode] = state.stdout.trim().split(":");
-      const recordedCode = exitStatusPath && fs.existsSync(exitStatusPath)
-        ? fs.readFileSync(exitStatusPath, "utf-8")
-        : rawCode;
+      const recordedCode =
+        exitStatusPath && fs.existsSync(exitStatusPath)
+          ? fs.readFileSync(exitStatusPath, "utf-8")
+          : rawCode;
       const code = Number.parseInt(recordedCode ?? "", 10);
       return dead === "1" && Number.isInteger(code) ? code : null;
     },
@@ -176,7 +213,9 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
       if (shimPath) cleanupShimScript(shimPath);
       if (ownedHome) {
         // The transcript lives inside the temp home, so this takes it too.
-        try { fs.rmSync(homeDir, { recursive: true, force: true }); } catch {}
+        try {
+          fs.rmSync(homeDir, { recursive: true, force: true });
+        } catch {}
       } else {
         // A borrowed home (the human's, usually): take only what we wrote.
         try {
@@ -186,7 +225,9 @@ export function spawnHarness(opts: HarnessOptions = {}): Harness {
       }
       // Only remove cwd if we created it (matches /tmp prefix).
       if (cwd.startsWith(os.tmpdir())) {
-        try { fs.rmSync(cwd, { recursive: true, force: true }); } catch {}
+        try {
+          fs.rmSync(cwd, { recursive: true, force: true });
+        } catch {}
       }
     },
   };
@@ -201,10 +242,14 @@ export function waitFor(
   predicate: () => boolean | Promise<boolean>,
   opts: { timeoutMs?: number; intervalMs?: number; label?: string } = {},
 ): Promise<number> {
-  return pollUntil(predicate, `waitFor${opts.label ? ` (${opts.label})` : ""}`, {
-    ms: opts.timeoutMs ?? 15000,
-    every: opts.intervalMs ?? 100,
-  });
+  return pollUntil(
+    predicate,
+    `waitFor${opts.label ? ` (${opts.label})` : ""}`,
+    {
+      ms: opts.timeoutMs ?? 15000,
+      every: opts.intervalMs ?? 100,
+    },
+  );
 }
 
 /**
@@ -217,7 +262,10 @@ export function sweepStaleSessions(prefix = "cc-claude-test"): void {
   // single bad tmux interaction during `bun test` would orphan a process that
   // outlives the run.
   const out = tmuxRun(["list-sessions", "-F", "#{session_name}"]).stdout;
-  for (const name of out.split("\n").map((s: string) => s.trim()).filter(Boolean)) {
+  for (const name of out
+    .split("\n")
+    .map((s: string) => s.trim())
+    .filter(Boolean)) {
     if (name.startsWith(prefix)) {
       tmuxRun(["kill-session", "-t", name]);
     }
@@ -228,7 +276,9 @@ export function sweepStaleSessions(prefix = "cc-claude-test"): void {
  * Reads JSONL messages from disk, filtering to user/assistant rows.
  * Returns parsed objects in file order.
  */
-export function readJsonlMessages(jsonlPath: string): Array<{ type: string; text?: string; raw: any }> {
+export function readJsonlMessages(
+  jsonlPath: string,
+): Array<{ type: string; text?: string; raw: any }> {
   if (!fs.existsSync(jsonlPath)) return [];
   const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
   const out: Array<{ type: string; text?: string; raw: any }> = [];
@@ -237,12 +287,18 @@ export function readJsonlMessages(jsonlPath: string): Array<{ type: string; text
       const obj = JSON.parse(line);
       if (obj.type === "user") {
         const content = obj.message?.content;
-        const text = typeof content === "string" ? content :
-          Array.isArray(content) ? content.map((c: any) => c.text ?? "").join("") : "";
+        const text =
+          typeof content === "string"
+            ? content
+            : Array.isArray(content)
+              ? content.map((c: any) => c.text ?? "").join("")
+              : "";
         out.push({ type: "user", text, raw: obj });
       } else if (obj.type === "assistant") {
         const content = obj.message?.content;
-        const text = Array.isArray(content) ? content.map((c: any) => c.text ?? "").join("") : "";
+        const text = Array.isArray(content)
+          ? content.map((c: any) => c.text ?? "").join("")
+          : "";
         out.push({ type: "assistant", text, raw: obj });
       }
     } catch {}
@@ -277,7 +333,12 @@ export function readJsonlMessages(jsonlPath: string): Array<{ type: string; text
 // ---------------------------------------------------------------------------
 
 export type MatrixClientId = "claude" | "codex" | "grok" | "opencode";
-export const MATRIX_CLIENTS: readonly MatrixClientId[] = ["claude", "codex", "grok", "opencode"];
+export const MATRIX_CLIENTS: readonly MatrixClientId[] = [
+  "claude",
+  "codex",
+  "grok",
+  "opencode",
+];
 
 // Is this binary on PATH? The matrix self-skips per client so a runner with no
 // agent installed (every CI runner today) stays green — but only for a client
@@ -314,15 +375,23 @@ export async function startFakeModelEndpoint(): Promise<FakeModelEndpoint> {
   const answer = (res: http.ServerResponse): void => {
     if (res.writableEnded) return;
     res.writeHead(400, { "content-type": "application/json" });
-    res.end(JSON.stringify({
-      type: "error",
-      error: { type: "invalid_request_error", message: "codecast injection matrix: endpoint closed" },
-    }));
+    res.end(
+      JSON.stringify({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "codecast injection matrix: endpoint closed",
+        },
+      }),
+    );
   };
   const server = http.createServer((req, res) => {
     seen++;
     req.resume(); // drain the body; some clients wait for the write to complete
-    if (mode === "reject") { answer(res); return; }
+    if (mode === "reject") {
+      answer(res);
+      return;
+    }
     held.add(res);
     res.on("close", () => held.delete(res));
   });
@@ -396,13 +465,17 @@ function recordPaneCwd(cwd: string): void {
  */
 export function assertRealClaudeHomeUntouched(): void {
   const projects = path.join(os.homedir(), ".claude", "projects");
-  const leaked = PANE_CWDS
-    .map((cwd) => path.join(projects, claudeProjectDirName(cwd)))
-    .filter((dir) => fs.existsSync(dir));
+  const leaked = PANE_CWDS.map((cwd) =>
+    path.join(projects, claudeProjectDirName(cwd)),
+  ).filter((dir) => fs.existsSync(dir));
   if (leaked.length > 0) {
-    throw new Error(`test panes wrote into the real ~/.claude/projects:\n${leaked.join("\n")}`);
+    throw new Error(
+      `test panes wrote into the real ~/.claude/projects:\n${leaked.join("\n")}`,
+    );
   }
-  console.log(`[matrix] real ~/.claude/projects untouched: ${PANE_CWDS.length} pane cwds checked, none present`);
+  console.log(
+    `[matrix] real ~/.claude/projects untouched: ${PANE_CWDS.length} pane cwds checked, none present`,
+  );
 }
 
 /** Files under `dir` matching `match`, oldest first by mtime. */
@@ -410,7 +483,11 @@ function filesByMtime(dir: string, match: (p: string) => boolean): string[] {
   const out: string[] = [];
   const walk = (d: string): void => {
     let entries: fs.Dirent[];
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
     for (const e of entries) {
       const p = path.join(d, e.name);
       if (e.isDirectory()) walk(p);
@@ -422,7 +499,11 @@ function filesByMtime(dir: string, match: (p: string) => boolean): string[] {
 }
 
 function readIfExists(p: string): string | null {
-  try { return fs.readFileSync(p, "utf-8"); } catch { return null; }
+  try {
+    return fs.readFileSync(p, "utf-8");
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -440,24 +521,47 @@ function readIfExists(p: string): string | null {
  * (claudeFeatureCache.ts), so the pane handles input the way a real one does,
  * and `tui` picks the renderer.
  */
-export function seedClaudeHome(homeDir: string, projectCwd: string, opts: { machineFeatures?: boolean; tui?: "fullscreen" } = {}): void {
+export function seedClaudeHome(
+  homeDir: string,
+  projectCwd: string,
+  opts: { machineFeatures?: boolean; tui?: "fullscreen" } = {},
+): void {
   fs.mkdirSync(path.join(homeDir, ".claude"), { recursive: true });
-  fs.writeFileSync(path.join(homeDir, ".claude.json"), JSON.stringify({
-    hasCompletedOnboarding: true,
-    theme: "dark",
-    autoUpdates: false,
-    installMethod: "native",
-    numStartups: 5,
-    firstStartTime: "2026-01-01T00:00:00.000Z",
-    projects: { [fs.realpathSync(projectCwd)]: { hasTrustDialogAccepted: true, allowedTools: [] } },
-    ...(opts.machineFeatures ? machineClaudeFeatureCache() : {}),
-  }, null, 2));
-  fs.writeFileSync(path.join(homeDir, ".claude", "settings.json"), JSON.stringify({
-    skipDangerousModePermissionPrompt: true,
-    skipAutoPermissionPrompt: true,
-    env: { DISABLE_AUTOUPDATER: "1" },
-    ...(opts.tui ? { tui: opts.tui } : {}),
-  }, null, 2));
+  fs.writeFileSync(
+    path.join(homeDir, ".claude.json"),
+    JSON.stringify(
+      {
+        hasCompletedOnboarding: true,
+        theme: "dark",
+        autoUpdates: false,
+        installMethod: "native",
+        numStartups: 5,
+        firstStartTime: "2026-01-01T00:00:00.000Z",
+        projects: {
+          [fs.realpathSync(projectCwd)]: {
+            hasTrustDialogAccepted: true,
+            allowedTools: [],
+          },
+        },
+        ...(opts.machineFeatures ? machineClaudeFeatureCache() : {}),
+      },
+      null,
+      2,
+    ),
+  );
+  fs.writeFileSync(
+    path.join(homeDir, ".claude", "settings.json"),
+    JSON.stringify(
+      {
+        skipDangerousModePermissionPrompt: true,
+        skipAutoPermissionPrompt: true,
+        env: { DISABLE_AUTOUPDATER: "1" },
+        ...(opts.tui ? { tui: opts.tui } : {}),
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 /**
@@ -501,15 +605,29 @@ function sharedCodexScratch(): string {
     for (const name of fs.readdirSync(scratchRoot)) {
       const pid = Number(name.match(/^codexboot-(\d+)-/)?.[1]);
       if (!pid || pid === process.pid) continue;
-      try { process.kill(pid, 0); continue; } catch {}
-      try { fs.rmSync(path.join(scratchRoot, name), { recursive: true, force: true }); } catch {}
+      try {
+        process.kill(pid, 0);
+        continue;
+      } catch {}
+      try {
+        fs.rmSync(path.join(scratchRoot, name), {
+          recursive: true,
+          force: true,
+        });
+      } catch {}
     }
   } catch {}
 
-  const dir = path.join(scratchRoot, `codexboot-${process.pid}-${randomUUID().slice(0, 8)}`);
-  for (const name of CODEX_SHARED_DIRS) fs.mkdirSync(path.join(dir, name), { recursive: true });
+  const dir = path.join(
+    scratchRoot,
+    `codexboot-${process.pid}-${randomUUID().slice(0, 8)}`,
+  );
+  for (const name of CODEX_SHARED_DIRS)
+    fs.mkdirSync(path.join(dir, name), { recursive: true });
   process.once("exit", () => {
-    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
   });
   codexScratch = dir;
   return dir;
@@ -539,7 +657,10 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
   // want to use this API key?" dialog before the composer ever appears.)
   claude: {
     launch: (ctx) => {
-      seedClaudeHome(ctx.homeDir, ctx.cwd, { machineFeatures: ctx.machineFeatures, tui: ctx.tui });
+      seedClaudeHome(ctx.homeDir, ctx.cwd, {
+        machineFeatures: ctx.machineFeatures,
+        tui: ctx.tui,
+      });
       return {
         env: {
           HOME: ctx.homeDir,
@@ -567,35 +688,44 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
       const real = fs.realpathSync(ctx.cwd);
       fs.mkdirSync(ctx.homeDir, { recursive: true });
       shareCodexBootstrap(ctx.homeDir);
-      fs.writeFileSync(path.join(ctx.homeDir, "config.toml"), [
-        `model = "matrix"`,
-        `model_provider = "matrix"`,
-        `approval_policy = "never"`,
-        `sandbox_mode = "danger-full-access"`,
-        ``,
-        `[model_providers.matrix]`,
-        `name = "matrix"`,
-        `base_url = "${ctx.endpointUrl}/v1"`,
-        `env_key = "CODECAST_MATRIX_KEY"`,
-        `wire_api = "responses"`,
-        `request_max_retries = 0`,
-        `stream_max_retries = 0`,
-        ``,
-        `[projects."${ctx.cwd}"]`,
-        `trust_level = "trusted"`,
-        ``,
-        `[projects."${real}"]`,
-        `trust_level = "trusted"`,
-        ``,
-      ].join("\n"));
+      fs.writeFileSync(
+        path.join(ctx.homeDir, "config.toml"),
+        [
+          `model = "matrix"`,
+          `model_provider = "matrix"`,
+          `approval_policy = "never"`,
+          `sandbox_mode = "danger-full-access"`,
+          ``,
+          `[model_providers.matrix]`,
+          `name = "matrix"`,
+          `base_url = "${ctx.endpointUrl}/v1"`,
+          `env_key = "CODECAST_MATRIX_KEY"`,
+          `wire_api = "responses"`,
+          `request_max_retries = 0`,
+          `stream_max_retries = 0`,
+          ``,
+          `[projects."${ctx.cwd}"]`,
+          `trust_level = "trusted"`,
+          ``,
+          `[projects."${real}"]`,
+          `trust_level = "trusted"`,
+          ``,
+        ].join("\n"),
+      );
       return {
-        env: { CODEX_HOME: ctx.homeDir, CODECAST_MATRIX_KEY: "codecast-injection-matrix" },
+        env: {
+          CODEX_HOME: ctx.homeDir,
+          CODECAST_MATRIX_KEY: "codecast-injection-matrix",
+        },
         command: AGENT_CLIENTS.codex.binary,
       };
     },
-    resume: (_ctx, sessionId) => (sessionId ? AGENT_CLIENTS.codex.resumeCmd(sessionId) : null),
+    resume: (_ctx, sessionId) =>
+      sessionId ? AGENT_CLIENTS.codex.resumeCmd(sessionId) : null,
     sessionId: (ctx) => {
-      for (const file of filesByMtime(path.join(ctx.homeDir, "sessions"), (p) => p.endsWith(".jsonl"))) {
+      for (const file of filesByMtime(path.join(ctx.homeDir, "sessions"), (p) =>
+        p.endsWith(".jsonl"),
+      )) {
         const first = readIfExists(file)?.split("\n", 1)[0];
         if (!first) continue;
         try {
@@ -607,7 +737,9 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
       return null;
     },
     transcripts: (ctx) =>
-      filesByMtime(path.join(ctx.homeDir, "sessions"), (p) => p.endsWith(".jsonl"))
+      filesByMtime(path.join(ctx.homeDir, "sessions"), (p) =>
+        p.endsWith(".jsonl"),
+      )
         .map(readIfExists)
         .filter((c): c is string => c !== null),
   },
@@ -619,47 +751,50 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
   grok: {
     launch: (ctx) => {
       fs.mkdirSync(ctx.homeDir, { recursive: true });
-      fs.writeFileSync(path.join(ctx.homeDir, "config.toml"), [
-        `[cli]`,
-        `show_tips = false`,
-        `auto_update = false`,
-        ``,
-        `[privacy]`,
-        `privacy_banner_acked = "2026-01-01T00:00:00Z"`,
-        ``,
-        // GROK_HOME does not cover grok's compatibility scan: it reads the real
-        // ~/.claude and ~/.cursor for MCP servers, hooks, rules and skills. One
-        // slow MCP server there keeps the pane spinning for the whole test, so
-        // the message rides the type-ahead queue and never submits.
-        `[compat.claude]`,
-        `agents = false`,
-        `hooks = false`,
-        `mcps = false`,
-        `rules = false`,
-        `skills = false`,
-        ``,
-        `[compat.cursor]`,
-        `agents = false`,
-        `hooks = false`,
-        `mcps = false`,
-        `rules = false`,
-        `skills = false`,
-        ``,
-        `[ui]`,
-        `permission_mode = "always-approve"`,
-        `screen_mode = "fullscreen"`,
-        ``,
-        `[models]`,
-        `default = "matrix"`,
-        ``,
-        `[model.matrix]`,
-        `model = "matrix"`,
-        `base_url = "${ctx.endpointUrl}/v1"`,
-        `api_key = "codecast-injection-matrix"`,
-        `api_backend = "chat_completions"`,
-        `max_retries = 0`,
-        ``,
-      ].join("\n"));
+      fs.writeFileSync(
+        path.join(ctx.homeDir, "config.toml"),
+        [
+          `[cli]`,
+          `show_tips = false`,
+          `auto_update = false`,
+          ``,
+          `[privacy]`,
+          `privacy_banner_acked = "2026-01-01T00:00:00Z"`,
+          ``,
+          // GROK_HOME does not cover grok's compatibility scan: it reads the real
+          // ~/.claude and ~/.cursor for MCP servers, hooks, rules and skills. One
+          // slow MCP server there keeps the pane spinning for the whole test, so
+          // the message rides the type-ahead queue and never submits.
+          `[compat.claude]`,
+          `agents = false`,
+          `hooks = false`,
+          `mcps = false`,
+          `rules = false`,
+          `skills = false`,
+          ``,
+          `[compat.cursor]`,
+          `agents = false`,
+          `hooks = false`,
+          `mcps = false`,
+          `rules = false`,
+          `skills = false`,
+          ``,
+          `[ui]`,
+          `permission_mode = "always-approve"`,
+          `screen_mode = "fullscreen"`,
+          ``,
+          `[models]`,
+          `default = "matrix"`,
+          ``,
+          `[model.matrix]`,
+          `model = "matrix"`,
+          `base_url = "${ctx.endpointUrl}/v1"`,
+          `api_key = "codecast-injection-matrix"`,
+          `api_backend = "chat_completions"`,
+          `max_retries = 0`,
+          ``,
+        ].join("\n"),
+      );
       return {
         env: {
           GROK_HOME: ctx.homeDir,
@@ -669,15 +804,17 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
         command: `${AGENT_CLIENTS.grok.binary} --always-approve --session-id ${ctx.launchSessionId}`,
       };
     },
-    resume: (ctx) => `${AGENT_CLIENTS.grok.resumeCmd(ctx.launchSessionId)} --always-approve`,
+    resume: (ctx) =>
+      `${AGENT_CLIENTS.grok.resumeCmd(ctx.launchSessionId)} --always-approve`,
     sessionId: (ctx) => ctx.launchSessionId,
     // ~/.grok/sessions/<url-encoded cwd>/<uuid>/updates.jsonl — matched by the
     // session id rather than by re-deriving grok's encoding of the cwd.
     transcripts: (ctx) =>
-      filesByMtime(
-        path.join(ctx.homeDir, "sessions"),
-        (p) => p.endsWith(`${path.sep}${ctx.launchSessionId}${path.sep}updates.jsonl`),
-      ).map(readIfExists).filter((c): c is string => c !== null),
+      filesByMtime(path.join(ctx.homeDir, "sessions"), (p) =>
+        p.endsWith(`${path.sep}${ctx.launchSessionId}${path.sep}updates.jsonl`),
+      )
+        .map(readIfExists)
+        .filter((c): c is string => c !== null),
   },
 
   // opencode keeps every session in one SQLite store under XDG_DATA_HOME, so a
@@ -688,20 +825,30 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
     launch: (ctx) => {
       const configDir = path.join(ctx.homeDir, "config", "opencode");
       fs.mkdirSync(configDir, { recursive: true });
-      fs.writeFileSync(path.join(configDir, "opencode.json"), JSON.stringify({
-        $schema: "https://opencode.ai/config.json",
-        provider: {
-          matrix: {
-            npm: "@ai-sdk/openai-compatible",
-            name: "matrix",
-            options: { baseURL: `${ctx.endpointUrl}/v1`, apiKey: "codecast-injection-matrix" },
-            models: { "matrix-model": { name: "matrix-model" } },
+      fs.writeFileSync(
+        path.join(configDir, "opencode.json"),
+        JSON.stringify(
+          {
+            $schema: "https://opencode.ai/config.json",
+            provider: {
+              matrix: {
+                npm: "@ai-sdk/openai-compatible",
+                name: "matrix",
+                options: {
+                  baseURL: `${ctx.endpointUrl}/v1`,
+                  apiKey: "codecast-injection-matrix",
+                },
+                models: { "matrix-model": { name: "matrix-model" } },
+              },
+            },
+            model: "matrix/matrix-model",
+            autoupdate: false,
+            permission: { edit: "allow", bash: "allow", webfetch: "allow" },
           },
-        },
-        model: "matrix/matrix-model",
-        autoupdate: false,
-        permission: { edit: "allow", bash: "allow", webfetch: "allow" },
-      }, null, 2));
+          null,
+          2,
+        ),
+      );
       return {
         env: {
           XDG_DATA_HOME: path.join(ctx.homeDir, "data"),
@@ -712,7 +859,8 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
         command: AGENT_CLIENTS.opencode.binary,
       };
     },
-    resume: (_ctx, sessionId) => (sessionId ? AGENT_CLIENTS.opencode.resumeCmd(sessionId) : null),
+    resume: (_ctx, sessionId) =>
+      sessionId ? AGENT_CLIENTS.opencode.resumeCmd(sessionId) : null,
     sessionId: (ctx) => opencodeSessionIds(ctx).at(-1) ?? null,
     // One assembled export per session in this pane's cwd — the same read
     // boundary the daemon's opencode watcher uses, so the parser below sees
@@ -726,7 +874,12 @@ const CLIENT_RECIPES: Record<MatrixClientId, ClientRecipe> = {
 
 /** Inside the pane's own HOME, never the real one. */
 function claudeProjectDir(ctx: PaneContext): string {
-  return path.join(ctx.homeDir, ".claude", "projects", claudeProjectDirName(fs.realpathSync(ctx.cwd)));
+  return path.join(
+    ctx.homeDir,
+    ".claude",
+    "projects",
+    claudeProjectDirName(fs.realpathSync(ctx.cwd)),
+  );
 }
 
 function opencodeMatrixDbPath(ctx: PaneContext): string {
@@ -738,12 +891,19 @@ function opencodeSessionIds(ctx: PaneContext): string[] {
   const dbPath = opencodeMatrixDbPath(ctx);
   if (!fs.existsSync(dbPath)) return [];
   let db: Database;
-  try { db = new Database(dbPath, { readonly: true }); } catch { return []; }
+  try {
+    db = new Database(dbPath, { readonly: true });
+  } catch {
+    return [];
+  }
   try {
     const real = fs.realpathSync(ctx.cwd);
-    return db.query<{ id: string }, [string, string]>(
-      "SELECT id FROM session WHERE directory IN (?, ?) ORDER BY time_created",
-    ).all(ctx.cwd, real).map((r) => r.id);
+    return db
+      .query<{ id: string }, [string, string]>(
+        "SELECT id FROM session WHERE directory IN (?, ?) ORDER BY time_created",
+      )
+      .all(ctx.cwd, real)
+      .map((r) => r.id);
   } catch {
     return [];
   } finally {
@@ -784,13 +944,18 @@ export const MATRIX_TMUX_PREFIX = "cc-matrix-test";
 /** A real client in a pane of its own. `machineFeatures` (claude only) starts
  *  it with this machine's cached remote flags, so a paste is wrapped the way
  *  the human's own sessions wrap it; `tui` (claude only) picks the renderer. */
-export function spawnClientPane(client: MatrixClientId, opts: { endpointUrl: string; machineFeatures?: boolean; tui?: "fullscreen" }): ClientPane {
+export function spawnClientPane(
+  client: MatrixClientId,
+  opts: { endpointUrl: string; machineFeatures?: boolean; tui?: "fullscreen" },
+): ClientPane {
   const recipe = CLIENT_RECIPES[client];
   const scratchRoot = path.join(os.tmpdir(), TEST_SCRATCH_DIRNAME);
   fs.mkdirSync(scratchRoot, { recursive: true });
   const cwd = fs.mkdtempSync(path.join(scratchRoot, `matrix-${client}-`));
   recordPaneCwd(cwd);
-  const homeDir = fs.mkdtempSync(path.join(scratchRoot, `matrixhome-${client}-`));
+  const homeDir = fs.mkdtempSync(
+    path.join(scratchRoot, `matrixhome-${client}-`),
+  );
   const ctx: PaneContext = {
     cwd,
     homeDir,
@@ -810,7 +975,11 @@ export function spawnClientPane(client: MatrixClientId, opts: { endpointUrl: str
       .map(([k, v]) => `${k}=${shellQuote(v)}`)
       .join(" ");
     spawnedAt = Date.now();
-    spawnTmuxPane({ session: tmuxSession, cwd, body: `cd ${shellQuote(cwd)} && exec env ${exports} ${command}` });
+    spawnTmuxPane({
+      session: tmuxSession,
+      cwd,
+      body: `cd ${shellQuote(cwd)} && exec env ${exports} ${command}`,
+    });
   };
 
   start(recipe.launch(ctx).command);
@@ -822,20 +991,43 @@ export function spawnClientPane(client: MatrixClientId, opts: { endpointUrl: str
     target,
     cwd,
     ageMs: () => Date.now() - spawnedAt,
-    capture: () => tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-50"]).stdout,
+    capture: () =>
+      tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-50"]).stdout,
     recordOutput: () => {
-      const file = path.join(cwd, `pane-output-${randomUUID().slice(0, 8)}.log`);
+      const file = path.join(
+        cwd,
+        `pane-output-${randomUUID().slice(0, 8)}.log`,
+      );
       fs.writeFileSync(file, "");
       tmuxRun(["pipe-pane", "-O", "-t", target, `cat >> ${shellQuote(file)}`]);
       return {
-        read: () => fs.readFileSync(file, "utf8").replace(/\x1b\[\d*[CG]/g, " ").replace(/\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P^_][^\x07\x1b]*(\x07|\x1b\\)|\x1b[@-Z\\-_]/g, ""),
-        stop: () => { tmuxRun(["pipe-pane", "-t", target]); },
+        read: () =>
+          fs
+            .readFileSync(file, "utf8")
+            .replace(/\x1b\[\d*[CG]/g, " ")
+            .replace(
+              /\x1b\[[0-?]*[ -/]*[@-~]|\x1b[\]P^_][^\x07\x1b]*(\x07|\x1b\\)|\x1b[@-Z\\-_]/g,
+              "",
+            ),
+        stop: () => {
+          tmuxRun(["pipe-pane", "-t", target]);
+        },
       };
     },
-    liveState: () => classifyLivePaneFor(client as AgentClientId, pane.capture()),
+    liveState: () =>
+      classifyLivePaneFor(client as AgentClientId, pane.capture()),
     sessionId: () => recipe.sessionId(ctx),
-    userMessages: () => pane.turns().filter((m) => m.role === "user").map((m) => m.content),
-    turns: () => recipe.transcripts(ctx).flatMap((content) => parseTranscriptFor(client as AgentClientId, content)),
+    userMessages: () =>
+      pane
+        .turns()
+        .filter((m) => m.role === "user")
+        .map((m) => m.content),
+    turns: () =>
+      recipe
+        .transcripts(ctx)
+        .flatMap((content) =>
+          parseTranscriptFor(client as AgentClientId, content),
+        ),
     resume: () => {
       const command = recipe.resume(ctx, recipe.sessionId(ctx));
       if (!command) throw new Error(`${client}: no session id to resume yet`);
@@ -848,7 +1040,9 @@ export function spawnClientPane(client: MatrixClientId, opts: { endpointUrl: str
       // Every client keeps its state under one of these two: the pane's cwd and
       // the temp home its recipe configured. Nothing to clean anywhere else.
       for (const dir of [cwd, homeDir]) {
-        try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+        try {
+          fs.rmSync(dir, { recursive: true, force: true });
+        } catch {}
       }
     },
   };
@@ -891,7 +1085,7 @@ export async function deliverToPane(
   }
   throw new Error(
     `deliver to ${pane.client} failed after ${attempts} attempts in ${Date.now() - started}ms: ` +
-    `${lastErr instanceof Error ? lastErr.message : String(lastErr)}\npane: ${pane.capture()}`,
+      `${lastErr instanceof Error ? lastErr.message : String(lastErr)}\npane: ${pane.capture()}`,
   );
 }
 
@@ -907,21 +1101,30 @@ export async function waitForRecorded(
   opts: { timeoutMs?: number } = {},
 ): Promise<number> {
   try {
-    return await waitFor(() => pane.userMessages().some((m) => m.trimEnd() === payload), {
-      timeoutMs: opts.timeoutMs ?? 45_000,
-    });
+    return await waitFor(
+      () => pane.userMessages().some((m) => m.trimEnd() === payload),
+      {
+        timeoutMs: opts.timeoutMs ?? 45_000,
+      },
+    );
   } catch {
     throw new Error(
       `${pane.client} never recorded the payload ${JSON.stringify(payload)}\n` +
-      `recorded: ${JSON.stringify(pane.userMessages())}\n` +
-      `session id: ${pane.sessionId()}\npane state: ${pane.liveState()}\npane:\n${pane.capture()}`,
+        `recorded: ${JSON.stringify(pane.userMessages())}\n` +
+        `session id: ${pane.sessionId()}\npane state: ${pane.liveState()}\npane:\n${pane.capture()}`,
     );
   }
 }
 
 /** Single greppable line per matrix measurement, so a run's numbers can be
  *  collected with `bun test … | grep '\[matrix\]'`. */
-export function logMatrix(client: string, scenario: string, fields: Record<string, string | number>): void {
-  const rendered = Object.entries(fields).map(([k, v]) => `${k}=${v}`).join(" ");
+export function logMatrix(
+  client: string,
+  scenario: string,
+  fields: Record<string, string | number>,
+): void {
+  const rendered = Object.entries(fields)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(" ");
   console.log(`[matrix] client=${client} case=${scenario} ${rendered}`);
 }

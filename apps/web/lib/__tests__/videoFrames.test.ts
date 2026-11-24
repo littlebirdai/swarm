@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { applyVoiceFrames, clearVideoFrames, getVideoFrame, subscribeVideoFrames } from "../calls/videoFrames";
+import {
+  applyVoiceFrames,
+  clearVideoFrames,
+  getVideoFrame,
+  subscribeVideoFrames,
+} from "../calls/videoFrames";
 
 describe("the host's relayed frames", () => {
   test("keep the latest per person, drop on null, and wake only on a change", () => {

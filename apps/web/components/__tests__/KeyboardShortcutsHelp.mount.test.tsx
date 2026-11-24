@@ -17,7 +17,7 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
@@ -40,7 +40,11 @@ test("closed content waits for first open and survives close/reopen", async () =
     const key = container.querySelector("kbd");
     expect(key !== null).toBe(true);
     expect(container.textContent).toContain("Shortcuts");
-    await act(() => { window.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape" })); });
+    await act(() => {
+      window.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", { key: "Escape" }),
+      );
+    });
     expect(panel.style.width).toBe("0px");
     expect(container.querySelector("kbd") === key).toBe(true);
     await act(() => useInboxStore.getState().toggleShortcutsPanel());
@@ -55,7 +59,8 @@ test("closed content waits for first open and survives close/reopen", async () =
 test("an on-screen hint follows a rebinding without remounting", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
-  const caps = () => [...container.querySelectorAll("kbd")].map((k) => k.textContent).join(" ");
+  const caps = () =>
+    [...container.querySelectorAll("kbd")].map((k) => k.textContent).join(" ");
   try {
     await act(() => root.render(<MenuKeyCaps action="list.search" />));
     expect(caps()).toBe("/");

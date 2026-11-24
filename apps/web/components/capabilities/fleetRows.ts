@@ -261,9 +261,13 @@ export function buildFleetRows(
   for (const device of devices) {
     if (!hasReadableReport(device, reports)) continue;
     for (const item of reports[device.deviceId] ?? []) {
-      const identity = capabilityIdentity(item.kind as FleetGridRow["kind"], item.name, {
-        marketplace: item.marketplace ?? "",
-      });
+      const identity = capabilityIdentity(
+        item.kind as FleetGridRow["kind"],
+        item.name,
+        {
+          marketplace: item.marketplace ?? "",
+        },
+      );
       if (!identity) continue;
       const key = fleetRowKey(item.kind, identity);
       const prev = display.get(key);
@@ -301,7 +305,9 @@ export function buildFleetRows(
     return {
       ...row,
       status:
-        row.status === "in_sync" && driftKeys?.has(row.key) ? ("drift" as const) : row.status,
+        row.status === "in_sync" && driftKeys?.has(row.key)
+          ? ("drift" as const)
+          : row.status,
       ...dressed,
       byDevice,
     };
@@ -381,12 +387,21 @@ export interface FleetSummaryCounts {
 
 // -------------------------------------------------------------- the summary
 
-export type FleetFilter = "all" | "drift" | "missing" | "mismatched" | "disabled" | "broken";
+export type FleetFilter =
+  | "all"
+  | "drift"
+  | "missing"
+  | "mismatched"
+  | "disabled"
+  | "broken";
 
 /** One predicate per filter, shared by the counts below and the grid further
  *  down so a chip can never show a different number of rows than the stat that
  *  opened it. Every one reads a field the shared diff already decided. */
-export const FLEET_FILTERS: Record<FleetFilter, (row: FleetGridRow) => boolean> = {
+export const FLEET_FILTERS: Record<
+  FleetFilter,
+  (row: FleetGridRow) => boolean
+> = {
   all: () => true,
   drift: isDrifted,
   missing: (r) => r.absentCount > 0,

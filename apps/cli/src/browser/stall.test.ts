@@ -44,7 +44,10 @@ describe("retryOnStall", () => {
     const out = await retryOnStall(
       async () => {
         calls++;
-        if (calls === 1) throw new Error("Target.createTarget: tabs.create did not answer within 15000ms (extension last heard 5ms ago)");
+        if (calls === 1)
+          throw new Error(
+            "Target.createTarget: tabs.create did not answer within 15000ms (extension last heard 5ms ago)",
+          );
         return "tab";
       },
       { delayMs: 1, note: (l) => notes.push(l) },
@@ -57,25 +60,32 @@ describe("retryOnStall", () => {
   test("a second stall, and any other failure, propagate", async () => {
     let calls = 0;
     await expect(
-      retryOnStall(async () => {
-        calls++;
-        throw new Error("tabs.list did not answer within 40000ms");
-      }, { delayMs: 1, note: () => {} }),
+      retryOnStall(
+        async () => {
+          calls++;
+          throw new Error("tabs.list did not answer within 40000ms");
+        },
+        { delayMs: 1, note: () => {} },
+      ),
     ).rejects.toThrow(/did not answer/);
     expect(calls).toBe(2);
     calls = 0;
     await expect(
-      retryOnStall(async () => {
-        calls++;
-        throw new Error("no tab 1E21E9B9 in the real Chrome");
-      }, { delayMs: 1, note: () => {} }),
+      retryOnStall(
+        async () => {
+          calls++;
+          throw new Error("no tab 1E21E9B9 in the real Chrome");
+        },
+        { delayMs: 1, note: () => {} },
+      ),
     ).rejects.toThrow(/no tab/);
     expect(calls).toBe(1);
   });
 });
 
 describe("shouldRetryAfterStall", () => {
-  const busy = "Failed to read: Resource temporarily unavailable (os error 35) (after 5 retries - daemon may be busy or unresponsive)";
+  const busy =
+    "Failed to read: Resource temporarily unavailable (os error 35) (after 5 retries - daemon may be busy or unresponsive)";
   test("the engine client giving up on a busy daemon is retried only for verbs that change nothing", () => {
     expect(shouldRetryAfterStall("open", busy)).toBe(true);
     expect(shouldRetryAfterStall("snapshot", busy)).toBe(true);
@@ -83,6 +93,8 @@ describe("shouldRetryAfterStall", () => {
     expect(shouldRetryAfterStall("type", busy)).toBe(false);
   });
   test("a bridge stall is retried for any verb: the page was not reached", () => {
-    expect(shouldRetryAfterStall("click", "tabs.list did not answer within 40000ms")).toBe(true);
+    expect(
+      shouldRetryAfterStall("click", "tabs.list did not answer within 40000ms"),
+    ).toBe(true);
   });
 });

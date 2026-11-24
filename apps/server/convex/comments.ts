@@ -8,14 +8,17 @@ import { type Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal, api } from "./_generated/api";
 import { enqueuePendingMessage } from "./pendingMessages";
-import { buildAgentThreadPrompt, type ThreadAnchor } from "./lib/commentThreadPrompt";
 import {
-  canAccessConversation,
-  canAccessPullRequest,
-} from "./lib/access";
+  buildAgentThreadPrompt,
+  type ThreadAnchor,
+} from "./lib/commentThreadPrompt";
+import { canAccessConversation, canAccessPullRequest } from "./lib/access";
 import { requireUser } from "./lib/auth";
 import { hasMentionReadGrant, isConversationOwner } from "./privacy";
-import { commentAnchorKey, commentThreadRootKey } from "@codecast/shared/comments";
+import {
+  commentAnchorKey,
+  commentThreadRootKey,
+} from "@codecast/shared/comments";
 import { touchThread } from "./threadReads";
 import {
   echoedCommandIdsForView,
@@ -38,7 +41,11 @@ import {
   patchCommentWithRevision,
   runCommentViewTransition,
 } from "./commentViewWrites";
-import { findCommentByClientId, getComment, listConversationComments } from "./commentStore";
+import {
+  findCommentByClientId,
+  getComment,
+  listConversationComments,
+} from "./commentStore";
 import {
   commentIdValidator,
   type CommentId,
@@ -68,11 +75,14 @@ export function isInCommentThread(
   comment: { message_id?: unknown; file_path?: string; line_number?: number },
   anchor: CommentThreadAnchor,
 ): boolean {
-  if (anchor.message_id) return String(comment.message_id) === String(anchor.message_id);
+  if (anchor.message_id)
+    return String(comment.message_id) === String(anchor.message_id);
   if (anchor.file_path) {
-    return !comment.message_id
-      && comment.file_path === anchor.file_path
-      && comment.line_number === anchor.line_number;
+    return (
+      !comment.message_id &&
+      comment.file_path === anchor.file_path &&
+      comment.line_number === anchor.line_number
+    );
   }
   return !comment.message_id && !comment.file_path;
 }
@@ -85,7 +95,11 @@ export async function commentsForAnchor(
 ): Promise<ConversationComment[]> {
   return (await listConversationComments(ctx, conversationId))
     .filter((c) => isInCommentThread(c, anchor))
-    .sort((a, b) => a.created_at - b.created_at || String(a._id).localeCompare(String(b._id)));
+    .sort(
+      (a, b) =>
+        a.created_at - b.created_at ||
+        String(a._id).localeCompare(String(b._id)),
+    );
 }
 
 // A landed comment files its thread in the Threads inbox of everyone in it:
@@ -96,7 +110,11 @@ async function touchCommentThread(
   ctx: MutationCtx,
   conversation: Doc<"conversations">,
   anchor: CommentThreadAnchor,
-  opts: { actorId?: Id<"users">; extraParticipants?: Id<"users">[]; activityAt: number },
+  opts: {
+    actorId?: Id<"users">;
+    extraParticipants?: Id<"users">[];
+    activityAt: number;
+  },
 ): Promise<void> {
   const thread = await commentsForAnchor(ctx, conversation._id, anchor);
   await touchThread(ctx, {
@@ -123,7 +141,12 @@ async function touchCommentThread(
 // comment in a thread, so one unstamped comment (e.g. a reply posted after
 // resolution) is what keeps — or makes — a thread open.
 export function countOpenCommentThreads(
-  comments: Array<{ message_id?: unknown; file_path?: string; line_number?: number; resolved_at?: number }>,
+  comments: Array<{
+    message_id?: unknown;
+    file_path?: string;
+    line_number?: number;
+    resolved_at?: number;
+  }>,
 ): number {
   const open = new Set<string>();
   for (const c of comments) {
@@ -183,9 +206,13 @@ type CommentFailure = {
   correction?: unknown;
 };
 
-type Validation<T> = { ok: true; value: T } | { ok: false; failure: CommentFailure };
+type Validation<T> =
+  | { ok: true; value: T }
+  | { ok: false; failure: CommentFailure };
 
-function missingConversation(conversationId: Id<"conversations">): CommentFailure {
+function missingConversation(
+  conversationId: Id<"conversations">,
+): CommentFailure {
   return {
     status: "rejected",
     code: "MISSING",
@@ -197,7 +224,9 @@ function missingConversation(conversationId: Id<"conversations">): CommentFailur
   };
 }
 
-function forbiddenConversation(conversationId: Id<"conversations">): CommentFailure {
+function forbiddenConversation(
+  conversationId: Id<"conversations">,
+): CommentFailure {
   return {
     status: "rejected",
     code: "FORBIDDEN",
@@ -227,10 +256,12 @@ async function validateConversationAccess(
   gate: "discuss" | "run" = "discuss",
 ): Promise<Validation<Doc<"conversations">>> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation) return { ok: false, failure: missingConversation(conversationId) };
-  const allowed = gate === "run"
-    ? await canAccessConversation(ctx, userId, conversation)
-    : await canDiscussConversation(ctx, userId, conversation);
+  if (!conversation)
+    return { ok: false, failure: missingConversation(conversationId) };
+  const allowed =
+    gate === "run"
+      ? await canAccessConversation(ctx, userId, conversation)
+      : await canDiscussConversation(ctx, userId, conversation);
   if (!allowed) {
     return { ok: false, failure: forbiddenConversation(conversationId) };
   }
@@ -246,7 +277,9 @@ async function grantMentionRead(
 ): Promise<void> {
   const existing = await ctx.db
     .query("conversation_read_grants")
-    .withIndex("by_conversation_user", (q) => q.eq("conversation_id", conversationId).eq("user_id", userId))
+    .withIndex("by_conversation_user", (q) =>
+      q.eq("conversation_id", conversationId).eq("user_id", userId),
+    )
     .first();
   if (existing) return;
   await ctx.db.insert("conversation_read_grants", {
@@ -284,13 +317,21 @@ async function validateCreateComment(
   args: CreateCommentArgs,
   gate: "discuss" | "run" = "discuss",
 ): Promise<Validation<ValidatedCreate>> {
-  const access = await validateConversationAccess(ctx, userId, args.conversation_id, gate);
+  const access = await validateConversationAccess(
+    ctx,
+    userId,
+    args.conversation_id,
+    gate,
+  );
   if (!access.ok) return access;
 
   let message: Doc<"messages"> | undefined;
   if (args.message_id) {
     const candidate = await ctx.db.get(args.message_id);
-    if (!candidate || String(candidate.conversation_id) !== String(args.conversation_id)) {
+    if (
+      !candidate ||
+      String(candidate.conversation_id) !== String(args.conversation_id)
+    ) {
       return {
         ok: false,
         failure: {
@@ -306,7 +347,10 @@ async function validateCreateComment(
   let parent: ConversationComment | undefined;
   if (args.parent_comment_id) {
     const candidate = await getComment(ctx, args.parent_comment_id);
-    if (!candidate || String(candidate.conversation_id) !== String(args.conversation_id)) {
+    if (
+      !candidate ||
+      String(candidate.conversation_id) !== String(args.conversation_id)
+    ) {
       return {
         ok: false,
         failure: {
@@ -325,10 +369,18 @@ async function validateCreateComment(
     if (!candidate || !(await canAccessPullRequest(ctx, userId, candidate))) {
       return {
         ok: false,
-        failure: { status: "rejected", code: "NOT_FOUND", message: "Pull request not found" },
+        failure: {
+          status: "rejected",
+          code: "NOT_FOUND",
+          message: "Pull request not found",
+        },
       };
     }
-    if (!candidate.linked_session_ids.some((id) => String(id) === String(args.conversation_id))) {
+    if (
+      !candidate.linked_session_ids.some(
+        (id) => String(id) === String(args.conversation_id),
+      )
+    ) {
       return {
         ok: false,
         failure: {
@@ -349,14 +401,20 @@ async function validateCreateComment(
 
 function throwLegacyCommentFailure(failure: CommentFailure): never {
   if (failure.code === "FORBIDDEN") {
-    throw new Error("Unauthorized: not allowed to comment on this conversation");
+    throw new Error(
+      "Unauthorized: not allowed to comment on this conversation",
+    );
   }
   throw new Error(failure.message);
 }
 
 function sameOptionalId(left: unknown, right: unknown): boolean {
-  return left === undefined && right === undefined
-    || left !== undefined && right !== undefined && String(left) === String(right);
+  return (
+    (left === undefined && right === undefined) ||
+    (left !== undefined &&
+      right !== undefined &&
+      String(left) === String(right))
+  );
 }
 
 function existingCreateMatches(
@@ -364,34 +422,41 @@ function existingCreateMatches(
   userId: Id<"users">,
   args: CreateCommentArgs,
 ): boolean {
-  return String(comment.user_id) === String(userId)
-    && comment.content === args.content
-    && sameOptionalId(comment.message_id, args.message_id)
-    && sameOptionalId(comment.parent_comment_id, args.parent_comment_id)
-    && sameOptionalId(comment.pr_id, args.pr_id)
-    && comment.file_path === args.file_path
-    && comment.line_number === args.line_number;
+  return (
+    String(comment.user_id) === String(userId) &&
+    comment.content === args.content &&
+    sameOptionalId(comment.message_id, args.message_id) &&
+    sameOptionalId(comment.parent_comment_id, args.parent_comment_id) &&
+    sameOptionalId(comment.pr_id, args.pr_id) &&
+    comment.file_path === args.file_path &&
+    comment.line_number === args.line_number
+  );
 }
 
 async function projectComments(
   ctx: CommentReadCtx,
   comments: ConversationComment[],
 ) {
-  const projected = await Promise.all(comments.map(async (comment) => {
-    const user = await ctx.db.get(comment.user_id);
-    return {
-      ...comment,
-      user: {
-        _id: user?._id,
-        name: user?.name,
-        image: user?.image,
-        github_username: user?.github_username,
-        github_avatar_url: user?.github_avatar_url,
-      },
-    };
-  }));
-  return projected.sort((left, right) =>
-    left.created_at - right.created_at || String(left._id).localeCompare(String(right._id)));
+  const projected = await Promise.all(
+    comments.map(async (comment) => {
+      const user = await ctx.db.get(comment.user_id);
+      return {
+        ...comment,
+        user: {
+          _id: user?._id,
+          name: user?.name,
+          image: user?.image,
+          github_username: user?.github_username,
+          github_avatar_url: user?.github_avatar_url,
+        },
+      };
+    }),
+  );
+  return projected.sort(
+    (left, right) =>
+      left.created_at - right.created_at ||
+      String(left._id).localeCompare(String(right._id)),
+  );
 }
 
 /** Complete projection for one exact conversation comment view. */
@@ -414,14 +479,23 @@ export const getCommentsV2 = query({
 
     const [comments, viewRevision, commandIds] = await Promise.all([
       listConversationComments(ctx, args.conversation_id),
-      readLocalViewRevision(ctx, conversation.user_id, identity.contractId, identity.viewKey),
+      readLocalViewRevision(
+        ctx,
+        conversation.user_id,
+        identity.contractId,
+        identity.viewKey,
+      ),
       // Caller-scoped write-reconciliation echo for stamped-log-ts clients:
       // same snapshot as the rows, so inclusion proves the write is in them.
       echoedCommandIdsForView(ctx, userId, identity.viewKey),
     ]);
-    return grantedView(identity, { grantKeys: [grantKey], viewRevision, commandIds }, {
-      comments: await projectComments(ctx, comments),
-    });
+    return grantedView(
+      identity,
+      { grantKeys: [grantKey], viewRevision, commandIds },
+      {
+        comments: await projectComments(ctx, comments),
+      },
+    );
   },
 });
 
@@ -436,7 +510,11 @@ function requiredClientIdFailure(): CommentFailure {
 }
 
 type CreateCommentExecution =
-  | { ok: true; commentId: CommentId; coverageTarget?: ReturnType<typeof commentsCoverageTarget> }
+  | {
+      ok: true;
+      commentId: CommentId;
+      coverageTarget?: ReturnType<typeof commentsCoverageTarget>;
+    }
   | { ok: false; failure: CommentFailure };
 
 async function executeCreateComment(
@@ -447,7 +525,11 @@ async function executeCreateComment(
   revisionMode: CommentRevisionMode,
 ): Promise<CreateCommentExecution> {
   if (args.client_id) {
-    const duplicate = await findCommentByClientId(ctx, args.conversation_id, args.client_id);
+    const duplicate = await findCommentByClientId(
+      ctx,
+      args.conversation_id,
+      args.client_id,
+    );
     if (duplicate) {
       if (!existingCreateMatches(duplicate, userId, args)) {
         return {
@@ -455,7 +537,8 @@ async function executeCreateComment(
           failure: {
             status: "rejected",
             code: "CLIENT_ID_REUSED",
-            message: "This client id is already bound to different comment intent",
+            message:
+              "This client id is already bound to different comment intent",
           },
         };
       }
@@ -464,9 +547,10 @@ async function executeCreateComment(
         commentId: duplicate._id,
         // A new command id still needs positive coverage so its local overlay
         // can settle, even though client-id idempotency found the row already.
-        coverageTarget: revisionMode === "receipt"
-          ? commentsCoverageTarget(validated.conversation)
-          : undefined,
+        coverageTarget:
+          revisionMode === "receipt"
+            ? commentsCoverageTarget(validated.conversation)
+            : undefined,
       };
     }
   }
@@ -476,26 +560,31 @@ async function executeCreateComment(
     ctx,
     validated.conversation,
     revisionMode,
-    async (writer) => await writer.insert({
-      conversation_id: args.conversation_id,
-      message_id: args.message_id,
-      user_id: userId,
-      content: args.content,
-      parent_comment_id: args.parent_comment_id,
-      created_at: createdAt,
-      pr_id: args.pr_id,
-      file_path: args.file_path,
-      line_number: args.line_number,
-      // A reply hangs in its parent's thread; only the comment that opens a
-      // thread on a line says what that line was.
-      anchor_lines: args.file_path && !args.parent_comment_id ? args.anchor_lines : undefined,
-      client_id: args.client_id,
-    }),
+    async (writer) =>
+      await writer.insert({
+        conversation_id: args.conversation_id,
+        message_id: args.message_id,
+        user_id: userId,
+        content: args.content,
+        parent_comment_id: args.parent_comment_id,
+        created_at: createdAt,
+        pr_id: args.pr_id,
+        file_path: args.file_path,
+        line_number: args.line_number,
+        // A reply hangs in its parent's thread; only the comment that opens a
+        // thread on a line says what that line was.
+        anchor_lines:
+          args.file_path && !args.parent_comment_id
+            ? args.anchor_lines
+            : undefined,
+        client_id: args.client_id,
+      }),
   );
   const commentId = transition.result;
 
   const actor = await ctx.db.get(userId);
-  const actorName = actor?.name || actor?.github_username || actor?.email || "Someone";
+  const actorName =
+    actor?.name || actor?.github_username || actor?.email || "Someone";
   const notified = new Set<string>();
 
   await ctx.runMutation(internal.notificationRouter.ensureSubscribed, {
@@ -506,30 +595,54 @@ async function executeCreateComment(
     via: "human",
   });
 
-  const mentions = Array.from(args.content.matchAll(/@(\w+)/g)).map((match) => match[1]);
+  const mentions = Array.from(args.content.matchAll(/@(\w+)/g)).map(
+    (match) => match[1],
+  );
   const mentionedIds: Id<"users">[] = [];
   if (validated.conversation.team_id && mentions.length > 0) {
     const memberships = await ctx.db
       .query("team_memberships")
-      .withIndex("by_team_id", (q: any) => q.eq("team_id", validated.conversation.team_id))
+      .withIndex("by_team_id", (q: any) =>
+        q.eq("team_id", validated.conversation.team_id),
+      )
       .collect();
     const teamMembers: Array<Doc<"users"> | null> = await Promise.all(
       memberships.map((membership: { user_id: Id<"users"> }) =>
-        ctx.db.get(membership.user_id)),
+        ctx.db.get(membership.user_id),
+      ),
     );
-    const validMembers = teamMembers.filter((user): user is Doc<"users"> => user !== null);
-    const commenterOwns = await isConversationOwner(ctx, userId, validated.conversation);
+    const validMembers = teamMembers.filter(
+      (user): user is Doc<"users"> => user !== null,
+    );
+    const commenterOwns = await isConversationOwner(
+      ctx,
+      userId,
+      validated.conversation,
+    );
     for (const mention of mentions) {
-      const mentionedUser = validMembers.find((user) =>
-        user.github_username === mention || user.name === mention);
+      const mentionedUser = validMembers.find(
+        (user) => user.github_username === mention || user.name === mention,
+      );
       if (mentionedUser && String(mentionedUser._id) !== String(userId)) {
         // A teammate who cannot read the session would get a notification that
         // opens nothing. The owner's mention shares it with them (Alex,
         // 2026-11-14); anyone else's is not delivered, since only an owner can
         // share the session.
-        if (!(await canDiscussConversation(ctx, mentionedUser._id, validated.conversation))) {
+        if (
+          !(await canDiscussConversation(
+            ctx,
+            mentionedUser._id,
+            validated.conversation,
+          ))
+        ) {
           if (!commenterOwns) continue;
-          await grantMentionRead(ctx, validated.conversation._id, mentionedUser._id, userId, String(commentId));
+          await grantMentionRead(
+            ctx,
+            validated.conversation._id,
+            mentionedUser._id,
+            userId,
+            String(commentId),
+          );
         }
         mentionedIds.push(mentionedUser._id);
         await ctx.runMutation(internal.notificationRouter.ensureSubscribed, {
@@ -556,10 +669,10 @@ async function executeCreateComment(
 
   const parentAuthor = validated.parent?.user_id?.toString();
   if (
-    validated.parent
-    && parentAuthor
-    && parentAuthor !== String(userId)
-    && !notified.has(parentAuthor)
+    validated.parent &&
+    parentAuthor &&
+    parentAuthor !== String(userId) &&
+    !notified.has(parentAuthor)
   ) {
     await ctx.runMutation(internal.notificationRouter.emit, {
       event_type: "comment_reply",
@@ -604,7 +717,10 @@ async function executeCreateComment(
 
   let pullRequest = validated.pullRequest;
   if (!pullRequest) {
-    for (const candidate of await pullRequestsLinkedToConversation(ctx, args.conversation_id)) {
+    for (const candidate of await pullRequestsLinkedToConversation(
+      ctx,
+      args.conversation_id,
+    )) {
       if (await canAccessPullRequest(ctx, userId, candidate)) {
         pullRequest = candidate;
         break;
@@ -652,43 +768,65 @@ export const addComment = mutation({
     if (!userId) throw new Error("Unauthorized");
     const validated = await validateCreateComment(ctx, userId, args);
     if (!validated.ok) throwLegacyCommentFailure(validated.failure);
-    const executed = await executeCreateComment(ctx, userId, args, validated.value, "advance");
+    const executed = await executeCreateComment(
+      ctx,
+      userId,
+      args,
+      validated.value,
+      "advance",
+    );
     if (!executed.ok) throw new Error(executed.failure.message);
     return executed.commentId;
   },
 });
 
 export const addCommentV2 = mutation({
-  args: { command_id: v.string(), ...createCommentValidators, client_id: v.string() },
+  args: {
+    command_id: v.string(),
+    ...createCommentValidators,
+    client_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "comments.create/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        messageId: args.message_id,
-        content: args.content,
-        parentCommentId: args.parent_comment_id,
-        pullRequestId: args.pr_id,
-        filePath: args.file_path,
-        lineNumber: args.line_number,
-        clientId: args.client_id,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "comments.create/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          messageId: args.message_id,
+          content: args.content,
+          parentCommentId: args.parent_comment_id,
+          pullRequestId: args.pr_id,
+          filePath: args.file_path,
+          lineNumber: args.line_number,
+          clientId: args.client_id,
+        },
       },
-    }, async () => {
-      if (!args.client_id.trim()) return requiredClientIdFailure();
-      const validated = await validateCreateComment(ctx, userId, args);
-      if (!validated.ok) return validated.failure;
-      const executed = await executeCreateComment(ctx, userId, args, validated.value, "receipt");
-      if (!executed.ok) return executed.failure;
-      return {
-        status: "acknowledged" as const,
-        result: { commentId: executed.commentId, clientId: args.client_id },
-        coverageViews: executed.coverageTarget ? [executed.coverageTarget] : [],
-        coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
-      };
-    });
+      async () => {
+        if (!args.client_id.trim()) return requiredClientIdFailure();
+        const validated = await validateCreateComment(ctx, userId, args);
+        if (!validated.ok) return validated.failure;
+        const executed = await executeCreateComment(
+          ctx,
+          userId,
+          args,
+          validated.value,
+          "receipt",
+        );
+        if (!executed.ok) return executed.failure;
+        return {
+          status: "acknowledged" as const,
+          result: { commentId: executed.commentId, clientId: args.client_id },
+          coverageViews: executed.coverageTarget
+            ? [executed.coverageTarget]
+            : [],
+          coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
+        };
+      },
+    );
   },
 });
 
@@ -712,11 +850,17 @@ export const getComments = query({
 
     if (args.message_id) {
       const message = await ctx.db.get(args.message_id);
-      if (!message || String(message.conversation_id) !== String(args.conversation_id)) return [];
+      if (
+        !message ||
+        String(message.conversation_id) !== String(args.conversation_id)
+      )
+        return [];
     }
     // A message's thread, or the global one: anchored to neither a message
     // nor a code line.
-    const comments = await commentsForAnchor(ctx, args.conversation_id, { message_id: args.message_id });
+    const comments = await commentsForAnchor(ctx, args.conversation_id, {
+      message_id: args.message_id,
+    });
 
     const commentsWithUsers = await Promise.all(
       comments.map(async (comment) => {
@@ -731,7 +875,7 @@ export const getComments = query({
             github_avatar_url: user?.github_avatar_url,
           },
         };
-      })
+      }),
     );
 
     return commentsWithUsers.sort((a, b) => a.created_at - b.created_at);
@@ -751,11 +895,17 @@ export const getCommentCount = query({
     const message = await ctx.db.get(args.message_id);
     if (!message) return 0;
     const conversation = await ctx.db.get(message.conversation_id);
-    if (!conversation || !(await canDiscussConversation(ctx, userId, conversation))) return 0;
+    if (
+      !conversation ||
+      !(await canDiscussConversation(ctx, userId, conversation))
+    )
+      return 0;
 
-    return (await listConversationComments(ctx, message.conversation_id))
-      .filter((comment) => String(comment.message_id) === String(args.message_id))
-      .length;
+    return (
+      await listConversationComments(ctx, message.conversation_id)
+    ).filter(
+      (comment) => String(comment.message_id) === String(args.message_id),
+    ).length;
   },
 });
 
@@ -775,7 +925,11 @@ async function validateOwnedComment(
   userId: Id<"users">,
   args: CommentReferenceArgs,
 ): Promise<Validation<ValidatedOwnedComment>> {
-  const access = await validateConversationAccess(ctx, userId, args.conversation_id);
+  const access = await validateConversationAccess(
+    ctx,
+    userId,
+    args.conversation_id,
+  );
   if (!access.ok) return access;
   if (!args.comment_id && !args.client_id?.trim()) {
     return {
@@ -790,12 +944,20 @@ async function validateOwnedComment(
 
   let comment = args.comment_id ? await getComment(ctx, args.comment_id) : null;
   if (!comment && args.client_id) {
-    comment = await findCommentByClientId(ctx, args.conversation_id, args.client_id);
+    comment = await findCommentByClientId(
+      ctx,
+      args.conversation_id,
+      args.client_id,
+    );
   }
   if (!comment) {
     return {
       ok: false,
-      failure: { status: "rejected", code: "NOT_FOUND", message: "Comment not found" },
+      failure: {
+        status: "rejected",
+        code: "NOT_FOUND",
+        message: "Comment not found",
+      },
     };
   }
   if (String(comment.conversation_id) !== String(args.conversation_id)) {
@@ -851,11 +1013,19 @@ export const updateComment = mutation({
       throw new Error("Unauthorized: can only edit your own comments");
     }
     const conversation = await ctx.db.get(comment.conversation_id);
-    if (!conversation || !(await canDiscussConversation(ctx, userId, conversation))) {
+    if (
+      !conversation ||
+      !(await canDiscussConversation(ctx, userId, conversation))
+    ) {
       throw new Error("Unauthorized: conversation access revoked");
     }
 
-    await patchCommentWithRevision(ctx, comment, { content: args.content }, conversation);
+    await patchCommentWithRevision(
+      ctx,
+      comment,
+      { content: args.content },
+      conversation,
+    );
 
     return args.comment_id;
   },
@@ -880,7 +1050,10 @@ export const deleteComment = mutation({
       throw new Error("Unauthorized: can only delete your own comments");
     }
     const conversation = await ctx.db.get(comment.conversation_id);
-    if (!conversation || !(await canDiscussConversation(ctx, userId, conversation))) {
+    if (
+      !conversation ||
+      !(await canDiscussConversation(ctx, userId, conversation))
+    ) {
       throw new Error("Unauthorized: conversation access revoked");
     }
 
@@ -905,50 +1078,62 @@ export const updateCommentV2 = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "comments.update/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        commentId: args.comment_id,
-        clientId: args.client_id,
-        content: args.content,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "comments.update/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          commentId: args.comment_id,
+          clientId: args.client_id,
+          content: args.content,
+        },
       },
-    }, async () => {
-      const validated = await validateOwnedComment(ctx, userId, args);
-      if (!validated.ok) return validated.failure;
-      if (validated.value.comment.content === args.content) {
+      async () => {
+        const validated = await validateOwnedComment(ctx, userId, args);
+        if (!validated.ok) return validated.failure;
+        if (validated.value.comment.content === args.content) {
+          return {
+            status: "acknowledged" as const,
+            result: {
+              commentId: validated.value.comment._id,
+              clientId: validated.value.comment.client_id,
+            },
+            // Acknowledgement must carry positive coverage even when the
+            // authoritative content already equals the optimistic intent.
+            coverageViews: [
+              commentsCoverageTarget(validated.value.conversation),
+            ],
+            coverageCommandIds: [
+              commentsCommandIdCoverage(args.conversation_id),
+            ],
+          };
+        }
+        const transition = await runCommentViewTransition(
+          ctx,
+          validated.value.conversation,
+          "receipt",
+          async (writer) => {
+            await writer.patch(validated.value.comment._id, {
+              content: args.content,
+            });
+          },
+        );
         return {
           status: "acknowledged" as const,
           result: {
             commentId: validated.value.comment._id,
             clientId: validated.value.comment.client_id,
           },
-          // Acknowledgement must carry positive coverage even when the
-          // authoritative content already equals the optimistic intent.
-          coverageViews: [commentsCoverageTarget(validated.value.conversation)],
+          coverageViews: transition.coverageTarget
+            ? [transition.coverageTarget]
+            : [],
           coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
         };
-      }
-      const transition = await runCommentViewTransition(
-        ctx,
-        validated.value.conversation,
-        "receipt",
-        async (writer) => {
-          await writer.patch(validated.value.comment._id, { content: args.content });
-        },
-      );
-      return {
-        status: "acknowledged" as const,
-        result: {
-          commentId: validated.value.comment._id,
-          clientId: validated.value.comment.client_id,
-        },
-        coverageViews: transition.coverageTarget ? [transition.coverageTarget] : [],
-        coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
-      };
-    });
+      },
+    );
   },
 });
 
@@ -956,35 +1141,41 @@ export const deleteCommentV2 = mutation({
   args: { command_id: v.string(), ...commandCommentReferenceValidators },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "comments.delete/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        commentId: args.comment_id,
-        clientId: args.client_id,
-      },
-    }, async () => {
-      const validated = await validateOwnedComment(ctx, userId, args);
-      if (!validated.ok) return validated.failure;
-      const transition = await runCommentViewTransition(
-        ctx,
-        validated.value.conversation,
-        "receipt",
-        async (writer) => await writer.delete(validated.value.comment._id),
-      );
-      await refreshCommentSignal(ctx, args.conversation_id);
-      return {
-        status: "acknowledged" as const,
-        result: {
-          commentId: validated.value.comment._id,
-          clientId: validated.value.comment.client_id,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "comments.delete/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          commentId: args.comment_id,
+          clientId: args.client_id,
         },
-        coverageViews: transition.coverageTarget ? [transition.coverageTarget] : [],
-        coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
-      };
-    });
+      },
+      async () => {
+        const validated = await validateOwnedComment(ctx, userId, args);
+        if (!validated.ok) return validated.failure;
+        const transition = await runCommentViewTransition(
+          ctx,
+          validated.value.conversation,
+          "receipt",
+          async (writer) => await writer.delete(validated.value.comment._id),
+        );
+        await refreshCommentSignal(ctx, args.conversation_id);
+        return {
+          status: "acknowledged" as const,
+          result: {
+            commentId: validated.value.comment._id,
+            clientId: validated.value.comment.client_id,
+          },
+          coverageViews: transition.coverageTarget
+            ? [transition.coverageTarget]
+            : [],
+          coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
+        };
+      },
+    );
   },
 });
 
@@ -1003,7 +1194,11 @@ export const resolveThread = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    const access = await validateConversationAccess(ctx, userId, args.conversation_id);
+    const access = await validateConversationAccess(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
     if (!access.ok) throwLegacyCommentFailure(access.failure);
 
     const all = await listConversationComments(ctx, args.conversation_id);
@@ -1011,14 +1206,19 @@ export const resolveThread = mutation({
     if (thread.length === 0) return 0;
 
     const now = Date.now();
-    await runCommentViewTransition(ctx, access.value, "advance", async (writer) => {
-      for (const comment of thread) {
-        await writer.patch(comment._id, {
-          resolved_at: args.resolved ? now : undefined,
-          resolved_by: args.resolved ? userId : undefined,
-        });
-      }
-    });
+    await runCommentViewTransition(
+      ctx,
+      access.value,
+      "advance",
+      async (writer) => {
+        for (const comment of thread) {
+          await writer.patch(comment._id, {
+            resolved_at: args.resolved ? now : undefined,
+            resolved_by: args.resolved ? userId : undefined,
+          });
+        }
+      },
+    );
     await refreshCommentSignal(ctx, args.conversation_id);
     return thread.length;
   },
@@ -1028,7 +1228,8 @@ export const getConversationCommentSummary = query({
   args: {
     conversation_id: v.id("conversations"),
   },
-  handler: async (ctx, args) => await getConversationCommentSummaryRows(ctx, args.conversation_id),
+  handler: async (ctx, args) =>
+    await getConversationCommentSummaryRows(ctx, args.conversation_id),
 });
 
 /** One conversation's comments as the conversation surfaces receive them,
@@ -1043,11 +1244,17 @@ export async function getConversationCommentSummaryRows(
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) return [];
   if (!(await canDiscussConversation(ctx, userId, conversation))) return [];
-  return await commentSummaryRows(ctx, await listConversationComments(ctx, conversationId));
+  return await commentSummaryRows(
+    ctx,
+    await listConversationComments(ctx, conversationId),
+  );
 }
 
 /** Comments with their author's name and avatar, oldest first. */
-export async function commentSummaryRows(ctx: CommentReadCtx, comments: ConversationComment[]) {
+export async function commentSummaryRows(
+  ctx: CommentReadCtx,
+  comments: ConversationComment[],
+) {
   const commentsWithUsers = await Promise.all(
     comments.map(async (comment) => {
       const user = await ctx.db.get(comment.user_id);
@@ -1060,7 +1267,7 @@ export async function commentSummaryRows(ctx: CommentReadCtx, comments: Conversa
           github_avatar_url: user?.github_avatar_url,
         },
       };
-    })
+    }),
   );
 
   return commentsWithUsers.sort((a, b) => a.created_at - b.created_at);
@@ -1119,22 +1326,29 @@ async function executeAskAgentInThread(
   validated: ValidatedCreate,
   revisionMode: CommentRevisionMode,
 ): Promise<AskAgentExecution> {
-  const allInConversation = await listConversationComments(ctx, args.conversation_id);
+  const allInConversation = await listConversationComments(
+    ctx,
+    args.conversation_id,
+  );
   if (args.client_id) {
-    const duplicate = allInConversation.find((comment) => comment.client_id === args.client_id);
+    const duplicate = allInConversation.find(
+      (comment) => comment.client_id === args.client_id,
+    );
     if (duplicate) {
-      const matches = String(duplicate.user_id) === String(userId)
-        && duplicate.author_kind === "agent"
-        && sameOptionalId(duplicate.message_id, args.message_id)
-        && duplicate.file_path === args.file_path
-        && duplicate.line_number === args.line_number;
+      const matches =
+        String(duplicate.user_id) === String(userId) &&
+        duplicate.author_kind === "agent" &&
+        sameOptionalId(duplicate.message_id, args.message_id) &&
+        duplicate.file_path === args.file_path &&
+        duplicate.line_number === args.line_number;
       if (!matches) {
         return {
           ok: false,
           failure: {
             status: "rejected",
             code: "CLIENT_ID_REUSED",
-            message: "This client id is already bound to different comment intent",
+            message:
+              "This client id is already bound to different comment intent",
           },
         };
       }
@@ -1142,27 +1356,32 @@ async function executeAskAgentInThread(
         ok: true,
         commentId: duplicate._id,
         forkConversationId: duplicate.fork_conversation_id,
-        coverageTarget: revisionMode === "receipt"
-          ? commentsCoverageTarget(validated.conversation)
-          : undefined,
+        coverageTarget:
+          revisionMode === "receipt"
+            ? commentsCoverageTarget(validated.conversation)
+            : undefined,
       };
     }
   }
 
   const threadComments = allInConversation
     .filter((comment) => isInCommentThread(comment, args))
-    .sort((left, right) =>
-      left.created_at - right.created_at || String(left._id).localeCompare(String(right._id)));
+    .sort(
+      (left, right) =>
+        left.created_at - right.created_at ||
+        String(left._id).localeCompare(String(right._id)),
+    );
 
   let existingForkId: Id<"conversations"> | undefined;
   let lastAgentAt = 0;
   for (const comment of threadComments) {
-    if (comment.author_kind !== "agent" || !comment.fork_conversation_id) continue;
+    if (comment.author_kind !== "agent" || !comment.fork_conversation_id)
+      continue;
     const fork = await ctx.db.get(comment.fork_conversation_id);
     if (
-      fork
-      && String(fork.comment_fork_parent) === String(args.conversation_id)
-      && (await canAccessConversation(ctx, userId, fork))
+      fork &&
+      String(fork.comment_fork_parent) === String(args.conversation_id) &&
+      (await canAccessConversation(ctx, userId, fork))
     ) {
       existingForkId = comment.fork_conversation_id;
       lastAgentAt = Math.max(lastAgentAt, comment.created_at);
@@ -1170,10 +1389,14 @@ async function executeAskAgentInThread(
   }
   const reuse = !!existingForkId;
 
-  const relevant = threadComments.filter((comment) =>
-    comment.content.trim().length > 0 && (!reuse || comment.created_at > lastAgentAt));
+  const relevant = threadComments.filter(
+    (comment) =>
+      comment.content.trim().length > 0 &&
+      (!reuse || comment.created_at > lastAgentAt),
+  );
   const nameCache = new Map<string, string>();
-  const entries: Array<{ name: string; content: string; isAgent: boolean }> = [];
+  const entries: Array<{ name: string; content: string; isAgent: boolean }> =
+    [];
   for (const comment of relevant) {
     const isAgent = comment.author_kind === "agent";
     let name = "Teammate";
@@ -1182,7 +1405,11 @@ async function executeAskAgentInThread(
       if (nameCache.has(key)) name = nameCache.get(key)!;
       else {
         const author = await ctx.db.get(comment.user_id);
-        name = author?.name || author?.github_username || author?.email || "Teammate";
+        name =
+          author?.name ||
+          author?.github_username ||
+          author?.email ||
+          "Teammate";
         nameCache.set(key, name);
       }
     }
@@ -1191,10 +1418,17 @@ async function executeAskAgentInThread(
 
   let anchor: ThreadAnchor | undefined;
   if (validated.message) {
-    const snippet = (validated.message.content || "").replace(/\s+/g, " ").trim().slice(0, 240);
+    const snippet = (validated.message.content || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 240);
     if (snippet) anchor = { kind: "message", snippet };
   } else if (args.file_path) {
-    anchor = { kind: "file", filePath: args.file_path, lineNumber: args.line_number };
+    anchor = {
+      kind: "file",
+      filePath: args.file_path,
+      lineNumber: args.line_number,
+    };
   }
   const prompt = buildAgentThreadPrompt(entries, anchor, reuse);
   const now = Date.now();
@@ -1229,9 +1463,12 @@ async function executeAskAgentInThread(
             comment_fork_prompt_at: now,
           });
         } else {
-          const fork = await ctx.runMutation(api.conversations.forkFromMessage, {
-            conversation_id: args.conversation_id,
-          });
+          const fork = await ctx.runMutation(
+            api.conversations.forkFromMessage,
+            {
+              conversation_id: args.conversation_id,
+            },
+          );
           forkId = fork.conversation_id as Id<"conversations">;
           await ctx.db.patch(forkId, {
             is_subagent: true,
@@ -1284,9 +1521,20 @@ export const askAgentInThread = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
-    const validated = await validateCreateComment(ctx, userId, { ...args, content: "" }, "run");
+    const validated = await validateCreateComment(
+      ctx,
+      userId,
+      { ...args, content: "" },
+      "run",
+    );
     if (!validated.ok) throwLegacyCommentFailure(validated.failure);
-    const executed = await executeAskAgentInThread(ctx, userId, args, validated.value, "advance");
+    const executed = await executeAskAgentInThread(
+      ctx,
+      userId,
+      args,
+      validated.value,
+      "advance",
+    );
     if (!executed.ok) throw new Error(executed.failure.message);
     return {
       comment_id: executed.commentId,
@@ -1296,37 +1544,58 @@ export const askAgentInThread = mutation({
 });
 
 export const askAgentInThreadV2 = mutation({
-  args: { command_id: v.string(), ...askAgentValidators, client_id: v.string() },
+  args: {
+    command_id: v.string(),
+    ...askAgentValidators,
+    client_id: v.string(),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "comments.ask-agent/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        messageId: args.message_id,
-        filePath: args.file_path,
-        lineNumber: args.line_number,
-        clientId: args.client_id,
-      },
-    }, async () => {
-      if (!args.client_id.trim()) return requiredClientIdFailure();
-      const validated = await validateCreateComment(ctx, userId, { ...args, content: "" }, "run");
-      if (!validated.ok) return validated.failure;
-      const executed = await executeAskAgentInThread(ctx, userId, args, validated.value, "receipt");
-      if (!executed.ok) return executed.failure;
-      return {
-        status: "acknowledged" as const,
-        result: {
-          commentId: executed.commentId,
-          forkConversationId: executed.forkConversationId,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "comments.ask-agent/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          messageId: args.message_id,
+          filePath: args.file_path,
+          lineNumber: args.line_number,
           clientId: args.client_id,
         },
-        coverageViews: executed.coverageTarget ? [executed.coverageTarget] : [],
-        coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
-      };
-    });
+      },
+      async () => {
+        if (!args.client_id.trim()) return requiredClientIdFailure();
+        const validated = await validateCreateComment(
+          ctx,
+          userId,
+          { ...args, content: "" },
+          "run",
+        );
+        if (!validated.ok) return validated.failure;
+        const executed = await executeAskAgentInThread(
+          ctx,
+          userId,
+          args,
+          validated.value,
+          "receipt",
+        );
+        if (!executed.ok) return executed.failure;
+        return {
+          status: "acknowledged" as const,
+          result: {
+            commentId: executed.commentId,
+            forkConversationId: executed.forkConversationId,
+            clientId: args.client_id,
+          },
+          coverageViews: executed.coverageTarget
+            ? [executed.coverageTarget]
+            : [],
+          coverageCommandIds: [commentsCommandIdCoverage(args.conversation_id)],
+        };
+      },
+    );
   },
 });
 
@@ -1344,19 +1613,25 @@ export const mirrorAgentReply = internalMutation({
     // The fork back-link is untrusted persisted relationship data. Both sides
     // must agree before an assistant message may mutate the root projection.
     if (
-      !fork.comment_fork_parent
-      || String(comment.conversation_id) !== String(fork.comment_fork_parent)
-      || String(comment.fork_conversation_id) !== String(fork._id)
-    ) return;
+      !fork.comment_fork_parent ||
+      String(comment.conversation_id) !== String(fork.comment_fork_parent) ||
+      String(comment.fork_conversation_id) !== String(fork._id)
+    )
+      return;
 
     const promptAt = fork.comment_fork_prompt_at ?? 0;
     const recent = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", args.fork_conversation_id))
+      .withIndex("by_conversation_timestamp", (q) =>
+        q.eq("conversation_id", args.fork_conversation_id),
+      )
       .order("desc")
       .take(12);
     const reply = recent.find(
-      (m) => m.role === "assistant" && (m.content || "").trim().length > 0 && m.timestamp > promptAt,
+      (m) =>
+        m.role === "assistant" &&
+        (m.content || "").trim().length > 0 &&
+        m.timestamp > promptAt,
     );
     if (!reply) return;
 
@@ -1366,11 +1641,17 @@ export const mirrorAgentReply = internalMutation({
     // the row's final position, and the thread's activity mark has to match
     // what readers see (the rule chat applies to a listening row).
     const landingAt = Date.now();
-    await patchCommentWithRevision(ctx, comment, { content, agent_status: "done", created_at: landingAt });
+    await patchCommentWithRevision(ctx, comment, {
+      content,
+      agent_status: "done",
+      created_at: landingAt,
+    });
     await refreshCommentSignal(ctx, comment.conversation_id);
     const conversation = await ctx.db.get(comment.conversation_id);
     if (conversation) {
-      await touchCommentThread(ctx, conversation, comment, { activityAt: landingAt });
+      await touchCommentThread(ctx, conversation, comment, {
+        activityAt: landingAt,
+      });
     }
   },
 });

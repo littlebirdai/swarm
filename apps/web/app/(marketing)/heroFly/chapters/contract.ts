@@ -8,7 +8,15 @@
  */
 
 import type { ComponentType } from "react";
-import type { ArcPath, Beat, ChapterId, Flyer, RegionKey, SurfaceId, TextBeat } from "../world";
+import type {
+  ArcPath,
+  Beat,
+  ChapterId,
+  Flyer,
+  RegionKey,
+  SurfaceId,
+  TextBeat,
+} from "../world";
 
 /**
  * What every part and flyer component receives. `now` is the wall clock taken

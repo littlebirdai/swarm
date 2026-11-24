@@ -22,46 +22,72 @@ function tmpTarget(seed: Record<string, unknown>): string {
   return target;
 }
 afterEach(() => {
-  for (const d of tmpDirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of tmpDirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
 });
 
 const key = (...p: string[]) => p;
-const want = (keyPath: string[], value: unknown): OwnedKey => ({ keyPath, value });
+const want = (keyPath: string[], value: unknown): OwnedKey => ({
+  keyPath,
+  value,
+});
 
 const PLUGIN = key("enabledPlugins", "frontend-design@claude-plugins-official");
 const OTHER = key("enabledPlugins", "code-simplifier@claude-plugins-official");
 
 describe("planJsonMerge — the five ownership rules", () => {
   test("never touches a key we do not own", () => {
-    const current = { permissions: { allow: ["Bash(ls)"] }, enabledPlugins: { "theirs@m": true } };
+    const current = {
+      permissions: { allow: ["Bash(ls)"] },
+      enabledPlugins: { "theirs@m": true },
+    };
     const plan = planJsonMerge(current, [want(PLUGIN, true)], {});
     expect(plan.next).toMatchObject({
       permissions: { allow: ["Bash(ls)"] },
-      enabledPlugins: { "theirs@m": true, "frontend-design@claude-plugins-official": true },
+      enabledPlugins: {
+        "theirs@m": true,
+        "frontend-design@claude-plugins-official": true,
+      },
     });
     expect(plan.removals).toEqual([]);
   });
 
   test("updates a key we own and that nobody changed", () => {
     const ledger = { [encodeKeyPath(PLUGIN)]: true };
-    const plan = planJsonMerge({ enabledPlugins: { "frontend-design@claude-plugins-official": true } }, [want(PLUGIN, false)], ledger);
+    const plan = planJsonMerge(
+      { enabledPlugins: { "frontend-design@claude-plugins-official": true } },
+      [want(PLUGIN, false)],
+      ledger,
+    );
     expect(plan.writes).toEqual([PLUGIN]);
-    expect(plan.next).toMatchObject({ enabledPlugins: { "frontend-design@claude-plugins-official": false } });
+    expect(plan.next).toMatchObject({
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    });
     expect(plan.conflicts).toEqual([]);
   });
 
   test("leaves a key the user changed, and reports the conflict", () => {
     const ledger = { [encodeKeyPath(PLUGIN)]: true };
-    const current = { enabledPlugins: { "frontend-design@claude-plugins-official": false } }; // user turned it off
+    const current = {
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    }; // user turned it off
     const plan = planJsonMerge(current, [want(PLUGIN, true)], ledger);
     expect(plan.writes).toEqual([]);
-    expect(plan.next).toMatchObject({ enabledPlugins: { "frontend-design@claude-plugins-official": false } });
-    expect(plan.conflicts).toMatchObject([{ keyPath: PLUGIN, ours: true, theirs: false, intent: "update" }]);
+    expect(plan.next).toMatchObject({
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    });
+    expect(plan.conflicts).toMatchObject([
+      { keyPath: PLUGIN, ours: true, theirs: false, intent: "update" },
+    ]);
   });
 
   test("removes a key we own once it is no longer wanted", () => {
     const ledger = { [encodeKeyPath(PLUGIN)]: true };
-    const plan = planJsonMerge({ enabledPlugins: { "frontend-design@claude-plugins-official": true } }, [], ledger);
+    const plan = planJsonMerge(
+      { enabledPlugins: { "frontend-design@claude-plugins-official": true } },
+      [],
+      ledger,
+    );
     expect(plan.removals).toEqual([PLUGIN]);
     expect(plan.next).toEqual({});
     expect(plan.ledger).toEqual({});
@@ -71,16 +97,24 @@ describe("planJsonMerge — the five ownership rules", () => {
   // their work just because we happened to write it first.
   test("does not remove a key the user has taken over", () => {
     const ledger = { [encodeKeyPath(PLUGIN)]: true };
-    const current = { enabledPlugins: { "frontend-design@claude-plugins-official": false } };
+    const current = {
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    };
     const plan = planJsonMerge(current, [], ledger);
     expect(plan.removals).toEqual([]);
-    expect(plan.next).toMatchObject({ enabledPlugins: { "frontend-design@claude-plugins-official": false } });
-    expect(plan.conflicts).toMatchObject([{ intent: "remove", ours: true, theirs: false }]);
+    expect(plan.next).toMatchObject({
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    });
+    expect(plan.conflicts).toMatchObject([
+      { intent: "remove", ours: true, theirs: false },
+    ]);
     expect(plan.ledger).toEqual({}); // stop claiming it
   });
 
   test("adopting a key that already holds the value we wanted writes nothing", () => {
-    const current = { enabledPlugins: { "frontend-design@claude-plugins-official": true } };
+    const current = {
+      enabledPlugins: { "frontend-design@claude-plugins-official": true },
+    };
     const plan = planJsonMerge(current, [want(PLUGIN, true)], {});
     expect(plan.changed).toBe(false);
     expect(plan.conflicts).toEqual([]);
@@ -88,7 +122,9 @@ describe("planJsonMerge — the five ownership rules", () => {
   });
 
   test("a pre-existing key with a different value is a conflict, not an overwrite", () => {
-    const current = { enabledPlugins: { "frontend-design@claude-plugins-official": false } };
+    const current = {
+      enabledPlugins: { "frontend-design@claude-plugins-official": false },
+    };
     const plan = planJsonMerge(current, [want(PLUGIN, true)], {});
     expect(plan.changed).toBe(false);
     expect(plan.conflicts).toMatchObject([{ intent: "update", theirs: false }]);
@@ -104,19 +140,33 @@ describe("planJsonMerge — structure", () => {
   });
 
   test("creates missing containers on the way to a key", () => {
-    const plan = planJsonMerge({}, [want(key("mcpServers", "sentry"), { type: "http" })], {});
+    const plan = planJsonMerge(
+      {},
+      [want(key("mcpServers", "sentry"), { type: "http" })],
+      {},
+    );
     expect(plan.next).toEqual({ mcpServers: { sentry: { type: "http" } } });
   });
 
   test("prunes a container we emptied", () => {
-    const ledger = { [encodeKeyPath(key("mcpServers", "sentry"))]: { type: "http" } };
-    const plan = planJsonMerge({ mcpServers: { sentry: { type: "http" } } }, [], ledger);
+    const ledger = {
+      [encodeKeyPath(key("mcpServers", "sentry"))]: { type: "http" },
+    };
+    const plan = planJsonMerge(
+      { mcpServers: { sentry: { type: "http" } } },
+      [],
+      ledger,
+    );
     expect(plan.next).toEqual({});
   });
 
   test("keeps a container that still holds someone else's key", () => {
-    const ledger = { [encodeKeyPath(key("mcpServers", "sentry"))]: { type: "http" } };
-    const current = { mcpServers: { sentry: { type: "http" }, theirs: { command: "node" } } };
+    const ledger = {
+      [encodeKeyPath(key("mcpServers", "sentry"))]: { type: "http" },
+    };
+    const current = {
+      mcpServers: { sentry: { type: "http" }, theirs: { command: "node" } },
+    };
     const plan = planJsonMerge(current, [], ledger);
     expect(plan.next).toEqual({ mcpServers: { theirs: { command: "node" } } });
   });
@@ -124,7 +174,11 @@ describe("planJsonMerge — structure", () => {
   test("compares object values structurally, not by reference", () => {
     const server = { type: "http", url: "https://x" };
     const ledger = { [encodeKeyPath(key("mcpServers", "s"))]: { ...server } };
-    const plan = planJsonMerge({ mcpServers: { s: { ...server } } }, [want(key("mcpServers", "s"), { ...server })], ledger);
+    const plan = planJsonMerge(
+      { mcpServers: { s: { ...server } } },
+      [want(key("mcpServers", "s"), { ...server })],
+      ledger,
+    );
     expect(plan.changed).toBe(false);
     expect(plan.conflicts).toEqual([]);
   });
@@ -138,7 +192,9 @@ describe("planJsonMerge — structure", () => {
 
   test("a non-object file is replaced rather than crashing", () => {
     const plan = planJsonMerge("not an object", [want(PLUGIN, true)], {});
-    expect(plan.next).toEqual({ enabledPlugins: { "frontend-design@claude-plugins-official": true } });
+    expect(plan.next).toEqual({
+      enabledPlugins: { "frontend-design@claude-plugins-official": true },
+    });
   });
 });
 
@@ -150,7 +206,8 @@ describe("applyOwnedJson on disk", () => {
     return d;
   };
   afterEach(() => {
-    for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+    for (const d of dirs.splice(0))
+      fs.rmSync(d, { recursive: true, force: true });
   });
 
   test("writes the file and a ledger beside it", () => {
@@ -180,7 +237,14 @@ describe("applyOwnedJson on disk", () => {
   test("preserves unrelated content the user owns", () => {
     const dir = tmp();
     const target = path.join(dir, "settings.json");
-    fs.writeFileSync(target, JSON.stringify({ permissions: { allow: ["Bash(ls)"] }, model: "opus" }, null, 2));
+    fs.writeFileSync(
+      target,
+      JSON.stringify(
+        { permissions: { allow: ["Bash(ls)"] }, model: "opus" },
+        null,
+        2,
+      ),
+    );
     applyOwnedJson(target, [want(PLUGIN, true)]);
     const doc = JSON.parse(fs.readFileSync(target, "utf-8"));
     expect(doc.permissions).toEqual({ allow: ["Bash(ls)"] });
@@ -202,7 +266,9 @@ describe("applyOwnedJson on disk", () => {
   test("dryRun previews exactly what a real apply would do, and touches nothing", () => {
     const dir = tmp();
     const target = path.join(dir, "settings.json");
-    const preview = applyOwnedJson(target, [want(PLUGIN, true)], { dryRun: true });
+    const preview = applyOwnedJson(target, [want(PLUGIN, true)], {
+      dryRun: true,
+    });
     expect(preview.wrote).toBe(false);
     expect(fs.existsSync(target)).toBe(false);
 
@@ -217,10 +283,23 @@ describe("applyOwnedJson on disk", () => {
     const target = path.join(dir, "settings.json");
     applyOwnedJson(target, [want(PLUGIN, true)]);
     // The user turns it off by hand.
-    fs.writeFileSync(target, JSON.stringify({ enabledPlugins: { "frontend-design@claude-plugins-official": false } }, null, 2));
+    fs.writeFileSync(
+      target,
+      JSON.stringify(
+        {
+          enabledPlugins: { "frontend-design@claude-plugins-official": false },
+        },
+        null,
+        2,
+      ),
+    );
     const r = applyOwnedJson(target, [want(PLUGIN, true)]);
     expect(r.conflicts).toHaveLength(1);
-    expect(JSON.parse(fs.readFileSync(target, "utf-8")).enabledPlugins["frontend-design@claude-plugins-official"]).toBe(false);
+    expect(
+      JSON.parse(fs.readFileSync(target, "utf-8")).enabledPlugins[
+        "frontend-design@claude-plugins-official"
+      ],
+    ).toBe(false);
     // And we stop claiming it, so a later removal cannot delete their choice.
     expect(readLedger(target)).toEqual({});
     expect(applyOwnedJson(target, []).removals).toEqual([]);
@@ -242,7 +321,9 @@ describe("applyOwnedJson on disk", () => {
     const target = path.join(dir, ".mcp.json");
     const server = { type: "http", url: "https://mcp.example.dev/mcp" };
     applyOwnedJson(target, [want(key("mcpServers", "example"), server)]);
-    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({ mcpServers: { example: server } });
+    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({
+      mcpServers: { example: server },
+    });
     applyOwnedJson(target, []);
     expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({});
   });
@@ -280,7 +361,11 @@ describe("ledger envelope (schema_version + MAC)", () => {
     const before = fs.readFileSync(target, "utf-8");
     fs.writeFileSync(
       ledgerPathFor(target),
-      JSON.stringify({ schema_version: LEDGER_SCHEMA_VERSION + 1, entries: { a: 1 }, future_field: true }) + "\n",
+      JSON.stringify({
+        schema_version: LEDGER_SCHEMA_VERSION + 1,
+        entries: { a: 1 },
+        future_field: true,
+      }) + "\n",
     );
     const result = applyOwnedJson(target, [{ keyPath: ["b"], value: 2 }]);
     expect(result.wrote).toBe(false);
@@ -289,7 +374,9 @@ describe("ledger envelope (schema_version + MAC)", () => {
     // The document AND the newer ledger are byte-untouched — unknown entries
     // are preserved by not touching the file at all.
     expect(fs.readFileSync(target, "utf-8")).toBe(before);
-    expect(JSON.parse(fs.readFileSync(ledgerPathFor(target), "utf-8")).future_field).toBe(true);
+    expect(
+      JSON.parse(fs.readFileSync(ledgerPathFor(target), "utf-8")).future_field,
+    ).toBe(true);
   });
 
   test("a tampered MAC is reported, and the entries stay readable", () => {
@@ -319,13 +406,19 @@ describe("ledger envelope (schema_version + MAC)", () => {
     const result = applyOwnedJson(target, []);
     expect(result.ledgerTampered).toBe(true);
     expect(result.removals).toEqual([]);
-    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({ mine: "user value", a: 1 });
+    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({
+      mine: "user value",
+      a: 1,
+    });
     // The refusal happens once: the entries are released, not laundered into a
     // freshly MACed ledger that a later pass would trust.
     expect(readLedger(target)).toEqual({});
     const again = applyOwnedJson(target, []);
     expect(again.ledgerTampered).toBeUndefined();
-    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({ mine: "user value", a: 1 });
+    expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({
+      mine: "user value",
+      a: 1,
+    });
   });
 
   test("under a tampered ledger our keys still update, and a claimed key is still removed", () => {
@@ -336,7 +429,9 @@ describe("ledger envelope (schema_version + MAC)", () => {
     raw.mac = "0".repeat(32);
     fs.writeFileSync(ledgerPathFor(target), JSON.stringify(raw) + "\n");
 
-    const result = applyOwnedJson(target, [{ keyPath: ["a"], value: 2 }], { claim: [["legacy"]] });
+    const result = applyOwnedJson(target, [{ keyPath: ["a"], value: 2 }], {
+      claim: [["legacy"]],
+    });
     expect(result.ledgerTampered).toBe(true);
     expect(result.removals).toEqual([["legacy"]]);
     expect(JSON.parse(fs.readFileSync(target, "utf-8"))).toEqual({ a: 2 });

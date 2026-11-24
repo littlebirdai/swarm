@@ -15,19 +15,57 @@
 // as the conversation's sessionCommands row like every daemon command.
 
 import Link from "next/link";
-import { Check, Hourglass, Loader2, RefreshCw, TimerReset, Zap } from "lucide-react";
-import { exhaustionBannerCopy, isExhaustionCurrent, type CcUsage } from "@codecast/convex/convex/ccAccountsShared";
-import { accountDisplayName, describeDecision, pendingProposal, formatAgo, standingLabel } from "@codecast/shared/contracts";
+import {
+  Check,
+  Hourglass,
+  Loader2,
+  RefreshCw,
+  TimerReset,
+  Zap,
+} from "lucide-react";
+import {
+  exhaustionBannerCopy,
+  isExhaustionCurrent,
+  type CcUsage,
+} from "@codecast/convex/convex/ccAccountsShared";
+import {
+  accountDisplayName,
+  describeDecision,
+  pendingProposal,
+  formatAgo,
+  standingLabel,
+} from "@codecast/shared/contracts";
 import { useLimitRecovery } from "../hooks/useLimitRecovery";
 import { useInboxStore } from "../store/inboxStore";
-import { DISPATCH_REFUSED, latestSessionCommand, switchPending } from "../lib/sessionCommands";
-import { formatResetPhrase, limitResetAsPrinted, limitWindowLabel, parseLimitResetAt } from "../lib/limitReset";
+import {
+  DISPATCH_REFUSED,
+  latestSessionCommand,
+  switchPending,
+} from "../lib/sessionCommands";
+import {
+  formatResetPhrase,
+  limitResetAsPrinted,
+  limitWindowLabel,
+  parseLimitResetAt,
+} from "../lib/limitReset";
 import type { LimitRecoveryAction } from "../lib/limitRecovery";
-import { continueOnAccount, continueOnModel, familyStandingLabel, limitContinueTarget, otherModelFor } from "../lib/limitContinue";
+import {
+  continueOnAccount,
+  continueOnModel,
+  familyStandingLabel,
+  limitContinueTarget,
+  otherModelFor,
+} from "../lib/limitContinue";
 import { Button } from "./ui/button";
 import { notifyModelToast } from "../lib/modelSwitchWeb";
 
-type Profile = { name: string; email?: string; usage?: CcUsage; login_expired_at?: number; setup_token?: { stored_at: number; expires_at: number } };
+type Profile = {
+  name: string;
+  email?: string;
+  usage?: CcUsage;
+  login_expired_at?: number;
+  setup_token?: { stored_at: number; expires_at: number };
+};
 
 export function LimitParkCard({
   message,
@@ -46,35 +84,72 @@ export function LimitParkCard({
 }) {
   // This conversation's own switch, if one is in flight or landed: its target
   // narrates the recovery before the machine's record catches up.
-  const switchRow = useInboxStore((s) => (conversationId
-    ? latestSessionCommand(s.sessionCommands, (r) => r.kind === "switch" && r.conversation_id === conversationId)
-    : undefined));
-  const requestedTarget = switchRow && switchRow.result !== DISPATCH_REFUSED && !switchRow.error ? switchRow.profile : undefined;
-  const { now, device, phase } = useLimitRecovery(conversationId, timestamp, live, requestedTarget);
+  const switchRow = useInboxStore((s) =>
+    conversationId
+      ? latestSessionCommand(
+          s.sessionCommands,
+          (r) => r.kind === "switch" && r.conversation_id === conversationId,
+        )
+      : undefined,
+  );
+  const requestedTarget =
+    switchRow && switchRow.result !== DISPATCH_REFUSED && !switchRow.error
+      ? switchRow.profile
+      : undefined;
+  const { now, device, phase } = useLimitRecovery(
+    conversationId,
+    timestamp,
+    live,
+    requestedTarget,
+  );
   const busy = switchPending(switchRow, now);
   const resetAt = parseLimitResetAt(message, timestamp);
   const resetPassed = resetAt != null && now >= resetAt;
   const windowLabel = limitWindowLabel(message);
   const printedReset = limitResetAsPrinted(message);
-  const pinnedAccount = useInboxStore((s) => (conversationId ? s.sessions[conversationId]?.cc_account : undefined));
+  const pinnedAccount = useInboxStore((s) =>
+    conversationId ? s.sessions[conversationId]?.cc_account : undefined,
+  );
 
   const profiles: Profile[] = device?.profiles ?? [];
   // Only one model's week is spent ("Fable limit"). That week is per account:
   // another account with room on it continues the session on the same model,
   // and only when none has room is the way on another model.
-  const limitFamily = /^(fable|opus|sonnet|haiku) limit$/i.exec(windowLabel)?.[1]?.toLowerCase();
+  const limitFamily = /^(fable|opus|sonnet|haiku) limit$/i
+    .exec(windowLabel)?.[1]
+    ?.toLowerCase();
   // The account the session ran on (its own token pin when it has one, else
   // the machine's fleet account) and the account the button continues on: one
   // rule, shared with the phone (lib/limitContinue).
-  const { fleetEmail, active, best } = limitContinueTarget(device, now, live, limitFamily);
-  const accountLabel = accountDisplayName(profiles, pinnedAccount ?? active?.email ?? fleetEmail);
+  const { fleetEmail, active, best } = limitContinueTarget(
+    device,
+    now,
+    live,
+    limitFamily,
+  );
+  const accountLabel = accountDisplayName(
+    profiles,
+    pinnedAccount ?? active?.email ?? fleetEmail,
+  );
   const bestLabel = accountDisplayName(profiles, best?.email ?? best?.name);
-  const exhausted = isExhaustionCurrent(device?.auto_switch_state?.exhausted_at, profiles, now);
+  const exhausted = isExhaustionCurrent(
+    device?.auto_switch_state?.exhausted_at,
+    profiles,
+    now,
+  );
   const proposal = live && device ? pendingProposal([device], now) : null;
   // The standing shown on the button matches the meters: "stale" when a rolled
   // window is unmeasured, never a confident green percent the switcher distrusts.
-  const bestNote = best ? (limitFamily && familyStandingLabel(best.usage, limitFamily, now)) || standingLabel(best.usage, now) : null;
-  const canSwitch = !!best && !!device && device.online && !device.is_remote && !!conversationId;
+  const bestNote = best
+    ? (limitFamily && familyStandingLabel(best.usage, limitFamily, now)) ||
+      standingLabel(best.usage, now)
+    : null;
+  const canSwitch =
+    !!best &&
+    !!device &&
+    device.online &&
+    !device.is_remote &&
+    !!conversationId;
 
   const switchAndContinue = () => {
     if (best && conversationId) continueOnAccount(conversationId, best);
@@ -87,14 +162,18 @@ export function LimitParkCard({
   const otherModel = other?.key;
   const otherModelLabel = other?.label;
   const continueOnOtherModel = () => {
-    if (conversationId && otherModel) continueOnModel(conversationId, otherModel, notifyModelToast);
+    if (conversationId && otherModel)
+      continueOnModel(conversationId, otherModel, notifyModelToast);
   };
 
   if (phase.phase === "recovering" || phase.phase === "resumed") {
     return (
       <LimitRecoveryCard
         windowLabel={windowLabel}
-        action={{ ...phase.action, target: accountDisplayName(profiles, phase.action.target) }}
+        action={{
+          ...phase.action,
+          target: accountDisplayName(profiles, phase.action.target),
+        }}
         step={phase.phase === "recovering" ? phase.step : "done"}
         timestamp={timestamp}
         now={now}
@@ -104,16 +183,25 @@ export function LimitParkCard({
   }
 
   const tone = live
-    ? { border: "border-amber-500/40 bg-amber-500/10", fg: "text-amber-500", icon: "bg-amber-500/20 text-amber-500" }
-    : { border: "border-sol-border/40 bg-sol-bg-alt/30", fg: "text-sol-text-muted", icon: "bg-sol-bg-alt text-sol-text-muted" };
+    ? {
+        border: "border-amber-500/40 bg-amber-500/10",
+        fg: "text-amber-500",
+        icon: "bg-amber-500/20 text-amber-500",
+      }
+    : {
+        border: "border-sol-border/40 bg-sol-bg-alt/30",
+        fg: "text-sol-text-muted",
+        icon: "bg-sol-bg-alt text-sol-text-muted",
+      };
 
   // Line 1: what closed, and when it opens — provider clock kept in the
   // tooltip so the card can be checked against the terminal.
-  const when = resetAt == null
-    ? null
-    : resetPassed
-      ? `window reset ${formatAgo(now - resetAt)}`
-      : `resets ${formatResetPhrase(resetAt, now)}`;
+  const when =
+    resetAt == null
+      ? null
+      : resetPassed
+        ? `window reset ${formatAgo(now - resetAt)}`
+        : `resets ${formatResetPhrase(resetAt, now)}`;
 
   // Line 2: what happens next. Reads the owner machine's flags; a viewer
   // whose roster does not carry the owner gets the neutral wording.
@@ -122,7 +210,8 @@ export function LimitParkCard({
   if (!live) {
     next = "The session continued after this.";
   } else if (resetPassed) {
-    next = "The window is open again and nothing resumed the session — continue it.";
+    next =
+      "The window is open again and nothing resumed the session — continue it.";
   } else if (otherModelLabel && canSwitch) {
     next = `${windowLabel.replace(/ limit$/, "")} is out on this account — ${bestLabel} still has ${windowLabel.replace(/ limit$/, "")}.`;
   } else if (otherModelLabel) {
@@ -136,13 +225,17 @@ export function LimitParkCard({
     // ask — which window closed, and where it wants to move — so approving is
     // an informed click rather than a leap.
     nextIcon = <Zap className="h-3 w-3 shrink-0 text-sol-yellow" />;
-    next = describeDecision(proposal) ?? "Waiting for you to approve an account switch.";
+    next =
+      describeDecision(proposal) ??
+      "Waiting for you to approve an account switch.";
   } else if (device.ask_first) {
     nextIcon = <Zap className="h-3 w-3 shrink-0 text-sol-text-muted" />;
-    next = "This machine asks before changing accounts — nothing has been proposed yet.";
+    next =
+      "This machine asks before changing accounts — nothing has been proposed yet.";
   } else if (device.auto_switch) {
     nextIcon = <Zap className="h-3 w-3 shrink-0 text-sol-cyan" />;
-    next = "Auto-switch is on — moving this session to an account with room, nothing to do.";
+    next =
+      "Auto-switch is on — moving this session to an account with room, nothing to do.";
   } else if (device.auto_continue) {
     nextIcon = <TimerReset className="h-3 w-3 shrink-0 text-sol-cyan" />;
     next = "Resumes on its own when the window resets — nothing to do.";
@@ -151,44 +244,73 @@ export function LimitParkCard({
   }
 
   return (
-    <div className={`rounded-lg border ${tone.border} ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
+    <div
+      className={`rounded-lg border ${tone.border} ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
+    >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full ${tone.icon}`}>
+        <span
+          className={`inline-flex items-center justify-center w-4 h-4 rounded-full ${tone.icon}`}
+        >
           <Hourglass className="h-2.5 w-2.5" strokeWidth={2.5} />
         </span>
-        <span className={`text-xs font-semibold uppercase tracking-wide ${tone.fg}`}>
+        <span
+          className={`text-xs font-semibold uppercase tracking-wide ${tone.fg}`}
+        >
           {live ? "Usage limit" : "Usage limit · resolved"}
         </span>
-        <span className={`text-sm ${tone.fg}`} title={printedReset ? `Provider said: resets ${printedReset}` : undefined}>
+        <span
+          className={`text-sm ${tone.fg}`}
+          title={
+            printedReset ? `Provider said: resets ${printedReset}` : undefined
+          }
+        >
           {windowLabel}
-          {accountLabel && live ? <span className="text-sol-text-muted"> on {accountLabel}</span> : null}
+          {accountLabel && live ? (
+            <span className="text-sol-text-muted"> on {accountLabel}</span>
+          ) : null}
           {when ? <span className="text-sol-text-muted"> · {when}</span> : null}
         </span>
         {timestamp != null && (
-          <span className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap" title={new Date(timestamp).toLocaleString()}>
+          <span
+            className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap"
+            title={new Date(timestamp).toLocaleString()}
+          >
             {formatAgo(now - timestamp)}
           </span>
         )}
       </div>
-      <div className={`${compact ? "mt-1" : "mt-1.5"} flex items-center gap-x-3 gap-y-1 flex-wrap text-xs text-sol-text-dim`}>
+      <div
+        className={`${compact ? "mt-1" : "mt-1.5"} flex items-center gap-x-3 gap-y-1 flex-wrap text-xs text-sol-text-dim`}
+      >
         <span className="flex items-start gap-1.5 min-w-0 flex-1">
           <span className="mt-0.5">{nextIcon}</span>
-          <span>
-            {next}
-          </span>
+          <span>{next}</span>
         </span>
         {live && (
           <span className="ml-auto flex items-center gap-2 shrink-0">
             {resetPassed && conversationId && (
-              <Button type="button" variant="amber" size="xs" onClick={continueNow}>
+              <Button
+                type="button"
+                variant="amber"
+                size="xs"
+                onClick={continueNow}
+              >
                 Continue
               </Button>
             )}
-            {!resetPassed && otherModelLabel && conversationId && !canSwitch && (
-              <Button type="button" variant="amber" size="xs" onClick={continueOnOtherModel}>
-                Continue on {otherModelLabel}
-              </Button>
-            )}
+            {!resetPassed &&
+              otherModelLabel &&
+              conversationId &&
+              !canSwitch && (
+                <Button
+                  type="button"
+                  variant="amber"
+                  size="xs"
+                  onClick={continueOnOtherModel}
+                >
+                  Continue on {otherModelLabel}
+                </Button>
+              )}
             {!resetPassed && canSwitch && (
               <button
                 type="button"
@@ -217,7 +339,10 @@ export function LimitParkCard({
                 or {otherModelLabel}
               </button>
             )}
-            <Link href="/settings/claude-accounts" className="text-meta text-sol-cyan hover:underline">
+            <Link
+              href="/settings/claude-accounts"
+              className="text-meta text-sol-cyan hover:underline"
+            >
               Accounts
             </Link>
           </span>
@@ -235,13 +360,25 @@ const STEP_DOT = {
 
 // One step of the track. Every step after the first carries its own leading
 // connector, so a wrapped track never leaves a dangling line at a row's end.
-function RecoveryStep({ state, first = false, children }: { state: keyof typeof STEP_DOT; first?: boolean; children: React.ReactNode }) {
+function RecoveryStep({
+  state,
+  first = false,
+  children,
+}: {
+  state: keyof typeof STEP_DOT;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${state === "todo" ? "text-sol-text-dim" : state === "active" ? "text-sol-text" : "text-sol-text-muted"}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap ${state === "todo" ? "text-sol-text-dim" : state === "active" ? "text-sol-text" : "text-sol-text-muted"}`}
+    >
       {!first && <span className="mr-0.5 h-px w-4 bg-sol-border/70" />}
-      {state === "done"
-        ? <Check className="h-3 w-3 text-sol-green" strokeWidth={3} />
-        : <span className={`h-1.5 w-1.5 rounded-full ${STEP_DOT[state]}`} />}
+      {state === "done" ? (
+        <Check className="h-3 w-3 text-sol-green" strokeWidth={3} />
+      ) : (
+        <span className={`h-1.5 w-1.5 rounded-full ${STEP_DOT[state]}`} />
+      )}
       {children}
     </span>
   );
@@ -267,28 +404,44 @@ function LimitRecoveryCard({
   compact: boolean;
 }) {
   const target = action.target;
-  const moved = action.kind === "switch"
-    ? target ? `switched to ${target}` : "switched accounts"
-    : target ? `continued on ${target}` : "continued it";
+  const moved =
+    action.kind === "switch"
+      ? target
+        ? `switched to ${target}`
+        : "switched accounts"
+      : target
+        ? `continued on ${target}`
+        : "continued it";
   // "Auto-switch is moving this session to X" / "Moving this session to X".
-  const verb = action.kind === "switch" ? "moving this session to" : "continuing this session on";
+  const verb =
+    action.kind === "switch"
+      ? "moving this session to"
+      : "continuing this session on";
   const headline = `${action.by === "auto" ? `Auto-switch is ${verb}` : `${verb[0].toUpperCase()}${verb.slice(1)}`}${target ? "" : " an account with room"}`;
   const ago = timestamp != null && (
-    <span className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap" title={new Date(timestamp).toLocaleString()}>
+    <span
+      className="ml-auto text-meta text-sol-text-dim shrink-0 whitespace-nowrap"
+      title={new Date(timestamp).toLocaleString()}
+    >
       {formatAgo(now - timestamp)}
     </span>
   );
 
   if (step === "done") {
     return (
-      <div className={`rounded-lg border border-sol-border/40 bg-sol-bg-alt/30 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
+      <div
+        className={`rounded-lg border border-sol-border/40 bg-sol-bg-alt/30 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
+      >
         <div className="flex items-center gap-2 text-xs min-w-0">
           <span className="inline-flex shrink-0 items-center justify-center w-4 h-4 rounded-full bg-sol-green/15 text-sol-green">
             <Check className="h-2.5 w-2.5" strokeWidth={3} />
           </span>
-          <span className="shrink-0 font-semibold uppercase tracking-wide text-sol-text-muted">Resumed</span>
+          <span className="shrink-0 font-semibold uppercase tracking-wide text-sol-text-muted">
+            Resumed
+          </span>
           <span className="min-w-0 truncate text-sol-text-muted">
-            {windowLabel} reached · {action.by === "auto" ? "auto-switch" : "you"} {moved}
+            {windowLabel} reached ·{" "}
+            {action.by === "auto" ? "auto-switch" : "you"} {moved}
           </span>
           {ago}
         </div>
@@ -303,22 +456,46 @@ function LimitRecoveryCard({
     >
       <div className="flex items-center gap-2 min-w-0">
         <span className="inline-flex shrink-0 items-center justify-center w-4 h-4 rounded-full bg-sol-cyan/20 text-sol-cyan">
-          <RefreshCw className="h-2.5 w-2.5 animate-spin [animation-duration:2.4s]" strokeWidth={2.5} />
+          <RefreshCw
+            className="h-2.5 w-2.5 animate-spin [animation-duration:2.4s]"
+            strokeWidth={2.5}
+          />
         </span>
-        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-sol-cyan">Recovering</span>
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-sol-cyan">
+          Recovering
+        </span>
         <span className="min-w-0 truncate text-sm text-sol-text">
-          {headline}{target && <> <span className="font-semibold">{target}</span></>}
+          {headline}
+          {target && (
+            <>
+              {" "}
+              <span className="font-semibold">{target}</span>
+            </>
+          )}
         </span>
         {ago}
       </div>
-      <div className={`${compact ? "mt-1" : "mt-1.5"} flex items-center gap-2 flex-wrap text-xs`}>
-        <RecoveryStep state="done" first>{windowLabel} reached</RecoveryStep>
-        <RecoveryStep state={step === "moving" ? "active" : "done"}>
-          {step === "moving"
-            ? <>{target ? `Restarting on ${target}` : "Restarting the session"}<Loader2 className="ml-0.5 h-3 w-3 animate-spin text-sol-cyan" /></>
-            : target ? `Running on ${target}` : "Restarted"}
+      <div
+        className={`${compact ? "mt-1" : "mt-1.5"} flex items-center gap-2 flex-wrap text-xs`}
+      >
+        <RecoveryStep state="done" first>
+          {windowLabel} reached
         </RecoveryStep>
-        <RecoveryStep state={step === "resuming" ? "active" : "todo"}>Picking up the turn</RecoveryStep>
+        <RecoveryStep state={step === "moving" ? "active" : "done"}>
+          {step === "moving" ? (
+            <>
+              {target ? `Restarting on ${target}` : "Restarting the session"}
+              <Loader2 className="ml-0.5 h-3 w-3 animate-spin text-sol-cyan" />
+            </>
+          ) : target ? (
+            `Running on ${target}`
+          ) : (
+            "Restarted"
+          )}
+        </RecoveryStep>
+        <RecoveryStep state={step === "resuming" ? "active" : "todo"}>
+          Picking up the turn
+        </RecoveryStep>
       </div>
     </div>
   );

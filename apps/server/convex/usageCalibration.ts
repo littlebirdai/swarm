@@ -29,7 +29,10 @@
 
 import { internalMutation, internalQuery, query } from "./functions";
 import { Id } from "./_generated/dataModel";
-import { weightedTokens, type UsageCalibration } from "@codecast/shared/contracts";
+import {
+  weightedTokens,
+  type UsageCalibration,
+} from "@codecast/shared/contracts";
 
 /** One slot of traffic. Long enough that an integer percent moves by more than
  *  its own rounding error, short enough that a 5h window holds several. */
@@ -59,7 +62,12 @@ export const MAX_USERS_PER_RUN = 40;
  *  paired with; a stale one describes usage from before the slot began. */
 export const SNAPSHOT_FRESH_MS = 2 * CALIBRATION_SLOT_MS;
 
-export type WindowReading = { key: string; percent: number; resets_at?: number; fetched_at?: number };
+export type WindowReading = {
+  key: string;
+  percent: number;
+  resets_at?: number;
+  fetched_at?: number;
+};
 
 /** Every limit window a user's devices report right now, one entry per account
  *  and window kind. Keyed so the next run can pair the same window with itself —
@@ -76,7 +84,12 @@ export function windowReadingsOf(devices: any[]): WindowReading[] {
       // Several devices report the same account; the freshest reading wins.
       const seen = out.get(key);
       if (seen && (seen.fetched_at ?? 0) >= usage.fetched_at) continue;
-      out.set(key, { key, percent: session.percent, resets_at: session.resets_at, fetched_at: usage.fetched_at });
+      out.set(key, {
+        key,
+        percent: session.percent,
+        resets_at: session.resets_at,
+        fetched_at: usage.fetched_at,
+      });
     }
   }
   return [...out.values()];
@@ -92,7 +105,8 @@ export function windowReadingsOf(devices: any[]): WindowReading[] {
 export const WINDOW_MATCH_TOLERANCE_MS = 2 * 60 * 1000;
 
 export function sameWindow(a: WindowReading, b: WindowReading): boolean {
-  if (a.resets_at == null || b.resets_at == null) return a.resets_at === b.resets_at;
+  if (a.resets_at == null || b.resets_at == null)
+    return a.resets_at === b.resets_at;
   return Math.abs(a.resets_at - b.resets_at) <= WINDOW_MATCH_TOLERANCE_MS;
 }
 
@@ -112,7 +126,9 @@ export function percentRise(
   at?: { before: number; after: number },
 ): number {
   const fresh = (w: WindowReading, asOf: number | undefined) =>
-    asOf === undefined || w.fetched_at === undefined || asOf - w.fetched_at <= SNAPSHOT_FRESH_MS;
+    asOf === undefined ||
+    w.fetched_at === undefined ||
+    asOf - w.fetched_at <= SNAPSHOT_FRESH_MS;
   const prior = new Map(before.map((w) => [w.key, w]));
   let rise = 0;
   for (const now of after) {
@@ -134,7 +150,10 @@ export function medianOf(samples: number[]): number | null {
 }
 
 /** Fold a run's new samples into the stored window and republish the median. */
-export function foldSamples(recent: number[], fresh: number[]): { recent: number[]; rate: number | null } {
+export function foldSamples(
+  recent: number[],
+  fresh: number[],
+): { recent: number[]; rate: number | null } {
   const next = [...recent, ...fresh].slice(-SAMPLE_WINDOW);
   return { recent: next, rate: medianOf(next) };
 }
@@ -146,7 +165,10 @@ export function foldSamples(recent: number[], fresh: number[]): { recent: number
 export const get = query({
   args: {},
   handler: async (ctx): Promise<UsageCalibration | null> => {
-    const row = await ctx.db.query("usage_calibration").withIndex("by_key", (q) => q.eq("key", "global")).unique();
+    const row = await ctx.db
+      .query("usage_calibration")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
     if (!row?.tokens_per_percent) return null;
     return {
       tokens_per_percent: row.tokens_per_percent,
@@ -162,7 +184,10 @@ export const get = query({
 export const diag = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const row = await ctx.db.query("usage_calibration").withIndex("by_key", (q) => q.eq("key", "global")).unique();
+    const row = await ctx.db
+      .query("usage_calibration")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
     if (!row) return null;
     const now = Date.now();
     return {
@@ -188,7 +213,10 @@ export const sample = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
     const slot = calibrationSlot(now) - 1; // the slot that just closed
-    const row = await ctx.db.query("usage_calibration").withIndex("by_key", (q) => q.eq("key", "global")).unique();
+    const row = await ctx.db
+      .query("usage_calibration")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique();
     const before = row?.last_sample;
 
     // Every user whose devices report a limit window. The meters are the scarce
@@ -210,7 +238,10 @@ export const sample = internalMutation({
     // The largest rise any user showed, kept even when nothing qualified: it is
     // the difference between "nobody is working" and "the floor is too high".
     let bestRise = 0;
-    for (const [userKey, userDevices] of [...byUser].slice(0, MAX_USERS_PER_RUN)) {
+    for (const [userKey, userDevices] of [...byUser].slice(
+      0,
+      MAX_USERS_PER_RUN,
+    )) {
       const windows = windowReadingsOf(userDevices);
       if (!windows.length) continue;
       const userId = userDevices[0].user_id as Id<"users">;
@@ -219,13 +250,25 @@ export const sample = internalMutation({
       // Pair with the previous reading. Both halves must describe the same slot:
       // no previous reading, or one taken outside the slot, means no sample.
       const prior = before?.users.find((u) => String(u.user_id) === userKey);
-      if (!prior || !before || before.slot !== slot) { skipped.unpaired++; continue; }
-      const rise = percentRise(prior.windows, windows, { before: before.at, after: now });
+      if (!prior || !before || before.slot !== slot) {
+        skipped.unpaired++;
+        continue;
+      }
+      const rise = percentRise(prior.windows, windows, {
+        before: before.at,
+        after: now,
+      });
       bestRise = Math.max(bestRise, rise);
-      if (rise < MIN_PERCENT_DELTA) { skipped.below_floor++; continue; }
+      if (rise < MIN_PERCENT_DELTA) {
+        skipped.below_floor++;
+        continue;
+      }
 
       const tokens = await slotTokensForUser(ctx, userId, slot, now);
-      if (tokens <= 0) { skipped.no_tokens++; continue; }
+      if (tokens <= 0) {
+        skipped.no_tokens++;
+        continue;
+      }
       fresh.push(tokens / rise);
     }
 
@@ -237,11 +280,22 @@ export const sample = internalMutation({
       samples: folded.recent.length,
       ...(folded.rate != null ? { tokens_per_percent: folded.rate } : {}),
       last_sample: { at: now, slot: calibrationSlot(now), users },
-      last_run: { users: users.length, added: fresh.length, ...skipped, best_rise: bestRise },
+      last_run: {
+        users: users.length,
+        added: fresh.length,
+        ...skipped,
+        best_rise: bestRise,
+      },
     };
     if (row) await ctx.db.patch(row._id, patch);
     else await ctx.db.insert("usage_calibration", patch);
-    return { samples: folded.recent.length, added: fresh.length, rate: folded.rate, users: users.length, skipped };
+    return {
+      samples: folded.recent.length,
+      added: fresh.length,
+      rate: folded.rate,
+      users: users.length,
+      skipped,
+    };
   },
 });
 
@@ -249,11 +303,18 @@ export const sample = internalMutation({
  *  conversations that were touched around it (by_user_updated), and each carries
  *  its own slot stamp, so a row that last billed in an earlier slot contributes
  *  nothing. */
-async function slotTokensForUser(ctx: any, userId: Id<"users">, slot: number, now: number): Promise<number> {
+async function slotTokensForUser(
+  ctx: any,
+  userId: Id<"users">,
+  slot: number,
+  now: number,
+): Promise<number> {
   const since = (slot - 1) * CALIBRATION_SLOT_MS;
   const rows = await ctx.db
     .query("conversations")
-    .withIndex("by_user_updated", (q: any) => q.eq("user_id", userId).gt("updated_at", since))
+    .withIndex("by_user_updated", (q: any) =>
+      q.eq("user_id", userId).gt("updated_at", since),
+    )
     .take(500);
   let total = 0;
   for (const conv of rows) {

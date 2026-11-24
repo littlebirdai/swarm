@@ -21,7 +21,10 @@
 import type { TeamVisibilityLevel } from "@codecast/shared/team/visibility";
 export type { TeamVisibilityLevel };
 
-export type VisibilitySegment = { before: number; visibility: TeamVisibilityLevel };
+export type VisibilitySegment = {
+  before: number;
+  visibility: TeamVisibilityLevel;
+};
 
 export type MembershipVisibilityFacts = {
   visibility?: string | null;
@@ -39,9 +42,16 @@ export const TEAM_VISIBILITY_RANK: Record<TeamVisibilityLevel, number> = {
   full: 3,
 };
 
-export const TEAM_VISIBILITY_LEVELS: TeamVisibilityLevel[] = ["hidden", "activity", "summary", "full"];
+export const TEAM_VISIBILITY_LEVELS: TeamVisibilityLevel[] = [
+  "hidden",
+  "activity",
+  "summary",
+  "full",
+];
 
-export function isTeamVisibilityLevel(value: unknown): value is TeamVisibilityLevel {
+export function isTeamVisibilityLevel(
+  value: unknown,
+): value is TeamVisibilityLevel {
   return typeof value === "string" && value in TEAM_VISIBILITY_RANK;
 }
 
@@ -49,7 +59,10 @@ function levelOf(value: string | null | undefined): TeamVisibilityLevel {
   return isTeamVisibilityLevel(value) ? value : DEFAULT_TEAM_VISIBILITY;
 }
 
-function lower(a: TeamVisibilityLevel, b: TeamVisibilityLevel): TeamVisibilityLevel {
+function lower(
+  a: TeamVisibilityLevel,
+  b: TeamVisibilityLevel,
+): TeamVisibilityLevel {
   return TEAM_VISIBILITY_RANK[a] <= TEAM_VISIBILITY_RANK[b] ? a : b;
 }
 
@@ -61,7 +74,9 @@ export function isVisibilityShareable(visibility: string): boolean {
   return visibility !== "hidden" && visibility !== "activity";
 }
 
-export function currentMembershipVisibility(m: MembershipVisibilityFacts | null | undefined): TeamVisibilityLevel {
+export function currentMembershipVisibility(
+  m: MembershipVisibilityFacts | null | undefined,
+): TeamVisibilityLevel {
   return levelOf(m?.visibility);
 }
 
@@ -110,26 +125,44 @@ export function nextMembershipVisibility(
   target: TeamVisibilityLevel,
   mode: VisibilityChangeMode,
   now: number,
-): { visibility: TeamVisibilityLevel; visibility_history: VisibilitySegment[] | undefined } {
+): {
+  visibility: TeamVisibilityLevel;
+  visibility_history: VisibilitySegment[] | undefined;
+} {
   const current = currentMembershipVisibility(m);
   const history = m?.visibility_history ?? [];
   if (target === current) {
-    return { visibility: target, visibility_history: mode === "everything" ? undefined : normalizeHistory(history, target) };
+    return {
+      visibility: target,
+      visibility_history:
+        mode === "everything" ? undefined : normalizeHistory(history, target),
+    };
   }
   if (TEAM_VISIBILITY_RANK[target] < TEAM_VISIBILITY_RANK[current]) {
-    const capped = history.map((segment) => ({ ...segment, visibility: lower(segment.visibility, target) }));
-    return { visibility: target, visibility_history: normalizeHistory(capped, target) };
+    const capped = history.map((segment) => ({
+      ...segment,
+      visibility: lower(segment.visibility, target),
+    }));
+    return {
+      visibility: target,
+      visibility_history: normalizeHistory(capped, target),
+    };
   }
   if (mode === "everything") {
     return { visibility: target, visibility_history: undefined };
   }
   return {
     visibility: target,
-    visibility_history: normalizeHistory([...history, { before: now, visibility: current }], target),
+    visibility_history: normalizeHistory(
+      [...history, { before: now, visibility: current }],
+      target,
+    ),
   };
 }
 
 /** True when some past sessions are read at a lower level than the current one. */
-export function hasPinnedPast(m: MembershipVisibilityFacts | null | undefined): boolean {
+export function hasPinnedPast(
+  m: MembershipVisibilityFacts | null | undefined,
+): boolean {
   return (m?.visibility_history?.length ?? 0) > 0;
 }

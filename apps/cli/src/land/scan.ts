@@ -70,7 +70,12 @@ export type TreeVerdict =
   | "superseded";
 
 /** Verdicts whose tree `cast land prune` archives and removes. */
-export const PRUNABLE: ReadonlySet<TreeVerdict> = new Set(["empty", "landed", "stale", "superseded"]);
+export const PRUNABLE: ReadonlySet<TreeVerdict> = new Set([
+  "empty",
+  "landed",
+  "stale",
+  "superseded",
+]);
 
 export interface RosterRow {
   short_id?: string;
@@ -107,14 +112,22 @@ export interface TreeReport {
   reason: string;
   /** Most recent of the tree's HEAD reflog and its changed files' mtimes, in ms. */
   lastActivity: number;
-  owner: { short_id: string; title: string | null; work_state: string | null } | null;
+  owner: {
+    short_id: string;
+    title: string | null;
+    work_state: string | null;
+  } | null;
   counts: Record<FileVerdict, number>;
   files: TreeFile[];
   /** Other landable trees that change some of the same files differently: land one, then scan again before the next. */
   overlaps?: Array<{ path: string; files: string[] }>;
 }
 
-async function git(cwd: string, args: string[], opts: { env?: NodeJS.ProcessEnv; timeoutMs?: number } = {}): Promise<string> {
+async function git(
+  cwd: string,
+  args: string[],
+  opts: { env?: NodeJS.ProcessEnv; timeoutMs?: number } = {},
+): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
     encoding: "utf-8",
     timeout: opts.timeoutMs ?? 120_000,
@@ -124,9 +137,22 @@ async function git(cwd: string, args: string[], opts: { env?: NodeJS.ProcessEnv;
   return String(stdout);
 }
 
-const tryGit = (cwd: string, args: string[], opts?: Parameters<typeof git>[2]) => git(cwd, args, opts).then((s) => s.trim()).catch(() => "");
+const tryGit = (
+  cwd: string,
+  args: string[],
+  opts?: Parameters<typeof git>[2],
+) =>
+  git(cwd, args, opts)
+    .then((s) => s.trim())
+    .catch(() => "");
 
-export interface WorktreeEntry { path: string; branch: string; head: string; locked: boolean; primary: boolean }
+export interface WorktreeEntry {
+  path: string;
+  branch: string;
+  head: string;
+  locked: boolean;
+  primary: boolean;
+}
 
 /** `git worktree list --porcelain`, the main checkout first. Entries whose directory is gone are dropped. */
 export function parseWorktreeList(out: string): WorktreeEntry[] {
@@ -139,7 +165,11 @@ export function parseWorktreeList(out: string): WorktreeEntry[] {
     entries.push({
       path: wt,
       head: lines.find((l) => l.startsWith("HEAD "))?.slice(5) ?? "",
-      branch: lines.find((l) => l.startsWith("branch "))?.slice(7).replace(/^refs\/heads\//, "") ?? "",
+      branch:
+        lines
+          .find((l) => l.startsWith("branch "))
+          ?.slice(7)
+          .replace(/^refs\/heads\//, "") ?? "",
       locked: lines.some((l) => l === "locked" || l.startsWith("locked ")),
       primary: entries.length === 0,
     });
@@ -152,11 +182,25 @@ export function parseWorktreeList(out: string): WorktreeEntry[] {
  * reflog, else of its own HEAD reflog; for the main checkout, where it forked
  * from origin/main. Falls back to the merge base when the reflog is gone.
  */
-export async function worktreeBase(entry: WorktreeEntry, mainRef: string): Promise<string> {
+export async function worktreeBase(
+  entry: WorktreeEntry,
+  mainRef: string,
+): Promise<string> {
   if (!entry.primary) {
     for (const ref of [entry.branch, "HEAD"].filter(Boolean)) {
-      const first = (await tryGit(entry.path, ["reflog", "show", "--format=%H", ref])).split("\n").filter(Boolean).pop();
-      if (first && (await tryGit(entry.path, ["cat-file", "-e", `${first}^{commit}`]).then(() => true))) return first;
+      const first = (
+        await tryGit(entry.path, ["reflog", "show", "--format=%H", ref])
+      )
+        .split("\n")
+        .filter(Boolean)
+        .pop();
+      if (
+        first &&
+        (await tryGit(entry.path, ["cat-file", "-e", `${first}^{commit}`]).then(
+          () => true,
+        ))
+      )
+        return first;
     }
   }
   return tryGit(entry.path, ["merge-base", "HEAD", mainRef]);
@@ -169,10 +213,24 @@ export async function worktreeBase(entry: WorktreeEntry, mainRef: string): Promi
  * as an embedded repo), and a `node_modules` symlink into another checkout,
  * which `.gitignore`'s `node_modules/` does not match.
  */
-export function parseRawDiff(out: string): Array<{ path: string; src: string; dst: string; status: string; mode: string }> {
-  const rows: Array<{ path: string; src: string; dst: string; status: string; mode: string }> = [];
+export function parseRawDiff(out: string): Array<{
+  path: string;
+  src: string;
+  dst: string;
+  status: string;
+  mode: string;
+}> {
+  const rows: Array<{
+    path: string;
+    src: string;
+    dst: string;
+    status: string;
+    mode: string;
+  }> = [];
   for (const line of out.split("\n")) {
-    const m = /^:(\d+) (\d+) ([0-9a-f]+) ([0-9a-f]+) ([A-Z])\d*\t(.+)$/.exec(line);
+    const m = /^:(\d+) (\d+) ([0-9a-f]+) ([0-9a-f]+) ([A-Z])\d*\t(.+)$/.exec(
+      line,
+    );
     if (!m || (m[2] === "160000" && m[1] === "000000")) continue;
     if (m[2] === "120000" && path.basename(m[6]) === "node_modules") continue;
     rows.push({ src: m[3], dst: m[4], status: m[5], path: m[6], mode: m[2] });
@@ -187,7 +245,11 @@ const ZERO = /^0+$/;
  * main has no such file). "both" may still turn out "absorbed" once the
  * contents are read (absorbedInto).
  */
-export function fileVerdict(src: string, dst: string, mainBlob: string | undefined): FileVerdict {
+export function fileVerdict(
+  src: string,
+  dst: string,
+  mainBlob: string | undefined,
+): FileVerdict {
   const worktree = ZERO.test(dst) ? undefined : dst;
   const base = ZERO.test(src) ? undefined : src;
   if (worktree === mainBlob) return "same";
@@ -196,9 +258,14 @@ export function fileVerdict(src: string, dst: string, mainBlob: string | undefin
 }
 
 /** Every blob on a ref, path to sha: one call per repo and ref. */
-export async function treeBlobs(cwd: string, ref: string): Promise<Map<string, string>> {
+export async function treeBlobs(
+  cwd: string,
+  ref: string,
+): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  for (const line of (await git(cwd, ["ls-tree", "-r", "--full-tree", ref])).split("\n")) {
+  for (const line of (
+    await git(cwd, ["ls-tree", "-r", "--full-tree", ref])
+  ).split("\n")) {
     const m = /^\d+ \w+ ([0-9a-f]+)\t(.+)$/.exec(line);
     if (m) map.set(m[2], m[1]);
   }
@@ -209,11 +276,19 @@ export async function treeBlobs(cwd: string, ref: string): Promise<Map<string, s
  * Write the tree's working state, untracked files included, into a private
  * index, and hand it to `fn`. The worktree's own index is copied, never written.
  */
-export async function withWorkingIndex<T>(tree: string, fn: (env: NodeJS.ProcessEnv) => Promise<T>): Promise<T> {
+export async function withWorkingIndex<T>(
+  tree: string,
+  fn: (env: NodeJS.ProcessEnv) => Promise<T>,
+): Promise<T> {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cast-land-"));
   try {
     const index = path.join(tmp, "index");
-    const own = (await tryGit(tree, ["rev-parse", "--path-format=absolute", "--git-path", "index"]));
+    const own = await tryGit(tree, [
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-path",
+      "index",
+    ]);
     try {
       fs.copyFileSync(own, index);
       // Why: git trusts a cached stat only for entries older than the index
@@ -221,7 +296,9 @@ export async function withWorkingIndex<T>(tree: string, fn: (env: NodeJS.Process
       // second as the checkout read as unchanged.
       const { atime, mtime } = fs.statSync(own);
       fs.utimesSync(index, atime, mtime);
-    } catch { /* a fresh index is built from scratch */ }
+    } catch {
+      /* a fresh index is built from scratch */
+    }
     const env = { GIT_INDEX_FILE: index };
     await git(tree, ["add", "-A", "."], { env });
     return await fn(env);
@@ -233,7 +310,13 @@ export async function withWorkingIndex<T>(tree: string, fn: (env: NodeJS.Process
 /** The tree's own changes as raw diff rows, base to working state. */
 export async function treeChanges(tree: string, base: string) {
   return withWorkingIndex(tree, async (env) =>
-    parseRawDiff(await git(tree, ["diff", "--cached", "--raw", "--no-renames", "--no-abbrev", base], { env })),
+    parseRawDiff(
+      await git(
+        tree,
+        ["diff", "--cached", "--raw", "--no-renames", "--no-abbrev", base],
+        { env },
+      ),
+    ),
   );
 }
 
@@ -242,37 +325,55 @@ const MEANINGFUL = 4;
 /** Share of the tree's added and removed lines main must agree with for its change to count as absorbed. */
 export const ABSORBED_SHARE = 0.9;
 
-const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter((l) => l.length >= MEANINGFUL);
+const lines = (text: string) =>
+  text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length >= MEANINGFUL);
 
 /**
  * Whether main already holds the change a tree made to a file: most lines the
  * tree added are in main's version, and most lines it removed are gone from it.
  * Line sets, not a diff: main may have moved or reworded the code around them.
  */
-export function absorbedInto(base: string, tree: string, main: string): boolean {
+export function absorbedInto(
+  base: string,
+  tree: string,
+  main: string,
+): boolean {
   const baseSet = new Set(lines(base));
   const treeSet = new Set(lines(tree));
   const mainSet = new Set(lines(main));
   const added = [...treeSet].filter((l) => !baseSet.has(l));
   const removed = [...baseSet].filter((l) => !treeSet.has(l));
-  const agrees = (hits: number, total: number) => total === 0 || hits / total >= ABSORBED_SHARE;
+  const agrees = (hits: number, total: number) =>
+    total === 0 || hits / total >= ABSORBED_SHARE;
   if (added.length + removed.length === 0) return true;
-  return agrees(added.filter((l) => mainSet.has(l)).length, added.length) &&
-    agrees(removed.filter((l) => !mainSet.has(l)).length, removed.length);
+  return (
+    agrees(added.filter((l) => mainSet.has(l)).length, added.length) &&
+    agrees(removed.filter((l) => !mainSet.has(l)).length, removed.length)
+  );
 }
 
 /** Blobs larger than this are not read; their file stays "both". */
 const MAX_BLOB = 2 * 1024 * 1024;
 
 /** Read blobs by sha with one `git cat-file --batch`. Missing, binary or oversized ones are left out. */
-export async function readBlobs(cwd: string, shas: string[]): Promise<Map<string, string>> {
+export async function readBlobs(
+  cwd: string,
+  shas: string[],
+): Promise<Map<string, string>> {
   const wanted = [...new Set(shas.filter((s) => s && !ZERO.test(s)))];
   const out = new Map<string, string>();
   if (wanted.length === 0) return out;
-  const child = spawn("git", ["-C", cwd, "cat-file", "--batch"], { stdio: ["pipe", "pipe", "ignore"] });
+  const child = spawn("git", ["-C", cwd, "cat-file", "--batch"], {
+    stdio: ["pipe", "pipe", "ignore"],
+  });
   const chunks: Buffer[] = [];
   child.stdout!.on("data", (c: Buffer) => chunks.push(c));
-  const done = new Promise<void>((resolve) => child.on("close", () => resolve()));
+  const done = new Promise<void>((resolve) =>
+    child.on("close", () => resolve()),
+  );
   child.stdin!.end(wanted.join("\n") + "\n");
   await done;
   const buf = Buffer.concat(chunks);
@@ -282,32 +383,53 @@ export async function readBlobs(cwd: string, shas: string[]): Promise<Map<string
     if (nl < 0) break;
     const header = buf.subarray(at, nl).toString();
     const m = /^([0-9a-f]+) (\w+) (\d+)$/.exec(header);
-    if (!m) { at = nl + 1; continue; } // "<sha> missing"
+    if (!m) {
+      at = nl + 1;
+      continue;
+    } // "<sha> missing"
     const size = Number(m[3]);
     const body = buf.subarray(nl + 1, nl + 1 + size);
-    if (m[2] === "blob" && size <= MAX_BLOB && !body.subarray(0, 8000).includes(0)) out.set(m[1], body.toString("utf-8"));
+    if (
+      m[2] === "blob" &&
+      size <= MAX_BLOB &&
+      !body.subarray(0, 8000).includes(0)
+    )
+      out.set(m[1], body.toString("utf-8"));
     at = nl + 1 + size + 1;
   }
   return out;
 }
 
 function mtime(p: string): number {
-  try { return fs.lstatSync(p).mtimeMs; } catch { return 0; }
+  try {
+    return fs.lstatSync(p).mtimeMs;
+  } catch {
+    return 0;
+  }
 }
 
 /** The roster row that owns a tree: one whose project path is the tree or inside it, or that names its codecast worktree. */
 export function ownerOf(tree: string, roster: RosterRow[]): RosterRow | null {
   const name = /\/\.codecast\/worktrees\/([^/]+)$/.exec(tree)?.[1];
-  return roster.find((r) =>
-    (r.project_path && (r.project_path === tree || r.project_path.startsWith(`${tree}/`))) ||
-    (name && r.worktree_name === name),
-  ) ?? null;
+  return (
+    roster.find(
+      (r) =>
+        (r.project_path &&
+          (r.project_path === tree || r.project_path.startsWith(`${tree}/`))) ||
+        (name && r.worktree_name === name),
+    ) ?? null
+  );
 }
 
 /** Whether a roster row is still at work: active, and updated within LIVE_OWNER_MS. */
 export function ownerIsLive(row: RosterRow, now: number): boolean {
   if (row.status === "completed") return false;
-  if (!["working", "dormant", "needs_input", "needs-input"].includes(row.work_state ?? "")) return false;
+  if (
+    !["working", "dormant", "needs_input", "needs-input"].includes(
+      row.work_state ?? "",
+    )
+  )
+    return false;
   return now - (row.updated_at ?? 0) < LIVE_OWNER_MS;
 }
 
@@ -338,23 +460,50 @@ export function inUseReason(f: VerdictFacts): string | null {
 }
 
 /** The tree's verdict and a line on why. Pure: every git and roster fact comes in. */
-export function treeVerdict(f: VerdictFacts): { verdict: TreeVerdict; reason: string } {
+export function treeVerdict(f: VerdictFacts): {
+  verdict: TreeVerdict;
+  reason: string;
+} {
   const quiet = f.now - f.lastActivity;
   const inUse = inUseReason(f);
-  if (f.primary) return { verdict: "primary", reason: `the repo's main checkout${inUse ? `, in use: ${inUse}` : ""}` };
+  if (f.primary)
+    return {
+      verdict: "primary",
+      reason: `the repo's main checkout${inUse ? `, in use: ${inUse}` : ""}`,
+    };
   const { same, absorbed, only, both } = f.counts;
   const open = `${only} files only it changed, ${both} where main lacks its change`;
-  if (f.held !== null) return { verdict: "held", reason: `held: ${f.held}; ${open}` };
+  if (f.held !== null)
+    return { verdict: "held", reason: `held: ${f.held}; ${open}` };
   // A live run's tree is the run's, whatever it holds or however long it waited: a run at a hold or a card has no
   // process in it for days, and one whose change reached main another way still runs Eval in it. Released as
   // stale (ct-68695, 8 days at the Eval wallet) or landed (ct-62158), each failed at Eval on a missing workspace.
-  if (f.run && f.liveRun !== false) return { verdict: "run", reason: f.liveRun ? `its line run is still live; ${open}` : `a line run's tree, and whether its run is live cannot be told; ${open}` };
+  if (f.run && f.liveRun !== false)
+    return {
+      verdict: "run",
+      reason: f.liveRun
+        ? `its line run is still live; ${open}`
+        : `a line run's tree, and whether its run is live cannot be told; ${open}`,
+    };
   // A run's own work is the run's to ship, while a hand is in it as much as while it waits on a person.
-  if (f.run && only + both > 0 && (inUse || quiet < STALE_MS)) return { verdict: "run", reason: `a line run's change, which the run ships after its decision; ${open}` };
+  if (f.run && only + both > 0 && (inUse || quiet < STALE_MS))
+    return {
+      verdict: "run",
+      reason: `a line run's change, which the run ships after its decision; ${open}`,
+    };
   if (inUse) return { verdict: "live", reason: inUse };
-  if (same + absorbed + only + both === 0) return { verdict: "empty", reason: "no changes of its own" };
-  if (only + both === 0) return { verdict: "landed", reason: `main already holds all ${same + absorbed} files it changed${absorbed ? ` (${absorbed} reworked since)` : ""}` };
-  if (quiet >= STALE_MS) return { verdict: "stale", reason: `untouched for ${Math.floor(quiet / 86_400_000)}d; ${open}` };
+  if (same + absorbed + only + both === 0)
+    return { verdict: "empty", reason: "no changes of its own" };
+  if (only + both === 0)
+    return {
+      verdict: "landed",
+      reason: `main already holds all ${same + absorbed} files it changed${absorbed ? ` (${absorbed} reworked since)` : ""}`,
+    };
+  if (quiet >= STALE_MS)
+    return {
+      verdict: "stale",
+      reason: `untouched for ${Math.floor(quiet / 86_400_000)}d; ${open}`,
+    };
   if (only > 0) return { verdict: "ready", reason: open };
   return { verdict: "review", reason: open };
 }
@@ -372,18 +521,42 @@ export interface ScanContext {
   now: number;
 }
 
-
-export async function scanTree(entry: WorktreeEntry, ctx: ScanContext): Promise<TreeReport> {
+export async function scanTree(
+  entry: WorktreeEntry,
+  ctx: ScanContext,
+): Promise<TreeReport> {
   const base = await worktreeBase(entry, ctx.mainRef);
   const rows = base ? await treeChanges(entry.path, base) : [];
-  const files: TreeFile[] = rows.map((r) => ({ path: r.path, status: r.status, verdict: fileVerdict(r.src, r.dst, ctx.mainBlobs.get(r.path)), src: r.src, dst: r.dst }));
+  const files: TreeFile[] = rows.map((r) => ({
+    path: r.path,
+    status: r.status,
+    verdict: fileVerdict(r.src, r.dst, ctx.mainBlobs.get(r.path)),
+    src: r.src,
+    dst: r.dst,
+  }));
 
   // The tree's own HEAD reflog: its last checkout or commit HERE. HEAD's commit
   // time would read a tree that never committed as old as the commit it was cut from.
   // %gd with --date=unix is the entry's own time ("HEAD@{1791215272}"); %ct would be the commit's.
-  const headTime = Number(/\{(\d+)\}/.exec(await tryGit(entry.path, ["reflog", "-1", "--date=unix", "--format=%gd", "HEAD"]))?.[1]) * 1000 || 0;
+  const headTime =
+    Number(
+      /\{(\d+)\}/.exec(
+        await tryGit(entry.path, [
+          "reflog",
+          "-1",
+          "--date=unix",
+          "--format=%gd",
+          "HEAD",
+        ]),
+      )?.[1],
+    ) * 1000 || 0;
   // Not the index's mtime: any `git status` (the daemon's worktree GC runs one) rewrites it.
-  const fileTime = Math.max(0, ...files.filter((f) => f.status !== "D").map((f) => mtime(path.join(entry.path, f.path))));
+  const fileTime = Math.max(
+    0,
+    ...files
+      .filter((f) => f.status !== "D")
+      .map((f) => mtime(path.join(entry.path, f.path))),
+  );
   const lastActivity = Math.min(Date.now(), Math.max(headTime, fileTime));
 
   const ownerRow = ctx.roster ? ownerOf(entry.path, ctx.roster) : null;
@@ -391,25 +564,47 @@ export async function scanTree(entry: WorktreeEntry, ctx: ScanContext): Promise<
     primary: entry.primary,
     locked: entry.locked,
     liveOwner: !!ownerRow && ownerIsLive(ownerRow, ctx.now),
-    processInside: ctx.processCwds.some((c) => c === entry.path || c.startsWith(`${entry.path}/`)),
+    processInside: ctx.processCwds.some(
+      (c) => c === entry.path || c.startsWith(`${entry.path}/`),
+    ),
     run: !entry.primary && ctx.runTrees.has(path.basename(entry.path)),
-    liveRun: ctx.liveRunTrees ? ctx.liveRunTrees.has(path.basename(entry.path)) : null,
-    held: entry.primary ? null : readHold(entry.path)?.reason ?? null,
+    liveRun: ctx.liveRunTrees
+      ? ctx.liveRunTrees.has(path.basename(entry.path))
+      : null,
+    held: entry.primary ? null : (readHold(entry.path)?.reason ?? null),
     lastActivity,
     counts: { same: 0, absorbed: 0, only: 0, both: 0 },
     now: ctx.now,
   };
   // Reading contents only matters where it can change the verdict: not for a
   // tree in use, nor for one past the stale line, which is released either way.
-  if (entry.primary || (!inUseReason(vf) && ctx.now - lastActivity < STALE_MS)) {
+  if (
+    entry.primary ||
+    (!inUseReason(vf) && ctx.now - lastActivity < STALE_MS)
+  ) {
     // A file both sides changed is absorbed when main already holds the tree's change.
-    const contested = rows.map((r, i) => ({ ...r, i })).filter((r) => files[r.i].verdict === "both" && !ZERO.test(r.dst) && ctx.mainBlobs.has(r.path));
-    const blobs = await readBlobs(entry.path, contested.flatMap((r) => [r.src, r.dst, ctx.mainBlobs.get(r.path)!]));
+    const contested = rows
+      .map((r, i) => ({ ...r, i }))
+      .filter(
+        (r) =>
+          files[r.i].verdict === "both" &&
+          !ZERO.test(r.dst) &&
+          ctx.mainBlobs.has(r.path),
+      );
+    const blobs = await readBlobs(
+      entry.path,
+      contested.flatMap((r) => [r.src, r.dst, ctx.mainBlobs.get(r.path)!]),
+    );
     for (const r of contested) {
       const tree = blobs.get(r.dst);
       const main = blobs.get(ctx.mainBlobs.get(r.path)!);
       const base = ZERO.test(r.src) ? "" : blobs.get(r.src);
-      if (tree !== undefined && main !== undefined && base !== undefined && absorbedInto(base, tree, main)) {
+      if (
+        tree !== undefined &&
+        main !== undefined &&
+        base !== undefined &&
+        absorbedInto(base, tree, main)
+      ) {
         files[r.i].verdict = "absorbed";
       }
     }
@@ -428,7 +623,13 @@ export async function scanTree(entry: WorktreeEntry, ctx: ScanContext): Promise<
     verdict,
     reason,
     lastActivity,
-    owner: ownerRow ? { short_id: ownerRow.short_id ?? "", title: ownerRow.title ?? null, work_state: ownerRow.work_state ?? null } : null,
+    owner: ownerRow
+      ? {
+          short_id: ownerRow.short_id ?? "",
+          title: ownerRow.title ?? null,
+          work_state: ownerRow.work_state ?? null,
+        }
+      : null,
     counts,
     files,
   };
@@ -445,9 +646,17 @@ export async function processCwds(): Promise<string[]> {
  * in it" from a failed read.
  */
 export async function readProcessCwds(): Promise<string[] | null> {
-  const parse = (out: string) => out.split("\n").filter((l) => l.startsWith("n/")).map((l) => l.slice(1));
+  const parse = (out: string) =>
+    out
+      .split("\n")
+      .filter((l) => l.startsWith("n/"))
+      .map((l) => l.slice(1));
   try {
-    const { stdout } = await execFileAsync("lsof", ["-a", "-d", "cwd", "-Fn"], { encoding: "utf-8", timeout: 30_000, maxBuffer: 64 * 1024 * 1024 });
+    const { stdout } = await execFileAsync("lsof", ["-a", "-d", "cwd", "-Fn"], {
+      encoding: "utf-8",
+      timeout: 30_000,
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const cwds = parse(String(stdout));
     return cwds.length ? cwds : null;
   } catch (err: any) {
@@ -459,15 +668,21 @@ export async function readProcessCwds(): Promise<string[] | null> {
 }
 
 /** Run `fn` over `items` with at most `limit` in flight, keeping order. */
-export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i]);
-    }
-  }));
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    }),
+  );
   return out;
 }
 
@@ -481,10 +696,27 @@ export interface RepoScan {
 }
 
 /** Scan every worktree of one repo. `roster` null means the owner roster could not be read. */
-export async function scanRepo(root: string, opts: { roster: RosterRow[] | null; processCwds: string[]; runTreesInUse?: RunTreesInUse; concurrency?: number; fetch?: boolean; now?: number; only?: string[] }): Promise<RepoScan> {
+export async function scanRepo(
+  root: string,
+  opts: {
+    roster: RosterRow[] | null;
+    processCwds: string[];
+    runTreesInUse?: RunTreesInUse;
+    concurrency?: number;
+    fetch?: boolean;
+    now?: number;
+    only?: string[];
+  },
+): Promise<RepoScan> {
   const origin = await tryGit(root, ["remote", "get-url", "origin"]);
-  if (opts.fetch !== false && origin) await tryGit(root, ["fetch", "--quiet", "origin"], { timeoutMs: 60_000 });
-  const defaultBranch = (await tryGit(root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])) || "origin/main";
+  if (opts.fetch !== false && origin)
+    await tryGit(root, ["fetch", "--quiet", "origin"], { timeoutMs: 60_000 });
+  const defaultBranch =
+    (await tryGit(root, [
+      "symbolic-ref",
+      "--short",
+      "refs/remotes/origin/HEAD",
+    ])) || "origin/main";
   const mainRef = origin ? defaultBranch : "HEAD";
   const repo = path.basename(root);
   const now = opts.now ?? Date.now();
@@ -495,19 +727,49 @@ export async function scanRepo(root: string, opts: { roster: RosterRow[] | null;
     roster: opts.roster,
     processCwds: opts.processCwds,
     runTrees: (await import("../workflow/runDirs.js")).runTreeNames(root),
-    liveRunTrees: opts.runTreesInUse ? await opts.runTreesInUse(root).catch(() => null) : null,
+    liveRunTrees: opts.runTreesInUse
+      ? await opts.runTreesInUse(root).catch(() => null)
+      : null,
     now,
   };
   // `only`: the named trees and those nested above or below them, whose verdicts decide whether a named one may go.
-  const related = (p: string) => !opts.only || opts.only.some((o) => p === o || p.startsWith(`${o}/`) || o.startsWith(`${p}/`));
-  const entries = parseWorktreeList(await git(root, ["worktree", "list", "--porcelain"])).filter((e) => e.primary || related(e.path));
+  const related = (p: string) =>
+    !opts.only ||
+    opts.only.some(
+      (o) => p === o || p.startsWith(`${o}/`) || o.startsWith(`${p}/`),
+    );
+  const entries = parseWorktreeList(
+    await git(root, ["worktree", "list", "--porcelain"]),
+  ).filter((e) => e.primary || related(e.path));
   const errors: RepoScan["errors"] = [];
-  const trees = (await mapLimit(entries, opts.concurrency ?? 4, (e) =>
-    scanTree(e, ctx).catch((err) => { errors.push({ path: e.path, error: String(err?.message ?? err).split("\n")[0] }); return null; }),
-  )).filter((t): t is TreeReport => !!t);
+  const trees = (
+    await mapLimit(entries, opts.concurrency ?? 4, (e) =>
+      scanTree(e, ctx).catch((err) => {
+        errors.push({
+          path: e.path,
+          error: String(err?.message ?? err).split("\n")[0],
+        });
+        return null;
+      }),
+    )
+  ).filter((t): t is TreeReport => !!t);
   // Only the files a landable tree would land are compared, so read just those.
-  const contested = new Set(trees.filter((t) => !t.primary && LANDABLE.has(t.verdict)).flatMap((t) => t.files.filter((f) => f.verdict === "only" || f.verdict === "both").map((f) => f.path)));
-  const shas = trees.flatMap((t) => t.files.filter((f) => contested.has(f.path)).flatMap((f) => [f.src, f.dst])).filter((sha): sha is string => !!sha && !ZERO.test(sha));
+  const contested = new Set(
+    trees
+      .filter((t) => !t.primary && LANDABLE.has(t.verdict))
+      .flatMap((t) =>
+        t.files
+          .filter((f) => f.verdict === "only" || f.verdict === "both")
+          .map((f) => f.path),
+      ),
+  );
+  const shas = trees
+    .flatMap((t) =>
+      t.files
+        .filter((f) => contested.has(f.path))
+        .flatMap((f) => [f.src, f.dst]),
+    )
+    .filter((sha): sha is string => !!sha && !ZERO.test(sha));
   relateTrees(trees, await readBlobs(root, [...new Set(shas)]));
   return { repo, root, origin, mainRef, trees, errors };
 }
@@ -527,26 +789,46 @@ const LANDABLE: ReadonlySet<TreeVerdict> = new Set(["ready", "review"]);
  * and is at least as recent. Landable trees that change a file differently
  * without either holding the other are listed as overlaps. Mutates `trees`.
  */
-export function relateTrees(trees: TreeReport[], blobs: Map<string, string>): void {
-  const pending = (t: TreeReport) => t.files.filter((f) => f.verdict === "only" || f.verdict === "both");
-  const text = (sha: string | undefined) => (!sha || ZERO.test(sha) ? "" : blobs.get(sha));
+export function relateTrees(
+  trees: TreeReport[],
+  blobs: Map<string, string>,
+): void {
+  const pending = (t: TreeReport) =>
+    t.files.filter((f) => f.verdict === "only" || f.verdict === "both");
+  const text = (sha: string | undefined) =>
+    !sha || ZERO.test(sha) ? "" : blobs.get(sha);
   const holds = (mine: TreeFile, theirs: TreeFile | undefined): boolean => {
-    if (!theirs || theirs.dst === undefined || mine.dst === undefined) return false;
+    if (!theirs || theirs.dst === undefined || mine.dst === undefined)
+      return false;
     if (theirs.dst === mine.dst) return true;
     if (ZERO.test(mine.dst) || ZERO.test(theirs.dst)) return false;
-    const base = text(mine.src), tree = text(mine.dst), other = text(theirs.dst);
-    return base !== undefined && tree !== undefined && other !== undefined && absorbedInto(base, tree, other);
+    const base = text(mine.src),
+      tree = text(mine.dst),
+      other = text(theirs.dst);
+    return (
+      base !== undefined &&
+      tree !== undefined &&
+      other !== undefined &&
+      absorbedInto(base, tree, other)
+    );
   };
   // The main checkout counts too: once a deploy applied one tree there, an older copy of the same work reads superseded on the next scan.
   const others = trees.filter((t) => pending(t).length > 0);
   // Newest first, so of two trees holding each other's work the older one is the one that goes.
-  const byRecency = [...trees].sort((a, b) => b.lastActivity - a.lastActivity || a.path.localeCompare(b.path));
+  const byRecency = [...trees].sort(
+    (a, b) => b.lastActivity - a.lastActivity || a.path.localeCompare(b.path),
+  );
   for (const t of byRecency) {
     if (t.primary || !LANDABLE.has(t.verdict)) continue;
     const mine = pending(t);
     if (mine.length === 0) continue;
     const newer = others.find((o) => {
-      if (o === t || o.verdict === "superseded" || o.lastActivity < t.lastActivity) return false;
+      if (
+        o === t ||
+        o.verdict === "superseded" ||
+        o.lastActivity < t.lastActivity
+      )
+        return false;
       const theirs = new Map(o.files.map((f) => [f.path, f]));
       return mine.every((f) => holds(f, theirs.get(f.path)));
     });
@@ -562,7 +844,14 @@ export function relateTrees(trees: TreeReport[], blobs: Map<string, string>): vo
       .filter((o) => o !== t)
       .map((o) => {
         const theirs = new Map(pending(o).map((f) => [f.path, f]));
-        return { path: o.path, files: mine.filter((f) => theirs.has(f.path) && theirs.get(f.path)!.dst !== f.dst).map((f) => f.path) };
+        return {
+          path: o.path,
+          files: mine
+            .filter(
+              (f) => theirs.has(f.path) && theirs.get(f.path)!.dst !== f.dst,
+            )
+            .map((f) => f.path),
+        };
       })
       .filter((o) => o.files.length > 0);
     if (overlaps.length) {

@@ -6,12 +6,17 @@
 // the ceremony (passkeys.test.ts covers that). The file name carries two dots
 // so the Convex bundler skips it.
 import { isoBase64URL, isoCBOR } from "@simplewebauthn/server/helpers";
-import { PRESENCE_TTL_MS, type PresenceAction } from "@codecast/shared/contracts/secrets";
+import {
+  PRESENCE_TTL_MS,
+  type PresenceAction,
+} from "@codecast/shared/contracts/secrets";
 import { sha256Hex } from "./lib/hash";
 import { grantString } from "./lib/presence";
 
-const b64u = (bytes: Uint8Array | ArrayBuffer) => isoBase64URL.fromBuffer(new Uint8Array(bytes));
-const sha256 = async (bytes: Uint8Array) => new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
+const b64u = (bytes: Uint8Array | ArrayBuffer) =>
+  isoBase64URL.fromBuffer(new Uint8Array(bytes));
+const sha256 = async (bytes: Uint8Array) =>
+  new Uint8Array(await crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
 const concat = (...parts: Uint8Array[]) => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
@@ -21,7 +26,13 @@ const concat = (...parts: Uint8Array[]) => {
   }
   return out;
 };
-const u32 = (n: number) => new Uint8Array([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
+const u32 = (n: number) =>
+  new Uint8Array([
+    (n >>> 24) & 255,
+    (n >>> 16) & 255,
+    (n >>> 8) & 255,
+    n & 255,
+  ]);
 
 // WebAuthn carries ECDSA signatures DER encoded; web crypto signs raw r || s.
 function derSignature(raw: Uint8Array): Uint8Array {
@@ -44,12 +55,22 @@ export type SoftAuthenticator = {
   credentialId: string;
   /** The signature count the next assertion signs; set it back to fake a copied key. */
   counter: number;
-  register(options: { challenge: string; rp: { id?: string } }, origin: string): Promise<any>;
-  assert(options: { challenge: string; rpId?: string }, origin: string): Promise<any>;
+  register(
+    options: { challenge: string; rp: { id?: string } },
+    origin: string,
+  ): Promise<any>;
+  assert(
+    options: { challenge: string; rpId?: string },
+    origin: string,
+  ): Promise<any>;
 };
 
 export async function softAuthenticator(): Promise<SoftAuthenticator> {
-  const keys = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+  const keys = (await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  )) as CryptoKeyPair;
   const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
   const credentialRaw = crypto.getRandomValues(new Uint8Array(32));
   const cose = isoCBOR.encode(
@@ -62,22 +83,42 @@ export async function softAuthenticator(): Promise<SoftAuthenticator> {
     ]),
   );
   const clientData = (type: string, challenge: string, origin: string) =>
-    new TextEncoder().encode(JSON.stringify({ type, challenge, origin, crossOrigin: false }));
+    new TextEncoder().encode(
+      JSON.stringify({ type, challenge, origin, crossOrigin: false }),
+    );
 
   const auth: SoftAuthenticator = {
     credentialId: b64u(credentialRaw),
     counter: 0,
     async register(options, origin) {
       const rpIdHash = await sha256(new TextEncoder().encode(options.rp.id!));
-      const attested = concat(new Uint8Array(16), new Uint8Array([0, credentialRaw.length]), credentialRaw, cose);
-      const authData = concat(rpIdHash, new Uint8Array([UP | UV | AT]), u32(auth.counter), attested);
-      const attestationObject = isoCBOR.encode(new Map<string, unknown>([["fmt", "none"], ["attStmt", new Map()], ["authData", authData]]) as any);
+      const attested = concat(
+        new Uint8Array(16),
+        new Uint8Array([0, credentialRaw.length]),
+        credentialRaw,
+        cose,
+      );
+      const authData = concat(
+        rpIdHash,
+        new Uint8Array([UP | UV | AT]),
+        u32(auth.counter),
+        attested,
+      );
+      const attestationObject = isoCBOR.encode(
+        new Map<string, unknown>([
+          ["fmt", "none"],
+          ["attStmt", new Map()],
+          ["authData", authData],
+        ]) as any,
+      );
       return {
         id: auth.credentialId,
         rawId: auth.credentialId,
         type: "public-key",
         response: {
-          clientDataJSON: b64u(clientData("webauthn.create", options.challenge, origin)),
+          clientDataJSON: b64u(
+            clientData("webauthn.create", options.challenge, origin),
+          ),
           attestationObject: b64u(attestationObject),
           transports: ["internal"],
         },
@@ -87,10 +128,20 @@ export async function softAuthenticator(): Promise<SoftAuthenticator> {
     async assert(options, origin) {
       auth.counter += 1;
       const rpIdHash = await sha256(new TextEncoder().encode(options.rpId!));
-      const authData = concat(rpIdHash, new Uint8Array([UP | UV]), u32(auth.counter));
+      const authData = concat(
+        rpIdHash,
+        new Uint8Array([UP | UV]),
+        u32(auth.counter),
+      );
       const data = clientData("webauthn.get", options.challenge, origin);
       const signed = concat(authData, await sha256(data));
-      const raw = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keys.privateKey, signed));
+      const raw = new Uint8Array(
+        await crypto.subtle.sign(
+          { name: "ECDSA", hash: "SHA-256" },
+          keys.privateKey,
+          signed,
+        ),
+      );
       return {
         id: auth.credentialId,
         rawId: auth.credentialId,
@@ -107,7 +158,12 @@ export async function softAuthenticator(): Promise<SoftAuthenticator> {
   return auth;
 }
 
-export async function seedPresence(t: any, userId: string, action: PresenceAction, target: string): Promise<string> {
+export async function seedPresence(
+  t: any,
+  userId: string,
+  action: PresenceAction,
+  target: string,
+): Promise<string> {
   const now = Date.now();
   const secret = `seeded-${crypto.randomUUID()}`;
   const grantHash = await sha256Hex(secret);

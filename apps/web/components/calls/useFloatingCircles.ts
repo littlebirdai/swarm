@@ -18,7 +18,11 @@
 import { useCallback, useRef, useState } from "react";
 import { useEventListener } from "../../hooks/useEventListener";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { faceAt, hitsInteractive, type HitRegion } from "../../lib/calls/faceCrop";
+import {
+  faceAt,
+  hitsInteractive,
+  type HitRegion,
+} from "../../lib/calls/faceCrop";
 
 /** The three runtime switches a see-through window asks of its shell. */
 export type FloatingBridge = {
@@ -27,7 +31,11 @@ export type FloatingBridge = {
   /** Keep the window the size of its circles. `pinY`, when given, is the
    *  point (CSS px from the window's top) that must not move on screen: the
    *  faces. A shell that predates it anchors by its corner instead. */
-  setContentSize: (size: { width: number; height: number; pinY?: number }) => void;
+  setContentSize: (size: {
+    width: number;
+    height: number;
+    pinY?: number;
+  }) => void;
   /** Held on a circle, the window follows the cursor. */
   setDragging: (on: boolean) => void;
 };
@@ -38,7 +46,11 @@ const DRAG_SLOP_PX = 4;
 export function useFloatingCircles(opts: {
   /** How big the window has to be, given whether the pointer is in it. Read
    *  through a ref, so only `shapeSig` and the hover decide when to re-ask. */
-  sizeFor: (hovered: boolean) => { width: number; height: number; pinY?: number };
+  sizeFor: (hovered: boolean) => {
+    width: number;
+    height: number;
+    pinY?: number;
+  };
   /** A signature of everything that moves the circles: mode, count, tier. When
    *  it changes the window is resized and the hit regions are re-measured. */
   shapeSig: string;
@@ -97,19 +109,37 @@ export function useFloatingCircles(opts: {
     const root = rootRef.current;
     if (!root) return;
     const regions: HitRegion[] = [];
-    for (const el of Array.from(root.querySelectorAll<HTMLElement>("[data-face-hit]"))) {
+    for (const el of Array.from(
+      root.querySelectorAll<HTMLElement>("[data-face-hit]"),
+    )) {
       // A folded seat keeps its room but is not there: glass, not a face.
       if (el.closest(".face-seat[data-folded]")) continue;
       const r = el.getBoundingClientRect();
       const id = el.closest<HTMLElement>("[data-face-id]")?.dataset.faceId;
-      if (r.width > 0) regions.push({ kind: "circle", cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2, id });
+      if (r.width > 0)
+        regions.push({
+          kind: "circle",
+          cx: r.left + r.width / 2,
+          cy: r.top + r.height / 2,
+          r: r.width / 2,
+          id,
+        });
     }
     // EVERY chrome region, not the first: the overlay draws its card and its
     // controls as separate hit rects, and a toolbar left out of this list is
     // a toolbar the person clicks straight through into the app beneath.
-    for (const el of Array.from(root.querySelectorAll<HTMLElement>("[data-chrome-hit]"))) {
+    for (const el of Array.from(
+      root.querySelectorAll<HTMLElement>("[data-chrome-hit]"),
+    )) {
       const r = el.getBoundingClientRect();
-      if (r.width > 0) regions.push({ kind: "rect", x: r.left, y: r.top, width: r.width, height: r.height });
+      if (r.width > 0)
+        regions.push({
+          kind: "rect",
+          x: r.left,
+          y: r.top,
+          width: r.width,
+          height: r.height,
+        });
     }
     regionsRef.current = regions;
   }, []);
@@ -181,7 +211,11 @@ export function useFloatingCircles(opts: {
     const on =
       !hoverContent ||
       hit ||
-      (!!box && e.clientX >= box.left && e.clientX <= box.right && e.clientY >= box.top && e.clientY <= box.bottom);
+      (!!box &&
+        e.clientX >= box.left &&
+        e.clientX <= box.right &&
+        e.clientY >= box.top &&
+        e.clientY <= box.bottom);
     if (!on) {
       if (!hideTimer.current && hovered) hideLater();
       return;
@@ -217,7 +251,8 @@ export function useFloatingCircles(opts: {
     hideTimer.current = null;
     // Held on the face pressed, not the row the handler sits on: the release's
     // click then still lands on the face, and a still press stays its click.
-    const handle = (e.target as Element).closest?.("[data-face-hit]") ?? e.currentTarget;
+    const handle =
+      (e.target as Element).closest?.("[data-face-hit]") ?? e.currentTarget;
     handle.setPointerCapture(e.pointerId);
     bridge.setDragging(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the bridge is a per-window constant
@@ -247,16 +282,22 @@ export function useFloatingCircles(opts: {
   }, [hideLater]);
   const endDrag = useCallback(
     (e: React.PointerEvent) => {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      if (e.currentTarget.hasPointerCapture(e.pointerId))
+        e.currentTarget.releasePointerCapture(e.pointerId);
       finishDrag();
     },
     [finishDrag],
   );
-  useEventListener("pointermove", (e: PointerEvent) => {
-    const from = dragFrom.current;
-    if (!dragging.current || !from || dragMoved.current) return;
-    if (Math.hypot(e.screenX - from.x, e.screenY - from.y) > DRAG_SLOP_PX) dragMoved.current = true;
-  }, document);
+  useEventListener(
+    "pointermove",
+    (e: PointerEvent) => {
+      const from = dragFrom.current;
+      if (!dragging.current || !from || dragMoved.current) return;
+      if (Math.hypot(e.screenX - from.x, e.screenY - from.y) > DRAG_SLOP_PX)
+        dragMoved.current = true;
+    },
+    document,
+  );
   // Capture phase, ahead of the face's own handler: the click after a drag
   // never reaches it.
   useEventListener(

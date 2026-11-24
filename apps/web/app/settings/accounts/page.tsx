@@ -12,7 +12,11 @@ import { AppLoader } from "../../../components/AppLoader";
 import { useCodecastSignOut } from "../../../hooks/useCodecastSignOut";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
-import { SettingsPanel, SettingsRow, SettingsSection } from "../../../components/settings/ui";
+import {
+  SettingsPanel,
+  SettingsRow,
+  SettingsSection,
+} from "../../../components/settings/ui";
 
 const GITHUB_FEATURES = [
   "View and sync pull requests",
@@ -44,7 +48,9 @@ function AccountsContent() {
       const next = new URLSearchParams(searchParams.toString());
       next.delete("error");
       const q = next.toString();
-      router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, { scroll: false });
+      router.replace(`${window.location.pathname}${q ? `?${q}` : ""}`, {
+        scroll: false,
+      });
     }
   }, [searchParams, router]);
 
@@ -62,7 +68,9 @@ function AccountsContent() {
     try {
       await unlinkGitHub({});
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to disconnect GitHub");
+      setError(
+        err instanceof Error ? err.message : "Failed to disconnect GitHub",
+      );
     } finally {
       setIsUnlinking(false);
     }
@@ -139,14 +147,22 @@ function AccountsContent() {
                 onClick={handleDisconnectGitHub}
                 disabled={isUnlinking || !hasEmail}
                 className="text-sol-orange border-sol-orange/30 hover:bg-sol-orange/10"
-                title={!hasEmail ? "Add email/password login before disconnecting GitHub" : undefined}
+                title={
+                  !hasEmail
+                    ? "Add email/password login before disconnecting GitHub"
+                    : undefined
+                }
               >
                 {isUnlinking ? "Disconnecting..." : "Disconnect"}
               </Button>
             </>
           ) : (
             // GitHub's brand black, kept on purpose.
-            <Button size="sm" onClick={handleConnectGitHub} className="bg-[#24292e] hover:bg-[#1a1e22] text-white">
+            <Button
+              size="sm"
+              onClick={handleConnectGitHub}
+              className="bg-[#24292e] hover:bg-[#1a1e22] text-white"
+            >
               Connect
             </Button>
           )}
@@ -158,7 +174,8 @@ function AccountsContent() {
 
         {hasGitHub && !hasEmail && (
           <div className="px-4 py-3 text-sm text-sol-orange sm:px-5">
-            Add an email and password to enable disconnecting GitHub in the future.
+            Add an email and password to enable disconnecting GitHub in the
+            future.
           </div>
         )}
       </SettingsSection>
@@ -183,14 +200,18 @@ function AccountsContent() {
         </ul>
         {hasGitHub && (
           <p className="mt-4 text-xs text-sol-text-dim">
-            Use &ldquo;Reconfigure&rdquo; to update GitHub permissions if you need access to additional repositories or organizations.
+            Use &ldquo;Reconfigure&rdquo; to update GitHub permissions if you
+            need access to additional repositories or organizations.
           </p>
         )}
       </SettingsSection>
 
       <PasskeysSection />
 
-      <SettingsSection title={<span className="text-sol-red">Danger zone</span>} icon={TriangleAlert}>
+      <SettingsSection
+        title={<span className="text-sol-red">Danger zone</span>}
+        icon={TriangleAlert}
+      >
         {!showDeleteConfirm ? (
           <SettingsRow
             label="Delete account"
@@ -208,7 +229,9 @@ function AccountsContent() {
         ) : (
           <div className="space-y-4 px-4 py-4 sm:px-5">
             <div className="rounded-lg bg-sol-red/10 p-4">
-              <p className="mb-2 text-sm font-medium text-sol-red">This will permanently delete:</p>
+              <p className="mb-2 text-sm font-medium text-sol-red">
+                This will permanently delete:
+              </p>
               <ul className="list-inside list-disc space-y-1 text-sm text-sol-red/80">
                 <li>All your conversations and messages</li>
                 <li>All bookmarks and saved patterns</li>
@@ -217,8 +240,12 @@ function AccountsContent() {
               </ul>
             </div>
             <div>
-              <label htmlFor="delete-confirm" className="mb-2 block text-sm text-sol-text-muted">
-                Type <span className="font-mono text-sol-red">DELETE</span> to confirm:
+              <label
+                htmlFor="delete-confirm"
+                className="mb-2 block text-sm text-sol-text-muted"
+              >
+                Type <span className="font-mono text-sol-red">DELETE</span> to
+                confirm:
               </label>
               <Input
                 id="delete-confirm"
@@ -258,7 +285,11 @@ function AccountsContent() {
 
 export default function AccountsPage() {
   return (
-    <Suspense fallback={<AppLoader className="min-h-0 bg-transparent py-12" size={28} />}>
+    <Suspense
+      fallback={
+        <AppLoader className="min-h-0 bg-transparent py-12" size={28} />
+      }
+    >
       <AccountsContent />
     </Suspense>
   );

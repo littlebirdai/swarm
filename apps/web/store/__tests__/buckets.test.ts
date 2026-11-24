@@ -20,9 +20,13 @@ import { bucket, convexId, session } from "./bucketFixtures";
 
 describe("convBucketMap", () => {
   it("reuses the assignment snapshot and invalidates after a move", () => {
-    const assignments = { a: { _id: "a", conversation_id: "c", bucket_id: "old", updated_at: 1 } };
+    const assignments = {
+      a: { _id: "a", conversation_id: "c", bucket_id: "old", updated_at: 1 },
+    };
     expect(convBucketMap(assignments)).toBe(convBucketMap(assignments));
-    expect(convBucketMap({ a: { ...assignments.a, bucket_id: "new" } }).c).toBe("new");
+    expect(convBucketMap({ a: { ...assignments.a, bucket_id: "new" } }).c).toBe(
+      "new",
+    );
     expect(convBucketMap(assignments).c).toBe("old");
   });
   it("maps conversation ids to bucket ids, dropping null tombstones to undefined", () => {
@@ -42,8 +46,18 @@ describe("convBucketMap", () => {
     // regardless of object iteration order.
     const real = convexId("real1");
     const assignments: Record<string, BucketAssignmentItem> = {
-      "bucketassign-c1": { _id: "bucketassign-c1", conversation_id: "c1", bucket_id: "old-bucket", updated_at: 5 },
-      [real]: { _id: real, conversation_id: "c1", bucket_id: "new-bucket", updated_at: 2 },
+      "bucketassign-c1": {
+        _id: "bucketassign-c1",
+        conversation_id: "c1",
+        bucket_id: "old-bucket",
+        updated_at: 5,
+      },
+      [real]: {
+        _id: real,
+        conversation_id: "c1",
+        bucket_id: "new-bucket",
+        updated_at: 2,
+      },
     };
     expect(convBucketMap(assignments)["c1"]).toBe("new-bucket");
     // Reversed insertion order — same winner.
@@ -58,21 +72,35 @@ describe("convBucketMap", () => {
     const r1 = convexId("r1");
     const r2 = convexId("r2");
     const assignments: Record<string, BucketAssignmentItem> = {
-      [r1]: { _id: r1, conversation_id: "c1", bucket_id: "older", updated_at: 1 },
-      [r2]: { _id: r2, conversation_id: "c1", bucket_id: "newer", updated_at: 9 },
+      [r1]: {
+        _id: r1,
+        conversation_id: "c1",
+        bucket_id: "older",
+        updated_at: 1,
+      },
+      [r2]: {
+        _id: r2,
+        conversation_id: "c1",
+        bucket_id: "newer",
+        updated_at: 9,
+      },
     };
     expect(convBucketMap(assignments)["c1"]).toBe("newer");
   });
 });
 
 describe("orderSections bucket filter", () => {
-  const idA = convexId("a"), idB = convexId("b");
+  const idA = convexId("a"),
+    idB = convexId("b");
   it("scopes keyboard order to the active bucket while leaving project filter intact", () => {
     const sessions: Record<string, InboxSession> = {
       [idA]: session(idA, { is_idle: false }),
       [idB]: session(idB, { is_idle: false }),
     };
-    const bucketByConv = { [idA]: "bucket1" } as Record<string, string | undefined>;
+    const bucketByConv = { [idA]: "bucket1" } as Record<
+      string,
+      string | undefined
+    >;
     const all = orderSections(sessions, new Set(), null, undefined, {});
     expect(all.map((s) => s._id).sort()).toEqual([idA, idB].sort());
     const scoped = orderSections(sessions, new Set(), null, undefined, {
@@ -87,13 +115,18 @@ describe("orderSections bucket filter", () => {
       [idA]: session(idA, { is_idle: false, project_path: "/x/codecast" }),
       [idB]: session(idB, { is_idle: false, project_path: "/x/other" }),
     };
-    const bucketByConv = { [idA]: "bucket1" } as Record<string, string | undefined>;
+    const bucketByConv = { [idA]: "bucket1" } as Record<
+      string,
+      string | undefined
+    >;
     const bucketExcluded = orderSections(sessions, new Set(), null, undefined, {
       bucketFilters: [{ id: "bucket1", exclude: true }],
       bucketByConv,
     });
     expect(bucketExcluded.map((s) => s._id)).toEqual([idB]);
-    const projectExcluded = orderSections(sessions, new Set(), [{ id: "codecast", path: null, exclude: true }]);
+    const projectExcluded = orderSections(sessions, new Set(), [
+      { id: "codecast", path: null, exclude: true },
+    ]);
     expect(projectExcluded.map((s) => s._id)).toEqual([idB]);
   });
 
@@ -112,52 +145,128 @@ describe("orderSections bucket filter", () => {
 });
 
 describe("chipMatchesSession exclude mode", () => {
-  const bucketByConv = { [convexId("in")]: "bucket1" } as Record<string, string | undefined>;
+  const bucketByConv = { [convexId("in")]: "bucket1" } as Record<
+    string,
+    string | undefined
+  >;
 
   it("hides matches and shows everything else", () => {
     const inBucket = session(convexId("in"));
     const outBucket = session(convexId("out"));
-    expect(chipMatchesSession(inBucket, { bucketFilters: [{ id: "bucket1", exclude: true }], bucketByConv })).toBe(false);
-    expect(chipMatchesSession(outBucket, { bucketFilters: [{ id: "bucket1", exclude: true }], bucketByConv })).toBe(true);
+    expect(
+      chipMatchesSession(inBucket, {
+        bucketFilters: [{ id: "bucket1", exclude: true }],
+        bucketByConv,
+      }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(outBucket, {
+        bucketFilters: [{ id: "bucket1", exclude: true }],
+        bucketByConv,
+      }),
+    ).toBe(true);
     const inProj = session(convexId("p1"), { project_path: "/x/codecast" });
     const outProj = session(convexId("p2"), { project_path: "/x/other" });
     const hideCodecast = [{ id: "codecast", path: null, exclude: true }];
-    expect(chipMatchesSession(inProj, { projectFilters: hideCodecast, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(outProj, { projectFilters: hideCodecast, bucketByConv })).toBe(true);
+    expect(
+      chipMatchesSession(inProj, {
+        projectFilters: hideCodecast,
+        bucketByConv,
+      }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(outProj, {
+        projectFilters: hideCodecast,
+        bucketByConv,
+      }),
+    ).toBe(true);
   });
 
   it("mid-create stubs pass the bucket chips in both polarities", () => {
     const stub = session("stub-not-convex");
-    expect(chipMatchesSession(stub, { bucketFilters: [{ id: "bucket1", exclude: false }], bucketByConv })).toBe(true);
-    expect(chipMatchesSession(stub, { bucketFilters: [{ id: "bucket1", exclude: true }], bucketByConv })).toBe(true);
+    expect(
+      chipMatchesSession(stub, {
+        bucketFilters: [{ id: "bucket1", exclude: false }],
+        bucketByConv,
+      }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(stub, {
+        bucketFilters: [{ id: "bucket1", exclude: true }],
+        bucketByConv,
+      }),
+    ).toBe(true);
   });
 });
 
 describe("chipMatchesSession with a multi-term filter list", () => {
-  const a = convexId("la"), b = convexId("lb"), c = convexId("lc");
-  const bucketByConv = { [a]: "bucketA", [b]: "bucketB", [c]: "bucketC" } as Record<string, string | undefined>;
+  const a = convexId("la"),
+    b = convexId("lb"),
+    c = convexId("lc");
+  const bucketByConv = {
+    [a]: "bucketA",
+    [b]: "bucketB",
+    [c]: "bucketC",
+  } as Record<string, string | undefined>;
 
   it("include terms are a union over the session's single label", () => {
-    const terms = [{ id: "bucketA", exclude: false }, { id: "bucketB", exclude: false }];
-    expect(chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(session(convexId("none")), { bucketFilters: terms, bucketByConv })).toBe(false);
+    const terms = [
+      { id: "bucketA", exclude: false },
+      { id: "bucketB", exclude: false },
+    ];
+    expect(
+      chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(session(convexId("none")), {
+        bucketFilters: terms,
+        bucketByConv,
+      }),
+    ).toBe(false);
   });
 
   it("an all-negative list hides exactly its labels", () => {
-    const terms = [{ id: "bucketA", exclude: true }, { id: "bucketB", exclude: true }];
-    expect(chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(session(convexId("none")), { bucketFilters: terms, bucketByConv })).toBe(true);
+    const terms = [
+      { id: "bucketA", exclude: true },
+      { id: "bucketB", exclude: true },
+    ];
+    expect(
+      chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(session(convexId("none")), {
+        bucketFilters: terms,
+        bucketByConv,
+      }),
+    ).toBe(true);
   });
 
   it("with any include present, includes decide (a mixed list can't resurrect an excluded label)", () => {
-    const terms = [{ id: "bucketA", exclude: false }, { id: "bucketB", exclude: true }];
-    expect(chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv })).toBe(true);
-    expect(chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv })).toBe(false);
-    expect(chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv })).toBe(false);
+    const terms = [
+      { id: "bucketA", exclude: false },
+      { id: "bucketB", exclude: true },
+    ];
+    expect(
+      chipMatchesSession(session(a), { bucketFilters: terms, bucketByConv }),
+    ).toBe(true);
+    expect(
+      chipMatchesSession(session(b), { bucketFilters: terms, bucketByConv }),
+    ).toBe(false);
+    expect(
+      chipMatchesSession(session(c), { bucketFilters: terms, bucketByConv }),
+    ).toBe(false);
   });
 });
 
@@ -187,7 +296,12 @@ describe("assignSessionToBucket", () => {
     const convId = convexId("conv2");
     useInboxStore.setState({
       bucketAssignments: {
-        row1: { _id: "row1", conversation_id: convId, bucket_id: "bucketA", updated_at: 1 },
+        row1: {
+          _id: "row1",
+          conversation_id: convId,
+          bucket_id: "bucketA",
+          updated_at: 1,
+        },
       },
     });
     useInboxStore.getState().assignSessionToBucket(convId, "bucketB");
@@ -216,7 +330,9 @@ describe("assignSessionToBucket", () => {
     const stubId = "forkstub456";
     useInboxStore.getState().assignSessionToBucket(stubId, "bucketA");
     useInboxStore.getState().discardForkStub(stubId);
-    expect(Object.values(useInboxStore.getState().bucketAssignments).length).toBe(0);
+    expect(
+      Object.values(useInboxStore.getState().bucketAssignments).length,
+    ).toBe(0);
   });
 });
 
@@ -244,9 +360,15 @@ describe("bucket filter mutual exclusivity", () => {
     const saved = hadWindow ? (globalThis as any).window : undefined;
     (globalThis as any).window = {};
     try {
-      expect(() => useInboxStore.getState().setActiveBucketFilter("b1")).not.toThrow();
+      expect(() =>
+        useInboxStore.getState().setActiveBucketFilter("b1"),
+      ).not.toThrow();
       expect(useInboxStore.getState().activeBucketFilter).toBe("b1");
-      expect(() => useInboxStore.getState().setActiveProjectFilter("codecast", "/x/codecast")).not.toThrow();
+      expect(() =>
+        useInboxStore
+          .getState()
+          .setActiveProjectFilter("codecast", "/x/codecast"),
+      ).not.toThrow();
     } finally {
       if (hadWindow) (globalThis as any).window = saved;
       else delete (globalThis as any).window;
@@ -331,9 +453,23 @@ describe("cycleInboxViewMode", () => {
     useInboxStore.setState({
       buckets: { b1: bucket("b1", "perf") },
       clientState: { ui: { inbox_view_mode: "plan" } },
-      inboxViewModesShown: ["grouped", "recent", "time", "bucket", "plan", "project", "reports", "trigger"],
+      inboxViewModesShown: [
+        "grouped",
+        "recent",
+        "time",
+        "bucket",
+        "plan",
+        "project",
+        "reports",
+        "trigger",
+      ],
     });
-    expect([cycle(), cycle(), cycle(), cycle()]).toEqual(["project", "reports", "trigger", "grouped"]);
+    expect([cycle(), cycle(), cycle(), cycle()]).toEqual([
+      "project",
+      "reports",
+      "trigger",
+      "grouped",
+    ]);
   });
 
   it("honors the legacy boolean and keeps it coherent", () => {
@@ -341,7 +477,9 @@ describe("cycleInboxViewMode", () => {
     // Legacy boolean true reads as "time" when the mode is unset.
     expect(useInboxStore.getState().inboxViewMode()).toBe("time");
     expect(cycle()).toBe("grouped");
-    expect(useInboxStore.getState().clientState.ui?.inbox_flat_view).toBe(false);
+    expect(useInboxStore.getState().clientState.ui?.inbox_flat_view).toBe(
+      false,
+    );
   });
 
   it("does nothing while no panel shows the tabs", () => {
@@ -367,8 +505,17 @@ describe("groupSessionsForLabelView", () => {
       session("u1", {}),
       session("z1", { git_root: "/x/api" }),
     ];
-    const byConv = { l1: "bZeta", l2: "bZeta", z1: "bAlpha", u1: "bGone" } as Record<string, string | undefined>;
-    const { labelGroups, projectGroups } = groupSessionsForLabelView(items, buckets, byConv);
+    const byConv = {
+      l1: "bZeta",
+      l2: "bZeta",
+      z1: "bAlpha",
+      u1: "bGone",
+    } as Record<string, string | undefined>;
+    const { labelGroups, projectGroups } = groupSessionsForLabelView(
+      items,
+      buckets,
+      byConv,
+    );
 
     expect(labelGroups.map((g) => g.bucket.name)).toEqual(["alpha", "zeta"]);
     // Recency within a group: l2 (20) before l1 (10).
@@ -386,7 +533,12 @@ describe("groupSessionsForLabelView", () => {
 });
 
 describe("groupSessionsByPlan", () => {
-  const plan = (short_id: string, title: string) => ({ _id: short_id, short_id, title, status: "active" });
+  const plan = (short_id: string, title: string) => ({
+    _id: short_id,
+    short_id,
+    title,
+    status: "active",
+  });
 
   it("groups every plan (even a plan of one), the latest move first, items by recency", () => {
     const items = [
@@ -398,8 +550,15 @@ describe("groupSessionsByPlan", () => {
       session("np2", { git_root: "/x/api" }),
     ];
     // Every plan in the same state, so the latest move orders them.
-    const placements = new Map(items.map((x) => [x._id, { bucket: "working" as const, work_state: "working" as const }]));
-    const { planGroups, projectGroups } = groupSessionsByPlan(items, { placements });
+    const placements = new Map(
+      items.map((x) => [
+        x._id,
+        { bucket: "working" as const, work_state: "working" as const },
+      ]),
+    );
+    const { planGroups, projectGroups } = groupSessionsByPlan(items, {
+      placements,
+    });
 
     // pl-1 moved last (20), then pl-2 (5), then pl-3 (1).
     expect(planGroups.map((g) => g.key)).toEqual(["pl-1", "pl-2", "pl-3"]);
@@ -418,9 +577,18 @@ describe("groupSessionsByPlan", () => {
     const NOW = 100 * 24 * 3600_000;
     const items = [
       session("mov", { updated_at: NOW, active_plan: plan("pl-m", "Moving") }),
-      session("park", { updated_at: NOW - 48 * 3600_000, active_plan: plan("pl-p", "Parked") }),
-      session("askNew", { updated_at: NOW - 3600_000, active_plan: plan("pl-a", "Asks new") }),
-      session("askOld", { updated_at: NOW - 54 * 24 * 3600_000, active_plan: plan("pl-o", "Asks old") }),
+      session("park", {
+        updated_at: NOW - 48 * 3600_000,
+        active_plan: plan("pl-p", "Parked"),
+      }),
+      session("askNew", {
+        updated_at: NOW - 3600_000,
+        active_plan: plan("pl-a", "Asks new"),
+      }),
+      session("askOld", {
+        updated_at: NOW - 54 * 24 * 3600_000,
+        active_plan: plan("pl-o", "Asks old"),
+      }),
     ];
     const placements = new Map<string, { bucket: any; work_state: any }>([
       ["mov", { bucket: "working", work_state: "working" }],
@@ -431,39 +599,84 @@ describe("groupSessionsByPlan", () => {
     ]);
     const { planGroups } = groupSessionsByPlan(items, { placements, now: NOW });
     expect(planGroups.map((g) => [g.key, g.standing.state])).toEqual([
-      ["pl-o", "needs_you"], ["pl-a", "needs_you"], ["pl-m", "moving"], ["pl-p", "parked"],
+      ["pl-o", "needs_you"],
+      ["pl-a", "needs_you"],
+      ["pl-m", "moving"],
+      ["pl-p", "parked"],
     ]);
   });
 
   it("opens each plan with its longest thread", () => {
     const items = [
-      session("worker", { updated_at: 20, message_count: 30, active_plan: plan("pl-1", "Alpha") }),
-      session("lead", { updated_at: 10, message_count: 5000, active_plan: plan("pl-1", "Alpha") }),
+      session("worker", {
+        updated_at: 20,
+        message_count: 30,
+        active_plan: plan("pl-1", "Alpha"),
+      }),
+      session("lead", {
+        updated_at: 10,
+        message_count: 5000,
+        active_plan: plan("pl-1", "Alpha"),
+      }),
     ];
-    expect(groupSessionsByPlan(items).planGroups[0].items.map((s) => s._id)).toEqual(["lead", "worker"]);
+    expect(
+      groupSessionsByPlan(items).planGroups[0].items.map((s) => s._id),
+    ).toEqual(["lead", "worker"]);
   });
 
   it("never leads with a worker another thread spawned, however long it ran", () => {
     const items = [
-      session("worker", { updated_at: 20, message_count: 900, spawned_by_conversation_id: "lead", active_plan: plan("pl-1", "Alpha") }),
-      session("lead", { updated_at: 10, message_count: 400, active_plan: plan("pl-1", "Alpha") }),
+      session("worker", {
+        updated_at: 20,
+        message_count: 900,
+        spawned_by_conversation_id: "lead",
+        active_plan: plan("pl-1", "Alpha"),
+      }),
+      session("lead", {
+        updated_at: 10,
+        message_count: 400,
+        active_plan: plan("pl-1", "Alpha"),
+      }),
     ];
-    expect(groupSessionsByPlan(items).planGroups[0].items.map((s) => s._id)).toEqual(["lead", "worker"]);
+    expect(
+      groupSessionsByPlan(items).planGroups[0].items.map((s) => s._id),
+    ).toEqual(["lead", "worker"]);
   });
 
   it("reads every cached session on a plan, and leads with a hidden or stashed driver", () => {
     const NOW = 100 * 24 * 3600_000;
     const p = plan("pl-619", "Eval suite");
     // The eval lead: a role's standing session the inbox hides, working now.
-    const lead = session("lead", { updated_at: NOW, message_count: 9000, standing_role_id: "r1", role: { _id: "r1", name: "Eval Suite lead" } as any, active_plan: p });
+    const lead = session("lead", {
+      updated_at: NOW,
+      message_count: 9000,
+      standing_role_id: "r1",
+      role: { _id: "r1", name: "Eval Suite lead" } as any,
+      active_plan: p,
+    });
     // A stashed thread whose turn ended on a question nobody was asked.
-    const stashed = session("stashed", { updated_at: NOW, inbox_stashed_at: NOW, active_plan: plan("pl-1008", "Ads") });
+    const stashed = session("stashed", {
+      updated_at: NOW,
+      inbox_stashed_at: NOW,
+      active_plan: plan("pl-1008", "Ads"),
+    });
     const placements = new Map<string, { bucket: any; work_state: any }>([
       ["lead", { bucket: "hidden", work_state: "working" }],
       ["stashed", { bucket: "stashed", work_state: "needs_input" }],
     ]);
-    const { planGroups } = groupSessionsByPlan([], { placements, sessions: { lead, stashed }, now: NOW });
-    expect(planGroups.map((g) => [g.key, g.standing.state, g.items[0]._id, g.role?.name ?? null])).toEqual([
+    const { planGroups } = groupSessionsByPlan([], {
+      placements,
+      sessions: { lead, stashed },
+      now: NOW,
+    });
+    expect(
+      planGroups.map((g) => [
+        g.key,
+        g.standing.state,
+        g.items[0]._id,
+        g.role?.name ?? null,
+      ]),
+    ).toEqual([
       ["pl-1008", "moving", "stashed", null],
       ["pl-619", "moving", "lead", "Eval Suite lead"],
     ]);
@@ -471,18 +684,44 @@ describe("groupSessionsByPlan", () => {
 
   it("lists plans with open work and nobody on them", () => {
     const NOW = 100 * 24 * 3600_000;
-    const row = (id: string, extra: object) => ({ _id: id, short_id: id, title: id, status: "draft", updated_at: NOW - 5 * 24 * 3600_000, ...extra }) as any;
+    const row = (id: string, extra: object) =>
+      ({
+        _id: id,
+        short_id: id,
+        title: id,
+        status: "draft",
+        updated_at: NOW - 5 * 24 * 3600_000,
+        ...extra,
+      }) as any;
     const plans = {
       grouped: row("grouped", { progress: { done: 1, total: 3 } }),
       stalled: row("stalled", { progress: { done: 1, total: 3 } }),
       finished: row("finished", { progress: { done: 3, total: 3 } }),
       empty: row("empty", { progress: { done: 0, total: 0 } }),
-      today: row("today", { progress: { done: 1, total: 3 }, updated_at: NOW - 3600_000 }),
-      closed: row("closed", { progress: { done: 1, total: 3 }, status: "abandoned" }),
+      today: row("today", {
+        progress: { done: 1, total: 3 },
+        updated_at: NOW - 3600_000,
+      }),
+      closed: row("closed", {
+        progress: { done: 1, total: 3 },
+        status: "abandoned",
+      }),
     };
-    const items = [session("s", { active_plan: { _id: "grouped", short_id: "grouped", title: "grouped", status: "draft" } })];
+    const items = [
+      session("s", {
+        active_plan: {
+          _id: "grouped",
+          short_id: "grouped",
+          title: "grouped",
+          status: "draft",
+        },
+      }),
+    ];
     const { restingPlans } = groupSessionsByPlan(items, { plans, now: NOW });
-    expect(restingPlans.map((r) => [r.plan._id, r.state]).sort()).toEqual([["finished", "finished"], ["stalled", "stalled"]]);
+    expect(restingPlans.map((r) => [r.plan._id, r.state]).sort()).toEqual([
+      ["finished", "finished"],
+      ["stalled", "stalled"],
+    ]);
   });
 
   it("dedupes repeated sessions across input segments", () => {
@@ -564,7 +803,11 @@ describe("computeReorderUpdates", () => {
       o1: bucket("o1", "omega", { sort_order: 10 }),
       gone: bucket("gone", "aaa", { archived_at: 1 }),
     };
-    expect(sortLabels(map).map((b) => b.name)).toEqual(["alpha", "beta", "omega"]);
+    expect(sortLabels(map).map((b) => b.name)).toEqual([
+      "alpha",
+      "beta",
+      "omega",
+    ]);
   });
 });
 
@@ -574,18 +817,28 @@ describe("computeReorderUpdates", () => {
 // pick lists, so the cached rows were read off disk and dropped).
 describe("bucket cache hydration merge", () => {
   it("cached buckets land wholesale on a cold store", () => {
-    const cached = { b1: bucket("b1", "fullfunnel"), b2: bucket("b2", "simplify") };
+    const cached = {
+      b1: bucket("b1", "fullfunnel"),
+      b2: bucket("b2", "simplify"),
+    };
     const merge = hydrateMergeValue("buckets", cached, {});
     expect(merge.apply).toBe(true);
     expect(merge.value).toEqual(cached);
   });
 
   it("live rows win per-id; cache backfills the rest (cache as floor)", () => {
-    const cached = { b1: bucket("b1", "old-name"), b2: bucket("b2", "simplify") };
+    const cached = {
+      b1: bucket("b1", "old-name"),
+      b2: bucket("b2", "simplify"),
+    };
     const live = { b1: bucket("b1", "renamed-live") };
     const merge = hydrateMergeValue("buckets", cached, live);
-    expect((merge.value as Record<string, BucketItem>).b1.name).toBe("renamed-live");
-    expect((merge.value as Record<string, BucketItem>).b2.name).toBe("simplify");
+    expect((merge.value as Record<string, BucketItem>).b1.name).toBe(
+      "renamed-live",
+    );
+    expect((merge.value as Record<string, BucketItem>).b2.name).toBe(
+      "simplify",
+    );
   });
 
   it("assignments hydrate the same way", () => {
@@ -598,15 +851,26 @@ describe("bucket cache hydration merge", () => {
   });
 
   it("fill-strategy singletons never clobber a live value", () => {
-    expect(hydrateMergeValue("currentUser", { name: "cached" }, { name: "live" }).apply).toBe(false);
-    expect(hydrateMergeValue("currentUser", { name: "cached" }, null)).toEqual({ apply: true, value: { name: "cached" } });
+    expect(
+      hydrateMergeValue("currentUser", { name: "cached" }, { name: "live" })
+        .apply,
+    ).toBe(false);
+    expect(hydrateMergeValue("currentUser", { name: "cached" }, null)).toEqual({
+      apply: true,
+      value: { name: "cached" },
+    });
     expect(hydrateMergeValue("threadUnread", 5, 2).apply).toBe(false);
   });
 
   it("arrays fill only an empty slot; scalars replace", () => {
     expect(hydrateMergeValue("teams", [{ id: "t1" }], []).apply).toBe(true);
-    expect(hydrateMergeValue("teams", [{ id: "t1" }], [{ id: "live" }]).apply).toBe(false);
-    expect(hydrateMergeValue("activeTabId", "tab_a", "tab_b")).toEqual({ apply: true, value: "tab_a" });
+    expect(
+      hydrateMergeValue("teams", [{ id: "t1" }], [{ id: "live" }]).apply,
+    ).toBe(false);
+    expect(hydrateMergeValue("activeTabId", "tab_a", "tab_b")).toEqual({
+      apply: true,
+      value: "tab_a",
+    });
   });
 });
 
@@ -622,24 +886,34 @@ describe("unarchive reaches the server (fullfunnel regression)", () => {
     const bucketId = convexId("bkt1");
     const state = {
       buckets: {
-        [bucketId]: { _id: bucketId, name: "fullfunnel", archived_at: 123, created_at: 1, updated_at: 1 },
+        [bucketId]: {
+          _id: bucketId,
+          name: "fullfunnel",
+          archived_at: 123,
+          created_at: 1,
+          updated_at: 1,
+        },
       },
     };
     const [, patches] = mutativeCreate(
       state,
       (d: any) => clear(d.buckets[bucketId]),
-      { enablePatches: { pathAsArray: true } }
+      { enablePatches: { pathAsArray: true } },
     );
     return { bucketId, grouped: groupPatchesByTable(patches as any) };
   };
 
   it("a field set to undefined groups as an explicit null tombstone", () => {
-    const { bucketId, grouped } = draftClear((b) => { b.archived_at = undefined; });
+    const { bucketId, grouped } = draftClear((b) => {
+      b.archived_at = undefined;
+    });
     expect(grouped.inbox_buckets[bucketId].archived_at).toBeNull();
   });
 
   it("a field cleared via delete groups as an explicit null tombstone", () => {
-    const { bucketId, grouped } = draftClear((b) => { delete b.archived_at; });
+    const { bucketId, grouped } = draftClear((b) => {
+      delete b.archived_at;
+    });
     expect(grouped.inbox_buckets[bucketId].archived_at).toBeNull();
   });
 });

@@ -1,4 +1,10 @@
-import { action, internalAction, internalMutation, internalQuery, query } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
@@ -7,7 +13,12 @@ import { isConversationTeamVisible, teamVisibleConvTeam } from "./privacy";
 import { canAccessConversation } from "./lib/access";
 import { markInsightDirty } from "./lib/changesDirty";
 import { pullRequestsLinkedToConversation } from "./lib/prSessions";
-import { CHEAP_MODEL, postMessages, replyText, type SurfaceRequest } from "./lib/anthropic";
+import {
+  CHEAP_MODEL,
+  postMessages,
+  replyText,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { REDIRECT_PATTERN } from "@codecast/shared/contracts/redirectWords";
 
 type OutcomeType = "shipped" | "progress" | "blocked" | "unknown";
@@ -56,7 +67,11 @@ type ConversationInsightContext = {
 
 const internalApi = internal as any;
 
-function uniqCompact(values: string[] | undefined, maxItems = 8, maxLen = 64): string[] {
+function uniqCompact(
+  values: string[] | undefined,
+  maxItems = 8,
+  maxLen = 64,
+): string[] {
   if (!values) return [];
   const seen = new Set<string>();
   const out: string[] = [];
@@ -78,7 +93,8 @@ function clampConfidence(value: unknown): number | undefined {
 }
 
 function safeOutcomeType(value: unknown): OutcomeType {
-  if (value === "shipped" || value === "progress" || value === "blocked") return value;
+  if (value === "shipped" || value === "progress" || value === "blocked")
+    return value;
   return "unknown";
 }
 
@@ -135,7 +151,9 @@ export type InsightMessageRow = {
  * the words cast-lessons searches for) is kept in place, so the corrections
  * the insight extracts are not lost to the sampling.
  */
-export function selectInsightContext(rows: InsightMessageRow[]): Pick<ConversationInsightContext, "messages" | "tool_names"> {
+export function selectInsightContext(
+  rows: InsightMessageRow[],
+): Pick<ConversationInsightContext, "messages" | "tool_names"> {
   const turns = rows
     .filter((m) => (m.role === "user" || m.role === "assistant") && !!m.content)
     .map((m) => ({
@@ -143,24 +161,42 @@ export function selectInsightContext(rows: InsightMessageRow[]): Pick<Conversati
       content: (m.content || "").slice(0, 500),
       timestamp: m.timestamp,
     }));
-  const sampled = turns.length > 18
-    ? turns.filter((t, i) => i < 8 || i >= turns.length - 10 || (t.role === "user" && REDIRECT_PATTERN.test(t.content)))
-    : turns;
+  const sampled =
+    turns.length > 18
+      ? turns.filter(
+          (t, i) =>
+            i < 8 ||
+            i >= turns.length - 10 ||
+            (t.role === "user" && REDIRECT_PATTERN.test(t.content)),
+        )
+      : turns;
   return {
     messages: sampled,
     tool_names: uniqCompact(
-      rows.flatMap((m) => (m.tool_calls || []).map((tc) => tc.name)).filter(Boolean),
+      rows
+        .flatMap((m) => (m.tool_calls || []).map((tc) => tc.name))
+        .filter(Boolean),
       16,
-      80
+      80,
     ),
   };
 }
 
 /** The facts the insight prompt names; the ids and privacy fields stay out. */
-export type InsightRequestContext = Pick<ConversationInsightContext, "messages" | "tool_names" | "commits" | "prs"> & {
+export type InsightRequestContext = Pick<
+  ConversationInsightContext,
+  "messages" | "tool_names" | "commits" | "prs"
+> & {
   conversation: Pick<
     ConversationInsightContext["conversation"],
-    "title" | "subtitle" | "idle_summary" | "project_path" | "git_branch" | "status" | "started_at" | "updated_at"
+    | "title"
+    | "subtitle"
+    | "idle_summary"
+    | "project_path"
+    | "git_branch"
+    | "status"
+    | "started_at"
+    | "updated_at"
   >;
 };
 
@@ -169,27 +205,39 @@ export type InsightRequestContext = Pick<ConversationInsightContext, "messages" 
  * runtime's zone, so a replay on any machine renders the same prompt. No
  * temperature: the API default applies.
  */
-export function insightRequest(context: InsightRequestContext, source: string): SurfaceRequest {
+export function insightRequest(
+  context: InsightRequestContext,
+  source: string,
+): SurfaceRequest {
   const formatMsgTime = (ts: number | undefined) => {
     if (!ts) return "";
     const d = new Date(ts);
     return `[${d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })}]`;
   };
   const sampledMessages = context.messages
-    .map((m) => `${formatMsgTime(m.timestamp)} ${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+    .map(
+      (m) =>
+        `${formatMsgTime(m.timestamp)} ${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`,
+    )
     .join("\n\n");
 
   const commitsText = context.commits.length
     ? context.commits
         .slice(0, 8)
-        .map((c) => `- ${c.sha.slice(0, 7)} ${c.message.split("\n")[0]} (+${c.insertions}/-${c.deletions}, ${c.files_changed} files)`)
+        .map(
+          (c) =>
+            `- ${c.sha.slice(0, 7)} ${c.message.split("\n")[0]} (+${c.insertions}/-${c.deletions}, ${c.files_changed} files)`,
+        )
         .join("\n")
     : "- none";
 
   const prsText = context.prs.length
     ? context.prs
         .slice(0, 6)
-        .map((pr) => `- #${pr.number} [${pr.state}] ${pr.title} (${pr.repository})`)
+        .map(
+          (pr) =>
+            `- #${pr.number} [${pr.state}] ${pr.title} (${pr.repository})`,
+        )
         .join("\n")
     : "- none";
 
@@ -259,16 +307,24 @@ ${sampledMessages}`;
 export function parseInsightReply(text: string | undefined) {
   const raw = text?.trim();
   if (!raw) return { ok: false as const, reason: "empty_response" };
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
   let parsed: any;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
     return { ok: false as const, reason: "invalid_json" };
   }
-  const timeline: Array<{ t: string; event: string; type: string }> | undefined = Array.isArray(parsed.timeline)
+  const timeline:
+    | Array<{ t: string; event: string; type: string }>
+    | undefined = Array.isArray(parsed.timeline)
     ? parsed.timeline
-        .filter((e: any) => e && typeof e.event === "string" && typeof e.t === "string")
+        .filter(
+          (e: any) =>
+            e && typeof e.event === "string" && typeof e.t === "string",
+        )
         .slice(0, 12)
         .map((e: any) => ({
           t: String(e.t).slice(0, 10),
@@ -276,37 +332,85 @@ export function parseInsightReply(text: string | undefined) {
           type: String(e.type || "change").slice(0, 20),
         }))
     : undefined;
-  const turns: Array<{ ask: string; did: string[] }> | undefined = Array.isArray(parsed.turns)
-    ? parsed.turns
-        .filter((t: any) => t && typeof t.ask === "string" && Array.isArray(t.did))
-        .slice(0, 10)
-        .map((t: any) => ({
-          ask: String(t.ask).trim().slice(0, 200),
-          did: t.did.filter((d: any) => typeof d === "string").slice(0, 6).map((d: any) => String(d).trim().slice(0, 200)),
-        }))
-    : undefined;
-  const pairs = (list: unknown, a: string, b: string): Array<Record<string, string>> | undefined =>
+  const turns: Array<{ ask: string; did: string[] }> | undefined =
+    Array.isArray(parsed.turns)
+      ? parsed.turns
+          .filter(
+            (t: any) => t && typeof t.ask === "string" && Array.isArray(t.did),
+          )
+          .slice(0, 10)
+          .map((t: any) => ({
+            ask: String(t.ask).trim().slice(0, 200),
+            did: t.did
+              .filter((d: any) => typeof d === "string")
+              .slice(0, 6)
+              .map((d: any) => String(d).trim().slice(0, 200)),
+          }))
+      : undefined;
+  const pairs = (
+    list: unknown,
+    a: string,
+    b: string,
+  ): Array<Record<string, string>> | undefined =>
     Array.isArray(list)
       ? list
-          .filter((x: any) => x && typeof x[a] === "string" && typeof x[b] === "string" && x[a].trim() && x[b].trim())
+          .filter(
+            (x: any) =>
+              x &&
+              typeof x[a] === "string" &&
+              typeof x[b] === "string" &&
+              x[a].trim() &&
+              x[b].trim(),
+          )
           .slice(0, 8)
-          .map((x: any) => ({ [a]: String(x[a]).trim().slice(0, 300), [b]: String(x[b]).trim().slice(0, 300) }))
+          .map((x: any) => ({
+            [a]: String(x[a]).trim().slice(0, 300),
+            [b]: String(x[b]).trim().slice(0, 300),
+          }))
       : undefined;
   return {
     ok: true as const,
     summary: parsed.summary,
-    headline: parsed.headline ? String(parsed.headline).trim().slice(0, 120) : undefined,
-    corrections: pairs(parsed.corrections, "said", "instead") as Array<{ said: string; instead: string }> | undefined,
-    decisions: pairs(parsed.decisions, "title", "why") as Array<{ title: string; why: string }> | undefined,
-    keyChanges: uniqCompact(Array.isArray(parsed.key_changes) ? parsed.key_changes.map((c: any) => String(c)) : [], 6, 120),
+    headline: parsed.headline
+      ? String(parsed.headline).trim().slice(0, 120)
+      : undefined,
+    corrections: pairs(parsed.corrections, "said", "instead") as
+      | Array<{ said: string; instead: string }>
+      | undefined,
+    decisions: pairs(parsed.decisions, "title", "why") as
+      | Array<{ title: string; why: string }>
+      | undefined,
+    keyChanges: uniqCompact(
+      Array.isArray(parsed.key_changes)
+        ? parsed.key_changes.map((c: any) => String(c))
+        : [],
+      6,
+      120,
+    ),
     timeline,
     turns,
     goal: parsed.goal ? String(parsed.goal).trim().slice(0, 220) : undefined,
-    whatChanged: parsed.what_changed ? String(parsed.what_changed).trim().slice(0, 320) : undefined,
+    whatChanged: parsed.what_changed
+      ? String(parsed.what_changed).trim().slice(0, 320)
+      : undefined,
     outcomeType: safeOutcomeType(parsed.outcome_type),
-    blockers: uniqCompact(Array.isArray(parsed.blockers) ? parsed.blockers.map((b: any) => String(b)) : [], 5, 200),
-    nextAction: parsed.next_action ? String(parsed.next_action).trim().slice(0, 220) : undefined,
-    themes: uniqCompact(Array.isArray(parsed.themes) ? parsed.themes.map((t: any) => String(t)) : [], 6, 48),
+    blockers: uniqCompact(
+      Array.isArray(parsed.blockers)
+        ? parsed.blockers.map((b: any) => String(b))
+        : [],
+      5,
+      200,
+    ),
+    nextAction: parsed.next_action
+      ? String(parsed.next_action).trim().slice(0, 220)
+      : undefined,
+    themes: uniqCompact(
+      Array.isArray(parsed.themes)
+        ? parsed.themes.map((t: any) => String(t))
+        : [],
+      6,
+      48,
+    ),
     confidence: clampConfidence(parsed.confidence),
   };
 }
@@ -322,7 +426,7 @@ export const getConversationContextForInsight = internalQuery({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("desc")
       .take(80);
@@ -331,13 +435,23 @@ export const getConversationContextForInsight = internalQuery({
 
     const commits = await ctx.db
       .query("commits")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(20);
 
-    let linkedPrs: Array<{ number: number; title: string; state: "open" | "closed" | "merged"; repository: string; updated_at: number }> = [];
+    let linkedPrs: Array<{
+      number: number;
+      title: string;
+      state: "open" | "closed" | "merged";
+      repository: string;
+      updated_at: number;
+    }> = [];
     if (conversation.team_id) {
-      linkedPrs = (await pullRequestsLinkedToConversation(ctx, args.conversation_id))
+      linkedPrs = (
+        await pullRequestsLinkedToConversation(ctx, args.conversation_id)
+      )
         .filter((pr) => String(pr.team_id) === String(conversation.team_id))
         .sort((a, b) => b.updated_at - a.updated_at)
         .slice(0, 10)
@@ -389,7 +503,9 @@ export const getExistingInsight = internalQuery({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("session_insights")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
   },
 });
@@ -408,10 +524,16 @@ export const getSessionInsight = query({
     // it is exactly as sensitive as the conversation. Gate on real access —
     // team_id on the conversation is routing, not a read grant.
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) return null;
+    if (
+      !conversation ||
+      !(await canAccessConversation(ctx, userId, conversation))
+    )
+      return null;
     const insight = await ctx.db
       .query("session_insights")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
     if (!insight) return null;
     return {
@@ -447,29 +569,27 @@ export const getBackfillCandidates = internalQuery({
 
     const perMemberFetch = Math.max(
       8,
-      Math.ceil((args.limit * 4) / Math.max(memberships.length, 1))
+      Math.ceil((args.limit * 4) / Math.max(memberships.length, 1)),
     );
     const recentByMember = await Promise.all(
       memberships.map((m) =>
         ctx.db
           .query("conversations")
           .withIndex("by_team_user_updated", (q) =>
-            q.eq("team_id", args.team_id).eq("user_id", m.user_id)
+            q.eq("team_id", args.team_id).eq("user_id", m.user_id),
           )
           .order("desc")
-          .take(perMemberFetch)
-      )
+          .take(perMemberFetch),
+      ),
     );
 
     const seenConversationIds = new Set<string>();
-    const conversations = recentByMember
-      .flat()
-      .filter((c) => {
-        const key = c._id.toString();
-        if (seenConversationIds.has(key)) return false;
-        seenConversationIds.add(key);
-        return true;
-      });
+    const conversations = recentByMember.flat().filter((c) => {
+      const key = c._id.toString();
+      if (seenConversationIds.has(key)) return false;
+      seenConversationIds.add(key);
+      return true;
+    });
 
     const visible = conversations
       .filter((c) => c.updated_at >= args.since && c.message_count > 0)
@@ -486,7 +606,9 @@ export const getBackfillCandidates = internalQuery({
       if (!(await isConversationTeamVisible(ctx, conversation))) continue;
       const existing = await ctx.db
         .query("session_insights")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conversation._id),
+        )
         .first();
       if (!existing) {
         candidates.push({
@@ -520,46 +642,62 @@ export const upsertSessionInsight = internalMutation({
       v.literal("idle"),
       v.literal("commit"),
       v.literal("manual"),
-      v.literal("periodic")
+      v.literal("periodic"),
     ),
     generated_at: v.number(),
     summary: v.string(),
     headline: v.optional(v.string()),
     key_changes: v.optional(v.array(v.string())),
-    timeline: v.optional(v.array(v.object({
-      t: v.string(),
-      event: v.string(),
-      type: v.string(),
-      session_title: v.optional(v.string()),
-    }))),
-    turns: v.optional(v.array(v.object({
-      ask: v.string(),
-      did: v.array(v.string()),
-    }))),
+    timeline: v.optional(
+      v.array(
+        v.object({
+          t: v.string(),
+          event: v.string(),
+          type: v.string(),
+          session_title: v.optional(v.string()),
+        }),
+      ),
+    ),
+    turns: v.optional(
+      v.array(
+        v.object({
+          ask: v.string(),
+          did: v.array(v.string()),
+        }),
+      ),
+    ),
     goal: v.optional(v.string()),
     what_changed: v.optional(v.string()),
     outcome_type: v.union(
       v.literal("shipped"),
       v.literal("progress"),
       v.literal("blocked"),
-      v.literal("unknown")
+      v.literal("unknown"),
     ),
     blockers: v.optional(v.array(v.string())),
     next_action: v.optional(v.string()),
     themes: v.array(v.string()),
     confidence: v.optional(v.number()),
-    corrections: v.optional(v.array(v.object({ said: v.string(), instead: v.string() }))),
-    decisions: v.optional(v.array(v.object({ title: v.string(), why: v.string() }))),
-    metadata: v.optional(v.object({
-      commit_shas: v.optional(v.array(v.string())),
-      pr_numbers: v.optional(v.array(v.number())),
-      files_touched: v.optional(v.array(v.string())),
-    })),
+    corrections: v.optional(
+      v.array(v.object({ said: v.string(), instead: v.string() })),
+    ),
+    decisions: v.optional(
+      v.array(v.object({ title: v.string(), why: v.string() })),
+    ),
+    metadata: v.optional(
+      v.object({
+        commit_shas: v.optional(v.array(v.string())),
+        pr_numbers: v.optional(v.array(v.number())),
+        files_touched: v.optional(v.array(v.string())),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("session_insights")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .first();
 
     let insightId;
@@ -619,34 +757,48 @@ export const upsertSessionInsight = internalMutation({
 export const generateSessionInsight = internalAction({
   args: {
     conversation_id: v.id("conversations"),
-    reason: v.optional(v.union(
-      v.literal("idle"),
-      v.literal("commit"),
-      v.literal("manual"),
-      v.literal("periodic")
-    )),
+    reason: v.optional(
+      v.union(
+        v.literal("idle"),
+        v.literal("commit"),
+        v.literal("manual"),
+        v.literal("periodic"),
+      ),
+    ),
   },
   handler: async (ctx, args): Promise<InsightGenStatus> => {
-    if (!process.env.ANTHROPIC_API_KEY) return { status: "skipped", reason: "missing_api_key" };
+    if (!process.env.ANTHROPIC_API_KEY)
+      return { status: "skipped", reason: "missing_api_key" };
 
-    const context = (await ctx.runQuery(internal.sessionInsights.getConversationContextForInsight, {
-      conversation_id: args.conversation_id,
-    })) as ConversationInsightContext | null;
+    const context = (await ctx.runQuery(
+      internal.sessionInsights.getConversationContextForInsight,
+      {
+        conversation_id: args.conversation_id,
+      },
+    )) as ConversationInsightContext | null;
     if (!context) return { status: "skipped", reason: "missing_context" };
 
     const now = Date.now();
     const source = args.reason || "periodic";
-    const existing = await ctx.runQuery(internal.sessionInsights.getExistingInsight, {
-      conversation_id: args.conversation_id,
-    });
+    const existing = await ctx.runQuery(
+      internal.sessionInsights.getExistingInsight,
+      {
+        conversation_id: args.conversation_id,
+      },
+    );
 
-    if (existing && source !== "manual" && now - existing.generated_at < 5 * 60 * 1000) {
+    if (
+      existing &&
+      source !== "manual" &&
+      now - existing.generated_at < 5 * 60 * 1000
+    ) {
       return { status: "skipped", reason: "rate_limited" };
     }
 
-
     try {
-      const response = await postMessages(insightRequest(context, source), { gate: { ctx, scope: { conversationId: args.conversation_id } } });
+      const response = await postMessages(insightRequest(context, source), {
+        gate: { ctx, scope: { conversationId: args.conversation_id } },
+      });
       if (!response) return { status: "skipped", reason: "missing_api_key" };
       if (!response.ok) {
         return { status: "error", reason: `provider_${response.status}` };
@@ -656,19 +808,34 @@ export const generateSessionInsight = internalAction({
       const reply = parseInsightReply(replyText(data));
       if (!reply.ok) return { status: "error", reason: reply.reason };
 
-      const summary = (reply.summary || context.conversation.idle_summary || context.conversation.subtitle || "Updated session activity")
+      const summary = (
+        reply.summary ||
+        context.conversation.idle_summary ||
+        context.conversation.subtitle ||
+        "Updated session activity"
+      )
         .toString()
         .trim()
         .slice(0, 600);
 
-      const { headline, keyChanges, timeline, turns, goal, whatChanged, outcomeType, blockers, nextAction, themes, confidence } = reply;
+      const {
+        headline,
+        keyChanges,
+        timeline,
+        turns,
+        goal,
+        whatChanged,
+        outcomeType,
+        blockers,
+        nextAction,
+        themes,
+        confidence,
+      } = reply;
 
       const filesTouched = uniqCompact(
-        context.commits
-          .slice(0, 6)
-          .map((c) => c.message.split("\n")[0]),
+        context.commits.slice(0, 6).map((c) => c.message.split("\n")[0]),
         6,
-        120
+        120,
       );
 
       // The insight and any mined task/doc inherit only the conversation's
@@ -676,32 +843,37 @@ export const generateSessionInsight = internalAction({
       // so it must not ride onto these downstream rows.
       const visibleTeam = teamVisibleConvTeam(context.conversation);
 
-      const insightId = (await ctx.runMutation(internal.sessionInsights.upsertSessionInsight, {
-        conversation_id: context.conversation._id,
-        team_id: visibleTeam,
-        actor_user_id: context.conversation.actor_user_id,
-        source,
-        generated_at: now,
-        summary,
-        headline,
-        key_changes: keyChanges.length ? keyChanges : undefined,
-        timeline: timeline?.length ? timeline : undefined,
-        turns: turns?.length ? turns : undefined,
-        goal,
-        what_changed: whatChanged,
-        outcome_type: outcomeType,
-        blockers: blockers.length ? blockers : undefined,
-        next_action: nextAction,
-        themes: themes.length ? themes : ["general"],
-        confidence,
-        corrections: reply.corrections?.length ? reply.corrections : undefined,
-        decisions: reply.decisions?.length ? reply.decisions : undefined,
-        metadata: {
-          commit_shas: context.commits.slice(0, 8).map((c) => c.sha),
-          pr_numbers: context.prs.slice(0, 8).map((pr) => pr.number),
-          files_touched: filesTouched.length ? filesTouched : undefined,
+      const insightId = (await ctx.runMutation(
+        internal.sessionInsights.upsertSessionInsight,
+        {
+          conversation_id: context.conversation._id,
+          team_id: visibleTeam,
+          actor_user_id: context.conversation.actor_user_id,
+          source,
+          generated_at: now,
+          summary,
+          headline,
+          key_changes: keyChanges.length ? keyChanges : undefined,
+          timeline: timeline?.length ? timeline : undefined,
+          turns: turns?.length ? turns : undefined,
+          goal,
+          what_changed: whatChanged,
+          outcome_type: outcomeType,
+          blockers: blockers.length ? blockers : undefined,
+          next_action: nextAction,
+          themes: themes.length ? themes : ["general"],
+          confidence,
+          corrections: reply.corrections?.length
+            ? reply.corrections
+            : undefined,
+          decisions: reply.decisions?.length ? reply.decisions : undefined,
+          metadata: {
+            commit_shas: context.commits.slice(0, 8).map((c) => c.sha),
+            pr_numbers: context.prs.slice(0, 8).map((pr) => pr.number),
+            files_touched: filesTouched.length ? filesTouched : undefined,
+          },
         },
-      })) as Id<"session_insights">;
+      )) as Id<"session_insights">;
 
       // Keep the inbox's short summary fresh by reusing the insight headline.
       // Runs every turn (5-min throttled), so any active session has a one-liner --
@@ -735,10 +907,13 @@ export const regenerateSessionInsight = action({
 
     if (!conversation) throw new Error("Conversation not found");
 
-    return await ctx.runAction(internal.sessionInsights.generateSessionInsight, {
-      conversation_id: args.conversation_id,
-      reason: "manual",
-    });
+    return await ctx.runAction(
+      internal.sessionInsights.generateSessionInsight,
+      {
+        conversation_id: args.conversation_id,
+        reason: "manual",
+      },
+    );
   },
 });
 
@@ -753,20 +928,28 @@ export const backfillTeamInsights = action({
     if (!user) throw new Error("Not authenticated");
 
     const userTeams = await ctx.runQuery(api.teams.getUserTeams, {});
-    const isMember = (userTeams || []).some((t: any) => t?._id?.toString() === args.team_id.toString());
+    const isMember = (userTeams || []).some(
+      (t: any) => t?._id?.toString() === args.team_id.toString(),
+    );
     if (!isMember) {
       throw new Error("Not a member of this team");
     }
 
-    const windowHours = Math.max(1, Math.min(args.window_hours ?? 24 * 14, 24 * 30));
+    const windowHours = Math.max(
+      1,
+      Math.min(args.window_hours ?? 24 * 14, 24 * 30),
+    );
     const limit = Math.max(1, Math.min(args.limit ?? 25, 100));
     const since = Date.now() - windowHours * 60 * 60 * 1000;
 
-    const candidates = await ctx.runQuery(internal.sessionInsights.getBackfillCandidates, {
-      team_id: args.team_id,
-      since,
-      limit,
-    });
+    const candidates = await ctx.runQuery(
+      internal.sessionInsights.getBackfillCandidates,
+      {
+        team_id: args.team_id,
+        since,
+        limit,
+      },
+    );
 
     const results: Array<{
       conversation_id: Id<"conversations">;
@@ -777,12 +960,17 @@ export const backfillTeamInsights = action({
 
     let success = 0;
     for (const candidate of candidates) {
-      const res = await ctx.runAction(internal.sessionInsights.generateSessionInsight, {
-        conversation_id: candidate.conversation_id,
-        reason: "periodic",
-      });
+      const res = await ctx.runAction(
+        internal.sessionInsights.generateSessionInsight,
+        {
+          conversation_id: candidate.conversation_id,
+          reason: "periodic",
+        },
+      );
       const status = (res as any)?.status || "unknown";
-      const detail = (res as any)?.reason ? String((res as any).reason) : undefined;
+      const detail = (res as any)?.reason
+        ? String((res as any).reason)
+        : undefined;
       if (status === "ok") success += 1;
       results.push({
         conversation_id: candidate.conversation_id,
@@ -803,7 +991,6 @@ export const backfillTeamInsights = action({
   },
 });
 
-
 export const getInsightsNeedingTimeline = internalQuery({
   args: {
     user_id: v.id("users"),
@@ -814,13 +1001,19 @@ export const getInsightsNeedingTimeline = internalQuery({
     const insights = await ctx.db
       .query("session_insights")
       .withIndex("by_actor_generated_at", (q) =>
-        q.eq("actor_user_id", args.user_id).gte("generated_at", args.since)
+        q.eq("actor_user_id", args.user_id).gte("generated_at", args.since),
       )
       .order("desc")
       .take(args.limit * 2);
 
     return insights
-      .filter((i) => !i.timeline || i.timeline.length === 0 || !i.turns || i.turns.length === 0)
+      .filter(
+        (i) =>
+          !i.timeline ||
+          i.timeline.length === 0 ||
+          !i.turns ||
+          i.turns.length === 0,
+      )
       .slice(0, args.limit)
       .map((i) => i.conversation_id);
   },
@@ -835,25 +1028,30 @@ export const backfillTimelines = action({
     const user = await ctx.runQuery(api.users.getCurrentUser, {} as any);
     if (!user) throw new Error("Not authenticated");
 
-    const windowHours = Math.max(1, Math.min(args.window_hours ?? 168, 24 * 30));
+    const windowHours = Math.max(
+      1,
+      Math.min(args.window_hours ?? 168, 24 * 30),
+    );
     const limit = Math.max(1, Math.min(args.limit ?? 25, 100));
     const since = Date.now() - windowHours * 60 * 60 * 1000;
 
     const conversationIds = await ctx.runQuery(
       internal.sessionInsights.getInsightsNeedingTimeline,
-      { user_id: user._id, since, limit }
+      { user_id: user._id, since, limit },
     );
 
     let success = 0;
     for (const cid of conversationIds) {
-      const res = await ctx.runAction(internal.sessionInsights.generateSessionInsight, {
-        conversation_id: cid,
-        reason: "manual",
-      });
+      const res = await ctx.runAction(
+        internal.sessionInsights.generateSessionInsight,
+        {
+          conversation_id: cid,
+          reason: "manual",
+        },
+      );
       if ((res as any)?.status === "ok") success += 1;
     }
 
     return { candidates: conversationIds.length, generated: success };
   },
 });
-

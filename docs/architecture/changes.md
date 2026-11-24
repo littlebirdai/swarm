@@ -9,13 +9,13 @@ CH1 onward so code can cite them.
 
 ## CH1. Five stages
 
-| Stage | Done when | What it reads |
-|---|---|---|
-| Work | the change has left the checkout: pushed, or handed to a ship pass | checkouts (pipeline.md PL6: uncommitted paths by writer session, ahead of main), the session's state |
-| Check | CI and review passed on the head that lands | the pull request's checks and review, else main's CI on the commit |
-| Land | the change is on main: merged, pushed or replayed by a pass | `commits.main_at`, `pull_requests.merge_commit_sha`, GitHub's auto-merge |
-| Deploy | a deploy carrying it has gone live on every target it touches | deploy reach (deploys.md DP16) |
-| Live | every touched target runs it | deploy reach |
+| Stage  | Done when                                                          | What it reads                                                                                        |
+| ------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Work   | the change has left the checkout: pushed, or handed to a ship pass | checkouts (pipeline.md PL6: uncommitted paths by writer session, ahead of main), the session's state |
+| Check  | CI and review passed on the head that lands                        | the pull request's checks and review, else main's CI on the commit                                   |
+| Land   | the change is on main: merged, pushed or replayed by a pass        | `commits.main_at`, `pull_requests.merge_commit_sha`, GitHub's auto-merge                             |
+| Deploy | a deploy carrying it has gone live on every target it touches      | deploy reach (deploys.md DP16)                                                                       |
+| Live   | every touched target runs it                                       | deploy reach                                                                                         |
 
 The stages never change order or number, whatever the vehicle, so a reader
 learns one track. A stage a vehicle skips (a direct push has no review) is
@@ -27,15 +27,15 @@ with "after it landed".
 Every change has exactly one **now**: the stage that holds it and the state
 it is in there. Its tone is the same on every surface:
 
-| Tone | Means | Examples |
-|---|---|---|
-| yellow | in motion, nobody needs to act | editing, checking, landing (auto-merge), deploying 6m |
-| muted | waiting its turn, or on whoever ships it | queued, not live yet, not shipped, draft |
-| blue | a person must act | ready to land, needs review |
-| orange | sent back to the session that wrote it | changes asked, conflicts, behind main, rolled back |
-| red | failed and stopped | checks failed, deploy failed |
-| green | live everywhere it goes | live |
-| dim | not going anywhere | closed, replaced, abandoned |
+| Tone   | Means                                    | Examples                                              |
+| ------ | ---------------------------------------- | ----------------------------------------------------- |
+| yellow | in motion, nobody needs to act           | editing, checking, landing (auto-merge), deploying 6m |
+| muted  | waiting its turn, or on whoever ships it | queued, not live yet, not shipped, draft              |
+| blue   | a person must act                        | ready to land, needs review                           |
+| orange | sent back to the session that wrote it   | changes asked, conflicts, behind main, rolled back    |
+| red    | failed and stopped                       | checks failed, deploy failed                          |
+| green  | live everywhere it goes                  | live                                                  |
+| dim    | not going anywhere                       | closed, replaced, abandoned                           |
 
 Failure pops: a red now wears the strong tint and heavy glyph deploy pills
 already use. One separator, `·`. Times are elapsed while in motion

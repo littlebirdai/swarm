@@ -23,12 +23,18 @@ describe("GitHub's own words", () => {
       ],
       documentation_url: "https://docs.github.com/rest/pulls/reviews",
     });
-    expect(githubErrorMessage(422, body)).toBe("Can not approve your own pull request");
+    expect(githubErrorMessage(422, body)).toBe(
+      "Can not approve your own pull request",
+    );
   });
 
   test("a refusal GitHub has a rule for comes through as it is", () => {
-    expect(githubErrorMessage(405, JSON.stringify({ message: "Pull Request is not mergeable" })))
-      .toBe("Pull Request is not mergeable");
+    expect(
+      githubErrorMessage(
+        405,
+        JSON.stringify({ message: "Pull Request is not mergeable" }),
+      ),
+    ).toBe("Pull Request is not mergeable");
   });
 
   test("several complaints are all worth reading", () => {
@@ -40,23 +46,34 @@ describe("GitHub's own words", () => {
   });
 
   test("an error given as a bare string still reads", () => {
-    expect(githubErrorMessage(422, JSON.stringify({ message: "nope", errors: ["the reason"] })))
-      .toBe("the reason");
+    expect(
+      githubErrorMessage(
+        422,
+        JSON.stringify({ message: "nope", errors: ["the reason"] }),
+      ),
+    ).toBe("the reason");
   });
 
   // An errors[] entry without a message must not blank out the summary.
   test("empty details fall back to the summary", () => {
-    const body = JSON.stringify({ message: "Not Found", errors: [{ code: "missing" }] });
+    const body = JSON.stringify({
+      message: "Not Found",
+      errors: [{ code: "missing" }],
+    });
     expect(githubErrorMessage(404, body)).toBe("Not Found");
   });
 
   test("a body that is not JSON is shown as it arrived", () => {
-    expect(githubErrorMessage(502, "<html>bad gateway</html>")).toBe("502: <html>bad gateway</html>");
+    expect(githubErrorMessage(502, "<html>bad gateway</html>")).toBe(
+      "502: <html>bad gateway</html>",
+    );
   });
 
   test("an empty body still says what happened", () => {
     expect(githubErrorMessage(500, "")).toBe("GitHub returned 500");
-    expect(githubErrorMessage(403, JSON.stringify({}))).toBe("GitHub returned 403");
+    expect(githubErrorMessage(403, JSON.stringify({}))).toBe(
+      "GitHub returned 403",
+    );
   });
 });
 
@@ -68,7 +85,9 @@ describe("unwrapping an action's error", () => {
     const wrapped = new Error(
       "Uncaught Error: Review Can not approve your own pull request\n    at handler (../convex/githubApi.ts:150:17)",
     );
-    expect(githubSentence(wrapped)).toBe("Review Can not approve your own pull request");
+    expect(githubSentence(wrapped)).toBe(
+      "Review Can not approve your own pull request",
+    );
   });
 
   test("a deployment tag and request id come off too", () => {
@@ -79,7 +98,9 @@ describe("unwrapping an action's error", () => {
   });
 
   test("a plain message is left alone", () => {
-    expect(githubSentence(new Error("Pull Request is not mergeable"))).toBe("Pull Request is not mergeable");
+    expect(githubSentence(new Error("Pull Request is not mergeable"))).toBe(
+      "Pull Request is not mergeable",
+    );
   });
 
   test("something that is not an error still reads", () => {
@@ -88,6 +109,8 @@ describe("unwrapping an action's error", () => {
 
   // Never hand back an empty string: a blank error tells the caller nothing.
   test("a message that is only wrapping falls back to the raw text", () => {
-    expect(githubSentence(new Error("Uncaught Error:"))).toBe("Uncaught Error:");
+    expect(githubSentence(new Error("Uncaught Error:"))).toBe(
+      "Uncaught Error:",
+    );
   });
 });

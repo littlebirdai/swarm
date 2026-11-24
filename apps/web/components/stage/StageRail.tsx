@@ -6,7 +6,17 @@
 import { PageIcon } from "../RecentVisitRow";
 import { STAGE_RAIL_PX } from "../../store/stageSplit";
 
-export function StageRail({ side, title, path, onRestore }: { side: "left" | "right"; title: string; path: string; onRestore: () => void }) {
+export function StageRail({
+  side,
+  title,
+  path,
+  onRestore,
+}: {
+  side: "left" | "right";
+  title: string;
+  path: string;
+  onRestore: () => void;
+}) {
   return (
     <button
       type="button"
@@ -15,10 +25,21 @@ export function StageRail({ side, title, path, onRestore }: { side: "left" | "ri
       aria-label={`Show ${title}`}
       data-stage-rail={side}
       className={`h-full shrink-0 flex flex-col items-center gap-2 pt-2.5 select-none transition-colors hover:bg-sol-bg-highlight/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${side === "left" ? "border-r" : "border-l"}`}
-      style={{ width: STAGE_RAIL_PX, background: "var(--sol-bg-alt)", borderColor: "var(--cc-panel-rule)", ["--tw-ring-color" as string]: "var(--sol-cyan)" }}
+      style={{
+        width: STAGE_RAIL_PX,
+        background: "var(--sol-bg-alt)",
+        borderColor: "var(--cc-panel-rule)",
+        ["--tw-ring-color" as string]: "var(--sol-cyan)",
+      }}
     >
-      <PageIcon path={path} className="w-3.5 h-3.5 shrink-0 text-sol-text-dim" />
-      <span className="min-h-0 truncate text-meta font-medium" style={{ color: "var(--sol-text-muted)", writingMode: "vertical-rl" }}>
+      <PageIcon
+        path={path}
+        className="w-3.5 h-3.5 shrink-0 text-sol-text-dim"
+      />
+      <span
+        className="min-h-0 truncate text-meta font-medium"
+        style={{ color: "var(--sol-text-muted)", writingMode: "vertical-rl" }}
+      >
         {title}
       </span>
     </button>

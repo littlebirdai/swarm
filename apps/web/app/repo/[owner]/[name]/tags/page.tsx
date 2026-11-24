@@ -8,7 +8,11 @@ export default function RepoTagsPage() {
   const family = useRepoFamily();
   return (
     <RepoSectionPage tab="tags" accent="var(--sol-blue)">
-      <RepoRefsContent repository={`${params.owner}/${params.name}`} family={family} tags />
+      <RepoRefsContent
+        repository={`${params.owner}/${params.name}`}
+        family={family}
+        tags
+      />
     </RepoSectionPage>
   );
 }

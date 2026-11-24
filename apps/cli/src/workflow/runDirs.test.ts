@@ -23,7 +23,10 @@ describe("lineRunsRoot", () => {
   test("a bare .git a Claude Code session left in a subfolder is not the repository's", () => {
     const sub = path.join(dir, "outreach");
     fs.mkdirSync(path.join(sub, ".git", "info"), { recursive: true });
-    fs.writeFileSync(path.join(sub, ".git", "info", "exclude"), "# claude-code-runtime\n");
+    fs.writeFileSync(
+      path.join(sub, ".git", "info", "exclude"),
+      "# claude-code-runtime\n",
+    );
     expect(lineRunsRoot(sub)).toBe(path.join(dir, ".git", "cast-line"));
   });
 });

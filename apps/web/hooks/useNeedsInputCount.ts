@@ -32,13 +32,20 @@ export function useNeedsInputCount(enabled = true): number {
 }
 
 /** The rows the count counts, questions first. */
-export function useWaitingOnPerson(enabled = true): readonly PlacedInbox["needsInput"][number][] {
+export function useWaitingOnPerson(
+  enabled = true,
+): readonly PlacedInbox["needsInput"][number][] {
   const placed = useMinePlacement(enabled);
-  const scope = useTrackedStore([(s) => hostedStopsSig(s.sessions, s.messages)]);
+  const scope = useTrackedStore([
+    (s) => hostedStopsSig(s.sessions, s.messages),
+  ]);
   const stops = hostedStopsSig(scope.sessions, scope.messages);
   return useMemo(() => {
     if (!placed) return [];
-    const asks = splitHostedStops(placed.needsInput, (id) => scope.messages[id]).asks;
+    const asks = splitHostedStops(
+      placed.needsInput,
+      (id) => scope.messages[id],
+    ).asks;
     return [...placed.questions, ...asks];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placed, stops]);
@@ -52,14 +59,14 @@ export function useMinePlacement(enabled = true): PlacedInbox | null {
     // every ~1s liveness heartbeat. pendingMessages likewise: only the
     // pending-send MEMBERSHIP matters. The body reads the raw fields for
     // data; these signatures only gate the re-render. See store/wakeSig.ts.
-    s => sessionsWakeSig(s.sessions),
-    s => s.sessionsWithQueuedMessages,
-    s => s.blockedReviveRequestedAt,
-    s => pendingSendWakeSig(s.pendingMessages),
-    s => s.currentUser?._id,
-    s => resolveShowOld(s.clientState.ui),
-    s => placementDecisionsSig(s.sessionDecisions),
-    s => s.questionResolutions,
+    (s) => sessionsWakeSig(s.sessions),
+    (s) => s.sessionsWithQueuedMessages,
+    (s) => s.blockedReviveRequestedAt,
+    (s) => pendingSendWakeSig(s.pendingMessages),
+    (s) => s.currentUser?._id,
+    (s) => resolveShowOld(s.clientState.ui),
+    (s) => placementDecisionsSig(s.sessionDecisions),
+    (s) => s.questionResolutions,
   ]);
   // Mine-scoped: this is your personal attention, so a teammate row cached
   // from a team-board visit must not inflate it.
@@ -69,8 +76,20 @@ export function useMinePlacement(enabled = true): PlacedInbox | null {
   // timer, so extra subscribers are free).
   const coarseNow = useCoarseNow(15_000);
   return useMemo(
-    () => (enabled ? placeInboxRows(s, { scope: "mine", now: coarseNow }) : null),
+    () =>
+      enabled ? placeInboxRows(s, { scope: "mine", now: coarseNow }) : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [enabled, sessionsWakeSig(s.sessions), meId, s.sessionsWithQueuedMessages, s.blockedReviveRequestedAt, pendingSendWakeSig(s.pendingMessages), resolveShowOld(s.clientState.ui), placementDecisionsSig(s.sessionDecisions), s.questionResolutions, coarseNow],
+    [
+      enabled,
+      sessionsWakeSig(s.sessions),
+      meId,
+      s.sessionsWithQueuedMessages,
+      s.blockedReviveRequestedAt,
+      pendingSendWakeSig(s.pendingMessages),
+      resolveShowOld(s.clientState.ui),
+      placementDecisionsSig(s.sessionDecisions),
+      s.questionResolutions,
+      coarseNow,
+    ],
   );
 }

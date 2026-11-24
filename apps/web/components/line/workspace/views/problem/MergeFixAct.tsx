@@ -15,9 +15,21 @@ import { GitMerge } from "lucide-react";
 import { useShipTarget } from "../../../../../hooks/useShipTarget";
 import { useInboxStore } from "../../../../../store/inboxStore";
 import { SwitchReview } from "../../../../consequential/ConsequentialSwitch";
-import { fixActName, mergeFixLedger, type BranchStanding, type FixChange } from "../../../../../lib/line/mergeFixLedger";
+import {
+  fixActName,
+  mergeFixLedger,
+  type BranchStanding,
+  type FixChange,
+} from "../../../../../lib/line/mergeFixLedger";
 
-export function MergeFixAct({ taskId, problem, change, approved, primary = true, standing = null }: {
+export function MergeFixAct({
+  taskId,
+  problem,
+  change,
+  approved,
+  primary = true,
+  standing = null,
+}: {
   taskId: string;
   problem: string;
   change: FixChange;
@@ -31,22 +43,45 @@ export function MergeFixAct({ taskId, problem, change, approved, primary = true,
   const task = useShipTarget({ kind: "task", id: taskId });
   const prId = task?.pr_id ?? null;
   const onPr = useShipTarget(prId ? { kind: "pull_request", id: prId } : null);
-  const target = prId ? { kind: "pull_request" as const, id: prId } : { kind: "task" as const, id: taskId };
+  const target = prId
+    ? { kind: "pull_request" as const, id: prId }
+    : { kind: "task" as const, id: taskId };
   const plan = (prId ? onPr : task)?.plan ?? null;
   const prNumber = plan?.pr.action === "shepherd" ? plan.pr.number : null;
-  const merge = useMemo(() => mergeFixLedger({ problem, plan, change, approved, prNumber, standing }), [problem, plan, change, approved, prNumber, standing]);
+  const merge = useMemo(
+    () =>
+      mergeFixLedger({ problem, plan, change, approved, prNumber, standing }),
+    [problem, plan, change, approved, prNumber, standing],
+  );
   const startShip = useInboxStore((s) => s.startShip);
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className="lw-act" data-primary={primary ? "" : undefined} onClick={() => setOpen(true)} data-line-merge-fix={plan ? (plan.merge.will ? "merge" : "pr") : "reading"}>
-        <GitMerge className="w-3.5 h-3.5" aria-hidden />{fixActName(plan)}…
+      <button
+        type="button"
+        className="lw-act"
+        data-primary={primary ? "" : undefined}
+        onClick={() => setOpen(true)}
+        data-line-merge-fix={
+          plan ? (plan.merge.will ? "merge" : "pr") : "reading"
+        }
+      >
+        <GitMerge className="w-3.5 h-3.5" aria-hidden />
+        {fixActName(plan)}…
       </button>
       {open && (
         <SwitchReview
           ledger={merge}
           onClose={() => setOpen(false)}
-          onConfirm={() => { if (!plan || merge.blocked) return; startShip(target, `ship-${Date.now().toString(36)}`, plan.decisionId ?? undefined); setOpen(false); }}
+          onConfirm={() => {
+            if (!plan || merge.blocked) return;
+            startShip(
+              target,
+              `ship-${Date.now().toString(36)}`,
+              plan.decisionId ?? undefined,
+            );
+            setOpen(false);
+          }}
         />
       )}
     </>

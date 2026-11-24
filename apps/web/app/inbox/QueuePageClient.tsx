@@ -1,5 +1,13 @@
 import { withInboxView } from "../../lib/inboxViewHistory";
-import { useState, useCallback, useRef, memo, useMemo, Suspense, type ReactNode } from "react";
+import {
+  useState,
+  useCallback,
+  useRef,
+  memo,
+  useMemo,
+  Suspense,
+  type ReactNode,
+} from "react";
 import { ChevronRight } from "lucide-react";
 import { useBoundedDeferredValue } from "../../hooks/useBoundedDeferredValue";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -14,14 +22,29 @@ import { Id } from "@codecast/convex/convex/_generated/dataModel";
 import { DashboardLayout } from "../../components/DashboardLayout";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { ConversationPlaceholder } from "../../components/ConversationPlaceholder";
-import { ConversationDiffLayout, type ConversationDiffLayoutProps } from "../../components/ConversationDiffLayout";
+import {
+  ConversationDiffLayout,
+  type ConversationDiffLayoutProps,
+} from "../../components/ConversationDiffLayout";
 import type { ConversationData } from "../../components/conversation/types";
 import { useConversationMessages } from "../../hooks/useConversationMessages";
-import { useInboxStore, useTrackedStore, isConvexId, sortSessions, sessionsWakeSig, ensureHydrated, resolveInboxHome, viewerCommandsSession } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  useTrackedStore,
+  isConvexId,
+  sortSessions,
+  sessionsWakeSig,
+  ensureHydrated,
+  resolveInboxHome,
+  viewerCommandsSession,
+} from "../../store/inboxStore";
 import { freshHomeLaunchPending } from "../../store/viewNav";
 import { FleetBoard, InboxHomeToggle } from "../../components/FleetBoard";
 import { ConversationSharePopover } from "../../components/ConversationSharePopover";
-import { SessionErrorBanner, SessionResumeBanner } from "../../components/SessionErrorBanner";
+import {
+  SessionErrorBanner,
+  SessionResumeBanner,
+} from "../../components/SessionErrorBanner";
 import { CloudPlacementStrip } from "../../components/CloudPlacementStrip";
 import { ActivityFeed } from "../../components/ActivityFeed";
 import { EmptyState } from "../../components/EmptyState";
@@ -36,20 +59,37 @@ import { devRenderCount } from "../../lib/devRenderCount";
 import { InboxShortcuts } from "../../components/inbox/InboxEffects";
 import { useOrgScope, useSyncOrgTreeFeeder } from "../../hooks/useSyncOrgTree";
 import { WorkspaceScopeProvider } from "../../hooks/useWorkspaceScope";
-import { activeWorkspaceKey, activeWorkspaceKeyOf } from "../../lib/workspaceScope";
+import {
+  activeWorkspaceKey,
+  activeWorkspaceKeyOf,
+} from "../../lib/workspaceScope";
 import { useSeedOwnership } from "../../hooks/useSeedOwnership";
-import { bootstrapCut, windowConversationSince, type WindowedConversation } from "../../lib/anchorWindow";
+import {
+  bootstrapCut,
+  windowConversationSince,
+  type WindowedConversation,
+} from "../../lib/anchorWindow";
 import { standingRoleIdOf } from "../../lib/sessionIdentity";
-import { settleSessionViewAsk, useSessionViewAsk } from "../../lib/sessionViewVisit";
+import {
+  settleSessionViewAsk,
+  useSessionViewAsk,
+} from "../../lib/sessionViewVisit";
 import { requestSessionRestart } from "../../lib/sessionCommands";
-import { SeatHeadState, RolePageControl, type SeatStall } from "../../components/org/scope/SeatHead";
+import {
+  SeatHeadState,
+  RolePageControl,
+  type SeatStall,
+} from "../../components/org/scope/SeatHead";
 import { windowOrgTree } from "../../store/orgSlice";
 import { lazyNamed } from "../../lib/lazyNamed";
 
 // The role page is a whole surface (the board's tabs, the org tree feeder), so
 // the inbox loads it only when a seat is opened. The dynamic import also keeps
 // the two modules out of a static cycle: the role page mounts InboxConversation.
-const ScopePageInner = lazyNamed(() => import("../../components/org/scope/ScopePage"), "ScopePageInner");
+const ScopePageInner = lazyNamed(
+  () => import("../../components/org/scope/ScopePage"),
+  "ScopePageInner",
+);
 
 /** What the role page asks of the pane when the session is a role's standing
  *  session (initiatives-projects-role-page.md I3). The pane stays the session
@@ -58,7 +98,17 @@ const ScopePageInner = lazyNamed(() => import("../../components/org/scope/ScopeP
  *  talking to the person, under the role's lead) and folds the session header
  *  to one row that expands on demand. */
 export type SeatConversation = {
-  layout: Pick<ConversationDiffLayoutProps, "leadNode" | "leadPinned" | "stickyPrompt" | "initialDensity" | "foldWorkingTurns" | "composerPlaceholder" | "composerNode" | "hideDiff">;
+  layout: Pick<
+    ConversationDiffLayoutProps,
+    | "leadNode"
+    | "leadPinned"
+    | "stickyPrompt"
+    | "initialDensity"
+    | "foldWorkingTurns"
+    | "composerPlaceholder"
+    | "composerNode"
+    | "hideDiff"
+  >;
   /** The person may talk to the seat (host, parent or admin): see useSeedOwnership. */
   seedOwnership: boolean;
   onSessionView: () => void;
@@ -67,7 +117,43 @@ export type SeatConversation = {
   head: { open: boolean; onToggle: () => void };
 };
 
-export const InboxConversation = memo(function InboxConversation({ sessionId: liveSessionId, isIdle, onSendAndAdvance, onSendAndDismiss, lastUserMessage, sessionError, onBack, targetMessageId, targetNonce, targetTimestamp, highlightQuery, onClearHighlight, seat, headerEnd, autoFocusInput = true, diffOnlyWithChanges, hideHeaderTitle }: { sessionId: string; isIdle: boolean; onSendAndAdvance?: () => void; onSendAndDismiss?: () => void; lastUserMessage?: string | null; sessionError?: string; onBack?: () => void; targetMessageId?: string; targetNonce?: number; targetTimestamp?: number; highlightQuery?: string; onClearHighlight?: () => void; seat?: SeatConversation; headerEnd?: ReactNode; autoFocusInput?: boolean; diffOnlyWithChanges?: boolean; hideHeaderTitle?: boolean }) {
+export const InboxConversation = memo(function InboxConversation({
+  sessionId: liveSessionId,
+  isIdle,
+  onSendAndAdvance,
+  onSendAndDismiss,
+  lastUserMessage,
+  sessionError,
+  onBack,
+  targetMessageId,
+  targetNonce,
+  targetTimestamp,
+  highlightQuery,
+  onClearHighlight,
+  seat,
+  headerEnd,
+  autoFocusInput = true,
+  diffOnlyWithChanges,
+  hideHeaderTitle,
+}: {
+  sessionId: string;
+  isIdle: boolean;
+  onSendAndAdvance?: () => void;
+  onSendAndDismiss?: () => void;
+  lastUserMessage?: string | null;
+  sessionError?: string;
+  onBack?: () => void;
+  targetMessageId?: string;
+  targetNonce?: number;
+  targetTimestamp?: number;
+  highlightQuery?: string;
+  onClearHighlight?: () => void;
+  seat?: SeatConversation;
+  headerEnd?: ReactNode;
+  autoFocusInput?: boolean;
+  diffOnlyWithChanges?: boolean;
+  hideHeaderTitle?: boolean;
+}) {
   devRenderCount("InboxConversation2");
   // Non-blocking switch: the heavy work of a session switch is mounting the new
   // conversation's message tree (every block keyed by msg._id unmounts/remounts,
@@ -96,10 +182,18 @@ export const InboxConversation = memo(function InboxConversation({ sessionId: li
     jumpToTimestamp,
     effectiveTargetMessageId,
     isJumpingToTarget,
-  } = useConversationMessages(sessionId, targetMessageId, undefined, targetTimestamp, targetNonce);
+  } = useConversationMessages(
+    sessionId,
+    targetMessageId,
+    undefined,
+    targetTimestamp,
+    targetNonce,
+  );
 
   const convCommand = useInboxStore((s) => s.convCommand);
-  const [resumeState, setResumeState] = useState<"idle" | "resuming" | "sent" | "failed">("idle");
+  const [resumeState, setResumeState] = useState<
+    "idle" | "resuming" | "sent" | "failed"
+  >("idle");
   const forceRestartAttemptedRef = useRef(false);
   const [_trackedSessionId, _setTrackedSessionId] = useState(sessionId);
   if (_trackedSessionId !== sessionId) {
@@ -137,26 +231,38 @@ export const InboxConversation = memo(function InboxConversation({ sessionId: li
   }, [resumeState, sessionId, convCommand]);
 
   // `leave_out` answers a cloud placement whose context was over the cap.
-  const handleManualResume = useCallback((extra?: { leave_out?: string[] }) => {
-    setResumeState("resuming");
-    convCommand(sessionId, "resumeSession", extra?.leave_out ? { leave_out: extra.leave_out } : undefined)
-      .then(() => setResumeState("sent"))
-      .catch((err) => {
-        if (isParkedDispatchError(err)) {
-          setResumeState("sent");
-          return;
-        }
-        setResumeState("failed");
-      });
-  }, [sessionId, convCommand]);
+  const handleManualResume = useCallback(
+    (extra?: { leave_out?: string[] }) => {
+      setResumeState("resuming");
+      convCommand(
+        sessionId,
+        "resumeSession",
+        extra?.leave_out ? { leave_out: extra.leave_out } : undefined,
+      )
+        .then(() => setResumeState("sent"))
+        .catch((err) => {
+          if (isParkedDispatchError(err)) {
+            setResumeState("sent");
+            return;
+          }
+          setResumeState("failed");
+        });
+    },
+    [sessionId, convCommand],
+  );
 
   const convId = (conversation?._id ?? sessionId) as Id<"conversations">;
   useSeedOwnership(sessionId, !!seat?.seedOwnership);
-  const isOwnSession = !!conversation && (!!seat?.seedOwnership || (conversation as any).is_own !== false);
+  const isOwnSession =
+    !!conversation &&
+    (!!seat?.seedOwnership || (conversation as any).is_own !== false);
   // Resume is a daemon command: only the session's runner or second-party
   // owner may send it (commandsSession), a narrower set than is_own.
-  const meId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
-  const canCommand = isOwnSession && viewerCommandsSession(conversation as any, meId);
+  const meId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
+  const canCommand =
+    isOwnSession && viewerCommandsSession(conversation as any, meId);
   // A seat opens on the agent talking to the person: its provisioning prompt,
   // and whatever came before it, fold into one row at the top
   // (scopes-and-feed.md F4.1). They are still the session's context, so the
@@ -165,16 +271,35 @@ export const InboxConversation = memo(function InboxConversation({ sessionId: li
   const [earlierOpenFor, setEarlierOpenFor] = useState<string | null>(null);
   const earlierOpen = earlierOpenFor === sessionId;
   const cut = useMemo(
-    () => (seat && !targetMessageId ? windowConversationSince(conversation as WindowedConversation | null, bootstrapCut(conversation as WindowedConversation | null)) : null),
+    () =>
+      seat && !targetMessageId
+        ? windowConversationSince(
+            conversation as WindowedConversation | null,
+            bootstrapCut(conversation as WindowedConversation | null),
+          )
+        : null,
     [seat, targetMessageId, conversation],
   );
   const shown = earlierOpen ? null : cut;
-  const earlierCount = cut?.reachedStart ? (cut.conversation.loaded_start_index ?? 0) - ((conversation as any)?.loaded_start_index ?? 0) : 0;
+  const earlierCount = cut?.reachedStart
+    ? (cut.conversation.loaded_start_index ?? 0) -
+      ((conversation as any)?.loaded_start_index ?? 0)
+    : 0;
   const seatLead = seat?.layout.leadNode;
   const leadNode = useMemo(
-    () => (earlierCount > 0
-      ? <>{seatLead}<SeatEarlier count={earlierCount} open={earlierOpen} onToggle={() => setEarlierOpenFor(earlierOpen ? null : sessionId)} /></>
-      : seatLead),
+    () =>
+      earlierCount > 0 ? (
+        <>
+          {seatLead}
+          <SeatEarlier
+            count={earlierCount}
+            open={earlierOpen}
+            onToggle={() => setEarlierOpenFor(earlierOpen ? null : sessionId)}
+          />
+        </>
+      ) : (
+        seatLead
+      ),
     [seatLead, earlierCount, earlierOpen, sessionId],
   );
   // The seat's session header folds away at rest and opens from the page's
@@ -182,69 +307,117 @@ export const InboxConversation = memo(function InboxConversation({ sessionId: li
   // stacking a banner above it, and the context panels (a routine, a plan)
   // wait behind the expander.
   const headOpen = !!seat?.head.open;
-  const stallWord = !seat || !isOwnSession ? null
-    : resumeState === "resuming" || resumeState === "sent" ? "Resuming…"
-    : resumeState === "failed" ? "Resume timed out"
-    : sessionError ? "Session error"
-    : null;
-  const stallAction = stallWord === "Resume timed out" ? "Retry" : stallWord === "Session error" ? "Resume" : null;
+  const stallWord =
+    !seat || !isOwnSession
+      ? null
+      : resumeState === "resuming" || resumeState === "sent"
+        ? "Resuming…"
+        : resumeState === "failed"
+          ? "Resume timed out"
+          : sessionError
+            ? "Session error"
+            : null;
+  const stallAction =
+    stallWord === "Resume timed out"
+      ? "Retry"
+      : stallWord === "Session error"
+        ? "Resume"
+        : null;
   const seatHeadState = useMemo(() => {
     if (!seat || headOpen) return undefined;
-    const stall: SeatStall = stallWord ? { word: stallWord, ...(stallAction ? { action: { label: stallAction, onClick: handleManualResume } } : {}) } : null;
+    const stall: SeatStall = stallWord
+      ? {
+          word: stallWord,
+          ...(stallAction
+            ? { action: { label: stallAction, onClick: handleManualResume } }
+            : {}),
+        }
+      : null;
     return <SeatHeadState stall={stall} />;
   }, [seat, headOpen, stallWord, stallAction, handleManualResume]);
   const chromeShown = !seat || headOpen;
   // Element props for the memoized ConversationView: built once per input
   // change, not per render, or the memo below it never holds.
   const shareControls = useMemo(
-    () => conversation ? <ConversationSharePopover conversation={conversation} canManage={isOwnSession} /> : null,
+    () =>
+      conversation ? (
+        <ConversationSharePopover
+          conversation={conversation}
+          canManage={isOwnSession}
+        />
+      ) : null,
     [conversation, isOwnSession],
   );
   const activePlanId = (conversation as any)?.active_plan_id;
   const workflowRunId = (conversation as any)?.workflow_run_id;
   const convSessionId = (conversation as any)?.session_id;
   const agentTaskId = (conversation as any)?.agent_task_id;
-  const subHeaderContent = useMemo(() => <>
-    {isOwnSession && (
-      <TriggerContextPanel
-        key={convId}
-        conversationId={convId}
-        sessionId={convSessionId}
-        agentTaskId={agentTaskId}
-      />
-    )}
-    {activePlanId && <PlanContextPanel planId={activePlanId} />}
-    {workflowRunId && <WorkflowContextPanel workflowRunId={workflowRunId} />}
-  </>, [isOwnSession, convId, convSessionId, agentTaskId, activePlanId, workflowRunId]);
+  const subHeaderContent = useMemo(
+    () => (
+      <>
+        {isOwnSession && (
+          <TriggerContextPanel
+            key={convId}
+            conversationId={convId}
+            sessionId={convSessionId}
+            agentTaskId={agentTaskId}
+          />
+        )}
+        {activePlanId && <PlanContextPanel planId={activePlanId} />}
+        {workflowRunId && (
+          <WorkflowContextPanel workflowRunId={workflowRunId} />
+        )}
+      </>
+    ),
+    [
+      isOwnSession,
+      convId,
+      convSessionId,
+      agentTaskId,
+      activePlanId,
+      workflowRunId,
+    ],
+  );
 
   if (!conversation) {
     return <ConversationPlaceholder id={sessionId} />;
   }
 
   return (
-    <div className="relative h-full flex flex-col" data-seat-head={seat ? (headOpen ? "open" : "rest") : undefined} data-seat-stall={seat && !headOpen && stallWord ? "" : undefined}>
+    <div
+      className="relative h-full flex flex-col"
+      data-seat-head={seat ? (headOpen ? "open" : "rest") : undefined}
+      data-seat-stall={seat && !headOpen && stallWord ? "" : undefined}
+    >
       {canCommand && chromeShown && (
         <SessionResumeBanner
           resumeState={resumeState}
           onResume={handleManualResume}
         />
       )}
-      {isOwnSession && chromeShown && <CloudPlacementStrip sessionId={sessionId} />}
-      {isOwnSession && chromeShown && sessionError && resumeState === "idle" && (
-        <SessionErrorBanner
-          // Remount per session: the dismiss state is keyed by error TEXT, and
-          // two sessions can fail with the identical message.
-          key={conversation._id}
-          error={sessionError}
-          sessionId={sessionId}
-          projectPath={conversation.project_path || conversation.git_root}
-          ownerDeviceId={(conversation as any).owner_device_id}
-          onResume={canCommand ? handleManualResume : undefined}
-        />
+      {isOwnSession && chromeShown && (
+        <CloudPlacementStrip sessionId={sessionId} />
       )}
+      {isOwnSession &&
+        chromeShown &&
+        sessionError &&
+        resumeState === "idle" && (
+          <SessionErrorBanner
+            // Remount per session: the dismiss state is keyed by error TEXT, and
+            // two sessions can fail with the identical message.
+            key={conversation._id}
+            error={sessionError}
+            sessionId={sessionId}
+            projectPath={conversation.project_path || conversation.git_root}
+            ownerDeviceId={(conversation as any).owner_device_id}
+            onResume={canCommand ? handleManualResume : undefined}
+          />
+        )}
       <div className="flex-1 min-h-0">
         <ConversationDiffLayout
-          conversation={(shown?.conversation ?? conversation) as ConversationData}
+          conversation={
+            (shown?.conversation ?? conversation) as ConversationData
+          }
           embedded
           {...seat?.layout}
           diffOnlyWithChanges={diffOnlyWithChanges}
@@ -281,15 +454,40 @@ export const InboxConversation = memo(function InboxConversation({ sessionId: li
   );
 });
 
-export type InboxConversationProps = React.ComponentProps<typeof InboxConversation>;
+export type InboxConversationProps = React.ComponentProps<
+  typeof InboxConversation
+>;
 
 /** The seat's history above its provisioning prompt, folded to one row: the
  *  role's brief, and the earlier work of an agent the role was seated on. */
-function SeatEarlier({ count, open, onToggle }: { count: number; open: boolean; onToggle: () => void }) {
-  const what = count === 1 ? "The role's brief" : `The role's brief and ${count - 1} earlier ${count === 2 ? "message" : "messages"}`;
+function SeatEarlier({
+  count,
+  open,
+  onToggle,
+}: {
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const what =
+    count === 1
+      ? "The role's brief"
+      : `The role's brief and ${count - 1} earlier ${count === 2 ? "message" : "messages"}`;
   return (
-    <button type="button" onClick={onToggle} className="w-full flex items-center gap-1.5 px-4 py-1 text-left text-meta border-t transition-colors hover:bg-sol-bg-highlight/40" style={{ color: "var(--sol-text-dim)", borderColor: "color-mix(in srgb, var(--sol-border) 18%, transparent)" }} aria-expanded={open} data-seat-earlier={open ? "open" : "folded"}>
-      <ChevronRight className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`} />
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-center gap-1.5 px-4 py-1 text-left text-meta border-t transition-colors hover:bg-sol-bg-highlight/40"
+      style={{
+        color: "var(--sol-text-dim)",
+        borderColor: "color-mix(in srgb, var(--sol-border) 18%, transparent)",
+      }}
+      aria-expanded={open}
+      data-seat-earlier={open ? "open" : "folded"}
+    >
+      <ChevronRight
+        className={`w-3 h-3 shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+      />
       {open ? `Hide ${what.charAt(0).toLowerCase()}${what.slice(1)}` : what}
     </button>
   );
@@ -297,7 +495,9 @@ function SeatEarlier({ count, open, onToggle }: { count: number; open: boolean; 
 
 /** The pane's own props, handed through the role page to the conversation it
  *  mounts, plus the way out to the plain view. */
-export type SeatSession = Omit<InboxConversationProps, "seat"> & { onSessionView: () => void };
+export type SeatSession = Omit<InboxConversationProps, "seat"> & {
+  onSessionView: () => void;
+};
 
 /**
  * What opening a session renders (initiatives-projects-role-page.md I3). A
@@ -329,34 +529,69 @@ export function SessionPage(props: InboxConversationProps) {
   const isActiveTab = useTabActive();
   const seatKey = useInboxStore((s) => {
     const row = s.sessions[sessionId];
-    return roleId && row ? activeWorkspaceKey(row.team_id, s.currentUser?._id ? String(s.currentUser._id) : null) : null;
+    return roleId && row
+      ? activeWorkspaceKey(
+          row.team_id,
+          s.currentUser?._id ? String(s.currentUser._id) : null,
+        )
+      : null;
   });
   const activeKey = useInboxStore(activeWorkspaceKeyOf);
-  const foreignKey = isActiveTab && seatKey && seatKey !== activeKey ? seatKey : null;
+  const foreignKey =
+    isActiveTab && seatKey && seatKey !== activeKey ? seatKey : null;
   useOrgScope(foreignKey);
   const feed = useSyncOrgTreeFeeder(undefined, !!roleId);
   // While the seat's own tree is on its way the held one is another
   // workspace's: wait for it rather than flash the plain session. A feed that
   // fails or is refused ends the wait, and the seat stays a plain session.
-  const awaitingTree = useInboxStore((s) => !!foreignKey && `${s.orgTree?.workspace?.kind}:${s.orgTree?.workspace?.id}` !== foreignKey) && !feed.error && !feed.refused;
+  const awaitingTree =
+    useInboxStore(
+      (s) =>
+        !!foreignKey &&
+        `${s.orgTree?.workspace?.kind}:${s.orgTree?.workspace?.id}` !==
+          foreignKey,
+    ) &&
+    !feed.error &&
+    !feed.refused;
   // A seat whose role the tree does not hold (one the viewer cannot read, or a
   // cold cache still filling) stays a plain session rather than a page that
   // says it cannot find the role.
-  const roleKnown = useInboxStore((s) => !!roleId && !!windowOrgTree(s)?.roles.some((r) => r._id === roleId));
+  const roleKnown = useInboxStore(
+    (s) => !!roleId && !!windowOrgTree(s)?.roles.some((r) => r._id === roleId),
+  );
   const ask = useSessionViewAsk(sessionId);
-  const [visit, setVisit] = useState(() => ({ sessionId, plain: ask != null, ask }));
+  const [visit, setVisit] = useState(() => ({
+    sessionId,
+    plain: ask != null,
+    ask,
+  }));
   // A new session, or a new ask for the one on screen: this visit's answer.
-  if (visit.sessionId !== sessionId || (ask != null && ask !== visit.ask)) setVisit({ sessionId, plain: ask != null, ask });
-  useWatchEffect(() => { if (ask != null) settleSessionViewAsk(sessionId); }, [ask, sessionId]);
+  if (visit.sessionId !== sessionId || (ask != null && ask !== visit.ask))
+    setVisit({ sessionId, plain: ask != null, ask });
+  useWatchEffect(() => {
+    if (ask != null) settleSessionViewAsk(sessionId);
+  }, [ask, sessionId]);
   const plain = visit.sessionId === sessionId && visit.plain;
-  const setPlain = useCallback((next: boolean) => setVisit((v) => ({ ...v, sessionId, plain: next })), [sessionId]);
+  const setPlain = useCallback(
+    (next: boolean) => setVisit((v) => ({ ...v, sessionId, plain: next })),
+    [sessionId],
+  );
   const onSessionView = useCallback(() => setPlain(true), [setPlain]);
   const plainHeaderEnd = useMemo(
-    () => (roleId && roleKnown ? <><RolePageControl onRolePage={() => setPlain(false)} />{headerEnd}</> : headerEnd),
+    () =>
+      roleId && roleKnown ? (
+        <>
+          <RolePageControl onRolePage={() => setPlain(false)} />
+          {headerEnd}
+        </>
+      ) : (
+        headerEnd
+      ),
     [roleId, roleKnown, setPlain, headerEnd],
   );
 
-  if (roleId && !plain && awaitingTree) return <ConversationPlaceholder id={sessionId} />;
+  if (roleId && !plain && awaitingTree)
+    return <ConversationPlaceholder id={sessionId} />;
   if (roleId && roleKnown && !plain) {
     return (
       <WorkspaceScopeProvider value={foreignKey}>
@@ -390,7 +625,7 @@ export function QueuePageClient() {
   // page was measured re-sorting the whole never-prune cache per flip. Every use
   // below is presence checks and ordering — all covered by the signature; field
   // freshness rides the next structural render. See store/wakeSig.ts.
-  const trackedSessions = useTrackedStore([s => sessionsWakeSig(s.sessions)]);
+  const trackedSessions = useTrackedStore([(s) => sessionsWakeSig(s.sessions)]);
   const sessions = trackedSessions.sessions;
   const clientStateInitialized = useInboxStore((s) => s.clientStateInitialized);
   // No machine and no conversation (lib/firstRun.ts); the string stays
@@ -399,9 +634,14 @@ export function QueuePageClient() {
   // A first run with no team, before the person has walked the setup flow:
   // that flow is the start (/start), so the inbox hands them to it once.
   // Finishing or skipping it stamps setup_done_at.
-  const sendToSetup = useInboxStore((s) =>
-    showFirstRun && s.clientStateInitialized && !s.clientState.ui?.setup_done_at
-    && !(s.currentUser as any)?.team_id && (s.teams ?? []).length === 0);
+  const sendToSetup = useInboxStore(
+    (s) =>
+      showFirstRun &&
+      s.clientStateInitialized &&
+      !s.clientState.ui?.setup_done_at &&
+      !(s.currentUser as any)?.team_id &&
+      (s.teams ?? []).length === 0,
+  );
   const currentSessionId = useInboxStore((s) => s.currentSessionId);
   const advanceToNext = useInboxStore((s) => s.advanceToNext);
   const setCurrentSession = useInboxStore((s) => s.setCurrentSession);
@@ -421,7 +661,6 @@ export function QueuePageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const sortedSessions = useMemo(() => sortSessions(sessions), [sessionsSig]);
 
-
   const isPopstateRef = useRef(false);
   const lastAppliedParamId = useRef<string | null>(null);
   const paramProcessedRef = useRef(!searchParams.get("s"));
@@ -433,13 +672,22 @@ export function QueuePageClient() {
   // A deep-link target the server would not hand over (deleted, or private to
   // someone else). Rendered as an honest note instead of an empty pane.
   const [unavailableId, setUnavailableId] = useState<string | null>(null);
-  const [scrollTarget, setScrollTarget] = useState<{ sessionId: string; messageId: string; timestamp?: number; nonce: number } | null>(null);
-  const [activeHighlight, setActiveHighlight] = useState<string | undefined>(undefined);
+  const [scrollTarget, setScrollTarget] = useState<{
+    sessionId: string;
+    messageId: string;
+    timestamp?: number;
+    nonce: number;
+  } | null>(null);
+  const [activeHighlight, setActiveHighlight] = useState<string | undefined>(
+    undefined,
+  );
 
   // The row for a target the queue does not hold, fetched for injection. An
   // unavailable target stays subscribed: a session that syncs late, or is
   // shared with the viewer afterwards, opens on its own.
-  const { row: missingRow, failed: missingRowFailed } = useMissingSessionLookup(pendingInjectId ?? unavailableId);
+  const { row: missingRow, failed: missingRowFailed } = useMissingSessionLookup(
+    pendingInjectId ?? unavailableId,
+  );
 
   // Select session from URL param -- only when the param actually changes
   const paramSessionId = searchParams.get("s") || null;
@@ -455,7 +703,8 @@ export function QueuePageClient() {
   // seconds. A boolean only flips when the target appears/disappears, so the
   // effect now runs on the events that actually matter: param change, tab
   // activation, or the target loading in.
-  const paramSessionLoaded = paramSessionId != null && !!sessions[paramSessionId];
+  const paramSessionLoaded =
+    paramSessionId != null && !!sessions[paramSessionId];
   // Drives global view state from THIS tab's ?s= param — but only while this is
   // the active tab (a background tab must never reach into global state). It also
   // doubles as the activation handler: when a backgrounded tab is brought
@@ -471,7 +720,8 @@ export function QueuePageClient() {
     // nowhere else, so the resolver can only answer Not Found for it (and
     // before hydration there is no telling a stub from a short id yet).
     const store = useInboxStore.getState();
-    if (Object.keys(store.sessions).length === 0 && !clientStateInitialized) return;
+    if (Object.keys(store.sessions).length === 0 && !clientStateInitialized)
+      return;
     if (!isConvexId(paramSessionId) && !store.sessions[paramSessionId]) {
       router.replace(`/conversation/${encodeURIComponent(paramSessionId)}`);
       return;
@@ -486,8 +736,16 @@ export function QueuePageClient() {
         useInboxStore.setState({ pendingHighlightQuery: null });
       }
       if (store.pendingScrollToMessageId) {
-        setScrollTarget({ sessionId: paramSessionId, messageId: store.pendingScrollToMessageId, timestamp: store.pendingScrollToMessageTimestamp ?? undefined, nonce: Date.now() });
-        useInboxStore.setState({ pendingScrollToMessageId: null, pendingScrollToMessageTimestamp: null });
+        setScrollTarget({
+          sessionId: paramSessionId,
+          messageId: store.pendingScrollToMessageId,
+          timestamp: store.pendingScrollToMessageTimestamp ?? undefined,
+          nonce: Date.now(),
+        });
+        useInboxStore.setState({
+          pendingScrollToMessageId: null,
+          pendingScrollToMessageTimestamp: null,
+        });
       }
     }
     setUnavailableId(null);
@@ -499,7 +757,15 @@ export function QueuePageClient() {
     } else {
       setPendingInjectId(paramSessionId);
     }
-  }, [paramSessionId, paramSessionLoaded, navigateToSession, clientStateInitialized, isActiveTab, setShowMySessions, router]);
+  }, [
+    paramSessionId,
+    paramSessionLoaded,
+    navigateToSession,
+    clientStateInitialized,
+    isActiveTab,
+    setShowMySessions,
+    router,
+  ]);
 
   // The activation handler's other half: a home tab (no ?s=) brought forward
   // must restore the home surface. A sibling conversation tab's re-assert
@@ -550,7 +816,14 @@ export function QueuePageClient() {
     injectSession(missingRow);
     setPendingInjectId(null);
     paramProcessedRef.current = true;
-  }, [pendingInjectId, unavailableId, missingRow, sessions, navigateToSession, injectSession]);
+  }, [
+    pendingInjectId,
+    unavailableId,
+    missingRow,
+    sessions,
+    navigateToSession,
+    injectSession,
+  ]);
 
   // The note answers the link, not the inbox: once the viewer opens any other
   // session it steps aside.
@@ -560,18 +833,33 @@ export function QueuePageClient() {
 
   // Handle store-based navigation (from CommandPalette, bookmarks, etc.)
   const pendingNavigateId = useInboxStore((s) => s.pendingNavigateId);
-  const pendingScrollToMessageId = useInboxStore((s) => s.pendingScrollToMessageId);
-  const pendingScrollToMessageTimestamp = useInboxStore((s) => s.pendingScrollToMessageTimestamp);
+  const pendingScrollToMessageId = useInboxStore(
+    (s) => s.pendingScrollToMessageId,
+  );
+  const pendingScrollToMessageTimestamp = useInboxStore(
+    (s) => s.pendingScrollToMessageTimestamp,
+  );
   const pendingHighlightQuery = useInboxStore((s) => s.pendingHighlightQuery);
   useWatchEffect(() => {
     if (!pendingNavigateId) return;
     const scrollTarget = pendingScrollToMessageId;
     const scrollTs = pendingScrollToMessageTimestamp;
     const highlight = pendingHighlightQuery;
-    useInboxStore.setState({ pendingNavigateId: null, pendingScrollToMessageId: null, pendingScrollToMessageTimestamp: null, pendingHighlightQuery: null, showMySessions: false });
+    useInboxStore.setState({
+      pendingNavigateId: null,
+      pendingScrollToMessageId: null,
+      pendingScrollToMessageTimestamp: null,
+      pendingHighlightQuery: null,
+      showMySessions: false,
+    });
     if (highlight) setActiveHighlight(highlight);
     if (scrollTarget) {
-      setScrollTarget({ sessionId: pendingNavigateId, messageId: scrollTarget, timestamp: scrollTs ?? undefined, nonce: Date.now() });
+      setScrollTarget({
+        sessionId: pendingNavigateId,
+        messageId: scrollTarget,
+        timestamp: scrollTs ?? undefined,
+        nonce: Date.now(),
+      });
     }
     if (sessions[pendingNavigateId]) {
       setPendingInjectId(null);
@@ -579,7 +867,13 @@ export function QueuePageClient() {
     } else {
       setPendingInjectId(pendingNavigateId);
     }
-  }, [pendingNavigateId, pendingScrollToMessageId, pendingScrollToMessageTimestamp, sessions, navigateToSession]);
+  }, [
+    pendingNavigateId,
+    pendingScrollToMessageId,
+    pendingScrollToMessageTimestamp,
+    sessions,
+    navigateToSession,
+  ]);
 
   // Consume pendingScrollToMessageId / pendingHighlightQuery on cache-hit navigation:
   // navigateToSession sets currentSessionId (or viewingDismissedId for a dismissed
@@ -599,12 +893,28 @@ export function QueuePageClient() {
     const scrollTarget = pendingScrollToMessageId;
     const scrollTs = pendingScrollToMessageTimestamp;
     const highlight = pendingHighlightQuery;
-    useInboxStore.setState({ pendingScrollToMessageId: null, pendingScrollToMessageTimestamp: null, pendingHighlightQuery: null });
+    useInboxStore.setState({
+      pendingScrollToMessageId: null,
+      pendingScrollToMessageTimestamp: null,
+      pendingHighlightQuery: null,
+    });
     if (highlight) setActiveHighlight(highlight);
     if (scrollTarget) {
-      setScrollTarget({ sessionId: viewSessionId, messageId: scrollTarget, timestamp: scrollTs ?? undefined, nonce: Date.now() });
+      setScrollTarget({
+        sessionId: viewSessionId,
+        messageId: scrollTarget,
+        timestamp: scrollTs ?? undefined,
+        nonce: Date.now(),
+      });
     }
-  }, [currentSessionId, viewingDismissedId, pendingNavigateId, pendingScrollToMessageId, pendingScrollToMessageTimestamp, pendingHighlightQuery]);
+  }, [
+    currentSessionId,
+    viewingDismissedId,
+    pendingNavigateId,
+    pendingScrollToMessageId,
+    pendingScrollToMessageTimestamp,
+    pendingHighlightQuery,
+  ]);
 
   const prevSessionRef = useRef(currentSessionId);
   prevSessionRef.current = currentSessionId;
@@ -618,7 +928,10 @@ export function QueuePageClient() {
   // returning later opens at the live tail instead of re-jumping to the message.
   const scrollTargetArrivedRef = useRef(false);
   useWatchEffect(() => {
-    if (!scrollTarget) { scrollTargetArrivedRef.current = false; return; }
+    if (!scrollTarget) {
+      scrollTargetArrivedRef.current = false;
+      return;
+    }
     const viewSessionId = viewingDismissedId ?? currentSessionId;
     if (viewSessionId === scrollTarget.sessionId) {
       scrollTargetArrivedRef.current = true;
@@ -638,10 +951,11 @@ export function QueuePageClient() {
     if (currentSessionId) animatedHideSession(currentSessionId, "stash");
   }, [currentSessionId]);
 
-
   const setCurrentConversation = useInboxStore((s) => s.setCurrentConversation);
 
-  const rawCurrentSession = currentSessionId ? sessions[currentSessionId] : undefined;
+  const rawCurrentSession = currentSessionId
+    ? sessions[currentSessionId]
+    : undefined;
   // A linked target still loading, or one the server refused, holds the view:
   // whatever was shown before (the current session or a stashed peek) must not
   // paint in its place (that was the silent redirect to another session).
@@ -649,16 +963,20 @@ export function QueuePageClient() {
   const unlessHeld = <T extends { _id: string }>(row: T | null | undefined) =>
     heldTargetId && row && row._id !== heldTargetId ? undefined : row;
   const currentSession = unlessHeld(rawCurrentSession);
-  const viewingDismissedSession = unlessHeld(viewingDismissedId ? sessions[viewingDismissedId] : undefined) ?? null;
+  const viewingDismissedSession =
+    unlessHeld(viewingDismissedId ? sessions[viewingDismissedId] : undefined) ??
+    null;
   // Per-session chords and the triage bar read the held target from the store
   // (focusedActionSessionId), so they act on what this pane shows, not on the
   // session hidden behind it. Only the active tab speaks for the screen.
   const publishedHeldId = isActiveTab ? heldTargetId : null;
   useWatchEffect(() => {
-    if (useInboxStore.getState().heldViewId !== publishedHeldId) useInboxStore.setState({ heldViewId: publishedHeldId });
+    if (useInboxStore.getState().heldViewId !== publishedHeldId)
+      useInboxStore.setState({ heldViewId: publishedHeldId });
     if (!publishedHeldId) return;
     return () => {
-      if (useInboxStore.getState().heldViewId === publishedHeldId) useInboxStore.setState({ heldViewId: null });
+      if (useInboxStore.getState().heldViewId === publishedHeldId)
+        useInboxStore.setState({ heldViewId: null });
     };
   }, [publishedHeldId]);
 
@@ -668,7 +986,9 @@ export function QueuePageClient() {
   // regardless of what a sibling tab does to global state.
   const renderSession = isActiveTab
     ? currentSession
-    : (paramSessionId ? sessions[paramSessionId] ?? null : null);
+    : paramSessionId
+      ? (sessions[paramSessionId] ?? null)
+      : null;
   const renderDismissedSession = isActiveTab ? viewingDismissedSession : null;
   const renderShowMine = isActiveTab ? showMySessions : !paramSessionId;
 
@@ -684,7 +1004,15 @@ export function QueuePageClient() {
       });
       touchMru(currentSession._id);
     }
-  }, [currentSession?._id, currentSession?.project_path, currentSession?.git_root, currentSession?.agent_type, setCurrentConversation, touchMru, isActiveTab]);
+  }, [
+    currentSession?._id,
+    currentSession?.project_path,
+    currentSession?.git_root,
+    currentSession?.agent_type,
+    setCurrentConversation,
+    touchMru,
+    isActiveTab,
+  ]);
 
   // Machine adoption of a view when none exists. "adopt" is boot-only: the
   // store rejects it before hydration completes (a live sync racing IDB must
@@ -693,7 +1021,15 @@ export function QueuePageClient() {
   // must leave the view empty, never teleport to another session).
   useWatchEffect(() => {
     if (!isActiveTab) return;
-    if (paramSessionId || currentSessionId || currentSession || showMySessions || viewingDismissedId || pendingInjectId) return;
+    if (
+      paramSessionId ||
+      currentSessionId ||
+      currentSession ||
+      showMySessions ||
+      viewingDismissedId ||
+      pendingInjectId
+    )
+      return;
     // A fresh open is DashboardLayout's to land on the new-session page.
     if (freshHomeLaunchPending()) return;
     // Board home: an empty view means "show the fleet", never "adopt a
@@ -705,7 +1041,19 @@ export function QueuePageClient() {
     }
     const top = sortedSessions[0];
     if (top) setCurrentSession(top._id, "adopt");
-  }, [paramSessionId, currentSessionId, currentSession, showMySessions, viewingDismissedId, pendingInjectId, sortedSessions, setCurrentSession, isActiveTab, inboxHome, setShowMySessions]);
+  }, [
+    paramSessionId,
+    currentSessionId,
+    currentSession,
+    showMySessions,
+    viewingDismissedId,
+    pendingInjectId,
+    sortedSessions,
+    setCurrentSession,
+    isActiveTab,
+    inboxHome,
+    setShowMySessions,
+  ]);
 
   // Sync URL when current session changes (but not before initial param is
   // resolved). Only the active tab owns the address bar — a background pane must
@@ -724,7 +1072,10 @@ export function QueuePageClient() {
     // that happened to be open before. A peek at a hidden session names the
     // session it shows too, as opening its link does, or a reload or a tab
     // switch lands on the session behind it.
-    const targetId = heldTargetId ?? viewingDismissedId ?? useInboxStore.getState().getCurrentSession()?._id;
+    const targetId =
+      heldTargetId ??
+      viewingDismissedId ??
+      useInboxStore.getState().getCurrentSession()?._id;
     // A local stub (a blank new session not yet created on the server) never
     // reaches the address bar: a reload hands the URL to the conversation
     // route, whose resolver has never heard of it and answers Not Found, and
@@ -741,9 +1092,16 @@ export function QueuePageClient() {
       // from the bare inbox (replace avoids a dead bare-inbox entry that would
       // just auto-select again on back), or respelling /inbox?s=<id> of the SAME
       // session (pushing would stack a duplicate entry per select).
-      const shownId = urlSessionId(window.location.pathname, window.location.search);
+      const shownId = urlSessionId(
+        window.location.pathname,
+        window.location.search,
+      );
       const switchingSessions = !!shownId && shownId !== targetId;
-      window.history[switchingSessions ? "pushState" : "replaceState"](withInboxView({ inboxId: targetId }), "", targetPath);
+      window.history[switchingSessions ? "pushState" : "replaceState"](
+        withInboxView({ inboxId: targetId }),
+        "",
+        targetPath,
+      );
     }
   }, [currentSession?._id, viewingDismissedId, isActiveTab, heldTargetId]);
 
@@ -751,9 +1109,10 @@ export function QueuePageClient() {
   useEventListener("popstate", (e: PopStateEvent) => {
     if (!isActiveTab) return;
     const url = new URL(window.location.href);
-    const id = e.state?.inboxId
-      || url.searchParams.get("s")
-      || url.pathname.match(/^\/conversation\/([a-z0-9]{32})$/)?.[1];
+    const id =
+      e.state?.inboxId ||
+      url.searchParams.get("s") ||
+      url.pathname.match(/^\/conversation\/([a-z0-9]{32})$/)?.[1];
     if (!id) return;
     if (sessions[id]) {
       isPopstateRef.current = true;
@@ -761,7 +1120,6 @@ export function QueuePageClient() {
       if (showMySessions) setShowMySessions(false);
     }
   });
-
 
   // Warm the IDB message cache for the sessions most likely to be opened next.
   // This used to iterate the WHOLE never-prune map in the render body — with a
@@ -783,14 +1141,21 @@ export function QueuePageClient() {
     const url = new URL(window.location.href);
     if (url.searchParams.has("highlight")) {
       url.searchParams.delete("highlight");
-      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        url.pathname + url.search + url.hash,
+      );
     }
   }, []);
 
-  const handleNavigateToConversation = useCallback((conversationId: string) => {
-    navigateToSession(conversationId);
-    if (showMySessions) setShowMySessions(false);
-  }, [navigateToSession, showMySessions, setShowMySessions]);
+  const handleNavigateToConversation = useCallback(
+    (conversationId: string) => {
+      navigateToSession(conversationId);
+      if (showMySessions) setShowMySessions(false);
+    },
+    [navigateToSession, showMySessions, setShowMySessions],
+  );
 
   const handleBack = useCallback(() => {
     setShowMySessions(true);
@@ -809,9 +1174,13 @@ export function QueuePageClient() {
   );
   const inboxContent = (
     <>
-      {pendingInjectId && isConvexId(pendingInjectId) && <SessionPrewarm sessionId={pendingInjectId} />}
+      {pendingInjectId && isConvexId(pendingInjectId) && (
+        <SessionPrewarm sessionId={pendingInjectId} />
+      )}
       {renderShowMine ? (
-        showFirstRun ? firstRun : inboxHome === "board" ? (
+        showFirstRun ? (
+          firstRun
+        ) : inboxHome === "board" ? (
           <ErrorBoundary name="FleetBoard" level="inline">
             <FleetBoard />
           </ErrorBoundary>
@@ -822,7 +1191,11 @@ export function QueuePageClient() {
                 <InboxHomeToggle />
               </div>
               <ErrorBoundary name="ActivityFeed" level="inline">
-                <ActivityFeed mode="personal" compact onNavigate={handleNavigateToConversation} />
+                <ActivityFeed
+                  mode="personal"
+                  compact
+                  onNavigate={handleNavigateToConversation}
+                />
               </ErrorBoundary>
             </div>
           </div>
@@ -836,11 +1209,24 @@ export function QueuePageClient() {
             lastUserMessage={renderDismissedSession.last_user_message}
             sessionError={renderDismissedSession.session_error}
             onBack={handleBack}
-            targetMessageId={scrollTarget?.sessionId === renderDismissedSession._id ? scrollTarget.messageId : undefined}
-            targetNonce={scrollTarget?.sessionId === renderDismissedSession._id ? scrollTarget.nonce : undefined}
-            targetTimestamp={scrollTarget?.sessionId === renderDismissedSession._id ? scrollTarget.timestamp : undefined}
+            targetMessageId={
+              scrollTarget?.sessionId === renderDismissedSession._id
+                ? scrollTarget.messageId
+                : undefined
+            }
+            targetNonce={
+              scrollTarget?.sessionId === renderDismissedSession._id
+                ? scrollTarget.nonce
+                : undefined
+            }
+            targetTimestamp={
+              scrollTarget?.sessionId === renderDismissedSession._id
+                ? scrollTarget.timestamp
+                : undefined
+            }
             highlightQuery={activeHighlight}
-            onClearHighlight={handleClearHighlight}          />
+            onClearHighlight={handleClearHighlight}
+          />
         </ErrorBoundary>
       ) : renderSession ? (
         <ErrorBoundary name="Conversation" level="inline">
@@ -852,11 +1238,24 @@ export function QueuePageClient() {
             lastUserMessage={renderSession.last_user_message}
             sessionError={renderSession.session_error}
             onBack={handleBack}
-            targetMessageId={scrollTarget?.sessionId === renderSession._id ? scrollTarget.messageId : undefined}
-            targetNonce={scrollTarget?.sessionId === renderSession._id ? scrollTarget.nonce : undefined}
-            targetTimestamp={scrollTarget?.sessionId === renderSession._id ? scrollTarget.timestamp : undefined}
+            targetMessageId={
+              scrollTarget?.sessionId === renderSession._id
+                ? scrollTarget.messageId
+                : undefined
+            }
+            targetNonce={
+              scrollTarget?.sessionId === renderSession._id
+                ? scrollTarget.nonce
+                : undefined
+            }
+            targetTimestamp={
+              scrollTarget?.sessionId === renderSession._id
+                ? scrollTarget.timestamp
+                : undefined
+            }
             highlightQuery={activeHighlight}
-            onClearHighlight={handleClearHighlight}          />
+            onClearHighlight={handleClearHighlight}
+          />
         </ErrorBoundary>
       ) : pendingInjectId ? (
         <ConversationPlaceholder id={pendingInjectId} />
@@ -864,7 +1263,10 @@ export function QueuePageClient() {
         <ConversationUnavailable
           failed={missingRowFailed}
           actionLabel="Back to inbox"
-          onAction={() => { setUnavailableId(null); handleBack(); }}
+          onAction={() => {
+            setUnavailableId(null);
+            handleBack();
+          }}
         />
       ) : showFirstRun ? (
         firstRun
@@ -874,7 +1276,11 @@ export function QueuePageClient() {
         <div className="h-full overflow-y-auto" data-main-scroll>
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
             <ErrorBoundary name="ActivityFeed" level="inline">
-              <ActivityFeed mode="personal" compact onNavigate={handleNavigateToConversation} />
+              <ActivityFeed
+                mode="personal"
+                compact
+                onNavigate={handleNavigateToConversation}
+              />
             </ErrorBoundary>
           </div>
         </div>

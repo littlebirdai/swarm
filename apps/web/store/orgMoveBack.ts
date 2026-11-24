@@ -5,15 +5,41 @@
 // with no failover (or a newer one), and a refusal puts the line back.
 import type { RoleFailover } from "@codecast/shared/contracts/roleFailover";
 
-export type MoveBackIntent = { kind: "moveBack"; id: string; role_id: string; handle: string; from: RoleFailover; keep?: true; at: number };
-type Tree = { roles: Array<{ _id: string; handle: string; failover?: RoleFailover }> };
+export type MoveBackIntent = {
+  kind: "moveBack";
+  id: string;
+  role_id: string;
+  handle: string;
+  from: RoleFailover;
+  keep?: true;
+  at: number;
+};
+type Tree = {
+  roles: Array<{ _id: string; handle: string; failover?: RoleFailover }>;
+};
 
-const roleOf = (tree: Tree | null | undefined, roleId: string) => tree?.roles.find((r) => r._id === roleId);
+const roleOf = (tree: Tree | null | undefined, roleId: string) =>
+  tree?.roles.find((r) => r._id === roleId);
 
 /** The intent for a press on Move back (or Keep here, `keep`), or null when the role has no move to settle. */
-export function moveBackIntent(tree: Tree, roleId: string, id: string, keep?: boolean): MoveBackIntent | null {
+export function moveBackIntent(
+  tree: Tree,
+  roleId: string,
+  id: string,
+  keep?: boolean,
+): MoveBackIntent | null {
   const role = roleOf(tree, roleId);
-  return role?.failover?.to ? { kind: "moveBack", id, role_id: roleId, handle: role.handle, from: JSON.parse(JSON.stringify(role.failover)), ...(keep ? { keep: true as const } : {}), at: Date.now() } : null;
+  return role?.failover?.to
+    ? {
+        kind: "moveBack",
+        id,
+        role_id: roleId,
+        handle: role.handle,
+        from: JSON.parse(JSON.stringify(role.failover)),
+        ...(keep ? { keep: true as const } : {}),
+        at: Date.now(),
+      }
+    : null;
 }
 
 export function moveBackEchoed(tree: Tree, intent: MoveBackIntent): boolean {
@@ -26,7 +52,10 @@ export function applyMoveBack(tree: Tree, intent: MoveBackIntent): void {
   if (role?.failover?.at === intent.from.at) delete role.failover;
 }
 
-export function revertMoveBack(tree: Tree | null | undefined, intent: MoveBackIntent): void {
+export function revertMoveBack(
+  tree: Tree | null | undefined,
+  intent: MoveBackIntent,
+): void {
   const role = roleOf(tree, intent.role_id);
   if (role && !role.failover) role.failover = intent.from;
 }

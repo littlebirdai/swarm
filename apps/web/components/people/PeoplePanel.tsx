@@ -1,5 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ChevronRight, Headphones, LayoutGrid, List, MessageSquare, PictureInPicture2, Pin, Settings2, Volume2, VolumeX, X } from "lucide-react";
+import {
+  ChevronRight,
+  Headphones,
+  LayoutGrid,
+  List,
+  MessageSquare,
+  PictureInPicture2,
+  Pin,
+  Settings2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { PeopleStrip } from "./PeopleStrip";
 import { PeopleLegend } from "./PeopleLegend";
 import { TeamPulseLine } from "./TeamPulseLine";
@@ -116,7 +128,19 @@ export function PeoplePanel({
       </h1>
       {density === "strip" ? (
         <ErrorBoundary name="People strip" level="inline" fallback={null}>
-          <PeopleStrip callsEnabled={callsEnabled} data={data} pulse={pulse} pin={<><CallSettingsButton onClick={() => setSettingsOpen(true)} /><FacesOverlayButton /><PinButton />{host && <WallCloseButton />}</>} />
+          <PeopleStrip
+            callsEnabled={callsEnabled}
+            data={data}
+            pulse={pulse}
+            pin={
+              <>
+                <CallSettingsButton onClick={() => setSettingsOpen(true)} />
+                <FacesOverlayButton />
+                <PinButton />
+                {host && <WallCloseButton />}
+              </>
+            }
+          />
         </ErrorBoundary>
       ) : (
         <>
@@ -136,7 +160,11 @@ export function PeoplePanel({
               </ErrorBoundary>
             )}
             {view === "list" ? (
-              <Roster callsEnabled={callsEnabled} compact={density === "compact"} data={data} />
+              <Roster
+                callsEnabled={callsEnabled}
+                compact={density === "compact"}
+                data={data}
+              />
             ) : (
               <PeopleWallView callsEnabled={callsEnabled} data={data} />
             )}
@@ -150,7 +178,9 @@ export function PeoplePanel({
           header and the floating window carry the card. Never inside the
           voice host: there the call is a shape of the window itself. */}
       {!host && <CallHandoff />}
-      {settingsOpen && <CallSettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <CallSettingsSheet onClose={() => setSettingsOpen(false)} />
+      )}
     </main>
   );
 }
@@ -200,7 +230,15 @@ function PanelHeader({
             the window, and at these widths it was an ellipsis fighting the
             controls. The face carries it as a tooltip. */}
         <div className={`flex h-9 items-center gap-2 pr-2 ${head}`}>
-          <MemberFace member={me ?? {}} size={22} title={me ? `${memberDisplayName(me)} · ${presenceLabel(memberPresenceVisual(me))}` : ""} />
+          <MemberFace
+            member={me ?? {}}
+            size={22}
+            title={
+              me
+                ? `${memberDisplayName(me)} · ${presenceLabel(memberPresenceVisual(me))}`
+                : ""
+            }
+          />
           <button
             ref={wordRef}
             type="button"
@@ -231,7 +269,12 @@ function PanelHeader({
             }}
           >
             {STATUSES.map((st) => (
-              <StatusPill key={st} status={st} active={status === st} onPick={closeChooser} />
+              <StatusPill
+                key={st}
+                status={st}
+                active={status === st}
+                onPick={closeChooser}
+              />
             ))}
             {callsEnabled && <WalkieDoorToggle compact />}
           </div>
@@ -250,7 +293,10 @@ function PanelHeader({
       >
         {/* The visible title. The document's h1 is the always-present hidden
             one on the panel, so this is presentation only. */}
-        <div aria-hidden="true" className="text-mark font-medium uppercase tracking-wider">
+        <div
+          aria-hidden="true"
+          className="text-mark font-medium uppercase tracking-wider"
+        >
           People
         </div>
         <div className="flex items-center gap-1.5">
@@ -294,7 +340,13 @@ function PanelHeader({
  * pill, because to the person it is the same fact — the call is not in front
  * of them — with a different way back.
  */
-function CallBehindPill({ show, onShowCall }: { show: boolean; onShowCall?: () => void }) {
+function CallBehindPill({
+  show,
+  onShowCall,
+}: {
+  show: boolean;
+  onShowCall?: () => void;
+}) {
   if (!show || !onShowCall) return null;
   return (
     <button
@@ -327,7 +379,10 @@ function WallCloseButton() {
 
 /** One table for the three statuses, so the compact header's word and the
  *  pills can never colour the same status two ways. */
-const STATUS_STYLE: Record<(typeof STATUSES)[number], { text: string; activeBg: string }> = {
+const STATUS_STYLE: Record<
+  (typeof STATUSES)[number],
+  { text: string; activeBg: string }
+> = {
   available: { text: "text-sol-cyan", activeBg: "bg-sol-cyan/15" },
   busy: { text: "text-sol-red", activeBg: "bg-sol-red/15" },
   away: { text: "text-sol-text-muted", activeBg: "bg-sol-bg-highlight" },
@@ -348,7 +403,9 @@ const STATUS_STYLE: Record<(typeof STATUSES)[number], { text: string; activeBg: 
 type PeopleView = "wall" | "list";
 
 function usePeopleView(): PeopleView {
-  return useInboxStore((s) => (s.clientState.ui?.people_view === "list" ? "list" : "wall"));
+  return useInboxStore((s) =>
+    s.clientState.ui?.people_view === "list" ? "list" : "wall",
+  );
 }
 
 function ViewSwitch({ compact = false }: { compact?: boolean }) {
@@ -361,25 +418,43 @@ function ViewSwitch({ compact = false }: { compact?: boolean }) {
     return (
       <button
         type="button"
-        onClick={() => useInboxStore.getState().updateClientUI({ people_view: other })}
-        title={other === "wall" ? "Show faces, sized by presence" : "Show one row per person"}
+        onClick={() =>
+          useInboxStore.getState().updateClientUI({ people_view: other })
+        }
+        title={
+          other === "wall"
+            ? "Show faces, sized by presence"
+            : "Show one row per person"
+        }
         aria-label="List view"
         aria-pressed={view === "list"}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-sol-text-dim transition-colors hover:bg-sol-bg-highlight hover:text-sol-text"
       >
-        {view === "wall" ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}
+        {view === "wall" ? (
+          <LayoutGrid className="h-3.5 w-3.5" />
+        ) : (
+          <List className="h-3.5 w-3.5" />
+        )}
       </button>
     );
   }
   return (
-    <div className="people-view-switch" role="group" aria-label="How to show the team">
+    <div
+      className="people-view-switch"
+      role="group"
+      aria-label="How to show the team"
+    >
       {(["wall", "list"] as const).map((v) => (
         <button
           key={v}
           type="button"
           aria-pressed={view === v}
-          title={v === "wall" ? "Faces, sized by presence" : "One row per person"}
-          onClick={() => useInboxStore.getState().updateClientUI({ people_view: v })}
+          title={
+            v === "wall" ? "Faces, sized by presence" : "One row per person"
+          }
+          onClick={() =>
+            useInboxStore.getState().updateClientUI({ people_view: v })
+          }
         >
           {v}
         </button>
@@ -451,7 +526,11 @@ function WalkieDoorToggle({ compact = false }: { compact?: boolean }) {
       {/* A speaker, not the huddle's headphones: this door decides whether a
           teammate's voice PLAYS here, and the two gestures must not share a
           glyph when they sit six pixels apart. */}
-      {open ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+      {open ? (
+        <Volume2 className="h-3.5 w-3.5" />
+      ) : (
+        <VolumeX className="h-3.5 w-3.5" />
+      )}
       {!compact && (open ? "Open" : "Shut")}
     </button>
   );
@@ -500,7 +579,11 @@ function FacesOverlayButton() {
       type="button"
       onClick={() => void (open ? closeFacesWindow() : openFacesWindow())}
       aria-pressed={open}
-      title={open ? "Floating faces are on your screen" : "Float the team's faces over your work"}
+      title={
+        open
+          ? "Floating faces are on your screen"
+          : "Float the team's faces over your work"
+      }
       className={`rounded p-1 transition-colors ${
         open ? "text-sol-cyan" : "text-sol-text-dim hover:text-sol-text"
       }`}
@@ -558,7 +641,16 @@ function Roster({
   compact: boolean;
   data: PeopleRosterData;
 }) {
-  const { now, viewerId, members, fleets, roomFor, dmFor, row, strayWorkspace } = data;
+  const {
+    now,
+    viewerId,
+    members,
+    fleets,
+    roomFor,
+    dmFor,
+    row,
+    strayWorkspace,
+  } = data;
 
   const groups = useMemo(() => groupMembersByBand(members), [members]);
 
@@ -594,12 +686,16 @@ function Roster({
                   className={`h-3 w-3 transition-transform ${showOffline ? "rotate-90" : ""}`}
                 />
                 {group.label}
-                <span className="text-sol-text-dim/70">{group.members.length}</span>
+                <span className="text-sol-text-dim/70">
+                  {group.members.length}
+                </span>
               </button>
             ) : (
               <div className="flex items-center gap-1 px-3 pb-0.5 pt-2 text-mark font-medium uppercase tracking-wider text-sol-text-dim">
                 {group.label}
-                <span className="text-sol-text-dim/70">{group.members.length}</span>
+                <span className="text-sol-text-dim/70">
+                  {group.members.length}
+                </span>
               </div>
             )}
             {!collapsed &&
@@ -660,7 +756,15 @@ function RosterRow({
   const name = memberDisplayName(member);
   const visual = memberPresenceVisual(member);
   const line = useMemo(
-    () => presenceActivityLine(member, { now, fleet, room, engagement, inHuddle, viewerId }),
+    () =>
+      presenceActivityLine(member, {
+        now,
+        fleet,
+        room,
+        engagement,
+        inHuddle,
+        viewerId,
+      }),
     [member, now, fleet, room, engagement, inHuddle, viewerId],
   );
   const huddle = useMemberHuddle(member, viewerId, room, name);
@@ -691,7 +795,12 @@ function RosterRow({
       onClick={message}
       title={compact ? `${name} · ${line}` : undefined}
     >
-      <MemberFace member={member} size={compact ? 24 : 28} title="" showHuddle={!compact} />
+      <MemberFace
+        member={member}
+        size={compact ? 24 : 28}
+        title=""
+        showHuddle={!compact}
+      />
       {compact ? (
         // One line. The activity keeps a floor of a few characters and the
         // name yields past it: a one-letter activity line reads as a glitch,
@@ -708,8 +817,12 @@ function RosterRow({
         </div>
       ) : (
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[12.5px] leading-tight text-sol-text">{name}</div>
-          <div className={`truncate text-meta leading-tight ${PRESENCE_META[visual].text}`}>
+          <div className="truncate text-[12.5px] leading-tight text-sol-text">
+            {name}
+          </div>
+          <div
+            className={`truncate text-meta leading-tight ${PRESENCE_META[visual].text}`}
+          >
             {line}
           </div>
         </div>
@@ -774,7 +887,9 @@ function RosterRow({
               roomKey={dmRoomKey(viewerId, id)}
               // Only at press time: this OPENS the DM when there is not one
               // yet, and pointing at a name must not create conversations.
-              resolveChannelId={() => useInboxStore.getState().openDmChannel([id])}
+              resolveChannelId={() =>
+                useInboxStore.getState().openDmChannel([id])
+              }
               size="sm"
               title={`Hold to talk to ${name}`}
             />

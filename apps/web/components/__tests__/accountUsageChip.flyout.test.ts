@@ -14,7 +14,9 @@ const chip = readFileSync(join(web, "components/AccountUsageChip.tsx"), "utf8");
 describe("usage chip hover panel vs titlebar drag", () => {
   test("globals.css marks [data-flyout] no-drag", () => {
     // [data-flyout] may share its block with other selectors (modal layers).
-    const rule = css.match(/(?:^|[},])\s*\[data-flyout\]\s*(?:,[^{}]*)?\{([^}]+)\}/m);
+    const rule = css.match(
+      /(?:^|[},])\s*\[data-flyout\]\s*(?:,[^{}]*)?\{([^}]+)\}/m,
+    );
     expect(rule).toBeTruthy();
     expect(rule![1]).toMatch(/-webkit-app-region:\s*no-drag/);
   });
@@ -38,7 +40,10 @@ describe("every flyout over the titlebar opts out of drag", () => {
 
   test("the face card band and the face chat bubble carry data-flyout", () => {
     const row = readFileSync(join(web, "components/faces/FaceRow.tsx"), "utf8");
-    const chat = readFileSync(join(web, "components/faces/FaceChatLayer.tsx"), "utf8");
+    const chat = readFileSync(
+      join(web, "components/faces/FaceChatLayer.tsx"),
+      "utf8",
+    );
     expect(row).toMatch(/className="face-row-below"[^>]*data-flyout/);
     expect(chat).toMatch(/className="fc-bubble"\s+data-flyout/);
   });

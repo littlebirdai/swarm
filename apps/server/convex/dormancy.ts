@@ -13,7 +13,11 @@
 // something warrants input" case, so they surface the home instead of parking
 // it. Standing loops (recurring / event) and `once` follow-ups park with
 // different strength — see ArmedTriggerHomes — so the loader keeps them apart.
-import { isHostedAgentType, isLoopFresh, isMachineDeliveredMessage } from "@codecast/shared/contracts";
+import {
+  isHostedAgentType,
+  isLoopFresh,
+  isMachineDeliveredMessage,
+} from "@codecast/shared/contracts";
 import type { QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
@@ -29,13 +33,15 @@ type InjectTriggerTask = {
 
 export function isArmedInjectTrigger(task: InjectTriggerTask): boolean {
   if (!task.originating_conversation_id) return false;
-  if (!(ARMED_TRIGGER_STATUSES as readonly string[]).includes(task.status)) return false;
+  if (!(ARMED_TRIGGER_STATUSES as readonly string[]).includes(task.status))
+    return false;
   if (task.last_run_failed || task.last_run_needs_attention) return false;
   return true;
 }
 
 export function isStandingInjectTrigger(task: InjectTriggerTask): boolean {
-  if (task.schedule_type !== "recurring" && task.schedule_type !== "event") return false;
+  if (task.schedule_type !== "recurring" && task.schedule_type !== "event")
+    return false;
   return isArmedInjectTrigger(task);
 }
 
@@ -59,11 +65,15 @@ export async function loadArmedTriggerHomes(
   for (const status of ARMED_TRIGGER_STATUSES) {
     const tasks = await ctx.db
       .query("agent_tasks")
-      .withIndex("by_user_status", (q) => q.eq("user_id", userId).eq("status", status))
+      .withIndex("by_user_status", (q) =>
+        q.eq("user_id", userId).eq("status", status),
+      )
       .collect();
     for (const task of tasks) {
       if (!isArmedInjectTrigger(task)) continue;
-      const bucket = isStandingInjectTrigger(task) ? homes.standing : homes.once;
+      const bucket = isStandingInjectTrigger(task)
+        ? homes.standing
+        : homes.once;
       bucket.add(task.originating_conversation_id!.toString());
     }
   }
@@ -77,7 +87,9 @@ export async function loadArmedTriggerHomes(
 // truncated preview matches). A human who spoke last is triaging the session,
 // so an armed-trigger home with a human turn on top classifies like any other
 // conversation instead of parking.
-export function isMachineDeliveredPreview(preview: string | null | undefined): boolean {
+export function isMachineDeliveredPreview(
+  preview: string | null | undefined,
+): boolean {
   return isMachineDeliveredMessage(preview);
 }
 
@@ -87,7 +99,11 @@ export function isMachineDeliveredPreview(preview: string | null | undefined): b
 // message whatever the agent said afterwards — the same field the web reads
 // as last_user_message.
 export function isArmedTriggerHome(
-  conv: { _id: { toString(): string }; last_message_preview?: string | null; agent_type?: string | null },
+  conv: {
+    _id: { toString(): string };
+    last_message_preview?: string | null;
+    agent_type?: string | null;
+  },
   armedHomes: Set<string>,
 ): boolean {
   if (!armedHomes.has(conv._id.toString())) return false;
@@ -103,8 +119,13 @@ function triggerMayPark(conv: { agent_type?: string | null }): boolean {
 
 // The machine-delivered-last-turn half of isArmedTriggerHome, shared with the
 // denormalized path below.
-export function lastTurnAllowsPark(conv: { last_message_preview?: string | null }): boolean {
-  return !conv.last_message_preview || isMachineDeliveredPreview(conv.last_message_preview);
+export function lastTurnAllowsPark(conv: {
+  last_message_preview?: string | null;
+}): boolean {
+  return (
+    !conv.last_message_preview ||
+    isMachineDeliveredPreview(conv.last_message_preview)
+  );
 }
 
 // ── Denormalized armed state (conversations.armed_trigger_kind) ─────────────
@@ -119,7 +140,9 @@ export type ArmedTriggerKind = (typeof ARMED_TRIGGER_KINDS)[number];
 
 // The kind for one conversation given every agent_tasks row that injects into
 // it. Standing wins over once: a recurring loop owns the session outright.
-export function armedTriggerKindFor(tasks: InjectTriggerTask[]): ArmedTriggerKind {
+export function armedTriggerKindFor(
+  tasks: InjectTriggerTask[],
+): ArmedTriggerKind {
   let kind: ArmedTriggerKind = "none";
   for (const task of tasks) {
     if (!isArmedInjectTrigger(task)) continue;
@@ -132,7 +155,11 @@ export function armedTriggerKindFor(tasks: InjectTriggerTask[]): ArmedTriggerKin
 // isArmedTriggerHome over the row's own denormalized field instead of a loaded
 // set — same last-turn rule, no reads.
 export function isArmedTriggerHomeOfKind(
-  conv: { armed_trigger_kind?: string | null; last_message_preview?: string | null; agent_type?: string | null },
+  conv: {
+    armed_trigger_kind?: string | null;
+    last_message_preview?: string | null;
+    agent_type?: string | null;
+  },
   kind: Exclude<ArmedTriggerKind, "none">,
 ): boolean {
   if ((conv.armed_trigger_kind ?? "none") !== kind) return false;
@@ -166,13 +193,29 @@ export function armedTriggerHomeLoader(ctx: Pick<QueryCtx, "db">) {
 // and an overdue wakeup is a dead harness whose promise must not hide the row.
 export function isArmedLoopHome(
   conv: {
-    loop_state?: { status: string; wakeup_at: number; fired_at?: number | null; event_at: number } | null;
+    loop_state?: {
+      status: string;
+      wakeup_at: number;
+      fired_at?: number | null;
+      event_at: number;
+    } | null;
     last_message_preview?: string | null;
   },
   now: number,
 ): boolean {
   const loop = conv.loop_state;
   if (!loop || loop.status !== "armed") return false;
-  if (!isLoopFresh({ status: "armed", wakeup_at: loop.wakeup_at, fired_at: loop.fired_at ?? undefined, event_at: loop.event_at }, now)) return false;
+  if (
+    !isLoopFresh(
+      {
+        status: "armed",
+        wakeup_at: loop.wakeup_at,
+        fired_at: loop.fired_at ?? undefined,
+        event_at: loop.event_at,
+      },
+      now,
+    )
+  )
+    return false;
   return lastTurnAllowsPark(conv);
 }

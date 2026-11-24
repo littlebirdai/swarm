@@ -9,7 +9,15 @@ import { useRecentSwitcher } from "../hooks/useRecentSwitcher";
 export function RecentSwitcherHost() {
   const s = useRecentSwitcher();
   if (!s.open) return null;
-  return <RecentSwitcher items={s.items} selectedIndex={s.selectedIndex} mode={s.mode} onSelectedIndexChange={s.setSelectedIndex} onSelect={s.select} />;
+  return (
+    <RecentSwitcher
+      items={s.items}
+      selectedIndex={s.selectedIndex}
+      mode={s.mode}
+      onSelectedIndexChange={s.setSelectedIndex}
+      onSelect={s.select}
+    />
+  );
 }
 
 export function RecentSwitcher({

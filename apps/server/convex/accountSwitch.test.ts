@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { insertSwitchCommands, codexResetCreditOffer, autoSwitchCheck, throttleContinueCheck } from "./accountSwitch";
+import {
+  insertSwitchCommands,
+  codexResetCreditOffer,
+  autoSwitchCheck,
+  throttleContinueCheck,
+} from "./accountSwitch";
 import { makeFakeDb } from "./testDb";
 import {
   isBlockedConversation,
@@ -43,35 +48,55 @@ import {
 import { codexErrorKind } from "@codecast/shared/contracts";
 
 describe("isBlockedConversation", () => {
-  const base = { pending_api_error: true, pending_api_error_kind: "limit", agent_type: "claude_code" };
+  const base = {
+    pending_api_error: true,
+    pending_api_error_kind: "limit",
+    agent_type: "claude_code",
+  };
 
   test("selects claude conversations parked on a limit, auth, or connection banner", () => {
     expect(isBlockedConversation(base)).toBe(true);
-    expect(isBlockedConversation({ ...base, pending_api_error_kind: "auth" })).toBe(true);
+    expect(
+      isBlockedConversation({ ...base, pending_api_error_kind: "auth" }),
+    ).toBe(true);
     // A dropped connection ("Connection closed mid-response") parks the turn
     // at the prompt — a plain continue resumes it, same as limit.
-    expect(isBlockedConversation({ ...base, pending_api_error_kind: "connection" })).toBe(true);
+    expect(
+      isBlockedConversation({ ...base, pending_api_error_kind: "connection" }),
+    ).toBe(true);
   });
 
   test("never revives what the user dismissed", () => {
-    expect(isBlockedConversation({ ...base, inbox_dismissed_at: 123 })).toBe(false);
+    expect(isBlockedConversation({ ...base, inbox_dismissed_at: 123 })).toBe(
+      false,
+    );
   });
 
   test("transient provider errors are not blocked sessions", () => {
     // A statusful 529/500 banner (kind "error") self-retries — counting it
     // threw a mid-conversation 500 into the "blocked on usage limits" banner.
-    expect(isBlockedConversation({ ...base, pending_api_error_kind: "error" })).toBe(false);
+    expect(
+      isBlockedConversation({ ...base, pending_api_error_kind: "error" }),
+    ).toBe(false);
     // Pre-kind rows (flag without a kind) are also out: unknown ≠ revivable.
-    expect(isBlockedConversation({ ...base, pending_api_error_kind: undefined })).toBe(false);
+    expect(
+      isBlockedConversation({ ...base, pending_api_error_kind: undefined }),
+    ).toBe(false);
   });
 
   test("ignores healthy conversations and agents with no recovery chain", () => {
-    expect(isBlockedConversation({ ...base, pending_api_error: false })).toBe(false);
+    expect(isBlockedConversation({ ...base, pending_api_error: false })).toBe(
+      false,
+    );
     expect(isBlockedConversation({ agent_type: "claude_code" })).toBe(false);
     // Cursor and friends have no account machinery at all: their banners are
     // someone else's login problem.
-    expect(isBlockedConversation({ ...base, agent_type: "cursor" })).toBe(false);
-    expect(isBlockedConversation({ ...base, agent_type: undefined })).toBe(false);
+    expect(isBlockedConversation({ ...base, agent_type: "cursor" })).toBe(
+      false,
+    );
+    expect(isBlockedConversation({ ...base, agent_type: undefined })).toBe(
+      false,
+    );
   });
 
   // ct-49676. A codex row is admitted for the kinds codex can actually recover
@@ -79,17 +104,27 @@ describe("isBlockedConversation", () => {
   test("codex is blocked on the kinds its own recovery chain can act on", () => {
     const codex = { ...base, agent_type: "codex" };
     expect(isBlockedConversation(codex)).toBe(true); // limit: continue, or a reset credit
-    expect(isBlockedConversation({ ...codex, pending_api_error_kind: "throttle" })).toBe(true); // paced continue
-    expect(isBlockedConversation({ ...codex, pending_api_error_kind: "safety" })).toBe(true); // badge + hint only
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "throttle" }),
+    ).toBe(true); // paced continue
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "safety" }),
+    ).toBe(true); // badge + hint only
   });
 
   test("codex is NOT blocked on kinds only a Claude credential could fix", () => {
     const codex = { ...base, agent_type: "codex" };
     // The auth branch swaps a CLAUDE credential; routing a codex login failure
     // into it would spend a Claude account on a session it cannot reach.
-    expect(isBlockedConversation({ ...codex, pending_api_error_kind: "auth" })).toBe(false);
-    expect(isBlockedConversation({ ...codex, pending_api_error_kind: "connection" })).toBe(false);
-    expect(isBlockedConversation({ ...codex, pending_api_error_kind: "fatal" })).toBe(false);
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "auth" }),
+    ).toBe(false);
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "connection" }),
+    ).toBe(false);
+    expect(
+      isBlockedConversation({ ...codex, pending_api_error_kind: "fatal" }),
+    ).toBe(false);
   });
 });
 
@@ -97,16 +132,38 @@ describe("isRemoteAuthBlocked", () => {
   const remotes = new Set(["mac-1"]);
 
   test("selects auth-parked conversations owned by a remote device", () => {
-    expect(isRemoteAuthBlocked({ pending_api_error_kind: "auth", owner_device_id: "mac-1" }, remotes)).toBe(true);
+    expect(
+      isRemoteAuthBlocked(
+        { pending_api_error_kind: "auth", owner_device_id: "mac-1" },
+        remotes,
+      ),
+    ).toBe(true);
   });
 
   test("limit-kind, local owners, and unowned conversations are out of scope", () => {
     // Limit banners aren't fixed by a credential push — the account is fine.
-    expect(isRemoteAuthBlocked({ pending_api_error_kind: "limit", owner_device_id: "mac-1" }, remotes)).toBe(false);
+    expect(
+      isRemoteAuthBlocked(
+        { pending_api_error_kind: "limit", owner_device_id: "mac-1" },
+        remotes,
+      ),
+    ).toBe(false);
     // A local owner can /login itself; the push changes nothing for it.
-    expect(isRemoteAuthBlocked({ pending_api_error_kind: "auth", owner_device_id: "laptop-1" }, remotes)).toBe(false);
-    expect(isRemoteAuthBlocked({ pending_api_error_kind: "auth" }, remotes)).toBe(false);
-    expect(isRemoteAuthBlocked({ pending_api_error_kind: "auth", owner_device_id: "mac-1" }, new Set())).toBe(false);
+    expect(
+      isRemoteAuthBlocked(
+        { pending_api_error_kind: "auth", owner_device_id: "laptop-1" },
+        remotes,
+      ),
+    ).toBe(false);
+    expect(
+      isRemoteAuthBlocked({ pending_api_error_kind: "auth" }, remotes),
+    ).toBe(false);
+    expect(
+      isRemoteAuthBlocked(
+        { pending_api_error_kind: "auth", owner_device_id: "mac-1" },
+        new Set(),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -114,7 +171,9 @@ describe("isDeviceOnline", () => {
   test("live within the heartbeat window, dead past it", () => {
     const now = 1_000_000_000;
     expect(isDeviceOnline({ last_seen: now - 30_000 }, now)).toBe(true);
-    expect(isDeviceOnline({ last_seen: now - DEVICE_ONLINE_MS - 1 }, now)).toBe(false);
+    expect(isDeviceOnline({ last_seen: now - DEVICE_ONLINE_MS - 1 }, now)).toBe(
+      false,
+    );
   });
 });
 
@@ -122,7 +181,14 @@ describe("isValidProfileName", () => {
   test("mirrors the CLI rules", () => {
     expect(isValidProfileName("footage")).toBe(true);
     expect(isValidProfileName("work-2.bak_1")).toBe(true);
-    for (const bad of ["", "-lead", "has space", "a/b", "a;b", "x".repeat(50)]) {
+    for (const bad of [
+      "",
+      "-lead",
+      "has space",
+      "a/b",
+      "a;b",
+      "x".repeat(50),
+    ]) {
       expect(isValidProfileName(bad)).toBe(false);
     }
   });
@@ -131,12 +197,19 @@ describe("isValidProfileName", () => {
 describe("isSubagentConversation", () => {
   test("flags explicit subagents and parent-linked workers", () => {
     expect(isSubagentConversation({ is_subagent: true })).toBe(true);
-    expect(isSubagentConversation({ parent_conversation_id: "jx7parent" })).toBe(true);
+    expect(
+      isSubagentConversation({ parent_conversation_id: "jx7parent" }),
+    ).toBe(true);
   });
 
   test("a plain top-level conversation is not a subagent", () => {
     expect(isSubagentConversation({})).toBe(false);
-    expect(isSubagentConversation({ is_subagent: false, parent_conversation_id: undefined })).toBe(false);
+    expect(
+      isSubagentConversation({
+        is_subagent: false,
+        parent_conversation_id: undefined,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -145,32 +218,65 @@ describe("shouldSweepStaleFlag", () => {
 
   test("sweeps flagged conversations whose block landed before the revive window", () => {
     expect(
-      shouldSweepStaleFlag({ pending_api_error: true, pending_api_error_at: now - BLOCKED_WINDOW_MS - 1, updated_at: now }, now),
+      shouldSweepStaleFlag(
+        {
+          pending_api_error: true,
+          pending_api_error_at: now - BLOCKED_WINDOW_MS - 1,
+          updated_at: now,
+        },
+        now,
+      ),
     ).toBe(true);
   });
 
   test("leaves fresh incidents and unflagged conversations alone", () => {
     // Inside the window = still the current incident; the banner should act on it.
     expect(
-      shouldSweepStaleFlag({ pending_api_error: true, pending_api_error_at: now - BLOCKED_WINDOW_MS + 60_000 }, now),
+      shouldSweepStaleFlag(
+        {
+          pending_api_error: true,
+          pending_api_error_at: now - BLOCKED_WINDOW_MS + 60_000,
+        },
+        now,
+      ),
     ).toBe(false);
-    expect(shouldSweepStaleFlag({ pending_api_error: false, updated_at: 0 }, now)).toBe(false);
+    expect(
+      shouldSweepStaleFlag({ pending_api_error: false, updated_at: 0 }, now),
+    ).toBe(false);
   });
 
   test("a weekly-limit park waiting out its reset is still current", () => {
     expect(
-      shouldSweepStaleFlag({ pending_api_error: true, pending_api_error_at: now - 7 * 24 * 60 * 60 * 1000 }, now),
+      shouldSweepStaleFlag(
+        {
+          pending_api_error: true,
+          pending_api_error_at: now - 7 * 24 * 60 * 60 * 1000,
+        },
+        now,
+      ),
     ).toBe(false);
   });
 });
 
 describe("usage predicates", () => {
   const now = 1_000_000;
-  const usage = (session: number, weekly: number, scoped?: number): CcUsage => ({
+  const usage = (
+    session: number,
+    weekly: number,
+    scoped?: number,
+  ): CcUsage => ({
     fetched_at: now - 60_000,
     session: { percent: session, resets_at: now + 3600_000 },
     weekly: { percent: weekly, resets_at: now + 86_400_000 },
-    ...(scoped != null ? { weekly_scoped: { percent: scoped, resets_at: now + 86_400_000, label: "Fable" } } : {}),
+    ...(scoped != null
+      ? {
+          weekly_scoped: {
+            percent: scoped,
+            resets_at: now + 86_400_000,
+            label: "Fable",
+          },
+        }
+      : {}),
   });
 
   test("worstUsagePercent takes the max across windows, null without data", () => {
@@ -191,14 +297,25 @@ describe("usage predicates", () => {
     };
     expect(worstUsagePercent(stale, now)).toBe(21);
     // Every window rolled — the account reads empty, not "no data".
-    expect(worstUsagePercent({ fetched_at: 1, session: { percent: 100, resets_at: now - 1 } }, now)).toBe(0);
+    expect(
+      worstUsagePercent(
+        { fetched_at: 1, session: { percent: 100, resets_at: now - 1 } },
+        now,
+      ),
+    ).toBe(0);
     // A window with no known reset time can't be proven rolled.
-    expect(worstUsagePercent({ fetched_at: 1, session: { percent: 100 } }, now)).toBe(100);
+    expect(
+      worstUsagePercent({ fetched_at: 1, session: { percent: 100 } }, now),
+    ).toBe(100);
   });
 
   test("isExhaustionCurrent expires a stamp the windows have outlived", () => {
     const pegged = [{ usage: usage(100, 30) }];
-    const rolled = [{ usage: { fetched_at: 1, session: { percent: 100, resets_at: now - 1 } } }];
+    const rolled = [
+      {
+        usage: { fetched_at: 1, session: { percent: 100, resets_at: now - 1 } },
+      },
+    ];
     // Fresh stamp stands alone — a single-account machine can be spent with no
     // snapshot to prove it.
     expect(isExhaustionCurrent(now - 60_000, [{}], now)).toBe(true);
@@ -221,7 +338,10 @@ describe("usage predicates", () => {
     expect(isUsageExhausted(usage(99, 20), now)).toBe(false);
     expect(isUsageExhausted(undefined, now)).toBe(false);
     // Pegged but the reset already passed — the snapshot is stale, the window rolled.
-    const rolled: CcUsage = { fetched_at: 1, session: { percent: 100, resets_at: now - 1 } };
+    const rolled: CcUsage = {
+      fetched_at: 1,
+      session: { percent: 100, resets_at: now - 1 },
+    };
     expect(isUsageExhausted(rolled, now)).toBe(false);
     // Pegged with no reset time known — treat as exhausted (can't prove it rolled).
     const noReset: CcUsage = { fetched_at: 1, weekly: { percent: 100 } };
@@ -232,11 +352,20 @@ describe("usage predicates", () => {
   // Code kept working on credits ("Now using usage credits") while the loop
   // counted the account as spent.
   test("isUsageExhausted: usage credits cover a pegged window until the credit budget is spent", () => {
-    const onCredits: CcUsage = { ...usage(100, 20), extra: { percent: 81, enabled: true } };
+    const onCredits: CcUsage = {
+      ...usage(100, 20),
+      extra: { percent: 81, enabled: true },
+    };
     expect(isUsageExhausted(onCredits, now)).toBe(false);
-    const creditsSpent: CcUsage = { ...usage(100, 20), extra: { percent: 100, enabled: true } };
+    const creditsSpent: CcUsage = {
+      ...usage(100, 20),
+      extra: { percent: 100, enabled: true },
+    };
     expect(isUsageExhausted(creditsSpent, now)).toBe(true);
-    const creditsOff: CcUsage = { ...usage(100, 20), extra: { percent: 0, enabled: false } };
+    const creditsOff: CcUsage = {
+      ...usage(100, 20),
+      extra: { percent: 0, enabled: false },
+    };
     expect(isUsageExhausted(creditsOff, now)).toBe(true);
   });
 
@@ -244,9 +373,18 @@ describe("usage predicates", () => {
     const ranked = fallbackProfiles(
       [
         { name: "active", email: "a@x.com", usage: usage(10, 20) },
-        { name: "credits", email: "c@x.com", usage: { ...usage(100, 20), extra: { percent: 50, enabled: true } } },
+        {
+          name: "credits",
+          email: "c@x.com",
+          usage: { ...usage(100, 20), extra: { percent: 50, enabled: true } },
+        },
         { name: "room", email: "r@x.com", usage: usage(40, 20) },
-        { name: "dead", email: "d@x.com", usage: usage(0, 20), login_expired_at: now - 3600_000 },
+        {
+          name: "dead",
+          email: "d@x.com",
+          usage: usage(0, 20),
+          login_expired_at: now - 3600_000,
+        },
         { name: "unknown", email: "u@x.com" },
       ],
       "a@x.com",
@@ -259,7 +397,9 @@ describe("usage predicates", () => {
 describe("splitAuthParks", () => {
   const now = 10_000_000_000;
   const activeSince = now - 10 * 60_000; // the machine switched logins 10 minutes ago
-  const device = (opts: { expiredAt?: number } = {}): {
+  const device = (
+    opts: { expiredAt?: number } = {},
+  ): {
     cc_accounts: {
       active_email: string;
       active_since: number;
@@ -276,29 +416,53 @@ describe("splitAuthParks", () => {
       active_since: activeSince,
       profiles: [
         { name: "a", email: "a@x.com", usage: { fetched_at: now } },
-        { name: "b", email: "b@x.com", usage: { fetched_at: now }, ...(opts.expiredAt ? { login_expired_at: opts.expiredAt } : {}) },
+        {
+          name: "b",
+          email: "b@x.com",
+          usage: { fetched_at: now },
+          ...(opts.expiredAt ? { login_expired_at: opts.expiredAt } : {}),
+        },
       ],
     },
   });
-  const park = (id: string, at: number) => ({ _id: id, updated_at: at, pending_api_error_at: at });
+  const park = (id: string, at: number) => ({
+    _id: id,
+    updated_at: at,
+    pending_api_error_at: at,
+  });
 
   // 2026-09-03: five manual switches in ten minutes; a session launched under
   // the login before last parked on "Not logged in" AFTER the latest switch.
   // The park is about the credential that process was bound to, not about the
   // login the machine holds now — a restart on the current login cures it.
   test("a park with no restart attempted on this login restarts on it", () => {
-    const parks = [park("c1", activeSince + 60_000), park("c2", activeSince - 60_000)];
-    expect(splitAuthParks(parks, device(), [], now)).toEqual({ restart: parks, dead: [] });
+    const parks = [
+      park("c1", activeSince + 60_000),
+      park("c2", activeSince - 60_000),
+    ];
+    expect(splitAuthParks(parks, device(), [], now)).toEqual({
+      restart: parks,
+      dead: [],
+    });
   });
 
   test("the daemon reporting the active login expired makes every park a switch", () => {
     const parks = [park("c1", now - 60_000)];
-    expect(splitAuthParks(parks, device({ expiredAt: now - 30_000 }), [], now)).toEqual({ restart: [], dead: parks });
+    expect(
+      splitAuthParks(parks, device({ expiredAt: now - 30_000 }), [], now),
+    ).toEqual({ restart: [], dead: parks });
   });
 
   test("an expiry stamped before the login was activated is stale evidence", () => {
     const parks = [park("c1", now - 60_000)];
-    expect(splitAuthParks(parks, device({ expiredAt: activeSince - 60_000 }), [], now)).toEqual({
+    expect(
+      splitAuthParks(
+        parks,
+        device({ expiredAt: activeSince - 60_000 }),
+        [],
+        now,
+      ),
+    ).toEqual({
       restart: parks,
       dead: [],
     });
@@ -306,22 +470,43 @@ describe("splitAuthParks", () => {
 
   test("a park that recurs after a restart on this login proves it dead, for the whole set", () => {
     const restartAt = now - 3 * 60_000;
-    const attempts = [{ profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: restartAt }];
-    const parks = [park("c1", restartAt + 90_000), park("c2", restartAt - 60_000)];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: [], dead: parks });
+    const attempts = [
+      { profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: restartAt },
+    ];
+    const parks = [
+      park("c1", restartAt + 90_000),
+      park("c2", restartAt - 60_000),
+    ];
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: [],
+      dead: parks,
+    });
   });
 
   test("a park older than the last restart is in flight: neither restarted again nor proof", () => {
     const restartAt = now - 60_000;
-    const attempts = [{ profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: restartAt }];
+    const attempts = [
+      { profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: restartAt },
+    ];
     const parks = [park("c1", restartAt - 30_000)];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: [], dead: [] });
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: [],
+      dead: [],
+    });
   });
 
   test("a restart attempted under the previous login says nothing about this one", () => {
-    const attempts = [{ profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: activeSince - 60_000 }];
+    const attempts = [
+      {
+        profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`,
+        at: activeSince - 60_000,
+      },
+    ];
     const parks = [park("c1", activeSince - 30_000)];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: parks, dead: [] });
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: parks,
+      dead: [],
+    });
   });
 
   test("only auth-restart attempts count; continues and switches are other keys", () => {
@@ -330,40 +515,64 @@ describe("splitAuthParks", () => {
       { profile: "a", at: now - 60_000 },
     ];
     const parks = [park("c1", now - 2 * 60_000)];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: parks, dead: [] });
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: parks,
+      dead: [],
+    });
   });
 
   test("no inventory cannot prove a usable login for a restart", () => {
     const parks = [park("c1", now - 60_000)];
-    expect(splitAuthParks(parks, undefined, [], now)).toEqual({ restart: [], dead: [] });
+    expect(splitAuthParks(parks, undefined, [], now)).toEqual({
+      restart: [],
+      dead: [],
+    });
   });
 
   test("a later park in another conversation is not a failed restart", () => {
-    const attempts = [{ profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: now - 60_000 }];
+    const attempts = [
+      { profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: now - 60_000 },
+    ];
     const parks = [park("c2", now - 30_000)];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: parks, dead: [] });
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: parks,
+      dead: [],
+    });
   });
 
   test("updating an old row without a banner timestamp cannot prove a new auth failure", () => {
-    const attempts = [{ profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: now - 60_000 }];
+    const attempts = [
+      { profile: `${AUTO_SWITCH_AUTH_RESTART_KEY}:c1`, at: now - 60_000 },
+    ];
     const parks = [{ _id: "c1", updated_at: now }];
-    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({ restart: [], dead: [] });
+    expect(splitAuthParks(parks, device(), attempts, now)).toEqual({
+      restart: [],
+      dead: [],
+    });
   });
 
   test("a login whose only usage proof predates its activation is not ready", () => {
     const d = device();
     d.cc_accounts.profiles[1].usage = { fetched_at: activeSince - 1 };
-    expect(splitAuthParks([park("c1", now - 60_000)], d, [], now)).toEqual({ restart: [], dead: [] });
+    expect(splitAuthParks([park("c1", now - 60_000)], d, [], now)).toEqual({
+      restart: [],
+      dead: [],
+    });
   });
-
 });
 
 describe("decideAutoSwitch", () => {
   const now = 10_000_000_000;
   const parkedAt = now - 5 * 60_000; // sessions parked 5 minutes ago
-  const mkUsage = (worst: number, opts: { sessionResetAt?: number } = {}): CcUsage => ({
+  const mkUsage = (
+    worst: number,
+    opts: { sessionResetAt?: number } = {},
+  ): CcUsage => ({
     fetched_at: now - 60_000,
-    session: { percent: worst, resets_at: opts.sessionResetAt ?? now + 3600_000 },
+    session: {
+      percent: worst,
+      resets_at: opts.sessionResetAt ?? now + 3600_000,
+    },
     weekly: { percent: Math.min(worst, 60), resets_at: now + 86_400_000 },
   });
 
@@ -390,7 +599,12 @@ describe("decideAutoSwitch", () => {
       profiles: [
         { name: "a", email: "a@x.com", usage: mkUsage(100) },
         { name: "b", email: "b@x.com", usage: mkUsage(70) },
-        { name: "c", email: "c@x.com", usage: mkUsage(20), login_expired_at: now - 60_000 },
+        {
+          name: "c",
+          email: "c@x.com",
+          usage: mkUsage(20),
+          login_expired_at: now - 60_000,
+        },
       ],
       attempts: [],
     });
@@ -407,12 +621,19 @@ describe("decideAutoSwitch", () => {
       activeEmail: "a@x.com",
       activeSince,
       profiles: [
-        { name: "a", email: "a@x.com", usage: { ...mkUsage(100), fetched_at: now - 2 * 86_400_000 } },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: { ...mkUsage(100), fetched_at: now - 2 * 86_400_000 },
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(96) },
       ],
       attempts: [],
     });
-    expect(d).toEqual({ action: "wait", retry_at: now + AUTO_SWITCH_PROBE_RETRY_MS });
+    expect(d).toEqual({
+      action: "wait",
+      retry_at: now + AUTO_SWITCH_PROBE_RETRY_MS,
+    });
     // No snapshot at all is the same case.
     const blank = decideAutoSwitch({
       now,
@@ -435,7 +656,11 @@ describe("decideAutoSwitch", () => {
       activeEmail: "a@x.com",
       activeSince: now - AUTO_SWITCH_PROBE_GRACE_MS - 1,
       profiles: [
-        { name: "a", email: "a@x.com", usage: { ...mkUsage(100), fetched_at: now - 2 * 86_400_000 } },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: { ...mkUsage(100), fetched_at: now - 2 * 86_400_000 },
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(96) },
       ],
       attempts: [],
@@ -455,7 +680,11 @@ describe("decideAutoSwitch", () => {
       activeEmail: "a@x.com",
       activeSince,
       profiles: [
-        { name: "a", email: "a@x.com", usage: { ...mkUsage(2), fetched_at: fetchedAt } },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: { ...mkUsage(2), fetched_at: fetchedAt },
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(96) },
       ],
       attempts: [],
@@ -469,7 +698,11 @@ describe("decideAutoSwitch", () => {
       activeEmail: "a@x.com",
       activeSince: parkedAt - 60_000,
       profiles: [
-        { name: "a", email: "a@x.com", usage: { ...mkUsage(2), fetched_at: parkedAt + 70_000 } },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: { ...mkUsage(2), fetched_at: parkedAt + 70_000 },
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(96) },
       ],
       attempts: [],
@@ -534,7 +767,11 @@ describe("decideAutoSwitch", () => {
             fetched_at: now - 6 * 3600_000,
             session: { percent: 2, resets_at: now + 3600_000 },
             weekly: { percent: 54, resets_at: now - 3 * 3600_000 },
-            weekly_scoped: { percent: 100, resets_at: now - 3 * 3600_000, label: "Fable" },
+            weekly_scoped: {
+              percent: 100,
+              resets_at: now - 3 * 3600_000,
+              label: "Fable",
+            },
           },
         },
         { name: "known", email: "known@x.com", usage: mkUsage(69) },
@@ -604,7 +841,11 @@ describe("decideAutoSwitch", () => {
             fetched_at: 1784269994894, // 06:33Z
             session: { percent: 19, resets_at: 1784278799916 },
             weekly: { percent: 55, resets_at: 1784703599916 },
-            weekly_scoped: { percent: 100, resets_at: 1784703599917, label: "Fable" },
+            weekly_scoped: {
+              percent: 100,
+              resets_at: 1784703599917,
+              label: "Fable",
+            },
           },
         },
         {
@@ -614,7 +855,11 @@ describe("decideAutoSwitch", () => {
             fetched_at: 1784269994894,
             session: { percent: 100, resets_at: 1784271000112 },
             weekly: { percent: 46, resets_at: 1784671200113 },
-            weekly_scoped: { percent: 81, resets_at: 1784671200113, label: "Fable" },
+            weekly_scoped: {
+              percent: 81,
+              resets_at: 1784671200113,
+              label: "Fable",
+            },
             extra: { percent: 100, enabled: false },
           },
         },
@@ -625,7 +870,11 @@ describe("decideAutoSwitch", () => {
             fetched_at: 1784269994894,
             session: { percent: 11, resets_at: 1784270999787 },
             weekly: { percent: 4, resets_at: 1784782799787 },
-            weekly_scoped: { percent: 8, resets_at: 1784782799787, label: "Fable" },
+            weekly_scoped: {
+              percent: 8,
+              resets_at: 1784782799787,
+              label: "Fable",
+            },
             extra: { percent: 100, enabled: false },
           },
         },
@@ -651,7 +900,11 @@ describe("decideAutoSwitch", () => {
       {
         name: "jordanbelman357",
         email: "jordan@x.com",
-        usage: { fetched_at: at - 60_000, session: { percent: 100, resets_at: at + 3600_000 }, weekly: { percent: 37, resets_at: at + 6 * day } },
+        usage: {
+          fetched_at: at - 60_000,
+          session: { percent: 100, resets_at: at + 3600_000 },
+          weekly: { percent: 37, resets_at: at + 6 * day },
+        },
       },
       {
         name: "joannagerkin",
@@ -660,7 +913,11 @@ describe("decideAutoSwitch", () => {
           fetched_at: at - 60_000,
           session: { percent: 0 },
           weekly: { percent: 97, resets_at: at + 2 * day },
-          weekly_scoped: { percent: 29, resets_at: at + 2 * day, label: "Fable" },
+          weekly_scoped: {
+            percent: 29,
+            resets_at: at + 2 * day,
+            label: "Fable",
+          },
         },
       },
       {
@@ -675,9 +932,22 @@ describe("decideAutoSwitch", () => {
       },
     ];
     const decide = (models: string[]) =>
-      decideAutoSwitch({ now: at, parkedAt: at - 120_000, activeEmail: "jordan@x.com", profiles, attempts: [], models });
-    expect(decide(["claude-opus-5-5"])).toEqual({ action: "switch", profile: "claude2" });
-    expect(decide(["claude-fable-5-1"])).toEqual({ action: "switch", profile: "joannagerkin" });
+      decideAutoSwitch({
+        now: at,
+        parkedAt: at - 120_000,
+        activeEmail: "jordan@x.com",
+        profiles,
+        attempts: [],
+        models,
+      });
+    expect(decide(["claude-opus-5-5"])).toEqual({
+      action: "switch",
+      profile: "claude2",
+    });
+    expect(decide(["claude-fable-5-1"])).toEqual({
+      action: "switch",
+      profile: "joannagerkin",
+    });
   });
 
   test("only a snapshot newer than the attempt plus the settle margin counts as evidence", () => {
@@ -690,16 +960,24 @@ describe("decideAutoSwitch", () => {
         activeEmail: "a@x.com",
         profiles: [
           { name: "a", email: "a@x.com", usage: mkUsage(100) },
-          { name: "b", email: "b@x.com", usage: { ...mkUsage(10), fetched_at: fetchedAt } },
+          {
+            name: "b",
+            email: "b@x.com",
+            usage: { ...mkUsage(10), fetched_at: fetchedAt },
+          },
         ],
         attempts,
       });
     // Fetched before the attempt — says nothing about what the attempt hit.
     expect(withSnapshotAt(att - 60_000).action).toBe("exhausted");
     // Fetched inside the settle margin — could have been probed mid-burn.
-    expect(withSnapshotAt(att + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS - 1_000).action).toBe("exhausted");
+    expect(
+      withSnapshotAt(att + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS - 1_000).action,
+    ).toBe("exhausted");
     // Fetched after the attempt settled, showing headroom — eligible again.
-    expect(withSnapshotAt(att + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000)).toEqual({
+    expect(
+      withSnapshotAt(att + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000),
+    ).toEqual({
       action: "switch",
       profile: "b",
     });
@@ -726,7 +1004,11 @@ describe("decideAutoSwitch", () => {
       activeEmail: "a@x.com",
       profiles: [
         // Session window reset between the park and now; weekly has headroom.
-        { name: "a", email: "a@x.com", usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }) },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }),
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(10) },
       ],
       attempts: [],
@@ -742,7 +1024,11 @@ describe("decideAutoSwitch", () => {
       profiles: [
         // Would qualify for a free continue — but the login is dead, so a
         // continue would just re-park on the auth banner.
-        { name: "a", email: "a@x.com", usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }) },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }),
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(10) },
       ],
       attempts: [],
@@ -769,7 +1055,11 @@ describe("decideAutoSwitch", () => {
       parkedAt,
       activeEmail: "a@x.com",
       profiles: [
-        { name: "a", email: "a@x.com", usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }) },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }),
+        },
         { name: "b", email: "b@x.com", usage: mkUsage(10) },
       ],
       attempts: [{ profile: AUTO_SWITCH_CONTINUE_KEY, at: parkedAt + 120_000 }],
@@ -808,7 +1098,13 @@ describe("decideAutoSwitch", () => {
       now,
       parkedAt,
       activeEmail: "a@x.com",
-      profiles: [{ name: "a", email: "a@x.com", usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }) }],
+      profiles: [
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: mkUsage(100, { sessionResetAt: parkedAt + 60_000 }),
+        },
+      ],
       attempts: [{ profile: AUTO_SWITCH_CONTINUE_KEY, at: continuedAt }],
       allowSwitch: false,
     });
@@ -832,13 +1128,19 @@ describe("decideAutoSwitch", () => {
         now,
         parkedAt,
         activeEmail: "a@x.com",
-        profiles: [{ name: "a", email: "a@x.com", usage: rolledSnapshot(fetchedAt) }],
+        profiles: [
+          { name: "a", email: "a@x.com", usage: rolledSnapshot(fetchedAt) },
+        ],
         attempts: [],
         allowSwitch: false,
       });
     expect(at(parkedAt - 60_000).action).toBe("exhausted");
-    expect(at(parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS - 1_000).action).toBe("exhausted");
-    expect(at(parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000)).toEqual({ action: "continue" });
+    expect(at(parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS - 1_000).action).toBe(
+      "exhausted",
+    );
+    expect(at(parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000)).toEqual({
+      action: "continue",
+    });
     // A settled probe that still shows a pegged window is not headroom.
     const stillPegged = decideAutoSwitch({
       now,
@@ -848,7 +1150,10 @@ describe("decideAutoSwitch", () => {
         {
           name: "a",
           email: "a@x.com",
-          usage: { ...mkUsage(100), fetched_at: parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000 },
+          usage: {
+            ...mkUsage(100),
+            fetched_at: parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS + 1_000,
+          },
         },
       ],
       attempts: [],
@@ -864,8 +1169,16 @@ describe("decideAutoSwitch", () => {
       parkedAt,
       activeEmail: "a@x.com",
       profiles: [
-        { name: "a", email: "a@x.com", usage: mkUsage(100, { sessionResetAt: resetSoon }) },
-        { name: "b", email: "b@x.com", usage: mkUsage(10, { sessionResetAt: now + 10 * 60_000 }) },
+        {
+          name: "a",
+          email: "a@x.com",
+          usage: mkUsage(100, { sessionResetAt: resetSoon }),
+        },
+        {
+          name: "b",
+          email: "b@x.com",
+          usage: mkUsage(10, { sessionResetAt: now + 10 * 60_000 }),
+        },
       ],
       attempts: [],
     };
@@ -875,7 +1188,8 @@ describe("decideAutoSwitch", () => {
     // reset (b's earlier reset can't help a session that will never move).
     const d = decideAutoSwitch({ ...input, allowSwitch: false });
     expect(d.action).toBe("exhausted");
-    if (d.action === "exhausted") expect(d.retry_at).toBe(resetSoon + 2 * 60_000);
+    if (d.action === "exhausted")
+      expect(d.retry_at).toBe(resetSoon + 2 * 60_000);
     // Once the active window rolls, the free continue still wins.
     expect(
       decideAutoSwitch({
@@ -903,16 +1217,27 @@ describe("decideAutoSwitch", () => {
     };
 
     test("redeems instead of switching when a credit is on the table", () => {
-      expect(decideAutoSwitch(spent)).toEqual({ action: "switch", profile: "b" });
+      expect(decideAutoSwitch(spent)).toEqual({
+        action: "switch",
+        profile: "b",
+      });
       expect(
-        decideAutoSwitch({ ...spent, resetCredit: { profile: "a", available: 1 } }),
+        decideAutoSwitch({
+          ...spent,
+          resetCredit: { profile: "a", available: 1 },
+        }),
       ).toEqual({ action: "redeem_reset_credit", profile: "a" });
     });
 
     test("no opt-in, no offer: absent or empty is a plain switch", () => {
-      expect(decideAutoSwitch({ ...spent, resetCredit: null }).action).toBe("switch");
+      expect(decideAutoSwitch({ ...spent, resetCredit: null }).action).toBe(
+        "switch",
+      );
       expect(
-        decideAutoSwitch({ ...spent, resetCredit: { profile: "a", available: 0 } }).action,
+        decideAutoSwitch({
+          ...spent,
+          resetCredit: { profile: "a", available: 0 },
+        }).action,
       ).toBe("switch");
     });
 
@@ -928,9 +1253,15 @@ describe("decideAutoSwitch", () => {
     });
 
     test("one redeem per park, then the switch takes over", () => {
-      const attempts = [{ profile: resetCreditAttemptKey("a"), at: parkedAt + 1000 }];
+      const attempts = [
+        { profile: resetCreditAttemptKey("a"), at: parkedAt + 1000 },
+      ];
       expect(
-        decideAutoSwitch({ ...spent, attempts, resetCredit: { profile: "a", available: 1 } }),
+        decideAutoSwitch({
+          ...spent,
+          attempts,
+          resetCredit: { profile: "a", available: 1 },
+        }),
       ).toEqual({ action: "switch", profile: "b" });
       // A park NEWER than the redeem is a fresh incident: offer it again.
       expect(
@@ -960,25 +1291,42 @@ describe("decideAutoSwitch", () => {
         codex_accounts: {
           active_email: "a@x.com",
           profiles: [
-            { name: "codex-a", email: "a@x.com", usage: { fetched_at: now, reset_credits: { available: 2 } } },
-            { name: "codex-b", email: "b@x.com", usage: { fetched_at: now, reset_credits: { available: 5 } } },
+            {
+              name: "codex-a",
+              email: "a@x.com",
+              usage: { fetched_at: now, reset_credits: { available: 2 } },
+            },
+            {
+              name: "codex-b",
+              email: "b@x.com",
+              usage: { fetched_at: now, reset_credits: { available: 5 } },
+            },
           ],
         },
       };
       const codexPark = [{ agent_type: "codex" }];
 
       test("offers the ACTIVE Codex account's credit", () => {
-        expect(codexResetCreditOffer(device, codexPark)).toEqual({ profile: "codex-a", available: 2 });
+        expect(codexResetCreditOffer(device, codexPark)).toEqual({
+          profile: "codex-a",
+          available: 2,
+        });
       });
 
       test("never on a Claude park — a Codex credit cannot un-park a Claude session", () => {
-        expect(codexResetCreditOffer(device, [{ agent_type: "claude_code" }])).toBeNull();
+        expect(
+          codexResetCreditOffer(device, [{ agent_type: "claude_code" }]),
+        ).toBeNull();
         expect(codexResetCreditOffer(device, [])).toBeNull();
       });
 
       test("nothing without the opt-in", () => {
-        expect(codexResetCreditOffer({ ...device, settings: {} }, codexPark)).toBeNull();
-        expect(codexResetCreditOffer({ ...device, settings: undefined }, codexPark)).toBeNull();
+        expect(
+          codexResetCreditOffer({ ...device, settings: {} }, codexPark),
+        ).toBeNull();
+        expect(
+          codexResetCreditOffer({ ...device, settings: undefined }, codexPark),
+        ).toBeNull();
       });
 
       test("a dormant account's credit is not an offer — reaching it needs the switch this avoids", () => {
@@ -996,7 +1344,12 @@ describe("decideAutoSwitch", () => {
       });
 
       test("nothing when the machine reports no Codex inventory", () => {
-        expect(codexResetCreditOffer({ ...device, codex_accounts: undefined }, codexPark)).toBeNull();
+        expect(
+          codexResetCreditOffer(
+            { ...device, codex_accounts: undefined },
+            codexPark,
+          ),
+        ).toBeNull();
       });
     });
 
@@ -1031,13 +1384,21 @@ describe("decideAutoSwitch", () => {
       attempts: [],
     });
     expect(d.action).toBe("exhausted");
-    if (d.action === "exhausted") expect(d.retry_at).toBe(resetSoon + 2 * 60_000);
+    if (d.action === "exhausted")
+      expect(d.retry_at).toBe(resetSoon + 2 * 60_000);
   });
 
   test("exhausted with no usage data falls back to an hourly retry", () => {
-    const d = decideAutoSwitch({ now, parkedAt, activeEmail: undefined, profiles: [], attempts: [] });
+    const d = decideAutoSwitch({
+      now,
+      parkedAt,
+      activeEmail: undefined,
+      profiles: [],
+      attempts: [],
+    });
     expect(d.action).toBe("exhausted");
-    if (d.action === "exhausted") expect(d.retry_at).toBe(now + 60 * 60_000 + 2 * 60_000);
+    if (d.action === "exhausted")
+      expect(d.retry_at).toBe(now + 60 * 60_000 + 2 * 60_000);
   });
 });
 
@@ -1068,14 +1429,20 @@ describe("pickThrottleContinueBatch", () => {
 
   test("nothing due yet books the moment the oldest waiting park becomes due", () => {
     const now = 5_000_000;
-    const pick = pickThrottleContinueBatch([row("x", "throttle", 20_000, now), row("y", "throttle", 40_000, now)], now);
+    const pick = pickThrottleContinueBatch(
+      [row("x", "throttle", 20_000, now), row("y", "throttle", 40_000, now)],
+      now,
+    );
     expect(pick.batch).toEqual([]);
     expect(pick.waiting).toBe(2);
     expect(pick.nextDueAt).toBe(now - 40_000 + THROTTLE_CONTINUE_DELAY_MS);
   });
 
   test("no throttle parks at all is a no-op", () => {
-    const pick = pickThrottleContinueBatch([row("l", "limit", 10 * 60_000, 1)], 1);
+    const pick = pickThrottleContinueBatch(
+      [row("l", "limit", 10 * 60_000, 1)],
+      1,
+    );
     expect(pick.batch).toEqual([]);
     expect(pick.nextDueAt).toBeNull();
   });
@@ -1102,21 +1469,28 @@ describe("pickThrottleContinueBatch", () => {
   test("a session we already continued waits longer the next time, first try stays at 60s", () => {
     const now = 8_000_000;
     const parked = row("s", "throttle", 5 * 60_000, now);
-    expect(pickThrottleContinueBatch([parked], now).batch.map((r) => r._id)).toEqual(["s"]);
-    const afterOne = pickThrottleContinueBatch(
-      [parked],
-      now,
-      [{ profile: throttleContinueAttemptKey("s"), at: now - 30_000 }],
-    );
+    expect(
+      pickThrottleContinueBatch([parked], now).batch.map((r) => r._id),
+    ).toEqual(["s"]);
+    const afterOne = pickThrottleContinueBatch([parked], now, [
+      { profile: throttleContinueAttemptKey("s"), at: now - 30_000 },
+    ]);
     expect(afterOne.batch).toEqual([]);
     expect(afterOne.waiting).toBe(1);
-    expect(afterOne.nextDueAt).toBe(now - 30_000 + 2 * THROTTLE_CONTINUE_DELAY_MS);
+    expect(afterOne.nextDueAt).toBe(
+      now - 30_000 + 2 * THROTTLE_CONTINUE_DELAY_MS,
+    );
     const afterFour = pickThrottleContinueBatch(
       [parked],
       now,
-      [1, 2, 3, 4].map((n) => ({ profile: throttleContinueAttemptKey("s"), at: now - n * 60_000 })),
+      [1, 2, 3, 4].map((n) => ({
+        profile: throttleContinueAttemptKey("s"),
+        at: now - n * 60_000,
+      })),
     );
-    expect(afterFour.nextDueAt).toBe(now - 60_000 + THROTTLE_CONTINUE_BACKOFF_CAP_MS);
+    expect(afterFour.nextDueAt).toBe(
+      now - 60_000 + THROTTLE_CONTINUE_BACKOFF_CAP_MS,
+    );
   });
 });
 
@@ -1129,7 +1503,10 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
   // leaves out.
   const userId = "users_1" as any;
   const now = Date.now();
-  const device = (recovery: { cc_auto_switch?: boolean; cc_auto_continue?: boolean }) => ({
+  const device = (recovery: {
+    cc_auto_switch?: boolean;
+    cc_auto_continue?: boolean;
+  }) => ({
     _id: "devices_1",
     user_id: userId,
     device_id: "dev-1",
@@ -1149,8 +1526,14 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
     pending_api_error_kind: kind,
     pending_api_error_at: now - 10 * 60_000,
   });
-  const ctx = (db: any) => ({ db, scheduler: { runAt: async () => {}, runAfter: async () => {} } });
-  const stillBlocked = (db: any) => db._tables.conversations.filter((c: any) => c.pending_api_error === true).map((c: any) => c._id);
+  const ctx = (db: any) => ({
+    db,
+    scheduler: { runAt: async () => {}, runAfter: async () => {} },
+  });
+  const stillBlocked = (db: any) =>
+    db._tables.conversations
+      .filter((c: any) => c.pending_api_error === true)
+      .map((c: any) => c._id);
 
   test("the switch loop dismisses limit-parked workers it will not revive", async () => {
     const db = makeFakeDb({
@@ -1158,7 +1541,9 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
       conversations: [worker("w1", "limit"), worker("w2", "limit")],
       daemon_commands: [],
     });
-    const result = await (autoSwitchCheck as any)._handler(ctx(db), { user_id: userId });
+    const result = await (autoSwitchCheck as any)._handler(ctx(db), {
+      user_id: userId,
+    });
     expect(result).toEqual({ acted: "nothing_blocked", dismissed: 2 });
     expect(stillBlocked(db)).toEqual([]);
   });
@@ -1169,7 +1554,9 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
       conversations: [worker("w1", "connection"), worker("w2", "throttle")],
       daemon_commands: [],
     });
-    const result = await (throttleContinueCheck as any)._handler(ctx(db), { user_id: userId });
+    const result = await (throttleContinueCheck as any)._handler(ctx(db), {
+      user_id: userId,
+    });
     expect(result).toEqual({ acted: "nothing_throttled", dismissed: 2 });
     expect(stillBlocked(db)).toEqual([]);
   });
@@ -1177,11 +1564,15 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
   test("a machine that never chose a recovery mode gets no error retry", async () => {
     const db = makeFakeDb({
       devices: [device({})],
-      conversations: [{ ...worker("c1", "connection"), parent_conversation_id: undefined }],
+      conversations: [
+        { ...worker("c1", "connection"), parent_conversation_id: undefined },
+      ],
       daemon_commands: [],
       pending_messages: [],
     });
-    const result = await (throttleContinueCheck as any)._handler(ctx(db), { user_id: userId });
+    const result = await (throttleContinueCheck as any)._handler(ctx(db), {
+      user_id: userId,
+    });
     expect(result).toEqual({ acted: "off" });
     expect(db._tables.pending_messages).toEqual([]);
   });
@@ -1192,7 +1583,9 @@ describe("automatic passes dismiss the workers they skip (ct-51132)", () => {
       conversations: [worker("w1", "connection")],
       daemon_commands: [],
     });
-    const result = await (throttleContinueCheck as any)._handler(ctx(db), { user_id: userId });
+    const result = await (throttleContinueCheck as any)._handler(ctx(db), {
+      user_id: userId,
+    });
     expect(result).toEqual({ acted: "off" });
     expect(stillBlocked(db)).toEqual(["w1"]);
   });
@@ -1219,20 +1612,40 @@ describe("an old park synced again is history, not an incident (2026-10-07)", ()
 
   test("the window is judged on when the block landed", () => {
     expect(isCurrentBlock(resynced, now)).toBe(false);
-    expect(isCurrentBlock({ ...resynced, pending_api_error_at: now - BLOCKED_WINDOW_MS + 60_000 }, now)).toBe(true);
+    expect(
+      isCurrentBlock(
+        { ...resynced, pending_api_error_at: now - BLOCKED_WINDOW_MS + 60_000 },
+        now,
+      ),
+    ).toBe(true);
     // Rows flagged before the stamp existed fall back to updated_at.
     expect(isCurrentBlock({ updated_at: now - 60_000 }, now)).toBe(true);
   });
 
   test("the auto-switch pass does not revive it", async () => {
     const db = makeFakeDb({
-      devices: [{ _id: "devices_1", user_id: userId, device_id: "dev-1", last_seen: now, is_remote: false, cc_auto_switch: true, cc_auto_switch_state: {} }],
+      devices: [
+        {
+          _id: "devices_1",
+          user_id: userId,
+          device_id: "dev-1",
+          last_seen: now,
+          is_remote: false,
+          cc_auto_switch: true,
+          cc_auto_switch_state: {},
+        },
+      ],
       conversations: [resynced],
       daemon_commands: [],
       pending_messages: [],
     });
-    const ctx = { db, scheduler: { runAt: async () => {}, runAfter: async () => {} } };
-    const result = await (autoSwitchCheck as any)._handler(ctx, { user_id: userId });
+    const ctx = {
+      db,
+      scheduler: { runAt: async () => {}, runAfter: async () => {} },
+    };
+    const result = await (autoSwitchCheck as any)._handler(ctx, {
+      user_id: userId,
+    });
     expect(result.acted).toBe("nothing_blocked");
     expect(db._tables.pending_messages).toEqual([]);
   });
@@ -1244,8 +1657,14 @@ describe("actedBlockedConversations", () => {
   const flagged = { _id: "flagged", is_subagent: true };
 
   test("skips subagent workers by default, top-level rows first on opt-in", () => {
-    expect(actedBlockedConversations([worker, top, flagged], false)).toEqual([top]);
-    expect(actedBlockedConversations([worker, top, flagged], true)).toEqual([top, worker, flagged]);
+    expect(actedBlockedConversations([worker, top, flagged], false)).toEqual([
+      top,
+    ]);
+    expect(actedBlockedConversations([worker, top, flagged], true)).toEqual([
+      top,
+      worker,
+      flagged,
+    ]);
   });
 
   test("a blocked set made only of workers yields nothing without the opt-in", () => {
@@ -1259,13 +1678,21 @@ describe("actedBlockedConversations", () => {
     // Opting out is a decision: every recoverable worker not acted on is
     // dismissed in the same gesture, and the two sets partition the
     // recoverable rows. A safety stop belongs to neither — it waits for review.
-    const safety = { _id: "safety", is_subagent: true, pending_api_error_kind: "safety" };
+    const safety = {
+      _id: "safety",
+      is_subagent: true,
+      pending_api_error_kind: "safety",
+    };
     const all = [worker, top, flagged, safety];
     expect(skippedBlockedWorkers(all, false)).toEqual([worker, flagged]);
     expect(skippedBlockedWorkers(all, true)).toEqual([]);
     const acted = actedBlockedConversations(all, false);
     const skipped = skippedBlockedWorkers(all, false);
-    expect([...acted, ...skipped].map((c) => c._id).sort()).toEqual(["flagged", "top", "worker"]);
+    expect([...acted, ...skipped].map((c) => c._id).sort()).toEqual([
+      "flagged",
+      "top",
+      "worker",
+    ]);
   });
 });
 
@@ -1282,23 +1709,33 @@ describe("per-device account resolution", () => {
   test("resolves by email to the device's own name, never the caller's alias", () => {
     expect(resolveDeviceProfile(macA, { email: "w@x.com" })).toBe("work");
     expect(resolveDeviceProfile(macB, { email: "w@x.com" })).toBe("main");
-    expect(resolveDeviceProfile(macB, { profile: "work", email: "w@x.com" })).toBe("main");
+    expect(
+      resolveDeviceProfile(macB, { profile: "work", email: "w@x.com" }),
+    ).toBe("main");
   });
 
   test("a device without the account is unresolvable, not a foreign name", () => {
     expect(resolveDeviceProfile(macB, { email: "a@x.com" })).toBeUndefined();
     expect(resolveDeviceProfile(macB, { profile: "personal" })).toBeUndefined();
-    expect(resolveDeviceProfile(undefined, { email: "a@x.com" })).toBeUndefined();
+    expect(
+      resolveDeviceProfile(undefined, { email: "a@x.com" }),
+    ).toBeUndefined();
   });
 
   test("falls back to exact name for inventories with no emails", () => {
-    expect(resolveDeviceProfile(oldDaemon, { profile: "work", email: "w@x.com" })).toBe("work");
-    expect(resolveDeviceProfile(oldDaemon, { profile: "personal" })).toBeUndefined();
+    expect(
+      resolveDeviceProfile(oldDaemon, { profile: "work", email: "w@x.com" }),
+    ).toBe("work");
+    expect(
+      resolveDeviceProfile(oldDaemon, { profile: "personal" }),
+    ).toBeUndefined();
   });
 
   test("targetAccountEmail lifts a pinned-device name to an identity", () => {
     expect(targetAccountEmail(macA, { profile: "work" })).toBe("w@x.com");
-    expect(targetAccountEmail(macA, { email: "z@x.com", profile: "work" })).toBe("z@x.com");
+    expect(
+      targetAccountEmail(macA, { email: "z@x.com", profile: "work" }),
+    ).toBe("z@x.com");
     expect(targetAccountEmail(oldDaemon, { profile: "work" })).toBeUndefined();
     expect(targetAccountEmail(macA, {})).toBeUndefined();
   });
@@ -1324,7 +1761,13 @@ describe("continueNeedsRestart", () => {
   };
   const keychainOnly = {
     ...pinned,
-    cc_accounts: { active_email: "a@x.com", profiles: [{ name: "ashot", email: "a@x.com" }, { name: "other", email: "o@x.com", token: live }] },
+    cc_accounts: {
+      active_email: "a@x.com",
+      profiles: [
+        { name: "ashot", email: "a@x.com" },
+        { name: "other", email: "o@x.com", token: live },
+      ],
+    },
   };
 
   test("the target pin is the active login's token, none without one, never on a remote", () => {
@@ -1332,29 +1775,79 @@ describe("continueNeedsRestart", () => {
     expect(continueTargetPin(pinned, now)).toBe("ashot");
     expect(continueTargetPin(keychainOnly, now)).toBeUndefined();
     expect(continueTargetPin(retiredFlagDevice, now)).toBe("ashot");
-    expect(continueTargetPin({ ...pinned, is_remote: true }, now)).toBeUndefined();
+    expect(
+      continueTargetPin({ ...pinned, is_remote: true }, now),
+    ).toBeUndefined();
     expect(continueTargetPin(undefined, now)).toBeUndefined();
   });
 
   test("a session pinned to another account's token restarts", () => {
     const retiredFlagDevice = { ...pinned, cc_session_tokens: false };
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "other" }, pinned, now)).toBe(true);
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "other" }, keychainOnly, now)).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "other" },
+        pinned,
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "other" },
+        keychainOnly,
+        now,
+      ),
+    ).toBe(true);
     // The retired flag cannot disable token routing.
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "other" }, retiredFlagDevice, now)).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "other" },
+        retiredFlagDevice,
+        now,
+      ),
+    ).toBe(true);
   });
 
   test("a session already on this account gets a plain message", () => {
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "ashot" }, pinned, now)).toBe(false);
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit" }, pinned, now)).toBe(false);
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: null }, keychainOnly, now)).toBe(false);
-    expect(continueNeedsRestart({ pending_api_error_kind: "connection", cc_account: "ashot" }, pinned, now)).toBe(false);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "ashot" },
+        pinned,
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      continueNeedsRestart({ pending_api_error_kind: "limit" }, pinned, now),
+    ).toBe(false);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: null },
+        keychainOnly,
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "connection", cc_account: "ashot" },
+        pinned,
+        now,
+      ),
+    ).toBe(false);
   });
 
   test("signed-out sessions always restart; remote pins are ignored", () => {
-    expect(continueNeedsRestart({ pending_api_error_kind: "auth" }, pinned, now)).toBe(true);
-    expect(continueNeedsRestart({ pending_api_error_kind: "auth" }, undefined, now)).toBe(true);
-    expect(continueNeedsRestart({ pending_api_error_kind: "limit", cc_account: "other" }, { ...pinned, is_remote: true }, now)).toBe(false);
+    expect(
+      continueNeedsRestart({ pending_api_error_kind: "auth" }, pinned, now),
+    ).toBe(true);
+    expect(
+      continueNeedsRestart({ pending_api_error_kind: "auth" }, undefined, now),
+    ).toBe(true);
+    expect(
+      continueNeedsRestart(
+        { pending_api_error_kind: "limit", cc_account: "other" },
+        { ...pinned, is_remote: true },
+        now,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -1382,7 +1875,10 @@ describe("parks on another account's pin", () => {
     parkedAt,
     activeEmail: "a@x.com",
     activeSince: now - 86_400_000,
-    profiles: [{ name: "ashot", email: "a@x.com", usage: headroom }, { name: "spent", email: "s@x.com" }],
+    profiles: [
+      { name: "ashot", email: "a@x.com", usage: headroom },
+      { name: "spent", email: "s@x.com" },
+    ],
     attempts: [],
     allowSwitch: false,
   };
@@ -1390,23 +1886,47 @@ describe("parks on another account's pin", () => {
   test("parkedOnActiveAccount: unpinned and own-identity pins ran on the active login; other, unknown and identity-less pins did not", () => {
     expect(parkedOnActiveAccount({}, device, now)).toBe(true);
     expect(parkedOnActiveAccount({ cc_account: null }, device, now)).toBe(true);
-    expect(parkedOnActiveAccount({ cc_account: "ashot" }, device, now)).toBe(true);
-    expect(parkedOnActiveAccount({ cc_account: "spent" }, device, now)).toBe(false);
-    expect(parkedOnActiveAccount({ cc_account: "gone" }, device, now)).toBe(false);
-    expect(parkedOnActiveAccount({ cc_account: "ashot" }, { ...device, cc_accounts: { profiles: [{ name: "ashot" }] } }, now)).toBe(false);
+    expect(parkedOnActiveAccount({ cc_account: "ashot" }, device, now)).toBe(
+      true,
+    );
+    expect(parkedOnActiveAccount({ cc_account: "spent" }, device, now)).toBe(
+      false,
+    );
+    expect(parkedOnActiveAccount({ cc_account: "gone" }, device, now)).toBe(
+      false,
+    );
+    expect(
+      parkedOnActiveAccount(
+        { cc_account: "ashot" },
+        { ...device, cc_accounts: { profiles: [{ name: "ashot" }] } },
+        now,
+      ),
+    ).toBe(false);
     // Remotes run the pushed credential; a stale pin there is inert.
-    expect(parkedOnActiveAccount({ cc_account: "spent" }, { ...device, is_remote: true }, now)).toBe(true);
-    expect(parkedOnActiveAccount({ cc_account: "spent" }, undefined, now)).toBe(false);
+    expect(
+      parkedOnActiveAccount(
+        { cc_account: "spent" },
+        { ...device, is_remote: true },
+        now,
+      ),
+    ).toBe(true);
+    expect(parkedOnActiveAccount({ cc_account: "spent" }, undefined, now)).toBe(
+      false,
+    );
   });
 
   test("a park that only implicates another account's pin continues at once — no wait on the active windows", () => {
     // Read as the active account's own park nothing proves headroom yet, so
     // the loop books the active session reset hours away (the 2026-09-03 wait).
     expect(decideAutoSwitch(base).action).toBe("exhausted");
-    expect(decideAutoSwitch({ ...base, activeParkedAt: parkedAt }).action).toBe("exhausted");
+    expect(decideAutoSwitch({ ...base, activeParkedAt: parkedAt }).action).toBe(
+      "exhausted",
+    );
     // Read as the pinned account's park: the restart that corrects the pin
     // un-parks it, and the active meters show headroom.
-    expect(decideAutoSwitch({ ...base, activeParkedAt: null })).toEqual({ action: "continue" });
+    expect(decideAutoSwitch({ ...base, activeParkedAt: null })).toEqual({
+      action: "continue",
+    });
   });
 
   test("a spent active account still gates: foreign parks wait on its reset like every other", () => {
@@ -1420,15 +1940,24 @@ describe("parks on another account's pin", () => {
       activeParkedAt: null,
       profiles: [{ name: "ashot", email: "a@x.com", usage: pegged }],
     });
-    expect(d).toEqual({ action: "exhausted", retry_at: now + 3600_000 + 2 * 60_000 });
+    expect(d).toEqual({
+      action: "exhausted",
+      retry_at: now + 3600_000 + 2 * 60_000,
+    });
   });
 
   test("mixed parks: the active account's own park still needs its evidence, then one continue covers both", () => {
     const mixed = { ...base, activeParkedAt: parkedAt - 10_000 };
     expect(decideAutoSwitch(mixed).action).toBe("exhausted");
-    const settled = { ...headroom, fetched_at: parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS };
+    const settled = {
+      ...headroom,
+      fetched_at: parkedAt + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS,
+    };
     expect(
-      decideAutoSwitch({ ...mixed, profiles: [{ name: "ashot", email: "a@x.com", usage: settled }] }),
+      decideAutoSwitch({
+        ...mixed,
+        profiles: [{ name: "ashot", email: "a@x.com", usage: settled }],
+      }),
     ).toEqual({ action: "continue" });
   });
 
@@ -1446,7 +1975,13 @@ describe("parks on another account's pin", () => {
       ...base,
       activeParkedAt: null,
       activeSince: now - 60_000,
-      profiles: [{ name: "ashot", email: "a@x.com", usage: { ...headroom, fetched_at: now - 10 * 60_000 } }],
+      profiles: [
+        {
+          name: "ashot",
+          email: "a@x.com",
+          usage: { ...headroom, fetched_at: now - 10 * 60_000 },
+        },
+      ],
     });
     expect(d.action).toBe("wait");
   });
@@ -1475,41 +2010,90 @@ describe("resumePinFor", () => {
       ],
     },
   };
-  const limitParked = { pending_api_error: true, pending_api_error_kind: "limit", cc_account: "spent" };
+  const limitParked = {
+    pending_api_error: true,
+    pending_api_error_kind: "limit",
+    cc_account: "spent",
+  };
 
   test("a limit- or auth-parked session pinned to another account resumes under this device's continue pin", () => {
     expect(resumePinFor(limitParked, keychainOnly, now)).toBeUndefined();
     expect(resumePinFor(limitParked, tokened, now)).toBe("ashot");
-    expect(resumePinFor({ ...limitParked, pending_api_error_kind: "auth" }, tokened, now)).toBe("ashot");
-    expect(resumePinFor({ ...limitParked, cc_account: "gone" }, keychainOnly, now)).toBeUndefined();
+    expect(
+      resumePinFor(
+        { ...limitParked, pending_api_error_kind: "auth" },
+        tokened,
+        now,
+      ),
+    ).toBe("ashot");
+    expect(
+      resumePinFor({ ...limitParked, cc_account: "gone" }, keychainOnly, now),
+    ).toBeUndefined();
   });
 
   test("a pin to an account whose meter shows it spent moves to the fleet pin, parked or not", () => {
     // jx744vh (2026-09-23): no park stamp, pinned to apetrosian's full 5 hour
     // window; a restart resumed it there while the fleet account had room.
-    const pegged = { fetched_at: now, session: { percent: 100, resets_at: now + 3600_000 } };
+    const pegged = {
+      fetched_at: now,
+      session: { percent: 100, resets_at: now + 3600_000 },
+    };
     const withSpent = {
       ...tokened,
       cc_accounts: {
         ...tokened.cc_accounts,
-        profiles: tokened.cc_accounts.profiles.map((p) => (p.name === "spent" ? { ...p, usage: pegged } : p)),
+        profiles: tokened.cc_accounts.profiles.map((p) =>
+          p.name === "spent" ? { ...p, usage: pegged } : p,
+        ),
       },
     };
     expect(resumePinFor({ cc_account: "spent" }, withSpent, now)).toBe("ashot");
-    expect(resumePinFor({ cc_account: "spent", pending_api_error: true, pending_api_error_kind: "throttle" }, withSpent, now)).toBe("ashot");
+    expect(
+      resumePinFor(
+        {
+          cc_account: "spent",
+          pending_api_error: true,
+          pending_api_error_kind: "throttle",
+        },
+        withSpent,
+        now,
+      ),
+    ).toBe("ashot");
     // Rolled window: the account has room again and the pin stands.
-    expect(resumePinFor({ cc_account: "spent" }, withSpent, now + 2 * 3600_000)).toBe("spent");
+    expect(
+      resumePinFor({ cc_account: "spent" }, withSpent, now + 2 * 3600_000),
+    ).toBe("spent");
   });
 
   test("existing pins survive while legacy unpinned sessions adopt the current token", () => {
-    expect(resumePinFor({ cc_account: "spent" }, keychainOnly, now)).toBe("spent");
-    expect(resumePinFor({ ...limitParked, pending_api_error: false }, keychainOnly, now)).toBe("spent");
-    expect(resumePinFor({ ...limitParked, pending_api_error_kind: "connection" }, keychainOnly, now)).toBe("spent");
-    expect(resumePinFor({ ...limitParked, cc_account: "ashot" }, tokened, now)).toBe("ashot");
-    expect(resumePinFor({ ...limitParked, cc_account: undefined }, tokened, now)).toBe("ashot");
+    expect(resumePinFor({ cc_account: "spent" }, keychainOnly, now)).toBe(
+      "spent",
+    );
+    expect(
+      resumePinFor(
+        { ...limitParked, pending_api_error: false },
+        keychainOnly,
+        now,
+      ),
+    ).toBe("spent");
+    expect(
+      resumePinFor(
+        { ...limitParked, pending_api_error_kind: "connection" },
+        keychainOnly,
+        now,
+      ),
+    ).toBe("spent");
+    expect(
+      resumePinFor({ ...limitParked, cc_account: "ashot" }, tokened, now),
+    ).toBe("ashot");
+    expect(
+      resumePinFor({ ...limitParked, cc_account: undefined }, tokened, now),
+    ).toBe("ashot");
     expect(resumePinFor({}, tokened, now)).toBe("ashot");
     expect(resumePinFor({}, keychainOnly, now)).toBeUndefined();
-    expect(resumePinFor(limitParked, { ...keychainOnly, is_remote: true }, now)).toBe("spent");
+    expect(
+      resumePinFor(limitParked, { ...keychainOnly, is_remote: true }, now),
+    ).toBe("spent");
   });
 
   // 2026-09-24: a token switch moved the fleet to "tok"; the switch back to the
@@ -1522,18 +2106,43 @@ describe("resumePinFor", () => {
         launch_profile: "tok",
         profiles: [
           { name: "ashot", email: "a@x.com", token: live },
-          { name: "tok", email: "t@x.com", login_expired_at: 1, setup_token: live },
+          {
+            name: "tok",
+            email: "t@x.com",
+            login_expired_at: 1,
+            setup_token: live,
+          },
         ],
       },
     };
     // Back on the keychain: an automatic "tok" pin returns to the login's profile.
-    expect(resumePinFor({ cc_account: "tok", cc_account_auto: true }, tokened, now)).toBe("ashot");
-    expect(resumePinFor({ cc_account: "tok", cc_account_auto: true }, keychainOnly, now)).toBeUndefined();
+    expect(
+      resumePinFor({ cc_account: "tok", cc_account_auto: true }, tokened, now),
+    ).toBe("ashot");
+    expect(
+      resumePinFor(
+        { cc_account: "tok", cc_account_auto: true },
+        keychainOnly,
+        now,
+      ),
+    ).toBeUndefined();
     // On the token fleet: an automatic keychain pin moves onto the token.
-    expect(resumePinFor({ cc_account: "ashot", cc_account_auto: true }, tokFleet, now)).toBe("tok");
+    expect(
+      resumePinFor(
+        { cc_account: "ashot", cc_account_auto: true },
+        tokFleet,
+        now,
+      ),
+    ).toBe("tok");
     // A person's --account pin never moves, and remotes never pin.
     expect(resumePinFor({ cc_account: "tok" }, tokened, now)).toBe("tok");
-    expect(resumePinFor({ cc_account: "tok", cc_account_auto: true }, { ...tokened, is_remote: true }, now)).toBe("tok");
+    expect(
+      resumePinFor(
+        { cc_account: "tok", cc_account_auto: true },
+        { ...tokened, is_remote: true },
+        now,
+      ),
+    ).toBe("tok");
   });
 });
 
@@ -1551,8 +2160,16 @@ describe("account switch restart command", () => {
     cc_accounts: {
       active_email: "old@x.com",
       profiles: [
-        { name: "old", email: "old@x.com", token: { stored_at: 1, expires_at: now + 1 } },
-        { name: "next", email: "next@x.com", token: { stored_at: 1, expires_at: now + 1 } },
+        {
+          name: "old",
+          email: "old@x.com",
+          token: { stored_at: 1, expires_at: now + 1 },
+        },
+        {
+          name: "next",
+          email: "next@x.com",
+          token: { stored_at: 1, expires_at: now + 1 },
+        },
       ],
     },
   } as any;
@@ -1594,7 +2211,11 @@ describe("Codex cyber policy parks (ct-49794)", () => {
   // Start from the wire code and let the classifier say what kind it is, so
   // this covers the mapping rather than a kind typed in by hand.
   const kind = codexErrorKind({ codex_error_info: "cyber_policy" });
-  const conv = { pending_api_error: true, pending_api_error_kind: kind ?? undefined, agent_type: "codex" };
+  const conv = {
+    pending_api_error: true,
+    pending_api_error_kind: kind ?? undefined,
+    agent_type: "codex",
+  };
 
   test("parks the row so it earns the badge and the hint", () => {
     expect(kind).toBe("safety");
@@ -1607,6 +2228,12 @@ describe("Codex cyber policy parks (ct-49794)", () => {
     // ...and the auto switch only ever reads kind "limit" (limitBlocked in
     // accountSwitch.ts), so rotating accounts on this is impossible.
     expect(kind).not.toBe("limit");
-    expect(resumePinFor({ ...conv, cc_account: "work@example.com" }, undefined, Date.now())).toBe("work@example.com");
+    expect(
+      resumePinFor(
+        { ...conv, cc_account: "work@example.com" },
+        undefined,
+        Date.now(),
+      ),
+    ).toBe("work@example.com");
   });
 });

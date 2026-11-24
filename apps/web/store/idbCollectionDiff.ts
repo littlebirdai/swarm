@@ -6,7 +6,13 @@
 import { isConvexId } from "../lib/entityLinks";
 import { WEB_COLLECTION_INDEXES } from "./clientSyncRegistry";
 
-export { diffCollection, diffPatchedRows, patchedIds, createCoalescedWriter, type CollectionDiff } from "@platform/engine";
+export {
+  diffCollection,
+  diffPatchedRows,
+  patchedIds,
+  createCoalescedWriter,
+  type CollectionDiff,
+} from "@platform/engine";
 
 // ── Which diff-deletes may reach disk ────────────────────────────────────────
 // A row leaving the in-memory store is NOT, by itself, a reason to delete it
@@ -35,10 +41,16 @@ const snapshotDrops = new Map<string, Set<string>>();
 const landedSnapshots = new Set<string>();
 // Only a collection with a disk table ever spends a drop; recording the rest
 // would grow the ledger for the life of the page.
-const persistedCollections: ReadonlySet<string> = new Set(Object.keys(WEB_COLLECTION_INDEXES));
+const persistedCollections: ReadonlySet<string> = new Set(
+  Object.keys(WEB_COLLECTION_INDEXES),
+);
 
 /** A non-delta sync landed for `key`: `incomingIds` is the server's complete set. */
-export function noteSnapshotSync(key: string, incomingIds: Iterable<string>, droppedIds: Iterable<string>): void {
+export function noteSnapshotSync(
+  key: string,
+  incomingIds: Iterable<string>,
+  droppedIds: Iterable<string>,
+): void {
   if (!persistedCollections.has(key)) return;
   landedSnapshots.add(key);
   let drops = snapshotDrops.get(key);
@@ -113,8 +125,16 @@ export function durableDeletes(
 }
 
 /** One row gone from the store may leave disk: an exclude, a client stub, or a snapshot prune (the rule above). */
-export function deleteAllowed(key: string, id: string, pending: Record<string, { type?: string } | undefined>): boolean {
-  return pending[`${key}:${id}`]?.type === "exclude" || !isConvexId(String(id)) || !!snapshotDrops.get(key)?.has(id);
+export function deleteAllowed(
+  key: string,
+  id: string,
+  pending: Record<string, { type?: string } | undefined>,
+): boolean {
+  return (
+    pending[`${key}:${id}`]?.type === "exclude" ||
+    !isConvexId(String(id)) ||
+    !!snapshotDrops.get(key)?.has(id)
+  );
 }
 
 /** Whether a snapshot prune left drops in `key` that only a whole-collection diff can find. */
@@ -124,7 +144,9 @@ export function hasSnapshotDrops(key: string): boolean {
 
 /** Collections holding drops no write has spent yet (see the post-hydration flush). */
 export function keysWithSnapshotDrops(): string[] {
-  return [...snapshotDrops].filter(([, ids]) => ids.size > 0).map(([key]) => key);
+  return [...snapshotDrops]
+    .filter(([, ids]) => ids.size > 0)
+    .map(([key]) => key);
 }
 
 export function _resetSnapshotLedger(): void {

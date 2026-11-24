@@ -1,8 +1,6 @@
+import { useCallback, useMemo, useState } from "react";
 import {
-  useCallback,
-  useMemo,
-  useState } from 'react';
-import { Image,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,17 +9,33 @@ import { Image,
   StyleSheet,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Text, TextInput } from '@/components/Themed';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useOwners, useOwnerCandidates, pickRoster, type OwnersApi } from '@codecast/web/hooks/useOwners';
-import { useStoreOwnersEnv, useSessionRoleFacts } from '@codecast/web/hooks/useOwnersStoreEnv';
-import { useSyncOrgTreeFeeder } from '@codecast/web/hooks/useSyncOrgTree';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { requestSessionMove } from '@codecast/web/lib/sessionCommands';
-import { Theme, Spacing, chipText, CHROME_FONT_CAP, CHIP_HEIGHT, themedStyles, useTheme } from '@/constants/Theme';
+} from "react-native";
+import { Text, TextInput } from "@/components/Themed";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useOwners,
+  useOwnerCandidates,
+  pickRoster,
+  type OwnersApi,
+} from "@codecast/web/hooks/useOwners";
+import {
+  useStoreOwnersEnv,
+  useSessionRoleFacts,
+} from "@codecast/web/hooks/useOwnersStoreEnv";
+import { useSyncOrgTreeFeeder } from "@codecast/web/hooks/useSyncOrgTree";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { requestSessionMove } from "@codecast/web/lib/sessionCommands";
+import {
+  Theme,
+  Spacing,
+  chipText,
+  CHROME_FONT_CAP,
+  CHIP_HEIGHT,
+  themedStyles,
+  useTheme,
+} from "@/constants/Theme";
 import {
   useDevices,
   deviceDisplayName,
@@ -29,9 +43,9 @@ import {
   deviceIcon,
   relativeSeen,
   type Device,
-} from './DevicesSection';
-import { isPerson } from '@codecast/shared/team/memberKind';
-import { teamMembersOf } from '@codecast/web/lib/activeTeam';
+} from "./DevicesSection";
+import { isPerson } from "@codecast/shared/team/memberKind";
+import { teamMembersOf } from "@codecast/web/lib/activeTeam";
 
 /**
  * The unified assignment control for a session — mobile twin of the web's
@@ -45,12 +59,30 @@ import { teamMembersOf } from '@codecast/web/lib/activeTeam';
  * multi-select (tap toggles, the sheet stays open).
  */
 
-function OwnerAvatar({ name, image, size = 18 }: { name: string; image?: string; size?: number }) {
+function OwnerAvatar({
+  name,
+  image,
+  size = 18,
+}: {
+  name: string;
+  image?: string;
+  size?: number;
+}) {
   const Theme = useTheme();
   if (image) {
-    return <Image source={{ uri: image }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+    return (
+      <Image
+        source={{ uri: image }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
   }
-  const initials = name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <View
       style={{
@@ -60,11 +92,19 @@ function OwnerAvatar({ name, image, size = 18 }: { name: string; image?: string;
         backgroundColor: Theme.bgAlt,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: Theme.border,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <Text style={{ fontSize: size * 0.42, fontWeight: '600', color: Theme.textMuted }}>{initials || '?'}</Text>
+      <Text
+        style={{
+          fontSize: size * 0.42,
+          fontWeight: "600",
+          color: Theme.textMuted,
+        }}
+      >
+        {initials || "?"}
+      </Text>
     </View>
   );
 }
@@ -88,14 +128,19 @@ export function AssignmentChip({
   // shared owners hook so the sheet opens with every name already drawn.
   const currentUser = useInboxStore((s) => s.currentUser) as any;
   const teamMembers = useInboxStore(teamMembersOf) as any[];
-  const activeTeamId = useInboxStore((s) => (s.clientState.ui?.active_team_id ?? null)) as string | null;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id ?? null,
+  ) as string | null;
   // The store binding web uses: every owner change and role move rides the one
   // reparent path, so the inbox refiles and open questions follow the owners.
-  const owners = useOwners(conversationId ?? '', useStoreOwnersEnv(conversationId ?? '', {
-    teamMembers: teamMembers as any[] | undefined,
-    currentUser,
-    notify: (msg) => showToast(msg),
-  }));
+  const owners = useOwners(
+    conversationId ?? "",
+    useStoreOwnersEnv(conversationId ?? "", {
+      teamMembers: teamMembers as any[] | undefined,
+      currentUser,
+      notify: (msg) => showToast(msg),
+    }),
+  );
   const { ownerList, displayFor } = owners;
 
   const d = ownerDeviceId ? byId.get(ownerDeviceId) : undefined;
@@ -119,9 +164,18 @@ export function AssignmentChip({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setSheetVisible(false);
       const name = deviceDisplayName(target);
-      showToast(target.is_remote ? `Moving to ${name} — transferring the worktree…` : `Moving to ${name}…`);
-      requestSessionMove(conversationId, { device_id: target.device_id, is_remote: target.is_remote, label: name })
-        .catch((e: unknown) => showToast(e instanceof Error ? e.message : String(e)));
+      showToast(
+        target.is_remote
+          ? `Moving to ${name} — transferring the worktree…`
+          : `Moving to ${name}…`,
+      );
+      requestSessionMove(conversationId, {
+        device_id: target.device_id,
+        is_remote: target.is_remote,
+        label: name,
+      }).catch((e: unknown) =>
+        showToast(e instanceof Error ? e.message : String(e)),
+      );
     },
     [conversationId, showToast],
   );
@@ -136,36 +190,78 @@ export function AssignmentChip({
         onPress={() => setSheetVisible(true)}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`${d ? `Runs on ${deviceDisplayName(d)}` : 'No device'}; ${ownerList.length ? `owned by ${ownerList.map((o) => displayFor(o).name).join(', ')}` : 'no owners'}`}
+        accessibilityLabel={`${d ? `Runs on ${deviceDisplayName(d)}` : "No device"}; ${ownerList.length ? `owned by ${ownerList.map((o) => displayFor(o).name).join(", ")}` : "no owners"}`}
       >
         <View style={styles.chipShell}>
           {loaded && (
-            <View style={[styles.lobe, { backgroundColor: devColor + '14' }]}>
-              <FontAwesome name={d ? deviceIcon(d) : 'laptop'} size={10} color={devColor} />
-              <Text style={[styles.lobeText, { color: devColor }]} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_CAP}>
-                {d ? deviceDisplayName(d) : 'No device'}
+            <View style={[styles.lobe, { backgroundColor: devColor + "14" }]}>
+              <FontAwesome
+                name={d ? deviceIcon(d) : "laptop"}
+                size={10}
+                color={devColor}
+              />
+              <Text
+                style={[styles.lobeText, { color: devColor }]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={CHROME_FONT_CAP}
+              >
+                {d ? deviceDisplayName(d) : "No device"}
               </Text>
-              <View style={[styles.dot, { backgroundColor: d?.online ? Theme.green : Theme.textMuted0 }]} />
+              <View
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: d?.online ? Theme.green : Theme.textMuted0,
+                  },
+                ]}
+              />
             </View>
           )}
-          <View style={[styles.lobe, ownerList.length ? { backgroundColor: Theme.cyan + '14' } : null]}>
+          <View
+            style={[
+              styles.lobe,
+              ownerList.length ? { backgroundColor: Theme.cyan + "14" } : null,
+            ]}
+          >
             {ownerList.length ? (
               // Faces only: the names are in the sheet and the label, and the
               // row has the model and the branch to fit beside them.
               <View style={styles.faces}>
                 {ownerList.slice(0, 3).map((o, i) => (
-                  <View key={String(o)} style={[styles.faceRing, i > 0 && styles.faceOverlap]}>
-                    <OwnerAvatar name={displayFor(o).name} image={displayFor(o).image} size={14} />
+                  <View
+                    key={String(o)}
+                    style={[styles.faceRing, i > 0 && styles.faceOverlap]}
+                  >
+                    <OwnerAvatar
+                      name={displayFor(o).name}
+                      image={displayFor(o).image}
+                      size={14}
+                    />
                   </View>
                 ))}
                 {ownerList.length > 3 && (
-                  <Text style={[styles.lobeText, { color: Theme.cyan, marginLeft: 3 }]} maxFontSizeMultiplier={CHROME_FONT_CAP}>+{ownerList.length - 3}</Text>
+                  <Text
+                    style={[
+                      styles.lobeText,
+                      { color: Theme.cyan, marginLeft: 3 },
+                    ]}
+                    maxFontSizeMultiplier={CHROME_FONT_CAP}
+                  >
+                    +{ownerList.length - 3}
+                  </Text>
                 )}
               </View>
             ) : (
               <>
-                <FontAwesome name="user-plus" size={10} color={Theme.textMuted} />
-                <Text style={[styles.lobeText, { color: Theme.textMuted }]} maxFontSizeMultiplier={CHROME_FONT_CAP}>
+                <FontAwesome
+                  name="user-plus"
+                  size={10}
+                  color={Theme.textMuted}
+                />
+                <Text
+                  style={[styles.lobeText, { color: Theme.textMuted }]}
+                  maxFontSizeMultiplier={CHROME_FONT_CAP}
+                >
                   Assign
                 </Text>
               </>
@@ -179,67 +275,108 @@ export function AssignmentChip({
         transparent
         animationType="slide"
         onRequestClose={() => setSheetVisible(false)}
-        supportedOrientations={['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right']}
+        supportedOrientations={[
+          "portrait",
+          "portrait-upside-down",
+          "landscape-left",
+          "landscape-right",
+        ]}
       >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* accessible={false} on both: a Pressable defaults to accessible, which
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {/* accessible={false} on both: a Pressable defaults to accessible, which
             would flatten the whole sheet into one VoiceOver element. */}
-        <Pressable style={styles.backdrop} onPress={() => setSheetVisible(false)} accessible={false}>
-          <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={() => {}} accessible={false}>
-            <View style={styles.grabber} />
-            <ScrollView style={styles.list} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <Pressable
+            style={styles.backdrop}
+            onPress={() => setSheetVisible(false)}
+            accessible={false}
+          >
+            <Pressable
+              style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
+              onPress={() => {}}
+              accessible={false}
+            >
+              <View style={styles.grabber} />
+              <ScrollView
+                style={styles.list}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <Text style={styles.sectionLabel}>Device</Text>
+                {sortedDevices.length === 0 && (
+                  <Text style={styles.emptyText}>
+                    No devices yet. Run the codecast daemon on a machine.
+                  </Text>
+                )}
+                {sortedDevices.map((dev) => {
+                  const isCurrent = dev.device_id === ownerDeviceId;
+                  const disabled = isCurrent || !dev.online;
+                  const color = deviceColor(dev);
+                  return (
+                    <TouchableOpacity
+                      key={dev.device_id}
+                      style={[
+                        styles.row,
+                        disabled && !isCurrent && { opacity: 0.4 },
+                      ]}
+                      activeOpacity={0.6}
+                      disabled={disabled}
+                      onPress={() => moveTo(dev)}
+                    >
+                      <FontAwesome
+                        name={deviceIcon(dev)}
+                        size={14}
+                        color={color}
+                        style={{ width: 20 }}
+                      />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text
+                          style={[styles.rowLabel, isCurrent && { color }]}
+                          numberOfLines={1}
+                        >
+                          {deviceDisplayName(dev)}
+                        </Text>
+                        <Text style={styles.rowHint} numberOfLines={1}>
+                          {isCurrent
+                            ? "Running here"
+                            : dev.online
+                              ? dev.is_remote
+                                ? "Online · moves the worktree"
+                                : "Online"
+                              : `Offline · ${relativeSeen(dev.last_seen)}`}
+                        </Text>
+                      </View>
+                      {isCurrent ? (
+                        <FontAwesome name="check" size={13} color={color} />
+                      ) : (
+                        <View
+                          style={[
+                            styles.dot,
+                            {
+                              backgroundColor: dev.online
+                                ? Theme.green
+                                : Theme.textMuted0,
+                            },
+                          ]}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
 
-            <Text style={styles.sectionLabel}>Device</Text>
-            {sortedDevices.length === 0 && (
-              <Text style={styles.emptyText}>No devices yet. Run the codecast daemon on a machine.</Text>
-            )}
-            {sortedDevices.map((dev) => {
-              const isCurrent = dev.device_id === ownerDeviceId;
-              const disabled = isCurrent || !dev.online;
-              const color = deviceColor(dev);
-              return (
-                <TouchableOpacity
-                  key={dev.device_id}
-                  style={[styles.row, disabled && !isCurrent && { opacity: 0.4 }]}
-                  activeOpacity={0.6}
-                  disabled={disabled}
-                  onPress={() => moveTo(dev)}
-                >
-                  <FontAwesome name={deviceIcon(dev)} size={14} color={color} style={{ width: 20 }} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.rowLabel, isCurrent && { color }]} numberOfLines={1}>
-                      {deviceDisplayName(dev)}
-                    </Text>
-                    <Text style={styles.rowHint} numberOfLines={1}>
-                      {isCurrent
-                        ? 'Running here'
-                        : dev.online
-                          ? dev.is_remote
-                            ? 'Online · moves the worktree'
-                            : 'Online'
-                          : `Offline · ${relativeSeen(dev.last_seen)}`}
-                    </Text>
-                  </View>
-                  {isCurrent ? (
-                    <FontAwesome name="check" size={13} color={color} />
-                  ) : (
-                    <View style={[styles.dot, { backgroundColor: dev.online ? Theme.green : Theme.textMuted0 }]} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+                <View style={styles.divider} />
 
-            <View style={styles.divider} />
-
-            <OwnerSheetRows
-              owners={owners}
-              conversationId={conversationId}
-              activeTeamId={activeTeamId}
-              onDone={() => setSheetVisible(false)}
-            />
-            </ScrollView>
+                <OwnerSheetRows
+                  owners={owners}
+                  conversationId={conversationId}
+                  activeTeamId={activeTeamId}
+                  onDone={() => setSheetVisible(false)}
+                />
+              </ScrollView>
+            </Pressable>
           </Pressable>
-        </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </>
@@ -276,15 +413,19 @@ function OwnerSheetRows({
   onDone: () => void;
 }) {
   const Theme = useTheme();
-  const { ownerIds, ownerList, toggle, moveToRole, clearAll, currentUser } = owners;
+  const { ownerIds, ownerList, toggle, moveToRole, clearAll, currentUser } =
+    owners;
   const serverRoster = useOwnerCandidates(conversationId, currentUser);
-  const selectable = pickRoster(serverRoster, owners.selectable).filter(isPerson);
-  const { liveRoles, orgRoleId, currentRole, isStandingThread } = useSessionRoleFacts(conversationId);
+  const selectable = pickRoster(serverRoster, owners.selectable).filter(
+    isPerson,
+  );
+  const { liveRoles, orgRoleId, currentRole, isStandingThread } =
+    useSessionRoleFacts(conversationId);
   const [rolesOpen, setRolesOpen] = useState(false);
   // Optional note, sent along with the NEXT assignment made from this sheet.
   // It rides the notification and the assignee's "assigned to you" banner,
   // then clears once used.
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
   const tap = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   return (
     <>
@@ -293,47 +434,105 @@ function OwnerSheetRows({
       {currentRole && (
         <>
           <View style={styles.row}>
-            <FontAwesome name="sitemap" size={13} color={Theme.violet} style={{ width: 20 }} />
-            <Text style={[styles.rowLabel, { flex: 1 }]} numberOfLines={1}>{currentRole.name}</Text>
+            <FontAwesome
+              name="sitemap"
+              size={13}
+              color={Theme.violet}
+              style={{ width: 20 }}
+            />
+            <Text style={[styles.rowLabel, { flex: 1 }]} numberOfLines={1}>
+              {currentRole.name}
+            </Text>
             <Text style={styles.rowHint}>@{currentRole.handle}</Text>
           </View>
         </>
       )}
       {!isStandingThread && liveRoles.length > 0 && (
         <>
-          <TouchableOpacity style={styles.row} activeOpacity={0.6} onPress={() => { tap(); setRolesOpen((o) => !o); }}>
-            <FontAwesome name="sitemap" size={13} color={Theme.text} style={{ width: 20 }} />
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.6}
+            onPress={() => {
+              tap();
+              setRolesOpen((o) => !o);
+            }}
+          >
+            <FontAwesome
+              name="sitemap"
+              size={13}
+              color={Theme.text}
+              style={{ width: 20 }}
+            />
             <Text style={[styles.rowLabel, { flex: 1 }]}>Move to a role</Text>
-            <FontAwesome name={rolesOpen ? 'chevron-up' : 'chevron-down'} size={11} color={Theme.textMuted} />
+            <FontAwesome
+              name={rolesOpen ? "chevron-up" : "chevron-down"}
+              size={11}
+              color={Theme.textMuted}
+            />
           </TouchableOpacity>
-          {rolesOpen && liveRoles.map((r) => {
-            const isCurrent = r._id === orgRoleId;
-            return (
-              <TouchableOpacity
-                key={r._id}
-                style={[styles.row, styles.nestedRow]}
-                activeOpacity={0.6}
-                disabled={isCurrent}
-                onPress={() => { tap(); onDone(); void moveToRole(r._id, r.name); }}
-              >
-                <Text style={[styles.rowLabel, { flex: 1 }, isCurrent && { color: Theme.violet }]} numberOfLines={1}>{r.name}</Text>
-                <Text style={styles.rowHint}>@{r.handle}</Text>
-                {isCurrent && <FontAwesome name="check" size={13} color={Theme.violet} />}
-              </TouchableOpacity>
-            );
-          })}
+          {rolesOpen &&
+            liveRoles.map((r) => {
+              const isCurrent = r._id === orgRoleId;
+              return (
+                <TouchableOpacity
+                  key={r._id}
+                  style={[styles.row, styles.nestedRow]}
+                  activeOpacity={0.6}
+                  disabled={isCurrent}
+                  onPress={() => {
+                    tap();
+                    onDone();
+                    void moveToRole(r._id, r.name);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.rowLabel,
+                      { flex: 1 },
+                      isCurrent && { color: Theme.violet },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {r.name}
+                  </Text>
+                  <Text style={styles.rowHint}>@{r.handle}</Text>
+                  {isCurrent && (
+                    <FontAwesome name="check" size={13} color={Theme.violet} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
         </>
       )}
       {isPerson(currentUser) && !ownerIds.has(currentUser._id) && (
-        <TouchableOpacity style={styles.row} activeOpacity={0.6} onPress={() => { tap(); onDone(); void toggle(currentUser._id); }}>
-          <FontAwesome name="user-plus" size={13} color={Theme.cyan} style={{ width: 20 }} />
+        <TouchableOpacity
+          style={styles.row}
+          activeOpacity={0.6}
+          onPress={() => {
+            tap();
+            onDone();
+            void toggle(currentUser._id);
+          }}
+        >
+          <FontAwesome
+            name="user-plus"
+            size={13}
+            color={Theme.cyan}
+            style={{ width: 20 }}
+          />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.rowLabel, { color: Theme.cyan }]}>Take ownership</Text>
-            <Text style={styles.rowHint}>Add to your inbox; keep existing owners</Text>
+            <Text style={[styles.rowLabel, { color: Theme.cyan }]}>
+              Take ownership
+            </Text>
+            <Text style={styles.rowHint}>
+              Add to your inbox; keep existing owners
+            </Text>
           </View>
         </TouchableOpacity>
       )}
-      {selectable.length === 0 && <Text style={styles.emptyText}>No teammates</Text>}
+      {selectable.length === 0 && (
+        <Text style={styles.emptyText}>No teammates</Text>
+      )}
       {selectable.map((m: any) => {
         const isYou = currentUser && m._id === currentUser._id;
         const checked = ownerIds.has(m._id);
@@ -345,19 +544,33 @@ function OwnerSheetRows({
             onPress={() => {
               tap();
               void toggle(m._id, checked ? undefined : note);
-              if (!checked) setNote('');
+              if (!checked) setNote("");
             }}
           >
-            <OwnerAvatar name={m.name || m.email || '?'} image={m.image || m.github_avatar_url} />
-            <Text style={[styles.rowLabel, { flex: 1 }, checked && { color: Theme.cyan }]} numberOfLines={1}>
-              {m.name || m.email?.split('@')[0]}
-              {isYou ? ' (you)' : ''}
+            <OwnerAvatar
+              name={m.name || m.email || "?"}
+              image={m.image || m.github_avatar_url}
+            />
+            <Text
+              style={[
+                styles.rowLabel,
+                { flex: 1 },
+                checked && { color: Theme.cyan },
+              ]}
+              numberOfLines={1}
+            >
+              {m.name || m.email?.split("@")[0]}
+              {isYou ? " (you)" : ""}
             </Text>
-            {checked && <FontAwesome name="check" size={13} color={Theme.cyan} />}
+            {checked && (
+              <FontAwesome name="check" size={13} color={Theme.cyan} />
+            )}
           </TouchableOpacity>
         );
       })}
-      {selectable.some((m: any) => !currentUser || m._id !== currentUser._id) && (
+      {selectable.some(
+        (m: any) => !currentUser || m._id !== currentUser._id,
+      ) && (
         <TextInput
           value={note}
           onChangeText={setNote}
@@ -367,9 +580,23 @@ function OwnerSheetRows({
         />
       )}
       {ownerList.length > 0 && (
-        <TouchableOpacity style={styles.row} activeOpacity={0.6} onPress={() => { tap(); void clearAll(); }}>
-          <FontAwesome name="times" size={13} color={Theme.textMuted} style={{ width: 20 }} />
-          <Text style={[styles.rowLabel, { color: Theme.textMuted }]}>Clear all owners</Text>
+        <TouchableOpacity
+          style={styles.row}
+          activeOpacity={0.6}
+          onPress={() => {
+            tap();
+            void clearAll();
+          }}
+        >
+          <FontAwesome
+            name="times"
+            size={13}
+            color={Theme.textMuted}
+            style={{ width: 20 }}
+          />
+          <Text style={[styles.rowLabel, { color: Theme.textMuted }]}>
+            Clear all owners
+          </Text>
         </TouchableOpacity>
       )}
     </>
@@ -385,190 +612,212 @@ function OwnerSheetRows({
  * thread also acks server-side (ackAssignmentOnEngage), which retires this
  * banner through the live listOwners query.
  */
-export function AssignedToYouBanner({ conversationId }: { conversationId: string | null | undefined }) {
+export function AssignedToYouBanner({
+  conversationId,
+}: {
+  conversationId: string | null | undefined;
+}) {
   const Theme = useTheme();
   // The banner only reads the viewer's own row off listOwners, so the roster
   // isn't needed.
   const currentUser = useInboxStore((s) => s.currentUser) as any;
-  const owners = useOwners(conversationId ?? '', useStoreOwnersEnv(conversationId ?? '', { teamMembers: undefined, currentUser, notify: () => {} }));
+  const owners = useOwners(
+    conversationId ?? "",
+    useStoreOwnersEnv(conversationId ?? "", {
+      teamMembers: undefined,
+      currentUser,
+      notify: () => {},
+    }),
+  );
   const a = owners.myAssignment;
   if (!a || !conversationId) return null;
-  const by = a.added_by_name || 'A teammate';
+  const by = a.added_by_name || "A teammate";
   return (
     // Solid base under the tint: the banner floats over the message list, so a
     // translucent-only background would let text bleed through it.
     <View style={bannerStyles.base}>
-    <View style={bannerStyles.wrap}>
-      <FontAwesome name="user-plus" size={12} color={Theme.violet} style={{ marginTop: 2 }} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={bannerStyles.title}>{by} assigned this thread to you</Text>
-        {a.note ? <Text style={bannerStyles.note}>“{a.note}”</Text> : null}
+      <View style={bannerStyles.wrap}>
+        <FontAwesome
+          name="user-plus"
+          size={12}
+          color={Theme.violet}
+          style={{ marginTop: 2 }}
+        />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={bannerStyles.title}>
+            {by} assigned this thread to you
+          </Text>
+          {a.note ? <Text style={bannerStyles.note}>“{a.note}”</Text> : null}
+        </View>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            owners.ack();
+            useInboxStore.getState().clearAssignedPing(conversationId);
+          }}
+          hitSlop={8}
+          style={bannerStyles.ack}
+        >
+          <Text style={bannerStyles.ackText}>Got it</Text>
+        </Pressable>
       </View>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          owners.ack();
-          useInboxStore.getState().clearAssignedPing(conversationId);
-        }}
-        hitSlop={8}
-        style={bannerStyles.ack}
-      >
-        <Text style={bannerStyles.ackText}>Got it</Text>
-      </Pressable>
-    </View>
     </View>
   );
 }
 
-const bannerStyles = themedStyles((Theme) => StyleSheet.create({
-  base: {
-    marginHorizontal: Spacing.md,
-    marginTop: 6,
-    borderRadius: 10,
-    backgroundColor: Theme.bgAlt,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  // Violet like the web banner: the handoff motif stays one color everywhere,
-  // and on web cyan already means "the active session".
-  wrap: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: Theme.violet + '22',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.violet + '66',
-  },
-  title: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Theme.text,
-    lineHeight: 17,
-  },
-  note: {
-    fontSize: 12,
-    color: Theme.textMuted,
-    lineHeight: 16,
-    marginTop: 1,
-  },
-  ack: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: Theme.violet + '33',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.violet + '66',
-  },
-  ackText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Theme.violet,
-  },
-}));
+const bannerStyles = themedStyles((Theme) =>
+  StyleSheet.create({
+    base: {
+      marginHorizontal: Spacing.md,
+      marginTop: 6,
+      borderRadius: 10,
+      backgroundColor: Theme.bgAlt,
+      shadowColor: "#000",
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
+    // Violet like the web banner: the handoff motif stays one color everywhere,
+    // and on web cyan already means "the active session".
+    wrap: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: Theme.violet + "22",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.violet + "66",
+    },
+    title: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: Theme.text,
+      lineHeight: 17,
+    },
+    note: {
+      fontSize: 12,
+      color: Theme.textMuted,
+      lineHeight: 16,
+      marginTop: 1,
+    },
+    ack: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: Theme.violet + "33",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.violet + "66",
+    },
+    ackText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: Theme.violet,
+    },
+  }),
+);
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  // Segmented twin of the shared chipShell: same height/radius/border, but the
-  // horizontal padding lives in the lobes so their tints meet edge to edge.
-  chipShell: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    height: CHIP_HEIGHT,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
-    borderColor: Theme.border,
-    overflow: 'hidden',
-    maxWidth: 210,
-  },
-  lobe: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-  },
-  lobeText: chipText,
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  faces: { flexDirection: 'row', alignItems: 'center' },
-  // A ring in the chip's own fill separates overlapping faces.
-  faceRing: { borderRadius: 9, borderWidth: 1.5, borderColor: Theme.bg },
-  faceOverlap: { marginLeft: -5 },
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  // Same pair as MessageNavigatorSheet: the sheet caps at a share of the
-  // screen and the list shrinks to fit it, so long rosters scroll.
-  sheet: {
-    maxHeight: '85%',
-    backgroundColor: Theme.cardBg,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  list: { flexGrow: 0, flexShrink: 1 },
-  grabber: {
-    alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Theme.border,
-    opacity: 0.5,
-    marginBottom: 10,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: Theme.textDim,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 9,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: Theme.text,
-    flexShrink: 1,
-  },
-  rowHint: {
-    fontSize: 12,
-    color: Theme.textMuted,
-    marginTop: 1,
-  },
-  nestedRow: { paddingLeft: 30 },
-  noteInput: {
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border,
-    backgroundColor: Theme.bgAlt,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Theme.border,
-    opacity: 0.5,
-    marginVertical: 8,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: Theme.textMuted,
-    paddingVertical: 6,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    // Segmented twin of the shared chipShell: same height/radius/border, but the
+    // horizontal padding lives in the lobes so their tints meet edge to edge.
+    chipShell: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      height: CHIP_HEIGHT,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 6,
+      borderColor: Theme.border,
+      overflow: "hidden",
+      maxWidth: 210,
+    },
+    lobe: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 7,
+    },
+    lobeText: chipText,
+    dot: { width: 6, height: 6, borderRadius: 3 },
+    faces: { flexDirection: "row", alignItems: "center" },
+    // A ring in the chip's own fill separates overlapping faces.
+    faceRing: { borderRadius: 9, borderWidth: 1.5, borderColor: Theme.bg },
+    faceOverlap: { marginLeft: -5 },
+    backdrop: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: "rgba(0, 0, 0, 0.45)",
+    },
+    // Same pair as MessageNavigatorSheet: the sheet caps at a share of the
+    // screen and the list shrinks to fit it, so long rosters scroll.
+    sheet: {
+      maxHeight: "85%",
+      backgroundColor: Theme.cardBg,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+    },
+    list: { flexGrow: 0, flexShrink: 1 },
+    grabber: {
+      alignSelf: "center",
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Theme.border,
+      opacity: 0.5,
+      marginBottom: 10,
+    },
+    sectionLabel: {
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color: Theme.textDim,
+      marginTop: 6,
+      marginBottom: 4,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 9,
+    },
+    rowLabel: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: Theme.text,
+      flexShrink: 1,
+    },
+    rowHint: {
+      fontSize: 12,
+      color: Theme.textMuted,
+      marginTop: 1,
+    },
+    nestedRow: { paddingLeft: 30 },
+    noteInput: {
+      fontSize: 13,
+      marginTop: 4,
+      marginBottom: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border,
+      backgroundColor: Theme.bgAlt,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: Theme.border,
+      opacity: 0.5,
+      marginVertical: 8,
+    },
+    emptyText: {
+      fontSize: 13,
+      color: Theme.textMuted,
+      paddingVertical: 6,
+    },
+  }),
+);

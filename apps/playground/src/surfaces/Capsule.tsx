@@ -5,7 +5,17 @@
 // a friend just said, and a change from the moment it is asked to the moment
 // it is live, where the asker is looking. A landing it could not show (tucked,
 // or showing something else) is announced by a toast instead.
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { MessageView } from "../../convex/messages";
 import { clock, plural } from "../lib/format";
 import { useOffline } from "../lib/connection";
@@ -27,11 +37,19 @@ import { useTip } from "../ui/Tip";
 import { LiveToastText, useToast } from "../ui/Toast";
 import { useAppState, useComposer, useHereState, useStream } from "./appState";
 import { ReverseButton, TryIt, useReverse, useSummary } from "./versionActions";
-import { changePhase, useBusy, useBuildTicker, type ChangePhase } from "./buildTicker";
+import {
+  changePhase,
+  useBusy,
+  useBuildTicker,
+  type ChangePhase,
+} from "./buildTicker";
 import s from "./Capsule.module.css";
 
 type Corner = "tl" | "tr" | "bl" | "br";
-type Placement = { corner: Corner; tucked: null | { side: "left" | "right"; y: number } };
+type Placement = {
+  corner: Corner;
+  tucked: null | { side: "left" | "right"; y: number };
+};
 
 const KEY = "clayground.capsule";
 const HINT_KEY = "clayground.hinted";
@@ -39,10 +57,23 @@ const TUCK_PAST = 40;
 
 /** `onTimeline` is desktop's: on a phone the timeline lives in the room.
  *  `lift`: a dock along the bottom edge the capsule must sit above. */
-export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, focusRef }: { errorDot: boolean; onTimeline?: () => void; lift?: number; focusRef?: RefObject<HTMLButtonElement | null> }) {
+export const Capsule = memo(function Capsule({
+  errorDot,
+  onTimeline,
+  lift = 0,
+  focusRef,
+}: {
+  errorDot: boolean;
+  onTimeline?: () => void;
+  lift?: number;
+  focusRef?: RefObject<HTMLButtonElement | null>;
+}) {
   const { setRoomOpen, setReveal, cheer, prepare } = useAppState();
   // Reaching for the room or the timeline starts loading it.
-  const reach = (part: "room" | "timeline") => ({ onPointerEnter: () => prepare(part), onFocus: () => prepare(part) });
+  const reach = (part: "room" | "timeline") => ({
+    onPointerEnter: () => prepare(part),
+    onFocus: () => prepare(part),
+  });
   const here = useHereState();
   const stream = useStream();
   const composer = useComposer();
@@ -51,15 +82,29 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
   // No keyboard to speak of: a phone, or any touch screen.
   const touch = useMedia("(hover: none)") || narrow;
   const margin = narrow ? 12 : 20;
-  const [place, setPlace] = useState<Placement>(() => load<Placement>(KEY, { corner: "br", tucked: null }));
+  const [place, setPlace] = useState<Placement>(() =>
+    load<Placement>(KEY, { corner: "br", tucked: null }),
+  );
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
-  const [snapFrom, setSnapFrom] = useState<{ dx: number; dy: number } | null>(null);
+  const [snapFrom, setSnapFrom] = useState<{ dx: number; dy: number } | null>(
+    null,
+  );
   const box = useRef<HTMLDivElement>(null);
-  const timelineTip = useTip(<>Timeline <Keys keys={["T"]} /></>, place.corner[0] === "t" ? "below" : "above");
+  const timelineTip = useTip(
+    <>
+      Timeline <Keys keys={["T"]} />
+    </>,
+    place.corner[0] === "t" ? "below" : "above",
+  );
   // Offline, nobody knows who is here: the count gives way to a muted dot.
   const offline = useOffline();
-  const offlineTip = useTip("Reconnecting. Messages send once it's back.", place.corner[0] === "t" ? "below" : "above");
-  const hereLabel = offline ? "Reconnecting" : `${plural(here.people.length, "person", "people")} here`;
+  const offlineTip = useTip(
+    "Reconnecting. Messages send once it's back.",
+    place.corner[0] === "t" ? "below" : "above",
+  );
+  const hereLabel = offline
+    ? "Reconnecting"
+    : `${plural(here.people.length, "person", "people")} here`;
 
   const commit = (p: Placement) => {
     setPlace(p);
@@ -78,8 +123,11 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
   // Most recent speaker first, then everyone else in arrival order.
   const people = useMemo(() => {
     const spoke = new Map<string, number>();
-    for (const m of stream.messages) if (m.author) spoke.set(m.author.id, m.created_at);
-    return [...here.people].sort((a, b) => (spoke.get(b.id) ?? 0) - (spoke.get(a.id) ?? 0));
+    for (const m of stream.messages)
+      if (m.author) spoke.set(m.author.id, m.created_at);
+    return [...here.people].sort(
+      (a, b) => (spoke.get(b.id) ?? 0) - (spoke.get(a.id) ?? 0),
+    );
   }, [here.people, stream.messages]);
 
   const hint = useFirstVisitHint();
@@ -89,11 +137,22 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
   // the asker is looking; then what someone just said; then the change in
   // flight. A said message that turns into a request keeps its callout.
   const showing = !place.tucked && !hint.show && !drag;
-  const settling = change.phase === "landing" || change.phase === "live" || change.phase === "failed";
+  const settling =
+    change.phase === "landing" ||
+    change.phase === "live" ||
+    change.phase === "failed";
   const followed = change.m && { m: change.m, hold: change.hold };
-  const subject = !showing ? null : (settling && followed) || (heard.said && { m: heard.said, hold: heard.hold }) || followed;
-  const landingShown = subject?.m === change.m && (change.phase === "landing" || change.phase === "live");
-  useLandingToast(landingShown ? (change.m?.build?.result_version ?? null) : null);
+  const subject = !showing
+    ? null
+    : (settling && followed) ||
+      (heard.said && { m: heard.said, hold: heard.hold }) ||
+      followed;
+  const landingShown =
+    subject?.m === change.m &&
+    (change.phase === "landing" || change.phase === "live");
+  useLandingToast(
+    landingShown ? (change.m?.build?.result_version ?? null) : null,
+  );
 
   const startDrag = (e: ReactPointerEvent) => {
     e.preventDefault();
@@ -103,18 +162,36 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
     const dy = e.clientY - rect.top;
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => setDrag({ x: ev.clientX - dx, y: ev.clientY - dy });
+    const move = (ev: PointerEvent) =>
+      setDrag({ x: ev.clientX - dx, y: ev.clientY - dy });
     const up = (ev: PointerEvent) => {
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
       const x = ev.clientX - dx;
       const y = ev.clientY - dy;
       setDrag(null);
-      const yClamped = Math.min(Math.max(y, margin), innerHeight - rect.height - margin);
-      if (x < -TUCK_PAST) return commit({ corner: place.corner, tucked: { side: "left", y: yClamped } });
-      if (x + rect.width > innerWidth + TUCK_PAST) return commit({ corner: place.corner, tucked: { side: "right", y: yClamped } });
+      const yClamped = Math.min(
+        Math.max(y, margin),
+        innerHeight - rect.height - margin,
+      );
+      if (x < -TUCK_PAST)
+        return commit({
+          corner: place.corner,
+          tucked: { side: "left", y: yClamped },
+        });
+      if (x + rect.width > innerWidth + TUCK_PAST)
+        return commit({
+          corner: place.corner,
+          tucked: { side: "right", y: yClamped },
+        });
       const corner = nearestCorner(x + rect.width / 2, y + rect.height / 2);
-      const home = { x: corner[1] === "l" ? margin : innerWidth - rect.width - margin, y: corner[0] === "t" ? margin : innerHeight - rect.height - margin - lift };
+      const home = {
+        x: corner[1] === "l" ? margin : innerWidth - rect.width - margin,
+        y:
+          corner[0] === "t"
+            ? margin
+            : innerHeight - rect.height - margin - lift,
+      };
       setSnapFrom({ dx: x - home.x, dy: y - home.y });
       commit({ corner, tucked: null });
     };
@@ -129,12 +206,26 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
         ref={focusRef}
         className={`${s.tab} ${s[side]}`}
         style={{ top: Math.min(y, innerHeight - 100) }}
-        onClick={() => commit({ corner: `${y < innerHeight / 2 ? "t" : "b"}${side === "left" ? "l" : "r"}` as Corner, tucked: null })}
+        onClick={() =>
+          commit({
+            corner:
+              `${y < innerHeight / 2 ? "t" : "b"}${side === "left" ? "l" : "r"}` as Corner,
+            tucked: null,
+          })
+        }
         aria-label={`${hereLabel}${heard.unread ? `, ${plural(heard.unread, "new message")}` : ""}. Show the capsule`}
       >
         {people[0] && <Face person={people[0]} size={24} />}
-        {offline ? <i className={s.offlineDot} aria-hidden /> : <span className={s.count}>{here.people.length}</span>}
-        {heard.unread > 0 && <span className={s.badge} aria-hidden>{heard.unread}</span>}
+        {offline ? (
+          <i className={s.offlineDot} aria-hidden />
+        ) : (
+          <span className={s.count}>{here.people.length}</span>
+        )}
+        {heard.unread > 0 && (
+          <span className={s.badge} aria-hidden>
+            {heard.unread}
+          </span>
+        )}
         {building && <Spinner />}
       </button>
     );
@@ -149,7 +240,9 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
   const anchored = {
     [c[1] === "l" ? "left" : "right"]: margin,
     [c[0] === "t" ? "top" : "bottom"]: c[0] === "t" ? margin : margin + lift,
-    transform: snapFrom ? `translate(${snapFrom.dx}px, ${snapFrom.dy}px)` : undefined,
+    transform: snapFrom
+      ? `translate(${snapFrom.dx}px, ${snapFrom.dy}px)`
+      : undefined,
   };
 
   return (
@@ -160,8 +253,18 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
       data-corner={c}
       onPointerDown={hint.dismiss}
     >
-      <span className={s.grip} onPointerDown={startDrag} aria-hidden title="Drag me">
-        <i /><i /><i /><i /><i /><i />
+      <span
+        className={s.grip}
+        onPointerDown={startDrag}
+        aria-hidden
+        title="Drag me"
+      >
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
+        <i />
       </span>
       <button
         className={s.people}
@@ -172,18 +275,34 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
       >
         <HereFaces people={people} max={narrow ? 3 : 4} hop={cheer} />
         {offline ? (
-          <span className={s.offline}><i className={s.offlineDot} aria-hidden />Offline</span>
+          <span className={s.offline}>
+            <i className={s.offlineDot} aria-hidden />
+            Offline
+          </span>
         ) : (
           <span className={s.here}>{here.people.length} here</span>
         )}
         {offline && offlineTip.tip}
-        {heard.unread > 0 && <span className={s.badge} aria-hidden>{heard.unread}</span>}
+        {heard.unread > 0 && (
+          <span className={s.badge} aria-hidden>
+            {heard.unread}
+          </span>
+        )}
         {errorDot && !onTimeline && <ErrorDot />}
       </button>
       {onTimeline && (
         <>
           <i className={s.divider} />
-          <button className={s.tool} onClick={onTimeline} {...reach("timeline")} aria-label={errorDot ? "Timeline. The app hit an error" : "Timeline"} aria-keyshortcuts="T" {...timelineTip.describedBy}>
+          <button
+            className={s.tool}
+            onClick={onTimeline}
+            {...reach("timeline")}
+            aria-label={
+              errorDot ? "Timeline. The app hit an error" : "Timeline"
+            }
+            aria-keyshortcuts="T"
+            {...timelineTip.describedBy}
+          >
             <TimelineIcon />
             {errorDot && <ErrorDot />}
             {timelineTip.tip}
@@ -223,7 +342,13 @@ export const Capsule = memo(function Capsule({ errorDot, onTimeline, lift = 0, f
               : "Anyone with this link can change this app. Say what you'd change."}
           </span>
           <small>
-            {touch ? "Drag it out of the way." : <>Drag it anywhere. <Keys keys={["/"]} /> opens the room.</>}
+            {touch ? (
+              "Drag it out of the way."
+            ) : (
+              <>
+                Drag it anywhere. <Keys keys={["/"]} /> opens the room.
+              </>
+            )}
           </small>
         </div>
       )}
@@ -240,7 +365,15 @@ type Hold = (on: boolean) => void;
 /** The callout above the capsule, for one message as it changes: what was
  *  said, then, once it is a request, its build from in line to live. Hovering
  *  or focusing it holds it. */
-function Callout({ m, hold, onOpen }: { m: MessageView; hold: Hold; onOpen: () => void }) {
+function Callout({
+  m,
+  hold,
+  onOpen,
+}: {
+  m: MessageView;
+  hold: Hold;
+  onOpen: () => void;
+}) {
   return (
     <div
       className={`${s.callout} ${m.build ? "" : s.said}`}
@@ -249,7 +382,11 @@ function Callout({ m, hold, onOpen }: { m: MessageView; hold: Hold; onOpen: () =
       onFocus={() => hold(true)}
       onBlur={() => hold(false)}
     >
-      {m.build ? <ChangeView m={m} onOpen={onOpen} /> : <SaidView m={m} onOpen={onOpen} />}
+      {m.build ? (
+        <ChangeView m={m} onOpen={onOpen} />
+      ) : (
+        <SaidView m={m} onOpen={onOpen} />
+      )}
     </div>
   );
 }
@@ -257,7 +394,11 @@ function Callout({ m, hold, onOpen }: { m: MessageView; hold: Hold; onOpen: () =
 /** One line of what someone just said. */
 function SaidView({ m, onOpen }: { m: MessageView; onOpen: () => void }) {
   return (
-    <button className={s.calloutMain} onClick={onOpen} aria-label={`${m.author!.name}: ${m.body}. Open the room`}>
+    <button
+      className={s.calloutMain}
+      onClick={onOpen}
+      aria-label={`${m.author!.name}: ${m.body}. Open the room`}
+    >
       <Face person={m.author!} size={20} />
       <b>{m.author!.name}</b>
       <span className={s.saidText}>{m.body}</span>
@@ -269,8 +410,16 @@ const GLYPH: Record<ChangePhase, () => ReactNode> = {
   starting: () => <Spinner />,
   queued: () => <Blob size={16} />,
   building: () => <Spinner />,
-  landing: () => <span className={s.check}><CheckIcon /></span>,
-  live: () => <span className={s.check}><CheckIcon /></span>,
+  landing: () => (
+    <span className={s.check}>
+      <CheckIcon />
+    </span>
+  ),
+  live: () => (
+    <span className={s.check}>
+      <CheckIcon />
+    </span>
+  ),
   failed: () => <span className={s.bang}>!</span>,
 };
 
@@ -290,26 +439,49 @@ function ChangeView({ m, onOpen }: { m: MessageView; onOpen: () => void }) {
   return (
     <>
       <BuildLine progress={t.progress} state={t.state} />
-      <button className={s.calloutMain} onClick={onOpen} aria-label={`${t.title}, asked by ${who}. Open the room`}>
+      <button
+        className={s.calloutMain}
+        onClick={onOpen}
+        aria-label={`${t.title}, asked by ${who}. Open the room`}
+      >
         <span className={s.calloutHead}>
           {GLYPH[t.phase]()}
           <span className={s.calloutTitle}>
-            {live || t.phase === "landing" ? <>v{t.version} <span className={s.liveWord}>{live ? "is live" : "going live"}</span></> : t.title}
+            {live || t.phase === "landing" ? (
+              <>
+                v{t.version}{" "}
+                <span className={s.liveWord}>
+                  {live ? "is live" : "going live"}
+                </span>
+              </>
+            ) : (
+              t.title
+            )}
           </span>
           <span className={s.calloutWho}>
             {m.author && <Face person={m.author} size={16} />}
             <span className={s.calloutName}>{who}</span>
-            {t.phase === "building" && t.elapsed > 0 && <span className={s.calloutClock}>{clock(t.elapsed)}</span>}
+            {t.phase === "building" && t.elapsed > 0 && (
+              <span className={s.calloutClock}>{clock(t.elapsed)}</span>
+            )}
           </span>
         </span>
-        {live ? <span className={s.calloutSummary}>{summary || m.body}</span> : <span className={s.calloutLine} key={t.lineKey}>{t.line}</span>}
+        {live ? (
+          <span className={s.calloutSummary}>{summary || m.body}</span>
+        ) : (
+          <span className={s.calloutLine} key={t.lineKey}>
+            {t.line}
+          </span>
+        )}
       </button>
       {live && (
         <div className={s.calloutLive}>
           {tryIt && <TryIt text={tryIt} className={s.tryIt} />}
           <div className={s.calloutActions}>
             {undo && <ReverseButton r={undo} />}
-            <Button variant="text" onClick={onOpen}>Open</Button>
+            <Button variant="text" onClick={onOpen}>
+              Open
+            </Button>
           </div>
         </div>
       )}
@@ -325,18 +497,34 @@ function useHeard() {
   const { messages, status } = useStream();
   const { me } = useIdentity();
   const since = useRef<number | null>(null);
-  if (since.current === null && status !== "LoadingFirstPage") since.current = messages.at(-1)?.created_at ?? 0;
+  if (since.current === null && status !== "LoadingFirstPage")
+    since.current = messages.at(-1)?.created_at ?? 0;
   const from = since.current;
   const fromOthers = useMemo(
-    () => (from === null ? [] : messages.filter((m) => (m.kind === "chat" || m.kind === "request") && m.author && m.author.id !== me.id && m.created_at > from)),
+    () =>
+      from === null
+        ? []
+        : messages.filter(
+            (m) =>
+              (m.kind === "chat" || m.kind === "request") &&
+              m.author &&
+              m.author.id !== me.id &&
+              m.created_at > from,
+          ),
     [messages, from, me.id],
   );
-  const unread = fromOthers.filter((m) => m.kind === "chat" && !m.build && !m.triage_pending).length;
+  const unread = fromOthers.filter(
+    (m) => m.kind === "chat" && !m.build && !m.triage_pending,
+  ).length;
   const latest = fromOthers.at(-1)?.id ?? null;
   const [said, setSaid] = useState<string | null>(null);
   useEffect(() => setSaid(latest), [latest]);
   const { hold } = useLinger(said, SAID_MS, () => setSaid(null), true);
-  return { unread, said: (said && messages.find((m) => m.id === said)) || null, hold };
+  return {
+    unread,
+    said: (said && messages.find((m) => m.id === said)) || null,
+    hold,
+  };
 }
 
 /** The change the callout follows: the one in flight, kept through its
@@ -356,14 +544,20 @@ function useFollowedChange() {
   }, [settled, next, id]);
   const nextNow = useRef(next);
   nextNow.current = next;
-  const { hold } = useLinger(settled ? id : null, LIVE_MS, () => setId(nextNow.current), true);
+  const { hold } = useLinger(
+    settled ? id : null,
+    LIVE_MS,
+    () => setId(nextNow.current),
+    true,
+  );
   return { m: phase ? m : null, phase, hold };
 }
 
 /** A version that lands while the callout cannot show it (`presented` is the
  *  version it is showing land) gets the toast at the top, with its Undo. */
 function useLandingToast(presented: number | null) {
-  const { cheer, versionByNumber, setRoomOpen, setReveal, restore } = useAppState();
+  const { cheer, versionByNumber, setRoomOpen, setReveal, restore } =
+    useAppState();
   const { messages } = useStream();
   const toast = useToast();
   const told = useRef(cheer);
@@ -378,24 +572,61 @@ function useLandingToast(presented: number | null) {
     const line = versionLine(entry, versionByNumber);
     const back = reverseOf(entry, versionByNumber);
     // It follows the app's own swap rather than racing it.
-    setTimeout(() => toast({
-      face: entry.author ?? undefined,
-      text: <LiveToastText version={entry.number} name={entry.author?.name} verb={line.verb} summary={line.summary} />,
-      action: back ? { label: back.label, onClick: () => void restore(back.target, entry.number) } : undefined,
-      onClick: () => {
-        setRoomOpen(true);
-        const at = entry.request_message_id ?? now.current.messages.find((m) => m.note?.type === "restore" && m.note.version === entry.number)?.id;
-        if (at) setReveal(at);
-      },
-    }), TOAST_AFTER_MS);
+    setTimeout(
+      () =>
+        toast({
+          face: entry.author ?? undefined,
+          text: (
+            <LiveToastText
+              version={entry.number}
+              name={entry.author?.name}
+              verb={line.verb}
+              summary={line.summary}
+            />
+          ),
+          action: back
+            ? {
+                label: back.label,
+                onClick: () => void restore(back.target, entry.number),
+              }
+            : undefined,
+          onClick: () => {
+            setRoomOpen(true);
+            const at =
+              entry.request_message_id ??
+              now.current.messages.find(
+                (m) =>
+                  m.note?.type === "restore" && m.note.version === entry.number,
+              )?.id;
+            if (at) setReveal(at);
+          },
+        }),
+      TOAST_AFTER_MS,
+    );
   }, [cheer, versionByNumber, toast, restore, setRoomOpen, setReveal]);
 }
 
 /** The faces in the capsule, dotted while they type: the one part that
  *  ticks with the typing clock. */
-function HereFaces({ people, max, hop }: { people: Person[]; max: number; hop: number }) {
+function HereFaces({
+  people,
+  max,
+  hop,
+}: {
+  people: Person[];
+  max: number;
+  hop: number;
+}) {
   const { app } = useAppState();
-  return <FaceStack people={people} max={max} size={24} typing={useTyping(app.id)} hop={hop} />;
+  return (
+    <FaceStack
+      people={people}
+      max={max}
+      size={24}
+      typing={useTyping(app.id)}
+      hop={hop}
+    />
+  );
 }
 
 function ErrorDot() {
@@ -410,7 +641,9 @@ function nearestCorner(cx: number, cy: number): Corner {
  *  anyone can change it, alone or not; gone on any click, on drag, or after
  *  10s, and never again. */
 function useFirstVisitHint() {
-  const [state, setState] = useState<"unseen" | "showing" | "done">(() => (load(HINT_KEY, false) ? "done" : "unseen"));
+  const [state, setState] = useState<"unseen" | "showing" | "done">(() =>
+    load(HINT_KEY, false) ? "done" : "unseen",
+  );
   useEffect(() => {
     if (state !== "unseen") return;
     setState("showing");
@@ -426,5 +659,8 @@ function useFirstVisitHint() {
       removeEventListener("pointerdown", click);
     };
   }, [state]);
-  return { show: state === "showing", dismiss: () => state === "showing" && setState("done") };
+  return {
+    show: state === "showing",
+    dismiss: () => state === "showing" && setState("done"),
+  };
 }

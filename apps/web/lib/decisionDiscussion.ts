@@ -6,7 +6,11 @@
 import type { DecisionThreadItem } from "../store/inboxStore";
 import { isRefusedDispatchError } from "../store/mutativeMiddleware";
 
-export type DiscussionEntryState = "sending" | "delivering" | "waiting" | "answered";
+export type DiscussionEntryState =
+  | "sending"
+  | "delivering"
+  | "waiting"
+  | "answered";
 
 export type DiscussionEntry = {
   client_id: string;
@@ -21,9 +25,19 @@ export type DiscussionEntry = {
 type EchoedSend = { client_id: string; text: string; at: number };
 
 /** The asks a surface's row carries: a line's chat. */
-type ThreadTurn = { client_id: string; text: string; by?: string | null; at: number; delivered: boolean; reply: { text: string; at: number } | null };
+type ThreadTurn = {
+  client_id: string;
+  text: string;
+  by?: string | null;
+  at: number;
+  delivered: boolean;
+  reply: { text: string; at: number } | null;
+};
 
-export function discussionThread(row: { turns?: readonly ThreadTurn[] } | undefined, sends: readonly EchoedSend[] | undefined): DiscussionEntry[] {
+export function discussionThread(
+  row: { turns?: readonly ThreadTurn[] } | undefined,
+  sends: readonly EchoedSend[] | undefined,
+): DiscussionEntry[] {
   const turns = row?.turns ?? [];
   const known = new Set(turns.map((t) => t.client_id));
   const out: DiscussionEntry[] = turns.map((t) => ({
@@ -35,23 +49,40 @@ export function discussionThread(row: { turns?: readonly ThreadTurn[] } | undefi
     reply: t.reply,
   }));
   for (const s of sends ?? []) {
-    if (!known.has(s.client_id)) out.push({ client_id: s.client_id, text: s.text, by: null, at: s.at, state: "sending", reply: null });
+    if (!known.has(s.client_id))
+      out.push({
+        client_id: s.client_id,
+        text: s.text,
+        by: null,
+        at: s.at,
+        state: "sending",
+        reply: null,
+      });
   }
   return out.sort((a, b) => a.at - b.at);
 }
 
 /** Why the owner answers for it, in a person's words. */
-export function ownerReason(via: NonNullable<DecisionThreadItem["owner"]>["via"]): string {
+export function ownerReason(
+  via: NonNullable<DecisionThreadItem["owner"]>["via"],
+): string {
   switch (via) {
-    case "asker": return "It asked this question.";
-    case "run": return "It started the run that asks this.";
-    case "lead": return "It leads this project, and the session that asked is gone.";
-    case "workspace": return "It is the workspace's agent, and nobody else answers for this question.";
+    case "asker":
+      return "It asked this question.";
+    case "run":
+      return "It started the run that asks this.";
+    case "lead":
+      return "It leads this project, and the session that asked is gone.";
+    case "workspace":
+      return "It is the workspace's agent, and nobody else answers for this question.";
   }
 }
 
 /** The line under an ask while it has no reply. */
-export function waitingWords(state: DiscussionEntryState, owner: string): string | null {
+export function waitingWords(
+  state: DiscussionEntryState,
+  owner: string,
+): string | null {
   if (state === "sending") return "Sending…";
   if (state === "delivering") return `On its way to ${owner}`;
   if (state === "waiting") return `${owner} has it and is answering`;
@@ -62,7 +93,10 @@ export function waitingWords(state: DiscussionEntryState, owner: string): string
  *  { error }, or a refused dispatch) takes the echo back and resolves with the
  *  reason; anything else resolves null and leaves the echo for the feed to
  *  retire, since the outbox still delivers a parked send. */
-export async function settleEchoedSend(sent: Promise<unknown>, dropEcho: () => void): Promise<string | null> {
+export async function settleEchoedSend(
+  sent: Promise<unknown>,
+  dropEcho: () => void,
+): Promise<string | null> {
   let refusal: string | null = null;
   try {
     const res = (await sent) as { error?: unknown } | null | undefined;

@@ -1,15 +1,15 @@
 import type { FlowEditChange } from "@codecast/shared/contracts/flowEdit";
 export type NodeShape =
-  | "Mdiamond"       // start
-  | "Msquare"        // exit
-  | "hexagon"        // human gate
-  | "parallelogram"  // command/script
-  | "diamond"        // conditional
-  | "component"      // parallel fan-out
-  | "tripleoctagon"  // parallel fan-in
-  | "tab"            // prompt: a Claude Code session given one prompt
-  | "note"           // call: one model call, one answer, no tools (learning-loop.md LL1)
-  | "box";           // agent (default)
+  | "Mdiamond" // start
+  | "Msquare" // exit
+  | "hexagon" // human gate
+  | "parallelogram" // command/script
+  | "diamond" // conditional
+  | "component" // parallel fan-out
+  | "tripleoctagon" // parallel fan-in
+  | "tab" // prompt: a Claude Code session given one prompt
+  | "note" // call: one model call, one answer, no tools (learning-loop.md LL1)
+  | "box"; // agent (default)
 
 export type NodeType =
   | "start"
@@ -25,7 +25,13 @@ export type NodeType =
 
 // "session": a codecast session started through /cli/spawn (inbox visible,
 // unattended, waited on until it settles); the client comes from `agent`.
-export type AgentBackend = "builtin" | "claude" | "codex" | "tmux" | "session" | "subject";
+export type AgentBackend =
+  | "builtin"
+  | "claude"
+  | "codex"
+  | "tmux"
+  | "session"
+  | "subject";
 
 export interface WorkflowNode {
   id: string;

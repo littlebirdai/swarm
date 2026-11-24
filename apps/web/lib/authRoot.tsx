@@ -22,10 +22,19 @@ if (!import.meta.hot?.data?.principalBoundaryInstalled) {
  * A token refresh that fails in transit is retried once the network is back
  * (`authRefreshRetry`), so it never strands the socket until a reload.
  */
-export function CodecastAuthRoot({ client, children }: { client: ConvexReactClient; children: ReactNode }) {
+export function CodecastAuthRoot({
+  client,
+  children,
+}: {
+  client: ConvexReactClient;
+  children: ReactNode;
+}) {
   return (
     <AuthPrincipalBoundary tracker={authPrincipal}>
-      <ConvexAuthProvider client={installRefreshRetry(client)} storage={durableAuthStorage}>
+      <ConvexAuthProvider
+        client={installRefreshRetry(client)}
+        storage={durableAuthStorage}
+      >
         {children}
       </ConvexAuthProvider>
     </AuthPrincipalBoundary>

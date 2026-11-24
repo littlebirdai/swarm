@@ -16,23 +16,34 @@ describe("getAgentArgs", () => {
   });
 
   test("falls back to legacy claude_args / codex_args when the map is absent", () => {
-    expect(getAgentArgs({ claude_args: "--legacy-claude" } as Config, "claude")).toBe("--legacy-claude");
-    expect(getAgentArgs({ codex_args: "--legacy-codex" } as Config, "codex")).toBe("--legacy-codex");
+    expect(
+      getAgentArgs({ claude_args: "--legacy-claude" } as Config, "claude"),
+    ).toBe("--legacy-claude");
+    expect(
+      getAgentArgs({ codex_args: "--legacy-codex" } as Config, "codex"),
+    ).toBe("--legacy-codex");
   });
 
   test("reads a map-only client that has no legacy field (cursor/gemini)", () => {
-    const cfg = { agent_args: { gemini: "--yolo", cursor: "--fast" } } as Config;
+    const cfg = {
+      agent_args: { gemini: "--yolo", cursor: "--fast" },
+    } as Config;
     expect(getAgentArgs(cfg, "gemini")).toBe("--yolo");
     expect(getAgentArgs(cfg, "cursor")).toBe("--fast");
   });
 
   test("an explicit empty map entry wins and does NOT fall back to the legacy field", () => {
-    const cfg = { agent_args: { claude: "" }, claude_args: "--legacy" } as Config;
+    const cfg = {
+      agent_args: { claude: "" },
+      claude_args: "--legacy",
+    } as Config;
     expect(getAgentArgs(cfg, "claude")).toBe("");
   });
 
   test("returns undefined when nothing is configured for the client", () => {
-    expect(getAgentArgs({ claude_args: "--x" } as Config, "codex")).toBeUndefined();
+    expect(
+      getAgentArgs({ claude_args: "--x" } as Config, "codex"),
+    ).toBeUndefined();
     expect(getAgentArgs({} as Config, "cursor")).toBeUndefined();
     expect(getAgentArgs({} as Config, "claude")).toBeUndefined();
   });

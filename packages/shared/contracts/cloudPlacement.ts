@@ -26,8 +26,13 @@ export const CLOUD_LEAVE_OUT_MAX = 200;
  */
 export const CLOUD_START_RUN_MS = 45 * 60 * 1000;
 
-export function deviceWakesOnUse(d: { is_remote?: boolean; platform?: string }): boolean {
-  return d.is_remote === true && /^(linux|darwin|macos)$/i.test(d.platform ?? "");
+export function deviceWakesOnUse(d: {
+  is_remote?: boolean;
+  platform?: string;
+}): boolean {
+  return (
+    d.is_remote === true && /^(linux|darwin|macos)$/i.test(d.platform ?? "")
+  );
 }
 
 /**
@@ -37,7 +42,11 @@ export function deviceWakesOnUse(d: { is_remote?: boolean; platform?: string }):
  * server's start chokepoint both ask it. Every other remote machine (a team
  * machine member's daemon, a peer server) gets a plain start.
  */
-export function cloudHostManaged(d: { is_remote?: boolean; platform?: string; cloud_host?: unknown }): boolean {
+export function cloudHostManaged(d: {
+  is_remote?: boolean;
+  platform?: string;
+  cloud_host?: unknown;
+}): boolean {
   return deviceWakesOnUse(d) && !!d.cloud_host;
 }
 
@@ -64,7 +73,10 @@ type RetiredProbe = {
  * instance, and without this rule it reads exactly like a sleeping host that
  * "boots when the session starts", so a launch parks on it and waits forever.
  */
-export function cloudHostRetired(d: RetiredProbe, roster: RetiredProbe[]): boolean {
+export function cloudHostRetired(
+  d: RetiredProbe,
+  roster: RetiredProbe[],
+): boolean {
   if (!deviceWakesOnUse(d) || d.online) return false;
   const own = d.cloud_host;
   if (own?.state === "missing") return true;
@@ -81,7 +93,10 @@ export function cloudHostRetired(d: RetiredProbe, roster: RetiredProbe[]): boole
  * A cloud host that queued work can boot: a laptop reports it (cloud_host),
  * and its instance still exists. Any other remote that sleeps stays asleep.
  */
-export function cloudHostBootable(d: RetiredProbe, roster: RetiredProbe[]): boolean {
+export function cloudHostBootable(
+  d: RetiredProbe,
+  roster: RetiredProbe[],
+): boolean {
   return deviceWakesOnUse(d) && !!d.cloud_host && !cloudHostRetired(d, roster);
 }
 
@@ -98,8 +113,20 @@ export const STALE_MACHINE_MS = 24 * 60 * 60 * 1000;
  * use. A cloud host's long silence means "unused", never "gone"; whether one
  * is gone is cloudHostRetired's call.
  */
-export function machineGoneQuiet(d: { is_remote?: boolean; platform?: string; online?: boolean; last_seen: number }, now: number): boolean {
-  return d.online !== true && !deviceWakesOnUse(d) && now - d.last_seen >= STALE_MACHINE_MS;
+export function machineGoneQuiet(
+  d: {
+    is_remote?: boolean;
+    platform?: string;
+    online?: boolean;
+    last_seen: number;
+  },
+  now: number,
+): boolean {
+  return (
+    d.online !== true &&
+    !deviceWakesOnUse(d) &&
+    now - d.last_seen >= STALE_MACHINE_MS
+  );
 }
 
 /**
@@ -108,7 +135,9 @@ export function machineGoneQuiet(d: { is_remote?: boolean; platform?: string; on
  * out; it stays reachable by an explicit pick, and Settings → Devices removes
  * it.
  */
-export function machineOutOfService<T extends RetiredProbe & { last_seen: number }>(d: T, roster: T[], now: number): boolean {
+export function machineOutOfService<
+  T extends RetiredProbe & { last_seen: number },
+>(d: T, roster: T[], now: number): boolean {
   return machineGoneQuiet(d, now) || cloudHostRetired(d, roster);
 }
 
@@ -123,11 +152,16 @@ export function pathUnderRoot(p: string, root: string): boolean {
  * shared (`/opt`, `/tmp`, `/srv`, unknown platforms, relative paths) stays true:
  * this exists to stop an obviously-impossible route, not to guess at checkouts.
  */
-export function platformCanOpenPath(platform: string | undefined, p: string): boolean {
+export function platformCanOpenPath(
+  platform: string | undefined,
+  p: string,
+): boolean {
   if (!platform) return true;
-  if (platform === "win32") return /^[A-Za-z]:[\\/]/.test(p) || !p.startsWith("/");
+  if (platform === "win32")
+    return /^[A-Za-z]:[\\/]/.test(p) || !p.startsWith("/");
   if (!p.startsWith("/")) return true;
-  if (platform === "darwin") return !p.startsWith("/home/") && !p.startsWith("/root/");
+  if (platform === "darwin")
+    return !p.startsWith("/home/") && !p.startsWith("/root/");
   if (platform === "linux") return !p.startsWith("/Users/");
   return true;
 }
@@ -150,7 +184,9 @@ export function isReservedDevice(d: { reserved_for?: string | null }): boolean {
 }
 
 /** The cleaned purpose a person typed for a reservation, or null to clear it. */
-export function cleanReservationPurpose(raw: string | null | undefined): string | null {
+export function cleanReservationPurpose(
+  raw: string | null | undefined,
+): string | null {
   const purpose = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
   return purpose || null;
 }
@@ -161,7 +197,10 @@ export function cleanReservationPurpose(raw: string | null | undefined): string 
  * ~/.intern-data while the machine reports ~/src/<repo>)? A machine that runs
  * the same platform under another home has none of them.
  */
-export function deviceServesPath(d: { local_project_roots?: string[] }, paths: string[]): boolean {
+export function deviceServesPath(
+  d: { local_project_roots?: string[] },
+  paths: string[],
+): boolean {
   const roots = d.local_project_roots ?? [];
   if (paths.some((p) => roots.some((r) => pathUnderRoot(p, r)))) return true;
   const homes = new Set(roots.map(pathHome).filter((h): h is string => !!h));
@@ -171,7 +210,10 @@ export function deviceServesPath(d: { local_project_roots?: string[] }, paths: s
   });
 }
 
-export type PlacementDevice = { platform?: string; local_project_roots?: string[] };
+export type PlacementDevice = {
+  platform?: string;
+  local_project_roots?: string[];
+};
 
 export type CloudPlacement = "park" | "native" | "ambiguous";
 
@@ -201,16 +243,29 @@ export function cloudPlacementFor(opts: {
   const paths = opts.paths.filter((p): p is string => !!p);
   if (paths.length === 0) return "ambiguous";
   const targetRoots = opts.target.local_project_roots ?? [];
-  if (paths.some((p) => targetRoots.some((r) => pathUnderRoot(p, r)))) return "native";
+  if (paths.some((p) => targetRoots.some((r) => pathUnderRoot(p, r))))
+    return "native";
   // Only with a laptop to compare against: with NO local device the rule
   // would be vacuously true and a stale `/Users` recent would start as a
   // plain session on the host (remapped into its main checkout). Falling
   // through parks it instead, and the server then says plainly that no
   // laptop can prepare the host.
-  if (opts.locals.length > 0
-    && paths.every((p) => opts.locals.every((d) => !platformCanOpenPath(d.platform, p)))) return "native";
-  if (paths.some((p) => !platformCanOpenPath(opts.target.platform, p))) return "park";
-  if (paths.some((p) => opts.locals.some((d) => (d.local_project_roots ?? []).some((r) => pathUnderRoot(p, r))))) {
+  if (
+    opts.locals.length > 0 &&
+    paths.every((p) =>
+      opts.locals.every((d) => !platformCanOpenPath(d.platform, p)),
+    )
+  )
+    return "native";
+  if (paths.some((p) => !platformCanOpenPath(opts.target.platform, p)))
+    return "park";
+  if (
+    paths.some((p) =>
+      opts.locals.some((d) =>
+        (d.local_project_roots ?? []).some((r) => pathUnderRoot(p, r)),
+      ),
+    )
+  ) {
     return "park";
   }
   return "ambiguous";

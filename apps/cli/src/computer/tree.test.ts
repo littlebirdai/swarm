@@ -1,9 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { diffTrees, filterTree, formatDiff, parseTree, resolveElement } from "./tree.js";
+import {
+  diffTrees,
+  filterTree,
+  formatDiff,
+  parseTree,
+  resolveElement,
+} from "./tree.js";
 import { ComputerError } from "./errors.js";
 
 const tree = (lines: string[], focus = "No UI element is currently focused.") =>
-  ['App=com.apple.Preview (pid 1)', 'Window: "W", App: Preview.', "", ...lines, "", focus].join("\n");
+  [
+    "App=com.apple.Preview (pid 1)",
+    'Window: "W", App: Preview.',
+    "",
+    ...lines,
+    "",
+    focus,
+  ].join("\n");
 
 // The Preview window from the session that motivated this module, trimmed.
 const BEFORE = tree([
@@ -29,7 +42,12 @@ const POPOVER = tree([
 
 describe("parseTree", () => {
   test("reads index, depth and body, and the focus sentence", () => {
-    const parsed = parseTree(tree(["0 window W", "\t3 button Save"], "The focused UI element is 3 button Save."));
+    const parsed = parseTree(
+      tree(
+        ["0 window W", "\t3 button Save"],
+        "The focused UI element is 3 button Save.",
+      ),
+    );
     expect(parsed.lines.map((l) => [l.index, l.depth, l.body])).toEqual([
       [0, 0, "window W"],
       [3, 1, "button Save"],
@@ -38,8 +56,14 @@ describe("parseTree", () => {
   });
 
   test("keeps a line that names no element, such as an omission note", () => {
-    const parsed = parseTree(tree(["0 window W", "\t... 12 inactive browser tabs omitted"]));
-    expect(parsed.lines[1]).toMatchObject({ index: null, depth: 1, body: "... 12 inactive browser tabs omitted" });
+    const parsed = parseTree(
+      tree(["0 window W", "\t... 12 inactive browser tabs omitted"]),
+    );
+    expect(parsed.lines[1]).toMatchObject({
+      index: null,
+      depth: 1,
+      body: "... 12 inactive browser tabs omitted",
+    });
   });
 });
 
@@ -53,32 +77,78 @@ describe("diffTrees", () => {
   test("a closed popover reads as its root and a count, not every line in it", () => {
     const out = formatDiff(diffTrees(POPOVER, BEFORE))!;
     expect(out).toContain("Changes: 0 added, 6 removed");
-    expect(out).toContain("-     53 popover, Secondary Actions: cancel  (and 5 lines under it)");
+    expect(out).toContain(
+      "-     53 popover, Secondary Actions: cancel  (and 5 lines under it)",
+    );
     expect(out.split("\n")).toHaveLength(2);
   });
 
   test("no change says so, in the words that fit how the action was delivered", () => {
-    expect(formatDiff(diffTrees(BEFORE, BEFORE))).toContain("it was probably ignored");
-    expect(formatDiff(diffTrees(BEFORE, BEFORE), { synthetic: true })).toContain("take a screenshot to be sure");
+    expect(formatDiff(diffTrees(BEFORE, BEFORE))).toContain(
+      "it was probably ignored",
+    );
+    expect(
+      formatDiff(diffTrees(BEFORE, BEFORE), { synthetic: true }),
+    ).toContain("take a screenshot to be sure");
     const same = diffTrees(BEFORE, BEFORE);
-    expect(formatDiff(same, { synthetic: true, pixels: { state: "changed", region: { x: 4, y: 8, width: 30, height: 12 } } }))
-      .toBe("No change in the window's tree, but its pixels changed at 4,8 (30x12): content the tree does not show, such as a canvas, a drawing or a terminal.");
-    expect(formatDiff(same, { synthetic: true, pixels: { state: "unchanged" } })).toContain("the input was ignored");
-    expect(formatDiff(same, { synthetic: true, pixels: { state: "unchanged" } })).not.toContain("--restore-window");
-    expect(formatDiff(same, { synthetic: true, background: true, pixels: { state: "unchanged" } })).toContain("`--restore-window`");
-    expect(formatDiff(same, { pixels: { state: "repainting", region: { x: 0, y: 0, width: 16, height: 16 } } })).toContain("repaints on its own at 0,0 (16x16)");
+    expect(
+      formatDiff(same, {
+        synthetic: true,
+        pixels: {
+          state: "changed",
+          region: { x: 4, y: 8, width: 30, height: 12 },
+        },
+      }),
+    ).toBe(
+      "No change in the window's tree, but its pixels changed at 4,8 (30x12): content the tree does not show, such as a canvas, a drawing or a terminal.",
+    );
+    expect(
+      formatDiff(same, { synthetic: true, pixels: { state: "unchanged" } }),
+    ).toContain("the input was ignored");
+    expect(
+      formatDiff(same, { synthetic: true, pixels: { state: "unchanged" } }),
+    ).not.toContain("--restore-window");
+    expect(
+      formatDiff(same, {
+        synthetic: true,
+        background: true,
+        pixels: { state: "unchanged" },
+      }),
+    ).toContain("`--restore-window`");
+    expect(
+      formatDiff(same, {
+        pixels: {
+          state: "repainting",
+          region: { x: 0, y: 0, width: 16, height: 16 },
+        },
+      }),
+    ).toContain("repaints on its own at 0,0 (16x16)");
   });
 
   test("a focus that moved is named, and a focused field whose value changed is not repeated", () => {
-    const a = tree(["0 window W", "\t1 text field a"], "The focused UI element is 1 text field a.");
-    const b = tree(["0 window W", "\t1 text field ab"], "The focused UI element is 1 text field ab.");
+    const a = tree(
+      ["0 window W", "\t1 text field a"],
+      "The focused UI element is 1 text field a.",
+    );
+    const b = tree(
+      ["0 window W", "\t1 text field ab"],
+      "The focused UI element is 1 text field ab.",
+    );
     expect(formatDiff(diffTrees(a, b))).not.toContain("The focused UI element");
-    const c = tree(["0 window W", "\t1 text field a", "\t2 button Go"], "The focused UI element is 2 button Go.");
-    expect(formatDiff(diffTrees(a, c))).toContain("The focused UI element is 2 button Go.");
+    const c = tree(
+      ["0 window W", "\t1 text field a", "\t2 button Go"],
+      "The focused UI element is 2 button Go.",
+    );
+    expect(formatDiff(diffTrees(a, c))).toContain(
+      "The focused UI element is 2 button Go.",
+    );
   });
 
   test("a change too large to read as a diff hands back null, so the caller prints the tree", () => {
-    const big = tree(["0 window W", ...Array.from({ length: 80 }, (_, i) => `\t${i + 1} text row ${i}`)]);
+    const big = tree([
+      "0 window W",
+      ...Array.from({ length: 80 }, (_, i) => `\t${i + 1} text row ${i}`),
+    ]);
     expect(formatDiff(diffTrees(BEFORE, big))).toBeNull();
   });
 });
@@ -86,16 +156,27 @@ describe("diffTrees", () => {
 describe("filterTree", () => {
   test("find keeps matches and their ancestors", () => {
     expect(filterTree(POPOVER, { find: "Created May" })).toBe(
-      ["0 standard window cc-sign.pdf", "  29 edit toolbar", "    53 popover, Secondary Actions: cancel", "      55 table Signatures", "        60 cell, Secondary Actions: Insert signature, Remove signature", "          61 image Created May 14, 2024"].join("\n"),
+      [
+        "0 standard window cc-sign.pdf",
+        "  29 edit toolbar",
+        "    53 popover, Secondary Actions: cancel",
+        "      55 table Signatures",
+        "        60 cell, Secondary Actions: Insert signature, Remove signature",
+        "          61 image Created May 14, 2024",
+      ].join("\n"),
     );
   });
 
   test("a /regex/ query matches case insensitively", () => {
-    expect(filterTree(POPOVER, { find: "/button (sign|shape)/" })).toContain("45 button Shape Style");
+    expect(filterTree(POPOVER, { find: "/button (sign|shape)/" })).toContain(
+      "45 button Shape Style",
+    );
   });
 
   test("under prints one subtree, re-indented from its root", () => {
-    expect(filterTree(POPOVER, { under: 55 })!.split("\n")[0]).toBe("55 table Signatures");
+    expect(filterTree(POPOVER, { under: 55 })!.split("\n")[0]).toBe(
+      "55 table Signatures",
+    );
     expect(filterTree(POPOVER, { under: 999 })).toBeNull();
   });
 
@@ -130,11 +211,19 @@ describe("resolveElement", () => {
   });
 
   test("an action climbs from the label that matched to the cell that offers it", () => {
-    expect(resolveElement(POPOVER, "Created May", undefined, { action: "insert signature" })).toBe(60);
-    expect(() => resolveElement(POPOVER, "Created May", undefined, { action: "delete" })).toThrow("and offers 'delete'");
+    expect(
+      resolveElement(POPOVER, "Created May", undefined, {
+        action: "insert signature",
+      }),
+    ).toBe(60);
+    expect(() =>
+      resolveElement(POPOVER, "Created May", undefined, { action: "delete" }),
+    ).toThrow("and offers 'delete'");
   });
 
   test("no match names the way to look", () => {
-    expect(() => resolveElement(POPOVER, "Export")).toThrow("get-app-state --find");
+    expect(() => resolveElement(POPOVER, "Export")).toThrow(
+      "get-app-state --find",
+    );
   });
 });

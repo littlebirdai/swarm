@@ -9,15 +9,38 @@ import { mutation, query } from "./functions";
 import type { Doc } from "./_generated/dataModel";
 import { MCP_READ_SCOPE } from "@codecast/shared/contracts/agentAccess";
 import { hashToken } from "./apiTokens";
-import { APPROVE_PER_HOUR, CODE_TTL_MS, newGrantSecret, oauthEnabled, redirectHost } from "./mcpAuth";
+import {
+  APPROVE_PER_HOUR,
+  CODE_TTL_MS,
+  newGrantSecret,
+  oauthEnabled,
+  redirectHost,
+} from "./mcpAuth";
 import { bumpWindow } from "./ipRateLimit";
 
 type ConsentRequest = { client_id: string; redirect_uri: string };
 
-async function checkRequest(ctx: { db: any }, req: ConsentRequest): Promise<{ ok: true; client: Doc<"mcp_clients"> } | { ok: false; error: string }> {
-  const client = await ctx.db.query("mcp_clients").withIndex("by_client_id", (q: any) => q.eq("client_id", req.client_id)).first();
-  if (!client) return { ok: false, error: "This agent is not registered. Start the connection again from the agent." };
-  if (!client.redirect_uris.includes(req.redirect_uri)) return { ok: false, error: "This agent asked to return somewhere it did not register." };
+async function checkRequest(
+  ctx: { db: any },
+  req: ConsentRequest,
+): Promise<
+  { ok: true; client: Doc<"mcp_clients"> } | { ok: false; error: string }
+> {
+  const client = await ctx.db
+    .query("mcp_clients")
+    .withIndex("by_client_id", (q: any) => q.eq("client_id", req.client_id))
+    .first();
+  if (!client)
+    return {
+      ok: false,
+      error:
+        "This agent is not registered. Start the connection again from the agent.",
+    };
+  if (!client.redirect_uris.includes(req.redirect_uri))
+    return {
+      ok: false,
+      error: "This agent asked to return somewhere it did not register.",
+    };
   return { ok: true, client };
 }
 
@@ -25,14 +48,18 @@ async function checkRequest(ctx: { db: any }, req: ConsentRequest): Promise<{ ok
 export const consentInfo = query({
   args: { client_id: v.string(), redirect_uri: v.string() },
   handler: async (ctx, args) => {
-    if (!oauthEnabled()) return { error: "Connecting agents is not on for this deployment yet." };
+    if (!oauthEnabled())
+      return { error: "Connecting agents is not on for this deployment yet." };
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Sign in first" };
     const checked = await checkRequest(ctx, args);
     if (!checked.ok) return { error: checked.error };
     const user = await ctx.db.get(userId);
     const teams = [];
-    for (const m of await ctx.db.query("team_memberships").withIndex("by_user_id", (q) => q.eq("user_id", userId)).collect()) {
+    for (const m of await ctx.db
+      .query("team_memberships")
+      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+      .collect()) {
       const team = await ctx.db.get(m.team_id);
       if (team) teams.push(team.name);
     }
@@ -40,8 +67,12 @@ export const consentInfo = query({
     // client's own claim. A web host this person has never connected is flagged.
     const host = redirectHost(args.redirect_uri);
     const isWeb = new URL(args.redirect_uri).protocol === "https:";
-    const known = (await ctx.db.query("mcp_grants").withIndex("by_user", (q) => q.eq("user_id", userId)).collect())
-      .some((g) => g.redirect_host === host);
+    const known = (
+      await ctx.db
+        .query("mcp_grants")
+        .withIndex("by_user", (q) => q.eq("user_id", userId))
+        .collect()
+    ).some((g) => g.redirect_host === host);
     return {
       workspaces: ["Personal", ...teams],
       client_name: checked.client.client_name,
@@ -63,14 +94,26 @@ export const approve = mutation({
     resource: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ code: string } | { error: string }> => {
-    if (!oauthEnabled()) return { error: "Connecting agents is not on for this deployment yet." };
+    if (!oauthEnabled())
+      return { error: "Connecting agents is not on for this deployment yet." };
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Sign in first" };
     const checked = await checkRequest(ctx, args);
     if (!checked.ok) return { error: checked.error };
-    const limited = await bumpWindow(ctx.db, `mcp_approve:${userId}`, APPROVE_PER_HOUR, 60 * 60 * 1000);
-    if (!limited.ok) return { error: "Too many agent connections in the last hour. Try again later." };
-    if (args.code_challenge_method !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(args.code_challenge)) {
+    const limited = await bumpWindow(
+      ctx.db,
+      `mcp_approve:${userId}`,
+      APPROVE_PER_HOUR,
+      60 * 60 * 1000,
+    );
+    if (!limited.ok)
+      return {
+        error: "Too many agent connections in the last hour. Try again later.",
+      };
+    if (
+      args.code_challenge_method !== "S256" ||
+      !/^[A-Za-z0-9_-]{43,128}$/.test(args.code_challenge)
+    ) {
       return { error: "This agent did not send a valid PKCE challenge." };
     }
     const code = newGrantSecret("cmca_");
@@ -87,4 +130,3 @@ export const approve = mutation({
     return { code };
   },
 });
-

@@ -9,7 +9,8 @@ export function parseTsv(text: string): string[][] {
 export function parseTable(text: string): string[][] {
   const first = text.slice(0, text.search(/\r?\n|$/));
   if (first.includes("\t")) return parseDelimited(text, "\t");
-  const commas = (first.match(/,/g) ?? []).length, semis = (first.match(/;/g) ?? []).length;
+  const commas = (first.match(/,/g) ?? []).length,
+    semis = (first.match(/;/g) ?? []).length;
   return parseDelimited(text, semis > commas ? ";" : ",");
 }
 
@@ -72,5 +73,11 @@ export function parseDelimited(text: string, sep: string): string[][] {
 
 /** Values as TSV for the clipboard; fields with tabs, newlines or quotes are quoted. */
 export function toTsv(grid: string[][]): string {
-  return grid.map((r) => r.map((v) => (/[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join("\t")).join("\n");
+  return grid
+    .map((r) =>
+      r
+        .map((v) => (/[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v))
+        .join("\t"),
+    )
+    .join("\n");
 }

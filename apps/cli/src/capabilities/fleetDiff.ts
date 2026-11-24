@@ -47,5 +47,9 @@ import type { FleetRowKind, ObservedScope } from "@codecast/shared/contracts";
  * machine that does not have the thing. These two lines fail the build instead.
  */
 type Conforms<T extends true> = T;
-type _KindsAreRanked = Conforms<InventoryItem["kind"] extends FleetRowKind ? true : false>;
-type _ScopesAreObserved = Conforms<InventoryItem["scope"] extends ObservedScope ? true : false>;
+type _KindsAreRanked = Conforms<
+  InventoryItem["kind"] extends FleetRowKind ? true : false
+>;
+type _ScopesAreObserved = Conforms<
+  InventoryItem["scope"] extends ObservedScope ? true : false
+>;

@@ -20,7 +20,12 @@ const session = (id: string): InboxSession => ({
   has_pending: false,
 });
 
-const tab = (id: string, path: string): AppTab => ({ id, title: "", path, createdAt: 0 });
+const tab = (id: string, path: string): AppTab => ({
+  id,
+  title: "",
+  path,
+  createdAt: 0,
+});
 
 describe("active inbox tab path tracks the current session", () => {
   beforeEach(() => {
@@ -62,7 +67,9 @@ describe("active inbox tab path tracks the current session", () => {
 
     useInboxStore.getState().setCurrentSession("convX");
 
-    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe("/inbox?s=convX");
+    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe(
+      "/inbox?s=convX",
+    );
   });
 
   it("leaves a non-inbox tab path (e.g. /tasks) untouched", () => {
@@ -74,7 +81,9 @@ describe("active inbox tab path tracks the current session", () => {
 
     useInboxStore.getState().navigateToSession("convX");
 
-    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe("/tasks");
+    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe(
+      "/tasks",
+    );
   });
 
   it("rekeys a tab's ?s= from optimistic stub id to the real server id", () => {
@@ -86,7 +95,9 @@ describe("active inbox tab path tracks the current session", () => {
 
     (useInboxStore.getState() as any)._rekeySession("stub123", "realServerId");
 
-    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe("/inbox?s=realServerId");
+    expect(useInboxStore.getState().tabs.find((t) => t.id === "t1")!.path).toBe(
+      "/inbox?s=realServerId",
+    );
   });
 
   // Dismiss/kill/stash advance the selection past the hidden session. That path
@@ -94,11 +105,17 @@ describe("active inbox tab path tracks the current session", () => {
   // pointed at the just-hidden session, so the inbox re-assert effect snapped the
   // view back onto it (navigateToSession of a hidden id surfaces it as a peek) the
   // next time it ran — e.g. on tab re-activation. The advance must rewrite `?s=`.
-  const convId = (suffix: string) => "jx7" + "0".repeat(29 - suffix.length) + suffix;
+  const convId = (suffix: string) =>
+    "jx7" + "0".repeat(29 - suffix.length) + suffix;
   // Fresh updated_at: membership is the shared working-set selection now
   // (sync-convergence C4), so a Convex-id row must be inside the 30-day recent
   // window to be walked by the advance-past-hidden order at all.
-  const live = (id: string): InboxSession => ({ ...session(id), message_count: 2, is_idle: true, updated_at: Date.now() });
+  const live = (id: string): InboxSession => ({
+    ...session(id),
+    message_count: 2,
+    is_idle: true,
+    updated_at: Date.now(),
+  });
 
   it("stash moves the active inbox tab's ?s= onto the advanced selection, off the hidden one", () => {
     const idA = convId("aaaa");

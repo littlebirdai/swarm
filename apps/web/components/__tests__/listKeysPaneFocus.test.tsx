@@ -5,7 +5,10 @@ import { MemoryRouter } from "react-router";
 import { replaceGlobals } from "../../test-helpers/globals";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/tasks" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/tasks",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -14,17 +17,28 @@ const restoreGlobals = replaceGlobals({
   KeyboardEvent: dom.window.KeyboardEvent,
   localStorage: dom.window.localStorage,
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0) as unknown as number,
   cancelAnimationFrame: (id: number) => clearTimeout(id),
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
-  IntersectionObserver: class { observe() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+  IntersectionObserver: class {
+    observe() {}
+    disconnect() {}
+  },
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const { GenericListView } = await import("../GenericListView");
 const { TabParamsCtx } = await import("../../lib/tabParams");
@@ -49,31 +63,48 @@ function mountList() {
   return {
     /** `isActive` is what a stage cell passes: visible tab AND focused pane. */
     render: async (isActive: boolean) => {
-      const ctx = { tabId: "t1", pathname: "/tasks", params: {}, searchParams: new URLSearchParams(), isActive };
-      await act(() => root.render(
-        <MemoryRouter initialEntries={["/tasks"]}>
-          <TabParamsCtx.Provider value={ctx}>
-            <GenericListView<{ id: string }>
-              title="Tasks"
-              tabs={[]}
-              activeTab=""
-              onTabChange={() => {}}
-              flatItems={[{ id: "a" }]}
-              renderRow={(item) => <span>{item.id}</span>}
-              getItemId={(item) => item.id}
-              getItemRoute={(item) => `/tasks/${item.id}`}
-              emptyMessage="none"
-              onCreate={() => { created++; }}
-            />
-          </TabParamsCtx.Provider>
-        </MemoryRouter>,
-      ));
+      const ctx = {
+        tabId: "t1",
+        pathname: "/tasks",
+        params: {},
+        searchParams: new URLSearchParams(),
+        isActive,
+      };
+      await act(() =>
+        root.render(
+          <MemoryRouter initialEntries={["/tasks"]}>
+            <TabParamsCtx.Provider value={ctx}>
+              <GenericListView<{ id: string }>
+                title="Tasks"
+                tabs={[]}
+                activeTab=""
+                onTabChange={() => {}}
+                flatItems={[{ id: "a" }]}
+                renderRow={(item) => <span>{item.id}</span>}
+                getItemId={(item) => item.id}
+                getItemRoute={(item) => `/tasks/${item.id}`}
+                emptyMessage="none"
+                onCreate={() => {
+                  created++;
+                }}
+              />
+            </TabParamsCtx.Provider>
+          </MemoryRouter>,
+        ),
+      );
     },
     press: async () => {
-      await act(() => { window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "c", bubbles: true })); });
+      await act(() => {
+        window.dispatchEvent(
+          new window.KeyboardEvent("keydown", { key: "c", bubbles: true }),
+        );
+      });
     },
     creates: () => created,
-    cleanup: async () => { await act(() => root.unmount()); container.remove(); },
+    cleanup: async () => {
+      await act(() => root.unmount());
+      container.remove();
+    },
   };
 }
 

@@ -23,10 +23,21 @@ export function localBootTrust(opts: {
   currentUserLoaded: boolean;
   currentUserId: string | null;
 }): string | null {
-  const { accessIdentity, bootPrincipal, isAuthenticated, currentUserLoaded, currentUserId } = opts;
+  const {
+    accessIdentity,
+    bootPrincipal,
+    isAuthenticated,
+    currentUserLoaded,
+    currentUserId,
+  } = opts;
   if (!accessIdentity || bootPrincipal == null) return null;
   if (bootPrincipal !== accessIdentity.principalId) return null;
-  if (isAuthenticated && currentUserLoaded && currentUserId !== accessIdentity.principalId) return null;
+  if (
+    isAuthenticated &&
+    currentUserLoaded &&
+    currentUserId !== accessIdentity.principalId
+  )
+    return null;
   return accessIdentity.subject;
 }
 
@@ -62,7 +73,9 @@ export function authRenderDecision(opts: {
 }): AuthRenderDecision {
   if (!opts.bootPrincipalLoaded) return "blank";
   if (opts.trustedSubject) {
-    return opts.outboxFailureSubject === opts.trustedSubject ? "storage-failure" : "children";
+    return opts.outboxFailureSubject === opts.trustedSubject
+      ? "storage-failure"
+      : "children";
   }
   return opts.isLoading || opts.isAuthenticated ? "blank" : "children";
 }

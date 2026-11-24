@@ -27,9 +27,15 @@ export const VAULT_REFRESH_PATH = "/hook/vault-refresh";
  * the command's output reaches a transcript. It answers once the poll landed.
  * Best effort and bounded: with no daemon here nothing syncs a transcript.
  */
-export async function refreshDaemonRedaction(configDir = defaultConfigDir(), timeoutMs = 5_000): Promise<void> {
+export async function refreshDaemonRedaction(
+  configDir = defaultConfigDir(),
+  timeoutMs = 5_000,
+): Promise<void> {
   try {
-    const port = parseInt(fs.readFileSync(hookPortFile(configDir), "utf-8").trim(), 10);
+    const port = parseInt(
+      fs.readFileSync(hookPortFile(configDir), "utf-8").trim(),
+      10,
+    );
     const token = readHookToken(configDir);
     if (!(port > 0) || !token) return;
     await fetch(`http://127.0.0.1:${port}${VAULT_REFRESH_PATH}`, {
@@ -37,7 +43,9 @@ export async function refreshDaemonRedaction(configDir = defaultConfigDir(), tim
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(timeoutMs),
     });
-  } catch { /* no daemon, or a slow one: the next tick covers it */ }
+  } catch {
+    /* no daemon, or a slow one: the next tick covers it */
+  }
 }
 
 export type VaultRedactionDeps = {
@@ -59,7 +67,9 @@ export type VaultRedactionSource = {
 
 class Refused extends Error {}
 
-export function vaultRedactionSource(deps: VaultRedactionDeps): VaultRedactionSource {
+export function vaultRedactionSource(
+  deps: VaultRedactionDeps,
+): VaultRedactionSource {
   const doFetch = deps.fetch ?? fetch;
   let held: KnownValue[] = [];
   let version: string | null = null;
@@ -67,7 +77,11 @@ export function vaultRedactionSource(deps: VaultRedactionDeps): VaultRedactionSo
   let inflight: Promise<boolean> | null = null;
   let queued: Promise<boolean> | null = null;
 
-  const post = async (siteUrl: string, apiToken: string, urlPath: string): Promise<any> => {
+  const post = async (
+    siteUrl: string,
+    apiToken: string,
+    urlPath: string,
+  ): Promise<any> => {
     const res = await doFetch(`${siteUrl}${urlPath}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,7 +91,8 @@ export function vaultRedactionSource(deps: VaultRedactionDeps): VaultRedactionSo
     if (res.status === 401 || res.status === 403) throw new Refused();
     const json = (await res.json().catch(() => null)) as any;
     if (/^Unauthorized/.test(String(json?.error ?? ""))) throw new Refused();
-    if (!res.ok || !json || json.error) throw new Error(`HTTP ${res.status} from ${urlPath}`);
+    if (!res.ok || !json || json.error)
+      throw new Error(`HTTP ${res.status} from ${urlPath}`);
     return json;
   };
 
@@ -93,27 +108,46 @@ export function vaultRedactionSource(deps: VaultRedactionDeps): VaultRedactionSo
     const ep = deps.endpoint();
     if (!ep) return clear("not signed in");
     // Another account's version string says nothing about this one's values.
-    if (ep.apiToken !== token) { token = ep.apiToken; version = null; }
+    if (ep.apiToken !== token) {
+      token = ep.apiToken;
+      version = null;
+    }
     try {
-      const { version: current } = await post(ep.siteUrl, ep.apiToken, "/cli/vault/redaction-version");
+      const { version: current } = await post(
+        ep.siteUrl,
+        ep.apiToken,
+        "/cli/vault/redaction-version",
+      );
       if (version !== null && current === version) return false;
-      const got = await post(ep.siteUrl, ep.apiToken, "/cli/vault/redaction-values");
+      const got = await post(
+        ep.siteUrl,
+        ep.apiToken,
+        "/cli/vault/redaction-values",
+      );
       const next: KnownValue[] = [];
       for (const v of got.values ?? []) {
-        if (typeof v?.value === "string" && typeof v?.name === "string") next.push({ value: v.value, name: v.name });
+        if (typeof v?.value === "string" && typeof v?.name === "string")
+          next.push({ value: v.value, name: v.name });
       }
       held = next;
       version = String(got.version ?? current);
-      deps.log?.(`[VAULT-REDACTION] ${next.length} values from ${new Set(next.map((v) => v.name)).size} secrets`);
+      deps.log?.(
+        `[VAULT-REDACTION] ${next.length} values from ${new Set(next.map((v) => v.name)).size} secrets`,
+      );
       return true;
     } catch (e) {
       if (e instanceof Refused) return clear("token refused");
-      deps.log?.(`[VAULT-REDACTION] poll failed, keeping ${held.length} values: ${(e as Error)?.message ?? e}`);
+      deps.log?.(
+        `[VAULT-REDACTION] poll failed, keeping ${held.length} values: ${(e as Error)?.message ?? e}`,
+      );
       return false;
     }
   };
 
-  const start = (): Promise<boolean> => (inflight = poll().finally(() => { inflight = null; }));
+  const start = (): Promise<boolean> =>
+    (inflight = poll().finally(() => {
+      inflight = null;
+    }));
 
   return {
     values: () => held,

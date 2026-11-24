@@ -4,5 +4,13 @@
 import { useInboxStore } from "../store/inboxStore";
 
 export function setCharacters(on: boolean): void {
-  useInboxStore.setState((s: any) => ({ clientState: { ...s.clientState, ui: { ...s.clientState?.ui, show_characters: on } } }) as never);
+  useInboxStore.setState(
+    (s: any) =>
+      ({
+        clientState: {
+          ...s.clientState,
+          ui: { ...s.clientState?.ui, show_characters: on },
+        },
+      }) as never,
+  );
 }

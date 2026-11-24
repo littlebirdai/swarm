@@ -29,6 +29,7 @@ export function useScrollSeek(
   });
   return {
     seeking,
-    placeholder: (key: VirtualKey) => seeking && keepRef.current.placeholder(key),
+    placeholder: (key: VirtualKey) =>
+      seeking && keepRef.current.placeholder(key),
   };
 }

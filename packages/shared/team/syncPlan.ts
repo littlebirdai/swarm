@@ -6,23 +6,38 @@
 // folders inside them); "selected" uploads only the chosen folders (and the
 // folders inside them).
 
-import { folderCoversOnAnyMachine as folderCovers, folderOnThisMachine, folderUnderHome } from "./folderLists";
+import {
+  folderCoversOnAnyMachine as folderCovers,
+  folderOnThisMachine,
+  folderUnderHome,
+} from "./folderLists";
 
 // Lists belong to the person, not one machine: a folder chosen or excluded on
 // one of their machines decides the same place under home on the others.
 export { folderCovers, folderOnThisMachine, folderUnderHome };
 
-export type SyncSettings = { sync_mode: "all" | "selected"; sync_projects: string[]; sync_excluded?: string[] };
+export type SyncSettings = {
+  sync_mode: "all" | "selected";
+  sync_projects: string[];
+  sync_excluded?: string[];
+};
 
 /** Whether a folder's sessions upload, read off the lists alone. The daemon
  *  also counts a worktree outside its checkout as the checkout; callers that
  *  can read the disk pass that rule to planSyncChange instead. */
-export function isFolderSyncing(settings: SyncSettings, folder: string): boolean {
-  if (settings.sync_mode !== "selected") return !(settings.sync_excluded ?? []).some((e) => folderCovers(folder, e));
+export function isFolderSyncing(
+  settings: SyncSettings,
+  folder: string,
+): boolean {
+  if (settings.sync_mode !== "selected")
+    return !(settings.sync_excluded ?? []).some((e) => folderCovers(folder, e));
   return settings.sync_projects.some((c) => folderCovers(folder, c));
 }
 
-export type SyncChange = { all: true } | { sync: string[] } | { unsync: string[] };
+export type SyncChange =
+  | { all: true }
+  | { sync: string[] }
+  | { unsync: string[] };
 
 export type SyncPlan = {
   /** The write, or null when the settings already say so. */
@@ -41,40 +56,70 @@ export type SyncPlan = {
 export function planSyncChange(
   settings: SyncSettings,
   change: SyncChange,
-  isSyncing: (settings: SyncSettings, folder: string) => boolean = isFolderSyncing,
+  isSyncing: (
+    settings: SyncSettings,
+    folder: string,
+  ) => boolean = isFolderSyncing,
 ): SyncPlan {
   const none: SyncPlan = { next: null, stillCovered: [] };
   const excluded = settings.sync_excluded ?? [];
   const all = settings.sync_mode !== "selected";
-  if ("all" in change) return all && excluded.length === 0 ? none : { ...none, next: { sync_mode: "all", sync_excluded: [] } };
+  if ("all" in change)
+    return all && excluded.length === 0
+      ? none
+      : { ...none, next: { sync_mode: "all", sync_excluded: [] } };
 
   if ("sync" in change) {
     if (all) {
       // Take the folders off the excluded list, with any excluded inside them.
-      const kept = excluded.filter((e) => !change.sync.some((f) => folderCovers(e, f)));
+      const kept = excluded.filter(
+        (e) => !change.sync.some((f) => folderCovers(e, f)),
+      );
       const stillCovered = change.sync.flatMap((f) => {
         const by = kept.find((e) => folderCovers(f, e));
         return by ? [{ folder: f, by }] : [];
       });
-      return { next: kept.length === excluded.length ? null : { sync_excluded: kept }, stillCovered };
+      return {
+        next: kept.length === excluded.length ? null : { sync_excluded: kept },
+        stillCovered,
+      };
     }
     const missing = change.sync.filter((f) => !isSyncing(settings, f));
     if (missing.length === 0) return none;
-    return { ...none, next: { sync_mode: "selected", sync_projects: [...settings.sync_projects, ...missing] } };
+    return {
+      ...none,
+      next: {
+        sync_mode: "selected",
+        sync_projects: [...settings.sync_projects, ...missing],
+      },
+    };
   }
 
   if (all) {
     const adding = change.unsync.filter((f) => isSyncing(settings, f));
     if (adding.length === 0) return none;
     // An exclusion inside a newly excluded folder says nothing more.
-    return { ...none, next: { sync_excluded: [...excluded.filter((e) => !adding.some((a) => folderCovers(e, a))), ...adding] } };
+    return {
+      ...none,
+      next: {
+        sync_excluded: [
+          ...excluded.filter((e) => !adding.some((a) => folderCovers(e, a))),
+          ...adding,
+        ],
+      },
+    };
   }
   // A folder taken off the chosen list takes the folders inside it along.
-  const kept = settings.sync_projects.filter((f) => !change.unsync.some((d) => folderCovers(f, d)));
+  const kept = settings.sync_projects.filter(
+    (f) => !change.unsync.some((d) => folderCovers(f, d)),
+  );
   const after: SyncSettings = { ...settings, sync_projects: kept };
   const stillCovered = change.unsync.flatMap((f) => {
     if (!isSyncing(after, f)) return [];
     return [{ folder: f, by: kept.find((k) => folderCovers(f, k)) ?? f }];
   });
-  return { next: kept.length === settings.sync_projects.length ? null : after, stillCovered };
+  return {
+    next: kept.length === settings.sync_projects.length ? null : after,
+    stillCovered,
+  };
 }

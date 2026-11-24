@@ -1,4 +1,14 @@
-import { boolean, count, nonEmptyString, oneOf, optional, owns, parser, responseObject, type Reader } from "./parse";
+import {
+  boolean,
+  count,
+  nonEmptyString,
+  oneOf,
+  optional,
+  owns,
+  parser,
+  responseObject,
+  type Reader,
+} from "./parse";
 import { readV1 } from "./version";
 
 export const EDGE_ERROR_CODES = {
@@ -21,10 +31,11 @@ export type EdgeErrorResponse = ReturnType<typeof error>;
 export const parseEdgeErrorResponse = parser(error);
 
 export function response<T>(read: Reader<T>): Reader<T | EdgeErrorResponse> {
-  return (value, path) => (
-    typeof value === "object" && value !== null && owns(value, "status") &&
+  return (value, path) =>
+    typeof value === "object" &&
+    value !== null &&
+    owns(value, "status") &&
     (value as { status: unknown }).status === "error"
       ? error(value, path)
-      : read(value, path)
-  );
+      : read(value, path);
 }

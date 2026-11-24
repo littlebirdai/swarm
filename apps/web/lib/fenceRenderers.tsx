@@ -34,30 +34,109 @@ export function extractTextFromHast(node: any): string {
 /** A flow named by reference (`flow:change` alone on its line) draws as the `flow` fence's card; `fallback` is what it reads as
  *  where the card cannot draw (Flows off). */
 export function renderFlowCard(slug: string, fallback: ReactNode): ReactNode {
-  return <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}><FlowFence code={JSON.stringify({ flow: slug })} fallback={fallback} /></Suspense>;
+  return (
+    <Suspense
+      fallback={
+        <div
+          className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+          aria-busy
+        />
+      }
+    >
+      <FlowFence code={JSON.stringify({ flow: slug })} fallback={fallback} />
+    </Suspense>
+  );
 }
 
-export function renderFence(language: string | undefined, code: string, opts: { mermaid?: boolean } = {}): ReactNode {
-  if (opts.mermaid && language === "mermaid") return <MermaidDiagram code={code} />;
+export function renderFence(
+  language: string | undefined,
+  code: string,
+  opts: { mermaid?: boolean } = {},
+): ReactNode {
+  if (opts.mermaid && language === "mermaid")
+    return <MermaidDiagram code={code} />;
   const canvas = tryRenderCanvas(language, code);
   if (canvas) return canvas;
   const castDiff = tryRenderCastDiff(language, code);
   if (castDiff) return castDiff;
-  if (language === LINE_FENCE_LANG) return <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}><LineFence code={code} /></Suspense>;
-  if (language === FLOW_FENCE_LANG) return <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}><FlowFence code={code} /></Suspense>;
-  if (language === CONVERSATION_FENCE_LANG) return <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}><ConversationFence code={code} /></Suspense>;
-  if (language === VIEW_FENCE_LANG) return <Suspense fallback={<div className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40" aria-busy />}><ViewFence code={code} /></Suspense>;
+  if (language === LINE_FENCE_LANG)
+    return (
+      <Suspense
+        fallback={
+          <div
+            className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+            aria-busy
+          />
+        }
+      >
+        <LineFence code={code} />
+      </Suspense>
+    );
+  if (language === FLOW_FENCE_LANG)
+    return (
+      <Suspense
+        fallback={
+          <div
+            className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+            aria-busy
+          />
+        }
+      >
+        <FlowFence code={code} />
+      </Suspense>
+    );
+  if (language === CONVERSATION_FENCE_LANG)
+    return (
+      <Suspense
+        fallback={
+          <div
+            className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+            aria-busy
+          />
+        }
+      >
+        <ConversationFence code={code} />
+      </Suspense>
+    );
+  if (language === VIEW_FENCE_LANG)
+    return (
+      <Suspense
+        fallback={
+          <div
+            className="my-2 h-24 max-w-[860px] rounded-xl border border-sol-border/30 bg-sol-bg-alt/40"
+            aria-busy
+          />
+        }
+      >
+        <ViewFence code={code} />
+      </Suspense>
+    );
   // Any other language may be one an enabled mod draws, now or once mods load:
   // ModFence follows the running set and stays a plain code block otherwise.
-  return language ? <ModFence lang={language} code={code} /> : <CodeBlock code={code} language={language} />;
+  return language ? (
+    <ModFence lang={language} code={code} />
+  ) : (
+    <CodeBlock code={code} language={language} />
+  );
 }
 
 /** react-markdown's `pre` override: a fenced block goes through renderFence, anything else stays a pre. */
-export function renderPre(node: any, children: ReactNode, props: any, opts: { mermaid?: boolean } = {}): ReactNode {
+export function renderPre(
+  node: any,
+  children: ReactNode,
+  props: any,
+  opts: { mermaid?: boolean } = {},
+): ReactNode {
   const codeElement = node?.children?.[0];
-  if (codeElement && codeElement.type === "element" && codeElement.tagName === "code") {
+  if (
+    codeElement &&
+    codeElement.type === "element" &&
+    codeElement.tagName === "code"
+  ) {
     const className = codeElement.properties?.className as string[] | undefined;
-    const language = className?.find((cls) => cls.startsWith("language-"))?.replace("language-", "");
+    const language = className
+      ?.find((cls) => cls.startsWith("language-"))
+      ?.replace("language-", "");
     const code = extractTextFromHast(codeElement);
     if (code) return renderFence(language, code, opts);
   }

@@ -20,7 +20,10 @@ export function steadyInterval(fn: () => void, ms: number): () => void {
   } else {
     try {
       // The URL must stay a literal: it is how Vite finds and bundles the worker.
-      worker = new Worker(new URL("./steadyInterval.worker.ts", import.meta.url), { type: "module" });
+      worker = new Worker(
+        new URL("./steadyInterval.worker.ts", import.meta.url),
+        { type: "module" },
+      );
       worker.onmessage = () => fn();
       worker.onerror = () => {
         worker?.terminate();

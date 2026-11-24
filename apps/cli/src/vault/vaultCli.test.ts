@@ -21,7 +21,12 @@ import {
   trashNote,
   writeNote,
 } from "./vaultCli.js";
-import { buildMatcher, contextWindow, matchingLines, resolveLineRange } from "../textView.js";
+import {
+  buildMatcher,
+  contextWindow,
+  matchingLines,
+  resolveLineRange,
+} from "../textView.js";
 
 let base = "";
 let configDir = "";
@@ -35,7 +40,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { fs.rmSync(base, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(base, { recursive: true, force: true });
+  } catch {}
 });
 
 function note(rel: string, body: string): void {
@@ -45,7 +52,9 @@ function note(rel: string, body: string): void {
 }
 
 /** Run `fn` and hand back the VaultCliError it threw. */
-async function failure(fn: () => unknown | Promise<unknown>): Promise<VaultCliError> {
+async function failure(
+  fn: () => unknown | Promise<unknown>,
+): Promise<VaultCliError> {
   try {
     await fn();
   } catch (err) {
@@ -88,7 +97,9 @@ describe("selectVault", () => {
     addVault(configDir, other, "Wiki");
 
     expect(selectVault(configDir, undefined, notesDir).id).toBe(notes.id);
-    expect(selectVault(configDir, undefined, path.join(notesDir, "Areas")).id).toBe(notes.id);
+    expect(
+      selectVault(configDir, undefined, path.join(notesDir, "Areas")).id,
+    ).toBe(notes.id);
   });
 
   test("a vault nested inside another resolves to the inner one", () => {
@@ -146,7 +157,9 @@ describe("vaultForCwd", () => {
     const vaults = [notes, wiki];
 
     expect(vaultForCwd(vaults, notesDir)?.id).toBe(notes.id);
-    expect(vaultForCwd(vaults, path.join(notesDir, "Areas"))?.id).toBe(notes.id);
+    expect(vaultForCwd(vaults, path.join(notesDir, "Areas"))?.id).toBe(
+      notes.id,
+    );
     expect(vaultForCwd(vaults, other)?.id).toBe(wiki.id);
     expect(vaultForCwd(vaults, base)).toBeNull();
   });
@@ -184,8 +197,16 @@ describe("resolveNote", () => {
     addVault(configDir, notesDir);
     const ctx = await openVault(configDir, undefined);
 
-    for (const input of ["Areas/Health/Sleep.md", "Areas/Health/Sleep", "Health/Sleep", "Sleep", "sleep"]) {
-      expect((await resolveNote(ctx, input)).path).toBe("Areas/Health/Sleep.md");
+    for (const input of [
+      "Areas/Health/Sleep.md",
+      "Areas/Health/Sleep",
+      "Health/Sleep",
+      "Sleep",
+      "sleep",
+    ]) {
+      expect((await resolveNote(ctx, input)).path).toBe(
+        "Areas/Health/Sleep.md",
+      );
     }
   });
 
@@ -250,7 +271,9 @@ describe("targetNote", () => {
   test("an explicit extension the vault serves is kept as typed", async () => {
     addVault(configDir, notesDir);
     const ctx = await openVault(configDir, undefined);
-    expect((await targetNote(ctx, "notes/log.markdown")).path).toBe("notes/log.markdown");
+    expect((await targetNote(ctx, "notes/log.markdown")).path).toBe(
+      "notes/log.markdown",
+    );
   });
 
   test("ambiguity still errors rather than creating a new file", async () => {
@@ -292,7 +315,9 @@ describe("applyEdit", () => {
   });
 
   test("multi-line old text matches verbatim, whitespace included", () => {
-    expect(applyEdit("# T\n\n- a\n- b\n", "- a\n- b", "- a\n- b\n- c")).toBe("# T\n\n- a\n- b\n- c\n");
+    expect(applyEdit("# T\n\n- a\n- b\n", "- a\n- b", "- a\n- b\n- c")).toBe(
+      "# T\n\n- a\n- b\n- c\n",
+    );
   });
 });
 
@@ -314,7 +339,9 @@ describe("write, read and trash", () => {
     const ctx = await openVault(configDir, undefined);
     const target = await targetNote(ctx, "Inbox/Idea");
     await writeNote(target, "# Idea\n");
-    expect(fs.readFileSync(path.join(notesDir, "Inbox/Idea.md"), "utf8")).toBe("# Idea\n");
+    expect(fs.readFileSync(path.join(notesDir, "Inbox/Idea.md"), "utf8")).toBe(
+      "# Idea\n",
+    );
 
     const reopened = await openVault(configDir, undefined);
     const ref = await resolveNote(reopened, "Idea");
@@ -339,7 +366,9 @@ describe("write, read and trash", () => {
     expect(fs.existsSync(ref.abs)).toBe(false);
     expect(fs.existsSync(dest)).toBe(true);
     expect(fs.readFileSync(dest, "utf8")).toBe("bye");
-    try { fs.rmSync(dest, { force: true }); } catch {}
+    try {
+      fs.rmSync(dest, { force: true });
+    } catch {}
   });
 });
 
@@ -350,8 +379,16 @@ describe("moveNote", () => {
     addVault(configDir, notesDir);
     const ctx = await openVault(configDir, undefined);
 
-    const result = await moveNote(ctx, await resolveNote(ctx, "Sleep"), await targetNote(ctx, "Areas/Rest"));
-    expect(result).toMatchObject({ from: "Sleep.md", to: "Areas/Rest.md", rewritten: ["Hub.md"] });
+    const result = await moveNote(
+      ctx,
+      await resolveNote(ctx, "Sleep"),
+      await targetNote(ctx, "Areas/Rest"),
+    );
+    expect(result).toMatchObject({
+      from: "Sleep.md",
+      to: "Areas/Rest.md",
+      rewritten: ["Hub.md"],
+    });
     expect(fs.existsSync(path.join(notesDir, "Areas/Rest.md"))).toBe(true);
     // The shortest spelling that still resolves uniquely, and the alias kept —
     // the same rule the browser's rename follows.
@@ -373,7 +410,9 @@ describe("moveNote", () => {
       { rewriteLinks: false },
     );
     expect(result.rewritten).toEqual([]);
-    expect(fs.readFileSync(path.join(notesDir, "Hub.md"), "utf8")).toBe("See [[Sleep]].\n");
+    expect(fs.readFileSync(path.join(notesDir, "Hub.md"), "utf8")).toBe(
+      "See [[Sleep]].\n",
+    );
   });
 
   test("moving onto an existing note is refused, not an overwrite", async () => {
@@ -398,7 +437,10 @@ describe("linkReport", () => {
     const ctx = await openVault(configDir, undefined, { content: true });
 
     const report = linkReport(ctx, "Hub.md");
-    expect(report.outgoing.map((l) => l.resolved)).toEqual(["Areas/Sleep.md", null]);
+    expect(report.outgoing.map((l) => l.resolved)).toEqual([
+      "Areas/Sleep.md",
+      null,
+    ]);
     expect(report.unresolved).toEqual(["Nowhere"]);
     expect(report.backlinks.map((b) => b.source)).toEqual(["Areas/Sleep.md"]);
   });
@@ -406,22 +448,35 @@ describe("linkReport", () => {
 
 describe("searchNotes", () => {
   beforeEach(() => {
-    note("Areas/Sleep.md", "---\ntags: [health, habit/night]\n---\n\n# Sleep hygiene\n\nGo to bed earlier.\n");
+    note(
+      "Areas/Sleep.md",
+      "---\ntags: [health, habit/night]\n---\n\n# Sleep hygiene\n\nGo to bed earlier.\n",
+    );
     note("Projects/Ship.md", "# Ship it\n\n#work deadline is friday.\n");
     addVault(configDir, notesDir);
   });
 
   test("tag: filters, including tags nested under it", async () => {
     const ctx = await openVault(configDir, undefined, { content: true });
-    expect(searchNotes(ctx, "tag:health").map((h) => h.path)).toEqual(["Areas/Sleep.md"]);
-    expect(searchNotes(ctx, "tag:habit").map((h) => h.path)).toEqual(["Areas/Sleep.md"]);
-    expect(searchNotes(ctx, "tag:work").map((h) => h.path)).toEqual(["Projects/Ship.md"]);
+    expect(searchNotes(ctx, "tag:health").map((h) => h.path)).toEqual([
+      "Areas/Sleep.md",
+    ]);
+    expect(searchNotes(ctx, "tag:habit").map((h) => h.path)).toEqual([
+      "Areas/Sleep.md",
+    ]);
+    expect(searchNotes(ctx, "tag:work").map((h) => h.path)).toEqual([
+      "Projects/Ship.md",
+    ]);
   });
 
   test("path: and file: filter on where the note lives and what it is called", async () => {
     const ctx = await openVault(configDir, undefined, { content: true });
-    expect(searchNotes(ctx, "path:projects").map((h) => h.path)).toEqual(["Projects/Ship.md"]);
-    expect(searchNotes(ctx, "file:sleep").map((h) => h.path)).toEqual(["Areas/Sleep.md"]);
+    expect(searchNotes(ctx, "path:projects").map((h) => h.path)).toEqual([
+      "Projects/Ship.md",
+    ]);
+    expect(searchNotes(ctx, "file:sleep").map((h) => h.path)).toEqual([
+      "Areas/Sleep.md",
+    ]);
   });
 
   test("a title hit outranks a body hit", async () => {
@@ -432,7 +487,9 @@ describe("searchNotes", () => {
 
   test('a "quoted phrase" must appear contiguously', async () => {
     const ctx = await openVault(configDir, undefined, { content: true });
-    expect(searchNotes(ctx, '"bed earlier"').map((h) => h.path)).toEqual(["Areas/Sleep.md"]);
+    expect(searchNotes(ctx, '"bed earlier"').map((h) => h.path)).toEqual([
+      "Areas/Sleep.md",
+    ]);
     expect(searchNotes(ctx, '"earlier bed"')).toEqual([]);
   });
 
@@ -475,26 +532,62 @@ describe("pathGlobMatcher", () => {
 
 describe("resolveLineRange", () => {
   test("start:end, open ends, and a single line", () => {
-    expect(resolveLineRange(300, { range: "100:250" })).toMatchObject({ start: 100, end: 250 });
-    expect(resolveLineRange(300, { range: "100:" })).toMatchObject({ start: 100, end: 300 });
-    expect(resolveLineRange(300, { range: ":50" })).toMatchObject({ start: 1, end: 50 });
-    expect(resolveLineRange(300, { range: "42" })).toMatchObject({ start: 42, end: 42 });
+    expect(resolveLineRange(300, { range: "100:250" })).toMatchObject({
+      start: 100,
+      end: 250,
+    });
+    expect(resolveLineRange(300, { range: "100:" })).toMatchObject({
+      start: 100,
+      end: 300,
+    });
+    expect(resolveLineRange(300, { range: ":50" })).toMatchObject({
+      start: 1,
+      end: 50,
+    });
+    expect(resolveLineRange(300, { range: "42" })).toMatchObject({
+      start: 42,
+      end: 42,
+    });
   });
 
   test("clamps past the end and never returns an inverted range", () => {
-    expect(resolveLineRange(10, { range: "5:999" })).toMatchObject({ start: 5, end: 10 });
-    expect(resolveLineRange(10, { range: "99" })).toMatchObject({ start: 10, end: 10 });
-    expect(resolveLineRange(10, { range: "8:3" })).toMatchObject({ start: 8, end: 8 });
+    expect(resolveLineRange(10, { range: "5:999" })).toMatchObject({
+      start: 5,
+      end: 10,
+    });
+    expect(resolveLineRange(10, { range: "99" })).toMatchObject({
+      start: 10,
+      end: 10,
+    });
+    expect(resolveLineRange(10, { range: "8:3" })).toMatchObject({
+      start: 8,
+      end: 8,
+    });
   });
 
   test("--full and paging", () => {
-    expect(resolveLineRange(500, { full: true })).toMatchObject({ start: 1, end: 500, pages: 1 });
-    expect(resolveLineRange(500, { page: 2, pageSize: 200 })).toMatchObject({ start: 201, end: 400, pages: 3 });
-    expect(resolveLineRange(500, { page: 9, pageSize: 200 })).toMatchObject({ start: 401, end: 500, page: 3 });
+    expect(resolveLineRange(500, { full: true })).toMatchObject({
+      start: 1,
+      end: 500,
+      pages: 1,
+    });
+    expect(resolveLineRange(500, { page: 2, pageSize: 200 })).toMatchObject({
+      start: 201,
+      end: 400,
+      pages: 3,
+    });
+    expect(resolveLineRange(500, { page: 9, pageSize: 200 })).toMatchObject({
+      start: 401,
+      end: 500,
+      page: 3,
+    });
   });
 
   test("an explicit range wins over a page number", () => {
-    expect(resolveLineRange(500, { range: "10:20", page: 3 })).toMatchObject({ start: 10, end: 20 });
+    expect(resolveLineRange(500, { range: "10:20", page: 3 })).toMatchObject({
+      start: 10,
+      end: 20,
+    });
   });
 });
 

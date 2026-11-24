@@ -56,7 +56,12 @@ import * as path from "path";
 import { timeSyncFs } from "../slowSync.js";
 import { scanWorkerHost } from "../workers/bridge.js";
 import { visitScan, scanCanFallback } from "../workers/scanClient.js";
-import { AGENT_CLIENTS, LOCAL_AGENT_CLIENTS, observedScopeRank, SNIPPET_CATALOG} from "@codecast/shared/contracts";
+import {
+  AGENT_CLIENTS,
+  LOCAL_AGENT_CLIENTS,
+  observedScopeRank,
+  SNIPPET_CATALOG,
+} from "@codecast/shared/contracts";
 import type { AgentClientId } from "@codecast/shared/contracts";
 
 // Both of these are the shared contract's, re-exported so this module's existing
@@ -65,7 +70,11 @@ import type { AgentClientId } from "@codecast/shared/contracts";
 // its row order against this union, so the first daemon to report a hook would
 // have had the CLI drop it while the Convex fold kept it — the two surfaces
 // answering differently on identical data.
-import type { InstalledEntry, ObservedScope, CapabilityKind } from "@codecast/shared/contracts";
+import type {
+  InstalledEntry,
+  ObservedScope,
+  CapabilityKind,
+} from "@codecast/shared/contracts";
 export type { CapabilityKind };
 export type CapabilityScope = ObservedScope;
 
@@ -129,7 +138,9 @@ export interface InventoryItem {
  * model (`client` is ours alone), it may never carry less.
  */
 type Conforms<T extends true> = T;
-type _RowIsAnInstalledEntry = Conforms<InventoryItem extends InstalledEntry ? true : false>;
+type _RowIsAnInstalledEntry = Conforms<
+  InventoryItem extends InstalledEntry ? true : false
+>;
 
 export interface MarketplaceRef {
   name: string;
@@ -167,7 +178,11 @@ function errorCode(err: unknown): string {
 
 /** A failed read of a path we probed speculatively: ENOENT/ENOTDIR is honest
  *  absence and stays silent; anything else is unknown and is recorded. */
-function noteIfUnreadable(sink: UnreadablePath[] | undefined, p: string, err: unknown): void {
+function noteIfUnreadable(
+  sink: UnreadablePath[] | undefined,
+  p: string,
+  err: unknown,
+): void {
   const code = errorCode(err);
   if (code === "ENOENT" || code === "ENOTDIR") return;
   sink?.push({ path: p, error: code });
@@ -176,7 +191,11 @@ function noteIfUnreadable(sink: UnreadablePath[] | undefined, p: string, err: un
 /** A failed read of a path the filesystem told us exists — a listed directory
  *  entry, a symlink being resolved. Even ENOENT is unknown here (a dangling
  *  symlink lists but does not resolve), so every failure is recorded. */
-function noteUnreadable(sink: UnreadablePath[] | undefined, p: string, err: unknown): void {
+function noteUnreadable(
+  sink: UnreadablePath[] | undefined,
+  p: string,
+  err: unknown,
+): void {
   sink?.push({ path: p, error: errorCode(err) });
 }
 
@@ -234,10 +253,16 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /** Split `name@marketplace`. The separator cannot occur inside either half —
  *  Claude Code composes the id from a directory name and a marketplace name — so
  *  the first `@` is the boundary. */
-export function splitPluginId(pluginId: string): { name: string; marketplace?: string } {
+export function splitPluginId(pluginId: string): {
+  name: string;
+  marketplace?: string;
+} {
   const at = pluginId.indexOf("@");
   if (at <= 0) return { name: pluginId };
-  return { name: pluginId.slice(0, at), marketplace: pluginId.slice(at + 1) || undefined };
+  return {
+    name: pluginId.slice(0, at),
+    marketplace: pluginId.slice(at + 1) || undefined,
+  };
 }
 
 /** Frontmatter `key: value` from the head of a markdown file. Mirrors the
@@ -245,7 +270,10 @@ export function splitPluginId(pluginId: string): { name: string; marketplace?: s
  *  CC's own field is hyphenated, but the underscore spelling appears in the
  *  wild, so both are accepted. */
 function frontmatter(content: string, key: string): string | undefined {
-  const pattern = new RegExp(`^---[\\s\\S]*?${key.replace(/-/g, "[-_]")}:\\s*(.+?)[\\r\\n]`, "im");
+  const pattern = new RegExp(
+    `^---[\\s\\S]*?${key.replace(/-/g, "[-_]")}:\\s*(.+?)[\\r\\n]`,
+    "im",
+  );
   return content.match(pattern)?.[1]?.trim();
 }
 
@@ -272,9 +300,13 @@ interface ClaudeScopePlan {
  *  locations all come from the registry. Commands are the one exception: a
  *  read-only legacy kind with no descriptor slot (`capabilitySupport` answers
  *  "unsupported"), so their dir is named here and nowhere else. */
-function claudeScopePlans(home: string, projectPath?: string): ClaudeScopePlan[] {
+function claudeScopePlans(
+  home: string,
+  projectPath?: string,
+): ClaudeScopePlan[] {
   const targets = AGENT_CLIENTS.claude.agentFileTargets;
-  const user = (template: string | undefined) => (template ? fromHomeTemplate(home, template) : undefined);
+  const user = (template: string | undefined) =>
+    template ? fromHomeTemplate(home, template) : undefined;
   const project = (template: string | undefined) =>
     template && projectPath ? path.join(projectPath, template) : undefined;
   const plans: ClaudeScopePlan[] = [
@@ -296,7 +328,10 @@ function claudeScopePlans(home: string, projectPath?: string): ClaudeScopePlan[]
     });
     // `local` shares the project's .claude dir: only its settings overlay is
     // its own — listing the same skills twice would lie about their origin.
-    plans.push({ scope: "local", settings: project(targets?.pluginSettings?.local) });
+    plans.push({
+      scope: "local",
+      settings: project(targets?.pluginSettings?.local),
+    });
   }
   return plans;
 }
@@ -334,7 +369,8 @@ function appendLink(
   // scanner attributed each symlink entry to the dir it sat in; now that the
   // links collapse onto one item, a skill linked only into a project dir must
   // not claim user scope — that would misanswer "why is this active here?".
-  if (observedScopeRank(scope) < observedScopeRank(item.scope)) item.scope = scope;
+  if (observedScopeRank(scope) < observedScopeRank(item.scope))
+    item.scope = scope;
 }
 
 /** Skills: a `<dir>/<name>/SKILL.md`, or a bare `<dir>/<name>.md`.
@@ -367,7 +403,9 @@ function readSkillsIn(
         // CC writes an uppercase SKILL.md, but a case-insensitive macOS volume
         // lets a lowercase one work locally and then vanish on a case-sensitive
         // one. Accept either spelling so a skill surfaces the same everywhere.
-        const manifest = readDir(entryPath, sink).find((f) => /^skill\.md$/i.test(f));
+        const manifest = readDir(entryPath, sink).find((f) =>
+          /^skill\.md$/i.test(f),
+        );
         if (!manifest) continue;
         source = path.join(entryPath, manifest);
         content = fs.readFileSync(source, "utf-8");
@@ -432,7 +470,11 @@ function readMarkdownDir(
 /** Plugins declared by a settings file, plus the marketplaces it knows.
  *  Verified shape: `{ enabledPlugins: {"name@marketplace": bool},
  *  extraKnownMarketplaces: {name: {source: {source, repo}}} }`. */
-function readPluginsFromSettings(settingsFile: string, scope: CapabilityScope, sink?: UnreadablePath[]): {
+function readPluginsFromSettings(
+  settingsFile: string,
+  scope: CapabilityScope,
+  sink?: UnreadablePath[],
+): {
   items: InventoryItem[];
   marketplaces: MarketplaceRef[];
 } {
@@ -461,7 +503,8 @@ function readPluginsFromSettings(settingsFile: string, scope: CapabilityScope, s
   const known = doc.extraKnownMarketplaces;
   if (isRecord(known)) {
     for (const [name, entry] of Object.entries(known)) {
-      const src = isRecord(entry) && isRecord(entry.source) ? entry.source : undefined;
+      const src =
+        isRecord(entry) && isRecord(entry.source) ? entry.source : undefined;
       const repo = typeof src?.repo === "string" ? src.repo : undefined;
       marketplaces.push({ name, repo, scope });
     }
@@ -471,13 +514,24 @@ function readPluginsFromSettings(settingsFile: string, scope: CapabilityScope, s
 }
 
 /** Marketplaces Claude Code has actually cloned, from its own registry file. */
-export function readKnownMarketplaces(home: string, sink?: UnreadablePath[]): MarketplaceRef[] {
-  const doc = readJson(path.join(home, ".claude", "plugins", "known_marketplaces.json"), sink);
+export function readKnownMarketplaces(
+  home: string,
+  sink?: UnreadablePath[],
+): MarketplaceRef[] {
+  const doc = readJson(
+    path.join(home, ".claude", "plugins", "known_marketplaces.json"),
+    sink,
+  );
   if (!isRecord(doc)) return [];
   const out: MarketplaceRef[] = [];
   for (const [name, entry] of Object.entries(doc)) {
-    const src = isRecord(entry) && isRecord(entry.source) ? entry.source : undefined;
-    out.push({ name, repo: typeof src?.repo === "string" ? src.repo : undefined, scope: "user" });
+    const src =
+      isRecord(entry) && isRecord(entry.source) ? entry.source : undefined;
+    out.push({
+      name,
+      repo: typeof src?.repo === "string" ? src.repo : undefined,
+      scope: "user",
+    });
   }
   return out;
 }
@@ -495,8 +549,14 @@ export interface PluginInstall {
 /** What Claude Code has actually downloaded, keyed by `name@marketplace`.
  *  It records `gitCommitSha` per install, so sha pinning never has to be
  *  reinvented — it is read from here. */
-export function readInstalledPluginPins(home: string, sink?: UnreadablePath[]): Record<string, PluginInstall> {
-  const doc = readJson(path.join(home, ".claude", "plugins", "installed_plugins.json"), sink);
+export function readInstalledPluginPins(
+  home: string,
+  sink?: UnreadablePath[],
+): Record<string, PluginInstall> {
+  const doc = readJson(
+    path.join(home, ".claude", "plugins", "installed_plugins.json"),
+    sink,
+  );
   if (!isRecord(doc) || !isRecord(doc.plugins)) return {};
   const out: Record<string, PluginInstall> = {};
   for (const [id, installs] of Object.entries(doc.plugins)) {
@@ -505,9 +565,11 @@ export function readInstalledPluginPins(home: string, sink?: UnreadablePath[]): 
     const scope = first.scope;
     out[id] = {
       version: typeof first.version === "string" ? first.version : undefined,
-      sha: typeof first.gitCommitSha === "string" ? first.gitCommitSha : undefined,
+      sha:
+        typeof first.gitCommitSha === "string" ? first.gitCommitSha : undefined,
       scope: scope === "project" || scope === "local" ? scope : "user",
-      projectPath: typeof first.projectPath === "string" ? first.projectPath : undefined,
+      projectPath:
+        typeof first.projectPath === "string" ? first.projectPath : undefined,
     };
   }
   return out;
@@ -531,8 +593,11 @@ function readMcpFrom(
     if (!isRecord(raw)) continue;
     const url = typeof raw.url === "string" ? raw.url : undefined;
     const command = typeof raw.command === "string" ? raw.command : undefined;
-    const transport = typeof raw.type === "string" ? raw.type : url ? "http" : "stdio";
-    const args = Array.isArray(raw.args) ? raw.args.filter((a): a is string => typeof a === "string") : [];
+    const transport =
+      typeof raw.type === "string" ? raw.type : url ? "http" : "stdio";
+    const args = Array.isArray(raw.args)
+      ? raw.args.filter((a): a is string => typeof a === "string")
+      : [];
     out.push({
       kind: "mcp",
       name,
@@ -568,8 +633,15 @@ function readMcpFrom(
  *  arrays that span lines (`args = [` … `]`), and inline tables under a bare
  *  `[mcp_servers]` (`name = { command = "npx", … }`). Remaining limits, on
  *  purpose: double-quoted strings only, no dotted keys inside a section. */
-function parseTomlMcpServers(toml: string): Array<{ name: string; command?: string; args: string[]; url?: string }> {
-  const out: Array<{ name: string; command?: string; args: string[]; url?: string }> = [];
+function parseTomlMcpServers(
+  toml: string,
+): Array<{ name: string; command?: string; args: string[]; url?: string }> {
+  const out: Array<{
+    name: string;
+    command?: string;
+    args: string[];
+    url?: string;
+  }> = [];
   let current: (typeof out)[number] | undefined;
   /** Set while an `args = [` array is still open — the exact command line is
    *  the single most important thing to show before enabling a server, so a
@@ -587,7 +659,9 @@ function parseTomlMcpServers(toml: string): Array<{ name: string; command?: stri
     // as two alternatives so a nested table like `[mcp_servers.x.env]` falls
     // through to the section guard below instead of minting a phantom server
     // named `x.env` — the real ~/.codex/config.toml on this machine has one.
-    const section = line.match(/^\s*\[\s*mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\s*\]\s*(?:#.*)?$/);
+    const section = line.match(
+      /^\s*\[\s*mcp_servers\.(?:"([^"]+)"|([A-Za-z0-9_-]+))\s*\]\s*(?:#.*)?$/,
+    );
     if (section) {
       current = { name: section[1] ?? section[2], args: [] };
       out.push(current);
@@ -609,14 +683,20 @@ function parseTomlMcpServers(toml: string): Array<{ name: string; command?: stri
     if (inRootTable) {
       // `name = { command = "npx", args = ["-y"] }` — TOML inline tables are
       // single-line by spec, so the three keys can be pulled straight out.
-      const inline = line.match(/^\s*(?:"([^"]+)"|([A-Za-z0-9_-]+))\s*=\s*\{(.*)\}\s*(?:#.*)?$/);
+      const inline = line.match(
+        /^\s*(?:"([^"]+)"|([A-Za-z0-9_-]+))\s*=\s*\{(.*)\}\s*(?:#.*)?$/,
+      );
       if (inline) {
         const body = inline[3];
-        const server: (typeof out)[number] = { name: inline[1] ?? inline[2], args: [] };
+        const server: (typeof out)[number] = {
+          name: inline[1] ?? inline[2],
+          args: [],
+        };
         server.command = body.match(/\bcommand\s*=\s*"([^"]*)"/)?.[1];
         server.url = body.match(/\burl\s*=\s*"([^"]*)"/)?.[1];
         const args = body.match(/\bargs\s*=\s*\[([^\]]*)\]/);
-        if (args) server.args = [...args[1].matchAll(/"([^"]*)"/g)].map((m) => m[1]);
+        if (args)
+          server.args = [...args[1].matchAll(/"([^"]*)"/g)].map((m) => m[1]);
         out.push(server);
         continue;
       }
@@ -660,7 +740,9 @@ function readTomlMcp(
     meta: {
       transport: server.url ? "http" : "stdio",
       ...(server.url ? { url: server.url } : {}),
-      ...(server.command ? { command: [server.command, ...server.args].join(" ") } : {}),
+      ...(server.command
+        ? { command: [server.command, ...server.args].join(" ") }
+        : {}),
     },
   }));
 }
@@ -668,7 +750,11 @@ function readTomlMcp(
 /** Hook items from a `json_hooks`-shaped file — Claude's settings.json matcher
  *  groups with nested `hooks` entries, the schema our own installer writes
  *  (`installStableHookCodex`, stableContext.ts). */
-function readJsonHooks(file: string, client: InventoryItem["client"], sink: UnreadablePath[]): InventoryItem[] {
+function readJsonHooks(
+  file: string,
+  client: InventoryItem["client"],
+  sink: UnreadablePath[],
+): InventoryItem[] {
   const out: InventoryItem[] = [];
   const doc = readJson(file, sink);
   if (!isRecord(doc) || !isRecord(doc.hooks)) return out;
@@ -753,7 +839,8 @@ function readClientItems(
   const targets = AGENT_CLIENTS[clientId].agentFileTargets;
   if (!targets) return [];
   if (!dirExists(path.join(home, `.${clientId}`), sink)) return [];
-  const user = (template: string | undefined) => (template ? fromHomeTemplate(home, template) : undefined);
+  const user = (template: string | undefined) =>
+    template ? fromHomeTemplate(home, template) : undefined;
   const project = (template: string | undefined) =>
     template && projectPath ? path.join(projectPath, template) : undefined;
   const out: InventoryItem[] = [];
@@ -769,16 +856,24 @@ function readClientItems(
     out.push(...readSkillsIn(skillsUser, "user", clientId, sink, shared));
   }
   const skillsProject = project(targets.skillsDir?.project);
-  if (skillsProject) out.push(...readSkillsIn(skillsProject, "project", clientId, sink, shared));
+  if (skillsProject)
+    out.push(...readSkillsIn(skillsProject, "project", clientId, sink, shared));
 
   // Subagents.
   const agentsUser = user(targets.agentsDir?.user);
-  if (agentsUser) out.push(...readMarkdownDir(agentsUser, "subagent", "user", clientId, sink));
+  if (agentsUser)
+    out.push(
+      ...readMarkdownDir(agentsUser, "subagent", "user", clientId, sink),
+    );
   const agentsProject = project(targets.agentsDir?.project);
-  if (agentsProject) out.push(...readMarkdownDir(agentsProject, "subagent", "project", clientId, sink));
+  if (agentsProject)
+    out.push(
+      ...readMarkdownDir(agentsProject, "subagent", "project", clientId, sink),
+    );
 
   // MCP, dispatched on the declared file shape.
-  const readMcp = targets.mcpConfig?.shape === "toml_mcp_servers" ? readTomlMcp : readMcpFrom;
+  const readMcp =
+    targets.mcpConfig?.shape === "toml_mcp_servers" ? readTomlMcp : readMcpFrom;
   const mcpUser = user(targets.mcpConfig?.user);
   if (mcpUser) out.push(...readMcp(mcpUser, "user", clientId, sink));
   const mcpProject = project(targets.mcpConfig?.project);
@@ -788,7 +883,13 @@ function readClientItems(
   // names an observed file whose schema nobody confirmed, so reading it would
   // be a guess — the slot grants no support and grants no scan either.
   if (targets.hooksConfig?.shape === "json_hooks") {
-    out.push(...readJsonHooks(fromHomeTemplate(home, targets.hooksConfig.path), clientId, sink));
+    out.push(
+      ...readJsonHooks(
+        fromHomeTemplate(home, targets.hooksConfig.path),
+        clientId,
+        sink,
+      ),
+    );
   }
 
   // Instructions. `markdown` is one always-loaded file — presence is the
@@ -878,20 +979,32 @@ export function capabilityWatchDirs(home: string): string[] {
 /** The one read of the cross-client skills dirs. Layouts match `readSkillsIn`;
  *  the index maps every real path a client symlink could resolve to (the skill's
  *  entry and its manifest) back to the emitted item. */
-function readSharedAgentSkills(home: string, sink: UnreadablePath[]): { items: InventoryItem[]; shared: SharedSkills } {
+function readSharedAgentSkills(
+  home: string,
+  sink: UnreadablePath[],
+): { items: InventoryItem[]; shared: SharedSkills } {
   const shared: SharedSkills = { index: new Map(), unplaced: new Set() };
   const items: InventoryItem[] = [];
   for (const dir of sharedSkillDirs(home)) {
-    items.push(...readSkillsIn(dir, "user", "shared", sink, undefined, (item, entryPath) => {
-      shared.unplaced.add(item);
-      try {
-        shared.index.set(fs.realpathSync(entryPath), item);
-        shared.index.set(fs.realpathSync(item.source), item);
-      } catch {
-        // The entry was just read, so a realpath failure is a race; the item
-        // still reports, it just cannot receive links.
-      }
-    }));
+    items.push(
+      ...readSkillsIn(
+        dir,
+        "user",
+        "shared",
+        sink,
+        undefined,
+        (item, entryPath) => {
+          shared.unplaced.add(item);
+          try {
+            shared.index.set(fs.realpathSync(entryPath), item);
+            shared.index.set(fs.realpathSync(item.source), item);
+          } catch {
+            // The entry was just read, so a realpath failure is a race; the item
+            // still reports, it just cannot receive links.
+          }
+        },
+      ),
+    );
   }
   return { items, shared };
 }
@@ -921,25 +1034,43 @@ export function readInventory(home: string, projectPath?: string): Inventory {
  * the loop, so a machine with hundreds of skills never holds the loop for the
  * whole tree. Same steps, same order, same output as readInventory.
  */
-export async function readInventoryAsync(home: string, projectPath?: string): Promise<Inventory> {
+export async function readInventoryAsync(
+  home: string,
+  projectPath?: string,
+): Promise<Inventory> {
   if (scanWorkerHost()) {
     try {
-      const inventory: Inventory = { items: [], marketplaces: [], unreadable: [] };
-      await visitScan({ name: "inventory", home, ...(projectPath ? { projectPath } : {}) }, rows => {
-       for (const row of rows) {
-        if (row.type === "item") inventory.items.push(row.value as InventoryItem);
-        else if (row.type === "marketplace") inventory.marketplaces.push(row.value as MarketplaceRef);
-        else if (row.type === "unreadable") inventory.unreadable.push(row.value as UnreadablePath);
-        else throw new Error("invalid inventory observation");
-       }
-      });
+      const inventory: Inventory = {
+        items: [],
+        marketplaces: [],
+        unreadable: [],
+      };
+      await visitScan(
+        { name: "inventory", home, ...(projectPath ? { projectPath } : {}) },
+        (rows) => {
+          for (const row of rows) {
+            if (row.type === "item")
+              inventory.items.push(row.value as InventoryItem);
+            else if (row.type === "marketplace")
+              inventory.marketplaces.push(row.value as MarketplaceRef);
+            else if (row.type === "unreadable")
+              inventory.unreadable.push(row.value as UnreadablePath);
+            else throw new Error("invalid inventory observation");
+          }
+        },
+      );
       return inventory;
-    } catch (error) { if (!scanCanFallback(error)) throw error; }
+    } catch (error) {
+      if (!scanCanFallback(error)) throw error;
+    }
   }
   return readInventoryAsyncLocal(home, projectPath);
 }
 
-export async function readInventoryAsyncLocal(home: string, projectPath?: string): Promise<Inventory> {
+export async function readInventoryAsyncLocal(
+  home: string,
+  projectPath?: string,
+): Promise<Inventory> {
   const scan = inventorySteps(home, projectPath);
   for (const step of scan.steps) {
     timeSyncFs("readInventory step", step.label, step.run);
@@ -959,7 +1090,10 @@ interface InventoryStep {
  * them. The order is the output order, so both drivers produce byte identical
  * inventories.
  */
-function inventorySteps(home: string, projectPath?: string): { steps: InventoryStep[]; finish(): Inventory } {
+function inventorySteps(
+  home: string,
+  projectPath?: string,
+): { steps: InventoryStep[]; finish(): Inventory } {
   const unreadable: UnreadablePath[] = [];
   const items: InventoryItem[] = [];
   const marketplaces: MarketplaceRef[] = [];
@@ -970,14 +1104,57 @@ function inventorySteps(home: string, projectPath?: string): { steps: InventoryS
   let sharedSkills: ReturnType<typeof readSharedAgentSkills> | undefined;
   const shared = () => sharedSkills!.shared;
   const steps: InventoryStep[] = [
-    { label: "known marketplaces", run: () => { marketplaces.push(...readKnownMarketplaces(home, unreadable)); } },
-    { label: "shared agent skills", run: () => { sharedSkills = readSharedAgentSkills(home, unreadable); } },
+    {
+      label: "known marketplaces",
+      run: () => {
+        marketplaces.push(...readKnownMarketplaces(home, unreadable));
+      },
+    },
+    {
+      label: "shared agent skills",
+      run: () => {
+        sharedSkills = readSharedAgentSkills(home, unreadable);
+      },
+    },
   ];
 
-  for (const { scope, skills, commands, agents, settings } of claudeScopePlans(home, projectPath)) {
-    if (skills) steps.push({ label: skills, run: () => { items.push(...readSkillsIn(skills, scope, "claude", unreadable, shared())); } });
-    if (commands) steps.push({ label: commands, run: () => { items.push(...readMarkdownDir(commands, "command", scope, "claude", unreadable)); } });
-    if (agents) steps.push({ label: agents, run: () => { items.push(...readMarkdownDir(agents, "subagent", scope, "claude", unreadable)); } });
+  for (const { scope, skills, commands, agents, settings } of claudeScopePlans(
+    home,
+    projectPath,
+  )) {
+    if (skills)
+      steps.push({
+        label: skills,
+        run: () => {
+          items.push(
+            ...readSkillsIn(skills, scope, "claude", unreadable, shared()),
+          );
+        },
+      });
+    if (commands)
+      steps.push({
+        label: commands,
+        run: () => {
+          items.push(
+            ...readMarkdownDir(
+              commands,
+              "command",
+              scope,
+              "claude",
+              unreadable,
+            ),
+          );
+        },
+      });
+    if (agents)
+      steps.push({
+        label: agents,
+        run: () => {
+          items.push(
+            ...readMarkdownDir(agents, "subagent", scope, "claude", unreadable),
+          );
+        },
+      });
     if (settings) {
       steps.push({
         label: settings,
@@ -995,21 +1172,54 @@ function inventorySteps(home: string, projectPath?: string): { steps: InventoryS
   const claudeMcp = AGENT_CLIENTS.claude.agentFileTargets?.mcpConfig;
   if (claudeMcp) {
     const userMcp = fromHomeTemplate(home, claudeMcp.user);
-    steps.push({ label: userMcp, run: () => { items.push(...readMcpFrom(userMcp, "user", "claude", unreadable)); } });
+    steps.push({
+      label: userMcp,
+      run: () => {
+        items.push(...readMcpFrom(userMcp, "user", "claude", unreadable));
+      },
+    });
     if (projectPath && claudeMcp.project) {
       const projectMcp = path.join(projectPath, claudeMcp.project);
-      steps.push({ label: projectMcp, run: () => { items.push(...readMcpFrom(projectMcp, "project", "claude", unreadable)); } });
+      steps.push({
+        label: projectMcp,
+        run: () => {
+          items.push(
+            ...readMcpFrom(projectMcp, "project", "claude", unreadable),
+          );
+        },
+      });
     }
   }
 
   // Shared skills nothing linked to: still this machine's capabilities, they
   // just were not installed into any client dir.
-  steps.push({ label: "unplaced shared skills", run: () => { items.push(...sharedSkills!.items.filter((i) => shared().unplaced.has(i))); } });
+  steps.push({
+    label: "unplaced shared skills",
+    run: () => {
+      items.push(
+        ...sharedSkills!.items.filter((i) => shared().unplaced.has(i)),
+      );
+    },
+  });
 
   // The other clients on this machine, one tag each, so a single machine row
   // spans all of them — each read from its own descriptor's slots.
-  steps.push({ label: "codex", run: () => { items.push(...readClientItems("codex", home, projectPath, unreadable, shared())); } });
-  steps.push({ label: "cursor", run: () => { items.push(...readClientItems("cursor", home, projectPath, unreadable, shared())); } });
+  steps.push({
+    label: "codex",
+    run: () => {
+      items.push(
+        ...readClientItems("codex", home, projectPath, unreadable, shared()),
+      );
+    },
+  });
+  steps.push({
+    label: "cursor",
+    run: () => {
+      items.push(
+        ...readClientItems("cursor", home, projectPath, unreadable, shared()),
+      );
+    },
+  });
 
   // Pins are per install, not per declaration — fold them onto plugin rows.
   steps.push({
@@ -1038,7 +1248,12 @@ function inventorySteps(home: string, projectPath?: string): { steps: InventoryS
       // Code lists such a plugin whatever directory you run it from; codecast must
       // not, because showing another checkout's plugin as available here would be a
       // lie about this project's capabilities.
-      const pluginRegistry = path.join(home, ".claude", "plugins", "installed_plugins.json");
+      const pluginRegistry = path.join(
+        home,
+        ".claude",
+        "plugins",
+        "installed_plugins.json",
+      );
       for (const [id, pin] of Object.entries(pins)) {
         if (declared.has(id)) continue;
         if (pin.projectPath && pin.projectPath !== projectPath) continue;
@@ -1100,7 +1315,9 @@ function inventorySteps(home: string, projectPath?: string): { steps: InventoryS
  *  daemon has always been first-wins, and the live menu is whatever the
  *  daemon sends. A deliberate contract change belongs in ct-42820, next to
  *  the swap, where the payload diff can be owned.) */
-export function toInvocableList(inv: Inventory): Array<{ name: string; description: string }> {
+export function toInvocableList(
+  inv: Inventory,
+): Array<{ name: string; description: string }> {
   const menu = inv.items.filter((item) => {
     if (item.kind !== "skill" && item.kind !== "command") return false;
     if (!item.enabled) return false;
@@ -1110,13 +1327,20 @@ export function toInvocableList(inv: Inventory): Array<{ name: string; descripti
     // Claude's OWN skill dirs is in the menu (Claude follows the link, and
     // the daemon has always listed it). A shared skill linked only from
     // another client's dir stays out — `appendLink` records which.
-    return !item.client || item.client === "claude" || (item.client === "shared" && item.meta?.claude_linked === "true");
+    return (
+      !item.client ||
+      item.client === "claude" ||
+      (item.client === "shared" && item.meta?.claude_linked === "true")
+    );
   });
   // The scan interleaves kinds per scope; the daemon reads all command dirs,
   // then all skill dirs. Partitioning restores its order exactly, because
   // within each kind the scan is already user-then-project, and a linked
   // shared skill sits at its claude symlink's directory position.
-  const ordered = [...menu.filter((i) => i.kind === "command"), ...menu.filter((i) => i.kind === "skill")];
+  const ordered = [
+    ...menu.filter((i) => i.kind === "command"),
+    ...menu.filter((i) => i.kind === "skill"),
+  ];
   const seen = new Set<string>();
   const out: Array<{ name: string; description: string }> = [];
   for (const item of ordered) {

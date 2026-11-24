@@ -34,9 +34,17 @@ export interface ProcessInfo {
 export const AGENT_START_JITTER_MS = 5_000;
 /** Two readings of a process's start time name the same process: within sampling
  *  jitter, or either unknown. A pid reused by a new process starts minutes apart. */
-export const sameStartedAt = (a: number | undefined, b: number | undefined): boolean =>
-  a === undefined || b === undefined || Math.abs(a - b) <= AGENT_START_JITTER_MS;
-export function stableAgentStartedAt(cur: number | undefined, prev: number | undefined): number | undefined {
+export const sameStartedAt = (
+  a: number | undefined,
+  b: number | undefined,
+): boolean =>
+  a === undefined ||
+  b === undefined ||
+  Math.abs(a - b) <= AGENT_START_JITTER_MS;
+export function stableAgentStartedAt(
+  cur: number | undefined,
+  prev: number | undefined,
+): number | undefined {
   // No reading this tick: claim nothing rather than re-assert a stale start.
   if (cur === undefined) return undefined;
   if (prev === undefined) return cur;
@@ -46,7 +54,9 @@ export function stableAgentStartedAt(cur: number | undefined, prev: number | und
 export function parseEtimeSeconds(etime: string): number | undefined {
   const m = etime.trim().match(/^(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)$/);
   if (!m) return undefined;
-  const [days, hours, minutes, seconds] = [m[1], m[2], m[3], m[4]].map((p) => (p === undefined ? 0 : parseInt(p, 10)));
+  const [days, hours, minutes, seconds] = [m[1], m[2], m[3], m[4]].map((p) =>
+    p === undefined ? 0 : parseInt(p, 10),
+  );
   if ([days, hours, minutes, seconds].some(isNaN)) return undefined;
   return days * 86400 + hours * 3600 + minutes * 60 + seconds;
 }
@@ -71,7 +81,13 @@ export interface SessionResources {
 
 // Below this CPU% (and not in a working status) a tick counts as idle.
 export const IDLE_CPU_FLOOR_PCT = 2;
-const WORKING_STATUSES = new Set(["working", "thinking", "compacting", "starting", "resuming"]);
+const WORKING_STATUSES = new Set([
+  "working",
+  "thinking",
+  "compacting",
+  "starting",
+  "resuming",
+]);
 
 // The agent's own word that a turn is underway. This is the only signal that
 // restarts the idle clock: see nextAwakeIdleMs.
@@ -82,7 +98,10 @@ export function isWorkingStatus(status: string | undefined): boolean {
 // A session is "active" this tick if it's burning CPU or its agent_status is a
 // working state. Gates the metrics report, so a burst of CPU on a resting
 // session still reaches the web promptly.
-export function isSessionActive(cpu: number, status: string | undefined): boolean {
+export function isSessionActive(
+  cpu: number,
+  status: string | undefined,
+): boolean {
   return cpu >= IDLE_CPU_FLOOR_PCT || isWorkingStatus(status);
 }
 
@@ -112,7 +131,13 @@ export interface ReportedMetrics {
  * slow keep-alive so the graph/liveness never goes stale.
  */
 export function shouldReportMetrics(args: {
-  cur: { cpu: number; memory: number; pidCount: number; agentPid?: number; agentStartedAt?: number };
+  cur: {
+    cpu: number;
+    memory: number;
+    pidCount: number;
+    agentPid?: number;
+    agentStartedAt?: number;
+  };
   prev: ReportedMetrics | undefined;
   status: string | undefined;
   now: number;
@@ -127,7 +152,11 @@ export function shouldReportMetrics(args: {
   // Checked separately from agentPid because the OS can reuse a pid.
   if (cur.agentStartedAt !== prev.agentStartedAt) return true;
   if (cur.pidCount !== prev.pidCount) return true; // process tree changed
-  if (Math.abs(cur.memory - prev.memory) >= prev.memory * METRICS_MEM_DELTA_FRAC) return true;
+  if (
+    Math.abs(cur.memory - prev.memory) >=
+    prev.memory * METRICS_MEM_DELTA_FRAC
+  )
+    return true;
   return now - prev.at >= IDLE_METRICS_REFRESH_MS; // otherwise a slow keep-alive
 }
 
@@ -168,7 +197,12 @@ export function nextAwakeIdleMs(params: {
   sharesRootPid?: boolean;
 }): number {
   if (isWorkingStatus(params.status)) return 0;
-  if (params.sharesRootPid || params.sleepSkip || params.cpu >= IDLE_CPU_FLOOR_PCT) return params.prevIdleMs;
+  if (
+    params.sharesRootPid ||
+    params.sleepSkip ||
+    params.cpu >= IDLE_CPU_FLOOR_PCT
+  )
+    return params.prevIdleMs;
   return params.prevIdleMs + params.elapsedMs;
 }
 
@@ -203,20 +237,42 @@ export const AWAKE_IDLE_SNAPSHOT_MAX_AGE_MS = 7 * 24 * 3600_000;
 // session again, and expires when none does.
 export const AWAKE_IDLE_RESTORE_CLAIM_MS = 15 * 60 * 1000;
 
-export type AwakeIdleSnapshot = { at: number; idle: Map<string, number>; size: Map<string, number> };
+export type AwakeIdleSnapshot = {
+  at: number;
+  idle: Map<string, number>;
+  size: Map<string, number>;
+};
 
 /** The snapshot's counters and transcript sizes, or null when it is unreadable, from the future, or past the sanity bound. */
-export function decodeAwakeIdleSnapshot(raw: string, now: number): AwakeIdleSnapshot | null {
+export function decodeAwakeIdleSnapshot(
+  raw: string,
+  now: number,
+): AwakeIdleSnapshot | null {
   try {
-    const snap = JSON.parse(raw) as { at?: unknown; idle?: unknown; size?: unknown };
-    if (typeof snap.at !== "number" || now - snap.at > AWAKE_IDLE_SNAPSHOT_MAX_AGE_MS || now < snap.at) return null;
+    const snap = JSON.parse(raw) as {
+      at?: unknown;
+      idle?: unknown;
+      size?: unknown;
+    };
+    if (
+      typeof snap.at !== "number" ||
+      now - snap.at > AWAKE_IDLE_SNAPSHOT_MAX_AGE_MS ||
+      now < snap.at
+    )
+      return null;
     const idle = new Map<string, number>();
-    for (const [sessionId, ms] of Object.entries((snap.idle ?? {}) as Record<string, unknown>)) {
-      if (typeof ms === "number" && Number.isFinite(ms) && ms > 0) idle.set(sessionId, ms);
+    for (const [sessionId, ms] of Object.entries(
+      (snap.idle ?? {}) as Record<string, unknown>,
+    )) {
+      if (typeof ms === "number" && Number.isFinite(ms) && ms > 0)
+        idle.set(sessionId, ms);
     }
     const size = new Map<string, number>();
-    for (const [sessionId, bytes] of Object.entries((snap.size ?? {}) as Record<string, unknown>)) {
-      if (typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0) size.set(sessionId, bytes);
+    for (const [sessionId, bytes] of Object.entries(
+      (snap.size ?? {}) as Record<string, unknown>,
+    )) {
+      if (typeof bytes === "number" && Number.isFinite(bytes) && bytes >= 0)
+        size.set(sessionId, bytes);
     }
     return { at: snap.at, idle, size };
   } catch {
@@ -247,7 +303,8 @@ export function restorableAwakeIdle(
   for (const [sessionId, ms] of snapshot.idle) {
     const then = snapshot.size.get(sessionId);
     const now = sizeNow.get(sessionId);
-    if (then !== undefined && now !== undefined && now === then) kept.set(sessionId, ms);
+    if (then !== undefined && now !== undefined && now === then)
+      kept.set(sessionId, ms);
   }
   return kept;
 }
@@ -267,7 +324,11 @@ export class AwakeIdleClock {
   /** Adopt the counters the previous daemon left that restorableAwakeIdle let through. */
   restore(idle: ReadonlyMap<string, number>, now: number): void {
     this.held.clear();
-    for (const [sessionId, ms] of idle) this.held.set(sessionId, { ms, until: now + AWAKE_IDLE_RESTORE_CLAIM_MS });
+    for (const [sessionId, ms] of idle)
+      this.held.set(sessionId, {
+        ms,
+        until: now + AWAKE_IDLE_RESTORE_CLAIM_MS,
+      });
   }
 
   /** The counter a tick continues from: live, else held and still inside its window, else 0. */
@@ -293,7 +354,10 @@ export class AwakeIdleClock {
     for (const [sessionId, ms] of this.live) {
       if (collected.has(sessionId)) continue;
       this.live.delete(sessionId);
-      this.held.set(sessionId, { ms, until: now + AWAKE_IDLE_RESTORE_CLAIM_MS });
+      this.held.set(sessionId, {
+        ms,
+        until: now + AWAKE_IDLE_RESTORE_CLAIM_MS,
+      });
     }
     for (const [sessionId, held] of this.held) {
       if (now >= held.until) this.held.delete(sessionId);
@@ -303,7 +367,8 @@ export class AwakeIdleClock {
   /** Every session the snapshot would carry, so the caller can size their transcripts first. */
   sessionIds(now: number): string[] {
     const ids = new Set<string>();
-    for (const [sessionId, held] of this.held) if (now < held.until) ids.add(sessionId);
+    for (const [sessionId, held] of this.held)
+      if (now < held.until) ids.add(sessionId);
     for (const sessionId of this.live.keys()) ids.add(sessionId);
     return [...ids];
   }
@@ -313,9 +378,13 @@ export class AwakeIdleClock {
    * inside their window, each with its transcript size when known, which is
    * what restorableAwakeIdle compares on the other side.
    */
-  encode(now: number, transcriptSize: ReadonlyMap<string, number | undefined> = new Map()): string {
+  encode(
+    now: number,
+    transcriptSize: ReadonlyMap<string, number | undefined> = new Map(),
+  ): string {
     const idle: Record<string, number> = {};
-    for (const [sessionId, held] of this.held) if (now < held.until) idle[sessionId] = held.ms;
+    for (const [sessionId, held] of this.held)
+      if (now < held.until) idle[sessionId] = held.ms;
     for (const [sessionId, ms] of this.live) idle[sessionId] = ms;
     const size: Record<string, number> = {};
     for (const sessionId of Object.keys(idle)) {
@@ -332,24 +401,40 @@ export class AwakeIdleClock {
  *  The resource tick runs every 30s and never overlaps itself, so a slow list is still worth having. */
 export const PROCESS_SNAPSHOT_BUDGET_MS = 20_000;
 
-export async function captureProcessSnapshot(): Promise<Map<number, ProcessInfo>> {
-  if (process.platform !== "darwin" && process.platform !== "linux") return new Map();
+export async function captureProcessSnapshot(): Promise<
+  Map<number, ProcessInfo>
+> {
+  if (process.platform !== "darwin" && process.platform !== "linux")
+    return new Map();
 
   // The terminal as a device number on macOS: `tty` names it by searching
   // /dev, which made this ps 3 to 10 times slower under load (2026-10-09).
   const terminal = process.platform === "darwin" ? "tdev" : "tty";
-  const captured = await resourceProbe("processes", () => execFileAsync("ps", ["-eo", `pid=,ppid=,pcpu=,rss=,etime=,pgid=,${terminal}=,comm=`], {
-    timeout: PROCESS_SNAPSHOT_BUDGET_MS,
-    killSignal: "SIGKILL",
-    maxBuffer: 16 * 1024 * 1024,
-  }), PROCESS_SNAPSHOT_BUDGET_MS);
-  if (!captured) throw new Error("Process snapshot unavailable within its time budget");
+  const captured = await resourceProbe(
+    "processes",
+    () =>
+      execFileAsync(
+        "ps",
+        ["-eo", `pid=,ppid=,pcpu=,rss=,etime=,pgid=,${terminal}=,comm=`],
+        {
+          timeout: PROCESS_SNAPSHOT_BUDGET_MS,
+          killSignal: "SIGKILL",
+          maxBuffer: 16 * 1024 * 1024,
+        },
+      ),
+    PROCESS_SNAPSHOT_BUDGET_MS,
+  );
+  if (!captured)
+    throw new Error("Process snapshot unavailable within its time budget");
   return parseProcessSnapshot(captured.stdout);
 }
 
 export { TTY_TOKEN, noTerminal };
 
-export function parseProcessSnapshot(stdout: string, collectedAt = Date.now()): Map<number, ProcessInfo> {
+export function parseProcessSnapshot(
+  stdout: string,
+  collectedAt = Date.now(),
+): Map<number, ProcessInfo> {
   const result = new Map<number, ProcessInfo>();
   for (const line of stdout.split("\n")) {
     const trimmed = line.trim();
@@ -363,16 +448,20 @@ export function parseProcessSnapshot(stdout: string, collectedAt = Date.now()): 
     if (isNaN(pid) || isNaN(ppid) || isNaN(cpu) || isNaN(rss)) continue;
     // etime joined the column list after the other four, so an older daemon's
     // parse of a 4-column line still works and simply carries no start time.
-    const elapsedSec = parts.length > 4 ? parseEtimeSeconds(parts[4]) : undefined;
+    const elapsedSec =
+      parts.length > 4 ? parseEtimeSeconds(parts[4]) : undefined;
     // pgid and tty joined later still, so a line without them reads as before.
-    const group = parts.length > 7 && /^\d+$/.test(parts[5]) && TTY_TOKEN.test(parts[6]);
+    const group =
+      parts.length > 7 && /^\d+$/.test(parts[5]) && TTY_TOKEN.test(parts[6]);
     result.set(pid, {
       pid,
       ppid,
       cpu,
       rss: rss * 1024,
       command: parts.slice(group ? 7 : 5).join(" "),
-      ...(elapsedSec !== undefined ? { startedAt: collectedAt - elapsedSec * 1000 } : {}),
+      ...(elapsedSec !== undefined
+        ? { startedAt: collectedAt - elapsedSec * 1000 }
+        : {}),
       ...(group ? { pgid: Number(parts[5]), tty: parts[6] } : {}),
     });
   }
@@ -453,16 +542,18 @@ export async function collectSessionResources(
   sharedPidSessions: ReadonlySet<string>,
   providedSnapshot?: Map<number, ProcessInfo>,
 ): Promise<Map<string, SessionResources>> {
-  if (process.platform !== "darwin" && process.platform !== "linux") return new Map();
+  if (process.platform !== "darwin" && process.platform !== "linux")
+    return new Map();
 
-  const snapshot = providedSnapshot ?? await captureProcessSnapshot();
+  const snapshot = providedSnapshot ?? (await captureProcessSnapshot());
   if (snapshot.size === 0) return new Map();
 
   const ownerByRootPid = new Map<number, string>();
   for (const [sessionId, rootPid] of sessionPids) {
     if (sharedPidSessions.has(sessionId)) continue;
     const incumbent = ownerByRootPid.get(rootPid);
-    if (incumbent === undefined || sessionId < incumbent) ownerByRootPid.set(rootPid, sessionId);
+    if (incumbent === undefined || sessionId < incumbent)
+      ownerByRootPid.set(rootPid, sessionId);
   }
 
   const result = new Map<string, SessionResources>();
@@ -473,7 +564,8 @@ export async function collectSessionResources(
     // process generation — reported even by a borrower, whose cpu/memory are
     // zeroed but whose agent is just as real.
     const agentStartedAt = snapshot.get(rootPid)?.startedAt;
-    const startedAtField = agentStartedAt !== undefined ? { agentStartedAt } : {};
+    const startedAtField =
+      agentStartedAt !== undefined ? { agentStartedAt } : {};
     if (ownerByRootPid.get(rootPid) !== sessionId) {
       result.set(sessionId, {
         sessionId,
@@ -498,16 +590,22 @@ export async function collectSessionResources(
   return result;
 }
 
-export function formatResourcesLog(resources: Map<string, SessionResources>): string {
+export function formatResourcesLog(
+  resources: Map<string, SessionResources>,
+): string {
   if (resources.size === 0) return "No active sessions with resource data";
   const lines: string[] = [];
   for (const [sessionId, r] of resources) {
     if (r.sharesRootPid) {
-      lines.push(`${shortId(sessionId)}: shares another session's pid (not counted)`);
+      lines.push(
+        `${shortId(sessionId)}: shares another session's pid (not counted)`,
+      );
       continue;
     }
     const memMB = (r.memory / (1024 * 1024)).toFixed(1);
-    lines.push(`${shortId(sessionId)}: cpu=${r.cpu}% mem=${memMB}MB procs=${r.pidCount}`);
+    lines.push(
+      `${shortId(sessionId)}: cpu=${r.cpu}% mem=${memMB}MB procs=${r.pidCount}`,
+    );
   }
   return `Resource snapshot (${resources.size} sessions): ${lines.join(", ")}`;
 }

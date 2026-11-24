@@ -37,23 +37,37 @@ const LINUX_PS = `
 const CAPTURED_AT = Date.parse("Sat Sep 16 21:45:30 2026");
 
 describe("parseProcessTable identity columns", () => {
-  for (const [platform, out] of [["macOS", MACOS_PS], ["Linux", LINUX_PS]] as const) {
+  for (const [platform, out] of [
+    ["macOS", MACOS_PS],
+    ["Linux", LINUX_PS],
+  ] as const) {
     test(`${platform} ps carries pid, ppid, pgid, uid, lstart and the command`, () => {
       const rows = parseProcessTable(out, CAPTURED_AT);
       expect(rows.map((r) => r.pid)).toEqual([1, 45451, 91000, 91001, 91002]);
       const claude = rows.find((r) => r.pid === 91001)!;
-      expect(claude).toMatchObject({ ppid: 91000, pgid: 91001, startedAt: "Sat Sep 16 21:44:59 2026" });
+      expect(claude).toMatchObject({
+        ppid: 91000,
+        pgid: 91001,
+        startedAt: "Sat Sep 16 21:44:59 2026",
+      });
       expect(claude.command).toBe("claude --resume abc");
       expect(claude.capturedAtMs).toBe(CAPTURED_AT);
       // The padded day of month must not survive into the compared string, or
       // the same instant read twice would fail its own identity check.
-      expect(rows.find((r) => r.pid === 91000)!.startedAt).toBe("Sat Sep 6 09:12:01 2026");
+      expect(rows.find((r) => r.pid === 91000)!.startedAt).toBe(
+        "Sat Sep 6 09:12:01 2026",
+      );
     });
   }
 
   test("a narrower table still parses, and carries no identity", () => {
-    const rows = parseProcessTable(" 42 10 tail -f x\n 43 10 501 grep -r x .\n");
-    expect(rows.map((r) => [r.pid, r.command])).toEqual([[42, "tail -f x"], [43, "grep -r x ."]]);
+    const rows = parseProcessTable(
+      " 42 10 tail -f x\n 43 10 501 grep -r x .\n",
+    );
+    expect(rows.map((r) => [r.pid, r.command])).toEqual([
+      [42, "tail -f x"],
+      [43, "grep -r x ."],
+    ]);
     expect(rows[0].pgid).toBeUndefined();
     expect(rows[1].startedAt).toBeUndefined();
   });
@@ -73,7 +87,9 @@ const row = (pid: number): ProcRow => table.find((r) => r.pid === pid)!;
 
 describe("descendantRows", () => {
   test("walks the whole subtree, root excluded, parents before children", () => {
-    expect(descendantRows(table, 45451).map((r) => r.pid)).toEqual([91000, 91001, 91002]);
+    expect(descendantRows(table, 45451).map((r) => r.pid)).toEqual([
+      91000, 91001, 91002,
+    ]);
   });
 
   // The reason the snapshot must be taken BEFORE the root is signalled: a
@@ -98,7 +114,10 @@ describe("descendantRows", () => {
   });
 
   test("a duplicated root yields nothing: no safe identity to walk from", () => {
-    const doubled = [...table, { ...row(45451), startedAt: "Sat Sep  6 21:00:00 2026" }];
+    const doubled = [
+      ...table,
+      { ...row(45451), startedAt: "Sat Sep  6 21:00:00 2026" },
+    ];
     expect(descendantRows(doubled, 45451)).toEqual([]);
   });
 });
@@ -107,15 +126,25 @@ describe("bornBeforeCaptureSecond", () => {
   test("a process born in the capture second is never identifiable", () => {
     // lstart has one second resolution, so anything the kernel puts in this pid
     // slot during the same second prints the same start time.
-    const born = { ...row(91001), startedAt: "Sat Sep 16 21:45:30 2026", capturedAtMs: CAPTURED_AT + 400 };
+    const born = {
+      ...row(91001),
+      startedAt: "Sat Sep 16 21:45:30 2026",
+      capturedAtMs: CAPTURED_AT + 400,
+    };
     expect(bornBeforeCaptureSecond(born)).toBe(false);
     expect(bornBeforeCaptureSecond(row(91001))).toBe(true);
   });
 
   test("a row with no start time or no capture instant fails closed", () => {
-    expect(bornBeforeCaptureSecond({ pid: 1, ppid: 0, command: "x" })).toBe(false);
-    expect(bornBeforeCaptureSecond({ ...row(91001), capturedAtMs: undefined })).toBe(false);
-    expect(bornBeforeCaptureSecond({ ...row(91001), startedAt: "not a date" })).toBe(false);
+    expect(bornBeforeCaptureSecond({ pid: 1, ppid: 0, command: "x" })).toBe(
+      false,
+    );
+    expect(
+      bornBeforeCaptureSecond({ ...row(91001), capturedAtMs: undefined }),
+    ).toBe(false);
+    expect(
+      bornBeforeCaptureSecond({ ...row(91001), startedAt: "not a date" }),
+    ).toBe(false);
   });
 });
 
@@ -125,7 +154,12 @@ describe("sameProcess", () => {
   });
 
   test("a recycled pid has a different start time", () => {
-    expect(sameProcess(row(91001), { ...row(91001), startedAt: "Sat Sep 16 21:45:10 2026" })).toBe(false);
+    expect(
+      sameProcess(row(91001), {
+        ...row(91001),
+        startedAt: "Sat Sep 16 21:45:10 2026",
+      }),
+    ).toBe(false);
   });
 
   test("a survivor that changed process group is not the process we signalled", () => {
@@ -145,7 +179,10 @@ function runKill(
   targets: ProcRow[],
   aliveAfterTerm: number[],
   afterGrace: ProcRow[],
-): Promise<{ result: Awaited<ReturnType<typeof killProcessTree>>; sent: string[] }> {
+): Promise<{
+  result: Awaited<ReturnType<typeof killProcessTree>>;
+  sent: string[];
+}> {
   const sent: string[] = [];
   const live = new Set(aliveAfterTerm);
   return killProcessTree(targets, 0, {
@@ -172,20 +209,32 @@ describe("killProcessTree", () => {
   test("a recycled pid is never hard killed", async () => {
     // Same slot, a new program: `process.kill(pid, 0)` says alive, and only the
     // start time says it is somebody else's.
-    const recycled = { ...row(91001), startedAt: "Sat Sep 16 21:45:20 2026", command: "vim notes.md" };
+    const recycled = {
+      ...row(91001),
+      startedAt: "Sat Sep 16 21:45:20 2026",
+      command: "vim notes.md",
+    };
     const { result, sent } = await runKill(tree, [91001], [recycled]);
     expect(sent.filter((s) => s.startsWith("SIGKILL"))).toEqual([]);
     expect(result).toEqual({ terminated: 2, killed: 0, unverified: 1 });
   });
 
   test("a pid the table reports twice is left alone", async () => {
-    const { result, sent } = await runKill(tree, [91001], [row(91001), { ...row(91001) }]);
+    const { result, sent } = await runKill(
+      tree,
+      [91001],
+      [row(91001), { ...row(91001) }],
+    );
     expect(sent.filter((s) => s.startsWith("SIGKILL"))).toEqual([]);
     expect(result.unverified).toBe(1);
   });
 
   test("a survivor born in the capture second is left alone", async () => {
-    const fresh = { ...row(91001), startedAt: "Sat Sep 16 21:45:30 2026", capturedAtMs: CAPTURED_AT + 100 };
+    const fresh = {
+      ...row(91001),
+      startedAt: "Sat Sep 16 21:45:30 2026",
+      capturedAtMs: CAPTURED_AT + 100,
+    };
     const { result, sent } = await runKill([fresh], [fresh.pid], [fresh]);
     expect(sent).toEqual(["SIGTERM 91001"]);
     expect(result).toEqual({ terminated: 0, killed: 0, unverified: 1 });
@@ -195,8 +244,12 @@ describe("killProcessTree", () => {
     // It is not in the snapshot, so it is not a target — and its parent's pid
     // slot is the only thing the two have in common.
     const newborn: ProcRow = {
-      pid: 91003, ppid: 91001, pgid: 91003, uid: 501,
-      startedAt: "Sat Sep 16 21:45:31 2026", capturedAtMs: CAPTURED_AT + 1_000,
+      pid: 91003,
+      ppid: 91001,
+      pgid: 91003,
+      uid: 501,
+      startedAt: "Sat Sep 16 21:45:31 2026",
+      capturedAtMs: CAPTURED_AT + 1_000,
       command: "npx some-mcp-server",
     };
     const { sent } = await runKill(tree, [91001], [row(91001), newborn]);
@@ -210,7 +263,11 @@ describe("killProcessTree", () => {
 
   test("this process is never a target, whatever a caller passes", async () => {
     const self: ProcRow = { ...row(91001), pid: process.pid };
-    const { result, sent } = await runKill([self, { ...row(91001), pid: 1 }], [process.pid, 1], []);
+    const { result, sent } = await runKill(
+      [self, { ...row(91001), pid: 1 }],
+      [process.pid, 1],
+      [],
+    );
     expect(sent).toEqual([]);
     expect(result).toEqual({ terminated: 0, killed: 0, unverified: 0 });
   });

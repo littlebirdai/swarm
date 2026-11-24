@@ -20,14 +20,33 @@ import { isCloudAgentId } from "@codecast/shared/contracts";
 import { atomicWriteFile } from "../atomicWrite.js";
 import { githubRepo } from "../cloud/gitOrigin.js";
 import { codecastPath } from "../codecastDir.js";
-import { CLOUD_BACKFILL_MS, CLOUD_MAX_LIST_PAGES, cloudMirrorPlacement, doublingDelay, PollCadence, repoOwnerName } from "./poll.js";
+import {
+  CLOUD_BACKFILL_MS,
+  CLOUD_MAX_LIST_PAGES,
+  cloudMirrorPlacement,
+  doublingDelay,
+  PollCadence,
+  repoOwnerName,
+} from "./poll.js";
 import { cloudApiVerdict } from "./http.js";
 import { cloudSetupErrorOf, type CloudAgentSession } from "./sessions.js";
 import { mirrorMetaJson, readMetaJson } from "./transcript.js";
-import { CloudAgentSetupError, errorText, logTag, type AnyCloudAgentAdapter, type CloudAgentGit, type CloudAgentHandle, type CloudAgentListItem, type CloudAgentMirror } from "./types.js";
+import {
+  CloudAgentSetupError,
+  errorText,
+  logTag,
+  type AnyCloudAgentAdapter,
+  type CloudAgentGit,
+  type CloudAgentHandle,
+  type CloudAgentListItem,
+  type CloudAgentMirror,
+} from "./types.js";
 
 /** One page of a provider's list, as the watcher reads it. */
-type CloudAgentListPage = { items: CloudAgentListItem<unknown>[]; nextCursor?: string };
+type CloudAgentListPage = {
+  items: CloudAgentListItem<unknown>[];
+  nextCursor?: string;
+};
 
 /**
  * One mirror of an agent: `known`, the provider's record already read (the
@@ -36,10 +55,18 @@ type CloudAgentListPage = { items: CloudAgentListItem<unknown>[]; nextCursor?: s
  * `unlisted`, read by id because a whole list no longer shows it
  * (AgentState.unlisted).
  */
-interface MirrorOptions { known?: unknown; probing?: boolean; listed?: boolean; unlisted?: boolean }
+interface MirrorOptions {
+  known?: unknown;
+  probing?: boolean;
+  listed?: boolean;
+  unlisted?: boolean;
+}
 
 /** A pass's reads of single agents (UNEXPECTED_AGENTS_TO_PAUSE): the ones that answered unexpectedly, and how many did anything else. */
-interface PassReads { unexpected: { agentId: string; err: unknown }[]; other: number }
+interface PassReads {
+  unexpected: { agentId: string; err: unknown }[];
+  other: number;
+}
 
 /** How long polls stay fast after codecast starts an agent or sends it a message. */
 const MOVED_FAST_MS = 10 * 60_000;
@@ -91,7 +118,10 @@ export interface CloudAgentWatcherOptions {
   /** The agents codecast started: with importAll off, the only ones listed (none: a pass reads nothing and is skipped). */
   ownAgents?: () => ReadonlySet<string>;
   /** This machine's checkout of the repository an agent works on (where its session is placed), or null. */
-  resolveRepoDir?: (repo: { owner: string; name: string }, agentId?: string) => Promise<string | null>;
+  resolveRepoDir?: (
+    repo: { owner: string; name: string },
+    agentId?: string,
+  ) => Promise<string | null>;
   now?: () => number;
   /** `warn` for what someone should see in the server's logs: the lane paused or limited, and why. */
   log?: (msg: string, level?: "info" | "warn") => void;
@@ -128,7 +158,9 @@ export declare interface CloudAgentWatcher {
   on(event: "unfollowed", listener: (agentId: string) => void): this;
 }
 
-export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAgentAdapter> extends EventEmitter {
+export class CloudAgentWatcher<
+  Adapter extends AnyCloudAgentAdapter = AnyCloudAgentAdapter,
+> extends EventEmitter {
   /** Fast while an agent runs or a reply to codecast is due, slow otherwise (the adapter's hints). */
   private readonly cadence: PollCadence;
   private inFlight = false;
@@ -136,7 +168,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   private readonly statePath: string;
   private readonly importAll: () => boolean;
   private readonly ownAgents: () => ReadonlySet<string>;
-  private readonly resolveRepoDir: (repo: { owner: string; name: string }, agentId?: string) => Promise<string | null>;
+  private readonly resolveRepoDir: (
+    repo: { owner: string; name: string },
+    agentId?: string,
+  ) => Promise<string | null>;
   private readonly now: () => number;
   private readonly log: (msg: string, level?: "info" | "warn") => void;
   private state: { format?: number; agents: Record<string, AgentState> };
@@ -153,7 +188,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * try is due. `own`: its answers broke while other agents read as expected
    * (probe()), so its breaks no longer pause the lane.
    */
-  private readonly failing = new Map<string, { count: number; retryAt: number; own?: boolean }>();
+  private readonly failing = new Map<
+    string,
+    { count: number; retryAt: number; own?: boolean }
+  >();
   /** Running agents, and when a mirror last reached each. */
   private readonly followed = new Map<string, number>();
   private readonly unfollowedAfterMs: number;
@@ -174,17 +212,26 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * expected resumes it.
    */
   private localSetup: CloudAgentSetupError | null = null;
-  private remote: { problem: CloudAgentSetupError; probeAt: number; agentId?: string; tries: number } | null = null;
+  private remote: {
+    problem: CloudAgentSetupError;
+    probeAt: number;
+    agentId?: string;
+    tries: number;
+  } | null = null;
   /**
    * A limit a send or an action met (its kind pauses only on a read): sends
    * wait, reads go on, and the machine reports it until it lapses (`until`)
    * or a message goes out (sent()).
    */
-  private sendHold: { problem: CloudAgentSetupError; until: number } | null = null;
+  private sendHold: { problem: CloudAgentSetupError; until: number } | null =
+    null;
   /** Unexpected answers in a row (UNEXPECTED_TO_PAUSE). */
   private unexpected = 0;
 
-  constructor(readonly adapter: Adapter, opts: CloudAgentWatcherOptions = {}) {
+  constructor(
+    readonly adapter: Adapter,
+    opts: CloudAgentWatcherOptions = {},
+  ) {
     super();
     this.rootDir = opts.rootDir ?? codecastPath(adapter.spec.mirrorDir);
     this.statePath = path.join(this.rootDir, "state.json");
@@ -196,13 +243,23 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     this.state = { format: adapter.mirrorFormat, agents: {} };
     const pollMs = opts.pollMs ?? adapter.pollMs ?? 30_000;
     const fastPollMs = opts.fastPollMs ?? adapter.fastPollMs ?? pollMs;
-    this.unfollowedAfterMs = Math.max(UNFOLLOWED_POLLS * fastPollMs, UNFOLLOWED_MIN_MS);
-    this.cadence = new PollCadence(() => this.poll(), { pollMs, fastPollMs, now: this.now });
+    this.unfollowedAfterMs = Math.max(
+      UNFOLLOWED_POLLS * fastPollMs,
+      UNFOLLOWED_MIN_MS,
+    );
+    this.cadence = new PollCadence(() => this.poll(), {
+      pollMs,
+      fastPollMs,
+      now: this.now,
+    });
   }
 
   /** What keeps this machine from reading or sending to the provider (no sign-in, expired, turned off for the account, a limit), or null. */
   get setupProblem(): CloudAgentSetupError | null {
-    const held = this.sendHold && this.now() < this.sendHold.until ? this.sendHold.problem : null;
+    const held =
+      this.sendHold && this.now() < this.sendHold.until
+        ? this.sendHold.problem
+        : null;
     return this.localSetup ?? this.remote?.problem ?? held;
   }
 
@@ -238,13 +295,25 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     if (!problem) {
       this.remote = null;
       this.unexpected = 0;
-      if (prior) this.log(`${logTag(this.adapter)} ${this.adapter.spec.label} answers again: syncing resumed`);
+      if (prior)
+        this.log(
+          `${logTag(this.adapter)} ${this.adapter.spec.label} answers again: syncing resumed`,
+        );
       return;
     }
     const again = prior?.problem.kind === problem.kind ? prior : null;
     const tries = again ? again.tries + 1 : 0;
-    this.remote = { problem, agentId: agentId ?? again?.agentId, tries, probeAt: this.now() + problem.policy.lane(problem, tries) };
-    if (prior?.problem.message !== problem.message) this.log(`${logTag(this.adapter)} paused: ${problem.message}${problem.detail ? ` (${problem.detail})` : ""}`, "warn");
+    this.remote = {
+      problem,
+      agentId: agentId ?? again?.agentId,
+      tries,
+      probeAt: this.now() + problem.policy.lane(problem, tries),
+    };
+    if (prior?.problem.message !== problem.message)
+      this.log(
+        `${logTag(this.adapter)} paused: ${problem.message}${problem.detail ? ` (${problem.detail})` : ""}`,
+        "warn",
+      );
   }
 
   /**
@@ -257,19 +326,58 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * provider just listed. `agentId` names the agent the call was about, a
    * send's too: its breaks follow the same rules as a read's.
    */
-  async report(client: unknown, err: unknown, from: { agentId?: string; session?: CloudAgentSession; read?: boolean; listed?: boolean } = {}): Promise<CloudAgentSetupError | null> {
-    const problem = await cloudSetupErrorOf(this.adapter, client, err, from.session);
+  async report(
+    client: unknown,
+    err: unknown,
+    from: {
+      agentId?: string;
+      session?: CloudAgentSession;
+      read?: boolean;
+      listed?: boolean;
+    } = {},
+  ): Promise<CloudAgentSetupError | null> {
+    const problem = await cloudSetupErrorOf(
+      this.adapter,
+      client,
+      err,
+      from.session,
+    );
     if (problem) {
-      if (this.pausesLane(problem, err, from)) this.setRemoteSetup(problem, problem.policy.tracksAgent ? from.agentId : undefined);
-      else if (!from.read && problem.policy.pauses === "read") this.sendHold = { problem, until: problem.resetsAt ?? this.now() + problem.recheckMs };
+      if (this.pausesLane(problem, err, from))
+        this.setRemoteSetup(
+          problem,
+          problem.policy.tracksAgent ? from.agentId : undefined,
+        );
+      else if (!from.read && problem.policy.pauses === "read")
+        this.sendHold = {
+          problem,
+          until: problem.resetsAt ?? this.now() + problem.recheckMs,
+        };
       return problem;
     }
-    if (!from.read || cloudApiVerdict(err, { oneAgent: !!from.agentId, listed: from.listed }) !== "unexpected") return null;
+    if (
+      !from.read ||
+      cloudApiVerdict(err, {
+        oneAgent: !!from.agentId,
+        listed: from.listed,
+      }) !== "unexpected"
+    )
+      return null;
     // The check of a lane a run paused, reading the agent the run ended on: that it still answers so is the run going on.
-    const stillUnexpected = !!from.agentId && this.remote?.problem.kind === "changed" && this.remote.agentId === from.agentId;
+    const stillUnexpected =
+      !!from.agentId &&
+      this.remote?.problem.kind === "changed" &&
+      this.remote.agentId === from.agentId;
     const ownFailure = !!from.agentId && this.failing.has(from.agentId);
-    if (!stillUnexpected && (ownFailure || ++this.unexpected < UNEXPECTED_TO_PAUSE)) return null;
-    const changed = CloudAgentSetupError.changed(this.adapter, `${UNEXPECTED_TO_PAUSE} answers in a row it does not expect, the last: ${errorText(err)}`);
+    if (
+      !stillUnexpected &&
+      (ownFailure || ++this.unexpected < UNEXPECTED_TO_PAUSE)
+    )
+      return null;
+    const changed = CloudAgentSetupError.changed(
+      this.adapter,
+      `${UNEXPECTED_TO_PAUSE} answers in a row it does not expect, the last: ${errorText(err)}`,
+    );
     this.setRemoteSetup(changed, from.agentId);
     return changed;
   }
@@ -280,9 +388,18 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * 403 on it: the credentials read the rest), or when it breaks again after
    * its breaks were found to be its own (`own`).
    */
-  private pausesLane(problem: CloudAgentSetupError, err: unknown, from: { agentId?: string; read?: boolean }): boolean {
+  private pausesLane(
+    problem: CloudAgentSetupError,
+    err: unknown,
+    from: { agentId?: string; read?: boolean },
+  ): boolean {
     if (from.read && !from.agentId) return true;
-    if (from.agentId && (cloudApiVerdict(err, { oneAgent: true }) === "denied" || (problem.policy.tracksAgent && this.failing.get(from.agentId)?.own))) return false;
+    if (
+      from.agentId &&
+      (cloudApiVerdict(err, { oneAgent: true }) === "denied" ||
+        (problem.policy.tracksAgent && this.failing.get(from.agentId)?.own))
+    )
+      return false;
     const { pauses } = problem.policy;
     return pauses === "any" || (pauses === "read" && !!from.read);
   }
@@ -295,18 +412,34 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * (`listed`): its 404 is an endpoint that moved, and counts as unexpected.
    */
   private read<T>(client: unknown, fn: () => Promise<T>): Promise<T>;
-  private read<T>(client: unknown, fn: () => Promise<T>, agent: { id: string; listed?: boolean }): Promise<T | undefined>;
-  private async read<T>(client: unknown, fn: () => Promise<T>, agent?: { id: string; listed?: boolean }): Promise<T | undefined> {
+  private read<T>(
+    client: unknown,
+    fn: () => Promise<T>,
+    agent: { id: string; listed?: boolean },
+  ): Promise<T | undefined>;
+  private async read<T>(
+    client: unknown,
+    fn: () => Promise<T>,
+    agent?: { id: string; listed?: boolean },
+  ): Promise<T | undefined> {
     try {
       const out = await fn();
       this.unexpected = 0;
       return out;
     } catch (err) {
-      if (agent && cloudApiVerdict(err, { oneAgent: true, listed: agent.listed }) === "gone") {
+      if (
+        agent &&
+        cloudApiVerdict(err, { oneAgent: true, listed: agent.listed }) ===
+          "gone"
+      ) {
         this.markGone(agent.id);
         return undefined;
       }
-      await this.report(client, err, { agentId: agent?.id, read: true, listed: agent?.listed });
+      await this.report(client, err, {
+        agentId: agent?.id,
+        read: true,
+        listed: agent?.listed,
+      });
       throw err;
     }
   }
@@ -326,7 +459,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * first page and the agents read (the pass that follows reads neither
    * again), or null while the lane stays paused.
    */
-  private async probe(client: NonNullable<ReturnType<CloudAgentWatcher<Adapter>["client"]>>, synced: (id: string) => boolean): Promise<{ page: CloudAgentListPage; read: Set<string> } | null> {
+  private async probe(
+    client: NonNullable<ReturnType<CloudAgentWatcher<Adapter>["client"]>>,
+    synced: (id: string) => boolean,
+  ): Promise<{ page: CloudAgentListPage; read: Set<string> } | null> {
     const remote = this.remote;
     if (!remote) return null;
     this.inFlight = true;
@@ -338,15 +474,43 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       if (agentId) {
         read.add(agentId);
         const listed = page.items.find((item) => item.id === agentId);
-        await this.mirror(agentId, { known: listed?.agent, probing: true, listed: !!listed }).catch((err) => this.failed(agentId, err));
+        await this.mirror(agentId, {
+          known: listed?.agent,
+          probing: true,
+          listed: !!listed,
+        }).catch((err) => this.failed(agentId, err));
         const broke = this.remote;
         if (broke !== standing) {
           // One already failing on its own proves nothing about the rest.
-          const other = broke?.agentId === agentId ? page.items.find((item) => item.id !== agentId && synced(item.id) && !this.failing.has(item.id) && !this.state.agents[item.id]?.gone) : undefined;
+          const other =
+            broke?.agentId === agentId
+              ? page.items.find(
+                  (item) =>
+                    item.id !== agentId &&
+                    synced(item.id) &&
+                    !this.failing.has(item.id) &&
+                    !this.state.agents[item.id]?.gone,
+                )
+              : undefined;
           if (!broke || !other) return null;
           read.add(other.id);
-          const readsClean = await this.mirror(other.id, { known: other.agent, probing: true, listed: true }).then(() => true, (err) => { this.failed(other.id, err); return false; });
-          if (!readsClean || this.remote !== broke || this.state.agents[other.id]?.gone) return null;
+          const readsClean = await this.mirror(other.id, {
+            known: other.agent,
+            probing: true,
+            listed: true,
+          }).then(
+            () => true,
+            (err) => {
+              this.failed(other.id, err);
+              return false;
+            },
+          );
+          if (
+            !readsClean ||
+            this.remote !== broke ||
+            this.state.agents[other.id]?.gone
+          )
+            return null;
           this.isolate(agentId, broke.problem);
           standing = broke;
         }
@@ -355,7 +519,9 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       this.setRemoteSetup(null);
       return { page, read };
     } catch {
-      if (this.remote === remote) remote.probeAt = this.now() + remote.problem.policy.lane(remote.problem, remote.tries);
+      if (this.remote === remote)
+        remote.probeAt =
+          this.now() + remote.problem.policy.lane(remote.problem, remote.tries);
       return null;
     } finally {
       this.inFlight = false;
@@ -366,19 +532,27 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   private isolate(agentId: string, problem: CloudAgentSetupError): void {
     const failing = this.failing.get(agentId);
     if (failing) failing.own = true;
-    this.log(`${logTag(this.adapter)} ${agentId} still can't be read (${problem.detail ?? problem.message}) while other agents can: syncing resumed, and it retries on its own`, "warn");
+    this.log(
+      `${logTag(this.adapter)} ${agentId} still can't be read (${problem.detail ?? problem.message}) while other agents can: syncing resumed, and it retries on its own`,
+      "warn",
+    );
   }
 
   /** An API client from this machine's credentials, or null (logged once) while a setup problem stands in the way. */
-  private client(): Exclude<ReturnType<Adapter["client"]>, CloudAgentSetupError> | null {
+  private client(): Exclude<
+    ReturnType<Adapter["client"]>,
+    CloudAgentSetupError
+  > | null {
     const client = this.adapter.client();
     this.localSetup = client instanceof CloudAgentSetupError ? client : null;
     if (client instanceof CloudAgentSetupError) {
-      if (this.skipped !== client.message) this.log(`${logTag(this.adapter)} not polling: ${client.message}`);
+      if (this.skipped !== client.message)
+        this.log(`${logTag(this.adapter)} not polling: ${client.message}`);
       this.skipped = client.message;
       return null;
     }
-    if (this.skipped) this.log(`${logTag(this.adapter)} credentials found, polling`);
+    if (this.skipped)
+      this.log(`${logTag(this.adapter)} credentials found, polling`);
     this.skipped = undefined;
     return client;
   }
@@ -389,7 +563,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
 
   /** The folder an agent's mirror files live in. An id the provider sent that is not a safe folder name never reaches the disk. */
   private agentDir(agentId: string): string {
-    if (!isCloudAgentId(this.adapter.spec, agentId)) throw new Error(`${logTag(this.adapter)} refusing agent id ${JSON.stringify(agentId.slice(0, 80))}: not a ${this.adapter.spec.label} id`);
+    if (!isCloudAgentId(this.adapter.spec, agentId))
+      throw new Error(
+        `${logTag(this.adapter)} refusing agent id ${JSON.stringify(agentId.slice(0, 80))}: not a ${this.adapter.spec.label} id`,
+      );
     return path.join(this.rootDir, agentId);
   }
 
@@ -407,15 +584,26 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       for (const st of Object.values(this.state.agents)) delete st.updatedAt;
       this.state.format = this.adapter.mirrorFormat;
     }
-    this.log(`${logTag(this.adapter)} watching (${Object.keys(this.state.agents).length} known agents)`);
+    this.log(
+      `${logTag(this.adapter)} watching (${Object.keys(this.state.agents).length} known agents)`,
+    );
     this.emit("ready");
     // The priming pass every transcript watcher makes: announce what is on
     // disk, since a file written just before a restart may never have synced
     // (the sync pipeline skips what it already has).
     // Private (PRIVATE_DIR), mirrors written before it was included.
-    try { fs.mkdirSync(this.rootDir, { recursive: true, mode: PRIVATE_DIR }); fs.chmodSync(this.rootDir, PRIVATE_DIR); } catch {}
-    for (const agentId of fs.existsSync(this.rootDir) ? fs.readdirSync(this.rootDir) : []) {
-      if (!isCloudAgentId(this.adapter.spec, agentId) || !fs.existsSync(this.transcriptPath(agentId))) continue;
+    try {
+      fs.mkdirSync(this.rootDir, { recursive: true, mode: PRIVATE_DIR });
+      fs.chmodSync(this.rootDir, PRIVATE_DIR);
+    } catch {}
+    for (const agentId of fs.existsSync(this.rootDir)
+      ? fs.readdirSync(this.rootDir)
+      : []) {
+      if (
+        !isCloudAgentId(this.adapter.spec, agentId) ||
+        !fs.existsSync(this.transcriptPath(agentId))
+      )
+        continue;
       if (staleFormat) this.staleOnDisk.add(agentId);
       else this.announce(agentId, "add");
     }
@@ -454,11 +642,20 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     const synced = (id: string) => importAll || own.has(id);
     if (idle) this.cadence.busy = false;
     const client = this.client();
-    if (!client) { this.announceStale(); return; }
+    if (!client) {
+      this.announceStale();
+      return;
+    }
     let probed: Awaited<ReturnType<CloudAgentWatcher<Adapter>["probe"]>> = null;
     if (this.remote) {
       this.cadence.busy = false;
-      if (this.now() < this.remote.probeAt || !(probed = await this.probe(client, synced))) { this.announceStale(); return; }
+      if (
+        this.now() < this.remote.probeAt ||
+        !(probed = await this.probe(client, synced))
+      ) {
+        this.announceStale();
+        return;
+      }
     }
     if (idle) return;
     this.inFlight = true;
@@ -471,20 +668,29 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       const shown = new Set<string>();
       let wholeList = false;
       // Without import, the list is read for codecast's own agents only: once each has been seen, the pages after hold none.
-      const unseen = importAll ? null : new Set([...own].filter((id) => !this.state.agents[id]?.gone));
+      const unseen = importAll
+        ? null
+        : new Set([...own].filter((id) => !this.state.agents[id]?.gone));
       const reads: PassReads = { unexpected: [], other: 0 };
       for (let page = 0; page < CLOUD_MAX_LIST_PAGES; page++) {
         // The check that resumed the lane read the first page already.
-        const data = page === 0 && probed ? probed.page : await this.listPage(client, cursor);
+        const data =
+          page === 0 && probed
+            ? probed.page
+            : await this.listPage(client, cursor);
         let reachedHorizon = false;
         for (const item of data.items ?? []) {
           shown.add(item.id);
           if (item.updatedAtMs < horizon) {
             // A list by last change ends at the horizon. One by creation goes on, and of the old agents reads
             // only one running now or one mirrored before that moved since.
-            if (!this.adapter.listedByCreation) { reachedHorizon = true; continue; }
+            if (!this.adapter.listedByCreation) {
+              reachedHorizon = true;
+              continue;
+            }
             const st = this.state.agents[item.id];
-            if (!item.active && !(st && st.updatedAt !== item.version)) continue;
+            if (!item.active && !(st && st.updatedAt !== item.version))
+              continue;
           }
           if (!synced(item.id) || !this.knownId(item.id)) continue;
           unseen?.delete(item.id);
@@ -492,12 +698,23 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
           if (item.active) busy = true;
           const st = this.state.agents[item.id];
           // One it read while the list left it out is read again now that it is back (unarchived).
-          if (probed?.read.has(item.id) || (st?.updatedAt === item.version && !item.active && !st.unlisted)) continue;
-          await this.mirrorInPass(item.id, { known: item.agent, listed: true }, reads);
+          if (
+            probed?.read.has(item.id) ||
+            (st?.updatedAt === item.version && !item.active && !st.unlisted)
+          )
+            continue;
+          await this.mirrorInPass(
+            item.id,
+            { known: item.agent, listed: true },
+            reads,
+          );
           // A read that paused the lane ends the pass: nothing more is read until a check passes.
           if (this.remote) return;
         }
-        if (reachedHorizon || !data.nextCursor || unseen?.size === 0) { wholeList = true; break; }
+        if (reachedHorizon || !data.nextCursor || unseen?.size === 0) {
+          wholeList = true;
+          break;
+        }
         cursor = data.nextCursor;
       }
       // Mirrored by id: children (the list does not show them; found through
@@ -506,18 +723,30 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       // has to settle), a settled one a whole list left out once (archived
       // on the provider's site: AgentState.unlisted), and a mirror from an
       // older format.
-      const byId = new Set([...Object.keys(this.state.agents), ...this.staleOnDisk]);
+      const byId = new Set([
+        ...Object.keys(this.state.agents),
+        ...this.staleOnDisk,
+      ]);
       for (const id of byId) {
         // Listed, or mirrored right now (a child its parent just handed what it read): not read again.
-        if (listed.has(id) || probed?.read.has(id) || this.mirroring.has(id)) continue;
+        if (listed.has(id) || probed?.read.has(id) || this.mirroring.has(id))
+          continue;
         const st = this.state.agents[id];
         if (st?.gone) continue;
         // Left out of a list read to its end: one that settles while left out is not read again until a list shows it.
-        const leftOut = wholeList && !shown.has(id) && synced(id) && !st?.parent;
-        if (!(st?.parent && !st.updatedAt) && !st?.running && !this.staleOnDisk.has(id) && !(leftOut && st?.updatedAt !== undefined && !st.unlisted)) continue;
+        const leftOut =
+          wholeList && !shown.has(id) && synced(id) && !st?.parent;
+        if (
+          !(st?.parent && !st.updatedAt) &&
+          !st?.running &&
+          !this.staleOnDisk.has(id) &&
+          !(leftOut && st?.updatedAt !== undefined && !st.unlisted)
+        )
+          continue;
         await this.mirrorInPass(id, leftOut ? { unlisted: true } : {}, reads);
         if (this.remote) return;
-        if (this.state.agents[id]?.running && !this.failing.has(id)) busy = true;
+        if (this.state.agents[id]?.running && !this.failing.has(id))
+          busy = true;
       }
       this.judgePass(reads);
       this.cadence.busy = busy;
@@ -530,7 +759,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   }
 
   /** One page of the provider's list, judged (read()). */
-  private listPage(client: NonNullable<ReturnType<CloudAgentWatcher<Adapter>["client"]>>, cursor?: string): Promise<CloudAgentListPage> {
+  private listPage(
+    client: NonNullable<ReturnType<CloudAgentWatcher<Adapter>["client"]>>,
+    cursor?: string,
+  ): Promise<CloudAgentListPage> {
     return this.read(client, () => this.adapter.listAgents(client, cursor));
   }
 
@@ -540,7 +772,9 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
       if (this.now() - at <= this.unfollowedAfterMs) continue;
       this.followed.delete(id);
       this.rehost.add(id);
-      this.log(`${logTag(this.adapter)} ${id} not reached for ${Math.round((this.now() - at) / 60_000)}m: letting its session go until it is`);
+      this.log(
+        `${logTag(this.adapter)} ${id} not reached for ${Math.round((this.now() - at) / 60_000)}m: letting its session go until it is`,
+      );
       this.emit("unfollowed", id);
     }
   }
@@ -554,7 +788,11 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   }
 
   private announce(agentId: string, eventType: "add" | "change"): void {
-    this.emit("session", { sessionId: agentId, filePath: this.transcriptPath(agentId), eventType });
+    this.emit("session", {
+      sessionId: agentId,
+      filePath: this.transcriptPath(agentId),
+      eventType,
+    });
   }
 
   /**
@@ -562,7 +800,11 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    * and never keeps the agents listed after it from syncing. Tallied in
    * `reads`, unless its breaks are already known to be its own.
    */
-  private async mirrorInPass(agentId: string, opts: MirrorOptions, reads: PassReads): Promise<void> {
+  private async mirrorInPass(
+    agentId: string,
+    opts: MirrorOptions,
+    reads: PassReads,
+  ): Promise<void> {
     const failing = this.failing.get(agentId);
     if (failing && this.now() < failing.retryAt) return;
     try {
@@ -571,7 +813,11 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     } catch (err) {
       this.failed(agentId, err);
       if (failing?.own) return;
-      if (cloudApiVerdict(err, { oneAgent: true, listed: opts.listed }) === "unexpected") reads.unexpected.push({ agentId, err });
+      if (
+        cloudApiVerdict(err, { oneAgent: true, listed: opts.listed }) ===
+        "unexpected"
+      )
+        reads.unexpected.push({ agentId, err });
       else reads.other++;
     }
   }
@@ -579,15 +825,32 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   /** A pass whose every agent read answered unexpectedly (UNEXPECTED_AGENTS_TO_PAUSE) pauses the lane, checked on the last of them. */
   private judgePass({ unexpected, other }: PassReads): void {
     const last = unexpected.at(-1);
-    if (!last || other || unexpected.length < UNEXPECTED_AGENTS_TO_PAUSE || this.remote) return;
-    this.setRemoteSetup(CloudAgentSetupError.changed(this.adapter, `every agent read (${unexpected.length}) answered as it does not expect, the last: ${errorText(last.err)}`), last.agentId);
+    if (
+      !last ||
+      other ||
+      unexpected.length < UNEXPECTED_AGENTS_TO_PAUSE ||
+      this.remote
+    )
+      return;
+    this.setRemoteSetup(
+      CloudAgentSetupError.changed(
+        this.adapter,
+        `every agent read (${unexpected.length}) answered as it does not expect, the last: ${errorText(last.err)}`,
+      ),
+      last.agentId,
+    );
   }
 
   /** An agent whose read failed on its own: reported, and not read again until its backoff (FAILED_BASE_MS, doubling) is up. */
   private failed(agentId: string, err: unknown): void {
     const prior = this.failing.get(agentId);
     const count = (prior?.count ?? 0) + 1;
-    this.failing.set(agentId, { ...prior, count, retryAt: this.now() + doublingDelay(FAILED_BASE_MS, FAILED_MAX_MS, count - 1) });
+    this.failing.set(agentId, {
+      ...prior,
+      count,
+      retryAt:
+        this.now() + doublingDelay(FAILED_BASE_MS, FAILED_MAX_MS, count - 1),
+    });
     this.emitError(new Error(`${agentId}: ${errorText(err)}`));
   }
 
@@ -603,7 +866,9 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     this.failing.delete(agentId);
     this.release(agentId);
     if (running) this.emit("unfollowed", agentId);
-    this.log(`${logTag(this.adapter)} ${agentId} is gone on ${this.adapter.spec.label}: keeping its mirror as it is`);
+    this.log(
+      `${logTag(this.adapter)} ${agentId} is gone on ${this.adapter.spec.label}: keeping its mirror as it is`,
+    );
     void this.saveState();
   }
 
@@ -630,7 +895,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   /** Whether an id the provider listed is one of its agents' (agentDir()); one that is not is skipped, said once. */
   private knownId(agentId: string): boolean {
     if (isCloudAgentId(this.adapter.spec, agentId)) return true;
-    if (!this.refusedIds.has(agentId)) this.log(`${logTag(this.adapter)} skipping agent id ${JSON.stringify(agentId.slice(0, 80))}: not a ${this.adapter.spec.label} id`);
+    if (!this.refusedIds.has(agentId))
+      this.log(
+        `${logTag(this.adapter)} skipping agent id ${JSON.stringify(agentId.slice(0, 80))}: not a ${this.adapter.spec.label} id`,
+      );
     this.refusedIds.add(agentId);
     return false;
   }
@@ -642,16 +910,27 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   private mirror(agentId: string, opts: MirrorOptions = {}): Promise<void> {
     // One mirror per agent at a time; a request during one waits for it and runs after.
     const prior = this.mirroring.get(agentId) ?? Promise.resolve();
-    const next = prior.catch(() => {}).then(() => this.mirrorOnce(agentId, opts));
+    const next = prior
+      .catch(() => {})
+      .then(() => this.mirrorOnce(agentId, opts));
     this.mirroring.set(agentId, next);
-    return next.finally(() => { if (this.mirroring.get(agentId) === next) this.mirroring.delete(agentId); });
+    return next.finally(() => {
+      if (this.mirroring.get(agentId) === next) this.mirroring.delete(agentId);
+    });
   }
 
-  private async mirrorOnce(agentId: string, { known, probing, listed, unlisted }: MirrorOptions): Promise<void> {
+  private async mirrorOnce(
+    agentId: string,
+    { known, probing, listed, unlisted }: MirrorOptions,
+  ): Promise<void> {
     const client = this.client();
     // A paused lane reads nothing but its checks (probe()).
     if (!client || (this.remote && !probing)) return;
-    const result = await this.read(client, () => this.adapter.mirror(client, this.handle(agentId), known), { id: agentId, listed });
+    const result = await this.read(
+      client,
+      () => this.adapter.mirror(client, this.handle(agentId), known),
+      { id: agentId, listed },
+    );
     // Deleted on the provider: marked gone by the read.
     if (result === undefined) return;
     if (!result) {
@@ -665,19 +944,38 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     }
     if (result.transcript) await this.write(agentId, result);
     const priorGit = this.state.agents[agentId]?.git;
-    if (result.git !== undefined && JSON.stringify(result.git) !== JSON.stringify(priorGit)) this.emit("git", result.git ?? { agentId });
+    if (
+      result.git !== undefined &&
+      JSON.stringify(result.git) !== JSON.stringify(priorGit)
+    )
+      this.emit("git", result.git ?? { agentId });
     for (const child of result.children ?? []) {
       if (!this.knownId(child.agentId)) continue;
       const prior = this.state.agents[child.agentId];
       // Mirrored once when found; a child that says when it moves, again whenever it did.
-      if (prior?.parent && (child.version === undefined || prior.updatedAt === child.version)) continue;
+      if (
+        prior?.parent &&
+        (child.version === undefined || prior.updatedAt === child.version)
+      )
+        continue;
       // Not settled at its new version until its own mirror lands: one skipped now (a paused lane) is read by id next pass.
       const { updatedAt: _settled, ...kept } = prior ?? {};
-      this.state.agents[child.agentId] = { ...kept, parent: agentId, description: child.description, ...(child.forkAt ? { forkAt: child.forkAt } : {}) };
+      this.state.agents[child.agentId] = {
+        ...kept,
+        parent: agentId,
+        description: child.description,
+        ...(child.forkAt ? { forkAt: child.forkAt } : {}),
+      };
       void this.mirrorNow(child.agentId, child.known);
     }
     // The git the agent reports now (kept while the adapter cannot tell): a branch it no longer names is not announced again at start.
-    const { git: _git, running: _wasRunning, gone: _gone, unlisted: _unlisted, ...st } = this.state.agents[agentId] ?? {};
+    const {
+      git: _git,
+      running: _wasRunning,
+      gone: _gone,
+      unlisted: _unlisted,
+      ...st
+    } = this.state.agents[agentId] ?? {};
     const git = result.git !== undefined ? result.git : priorGit;
     this.state.agents[agentId] = {
       ...st,
@@ -690,35 +988,74 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
     if (result.running) this.followed.set(agentId, this.now());
     else this.followed.delete(agentId);
     this.failing.delete(agentId);
-    await Promise.all([this.saveState(), this.files.flushed(this.dataPath(agentId))]);
+    await Promise.all([
+      this.saveState(),
+      this.files.flushed(this.dataPath(agentId)),
+    ]);
   }
 
-  private async write(agentId: string, result: CloudAgentMirror): Promise<void> {
+  private async write(
+    agentId: string,
+    result: CloudAgentMirror,
+  ): Promise<void> {
     const file = this.transcriptPath(agentId);
-    await fs.promises.mkdir(path.dirname(file), { recursive: true, mode: PRIVATE_DIR });
+    await fs.promises.mkdir(path.dirname(file), {
+      recursive: true,
+      mode: PRIVATE_DIR,
+    });
     const st = this.state.agents[agentId];
-    const cwd = await cloudMirrorPlacement(this.adapter.spec.mirrorDir, repoOwnerName(result.repo ?? githubRepo(result.repoUrl)), (repo) => this.resolveRepoDir(repo, agentId));
+    const cwd = await cloudMirrorPlacement(
+      this.adapter.spec.mirrorDir,
+      repoOwnerName(result.repo ?? githubRepo(result.repoUrl)),
+      (repo) => this.resolveRepoDir(repo, agentId),
+    );
     const dir = path.dirname(file);
-    const meta = mirrorMetaJson({ cwd, title: result.title, url: result.url, createdAtMs: result.createdAtMs, parentAgentId: st?.parent, description: st?.description, forkAt: st?.forkAt, archived: result.archived }, await readMetaJson(dir), result.placeholderTitles);
+    const meta = mirrorMetaJson(
+      {
+        cwd,
+        title: result.title,
+        url: result.url,
+        createdAtMs: result.createdAtMs,
+        parentAgentId: st?.parent,
+        description: st?.description,
+        forkAt: st?.forkAt,
+        archived: result.archived,
+      },
+      await readMetaJson(dir),
+      result.placeholderTitles,
+    );
     const metaPath = path.join(dir, "meta.json");
-    const metaChanged = (await fs.promises.readFile(metaPath, "utf8").catch(() => "")) !== meta;
+    const metaChanged =
+      (await fs.promises.readFile(metaPath, "utf8").catch(() => "")) !== meta;
     if (metaChanged) await this.files.write(metaPath, meta);
     const existed = fs.existsSync(file);
-    const transcriptChanged = !existed || (await fs.promises.readFile(file, "utf8").catch(() => "")) !== result.transcript;
+    const transcriptChanged =
+      !existed ||
+      (await fs.promises.readFile(file, "utf8").catch(() => "")) !==
+        result.transcript;
     // A new title alone is news too: the session takes it. So is a mirror
     // owed an announcement (let go, or re-rendered after a format change).
-    const owed = [this.staleOnDisk.delete(agentId), this.rehost.delete(agentId)].some(Boolean);
+    const owed = [
+      this.staleOnDisk.delete(agentId),
+      this.rehost.delete(agentId),
+    ].some(Boolean);
     if (!transcriptChanged && !metaChanged && !owed) return;
-    if (transcriptChanged) await fs.promises.writeFile(file, result.transcript, { mode: PRIVATE_FILE });
+    if (transcriptChanged)
+      await fs.promises.writeFile(file, result.transcript, {
+        mode: PRIVATE_FILE,
+      });
     this.announce(agentId, existed ? "change" : "add");
   }
 
   private scheduleRender(agentId: string): void {
     if (this.renderTimers.has(agentId)) return;
-    this.renderTimers.set(agentId, setTimeout(() => {
-      this.renderTimers.delete(agentId);
-      void this.mirrorNow(agentId);
-    }, 750));
+    this.renderTimers.set(
+      agentId,
+      setTimeout(() => {
+        this.renderTimers.delete(agentId);
+        void this.mirrorNow(agentId);
+      }, 750),
+    );
   }
 
   /**
@@ -729,7 +1066,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
    */
   private release(agentId: string): void {
     const timer = this.renderTimers.get(agentId);
-    if (timer) { clearTimeout(timer); this.renderTimers.delete(agentId); }
+    if (timer) {
+      clearTimeout(timer);
+      this.renderTimers.delete(agentId);
+    }
     this.data.delete(agentId);
     this.handles.delete(agentId);
   }
@@ -741,7 +1081,10 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
         agentId,
         data: () => this.agentData(agentId),
         save: () => this.saveData(agentId),
-        notice: () => fs.promises.readFile(this.noticePath(agentId), "utf8").catch(() => undefined),
+        notice: () =>
+          fs.promises
+            .readFile(this.noticePath(agentId), "utf8")
+            .catch(() => undefined),
         scheduleRender: () => this.scheduleRender(agentId),
         follow: () => this.mirrorNow(agentId),
         log: this.log,
@@ -756,7 +1099,9 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   }
   /** Record the line the agent's transcript opens with, under its first prompt. */
   setNotice(agentId: string, notice: string): void {
-    try { atomicWriteFile(this.noticePath(agentId), notice, { mode: PRIVATE_FILE }); } catch {}
+    try {
+      atomicWriteFile(this.noticePath(agentId), notice, { mode: PRIVATE_FILE });
+    } catch {}
   }
 
   private dataPath(agentId: string): string {
@@ -765,14 +1110,22 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
   private agentData(agentId: string): unknown {
     if (!this.data.has(agentId)) {
       let raw: unknown;
-      try { raw = JSON.parse(fs.readFileSync(this.dataPath(agentId), "utf8")); } catch {}
+      try {
+        raw = JSON.parse(fs.readFileSync(this.dataPath(agentId), "utf8"));
+      } catch {}
       this.data.set(agentId, this.adapter.loadData(raw));
     }
     return this.data.get(agentId);
   }
   /** The provider's own retention can be short; the record kept here is what outlives it. Awaited at the end of the pass. */
   private saveData(agentId: string): void {
-    void this.files.write(this.dataPath(agentId), JSON.stringify(this.agentData(agentId))).catch((err) => this.log(`${logTag(this.adapter)} could not save ${agentId}: ${errorText(err)}`));
+    void this.files
+      .write(this.dataPath(agentId), JSON.stringify(this.agentData(agentId)))
+      .catch((err) =>
+        this.log(
+          `${logTag(this.adapter)} could not save ${agentId}: ${errorText(err)}`,
+        ),
+      );
   }
 
   private saveState(): Promise<void> {
@@ -789,24 +1142,35 @@ export class CloudAgentWatcher<Adapter extends AnyCloudAgentAdapter = AnyCloudAg
  * lands only the latest content. Each is readable by this user alone.
  */
 class RebuildableFiles {
-  private readonly queued = new Map<string, { content: string; done: Promise<void> }>();
+  private readonly queued = new Map<
+    string,
+    { content: string; done: Promise<void> }
+  >();
   private readonly writing = new Map<string, Promise<void>>();
 
   write(file: string, content: string): Promise<void> {
     const queued = this.queued.get(file);
-    if (queued) { queued.content = content; return queued.done; }
+    if (queued) {
+      queued.content = content;
+      return queued.done;
+    }
     const entry = { content, done: Promise.resolve() };
     this.queued.set(file, entry);
     entry.done = this.flushed(file).then(async () => {
       this.queued.delete(file);
       const tmp = `${file}.tmp`;
-      await fs.promises.mkdir(path.dirname(file), { recursive: true, mode: PRIVATE_DIR });
+      await fs.promises.mkdir(path.dirname(file), {
+        recursive: true,
+        mode: PRIVATE_DIR,
+      });
       await fs.promises.writeFile(tmp, entry.content, { mode: PRIVATE_FILE });
       await fs.promises.rename(tmp, file);
     });
     const settled = entry.done.catch(() => {});
     this.writing.set(file, settled);
-    void settled.then(() => { if (this.writing.get(file) === settled) this.writing.delete(file); });
+    void settled.then(() => {
+      if (this.writing.get(file) === settled) this.writing.delete(file);
+    });
     return entry.done;
   }
 

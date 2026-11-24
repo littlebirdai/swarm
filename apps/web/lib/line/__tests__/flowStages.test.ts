@@ -1,5 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { DAY, agoWords, arrivalOf, placementMix, sumArrivals, usd, versionWords, wrongShare } from "../flowStages";
+import {
+  DAY,
+  agoWords,
+  arrivalOf,
+  placementMix,
+  sumArrivals,
+  usd,
+  versionWords,
+  wrongShare,
+} from "../flowStages";
 
 const NOW = Date.UTC(2026, 9, 14, 12);
 
@@ -8,7 +17,12 @@ describe("whether moments are arriving", () => {
     // The AgentWatch trial on Oct 14: 1,457 moments held, none arrived in five days.
     const days = [0, 0, 0, 0, 0, 0, 0, 0, 120, 300, 0, 0, 0, 0];
     const a = arrivalOf(days, NOW - 5 * DAY, NOW);
-    expect(a).toEqual({ tone: "quiet", today: 0, week: 420, lastAt: NOW - 5 * DAY });
+    expect(a).toEqual({
+      tone: "quiet",
+      today: 0,
+      week: 420,
+      lastAt: NOW - 5 * DAY,
+    });
     expect(agoWords(a.lastAt, NOW)).toBe("5 days");
   });
   test("an arrival in the last day is live; none ever is none", () => {
@@ -16,7 +30,13 @@ describe("whether moments are arriving", () => {
     expect(arrivalOf([0, 0, 0], null, NOW).tone).toBe("none");
   });
   test("kinds sum day by day, aligned on today, and the newest arrival wins", () => {
-    const s = sumArrivals([{ days: [1, 2, 3], newest_at: NOW - 2 * DAY }, { days: [5, 0], newest_at: NOW - DAY / 2 }], NOW);
+    const s = sumArrivals(
+      [
+        { days: [1, 2, 3], newest_at: NOW - 2 * DAY },
+        { days: [5, 0], newest_at: NOW - DAY / 2 },
+      ],
+      NOW,
+    );
     expect(s.days).toEqual([1, 7, 3]);
     expect(s.lastAt).toBe(NOW - DAY / 2);
     expect(s.tone).toBe("live");
@@ -33,7 +53,13 @@ describe("how grouping placed findings", () => {
       { attach: "judge", created_at: NOW - 9 * DAY, project_id: "p" },
       { attach: "new", created_at: NOW - DAY, project_id: "other" },
     ];
-    expect(placementMix(rows, "p", NOW - 7 * DAY).map((m) => [m.key, m.n])).toEqual([["similar", 2], ["new", 1], ["held", 1]]);
+    expect(
+      placementMix(rows, "p", NOW - 7 * DAY).map((m) => [m.key, m.n]),
+    ).toEqual([
+      ["similar", 2],
+      ["new", 1],
+      ["held", 1],
+    ]);
   });
 });
 
@@ -53,17 +79,49 @@ describe("words and numbers a stage shows", () => {
 
 describe("cases against a judge", () => {
   test("are not counted as findings grouping placed", () => {
-    const rows = [{ attach: "new", created_at: NOW, project_id: "p", source: "judge-review" }, { attach: "new", created_at: NOW, project_id: "p", source: "judge:call" }];
-    expect(placementMix(rows, "p", NOW - DAY)).toEqual([{ key: "new", label: "Opened a problem", tone: "new", n: 1 }]);
+    const rows = [
+      {
+        attach: "new",
+        created_at: NOW,
+        project_id: "p",
+        source: "judge-review",
+      },
+      { attach: "new", created_at: NOW, project_id: "p", source: "judge:call" },
+    ];
+    expect(placementMix(rows, "p", NOW - DAY)).toEqual([
+      { key: "new", label: "Opened a problem", tone: "new", n: 1 },
+    ]);
   });
 });
 
 describe("the Decision stage counts what For you lists", () => {
   test("every counted need of the line in its project, trial practice included and told apart", async () => {
     const { forYouOfLine } = await import("../flowStages");
-    const need = (o: Record<string, unknown>) => ({ counted: true, trial: false, kind: "decision", publishes: false, process: "agentwatch", projectId: "p", ...o }) as never;
-    const needs = [need({ trial: true }), need({ trial: true }), need({}), need({ counted: false }), need({ process: "line" }), need({ projectId: "q" })];
-    expect(forYouOfLine(needs, "agentwatch", "p")).toEqual({ total: 3, practice: 2 });
-    expect(forYouOfLine(needs, "agentwatch", null)).toEqual({ total: 4, practice: 2 });
+    const need = (o: Record<string, unknown>) =>
+      ({
+        counted: true,
+        trial: false,
+        kind: "decision",
+        publishes: false,
+        process: "agentwatch",
+        projectId: "p",
+        ...o,
+      }) as never;
+    const needs = [
+      need({ trial: true }),
+      need({ trial: true }),
+      need({}),
+      need({ counted: false }),
+      need({ process: "line" }),
+      need({ projectId: "q" }),
+    ];
+    expect(forYouOfLine(needs, "agentwatch", "p")).toEqual({
+      total: 3,
+      practice: 2,
+    });
+    expect(forYouOfLine(needs, "agentwatch", null)).toEqual({
+      total: 4,
+      practice: 2,
+    });
   });
 });

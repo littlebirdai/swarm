@@ -6,23 +6,73 @@
 // team's sessions used. A flow opens its detail in place. On a role's page
 // (/flows/<owner>): that role's flow, drawn, with its facts and its counts.
 import { useContext, useMemo, useState, type ReactNode } from "react";
-import { journeyOf, journeyWords, readableWhy } from "../../../../../lib/ship/journey";
+import {
+  journeyOf,
+  journeyWords,
+  readableWhy,
+} from "../../../../../lib/ship/journey";
 
 /** The run-state tone the pill styles know, for a journey's tone. */
-const JOURNEY_TONE: Record<string, string> = { idle: "running", working: "running", agent: "running", session: "waiting", you: "waiting", wait: "waiting", ok: "passed", bad: "stopped" };
+const JOURNEY_TONE: Record<string, string> = {
+  idle: "running",
+  working: "running",
+  agent: "running",
+  session: "waiting",
+  you: "waiting",
+  wait: "waiting",
+  ok: "passed",
+  bad: "stopped",
+};
 import Link from "next/link";
-import { useSyncWorkflowRun, useTeamDefaultFlowSlug } from "../../../../../hooks/useSyncWorkflows";
-import { useFlowLibrary, type FlowRun as Run } from "../../../../../hooks/useFlowLibrary";
+import {
+  useSyncWorkflowRun,
+  useTeamDefaultFlowSlug,
+} from "../../../../../hooks/useSyncWorkflows";
+import {
+  useFlowLibrary,
+  type FlowRun as Run,
+} from "../../../../../hooks/useFlowLibrary";
 import { useOwnedFlows } from "../../../../../hooks/useOwnedFlows";
-import { useSessionFlows, type LiveFlow, type SessionFlow } from "../../../../../hooks/useLiveFlow";
+import {
+  useSessionFlows,
+  type LiveFlow,
+  type SessionFlow,
+} from "../../../../../hooks/useLiveFlow";
 import { useInboxStore } from "../../../../../store/inboxStore";
-import { appPool, flowBySlug, flowRowPath, pushedFlow, type AppFlow } from "../../../../../lib/line/flowPool";
-import { CHANGE_FLOW_SLUG, defaultFlowOf, takesSessionChange } from "@codecast/shared/contracts/flowPool";
-import { changesAnything, libraryEntry, libraryFlows, type FlowLibrary, type LibraryEntry, type VariantChange } from "../../../../../lib/line/flowLibrary";
-import { liveFlowLedger, liveQueue, moveFlowLedger, startFlowLedger, type LiveQueueRow } from "../../../../../lib/line/liveFlow";
+import {
+  appPool,
+  flowBySlug,
+  flowRowPath,
+  pushedFlow,
+  type AppFlow,
+} from "../../../../../lib/line/flowPool";
+import {
+  CHANGE_FLOW_SLUG,
+  defaultFlowOf,
+  takesSessionChange,
+} from "@codecast/shared/contracts/flowPool";
+import {
+  changesAnything,
+  libraryEntry,
+  libraryFlows,
+  type FlowLibrary,
+  type LibraryEntry,
+  type VariantChange,
+} from "../../../../../lib/line/flowLibrary";
+import {
+  liveFlowLedger,
+  liveQueue,
+  moveFlowLedger,
+  startFlowLedger,
+  type LiveQueueRow,
+} from "../../../../../lib/line/liveFlow";
 import { scoreBand } from "../../../../../lib/line/problemScore";
 import { flowRunState } from "../../../../../lib/line/flowFence";
-import { flowNeeds, flowOf, type OwnedFlow } from "../../../../../lib/line/ownedFlows";
+import {
+  flowNeeds,
+  flowOf,
+  type OwnedFlow,
+} from "../../../../../lib/line/ownedFlows";
 import { lineWorkspaceHref } from "../../../../../lib/line/lineWorkspaceUrl";
 import { FlowPageContext } from "../../../../../lib/line/flowPageContext";
 import { lineSettingsHref } from "../../../../../lib/lineSettings";
@@ -35,14 +85,17 @@ import { SESSION_SHORT_ID_RE } from "@codecast/shared/chat";
 import type { LineViewProps } from "../types";
 import "./flows.css";
 
-
 /** The queue rows the panel lists before "Show all". */
 const QUEUE_SHOWN = 12;
 
 export function FlowsView(props: LineViewProps) {
   const owner = useContext(FlowPageContext);
   if (owner) return <FlowOverview {...props} owner={owner} />;
-  return props.selection.item ? <PoolFlow {...props} /> : <FlowsHome {...props} />;
+  return props.selection.item ? (
+    <PoolFlow {...props} />
+  ) : (
+    <FlowsHome {...props} />
+  );
 }
 
 function FlowsHome(props: LineViewProps) {
@@ -54,21 +107,61 @@ function FlowsHome(props: LineViewProps) {
   return (
     <div className="flh" data-flows-home>
       {/* The live flow is the Flows stage's own page; here the library, and with no live flow, the way to start one. */}
-      {!live && lib.lines.length ? <NoLiveFlow lines={lib.lines} space={space ?? null} /> : null}
-      {live && lib.lines.length > 1 ? <MoveLiveFlow live={live} lines={lib.lines} /> : null}
+      {!live && lib.lines.length ? (
+        <NoLiveFlow lines={lib.lines} space={space ?? null} />
+      ) : null}
+      {live && lib.lines.length > 1 ? (
+        <MoveLiveFlow live={live} lines={lib.lines} />
+      ) : null}
       <section data-flows-library>
-        <h2 className="flv-h">Library<span className="lw-num">{libraryFlows({ lines: lib.lines, segments: [] }).length}</span></h2>
+        <h2 className="flv-h">
+          Library
+          <span className="lw-num">
+            {libraryFlows({ lines: lib.lines, segments: [] }).length}
+          </span>
+        </h2>
         <ul className="fll-tree">
-          {lib.lines.map((e) => <LibraryBranch key={e.flow.slug} entry={e} runsOf={runsOf} picked={null} onPick={open} depth={0} defaultSlug={defaultSlug} />)}
+          {lib.lines.map((e) => (
+            <LibraryBranch
+              key={e.flow.slug}
+              entry={e}
+              runsOf={runsOf}
+              picked={null}
+              onPick={open}
+              depth={0}
+              defaultSlug={defaultSlug}
+            />
+          ))}
         </ul>
       </section>
       {/* The flows the team's sessions ran (Claude Code workflows, `cast flow run`), each one Save from the library. */}
-      {sessions.answered ? <SessionShelf flows={sessions.flows} library={lib} names={props.workspace.names} /> : null}
+      {sessions.answered ? (
+        <SessionShelf
+          flows={sessions.flows}
+          library={lib}
+          names={props.workspace.names}
+        />
+      ) : null}
       <section data-flows-segments>
-        <h2 className="flv-h">Segments<span className="lw-num">{lib.segments.length}</span></h2>
+        <h2 className="flv-h">
+          Segments<span className="lw-num">{lib.segments.length}</span>
+        </h2>
         <ul className="fll-shelf">
           {lib.segments.map((f) => (
-            <li key={f.slug}><button type="button" className="fll-seg" onClick={() => open(f.slug)} data-flow-row={f.slug}><b>{f.label}</b>{f.slug === defaultSlug ? <DefaultTag /> : null}{f.stations.length > 1 ? <span>{f.stations.length} steps</span> : null}</button></li>
+            <li key={f.slug}>
+              <button
+                type="button"
+                className="fll-seg"
+                onClick={() => open(f.slug)}
+                data-flow-row={f.slug}
+              >
+                <b>{f.label}</b>
+                {f.slug === defaultSlug ? <DefaultTag /> : null}
+                {f.stations.length > 1 ? (
+                  <span>{f.stations.length} steps</span>
+                ) : null}
+              </button>
+            </li>
           ))}
         </ul>
       </section>
@@ -80,23 +173,50 @@ function FlowsHome(props: LineViewProps) {
 function useLiveQueue(live: LiveFlow): LiveQueueRow[] {
   const queueSig = useInboxStore((s) => {
     const tasks = s.tasks as Record<string, any>;
-    return live.queue.map((q) => { const t = tasks[q.task_id]; const sc = t?.cause?.scored; return t ? `${q.task_id}|${t.short_id}|${t.title}|${t.project_id ?? ""}|${t.cause?.signal_count ?? 0}|${t.cause?.named?.name ?? ""}|${sc?.score ?? ""}|${sc?.cluster_key ?? ""}|${sc?.cluster_name ?? ""}` : q.task_id; }).join("\n");
+    return live.queue
+      .map((q) => {
+        const t = tasks[q.task_id];
+        const sc = t?.cause?.scored;
+        return t
+          ? `${q.task_id}|${t.short_id}|${t.title}|${t.project_id ?? ""}|${t.cause?.signal_count ?? 0}|${t.cause?.named?.name ?? ""}|${sc?.score ?? ""}|${sc?.cluster_key ?? ""}|${sc?.cluster_name ?? ""}`
+          : q.task_id;
+      })
+      .join("\n");
   });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the signature carries every field the rows read
-  return useMemo(() => liveQueue(live, useInboxStore.getState().tasks as Record<string, any>), [live, queueSig]);
+  return useMemo(
+    () =>
+      liveQueue(live, useInboxStore.getState().tasks as Record<string, any>),
+    [live, queueSig],
+  );
 }
 
 /** A team with no live flow: each library flow that can run as one, with the way to make it live (a team admin's). */
-function NoLiveFlow({ lines, space }: { lines: LibraryEntry[]; space: string | null }) {
+function NoLiveFlow({
+  lines,
+  space,
+}: {
+  lines: LibraryEntry[];
+  space: string | null;
+}) {
   const team = space?.startsWith("team:") ? space.slice(5) : null;
-  const admin = useInboxStore((s) => !!team && ((s.teams || []) as Array<{ _id: string; role?: string }>).some((t) => String(t._id) === team && (t.role === "admin" || t.role === "owner")));
+  const admin = useInboxStore(
+    (s) =>
+      !!team &&
+      ((s.teams || []) as Array<{ _id: string; role?: string }>).some(
+        (t) =>
+          String(t._id) === team && (t.role === "admin" || t.role === "owner"),
+      ),
+  );
   const runnable = lines.filter((e) => e.flow.workflowId);
   return (
     <section className="fll-live" data-no-live-flow="">
       <header className="fll-live-head">
         <span className="fll-live-k">Live</span>
         <span className="fll-live-name">No live flow</span>
-        {!team ? <span className="fll-live-figs">a team's workspace runs one</span> : null}
+        {!team ? (
+          <span className="fll-live-figs">a team's workspace runs one</span>
+        ) : null}
       </header>
       {team && runnable.length ? (
         <ul className="fll-start">
@@ -108,13 +228,25 @@ function NoLiveFlow({ lines, space }: { lines: LibraryEntry[]; space: string | n
                 <ConsequentialSwitch
                   on={false}
                   ledger={startFlowLedger(e.flow.label, e.flow.stations.length)}
-                  onTurnOn={() => useInboxStore.getState().startLiveFlow(team, { id: e.flow.workflowId!, slug: e.flow.slug, label: e.flow.label }, `lf_${crypto.randomUUID()}`)}
+                  onTurnOn={() =>
+                    useInboxStore.getState().startLiveFlow(
+                      team,
+                      {
+                        id: e.flow.workflowId!,
+                        slug: e.flow.slug,
+                        label: e.flow.label,
+                      },
+                      `lf_${crypto.randomUUID()}`,
+                    )
+                  }
                   onTurnOff={() => {}}
                   label="Make live"
                   className="flv-steps"
                   triggerProps={{ "data-live-flow-make": e.flow.slug }}
                 />
-              ) : <span className="flh-dim">a team admin makes it live</span>}
+              ) : (
+                <span className="flh-dim">a team admin makes it live</span>
+              )}
             </li>
           ))}
         </ul>
@@ -125,17 +257,33 @@ function NoLiveFlow({ lines, space }: { lines: LibraryEntry[]; space: string | n
 
 /** A team with a live flow: the library's other flows, each with the way to move the live flow onto it (a team admin's).
  *  New runs take the flow it moves to; runs going now finish on theirs. */
-function MoveLiveFlow({ live, lines }: { live: LiveFlow; lines: LibraryEntry[] }) {
-  const admin = useInboxStore((s) => ((s.teams || []) as Array<{ _id: string; role?: string }>).some((t) => String(t._id) === live.team_id && (t.role === "admin" || t.role === "owner")));
+function MoveLiveFlow({
+  live,
+  lines,
+}: {
+  live: LiveFlow;
+  lines: LibraryEntry[];
+}) {
+  const admin = useInboxStore((s) =>
+    ((s.teams || []) as Array<{ _id: string; role?: string }>).some(
+      (t) =>
+        String(t._id) === live.team_id &&
+        (t.role === "admin" || t.role === "owner"),
+    ),
+  );
   const queued = useLiveQueue(live).length;
-  const others = lines.filter((e) => e.flow.workflowId && e.flow.workflowId !== live.flow.id);
+  const others = lines.filter(
+    (e) => e.flow.workflowId && e.flow.workflowId !== live.flow.id,
+  );
   if (!admin || !others.length) return null;
   return (
     <section className="fll-live" data-live-flow-move="">
       <header className="fll-live-head">
         <span className="fll-live-k">Live</span>
         <span className="fll-live-name">{live.flow.label}</span>
-        <span className="fll-live-figs">new runs take another flow when it is made live</span>
+        <span className="fll-live-figs">
+          new runs take another flow when it is made live
+        </span>
       </header>
       <ul className="fll-start">
         {others.map((e) => (
@@ -144,8 +292,19 @@ function MoveLiveFlow({ live, lines }: { live: LiveFlow; lines: LibraryEntry[] }
             <span className="flh-dim">{e.flow.stations.length} steps</span>
             <ConsequentialSwitch
               on={false}
-              ledger={moveFlowLedger(live.flow.label, e.flow.label, e.flow.stations.length, queued)}
-              onTurnOn={() => useInboxStore.getState().moveLiveFlow(live._id, { id: e.flow.workflowId!, slug: e.flow.slug, label: e.flow.label })}
+              ledger={moveFlowLedger(
+                live.flow.label,
+                e.flow.label,
+                e.flow.stations.length,
+                queued,
+              )}
+              onTurnOn={() =>
+                useInboxStore.getState().moveLiveFlow(live._id, {
+                  id: e.flow.workflowId!,
+                  slug: e.flow.slug,
+                  label: e.flow.label,
+                })
+              }
               onTurnOff={() => {}}
               label="Make live"
               className="flv-steps"
@@ -162,59 +321,180 @@ function MoveLiveFlow({ live, lines }: { live: LiveFlow; lines: LibraryEntry[] }
  *  and its hold with the way to clear it. */
 /** `flows`: how many flows the live family holds (the main flow, its variants, the judge flow), when the map knows; the
  *  head then names them by count, since the lanes below name each one. */
-export function LiveFlowHead({ live, workspace, onOpenFlow, stalled = 0, onStalled, flows, children }: Pick<LineViewProps, "workspace"> & { live: LiveFlow; onOpenFlow: (slug: string) => void; stalled?: number; onStalled?: () => void; flows?: number; children?: ReactNode }) {
+export function LiveFlowHead({
+  live,
+  workspace,
+  onOpenFlow,
+  stalled = 0,
+  onStalled,
+  flows,
+  children,
+}: Pick<LineViewProps, "workspace"> & {
+  live: LiveFlow;
+  onOpenFlow: (slug: string) => void;
+  stalled?: number;
+  onStalled?: () => void;
+  flows?: number;
+  children?: ReactNode;
+}) {
   const queue = useLiveQueue(live);
   const turnOn = () => useInboxStore.getState().setLiveFlowOn(live._id, true);
   const turnOff = () => useInboxStore.getState().setLiveFlowOn(live._id, false);
-  const changedBy = live.changed_by ? workspace.names.get(live.changed_by) ?? null : null;
+  const changedBy = live.changed_by
+    ? (workspace.names.get(live.changed_by) ?? null)
+    : null;
   // The switch starts and stops the team's runs: only a team admin flips it (convex liveFlows.setOn); anyone else reads its state.
-  const admin = useInboxStore((s) => ((s.teams || []) as Array<{ _id: string; role?: string }>).some((t) => String(t._id) === live.team_id && (t.role === "admin" || t.role === "owner")));
+  const admin = useInboxStore((s) =>
+    ((s.teams || []) as Array<{ _id: string; role?: string }>).some(
+      (t) =>
+        String(t._id) === live.team_id &&
+        (t.role === "admin" || t.role === "owner"),
+    ),
+  );
   return (
     <>
       <header className="fll-live-head">
         <span className="fll-live-k">Live</span>
-        {flows && flows > 1
-          ? <span className="fll-live-name" data-live-flow-count={flows}>{flows} flows</span>
-          : live.flow.slug
-            ? <button type="button" className="fll-live-name" onClick={() => onOpenFlow(live.flow.slug!)} data-live-flow-open={live.flow.slug}>{live.flow.label}</button>
-            : <span className="fll-live-name">{live.flow.label}</span>}
-        {admin ? <ConsequentialSwitch
-          on={live.on}
-          ledger={liveFlowLedger(live, queue.length)}
-          onTurnOn={turnOn}
-          onTurnOff={turnOff}
-          trigger={({ on, press, reviewing }) => (
-            <button type="button" className="flh-on fll-switch" data-on={on ? "" : undefined} aria-pressed={on} aria-expanded={reviewing} onClick={press} data-live-flow-switch={on ? "on" : "off"}>{on ? "On" : "Off"}</button>
-          )}
-        /> : <span className="flh-on" data-on={live.on ? "" : undefined} title="A team admin switches it" data-live-flow-switch="read">{live.on ? "On" : "Off"}</span>}
+        {flows && flows > 1 ? (
+          <span className="fll-live-name" data-live-flow-count={flows}>
+            {flows} flows
+          </span>
+        ) : live.flow.slug ? (
+          <button
+            type="button"
+            className="fll-live-name"
+            onClick={() => onOpenFlow(live.flow.slug!)}
+            data-live-flow-open={live.flow.slug}
+          >
+            {live.flow.label}
+          </button>
+        ) : (
+          <span className="fll-live-name">{live.flow.label}</span>
+        )}
+        {admin ? (
+          <ConsequentialSwitch
+            on={live.on}
+            ledger={liveFlowLedger(live, queue.length)}
+            onTurnOn={turnOn}
+            onTurnOff={turnOff}
+            trigger={({ on, press, reviewing }) => (
+              <button
+                type="button"
+                className="flh-on fll-switch"
+                data-on={on ? "" : undefined}
+                aria-pressed={on}
+                aria-expanded={reviewing}
+                onClick={press}
+                data-live-flow-switch={on ? "on" : "off"}
+              >
+                {on ? "On" : "Off"}
+              </button>
+            )}
+          />
+        ) : (
+          <span
+            className="flh-on"
+            data-on={live.on ? "" : undefined}
+            title="A team admin switches it"
+            data-live-flow-switch="read"
+          >
+            {live.on ? "On" : "Off"}
+          </span>
+        )}
         <span className="fll-live-figs">
-          <span title="Runs working now against the most the flow runs at once"><b className="lw-num">{live.load.working}</b>/{live.load.cap} slots</span>
-          {stalled > 0 ? (onStalled
-            ? <button type="button" className="fll-fig-btn" data-tone="bad" onClick={onStalled} data-live-flow-stalled={stalled}><b className="lw-num">{stalled}</b> stalled</button>
-            : <span data-tone="bad" data-live-flow-stalled={stalled}><b className="lw-num">{stalled}</b> stalled</span>) : null}
-          <span><b className="lw-num">{queue.length.toLocaleString()}</b> queued</span>
-          {live.hands_today || live.caps.hands_per_day != null ? <span><b className="lw-num">{live.hands_today}</b>{live.caps.hands_per_day != null ? `/${live.caps.hands_per_day}` : ""} started today</span> : null}
-          {live.watcher ? <span>watched by <b>@{live.watcher.handle}</b></span> : null}
-          {changedBy && live.changed_at ? <span title={new Date(live.changed_at).toLocaleString()}>{live.on ? "on" : "off"} by {changedBy}, {ageShort(workspace.now - live.changed_at)} ago</span> : null}
+          <span title="Runs working now against the most the flow runs at once">
+            <b className="lw-num">{live.load.working}</b>/{live.load.cap} slots
+          </span>
+          {stalled > 0 ? (
+            onStalled ? (
+              <button
+                type="button"
+                className="fll-fig-btn"
+                data-tone="bad"
+                onClick={onStalled}
+                data-live-flow-stalled={stalled}
+              >
+                <b className="lw-num">{stalled}</b> stalled
+              </button>
+            ) : (
+              <span data-tone="bad" data-live-flow-stalled={stalled}>
+                <b className="lw-num">{stalled}</b> stalled
+              </span>
+            )
+          ) : null}
+          <span>
+            <b className="lw-num">{queue.length.toLocaleString()}</b> queued
+          </span>
+          {live.hands_today || live.caps.hands_per_day != null ? (
+            <span>
+              <b className="lw-num">{live.hands_today}</b>
+              {live.caps.hands_per_day != null
+                ? `/${live.caps.hands_per_day}`
+                : ""}{" "}
+              started today
+            </span>
+          ) : null}
+          {live.watcher ? (
+            <span>
+              watched by <b>@{live.watcher.handle}</b>
+            </span>
+          ) : null}
+          {changedBy && live.changed_at ? (
+            <span title={new Date(live.changed_at).toLocaleString()}>
+              {live.on ? "on" : "off"} by {changedBy},{" "}
+              {ageShort(workspace.now - live.changed_at)} ago
+            </span>
+          ) : null}
         </span>
         {children ? <span className="fll-live-r">{children}</span> : null}
       </header>
       {live.hold ? (
         <div className="fll-live-hold" data-live-flow-hold="">
           <b>Held</b>
-          {live.hold.until ? <span>until {new Date(live.hold.until).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span> : null}
+          {live.hold.until ? (
+            <span>
+              until{" "}
+              {new Date(live.hold.until).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          ) : null}
           <span className="fll-live-hold-why">{live.hold.why}</span>
           <HoldBy by={live.hold.by} names={workspace.names} />
-          {admin ? <button type="button" className="flv-steps" onClick={() => useInboxStore.getState().clearLiveFlowHold(live._id)} data-live-flow-hold-clear="">Clear hold</button> : null}
+          {admin ? (
+            <button
+              type="button"
+              className="flv-steps"
+              onClick={() =>
+                useInboxStore.getState().clearLiveFlowHold(live._id)
+              }
+              data-live-flow-hold-clear=""
+            >
+              Clear hold
+            </button>
+          ) : null}
         </div>
-      ) : live.waiting && live.on ? <p className="fll-live-wait" data-live-flow-waiting>{live.waiting}</p> : null}
+      ) : live.waiting && live.on ? (
+        <p className="fll-live-wait" data-live-flow-waiting>
+          {live.waiting}
+        </p>
+      ) : null}
     </>
   );
 }
 
 /** Who set a hold: a session by its short id (a live reference), a person by name; anything else (an older row's raw
  *  session id) is not shown. */
-function HoldBy({ by, names }: { by: string | null; names: ReadonlyMap<string, string> }) {
+function HoldBy({
+  by,
+  names,
+}: {
+  by: string | null;
+  names: ReadonlyMap<string, string>;
+}) {
   if (by && SESSION_SHORT_ID_RE.test(by)) return <EntityIdPill shortId={by} />;
   const person = by?.startsWith("user:") ? names.get(by.slice(5)) : null;
   return person ? <span className="flv-chip">{person}</span> : null;
@@ -222,26 +502,76 @@ function HoldBy({ by, names }: { by: string | null; names: ReadonlyMap<string, s
 
 /** The live flow's queue, best score first; the runs the engine counts as running that the store does not hold yet are
  *  fed by id, so the activity rail beside the map lists every one. */
-export function LiveFlowWork({ live, workspace, href }: Pick<LineViewProps, "workspace" | "href"> & { live: LiveFlow }) {
+export function LiveFlowWork({
+  live,
+  workspace,
+  href,
+}: Pick<LineViewProps, "workspace" | "href"> & { live: LiveFlow }) {
   const queue = useLiveQueue(live);
-  const held = useInboxStore((s) => { const runs = (s as unknown as { workflowRuns?: Record<string, unknown> }).workflowRuns ?? {}; return live.running.filter((id) => !(id in runs)).join(","); });
+  const held = useInboxStore((s) => {
+    const runs =
+      (s as unknown as { workflowRuns?: Record<string, unknown> })
+        .workflowRuns ?? {};
+    return live.running.filter((id) => !(id in runs)).join(",");
+  });
   const [all, setAll] = useState(false);
-  const projectTitle = useMemo(() => new Map(workspace.projects.map((p) => [p._id, p.title ?? ""])), [workspace.projects]);
+  const projectTitle = useMemo(
+    () => new Map(workspace.projects.map((p) => [p._id, p.title ?? ""])),
+    [workspace.projects],
+  );
   const shown = all ? queue : queue.slice(0, QUEUE_SHOWN);
   return (
     <div>
       {held ? held.split(",").map((id) => <RunFeed key={id} id={id} />) : null}
-      <h3 className="flv-h">Queue<span className="lw-num">{queue.length}</span>{queue.length > 1 ? <span className="fll-h-note">best score first</span> : null}</h3>
-      {queue.length === 0 ? <p className="flv-none">Nothing waiting</p> : (
+      <h3 className="flv-h">
+        Queue<span className="lw-num">{queue.length}</span>
+        {queue.length > 1 ? (
+          <span className="fll-h-note">best score first</span>
+        ) : null}
+      </h3>
+      {queue.length === 0 ? (
+        <p className="flv-none">Nothing waiting</p>
+      ) : (
         <table className="flh-table fll-queue" data-live-queue>
-          <thead><tr><th data-num="">#</th><th>Problem</th><th data-num="">Score</th><th>Family</th><th data-num="">Findings</th><th>Area</th><th>Waits on</th></tr></thead>
+          <thead>
+            <tr>
+              <th data-num="">#</th>
+              <th>Problem</th>
+              <th data-num="">Score</th>
+              <th>Family</th>
+              <th data-num="">Findings</th>
+              <th>Area</th>
+              <th>Waits on</th>
+            </tr>
+          </thead>
           <tbody>
             {/* A row's wait is named only where it differs from the flow's own, which the head says once above. */}
-            {shown.map((r, i) => <QueueRow key={r.taskId} row={r.waiting === live.waiting ? { ...r, waiting: null } : r} n={i + 1} area={r.projectId ? projectTitle.get(r.projectId) ?? "" : ""} href={href({ view: "problems", case: r.ref ?? r.taskId, run: null })} />)}
+            {shown.map((r, i) => (
+              <QueueRow
+                key={r.taskId}
+                row={r.waiting === live.waiting ? { ...r, waiting: null } : r}
+                n={i + 1}
+                area={r.projectId ? (projectTitle.get(r.projectId) ?? "") : ""}
+                href={href({
+                  view: "problems",
+                  case: r.ref ?? r.taskId,
+                  run: null,
+                })}
+              />
+            ))}
           </tbody>
         </table>
       )}
-      {queue.length > QUEUE_SHOWN ? <button type="button" className="fll-more" onClick={() => setAll(!all)} data-live-queue-all>{all ? "Show the first 12" : `Show all ${queue.length}`}</button> : null}
+      {queue.length > QUEUE_SHOWN ? (
+        <button
+          type="button"
+          className="fll-more"
+          onClick={() => setAll(!all)}
+          data-live-queue-all
+        >
+          {all ? "Show the first 12" : `Show all ${queue.length}`}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -252,12 +582,37 @@ function RunFeed({ id }: { id: string }) {
   return null;
 }
 
-function QueueRow({ row: r, n, area, href }: { row: LiveQueueRow; n: number; area: string; href: string }) {
+function QueueRow({
+  row: r,
+  n,
+  area,
+  href,
+}: {
+  row: LiveQueueRow;
+  n: number;
+  area: string;
+  href: string;
+}) {
   return (
     <tr data-live-queue-row={r.ref ?? r.taskId}>
-      <td data-num="" className="flh-dim">{n}</td>
-      <td className="fll-q-name"><Link href={href}><span className="fll-q-ref">{r.ref ?? ""}</span>{r.name}</Link></td>
-      <td data-num="" title={r.score?.reason}>{r.score ? <b className="fll-score" data-band={scoreBand(r.score.score)}>{r.score.score}</b> : <span className="flh-zero">–</span>}</td>
+      <td data-num="" className="flh-dim">
+        {n}
+      </td>
+      <td className="fll-q-name">
+        <Link href={href}>
+          <span className="fll-q-ref">{r.ref ?? ""}</span>
+          {r.name}
+        </Link>
+      </td>
+      <td data-num="" title={r.score?.reason}>
+        {r.score ? (
+          <b className="fll-score" data-band={scoreBand(r.score.score)}>
+            {r.score.score}
+          </b>
+        ) : (
+          <span className="flh-zero">–</span>
+        )}
+      </td>
       <td className="flh-dim">{r.score?.family?.name ?? ""}</td>
       <td data-num="">{r.findings}</td>
       <td className="flh-dim">{area}</td>
@@ -267,74 +622,223 @@ function QueueRow({ row: r, n, area, href }: { row: LiveQueueRow; n: number; are
 }
 
 /** One flow of the library and, under it, the flows that extend it, each with what it changes. */
-function LibraryBranch({ entry: e, runsOf, picked, onPick, depth, defaultSlug }: { entry: LibraryEntry; runsOf: Map<string, Run[]>; picked: string | null; onPick: (slug: string) => void; depth: number; defaultSlug: string | null }) {
+function LibraryBranch({
+  entry: e,
+  runsOf,
+  picked,
+  onPick,
+  depth,
+  defaultSlug,
+}: {
+  entry: LibraryEntry;
+  runsOf: Map<string, Run[]>;
+  picked: string | null;
+  onPick: (slug: string) => void;
+  depth: number;
+  defaultSlug: string | null;
+}) {
   const all = runsOf.get(e.flow.slug) ?? [];
   const live = all.filter((r) => r.status === "running").length;
   return (
     <li data-library-flow={e.flow.slug} data-depth={depth}>
-      <button type="button" className="flv-row fll-row" aria-current={e.flow.slug === picked ? "true" : undefined} onClick={() => onPick(e.flow.slug)} data-flow-row={e.flow.slug}>
+      <button
+        type="button"
+        className="flv-row fll-row"
+        aria-current={e.flow.slug === picked ? "true" : undefined}
+        onClick={() => onPick(e.flow.slug)}
+        data-flow-row={e.flow.slug}
+      >
         <span className="flv-row-name">
           {e.flow.label}
-          {e.spine ? <span className="fll-tag" data-tag="spine">Spine</span> : null}
+          {e.spine ? (
+            <span className="fll-tag" data-tag="spine">
+              Spine
+            </span>
+          ) : null}
           {e.base ? <span className="fll-tag">Variant</span> : null}
           {e.flow.slug === defaultSlug ? <DefaultTag /> : null}
         </span>
-        {e.change ? <ChangeChips change={e.change} /> : flowRowPath(e.flow) ? <span className="flv-row-path">{flowRowPath(e.flow)}</span> : null}
+        {e.change ? (
+          <ChangeChips change={e.change} />
+        ) : flowRowPath(e.flow) ? (
+          <span className="flv-row-path">{flowRowPath(e.flow)}</span>
+        ) : null}
         <span className="flv-row-n">
           {live ? <b data-live>{live} running</b> : null}
-          {all.length ? <span>{all.length} {all.length === 1 ? "run" : "runs"}</span> : null}
+          {all.length ? (
+            <span>
+              {all.length} {all.length === 1 ? "run" : "runs"}
+            </span>
+          ) : null}
         </span>
       </button>
-      {e.variants.length ? <ul className="fll-branch">{e.variants.map((v) => <LibraryBranch key={v.flow.slug} entry={v} runsOf={runsOf} picked={picked} onPick={onPick} depth={depth + 1} defaultSlug={defaultSlug} />)}</ul> : null}
+      {e.variants.length ? (
+        <ul className="fll-branch">
+          {e.variants.map((v) => (
+            <LibraryBranch
+              key={v.flow.slug}
+              entry={v}
+              runsOf={runsOf}
+              picked={picked}
+              onPick={onPick}
+              depth={depth + 1}
+              defaultSlug={defaultSlug}
+            />
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }
 
 /** What a variant changes, as chips: each step it changes (and how), adds or removes, and the sources it serves. */
 function ChangeChips({ change: c }: { change: VariantChange }) {
-  if (!changesAnything(c)) return <span className="flv-row-path">Same steps</span>;
+  if (!changesAnything(c))
+    return <span className="flv-row-path">Same steps</span>;
   return (
     <span className="fll-changes" data-variant-changes="">
-      {c.changed.map((s) => <span key={s.id} className="fll-ch" data-ch="changed" title={`${s.label}: ${s.what.join(", ")}`}>{s.label}<i>{s.what.join(", ")}</i></span>)}
-      {c.added.map((s) => <span key={s.id} className="fll-ch" data-ch="added">+ {s.label}</span>)}
-      {c.removed.map((s) => <span key={s.id} className="fll-ch" data-ch="removed">− {s.label}</span>)}
-      {c.serves ? <span className="fll-ch" data-ch="serves" title={c.serves.join(" ")}>serves {c.serves.length}</span> : null}
+      {c.changed.map((s) => (
+        <span
+          key={s.id}
+          className="fll-ch"
+          data-ch="changed"
+          title={`${s.label}: ${s.what.join(", ")}`}
+        >
+          {s.label}
+          <i>{s.what.join(", ")}</i>
+        </span>
+      ))}
+      {c.added.map((s) => (
+        <span key={s.id} className="fll-ch" data-ch="added">
+          + {s.label}
+        </span>
+      ))}
+      {c.removed.map((s) => (
+        <span key={s.id} className="fll-ch" data-ch="removed">
+          − {s.label}
+        </span>
+      ))}
+      {c.serves ? (
+        <span className="fll-ch" data-ch="serves" title={c.serves.join(" ")}>
+          serves {c.serves.length}
+        </span>
+      ) : null}
     </span>
   );
 }
 
 /** The flows the team's sessions ran or defined: each with its runs, who ran it and its sessions, and Save into the
  *  library. */
-function SessionShelf({ flows, library, names }: { flows: SessionFlow[]; library: FlowLibrary; names: ReadonlyMap<string, string> }) {
+function SessionShelf({
+  flows,
+  library,
+  names,
+}: {
+  flows: SessionFlow[];
+  library: FlowLibrary;
+  names: ReadonlyMap<string, string>;
+}) {
   const now = Date.now();
   return (
     <section data-flows-sessions>
-      <h2 className="flv-h">From sessions<span className="lw-num">{flows.length}</span></h2>
-      {flows.length === 0 ? <p className="flv-none" data-session-flows-none="">None yet</p> : (
-      <table className="flh-table fll-sessions">
-        <thead><tr><th>Flow</th><th data-num="">Steps</th><th data-num="">Runs</th><th>Last</th><th>Ran it</th><th>Sessions</th><th /></tr></thead>
-        <tbody>
-          {flows.map((f) => {
-            const steps = pushedFlow({ _id: f._id, slug: f.name, name: f.name, nodes: f.nodes, edges: f.edges }).stations.length;
-            const who = f.by.map((id) => names.get(id)).filter((n): n is string => !!n);
-            const base = f.base ? libraryEntry(library, f.base)?.flow.label ?? f.base : null;
-            return (
-              <tr key={f._id} data-session-flow={f._id}>
-                <td className="flh-name"><b>{f.label || f.name}</b>{base ? <span>extends {base}</span> : null}</td>
-                <td data-num="">{steps}</td>
-                <td data-num="">{f.run_count}{f.more ? "+" : ""}</td>
-                <td className="flh-dim">{ageShort(now - f.last_at)}</td>
-                <td className="flh-dim">{who.join(", ")}</td>
-                <td className="fll-sess">{f.sessions.length ? <><Link className="flv-chip flv-chip-btn" href={`/conversation/${f.sessions[0]}`} data-session-flow-session={f.sessions[0]}>Newest</Link>{f.sessions.length > 1 ? <span className="flh-dim">{f.sessions.length} in all</span> : null}</> : null}</td>
-                <td>{f.saved
-                  ? <span className="flh-on" data-on="" data-session-flow-saved={f.saved.slug}>Saved v{f.saved.version}</span>
-                  : <button type="button" className="flv-steps" onClick={() => useInboxStore.getState().saveSessionFlow(f._id, f.base ? { variant_of: f.base } : undefined)} data-session-flow-save={f._id}>Save</button>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <h2 className="flv-h">
+        From sessions<span className="lw-num">{flows.length}</span>
+      </h2>
+      {flows.length === 0 ? (
+        <p className="flv-none" data-session-flows-none="">
+          None yet
+        </p>
+      ) : (
+        <table className="flh-table fll-sessions">
+          <thead>
+            <tr>
+              <th>Flow</th>
+              <th data-num="">Steps</th>
+              <th data-num="">Runs</th>
+              <th>Last</th>
+              <th>Ran it</th>
+              <th>Sessions</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {flows.map((f) => {
+              const steps = pushedFlow({
+                _id: f._id,
+                slug: f.name,
+                name: f.name,
+                nodes: f.nodes,
+                edges: f.edges,
+              }).stations.length;
+              const who = f.by
+                .map((id) => names.get(id))
+                .filter((n): n is string => !!n);
+              const base = f.base
+                ? (libraryEntry(library, f.base)?.flow.label ?? f.base)
+                : null;
+              return (
+                <tr key={f._id} data-session-flow={f._id}>
+                  <td className="flh-name">
+                    <b>{f.label || f.name}</b>
+                    {base ? <span>extends {base}</span> : null}
+                  </td>
+                  <td data-num="">{steps}</td>
+                  <td data-num="">
+                    {f.run_count}
+                    {f.more ? "+" : ""}
+                  </td>
+                  <td className="flh-dim">{ageShort(now - f.last_at)}</td>
+                  <td className="flh-dim">{who.join(", ")}</td>
+                  <td className="fll-sess">
+                    {f.sessions.length ? (
+                      <>
+                        <Link
+                          className="flv-chip flv-chip-btn"
+                          href={`/conversation/${f.sessions[0]}`}
+                          data-session-flow-session={f.sessions[0]}
+                        >
+                          Newest
+                        </Link>
+                        {f.sessions.length > 1 ? (
+                          <span className="flh-dim">
+                            {f.sessions.length} in all
+                          </span>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </td>
+                  <td>
+                    {f.saved ? (
+                      <span
+                        className="flh-on"
+                        data-on=""
+                        data-session-flow-saved={f.saved.slug}
+                      >
+                        Saved v{f.saved.version}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flv-steps"
+                        onClick={() =>
+                          useInboxStore
+                            .getState()
+                            .saveSessionFlow(
+                              f._id,
+                              f.base ? { variant_of: f.base } : undefined,
+                            )
+                        }
+                        data-session-flow-save={f._id}
+                      >
+                        Save
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </section>
   );
@@ -345,168 +849,542 @@ function SessionShelf({ flows, library, names }: { flows: SessionFlow[]; library
 function PoolFlow({ selection, select, workspace, space }: LineViewProps) {
   const { lib, flows, runsOf } = useFlowLibrary(space);
   const defaultSlug = useDefaultFlowSlug(space, lib);
-  const picked = flowBySlug(flows, selection.item) ?? flowBySlug(flows, defaultSlug ?? CHANGE_FLOW_SLUG) ?? flows[0];
+  const picked =
+    flowBySlug(flows, selection.item) ??
+    flowBySlug(flows, defaultSlug ?? CHANGE_FLOW_SLUG) ??
+    flows[0];
   const entry = libraryEntry(lib, picked.slug);
   const usedBy = flows.filter((f) => f.uses.includes(picked.slug));
-  const pickedRuns = (runsOf.get(picked.slug) ?? []).slice().sort((a, b) => b.created_at - a.created_at);
+  const pickedRuns = (runsOf.get(picked.slug) ?? [])
+    .slice()
+    .sort((a, b) => b.created_at - a.created_at);
   // The run opened under its row stays in this view: the shared `run` address belongs to the Problems view, which claims any run whose task it knows.
   const [openRunId, setOpenRunId] = useState<string | null>(null);
-  const openRun = openRunId ? pickedRuns.find((r) => r._id === openRunId) ?? null : null;
+  const openRun = openRunId
+    ? (pickedRuns.find((r) => r._id === openRunId) ?? null)
+    : null;
   const now = workspace.now;
-  const viewerId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const viewerId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   // The cards these runs wait on, as far as the viewer's queue holds them: a run reads "Your call" only when the viewer
   // may answer its card. A signature of who may answer each, so the view wakes only when that changes.
-  const gateIds = pickedRuns.map((r) => (r as any).gate_decision_id as string | undefined).filter((id): id is string => !!id);
-  const gateSig = useInboxStore((s) => JSON.stringify(gateIds.map((id) => {
-    const d = (s.sessionDecisions as Record<string, any>)[id];
-    return d ? [id, d.user_id ?? null, d.holder ?? null, d.passed_to ?? null, d.asked_user_ids ?? null] : null;
-  }).filter(Boolean)));
-  const decisions = useMemo(() => Object.fromEntries((JSON.parse(gateSig) as any[]).map(([id, user_id, holder, passed_to, asked_user_ids]) => [id, { user_id, holder, passed_to, asked_user_ids }])), [gateSig]);
+  const gateIds = pickedRuns
+    .map((r) => (r as any).gate_decision_id as string | undefined)
+    .filter((id): id is string => !!id);
+  const gateSig = useInboxStore((s) =>
+    JSON.stringify(
+      gateIds
+        .map((id) => {
+          const d = (s.sessionDecisions as Record<string, any>)[id];
+          return d
+            ? [
+                id,
+                d.user_id ?? null,
+                d.holder ?? null,
+                d.passed_to ?? null,
+                d.asked_user_ids ?? null,
+              ]
+            : null;
+        })
+        .filter(Boolean),
+    ),
+  );
+  const decisions = useMemo(
+    () =>
+      Object.fromEntries(
+        (JSON.parse(gateSig) as any[]).map(
+          ([id, user_id, holder, passed_to, asked_user_ids]) => [
+            id,
+            { user_id, holder, passed_to, asked_user_ids },
+          ],
+        ),
+      ),
+    [gateSig],
+  );
   const pick = (slug: string) => select({ item: slug, run: null });
 
   return (
     // The page's own width decides its layout (flows.css @container flv): narrow, the list becomes a row over the flow.
     <div className="flv-host">
-    <div className="flv" data-line-flows>
-      <nav className="flv-list" aria-label="Flows">
-        <button type="button" className="flv-back" onClick={() => select({ item: null, run: null })} data-flows-back>All flows</button>
-        <section>
-          <h2 className="flv-h">Library</h2>
-          <ul className="fll-tree">{lib.lines.map((e) => <LibraryBranch key={e.flow.slug} entry={e} runsOf={runsOf} picked={picked.slug} onPick={pick} depth={0} defaultSlug={defaultSlug} />)}</ul>
-        </section>
-        <section>
-          <h2 className="flv-h">Segments<span className="lw-num">{lib.segments.length}</span></h2>
-          <ul>
-            {lib.segments.map((f) => (
-              <li key={f.slug}><button type="button" className="flv-row" aria-current={f.slug === picked.slug ? "true" : undefined} onClick={() => pick(f.slug)} data-flow-row={f.slug}><span className="flv-row-name">{f.label}{f.slug === defaultSlug ? <DefaultTag /> : null}</span></button></li>
-            ))}
-          </ul>
-        </section>
-      </nav>
-
-      <article className="flv-main" data-flow={picked.slug}>
-        <header className="flv-head">
-          <span className="lw-flow-kind" data-kind={picked.kind}>{entry?.spine ? "Spine" : entry?.base ? "Variant" : picked.kind === "line" ? "Flow" : "Segment"}</span>
-          <h1>{picked.label}</h1>
-          <span className="flv-where">{picked.where === "shipped" ? "ships with codecast" : "in the team's library"}</span>
-          <DefaultFlowControl flow={picked} space={space ?? null} isDefault={picked.slug === defaultSlug} />
-          {pickedRuns.length > 0 && (
-            <button type="button" className="flv-steps" onClick={() => select({ view: "line", graph: picked.slug })} title="Each step's prompt, its decisions on past runs, and how often it sent work each way" data-flow-steps={picked.slug}>Steps</button>
-          )}
-        </header>
-        {picked.description ? <p className="flv-desc">{picked.description}</p> : null}
-        <div className="lw-flow flv-diagram"><FlowExplorer flow={picked} /></div>
-
-        <div className="flv-facts">
-          {entry?.base ? <Fact label="Extends"><FlowChip flow={flowBySlug(flows, entry.base)} slug={entry.base} onPick={pick} /></Fact> : null}
-          {entry?.change && changesAnything(entry.change) ? <Fact label="Changes"><ChangeChips change={entry.change} /></Fact> : null}
-          {entry?.variants.length ? <Fact label="Variants">{entry.variants.map((v) => <FlowChip key={v.flow.slug} flow={v.flow} slug={v.flow.slug} onPick={pick} />)}</Fact> : null}
-          <Fact label="Takes">{picked.takes.map((t) => <span key={t} className="flv-chip">{t === "branch" ? "a branch or a session's edits" : t === "task" ? "a task" : t}</span>)}</Fact>
-          {picked.uses.length ? <Fact label="Made of">{picked.uses.map((u) => <FlowChip key={u} flow={flowBySlug(flows, u)} slug={u} onPick={pick} />)}</Fact> : null}
-          {usedBy.length ? <Fact label="Part of">{usedBy.map((f) => <FlowChip key={f.slug} flow={f} slug={f.slug} onPick={pick} />)}</Fact> : null}
-        </div>
-
-        <section className="flv-runs">
-          <h2 className="flv-h">Changes run through it<span className="lw-num">{pickedRuns.length}</span></h2>
-          {pickedRuns.length === 0 ? <p className="flv-none">None yet</p> : (
-            <ul>
-              {pickedRuns.slice(0, 30).map((r) => {
-                const st = flowRunState(r, picked);
-                // A session's change reads as its journey: the words its Ship control shows, not the step's own name.
-                const jw = takesSessionChange(picked) && picked.kind === "line" ? journeyWords(journeyOf(picked, r as any, [], { id: viewerId, decision: (r as any).gate_decision_id ? decisions[(r as any).gate_decision_id] ?? null : null })) : null;
-                return (
-                  <li key={r._id}>
-                    <button type="button" className="flv-run" aria-current={openRun?._id === r._id ? "true" : undefined} onClick={() => setOpenRunId(openRun?._id === r._id ? null : r._id)} data-flow-run-row={r._id}>
-                      <span className="lw-flow-state" data-tone={jw ? JOURNEY_TONE[jw.tone] : st.tone}>{jw?.words ?? st.words}</span>
-                      <span className="flv-run-task">{r.task_title ?? r.task_short_id ?? (r.run_kind === "workflow" ? "in a session" : "no task")}</span>
-                      <span className="flv-run-why">{readableWhy(st.why) ?? ""}</span>
-                      <span className="flv-run-age">{ageShort(now - r.created_at)}</span>
-                    </button>
-                    {openRun?._id === r._id ? <FlowRunCard runId={r._id} /> : null}
-                  </li>
-                );
-              })}
+      <div className="flv" data-line-flows>
+        <nav className="flv-list" aria-label="Flows">
+          <button
+            type="button"
+            className="flv-back"
+            onClick={() => select({ item: null, run: null })}
+            data-flows-back
+          >
+            All flows
+          </button>
+          <section>
+            <h2 className="flv-h">Library</h2>
+            <ul className="fll-tree">
+              {lib.lines.map((e) => (
+                <LibraryBranch
+                  key={e.flow.slug}
+                  entry={e}
+                  runsOf={runsOf}
+                  picked={picked.slug}
+                  onPick={pick}
+                  depth={0}
+                  defaultSlug={defaultSlug}
+                />
+              ))}
             </ul>
-          )}
-        </section>
-      </article>
-    </div>
+          </section>
+          <section>
+            <h2 className="flv-h">
+              Segments<span className="lw-num">{lib.segments.length}</span>
+            </h2>
+            <ul>
+              {lib.segments.map((f) => (
+                <li key={f.slug}>
+                  <button
+                    type="button"
+                    className="flv-row"
+                    aria-current={f.slug === picked.slug ? "true" : undefined}
+                    onClick={() => pick(f.slug)}
+                    data-flow-row={f.slug}
+                  >
+                    <span className="flv-row-name">
+                      {f.label}
+                      {f.slug === defaultSlug ? <DefaultTag /> : null}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </nav>
+
+        <article className="flv-main" data-flow={picked.slug}>
+          <header className="flv-head">
+            <span className="lw-flow-kind" data-kind={picked.kind}>
+              {entry?.spine
+                ? "Spine"
+                : entry?.base
+                  ? "Variant"
+                  : picked.kind === "line"
+                    ? "Flow"
+                    : "Segment"}
+            </span>
+            <h1>{picked.label}</h1>
+            <span className="flv-where">
+              {picked.where === "shipped"
+                ? "ships with codecast"
+                : "in the team's library"}
+            </span>
+            <DefaultFlowControl
+              flow={picked}
+              space={space ?? null}
+              isDefault={picked.slug === defaultSlug}
+            />
+            {pickedRuns.length > 0 && (
+              <button
+                type="button"
+                className="flv-steps"
+                onClick={() => select({ view: "line", graph: picked.slug })}
+                title="Each step's prompt, its decisions on past runs, and how often it sent work each way"
+                data-flow-steps={picked.slug}
+              >
+                Steps
+              </button>
+            )}
+          </header>
+          {picked.description ? (
+            <p className="flv-desc">{picked.description}</p>
+          ) : null}
+          <div className="lw-flow flv-diagram">
+            <FlowExplorer flow={picked} />
+          </div>
+
+          <div className="flv-facts">
+            {entry?.base ? (
+              <Fact label="Extends">
+                <FlowChip
+                  flow={flowBySlug(flows, entry.base)}
+                  slug={entry.base}
+                  onPick={pick}
+                />
+              </Fact>
+            ) : null}
+            {entry?.change && changesAnything(entry.change) ? (
+              <Fact label="Changes">
+                <ChangeChips change={entry.change} />
+              </Fact>
+            ) : null}
+            {entry?.variants.length ? (
+              <Fact label="Variants">
+                {entry.variants.map((v) => (
+                  <FlowChip
+                    key={v.flow.slug}
+                    flow={v.flow}
+                    slug={v.flow.slug}
+                    onPick={pick}
+                  />
+                ))}
+              </Fact>
+            ) : null}
+            <Fact label="Takes">
+              {picked.takes.map((t) => (
+                <span key={t} className="flv-chip">
+                  {t === "branch"
+                    ? "a branch or a session's edits"
+                    : t === "task"
+                      ? "a task"
+                      : t}
+                </span>
+              ))}
+            </Fact>
+            {picked.uses.length ? (
+              <Fact label="Made of">
+                {picked.uses.map((u) => (
+                  <FlowChip
+                    key={u}
+                    flow={flowBySlug(flows, u)}
+                    slug={u}
+                    onPick={pick}
+                  />
+                ))}
+              </Fact>
+            ) : null}
+            {usedBy.length ? (
+              <Fact label="Part of">
+                {usedBy.map((f) => (
+                  <FlowChip key={f.slug} flow={f} slug={f.slug} onPick={pick} />
+                ))}
+              </Fact>
+            ) : null}
+          </div>
+
+          <section className="flv-runs">
+            <h2 className="flv-h">
+              Changes run through it
+              <span className="lw-num">{pickedRuns.length}</span>
+            </h2>
+            {pickedRuns.length === 0 ? (
+              <p className="flv-none">None yet</p>
+            ) : (
+              <ul>
+                {pickedRuns.slice(0, 30).map((r) => {
+                  const st = flowRunState(r, picked);
+                  // A session's change reads as its journey: the words its Ship control shows, not the step's own name.
+                  const jw =
+                    takesSessionChange(picked) && picked.kind === "line"
+                      ? journeyWords(
+                          journeyOf(picked, r as any, [], {
+                            id: viewerId,
+                            decision: (r as any).gate_decision_id
+                              ? (decisions[(r as any).gate_decision_id] ?? null)
+                              : null,
+                          }),
+                        )
+                      : null;
+                  return (
+                    <li key={r._id}>
+                      <button
+                        type="button"
+                        className="flv-run"
+                        aria-current={
+                          openRun?._id === r._id ? "true" : undefined
+                        }
+                        onClick={() =>
+                          setOpenRunId(openRun?._id === r._id ? null : r._id)
+                        }
+                        data-flow-run-row={r._id}
+                      >
+                        <span
+                          className="lw-flow-state"
+                          data-tone={jw ? JOURNEY_TONE[jw.tone] : st.tone}
+                        >
+                          {jw?.words ?? st.words}
+                        </span>
+                        <span className="flv-run-task">
+                          {r.task_title ??
+                            r.task_short_id ??
+                            (r.run_kind === "workflow"
+                              ? "in a session"
+                              : "no task")}
+                        </span>
+                        <span className="flv-run-why">
+                          {readableWhy(st.why) ?? ""}
+                        </span>
+                        <span className="flv-run-age">
+                          {ageShort(now - r.created_at)}
+                        </span>
+                      </button>
+                      {openRun?._id === r._id ? (
+                        <FlowRunCard runId={r._id} />
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </article>
+      </div>
     </div>
   );
 }
 
 /** What a flow holds now: decisions waiting on a person, problems ready to start, and problems being built. */
-function useFlowCounts(workspace: LineViewProps["workspace"], flows: ReadonlyArray<OwnedFlow>) {
+function useFlowCounts(
+  workspace: LineViewProps["workspace"],
+  flows: ReadonlyArray<OwnedFlow>,
+) {
   return useMemo(() => {
     const needs = workspace.needs.filter((n) => n.counted);
     const rollup = new Map(workspace.allRollups.map((r) => [r.key, r]));
-    const sum = (f: OwnedFlow, k: "ready" | "build") => f.projects.reduce((n, p) => n + (rollup.get(p.id)?.[k] ?? 0), 0);
-    return new Map(flows.map((f) => [f.owner.handle, { decisions: flowNeeds(needs, f).length, queued: sum(f, "ready"), running: sum(f, "build") }]));
+    const sum = (f: OwnedFlow, k: "ready" | "build") =>
+      f.projects.reduce((n, p) => n + (rollup.get(p.id)?.[k] ?? 0), 0);
+    return new Map(
+      flows.map((f) => [
+        f.owner.handle,
+        {
+          decisions: flowNeeds(needs, f).length,
+          queued: sum(f, "ready"),
+          running: sum(f, "build"),
+        },
+      ]),
+    );
   }, [workspace.needs, workspace.allRollups, flows]);
 }
 
 /** One owned flow on its own page: its steps drawn, its facts, and what it holds now, each opening where it is acted on. */
-function FlowOverview({ owner, workspace, select, href, space }: LineViewProps & { owner: string }) {
+function FlowOverview({
+  owner,
+  workspace,
+  select,
+  href,
+  space,
+}: LineViewProps & { owner: string }) {
   const flows = useOwnedFlows(workspace);
   const flow = flowOf(flows, owner);
   const counts = useFlowCounts(workspace, flow ? [flow] : []).get(owner);
   const pool = useMemo(() => appPool([]), []);
   const { flows: library } = useFlowLibrary(space);
-  if (!flow) return <p className="flv-none" data-flow-missing={owner}>{flows.length ? `No flow is owned by @${owner}` : "Loading the flow"}</p>;
+  if (!flow)
+    return (
+      <p className="flv-none" data-flow-missing={owner}>
+        {flows.length ? `No flow is owned by @${owner}` : "Loading the flow"}
+      </p>
+    );
   const steps = flowBySlug(library, flow.steps) ?? flowBySlug(pool, flow.steps);
   return (
     <article className="flv-main flo" data-flow-overview={owner}>
       <div className="flo-counts">
-        <Count n={counts?.decisions ?? 0} label="decisions" tone="ask" to={counts?.decisions ? lineWorkspaceHref(null, { view: "foryou", flow: owner }) : null} />
-        <Count n={counts?.queued ?? 0} label="queued" to={counts?.queued ? href({ view: "problems", status: "notstarted" }) : null} />
-        <Count n={counts?.running ?? 0} label="running" to={counts?.running ? href({ view: "problems", status: "running" }) : null} />
+        <Count
+          n={counts?.decisions ?? 0}
+          label="decisions"
+          tone="ask"
+          to={
+            counts?.decisions
+              ? lineWorkspaceHref(null, { view: "foryou", flow: owner })
+              : null
+          }
+        />
+        <Count
+          n={counts?.queued ?? 0}
+          label="queued"
+          to={
+            counts?.queued
+              ? href({ view: "problems", status: "notstarted" })
+              : null
+          }
+        />
+        <Count
+          n={counts?.running ?? 0}
+          label="running"
+          to={
+            counts?.running
+              ? href({ view: "problems", status: "running" })
+              : null
+          }
+        />
       </div>
       <div className="flv-facts">
-        <Fact label="Owner"><Link className="flv-chip flv-chip-btn" href={`/org/${flow.owner.short_id}`}>@{flow.owner.handle}</Link></Fact>
-        <Fact label="Starts"><Link className="flh-on" data-on={flow.on ? "" : undefined} href={lineSettingsHref({ section: "starts" })}>{flow.on ? "On" : "Off"}</Link></Fact>
-        <Fact label="Takes from">{flow.projects.map((p) => <button key={p.id} type="button" className="flv-chip flv-chip-btn" onClick={() => select({ view: "problems", project: p.id })}>{p.title}</button>)}</Fact>
-        <Fact label="Decides"><span className="flv-chip">{flow.deciderId ? workspace.names.get(flow.deciderId) ?? "A person" : "Nobody"}</span></Fact>
-        <Fact label="Merge"><span className="flv-chip">{flow.merge ? "On" : "Off"}</span></Fact>
-        {flow.reviewAgent ? <Fact label="Review on"><span className="flv-chip">{flow.reviewAgent}</span></Fact> : null}
+        <Fact label="Owner">
+          <Link
+            className="flv-chip flv-chip-btn"
+            href={`/org/${flow.owner.short_id}`}
+          >
+            @{flow.owner.handle}
+          </Link>
+        </Fact>
+        <Fact label="Starts">
+          <Link
+            className="flh-on"
+            data-on={flow.on ? "" : undefined}
+            href={lineSettingsHref({ section: "starts" })}
+          >
+            {flow.on ? "On" : "Off"}
+          </Link>
+        </Fact>
+        <Fact label="Takes from">
+          {flow.projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="flv-chip flv-chip-btn"
+              onClick={() => select({ view: "problems", project: p.id })}
+            >
+              {p.title}
+            </button>
+          ))}
+        </Fact>
+        <Fact label="Decides">
+          <span className="flv-chip">
+            {flow.deciderId
+              ? (workspace.names.get(flow.deciderId) ?? "A person")
+              : "Nobody"}
+          </span>
+        </Fact>
+        <Fact label="Merge">
+          <span className="flv-chip">{flow.merge ? "On" : "Off"}</span>
+        </Fact>
+        {flow.reviewAgent ? (
+          <Fact label="Review on">
+            <span className="flv-chip">{flow.reviewAgent}</span>
+          </Fact>
+        ) : null}
       </div>
       <header className="flv-head">
         <h2 className="flv-h">Steps</h2>
         <span className="flv-where">{steps?.label ?? flow.steps}</span>
-        <button type="button" className="flv-steps" onClick={() => select({ view: "line", graph: flow.steps })} data-flow-steps={flow.steps}>Open steps</button>
+        <button
+          type="button"
+          className="flv-steps"
+          onClick={() => select({ view: "line", graph: flow.steps })}
+          data-flow-steps={flow.steps}
+        >
+          Open steps
+        </button>
       </header>
-      {steps ? <div className="lw-flow flv-diagram"><FlowExplorer flow={steps} /></div> : null}
+      {steps ? (
+        <div className="lw-flow flv-diagram">
+          <FlowExplorer flow={steps} />
+        </div>
+      ) : null}
     </article>
   );
 }
 
-function Count({ n, label, tone, to }: { n: number; label: string; tone?: "ask"; to: string | null }) {
-  const body = <><b className="lw-num">{n}</b><span>{label}</span></>;
-  return to ? <Link href={to} className="flo-count" data-tone={n > 0 ? tone : undefined}>{body}</Link> : <span className="flo-count" data-quiet="">{body}</span>;
+function Count({
+  n,
+  label,
+  tone,
+  to,
+}: {
+  n: number;
+  label: string;
+  tone?: "ask";
+  to: string | null;
+}) {
+  const body = (
+    <>
+      <b className="lw-num">{n}</b>
+      <span>{label}</span>
+    </>
+  );
+  return to ? (
+    <Link href={to} className="flo-count" data-tone={n > 0 ? tone : undefined}>
+      {body}
+    </Link>
+  ) : (
+    <span className="flo-count" data-quiet="">
+      {body}
+    </span>
+  );
 }
 
-const DefaultTag = () => <span className="fll-tag" data-tag="default" data-flow-default="">Default</span>;
+const DefaultTag = () => (
+  <span className="fll-tag" data-tag="default" data-flow-default="">
+    Default
+  </span>
+);
 
 /** The team's default flow, resolved against its library: what sessions are offered first (RunThroughFlow). */
-function useDefaultFlowSlug(space: string | null | undefined, lib: FlowLibrary): string | null {
+function useDefaultFlowSlug(
+  space: string | null | undefined,
+  lib: FlowLibrary,
+): string | null {
   const team = space?.startsWith("team:") ? space.slice(5) : null;
   const set = useTeamDefaultFlowSlug(team);
-  return useMemo(() => defaultFlowOf(libraryFlows(lib), set)?.slug ?? null, [lib, set]);
+  return useMemo(
+    () => defaultFlowOf(libraryFlows(lib), set)?.slug ?? null,
+    [lib, set],
+  );
 }
 
 /** Default on a flow's page: the tag when it is the team's default; Make default for a team admin on a flow that can
  *  take a session's change. One press, undoable, so no confirm. */
-function DefaultFlowControl({ flow, space, isDefault }: { flow: AppFlow; space: string | null; isDefault: boolean }) {
+function DefaultFlowControl({
+  flow,
+  space,
+  isDefault,
+}: {
+  flow: AppFlow;
+  space: string | null;
+  isDefault: boolean;
+}) {
   const team = space?.startsWith("team:") ? space.slice(5) : null;
-  const admin = useInboxStore((s) => !!team && ((s.teams || []) as Array<{ _id: string; role?: string }>).some((t) => String(t._id) === team && (t.role === "admin" || t.role === "owner")));
+  const admin = useInboxStore(
+    (s) =>
+      !!team &&
+      ((s.teams || []) as Array<{ _id: string; role?: string }>).some(
+        (t) =>
+          String(t._id) === team && (t.role === "admin" || t.role === "owner"),
+      ),
+  );
   if (isDefault) return <DefaultTag />;
   if (!team || !admin || !takesSessionChange(flow)) return null;
-  return <button type="button" className="flv-steps" onClick={() => useInboxStore.getState().setTeamDefaultFlow(team, flow.slug)} data-flow-make-default={flow.slug}>Make default</button>;
+  return (
+    <button
+      type="button"
+      className="flv-steps"
+      onClick={() =>
+        useInboxStore.getState().setTeamDefaultFlow(team, flow.slug)
+      }
+      data-flow-make-default={flow.slug}
+    >
+      Make default
+    </button>
+  );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="flv-fact"><span className="flv-fact-k">{label}</span><span className="flv-fact-v">{children}</span></div>;
+function Fact({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flv-fact">
+      <span className="flv-fact-k">{label}</span>
+      <span className="flv-fact-v">{children}</span>
+    </div>
+  );
 }
 
-function FlowChip({ flow, slug, onPick }: { flow: AppFlow | null; slug: string; onPick: (slug: string) => void }) {
-  return <button type="button" className="flv-chip flv-chip-btn" onClick={() => onPick(slug)}>{flow?.label ?? slug}</button>;
+function FlowChip({
+  flow,
+  slug,
+  onPick,
+}: {
+  flow: AppFlow | null;
+  slug: string;
+  onPick: (slug: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="flv-chip flv-chip-btn"
+      onClick={() => onPick(slug)}
+    >
+      {flow?.label ?? slug}
+    </button>
+  );
 }

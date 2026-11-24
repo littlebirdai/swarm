@@ -8,13 +8,13 @@ This guide walks through setting up a complete self-hosted Codecast instance fro
 
 ![Self-hosted topology: a Railway project with Caddy, the Convex backend, its dashboard and Postgres; the web server on Railway; each user's cast daemon and the desktop and mobile apps all talk to Convex through the Caddy proxy](diagrams/self-hosting-topology.svg)
 
-| Component | Purpose | Required |
-|-----------|---------|----------|
-| Convex Backend | Real-time database, auth, serverless functions | Yes |
-| Web Dashboard | React SPA + SSR server | Yes |
-| CLI Daemon | Watches agent sessions, syncs to Convex | Yes (per user) |
-| Desktop App | Native macOS wrapper with global shortcuts | Optional |
-| Mobile App | iOS app for monitoring on the go | Optional |
+| Component      | Purpose                                        | Required       |
+| -------------- | ---------------------------------------------- | -------------- |
+| Convex Backend | Real-time database, auth, serverless functions | Yes            |
+| Web Dashboard  | React SPA + SSR server                         | Yes            |
+| CLI Daemon     | Watches agent sessions, syncs to Convex        | Yes (per user) |
+| Desktop App    | Native macOS wrapper with global shortcuts     | Optional       |
+| Mobile App     | iOS app for monitoring on the go               | Optional       |
 
 ## Prerequisites
 
@@ -37,12 +37,12 @@ Click the one-click deploy template:
 
 This creates a Railway project with four services:
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| `caddy-proxy` | 80 (public) | HTTPS reverse proxy, single entry point |
-| `convex-backend` | 3210 + 3211 (internal) | Database engine + HTTP actions |
-| `convex-dashboard` | 6791 (internal) | Admin dashboard UI |
-| `postgres` | 5432 (internal) | PostgreSQL storage |
+| Service            | Port                   | Purpose                                 |
+| ------------------ | ---------------------- | --------------------------------------- |
+| `caddy-proxy`      | 80 (public)            | HTTPS reverse proxy, single entry point |
+| `convex-backend`   | 3210 + 3211 (internal) | Database engine + HTTP actions          |
+| `convex-dashboard` | 6791 (internal)        | Admin dashboard UI                      |
+| `postgres`         | 5432 (internal)        | PostgreSQL storage                      |
 
 ### 1b. Replace the reverse proxy
 
@@ -58,16 +58,16 @@ docker push your-registry/codecast-convex-proxy
 
 Then update the Railway Caddy service to use your image. The custom Caddyfile routes:
 
-| Path | Destination | Purpose |
-|------|-------------|---------|
-| `/.well-known/*` | HTTP actions (3211) | JWKS for JWT validation |
-| `/api/auth/*` | HTTP actions (3211) | OAuth callbacks |
-| `/api/github-app/*` | HTTP actions (3211) | GitHub App install/callback |
-| `/api/webhooks/*` | HTTP actions (3211) | GitHub, Linear, Slack and Sentry webhooks; OAuth connector callbacks |
-| `/api/public/*` | HTTP actions (3211) | Public repository pages read without an account |
-| `/cli/*` | HTTP actions (3211) | Every CLI and daemon endpoint (auth exchange, sync, search, tasks) |
-| `/api/storage/*` | Backend (3210) | Stored files, served with a long-lived public `Cache-Control` |
-| Everything else | Backend (3210) | Queries, mutations, subscriptions, the deploy API |
+| Path                | Destination         | Purpose                                                              |
+| ------------------- | ------------------- | -------------------------------------------------------------------- |
+| `/.well-known/*`    | HTTP actions (3211) | JWKS for JWT validation                                              |
+| `/api/auth/*`       | HTTP actions (3211) | OAuth callbacks                                                      |
+| `/api/github-app/*` | HTTP actions (3211) | GitHub App install/callback                                          |
+| `/api/webhooks/*`   | HTTP actions (3211) | GitHub, Linear, Slack and Sentry webhooks; OAuth connector callbacks |
+| `/api/public/*`     | HTTP actions (3211) | Public repository pages read without an account                      |
+| `/cli/*`            | HTTP actions (3211) | Every CLI and daemon endpoint (auth exchange, sync, search, tasks)   |
+| `/api/storage/*`    | Backend (3210)      | Stored files, served with a long-lived public `Cache-Control`        |
+| Everything else     | Backend (3210)      | Queries, mutations, subscriptions, the deploy API                    |
 
 The proxy reads its two upstreams from `CONVEX_SITE_UPSTREAM` (port 3211) and `CONVEX_BACKEND_UPSTREAM` (port 3210); set both on the Caddy service.
 
@@ -84,6 +84,7 @@ Copy this key; every Convex CLI command needs it.
 ### 1d. Add a custom domain
 
 On the Railway `caddy-proxy` service:
+
 1. Add a custom domain: `convex.yourdomain.com`
 2. Create a CNAME DNS record: `convex.yourdomain.com` -> `<railway-assigned-domain>`
 
@@ -105,12 +106,14 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local`:
+
 ```bash
 CONVEX_SELF_HOSTED_URL=https://convex.yourdomain.com
 CONVEX_SELF_HOSTED_ADMIN_KEY=codecast|your-admin-key-from-step-1c
 ```
 
 Deploy:
+
 ```bash
 apps/server/deploy.sh
 ```
@@ -170,6 +173,7 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local`:
+
 ```bash
 VITE_CONVEX_URL=https://convex.yourdomain.com
 PORT=3000
@@ -190,16 +194,19 @@ The server runs on port 3000. It serves the SPA with server-side meta tags for l
 Create a new Railway service from your repo. Railway will auto-detect the build:
 
 **Build command:**
+
 ```bash
 bun install --frozen-lockfile && cd apps/web && bun run build
 ```
 
 **Start command:**
+
 ```bash
 cd apps/web && bun run start
 ```
 
 Or use the `Procfile` at the repo root which already defines:
+
 ```
 web: cd apps/web && bun run start
 ```
@@ -361,6 +368,7 @@ For signed + notarized builds that you can distribute to others:
    - Or set env vars: `APPLE_ID`, `APPLE_PASSWORD` (app-specific password), `APPLE_TEAM_ID`
 
 Build:
+
 ```bash
 # With a keychain profile named "codecast" (what `npm run build` sets)
 npm run build
@@ -403,11 +411,13 @@ cp .env.example .env.local
 ```
 
 Edit `.env.local`:
+
 ```bash
 EXPO_PUBLIC_CONVEX_URL=https://convex.yourdomain.com
 ```
 
 Or set it as an EAS environment variable for cloud builds (`.env` files are gitignored, so EAS never sees them):
+
 ```bash
 npx eas env:create production --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
 npx eas env:create preview --name EXPO_PUBLIC_CONVEX_URL --value "https://convex.yourdomain.com" --visibility plaintext
@@ -524,6 +534,7 @@ Once configured, users can install the GitHub App on their repos from **Settings
 ### Sentry (Error Tracking)
 
 Web:
+
 ```bash
 # apps/web/.env.local
 VITE_SENTRY_DSN=https://xxx@o123.ingest.sentry.io/456
@@ -533,6 +544,7 @@ SENTRY_PROJECT=your-sentry-project
 ```
 
 Mobile:
+
 ```bash
 EXPO_PUBLIC_SENTRY_DSN=https://xxx@o123.ingest.sentry.io/789
 ```
@@ -540,6 +552,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://xxx@o123.ingest.sentry.io/789
 ### PostHog (Product Analytics)
 
 Web:
+
 ```bash
 # apps/web/.env.local
 VITE_POSTHOG_KEY=phc_...
@@ -547,6 +560,7 @@ VITE_POSTHOG_HOST=https://us.i.posthog.com    # or your self-hosted PostHog
 ```
 
 Mobile:
+
 ```bash
 EXPO_PUBLIC_POSTHOG_KEY=phc_...
 EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
@@ -556,17 +570,17 @@ EXPO_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
 Each is off until its variables are set on the Convex deployment (`npx convex env set`).
 
-| Feature | Variables |
-|---------|-----------|
-| Calls (huddles, transcripts) | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` |
-| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET` (`SLACK_REDIRECT_BASE` defaults to `CONVEX_SITE_URL`) |
-| Linear | `LINEAR_OAUTH_CLIENT_ID`, `LINEAR_OAUTH_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET` |
-| Gmail and other Google connectors | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` |
-| Token-based connections (stored API tokens) | `CONNECTION_SECRETS_KEY` (rotating it orphans every stored token) |
-| iOS push notifications | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY`, `APNS_ENV` |
-| Media (images, published-page video) | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `MEDIA_PUBLIC_BASE` |
-| Signed outbound requests | `CODECAST_SIGNING_KEY` (generate with `bun apps/server/scripts/codecast-signing-key.ts`) |
-| Sentry issue webhooks | `SENTRY_WEBHOOK_SECRET` |
+| Feature                                     | Variables                                                                                                              |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Calls (huddles, transcripts)                | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`                                                                 |
+| Slack                                       | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET` (`SLACK_REDIRECT_BASE` defaults to `CONVEX_SITE_URL`) |
+| Linear                                      | `LINEAR_OAUTH_CLIENT_ID`, `LINEAR_OAUTH_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET`                                        |
+| Gmail and other Google connectors           | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`                                                                 |
+| Token-based connections (stored API tokens) | `CONNECTION_SECRETS_KEY` (rotating it orphans every stored token)                                                      |
+| iOS push notifications                      | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_AUTH_KEY`, `APNS_ENV`                                                             |
+| Media (images, published-page video)        | `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `MEDIA_PUBLIC_BASE`                            |
+| Signed outbound requests                    | `CODECAST_SIGNING_KEY` (generate with `bun apps/server/scripts/codecast-signing-key.ts`)                               |
+| Sentry issue webhooks                       | `SENTRY_WEBHOOK_SECRET`                                                                                                |
 
 ### Linear
 
@@ -591,85 +605,85 @@ Without it, findings are grouped by word overlap.
 
 ### Convex Backend (set via `npx convex env set`)
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `SITE_URL` | Yes | Web app public URL (OAuth redirects) |
-| `RESEND_API_KEY` | Yes | Transactional email for password reset |
-| `AUTH_GITHUB_ID` | For GitHub login | GitHub OAuth client ID |
-| `AUTH_GITHUB_SECRET` | For GitHub login | GitHub OAuth client secret |
-| `AUTH_APPLE_ID` | For Apple login | Apple Services ID |
-| `AUTH_APPLE_SECRET` | For Apple login | Apple JWT client secret |
-| `ANTHROPIC_API_KEY` | Recommended | AI summaries, title generation, insights |
-| `OPENAI_API_KEY` | Optional | Embeddings for grouping findings |
-| `GITHUB_APP_ID` | For PR integration | GitHub App numeric ID |
-| `GITHUB_APP_PRIVATE_KEY` | For PR integration | GitHub App RSA private key (base64) |
-| `GITHUB_APP_WEBHOOK_SECRET` | For PR integration | Webhook signature verification |
-| `GITHUB_APP_SLUG` | For PR integration | GitHub App install link |
-| `GITHUB_APP_CLIENT_ID` | For PR integration | Verifies who completes an install |
-| `GITHUB_APP_CLIENT_SECRET` | For PR integration | Verifies who completes an install |
-| `GITHUB_WEBHOOK_SECRET` | For repository webhooks | Verifies `/api/webhooks/github` deliveries |
+| Variable                    | Required                | Purpose                                    |
+| --------------------------- | ----------------------- | ------------------------------------------ |
+| `SITE_URL`                  | Yes                     | Web app public URL (OAuth redirects)       |
+| `RESEND_API_KEY`            | Yes                     | Transactional email for password reset     |
+| `AUTH_GITHUB_ID`            | For GitHub login        | GitHub OAuth client ID                     |
+| `AUTH_GITHUB_SECRET`        | For GitHub login        | GitHub OAuth client secret                 |
+| `AUTH_APPLE_ID`             | For Apple login         | Apple Services ID                          |
+| `AUTH_APPLE_SECRET`         | For Apple login         | Apple JWT client secret                    |
+| `ANTHROPIC_API_KEY`         | Recommended             | AI summaries, title generation, insights   |
+| `OPENAI_API_KEY`            | Optional                | Embeddings for grouping findings           |
+| `GITHUB_APP_ID`             | For PR integration      | GitHub App numeric ID                      |
+| `GITHUB_APP_PRIVATE_KEY`    | For PR integration      | GitHub App RSA private key (base64)        |
+| `GITHUB_APP_WEBHOOK_SECRET` | For PR integration      | Webhook signature verification             |
+| `GITHUB_APP_SLUG`           | For PR integration      | GitHub App install link                    |
+| `GITHUB_APP_CLIENT_ID`      | For PR integration      | Verifies who completes an install          |
+| `GITHUB_APP_CLIENT_SECRET`  | For PR integration      | Verifies who completes an install          |
+| `GITHUB_WEBHOOK_SECRET`     | For repository webhooks | Verifies `/api/webhooks/github` deliveries |
 
 The integrations in Step 8 add their own variables.
 
 ### Convex Backend Service (Railway env vars)
 
-| Variable | Purpose |
-|----------|---------|
-| `CONVEX_CLOUD_ORIGIN` | Backend's own public URL |
-| `CONVEX_SITE_ORIGIN` | Same as above |
-| `CONVEX_SELF_HOSTED_ADMIN_KEY` | Master admin credential |
+| Variable                       | Purpose                  |
+| ------------------------------ | ------------------------ |
+| `CONVEX_CLOUD_ORIGIN`          | Backend's own public URL |
+| `CONVEX_SITE_ORIGIN`           | Same as above            |
+| `CONVEX_SELF_HOSTED_ADMIN_KEY` | Master admin credential  |
 
 The Caddy service needs `CONVEX_SITE_UPSTREAM` and `CONVEX_BACKEND_UPSTREAM` (Step 1b).
 
 ### Web Dashboard (`apps/web/.env.local`)
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `VITE_CONVEX_URL` | Yes | Convex backend URL |
-| `PORT` | No (default: 3000) | Server listen port |
-| `VITE_SENTRY_DSN` | No | Error tracking |
-| `VITE_POSTHOG_KEY` | No | Product analytics |
-| `VITE_POSTHOG_HOST` | No | PostHog ingest host |
-| `SENTRY_AUTH_TOKEN` | No | Source map upload (build-time) |
-| `SENTRY_ORG` | No | Sentry org (build-time) |
-| `SENTRY_PROJECT` | No | Sentry project (build-time) |
+| Variable            | Required           | Purpose                        |
+| ------------------- | ------------------ | ------------------------------ |
+| `VITE_CONVEX_URL`   | Yes                | Convex backend URL             |
+| `PORT`              | No (default: 3000) | Server listen port             |
+| `VITE_SENTRY_DSN`   | No                 | Error tracking                 |
+| `VITE_POSTHOG_KEY`  | No                 | Product analytics              |
+| `VITE_POSTHOG_HOST` | No                 | PostHog ingest host            |
+| `SENTRY_AUTH_TOKEN` | No                 | Source map upload (build-time) |
+| `SENTRY_ORG`        | No                 | Sentry org (build-time)        |
+| `SENTRY_PROJECT`    | No                 | Sentry project (build-time)    |
 
 ### CLI (`~/.codecast/config.json`)
 
-| Key | Purpose |
-|-----|---------|
-| `convex_url` | Convex backend URL |
-| `web_url` | Web dashboard URL |
+| Key          | Purpose                              |
+| ------------ | ------------------------------------ |
+| `convex_url` | Convex backend URL                   |
+| `web_url`    | Web dashboard URL                    |
 | `auth_token` | User auth token (set by `cast auth`) |
 
 `cast config` lists every key and sets one: `cast config <key> <value>`.
 
 ### CLI Deploy (`apps/cli/.env.deploy`)
 
-| Variable | Purpose |
-|----------|---------|
-| `AWS_ACCESS_KEY_ID` | S3-compatible storage key |
+| Variable                | Purpose                      |
+| ----------------------- | ---------------------------- |
+| `AWS_ACCESS_KEY_ID`     | S3-compatible storage key    |
 | `AWS_SECRET_ACCESS_KEY` | S3-compatible storage secret |
-| `R2_ENDPOINT` | S3-compatible endpoint URL |
+| `R2_ENDPOINT`           | S3-compatible endpoint URL   |
 
 ### Mobile (`apps/mobile/.env`)
 
-| Variable | Purpose |
-|----------|---------|
-| `EXPO_PUBLIC_CONVEX_URL` | Convex backend URL |
-| `EXPO_PUBLIC_SENTRY_DSN` | Error tracking |
-| `EXPO_PUBLIC_POSTHOG_KEY` | Product analytics |
+| Variable                   | Purpose             |
+| -------------------------- | ------------------- |
+| `EXPO_PUBLIC_CONVEX_URL`   | Convex backend URL  |
+| `EXPO_PUBLIC_SENTRY_DSN`   | Error tracking      |
+| `EXPO_PUBLIC_POSTHOG_KEY`  | Product analytics   |
 | `EXPO_PUBLIC_POSTHOG_HOST` | PostHog ingest host |
 
 ### Desktop
 
-| Variable | Purpose |
-|----------|---------|
-| `CODECAST_URL` | Web app URL to load (default: `https://codecast.sh`) |
-| `APPLE_TEAM_ID` | For notarization |
-| `APPLE_ID` | For notarization |
-| `APPLE_PASSWORD` | App-specific password for notarization |
-| `NOTARIZE_KEYCHAIN_PROFILE` | Alternative to Apple ID method |
+| Variable                    | Purpose                                              |
+| --------------------------- | ---------------------------------------------------- |
+| `CODECAST_URL`              | Web app URL to load (default: `https://codecast.sh`) |
+| `APPLE_TEAM_ID`             | For notarization                                     |
+| `APPLE_ID`                  | For notarization                                     |
+| `APPLE_PASSWORD`            | App-specific password for notarization               |
+| `NOTARIZE_KEYCHAIN_PROFILE` | Alternative to Apple ID method                       |
 
 ---
 
@@ -702,6 +716,7 @@ The callback URL registered in GitHub must point to your **Convex** domain: `htt
 ### Admin features not working
 
 Run the admin migration:
+
 ```bash
 npx convex run migrations:setStaff '{"email": "you@yourdomain.com", "staff": true}'
 ```

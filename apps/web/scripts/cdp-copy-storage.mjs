@@ -13,9 +13,15 @@ if (!statePath) throw new Error("Missing --state <storage-state.json>");
 const state = await Bun.file(statePath).json();
 const source = state.origins?.find((origin) => origin.origin === sourceOrigin);
 if (!source) throw new Error(`No storage state for ${sourceOrigin}`);
-const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-const target = targets.find((candidate) => candidate.type === "page" && candidate.url.includes(targetMatch));
-if (!target?.webSocketDebuggerUrl) throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
+const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+  (response) => response.json(),
+);
+const target = targets.find(
+  (candidate) =>
+    candidate.type === "page" && candidate.url.includes(targetMatch),
+);
+if (!target?.webSocketDebuggerUrl)
+  throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
 
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
@@ -43,7 +49,10 @@ const send = (method, params = {}) =>
 await send("Runtime.enable");
 const values = Object.fromEntries(
   source.localStorage
-    .filter(({ name }) => name.startsWith("__convexAuth") || name === "codecast-theme")
+    .filter(
+      ({ name }) =>
+        name.startsWith("__convexAuth") || name === "codecast-theme",
+    )
     .map(({ name, value }) => [name, value]),
 );
 await send("Runtime.evaluate", {
@@ -51,4 +60,10 @@ await send("Runtime.evaluate", {
 });
 if (navigate) await send("Page.navigate", { url: navigate });
 socket.close();
-console.log(JSON.stringify({ target: target.url, copied: Object.keys(values).length, navigate: navigate || undefined }));
+console.log(
+  JSON.stringify({
+    target: target.url,
+    copied: Object.keys(values).length,
+    navigate: navigate || undefined,
+  }),
+);

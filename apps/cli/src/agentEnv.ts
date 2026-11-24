@@ -44,7 +44,11 @@ export const SDK_SESSION_ENV = "CODECAST_SDK_SESSION";
 // permission prompt that waits on a person. The selector would otherwise
 // reach a daemon a session's command starts; the session marker would
 // silence the status hook of a pane that inherited it.
-export const AGENT_LAUNCH_UNSET_ENV = ["MCP_TOOL_TIMEOUT", SDK_BACKEND_ENV, SDK_SESSION_ENV] as const;
+export const AGENT_LAUNCH_UNSET_ENV = [
+  "MCP_TOOL_TIMEOUT",
+  SDK_BACKEND_ENV,
+  SDK_SESSION_ENV,
+] as const;
 
 // A shell-level effort override beats `--effort`, so it is dropped whenever
 // codecast picks the effort.
@@ -59,7 +63,10 @@ export const FORCE_PERSISTENCE_VAR = "CLAUDE_CODE_FORCE_SESSION_PERSISTENCE";
 // laptop -> host by the agent-auth push (remote/agentAuth.ts), whatever the
 // allow-list says — the host pins its own persistence var and must never
 // inherit a laptop's leaked session markers.
-export const MIRROR_EXCLUDED_ENV_VARS: readonly string[] = [FORCE_PERSISTENCE_VAR, ...AGENT_SCRUBBED_ENV_VARS];
+export const MIRROR_EXCLUDED_ENV_VARS: readonly string[] = [
+  FORCE_PERSISTENCE_VAR,
+  ...AGENT_SCRUBBED_ENV_VARS,
+];
 
 // Set to 1 in every agent a cloud host launches: the one test a hook, a skill
 // or a script needs to tell a cloud host from the laptop, the way Claude's own
@@ -71,8 +78,15 @@ export const CLOUD_ENV_VAR = "CODECAST_CLOUD";
 // silence a daemon-launched claude, and on a cloud host it names the host.
 // Pane-content detection keys off the literal "env -u CLAUDECODE" head
 // (daemon.ts findLaunchLine) — keep it first.
-export function agentEnvScrub(remote = isRemoteDevice(), opts: { effortSet?: boolean } = {}): string {
-  const unset = [...AGENT_SCRUBBED_ENV_VARS, ...AGENT_LAUNCH_UNSET_ENV, ...(opts.effortSet ? [EFFORT_OVERRIDE_ENV] : [])];
+export function agentEnvScrub(
+  remote = isRemoteDevice(),
+  opts: { effortSet?: boolean } = {},
+): string {
+  const unset = [
+    ...AGENT_SCRUBBED_ENV_VARS,
+    ...AGENT_LAUNCH_UNSET_ENV,
+    ...(opts.effortSet ? [EFFORT_OVERRIDE_ENV] : []),
+  ];
   return `env ${unset.map((v) => `-u ${v}`).join(" ")} ${FORCE_PERSISTENCE_VAR}=1${remote ? ` ${CLOUD_ENV_VAR}=1` : ""}`;
 }
 export const AGENT_ENV_SCRUB = agentEnvScrub();
@@ -106,15 +120,21 @@ export function launchTokenEnv(token: string | null | undefined): string {
 }
 
 // Drop the markers from an env object in place and return it.
-export function scrubAgentEnv<T extends Record<string, string | undefined>>(env: T): T {
+export function scrubAgentEnv<T extends Record<string, string | undefined>>(
+  env: T,
+): T {
   for (const v of AGENT_SCRUBBED_ENV_VARS) delete env[v];
   delete env[SDK_SESSION_ENV];
   return env;
 }
 
 // Markers currently persisted in the tmux server's global environment.
-export function leakedTmuxGlobalMarkers(showEnvironmentOutput: string): string[] {
-  const set = new Set<string>(showEnvironmentOutput.split("\n").map((l) => l.split("=")[0]));
+export function leakedTmuxGlobalMarkers(
+  showEnvironmentOutput: string,
+): string[] {
+  const set = new Set<string>(
+    showEnvironmentOutput.split("\n").map((l) => l.split("=")[0]),
+  );
   return AGENT_SCRUBBED_ENV_VARS.filter((v) => set.has(v));
 }
 
@@ -135,16 +155,26 @@ export type PersistencePinResult =
   | "unparseable"; // file exists but is not valid JSON — nothing safe to rewrite
 
 /** Pure planner: the new settings.json text, or null when nothing to write. */
-export function planClaudeSettingsPersistence(text: string | null): string | null {
-  if (text === null) return JSON.stringify({ env: { [FORCE_PERSISTENCE_VAR]: "1" } }, null, 4) + "\n";
+export function planClaudeSettingsPersistence(
+  text: string | null,
+): string | null {
+  if (text === null)
+    return (
+      JSON.stringify({ env: { [FORCE_PERSISTENCE_VAR]: "1" } }, null, 4) + "\n"
+    );
   let parsed: any;
   try {
     parsed = JSON.parse(text);
   } catch {
     return null;
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  if (parsed.env && typeof parsed.env === "object" && !Array.isArray(parsed.env)) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return null;
+  if (
+    parsed.env &&
+    typeof parsed.env === "object" &&
+    !Array.isArray(parsed.env)
+  ) {
     if (FORCE_PERSISTENCE_VAR in parsed.env) return null; // pinned or authored — either way not ours to change
   } else {
     parsed.env = {};
@@ -152,11 +182,15 @@ export function planClaudeSettingsPersistence(text: string | null): string | nul
   parsed.env[FORCE_PERSISTENCE_VAR] = "1";
   // Keep the file's own indent (installStableHook writes 4, older tools 2).
   const indent = /^\{\n( +)"/.exec(text)?.[1]?.length ?? 4;
-  return JSON.stringify(parsed, null, indent) + (text.endsWith("\n") ? "\n" : "");
+  return (
+    JSON.stringify(parsed, null, indent) + (text.endsWith("\n") ? "\n" : "")
+  );
 }
 
 /** Reconcile ~/.claude/settings.json on disk. Creates the file when absent. */
-export function ensureClaudeSettingsPersistence(home: string = process.env.HOME || ""): PersistencePinResult {
+export function ensureClaudeSettingsPersistence(
+  home: string = process.env.HOME || "",
+): PersistencePinResult {
   if (!home) return "left-alone";
   const file = path.join(home, ".claude", "settings.json");
   let text: string | null = null;
@@ -175,6 +209,9 @@ export function ensureClaudeSettingsPersistence(home: string = process.env.HOME 
   } catch {
     return "unparseable";
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return "unparseable";
-  return parsed.env?.[FORCE_PERSISTENCE_VAR] === "1" ? "already-pinned" : "left-alone";
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return "unparseable";
+  return parsed.env?.[FORCE_PERSISTENCE_VAR] === "1"
+    ? "already-pinned"
+    : "left-alone";
 }

@@ -33,12 +33,19 @@ export function turnUnanswered(tail: string): boolean | null {
       continue; // the cut first line of a tail, or a line mid-write
     }
     if (entry.isSidechain) continue;
-    const role = entry.message?.role ?? (entry.type === "user" || entry.type === "assistant" ? entry.type : undefined);
+    const role =
+      entry.message?.role ??
+      (entry.type === "user" || entry.type === "assistant"
+        ? entry.type
+        : undefined);
     const content = entry.message?.content;
     const blocks = Array.isArray(content) ? content : [];
     if (role === "assistant") return blocks.at(-1)?.type === "tool_use";
     if (role !== "user" || entry.isMeta) continue;
-    const text = typeof content === "string" ? content : blocks.find((b) => b.type === "text")?.text ?? "";
+    const text =
+      typeof content === "string"
+        ? content
+        : (blocks.find((b) => b.type === "text")?.text ?? "");
     if (INTERRUPTED.test(text)) return false;
     if (typeof content === "string" && LOCAL_COMMAND.test(content)) continue;
     return true;

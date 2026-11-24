@@ -17,7 +17,9 @@ function summonCompose(rig) {
 }
 
 function submit(rig, palette) {
-  rig.handlers.get("compose-submit")(rig.event(palette.webContents), { navigate: false });
+  rig.handlers.get("compose-submit")(rig.event(palette.webContents), {
+    navigate: false,
+  });
 }
 
 function loadWithChord() {
@@ -53,25 +55,33 @@ test("re-summoning while the palette is focused keeps the window it first opened
   assert.equal(rig.mainWindow.did("focus").length, focusesBefore + 1);
 });
 
-test("Enter after summoning over another app steps out of Codecast", { skip: process.platform !== "darwin" }, () => {
-  const rig = loadWithChord();
-  rig.focus.window = null;
-  const palette = summonCompose(rig);
-  rig.focus.window = palette;
-  submit(rig, palette);
+test(
+  "Enter after summoning over another app steps out of Codecast",
+  { skip: process.platform !== "darwin" },
+  () => {
+    const rig = loadWithChord();
+    rig.focus.window = null;
+    const palette = summonCompose(rig);
+    rig.focus.window = palette;
+    submit(rig, palette);
 
-  assert.equal(rig.electron.app.hides, 1);
-});
+    assert.equal(rig.electron.app.hides, 1);
+  },
+);
 
-test("Enter after summoning with the agent dock holding the keyboard steps out: the dock never activates Codecast", { skip: process.platform !== "darwin" }, () => {
-  const rig = loadWithChord();
-  rig.handlers.get("app:agentDock.set")(rig.event(), { enabled: true });
-  const dock = rig.windows.find((w) => w.options.type === "panel");
-  rig.focus.window = dock;
-  const palette = summonCompose(rig);
-  rig.focus.window = palette;
-  submit(rig, palette);
+test(
+  "Enter after summoning with the agent dock holding the keyboard steps out: the dock never activates Codecast",
+  { skip: process.platform !== "darwin" },
+  () => {
+    const rig = loadWithChord();
+    rig.handlers.get("app:agentDock.set")(rig.event(), { enabled: true });
+    const dock = rig.windows.find((w) => w.options.type === "panel");
+    rig.focus.window = dock;
+    const palette = summonCompose(rig);
+    rig.focus.window = palette;
+    submit(rig, palette);
 
-  assert.equal(rig.electron.app.hides, 1);
-  assert.equal(dock.did("focus").length, 0);
-});
+    assert.equal(rig.electron.app.hides, 1);
+    assert.equal(dock.did("focus").length, 0);
+  },
+);

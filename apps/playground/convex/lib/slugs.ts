@@ -25,7 +25,10 @@ export function slugStem(name: string): string {
   return stem || (words[0]?.slice(0, SLUG_STEM_MAX) ?? "") || "app";
 }
 
-export function makeSlug(name: string, tail = randomToken(SLUG_TAIL_LENGTH, SLUG_TAIL_ALPHABET)): string {
+export function makeSlug(
+  name: string,
+  tail = randomToken(SLUG_TAIL_LENGTH, SLUG_TAIL_ALPHABET),
+): string {
   return `${slugStem(name)}-${tail}`;
 }
 
@@ -39,20 +42,32 @@ export function isSlug(s: unknown): s is string {
 
 /** A name a person typed: one line, trimmed, capped; null when nothing is left. */
 export function cleanAppName(raw: string | null | undefined): string | null {
-  const s = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, APP_NAME_MAX).trim();
+  const s = (raw ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, APP_NAME_MAX)
+    .trim();
   return s.length ? s : null;
 }
 
-const PROMPT_LEAD = /^(?:(?:please|can you|could you|let'?s|i want|i'?d like)\s+)?(?:(?:make|build|create|write|draw|design)\s+(?:me\s+|us\s+)?)?(?:(?:a|an|the|some)\s+)?/i;
+const PROMPT_LEAD =
+  /^(?:(?:please|can you|could you|let'?s|i want|i'?d like)\s+)?(?:(?:make|build|create|write|draw|design)\s+(?:me\s+|us\s+)?)?(?:(?:a|an|the|some)\s+)?/i;
 const NAME_WORDS = 4;
 
 /** A short name from a "Make something" prompt: the subject before the first
  *  clause break, lead-in verbs and articles dropped, sentence case.
  *  "a frog choir, one note per person" -> "Frog choir". */
 export function nameFromPrompt(prompt: string): string {
-  const firstClause = prompt.trim().split(/[,.;:!?\n(]|\s(?:where|that|which|with|for|so|and)\s/i)[0] ?? "";
+  const firstClause =
+    prompt
+      .trim()
+      .split(/[,.;:!?\n(]|\s(?:where|that|which|with|for|so|and)\s/i)[0] ?? "";
   const subject = firstClause.replace(PROMPT_LEAD, "").trim();
-  const words = subject.split(/\s+/).filter(Boolean).slice(0, NAME_WORDS).join(" ");
+  const words = subject
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, NAME_WORDS)
+    .join(" ");
   const name = cleanAppName(words);
   return name ? name[0].toUpperCase() + name.slice(1) : "Untitled";
 }

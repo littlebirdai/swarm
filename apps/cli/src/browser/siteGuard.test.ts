@@ -9,7 +9,19 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { auditExplicitLoads, browserJarRead, NAVIGATING_VERBS, refuseNavigation, signInHost, signInLandingNote, urlsLoadedBy, vaultJarRefusal, viaFor, webAuthnRefusal, withScheme } from "./siteGuard.js";
+import {
+  auditExplicitLoads,
+  browserJarRead,
+  NAVIGATING_VERBS,
+  refuseNavigation,
+  signInHost,
+  signInLandingNote,
+  urlsLoadedBy,
+  vaultJarRefusal,
+  viaFor,
+  webAuthnRefusal,
+  withScheme,
+} from "./siteGuard.js";
 import { SECRET_APPROVAL_TTL_MS } from "@codecast/shared/contracts/secrets";
 import type { SigninMemory } from "../secrets/signin.js";
 import { readAudit } from "./audit.js";
@@ -26,13 +38,21 @@ afterEach(() => {
 });
 
 const lockdown: SitePolicy = {
-  sources: [{ file: "/proj/workspace.toml", key: "[browser] allow", patterns: ["example.com"] }],
+  sources: [
+    {
+      file: "/proj/workspace.toml",
+      key: "[browser] allow",
+      patterns: ["example.com"],
+    },
+  ],
   errors: [],
 };
 
 describe("refuseNavigation", () => {
   test("allowed → null, nothing recorded yet (the landing records it)", () => {
-    expect(refuseNavigation("https://example.com/x", "s", "open", lockdown)).toBeNull();
+    expect(
+      refuseNavigation("https://example.com/x", "s", "open", lockdown),
+    ).toBeNull();
     expect(readAudit()).toHaveLength(0);
   });
 
@@ -41,18 +61,27 @@ describe("refuseNavigation", () => {
     expect(deny!.message).toContain("https://evil.example");
     const rows = readAudit();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ origin: "https://evil.example", blocked: true, via: "open", tab: "-" });
+    expect(rows[0]).toMatchObject({
+      origin: "https://evil.example",
+      blocked: true,
+      via: "open",
+      tab: "-",
+    });
   });
 
   test("no policy → never refuses", () => {
-    expect(refuseNavigation("https://anything.io", "s", "batch", null)).toBeNull();
+    expect(
+      refuseNavigation("https://anything.io", "s", "batch", null),
+    ).toBeNull();
   });
 });
 
 describe("passthrough verb table", () => {
   test("verbs that can move the page are audited; read-only ones are not", () => {
-    for (const v of ["open", "click", "press", "back", "reload", "do"]) expect(NAVIGATING_VERBS.has(v)).toBe(true);
-    for (const v of ["snapshot", "text", "console", "shot", "eval"]) expect(NAVIGATING_VERBS.has(v)).toBe(false);
+    for (const v of ["open", "click", "press", "back", "reload", "do"])
+      expect(NAVIGATING_VERBS.has(v)).toBe(true);
+    for (const v of ["snapshot", "text", "console", "shot", "eval"])
+      expect(NAVIGATING_VERBS.has(v)).toBe(false);
   });
   test("via labels match the built-in driver's", () => {
     expect(viaFor("open")).toBe("open");
@@ -69,16 +98,30 @@ describe("passthrough verb table", () => {
 
 describe("signInHost", () => {
   test("names the identity host a signed-out browser is redirected to", () => {
-    expect(signInHost("https://accounts.google.com/v3/signin/accountchooser?continue=https://ads.google.com")).toBe("accounts.google.com");
-    expect(signInHost("https://login.microsoftonline.com/common/oauth2/authorize")).toBe("login.microsoftonline.com");
-    expect(signInHost("https://github.com/login?return_to=%2Fsettings")).toBe("github.com");
-    expect(signInHost("https://app.example.com/users/sign_in")).toBe("app.example.com");
-    expect(signInHost("https://sso.corp.example.com/")).toBe("sso.corp.example.com");
+    expect(
+      signInHost(
+        "https://accounts.google.com/v3/signin/accountchooser?continue=https://ads.google.com",
+      ),
+    ).toBe("accounts.google.com");
+    expect(
+      signInHost("https://login.microsoftonline.com/common/oauth2/authorize"),
+    ).toBe("login.microsoftonline.com");
+    expect(signInHost("https://github.com/login?return_to=%2Fsettings")).toBe(
+      "github.com",
+    );
+    expect(signInHost("https://app.example.com/users/sign_in")).toBe(
+      "app.example.com",
+    );
+    expect(signInHost("https://sso.corp.example.com/")).toBe(
+      "sso.corp.example.com",
+    );
   });
   test("leaves ordinary pages alone", () => {
     expect(signInHost("https://ads.google.com/aw/overview")).toBeNull();
     expect(signInHost("https://github.com/ashot/codecast")).toBeNull();
-    expect(signInHost("https://example.com/blog/how-we-login-users")).toBeNull();
+    expect(
+      signInHost("https://example.com/blog/how-we-login-users"),
+    ).toBeNull();
     expect(signInHost("id.example")).toBeNull(); // two labels: "id" is the site, not a front door
     expect(signInHost("not a url at all ::")).toBeNull();
   });
@@ -87,35 +130,61 @@ describe("signInHost", () => {
 describe("signInLandingNote", () => {
   const google = (h: string) => h.endsWith("google.com");
   test("says the login was never copied for a site the agent browser keeps for itself", () => {
-    const note = signInLandingNote("https://accounts.google.com/signin", google, { real: false })!;
+    const note = signInLandingNote(
+      "https://accounts.google.com/signin",
+      google,
+      { real: false },
+    )!;
     expect(note).toContain("accounts.google.com");
     expect(note).toContain("keeps its own login");
     expect(note).toContain("cast browser login");
   });
   test("says the cookies were carried for any other site", () => {
-    expect(signInLandingNote("https://github.com/login", google, { real: false })).toContain("were carried");
+    expect(
+      signInLandingNote("https://github.com/login", google, { real: false }),
+    ).toContain("were carried");
   });
   test("is silent off a sign-in page", () => {
-    expect(signInLandingNote("https://github.com/ashot", google, { real: false })).toBeNull();
+    expect(
+      signInLandingNote("https://github.com/ashot", google, { real: false }),
+    ).toBeNull();
   });
   test("carries the real Chrome hint when the session is on the clone", () => {
-    const note = signInLandingNote("https://github.com/login", google, { real: false, realHint: "your real Chrome holds this login: pair the extension" })!;
+    const note = signInLandingNote("https://github.com/login", google, {
+      real: false,
+      realHint: "your real Chrome holds this login: pair the extension",
+    })!;
     expect(note).toContain("Or your real Chrome holds this login");
-    expect(signInLandingNote("https://github.com/login", google, { real: false, realHint: null })).not.toContain("Or ");
+    expect(
+      signInLandingNote("https://github.com/login", google, {
+        real: false,
+        realHint: null,
+      }),
+    ).not.toContain("Or ");
   });
   test("in the human's own Chrome, signs in from the Vault or hands the sign-in over, and never names a verb that refuses there", () => {
-    const note = signInLandingNote("https://console.anthropic.com/login", google, { real: true, realHint: "ignored" })!;
+    const note = signInLandingNote(
+      "https://console.anthropic.com/login",
+      google,
+      { real: true, realHint: "ignored" },
+    )!;
     expect(note).toContain("console.anthropic.com");
     expect(note).toContain("--vault <name>/username");
     expect(note).toContain("cast browser handoff");
     expect(note).toContain("copy cookies or move to another browser");
-    for (const refused of ["cast browser login", "cast browser sync", "Or "]) expect(note).not.toContain(refused);
+    for (const refused of ["cast browser login", "cast browser sync", "Or "])
+      expect(note).not.toContain(refused);
   });
 });
 
 describe("the Vault page is a person's", () => {
   test("an agent cannot open /vault on a codecast origin that serves the person's Vault, and the attempt is on the trail", () => {
-    for (const url of ["https://codecast.sh/vault", "codecast.sh/vault?s=sec-4", "https://www.codecast.sh/VAULT", "https://local.codecast.sh/vault/"]) {
+    for (const url of [
+      "https://codecast.sh/vault",
+      "codecast.sh/vault?s=sec-4",
+      "https://www.codecast.sh/VAULT",
+      "https://local.codecast.sh/vault/",
+    ]) {
       const deny = refuseNavigation(url, "s", "open", null);
       expect(deny?.message).toContain("only a person uses the Vault page");
       expect(deny?.hint).toContain("localhost:3200/vault");
@@ -124,20 +193,40 @@ describe("the Vault page is a person's", () => {
   });
 
   test("the dev server's /vault opens: an agent's tab sees a sample Vault there", () => {
-    for (const url of ["http://localhost:3200/vault", "http://127.0.0.1:3200/VAULT?s=sec-901", "localhost:3200/vault/"]) {
+    for (const url of [
+      "http://localhost:3200/vault",
+      "http://127.0.0.1:3200/VAULT?s=sec-901",
+      "localhost:3200/vault/",
+    ]) {
       expect(refuseNavigation(url, "s", "open", null)).toBeNull();
     }
   });
 
   test("a web_url this machine is configured with counts as codecast, unless it is the dev server", () => {
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ web_url: "https://cast.example.dev" }));
-    expect(refuseNavigation("https://cast.example.dev/vault", "s", "open", null)).not.toBeNull();
-    fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ web_url: "http://localhost:3200" }));
-    expect(refuseNavigation("http://localhost:3200/vault", "s", "open", null)).toBeNull();
+    fs.writeFileSync(
+      path.join(dir, "config.json"),
+      JSON.stringify({ web_url: "https://cast.example.dev" }),
+    );
+    expect(
+      refuseNavigation("https://cast.example.dev/vault", "s", "open", null),
+    ).not.toBeNull();
+    fs.writeFileSync(
+      path.join(dir, "config.json"),
+      JSON.stringify({ web_url: "http://localhost:3200" }),
+    );
+    expect(
+      refuseNavigation("http://localhost:3200/vault", "s", "open", null),
+    ).toBeNull();
   });
 
   test("the rest of the app, and /vault on any other site, stay open", () => {
-    for (const url of ["https://codecast.sh/inbox", "http://localhost:3200/files?f=notes.md", "http://localhost:3200/vaults", "https://example.com/vault", "http://localhost:3000/vault"]) {
+    for (const url of [
+      "https://codecast.sh/inbox",
+      "http://localhost:3200/files?f=notes.md",
+      "http://localhost:3200/vaults",
+      "https://example.com/vault",
+      "http://localhost:3000/vault",
+    ]) {
       expect(refuseNavigation(url, "s", "open", null)).toBeNull();
     }
   });
@@ -147,42 +236,101 @@ describe("the Vault page is a person's", () => {
     expect(urlsLoadedBy("read", ["x.com"])).toEqual(["x.com"]);
     expect(urlsLoadedBy("tab", ["new", "x.com"])).toEqual(["x.com"]);
     expect(urlsLoadedBy("tab", ["close", "t2"])).toEqual([]);
-    expect(urlsLoadedBy("diff", ["url", "a.com", "b.com"])).toEqual(["a.com", "b.com"]);
-    expect(urlsLoadedBy("pushstate", ["/vault"], () => "http://localhost:3200/inbox")).toEqual(["http://localhost:3200/vault"]);
-    expect(urlsLoadedBy("pushstate", ["/vault"])).toEqual(["https://codecast.sh/vault"]);
+    expect(urlsLoadedBy("diff", ["url", "a.com", "b.com"])).toEqual([
+      "a.com",
+      "b.com",
+    ]);
+    expect(
+      urlsLoadedBy(
+        "pushstate",
+        ["/vault"],
+        () => "http://localhost:3200/inbox",
+      ),
+    ).toEqual(["http://localhost:3200/vault"]);
+    expect(urlsLoadedBy("pushstate", ["/vault"])).toEqual([
+      "https://codecast.sh/vault",
+    ]);
     expect(urlsLoadedBy("click", ["#e4"])).toEqual([]);
   });
 
   test("a flag's value cannot shift the gate off the URL", () => {
     // The first positional is the flag's value; the URL after it is still gated.
-    expect(urlsLoadedBy("open", ["--wait-until", "load", "codecast.sh/vault"])).toEqual(["load", "codecast.sh/vault"]);
-    expect(urlsLoadedBy("tab", ["new", "--label", "work", "https://codecast.sh/vault"])).toEqual(["work", "https://codecast.sh/vault"]);
-    expect(urlsLoadedBy("open", ["--url=https://codecast.sh/vault"])).toEqual(["https://codecast.sh/vault"]);
-    expect(urlsLoadedBy("read", ["--filter", "Total", "localhost:3200/inbox"])).toEqual(["Total", "localhost:3200/inbox"]);
-    expect(urlsLoadedBy("pushstate", ["--replace", "x", "https://codecast.sh/vault"], () => "http://localhost:3200/")).toEqual(["http://localhost:3200/x", "https://codecast.sh/vault"]);
+    expect(
+      urlsLoadedBy("open", ["--wait-until", "load", "codecast.sh/vault"]),
+    ).toEqual(["load", "codecast.sh/vault"]);
+    expect(
+      urlsLoadedBy("tab", [
+        "new",
+        "--label",
+        "work",
+        "https://codecast.sh/vault",
+      ]),
+    ).toEqual(["work", "https://codecast.sh/vault"]);
+    expect(urlsLoadedBy("open", ["--url=https://codecast.sh/vault"])).toEqual([
+      "https://codecast.sh/vault",
+    ]);
+    expect(
+      urlsLoadedBy("read", ["--filter", "Total", "localhost:3200/inbox"]),
+    ).toEqual(["Total", "localhost:3200/inbox"]);
+    expect(
+      urlsLoadedBy(
+        "pushstate",
+        ["--replace", "x", "https://codecast.sh/vault"],
+        () => "http://localhost:3200/",
+      ),
+    ).toEqual(["http://localhost:3200/x", "https://codecast.sh/vault"]);
     // The refusal follows: the Vault page behind a flag value is still refused.
-    const refused = urlsLoadedBy("open", ["--wait-until", "load", "codecast.sh/vault"]).map((u) => refuseNavigation(u, "s1", "open", null));
-    expect(refused.some((r) => r?.message.includes("only a person uses the Vault page"))).toBe(true);
+    const refused = urlsLoadedBy("open", [
+      "--wait-until",
+      "load",
+      "codecast.sh/vault",
+    ]).map((u) => refuseNavigation(u, "s1", "open", null));
+    expect(
+      refused.some((r) =>
+        r?.message.includes("only a person uses the Vault page"),
+      ),
+    ).toBe(true);
   });
 
   test("a URL loaded by a verb the landing audit skips still leaves an audit row", () => {
-    auditExplicitLoads("tab", ["new", "https://example.com/a"], "engine:s1", "s1");
-    auditExplicitLoads("read", ["https://docs.example.org/x"], "engine:s1", "s1");
+    auditExplicitLoads(
+      "tab",
+      ["new", "https://example.com/a"],
+      "engine:s1",
+      "s1",
+    );
+    auditExplicitLoads(
+      "read",
+      ["https://docs.example.org/x"],
+      "engine:s1",
+      "s1",
+    );
     auditExplicitLoads("open", ["https://skipped.example"], "engine:s1", "s1"); // open is audited where it lands
-    expect(readAudit().map((r) => r.origin)).toEqual(["https://example.com", "https://docs.example.org"]);
+    expect(readAudit().map((r) => r.origin)).toEqual([
+      "https://example.com",
+      "https://docs.example.org",
+    ]);
   });
 });
 
 describe("agents cannot mint passkeys", () => {
   test("a command naming any CDP WebAuthn method is refused, whatever its position", () => {
-    for (const [verb, args] of [["WebAuthn.enable", []], ["cdp", ["WebAuthn.addVirtualAuthenticator", "{}"]], ["send", ["--json", "webauthn.addCredential"]]] as const) {
-      expect(webAuthnRefusal(verb, args)?.message).toContain("agents cannot create or use passkeys");
+    for (const [verb, args] of [
+      ["WebAuthn.enable", []],
+      ["cdp", ["WebAuthn.addVirtualAuthenticator", "{}"]],
+      ["send", ["--json", "webauthn.addCredential"]],
+    ] as const) {
+      expect(webAuthnRefusal(verb, args)?.message).toContain(
+        "agents cannot create or use passkeys",
+      );
     }
   });
 
   test("ordinary commands, and text that merely mentions WebAuthn, pass", () => {
     expect(webAuthnRefusal("open", ["https://webauthn.io"])).toBeNull();
-    expect(webAuthnRefusal("fill", ["#q", "WebAuthn.enable is refused"])).toBeNull();
+    expect(
+      webAuthnRefusal("fill", ["#q", "WebAuthn.enable is refused"]),
+    ).toBeNull();
     expect(webAuthnRefusal("profiler", ["start"])).toBeNull();
   });
 });
@@ -190,7 +338,11 @@ describe("agents cannot mint passkeys", () => {
 describe("Ask first sign-ins in the shared agent browser", () => {
   const NOW = 1_800_000_000_000;
   const memory = (approved: Record<string, number>): SigninMemory => ({
-    name: "github-signin", keys: ["user_session\u0000.github.com"], digest: "d", at: NOW, captured_from: "chrome",
+    name: "github-signin",
+    keys: ["user_session\u0000.github.com"],
+    digest: "d",
+    at: NOW,
+    captured_from: "chrome",
     ask_first: { sites: ["github.com"], approved },
   });
 
@@ -202,7 +354,9 @@ describe("Ask first sign-ins in the shared agent browser", () => {
     expect(browserJarRead("cookies", ["clear"])).toBeNull();
     expect(browserJarRead("storage", ["local"])).toBe("page");
     expect(browserJarRead("storage", ["session", "get", "token"])).toBe("page");
-    expect(browserJarRead("storage", ["local", "set", "theme", "dark"])).toBeNull();
+    expect(
+      browserJarRead("storage", ["local", "set", "theme", "dark"]),
+    ).toBeNull();
     expect(browserJarRead("state", ["save", "./auth.json"])).toBe("jar");
     expect(browserJarRead("state", ["list"])).toBeNull();
     expect(browserJarRead("snapshot", ["-i"])).toBeNull();
@@ -213,21 +367,45 @@ describe("Ask first sign-ins in the shared agent browser", () => {
     const jar = vaultJarRefusal("jar", null, "jx7b", state, NOW + 1);
     expect(jar?.message).toContain("Ask first sign-in github-signin");
     expect(jar?.hint).toContain("cast browser open https://github.com");
-    expect(vaultJarRefusal("page", "https://gist.github.com/x", "jx7b", state, NOW + 1)).not.toBeNull();
-    expect(vaultJarRefusal("page", "http://localhost:3200/inbox", "jx7b", state, NOW + 1)).toBeNull();
-    expect(vaultJarRefusal("page", null, "jx7b", state, NOW + 1)).not.toBeNull();
+    expect(
+      vaultJarRefusal(
+        "page",
+        "https://gist.github.com/x",
+        "jx7b",
+        state,
+        NOW + 1,
+      ),
+    ).not.toBeNull();
+    expect(
+      vaultJarRefusal(
+        "page",
+        "http://localhost:3200/inbox",
+        "jx7b",
+        state,
+        NOW + 1,
+      ),
+    ).toBeNull();
+    expect(
+      vaultJarRefusal("page", null, "jx7b", state, NOW + 1),
+    ).not.toBeNull();
     expect(vaultJarRefusal("jar", null, null, state, NOW + 1)).not.toBeNull();
   });
 
   test("the approved session reads until its approval would have lapsed", () => {
     const state = { sid: memory({ jx7a: NOW }) };
     expect(vaultJarRefusal("jar", null, "jx7a", state, NOW + 1)).toBeNull();
-    expect(vaultJarRefusal("page", "https://github.com", "jx7a", state, NOW + 1)).toBeNull();
-    expect(vaultJarRefusal("jar", null, "jx7a", state, NOW + SECRET_APPROVAL_TTL_MS)).not.toBeNull();
+    expect(
+      vaultJarRefusal("page", "https://github.com", "jx7a", state, NOW + 1),
+    ).toBeNull();
+    expect(
+      vaultJarRefusal("jar", null, "jx7a", state, NOW + SECRET_APPROVAL_TTL_MS),
+    ).not.toBeNull();
   });
 
   test("a sign-in that is not Ask first never refuses", () => {
     const { ask_first: _, ...plain } = memory({});
-    expect(vaultJarRefusal("jar", null, "jx7b", { sid: plain }, NOW)).toBeNull();
+    expect(
+      vaultJarRefusal("jar", null, "jx7b", { sid: plain }, NOW),
+    ).toBeNull();
   });
 });

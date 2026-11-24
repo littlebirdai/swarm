@@ -11,7 +11,11 @@
 
 import { roleIdentity } from "@codecast/shared/contracts/orgIdentity";
 import { useInboxStore } from "../store/inboxStore";
-import { agentName, rootAgentOf, type AnchorRow } from "../hooks/useSyncAnchors";
+import {
+  agentName,
+  rootAgentOf,
+  type AnchorRow,
+} from "../hooks/useSyncAnchors";
 import { identityPrefsNow } from "../hooks/useIdentityPrefs";
 import type { IdentityPrefs } from "./sessionIdentity";
 
@@ -23,8 +27,14 @@ export function readHeaderPins(state: any): HeaderPin[] | null {
 }
 
 /** True when the header shows it, the default face included. */
-export function isHeaderPinned(state: any, kind: HeaderPin["kind"], id: string): boolean {
-  return (readHeaderPins(state) ?? defaultPinsOf(state)).some((p) => p.kind === kind && p.id === id);
+export function isHeaderPinned(
+  state: any,
+  kind: HeaderPin["kind"],
+  id: string,
+): boolean {
+  return (readHeaderPins(state) ?? defaultPinsOf(state)).some(
+    (p) => p.kind === kind && p.id === id,
+  );
 }
 
 /** A resolved pin: what the header draws and what a click opens. */
@@ -42,28 +52,60 @@ export type ResolvedPin = {
 
 /** The person's global Executive Assistant, when one stands among the rows they see. */
 export function globalAssistantOf(anchors: AnchorRow[]): AnchorRow | null {
-  return anchors.find((a) => a.scope_type === "user" && a.role?.assistant?.reach === "global" && a.role.status !== "retired") ?? null;
+  return (
+    anchors.find(
+      (a) =>
+        a.scope_type === "user" &&
+        a.role?.assistant?.reach === "global" &&
+        a.role.status !== "retired",
+    ) ?? null
+  );
 }
 
 /** The one line a role row reads as: its given name, and its title with an
  *  assistant's reach ("Ada", "Executive Assistant, global"). With characters
  *  off the title is the name, and the handle takes the subtitle's place. A
  *  row not yet seated reads as the workspace's agent. */
-export function anchorIdentityWords(a: AnchorRow | null | undefined, prefs: IdentityPrefs = identityPrefsNow()): { name: string; subtitle: string } {
+export function anchorIdentityWords(
+  a: AnchorRow | null | undefined,
+  prefs: IdentityPrefs = identityPrefsNow(),
+): { name: string; subtitle: string } {
   if (a?.role) {
-    const id = roleIdentity({ ...a.role, scope_type: a.scope_type }, { teamName: a.team_name, characters: prefs.characters });
-    return { name: id.name, subtitle: prefs.characters ? id.subtitle : `@${a.role.handle}` };
+    const id = roleIdentity(
+      { ...a.role, scope_type: a.scope_type },
+      { teamName: a.team_name, characters: prefs.characters },
+    );
+    return {
+      name: id.name,
+      subtitle: prefs.characters ? id.subtitle : `@${a.role.handle}`,
+    };
   }
-  return { name: agentName(a), subtitle: a?.scope_type === "team" ? `${a.team_name ?? "Team"}'s agent` : "Your agent" };
+  return {
+    name: agentName(a),
+    subtitle:
+      a?.scope_type === "team"
+        ? `${a.team_name ?? "Team"}'s agent`
+        : "Your agent",
+  };
 }
 
 /** What the header shows when nothing is pinned, and what the panel opens on
  *  when no pin resolves (an emptied list still reaches the assistant). */
-export function defaultPinOf(anchors: AnchorRow[], activeTeamId: string | null | undefined): ResolvedPin | null {
+export function defaultPinOf(
+  anchors: AnchorRow[],
+  activeTeamId: string | null | undefined,
+): ResolvedPin | null {
   const def = globalAssistantOf(anchors) ?? rootAgentOf(anchors, activeTeamId);
   if (!def) return null;
   const words = anchorIdentityWords(def);
-  return { key: `anchor:${def._id}`, pin: null, anchor: def, conversationId: def.conversation_id ? String(def.conversation_id) : null, ...words, isDefault: true };
+  return {
+    key: `anchor:${def._id}`,
+    pin: null,
+    anchor: def,
+    conversationId: def.conversation_id ? String(def.conversation_id) : null,
+    ...words,
+    isDefault: true,
+  };
 }
 
 export function resolveHeaderPins(
@@ -79,14 +121,34 @@ export function resolveHeaderPins(
   const out: ResolvedPin[] = [];
   for (const pin of pins) {
     if (pin.kind === "role") {
-      const a = anchors.find((row) => row.role && String(row.role._id) === pin.id && row.role.status !== "retired");
+      const a = anchors.find(
+        (row) =>
+          row.role &&
+          String(row.role._id) === pin.id &&
+          row.role.status !== "retired",
+      );
       if (!a) continue;
       const words = anchorIdentityWords(a);
-      out.push({ key: `role:${pin.id}`, pin, anchor: a, conversationId: a.conversation_id ? String(a.conversation_id) : null, ...words, isDefault: false });
+      out.push({
+        key: `role:${pin.id}`,
+        pin,
+        anchor: a,
+        conversationId: a.conversation_id ? String(a.conversation_id) : null,
+        ...words,
+        isDefault: false,
+      });
     } else {
       const s = sessions[pin.id];
       if (!s) continue;
-      out.push({ key: `session:${pin.id}`, pin, anchor: null, conversationId: pin.id, name: s.title || "Session", subtitle: s.short_id ? `session ${s.short_id}` : "session", isDefault: false });
+      out.push({
+        key: `session:${pin.id}`,
+        pin,
+        anchor: null,
+        conversationId: pin.id,
+        name: s.title || "Session",
+        subtitle: s.short_id ? `session ${s.short_id}` : "session",
+        isDefault: false,
+      });
     }
   }
   return out;
@@ -100,7 +162,9 @@ export function toggleHeaderPin(kind: HeaderPin["kind"], id: string): void {
   const current = readHeaderPins(store);
   const base: HeaderPin[] = current ?? defaultPinsOf(store);
   const exists = base.some((p) => p.kind === kind && p.id === id);
-  const next = exists ? base.filter((p) => !(p.kind === kind && p.id === id)) : [...base, { kind, id }];
+  const next = exists
+    ? base.filter((p) => !(p.kind === kind && p.id === id))
+    : [...base, { kind, id }];
   store.updateClientUI({ header_pins: next });
 }
 
@@ -108,22 +172,33 @@ export function toggleHeaderPin(kind: HeaderPin["kind"], id: string): void {
  *  dropped back on the header it reorders, dropped on the stage it splits. */
 export const HEADER_PIN_DRAG_TYPE = "codecast/header-pin";
 
-const samePin = (a: HeaderPin, b: HeaderPin) => a.kind === b.kind && a.id === b.id;
+const samePin = (a: HeaderPin, b: HeaderPin) =>
+  a.kind === b.kind && a.id === b.id;
 
 /** Move one pin to sit just before another (null: last). Positions are in the
  *  stored list, which may hold pins this viewer cannot draw; they keep their
  *  places relative to the rest. */
-export function movePin(list: HeaderPin[], from: HeaderPin, before: HeaderPin | null): HeaderPin[] {
+export function movePin(
+  list: HeaderPin[],
+  from: HeaderPin,
+  before: HeaderPin | null,
+): HeaderPin[] {
   if (before && samePin(from, before)) return list;
   const rest = list.filter((p) => !samePin(p, from));
   const at = before ? rest.findIndex((p) => samePin(p, before)) : -1;
-  return at < 0 ? [...rest, from] : [...rest.slice(0, at), from, ...rest.slice(at)];
+  return at < 0
+    ? [...rest, from]
+    : [...rest.slice(0, at), from, ...rest.slice(at)];
 }
 
 /** Where a dragged face lands in its row: the index of the first face whose
  *  midpoint lies right of the pointer (the row's length past the last one),
  *  or null when that slot is the face's own place on either side of it. */
-export function pinDropSlot(midpoints: number[], x: number, from: number): number | null {
+export function pinDropSlot(
+  midpoints: number[],
+  x: number,
+  from: number,
+): number | null {
   let index = midpoints.findIndex((mid) => x < mid);
   if (index < 0) index = midpoints.length;
   return index === from || index === from + 1 ? null : index;
@@ -138,7 +213,14 @@ export function moveHeaderPin(from: HeaderPin, before: HeaderPin | null): void {
 
 /** The default as a pin list, so a first pin keeps what the header showed. */
 export function defaultPinsOf(state: any): HeaderPin[] {
-  const anchors: AnchorRow[] = Object.values(state.anchors ?? {}).filter((a: any) => a.status !== "decommissioned") as AnchorRow[];
-  const def = defaultPinOf(anchors, (state.clientState?.ui?.active_team_id as string | undefined) ?? null);
-  return def?.anchor?.role ? [{ kind: "role", id: String(def.anchor.role._id) }] : [];
+  const anchors: AnchorRow[] = Object.values(state.anchors ?? {}).filter(
+    (a: any) => a.status !== "decommissioned",
+  ) as AnchorRow[];
+  const def = defaultPinOf(
+    anchors,
+    (state.clientState?.ui?.active_team_id as string | undefined) ?? null,
+  );
+  return def?.anchor?.role
+    ? [{ kind: "role", id: String(def.anchor.role._id) }]
+    : [];
 }

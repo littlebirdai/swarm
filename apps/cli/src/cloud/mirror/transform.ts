@@ -1,5 +1,9 @@
 import * as path from "node:path";
-import { REFERENCES_SECTION, SNIPPET_CATALOG, type SectionSpec } from "@codecast/shared/contracts";
+import {
+  REFERENCES_SECTION,
+  SNIPPET_CATALOG,
+  type SectionSpec,
+} from "@codecast/shared/contracts";
 import { findOwnedSections } from "@platform/snippets";
 import { AGENT_SCRUBBED_ENV_VARS } from "../../agentEnv.js";
 import { isCodecastHookCommand } from "../../codecastOwned.js";
@@ -21,8 +25,19 @@ export type MirrorKind =
   | "gitignore";
 
 export const MIRROR_KINDS: readonly MirrorKind[] = [
-  "verbatim", "claude-md", "agents-md", "claude-settings", "claude-mcp", "codex-toml", "codex-hooks",
-  "toml-remap", "json-remap", "gemini-settings", "opencode-json", "gitconfig", "gitignore",
+  "verbatim",
+  "claude-md",
+  "agents-md",
+  "claude-settings",
+  "claude-mcp",
+  "codex-toml",
+  "codex-hooks",
+  "toml-remap",
+  "json-remap",
+  "gemini-settings",
+  "opencode-json",
+  "gitconfig",
+  "gitignore",
 ];
 
 export interface TransformContext {
@@ -35,29 +50,63 @@ export interface TransformContext {
 
 export interface ClaudeMcpProjection {
   mcpServers?: Record<string, Record<string, unknown>>;
-  projects?: Record<string, { mcpServers: Record<string, Record<string, unknown>> }>;
+  projects?: Record<
+    string,
+    { mcpServers: Record<string, Record<string, unknown>> }
+  >;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-export function assertClaudeMcpProjection(value: unknown): asserts value is ClaudeMcpProjection {
-  const servers = (v: unknown) => isObject(v) && Object.entries(v).every(([name, server]) => !["__proto__", "constructor", "prototype"].includes(name) && isObject(server));
-  if (!isObject(value) || Object.keys(value).some((key) => key !== "mcpServers" && key !== "projects")
-    || value.mcpServers !== undefined && !servers(value.mcpServers)
-    || value.projects !== undefined && (!isObject(value.projects) || Object.entries(value.projects).some(([root, project]) =>
-      !path.posix.isAbsolute(root) || /[\\\x00-\x1f\x7f]/.test(root) || root.split("/").some((p) => p === "." || p === "..")
-      || !isObject(project) || Object.keys(project).some((key) => key !== "mcpServers") || !servers(project.mcpServers)))) {
+export function assertClaudeMcpProjection(
+  value: unknown,
+): asserts value is ClaudeMcpProjection {
+  const servers = (v: unknown) =>
+    isObject(v) &&
+    Object.entries(v).every(
+      ([name, server]) =>
+        !["__proto__", "constructor", "prototype"].includes(name) &&
+        isObject(server),
+    );
+  if (
+    !isObject(value) ||
+    Object.keys(value).some(
+      (key) => key !== "mcpServers" && key !== "projects",
+    ) ||
+    (value.mcpServers !== undefined && !servers(value.mcpServers)) ||
+    (value.projects !== undefined &&
+      (!isObject(value.projects) ||
+        Object.entries(value.projects).some(
+          ([root, project]) =>
+            !path.posix.isAbsolute(root) ||
+            /[\\\x00-\x1f\x7f]/.test(root) ||
+            root.split("/").some((p) => p === "." || p === "..") ||
+            !isObject(project) ||
+            Object.keys(project).some((key) => key !== "mcpServers") ||
+            !servers(project.mcpServers),
+        )))
+  ) {
     throw new Error("invalid Claude MCP projection");
   }
 }
 
 export function projectClaudeMcp(state: unknown): ClaudeMcpProjection {
   if (!isObject(state)) throw new Error("invalid Claude MCP source");
-  const projects = isObject(state.projects) ? Object.fromEntries(Object.entries(state.projects)
-    .filter(([, project]) => isObject(project) && project.mcpServers !== undefined)
-    .map(([root, project]) => [root, { mcpServers: (project as Record<string, unknown>).mcpServers }])) : {};
+  const projects = isObject(state.projects)
+    ? Object.fromEntries(
+        Object.entries(state.projects)
+          .filter(
+            ([, project]) =>
+              isObject(project) && project.mcpServers !== undefined,
+          )
+          .map(([root, project]) => [
+            root,
+            { mcpServers: (project as Record<string, unknown>).mcpServers },
+          ]),
+      )
+    : {};
   const projection = { mcpServers: state.mcpServers ?? {}, projects };
   assertClaudeMcpProjection(projection);
   return scrubSecrets(projection).value;
@@ -69,7 +118,8 @@ export function projectClaudeMcp(state: unknown): ClaudeMcpProjection {
  * limits, not secrets) and `auth` only as a whole word or prefix of
  * authorization/authentication/auth_* (never `author`).
  */
-export const SECRET_KEY_RE = /(token(?!s$)|secret|passw|api[_-]?key|credential|private[_-]?key|^auth(?:$|[_-]|orization|entication|token))/i;
+export const SECRET_KEY_RE =
+  /(token(?!s$)|secret|passw|api[_-]?key|credential|private[_-]?key|^auth(?:$|[_-]|orization|entication|token))/i;
 
 /** A string VALUE that looks like a secret whatever its key is called. */
 export const SECRET_VALUE_RE =
@@ -81,24 +131,47 @@ export const SECRET_VALUE_RE =
  * installs. Strings match exactly; RegExps match the whole key.
  */
 export const CLAUDE_ENV_DENY: ReadonlyArray<string | RegExp> = [
-  "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
-  /^CLAUDE_CODE_SKIP_/, "CLAUDE_CONFIG_DIR",
-  "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL",
-  "ANTHROPIC_SMALL_FAST_MODEL", /^ANTHROPIC_DEFAULT_.*_MODEL$/, "ANTHROPIC_CUSTOM_HEADERS",
-  /^ANTHROPIC_VERTEX_/, /^ANTHROPIC_BEDROCK_/, /^AWS_/, "CLOUD_ML_REGION",
-  "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  "CLAUDE_CODE_USE_FOUNDRY",
+  /^CLAUDE_CODE_SKIP_/,
+  "CLAUDE_CONFIG_DIR",
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_BASE_URL",
+  "ANTHROPIC_MODEL",
+  "ANTHROPIC_SMALL_FAST_MODEL",
+  /^ANTHROPIC_DEFAULT_.*_MODEL$/,
+  "ANTHROPIC_CUSTOM_HEADERS",
+  /^ANTHROPIC_VERTEX_/,
+  /^ANTHROPIC_BEDROCK_/,
+  /^AWS_/,
+  "CLOUD_ML_REGION",
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "NO_PROXY",
+  "http_proxy",
+  "https_proxy",
+  "no_proxy",
   "OTEL_EXPORTER_OTLP_HEADERS",
   ...AGENT_SCRUBBED_ENV_VARS,
 ];
 
 export function isDeniedClaudeEnvKey(key: string): boolean {
-  return CLAUDE_ENV_DENY.some((d) => (typeof d === "string" ? d === key : d.test(key)));
+  return CLAUDE_ENV_DENY.some((d) =>
+    typeof d === "string" ? d === key : d.test(key),
+  );
 }
 
 /** Top-level settings.json keys that are laptop-specific or auth-bearing. */
 export const CLAUDE_SETTINGS_DROP = [
-  "apiKeyHelper", "awsAuthRefresh", "awsCredentialExport", "otelHeadersHelper",
-  "forceLoginMethod", "forceLoginOrgUUID", "sandbox",
+  "apiKeyHelper",
+  "awsAuthRefresh",
+  "awsCredentialExport",
+  "otelHeadersHelper",
+  "forceLoginMethod",
+  "forceLoginOrgUUID",
+  "sandbox",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -114,7 +187,11 @@ function escapeRe(s: string): string {
  * followed by `/`, a quote, whitespace or the end of the text — so
  * `/Users/ashot2` is left alone.
  */
-export function remapHome(text: string, fromHome: string, toHome: string): string {
+export function remapHome(
+  text: string,
+  fromHome: string,
+  toHome: string,
+): string {
   if (!fromHome || fromHome === toHome || fromHome === "/") return text;
   const from = fromHome.replace(/\/+$/, "");
   const re = new RegExp(`${escapeRe(from)}(?=[/"'\\s]|$)`, "g");
@@ -132,19 +209,32 @@ export function homeRelative(abs: string, home: string): string | null {
 }
 
 export function remapContextPaths(text: string, ctx: TransformContext): string {
-  const mappings = [...(ctx.pathMappings ?? []), { from: ctx.fromHome, to: ctx.toHome }]
+  const mappings = [
+    ...(ctx.pathMappings ?? []),
+    { from: ctx.fromHome, to: ctx.toHome },
+  ]
     .filter((m) => m.from && m.from !== "/")
-    .map((m) => ({ from: m.from.replace(/\/+$/, ""), to: m.to.replace(/\/+$/, "") }))
+    .map((m) => ({
+      from: m.from.replace(/\/+$/, ""),
+      to: m.to.replace(/\/+$/, ""),
+    }))
     .sort((a, b) => b.from.length - a.from.length);
   if (!mappings.length) return text;
   // A backslash ends a path too: inside JSON text (a transcript line) it starts the escape after it, `\n` or `\"`.
-  const re = new RegExp(`(?:${mappings.map((m) => escapeRe(m.from)).join("|")})(?=[/"'\\s):,\\]}\\\\]|$)`, "g");
+  const re = new RegExp(
+    `(?:${mappings.map((m) => escapeRe(m.from)).join("|")})(?=[/"'\\s):,\\]}\\\\]|$)`,
+    "g",
+  );
   return text.replace(re, (from) => mappings.find((m) => m.from === from)!.to);
 }
 
 export function portableText(bytes: Buffer): string | null {
   if (bytes.includes(0)) return null;
-  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { return null; }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -152,7 +242,8 @@ export function portableText(bytes: Buffer): string | null {
  * secret: `secret_name: "API_KEY"`, `token_rate = 50`, `token_url`, and keys
  * that say the value is public (NEXT_PUBLIC_*, a publishable key).
  */
-const CREDENTIAL_LABEL_KEY_RE = /(?:name|names|rate|type|count|limit|ttl|url|uri|endpoint|expires?|expiry|expires_?at|length|size|mode|scopes?|format|prefix|headers?|field|label|kind|provider|binding|method|var|env)$|public|publishable/i;
+const CREDENTIAL_LABEL_KEY_RE =
+  /(?:name|names|rate|type|count|limit|ttl|url|uri|endpoint|expires?|expiry|expires_?at|length|size|mode|scopes?|format|prefix|headers?|field|label|kind|provider|binding|method|var|env)$|public|publishable/i;
 
 /**
  * A value that shows the shape of a secret without being one: a command or
@@ -167,17 +258,35 @@ const CREDENTIAL_LABEL_KEY_RE = /(?:name|names|rate|type|count|limit|ttl|url|uri
 export function isExampleSecretValue(value: string, password = false): boolean {
   const scheme = /^(?:Bearer|Basic|Token)\s+(.+)$/i.exec(value);
   if (scheme) return isExampleSecretValue(scheme[1]!.trim());
-  if (/\$[A-Za-z_({]|`|\.\.\.|…|\*{3}|x{4,}|^<[^>]*>$|^(?:true|false|null|none|undefined)$/i.test(value)) return true;
+  if (
+    /\$[A-Za-z_({]|`|\.\.\.|…|\*{3}|x{4,}|^<[^>]*>$|^(?:true|false|null|none|undefined)$/i.test(
+      value,
+    )
+  )
+    return true;
   if (/^(?:phc_|pk_(?:live|test)_)/.test(value)) return true;
   // An algorithm or scheme name: `Auth = ES256 JWT`, `HS256`, `SHA256`.
   if (/^(?:[A-Z]{2,6}\d{2,4}|[A-Z]{2,6}-\d{2,4})$/.test(value)) return true;
   // Code, not a literal: `secret = random_id.tunnel_secret.b64_std`.
   if (/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/.test(value)) return true;
   // Documentation filler in a value too short or too regular to be random: `sk_live_abc123`, `Bearer at_test`.
-  const random = value.length >= 24 && /[a-z]/.test(value) && /[A-Z]/.test(value) && /[0-9]/.test(value);
-  if (!random && /abc123|123456|example|dummy|sample|your[-_]|[-_]here\b|fake|(?:^|[-_])(?:test|dev|demo)(?:$|[-_])/i.test(value)) return true;
+  const random =
+    value.length >= 24 &&
+    /[a-z]/.test(value) &&
+    /[A-Z]/.test(value) &&
+    /[0-9]/.test(value);
+  if (
+    !random &&
+    /abc123|123456|example|dummy|sample|your[-_]|[-_]here\b|fake|(?:^|[-_])(?:test|dev|demo)(?:$|[-_])/i.test(
+      value,
+    )
+  )
+    return true;
   // A password is the one secret a short plain word can be; only the stock placeholders pass.
-  if (password) return /^(?:secret|password|passwd|changeme|example|sample|dummy|placeholder)$/i.test(value);
+  if (password)
+    return /^(?:secret|password|passwd|changeme|example|sample|dummy|placeholder)$/i.test(
+      value,
+    );
   return /^[0-9.]+$/.test(value) || /^[A-Za-z][A-Za-z_.-]{0,40}$/.test(value);
 }
 
@@ -186,25 +295,48 @@ export function credentialContentReason(bytes: Buffer): string | null {
   if (text === null) return null;
   if (PRIVATE_KEY_RE.test(text)) return "private key material excluded";
   if (VENDOR_TOKEN_RE.test(text)) return "credential material excluded";
-  const isCredential = (value: unknown, key: string): boolean => typeof value === "string" && value.trim().length > 0
-    && !(/(?:file|path|dir|directory|command|cmd|helper|program|script|bin)$/i.test(key) && /^[~/.]/.test(value.trim()))
-    && !CREDENTIAL_LABEL_KEY_RE.test(key)
-    && !isExampleSecretValue(value.trim(), /passw/i.test(key))
-    && !/^(?:<[^>]+>|\$\{[^}]+\}|\$[A-Z_][A-Z_0-9]*|(?:process\.|ctx\.)?env\.[A-Z_][A-Z_0-9]*|os\.environ\[.+\]|(?:YOUR|REPLACE|EXAMPLE|DUMMY|TEST|INSERT|CHANGEME|REDACTED|PLACEHOLDER)(?:[_ -].*)?)$/i.test(value.trim());
+  const isCredential = (value: unknown, key: string): boolean =>
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    !(
+      /(?:file|path|dir|directory|command|cmd|helper|program|script|bin)$/i.test(
+        key,
+      ) && /^[~/.]/.test(value.trim())
+    ) &&
+    !CREDENTIAL_LABEL_KEY_RE.test(key) &&
+    !isExampleSecretValue(value.trim(), /passw/i.test(key)) &&
+    !/^(?:<[^>]+>|\$\{[^}]+\}|\$[A-Z_][A-Z_0-9]*|(?:process\.|ctx\.)?env\.[A-Z_][A-Z_0-9]*|os\.environ\[.+\]|(?:YOUR|REPLACE|EXAMPLE|DUMMY|TEST|INSERT|CHANGEME|REDACTED|PLACEHOLDER)(?:[_ -].*)?)$/i.test(
+      value.trim(),
+    );
   const hasCredential = (value: unknown): boolean => {
     if (Array.isArray(value)) return value.some(hasCredential);
     if (!value || typeof value !== "object") return false;
-    return Object.entries(value).some(([key, item]) => SECRET_KEY_RE.test(key) && isCredential(item, key) || hasCredential(item));
+    return Object.entries(value).some(
+      ([key, item]) =>
+        (SECRET_KEY_RE.test(key) && isCredential(item, key)) ||
+        hasCredential(item),
+    );
   };
   if (/^\s*[\[{]/.test(text)) {
     let value: unknown;
-    try { value = parseJsonLoose(text); } catch { value = undefined; }
+    try {
+      value = parseJsonLoose(text);
+    } catch {
+      value = undefined;
+    }
     if (hasCredential(value)) return "credential-bearing config excluded";
   }
-  for (const match of text.matchAll(/(?:^|[\s{,])(?:export\s+)?["']?([A-Za-z_][\w.-]{0,160})["']?\s*[:=]\s*(?:"([^"\n]*)"|'([^'\n]*)'|([^\s,;#]+))/gm)) {
+  for (const match of text.matchAll(
+    /(?:^|[\s{,])(?:export\s+)?["']?([A-Za-z_][\w.-]{0,160})["']?\s*[:=]\s*(?:"([^"\n]*)"|'([^'\n]*)'|([^\s,;#]+))/gm,
+  )) {
     const value = match[2] ?? match[3] ?? match[4];
-    if (match[4] && (!/^[A-Za-z0-9+/_:.=-]+$/.test(match[4]) || !/[0-9]/.test(match[4]))) continue;
-    if (SECRET_KEY_RE.test(match[1]!) && isCredential(value, match[1]!)) return "credential assignment excluded";
+    if (
+      match[4] &&
+      (!/^[A-Za-z0-9+/_:.=-]+$/.test(match[4]) || !/[0-9]/.test(match[4]))
+    )
+      continue;
+    if (SECRET_KEY_RE.test(match[1]!) && isCredential(value, match[1]!))
+      return "credential assignment excluded";
   }
   return null;
 }
@@ -214,14 +346,32 @@ export function kindForPath(rel: string): MirrorKind {
   const base = path.posix.basename(lower);
   if (lower === ".claude.json") return "claude-mcp";
   if (/^agents(?:\.override)?\.md$/.test(base)) return "agents-md";
-  if (/^(?:claude(?:\.local)?|gemini|grok|opencode)\.md$/.test(base)) return "claude-md";
-  if (/(?:^|\/)\.claude\/settings(?:\.local)?\.jsonc?$/.test(lower)) return "claude-settings";
+  if (/^(?:claude(?:\.local)?|gemini|grok|opencode)\.md$/.test(base))
+    return "claude-md";
+  if (/(?:^|\/)\.claude\/settings(?:\.local)?\.jsonc?$/.test(lower))
+    return "claude-settings";
   if (/(?:^|\/)\.codex\/config\.toml$/.test(lower)) return "codex-toml";
-  if (/(?:^|\/)\.(?:codex|cursor)\/hooks\.json$/.test(lower)) return "codex-hooks";
+  if (/(?:^|\/)\.(?:codex|cursor)\/hooks\.json$/.test(lower))
+    return "codex-hooks";
   if (/(?:^|\/)\.gemini\/settings\.json$/.test(lower)) return "gemini-settings";
   if (/opencode\.jsonc?$/.test(base)) return "opencode-json";
-  if (/^(?:\.mcp|mcp)\.json$/.test(base) || /^\.(?:claude|codex|gemini|grok|opencode)\/(?:settings|user-settings|config|keybindings)\.jsonc?$/.test(lower) || /^\.pi\/agent\/(?:settings|models|keybindings)\.json$/.test(lower) || /^\.grok\/hooks\/[^/]+\.json$/.test(lower) || /^\.claude\/plugins\/(?:installed_plugins|known_marketplaces)\.json$/.test(lower)) return "json-remap";
-  if (/^\.(?:gemini|grok)\/config\.toml$/.test(lower) || /^\.gemini\/commands\/.*\.toml$/.test(lower)) return "toml-remap";
+  if (
+    /^(?:\.mcp|mcp)\.json$/.test(base) ||
+    /^\.(?:claude|codex|gemini|grok|opencode)\/(?:settings|user-settings|config|keybindings)\.jsonc?$/.test(
+      lower,
+    ) ||
+    /^\.pi\/agent\/(?:settings|models|keybindings)\.json$/.test(lower) ||
+    /^\.grok\/hooks\/[^/]+\.json$/.test(lower) ||
+    /^\.claude\/plugins\/(?:installed_plugins|known_marketplaces)\.json$/.test(
+      lower,
+    )
+  )
+    return "json-remap";
+  if (
+    /^\.(?:gemini|grok)\/config\.toml$/.test(lower) ||
+    /^\.gemini\/commands\/.*\.toml$/.test(lower)
+  )
+    return "toml-remap";
   return "verbatim";
 }
 
@@ -229,7 +379,9 @@ export function kindForPath(rel: string): MirrorKind {
 function commandPathUnderHome(command: unknown, home: string): string | null {
   if (typeof command !== "string") return null;
   const first = command.trim().split(/\s+/)[0] ?? "";
-  const expanded = first.startsWith("~/") ? path.posix.join(home, first.slice(2)) : first;
+  const expanded = first.startsWith("~/")
+    ? path.posix.join(home, first.slice(2))
+    : first;
   if (!expanded.startsWith("/")) return null;
   const rel = homeRelative(expanded, home);
   return rel ? rel : null;
@@ -241,15 +393,20 @@ function commandPathUnderHome(command: unknown, home: string): string | null {
 
 /** Every section spec codecast installs into CLAUDE.md / AGENTS.md. */
 export function ownedSectionSpecs(): SectionSpec[] {
-  const specs = SNIPPET_CATALOG.filter((d) => d.section).map((d) => d.section!.spec);
+  const specs = SNIPPET_CATALOG.filter((d) => d.section).map(
+    (d) => d.section!.spec,
+  );
   specs.push(REFERENCES_SECTION);
   return specs;
 }
 
 /** Every codecast-owned block in `text`, across all specs, outermost first, non-overlapping. */
-export function findAllOwnedSections(text: string): Array<{ start: number; end: number }> {
+export function findAllOwnedSections(
+  text: string,
+): Array<{ start: number; end: number }> {
   const ranges: Array<{ start: number; end: number }> = [];
-  for (const spec of ownedSectionSpecs()) ranges.push(...findOwnedSections(text, spec));
+  for (const spec of ownedSectionSpecs())
+    ranges.push(...findOwnedSections(text, spec));
   ranges.sort((a, b) => a.start - b.start);
   const out: Array<{ start: number; end: number }> = [];
   let last = -1;
@@ -300,7 +457,10 @@ export function scrubSecrets<T>(value: T, label = ""): ScrubResult<T> {
   const scrubbed: string[] = [];
   const walk = (v: unknown, at: string): unknown => {
     if (typeof v === "string") {
-      if (SECRET_VALUE_RE.test(v)) { scrubbed.push(at || "(value)"); return undefined; }
+      if (SECRET_VALUE_RE.test(v)) {
+        scrubbed.push(at || "(value)");
+        return undefined;
+      }
       return v;
     }
     if (Array.isArray(v)) {
@@ -315,7 +475,10 @@ export function scrubSecrets<T>(value: T, label = ""): ScrubResult<T> {
       const out: Record<string, unknown> = {};
       for (const [k, item] of Object.entries(v as Record<string, unknown>)) {
         const here = at ? `${at}.${k}` : k;
-        if (SECRET_KEY_RE.test(k)) { scrubbed.push(here); continue; }
+        if (SECRET_KEY_RE.test(k)) {
+          scrubbed.push(here);
+          continue;
+        }
         const r = walk(item, here);
         if (r !== undefined) out[k] = r;
       }
@@ -331,7 +494,12 @@ export function scrubSecrets<T>(value: T, label = ""): ScrubResult<T> {
 // ---------------------------------------------------------------------------
 
 type HookEntry = { command?: string; [k: string]: unknown };
-export type HookGroup = { matcher?: string; hooks?: HookEntry[]; command?: string; [k: string]: unknown };
+export type HookGroup = {
+  matcher?: string;
+  hooks?: HookEntry[];
+  command?: string;
+  [k: string]: unknown;
+};
 type Hooks = Record<string, HookGroup[]>;
 
 /**
@@ -340,31 +508,53 @@ type Hooks = Record<string, HookGroup[]>;
  * lists each entry flat (`{ command, timeout }`). A group comes back reduced
  * to its kept entries, a flat entry comes back whole, and nothing kept is null.
  */
-export function filterHookItem(item: HookGroup, keep: (entry: HookEntry) => boolean): HookGroup | null {
+export function filterHookItem(
+  item: HookGroup,
+  keep: (entry: HookEntry) => boolean,
+): HookGroup | null {
   if (!item || typeof item !== "object") return null;
-  if (!Array.isArray(item.hooks)) return typeof item.command === "string" && keep(item) ? item : null;
+  if (!Array.isArray(item.hooks))
+    return typeof item.command === "string" && keep(item) ? item : null;
   const entries = item.hooks.filter(keep);
   return entries.length ? { ...item, hooks: entries } : null;
 }
 
 /** Remove codecast's own entries from a hooks table; drop groups/events left empty. */
-export function dropCodecastHooks(hooks: unknown, home: string): Hooks | undefined {
-  if (!hooks || typeof hooks !== "object" || Array.isArray(hooks)) return undefined;
+export function dropCodecastHooks(
+  hooks: unknown,
+  home: string,
+): Hooks | undefined {
+  if (!hooks || typeof hooks !== "object" || Array.isArray(hooks))
+    return undefined;
   const out: Hooks = {};
-  for (const [event, groups] of Object.entries(hooks as Record<string, unknown>)) {
+  for (const [event, groups] of Object.entries(
+    hooks as Record<string, unknown>,
+  )) {
     if (!Array.isArray(groups)) continue;
-    const kept = (groups as HookGroup[]).map((g) => filterHookItem(g, (h) => !isCodecastHookCommand(h?.command, home))).filter((g): g is HookGroup => g !== null);
+    const kept = (groups as HookGroup[])
+      .map((g) =>
+        filterHookItem(g, (h) => !isCodecastHookCommand(h?.command, home)),
+      )
+      .filter((g): g is HookGroup => g !== null);
     if (kept.length) out[event] = kept;
   }
   return Object.keys(out).length ? out : undefined;
 }
 
-function remapHooks(hooks: Hooks | undefined, ctx: TransformContext): Hooks | undefined {
+function remapHooks(
+  hooks: Hooks | undefined,
+  ctx: TransformContext,
+): Hooks | undefined {
   if (!hooks) return undefined;
-  const remap = <T extends HookEntry>(h: T): T => (typeof h.command === "string" ? { ...h, command: remapContextPaths(h.command, ctx) } : h);
+  const remap = <T extends HookEntry>(h: T): T =>
+    typeof h.command === "string"
+      ? { ...h, command: remapContextPaths(h.command, ctx) }
+      : h;
   const out: Hooks = {};
   for (const [event, groups] of Object.entries(hooks)) {
-    out[event] = groups.map((g) => (Array.isArray(g.hooks) ? { ...g, hooks: g.hooks.map(remap) } : remap(g)));
+    out[event] = groups.map((g) =>
+      Array.isArray(g.hooks) ? { ...g, hooks: g.hooks.map(remap) } : remap(g),
+    );
   }
   return out;
 }
@@ -381,19 +571,39 @@ export interface ClaudeSettingsTransform {
  * and the bypass-mode disabler gone, denied and secret-looking env gone,
  * codecast hook entries gone, laptop paths remapped.
  */
-export function transformClaudeSettings(input: unknown, ctx: TransformContext): ClaudeSettingsTransform {
-  const src = (input && typeof input === "object" && !Array.isArray(input) ? { ...(input as Record<string, unknown>) } : {}) as Record<string, unknown>;
+export function transformClaudeSettings(
+  input: unknown,
+  ctx: TransformContext,
+): ClaudeSettingsTransform {
+  const src = (
+    input && typeof input === "object" && !Array.isArray(input)
+      ? { ...(input as Record<string, unknown>) }
+      : {}
+  ) as Record<string, unknown>;
   const scrubbedAll: string[] = [];
-  for (const k of CLAUDE_SETTINGS_DROP) if (k in src) { delete src[k]; scrubbedAll.push(k); }
+  for (const k of CLAUDE_SETTINGS_DROP)
+    if (k in src) {
+      delete src[k];
+      scrubbedAll.push(k);
+    }
 
-  if (src.permissions && typeof src.permissions === "object" && !Array.isArray(src.permissions)) {
+  if (
+    src.permissions &&
+    typeof src.permissions === "object" &&
+    !Array.isArray(src.permissions)
+  ) {
     const p = { ...(src.permissions as Record<string, unknown>) };
-    if ("disableBypassPermissionsMode" in p) { delete p.disableBypassPermissionsMode; scrubbedAll.push("permissions.disableBypassPermissionsMode"); }
+    if ("disableBypassPermissionsMode" in p) {
+      delete p.disableBypassPermissionsMode;
+      scrubbedAll.push("permissions.disableBypassPermissionsMode");
+    }
     // Path-bearing rules (additionalDirectories, and allow/deny/ask entries
     // like `Read(/Users/x/notes/**)`) point at the host's home.
     for (const key of ["additionalDirectories", "allow", "deny", "ask"]) {
       if (Array.isArray(p[key])) {
-        p[key] = (p[key] as unknown[]).map((d) => (typeof d === "string" ? remapContextPaths(d, ctx) : d));
+        p[key] = (p[key] as unknown[]).map((d) =>
+          typeof d === "string" ? remapContextPaths(d, ctx) : d,
+        );
       }
     }
     src.permissions = p;
@@ -402,7 +612,10 @@ export function transformClaudeSettings(input: unknown, ctx: TransformContext): 
   if (src.env && typeof src.env === "object" && !Array.isArray(src.env)) {
     const env: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(src.env as Record<string, unknown>)) {
-      if (isDeniedClaudeEnvKey(k)) { scrubbedAll.push(`env.${k}`); continue; }
+      if (isDeniedClaudeEnvKey(k)) {
+        scrubbedAll.push(`env.${k}`);
+        continue;
+      }
       env[k] = typeof v === "string" ? remapContextPaths(v, ctx) : v;
     }
     src.env = env;
@@ -410,19 +623,30 @@ export function transformClaudeSettings(input: unknown, ctx: TransformContext): 
 
   const referencedFiles: string[] = [];
   const hooks = dropCodecastHooks(src.hooks, ctx.fromHome);
-  if (hooks) src.hooks = remapHooks(hooks, ctx); else delete src.hooks;
+  if (hooks) src.hooks = remapHooks(hooks, ctx);
+  else delete src.hooks;
 
-  if (src.statusLine && typeof src.statusLine === "object" && !Array.isArray(src.statusLine)) {
+  if (
+    src.statusLine &&
+    typeof src.statusLine === "object" &&
+    !Array.isArray(src.statusLine)
+  ) {
     const sl = { ...(src.statusLine as Record<string, unknown>) };
     const ref = commandPathUnderHome(sl.command, ctx.fromHome);
     // The host's own daemon writes codecast's statusline script; the command stays, the file does not travel.
-    if (ref && !isCodecastHookCommand(sl.command as string, ctx.fromHome)) referencedFiles.push(ref);
-    if (typeof sl.command === "string") sl.command = remapContextPaths(sl.command, ctx);
+    if (ref && !isCodecastHookCommand(sl.command as string, ctx.fromHome))
+      referencedFiles.push(ref);
+    if (typeof sl.command === "string")
+      sl.command = remapContextPaths(sl.command, ctx);
     src.statusLine = sl;
   }
 
   const { value, scrubbed } = scrubSecrets(src);
-  return { settings: remapJsonStrings(value, ctx) as Record<string, unknown>, referencedFiles, scrubbed: [...scrubbedAll, ...scrubbed] };
+  return {
+    settings: remapJsonStrings(value, ctx) as Record<string, unknown>,
+    referencedFiles,
+    scrubbed: [...scrubbedAll, ...scrubbed],
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +668,8 @@ export function splitTomlTables(text: string): TomlTable[] {
   const tables: TomlTable[] = [{ name: null, header: null, lines: [] }];
   for (const line of text.split("\n")) {
     const m = TOML_HEADER_RE.exec(line);
-    if (m) tables.push({ name: unquoteTomlKey(m[1]!), header: line, lines: [] });
+    if (m)
+      tables.push({ name: unquoteTomlKey(m[1]!), header: line, lines: [] });
     else tables[tables.length - 1]!.lines.push(line);
   }
   return tables;
@@ -474,7 +699,8 @@ const TOML_KV_RE = /^(\s*)([A-Za-z0-9_\-."']+)\s*=\s*(.*)$/;
 /** Every quoted string inside a TOML value (a plain string, an array, an inline table). */
 function tomlStrings(raw: string): string[] {
   const out: string[] = [];
-  for (const m of raw.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g)) out.push(m[1] !== undefined ? m[1] : m[2]!);
+  for (const m of raw.matchAll(/"((?:[^"\\]|\\.)*)"|'([^']*)'/g))
+    out.push(m[1] !== undefined ? m[1] : m[2]!);
   return out;
 }
 
@@ -482,11 +708,18 @@ function tomlStrings(raw: string): string[] {
 function inlineTableKeys(raw: string): string[] {
   const v = raw.trim();
   if (!v.startsWith("{")) return [];
-  return [...v.matchAll(/(?:^\{|,)\s*([A-Za-z0-9_\-."']+)\s*=/g)].map((m) => m[1]!.replace(/^["']|["']$/g, ""));
+  return [...v.matchAll(/(?:^\{|,)\s*([A-Za-z0-9_\-."']+)\s*=/g)].map((m) =>
+    m[1]!.replace(/^["']|["']$/g, ""),
+  );
 }
 
 /** Scrub secret keys/values inside one table's lines; remap paths. */
-function scrubTomlLines(lines: string[], tableName: string, ctx: TransformContext, scrubbed: string[]): string[] {
+function scrubTomlLines(
+  lines: string[],
+  tableName: string,
+  ctx: TransformContext,
+  scrubbed: string[],
+): string[] {
   const out: string[] = [];
   for (const line of lines) {
     const m = TOML_KV_RE.exec(line);
@@ -494,9 +727,18 @@ function scrubTomlLines(lines: string[], tableName: string, ctx: TransformContex
       const key = m[2]!.replace(/^["']|["']$/g, "");
       const lastSeg = key.split(".").pop() ?? key;
       const label = tableName ? `${tableName}.${key}` : key;
-      if (SECRET_KEY_RE.test(lastSeg) || SECRET_KEY_RE.test(key)) { scrubbed.push(label); continue; }
-      if (inlineTableKeys(m[3]!).some((k) => SECRET_KEY_RE.test(k))) { scrubbed.push(label); continue; }
-      if (tomlStrings(m[3]!).some((v) => SECRET_VALUE_RE.test(v))) { scrubbed.push(label); continue; }
+      if (SECRET_KEY_RE.test(lastSeg) || SECRET_KEY_RE.test(key)) {
+        scrubbed.push(label);
+        continue;
+      }
+      if (inlineTableKeys(m[3]!).some((k) => SECRET_KEY_RE.test(k))) {
+        scrubbed.push(label);
+        continue;
+      }
+      if (tomlStrings(m[3]!).some((v) => SECRET_VALUE_RE.test(v))) {
+        scrubbed.push(label);
+        continue;
+      }
     }
     out.push(remapContextPaths(line, ctx));
   }
@@ -508,19 +750,31 @@ export interface TomlTransform {
   scrubbed: string[];
 }
 
-export function transformCodexToml(text: string, ctx: TransformContext): TomlTransform {
+export function transformCodexToml(
+  text: string,
+  ctx: TransformContext,
+): TomlTransform {
   Bun.TOML.parse(text);
   const scrubbed: string[] = [];
   const kept: TomlTable[] = [];
   for (const t of splitTomlTables(text)) {
     if (t.name !== null) {
       const first = tableFirstSegment(t.name);
-      if (first === "projects") { scrubbed.push(`[${t.name}]`); continue; }
+      if (first === "projects") {
+        scrubbed.push(`[${t.name}]`);
+        continue;
+      }
       // A whole table named like a secret (e.g. [model_providers.x.auth]) goes.
       const segs = t.name.split(".").map((s) => s.replace(/^["']|["']$/g, ""));
-      if (segs.some((s) => SECRET_KEY_RE.test(s))) { scrubbed.push(`[${t.name}]`); continue; }
+      if (segs.some((s) => SECRET_KEY_RE.test(s))) {
+        scrubbed.push(`[${t.name}]`);
+        continue;
+      }
     }
-    kept.push({ ...t, lines: scrubTomlLines(t.lines, t.name ?? "", ctx, scrubbed) });
+    kept.push({
+      ...t,
+      lines: scrubTomlLines(t.lines, t.name ?? "", ctx, scrubbed),
+    });
   }
   return { text: joinTomlTables(kept), scrubbed };
 }
@@ -529,12 +783,20 @@ export function transformCodexToml(text: string, ctx: TransformContext): TomlTra
 export const transformGrokToml = transformCodexToml;
 
 /** Any other TOML: scrub + remap, tables kept. */
-export function transformTomlRemap(text: string, ctx: TransformContext): TomlTransform {
+export function transformTomlRemap(
+  text: string,
+  ctx: TransformContext,
+): TomlTransform {
   Bun.TOML.parse(text);
   const scrubbed: string[] = [];
-  const kept = splitTomlTables(text).map((t) => {
-    return { ...t, lines: scrubTomlLines(t.lines, t.name ?? "", ctx, scrubbed) };
-  }).filter((t): t is TomlTable => t !== null);
+  const kept = splitTomlTables(text)
+    .map((t) => {
+      return {
+        ...t,
+        lines: scrubTomlLines(t.lines, t.name ?? "", ctx, scrubbed),
+      };
+    })
+    .filter((t): t is TomlTable => t !== null);
   return { text: joinTomlTables(kept), scrubbed };
 }
 
@@ -559,8 +821,10 @@ export function parseJsonLoose(text: string): unknown {
       if (escaped) escaped = false;
       else if (c === "\\") escaped = true;
       else if (c === '"') quoted = false;
-    } else if (c === '"') { quoted = true; stripped += c; }
-    else if (c === "/" && text[i + 1] === "/") {
+    } else if (c === '"') {
+      quoted = true;
+      stripped += c;
+    } else if (c === "/" && text[i + 1] === "/") {
       while (i < text.length && text[i] !== "\n") i++;
       stripped += "\n";
     } else if (c === "/" && text[i + 1] === "*") {
@@ -575,7 +839,8 @@ export function parseJsonLoose(text: string): unknown {
   escaped = false;
   for (let i = 0; i < stripped.length; i++) {
     const c = stripped[i]!;
-    if (!quoted && c === "," && /^\s*[}\]]/.test(stripped.slice(i + 1))) continue;
+    if (!quoted && c === "," && /^\s*[}\]]/.test(stripped.slice(i + 1)))
+      continue;
     clean += c;
     if (escaped) escaped = false;
     else if (quoted && c === "\\") escaped = true;
@@ -589,13 +854,17 @@ function remapJsonStrings(value: unknown, ctx: TransformContext): unknown {
   if (Array.isArray(value)) return value.map((v) => remapJsonStrings(v, ctx));
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = remapJsonStrings(v, ctx);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>))
+      out[k] = remapJsonStrings(v, ctx);
     return out;
   }
   return value;
 }
 
-export function transformJsonRemap(value: unknown, ctx: TransformContext): JsonTransform {
+export function transformJsonRemap(
+  value: unknown,
+  ctx: TransformContext,
+): JsonTransform {
   const { value: clean, scrubbed } = scrubSecrets(value);
   return { value: remapJsonStrings(clean, ctx), scrubbed };
 }
@@ -604,10 +873,17 @@ export const transformGeminiSettings = transformJsonRemap;
 export const transformOpencodeJson = transformJsonRemap;
 
 /** Codex hooks.json: codecast entries gone, commands remapped. */
-export function transformHooksJson(value: unknown, ctx: TransformContext): JsonTransform {
-  const src = value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};
+export function transformHooksJson(
+  value: unknown,
+  ctx: TransformContext,
+): JsonTransform {
+  const src =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? { ...(value as Record<string, unknown>) }
+      : {};
   const hooks = dropCodecastHooks(src.hooks, ctx.fromHome);
-  if (hooks) src.hooks = remapHooks(hooks, ctx); else delete src.hooks;
+  if (hooks) src.hooks = remapHooks(hooks, ctx);
+  else delete src.hooks;
   return transformJsonRemap(src, ctx);
 }
 
@@ -628,21 +904,61 @@ export interface GitConfigPair {
  */
 export const GITCONFIG_ALLOW: ReadonlyArray<string | RegExp> = [
   /^alias\./,
-  "core.excludesfile", "core.editor", "core.autocrlf", "core.pager", "core.ignorecase", "core.attributesfile",
-  /^init\./, /^pull\./, /^push\./, /^fetch\./, "merge.conflictstyle", "diff.algorithm", "diff.colormoved",
-  /^rebase\./, /^rerere\./, /^color\./, /^branch\./, "commit.verbose", "commit.template",
-  /^log\./, /^status\./, /^column\./, "help.autocorrect", /^advice\./,
+  "core.excludesfile",
+  "core.editor",
+  "core.autocrlf",
+  "core.pager",
+  "core.ignorecase",
+  "core.attributesfile",
+  /^init\./,
+  /^pull\./,
+  /^push\./,
+  /^fetch\./,
+  "merge.conflictstyle",
+  "diff.algorithm",
+  "diff.colormoved",
+  /^rebase\./,
+  /^rerere\./,
+  /^color\./,
+  /^branch\./,
+  "commit.verbose",
+  "commit.template",
+  /^log\./,
+  /^status\./,
+  /^column\./,
+  "help.autocorrect",
+  /^advice\./,
 ];
 
 export const GITCONFIG_DENY: ReadonlyArray<string | RegExp> = [
-  "user.name", "user.email", "push.autosetupremote",
-  /^credential\./, /^gpg\./, "commit.gpgsign", "tag.gpgsign", "user.signingkey", /^url\./, /^include/,
-  "core.sshcommand", "core.hookspath", /^http\./, /^https\./, /^filter\./, /^lfs\./, /^safe\./, /^maintenance\./,
+  "user.name",
+  "user.email",
+  "push.autosetupremote",
+  /^credential\./,
+  /^gpg\./,
+  "commit.gpgsign",
+  "tag.gpgsign",
+  "user.signingkey",
+  /^url\./,
+  /^include/,
+  "core.sshcommand",
+  "core.hookspath",
+  /^http\./,
+  /^https\./,
+  /^filter\./,
+  /^lfs\./,
+  /^safe\./,
+  /^maintenance\./,
 ];
 
-function matchesKey(list: ReadonlyArray<string | RegExp>, key: string): boolean {
+function matchesKey(
+  list: ReadonlyArray<string | RegExp>,
+  key: string,
+): boolean {
   const lower = key.toLowerCase();
-  return list.some((d) => (typeof d === "string" ? d === lower : d.test(lower)));
+  return list.some((d) =>
+    typeof d === "string" ? d === lower : d.test(lower),
+  );
 }
 
 export function gitconfigKeyAllowed(key: string): boolean {
@@ -650,7 +966,9 @@ export function gitconfigKeyAllowed(key: string): boolean {
 }
 
 /** Parse `git config --list -z --show-origin` output. */
-export function parseGitConfigList(out: string): Array<GitConfigPair & { origin: string }> {
+export function parseGitConfigList(
+  out: string,
+): Array<GitConfigPair & { origin: string }> {
   const pairs: Array<GitConfigPair & { origin: string }> = [];
   const parts = out.split("\0");
   for (let i = 0; i + 1 < parts.length; i += 2) {
@@ -674,27 +992,50 @@ export interface GitconfigRender {
 }
 
 function gitQuote(value: string): string {
-  const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\t/g, "\\t");
+  const escaped = value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t");
   return /^\s|\s$|[#;]|^$/.test(value) ? `"${escaped}"` : escaped;
 }
 
 /** Deterministic INI from allowed pairs; laptop paths remapped. */
-export function renderGitconfig(pairs: GitConfigPair[], ctx: TransformContext): GitconfigRender {
+export function renderGitconfig(
+  pairs: GitConfigPair[],
+  ctx: TransformContext,
+): GitconfigRender {
   const referenced = new Set<string>();
   const dropped: string[] = [];
   const sections = new Map<string, string[]>();
-  const sorted = [...pairs].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+  const sorted = [...pairs].sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : 0,
+  );
   for (const { key, value } of sorted) {
-    if (!gitconfigKeyAllowed(key)) { dropped.push(key); continue; }
+    if (!gitconfigKeyAllowed(key)) {
+      dropped.push(key);
+      continue;
+    }
     const segs = key.split(".");
-    if (segs.length < 2) { dropped.push(key); continue; }
+    if (segs.length < 2) {
+      dropped.push(key);
+      continue;
+    }
     const section = segs[0]!.toLowerCase();
     const leaf = segs[segs.length - 1]!;
     const sub = segs.slice(1, -1).join(".");
-    const header = sub ? `[${section} "${sub.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]` : `[${section}]`;
+    const header = sub
+      ? `[${section} "${sub.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`
+      : `[${section}]`;
     let v = value;
-    if (["core.excludesfile", "core.attributesfile", "commit.template"].includes(key.toLowerCase())) {
-      const abs = v.startsWith("~/") ? path.posix.join(ctx.fromHome, v.slice(2)) : v;
+    if (
+      ["core.excludesfile", "core.attributesfile", "commit.template"].includes(
+        key.toLowerCase(),
+      )
+    ) {
+      const abs = v.startsWith("~/")
+        ? path.posix.join(ctx.fromHome, v.slice(2))
+        : v;
       const rel = homeRelative(abs, ctx.fromHome);
       if (rel) referenced.add(rel);
       v = abs;
@@ -707,7 +1048,11 @@ export function renderGitconfig(pairs: GitConfigPair[], ctx: TransformContext): 
   for (const header of [...sections.keys()].sort()) {
     out.push(header, ...sections.get(header)!);
   }
-  return { text: out.length ? out.join("\n") + "\n" : "", referencedFiles: [...referenced], dropped };
+  return {
+    text: out.length ? out.join("\n") + "\n" : "",
+    referencedFiles: [...referenced],
+    dropped,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -722,7 +1067,16 @@ export interface TransformOutcome {
 
 /** Kinds whose transform scrubs secrets: scanned for credentials after the transform, never before. */
 export function isActiveConfig(kind: MirrorKind): boolean {
-  return ["claude-settings", "claude-mcp", "codex-toml", "codex-hooks", "gemini-settings", "opencode-json", "json-remap", "toml-remap"].includes(kind);
+  return [
+    "claude-settings",
+    "claude-mcp",
+    "codex-toml",
+    "codex-hooks",
+    "gemini-settings",
+    "opencode-json",
+    "json-remap",
+    "toml-remap",
+  ].includes(kind);
 }
 
 /**
@@ -732,7 +1086,12 @@ export function isActiveConfig(kind: MirrorKind): boolean {
  * introduce a credential, so only the kinds whose transform scrubs (an active
  * config) are checked again, on what the scrub left.
  */
-export function transformByKind(kind: MirrorKind, bytes: Buffer, ctx: TransformContext, opts: { prescanned?: boolean } = {}): TransformOutcome {
+export function transformByKind(
+  kind: MirrorKind,
+  bytes: Buffer,
+  ctx: TransformContext,
+  opts: { prescanned?: boolean } = {},
+): TransformOutcome {
   const result = transformContentByKind(kind, bytes, ctx);
   if (opts.prescanned && !isActiveConfig(kind)) return result;
   const credential = credentialContentReason(result.bytes);
@@ -740,61 +1099,113 @@ export function transformByKind(kind: MirrorKind, bytes: Buffer, ctx: TransformC
   return result;
 }
 
-function transformContentByKind(kind: MirrorKind, bytes: Buffer, ctx: TransformContext): TransformOutcome {
+function transformContentByKind(
+  kind: MirrorKind,
+  bytes: Buffer,
+  ctx: TransformContext,
+): TransformOutcome {
   const text = () => bytes.toString("utf-8");
-  const json = (value: unknown) => Buffer.from(JSON.stringify(value, null, 2) + "\n");
+  const json = (value: unknown) =>
+    Buffer.from(JSON.stringify(value, null, 2) + "\n");
   switch (kind) {
     case "verbatim":
     case "gitignore":
     case "gitconfig": {
       const source = portableText(bytes);
-      return { bytes: source === null ? bytes : Buffer.from(remapContextPaths(source, ctx)), scrubbed: [], referencedFiles: [] };
+      return {
+        bytes:
+          source === null ? bytes : Buffer.from(remapContextPaths(source, ctx)),
+        scrubbed: [],
+        referencedFiles: [],
+      };
     }
     case "claude-md":
     case "agents-md":
       // Paths in an instruction file are informational; a laptop-home path
       // there would send the host's agent to a directory that does not exist.
-      return { bytes: Buffer.from(remapContextPaths(stripOwnedSections(text()), ctx)), scrubbed: [], referencedFiles: [] };
+      return {
+        bytes: Buffer.from(remapContextPaths(stripOwnedSections(text()), ctx)),
+        scrubbed: [],
+        referencedFiles: [],
+      };
     case "claude-settings": {
       const r = transformClaudeSettings(parseJsonLoose(text()), ctx);
-      return { bytes: json(r.settings), scrubbed: r.scrubbed, referencedFiles: r.referencedFiles };
+      return {
+        bytes: json(r.settings),
+        scrubbed: r.scrubbed,
+        referencedFiles: r.referencedFiles,
+      };
     }
     case "claude-mcp": {
       const projection: unknown = parseJsonLoose(text());
       assertClaudeMcpProjection(projection);
       const clean = scrubSecrets(projection);
-      const mapped = JSON.parse(remapContextPaths(JSON.stringify(clean.value), ctx));
+      const mapped = JSON.parse(
+        remapContextPaths(JSON.stringify(clean.value), ctx),
+      );
       assertClaudeMcpProjection(mapped);
-      return { bytes: json(mapped), scrubbed: clean.scrubbed, referencedFiles: [] };
+      return {
+        bytes: json(mapped),
+        scrubbed: clean.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "codex-toml": {
       const r = transformCodexToml(text(), ctx);
-      return { bytes: Buffer.from(r.text), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: Buffer.from(r.text),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "toml-remap": {
       const r = transformTomlRemap(text(), ctx);
-      return { bytes: Buffer.from(r.text), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: Buffer.from(r.text),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "codex-hooks": {
       const r = transformHooksJson(parseJsonLoose(text()), ctx);
-      return { bytes: json(r.value), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: json(r.value),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "json-remap": {
       const r = transformJsonRemap(parseJsonLoose(text()), ctx);
-      return { bytes: json(r.value), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: json(r.value),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "gemini-settings": {
       const r = transformGeminiSettings(parseJsonLoose(text()), ctx);
-      return { bytes: json(r.value), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: json(r.value),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
     case "opencode-json": {
       const r = transformOpencodeJson(parseJsonLoose(text()), ctx);
-      return { bytes: json(r.value), scrubbed: r.scrubbed, referencedFiles: [] };
+      return {
+        bytes: json(r.value),
+        scrubbed: r.scrubbed,
+        referencedFiles: [],
+      };
     }
   }
 }
 
-export function transformForHost(rel: string, bytes: Buffer, ctx: TransformContext): Buffer | null {
+export function transformForHost(
+  rel: string,
+  bytes: Buffer,
+  ctx: TransformContext,
+): Buffer | null {
   try {
     return transformByKind(kindForPath(rel), bytes, ctx).bytes;
   } catch {

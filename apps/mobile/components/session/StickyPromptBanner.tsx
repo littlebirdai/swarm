@@ -14,14 +14,29 @@
  * since the reader cannot act on a prompt that is not on screen yet.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, LayoutAnimation, PanResponder, Pressable, StyleSheet, View as RNView, type LayoutChangeEvent } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { Text } from '@/components/Themed';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View as RNView,
+  type LayoutChangeEvent,
+} from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { Text } from "@/components/Themed";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
 
-export type StickyPrompt = { id: string; ordinal: number; text: string; pending?: boolean };
+export type StickyPrompt = {
+  id: string;
+  ordinal: number;
+  text: string;
+  pending?: boolean;
+};
 
 type Props = {
   prompt: StickyPrompt | null;
@@ -39,7 +54,11 @@ const EXPANDED_LINES = 6;
 const EXPAND_ANIM_MS = 180;
 function animateExpand() {
   LayoutAnimation.configureNext(
-    LayoutAnimation.create(EXPAND_ANIM_MS, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity),
+    LayoutAnimation.create(
+      EXPAND_ANIM_MS,
+      LayoutAnimation.Types.easeInEaseOut,
+      LayoutAnimation.Properties.opacity,
+    ),
   );
 }
 const DISMISS_DISTANCE = 24;
@@ -51,10 +70,17 @@ const CROSSFADE_MS = 90;
 // Single line pills read badly with the prompt's own line breaks; collapse
 // whitespace for the collapsed state and keep the raw text once expanded.
 function oneLine(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
+  return text.replace(/\s+/g, " ").trim();
 }
 
-export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss, onHeight }: Props) {
+export function StickyPromptBanner({
+  prompt,
+  top,
+  translateY,
+  onJump,
+  onDismiss,
+  onHeight,
+}: Props) {
   const Theme = useTheme();
   // The pill keeps painting the last prompt while it fades out, so the
   // rendered prompt lags the prop by one exit animation.
@@ -84,11 +110,21 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
       setExpanded(false);
       dragY.setValue(0);
       textOpacity.setValue(1);
-      Animated.timing(presence, { toValue: 1, duration: ENTER_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      Animated.timing(presence, {
+        toValue: 1,
+        duration: ENTER_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
       return;
     }
     if (!prompt && current) {
-      const anim = Animated.timing(presence, { toValue: 0, duration: EXIT_MS, easing: Easing.in(Easing.cubic), useNativeDriver: true });
+      const anim = Animated.timing(presence, {
+        toValue: 0,
+        duration: EXIT_MS,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      });
       anim.start(({ finished }) => {
         if (!finished) return;
         setShown(null);
@@ -102,18 +138,31 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
       // An interrupted swipe dismiss leaves dragY partway up (its finished
       // guard skips the reset), so zero it here or the pill stays shifted.
       dragY.setValue(0);
-      Animated.timing(presence, { toValue: 1, duration: ENTER_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      Animated.timing(presence, {
+        toValue: 1,
+        duration: ENTER_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
     }
     if (prompt && current && prompt.id !== current.id) {
       // Crossfade the text in place: the pill stays mounted, only its copy
       // dips out and back with the new prompt.
-      const anim = Animated.timing(textOpacity, { toValue: 0, duration: CROSSFADE_MS, useNativeDriver: true });
+      const anim = Animated.timing(textOpacity, {
+        toValue: 0,
+        duration: CROSSFADE_MS,
+        useNativeDriver: true,
+      });
       anim.start(({ finished }) => {
         if (!finished) return;
         setShown(prompt);
         setExpanded(false);
         dragY.setValue(0);
-        Animated.timing(textOpacity, { toValue: 1, duration: CROSSFADE_MS, useNativeDriver: true }).start();
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: CROSSFADE_MS,
+          useNativeDriver: true,
+        }).start();
       });
       return () => {
         anim.stop();
@@ -137,8 +186,16 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
     // branch, and animate the pill straight back.
     onDismiss(id);
     Animated.parallel([
-      Animated.timing(dragY, { toValue: -40, duration: EXIT_MS, useNativeDriver: true }),
-      Animated.timing(presence, { toValue: 0, duration: EXIT_MS, useNativeDriver: true }),
+      Animated.timing(dragY, {
+        toValue: -40,
+        duration: EXIT_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(presence, {
+        toValue: 0,
+        duration: EXIT_MS,
+        useNativeDriver: true,
+      }),
     ]).start(({ finished }) => {
       if (!finished) return;
       setShown(null);
@@ -154,7 +211,9 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
   const responder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, gs) =>
-        !shownRef.current?.pending && gs.dy < -6 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
+        !shownRef.current?.pending &&
+        gs.dy < -6 &&
+        Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
       onPanResponderMove: (_e, gs) => {
         dragY.setValue(Math.min(0, gs.dy));
       },
@@ -163,10 +222,18 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
           dismissRef.current();
           return;
         }
-        Animated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        Animated.spring(dragY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
       },
       onPanResponderTerminate: () => {
-        Animated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 4 }).start();
+        Animated.spring(dragY, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+        }).start();
       },
     }),
   ).current;
@@ -180,19 +247,34 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
 
   if (!shown) return null;
 
-  const slideIn = presence.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] });
+  const slideIn = presence.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-8, 0],
+  });
   const pending = shown.pending === true;
-  const label = `${pending ? 'Loading prompt' : 'Prompt'} ${shown.ordinal}: ${shown.text}`;
+  const label = `${pending ? "Loading prompt" : "Prompt"} ${shown.ordinal}: ${shown.text}`;
 
   return (
     <Animated.View
       pointerEvents="box-none"
       style={[
         styles.wrap,
-        { top, opacity: presence, transform: [{ translateY }, { translateY: slideIn }, { translateY: dragY }] },
+        {
+          top,
+          opacity: presence,
+          transform: [
+            { translateY },
+            { translateY: slideIn },
+            { translateY: dragY },
+          ],
+        },
       ]}
     >
-      <RNView style={styles.pillShadow} onLayout={handleLayout} {...responder.panHandlers}>
+      <RNView
+        style={styles.pillShadow}
+        onLayout={handleLayout}
+        {...responder.panHandlers}
+      >
         <Pressable
           disabled={pending}
           onPress={() => {
@@ -201,26 +283,37 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
           }}
           accessibilityRole="button"
           accessibilityLabel={label}
-          accessibilityHint={pending ? undefined : 'Jumps to this prompt'}
+          accessibilityHint={pending ? undefined : "Jumps to this prompt"}
           accessibilityState={{ busy: pending }}
           // The pill flattens its children for VoiceOver, so the nested
           // chevron Pressable is unreachable and swipe up is the only dismiss
           // gesture; custom actions expose both on the pill itself.
-          accessibilityActions={pending ? undefined : [
-            { name: 'expand', label: expanded ? 'Collapse prompt' : 'Expand prompt' },
-            { name: 'dismiss', label: 'Dismiss prompt' },
-          ]}
+          accessibilityActions={
+            pending
+              ? undefined
+              : [
+                  {
+                    name: "expand",
+                    label: expanded ? "Collapse prompt" : "Expand prompt",
+                  },
+                  { name: "dismiss", label: "Dismiss prompt" },
+                ]
+          }
           onAccessibilityAction={(e) => {
-            if (e.nativeEvent.actionName === 'expand') {
+            if (e.nativeEvent.actionName === "expand") {
               animateExpand();
               setExpanded((v) => !v);
-            } else if (e.nativeEvent.actionName === 'dismiss') dismiss();
+            } else if (e.nativeEvent.actionName === "dismiss") dismiss();
           }}
           style={({ pressed }) => [styles.pill, pressed && styles.pillPressed]}
         >
           <Animated.View style={[styles.body, { opacity: textOpacity }]}>
             <Text style={styles.ordinal}>#{shown.ordinal}</Text>
-            <Text style={styles.text} numberOfLines={expanded ? EXPANDED_LINES : 1} ellipsizeMode="tail">
+            <Text
+              style={styles.text}
+              numberOfLines={expanded ? EXPANDED_LINES : 1}
+              ellipsizeMode="tail"
+            >
               {expanded ? shown.text.trim() : oneLine(shown.text)}
             </Text>
           </Animated.View>
@@ -237,10 +330,16 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
               }}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel={expanded ? 'Collapse prompt' : 'Expand prompt'}
+              accessibilityLabel={
+                expanded ? "Collapse prompt" : "Expand prompt"
+              }
               style={styles.chevron}
             >
-              <Feather name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={Theme.textDim} />
+              <Feather
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={14}
+                color={Theme.textDim}
+              />
             </Pressable>
           )}
         </Pressable>
@@ -249,63 +348,65 @@ export function StickyPromptBanner({ prompt, top, translateY, onJump, onDismiss,
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 56,
-    paddingHorizontal: Spacing.md,
-    paddingTop: 6,
-  },
-  pillShadow: {
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingLeft: 10,
-    paddingRight: 6,
-    paddingVertical: 7,
-    // Fully opaque: message text bled through at 92% alpha; the shadow below
-    // already separates the pill from the list.
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border,
-  },
-  pillPressed: {
-    backgroundColor: Theme.bgHighlight,
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  ordinal: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-    color: Theme.blue,
-  },
-  text: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    color: Theme.text,
-  },
-  chevron: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    wrap: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      zIndex: 56,
+      paddingHorizontal: Spacing.md,
+      paddingTop: 6,
+    },
+    pillShadow: {
+      borderRadius: 12,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 2,
+    },
+    pill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderRadius: 12,
+      paddingLeft: 10,
+      paddingRight: 6,
+      paddingVertical: 7,
+      // Fully opaque: message text bled through at 92% alpha; the shadow below
+      // already separates the pill from the list.
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border,
+    },
+    pillPressed: {
+      backgroundColor: Theme.bgHighlight,
+    },
+    body: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+    },
+    ordinal: {
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "600",
+      color: Theme.blue,
+    },
+    text: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 18,
+      color: Theme.text,
+    },
+    chevron: {
+      width: 26,
+      height: 26,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  }),
+);

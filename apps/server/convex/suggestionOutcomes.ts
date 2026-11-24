@@ -9,8 +9,15 @@ import type { Id } from "./_generated/dataModel";
 import { vendorRefusalFromDb } from "./lib/vendorGuard";
 import { stripInjectionNoise } from "@codecast/shared/contracts";
 import { parseJointMessage } from "@codecast/shared/contracts/jointMessage";
-import { isMachineCarrierText, type SuggestionOutcome } from "./composerSuggestions";
-import { outcomeArgs, suggestionsProvider, writeSuggestionOutcome } from "./lib/suggestionOutcomeWrite";
+import {
+  isMachineCarrierText,
+  type SuggestionOutcome,
+} from "./composerSuggestions";
+import {
+  outcomeArgs,
+  suggestionsProvider,
+  writeSuggestionOutcome,
+} from "./lib/suggestionOutcomeWrite";
 
 // Recent outcomes the suggester reads back, newest first.
 const OUTCOMES_FOR_PROMPT = 12;
@@ -29,23 +36,62 @@ export const record = mutation({
 // people who answer elsewhere. Only rows that carry `shown` count, so the
 // rate starts with the clients that report "ignored".
 // `npx convex run suggestionOutcomes:funnel '{"since_days":14}'`
-export function funnelOf(rows: Array<{ user_id: string; outcome: string; shown?: string[]; created_at: number }>) {
-  const out = new Map<string, { user: string; week: string; replied: number; sent: number; edited: number; ignored: number }>();
+export function funnelOf(
+  rows: Array<{
+    user_id: string;
+    outcome: string;
+    shown?: string[];
+    created_at: number;
+  }>,
+) {
+  const out = new Map<
+    string,
+    {
+      user: string;
+      week: string;
+      replied: number;
+      sent: number;
+      edited: number;
+      ignored: number;
+    }
+  >();
   for (const r of rows) {
     if (!r.shown) continue;
     const d = new Date(r.created_at);
-    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - ((d.getUTCDay() + 6) % 7)));
+    const monday = new Date(
+      Date.UTC(
+        d.getUTCFullYear(),
+        d.getUTCMonth(),
+        d.getUTCDate() - ((d.getUTCDay() + 6) % 7),
+      ),
+    );
     const week = monday.toISOString().slice(0, 10);
     const key = `${r.user_id}|${week}`;
-    const row = out.get(key) ?? { user: String(r.user_id), week, replied: 0, sent: 0, edited: 0, ignored: 0 };
+    const row = out.get(key) ?? {
+      user: String(r.user_id),
+      week,
+      replied: 0,
+      sent: 0,
+      edited: 0,
+      ignored: 0,
+    };
     row.replied++;
     if (r.outcome === "sent" || r.outcome === "edited") row[r.outcome]++;
     else row.ignored++;
     out.set(key, row);
   }
   return [...out.values()]
-    .sort((a, b) => (a.week === b.week ? a.user.localeCompare(b.user) : a.week.localeCompare(b.week)))
-    .map((r) => ({ ...r, composer_take_rate: r.replied ? Math.round(((r.sent + r.edited) / r.replied) * 100) / 100 : 0 }));
+    .sort((a, b) =>
+      a.week === b.week
+        ? a.user.localeCompare(b.user)
+        : a.week.localeCompare(b.week),
+    )
+    .map((r) => ({
+      ...r,
+      composer_take_rate: r.replied
+        ? Math.round(((r.sent + r.edited) / r.replied) * 100) / 100
+        : 0,
+    }));
 }
 
 export const funnel = internalQuery({
@@ -81,14 +127,27 @@ export const recent = internalQuery({
       if (out.length >= OUTCOMES_FOR_PROMPT) break;
       if (!r.shown || r.outcome === "dismissed") continue;
       const conv = String(r.conversation_id);
-      if (!refused.has(conv)) refused.set(conv, !!(await vendorRefusalFromDb(ctx, { conversationId: r.conversation_id }, suggestionsProvider())));
+      if (!refused.has(conv))
+        refused.set(
+          conv,
+          !!(await vendorRefusalFromDb(
+            ctx,
+            { conversationId: r.conversation_id },
+            suggestionsProvider(),
+          )),
+        );
       if (refused.get(conv)) continue;
       const outcome = r.outcome as SuggestionOutcome["outcome"];
       if (outcome === "sent") {
         out.push({ outcome, suggestion: r.suggestion });
         continue;
       }
-      const reply = await replyAfter(ctx, r.conversation_id, r.anchor_message_uuid, r.typed_length);
+      const reply = await replyAfter(
+        ctx,
+        r.conversation_id,
+        r.anchor_message_uuid,
+        r.typed_length,
+      );
       // Gone (deleted, redacted, encrypted) or not words they typed: the
       // outcome has nothing to teach without it.
       if (reply) out.push({ outcome, suggestion: r.suggestion, reply });
@@ -104,10 +163,17 @@ export const recent = internalQuery({
 // send. A joint send gives their own part (the composer puts it first);
 // otherwise `typedLength` keeps their words, which the composer appends last.
 // Without it (rows from older clients) a message holding a quote is skipped.
-async function replyAfter(ctx: any, conversationId: Id<"conversations">, anchor: string, typedLength?: number): Promise<string | null> {
+async function replyAfter(
+  ctx: any,
+  conversationId: Id<"conversations">,
+  anchor: string,
+  typedLength?: number,
+): Promise<string | null> {
   const byUuid = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_uuid", (q: any) => q.eq("conversation_id", conversationId).eq("message_uuid", anchor))
+    .withIndex("by_conversation_uuid", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("message_uuid", anchor),
+    )
     .first();
   const id = byUuid ? null : ctx.db.normalizeId("messages", anchor);
   const at = byUuid ?? (id ? await ctx.db.get(id) : null);
@@ -115,13 +181,22 @@ async function replyAfter(ctx: any, conversationId: Id<"conversations">, anchor:
   const next = await ctx.db
     .query("messages")
     .withIndex("by_conversation_role_timestamp", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("role", "user").gt("timestamp", at.timestamp)
+      q
+        .eq("conversation_id", conversationId)
+        .eq("role", "user")
+        .gt("timestamp", at.timestamp),
     )
     .filter((q: any) => q.eq(q.field("tool_results"), undefined))
     .first();
   if (!next || next.is_encrypted) return null;
   const typed = typedPart(stripInjectionNoise(next.content ?? ""), typedLength);
-  if (!typed || typed.startsWith("/") || /^<command-/.test(typed) || isMachineCarrierText(typed)) return null;
+  if (
+    !typed ||
+    typed.startsWith("/") ||
+    /^<command-/.test(typed) ||
+    isMachineCarrierText(typed)
+  )
+    return null;
   return typed;
 }
 
@@ -130,6 +205,7 @@ export function typedPart(text: string, typedLength?: number): string | null {
   const joint = parseJointMessage(text);
   if (joint) return joint[0]!.body.trim() || null;
   const whole = text.trim();
-  if (typedLength && typedLength > 0) return whole.slice(Math.max(0, whole.length - typedLength)).trim() || null;
+  if (typedLength && typedLength > 0)
+    return whole.slice(Math.max(0, whole.length - typedLength)).trim() || null;
   return /^ {0,3}>/m.test(whole) ? null : whole || null;
 }

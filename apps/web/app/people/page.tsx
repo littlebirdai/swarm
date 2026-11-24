@@ -61,9 +61,9 @@ function PeopleWindow() {
 }
 
 function PeopleSyncEffects() {
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
-    | Id<"teams">
-    | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   // This window creates DMs, sets a status and flips the walkie door, so it
   // needs the server dispatch wired. Idempotent across windows.
   useEnsureDispatch();

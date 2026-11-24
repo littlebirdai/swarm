@@ -33,7 +33,10 @@ export function ObservedChanges({ toolId }: { toolId: string }) {
         <button
           key={f.filePath}
           type="button"
-          onClick={(e) => { e.stopPropagation(); open(f.filePath); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            open(f.filePath);
+          }}
           className={`hover:underline ${f.changeType === "delete" ? "line-through text-sol-red/80" : f.changeType === "write" ? "text-sol-text-secondary" : ""}`}
           title={f.changeType === "delete" ? "Deleted" : "Open diff"}
         >

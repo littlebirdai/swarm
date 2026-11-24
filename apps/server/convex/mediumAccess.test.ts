@@ -24,21 +24,64 @@ async function tables(): Promise<Record<string, any[]>> {
       { _id: OTHER, name: "Other" },
     ],
     teams: [{ _id: TEAM, name: "Team" }],
-    team_memberships: [{ _id: "m1", user_id: OWNER, team_id: TEAM, role: "admin" }],
+    team_memberships: [
+      { _id: "m1", user_id: OWNER, team_id: TEAM, role: "admin" },
+    ],
     api_tokens: [
-      { _id: "at_owner", user_id: OWNER, token_hash: await hashToken(OWNER_TOKEN), last_used_at: Date.now() },
+      {
+        _id: "at_owner",
+        user_id: OWNER,
+        token_hash: await hashToken(OWNER_TOKEN),
+        last_used_at: Date.now(),
+      },
     ],
     conversations: [
       { _id: "parent", user_id: OWNER, is_private: true },
-      { _id: "child_mine", user_id: OWNER, parent_conversation_id: "parent", title: "Mine", is_subagent: true },
-      { _id: "child_theirs", user_id: OTHER, parent_conversation_id: "parent", title: "Theirs", is_subagent: true },
+      {
+        _id: "child_mine",
+        user_id: OWNER,
+        parent_conversation_id: "parent",
+        title: "Mine",
+        is_subagent: true,
+      },
+      {
+        _id: "child_theirs",
+        user_id: OTHER,
+        parent_conversation_id: "parent",
+        title: "Theirs",
+        is_subagent: true,
+      },
       // A private session and a team-visible session, for the stamp tests.
-      { _id: "conv_private", user_id: OWNER, team_id: TEAM, is_private: true, session_id: "sess_priv" },
-      { _id: "conv_shared", user_id: OWNER, team_id: TEAM, is_private: false, session_id: "sess_shared" },
+      {
+        _id: "conv_private",
+        user_id: OWNER,
+        team_id: TEAM,
+        is_private: true,
+        session_id: "sess_priv",
+      },
+      {
+        _id: "conv_shared",
+        user_id: OWNER,
+        team_id: TEAM,
+        is_private: false,
+        session_id: "sess_shared",
+      },
     ],
     session_metrics: [
-      { _id: "sm_owner", session_id: "sess_x", user_id: OWNER, cpu: 1, collected_at: 1 },
-      { _id: "sm_other", session_id: "sess_x", user_id: OTHER, cpu: 2, collected_at: 2 },
+      {
+        _id: "sm_owner",
+        session_id: "sess_x",
+        user_id: OWNER,
+        cpu: 1,
+        collected_at: 1,
+      },
+      {
+        _id: "sm_other",
+        session_id: "sess_x",
+        user_id: OTHER,
+        cpu: 2,
+        collected_at: 2,
+      },
     ],
     patterns: [],
     decisions: [],
@@ -78,24 +121,34 @@ function ctx(t: Record<string, any[]>, authUserId?: string | null) {
 
 describe("adminFindChildren user scope (16)", () => {
   test("returns only the caller's own children", async () => {
-    const res = await (adminFindChildren as any)._handler(ctx(await tables(), OWNER), {
-      parent_conversation_id: "parent", api_token: OWNER_TOKEN,
-    });
+    const res = await (adminFindChildren as any)._handler(
+      ctx(await tables(), OWNER),
+      {
+        parent_conversation_id: "parent",
+        api_token: OWNER_TOKEN,
+      },
+    );
     expect(res.map((c: any) => c._id)).toEqual(["child_mine"]);
   });
 });
 
 describe("getSessionMetrics user scope (17)", () => {
   test("returns only the caller's own metrics rows for a shared session_id", async () => {
-    const res = await (getSessionMetrics as any)._handler(ctx(await tables(), OWNER), {
-      session_id: "sess_x",
-    });
+    const res = await (getSessionMetrics as any)._handler(
+      ctx(await tables(), OWNER),
+      {
+        session_id: "sess_x",
+      },
+    );
     expect(res.map((r: any) => r._id)).toEqual(["sm_owner"]);
   });
   test("a stranger sees none", async () => {
-    const res = await (getSessionMetrics as any)._handler(ctx(await tables(), OTHER), {
-      session_id: "sess_x",
-    });
+    const res = await (getSessionMetrics as any)._handler(
+      ctx(await tables(), OTHER),
+      {
+        session_id: "sess_x",
+      },
+    );
     expect(res.map((r: any) => r._id)).toEqual(["sm_other"]);
   });
 });
@@ -104,7 +157,10 @@ describe("patterns/decisions inherit only the VISIBLE team (10)", () => {
   test("a pattern mined from a PRIVATE session does not carry its routing team", async () => {
     const t = await tables();
     await (createPattern as any)._handler(ctx(t, OWNER), {
-      api_token: OWNER_TOKEN, name: "p", description: "d", content: "c",
+      api_token: OWNER_TOKEN,
+      name: "p",
+      description: "d",
+      content: "c",
       source_session_id: "sess_priv",
     });
     const row = t.patterns.find((p: any) => p.name === "p");
@@ -118,7 +174,10 @@ describe("patterns/decisions inherit only the VISIBLE team (10)", () => {
   test("a decision mined from a SHARED session inherits its team", async () => {
     const t = await tables();
     await (createDecision as any)._handler(ctx(t, OWNER), {
-      api_token: OWNER_TOKEN, title: "t", rationale: "r", session_id: "sess_shared",
+      api_token: OWNER_TOKEN,
+      title: "t",
+      rationale: "r",
+      session_id: "sess_shared",
     });
     const row = t.decisions.find((d: any) => d.title === "t");
     expect(row.team_id).toBe(TEAM);
@@ -127,7 +186,9 @@ describe("patterns/decisions inherit only the VISIBLE team (10)", () => {
 
   test("promoting a doc mined from a PRIVATE session yields a personal plan (8)", async () => {
     const t = await tables();
-    await (webPromoteToPlan as any)._handler(ctx(t, OWNER), { doc_id: "doc_from_private" });
+    await (webPromoteToPlan as any)._handler(ctx(t, OWNER), {
+      doc_id: "doc_from_private",
+    });
     const plan = t.plans.find((p: any) => p.title === "Mined from private");
     // The plan carries no conversation link, so this key is the ONLY thing
     // standing between a private session and a team-readable plan.
@@ -137,7 +198,9 @@ describe("patterns/decisions inherit only the VISIBLE team (10)", () => {
 
   test("promoting a doc from a team-visible session keeps the plan team-readable", async () => {
     const t = await tables();
-    await (webPromoteToPlan as any)._handler(ctx(t, OWNER), { doc_id: "doc_from_shared" });
+    await (webPromoteToPlan as any)._handler(ctx(t, OWNER), {
+      doc_id: "doc_from_shared",
+    });
     const plan = t.plans.find((p: any) => p.title === "Mined from shared");
     expect(plan.workspace).toBe(`team:${TEAM}`);
     expect(plan.team_id).toBe(TEAM);
@@ -146,7 +209,10 @@ describe("patterns/decisions inherit only the VISIBLE team (10)", () => {
   test("a decision mined from a PRIVATE session is personal to its owner", async () => {
     const t = await tables();
     await (createDecision as any)._handler(ctx(t, OWNER), {
-      api_token: OWNER_TOKEN, title: "secret", rationale: "r", session_id: "sess_priv",
+      api_token: OWNER_TOKEN,
+      title: "secret",
+      rationale: "r",
+      session_id: "sess_priv",
     });
     const row = t.decisions.find((d: any) => d.title === "secret");
     expect(row.workspace).toBe(`user:${OWNER}`);

@@ -59,7 +59,13 @@ import "../calls/walkie.css";
  *  <img> — diagnosis 7's actual symptom, and the reason the key is a prop. One
  *  player is shared by the whole app, so two recordings in one message need two
  *  distinct keys. */
-export function VoicePlayButton({ playKey, att }: { playKey: string; att: ChatAttachmentView }) {
+export function VoicePlayButton({
+  playKey,
+  att,
+}: {
+  playKey: string;
+  att: ChatAttachmentView;
+}) {
   const url = useStorageImageUrl(att.storage_id);
   const playback = useSyncExternalStore(
     subscribeVoicePlayer,
@@ -98,7 +104,13 @@ export function VoicePlayButton({ playKey, att }: { playKey: string; att: ChatAt
 /** The elapsed/total pair. Only the message being played counts up; every other
  *  bubble shows the length it was, which is what the server told us before the
  *  audio was ever fetched. */
-function VoiceClock({ messageId, durationMs }: { messageId: string; durationMs?: number }) {
+function VoiceClock({
+  messageId,
+  durationMs,
+}: {
+  messageId: string;
+  durationMs?: number;
+}) {
   const playback = useSyncExternalStore(
     subscribeVoicePlayer,
     getVoicePlayback,
@@ -112,7 +124,9 @@ function VoiceClock({ messageId, durationMs }: { messageId: string; durationMs?:
   if (!total) return null;
   return (
     <span className="ch-voice-clock">
-      {mine && playback.positionMs > 0 ? `${voiceDuration(playback.positionMs)} / ` : ""}
+      {mine && playback.positionMs > 0
+        ? `${voiceDuration(playback.positionMs)} / `
+        : ""}
       {voiceDuration(total)}
     </span>
   );
@@ -129,7 +143,13 @@ function VoiceClock({ messageId, durationMs }: { messageId: string; durationMs?:
  *  own `durationMs` stays zero for every burst this feature produces. Keying
  *  the line on it meant it never drew at all, which is how it was caught: the
  *  transcript said 0:02 and the line under it was missing. */
-function VoiceProgress({ messageId, durationMs }: { messageId: string; durationMs?: number }) {
+function VoiceProgress({
+  messageId,
+  durationMs,
+}: {
+  messageId: string;
+  durationMs?: number;
+}) {
   const playback = useSyncExternalStore(
     subscribeVoicePlayer,
     getVoicePlayback,
@@ -171,9 +191,12 @@ function VoiceLiveBubble({ message }: { message: ChatMessageView }) {
   // and the strip wear.
   const mine =
     !!status.sending &&
-    (status.sending.clientId === message.id || status.sending.messageId === message.id);
+    (status.sending.clientId === message.id ||
+      status.sending.messageId === message.id);
   const theirs =
-    status.incoming?.messageId === message.id ? status.incoming.fromUserId : undefined;
+    status.incoming?.messageId === message.id
+      ? status.incoming.fromUserId
+      : undefined;
   // A meter needs a voice to measure. A live burst in a DM somebody has open
   // but is not in the room for has neither — the row says it is live and that
   // is all this client knows — so the pulsing dot carries it alone rather than
@@ -200,7 +223,9 @@ function VoiceLiveBubble({ message }: { message: ChatMessageView }) {
         <span className="ch-voice-pulse" aria-hidden="true">
           <span className="ch-voice-dot" />
         </span>
-        {metered && <WalkieLevelBars identity={theirs} tone={mine ? "tx" : "rx"} />}
+        {metered && (
+          <WalkieLevelBars identity={theirs} tone={mine ? "tx" : "rx"} />
+        )}
         <span className="ch-voice-text">
           {/* Motion alone is not an accessible signal, so the state is also a
               word — and until the recognizer has heard anything, that word is
@@ -221,7 +246,8 @@ export function ChatVoiceBubble({ message }: { message: ChatMessageView }) {
   const att = voiceAttachment(message.attachments);
   const transcript = message.content.trim();
 
-  if (message.voice?.status === "live") return <VoiceLiveBubble message={message} />;
+  if (message.voice?.status === "live")
+    return <VoiceLiveBubble message={message} />;
 
   // The live recognizer heard nothing and the server is reading the recording
   // instead. It is a wait, not a loss, and it has to say which: an empty bubble
@@ -237,7 +263,10 @@ export function ChatVoiceBubble({ message }: { message: ChatMessageView }) {
         ) : (
           // A burst whose recording never uploaded: the words still landed, and
           // they were always the point. The glyph says where they came from.
-          <span className="ch-voice-noaudio" title="Said out loud; the recording did not survive">
+          <span
+            className="ch-voice-noaudio"
+            title="Said out loud; the recording did not survive"
+          >
             <Radio className="w-3 h-3" />
           </span>
         )}
@@ -253,9 +282,15 @@ export function ChatVoiceBubble({ message }: { message: ChatMessageView }) {
             )}
           </span>
           {/* Where the playback has got to, for the one bubble being played. */}
-          <VoiceProgress messageId={message.id} durationMs={message.voice?.durationMs} />
+          <VoiceProgress
+            messageId={message.id}
+            durationMs={message.voice?.durationMs}
+          />
         </span>
-        <VoiceClock messageId={message.id} durationMs={message.voice?.durationMs} />
+        <VoiceClock
+          messageId={message.id}
+          durationMs={message.voice?.durationMs}
+        />
       </div>
     </div>
   );

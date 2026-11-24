@@ -6,18 +6,25 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { installStoreListenerCensus, readStoreListenerCount } from "../storeListenerCensus";
+import {
+  installStoreListenerCensus,
+  readStoreListenerCount,
+} from "../storeListenerCensus";
 import { resetSyncTransactionForTests } from "../syncTransaction";
 
 type CensusState = { n: number };
 type CensusApi = {
-  subscribe: (listener: (state: CensusState, previous: CensusState) => void) => () => void;
+  subscribe: (
+    listener: (state: CensusState, previous: CensusState) => void,
+  ) => () => void;
   setState: (partial: Partial<CensusState>) => void;
 };
 
 /** Rebuilds what create() does, so the test exercises the real wiring order. */
 function createCensusStore(): { api: CensusApi; hook: { subscribe: unknown } } {
-  const api = createStore<CensusState>(() => ({ n: 0 })) as unknown as CensusApi;
+  const api = createStore<CensusState>(() => ({
+    n: 0,
+  })) as unknown as CensusApi;
   installStoreListenerCensus(api);
   const hook = ((selector: (state: CensusState) => unknown) =>
     useStore(api as never, selector)) as unknown as { subscribe: unknown };
@@ -69,7 +76,9 @@ describe("store listener census", () => {
   test("still delivers state to a counted listener, and stops on release", () => {
     const { api } = createCensusStore();
     let seen = 0;
-    const unsubscribe = api.subscribe((state) => { seen = state.n; });
+    const unsubscribe = api.subscribe((state) => {
+      seen = state.n;
+    });
 
     api.setState({ n: 7 });
     expect(seen).toBe(7);

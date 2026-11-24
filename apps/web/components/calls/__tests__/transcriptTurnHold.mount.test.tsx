@@ -12,9 +12,26 @@ let LONG_PRESS_MS: number;
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh" });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "Event", "MouseEvent", "localStorage"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh" },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Event",
+    "MouseEvent",
+    "localStorage",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
@@ -25,12 +42,29 @@ beforeAll(async () => {
 }, 120_000);
 
 const turns = [
-  { index: 0, speaker_id: "u-ann", speaker_name: "Ann", t0: 0, t1: 4_000, segments: [{ seq: 1, text: "First", t0: 0, t1: 4_000 }] },
-  { index: 1, speaker_id: "u-bob", speaker_name: "Bob", t0: 4_000, t1: 9_000, segments: [{ seq: 2, text: "Second", t0: 4_000, t1: 9_000 }] },
+  {
+    index: 0,
+    speaker_id: "u-ann",
+    speaker_name: "Ann",
+    t0: 0,
+    t1: 4_000,
+    segments: [{ seq: 1, text: "First", t0: 0, t1: 4_000 }],
+  },
+  {
+    index: 1,
+    speaker_id: "u-bob",
+    speaker_name: "Bob",
+    t0: 4_000,
+    t1: 9_000,
+    segments: [{ seq: 2, text: "Second", t0: 4_000, t1: 9_000 }],
+  },
 ] as any;
 
 function pointer(el: Element, type: string, pointerType: string) {
-  const e = new (window as any).MouseEvent(type, { bubbles: true, cancelable: true });
+  const e = new (window as any).MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+  });
   Object.defineProperty(e, "pointerType", { value: pointerType });
   el.dispatchEvent(e);
 }
@@ -54,7 +88,8 @@ async function mount() {
   return { clicks, holds, turn, root };
 }
 
-const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)));
+const wait = (ms: number) =>
+  act(() => new Promise<void>((r) => setTimeout(r, ms)));
 
 test("a finger held on a line selects it, and its click is spent", async () => {
   const { clicks, holds, turn, root } = await mount();

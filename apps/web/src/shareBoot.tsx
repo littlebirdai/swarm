@@ -40,7 +40,8 @@ import type { SharedObjectKind } from "@codecast/shared/entities";
 
 // A hydration mismatch is the one recoverable error this boot can produce;
 // React re-renders from the client, so log the cause rather than swallow it.
-const onRecoverableError = (err: unknown) => console.error("[share] recoverable render error", err);
+const onRecoverableError = (err: unknown) =>
+  console.error("[share] recoverable render error", err);
 
 // One page per shared kind; the type makes a new kind a compile error here
 // until it has one.
@@ -59,7 +60,9 @@ const SHARE_PAGES: Record<SharedObjectKind, ComponentType> = {
   card: SharedCard,
 };
 
-const convex = new ConvexReactClient(CONVEX_URL, { webSocketConstructor: recoveringWebSocket() });
+const convex = new ConvexReactClient(CONVEX_URL, {
+  webSocketConstructor: recoveringWebSocket(),
+});
 
 const tree = (
   <React.StrictMode>
@@ -67,7 +70,11 @@ const tree = (
       <ConvexProvider client={convex}>
         <Routes>
           {Object.entries(SHARE_PAGES).map(([kind, Page]) => (
-            <Route key={kind} path={`share/${kind}/:token`} element={<Page />} />
+            <Route
+              key={kind}
+              path={`share/${kind}/:token`}
+              element={<Page />}
+            />
           ))}
           <Route
             path="meet/:token"

@@ -1,13 +1,27 @@
 import { getUserOrToken } from "./lib/auth";
 import { recordAuthorityEvent } from "./lib/authorityEvents";
-import { mutation, query, action, internalMutation, internalQuery } from "./functions";
+import {
+  mutation,
+  query,
+  action,
+  internalMutation,
+  internalQuery,
+} from "./functions";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { api, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { isTeamAdmin, shareATeam } from "./privacy";
-import { dropOwnerRow, endMembership, ownerGrantHolds } from "./lib/teamMembershipEnd";
-import { INVITE_CODE_TTL_MS, recordAdminRemoval, removedSinceCodeIssued } from "./lib/teamInvites";
+import {
+  dropOwnerRow,
+  endMembership,
+  ownerGrantHolds,
+} from "./lib/teamMembershipEnd";
+import {
+  INVITE_CODE_TTL_MS,
+  recordAdminRemoval,
+  removedSinceCodeIssued,
+} from "./lib/teamInvites";
 import {
   currentMembershipVisibility,
   nextMembershipVisibility,
@@ -24,7 +38,10 @@ import {
 import { authorizeRoom, liveMembers } from "./callRooms";
 import { roomSeatClass, type SeatClass } from "./lib/callSeats";
 import { normalizeTeamTaskStatuses } from "@codecast/shared/tasks";
-import { DEFAULT_TEAM_FEATURES, teamFeatureEnabled } from "@codecast/shared/contracts";
+import {
+  DEFAULT_TEAM_FEATURES,
+  teamFeatureEnabled,
+} from "@codecast/shared/contracts";
 import { decommissionAnchorRow } from "./anchors";
 import { readLocalViewRevision } from "./localFirstCommands";
 import { bumpWindow } from "./ipRateLimit";
@@ -47,7 +64,6 @@ import {
   unauthenticatedView,
 } from "./smallViewContracts";
 
-
 function generateInviteCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -58,14 +74,40 @@ function generateInviteCode(): string {
 }
 
 export const TEAM_ICONS = [
-  "rocket", "flame", "zap", "star", "diamond", "crown",
-  "shield", "sword", "anchor", "compass", "mountain", "tree",
-  "sun", "moon", "cloud", "bolt", "atom", "dna",
-  "hexagon", "triangle", "cube", "sphere", "infinity", "omega"
+  "rocket",
+  "flame",
+  "zap",
+  "star",
+  "diamond",
+  "crown",
+  "shield",
+  "sword",
+  "anchor",
+  "compass",
+  "mountain",
+  "tree",
+  "sun",
+  "moon",
+  "cloud",
+  "bolt",
+  "atom",
+  "dna",
+  "hexagon",
+  "triangle",
+  "cube",
+  "sphere",
+  "infinity",
+  "omega",
 ] as const;
 
 export const TEAM_COLORS = [
-  "cyan", "blue", "violet", "magenta", "green", "yellow", "orange"
+  "cyan",
+  "blue",
+  "violet",
+  "magenta",
+  "green",
+  "yellow",
+  "orange",
 ] as const;
 
 function getRandomIcon(): string {
@@ -78,12 +120,22 @@ function getRandomColor(): string {
 
 export const TEAM_NAME_MAX_LENGTH = 40;
 
-export function isTeamIcon(value: unknown): value is (typeof TEAM_ICONS)[number] {
-  return typeof value === "string" && (TEAM_ICONS as readonly string[]).includes(value);
+export function isTeamIcon(
+  value: unknown,
+): value is (typeof TEAM_ICONS)[number] {
+  return (
+    typeof value === "string" &&
+    (TEAM_ICONS as readonly string[]).includes(value)
+  );
 }
 
-export function isTeamColor(value: unknown): value is (typeof TEAM_COLORS)[number] {
-  return typeof value === "string" && (TEAM_COLORS as readonly string[]).includes(value);
+export function isTeamColor(
+  value: unknown,
+): value is (typeof TEAM_COLORS)[number] {
+  return (
+    typeof value === "string" &&
+    (TEAM_COLORS as readonly string[]).includes(value)
+  );
 }
 
 /**
@@ -101,12 +153,16 @@ export function validateTeamCreateArgs(args: {
     throw new Error("Team name is required");
   }
   if (name.length > TEAM_NAME_MAX_LENGTH) {
-    throw new Error(`Team name must be ${TEAM_NAME_MAX_LENGTH} characters or fewer`);
+    throw new Error(
+      `Team name must be ${TEAM_NAME_MAX_LENGTH} characters or fewer`,
+    );
   }
   return {
     name,
     icon: isTeamIcon(args.icon) ? args.icon : getRandomIcon(),
-    icon_color: isTeamColor(args.icon_color) ? args.icon_color : getRandomColor(),
+    icon_color: isTeamColor(args.icon_color)
+      ? args.icon_color
+      : getRandomColor(),
   };
 }
 
@@ -153,13 +209,15 @@ export const getUserTeams = query({
           // Sharing settings and the share-in-full nudge: a level only matters
           // when someone else is on the team and a project flows to it.
           member_count: roster.length,
-          shared_project_count: mappings.filter((dm) => dm.team_id?.toString() === m.team_id.toString()).length,
+          shared_project_count: mappings.filter(
+            (dm) => dm.team_id?.toString() === m.team_id.toString(),
+          ).length,
           // The client's own create key, echoed back. A create whose dispatch
           // was parked (no binding at click time) resolves its stub against
           // this instead of being declared failed.
           client_key: team.client_key,
         };
-      })
+      }),
     );
     return teams.filter(Boolean);
   },
@@ -169,7 +227,10 @@ export const getUserTeams = query({
 export const getUserTeamsV2 = query({
   args: {},
   handler: async (ctx) => {
-    const identity = { contractId: TEAMS_VIEW_CONTRACT_ID, viewKey: TEAMS_VIEW_KEY };
+    const identity = {
+      contractId: TEAMS_VIEW_CONTRACT_ID,
+      viewKey: TEAMS_VIEW_KEY,
+    };
     const userId = await getAuthUserId(ctx);
     if (!userId) return unauthenticatedView(identity);
 
@@ -180,18 +241,28 @@ export const getUserTeamsV2 = query({
         .collect(),
       readLocalViewRevision(ctx, userId, identity.contractId, identity.viewKey),
     ]);
-    const projected = (await Promise.all(memberships.map(async (membership) => {
-      const team = await ctx.db.get(membership.team_id);
-      return team ? projectPrincipalTeam(team, membership) : null;
-    })))
+    const projected = (
+      await Promise.all(
+        memberships.map(async (membership) => {
+          const team = await ctx.db.get(membership.team_id);
+          return team ? projectPrincipalTeam(team, membership) : null;
+        }),
+      )
+    )
       .filter((team): team is NonNullable<typeof team> => team !== null)
-      .sort((left, right) =>
-        left.joined_at - right.joined_at
-        || String(left._id).localeCompare(String(right._id)));
+      .sort(
+        (left, right) =>
+          left.joined_at - right.joined_at ||
+          String(left._id).localeCompare(String(right._id)),
+      );
 
-    return grantedView(identity, { grantKeys: [TEAMS_GRANT_KEY], viewRevision }, {
-      teams: projected,
-    });
+    return grantedView(
+      identity,
+      { grantKeys: [TEAMS_GRANT_KEY], viewRevision },
+      {
+        teams: projected,
+      },
+    );
   },
 });
 
@@ -210,7 +281,9 @@ export const getActiveTeamContext = query({
     }
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
 
     if (!membership) {
@@ -266,7 +339,9 @@ export const createTeam = mutation({
         }
         const membership = await ctx.db
           .query("team_memberships")
-          .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", existing._id))
+          .withIndex("by_user_team", (q) =>
+            q.eq("user_id", authUserId).eq("team_id", existing._id),
+          )
           .unique();
         if (membership) return existing._id;
       }
@@ -276,7 +351,10 @@ export const createTeam = mutation({
     const now = Date.now();
     const creator = args.discoverable ? await ctx.db.get(authUserId) : null;
     const domain = creator ? workDomain(creator.email) : null;
-    const discoverable_domain = creator && domain && (await emailProven(ctx, creator)) ? domain : undefined;
+    const discoverable_domain =
+      creator && domain && (await emailProven(ctx, creator))
+        ? domain
+        : undefined;
     const teamId = await ctx.db.insert("teams", {
       ...identity,
       created_at: now,
@@ -289,7 +367,10 @@ export const createTeam = mutation({
       ...(discoverable_domain ? { discoverable_domain } : {}),
     });
     await recordAuthorityEvent(ctx, {
-      kind: "team_member_added", actor_user_id: authUserId, team_id: teamId, target_user_id: authUserId,
+      kind: "team_member_added",
+      actor_user_id: authUserId,
+      team_id: teamId,
+      target_user_id: authUserId,
       detail: { after: { role: "admin", how: "Created the team" } },
     });
     await ctx.db.insert("team_memberships", {
@@ -309,7 +390,9 @@ export const createTeam = mutation({
 
 /** A seat refused by seat billing, thrown as data so a client can offer the
  *  upgrade (`error.data.code`) instead of parsing a message. */
-export function seatRefusal(limit: SeatLimit): ConvexError<Record<string, string | number>> {
+export function seatRefusal(
+  limit: SeatLimit,
+): ConvexError<Record<string, string | number>> {
   return new ConvexError({ ...limit });
 }
 
@@ -330,12 +413,16 @@ export async function addTeamMember(
 ): Promise<void> {
   const existingMembership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", team._id))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", team._id),
+    )
     .unique();
   if (existingMembership) return;
   const user = await ctx.db.get(userId);
   if (!opts.skipSeatCheck) {
-    const seat = await checkSeat(ctx, team, how, { exclude: { userId, email: user?.email } });
+    const seat = await checkSeat(ctx, team, how, {
+      exclude: { userId, email: user?.email },
+    });
     if (seat.kind === "blocked") throw seatRefusal(seat.limit);
   }
   const now = Date.now();
@@ -346,7 +433,10 @@ export async function addTeamMember(
     joined_at: now,
   });
   await recordAuthorityEvent(ctx, {
-    kind: "team_member_added", actor_user_id: actor, team_id: team._id, target_user_id: userId,
+    kind: "team_member_added",
+    actor_user_id: actor,
+    team_id: team._id,
+    target_user_id: userId,
     detail: { after: { role: "member", how } },
   });
   // Their emailed invite became this membership; it no longer holds a seat.
@@ -354,9 +444,13 @@ export async function addTeamMember(
   if (email) {
     const invites = await ctx.db
       .query("team_invites")
-      .withIndex("by_team_email", (q: any) => q.eq("team_id", team._id).eq("email", email))
+      .withIndex("by_team_email", (q: any) =>
+        q.eq("team_id", team._id).eq("email", email),
+      )
       .collect();
-    for (const invite of invites) if (!invite.accepted_at) await ctx.db.patch(invite._id, { accepted_at: now });
+    for (const invite of invites)
+      if (!invite.accepted_at)
+        await ctx.db.patch(invite._id, { accepted_at: now });
   }
   await scheduleSeatSync(ctx, team._id, "member_joined");
   if (!user?.team_id) {
@@ -383,7 +477,14 @@ export const addMemberByOperator = internalMutation({
   handler: async (ctx, args) => {
     const team = await ctx.db.get(args.team_id);
     if (!team || team.deleted_at) throw new Error("No such team");
-    await addTeamMember(ctx, args.user_id, team, "Added by a team admin", args.user_id, { skipSeatCheck: true });
+    await addTeamMember(
+      ctx,
+      args.user_id,
+      team,
+      "Added by a team admin",
+      args.user_id,
+      { skipSeatCheck: true },
+    );
   },
 });
 
@@ -406,7 +507,10 @@ export const joinTeam = mutation({
     if (!team || team.deleted_at) {
       throw new Error("Invalid invite code");
     }
-    if (team.invite_code_expires_at && Date.now() > team.invite_code_expires_at) {
+    if (
+      team.invite_code_expires_at &&
+      Date.now() > team.invite_code_expires_at
+    ) {
       throw new Error("Invite code expired");
     }
     const joiner = await ctx.db.get(authUserId);
@@ -427,7 +531,9 @@ export const getTeam = query({
     if (!authUserId) return null;
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership) return null;
     const team = await ctx.db.get(args.team_id);
@@ -454,7 +560,9 @@ export const getTeamByInviteCode = query({
       .withIndex("by_team_id", (q) => q.eq("team_id", team._id))
       .collect();
 
-    const isExpired = !!(team.invite_code_expires_at && Date.now() > team.invite_code_expires_at);
+    const isExpired = !!(
+      team.invite_code_expires_at && Date.now() > team.invite_code_expires_at
+    );
 
     return {
       _id: team._id,
@@ -480,7 +588,9 @@ export const getTeamMembers = query({
     }
     const callerMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .unique();
     if (!callerMembership) {
       return [];
@@ -537,7 +647,12 @@ export const getTeamMembers = query({
         let viewingConversationId: Id<"conversations"> | undefined;
         const viewingId = presenceRow?.viewing_conversation_id;
         if (surfaceAlive && viewingId && presenceRow.viewing_access) {
-          if (await canAccessConversation(ctx, authUserId, { _id: viewingId, ...presenceRow.viewing_access })) {
+          if (
+            await canAccessConversation(ctx, authUserId, {
+              _id: viewingId,
+              ...presenceRow.viewing_access,
+            })
+          ) {
             viewingConversationId = viewingId;
           }
         }
@@ -585,7 +700,11 @@ export const getTeamMembers = query({
               .query("call_members")
               .withIndex("by_room", (q) => q.eq("room_key", liveCall.room_key))
               .collect();
-            seat = await roomSeatClass(ctx, liveCall.room_key, liveMembers(roomRows, now));
+            seat = await roomSeatClass(
+              ctx,
+              liveCall.room_key,
+              liveMembers(roomRows, now),
+            );
           }
         }
         return {
@@ -633,7 +752,9 @@ export const getTeamMembers = query({
           // re-push: a teammate sitting in one session for an hour yields a
           // byte-identical row every heartbeat.
           viewing_conversation_id: viewingConversationId,
-          viewing_since: viewingConversationId ? bucketTs(presenceRow?.viewing_since) : undefined,
+          viewing_since: viewingConversationId
+            ? bucketTs(presenceRow?.viewing_since)
+            : undefined,
           // The seat, for the viewers the room admits: what the seat means
           // (burst or call) and when this member stepped in on purpose.
           // Bucketed like every timestamp here and set once, so neither
@@ -644,7 +765,7 @@ export const getTeamMembers = query({
               ? bucketTs(liveCall.walkie_joined_at)
               : undefined,
         };
-      })
+      }),
     );
     return members.filter(Boolean);
   },
@@ -671,7 +792,8 @@ export const getTeamMembersV2 = query({
     const callerMembership = await ctx.db
       .query("team_memberships")
       .withIndex("by_user_team", (q) =>
-        q.eq("user_id", userId).eq("team_id", args.team_id))
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
     if (!callerMembership) return forbiddenView(identity, [grantKey]);
 
@@ -684,12 +806,18 @@ export const getTeamMembersV2 = query({
     ]);
     const projected = memberships
       .map(projectTeamMembership)
-      .sort((left, right) =>
-        left.joined_at - right.joined_at
-        || String(left._id).localeCompare(String(right._id)));
-    return grantedView(identity, { grantKeys: [grantKey], viewRevision }, {
-      memberships: projected,
-    });
+      .sort(
+        (left, right) =>
+          left.joined_at - right.joined_at ||
+          String(left._id).localeCompare(String(right._id)),
+      );
+    return grantedView(
+      identity,
+      { grantKeys: [grantKey], viewRevision },
+      {
+        memberships: projected,
+      },
+    );
   },
 });
 
@@ -702,32 +830,50 @@ export const getTeamMembersV2 = query({
 // session of someone the owner still shares a team with is left alone.
 //   npx convex run teams:sweepStaleSessionOwners '{"dryRun": true}'
 export const sweepStaleSessionOwners = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), dryRun: v.optional(v.boolean()) },
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    dryRun: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    const page = await ctx.db.query("session_owners").paginate({ numItems: 200, cursor: args.cursor ?? null });
+    const page = await ctx.db
+      .query("session_owners")
+      .paginate({ numItems: 200, cursor: args.cursor ?? null });
     let dropped = 0;
     for (const row of page.page) {
       const conv: any = await ctx.db.get(row.conversation_id);
       if (!conv || String(conv.user_id) === String(row.user_id)) continue;
       if (await ownerGrantHolds(ctx, row.user_id, conv)) continue;
       const runner: any = await ctx.db.get(conv.user_id);
-      const knowable = !runner || runner.is_bot || !!conv.team_id
-        || (!!conv.owner_device_id && !!(await ctx.db.query("device_shares")
-          .withIndex("by_user_device", (q: any) => q.eq("user_id", conv.user_id).eq("device_id", conv.owner_device_id))
-          .first()))
-        || !(await shareATeam(ctx, row.user_id, conv.user_id));
+      const knowable =
+        !runner ||
+        runner.is_bot ||
+        !!conv.team_id ||
+        (!!conv.owner_device_id &&
+          !!(await ctx.db
+            .query("device_shares")
+            .withIndex("by_user_device", (q: any) =>
+              q
+                .eq("user_id", conv.user_id)
+                .eq("device_id", conv.owner_device_id),
+            )
+            .first())) ||
+        !(await shareATeam(ctx, row.user_id, conv.user_id));
       if (!knowable) continue;
       dropped++;
-      console.log(`[sweepStaleSessionOwners] ${args.dryRun ? "would drop" : "dropping"} owner ${row.user_id} on ${row.conversation_id}`);
+      console.log(
+        `[sweepStaleSessionOwners] ${args.dryRun ? "would drop" : "dropping"} owner ${row.user_id} on ${row.conversation_id}`,
+      );
       if (!args.dryRun) await dropOwnerRow(ctx, row);
     }
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.teams.sweepStaleSessionOwners, { cursor: page.continueCursor, dryRun: args.dryRun });
+      await ctx.scheduler.runAfter(0, internal.teams.sweepStaleSessionOwners, {
+        cursor: page.continueCursor,
+        dryRun: args.dryRun,
+      });
     }
     return { scanned: page.page.length, dropped, done: page.isDone };
   },
 });
-
 
 // Retire a team: end every membership, drop every directory mapping to it,
 // decommission its anchors, and leave the row as a tombstone (deleted_at) that
@@ -759,7 +905,8 @@ export async function retireTeam(
     deleted_members: roster,
     invite_code_expires_at: now,
   });
-  for (const m of memberships) await endMembership(ctx, m.user_id, team._id, actorId);
+  for (const m of memberships)
+    await endMembership(ctx, m.user_id, team._id, actorId);
   // Mappings owned by non-members (a user removed earlier, a mapping created
   // before their membership ended) would otherwise outlive the team.
   const strays = await ctx.db
@@ -784,11 +931,18 @@ export async function retireTeam(
   // so they go now, a page of calls at a time, rather than serving through
   // the restore window (the calls' public links already stop at the
   // tombstone, lib/callRecordingRuns.callTeamRetired).
-  await ctx.scheduler.runAfter(0, internal.callRecordings.purgeTeamRecordings, { team_id: team._id, frames: true });
+  await ctx.scheduler.runAfter(0, internal.callRecordings.purgeTeamRecordings, {
+    team_id: team._id,
+    frames: true,
+  });
   // The team's call recordings (video of its meetings, guests included) leave
   // the private bucket once the restore window has passed. The sweep checks
   // the tombstone again when it runs, so a restored team keeps them.
-  await ctx.scheduler.runAfter(TEAM_RECORDINGS_PURGE_GRACE_MS, internal.callRecordings.purgeTeamRecordings, { team_id: team._id });
+  await ctx.scheduler.runAfter(
+    TEAM_RECORDINGS_PURGE_GRACE_MS,
+    internal.callRecordings.purgeTeamRecordings,
+    { team_id: team._id },
+  );
   return { members: memberships.length, anchors: retired };
 }
 
@@ -808,7 +962,9 @@ export const deleteTeam = mutation({
     if (!team || team.deleted_at) throw new Error("Team not found");
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .unique();
     if (!membership || membership.role !== "admin") {
       throw new Error("Only admins can delete a team");
@@ -840,16 +996,23 @@ export const restoreTeam = internalMutation({
     // A regulated team's permanent delete (regulatedDeletion.destroyTeam) is never undone.
     const destroyed = await ctx.db
       .query("data_deletions")
-      .withIndex("by_target", (q) => q.eq("kind", "team").eq("target_id", String(args.team_id)))
+      .withIndex("by_target", (q) =>
+        q.eq("kind", "team").eq("target_id", String(args.team_id)),
+      )
       .first();
-    if (destroyed) throw new Error("This team's data was permanently deleted; it cannot be restored");
+    if (destroyed)
+      throw new Error(
+        "This team's data was permanently deleted; it cannot be restored",
+      );
     let seated = 0;
     for (const m of team.deleted_members ?? []) {
       const user = await ctx.db.get(m.user_id);
       if (!user) continue;
       const existing = await ctx.db
         .query("team_memberships")
-        .withIndex("by_user_team", (q) => q.eq("user_id", m.user_id).eq("team_id", args.team_id))
+        .withIndex("by_user_team", (q) =>
+          q.eq("user_id", m.user_id).eq("team_id", args.team_id),
+        )
         .unique();
       if (existing) continue;
       await ctx.db.insert("team_memberships", {
@@ -894,14 +1057,18 @@ export const removeMember = mutation({
     }
     const requesterMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", teamId))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", teamId),
+      )
       .unique();
     if (!requesterMembership || requesterMembership.role !== "admin") {
       throw new Error("Only admins can remove members");
     }
     const memberMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", args.member_user_id).eq("team_id", teamId))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", args.member_user_id).eq("team_id", teamId),
+      )
       .unique();
     if (!memberMembership) {
       throw new Error("User is not a member of this team");
@@ -911,7 +1078,9 @@ export const removeMember = mutation({
         .query("team_memberships")
         .withIndex("by_team_id", (q) => q.eq("team_id", teamId))
         .collect();
-      const adminCount = teamMemberships.filter(m => m.role === "admin").length;
+      const adminCount = teamMemberships.filter(
+        (m) => m.role === "admin",
+      ).length;
       if (adminCount <= 1) {
         throw new Error("Cannot remove yourself as the last admin");
       }
@@ -928,7 +1097,8 @@ export const removeMember = mutation({
       actor_user_id: args.member_user_id,
       event_type: "member_left" as const,
       title: `${memberName} left ${team?.name || "the team"}`,
-      description: authUserId === args.member_user_id ? "Left team" : "Removed by admin",
+      description:
+        authUserId === args.member_user_id ? "Left team" : "Removed by admin",
     });
   },
 });
@@ -947,7 +1117,9 @@ export const renameTeam = mutation({
     }
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership || membership.role !== "admin") {
       throw new Error("Only admins can rename the team");
@@ -969,7 +1141,9 @@ export const inviteToTeam = mutation({
     }
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership || membership.role !== "admin") {
       throw new Error("Only admins can generate invite codes");
@@ -997,7 +1171,9 @@ export const sendInviteEmail = mutation({
     // copy the invite link out of the modal.
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership) {
       throw new Error("Not a member of this team");
@@ -1006,7 +1182,10 @@ export const sendInviteEmail = mutation({
     if (!team?.invite_code) {
       throw new Error("This team has no invite link yet");
     }
-    if (team.invite_code_expires_at && Date.now() > team.invite_code_expires_at) {
+    if (
+      team.invite_code_expires_at &&
+      Date.now() > team.invite_code_expires_at
+    ) {
       throw new Error("The invite link has expired — regenerate it first");
     }
     const email = args.email.trim().toLowerCase();
@@ -1017,19 +1196,42 @@ export const sendInviteEmail = mutation({
     // Sending again to someone already invited on this link takes no new one.
     const invite = await ctx.db
       .query("team_invites")
-      .withIndex("by_team_email", (q) => q.eq("team_id", args.team_id).eq("email", email))
+      .withIndex("by_team_email", (q) =>
+        q.eq("team_id", args.team_id).eq("email", email),
+      )
       .first();
-    const holdsSeat = !!invite && !invite.accepted_at && invite.invite_code === team.invite_code;
-    const seat = await checkSeat(ctx, team, "invite_email", { adding: holdsSeat ? 0 : 1 });
-    if (seat.kind === "blocked") return { sent: false as const, upgrade_required: seat.limit };
+    const holdsSeat =
+      !!invite &&
+      !invite.accepted_at &&
+      invite.invite_code === team.invite_code;
+    const seat = await checkSeat(ctx, team, "invite_email", {
+      adding: holdsSeat ? 0 : 1,
+    });
+    if (seat.kind === "blocked")
+      return { sent: false as const, upgrade_required: seat.limit };
     // Outbound email to arbitrary addresses is a spam vector — cap per sender.
-    const limit = await bumpWindow(ctx.db, `invite-email:${authUserId}`, 30, 60 * 60 * 1000);
+    const limit = await bumpWindow(
+      ctx.db,
+      `invite-email:${authUserId}`,
+      30,
+      60 * 60 * 1000,
+    );
     if (!limit.ok) {
       throw new Error("Too many invites sent this hour — try again later");
     }
-    const inviteRow = { invite_code: team.invite_code, invited_by: authUserId, created_at: Date.now(), accepted_at: undefined };
+    const inviteRow = {
+      invite_code: team.invite_code,
+      invited_by: authUserId,
+      created_at: Date.now(),
+      accepted_at: undefined,
+    };
     if (invite) await ctx.db.patch(invite._id, inviteRow);
-    else await ctx.db.insert("team_invites", { team_id: args.team_id, email, ...inviteRow });
+    else
+      await ctx.db.insert("team_invites", {
+        team_id: args.team_id,
+        email,
+        ...inviteRow,
+      });
     const inviter = await ctx.db.get(authUserId);
     await ctx.scheduler.runAfter(0, internal.emails.send.sendTeamInvite, {
       to: email,
@@ -1056,7 +1258,9 @@ export const regenerateInviteCode = mutation({
     }
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .first();
     if (!membership || membership.role !== "admin") {
       throw new Error("Only admins can regenerate invite codes");
@@ -1093,14 +1297,18 @@ export const setMemberRole = mutation({
     }
     const requesterMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", teamId))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", teamId),
+      )
       .unique();
     if (!requesterMembership || requesterMembership.role !== "admin") {
       throw new Error("Only admins can change member roles");
     }
     const memberMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", args.member_user_id).eq("team_id", teamId))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", args.member_user_id).eq("team_id", teamId),
+      )
       .unique();
     if (!memberMembership) {
       throw new Error("User not in this team");
@@ -1110,15 +1318,23 @@ export const setMemberRole = mutation({
         .query("team_memberships")
         .withIndex("by_team_id", (q) => q.eq("team_id", teamId))
         .collect();
-      const adminCount = teamMemberships.filter(m => m.role === "admin").length;
+      const adminCount = teamMemberships.filter(
+        (m) => m.role === "admin",
+      ).length;
       if (adminCount <= 1) {
         throw new Error("Cannot demote the last admin");
       }
     }
     await ctx.db.patch(memberMembership._id, { role: args.role });
     await recordAuthorityEvent(ctx, {
-      kind: "team_member_role_changed", actor_user_id: authUserId, team_id: teamId, target_user_id: args.member_user_id,
-      detail: { before: { role: memberMembership.role }, after: { role: args.role } },
+      kind: "team_member_role_changed",
+      actor_user_id: authUserId,
+      team_id: teamId,
+      target_user_id: args.member_user_id,
+      detail: {
+        before: { role: memberMembership.role },
+        after: { role: args.role },
+      },
     });
     const memberUser = await ctx.db.get(args.member_user_id);
     if (memberUser?.team_id?.toString() === teamId.toString()) {
@@ -1141,14 +1357,18 @@ export const removeFromTeam = mutation({
     }
     const requesterMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", authUserId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", authUserId).eq("team_id", args.team_id),
+      )
       .unique();
     if (!requesterMembership || requesterMembership.role !== "admin") {
       throw new Error("Only admins can remove members");
     }
     const memberMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", args.user_id).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", args.user_id).eq("team_id", args.team_id),
+      )
       .unique();
     if (!memberMembership) {
       throw new Error("User not in this team");
@@ -1158,7 +1378,9 @@ export const removeFromTeam = mutation({
         .query("team_memberships")
         .withIndex("by_team_id", (q) => q.eq("team_id", args.team_id))
         .collect();
-      const adminCount = teamMemberships.filter(m => m.role === "admin").length;
+      const adminCount = teamMemberships.filter(
+        (m) => m.role === "admin",
+      ).length;
       if (adminCount <= 1) {
         throw new Error("Cannot remove yourself as the last admin");
       }
@@ -1172,7 +1394,8 @@ export const removeFromTeam = mutation({
       actor_user_id: args.user_id,
       event_type: "member_left" as const,
       title: `${memberName} left ${team?.name || "the team"}`,
-      description: authUserId === args.user_id ? "Left team" : "Removed by admin",
+      description:
+        authUserId === args.user_id ? "Left team" : "Removed by admin",
     });
   },
 });
@@ -1194,7 +1417,10 @@ export const syncGithubOrg = action({
     requesting_user_id: v.id("users"),
     org_name: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     imported: Array<{
       github_username: string;
       name: string;
@@ -1222,7 +1448,10 @@ export const syncGithubOrg = action({
     if (!isAdmin) {
       throw new Error("Only admins can sync GitHub organizations");
     }
-    const githubToken: string | null = await ctx.runQuery(internal.users.githubTokenForCaller, {});
+    const githubToken: string | null = await ctx.runQuery(
+      internal.users.githubTokenForCaller,
+      {},
+    );
     if (!githubToken) {
       throw new Error("GitHub account not connected");
     }
@@ -1239,7 +1468,7 @@ export const syncGithubOrg = action({
             Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        }
+        },
       );
 
       if (!membersResponse.ok) {
@@ -1264,7 +1493,7 @@ export const syncGithubOrg = action({
             Accept: "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        }
+        },
       );
 
       let role: "admin" | "member" = "member";
@@ -1278,20 +1507,28 @@ export const syncGithubOrg = action({
       });
 
       if (existingUser) {
-        if (existingUser.team_id?.toString() === requestingUser.team_id.toString()) {
+        if (
+          existingUser.team_id?.toString() === requestingUser.team_id.toString()
+        ) {
           skipped.push({
             github_username: member.login,
             reason: "Already a team member",
           });
           continue;
         }
-        const moved = await ctx.runMutation(internal.teams.updateUserTeamAndRole, {
-          user_id: existingUser._id,
-          team_id: requestingUser.team_id,
-          role,
-        });
+        const moved = await ctx.runMutation(
+          internal.teams.updateUserTeamAndRole,
+          {
+            user_id: existingUser._id,
+            team_id: requestingUser.team_id,
+            role,
+          },
+        );
         if (moved.blocked) {
-          skipped.push({ github_username: member.login, reason: moved.blocked.message });
+          skipped.push({
+            github_username: member.login,
+            reason: moved.blocked.message,
+          });
           continue;
         }
         imported.push({
@@ -1300,15 +1537,21 @@ export const syncGithubOrg = action({
           role,
         });
       } else {
-        const created = await ctx.runMutation(internal.teams.createUserFromGithub, {
-          github_id: String(member.id),
-          github_username: member.login,
-          github_avatar_url: member.avatar_url,
-          team_id: requestingUser.team_id,
-          role,
-        });
+        const created = await ctx.runMutation(
+          internal.teams.createUserFromGithub,
+          {
+            github_id: String(member.id),
+            github_username: member.login,
+            github_avatar_url: member.avatar_url,
+            team_id: requestingUser.team_id,
+            role,
+          },
+        );
         if (created.blocked) {
-          skipped.push({ github_username: member.login, reason: created.blocked.message });
+          skipped.push({
+            github_username: member.login,
+            reason: created.blocked.message,
+          });
           continue;
         }
         imported.push({
@@ -1363,7 +1606,9 @@ export const updateUserTeamAndRole = internalMutation({
   handler: async (ctx, args): Promise<{ blocked: SeatLimit | null }> => {
     const existingMembership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", args.user_id).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", args.user_id).eq("team_id", args.team_id),
+      )
       .unique();
     if (existingMembership) {
       await ctx.db.patch(existingMembership._id, { role: args.role });
@@ -1371,7 +1616,9 @@ export const updateUserTeamAndRole = internalMutation({
       const team = await ctx.db.get(args.team_id);
       if (!team) throw new Error("No such team");
       const user = await ctx.db.get(args.user_id);
-      const seat = await checkSeat(ctx, team, "github_org_sync", { exclude: { userId: args.user_id, email: user?.email } });
+      const seat = await checkSeat(ctx, team, "github_org_sync", {
+        exclude: { userId: args.user_id, email: user?.email },
+      });
       if (seat.kind === "blocked") return { blocked: seat.limit };
       await ctx.db.insert("team_memberships", {
         user_id: args.user_id,
@@ -1400,7 +1647,10 @@ export const createUserFromGithub = internalMutation({
     team_id: v.id("teams"),
     role: v.union(v.literal("member"), v.literal("admin")),
   },
-  handler: async (ctx, args): Promise<{ user_id: Id<"users"> | null; blocked: SeatLimit | null }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ user_id: Id<"users"> | null; blocked: SeatLimit | null }> => {
     const team = await ctx.db.get(args.team_id);
     if (!team) throw new Error("No such team");
     const seat = await checkSeat(ctx, team, "github_org_sync");
@@ -1441,7 +1691,9 @@ export const setActiveTeam = mutation({
     if (args.team_id) {
       const membership = await ctx.db
         .query("team_memberships")
-        .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id!))
+        .withIndex("by_user_team", (q) =>
+          q.eq("user_id", userId).eq("team_id", args.team_id!),
+        )
         .unique();
       if (!membership) {
         throw new Error("Not a member of this team");
@@ -1476,16 +1728,29 @@ export async function applyMembershipVisibilityChange(
 ) {
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .unique();
   if (!membership) {
     throw new Error("Not a member of this team");
   }
-  const next = nextMembershipVisibility(membership, visibility, mode, Date.now());
+  const next = nextMembershipVisibility(
+    membership,
+    visibility,
+    mode,
+    Date.now(),
+  );
   await ctx.db.patch(membership._id, next);
   await recordAuthorityEvent(ctx, {
-    kind: "team_member_visibility_changed", actor_user_id: userId, team_id: teamId, target_user_id: userId,
-    detail: { before: { visibility: membership.visibility }, after: { visibility, mode } },
+    kind: "team_member_visibility_changed",
+    actor_user_id: userId,
+    team_id: teamId,
+    target_user_id: userId,
+    detail: {
+      before: { visibility: membership.visibility },
+      after: { visibility, mode },
+    },
   });
   await invalidateForMember(ctx, userId, teamId);
   return next;
@@ -1495,7 +1760,7 @@ const teamVisibilityLevelArg = v.union(
   v.literal("hidden"),
   v.literal("activity"),
   v.literal("summary"),
-  v.literal("full")
+  v.literal("full"),
 );
 
 export const setTeamVisibility = mutation({
@@ -1504,14 +1769,22 @@ export const setTeamVisibility = mutation({
     api_token: v.optional(v.string()),
     team_id: v.id("teams"),
     visibility: teamVisibilityLevelArg,
-    mode: v.optional(v.union(v.literal("everything"), v.literal("going_forward"))),
+    mode: v.optional(
+      v.union(v.literal("everything"), v.literal("going_forward")),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getUserOrToken(ctx, args.api_token);
     if (!userId) {
       throw new Error("Not authenticated");
     }
-    const next = await applyMembershipVisibilityChange(ctx, userId, args.team_id, args.visibility, args.mode);
+    const next = await applyMembershipVisibilityChange(
+      ctx,
+      userId,
+      args.team_id,
+      args.visibility,
+      args.mode,
+    );
     return { success: true, ...next };
   },
 });
@@ -1530,7 +1803,9 @@ export const updateTeamIcon = mutation({
 
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
 
     if (!membership || membership.role !== "admin") {
@@ -1570,9 +1845,12 @@ export const setDefaultFlow = mutation({
     if (!userId) throw new Error("Not authenticated");
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
-    if (!membership || membership.role !== "admin") throw new Error("Only admins can set the team's default flow");
+    if (!membership || membership.role !== "admin")
+      throw new Error("Only admins can set the team's default flow");
     const slug = args.slug?.trim() || undefined;
     await ctx.db.patch(args.team_id, { default_flow: slug });
     return { success: true };
@@ -1588,12 +1866,14 @@ export const setDefaultFlow = mutation({
 export const updateTaskStatuses = mutation({
   args: {
     team_id: v.id("teams"),
-    statuses: v.array(v.object({
-      id: v.string(),
-      name: v.string(),
-      category: v.string(),
-      color: v.optional(v.string()),
-    })),
+    statuses: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        category: v.string(),
+        color: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -1602,7 +1882,9 @@ export const updateTaskStatuses = mutation({
     }
     const membership = await ctx.db
       .query("team_memberships")
-      .withIndex("by_user_team", (q) => q.eq("user_id", userId).eq("team_id", args.team_id))
+      .withIndex("by_user_team", (q) =>
+        q.eq("user_id", userId).eq("team_id", args.team_id),
+      )
       .unique();
     if (!membership || membership.role !== "admin") {
       throw new Error("Only admins can edit task statuses");

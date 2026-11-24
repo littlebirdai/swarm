@@ -20,7 +20,14 @@ export function EmailVerificationForm({
   onVerified: () => void;
   onBack: () => void;
 }) {
-  const { code, setCode, error, loading, ready, submit: handleSubmit } = useEmailCode(email, onVerified);
+  const {
+    code,
+    setCode,
+    error,
+    loading,
+    ready,
+    submit: handleSubmit,
+  } = useEmailCode(email, onVerified);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-sol-bg via-sol-bg-alt to-sol-bg flex items-center justify-center px-4">
@@ -36,8 +43,8 @@ export function EmailVerificationForm({
         >
           <p className="text-sm text-sol-text-muted mb-6 text-center">
             We sent a 6-character code to{" "}
-            <span className="font-medium text-sol-text">{email}</span>. Enter it to
-            confirm your address.
+            <span className="font-medium text-sol-text">{email}</span>. Enter it
+            to confirm your address.
           </p>
 
           <label
@@ -63,7 +70,15 @@ export function EmailVerificationForm({
             placeholder="XXXXXX"
           />
 
-          {error && <p id="auth-error" role="alert" className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center">{error}</p>}
+          {error && (
+            <p
+              id="auth-error"
+              role="alert"
+              className="mt-4 rounded-md border border-sol-red/40 bg-sol-red/10 px-3 py-2 text-sm text-sol-text text-center"
+            >
+              {error}
+            </p>
+          )}
 
           <Button
             variant="amber"

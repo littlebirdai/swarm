@@ -53,13 +53,27 @@ export function FigureStyles() {
 }
 
 /** Timing for one animated element: start `at` seconds in, last `dur`. */
-export const t = (at: number, dur?: number, extra?: Record<string, string>): CSSProperties =>
-  ({ "--at": `${at.toFixed(2)}s`, ...(dur !== undefined ? { "--dur": `${dur.toFixed(2)}s` } : {}), ...extra }) as CSSProperties;
+export const t = (
+  at: number,
+  dur?: number,
+  extra?: Record<string, string>,
+): CSSProperties =>
+  ({
+    "--at": `${at.toFixed(2)}s`,
+    ...(dur !== undefined ? { "--dur": `${dur.toFixed(2)}s` } : {}),
+    ...extra,
+  }) as CSSProperties;
 
 /** Plays its children once they are well inside the viewport; replay remounts
  *  them. `minWidth` keeps a wide timeline legible on a phone by letting it
  *  scroll sideways instead of shrinking its text. */
-export function Stage({ children, minWidth }: { children: ReactNode; minWidth?: number }) {
+export function Stage({
+  children,
+  minWidth,
+}: {
+  children: ReactNode;
+  minWidth?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const seen = useNearViewport(ref, "0px 0px -20% 0px");
   const [run, setRun] = useState(0);
@@ -76,21 +90,46 @@ export function Stage({ children, minWidth }: { children: ReactNode; minWidth?: 
         </button>
       </div>
       <div className={minWidth ? "overflow-x-auto" : undefined}>
-        <div key={run} data-play={seen ? "1" : "0"} style={minWidth ? { minWidth } : undefined}>{children}</div>
+        <div
+          key={run}
+          data-play={seen ? "1" : "0"}
+          style={minWidth ? { minWidth } : undefined}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
 /** A figure panel's heading: a color swatch, a bold title and a one-line sub. */
-export function PanelHead({ title, sub, color }: { title: string; sub: string; color: string }) {
+export function PanelHead({
+  title,
+  sub,
+  color,
+}: {
+  title: string;
+  sub: string;
+  color: string;
+}) {
   return (
     <div className="px-5 pt-4">
-      <div className="font-mono text-sm font-bold flex items-center gap-2" style={{ color: SOL.base02 }}>
-        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
+      <div
+        className="font-mono text-sm font-bold flex items-center gap-2"
+        style={{ color: SOL.base02 }}
+      >
+        <span
+          className="inline-block w-2.5 h-2.5 rounded-sm"
+          style={{ backgroundColor: color }}
+        />
         {title}
       </div>
-      <div className="text-[13px] mt-1 leading-snug" style={{ color: SOL.base00 }}>{sub}</div>
+      <div
+        className="text-[13px] mt-1 leading-snug"
+        style={{ color: SOL.base00 }}
+      >
+        {sub}
+      </div>
     </div>
   );
 }

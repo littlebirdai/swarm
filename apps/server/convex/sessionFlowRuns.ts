@@ -6,17 +6,30 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { canReadRun, enrichRun, newRunReads, withAgentSessions } from "./workflow_runs";
+import {
+  canReadRun,
+  enrichRun,
+  newRunReads,
+  withAgentSessions,
+} from "./workflow_runs";
 import { sourceTakesSessionChange } from "@codecast/shared/contracts/flowPool";
 import { workspaceGrantsAccess } from "./lib/access";
 import { runWorkflowOf } from "./lib/runGraph";
 
 /** A run of a flow a session's change goes through (its graph takes a branch: the session's edits frozen onto one), a flow the session wrote for it included, not a deploy or a line run it also started. */
-async function takesSessionChange(ctx: any, run: any, cache: Map<string, boolean>): Promise<boolean> {
+async function takesSessionChange(
+  ctx: any,
+  run: any,
+  cache: Map<string, boolean>,
+): Promise<boolean> {
   if (!run.workflow_id) return false;
   // The graph the run executes (lib/runGraph.ts), once per version the runs pinned.
   const key = `${run.workflow_id}@${run.flow_versions?.[0]?.version_id ?? run.graph_version_id ?? ""}`;
-  if (!cache.has(key)) cache.set(key, sourceTakesSessionChange((await runWorkflowOf(ctx, run))?.source));
+  if (!cache.has(key))
+    cache.set(
+      key,
+      sourceTakesSessionChange((await runWorkflowOf(ctx, run))?.source),
+    );
   return cache.get(key)!;
 }
 
@@ -28,22 +41,51 @@ export const forConversation = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
     // Every live run, then the newest few that ended: a session rarely holds more than one of each.
-    const live = (await Promise.all(LIVE.map((status) => ctx.db
-      .query("workflow_runs")
-      .withIndex("by_spawner_status", (q) => q.eq("spawner_conversation_id", args.conversation_id).eq("status", status))
-      .take(5)))).flat();
-    const ended = (await Promise.all((["completed", "failed"] as const).map((status) => ctx.db
-      .query("workflow_runs")
-      .withIndex("by_spawner_status", (q) => q.eq("spawner_conversation_id", args.conversation_id).eq("status", status))
-      .order("desc")
-      .take(3)))).flat();
+    const live = (
+      await Promise.all(
+        LIVE.map((status) =>
+          ctx.db
+            .query("workflow_runs")
+            .withIndex("by_spawner_status", (q) =>
+              q
+                .eq("spawner_conversation_id", args.conversation_id)
+                .eq("status", status),
+            )
+            .take(5),
+        ),
+      )
+    ).flat();
+    const ended = (
+      await Promise.all(
+        (["completed", "failed"] as const).map((status) =>
+          ctx.db
+            .query("workflow_runs")
+            .withIndex("by_spawner_status", (q) =>
+              q
+                .eq("spawner_conversation_id", args.conversation_id)
+                .eq("status", status),
+            )
+            .order("desc")
+            .take(3),
+        ),
+      )
+    ).flat();
     const runs = [...live, ...ended].filter((r) => r.run_kind !== "workflow");
     const readable = [];
     const kinds = new Map<string, boolean>();
-    for (const r of runs) if ((await takesSessionChange(ctx, r, kinds)) && (await canReadRun(ctx, userId, r))) readable.push(r);
+    for (const r of runs)
+      if (
+        (await takesSessionChange(ctx, r, kinds)) &&
+        (await canReadRun(ctx, userId, r))
+      )
+        readable.push(r);
     const budget = { reads: 120 };
     const reads = newRunReads();
-    const out = await Promise.all(readable.map(async (r) => enrichRun(ctx, await withAgentSessions(ctx, r, budget), reads)));
+    const out = await Promise.all(
+      readable.map(async (r) =>
+        enrichRun(ctx, await withAgentSessions(ctx, r, budget), reads),
+      ),
+    );
     return out.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0));
   },
 });
@@ -61,12 +103,21 @@ export const forTeam = query({
     if (!userId) return [];
     const workspace = `team:${args.team_id}`;
     if (!(await workspaceGrantsAccess(ctx, userId, workspace))) return [];
-    const runs = await ctx.db.query("workflow_runs").withIndex("by_workspace_updated", (q) => q.eq("workspace", workspace)).order("desc").take(RECENT_RUNS);
+    const runs = await ctx.db
+      .query("workflow_runs")
+      .withIndex("by_workspace_updated", (q) => q.eq("workspace", workspace))
+      .order("desc")
+      .take(RECENT_RUNS);
     const kinds = new Map<string, boolean>();
     const seen = new Set<string>();
     const picked: any[] = [];
     for (const r of runs) {
-      if (!r.spawner_conversation_id || r.run_kind === "workflow" || seen.has(String(r.spawner_conversation_id))) continue;
+      if (
+        !r.spawner_conversation_id ||
+        r.run_kind === "workflow" ||
+        seen.has(String(r.spawner_conversation_id))
+      )
+        continue;
       if (!(await takesSessionChange(ctx, r, kinds))) continue;
       seen.add(String(r.spawner_conversation_id));
       if (await canReadRun(ctx, userId, r)) picked.push(r);
@@ -74,7 +125,11 @@ export const forTeam = query({
     // The same rows every run feed writes (one home: workflowRuns), so an inbox card and a run card read one run.
     const budget = { reads: 150 };
     const reads = newRunReads();
-    const out = await Promise.all(picked.map(async (r) => enrichRun(ctx, await withAgentSessions(ctx, r, budget), reads)));
+    const out = await Promise.all(
+      picked.map(async (r) =>
+        enrichRun(ctx, await withAgentSessions(ctx, r, budget), reads),
+      ),
+    );
     return out;
   },
 });

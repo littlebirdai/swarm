@@ -19,12 +19,23 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { useWatchEffect } from "@/hooks/useWatchEffect";
 import { useHeroChapters } from "./heroFly/chapters";
-import { createFilmClock, FilmClockContext, POSTER_FRAME } from "./heroFly/filmClock";
+import {
+  createFilmClock,
+  FilmClockContext,
+  POSTER_FRAME,
+} from "./heroFly/filmClock";
 import { STAGE_SIZE as STAGE } from "./heroFly/project";
 import { HeroSandbox } from "./heroFly/sandbox";
 import { frame, warm, wrapT } from "./heroFly/timeline";
 import { World } from "./heroFly/surfaces";
-import { ACTS, DURATION, POSTER_T, SCENES, STILLS, actOf } from "./heroFly/world";
+import {
+  ACTS,
+  DURATION,
+  POSTER_T,
+  SCENES,
+  STILLS,
+  actOf,
+} from "./heroFly/world";
 
 const REDUCED_STEP_MS = 5000;
 
@@ -93,8 +104,6 @@ const FALLBACK_SCALE_CSS = [
   "[data-region]>*{pointer-events:auto}",
 ].join("");
 
-
-
 export function HeroFlythrough() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const bleedRef = useRef<HTMLDivElement>(null);
@@ -120,7 +129,9 @@ export function HeroFlythrough() {
 
     const params = new URLSearchParams(window.location.search);
     const frozenAt = params.get("hero-t");
-    const reduced = params.get("hero-reduced") === "1" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced =
+      params.get("hero-reduced") === "1" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const mq = window.matchMedia("(max-width: 639px)");
     const forceMobile = params.get("hero-mobile") === "1";
 
@@ -139,18 +150,43 @@ export function HeroFlythrough() {
       stale = false;
       for (const m of [nodes, textNodes, ghostNodes, ghostTextNodes]) m.clear();
       const inGhost = (n: Element) => n.closest("[data-fly-ghost]") !== null;
-      world.querySelectorAll<HTMLElement | SVGElement>("[data-fly]").forEach((n) => (inGhost(n) ? ghostNodes : nodes).set(n.getAttribute("data-fly")!, n));
-      world.querySelectorAll<HTMLElement>("[data-fly-text]").forEach((n) => (inGhost(n) ? ghostTextNodes : textNodes).set(n.getAttribute("data-fly-text")!, n));
+      world
+        .querySelectorAll<HTMLElement | SVGElement>("[data-fly]")
+        .forEach((n) =>
+          (inGhost(n) ? ghostNodes : nodes).set(n.getAttribute("data-fly")!, n),
+        );
+      world
+        .querySelectorAll<HTMLElement>("[data-fly-text]")
+        .forEach((n) =>
+          (inGhost(n) ? ghostTextNodes : textNodes).set(
+            n.getAttribute("data-fly-text")!,
+            n,
+          ),
+        );
     };
-    const opening: Partial<Record<"desktop" | "mobile", ReturnType<typeof frame>>> = {};
+    const opening: Partial<
+      Record<"desktop" | "mobile", ReturnType<typeof frame>>
+    > = {};
     const mo = new MutationObserver((records) => {
       // The driver's own typed text replaces text nodes; that changes nothing it drives.
-      if (records.every((r) => r.target instanceof Element && r.target.hasAttribute("data-fly-text"))) return;
+      if (
+        records.every(
+          (r) =>
+            r.target instanceof Element &&
+            r.target.hasAttribute("data-fly-text"),
+        )
+      )
+        return;
       stale = true;
       if (!st.playing || reduced) render(st.t);
     });
     mo.observe(world, { childList: true, subtree: true });
-    const put = (el: Element, key: string, apply: (v: string) => void, v: string) => {
+    const put = (
+      el: Element,
+      key: string,
+      apply: (v: string) => void,
+      v: string,
+    ) => {
       let w = written.get(el);
       if (!w) written.set(el, (w = {}));
       if (w[key] === v) return;
@@ -180,15 +216,33 @@ export function HeroFlythrough() {
       clock.set(st.t);
       const f = frame(st.t, st.mobile, st.side);
       put(world, "t", (v) => (world.style.transform = v), f.camera);
-      put(world, "will", (v) => (world.style.willChange = v), f.moving && !reduced ? "transform" : "auto");
-      const write = (fr: ReturnType<typeof frame>, els: Map<string, HTMLElement | SVGElement>, texts: Map<string, HTMLElement>) => {
+      put(
+        world,
+        "will",
+        (v) => (world.style.willChange = v),
+        f.moving && !reduced ? "transform" : "auto",
+      );
+      const write = (
+        fr: ReturnType<typeof frame>,
+        els: Map<string, HTMLElement | SVGElement>,
+        texts: Map<string, HTMLElement>,
+      ) => {
         for (const [id, n] of els) {
           const e = fr.els[id];
           if (!e) continue;
-          if (e.transform !== undefined) put(n, "t", (v) => (n.style.transform = v), e.transform);
-          if (e.opacity !== undefined) put(n, "o", (v) => (n.style.opacity = v), String(e.opacity));
-          if (e.visible !== undefined) put(n, "v", (v) => (n.style.visibility = v), e.visible ? "visible" : "hidden");
-          if (e.dash !== undefined) put(n, "d", (v) => (n.style.strokeDashoffset = v), String(e.dash));
+          if (e.transform !== undefined)
+            put(n, "t", (v) => (n.style.transform = v), e.transform);
+          if (e.opacity !== undefined)
+            put(n, "o", (v) => (n.style.opacity = v), String(e.opacity));
+          if (e.visible !== undefined)
+            put(
+              n,
+              "v",
+              (v) => (n.style.visibility = v),
+              e.visible ? "visible" : "hidden",
+            );
+          if (e.dash !== undefined)
+            put(n, "d", (v) => (n.style.strokeDashoffset = v), String(e.dash));
         }
         for (const [id, n] of texts) {
           const x = fr.texts[id];
@@ -196,7 +250,12 @@ export function HeroFlythrough() {
         }
       };
       write(f, nodes, textNodes);
-      if (ghostNodes.size || ghostTextNodes.size) write((opening[st.mobile ? "mobile" : "desktop"] ??= frame(0, st.mobile)), ghostNodes, ghostTextNodes);
+      if (ghostNodes.size || ghostTextNodes.size)
+        write(
+          (opening[st.mobile ? "mobile" : "desktop"] ??= frame(0, st.mobile)),
+          ghostNodes,
+          ghostTextNodes,
+        );
       const k = sceneAt(st.t);
       if (k !== st.scene) {
         st.scene = k;
@@ -208,7 +267,12 @@ export function HeroFlythrough() {
         const a = ACTS[i];
         const t0 = SCENES[a.first].start;
         const t1 = SCENES[a.last].end;
-        const p = i === ak ? (reduced ? (k - a.first + 1) / (a.last - a.first + 1) : (st.t - t0) / (t1 - t0)) : 0;
+        const p =
+          i === ak
+            ? reduced
+              ? (k - a.first + 1) / (a.last - a.first + 1)
+              : (st.t - t0) / (t1 - t0)
+            : 0;
         put(b, "t", (v) => (b.style.transform = v), `scaleX(${p.toFixed(3)})`);
       });
     };
@@ -224,13 +288,16 @@ export function HeroFlythrough() {
       bleed.style.setProperty("--hf-page-w", `${pageW}px`);
       st.side = Math.max(0, (pageW - wrap.clientWidth) / 2 / s);
       // What the moves need for this page (timeline.ts warm) is built in idle time, ahead of the first move, so no frame pays for it.
-      const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 200));
+      const idle =
+        window.requestIdleCallback ??
+        ((fn: () => void) => window.setTimeout(fn, 200));
       const [m, side] = [st.mobile, st.side];
       idle(() => warm(m, side));
     };
 
     let raf = 0;
-    const running = () => st.playing && st.onScreen && st.docVisible && !reduced;
+    const running = () =>
+      st.playing && st.onScreen && st.docVisible && !reduced;
     const loop = () => {
       raf = 0;
       if (!running()) return;
@@ -261,7 +328,8 @@ export function HeroFlythrough() {
     };
     const stillTimer = reduced
       ? window.setInterval(() => {
-          if (st.playing && st.onScreen && st.docVisible) showStill(st.still + 1, true);
+          if (st.playing && st.onScreen && st.docVisible)
+            showStill(st.still + 1, true);
         }, REDUCED_STEP_MS)
       : 0;
 
@@ -324,7 +392,11 @@ export function HeroFlythrough() {
     document.addEventListener("visibilitychange", onVis);
     // The film is hidden from assistive tech, but its live fields (the palette's search) can take focus by pointer: while one has it, the film is exposed, so focus never sits inside an aria-hidden subtree.
     const onFocusIn = (e: FocusEvent) => {
-      if (e.target instanceof HTMLElement && e.target.matches("input,textarea,[contenteditable]")) wrap.removeAttribute("aria-hidden");
+      if (
+        e.target instanceof HTMLElement &&
+        e.target.matches("input,textarea,[contenteditable]")
+      )
+        wrap.removeAttribute("aria-hidden");
     };
     const onFocusOut = () => wrap.setAttribute("aria-hidden", "true");
     wrap.addEventListener("focusin", onFocusIn);
@@ -363,31 +435,58 @@ export function HeroFlythrough() {
   const size = mobile ? STAGE.mobile : STAGE.desktop;
 
   return (
-    <figure role="group" aria-label="Codecast product tour" className="m-0" style={{ containerType: "inline-size" }}>
+    <figure
+      role="group"
+      aria-label="Codecast product tour"
+      className="m-0"
+      style={{ containerType: "inline-size" }}
+    >
       <style>{FALLBACK_SCALE_CSS}</style>
       <p className="sr-only">{DESCRIPTION}</p>
-      <HeroSandbox now={now} fallback={<div className="w-full aspect-[1280/760] max-sm:aspect-[4/5]" />}>
-      {/* No frame, no fade, no clip: the screens sit on the page itself (BLEED). */}
-      <div ref={bleedRef} className="hf-bleed pointer-events-none relative" style={BLEED}>
-      <div
-        ref={wrapRef}
-        aria-hidden
-        className="hf-box pointer-events-auto relative mx-auto aspect-[1280/760] max-sm:aspect-[4/5]"
-        style={{ width: "100cqw" }}
+      <HeroSandbox
+        now={now}
+        fallback={
+          <div className="w-full aspect-[1280/760] max-sm:aspect-[4/5]" />
+        }
       >
+        {/* No frame, no fade, no clip: the screens sit on the page itself (BLEED). */}
         <div
-          ref={stageRef}
-          className="hf-stage absolute left-0 top-0 origin-top-left"
-          style={{ width: size.w, height: size.h, transform: "scale(var(--hf-s))", perspective: "1800px", perspectiveOrigin: "50% 50%" }}
+          ref={bleedRef}
+          className="hf-bleed pointer-events-none relative"
+          style={BLEED}
         >
-          <div ref={worldRef} className="absolute left-1/2 top-1/2 h-0 w-0" style={{ transformStyle: "preserve-3d", transform: POSTER_FRAME.camera }}>
-            <FilmClockContext.Provider value={clock}>
-              <World chapters={chapters} now={now} />
-            </FilmClockContext.Provider>
+          <div
+            ref={wrapRef}
+            aria-hidden
+            className="hf-box pointer-events-auto relative mx-auto aspect-[1280/760] max-sm:aspect-[4/5]"
+            style={{ width: "100cqw" }}
+          >
+            <div
+              ref={stageRef}
+              className="hf-stage absolute left-0 top-0 origin-top-left"
+              style={{
+                width: size.w,
+                height: size.h,
+                transform: "scale(var(--hf-s))",
+                perspective: "1800px",
+                perspectiveOrigin: "50% 50%",
+              }}
+            >
+              <div
+                ref={worldRef}
+                className="absolute left-1/2 top-1/2 h-0 w-0"
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: POSTER_FRAME.camera,
+                }}
+              >
+                <FilmClockContext.Provider value={clock}>
+                  <World chapters={chapters} now={now} />
+                </FilmClockContext.Provider>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      </div>
       </HeroSandbox>
 
       <div className="relative z-[1] mt-4 flex items-center gap-3 font-mono">
@@ -396,12 +495,32 @@ export function HeroFlythrough() {
           onClick={() => ctl.current?.toggle()}
           aria-label={playing ? "Pause the tour" : "Play the tour"}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-[#eee8d5]"
-          style={{ border: "1px solid #e4ddc8", borderBottomWidth: 2, color: "#586e75", backgroundColor: "#fdf6e3" }}
+          style={{
+            border: "1px solid #e4ddc8",
+            borderBottomWidth: 2,
+            color: "#586e75",
+            backgroundColor: "#fdf6e3",
+          }}
         >
           {playing ? (
-            <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden><rect x="1.5" y="1" width="2.4" height="8" rx="0.6" /><rect x="6.1" y="1" width="2.4" height="8" rx="0.6" /></svg>
+            <svg
+              className="h-2.5 w-2.5"
+              viewBox="0 0 10 10"
+              fill="currentColor"
+              aria-hidden
+            >
+              <rect x="1.5" y="1" width="2.4" height="8" rx="0.6" />
+              <rect x="6.1" y="1" width="2.4" height="8" rx="0.6" />
+            </svg>
           ) : (
-            <svg className="ml-0.5 h-2.5 w-2.5" viewBox="0 0 10 10" fill="currentColor" aria-hidden><path d="M2 1.2v7.6a.6.6 0 0 0 .9.5l6.1-3.8a.6.6 0 0 0 0-1L2.9.7a.6.6 0 0 0-.9.5z" /></svg>
+            <svg
+              className="ml-0.5 h-2.5 w-2.5"
+              viewBox="0 0 10 10"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path d="M2 1.2v7.6a.6.6 0 0 0 .9.5l6.1-3.8a.6.6 0 0 0 0-1L2.9.7a.6.6 0 0 0-.9.5z" />
+            </svg>
           )}
         </button>
         <ol className="flex min-w-0 flex-1 gap-1">
@@ -410,7 +529,11 @@ export function HeroFlythrough() {
             const t0 = SCENES[a.first].start;
             const t1 = SCENES[a.last].end;
             return (
-              <li key={a.name} className="min-w-0 flex-1" style={{ flexGrow: t1 - t0 }}>
+              <li
+                key={a.name}
+                className="min-w-0 flex-1"
+                style={{ flexGrow: t1 - t0 }}
+              >
                 <button
                   type="button"
                   onClick={() => ctl.current?.jump(i)}
@@ -418,15 +541,25 @@ export function HeroFlythrough() {
                   aria-label={`Part ${i + 1}: ${a.name}`}
                   className="group relative flex min-h-6 w-full items-center overflow-hidden rounded-md px-1 py-2.5 text-left transition-colors hover:bg-[#eee8d5]/70 sm:py-1.5"
                 >
-                  <span className={`truncate text-meta ${on ? "text-[#002b36]" : "text-[#93a1a1] group-hover:text-[#586e75]"}`}>{a.name}</span>
-                  <span className="absolute inset-x-1 bottom-0 h-[2px] rounded-full" style={{ backgroundColor: "#eee8d5" }} />
+                  <span
+                    className={`truncate text-meta ${on ? "text-[#002b36]" : "text-[#93a1a1] group-hover:text-[#586e75]"}`}
+                  >
+                    {a.name}
+                  </span>
+                  <span
+                    className="absolute inset-x-1 bottom-0 h-[2px] rounded-full"
+                    style={{ backgroundColor: "#eee8d5" }}
+                  />
                   <span
                     ref={(b) => {
                       barsRef.current[i] = b;
                     }}
                     className="absolute inset-x-1 bottom-0 h-[2px] origin-left rounded-full"
                     // Constant after mount (the poster's act, not `scene`), so React never overwrites what the driver wrote.
-                    style={{ backgroundColor: "#002b36", transform: `scaleX(${i === actOf(POSTER_SCENE) ? ((POSTER_T - t0) / (t1 - t0)).toFixed(3) : 0})` }}
+                    style={{
+                      backgroundColor: "#002b36",
+                      transform: `scaleX(${i === actOf(POSTER_SCENE) ? ((POSTER_T - t0) / (t1 - t0)).toFixed(3) : 0})`,
+                    }}
                   />
                 </button>
               </li>
@@ -441,7 +574,11 @@ export function HeroFlythrough() {
             key={i === scene ? `on${i}` : i}
             aria-hidden={i !== scene}
             className={`hf-cap [grid-area:1/1] ${i === scene ? "" : "invisible"}`}
-            style={i === scene ? { animation: "hf-cap 350ms cubic-bezier(0.16,1,0.3,1)" } : undefined}
+            style={
+              i === scene
+                ? { animation: "hf-cap 350ms cubic-bezier(0.16,1,0.3,1)" }
+                : undefined
+            }
           >
             <span className="text-[#002b36]">{s.name}.</span> {s.caption}
           </span>

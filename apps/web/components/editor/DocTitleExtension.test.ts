@@ -3,7 +3,11 @@ import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { EditorState } from "@tiptap/pm/state";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import { DocTitleExtension, TitleFirstDocument, ensureTitleBlock } from "./DocTitleExtension";
+import {
+  DocTitleExtension,
+  TitleFirstDocument,
+  ensureTitleBlock,
+} from "./DocTitleExtension";
 
 // The invariants live in ensureTitleBlock, a pure transaction transform, so
 // they can be exercised on real ProseMirror state without a DOM. The schema is
@@ -17,7 +21,11 @@ const schema = getSchema([
 const doc = (json: any) => schema.nodeFromJSON({ type: "doc", content: json });
 const text = (t: string) => ({ type: "text", text: t });
 const p = (...content: any[]) => ({ type: "paragraph", content });
-const h = (level: number, ...content: any[]) => ({ type: "heading", attrs: { level }, content });
+const h = (level: number, ...content: any[]) => ({
+  type: "heading",
+  attrs: { level },
+  content,
+});
 
 function apply(docNode: PMNode, fallbackTitle = "Stored Title") {
   const state = EditorState.create({ schema, doc: docNode });
@@ -72,7 +80,9 @@ describe("ensureTitleBlock", () => {
   });
 
   it("a hard break in the title splits the same way", () => {
-    const { doc: d } = apply(doc([h(1, text("Title"), { type: "hardBreak" }, text("below"))]));
+    const { doc: d } = apply(
+      doc([h(1, text("Title"), { type: "hardBreak" }, text("below"))]),
+    );
     expect(firstChild(d).textContent).toBe("Title");
     expect(d.child(1).type.name).toBe("paragraph");
     expect(d.child(1).textContent).toBe("below");

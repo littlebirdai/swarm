@@ -2,7 +2,11 @@
 // client, and the stdout envelope each client reads it from. The block it
 // prints is built in stableContext.ts.
 
-import { editHarnessJson, removeHarnessFile, writeHarnessFile } from "./harness.js";
+import {
+  editHarnessJson,
+  removeHarnessFile,
+  writeHarnessFile,
+} from "./harness.js";
 import fs from "fs";
 import path from "path";
 import {
@@ -29,9 +33,16 @@ export const DIR_BLOCK_KEY_MAX = 200;
  *  - opencode: raw text (our plugin pushes stdout into the system prompt) */
 export type StableHookClient = "claude" | "codex" | "cursor" | "opencode";
 
-export const STABLE_HOOK_CLIENTS: readonly StableHookClient[] = ["claude", "codex", "cursor", "opencode"];
+export const STABLE_HOOK_CLIENTS: readonly StableHookClient[] = [
+  "claude",
+  "codex",
+  "cursor",
+  "opencode",
+];
 
-export function parseStableHookClient(value: string | undefined): StableHookClient {
+export function parseStableHookClient(
+  value: string | undefined,
+): StableHookClient {
   return (STABLE_HOOK_CLIENTS as readonly string[]).includes(value ?? "")
     ? (value as StableHookClient)
     : "claude";
@@ -75,7 +86,9 @@ CONFIG_FILE="$CC_DIR/config.json"
 # Ensure codecast is on PATH (hooks run non-interactively)
 export PATH="$HOME/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-${client === "claude" ? `# A session the daemon launched finds its block already rendered (prepareLaunchStableContext):
+${
+  client === "claude"
+    ? `# A session the daemon launched finds its block already rendered (prepareLaunchStableContext):
 # printed with shell builtins, once (emptied as it is read).
 case "\${${STABLE_ENV_CONVERSATION_ID}:-}" in
   ""|*[!a-z0-9]*) ;;
@@ -130,7 +143,9 @@ if [ -z "\${${STABLE_ENV_CONVERSATION_ID}:-}\${${STABLE_ENV_EXCLUDE}:-}\${${STAB
   exit 0
 fi
 
-` : ""}if [ -z "\${CODECAST_STABLE_MODE:-}" ]; then
+`
+    : ""
+}if [ -z "\${CODECAST_STABLE_MODE:-}" ]; then
   [ -f "$CONFIG_FILE" ] || exit 0
   grep -q '"stable_mode"' "$CONFIG_FILE" 2>/dev/null || exit 0
 fi
@@ -148,13 +163,18 @@ export function installStableHook(): void {
   const settingsFile = path.join(home, ".claude", "settings.json");
 
   try {
-    writeHarnessFile(hookFile, STABLE_FEED_HOOK, "stable-context", { mode: 0o755, executable: true });
+    writeHarnessFile(hookFile, STABLE_FEED_HOOK, "stable-context", {
+      mode: 0o755,
+      executable: true,
+    });
     editHarnessJson(settingsFile, "stable-context", (settings) => {
       if (!settings.hooks) settings.hooks = {};
       if (!settings.hooks.SessionStart) settings.hooks.SessionStart = [];
       const hookArray = settings.hooks.SessionStart as any[];
       const alreadyPresent = hookArray.some((matcher: any) =>
-        (matcher.hooks || []).some((h: any) => h.command?.includes(STABLE_FEED_HOOK_FILE))
+        (matcher.hooks || []).some((h: any) =>
+          h.command?.includes(STABLE_FEED_HOOK_FILE),
+        ),
       );
       if (alreadyPresent) return;
       const hookEntry = { type: "command", command: hookFile, timeout: 30 };
@@ -181,9 +201,14 @@ export function codecastHooksDir(): string {
   return path.join(defaultConfigDir(), "hooks");
 }
 
-function writeStableHookScript(client: Exclude<StableHookClient, "claude">): string {
+function writeStableHookScript(
+  client: Exclude<StableHookClient, "claude">,
+): string {
   const file = path.join(codecastHooksDir(), `stable-feed-${client}.sh`);
-  writeHarnessFile(file, stableFeedHookScript(client), "stable-context", { mode: 0o755, executable: true });
+  writeHarnessFile(file, stableFeedHookScript(client), "stable-context", {
+    mode: 0o755,
+    executable: true,
+  });
   return file;
 }
 
@@ -211,11 +236,19 @@ function ensureCodexHooksFeature(codexDir: string, what: string): void {
  * additionalContextLimit 0 disables Codex's default 2,500-token spill-to-file
  * truncation — the feed must arrive whole or not at all. */
 export function installStableHookCodex(): void {
-  installCodexSessionStartHook(() => writeStableHookScript("codex"), "stable-context", 30, { enableHooks: true });
+  installCodexSessionStartHook(
+    () => writeStableHookScript("codex"),
+    "stable-context",
+    30,
+    { enableHooks: true },
+  );
 }
 
 export function removeStableHookCodex(): void {
-  removeCodexSessionStartHook(path.join(codecastHooksDir(), "stable-feed-codex.sh"), "stable-context");
+  removeCodexSessionStartHook(
+    path.join(codecastHooksDir(), "stable-feed-codex.sh"),
+    "stable-context",
+  );
 }
 
 /** Register a SessionStart script in ~/.codex/hooks.json (written by
@@ -224,7 +257,12 @@ export function removeStableHookCodex(): void {
  *  turns it on (`enableHooks`); any other caller installs only where Codex
  *  hooks are already on. A no-op without ~/.codex. Never throws: hooks are an
  *  optional enhancement. */
-export function installCodexSessionStartHook(writeScript: () => string, what: string, timeout: number, opts: { enableHooks?: boolean } = {}): void {
+export function installCodexSessionStartHook(
+  writeScript: () => string,
+  what: string,
+  timeout: number,
+  opts: { enableHooks?: boolean } = {},
+): void {
   const codexDir = path.join(process.env.HOME || "", ".codex");
   if (!fs.existsSync(codexDir)) return;
   try {
@@ -234,31 +272,53 @@ export function installCodexSessionStartHook(writeScript: () => string, what: st
     editHarnessJson(path.join(codexDir, "hooks.json"), what, (config) => {
       if (!config.hooks) config.hooks = {};
       if (!config.hooks.SessionStart) config.hooks.SessionStart = [];
-      const present = (config.hooks.SessionStart as any[]).some((matcher: any) =>
-        (matcher.hooks || []).some((h: any) => h.command === hookFile),
+      const present = (config.hooks.SessionStart as any[]).some(
+        (matcher: any) =>
+          (matcher.hooks || []).some((h: any) => h.command === hookFile),
       );
       if (present) return;
       config.hooks.SessionStart.push({
-        hooks: [{ type: "command", command: hookFile, additionalContextLimit: 0, timeout }],
+        hooks: [
+          {
+            type: "command",
+            command: hookFile,
+            additionalContextLimit: 0,
+            timeout,
+          },
+        ],
       });
     });
   } catch {}
 }
 
 /** Delete a SessionStart script and its ~/.codex/hooks.json entry. */
-export function removeCodexSessionStartHook(hookFile: string, what: string): void {
-  try { removeHarnessFile(hookFile, what); } catch {}
+export function removeCodexSessionStartHook(
+  hookFile: string,
+  what: string,
+): void {
   try {
-    editHarnessJson(path.join(process.env.HOME || "", ".codex", "hooks.json"), what, (config) => {
-      if (!config.hooks?.SessionStart) return;
-      for (const matcher of config.hooks.SessionStart) {
-        if (matcher.hooks) {
-          // Exact-path match so unrelated SessionStart hooks survive.
-          matcher.hooks = matcher.hooks.filter((h: any) => h.command !== hookFile);
+    removeHarnessFile(hookFile, what);
+  } catch {}
+  try {
+    editHarnessJson(
+      path.join(process.env.HOME || "", ".codex", "hooks.json"),
+      what,
+      (config) => {
+        if (!config.hooks?.SessionStart) return;
+        for (const matcher of config.hooks.SessionStart) {
+          if (matcher.hooks) {
+            // Exact-path match so unrelated SessionStart hooks survive.
+            matcher.hooks = matcher.hooks.filter(
+              (h: any) => h.command !== hookFile,
+            );
+          }
         }
-      }
-      config.hooks.SessionStart = config.hooks.SessionStart.filter((m: any) => m.hooks && m.hooks.length > 0);
-    }, { createIfMissing: false });
+        config.hooks.SessionStart = config.hooks.SessionStart.filter(
+          (m: any) => m.hooks && m.hooks.length > 0,
+        );
+      },
+      { createIfMissing: false },
+    );
   } catch {}
 }
 
@@ -272,13 +332,20 @@ export function installStableHookCursor(): void {
 
   try {
     const hookFile = writeStableHookScript("cursor");
-    editHarnessJson(path.join(cursorDir, "hooks.json"), "stable-context", (config) => {
-      if (config.version == null) config.version = 1;
-      if (!config.hooks) config.hooks = {};
-      if (!config.hooks.sessionStart) config.hooks.sessionStart = [];
-      const present = (config.hooks.sessionStart as any[]).some((h: any) => h.command === hookFile);
-      if (!present) config.hooks.sessionStart.push({ command: hookFile, timeout: 30 });
-    });
+    editHarnessJson(
+      path.join(cursorDir, "hooks.json"),
+      "stable-context",
+      (config) => {
+        if (config.version == null) config.version = 1;
+        if (!config.hooks) config.hooks = {};
+        if (!config.hooks.sessionStart) config.hooks.sessionStart = [];
+        const present = (config.hooks.sessionStart as any[]).some(
+          (h: any) => h.command === hookFile,
+        );
+        if (!present)
+          config.hooks.sessionStart.push({ command: hookFile, timeout: 30 });
+      },
+    );
   } catch {
     // Optional enhancement.
   }
@@ -287,14 +354,24 @@ export function installStableHookCursor(): void {
 export function removeStableHookCursor(): void {
   const home = process.env.HOME || "";
   const hookFile = path.join(codecastHooksDir(), "stable-feed-cursor.sh");
-  try { removeHarnessFile(hookFile, "stable-context"); } catch {}
+  try {
+    removeHarnessFile(hookFile, "stable-context");
+  } catch {}
 
   try {
-    editHarnessJson(path.join(home, ".cursor", "hooks.json"), "stable-context", (config) => {
-      if (!config.hooks?.sessionStart) return;
-      config.hooks.sessionStart = config.hooks.sessionStart.filter((h: any) => h.command !== hookFile);
-      if (config.hooks.sessionStart.length === 0) delete config.hooks.sessionStart;
-    }, { createIfMissing: false });
+    editHarnessJson(
+      path.join(home, ".cursor", "hooks.json"),
+      "stable-context",
+      (config) => {
+        if (!config.hooks?.sessionStart) return;
+        config.hooks.sessionStart = config.hooks.sessionStart.filter(
+          (h: any) => h.command !== hookFile,
+        );
+        if (config.hooks.sessionStart.length === 0)
+          delete config.hooks.sessionStart;
+      },
+      { createIfMissing: false },
+    );
   } catch {}
 }
 
@@ -305,7 +382,8 @@ export function removeStableHookCursor(): void {
  * system prompt on every request, which keeps the feed present for the whole
  * session rather than only the first turn. */
 function opencodeGlobalDir(): string {
-  const xdg = process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || "", ".config");
+  const xdg =
+    process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || "", ".config");
   return path.join(xdg, "opencode");
 }
 
@@ -343,15 +421,29 @@ export function installStableHookOpencode(): void {
   if (!fs.existsSync(ocDir)) return;
   try {
     const scriptPath = writeStableHookScript("opencode");
-    writeHarnessFile(path.join(ocDir, "plugins", "codecast-stable.js"), opencodeStablePlugin(scriptPath), "stable-context");
+    writeHarnessFile(
+      path.join(ocDir, "plugins", "codecast-stable.js"),
+      opencodeStablePlugin(scriptPath),
+      "stable-context",
+    );
   } catch {
     // Optional enhancement.
   }
 }
 
 export function removeStableHookOpencode(): void {
-  try { removeHarnessFile(path.join(codecastHooksDir(), "stable-feed-opencode.sh"), "stable-context"); } catch {}
-  try { removeHarnessFile(path.join(opencodeGlobalDir(), "plugins", "codecast-stable.js"), "stable-context"); } catch {}
+  try {
+    removeHarnessFile(
+      path.join(codecastHooksDir(), "stable-feed-opencode.sh"),
+      "stable-context",
+    );
+  } catch {}
+  try {
+    removeHarnessFile(
+      path.join(opencodeGlobalDir(), "plugins", "codecast-stable.js"),
+      "stable-context",
+    );
+  } catch {}
 }
 
 const HOOK_INSTALLERS: Record<StableHookClient, () => void> = {
@@ -389,7 +481,9 @@ export function ensureStableHookForLaunch(
   installHook?: () => void,
 ): boolean {
   const effectiveMode = prefs.stable_mode ?? configuredMode;
-  const installer = (HOOK_INSTALLERS as Partial<Record<AgentClientId, () => void>>)[agentType];
+  const installer = (
+    HOOK_INSTALLERS as Partial<Record<AgentClientId, () => void>>
+  )[agentType];
   if (!installer || (effectiveMode !== "team" && effectiveMode !== "solo")) {
     return false;
   }
@@ -404,19 +498,28 @@ export function removeStableHook(): void {
 
   // The script contains no user data and is owned solely by Codecast. Removing
   // it as well as its settings entry makes `stable off` an actual uninstall.
-  try { removeHarnessFile(hookFile, "stable-context"); } catch {}
+  try {
+    removeHarnessFile(hookFile, "stable-context");
+  } catch {}
 
-  editHarnessJson(settingsFile, "stable-context", (settings) => {
-    if (!settings.hooks?.SessionStart) return;
-    for (const matcher of settings.hooks.SessionStart) {
-      if (matcher.hooks) {
-        // installStableHook writes this exact absolute path. Match it exactly so
-        // an unrelated SessionStart integration with a similar filename survives.
-        matcher.hooks = matcher.hooks.filter((h: any) => h.command !== hookFile);
+  editHarnessJson(
+    settingsFile,
+    "stable-context",
+    (settings) => {
+      if (!settings.hooks?.SessionStart) return;
+      for (const matcher of settings.hooks.SessionStart) {
+        if (matcher.hooks) {
+          // installStableHook writes this exact absolute path. Match it exactly so
+          // an unrelated SessionStart integration with a similar filename survives.
+          matcher.hooks = matcher.hooks.filter(
+            (h: any) => h.command !== hookFile,
+          );
+        }
       }
-    }
-    settings.hooks.SessionStart = settings.hooks.SessionStart.filter(
-      (m: any) => m.hooks && m.hooks.length > 0
-    );
-  }, { createIfMissing: false });
+      settings.hooks.SessionStart = settings.hooks.SessionStart.filter(
+        (m: any) => m.hooks && m.hooks.length > 0,
+      );
+    },
+    { createIfMissing: false },
+  );
 }

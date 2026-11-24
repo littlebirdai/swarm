@@ -2,12 +2,21 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Forward, Link as LinkIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "./ui/tooltip";
 import { copyText } from "../lib/copyText";
 import { openForwardToChat } from "../lib/forwardToChat";
 import { useTeamFeature } from "../lib/teamFeatures";
 import { toast } from "sonner";
-import { SegmentedChoice, TeamShareModePicker, type SegmentedOption } from "./TeamShareModePicker";
+import {
+  SegmentedChoice,
+  TeamShareModePicker,
+  type SegmentedOption,
+} from "./TeamShareModePicker";
 
 interface SharePopoverProps {
   /** Open on mount: the page was reached by a link to its share control
@@ -54,18 +63,26 @@ interface SharePopoverProps {
 
 type VisibilityMode = "private" | "summary" | "full";
 
-function getShareStatus(isPrivate: boolean, teamVisibility: string | null | undefined, hasShareToken: boolean, hasTeam: boolean): {
+function getShareStatus(
+  isPrivate: boolean,
+  teamVisibility: string | null | undefined,
+  hasShareToken: boolean,
+  hasTeam: boolean,
+): {
   label: string;
   color: string;
 } {
   const isTeamShared = hasTeam && !isPrivate;
-  const mode = isPrivate ? "private" : (teamVisibility || "full");
+  const mode = isPrivate ? "private" : teamVisibility || "full";
 
   if (!isTeamShared && !hasShareToken) {
     return { label: "", color: "text-sol-text-dim" };
   }
   if (isTeamShared && !hasShareToken) {
-    return { label: "Team", color: mode === "full" ? "text-emerald-500" : "text-teal-500" };
+    return {
+      label: "Team",
+      color: mode === "full" ? "text-emerald-500" : "text-teal-500",
+    };
   }
   if (!isTeamShared && hasShareToken) {
     return { label: "Link", color: "text-sol-cyan" };
@@ -75,7 +92,8 @@ function getShareStatus(isPrivate: boolean, teamVisibility: string | null | unde
 
 type LinkAccess = "restricted" | "anyone";
 
-const ANYONE_ICON = "M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418";
+const ANYONE_ICON =
+  "M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418";
 
 const LINK_ACCESS: SegmentedOption<LinkAccess>[] = [
   {
@@ -118,8 +136,15 @@ export function SharePopover({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [isUpdatingLink, setIsUpdatingLink] = useState(false);
 
-  const currentMode: VisibilityMode = isPrivate ? "private" : (teamVisibility as VisibilityMode || "full");
-  const status = getShareStatus(isPrivate, teamVisibility, hasShareToken, hasTeam);
+  const currentMode: VisibilityMode = isPrivate
+    ? "private"
+    : (teamVisibility as VisibilityMode) || "full";
+  const status = getShareStatus(
+    isPrivate,
+    teamVisibility,
+    hasShareToken,
+    hasTeam,
+  );
 
   // One link. Restricted, it is the page link: it opens for signed-in people
   // who can already see this. Open to anyone, it is the same page link
@@ -148,41 +173,57 @@ export function SharePopover({
     setIsOpen(false);
   };
 
-  const tooltipLabel = canManage ? (status.label || "Share settings") : "Share";
+  const tooltipLabel = canManage ? status.label || "Share settings" : "Share";
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <TooltipProvider>
         <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Share${forwardLabel ? ` ${forwardLabel}` : ""}`}
-                data-share-trigger
-                className={`p-1 rounded hover:bg-sol-bg-alt transition-colors ${status.label ? status.color : "text-sol-text-dim hover:text-sol-text-secondary"}`}
-              >
-                {linkAccess === "anyone" ? (
-                  // Open to anyone: the same globe as the "Anyone" choice, so
-                  // the header says the session is public without opening this.
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d={ANYONE_ICON} />
-                  </svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                  </svg>
-                )}
-              </button>
-            </PopoverTrigger>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{tooltipLabel}</TooltipContent>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Share${forwardLabel ? ` ${forwardLabel}` : ""}`}
+                  data-share-trigger
+                  className={`p-1 rounded hover:bg-sol-bg-alt transition-colors ${status.label ? status.color : "text-sol-text-dim hover:text-sol-text-secondary"}`}
+                >
+                  {linkAccess === "anyone" ? (
+                    // Open to anyone: the same globe as the "Anyone" choice, so
+                    // the header says the session is public without opening this.
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d={ANYONE_ICON} />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  )}
+                </button>
+              </PopoverTrigger>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{tooltipLabel}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <PopoverContent
@@ -190,11 +231,16 @@ export function SharePopover({
         className="w-80 bg-sol-bg border-sol-border p-0 overflow-hidden"
         // Radix focuses the first control on open, which paints a focus ring on
         // "Hidden" beside the real selection. Focus the panel itself instead.
-        onOpenAutoFocus={(e) => { e.preventDefault(); (e.currentTarget as HTMLElement | null)?.focus?.(); }}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement | null)?.focus?.();
+        }}
         tabIndex={-1}
       >
         <div className="px-3.5 pt-3 pb-1">
-          <h3 className="text-sm font-semibold text-sol-text">Share{forwardLabel ? ` ${forwardLabel}` : ""}</h3>
+          <h3 className="text-sm font-semibold text-sol-text">
+            Share{forwardLabel ? ` ${forwardLabel}` : ""}
+          </h3>
         </div>
 
         <div className="px-3.5 pb-3.5 pt-2 space-y-3.5 [&>*+*]:border-t [&>*+*]:border-sol-border/60 [&>*+*]:pt-3.5">
@@ -203,7 +249,11 @@ export function SharePopover({
             <div className="space-y-2">
               <TeamShareModePicker
                 mode={currentMode}
-                onChange={(mode) => (mode === "private" ? onSetPrivate?.() : onSetTeamVisibility?.(mode))}
+                onChange={(mode) =>
+                  mode === "private"
+                    ? onSetPrivate?.()
+                    : onSetTeamVisibility?.(mode)
+                }
                 teamId={teamId}
                 sharedVia={sharedVia}
                 onNavigate={() => setIsOpen(false)}
@@ -215,15 +265,23 @@ export function SharePopover({
           {canManage && (
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs font-medium text-sol-text-muted">Link access</span>
-                {isUpdatingLink && <span className="text-meta text-sol-text-dim">Saving…</span>}
+                <span className="text-xs font-medium text-sol-text-muted">
+                  Link access
+                </span>
+                {isUpdatingLink && (
+                  <span className="text-meta text-sol-text-dim">Saving…</span>
+                )}
               </div>
               <SegmentedChoice
                 label="Who can open the link"
                 options={LINK_ACCESS}
                 value={linkAccess}
                 onPick={setLinkAccess}
-                disabled={isUpdatingLink || openBlocked || (linkAccess === "anyone" && !onRevokeShareLink)}
+                disabled={
+                  isUpdatingLink ||
+                  openBlocked ||
+                  (linkAccess === "anyone" && !onRevokeShareLink)
+                }
               />
               <p className="text-xs leading-snug text-sol-text-muted">
                 {linkAccess === "anyone"
@@ -240,7 +298,13 @@ export function SharePopover({
         {(link || (chatOn && (forwardUrl || pageUrl))) && (
           <div className="flex gap-2 border-t border-sol-border bg-sol-bg-alt/40 px-3.5 py-2.5">
             {link && (
-              <Button variant="cyan" size="xs" onClick={handleCopyLink} title={link} className="flex-1">
+              <Button
+                variant="cyan"
+                size="xs"
+                onClick={handleCopyLink}
+                title={link}
+                className="flex-1"
+              >
                 <LinkIcon />
                 Copy link
               </Button>
@@ -249,7 +313,10 @@ export function SharePopover({
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  openForwardToChat({ url: (forwardUrl || pageUrl)!, label: forwardLabel });
+                  openForwardToChat({
+                    url: (forwardUrl || pageUrl)!,
+                    label: forwardLabel,
+                  });
                 }}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md border border-sol-border px-3 py-1.5 text-xs font-medium text-sol-text-secondary hover:bg-sol-bg-alt hover:text-sol-text transition-colors"
               >

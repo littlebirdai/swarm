@@ -70,10 +70,7 @@
         "app_uninstalled",
         "tokens_revoked"
       ],
-      "user_events": [
-        "message.im",
-        "message.mpim"
-      ]
+      "user_events": ["message.im", "message.mpim"]
     }
   }
 }

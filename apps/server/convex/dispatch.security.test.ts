@@ -6,25 +6,45 @@ import { makeFakeDb } from "./testDb";
 
 const USER = "users_member";
 const auth = { getUserIdentity: async () => ({ subject: `${USER}|session` }) };
-const run = (db: any, patches: any) => (dispatch as any)._handler({ db, auth }, {
-  action: "patchConversation", args: [], patches,
-});
+const run = (db: any, patches: any) =>
+  (dispatch as any)._handler(
+    { db, auth },
+    {
+      action: "patchConversation",
+      args: [],
+      patches,
+    },
+  );
 
 describe("dispatch table authority", () => {
-  for (const [policy, fields] of Object.entries({ conversations: { title: "forged" }, inbox_buckets: { name: "forged" }, session_decisions: { status: "answered" }, comments: { content: "forged" } })) {
+  for (const [policy, fields] of Object.entries({
+    conversations: { title: "forged" },
+    inbox_buckets: { name: "forged" },
+    session_decisions: { status: "answered" },
+    comments: { content: "forged" },
+  })) {
     for (const table of ["team_memberships", "api_tokens", "daemon_commands"]) {
       test(`${policy} refuses a ${table} ID before reading or writing it`, async () => {
         const id = `${table}_1`;
-        const db = makeFakeDb({ [table]: [{ _id: id, user_id: USER, role: "member" }] });
+        const db = makeFakeDb({
+          [table]: [{ _id: id, user_id: USER, role: "member" }],
+        });
         const normalizations: string[][] = [];
         const normalizeId = db.normalizeId;
-        db.normalizeId = (table: string, key: string) => { normalizations.push([table, key]); return normalizeId(table, key); };
+        db.normalizeId = (table: string, key: string) => {
+          normalizations.push([table, key]);
+          return normalizeId(table, key);
+        };
         const reads: string[] = [];
         const get = db.get;
-        db.get = async (key: string) => { reads.push(key); return get(key); };
+        db.get = async (key: string) => {
+          reads.push(key);
+          return get(key);
+        };
         await run(db, { [policy]: { [id]: fields } });
         // A comment goes by an id of either table it can live in (commentStore).
-        const tables = policy === "comments" ? ["review_comments", "comments"] : [policy];
+        const tables =
+          policy === "comments" ? ["review_comments", "comments"] : [policy];
         expect(normalizations).toEqual(tables.map((name) => [name, id]));
         expect(reads).toEqual([]);
         expect(db._patched).toEqual([]);
@@ -35,14 +55,26 @@ describe("dispatch table authority", () => {
   }
 
   test("comments refuses a review_comments ID that is not a conversation comment, writing nothing", async () => {
-    const db = makeFakeDb({ review_comments: [{ _id: "review_comments_1", author_user_id: USER, content: "code note", resolved: false, created_at: 1 }] });
+    const db = makeFakeDb({
+      review_comments: [
+        {
+          _id: "review_comments_1",
+          author_user_id: USER,
+          content: "code note",
+          resolved: false,
+          created_at: 1,
+        },
+      ],
+    });
     await run(db, { comments: { review_comments_1: { content: "forged" } } });
     expect(db._tables.review_comments[0].content).toBe("code note");
     expect(db._patched).toEqual([]);
   });
 
   test("ordinary conversation updates still pass", async () => {
-    const db = makeFakeDb({ conversations: [{ _id: "conversations_1", user_id: USER }] });
+    const db = makeFakeDb({
+      conversations: [{ _id: "conversations_1", user_id: USER }],
+    });
     await run(db, { conversations: { conversations_1: { title: "Renamed" } } });
     expect(db._tables.conversations[0].title).toBe("Renamed");
   });
@@ -58,7 +90,9 @@ describe("fake database ID identity", () => {
   test("normalization retains table identity after deletion", async () => {
     const db = makeFakeDb({ conversations: [{ _id: "arbitrary_fixture_id" }] });
     await db.delete("arbitrary_fixture_id");
-    expect(db.normalizeId("conversations", "arbitrary_fixture_id")).toBe("arbitrary_fixture_id");
+    expect(db.normalizeId("conversations", "arbitrary_fixture_id")).toBe(
+      "arbitrary_fixture_id",
+    );
     expect(db.normalizeId("comments", "arbitrary_fixture_id")).toBeNull();
     expect(await db.get("arbitrary_fixture_id")).toBeNull();
     const created = await db.insert("comments", {});
@@ -71,8 +105,19 @@ describe("fake database ID identity", () => {
 describe("dispatch editable fields", () => {
   test("unknown actions cannot apply even an ordinary patch", async () => {
     for (const action of ["unknown", "constructor", "toString", "__proto__"]) {
-      const db = makeFakeDb({ conversations: [{ _id: "conv", user_id: USER }] });
-      await expect((dispatch as any)._handler({ db, auth }, { action, args: [], patches: { conversations: { conv: { title: "Changed" } } } })).rejects.toThrow("Unknown dispatch action");
+      const db = makeFakeDb({
+        conversations: [{ _id: "conv", user_id: USER }],
+      });
+      await expect(
+        (dispatch as any)._handler(
+          { db, auth },
+          {
+            action,
+            args: [],
+            patches: { conversations: { conv: { title: "Changed" } } },
+          },
+        ),
+      ).rejects.toThrow("Unknown dispatch action");
       expect(db._patched).toEqual([]);
     }
   });
@@ -80,33 +125,92 @@ describe("dispatch editable fields", () => {
     const db = makeFakeDb({
       conversations: [{ _id: "conv", user_id: USER }],
       inbox_buckets: [{ _id: "bucket", user_id: USER }],
-      session_decisions: [{ _id: "decision", user_id: USER, status: "pending" }],
+      session_decisions: [
+        { _id: "decision", user_id: USER, status: "pending" },
+      ],
       comments: [{ _id: "comment", user_id: USER }],
     });
     await run(db, {
-      conversations: { conv: { owner_device_id: "foreign", author_user_id: "foreign", fork_daemon_args: "forged", profile_pinned_at: 1, cloud_placement_token: "forged", unknown: true } },
-      inbox_buckets: { bucket: { user_id: "foreign", workspace: "team:foreign", unknown: true } },
-      session_decisions: { decision: { workflow_run_id: "foreign", gate_node_id: "forged", silent: true, applied_at: 1, resolved_by: "foreign", unknown: true } },
-      comments: { comment: { conversation_id: "foreign", resolved_by: "foreign", unknown: true } },
+      conversations: {
+        conv: {
+          owner_device_id: "foreign",
+          author_user_id: "foreign",
+          fork_daemon_args: "forged",
+          profile_pinned_at: 1,
+          cloud_placement_token: "forged",
+          unknown: true,
+        },
+      },
+      inbox_buckets: {
+        bucket: {
+          user_id: "foreign",
+          workspace: "team:foreign",
+          unknown: true,
+        },
+      },
+      session_decisions: {
+        decision: {
+          workflow_run_id: "foreign",
+          gate_node_id: "forged",
+          silent: true,
+          applied_at: 1,
+          resolved_by: "foreign",
+          unknown: true,
+        },
+      },
+      comments: {
+        comment: {
+          conversation_id: "foreign",
+          resolved_by: "foreign",
+          unknown: true,
+        },
+      },
     });
     expect(db._patched).toEqual([]);
     expect(db._inserted).toEqual([]);
   });
   test("model, character, project and thread state patches survive outbox replay", async () => {
     const db = makeFakeDb({ conversations: [{ _id: "conv", user_id: USER }] });
-    const fields = { title: "Renamed", title_is_custom: true, project_path: "/project", git_root: "/project", model: "model", effort: "high", agent_definition: "reviewer", thread_state: "Working", thread_state_at: 1, thread_state_msg_count: 2, thread_state_status: "working", character_name: "Name" };
+    const fields = {
+      title: "Renamed",
+      title_is_custom: true,
+      project_path: "/project",
+      git_root: "/project",
+      model: "model",
+      effort: "high",
+      agent_definition: "reviewer",
+      thread_state: "Working",
+      thread_state_at: 1,
+      thread_state_msg_count: 2,
+      thread_state_status: "working",
+      character_name: "Name",
+    };
     await run(db, { conversations: { conv: fields } });
     expect(db._tables.conversations[0]).toMatchObject(fields);
   });
   test("existing bucket and client preference edits retain their ordinary fields", async () => {
-    const db = makeFakeDb({ inbox_buckets: [{ _id: "bucket", user_id: USER }], client_state: [{ _id: "prefs", user_id: USER, ui: { theme: "dark" } }] });
-    await run(db, { inbox_buckets: { bucket: { name: "Work", color: "blue", sort_order: 2 } }, client_state: { singleton: { ui: { fontSize: 14 }, user_id: "foreign", unknown: true } } });
-    expect(db._tables.inbox_buckets[0]).toMatchObject({ name: "Work", color: "blue", sort_order: 2 });
-    expect(db._tables.client_state[0]).toMatchObject({ user_id: USER, ui: { theme: "dark", fontSize: 14 } });
+    const db = makeFakeDb({
+      inbox_buckets: [{ _id: "bucket", user_id: USER }],
+      client_state: [{ _id: "prefs", user_id: USER, ui: { theme: "dark" } }],
+    });
+    await run(db, {
+      inbox_buckets: { bucket: { name: "Work", color: "blue", sort_order: 2 } },
+      client_state: {
+        singleton: { ui: { fontSize: 14 }, user_id: "foreign", unknown: true },
+      },
+    });
+    expect(db._tables.inbox_buckets[0]).toMatchObject({
+      name: "Work",
+      color: "blue",
+      sort_order: 2,
+    });
+    expect(db._tables.client_state[0]).toMatchObject({
+      user_id: USER,
+      ui: { theme: "dark", fontSize: 14 },
+    });
     expect(db._tables.client_state[0].unknown).toBeUndefined();
   });
 });
-
 
 test("every current client action has an admitted dispatch contract", () => {
   const directory = join(import.meta.dir, "../../../apps/web/store");
@@ -114,10 +218,13 @@ test("every current client action has an admitted dispatch contract", () => {
   for (const name of readdirSync(directory)) {
     if (!name.endsWith(".ts") || name.includes(".test.")) continue;
     const source = readFileSync(join(directory, name), "utf8");
-    for (const match of source.matchAll(/^\s+(\w+): (?:action|asyncAction|receiptAsyncAction)\(/gm)) actions.add(match[1]);
+    for (const match of source.matchAll(
+      /^\s+(\w+): (?:action|asyncAction|receiptAsyncAction)\(/gm,
+    ))
+      actions.add(match[1]);
   }
   expect(actions.size).toBeGreaterThan(100);
-  expect([...actions].filter(name => !isDispatchAction(name))).toEqual([]);
+  expect([...actions].filter((name) => !isDispatchAction(name))).toEqual([]);
 });
 
 describe("signed-out dispatch", () => {
@@ -126,10 +233,20 @@ describe("signed-out dispatch", () => {
   // The client engine reads data.retryable === true as "keep it" (isPermanentDispatchError).
   test("refuses with a retryable error the client outbox keeps", async () => {
     const signedOut = { getUserIdentity: async () => null };
-    const error = await (dispatch as any)._handler({ db: makeFakeDb({}), auth: signedOut }, {
-      action: "patchConversation", args: [], patches: {},
-    }).catch((e: unknown) => e);
-    expect(error?.data).toMatchObject({ code: "UNAUTHENTICATED", retryable: true });
+    const error = await (dispatch as any)
+      ._handler(
+        { db: makeFakeDb({}), auth: signedOut },
+        {
+          action: "patchConversation",
+          args: [],
+          patches: {},
+        },
+      )
+      .catch((e: unknown) => e);
+    expect(error?.data).toMatchObject({
+      code: "UNAUTHENTICATED",
+      retryable: true,
+    });
   });
 });
 
@@ -138,12 +255,35 @@ describe("signed-out dispatch", () => {
 // (workspace user:<owner>) must not be archivable by a teammate.
 describe("archiveDoc follows the doc's workspace, not its routing team", () => {
   const TEAM = "teams_1";
-  const seed = (workspace: string) => makeFakeDb({
-    users: [{ _id: USER, active_team_id: TEAM, team_id: TEAM }, { _id: "users_owner", team_id: TEAM }],
-    team_memberships: [{ _id: "team_memberships_1", user_id: USER, team_id: TEAM, role: "member" }],
-    docs: [{ _id: "docs_1", user_id: "users_owner", team_id: TEAM, workspace, title: "d" }],
-  });
-  const archive = (db: any) => (dispatch as any)._handler({ db, auth }, { action: "archiveDoc", args: ["docs_1"] });
+  const seed = (workspace: string) =>
+    makeFakeDb({
+      users: [
+        { _id: USER, active_team_id: TEAM, team_id: TEAM },
+        { _id: "users_owner", team_id: TEAM },
+      ],
+      team_memberships: [
+        {
+          _id: "team_memberships_1",
+          user_id: USER,
+          team_id: TEAM,
+          role: "member",
+        },
+      ],
+      docs: [
+        {
+          _id: "docs_1",
+          user_id: "users_owner",
+          team_id: TEAM,
+          workspace,
+          title: "d",
+        },
+      ],
+    });
+  const archive = (db: any) =>
+    (dispatch as any)._handler(
+      { db, auth },
+      { action: "archiveDoc", args: ["docs_1"] },
+    );
 
   test("a teammate cannot archive a doc private to its owner", async () => {
     const db = seed("user:users_owner");

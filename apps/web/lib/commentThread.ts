@@ -79,7 +79,10 @@ export function isThreadResolved(comments: Comment[]): boolean {
 export const GLOBAL_THREAD_KEY = "global";
 const FILE_THREAD_PREFIX = "file:";
 
-export function fileThreadKey(filePath: string, lineNumber?: number | null): string {
+export function fileThreadKey(
+  filePath: string,
+  lineNumber?: number | null,
+): string {
   return `${FILE_THREAD_PREFIX}${filePath}:${lineNumber ?? ""}`;
 }
 
@@ -89,17 +92,29 @@ export function threadKeyFor(messageId?: string | null): string {
 
 // doc_presence namespace for a thread's typing/co-presence channel. `anchor` is
 // the anchored message id or a file thread key; absent = the global thread.
-export function presenceDocId(conversationId: string, anchor?: string | null): string {
-  return anchor ? `comment:${conversationId}:${anchor}` : `comment:${conversationId}`;
+export function presenceDocId(
+  conversationId: string,
+  anchor?: string | null,
+): string {
+  return anchor
+    ? `comment:${conversationId}:${anchor}`
+    : `comment:${conversationId}`;
 }
 
 // Split a flat comment list into the global thread + one thread per anchored
 // message + one thread per commented code line. Each thread's comments are
 // sorted oldest→newest (chat order); threads keep a lastActivity for ordering
 // the anchored lists when no message order is available.
-export function groupComments(comments: Comment[]): { global: CommentThread; anchored: CommentThread[]; files: CommentThread[] } {
+export function groupComments(comments: Comment[]): {
+  global: CommentThread;
+  anchored: CommentThread[];
+  files: CommentThread[];
+} {
   const byKey = new Map<string, Comment[]>();
-  const fileAnchors = new Map<string, { filePath: string; lineNumber?: number }>();
+  const fileAnchors = new Map<
+    string,
+    { filePath: string; lineNumber?: number }
+  >();
   for (const c of comments) {
     let key: string;
     if (c.message_id) {
@@ -107,7 +122,10 @@ export function groupComments(comments: Comment[]): { global: CommentThread; anc
     } else if (c.file_path) {
       key = fileThreadKey(c.file_path, c.line_number);
       if (!fileAnchors.has(key)) {
-        fileAnchors.set(key, { filePath: c.file_path, lineNumber: c.line_number ?? undefined });
+        fileAnchors.set(key, {
+          filePath: c.file_path,
+          lineNumber: c.line_number ?? undefined,
+        });
       }
     } else {
       key = GLOBAL_THREAD_KEY;
@@ -116,7 +134,11 @@ export function groupComments(comments: Comment[]): { global: CommentThread; anc
     if (arr) arr.push(c);
     else byKey.set(key, [c]);
   }
-  const make = (key: string, messageId: string | undefined, list: Comment[]): CommentThread => {
+  const make = (
+    key: string,
+    messageId: string | undefined,
+    list: Comment[],
+  ): CommentThread => {
     const sorted = [...list].sort((a, b) => a.created_at - b.created_at);
     return {
       key,
@@ -126,7 +148,11 @@ export function groupComments(comments: Comment[]): { global: CommentThread; anc
       resolved: isThreadResolved(sorted),
     };
   };
-  const global = make(GLOBAL_THREAD_KEY, undefined, byKey.get(GLOBAL_THREAD_KEY) ?? []);
+  const global = make(
+    GLOBAL_THREAD_KEY,
+    undefined,
+    byKey.get(GLOBAL_THREAD_KEY) ?? [],
+  );
   const anchored: CommentThread[] = [];
   const files: CommentThread[] = [];
   for (const [key, list] of byKey) {
@@ -148,8 +174,13 @@ export function isAgentComment(c: Comment): boolean {
 /** `agentName` is the name the conversation's agent speaks under
  *  (useConversationSpeaker): a role's given name, a character's, or the
  *  agent's product name. */
-export function commentAuthorName(c: Comment, currentUserId?: string, agentName?: string): string {
-  if (isAgentComment(c)) return c.author_name || (agentName ?? agentDisplayName(undefined));
+export function commentAuthorName(
+  c: Comment,
+  currentUserId?: string,
+  agentName?: string,
+): string {
+  if (isAgentComment(c))
+    return c.author_name || (agentName ?? agentDisplayName(undefined));
   const u = c.user;
   const name = u?.name || u?.github_username || "";
   if (name) return name;
@@ -168,9 +199,18 @@ export function isOwnComment(c: Comment, currentUserId?: string): boolean {
 
 /** Where a thread's news starts for the reader: the first comment past their
  *  read mark that someone else wrote (an agent's always counts). -1 for none. */
-export function firstUnreadIndex(comments: Comment[], readAt: number | undefined, currentUserId?: string): number {
+export function firstUnreadIndex(
+  comments: Comment[],
+  readAt: number | undefined,
+  currentUserId?: string,
+): number {
   if (readAt === undefined) return -1;
-  return comments.findIndex((c) => c.created_at > readAt && !isOwnComment(c, currentUserId) && !(c.agent_status === "thinking" && !c.content));
+  return comments.findIndex(
+    (c) =>
+      c.created_at > readAt &&
+      !isOwnComment(c, currentUserId) &&
+      !(c.agent_status === "thinking" && !c.content),
+  );
 }
 
 /** The text with each uploaded image appended as a markdown image. */
@@ -179,10 +219,15 @@ export async function withImages(
   images: Array<{ storageId?: string }> | undefined,
   urlsFor: (ids: string[]) => Promise<Record<string, string | null>>,
 ): Promise<string> {
-  const ids = (images ?? []).map((i) => i.storageId).filter((id): id is string => !!id);
+  const ids = (images ?? [])
+    .map((i) => i.storageId)
+    .filter((id): id is string => !!id);
   if (ids.length === 0) return text;
   const urls = await urlsFor(ids);
-  const marks = ids.map((id) => urls[id]).filter((u): u is string => !!u).map((u) => `![image](${u})`);
+  const marks = ids
+    .map((id) => urls[id])
+    .filter((u): u is string => !!u)
+    .map((u) => `![image](${u})`);
   return [text.trim(), ...marks].filter(Boolean).join("\n\n");
 }
 
@@ -191,7 +236,10 @@ export async function withImages(
 export const AGENT_REPLY_STALE_MS = 10 * 60_000;
 
 /** Where an agent row stands for the reader: answering, failed, or done. */
-export function agentReplyState(c: Comment, now = Date.now()): "thinking" | "failed" | "done" {
+export function agentReplyState(
+  c: Comment,
+  now = Date.now(),
+): "thinking" | "failed" | "done" {
   if (!isAgentComment(c)) return "done";
   if (c.agent_status === "error") return "failed";
   if (c.agent_status === "thinking" || c.agent_status === "streaming") {
@@ -201,14 +249,27 @@ export function agentReplyState(c: Comment, now = Date.now()): "thinking" | "fai
 }
 
 /** The agent is answering in this thread now, so asking again is moot. */
-export function isAgentAnswering(comments: Comment[], now = Date.now()): boolean {
+export function isAgentAnswering(
+  comments: Comment[],
+  now = Date.now(),
+): boolean {
   return comments.some((c) => agentReplyState(c, now) === "thinking");
 }
 
 /** One line of a message's text for a label: code blocks folded, whitespace collapsed. */
-export function messageExcerpt(content: string | undefined, max: number, clean: (s: string) => string = (s) => s): string | undefined {
+export function messageExcerpt(
+  content: string | undefined,
+  max: number,
+  clean: (s: string) => string = (s) => s,
+): string | undefined {
   if (!content) return undefined;
-  return clean(content).replace(/```[\s\S]*?```/g, " code ").replace(/\s+/g, " ").trim().slice(0, max) || undefined;
+  return (
+    clean(content)
+      .replace(/```[\s\S]*?```/g, " code ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, max) || undefined
+  );
 }
 
 /** How close two comments by one author must be to read as one block. */
@@ -217,10 +278,25 @@ export const COMMENT_GROUP_MS = 5 * 60_000;
 /** `c` follows `prev` from the same author closely enough to drop its own
  *  avatar and name: same person (or the same agent), within a few minutes,
  *  and neither one a reply or an event. */
-export function continuesPrevious(prev: Comment | undefined, c: Comment): boolean {
+export function continuesPrevious(
+  prev: Comment | undefined,
+  c: Comment,
+): boolean {
   // A reply names whom it answers, and the comment after a reply starts afresh.
-  if (!prev || prev.event || c.event || c.parent_comment_id || prev.parent_comment_id) return false;
+  if (
+    !prev ||
+    prev.event ||
+    c.event ||
+    c.parent_comment_id ||
+    prev.parent_comment_id
+  )
+    return false;
   if (isAgentComment(prev) !== isAgentComment(c)) return false;
-  if (isAgentComment(c) ? (prev.author_name ?? "") !== (c.author_name ?? "") : prev.user_id !== c.user_id) return false;
+  if (
+    isAgentComment(c)
+      ? (prev.author_name ?? "") !== (c.author_name ?? "")
+      : prev.user_id !== c.user_id
+  )
+    return false;
   return c.created_at - prev.created_at < COMMENT_GROUP_MS;
 }

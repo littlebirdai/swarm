@@ -3,7 +3,12 @@ import { useInboxStore } from "../../store/inboxStore";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useCommentActions } from "../../hooks/useConversationComments";
 import { useConversationAgentType } from "../../hooks/useConversationAgentType";
-import { fileThreadKey, isThreadResolved, type Comment, type CommentThread as Thread } from "../../lib/commentThread";
+import {
+  fileThreadKey,
+  isThreadResolved,
+  type Comment,
+  type CommentThread as Thread,
+} from "../../lib/commentThread";
 import { CommentThread } from "./CommentThread";
 import { AnchorPlacementNote } from "./AnchorPlacementNote";
 import type { AnchorPlacement } from "@codecast/shared/comments";
@@ -32,20 +37,29 @@ function FileLineThreadImpl({
   placement?: AnchorPlacement | null;
 }) {
   const { user, isAuthenticated } = useCurrentUser();
-  const { addComment, editComment, deleteComment, askAgent } = useCommentActions(conversationId);
+  const { addComment, editComment, deleteComment, askAgent } =
+    useCommentActions(conversationId);
   const agentType = useConversationAgentType(conversationId);
-  const thread: Thread = useMemo(() => ({
-    key: fileThreadKey(filePath, lineNumber),
-    filePath,
-    lineNumber,
-    comments,
-    lastActivity: comments.length ? comments[comments.length - 1].created_at : 0,
-    resolved: isThreadResolved(comments),
-  }), [filePath, lineNumber, comments]);
+  const thread: Thread = useMemo(
+    () => ({
+      key: fileThreadKey(filePath, lineNumber),
+      filePath,
+      lineNumber,
+      comments,
+      lastActivity: comments.length
+        ? comments[comments.length - 1].created_at
+        : 0,
+      resolved: isThreadResolved(comments),
+    }),
+    [filePath, lineNumber, comments],
+  );
 
   return (
     <div className="cc-fline" data-placement={placement?.state}>
-      <AnchorPlacementNote placement={placement} anchorLines={comments.find((c) => c.anchor_lines)?.anchor_lines} />
+      <AnchorPlacementNote
+        placement={placement}
+        anchorLines={comments.find((c) => c.anchor_lines)?.anchor_lines}
+      />
       <CommentThread
         thread={thread}
         conversationId={conversationId}
@@ -59,7 +73,15 @@ function FileLineThreadImpl({
         onEdit={editComment}
         onDelete={deleteComment}
         onAskAgent={askAgent}
-        onResolve={(resolved) => useInboxStore.getState().resolveCommentThread(conversationId, { filePath, lineNumber }, resolved)}
+        onResolve={(resolved) =>
+          useInboxStore
+            .getState()
+            .resolveCommentThread(
+              conversationId,
+              { filePath, lineNumber },
+              resolved,
+            )
+        }
         agentType={agentType}
       />
     </div>

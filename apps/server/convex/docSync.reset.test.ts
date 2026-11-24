@@ -13,7 +13,10 @@ import { DOC_REWRITTEN_ERROR } from "@codecast/shared/docs";
 
 const OWNER = "u_owner";
 const DOC = "doc_1";
-const DOC_JSON = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
+const DOC_JSON = JSON.stringify({
+  type: "doc",
+  content: [{ type: "paragraph" }],
+});
 
 function world() {
   const t: Record<string, any[]> = {
@@ -31,7 +34,11 @@ function world() {
   // verifyApiToken looks the token up by hash; answer it with the owner.
   (db as any).query = (table: string) =>
     table === "api_tokens"
-      ? { withIndex: () => ({ first: async () => ({ _id: "tok", user_id: OWNER }) }) }
+      ? {
+          withIndex: () => ({
+            first: async () => ({ _id: "tok", user_id: OWNER }),
+          }),
+        }
       : origQuery(table);
   const ctx = {
     auth: { getUserIdentity: async () => ({ subject: `${OWNER}|session` }) },
@@ -42,7 +49,13 @@ function world() {
   const run = (fn: any, args: any) => fn._handler(ctx, args);
   // A CLI or API write over the open editors' history: the steps it discards
   // are the point here, so it is forced past the unsaved-steps refusal.
-  const rewrite = async () => writeDocBody(ctx, await db.get(DOC as any), { content: "new body", title: "Doc" }, { writer: { name: "Agent" }, force: true });
+  const rewrite = async () =>
+    writeDocBody(
+      ctx,
+      await db.get(DOC as any),
+      { content: "new body", title: "Doc" },
+      { writer: { name: "Agent" }, force: true },
+    );
   return { t, run, rewrite };
 }
 
@@ -59,7 +72,12 @@ describe("collab history across a CLI rewrite", () => {
     const { t, run, rewrite } = world();
     await rewrite();
     await expect(
-      run(submitSteps, { id: DOC, version: 3, clientId: "a", steps: ["stale"] }),
+      run(submitSteps, {
+        id: DOC,
+        version: 3,
+        clientId: "a",
+        steps: ["stale"],
+      }),
     ).rejects.toThrow(DOC_REWRITTEN_ERROR);
     expect(t.doc_deltas).toEqual([]);
   });
@@ -67,21 +85,48 @@ describe("collab history across a CLI rewrite", () => {
   test("a stale tab is refused even after fresh editors have written", async () => {
     const { run, rewrite } = world();
     await rewrite();
-    expect(await run(submitSteps, { id: DOC, version: 4, clientId: "b", steps: ["new-1"] })).toEqual({
+    expect(
+      await run(submitSteps, {
+        id: DOC,
+        version: 4,
+        clientId: "b",
+        steps: ["new-1"],
+      }),
+    ).toEqual({
       status: "synced",
     });
     await expect(
-      run(submitSteps, { id: DOC, version: 3, clientId: "a", steps: ["stale"] }),
+      run(submitSteps, {
+        id: DOC,
+        version: 3,
+        clientId: "a",
+        steps: ["stale"],
+      }),
     ).rejects.toThrow(DOC_REWRITTEN_ERROR);
     // Nor is it handed the new content's steps to replay on its old content;
     // an empty answer while the server is ahead is what remounts it (isSyncGap).
-    expect(await run(getSteps, { id: DOC, version: 3 })).toEqual({ steps: [], clientIds: [], version: 3 });
-    expect(await run(getSteps, { id: DOC, version: 4 })).toEqual({ steps: ["new-1"], clientIds: ["b"], version: 5 });
+    expect(await run(getSteps, { id: DOC, version: 3 })).toEqual({
+      steps: [],
+      clientIds: [],
+      version: 3,
+    });
+    expect(await run(getSteps, { id: DOC, version: 4 })).toEqual({
+      steps: ["new-1"],
+      clientIds: ["b"],
+      version: 5,
+    });
   });
 
   test("an unbroken history still rebases and replays as before", async () => {
     const { run, rewrite } = world();
-    expect(await run(submitSteps, { id: DOC, version: 2, clientId: "b", steps: ["x"] })).toEqual({
+    expect(
+      await run(submitSteps, {
+        id: DOC,
+        version: 2,
+        clientId: "b",
+        steps: ["x"],
+      }),
+    ).toEqual({
       status: "needs-rebase",
       steps: ["old-2"],
       clientIds: ["a"],
@@ -91,6 +136,13 @@ describe("collab history across a CLI rewrite", () => {
       clientIds: ["a", "a"],
       version: 3,
     });
-    expect(await run(submitSteps, { id: DOC, version: 3, clientId: "b", steps: ["x"] })).toEqual({ status: "synced" });
+    expect(
+      await run(submitSteps, {
+        id: DOC,
+        version: 3,
+        clientId: "b",
+        steps: ["x"],
+      }),
+    ).toEqual({ status: "synced" });
   });
 });

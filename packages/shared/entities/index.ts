@@ -14,12 +14,43 @@
  */
 
 import { isPrivateHost } from "../contracts/browserPaneOffer";
-import { callAnchorHref, callFrameHref, parseCallMomentParam } from "../contracts/callLinks";
-import { CALL_TIME_SOURCE, formatCallTime, parseCallTime } from "../contracts/callRecordings";
-import { parseReplayRef, replayRefId, type ReplayRef } from "../contracts/replayPlayer";
+import {
+  callAnchorHref,
+  callFrameHref,
+  parseCallMomentParam,
+} from "../contracts/callLinks";
+import {
+  CALL_TIME_SOURCE,
+  formatCallTime,
+  parseCallTime,
+} from "../contracts/callRecordings";
+import {
+  parseReplayRef,
+  replayRefId,
+  type ReplayRef,
+} from "../contracts/replayPlayer";
 import { parseReplayT, replayTParam } from "../replay/events";
 
-export type EntityType = "task" | "plan" | "session" | "doc" | "project" | "initiative" | "proposal" | "trigger" | "decision" | "pr" | "commit" | "call" | "source" | "replay" | "role" | "person" | "deploy" | "secret" | "flow";
+export type EntityType =
+  | "task"
+  | "plan"
+  | "session"
+  | "doc"
+  | "project"
+  | "initiative"
+  | "proposal"
+  | "trigger"
+  | "decision"
+  | "pr"
+  | "commit"
+  | "call"
+  | "source"
+  | "replay"
+  | "role"
+  | "person"
+  | "deploy"
+  | "secret"
+  | "flow";
 
 /** The public web origin that serves codecast object pages. */
 export const CODECAST_BASE_URL = "https://codecast.sh";
@@ -121,7 +152,17 @@ export const SHORT_ID_PREFIX: Record<string, EntityType> = {
  * followed by base 36 (`pj-mf3k2a`), and "pj" is no word. Every matcher below derives
  * from this, so the rule holds on every surface at once.
  */
-const DIGITS_ONLY_PREFIX: ReadonlySet<string> = new Set(["in", "op", "sd", "cl", "src", "rp", "or", "dp", "sec"]);
+const DIGITS_ONLY_PREFIX: ReadonlySet<string> = new Set([
+  "in",
+  "op",
+  "sd",
+  "cl",
+  "src",
+  "rp",
+  "or",
+  "dp",
+  "sec",
+]);
 
 /**
  * URL path segment → entity type. Several segments alias to one type
@@ -168,17 +209,33 @@ const SEGMENT_TYPE: Record<string, EntityType> = {
  * `?task=<id>`, and those links are still live in old messages — so new
  * trigger links always use the path route (`/triggers/<id>`).
  */
-const QUERY_PARAM: Partial<Record<EntityType, string>> = { trigger: "task", proposal: "proposal", source: "source", secret: "s", deploy: "deploy" };
+const QUERY_PARAM: Partial<Record<EntityType, string>> = {
+  trigger: "task",
+  proposal: "proposal",
+  source: "source",
+  secret: "s",
+  deploy: "deploy",
+};
 /** Types whose page is the query form alone: a path under their route is
  *  another object's page (`/org/<or-N>` is a role), never one of theirs. */
-const QUERY_ONLY: ReadonlySet<EntityType> = new Set(["proposal", "source", "secret", "deploy"]);
+const QUERY_ONLY: ReadonlySet<EntityType> = new Set([
+  "proposal",
+  "source",
+  "secret",
+  "deploy",
+]);
 /** Path segments under a type's route that are other pages, never an id of
  *  that type: `/decisions/stacks/<ds-N>` is a decision stack. */
-const NOT_AN_ID: Partial<Record<EntityType, ReadonlySet<string>>> = { decision: new Set(["stacks"]) };
+const NOT_AN_ID: Partial<Record<EntityType, ReadonlySet<string>>> = {
+  decision: new Set(["stacks"]),
+};
 
 /** Normalize a canonical type or a url-segment alias to a canonical EntityType. */
 export function normalizeEntityType(type: string): EntityType | null {
-  return SEGMENT_TYPE[type] ?? (ENTITY_ROUTE[type as EntityType] ? (type as EntityType) : null);
+  return (
+    SEGMENT_TYPE[type] ??
+    (ENTITY_ROUTE[type as EntityType] ? (type as EntityType) : null)
+  );
 }
 
 /**
@@ -195,9 +252,12 @@ export function entityRoute(type: string, id: string): string | null {
   if (norm === "pr" || norm === "commit") return repoObjectRoute(id);
   if (norm === "flow") {
     const slug = flowSlugOf(id);
-    return slug ? `${ENTITY_ROUTE.flow}?view=flows&item=${encodeURIComponent(slug)}` : null;
+    return slug
+      ? `${ENTITY_ROUTE.flow}?view=flows&item=${encodeURIComponent(slug)}`
+      : null;
   }
-  if (norm === "deploy") return `${ENTITY_ROUTE.deploy}?deploy=${encodeURIComponent(id)}`;
+  if (norm === "deploy")
+    return `${ENTITY_ROUTE.deploy}?deploy=${encodeURIComponent(id)}`;
   if (norm === "replay") {
     // A moment, or the start of a stretch, opens the replay at that time.
     const ref = parseReplayRef(id);
@@ -210,12 +270,18 @@ export function entityRoute(type: string, id: string): string | null {
     // A moment opens on the picture its citation renders (the shared screen
     // when one covers it), not on the player's usual room view.
     if (ref?.at_ms != null) return callFrameHref(ref.call, ref.at_ms);
-    if (ref) return callAnchorHref(ref.call, ref.turns && { kind: "turns", ...ref.turns });
+    if (ref)
+      return callAnchorHref(
+        ref.call,
+        ref.turns && { kind: "turns", ...ref.turns },
+      );
   }
   // One change of a proposal opens the proposal's page with that change in focus.
   const change = norm === "proposal" ? parseProposalChangeRef(id) : null;
-  if (change) return `${ENTITY_ROUTE[norm]}?${QUERY_PARAM[norm]}=${change.proposal}&focus=${change.seq}`;
-  if (QUERY_ONLY.has(norm)) return `${ENTITY_ROUTE[norm]}?${QUERY_PARAM[norm]}=${encodeURIComponent(id)}`;
+  if (change)
+    return `${ENTITY_ROUTE[norm]}?${QUERY_PARAM[norm]}=${change.proposal}&focus=${change.seq}`;
+  if (QUERY_ONLY.has(norm))
+    return `${ENTITY_ROUTE[norm]}?${QUERY_PARAM[norm]}=${encodeURIComponent(id)}`;
   return `${ENTITY_ROUTE[norm]}/${id}`;
 }
 
@@ -232,9 +298,16 @@ export function entityRoute(type: string, id: string): string | null {
 
 export type OrgObjectKind = "initiative" | "project" | "role" | "person";
 
-const ORG_OBJECT_KINDS: ReadonlySet<string> = new Set<OrgObjectKind>(["initiative", "project", "role", "person"]);
+const ORG_OBJECT_KINDS: ReadonlySet<string> = new Set<OrgObjectKind>([
+  "initiative",
+  "project",
+  "role",
+  "person",
+]);
 
-export function isOrgObjectKind(type: string | null | undefined): type is OrgObjectKind {
+export function isOrgObjectKind(
+  type: string | null | undefined,
+): type is OrgObjectKind {
   return !!type && ORG_OBJECT_KINDS.has(type);
 }
 
@@ -243,7 +316,8 @@ export function isOrgObjectKind(type: string | null | undefined): type is OrgObj
  *  replaces it with the short form. */
 export function objectHref(kind: OrgObjectKind, ref: string): string {
   const r = ref.trim();
-  if (kind === "person") return `/org/@${encodeURIComponent(r.replace(/^@/, ""))}`;
+  if (kind === "person")
+    return `/org/@${encodeURIComponent(r.replace(/^@/, ""))}`;
   if (kind === "initiative") return `/goals/${encodeURIComponent(r)}`;
   if (kind === "project") return `/projects/${encodeURIComponent(r)}`;
   return `/org/${encodeURIComponent(r)}`;
@@ -251,13 +325,18 @@ export function objectHref(kind: OrgObjectKind, ref: string): string {
 
 /** The handle a person is addressed by: their GitHub name, else their user
  *  id, the two forms the activity profile also resolves. */
-export function personRefOf(person: { _id: string; github_username?: string | null }): string {
+export function personRefOf(person: {
+  _id: string;
+  github_username?: string | null;
+}): string {
   return person.github_username || String(person._id);
 }
 
 /** The object an `/org/<ref>` segment names, or null for any other page
  *  under /org (`workspace`, a Convex id, which names no kind by itself). */
-export function orgObjectOfRef(segment: string): { kind: OrgObjectKind; ref: string } | null {
+export function orgObjectOfRef(
+  segment: string,
+): { kind: OrgObjectKind; ref: string } | null {
   let r: string;
   try {
     r = decodeURIComponent(segment).trim();
@@ -279,7 +358,11 @@ export function orgObjectOfRef(segment: string): { kind: OrgObjectKind; ref: str
  * a valid input. This is the inverse of `parseEntityUrl` for the non-anchored
  * case — message anchors (#msg-<id>) are session-only and added by the caller.
  */
-export function buildEntityUrl(type: string, id: string, base: string = CODECAST_BASE_URL): string | null {
+export function buildEntityUrl(
+  type: string,
+  id: string,
+  base: string = CODECAST_BASE_URL,
+): string | null {
   const route = entityRoute(type, id);
   return route ? `${base.replace(/\/+$/, "")}${route}` : null;
 }
@@ -311,7 +394,8 @@ export const flowRefOf = (slug: string) => `flow:${slug}`;
 
 export function inferEntityTypeFromShortId(id: string): EntityType | null {
   const [prefix, ...rest] = (id || "").trim().toLowerCase().split("-");
-  if (DIGITS_ONLY_PREFIX.has(prefix) && !/^\d+$/.test(rest.join("-"))) return null;
+  if (DIGITS_ONLY_PREFIX.has(prefix) && !/^\d+$/.test(rest.join("-")))
+    return null;
   return SHORT_ID_PREFIX[prefix] ?? null;
 }
 
@@ -347,7 +431,8 @@ export function entityTypeFromId(id: string): EntityType | null {
 // canonical (lowercase), the same key the pull_requests and commits tables use.
 // ---------------------------------------------------------------------------
 
-const REPOSITORY_SOURCE = "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/[a-z0-9_.-]*[a-z0-9_-]";
+const REPOSITORY_SOURCE =
+  "[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\/[a-z0-9_.-]*[a-z0-9_-]";
 export const PR_REF_SOURCE = `${REPOSITORY_SOURCE}#\\d+`;
 export const COMMIT_REF_SOURCE = `${REPOSITORY_SOURCE}@[0-9a-f]{7,40}`;
 
@@ -356,19 +441,36 @@ export type RepoObjectRef =
   | { type: "commit"; repository: string; sha: string };
 
 /** `owner/repo#482` or `owner/repo@<sha>`, or null for anything else. */
-export function parseRepoObjectId(id: string | undefined | null): RepoObjectRef | null {
+export function parseRepoObjectId(
+  id: string | undefined | null,
+): RepoObjectRef | null {
   const s = (id || "").trim();
   const pr = new RegExp(`^(${REPOSITORY_SOURCE})#(\\d+)$`, "i").exec(s);
-  if (pr) return { type: "pr", repository: pr[1].toLowerCase(), number: Number(pr[2]) };
-  const commit = new RegExp(`^(${REPOSITORY_SOURCE})@([0-9a-f]{7,40})$`, "i").exec(s);
-  if (commit) return { type: "commit", repository: commit[1].toLowerCase(), sha: commit[2].toLowerCase() };
+  if (pr)
+    return {
+      type: "pr",
+      repository: pr[1].toLowerCase(),
+      number: Number(pr[2]),
+    };
+  const commit = new RegExp(
+    `^(${REPOSITORY_SOURCE})@([0-9a-f]{7,40})$`,
+    "i",
+  ).exec(s);
+  if (commit)
+    return {
+      type: "commit",
+      repository: commit[1].toLowerCase(),
+      sha: commit[2].toLowerCase(),
+    };
   return null;
 }
 
 /** The reference string for a repository object — the inverse of parseRepoObjectId. */
 export function repoObjectId(ref: RepoObjectRef): string {
   const repository = ref.repository.trim().toLowerCase();
-  return ref.type === "pr" ? `${repository}#${ref.number}` : `${repository}@${ref.sha.toLowerCase()}`;
+  return ref.type === "pr"
+    ? `${repository}#${ref.number}`
+    : `${repository}@${ref.sha.toLowerCase()}`;
 }
 
 /** The GitHub page for a repository object, where codecast holds no row of its own. */
@@ -386,7 +488,9 @@ export function repoObjectGitHubUrl(ref: RepoObjectRef): string {
 export function repoObjectRoute(id: string): string | null {
   const ref = parseRepoObjectId(id);
   if (!ref) return null;
-  return ref.type === "pr" ? `${ENTITY_ROUTE.pr}/${ref.repository}/${ref.number}` : `${ENTITY_ROUTE.commit}/${ref.repository}/${ref.sha}`;
+  return ref.type === "pr"
+    ? `${ENTITY_ROUTE.pr}/${ref.repository}/${ref.number}`
+    : `${ENTITY_ROUTE.commit}/${ref.repository}/${ref.sha}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -423,13 +527,19 @@ export function repoObjectRoute(id: string): string | null {
 
 export const CONTEXTUAL_PR_REF_PREFIX = "pr:";
 
-const PR_LIST_SEP_SOURCE = "(?:\\s*\\([^()\\n]*\\))?(?:,\\s*(?:and\\s+)?|\\s+and\\s+)#?";
+const PR_LIST_SEP_SOURCE =
+  "(?:\\s*\\([^()\\n]*\\))?(?:,\\s*(?:and\\s+)?|\\s+and\\s+)#?";
 
 export function contextualPrRefRegex(): RegExp {
-  return new RegExp(`(\\bPRs?\\s+#?|\\bpull requests?\\s+#?|(?<![\\w/&#])#)(\\d{1,6})\\b((?:${PR_LIST_SEP_SOURCE}\\d{1,6}\\b)*)`, "gi");
+  return new RegExp(
+    `(\\bPRs?\\s+#?|\\bpull requests?\\s+#?|(?<![\\w/&#])#)(\\d{1,6})\\b((?:${PR_LIST_SEP_SOURCE}\\d{1,6}\\b)*)`,
+    "gi",
+  );
 }
 
-export type ContextualPrToken = { text: string } | { number: number; label: string; bare: boolean };
+export type ContextualPrToken =
+  | { text: string }
+  | { number: number; label: string; bare: boolean };
 
 /**
  * The tokens of one contextualPrRefRegex match: prose to keep as written, and
@@ -437,13 +547,21 @@ export type ContextualPrToken = { text: string } | { number: number; label: stri
  * `3263`). `lead` and `digits` are the match's first two groups, `tail` its
  * third — the list that followed the first number.
  */
-export function splitContextualPrRefs(lead: string, digits: string, tail: string): ContextualPrToken[] {
+export function splitContextualPrRefs(
+  lead: string,
+  digits: string,
+  tail: string,
+): ContextualPrToken[] {
   const bare = lead === "#";
-  const numberToken = (prefix: string, n: string): ContextualPrToken =>
-    ({ number: Number(n), label: prefix.endsWith("#") ? `#${n}` : n, bare });
+  const numberToken = (prefix: string, n: string): ContextualPrToken => ({
+    number: Number(n),
+    label: prefix.endsWith("#") ? `#${n}` : n,
+    bare,
+  });
   const tokens: ContextualPrToken[] = [];
   // "PR #6": the label carries the "#", so the prose in front keeps "PR " alone.
-  if (lead !== "#") tokens.push({ text: lead.endsWith("#") ? lead.slice(0, -1) : lead });
+  if (lead !== "#")
+    tokens.push({ text: lead.endsWith("#") ? lead.slice(0, -1) : lead });
   tokens.push(numberToken(lead, digits));
   const step = new RegExp(`^(${PR_LIST_SEP_SOURCE})(\\d{1,6})\\b`);
   let rest = tail;
@@ -462,12 +580,18 @@ export function splitContextualPrRefs(lead: string, digits: string, tail: string
 }
 
 /** The link-text payload for a contextual reference: `pr:#3263|<label as written>`, `pr:?#3263|…` when bare. */
-export function contextualPrRefPayload(number: number, label: string, bare = false): string {
+export function contextualPrRefPayload(
+  number: number,
+  label: string,
+  bare = false,
+): string {
   return `${CONTEXTUAL_PR_REF_PREFIX}${bare ? "?" : ""}#${number}|${label}`;
 }
 
 /** Reads a `pr:#N|label` / `pr:?#N|label` payload back; null for anything else. */
-export function parseContextualPrRef(payload: string | undefined | null): { number: number; label: string; bare: boolean } | null {
+export function parseContextualPrRef(
+  payload: string | undefined | null,
+): { number: number; label: string; bare: boolean } | null {
   const m = /^pr:(\?)?#(\d{1,6})\|(.*)$/.exec((payload ?? "").trim());
   return m ? { number: Number(m[2]), label: m[3], bare: !!m[1] } : null;
 }
@@ -491,13 +615,21 @@ export function deployRunRefRegex(): RegExp {
 }
 
 /** One deployRunRefRegex match as prose to keep and the run: the label is the id as written (`#44822506482` or `44822506482`). */
-export function splitDeployRunRef(lead: string, id: string): { text: string; payload: string } {
+export function splitDeployRunRef(
+  lead: string,
+  id: string,
+): { text: string; payload: string } {
   const hashed = lead.endsWith("#");
-  return { text: hashed ? lead.slice(0, -1) : lead, payload: `${DEPLOY_RUN_REF_PREFIX}${id}|${hashed ? "#" : ""}${id}` };
+  return {
+    text: hashed ? lead.slice(0, -1) : lead,
+    payload: `${DEPLOY_RUN_REF_PREFIX}${id}|${hashed ? "#" : ""}${id}`,
+  };
 }
 
 /** Reads a `deployrun:<id>|<label>` payload back; null for anything else. */
-export function parseDeployRunRef(payload: string | undefined | null): { id: string; label: string } | null {
+export function parseDeployRunRef(
+  payload: string | undefined | null,
+): { id: string; label: string } | null {
   const m = /^deployrun:(\d{9,})\|(.*)$/.exec((payload ?? "").trim());
   return m ? { id: m[1], label: m[2] } : null;
 }
@@ -508,7 +640,10 @@ export function parseDeployRunRef(payload: string | undefined | null): { id: str
  * reader completes with a repository. A lone `#N` is left out, since it is
  * what this evidence exists to vouch for.
  */
-export function namedPullRequests(text: string): { ids: string[]; numbers: number[] } {
+export function namedPullRequests(text: string): {
+  ids: string[];
+  numbers: number[];
+} {
   const numbers: number[] = [];
   for (const m of text.matchAll(contextualPrRefRegex())) {
     for (const token of splitContextualPrRefs(m[1], m[2], m[3] ?? "")) {
@@ -516,8 +651,12 @@ export function namedPullRequests(text: string): { ids: string[]; numbers: numbe
     }
   }
   const ids: string[] = [];
-  for (const m of text.matchAll(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/gi)) {
-    ids.push(repoObjectId({ type: "pr", repository: m[1], number: Number(m[2]) }));
+  for (const m of text.matchAll(
+    /github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/gi,
+  )) {
+    ids.push(
+      repoObjectId({ type: "pr", repository: m[1], number: Number(m[2]) }),
+    );
   }
   return { ids, numbers };
 }
@@ -540,7 +679,12 @@ function stripGitSuffix(name: string): string {
 /** `/ops/replays/<rp-N or id>[?t=<seconds>]`: a replay, or the moment of it the
  *  link opens at. The rest of `/ops` addresses a source (by query) or a view. */
 function parseReplayPath(segs: string[], search: string): string | null {
-  if (segs.length !== 3 || segs[0].toLowerCase() !== "ops" || segs[1].toLowerCase() !== "replays") return null;
+  if (
+    segs.length !== 3 ||
+    segs[0].toLowerCase() !== "ops" ||
+    segs[1].toLowerCase() !== "replays"
+  )
+    return null;
   let id: string;
   try {
     id = decodeURIComponent(segs[2]).trim();
@@ -549,16 +693,29 @@ function parseReplayPath(segs: string[], search: string): string | null {
   }
   if (!/^rp-\d+$/i.test(id) && !isConvexId(id)) return null;
   // ?t is seconds (or a clock, or 1h2m3s), as the replay page reads it (shared/replay parseReplayT).
-  const atMs = search ? (parseReplayT(new URLSearchParams(search).get("t"))?.t ?? null) : null;
+  const atMs = search
+    ? (parseReplayT(new URLSearchParams(search).get("t"))?.t ?? null)
+    : null;
   return /^rp-/i.test(id) ? replayRefId(id.toLowerCase(), atMs) : id;
 }
 
-function parseRepoObjectPath(segs: string[], github: boolean): RepoObjectRef | null {
-  const object = (owner: string, name: string, kind: string, value: string): RepoObjectRef | null => {
+function parseRepoObjectPath(
+  segs: string[],
+  github: boolean,
+): RepoObjectRef | null {
+  const object = (
+    owner: string,
+    name: string,
+    kind: string,
+    value: string,
+  ): RepoObjectRef | null => {
     const repository = `${owner}/${stripGitSuffix(name)}`.toLowerCase();
-    if (!new RegExp(`^${REPOSITORY_SOURCE}$`, "i").test(repository)) return null;
-    if ((kind === "pull" || kind === "pr") && /^\d+$/.test(value)) return { type: "pr", repository, number: Number(value) };
-    if (kind === "commit" && /^[0-9a-f]{7,40}$/i.test(value)) return { type: "commit", repository, sha: value.toLowerCase() };
+    if (!new RegExp(`^${REPOSITORY_SOURCE}$`, "i").test(repository))
+      return null;
+    if ((kind === "pull" || kind === "pr") && /^\d+$/.test(value))
+      return { type: "pr", repository, number: Number(value) };
+    if (kind === "commit" && /^[0-9a-f]{7,40}$/i.test(value))
+      return { type: "commit", repository, sha: value.toLowerCase() };
     return null;
   };
   if (github) {
@@ -567,15 +724,25 @@ function parseRepoObjectPath(segs: string[], github: boolean): RepoObjectRef | n
   }
   const head = segs[0]?.toLowerCase();
   // /pr/<owner>/<repo>/<n>, /commit/<owner>/<repo>/<sha>
-  if ((head === "pr" || head === "commit") && segs.length >= 4) return object(segs[1], segs[2], head, segs[3]);
+  if ((head === "pr" || head === "commit") && segs.length >= 4)
+    return object(segs[1], segs[2], head, segs[3]);
   // /r/<owner>/<repo>/pull/<n>, /r/<owner>/<repo>/commit/<sha>
-  if (head === "r" && segs.length >= 5) return object(segs[1], segs[2], segs[3].toLowerCase(), segs[4]);
+  if (head === "r" && segs.length >= 5)
+    return object(segs[1], segs[2], segs[3].toLowerCase(), segs[4]);
   return null;
 }
 
 export type GitHubLocation = {
   repository: string;
-  kind: "repo" | "tree" | "blob" | "commits" | "compare" | "branches" | "tags" | "pulls";
+  kind:
+    | "repo"
+    | "tree"
+    | "blob"
+    | "commits"
+    | "compare"
+    | "branches"
+    | "tags"
+    | "pulls";
   /** A branch, tag or sha. GitHub URLs do not delimit a ref from the path, so the first segment is taken as the ref. */
   ref?: string;
   path?: string;
@@ -594,8 +761,11 @@ export type GitHubLocation = {
  * objects and parse through parseEntityUrl instead; this returns null for them
  * and for every URL off github.com.
  */
-export function parseGitHubLocationUrl(href: string | undefined | null): GitHubLocation | null {
-  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim())) return null;
+export function parseGitHubLocationUrl(
+  href: string | undefined | null,
+): GitHubLocation | null {
+  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim()))
+    return null;
   let u: URL;
   try {
     u = new URL(href.trim());
@@ -603,13 +773,16 @@ export function parseGitHubLocationUrl(href: string | undefined | null): GitHubL
     return null;
   }
   if (!isGitHubHost(u.host)) return null;
-  const segs = u.pathname.split("/").filter(Boolean).map((s) => {
-    try {
-      return decodeURIComponent(s);
-    } catch {
-      return s;
-    }
-  });
+  const segs = u.pathname
+    .split("/")
+    .filter(Boolean)
+    .map((s) => {
+      try {
+        return decodeURIComponent(s);
+      } catch {
+        return s;
+      }
+    });
   if (segs.length < 2) return null;
   const repository = `${segs[0]}/${stripGitSuffix(segs[1])}`.toLowerCase();
   if (!new RegExp(`^${REPOSITORY_SOURCE}$`, "i").test(repository)) return null;
@@ -617,7 +790,12 @@ export function parseGitHubLocationUrl(href: string | undefined | null): GitHubL
   const kind = segs[2].toLowerCase();
   const rest = segs.slice(3);
   if (kind === "tree" && rest.length >= 1) {
-    return { repository, kind: "tree", ref: rest[0], ...(rest.length > 1 ? { path: rest.slice(1).join("/") } : {}) };
+    return {
+      repository,
+      kind: "tree",
+      ref: rest[0],
+      ...(rest.length > 1 ? { path: rest.slice(1).join("/") } : {}),
+    };
   }
   if (kind === "blob" && rest.length >= 2) {
     const lines = /^#L(\d+)(?:-L?(\d+))?$/.exec(u.hash);
@@ -626,19 +804,35 @@ export function parseGitHubLocationUrl(href: string | undefined | null): GitHubL
       kind: "blob",
       ref: rest[0],
       path: rest.slice(1).join("/"),
-      ...(lines ? { line: Number(lines[1]), ...(lines[2] ? { endLine: Number(lines[2]) } : {}) } : {}),
+      ...(lines
+        ? {
+            line: Number(lines[1]),
+            ...(lines[2] ? { endLine: Number(lines[2]) } : {}),
+          }
+        : {}),
     };
   }
   if (kind === "commits") {
-    return { repository, kind: "commits", ...(rest.length >= 1 ? { ref: rest[0] } : {}), ...(rest.length > 1 ? { path: rest.slice(1).join("/") } : {}) };
+    return {
+      repository,
+      kind: "commits",
+      ...(rest.length >= 1 ? { ref: rest[0] } : {}),
+      ...(rest.length > 1 ? { path: rest.slice(1).join("/") } : {}),
+    };
   }
   if (kind === "compare" && rest.length >= 1) {
     const range = rest.join("/");
     const at = range.indexOf("...");
     if (at <= 0 || at + 3 >= range.length) return null;
-    return { repository, kind: "compare", base: range.slice(0, at), head: range.slice(at + 3) };
+    return {
+      repository,
+      kind: "compare",
+      base: range.slice(0, at),
+      head: range.slice(at + 3),
+    };
   }
-  if (kind === "branches" || kind === "tags" || kind === "pulls") return { repository, kind };
+  if (kind === "branches" || kind === "tags" || kind === "pulls")
+    return { repository, kind };
   return null;
 }
 
@@ -702,14 +896,22 @@ export function parseCallRef(id: string | null | undefined): CallRef | null {
   const at = /^(cl-\d+|[a-z0-9]{32})@(.+)$/i.exec(s);
   if (at) {
     const ms = parseCallTime(at[2]);
-    return ms === null ? null : { call: at[1].toLowerCase(), turns: null, at_ms: ms };
+    return ms === null
+      ? null
+      : { call: at[1].toLowerCase(), turns: null, at_ms: ms };
   }
   const m = /^(cl-\d+|[a-z0-9]{32})(?::(\d+)(?:-(\d+))?)?$/i.exec(s);
   if (!m) return null;
-  if (!m[2]) return /^cl-/i.test(m[1]) ? { call: m[1].toLowerCase(), turns: null } : null;
+  if (!m[2])
+    return /^cl-/i.test(m[1])
+      ? { call: m[1].toLowerCase(), turns: null }
+      : null;
   const a = Number(m[2]);
   const b = m[3] ? Number(m[3]) : a;
-  return { call: m[1].toLowerCase(), turns: { from_seq: Math.min(a, b), to_seq: Math.max(a, b) } };
+  return {
+    call: m[1].toLowerCase(),
+    turns: { from_seq: Math.min(a, b), to_seq: Math.max(a, b) },
+  };
 }
 
 /** The prose form of a call reference: `cl-42`, `cl-42:15`, `cl-42:15-25`,
@@ -729,10 +931,20 @@ export function callRefId(
  *  player for a moment (` @12:34`), the transcript lines for a stretch
  *  (` #15–25`), nothing for the whole call. Web and mobile pills both read
  *  it, so a moment is labeled alike on both. */
-export function callRefLabelSuffix(ref: { turns?: { from_seq: number; to_seq: number } | null; at_ms?: number | null } | null | undefined): string {
+export function callRefLabelSuffix(
+  ref:
+    | {
+        turns?: { from_seq: number; to_seq: number } | null;
+        at_ms?: number | null;
+      }
+    | null
+    | undefined,
+): string {
   if (ref?.at_ms != null) return ` @${formatCallTime(ref.at_ms)}`;
   const t = ref?.turns;
-  return t ? ` #${t.from_seq}${t.to_seq !== t.from_seq ? `–${t.to_seq}` : ""}` : "";
+  return t
+    ? ` #${t.from_seq}${t.to_seq !== t.from_seq ? `–${t.to_seq}` : ""}`
+    : "";
 }
 
 // ---------------------------------------------------------------------------
@@ -753,14 +965,19 @@ export { parseReplayRef, replayRefId, type ReplayRef };
 
 /** Where a replay reference opens, in ms of the replay's clock: its moment,
  *  the start of its stretch, or null for the whole replay. */
-export function replayRefStart(ref: ReplayRef | null | undefined): number | null {
+export function replayRefStart(
+  ref: ReplayRef | null | undefined,
+): number | null {
   return ref?.at_ms ?? ref?.range?.from_ms ?? null;
 }
 
 /** What a replay reference adds to the replay's name in a pill (` @1:23`,
  *  ` @1:00–2:30`), the way callRefLabelSuffix labels a call moment. */
-export function replayRefLabelSuffix(ref: ReplayRef | null | undefined): string {
-  if (ref?.range) return ` @${formatCallTime(ref.range.from_ms)}–${formatCallTime(ref.range.to_ms)}`;
+export function replayRefLabelSuffix(
+  ref: ReplayRef | null | undefined,
+): string {
+  if (ref?.range)
+    return ` @${formatCallTime(ref.range.from_ms)}–${formatCallTime(ref.range.to_ms)}`;
   return ref?.at_ms != null ? ` @${formatCallTime(ref.at_ms)}` : "";
 }
 
@@ -780,7 +997,9 @@ export type ProposalChangeRef = { proposal: string; seq: number };
 
 /** A change reference split into its proposal (lower case) and the change's
  *  number. Null for a whole proposal (`op-55`) and for anything else. */
-export function parseProposalChangeRef(id: string | null | undefined): ProposalChangeRef | null {
+export function parseProposalChangeRef(
+  id: string | null | undefined,
+): ProposalChangeRef | null {
   const m = /^(op-\d+)#(\d+)$/i.exec((id || "").trim());
   return m ? { proposal: m[1].toLowerCase(), seq: Number(m[2]) } : null;
 }
@@ -793,7 +1012,9 @@ export function proposalChangeRefId(proposal: string, seq: number): string {
 /** ` #3`: what a change reference adds to the proposal's name in a pill (the
  *  way callRefLabelSuffix does for a stretch of a call). Web and mobile pills
  *  both read it. */
-export function proposalChangeLabelSuffix(ref: ProposalChangeRef | null | undefined): string {
+export function proposalChangeLabelSuffix(
+  ref: ProposalChangeRef | null | undefined,
+): string {
   return ref ? ` #${ref.seq}` : "";
 }
 
@@ -831,7 +1052,10 @@ export const BARE_ID_AFTER = "(?![\\w-])";
 
 /** Scans prose for bare object ids, inside BARE_ID_BEFORE and BARE_ID_AFTER. */
 export function bareEntityIdRegex(): RegExp {
-  return new RegExp(`${BARE_ID_BEFORE}(?:${BARE_ID_SOURCE})${BARE_ID_AFTER}`, "gi");
+  return new RegExp(
+    `${BARE_ID_BEFORE}(?:${BARE_ID_SOURCE})${BARE_ID_AFTER}`,
+    "gi",
+  );
 }
 
 /**
@@ -869,7 +1093,10 @@ export const ENTITY_LABEL_MAX = 40;
  * around it. Clips on a word boundary when there is a sensible one, and leaves
  * a title alone when clipping would save only a character or two.
  */
-export function truncateEntityLabel(title: string, max: number = ENTITY_LABEL_MAX): string {
+export function truncateEntityLabel(
+  title: string,
+  max: number = ENTITY_LABEL_MAX,
+): string {
   const t = title.trim();
   if (t.length <= max + 3) return t;
   const cut = t.slice(0, max);
@@ -915,8 +1142,28 @@ export const ENTITY_SHORT_LABEL_MAX = 22;
 // Function words that carry no identity. A derived short name skips them so
 // "Unify the AI's context" becomes "Unify AI's context", not "Unify the".
 const SHORT_LABEL_STOPWORDS = new Set([
-  "a", "an", "the", "of", "to", "for", "in", "on", "at", "by", "and", "or",
-  "its", "with", "from", "into", "over", "via", "vs", "is", "are", "be",
+  "a",
+  "an",
+  "the",
+  "of",
+  "to",
+  "for",
+  "in",
+  "on",
+  "at",
+  "by",
+  "and",
+  "or",
+  "its",
+  "with",
+  "from",
+  "into",
+  "over",
+  "via",
+  "vs",
+  "is",
+  "are",
+  "be",
 ]);
 
 /**
@@ -924,19 +1171,25 @@ const SHORT_LABEL_STOPWORDS = new Set([
  * clipped to the short budget, trailing punctuation dropped. Deterministic —
  * the same title always yields the same name, so a reader learns it once.
  */
-export function deriveShortLabel(title: string, max: number = ENTITY_SHORT_LABEL_MAX): string {
+export function deriveShortLabel(
+  title: string,
+  max: number = ENTITY_SHORT_LABEL_MAX,
+): string {
   const words = title
     .trim()
     .split(/\s+/)
     .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""))
     .filter(Boolean);
   if (words.length === 0) return "";
-  const content = words.filter((w) => !SHORT_LABEL_STOPWORDS.has(w.toLowerCase()));
+  const content = words.filter(
+    (w) => !SHORT_LABEL_STOPWORDS.has(w.toLowerCase()),
+  );
   const picked = (content.length ? content : words).slice(0, 2);
   let out = picked.join(" ");
   if (out.length > max) {
     // Two words overran the budget: fall back to the first alone, clipped.
-    out = picked[0].length <= max ? picked[0] : picked[0].slice(0, max - 1) + "…";
+    out =
+      picked[0].length <= max ? picked[0] : picked[0].slice(0, max - 1) + "…";
   }
   return out;
 }
@@ -1002,7 +1255,10 @@ export function parseEntityUrl(
       // A GitHub pull request or commit page names the same object codecast
       // has a page for, so it becomes that reference; every other GitHub URL
       // is a place (see parseGitHubLocationUrl) or foreign.
-      const ref = parseRepoObjectPath(u.pathname.split("/").filter(Boolean), true);
+      const ref = parseRepoObjectPath(
+        u.pathname.split("/").filter(Boolean),
+        true,
+      );
       return ref ? { type: ref.type, id: repoObjectId(ref) } : null;
     }
     if (!isAppHost(u.host)) return null;
@@ -1025,11 +1281,15 @@ export function parseEntityUrl(
   const segs = path.split("/").filter(Boolean);
   if (segs.length < 1) return null;
   const repoObject = parseRepoObjectPath(segs, false);
-  if (repoObject) return { type: repoObject.type, id: repoObjectId(repoObject) };
+  if (repoObject)
+    return { type: repoObject.type, id: repoObjectId(repoObject) };
   const replay = parseReplayPath(segs, search);
   if (replay) return { type: "replay", id: replay };
   // `/org/<ref>` is a goal, project, role or person's sheet (objectHref).
-  const orgObject = segs.length === 2 && segs[0].toLowerCase() === "org" ? orgObjectOfRef(segs[1]) : null;
+  const orgObject =
+    segs.length === 2 && segs[0].toLowerCase() === "org"
+      ? orgObjectOfRef(segs[1])
+      : null;
   if (orgObject) return { type: orgObject.kind, id: orgObject.ref };
   const type = SEGMENT_TYPE[segs[0].toLowerCase()];
   if (!type) return null;
@@ -1050,8 +1310,14 @@ export function parseEntityUrl(
     if (!qId) return null;
     // A proposal's page with a change in focus (`&focus=3`) is that change. A
     // focus on a goal or a role (`in-4`, `@handle`) is still the whole proposal.
-    const change = type === "proposal" ? parseProposalChangeRef(`${qId}#${params?.get("focus")?.trim() ?? ""}`) : null;
-    return { type, id: change ? proposalChangeRefId(change.proposal, change.seq) : qId };
+    const change =
+      type === "proposal"
+        ? parseProposalChangeRef(`${qId}#${params?.get("focus")?.trim() ?? ""}`)
+        : null;
+    return {
+      type,
+      id: change ? proposalChangeRefId(change.proposal, change.seq) : qId,
+    };
   }
 
   if (segs.length < 2) return null;
@@ -1070,7 +1336,8 @@ export function parseEntityUrl(
     const ref = turns ? parseCallRef(`${id}:${turns}`) : null;
     if (ref) return { type, id: callRefId(ref.call, ref.turns) };
     const atMs = parseCallMomentParam(params);
-    const moment = atMs != null ? parseCallRef(`${id}@${Math.floor(atMs / 1000)}s`) : null;
+    const moment =
+      atMs != null ? parseCallRef(`${id}@${Math.floor(atMs / 1000)}s`) : null;
     if (moment) return { type, id: callRefId(moment.call, null, moment.at_ms) };
   }
   return { type, id };
@@ -1085,7 +1352,8 @@ export function parseEntityUrl(
 export function parseSharedEntityUrl(
   href: string | undefined | null,
 ): { type: EntityType; id: string; to: string } | null {
-  if (!href || typeof href !== "string" || !/[?&]share=/.test(href)) return null;
+  if (!href || typeof href !== "string" || !/[?&]share=/.test(href))
+    return null;
   const absolute = /^https?:\/\//i.test(href.trim());
   if (!absolute && !href.trim().startsWith("/")) return null;
   let u: URL;
@@ -1116,11 +1384,16 @@ export function pageShareUrl(slug: string): string {
  * or a deeper path, which addresses an asset inside a directory bundle — is
  * not a page link.
  */
-export function parsePublishedPageUrl(href: string | undefined | null): { slug: string } | null {
+export function parsePublishedPageUrl(
+  href: string | undefined | null,
+): { slug: string } | null {
   const loc = appLocationOf(href);
   if (!loc) return null;
-  const m = /^\/(?:cli\/)?a\/([A-Za-z0-9]{8,24})$/.exec(loc.path)
-    ?? (loc.host === "a.codecast.sh" ? /^\/([A-Za-z0-9]{8,24})\/?$/.exec(loc.path) : null);
+  const m =
+    /^\/(?:cli\/)?a\/([A-Za-z0-9]{8,24})$/.exec(loc.path) ??
+    (loc.host === "a.codecast.sh"
+      ? /^\/([A-Za-z0-9]{8,24})\/?$/.exec(loc.path)
+      : null);
   return m ? { slug: m[1] } : null;
 }
 
@@ -1129,10 +1402,15 @@ export function parsePublishedPageUrl(href: string | undefined | null): { slug: 
  * a line in a message, it renders the mod's live pane in place, so an agent
  * building a mod shows the person the running thing in the thread itself.
  */
-export function parseModPaneUrl(href: string | undefined | null): { mod: string; pane?: string } | null {
+export function parseModPaneUrl(
+  href: string | undefined | null,
+): { mod: string; pane?: string } | null {
   const loc = appLocationOf(href);
   if (!loc) return null;
-  const m = /^\/m\/([a-z][a-z0-9-]{1,39})(?:\/([a-z][a-z0-9-]{0,39}))?\/?$/.exec(loc.path);
+  const m =
+    /^\/m\/([a-z][a-z0-9-]{1,39})(?:\/([a-z][a-z0-9-]{0,39}))?\/?$/.exec(
+      loc.path,
+    );
   return m ? { mod: m[1], ...(m[2] ? { pane: m[2] } : {}) } : null;
 }
 
@@ -1148,11 +1426,19 @@ export function parseModPaneUrl(href: string | undefined | null): { mod: string;
 // page the way a codecast page card does.
 // ---------------------------------------------------------------------------
 
-const CLAUDE_ARTIFACT_HOSTS = new Set(["claude.ai", "www.claude.ai", "claude.site", "www.claude.site"]);
+const CLAUDE_ARTIFACT_HOSTS = new Set([
+  "claude.ai",
+  "www.claude.ai",
+  "claude.site",
+  "www.claude.site",
+]);
 
 /** If `href` points at a public Claude artifact, its id and canonical URL. */
-export function parseClaudeArtifactUrl(href: string | undefined | null): { id: string; url: string } | null {
-  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim())) return null;
+export function parseClaudeArtifactUrl(
+  href: string | undefined | null,
+): { id: string; url: string } | null {
+  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim()))
+    return null;
   let u: URL;
   try {
     u = new URL(href.trim());
@@ -1160,7 +1446,10 @@ export function parseClaudeArtifactUrl(href: string | undefined | null): { id: s
     return null;
   }
   if (!CLAUDE_ARTIFACT_HOSTS.has(u.hostname.toLowerCase())) return null;
-  const m = /^\/(?:public\/)?artifacts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/embed)?\/?$/i.exec(u.pathname);
+  const m =
+    /^\/(?:public\/)?artifacts\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/embed)?\/?$/i.exec(
+      u.pathname,
+    );
   if (!m) return null;
   const id = m[1].toLowerCase();
   return { id, url: claudeArtifactUrl(id) };
@@ -1186,8 +1475,11 @@ export function claudeArtifactUrl(id: string): string {
  * the server that reads the meta tags, and Slack mirroring all ask this one
  * question.
  */
-export function parseLinkPreviewUrl(href: string | undefined | null): string | null {
-  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim())) return null;
+export function parseLinkPreviewUrl(
+  href: string | undefined | null,
+): string | null {
+  if (!href || typeof href !== "string" || !/^https?:\/\//i.test(href.trim()))
+    return null;
   let u: URL;
   try {
     u = new URL(href.trim());
@@ -1195,9 +1487,20 @@ export function parseLinkPreviewUrl(href: string | undefined | null): string | n
     return null;
   }
   const host = u.hostname.toLowerCase();
-  if (!host || host.startsWith("[") || /^\d+\.\d+\.\d+\.\d+$/.test(host) || isPrivateHost(host)) return null;
+  if (
+    !host ||
+    host.startsWith("[") ||
+    /^\d+\.\d+\.\d+\.\d+$/.test(host) ||
+    isPrivateHost(host)
+  )
+    return null;
   if (u.username || u.password) return null;
-  if (isAppHost(u.host) || parseEntityUrl(u.href) || parseClaudeArtifactUrl(u.href)) return null;
+  if (
+    isAppHost(u.host) ||
+    parseEntityUrl(u.href) ||
+    parseClaudeArtifactUrl(u.href)
+  )
+    return null;
   u.hash = "";
   return u.href;
 }
@@ -1209,7 +1512,9 @@ export function parseLinkPreviewUrl(href: string | undefined | null): string | n
  * Query strings are dropped; the fragment survives because message deep links
  * live in it (`/conversation/<id>#msg-<id>`).
  */
-function appLocationOf(href: string | undefined | null): { path: string; hash: string; host?: string } | null {
+function appLocationOf(
+  href: string | undefined | null,
+): { path: string; hash: string; host?: string } | null {
   if (!href || typeof href !== "string") return null;
   const raw = href.trim();
   if (/^https?:\/\//i.test(raw)) {
@@ -1225,7 +1530,10 @@ function appLocationOf(href: string | undefined | null): { path: string; hash: s
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)) return null;
   const hashIdx = raw.indexOf("#");
   const beforeHash = hashIdx === -1 ? raw : raw.slice(0, hashIdx);
-  return { path: beforeHash.split("?")[0], hash: hashIdx === -1 ? "" : raw.slice(hashIdx) };
+  return {
+    path: beforeHash.split("?")[0],
+    hash: hashIdx === -1 ? "" : raw.slice(hashIdx),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1246,14 +1554,21 @@ function appLocationOf(href: string | undefined | null): { path: string; hash: s
 
 export const MESSAGE_REF_PREFIX = "msg:";
 
-export type MessageRef = { kind: "share"; token: string } | { kind: "message"; id: string };
+export type MessageRef =
+  | { kind: "share"; token: string }
+  | { kind: "message"; id: string };
 
 /** If `href` addresses a conversation message (either form above), its reference. */
-export function parseMessageRefUrl(href: string | undefined | null): MessageRef | null {
+export function parseMessageRefUrl(
+  href: string | undefined | null,
+): MessageRef | null {
   const loc = appLocationOf(href);
   if (!loc) return null;
   const share = parseSharePath(loc.path);
-  if (share) return share.kind === "message" ? { kind: "share", token: share.token } : null;
+  if (share)
+    return share.kind === "message"
+      ? { kind: "share", token: share.token }
+      : null;
   const entity = parseEntityUrl(loc.path);
   if (!entity || entity.type !== "session") return null;
   const m = /^#msg-([a-z0-9]{32})$/.exec(loc.hash);
@@ -1266,11 +1581,15 @@ export function messageRefPayload(ref: MessageRef): string {
 }
 
 /** The inverse of messageRefPayload; null for any other payload. */
-export function parseMessageRefPayload(payload: string | undefined | null): MessageRef | null {
+export function parseMessageRefPayload(
+  payload: string | undefined | null,
+): MessageRef | null {
   if (!payload || !payload.startsWith(MESSAGE_REF_PREFIX)) return null;
   const value = payload.slice(MESSAGE_REF_PREFIX.length).trim();
   if (isConvexId(value)) return { kind: "message", id: value };
-  return /^[A-Za-z0-9_-]{6,80}$/.test(value) ? { kind: "share", token: value } : null;
+  return /^[A-Za-z0-9_-]{6,80}$/.test(value)
+    ? { kind: "share", token: value }
+    : null;
 }
 
 /**
@@ -1287,14 +1606,31 @@ export function parseMessageRefPayload(payload: string | undefined | null): Mess
  * not own yet. Adding a kind is one entry here; the type then makes each
  * consumer's table incomplete until it handles the new kind.
  */
-export const SHARED_OBJECT_KINDS = ["message", "doc", "plan", "task", "call", "project", "initiative", "decision", "stack", "trigger", "run", "card"] as const;
+export const SHARED_OBJECT_KINDS = [
+  "message",
+  "doc",
+  "plan",
+  "task",
+  "call",
+  "project",
+  "initiative",
+  "decision",
+  "stack",
+  "trigger",
+  "run",
+  "card",
+] as const;
 export type SharedObjectKind = (typeof SHARED_OBJECT_KINDS)[number];
 export type ShareKind = "conversation" | SharedObjectKind;
 
 const SHARE_TOKEN_SRC = "[A-Za-z0-9_-]{6,80}";
-const SHARE_PATH_RE = new RegExp(`^/share/(?:(${SHARED_OBJECT_KINDS.join("|")})/)?(${SHARE_TOKEN_SRC})/?$`);
+const SHARE_PATH_RE = new RegExp(
+  `^/share/(?:(${SHARED_OBJECT_KINDS.join("|")})/)?(${SHARE_TOKEN_SRC})/?$`,
+);
 
-export function parseSharePath(path: string): { kind: ShareKind; token: string } | null {
+export function parseSharePath(
+  path: string,
+): { kind: ShareKind; token: string } | null {
   const clean = (path || "").split(/[?#]/)[0];
   const m = SHARE_PATH_RE.exec(clean);
   if (!m) return null;
@@ -1303,5 +1639,7 @@ export function parseSharePath(path: string): { kind: ShareKind; token: string }
 
 /** The path a share token is opened at: the inverse of parseSharePath. */
 export function sharePath(kind: ShareKind, token: string): string {
-  return kind === "conversation" ? `/share/${token}` : `/share/${kind}/${token}`;
+  return kind === "conversation"
+    ? `/share/${token}`
+    : `/share/${kind}/${token}`;
 }

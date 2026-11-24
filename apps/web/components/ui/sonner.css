@@ -47,18 +47,37 @@
 /* The typed faces: the chip, the hairline and a whisper of the same colour
    under the card, so success and error read apart at a glance without the
    whole card turning green or red. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="success"] { --toast-accent: var(--sol-green); }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="error"] { --toast-accent: var(--sol-red); }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="info"] { --toast-accent: var(--sol-blue); }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="warning"] { --toast-accent: var(--sol-orange); }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="loading"] { --toast-accent: var(--sol-cyan); }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:is([data-type="success"], [data-type="error"], [data-type="info"], [data-type="warning"], [data-type="loading"]) {
+.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  --toast-accent: var(--sol-green);
+}
+.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  --toast-accent: var(--sol-red);
+}
+.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
+  --toast-accent: var(--sol-blue);
+}
+.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  --toast-accent: var(--sol-orange);
+}
+.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-type="loading"] {
+  --toast-accent: var(--sol-cyan);
+}
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:is(
+    [data-type="success"],
+    [data-type="error"],
+    [data-type="info"],
+    [data-type="warning"],
+    [data-type="loading"]
+  ) {
   border-color: color-mix(in srgb, var(--toast-accent) 38%, transparent);
   background: color-mix(in srgb, var(--toast-accent) 4%, var(--sol-card));
 }
 
 /* The glyph chip: 22px round, tinted, centred on the first line of the title. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-icon] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-icon] {
   flex: none;
   width: 22px;
   height: 22px;
@@ -68,28 +87,40 @@
   background: color-mix(in srgb, var(--toast-accent) 15%, transparent);
   color: var(--toast-accent);
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-icon] svg {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-icon]
+  svg {
   margin: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-icon] .sonner-loading-wrapper {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-icon]
+  .sonner-loading-wrapper {
   position: relative;
   inset: auto;
   --size: 14px;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] .sonner-loading-bar {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  .sonner-loading-bar {
   background: var(--toast-accent);
 }
 
 /* Title and description. The right padding keeps the words clear of the
    close control whether it is showing yet or not, so nothing reflows when it
    appears. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-content] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-content] {
   flex: 1 1 calc(100% - 33px);
   min-width: 0;
   gap: 3px;
   padding-right: 18px;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-title] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-title] {
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
@@ -97,7 +128,9 @@
   color: var(--sol-text);
   overflow-wrap: anywhere;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-description] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-description] {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
@@ -107,7 +140,9 @@
 /* A title with no description under it is a sentence, not a heading: most of
    the app's toasts are one string, and a paragraph in bold reads as shouting.
    The bold title is for the two part toast, a short line over its details. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-title]:only-child {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-title]:only-child {
   font-weight: 400;
 }
 
@@ -118,7 +153,9 @@
    which is what sends the buttons to the second. The first one lines up with
    the text, past the chip when there is one. A single action stays on the
    words' row (below). */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-button] {
   flex: none;
   height: 26px;
   margin: 0 0 0 -3px;
@@ -129,12 +166,21 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
-  transition: background 120ms, color 120ms, border-color 120ms;
+  transition:
+    background 120ms,
+    color 120ms,
+    border-color 120ms;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-content] + [data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-content]
+  + [data-button] {
   margin-left: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-icon]) [data-content] + [data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-icon])
+  [data-content]
+  + [data-button] {
   margin-left: 33px;
 }
 /* A toast with one answer (Undo, Open, Join) is a snackbar: the words and the
@@ -144,45 +190,73 @@
    row under the words, since side by side they would leave the sentence a
    column a few words across. The close control moves to the row's centre,
    past the button, in the space the card already keeps for it. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-action]):not(:has([data-cancel])) {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-action]):not(
+    :has([data-cancel])
+  ) {
   flex-wrap: nowrap;
   align-items: center;
   gap: 11px;
   padding-right: 36px;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-action]):not(:has([data-cancel])) [data-icon] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-action]):not(
+    :has([data-cancel])
+  )
+  [data-icon] {
   margin: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-action]):not(:has([data-cancel])) [data-content] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-action]):not(
+    :has([data-cancel])
+  )
+  [data-content] {
   flex: 1 1 auto;
   padding-right: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-action]):not(:has([data-cancel])) [data-content] + [data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-action]):not(
+    :has([data-cancel])
+  )
+  [data-content]
+  + [data-button] {
   margin-left: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:has([data-action]):not(:has([data-cancel])) [data-close-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:has([data-action]):not(
+    :has([data-cancel])
+  )
+  [data-close-button] {
   top: 50%;
   transform: translateY(-50%);
 }
 
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button]:focus-visible {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-button]:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sol-cyan) 55%, transparent);
 }
 /* The action wears the app's filled cyan button (button.css): the Toaster
    gives it those classes, and these rules read the face back from the
    button's custom properties because sonner's own rules outweigh button.css. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-action] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-action] {
   color: var(--btn-ink);
   background-color: var(--btn-fill);
   background-image: var(--btn-sheen);
   border-color: transparent;
   box-shadow: var(--btn-face);
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-action]:hover {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-action]:hover {
   background-color: var(--btn-fill-hover);
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-action]:active {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-action]:active {
   background-image: none;
   box-shadow: var(--btn-face-pressed);
 }
@@ -190,15 +264,23 @@
    same weight as this one and loads after it, which painted a grey fill.
    A toast whose one action is a side door, not the answer (the "Undid"
    toast's History), wears it the same quiet way: cc-toast-quiet-action. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-cancel][data-button],
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-quiet-action [data-action][data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-cancel][data-button],
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-quiet-action
+  [data-action][data-button] {
   color: var(--sol-text-muted);
   background: transparent;
   border-color: color-mix(in srgb, var(--sol-border) 50%, transparent);
   box-shadow: none;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-cancel][data-button]:hover,
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-quiet-action [data-action][data-button]:hover {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-cancel][data-button]:hover,
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-quiet-action
+  [data-action][data-button]:hover {
   color: var(--sol-text);
   background: color-mix(in srgb, var(--sol-text) 6%, transparent);
   border-color: color-mix(in srgb, var(--sol-border) 80%, transparent);
@@ -207,7 +289,9 @@
 /* The close control: inside the card at the top right, a ghost square that
    fills on hover. Sonner places it half outside the top left corner; the
    position, transform and border below undo that. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button] {
   left: auto;
   right: 7px;
   top: 7px;
@@ -219,20 +303,35 @@
   background: transparent;
   color: var(--sol-text-dim);
   opacity: 0;
-  transition: opacity 120ms, background 120ms, color 120ms;
+  transition:
+    opacity 120ms,
+    background 120ms,
+    color 120ms;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:hover [data-close-button],
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:focus-within [data-close-button],
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-sticky [data-close-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:hover
+  [data-close-button],
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:focus-within
+  [data-close-button],
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-sticky
+  [data-close-button] {
   opacity: 1;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:hover [data-close-button]:hover,
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:hover
+  [data-close-button]:hover,
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button]:focus-visible {
   color: var(--sol-text);
   background: color-mix(in srgb, var(--sol-text) 9%, transparent);
   border: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button]:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sol-cyan) 55%, transparent);
 }
@@ -244,7 +343,8 @@
    (the note lives in the history card), no close control (it times out, and
    a swipe still clears it). The class is doubled to outrank the snackbar
    rules above, which match on :has(). */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
   width: fit-content;
   max-width: var(--width);
   flex-wrap: nowrap;
@@ -258,18 +358,27 @@
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 14px -8px rgba(0, 0, 0, 0.22);
 }
-.dark .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
+.dark
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
   box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
 }
 /* A receipt with no action (a redo, a conflict) has no button to sit beside. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt:not(:has([data-action])) {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt:not(
+    :has([data-action])
+  ) {
   padding-right: 11px;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-content] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-content] {
   flex: 0 1 auto;
   padding-right: 0;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-title] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-title] {
   font-size: 12px;
   font-weight: 400;
   line-height: 16px;
@@ -279,12 +388,18 @@
   text-overflow: ellipsis;
   overflow-wrap: normal;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-description],
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-close-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-description],
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-close-button] {
   display: none;
 }
 /* Undo (and the History side door) as a word in the accent, tinted on hover. */
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-action][data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-action][data-button] {
   height: 22px;
   margin: 0;
   padding: 0 7px;
@@ -297,13 +412,19 @@
   background-image: none;
   box-shadow: none;
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-action][data-button]:hover {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-action][data-button]:hover {
   background: color-mix(in srgb, var(--sol-cyan) 12%, transparent);
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-quiet-action [data-action][data-button] {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-quiet-action
+  [data-action][data-button] {
   color: var(--sol-text-dim);
 }
-.cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-quiet-action [data-action][data-button]:hover {
+.cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-quiet-action
+  [data-action][data-button]:hover {
   color: var(--sol-text);
   background: color-mix(in srgb, var(--sol-text) 6%, transparent);
 }
@@ -316,20 +437,36 @@
  * control height and radius for the buttons, the press timing and the one
  * focus ring. Each rule names .modern-style once more than the rule it
  * replaces, so it wins there and nowhere else. */
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"] {
   border-radius: var(--radius-card);
   border-color: var(--sol-border);
   background: var(--sol-card);
   box-shadow: var(--shadow-toast);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"]:is([data-type="success"], [data-type="error"], [data-type="info"], [data-type="warning"], [data-type="loading"]) {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]:is(
+    [data-type="success"],
+    [data-type="error"],
+    [data-type="info"],
+    [data-type="warning"],
+    [data-type="loading"]
+  ) {
   border-color: var(--sol-border);
   background: var(--sol-card);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-icon] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-icon] {
   background: color-mix(in srgb, var(--toast-accent) 12%, transparent);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-button] {
   height: var(--control-sm);
   border-radius: var(--radius-control);
   transition:
@@ -337,29 +474,53 @@
     color var(--motion-press) var(--motion-ease),
     border-color var(--motion-press) var(--motion-ease);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button]:focus-visible,
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-button]:focus-visible,
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
   box-shadow: none;
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-action]:active {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-action]:active {
   background-color: var(--btn-fill-press);
 }
 /* The quiet answer: Modern's white outline face. */
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-cancel][data-button],
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-quiet-action [data-action][data-button] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-cancel][data-button],
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-quiet-action
+  [data-action][data-button] {
   color: var(--sol-text);
   background: var(--sol-card);
   border-color: var(--sol-border);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-cancel][data-button]:hover,
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-quiet-action [data-action][data-button]:hover {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-cancel][data-button]:hover,
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-quiet-action
+  [data-action][data-button]:hover {
   background: color-mix(in srgb, var(--sol-text) 5%, var(--sol-card));
   border-color: color-mix(in srgb, var(--sol-text-dim) 45%, var(--sol-border));
 }
 /* The close control: a 24px square, the floor for anything pressable. */
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"]
+  [data-close-button] {
   right: 6px;
   top: 6px;
   width: 24px;
@@ -371,7 +532,9 @@
     color var(--motion-press) var(--motion-ease);
 }
 /* The undo receipt: one quiet line on the card face, no glass. */
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt {
   min-height: var(--control-md);
   border-radius: var(--radius-card);
   border-color: var(--sol-border);
@@ -379,7 +542,10 @@
   backdrop-filter: none;
   box-shadow: var(--shadow-popover);
 }
-.modern-style .cc-toaster[data-sonner-toaster] [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt [data-action][data-button] {
+.modern-style
+  .cc-toaster[data-sonner-toaster]
+  [data-sonner-toast][data-styled="true"].cc-toast-receipt.cc-toast-receipt
+  [data-action][data-button] {
   height: 24px;
   padding: 0 8px;
   border-radius: var(--radius-control);

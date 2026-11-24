@@ -13,9 +13,28 @@
  */
 
 export interface HostReadiness {
-  mirror?: { complete: boolean; files: number; applied_at?: string; host_edited: string[] };
-  tools?: { ok: number; installed: number; missing: Array<{ tool: string; referenced_by?: string }>; at?: string };
-  setup?: { ok: boolean; applied_at?: string; step?: string; error?: string; at?: string; packages?: string[]; services?: string[]; commands?: number };
+  mirror?: {
+    complete: boolean;
+    files: number;
+    applied_at?: string;
+    host_edited: string[];
+  };
+  tools?: {
+    ok: number;
+    installed: number;
+    missing: Array<{ tool: string; referenced_by?: string }>;
+    at?: string;
+  };
+  setup?: {
+    ok: boolean;
+    applied_at?: string;
+    step?: string;
+    error?: string;
+    at?: string;
+    packages?: string[];
+    services?: string[];
+    commands?: number;
+  };
   /** Login files present on the host that a laptop pushed (agent-auth-origin.json), as tool ids. */
   logins?: string[];
   cast_version?: string;
@@ -25,10 +44,19 @@ export interface HostReadiness {
 
 export const RUN_LIMIT_WARN_MINUTES = 30;
 export const RUN_LIMIT_HOLD_MINUTES = 10;
-export const runEndsAt = (startedAt: number, maxRunMinutes: number): number => startedAt + maxRunMinutes * 60_000;
-export const runMinutesLeft = (endsAt: number, now: number): number => Math.max(0, Math.floor((endsAt - now) / 60_000));
+export const runEndsAt = (startedAt: number, maxRunMinutes: number): number =>
+  startedAt + maxRunMinutes * 60_000;
+export const runMinutesLeft = (endsAt: number, now: number): number =>
+  Math.max(0, Math.floor((endsAt - now) / 60_000));
 
-export const CLOUD_HOST_ACTIONS = ["wake", "sleep", "setup", "image", "delete_image", "clone"] as const;
+export const CLOUD_HOST_ACTIONS = [
+  "wake",
+  "sleep",
+  "setup",
+  "image",
+  "delete_image",
+  "clone",
+] as const;
 
 /**
  * The sizes the app offers for a new Linux host (the `clone` action: another
@@ -42,7 +70,8 @@ export const CLOUD_HOST_SIZES = [
   { type: "t3.2xlarge", vcpu: 8, memory_gb: 32, hourly_usd: 0.3328 },
 ] as const;
 export type CloudHostSize = (typeof CLOUD_HOST_SIZES)[number]["type"];
-export const isCloudHostSize = (t: unknown): t is CloudHostSize => CLOUD_HOST_SIZES.some((s) => s.type === t);
+export const isCloudHostSize = (t: unknown): t is CloudHostSize =>
+  CLOUD_HOST_SIZES.some((s) => s.type === t);
 
 /**
  * Autoscale, set on a Linux host (its template): when no awake host has room
@@ -81,7 +110,12 @@ export interface CloudHostReport {
   /** Logins the laptop has but did not push, with why (a lapsed token, laptop paths). */
   logins_held: Array<{ id: string; reason: string }>;
   /** While a wake runs, `detail` holds its current WakePhase; once it ends, the child's last lines. */
-  last_action?: { action: CloudHostAction; status: "running" | "ok" | "failed"; detail?: string; at: number };
+  last_action?: {
+    action: CloudHostAction;
+    status: "running" | "ok" | "failed";
+    detail?: string;
+    at: number;
+  };
   /** Launched by autoscale (it counts against a template's max_extra). */
   autoscaled?: boolean;
   at: number;
@@ -101,11 +135,15 @@ export const WAKE_PHASES = {
   ssh_up: { label: "SSH connected", step: "connecting" },
   daemon: { label: "finding the daemon", step: "connecting" },
   home: { label: "copying logins and tools", step: "connecting" },
-} as const satisfies Record<string, { label: string; step: "starting" | "connecting" }>;
+} as const satisfies Record<
+  string,
+  { label: string; step: "starting" | "connecting" }
+>;
 export type WakePhase = keyof typeof WAKE_PHASES;
 
 const WAKE_PHASE_PREFIX = "::wake-phase ";
-export const wakePhaseLine = (phase: WakePhase): string => `${WAKE_PHASE_PREFIX}${phase}`;
+export const wakePhaseLine = (phase: WakePhase): string =>
+  `${WAKE_PHASE_PREFIX}${phase}`;
 /** The phase a wake child's output line announces, or null for any other line. */
 export function parseWakePhaseLine(line: string): WakePhase | null {
   const t = line.trim();
@@ -113,17 +151,35 @@ export function parseWakePhaseLine(line: string): WakePhase | null {
   const key = t.slice(WAKE_PHASE_PREFIX.length);
   return isWakePhase(key) ? key : null;
 }
-export const isWakePhase = (v: unknown): v is WakePhase => typeof v === "string" && Object.prototype.hasOwnProperty.call(WAKE_PHASES, v);
+export const isWakePhase = (v: unknown): v is WakePhase =>
+  typeof v === "string" && Object.prototype.hasOwnProperty.call(WAKE_PHASES, v);
 
 /** The login file on the host → the tool it belongs to (for HostReadiness.logins). */
 export function loginIdForHostPath(p: string): string {
   const rules: Array<[RegExp, string]> = [
-    [/\.codex\/auth\.json$/, "codex"], [/\.grok\/auth\.json$/, "grok"], [/\.gemini\/oauth_creds\.json$/, "gemini"],
-    [/opencode\/auth\.json$/, "opencode"], [/\.pi\/agent\/auth\.json$/, "pi"], [/gh\/hosts\.yml$/, "gh"],
-    [/cloudflare\/config/, "cloudflare"], [/\.wrangler\//, "wrangler"], [/\.convex\//, "convex"], [/\.aws\//, "aws"],
-    [/\.railway\//, "railway"], [/\.fly\//, "fly"], [/com\.vercel\.cli/, "vercel"], [/netlify/, "netlify"],
-    [/\.supabase\//, "supabase"], [/stripe/, "stripe"], [/\.expo\//, "expo"], [/\.kube\//, "kube"], [/\.npmrc$/, "npm"],
-    [/\.netrc$/, "netrc"], [/\.pgpass$/, "pgpass"], [/\.git-credentials$/, "git-credentials"], [/gcloud\//, "gcloud"],
+    [/\.codex\/auth\.json$/, "codex"],
+    [/\.grok\/auth\.json$/, "grok"],
+    [/\.gemini\/oauth_creds\.json$/, "gemini"],
+    [/opencode\/auth\.json$/, "opencode"],
+    [/\.pi\/agent\/auth\.json$/, "pi"],
+    [/gh\/hosts\.yml$/, "gh"],
+    [/cloudflare\/config/, "cloudflare"],
+    [/\.wrangler\//, "wrangler"],
+    [/\.convex\//, "convex"],
+    [/\.aws\//, "aws"],
+    [/\.railway\//, "railway"],
+    [/\.fly\//, "fly"],
+    [/com\.vercel\.cli/, "vercel"],
+    [/netlify/, "netlify"],
+    [/\.supabase\//, "supabase"],
+    [/stripe/, "stripe"],
+    [/\.expo\//, "expo"],
+    [/\.kube\//, "kube"],
+    [/\.npmrc$/, "npm"],
+    [/\.netrc$/, "netrc"],
+    [/\.pgpass$/, "pgpass"],
+    [/\.git-credentials$/, "git-credentials"],
+    [/gcloud\//, "gcloud"],
   ];
   return rules.find(([re]) => re.test(p))?.[1] ?? p.replace(/^~\//, "");
 }

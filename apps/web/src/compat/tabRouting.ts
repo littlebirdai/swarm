@@ -1,15 +1,16 @@
 import { useInboxStore } from "../../store/inboxStore";
 import { pathLabel } from "../../lib/pathLabel";
 import { borrowsTabShell } from "../../lib/desktop";
-import { rememberSettingsAnchor, settingsSectionForPath } from "../../lib/settingsSections";
+import {
+  rememberSettingsAnchor,
+  settingsSectionForPath,
+} from "../../lib/settingsSections";
 import { isNonTabRoute, routerNavigate } from "../../lib/tabRoutes";
 import { tabSafePath } from "../../lib/tabSafePath";
 
 // Re-exported so callers of the routing layer keep one import; the rule itself
 // lives in lib/tabRoutes (pure, no store import) so the store can apply it too.
 export { isNonTabRoute };
-
-
 
 /**
  * In-app navigations to a settings SECTION open the settings modal in place
@@ -21,17 +22,25 @@ export { isNonTabRoute };
  * the current location with that query attached — the caller should
  * replace()-navigate to it so URL-param readers inside the modal panels see it.
  */
-export function interceptSettingsNav(path: string): { carryUrl: string | null } | null {
+export function interceptSettingsNav(
+  path: string,
+): { carryUrl: string | null } | null {
   const hit = settingsSectionForPath(path);
   if (!hit) return null;
   // The URL stays where it is, so a fragment naming a row inside the panel is handed over here.
   rememberSettingsAnchor(path);
   useInboxStore.getState().openSettingsModal(hit.section);
-  return { carryUrl: hit.search ? `${window.location.pathname}?${hit.search}` : null };
+  return {
+    carryUrl: hit.search ? `${window.location.pathname}?${hit.search}` : null,
+  };
 }
 
 function isExternal(path: string): boolean {
-  return path.startsWith("http") || path.startsWith("mailto:") || path.startsWith("#");
+  return (
+    path.startsWith("http") ||
+    path.startsWith("mailto:") ||
+    path.startsWith("#")
+  );
 }
 
 /**
@@ -42,7 +51,9 @@ function isExternal(path: string): boolean {
  */
 export function shouldUseTabRouting(
   targetPath: string,
-  currentPath: string = typeof window !== "undefined" ? window.location.pathname : "/",
+  currentPath: string = typeof window !== "undefined"
+    ? window.location.pathname
+    : "/",
 ): boolean {
   if (isExternal(targetPath)) return false;
   // A detached tab window or a browser pane's page has no tab shell of its own
@@ -65,14 +76,23 @@ export function shouldUseTabRouting(
  * entries. The history `state` is tagged so the global popstate handler can tell a
  * tab navigation apart from an inbox session selection (`{ inboxId }`).
  */
-export function tabNavigate(to: string, mode: "push" | "replace" = "push", fromTabId?: string, userState?: unknown) {
+export function tabNavigate(
+  to: string,
+  mode: "push" | "replace" = "push",
+  fromTabId?: string,
+  userState?: unknown,
+) {
   // The tab, its title, the recents rail and the history entry all take the storable spelling (lib/tabSafePath).
   const path = tabSafePath(to);
   // No tab here is this document's to move (borrowsTabShell). Callers that
   // reach this directly — a pane gesture whose stage could not take the page —
   // still mean "go there", so it goes there for real.
   if (borrowsTabShell()) {
-    routerNavigate(path, mode, userState === undefined ? null : { usr: userState });
+    routerNavigate(
+      path,
+      mode,
+      userState === undefined ? null : { usr: userState },
+    );
     return;
   }
   const store = useInboxStore.getState();
@@ -85,7 +105,11 @@ export function tabNavigate(to: string, mode: "push" | "replace" = "push", fromT
   const current = window.location.pathname + window.location.search;
   // A caller's own state rides where react-router keeps it (`usr`), so
   // `location.state` reads it the same with tabs or without.
-  const state = { tabNav: true, tabId, ...(userState === undefined ? {} : { usr: userState }) };
+  const state = {
+    tabNav: true,
+    tabId,
+    ...(userState === undefined ? {} : { usr: userState }),
+  };
   if (mode === "push" && path !== current) {
     window.history.pushState(state, "", path);
     // Recents follow what the tab shows (lib/visitRecorder), not this call.

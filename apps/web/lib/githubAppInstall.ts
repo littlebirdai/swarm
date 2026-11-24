@@ -17,6 +17,8 @@ export interface GithubInstallUser {
  * `active_team_id ?? team_id`). Resolving differently here would install into
  * one team while the card reports another and never flips to Connected.
  */
-export function githubAppInstallTeam(user: GithubInstallUser): string | undefined {
+export function githubAppInstallTeam(
+  user: GithubInstallUser,
+): string | undefined {
   return user.active_team_id ?? user.team_id;
 }

@@ -7,7 +7,10 @@
 //
 // Pure on purpose: useCallSync feeds it the store and the scribe status, and
 // the tests feed it fixtures.
-import { isRecRoomKey, sessionRoomConversationId } from "@codecast/shared/contracts";
+import {
+  isRecRoomKey,
+  sessionRoomConversationId,
+} from "@codecast/shared/contracts";
 
 export type AutoScribeInput = {
   roomKey: string | null;
@@ -41,14 +44,17 @@ export type AutoScribeInput = {
 export type AutoScribeVerdict = "start" | "yield" | "stop" | "hold";
 
 export function decideAutoScribe(i: AutoScribeInput): AutoScribeVerdict {
-  if (!i.roomKey || !i.connected || !i.deliberate || isRecRoomKey(i.roomKey)) return "hold";
+  if (!i.roomKey || !i.connected || !i.deliberate || isRecRoomKey(i.roomKey))
+    return "hold";
   if (i.live === undefined || !i.meId) return "hold";
   // A run I am holding that the server handed to someone else (my seat lease
   // lapsed and they adopted it): let go, or every word lands twice. The
   // transcript stays live — it is theirs now.
   if (i.scribeActive) {
     if (i.transcribeOff && optOutAimsAtRun(i)) return "stop";
-    return i.live && i.live.startedBy !== null && i.live.startedBy !== i.meId ? "yield" : "hold";
+    return i.live && i.live.startedBy !== null && i.live.startedBy !== i.meId
+      ? "yield"
+      : "hold";
   }
   if (i.transcribeOff) return "hold";
   // A huddle is two or more people; a seat waiting for a ring to be answered
@@ -58,7 +64,8 @@ export function decideAutoScribe(i: AutoScribeInput): AutoScribeVerdict {
   // room: the second party is the agent, which never takes a seat. One person
   // in there is not waiting for anybody — they are talking to the session, and
   // the transcript is how the words reach it.
-  if (i.rosterIds.length < 2 && !sessionRoomConversationId(i.roomKey)) return "hold";
+  if (i.rosterIds.length < 2 && !sessionRoomConversationId(i.roomKey))
+    return "hold";
   if (!i.live) return "start";
   // A live record with no scribe yet: take it, under the same roster rule a
   // fresh run follows.

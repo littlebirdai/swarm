@@ -16,7 +16,16 @@ export interface ItemRowState {
 /** One list row's frame: focus, selection and drop highlights, the select
  *  checkbox, then the row's own content. GenericListView owns the state and
  *  the drag wiring; this draws it, so any surface can lay out the same row. */
-export function ListRowShell({ state, isActive = false, dragging = false, combineTarget = false, inTargetGroup = false, gapEdge = null, dragProps, children }: {
+export function ListRowShell({
+  state,
+  isActive = false,
+  dragging = false,
+  combineTarget = false,
+  inTargetGroup = false,
+  gapEdge = null,
+  dragProps,
+  children,
+}: {
   state: ItemRowState;
   isActive?: boolean;
   /** This row is the one being dragged. */
@@ -35,7 +44,15 @@ export function ListRowShell({ state, isActive = false, dragging = false, combin
     <div
       data-list-focused={isFocused || undefined}
       // The row's selection state, for styles and tests that find a row by it.
-      data-list-row-state={isActive ? "active" : isFocused ? "focused" : isSelected ? "selected" : undefined}
+      data-list-row-state={
+        isActive
+          ? "active"
+          : isFocused
+            ? "focused"
+            : isSelected
+              ? "selected"
+              : undefined
+      }
       onClick={state.onClick}
       onContextMenu={state.onContextMenu}
       {...dragProps}
@@ -43,7 +60,10 @@ export function ListRowShell({ state, isActive = false, dragging = false, combin
         combineTarget
           ? { boxShadow: "inset 0 0 0 1.5px var(--sol-cyan)" }
           : inTargetGroup
-            ? { background: "color-mix(in srgb, var(--sol-cyan) 6%, transparent)" }
+            ? {
+                background:
+                  "color-mix(in srgb, var(--sol-cyan) 6%, transparent)",
+              }
             : undefined
       }
       className={`relative w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left group border-b border-sol-border/20 cursor-pointer select-none ${
@@ -69,7 +89,10 @@ export function ListRowShell({ state, isActive = false, dragging = false, combin
         />
       )}
       <button
-        onClick={(e) => { e.stopPropagation(); state.onSelect(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          state.onSelect();
+        }}
         role="checkbox"
         aria-checked={isSelected}
         aria-label={isSelected ? "Remove from selection" : "Add to selection"}
@@ -91,7 +114,18 @@ export function ListRowShell({ state, isActive = false, dragging = false, combin
 /** A list group's header: the fold chevron, label and count, then the
  *  group's own extras. GenericListView owns folding and drop hints; this draws
  *  them. */
-export function ListGroupHeader({ label, count, icon, badge, extra, collapsed, onToggle, dropTarget = false, onDragOver, onDrop }: {
+export function ListGroupHeader({
+  label,
+  count,
+  icon,
+  badge,
+  extra,
+  collapsed,
+  onToggle,
+  dropTarget = false,
+  onDragOver,
+  onDrop,
+}: {
   label: ReactNode;
   count: number;
   icon?: ReactNode;
@@ -107,7 +141,11 @@ export function ListGroupHeader({ label, count, icon, badge, extra, collapsed, o
   return (
     <div
       className="w-full flex items-center gap-2 px-4 py-2 bg-sol-bg-alt/30 hover:bg-sol-bg-alt/50 border-b border-sol-border/20 transition-colors"
-      style={dropTarget ? { boxShadow: "inset 0 0 0 1.5px var(--sol-cyan)" } : undefined}
+      style={
+        dropTarget
+          ? { boxShadow: "inset 0 0 0 1.5px var(--sol-cyan)" }
+          : undefined
+      }
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
@@ -126,7 +164,9 @@ export function ListGroupHeader({ label, count, icon, badge, extra, collapsed, o
         <span className="text-xs font-medium text-sol-text-dim uppercase tracking-wide">
           {label}
         </span>
-        <span className="text-xs text-sol-text-dim tabular-nums">({count})</span>
+        <span className="text-xs text-sol-text-dim tabular-nums">
+          ({count})
+        </span>
         {badge}
       </button>
       {extra}

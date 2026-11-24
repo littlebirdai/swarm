@@ -96,7 +96,12 @@ const short = (value) => `${value.slice(0, 12)}… (length ${value.length})`;
  * Check every target and return the problems found. Pure enough to test: the
  * caller supplies the root, the key and the artifact policy.
  */
-export function verifyTelemetryKey({ root = repoRoot, key = "", requireArtifacts = false, targets = TARGETS } = {}) {
+export function verifyTelemetryKey({
+  root = repoRoot,
+  key = "",
+  requireArtifacts = false,
+  targets = TARGETS,
+} = {}) {
   const errors = [];
   const notes = [];
 
@@ -109,10 +114,13 @@ export function verifyTelemetryKey({ root = repoRoot, key = "", requireArtifacts
       exists = false;
     }
 
-    const missing = (message) => (requireArtifacts ? errors.push(message) : notes.push(`skip: ${message}`));
+    const missing = (message) =>
+      requireArtifacts ? errors.push(message) : notes.push(`skip: ${message}`);
 
     if (!exists) {
-      missing(`${target.name}: no artifact at ${target.path} — nothing was built`);
+      missing(
+        `${target.name}: no artifact at ${target.path} — nothing was built`,
+      );
       continue;
     }
 
@@ -122,7 +130,9 @@ export function verifyTelemetryKey({ root = repoRoot, key = "", requireArtifacts
       continue;
     }
     if (target.expect === "present" && !key) {
-      missing(`${target.name}: no key to look for — set VITE_POSTHOG_KEY or pass --key. ${target.why}`);
+      missing(
+        `${target.name}: no key to look for — set VITE_POSTHOG_KEY or pass --key. ${target.why}`,
+      );
       continue;
     }
 
@@ -163,21 +173,31 @@ export function verifyTelemetryKey({ root = repoRoot, key = "", requireArtifacts
 }
 
 // Run only as a script, so the test can import the checker.
-if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)
+) {
   const args = process.argv.slice(2);
   const valueOf = (flag) => {
     const at = args.indexOf(flag);
     return at >= 0 ? args[at + 1] : undefined;
   };
-  const wanted = args.flatMap((arg, i) => (arg === "--target" ? [args[i + 1]] : []));
-  const targets = wanted.length ? TARGETS.filter((t) => wanted.includes(t.id)) : TARGETS;
+  const wanted = args.flatMap((arg, i) =>
+    arg === "--target" ? [args[i + 1]] : [],
+  );
+  const targets = wanted.length
+    ? TARGETS.filter((t) => wanted.includes(t.id))
+    : TARGETS;
   if (wanted.length && targets.length !== wanted.length) {
-    console.error(`::error::unknown --target; known ids: ${TARGETS.map((t) => t.id).join(", ")}`);
+    console.error(
+      `::error::unknown --target; known ids: ${TARGETS.map((t) => t.id).join(", ")}`,
+    );
     process.exit(1);
   }
   const { errors, notes } = verifyTelemetryKey({
     key: valueOf("--key") || process.env.VITE_POSTHOG_KEY || "",
-    requireArtifacts: args.includes("--require") || !!process.env.RAILWAY_ENVIRONMENT,
+    requireArtifacts:
+      args.includes("--require") || !!process.env.RAILWAY_ENVIRONMENT,
     targets,
   });
   for (const note of notes) console.log(note);

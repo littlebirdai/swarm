@@ -5,11 +5,22 @@ export class PendingDeliveryHeldError extends Error {
 }
 
 export async function requirePendingDeliveryAdmission(
-  syncService: { claimPendingMessageForDelivery(messageId: string, conversationId?: string): Promise<unknown> },
+  syncService: {
+    claimPendingMessageForDelivery(
+      messageId: string,
+      conversationId?: string,
+    ): Promise<unknown>;
+  },
   messageId: string,
   conversationId: string,
 ): Promise<void> {
-  if (!await syncService.claimPendingMessageForDelivery(messageId, conversationId)) throw new PendingDeliveryHeldError();
+  if (
+    !(await syncService.claimPendingMessageForDelivery(
+      messageId,
+      conversationId,
+    ))
+  )
+    throw new PendingDeliveryHeldError();
 }
 
 /**
@@ -23,14 +34,23 @@ export async function requirePendingDeliveryAdmission(
  * asked again, so a genuine cancellation is still honored.
  */
 export function createDeliveryAdmission(
-  syncService: { claimPendingMessageForDelivery(messageId: string, conversationId?: string): Promise<unknown> },
+  syncService: {
+    claimPendingMessageForDelivery(
+      messageId: string,
+      conversationId?: string,
+    ): Promise<unknown>;
+  },
   messageId: string,
   conversationId: string,
 ): () => Promise<void> {
   let admitted = false;
   return async () => {
     if (admitted) return;
-    await requirePendingDeliveryAdmission(syncService, messageId, conversationId);
+    await requirePendingDeliveryAdmission(
+      syncService,
+      messageId,
+      conversationId,
+    );
     admitted = true;
   };
 }

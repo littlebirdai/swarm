@@ -38,12 +38,21 @@ export interface GhostState {
   nav: { url: string; at: number } | null;
 }
 
-export const GHOST_EMPTY: GhostState = { point: null, lastAt: 0, press: 0, pressAt: 0, caption: null, nav: null };
+export const GHOST_EMPTY: GhostState = {
+  point: null,
+  lastAt: 0,
+  press: 0,
+  pressAt: 0,
+  caption: null,
+  nav: null,
+};
 
 /** The last characters of what was typed, with a lead when it was cut. */
 export function captionText(text: string): string {
   const flat = text.replace(/\s+/g, " ");
-  return flat.length > GHOST_CAPTION_CHARS ? `…${flat.slice(-GHOST_CAPTION_CHARS)}` : flat;
+  return flat.length > GHOST_CAPTION_CHARS
+    ? `…${flat.slice(-GHOST_CAPTION_CHARS)}`
+    : flat;
 }
 
 /**
@@ -51,7 +60,10 @@ export function captionText(text: string): string {
  * burst on connect arrives in order, but a late frame behind a fresh one
  * must not pull the arrow back to where it was.
  */
-export function applyGhostAction(state: GhostState, a: WatchActionFrame): GhostState {
+export function applyGhostAction(
+  state: GhostState,
+  a: WatchActionFrame,
+): GhostState {
   if (a.kind === "nav") {
     return a.url ? { ...state, nav: { url: a.url, at: a.at } } : state;
   }
@@ -60,13 +72,17 @@ export function applyGhostAction(state: GhostState, a: WatchActionFrame): GhostS
   // the pointer's last spot, or the viewport center when a fresh document
   // has none, and an arrow that jumped to the center on every scroll would
   // read as a click there.
-  const point = a.kind === "scroll" && state.point ? state.point : { x: a.x, y: a.y };
+  const point =
+    a.kind === "scroll" && state.point ? state.point : { x: a.x, y: a.y };
   const next: GhostState = { ...state, point, lastAt: a.at };
   if (a.kind === "down") {
     next.press = state.press + 1;
     next.pressAt = a.at;
   } else if (a.kind === "type") {
-    next.caption = { text: a.secret ? GHOST_SECRET_CAPTION : captionText(a.text ?? ""), at: a.at };
+    next.caption = {
+      text: a.secret ? GHOST_SECRET_CAPTION : captionText(a.text ?? ""),
+      at: a.at,
+    };
   }
   return next;
 }
@@ -86,13 +102,25 @@ export interface GhostView {
 /** What is on screen at `now`. Pure: the same state and clock give the same picture. */
 export function ghostView(state: GhostState, now: number): GhostView {
   const visible = state.point !== null && now - state.lastAt < GHOST_IDLE_MS;
-  const ripple = state.press > 0 && now - state.pressAt < GHOST_RIPPLE_MS ? state.press : null;
-  const caption = visible && state.caption && now - state.caption.at < GHOST_CAPTION_MS ? state.caption.text : null;
+  const ripple =
+    state.press > 0 && now - state.pressAt < GHOST_RIPPLE_MS
+      ? state.press
+      : null;
+  const caption =
+    visible && state.caption && now - state.caption.at < GHOST_CAPTION_MS
+      ? state.caption.text
+      : null;
   const dues: number[] = [];
   if (visible) dues.push(state.lastAt + GHOST_IDLE_MS);
   if (ripple !== null) dues.push(state.pressAt + GHOST_RIPPLE_MS);
   if (caption !== null) dues.push(state.caption!.at + GHOST_CAPTION_MS);
-  return { visible, point: visible ? state.point : null, ripple, caption, nextChangeAt: dues.length ? Math.min(...dues) : null };
+  return {
+    visible,
+    point: visible ? state.point : null,
+    ripple,
+    caption,
+    nextChangeAt: dues.length ? Math.min(...dues) : null,
+  };
 }
 
 export interface GhostStore {

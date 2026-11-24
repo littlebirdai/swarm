@@ -5,7 +5,11 @@
 // header chip), and the CLI (`cast usage`), so a window means the same thing
 // wherever it is read.
 
-export type CcUsageWindow = { percent: number; resets_at?: number; label?: string };
+export type CcUsageWindow = {
+  percent: number;
+  resets_at?: number;
+  label?: string;
+};
 
 /** Extra usage credits (overflow spend past the plan windows). `limit`/`used`
  *  are dollars from the provider's `extra_usage` block; absent on accounts
@@ -38,14 +42,20 @@ export type CcUsage = {
  * stays true however old the snapshot is — a 5h window read 17h ago rolled
  * long ago, and its percent is history, not a reading. A window with no known
  * reset time can never be proven rolled. */
-export function isWindowRolled(w: { resets_at?: number } | undefined | null, now: number): boolean {
+export function isWindowRolled(
+  w: { resets_at?: number } | undefined | null,
+  now: number,
+): boolean {
   return !!w && w.resets_at != null && w.resets_at <= now;
 }
 
 /** A window's utilization AS OF `now`: 0 once it has rolled, since a fresh
  * window starts empty. The one place display and decision logic agree on what
  * a stale snapshot still means. */
-export function livePercent(w: { percent: number; resets_at?: number }, now: number): number {
+export function livePercent(
+  w: { percent: number; resets_at?: number },
+  now: number,
+): number {
   return isWindowRolled(w, now) ? 0 : w.percent;
 }
 
@@ -56,12 +66,18 @@ export function livePercent(w: { percent: number; resets_at?: number }, now: num
  *  every session, a pegged Fable week benched three accounts at 1-4% of their
  *  week while auto-switch hopped an Opus fleet through accounts at 99%, each
  *  spent within minutes (2026-10-04). */
-export function limitWindows(usage: CcUsage, models?: readonly string[]): { percent: number; resets_at?: number }[] {
+export function limitWindows(
+  usage: CcUsage,
+  models?: readonly string[],
+): { percent: number; resets_at?: number }[] {
   const ids = (models ?? []).map((m) => m.toLowerCase());
   const scoped = [usage.weekly_scoped, ...(usage.scoped ?? [])].filter(
-    (w): w is CcUsageWindow => !!w?.label && ids.some((id) => id.includes(w.label!.toLowerCase())),
+    (w): w is CcUsageWindow =>
+      !!w?.label && ids.some((id) => id.includes(w.label!.toLowerCase())),
   );
-  return [usage.session, usage.weekly, ...scoped].filter((w): w is CcUsageWindow => !!w);
+  return [usage.session, usage.weekly, ...scoped].filter(
+    (w): w is CcUsageWindow => !!w,
+  );
 }
 
 /** The models an account decision for a whole fleet weighs: the ones a strict
@@ -72,10 +88,21 @@ export function limitWindows(usage: CcUsage, models?: readonly string[]): { perc
  *  thirty Opus ones off an account at 34% of its week onto one at 75%
  *  (2026-11-14). `sessionModels` holds one entry per session. */
 export function fleetModels(sessionModels: readonly string[]): string[] {
-  const family = (m: string) => m.toLowerCase().replace(/\[[^\]]*\]$/, "").replace(/(-\d+)+$/, "");
+  const family = (m: string) =>
+    m
+      .toLowerCase()
+      .replace(/\[[^\]]*\]$/, "")
+      .replace(/(-\d+)+$/, "");
   const counts = new Map<string, number>();
-  for (const m of sessionModels) counts.set(family(m), (counts.get(family(m)) ?? 0) + 1);
-  return [...new Set(sessionModels.filter((m) => counts.get(family(m))! * 2 > sessionModels.length))];
+  for (const m of sessionModels)
+    counts.set(family(m), (counts.get(family(m)) ?? 0) + 1);
+  return [
+    ...new Set(
+      sessionModels.filter(
+        (m) => counts.get(family(m))! * 2 > sessionModels.length,
+      ),
+    ),
+  ];
 }
 
 const MODEL_LIMIT_FAMILIES = new Set(["fable", "opus", "sonnet", "haiku"]);
@@ -83,13 +110,20 @@ const MODEL_LIMIT_FAMILIES = new Set(["fable", "opus", "sonnet", "haiku"]);
 /** The model family a limit banner names when only that model's week is
  *  spent ("You've hit your Fable limit · resets …" → "fable"), else
  *  undefined (a weekly, session or spend limit stops every model). */
-export function modelLimitFamily(banner: string | null | undefined): string | undefined {
-  const word = banner?.match(/you['’]ve (?:hit|reached) your ([a-z]+) limit\b/i)?.[1]?.toLowerCase();
+export function modelLimitFamily(
+  banner: string | null | undefined,
+): string | undefined {
+  const word = banner
+    ?.match(/you['’]ve (?:hit|reached) your ([a-z]+) limit\b/i)?.[1]
+    ?.toLowerCase();
   return word && MODEL_LIMIT_FAMILIES.has(word) ? word : undefined;
 }
 
 /** Does a fleet's model list (fleetModels) include this model family? */
-export function fleetRunsFamily(models: readonly string[], family: string): boolean {
+export function fleetRunsFamily(
+  models: readonly string[],
+  family: string,
+): boolean {
   return models.some((m) => m.toLowerCase().includes(family));
 }
 
@@ -98,10 +132,27 @@ export function fleetRunsFamily(models: readonly string[], family: string): bool
  *  model-scoped week by its model, "Fable"), and `label`, the name with its
  *  span where a sentence or a list needs it ("Session (5h)", "Week (7d)",
  *  "Fable (7d)"). A scoped window is named by its own label alone. */
-export function labeledUsageWindows(usage: CcUsage): { name: string; label: string; percent: number; resets_at?: number }[] {
-  const out: { name: string; label: string; percent: number; resets_at?: number }[] = [];
-  const add = (name: string, span: string | undefined, w?: { percent: number; resets_at?: number }) => {
-    if (w) out.push({ name, label: span ? `${name} (${span})` : name, percent: w.percent, resets_at: w.resets_at });
+export function labeledUsageWindows(
+  usage: CcUsage,
+): { name: string; label: string; percent: number; resets_at?: number }[] {
+  const out: {
+    name: string;
+    label: string;
+    percent: number;
+    resets_at?: number;
+  }[] = [];
+  const add = (
+    name: string,
+    span: string | undefined,
+    w?: { percent: number; resets_at?: number },
+  ) => {
+    if (w)
+      out.push({
+        name,
+        label: span ? `${name} (${span})` : name,
+        percent: w.percent,
+        resets_at: w.resets_at,
+      });
   };
   add("Session", "5h", usage.session);
   add("Week", "7d", usage.weekly);
@@ -115,32 +166,59 @@ export function labeledUsageWindows(usage: CcUsage): { name: string; label: stri
  *  pegged at once (a spent 5h session inside a spent week); the shorter one
  *  reopening changes nothing while the longer one is still shut, so the latest
  *  reset is the one named. */
-export function peggedWindow(usage: CcUsage | undefined | null, now: number): { label: string; resets_at?: number } | undefined {
+export function peggedWindow(
+  usage: CcUsage | undefined | null,
+  now: number,
+): { label: string; resets_at?: number } | undefined {
   if (!usage) return undefined;
   const w = labeledUsageWindows(usage)
     .filter((w) => !isWindowRolled(w, now) && w.percent >= 100)
     .sort((a, b) => (b.resets_at ?? 0) - (a.resets_at ?? 0))[0];
-  return w && { label: w.label, ...(w.resets_at !== undefined ? { resets_at: w.resets_at } : {}) };
+  return (
+    w && {
+      label: w.label,
+      ...(w.resets_at !== undefined ? { resets_at: w.resets_at } : {}),
+    }
+  );
 }
 
 /**
  * An account's plan type as people read it: ChatGPT's own names ("prolite" is
  * Pro Lite), and any other (Claude's "max") capitalized.
  */
-const PLAN_TYPE_LABELS: Record<string, string> = { free: "Free", go: "Go", plus: "Plus", pro: "Pro", prolite: "Pro Lite", team: "Team", business: "Business", enterprise: "Enterprise", edu: "Edu" };
+const PLAN_TYPE_LABELS: Record<string, string> = {
+  free: "Free",
+  go: "Go",
+  plus: "Plus",
+  pro: "Pro",
+  prolite: "Pro Lite",
+  team: "Team",
+  business: "Business",
+  enterprise: "Enterprise",
+  edu: "Edu",
+};
 export function planTypeLabel(planType: string): string {
-  return PLAN_TYPE_LABELS[planType.toLowerCase()] ?? `${planType.charAt(0).toUpperCase()}${planType.slice(1)}`;
+  return (
+    PLAN_TYPE_LABELS[planType.toLowerCase()] ??
+    `${planType.charAt(0).toUpperCase()}${planType.slice(1)}`
+  );
 }
 
 /** Why an exhausted account is out, in a few words: "spend limit reached" or
  *  "Week (7d) full". */
-export function exhaustedLabel(usage: CcUsage | undefined | null, now: number): string {
+export function exhaustedLabel(
+  usage: CcUsage | undefined | null,
+  now: number,
+): string {
   if ((usage?.blocked_until ?? 0) > now) return "spend limit reached";
   return `${peggedWindowLabel(usage, now) ?? "limit"} full`;
 }
 
 /** The meter label of the pegged window that keeps an account unusable longest (peggedWindow). */
-export function peggedWindowLabel(usage: CcUsage | undefined | null, now: number): string | undefined {
+export function peggedWindowLabel(
+  usage: CcUsage | undefined | null,
+  now: number,
+): string | undefined {
   return peggedWindow(usage, now)?.label;
 }
 
@@ -148,10 +226,15 @@ export function peggedWindowLabel(usage: CcUsage | undefined | null, now: number
  * `now` — what a single summary meter should show. Rolled windows count as 0,
  * so a dormant account stops reading "100%" forever. Null when no usage data
  * exists. */
-export function worstUsagePercent(usage: CcUsage | undefined | null, now: number): number | null {
+export function worstUsagePercent(
+  usage: CcUsage | undefined | null,
+  now: number,
+): number | null {
   if (!usage) return null;
   const windows = limitWindows(usage);
-  return windows.length ? Math.max(...windows.map((w) => livePercent(w, now))) : null;
+  return windows.length
+    ? Math.max(...windows.map((w) => livePercent(w, now)))
+    : null;
 }
 
 /** An account with no headroom RIGHT NOW: some window is pegged and its reset
@@ -163,10 +246,15 @@ export function worstUsagePercent(usage: CcUsage | undefined | null, now: number
  * still ranks after every account with plan headroom (rankByHeadroom scores
  * it at 100), so credits are the fallback, never the first pick. `models`
  * adds the model-scoped weeks of the models the sessions run (limitWindows). */
-export function isUsageExhausted(usage: CcUsage | undefined | null, now: number, models?: readonly string[]): boolean {
+export function isUsageExhausted(
+  usage: CcUsage | undefined | null,
+  now: number,
+  models?: readonly string[],
+): boolean {
   if (!usage) return false;
   if ((usage.blocked_until ?? 0) > now) return true;
-  if (!limitWindows(usage, models).some((w) => livePercent(w, now) >= 100)) return false;
+  if (!limitWindows(usage, models).some((w) => livePercent(w, now) >= 100))
+    return false;
   return !(usage.extra?.enabled && usage.extra.percent < 100);
 }
 
@@ -177,7 +265,8 @@ export function formatCountdown(msFromNow: number): string {
   const mins = Math.max(1, Math.round(msFromNow / 60_000));
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
-  if (hours < 48) return `${hours}h ${mins % 60 > 0 && hours < 10 ? `${mins % 60}m` : ""}`.trim();
+  if (hours < 48)
+    return `${hours}h ${mins % 60 > 0 && hours < 10 ? `${mins % 60}m` : ""}`.trim();
   return `${Math.round(hours / 24)}d`;
 }
 
@@ -196,12 +285,18 @@ export function formatAgo(msAgo: number): string {
  *  headroom" hopped to accounts whose usage probe had been 401ing for hours
  *  (the new window may already be spent). Null = unknown, same standing as
  *  no usage data. */
-export function switchUsagePercent(usage: CcUsage | undefined | null, now: number): number | null {
+export function switchUsagePercent(
+  usage: CcUsage | undefined | null,
+  now: number,
+): number | null {
   if (!usage) return null;
   const windows = limitWindows(usage);
   if (!windows.length) return null;
   for (const w of windows) {
-    if (isWindowRolled(w, now) && (w.resets_at == null || usage.fetched_at <= w.resets_at)) {
+    if (
+      isWindowRolled(w, now) &&
+      (w.resets_at == null || usage.fetched_at <= w.resets_at)
+    ) {
       return null;
     }
   }
@@ -224,16 +319,26 @@ export type UsageStanding = {
   stale: boolean;
 };
 
-export function usageStanding(usage: CcUsage | undefined | null, now: number): UsageStanding {
+export function usageStanding(
+  usage: CcUsage | undefined | null,
+  now: number,
+): UsageStanding {
   const percent = switchUsagePercent(usage, now);
-  return { percent, pegged: isUsageExhausted(usage, now), stale: percent === null && !!usage };
+  return {
+    percent,
+    pegged: isUsageExhausted(usage, now),
+    stale: percent === null && !!usage,
+  };
 }
 
 /** The short standing label shared by the header chip, the park card and the
  * switch banner so all three name an account identically: "at limit" when
  * pegged, "stale" when a rolled window is unmeasured, "no data" when nothing
  * was ever read, else "N% used". */
-export function standingLabel(usage: CcUsage | undefined | null, now: number): string {
+export function standingLabel(
+  usage: CcUsage | undefined | null,
+  now: number,
+): string {
   if ((usage?.blocked_until ?? 0) > now) return "spend limit reached";
   const s = usageStanding(usage, now);
   if (s.pegged) return "at limit";
@@ -247,15 +352,23 @@ export function standingLabel(usage: CcUsage | undefined | null, now: number): s
  * one. Eligible, just unproven. Stable for ties. Reads usageStanding, the
  * same standing the bars render, so the top pick is the one a person would
  * point to on the meters. */
-export function rankByHeadroom<P extends { usage?: CcUsage | null }>(profiles: readonly P[], now: number): P[] {
-  return [...profiles].sort((a, b) => headroomScore(a.usage, now) - headroomScore(b.usage, now));
+export function rankByHeadroom<P extends { usage?: CcUsage | null }>(
+  profiles: readonly P[],
+  now: number,
+): P[] {
+  return [...profiles].sort(
+    (a, b) => headroomScore(a.usage, now) - headroomScore(b.usage, now),
+  );
 }
 
 /** The sort key behind rankByHeadroom, for callers that order something other
  * than a flat list of profiles (a panel that groups an email's accounts, say):
  * the worst live window's percent, and 101 when the current windows have not
  * been measured, so an unproven account ranks behind every known number. */
-export function headroomScore(usage: CcUsage | undefined | null, now: number): number {
+export function headroomScore(
+  usage: CcUsage | undefined | null,
+  now: number,
+): number {
   return usageStanding(usage, now).percent ?? 101;
 }
 
@@ -279,14 +392,28 @@ export function fallbackProfiles<
     setup_token?: { expires_at: number } | null;
     reserved_for?: string | null;
   },
->(profiles: readonly P[], activeEmail: string | undefined, now: number, models?: readonly string[]): P[] {
+>(
+  profiles: readonly P[],
+  activeEmail: string | undefined,
+  now: number,
+  models?: readonly string[],
+): P[] {
   // A dead saved login is still a target when a minted setup-token is live:
   // the switch lands sessions on the token and never touches the login. An
   // account whose organization refuses subscription access takes neither.
   const reachable = (p: P) =>
-    !p.access_refused_at && (!p.login_expired_at || (!!p.setup_token && p.setup_token.expires_at > now));
+    !p.access_refused_at &&
+    (!p.login_expired_at ||
+      (!!p.setup_token && p.setup_token.expires_at > now));
   return rankByHeadroom(
-    profiles.filter((p) => p.email && p.email !== activeEmail && !p.reserved_for && reachable(p) && !isUsageExhausted(p.usage, now, models)),
+    profiles.filter(
+      (p) =>
+        p.email &&
+        p.email !== activeEmail &&
+        !p.reserved_for &&
+        reachable(p) &&
+        !isUsageExhausted(p.usage, now, models),
+    ),
     now,
   );
 }
@@ -301,10 +428,15 @@ export function fallbackProfiles<
  * label. `key` may be either, as a session's `cc_account` pin is; an unknown
  * pool id still drops its `pool-` prefix.
  */
-export function accountDisplayName(profiles: ReadonlyArray<{ name: string; email?: string | null }>, key?: string | null): string | undefined {
+export function accountDisplayName(
+  profiles: ReadonlyArray<{ name: string; email?: string | null }>,
+  key?: string | null,
+): string | undefined {
   const want = key?.trim().toLowerCase();
   if (!want) return undefined;
-  const p = profiles.find((x) => x.name.toLowerCase() === want || x.email?.toLowerCase() === want);
+  const p = profiles.find(
+    (x) => x.name.toLowerCase() === want || x.email?.toLowerCase() === want,
+  );
   return p?.email || profileLabel(p?.name ?? key!.trim());
 }
 
@@ -315,7 +447,10 @@ export function profileLabel(name: string): string {
 }
 
 /** The machine's `last_action` ("switch:<profile>", "manual", ...) as a phrase. */
-export function describeLastAction(lastAction: string, profiles: ReadonlyArray<{ name: string; email?: string | null }>): string {
+export function describeLastAction(
+  lastAction: string,
+  profiles: ReadonlyArray<{ name: string; email?: string | null }>,
+): string {
   return lastAction.startsWith("switch:")
     ? `switched to ${accountDisplayName(profiles, lastAction.slice("switch:".length))}`
     : lastAction;
@@ -340,7 +475,9 @@ export type RecoveryDecision = {
  * wording shared by the park card, the settings page and the CLI, so an
  * account change is never explained two different ways. Written in past tense
  * for what was done and future for what is proposed. */
-export function describeDecision(d: RecoveryDecision | undefined | null): string | null {
+export function describeDecision(
+  d: RecoveryDecision | undefined | null,
+): string | null {
   if (!d) return null;
   const sessions =
     d.parked_count && d.parked_count > 0
@@ -352,7 +489,8 @@ export function describeDecision(d: RecoveryDecision | undefined | null): string
     ? `${d.pegged_window} hit its limit on ${d.from_email ?? "the active account"}`
     : `${d.from_email ?? "the active account"} could not continue`;
   const target = d.target_email ?? d.target_name?.replace(/^pool-/, "");
-  const standing = d.target_percent != null ? ` (${Math.round(d.target_percent)}% used)` : "";
+  const standing =
+    d.target_percent != null ? ` (${Math.round(d.target_percent)}% used)` : "";
   switch (d.kind) {
     case "switch":
       return `${cause}, parking ${sessions} — switched to ${target ?? "another account"}${standing} and continued them.`;
@@ -400,10 +538,19 @@ export const USAGE_WARN_PERCENT = 85;
 
 /** When the soonest window that is near its limit resets; undefined when no
  * window is under pressure. */
-export function nextPressuredReset(usage: CcUsage | undefined | null, now: number): number | undefined {
+export function nextPressuredReset(
+  usage: CcUsage | undefined | null,
+  now: number,
+): number | undefined {
   if (!usage) return undefined;
   const resets = limitWindows(usage)
-    .filter((w) => !isWindowRolled(w, now) && w.percent >= USAGE_WARN_PERCENT && w.resets_at && w.resets_at > now)
+    .filter(
+      (w) =>
+        !isWindowRolled(w, now) &&
+        w.percent >= USAGE_WARN_PERCENT &&
+        w.resets_at &&
+        w.resets_at > now,
+    )
     .map((w) => w.resets_at as number);
   return resets.length ? Math.min(...resets) : undefined;
 }
@@ -415,7 +562,11 @@ export type LimitRecoveryFacts = {
   now: number;
   next_reset?: number;
   fallbacks: Array<{ name: string; worst: number | null }>;
-  recovery: { auto_switch: boolean; auto_continue: boolean; mode?: RecoveryMode } | null;
+  recovery: {
+    auto_switch: boolean;
+    auto_continue: boolean;
+    mode?: RecoveryMode;
+  } | null;
 };
 
 /** One sentence on what a limit hit means for sessions on a machine, from the
@@ -423,10 +574,16 @@ export type LimitRecoveryFacts = {
  * whether to checkpoint. One body for `cast usage` and the role page's
  * Settings tab, so the terminal and the page never describe it differently. */
 export function describeLimitRecovery(r: LimitRecoveryFacts): string {
-  const resetNote = r.next_reset ? ` (next reset in ${formatCountdown(r.next_reset - r.now)})` : "";
+  const resetNote = r.next_reset
+    ? ` (next reset in ${formatCountdown(r.next_reset - r.now)})`
+    : "";
   const best = r.fallbacks[0];
-  const bestNote = best ? `best: ${best.name}${best.worst != null ? ` at ${Math.round(best.worst)}%` : ""}` : "";
-  const hop = best ? `${r.fallbacks.length} saved account(s) with headroom (${bestNote})` : "no other saved account with headroom";
+  const bestNote = best
+    ? `best: ${best.name}${best.worst != null ? ` at ${Math.round(best.worst)}%` : ""}`
+    : "";
+  const hop = best
+    ? `${r.fallbacks.length} saved account(s) with headroom (${bestNote})`
+    : "no other saved account with headroom";
   if (!r.recovery) {
     return `On a limit: ${hop}; recovery flags unknown (server unreachable)${resetNote}.`;
   }
@@ -495,9 +652,19 @@ export const RESUME_BURST_BATCH = 3;
 // proxy for how a limit counts.
 // ---------------------------------------------------------------------------
 
-export const TOKEN_COST_WEIGHTS = { input: 1, cache_read: 0.1, cache_write: 1.25, output: 5 } as const;
+export const TOKEN_COST_WEIGHTS = {
+  input: 1,
+  cache_read: 0.1,
+  cache_write: 1.25,
+  output: 5,
+} as const;
 
-export type RawTokenCounts = { input?: number; cache_read?: number; cache_write?: number; output?: number };
+export type RawTokenCounts = {
+  input?: number;
+  cache_read?: number;
+  cache_write?: number;
+  output?: number;
+};
 
 /** Billed tokens in cost-weighted units — the unit the calibration rate is in. */
 export function weightedTokens(t: RawTokenCounts): number {
@@ -531,8 +698,12 @@ export type UsageCalibration = {
  *  a number; the UI falls back to naming tokens alone. */
 export const MIN_CALIBRATION_SAMPLES = 3;
 
-export function isCalibrated(c: UsageCalibration | null | undefined): c is UsageCalibration {
-  return !!c && c.tokens_per_percent > 0 && c.samples >= MIN_CALIBRATION_SAMPLES;
+export function isCalibrated(
+  c: UsageCalibration | null | undefined,
+): c is UsageCalibration {
+  return (
+    !!c && c.tokens_per_percent > 0 && c.samples >= MIN_CALIBRATION_SAMPLES
+  );
 }
 
 /** Cost-weighted tokens still available in a window before it pegs. Null when
@@ -544,7 +715,11 @@ export function remainingWindowTokens(
   now: number,
 ): number | null {
   if (!isCalibrated(calibration) || !usage?.session) return null;
-  if (isWindowRolled(usage.session, now) && usage.fetched_at <= (usage.session.resets_at ?? 0)) return null;
+  if (
+    isWindowRolled(usage.session, now) &&
+    usage.fetched_at <= (usage.session.resets_at ?? 0)
+  )
+    return null;
   const used = livePercent(usage.session, now);
   return Math.max(0, 100 - used) * calibration.tokens_per_percent;
 }
@@ -593,7 +768,8 @@ function recoveryFlagsOf(d: ProposalDevice): {
   const ask = d.cc_recovery_ask ?? d.ask_first;
   const auto = d.cc_auto_switch ?? d.auto_switch;
   const cont = d.cc_auto_continue ?? d.auto_continue;
-  if (ask === undefined && auto === undefined && cont === undefined) return null;
+  if (ask === undefined && auto === undefined && cont === undefined)
+    return null;
   return { cc_recovery_ask: ask, cc_auto_switch: auto, cc_auto_continue: cont };
 }
 

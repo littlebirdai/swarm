@@ -5,9 +5,18 @@
  * runs against the one interface below.
  */
 
-import { CdpConnection, listTargetsVia, type CdpClient, type CdpTarget } from "./cdp.js";
 import {
-  attachToTarget, probeLiveness, readState, type InstanceState, type PageSession,
+  CdpConnection,
+  listTargetsVia,
+  type CdpClient,
+  type CdpTarget,
+} from "./cdp.js";
+import {
+  attachToTarget,
+  probeLiveness,
+  readState,
+  type InstanceState,
+  type PageSession,
 } from "./instance.js";
 import { armRecorder } from "./observe.js";
 import { setViewport } from "./devices.js";
@@ -46,12 +55,16 @@ export interface OpenDriverOptions {
  * (recovery.ts / observe.ts). The HTTP probe is kept only for the failure
  * path, where "gone" vs "not answering" is the whole question.
  */
-export async function openDriver(opts: OpenDriverOptions = {}): Promise<BrowserDriver> {
+export async function openDriver(
+  opts: OpenDriverOptions = {},
+): Promise<BrowserDriver> {
   const state = readState();
   if (!state) throw new BrowserNotLive("exited", state);
   let conn: CdpConnection;
   try {
-    conn = state.wsUrl ? await CdpConnection.connect(state.wsUrl, 5000) : await CdpConnection.fromPort(state.port, 5000);
+    conn = state.wsUrl
+      ? await CdpConnection.connect(state.wsUrl, 5000)
+      : await CdpConnection.fromPort(state.port, 5000);
   } catch {
     // Could not connect: classify honestly before telling the agent anything,
     // because the wrong verdict here is what starts restart stampedes.
@@ -74,7 +87,10 @@ export async function openDriver(opts: OpenDriverOptions = {}): Promise<BrowserD
       // an emulated size is session-scoped and would evaporate between
       // commands. Both are independent of each other, so they overlap.
       const vp = readState()?.viewportByTab?.[targetId];
-      await Promise.all([armRecorder(page), vp ? setViewport(page, vp).catch(() => {}) : undefined]);
+      await Promise.all([
+        armRecorder(page),
+        vp ? setViewport(page, vp).catch(() => {}) : undefined,
+      ]);
       mark("attach");
       return page;
     },

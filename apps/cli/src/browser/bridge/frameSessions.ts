@@ -68,7 +68,8 @@ export class FrameSessions<C> {
 
   private of(client: C): ClientFrames {
     let f = this.clients.get(client);
-    if (!f) this.clients.set(client, (f = { routes: new Map(), auto: new Set() }));
+    if (!f)
+      this.clients.set(client, (f = { routes: new Map(), auto: new Set() }));
     return f;
   }
 
@@ -78,14 +79,17 @@ export class FrameSessions<C> {
 
   /** The frame's current URL, from what Chrome last reported for it. */
   url(route: FrameRoute): string {
-    return String(this.tabs.get(route.tabId)?.get(route.chrome)?.targetInfo.url ?? "");
+    return String(
+      this.tabs.get(route.tabId)?.get(route.chrome)?.targetInfo.url ?? "",
+    );
   }
 
   /** Where an event from Chrome's session `chrome` on `tabId` goes: each client's id for it. */
   eventTargets(tabId: number, chrome: string): Array<[C, string]> {
     const out: Array<[C, string]> = [];
     for (const [client, f] of this.clients) {
-      for (const [id, r] of f.routes) if (r.tabId === tabId && r.chrome === chrome) out.push([client, id]);
+      for (const [id, r] of f.routes)
+        if (r.tabId === tabId && r.chrome === chrome) out.push([client, id]);
     }
     return out;
   }
@@ -96,22 +100,43 @@ export class FrameSessions<C> {
     return this.eventTargets(tabId, parent);
   }
 
-  private offer(client: C, parentId: string, tabId: number, chrome: string, t: Target): FrameOut<C> | null {
+  private offer(
+    client: C,
+    parentId: string,
+    tabId: number,
+    chrome: string,
+    t: Target,
+  ): FrameOut<C> | null {
     const f = this.of(client);
-    for (const r of f.routes.values()) if (r.tabId === tabId && r.chrome === chrome && r.parent === parentId) return null;
+    for (const r of f.routes.values())
+      if (r.tabId === tabId && r.chrome === chrome && r.parent === parentId)
+        return null;
     const url = String(t.targetInfo.url ?? "");
     if (!this.deps.admit(tabId, url)) return null;
     const id = this.deps.mint();
     f.routes.set(id, { tabId, chrome, parent: parentId });
     return {
       client,
-      msg: { method: "Target.attachedToTarget", params: { sessionId: id, targetInfo: { ...t.targetInfo, attached: true, browserContextId: BRIDGE_CONTEXT_ID }, waitingForDebugger: false }, sessionId: parentId },
+      msg: {
+        method: "Target.attachedToTarget",
+        params: {
+          sessionId: id,
+          targetInfo: {
+            ...t.targetInfo,
+            attached: true,
+            browserContextId: BRIDGE_CONTEXT_ID,
+          },
+          waitingForDebugger: false,
+        },
+        sessionId: parentId,
+      },
     };
   }
 
   /** Chrome attached a child (`params` of its Target.attachedToTarget) under `parent` on `tabId`. */
   attached(tabId: number, parent: string | null, params: any): FrameOut<C>[] {
-    const chrome = typeof params?.sessionId === "string" ? params.sessionId : "";
+    const chrome =
+      typeof params?.sessionId === "string" ? params.sessionId : "";
     if (!chrome || !params?.targetInfo) return [];
     let tab = this.tabs.get(tabId);
     if (!tab) this.tabs.set(tabId, (tab = new Map()));
@@ -121,7 +146,11 @@ export class FrameSessions<C> {
   }
 
   /** Offer a child to every client that asked for auto-attach on a session holding its parent. */
-  private offerToHolders(tabId: number, chrome: string, t: Target): FrameOut<C>[] {
+  private offerToHolders(
+    tabId: number,
+    chrome: string,
+    t: Target,
+  ): FrameOut<C>[] {
     const out: FrameOut<C>[] = [];
     for (const [client, parentId] of this.holdersOf(tabId, t.parent)) {
       if (!this.clients.get(client)?.auto.has(parentId)) continue;
@@ -148,9 +177,11 @@ export class FrameSessions<C> {
     const tab = this.tabs.get(tabId);
     if (!tab) return [];
     const gone = new Set<string>([chrome]);
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
-      for (const [id, t] of tab) if (t.parent && gone.has(t.parent) && !gone.has(id)) gone.add(id), (grew = true);
+      for (const [id, t] of tab)
+        if (t.parent && gone.has(t.parent) && !gone.has(id))
+          (gone.add(id), (grew = true));
     }
     const out = this.dropRoutes((r) => r.tabId === tabId && gone.has(r.chrome));
     for (const id of gone) tab.delete(id);
@@ -161,7 +192,13 @@ export class FrameSessions<C> {
    * A client's session asked for auto-attach (or turned it off). Turning it
    * on replays the children Chrome already reported under it, as Chrome does.
    */
-  setAutoAttach(client: C, sessionId: string, tabId: number, chrome: string | null, on: boolean): FrameOut<C>[] {
+  setAutoAttach(
+    client: C,
+    sessionId: string,
+    tabId: number,
+    chrome: string | null,
+    on: boolean,
+  ): FrameOut<C>[] {
     const f = this.of(client);
     if (!on) {
       f.auto.delete(sessionId);
@@ -182,9 +219,10 @@ export class FrameSessions<C> {
     const f = this.clients.get(client);
     if (!f) return;
     const gone = new Set<string>([sessionId]);
-    for (let grew = true; grew; ) {
+    for (let grew = true; grew;) {
       grew = false;
-      for (const [id, r] of f.routes) if (gone.has(r.parent) && !gone.has(id)) gone.add(id), (grew = true);
+      for (const [id, r] of f.routes)
+        if (gone.has(r.parent) && !gone.has(id)) (gone.add(id), (grew = true));
     }
     for (const id of gone) {
       f.routes.delete(id);
@@ -218,8 +256,19 @@ export class FrameSessions<C> {
         f.routes.delete(id);
         f.auto.delete(id);
         if (ids.has(r.parent)) continue;
-        const targetId = this.tabs.get(r.tabId)?.get(r.chrome)?.targetInfo.targetId;
-        out.push({ client, msg: { method: "Target.detachedFromTarget", params: { sessionId: id, ...(typeof targetId === "string" ? { targetId } : {}) }, sessionId: r.parent } });
+        const targetId = this.tabs.get(r.tabId)?.get(r.chrome)
+          ?.targetInfo.targetId;
+        out.push({
+          client,
+          msg: {
+            method: "Target.detachedFromTarget",
+            params: {
+              sessionId: id,
+              ...(typeof targetId === "string" ? { targetId } : {}),
+            },
+            sessionId: r.parent,
+          },
+        });
       }
     }
     return out;

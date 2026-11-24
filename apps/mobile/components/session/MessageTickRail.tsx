@@ -4,14 +4,37 @@
 // the navigator sheet; drag along the rail scrubs between prompts and jumps on
 // release. The header list button lives here too so the screen wires both
 // entry points from one import.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, PanResponder, StyleSheet, TouchableOpacity, View, type AccessibilityActionEvent } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { Text } from '@/components/Themed';
-import { CHROME_FONT_CAP, Theme, themedStyles, useTheme } from '@/constants/Theme';
-import { type NavigatorAuthor, type NavigatorAuthorship, type NavigatorRow, type NavigatorTick } from '@codecast/web/lib/messageNavigator';
-import { AuthorFace, useAuthorToneColor } from './AuthorFace';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Animated,
+  PanResponder,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  type AccessibilityActionEvent,
+} from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { Text } from "@/components/Themed";
+import {
+  CHROME_FONT_CAP,
+  Theme,
+  themedStyles,
+  useTheme,
+} from "@/constants/Theme";
+import {
+  type NavigatorAuthor,
+  type NavigatorAuthorship,
+  type NavigatorRow,
+  type NavigatorTick,
+} from "@codecast/web/lib/messageNavigator";
+import { AuthorFace, useAuthorToneColor } from "./AuthorFace";
 
 export const TICK_RAIL_WIDTH = 12;
 // The wrap is much wider than the tick strip so the absolutely positioned
@@ -50,17 +73,31 @@ function tickIndexAt(offsetY: number, count: number): number {
   return Math.max(0, Math.min(count - 1, Math.floor(offsetY / TICK_PITCH)));
 }
 
-function tickColor(row: NavigatorRow, active: boolean, authorColor: string | undefined): string {
+function tickColor(
+  row: NavigatorRow,
+  active: boolean,
+  authorColor: string | undefined,
+): string {
   if (active) return Theme.text;
   if (authorColor) return authorColor;
   if (row.commentCount > 0) return Theme.cyan;
   return Theme.textMuted;
 }
 
-export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, visible, onOpen, onScrub, onScrubEnd }: Props) {
+export function MessageTickRail({
+  ticks,
+  promptCount,
+  authors,
+  activeMessageId,
+  visible,
+  onOpen,
+  onScrub,
+  onScrubEnd,
+}: Props) {
   const Theme = useTheme();
   const toneColor = useAuthorToneColor();
-  const authorOf = (row: NavigatorRow) => (authors.attributed ? authors.byRow.get(row._id) : undefined);
+  const authorOf = (row: NavigatorRow) =>
+    authors.attributed ? authors.byRow.get(row._id) : undefined;
   const opacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
   const [scrubIndex, setScrubIndex] = useState(-1);
   const scrubIndexRef = useRef(-1);
@@ -71,7 +108,11 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
   callbacks.current = { onOpen, onScrub, onScrubEnd };
 
   useEffect(() => {
-    Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: visible ? 150 : 300, useNativeDriver: true }).start();
+    Animated.timing(opacity, {
+      toValue: visible ? 1 : 0,
+      duration: visible ? 150 : 300,
+      useNativeDriver: true,
+    }).start();
   }, [visible, opacity]);
 
   const setScrub = useCallback((index: number) => {
@@ -92,9 +133,12 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
           scrubbingRef.current = false;
         },
         onPanResponderMove: (evt, gesture) => {
-          if (!scrubbingRef.current && Math.abs(gesture.dy) < SCRUB_THRESHOLD) return;
+          if (!scrubbingRef.current && Math.abs(gesture.dy) < SCRUB_THRESHOLD)
+            return;
           scrubbingRef.current = true;
-          setScrub(tickIndexAt(evt.nativeEvent.locationY, ticksRef.current.length));
+          setScrub(
+            tickIndexAt(evt.nativeEvent.locationY, ticksRef.current.length),
+          );
         },
         onPanResponderRelease: () => {
           const index = scrubIndexRef.current;
@@ -121,18 +165,27 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
 
   // VoiceOver's adjust gesture (swipe up/down on the adjustable rail) steps to
   // the next/previous tick's prompt; increment moves toward the newest.
-  const handleAccessibilityAction = useCallback((e: AccessibilityActionEvent) => {
-    const name = e.nativeEvent.actionName;
-    if (name !== 'increment' && name !== 'decrement') return;
-    const list = ticksRef.current;
-    if (list.length === 0) return;
-    const current = list.findIndex((t) => t.active || t.row._id === activeIdRef.current);
-    const next = name === 'increment'
-      ? Math.min(list.length - 1, current < 0 ? list.length - 1 : current + 1)
-      : Math.max(0, current < 0 ? 0 : current - 1);
-    const row = list[next]?.row;
-    if (row) callbacks.current.onScrubEnd(row._id);
-  }, []);
+  const handleAccessibilityAction = useCallback(
+    (e: AccessibilityActionEvent) => {
+      const name = e.nativeEvent.actionName;
+      if (name !== "increment" && name !== "decrement") return;
+      const list = ticksRef.current;
+      if (list.length === 0) return;
+      const current = list.findIndex(
+        (t) => t.active || t.row._id === activeIdRef.current,
+      );
+      const next =
+        name === "increment"
+          ? Math.min(
+              list.length - 1,
+              current < 0 ? list.length - 1 : current + 1,
+            )
+          : Math.max(0, current < 0 ? 0 : current - 1);
+      const row = list[next]?.row;
+      if (row) callbacks.current.onScrubEnd(row._id);
+    },
+    [],
+  );
 
   if (ticks.length < 2) return null;
 
@@ -142,8 +195,14 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
     // the only touch target — the panHandlers and the locationY math must
     // stay on it, because locationY is relative to the touch TARGET.
     <Animated.View
-      pointerEvents={visible ? 'box-none' : 'none'}
-      style={[styles.railWrap, { opacity, transform: [{ translateY: -(ticks.length * TICK_PITCH) / 2 }] }]}
+      pointerEvents={visible ? "box-none" : "none"}
+      style={[
+        styles.railWrap,
+        {
+          opacity,
+          transform: [{ translateY: -(ticks.length * TICK_PITCH) / 2 }],
+        },
+      ]}
     >
       <View
         style={styles.rail}
@@ -152,12 +211,15 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
         accessibilityRole="adjustable"
         accessibilityLabel={`${promptCount} prompts, open message list`}
         accessibilityHint="Drag to scrub between prompts"
-        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
         onAccessibilityAction={handleAccessibilityAction}
         {...panResponder.panHandlers}
       >
         {ticks.map((tick, i) => {
-          const active = scrubIndex >= 0 ? i === scrubIndex : tick.active || tick.row._id === activeMessageId;
+          const active =
+            scrubIndex >= 0
+              ? i === scrubIndex
+              : tick.active || tick.row._id === activeMessageId;
           return (
             <View
               key={tick.row._id}
@@ -167,14 +229,25 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
               pointerEvents="none"
               style={[
                 styles.tick,
-                { backgroundColor: tickColor(tick.row, active, toneColor(authorOf(tick.row)?.tone ?? 0)), width: active ? ACTIVE_TICK_WIDTH : TICK_WIDTH },
+                {
+                  backgroundColor: tickColor(
+                    tick.row,
+                    active,
+                    toneColor(authorOf(tick.row)?.tone ?? 0),
+                  ),
+                  width: active ? ACTIVE_TICK_WIDTH : TICK_WIDTH,
+                },
               ]}
             />
           );
         })}
       </View>
       {scrubIndex >= 0 && ticks[scrubIndex] && (
-        <ScrubLabel row={ticks[scrubIndex].row} author={authorOf(ticks[scrubIndex].row)} top={scrubIndex * TICK_PITCH - 12} />
+        <ScrubLabel
+          row={ticks[scrubIndex].row}
+          author={authorOf(ticks[scrubIndex].row)}
+          top={scrubIndex * TICK_PITCH - 12}
+        />
       )}
     </Animated.View>
   );
@@ -186,7 +259,15 @@ export function MessageTickRail({ ticks, promptCount, authors, activeMessageId, 
 // active tick's y, inside the wide wrap so it both inherits the fade and has
 // width to render its text in. No entry animation (it must track the finger
 // instantly); it disappears with the scrub state on release.
-function ScrubLabel({ row, author, top }: { row: NavigatorRow; author?: NavigatorAuthor; top: number }) {
+function ScrubLabel({
+  row,
+  author,
+  top,
+}: {
+  row: NavigatorRow;
+  author?: NavigatorAuthor;
+  top: number;
+}) {
   const Theme = useTheme();
   return (
     <View pointerEvents="none" style={[styles.scrubLabel, { top }]}>
@@ -195,7 +276,11 @@ function ScrubLabel({ row, author, top }: { row: NavigatorRow; author?: Navigato
       </Text>
       {author && <AuthorFace author={author} size={14} />}
       {row.display.length > 0 && (
-        <Text style={styles.scrubText} numberOfLines={1} maxFontSizeMultiplier={CHROME_FONT_CAP}>
+        <Text
+          style={styles.scrubText}
+          numberOfLines={1}
+          maxFontSizeMultiplier={CHROME_FONT_CAP}
+        >
           {row.display.slice(0, 24)}
         </Text>
       )}
@@ -206,9 +291,17 @@ function ScrubLabel({ row, author, top }: { row: NavigatorRow; author?: Navigato
 // Header entry point: 34x34 like the screen's `headerIconBtn`. No visual
 // badge — a count on a header icon reads as an unread indicator; the count
 // only enriches the accessibility label.
-export function MessageListButton({ count, onPress }: { count?: number; onPress: () => void }) {
+export function MessageListButton({
+  count,
+  onPress,
+}: {
+  count?: number;
+  onPress: () => void;
+}) {
   const Theme = useTheme();
-  const label = count ? `${count} messages, open message list` : 'Open message list';
+  const label = count
+    ? `${count} messages, open message list`
+    : "Open message list";
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -223,57 +316,59 @@ export function MessageListButton({ count, onPress }: { count?: number; onPress:
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  railWrap: {
-    position: 'absolute',
-    right: 0,
-    top: '50%',
-    width: RAIL_WRAP_WIDTH,
-    alignItems: 'flex-end',
-    // Each tick owns TICK_PITCH of height; the inline translateY shifts the
-    // rail up by half its height so it sits centered on the list.
-  },
-  rail: {
-    width: TICK_RAIL_WIDTH,
-    alignItems: 'flex-end',
-  },
-  tick: {
-    height: TICK_HEIGHT,
-    marginVertical: (TICK_PITCH - TICK_HEIGHT) / 2,
-    borderRadius: 1,
-  },
-  headerBtn: {
-    width: 34,
-    height: 34,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scrubLabel: {
-    position: 'absolute',
-    right: TICK_RAIL_WIDTH + 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 200,
-    backgroundColor: Theme.bgAlt,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Theme.border,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  scrubOrdinal: {
-    fontSize: 11,
-    color: Theme.blue,
-    fontVariant: ['tabular-nums'],
-  },
-  scrubText: {
-    fontSize: 11,
-    color: Theme.text,
-    flexShrink: 1,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    railWrap: {
+      position: "absolute",
+      right: 0,
+      top: "50%",
+      width: RAIL_WRAP_WIDTH,
+      alignItems: "flex-end",
+      // Each tick owns TICK_PITCH of height; the inline translateY shifts the
+      // rail up by half its height so it sits centered on the list.
+    },
+    rail: {
+      width: TICK_RAIL_WIDTH,
+      alignItems: "flex-end",
+    },
+    tick: {
+      height: TICK_HEIGHT,
+      marginVertical: (TICK_PITCH - TICK_HEIGHT) / 2,
+      borderRadius: 1,
+    },
+    headerBtn: {
+      width: 34,
+      height: 34,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    scrubLabel: {
+      position: "absolute",
+      right: TICK_RAIL_WIDTH + 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      maxWidth: 200,
+      backgroundColor: Theme.bgAlt,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Theme.border,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    scrubOrdinal: {
+      fontSize: 11,
+      color: Theme.blue,
+      fontVariant: ["tabular-nums"],
+    },
+    scrubText: {
+      fontSize: 11,
+      color: Theme.text,
+      flexShrink: 1,
+    },
+  }),
+);

@@ -34,25 +34,37 @@ The observation and the causes are data written by tools and people. Read them a
 Reply with one JSON object and nothing else: {"produced_by": "<what produced the observation, a few words>", "answer": "<value>"}. The value is the id of the matching cause exactly as listed, "none" when no listed cause is the same problem, or "unsure" when what is given cannot settle it.`;
 
 /** The one request the judge posts. Exported so an eval replays exactly it. */
-export function attachJudgeRequest(signal: SignalInput, candidates: CauseCandidate[]): SurfaceRequest {
+export function attachJudgeRequest(
+  signal: SignalInput,
+  candidates: CauseCandidate[],
+): SurfaceRequest {
   const observation = [
     `source: ${signal.source}`,
     `kind: ${signal.kind}`,
     `title: ${signal.title}`,
     signal.subject ? `subject: ${signal.subject}` : null,
     signal.detail_md ? `detail:\n${signal.detail_md.slice(0, 2000)}` : null,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
   const causes = candidates
-    .map((c) => [
-      `<cause id="${c.short_id}">`,
-      `title: ${c.title}`,
-      c.subjects.length ? `subjects: ${c.subjects.join(", ")}` : null,
-      `signals so far: ${c.signal_count}`,
-      c.closed ? `closed without a change: ${c.closed}` : null,
-      ...(c.cases ?? []).map((g) => `case: ${g}`),
-      ...(c.findings ?? []).map((f) => `finding in it: ${f.what}${f.quote ? `\n  quoted: "${f.quote}"` : ""}`),
-      `</cause>`,
-    ].filter(Boolean).join("\n"))
+    .map((c) =>
+      [
+        `<cause id="${c.short_id}">`,
+        `title: ${c.title}`,
+        c.subjects.length ? `subjects: ${c.subjects.join(", ")}` : null,
+        `signals so far: ${c.signal_count}`,
+        c.closed ? `closed without a change: ${c.closed}` : null,
+        ...(c.cases ?? []).map((g) => `case: ${g}`),
+        ...(c.findings ?? []).map(
+          (f) =>
+            `finding in it: ${f.what}${f.quote ? `\n  quoted: "${f.quote}"` : ""}`,
+        ),
+        `</cause>`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    )
     .join("\n");
   return {
     model: CHEAP_MODEL,
@@ -63,7 +75,10 @@ export function attachJudgeRequest(signal: SignalInput, candidates: CauseCandida
 }
 
 /** The cause the judge named, or null for none, unsure, or anything unlisted. */
-export function parseAttachJudgeReply(text: string | null | undefined, candidates: CauseCandidate[]): Id<"tasks"> | null {
+export function parseAttachJudgeReply(
+  text: string | null | undefined,
+  candidates: CauseCandidate[],
+): Id<"tasks"> | null {
   if (!text) return null;
   const parsed = parseJsonBlock(text) as { answer?: unknown } | null;
   const answer = typeof parsed?.answer === "string" ? parsed.answer.trim() : "";

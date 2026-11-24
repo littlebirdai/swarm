@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { FILES_ROUTE, filesHref, isFilesPath, legacyFilesHref, sameNamedCheckoutPaths } from "../vaultHref";
+import {
+  FILES_ROUTE,
+  filesHref,
+  isFilesPath,
+  legacyFilesHref,
+  sameNamedCheckoutPaths,
+} from "../vaultHref";
 
 describe("filesHref", () => {
   test("mints the canonical /files route, never the legacy one", () => {
@@ -7,7 +13,9 @@ describe("filesHref", () => {
     // If this ever went back to /vault, every new link would be a legacy link.
     expect(filesHref()).toBe("/files");
     expect(FILES_ROUTE).toBe("/files");
-    expect(filesHref({ path: "notes/Sleep.md" })).toBe("/files?f=notes%2FSleep.md");
+    expect(filesHref({ path: "notes/Sleep.md" })).toBe(
+      "/files?f=notes%2FSleep.md",
+    );
   });
 
   test("encodes paths that would otherwise break the query string", () => {
@@ -17,7 +25,9 @@ describe("filesHref", () => {
   test("carries a search hit's line and the graph view", () => {
     expect(filesHref({ path: "a.md", line: 42 })).toBe("/files?f=a.md&l=42");
     expect(filesHref({ graph: true })).toBe("/files?view=graph");
-    expect(filesHref({ path: "a.md", graph: true })).toBe("/files?f=a.md&view=graph");
+    expect(filesHref({ path: "a.md", graph: true })).toBe(
+      "/files?f=a.md&view=graph",
+    );
   });
 
   test("a falsy line or path is omitted rather than serialized", () => {
@@ -68,23 +78,41 @@ describe("legacyFilesHref", () => {
 });
 
 describe("sameNamedCheckoutPaths", () => {
-  const roots = ["/Users/ada/src/union-mobile", "/Users/ada/src/union-mobile-wt", "/Users/ada/src/codecast/"];
+  const roots = [
+    "/Users/ada/src/union-mobile",
+    "/Users/ada/src/union-mobile-wt",
+    "/Users/ada/src/codecast/",
+  ];
   test("maps a teammate's checkout path onto the same-named checkout here", () => {
-    expect(sameNamedCheckoutPaths("/Users/jason/code/union-mobile/docs/line/prompting.md", roots)).toEqual([
-      "/Users/ada/src/union-mobile/docs/line/prompting.md",
-    ]);
+    expect(
+      sameNamedCheckoutPaths(
+        "/Users/jason/code/union-mobile/docs/line/prompting.md",
+        roots,
+      ),
+    ).toEqual(["/Users/ada/src/union-mobile/docs/line/prompting.md"]);
   });
   test("maps a cloud host path and the repo folder itself", () => {
-    expect(sameNamedCheckoutPaths("/home/ubuntu/work/codecast", roots)).toEqual(["/Users/ada/src/codecast"]);
+    expect(sameNamedCheckoutPaths("/home/ubuntu/work/codecast", roots)).toEqual(
+      ["/Users/ada/src/codecast"],
+    );
   });
   test("puts the outermost folder first", () => {
-    expect(sameNamedCheckoutPaths("/Users/jason/code/union-mobile/docs/x.md", [
-      "/Users/ada/notes/docs",
-      "/Users/ada/src/union-mobile",
-    ])).toEqual(["/Users/ada/src/union-mobile/docs/x.md", "/Users/ada/notes/docs/x.md"]);
+    expect(
+      sameNamedCheckoutPaths("/Users/jason/code/union-mobile/docs/x.md", [
+        "/Users/ada/notes/docs",
+        "/Users/ada/src/union-mobile",
+      ]),
+    ).toEqual([
+      "/Users/ada/src/union-mobile/docs/x.md",
+      "/Users/ada/notes/docs/x.md",
+    ]);
   });
   test("offers nothing for a path already in a checkout here or with no matching folder", () => {
-    expect(sameNamedCheckoutPaths("/Users/ada/src/union-mobile/README.md", roots)).toEqual([]);
-    expect(sameNamedCheckoutPaths("/Users/jason/code/other/README.md", roots)).toEqual([]);
+    expect(
+      sameNamedCheckoutPaths("/Users/ada/src/union-mobile/README.md", roots),
+    ).toEqual([]);
+    expect(
+      sameNamedCheckoutPaths("/Users/jason/code/other/README.md", roots),
+    ).toEqual([]);
   });
 });

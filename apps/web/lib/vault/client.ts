@@ -69,14 +69,24 @@ const ADDRESS_SPACE_INIT: Record<string, unknown> = pickAddressSpaceInit(
 /** A request to the daemon's loopback bridge with its bearer and the browser's
  *  local-network hints. Every page that talks to the bridge goes through this
  *  (vault routes here, memory routes in lib/memory/client.ts). */
-export async function loopbackFetch(ep: VaultEndpoint, path: string, init?: RequestInit): Promise<Response> {
+export async function loopbackFetch(
+  ep: VaultEndpoint,
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
   const request = {
     ...init,
-    headers: { ...authHeaders(ep), ...(init?.headers as Record<string, string>) },
+    headers: {
+      ...authHeaders(ep),
+      ...(init?.headers as Record<string, string>),
+    },
     signal: init?.signal ?? AbortSignal.timeout(FETCH_TIMEOUT_MS),
   };
   try {
-    return await fetch(`${termHttpBase(ep)}${path}`, { ...request, ...ADDRESS_SPACE_INIT });
+    return await fetch(`${termHttpBase(ep)}${path}`, {
+      ...request,
+      ...ADDRESS_SPACE_INIT,
+    });
   } catch (e) {
     // A rejected address-space value throws before the request is sent. Retry
     // plainly rather than reporting a working daemon as unreachable.
@@ -90,14 +100,18 @@ export async function loopbackFetch(ep: VaultEndpoint, path: string, init?: Requ
 /** Carries the HTTP status so a caller can distinguish a daemon that has no
  *  vault routes (404) from one that refused the request (403) or failed. */
 export class VaultRequestError extends Error {
-  constructor(message: string, public status: number) {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
     super(message);
   }
 }
 
 export async function listVaults(ep: VaultEndpoint): Promise<VaultInfo[]> {
   const res = await loopbackFetch(ep, "/vault/roots");
-  if (!res.ok) throw new VaultRequestError(`vault roots: ${res.status}`, res.status);
+  if (!res.ok)
+    throw new VaultRequestError(`vault roots: ${res.status}`, res.status);
   const body = (await res.json()) as { vaults: VaultInfo[] };
   return body.vaults ?? [];
 }
@@ -105,8 +119,14 @@ export async function listVaults(ep: VaultEndpoint): Promise<VaultInfo[]> {
 /** The vault holding a local path, registered by the daemon when none did
  *  (GET /vault/locate). Null when the path does not exist on that machine;
  *  throws VaultRequestError(404) for a daemon that predates the route. */
-export async function locateVault(ep: VaultEndpoint, localPath: string): Promise<VaultLocateResponse | null> {
-  const res = await loopbackFetch(ep, `/vault/locate?path=${encodeURIComponent(localPath)}`);
+export async function locateVault(
+  ep: VaultEndpoint,
+  localPath: string,
+): Promise<VaultLocateResponse | null> {
+  const res = await loopbackFetch(
+    ep,
+    `/vault/locate?path=${encodeURIComponent(localPath)}`,
+  );
   if (res.ok) return (await res.json()) as VaultLocateResponse;
   const body = (await res.json().catch(() => ({}))) as { error?: string };
   if (res.status === 404 && body.error === "no such path") return null;
@@ -164,7 +184,10 @@ function capabilityKey(ep: VaultEndpoint, vaultId: string): string {
 
 /** Fetch and cache a read capability for this vault, unless a fresh one is
  *  already held. Resolves quietly for a daemon that has no such route. */
-export async function ensureVaultCapability(ep: VaultEndpoint, vaultId: string): Promise<void> {
+export async function ensureVaultCapability(
+  ep: VaultEndpoint,
+  vaultId: string,
+): Promise<void> {
   const key = capabilityKey(ep, vaultId);
   if (legacyCapabilityDaemons.has(key)) return;
   const held = capabilities.get(key);
@@ -174,14 +197,18 @@ export async function ensureVaultCapability(ep: VaultEndpoint, vaultId: string):
 
   const mint = (async () => {
     try {
-      const res = await loopbackFetch(ep, `/vault/cap?vault=${encodeURIComponent(vaultId)}`);
+      const res = await loopbackFetch(
+        ep,
+        `/vault/cap?vault=${encodeURIComponent(vaultId)}`,
+      );
       if (res.status === 404) {
         legacyCapabilityDaemons.add(key);
         return;
       }
       if (!res.ok) return;
       const body = (await res.json()) as CachedCapability;
-      if (body?.value && typeof body.expires_at === "number") capabilities.set(key, body);
+      if (body?.value && typeof body.expires_at === "number")
+        capabilities.set(key, body);
     } finally {
       capabilityMints.delete(key);
     }
@@ -219,18 +246,24 @@ export async function readVaultFile(
 /** URL for an asset (image etc.) — usable directly as an <img> src.
  *  Null while no capability is held yet: scanVault mints one before any note
  *  renders, so this is the cold path only, and it starts a mint of its own. */
-export function vaultAssetUrl(ep: VaultEndpoint, vaultId: string, path: string): string | null {
+export function vaultAssetUrl(
+  ep: VaultEndpoint,
+  vaultId: string,
+  path: string,
+): string | null {
   const base = `${termHttpBase(ep)}/vault/file?vault=${encodeURIComponent(vaultId)}&path=${encodeURIComponent(path)}`;
   const key = capabilityKey(ep, vaultId);
   // A daemon from before the capability accepts nothing else. Keeping the old
   // form for it is what lets the web build ship ahead of the CLI release.
-  if (legacyCapabilityDaemons.has(key)) return `${base}&token=${encodeURIComponent(ep.token)}`;
+  if (legacyCapabilityDaemons.has(key))
+    return `${base}&token=${encodeURIComponent(ep.token)}`;
   const held = capabilities.get(key);
   if (!held || held.expires_at <= Date.now()) {
     void ensureVaultCapability(ep, vaultId).catch(() => {});
     return null;
   }
-  if (held.expires_at - Date.now() <= CAPABILITY_REFRESH_MS) void ensureVaultCapability(ep, vaultId).catch(() => {});
+  if (held.expires_at - Date.now() <= CAPABILITY_REFRESH_MS)
+    void ensureVaultCapability(ep, vaultId).catch(() => {});
   return `${base}&cap=${encodeURIComponent(held.value)}`;
 }
 
@@ -271,12 +304,20 @@ export async function writeVaultFile(
   return (await res.json()) as VaultWriteResponse;
 }
 
-export async function vaultOp(ep: VaultEndpoint, vaultId: string, op: VaultOpRequest): Promise<VaultOpResponse> {
-  const res = await loopbackFetch(ep, `/vault/op?vault=${encodeURIComponent(vaultId)}`, {
-    method: "POST",
-    body: JSON.stringify(op),
-    headers: { "Content-Type": "application/json" },
-  });
+export async function vaultOp(
+  ep: VaultEndpoint,
+  vaultId: string,
+  op: VaultOpRequest,
+): Promise<VaultOpResponse> {
+  const res = await loopbackFetch(
+    ep,
+    `/vault/op?vault=${encodeURIComponent(vaultId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(op),
+      headers: { "Content-Type": "application/json" },
+    },
+  );
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`vault op ${op.op} ${op.path}: ${res.status} ${detail}`);
@@ -320,7 +361,9 @@ export function subscribeVaultEvents(
       return;
     }
     ws.onopen = () => {
-      ws?.send(JSON.stringify({ type: "hello", token: ep.token, vault: vaultId }));
+      ws?.send(
+        JSON.stringify({ type: "hello", token: ep.token, vault: vaultId }),
+      );
       retryMs = 1000;
       failures = 0;
       staleNotified = false;

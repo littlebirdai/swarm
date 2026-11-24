@@ -5,9 +5,22 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { CdpClient, CdpEvent } from "./cdp.js";
 import * as net from "node:net";
-import { askRecorder, encodeWindow, ffmpegArgs, frameSchedule, flightPaths, FrameRing, parseFlightRequest, parseSeconds, runRecorder } from "./flightRecorder.js";
+import {
+  askRecorder,
+  encodeWindow,
+  ffmpegArgs,
+  frameSchedule,
+  flightPaths,
+  FrameRing,
+  parseFlightRequest,
+  parseSeconds,
+  runRecorder,
+} from "./flightRecorder.js";
 
-const f = (at: number, size = 10) => ({ data: Buffer.alloc(size, at % 256), at });
+const f = (at: number, size = 10) => ({
+  data: Buffer.alloc(size, at % 256),
+  at,
+});
 
 describe("FrameRing", () => {
   test("drops frames past the retention but keeps the one showing at its edge", () => {
@@ -31,7 +44,10 @@ describe("FrameRing", () => {
     for (const at of [0, 1000, 5000]) r.push(f(at));
     const w = r.window(3000, 7000);
     // Window 4000..7000: frame 1000 shows until 5000, then 5000 until now.
-    expect(w.map((p) => [p.frame.at, p.seconds])).toEqual([[1000, 1], [5000, 2]]);
+    expect(w.map((p) => [p.frame.at, p.seconds])).toEqual([
+      [1000, 1],
+      [5000, 2],
+    ]);
     expect(w.reduce((s, p) => s + p.seconds, 0)).toBe(3);
   });
   test("a static page still fills the window from its one frame", () => {
@@ -53,7 +69,16 @@ test("the schedule shows each capture for its share of a constant-rate stream", 
 
 test("ffmpeg args read a JPEG pipe and fit every frame to one even size", () => {
   const args = ffmpegArgs("/o.mp4", { width: 1279, height: 721 });
-  expect(args.slice(args.indexOf("-f"), args.indexOf("-i") + 2)).toEqual(["-f", "image2pipe", "-framerate", "30", "-c:v", "mjpeg", "-i", "-"]);
+  expect(args.slice(args.indexOf("-f"), args.indexOf("-i") + 2)).toEqual([
+    "-f",
+    "image2pipe",
+    "-framerate",
+    "30",
+    "-c:v",
+    "mjpeg",
+    "-i",
+    "-",
+  ]);
   expect(args[args.indexOf("-vf") + 1]).toContain("scale=1278:720");
   expect(args).toContain("+faststart");
   expect(args.at(-1)).toBe("/o.mp4");
@@ -67,9 +92,14 @@ test("parseSeconds bounds", () => {
 });
 
 test("flightPaths fits a unix socket and is per session", () => {
-  const a = flightPaths("jx7ffys-very-long-session-key-real".repeat(3), "/tmp/f");
+  const a = flightPaths(
+    "jx7ffys-very-long-session-key-real".repeat(3),
+    "/tmp/f",
+  );
   expect(a.sock.length).toBeLessThan(100);
-  expect(flightPaths("a", "/tmp/f").sock).not.toBe(flightPaths("b", "/tmp/f").sock);
+  expect(flightPaths("a", "/tmp/f").sock).not.toBe(
+    flightPaths("b", "/tmp/f").sock,
+  );
 });
 
 const hasFfmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
@@ -77,12 +107,27 @@ const hasFfmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
 /** A real JPEG of one color, from ffmpeg itself. */
 function jpeg(color: string, dir: string): Buffer {
   const out = path.join(dir, `${color}.jpg`);
-  spawnSync("ffmpeg", ["-loglevel", "error", "-y", "-f", "lavfi", "-i", `color=${color}:s=64x48`, "-frames:v", "1", out]);
+  spawnSync("ffmpeg", [
+    "-loglevel",
+    "error",
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    `color=${color}:s=64x48`,
+    "-frames:v",
+    "1",
+    out,
+  ]);
   return fs.readFileSync(out);
 }
 
 function duration(file: string): number {
-  const p = spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file], { encoding: "utf-8" });
+  const p = spawnSync(
+    "ffprobe",
+    ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file],
+    { encoding: "utf-8" },
+  );
   return parseFloat(p.stdout);
 }
 
@@ -97,7 +142,10 @@ describe.if(hasFfmpeg)("encoding", () => {
     expect(fs.existsSync(saved.file)).toBe(true);
     expect(fs.readFileSync(saved.poster).equals(jpeg("blue", dir))).toBe(true);
     expect(Math.abs(duration(saved.file) - 3)).toBeLessThan(0.1);
-    expect(fs.readdirSync(path.join(dir, "out")).sort()).toEqual(["flight.mp4", "poster.jpg"]);
+    expect(fs.readdirSync(path.join(dir, "out")).sort()).toEqual([
+      "flight.mp4",
+      "poster.jpg",
+    ]);
   });
 
   test("the recorder buffers screencast frames, acks them, saves and stops over its socket", async () => {
@@ -108,9 +156,20 @@ describe.if(hasFfmpeg)("encoding", () => {
     const conn: CdpClient = {
       send: async (method: string) => {
         sent.push(method);
-        if (method === "Target.attachToTarget") return { sessionId: "S" } as any;
+        if (method === "Target.attachToTarget")
+          return { sessionId: "S" } as any;
         if (method === "Page.startScreencast") {
-          setTimeout(() => frames.forEach((d, i) => handler?.({ method: "Page.screencastFrame", sessionId: "S", params: { data: d.toString("base64"), sessionId: i + 1 } } as CdpEvent)), 20);
+          setTimeout(
+            () =>
+              frames.forEach((d, i) =>
+                handler?.({
+                  method: "Page.screencastFrame",
+                  sessionId: "S",
+                  params: { data: d.toString("base64"), sessionId: i + 1 },
+                } as CdpEvent),
+              ),
+            20,
+          );
         }
         return {} as any;
       },
@@ -122,11 +181,24 @@ describe.if(hasFfmpeg)("encoding", () => {
       close: () => sent.push("close"),
     };
     const p = flightPaths("test", path.join(dir, "rec"));
-    const run = runRecorder({ cdp: "ws://x", targetId: "T", session: "test", url: "https://a.test/", seconds: 60, sock: p.sock, state: p.state }, async () => conn);
+    const run = runRecorder(
+      {
+        cdp: "ws://x",
+        targetId: "T",
+        session: "test",
+        url: "https://a.test/",
+        seconds: 60,
+        sock: p.sock,
+        state: p.state,
+      },
+      async () => conn,
+    );
     let status: any = null;
     for (let i = 0; i < 50 && !status?.ok; i++) {
       await new Promise((r) => setTimeout(r, 50));
-      status = await askRecorder(p.sock, { op: "status" }, 1000).catch(() => null);
+      status = await askRecorder(p.sock, { op: "status" }, 1000).catch(
+        () => null,
+      );
     }
     await new Promise((r) => setTimeout(r, 100));
     status = await askRecorder(p.sock, { op: "status" });
@@ -142,7 +214,11 @@ describe.if(hasFfmpeg)("encoding", () => {
     });
     expect(JSON.parse(garbage)).toMatchObject({ ok: false });
     expect((await askRecorder(p.sock, { op: "status" })).ok).toBe(true);
-    const saved = await askRecorder(p.sock, { op: "save", seconds: 5, dir: path.join(dir, "save") });
+    const saved = await askRecorder(p.sock, {
+      op: "save",
+      seconds: 5,
+      dir: path.join(dir, "save"),
+    });
     expect(saved.ok).toBe(true);
     expect(fs.existsSync(saved.saved.file)).toBe(true);
     expect((await askRecorder(p.sock, { op: "stop" })).ok).toBe(true);
@@ -158,8 +234,18 @@ describe("parseFlightRequest", () => {
   test("accepts the three ops and refuses everything else without throwing", () => {
     expect(parseFlightRequest('{"op":"status"}')).toEqual({ op: "status" });
     expect(parseFlightRequest('{"op":"stop"}')).toEqual({ op: "stop" });
-    expect(parseFlightRequest('{"op":"save","seconds":5,"dir":"/tmp/x"}')).toEqual({ op: "save", seconds: 5, dir: "/tmp/x" });
-    for (const bad of ["{not json", "null", "42", '{"op":"explode"}', '{"op":"save","seconds":-1,"dir":"/tmp/x"}', '{"op":"save","seconds":5,"dir":"rel"}', '{"op":"save","seconds":"5","dir":"/tmp/x"}']) {
+    expect(
+      parseFlightRequest('{"op":"save","seconds":5,"dir":"/tmp/x"}'),
+    ).toEqual({ op: "save", seconds: 5, dir: "/tmp/x" });
+    for (const bad of [
+      "{not json",
+      "null",
+      "42",
+      '{"op":"explode"}',
+      '{"op":"save","seconds":-1,"dir":"/tmp/x"}',
+      '{"op":"save","seconds":5,"dir":"rel"}',
+      '{"op":"save","seconds":"5","dir":"/tmp/x"}',
+    ]) {
       expect("error" in parseFlightRequest(bad)).toBe(true);
     }
   });

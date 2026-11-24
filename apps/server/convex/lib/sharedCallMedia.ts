@@ -17,7 +17,10 @@ export const SHARED_AUDIO_CHUNK_BYTES = 8 * 1024 * 1024;
 /** The Range header to ask storage for: the player's own range, its end
  *  clamped so one response stays under the action's size limit. A request
  *  with no range (or one we cannot read) starts at byte 0. */
-export function clampAudioRange(header: string | null, chunk = SHARED_AUDIO_CHUNK_BYTES): string {
+export function clampAudioRange(
+  header: string | null,
+  chunk = SHARED_AUDIO_CHUNK_BYTES,
+): string {
   const m = header?.match(/^bytes=(\d+)-(\d*)$/);
   const start = m ? Number(m[1]) : 0;
   const askedEnd = m && m[2] ? Number(m[2]) : Infinity;
@@ -30,13 +33,26 @@ export function clampAudioRange(header: string | null, chunk = SHARED_AUDIO_CHUN
  *  reaches the page. */
 export const sharedCallAudio = httpAction(async (ctx, request) => {
   const token = new URL(request.url).searchParams.get("token") ?? "";
-  const notFound = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  const notFound = () =>
+    new Response("Not found", {
+      status: 404,
+      headers: { "Cache-Control": "no-store" },
+    });
   if (!token) return notFound();
-  const src: string | null = await ctx.runQuery(internal.publicShare.sharedCallAudioSource, { share_token: token });
+  const src: string | null = await ctx.runQuery(
+    internal.publicShare.sharedCallAudioSource,
+    { share_token: token },
+  );
   if (!src) return notFound();
-  const upstream = await fetch(src, { headers: { Range: clampAudioRange(request.headers.get("range")) } });
+  const upstream = await fetch(src, {
+    headers: { Range: clampAudioRange(request.headers.get("range")) },
+  });
   if (!upstream.ok) return notFound();
-  const headers = new Headers({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Accept-Ranges": "bytes" });
+  const headers = new Headers({
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    "Accept-Ranges": "bytes",
+  });
   for (const h of ["Content-Type", "Content-Length", "Content-Range"]) {
     const val = upstream.headers.get(h);
     if (val) headers.set(h, val);
@@ -65,10 +81,28 @@ export const sharedCallVideo = httpAction(async (ctx, request) => {
   const u = new URL(request.url);
   const token = u.searchParams.get("token") ?? "";
   const at = Number(u.searchParams.get("at"));
-  const notFound = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  const notFound = () =>
+    new Response("Not found", {
+      status: 404,
+      headers: { "Cache-Control": "no-store" },
+    });
   if (!token || !Number.isFinite(at)) return notFound();
-  const key = await ctx.runQuery(internal.publicShare.sharedCallVideoObject, { share_token: token, at });
-  const signed = key ? await callRecordingGetUrl(key, { stable: { at: Date.now(), windowMs: SHARED_VIDEO_REDIRECT_WINDOW_MS } }) : null;
+  const key = await ctx.runQuery(internal.publicShare.sharedCallVideoObject, {
+    share_token: token,
+    at,
+  });
+  const signed = key
+    ? await callRecordingGetUrl(key, {
+        stable: { at: Date.now(), windowMs: SHARED_VIDEO_REDIRECT_WINDOW_MS },
+      })
+    : null;
   if (!signed) return notFound();
-  return new Response(null, { status: 302, headers: { Location: signed.url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: signed.url,
+      "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+    },
+  });
 });

@@ -24,7 +24,13 @@ export interface CorpusExpectation {
     line?: number;
     col?: number;
   }[];
-  headings?: { text: string; level: number; slug?: string; line?: number; endLine?: number }[];
+  headings?: {
+    text: string;
+    level: number;
+    slug?: string;
+    line?: number;
+    endLine?: number;
+  }[];
   blocks?: { id: string; line?: number; text?: string }[];
   tasks?: { done: boolean; text?: string; line?: number }[];
   /** Substrings that MUST appear in plainText. */
@@ -92,13 +98,28 @@ export const CORPUS: CorpusCase[] = [
   {
     name: "frontmatter: bare scalar tags with leading hashes",
     rule: "`tags: a, b` is a string; split it, and strip '#' either way",
-    markdown: ["---", "tags: #idea, #status/draft", "alias: Solo", "---", "", "Body."].join("\n"),
+    markdown: [
+      "---",
+      "tags: #idea, #status/draft",
+      "alias: Solo",
+      "---",
+      "",
+      "Body.",
+    ].join("\n"),
     expect: { frontmatterTags: ["idea", "status/draft"], aliases: ["Solo"] },
   },
   {
     name: "frontmatter: only at byte 0",
     rule: "a `---` fence further down is a thematic break, not frontmatter",
-    markdown: ["Intro paragraph.", "", "---", "title: Not Frontmatter", "---", "", "More."].join("\n"),
+    markdown: [
+      "Intro paragraph.",
+      "",
+      "---",
+      "title: Not Frontmatter",
+      "---",
+      "",
+      "More.",
+    ].join("\n"),
     expect: { title: null, frontmatterTags: [] },
   },
   {
@@ -136,15 +157,28 @@ export const CORPUS: CorpusCase[] = [
         { target: "diagram.png", alias: "300", isEmbed: true, line: 3 },
         { target: "folder/Nested Note", line: 4 },
         { target: "Café Réunion — planning", line: 4 },
-        { target: "", subpath: "Same File Heading", subpathType: "heading", line: 5 },
-        { target: "", subpath: "same-file-block", subpathType: "block", line: 5 },
+        {
+          target: "",
+          subpath: "Same File Heading",
+          subpathType: "heading",
+          line: 5,
+        },
+        {
+          target: "",
+          subpath: "same-file-block",
+          subpathType: "block",
+          line: 5,
+        },
       ],
     },
   },
   {
     name: "links: escaped brackets are not links",
     rule: "`\\[[x]]` is literal text; `\\![[x]]` escapes only the embed marker",
-    markdown: ["\\[[not a link]] but [[real link]].", "\\![[still a link, not an embed]]"].join("\n"),
+    markdown: [
+      "\\[[not a link]] but [[real link]].",
+      "\\![[still a link, not an embed]]",
+    ].join("\n"),
     expect: {
       links: [
         { target: "real link", line: 1 },
@@ -191,7 +225,10 @@ export const CORPUS: CorpusCase[] = [
       "Real [[Link Two]].",
     ].join("\n"),
     expect: {
-      links: [{ target: "Link One", line: 1 }, { target: "Link Two", line: 12 }],
+      links: [
+        { target: "Link One", line: 1 },
+        { target: "Link Two", line: 12 },
+      ],
       inlineTags: ["realtag"],
       tasks: [],
       plainTextExcludes: ["Fake Link", "faketag", "Also Fake"],
@@ -200,13 +237,22 @@ export const CORPUS: CorpusCase[] = [
   {
     name: "code: fence with a longer closing run and an info string",
     rule: "a fence closes on >= its own length of the same character",
-    markdown: ["````md", "```", "[[Inside]] #inside", "````", "", "[[Outside]]"].join("\n"),
+    markdown: [
+      "````md",
+      "```",
+      "[[Inside]] #inside",
+      "````",
+      "",
+      "[[Outside]]",
+    ].join("\n"),
     expect: { links: [{ target: "Outside", line: 6 }], inlineTags: [] },
   },
   {
     name: "code: indented fences up to three spaces",
     rule: "CommonMark allows a fence indented 0-3 spaces",
-    markdown: ["   ```", "   [[Indented Fake]]", "   ```", "", "[[Real]]"].join("\n"),
+    markdown: ["   ```", "   [[Indented Fake]]", "   ```", "", "[[Real]]"].join(
+      "\n",
+    ),
     expect: { links: [{ target: "Real" }] },
   },
   {
@@ -237,7 +283,7 @@ export const CORPUS: CorpusCase[] = [
     markdown: [
       "#tag #nested/tag #tag-with-dash #tag_underscore #1a #日本語",
       "Not tags: #123 and a#b and https://x.com/page#frag",
-      "(#in-parens) and \"#in-quotes\"",
+      '(#in-parens) and "#in-quotes"',
     ].join("\n"),
     expect: {
       inlineTags: [
@@ -297,21 +343,37 @@ export const CORPUS: CorpusCase[] = [
         { text: "Top", level: 1, slug: "top", line: 1, endLine: 8 },
         { text: "Middle", level: 2, slug: "middle", line: 3, endLine: 6 },
         { text: "Deep", level: 3, slug: "deep", line: 5, endLine: 6 },
-        { text: "Second Middle", level: 2, slug: "second-middle", line: 7, endLine: 8 },
+        {
+          text: "Second Middle",
+          level: 2,
+          slug: "second-middle",
+          line: 7,
+          endLine: 8,
+        },
       ],
     },
   },
   {
     name: "headings: not a heading without a space",
     rule: "`#foo` is a tag, `####### x` is too deep, setext is UNSUPPORTED (documented)",
-    markdown: ["#foo", "", "####### seven", "", "Setext Title", "===="].join("\n"),
+    markdown: ["#foo", "", "####### seven", "", "Setext Title", "===="].join(
+      "\n",
+    ),
     expect: { headings: [], inlineTags: ["foo"] },
   },
   {
     name: "headings: unicode slug",
     rule: "unicode letters survive slugification; punctuation does not",
     markdown: "## Café Réunion — planning",
-    expect: { headings: [{ text: "Café Réunion — planning", level: 2, slug: "café-réunion--planning" }] },
+    expect: {
+      headings: [
+        {
+          text: "Café Réunion — planning",
+          level: 2,
+          slug: "café-réunion--planning",
+        },
+      ],
+    },
   },
 
   // -- blocks and tasks ---------------------------------------------------
@@ -329,7 +391,11 @@ export const CORPUS: CorpusCase[] = [
     expect: {
       blocks: [
         { id: "key-claim", line: 1, text: "Key claim goes here." },
-        { id: "detached-id", line: 4, text: "A paragraph that gets its id below." },
+        {
+          id: "detached-id",
+          line: 4,
+          text: "A paragraph that gets its id below.",
+        },
       ],
       plainTextExcludes: ["^detached-id"],
     },
@@ -389,13 +455,21 @@ export const CORPUS: CorpusCase[] = [
         "quoted line",
         "#keepme",
       ],
-      plainTextExcludes: ["**", "~~", "https://x.com", "| ----- |", "embedded.md", "alt text"],
+      plainTextExcludes: [
+        "**",
+        "~~",
+        "https://x.com",
+        "| ----- |",
+        "embedded.md",
+        "alt text",
+      ],
     },
   },
   {
     name: "plainText: subpath display forms",
     rule: "a heading link reads 'Note > Heading'; a block id is never prose (else searching 'key claim' matches ^key-claim)",
-    markdown: "See [[Note#Background]] and [[Other#^key-claim]] and [[Third#^id|shown]].",
+    markdown:
+      "See [[Note#Background]] and [[Other#^key-claim]] and [[Third#^id|shown]].",
     expect: {
       plainTextIncludes: ["Note > Background", "Other", "shown"],
       plainTextExcludes: ["key-claim", "^id"],
@@ -423,7 +497,12 @@ export const CORPUS: CorpusCase[] = [
     expect: {
       // No `[[…]]` anywhere: object references never claim the vault's own syntax.
       links: [],
-      plainTextIncludes: ["the debug run", "Fix the sync clog", "@ashot", "Vault links"],
+      plainTextIncludes: [
+        "the debug run",
+        "Fix the sync clog",
+        "@ashot",
+        "Vault links",
+      ],
       plainTextExcludes: ["](https://codecast.sh", "conversation/jx7dnj1"],
     },
   },

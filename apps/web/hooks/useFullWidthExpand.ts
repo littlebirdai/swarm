@@ -5,8 +5,11 @@ import { useWatchEffect } from "./useWatchEffect";
 // virtualizer unmount/remount cycles.
 const expandedBlocks = new Map<string, { left: number; width: number }>();
 
-function measureExpand(el: HTMLElement, currentLeftOffset = 0): { left: number; width: number } | null {
-  const scrollParent = el.closest('.overflow-y-auto') as HTMLElement | null;
+function measureExpand(
+  el: HTMLElement,
+  currentLeftOffset = 0,
+): { left: number; width: number } | null {
+  const scrollParent = el.closest(".overflow-y-auto") as HTMLElement | null;
   if (!scrollParent) return null;
   const scrollRect = scrollParent.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
@@ -19,7 +22,9 @@ function measureExpand(el: HTMLElement, currentLeftOffset = 0): { left: number; 
 export function useFullWidthExpand(key: string) {
   const stored = expandedBlocks.get(key);
   const [expanded, setExpanded] = useState(!!stored);
-  const [geo, setGeo] = useState<{ left: number; width: number } | null>(stored || null);
+  const [geo, setGeo] = useState<{ left: number; width: number } | null>(
+    stored || null,
+  );
   const containerRef = useRef<HTMLDivElement>(null);
 
   useWatchEffect(() => {
@@ -55,7 +60,7 @@ export function useFullWidthExpand(key: string) {
   }, [expanded, key]);
 
   const style: React.CSSProperties = geo
-    ? { position: 'relative', left: geo.left, width: geo.width }
+    ? { position: "relative", left: geo.left, width: geo.width }
     : {};
 
   return { expanded, toggle, containerRef, style };

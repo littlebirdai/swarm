@@ -60,7 +60,11 @@ const CAPTURE_DEADLINE_MS = 8000;
  * - "usage": the command was malformed before it touched the page; page
  *   evidence would be noise.
  */
-export type FailureKind = "capturable" | "tab-wedged" | "browser-gone" | "usage";
+export type FailureKind =
+  | "capturable"
+  | "tab-wedged"
+  | "browser-gone"
+  | "usage";
 
 export function classifyFailure(message: string): FailureKind {
   if (
@@ -116,34 +120,52 @@ export function formatFailureContext(rec: Recording): FailureContextText {
   const lines: string[] = [];
 
   if (!rec.armed) {
-    return { lines: ["console/network unavailable (the recorder was not installed on this page)"], hasSignal: false };
+    return {
+      lines: [
+        "console/network unavailable (the recorder was not installed on this page)",
+      ],
+      hasSignal: false,
+    };
   }
 
   const consoleHits = [
-    ...rec.console.filter((c) => c.level === "error" || c.level === "warn").map((c) => ({
-      t: c.t,
-      line: `${stamp(c.t)} ${c.level === "error" ? "ERR" : "WRN"} ${c.text}`,
+    ...rec.console
+      .filter((c) => c.level === "error" || c.level === "warn")
+      .map((c) => ({
+        t: c.t,
+        line: `${stamp(c.t)} ${c.level === "error" ? "ERR" : "WRN"} ${c.text}`,
+      })),
+    ...rec.errors.map((e) => ({
+      t: e.t,
+      line: `${stamp(e.t)} UNCAUGHT ${e.text}`,
     })),
-    ...rec.errors.map((e) => ({ t: e.t, line: `${stamp(e.t)} UNCAUGHT ${e.text}` })),
   ].sort((a, b) => b.t - a.t);
 
   if (consoleHits.length) {
     lines.push("console errors (newest first):");
-    for (const h of consoleHits.slice(0, CAPTURE_MAX_CONSOLE)) lines.push(`  ${clip(h.line)}`);
-    if (consoleHits.length > CAPTURE_MAX_CONSOLE) lines.push(`  (… ${consoleHits.length - CAPTURE_MAX_CONSOLE} more)`);
+    for (const h of consoleHits.slice(0, CAPTURE_MAX_CONSOLE))
+      lines.push(`  ${clip(h.line)}`);
+    if (consoleHits.length > CAPTURE_MAX_CONSOLE)
+      lines.push(`  (… ${consoleHits.length - CAPTURE_MAX_CONSOLE} more)`);
   }
 
   const failed = rec.network
-    .filter((r) => r.error || r.status === 0 || (r.status !== null && r.status >= 400))
+    .filter(
+      (r) =>
+        r.error || r.status === 0 || (r.status !== null && r.status >= 400),
+    )
     .sort((a, b) => b.t - a.t);
 
   if (failed.length) {
     lines.push("failed requests (newest first):");
     for (const r of failed.slice(0, CAPTURE_MAX_NETWORK)) {
       const status = r.error || r.status === 0 ? "ERR" : String(r.status);
-      lines.push(`  ${clip(`${status.padStart(3)} ${r.method.padEnd(6)} ${String(r.ms).padStart(5)}ms ${r.url}${r.error ? ` ${r.error}` : ""}`)}`);
+      lines.push(
+        `  ${clip(`${status.padStart(3)} ${r.method.padEnd(6)} ${String(r.ms).padStart(5)}ms ${r.url}${r.error ? ` ${r.error}` : ""}`)}`,
+      );
     }
-    if (failed.length > CAPTURE_MAX_NETWORK) lines.push(`  (… ${failed.length - CAPTURE_MAX_NETWORK} more)`);
+    if (failed.length > CAPTURE_MAX_NETWORK)
+      lines.push(`  (… ${failed.length - CAPTURE_MAX_NETWORK} more)`);
   }
 
   const hasSignal = consoleHits.length > 0 || failed.length > 0;
@@ -152,11 +174,11 @@ export function formatFailureContext(rec: Recording): FailureContextText {
 }
 
 /** Persistent opt-out, read from the same config file `cast config` writes. */
-export function captureConfigOff(
-  configDir = defaultConfigDir(),
-): boolean {
+export function captureConfigOff(configDir = defaultConfigDir()): boolean {
   try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(configDir, "config.json"), "utf-8"));
+    const cfg = JSON.parse(
+      fs.readFileSync(path.join(configDir, "config.json"), "utf-8"),
+    );
     return cfg.browser_capture === "off";
   } catch {
     return false;
@@ -213,15 +235,51 @@ export function engineSource(opts: EngineOptions = {}): FailureSource {
   return {
     recording: async () => {
       const [con, err, net] = await Promise.all([
-        Promise.resolve().then(() => runEngineJson<{ messages?: Array<{ type: string; text: string }> }>(["console"], quiet)).catch(() => null),
-        Promise.resolve().then(() => runEngineJson<{ errors?: Array<{ text: string; url?: string | null; line?: number }> }>(["errors"], quiet)).catch(() => null),
-        Promise.resolve().then(() => runEngineJson<{ requests?: Array<Record<string, any>> }>(["network", "requests"], quiet)).catch(() => null),
+        Promise.resolve()
+          .then(() =>
+            runEngineJson<{ messages?: Array<{ type: string; text: string }> }>(
+              ["console"],
+              quiet,
+            ),
+          )
+          .catch(() => null),
+        Promise.resolve()
+          .then(() =>
+            runEngineJson<{
+              errors?: Array<{
+                text: string;
+                url?: string | null;
+                line?: number;
+              }>;
+            }>(["errors"], quiet),
+          )
+          .catch(() => null),
+        Promise.resolve()
+          .then(() =>
+            runEngineJson<{ requests?: Array<Record<string, any>> }>(
+              ["network", "requests"],
+              quiet,
+            ),
+          )
+          .catch(() => null),
       ]);
-      if (!con && !err && !net) return { console: [], network: [], errors: [], armed: false, late: true, dialogs: [] };
+      if (!con && !err && !net)
+        return {
+          console: [],
+          network: [],
+          errors: [],
+          armed: false,
+          late: true,
+          dialogs: [],
+        };
       const messages = con?.messages ?? [];
       const errors = err?.errors ?? [];
       const requests = net?.requests ?? [];
-      const t0 = requests.reduce((m, r) => (typeof r.timestamp === "number" && r.timestamp < m ? r.timestamp : m), Infinity);
+      const t0 = requests.reduce(
+        (m, r) =>
+          typeof r.timestamp === "number" && r.timestamp < m ? r.timestamp : m,
+        Infinity,
+      );
       const base = Number.isFinite(t0) ? t0 : 0;
       return {
         armed: true,
@@ -248,14 +306,20 @@ export function engineSource(opts: EngineOptions = {}): FailureSource {
           // (status 0 + error) so the formatter marks it ERR.
           status: typeof r.status === "number" ? r.status : 0,
           kind: String(r.resourceType ?? "resource").toLowerCase(),
-          ...(typeof r.status === "number" ? {} : { error: r.errorText ?? r.failure ?? "no response" }),
+          ...(typeof r.status === "number"
+            ? {}
+            : { error: r.errorText ?? r.failure ?? "no response" }),
         })),
       };
     },
     screenshot: async () => {
-      const out = agentTempPath(SHOT_TEMP_KIND, `cast-fail-engine-${Date.now()}.png`);
+      const out = agentTempPath(
+        SHOT_TEMP_KIND,
+        `cast-fail-engine-${Date.now()}.png`,
+      );
       const res = runEngine(["screenshot", out], quiet);
-      if (res.status !== 0 || !fs.existsSync(out)) throw new Error("engine screenshot failed");
+      if (res.status !== 0 || !fs.existsSync(out))
+        throw new Error("engine screenshot failed");
       const buf = fs.readFileSync(out);
       fs.unlinkSync(out);
       return buf;
@@ -281,7 +345,9 @@ export async function emitFailureBlock(
     const kind = classifyFailure(failureMessage);
     if (kind === "usage" || kind === "browser-gone") return;
     if (!source) {
-      console.log(fmt.muted("  (no failure context: the tab could not be reached)"));
+      console.log(
+        fmt.muted("  (no failure context: the tab could not be reached)"),
+      );
       return;
     }
 
@@ -290,7 +356,9 @@ export async function emitFailureBlock(
     if (kind === "tab-wedged") {
       // Runtime.evaluate would hang on a blocked renderer, so skip the
       // recorder reads; the compositor can often still produce a screenshot.
-      console.log(fmt.muted("console/network unavailable (the tab is not answering)"));
+      console.log(
+        fmt.muted("console/network unavailable (the tab is not answering)"),
+      );
     } else {
       const rec = await withDeadline(source.recording(), CAPTURE_DEADLINE_MS);
       for (const line of formatFailureContext(rec).lines) console.log(line);
@@ -298,7 +366,11 @@ export async function emitFailureBlock(
 
     await emitScreenshot(source);
   } catch (err) {
-    console.log(fmt.muted(`  (failure context could not be gathered: ${(err as Error).message})`));
+    console.log(
+      fmt.muted(
+        `  (failure context could not be gathered: ${(err as Error).message})`,
+      ),
+    );
   }
 }
 

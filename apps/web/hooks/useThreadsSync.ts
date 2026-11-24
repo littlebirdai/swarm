@@ -29,7 +29,13 @@ import { commentsFromReviewOn } from "../lib/commentSource";
 import { ingestTaskDetail } from "./useSyncTasks";
 import { withPageCommentStubs } from "../store/pageCommentStubs";
 import { questionCards } from "../lib/threadCards";
-import { GLOBAL_THREAD_KEY, fileThreadKey, parseCommentThreadRootKey, webThreadKeyFromAnchor, type Comment } from "../lib/commentThread";
+import {
+  GLOBAL_THREAD_KEY,
+  fileThreadKey,
+  parseCommentThreadRootKey,
+  webThreadKeyFromAnchor,
+  type Comment,
+} from "../lib/commentThread";
 import { useChatMembers, useChatRail, useMessageViews } from "./useChatSync";
 import { messagesSig, reactionsSig } from "../store/chatWakeSigs";
 import type { ChatMessageView } from "../components/chat/chatTypes";
@@ -49,8 +55,13 @@ export const threadInboxSig = makeCollectionSig<ThreadInboxRow>(
 /** The active workspace, as the server args want it: an explicit team id, or
  *  nothing at all for the personal workspace. Never a guessed team — the
  *  server must not pick one (personal is a value, not a missing pointer). */
-function useThreadScope(): { teamId: string | undefined; args: { team_id?: string; comments_from_review?: true } } {
-  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as string | undefined;
+function useThreadScope(): {
+  teamId: string | undefined;
+  args: { team_id?: string; comments_from_review?: true };
+} {
+  const teamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as
+    | string
+    | undefined;
   const scoped = !!teamId && isConvexId(teamId);
   // Comment threads read from their review_comments twins when the person
   // turned that on (lib/commentSource); off, the args are what they were.
@@ -72,7 +83,10 @@ function useThreadScope(): { teamId: string | undefined; args: { team_id?: strin
  *  PAGE rows are the exception: a published page is personal property with no
  *  routing team, and its discussion follows the owner into every workspace
  *  (the server carries them into team-scoped reads the same way). */
-export function threadRowInWorkspace(row: { team_id?: string; kind?: string }, teamId: string | undefined): boolean {
+export function threadRowInWorkspace(
+  row: { team_id?: string; kind?: string },
+  teamId: string | undefined,
+): boolean {
   if (row.kind === "page") return true;
   return String(row.team_id ?? "") === String(teamId ?? "");
 }
@@ -96,7 +110,11 @@ export function useThreadsInboxSync(): {
   const { teamId, args } = useThreadScope();
   const syncTable = useInboxStore((s) => s.syncTable);
   const convex = useConvex();
-  const { data: result, error, retry } = useQueryNoThrow(api.threads.listMine, args);
+  const {
+    data: result,
+    error,
+    retry,
+  } = useQueryNoThrow(api.threads.listMine, args);
 
   const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [olderExhausted, setOlderExhausted] = useState(false);
@@ -117,11 +135,16 @@ export function useThreadsInboxSync(): {
       // row inside the window that the server no longer returns has been
       // revoked (left room, lost team) and must leave the client too.
       if (opts?.firstPage && Array.isArray(data.entries)) {
-        const floor = data.has_more && data.entries.length > 0
-          ? data.entries[data.entries.length - 1].last_activity_at
-          : 0;
+        const floor =
+          data.has_more && data.entries.length > 0
+            ? data.entries[data.entries.length - 1].last_activity_at
+            : 0;
         const st = useInboxStore.getState();
-        st.pruneThreadInbox(data.entries.map((e: any) => String(e._id)), teamRef.current, floor);
+        st.pruneThreadInbox(
+          data.entries.map((e: any) => String(e._id)),
+          teamRef.current,
+          floor,
+        );
       }
       const chat = data.payload?.chat;
       if (chat?.roots?.length) syncTable("chatMessages", chat.roots);
@@ -131,11 +154,17 @@ export function useThreadsInboxSync(): {
           chat.threads.map((t: any) => ({ ...t, _id: String(t.root_id) })),
         );
       }
-      if (data.payload?.comments?.length) syncTable("comments", data.payload.comments);
-      if (data.payload?.codeComments?.length) syncTable("codeComments", data.payload.codeComments);
-      for (const task of data.payload?.tasks ?? []) ingestTaskDetail(task, { partialComments: true });
+      if (data.payload?.comments?.length)
+        syncTable("comments", data.payload.comments);
+      if (data.payload?.codeComments?.length)
+        syncTable("codeComments", data.payload.codeComments);
+      for (const task of data.payload?.tasks ?? [])
+        ingestTaskDetail(task, { partialComments: true });
       if (data.payload?.pages?.length) {
-        const merged = withPageCommentStubs(data.payload.pages, useInboxStore.getState().pageThreads as Record<string, any>);
+        const merged = withPageCommentStubs(
+          data.payload.pages,
+          useInboxStore.getState().pageThreads as Record<string, any>,
+        );
         syncTable("pageThreads", merged);
       }
     },
@@ -147,7 +176,10 @@ export function useThreadsInboxSync(): {
     useCallback(
       (data: any) => {
         ingest(data, { firstPage: true });
-        if (data) setOlderCursor((prev) => (prev === null ? (data.next_cursor ?? null) : prev));
+        if (data)
+          setOlderCursor((prev) =>
+            prev === null ? (data.next_cursor ?? null) : prev,
+          );
       },
       [ingest],
     ),
@@ -171,7 +203,15 @@ export function useThreadsInboxSync(): {
       .finally(() => {
         if (teamRef.current === forTeam) setIsLoadingOlder(false);
       });
-  }, [convex, teamId, args, olderCursor, isLoadingOlder, olderExhausted, ingest]);
+  }, [
+    convex,
+    teamId,
+    args,
+    olderCursor,
+    isLoadingOlder,
+    olderExhausted,
+    ingest,
+  ]);
 
   return {
     loading: result === undefined && !error,
@@ -194,7 +234,10 @@ export function useThreadUnreadSync(): void {
   const { data } = useQueryNoThrow(api.threads.unreadCount, args);
   useConvexSync(
     data,
-    useCallback((n: any) => syncTable("threadUnread", typeof n === "number" ? n : 0), [syncTable]),
+    useCallback(
+      (n: any) => syncTable("threadUnread", typeof n === "number" ? n : 0),
+      [syncTable],
+    ),
   );
 }
 
@@ -203,8 +246,16 @@ export function useThreadUnreadSync(): void {
 export function useThreadUnreadByWorkspaceSync(): void {
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
   // A just-created team's stub id is no workspace the server knows yet.
-  const args = !activeTeamId ? { active: "personal" } : isConvexId(String(activeTeamId)) ? { active: activeTeamId } : "skip";
-  useSyncCollection("threadUnreadByWorkspace", api.threads.unreadByWorkspace, args);
+  const args = !activeTeamId
+    ? { active: "personal" }
+    : isConvexId(String(activeTeamId))
+      ? { active: activeTeamId }
+      : "skip";
+  useSyncCollection(
+    "threadUnreadByWorkspace",
+    api.threads.unreadByWorkspace,
+    args,
+  );
 }
 
 // ── Readers ─────────────────────────────────────────────────────────────────
@@ -252,32 +303,45 @@ export function useThreadUnread(): number {
   const scalar = (s as any).threadUnread ?? 0;
   return useMemo(() => {
     let dms = 0;
-    for (const c of rail) if (c.kind === "dm" && (c.unreadCount ?? 0) > 0 && !c.muted) dms++;
+    for (const c of rail)
+      if (c.kind === "dm" && (c.unreadCount ?? 0) > 0 && !c.muted) dms++;
     return scalar + dms;
   }, [rail, scalar]);
 }
 
 /** The web thread key of one comment row (which anchor it hangs on). */
 function commentWebKey(c: Comment): string {
-  return c.message_id ? String(c.message_id) : c.file_path ? fileThreadKey(c.file_path, c.line_number) : GLOBAL_THREAD_KEY;
+  return c.message_id
+    ? String(c.message_id)
+    : c.file_path
+      ? fileThreadKey(c.file_path, c.line_number)
+      : GLOBAL_THREAD_KEY;
 }
 
 /** Every comment thread the page's rows point at, assembled ONCE: a map of
  *  `${conversationId}:${webKey}` → comments oldest first. A per-card reader
  *  would rescan the whole comments map per card per push (the exact cost the
  *  chat cards avoid via useThreadInboxCards). */
-export function useCommentThreadMap(rows: ThreadInboxRow[]): Map<string, Comment[]> {
+export function useCommentThreadMap(
+  rows: ThreadInboxRow[],
+): Map<string, Comment[]> {
   const anchors = useMemo(() => {
     const out = new Map<string, { conversationId: string; webKey: string }>();
     for (const r of rows) {
       if (r.kind !== "comment") continue;
       const parsed = parseCommentThreadRootKey(r.root_key);
       const conversationId = String(r.conversation_id ?? parsed.conversationId);
-      out.set(r.root_key, { conversationId, webKey: webThreadKeyFromAnchor(parsed.anchorKey) });
+      out.set(r.root_key, {
+        conversationId,
+        webKey: webThreadKeyFromAnchor(parsed.anchorKey),
+      });
     }
     return out;
   }, [rows]);
-  const conversations = useMemo(() => new Set([...anchors.values()].map((a) => a.conversationId)), [anchors]);
+  const conversations = useMemo(
+    () => new Set([...anchors.values()].map((a) => a.conversationId)),
+    [anchors],
+  );
   const s = useTrackedStore([
     (s: any) => {
       let sig = "";
@@ -303,13 +367,17 @@ export function useCommentThreadMap(rows: ThreadInboxRow[]): Map<string, Comment
     const map = new Map<string, Comment[]>();
     for (const [rootKey, a] of anchors) map.set(rootKey, []);
     const byConvKey = new Map<string, string>();
-    for (const [rootKey, a] of anchors) byConvKey.set(`${a.conversationId}:${a.webKey}`, rootKey);
+    for (const [rootKey, a] of anchors)
+      byConvKey.set(`${a.conversationId}:${a.webKey}`, rootKey);
     for (const id in all) {
       const c = all[id];
-      const rootKey = byConvKey.get(`${String(c.conversation_id)}:${commentWebKey(c)}`);
+      const rootKey = byConvKey.get(
+        `${String(c.conversation_id)}:${commentWebKey(c)}`,
+      );
       if (rootKey) map.get(rootKey)!.push(c);
     }
-    for (const list of map.values()) list.sort((a, b) => a.created_at - b.created_at);
+    for (const list of map.values())
+      list.sort((a, b) => a.created_at - b.created_at);
     return map;
     // The signature is the real dep: the raw map ref flips on every push.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,7 +391,8 @@ export function useQuestionThreadCards(): import("../lib/threadCards").ThreadCar
       let sig = "";
       for (const id in s.sessionDecisions) {
         const d = s.sessionDecisions[id];
-        if (d?.status === "pending" && d.in_queue !== false) sig += `${d._id}|${d.created_at}|${d.updated_at ?? 0};`;
+        if (d?.status === "pending" && d.in_queue !== false)
+          sig += `${d._id}|${d.created_at}|${d.updated_at ?? 0};`;
       }
       return sig;
     },
@@ -332,7 +401,8 @@ export function useQuestionThreadCards(): import("../lib/threadCards").ThreadCar
     let out = "";
     for (const id in (s as any).sessionDecisions) {
       const d = (s as any).sessionDecisions[id];
-      if (d?.status === "pending" && d.in_queue !== false) out += `${d._id}|${d.created_at}|${d.updated_at ?? 0};`;
+      if (d?.status === "pending" && d.in_queue !== false)
+        out += `${d._id}|${d.created_at}|${d.updated_at ?? 0};`;
     }
     return out;
   })();
@@ -365,17 +435,29 @@ export function useThreadInboxCards(): ThreadInboxCard[] {
     (s: any) => reactionsSig(s.chatReactions),
     (s: any) => s.chatThreadSummaries,
   ]);
-  const chatEntries = useMemo(() => entries.filter((e) => e.kind === "chat"), [entries]);
+  const chatEntries = useMemo(
+    () => entries.filter((e) => e.kind === "chat"),
+    [entries],
+  );
   const rootRows = useMemo(
     () =>
       chatEntries
-        .map((e) => (s.chatMessages as Record<string, ChatMessageRow>)[e.root_key])
+        .map(
+          (e) => (s.chatMessages as Record<string, ChatMessageRow>)[e.root_key],
+        )
         .filter(Boolean) as ChatMessageRow[],
     // The signature is the real dep: the raw map ref flips on every push.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [chatEntries, messagesSig(s.chatMessages)],
   );
-  const views = useMessageViews(rootRows, s.chatReactions, byId, viewerId, s.chatMessages, s.chatThreadSummaries);
+  const views = useMessageViews(
+    rootRows,
+    s.chatReactions,
+    byId,
+    viewerId,
+    s.chatMessages,
+    s.chatThreadSummaries,
+  );
   return useMemo(() => {
     const viewById = new Map(views.map((v) => [v.id, v]));
     const railById = new Map(rail.map((c) => [c.id, c]));

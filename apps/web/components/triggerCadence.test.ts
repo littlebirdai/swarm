@@ -1,5 +1,13 @@
 import { test, expect, describe } from "bun:test";
-import { parseTriggerCadence, humanizeDurationToken, describeTaskCadence, fmtClock, isTaskOverdue, readableTimes, taskStateLabel } from "./triggerCadence";
+import {
+  parseTriggerCadence,
+  humanizeDurationToken,
+  describeTaskCadence,
+  fmtClock,
+  isTaskOverdue,
+  readableTimes,
+  taskStateLabel,
+} from "./triggerCadence";
 
 describe("humanizeDurationToken", () => {
   test("expands unit abbreviations to words", () => {
@@ -30,7 +38,9 @@ describe("humanizeDurationToken", () => {
 
 describe("parseTriggerCadence", () => {
   test("--every renders a recurring cadence", () => {
-    expect(parseTriggerCadence('"do the thing" --every 8h')).toBe("every 8 hours");
+    expect(parseTriggerCadence('"do the thing" --every 8h')).toBe(
+      "every 8 hours",
+    );
     expect(parseTriggerCadence('"x" --every 4h')).toBe("every 4 hours");
     expect(parseTriggerCadence('"x" --every 1d')).toBe("every 1 day");
   });
@@ -45,21 +55,31 @@ describe("parseTriggerCadence", () => {
     expect(parseTriggerCadence('"x" --on pr_opened')).toBe("on PR opened");
     expect(parseTriggerCadence('"x" --on pr_merged')).toBe("on PR merged");
     expect(parseTriggerCadence('"x" --on push')).toBe("on push");
-    expect(parseTriggerCadence('"x" --on issue_opened')).toBe("on issue opened");
-    expect(parseTriggerCadence('"x" --on issue_commented')).toBe("on issue comment");
+    expect(parseTriggerCadence('"x" --on issue_opened')).toBe(
+      "on issue opened",
+    );
+    expect(parseTriggerCadence('"x" --on issue_commented')).toBe(
+      "on issue comment",
+    );
   });
 
   test("unknown event falls back to a de-underscored label", () => {
-    expect(parseTriggerCadence('"x" --on release_published')).toBe("on release published");
+    expect(parseTriggerCadence('"x" --on release_published')).toBe(
+      "on release published",
+    );
   });
 
   test("no timing flag means it runs now", () => {
     expect(parseTriggerCadence('"just do it"')).toBe("now");
-    expect(parseTriggerCadence('"just do it" --mode apply --context current')).toBe("now");
+    expect(
+      parseTriggerCadence('"just do it" --mode apply --context current'),
+    ).toBe("now");
   });
 
   test("--every wins when multiple timing flags are present", () => {
-    expect(parseTriggerCadence('"x" --every 8h --in 30m')).toBe("every 8 hours");
+    expect(parseTriggerCadence('"x" --every 8h --in 30m')).toBe(
+      "every 8 hours",
+    );
   });
 
   test("accepts the --flag=value form", () => {
@@ -73,28 +93,53 @@ describe("parseTriggerCadence", () => {
   });
 
   test("real-world args with a long prompt and trailing flags", () => {
-    const args = '"Review open PRs and summarize findings for ct-33494" --every 4h --mode apply --project /Users/ashot/src/codecast';
+    const args =
+      '"Review open PRs and summarize findings for ct-33494" --every 4h --mode apply --project /Users/ashot/src/codecast';
     expect(parseTriggerCadence(args)).toBe("every 4 hours");
   });
 });
 
 describe("describeTaskCadence", () => {
   test("recurring uses the compact interval", () => {
-    expect(describeTaskCadence({ schedule_type: "recurring", interval_ms: 8 * 3600_000 })).toBe("every 8h");
-    expect(describeTaskCadence({ schedule_type: "recurring", interval_ms: 150 * 60_000 })).toBe("every 2h 30m");
-    expect(describeTaskCadence({ schedule_type: "recurring", interval_ms: 90_000 })).toBe("every 2m");
+    expect(
+      describeTaskCadence({
+        schedule_type: "recurring",
+        interval_ms: 8 * 3600_000,
+      }),
+    ).toBe("every 8h");
+    expect(
+      describeTaskCadence({
+        schedule_type: "recurring",
+        interval_ms: 150 * 60_000,
+      }),
+    ).toBe("every 2h 30m");
+    expect(
+      describeTaskCadence({ schedule_type: "recurring", interval_ms: 90_000 }),
+    ).toBe("every 2m");
   });
 
   test("event uses the friendly trigger label", () => {
-    expect(describeTaskCadence({ schedule_type: "event", event_filter: { event_type: "pr_comment" } })).toBe("on PR comment");
-    expect(describeTaskCadence({ schedule_type: "event", event_filter: { event_type: "issue_opened" } })).toBe("on issue opened");
+    expect(
+      describeTaskCadence({
+        schedule_type: "event",
+        event_filter: { event_type: "pr_comment" },
+      }),
+    ).toBe("on PR comment");
+    expect(
+      describeTaskCadence({
+        schedule_type: "event",
+        event_filter: { event_type: "issue_opened" },
+      }),
+    ).toBe("on issue opened");
     expect(describeTaskCadence({ schedule_type: "event" })).toBe("on event");
   });
 
   test("once reads as one-time", () => {
     expect(describeTaskCadence({ schedule_type: "once" })).toBe("one-time");
     // recurring without an interval (malformed row) degrades to one-time, not a crash
-    expect(describeTaskCadence({ schedule_type: "recurring" })).toBe("one-time");
+    expect(describeTaskCadence({ schedule_type: "recurring" })).toBe(
+      "one-time",
+    );
   });
 });
 
@@ -102,28 +147,53 @@ describe("taskStateLabel", () => {
   const now = 1_000_000_000;
 
   test("future fire reads as a sentence: in <time>", () => {
-    expect(taskStateLabel({ status: "scheduled", run_at: now + 2 * 3600_000 + 6 * 60_000 }, now)).toBe("in 2h 6m");
-    expect(taskStateLabel({ status: "scheduled", run_at: now + 45_000 }, now)).toBe("in 45s");
+    expect(
+      taskStateLabel(
+        { status: "scheduled", run_at: now + 2 * 3600_000 + 6 * 60_000 },
+        now,
+      ),
+    ).toBe("in 2h 6m");
+    expect(
+      taskStateLabel({ status: "scheduled", run_at: now + 45_000 }, now),
+    ).toBe("in 45s");
   });
 
   test("elapsed fire is due", () => {
-    expect(taskStateLabel({ status: "scheduled", run_at: now - 1 }, now)).toBe("due");
+    expect(taskStateLabel({ status: "scheduled", run_at: now - 1 }, now)).toBe(
+      "due",
+    );
     // Finished one-times wear their outcome in the same slot.
     expect(taskStateLabel({ status: "completed" }, now)).toBe("done");
-    expect(taskStateLabel({ status: "failed", run_at: now - 3 * 86_400_000 }, now)).toBe("failed");
+    expect(
+      taskStateLabel({ status: "failed", run_at: now - 3 * 86_400_000 }, now),
+    ).toBe("failed");
   });
 
   test("stuck past the overdue threshold says how stuck", () => {
-    expect(taskStateLabel({ status: "scheduled", run_at: now - 2 * 60_000 }, now)).toBe("due 2m");
-    expect(taskStateLabel({ status: "scheduled", run_at: now - 90_000 }, now)).toBe("due");
-    expect(isTaskOverdue({ status: "scheduled", run_at: now - 2 * 60_000 }, now)).toBe(true);
-    expect(isTaskOverdue({ status: "scheduled", run_at: now - 90_000 }, now)).toBe(false);
-    expect(isTaskOverdue({ status: "paused", run_at: now - 10 * 60_000 }, now)).toBe(false);
+    expect(
+      taskStateLabel({ status: "scheduled", run_at: now - 2 * 60_000 }, now),
+    ).toBe("due 2m");
+    expect(
+      taskStateLabel({ status: "scheduled", run_at: now - 90_000 }, now),
+    ).toBe("due");
+    expect(
+      isTaskOverdue({ status: "scheduled", run_at: now - 2 * 60_000 }, now),
+    ).toBe(true);
+    expect(
+      isTaskOverdue({ status: "scheduled", run_at: now - 90_000 }, now),
+    ).toBe(false);
+    expect(
+      isTaskOverdue({ status: "paused", run_at: now - 10 * 60_000 }, now),
+    ).toBe(false);
   });
 
   test("state words win over the clock", () => {
-    expect(taskStateLabel({ status: "paused", run_at: now + 60_000 }, now)).toBe("paused");
-    expect(taskStateLabel({ status: "running", run_at: now + 60_000 }, now)).toBe("running");
+    expect(
+      taskStateLabel({ status: "paused", run_at: now + 60_000 }, now),
+    ).toBe("paused");
+    expect(
+      taskStateLabel({ status: "running", run_at: now + 60_000 }, now),
+    ).toBe("running");
   });
 
   test("no timed fire means event", () => {
@@ -135,12 +205,22 @@ describe("readableTimes", () => {
   const at = Date.parse("2026-11-17T10:02:00.000Z");
   test("an ISO instant in a summary reads as local clock and distance", () => {
     const now = at - (2 * 24 + 22) * 3_600_000;
-    expect(readableTimes("Parked at a usage limit; resumes 2026-11-17T10:02:00.000Z", now))
-      .toBe(`Parked at a usage limit; resumes ${fmtClock(at, now)}, in 2d 22h`);
-    expect(readableTimes("ended 2026-11-17T10:02:00Z", at + 3 * 3_600_000)).toBe(`ended ${fmtClock(at, at + 3 * 3_600_000)}, 3h ago`);
+    expect(
+      readableTimes(
+        "Parked at a usage limit; resumes 2026-11-17T10:02:00.000Z",
+        now,
+      ),
+    ).toBe(`Parked at a usage limit; resumes ${fmtClock(at, now)}, in 2d 22h`);
+    expect(
+      readableTimes("ended 2026-11-17T10:02:00Z", at + 3 * 3_600_000),
+    ).toBe(`ended ${fmtClock(at, at + 3 * 3_600_000)}, 3h ago`);
   });
   test("without now it gives the clock alone; text without an instant is unchanged", () => {
-    expect(readableTimes("resumes 2026-11-17T10:02:00+00:00")).toBe(`resumes ${fmtClock(at)}`);
-    expect(readableTimes("ran on 2026-11-17, all green")).toBe("ran on 2026-11-17, all green");
+    expect(readableTimes("resumes 2026-11-17T10:02:00+00:00")).toBe(
+      `resumes ${fmtClock(at)}`,
+    );
+    expect(readableTimes("ran on 2026-11-17, all green")).toBe(
+      "ran on 2026-11-17, all green",
+    );
   });
 });

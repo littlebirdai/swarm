@@ -16,7 +16,19 @@ import * as path from "path";
  *  and ~/workspace are where people keep repos too: a machine whose code sits
  *  there and nowhere else reported no projects, so every new session on it
  *  fell back to the home folder (2026-11-18, a rented Mac keeping ~/git). */
-export const PROJECT_PARENT_DIRS = ["src", "dev", "Projects", "projects", "repos", "code", "work", "git", "GitHub", "Developer", "workspace"] as const;
+export const PROJECT_PARENT_DIRS = [
+  "src",
+  "dev",
+  "Projects",
+  "projects",
+  "repos",
+  "code",
+  "work",
+  "git",
+  "GitHub",
+  "Developer",
+  "workspace",
+] as const;
 
 /** Upper bound on what we report. High enough to cover a real machine, low
  *  enough that a home directory full of junk degrades instead of hanging. */
@@ -58,7 +70,14 @@ export function enumerateProjectRoots(home = process.env.HOME): string[] {
  *  which the scan above skips), so without this whitelist the recent-project
  *  picker would hide them. Deliberately NOT part of enumerateProjectRoots: the
  *  vault registry shares that list, and ~/.claude is not a notes vault. */
-export const AGENT_HOME_DIRS = [".claude", ".codex", ".gemini", ".cursor", ".pi", ".opencode"] as const;
+export const AGENT_HOME_DIRS = [
+  ".claude",
+  ".codex",
+  ".gemini",
+  ".cursor",
+  ".pi",
+  ".opencode",
+] as const;
 
 /**
  * The agent home dirs that exist on this host, symlinks resolved. Resolving
@@ -79,25 +98,53 @@ export function enumerateAgentHomeDirs(home = process.env.HOME): string[] {
   return Array.from(dirs);
 }
 
-export async function enumerateLocalRootsAsync(home: string, started: string[] = []): Promise<string[]> {
-  const missing = (error: unknown) => ['ENOENT','ENOTDIR'].includes((error as NodeJS.ErrnoException)?.code ?? '');
+export async function enumerateLocalRootsAsync(
+  home: string,
+  started: string[] = [],
+): Promise<string[]> {
+  const missing = (error: unknown) =>
+    ["ENOENT", "ENOTDIR"].includes(
+      (error as NodeJS.ErrnoException)?.code ?? "",
+    );
   const roots = new Set<string>();
   for (const parent of PROJECT_PARENT_DIRS) {
     const parentPath = path.join(home, parent);
     let entries: fs.Dirent[];
-    try { entries = await fs.promises.readdir(parentPath, { withFileTypes: true }); } catch (error) { if (!missing(error)) throw error; continue; }
+    try {
+      entries = await fs.promises.readdir(parentPath, { withFileTypes: true });
+    } catch (error) {
+      if (!missing(error)) throw error;
+      continue;
+    }
     for (const entry of entries) {
-      if (entry.name.startsWith(".") || !entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (
+        entry.name.startsWith(".") ||
+        (!entry.isDirectory() && !entry.isSymbolicLink())
+      )
+        continue;
       const full = path.join(parentPath, entry.name);
-      try { if ((await fs.promises.stat(full)).isDirectory()) roots.add(full); } catch (error) { if (!missing(error)) throw error; }
+      try {
+        if ((await fs.promises.stat(full)).isDirectory()) roots.add(full);
+      } catch (error) {
+        if (!missing(error)) throw error;
+      }
     }
   }
   const combined = new Set([...roots].slice(0, MAX_PROJECT_ROOTS));
   for (const name of AGENT_HOME_DIRS) {
-    try { const real = await fs.promises.realpath(path.join(home, name)); if ((await fs.promises.stat(real)).isDirectory()) combined.add(real); } catch (error) { if (!missing(error)) throw error; }
+    try {
+      const real = await fs.promises.realpath(path.join(home, name));
+      if ((await fs.promises.stat(real)).isDirectory()) combined.add(real);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
   }
   for (const p of started) {
-    try { if ((await fs.promises.stat(p)).isDirectory()) combined.add(p); } catch (error) { if (!missing(error)) throw error; }
+    try {
+      if ((await fs.promises.stat(p)).isDirectory()) combined.add(p);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
   }
   return [...combined].slice(0, MAX_PROJECT_ROOTS);
 }

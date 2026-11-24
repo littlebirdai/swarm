@@ -32,18 +32,59 @@ import { useTheme } from "../ThemeProvider";
 import { RouteEdge, type RouteEdgeData } from "./OrgRouteEdge";
 import { SESSION_DRAG_TYPE } from "../../lib/stage";
 import { selectionIdsFor } from "../../lib/inboxSelection";
-import { ghostNodeIdFor, layoutOrgTree, parentRefOfNodeId, type OrgGhostPlan, type OrgLayoutNode, type OrgLayoutView, focusTargetNodeId, type OrgFocusTarget, roleNodeId } from "./orgLayout";
+import {
+  ghostNodeIdFor,
+  layoutOrgTree,
+  parentRefOfNodeId,
+  type OrgGhostPlan,
+  type OrgLayoutNode,
+  type OrgLayoutView,
+  focusTargetNodeId,
+  type OrgFocusTarget,
+  roleNodeId,
+} from "./orgLayout";
 import { ghostsFor, type OrgGhostOptions } from "./orgGhostsFor";
-import { ClusterCard, GroupCard, HealthRoleCard, PersonCard, RoleCard, SessionCard, type HealthRoleNodeData } from "./OrgNodeCards";
+import {
+  ClusterCard,
+  GroupCard,
+  HealthRoleCard,
+  PersonCard,
+  RoleCard,
+  SessionCard,
+  type HealthRoleNodeData,
+} from "./OrgNodeCards";
 import { productLayer } from "./orgProductLayer";
-import { bandOrigin, computeOrgViewport, FIT_PAD, freeCanvasSize, hiddenRoots, panIntoView } from "./orgViewport";
-import { PinnedZoomLevel, useZoomLevel, zoomLevelOf, type ZoomLevel } from "./orgZoom";
-import { dragRoots, NOT_PLACED, parentsOf, subtreesOf, withoutPlaced, withPlaced, workspaceKeyOf } from "./orgPlacement";
+import {
+  bandOrigin,
+  computeOrgViewport,
+  FIT_PAD,
+  freeCanvasSize,
+  hiddenRoots,
+  panIntoView,
+} from "./orgViewport";
+import {
+  PinnedZoomLevel,
+  useZoomLevel,
+  zoomLevelOf,
+  type ZoomLevel,
+} from "./orgZoom";
+import {
+  dragRoots,
+  NOT_PLACED,
+  parentsOf,
+  subtreesOf,
+  withoutPlaced,
+  withPlaced,
+  workspaceKeyOf,
+} from "./orgPlacement";
 import { useInboxStore } from "../../store/inboxStore";
 import { sameParent, type OrgParentRef, type OrgTree } from "./orgTypes";
 import { GHOST, healthFlagsByNode, standingWaits } from "./orgMeta";
 import type { OrgHealth, OrgProposalChange } from "./orgStaffingTypes";
-import { orgPersonReparentMakesCycle, orgRoleReparentMakesCycle } from "../../store/orgSlice";
+import {
+  orgPersonReparentMakesCycle,
+  orgRoleReparentMakesCycle,
+} from "../../store/orgSlice";
 import { ORG_FLOW_EDGE_TYPES } from "./OrgFlowEdges";
 import type { FlowMap, RoleFlow } from "./orgFlow";
 import { keyBelongsElsewhere } from "../../shortcuts/keyOwnership";
@@ -52,20 +93,46 @@ import type { OrgObjectKind } from "@codecast/shared/entities";
 import { useInitiatives } from "../../hooks/useInitiatives";
 import { layoutGoals, type GoalProject, type GoalsLayout } from "./goalsLayout";
 import { GOALS_EDGE_TYPES, GOALS_NODE_TYPES } from "./GoalsNodeCards";
-import { DRAGGABLE, flowModeEdges, goalsFlowEdges, goalsFlowNodes, toFlowNodes, type CueCard, type Emphasis, type GhostHandlers } from "./orgFlowElements";
+import {
+  DRAGGABLE,
+  flowModeEdges,
+  goalsFlowEdges,
+  goalsFlowNodes,
+  toFlowNodes,
+  type CueCard,
+  type Emphasis,
+  type GhostHandlers,
+} from "./orgFlowElements";
 import { EdgeCue, SelectionBar } from "./OrgGraphChrome";
 
 /** The health map fits its whole tree down to this zoom: cards and counts stay legible. */
 const FLOW_READABLE_ZOOM = 0.42;
 
-const ORG_NODE_TYPES = { person: PersonCard, role: RoleCard, session: SessionCard, cluster: ClusterCard, healthRole: HealthRoleCard, group: GroupCard, ...GOALS_NODE_TYPES };
-const ORG_EDGE_TYPES = { ...ORG_FLOW_EDGE_TYPES, ...GOALS_EDGE_TYPES, orgRoute: RouteEdge };
+const ORG_NODE_TYPES = {
+  person: PersonCard,
+  role: RoleCard,
+  session: SessionCard,
+  cluster: ClusterCard,
+  healthRole: HealthRoleCard,
+  group: GroupCard,
+  ...GOALS_NODE_TYPES,
+};
+const ORG_EDGE_TYPES = {
+  ...ORG_FLOW_EDGE_TYPES,
+  ...GOALS_EDGE_TYPES,
+  orgRoute: RouteEdge,
+};
 
 /** Which picture the canvas draws (org-staffing.md S36, S40): everything (the
  *  goal outline with every person and role beside it), the goals alone, or
  *  who reports to whom. */
 export type OrgLens = "everything" | "people" | "goals";
-const NO_LAYOUT: ReturnType<typeof layoutOrgTree> = { nodes: [], edges: [], width: 0, height: 0 };
+const NO_LAYOUT: ReturnType<typeof layoutOrgTree> = {
+  nodes: [],
+  edges: [],
+  width: 0,
+  height: 0,
+};
 
 /** A company object as the canvas names it: its kind and its row id (a
  *  goal's, a project's or a role's `_id`, a person's user id). */
@@ -75,11 +142,26 @@ export type OrgRing = OrgGraphObject | { kind: "session"; id: string };
 
 /** The card that draws an object: its own node, or for a project the first
  *  card of it (a project under two goals is drawn under each). */
-function nodeIdOfObject(nodes: readonly { id: string }[], o: OrgRing | null | undefined): string | null {
+function nodeIdOfObject(
+  nodes: readonly { id: string }[],
+  o: OrgRing | null | undefined,
+): string | null {
   if (!o) return null;
-  const want = o.kind === "initiative" ? `goal:${o.id}` : o.kind === "role" ? `role:${o.id}` : o.kind === "person" ? `person:${o.id}` : o.kind === "session" ? `session:${o.id}` : null;
+  const want =
+    o.kind === "initiative"
+      ? `goal:${o.id}`
+      : o.kind === "role"
+        ? `role:${o.id}`
+        : o.kind === "person"
+          ? `person:${o.id}`
+          : o.kind === "session"
+            ? `session:${o.id}`
+            : null;
   if (want) return nodes.some((n) => n.id === want) ? want : null;
-  return nodes.find((n) => n.id.startsWith("project:") && n.id.endsWith(`:${o.id}`))?.id ?? null;
+  return (
+    nodes.find((n) => n.id.startsWith("project:") && n.id.endsWith(`:${o.id}`))
+      ?.id ?? null
+  );
 }
 
 export type OrgReparentRequest = {
@@ -104,13 +186,21 @@ export type OrgGraphProps = {
   onCollapseCluster: (parentId: string) => void;
   onReparentRequest: (req: OrgReparentRequest) => void;
   /** Find on the chart: every card that says `q` stays lit and the rest step back; `step` walks the matches, panning to each. */
-  find?: { q: string; step: number; /** Only what waits on a person: sessions needing input, roles whose agent does. */ waiting?: boolean };
+  find?: {
+    q: string;
+    step: number;
+    /** Only what waits on a person: sessions needing input, roles whose agent does. */ waiting?: boolean;
+  };
   /** How many cards match the find, and which one is in view (0-based). */
   onFindCount?: (count: number, at: number) => void;
   /** "Move to…" on the selection bar: the page opens its picker for every marked card. */
   onMoveMarked?: (subjects: OrgReparentRequest["subject"][]) => void;
   /** Sessions dragged in from the inbox, dropped on a person or role card (conversation ids). */
-  onDropSessions?: (conversationIds: string[], target: OrgParentRef, targetTitle: string) => void;
+  onDropSessions?: (
+    conversationIds: string[],
+    target: OrgParentRef,
+    targetTitle: string,
+  ) => void;
   onNodeContextMenu: (e: React.MouseEvent, node: OrgLayoutNode) => void;
   onOpenSession?: (conversationId: string) => void;
   /** Bumped by the page after a cancelled move, to snap the card back. */
@@ -118,7 +208,12 @@ export type OrgGraphProps = {
   /** This week on the People map (OrgMap): reporting edges carry the week's work and
    *  handoffs between roles are drawn across the tree; a focused role keeps
    *  its edges lit and dims the rest. */
-  flow?: { map: FlowMap; focusNodeId: string | null; roles: Record<string, RoleFlow>; days: string[] };
+  flow?: {
+    map: FlowMap;
+    focusNodeId: string | null;
+    roles: Record<string, RoleFlow>;
+    days: string[];
+  };
   /** Width of the panel overlaying the right edge of the canvas (0 = closed).
    *  The fit uses the canvas left of it. */
   panelWidth?: number;
@@ -153,7 +248,10 @@ export type OrgGraphProps = {
   lens?: OrgLens;
   /** The goals lens' rows when they are not the store's (the dev preview, a
    *  test): the lens reads the workspace's initiatives and projects otherwise. */
-  goalsData?: { initiatives: readonly InitiativeRow[]; projects: readonly GoalProject[] };
+  goalsData?: {
+    initiatives: readonly InitiativeRow[];
+    projects: readonly GoalProject[];
+  };
   /** A double click on an owner in the goals lens: show that seat in the people lens. */
   onOpenInPeople?: (nodeId: string) => void;
   /** False draws the chart as a still picture (the marketing hero): no zoom
@@ -180,34 +278,66 @@ export type OrgGraphProps = {
   product?: { sessionProject: Readonly<Record<string, string>> };
 };
 
-
 // The chart's own gestures; chrome off swaps in STILL_FLOW_PROPS for them.
-const CHART_FLOW_PROPS = { nodesConnectable: false, elementsSelectable: true, panOnScroll: true, zoomOnDoubleClick: false, deleteKeyCode: null } as const;
+const CHART_FLOW_PROPS = {
+  nodesConnectable: false,
+  elementsSelectable: true,
+  panOnScroll: true,
+  zoomOnDoubleClick: false,
+  deleteKeyCode: null,
+} as const;
 const DROP_TARGETS = new Set(["person", "role"]);
 const NONE_MARKED: ReadonlySet<string> = new Set();
 
 function moveSubjectOf(n: OrgLayoutNode): OrgReparentRequest["subject"] | null {
-  if (n.kind === "session") return { kind: "session", id: n.session._id, title: n.session.title || n.session.short_id };
-  if (n.kind === "role") return { kind: "role", id: n.role._id, title: n.role.name };
-  if (n.kind === "person") return { kind: "person", id: n.person.user_id, title: n.person.name };
+  if (n.kind === "session")
+    return {
+      kind: "session",
+      id: n.session._id,
+      title: n.session.title || n.session.short_id,
+    };
+  if (n.kind === "role")
+    return { kind: "role", id: n.role._id, title: n.role.name };
+  if (n.kind === "person")
+    return { kind: "person", id: n.person.user_id, title: n.person.name };
   return null;
 }
 
 function titleOf(n: OrgLayoutNode): string {
   switch (n.kind) {
-    case "person": return n.person.name;
-    case "role": return n.role.name;
-    case "session": return n.session.title || n.session.short_id;
-    case "cluster": return `+${n.remaining} sessions`;
-    case "group": return n.label;
+    case "person":
+      return n.person.name;
+    case "role":
+      return n.role.name;
+    case "session":
+      return n.session.title || n.session.short_id;
+    case "cluster":
+      return `+${n.remaining} sessions`;
+    case "group":
+      return n.label;
   }
-  return n.kind === "goal" || n.kind === "project" || n.kind === "mission" ? String((n.data.goal as { title?: string } | undefined)?.title ?? (n.data.project as { title?: string } | undefined)?.title ?? n.data.name ?? "") : "";
+  return n.kind === "goal" || n.kind === "project" || n.kind === "mission"
+    ? String(
+        (n.data.goal as { title?: string } | undefined)?.title ??
+          (n.data.project as { title?: string } | undefined)?.title ??
+          n.data.name ??
+          "",
+      )
+    : "";
 }
 
 /** A stable key for the flags on the chart: node, code and severity of each,
  *  so the cards re-render on a flag change and never on a spend counter. */
-function flagsSigOf(flags: Record<string, OrgHealth["roles"][number]["flags"]>): string {
-  return Object.keys(flags).sort().map((id) => `${id}:${flags[id].map((f) => `${f.code}/${f.severity}`).join(",")}`).join("|");
+function flagsSigOf(
+  flags: Record<string, OrgHealth["roles"][number]["flags"]>,
+): string {
+  return Object.keys(flags)
+    .sort()
+    .map(
+      (id) =>
+        `${id}:${flags[id].map((f) => `${f.code}/${f.severity}`).join(",")}`,
+    )
+    .join("|");
 }
 
 /** What a card says, for find: its name or title, a role's handle, a session's short id. */
@@ -218,7 +348,48 @@ function findText(n: OrgLayoutNode): string {
 }
 
 function OrgGraphInner(props: OrgGraphProps) {
-  const { tree, view: baseView, selectedId: pickedId, loadingClusters, showMiniMap, onSelect, onToggleCollapse, onExpandCluster, onCollapseCluster, onReparentRequest, onDropSessions, onMoveMarked, find, onFindCount, onNodeContextMenu, onOpenSession, resetKey, panelWidth = 0, panelHeightFraction = 0, canDrag, canDropPerson, changes, health, viewerSession, focusChangeId = null, focusTarget = null, onFocusChange, chrome = true, flow, lens = "people", goalsData, onOpenInPeople, ring = null, dimGoals = false, onOpenObject, onOpenChange, onTalk, onMoveRole, onToggleOpen, product } = props;
+  const {
+    tree,
+    view: baseView,
+    selectedId: pickedId,
+    loadingClusters,
+    showMiniMap,
+    onSelect,
+    onToggleCollapse,
+    onExpandCluster,
+    onCollapseCluster,
+    onReparentRequest,
+    onDropSessions,
+    onMoveMarked,
+    find,
+    onFindCount,
+    onNodeContextMenu,
+    onOpenSession,
+    resetKey,
+    panelWidth = 0,
+    panelHeightFraction = 0,
+    canDrag,
+    canDropPerson,
+    changes,
+    health,
+    viewerSession,
+    focusChangeId = null,
+    focusTarget = null,
+    onFocusChange,
+    chrome = true,
+    flow,
+    lens = "people",
+    goalsData,
+    onOpenInPeople,
+    ring = null,
+    dimGoals = false,
+    onOpenObject,
+    onOpenChange,
+    onTalk,
+    onMoveRole,
+    onToggleOpen,
+    product,
+  } = props;
   const { theme } = useTheme();
   const rf = useReactFlow();
 
@@ -228,12 +399,26 @@ function OrgGraphInner(props: OrgGraphProps) {
   // card does: from the store's rows, which the page keeps fed.
   const projects = useWorkspaceCollection<ProjectItem>("projects");
   const plans = useWorkspaceCollection<PlanItem>("plans");
-  const scopeRows = useMemo(() => ({
-    projects: projects.map((p) => ({ id: p._id, title: p.title, short_id: (p as any).short_id ?? undefined })),
-    plans: plans.map((p) => ({ id: p._id, title: p.title, short_id: p.short_id })),
-  }), [projects, plans]);
+  const scopeRows = useMemo(
+    () => ({
+      projects: projects.map((p) => ({
+        id: p._id,
+        title: p.title,
+        short_id: (p as any).short_id ?? undefined,
+      })),
+      plans: plans.map((p) => ({
+        id: p._id,
+        title: p.title,
+        short_id: p.short_id,
+      })),
+    }),
+    [projects, plans],
+  );
   const ghosts = useMemo<OrgGhostPlan | undefined>(
-    () => (changes?.length ? ghostsFor(tree, changes, { viewerSession, ...scopeRows }) : undefined),
+    () =>
+      changes?.length
+        ? ghostsFor(tree, changes, { viewerSession, ...scopeRows })
+        : undefined,
     [tree, changes, viewerSession?.id, viewerSession?.short_id, scopeRows], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // The goals lens lays out its own picture from the same tree and changes;
@@ -247,18 +432,69 @@ function OrgGraphInner(props: OrgGraphProps) {
   // reflows it, so what the person arranged stays where they put it.
   const layoutLevel: ZoomLevel = lens === "people" ? "far" : level;
   const rawGoals = useMemo<GoalsLayout | null>(
-    () => (lens !== "people" ? layoutGoals({ tree, initiatives: goalsData?.initiatives ?? storeGoals, projects: goalsData?.projects ?? projects, changes, people: lens === "everything" ? "everyone" : "none", ghosts }, level) : null),
+    () =>
+      lens !== "people"
+        ? layoutGoals(
+            {
+              tree,
+              initiatives: goalsData?.initiatives ?? storeGoals,
+              projects: goalsData?.projects ?? projects,
+              changes,
+              people: lens === "everything" ? "everyone" : "none",
+              ghosts,
+            },
+            level,
+          )
+        : null,
     [lens, tree, goalsData, storeGoals, projects, changes, ghosts, level],
   );
   // The Everything chart on the people lens: the goals and projects resolved for this level and joined into the tree.
   const sessionProject = product?.sessionProject;
-  const view = useMemo(() => (lens === "people" && sessionProject
-    ? { ...baseView, product: productLayer(tree, { initiatives: goalsData?.initiatives ?? storeGoals, projects: goalsData?.projects ?? projects, sessionProject }, layoutLevel) }
-    : baseView), [lens, baseView, sessionProject, tree, goalsData, storeGoals, projects, layoutLevel]);
+  const view = useMemo(
+    () =>
+      lens === "people" && sessionProject
+        ? {
+            ...baseView,
+            product: productLayer(
+              tree,
+              {
+                initiatives: goalsData?.initiatives ?? storeGoals,
+                projects: goalsData?.projects ?? projects,
+                sessionProject,
+              },
+              layoutLevel,
+            ),
+          }
+        : baseView,
+    [
+      lens,
+      baseView,
+      sessionProject,
+      tree,
+      goalsData,
+      storeGoals,
+      projects,
+      layoutLevel,
+    ],
+  );
   // The cards the person placed by hand (orgPlacement), per workspace.
   const wsKey = workspaceKeyOf(tree);
-  const placed = useInboxStore((st) => (lens === "people" ? st.clientState.ui?.org_placed?.[wsKey] : undefined)) ?? NOT_PLACED;
-  const rawLayout = useMemo(() => (rawGoals ? NO_LAYOUT : layoutOrgTree(tree, placed === NOT_PLACED ? view : { ...view, placed }, ghosts, layoutLevel)), [rawGoals, tree, view, placed, ghosts, layoutLevel]);
+  const placed =
+    useInboxStore((st) =>
+      lens === "people" ? st.clientState.ui?.org_placed?.[wsKey] : undefined,
+    ) ?? NOT_PLACED;
+  const rawLayout = useMemo(
+    () =>
+      rawGoals
+        ? NO_LAYOUT
+        : layoutOrgTree(
+            tree,
+            placed === NOT_PLACED ? view : { ...view, placed },
+            ghosts,
+            layoutLevel,
+          ),
+    [rawGoals, tree, view, placed, ghosts, layoutLevel],
+  );
   // Crossing a zoom stop swaps one layout for another. The new one is placed
   // so the card under the pointer stays where it is (bandOrigin) and the rest
   // slide to their places around it (.org-flow's node transition); the canvas
@@ -267,7 +503,18 @@ function OrgGraphInner(props: OrgGraphProps) {
   /** The person has panned or zoomed since the last fit. */
   const userMoved = useRef(false);
   const pointer = useRef<{ x: number; y: number } | null>(null);
-  const band = useRef<{ lens: OrgLens; level: ZoomLevel; nodes: readonly { id: string; x: number; y: number; w: number; h: number }[]; origin: { x: number; y: number } } | null>(null);
+  const band = useRef<{
+    lens: OrgLens;
+    level: ZoomLevel;
+    nodes: readonly {
+      id: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }[];
+    origin: { x: number; y: number };
+  } | null>(null);
   const { goals, layout } = useMemo(() => {
     const raw = rawGoals?.nodes ?? rawLayout.nodes;
     const was = band.current?.lens === lens ? band.current : null;
@@ -277,17 +524,36 @@ function OrgGraphInner(props: OrgGraphProps) {
     if (!userMoved.current) origin = { x: 0, y: 0 };
     else if (was && was.level !== layoutLevel) {
       const box = wrapRef.current?.getBoundingClientRect();
-      const at = pointer.current ?? (box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : null);
+      const at =
+        pointer.current ??
+        (box
+          ? { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+          : null);
       if (at) origin = bandOrigin(was.nodes, raw, rf.screenToFlowPosition(at));
     }
     const still = origin.x === 0 && origin.y === 0;
-    const move = <T extends { x: number; y: number }>(n: T): T => (still ? n : { ...n, x: n.x + origin.x, y: n.y + origin.y });
-    const goals = rawGoals && { ...rawGoals, nodes: rawGoals.nodes.map(move), ownerLane: rawGoals.ownerLane + origin.x };
-    const layout = rawGoals ? rawLayout : { ...rawLayout, nodes: rawLayout.nodes.map(move) };
-    band.current = { lens, level: layoutLevel, nodes: goals?.nodes ?? layout.nodes, origin };
+    const move = <T extends { x: number; y: number }>(n: T): T =>
+      still ? n : { ...n, x: n.x + origin.x, y: n.y + origin.y };
+    const goals = rawGoals && {
+      ...rawGoals,
+      nodes: rawGoals.nodes.map(move),
+      ownerLane: rawGoals.ownerLane + origin.x,
+    };
+    const layout = rawGoals
+      ? rawLayout
+      : { ...rawLayout, nodes: rawLayout.nodes.map(move) };
+    band.current = {
+      lens,
+      level: layoutLevel,
+      nodes: goals?.nodes ?? layout.nodes,
+      origin,
+    };
     return { goals, layout };
   }, [rawGoals, rawLayout, lens, layoutLevel, rf]);
-  const byId = useMemo(() => new Map(layout.nodes.map((n) => [n.id, n])), [layout]);
+  const byId = useMemo(
+    () => new Map(layout.nodes.map((n) => [n.id, n])),
+    [layout],
+  );
   // The canvas zoom as a CSS variable, for text that holds its size on screen (orgZoom.zoomText).
   const storeApi = useStoreApi();
   useWatchEffect(() => {
@@ -300,106 +566,315 @@ function OrgGraphInner(props: OrgGraphProps) {
   /** What the fit and the focus pan read: the drawn lens' cards. */
   const boxes = goals?.nodes ?? layout.nodes;
   // The open sheet's card keeps its ring while the sheet is on top (D15).
-  const ringNodeId = useMemo(() => nodeIdOfObject(boxes, ring), [boxes, ring?.kind, ring?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ringNodeId = useMemo(
+    () => nodeIdOfObject(boxes, ring),
+    [boxes, ring?.kind, ring?.id],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedId = ringNodeId ?? pickedId;
   // Flags reach the cards by identity, so they are rebuilt only when a flag
   // changes (the signature), not on every health push (spend counters move).
-  const flagsSig = useMemo(() => flagsSigOf(healthFlagsByNode(health)), [health]);
+  const flagsSig = useMemo(
+    () => flagsSigOf(healthFlagsByNode(health)),
+    [health],
+  );
   const flagsByNode = useMemo(() => healthFlagsByNode(health), [flagsSig]); // eslint-disable-line react-hooks/exhaustive-deps
   // What each role's area holds today, for the close card's open work line: rebuilt when a count moves, not on every health push.
-  const ledgerSig = (health?.roles ?? []).map((r) => `${r.role_id}:${r.ledger.open_tasks}/${r.ledger.in_flight}/${r.ledger.active_plans}`).join("|");
-  const ledgerByNode = useMemo(() => Object.fromEntries((health?.roles ?? []).map((r) => [roleNodeId(r.role_id), r.ledger])), [ledgerSig]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ledgerSig = (health?.roles ?? [])
+    .map(
+      (r) =>
+        `${r.role_id}:${r.ledger.open_tasks}/${r.ledger.in_flight}/${r.ledger.active_plans}`,
+    )
+    .join("|");
+  const ledgerByNode = useMemo(
+    () =>
+      Object.fromEntries(
+        (health?.roles ?? []).map((r) => [roleNodeId(r.role_id), r.ledger]),
+      ),
+    [ledgerSig],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   // Cards marked to move together: Cmd/Ctrl/Shift-click toggles one, a Shift-drag box marks every movable card in it.
   const [marked, setMarked] = useState<ReadonlySet<string>>(NONE_MARKED);
   const boxing = useRef(false);
-  const markable = useCallback((id: string) => { const n = byId.get(id); return !!n && DRAGGABLE.has(n.kind) && !("ghost" in n && n.ghost) && (canDrag ? canDrag(n) : true); }, [byId, canDrag]);
-  const toggleMark = useCallback((id: string) => setMarked((m) => { const next = new Set(m); if (!next.delete(id)) next.add(id); return next; }), []);
-  const clearMarks = useCallback(() => setMarked((m) => (m.size ? NONE_MARKED : m)), []);
+  const markable = useCallback(
+    (id: string) => {
+      const n = byId.get(id);
+      return (
+        !!n &&
+        DRAGGABLE.has(n.kind) &&
+        !("ghost" in n && n.ghost) &&
+        (canDrag ? canDrag(n) : true)
+      );
+    },
+    [byId, canDrag],
+  );
+  const toggleMark = useCallback(
+    (id: string) =>
+      setMarked((m) => {
+        const next = new Set(m);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      }),
+    [],
+  );
+  const clearMarks = useCallback(
+    () => setMarked((m) => (m.size ? NONE_MARKED : m)),
+    [],
+  );
   // Escape lets go of the marked cards; only listening while some are marked keeps a resting chart off the window.
-  useEventListener("keydown", (e) => { if (e.key === "Escape") clearMarks(); }, marked.size ? window : null);
+  useEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Escape") clearMarks();
+    },
+    marked.size ? window : null,
+  );
   const [draggingId, setDraggingId] = useState<string | null>(null);
   // The goals lens draws owner edges only for the card under the pointer or selected.
   const [hoverId, setHoverId] = useState<string | null>(null);
 
-  const handlers = useMemo(() => ({ onToggleCollapse, onExpandCluster, onCollapseCluster, onToggleOpen }), [onToggleCollapse, onExpandCluster, onCollapseCluster, onToggleOpen]);
-  const ghostHandlers = useMemo<GhostHandlers>(() => ({ focusChangeId, onFocusChange: (id) => onFocusChange?.(id) }), [focusChangeId, onFocusChange]);
+  const handlers = useMemo(
+    () => ({
+      onToggleCollapse,
+      onExpandCluster,
+      onCollapseCluster,
+      onToggleOpen,
+    }),
+    [onToggleCollapse, onExpandCluster, onCollapseCluster, onToggleOpen],
+  );
+  const ghostHandlers = useMemo<GhostHandlers>(
+    () => ({ focusChangeId, onFocusChange: (id) => onFocusChange?.(id) }),
+    [focusChangeId, onFocusChange],
+  );
   /** Whether `subject` may be dropped on the person or role card `targetId`:
    *  never a ghost stub (a change, not a seat), never where it already
    *  reports, never into its own subtree, a person only under a person. */
-  const accepts = useCallback((subject: OrgLayoutNode | undefined, targetId: string): boolean => {
-    const t = byId.get(targetId);
-    if (!subject || !t || !DROP_TARGETS.has(t.kind) || t.id === subject.id || marked.has(t.id)) return false;
-    // A card this viewer may only place (not move under someone) lights no target.
-    if (!DRAGGABLE.has(subject.kind) || (canDrag && !canDrag(subject))) return false;
-    if ((t.kind === "person" || t.kind === "role") && t.ghost) return false;
-    const ref = parentRefOfNodeId(t.id);
-    if (!ref) return false;
-    if (subject.kind === "session") return !sameParent(subject.parent, ref);
-    if (subject.kind === "role") {
-      if (ref.kind === "role" && ref.role_id === subject.role._id) return false;
-      if (orgRoleReparentMakesCycle(tree, subject.role._id, ref)) return false;
-      return !sameParent(subject.role.reports_to, ref);
-    }
-    if (subject.kind === "person") {
-      const p = subject.person;
-      if (ref.kind !== "user" || ref.user_id === p.user_id || ref.user_id === p.reports_to_user_id) return false;
-      if (orgPersonReparentMakesCycle(tree, p.user_id, ref.user_id)) return false;
-      return canDropPerson ? canDropPerson(p.user_id, ref.user_id) : true;
-    }
-    return false;
-  }, [byId, tree, canDropPerson, marked, canDrag]);
+  const accepts = useCallback(
+    (subject: OrgLayoutNode | undefined, targetId: string): boolean => {
+      const t = byId.get(targetId);
+      if (
+        !subject ||
+        !t ||
+        !DROP_TARGETS.has(t.kind) ||
+        t.id === subject.id ||
+        marked.has(t.id)
+      )
+        return false;
+      // A card this viewer may only place (not move under someone) lights no target.
+      if (!DRAGGABLE.has(subject.kind) || (canDrag && !canDrag(subject)))
+        return false;
+      if ((t.kind === "person" || t.kind === "role") && t.ghost) return false;
+      const ref = parentRefOfNodeId(t.id);
+      if (!ref) return false;
+      if (subject.kind === "session") return !sameParent(subject.parent, ref);
+      if (subject.kind === "role") {
+        if (ref.kind === "role" && ref.role_id === subject.role._id)
+          return false;
+        if (orgRoleReparentMakesCycle(tree, subject.role._id, ref))
+          return false;
+        return !sameParent(subject.role.reports_to, ref);
+      }
+      if (subject.kind === "person") {
+        const p = subject.person;
+        if (
+          ref.kind !== "user" ||
+          ref.user_id === p.user_id ||
+          ref.user_id === p.reports_to_user_id
+        )
+          return false;
+        if (orgPersonReparentMakesCycle(tree, p.user_id, ref.user_id))
+          return false;
+        return canDropPerson ? canDropPerson(p.user_id, ref.user_id) : true;
+      }
+      return false;
+    },
+    [byId, tree, canDropPerson, marked, canDrag],
+  );
   /** While a card is in the hand, every card it may land on (they light up; the rest step back). */
   const validTargets = useMemo<ReadonlySet<string> | null>(() => {
     if (!draggingId || goals) return null;
     const subject = byId.get(draggingId);
-    const ids = layout.nodes.filter((n) => accepts(subject, n.id)).map((n) => n.id);
+    const ids = layout.nodes
+      .filter((n) => accepts(subject, n.id))
+      .map((n) => n.id);
     return ids.length ? new Set(ids) : null;
   }, [draggingId, goals, byId, layout, accepts]);
   const findQ = find?.q.trim().toLowerCase() ?? "";
   const findWaiting = !!find?.waiting;
   const finding = !!findQ || findWaiting;
-  const findMatches = useMemo(() => (finding ? layout.nodes.filter((n) => n.kind !== "cluster"
-    && (!findWaiting || (n.kind === "session" ? n.session.state === "needs_input" : n.kind === "role" && standingWaits(n.role.standing)))
-    && (!findQ || findText(n).toLowerCase().includes(findQ))).map((n) => n.id) : []), [finding, findWaiting, findQ, layout]);
-  const findAt = findMatches.length ? (((find?.step ?? 0) % findMatches.length) + findMatches.length) % findMatches.length : 0;
-  const emphasis = useMemo<Emphasis | null>(() => (validTargets ? { lit: validTargets, dashed: true }
-    : finding ? { lit: new Set(findMatches), dashed: false, current: findMatches[findAt] } : null), [validTargets, finding, findMatches, findAt]);
+  const findMatches = useMemo(
+    () =>
+      finding
+        ? layout.nodes
+            .filter(
+              (n) =>
+                n.kind !== "cluster" &&
+                (!findWaiting ||
+                  (n.kind === "session"
+                    ? n.session.state === "needs_input"
+                    : n.kind === "role" && standingWaits(n.role.standing))) &&
+                (!findQ || findText(n).toLowerCase().includes(findQ)),
+            )
+            .map((n) => n.id)
+        : [],
+    [finding, findWaiting, findQ, layout],
+  );
+  const findAt = findMatches.length
+    ? (((find?.step ?? 0) % findMatches.length) + findMatches.length) %
+      findMatches.length
+    : 0;
+  const emphasis = useMemo<Emphasis | null>(
+    () =>
+      validTargets
+        ? { lit: validTargets, dashed: true }
+        : finding
+          ? {
+              lit: new Set(findMatches),
+              dashed: false,
+              current: findMatches[findAt],
+            }
+          : null,
+    [validTargets, finding, findMatches, findAt],
+  );
   const flowNodes = useMemo(() => {
-    if (goals) return goalsFlowNodes(goals, selectedId, ghostHandlers, dimGoals, !!onMoveRole, dropTargetId);
-    const nodes = toFlowNodes(layout.nodes, selectedId, marked, emphasis, dropTargetId, draggingId, loadingClusters, handlers, canDrag, chrome && lens === "people", ghostHandlers, flagsByNode, ledgerByNode);
+    if (goals)
+      return goalsFlowNodes(
+        goals,
+        selectedId,
+        ghostHandlers,
+        dimGoals,
+        !!onMoveRole,
+        dropTargetId,
+      );
+    const nodes = toFlowNodes(
+      layout.nodes,
+      selectedId,
+      marked,
+      emphasis,
+      dropTargetId,
+      draggingId,
+      loadingClusters,
+      handlers,
+      canDrag,
+      chrome && lens === "people",
+      ghostHandlers,
+      flagsByNode,
+      ledgerByNode,
+    );
     if (!flow) return nodes;
     // The health map: a role draws its week instead of its sessions.
     return nodes.map((n) => {
       const f = n.type === "role" ? flow.roles[n.id] : undefined;
       if (!f) return n;
-      const data: HealthRoleNodeData = { role: f.role, selected: n.id === selectedId, flow: f, days: flow.days };
+      const data: HealthRoleNodeData = {
+        role: f.role,
+        selected: n.id === selectedId,
+        flow: f,
+        days: flow.days,
+      };
       return { ...n, type: "healthRole", draggable: false, data };
     });
-  }, [goals, layout, selectedId, marked, emphasis, dropTargetId, draggingId, loadingClusters, handlers, canDrag, ghostHandlers, flagsByNode, ledgerByNode, flow, dimGoals]);
+  }, [
+    goals,
+    layout,
+    selectedId,
+    marked,
+    emphasis,
+    dropTargetId,
+    draggingId,
+    loadingClusters,
+    handlers,
+    canDrag,
+    ghostHandlers,
+    flagsByNode,
+    ledgerByNode,
+    flow,
+    dimGoals,
+  ]);
   // A project's cross edge to a goal in another branch shows only while either end is pointed at or selected.
   const litId = hoverId ?? selectedId;
   const flowEdges = useMemo<Edge[]>(
-    () => goals ? goalsFlowEdges(goals, hoverId ?? selectedId ?? (focusChangeId ? goals.changeNode[focusChangeId] ?? null : null)) : flow ? flowModeEdges(layout.edges, flow.map, flow.focusNodeId) : layout.edges.filter((e) => e.kind !== "cross" || e.source === litId || e.target === litId).map((e) => e.kind === "cross" ? ({
-      id: e.id, source: e.source, target: e.target, type: "default", selectable: false, focusable: false, zIndex: 0,
-      style: { stroke: "var(--sol-cyan)", strokeWidth: 1.25, opacity: 0.55 },
-    } as Edge) : ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      type: e.route ? "orgRoute" : e.kind === "stack" ? "straight" : "smoothstep",
-      ...(e.route ? { data: { route: e.route, sw: byId.get(e.source)?.w ?? 0, tw: byId.get(e.target)?.w ?? 0, th: byId.get(e.target)?.h ?? 0 } satisfies RouteEdgeData } : {}),
-      selectable: false,
-      focusable: false,
-      style: e.kind === "stack"
-        ? { stroke: "color-mix(in srgb, var(--sol-border) 40%, transparent)", strokeWidth: 1 }
-        : e.kind === "ghost"
-          // A proposal's edge: the page's violet at the ghost's opacity (solid: nothing on the chart is dashed).
-          ? { stroke: GHOST.color, strokeWidth: 1.5, opacity: GHOST.opacity }
-          : { stroke: "color-mix(in srgb, var(--sol-border) 70%, transparent)", strokeWidth: 1.5, opacity: e.faded ? 0.3 : 1 },
-      pathOptions: e.kind === "stack" ? undefined : { borderRadius: 14 },
-    } as Edge)),
+    () =>
+      goals
+        ? goalsFlowEdges(
+            goals,
+            hoverId ??
+              selectedId ??
+              (focusChangeId
+                ? (goals.changeNode[focusChangeId] ?? null)
+                : null),
+          )
+        : flow
+          ? flowModeEdges(layout.edges, flow.map, flow.focusNodeId)
+          : layout.edges
+              .filter(
+                (e) =>
+                  e.kind !== "cross" ||
+                  e.source === litId ||
+                  e.target === litId,
+              )
+              .map((e) =>
+                e.kind === "cross"
+                  ? ({
+                      id: e.id,
+                      source: e.source,
+                      target: e.target,
+                      type: "default",
+                      selectable: false,
+                      focusable: false,
+                      zIndex: 0,
+                      style: {
+                        stroke: "var(--sol-cyan)",
+                        strokeWidth: 1.25,
+                        opacity: 0.55,
+                      },
+                    } as Edge)
+                  : ({
+                      id: e.id,
+                      source: e.source,
+                      target: e.target,
+                      type: e.route
+                        ? "orgRoute"
+                        : e.kind === "stack"
+                          ? "straight"
+                          : "smoothstep",
+                      ...(e.route
+                        ? {
+                            data: {
+                              route: e.route,
+                              sw: byId.get(e.source)?.w ?? 0,
+                              tw: byId.get(e.target)?.w ?? 0,
+                              th: byId.get(e.target)?.h ?? 0,
+                            } satisfies RouteEdgeData,
+                          }
+                        : {}),
+                      selectable: false,
+                      focusable: false,
+                      style:
+                        e.kind === "stack"
+                          ? {
+                              stroke:
+                                "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+                              strokeWidth: 1,
+                            }
+                          : e.kind === "ghost"
+                            ? // A proposal's edge: the page's violet at the ghost's opacity (solid: nothing on the chart is dashed).
+                              {
+                                stroke: GHOST.color,
+                                strokeWidth: 1.5,
+                                opacity: GHOST.opacity,
+                              }
+                            : {
+                                stroke:
+                                  "color-mix(in srgb, var(--sol-border) 70%, transparent)",
+                                strokeWidth: 1.5,
+                                opacity: e.faded ? 0.3 : 1,
+                              },
+                      pathOptions:
+                        e.kind === "stack" ? undefined : { borderRadius: 14 },
+                    } as Edge),
+              ),
     [goals, layout, byId, flow, selectedId, hoverId, focusChangeId, litId],
   );
 
@@ -411,11 +886,23 @@ function OrgGraphInner(props: OrgGraphProps) {
     setNodes((prev) => {
       if (!draggingId) return flowNodes;
       const branch = drag.current?.branch;
-      const held = new Map(prev.filter((n) => n.dragging || n.id === draggingId || branch?.has(n.id)).map((n) => [n.id, n.position]));
-      return held.size ? flowNodes.map((n) => (held.has(n.id) ? { ...n, position: held.get(n.id)!, dragging: true } : n)) : flowNodes;
+      const held = new Map(
+        prev
+          .filter((n) => n.dragging || n.id === draggingId || branch?.has(n.id))
+          .map((n) => [n.id, n.position]),
+      );
+      return held.size
+        ? flowNodes.map((n) =>
+            held.has(n.id)
+              ? { ...n, position: held.get(n.id)!, dragging: true }
+              : n,
+          )
+        : flowNodes;
     });
   }, [flowNodes, setNodes, resetKey]);
-  useWatchEffect(() => { setEdges(flowEdges); }, [flowEdges, setEdges]);
+  useWatchEffect(() => {
+    setEdges(flowEdges);
+  }, [flowEdges, setEdges]);
 
   // Fit to the FREE canvas (left of the panel), top anchored, readable zoom
   // floor (computeOrgViewport). Runs once nodes are measured, again when the
@@ -424,56 +911,106 @@ function OrgGraphInner(props: OrgGraphProps) {
   // pans or zooms; a panel change always refits.
   // The layout carries every card's size, so the fit never waits on React
   // Flow's own measurement (which a hidden tab never delivers).
-  const rootSig = goals ? `goals|${goals.nodes.length}` : rawLayout.nodes.filter((n) => n.y === 0).map((n) => n.id).join("|");
+  const rootSig = goals
+    ? `goals|${goals.nodes.length}`
+    : rawLayout.nodes
+        .filter((n) => n.y === 0)
+        .map((n) => n.id)
+        .join("|");
   const fitted = useRef<string | null>(null);
   // The goals map keeps the default floor: its labels are 12px, and the fit
   // never shows them under 11px. A pane too narrow for both columns fits the
   // outline alone (orgViewport.fitTarget) and leaves the owners to a pan; the
   // right edge fades over any it cuts, and the pill counts them.
   const readableZoom = flow ? FLOW_READABLE_ZOOM : undefined;
-  const focusId = useMemo(() => layout.nodes.find((n) => n.kind === "person" && n.person.is_me)?.id ?? null, [layout]);
+  const focusId = useMemo(
+    () =>
+      layout.nodes.find((n) => n.kind === "person" && n.person.is_me)?.id ??
+      null,
+    [layout],
+  );
   // Which root cards sit past the free canvas' edges: drives the fades and the
   // "+N more" pills. A programmatic setViewport does not fire the viewport
   // change hook, so fit and pan compute the cue from their TARGET viewport;
   // the hook covers the user's own pans and zooms.
-  const [edgeCue, setEdgeCue] = useState<{ left: CueCard[]; right: CueCard[] }>({ left: [], right: [] });
-  const recomputeCue = useCallback((vp: Viewport) => {
-    const el = wrapRef.current;
-    if (!el) return;
-    // The goals map's cue is its owner column, which a narrow fit leaves past the right edge.
-    const cue: { left: CueCard[]; right: CueCard[] } = goals
-      ? hiddenRoots<CueCard>(goals.nodes, vp, el.clientWidth - panelWidth, (n) => n.kind === "owner")
-      : hiddenRoots<CueCard>(layout.nodes, vp, el.clientWidth - panelWidth);
-    setEdgeCue(cue);
-  }, [goals, layout, panelWidth]);
+  const [edgeCue, setEdgeCue] = useState<{ left: CueCard[]; right: CueCard[] }>(
+    { left: [], right: [] },
+  );
+  const recomputeCue = useCallback(
+    (vp: Viewport) => {
+      const el = wrapRef.current;
+      if (!el) return;
+      // The goals map's cue is its owner column, which a narrow fit leaves past the right edge.
+      const cue: { left: CueCard[]; right: CueCard[] } = goals
+        ? hiddenRoots<CueCard>(
+            goals.nodes,
+            vp,
+            el.clientWidth - panelWidth,
+            (n) => n.kind === "owner",
+          )
+        : hiddenRoots<CueCard>(layout.nodes, vp, el.clientWidth - panelWidth);
+      setEdgeCue(cue);
+    },
+    [goals, layout, panelWidth],
+  );
   useOnViewportChange({ onChange: recomputeCue, onEnd: recomputeCue });
-  const fit = useCallback((animate: boolean): boolean => {
-    const el = wrapRef.current;
-    if (!el || el.clientWidth === 0) return false;
-    const vp = computeOrgViewport(boxes, el.clientWidth, el.clientHeight, panelWidth, focusId, el.clientHeight * panelHeightFraction, readableZoom);
-    if (!vp) return false;
-    // Animated viewport moves ride frame timers, which a hidden tab never gets.
-    const current = rf.getViewport();
-    if (current.x !== vp.x || current.y !== vp.y || current.zoom !== vp.zoom) {
-      rf.setViewport({ x: vp.x, y: vp.y, zoom: vp.zoom }, { duration: animate && !document.hidden ? 280 : 0 });
-    }
-    recomputeCue({ x: vp.x, y: vp.y, zoom: vp.zoom });
-    return true;
-  }, [boxes, panelWidth, panelHeightFraction, focusId, rf, recomputeCue, readableZoom]);
-  const panTo = useCallback((n: CueCard, side: "left" | "right") => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const vp = rf.getViewport();
-    const freeW = el.clientWidth - panelWidth;
-    // Shift just enough that the hidden card lands fully inside the free area.
-    const delta = side === "right"
-      ? (n.x + n.w) * vp.zoom + vp.x - (freeW - FIT_PAD)
-      : n.x * vp.zoom + vp.x - FIT_PAD;
-    userMoved.current = true;
-    const next = { ...vp, x: vp.x - delta };
-    rf.setViewport(next, { duration: document.hidden ? 0 : 280 });
-    recomputeCue(next);
-  }, [rf, panelWidth, recomputeCue]);
+  const fit = useCallback(
+    (animate: boolean): boolean => {
+      const el = wrapRef.current;
+      if (!el || el.clientWidth === 0) return false;
+      const vp = computeOrgViewport(
+        boxes,
+        el.clientWidth,
+        el.clientHeight,
+        panelWidth,
+        focusId,
+        el.clientHeight * panelHeightFraction,
+        readableZoom,
+      );
+      if (!vp) return false;
+      // Animated viewport moves ride frame timers, which a hidden tab never gets.
+      const current = rf.getViewport();
+      if (
+        current.x !== vp.x ||
+        current.y !== vp.y ||
+        current.zoom !== vp.zoom
+      ) {
+        rf.setViewport(
+          { x: vp.x, y: vp.y, zoom: vp.zoom },
+          { duration: animate && !document.hidden ? 280 : 0 },
+        );
+      }
+      recomputeCue({ x: vp.x, y: vp.y, zoom: vp.zoom });
+      return true;
+    },
+    [
+      boxes,
+      panelWidth,
+      panelHeightFraction,
+      focusId,
+      rf,
+      recomputeCue,
+      readableZoom,
+    ],
+  );
+  const panTo = useCallback(
+    (n: CueCard, side: "left" | "right") => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const vp = rf.getViewport();
+      const freeW = el.clientWidth - panelWidth;
+      // Shift just enough that the hidden card lands fully inside the free area.
+      const delta =
+        side === "right"
+          ? (n.x + n.w) * vp.zoom + vp.x - (freeW - FIT_PAD)
+          : n.x * vp.zoom + vp.x - FIT_PAD;
+      userMoved.current = true;
+      const next = { ...vp, x: vp.x - delta };
+      rf.setViewport(next, { duration: document.hidden ? 0 : 280 });
+      recomputeCue(next);
+    },
+    [rf, panelWidth, recomputeCue],
+  );
   // Synchronous on purpose: a fit deferred to requestAnimationFrame is lost
   // when the effect re-runs before the frame (fit changes identity on every
   // tree push) or when the tab is hidden (no frames at all), and a key stamped
@@ -488,7 +1025,14 @@ function OrgGraphInner(props: OrgGraphProps) {
   // a panel change instead. Without that, the first ghost click with the
   // pane closed was panned to, then refit over as the panel opened.
   const focusNodeId = useMemo(
-    () => (goals ? (focusTarget ? (focusTarget.kind === "change" ? goals.changeNode[focusTarget.id] ?? null : focusTarget.id) : null) : focusTargetNodeId(ghosts, focusTarget)),
+    () =>
+      goals
+        ? focusTarget
+          ? focusTarget.kind === "change"
+            ? (goals.changeNode[focusTarget.id] ?? null)
+            : focusTarget.id
+          : null
+        : focusTargetNodeId(ghosts, focusTarget),
     [goals, ghosts, focusTarget],
   );
   const focusSeq = focusTarget?.seq ?? 0;
@@ -497,14 +1041,28 @@ function OrgGraphInner(props: OrgGraphProps) {
     const key = `${rootSig}|${panelWidth}|${panelHeightFraction}`;
     if (fitted.current === key) return;
     const first = fitted.current === null;
-    if (!first && (focusNodeId || ringNodeId)) { fitted.current = key; return; }
+    if (!first && (focusNodeId || ringNodeId)) {
+      fitted.current = key;
+      return;
+    }
     if (!first) userMoved.current = false;
     if (fit(!first)) fitted.current = key;
-  }, [viewportReady, rootSig, panelWidth, panelHeightFraction, boxes.length, fit, focusNodeId, ringNodeId]);
+  }, [
+    viewportReady,
+    rootSig,
+    panelWidth,
+    panelHeightFraction,
+    boxes.length,
+    fit,
+    focusNodeId,
+    ringNodeId,
+  ]);
   useWatchEffect(() => {
     const el = wrapRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => { if (!userMoved.current && viewportReady) fit(false); });
+    const ro = new ResizeObserver(() => {
+      if (!userMoved.current && viewportReady) fit(false);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [fit, viewportReady]);
@@ -522,20 +1080,35 @@ function OrgGraphInner(props: OrgGraphProps) {
   /** A ring pan that zoomed across a stop: the new level's layout lands a
    *  render later, with the card somewhere else, so it is centred once more. */
   const settleRing = useRef<string | null>(null);
-  const panToNode = useCallback((id: string, mode: "least" | "center" | "middle") => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const now = rf.getViewport();
-    const next = panIntoView(boxes, id, now, { w: el.clientWidth - panelWidth, h: el.clientHeight * (1 - panelHeightFraction) }, mode);
-    if (!next) return;
-    userMoved.current = true;
-    if (mode !== "least" && zoomLevelOf(next.zoom) !== zoomLevelOf(now.zoom)) settleRing.current = id;
-    rf.setViewport(next, { duration: document.hidden ? 0 : 280 });
-    recomputeCue(next);
-  }, [boxes, rf, panelWidth, panelHeightFraction, recomputeCue]);
+  const panToNode = useCallback(
+    (id: string, mode: "least" | "center" | "middle") => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const now = rf.getViewport();
+      const next = panIntoView(
+        boxes,
+        id,
+        now,
+        {
+          w: el.clientWidth - panelWidth,
+          h: el.clientHeight * (1 - panelHeightFraction),
+        },
+        mode,
+      );
+      if (!next) return;
+      userMoved.current = true;
+      if (mode !== "least" && zoomLevelOf(next.zoom) !== zoomLevelOf(now.zoom))
+        settleRing.current = id;
+      rf.setViewport(next, { duration: document.hidden ? 0 : 280 });
+      recomputeCue(next);
+    },
+    [boxes, rf, panelWidth, panelHeightFraction, recomputeCue],
+  );
   // Find: report the count, and bring the current match to the middle each time the person steps.
   const findCurrent = findMatches[findAt];
-  useWatchEffect(() => { onFindCount?.(findMatches.length, findAt); }, [findMatches.length, findAt]);
+  useWatchEffect(() => {
+    onFindCount?.(findMatches.length, findAt);
+  }, [findMatches.length, findAt]);
   useWatchEffect(() => {
     if (findCurrent && viewportReady) panToNode(findCurrent, "middle");
   }, [findCurrent, find?.step, viewportReady]);
@@ -552,289 +1125,606 @@ function OrgGraphInner(props: OrgGraphProps) {
 
   // Escape clears the selection unless the user is typing somewhere. Only
   // listening while there is something to clear keeps a resting chart off the window.
-  useEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    const el = document.activeElement as HTMLElement | null;
-    if (keyBelongsElsewhere(el)) return;
-    if (selectedId) onSelect(null);
-  }, selectedId ? window : null);
+  useEventListener(
+    "keydown",
+    (e) => {
+      if (e.key !== "Escape") return;
+      const el = document.activeElement as HTMLElement | null;
+      if (keyBelongsElsewhere(el)) return;
+      if (selectedId) onSelect(null);
+    },
+    selectedId ? window : null,
+  );
 
   /** The card under the pointer, else the nearest one the dragged card overlaps, among the valid targets. */
-  const findDropTarget = useCallback((node: Node, e?: { clientX: number; clientY: number }): OrgLayoutNode | null => {
-    const subject = byId.get(node.id);
-    const ok = (id: string) => (validTargets ? validTargets.has(id) : accepts(subject, id));
-    if (e) {
-      const at = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const under = layout.nodes.find((n) => ok(n.id) && at.x >= n.x && at.x <= n.x + n.w && at.y >= n.y && at.y <= n.y + n.h);
-      if (under) return under;
-    }
-    const hits = rf.getIntersectingNodes(node).filter((h) => ok(h.id));
-    if (!hits.length) return null;
-    const cx = node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
-    const cy = node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
-    const dist = (h: Node) => Math.hypot(h.position.x + (h.width ?? 0) / 2 - cx, h.position.y + (h.height ?? 0) / 2 - cy);
-    hits.sort((a, b) => dist(a) - dist(b));
-    return byId.get(hits[0].id) ?? null;
-  }, [rf, byId, layout, accepts, validTargets]);
+  const findDropTarget = useCallback(
+    (
+      node: Node,
+      e?: { clientX: number; clientY: number },
+    ): OrgLayoutNode | null => {
+      const subject = byId.get(node.id);
+      const ok = (id: string) =>
+        validTargets ? validTargets.has(id) : accepts(subject, id);
+      if (e) {
+        const at = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+        const under = layout.nodes.find(
+          (n) =>
+            ok(n.id) &&
+            at.x >= n.x &&
+            at.x <= n.x + n.w &&
+            at.y >= n.y &&
+            at.y <= n.y + n.h,
+        );
+        if (under) return under;
+      }
+      const hits = rf.getIntersectingNodes(node).filter((h) => ok(h.id));
+      if (!hits.length) return null;
+      const cx =
+        node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
+      const cy =
+        node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
+      const dist = (h: Node) =>
+        Math.hypot(
+          h.position.x + (h.width ?? 0) / 2 - cx,
+          h.position.y + (h.height ?? 0) / 2 - cy,
+        );
+      hits.sort((a, b) => dist(a) - dist(b));
+      return byId.get(hits[0].id) ?? null;
+    },
+    [rf, byId, layout, accepts, validTargets],
+  );
 
   /** On the Everything chart: the person or role card a dragged role would
    *  report to, never itself, one of its own reports, or where it already is. */
-  const findOwnerTarget = useCallback((node: Node): Node | null => {
-    if (!goals || !tree) return null;
-    const roleId = parentRefOfNodeId(node.id);
-    if (roleId?.kind !== "role") return null;
-    const role = tree.roles.find((r) => r._id === roleId.role_id);
-    if (!role) return null;
-    const ownerIds = new Set(goals.nodes.filter((n) => n.kind === "owner" && !n.ghost).map((n) => n.id));
-    const cx = node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
-    const cy = node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
-    const hits = rf.getIntersectingNodes(node).filter((h) => {
-      if (h.id === node.id || !ownerIds.has(h.id)) return false;
-      const ref = parentRefOfNodeId(h.id);
-      return !!ref && !sameParent(role.reports_to, ref) && !orgRoleReparentMakesCycle(tree, role._id, ref);
-    });
-    hits.sort((a, b) => Math.hypot(a.position.x + (a.width ?? 0) / 2 - cx, a.position.y + (a.height ?? 0) / 2 - cy) - Math.hypot(b.position.x + (b.width ?? 0) / 2 - cx, b.position.y + (b.height ?? 0) / 2 - cy));
-    return hits[0] ?? null;
-  }, [goals, tree, rf]);
+  const findOwnerTarget = useCallback(
+    (node: Node): Node | null => {
+      if (!goals || !tree) return null;
+      const roleId = parentRefOfNodeId(node.id);
+      if (roleId?.kind !== "role") return null;
+      const role = tree.roles.find((r) => r._id === roleId.role_id);
+      if (!role) return null;
+      const ownerIds = new Set(
+        goals.nodes
+          .filter((n) => n.kind === "owner" && !n.ghost)
+          .map((n) => n.id),
+      );
+      const cx =
+        node.position.x + (node.measured?.width ?? node.width ?? 0) / 2;
+      const cy =
+        node.position.y + (node.measured?.height ?? node.height ?? 0) / 2;
+      const hits = rf.getIntersectingNodes(node).filter((h) => {
+        if (h.id === node.id || !ownerIds.has(h.id)) return false;
+        const ref = parentRefOfNodeId(h.id);
+        return (
+          !!ref &&
+          !sameParent(role.reports_to, ref) &&
+          !orgRoleReparentMakesCycle(tree, role._id, ref)
+        );
+      });
+      hits.sort(
+        (a, b) =>
+          Math.hypot(
+            a.position.x + (a.width ?? 0) / 2 - cx,
+            a.position.y + (a.height ?? 0) / 2 - cy,
+          ) -
+          Math.hypot(
+            b.position.x + (b.width ?? 0) / 2 - cx,
+            b.position.y + (b.height ?? 0) / 2 - cy,
+          ),
+      );
+      return hits[0] ?? null;
+    },
+    [goals, tree, rf],
+  );
 
   // A drag on the people chart carries each dragged card's branch with it:
   // where every card started, and which dragged root each branch card follows.
-  const drag = useRef<{ roots: string[]; start: Map<string, { x: number; y: number }>; branch: Map<string, string> } | null>(null);
-  const onNodeDragStart: OnNodeDrag = useCallback((_e, node, dragged) => {
-    setDraggingId(node.id);
-    if (goals) return;
-    const roots = dragRoots(layout.edges, (dragged?.length ? dragged : [node]).map((n) => n.id));
-    const branch = subtreesOf(layout.edges, roots);
-    const start = new Map(rf.getNodes().filter((n) => branch.has(n.id) || roots.includes(n.id)).map((n) => [n.id, { ...n.position }]));
-    drag.current = { roots, start, branch };
-  }, [goals, layout, rf]);
-  const onNodeDrag: OnNodeDrag = useCallback((_e, node, dragged) => {
-    if (goals) { setDropTargetId(findOwnerTarget(node)?.id ?? null); return; }
-    const t = findDropTarget(node, _e as unknown as MouseEvent);
-    setDropTargetId(t?.id ?? null);
-    // The branch follows its root, card for card.
-    const d = drag.current;
-    if (!d || d.branch.size === 0) return;
-    // The dragged cards as this move left them (the store still holds the last move's).
-    const live = new Map((dragged?.length ? dragged : [node]).map((n) => [n.id, n.position]));
-    setNodes((prev) => prev.map((n) => {
-      const root = d.branch.get(n.id);
-      const from = root && d.start.get(root), to = root && live.get(root), mine = d.start.get(n.id);
-      return from && to && mine ? { ...n, position: { x: mine.x + to.x - from.x, y: mine.y + to.y - from.y } } : n;
-    }));
-  }, [findDropTarget, findOwnerTarget, goals, setNodes]);
-  const onNodeDragStop: OnNodeDrag = useCallback((e, node, dragged) => {
-    if (goals) {
-      const target = findOwnerTarget(node);
+  const drag = useRef<{
+    roots: string[];
+    start: Map<string, { x: number; y: number }>;
+    branch: Map<string, string>;
+  } | null>(null);
+  const onNodeDragStart: OnNodeDrag = useCallback(
+    (_e, node, dragged) => {
+      setDraggingId(node.id);
+      if (goals) return;
+      const roots = dragRoots(
+        layout.edges,
+        (dragged?.length ? dragged : [node]).map((n) => n.id),
+      );
+      const branch = subtreesOf(layout.edges, roots);
+      const start = new Map(
+        rf
+          .getNodes()
+          .filter((n) => branch.has(n.id) || roots.includes(n.id))
+          .map((n) => [n.id, { ...n.position }]),
+      );
+      drag.current = { roots, start, branch };
+    },
+    [goals, layout, rf],
+  );
+  const onNodeDrag: OnNodeDrag = useCallback(
+    (_e, node, dragged) => {
+      if (goals) {
+        setDropTargetId(findOwnerTarget(node)?.id ?? null);
+        return;
+      }
+      const t = findDropTarget(node, _e as unknown as MouseEvent);
+      setDropTargetId(t?.id ?? null);
+      // The branch follows its root, card for card.
+      const d = drag.current;
+      if (!d || d.branch.size === 0) return;
+      // The dragged cards as this move left them (the store still holds the last move's).
+      const live = new Map(
+        (dragged?.length ? dragged : [node]).map((n) => [n.id, n.position]),
+      );
+      setNodes((prev) =>
+        prev.map((n) => {
+          const root = d.branch.get(n.id);
+          const from = root && d.start.get(root),
+            to = root && live.get(root),
+            mine = d.start.get(n.id);
+          return from && to && mine
+            ? {
+                ...n,
+                position: {
+                  x: mine.x + to.x - from.x,
+                  y: mine.y + to.y - from.y,
+                },
+              }
+            : n;
+        }),
+      );
+    },
+    [findDropTarget, findOwnerTarget, goals, setNodes],
+  );
+  const onNodeDragStop: OnNodeDrag = useCallback(
+    (e, node, dragged) => {
+      if (goals) {
+        const target = findOwnerTarget(node);
+        setDropTargetId(null);
+        setDraggingId(null);
+        setNodes(flowNodes);
+        const to = target ? parentRefOfNodeId(target.id) : null;
+        const roleRef = parentRefOfNodeId(node.id);
+        if (!target || !to || roleRef?.kind !== "role" || !onMoveRole) return;
+        const t = goals.nodes.find((n) => n.id === target.id);
+        onMoveRole(
+          roleRef.role_id,
+          to,
+          t?.kind === "owner" ? t.owner.name : "",
+        );
+        return;
+      }
+      const target = findDropTarget(node, e as unknown as MouseEvent);
+      const d = drag.current;
+      drag.current = null;
       setDropTargetId(null);
       setDraggingId(null);
-      setNodes(flowNodes);
-      const to = target ? parentRefOfNodeId(target.id) : null;
-      const roleRef = parentRefOfNodeId(node.id);
-      if (!target || !to || roleRef?.kind !== "role" || !onMoveRole) return;
-      const t = goals.nodes.find((n) => n.id === target.id);
-      onMoveRole(roleRef.role_id, to, t?.kind === "owner" ? t.owner.name : "");
-      return;
-    }
-    const target = findDropTarget(node, e as unknown as MouseEvent);
-    const d = drag.current;
-    drag.current = null;
-    setDropTargetId(null);
-    setDraggingId(null);
-    const subject = byId.get(node.id);
-    const ui = useInboxStore.getState();
-    const saved = ui.clientState.ui?.org_placed ?? {};
-    const save = (next: Record<string, { x: number; y: number }>) => ui.updateClientUI({ org_placed: { ...saved, [wsKey]: next } });
-    if (!target || !subject || !moveSubjectOf(subject)) {
-      // Dropped on open canvas: each card stays where it was put, beside its
-      // parent (or on the chart, for a top card), its branch with it.
-      if (!d) { setNodes(flowNodes); return; }
-      const now = new Map((dragged?.length ? dragged : [node]).map((n) => [n.id, n.position]));
-      const still = d.roots.every((id) => { const a = d.start.get(id), b = now.get(id); return !a || !b || (Math.abs(b.x - a.x) < 1 && Math.abs(b.y - a.y) < 1); });
-      if (still) { setNodes(flowNodes); return; }
-      const parents = parentsOf(layout.edges);
-      const origin = band.current?.origin ?? { x: 0, y: 0 };
-      const spots = d.roots.flatMap((id) => {
-        const b = now.get(id);
-        if (!b) return [];
-        const up = parents.get(id);
-        const p = up ? byId.get(up) : null;
-        return [{ id, x: b.x - (p ? p.x : origin.x), y: b.y - (p ? p.y : origin.y) }];
+      const subject = byId.get(node.id);
+      const ui = useInboxStore.getState();
+      const saved = ui.clientState.ui?.org_placed ?? {};
+      const save = (next: Record<string, { x: number; y: number }>) =>
+        ui.updateClientUI({ org_placed: { ...saved, [wsKey]: next } });
+      if (!target || !subject || !moveSubjectOf(subject)) {
+        // Dropped on open canvas: each card stays where it was put, beside its
+        // parent (or on the chart, for a top card), its branch with it.
+        if (!d) {
+          setNodes(flowNodes);
+          return;
+        }
+        const now = new Map(
+          (dragged?.length ? dragged : [node]).map((n) => [n.id, n.position]),
+        );
+        const still = d.roots.every((id) => {
+          const a = d.start.get(id),
+            b = now.get(id);
+          return (
+            !a || !b || (Math.abs(b.x - a.x) < 1 && Math.abs(b.y - a.y) < 1)
+          );
+        });
+        if (still) {
+          setNodes(flowNodes);
+          return;
+        }
+        const parents = parentsOf(layout.edges);
+        const origin = band.current?.origin ?? { x: 0, y: 0 };
+        const spots = d.roots.flatMap((id) => {
+          const b = now.get(id);
+          if (!b) return [];
+          const up = parents.get(id);
+          const p = up ? byId.get(up) : null;
+          return [
+            {
+              id,
+              x: b.x - (p ? p.x : origin.x),
+              y: b.y - (p ? p.y : origin.y),
+            },
+          ];
+        });
+        save(withPlaced(placed, spots));
+        return;
+      }
+      // Moving under a new parent starts the card in its slot there.
+      if (d && d.roots.some((id) => placed[id]))
+        save(withoutPlaced(placed, d.roots));
+      const ref = parentRefOfNodeId(target.id)!;
+      const me = e as unknown as { clientX: number; clientY: number };
+      // A marked card carries the rest of the marks with it.
+      const also = marked.has(node.id)
+        ? [...marked]
+            .filter((id) => id !== node.id)
+            .map((id) => byId.get(id))
+            .flatMap((n) => (n ? [moveSubjectOf(n)].filter((x) => !!x) : []))
+        : [];
+      onReparentRequest({
+        subject: moveSubjectOf(subject)!,
+        ...(also.length ? { also } : {}),
+        target: ref,
+        targetTitle: titleOf(target),
+        at: { x: me.clientX, y: me.clientY },
       });
-      save(withPlaced(placed, spots));
-      return;
-    }
-    // Moving under a new parent starts the card in its slot there.
-    if (d && d.roots.some((id) => placed[id])) save(withoutPlaced(placed, d.roots));
-    const ref = parentRefOfNodeId(target.id)!;
-    const me = e as unknown as { clientX: number; clientY: number };
-    // A marked card carries the rest of the marks with it.
-    const also = marked.has(node.id) ? [...marked].filter((id) => id !== node.id).map((id) => byId.get(id)).flatMap((n) => (n ? [moveSubjectOf(n)].filter((x) => !!x) : [])) : [];
-    onReparentRequest({
-      subject: moveSubjectOf(subject)!,
-      ...(also.length ? { also } : {}),
-      target: ref,
-      targetTitle: titleOf(target),
-      at: { x: me.clientX, y: me.clientY },
-    });
-    if (also.length) clearMarks();
-  }, [findDropTarget, findOwnerTarget, goals, onMoveRole, byId, onReparentRequest, setNodes, flowNodes, marked, clearMarks, placed, wsKey, layout]);
+      if (also.length) clearMarks();
+    },
+    [
+      findDropTarget,
+      findOwnerTarget,
+      goals,
+      onMoveRole,
+      byId,
+      onReparentRequest,
+      setNodes,
+      flowNodes,
+      marked,
+      clearMarks,
+      placed,
+      wsKey,
+      layout,
+    ],
+  );
 
   // A session dragged in from the inbox (one card, or its whole ticked
   // selection) lands on the person or role card under the pointer.
-  const inboxDropTarget = useCallback((e: React.DragEvent): OrgLayoutNode | null => {
-    const at = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-    return layout.nodes.find((n) => DROP_TARGETS.has(n.kind) && !("ghost" in n && n.ghost && !n.ghost.solid)
-      && at.x >= n.x && at.x <= n.x + n.w && at.y >= n.y && at.y <= n.y + n.h) ?? null;
-  }, [rf, layout]);
-  const dropProps = onDropSessions && !goals ? {
-    onDragOver: (e: React.DragEvent) => {
-      if (!e.dataTransfer.types.includes(SESSION_DRAG_TYPE)) return;
-      const t = inboxDropTarget(e);
-      setDropTargetId(t?.id ?? null);
-      if (!t) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
+  const inboxDropTarget = useCallback(
+    (e: React.DragEvent): OrgLayoutNode | null => {
+      const at = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      return (
+        layout.nodes.find(
+          (n) =>
+            DROP_TARGETS.has(n.kind) &&
+            !("ghost" in n && n.ghost && !n.ghost.solid) &&
+            at.x >= n.x &&
+            at.x <= n.x + n.w &&
+            at.y >= n.y &&
+            at.y <= n.y + n.h,
+        ) ?? null
+      );
     },
-    onDragLeave: (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node)) setDropTargetId(null); },
-    onDrop: (e: React.DragEvent) => {
-      setDropTargetId(null);
-      const id = e.dataTransfer.getData(SESSION_DRAG_TYPE);
-      const t = inboxDropTarget(e);
-      const ref = t && parentRefOfNodeId(t.id);
-      if (!id || !t || !ref) return;
-      e.preventDefault();
-      e.stopPropagation();
-      onDropSessions(selectionIdsFor(id), ref, titleOf(t));
-    },
-  } : undefined;
+    [rf, layout],
+  );
+  const dropProps =
+    onDropSessions && !goals
+      ? {
+          onDragOver: (e: React.DragEvent) => {
+            if (!e.dataTransfer.types.includes(SESSION_DRAG_TYPE)) return;
+            const t = inboxDropTarget(e);
+            setDropTargetId(t?.id ?? null);
+            if (!t) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          },
+          onDragLeave: (e: React.DragEvent) => {
+            if (!e.currentTarget.contains(e.relatedTarget as globalThis.Node))
+              setDropTargetId(null);
+          },
+          onDrop: (e: React.DragEvent) => {
+            setDropTargetId(null);
+            const id = e.dataTransfer.getData(SESSION_DRAG_TYPE);
+            const t = inboxDropTarget(e);
+            const ref = t && parentRefOfNodeId(t.id);
+            if (!id || !t || !ref) return;
+            e.preventDefault();
+            e.stopPropagation();
+            onDropSessions(selectionIdsFor(id), ref, titleOf(t));
+          },
+        }
+      : undefined;
 
   /** A ghost card is a change: the page that answers it in the conversation
    *  sends the reader there (D8); otherwise a click focuses it on the map. */
-  const ghostClick = useCallback((changeId: string) => {
-    if (onOpenChange) onOpenChange(changeId);
-    else onFocusChange?.(changeId === focusChangeId ? null : changeId);
-  }, [onOpenChange, onFocusChange, focusChangeId]);
-  const onNodeClick: NodeMouseHandler = useCallback((e, node) => {
-    if (node.type === "cluster") return;
-    if (!goals && (e.metaKey || e.ctrlKey || e.shiftKey)) { if (markable(node.id)) toggleMark(node.id); return; }
-    clearMarks();
-    if (goals) {
-      // A ghost goal or project is a change: a click focuses it, as a role ghost's does.
-      const g = goals.nodes.find((x) => x.id === node.id);
-      const ghost = g?.kind === "goal" ? g.goal.ghost : g?.kind === "project" ? g.project.ghost : g?.kind === "owner" ? g.ghost : undefined;
-      // A goal, project or role that exists today opens even while a proposal
-      // moves it (its sheet's Now says so); only what a proposal would create is a change.
-      const exists = g?.kind === "goal" ? !!g.goal.row : g?.kind === "project" ? projects.some((p) => p._id === g.project.id) : g?.kind === "owner" ? !g.ghost : true;
-      if (ghost && (!onOpenObject || !exists)) { ghostClick(ghost.change_id); return; }
-      if (onOpenObject && g) {
-        const o: OrgGraphObject | null | undefined = g.kind === "goal" ? { kind: "initiative", id: g.goal.row?._id ?? g.goal.id }
-          : g.kind === "project" ? { kind: "project", id: g.project.id }
-          : g.kind === "owner" && (g.owner.kind === "role" || g.owner.kind === "person") ? { kind: g.owner.kind, id: g.owner.id }
-          : g.kind === "company" ? null : undefined;
-        if (o !== undefined && onOpenObject(o) !== false) return;
+  const ghostClick = useCallback(
+    (changeId: string) => {
+      if (onOpenChange) onOpenChange(changeId);
+      else onFocusChange?.(changeId === focusChangeId ? null : changeId);
+    },
+    [onOpenChange, onFocusChange, focusChangeId],
+  );
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (e, node) => {
+      if (node.type === "cluster") return;
+      if (!goals && (e.metaKey || e.ctrlKey || e.shiftKey)) {
+        if (markable(node.id)) toggleMark(node.id);
+        return;
       }
+      clearMarks();
+      if (goals) {
+        // A ghost goal or project is a change: a click focuses it, as a role ghost's does.
+        const g = goals.nodes.find((x) => x.id === node.id);
+        const ghost =
+          g?.kind === "goal"
+            ? g.goal.ghost
+            : g?.kind === "project"
+              ? g.project.ghost
+              : g?.kind === "owner"
+                ? g.ghost
+                : undefined;
+        // A goal, project or role that exists today opens even while a proposal
+        // moves it (its sheet's Now says so); only what a proposal would create is a change.
+        const exists =
+          g?.kind === "goal"
+            ? !!g.goal.row
+            : g?.kind === "project"
+              ? projects.some((p) => p._id === g.project.id)
+              : g?.kind === "owner"
+                ? !g.ghost
+                : true;
+        if (ghost && (!onOpenObject || !exists)) {
+          ghostClick(ghost.change_id);
+          return;
+        }
+        if (onOpenObject && g) {
+          const o: OrgGraphObject | null | undefined =
+            g.kind === "goal"
+              ? { kind: "initiative", id: g.goal.row?._id ?? g.goal.id }
+              : g.kind === "project"
+                ? { kind: "project", id: g.project.id }
+                : g.kind === "owner" &&
+                    (g.owner.kind === "role" || g.owner.kind === "person")
+                  ? { kind: g.owner.kind, id: g.owner.id }
+                  : g.kind === "company"
+                    ? null
+                    : undefined;
+          if (o !== undefined && onOpenObject(o) !== false) return;
+        }
+        onSelect(node.id === pickedId ? null : node.id);
+        return;
+      }
+      // A ghost stub is a change, not a node the page holds: a click focuses the
+      // change (the pane opens on its rationale) instead of selecting.
+      const n = byId.get(node.id);
+      const stub =
+        n && (n.kind === "person" || n.kind === "role" || n.kind === "session")
+          ? n.ghost
+          : undefined;
+      if (stub) {
+        ghostClick(stub.change_id);
+        return;
+      }
+      // A session card opens its conversation, the way it does everywhere else.
+      if (n?.kind === "session" && onOpenSession) {
+        onOpenSession(n.session._id);
+        return;
+      }
+      // A goal or project on the Everything chart opens its page.
+      if (
+        n &&
+        (n.kind === "goal" || n.kind === "project" || n.kind === "mission") &&
+        onOpenObject
+      ) {
+        const goal = n.data.goal as
+          | { id: string; row?: { _id: string } }
+          | undefined;
+        const project = n.data.project as { id: string } | undefined;
+        const o: OrgGraphObject | null = project
+          ? { kind: "project", id: project.id }
+          : goal
+            ? { kind: "initiative", id: goal.row?._id ?? goal.id }
+            : null;
+        if (o && onOpenObject(o) !== false) return;
+      }
+      if (n?.kind === "group" || n?.kind === "mission") return;
+      const o: OrgGraphObject | null =
+        n?.kind === "role"
+          ? { kind: "role", id: n.role._id }
+          : n?.kind === "person"
+            ? { kind: "person", id: n.person.user_id }
+            : null;
+      if (onOpenObject && o && onOpenObject(o) !== false) return;
       onSelect(node.id === pickedId ? null : node.id);
-      return;
-    }
-    // A ghost stub is a change, not a node the page holds: a click focuses the
-    // change (the pane opens on its rationale) instead of selecting.
-    const n = byId.get(node.id);
-    const stub = n && (n.kind === "person" || n.kind === "role" || n.kind === "session") ? n.ghost : undefined;
-    if (stub) { ghostClick(stub.change_id); return; }
-    // A session card opens its conversation, the way it does everywhere else.
-    if (n?.kind === "session" && onOpenSession) { onOpenSession(n.session._id); return; }
-    // A goal or project on the Everything chart opens its page.
-    if (n && (n.kind === "goal" || n.kind === "project" || n.kind === "mission") && onOpenObject) {
-      const goal = n.data.goal as { id: string; row?: { _id: string } } | undefined;
-      const project = n.data.project as { id: string } | undefined;
-      const o: OrgGraphObject | null = project ? { kind: "project", id: project.id } : goal ? { kind: "initiative", id: goal.row?._id ?? goal.id } : null;
-      if (o && onOpenObject(o) !== false) return;
-    }
-    if (n?.kind === "group" || n?.kind === "mission") return;
-    const o: OrgGraphObject | null = n?.kind === "role" ? { kind: "role", id: n.role._id } : n?.kind === "person" ? { kind: "person", id: n.person.user_id } : null;
-    if (onOpenObject && o && onOpenObject(o) !== false) return;
-    onSelect(node.id === pickedId ? null : node.id);
-  }, [onSelect, pickedId, byId, ghostClick, goals, onOpenObject, onOpenSession, projects, markable, toggleMark, clearMarks]);
-  const onNodeDoubleClick: NodeMouseHandler = useCallback((_e, node) => {
-    if (node.type === "owner") {
-      const g = goals?.nodes.find((x) => x.id === node.id);
-      if (onTalk && g?.kind === "owner" && g.owner.kind === "role" && !g.ghost) { onTalk({ kind: "role", id: g.owner.id }); return; }
-      onOpenInPeople?.(node.id);
-      return;
-    }
-    const n = byId.get(node.id);
-    if (n?.kind === "session") onOpenSession?.(n.session._id);
-    // Talk to a seat: the page puts its conversation beside the map (D5c).
-    else if (n?.kind === "role" && !n.ghost && onTalk) onTalk({ kind: "role", id: n.role._id });
-    // A seat opens the way a session does, and lands on the role page (I3);
-    // collapse keeps its own toggle on the card and its row in the menu.
-    else if (n?.kind === "role" && !n.ghost && n.role.standing?.conversation_id) onOpenSession?.(n.role.standing.conversation_id);
-    else if (n && (n.kind === "person" || n.kind === "role")) onToggleCollapse(n.id);
-  }, [byId, goals, onOpenSession, onToggleCollapse, onOpenInPeople, onTalk]);
-  const onContext: NodeMouseHandler = useCallback((e, node) => {
-    const n = byId.get(node.id);
-    if (n) onNodeContextMenu(e, n);
-  }, [byId, onNodeContextMenu]);
+    },
+    [
+      onSelect,
+      pickedId,
+      byId,
+      ghostClick,
+      goals,
+      onOpenObject,
+      onOpenSession,
+      projects,
+      markable,
+      toggleMark,
+      clearMarks,
+    ],
+  );
+  const onNodeDoubleClick: NodeMouseHandler = useCallback(
+    (_e, node) => {
+      if (node.type === "owner") {
+        const g = goals?.nodes.find((x) => x.id === node.id);
+        if (
+          onTalk &&
+          g?.kind === "owner" &&
+          g.owner.kind === "role" &&
+          !g.ghost
+        ) {
+          onTalk({ kind: "role", id: g.owner.id });
+          return;
+        }
+        onOpenInPeople?.(node.id);
+        return;
+      }
+      const n = byId.get(node.id);
+      if (n?.kind === "session") onOpenSession?.(n.session._id);
+      // Talk to a seat: the page puts its conversation beside the map (D5c).
+      else if (n?.kind === "role" && !n.ghost && onTalk)
+        onTalk({ kind: "role", id: n.role._id });
+      // A seat opens the way a session does, and lands on the role page (I3);
+      // collapse keeps its own toggle on the card and its row in the menu.
+      else if (
+        n?.kind === "role" &&
+        !n.ghost &&
+        n.role.standing?.conversation_id
+      )
+        onOpenSession?.(n.role.standing.conversation_id);
+      else if (n && (n.kind === "person" || n.kind === "role"))
+        onToggleCollapse(n.id);
+    },
+    [byId, goals, onOpenSession, onToggleCollapse, onOpenInPeople, onTalk],
+  );
+  const onContext: NodeMouseHandler = useCallback(
+    (e, node) => {
+      const n = byId.get(node.id);
+      if (n) onNodeContextMenu(e, n);
+    },
+    [byId, onNodeContextMenu],
+  );
 
   return (
-    <div ref={wrapRef} className="relative w-full h-full" {...dropProps} onPointerMove={(e) => { pointer.current = { x: e.clientX, y: e.clientY }; }} onPointerLeave={() => { pointer.current = null; }}>
-    <div className="absolute left-0 top-0" style={freeCanvasSize(panelWidth, panelHeightFraction)}>
-    <PinnedZoomLevel.Provider value={lens === "people" ? "far" : null}>
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={ORG_NODE_TYPES}
-      edgeTypes={ORG_EDGE_TYPES}
-      onNodesChange={onNodesChange}
-      onNodeClick={onNodeClick}
-      onNodeDoubleClick={onNodeDoubleClick}
-      onNodeContextMenu={onContext}
-      onNodeMouseEnter={goals || product ? (_e, n) => setHoverId(n.id) : undefined}
-      onNodeMouseLeave={goals || product ? () => setHoverId(null) : undefined}
-      onPaneClick={() => { clearMarks(); if (pickedId) onSelect(null); }}
-      onSelectionStart={() => { boxing.current = true; }}
-      onSelectionEnd={() => { boxing.current = false; }}
-      onSelectionChange={({ nodes: picked }) => { if (boxing.current) setMarked(new Set(picked.map((n) => n.id).filter(markable))); }}
-      onMoveStart={(event) => { if (event) userMoved.current = true; }}
-      onNodeDragStart={onNodeDragStart}
-      onNodeDrag={onNodeDrag}
-      onNodeDragStop={onNodeDragStop}
-      colorMode={theme === "dark" ? "dark" : "light"}
-      selectNodesOnDrag={false}
-      minZoom={0.25}
-      maxZoom={1.75}
-      proOptions={{ hideAttribution: true }}
-      className="org-flow"
-      style={{ background: "transparent" }}
-      {...(chrome ? CHART_FLOW_PROPS : STILL_FLOW_PROPS)}
+    <div
+      ref={wrapRef}
+      className="relative w-full h-full"
+      {...dropProps}
+      onPointerMove={(e) => {
+        pointer.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerLeave={() => {
+        pointer.current = null;
+      }}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="color-mix(in srgb, var(--sol-border) 40%, transparent)" />
-      {chrome && <Controls showInteractive={false} position="bottom-left" className="!shadow-none !border !rounded-lg overflow-hidden" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)" }} />}
-      {showMiniMap && (
-        <MiniMap
-          pannable
-          zoomable
-          position="bottom-right"
-          nodeStrokeWidth={0}
-          nodeColor={(n) => n.type === "person" || n.type === "goal" || n.type === "company" ? "var(--sol-cyan)" : n.type === "role" || n.type === "owner" ? "var(--sol-violet)" : n.type === "loose" ? "transparent" : "color-mix(in srgb, var(--sol-border) 60%, transparent)"}
-          maskColor="color-mix(in srgb, var(--sol-bg) 70%, transparent)"
-          style={{ background: "var(--sol-bg-alt)", border: "1px solid color-mix(in srgb, var(--sol-border) 40%, transparent)", borderRadius: 10 }}
+      <div
+        className="absolute left-0 top-0"
+        style={freeCanvasSize(panelWidth, panelHeightFraction)}
+      >
+        <PinnedZoomLevel.Provider value={lens === "people" ? "far" : null}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={ORG_NODE_TYPES}
+            edgeTypes={ORG_EDGE_TYPES}
+            onNodesChange={onNodesChange}
+            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onNodeContextMenu={onContext}
+            onNodeMouseEnter={
+              goals || product ? (_e, n) => setHoverId(n.id) : undefined
+            }
+            onNodeMouseLeave={
+              goals || product ? () => setHoverId(null) : undefined
+            }
+            onPaneClick={() => {
+              clearMarks();
+              if (pickedId) onSelect(null);
+            }}
+            onSelectionStart={() => {
+              boxing.current = true;
+            }}
+            onSelectionEnd={() => {
+              boxing.current = false;
+            }}
+            onSelectionChange={({ nodes: picked }) => {
+              if (boxing.current)
+                setMarked(new Set(picked.map((n) => n.id).filter(markable)));
+            }}
+            onMoveStart={(event) => {
+              if (event) userMoved.current = true;
+            }}
+            onNodeDragStart={onNodeDragStart}
+            onNodeDrag={onNodeDrag}
+            onNodeDragStop={onNodeDragStop}
+            colorMode={theme === "dark" ? "dark" : "light"}
+            selectNodesOnDrag={false}
+            minZoom={0.25}
+            maxZoom={1.75}
+            proOptions={{ hideAttribution: true }}
+            className="org-flow"
+            style={{ background: "transparent" }}
+            {...(chrome ? CHART_FLOW_PROPS : STILL_FLOW_PROPS)}
+          >
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={22}
+              size={1.2}
+              color="color-mix(in srgb, var(--sol-border) 40%, transparent)"
+            />
+            {chrome && (
+              <Controls
+                showInteractive={false}
+                position="bottom-left"
+                className="!shadow-none !border !rounded-lg overflow-hidden"
+                style={{
+                  borderColor:
+                    "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+                }}
+              />
+            )}
+            {showMiniMap && (
+              <MiniMap
+                pannable
+                zoomable
+                position="bottom-right"
+                nodeStrokeWidth={0}
+                nodeColor={(n) =>
+                  n.type === "person" ||
+                  n.type === "goal" ||
+                  n.type === "company"
+                    ? "var(--sol-cyan)"
+                    : n.type === "role" || n.type === "owner"
+                      ? "var(--sol-violet)"
+                      : n.type === "loose"
+                        ? "transparent"
+                        : "color-mix(in srgb, var(--sol-border) 60%, transparent)"
+                }
+                maskColor="color-mix(in srgb, var(--sol-bg) 70%, transparent)"
+                style={{
+                  background: "var(--sol-bg-alt)",
+                  border:
+                    "1px solid color-mix(in srgb, var(--sol-border) 40%, transparent)",
+                  borderRadius: 10,
+                }}
+              />
+            )}
+          </ReactFlow>
+        </PinnedZoomLevel.Provider>
+      </div>
+      {chrome && marked.size > 0 && (
+        <SelectionBar
+          count={marked.size}
+          right={panelWidth}
+          onMove={
+            onMoveMarked
+              ? () =>
+                  onMoveMarked(
+                    [...marked].flatMap((id) => {
+                      const n = byId.get(id);
+                      const x = n && moveSubjectOf(n);
+                      return x ? [x] : [];
+                    }),
+                  )
+              : undefined
+          }
+          onClear={clearMarks}
         />
       )}
-    </ReactFlow>
-    </PinnedZoomLevel.Provider>
-    </div>
-    {chrome && marked.size > 0 && (
-      <SelectionBar
-        count={marked.size}
-        right={panelWidth}
-        onMove={onMoveMarked ? () => onMoveMarked([...marked].flatMap((id) => { const n = byId.get(id); const x = n && moveSubjectOf(n); return x ? [x] : []; })) : undefined}
-        onClear={clearMarks}
-      />
-    )}
-    {chrome && <EdgeCue side="left" hidden={edgeCue.left} onPan={panTo} offset={0} />}
-    {chrome && <EdgeCue side="right" hidden={edgeCue.right} onPan={panTo} offset={panelWidth} />}
+      {chrome && (
+        <EdgeCue side="left" hidden={edgeCue.left} onPan={panTo} offset={0} />
+      )}
+      {chrome && (
+        <EdgeCue
+          side="right"
+          hidden={edgeCue.right}
+          onPan={panTo}
+          offset={panelWidth}
+        />
+      )}
     </div>
   );
 }
@@ -846,4 +1736,3 @@ export function OrgGraph(props: OrgGraphProps) {
     </ReactFlowProvider>
   );
 }
-

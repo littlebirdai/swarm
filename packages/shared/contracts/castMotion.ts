@@ -10,7 +10,8 @@
 export const HYPERFRAMES_RUNTIME = {
   version: "0.8.142",
   url: "https://cdn.jsdelivr.net/npm/@hyperframes/core@0.8.142/dist/hyperframe.runtime.iife.js",
-  integrity: "sha384-y4R6WhUur3WlMAj5CABPvXMT2BlKhvFMCeDe80CP69T/tuu3I6JjkZpyw8iM8ASy",
+  integrity:
+    "sha384-y4R6WhUur3WlMAj5CABPvXMT2BlKhvFMCeDe80CP69T/tuu3I6JjkZpyw8iM8ASy",
 } as const;
 
 /** Where `cast publish <dir> --render` leaves the MP4 and its manifest inside
@@ -57,10 +58,13 @@ export const MOTION_POSTER_TIME_JS = `function (root, tl) {
  * with data-composition-id plus the canvas size. A sub-composition host (it has
  * data-composition-src) alone does not make a page a composition. */
 export function pageIsMotion(html: string): boolean {
-  for (const m of html.matchAll(/<(?!template)[a-z][\w-]*\b[^>]*\bdata-composition-id\s*=[^>]*>/gi)) {
+  for (const m of html.matchAll(
+    /<(?!template)[a-z][\w-]*\b[^>]*\bdata-composition-id\s*=[^>]*>/gi,
+  )) {
     const tag = m[0];
     if (/\bdata-composition-src\s*=/i.test(tag)) continue;
-    if (/\bdata-width\s*=/i.test(tag) && /\bdata-height\s*=/i.test(tag)) return true;
+    if (/\bdata-width\s*=/i.test(tag) && /\bdata-height\s*=/i.test(tag))
+      return true;
   }
   return false;
 }

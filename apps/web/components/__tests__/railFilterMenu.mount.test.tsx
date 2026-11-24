@@ -16,7 +16,10 @@ import { MemoryRouter } from "react-router";
 // and an active filter is named on the button with a way to clear it.
 
 // A real URL: setting a filter writes it to the address bar (pushState).
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "http://localhost/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "http://localhost/inbox",
+});
 const w = dom.window as any;
 const restoreGlobals = replaceGlobals({
   window: w,
@@ -34,7 +37,11 @@ const restoreGlobals = replaceGlobals({
   KeyboardEvent: w.KeyboardEvent,
   FocusEvent: w.FocusEvent,
   MutationObserver: w.MutationObserver,
-  ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  ResizeObserver: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
   DOMRect: w.DOMRect,
   requestAnimationFrame: w.requestAnimationFrame,
   cancelAnimationFrame: w.cancelAnimationFrame,
@@ -63,9 +70,14 @@ const projectCounts: Array<[string, number]> = [
 ];
 const now = Date.now();
 const projectActivity: Record<string, FolderActivity> = Object.fromEntries(
-  projectCounts.map(([name, count]) => [name, { recent: count, lastActive: now }]),
+  projectCounts.map(([name, count]) => [
+    name,
+    { recent: count, lastActive: now },
+  ]),
 );
-const projectPathByName = Object.fromEntries(projectCounts.map(([name]) => [name, `/code/${name}`]));
+const projectPathByName = Object.fromEntries(
+  projectCounts.map(([name]) => [name, `/code/${name}`]),
+);
 
 beforeEach(() => {
   useInboxStore.setState({
@@ -110,12 +122,18 @@ async function mount() {
     await act(async () => root.unmount());
     container.remove();
   };
-  const button = () => container.querySelector<HTMLButtonElement>("[data-sv-filter-button]")!;
+  const button = () =>
+    container.querySelector<HTMLButtonElement>("[data-sv-filter-button]")!;
   const open = () =>
     act(async () => {
-      button().dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      button().dispatchEvent(
+        new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
     });
-  const folders = () => [...document.querySelectorAll<HTMLElement>("[data-filter-folder]")].map((el) => el.dataset.filterFolder);
+  const folders = () =>
+    [...document.querySelectorAll<HTMLElement>("[data-filter-folder]")].map(
+      (el) => el.dataset.filterFolder,
+    );
   return { container, button, open, folders };
 }
 
@@ -131,7 +149,13 @@ test("the idle header is one Filter button, no chip row", async () => {
 test("the short list caps at five and leaves out UUID and one-off prompt folders", async () => {
   const m = await mount();
   await m.open();
-  expect(m.folders()).toEqual(["littlebird", "alexandergreen", "codecast", "infra", "docs-site"]);
+  expect(m.folders()).toEqual([
+    "littlebird",
+    "alexandergreen",
+    "codecast",
+    "infra",
+    "docs-site",
+  ]);
   // Labels share the menu, with New label… kept.
   expect(document.querySelector(`[data-filter-label="${A}"]`)).toBeTruthy();
   expect(document.querySelector("[data-filter-new-label]")).toBeTruthy();
@@ -144,10 +168,15 @@ test("All folders… shows every folder, scratch ones included, and searches the
   expect(all.textContent).toContain(String(projectCounts.length));
   await act(async () => all.click());
   expect(m.folders()).toEqual(projectCounts.map(([name]) => name));
-  const search = document.querySelector<HTMLInputElement>("[data-filter-folder-search]")!;
+  const search = document.querySelector<HTMLInputElement>(
+    "[data-filter-folder-search]",
+  )!;
   expect(search).toBeTruthy();
   await act(async () => {
-    const setValue = Object.getOwnPropertyDescriptor(w.HTMLInputElement.prototype, "value")!.set!;
+    const setValue = Object.getOwnPropertyDescriptor(
+      w.HTMLInputElement.prototype,
+      "value",
+    )!.set!;
     setValue.call(search, "site");
     search.dispatchEvent(new w.Event("input", { bubbles: true }));
   });
@@ -157,14 +186,18 @@ test("All folders… shows every folder, scratch ones included, and searches the
 test("picking a folder filters to it, and the button names it with a clear ×", async () => {
   const m = await mount();
   await m.open();
-  const item = document.querySelector<HTMLElement>('[data-filter-folder="codecast"]')!;
+  const item = document.querySelector<HTMLElement>(
+    '[data-filter-folder="codecast"]',
+  )!;
   await act(async () => item.click());
   const st = useInboxStore.getState();
   expect(st.activeProjectFilter).toBe("codecast");
   expect(st.activeProjectPath).toBe("/code/codecast");
   expect(m.button().textContent).toBe("codecast");
   expect(m.button().getAttribute("data-active")).toBe("true");
-  const clear = m.container.querySelector<HTMLButtonElement>("[data-sv-rail-filter-clear]")!;
+  const clear = m.container.querySelector<HTMLButtonElement>(
+    "[data-sv-rail-filter-clear]",
+  )!;
   expect(clear).toBeTruthy();
   await act(async () => clear.click());
   expect(useInboxStore.getState().activeProjectFilter).toBeNull();
@@ -172,7 +205,11 @@ test("picking a folder filters to it, and the button names it with a clear ×", 
 });
 
 test("an exclusion and a multi-term label filter read on the button", async () => {
-  useInboxStore.setState({ activeProjectFilter: "littlebird", activeProjectPath: "/code/littlebird", chipFilterExclude: true } as any);
+  useInboxStore.setState({
+    activeProjectFilter: "littlebird",
+    activeProjectPath: "/code/littlebird",
+    chipFilterExclude: true,
+  } as any);
   const m = await mount();
   expect(m.button().textContent).toBe("Not littlebird");
   await act(async () => {
@@ -185,40 +222,60 @@ test("an exclusion and a multi-term label filter read on the button", async () =
     } as any);
   });
   expect(m.button().textContent).toBe("growth+1");
-  expect(m.button().getAttribute("aria-label")).toBe("Filter: growth and 1 more");
+  expect(m.button().getAttribute("aria-label")).toBe(
+    "Filter: growth and 1 more",
+  );
 });
 
 test("an active folder outside the top five still shows in the short list, marked", async () => {
-  useInboxStore.setState({ activeProjectFilter: "website", activeProjectPath: "/code/website" } as any);
+  useInboxStore.setState({
+    activeProjectFilter: "website",
+    activeProjectPath: "/code/website",
+  } as any);
   const m = await mount();
   await m.open();
   expect(m.folders()).toContain("website");
-  expect(document.querySelector<HTMLElement>('[data-filter-folder="website"]')!.dataset.term).toBe("include");
+  expect(
+    document.querySelector<HTMLElement>('[data-filter-folder="website"]')!
+      .dataset.term,
+  ).toBe("include");
 });
 
 test("⇧-click adds a term and keeps the menu open; ⌥+Enter on the keyboard hides", async () => {
   const m = await mount();
   await m.open();
   await act(async () => {
-    document.querySelector<HTMLElement>('[data-filter-folder="codecast"]')!.click();
+    document
+      .querySelector<HTMLElement>('[data-filter-folder="codecast"]')!
+      .click();
   });
   await m.open();
   await act(async () => {
     document
       .querySelector<HTMLElement>('[data-filter-folder="infra"]')!
-      .dispatchEvent(new w.MouseEvent("click", { bubbles: true, shiftKey: true }));
+      .dispatchEvent(
+        new w.MouseEvent("click", { bubbles: true, shiftKey: true }),
+      );
   });
   expect(document.querySelector('[data-filter-folder="infra"]')).toBeTruthy(); // still open
   const st = useInboxStore.getState();
   expect(st.activeProjectFilter).toBe("codecast");
-  expect(st.extraProjectFilters.map((t: { id: string }) => t.id)).toEqual(["infra"]);
+  expect(st.extraProjectFilters.map((t: { id: string }) => t.id)).toEqual([
+    "infra",
+  ]);
   expect(m.button().textContent).toBe("codecast+1");
 
   // A plain keyboard pick with ⌥ held: "everything but this folder".
   await act(async () => {
     document
       .querySelector<HTMLElement>('[data-filter-folder="littlebird"]')!
-      .dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", altKey: true, bubbles: true }));
+      .dispatchEvent(
+        new w.KeyboardEvent("keydown", {
+          key: "Enter",
+          altKey: true,
+          bubbles: true,
+        }),
+      );
   });
   expect(useInboxStore.getState().activeProjectFilter).toBe("littlebird");
   expect(useInboxStore.getState().chipFilterExclude).toBe(true);

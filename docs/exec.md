@@ -19,14 +19,14 @@ cast exec --chain implement "add retries to the sync loop"
 
 ## What it is not
 
-| Command | What it does |
-|---|---|
-| `cast exec` | Run a prompt now. Print the result. Exit. |
-| `cast spawn` | Start a session in the inbox and return immediately. |
-| `cast ask` | Search conversation history. |
-| `cast claude` | Pass flags through to the Claude binary only. |
-| `cast remote run` | Drive a session that was moved to a remote Mac. |
-| `cast workflow run` | Run a `.cast` graph with several steps. |
+| Command             | What it does                                         |
+| ------------------- | ---------------------------------------------------- |
+| `cast exec`         | Run a prompt now. Print the result. Exit.            |
+| `cast spawn`        | Start a session in the inbox and return immediately. |
+| `cast ask`          | Search conversation history.                         |
+| `cast claude`       | Pass flags through to the Claude binary only.        |
+| `cast remote run`   | Drive a session that was moved to a remote Mac.      |
+| `cast workflow run` | Run a `.cast` graph with several steps.              |
 
 ![cast exec runs in this process and prints to stdout; cast spawn --subagent starts a worker nested under this session; plain cast spawn starts an independent session with its own inbox card; cast fork branches this conversation with its history](diagrams/exec-spawn-fork.svg)
 
@@ -38,29 +38,29 @@ cast exec --chain implement "add retries to the sync loop"
 
 Shared across harnesses. Each maps onto that client's native headless form (`claude -p`, `grok -p`, `codex exec`, `cursor-agent -p`, `opencode run`, `pi -p`, `muse exec`, `gemini -p`).
 
-| Flag | What it does |
-|---|---|
-| `--agent` | `claude` (default), `codex`, `cursor`, `gemini`, `opencode`, `pi`, `grok`, `muse` |
-| `-m` / `--model` | Picker key (`opus`) or a raw id (`grok-4.6`) |
-| `--effort` | Reasoning effort. Levels vary by agent (claude: `low\|medium\|high\|max`) |
-| `--as` | Run as a named agent definition (`cast agent ls`). Explicit flags override it |
-| `--chain` | Run a named chain; the prompt is the task (see below) |
-| `-j` / `--jobs` | Parallel: each prompt is its own run, at most n at once |
-| `--task` / `--plan` | Record a chain or parallel run against a task (`ct-N`) or plan (`pl-N`) |
-| `-C` / `--dir` | Working directory |
-| `--output-format` | `text` (default), `json`, or `stream-json` |
-| `--permission-mode` | `bypass` (default), `default`, `acceptEdits`, `full_auto`, or a native mode |
-| `-r` / `--resume` | Resume a previous session by id |
-| `-c` / `--continue` | Continue the most recent session in this directory |
-| `--max-turns` | Cap turns (claude, grok) |
-| `--system-prompt` | Replace the default system prompt (claude, grok, pi) |
-| `--append-system-prompt` | Append to the default system prompt (claude, grok, pi) |
-| `--json-schema` | Constrain the final answer (claude, grok) |
-| `--bare` | Skip hooks / plugins / CLAUDE.md discovery (claude; opencode `--pure`) |
-| `--isolated` | Start in a git worktree (grok, cursor, gemini) |
-| `--timeout` | Kill the run after this long (`30s`, `2m`, `10m`) |
-| `--quiet` | Parallel and chain runs: no progress lines on stderr |
-| `--dry-run` | Print the resolved command and exit |
+| Flag                     | What it does                                                                      |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `--agent`                | `claude` (default), `codex`, `cursor`, `gemini`, `opencode`, `pi`, `grok`, `muse` |
+| `-m` / `--model`         | Picker key (`opus`) or a raw id (`grok-4.6`)                                      |
+| `--effort`               | Reasoning effort. Levels vary by agent (claude: `low\|medium\|high\|max`)         |
+| `--as`                   | Run as a named agent definition (`cast agent ls`). Explicit flags override it     |
+| `--chain`                | Run a named chain; the prompt is the task (see below)                             |
+| `-j` / `--jobs`          | Parallel: each prompt is its own run, at most n at once                           |
+| `--task` / `--plan`      | Record a chain or parallel run against a task (`ct-N`) or plan (`pl-N`)           |
+| `-C` / `--dir`           | Working directory                                                                 |
+| `--output-format`        | `text` (default), `json`, or `stream-json`                                        |
+| `--permission-mode`      | `bypass` (default), `default`, `acceptEdits`, `full_auto`, or a native mode       |
+| `-r` / `--resume`        | Resume a previous session by id                                                   |
+| `-c` / `--continue`      | Continue the most recent session in this directory                                |
+| `--max-turns`            | Cap turns (claude, grok)                                                          |
+| `--system-prompt`        | Replace the default system prompt (claude, grok, pi)                              |
+| `--append-system-prompt` | Append to the default system prompt (claude, grok, pi)                            |
+| `--json-schema`          | Constrain the final answer (claude, grok)                                         |
+| `--bare`                 | Skip hooks / plugins / CLAUDE.md discovery (claude; opencode `--pure`)            |
+| `--isolated`             | Start in a git worktree (grok, cursor, gemini)                                    |
+| `--timeout`              | Kill the run after this long (`30s`, `2m`, `10m`)                                 |
+| `--quiet`                | Parallel and chain runs: no progress lines on stderr                              |
+| `--dry-run`              | Print the resolved command and exit                                               |
 
 A flag the chosen agent cannot honor is ignored, with a warning on stderr.
 

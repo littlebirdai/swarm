@@ -13,7 +13,8 @@ export function useLiveRoomCount(): number {
     // rooms only the server list knows about (a teammate outside my strip, a
     // huddle whose occupants hide their room key).
     for (const r of (s as any).liveRooms ?? []) keys.add(r.room_key);
-    for (const m of teamMembersOf(s)) if (m?.in_room_key) keys.add(m.in_room_key);
+    for (const m of teamMembersOf(s))
+      if (m?.in_room_key) keys.add(m.in_room_key);
     if (s.call?.roomKey) keys.add(s.call.roomKey);
     return keys.size;
   });

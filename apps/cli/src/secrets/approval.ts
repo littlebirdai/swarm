@@ -18,13 +18,20 @@ export function isNeedsApproval(res: unknown): res is SecretNeedsApproval {
  * new why rewrites the open decision in place, so only a read without one is
  * told to add it.
  */
-export function approvalLines(res: SecretNeedsApproval, why?: string): string[] {
+export function approvalLines(
+  res: SecretNeedsApproval,
+  why?: string,
+): string[] {
   const held = res.approvals?.length ? res.approvals : [res.needs_approval];
   const ids = held.map((a) => a.decision).join(", ");
   const names = held.map((a) => a.secret).join(", ");
   return [
     `Ask first: ${names} ${held.length > 1 ? "wait" : "waits"} on a person's approval for this session (${ids}). Nothing was read.`,
-    ...(why ? [] : [`Add --why "…" so the person sees what it is for; a read with one updates the open decision.`]),
+    ...(why
+      ? []
+      : [
+          `Add --why "…" so the person sees what it is for; a read with one updates the open decision.`,
+        ]),
     `End your turn dormant naming it, and run this again once the answer wakes you: cast state --status dormant "Waiting on ${ids} to use ${names}"`,
   ];
 }

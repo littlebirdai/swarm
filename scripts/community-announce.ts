@@ -18,8 +18,11 @@ import { RELEASES } from "../apps/web/app/(marketing)/changelog/changelogData";
 import { POSTS } from "../apps/web/app/(marketing)/blog/posts";
 
 const SITE = "https://codecast.sh";
-const ANNOUNCEMENTS = process.env.COMMUNITY_ANNOUNCEMENTS_CHANNEL ?? "hx7h00k0d38g314mxedbjnz0ex8edh18";
-const ANCHOR = process.env.COMMUNITY_ANCHOR ?? "x17d3jsztehx3wr3m1srk9hckh8ccvjq";
+const ANNOUNCEMENTS =
+  process.env.COMMUNITY_ANNOUNCEMENTS_CHANNEL ??
+  "hx7h00k0d38g314mxedbjnz0ex8edh18";
+const ANCHOR =
+  process.env.COMMUNITY_ANCHOR ?? "x17d3jsztehx3wr3m1srk9hckh8ccvjq";
 const CONVEX_DIR = new URL("../apps/server/", import.meta.url).pathname;
 
 type Item = { key: string; content: string; at: number };
@@ -40,10 +43,19 @@ function items(): Item[] {
       content: `**${r.month}: ${r.headline}** (${r.version}${r.desktop ? `, ${r.desktop}` : ""})\n${r.summary}\n\n${lines}\n\nFull notes: ${url}`,
     });
   }
-  for (const p of POSTS as Array<{ slug: string; title: string; dek?: string; date: string }>) {
+  for (const p of POSTS as Array<{
+    slug: string;
+    title: string;
+    dek?: string;
+    date: string;
+  }>) {
     const url = `${SITE}/blog/${p.slug}`;
     const blurb = p.dek ?? "";
-    out.push({ key: url, at: Date.parse(`${p.date}T16:00:00Z`), content: `**New on the blog: ${p.title}**\n${blurb}\n${url}`.trim() });
+    out.push({
+      key: url,
+      at: Date.parse(`${p.date}T16:00:00Z`),
+      content: `**New on the blog: ${p.title}**\n${blurb}\n${url}`.trim(),
+    });
   }
   return out.sort((a, b) => a.at - b.at);
 }
@@ -55,8 +67,12 @@ async function convexRun(fn: string, args: unknown): Promise<any> {
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-  if ((await proc.exited) !== 0) throw new Error(`${fn}: ${err.trim() || out.trim()}`);
+  const [out, err] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  if ((await proc.exited) !== 0)
+    throw new Error(`${fn}: ${err.trim() || out.trim()}`);
   return JSON.parse(out);
 }
 
@@ -64,9 +80,14 @@ async function existingKeys(): Promise<Set<string>> {
   const keys = new Set<string>();
   let cursor: string | null = null;
   for (let page = 0; page < 20; page++) {
-    const r = await convexRun("chat:listMessages", { channel_id: ANNOUNCEMENTS, limit: 100, ...(cursor ? { cursor } : {}) });
+    const r = await convexRun("chat:listMessages", {
+      channel_id: ANNOUNCEMENTS,
+      limit: 100,
+      ...(cursor ? { cursor } : {}),
+    });
     for (const m of r.messages ?? []) {
-      for (const url of String(m.content).match(/https?:\/\/\S+/g) ?? []) keys.add(url.replace(/[),.]+$/, ""));
+      for (const url of String(m.content).match(/https?:\/\/\S+/g) ?? [])
+        keys.add(url.replace(/[),.]+$/, ""));
     }
     if (!r.has_more || !r.next_cursor) break;
     cursor = r.next_cursor;
@@ -80,11 +101,29 @@ async function existingKeys(): Promise<Set<string>> {
 // posts as the Anchor's bot user, dated now. Either way the room shows one
 // author for every announcement.
 async function say(content: string): Promise<void> {
-  const proc = Bun.spawn(["cast", "anchor", "say", "--team", "Codecast", "--chat", ANNOUNCEMENTS, content], { stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(
+    [
+      "cast",
+      "anchor",
+      "say",
+      "--team",
+      "Codecast",
+      "--chat",
+      ANNOUNCEMENTS,
+      content,
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
   const err = await new Response(proc.stderr).text();
   if ((await proc.exited) === 0) return;
-  if (!/No workspace agent/i.test(err)) throw new Error(`cast anchor say: ${err.trim()}`);
-  await convexRun("chat:seedCommunityPost", { channel_id: ANNOUNCEMENTS, anchor_id: ANCHOR, content, created_at: Date.now() });
+  if (!/No workspace agent/i.test(err))
+    throw new Error(`cast anchor say: ${err.trim()}`);
+  await convexRun("chat:seedCommunityPost", {
+    channel_id: ANNOUNCEMENTS,
+    anchor_id: ANCHOR,
+    content,
+    created_at: Date.now(),
+  });
 }
 
 const sayAt = process.argv.indexOf("--say");
@@ -95,7 +134,11 @@ if (sayAt >= 0) {
   console.log("posted");
   process.exit(0);
 }
-const mode = process.argv.includes("--seed") ? "seed" : process.argv.includes("--check") ? "check" : "live";
+const mode = process.argv.includes("--seed")
+  ? "seed"
+  : process.argv.includes("--check")
+    ? "check"
+    : "live";
 const have = await existingKeys();
 const missing = items().filter((i) => !have.has(i.key));
 if (mode === "check") {
@@ -104,8 +147,15 @@ if (mode === "check") {
 }
 for (const item of missing) {
   if (mode === "seed") {
-    await convexRun("chat:seedCommunityPost", { channel_id: ANNOUNCEMENTS, anchor_id: ANCHOR, content: item.content, created_at: item.at });
-    console.log(`seeded ${new Date(item.at).toISOString().slice(0, 10)}  ${item.key}`);
+    await convexRun("chat:seedCommunityPost", {
+      channel_id: ANNOUNCEMENTS,
+      anchor_id: ANCHOR,
+      content: item.content,
+      created_at: item.at,
+    });
+    console.log(
+      `seeded ${new Date(item.at).toISOString().slice(0, 10)}  ${item.key}`,
+    );
   } else {
     await say(item.content);
     console.log(`posted ${item.key}`);

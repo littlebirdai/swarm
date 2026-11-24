@@ -5,7 +5,10 @@ import { modIconExportName } from "../../../lib/mods/iconName";
 
 describe("a mod's named icon", () => {
   test("every name lucide-react/dynamic accepted draws the same icon", () => {
-    const icons = lucide as unknown as Record<string, { displayName?: string } | undefined>;
+    const icons = lucide as unknown as Record<
+      string,
+      { displayName?: string } | undefined
+    >;
     const names = Object.keys(dynamicIconImports);
     expect(names.length).toBeGreaterThan(1000);
     expect(names.filter((name) => !icons[modIconExportName(name)])).toEqual([]);

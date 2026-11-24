@@ -37,38 +37,50 @@ export function useTriageActions(isOnInboxPage: boolean) {
   // Shared body of stash/close; the only difference is the mode. The teardown
   // a close asks for happens SERVER-side on the hide data transition
   // (dispatch.applyPatches), so neither caller asks for it.
-  const hide = useCallback((id: string, mode: "stash" | "close", source: TriageSource = "key", opts?: HideSessionOpts) => {
-    const store = useInboxStore.getState();
-    if (mode === "stash") checkMilestone("m-first-stash");
-    if (!isOnInboxPage) {
-      const ordered = store.visualOrder();
-      const idx = ordered.findIndex((s) => s._id === id);
-      const next = ordered.slice(idx + 1).find((s) => s._id !== id)
-        ?? ordered.find((s) => s._id !== id);
-      if (next) store.selectPanelSession(next._id);
-    }
-    if (mode === "close") void animatedCloseSessions([id]);
-    else animatedHideSession(id, mode, opts);
-    closeOverlayIfCurrent(id);
-    if (source === "key") noteTriageKeyUse();
-  }, [isOnInboxPage, closeOverlayIfCurrent]);
+  const hide = useCallback(
+    (
+      id: string,
+      mode: "stash" | "close",
+      source: TriageSource = "key",
+      opts?: HideSessionOpts,
+    ) => {
+      const store = useInboxStore.getState();
+      if (mode === "stash") checkMilestone("m-first-stash");
+      if (!isOnInboxPage) {
+        const ordered = store.visualOrder();
+        const idx = ordered.findIndex((s) => s._id === id);
+        const next =
+          ordered.slice(idx + 1).find((s) => s._id !== id) ??
+          ordered.find((s) => s._id !== id);
+        if (next) store.selectPanelSession(next._id);
+      }
+      if (mode === "close") void animatedCloseSessions([id]);
+      else animatedHideSession(id, mode, opts);
+      closeOverlayIfCurrent(id);
+      if (source === "key") noteTriageKeyUse();
+    },
+    [isOnInboxPage, closeOverlayIfCurrent],
+  );
 
   // Defer and the rest verdicts (dormant / done / needs input) share one
   // shape: stamp the row, then advance the selection to the next row in
   // visual order (computed BEFORE the stamp — stamping reorders the list).
-  const park = useCallback((id: string, verb: "defer" | UserRest, source: TriageSource = "key") => {
-    const store = useInboxStore.getState();
-    const ordered = store.visualOrder();
-    const idx = ordered.findIndex((s) => s._id === id);
-    const next = ordered[idx + 1] ?? ordered.find((s) => s._id !== id);
-    if (verb === "defer") store.deferSession(id);
-    else animatedSetSessionRest(id, verb);
-    if (!closeOverlayIfCurrent(id) && next) {
-      if (isOnInboxPage) store.setCurrentSession(next._id);
-      else store.selectPanelSession(next._id);
-    }
-    if (source === "key") noteTriageKeyUse();
-  }, [isOnInboxPage, closeOverlayIfCurrent]);
+  const park = useCallback(
+    (id: string, verb: "defer" | UserRest, source: TriageSource = "key") => {
+      const store = useInboxStore.getState();
+      const ordered = store.visualOrder();
+      const idx = ordered.findIndex((s) => s._id === id);
+      const next = ordered[idx + 1] ?? ordered.find((s) => s._id !== id);
+      if (verb === "defer") store.deferSession(id);
+      else animatedSetSessionRest(id, verb);
+      if (!closeOverlayIfCurrent(id) && next) {
+        if (isOnInboxPage) store.setCurrentSession(next._id);
+        else store.selectPanelSession(next._id);
+      }
+      if (source === "key") noteTriageKeyUse();
+    },
+    [isOnInboxPage, closeOverlayIfCurrent],
+  );
 
   const pin = useCallback((id: string) => {
     const session = useInboxStore.getState().sessions[id];
@@ -79,9 +91,16 @@ export function useTriageActions(isOnInboxPage: boolean) {
   const label = useCallback((id: string) => {
     const store = useInboxStore.getState();
     const session = store.sessions[id];
-    if (session) store.openPalette({ targets: [session], targetType: "session", mode: "bucket" });
+    if (session)
+      store.openPalette({
+        targets: [session],
+        targetType: "session",
+        mode: "bucket",
+      });
   }, []);
 
-  return useMemo(() => ({ hide, park, pin, label, closeOverlayIfCurrent }),
-    [hide, park, pin, label, closeOverlayIfCurrent]);
+  return useMemo(
+    () => ({ hide, park, pin, label, closeOverlayIfCurrent }),
+    [hide, park, pin, label, closeOverlayIfCurrent],
+  );
 }

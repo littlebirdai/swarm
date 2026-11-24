@@ -12,7 +12,8 @@ import { useInboxStore } from "../../store/inboxStore";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 let ui: Record<string, unknown> = {};
-const { CallSettings, CallSettingsSheet } = await import("../calls/CallSettings");
+const { CallSettings, CallSettingsSheet } =
+  await import("../calls/CallSettings");
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
 const restoreGlobals = replaceGlobals({
@@ -65,7 +66,12 @@ describe("call settings", () => {
   });
 
   test("an explicit off is shown off", async () => {
-    ui = { call_camera_on: false, call_mic_on: false, call_mic_auto_open: false, sounds_enabled: false };
+    ui = {
+      call_camera_on: false,
+      call_mic_on: false,
+      call_mic_auto_open: false,
+      sounds_enabled: false,
+    };
     const sw = switches(await renderToMarkup(<CallSettings />));
     expect(sw["Camera on when I join"]).toBe(false);
     expect(sw["Microphone on when I join"]).toBe(false);
@@ -76,7 +82,15 @@ describe("call settings", () => {
   test("carries every block: join, devices, walkie, sounds", async () => {
     ui = {};
     const html = await renderToMarkup(<CallSettings />);
-    for (const t of ["When I join a call", "Microphone", "Open before I press", "Devices", "Walkie", "Sounds", "Let teammates talk to me"]) {
+    for (const t of [
+      "When I join a call",
+      "Microphone",
+      "Open before I press",
+      "Devices",
+      "Walkie",
+      "Sounds",
+      "Let teammates talk to me",
+    ]) {
       expect(html).toContain(t);
     }
     // The meeting block is the desktop's; in a browser it renders nothing.

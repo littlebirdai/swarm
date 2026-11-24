@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { MOBILE_ROOT, WEB_ROOT, codeLines as codeLinesOf, walkSources } from "./sourceWalk";
+import {
+  MOBILE_ROOT,
+  WEB_ROOT,
+  codeLines as codeLinesOf,
+  walkSources,
+} from "./sourceWalk";
 
 // FEEDER PARITY GUARD (docs/architecture/sync-convergence.md C5).
 //
@@ -27,12 +32,12 @@ import { MOBILE_ROOT, WEB_ROOT, codeLines as codeLinesOf, walkSources } from "./
 
 // The session-replica core: the exact mount set the contract names.
 const CORE_FEEDERS = [
-  "useSyncInboxSessions",   // live window + liveness overlay + recovery probes + crawls + reconciles
+  "useSyncInboxSessions", // live window + liveness overlay + recovery probes + crawls + reconciles
   "useSyncTeamInboxSessions", // team feeders per scope
-  "useSyncChangeFeed",      // sync-log applier
+  "useSyncChangeFeed", // sync-log applier
   "useSyncSessionDecisions", // decision queue (questions input)
-  "useSyncBuckets",         // labels
-  "useSyncSessionReads",    // the viewer's per-session read marks (unread)
+  "useSyncBuckets", // labels
+  "useSyncSessionReads", // the viewer's per-session read marks (unread)
 ] as const;
 
 function read(p: string): string {
@@ -67,7 +72,10 @@ describe("useSyncCore owns the full feeder mount set", () => {
 
   test("mobile StoreSyncBridge mounts useSyncCore and wires the AppState wake source", () => {
     const src = read(join(MOBILE_ROOT, "components", "StoreSyncBridge.tsx"));
-    expect(src.includes("useSyncCore('mobile')") || src.includes('useSyncCore("mobile")')).toBe(true);
+    expect(
+      src.includes("useSyncCore('mobile')") ||
+        src.includes('useSyncCore("mobile")'),
+    ).toBe(true);
     // The resume catch-up pass: AppState "active" emits on the syncWake bus.
     expect(src.includes("AppState.addEventListener")).toBe(true);
     expect(src.includes("emitSyncWake()")).toBe(true);
@@ -79,19 +87,25 @@ describe("useSyncCore owns the full feeder mount set", () => {
     // The args shape, whichever reader wraps it (the split reader now): the
     // constant when this window hosts its own feeds, "skip" as a follower
     // (docs/architecture/sync-host.md).
-    expect(live.includes('(api.conversations.listInboxSessions, isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip"')).toBe(true);
+    expect(
+      live.includes(
+        '(api.conversations.listInboxSessions, isSyncHost ? LIST_INBOX_SESSIONS_ARGS : "skip"',
+      ),
+    ).toBe(true);
     // The probe reads the same constant; querySplitWhole adds the `_probe`
     // token that makes each read a fresh round trip.
     const syncSrc = read(join(WEB_ROOT, "hooks", "useSyncInboxSessions.ts"));
-    expect(syncSrc.includes("querySplitWhole(convex, api.conversations.listInboxSessions, LIST_INBOX_SESSIONS_ARGS,")).toBe(true);
+    expect(
+      syncSrc.includes(
+        "querySplitWhole(convex, api.conversations.listInboxSessions, LIST_INBOX_SESSIONS_ARGS,",
+      ),
+    ).toBe(true);
     // No hand-built listInboxSessions args anywhere in the two files: every
     // call is either the constant or the constant + probe token.
     for (const src of [live, syncSrc]) {
       for (const line of codeLines(src)) {
         if (!line.includes("listInboxSessions,")) continue;
-        expect(
-          line.includes("LIST_INBOX_SESSIONS_ARGS"),
-        ).toBe(true);
+        expect(line.includes("LIST_INBOX_SESSIONS_ARGS")).toBe(true);
       }
     }
   });
@@ -104,7 +118,11 @@ describe("useSyncCore owns the full feeder mount set", () => {
     };
     for (const [file, query] of Object.entries(feeds)) {
       const src = codeLines(read(join(WEB_ROOT, "hooks", file))).join("\n");
-      expect(src).toMatch(new RegExp(`useSplitQueryNoThrow\\(\\s*api\\.conversations\\.${query},`));
+      expect(src).toMatch(
+        new RegExp(
+          `useSplitQueryNoThrow\\(\\s*api\\.conversations\\.${query},`,
+        ),
+      );
     }
   });
 });
@@ -112,7 +130,9 @@ describe("useSyncCore owns the full feeder mount set", () => {
 describe("mobile screens host no core feeder", () => {
   test("no file under mobile app/ mounts a core feeder or useSyncCore", () => {
     const offenders: string[] = [];
-    const banned = new RegExp(`\\b(${CORE_FEEDERS.join("|")}|useSyncCore|useLiveInboxSessions)\\b`);
+    const banned = new RegExp(
+      `\\b(${CORE_FEEDERS.join("|")}|useSyncCore|useLiveInboxSessions)\\b`,
+    );
     for (const file of walkSources(join(MOBILE_ROOT, "app"))) {
       const rel = file.slice(MOBILE_ROOT.length + 1);
       codeLines(read(file)).forEach((line) => {
@@ -148,10 +168,16 @@ const SESSION_REPLICA_CHANNELS = [
 // overlay, sync-log, decision or label subscription — those feed the replica
 // through useSyncCore only.
 const SESSION_REPLICA_SUBSCRIPTIONS = SESSION_REPLICA_CHANNELS.filter(
-  (ch) => !ch.startsWith("users.") && ch !== "conversations.getInboxSessionsByIds" && ch !== "conversations.listInboxSessionsPaginated",
+  (ch) =>
+    !ch.startsWith("users.") &&
+    ch !== "conversations.getInboxSessionsByIds" &&
+    ch !== "conversations.listInboxSessionsPaginated",
 );
 
-function usesChannel(src: string, channels: readonly string[] = SESSION_REPLICA_CHANNELS): string[] {
+function usesChannel(
+  src: string,
+  channels: readonly string[] = SESSION_REPLICA_CHANNELS,
+): string[] {
   const code = codeLines(src).join("\n");
   return channels.filter((ch) => code.includes(`api.${ch}`));
 }
@@ -196,7 +222,10 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
       if (!/\.tsx?$/.test(name) || /\.test\.tsx?$/.test(name)) continue;
       const channels = usesChannel(read(join(WEB_ROOT, "hooks", name)));
       if (channels.length === 0) continue;
-      if (!closure.has(name)) offenders.push(`hooks/${name} feeds ${channels.join(", ")} but useSyncCore does not mount it`);
+      if (!closure.has(name))
+        offenders.push(
+          `hooks/${name} feeds ${channels.join(", ")} but useSyncCore does not mount it`,
+        );
     }
     expect(offenders).toEqual([]);
     // Sanity: the closure really covers the named channels (a typo in the
@@ -204,12 +233,15 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
     const covered = new Set<string>();
     for (const rel of closure) {
       try {
-        for (const ch of usesChannel(read(join(WEB_ROOT, "hooks", rel)))) covered.add(ch);
+        for (const ch of usesChannel(read(join(WEB_ROOT, "hooks", rel))))
+          covered.add(ch);
       } catch {
         /* skipped */
       }
     }
-    expect([...SESSION_REPLICA_CHANNELS].filter((ch) => !covered.has(ch))).toEqual([]);
+    expect(
+      [...SESSION_REPLICA_CHANNELS].filter((ch) => !covered.has(ch)),
+    ).toEqual([]);
   });
 
   test("no mobile file subscribes to a replica channel directly", () => {
@@ -217,7 +249,10 @@ describe("every session-replica feeder is in the useSyncCore profile (derived)",
     for (const dir of ["app", "components", "hooks", "lib"]) {
       for (const file of walkSources(join(MOBILE_ROOT, dir))) {
         const channels = usesChannel(read(file), SESSION_REPLICA_SUBSCRIPTIONS);
-        if (channels.length) offenders.push(`${file.slice(MOBILE_ROOT.length + 1)}: ${channels.join(", ")}`);
+        if (channels.length)
+          offenders.push(
+            `${file.slice(MOBILE_ROOT.length + 1)}: ${channels.join(", ")}`,
+          );
       }
     }
     expect(offenders).toEqual([]);
@@ -250,7 +285,13 @@ describe("the useSyncCore import closure is Hermes-safe", () => {
       for (const m of src.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)) {
         const base = join(dir, m[1]).replace(/\.tsx?$/, "");
         // A native twin shadows the web file on Metro; walk the twin instead.
-        for (const ext of [".native.ts", ".native.tsx", ".ts", ".tsx", "/index.ts"]) {
+        for (const ext of [
+          ".native.ts",
+          ".native.tsx",
+          ".ts",
+          ".tsx",
+          "/index.ts",
+        ]) {
           try {
             statSync(join(WEB_ROOT, base + ext));
             stack.push(base + ext);
@@ -269,7 +310,11 @@ describe("the useSyncCore import closure is Hermes-safe", () => {
     const reachable = closure("hooks/useSyncCore.ts");
     // Sanity: the walk reaches the store and the warm loop (the module that
     // carried the last import.meta), so a pass is not vacuous.
-    for (const must of ["hooks/inboxWarm.ts", "store/inboxStore.ts", "hooks/useInboxDigestCompare.ts"]) {
+    for (const must of [
+      "hooks/inboxWarm.ts",
+      "store/inboxStore.ts",
+      "hooks/useInboxDigestCompare.ts",
+    ]) {
       expect(reachable.has(must), `closure misses ${must}`).toBe(true);
     }
     for (const rel of reachable) {
@@ -282,7 +327,8 @@ describe("the useSyncCore import closure is Hermes-safe", () => {
         /* no twin */
       }
       for (const { line, n } of codeLinesOf(read(join(WEB_ROOT, rel)))) {
-        if (/\bimport\.meta\b/.test(line)) offenders.push(`${rel}:${n}: ${line.trim()}`);
+        if (/\bimport\.meta\b/.test(line))
+          offenders.push(`${rel}:${n}: ${line.trim()}`);
       }
     }
     expect(offenders).toEqual([]);

@@ -1,22 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import { describeError, errorChain, errorSummary, rootError } from "../errorCause";
+import {
+  describeError,
+  errorChain,
+  errorSummary,
+  rootError,
+} from "../errorCause";
 
 // The shape React hands to onRecoverableError in a production build: a wrapper
 // whose message is only the error code, with the real throw in `cause`.
 function reactWrapper(cause: unknown) {
   return new Error(
     "Minified React error #520; visit https://react.dev/errors/520 for the full message",
-    { cause }
+    { cause },
   );
 }
 
 describe("errorCause", () => {
   test("a React recovery wrapper reports the error that actually threw", () => {
-    const real = new TypeError("Cannot read properties of undefined (reading 'title')");
+    const real = new TypeError(
+      "Cannot read properties of undefined (reading 'title')",
+    );
     const wrapped = reactWrapper(real);
 
     expect(errorSummary(wrapped)).toBe(
-      "Cannot read properties of undefined (reading 'title')"
+      "Cannot read properties of undefined (reading 'title')",
     );
     expect(rootError(wrapped)).toBe(real);
     expect(errorChain(wrapped)).toEqual([wrapped, real]);
@@ -46,7 +53,7 @@ describe("errorCause", () => {
 
   test("an object cause carrying a message is read", () => {
     expect(errorSummary(reactWrapper({ message: "convex: not found" }))).toBe(
-      "convex: not found"
+      "convex: not found",
     );
   });
 

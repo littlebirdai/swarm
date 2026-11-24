@@ -9,7 +9,11 @@ import * as path from "path";
 // relative to the directory the command ran in is resolved to that (resolve).
 
 function git(cwd: string, args: string[], okCodes = [0]): string | null {
-  const r = spawnSync("git", args, { cwd, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync("git", args, {
+    cwd,
+    encoding: "utf-8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
   return okCodes.includes(r.status ?? -1) ? r.stdout : null;
 }
 
@@ -28,23 +32,58 @@ export function guideDiffBase(cwd: string, base?: string): string {
  * means: as written when the root has it, else relative to `cwd` (a guide
  * written from a package directory), else as written.
  */
-export function guideDiffReader(cwd: string, base?: string): { root: string; base: string; resolve: (file: string) => string; diffFor: (file: string) => string | null } {
+export function guideDiffReader(
+  cwd: string,
+  base?: string,
+): {
+  root: string;
+  base: string;
+  resolve: (file: string) => string;
+  diffFor: (file: string) => string | null;
+} {
   const root = git(cwd, ["rev-parse", "--show-toplevel"])?.trim() || cwd;
   const from = guideDiffBase(root, base);
   const rootDiff = (file: string) => {
-    const tracked = git(root, ["diff", "--no-color", "--no-ext-diff", from, "--", file]);
+    const tracked = git(root, [
+      "diff",
+      "--no-color",
+      "--no-ext-diff",
+      from,
+      "--",
+      file,
+    ]);
     if (tracked) return tracked;
     if (!fs.existsSync(path.join(root, file))) return null;
     // Untracked: --no-index exits 1 when the files differ, which is the point.
-    return git(root, ["diff", "--no-color", "--no-index", "--", "/dev/null", file], [0, 1]) || null;
+    return (
+      git(
+        root,
+        ["diff", "--no-color", "--no-index", "--", "/dev/null", file],
+        [0, 1],
+      ) || null
+    );
   };
   const resolve = (file: string) => {
-    const fromCwd = path.relative(root, path.resolve(cwd, file)).split(path.sep).join("/");
-    const candidates = path.isAbsolute(file) ? [fromCwd] : [...new Set([file, fromCwd])];
+    const fromCwd = path
+      .relative(root, path.resolve(cwd, file))
+      .split(path.sep)
+      .join("/");
+    const candidates = path.isAbsolute(file)
+      ? [fromCwd]
+      : [...new Set([file, fromCwd])];
     // A deleted file exists nowhere on disk but still has a diff.
-    return candidates.find((f) => !f.startsWith("..") && fs.existsSync(path.join(root, f)))
-      ?? candidates.find((f) => !f.startsWith("..") && rootDiff(f))
-      ?? file;
+    return (
+      candidates.find(
+        (f) => !f.startsWith("..") && fs.existsSync(path.join(root, f)),
+      ) ??
+      candidates.find((f) => !f.startsWith("..") && rootDiff(f)) ??
+      file
+    );
   };
-  return { root, base: from, resolve, diffFor: (file) => rootDiff(resolve(file)) };
+  return {
+    root,
+    base: from,
+    resolve,
+    diffFor: (file) => rootDiff(resolve(file)),
+  };
 }

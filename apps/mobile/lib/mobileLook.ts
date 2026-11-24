@@ -9,19 +9,26 @@
 // Style. Its own choice, when it has made one, wins.
 //
 // No React Native here, so the decision is tested directly (mobileLook.test.ts).
-import type { Look } from '@/constants/Theme';
-import { prefersModern } from '@codecast/web/lib/modernStyle';
+import type { Look } from "@/constants/Theme";
+import { prefersModern } from "@codecast/web/lib/modernStyle";
 
-export type LookPrefs = { modern_style?: unknown; visual_style?: unknown; mobile_modern_style?: unknown } | null | undefined;
+export type LookPrefs =
+  | {
+      modern_style?: unknown;
+      visual_style?: unknown;
+      mobile_modern_style?: unknown;
+    }
+  | null
+  | undefined;
 
 export function resolveMobileLook(ui: LookPrefs): Look {
   const own = ui?.mobile_modern_style;
-  if (own === true || own === false) return own ? 'modern' : 'classic';
-  return prefersModern(ui) ? 'modern' : 'classic';
+  if (own === true || own === false) return own ? "modern" : "classic";
+  return prefersModern(ui) ? "modern" : "classic";
 }
 
 /** Whether the phone's look comes from its own choice or follows the web. */
-export function mobileLookSource(ui: LookPrefs): 'phone' | 'web' {
+export function mobileLookSource(ui: LookPrefs): "phone" | "web" {
   const own = ui?.mobile_modern_style;
-  return own === true || own === false ? 'phone' : 'web';
+  return own === true || own === false ? "phone" : "web";
 }

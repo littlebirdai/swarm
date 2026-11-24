@@ -27,14 +27,25 @@ export async function recoveryFleet(
   if (!deviceId) return laptop;
   const host = online.find((d) => d.device_id === deviceId && runsOwnFleet(d));
   if (!host) return undefined;
-  const person: Doc<"devices"> | undefined = laptop ?? (await ctx.db
-    .query("devices")
-    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
-    .collect())
-    .filter((d: Doc<"devices">) => !d.is_remote)
-    .sort((a: Doc<"devices">, b: Doc<"devices">) => b.last_seen - a.last_seen)[0];
+  const person: Doc<"devices"> | undefined =
+    laptop ??
+    (
+      await ctx.db
+        .query("devices")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+        .collect()
+    )
+      .filter((d: Doc<"devices">) => !d.is_remote)
+      .sort(
+        (a: Doc<"devices">, b: Doc<"devices">) => b.last_seen - a.last_seen,
+      )[0];
   const on = !!person && recoveryModeOf(person) !== "off";
-  return { ...host, cc_auto_switch: on, cc_recovery_ask: false, cc_auto_continue: false };
+  return {
+    ...host,
+    cc_auto_switch: on,
+    cc_recovery_ask: false,
+    cc_auto_continue: false,
+  };
 }
 
 /**
@@ -45,20 +56,37 @@ export async function recoveryFleet(
  * window (`seenStale`).
  */
 export async function scheduleSwitchAhead(
-  ctx: { scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
-  beat: { deviceId: string; local: boolean; ccAccounts?: { fleet_store?: boolean } | null; previous?: unknown; seenStale: boolean },
+  beat: {
+    deviceId: string;
+    local: boolean;
+    ccAccounts?: { fleet_store?: boolean } | null;
+    previous?: unknown;
+    seenStale: boolean;
+  },
 ): Promise<void> {
   if (!beat.ccAccounts?.fleet_store) return;
   if (beat.local) {
-    if (JSON.stringify(beat.ccAccounts) === JSON.stringify(beat.previous)) return;
-    await ctx.scheduler.runAfter(0, internal.accountSwitch.switchAheadCheck, { user_id: userId });
+    if (JSON.stringify(beat.ccAccounts) === JSON.stringify(beat.previous))
+      return;
+    await ctx.scheduler.runAfter(0, internal.accountSwitch.switchAheadCheck, {
+      user_id: userId,
+    });
   } else if (beat.seenStale) {
-    await ctx.scheduler.runAfter(0, internal.accountSwitch.switchAheadCheck, { user_id: userId, device_id: beat.deviceId });
+    await ctx.scheduler.runAfter(0, internal.accountSwitch.switchAheadCheck, {
+      user_id: userId,
+      device_id: beat.deviceId,
+    });
   }
 }
 
-type BeatAccounts = { profiles?: ReadonlyArray<{ email?: string }> } | null | undefined;
+type BeatAccounts =
+  | { profiles?: ReadonlyArray<{ email?: string }> }
+  | null
+  | undefined;
 
 /**
  * Book a recovery pass when a machine gains an account: one just opened to it
@@ -68,13 +96,24 @@ type BeatAccounts = { profiles?: ReadonlyArray<{ email?: string }> } | null | un
  * is not a gain. The pass is idempotent, so a spare one costs nothing.
  */
 export async function scheduleRecoveryOnNewAccount(
-  ctx: { scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   userId: Id<"users">,
   beat: { ccAccounts?: BeatAccounts; previous?: BeatAccounts },
 ): Promise<void> {
   if (!beat.ccAccounts || !beat.previous) return;
   const key = (email?: string) => email?.trim().toLowerCase();
-  const before = new Set((beat.previous.profiles ?? []).map((p) => key(p.email)).filter(Boolean));
-  if (!(beat.ccAccounts.profiles ?? []).some((p) => key(p.email) && !before.has(key(p.email)))) return;
-  await ctx.scheduler.runAfter(0, internal.accountSwitch.autoSwitchCheck, { user_id: userId });
+  const before = new Set(
+    (beat.previous.profiles ?? []).map((p) => key(p.email)).filter(Boolean),
+  );
+  if (
+    !(beat.ccAccounts.profiles ?? []).some(
+      (p) => key(p.email) && !before.has(key(p.email)),
+    )
+  )
+    return;
+  await ctx.scheduler.runAfter(0, internal.accountSwitch.autoSwitchCheck, {
+    user_id: userId,
+  });
 }

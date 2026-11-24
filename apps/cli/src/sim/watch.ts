@@ -22,7 +22,14 @@
  * agent's finger the way it draws its browser cursor.
  */
 
-import type { FrameSource, FrameSourceHandlers, FrameSourceOptions, WatchAction, WatchEngine, WatchInput } from "../browser/watchSource.js";
+import type {
+  FrameSource,
+  FrameSourceHandlers,
+  FrameSourceOptions,
+  WatchAction,
+  WatchEngine,
+  WatchInput,
+} from "../browser/watchSource.js";
 import { WatchOpenError } from "../browser/watchSource.js";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -31,7 +38,13 @@ import { heldBySession, readOrientation, readPool } from "./pool.js";
 import { startRecording, stopRecording } from "./record.js";
 import { readSimAction, type SimAction } from "./activity.js";
 import { turned } from "./orientation.js";
-import { startSimStream, type SimScreen, type SimStream, type SimStreamHandlers, type SimStreamOptions } from "./simstream.js";
+import {
+  startSimStream,
+  type SimScreen,
+  type SimStream,
+  type SimStreamHandlers,
+  type SimStreamOptions,
+} from "./simstream.js";
 import { deviceState, hasSimctl } from "./simctl.js";
 
 /** The session uuids among a hello's owner keys (watchServer ownerCandidates). */
@@ -46,21 +59,59 @@ export function sessionsOf(candidates: string[]): string[] {
 
 /** HID usage codes for the keys the viewer forwards by name. */
 const NAMED_KEYS: Record<string, number> = {
-  Enter: 40, Escape: 41, Backspace: 42, Tab: 43, Delete: 76,
-  ArrowRight: 79, ArrowLeft: 80, ArrowDown: 81, ArrowUp: 82,
-  Home: 74, PageUp: 75, End: 77, PageDown: 78,
+  Enter: 40,
+  Escape: 41,
+  Backspace: 42,
+  Tab: 43,
+  Delete: 76,
+  ArrowRight: 79,
+  ArrowLeft: 80,
+  ArrowDown: 81,
+  ArrowUp: 82,
+  Home: 74,
+  PageUp: 75,
+  End: 77,
+  PageDown: 78,
 };
 
 const SHIFT = 225;
 const UNSHIFTED = "abcdefghijklmnopqrstuvwxyz1234567890";
 const PUNCT: Record<string, [number, boolean]> = {
-  " ": [44, false], "-": [45, false], "_": [45, true], "=": [46, false], "+": [46, true],
-  "[": [47, false], "{": [47, true], "]": [48, false], "}": [48, true], "\\": [49, false], "|": [49, true],
-  ";": [51, false], ":": [51, true], "'": [52, false], "\"": [52, true], "`": [53, false], "~": [53, true],
-  ",": [54, false], "<": [54, true], ".": [55, false], ">": [55, true], "/": [56, false], "?": [56, true],
-  "!": [30, true], "@": [31, true], "#": [32, true], "$": [33, true], "%": [34, true],
-  "^": [35, true], "&": [36, true], "*": [37, true], "(": [38, true], ")": [39, true],
-  "\n": [40, false], "\t": [43, false],
+  " ": [44, false],
+  "-": [45, false],
+  _: [45, true],
+  "=": [46, false],
+  "+": [46, true],
+  "[": [47, false],
+  "{": [47, true],
+  "]": [48, false],
+  "}": [48, true],
+  "\\": [49, false],
+  "|": [49, true],
+  ";": [51, false],
+  ":": [51, true],
+  "'": [52, false],
+  '"': [52, true],
+  "`": [53, false],
+  "~": [53, true],
+  ",": [54, false],
+  "<": [54, true],
+  ".": [55, false],
+  ">": [55, true],
+  "/": [56, false],
+  "?": [56, true],
+  "!": [30, true],
+  "@": [31, true],
+  "#": [32, true],
+  $: [33, true],
+  "%": [34, true],
+  "^": [35, true],
+  "&": [36, true],
+  "*": [37, true],
+  "(": [38, true],
+  ")": [39, true],
+  "\n": [40, false],
+  "\t": [43, false],
 };
 
 /** One character as a HID key and whether it needs shift; null for what a US keyboard cannot type. */
@@ -100,13 +151,24 @@ const WHEEL_SETTLE_MS = 140;
 export class SimInputMapper {
   /** Where the finger is while one is down, so it can be lifted there. */
   private pressed: { x: number; y: number } | null = null;
-  private wheel: { x: number; y: number; startX: number; startY: number } | null = null;
+  private wheel: {
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+  } | null = null;
   private wheelTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly send: (line: string) => void,
-    private readonly screenPoints: () => { width: number; height: number } | null,
-    private readonly timers: { set: typeof setTimeout; clear: typeof clearTimeout } = { set: setTimeout, clear: clearTimeout },
+    private readonly screenPoints: () => {
+      width: number;
+      height: number;
+    } | null,
+    private readonly timers: {
+      set: typeof setTimeout;
+      clear: typeof clearTimeout;
+    } = { set: setTimeout, clear: clearTimeout },
   ) {}
 
   input(ev: WatchInput): void {
@@ -139,7 +201,8 @@ export class SimInputMapper {
         if (ev.type !== "keyDown") return;
         const code = NAMED_KEYS[ev.key];
         if (code) this.send(`key ${code}`);
-        else if (ev.key.length === 1) for (const l of typeLines(ev.key)) this.send(l);
+        else if (ev.key.length === 1)
+          for (const l of typeLines(ev.key)) this.send(l);
         return;
       }
       case "insertText":
@@ -153,7 +216,13 @@ export class SimInputMapper {
   }
 
   /** A finger that follows the wheel: down where the pointer is, moved against the delta. */
-  private scroll(x: number, y: number, dx: number, dy: number, size: { width: number; height: number }): void {
+  private scroll(
+    x: number,
+    y: number,
+    dx: number,
+    dy: number,
+    size: { width: number; height: number },
+  ): void {
     if (!this.wheel) {
       this.wheel = { x, y, startX: x, startY: y };
       this.send(`down ${fmt(x)} ${fmt(y)}`);
@@ -164,7 +233,12 @@ export class SimInputMapper {
     // Off the glass the finger lifts and lands again where it started, so a
     // long scroll keeps going instead of stopping at the screen's edge.
     const margin = 8;
-    if (w.x < margin || w.x > size.width - margin || w.y < margin || w.y > size.height - margin) {
+    if (
+      w.x < margin ||
+      w.x > size.width - margin ||
+      w.y < margin ||
+      w.y > size.height - margin
+    ) {
       const ex = Math.min(size.width - margin, Math.max(margin, w.x));
       const ey = Math.min(size.height - margin, Math.max(margin, w.y));
       this.send(`up ${fmt(ex)} ${fmt(ey)}`);
@@ -201,9 +275,20 @@ function clamp01(v: number): number {
 }
 
 /** An agent action as the watch protocol's action messages, in 0..1 of the screen. */
-export function actionsFor(a: SimAction, size: { width: number; height: number }, last: { x: number; y: number }): WatchAction[] {
-  const n = (x: number, y: number) => ({ x: clamp01(x / size.width), y: clamp01(y / size.height) });
-  const msg = (kind: WatchAction["kind"], p: { x: number; y: number }, extra: Partial<WatchAction> = {}): WatchAction => ({ type: "action", kind, ...p, at: a.at, ...extra });
+export function actionsFor(
+  a: SimAction,
+  size: { width: number; height: number },
+  last: { x: number; y: number },
+): WatchAction[] {
+  const n = (x: number, y: number) => ({
+    x: clamp01(x / size.width),
+    y: clamp01(y / size.height),
+  });
+  const msg = (
+    kind: WatchAction["kind"],
+    p: { x: number; y: number },
+    extra: Partial<WatchAction> = {},
+  ): WatchAction => ({ type: "action", kind, ...p, at: a.at, ...extra });
   switch (a.kind) {
     case "tap": {
       const p = n(a.x, a.y);
@@ -212,7 +297,12 @@ export function actionsFor(a: SimAction, size: { width: number; height: number }
     case "swipe": {
       const from = n(a.x, a.y);
       const to = n(a.x2, a.y2);
-      return [msg("move", from), msg("down", from), msg("move", to), msg("up", to)];
+      return [
+        msg("move", from),
+        msg("down", from),
+        msg("move", to),
+        msg("up", to),
+      ];
     }
     case "type":
       return [msg("type", last, { text: a.text })];
@@ -227,13 +317,22 @@ export interface SimEngineDeps {
   /** Whether the machine can run simulators at all. */
   available(): boolean;
   booted(udid: string): boolean;
-  start(udid: string, opts: SimStreamOptions, handlers: SimStreamHandlers): Promise<SimStream>;
+  start(
+    udid: string,
+    opts: SimStreamOptions,
+    handlers: SimStreamHandlers,
+  ): Promise<SimStream>;
   readAction(udid: string): SimAction | null;
   now(): number;
   /** Screen recording, shared with `cast sim record` (sim/record.ts). */
   record: {
-    start(udid: string, file: string): Promise<{ file: string } | { error: string }>;
-    stop(udid: string): Promise<{ file: string; bytes: number } | { error: string }>;
+    start(
+      udid: string,
+      file: string,
+    ): Promise<{ file: string } | { error: string }>;
+    stop(
+      udid: string,
+    ): Promise<{ file: string; bytes: number } | { error: string }>;
   };
   /** A fresh file for a capture or recording; read and removed once sent. */
   tempFile(ext: string): string;
@@ -252,7 +351,8 @@ const realDeps: SimEngineDeps = {
   readAction: readSimAction,
   now: () => Date.now(),
   record: { start: startRecording, stop: stopRecording },
-  tempFile: (ext) => path.join(os.tmpdir(), `codecast-sim-${process.pid}-${Date.now()}.${ext}`),
+  tempFile: (ext) =>
+    path.join(os.tmpdir(), `codecast-sim-${process.pid}-${Date.now()}.${ext}`),
   takeFile(file) {
     try {
       return fs.readFileSync(file).toString("base64");
@@ -282,7 +382,8 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
   let availableCache: { at: number; value: boolean } | null = null;
   const available = () => {
     const now = deps.now();
-    if (!availableCache || now - availableCache.at > 60_000) availableCache = { at: now, value: deps.available() };
+    if (!availableCache || now - availableCache.at > 60_000)
+      availableCache = { at: now, value: deps.available() };
     return availableCache.value;
   };
 
@@ -299,21 +400,33 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
       return { error: available() ? "no-sim" : "no-simulators" };
     },
 
-    async open(udid: string, opts: FrameSourceOptions, handlers: FrameSourceHandlers): Promise<FrameSource> {
-      if (!deps.booted(udid)) throw new WatchOpenError("sim-not-booted", "the session's simulator is not booted");
+    async open(
+      udid: string,
+      opts: FrameSourceOptions,
+      handlers: FrameSourceHandlers,
+    ): Promise<FrameSource> {
+      if (!deps.booted(udid))
+        throw new WatchOpenError(
+          "sim-not-booted",
+          "the session's simulator is not booted",
+        );
       let screen: SimScreen | null = null;
       let stopped = false;
 
       // Trailing throttle: frames only come when the screen changed, so a
       // frame held back (a slow viewer, the interval) must still go out once
       // things settle, or the view freezes one step behind the device.
-      let pending: { data: string; width: number; height: number } | null = null;
+      let pending: { data: string; width: number; height: number } | null =
+        null;
       let lastSentAt = 0;
       let flushTimer: ReturnType<typeof setTimeout> | null = null;
       const flush = () => {
         flushTimer = null;
         if (stopped || !pending) return;
-        const wait = Math.max(0, opts.minIntervalMs - (deps.now() - lastSentAt));
+        const wait = Math.max(
+          0,
+          opts.minIntervalMs - (deps.now() - lastSentAt),
+        );
         if (wait > 0 || opts.shouldHold()) {
           flushTimer = setTimeout(flush, Math.max(wait, 50));
           return;
@@ -324,36 +437,57 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
         handlers.onFrame(f);
       };
 
-      const fps = Math.max(1, Math.min(MAX_FPS, Math.round(1000 / Math.max(1, opts.minIntervalMs))));
-      const stream = await deps.start(udid, { fps, quality: opts.quality / 100, maxDim: Math.max(opts.maxWidth, opts.maxHeight) }, {
-        onFrame(f) {
-          pending = f;
-          if (!flushTimer) flush();
+      const fps = Math.max(
+        1,
+        Math.min(MAX_FPS, Math.round(1000 / Math.max(1, opts.minIntervalMs))),
+      );
+      const stream = await deps.start(
+        udid,
+        {
+          fps,
+          quality: opts.quality / 100,
+          maxDim: Math.max(opts.maxWidth, opts.maxHeight),
         },
-        onScreen(s) {
-          const turnedNow = screen !== null && screen.orientation !== s.orientation;
-          screen = s;
-          if (turnedNow || !announced) announce();
+        {
+          onFrame(f) {
+            pending = f;
+            if (!flushTimer) flush();
+          },
+          onScreen(s) {
+            const turnedNow =
+              screen !== null && screen.orientation !== s.orientation;
+            screen = s;
+            if (turnedNow || !announced) announce();
+          },
+          onExit() {
+            if (stopped) return;
+            cleanup();
+            handlers.onGone();
+          },
         },
-        onExit() {
-          if (stopped) return;
-          cleanup();
-          handlers.onGone();
-        },
-      });
+      );
       if (opts.signal.aborted) {
         stream.stop();
         throw new WatchOpenError("no-sim", "the viewer left");
       }
 
-      const points = () => (screen ? { width: screen.widthPx / screen.scale, height: screen.heightPx / screen.scale } : null);
+      const points = () =>
+        screen
+          ? {
+              width: screen.widthPx / screen.scale,
+              height: screen.heightPx / screen.scale,
+            }
+          : null;
       const mapper = new SimInputMapper((line) => stream.send(line), points);
       const deviceName = names.get(udid) ?? "iOS Simulator";
 
       // What the pane shows about the device beyond its pixels: which way it
       // is turned, and whether this viewer is recording it.
       let announced = false;
-      let recording: { since: number; timer: ReturnType<typeof setTimeout> } | null = null;
+      let recording: {
+        since: number;
+        timer: ReturnType<typeof setTimeout>;
+      } | null = null;
       let recordBusy = false;
       function announce() {
         announced = true;
@@ -373,8 +507,18 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
         if (stopped) return;
         handlers.onMessage?.(
           data
-            ? { type: "capture", kind: "screenshot", mime: "image/png", name: `${captureName(deviceName, new Date(deps.now()))}.png`, data }
-            : { type: "capture", kind: "screenshot", error: "the screenshot could not be taken" },
+            ? {
+                type: "capture",
+                kind: "screenshot",
+                mime: "image/png",
+                name: `${captureName(deviceName, new Date(deps.now()))}.png`,
+                data,
+              }
+            : {
+                type: "capture",
+                kind: "screenshot",
+                error: "the screenshot could not be taken",
+              },
         );
       }
 
@@ -386,9 +530,16 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
             const file = deps.tempFile("mp4");
             const started = await deps.record.start(udid, file);
             if ("error" in started) {
-              handlers.onMessage?.({ type: "capture", kind: "video", error: started.error });
+              handlers.onMessage?.({
+                type: "capture",
+                kind: "video",
+                error: started.error,
+              });
             } else if (!stopped) {
-              recording = { since: deps.now(), timer: setTimeout(() => void record("stop"), MAX_RECORDING_MS) };
+              recording = {
+                since: deps.now(),
+                timer: setTimeout(() => void record("stop"), MAX_RECORDING_MS),
+              };
               recording.timer.unref?.();
             }
           } else if (action === "stop" && recording) {
@@ -403,8 +554,21 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
             const data = "error" in done ? null : deps.takeFile(done.file);
             handlers.onMessage?.(
               data
-                ? { type: "capture", kind: "video", mime: "video/mp4", name: `${captureName(deviceName, new Date(since))}.mp4`, data }
-                : { type: "capture", kind: "video", error: "error" in done ? done.error : "the recording could not be read" },
+                ? {
+                    type: "capture",
+                    kind: "video",
+                    mime: "video/mp4",
+                    name: `${captureName(deviceName, new Date(since))}.mp4`,
+                    data,
+                  }
+                : {
+                    type: "capture",
+                    kind: "video",
+                    error:
+                      "error" in done
+                        ? done.error
+                        : "the recording could not be read",
+                  },
             );
           }
         } finally {
@@ -455,7 +619,9 @@ export function simWatchEngine(deps: SimEngineDeps = realDeps): WatchEngine {
               input(ev: WatchInput) {
                 if (stopped) return;
                 if (ev.kind === "rotate") {
-                  stream.send(`rotate ${turned(screen?.orientation ?? readOrientation(udid), ev.direction)}`);
+                  stream.send(
+                    `rotate ${turned(screen?.orientation ?? readOrientation(udid), ev.direction)}`,
+                  );
                 } else if (ev.kind === "capture") {
                   void capture();
                 } else if (ev.kind === "record") {

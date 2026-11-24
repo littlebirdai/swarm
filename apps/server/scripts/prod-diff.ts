@@ -57,15 +57,25 @@ export function namesFromSchema(schema: SchemaJson): string[] {
   const names: string[] = [];
   for (const t of schema.tables) {
     names.push(`table:${t.tableName}`);
-    for (const list of [t.indexes, t.stagedDbIndexes, t.searchIndexes, t.stagedSearchIndexes, t.vectorIndexes, t.stagedVectorIndexes]) {
-      for (const ix of list ?? []) names.push(`index:${t.tableName}.${ix.indexDescriptor}`);
+    for (const list of [
+      t.indexes,
+      t.stagedDbIndexes,
+      t.searchIndexes,
+      t.stagedSearchIndexes,
+      t.vectorIndexes,
+      t.stagedVectorIndexes,
+    ]) {
+      for (const ix of list ?? [])
+        names.push(`index:${t.tableName}.${ix.indexDescriptor}`);
     }
   }
   return names;
 }
 
 /** Prod's active schema arrives as a JSON string, or null when prod has none. */
-export function namesFromActiveSchema(active: string | null | undefined): string[] {
+export function namesFromActiveSchema(
+  active: string | null | undefined,
+): string[] {
   return active ? namesFromSchema(JSON.parse(active) as SchemaJson) : [];
 }
 
@@ -95,7 +105,10 @@ export function namesFromApiSpec(spec: ApiSpecEntry[]): string[] {
 
 /** `emails/send.ts` (or prod's `emails/send.js`) → `emails/send`. */
 export function moduleName(rel: string): string {
-  return rel.split(sep).join("/").replace(/\.[cm]?[jt]sx?$/, "");
+  return rel
+    .split(sep)
+    .join("/")
+    .replace(/\.[cm]?[jt]sx?$/, "");
 }
 
 /** Mirrors the Convex bundler's entry-point rules (convex/dist/esm/bundler
@@ -114,24 +127,39 @@ export function isEntryModule(rel: string): boolean {
   return !rel.includes(" ");
 }
 
-type RouterLike = { isRouter: true; getRoutes: () => Array<[string, string, unknown]> };
+type RouterLike = {
+  isRouter: true;
+  getRoutes: () => Array<[string, string, unknown]>;
+};
 
 /** Names one loaded module contributes: every exported query, mutation or
  *  action, and for the top-level `http` module its router's routes. */
-export function namesFromModule(mod: string, exports: Record<string, unknown>): string[] {
+export function namesFromModule(
+  mod: string,
+  exports: Record<string, unknown>,
+): string[] {
   const names: string[] = [];
   for (const [name, value] of Object.entries(exports)) {
-    const v = value as { isQuery?: boolean; isMutation?: boolean; isAction?: boolean } | null;
-    if (v && (v.isQuery || v.isMutation || v.isAction)) names.push(`fn:${mod}:${name}`);
+    const v = value as {
+      isQuery?: boolean;
+      isMutation?: boolean;
+      isAction?: boolean;
+    } | null;
+    if (v && (v.isQuery || v.isMutation || v.isAction))
+      names.push(`fn:${mod}:${name}`);
   }
   const router = exports.default as RouterLike | undefined;
   if (mod === "http" && router?.isRouter) {
-    for (const [path, method] of router.getRoutes()) names.push(`http:${method} ${path}`);
+    for (const [path, method] of router.getRoutes())
+      names.push(`http:${method} ${path}`);
   }
   return names;
 }
 
-export function diffNames(tree: Iterable<string>, prod: Iterable<string>): { adds: string[]; drops: string[] } {
+export function diffNames(
+  tree: Iterable<string>,
+  prod: Iterable<string>,
+): { adds: string[]; drops: string[] } {
   const t = new Set(tree);
   const p = new Set(prod);
   return {
@@ -142,15 +170,28 @@ export function diffNames(tree: Iterable<string>, prod: Iterable<string>): { add
 
 export const SUMMARY_ADDS_SHOWN = 10;
 
-export function formatSummary(diff: { adds: string[]; drops: string[] }, ms?: { tree_ms: number; prod_ms: number }): string {
+export function formatSummary(
+  diff: { adds: string[]; drops: string[] },
+  ms?: { tree_ms: number; prod_ms: number },
+): string {
   const { adds, drops } = diff;
-  const timing = ms ? ` (tree ${(ms.tree_ms / 1000).toFixed(1)}s, prod ${(ms.prod_ms / 1000).toFixed(1)}s)` : "";
-  const lines = [`prod-diff: ${drops.length} drop${drops.length === 1 ? "" : "s"}, ${adds.length} add${adds.length === 1 ? "" : "s"}${timing}`];
-  if (drops.length) lines.push(`  This push takes ${drops.length === 1 ? "this" : "these"} off prod:`);
+  const timing = ms
+    ? ` (tree ${(ms.tree_ms / 1000).toFixed(1)}s, prod ${(ms.prod_ms / 1000).toFixed(1)}s)`
+    : "";
+  const lines = [
+    `prod-diff: ${drops.length} drop${drops.length === 1 ? "" : "s"}, ${adds.length} add${adds.length === 1 ? "" : "s"}${timing}`,
+  ];
+  if (drops.length)
+    lines.push(
+      `  This push takes ${drops.length === 1 ? "this" : "these"} off prod:`,
+    );
   for (const d of drops) lines.push(`  DROP ${d}`);
   if (adds.length) {
     const shown = adds.slice(0, SUMMARY_ADDS_SHOWN).join(", ");
-    const more = adds.length > SUMMARY_ADDS_SHOWN ? `, +${adds.length - SUMMARY_ADDS_SHOWN} more` : "";
+    const more =
+      adds.length > SUMMARY_ADDS_SHOWN
+        ? `, +${adds.length - SUMMARY_ADDS_SHOWN} more`
+        : "";
     lines.push(`  ADD ${adds.length}: ${shown}${more}`);
   }
   return lines.join("\n");
@@ -165,7 +206,11 @@ function listModules(dir: string): string[] {
       const p = join(d, e.name);
       if (e.isDirectory()) {
         // The bundler skips nested component directories.
-        if (e.name !== "node_modules" && !existsSync(join(p, "convex.config.ts"))) walk(p);
+        if (
+          e.name !== "node_modules" &&
+          !existsSync(join(p, "convex.config.ts"))
+        )
+          walk(p);
       } else if (e.isFile()) {
         const rel = relative(dir, p);
         if (isEntryModule(rel)) out.push(rel);
@@ -179,32 +224,49 @@ function listModules(dir: string): string[] {
 /** Loads the schema and every entry module. Throws naming any module that
  *  failed to load: its functions would otherwise read as drops. */
 export async function treeNames(dir = FUNCTIONS_DIR): Promise<string[]> {
-  const schema = (await import(join(dir, "schema.ts"))).default as { export: () => string };
+  const schema = (await import(join(dir, "schema.ts"))).default as {
+    export: () => string;
+  };
   const names = namesFromSchema(JSON.parse(schema.export()) as SchemaJson);
   const failed: string[] = [];
   const loaded = await Promise.all(
     listModules(dir).map(async (rel) => {
       try {
-        return namesFromModule(moduleName(rel), (await import(join(dir, rel))) as Record<string, unknown>);
+        return namesFromModule(
+          moduleName(rel),
+          (await import(join(dir, rel))) as Record<string, unknown>,
+        );
       } catch (e) {
         failed.push(`${rel}: ${(e as Error)?.message ?? e}`);
         return [];
       }
     }),
   );
-  if (failed.length) throw new Error(`could not load ${failed.length} module(s):\n  ${failed.join("\n  ")}`);
+  if (failed.length)
+    throw new Error(
+      `could not load ${failed.length} module(s):\n  ${failed.join("\n  ")}`,
+    );
   return names.concat(loaded.flat());
 }
 
 async function runTreeChild(): Promise<string[]> {
-  const child = Bun.spawn([process.execPath, import.meta.path, "--tree-only"], { stdout: "pipe", stderr: "pipe" });
+  const child = Bun.spawn([process.execPath, import.meta.path, "--tree-only"], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   const timer = setTimeout(() => child.kill(), TREE_TIMEOUT_MS);
-  const [out, err, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+  const [out, err, code] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
   clearTimeout(timer);
   if (code !== 0) {
     // Module-load chatter goes to the child's stderr; show its tail on failure only.
     const tail = err.trim().split("\n").slice(-20).join("\n");
-    throw new Error(`tree read failed (exit ${code}${child.signalCode ? `, ${child.signalCode}` : ""}):\n${tail}`);
+    throw new Error(
+      `tree read failed (exit ${code}${child.signalCode ? `, ${child.signalCode}` : ""}):\n${tail}`,
+    );
   }
   return JSON.parse(out) as string[];
 }
@@ -212,12 +274,17 @@ async function runTreeChild(): Promise<string[]> {
 // ---------------------------------------------------------------- prod side
 
 /** Env first, then only the two named keys from apps/server/.env.local. */
-export function readCredentials(env: Record<string, string | undefined> = process.env, envFile = ENV_FILE): { url: string | undefined; key: string | undefined } {
+export function readCredentials(
+  env: Record<string, string | undefined> = process.env,
+  envFile = ENV_FILE,
+): { url: string | undefined; key: string | undefined } {
   let url = env.CONVEX_SELF_HOSTED_URL;
   let key = env.CONVEX_SELF_HOSTED_ADMIN_KEY;
   if ((!url || !key) && existsSync(envFile)) {
     for (const line of readFileSync(envFile, "utf8").split("\n")) {
-      const m = line.match(/^\s*(?:export\s+)?(CONVEX_SELF_HOSTED_URL|CONVEX_SELF_HOSTED_ADMIN_KEY)\s*=\s*(.*?)\s*$/);
+      const m = line.match(
+        /^\s*(?:export\s+)?(CONVEX_SELF_HOSTED_URL|CONVEX_SELF_HOSTED_ADMIN_KEY)\s*=\s*(.*?)\s*$/,
+      );
       if (!m) continue;
       const value = m[2]!.replace(/^(['"])(.*)\1$/, "$2");
       if (m[1] === "CONVEX_SELF_HOSTED_URL") url ||= value;
@@ -227,24 +294,41 @@ export function readCredentials(env: Record<string, string | undefined> = proces
   return { url: url?.replace(/\/+$/, "") || undefined, key };
 }
 
-async function systemQuery(url: string, key: string, path: string): Promise<unknown> {
+async function systemQuery(
+  url: string,
+  key: string,
+  path: string,
+): Promise<unknown> {
   const res = await fetch(`${url}/api/query`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Convex ${key}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Convex ${key}`,
+    },
     body: JSON.stringify({ path, args: {}, format: "json" }),
     signal: AbortSignal.timeout(PROD_TIMEOUT_MS),
   });
-  const body = (await res.json().catch(() => null)) as { status?: string; value?: unknown; errorMessage?: string } | null;
+  const body = (await res.json().catch(() => null)) as {
+    status?: string;
+    value?: unknown;
+    errorMessage?: string;
+  } | null;
   if (!res.ok || body?.status !== "success") {
-    throw new Error(`${path}: HTTP ${res.status}${body?.errorMessage ? `: ${body.errorMessage}` : ""}`);
+    throw new Error(
+      `${path}: HTTP ${res.status}${body?.errorMessage ? `: ${body.errorMessage}` : ""}`,
+    );
   }
   return body.value;
 }
 
 export async function prodNames(url: string, key: string): Promise<string[]> {
   const [schemas, spec] = await Promise.all([
-    systemQuery(url, key, "_system/frontend/getSchemas") as Promise<{ active?: string | null }>,
-    systemQuery(url, key, "_system/cli/modules:apiSpec") as Promise<ApiSpecEntry[]>,
+    systemQuery(url, key, "_system/frontend/getSchemas") as Promise<{
+      active?: string | null;
+    }>,
+    systemQuery(url, key, "_system/cli/modules:apiSpec") as Promise<
+      ApiSpecEntry[]
+    >,
   ]);
   if (!Array.isArray(spec)) throw new Error("apiSpec did not return an array");
   return namesFromActiveSchema(schemas?.active).concat(namesFromApiSpec(spec));
@@ -252,7 +336,9 @@ export async function prodNames(url: string, key: string): Promise<string[]> {
 
 // ---------------------------------------------------------------- main
 
-async function timed<T>(p: () => Promise<T>): Promise<{ value: T; ms: number }> {
+async function timed<T>(
+  p: () => Promise<T>,
+): Promise<{ value: T; ms: number }> {
   const t = performance.now();
   const value = await p();
   return { value, ms: Math.round(performance.now() - t) };
@@ -281,7 +367,9 @@ async function main(argv: string[]): Promise<number> {
 
   const { url, key } = readCredentials();
   if (!url) {
-    console.error("prod-diff: skipped because CONVEX_SELF_HOSTED_URL is not set.");
+    console.error(
+      "prod-diff: skipped because CONVEX_SELF_HOSTED_URL is not set.",
+    );
     return EXIT_UNREADABLE;
   }
   const target = URL.parse(url);
@@ -290,24 +378,42 @@ async function main(argv: string[]): Promise<number> {
     return EXIT_UNREADABLE;
   }
   if (target.hostname.replace(/\.$/, "") === "convex.codecast.sh") {
-    console.error("prod-diff: the Codecast production server is disabled in Swarm.");
+    console.error(
+      "prod-diff: the Codecast production server is disabled in Swarm.",
+    );
     return EXIT_UNREADABLE;
   }
   if (!key) {
-    console.error("prod-diff: cannot read prod: CONVEX_SELF_HOSTED_ADMIN_KEY is not set (env or apps/server/.env.local)");
+    console.error(
+      "prod-diff: cannot read prod: CONVEX_SELF_HOSTED_ADMIN_KEY is not set (env or apps/server/.env.local)",
+    );
     return EXIT_UNREADABLE;
   }
 
   // When prod was read: a push recorded later proves nothing about what reached prod after this moment.
   const readAt = Date.now();
-  const [tree, prod] = await Promise.allSettled([timed(runTreeChild), timed(() => prodNames(url, key))]);
+  const [tree, prod] = await Promise.allSettled([
+    timed(runTreeChild),
+    timed(() => prodNames(url, key)),
+  ]);
   if (tree.status === "rejected" || prod.status === "rejected") {
-    if (tree.status === "rejected") console.error(`prod-diff: cannot read the tree: ${(tree.reason as Error)?.message ?? tree.reason}`);
-    if (prod.status === "rejected") console.error(`prod-diff: cannot read prod (${url}): ${(prod.reason as Error)?.message ?? prod.reason}`);
+    if (tree.status === "rejected")
+      console.error(
+        `prod-diff: cannot read the tree: ${(tree.reason as Error)?.message ?? tree.reason}`,
+      );
+    if (prod.status === "rejected")
+      console.error(
+        `prod-diff: cannot read prod (${url}): ${(prod.reason as Error)?.message ?? prod.reason}`,
+      );
     return EXIT_UNREADABLE;
   }
 
-  const result = { ...diffNames(tree.value.value, prod.value.value), read_at: readAt, tree_ms: tree.value.ms, prod_ms: prod.value.ms };
+  const result = {
+    ...diffNames(tree.value.value, prod.value.value),
+    read_at: readAt,
+    tree_ms: tree.value.ms,
+    prod_ms: prod.value.ms,
+  };
   console.error(formatSummary(result, result));
   const text = JSON.stringify(result, null, 2);
   if (out) writeFileSync(out, text + "\n");

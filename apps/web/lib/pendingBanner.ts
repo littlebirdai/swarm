@@ -9,7 +9,11 @@
 // (or gone) and STILL hasn't taken the message is a restart the right escalation.
 
 import { UNCONFIRMED_DELIVERY_REASON } from "@codecast/shared/contracts";
-import { MID_TURN_AGENT_STATUSES, isRecoveryContinueClientId, isSessionMessage } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  isRecoveryContinueClientId,
+  isSessionMessage,
+} from "@codecast/shared/contracts";
 
 export type LiveAgentStatus =
   | "working"
@@ -57,7 +61,9 @@ export const isAliveIdleStatus = (s?: LiveAgentStatus): boolean =>
 export type PendingBannerState = "none" | "queued" | "stuck";
 
 export function pendingMessageCanRetry(content: string): boolean {
-  return !/^(?:\[Request (?:interrupted|cancelled)|<turn_aborted>)/.test(content.trimStart());
+  return !/^(?:\[Request (?:interrupted|cancelled)|<turn_aborted>)/.test(
+    content.trimStart(),
+  );
 }
 
 export function pendingRetryClientId(messageId: string): string | undefined {
@@ -65,43 +71,91 @@ export function pendingRetryClientId(messageId: string): string | undefined {
 }
 
 // hold_screen: the terminal rows the daemon read when it held the message for a dialog.
-export type ServerPendingRow = { message_id: string; client_id?: string; created_at: number; delivered_at?: number; status: string; content: string; hold_reason?: string; hold_screen?: string; queued?: boolean; from_user_id?: string };
+export type ServerPendingRow = {
+  message_id: string;
+  client_id?: string;
+  created_at: number;
+  delivered_at?: number;
+  status: string;
+  content: string;
+  hold_reason?: string;
+  hold_screen?: string;
+  queued?: boolean;
+  from_user_id?: string;
+};
 // getConversationPendingMessage: the primary row (oldest in flight, else the
 // newest settled) plus `inflight`, every undelivered row, and `delivered`, the
 // recently delivered rows. Older servers send neither list.
-export type ServerPendingStatus = ServerPendingRow & { inflight?: ServerPendingRow[]; delivered?: ServerPendingRow[] };
+export type ServerPendingStatus = ServerPendingRow & {
+  inflight?: ServerPendingRow[];
+  delivered?: ServerPendingRow[];
+};
 
 // Every undelivered server row, or the settled primary when nothing is in flight.
-export function serverPendingRows(pending?: ServerPendingStatus | null): ServerPendingRow[] {
+export function serverPendingRows(
+  pending?: ServerPendingStatus | null,
+): ServerPendingRow[] {
   if (!pending) return [];
   return pending.inflight?.length ? pending.inflight : [pending];
 }
 
 // Every server row that may need a bubble: the undelivered ones, then each
 // recently delivered one, whose echo may not have reached this window yet.
-function serverBubbleRows(pending?: ServerPendingStatus | null): ServerPendingRow[] {
+function serverBubbleRows(
+  pending?: ServerPendingStatus | null,
+): ServerPendingRow[] {
   const rows = serverPendingRows(pending);
   const ids = new Set(rows.map((r) => r.message_id));
-  return [...rows, ...(pending?.delivered ?? []).filter((r) => !ids.has(r.message_id))];
+  return [
+    ...rows,
+    ...(pending?.delivered ?? []).filter((r) => !ids.has(r.message_id)),
+  ];
 }
 
 /** The messages a session holds that have not reached it, from its server pending rows (whichever window sent them), oldest first. */
-function heldSends(pending: ServerPendingStatus | null | undefined): ServerPendingRow[] {
-  return serverPendingRows(pending).filter((r) => r.status === "pending" && !!r.content);
+function heldSends(
+  pending: ServerPendingStatus | null | undefined,
+): ServerPendingRow[] {
+  return serverPendingRows(pending).filter(
+    (r) => r.status === "pending" && !!r.content,
+  );
 }
 
 /** A conversation's held sends, read from the store's server pending rows (a selector). */
-export function heldSendsOf(s: { pendingMessageStatus?: Record<string, unknown> }, conversationId: string | undefined): ServerPendingRow[] {
-  return conversationId ? heldSends(s.pendingMessageStatus?.[conversationId] as ServerPendingStatus | undefined) : [];
+export function heldSendsOf(
+  s: { pendingMessageStatus?: Record<string, unknown> },
+  conversationId: string | undefined,
+): ServerPendingRow[] {
+  return conversationId
+    ? heldSends(
+        s.pendingMessageStatus?.[conversationId] as
+          | ServerPendingStatus
+          | undefined,
+      )
+    : [];
 }
 
-type PendingRowRef = { message_id: string; client_id?: string; status?: string; hold_reason?: string; hold_screen?: string };
+type PendingRowRef = {
+  message_id: string;
+  client_id?: string;
+  status?: string;
+  hold_reason?: string;
+  hold_screen?: string;
+};
 type PendingLookup = PendingRowRef & { inflight?: PendingRowRef[] };
 
 // The server row behind a bubble: `serverpending_<id>` or the sender's client id.
-export function serverPendingRowFor<T extends PendingRowRef>(messageId: string, pending?: (T & { inflight?: T[] }) | null): T | undefined {
-  return [pending, ...(pending?.inflight ?? [])].find((row): row is T & { inflight?: T[] } =>
-    !!row && (messageId === `serverpending_${row.message_id}` || messageId === row.client_id || messageId === row.message_id));
+export function serverPendingRowFor<T extends PendingRowRef>(
+  messageId: string,
+  pending?: (T & { inflight?: T[] }) | null,
+): T | undefined {
+  return [pending, ...(pending?.inflight ?? [])].find(
+    (row): row is T & { inflight?: T[] } =>
+      !!row &&
+      (messageId === `serverpending_${row.message_id}` ||
+        messageId === row.client_id ||
+        messageId === row.message_id),
+  );
 }
 
 // Identity the cancel dispatch can look the row up with. A local optimistic
@@ -137,7 +191,11 @@ export function serverPendingBubbleVisible(
 ): boolean {
   if (pending.status === "cancelled") return false;
   if (pending.status !== "delivered") return true;
-  return window.atLiveTail && window.newestServerTs < (pending.delivered_at ?? pending.created_at) + ECHO_SKEW_MS;
+  return (
+    window.atLiveTail &&
+    window.newestServerTs <
+      (pending.delivered_at ?? pending.created_at) + ECHO_SKEW_MS
+  );
 }
 
 // The bubbles the timeline adds for server pending rows: every queued message,
@@ -169,12 +227,18 @@ export function serverPendingBubbles(
     if (row.status !== "delivered" && isSessionMessage(row.content)) continue;
     if (!serverPendingBubbleVisible(row, timeline)) continue;
     const id = row.client_id;
-    if (id && (timeline.seen.has(id) || timeline.local.some((m) => m._id === id || m._clientId === id))) continue;
+    if (
+      id &&
+      (timeline.seen.has(id) ||
+        timeline.local.some((m) => m._id === id || m._clientId === id))
+    )
+      continue;
     const norm = timeline.normalize(row.content);
     if (!norm) continue;
     // The same words said earlier are another message, not this one's echo.
     const saidAt = timeline.seenContent.get(norm);
-    if (saidAt !== undefined && saidAt >= row.created_at - ECHO_SKEW_MS) continue;
+    if (saidAt !== undefined && saidAt >= row.created_at - ECHO_SKEW_MS)
+      continue;
     bubbles.push({
       _id: `serverpending_${row.message_id}`,
       role: "user" as const,
@@ -195,33 +259,59 @@ export function serverPendingBubbles(
 // (delivered/cancelled) so a lagging transcript keeps its bubble; to the
 // tracker that row is nothing in flight. Reading it as in flight raised
 // "Disconnected · Cancel" (and an auto-resume) after every delivered message.
-export function inFlightPending<T extends { status?: string; hold_reason?: string }>(pending: T | null | undefined): T | null {
+export function inFlightPending<
+  T extends { status?: string; hold_reason?: string },
+>(pending: T | null | undefined): T | null {
   // No status: a viewer with only others' queued rows (no primary of their
   // own). Held: waiting on purpose (the end of a turn), nothing to deliver yet.
   // Unconfirmed: typed in and never seen to arrive, so it waits for a person's
   // resend on its bubble; nothing is in flight to recover by resuming.
-  if (!pending || !pending.status || pending.status === "delivered" || pending.status === "cancelled" || pending.status === "held") return null;
-  if (pending.status === "failed" && pending.hold_reason === UNCONFIRMED_DELIVERY_REASON) return null;
+  if (
+    !pending ||
+    !pending.status ||
+    pending.status === "delivered" ||
+    pending.status === "cancelled" ||
+    pending.status === "held"
+  )
+    return null;
+  if (
+    pending.status === "failed" &&
+    pending.hold_reason === UNCONFIRMED_DELIVERY_REASON
+  )
+    return null;
   return pending;
 }
 
 /** Why the daemon is holding this message back, when it said (retryMessage holdReason): a key to add, a dialog to answer. */
-export function pendingMessageHoldReason(messageId: string, pending?: PendingLookup | null): string | undefined {
+export function pendingMessageHoldReason(
+  messageId: string,
+  pending?: PendingLookup | null,
+): string | undefined {
   return pendingRowHoldReason(serverPendingRowFor(messageId, pending));
 }
 
 /** The terminal rows a dialog hold was decided on, while the hold stands. */
-export function pendingMessageHoldScreen(messageId: string, pending?: PendingLookup | null): string | undefined {
+export function pendingMessageHoldScreen(
+  messageId: string,
+  pending?: PendingLookup | null,
+): string | undefined {
   const row = serverPendingRowFor(messageId, pending);
   return pendingRowHoldReason(row) ? row?.hold_screen : undefined;
 }
 
 /** A pending row's hold reason: set while the daemon holds it back on purpose, rather than working on it. */
-export function pendingRowHoldReason(row: { status?: string; hold_reason?: string | null } | null | undefined): string | undefined {
-  return row?.status === "pending" && row.hold_reason ? row.hold_reason : undefined;
+export function pendingRowHoldReason(
+  row: { status?: string; hold_reason?: string | null } | null | undefined,
+): string | undefined {
+  return row?.status === "pending" && row.hold_reason
+    ? row.hold_reason
+    : undefined;
 }
 
-export function pendingMessageReachedSession(messageId: string, pending?: PendingLookup | null): boolean {
+export function pendingMessageReachedSession(
+  messageId: string,
+  pending?: PendingLookup | null,
+): boolean {
   const row = serverPendingRowFor(messageId, pending);
   return !!row && (row.status === "injected" || row.status === "delivered");
 }
@@ -236,7 +326,14 @@ export function pendingMessageReachedSession(messageId: string, pending?: Pendin
 //             live agent's input queue, or is still within a grace window → show nothing.
 export function pendingBannerState(
   agentStatus: LiveAgentStatus | undefined,
-  opts: { retryEligible: boolean; restartInFlight: boolean; idleGraceElapsed: boolean; bootGraceElapsed: boolean; messageReachedSession: boolean; cloudPlacing?: boolean },
+  opts: {
+    retryEligible: boolean;
+    restartInFlight: boolean;
+    idleGraceElapsed: boolean;
+    bootGraceElapsed: boolean;
+    messageReachedSession: boolean;
+    cloudPlacing?: boolean;
+  },
 ): PendingBannerState {
   // Durable, server-persisted proof the message physically landed in the session's pane
   // (pending_messages → "injected"/"delivered"; the daemon resets it to "pending" if the
@@ -261,10 +358,12 @@ export function pendingBannerState(
   // A live-but-still-booting session reassures rather than alarms: the daemon injects
   // the pending message and flips to "working" once the pane is ready. Only a session
   // still not processing well past a generous boot budget is genuinely stuck.
-  if (isBootingAgentStatus(agentStatus)) return opts.bootGraceElapsed ? "stuck" : "queued";
+  if (isBootingAgentStatus(agentStatus))
+    return opts.bootGraceElapsed ? "stuck" : "queued";
   // Alive-but-parked (dormant/waiting/done): the pane heartbeats, delivery is a
   // normal daemon pass away. Reassure, and only alarm past the boot budget.
-  if (isAliveIdleStatus(agentStatus)) return opts.bootGraceElapsed ? "stuck" : "queued";
+  if (isAliveIdleStatus(agentStatus))
+    return opts.bootGraceElapsed ? "stuck" : "queued";
   // Idle, or no live status at all (disconnected session, non-"active" conversation,
   // older CLI). This is the only branch with real evidence of a problem, but the
   // evidence is weak — an idle pane is also the ordinary state a message is delivered

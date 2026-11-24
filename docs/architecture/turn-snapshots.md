@@ -38,11 +38,11 @@ ended in the window gets a row naming the same sha.
 
 Measured 2026-10-06 on this repository (7,798 tracked files):
 
-| pass | at rest | load 250 to 700 |
-|---|---|---|
-| sweep snapshot before this change (index rebuilt from HEAD, every file rehashed) | 1.8 s | 170 to 198 s |
-| full pass on the persistent index (stat walk, changed files hashed) | 0.18 s | 24 s |
-| pass limited to named paths | 0.07 s | |
+| pass                                                                             | at rest | load 250 to 700 |
+| -------------------------------------------------------------------------------- | ------- | --------------- |
+| sweep snapshot before this change (index rebuilt from HEAD, every file rehashed) | 1.8 s   | 170 to 198 s    |
+| full pass on the persistent index (stat walk, changed files hashed)              | 0.18 s  | 24 s            |
+| pass limited to named paths                                                      | 0.07 s  |                 |
 
 The persistent index lives at `<git dir>/codecast/wip.index`, seeded once by
 copying the real index (its stat cache is what makes the first pass cheap).

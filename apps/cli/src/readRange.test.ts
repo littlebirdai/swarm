@@ -3,15 +3,35 @@ import { parseReadRange, sliceBackRange } from "./readRange";
 
 describe("parseReadRange", () => {
   test("forward forms", () => {
-    expect(parseReadRange("12:20")).toEqual({ kind: "forward", start: 12, end: 20 });
-    expect(parseReadRange("12:")).toEqual({ kind: "forward", start: 12, end: undefined });
+    expect(parseReadRange("12:20")).toEqual({
+      kind: "forward",
+      start: 12,
+      end: 20,
+    });
+    expect(parseReadRange("12:")).toEqual({
+      kind: "forward",
+      start: 12,
+      end: undefined,
+    });
     expect(parseReadRange(":20")).toEqual({ kind: "forward", end: 20 });
-    expect(parseReadRange("15")).toEqual({ kind: "forward", start: 15, end: 15 });
+    expect(parseReadRange("15")).toEqual({
+      kind: "forward",
+      start: 15,
+      end: 15,
+    });
   });
 
   test("-c widens one line", () => {
-    expect(parseReadRange("15", 3)).toEqual({ kind: "forward", start: 12, end: 18 });
-    expect(parseReadRange("2", 3)).toEqual({ kind: "forward", start: 1, end: 5 });
+    expect(parseReadRange("15", 3)).toEqual({
+      kind: "forward",
+      start: 12,
+      end: 18,
+    });
+    expect(parseReadRange("2", 3)).toEqual({
+      kind: "forward",
+      start: 1,
+      end: 5,
+    });
     expect(parseReadRange("-5", 2)).toEqual({ kind: "back", from: 7, to: 3 });
     expect(() => parseReadRange("12:20", 3)).toThrow("-c widens a single line");
   });
@@ -20,7 +40,11 @@ describe("parseReadRange", () => {
   test("lines counted from the end", () => {
     expect(parseReadRange("-1")).toEqual({ kind: "back", from: 1, to: 1 });
     expect(parseReadRange("-5:")).toEqual({ kind: "back", from: 5, to: 1 });
-    expect(parseReadRange("-20:-10")).toEqual({ kind: "back", from: 20, to: 10 });
+    expect(parseReadRange("-20:-10")).toEqual({
+      kind: "back",
+      from: 20,
+      to: 10,
+    });
     expect(() => parseReadRange("-10:-20")).toThrow("runs backwards");
     expect(() => parseReadRange("-0")).toThrow("start at -1");
     expect(() => parseReadRange("-501:")).toThrow("at most 500");

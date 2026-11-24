@@ -17,15 +17,26 @@ const BRIEF = "The run is back at this station, with you.";
 async function setup() {
   const t = convexTest(schema, allModules);
   const { user, conversation } = await t.run(async (ctx) => {
-    const user = await ctx.db.insert("users", { name: "Ada", email: "ada@line.dev" } as any);
+    const user = await ctx.db.insert("users", {
+      name: "Ada",
+      email: "ada@line.dev",
+    } as any);
     const conversation = await ctx.db.insert("conversations", {
-      user_id: user, agent_type: "claude_code", session_id: crypto.randomUUID(), owner_device_id: "line-host",
-      started_at: 1, updated_at: 1, message_count: 0, status: "active", skip_title_generation: true,
+      user_id: user,
+      agent_type: "claude_code",
+      session_id: crypto.randomUUID(),
+      owner_device_id: "line-host",
+      started_at: 1,
+      updated_at: 1,
+      message_count: 0,
+      status: "active",
+      skip_title_generation: true,
     } as any);
     return { user, conversation };
   });
   const as = t.withIdentity({ subject: `${user}|session` });
-  const row = () => t.run(async (ctx) => ctx.db.get(conversation as Id<"conversations">));
+  const row = () =>
+    t.run(async (ctx) => ctx.db.get(conversation as Id<"conversations">));
   return { as, conversation, row };
 }
 
@@ -39,9 +50,23 @@ describe("an SDK session's authentication failure", () => {
   for (const banner of SDK_AUTH_FAILURES) {
     test(`parks the row on auth, one message at a time: ${banner.slice(0, 48)}`, async () => {
       const { as, conversation, row } = await setup();
-      await as.mutation(api.messages.addMessage, { conversation_id: conversation, role: "user", content: BRIEF, timestamp: 10 });
-      await as.mutation(api.messages.addMessage, { conversation_id: conversation, role: "assistant", content: banner, timestamp: 20 });
-      expect(await row()).toMatchObject({ pending_api_error: true, pending_api_error_kind: "auth", pending_api_error_at: 20 });
+      await as.mutation(api.messages.addMessage, {
+        conversation_id: conversation,
+        role: "user",
+        content: BRIEF,
+        timestamp: 10,
+      });
+      await as.mutation(api.messages.addMessage, {
+        conversation_id: conversation,
+        role: "assistant",
+        content: banner,
+        timestamp: 20,
+      });
+      expect(await row()).toMatchObject({
+        pending_api_error: true,
+        pending_api_error_kind: "auth",
+        pending_api_error_at: 20,
+      });
     });
   }
 
@@ -54,13 +79,21 @@ describe("an SDK session's authentication failure", () => {
         { role: "assistant", content: SDK_AUTH_FAILURES[0], timestamp: 20 },
       ],
     });
-    expect(await row()).toMatchObject({ pending_api_error: true, pending_api_error_kind: "auth", pending_api_error_at: 20 });
+    expect(await row()).toMatchObject({
+      pending_api_error: true,
+      pending_api_error_kind: "auth",
+      pending_api_error_at: 20,
+    });
   });
 
   test("a reply that says it failed to authenticate somewhere else parks nothing", async () => {
     const { as, conversation, row } = await setup();
     await as.mutation(api.messages.addMessage, {
-      conversation_id: conversation, role: "assistant", content: "Failed to authenticate with GitHub, so the branch is not pushed yet.", timestamp: 20,
+      conversation_id: conversation,
+      role: "assistant",
+      content:
+        "Failed to authenticate with GitHub, so the branch is not pushed yet.",
+      timestamp: 20,
     });
     expect((await row())?.pending_api_error).not.toBe(true);
   });

@@ -23,20 +23,37 @@ export type ExpectationsOverviewRow = {
   breaks30: number;
   /** Active lines a finding cited in the last 30 days. */
   broken: number;
-  most_broken: Array<{ id: string; text: string; part: string; d7: number; d30: number }>;
+  most_broken: Array<{
+    id: string;
+    text: string;
+    part: string;
+    d7: number;
+    d30: number;
+  }>;
 };
 
 /** Feeder: the active workspace's overview. */
 export function useSyncExpectationsOverview() {
   const { args } = useFeederWorkspace();
-  const teamId = args === "skip" ? "skip" : args.team_id ?? "";
-  const queryArgs = useMemo(() => (teamId === "skip" ? "skip" : teamId ? { team_id: teamId } : {}), [teamId]);
-  return useSyncCollection("expectationsOverview", api.expectations.overview, queryArgs as any);
+  const teamId = args === "skip" ? "skip" : (args.team_id ?? "");
+  const queryArgs = useMemo(
+    () => (teamId === "skip" ? "skip" : teamId ? { team_id: teamId } : {}),
+    [teamId],
+  );
+  return useSyncCollection(
+    "expectationsOverview",
+    api.expectations.overview,
+    queryArgs as any,
+  );
 }
 
-const rowSig = (r: ExpectationsOverviewRow) => `${r.version}|${r.active}|${r.open_proposals}|${r.breaks7}|${r.breaks30}|${r.project.title}|${r.most_broken.map((m) => m.id + m.d30).join(",")}`;
+const rowSig = (r: ExpectationsOverviewRow) =>
+  `${r.version}|${r.active}|${r.open_proposals}|${r.breaks7}|${r.breaks30}|${r.project.title}|${r.most_broken.map((m) => m.id + m.d30).join(",")}`;
 
 /** Reader: the active workspace's overview rows. */
 export function useExpectationsOverview(): ExpectationsOverviewRow[] {
-  return useWorkspaceCollection<ExpectationsOverviewRow>("expectationsOverview", rowSig);
+  return useWorkspaceCollection<ExpectationsOverviewRow>(
+    "expectationsOverview",
+    rowSig,
+  );
 }

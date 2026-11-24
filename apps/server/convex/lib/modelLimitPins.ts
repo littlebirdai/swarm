@@ -15,9 +15,19 @@
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { newestSignificantMessage, isBannerTurn } from "../inboxFilters";
-import { blockedAt, profileHasToken, runsPushedLogin, fleetAccount } from "../ccAccountsShared";
+import {
+  blockedAt,
+  profileHasToken,
+  runsPushedLogin,
+  fleetAccount,
+} from "../ccAccountsShared";
 import { poolUsageOverlay } from "../accountPool";
-import { fallbackProfiles, fleetRunsFamily, modelLimitFamily, type CcUsage } from "@codecast/shared/contracts";
+import {
+  fallbackProfiles,
+  fleetRunsFamily,
+  modelLimitFamily,
+  type CcUsage,
+} from "@codecast/shared/contracts";
 import { hasModelRoom, modelRoomPercent, type ModelPin } from "./modelRoom";
 
 /** An account a session was pinned to and parked on again is not tried again for that model this week. */
@@ -46,27 +56,44 @@ export function modelPinTarget<P extends PinProfile>(
   now: number,
 ): P | undefined {
   const fits = fallbackProfiles(profiles, parkedOnEmail, now, [family]).filter(
-    (p) => !tried.includes(p.name) && profileHasToken(p, now) && hasModelRoom(p.usage, family, now),
+    (p) =>
+      !tried.includes(p.name) &&
+      profileHasToken(p, now) &&
+      hasModelRoom(p.usage, family, now),
   );
-  return fits.sort((a, b) => modelRoomPercent(a.usage, family, now)! - modelRoomPercent(b.usage, family, now)!)[0];
+  return fits.sort(
+    (a, b) =>
+      modelRoomPercent(a.usage, family, now)! -
+      modelRoomPercent(b.usage, family, now)!,
+  )[0];
 }
 
 /** Splits parks into the ones a fleet decision acts on and the ones parked on
  *  one model's week that `fleet` (fleetModels) does not mostly run. */
-export async function splitModelLimitParks<C extends Pick<Doc<"conversations">, "_id">>(
+export async function splitModelLimitParks<
+  C extends Pick<Doc<"conversations">, "_id">,
+>(
   ctx: { db: any },
   parks: C[],
   fleet: readonly string[],
 ): Promise<{ fleet: C[]; minority: Array<{ conv: C; family: string }> }> {
-  const out = { fleet: [] as C[], minority: [] as Array<{ conv: C; family: string }> };
+  const out = {
+    fleet: [] as C[],
+    minority: [] as Array<{ conv: C; family: string }>,
+  };
   for (const c of parks) {
     const tail: Doc<"messages">[] = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", c._id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", c._id),
+      )
       .order("desc")
       .take(8);
     const newest = newestSignificantMessage(tail);
-    const family = newest && isBannerTurn(newest) ? modelLimitFamily(newest.content) : undefined;
+    const family =
+      newest && isBannerTurn(newest)
+        ? modelLimitFamily(newest.content)
+        : undefined;
     if (!family || fleetRunsFamily(fleet, family)) out.fleet.push(c);
     else out.minority.push({ conv: c, family });
   }
@@ -91,32 +118,69 @@ export async function pinModelLimitParks(
     primary: Doc<"devices">;
     now: number;
   },
-): Promise<Array<{ conversation_id: Id<"conversations">; profile: string; family: string }>> {
+): Promise<
+  Array<{
+    conversation_id: Id<"conversations">;
+    profile: string;
+    family: string;
+  }>
+> {
   const { now } = opts;
-  const moved: Array<{ conversation_id: Id<"conversations">; profile: string; family: string }> = [];
+  const moved: Array<{
+    conversation_id: Id<"conversations">;
+    profile: string;
+    family: string;
+  }> = [];
   const byDevice = new Map<string, Doc<"conversations">[]>();
   const profilesByDevice = new Map<string, PinProfile[]>();
   for (const { conv, family } of opts.parks) {
     const held = conv.cc_account_model_pin as ModelPin | undefined;
-    if (held && held.profile === conv.cc_account && held.at >= blockedAt(conv)) continue;
+    if (held && held.profile === conv.cc_account && held.at >= blockedAt(conv))
+      continue;
     if (conv.cc_account && conv.cc_account_auto !== true) continue;
     const ownerId = conv.owner_device_id ?? opts.primary.device_id;
-    const device = opts.online.find((d) => d.device_id === ownerId) ?? (ownerId === opts.primary.device_id ? opts.primary : undefined);
+    const device =
+      opts.online.find((d) => d.device_id === ownerId) ??
+      (ownerId === opts.primary.device_id ? opts.primary : undefined);
     if (!device?.cc_accounts || runsPushedLogin(device)) continue;
     let profiles = profilesByDevice.get(device.device_id);
     if (!profiles) {
-      profiles = (await poolUsageOverlay(ctx as any, userId, device.cc_accounts.profiles)) as PinProfile[];
+      profiles = (await poolUsageOverlay(
+        ctx as any,
+        userId,
+        device.cc_accounts.profiles,
+      )) as PinProfile[];
       profilesByDevice.set(device.device_id, profiles);
     }
     const parkedOn = conv.cc_account
       ? profiles.find((p) => p.name === conv.cc_account)?.email
       : fleetAccount(device.cc_accounts, now).email;
-    const tried = (held?.family === family ? held.tried ?? [] : []).filter((t) => now - t.at < TRIED_TTL_MS);
-    const target = modelPinTarget(profiles, family, parkedOn, tried.map((t) => t.profile), now);
+    const tried = (held?.family === family ? (held.tried ?? []) : []).filter(
+      (t) => now - t.at < TRIED_TTL_MS,
+    );
+    const target = modelPinTarget(
+      profiles,
+      family,
+      parkedOn,
+      tried.map((t) => t.profile),
+      now,
+    );
     if (!target) continue;
-    const pin: ModelPin = { family, profile: target.name, at: now, tried: [...tried, { profile: target.name, at: now }] };
-    await ctx.db.patch(conv._id, { cc_account: target.name, cc_account_auto: true, cc_account_model_pin: pin });
-    byDevice.set(device.device_id, [...(byDevice.get(device.device_id) ?? []), conv]);
+    const pin: ModelPin = {
+      family,
+      profile: target.name,
+      at: now,
+      tried: [...tried, { profile: target.name, at: now }],
+    };
+    await ctx.db.patch(conv._id, {
+      cc_account: target.name,
+      cc_account_auto: true,
+      cc_account_model_pin: pin,
+    });
+    byDevice.set(device.device_id, [
+      ...(byDevice.get(device.device_id) ?? []),
+      conv,
+    ]);
     moved.push({ conversation_id: conv._id, profile: target.name, family });
   }
   for (const [deviceId, convs] of byDevice) {
@@ -125,7 +189,9 @@ export async function pinModelLimitParks(
       command: "switch_account" as const,
       args: JSON.stringify({
         conversation_ids: convs.map((c) => c._id),
-        session_ids: Object.fromEntries(convs.map((c) => [c._id, c.session_id])),
+        session_ids: Object.fromEntries(
+          convs.map((c) => [c._id, c.session_id]),
+        ),
         continue_blocked: true,
       }),
       created_at: now,

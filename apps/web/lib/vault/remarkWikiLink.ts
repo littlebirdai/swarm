@@ -27,7 +27,8 @@ import type { Options as ReactMarkdownOptions } from "react-markdown";
 // the reading view and the editor cannot disagree about what a wiki link is.
 
 /** `[[Target#Sub|alias]]` / `![[Embed]]`, global. */
-export const wikiLinkPattern = () => /(!?)\[\[([^\[\]|#]+)?(#[^\[\]|]+)?(?:\|([^\[\]]+))?\]\]/g;
+export const wikiLinkPattern = () =>
+  /(!?)\[\[([^\[\]|#]+)?(#[^\[\]|]+)?(?:\|([^\[\]]+))?\]\]/g;
 
 /** Inline `#tag` with its leading delimiter as group 1, the tag as group 2. */
 export const inlineTagPattern = () => /(^|[\s([{<"'])#([\p{L}\p{N}_\-/]+)/gu;
@@ -38,19 +39,24 @@ export const blockIdPattern = () => /\s\^[A-Za-z0-9-]+(?=\n|$)/g;
 const WIKI_RE = wikiLinkPattern();
 
 export interface WikiLinkParts {
-  target: string;      // "" = same-file (e.g. [[#Heading]])
-  subpath?: string;    // heading text or block id, without the leading #/^
+  target: string; // "" = same-file (e.g. [[#Heading]])
+  subpath?: string; // heading text or block id, without the leading #/^
   subpathType?: "heading" | "block";
   alias?: string;
   isEmbed: boolean;
 }
 
 export function parseWikiInner(raw: string): WikiLinkParts | null {
-  const m = raw.match(/^(!?)\[\[([^\[\]|#]+)?(#[^\[\]|]+)?(?:\|([^\[\]]+))?\]\]$/);
+  const m = raw.match(
+    /^(!?)\[\[([^\[\]|#]+)?(#[^\[\]|]+)?(?:\|([^\[\]]+))?\]\]$/,
+  );
   if (!m) return null;
   const [, bang, target, hash, alias] = m;
   if (!target && !hash) return null;
-  const parts: WikiLinkParts = { target: (target ?? "").trim(), isEmbed: bang === "!" };
+  const parts: WikiLinkParts = {
+    target: (target ?? "").trim(),
+    isEmbed: bang === "!",
+  };
   if (hash) {
     const sub = hash.slice(1);
     if (sub.startsWith("^")) {
@@ -74,20 +80,27 @@ export function wikiHref(raw: string, isEmbed: boolean): string {
 
 /** Reverse of wikiHref: the raw `[[...]]`/`![[...]]` source text. */
 export function wikiRawFromHref(href: string): string | null {
-  if (href.startsWith(WIKI_SCHEME)) return decodeURIComponent(href.slice(WIKI_SCHEME.length));
-  if (href.startsWith(WIKI_EMBED_SCHEME)) return decodeURIComponent(href.slice(WIKI_EMBED_SCHEME.length));
+  if (href.startsWith(WIKI_SCHEME))
+    return decodeURIComponent(href.slice(WIKI_SCHEME.length));
+  if (href.startsWith(WIKI_EMBED_SCHEME))
+    return decodeURIComponent(href.slice(WIKI_EMBED_SCHEME.length));
   return null;
 }
 
 export function wikiDisplayText(parts: WikiLinkParts): string {
   if (parts.alias) return parts.alias;
   if (!parts.target) return parts.subpath ?? "";
-  if (parts.subpath && parts.subpathType === "heading") return `${parts.target} › ${parts.subpath}`;
+  if (parts.subpath && parts.subpathType === "heading")
+    return `${parts.target} › ${parts.subpath}`;
   return parts.target;
 }
 
 function isWikiEmbedNode(node: any): boolean {
-  return node?.type === "link" && typeof node.url === "string" && node.url.startsWith(WIKI_EMBED_SCHEME);
+  return (
+    node?.type === "link" &&
+    typeof node.url === "string" &&
+    node.url.startsWith(WIKI_EMBED_SCHEME)
+  );
 }
 
 /** A paragraph that is exactly one embed renders the embed at block level; an
@@ -101,7 +114,8 @@ function hoistWikiEmbeds(node: any) {
       const meaningful = child.children.filter(
         (c: any) => !(c.type === "text" && !c.value?.trim()),
       );
-      if (meaningful.length === 1 && isWikiEmbedNode(meaningful[0])) return meaningful[0];
+      if (meaningful.length === 1 && isWikiEmbedNode(meaningful[0]))
+        return meaningful[0];
       child.children = child.children.map((c: any) =>
         isWikiEmbedNode(c)
           ? { ...c, url: WIKI_SCHEME + c.url.slice(WIKI_EMBED_SCHEME.length) }
@@ -170,7 +184,9 @@ export function remarkWikiLink() {
 }
 
 /** Remark chain for vault note bodies: GFM (house tilde setting) + wiki links. */
-export const vaultRemarkPlugins: NonNullable<ReactMarkdownOptions["remarkPlugins"]> = [
+export const vaultRemarkPlugins: NonNullable<
+  ReactMarkdownOptions["remarkPlugins"]
+> = [
   [remarkGfm, { singleTilde: false }],
   // Math BEFORE wiki links: $...$ spans become math nodes so their contents
   // never get scanned for tags/links.

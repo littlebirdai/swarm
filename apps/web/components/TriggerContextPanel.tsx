@@ -20,7 +20,14 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { describeTaskCadence, fmtClock, fmtDuration, isTaskOverdue, readableTimes, taskStateLabel } from "./triggerCadence";
+import {
+  describeTaskCadence,
+  fmtClock,
+  fmtDuration,
+  isTaskOverdue,
+  readableTimes,
+  taskStateLabel,
+} from "./triggerCadence";
 import { ShortcutTooltip } from "./KeyboardShortcutsHelp";
 import {
   ARMED_STATUSES,
@@ -32,7 +39,11 @@ import {
 } from "./triggerTasks";
 import { isRunOf, liveTriggersFor, pillsShown } from "./triggerStrip";
 import type { InboxSession } from "../store/inboxStore";
-import { TriggerRunRail, useTriggerRuns, type TriggerRun } from "./TriggerRunHistory";
+import {
+  TriggerRunRail,
+  useTriggerRuns,
+  type TriggerRun,
+} from "./TriggerRunHistory";
 import { SchedFireBadge, SchedHealthDot } from "./TriggerRow";
 import { schedAccent } from "../lib/triggerAccent";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
@@ -75,7 +86,9 @@ export function TriggerContextPanel({
   // Store-fed (hooks/useSyncTriggers): the strip paints from the cached
   // roster on the first frame; the feeder keeps it fresh.
   const { tasks: taskList, ready: tasksReady } = useTriggers();
-  const tasks = (tasksReady || taskList.length > 0 ? taskList : undefined) as TaskRow[] | undefined;
+  const tasks = (tasksReady || taskList.length > 0 ? taskList : undefined) as
+    | TaskRow[]
+    | undefined;
 
   // Requests from trigger surfaces (see triggerStripRequest). Subscribed (not
   // only a mount read) so a click also works when the conversation is ALREADY
@@ -106,7 +119,7 @@ export function TriggerContextPanel({
   // than some deployed backends.
   const { data: convTasks } = useQueryNoThrow(
     api.agentTasks.webListForConversation,
-    isConvexId(conversationId) ? { conversation_id: conversationId } : "skip"
+    isConvexId(conversationId) ? { conversation_id: conversationId } : "skip",
   );
 
   const matched = useMemo(() => {
@@ -117,10 +130,12 @@ export function TriggerContextPanel({
         t.created_by_conversation_id === conversationId ||
         t.target_conversation_id === conversationId ||
         t.last_run_conversation_id === conversationId ||
-        (sessionId && t.last_run_session_uuid === sessionId)
+        (sessionId && t.last_run_session_uuid === sessionId),
     );
     const seen = new Set(own.map((t) => t._id));
-    const foreign = ((convTasks ?? []) as TaskRow[]).filter((t) => !seen.has(t._id));
+    const foreign = ((convTasks ?? []) as TaskRow[]).filter(
+      (t) => !seen.has(t._id),
+    );
     return [...own, ...foreign];
   }, [tasks, convTasks, conversationId, sessionId, agentTaskId]);
 
@@ -131,22 +146,35 @@ export function TriggerContextPanel({
   // Harness /loop on this session (server-folded loop_state; see loopState.ts):
   // the same anatomy via the pseudo TaskRow, minus the verbs. Narrow selectors
   // (never the whole row) so heartbeat churn can't re-render.
-  const loopState = useInboxStore((st) => st.sessions[conversationId]?.loop_state ?? null);
-  const sessionTitle = useInboxStore((st) => st.sessions[conversationId]?.title);
+  const loopState = useInboxStore(
+    (st) => st.sessions[conversationId]?.loop_state ?? null,
+  );
+  const sessionTitle = useInboxStore(
+    (st) => st.sessions[conversationId]?.title,
+  );
   const loopFresh = !!loopState && isLoopFresh(loopState, now);
   const loopRow = useMemo(
-    () => (loopFresh && loopState ? loopTaskRow({ _id: conversationId, title: sessionTitle } as InboxSession, loopState) : null),
+    () =>
+      loopFresh && loopState
+        ? loopTaskRow(
+            { _id: conversationId, title: sessionTitle } as InboxSession,
+            loopState,
+          )
+        : null,
     [loopFresh, loopState, conversationId, sessionTitle],
   );
 
   const live = useMemo(
-    () => liveTriggersFor(matched, loopRow, conversationId, sessionId, agentTaskId),
+    () =>
+      liveTriggersFor(matched, loopRow, conversationId, sessionId, agentTaskId),
     [matched, loopRow, conversationId, sessionId, agentTaskId],
   );
 
   const multi = live.length > 1;
   // A run's page opens on the trigger it is a run of; otherwise the set.
-  const defaultFocus = multi ? live.find((t) => isRunOf(t, conversationId, sessionId, agentTaskId)) : undefined;
+  const defaultFocus = multi
+    ? live.find((t) => isRunOf(t, conversationId, sessionId, agentTaskId))
+    : undefined;
   const focused = multi
     ? (focusedId && live.find((t) => t._id === focusedId)) || defaultFocus
     : live[0];
@@ -167,8 +195,12 @@ export function TriggerContextPanel({
   // The run history rides the detail, except on a run's own page, where
   // browsing the runs is the point of the strip and shouldn't cost a click.
   // Hidden when the only run is the one being viewed.
-  const showRuns = !!focused && !!runs && (runs.length > 1 || (runs.length === 1 && runs[0]._id !== conversationId))
-    && (expanded || isRunOf(focused, conversationId, sessionId, agentTaskId));
+  const showRuns =
+    !!focused &&
+    !!runs &&
+    (runs.length > 1 ||
+      (runs.length === 1 && runs[0]._id !== conversationId)) &&
+    (expanded || isRunOf(focused, conversationId, sessionId, agentTaskId));
 
   return (
     <div data-cc-context-panel className="contents">
@@ -205,12 +237,14 @@ export function TriggerContextPanel({
               runs={runs!}
               now={now}
               conversationId={conversationId}
-              nextRunAt={focused!.status === "scheduled" ? focused!.run_at : undefined}
+              nextRunAt={
+                focused!.status === "scheduled" ? focused!.run_at : undefined
+              }
               className="px-4 pt-1.5 pb-1"
             />
           )}
-          {expanded && (
-            focused ? (
+          {expanded &&
+            (focused ? (
               // Keyed by trigger: every per-trigger transient (an armed "Confirm
               // cancel", an open prompt) dies when the focus moves, however it
               // moves, so a swap can never cancel the wrong trigger.
@@ -227,9 +261,14 @@ export function TriggerContextPanel({
                 onShowAll={() => focus(null)}
               />
             ) : (
-              <SetList live={live} loopRow={loopRow} now={now} conversationId={conversationId} onFocus={(t) => focus(t._id)} />
-            )
-          )}
+              <SetList
+                live={live}
+                loopRow={loopRow}
+                now={now}
+                conversationId={conversationId}
+                onFocus={(t) => focus(t._id)}
+              />
+            ))}
         </RailDetail>
       )}
     </div>
@@ -242,11 +281,21 @@ export function TriggerContextPanel({
 // injects into (triggers that predate the created_by stamp, or whose creator
 // detection failed — e.g. `cast trigger add` run through tmux, where process
 // ancestry ends at the tmux server). Never the page being viewed.
-function triggerProvenance(t: TaskRow, conversationId: string): { id?: string; title?: string } {
+function triggerProvenance(
+  t: TaskRow,
+  conversationId: string,
+): { id?: string; title?: string } {
   const id =
-    (t.created_by_conversation_id !== conversationId ? t.created_by_conversation_id : undefined) ??
-    (t.originating_conversation_id !== conversationId ? t.originating_conversation_id : undefined);
-  const title = id === t.created_by_conversation_id ? t.created_by_conversation_title : t.originating_conversation_title;
+    (t.created_by_conversation_id !== conversationId
+      ? t.created_by_conversation_id
+      : undefined) ??
+    (t.originating_conversation_id !== conversationId
+      ? t.originating_conversation_id
+      : undefined);
+  const title =
+    id === t.created_by_conversation_id
+      ? t.created_by_conversation_title
+      : t.originating_conversation_title;
   return { id, title };
 }
 
@@ -271,15 +320,29 @@ function ProvenanceChip({ id, title }: { id: string; title?: string }) {
 }
 
 // compact: the chip's word, the countdown without "next" and no age.
-function StatusWord({ task, now, compact = false }: { task: TaskRow; now: number; compact?: boolean }) {
+function StatusWord({
+  task,
+  now,
+  compact = false,
+}: {
+  task: TaskRow;
+  now: number;
+  compact?: boolean;
+}) {
   switch (task.status) {
     case "scheduled": {
-      if (task.run_at === undefined) return <span className="text-sol-orange">armed</span>;
+      if (task.run_at === undefined)
+        return <span className="text-sol-orange">armed</span>;
       // taskStateLabel keeps the wording in lockstep with the inbox rows —
       // including the "due 12m" stuck-signal once a fire sits unclaimed.
       const label = taskStateLabel(task, now);
-      if (compact) return <span className="text-sol-orange tabular-nums">{label}</span>;
-      return <span className="text-sol-orange tabular-nums">{task.run_at > now ? `next ${label}` : label}</span>;
+      if (compact)
+        return <span className="text-sol-orange tabular-nums">{label}</span>;
+      return (
+        <span className="text-sol-orange tabular-nums">
+          {task.run_at > now ? `next ${label}` : label}
+        </span>
+      );
     }
     case "running":
       return (
@@ -296,7 +359,9 @@ function StatusWord({ task, now, compact = false }: { task: TaskRow; now: number
       return (
         <span className="text-sol-text-dim">
           done
-          {!compact && task.last_run_at ? ` · ran ${fmtDuration(Math.max(0, now - task.last_run_at))} ago` : ""}
+          {!compact && task.last_run_at
+            ? ` · ran ${fmtDuration(Math.max(0, now - task.last_run_at))} ago`
+            : ""}
         </span>
       );
   }
@@ -335,18 +400,36 @@ export function SingleHeader({
   const provenance = triggerProvenance(task, conversationId);
   const title = taskDisplayTitle(task);
   return (
-    <RailChip data-cc-rail-item="trigger" open={expanded} onToggle={onToggle} title={`${title} · ${isLoop ? "self-paced loop" : describeTaskCadence(task)}`}>
+    <RailChip
+      data-cc-rail-item="trigger"
+      open={expanded}
+      onToggle={onToggle}
+      title={`${title} · ${isLoop ? "self-paced loop" : describeTaskCadence(task)}`}
+    >
       <Clock className="w-3.5 h-3.5 text-sol-orange flex-shrink-0" />
-      <span className="min-w-0 truncate font-medium text-sol-orange">{title}</span>
+      <span className="min-w-0 truncate font-medium text-sol-orange">
+        {title}
+      </span>
       {/* Health at a glance while collapsed: only bad outcomes earn a dot. */}
-      <SchedHealthDot accent={schedAccent(task) === "running" ? "normal" : schedAccent(task)} task={task} />
-      <span data-rail-full className="flex-shrink-0 text-sol-text-dim">{isLoop ? "self-paced loop" : describeTaskCadence(task)}</span>
+      <SchedHealthDot
+        accent={schedAccent(task) === "running" ? "normal" : schedAccent(task)}
+        task={task}
+      />
+      <span data-rail-full className="flex-shrink-0 text-sol-text-dim">
+        {isLoop ? "self-paced loop" : describeTaskCadence(task)}
+      </span>
       {isRun && <Tag>run</Tag>}
       {isLoop && <Tag>loop</Tag>}
       {/* Provenance: on a run's page "where did this come from" is the first
           question, so the full strip answers it without a click. */}
-      {provenance.id && <span data-rail-full className="min-w-0 flex"><ProvenanceChip id={provenance.id} title={provenance.title} /></span>}
-      <span className="ml-auto flex-shrink-0"><StatusWord task={task} now={now} compact /></span>
+      {provenance.id && (
+        <span data-rail-full className="min-w-0 flex">
+          <ProvenanceChip id={provenance.id} title={provenance.title} />
+        </span>
+      )}
+      <span className="ml-auto flex-shrink-0">
+        <StatusWord task={task} now={now} compact />
+      </span>
     </RailChip>
   );
 }
@@ -389,16 +472,26 @@ export function SetHeader({
           className={`${railChipClass(showingAll)} !flex-none !min-w-0`}
         >
           <Clock className="w-3.5 h-3.5 text-sol-orange" />
-          <span className="tabular-nums font-medium text-sol-orange">{live.length}</span>
+          <span className="tabular-nums font-medium text-sol-orange">
+            {live.length}
+          </span>
           {attention > 0 && (
-            <ShortcutTooltip label={`${attention} need${attention === 1 ? "s" : ""} attention`}>
+            <ShortcutTooltip
+              label={`${attention} need${attention === 1 ? "s" : ""} attention`}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-sol-red" />
             </ShortcutTooltip>
           )}
         </button>
       </ShortcutTooltip>
       {shown.map((t) => (
-        <TriggerPill key={t._id} task={t} now={now} active={focused?._id === t._id && expanded} onClick={() => onPill(t)} />
+        <TriggerPill
+          key={t._id}
+          task={t}
+          now={now}
+          active={focused?._id === t._id && expanded}
+          onClick={() => onPill(t)}
+        />
       ))}
       {folded > 0 && (
         <button
@@ -413,12 +506,29 @@ export function SetHeader({
   );
 }
 
-export function TriggerPill({ task, now, active, onClick }: { task: TaskRow; now: number; active: boolean; onClick: () => void }) {
+export function TriggerPill({
+  task,
+  now,
+  active,
+  onClick,
+}: {
+  task: TaskRow;
+  now: number;
+  active: boolean;
+  onClick: () => void;
+}) {
   const accent = schedAccent(task);
   const alert = task.status === "failed" || isTaskOverdue(task, now);
   const title = taskDisplayTitle(task);
   return (
-    <ShortcutTooltip label={title} hint={task.status === "scheduled" && task.run_at !== undefined ? `${describeTaskCadence(task)} · next at ${fmtClock(task.run_at)}` : describeTaskCadence(task)}>
+    <ShortcutTooltip
+      label={title}
+      hint={
+        task.status === "scheduled" && task.run_at !== undefined
+          ? `${describeTaskCadence(task)} · next at ${fmtClock(task.run_at)}`
+          : describeTaskCadence(task)
+      }
+    >
       <button
         data-trigger-pill={task._id}
         aria-pressed={active}
@@ -436,7 +546,11 @@ export function TriggerPill({ task, now, active, onClick }: { task: TaskRow; now
         <span className="min-w-0 truncate">{title}</span>
         <span
           className={`flex-shrink-0 tabular-nums ${
-            alert ? "text-sol-red" : active ? "text-sol-orange/80" : "text-sol-text-dim"
+            alert
+              ? "text-sol-red"
+              : active
+                ? "text-sol-orange/80"
+                : "text-sol-text-dim"
           }`}
         >
           {taskStateLabel(task, now).replace(/^in /, "")}
@@ -477,20 +591,26 @@ function SetList({
             >
               <span className="mt-[3px] flex h-3 w-3 flex-shrink-0 items-center justify-center">
                 {schedAccent(t) === "normal" || schedAccent(t) === "paused" ? (
-                  <Clock className={`w-3 h-3 ${t.status === "paused" ? "text-sol-text-dim" : "text-sol-orange/80"}`} />
+                  <Clock
+                    className={`w-3 h-3 ${t.status === "paused" ? "text-sol-text-dim" : "text-sol-orange/80"}`}
+                  />
                 ) : (
                   <SchedHealthDot accent={schedAccent(t)} task={t} />
                 )}
               </span>
               <span className="flex-1 min-w-0">
                 <span className="flex items-center gap-2 min-w-0">
-                  <span className="truncate font-medium text-sol-text">{taskDisplayTitle(t)}</span>
+                  <span className="truncate font-medium text-sol-text">
+                    {taskDisplayTitle(t)}
+                  </span>
                   <span className="min-w-0 max-w-[40%] truncate text-meta text-sol-text-dim">
                     {isLoop ? "self-paced loop" : describeTaskCadence(t)}
                   </span>
                   {isLoop && <Tag>loop</Tag>}
                   {provenance.id && provenance.id !== conversationId && (
-                    <span className="truncate text-meta text-sol-cyan/80">from {provenance.title || "session"}</span>
+                    <span className="truncate text-meta text-sol-cyan/80">
+                      from {provenance.title || "session"}
+                    </span>
                   )}
                 </span>
                 <span className="mt-0.5 flex items-center gap-2 min-w-0 text-meta text-sol-text-dim">
@@ -498,7 +618,11 @@ function SetList({
                   {last !== undefined && (
                     <span
                       className={`flex-shrink-0 inline-flex items-center gap-1 ${
-                        t.last_run_failed ? "text-sol-red" : t.last_run_needs_attention ? "text-sol-orange" : ""
+                        t.last_run_failed
+                          ? "text-sol-red"
+                          : t.last_run_needs_attention
+                            ? "text-sol-orange"
+                            : ""
                       }`}
                     >
                       {t.last_run_failed ? (
@@ -519,7 +643,10 @@ function SetList({
         })}
       </div>
       <div className="flex justify-end px-2 pt-1">
-        <Link href="/triggers" className="text-meta text-sol-cyan hover:underline">
+        <Link
+          href="/triggers"
+          className="text-meta text-sol-cyan hover:underline"
+        >
           All triggers
         </Link>
       </div>
@@ -569,14 +696,17 @@ function TriggerDetail({
   const isRun = isRunOf(primary, conversationId, sessionId, agentTaskId);
   const provenance = triggerProvenance(primary, conversationId);
   const cadence = isLoop ? "self-paced loop" : describeTaskCadence(primary);
-  const msUntil = primary.run_at !== undefined ? primary.run_at - now : undefined;
+  const msUntil =
+    primary.run_at !== undefined ? primary.run_at - now : undefined;
   // Verbs follow view access: anyone who can see the conversation can manage
   // its triggers, foreign or not (founder decision 2026-08-30). Loops carry
   // no server verbs at all.
   const canManage = !isLoop;
   // The dedicated trigger page (real triggers only — a loop's pseudo id
   // addresses nothing).
-  const triggerHref = isLoop ? null : `/triggers/${primary.short_id ?? primary._id}`;
+  const triggerHref = isLoop
+    ? null
+    : `/triggers/${primary.short_id ?? primary._id}`;
 
   const act = (verb: "pause" | "resume" | "runNow" | "cancel") => {
     triggerAction(primary._id, verb);
@@ -594,7 +724,11 @@ function TriggerDetail({
   const outcome = primary.last_run_failed
     ? { Icon: XCircle, tone: "text-sol-red", word: "failed" }
     : primary.last_run_needs_attention
-      ? { Icon: AlertTriangle, tone: "text-sol-orange", word: "needs attention" }
+      ? {
+          Icon: AlertTriangle,
+          tone: "text-sol-orange",
+          word: "needs attention",
+        }
       : { Icon: CheckCircle2, tone: "text-sol-green", word: null };
 
   const actionBtn =
@@ -605,10 +739,14 @@ function TriggerDetail({
       {/* The chip only carries a short name: the detail opens on the full
           one, with the trigger's own status and where it came from. */}
       <div className="flex items-center gap-2 pt-2 min-w-0">
-        <span className="font-medium text-[12px] text-sol-text truncate">{taskDisplayTitle(primary)}</span>
+        <span className="font-medium text-[12px] text-sol-text truncate">
+          {taskDisplayTitle(primary)}
+        </span>
         {isRun && <Tag>run</Tag>}
         {isLoop && <Tag>loop</Tag>}
-        {provenance.id && <ProvenanceChip id={provenance.id} title={provenance.title} />}
+        {provenance.id && (
+          <ProvenanceChip id={provenance.id} title={provenance.title} />
+        )}
         <span className="ml-auto flex-shrink-0">
           <StatusWord task={primary} now={now} />
         </span>
@@ -634,7 +772,9 @@ function TriggerDetail({
           </p>
         );
         if (!clampable || briefOpen) return para;
-        return <ShortcutTooltip label="Click to expand">{para}</ShortcutTooltip>;
+        return (
+          <ShortcutTooltip label="Click to expand">{para}</ShortcutTooltip>
+        );
       })()}
 
       <div className="flex items-center gap-3">
@@ -642,7 +782,11 @@ function TriggerDetail({
           onClick={() => setShowPrompt((s) => !s)}
           className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors"
         >
-          {showPrompt ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          {showPrompt ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
           {showPrompt ? "Hide full prompt" : "Show full prompt"}
         </button>
         {showPrompt && (
@@ -650,7 +794,11 @@ function TriggerDetail({
             onClick={copyPrompt}
             className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors"
           >
-            {promptCopied ? <Check className="w-3 h-3 text-sol-green" /> : <Copy className="w-3 h-3" />}
+            {promptCopied ? (
+              <Check className="w-3 h-3 text-sol-green" />
+            ) : (
+              <Copy className="w-3 h-3" />
+            )}
             {promptCopied ? "Copied" : "Copy"}
           </button>
         )}
@@ -660,7 +808,9 @@ function TriggerDetail({
               disabled={summarizing}
               onClick={() => {
                 setSummarizing(true);
-                regenerateSummary({ task_id: primary._id }).catch(() => setSummarizing(false));
+                regenerateSummary({ task_id: primary._id }).catch(() =>
+                  setSummarizing(false),
+                );
               }}
               className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text transition-colors disabled:opacity-60"
             >
@@ -672,7 +822,9 @@ function TriggerDetail({
       {/* Prompts are markdown (the CLI snippet asks agents to write them
           that way) — first-class rendering in a drag-resizable viewport.
           Copy still hands over the raw text. */}
-      {showPrompt && <TriggerPromptView prompt={primary.prompt} className="-mx-4" />}
+      {showPrompt && (
+        <TriggerPromptView prompt={primary.prompt} className="-mx-4" />
+      )}
 
       <div className="flex items-center gap-3 flex-wrap text-meta text-sol-text-dim">
         <span className="inline-flex items-center gap-1.5">
@@ -681,7 +833,9 @@ function TriggerDetail({
           {primary.schedule_type === "recurring" &&
             primary.interval_ms !== undefined &&
             msUntil !== undefined && (
-              <ShortcutTooltip label={`${Math.round(Math.min(1, Math.max(0, 1 - msUntil / primary.interval_ms)) * 100)}% through the ${fmtDuration(primary.interval_ms)} cycle`}>
+              <ShortcutTooltip
+                label={`${Math.round(Math.min(1, Math.max(0, 1 - msUntil / primary.interval_ms)) * 100)}% through the ${fmtDuration(primary.interval_ms)} cycle`}
+              >
                 <span className="inline-block w-16 h-1 rounded-full bg-sol-bg-highlight overflow-hidden">
                   <span
                     className="block h-full rounded-full bg-sol-orange/70"
@@ -695,12 +849,17 @@ function TriggerDetail({
         </span>
         {primary.status === "scheduled" && primary.run_at !== undefined && (
           <ShortcutTooltip label={new Date(primary.run_at).toLocaleString()}>
-            <span className="tabular-nums">next at {fmtClock(primary.run_at)}</span>
+            <span className="tabular-nums">
+              next at {fmtClock(primary.run_at)}
+            </span>
           </ShortcutTooltip>
         )}
         {/* Apply is the norm and unmarked; read-only is the exception worth a chip. */}
         {primary.mode !== "apply" && (
-          <ShortcutTooltip label="Read-only run — investigates and reports, changes nothing" hint="file-editing tools are disabled">
+          <ShortcutTooltip
+            label="Read-only run — investigates and reports, changes nothing"
+            hint="file-editing tools are disabled"
+          >
             <span className="px-1.5 py-px rounded border font-medium border-sol-cyan/40 text-sol-cyan/90 bg-sol-cyan/10">
               read-only
             </span>
@@ -724,13 +883,19 @@ function TriggerDetail({
               {isLoop ? "Last wakeup" : "Last run"}
             </span>
             {primary.last_run_at && (
-              <ShortcutTooltip label={new Date(primary.last_run_at).toLocaleString()}>
+              <ShortcutTooltip
+                label={new Date(primary.last_run_at).toLocaleString()}
+              >
                 <span className="text-sol-text-dim tabular-nums">
                   {fmtDuration(Math.max(0, now - primary.last_run_at))} ago
                 </span>
               </ShortcutTooltip>
             )}
-            {outcome.word && <span className={`font-medium ${outcome.tone}`}>{outcome.word}</span>}
+            {outcome.word && (
+              <span className={`font-medium ${outcome.tone}`}>
+                {outcome.word}
+              </span>
+            )}
             {/* Manual re-runs create run conversations without bumping
                 run_count — trust the larger of the two, and stay silent
                 when the rail above already states the count. */}
@@ -743,30 +908,44 @@ function TriggerDetail({
                 </span>
               );
             })()}
-            {primary.last_run_conversation_id && primary.last_run_conversation_id !== conversationId && (
-              <button
-                onClick={() => useInboxStore.getState().requestNavigate(primary.last_run_conversation_id!)}
-                className="ml-auto inline-flex items-center gap-0.5 text-sol-cyan hover:underline"
-              >
-                Open run <ArrowUpRight className="w-3 h-3" />
-              </button>
-            )}
+            {primary.last_run_conversation_id &&
+              primary.last_run_conversation_id !== conversationId && (
+                <button
+                  onClick={() =>
+                    useInboxStore
+                      .getState()
+                      .requestNavigate(primary.last_run_conversation_id!)
+                  }
+                  className="ml-auto inline-flex items-center gap-0.5 text-sol-cyan hover:underline"
+                >
+                  Open run <ArrowUpRight className="w-3 h-3" />
+                </button>
+              )}
           </div>
-          {primary.last_run_summary && (() => {
-            const clampable = primary.last_run_summary.length > 160;
-            const para = (
-              <p
-                onClick={clampable ? () => setLastRunOpen((s) => !s) : undefined}
-                className={`max-w-[110ch] text-meta leading-relaxed text-sol-text-muted transition-colors ${
-                  clampable ? "cursor-pointer hover:text-sol-text" : ""
-                } ${lastRunOpen ? "" : "line-clamp-2"}`}
-              >
-                {readableTimes(primary.last_run_summary, now)}
-              </p>
-            );
-            if (!clampable) return para;
-            return <ShortcutTooltip label={lastRunOpen ? "Click to collapse" : "Click to expand"}>{para}</ShortcutTooltip>;
-          })()}
+          {primary.last_run_summary &&
+            (() => {
+              const clampable = primary.last_run_summary.length > 160;
+              const para = (
+                <p
+                  onClick={
+                    clampable ? () => setLastRunOpen((s) => !s) : undefined
+                  }
+                  className={`max-w-[110ch] text-meta leading-relaxed text-sol-text-muted transition-colors ${
+                    clampable ? "cursor-pointer hover:text-sol-text" : ""
+                  } ${lastRunOpen ? "" : "line-clamp-2"}`}
+                >
+                  {readableTimes(primary.last_run_summary, now)}
+                </p>
+              );
+              if (!clampable) return para;
+              return (
+                <ShortcutTooltip
+                  label={lastRunOpen ? "Click to collapse" : "Click to expand"}
+                >
+                  {para}
+                </ShortcutTooltip>
+              );
+            })()}
         </div>
       )}
 
@@ -823,7 +1002,10 @@ function TriggerDetail({
                 </button>
               </ShortcutTooltip>
             ) : (
-              <ShortcutTooltip label="Cancel this trigger permanently" hint="asks to confirm">
+              <ShortcutTooltip
+                label="Cancel this trigger permanently"
+                hint="asks to confirm"
+              >
                 <button
                   onClick={() => setConfirmingCancel(true)}
                   className={`${actionBtn} border-sol-border/50 text-sol-text-dim hover:text-sol-red hover:border-sol-red/40`}
@@ -846,11 +1028,17 @@ function TriggerDetail({
             </button>
           )}
           {triggerHref && (
-            <Link href={triggerHref} className="text-meta text-sol-cyan hover:underline">
+            <Link
+              href={triggerHref}
+              className="text-meta text-sol-cyan hover:underline"
+            >
               Open trigger page
             </Link>
           )}
-          <Link href="/triggers" className="text-meta text-sol-cyan hover:underline">
+          <Link
+            href="/triggers"
+            className="text-meta text-sol-cyan hover:underline"
+          >
             All triggers
           </Link>
         </span>
@@ -863,24 +1051,40 @@ function TriggerDetail({
         <p className="text-meta leading-relaxed text-sol-text-dim/80 border-t border-sol-border/20 pt-1.5">
           {isLoop ? (
             <>
-              The agent set its own wakeup and controls this loop from inside the session — message it to steer or stop it.{" "}
-              <span className="text-sol-text-dim font-medium">Stash</span> keeps it looping quietly out of your queue;{" "}
-              <span className="text-sol-text-dim font-medium">dismiss/kill</span> tears the session — and its loop — down.
+              The agent set its own wakeup and controls this loop from inside
+              the session — message it to steer or stop it.{" "}
+              <span className="text-sol-text-dim font-medium">Stash</span> keeps
+              it looping quietly out of your queue;{" "}
+              <span className="text-sol-text-dim font-medium">
+                dismiss/kill
+              </span>{" "}
+              tears the session — and its loop — down.
             </>
           ) : primary.originating_conversation_id === conversationId ? (
             <>
-              <span className="text-sol-text-dim font-medium">Stash</span> keeps this session running quietly — the trigger still fires here, out of your queue.{" "}
-              <span className="text-sol-text-dim font-medium">Dismiss/kill</span> retires the session and cancels this trigger.
+              <span className="text-sol-text-dim font-medium">Stash</span> keeps
+              this session running quietly — the trigger still fires here, out
+              of your queue.{" "}
+              <span className="text-sol-text-dim font-medium">
+                Dismiss/kill
+              </span>{" "}
+              retires the session and cancels this trigger.
             </>
           ) : isRun ? (
             <>
-              Dismissing this run leaves the trigger armed — the next run replaces it.{" "}
-              <span className="text-sol-text-dim font-medium">Cancel</span> above stops future runs.
+              Dismissing this run leaves the trigger armed — the next run
+              replaces it.{" "}
+              <span className="text-sol-text-dim font-medium">Cancel</span>{" "}
+              above stops future runs.
             </>
           ) : (
             <>
-              <span className="text-sol-text-dim font-medium">Stash</span> keeps the target session running quietly.{" "}
-              <span className="text-sol-text-dim font-medium">Dismiss/kill</span> on it cancels this trigger.
+              <span className="text-sol-text-dim font-medium">Stash</span> keeps
+              the target session running quietly.{" "}
+              <span className="text-sol-text-dim font-medium">
+                Dismiss/kill
+              </span>{" "}
+              on it cancels this trigger.
             </>
           )}
         </p>

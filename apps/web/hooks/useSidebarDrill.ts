@@ -8,8 +8,15 @@ import { useState } from "react";
 
 export type DrillLevel = "chat" | "tasks";
 
-export function useSidebarDrill(section: DrillLevel | null, available: Record<DrillLevel, boolean>) {
-  const [s, set] = useState<{ section: DrillLevel | null; level: DrillLevel | null; shown: DrillLevel | null }>({
+export function useSidebarDrill(
+  section: DrillLevel | null,
+  available: Record<DrillLevel, boolean>,
+) {
+  const [s, set] = useState<{
+    section: DrillLevel | null;
+    level: DrillLevel | null;
+    shown: DrillLevel | null;
+  }>({
     section,
     level: section,
     shown: section,
@@ -17,7 +24,8 @@ export function useSidebarDrill(section: DrillLevel | null, available: Record<Dr
   // Arriving on another section opens its level: render-phase, so the first
   // paint on the new page already shows it. Leaving for a page of no section
   // keeps whatever level is open.
-  if (s.section !== section) set({ section, level: section ?? s.level, shown: section ?? s.shown });
+  if (s.section !== section)
+    set({ section, level: section ?? s.level, shown: section ?? s.shown });
   const level = s.level && available[s.level] ? s.level : null;
   return {
     level,

@@ -93,7 +93,11 @@ export function readTranscriptCwd(filePath: string): string | undefined {
     return undefined;
   } finally {
     if (fd !== undefined) {
-      try { fs.closeSync(fd); } catch { /* ignore */ }
+      try {
+        fs.closeSync(fd);
+      } catch {
+        /* ignore */
+      }
     }
   }
 }
@@ -111,12 +115,15 @@ export function isTranscriptFileInSyncScope(
   if (isClaudeTranscriptOutOfWatchScope(filePath)) return false;
   if (!config) return true;
 
-  const recordedCwd = observedCwd !== undefined ? observedCwd : readTranscriptCwd(filePath);
+  const recordedCwd =
+    observedCwd !== undefined ? observedCwd : readTranscriptCwd(filePath);
   // A session codecast launched syncs outside the selected folders, exactly as
   // the live watcher decides (transcriptScopeRefusal), so repair agrees with it.
   const parts = filePath.split(path.sep);
   const sub = parts.lastIndexOf("subagents");
-  const launched = wasLaunched(path.basename(filePath, ".jsonl")) || (sub >= 1 && wasLaunched(parts[sub - 1]));
+  const launched =
+    wasLaunched(path.basename(filePath, ".jsonl")) ||
+    (sub >= 1 && wasLaunched(parts[sub - 1]));
   // A selected-project configuration must fail closed when a new/partial file
   // has not recorded its cwd yet. The live watcher can reconsider it once the
   // cwd row arrives; diagnostics must not "repair" it into a zombie ledger row.
@@ -139,7 +146,9 @@ export async function performReconciliation(
   };
 
   // Every Claude config dir's projects tree (claudeConfigDirs.ts).
-  const claudeProjectsRoots = claudeProjectsDirs().filter((dir) => fs.existsSync(dir));
+  const claudeProjectsRoots = claudeProjectsDirs().filter((dir) =>
+    fs.existsSync(dir),
+  );
   if (claudeProjectsRoots.length === 0) {
     return result;
   }
@@ -157,7 +166,15 @@ export async function performReconciliation(
   for (const root of claudeProjectsRoots) {
     await walkFiles(
       root,
-      { observeCwd: true, policy: { dirs: "claudeWatch", files: "reconciliation" }, dirFilter: watchDirFilter, fileFilter: (rel) => { const name = path.basename(rel); return name.endsWith(".jsonl") && !name.startsWith("agent-"); } },
+      {
+        observeCwd: true,
+        policy: { dirs: "claudeWatch", files: "reconciliation" },
+        dirFilter: watchDirFilter,
+        fileFilter: (rel) => {
+          const name = path.basename(rel);
+          return name.endsWith(".jsonl") && !name.startsWith("agent-");
+        },
+      },
       (f) => {
         if (now - f.stat.mtimeMs >= maxAgeMs) return;
         if (!isTranscriptFileInSyncScope(f.path, config, f.cwd)) return;
@@ -176,7 +193,7 @@ export async function performReconciliation(
   }
 
   // Extract session IDs
-  const sessionIds = filesToCheck.map(f => extractSessionIdFromPath(f.path));
+  const sessionIds = filesToCheck.map((f) => extractSessionIdFromPath(f.path));
 
   // Build daemon-side hints: for any local JSONL UUID the daemon already
   // mapped to a conversation (typically because the file was resumed and the
@@ -185,13 +202,16 @@ export async function performReconciliation(
   // index. Without this, every resumed session is falsely flagged as
   // `missing_backend` and triggers a position reset → watchdog storm.
   const conversationIdHints = sessionIds
-    .filter(sid => Boolean(conversationCache[sid]))
-    .map(sid => ({ session_id: sid, conversation_id: conversationCache[sid] }));
-  const hintedSessions = new Set(conversationIdHints.map(h => h.session_id));
+    .filter((sid) => Boolean(conversationCache[sid]))
+    .map((sid) => ({
+      session_id: sid,
+      conversation_id: conversationCache[sid],
+    }));
+  const hintedSessions = new Set(conversationIdHints.map((h) => h.session_id));
 
   log(
     `Reconciliation: Checking ${sessionIds.length} sessions against backend ` +
-    `(${conversationIdHints.length} via local conv mapping)`
+      `(${conversationIdHints.length} via local conv mapping)`,
   );
 
   // Query backend for message counts
@@ -205,7 +225,7 @@ export async function performReconciliation(
   try {
     backendCounts = await syncService.getMessageCountsForReconciliation(
       sessionIds,
-      conversationIdHints
+      conversationIdHints,
     );
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -215,7 +235,7 @@ export async function performReconciliation(
   }
 
   // Create lookup map
-  const backendMap = new Map(backendCounts.map(c => [c.session_id, c]));
+  const backendMap = new Map(backendCounts.map((c) => [c.session_id, c]));
 
   // Compare each file
   for (const file of filesToCheck) {
@@ -234,7 +254,10 @@ export async function performReconciliation(
         backendCount: 0,
         status: "missing_backend",
       });
-      log(`Reconciliation: Session ${sessionId.slice(0, 8)}... missing from backend (${localCount} local messages)`, "warn");
+      log(
+        `Reconciliation: Session ${sessionId.slice(0, 8)}... missing from backend (${localCount} local messages)`,
+        "warn",
+      );
     } else if (hintedSessions.has(sessionId)) {
       // Resolved via local conv mapping → backend `message_count` is the
       // conversation total across all linked JSONLs, NOT this file's count.
@@ -250,7 +273,7 @@ export async function performReconciliation(
       });
       log(
         `Reconciliation: Session ${sessionId.slice(0, 8)}... count mismatch (local: ${localCount}, backend: ${backendData.message_count})`,
-        "warn"
+        "warn",
       );
     }
   }
@@ -266,7 +289,7 @@ export async function performReconciliation(
   } else {
     log(
       `Reconciliation: Found ${result.discrepancies.length} discrepancies out of ${result.checked} sessions`,
-      "warn"
+      "warn",
     );
   }
 
@@ -275,30 +298,40 @@ export async function performReconciliation(
 
 export async function repairDiscrepancies(
   discrepancies: ReconciliationResult["discrepancies"],
-  log: (message: string) => void
+  log: (message: string) => void,
 ): Promise<number> {
   let repaired = 0;
   const MAX_RESYNC_BYTES = 5 * 1024 * 1024; // 5MB max re-read to avoid hanging on large files
 
   for (const d of discrepancies) {
     if (d.status === "count_mismatch" && d.backendCount >= d.localCount) {
-      log(`Skipping repair for ${d.sessionId.slice(0, 8)}... backend already has >= local messages (backend: ${d.backendCount}, local: ${d.localCount})`);
+      log(
+        `Skipping repair for ${d.sessionId.slice(0, 8)}... backend already has >= local messages (backend: ${d.backendCount}, local: ${d.localCount})`,
+      );
       continue;
     }
 
     if (d.status === "missing_backend" || d.status === "count_mismatch") {
       let fileSize = 0;
-      try { fileSize = fs.statSync(d.filePath).size; } catch { /* ignore */ }
+      try {
+        fileSize = fs.statSync(d.filePath).size;
+      } catch {
+        /* ignore */
+      }
 
       if (fileSize > MAX_RESYNC_BYTES) {
         const newPosition = Math.max(0, fileSize - MAX_RESYNC_BYTES);
         setPosition(d.filePath, newPosition);
         updateSyncRecord(d.filePath, { lastSyncedPosition: newPosition });
-        log(`Reset sync position for ${d.sessionId.slice(0, 8)}... to ${newPosition} (tail ${MAX_RESYNC_BYTES} bytes of ${fileSize} byte file)`);
+        log(
+          `Reset sync position for ${d.sessionId.slice(0, 8)}... to ${newPosition} (tail ${MAX_RESYNC_BYTES} bytes of ${fileSize} byte file)`,
+        );
       } else {
         setPosition(d.filePath, 0);
         updateSyncRecord(d.filePath, { lastSyncedPosition: 0 });
-        log(`Reset sync position for ${d.sessionId.slice(0, 8)}... to trigger full re-sync`);
+        log(
+          `Reset sync position for ${d.sessionId.slice(0, 8)}... to trigger full re-sync`,
+        );
       }
       repaired++;
     }

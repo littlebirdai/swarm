@@ -36,7 +36,10 @@ describe("RetryQueue recovery", () => {
 
     // One op per conversation; each fails its first attempt and backs off.
     for (const c of ["a", "b", "c", "d"]) {
-      q.add("addMessages", { conversationId: c, messages: [{ messageUuid: `${c}0` }] });
+      q.add("addMessages", {
+        conversationId: c,
+        messages: [{ messageUuid: `${c}0` }],
+      });
     }
 
     // Let the first failing round run so every op is genuinely backed off, then
@@ -90,9 +93,18 @@ describe("RetryQueue recovery", () => {
 
     // Real conversation: enqueues coalesce in order into one chunked op. A second
     // conversation gives us an op to succeed first and trigger the collapse.
-    q.add("addMessages", { conversationId: "real", messages: [{ messageUuid: "r1" }, { messageUuid: "r2" }] });
-    q.add("addMessages", { conversationId: "real", messages: [{ messageUuid: "r3" }] });
-    q.add("addMessages", { conversationId: "other", messages: [{ messageUuid: "o0" }] });
+    q.add("addMessages", {
+      conversationId: "real",
+      messages: [{ messageUuid: "r1" }, { messageUuid: "r2" }],
+    });
+    q.add("addMessages", {
+      conversationId: "real",
+      messages: [{ messageUuid: "r3" }],
+    });
+    q.add("addMessages", {
+      conversationId: "other",
+      messages: [{ messageUuid: "o0" }],
+    });
 
     // Both conversations fail their first attempt, then stamp the long network
     // backoff so only the recovery collapse can drain them in the budget.
@@ -141,14 +153,19 @@ describe("RetryQueue recovery", () => {
       return okShouldSucceed; // "ok" drains only when we arm it, triggering a collapse
     });
 
-    q.add("addMessages", { conversationId: "bad", messages: [{ messageUuid: "x1" }] });
+    q.add("addMessages", {
+      conversationId: "bad",
+      messages: [{ messageUuid: "x1" }],
+    });
 
     // Drive two failure rounds with an intervening "recovery" collapse between each.
     // If the collapse zeroed attempts, the bad op would never accumulate toward the
     // maxAttempts=3 drop no matter how many rounds run.
     for (let round = 0; round < 4; round++) {
       // Make the bad op due and process it (it fails, attempts++).
-      const bad = q.getPendingOperations().find((o) => o.params.conversationId === "bad");
+      const bad = q
+        .getPendingOperations()
+        .find((o) => o.params.conversationId === "bad");
       if (!bad) break;
       bad.nextRetryAt = Date.now() - 1;
       q.start();
@@ -158,10 +175,15 @@ describe("RetryQueue recovery", () => {
       // "ok" op, let it succeed, which fires collapseBackoffOnRecovery over the
       // still-parked bad op. Under the old code this reset bad.attempts to 0.
       okShouldSucceed = true;
-      q.add("addMessages", { conversationId: `ok${round}`, messages: [{ messageUuid: `o${round}` }] });
+      q.add("addMessages", {
+        conversationId: `ok${round}`,
+        messages: [{ messageUuid: `o${round}` }],
+      });
       q.getPendingOperations()
         .filter((o) => String(o.params.conversationId).startsWith("ok"))
-        .forEach((o) => { o.nextRetryAt = Date.now() - 1; });
+        .forEach((o) => {
+          o.nextRetryAt = Date.now() - 1;
+        });
       q.start();
       await new Promise((r) => setTimeout(r, 60));
       okShouldSucceed = false;
@@ -169,7 +191,11 @@ describe("RetryQueue recovery", () => {
 
     // The bad op was dropped at maxAttempts — not pardoned into perpetuity.
     expect(q.hasPendingConversation("bad")).toBe(false);
-    expect(logs2.some((l) => l.startsWith("Max retries reached. DROPPED: addMessages"))).toBe(true);
+    expect(
+      logs2.some((l) =>
+        l.startsWith("Max retries reached. DROPPED: addMessages"),
+      ),
+    ).toBe(true);
     q.stop();
   });
 });

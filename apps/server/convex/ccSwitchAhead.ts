@@ -12,7 +12,11 @@ import {
   resolveDeviceProfile,
   type AutoSwitchProfile,
 } from "./ccAccountsShared";
-import { headroomScore, limitWindows, type CcUsage } from "@codecast/shared/contracts";
+import {
+  headroomScore,
+  limitWindows,
+  type CcUsage,
+} from "@codecast/shared/contracts";
 
 // Switch-ahead thresholds: the fleet moves off an account while its windows
 // still have room, before Claude Code's grace window (at 100%) and its
@@ -51,7 +55,8 @@ type ManualTargetInput = {
 function manualSwitchFresh(input: ManualTargetInput): boolean {
   const { now, lastAction, lastActionAt, decision } = input;
   if (lastAction !== "manual" || lastActionAt == null) return false;
-  if (now - lastActionAt > MANUAL_TARGET_HOLD_MS || now < lastActionAt) return false;
+  if (now - lastActionAt > MANUAL_TARGET_HOLD_MS || now < lastActionAt)
+    return false;
   return !!decision && decision.kind === "switch" && !!decision.target_email;
 }
 
@@ -86,8 +91,13 @@ export function isNearUsageLimit(
 ): boolean {
   if (!usage) return false;
   if (isUsageExhausted(usage, now, models)) return true;
-  const { session, weekly } = floor ?? { session: SWITCH_AHEAD_SESSION_PERCENT, weekly: SWITCH_AHEAD_WEEKLY_PERCENT };
-  return limitWindows(usage, models).some((w) => livePercent(w, now) >= (w === usage.session ? session : weekly));
+  const { session, weekly } = floor ?? {
+    session: SWITCH_AHEAD_SESSION_PERCENT,
+    weekly: SWITCH_AHEAD_WEEKLY_PERCENT,
+  };
+  return limitWindows(usage, models).some(
+    (w) => livePercent(w, now) >= (w === usage.session ? session : weekly),
+  );
 }
 
 /**
@@ -116,20 +126,38 @@ export function decideSwitchAhead(input: {
   const { now, fleetEmail, profiles, models } = input;
   const fleet = profiles.find((p) => p.email && p.email === fleetEmail);
   const usage = fleet?.usage;
-  if (!usage || (input.fleetSince !== undefined && usage.fetched_at < input.fleetSince)) return null;
+  if (
+    !usage ||
+    (input.fleetSince !== undefined && usage.fetched_at < input.fleetSince)
+  )
+    return null;
   if (!isNearUsageLimit(usage, now, models)) return null;
-  if (input.lastActionAt && now - input.lastActionAt < SWITCH_AHEAD_COOLDOWN_MS) return null;
+  if (input.lastActionAt && now - input.lastActionAt < SWITCH_AHEAD_COOLDOWN_MS)
+    return null;
   const fleetPercent = headroomScore(usage, now);
   const lastCall = isNearUsageLimit(usage, now, models, {
     session: SWITCH_AHEAD_LAST_CALL_PERCENT,
     weekly: SWITCH_AHEAD_LAST_CALL_PERCENT,
   });
-  const target = fallbackProfiles(profiles, fleetEmail, now, models).find((p) => {
-    if (isNearUsageLimit(p.usage, now, models)) return false;
-    const tried = input.attempts.reduce((max, a) => (a.profile === p.name && a.at > max ? a.at : max), 0);
-    if (tried && now - tried < AUTO_SWITCH_SESSION_WINDOW_MS && (p.usage?.fetched_at ?? 0) < tried + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS) return false;
-    return lastCall || headroomScore(p.usage, now) <= fleetPercent - SWITCH_AHEAD_MIN_GAIN;
-  });
+  const target = fallbackProfiles(profiles, fleetEmail, now, models).find(
+    (p) => {
+      if (isNearUsageLimit(p.usage, now, models)) return false;
+      const tried = input.attempts.reduce(
+        (max, a) => (a.profile === p.name && a.at > max ? a.at : max),
+        0,
+      );
+      if (
+        tried &&
+        now - tried < AUTO_SWITCH_SESSION_WINDOW_MS &&
+        (p.usage?.fetched_at ?? 0) < tried + AUTO_SWITCH_ATTEMPT_EVIDENCE_MS
+      )
+        return false;
+      return (
+        lastCall ||
+        headroomScore(p.usage, now) <= fleetPercent - SWITCH_AHEAD_MIN_GAIN
+      );
+    },
+  );
   return target ? { profile: target.name } : null;
 }
 
@@ -145,13 +173,21 @@ function emailKey(email: string | undefined | null): string {
 }
 
 /** A cloud host that runs line work. */
-export function hostsLineWork(device: { is_remote?: boolean; line_slots?: readonly unknown[] | null } | null | undefined): boolean {
+export function hostsLineWork(
+  device:
+    | { is_remote?: boolean; line_slots?: readonly unknown[] | null }
+    | null
+    | undefined,
+): boolean {
   return !!device?.is_remote && !!device.line_slots?.length;
 }
 
 /** The line hosts must not be moved onto this email. */
 export function lineHostRefusesEmail(
-  device: { is_remote?: boolean; line_slots?: readonly unknown[] | null } | null | undefined,
+  device:
+    | { is_remote?: boolean; line_slots?: readonly unknown[] | null }
+    | null
+    | undefined,
   email: string | undefined | null,
 ): boolean {
   return hostsLineWork(device) && lineHostsRefuse(email);
@@ -167,7 +203,10 @@ export function lineHostsRefuse(email: string | undefined | null): boolean {
  *  machine gets the list unchanged. */
 export function dropLineHostRefused<P extends { email?: string | null }>(
   profiles: readonly P[],
-  device: { is_remote?: boolean; line_slots?: readonly unknown[] | null } | null | undefined,
+  device:
+    | { is_remote?: boolean; line_slots?: readonly unknown[] | null }
+    | null
+    | undefined,
   currentEmail?: string | null,
 ): P[] {
   if (!hostsLineWork(device)) return profiles as P[];
@@ -182,11 +221,17 @@ export function dropLineHostRefused<P extends { email?: string | null }>(
  *  this account. A line host does not follow one onto an email it refuses,
  *  even when it has the profile saved. */
 export function fleetHostFollowsSwitch(
-  device: { is_remote?: boolean; line_slots?: readonly unknown[] | null; cc_accounts?: { profiles: Array<{ name: string; email?: string }> } | null },
+  device: {
+    is_remote?: boolean;
+    line_slots?: readonly unknown[] | null;
+    cc_accounts?: { profiles: Array<{ name: string; email?: string }> } | null;
+  },
   target: { profile?: string; email?: string },
 ): boolean {
   const name = resolveDeviceProfile(device.cc_accounts, target);
   if (!name) return false;
-  const email = target.email ?? device.cc_accounts?.profiles.find((p) => p.name === name)?.email;
+  const email =
+    target.email ??
+    device.cc_accounts?.profiles.find((p) => p.name === name)?.email;
   return !lineHostRefusesEmail(device, email);
 }

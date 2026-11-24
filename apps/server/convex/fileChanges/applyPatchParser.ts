@@ -108,8 +108,16 @@ export function parseApplyPatchSections(input: string): ApplyPatchSection[] {
   if (!input.trim()) return [];
 
   const lines = input.split("\n");
-  const sections: Array<{ filePath: string; operation: ApplyPatchOperation; lines: string[] }> = [];
-  let current: { filePath: string; operation: ApplyPatchOperation; lines: string[] } | null = null;
+  const sections: Array<{
+    filePath: string;
+    operation: ApplyPatchOperation;
+    lines: string[];
+  }> = [];
+  let current: {
+    filePath: string;
+    operation: ApplyPatchOperation;
+    lines: string[];
+  } | null = null;
 
   for (const line of lines) {
     const fileMatch = line.match(/^\*\*\* (Update|Add|Delete) File:\s+(.+)$/);
@@ -123,7 +131,12 @@ export function parseApplyPatchSections(input: string): ApplyPatchSection[] {
       continue;
     }
     if (!current) continue;
-    if (line === "*** Begin Patch" || line === "*** End Patch" || line === "*** End of File") continue;
+    if (
+      line === "*** Begin Patch" ||
+      line === "*** End Patch" ||
+      line === "*** End of File"
+    )
+      continue;
     current.lines.push(line);
   }
 
@@ -131,31 +144,39 @@ export function parseApplyPatchSections(input: string): ApplyPatchSection[] {
 
   return sections.flatMap((section) => {
     const patchBody = section.lines.join("\n").trim();
-    const parsed = patchBody ? parsePatch(patchBody) : { hunks: [], oldContent: "", newContent: "" };
+    const parsed = patchBody
+      ? parsePatch(patchBody)
+      : { hunks: [], oldContent: "", newContent: "" };
     if (parsed.hunks.length > 0) {
-      return [{
-        filePath: section.filePath,
-        operation: section.operation,
-        hunks: parsed.hunks,
-        oldContent: parsed.oldContent,
-        newContent: parsed.newContent,
-      }];
+      return [
+        {
+          filePath: section.filePath,
+          operation: section.operation,
+          hunks: parsed.hunks,
+          oldContent: parsed.oldContent,
+          newContent: parsed.newContent,
+        },
+      ];
     }
 
     const syntheticHunk = buildSyntheticHunk(section.operation, section.lines);
-    const oldContent = section.operation === "Add" ? "" : extractDeletedContent(section.lines);
-    const newContent = section.operation === "Delete" ? "" : extractAddedContent(section.lines);
+    const oldContent =
+      section.operation === "Add" ? "" : extractDeletedContent(section.lines);
+    const newContent =
+      section.operation === "Delete" ? "" : extractAddedContent(section.lines);
 
     if (!oldContent && !newContent && section.operation === "Update") {
       return [];
     }
 
-    return [{
-      filePath: section.filePath,
-      operation: section.operation,
-      hunks: syntheticHunk ? [syntheticHunk] : [],
-      oldContent,
-      newContent,
-    }];
+    return [
+      {
+        filePath: section.filePath,
+        operation: section.operation,
+        hunks: syntheticHunk ? [syntheticHunk] : [],
+        oldContent,
+        newContent,
+      },
+    ];
   });
 }

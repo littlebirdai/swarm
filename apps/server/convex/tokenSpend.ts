@@ -22,9 +22,20 @@ export const findPeople = internalQuery({
   handler: async (ctx, args) => {
     const needles = args.needles.map((n) => n.toLowerCase());
     const users = await ctx.db.query("users").collect();
-    const out: Array<{ id: string; name: string; email: string; needle: string; is_bot: boolean }> = [];
+    const out: Array<{
+      id: string;
+      name: string;
+      email: string;
+      needle: string;
+      is_bot: boolean;
+    }> = [];
     for (const u of users) {
-      const hay = [u.name, u.email, u.github_username, ...(u.alternate_emails ?? [])]
+      const hay = [
+        u.name,
+        u.email,
+        u.github_username,
+        ...(u.alternate_emails ?? []),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -54,7 +65,10 @@ export const conversationPage = internalQuery({
     const page = await ctx.db
       .query("conversations")
       .withIndex("by_user_updated", (q) =>
-        q.eq("user_id", args.userId).gte("updated_at", args.since).lte("updated_at", args.until)
+        q
+          .eq("user_id", args.userId)
+          .gte("updated_at", args.since)
+          .lte("updated_at", args.until),
       )
       .order("desc")
       .paginate({ cursor: args.cursor, numItems: args.limit });
@@ -95,14 +109,20 @@ export const conversationPage = internalQuery({
 // the subdirectory, not the repo; and the workspace convention is ~/src/<project>,
 // so the segment after the last /src/ is the project. git_root beats
 // project_path because it already points at the repo when it is known.
-export function projectOf(row: { project_path: string | null; git_root: string | null }): string {
+export function projectOf(row: {
+  project_path: string | null;
+  git_root: string | null;
+}): string {
   const raw = row.git_root ?? row.project_path;
   if (!raw) return "(no project)";
   const cut = raw.split("/.codecast/worktrees/")[0];
   const marker = "/src/";
   const at = cut.lastIndexOf(marker);
   if (at >= 0) {
-    const after = cut.slice(at + marker.length).split("/").filter(Boolean);
+    const after = cut
+      .slice(at + marker.length)
+      .split("/")
+      .filter(Boolean);
     if (after.length) return after[0];
   }
   const parts = cut.split("/").filter(Boolean);
@@ -129,7 +149,16 @@ const emptyBucket = (): Bucket => ({
   messages: 0,
 });
 
-function add(b: Bucket, u: { input: number; output: number; cache_read: number; cache_write: number } | null, messages: number) {
+function add(
+  b: Bucket,
+  u: {
+    input: number;
+    output: number;
+    cache_read: number;
+    cache_write: number;
+  } | null,
+  messages: number,
+) {
   b.sessions += 1;
   b.messages += messages;
   if (!u) {
@@ -149,7 +178,9 @@ export const report = internalAction({
     until: v.number(),
   },
   handler: async (ctx, args): Promise<any> => {
-    const people = await ctx.runQuery(internal.tokenSpend.findPeople, { needles: args.needles });
+    const people = await ctx.runQuery(internal.tokenSpend.findPeople, {
+      needles: args.needles,
+    });
     const humans = people.filter((p) => !p.is_bot);
 
     const results: any[] = [];
@@ -167,24 +198,40 @@ export const report = internalAction({
       let cursor: string | null = null;
       let pages = 0;
       for (;;) {
-        const page: any = await ctx.runQuery(internal.tokenSpend.conversationPage, {
-          userId: person.id as any,
-          since: args.since,
-          until: args.until,
-          cursor,
-          limit: 400,
-        });
+        const page: any = await ctx.runQuery(
+          internal.tokenSpend.conversationPage,
+          {
+            userId: person.id as any,
+            since: args.since,
+            until: args.until,
+            cursor,
+            limit: 400,
+          },
+        );
         pages += 1;
         for (const row of page.rows) {
           const project = projectOf(row);
           const model = row.model ?? "(unknown)";
-          add((byProject[project] ??= emptyBucket()), row.usage, row.message_count);
-          add((byAgent[row.agent_type] ??= emptyBucket()), row.usage, row.message_count);
+          add(
+            (byProject[project] ??= emptyBucket()),
+            row.usage,
+            row.message_count,
+          );
+          add(
+            (byAgent[row.agent_type] ??= emptyBucket()),
+            row.usage,
+            row.message_count,
+          );
           add((byModel[model] ??= emptyBucket()), row.usage, row.message_count);
           const pm = `${project} :: ${model}`;
-          add((byProjectModel[pm] ??= emptyBucket()), row.usage, row.message_count);
+          add(
+            (byProjectModel[pm] ??= emptyBucket()),
+            row.usage,
+            row.message_count,
+          );
           add(total, row.usage, row.message_count);
-          if (row.started_at >= args.since) add(startedInWindow, row.usage, row.message_count);
+          if (row.started_at >= args.since)
+            add(startedInWindow, row.usage, row.message_count);
           if (row.is_fork) add(forked, row.usage, row.message_count);
         }
         if (page.isDone) break;
@@ -192,7 +239,12 @@ export const report = internalAction({
         if (pages > 200) break;
       }
       results.push({
-        person: { id: person.id, name: person.name, email: person.email, needle: person.needle },
+        person: {
+          id: person.id,
+          name: person.name,
+          email: person.email,
+          needle: person.needle,
+        },
         total,
         startedInWindow,
         forked,
@@ -203,7 +255,11 @@ export const report = internalAction({
         pages,
       });
     }
-    return { window: { since: args.since, until: args.until }, people: results, matched: people };
+    return {
+      window: { since: args.since, until: args.until },
+      people: results,
+      matched: people,
+    };
   },
 });
 
@@ -216,20 +272,36 @@ export const report = internalAction({
 export const coverage = internalAction({
   args: { userId: v.id("users"), since: v.number(), until: v.number() },
   handler: async (ctx, args): Promise<any> => {
-    const bins: Record<string, { with_usage: number; without: number; msgs_with: number; msgs_without: number }> = {};
+    const bins: Record<
+      string,
+      {
+        with_usage: number;
+        without: number;
+        msgs_with: number;
+        msgs_without: number;
+      }
+    > = {};
     let cursor: string | null = null;
     for (;;) {
-      const page: any = await ctx.runQuery(internal.tokenSpend.conversationPage, {
-        userId: args.userId,
-        since: args.since,
-        until: args.until,
-        cursor,
-        limit: 400,
-      });
+      const page: any = await ctx.runQuery(
+        internal.tokenSpend.conversationPage,
+        {
+          userId: args.userId,
+          since: args.since,
+          until: args.until,
+          cursor,
+          limit: 400,
+        },
+      );
       for (const row of page.rows) {
         if (row.agent_type !== "claude_code") continue;
         const day = new Date(row.updated_at).toISOString().slice(0, 10);
-        const bin = (bins[day] ??= { with_usage: 0, without: 0, msgs_with: 0, msgs_without: 0 });
+        const bin = (bins[day] ??= {
+          with_usage: 0,
+          without: 0,
+          msgs_with: 0,
+          msgs_without: 0,
+        });
         if (row.usage) {
           bin.with_usage += 1;
           bin.msgs_with += row.message_count;
@@ -244,4 +316,3 @@ export const coverage = internalAction({
     return bins;
   },
 });
-

@@ -18,18 +18,37 @@ export type PositionWrite = { id: string; position: number };
 
 /** The positions that put `movedId` before `beforeId` (or last, for null)
  *  among `siblings`, given in the order they read now. Only changed rows. */
-export function reorderWrites(siblings: readonly Pick<InitiativeRow, "_id" | "position">[], movedId: string, beforeId: string | null): PositionWrite[] {
+export function reorderWrites(
+  siblings: readonly Pick<InitiativeRow, "_id" | "position">[],
+  movedId: string,
+  beforeId: string | null,
+): PositionWrite[] {
   const rest = siblings.filter((s) => s._id !== movedId);
   const at = beforeId ? rest.findIndex((s) => s._id === beforeId) : -1;
-  const moved = siblings.find((s) => s._id === movedId) ?? { _id: movedId, position: undefined };
-  const next = at < 0 ? [...rest, moved] : [...rest.slice(0, at), moved, ...rest.slice(at)];
-  return next.flatMap((s, i) => ((i + 1) * STEP === s.position ? [] : [{ id: s._id, position: (i + 1) * STEP }]));
+  const moved = siblings.find((s) => s._id === movedId) ?? {
+    _id: movedId,
+    position: undefined,
+  };
+  const next =
+    at < 0
+      ? [...rest, moved]
+      : [...rest.slice(0, at), moved, ...rest.slice(at)];
+  return next.flatMap((s, i) =>
+    (i + 1) * STEP === s.position
+      ? []
+      : [{ id: s._id, position: (i + 1) * STEP }],
+  );
 }
 
-const childrenOf = (all: readonly InitiativeRow[], id: string) => all.some((r) => r.parent_initiative_id === id);
+const childrenOf = (all: readonly InitiativeRow[], id: string) =>
+  all.some((r) => r.parent_initiative_id === id);
 
 /** Whether `goal` may sit under `parent` (null: the top level). */
-export function canPlace(all: readonly InitiativeRow[], goal: InitiativeRow, parent: InitiativeRow | null): boolean {
+export function canPlace(
+  all: readonly InitiativeRow[],
+  goal: InitiativeRow,
+  parent: InitiativeRow | null,
+): boolean {
   if (!parent) return true;
   if (parent._id === goal._id) return false;
   if (parent.parent_initiative_id) return false;
@@ -39,44 +58,82 @@ export function canPlace(all: readonly InitiativeRow[], goal: InitiativeRow, par
 export type GoalMove = { parent: string | null; position: PositionWrite[] };
 
 /** Tab on a goal: under the sibling just above it, last among that goal's own. */
-export function indentMove(all: readonly InitiativeRow[], siblings: readonly InitiativeRow[], goal: InitiativeRow): GoalMove | null {
+export function indentMove(
+  all: readonly InitiativeRow[],
+  siblings: readonly InitiativeRow[],
+  goal: InitiativeRow,
+): GoalMove | null {
   const i = siblings.findIndex((s) => s._id === goal._id);
   const above = i > 0 ? siblings[i - 1] : null;
   if (!above || !canPlace(all, goal, above)) return null;
   const kids = all.filter((r) => r.parent_initiative_id === above._id);
-  return { parent: above._id, position: reorderWrites([...kids, goal], goal._id, null) };
+  return {
+    parent: above._id,
+    position: reorderWrites([...kids, goal], goal._id, null),
+  };
 }
 
 /** Shift+Tab on a goal: out to its parent's level, right after its parent. */
-export function outdentMove(all: readonly InitiativeRow[], parentSiblings: readonly InitiativeRow[], goal: InitiativeRow): GoalMove | null {
+export function outdentMove(
+  all: readonly InitiativeRow[],
+  parentSiblings: readonly InitiativeRow[],
+  goal: InitiativeRow,
+): GoalMove | null {
   const parentId = goal.parent_initiative_id;
   if (!parentId) return null;
   const parent = all.find((r) => r._id === parentId);
-  const grand = parent?.parent_initiative_id ? all.find((r) => r._id === parent.parent_initiative_id) ?? null : null;
+  const grand = parent?.parent_initiative_id
+    ? (all.find((r) => r._id === parent.parent_initiative_id) ?? null)
+    : null;
   const i = parentSiblings.findIndex((s) => s._id === parentId);
-  const after = i >= 0 ? parentSiblings[i + 1]?._id ?? null : null;
-  return { parent: grand?._id ?? null, position: reorderWrites([...parentSiblings, goal], goal._id, after) };
+  const after = i >= 0 ? (parentSiblings[i + 1]?._id ?? null) : null;
+  return {
+    parent: grand?._id ?? null,
+    position: reorderWrites([...parentSiblings, goal], goal._id, after),
+  };
 }
 
 /** A position for a goal added right after `afterId` among `siblings` (last for null), and any renumbering it needs. */
-export function insertAfterWrites(siblings: readonly Pick<InitiativeRow, "_id" | "position">[], newId: string, afterId: string | null): PositionWrite[] {
+export function insertAfterWrites(
+  siblings: readonly Pick<InitiativeRow, "_id" | "position">[],
+  newId: string,
+  afterId: string | null,
+): PositionWrite[] {
   const i = afterId ? siblings.findIndex((s) => s._id === afterId) : -1;
-  const before = i >= 0 ? siblings[i + 1]?._id ?? null : null;
-  return reorderWrites([...siblings, { _id: newId, position: undefined }], newId, before);
+  const before = i >= 0 ? (siblings[i + 1]?._id ?? null) : null;
+  return reorderWrites(
+    [...siblings, { _id: newId, position: undefined }],
+    newId,
+    before,
+  );
 }
 
 /** What a goal lists as carrying it, in the owner's order: the projects it is
  *  the nearest goal for, then those it shares with a goal above them (`under`
  *  names where they are listed too); a proposal's projects last. */
-export function carriedProjects(goal: Pick<DocGoal, "projects" | "refs">, projectIds: readonly string[]): { project: DocProject; under?: string }[] {
-  const at = (p: DocProject) => { const i = projectIds.indexOf(p.id); return p.ghost || i < 0 ? Infinity : i; };
-  return [...goal.projects.map((project) => ({ project })), ...goal.refs.map((r) => ({ project: r.project, under: r.under }))]
-    .sort((a, b) => at(a.project) - at(b.project));
+export function carriedProjects(
+  goal: Pick<DocGoal, "projects" | "refs">,
+  projectIds: readonly string[],
+): { project: DocProject; under?: string }[] {
+  const at = (p: DocProject) => {
+    const i = projectIds.indexOf(p.id);
+    return p.ghost || i < 0 ? Infinity : i;
+  };
+  return [
+    ...goal.projects.map((project) => ({ project })),
+    ...goal.refs.map((r) => ({ project: r.project, under: r.under })),
+  ].sort((a, b) => at(a.project) - at(b.project));
 }
 
 /** A project moved to sit before `beforeId` in a goal's list (last for null). */
-export function reorderedProjects(ids: readonly string[], projectId: string, beforeId: string | null): string[] {
+export function reorderedProjects(
+  ids: readonly string[],
+  projectId: string,
+  beforeId: string | null,
+): string[] {
   const rest = ids.filter((id) => id !== projectId);
   const at = beforeId ? rest.indexOf(beforeId) : -1;
-  return at < 0 ? [...rest, projectId] : [...rest.slice(0, at), projectId, ...rest.slice(at)];
+  return at < 0
+    ? [...rest, projectId]
+    : [...rest.slice(0, at), projectId, ...rest.slice(at)];
 }

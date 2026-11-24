@@ -66,7 +66,9 @@ export const WALL_FACE_PX: Record<WallTier, number> = {
 const TIER_ORDER: WallTier[] = ["loud", "here", "idle", "away", "gone"];
 
 /** Something of theirs is running or waiting on them right now. */
-export function hasFleetActivity(fleet: FleetSummary | null | undefined): boolean {
+export function hasFleetActivity(
+  fleet: FleetSummary | null | undefined,
+): boolean {
   return !!fleet && (fleet.working > 0 || fleet.needsYou > 0);
 }
 

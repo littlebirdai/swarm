@@ -18,11 +18,15 @@ import {
   type ExecutionOperationJournal,
 } from "./localJournal.js";
 import type { EnsureBindingRequest } from "./types.js";
-import { materializeFileTags, type AttachedFileRef } from "@codecast/shared/contracts";
+import {
+  materializeFileTags,
+  type AttachedFileRef,
+} from "@codecast/shared/contracts";
 import type { ExecutionConvexTransport } from "./convexControlPlane.js";
 import { defaultConfigDir } from "../config/configDir.js";
 
-export const FENCED_EXECUTION_FEATURE_FLAG = "CODECAST_FENCED_EXECUTION_V1" as const;
+export const FENCED_EXECUTION_FEATURE_FLAG =
+  "CODECAST_FENCED_EXECUTION_V1" as const;
 
 /** Explicitly off unless the single rollout bit is exactly `1`. */
 export function fencedExecutionEnabled(
@@ -36,7 +40,9 @@ export function fencedExecutionEnabled(
  * a programming error; it must never be handed to claimPendingMessageForDelivery,
  * deliverMessage, direct tmux injection, or a fallback transport.
  */
-export function assertLegacyDeliveryEnvelope(message: Record<string, unknown>): void {
+export function assertLegacyDeliveryEnvelope(
+  message: Record<string, unknown>,
+): void {
   if (
     message.delivery_protocol_version !== undefined ||
     message.delivery_id !== undefined ||
@@ -87,8 +93,13 @@ function optionalEnum<const T extends string>(
 }
 
 function parseCapabilities(value: unknown): RuntimeCapability[] {
-  if (!Array.isArray(value) || value.some((candidate) => typeof candidate !== "string")) {
-    throw new TypeError("Invalid execution work: capabilities must be an array");
+  if (
+    !Array.isArray(value) ||
+    value.some((candidate) => typeof candidate !== "string")
+  ) {
+    throw new TypeError(
+      "Invalid execution work: capabilities must be an array",
+    );
   }
   const actual = [...new Set(value)].sort();
   const expected = [...FENCED_RUNTIME_CAPABILITIES].sort();
@@ -96,7 +107,9 @@ function parseCapabilities(value: unknown): RuntimeCapability[] {
     actual.length !== expected.length ||
     actual.some((capability, index) => capability !== expected[index])
   ) {
-    throw new TypeError("Invalid execution work: capability handshake mismatch");
+    throw new TypeError(
+      "Invalid execution work: capability handshake mismatch",
+    );
   }
   return actual as RuntimeCapability[];
 }
@@ -111,7 +124,9 @@ function parseEnsureRequest(value: unknown): EnsureBindingRequest {
   }
   const transport = string(target.transport, "runtime transport");
   if (!["tmux", "app-server", "external"].includes(transport)) {
-    throw new TypeError("Invalid execution work: unsupported transport spelling");
+    throw new TypeError(
+      "Invalid execution work: unsupported transport spelling",
+    );
   }
   if (!agentSupportsExecutionTransport(requestedAgent, transport as any)) {
     throw new TypeError("Invalid execution work: agent/transport mismatch");
@@ -124,12 +139,11 @@ function parseEnsureRequest(value: unknown): EnsureBindingRequest {
       "workspace-write",
       "danger-full-access",
     ] as const);
-    const approvalPolicy = optionalEnum(raw.approvalPolicy, "isolation approval policy", [
-      "untrusted",
-      "on-failure",
-      "on-request",
-      "never",
-    ] as const);
+    const approvalPolicy = optionalEnum(
+      raw.approvalPolicy,
+      "isolation approval policy",
+      ["untrusted", "on-failure", "on-request", "never"] as const,
+    );
     if (raw.isolated !== undefined && typeof raw.isolated !== "boolean") {
       throw new TypeError("Invalid isolation flag: expected boolean");
     }
@@ -137,12 +151,16 @@ function parseEnsureRequest(value: unknown): EnsureBindingRequest {
       ...(sandbox === undefined ? {} : { sandbox }),
       ...(approvalPolicy === undefined ? {} : { approvalPolicy }),
       ...(raw.isolated === undefined ? {} : { isolated: raw.isolated }),
-      ...(raw.worktreeName === undefined ? {} : { worktreeName: string(raw.worktreeName, "worktree name") }),
+      ...(raw.worktreeName === undefined
+        ? {}
+        : { worktreeName: string(raw.worktreeName, "worktree name") }),
     };
   }
   const protocolVersion = integer(request.protocolVersion, "protocol version");
   if (protocolVersion !== FENCED_EXECUTION_PROTOCOL_VERSION) {
-    throw new TypeError(`Invalid execution work: unsupported protocol ${protocolVersion}`);
+    throw new TypeError(
+      `Invalid execution work: unsupported protocol ${protocolVersion}`,
+    );
   }
   return {
     target: {
@@ -188,22 +206,28 @@ interface ExecutionWorkItem {
 }
 
 function parseWork(value: unknown): ExecutionWorkItem[] {
-  if (!Array.isArray(value)) throw new TypeError("Invalid execution work feed: expected array");
+  if (!Array.isArray(value))
+    throw new TypeError("Invalid execution work feed: expected array");
   return value.map((rawItem) => {
     const item = object(rawItem, "execution work item");
     const bindingsRaw = item.bindings;
-    if (!Array.isArray(bindingsRaw)) throw new TypeError("Invalid execution work bindings");
+    if (!Array.isArray(bindingsRaw))
+      throw new TypeError("Invalid execution work bindings");
     const bindings = bindingsRaw.map((rawBinding): BindingWork => {
       const binding = object(rawBinding, "binding work");
       if (typeof binding.daemonBootMatch !== "boolean") {
-        throw new TypeError("Invalid binding work: daemonBootMatch must be boolean");
+        throw new TypeError(
+          "Invalid binding work: daemonBootMatch must be boolean",
+        );
       }
       const state = string(binding.state, "binding state");
       return {
         state,
         daemonBootMatch: binding.daemonBootMatch,
         request: parseEnsureRequest(binding.request),
-        ...(binding.binding === undefined ? {} : { binding: parseReadyBinding(binding.binding) }),
+        ...(binding.binding === undefined
+          ? {}
+          : { binding: parseReadyBinding(binding.binding) }),
       };
     });
     let pendingIntent: ExecutionWorkItem["pendingIntent"];
@@ -211,11 +235,16 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
       const intent = object(item.pendingIntent, "pending successor intent");
       const policy = string(intent.policy, "successor policy");
       if (policy !== "drain-current" && policy !== "cancel-unstarted") {
-        throw new TypeError("Invalid execution work: unsupported successor policy");
+        throw new TypeError(
+          "Invalid execution work: unsupported successor policy",
+        );
       }
       pendingIntent = {
         intentId: string(intent.intentId, "successor intent id"),
-        expectedCurrentEpoch: integer(intent.expectedCurrentEpoch, "expected current epoch"),
+        expectedCurrentEpoch: integer(
+          intent.expectedCurrentEpoch,
+          "expected current epoch",
+        ),
         policy,
         request: parseEnsureRequest(intent.request),
       };
@@ -231,7 +260,9 @@ function parseWork(value: unknown): ExecutionWorkItem[] {
     return {
       conversationId: string(item.conversationId, "work conversation id"),
       currentEpoch: integer(item.currentEpoch, "current epoch"),
-      ...(item.pendingEpoch === undefined ? {} : { pendingEpoch: integer(item.pendingEpoch, "pending epoch") }),
+      ...(item.pendingEpoch === undefined
+        ? {}
+        : { pendingEpoch: integer(item.pendingEpoch, "pending epoch") }),
       ...(pendingPolicy === undefined ? {} : { pendingPolicy }),
       bindings,
       ...(pendingIntent ? { pendingIntent } : {}),
@@ -271,12 +302,16 @@ export class DaemonExecutionRuntime {
     this.resolveFile = options.resolveFile;
     this.onLog = options.onLog ?? (() => {});
     this.controlPlane = new ConvexExecutionControlPlane(options.transport);
-    this.drivers = options.drivers instanceof RuntimeDriverRegistry
-      ? options.drivers
-      : new RuntimeDriverRegistry(options.drivers);
-    const journal = options.journal ?? new FileExecutionOperationJournal(
-      options.journalDirectory ?? path.join(defaultConfigDir(), "execution-journal"),
-    );
+    this.drivers =
+      options.drivers instanceof RuntimeDriverRegistry
+        ? options.drivers
+        : new RuntimeDriverRegistry(options.drivers);
+    const journal =
+      options.journal ??
+      new FileExecutionOperationJournal(
+        options.journalDirectory ??
+          path.join(defaultConfigDir(), "execution-journal"),
+      );
     this.coordinator = new ExecutionCoordinator({
       controlPlane: this.controlPlane,
       drivers: this.drivers,
@@ -304,12 +339,19 @@ export class DaemonExecutionRuntime {
     // Startup recovery is an actual read/process pass before reactive updates;
     // a WebSocket subscription alone can otherwise wait forever on unchanged
     // durable work left by the prior process.
-    await this.processWorkUpdate(await this.controlPlane.listExecutionWork(this.handshake()));
-    this.unsubscribe = this.controlPlane.subscribeExecutionWork(this.handshake(), (value) => {
-      void this.processWorkUpdate(value).catch((error) => {
-        this.onLog(`[fenced-execution] work update failed: ${error instanceof Error ? error.message : String(error)}`);
-      });
-    });
+    await this.processWorkUpdate(
+      await this.controlPlane.listExecutionWork(this.handshake()),
+    );
+    this.unsubscribe = this.controlPlane.subscribeExecutionWork(
+      this.handshake(),
+      (value) => {
+        void this.processWorkUpdate(value).catch((error) => {
+          this.onLog(
+            `[fenced-execution] work update failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        });
+      },
+    );
   }
 
   stop(): void {
@@ -340,14 +382,19 @@ export class DaemonExecutionRuntime {
         policy: intent.policy,
         request: intent.request,
       });
-      successorFromIntent = await this.coordinator.ensureBinding(intent.request);
+      successorFromIntent = await this.coordinator.ensureBinding(
+        intent.request,
+      );
     }
 
-    const ready = new Map<number, {
-      binding: ReadyBinding;
-      request: EnsureBindingRequest;
-      state: "ready" | "stopped" | "quarantined";
-    }>();
+    const ready = new Map<
+      number,
+      {
+        binding: ReadyBinding;
+        request: EnsureBindingRequest;
+        state: "ready" | "stopped" | "quarantined";
+      }
+    >();
     for (const work of item.bindings) {
       if (
         (work.state === "stopped" || work.state === "quarantined") &&
@@ -363,7 +410,8 @@ export class DaemonExecutionRuntime {
         });
         continue;
       }
-      if (["stopped", "quarantined", "start-ambiguous"].includes(work.state)) continue;
+      if (["stopped", "quarantined", "start-ambiguous"].includes(work.state))
+        continue;
       // A boot mismatch is a binding stranded by a terminated daemon boot on
       // this same device (the daemon is a per-device singleton). Present OUR
       // boot id: the server transfers the binding and returns the recovery
@@ -389,14 +437,20 @@ export class DaemonExecutionRuntime {
     }
 
     const current = ready.get(item.currentEpoch);
-    const pendingEpoch = item.pendingEpoch ?? item.pendingIntent?.request.target.epoch;
-    const successor = pendingEpoch === undefined ? undefined : ready.get(pendingEpoch);
+    const pendingEpoch =
+      item.pendingEpoch ?? item.pendingIntent?.request.target.epoch;
+    const successor =
+      pendingEpoch === undefined ? undefined : ready.get(pendingEpoch);
     const policy = item.pendingPolicy ?? item.pendingIntent?.policy;
 
     if (current && successor && policy) {
       if (current.state === "ready") {
-        if (policy === "drain-current") await this.drain(current.binding, current.request);
-        const driver = this.drivers.resolve(current.binding.actualAgent, current.binding.transport);
+        if (policy === "drain-current")
+          await this.drain(current.binding, current.request);
+        const driver = this.drivers.resolve(
+          current.binding.actualAgent,
+          current.binding.transport,
+        );
         await driver.stop(current.binding);
         const disposition = await this.controlPlane.publishRuntimeDisposition(
           current.binding,
@@ -421,22 +475,30 @@ export class DaemonExecutionRuntime {
       }
       return;
     }
-    if (current?.state === "ready") await this.drain(current.binding, current.request);
+    if (current?.state === "ready")
+      await this.drain(current.binding, current.request);
   }
 
-  private async drain(binding: ReadyBinding, request: EnsureBindingRequest): Promise<void> {
+  private async drain(
+    binding: ReadyBinding,
+    request: EnsureBindingRequest,
+  ): Promise<void> {
     for (let index = 0; index < 1024; index += 1) {
       const claim = await this.controlPlane.claimNextDelivery(binding);
       if (!("permit" in claim)) return;
       const input: Array<Delivery["input"][number]> = [];
       try {
         const resolveFile = this.resolveFile;
-        const text = resolveFile ? await materializeFileTags(claim.delivery.content, resolveFile) : claim.delivery.content;
+        const text = resolveFile
+          ? await materializeFileTags(claim.delivery.content, resolveFile)
+          : claim.delivery.content;
         input.push({ type: "text", text });
         for (const storageId of claim.delivery.imageStorageIds) {
-          if (!this.resolveImage) throw new Error("fenced image resolver is unavailable");
+          if (!this.resolveImage)
+            throw new Error("fenced image resolver is unavailable");
           const localPath = await this.resolveImage(storageId);
-          if (!localPath) throw new Error(`could not resolve fenced image ${storageId}`);
+          if (!localPath)
+            throw new Error(`could not resolve fenced image ${storageId}`);
           input.push({ type: "local-image", path: localPath });
         }
       } catch (error) {

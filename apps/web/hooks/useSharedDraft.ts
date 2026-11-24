@@ -4,7 +4,11 @@ import { api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore } from "../store/inboxStore";
 import { isConvexId } from "../lib/entityLinks";
 import { composeDocId } from "../lib/composerPresence";
-import { SharedDraftSession, sharedClientId, type SharedDraftServer } from "../lib/sharedDraft";
+import {
+  SharedDraftSession,
+  sharedClientId,
+  type SharedDraftServer,
+} from "../lib/sharedDraft";
 import { usePresenceRows, type PresenceRow } from "./useDocPresence";
 import { useChangedState } from "./useChangedState";
 import { useQueryNoThrow } from "./useQueryNoThrow";
@@ -45,16 +49,29 @@ function publish(conversationId: string, status: SharedDraftStatus | null) {
 }
 function subscribe(l: () => void) {
   listeners.add(l);
-  return () => { listeners.delete(l); };
+  return () => {
+    listeners.delete(l);
+  };
 }
 
-export function useSharedDraftStatus(conversationId: string): SharedDraftStatus {
-  return useSyncExternalStore(subscribe, () => statuses.get(conversationId) ?? IDLE, () => IDLE);
+export function useSharedDraftStatus(
+  conversationId: string,
+): SharedDraftStatus {
+  return useSyncExternalStore(
+    subscribe,
+    () => statuses.get(conversationId) ?? IDLE,
+    () => IDLE,
+  );
 }
 
 /** Who has typed into the shared draft in the last few seconds, by user id. */
-export function typingEditors(editors: Record<string, number>, now = Date.now()): string[] {
-  return Object.entries(editors).filter(([, at]) => now - at < TYPING_MS).map(([id]) => id);
+export function typingEditors(
+  editors: Record<string, number>,
+  now = Date.now(),
+): string[] {
+  return Object.entries(editors)
+    .filter(([, at]) => now - at < TYPING_MS)
+    .map(([id]) => id);
 }
 
 /**
@@ -87,7 +104,11 @@ export function othersWriting(others: readonly PresenceRow[]): boolean {
  * reports it is in the draft (its words are on the server by then: join
  * resolves after its edit is confirmed). An empty box never waits.
  */
-export function waitsToJoin(others: readonly PresenceRow[], me: string | null, mine: string): boolean {
+export function waitsToJoin(
+  others: readonly PresenceRow[],
+  me: string | null,
+  mine: string,
+): boolean {
   if (!me || !mine.trim()) return false;
   return others.some((r) => holdsOwnWords(r) && r.user_id < me);
 }
@@ -96,8 +117,15 @@ function serverOf(convex: ReturnType<typeof useConvex>): SharedDraftServer {
   return {
     snapshot: (id) => convex.query(api.docSync.getSnapshot, { id }),
     steps: (id, version) => convex.query(api.docSync.getSteps, { id, version }),
-    submit: (id, version, clientId, steps) => convex.mutation(api.docSync.submitSteps, { id, version, clientId, steps }),
-    saveSnapshot: (id, version, content) => convex.mutation(api.docSync.submitSnapshot, { id, version, content }),
+    submit: (id, version, clientId, steps) =>
+      convex.mutation(api.docSync.submitSteps, {
+        id,
+        version,
+        clientId,
+        steps,
+      }),
+    saveSnapshot: (id, version, content) =>
+      convex.mutation(api.docSync.submitSnapshot, { id, version, content }),
   };
 }
 
@@ -109,10 +137,16 @@ export function useSharedDraft(opts: {
   text: string;
   setText: (text: string) => void;
   inputRef: RefObject<HTMLTextAreaElement | null>;
-}): { active: boolean; others: PresenceRow[]; editors: Record<string, number> } {
+}): {
+  active: boolean;
+  others: PresenceRow[];
+  editors: Record<string, number>;
+} {
   const { conversationId, enabled, seed, text, inputRef } = opts;
   const convex = useConvex();
-  const myId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const myId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   const docId = composeDocId(conversationId);
   const can = enabled && !!myId && isConvexId(conversationId);
   const others = usePresenceRows(docId, can);
@@ -120,7 +154,8 @@ export function useSharedDraft(opts: {
   // join it stays in until everyone leaves: a later typist never pulls it out.
   const clearedRef = useRef(false);
   if (!can || others.length === 0) clearedRef.current = false;
-  else if (!clearedRef.current && !waitsToJoin(others, myId, text)) clearedRef.current = true;
+  else if (!clearedRef.current && !waitsToJoin(others, myId, text))
+    clearedRef.current = true;
   const active = can && others.length > 0 && clearedRef.current;
 
   const textRef = useRef(text);
@@ -140,14 +175,18 @@ export function useSharedDraft(opts: {
   const show = (next: string, map?: (pos: number) => number) => {
     const el = inputRef.current;
     if (el && el.value !== next) {
-      const focused = typeof document !== "undefined" && document.activeElement === el;
+      const focused =
+        typeof document !== "undefined" && document.activeElement === el;
       const start = el.selectionStart ?? 0;
       const end = el.selectionEnd ?? 0;
       el.value = next;
       if (focused) {
         const s = map ? map(start) : next.length;
         const e = map ? map(end) : next.length;
-        el.setSelectionRange(Math.min(s, next.length), Math.min(e, next.length));
+        el.setSelectionRange(
+          Math.min(s, next.length),
+          Math.min(e, next.length),
+        );
       }
     }
     textRef.current = next;
@@ -156,21 +195,31 @@ export function useSharedDraft(opts: {
 
   useWatchEffect(() => {
     if (!active || !myId) return;
-    const session = new SharedDraftSession(docId, sharedClientId(myId), serverOf(convex), {
-      text: show,
-      version: setVersion,
-      remoteEdit: (userId) => {
-        if (userId === myId) return;
-        setEditors((prev) => ({ ...prev, [userId]: Date.now() }));
+    const session = new SharedDraftSession(
+      docId,
+      sharedClientId(myId),
+      serverOf(convex),
+      {
+        text: show,
+        version: setVersion,
+        remoteEdit: (userId) => {
+          if (userId === myId) return;
+          setEditors((prev) => ({ ...prev, [userId]: Date.now() }));
+        },
+        local: () => {
+          const el = inputRef.current;
+          return el
+            ? { text: el.value, caret: el.selectionEnd ?? undefined }
+            : null;
+        },
       },
-      local: () => {
-        const el = inputRef.current;
-        return el ? { text: el.value, caret: el.selectionEnd ?? undefined } : null;
-      },
-    });
+    );
     sessionRef.current = session;
     void session
-      .join(() => textRef.current, { seed, othersLive: () => othersWriting(othersRef.current) })
+      .join(() => textRef.current, {
+        seed,
+        othersLive: () => othersWriting(othersRef.current),
+      })
       .then((next) => {
         if (next == null || sessionRef.current !== session) return;
         if (next !== textRef.current) show(next);
@@ -191,13 +240,24 @@ export function useSharedDraft(opts: {
     const session = sessionRef.current;
     if (!session || !joined) return;
     const el = inputRef.current;
-    session.edit(text, el && el.value === text ? el.selectionEnd ?? undefined : undefined);
+    session.edit(
+      text,
+      el && el.value === text ? (el.selectionEnd ?? undefined) : undefined,
+    );
   }, [text, joined]);
 
   // Everyone else's, live.
-  const remote = useQueryNoThrow(api.docSync.getSteps, active && version != null ? { id: docId, version } : "skip").data;
+  const remote = useQueryNoThrow(
+    api.docSync.getSteps,
+    active && version != null ? { id: docId, version } : "skip",
+  ).data;
   useWatchEffect(() => {
-    if (remote) sessionRef.current?.receive(remote.version - remote.steps.length, remote.steps, remote.clientIds);
+    if (remote)
+      sessionRef.current?.receive(
+        remote.version - remote.steps.length,
+        remote.steps,
+        remote.clientIds,
+      );
   }, [remote]);
 
   // Drop a typist's mark once they pause.
@@ -217,7 +277,11 @@ export function useSharedDraft(opts: {
   // drew a bare caret right behind the typist's own.
   const readCaret = () => {
     const el = inputRef.current;
-    setCaret(el && joined && document.activeElement === el ? el.selectionEnd ?? null : null);
+    setCaret(
+      el && joined && document.activeElement === el
+        ? (el.selectionEnd ?? null)
+        : null,
+    );
   };
   useWatchEffect(readCaret, [text, joined, inputRef]);
   useWatchEffect(() => {

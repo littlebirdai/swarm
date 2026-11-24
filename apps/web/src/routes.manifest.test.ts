@@ -2,10 +2,18 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { ROUTES, routeHref, tabRoutes, type RouteEntry } from "./routes.manifest";
+import {
+  ROUTES,
+  routeHref,
+  tabRoutes,
+  type RouteEntry,
+} from "./routes.manifest";
 import { NON_TAB_EXACT, NON_TAB_PREFIXES } from "../lib/tabRoutes";
 import { isUnderRoot } from "../components/simple/laneBoot";
-import { APP_SURFACES, APP_SURFACE_EXCLUDED_PATHS } from "@codecast/shared/contracts";
+import {
+  APP_SURFACES,
+  APP_SURFACE_EXCLUDED_PATHS,
+} from "@codecast/shared/contracts";
 
 /**
  * Completeness / parity guard for the routing manifest (Wave 1 seed).
@@ -30,7 +38,9 @@ const dashLayoutSrc = read("components/DashboardLayout.tsx");
 // may import nothing) and is shared by tabRoutes.
 const handoffSrc = read("lib/desktopHandoff.ts");
 
-const manifestByHref = new Map(ROUTES.map((r) => [routeHref(r.path), r] as const));
+const manifestByHref = new Map(
+  ROUTES.map((r) => [routeHref(r.path), r] as const),
+);
 
 // -- (1) App.tsx parser: reconstruct every absolute <Route path> --------------------------
 //
@@ -42,7 +52,9 @@ const manifestByHref = new Map(ROUTES.map((r) => [routeHref(r.path), r] as const
 
 // Each route also says whether it renders nothing (`element={null}`), which the manifest
 // records as `component: null`.
-function parseAppRoutePaths(src: string): { path: string; rendersNothing: boolean }[] {
+function parseAppRoutePaths(
+  src: string,
+): { path: string; rendersNothing: boolean }[] {
   const lines = src.split("\n");
   const paths: { path: string; rendersNothing: boolean }[] = [];
   // Stack of path prefixes contributed by ancestor <Route> elements that are still open.
@@ -66,10 +78,15 @@ function parseAppRoutePaths(src: string): { path: string; rendersNothing: boolea
       const selfClosed = /\/>\s*$/.test(line);
 
       if (pathMatch || indexRoute) {
-        const prefix = prefixStack.length ? prefixStack[prefixStack.length - 1] : "";
+        const prefix = prefixStack.length
+          ? prefixStack[prefixStack.length - 1]
+          : "";
         const seg = indexRoute ? "" : pathMatch![1];
         const abs = indexRoute ? prefix : join2(prefix, seg);
-        paths.push({ path: abs, rendersNothing: /\belement=\{null\}/.test(line) });
+        paths.push({
+          path: abs,
+          rendersNothing: /\belement=\{null\}/.test(line),
+        });
         if (!selfClosed) {
           // Path-carrying parent (e.g. <Route path="settings" element=...>): becomes a prefix.
           prefixStack.push(abs);
@@ -78,7 +95,9 @@ function parseAppRoutePaths(src: string): { path: string; rendersNothing: boolea
       } else if (!selfClosed) {
         // Layout route with `element` but no `path` (no prefix contribution) — push an empty
         // frame so its closing tag bookkeeping stays balanced via the inherited prefix.
-        prefixStack.push(prefixStack.length ? prefixStack[prefixStack.length - 1] : "");
+        prefixStack.push(
+          prefixStack.length ? prefixStack[prefixStack.length - 1] : "",
+        );
         depthStack.push(depth);
       }
       // Track nesting depth for openers that aren't self-closed.
@@ -101,7 +120,9 @@ function parseAppRoutePaths(src: string): { path: string; rendersNothing: boolea
 const appRoutes = parseAppRoutePaths(appSrc);
 const appPaths = appRoutes.map((r) => r.path);
 const appHrefs = new Set(appPaths.map(routeHref));
-const appEmptyHrefs = new Set(appRoutes.filter((r) => r.rendersNothing).map((r) => routeHref(r.path)));
+const appEmptyHrefs = new Set(
+  appRoutes.filter((r) => r.rendersNothing).map((r) => routeHref(r.path)),
+);
 
 // -- (2) TabContent parser: extract the static form of every routing pattern --------------
 //
@@ -140,7 +161,10 @@ function parseTabContentPatterns(src: string): { tab: string }[] {
     let i = 0;
     const staticPath = rawBody
       .replace(/\\\//g, "/")
-      .replace(/\(\[\^\/\]\+\)|\(\[\^\/\]\*\)/g, () => `:${paramNames[i++] ?? "param"}`)
+      .replace(
+        /\(\[\^\/\]\+\)|\(\[\^\/\]\*\)/g,
+        () => `:${paramNames[i++] ?? "param"}`,
+      )
       .replace(/\(\.\+\)$/, "*");
     out.push({ tab: staticPath });
   }
@@ -159,7 +183,8 @@ const tabPatterns = parseTabContentPatterns(tabContentSrc);
 function parseFullWidthBasePaths(src: string): string[] {
   // The names ORed together into isFullWidthPage.
   const lineMatch = src.match(/const isFullWidthPage\s*=\s*([^;]+);/);
-  if (!lineMatch) throw new Error("isFullWidthPage definition not found in DashboardLayout");
+  if (!lineMatch)
+    throw new Error("isFullWidthPage definition not found in DashboardLayout");
   const flagNames = lineMatch[1]
     .split("||")
     .map((s) => s.trim())
@@ -179,7 +204,9 @@ function parseFullWidthBasePaths(src: string): string[] {
       // its surface is the /inbox route (plus conversation views, covered by isOnConversationPage).
       bases.push("/inbox");
     } else {
-      throw new Error(`No path literal found for ${name} (parser needs an update)`);
+      throw new Error(
+        `No path literal found for ${name} (parser needs an update)`,
+      );
     }
   }
   return Array.from(new Set(bases));
@@ -197,8 +224,12 @@ const nonTab = { exact: NON_TAB_EXACT, prefixes: NON_TAB_PREFIXES };
 // in this set is a public-profile handle (/:username) served full-page outside the
 // shell. Parse it so the parity checks below understand the dynamic exclusion.
 function parseInShellRootSegments(src: string): Set<string> {
-  const block = src.match(/IN_SHELL_ROOT_SEGMENTS\s*=\s*new Set\(\[([\s\S]*?)\]\)/);
-  const segs = block ? Array.from(block[1].matchAll(/"([^"]+)"/g)).map((m) => m[1]) : [];
+  const block = src.match(
+    /IN_SHELL_ROOT_SEGMENTS\s*=\s*new Set\(\[([\s\S]*?)\]\)/,
+  );
+  const segs = block
+    ? Array.from(block[1].matchAll(/"([^"]+)"/g)).map((m) => m[1])
+    : [];
   return new Set(segs);
 }
 const inShellSegments = parseInShellRootSegments(handoffSrc);
@@ -232,7 +263,9 @@ describe("(d) every ROUTES entry has the required fields", () => {
       expect(typeof r.path).toBe("string");
       expect(r.component).toBeDefined();
       // lazy() refs are objects exposing $$typeof / _payload; null is a route that renders nothing.
-      expect(typeof r.component === "object" || typeof r.component === "function").toBe(true);
+      expect(
+        typeof r.component === "object" || typeof r.component === "function",
+      ).toBe(true);
       expect(typeof r.layout).toBe("string");
       if (r.tab !== undefined) expect(typeof r.tab).toBe("string");
       if (r.fullWidth !== undefined) expect(typeof r.fullWidth).toBe("boolean");
@@ -244,7 +277,9 @@ describe("(d) every ROUTES entry has the required fields", () => {
   });
 
   it("a null component is exactly a route App.tsx renders as element={null}", () => {
-    const empty = ROUTES.filter((r) => r.component === null).map((r) => routeHref(r.path));
+    const empty = ROUTES.filter((r) => r.component === null).map((r) =>
+      routeHref(r.path),
+    );
     expect(empty.sort()).toEqual([...appEmptyHrefs].sort());
   });
 
@@ -274,7 +309,9 @@ describe("(a) every App.tsx route appears in the manifest", () => {
   it("manifest introduces no route absent from App.tsx", () => {
     // The manifest must stay faithful in BOTH directions — an entry with no <Route> would
     // render nowhere today and silently rot.
-    const extra = ROUTES.map((r) => routeHref(r.path)).filter((href) => !appHrefs.has(href));
+    const extra = ROUTES.map((r) => routeHref(r.path)).filter(
+      (href) => !appHrefs.has(href),
+    );
     expect(extra).toEqual([]);
   });
 });
@@ -307,7 +344,9 @@ describe("(c) every DashboardLayout full-width page is marked fullWidth in the m
     const notMarked: string[] = [];
     for (const base of fullWidthBases) {
       // Every manifest route sharing this base's first segment must be fullWidth...
-      const members = ROUTES.filter((r) => firstSegment(routeHref(r.path)) === base);
+      const members = ROUTES.filter(
+        (r) => firstSegment(routeHref(r.path)) === base,
+      );
       // ...and there must be at least one — a base with zero manifest coverage means the
       // manifest is missing a page DashboardLayout still renders edge-to-edge. Fail loudly
       // instead of vacuously skipping it.
@@ -376,7 +415,10 @@ describe("non-tab routes (tabRouting.ts) are NOT tagged tab-routable in the mani
   it("known tab-routing gaps stay honest (each listed gap is still a real gap)", () => {
     // If the owner fixes the exclusion, this fails to force deleting the stale entry.
     for (const href of KNOWN_TAB_ROUTING_GAPS) {
-      expect({ href, stillGapped: !isNonTabHref(href) }).toEqual({ href, stillGapped: true });
+      expect({ href, stillGapped: !isNonTabHref(href) }).toEqual({
+        href,
+        stillGapped: true,
+      });
     }
   });
 
@@ -391,7 +433,9 @@ describe("non-tab routes (tabRouting.ts) are NOT tagged tab-routable in the mani
       .map((r) => routeHref(r.path))
       .filter((href) => /^\/[^/:]+$/.test(href)) // single STATIC segment only
       .map((href) => href.slice(1));
-    expect([...inShellSegments].sort()).toEqual([...new Set(manifestInShell)].sort());
+    expect([...inShellSegments].sort()).toEqual(
+      [...new Set(manifestInShell)].sort(),
+    );
   });
 
   it("a standalone in-shell page that draws the dashboard shell is tab-routable", () => {
@@ -401,13 +445,23 @@ describe("non-tab routes (tabRouting.ts) are NOT tagged tab-routable in the mani
     // empty and the tab kept the dead address (/orchestration did this).
     const manifestSrc = read("src/routes.manifest.ts");
     const fileOf = new Map(
-      [...manifestSrc.matchAll(/const (\w+) = lazy\(\(\) => import\("@\/([^"]+)"\)\)/g)].map((m) => [m[1], m[2]] as const),
+      [
+        ...manifestSrc.matchAll(
+          /const (\w+) = lazy\(\(\) => import\("@\/([^"]+)"\)\)/g,
+        ),
+      ].map((m) => [m[1], m[2]] as const),
     );
     const offenders: string[] = [];
-    for (const m of manifestSrc.matchAll(/\{ path: "([^":/]+)", component: cast\((\w+)\), layout: "standalone"([^}]*)\}/g)) {
+    for (const m of manifestSrc.matchAll(
+      /\{ path: "([^":/]+)", component: cast\((\w+)\), layout: "standalone"([^}]*)\}/g,
+    )) {
       const file = fileOf.get(m[2]);
       if (!file || !inShellSegments.has(m[1])) continue;
-      if (/<DashboardLayout\b/.test(read(`${file}.tsx`)) && !/\btab:/.test(m[3])) offenders.push(`/${m[1]}`);
+      if (
+        /<DashboardLayout\b/.test(read(`${file}.tsx`)) &&
+        !/\btab:/.test(m[3])
+      )
+        offenders.push(`/${m[1]}`);
     }
     expect(offenders).toEqual([]);
   });
@@ -425,13 +479,19 @@ describe("(e) every param-free signed-in route is a cast app surface", () => {
     (r) =>
       !/[:*]/.test(r.path) &&
       !r.guestOk &&
-      (r.layout === "dashboardShell" || r.layout === "standalone" || r.layout === "settings"),
+      (r.layout === "dashboardShell" ||
+        r.layout === "standalone" ||
+        r.layout === "settings"),
   );
 
   it("every param-free dashboard, standalone and settings route is listed or explicitly excluded", () => {
     const missing = signedIn
       .map((r) => r.path)
-      .filter((p) => !APP_SURFACE_EXCLUDED_PATHS.has(p) && !APP_SURFACES.some((s) => s.name === p));
+      .filter(
+        (p) =>
+          !APP_SURFACE_EXCLUDED_PATHS.has(p) &&
+          !APP_SURFACES.some((s) => s.name === p),
+      );
     expect(missing).toEqual([]);
   });
 
@@ -439,10 +499,17 @@ describe("(e) every param-free signed-in route is a cast app surface", () => {
   // (`evals/*` serves `evals/sim`): one area that reads its own sub-paths.
   const servingRoute = (name: string) =>
     ROUTES.find((r) => r.path === name) ??
-    ROUTES.find((r) => r.path.endsWith("/*") && name.startsWith(r.path.slice(0, -1)) && name.length > r.path.length - 1);
+    ROUTES.find(
+      (r) =>
+        r.path.endsWith("/*") &&
+        name.startsWith(r.path.slice(0, -1)) &&
+        name.length > r.path.length - 1,
+    );
 
   it("no listed surface is a route the router no longer serves", () => {
-    const stale = APP_SURFACES.map((s) => s.name).filter((n) => !servingRoute(n));
+    const stale = APP_SURFACES.map((s) => s.name).filter(
+      (n) => !servingRoute(n),
+    );
     expect(stale).toEqual([]);
   });
 
@@ -459,25 +526,43 @@ describe("(e) every param-free signed-in route is a cast app surface", () => {
 describe("the simple lane's old addresses lead to routes", () => {
   // A route pattern as a matcher: `:param` takes one segment, a trailing `*` the rest.
   const matches = (path: string, href: string) =>
-    new RegExp(`^${routeHref(path).replace(/\/\*$/, "(?:/.*)?").replace(/:[^/]+/g, "[^/]+")}$`).test(href);
-  const served = (href: string) => ROUTES.some((r) => r.component !== null && matches(r.path, href)) || href.startsWith("/settings/");
+    new RegExp(
+      `^${routeHref(path)
+        .replace(/\/\*$/, "(?:/.*)?")
+        .replace(/:[^/]+/g, "[^/]+")}$`,
+    ).test(href);
+  const served = (href: string) =>
+    ROUTES.some((r) => r.component !== null && matches(r.path, href)) ||
+    href.startsWith("/settings/");
 
   it("every lane address is served by the redirect, and each redirect target by a page", async () => {
-    const { LANE_PATHS, conversationPath } = await import("../components/simple/lanePaths");
+    const { LANE_PATHS, conversationPath } =
+      await import("../components/simple/lanePaths");
     const { laneRedirectTarget } = await import("../lib/laneRedirect");
-    const lanePages = Object.values(LANE_PATHS).filter((p) => p !== LANE_PATHS.welcome).concat(conversationPath("jx7abc"));
+    const lanePages = Object.values(LANE_PATHS)
+      .filter((p) => p !== LANE_PATHS.welcome)
+      .concat(conversationPath("jx7abc"));
     for (const href of lanePages) {
-      expect({ href, redirected: ROUTES.some((r) => r.path === "simple/*" && matches(r.path, href)) }).toEqual({ href, redirected: true });
+      expect({
+        href,
+        redirected: ROUTES.some(
+          (r) => r.path === "simple/*" && matches(r.path, href),
+        ),
+      }).toEqual({ href, redirected: true });
       const to = laneRedirectTarget(href)!.split("?")[0];
-      expect({ href, to, served: served(to) }).toEqual({ href, to, served: true });
+      expect({ href, to, served: served(to) }).toEqual({
+        href,
+        to,
+        served: true,
+      });
     }
     expect(served(LANE_PATHS.welcome)).toBe(true);
   });
 
   it("Stripe's return page opens a settings section", async () => {
-    const { BILLING_RETURN } = await import("@codecast/shared/contracts/assistant");
+    const { BILLING_RETURN } =
+      await import("@codecast/shared/contracts/assistant");
     const { settingsSectionForPath } = await import("../lib/settingsSections");
     expect(settingsSectionForPath(BILLING_RETURN.path)?.section).toBe("plan");
   });
 });
-

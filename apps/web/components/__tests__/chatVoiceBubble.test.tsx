@@ -1,7 +1,14 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { bindWalkie } from "../../lib/calls/walkie";
-import { callDockSurface, walkieBlockedReason, walkieBurstDropped, walkieJoinReason, walkieKeyName, walkieKeyState } from "../../hooks/useWalkie";
+import {
+  callDockSurface,
+  walkieBlockedReason,
+  walkieBurstDropped,
+  walkieJoinReason,
+  walkieKeyName,
+  walkieKeyState,
+} from "../../hooks/useWalkie";
 import { useInboxStore } from "../../store/inboxStore";
 import { voiceDuration } from "../../lib/voicePlayer";
 import { ChatMessage } from "../chat/ChatMessage";
@@ -40,7 +47,10 @@ function callsOn(on = true) {
   useInboxStore.setState({
     callConfig: { enabled: on, url: "wss://x", teams: [TEAM] },
     teams: [{ _id: TEAM, features: { calls: on, chat: true } }],
-    clientState: { ...(useInboxStore.getState() as any).clientState, ui: { active_team_id: TEAM } },
+    clientState: {
+      ...(useInboxStore.getState() as any).clientState,
+      ui: { active_team_id: TEAM },
+    },
   } as any);
 }
 
@@ -60,7 +70,10 @@ function render(message: ChatMessageView): string {
 describe("voice bubble", () => {
   test("a live burst pulses, says who to join, and shows the words so far", () => {
     const html = render(
-      view({ content: "can you look at the deploy", voice: { status: "live", roomKey: ROOM } }),
+      view({
+        content: "can you look at the deploy",
+        voice: { status: "live", roomKey: ROOM },
+      }),
     );
     expect(html).toContain("ch-voice-live");
     expect(html).toContain("ch-voice-dot");
@@ -108,7 +121,10 @@ describe("voice bubble", () => {
 
   test("a burst whose recording never uploaded still carries what was said", () => {
     const html = render(
-      view({ content: "the words survived", voice: { status: "done", durationMs: 3_000 } }),
+      view({
+        content: "the words survived",
+        voice: { status: "done", durationMs: 3_000 },
+      }),
     );
     expect(html).toContain("the words survived");
     expect(html).toContain("ch-voice-noaudio");
@@ -132,7 +148,9 @@ describe("voice bubble", () => {
     // pipeline a typed message uses would turn somebody saying "star star" into
     // formatting, and swallow the characters that carried the meaning.
     const spoken = "use **kwargs and a # comment";
-    const html = render(view({ content: spoken, voice: { status: "done", durationMs: 2_000 } }));
+    const html = render(
+      view({ content: spoken, voice: { status: "done", durationMs: 2_000 } }),
+    );
     expect(html).toContain("use **kwargs and a # comment");
     expect(html).not.toContain("<strong>");
     expect(html).not.toContain("<h1");
@@ -200,8 +218,12 @@ describe("which surface the dock shows", () => {
     // lingering seat draws too: the far side's roster shows me in the room for
     // that half minute, and a surface that vanished at Stop and came back as a
     // call when their join landed read as off, then on (pl-756).
-    expect(surface(lingering("burst"), { ...seated, muted: true })).toBe("walkie");
-    expect(surface(lingering("listen"), { ...seated, muted: false })).toBe("walkie");
+    expect(surface(lingering("burst"), { ...seated, muted: true })).toBe(
+      "walkie",
+    );
+    expect(surface(lingering("listen"), { ...seated, muted: false })).toBe(
+      "walkie",
+    );
   });
 
   test("somebody stepping in on purpose keeps the walkie's shape while the room is voice", () => {
@@ -278,7 +300,16 @@ describe("when push to talk refuses", () => {
   function callPlane(patch: Record<string, unknown>) {
     callsOn();
     useInboxStore.setState({
-      call: { phase: "idle", roomKey: null, muted: true, camera: false, sharing: false, speaking: [], error: null, ...patch },
+      call: {
+        phase: "idle",
+        roomKey: null,
+        muted: true,
+        camera: false,
+        sharing: false,
+        speaking: [],
+        error: null,
+        ...patch,
+      },
     } as any);
   }
 
@@ -289,7 +320,9 @@ describe("when push to talk refuses", () => {
     // away for a sentence and then MUTE the call on release — the engine
     // tidying up after a burst, doing real damage to a conversation.
     callPlane({ phase: "connected", roomKey: ROOM, muted: false });
-    expect(walkieBlockedReason(ROOM)).toBe("Your mic is already open here — just talk");
+    expect(walkieBlockedReason(ROOM)).toBe(
+      "Your mic is already open here — just talk",
+    );
     // Standing in the room is still allowed; only talking into it twice is not.
     expect(walkieJoinReason(ROOM)).toBe(null);
   });
@@ -304,7 +337,9 @@ describe("when push to talk refuses", () => {
   test("a room nobody is in is open for business", () => {
     callPlane({});
     expect(walkieBlockedReason(ROOM)).toBe(null);
-    expect(walkieBlockedReason(undefined)).toBe("There is nobody to talk to here yet");
+    expect(walkieBlockedReason(undefined)).toBe(
+      "There is nobody to talk to here yet",
+    );
   });
 
   test("calls off for this team refuses both the key and the door", () => {
@@ -327,7 +362,9 @@ describe("when push to talk refuses", () => {
 // beside it already says correctly.
 describe("the clock only appears when there is something to time", () => {
   test("a burst with no duration shows no clock", () => {
-    const html = render(view({ content: "the deploy is green", voice: { status: "done" } }));
+    const html = render(
+      view({ content: "the deploy is green", voice: { status: "done" } }),
+    );
     expect(html).toContain("the deploy is green");
     expect(html).toContain("ch-voice-noaudio");
     expect(html).not.toContain("0:00");
@@ -356,7 +393,9 @@ describe("the live bubble reads as a direction", () => {
   test("a burst you are not sending is the cool, incoming colour", () => {
     // No burst of our own is in flight in this process, so every live bubble
     // here is somebody else's voice arriving.
-    const html = render(view({ content: "on my way", voice: { status: "live", roomKey: ROOM } }));
+    const html = render(
+      view({ content: "on my way", voice: { status: "live", roomKey: ROOM } }),
+    );
     expect(html).toContain("ch-voice-rx");
     expect(html).not.toContain("ch-voice-tx");
   });
@@ -366,7 +405,9 @@ describe("the live bubble reads as a direction", () => {
     // level on either side. Four bars sitting flat would say the microphone was
     // dead; the pulsing dot says only what is known, which is that a burst is
     // open.
-    const html = render(view({ content: "hello", voice: { status: "live", roomKey: ROOM } }));
+    const html = render(
+      view({ content: "hello", voice: { status: "live", roomKey: ROOM } }),
+    );
     expect(html).toContain("ch-voice-dot");
     expect(html).not.toContain("walkie-level");
   });
@@ -431,7 +472,9 @@ describe("a message whose attachment is audio", () => {
   });
 
   test("an image attachment is still an image", () => {
-    expect(row({ attachments: [{ storage_id: "st1", mime: "image/png" }] }).voice).toBeUndefined();
+    expect(
+      row({ attachments: [{ storage_id: "st1", mime: "image/png" }] }).voice,
+    ).toBeUndefined();
   });
 
   test("a real voice field is never overwritten by the guess", () => {
@@ -464,7 +507,10 @@ describe("a message whose attachment is audio", () => {
   });
 
   test("a recording beside typed words keeps the words as words", () => {
-    const v = row({ content: "listen to this", attachments: [{ storage_id: "st-a", mime: "audio/webm" }] });
+    const v = row({
+      content: "listen to this",
+      attachments: [{ storage_id: "st-a", mime: "audio/webm" }],
+    });
     expect(v.voice).toBeUndefined();
     const html = render(v);
     expect(html).toContain("listen to this");
@@ -512,11 +558,15 @@ describe("what the key is doing", () => {
     // `capturing` is the engine's `sending.live`: recorder, meter and recognizer
     // running. It does NOT wait on `heardLive`, which is the room, because the
     // words are already being kept and that is what makes it worth speaking.
-    expect(walkieKeyState(ptt({ holding: true, capturing: true }))).toBe("live");
+    expect(walkieKeyState(ptt({ holding: true, capturing: true }))).toBe(
+      "live",
+    );
   });
 
   test("dropped wins over everything: the mic is open and nobody is hearing it", () => {
-    expect(walkieKeyState(ptt({ holding: true, capturing: true, dropped: true }))).toBe("dropped");
+    expect(
+      walkieKeyState(ptt({ holding: true, capturing: true, dropped: true })),
+    ).toBe("dropped");
   });
 });
 
@@ -530,25 +580,43 @@ describe("what the key is doing", () => {
 describe("walkieKeyName", () => {
   test("says why it cannot be held, over everything else", () => {
     expect(
-      walkieKeyName("live", { reason: "You are in another call", live: true, title: "Hold to talk to Ann" }),
+      walkieKeyName("live", {
+        reason: "You are in another call",
+        live: true,
+        title: "Hold to talk to Ann",
+      }),
     ).toBe("You are in another call");
   });
 
   test("names each of the three moments of a hold", () => {
     expect(walkieKeyName("opening", {})).toBe("Opening the mic — one moment");
-    expect(walkieKeyName("live", { live: false })).toBe("Talking — they get it as a message. Click to stop");
-    expect(walkieKeyName("live", { live: true })).toBe("Talking — they hear you now. Click to stop");
-    expect(walkieKeyName("dropped", {})).toBe("Nobody is hearing this — still recording");
-    expect(walkieKeyName("locked", {})).toBe("You are on the line, hands free — End hangs up");
+    expect(walkieKeyName("live", { live: false })).toBe(
+      "Talking — they get it as a message. Click to stop",
+    );
+    expect(walkieKeyName("live", { live: true })).toBe(
+      "Talking — they hear you now. Click to stop",
+    );
+    expect(walkieKeyName("dropped", {})).toBe(
+      "Nobody is hearing this — still recording",
+    );
+    expect(walkieKeyName("locked", {})).toBe(
+      "You are on the line, hands free — End hangs up",
+    );
   });
 
   test("names the person when idle, instead of twenty identical controls", () => {
-    expect(walkieKeyName("idle", { title: "Hold to talk to Ann Diaz" })).toBe("Hold to talk to Ann Diaz");
-    expect(walkieKeyName("idle", { title: "Hold to talk to Bo Chen" })).toBe("Hold to talk to Bo Chen");
+    expect(walkieKeyName("idle", { title: "Hold to talk to Ann Diaz" })).toBe(
+      "Hold to talk to Ann Diaz",
+    );
+    expect(walkieKeyName("idle", { title: "Hold to talk to Bo Chen" })).toBe(
+      "Hold to talk to Bo Chen",
+    );
   });
 
   test("keeps a visible label in the name, so heard contains seen", () => {
-    expect(walkieKeyName("idle", { label: "Hold to reply", title: "Hold to reply" })).toBe("Hold to reply");
+    expect(
+      walkieKeyName("idle", { label: "Hold to reply", title: "Hold to reply" }),
+    ).toBe("Hold to reply");
   });
 
   test("falls back to the gesture when a caller says nothing at all", () => {
@@ -569,24 +637,39 @@ describe("walkieBurstDropped", () => {
   const burst = { openAt: 1000, roomKey: "dm:a:b" };
 
   test("is false while the client is seated in the burst's room", () => {
-    expect(walkieBurstDropped(burst, { roomKey: "dm:a:b", phase: "connected" })).toBe(false);
+    expect(
+      walkieBurstDropped(burst, { roomKey: "dm:a:b", phase: "connected" }),
+    ).toBe(false);
     // Connecting counts: the track is on its way and nothing has been lost.
-    expect(walkieBurstDropped(burst, { roomKey: "dm:a:b", phase: "connecting" })).toBe(false);
+    expect(
+      walkieBurstDropped(burst, { roomKey: "dm:a:b", phase: "connecting" }),
+    ).toBe(false);
   });
 
   test("is true once the call plane leaves that room", () => {
-    expect(walkieBurstDropped(burst, { roomKey: null, phase: "idle" })).toBe(true);
+    expect(walkieBurstDropped(burst, { roomKey: null, phase: "idle" })).toBe(
+      true,
+    );
     // Or lands somewhere else entirely.
-    expect(walkieBurstDropped(burst, { roomKey: "dm:a:c", phase: "connected" })).toBe(true);
+    expect(
+      walkieBurstDropped(burst, { roomKey: "dm:a:c", phase: "connected" }),
+    ).toBe(true);
   });
 
   test("is false before the track ever reached the room", () => {
     // Nothing has dropped yet — this is the ordinary opening window, and
     // calling it a drop would report a failure where there is only a wait.
-    expect(walkieBurstDropped({ openAt: null, roomKey: "dm:a:b" }, { roomKey: null, phase: "idle" })).toBe(false);
+    expect(
+      walkieBurstDropped(
+        { openAt: null, roomKey: "dm:a:b" },
+        { roomKey: null, phase: "idle" },
+      ),
+    ).toBe(false);
   });
 
   test("is false when there is no burst at all", () => {
-    expect(walkieBurstDropped(null, { roomKey: null, phase: "idle" })).toBe(false);
+    expect(walkieBurstDropped(null, { roomKey: null, phase: "idle" })).toBe(
+      false,
+    );
   });
 });

@@ -13,7 +13,10 @@ import { readLineSelection } from "../../lib/line/lineWorkspaceUrl";
 import { LineWorkspace } from "./workspace/LineWorkspace";
 
 /** `settings`: the stage holds the drawn line's settings (/line/settings). `pipeline`: one repository's pipeline (/flows/pipeline). */
-export function LinePage({ settings = false, pipeline = null }: { settings?: boolean; pipeline?: string | null } = {}) {
+export function LinePage({
+  settings = false,
+  pipeline = null,
+}: { settings?: boolean; pipeline?: string | null } = {}) {
   const search = useSearchParams();
   const selection = useMemo(() => readLineSelection(search), [search]);
   const space = useLineSpace(selection);

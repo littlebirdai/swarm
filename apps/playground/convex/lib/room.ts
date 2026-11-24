@@ -5,7 +5,11 @@ import { oneLine } from "./text";
 
 /** A message body: trimmed, capped; null when nothing is left. Inner newlines stay. */
 export function cleanMessageBody(raw: string): string | null {
-  const s = raw.replace(/\r\n?/g, "\n").trim().slice(0, MESSAGE_BODY_MAX).trim();
+  const s = raw
+    .replace(/\r\n?/g, "\n")
+    .trim()
+    .slice(0, MESSAGE_BODY_MAX)
+    .trim();
   return s.length ? s : null;
 }
 
@@ -15,7 +19,12 @@ export function cleanLine(raw: string, max: number): string | null {
   return s.length ? s : null;
 }
 
-export type ElementFields = { selector: string; tag: string; text?: string; snippet?: string };
+export type ElementFields = {
+  selector: string;
+  tag: string;
+  text?: string;
+  snippet?: string;
+};
 
 const clip = (s: string | undefined, max: number) => {
   const t = s?.trim().slice(0, max);
@@ -29,5 +38,10 @@ export function cleanElement(raw: ElementFields): ElementFields | null {
   if (!selector || !tag) return null;
   const text = clip(raw.text && oneLine(raw.text), ELEMENT_FIELD_MAX.text);
   const snippet = clip(raw.snippet, ELEMENT_FIELD_MAX.snippet);
-  return { selector, tag, ...(text ? { text } : {}), ...(snippet ? { snippet } : {}) };
+  return {
+    selector,
+    tag,
+    ...(text ? { text } : {}),
+    ...(snippet ? { snippet } : {}),
+  };
 }

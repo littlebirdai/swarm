@@ -8,7 +8,9 @@ export class CodexRecoveryQueue {
   private readonly requestedConversations = new Set<string>();
 
   constructor(
-    private readonly recover: (requestedConversations: ReadonlySet<string>) => Promise<void>,
+    private readonly recover: (
+      requestedConversations: ReadonlySet<string>,
+    ) => Promise<void>,
     private readonly clearRetryDelays: () => void,
     private readonly onError: (error: unknown) => void,
   ) {}

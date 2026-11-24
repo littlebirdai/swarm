@@ -17,7 +17,13 @@ import {
 } from "../presence/memberPresence";
 import { PresenceBadge } from "../presence/PresenceBadge";
 import { STRAY_WORKSPACE, isStrayWorkspace } from "../people/peopleRoster";
-import { channelDisplayName, chatViewRoomKey, memberHandles, memberName, type ChatMember } from "../../lib/chatViews";
+import {
+  channelDisplayName,
+  chatViewRoomKey,
+  memberHandles,
+  memberName,
+  type ChatMember,
+} from "../../lib/chatViews";
 import { ringInto } from "../../lib/calls/callManager";
 import { requestHuddleStart } from "../../lib/calls/huddleStart";
 import { MAX_ROOM_MEMBERS, dmRoomKey } from "@codecast/shared/contracts";
@@ -126,12 +132,21 @@ export function NewMessageModal({
     if (capReached) return [];
     const needle = q.trim().toLowerCase();
     const people = (teamMembers ?? [])
-      .filter((m) => isPerson(m) && String(m._id) !== String(viewer) && !chips.includes(String(m._id)))
+      .filter(
+        (m) =>
+          isPerson(m) &&
+          String(m._id) !== String(viewer) &&
+          !chips.includes(String(m._id)),
+      )
       .map((m) => ({ m, s: needle ? matchScore(personText(m), needle) : 0 }))
       .filter((x) => x.s !== Infinity)
       .sort((a, b) => a.s - b.s || compareMembersByPresence(a.m, b.m))
       .slice(0, needle ? 6 : 7)
-      .map((x): Candidate => ({ type: "person", key: `p:${x.m._id}`, member: x.m }));
+      .map((x): Candidate => ({
+        type: "person",
+        key: `p:${x.m._id}`,
+        member: x.m,
+      }));
 
     // Rooms only make sense before the first chip: once a person is picked,
     // the destination is a DM by definition.
@@ -140,18 +155,31 @@ export function NewMessageModal({
     if (chips.length === 0) {
       groups = rail
         .filter((c) => c.kind === "dm" && (c.dmMemberIds ?? []).length > 1)
-        .map((c) => ({ c, s: needle ? matchScore(channelDisplayName(c, teamMembers), needle) : 0 }))
+        .map((c) => ({
+          c,
+          s: needle
+            ? matchScore(channelDisplayName(c, teamMembers), needle)
+            : 0,
+        }))
         .filter((x) => x.s !== Infinity)
         .sort((a, b) => a.s - b.s)
         .slice(0, 3)
-        .map((x): Candidate => ({ type: "group", key: `g:${x.c.id}`, channel: x.c }));
+        .map((x): Candidate => ({
+          type: "group",
+          key: `g:${x.c.id}`,
+          channel: x.c,
+        }));
       channels = rail
         .filter((c) => c.kind !== "dm")
         .map((c) => ({ c, s: needle ? matchScore(c.name, needle) : 0 }))
         .filter((x) => x.s !== Infinity)
         .sort((a, b) => a.s - b.s)
         .slice(0, needle ? 4 : 5)
-        .map((x): Candidate => ({ type: "channel", key: `c:${x.c.id}`, channel: x.c }));
+        .map((x): Candidate => ({
+          type: "channel",
+          key: `c:${x.c.id}`,
+          channel: x.c,
+        }));
     }
     return [...people, ...groups, ...channels];
   }, [q, chips, teamMembers, viewer, rail, capReached]);
@@ -172,7 +200,11 @@ export function NewMessageModal({
     if (huddle) {
       // Context lines for people rooms are server-derived per recipient.
       if (liveRoomKey) void ringInto(liveRoomKey, ids);
-      else requestHuddleStart({ roomKey: dmRoomKey(String(viewer), ...ids), toUserIds: ids });
+      else
+        requestHuddleStart({
+          roomKey: dmRoomKey(String(viewer), ...ids),
+          toUserIds: ids,
+        });
       return;
     }
     openDm(ids);
@@ -217,11 +249,15 @@ export function NewMessageModal({
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setNavigated(true);
-      setHighlight((h) => (candidates.length ? (h + 1) % candidates.length : 0));
+      setHighlight((h) =>
+        candidates.length ? (h + 1) % candidates.length : 0,
+      );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setNavigated(true);
-      setHighlight((h) => (candidates.length ? (h - 1 + candidates.length) % candidates.length : 0));
+      setHighlight((h) =>
+        candidates.length ? (h - 1 + candidates.length) % candidates.length : 0,
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
       if ((e.metaKey || e.ctrlKey) && chips.length) return start(chips);
@@ -237,7 +273,11 @@ export function NewMessageModal({
   const headerFor = (i: number): string | null => {
     const t = candidates[i].type;
     if (i > 0 && candidates[i - 1].type === t) return null;
-    return t === "person" ? "People" : t === "group" ? "Group conversations" : "Channels";
+    return t === "person"
+      ? "People"
+      : t === "group"
+        ? "Group conversations"
+        : "Channels";
   };
 
   return (
@@ -254,10 +294,24 @@ export function NewMessageModal({
       >
         <div className="ch-nm-head">
           <span className="ch-nm-title">
-            {huddle && <Headphones className="w-3.5 h-3.5 inline-block mr-1.5 align-[-2px] text-sol-violet" aria-hidden="true" />}
-            {huddle ? (liveRoomKey ? "Add to your huddle" : "New huddle") : "New message"}
+            {huddle && (
+              <Headphones
+                className="w-3.5 h-3.5 inline-block mr-1.5 align-[-2px] text-sol-violet"
+                aria-hidden="true"
+              />
+            )}
+            {huddle
+              ? liveRoomKey
+                ? "Add to your huddle"
+                : "New huddle"
+              : "New message"}
           </span>
-          <button type="button" className="ch-modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            type="button"
+            className="ch-modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -268,12 +322,19 @@ export function NewMessageModal({
             const m = byId.get(id);
             return (
               <span className="ch-nm-chip" key={id}>
-                <CommentAvatar name={memberName(m)} image={memberAvatarUrl(m)} size={14} letters={1} />
+                <CommentAvatar
+                  name={memberName(m)}
+                  image={memberAvatarUrl(m)}
+                  size={14}
+                  letters={1}
+                />
                 {memberName(m)}
                 <button
                   type="button"
                   aria-label={`Remove ${memberName(m)}`}
-                  onClick={() => setChips((prev) => prev.filter((x) => x !== id))}
+                  onClick={() =>
+                    setChips((prev) => prev.filter((x) => x !== id))
+                  }
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -300,14 +361,23 @@ export function NewMessageModal({
           />
         </div>
 
-        <div className="ch-nm-list" ref={listRef} role="listbox" aria-label="Suggestions">
+        <div
+          className="ch-nm-list"
+          ref={listRef}
+          role="listbox"
+          aria-label="Suggestions"
+        >
           {candidates.map((cand, i) => {
             const header = headerFor(i);
             const row =
               cand.type === "person" ? (
                 <PersonRow member={cand.member} now={now} />
               ) : cand.type === "group" ? (
-                <GroupRow channel={cand.channel} members={teamMembers} byId={byId} />
+                <GroupRow
+                  channel={cand.channel}
+                  members={teamMembers}
+                  byId={byId}
+                />
               ) : (
                 <ChannelRow channel={cand.channel} />
               );
@@ -327,7 +397,12 @@ export function NewMessageModal({
                   onClick={() => choose(cand)}
                 >
                   {row}
-                  {cand.type !== "person" && <ArrowRight className="w-3 h-3 ch-nm-go-icon" aria-hidden="true" />}
+                  {cand.type !== "person" && (
+                    <ArrowRight
+                      className="w-3 h-3 ch-nm-go-icon"
+                      aria-hidden="true"
+                    />
+                  )}
                 </button>
               </div>
             );
@@ -410,7 +485,9 @@ function PersonRow({ member, now }: { member: Member; now: number }) {
       </span>
       <span className="ch-nm-name truncate">{memberName(member)}</span>
       <PresenceBadge state={state} size="sm" />
-      <span className="ch-nm-sub truncate">{presenceLine(member as any, now)}</span>
+      <span className="ch-nm-sub truncate">
+        {presenceLine(member as any, now)}
+      </span>
     </>
   );
 }
@@ -432,12 +509,19 @@ function GroupRow({
           const m = byId.get(String(id));
           return (
             <span className="ch-dm-face" key={String(id)}>
-              <CommentAvatar name={memberName(m)} image={memberAvatarUrl(m)} size={18} letters={1} />
+              <CommentAvatar
+                name={memberName(m)}
+                image={memberAvatarUrl(m)}
+                size={18}
+                letters={1}
+              />
             </span>
           );
         })}
       </span>
-      <span className="ch-nm-name truncate">{channelDisplayName(channel, members)}</span>
+      <span className="ch-nm-name truncate">
+        {channelDisplayName(channel, members)}
+      </span>
       <span className="ch-nm-sub">
         <Users className="w-3 h-3 inline-block mr-1 align-[-2px]" />
         {ids.length + 1}
@@ -450,10 +534,16 @@ function ChannelRow({ channel }: { channel: ChatChannelView }) {
   return (
     <>
       <span className="ch-nm-hash" aria-hidden="true">
-        {channel.isPrivate ? <Lock className="w-3.5 h-3.5" /> : <Hash className="w-3.5 h-3.5" />}
+        {channel.isPrivate ? (
+          <Lock className="w-3.5 h-3.5" />
+        ) : (
+          <Hash className="w-3.5 h-3.5" />
+        )}
       </span>
       <span className="ch-nm-name truncate">{channel.name}</span>
-      {channel.topic && <span className="ch-nm-sub truncate">{channel.topic}</span>}
+      {channel.topic && (
+        <span className="ch-nm-sub truncate">{channel.topic}</span>
+      )}
     </>
   );
 }

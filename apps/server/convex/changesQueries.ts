@@ -15,11 +15,22 @@
 import { v } from "convex/values";
 import { query } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
-import { isoWeekOf, latestShips, waitingStories, weekMonday, withoutShadowedReleases, type ShipEvent } from "@codecast/shared/changes";
+import {
+  isoWeekOf,
+  latestShips,
+  waitingStories,
+  weekMonday,
+  withoutShadowedReleases,
+  type ShipEvent,
+} from "@codecast/shared/changes";
 import { getUserOrToken } from "./lib/auth";
 import { isTeamMember } from "./lib/access";
 import { teamHasFeature } from "./lib/teamFeatureGuard";
-import { teamVisibleInputs, teamVisibleRecentInsights, type TeamVisibleInput } from "./lib/changesAccess";
+import {
+  teamVisibleInputs,
+  teamVisibleRecentInsights,
+  type TeamVisibleInput,
+} from "./lib/changesAccess";
 import { sessionImages } from "./lib/sessionMedia";
 import { addDays, localDate, teamTimezone } from "./lib/teamDay";
 import { normalizeRepository, prUrl } from "./lib/gitRefs";
@@ -70,7 +81,11 @@ type Ctx = { db: any; auth: any };
  * CLI token), a member of the team, and the team has the feature on. Null
  * otherwise, and every query answers null with it.
  */
-export async function changesReader(ctx: Ctx, teamId: Id<"teams">, apiToken?: string): Promise<Id<"users"> | null> {
+export async function changesReader(
+  ctx: Ctx,
+  teamId: Id<"teams">,
+  apiToken?: string,
+): Promise<Id<"users"> | null> {
   const userId = await getUserOrToken(ctx, apiToken);
   if (!userId) return null;
   if (!(await isTeamMember(ctx, userId, teamId))) return null;
@@ -79,7 +94,11 @@ export async function changesReader(ctx: Ctx, teamId: Id<"teams">, apiToken?: st
 }
 
 /** A from/to pair of YYYY-MM-DD, ordered and clamped to `maxDays`, or null when malformed. */
-export function dateWindow(from: string, to: string, maxDays: number): { from: string; to: string } | null {
+export function dateWindow(
+  from: string,
+  to: string,
+  maxDays: number,
+): { from: string; to: string } | null {
   if (!DATE.test(from) || !DATE.test(to)) return null;
   const [lo, hi] = from <= to ? [from, to] : [to, from];
   const floor = addDays(hi, -(maxDays - 1));
@@ -87,22 +106,45 @@ export function dateWindow(from: string, to: string, maxDays: number): { from: s
 }
 
 /** A from/to pair of ISO weeks (`2026-W40`), ordered and clamped to `maxWeeks`, or null when malformed. */
-export function weekWindow(from: string, to: string, maxWeeks: number): { from: string; to: string } | null {
+export function weekWindow(
+  from: string,
+  to: string,
+  maxWeeks: number,
+): { from: string; to: string } | null {
   if (!weekMonday(from) || !weekMonday(to)) return null;
   const [lo, hi] = from <= to ? [from, to] : [to, from];
   const floor = isoWeekOf(addDays(weekMonday(hi)!, -7 * (maxWeeks - 1)));
   return { from: lo < floor ? floor : lo, to: hi };
 }
 
-const repositoryOf = (repository: string | undefined) => (repository ? normalizeRepository(repository) : undefined);
+const repositoryOf = (repository: string | undefined) =>
+  repository ? normalizeRepository(repository) : undefined;
 
 // ── Stories ──────────────────────────────────────────────────────────────
 
 /** A story as the page reads it: the stored row without its generation accounting. */
-export type StoryRow = Omit<Doc<"change_stories">, "inputs_hash" | "model" | "input_tokens" | "output_tokens" | "cost_usd" | "cap_version" | "cap_cost_usd">;
+export type StoryRow = Omit<
+  Doc<"change_stories">,
+  | "inputs_hash"
+  | "model"
+  | "input_tokens"
+  | "output_tokens"
+  | "cost_usd"
+  | "cap_version"
+  | "cap_cost_usd"
+>;
 
 function storyRow(row: Doc<"change_stories">): StoryRow {
-  const { inputs_hash: _h, model: _m, input_tokens: _i, output_tokens: _o, cost_usd: _c, cap_version: _v, cap_cost_usd: _cc, ...rest } = row;
+  const {
+    inputs_hash: _h,
+    model: _m,
+    input_tokens: _i,
+    output_tokens: _o,
+    cost_usd: _c,
+    cap_version: _v,
+    cap_cost_usd: _cc,
+    ...rest
+  } = row;
   return rest;
 }
 
@@ -122,23 +164,56 @@ export const listStories = query({
     to_date: v.string(),
     api_token: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ stories: StoryRow[]; covered_from: string | null; complete: boolean } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    stories: StoryRow[];
+    covered_from: string | null;
+    complete: boolean;
+  } | null> => {
     if (!(await changesReader(ctx, args.team_id, args.api_token))) return null;
     const window = dateWindow(args.from_date, args.to_date, STORY_WINDOW_DAYS);
     if (!window) return { stories: [], covered_from: null, complete: true };
     const repository = repositoryOf(args.repository);
     const range = repository
-      ? ctx.db.query("change_stories").withIndex("by_team_repo_date", (q) =>
-          q.eq("team_id", args.team_id).eq("repository", repository).gte("date", window.from).lte("date", window.to))
-      : ctx.db.query("change_stories").withIndex("by_team_date", (q) =>
-          q.eq("team_id", args.team_id).gte("date", window.from).lte("date", window.to));
-    const page = await range.order("desc").paginate({ numItems: STORY_PAGE, cursor: null, maximumBytesRead: STORY_PAGE_BYTES });
+      ? ctx.db
+          .query("change_stories")
+          .withIndex("by_team_repo_date", (q) =>
+            q
+              .eq("team_id", args.team_id)
+              .eq("repository", repository)
+              .gte("date", window.from)
+              .lte("date", window.to),
+          )
+      : ctx.db
+          .query("change_stories")
+          .withIndex("by_team_date", (q) =>
+            q
+              .eq("team_id", args.team_id)
+              .gte("date", window.from)
+              .lte("date", window.to),
+          );
+    const page = await range.order("desc").paginate({
+      numItems: STORY_PAGE,
+      cursor: null,
+      maximumBytesRead: STORY_PAGE_BYTES,
+    });
     const rows: Doc<"change_stories">[] = page.page;
-    if (page.isDone) return { stories: rows.map(storyRow), covered_from: window.from, complete: true };
+    if (page.isDone)
+      return {
+        stories: rows.map(storyRow),
+        covered_from: window.from,
+        complete: true,
+      };
     // The read stopped inside the oldest date it reached; the day after it is the last whole one.
     const reached = rows.length ? rows[rows.length - 1].date : window.to;
     const coveredFrom = addDays(reached, 1);
-    return { stories: rows.map(storyRow), covered_from: coveredFrom <= window.to ? coveredFrom : null, complete: false };
+    return {
+      stories: rows.map(storyRow),
+      covered_from: coveredFrom <= window.to ? coveredFrom : null,
+      complete: false,
+    };
   },
 });
 
@@ -148,8 +223,15 @@ export const listStories = query({
  * not read the team or the story is gone.
  */
 export const storyLocation = query({
-  args: { team_id: v.id("teams"), story_key: v.string(), api_token: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ repository: string; date: string } | null> => {
+  args: {
+    team_id: v.id("teams"),
+    story_key: v.string(),
+    api_token: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ repository: string; date: string } | null> => {
     if (!(await changesReader(ctx, args.team_id, args.api_token))) return null;
     const story: Doc<"change_stories"> | null = await ctx.db
       .query("change_stories")
@@ -162,7 +244,18 @@ export const storyLocation = query({
 
 // ── Editions ─────────────────────────────────────────────────────────────
 
-export type EditionRow = Omit<Doc<"digests">, "user_id" | "events" | "model" | "input_tokens" | "output_tokens" | "cost_usd" | "cap_version" | "cap_cost_usd" | "scheduled_id"> & {
+export type EditionRow = Omit<
+  Doc<"digests">,
+  | "user_id"
+  | "events"
+  | "model"
+  | "input_tokens"
+  | "output_tokens"
+  | "cost_usd"
+  | "cap_version"
+  | "cap_cost_usd"
+  | "scheduled_id"
+> & {
   /** When the day was first marked for a rebuild that has not run yet, else null. */
   dirty_since: number | null;
   /** dirty_since is older than STALE_AFTER_MS as of this read. The time moves on without a new read, so a page holding the row compares dirty_since itself. */
@@ -186,27 +279,67 @@ export const listEditions = query({
   handler: async (ctx, args): Promise<EditionRow[] | null> => {
     if (!(await changesReader(ctx, args.team_id, args.api_token))) return null;
     // Day editions are keyed by day, week editions by ISO week.
-    const window = args.scope === "week"
-      ? weekWindow(args.from_date, args.to_date, EDITION_WINDOW_WEEKS)
-      : dateWindow(args.from_date, args.to_date, EDITION_WINDOW_DAYS);
+    const window =
+      args.scope === "week"
+        ? weekWindow(args.from_date, args.to_date, EDITION_WINDOW_WEEKS)
+        : dateWindow(args.from_date, args.to_date, EDITION_WINDOW_DAYS);
     if (!window) return [];
     const repository = repositoryOf(args.repository);
     const rows: Doc<"digests">[] = repository
-      ? await ctx.db.query("digests").withIndex("by_team_repo_scope_date", (q) =>
-          q.eq("team_id", args.team_id).eq("repository", repository).eq("scope", args.scope).gte("date", window.from).lte("date", window.to))
+      ? await ctx.db
+          .query("digests")
+          .withIndex("by_team_repo_scope_date", (q) =>
+            q
+              .eq("team_id", args.team_id)
+              .eq("repository", repository)
+              .eq("scope", args.scope)
+              .gte("date", window.from)
+              .lte("date", window.to),
+          )
           .take(EDITION_WINDOW_DAYS * 4)
-      : await ctx.db.query("digests").withIndex("by_team_scope_date", (q) =>
-          q.eq("team_id", args.team_id).eq("scope", args.scope).gte("date", window.from).lte("date", window.to))
+      : await ctx.db
+          .query("digests")
+          .withIndex("by_team_scope_date", (q) =>
+            q
+              .eq("team_id", args.team_id)
+              .eq("scope", args.scope)
+              .gte("date", window.from)
+              .lte("date", window.to),
+          )
           .take(EDITION_WINDOW_DAYS * 4);
     const now = Date.now();
-    return await Promise.all(rows.filter((d) => !d.user_id && d.repository).map(async (d) => {
-      const dirty: Doc<"change_dirty"> | null = await ctx.db
-        .query("change_dirty")
-        .withIndex("by_key", (q) => q.eq("team_id", args.team_id).eq("repository", d.repository!).eq("date", d.date))
-        .first();
-      const { user_id: _u, events: _e, model: _m, input_tokens: _i, output_tokens: _o, cost_usd: _c, cap_version: _v, cap_cost_usd: _cc, scheduled_id: _s, ...rest } = d;
-      return { ...rest, dirty_since: dirty?.since ?? null, stale: !!dirty && now - dirty.since > STALE_AFTER_MS };
-    }));
+    return await Promise.all(
+      rows
+        .filter((d) => !d.user_id && d.repository)
+        .map(async (d) => {
+          const dirty: Doc<"change_dirty"> | null = await ctx.db
+            .query("change_dirty")
+            .withIndex("by_key", (q) =>
+              q
+                .eq("team_id", args.team_id)
+                .eq("repository", d.repository!)
+                .eq("date", d.date),
+            )
+            .first();
+          const {
+            user_id: _u,
+            events: _e,
+            model: _m,
+            input_tokens: _i,
+            output_tokens: _o,
+            cost_usd: _c,
+            cap_version: _v,
+            cap_cost_usd: _cc,
+            scheduled_id: _s,
+            ...rest
+          } = d;
+          return {
+            ...rest,
+            dirty_since: dirty?.since ?? null,
+            stale: !!dirty && now - dirty.since > STALE_AFTER_MS,
+          };
+        }),
+    );
   },
 });
 
@@ -240,7 +373,11 @@ export type LiveRow = {
  * and as a deploy otherwise.
  */
 export const liveStatus = query({
-  args: { team_id: v.id("teams"), repository: v.string(), api_token: v.optional(v.string()) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<LiveRow[] | null> => {
     if (!(await changesReader(ctx, args.team_id, args.api_token))) return null;
     const repository = normalizeRepository(args.repository);
@@ -251,33 +388,56 @@ export const liveStatus = query({
     const editions: Doc<"digests">[] = await ctx.db
       .query("digests")
       .withIndex("by_team_repo_scope_date", (q) =>
-        q.eq("team_id", args.team_id).eq("repository", repository).eq("scope", "day").gte("date", localDate(since, zone)))
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", repository)
+          .eq("scope", "day")
+          .gte("date", localDate(since, zone)),
+      )
       .take(SURFACE_WINDOW_DAYS + 2);
     const events: Doc<"external_events">[] = await ctx.db
       .query("external_events")
-      .withIndex("by_repository_created", (q) => q.eq("repository", repository).gte("created_at", since))
+      .withIndex("by_repository_created", (q) =>
+        q.eq("repository", repository).gte("created_at", since),
+      )
       .order("desc")
       .take(SHIP_EVENT_SCAN);
 
     const ships = new Map<string, ShipEvent>();
     for (const e of events) {
-      const ship = String(e.team_id) === String(args.team_id) ? shipOf(e) : null;
+      const ship =
+        String(e.team_id) === String(args.team_id) ? shipOf(e) : null;
       if (ship) ships.set(`${ship.surface}|${ship.sha}`, ship);
     }
     for (const d of editions) {
       for (const r of d.releases ?? []) {
         const key = `${r.surface}|${r.sha}`;
-        if (!ships.has(key)) ships.set(key, { ...r, kind: r.kind ?? (r.version ? "release" : "deploy") });
+        if (!ships.has(key))
+          ships.set(key, {
+            ...r,
+            kind: r.kind ?? (r.version ? "release" : "deploy"),
+          });
       }
     }
-    const latest = Object.values(latestShips(withoutShadowedReleases([...ships.values()]).filter((s) => s.at >= since)));
+    const latest = Object.values(
+      latestShips(
+        withoutShadowedReleases([...ships.values()]).filter(
+          (s) => s.at >= since,
+        ),
+      ),
+    );
     if (!latest.length) return [];
 
     // Stories from the oldest latest-ship's day forward, newest first.
     const oldest = localDate(Math.min(...latest.map((s) => s.at)), zone);
     const stories: Doc<"change_stories">[] = await ctx.db
       .query("change_stories")
-      .withIndex("by_team_repo_date", (q) => q.eq("team_id", args.team_id).eq("repository", repository).gte("date", oldest))
+      .withIndex("by_team_repo_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", repository)
+          .gte("date", oldest),
+      )
       .order("desc")
       .take(WAITING_SCAN);
     const capped = stories.length === WAITING_SCAN;
@@ -317,11 +477,24 @@ export const storyEvidence = query({
     const userId = await changesReader(ctx, story.team_id, args.api_token);
     if (!userId) return null;
     const repository = normalizeRepository(story.repository);
-    const found = await Promise.all(story.commit_shas.slice(0, EVIDENCE_COMMITS).map(async (sha) => {
-      const rows: Doc<"commits">[] = await ctx.db.query("commits").withIndex("by_sha", (q) => q.eq("sha", sha)).take(5);
-      return rows.find((c) => String(c.team_id) === String(story.team_id) && normalizeRepository(c.repository ?? "") === repository) ?? null;
-    }));
-    const commits = found.filter((c): c is Doc<"commits"> => !!c).sort((a, b) => b.timestamp - a.timestamp);
+    const found = await Promise.all(
+      story.commit_shas.slice(0, EVIDENCE_COMMITS).map(async (sha) => {
+        const rows: Doc<"commits">[] = await ctx.db
+          .query("commits")
+          .withIndex("by_sha", (q) => q.eq("sha", sha))
+          .take(5);
+        return (
+          rows.find(
+            (c) =>
+              String(c.team_id) === String(story.team_id) &&
+              normalizeRepository(c.repository ?? "") === repository,
+          ) ?? null
+        );
+      }),
+    );
+    const commits = found
+      .filter((c): c is Doc<"commits"> => !!c)
+      .sort((a, b) => b.timestamp - a.timestamp);
     return await accessibleCommits(ctx, userId, commits);
   },
 });
@@ -371,14 +544,22 @@ export type WorksRow =
     };
 
 /** Whether any of this team's stories on the default branch was built from this session: its work has landed. */
-async function hasLanded(ctx: Ctx, teamId: Id<"teams">, conversationId: Id<"conversations">): Promise<boolean> {
+async function hasLanded(
+  ctx: Ctx,
+  teamId: Id<"teams">,
+  conversationId: Id<"conversations">,
+): Promise<boolean> {
   const inputs: Doc<"change_story_inputs">[] = await ctx.db
     .query("change_story_inputs")
-    .withIndex("by_conversation", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .take(20);
   for (const input of inputs) {
     if (String(input.team_id) !== String(teamId)) continue;
-    const story: Doc<"change_stories"> | null = await ctx.db.get(input.story_id);
+    const story: Doc<"change_stories"> | null = await ctx.db.get(
+      input.story_id,
+    );
     if (story?.on_default_branch) return true;
   }
   return false;
@@ -390,26 +571,54 @@ async function hasLanded(ctx: Ctx, teamId: Id<"teams">, conversationId: Id<"conv
  * on the session). Undefined when neither says, and such a session belongs
  * to no repository's page.
  */
-async function inputRepository(ctx: Ctx, input: Pick<TeamVisibleInput, "owner_id" | "repository" | "checkout_root">): Promise<string | undefined> {
+async function inputRepository(
+  ctx: Ctx,
+  input: Pick<TeamVisibleInput, "owner_id" | "repository" | "checkout_root">,
+): Promise<string | undefined> {
   if (input.repository) return normalizeRepository(input.repository);
   if (!input.checkout_root) return undefined;
   const source: Doc<"repo_sources"> | null = await ctx.db
     .query("repo_sources")
-    .withIndex("by_user_root", (q: any) => q.eq("user_id", input.owner_id).eq("root", input.checkout_root))
+    .withIndex("by_user_root", (q: any) =>
+      q.eq("user_id", input.owner_id).eq("root", input.checkout_root),
+    )
     .first();
-  return source?.repository ? normalizeRepository(source.repository) : undefined;
+  return source?.repository
+    ? normalizeRepository(source.repository)
+    : undefined;
 }
 
 /** Today's non-default branches: commits (a batch commit split into area slices counts once), stories and the top area. */
-function branchRows(teamId: Id<"teams">, stories: readonly Doc<"change_stories">[]): WorksRow[] {
-  const byBranch = new Map<string, { repository: string; branch: string; shas: Set<string>; stories: number; areas: Record<string, number>; last_at: number }>();
+function branchRows(
+  teamId: Id<"teams">,
+  stories: readonly Doc<"change_stories">[],
+): WorksRow[] {
+  const byBranch = new Map<
+    string,
+    {
+      repository: string;
+      branch: string;
+      shas: Set<string>;
+      stories: number;
+      areas: Record<string, number>;
+      last_at: number;
+    }
+  >();
   for (const s of stories) {
     if (s.on_default_branch) continue;
     const key = `${s.repository}|${s.branch}`;
-    const b = byBranch.get(key) ?? { repository: s.repository, branch: s.branch, shas: new Set<string>(), stories: 0, areas: {}, last_at: 0 };
+    const b = byBranch.get(key) ?? {
+      repository: s.repository,
+      branch: s.branch,
+      shas: new Set<string>(),
+      stories: 0,
+      areas: {},
+      last_at: 0,
+    };
     for (const sha of s.commit_shas) b.shas.add(sha);
     b.stories += 1;
-    for (const [area, n] of Object.entries(s.area_counts)) b.areas[area] = (b.areas[area] ?? 0) + n;
+    for (const [area, n] of Object.entries(s.area_counts))
+      b.areas[area] = (b.areas[area] ?? 0) + n;
     b.last_at = Math.max(b.last_at, s.last_at);
     byBranch.set(key, b);
   }
@@ -424,7 +633,10 @@ function branchRows(teamId: Id<"teams">, stories: readonly Doc<"change_stories">
       branch: b.branch,
       commits: b.shas.size,
       stories: b.stories,
-      top_area: Object.entries(b.areas).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0]?.[0] ?? "",
+      top_area:
+        Object.entries(b.areas).sort(
+          (x, y) => y[1] - x[1] || x[0].localeCompare(y[0]),
+        )[0]?.[0] ?? "",
       last_at: b.last_at,
     }));
 }
@@ -440,7 +652,11 @@ function branchRows(teamId: Id<"teams">, stories: readonly Doc<"change_stories">
  * elsewhere, or whose repository cannot be told, is left out.
  */
 export const inTheWorks = query({
-  args: { team_id: v.id("teams"), repository: v.optional(v.string()), api_token: v.optional(v.string()) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.optional(v.string()),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<WorksRow[] | null> => {
     if (!(await changesReader(ctx, args.team_id, args.api_token))) return null;
     const teamId = args.team_id;
@@ -448,7 +664,12 @@ export const inTheWorks = query({
     const now = Date.now();
     const out: WorksRow[] = [];
 
-    const insights = await teamVisibleRecentInsights(ctx, teamId, now - WORKS_INSIGHT_WINDOW_MS, WORKS_INSIGHT_SCAN);
+    const insights = await teamVisibleRecentInsights(
+      ctx,
+      teamId,
+      now - WORKS_INSIGHT_WINDOW_MS,
+      WORKS_INSIGHT_SCAN,
+    );
     const counts = { stuck: 0, building: 0 };
     for (const input of insights) {
       const outcome = input.insight.outcome_type;
@@ -456,10 +677,23 @@ export const inTheWorks = query({
       const kind = outcome === "blocked" ? "stuck" : "building";
       if (counts[kind] >= WORKS_PER_GROUP) continue;
       // A repository's page shows only its own sessions; one whose repository cannot be told is no page's.
-      if (repository && (await inputRepository(ctx, input)) !== repository) continue;
-      if (kind === "building" && (await hasLanded(ctx, teamId, input.conversation_id))) continue;
+      if (repository && (await inputRepository(ctx, input)) !== repository)
+        continue;
+      if (
+        kind === "building" &&
+        (await hasLanded(ctx, teamId, input.conversation_id))
+      )
+        continue;
       counts[kind] += 1;
-      const shots = input.mode === "full" ? (await sessionImages(ctx, input.conversation_id, { since: now - WORKS_SHOTS_WINDOW_MS, max: WORKS_SHOTS })).map((i) => i.url) : [];
+      const shots =
+        input.mode === "full"
+          ? (
+              await sessionImages(ctx, input.conversation_id, {
+                since: now - WORKS_SHOTS_WINDOW_MS,
+                max: WORKS_SHOTS,
+              })
+            ).map((i) => i.url)
+          : [];
       out.push({
         _id: `${kind}:${input.conversation_id}`,
         team_id: teamId,
@@ -477,18 +711,27 @@ export const inTheWorks = query({
     const events: Doc<"external_events">[] = await ctx.db
       .query("external_events")
       .withIndex("by_team_source_created", (q) =>
-        q.eq("team_id", teamId).eq("source_id", undefined).gte("created_at", now - WORKS_PR_EVENT_WINDOW_MS))
+        q
+          .eq("team_id", teamId)
+          .eq("source_id", undefined)
+          .gte("created_at", now - WORKS_PR_EVENT_WINDOW_MS),
+      )
       .order("desc")
       .take(WORKS_PR_EVENT_SCAN);
     const prIds: Id<"pull_requests">[] = [];
     for (const e of events) {
-      if (!e.pr_id || prIds.some((id) => String(id) === String(e.pr_id))) continue;
-      if (repository && normalizeRepository(e.repository ?? "") !== repository) continue;
+      if (!e.pr_id || prIds.some((id) => String(id) === String(e.pr_id)))
+        continue;
+      if (repository && normalizeRepository(e.repository ?? "") !== repository)
+        continue;
       prIds.push(e.pr_id);
       if (prIds.length >= WORKS_PR_READS) break;
     }
     const prs = (await Promise.all(prIds.map((id) => ctx.db.get(id))))
-      .filter((pr): pr is Doc<"pull_requests"> => !!pr && pr.state === "open" && String(pr.team_id) === String(teamId))
+      .filter(
+        (pr): pr is Doc<"pull_requests"> =>
+          !!pr && pr.state === "open" && String(pr.team_id) === String(teamId),
+      )
       .sort((a, b) => b.updated_at - a.updated_at)
       .slice(0, WORKS_PRS);
     for (const pr of prs) {
@@ -513,10 +756,21 @@ export const inTheWorks = query({
     // Today's branches, from the day's stories (built from the same commits, a fraction of the bytes).
     const today = localDate(now, await teamTimezone(ctx, teamId));
     const stories: Doc<"change_stories">[] = repository
-      ? await ctx.db.query("change_stories").withIndex("by_team_repo_date", (q) =>
-          q.eq("team_id", teamId).eq("repository", repository).eq("date", today)).take(WORKS_BRANCH_STORY_SCAN)
-      : await ctx.db.query("change_stories").withIndex("by_team_date", (q) =>
-          q.eq("team_id", teamId).eq("date", today)).take(WORKS_BRANCH_STORY_SCAN);
+      ? await ctx.db
+          .query("change_stories")
+          .withIndex("by_team_repo_date", (q) =>
+            q
+              .eq("team_id", teamId)
+              .eq("repository", repository)
+              .eq("date", today),
+          )
+          .take(WORKS_BRANCH_STORY_SCAN)
+      : await ctx.db
+          .query("change_stories")
+          .withIndex("by_team_date", (q) =>
+            q.eq("team_id", teamId).eq("date", today),
+          )
+          .take(WORKS_BRANCH_STORY_SCAN);
     out.push(...branchRows(teamId, stories));
     return out;
   },
@@ -553,23 +807,33 @@ export const storySessions = query({
     const story = await ctx.db.get(args.story_id);
     if (!story) return null;
     if (!(await changesReader(ctx, story.team_id, args.api_token))) return null;
-    const visible = await teamVisibleInputs(ctx, story.team_id, story.conversation_ids);
+    const visible = await teamVisibleInputs(
+      ctx,
+      story.team_id,
+      story.conversation_ids,
+    );
     return story.conversation_ids.flatMap((id) => {
       const input = visible.get(String(id));
       if (!input) return [];
       const insight = input.insight;
-      return [{
-        _id: `${story._id}|${id}`,
-        team_id: story.team_id,
-        story_id: story._id,
-        conversation_id: id,
-        headline: insight?.headline ?? null,
-        summary: insight?.summary || null,
-        turns: (insight?.turns ?? []).slice(0, SESSION_TURNS).map((t) => ({
-          ask: t.ask,
-          did: t.did.map((d) => (d.length > SESSION_DID_CHARS ? `${d.slice(0, SESSION_DID_CHARS - 1)}…` : d)),
-        })),
-      }];
+      return [
+        {
+          _id: `${story._id}|${id}`,
+          team_id: story.team_id,
+          story_id: story._id,
+          conversation_id: id,
+          headline: insight?.headline ?? null,
+          summary: insight?.summary || null,
+          turns: (insight?.turns ?? []).slice(0, SESSION_TURNS).map((t) => ({
+            ask: t.ask,
+            did: t.did.map((d) =>
+              d.length > SESSION_DID_CHARS
+                ? `${d.slice(0, SESSION_DID_CHARS - 1)}…`
+                : d,
+            ),
+          })),
+        },
+      ];
     });
   },
 });

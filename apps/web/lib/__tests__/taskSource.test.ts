@@ -7,14 +7,24 @@ import { projectTaskCounts } from "@codecast/shared/tasks";
 import { tasksForSource } from "../taskSource";
 
 const P = "proj-1";
-const t = (id: string, status: string, extra: Record<string, unknown> = {}) => ({ _id: id, project_id: P, status, source: "human", ...extra });
+const t = (
+  id: string,
+  status: string,
+  extra: Record<string, unknown> = {},
+) => ({ _id: id, project_id: P, status, source: "human", ...extra });
 const FIXTURE = [
-  t("1", "done"), t("2", "done"), t("3", "in_progress"), t("4", "in_review"), t("5", "open"), t("6", "backlog"),
+  t("1", "done"),
+  t("2", "done"),
+  t("3", "in_progress"),
+  t("4", "in_review"),
+  t("5", "open"),
+  t("6", "backlog"),
   t("7", "dropped"),
-  t("8", "open", { source: "agent" }), t("9", "done", { source: "agent" }), // agent bookkeeping
-  t("10", "open", { source: "agent", assignee: "role-1" }),               // handed to a role: on the board
-  t("11", "open", { source: "agent", promoted: true }),                    // promoted: on the board
-  t("12", "done", { source: "insight" }),                                  // a mined suggestion
+  t("8", "open", { source: "agent" }),
+  t("9", "done", { source: "agent" }), // agent bookkeeping
+  t("10", "open", { source: "agent", assignee: "role-1" }), // handed to a role: on the board
+  t("11", "open", { source: "agent", promoted: true }), // promoted: on the board
+  t("12", "done", { source: "insight" }), // a mined suggestion
   t("13", "open", { triage_status: "dismissed" }),
 ];
 
@@ -25,19 +35,43 @@ describe("one rule for a project's work", () => {
     const live = board.filter((r) => r.status !== "dropped");
     expect(counted.total).toBe(live.length);
     expect(counted.done).toBe(board.filter((r) => r.status === "done").length);
-    expect(counted.in_progress).toBe(board.filter((r) => r.status === "in_progress" || r.status === "in_review").length);
-    expect(live.map((r) => r._id).sort()).toEqual(["1", "10", "11", "2", "3", "4", "5", "6"]);
+    expect(counted.in_progress).toBe(
+      board.filter(
+        (r) => r.status === "in_progress" || r.status === "in_review",
+      ).length,
+    );
+    expect(live.map((r) => r._id).sort()).toEqual([
+      "1",
+      "10",
+      "11",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+    ]);
   });
 
   it("agent rows sit behind their own Source, outside the counts", () => {
-    expect(tasksForSource(FIXTURE, "agent").map((r) => r._id)).toEqual(["8", "9"]);
-    expect(tasksForSource(FIXTURE, "human").map((r) => r._id)).toEqual(tasksForSource(FIXTURE, "").map((r) => r._id));
+    expect(tasksForSource(FIXTURE, "agent").map((r) => r._id)).toEqual([
+      "8",
+      "9",
+    ]);
+    expect(tasksForSource(FIXTURE, "human").map((r) => r._id)).toEqual(
+      tasksForSource(FIXTURE, "").map((r) => r._id),
+    );
   });
 
   it("ephemeral bookkeeping stays off the default board, even assigned, and shows as agent-internal", () => {
-    const rows = [t("20", "open", { ephemeral: true }), t("21", "open", { source: "agent", assignee: "role-1", ephemeral: true })];
+    const rows = [
+      t("20", "open", { ephemeral: true }),
+      t("21", "open", { source: "agent", assignee: "role-1", ephemeral: true }),
+    ];
     expect(tasksForSource(rows, "")).toEqual([]);
-    expect(tasksForSource(rows, "agent").map((r) => r._id)).toEqual(["20", "21"]);
+    expect(tasksForSource(rows, "agent").map((r) => r._id)).toEqual([
+      "20",
+      "21",
+    ]);
   });
 });
 
@@ -46,10 +80,14 @@ describe("the From calls source", () => {
     const rows = [
       t("30", "open", { from_call: "c1" }),
       t("31", "done", { source: "meeting", from_call: "c1" }),
-      t("32", "open", { source: "agent", from_call: "c2" }),          // agent-filed, unassigned: still the call's
+      t("32", "open", { source: "agent", from_call: "c2" }), // agent-filed, unassigned: still the call's
       t("33", "open", { from_call: "c1", triage_status: "dismissed" }), // dismissed: not live
-      t("34", "open", { source: "meeting" }),                          // a meeting task with no call
+      t("34", "open", { source: "meeting" }), // a meeting task with no call
     ];
-    expect(tasksForSource(rows, "calls").map((r) => r._id)).toEqual(["30", "31", "32"]);
+    expect(tasksForSource(rows, "calls").map((r) => r._id)).toEqual([
+      "30",
+      "31",
+      "32",
+    ]);
   });
 });

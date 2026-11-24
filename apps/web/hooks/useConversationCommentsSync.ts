@@ -16,11 +16,15 @@ import { commentsFromReviewOn } from "../lib/commentSource";
 /** One conversation's comments, live from the server: from their
  *  review_comments twins, or from `comments` when the person set
  *  `comments_from_review` to false (lib/commentSource). Same rows either way. */
-export function useConversationCommentSummary(conversationId: string | undefined) {
+export function useConversationCommentSummary(
+  conversationId: string | undefined,
+) {
   const canQuery = !!conversationId && isConvexId(conversationId);
   const fromReview = useInboxStore(commentsFromReviewOn);
   return useQueryNoThrow(
-    fromReview ? api.commentTwins.conversationComments : api.comments.getConversationCommentSummary,
+    fromReview
+      ? api.commentTwins.conversationComments
+      : api.comments.getConversationCommentSummary,
     canQuery
       ? { conversation_id: conversationId as Id<"conversations"> }
       : "skip",
@@ -28,19 +32,31 @@ export function useConversationCommentSummary(conversationId: string | undefined
 }
 
 // Mount once per open conversation: pipe the live thread into the store.
-export function useConversationCommentsSync(conversationId: string | undefined): void {
+export function useConversationCommentsSync(
+  conversationId: string | undefined,
+): void {
   const syncTable = useInboxStore((s) => s.syncTable);
   const raw = useConversationCommentSummary(conversationId).data;
-  useConvexSync(raw, useCallback((data: any) => {
-    syncTable("comments", data ?? []);
-  }, [syncTable]));
+  useConvexSync(
+    raw,
+    useCallback(
+      (data: any) => {
+        syncTable("comments", data ?? []);
+      },
+      [syncTable],
+    ),
+  );
 }
 
 /** One conversation's comments, straight from the store. */
-export function useConversationCommentRows(conversationId: string | undefined): Comment[] {
+export function useConversationCommentRows(
+  conversationId: string | undefined,
+): Comment[] {
   return useInboxStore(
     useShallow((s) =>
-      (Object.values(s.comments) as Comment[]).filter((c) => c.conversation_id === conversationId),
+      (Object.values(s.comments) as Comment[]).filter(
+        (c) => c.conversation_id === conversationId,
+      ),
     ),
   );
 }

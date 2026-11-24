@@ -4,7 +4,16 @@ import { cn } from "@/lib/utils";
 import { LANE_COPY } from "../simple/lane";
 
 /** The bar: what is used, then what is set aside for work in progress. */
-export function MeterBar({ fill, full, known, cap, used, className, minUsedPx, label }: {
+export function MeterBar({
+  fill,
+  full,
+  known,
+  cap,
+  used,
+  className,
+  minUsedPx,
+  label,
+}: {
   fill: { used: number; held: number };
   full: boolean;
   known: boolean;
@@ -25,14 +34,34 @@ export function MeterBar({ fill, full, known, cap, used, className, minUsedPx, l
       aria-valuemax={cap}
       aria-valuenow={Math.min(used, cap)}
       // Read as a share, never as the raw figure behind it.
-      aria-valuetext={known ? `${Math.round(Math.min(fill.used, 1) * 100)}% used` : undefined}
+      aria-valuetext={
+        known ? `${Math.round(Math.min(fill.used, 1) * 100)}% used` : undefined
+      }
       data-cc-meter
       data-cc-meter-high={known && fill.used >= 0.8 ? "" : undefined}
       data-cc-meter-full={known && full ? "" : undefined}
-      className={cn("flex h-1.5 w-full overflow-hidden rounded-full bg-sol-bg-highlight", className)}
+      className={cn(
+        "flex h-1.5 w-full overflow-hidden rounded-full bg-sol-bg-highlight",
+        className,
+      )}
     >
-      <div data-cc-meter-used className={cn("h-full transition-[width] duration-500 ease-out", full ? "bg-sol-orange" : "bg-sol-cyan")} style={{ width: `${known ? fill.used * 100 : 0}%`, minWidth: known && fill.used > 0 ? minUsedPx : undefined }} />
-      <div data-cc-meter-held title="Set aside for work still running; it comes back when that work ends" className="h-full bg-sol-cyan/35 transition-[width] duration-500 ease-out" style={{ width: `${known ? fill.held * 100 : 0}%` }} />
+      <div
+        data-cc-meter-used
+        className={cn(
+          "h-full transition-[width] duration-500 ease-out",
+          full ? "bg-sol-orange" : "bg-sol-cyan",
+        )}
+        style={{
+          width: `${known ? fill.used * 100 : 0}%`,
+          minWidth: known && fill.used > 0 ? minUsedPx : undefined,
+        }}
+      />
+      <div
+        data-cc-meter-held
+        title="Set aside for work still running; it comes back when that work ends"
+        className="h-full bg-sol-cyan/35 transition-[width] duration-500 ease-out"
+        style={{ width: `${known ? fill.held * 100 : 0}%` }}
+      />
     </div>
   );
 }

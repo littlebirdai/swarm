@@ -18,13 +18,24 @@ export type PersonLineProps = {
   rolesShown?: boolean;
 } & Pick<ObjectLineProps, "depth" | "expanded" | "onToggle" | "selected">;
 
-export function PersonLine({ person, now, rolesShown, ...rest }: PersonLineProps) {
+export function PersonLine({
+  person,
+  now,
+  rolesShown,
+  ...rest
+}: PersonLineProps) {
   return (
     <ObjectLine
       kind="person"
       id={person.id}
       target={{ kind: "person", ref: person.ref }}
-      glyph={<AssigneeFace info={{ name: person.name, image: person.image }} size={18} personId={person.id} />}
+      glyph={
+        <AssigneeFace
+          info={{ name: person.name, image: person.image }}
+          size={18}
+          personId={person.id}
+        />
+      }
       title={person.name}
       sub={person.me ? "you" : undefined}
       {...personFacts(person, now, { rolesShown })}

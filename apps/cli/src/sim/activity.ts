@@ -28,10 +28,19 @@ export function activityPath(udid: string, dir = lockDir()): string {
   return path.join(dir, `${udid}.action`);
 }
 
-type SimActionInput = SimAction extends infer A ? (A extends SimAction ? Omit<A, "at"> : never) : never;
+type SimActionInput = SimAction extends infer A
+  ? A extends SimAction
+    ? Omit<A, "at">
+    : never
+  : never;
 
 /** Record the agent's action. Never fails the verb that called it. */
-export function noteSimAction(udid: string, action: SimActionInput, dir = lockDir(), now = Date.now()): void {
+export function noteSimAction(
+  udid: string,
+  action: SimActionInput,
+  dir = lockDir(),
+  now = Date.now(),
+): void {
   try {
     const a = { ...action, at: now } as SimAction;
     if (a.kind === "type") a.text = a.text.slice(-TEXT_CAP);

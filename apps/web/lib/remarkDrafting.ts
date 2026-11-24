@@ -34,7 +34,10 @@ function transformChildren(children: any[]): any[] {
           out.push({
             type: "emphasis",
             children: inner,
-            data: { hName: "span", hProperties: { className: ["md-draft-ghost"] } },
+            data: {
+              hName: "span",
+              hProperties: { className: ["md-draft-ghost"] },
+            },
           });
         } else {
           out.push(...inner);
@@ -43,7 +46,8 @@ function transformChildren(children: any[]): any[] {
         continue;
       }
     }
-    if (Array.isArray(node.children)) node.children = transformChildren(node.children);
+    if (Array.isArray(node.children))
+      node.children = transformChildren(node.children);
     out.push(node);
   }
   return out;
@@ -51,6 +55,7 @@ function transformChildren(children: any[]): any[] {
 
 export function remarkDrafting() {
   return (tree: any) => {
-    if (Array.isArray(tree.children)) tree.children = transformChildren(tree.children);
+    if (Array.isArray(tree.children))
+      tree.children = transformChildren(tree.children);
   };
 }

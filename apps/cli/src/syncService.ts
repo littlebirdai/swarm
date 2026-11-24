@@ -1,5 +1,8 @@
 import { ConvexHttpClient, ConvexClient } from "convex/browser";
-import { WriteBudgetBackoff, isWriteBudgetRefusal } from "./writeBudgetBackoff.js";
+import {
+  WriteBudgetBackoff,
+  isWriteBudgetRefusal,
+} from "./writeBudgetBackoff.js";
 import type { PermissionSource } from "./permissionHandler.js";
 import type { PermissionRuleRequest } from "@codecast/shared/contracts/permissionRules";
 // The rule engine is 25 KB the command tree never runs; the two calls that
@@ -10,17 +13,36 @@ import { readFile, stat } from "node:fs/promises";
 import * as os from "node:os";
 import * as nodePath from "node:path";
 import { lookupByHash, lookupByPath, storeUpload } from "./imageCache.js";
-import { decodeImageBase64, detectImageMediaType, hashImageBytes } from "./imagePayload.js";
+import {
+  decodeImageBase64,
+  detectImageMediaType,
+  hashImageBytes,
+} from "./imagePayload.js";
 import { countingSemaphore } from "./semaphore.js";
 import { redactSecrets } from "./redact.js";
 import { deviceId } from "./remote/device.js";
 import { hashPath } from "./hash.js";
-import { isManagedExcludedPath, POLICY_EXCLUDED_SESSION } from "./config/managedPolicy.js";
+import {
+  isManagedExcludedPath,
+  POLICY_EXCLUDED_SESSION,
+} from "./config/managedPolicy.js";
 import { currentTranscriptDeadline } from "./workers/ingestDeadline.js";
-import type { OpenTaskReport, AgentStatus, TriggerFiringSource, TriggerPrecheckResult } from "@codecast/shared/contracts";
-import { argumentValidationProblem, withoutDeliveryId } from "@codecast/shared/contracts";
+import type {
+  OpenTaskReport,
+  AgentStatus,
+  TriggerFiringSource,
+  TriggerPrecheckResult,
+} from "@codecast/shared/contracts";
+import {
+  argumentValidationProblem,
+  withoutDeliveryId,
+} from "@codecast/shared/contracts";
 import type { DeliveryEchoLedger } from "./deliveryEchoLedger.js";
-import { MAX_USER_FILE_SIZE, fileBasename, mediaTypeForFile } from "@codecast/shared/files";
+import {
+  MAX_USER_FILE_SIZE,
+  fileBasename,
+  mediaTypeForFile,
+} from "@codecast/shared/files";
 import { filesForWire, type SyncFile } from "./userFiles.js";
 import { callFrameAtPath, referenceCallFrames } from "./callFrameRefs.js";
 export { filesForWire, type SyncFile } from "./userFiles.js";
@@ -45,7 +67,8 @@ export { MAX_IMAGE_SIZE };
 // Markdown image/link whose target is an absolute (or ~/) local path with a
 // raster extension — the "dead screenshot link" shape rescueLocalImageLinks
 // rewrites. Groups: (1) opener through "(", (2) the path, (3) ")".
-const LOCAL_IMAGE_LINK_RE = /(!?\[[^\]\n]*\]\()((?:\/|~\/)[^)\s]+?\.(?:png|jpe?g|gif|webp|avif|bmp))(\))/gi;
+const LOCAL_IMAGE_LINK_RE =
+  /(!?\[[^\]\n]*\]\()((?:\/|~\/)[^)\s]+?\.(?:png|jpe?g|gif|webp|avif|bmp))(\))/gi;
 const MAX_LINK_RESCUES_PER_MESSAGE = 8;
 // Browser-renderable raster types (tiff sniffs but doesn't render; svg is a
 // script vector when served for direct navigation).
@@ -105,10 +128,17 @@ export class LocalFileUnreadable extends Error {
   }
 }
 
-export async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+export async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
   });
   try {
     return await Promise.race([promise, timeout]);
@@ -126,7 +156,9 @@ export class AuthExpiredError extends Error {
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
-  return str.slice(0, maxLen) + `\n... [truncated ${str.length - maxLen} chars]`;
+  return (
+    str.slice(0, maxLen) + `\n... [truncated ${str.length - maxLen} chars]`
+  );
 }
 
 /**
@@ -147,7 +179,10 @@ export function chunkMessagesBySize<T>(
   let currentBytes = 0;
   for (const msg of messages) {
     const bytes = Buffer.byteLength(JSON.stringify(msg));
-    if (current.length > 0 && (current.length >= maxCount || currentBytes + bytes > maxBytes)) {
+    if (
+      current.length > 0 &&
+      (current.length >= maxCount || currentBytes + bytes > maxBytes)
+    ) {
       batches.push(current);
       current = [];
       currentBytes = 0;
@@ -186,7 +221,16 @@ function isAuthError(error: any): boolean {
   );
 }
 
-export type AgentType = "claude_code" | "codex" | "cursor" | "gemini" | "opencode" | "pi" | "grok" | "muse" | "antigravity";
+export type AgentType =
+  | "claude_code"
+  | "codex"
+  | "cursor"
+  | "gemini"
+  | "opencode"
+  | "pi"
+  | "grok"
+  | "muse"
+  | "antigravity";
 
 export interface SyncConfig {
   convexUrl: string;
@@ -231,7 +275,9 @@ export type ExecutionControlMutationName =
   | "publishRuntimeDisposition"
   | "activateExecutionSuccessor";
 
-export type ExecutionControlQueryName = "getExecutionAuthority" | "listExecutionWork";
+export type ExecutionControlQueryName =
+  | "getExecutionAuthority"
+  | "listExecutionWork";
 
 /**
  * A conversation's own lifecycle + inbox visibility, as far as the daemon can
@@ -276,7 +322,9 @@ export interface ConversationLifecycle {
 // treat everything else as transient.
 export function isMissingFunctionError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
-  return /could not find (public )?function|function not found|no such function/i.test(msg);
+  return /could not find (public )?function|function not found|no such function/i.test(
+    msg,
+  );
 }
 
 // 0 = believed available. Set to the failure time when the function is missing;
@@ -350,22 +398,39 @@ export interface CreateConversationParams {
 
 const ECHO_IDS_RECHECK_MS = 10 * 60_000;
 
-function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(message: T): Omit<T, "delivery_ids"> {
+function withoutDeliveryIds<T extends { delivery_ids?: unknown }>(
+  message: T,
+): Omit<T, "delivery_ids"> {
   const { delivery_ids: _ids, ...rest } = message;
   return rest;
 }
 
 export class SyncService {
   /** Stores the snapshot; the answer names the sessions a person put at background priority on this machine. */
-  async reportMachineResources(snapshot: import("@codecast/shared/contracts").MachineResourceSnapshot): Promise<{ background_sessions?: string[]; unattended_sessions?: string[] } | undefined> {
+  async reportMachineResources(
+    snapshot: import("@codecast/shared/contracts").MachineResourceSnapshot,
+  ): Promise<
+    | { background_sessions?: string[]; unattended_sessions?: string[] }
+    | undefined
+  > {
     try {
-      return await this.mutate("machineResources:report" as any, { api_token: this.apiToken, snapshot }) as any;
+      return (await this.mutate("machineResources:report" as any, {
+        api_token: this.apiToken,
+        snapshot,
+      })) as any;
     } catch (err) {
       // The governor level is enrichment: a backend deployed before it knew
       // the field rejects the whole report (closed validator), so send it bare.
-      if (snapshot.sample.governor === undefined || !/governor/.test(String(err))) throw err;
+      if (
+        snapshot.sample.governor === undefined ||
+        !/governor/.test(String(err))
+      )
+        throw err;
       const { governor: _governor, ...sample } = snapshot.sample;
-      return await this.mutate("machineResources:report" as any, { api_token: this.apiToken, snapshot: { ...snapshot, sample } }) as any;
+      return (await this.mutate("machineResources:report" as any, {
+        api_token: this.apiToken,
+        snapshot: { ...snapshot, sample },
+      })) as any;
     }
   }
 
@@ -394,12 +459,15 @@ export class SyncService {
   // path can be seen repeatedly during one turn. Reuse its storage object while
   // the file's size/mtime are unchanged. Shared by images and sent files: the
   // key is the path and the answer is the same storage object either way.
-  private localUploads = new Map<string, {
-    size: number;
-    mtimeMs: number;
-    mediaType: string;
-    storageId: string;
-  }>();
+  private localUploads = new Map<
+    string,
+    {
+      size: number;
+      mtimeMs: number;
+      mediaType: string;
+      storageId: string;
+    }
+  >();
   // Serializes addMessages per conversation. The server's addMessages reads+patches
   // the conversation document on every batch, so two addMessages for the SAME
   // conversation running at once collide on that one doc — Convex OCC-retries the
@@ -441,20 +509,25 @@ export class SyncService {
   // their abandoned entries still run, retries re-enqueue duplicates, and
   // sync clogs against a perfectly healthy backend.
   private mutate(name: string, args: Record<string, unknown>): Promise<any> {
-    return this.client.mutation(name as any, args, { skipQueue: true }).catch((err: unknown) => {
-      if (isWriteBudgetRefusal(err)) this.writeBudget.refused();
-      throw err;
-    });
+    return this.client
+      .mutation(name as any, args, { skipQueue: true })
+      .catch((err: unknown) => {
+        if (isWriteBudgetRefusal(err)) this.writeBudget.refused();
+        throw err;
+      });
   }
 
   private async throttle(): Promise<void> {
     const ticket = this.throttleQueue.then(async () => {
       const paused = this.writeBudget.waitMs();
-      if (paused > 0) await new Promise(resolve => setTimeout(resolve, paused));
+      if (paused > 0)
+        await new Promise((resolve) => setTimeout(resolve, paused));
       const now = Date.now();
       const elapsed = now - this.lastRequestTime;
       if (elapsed < MIN_REQUEST_INTERVAL_MS) {
-        await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL_MS - elapsed));
+        await new Promise((resolve) =>
+          setTimeout(resolve, MIN_REQUEST_INTERVAL_MS - elapsed),
+        );
       }
       this.lastRequestTime = Date.now();
     });
@@ -479,7 +552,12 @@ export class SyncService {
     conversationId: string,
     deviceId: string,
     folder: string,
-    opts: { tailnet?: { ip: string; name: string }; token_hash?: string; relay_only?: boolean; only_device_id?: string } = {},
+    opts: {
+      tailnet?: { ip: string; name: string };
+      token_hash?: string;
+      relay_only?: boolean;
+      only_device_id?: string;
+    } = {},
   ): Promise<{ command_ids: string[]; labels: Record<string, string> }> {
     return await this.mutate("folderSync:requestFolderExport", {
       api_token: this.apiToken,
@@ -490,15 +568,32 @@ export class SyncService {
     });
   }
 
-  async recordPeerLink(link: { from_device_id: string; to_device_id: string; mode: "direct" | "relay"; ok: boolean; reason?: string; bytes?: number }): Promise<void> {
-    await this.mutate("peerLinks:recordPeerLink", { api_token: this.apiToken, ...link });
+  async recordPeerLink(link: {
+    from_device_id: string;
+    to_device_id: string;
+    mode: "direct" | "relay";
+    ok: boolean;
+    reason?: string;
+    bytes?: number;
+  }): Promise<void> {
+    await this.mutate("peerLinks:recordPeerLink", {
+      api_token: this.apiToken,
+      ...link,
+    });
   }
 
   async reportPeerTransfer(
     conversationId: string,
     deviceId: string,
     startedAt: number,
-    report: { phase: "asking" | "receiving" | "unpacking" | "done" | "failed"; from?: string; mode?: "direct" | "relay"; bytes?: number; total?: number; reason?: string },
+    report: {
+      phase: "asking" | "receiving" | "unpacking" | "done" | "failed";
+      from?: string;
+      mode?: "direct" | "relay";
+      bytes?: number;
+      total?: number;
+      reason?: string;
+    },
   ): Promise<{ cancel: boolean }> {
     return await this.mutate("peerTransfers:reportPeerTransfer", {
       api_token: this.apiToken,
@@ -509,28 +604,68 @@ export class SyncService {
     });
   }
 
-  async folderExportOutcomes(commandIds: string[]): Promise<Array<{ command_id: string; executed_at: number | null; result: string | null; error: string | null; label: string | null; device_id?: string | null }>> {
-    return await this.client.query("folderSync:folderExportOutcomes" as any, { api_token: this.apiToken, command_ids: commandIds });
+  async folderExportOutcomes(commandIds: string[]): Promise<
+    Array<{
+      command_id: string;
+      executed_at: number | null;
+      result: string | null;
+      error: string | null;
+      label: string | null;
+      device_id?: string | null;
+    }>
+  > {
+    return await this.client.query("folderSync:folderExportOutcomes" as any, {
+      api_token: this.apiToken,
+      command_ids: commandIds,
+    });
   }
 
   async discardFolderBundle(commandId: string): Promise<void> {
-    await this.mutate("folderSync:discardFolderBundle", { api_token: this.apiToken, command_id: commandId });
+    await this.mutate("folderSync:discardFolderBundle", {
+      api_token: this.apiToken,
+      command_id: commandId,
+    });
   }
 
   async requestSessionExport(
     conversationId: string,
     deviceId: string,
-    opts: { tailnet?: { ip: string; name: string }; token_hash?: string; relay_only?: boolean; only_device_id?: string } = {},
+    opts: {
+      tailnet?: { ip: string; name: string };
+      token_hash?: string;
+      relay_only?: boolean;
+      only_device_id?: string;
+    } = {},
   ): Promise<{ command_ids: string[]; labels: Record<string, string> }> {
-    return await this.mutate("sessionTransfer:requestSessionExport", { api_token: this.apiToken, device_id: deviceId, conversation_id: conversationId, ...opts });
+    return await this.mutate("sessionTransfer:requestSessionExport", {
+      api_token: this.apiToken,
+      device_id: deviceId,
+      conversation_id: conversationId,
+      ...opts,
+    });
   }
 
-  async sessionExportOutcomes(commandIds: string[]): Promise<Array<{ command_id: string; executed_at: number | null; result: string | null; error: string | null; label: string | null; device_id?: string | null }>> {
-    return await this.client.query("sessionTransfer:sessionExportOutcomes" as any, { api_token: this.apiToken, command_ids: commandIds });
+  async sessionExportOutcomes(commandIds: string[]): Promise<
+    Array<{
+      command_id: string;
+      executed_at: number | null;
+      result: string | null;
+      error: string | null;
+      label: string | null;
+      device_id?: string | null;
+    }>
+  > {
+    return await this.client.query(
+      "sessionTransfer:sessionExportOutcomes" as any,
+      { api_token: this.apiToken, command_ids: commandIds },
+    );
   }
 
   async discardSessionBundle(commandId: string): Promise<void> {
-    await this.mutate("sessionTransfer:discardSessionBundle", { api_token: this.apiToken, command_id: commandId });
+    await this.mutate("sessionTransfer:discardSessionBundle", {
+      api_token: this.apiToken,
+      command_id: commandId,
+    });
   }
 
   /**
@@ -546,11 +681,41 @@ export class SyncService {
     device_label?: string;
     default_branch?: string;
     head_sha?: string;
-    rows: Array<{ kind: string; ref: string; path: string; sha?: string; content: string; size?: number; truncated?: boolean }>;
-    commits?: Array<{ sha: string; message: string; author_name: string; author_email: string; timestamp: number; files_changed: number; insertions: number; deletions: number; branch?: string; files?: Array<{ filename: string; additions: number; deletions: number }> }>;
-  }): Promise<{ published: boolean; reason?: string; rows?: number; commits_created?: number } | undefined> {
+    rows: Array<{
+      kind: string;
+      ref: string;
+      path: string;
+      sha?: string;
+      content: string;
+      size?: number;
+      truncated?: boolean;
+    }>;
+    commits?: Array<{
+      sha: string;
+      message: string;
+      author_name: string;
+      author_email: string;
+      timestamp: number;
+      files_changed: number;
+      insertions: number;
+      deletions: number;
+      branch?: string;
+      files?: Array<{ filename: string; additions: number; deletions: number }>;
+    }>;
+  }): Promise<
+    | {
+        published: boolean;
+        reason?: string;
+        rows?: number;
+        commits_created?: number;
+      }
+    | undefined
+  > {
     try {
-      return await this.mutate("repos:ingestLocal", { api_token: this.apiToken, ...payload });
+      return await this.mutate("repos:ingestLocal", {
+        api_token: this.apiToken,
+        ...payload,
+      });
     } catch (error) {
       if (isAuthError(error)) throw new AuthExpiredError();
       return undefined;
@@ -571,10 +736,19 @@ export class SyncService {
     git_behind?: number;
     git_dirty?: boolean;
     /** Fields to unset (a cloud agent's session: what its provider does not name). */
-    clear?: Array<"git_commit_hash" | "git_branch" | "git_ahead" | "git_behind" | "git_dirty">;
+    clear?: Array<
+      | "git_commit_hash"
+      | "git_branch"
+      | "git_ahead"
+      | "git_behind"
+      | "git_dirty"
+    >;
   }): Promise<{ updated: boolean } | undefined> {
     try {
-      return await this.mutate("conversations:updateGitState", { api_token: this.apiToken, ...args });
+      return await this.mutate("conversations:updateGitState", {
+        api_token: this.apiToken,
+        ...args,
+      });
     } catch (error) {
       if (isAuthError(error)) throw new AuthExpiredError();
       return undefined;
@@ -593,9 +767,14 @@ export class SyncService {
     remote_url?: string;
     branch?: string;
     events: Array<Record<string, unknown>>;
-  }): Promise<{ published: boolean; reason?: string; recorded?: number } | undefined> {
+  }): Promise<
+    { published: boolean; reason?: string; recorded?: number } | undefined
+  > {
     try {
-      return await this.mutate("gitActivity:recordLocal", { api_token: this.apiToken, ...payload });
+      return await this.mutate("gitActivity:recordLocal", {
+        api_token: this.apiToken,
+        ...payload,
+      });
     } catch (error) {
       if (isAuthError(error)) throw new AuthExpiredError();
       return undefined;
@@ -609,12 +788,34 @@ export class SyncService {
    */
   async answerLocalRead(args: {
     request_id: string;
-    row?: { kind: string; ref: string; path: string; sha?: string; content: string; size?: number; truncated?: boolean };
-    commit?: { files: Array<{ filename: string; status: string; additions: number; deletions: number; changes: number; patch?: string }>; additions: number; deletions: number };
+    row?: {
+      kind: string;
+      ref: string;
+      path: string;
+      sha?: string;
+      content: string;
+      size?: number;
+      truncated?: boolean;
+    };
+    commit?: {
+      files: Array<{
+        filename: string;
+        status: string;
+        additions: number;
+        deletions: number;
+        changes: number;
+        patch?: string;
+      }>;
+      additions: number;
+      deletions: number;
+    };
     error?: string;
   }): Promise<{ ok: boolean; reason?: string } | undefined> {
     try {
-      return await this.mutate("repos:answerLocalRead", { api_token: this.apiToken, ...args });
+      return await this.mutate("repos:answerLocalRead", {
+        api_token: this.apiToken,
+        ...args,
+      });
     } catch (error) {
       if (isAuthError(error)) throw new AuthExpiredError();
       return undefined;
@@ -623,7 +824,11 @@ export class SyncService {
 
   getSubscriptionClient(): ConvexClient {
     if (!this.subscriptionClient) {
-      this.subscriptionClient = new ConvexClient(this.convexUrl, { webSocketConstructor: recoveringWebSocket({ completeMissingClose: true }) });
+      this.subscriptionClient = new ConvexClient(this.convexUrl, {
+        webSocketConstructor: recoveringWebSocket({
+          completeMissingClose: true,
+        }),
+      });
     }
     return this.subscriptionClient;
   }
@@ -638,7 +843,9 @@ export class SyncService {
 
   private executionApiToken(): string {
     if (!this.apiToken) {
-      throw new AuthExpiredError("Fenced execution requires the daemon API token");
+      throw new AuthExpiredError(
+        "Fenced execution requires the daemon API token",
+      );
     }
     return this.apiToken;
   }
@@ -666,7 +873,7 @@ export class SyncService {
       this.mutate(`executionBindings:${name}`, {
         ...args,
         api_token: this.executionApiToken(),
-      })
+      }),
     );
   }
 
@@ -678,7 +885,7 @@ export class SyncService {
       this.client.query(`executionBindings:${name}` as any, {
         ...args,
         api_token: this.executionApiToken(),
-      })
+      }),
     );
   }
 
@@ -702,15 +909,23 @@ export class SyncService {
   // like the composer's messages.
   // Resolves to the queued row's id, or null when the server declined it (a
   // crash revive under recovery mode "off").
-  async enqueueUserMessage(conversationId: string, content: string, clientId?: string, opts: { human?: boolean } = {}): Promise<string | null> {
+  async enqueueUserMessage(
+    conversationId: string,
+    content: string,
+    clientId?: string,
+    opts: { human?: boolean } = {},
+  ): Promise<string | null> {
     await this.throttle();
-    const queued = await this.mutate("pendingMessages:sendMessageToSession" as any, {
-      conversation_id: conversationId,
-      content,
-      client_id: clientId,
-      ...(opts.human ? { human: true } : {}),
-      api_token: this.apiToken,
-    });
+    const queued = await this.mutate(
+      "pendingMessages:sendMessageToSession" as any,
+      {
+        conversation_id: conversationId,
+        content,
+        client_id: clientId,
+        ...(opts.human ? { human: true } : {}),
+        api_token: this.apiToken,
+      },
+    );
     return queued === null || queued === undefined ? null : String(queued);
   }
 
@@ -720,9 +935,12 @@ export class SyncService {
   // Selection (auth-kind, remote owners, recent window) lives server-side.
   async reviveRemoteAuthBlocked(): Promise<number> {
     await this.throttle();
-    const res = await this.mutate("accountSwitch:reviveAuthBlockedOnRemotes" as any, {
-      api_token: this.apiToken,
-    });
+    const res = await this.mutate(
+      "accountSwitch:reviveAuthBlockedOnRemotes" as any,
+      {
+        api_token: this.apiToken,
+      },
+    );
     return res?.continued ?? 0;
   }
 
@@ -784,7 +1002,10 @@ export class SyncService {
     });
   }
 
-  private async existingMessageUuids(conversationId: string, messageUuids: string[]): Promise<Set<string> | null> {
+  private async existingMessageUuids(
+    conversationId: string,
+    messageUuids: string[],
+  ): Promise<Set<string> | null> {
     if (messageUuids.length === 0) return new Set();
     await this.throttle();
     try {
@@ -795,7 +1016,7 @@ export class SyncService {
             conversation_id: conversationId,
             message_uuids: messageUuids,
             api_token: this.apiToken,
-          }
+          },
         );
         return new Set(Array.isArray(existing) ? existing : []);
       });
@@ -806,8 +1027,12 @@ export class SyncService {
   }
 
   /** One stat or read of a file an agent named, bounded (LOCAL_FILE_IO_TIMEOUT_MS). */
-  private async localFileIo<T>(path: string, io: (path: string) => Promise<T>): Promise<T> {
-    if (this.stuckLocalPaths.has(path)) throw new LocalFileUnreadable(path, "an earlier read has not returned");
+  private async localFileIo<T>(
+    path: string,
+    io: (path: string) => Promise<T>,
+  ): Promise<T> {
+    if (this.stuckLocalPaths.has(path))
+      throw new LocalFileUnreadable(path, "an earlier read has not returned");
     let settled = false;
     const call = io(path).finally(() => {
       settled = true;
@@ -818,7 +1043,10 @@ export class SyncService {
     } catch (err) {
       if (settled) throw err;
       this.stuckLocalPaths.add(path);
-      throw new LocalFileUnreadable(path, `no answer in ${this.localFileIoTimeoutMs}ms`);
+      throw new LocalFileUnreadable(
+        path,
+        `no answer in ${this.localFileIoTimeoutMs}ms`,
+      );
     }
   }
 
@@ -837,22 +1065,52 @@ export class SyncService {
 
     const resolveFile = async (file: SyncFile): Promise<SyncFile> => {
       if (file.storageId || file.error) return file;
-      const name = file.name || (file.localPath ? fileBasename(file.localPath) : "file");
+      const name =
+        file.name || (file.localPath ? fileBasename(file.localPath) : "file");
       const mediaType = file.mediaType || mediaTypeForFile(name);
-      if (!file.localPath) return { ...file, name, mediaType, error: "missing" };
+      if (!file.localPath)
+        return { ...file, name, mediaType, error: "missing" };
       try {
         const fileStat = await this.localFileIo(file.localPath, (p) => stat(p));
-        if (!fileStat.isFile()) return { ...file, name, mediaType, error: "missing" };
+        if (!fileStat.isFile())
+          return { ...file, name, mediaType, error: "missing" };
         if (fileStat.size > MAX_USER_FILE_SIZE) {
-          return { ...file, name, mediaType, size: fileStat.size, error: "too_large" };
+          return {
+            ...file,
+            name,
+            mediaType,
+            size: fileStat.size,
+            error: "too_large",
+          };
         }
         const cached = this.localUploads.get(file.localPath);
-        if (cached && cached.size === fileStat.size && cached.mtimeMs === fileStat.mtimeMs) {
-          return { ...file, name, mediaType: cached.mediaType, size: fileStat.size, storageId: cached.storageId };
+        if (
+          cached &&
+          cached.size === fileStat.size &&
+          cached.mtimeMs === fileStat.mtimeMs
+        ) {
+          return {
+            ...file,
+            name,
+            mediaType: cached.mediaType,
+            size: fileStat.size,
+            storageId: cached.storageId,
+          };
         }
-        const bytes = await this.localFileIo(file.localPath, (p) => readFile(p));
-        const storageId = await uploads.run(() => this.uploadBytes(bytes, mediaType, "Sent file"));
-        if (!storageId) return { ...file, name, mediaType, size: fileStat.size, error: "upload_failed" };
+        const bytes = await this.localFileIo(file.localPath, (p) =>
+          readFile(p),
+        );
+        const storageId = await uploads.run(() =>
+          this.uploadBytes(bytes, mediaType, "Sent file"),
+        );
+        if (!storageId)
+          return {
+            ...file,
+            name,
+            mediaType,
+            size: fileStat.size,
+            error: "upload_failed",
+          };
         this.localUploads.set(file.localPath, {
           size: fileStat.size,
           mtimeMs: fileStat.mtimeMs,
@@ -861,15 +1119,24 @@ export class SyncService {
         });
         return { ...file, name, mediaType, size: fileStat.size, storageId };
       } catch (err) {
-        console.warn(`[SyncService] Failed to read sent file ${file.localPath}: ${err instanceof Error ? err.message : String(err)}`);
-        return { ...file, name, mediaType, error: err instanceof LocalFileUnreadable ? "unreadable" : "missing" };
+        console.warn(
+          `[SyncService] Failed to read sent file ${file.localPath}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return {
+          ...file,
+          name,
+          mediaType,
+          error: err instanceof LocalFileUnreadable ? "unreadable" : "missing",
+        };
       }
     };
 
     await Promise.all(
       messages.map(async (msg) => {
         if (!msg.files || msg.files.length === 0) return;
-        msg.files = await Promise.all(msg.files.slice(0, MAX_FILES_PER_MESSAGE).map(resolveFile));
+        msg.files = await Promise.all(
+          msg.files.slice(0, MAX_FILES_PER_MESSAGE).map(resolveFile),
+        );
       }),
     );
   }
@@ -882,9 +1149,23 @@ export class SyncService {
   // queue file) and stops every retry from re-uploading the same image. Idempotent:
   // images that already carry a storageId are left untouched.
   async offloadImages(
-    messages: Array<{ images?: Array<{ mediaType: string; data?: string; localPath?: string; storageId?: string; toolUseId?: string }> }>,
+    messages: Array<{
+      images?: Array<{
+        mediaType: string;
+        data?: string;
+        localPath?: string;
+        storageId?: string;
+        toolUseId?: string;
+      }>;
+    }>,
   ): Promise<void> {
-    type Img = { mediaType: string; data?: string; localPath?: string; storageId?: string; toolUseId?: string };
+    type Img = {
+      mediaType: string;
+      data?: string;
+      localPath?: string;
+      storageId?: string;
+      toolUseId?: string;
+    };
 
     // A frame of a call the agent looked at syncs as the moment's reference,
     // never as the picture (callFrameRefs.ts): this is the door every agent's
@@ -901,30 +1182,46 @@ export class SyncService {
       if (img.storageId) return img;
 
       let candidate = img;
-      let localFile: { path: string; size: number; mtimeMs: number } | undefined;
+      let localFile:
+        | { path: string; size: number; mtimeMs: number }
+        | undefined;
       if (img.localPath) {
         try {
-          const fileStat = await this.localFileIo(img.localPath, (p) => stat(p));
+          const fileStat = await this.localFileIo(img.localPath, (p) =>
+            stat(p),
+          );
           if (!fileStat.isFile()) {
-            console.warn(`[SyncService] Local image is not a file: ${img.localPath}`);
+            console.warn(
+              `[SyncService] Local image is not a file: ${img.localPath}`,
+            );
             return null;
           }
           if (fileStat.size > MAX_IMAGE_SIZE) {
-            console.warn(`[SyncService] Local image too large: ${fileStat.size} bytes > ${MAX_IMAGE_SIZE}`);
+            console.warn(
+              `[SyncService] Local image too large: ${fileStat.size} bytes > ${MAX_IMAGE_SIZE}`,
+            );
             return null;
           }
           const cached = this.localUploads.get(img.localPath);
-          if (cached && cached.size === fileStat.size && cached.mtimeMs === fileStat.mtimeMs) {
+          if (
+            cached &&
+            cached.size === fileStat.size &&
+            cached.mtimeMs === fileStat.mtimeMs
+          ) {
             return {
               mediaType: cached.mediaType,
               storageId: cached.storageId,
               toolUseId: img.toolUseId,
             };
           }
-          const bytes = await this.localFileIo(img.localPath, (p) => readFile(p));
+          const bytes = await this.localFileIo(img.localPath, (p) =>
+            readFile(p),
+          );
           const detectedMediaType = detectImageMediaType(bytes);
           if (!detectedMediaType) {
-            console.warn(`[SyncService] Local image has an unsupported or invalid payload: ${img.localPath}`);
+            console.warn(
+              `[SyncService] Local image has an unsupported or invalid payload: ${img.localPath}`,
+            );
             return null;
           }
           candidate = {
@@ -938,14 +1235,18 @@ export class SyncService {
             mtimeMs: fileStat.mtimeMs,
           };
         } catch (err) {
-          console.warn(`[SyncService] Failed to read local image ${img.localPath}: ${err instanceof Error ? err.message : String(err)}`);
+          console.warn(
+            `[SyncService] Failed to read local image ${img.localPath}: ${err instanceof Error ? err.message : String(err)}`,
+          );
           return null;
         }
       }
 
       if (!candidate.data) return null;
       const data = candidate.data;
-      const storageId = await uploads.run(() => this.uploadImage(data, candidate.mediaType));
+      const storageId = await uploads.run(() =>
+        this.uploadImage(data, candidate.mediaType),
+      );
       if (storageId) {
         if (localFile) {
           this.localUploads.set(localFile.path, {
@@ -963,7 +1264,9 @@ export class SyncService {
       }
       const decoded = decodeImageBase64(candidate.data);
       if (!decoded) {
-        console.warn("[SyncService] Image dropped at offload: invalid image payload");
+        console.warn(
+          "[SyncService] Image dropped at offload: invalid image payload",
+        );
         return null;
       }
       const dataBytes = decoded.data.length;
@@ -974,7 +1277,9 @@ export class SyncService {
           toolUseId: candidate.toolUseId,
         };
       }
-      console.warn(`[SyncService] Image dropped at offload: upload failed and too large for inline (${dataBytes} bytes)`);
+      console.warn(
+        `[SyncService] Image dropped at offload: upload failed and too large for inline (${dataBytes} bytes)`,
+      );
       return null;
     };
 
@@ -1004,13 +1309,23 @@ export class SyncService {
    * since-deleted temp file falls back to the last URL uploaded for its path,
    * so re-syncs are stable across daemon restarts.
    */
-  async rescueLocalImageLinks(messages: Array<{ role?: string; content?: string }>): Promise<void> {
+  async rescueLocalImageLinks(
+    messages: Array<{ role?: string; content?: string }>,
+  ): Promise<void> {
     for (const msg of messages) {
-      if (msg.role !== "assistant" || !msg.content || !msg.content.includes("](")) continue;
+      if (
+        msg.role !== "assistant" ||
+        !msg.content ||
+        !msg.content.includes("](")
+      )
+        continue;
       const scan = new RegExp(LOCAL_IMAGE_LINK_RE.source, "gi");
       const paths = new Set<string>();
       let m: RegExpExecArray | null;
-      while ((m = scan.exec(msg.content)) !== null && paths.size < MAX_LINK_RESCUES_PER_MESSAGE) {
+      while (
+        (m = scan.exec(msg.content)) !== null &&
+        paths.size < MAX_LINK_RESCUES_PER_MESSAGE
+      ) {
         paths.add(m[2]);
       }
       if (paths.size === 0) continue;
@@ -1042,7 +1357,9 @@ export class SyncService {
   }
 
   private async resolveLocalImageUrl(rawPath: string): Promise<string | null> {
-    const absPath = rawPath.startsWith("~/") ? nodePath.join(os.homedir(), rawPath.slice(2)) : rawPath;
+    const absPath = rawPath.startsWith("~/")
+      ? nodePath.join(os.homedir(), rawPath.slice(2))
+      : rawPath;
     let bytes: Buffer;
     try {
       bytes = await this.localFileIo(absPath, (p) => readFile(p));
@@ -1057,7 +1374,10 @@ export class SyncService {
     const hash = hashImageBytes(bytes);
     const cached = lookupByHash(hash);
     if (cached) return cached.url;
-    const storageId = await this.uploadImage(bytes.toString("base64"), mediaType);
+    const storageId = await this.uploadImage(
+      bytes.toString("base64"),
+      mediaType,
+    );
     if (!storageId) return null;
     const url = await this.getImageUrl(storageId);
     if (!url) return null;
@@ -1065,23 +1385,32 @@ export class SyncService {
     return url;
   }
 
-  async uploadImage(base64Data: string, mediaType: string): Promise<string | null> {
+  async uploadImage(
+    base64Data: string,
+    mediaType: string,
+  ): Promise<string | null> {
     if (!base64Data) {
       console.warn("[SyncService] uploadImage called with no data");
       return null;
     }
     const decoded = decodeImageBase64(base64Data);
     if (!decoded) {
-      console.warn("[SyncService] Image upload rejected: unsupported or invalid image payload");
+      console.warn(
+        "[SyncService] Image upload rejected: unsupported or invalid image payload",
+      );
       return null;
     }
     if (!mediaType.startsWith("image/")) {
-      console.warn(`[SyncService] Image upload rejected: invalid media type ${mediaType}`);
+      console.warn(
+        `[SyncService] Image upload rejected: invalid media type ${mediaType}`,
+      );
       return null;
     }
     const binaryData = decoded.data;
     if (binaryData.length > MAX_IMAGE_SIZE) {
-      console.warn(`[SyncService] Image too large: ${binaryData.length} bytes > ${MAX_IMAGE_SIZE}`);
+      console.warn(
+        `[SyncService] Image too large: ${binaryData.length} bytes > ${MAX_IMAGE_SIZE}`,
+      );
       return null;
     }
     return this.uploadBytes(binaryData, decoded.mediaType, "Image");
@@ -1095,13 +1424,17 @@ export class SyncService {
    * images and sent files share this one leg. Callers own their own validation
    * and size caps before they get here; `label` only names the thing in logs.
    */
-  async uploadBytes(bytes: Uint8Array, mediaType: string, label = "File", timeoutMs = this.imageUploadTimeoutMs): Promise<string | null> {
+  async uploadBytes(
+    bytes: Uint8Array,
+    mediaType: string,
+    label = "File",
+    timeoutMs = this.imageUploadTimeoutMs,
+  ): Promise<string | null> {
     try {
       const uploadUrl = await withTimeout(
-        this.mutate(
-          "images:generateUploadUrl" as any,
-          { api_token: this.apiToken }
-        ),
+        this.mutate("images:generateUploadUrl" as any, {
+          api_token: this.apiToken,
+        }),
         timeoutMs,
         "images:generateUploadUrl",
       );
@@ -1116,13 +1449,17 @@ export class SyncService {
         "upload fetch",
       );
       if (!response.ok) {
-        console.warn(`[SyncService] ${label} upload failed: HTTP ${response.status}`);
+        console.warn(
+          `[SyncService] ${label} upload failed: HTTP ${response.status}`,
+        );
         return null;
       }
       const result = await response.json();
       return result.storageId;
     } catch (err) {
-      console.warn(`[SyncService] ${label} upload error: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(
+        `[SyncService] ${label} upload error: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return null;
     }
   }
@@ -1130,7 +1467,8 @@ export class SyncService {
   async createConversation(params: CreateConversationParams): Promise<string> {
     // The backstop for every client's sync pass: a session under a folder the
     // organization keeps on the device never reaches the server.
-    if (params.projectPath && isManagedExcludedPath(params.projectPath)) throw new Error(POLICY_EXCLUDED_SESSION);
+    if (params.projectPath && isManagedExcludedPath(params.projectPath))
+      throw new Error(POLICY_EXCLUDED_SESSION);
     await this.throttle();
     const projectHash = params.projectPath
       ? hashPath(params.projectPath)
@@ -1169,14 +1507,25 @@ export class SyncService {
           agent_task_id: params.agentTaskId,
           agent_team_name: params.agentTeamName,
           agent_name: params.agentName,
-          ...(params.fork ? { fork: { from: params.fork.from, at_uuid: params.fork.atUuid, copied: params.fork.copied, ...(params.fork.cutoff !== undefined ? { cutoff: params.fork.cutoff } : {}) } } : {}),
+          ...(params.fork
+            ? {
+                fork: {
+                  from: params.fork.from,
+                  at_uuid: params.fork.atUuid,
+                  copied: params.fork.copied,
+                  ...(params.fork.cutoff !== undefined
+                    ? { cutoff: params.fork.cutoff }
+                    : {}),
+                },
+              }
+            : {}),
           // The transcript this conversation is created from lives on THIS
           // machine — stamp ownership up front so message delivery routes here
           // instead of racing every daemon's first-claim (a remote daemon that
           // won that race black-holed injects for freshly synced sessions).
           owner_device_id: deviceId(),
           api_token: this.apiToken,
-        }
+        },
       );
       return result as string;
     });
@@ -1186,36 +1535,37 @@ export class SyncService {
   async markInteractive(conversationId: string): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate("conversations:markInteractive" as any, { conversation_id: conversationId, api_token: this.apiToken });
+      await this.mutate("conversations:markInteractive" as any, {
+        conversation_id: conversationId,
+        api_token: this.apiToken,
+      });
     });
   }
 
-  async linkSessions(parentConversationId: string, childConversationId: string, subagentDescription?: string): Promise<void> {
+  async linkSessions(
+    parentConversationId: string,
+    childConversationId: string,
+    subagentDescription?: string,
+  ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate(
-        "conversations:linkSessions" as any,
-        {
-          parent_conversation_id: parentConversationId,
-          child_conversation_id: childConversationId,
-          subagent_description: subagentDescription,
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:linkSessions" as any, {
+        parent_conversation_id: parentConversationId,
+        child_conversation_id: childConversationId,
+        subagent_description: subagentDescription,
+        api_token: this.apiToken,
+      });
     });
   }
 
   async killFinishedConversation(conversationId: string): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate(
-        "conversations:cliSetSessionVisibility" as any,
-        {
-          session: conversationId,
-          action: "kill",
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:cliSetSessionVisibility" as any, {
+        session: conversationId,
+        action: "kill",
+        api_token: this.apiToken,
+      });
     });
   }
 
@@ -1230,30 +1580,27 @@ export class SyncService {
   ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate(
-        "conversations:linkSpawnedBy" as any,
-        {
-          parent_conversation_id: parentConversationId,
-          child_conversation_id: childConversationId,
-          agent_team_name: agentTeamName,
-          agent_name: agentName,
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:linkSpawnedBy" as any, {
+        parent_conversation_id: parentConversationId,
+        child_conversation_id: childConversationId,
+        agent_team_name: agentTeamName,
+        agent_name: agentName,
+        api_token: this.apiToken,
+      });
     });
   }
 
-  async linkPlanHandoff(parentConversationId: string, childConversationId: string): Promise<void> {
+  async linkPlanHandoff(
+    parentConversationId: string,
+    childConversationId: string,
+  ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate(
-        "conversations:linkPlanHandoff" as any,
-        {
-          parent_conversation_id: parentConversationId,
-          child_conversation_id: childConversationId,
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:linkPlanHandoff" as any, {
+        parent_conversation_id: parentConversationId,
+        child_conversation_id: childConversationId,
+        api_token: this.apiToken,
+      });
     });
   }
 
@@ -1264,17 +1611,14 @@ export class SyncService {
   }): Promise<string | null> {
     await this.throttle();
     return this.guarded(async () => {
-      const result = await this.mutate(
-        "docs:create" as any,
-        {
-          api_token: this.apiToken,
-          title: "",
-          content: params.planContent,
-          source: "plan_mode",
-          conversation_id: params.sessionId,
-          project_path: params.projectPath,
-        }
-      );
+      const result = await this.mutate("docs:create" as any, {
+        api_token: this.apiToken,
+        title: "",
+        content: params.planContent,
+        source: "plan_mode",
+        conversation_id: params.sessionId,
+        project_path: params.projectPath,
+      });
       return result?.plan_short_id || null;
     });
   }
@@ -1288,37 +1632,35 @@ export class SyncService {
   }): Promise<string | null> {
     await this.throttle();
     return this.guarded(async () => {
-      const result = await this.mutate(
-        "tasks:create" as any,
-        {
-          api_token: this.apiToken,
-          title: params.title,
-          description: params.description,
-          task_type: "task",
-          status: "open",
-          priority: "medium",
-          source: "plan_mode",
-          conversation_id: params.sessionId,
-          plan_id: params.planShortId,
-          ...(params.clientKey ? {client_key: params.clientKey} : {}),
-        }
-      );
+      const result = await this.mutate("tasks:create" as any, {
+        api_token: this.apiToken,
+        title: params.title,
+        description: params.description,
+        task_type: "task",
+        status: "open",
+        priority: "medium",
+        source: "plan_mode",
+        conversation_id: params.sessionId,
+        plan_id: params.planShortId,
+        ...(params.clientKey ? { client_key: params.clientKey } : {}),
+      });
       return result?.short_id || null;
     });
   }
 
-  async updateTaskStatus(shortId: string, status: string, sessionId?: string): Promise<void> {
+  async updateTaskStatus(
+    shortId: string,
+    status: string,
+    sessionId?: string,
+  ): Promise<void> {
     await this.throttle();
     return this.guarded(async () => {
-      await this.mutate(
-        "tasks:update" as any,
-        {
-          api_token: this.apiToken,
-          short_id: shortId,
-          status,
-          conversation_id: sessionId,
-        }
-      );
+      await this.mutate("tasks:update" as any, {
+        api_token: this.apiToken,
+        short_id: shortId,
+        status,
+        conversation_id: sessionId,
+      });
     });
   }
 
@@ -1326,13 +1668,10 @@ export class SyncService {
     await this.throttle();
     try {
       return await this.guarded(async () => {
-        const result = await this.client.query(
-          "plans:snippet" as any,
-          {
-            api_token: this.apiToken,
-            plan_short_id: planShortId,
-          }
-        );
+        const result = await this.client.query("plans:snippet" as any, {
+          api_token: this.apiToken,
+          plan_short_id: planShortId,
+        });
         return result?.snippet || null;
       });
     } catch (error) {
@@ -1348,9 +1687,23 @@ export class SyncService {
     content: string;
     timestamp: number;
     thinking?: string;
-    toolCalls?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
-    toolResults?: Array<{ toolUseId: string; content: string; isError?: boolean }>;
-    images?: Array<{ mediaType: string; data?: string; localPath?: string; storageId?: string; toolUseId?: string }>;
+    toolCalls?: Array<{
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }>;
+    toolResults?: Array<{
+      toolUseId: string;
+      content: string;
+      isError?: boolean;
+    }>;
+    images?: Array<{
+      mediaType: string;
+      data?: string;
+      localPath?: string;
+      storageId?: string;
+      toolUseId?: string;
+    }>;
     files?: SyncFile[];
     subtype?: string;
     model?: string;
@@ -1362,13 +1715,30 @@ export class SyncService {
     // Before the images are copied out of the message: a frame's reference
     // lands on the message's own tool result (callFrameRefs.ts).
     referenceCallFrames([params]);
-    const imageHolder = [{
-      images: params.images ? params.images.map((image) => ({ ...image })) : undefined,
-    }];
+    const imageHolder = [
+      {
+        images: params.images
+          ? params.images.map((image) => ({ ...image }))
+          : undefined,
+      },
+    ];
     await this.offloadImages(imageHolder);
-    const fileHolder = [{ files: params.files ? params.files.map((file) => ({ ...file })) : undefined }];
+    const fileHolder = [
+      {
+        files: params.files
+          ? params.files.map((file) => ({ ...file }))
+          : undefined,
+      },
+    ];
     await this.offloadFiles(fileHolder);
-    const redactedContent = truncate(redactSecrets(params.role === "human" ? withoutDeliveryId(params.content) : params.content), MAX_CONTENT_SIZE);
+    const redactedContent = truncate(
+      redactSecrets(
+        params.role === "human"
+          ? withoutDeliveryId(params.content)
+          : params.content,
+      ),
+      MAX_CONTENT_SIZE,
+    );
     const redactedThinking = params.thinking
       ? truncate(redactSecrets(params.thinking), MAX_CONTENT_SIZE)
       : undefined;
@@ -1378,95 +1748,146 @@ export class SyncService {
       system: "system",
     };
 
-    const toolCalls = params.toolCalls?.map(tc => ({
+    const toolCalls = params.toolCalls?.map((tc) => ({
       id: tc.id,
       name: tc.name,
-      input: truncate(redactSecrets(JSON.stringify(tc.input)), MAX_TOOL_RESULT_SIZE),
+      input: truncate(
+        redactSecrets(JSON.stringify(tc.input)),
+        MAX_TOOL_RESULT_SIZE,
+      ),
     }));
 
-    const toolResults = params.toolResults?.map(tr => ({
+    const toolResults = params.toolResults?.map((tr) => ({
       tool_use_id: tr.toolUseId,
       content: truncate(redactSecrets(tr.content), MAX_TOOL_RESULT_SIZE),
       is_error: tr.isError,
     }));
 
-    const images: Array<{ media_type: string; storage_id?: string; data?: string; tool_use_id?: string }> = [];
+    const images: Array<{
+      media_type: string;
+      storage_id?: string;
+      data?: string;
+      tool_use_id?: string;
+    }> = [];
     if (imageHolder[0].images && imageHolder[0].images.length > 0) {
-      const imagesToProcess = imageHolder[0].images.slice(0, MAX_IMAGES_PER_MESSAGE);
+      const imagesToProcess = imageHolder[0].images.slice(
+        0,
+        MAX_IMAGES_PER_MESSAGE,
+      );
       for (const img of imagesToProcess) {
         if (img.storageId) {
-          images.push({ media_type: img.mediaType, storage_id: img.storageId, tool_use_id: img.toolUseId });
+          images.push({
+            media_type: img.mediaType,
+            storage_id: img.storageId,
+            tool_use_id: img.toolUseId,
+          });
           continue;
         }
         if (!img.data) continue;
         const storageId = await this.uploadImage(img.data, img.mediaType);
         if (storageId) {
-          images.push({ media_type: img.mediaType, storage_id: storageId, tool_use_id: img.toolUseId });
+          images.push({
+            media_type: img.mediaType,
+            storage_id: storageId,
+            tool_use_id: img.toolUseId,
+          });
         } else {
           const decoded = decodeImageBase64(img.data);
           if (decoded && decoded.data.length <= MAX_INLINE_IMAGE_SIZE) {
-            images.push({ media_type: decoded.mediaType, data: img.data, tool_use_id: img.toolUseId });
+            images.push({
+              media_type: decoded.mediaType,
+              data: img.data,
+              tool_use_id: img.toolUseId,
+            });
           }
         }
       }
     }
 
     return this.guarded(async () => {
-      const messageId = await this.mutate(
-        "messages:addMessage" as any,
-        {
-          conversation_id: params.conversationId,
-          message_uuid: params.messageUuid,
-          role: roleMap[params.role],
-          content: redactedContent,
-          thinking: redactedThinking,
-          tool_calls: toolCalls,
-          tool_results: toolResults,
-          images: images.length > 0 ? images : undefined,
-          files: filesForWire(fileHolder[0].files),
-          subtype: params.subtype,
-          model: params.model,
-          timestamp: params.timestamp,
-          usage: params.usage,
-          api_message_id: params.apiMessageId,
-          api_token: this.apiToken,
-        }
-      );
+      const messageId = await this.mutate("messages:addMessage" as any, {
+        conversation_id: params.conversationId,
+        message_uuid: params.messageUuid,
+        role: roleMap[params.role],
+        content: redactedContent,
+        thinking: redactedThinking,
+        tool_calls: toolCalls,
+        tool_results: toolResults,
+        images: images.length > 0 ? images : undefined,
+        files: filesForWire(fileHolder[0].files),
+        subtype: params.subtype,
+        model: params.model,
+        timestamp: params.timestamp,
+        usage: params.usage,
+        api_message_id: params.apiMessageId,
+        api_token: this.apiToken,
+      });
       return messageId as string;
     });
   }
 
-  async addMessages(params: {
-    conversationId: string;
-    messages: Array<{
-      messageUuid?: string;
-      role: "human" | "assistant" | "system";
-      content: string;
-      timestamp: number;
-      thinking?: string;
-      toolCalls?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
-      toolResults?: Array<{ toolUseId: string; content: string; isError?: boolean }>;
-      images?: Array<{ mediaType: string; data?: string; localPath?: string; storageId?: string; toolUseId?: string }>;
-      files?: SyncFile[];
-      subtype?: string;
-      model?: string;
-    usage?: import("./parser.js").ClaudeUsage;
-    apiMessageId?: string;
-    /** The uuid the turn was sent under, when Claude recorded it under its own (parser.ts ParsedMessage.sourceUuid). Read by the ledger stamp; never uploaded. */
-    sourceUuid?: string;
-    /** Set by the ledger stamp below; a caller never passes it. */
-    deliveryIds?: string[];
-    }>;
-    reconcileRemoteExisting?: boolean;
-  }, options?: { onBatchAccepted?: (inputIndexes: readonly number[]) => void; beforeBatch?: () => void }): Promise<{ inserted: number; ids: string[] }> {
+  async addMessages(
+    params: {
+      conversationId: string;
+      messages: Array<{
+        messageUuid?: string;
+        role: "human" | "assistant" | "system";
+        content: string;
+        timestamp: number;
+        thinking?: string;
+        toolCalls?: Array<{
+          id: string;
+          name: string;
+          input: Record<string, unknown>;
+        }>;
+        toolResults?: Array<{
+          toolUseId: string;
+          content: string;
+          isError?: boolean;
+        }>;
+        images?: Array<{
+          mediaType: string;
+          data?: string;
+          localPath?: string;
+          storageId?: string;
+          toolUseId?: string;
+        }>;
+        files?: SyncFile[];
+        subtype?: string;
+        model?: string;
+        usage?: import("./parser.js").ClaudeUsage;
+        apiMessageId?: string;
+        /** The uuid the turn was sent under, when Claude recorded it under its own (parser.ts ParsedMessage.sourceUuid). Read by the ledger stamp; never uploaded. */
+        sourceUuid?: string;
+        /** Set by the ledger stamp below; a caller never passes it. */
+        deliveryIds?: string[];
+      }>;
+      reconcileRemoteExisting?: boolean;
+    },
+    options?: {
+      onBatchAccepted?: (inputIndexes: readonly number[]) => void;
+      beforeBatch?: () => void;
+    },
+  ): Promise<{ inserted: number; ids: string[] }> {
     const onBatchAccepted = options?.onBatchAccepted;
     const beforeBatch = options?.beforeBatch;
     if (params.messages.length === 0) {
       return { inserted: 0, ids: [] };
     }
     const echoes = this.deliveryEchoes;
-    if (echoes) params = { ...params, messages: echoes.stamp(params.conversationId, params.messages) };
-    params = { ...params, messages: params.messages.map((m) => (m.role === "human" && m.content.includes(' delivery="') ? { ...m, content: withoutDeliveryId(m.content) } : m)) };
+    if (echoes)
+      params = {
+        ...params,
+        messages: echoes.stamp(params.conversationId, params.messages),
+      };
+    params = {
+      ...params,
+      messages: params.messages.map((m) =>
+        m.role === "human" && m.content.includes(' delivery="')
+          ? { ...m, content: withoutDeliveryId(m.content) }
+          : m,
+      ),
+    };
     await this.rescueLocalImageLinks(params.messages);
     await this.offloadImages(params.messages);
     await this.offloadFiles(params.messages);
@@ -1478,41 +1899,70 @@ export class SyncService {
     };
 
     const preparedMessages: Array<any> = [];
-    const preparedIndexes = onBatchAccepted ? new Map<object, number>() : undefined;
+    const preparedIndexes = onBatchAccepted
+      ? new Map<object, number>()
+      : undefined;
     for (const [inputIndex, msg] of params.messages.entries()) {
-      const redactedContent = truncate(redactSecrets(msg.content), MAX_CONTENT_SIZE);
+      const redactedContent = truncate(
+        redactSecrets(msg.content),
+        MAX_CONTENT_SIZE,
+      );
       const redactedThinking = msg.thinking
         ? truncate(redactSecrets(msg.thinking), MAX_CONTENT_SIZE)
         : undefined;
-      const toolCalls = msg.toolCalls?.map(tc => ({
+      const toolCalls = msg.toolCalls?.map((tc) => ({
         id: tc.id,
         name: tc.name,
-        input: truncate(redactSecrets(JSON.stringify(tc.input)), MAX_TOOL_RESULT_SIZE),
+        input: truncate(
+          redactSecrets(JSON.stringify(tc.input)),
+          MAX_TOOL_RESULT_SIZE,
+        ),
       }));
-      const toolResults = msg.toolResults?.map(tr => ({
+      const toolResults = msg.toolResults?.map((tr) => ({
         tool_use_id: tr.toolUseId,
         content: truncate(redactSecrets(tr.content), MAX_TOOL_RESULT_SIZE),
         is_error: tr.isError,
       }));
 
-      const images: Array<{ media_type: string; storage_id?: string; data?: string; tool_use_id?: string }> = [];
+      const images: Array<{
+        media_type: string;
+        storage_id?: string;
+        data?: string;
+        tool_use_id?: string;
+      }> = [];
       if (msg.images && msg.images.length > 0) {
         const imagesToProcess = msg.images.slice(0, MAX_IMAGES_PER_MESSAGE);
         for (const img of imagesToProcess) {
           // Already offloaded (e.g. by offloadImages before enqueue) — pass through.
           if (img.storageId) {
-            images.push({ media_type: img.mediaType, storage_id: img.storageId, tool_use_id: img.toolUseId });
+            images.push({
+              media_type: img.mediaType,
+              storage_id: img.storageId,
+              tool_use_id: img.toolUseId,
+            });
             continue;
           }
           if (!img.data) continue;
           const storageId = await this.uploadImage(img.data, img.mediaType);
           if (storageId) {
-            images.push({ media_type: img.mediaType, storage_id: storageId, tool_use_id: img.toolUseId });
+            images.push({
+              media_type: img.mediaType,
+              storage_id: storageId,
+              tool_use_id: img.toolUseId,
+            });
           } else {
             const decoded = decodeImageBase64(img.data);
             const dataBytes = decoded?.data.length;
-            if (decoded && dataBytes !== undefined && dataBytes <= MAX_INLINE_IMAGE_SIZE) {
-              images.push({ media_type: decoded.mediaType, data: img.data, tool_use_id: img.toolUseId });
+            if (
+              decoded &&
+              dataBytes !== undefined &&
+              dataBytes <= MAX_INLINE_IMAGE_SIZE
+            ) {
+              images.push({
+                media_type: decoded.mediaType,
+                data: img.data,
+                tool_use_id: img.toolUseId,
+              });
             } else {
               console.warn(
                 decoded
@@ -1540,18 +1990,28 @@ export class SyncService {
         api_message_id: msg.apiMessageId,
         ...(msg.deliveryIds?.length ? { delivery_ids: msg.deliveryIds } : {}),
       });
-      preparedIndexes?.set(preparedMessages[preparedMessages.length - 1], inputIndex);
+      preparedIndexes?.set(
+        preparedMessages[preparedMessages.length - 1],
+        inputIndex,
+      );
     }
 
     let sendMessages = preparedMessages;
     if (params.reconcileRemoteExisting) {
       const uuids = sendMessages
         .map((msg) => msg.message_uuid)
-        .filter((uuid): uuid is string => typeof uuid === "string" && uuid.length > 0);
+        .filter(
+          (uuid): uuid is string => typeof uuid === "string" && uuid.length > 0,
+        );
       if (uuids.length > 0) {
-        const existing = await this.existingMessageUuids(params.conversationId, uuids);
+        const existing = await this.existingMessageUuids(
+          params.conversationId,
+          uuids,
+        );
         if (existing && existing.size > 0) {
-          sendMessages = sendMessages.filter((msg) => !msg.message_uuid || !existing.has(msg.message_uuid));
+          sendMessages = sendMessages.filter(
+            (msg) => !msg.message_uuid || !existing.has(msg.message_uuid),
+          );
           if (sendMessages.length === 0) {
             return { inserted: 0, ids: [] };
           }
@@ -1579,31 +2039,41 @@ export class SyncService {
         await this.throttle();
         await this.guarded(async () => {
           beforeBatch?.();
-          const send = (withEchoIds: boolean) => withTimeout(
-            this.mutate(
-              "messages:addMessages" as any,
-              {
+          const send = (withEchoIds: boolean) =>
+            withTimeout(
+              this.mutate("messages:addMessages" as any, {
                 conversation_id: params.conversationId,
                 messages: withEchoIds ? batch : batch.map(withoutDeliveryIds),
                 api_token: this.apiToken,
                 ...(withEchoIds ? { echo_ids: true } : {}),
-              }
-            ),
-            ADD_MESSAGES_BATCH_TIMEOUT_MS,
-            `addMessages batch (${batch.length} msgs)`
-          );
+              }),
+              ADD_MESSAGES_BATCH_TIMEOUT_MS,
+              `addMessages batch (${batch.length} msgs)`,
+            );
           let result: unknown;
-          if (echoes && (this.echoIdsRefusedAt === null || Date.now() - this.echoIdsRefusedAt > ECHO_IDS_RECHECK_MS)) {
+          if (
+            echoes &&
+            (this.echoIdsRefusedAt === null ||
+              Date.now() - this.echoIdsRefusedAt > ECHO_IDS_RECHECK_MS)
+          ) {
             try {
               result = await send(true);
               this.echoIdsRefusedAt = null;
             } catch (err) {
-              if (!/echo_ids|delivery_ids/.test(argumentValidationProblem(err) ?? "")) throw err;
+              if (
+                !/echo_ids|delivery_ids/.test(
+                  argumentValidationProblem(err) ?? "",
+                )
+              )
+                throw err;
               this.echoIdsRefusedAt = Date.now();
               result = await send(false);
             }
           } else result = await send(false);
-          if (onBatchAccepted) onBatchAccepted(batch.map(message => preparedIndexes!.get(message)!));
+          if (onBatchAccepted)
+            onBatchAccepted(
+              batch.map((message) => preparedIndexes!.get(message)!),
+            );
           const typed = result as { inserted: number; ids: string[] };
           totalInserted += typed.inserted;
           allIds.push(...typed.ids);
@@ -1619,7 +2089,10 @@ export class SyncService {
   // branch exactly. Chunked to the server's per-call cap and serialized behind the
   // conversation's write lock (same discipline as addMessages) so it can't race a
   // concurrent add. Returns how many rows were actually removed.
-  async deleteMessagesByUuid(conversationId: string, messageUuids: string[]): Promise<number> {
+  async deleteMessagesByUuid(
+    conversationId: string,
+    messageUuids: string[],
+  ): Promise<number> {
     if (messageUuids.length === 0) return 0;
     return this.withConversationLock(conversationId, async () => {
       let deleted = 0;
@@ -1627,11 +2100,14 @@ export class SyncService {
         const chunk = messageUuids.slice(i, i + ADD_MESSAGES_BATCH_SIZE);
         await this.throttle();
         await this.guarded(async () => {
-          const result = await this.mutate("messages:deleteMessagesByUuid" as any, {
-            conversation_id: conversationId,
-            message_uuids: chunk,
-            api_token: this.apiToken,
-          });
+          const result = await this.mutate(
+            "messages:deleteMessagesByUuid" as any,
+            {
+              conversation_id: conversationId,
+              message_uuids: chunk,
+              api_token: this.apiToken,
+            },
+          );
           deleted += (result as { deleted: number }).deleted;
         });
       }
@@ -1644,10 +2120,16 @@ export class SyncService {
   // Each call chains onto the previous one's settled tail; errors are isolated so
   // one failed write can't reject the next queued write. Map entries self-GC when a
   // conversation's chain drains. Distinct conversations never share a chain.
-  private withConversationLock<T>(convId: string, fn: () => Promise<T>): Promise<T> {
+  private withConversationLock<T>(
+    convId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
     const prev = this.conversationWriteChains.get(convId) ?? Promise.resolve();
     const run = prev.then(fn, fn);
-    const tail = run.then(() => {}, () => {});
+    const tail = run.then(
+      () => {},
+      () => {},
+    );
     this.conversationWriteChains.set(convId, tail);
     tail.then(() => {
       if (this.conversationWriteChains.get(convId) === tail) {
@@ -1687,20 +2169,26 @@ export class SyncService {
           user_id: this.userId,
           file_path_hash: filePathHash,
           api_token: this.apiToken,
-        }
+        },
       );
       return position ?? 0;
     });
   }
 
   /** `provider`: the title is the provider's own name for the session (conversations.updateTitle's title_is_custom and replaces). */
-  async updateTitle(conversationId: string, title: string, provider?: { replaces: string[] }): Promise<void> {
+  async updateTitle(
+    conversationId: string,
+    title: string,
+    provider?: { replaces: string[] },
+  ): Promise<void> {
     return this.guarded(async () => {
       await this.mutate("conversations:updateTitle" as any, {
         conversation_id: conversationId,
         title,
         api_token: this.apiToken,
-        ...(provider ? { title_is_custom: true, replaces: provider.replaces } : {}),
+        ...(provider
+          ? { title_is_custom: true, replaces: provider.replaces }
+          : {}),
       });
     });
   }
@@ -1718,13 +2206,24 @@ export class SyncService {
   }
 
   /** Whether a cloud agent session's agent is archived on the provider's site (the header's Archive or Unarchive). */
-  async setCloudAgentArchived(conversationId: string, archived: boolean): Promise<void> {
+  async setCloudAgentArchived(
+    conversationId: string,
+    archived: boolean,
+  ): Promise<void> {
     return this.guarded(async () => {
-      await this.mutate("conversations:setCloudAgentArchived" as any, { conversation_id: conversationId, archived, api_token: this.apiToken });
+      await this.mutate("conversations:setCloudAgentArchived" as any, {
+        conversation_id: conversationId,
+        archived,
+        api_token: this.apiToken,
+      });
     });
   }
 
-  async setAvailableSkills(conversationId: string | undefined, skills: string, projectPath?: string): Promise<void> {
+  async setAvailableSkills(
+    conversationId: string | undefined,
+    skills: string,
+    projectPath?: string,
+  ): Promise<void> {
     try {
       await this.mutate("conversations:setAvailableSkills" as any, {
         ...(conversationId ? { conversation_id: conversationId } : {}),
@@ -1735,16 +2234,24 @@ export class SyncService {
     } catch {}
   }
 
-  async updateProjectPath(sessionId: string, projectPath: string, gitRoot?: string, gitRemoteUrl?: string): Promise<{ updated: boolean } | null> {
+  async updateProjectPath(
+    sessionId: string,
+    projectPath: string,
+    gitRoot?: string,
+    gitRemoteUrl?: string,
+  ): Promise<{ updated: boolean } | null> {
     try {
-      const result = await this.mutate("conversations:updateProjectPath" as any, {
-        session_id: sessionId,
-        project_path: projectPath,
-        git_root: gitRoot,
-        git_remote_url: gitRemoteUrl,
-        device_id: deviceId(),
-        api_token: this.apiToken,
-      });
+      const result = await this.mutate(
+        "conversations:updateProjectPath" as any,
+        {
+          session_id: sessionId,
+          project_path: projectPath,
+          git_root: gitRoot,
+          git_remote_url: gitRemoteUrl,
+          device_id: deviceId(),
+          api_token: this.apiToken,
+        },
+      );
       return result as { updated: boolean } | null;
     } catch {
       return null;
@@ -1756,7 +2263,14 @@ export class SyncService {
   // silently stranded conversations on their spawn-time stub id, so every
   // session-bound `cast` write from the agent failed "Conversation not found"
   // while message sync (keyed by conversation _id) looked perfectly healthy.
-  async updateSessionId(conversationId: string, sessionId: string, projectPath?: string, gitRoot?: string, gitRemoteUrl?: string, notARepo?: boolean): Promise<void> {
+  async updateSessionId(
+    conversationId: string,
+    sessionId: string,
+    projectPath?: string,
+    gitRoot?: string,
+    gitRemoteUrl?: string,
+    notARepo?: boolean,
+  ): Promise<void> {
     const base = {
       conversation_id: conversationId,
       session_id: sessionId,
@@ -1765,7 +2279,8 @@ export class SyncService {
       git_remote_url: gitRemoteUrl,
       api_token: this.apiToken,
     };
-    const bind = (args: Record<string, unknown>) => this.mutate("conversations:updateSessionId" as any, args);
+    const bind = (args: Record<string, unknown>) =>
+      this.mutate("conversations:updateSessionId" as any, args);
     if (!notARepo) return void (await bind(base));
     try {
       await bind({ ...base, not_a_repo: true });
@@ -1785,19 +2300,29 @@ export class SyncService {
   /** The frame an inject run delivers, as the server builds it for every path; null when it cannot say. */
   async getInjectFrame(taskId: string): Promise<string | null> {
     try {
-      return (await this.client.query("agentTasks:injectFrame" as any, { task_id: taskId, api_token: this.apiToken })) ?? null;
+      return (
+        (await this.client.query("agentTasks:injectFrame" as any, {
+          task_id: taskId,
+          api_token: this.apiToken,
+        })) ?? null
+      );
     } catch {
       return null;
     }
   }
 
-  async getSessionFiling(conversationId: string): Promise<"stashed" | "killed" | null> {
+  async getSessionFiling(
+    conversationId: string,
+  ): Promise<"stashed" | "killed" | null> {
     try {
-      const res: any = await this.client.query("conversations:getThreadState" as any, {
-        session: conversationId,
-        if_exists: true,
-        api_token: this.apiToken,
-      });
+      const res: any = await this.client.query(
+        "conversations:getThreadState" as any,
+        {
+          session: conversationId,
+          if_exists: true,
+          api_token: this.apiToken,
+        },
+      );
       return res?.visibility ?? null;
     } catch {
       return null;
@@ -1805,13 +2330,24 @@ export class SyncService {
   }
 
   async getConversationOwner(conversationId: string): Promise<string | null> {
-    return (await this.getConversationOwnerInfo(conversationId))?.ownerDeviceId ?? null;
+    return (
+      (await this.getConversationOwnerInfo(conversationId))?.ownerDeviceId ??
+      null
+    );
   }
 
   /** Move sessions this device still owns under a previous login onto the
    *  account this process is signed in as. No resume: the processes are here. */
-  async claimDeviceAccount(previousUserId: string, deviceId: string, previousToken?: string): Promise<{
-    moved: number; more: boolean; pending?: boolean; error?: string; needs_proof?: boolean;
+  async claimDeviceAccount(
+    previousUserId: string,
+    deviceId: string,
+    previousToken?: string,
+  ): Promise<{
+    moved: number;
+    more: boolean;
+    pending?: boolean;
+    error?: string;
+    needs_proof?: boolean;
   }> {
     return await this.mutate("devices:claimDeviceAccount", {
       api_token: this.apiToken,
@@ -1822,19 +2358,33 @@ export class SyncService {
   }
 
   /** The live sessions this device runs (cloud:hostSessions); throws rather than answer with an empty roster it did not get. */
-  async liveSessionsOnThisDevice(): Promise<Array<{ conversation_id: string; project_path: string | null; cloud_checkout_path: string | null }>> {
+  async liveSessionsOnThisDevice(): Promise<
+    Array<{
+      conversation_id: string;
+      project_path: string | null;
+      cloud_checkout_path: string | null;
+    }>
+  > {
     const rows = await this.client.query("cloud:hostSessions" as any, {
       api_token: this.apiToken,
       device_id: deviceId(),
     });
-    if (!Array.isArray(rows)) throw new Error("Worktree ownership query returned no roster");
+    if (!Array.isArray(rows))
+      throw new Error("Worktree ownership query returned no roster");
     return rows;
   }
 
-  async isWorktreeShared(conversationId: string, worktreePath: string): Promise<boolean> {
+  async isWorktreeShared(
+    conversationId: string,
+    worktreePath: string,
+  ): Promise<boolean> {
     const rows = await this.liveSessionsOnThisDevice();
-    return rows.some((row) => row.conversation_id !== conversationId &&
-      (row.project_path === worktreePath || row.project_path?.startsWith(worktreePath + "/")));
+    return rows.some(
+      (row) =>
+        row.conversation_id !== conversationId &&
+        (row.project_path === worktreePath ||
+          row.project_path?.startsWith(worktreePath + "/")),
+    );
   }
 
   /**
@@ -1848,12 +2398,19 @@ export class SyncService {
   async getConversationOwnerInfo(
     conversationId: string,
     opts: { strict?: boolean } = {},
-  ): Promise<{ ownerDeviceId: string; ownerIsRemote: boolean; ownerOnline: boolean } | null> {
+  ): Promise<{
+    ownerDeviceId: string;
+    ownerIsRemote: boolean;
+    ownerOnline: boolean;
+  } | null> {
     try {
-      const res = await this.client.query("devices:getConversationOwner" as any, {
-        api_token: this.apiToken,
-        conversation_id: conversationId,
-      });
+      const res = await this.client.query(
+        "devices:getConversationOwner" as any,
+        {
+          api_token: this.apiToken,
+          conversation_id: conversationId,
+        },
+      );
       const ownerDeviceId = res && (res as any).owner_device_id;
       if (!ownerDeviceId) return null;
       return {
@@ -1901,10 +2458,13 @@ export class SyncService {
         //
         // Route A — the conversation id, an exact ctx.db.get. Always tried first:
         // when the row exists this is unambiguous, with no twin reduction at all.
-        let res: any = await this.client.query("conversations:getConversationLifecycle" as any, {
-          api_token: this.apiToken,
-          conversation_id: conversationId,
-        });
+        let res: any = await this.client.query(
+          "conversations:getConversationLifecycle" as any,
+          {
+            api_token: this.apiToken,
+            conversation_id: conversationId,
+          },
+        );
         // Route B — the GHOST case, which is the whole reason a fallback exists:
         // the id we were handed no longer resolves (deleted/remapped row, a
         // client's cached copy), but the session is alive under a twin. The
@@ -1912,10 +2472,13 @@ export class SyncService {
         // devices:resolveConversationBySession on both counts — right row, and
         // full hide state instead of status only.
         if (!res && sessionId) {
-          res = await this.client.query("conversations:getConversationLifecycle" as any, {
-            api_token: this.apiToken,
-            session_id: sessionId,
-          });
+          res = await this.client.query(
+            "conversations:getConversationLifecycle" as any,
+            {
+              api_token: this.apiToken,
+              session_id: sessionId,
+            },
+          );
         }
         lifecycleQueryMissingSince = 0; // the probe answered — clear any stale latch
         if (res) {
@@ -1942,7 +2505,8 @@ export class SyncService {
         // ONLY an undeployed function latches. Anything else (network, 5xx,
         // timeout) is transient: leave the latch alone and let the caller's own
         // fail-open/fail-closed policy handle this one call.
-        if (isMissingFunctionError(err)) lifecycleQueryMissingSince = Date.now();
+        if (isMissingFunctionError(err))
+          lifecycleQueryMissingSince = Date.now();
         else if (opts.strict) throw err;
       }
     }
@@ -1952,13 +2516,23 @@ export class SyncService {
     // and most callers refuse to act on it.
     if (!sessionId) return null;
     try {
-      const res: any = await this.client.query("devices:resolveConversationBySession" as any, {
-        api_token: this.apiToken,
-        session_id: sessionId,
-      });
+      const res: any = await this.client.query(
+        "devices:resolveConversationBySession" as any,
+        {
+          api_token: this.apiToken,
+          session_id: sessionId,
+        },
+      );
       // `closed` rides the fallback so a degraded read never revives a closed
       // session (isConversationRetired).
-      return res ? { status: res.status ?? null, closed: res.closed === true, hideStateKnown: false, source: "status-fallback" } : null;
+      return res
+        ? {
+            status: res.status ?? null,
+            closed: res.closed === true,
+            hideStateKnown: false,
+            source: "status-fallback",
+          }
+        : null;
     } catch (err) {
       if (opts.strict) throw err;
       return null;
@@ -1966,7 +2540,13 @@ export class SyncService {
   }
 
   /** Resolves undefined when the server could not be asked (the caller may retry), else whether another live device owns the session. */
-  async registerManagedSession(sessionId: string, pid: number, tmuxSession?: string, conversationId?: string, backend?: "sdk"): Promise<{ notOwner?: boolean; owner?: string } | undefined> {
+  async registerManagedSession(
+    sessionId: string,
+    pid: number,
+    tmuxSession?: string,
+    conversationId?: string,
+    backend?: "sdk",
+  ): Promise<{ notOwner?: boolean; owner?: string } | undefined> {
     try {
       const args = {
         session_id: sessionId,
@@ -1979,11 +2559,20 @@ export class SyncService {
       // The backend is enrichment: a server deployed before it knew the field rejects the whole
       // call (closed validator), so it registers bare there.
       const res = backend
-        ? await this.mutate("managedSessions:registerManagedSession" as any, { ...args, backend }).catch((err) => {
-          if (!/backend/.test(String(err))) throw err;
-          return this.mutate("managedSessions:registerManagedSession" as any, args);
-        })
-        : await this.mutate("managedSessions:registerManagedSession" as any, args);
+        ? await this.mutate("managedSessions:registerManagedSession" as any, {
+            ...args,
+            backend,
+          }).catch((err) => {
+            if (!/backend/.test(String(err))) throw err;
+            return this.mutate(
+              "managedSessions:registerManagedSession" as any,
+              args,
+            );
+          })
+        : await this.mutate(
+            "managedSessions:registerManagedSession" as any,
+            args,
+          );
       // Single-owner invariant: another live device owns this session → caller backs off.
       if (res && typeof res === "object" && (res as any).notOwner) {
         return { notOwner: true, owner: (res as any).owner };
@@ -1994,12 +2583,17 @@ export class SyncService {
     }
   }
 
-  async unregisterManagedSession(sessionId: string): Promise<{ found: boolean } | undefined> {
+  async unregisterManagedSession(
+    sessionId: string,
+  ): Promise<{ found: boolean } | undefined> {
     if (!this.apiToken) return;
-    return await this.mutate("managedSessions:unregisterManagedSession" as any, {
-      session_id: sessionId,
-      api_token: this.apiToken,
-    }) as { found: boolean };
+    return (await this.mutate(
+      "managedSessions:unregisterManagedSession" as any,
+      {
+        session_id: sessionId,
+        api_token: this.apiToken,
+      },
+    )) as { found: boolean };
   }
 
   async heartbeatManagedSession(
@@ -2010,7 +2604,9 @@ export class SyncService {
       return await this.mutate("managedSessions:heartbeat" as any, {
         session_id: sessionId,
         api_token: this.apiToken,
-        ...(agentStatus ? { agent_status: agentStatus, client_ts: Date.now() } : {}),
+        ...(agentStatus
+          ? { agent_status: agentStatus, client_ts: Date.now() }
+          : {}),
       });
     } catch {}
   }
@@ -2033,7 +2629,15 @@ export class SyncService {
     });
   }
 
-  async reportSessionMetrics(sessionId: string, cpu: number, memory: number, pidCount: number, agentPid?: number, awakeIdleMs?: number, agentStartedAt?: number): Promise<void> {
+  async reportSessionMetrics(
+    sessionId: string,
+    cpu: number,
+    memory: number,
+    pidCount: number,
+    agentPid?: number,
+    awakeIdleMs?: number,
+    agentStartedAt?: number,
+  ): Promise<void> {
     try {
       await this.mutate("managedSessions:reportMetrics" as any, {
         session_id: sessionId,
@@ -2042,7 +2646,9 @@ export class SyncService {
         pid_count: pidCount,
         ...(agentPid !== undefined ? { agent_pid: agentPid } : {}),
         ...(awakeIdleMs !== undefined ? { awake_idle_ms: awakeIdleMs } : {}),
-        ...(agentStartedAt !== undefined ? { agent_started_at: agentStartedAt } : {}),
+        ...(agentStartedAt !== undefined
+          ? { agent_started_at: agentStartedAt }
+          : {}),
         api_token: this.apiToken,
       });
     } catch {}
@@ -2052,12 +2658,19 @@ export class SyncService {
     if (!gitRemoteUrl) return [];
     try {
       return await this.guarded(async () => {
-        const result = await this.client.query("conversations:findUserLocalCheckouts" as any, {
-          git_remote_url: gitRemoteUrl,
-          api_token: this.apiToken,
-        });
+        const result = await this.client.query(
+          "conversations:findUserLocalCheckouts" as any,
+          {
+            git_remote_url: gitRemoteUrl,
+            api_token: this.apiToken,
+          },
+        );
         if (!Array.isArray(result)) return [];
-        return result.map((r: any) => r?.git_root).filter((g: any): g is string => typeof g === "string" && g.length > 0);
+        return result
+          .map((r: any) => r?.git_root)
+          .filter(
+            (g: any): g is string => typeof g === "string" && g.length > 0,
+          );
       });
     } catch (error) {
       if (error instanceof AuthExpiredError) throw error;
@@ -2066,11 +2679,23 @@ export class SyncService {
   }
 
   /** The person's sync lists as the server holds them, or null. */
-  async getSyncSettings(): Promise<{ sync_mode: "all" | "selected"; sync_projects: string[]; sync_excluded: string[] } | null> {
+  async getSyncSettings(): Promise<{
+    sync_mode: "all" | "selected";
+    sync_projects: string[];
+    sync_excluded: string[];
+  } | null> {
     try {
       return await this.guarded(async () => {
-        const r = await this.client.query("users:getSyncSettings" as any, { api_token: this.apiToken });
-        return r ? { sync_mode: r.sync_mode ?? "all", sync_projects: r.sync_projects ?? [], sync_excluded: r.sync_excluded ?? [] } : null;
+        const r = await this.client.query("users:getSyncSettings" as any, {
+          api_token: this.apiToken,
+        });
+        return r
+          ? {
+              sync_mode: r.sync_mode ?? "all",
+              sync_projects: r.sync_projects ?? [],
+              sync_excluded: r.sync_excluded ?? [],
+            }
+          : null;
       });
     } catch (error) {
       if (error instanceof AuthExpiredError) throw error;
@@ -2078,13 +2703,23 @@ export class SyncService {
     }
   }
 
-  async getProjectInfo(conversationId: string): Promise<{ project_path: string | null; git_root: string | null; git_remote_url: string | null; effort: string | null; cc_account: string | null; execution_protocol_state: string | null } | null> {
+  async getProjectInfo(conversationId: string): Promise<{
+    project_path: string | null;
+    git_root: string | null;
+    git_remote_url: string | null;
+    effort: string | null;
+    cc_account: string | null;
+    execution_protocol_state: string | null;
+  } | null> {
     try {
       return await this.guarded(async () => {
-        const result = await this.client.query("conversations:getProjectInfo" as any, {
-          conversation_id: conversationId,
-          api_token: this.apiToken,
-        });
+        const result = await this.client.query(
+          "conversations:getProjectInfo" as any,
+          {
+            conversation_id: conversationId,
+            api_token: this.apiToken,
+          },
+        );
         if (!result) return null;
         return {
           project_path: result.project_path ?? null,
@@ -2108,7 +2743,7 @@ export class SyncService {
           conversation_id: conversationId,
           api_token: this.apiToken,
           device_id: deviceId(),
-        })
+        }),
       );
     } catch (error) {
       if (error instanceof AuthExpiredError) throw error;
@@ -2162,10 +2797,13 @@ export class SyncService {
   // gets the plain cancel.
   async reportPaneRefused(messageId: string): Promise<{ recovered: boolean }> {
     try {
-      const result = await this.mutate("paneRecovery:reportPaneRefused" as any, {
-        message_id: messageId,
-        api_token: this.apiToken,
-      });
+      const result = await this.mutate(
+        "paneRecovery:reportPaneRefused" as any,
+        {
+          message_id: messageId,
+          api_token: this.apiToken,
+        },
+      );
       return { recovered: !!(result as any)?.recovered };
     } catch {
       await this.cancelPendingMessage(messageId);
@@ -2175,12 +2813,17 @@ export class SyncService {
 
   // With holdReason the row is re-pended WITHOUT spending a retry: the paste was
   // refused because the terminal waits for a human, not because it failed.
-  async retryMessage(messageId: string, opts?: { holdReason?: string; holdScreen?: string }): Promise<void> {
+  async retryMessage(
+    messageId: string,
+    opts?: { holdReason?: string; holdScreen?: string },
+  ): Promise<void> {
     return this.guarded(async () => {
       await this.mutate("pendingMessages:retryMessage" as any, {
         message_id: messageId,
         ...(opts?.holdReason ? { hold_reason: opts.holdReason } : {}),
-        ...(opts?.holdReason && opts.holdScreen ? { hold_screen: opts.holdScreen } : {}),
+        ...(opts?.holdReason && opts.holdScreen
+          ? { hold_screen: opts.holdScreen }
+          : {}),
         api_token: this.apiToken,
         device_id: deviceId(),
       });
@@ -2188,21 +2831,30 @@ export class SyncService {
   }
 
   async getPendingMessageStatus(messageId: string): Promise<string> {
-    const result = await this.client.query("pendingMessages:getMessageStatus" as any, {
-      message_id: messageId,
-      api_token: this.apiToken,
-    }) as { status: string };
+    const result = (await this.client.query(
+      "pendingMessages:getMessageStatus" as any,
+      {
+        message_id: messageId,
+        api_token: this.apiToken,
+      },
+    )) as { status: string };
     return result.status;
   }
 
-  async claimPendingMessageForDelivery(messageId: string, conversationId?: string): Promise<PendingMessageForDelivery | null> {
+  async claimPendingMessageForDelivery(
+    messageId: string,
+    conversationId?: string,
+  ): Promise<PendingMessageForDelivery | null> {
     return this.guarded(async () => {
-      const result = await this.mutate("pendingMessages:claimPendingMessageForDelivery" as any, {
-        message_id: messageId,
-        ...(conversationId ? { conversation_id: conversationId } : {}),
-        api_token: this.apiToken,
-        device_id: deviceId(),
-      });
+      const result = await this.mutate(
+        "pendingMessages:claimPendingMessageForDelivery" as any,
+        {
+          message_id: messageId,
+          ...(conversationId ? { conversation_id: conversationId } : {}),
+          api_token: this.apiToken,
+          device_id: deviceId(),
+        },
+      );
       return (result ?? null) as PendingMessageForDelivery | null;
     });
   }
@@ -2212,7 +2864,12 @@ export class SyncService {
   // looping session keeps working out of the user's active queue; a plain
   // stash pops back into the inbox on the wake. Human/agent sends omit it.
   // A `clientId` makes a retried send land once.
-  async sendMessageToSession(conversationId: string, content: string, origin?: "scheduler", clientId?: string): Promise<string | null> {
+  async sendMessageToSession(
+    conversationId: string,
+    content: string,
+    origin?: "scheduler",
+    clientId?: string,
+  ): Promise<string | null> {
     if (!this.apiToken) return null;
     return this.guarded(async () => {
       const result = await this.mutate(
@@ -2237,42 +2894,78 @@ export class SyncService {
    * the next turn records the next snapshot and the chain in git is complete
    * regardless.
    */
-  async recordTreeSnapshots(rows: Array<{
-    conversation_id: string; sha: string; tree_sha: string; base_sha: string; prev_sha?: string; branch?: string;
-    depth: number; changed_paths: string[]; changed_count: number; dirty: boolean; checkout_key: string;
-    source: "turn" | "sweep" | "prompt"; taken_at: number; turn_completed_at?: number; took_ms?: number; shared_sessions?: number;
-  }>): Promise<{ written: number } | null> {
+  async recordTreeSnapshots(
+    rows: Array<{
+      conversation_id: string;
+      sha: string;
+      tree_sha: string;
+      base_sha: string;
+      prev_sha?: string;
+      branch?: string;
+      depth: number;
+      changed_paths: string[];
+      changed_count: number;
+      dirty: boolean;
+      checkout_key: string;
+      source: "turn" | "sweep" | "prompt";
+      taken_at: number;
+      turn_completed_at?: number;
+      took_ms?: number;
+      shared_sessions?: number;
+    }>,
+  ): Promise<{ written: number } | null> {
     if (!this.apiToken || !rows.length) return null;
     try {
-      return await this.mutate("treeSnapshots:record" as any, { rows, device_id: deviceId(), api_token: this.apiToken });
+      return await this.mutate("treeSnapshots:record" as any, {
+        rows,
+        device_id: deviceId(),
+        api_token: this.apiToken,
+      });
     } catch {
       return null;
     }
   }
 
   /** What a merge_back command did with a worker's worktree (subagentFleet.reportMergeBack). */
-  async reportMergeBack(args: { conversation_id: string; state: "merged" | "empty" | "conflict" | "failed"; files?: string[]; reason?: string }): Promise<void> {
+  async reportMergeBack(args: {
+    conversation_id: string;
+    state: "merged" | "empty" | "conflict" | "failed";
+    files?: string[];
+    reason?: string;
+  }): Promise<void> {
     if (!this.apiToken) return;
-    await this.mutate("subagentFleet:reportMergeBack", { api_token: this.apiToken, ...args });
+    await this.mutate("subagentFleet:reportMergeBack", {
+      api_token: this.apiToken,
+      ...args,
+    });
   }
 
-  async reportCommandRun(args: { decision_id: string; state: "running" | "done" | "failed"; exit_code?: number; output?: string }): Promise<void> {
+  async reportCommandRun(args: {
+    decision_id: string;
+    state: "running" | "done" | "failed";
+    exit_code?: number;
+    output?: string;
+  }): Promise<void> {
     if (!this.apiToken) return;
-    await this.mutate("sessionDecisions:reportCommandRun" as any, { api_token: this.apiToken, ...args });
+    await this.mutate("sessionDecisions:reportCommandRun" as any, {
+      api_token: this.apiToken,
+      ...args,
+    });
   }
 
-  async setSessionError(conversationId: string, error?: string, opts: { force?: boolean } = {}): Promise<void> {
+  async setSessionError(
+    conversationId: string,
+    error?: string,
+    opts: { force?: boolean } = {},
+  ): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "conversations:setSessionError" as any,
-        {
-          conversation_id: conversationId,
-          error,
-          ...(opts.force ? { force: true } : {}),
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:setSessionError" as any, {
+        conversation_id: conversationId,
+        error,
+        ...(opts.force ? { force: true } : {}),
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
@@ -2283,10 +2976,19 @@ export class SyncService {
    * alone until a human picks the host again (convex cloud.reportPlacementFailure).
    */
   /** A live mirror's state (cloud/liveSyncJobs.ts) onto conversations.local_mirror. */
-  async reportLocalMirror(conversationId: string, deviceId: string, report: object): Promise<void> {
+  async reportLocalMirror(
+    conversationId: string,
+    deviceId: string,
+    report: object,
+  ): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate("cloud:reportLocalMirror" as any, { ...report, conversation_id: conversationId, device_id: deviceId, api_token: this.apiToken });
+      await this.mutate("cloud:reportLocalMirror" as any, {
+        ...report,
+        conversation_id: conversationId,
+        device_id: deviceId,
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
@@ -2294,32 +2996,55 @@ export class SyncService {
   async reportCloudHost(hostDeviceId: string, report: object): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate("cloud:reportCloudHost" as any, { host_device_id: hostDeviceId, report, api_token: this.apiToken });
+      await this.mutate("cloud:reportCloudHost" as any, {
+        host_device_id: hostDeviceId,
+        report,
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
   /** Whether mirrored sessions are working, read from Convex so the host is never touched to find out. */
-  async localMirrorActivity(conversationIds: string[]): Promise<Array<{ conversation_id: string; message_count: number; status: string; owner_device_id: string | null; host_online?: boolean }>> {
+  async localMirrorActivity(conversationIds: string[]): Promise<
+    Array<{
+      conversation_id: string;
+      message_count: number;
+      status: string;
+      owner_device_id: string | null;
+      host_online?: boolean;
+    }>
+  > {
     if (!conversationIds.length) return [];
-    return await this.client.query("cloud:localMirrorActivity" as any, { conversation_ids: conversationIds, api_token: this.apiToken });
+    return await this.client.query("cloud:localMirrorActivity" as any, {
+      conversation_ids: conversationIds,
+      api_token: this.apiToken,
+    });
   }
 
-  async reportCloudPlacementFailure(conversationId: string, placementToken: string | undefined, error: string, contextTooLarge?: { total_bytes: number; cap_bytes: number; files: Array<{ path: string; bytes: number }> }): Promise<void> {
+  async reportCloudPlacementFailure(
+    conversationId: string,
+    placementToken: string | undefined,
+    error: string,
+    contextTooLarge?: {
+      total_bytes: number;
+      cap_bytes: number;
+      files: Array<{ path: string; bytes: number }>;
+    },
+  ): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "cloud:reportPlacementFailure" as any,
-        {
-          conversation_id: conversationId,
-          ...(placementToken ? { placement_token: placementToken } : {}),
-          error,
-          ...(contextTooLarge ? { context_too_large: contextTooLarge } : {}),
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("cloud:reportPlacementFailure" as any, {
+        conversation_id: conversationId,
+        ...(placementToken ? { placement_token: placementToken } : {}),
+        error,
+        ...(contextTooLarge ? { context_too_large: contextTooLarge } : {}),
+        api_token: this.apiToken,
+      });
     } catch (err) {
       // Unrecorded, the row stays "preparing" and the heartbeat re-issues the spawn forever.
-      throw new Error(`placement failure not recorded: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(
+        `placement failure not recorded: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -2331,14 +3056,11 @@ export class SyncService {
   async claimSession(conversationId: string): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "devices:claimConversation" as any,
-        {
-          conversation_id: conversationId,
-          device_id: deviceId(),
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("devices:claimConversation" as any, {
+        conversation_id: conversationId,
+        device_id: deviceId(),
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
@@ -2347,7 +3069,10 @@ export class SyncService {
    * session is spending — the web compares it against the machine's current
    * login to name the panes a switch left behind (ct-49528). Undefined clears
    * the record: an unattributed pane must not read as stale. */
-  async recordCodexAccount(conversationId: string, account: string | undefined): Promise<void> {
+  async recordCodexAccount(
+    conversationId: string,
+    account: string | undefined,
+  ): Promise<void> {
     if (!this.apiToken) return;
     try {
       await this.mutate("accountSwitch:recordCodexAccount" as any, {
@@ -2364,7 +3089,9 @@ export class SyncService {
    * continue on — then the server rewrites the row and answers with the
    * corrected pin. Falls back to the raw row read when the call fails, so an
    * old server or a blip never blocks a resume. */
-  async pinForResume(conversationId: string): Promise<{ cc_account: string | null } | null> {
+  async pinForResume(
+    conversationId: string,
+  ): Promise<{ cc_account: string | null } | null> {
     if (!this.apiToken) return null;
     try {
       const res = await this.mutate("accountSwitch:pinForResume" as any, {
@@ -2372,7 +3099,9 @@ export class SyncService {
         device_id: deviceId(),
         api_token: this.apiToken,
       });
-      return res && typeof res === "object" ? { cc_account: (res as any).cc_account ?? null } : null;
+      return res && typeof res === "object"
+        ? { cc_account: (res as any).cc_account ?? null }
+        : null;
     } catch {
       return null;
     }
@@ -2384,7 +3113,9 @@ export class SyncService {
    * tie-break that stops two daemons both starting a broadcast start_session.
    * Fail-open: on any transient error we return won:true rather than block.
    */
-  async claimConversationForStart(conversationId: string): Promise<{ won: boolean; owner?: string }> {
+  async claimConversationForStart(
+    conversationId: string,
+  ): Promise<{ won: boolean; owner?: string }> {
     if (!this.apiToken) return { won: true };
     try {
       const res = await this.mutate(
@@ -2393,7 +3124,7 @@ export class SyncService {
           conversation_id: conversationId,
           device_id: deviceId(),
           api_token: this.apiToken,
-        }
+        },
       );
       return (res as { won: boolean; owner?: string }) ?? { won: true };
     } catch {
@@ -2404,26 +3135,20 @@ export class SyncService {
   async markSessionCompleted(conversationId: string): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "conversations:markSessionCompleted" as any,
-        {
-          conversation_id: conversationId,
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:markSessionCompleted" as any, {
+        conversation_id: conversationId,
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
   async markSessionActive(conversationId: string): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "conversations:markSessionActive" as any,
-        {
-          conversation_id: conversationId,
-          api_token: this.apiToken,
-        }
-      );
+      await this.mutate("conversations:markSessionActive" as any, {
+        conversation_id: conversationId,
+        api_token: this.apiToken,
+      });
     } catch {}
   }
 
@@ -2434,7 +3159,16 @@ export class SyncService {
   // whether it is a session boundary (a resume / clear / manual compact, no
   // turn behind it) and when the lead turn ended. Both are what let the server
   // tell a real completion from a lifecycle event (ct-49533).
-  async updateSessionAgentStatus(conversationId: string, status: AgentStatus, clientTs?: number, permissionMode?: string, openTasks?: OpenTaskReport[], presumed?: boolean, hibernatedAt?: number | null, settle?: { sessionBoundary?: boolean; turnCompletedAt?: number }): Promise<boolean> {
+  async updateSessionAgentStatus(
+    conversationId: string,
+    status: AgentStatus,
+    clientTs?: number,
+    permissionMode?: string,
+    openTasks?: OpenTaskReport[],
+    presumed?: boolean,
+    hibernatedAt?: number | null,
+    settle?: { sessionBoundary?: boolean; turnCompletedAt?: number },
+  ): Promise<boolean> {
     if (!this.apiToken) return false;
     try {
       const result = await this.mutate(
@@ -2449,13 +3183,19 @@ export class SyncService {
           // The daemon's own post-injection presumption — painted, never taken
           // as delivery proof (managedSessions.activeStatusAcksInjected).
           ...(presumed ? { presumed: true } : {}),
-          ...(hibernatedAt !== undefined ? { hibernated_at: hibernatedAt } : {}),
+          ...(hibernatedAt !== undefined
+            ? { hibernated_at: hibernatedAt }
+            : {}),
           ...(settle?.sessionBoundary ? { session_boundary: true } : {}),
-          ...(settle?.turnCompletedAt !== undefined ? { turn_completed_at: settle.turnCompletedAt } : {}),
-        }
+          ...(settle?.turnCompletedAt !== undefined
+            ? { turn_completed_at: settle.turnCompletedAt }
+            : {}),
+        },
       );
       return result?.applied === true;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   async listManagedSessions(): Promise<Array<{
@@ -2466,34 +3206,44 @@ export class SyncService {
     last_metrics_at?: number;
   }> | null> {
     try {
-      return await this.client.query("managedSessions:listManagedSessionsForDaemon" as any, {
-        api_token: this.apiToken,
-      });
+      return await this.client.query(
+        "managedSessions:listManagedSessionsForDaemon" as any,
+        {
+          api_token: this.apiToken,
+        },
+      );
     } catch {
       return null;
     }
   }
 
-  async checkManagedSession(conversationId: string): Promise<{ managed: boolean; session_id?: string; pid?: number } | null> {
+  async checkManagedSession(
+    conversationId: string,
+  ): Promise<{ managed: boolean; session_id?: string; pid?: number } | null> {
     try {
-      const result = await this.client.query("managedSessions:isSessionManaged" as any, {
-        conversation_id: conversationId,
-        api_token: this.apiToken,
-      });
+      const result = await this.client.query(
+        "managedSessions:isSessionManaged" as any,
+        {
+          conversation_id: conversationId,
+          api_token: this.apiToken,
+        },
+      );
       return result;
     } catch {
       return null;
     }
   }
 
-  async createPermissionRequest(params: {
-    conversation_id: string;
-    session_id: string;
-    tool_name: string;
-    arguments_preview: string;
-    suggestions?: unknown[];
-    rule_request?: PermissionRuleRequest;
-  } & PermissionSource): Promise<string> {
+  async createPermissionRequest(
+    params: {
+      conversation_id: string;
+      session_id: string;
+      tool_name: string;
+      arguments_preview: string;
+      suggestions?: unknown[];
+      rule_request?: PermissionRuleRequest;
+    } & PermissionSource,
+  ): Promise<string> {
     return this.guarded(async () => {
       const base = {
         conversation_id: params.conversation_id,
@@ -2502,18 +3252,24 @@ export class SyncService {
         arguments_preview: params.arguments_preview,
         api_token: this.apiToken,
       };
-      const create = (args: Record<string, unknown>) => this.mutate("permissions:createPermissionRequest" as any, args);
-      const bounded = params.rule_request && (await ruleBounds()).boundedRuleRequest(params.rule_request);
+      const create = (args: Record<string, unknown>) =>
+        this.mutate("permissions:createPermissionRequest" as any, args);
+      const bounded =
+        params.rule_request &&
+        (await ruleBounds()).boundedRuleRequest(params.rule_request);
       const extras = {
         ...(params.suggestions?.length && { suggestions: params.suggestions }),
         ...(params.subagent_type && { subagent_type: params.subagent_type }),
-        ...(params.subagent_conversation_id && { subagent_conversation_id: params.subagent_conversation_id }),
+        ...(params.subagent_conversation_id && {
+          subagent_conversation_id: params.subagent_conversation_id,
+        }),
         ...(params.safety_check && { safety_check: true }),
         ...(params.intent && { intent: params.intent }),
         ...(params.removals?.length && { removals: params.removals }),
         ...(bounded && { rule_request: bounded }),
       };
-      if (Object.keys(extras).length === 0) return (await create(base)) as string;
+      if (Object.keys(extras).length === 0)
+        return (await create(base)) as string;
       try {
         return (await create({ ...base, ...extras })) as string;
       } catch (err) {
@@ -2527,17 +3283,23 @@ export class SyncService {
 
   /** How codecast's rules settle a call before a card (permissionRules.check).
    *  Throws when the server cannot answer, which the caller reads as "ask". */
-  async checkPermission(conversationId: string, request: PermissionRuleRequest): Promise<{
+  async checkPermission(
+    conversationId: string,
+    request: PermissionRuleRequest,
+  ): Promise<{
     action: "allow" | "deny" | "ask";
     reason?: "rule" | "unattended";
     message?: string;
   }> {
     const { boundedRuleRequest } = await ruleBounds();
-    return this.guarded(async () => (await this.client.query("permissionRules:check" as any, {
-      conversation_id: conversationId,
-      request: boundedRuleRequest(request),
-      api_token: this.apiToken,
-    })) as any);
+    return this.guarded(
+      async () =>
+        (await this.client.query("permissionRules:check" as any, {
+          conversation_id: conversationId,
+          request: boundedRuleRequest(request),
+          api_token: this.apiToken,
+        })) as any,
+    );
   }
 
   async cancelPermissionRequest(permissionId: string): Promise<boolean> {
@@ -2547,13 +3309,16 @@ export class SyncService {
         {
           permission_id: permissionId,
           api_token: this.apiToken,
-        }
+        },
       );
       return Boolean(ok);
     });
   }
 
-  async cancelPendingPermissions(sessionId: string, createdBefore?: number): Promise<number> {
+  async cancelPendingPermissions(
+    sessionId: string,
+    createdBefore?: number,
+  ): Promise<number> {
     return this.guarded(async () => {
       const cancelled = await this.mutate(
         "permissions:cancelPendingPermissions" as any,
@@ -2561,13 +3326,16 @@ export class SyncService {
           session_id: sessionId,
           ...(createdBefore !== undefined && { created_before: createdBefore }),
           api_token: this.apiToken,
-        }
+        },
       );
       return Number(cancelled) || 0;
     });
   }
 
-  async getPermissionDecision(sessionId: string, permissionId?: string): Promise<{
+  async getPermissionDecision(
+    sessionId: string,
+    permissionId?: string,
+  ): Promise<{
     _id: string;
     status: "approved" | "denied" | "cancelled";
     resolved_at?: number;
@@ -2582,7 +3350,7 @@ export class SyncService {
           session_id: sessionId,
           ...(permissionId ? { permission_id: permissionId } : {}),
           api_token: this.apiToken,
-        }
+        },
       );
       return decision as any;
     });
@@ -2592,7 +3360,7 @@ export class SyncService {
     try {
       const version = await this.client.query(
         "systemConfig:getMinCliVersion" as any,
-        {}
+        {},
       );
       return version as string | null;
     } catch {
@@ -2604,7 +3372,7 @@ export class SyncService {
     try {
       const version = await this.client.query(
         "systemConfig:getMinDesktopVersion" as any,
-        {}
+        {},
       );
       return version as string | null;
     } catch {
@@ -2612,29 +3380,28 @@ export class SyncService {
     }
   }
 
-  async syncLogs(logs: Array<{
-    level: "debug" | "info" | "warn" | "error";
-    message: string;
-    metadata?: {
-      session_id?: string;
-      error_code?: string;
-      stack?: string;
-    };
-    daemon_version?: string;
-    platform?: string;
-    timestamp: number;
-  }>): Promise<{ inserted: number } | null> {
+  async syncLogs(
+    logs: Array<{
+      level: "debug" | "info" | "warn" | "error";
+      message: string;
+      metadata?: {
+        session_id?: string;
+        error_code?: string;
+        stack?: string;
+      };
+      daemon_version?: string;
+      platform?: string;
+      timestamp: number;
+    }>,
+  ): Promise<{ inserted: number } | null> {
     if (!this.apiToken || logs.length === 0) {
       return null;
     }
     try {
-      const result = await this.mutate(
-        "daemonLogs:insertBatch" as any,
-        {
-          api_token: this.apiToken,
-          logs,
-        }
-      );
+      const result = await this.mutate("daemonLogs:insertBatch" as any, {
+        api_token: this.apiToken,
+        logs,
+      });
       return result as { inserted: number };
     } catch {
       return null;
@@ -2649,16 +3416,13 @@ export class SyncService {
   }): Promise<void> {
     if (!this.apiToken) return;
     try {
-      await this.mutate(
-        "notifications:createSessionNotification" as any,
-        {
-          api_token: this.apiToken,
-          conversation_id: params.conversation_id,
-          type: params.type,
-          title: params.title,
-          message: params.message,
-        }
-      );
+      await this.mutate("notifications:createSessionNotification" as any, {
+        api_token: this.apiToken,
+        conversation_id: params.conversation_id,
+        type: params.type,
+        title: params.title,
+        message: params.message,
+      });
     } catch {
       // Best-effort notification
     }
@@ -2666,13 +3430,18 @@ export class SyncService {
 
   async getMessageCountsForReconciliation(
     sessionIds: string[],
-    conversationIdHints: Array<{ session_id: string; conversation_id: string }> = []
-  ): Promise<Array<{
-    session_id: string;
-    conversation_id: string;
-    message_count: number;
-    updated_at: number;
-  }>> {
+    conversationIdHints: Array<{
+      session_id: string;
+      conversation_id: string;
+    }> = [],
+  ): Promise<
+    Array<{
+      session_id: string;
+      conversation_id: string;
+      message_count: number;
+      updated_at: number;
+    }>
+  > {
     if (!this.apiToken || sessionIds.length === 0) {
       return [];
     }
@@ -2681,9 +3450,10 @@ export class SyncService {
         "conversations:getMessageCountsForReconciliation" as any,
         {
           session_ids: sessionIds,
-          conversation_id_hints: conversationIdHints.length > 0 ? conversationIdHints : undefined,
+          conversation_id_hints:
+            conversationIdHints.length > 0 ? conversationIdHints : undefined,
           api_token: this.apiToken,
-        }
+        },
       );
       return result as Array<{
         session_id: string;
@@ -2699,27 +3469,31 @@ export class SyncService {
   /** Throws when the backend does not answer, so a failed read is never mistaken for an empty queue. */
   async getDueTasks(limit?: number): Promise<any[]> {
     if (!this.apiToken) return [];
-    const result = await this.client.query(
-      "agentTasks:getDueTasks" as any,
-      { api_token: this.apiToken, limit }
-    );
+    const result = await this.client.query("agentTasks:getDueTasks" as any, {
+      api_token: this.apiToken,
+      limit,
+    });
     return (result as any[]) || [];
   }
 
   /** null when the server refuses the claim; throws when it does not answer (the claim may have landed). */
   async claimTask(taskId: string, daemonId: string): Promise<any> {
     if (!this.apiToken) return null;
-    return await this.mutate(
-      "agentTasks:claimTask" as any,
-      { api_token: this.apiToken, task_id: taskId, daemon_id: daemonId }
-    );
+    return await this.mutate("agentTasks:claimTask" as any, {
+      api_token: this.apiToken,
+      task_id: taskId,
+      daemon_id: daemonId,
+    });
   }
 
   /** `cast trigger add --as`: the definition a spawned run launches as. */
   async resolveAgentDefinition(name: string): Promise<any | null> {
     if (!this.apiToken) return null;
     try {
-      return await this.client.query("agentDefinitions:resolve" as any, { api_token: this.apiToken, name });
+      return await this.client.query("agentDefinitions:resolve" as any, {
+        api_token: this.apiToken,
+        name,
+      });
     } catch {
       return null;
     }
@@ -2728,43 +3502,55 @@ export class SyncService {
   async renewTaskLease(taskId: string, daemonId: string): Promise<boolean> {
     if (!this.apiToken) return false;
     try {
-      const result = await this.mutate(
-        "agentTasks:renewLease" as any,
-        { api_token: this.apiToken, task_id: taskId, daemon_id: daemonId }
-      );
+      const result = await this.mutate("agentTasks:renewLease" as any, {
+        api_token: this.apiToken,
+        task_id: taskId,
+        daemon_id: daemonId,
+      });
       return result as boolean;
     } catch {
       return false;
     }
   }
 
-  async completeTaskRun(taskId: string, daemonId: string, summary?: string, conversationId?: string, runSessionUuid?: string): Promise<boolean> {
+  async completeTaskRun(
+    taskId: string,
+    daemonId: string,
+    summary?: string,
+    conversationId?: string,
+    runSessionUuid?: string,
+  ): Promise<boolean> {
     if (!this.apiToken) return false;
     try {
-      const result = await this.mutate(
-        "agentTasks:completeTaskRun" as any,
-        {
-          api_token: this.apiToken,
-          task_id: taskId,
-          daemon_id: daemonId,
-          summary,
-          conversation_id: conversationId,
-          run_session_uuid: runSessionUuid,
-        }
-      );
+      const result = await this.mutate("agentTasks:completeTaskRun" as any, {
+        api_token: this.apiToken,
+        task_id: taskId,
+        daemon_id: daemonId,
+        summary,
+        conversation_id: conversationId,
+        run_session_uuid: runSessionUuid,
+      });
       return result as boolean;
     } catch {
       return false;
     }
   }
 
-  async failTaskRun(taskId: string, daemonId: string, error?: string, runSessionUuid?: string): Promise<boolean> {
+  async failTaskRun(
+    taskId: string,
+    daemonId: string,
+    error?: string,
+    runSessionUuid?: string,
+  ): Promise<boolean> {
     if (!this.apiToken) return false;
     try {
-      const result = await this.mutate(
-        "agentTasks:failTaskRun" as any,
-        { api_token: this.apiToken, task_id: taskId, daemon_id: daemonId, error, run_session_uuid: runSessionUuid }
-      );
+      const result = await this.mutate("agentTasks:failTaskRun" as any, {
+        api_token: this.apiToken,
+        task_id: taskId,
+        daemon_id: daemonId,
+        error,
+        run_session_uuid: runSessionUuid,
+      });
       return result as boolean;
     } catch {
       return false;
@@ -2786,28 +3572,33 @@ export class SyncService {
   ): Promise<boolean> {
     if (!this.apiToken) return false;
     // Throws when the backend does not answer, so the caller can retry before the lease lapses.
-    const ok = await this.mutate(
-      "agentTasks:skipTaskRun" as any,
-      {
-        api_token: this.apiToken,
-        task_id: taskId,
-        daemon_id: daemonId,
-        command: result.command,
-        exit_code: result.exitCode,
-        timed_out: result.timedOut,
-        duration_ms: result.durationMs,
-        output: result.output,
-        reason,
-        source,
-        ...(precheckState !== undefined ? { precheck_state: precheckState, precheck_mode: precheckMode } : {}),
-      }
-    );
+    const ok = await this.mutate("agentTasks:skipTaskRun" as any, {
+      api_token: this.apiToken,
+      task_id: taskId,
+      daemon_id: daemonId,
+      command: result.command,
+      exit_code: result.exitCode,
+      timed_out: result.timedOut,
+      duration_ms: result.durationMs,
+      output: result.output,
+      reason,
+      source,
+      ...(precheckState !== undefined
+        ? { precheck_state: precheckState, precheck_mode: precheckMode }
+        : {}),
+    });
     return ok as boolean;
   }
 
   /** A `changes` or `state` precheck woke this firing: keep its state and
    *  the message its run carries, before the run starts. */
-  async passTaskPrecheck(taskId: string, daemonId: string, gate: { command: string; mode: string }, state: string | undefined, message: string | undefined): Promise<boolean> {
+  async passTaskPrecheck(
+    taskId: string,
+    daemonId: string,
+    gate: { command: string; mode: string },
+    state: string | undefined,
+    message: string | undefined,
+  ): Promise<boolean> {
     if (!this.apiToken) return false;
     try {
       return (await this.mutate("agentTasks:passTaskPrecheck" as any, {
@@ -2827,12 +3618,19 @@ export class SyncService {
   // Stamp agent_task_id on a spawned run's conversation (and fold the previous
   // completed run of a repeating spawn schedule). { retry: true } means the
   // run's conversation hasn't synced yet — call again shortly.
-  async linkRunConversation(taskId: string, runSessionUuid: string): Promise<{ linked: boolean; retry: boolean }> {
+  async linkRunConversation(
+    taskId: string,
+    runSessionUuid: string,
+  ): Promise<{ linked: boolean; retry: boolean }> {
     if (!this.apiToken) return { linked: false, retry: false };
     try {
       const result = await this.mutate(
         "agentTasks:linkRunConversation" as any,
-        { api_token: this.apiToken, task_id: taskId, run_session_uuid: runSessionUuid }
+        {
+          api_token: this.apiToken,
+          task_id: taskId,
+          run_session_uuid: runSessionUuid,
+        },
       );
       return result as { linked: boolean; retry: boolean };
     } catch {

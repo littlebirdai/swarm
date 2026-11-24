@@ -5,7 +5,10 @@
 // they are on, or where this device cannot say.
 import { useState } from "react";
 import { useOsPermission } from "../../hooks/useOsPermissions";
-import { isPermissionActionable, requestOsPermission } from "../../lib/osPermissions";
+import {
+  isPermissionActionable,
+  requestOsPermission,
+} from "../../lib/osPermissions";
 import { ROUTINE_NOTIFY_OFF } from "../../lib/hostedApproval";
 
 export function RoutineNotifyLine({ className = "" }: { className?: string }) {
@@ -23,12 +26,20 @@ export function RoutineNotifyLine({ className = "" }: { className?: string }) {
     }
   };
   return (
-    <p data-routine-notify={readiness} className={`text-[12.5px] leading-snug text-sol-text-muted ${className}`}>
+    <p
+      data-routine-notify={readiness}
+      className={`text-[12.5px] leading-snug text-sol-text-muted ${className}`}
+    >
       {ROUTINE_NOTIFY_OFF[readiness]}
       {actionable ? (
         <>
           {" "}
-          <button type="button" onClick={turnOn} disabled={asking} className="text-sol-text underline underline-offset-2 hover:no-underline disabled:opacity-60">
+          <button
+            type="button"
+            onClick={turnOn}
+            disabled={asking}
+            className="text-sol-text underline underline-offset-2 hover:no-underline disabled:opacity-60"
+          >
             Turn on notifications
           </button>
         </>

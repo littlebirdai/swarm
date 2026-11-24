@@ -24,17 +24,26 @@ function artifactId(row: ThreadRead): Id<"artifacts"> {
 }
 
 async function artifactFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache) {
-  return await memo(cache.artifacts, row.root_key, () => ctx.db.get(artifactId(row)));
+  return await memo(cache.artifacts, row.root_key, () =>
+    ctx.db.get(artifactId(row)),
+  );
 }
 
 /** The whole discussion, oldest first. Bounded by the page's real comment
  *  volume, like the owner panel and the CLI listing. */
-async function pageCommentsFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<Doc<"artifact_comments">[]> {
+async function pageCommentsFor(
+  ctx: ReadCtx,
+  row: ThreadRead,
+  cache: PageCache,
+): Promise<Doc<"artifact_comments">[]> {
   return await memo(cache.artifactComments, row.root_key, () =>
     ctx.db
       .query("artifact_comments")
-      .withIndex("by_artifact", (q: any) => q.eq("artifact_id", artifactId(row)))
-      .collect());
+      .withIndex("by_artifact", (q: any) =>
+        q.eq("artifact_id", artifactId(row)),
+      )
+      .collect(),
+  );
 }
 
 function stripCommentEmail(c: Doc<"artifact_comments">): PageComment {
@@ -56,15 +65,22 @@ export const pageKind: ThreadKindResolver = {
   async unread(ctx, userId, row, cache) {
     const rows = await pageCommentsFor(ctx, row, cache);
     // A comment with no author_user_id is an anonymous viewer's: news.
-    const counted = rows.filter((c) =>
-      c.created_at > row.last_read_at && String(c.author_user_id) !== String(userId)).length;
+    const counted = rows.filter(
+      (c) =>
+        c.created_at > row.last_read_at &&
+        String(c.author_user_id) !== String(userId),
+    ).length;
     return capped(counted);
   },
   async forYou(ctx, userId, row, cache) {
     // Every page comment is a person's (a signed-in viewer or an anonymous
     // one), so any unread comment waits on the owner and the commenters.
     const rows = await pageCommentsFor(ctx, row, cache);
-    return rows.some((c) => c.created_at > row.last_read_at && String(c.author_user_id) !== String(userId));
+    return rows.some(
+      (c) =>
+        c.created_at > row.last_read_at &&
+        String(c.author_user_id) !== String(userId),
+    );
   },
   async newestAt(ctx, row, cache) {
     const rows = await pageCommentsFor(ctx, row, cache);
@@ -75,7 +91,9 @@ export const pageKind: ThreadKindResolver = {
   async load(ctx, _userId, row, cache, payload) {
     const artifact = await artifactFor(ctx, row, cache);
     if (!artifact) return;
-    const comments = (await pageCommentsFor(ctx, row, cache)).slice(-THREAD_PAYLOAD_ROWS);
+    const comments = (await pageCommentsFor(ctx, row, cache)).slice(
+      -THREAD_PAYLOAD_ROWS,
+    );
     payload.pages.push({
       _id: String(artifact._id),
       slug: artifact.slug,
@@ -89,12 +107,16 @@ export const pageKind: ThreadKindResolver = {
   async preview(ctx, _userId, row, cache) {
     const rows = await pageCommentsFor(ctx, row, cache);
     const newest = rows.reduce<Doc<"artifact_comments"> | null>(
-      (best, c) => (!best || c.created_at >= best.created_at ? c : best), null);
+      (best, c) => (!best || c.created_at >= best.created_at ? c : best),
+      null,
+    );
     if (!newest) return null;
     const user = await userFor(ctx, cache, newest.author_user_id);
     return {
       _id: String(newest._id),
-      user_id: newest.author_user_id ? String(newest.author_user_id) : undefined,
+      user_id: newest.author_user_id
+        ? String(newest.author_user_id)
+        : undefined,
       author_kind: "user",
       author_name: displayName(user) ?? newest.author_name,
       created_at: newest.created_at,
@@ -107,7 +129,11 @@ export const pageKind: ThreadKindResolver = {
 
 /** The whole thread, oldest first: every review_comments row on the anchor
  *  the root key names. The row's typed refs win over the parsed key. */
-async function codeThreadFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache): Promise<Doc<"review_comments">[]> {
+async function codeThreadFor(
+  ctx: ReadCtx,
+  row: ThreadRead,
+  cache: PageCache,
+): Promise<Doc<"review_comments">[]> {
   return await memo(cache.codeThreads, row.root_key, () => {
     const parsed = parseCodeThreadRootKey(row.root_key);
     return codeThreadRows(ctx as any, {
@@ -119,14 +145,25 @@ async function codeThreadFor(ctx: ReadCtx, row: ThreadRead, cache: PageCache): P
   });
 }
 
-function isOthersCodeComment(c: Doc<"review_comments">, userId: Id<"users">): boolean {
+function isOthersCodeComment(
+  c: Doc<"review_comments">,
+  userId: Id<"users">,
+): boolean {
   // A GitHub or agent row has no codecast author; it is always news.
   return !c.author_user_id || String(c.author_user_id) !== String(userId);
 }
 
-async function codeAuthorName(ctx: ReadCtx, cache: PageCache, c: Doc<"review_comments">): Promise<string | undefined> {
+async function codeAuthorName(
+  ctx: ReadCtx,
+  cache: PageCache,
+  c: Doc<"review_comments">,
+): Promise<string | undefined> {
   if (c.author_kind === "agent") return "Agent";
-  return displayName(await userFor(ctx, cache, c.author_user_id)) ?? c.author_github_username ?? undefined;
+  return (
+    displayName(await userFor(ctx, cache, c.author_user_id)) ??
+    c.author_github_username ??
+    undefined
+  );
 }
 
 export const codeKind: ThreadKindResolver = {
@@ -140,14 +177,23 @@ export const codeKind: ThreadKindResolver = {
   },
   async unread(ctx, userId, row, cache) {
     const rows = await codeThreadFor(ctx, row, cache);
-    const counted = rows.filter((c) => c.created_at > row.last_read_at && isOthersCodeComment(c, userId)).length;
+    const counted = rows.filter(
+      (c) => c.created_at > row.last_read_at && isOthersCodeComment(c, userId),
+    ).length;
     return capped(counted);
   },
   async forYou(ctx, userId, row, cache) {
     const rows = await codeThreadFor(ctx, row, cache);
-    const unread = rows.filter((c) => c.created_at > row.last_read_at && isOthersCodeComment(c, userId));
+    const unread = rows.filter(
+      (c) => c.created_at > row.last_read_at && isOthersCodeComment(c, userId),
+    );
     const viewerWroteBefore = (at: number) =>
-      rows.some((c) => !!c.author_user_id && String(c.author_user_id) === String(userId) && c.created_at < at);
+      rows.some(
+        (c) =>
+          !!c.author_user_id &&
+          String(c.author_user_id) === String(userId) &&
+          c.created_at < at,
+      );
     return waitsOnViewer(ctx, cache, userId, unread, {
       isAgent: (c) => c.author_kind === "agent",
       answersViewer: (c) => viewerWroteBefore(c.created_at),
@@ -161,7 +207,9 @@ export const codeKind: ThreadKindResolver = {
     return newest;
   },
   async load(ctx, _userId, row, cache, payload) {
-    const rows = (await codeThreadFor(ctx, row, cache)).slice(-THREAD_PAYLOAD_ROWS);
+    const rows = (await codeThreadFor(ctx, row, cache)).slice(
+      -THREAD_PAYLOAD_ROWS,
+    );
     payload.codeComments.push(...rows);
   },
   async preview(ctx, _userId, row, cache) {
@@ -170,7 +218,9 @@ export const codeKind: ThreadKindResolver = {
     if (!newest) return null;
     return {
       _id: String(newest._id),
-      user_id: newest.author_user_id ? String(newest.author_user_id) : undefined,
+      user_id: newest.author_user_id
+        ? String(newest.author_user_id)
+        : undefined,
       author_kind: newest.author_kind === "agent" ? "agent" : "user",
       author_name: await codeAuthorName(ctx, cache, newest),
       created_at: newest.created_at,

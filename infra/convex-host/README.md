@@ -6,14 +6,14 @@ that no file in the repo can tell you.
 
 ## The machine
 
-| | |
-|---|---|
-| Instance | `i-015ef3512c33009f0`, `r8g.24xlarge` (96 vCPU, 768 GB RAM, Graviton4) since 2026-11-12, launched 2026-11-10 from AMI `ami-058ffe161035c37b5` (a copy of the previous host's root disk) |
-| Account / region | AWS `045275879943` (the default AWS CLI profile), `us-east-1d` |
-| Address | `184.192.248.132`, an Elastic IP (`eipalloc-0fb9c5bd0778d91f6`) |
-| Disk | 1.5 TB gp3 (`vol-00fc743a09f9540e7`, 16000 IOPS, 1000 MB/s) mounted at `/srv` by filesystem label `codecast-data`, restored from a snapshot of the previous host's data volume |
-| SSH | `ssh convex-prod` (alias in `~/.ssh/config`; key `~/.ssh/codecast-union.pem`, `IdentitiesOnly` required) |
-| DNS | `convex.codecast.sh`, an A record in Cloudflare, NOT proxied, TTL 60 |
+|                  |                                                                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Instance         | `i-015ef3512c33009f0`, `r8g.24xlarge` (96 vCPU, 768 GB RAM, Graviton4) since 2026-11-12, launched 2026-11-10 from AMI `ami-058ffe161035c37b5` (a copy of the previous host's root disk) |
+| Account / region | AWS `045275879943` (the default AWS CLI profile), `us-east-1d`                                                                                                                          |
+| Address          | `184.192.248.132`, an Elastic IP (`eipalloc-0fb9c5bd0778d91f6`)                                                                                                                         |
+| Disk             | 1.5 TB gp3 (`vol-00fc743a09f9540e7`, 16000 IOPS, 1000 MB/s) mounted at `/srv` by filesystem label `codecast-data`, restored from a snapshot of the previous host's data volume          |
+| SSH              | `ssh convex-prod` (alias in `~/.ssh/config`; key `~/.ssh/codecast-union.pem`, `IdentitiesOnly` required)                                                                                |
+| DNS              | `convex.codecast.sh`, an A record in Cloudflare, NOT proxied, TTL 60                                                                                                                    |
 
 **The previous host is parked and must stay stopped.** Until 2026-11-10 prod ran on
 `i-008b985d1d176faa2` in Union's AWS account `767398104971` (Elastic IP
@@ -94,12 +94,12 @@ metadata addresses, but it resolves the name once and `fetch` resolves it again,
 so an attacker who runs their own DNS can still rebind a name to an internal
 address. What that reaches, checked 2026-11-11:
 
-| Target | Reachable from `convex-backend-1` | Exposure |
-|---|---|---|
-| Instance metadata `169.254.169.254` | yes, IMDSv1 (`HttpTokens=optional`, hop limit 1) | no IAM role and no user data, so instance facts only |
-| Other hosts in `vpc-02f1e86a336a35ce7` | none exist; this is the account's only instance | none today |
-| `codecast` docker network (postgres, dashboard 6791, pg-backup, logtail) | yes | dashboard and backend admin APIs need the admin key; postgres is not HTTP |
-| Host services | only sshd on 22; Caddy has no admin listener, everything else binds 127.0.0.1 | none over HTTP |
+| Target                                                                   | Reachable from `convex-backend-1`                                             | Exposure                                                                  |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Instance metadata `169.254.169.254`                                      | yes, IMDSv1 (`HttpTokens=optional`, hop limit 1)                              | no IAM role and no user data, so instance facts only                      |
+| Other hosts in `vpc-02f1e86a336a35ce7`                                   | none exist; this is the account's only instance                               | none today                                                                |
+| `codecast` docker network (postgres, dashboard 6791, pg-backup, logtail) | yes                                                                           | dashboard and backend admin APIs need the admin key; postgres is not HTTP |
+| Host services                                                            | only sshd on 22; Caddy has no admin listener, everything else binds 127.0.0.1 | none over HTTP                                                            |
 
 Keep it that way: never attach an IAM role or user data with secrets to this
 instance, and never put another service in this VPC, without first adding a

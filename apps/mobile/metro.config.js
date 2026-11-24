@@ -1,9 +1,9 @@
-const { getDefaultConfig } = require('expo/metro-config');
-const fs = require('fs');
-const path = require('path');
+const { getDefaultConfig } = require("expo/metro-config");
+const fs = require("fs");
+const path = require("path");
 
 const projectRoot = __dirname;
-const workspaceRoot = path.resolve(projectRoot, '../..');
+const workspaceRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
@@ -15,21 +15,37 @@ config.resolver.useWatchman = false;
 
 config.watchFolders = [workspaceRoot];
 const defaultBlockList = config.resolver.blockList;
-const excludedRoots = ['.claude/worktrees', '.codecast/worktrees', '.conductor', 'dist-perf'];
+const excludedRoots = [
+  ".claude/worktrees",
+  ".codecast/worktrees",
+  ".conductor",
+  "dist-perf",
+];
 config.resolver.blockList = [
-  ...(Array.isArray(defaultBlockList) ? defaultBlockList : defaultBlockList ? [defaultBlockList] : []),
-  ...excludedRoots.map(dir => new RegExp(
-    '^' + (path.resolve(workspaceRoot, dir) + path.sep).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-  )),
+  ...(Array.isArray(defaultBlockList)
+    ? defaultBlockList
+    : defaultBlockList
+      ? [defaultBlockList]
+      : []),
+  ...excludedRoots.map(
+    (dir) =>
+      new RegExp(
+        "^" +
+          (path.resolve(workspaceRoot, dir) + path.sep).replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&",
+          ),
+      ),
+  ),
 ];
 
 config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(workspaceRoot, 'node_modules'),
+  path.resolve(projectRoot, "node_modules"),
+  path.resolve(workspaceRoot, "node_modules"),
 ];
 
-const mobileModules = path.resolve(projectRoot, 'node_modules');
-const singletonPackages = ['react', 'react-native', 'react-dom'];
+const mobileModules = path.resolve(projectRoot, "node_modules");
+const singletonPackages = ["react", "react-native", "react-dom"];
 
 // A binary holds ONE copy of each native library, so the bundle must hold one
 // copy of its JS. bun keeps a separate install of a package for each set of
@@ -46,22 +62,25 @@ const singletonPackages = ['react', 'react-native', 'react-dom'];
 // root for what package.json names, the app's own `expo` install for what expo
 // provides (expo-asset, expo-modules-core, expo-file-system arrive through
 // several parents, each with its own copy).
-const appOrigin = path.join(projectRoot, 'index.ts');
-const expoRoot = fs.realpathSync(path.join(mobileModules, 'expo'));
-const expoOrigin = path.join(expoRoot, 'package.json');
+const appOrigin = path.join(projectRoot, "index.ts");
+const expoRoot = fs.realpathSync(path.join(mobileModules, "expo"));
+const expoOrigin = path.join(expoRoot, "package.json");
 const expoSiblings = path.dirname(expoRoot);
 const singletonOriginCache = new Map();
 function packageNameOf(moduleName) {
-  if (moduleName.startsWith('.') || path.isAbsolute(moduleName)) return null;
-  const parts = moduleName.split('/');
-  return moduleName.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+  if (moduleName.startsWith(".") || path.isAbsolute(moduleName)) return null;
+  const parts = moduleName.split("/");
+  return moduleName.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
 }
 function singletonOrigin(moduleName) {
   const name = packageNameOf(moduleName);
   if (!name || singletonPackages.includes(name)) return null;
   if (!singletonOriginCache.has(name)) {
-    const has = dir => fs.existsSync(path.join(dir, name, 'package.json'));
-    singletonOriginCache.set(name, has(mobileModules) ? appOrigin : has(expoSiblings) ? expoOrigin : null);
+    const has = (dir) => fs.existsSync(path.join(dir, name, "package.json"));
+    singletonOriginCache.set(
+      name,
+      has(mobileModules) ? appOrigin : has(expoSiblings) ? expoOrigin : null,
+    );
   }
   return singletonOriginCache.get(name);
 }
@@ -69,21 +88,25 @@ function singletonOrigin(moduleName) {
 const resolveApp = (context, moduleName, platform) => {
   const origin = singletonOrigin(moduleName);
   if (origin) {
-    return context.resolveRequest({ ...context, originModulePath: origin }, moduleName, platform);
+    return context.resolveRequest(
+      { ...context, originModulePath: origin },
+      moduleName,
+      platform,
+    );
   }
   const isSingleton = singletonPackages.some(
-    pkg => moduleName === pkg || moduleName.startsWith(pkg + '/')
+    (pkg) => moduleName === pkg || moduleName.startsWith(pkg + "/"),
   );
   if (isSingleton) {
     const resolved = require.resolve(moduleName, { paths: [mobileModules] });
-    return { type: 'sourceFile', filePath: resolved };
+    return { type: "sourceFile", filePath: resolved };
   }
   try {
     return context.resolveRequest(context, moduleName, platform);
   } catch (e) {
     // Shared TS packages (NodeNext) import relative modules by their emitted
     // .js name; Metro reads the .ts source, so retry without the extension.
-    if (/^\.\.?\//.test(moduleName) && moduleName.endsWith('.js')) {
+    if (/^\.\.?\//.test(moduleName) && moduleName.endsWith(".js")) {
       return context.resolveRequest(context, moduleName.slice(0, -3), platform);
     }
     throw e;
@@ -97,12 +120,20 @@ const resolveApp = (context, moduleName, platform) => {
 // the fixture world. The flag module itself always resolves. The world and its
 // seed live in web's lib/acmeWorld, shared with the web docs shots; they are
 // gated the same way.
-const STORE_SHOTS_DIRS = [path.join(projectRoot, 'lib', 'storeShots') + path.sep, path.join(workspaceRoot, 'apps', 'web', 'lib', 'acmeWorld') + path.sep];
-const storeShotsOn = process.env.EXPO_PUBLIC_STORE_SHOTS === '1';
+const STORE_SHOTS_DIRS = [
+  path.join(projectRoot, "lib", "storeShots") + path.sep,
+  path.join(workspaceRoot, "apps", "web", "lib", "acmeWorld") + path.sep,
+];
+const storeShotsOn = process.env.EXPO_PUBLIC_STORE_SHOTS === "1";
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const res = resolveApp(context, moduleName, platform);
-  if (!storeShotsOn && res.type === 'sourceFile' && STORE_SHOTS_DIRS.some((dir) => res.filePath.startsWith(dir)) && path.basename(res.filePath) !== 'flag.ts') {
-    return { type: 'empty' };
+  if (
+    !storeShotsOn &&
+    res.type === "sourceFile" &&
+    STORE_SHOTS_DIRS.some((dir) => res.filePath.startsWith(dir)) &&
+    path.basename(res.filePath) !== "flag.ts"
+  ) {
+    return { type: "empty" };
   }
   return res;
 };
@@ -116,7 +147,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 const expoTransformOptions = config.transformer.getTransformOptions;
 config.transformer.getTransformOptions = async (...args) => {
   const options = await expoTransformOptions(...args);
-  return { ...options, transform: { ...options.transform, inlineRequires: true } };
+  return {
+    ...options,
+    transform: { ...options.transform, inlineRequires: true },
+  };
 };
 
 module.exports = config;

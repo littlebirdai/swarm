@@ -5,7 +5,12 @@
 import { query } from "./functions";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { THIS_DEVICE, deviceServesPath, isReservedDevice, platformCanOpenPath } from "@codecast/shared/contracts";
+import {
+  THIS_DEVICE,
+  deviceServesPath,
+  isReservedDevice,
+  platformCanOpenPath,
+} from "@codecast/shared/contracts";
 import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { getAuthenticatedUserId } from "./sessionMigrations";
 
@@ -16,15 +21,31 @@ import { getAuthenticatedUserId } from "./sessionMigrations";
  * platform) is null and
  * the caller's usual routing decides; a default never blocks a start.
  */
-export async function defaultDeviceFor(ctx: { db: any }, userId: Id<"users">, paths: string[], opts: { needsCheckout?: boolean } = {}): Promise<string | null> {
+export async function defaultDeviceFor(
+  ctx: { db: any },
+  userId: Id<"users">,
+  paths: string[],
+  opts: { needsCheckout?: boolean } = {},
+): Promise<string | null> {
   const now = Date.now();
-  const state = await ctx.db.query("client_state").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).first();
+  const state = await ctx.db
+    .query("client_state")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .first();
   const wanted = state?.ui?.default_device;
-  if (typeof wanted !== "string" || !wanted || wanted === THIS_DEVICE) return null;
-  const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+  if (typeof wanted !== "string" || !wanted || wanted === THIS_DEVICE)
+    return null;
+  const devices = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   const d = devices.find((x: any) => x.device_id === wanted);
-  if (!d || now - d.last_seen >= DEVICE_ONLINE_MS || isReservedDevice(d)) return null;
-  const opens = deviceServesPath(d, paths) || (!opts.needsCheckout && paths.every((p) => platformCanOpenPath(d.platform, p)));
+  if (!d || now - d.last_seen >= DEVICE_ONLINE_MS || isReservedDevice(d))
+    return null;
+  const opens =
+    deviceServesPath(d, paths) ||
+    (!opts.needsCheckout &&
+      paths.every((p) => platformCanOpenPath(d.platform, p)));
   if (paths.length && !opens) return null;
   return wanted;
 }
@@ -35,10 +56,18 @@ export async function defaultDeviceFor(ctx: { db: any }, userId: Id<"users">, pa
  * folder as given, so the default must already hold it.
  */
 export const defaultDevice = query({
-  args: { api_token: v.optional(v.string()), project_path: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    project_path: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
-    return defaultDeviceFor(ctx, userId, args.project_path ? [args.project_path] : [], { needsCheckout: true });
+    return defaultDeviceFor(
+      ctx,
+      userId,
+      args.project_path ? [args.project_path] : [],
+      { needsCheckout: true },
+    );
   },
 });

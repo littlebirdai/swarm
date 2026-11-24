@@ -35,7 +35,8 @@ export interface ParsedTree {
 
 const ELEMENT_LINE = /^(\t*)(\d+) (.*)$/;
 const OTHER_LINE = /^(\t+)(.*)$/;
-const FOCUS_LINE = /^(The focused UI element is |No UI element is currently focused)/;
+const FOCUS_LINE =
+  /^(The focused UI element is |No UI element is currently focused)/;
 
 export function parseTree(treeText: string): ParsedTree {
   const lines: TreeLine[] = [];
@@ -50,11 +51,22 @@ export function parseTree(treeText: string): ParsedTree {
     }
     const element = ELEMENT_LINE.exec(line);
     if (element) {
-      lines.push({ index: Number(element[2]), depth: element[1].length, body: element[3], pos: lines.length });
+      lines.push({
+        index: Number(element[2]),
+        depth: element[1].length,
+        body: element[3],
+        pos: lines.length,
+      });
       continue;
     }
     const other = OTHER_LINE.exec(line);
-    if (other) lines.push({ index: null, depth: other[1].length, body: other[2], pos: lines.length });
+    if (other)
+      lines.push({
+        index: null,
+        depth: other[1].length,
+        body: other[2],
+        pos: lines.length,
+      });
   }
   return { lines, focus };
 }
@@ -114,7 +126,10 @@ export function diffTrees(beforeText: string, afterText: string): TreeDiff {
     const lcs = new Uint16Array((n + 1) * width);
     for (let i = n - 1; i >= 0; i--) {
       for (let j = m - 1; j >= 0; j--) {
-        lcs[i * width + j] = a[i] === b[j] ? lcs[(i + 1) * width + j + 1] + 1 : Math.max(lcs[(i + 1) * width + j], lcs[i * width + j + 1]);
+        lcs[i * width + j] =
+          a[i] === b[j]
+            ? lcs[(i + 1) * width + j + 1] + 1
+            : Math.max(lcs[(i + 1) * width + j], lcs[i * width + j + 1]);
       }
     }
     let i = 0;
@@ -150,25 +165,39 @@ export function focusChanged(diff: TreeDiff): boolean {
  */
 export function formatDiff(
   diff: TreeDiff,
-  opts: { synthetic?: boolean; background?: boolean; pixels?: PixelVerdict } = {},
+  opts: {
+    synthetic?: boolean;
+    background?: boolean;
+    pixels?: PixelVerdict;
+  } = {},
 ): string | null {
   const changed = diff.added.length + diff.removed.length;
   const focusMoved = focusChanged(diff);
   if (changed === 0) {
-    if (focusMoved && diff.focusAfter) return `Only the focus changed. ${diff.focusAfter}`;
+    if (focusMoved && diff.focusAfter)
+      return `Only the focus changed. ${diff.focusAfter}`;
     return unchangedTreeNote(opts);
   }
   if (changed > DIFF_LINE_LIMIT) return null;
-  const out = [`Changes: ${diff.added.length} added, ${diff.removed.length} removed`];
+  const out = [
+    `Changes: ${diff.added.length} added, ${diff.removed.length} removed`,
+  ];
   // Removed first, with their old indexes, then added with the indexes to use
   // now. A removed subtree (a popover that closed) is its root and a count:
   // the agent needs to know it went, not to reread what was in it.
   for (let i = 0; i < diff.removed.length; i++) {
     const root = diff.removed[i];
     let j = i + 1;
-    while (j < diff.removed.length && diff.removed[j].depth > root.depth && diff.removed[j].pos === root.pos + (j - i)) j++;
+    while (
+      j < diff.removed.length &&
+      diff.removed[j].depth > root.depth &&
+      diff.removed[j].pos === root.pos + (j - i)
+    )
+      j++;
     const under = j - i - 1;
-    out.push(`- ${renderLine(root)}${under ? `  (and ${under} line${under === 1 ? "" : "s"} under it)` : ""}`);
+    out.push(
+      `- ${renderLine(root)}${under ? `  (and ${under} line${under === 1 ? "" : "s"} under it)` : ""}`,
+    );
     i = j - 1;
   }
   for (const l of diff.added) out.push(`+ ${renderLine(l)}`);
@@ -177,7 +206,11 @@ export function formatDiff(
 }
 
 /** The tree held still: what the pixels add, when the helper could read them. */
-function unchangedTreeNote(opts: { synthetic?: boolean; background?: boolean; pixels?: PixelVerdict }): string {
+function unchangedTreeNote(opts: {
+  synthetic?: boolean;
+  background?: boolean;
+  pixels?: PixelVerdict;
+}): string {
   const pixels = opts.pixels;
   switch (pixels?.state) {
     case "changed":
@@ -199,7 +232,10 @@ function unchangedTreeNote(opts: { synthetic?: boolean; background?: boolean; pi
 function matcher(query: string): (text: string) => boolean {
   const re = /^\/(.+)\/([a-z]*)$/.exec(query);
   if (re) {
-    const compiled = new RegExp(re[1], re[2].includes("i") ? re[2] : `${re[2]}i`);
+    const compiled = new RegExp(
+      re[1],
+      re[2].includes("i") ? re[2] : `${re[2]}i`,
+    );
     return (text) => compiled.test(text);
   }
   const needle = query.toLowerCase();
@@ -231,7 +267,10 @@ export interface TreeFilter {
  * sits. Returns null when nothing matched, so the caller can say so instead of
  * printing an empty tree.
  */
-export function filterTree(treeText: string, filter: TreeFilter): string | null {
+export function filterTree(
+  treeText: string,
+  filter: TreeFilter,
+): string | null {
   let { lines } = parseTree(treeText);
   if (filter.under !== undefined) {
     const root = lines.findIndex((l) => l.index === filter.under);
@@ -239,7 +278,9 @@ export function filterTree(treeText: string, filter: TreeFilter): string | null 
     let end = root + 1;
     while (end < lines.length && lines[end].depth > lines[root].depth) end++;
     const base = lines[root].depth;
-    lines = lines.slice(root, end).map((l) => ({ ...l, depth: l.depth - base }));
+    lines = lines
+      .slice(root, end)
+      .map((l) => ({ ...l, depth: l.depth - base }));
   }
   if (!filter.find) return lines.map((l) => renderLine(l)).join("\n");
   const hit = matcher(filter.find);
@@ -250,7 +291,10 @@ export function filterTree(treeText: string, filter: TreeFilter): string | null 
     keep.add(i);
   });
   if (!keep.size) return null;
-  return [...keep].sort((x, y) => x - y).map((i) => renderLine(lines[i])).join("\n");
+  return [...keep]
+    .sort((x, y) => x - y)
+    .map((i) => renderLine(lines[i]))
+    .join("\n");
 }
 
 // ── element queries ────────────────────────────────────────────────────────
@@ -270,7 +314,12 @@ function nameOf(body: string): string {
  * error that lists them, because picking one for the agent is how a click lands
  * on the wrong row. `nth` (1 based) picks among them deliberately.
  */
-export function resolveElement(treeText: string, query: string, nth?: number, opts: { action?: string } = {}): number {
+export function resolveElement(
+  treeText: string,
+  query: string,
+  nth?: number,
+  opts: { action?: string } = {},
+): number {
   const trimmed = query.trim();
   const asIndex = /^#?(\d+)$/.exec(trimmed);
   if (asIndex) return Number(asIndex[1]);
@@ -282,17 +331,26 @@ export function resolveElement(treeText: string, query: string, nth?: number, op
   };
   const hit = matcher(trimmed);
   const exact = lines.filter((l) => l.index !== null && isExact(l));
-  let pool = exact.length ? exact : lines.filter((l) => l.index !== null && hit(l.body));
+  let pool = exact.length
+    ? exact
+    : lines.filter((l) => l.index !== null && hit(l.body));
   // An action belongs to a row or cell while its text sits on a child label,
   // so a name match climbs to the nearest element that advertises the action.
   if (opts.action) pool = offering(lines, pool, opts.action);
   if (!pool.length) {
     const offers = opts.action ? ` and offers '${opts.action}'` : "";
-    throw new ComputerError("element_not_found", `no element matches '${trimmed}'${offers}. Run get-app-state --find to see what is there.`);
+    throw new ComputerError(
+      "element_not_found",
+      `no element matches '${trimmed}'${offers}. Run get-app-state --find to see what is there.`,
+    );
   }
   if (nth !== undefined) {
     const pick = pool[nth - 1];
-    if (!pick) throw new ComputerError("invalid_argument", `'${trimmed}' has ${pool.length} matches; --nth ${nth} is past the end`);
+    if (!pick)
+      throw new ComputerError(
+        "invalid_argument",
+        `'${trimmed}' has ${pool.length} matches; --nth ${nth} is past the end`,
+      );
     return pick.index!;
   }
   if (pool.length > 1) {
@@ -301,7 +359,11 @@ export function resolveElement(treeText: string, query: string, nth?: number, op
     const more = pool.length > 10 ? [`  … ${pool.length - 10} more`] : [];
     throw new ComputerError(
       "invalid_argument",
-      [`'${trimmed}' matches ${pool.length} elements; pass the index, a more specific query, or --nth:`, ...listed, ...more].join("\n"),
+      [
+        `'${trimmed}' matches ${pool.length} elements; pass the index, a more specific query, or --nth:`,
+        ...listed,
+        ...more,
+      ].join("\n"),
     );
   }
   return pool[0].index!;
@@ -309,7 +371,11 @@ export function resolveElement(treeText: string, query: string, nth?: number, op
 
 /** Each match, or its nearest ancestor (two levels up at most) whose
  *  Secondary Actions include `action`; matches with neither drop out. */
-function offering(lines: TreeLine[], pool: TreeLine[], action: string): TreeLine[] {
+function offering(
+  lines: TreeLine[],
+  pool: TreeLine[],
+  action: string,
+): TreeLine[] {
   const wanted = action.trim().toLowerCase();
   const offers = (l: TreeLine) =>
     (/Secondary Actions: (.*)$/.exec(l.body)?.[1] ?? "")

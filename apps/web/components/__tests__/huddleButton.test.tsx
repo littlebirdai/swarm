@@ -28,11 +28,16 @@ mock.module("../../lib/teamFeatures", () => ({
 }));
 mock.module("../../store/inboxStore", () => ({
   ...realStore,
-  useInboxStore: (selector: (st: any) => unknown) => selector({ callOccupancy: OCCUPANCY }),
-  useTrackedStore: () => ({ callOccupancy: OCCUPANCY, call: { roomKey: null } }),
+  useInboxStore: (selector: (st: any) => unknown) =>
+    selector({ callOccupancy: OCCUPANCY }),
+  useTrackedStore: () => ({
+    callOccupancy: OCCUPANCY,
+    call: { roomKey: null },
+  }),
 }));
 
-const { HuddleButton, SessionHuddleButton } = await import("../calls/OccupancyChip");
+const { HuddleButton, SessionHuddleButton } =
+  await import("../calls/OccupancyChip");
 
 /** The rendered button's tooltip — the same string its aria-label carries. */
 function title(markup: string): string {
@@ -41,7 +46,9 @@ function title(markup: string): string {
 
 describe("the huddle button on an empty room", () => {
   test("the header scale is the headphones alone", () => {
-    const markup = renderToStaticMarkup(<HuddleButton roomKey="channel:ch1" compact />);
+    const markup = renderToStaticMarkup(
+      <HuddleButton roomKey="channel:ch1" compact />,
+    );
     expect(markup).not.toContain("Huddle");
     expect(markup).not.toContain("Ring");
     expect(markup).toContain("<svg");
@@ -53,21 +60,27 @@ describe("the huddle button on an empty room", () => {
   });
 
   test("a room with people to ring says Ring, at the scale that has room", () => {
-    expect(renderToStaticMarkup(<HuddleButton roomKey="dm:ua:ub" ring={["ub"]} />)).toContain(
-      "<span>Ring</span>",
-    );
+    expect(
+      renderToStaticMarkup(<HuddleButton roomKey="dm:ua:ub" ring={["ub"]} />),
+    ).toContain("<span>Ring</span>");
   });
 
   // The word is gone at header scale, so the tooltip is the only place left
   // that says what the button does. Losing it would leave an unlabelled icon.
   test("dropping the word does not drop the label", () => {
-    const markup = renderToStaticMarkup(<HuddleButton roomKey="channel:ch1" compact />);
-    expect(title(markup)).toContain("Start a huddle and buzz everyone in the channel");
+    const markup = renderToStaticMarkup(
+      <HuddleButton roomKey="channel:ch1" compact />,
+    );
+    expect(title(markup)).toContain(
+      "Start a huddle and buzz everyone in the channel",
+    );
     expect(markup).toContain(`aria-label="${title(markup)}"`);
   });
 
   test("ringing several people reads as everyone, one person as them", () => {
-    const one = renderToStaticMarkup(<HuddleButton roomKey="dm:ua:ub" ring={["ub"]} compact />);
+    const one = renderToStaticMarkup(
+      <HuddleButton roomKey="dm:ua:ub" ring={["ub"]} compact />,
+    );
     const many = renderToStaticMarkup(
       <HuddleButton roomKey="dm:ua:ub:uc" ring={["ub", "uc"]} compact />,
     );
@@ -76,15 +89,21 @@ describe("the huddle button on an empty room", () => {
   });
 
   test("a session's button promises the agent is listening", () => {
-    const markup = renderToStaticMarkup(<SessionHuddleButton conversationId="conv1" />);
+    const markup = renderToStaticMarkup(
+      <SessionHuddleButton conversationId="conv1" />,
+    );
     expect(title(markup)).toContain("Talk to this session");
     expect(markup).not.toContain("Huddle");
   });
 
   test("calling switched off draws nothing at all", () => {
     CALLS_ENABLED = false;
-    expect(renderToStaticMarkup(<HuddleButton roomKey="channel:ch1" compact />)).toBe("");
-    expect(renderToStaticMarkup(<SessionHuddleButton conversationId="conv1" />)).toBe("");
+    expect(
+      renderToStaticMarkup(<HuddleButton roomKey="channel:ch1" compact />),
+    ).toBe("");
+    expect(
+      renderToStaticMarkup(<SessionHuddleButton conversationId="conv1" />),
+    ).toBe("");
     CALLS_ENABLED = true;
   });
 });

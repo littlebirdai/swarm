@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 
 export function probeDaemonPid(
   pid: number,
-  probe: (pid: number) => void = pid => { process.kill(pid, 0); },
+  probe: (pid: number) => void = (pid) => {
+    process.kill(pid, 0);
+  },
 ): number | null {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
   try {
@@ -22,5 +24,8 @@ export function readDaemonPid(
   probe?: (pid: number) => void,
 ): number | null {
   if (!existsSync(file)) return fallback();
-  return probeDaemonPid(Number(readFileSync(file, "utf8").trim()), probe) ?? fallback();
+  return (
+    probeDaemonPid(Number(readFileSync(file, "utf8").trim()), probe) ??
+    fallback()
+  );
 }

@@ -15,15 +15,32 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mainRedPayloadValidator } from "./deploySchema";
-import { ADDABLE_SOURCE_PROVIDERS, GROUP_KINDS, GROUP_STATUSES, SOURCE_PROVIDERS, SOURCE_STATUSES, TRANSITIONS, WATCH_DIRECTIONS, WATCH_KINDS } from "@codecast/shared/contracts/ingest";
-import { REPLAY_BACKFILL_STATUSES, REPLAY_BACKFILL_WINDOWS, REPLAY_PROVIDERS, VENDOR_REFRESH_WHYS } from "@codecast/shared/contracts/replay";
+import {
+  ADDABLE_SOURCE_PROVIDERS,
+  GROUP_KINDS,
+  GROUP_STATUSES,
+  SOURCE_PROVIDERS,
+  SOURCE_STATUSES,
+  TRANSITIONS,
+  WATCH_DIRECTIONS,
+  WATCH_KINDS,
+} from "@codecast/shared/contracts/ingest";
+import {
+  REPLAY_BACKFILL_STATUSES,
+  REPLAY_BACKFILL_WINDOWS,
+  REPLAY_PROVIDERS,
+  VENDOR_REFRESH_WHYS,
+} from "@codecast/shared/contracts/replay";
 
 // The literal lists derive from the shared contract, the way openTaskValidator does, so the two cannot drift.
-const literals = <T extends string>(values: readonly T[]) => v.union(...values.map((value) => v.literal(value)));
+const literals = <T extends string>(values: readonly T[]) =>
+  v.union(...values.map((value) => v.literal(value)));
 
 export const sourceProviderValidator = literals(SOURCE_PROVIDERS);
 /** What createSource takes: a system provider (github) is codecast's to create. */
-export const addableSourceProviderValidator = literals(ADDABLE_SOURCE_PROVIDERS);
+export const addableSourceProviderValidator = literals(
+  ADDABLE_SOURCE_PROVIDERS,
+);
 export const sourceStatusValidator = literals(SOURCE_STATUSES);
 export const groupKindValidator = literals(GROUP_KINDS);
 export const groupStatusValidator = literals(GROUP_STATUSES);
@@ -58,7 +75,12 @@ export const replayReadToValidator = v.object({
 });
 
 /** shared/contracts/replayPlayer.ts ReplayDomChunkMeta. */
-export const replayDomChunkMetaValidator = v.object({ first: v.number(), last: v.number(), full: v.optional(v.number()), raw: v.number() });
+export const replayDomChunkMetaValidator = v.object({
+  first: v.number(),
+  last: v.number(),
+  full: v.optional(v.number()),
+  raw: v.number(),
+});
 
 export const replayShapeValidator = v.object({
   v: v.number(),
@@ -107,7 +129,18 @@ export const replayBackfillValidator = v.object({
   failures_in_row: v.optional(v.number()),
   rate_limited_since: v.optional(v.number()),
   last_error: v.optional(v.string()),
-  failures: v.optional(v.array(v.object({ id: v.string(), error: v.string(), at: v.optional(v.number()), length_ms: v.optional(v.number()), person: v.optional(v.string()), url: v.optional(v.string()) }))),
+  failures: v.optional(
+    v.array(
+      v.object({
+        id: v.string(),
+        error: v.string(),
+        at: v.optional(v.number()),
+        length_ms: v.optional(v.number()),
+        person: v.optional(v.string()),
+        url: v.optional(v.string()),
+      }),
+    ),
+  ),
   started_at: v.number(),
   updated_at: v.number(),
   finished_at: v.optional(v.number()),
@@ -228,7 +261,14 @@ export const ingestTables = {
     events_today: v.optional(v.number()),
     dropped_today: v.optional(v.number()),
     /** Analytics `event` items counted per name and hour, never stored (X2): lib/ingestGroups countEventNames. */
-    event_names: v.optional(v.array(v.object({ name: v.string(), buckets: v.array(v.object({ hour: v.number(), count: v.number() })) }))),
+    event_names: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          buckets: v.array(v.object({ hour: v.number(), count: v.number() })),
+        }),
+      ),
+    ),
     groups_open: v.optional(v.number()),
     /** The bulk import of a PostHog or Sentry source's recordings (sources/replayBackfill.ts). Written once per page. */
     replay_backfill: v.optional(replayBackfillValidator),
@@ -239,7 +279,18 @@ export const ingestTables = {
      * The tend cron recounts it; between recounts `cut` moves with each recording that crosses the line (lib/replayIndex.ts) and `reading` with each chain that starts or ends.
      * `counted` is what the recount at `at` found and `prev` the recount before it, so the import line can say whether the backlog drains; `queue` the next recordings the sweep reads, in its order.
      */
-    replay_rest: v.optional(v.object({ cut: v.number(), unknown: v.number(), reading: v.optional(v.string()), waiting_until: v.optional(v.number()), at: v.number(), counted: v.optional(v.number()), prev: v.optional(v.object({ cut: v.number(), at: v.number() })), queue: v.optional(v.array(v.string())) })),
+    replay_rest: v.optional(
+      v.object({
+        cut: v.number(),
+        unknown: v.number(),
+        reading: v.optional(v.string()),
+        waiting_until: v.optional(v.number()),
+        at: v.number(),
+        counted: v.optional(v.number()),
+        prev: v.optional(v.object({ cut: v.number(), at: v.number() })),
+        queue: v.optional(v.array(v.string())),
+      }),
+    ),
     /** When the source's replay_tallies were last counted whole (lib/replayTallies.ts rebuild): the list reads its totals and people from them only once set. */
     replay_tally_at: v.optional(v.number()),
     created_at: v.number(),
@@ -252,8 +303,16 @@ export const ingestTables = {
     .index("by_provider_status", ["provider", "status"])
     // The app crons read only what is due: the watch poll by next_watch_at,
     // the daily manifest refresh by manifest_fetched_at.
-    .index("by_provider_status_next_watch", ["provider", "status", "next_watch_at"])
-    .index("by_provider_status_manifest", ["provider", "status", "manifest_fetched_at"]),
+    .index("by_provider_status_next_watch", [
+      "provider",
+      "status",
+      "next_watch_at",
+    ])
+    .index("by_provider_status_manifest", [
+      "provider",
+      "status",
+      "manifest_fetched_at",
+    ]),
 
   // X1. A source's running counters, kept off its row: every batch and poll
   // moves them, and the source row is read by nearly every Ops query, so on
@@ -266,19 +325,42 @@ export const ingestTables = {
     counters_day: v.optional(v.string()),
     events_today: v.optional(v.number()),
     dropped_today: v.optional(v.number()),
-    event_names: v.optional(v.array(v.object({ name: v.string(), buckets: v.array(v.object({ hour: v.number(), count: v.number() })) }))),
+    event_names: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          buckets: v.array(v.object({ hour: v.number(), count: v.number() })),
+        }),
+      ),
+    ),
     groups_open: v.optional(v.number()),
     last_event_at: v.optional(v.number()),
     last_poll_at: v.optional(v.number()),
     /** The last SOURCE_STAT_DAYS UTC days' counters, oldest first, today's included: a source's volume over time. */
-    days: v.optional(v.array(v.object({ day: v.string(), events: v.number(), dropped: v.number() }))),
+    days: v.optional(
+      v.array(
+        v.object({ day: v.string(), events: v.number(), dropped: v.number() }),
+      ),
+    ),
     /** The last SOURCE_STAT_HOURS hours of the same count (hour = its start, epoch ms), oldest first: the 24 hour chart. */
-    hours: v.optional(v.array(v.object({ hour: v.number(), events: v.number() }))),
+    hours: v.optional(
+      v.array(v.object({ hour: v.number(), events: v.number() })),
+    ),
     /** The source's groups by status as of groups_counted_at (ingest.ts recountSourceGroups); ignored holds muted too. A person's triage moves it between counts. */
-    group_counts: v.optional(v.object({ open: v.number(), resolved: v.number(), ignored: v.number() })),
+    group_counts: v.optional(
+      v.object({ open: v.number(), resolved: v.number(), ignored: v.number() }),
+    ),
     groups_counted_at: v.optional(v.number()),
     /** A CI source's finished runs, oldest first (contracts/volumeWatch withCiRun): its failure rate and run time series. */
-    ci_runs: v.optional(v.array(v.object({ at: v.number(), ok: v.boolean(), duration_ms: v.optional(v.number()) }))),
+    ci_runs: v.optional(
+      v.array(
+        v.object({
+          at: v.number(),
+          ok: v.boolean(),
+          duration_ms: v.optional(v.number()),
+        }),
+      ),
+    ),
     /** A rotated-out key still inside its grace window: when it last carried a batch, and the events it carried since the rotation (ingest.rotateKey resets both). */
     old_key_last_at: v.optional(v.number()),
     old_key_events: v.optional(v.number()),
@@ -299,15 +381,32 @@ export const ingestTables = {
     attempt: v.optional(v.number()),
     started_at: v.optional(v.number()),
     duration_ms: v.optional(v.number()),
-    jobs: v.array(v.object({
-      id: v.string(),
-      name: v.string(),
-      conclusion: v.optional(v.string()),
-      duration_ms: v.optional(v.number()),
-      url: v.optional(v.string()),
-      steps: v.array(v.object({ number: v.number(), name: v.string(), conclusion: v.optional(v.string()) })),
-    })),
-    annotations: v.array(v.object({ job: v.string(), level: v.string(), message: v.string(), title: v.optional(v.string()), path: v.optional(v.string()), line: v.optional(v.number()) })),
+    jobs: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        conclusion: v.optional(v.string()),
+        duration_ms: v.optional(v.number()),
+        url: v.optional(v.string()),
+        steps: v.array(
+          v.object({
+            number: v.number(),
+            name: v.string(),
+            conclusion: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
+    annotations: v.array(
+      v.object({
+        job: v.string(),
+        level: v.string(),
+        message: v.string(),
+        title: v.optional(v.string()),
+        path: v.optional(v.string()),
+        line: v.optional(v.number()),
+      }),
+    ),
     log_job: v.optional(v.string()),
     log_tail: v.optional(v.string()),
     log_error: v.optional(v.string()),
@@ -367,14 +466,22 @@ export const ingestTables = {
     resolved_at: v.optional(v.number()),
     resolved_in: v.optional(v.string()),
     /** What resolved it: a person (resolved_by), a check or metric's own recovery, or the vendor. Absent on older rows. */
-    resolved_via: v.optional(v.union(v.literal("person"), v.literal("recovered"), v.literal("vendor"))),
+    resolved_via: v.optional(
+      v.union(v.literal("person"), v.literal("recovered"), v.literal("vendor")),
+    ),
     resolved_by: v.optional(v.id("users")),
     /** A check or metric's flips to failing over the last 7 days (lib/ingestGroups FLAP_WINDOW_MS): a flapping monitor. */
     failed_at: v.optional(v.array(v.number())),
     /** The last announced transition, for the spike and job cooldowns. */
     last_transition: v.optional(transitionValidator),
     last_transition_at: v.optional(v.number()),
-    external: v.optional(v.object({ provider: v.string(), id: v.string(), url: v.optional(v.string()) })),
+    external: v.optional(
+      v.object({
+        provider: v.string(),
+        id: v.string(),
+        url: v.optional(v.string()),
+      }),
+    ),
     signal_task_id: v.optional(v.id("tasks")),
     /** The session a person started on this group from its page (ingest.setGroupFix), and when. */
     fix_conversation_id: v.optional(v.id("conversations")),
@@ -385,38 +492,55 @@ export const ingestTables = {
      * window has room, or one whose run is scheduled and has not settled
      * (ingestPromotions.ts), run again if it never does. One per group.
      */
-    promotion_due: v.optional(v.object({
-      transition: transitionValidator,
-      fingerprint: v.string(),
-      external_event_id: v.optional(v.id("external_events")),
-      at: v.number(),
-      /** When its latest run was scheduled to start, and how many runs it has had (ingestPromotions.ts). */
-      scheduled_at: v.optional(v.number()),
-      tries: v.optional(v.number()),
-    })),
+    promotion_due: v.optional(
+      v.object({
+        transition: transitionValidator,
+        fingerprint: v.string(),
+        external_event_id: v.optional(v.id("external_events")),
+        at: v.number(),
+        /** When its latest run was scheduled to start, and how many runs it has had (ingestPromotions.ts). */
+        scheduled_at: v.optional(v.number()),
+        tries: v.optional(v.number()),
+      }),
+    ),
     /** How many event_samples rows the group holds, so the trim deletes only the overflow. Absent on older rows. */
     sample_count: v.optional(v.number()),
     /** A job's failures by what they said (lib/ingestGroups tallyMessages), since its first failure after the tally began. Absent on other kinds and on jobs not failed since. */
-    messages: v.optional(v.array(v.object({ key: v.string(), count: v.number(), first_seen: v.number(), last_seen: v.number() }))),
-    meta: v.optional(v.object({
-      /** check */
-      ok: v.optional(v.boolean()),
-      /** metric */
-      value: v.optional(v.number()),
-      threshold: v.optional(v.number()),
-      direction: v.optional(watchDirectionValidator),
-      metric_watch_id: v.optional(v.id("metric_watches")),
-      /** check: its last passing reading, and for a CI run the commit and branch it passed at, so a failing check names its last green. */
-      last_ok_at: v.optional(v.number()),
-      last_ok_sha: v.optional(v.string()),
-      last_ok_branch: v.optional(v.string()),
-    })),
+    messages: v.optional(
+      v.array(
+        v.object({
+          key: v.string(),
+          count: v.number(),
+          first_seen: v.number(),
+          last_seen: v.number(),
+        }),
+      ),
+    ),
+    meta: v.optional(
+      v.object({
+        /** check */
+        ok: v.optional(v.boolean()),
+        /** metric */
+        value: v.optional(v.number()),
+        threshold: v.optional(v.number()),
+        direction: v.optional(watchDirectionValidator),
+        metric_watch_id: v.optional(v.id("metric_watches")),
+        /** check: its last passing reading, and for a CI run the commit and branch it passed at, so a failing check names its last green. */
+        last_ok_at: v.optional(v.number()),
+        last_ok_sha: v.optional(v.string()),
+        last_ok_branch: v.optional(v.string()),
+      }),
+    ),
     updated_at: v.number(),
   })
     .index("by_source_fingerprint", ["source_id", "fingerprint"])
     .index("by_source_last_seen", ["source_id", "last_seen"])
     .index("by_workspace_last_seen", ["workspace", "last_seen"])
-    .index("by_workspace_status_last_seen", ["workspace", "status", "last_seen"])
+    .index("by_workspace_status_last_seen", [
+      "workspace",
+      "status",
+      "last_seen",
+    ])
     .index("by_workspace_kind_last_seen", ["workspace", "kind", "last_seen"])
     .index("by_source_status_last_seen", ["source_id", "status", "last_seen"])
     // The daily bucket prune reads only groups whose buckets can still change.
@@ -424,7 +548,10 @@ export const ingestTables = {
     .index("by_short_id", ["short_id"])
     .index("by_promotion_due", ["promotion_due.at"])
     // The Issues list's search reaches every group, not only the windows a device holds.
-    .searchIndex("search_title", { searchField: "title", filterFields: ["workspace", "status"] }),
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["workspace", "status"],
+    }),
 
   // X3. The distinct people a group has reached, one row each (ingest.ts
   // countGroupUsers), so `users` on the group is a count and not a guess.
@@ -477,7 +604,11 @@ export const ingestTables = {
     user: v.optional(ingestUserValidator),
     started_at: v.number(),
     duration_ms: v.optional(v.number()),
-    counts: v.object({ clicks: v.number(), errors: v.number(), failed_requests: v.number() }),
+    counts: v.object({
+      clicks: v.number(),
+      errors: v.number(),
+      failed_requests: v.number(),
+    }),
     group_ids: v.array(v.id("event_groups")),
     /** R2 object keys, in order. */
     chunk_keys: v.array(v.string()),
@@ -494,7 +625,9 @@ export const ingestTables = {
     /** A refresh of an older copy failed: the vendor is not asked again before this (VENDOR_REFRESH_RETRY). */
     vendor_refresh_after: v.optional(v.number()),
     /** Why the vendor is waited out until vendor_refresh_after (shared VENDOR_REFRESH_WHYS), so the page can say so. */
-    vendor_refresh_why: v.optional(v.union(...VENDOR_REFRESH_WHYS.map((w) => v.literal(w)))),
+    vendor_refresh_why: v.optional(
+      v.union(...VENDOR_REFRESH_WHYS.map((w) => v.literal(w))),
+    ),
     /** R2 keys of the DOM capture (raw rrweb events, masked), in order: what the player plays. Absent or empty: no capture. */
     dom_chunk_keys: v.optional(v.array(v.string())),
     /** Each DOM chunk's span and JSON size, parallel to dom_chunk_keys (shared ReplayDomChunkMeta): how the player opens a long capture a stretch at a time. Ignored when its length differs. */
@@ -502,7 +635,9 @@ export const ingestTables = {
     /** Why the SDK kept the recording, first reason first (shared REPLAY_KEEP_REASONS, or an app's own token). Absent for vendor imports and older SDKs. */
     kept_for: v.optional(v.array(v.string())),
     /** Stylesheets the capture names by href, stored apart once a day per source (shared REPLAY_STYLE_LIMITS): the player puts each back where its link was. */
-    dom_styles: v.optional(v.array(v.object({ href: v.string(), key: v.string() }))),
+    dom_styles: v.optional(
+      v.array(v.object({ href: v.string(), key: v.string() })),
+    ),
     /** The capture's gzipped size in bytes. */
     dom_bytes: v.optional(v.number()),
     /** The epoch ms of the replay clock's zero (the stream's first event), which the player maps rrweb timestamps against. */
@@ -606,7 +741,14 @@ export const ingestTables = {
      * when, how many past points it added, or why there is none. `reading`
      * while the read is on its way.
      */
-    history: v.optional(v.object({ at: v.number(), added: v.number(), note: v.optional(v.string()), reading: v.optional(v.boolean()) })),
+    history: v.optional(
+      v.object({
+        at: v.number(),
+        added: v.number(),
+        note: v.optional(v.string()),
+        reading: v.optional(v.boolean()),
+      }),
+    ),
     /** The monitor (contracts/metricMonitor.ts): reads in a row that flip the state (absent: 1), a warning level short of the line, failed reads in a row that count as missing data (absent: ignored), a mute. */
     eval_reads: v.optional(v.number()),
     warn: v.optional(v.number()),
@@ -615,30 +757,48 @@ export const ingestTables = {
     /** What its alert does (contracts/metricMonitor alertRoute): files a problem task, or the timeline and triggers only. Absent: the source's rule. */
     on_alert: v.optional(v.union(v.literal("task"), v.literal("timeline"))),
     /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify, metricAlerts.ts). */
-    notify: v.optional(v.object({
-      users: v.optional(v.array(v.id("users"))),
-      roles: v.optional(v.array(v.id("org_roles"))),
-      channel: v.optional(v.id("chat_channels")),
-      fix: v.optional(v.boolean()),
-      renotify_ms: v.optional(v.number()),
-      recovery: v.optional(v.boolean()),
-      by: v.id("users"),
-    })),
+    notify: v.optional(
+      v.object({
+        users: v.optional(v.array(v.id("users"))),
+        roles: v.optional(v.array(v.id("org_roles"))),
+        channel: v.optional(v.id("chat_channels")),
+        fix: v.optional(v.boolean()),
+        renotify_ms: v.optional(v.number()),
+        recovery: v.optional(v.boolean()),
+        by: v.id("users"),
+      }),
+    ),
     /** The running alert's delivery state: when it began, when it was last said, the chat thread its lines reply in. */
-    alert_episode: v.optional(v.object({ at: v.number(), notified_at: v.number(), thread_root: v.optional(v.id("chat_messages")) })),
+    alert_episode: v.optional(
+      v.object({
+        at: v.number(),
+        notified_at: v.number(),
+        thread_root: v.optional(v.id("chat_messages")),
+      }),
+    ),
     /** What each alert did, newest last (contracts/metricMonitor DELIVERIES_KEPT). */
-    deliveries: v.optional(v.array(v.object({
-      at: v.number(),
-      kind: v.union(v.literal("crossed"), v.literal("still"), v.literal("recovered")),
-      to: v.string(),
-      ok: v.boolean(),
-      href: v.optional(v.string()),
-      note: v.optional(v.string()),
-    }))),
+    deliveries: v.optional(
+      v.array(
+        v.object({
+          at: v.number(),
+          kind: v.union(
+            v.literal("crossed"),
+            v.literal("still"),
+            v.literal("recovered"),
+          ),
+          to: v.string(),
+          ok: v.boolean(),
+          href: v.optional(v.string()),
+          note: v.optional(v.string()),
+        }),
+      ),
+    ),
     /** Failed reads in a row, for no_data_after. */
     missed: v.optional(v.number()),
     /** A reader's own dated series as it last answered (cohort periods, dated as the source dates them), current version only: what a goal's window reads. Polls only feed the live value. */
-    source_points: v.optional(v.array(v.object({ at: v.number(), value: v.number() }))),
+    source_points: v.optional(
+      v.array(v.object({ at: v.number(), value: v.number() })),
+    ),
     /** The definition the watch's values are read under (contracts/metricStanding MetricDefinition): the version a reader last answered or a person declared, when it was set, and the time it covers from (untagged values read earlier are an older definition). */
     version: v.optional(v.string()),
     version_at: v.optional(v.number()),
@@ -647,7 +807,17 @@ export const ingestTables = {
     version_note: v.optional(v.string()),
     version_by: v.optional(v.id("users")),
     /** Points a person removed (cast metrics points rm), newest last: what, why, who. */
-    point_removals: v.optional(v.array(v.object({ at: v.number(), value: v.number(), reason: v.optional(v.string()), by: v.id("users"), removed_at: v.number() }))),
+    point_removals: v.optional(
+      v.array(
+        v.object({
+          at: v.number(),
+          value: v.number(),
+          reason: v.optional(v.string()),
+          by: v.id("users"),
+          removed_at: v.number(),
+        }),
+      ),
+    ),
     created_at: v.number(),
     updated_at: v.number(),
   })

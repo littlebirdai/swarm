@@ -12,9 +12,28 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 test("token connect form", async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLInputElement", "HTMLButtonElement", "Element", "Node", "MutationObserver", "Event", "getComputedStyle"]) {
-    Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh", pretendToBeVisual: true },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "HTMLInputElement",
+    "HTMLButtonElement",
+    "Element",
+    "Node",
+    "MutationObserver",
+    "Event",
+    "getComputedStyle",
+  ]) {
+    Object.defineProperty(globalThis, key, {
+      value: (dom.window as any)[key],
+      configurable: true,
+      writable: true,
+    });
   }
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   const React = await import("react");
@@ -42,16 +61,28 @@ test("token connect form", async () => {
     ),
   );
 
-  const inputs = () => Array.from(document.querySelectorAll<HTMLInputElement>("input"));
-  const connect = () => document.querySelector<HTMLButtonElement>("button[type=submit]")!;
+  const inputs = () =>
+    Array.from(document.querySelectorAll<HTMLInputElement>("input"));
+  const connect = () =>
+    document.querySelector<HTMLButtonElement>("button[type=submit]")!;
   const typeInto = (input: HTMLInputElement, value: string) =>
     act(async () => {
-      Object.getOwnPropertyDescriptor((dom.window as any).HTMLInputElement.prototype, "value")!.set!.call(input, value);
-      input.dispatchEvent(new (dom.window as any).Event("input", { bubbles: true }));
+      Object.getOwnPropertyDescriptor(
+        (dom.window as any).HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, value);
+      input.dispatchEvent(
+        new (dom.window as any).Event("input", { bubbles: true }),
+      );
     });
   const submit = () =>
     act(async () => {
-      document.querySelector("form")!.dispatchEvent(new (dom.window as any).Event("submit", { bubbles: true, cancelable: true }));
+      document.querySelector("form")!.dispatchEvent(
+        new (dom.window as any).Event("submit", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     });
 
   // Org, host, then the token. No field is type=password and every one opts
@@ -69,10 +100,16 @@ test("token connect form", async () => {
   assert.equal(org.type, "text");
   assert.match(document.body.textContent!, /encrypted/);
   // The eye shows the token and hides it again.
-  const eye = document.querySelector<HTMLButtonElement>("button[aria-label=Show]")!;
+  const eye = document.querySelector<HTMLButtonElement>(
+    "button[aria-label=Show]",
+  )!;
   await act(async () => eye.click());
   assert.equal(token.dataset.masked, undefined);
-  await act(async () => document.querySelector<HTMLButtonElement>("button[aria-label=Hide]")!.click());
+  await act(async () =>
+    document
+      .querySelector<HTMLButtonElement>("button[aria-label=Hide]")!
+      .click(),
+  );
   assert.equal(token.dataset.masked, "true");
   assert.equal(host.placeholder, "https://sentry.io");
   assert.match(document.body.textContent!, /Auth token/);
@@ -96,7 +133,11 @@ test("token connect form", async () => {
   assert.equal(submits.length, 2);
   assert.equal(token.value, "");
 
-  await act(async () => Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === "Cancel")!.click());
+  await act(async () =>
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((b) => b.textContent === "Cancel")!
+      .click(),
+  );
   assert.equal(cancelled, 1);
 
   // An app connector's secret is optional: codecast signs every request, so
@@ -123,7 +164,9 @@ test("token connect form", async () => {
   assert.equal(connect().disabled, false);
   assert.match(document.body.textContent!, /codecast signs every request/);
   await submit();
-  assert.deepEqual(submits, [{ token: "", config: { base_url: "https://api.union.example/api" } }]);
+  assert.deepEqual(submits, [
+    { token: "", config: { base_url: "https://api.union.example/api" } },
+  ]);
 
   await act(async () => root.unmount());
   closeDomWindow(dom);

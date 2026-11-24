@@ -12,7 +12,13 @@ import type { TourDef } from "./types";
 // A role's page is its standing session (/conversation/<id>), the root role's
 // /anchor, or the workspace's /org/workspace. Started anywhere else (the
 // Tours panel), the tour opens the root role's page.
-const ROLE_ROUTE = { href: "/anchor", match: (p: string) => p.startsWith("/conversation/") || p.startsWith("/anchor") || /^\/org\/[^/]+/.test(p) };
+const ROLE_ROUTE = {
+  href: "/anchor",
+  match: (p: string) =>
+    p.startsWith("/conversation/") ||
+    p.startsWith("/anchor") ||
+    /^\/org\/[^/]+/.test(p),
+};
 
 export const TOURS: TourDef[] = [
   // The two feature guides lead their areas: a whole feature on an example,
@@ -20,7 +26,8 @@ export const TOURS: TourDef[] = [
   {
     id: "org-guide",
     title: "Org, on an example",
-    teaches: "Roles that own areas, the chart, hiring, the Head of People, how decisions climb to you, and a role's page.",
+    teaches:
+      "Roles that own areas, the chart, hiring, the Head of People, how decisions climb to you, and a role's page.",
     area: "org",
     route: null,
     kind: "guide",
@@ -30,7 +37,8 @@ export const TOURS: TourDef[] = [
   {
     id: "flows-guide",
     title: "Flows, on an example",
-    teaches: "A change through Check, Review, Decide and Ship, then live flows that find, fix and watch problems.",
+    teaches:
+      "A change through Check, Review, Decide and Ship, then live flows that find, fix and watch problems.",
     area: "flows",
     route: null,
     kind: "guide",
@@ -40,7 +48,8 @@ export const TOURS: TourDef[] = [
   {
     id: "org-page",
     title: "The Org page",
-    teaches: "Your own Org page: its views, hiring a role, the Head of People, and the cards on the chart.",
+    teaches:
+      "Your own Org page: its views, hiring a role, the Head of People, and the cards on the chart.",
     area: "org",
     route: { href: "/org", match: (p: string) => p === "/org" },
     steps: [
@@ -55,7 +64,10 @@ export const TOURS: TourDef[] = [
         target: '[data-org-node="role"]',
         title: "A role",
         body: "Each card is a role with its sessions under it. Open one to talk to it; drag it onto another card to change who it reports to.",
-        prepare: { click: '[data-org-view="people"]', until: '[data-org-node="role"]' },
+        prepare: {
+          click: '[data-org-view="people"]',
+          until: '[data-org-node="role"]',
+        },
         optional: true,
       },
       {
@@ -77,9 +89,13 @@ export const TOURS: TourDef[] = [
   {
     id: "flows-page",
     title: "The Flows page",
-    teaches: "Your own Flows page: what waits on you, where problems come from, the flows, and what shipped.",
+    teaches:
+      "Your own Flows page: what waits on you, where problems come from, the flows, and what shipped.",
     area: "flows",
-    route: { href: "/flows", match: (p: string) => p === "/flows" || p.startsWith("/flows/") },
+    route: {
+      href: "/flows",
+      match: (p: string) => p === "/flows" || p.startsWith("/flows/"),
+    },
     steps: [
       {
         id: "foryou",
@@ -123,7 +139,8 @@ export const TOURS: TourDef[] = [
   {
     id: "org-role",
     title: "A role's page",
-    teaches: "What a role's page holds: its card, its triggers, pause and retire, and how to ask it something.",
+    teaches:
+      "What a role's page holds: its card, its triggers, pause and retire, and how to ask it something.",
     area: "org",
     route: ROLE_ROUTE,
     steps: [
@@ -145,8 +162,14 @@ export const TOURS: TourDef[] = [
         target: '[data-scope-tab="triggers"]',
         title: "Triggers",
         body: "What wakes the role: its regular check and any event it watches. Pause one, run it now, or change its cadence here.",
-        prepare: { click: '[data-scope-panel-toggle="closed"]', until: "[data-scope-panel]" },
-        action: { label: "Open Triggers", click: '[data-scope-tab="triggers"]' },
+        prepare: {
+          click: '[data-scope-panel-toggle="closed"]',
+          until: "[data-scope-panel]",
+        },
+        action: {
+          label: "Open Triggers",
+          click: '[data-scope-tab="triggers"]',
+        },
         optional: true,
       },
       {
@@ -167,9 +190,13 @@ export const TOURS: TourDef[] = [
   {
     id: "inbox",
     title: "The inbox",
-    teaches: "Cards arrive, the inbox sorts them by who acts next, and one key clears each.",
+    teaches:
+      "Cards arrive, the inbox sorts them by who acts next, and one key clears each.",
     area: "inbox",
-    route: { href: "/inbox", match: (p: string) => p === "/" || p.startsWith("/inbox") },
+    route: {
+      href: "/inbox",
+      match: (p: string) => p === "/" || p.startsWith("/inbox"),
+    },
     kind: "modal",
     legacy: { tips: ["nux-tour"] },
     steps: [],
@@ -177,9 +204,14 @@ export const TOURS: TourDef[] = [
   {
     id: "session",
     title: "A session",
-    teaches: "The header of a session: its state, who owns it, where it runs, and how to steer it.",
+    teaches:
+      "The header of a session: its state, who owns it, where it runs, and how to steer it.",
     area: "session",
-    route: { href: "/inbox", match: (p: string) => p === "/" || p.startsWith("/inbox") || p.startsWith("/conversation") },
+    route: {
+      href: "/inbox",
+      match: (p: string) =>
+        p === "/" || p.startsWith("/inbox") || p.startsWith("/conversation"),
+    },
     steps: [
       {
         id: "head",
@@ -220,7 +252,8 @@ export const TOURS: TourDef[] = [
   {
     id: "tasks",
     title: "Tasks and plans",
-    teaches: "Where work is tracked: the task list, its filters, a task's page, and the plans that group tasks.",
+    teaches:
+      "Where work is tracked: the task list, its filters, a task's page, and the plans that group tasks.",
     area: "work",
     route: { href: "/tasks", match: (p: string) => p.startsWith("/tasks") },
     steps: [
@@ -256,9 +289,13 @@ export const TOURS: TourDef[] = [
   {
     id: "triggers",
     title: "Triggers",
-    teaches: "What a trigger is, how to read one, and how to pause, run or cancel it.",
+    teaches:
+      "What a trigger is, how to read one, and how to pause, run or cancel it.",
     area: "triggers",
-    route: { href: "/triggers", match: (p: string) => p.startsWith("/triggers") },
+    route: {
+      href: "/triggers",
+      match: (p: string) => p.startsWith("/triggers"),
+    },
     steps: [
       {
         id: "what",

@@ -15,7 +15,17 @@ import { writeAsServerShape } from "./serverShape";
 import { pushRoleFieldsIntent, type OrgSliceData } from "./orgSlice";
 import { settleRecordOp, type InitiativeRecordOp } from "./initiativeRecord";
 import { leadScopeChange } from "@codecast/shared/contracts/orgLead";
-import { carryMetricScores, initiativeSignature, type InitiativeMetric, type InitiativeOwner, type InitiativePriority, type InitiativeRow, type InitiativeStatus, type InitiativeUpdateHealth, type InitiativeUpdateRow } from "@codecast/shared/contracts/initiative";
+import {
+  carryMetricScores,
+  initiativeSignature,
+  type InitiativeMetric,
+  type InitiativeOwner,
+  type InitiativePriority,
+  type InitiativeRow,
+  type InitiativeStatus,
+  type InitiativeUpdateHealth,
+  type InitiativeUpdateRow,
+} from "@codecast/shared/contracts/initiative";
 import { teamMembersOf } from "../lib/activeTeam";
 
 /** Null clears a field, as the mutation reads it. */
@@ -52,7 +62,14 @@ export type InitiativeSliceActions = {
   addInitiativeProject: (id: string, projectId: string) => void;
   removeInitiativeProject: (id: string, projectId: string) => void;
   setInitiativeProjects: (id: string, projectIds: string[]) => void;
-  postInitiativeUpdate: (id: string, update: { client_key: string; body: string; health: InitiativeUpdateHealth }) => void;
+  postInitiativeUpdate: (
+    id: string,
+    update: {
+      client_key: string;
+      body: string;
+      health: InitiativeUpdateHealth;
+    },
+  ) => void;
   /** One entry of the intent record (I5): add, edit, close or remove, by key. */
   recordInitiativeEntry: (id: string, op: InitiativeRecordOp) => void;
 };
@@ -60,44 +77,81 @@ export type InitiativeSliceActions = {
 type InitiativeDraft = OrgSliceData & {
   initiatives: Record<string, InitiativeRow>;
   initiativeUpdates: Record<string, InitiativeUpdateRow>;
-  currentUser?: { _id: string; name?: string; github_username?: string; email?: string } | null;
-  teamMembers?: Array<{ _id: string; name?: string; github_username?: string; email?: string; is_bot?: boolean }>;
+  currentUser?: {
+    _id: string;
+    name?: string;
+    github_username?: string;
+    email?: string;
+  } | null;
+  teamMembers?: Array<{
+    _id: string;
+    name?: string;
+    github_username?: string;
+    email?: string;
+    is_bot?: boolean;
+  }>;
 };
 
 /** Pending protection compares objects as JSON, so an owner is written with
  *  its keys in the order the server stores them: `kind` first. */
 const asStored = (owner: InitiativeOwner): InitiativeOwner =>
-  owner.kind === "role" ? { kind: "role", role_id: owner.role_id } : { kind: "user", user_id: owner.user_id };
+  owner.kind === "role"
+    ? { kind: "role", role_id: owner.role_id }
+    : { kind: "user", user_id: owner.user_id };
 
-const withStoredOwner = <T extends { owner?: InitiativeOwner | null }>(fields: T): T =>
-  fields.owner ? { ...fields, owner: asStored(fields.owner) } : fields;
+const withStoredOwner = <T extends { owner?: InitiativeOwner | null }>(
+  fields: T,
+): T => (fields.owner ? { ...fields, owner: asStored(fields.owner) } : fields);
 
 /** An owner role has every project of its initiative in its scope (I1 "The
  *  org"). The server adds them in the write's own transaction; this paints the
  *  same gain as a role fields intent, by the rule a project's lead uses, so a
  *  role that looks after the whole workspace is never narrowed to a list. */
-function coverOwnerScope(draft: InitiativeDraft, initiative: InitiativeRow | undefined): void {
+function coverOwnerScope(
+  draft: InitiativeDraft,
+  initiative: InitiativeRow | undefined,
+): void {
   const tree = draft.orgTree;
   if (!tree || initiative?.owner?.kind !== "role") return;
   const roleId = initiative.owner.role_id;
   const role = tree.roles.find((r) => r._id === roleId);
   if (!role || role.status === "retired") return;
-  const gained = initiative.project_ids.filter((id) => leadScopeChange(id, role, tree.roles).kind === "add");
+  const gained = initiative.project_ids.filter(
+    (id) => leadScopeChange(id, role, tree.roles).kind === "add",
+  );
   if (gained.length === 0) return;
-  pushRoleFieldsIntent(draft, role._id, { scope: { project_ids: [...role.scope.project_ids, ...gained], plan_ids: role.scope.plan_ids } });
+  pushRoleFieldsIntent(draft, role._id, {
+    scope: {
+      project_ids: [...role.scope.project_ids, ...gained],
+      plan_ids: role.scope.plan_ids,
+    },
+  });
 }
 
-type ProjectLocks = Record<string, { type: string; value?: any; seen?: unknown[] }>;
-type PendingDraft = { initiatives: Record<string, InitiativeRow>; pending: ProjectLocks };
+type ProjectLocks = Record<
+  string,
+  { type: string; value?: any; seen?: unknown[] }
+>;
+type PendingDraft = {
+  initiatives: Record<string, InitiativeRow>;
+  pending: ProjectLocks;
+};
 
 const swapProject = (ids: string[], from: string, next: string | null) =>
-  next === null ? ids.filter((p) => p !== from) : [...new Set(ids.map((p) => (p === from ? next : p)))];
+  next === null
+    ? ids.filter((p) => p !== from)
+    : [...new Set(ids.map((p) => (p === from ? next : p)))];
 
 /** Moves one project id in every goal's list to `next` (or out of it when
  *  `next` is null). */
-export function moveProjectInGoals(initiatives: Record<string, InitiativeRow>, from: string, next: string | null): void {
+export function moveProjectInGoals(
+  initiatives: Record<string, InitiativeRow>,
+  from: string,
+  next: string | null,
+): void {
   for (const row of Object.values(initiatives)) {
-    if (row.project_ids.includes(from)) row.project_ids = swapProject(row.project_ids, from, next);
+    if (row.project_ids.includes(from))
+      row.project_ids = swapProject(row.project_ids, from, next);
   }
 }
 
@@ -105,18 +159,32 @@ export function moveProjectInGoals(initiatives: Record<string, InitiativeRow>, f
  *  never mutated, so a shallow copy of the pending map is safe to pass. A lock
  *  whose value the server has already sent retires here, since no later push
  *  would. */
-export function moveProjectInLocks(pending: ProjectLocks, from: string, next: string | null): void {
+export function moveProjectInLocks(
+  pending: ProjectLocks,
+  from: string,
+  next: string | null,
+): void {
   for (const [key, entry] of Object.entries(pending)) {
-    if (entry.type !== "field" || !key.startsWith("initiatives:") || !key.endsWith(":project_ids")) continue;
+    if (
+      entry.type !== "field" ||
+      !key.startsWith("initiatives:") ||
+      !key.endsWith(":project_ids")
+    )
+      continue;
     if (!Array.isArray(entry.value) || !entry.value.includes(from)) continue;
     const value = swapProject(entry.value, from, next);
     const last = entry.seen?.[entry.seen.length - 1];
-    if (last !== undefined && JSON.stringify(last) === JSON.stringify(value)) delete pending[key];
+    if (last !== undefined && JSON.stringify(last) === JSON.stringify(value))
+      delete pending[key];
     else pending[key] = { ...entry, value };
   }
 }
 
-function moveInitiativeProject(draft: PendingDraft, from: string, next: string | null): void {
+function moveInitiativeProject(
+  draft: PendingDraft,
+  from: string,
+  next: string | null,
+): void {
   moveProjectInGoals(draft.initiatives, from, next);
   moveProjectInLocks(draft.pending, from, next);
 }
@@ -125,7 +193,11 @@ function moveInitiativeProject(draft: PendingDraft, from: string, next: string |
  *  until the server answers (createProject's attachToInitiative continuation).
  *  The owner role's scope is the server's to widen, in the create's own
  *  transaction: a stub id has nothing to scope. */
-export function attachProjectStubDraft(draft: { initiatives: Record<string, InitiativeRow> }, initiativeId: string, stubId: string): void {
+export function attachProjectStubDraft(
+  draft: { initiatives: Record<string, InitiativeRow> },
+  initiativeId: string,
+  stubId: string,
+): void {
   const row = draft.initiatives[initiativeId];
   if (!row || row.project_ids.includes(stubId)) return;
   row.project_ids = [...row.project_ids, stubId];
@@ -133,18 +205,28 @@ export function attachProjectStubDraft(draft: { initiatives: Record<string, Init
 }
 
 /** The real id replaces the stub wherever a goal lists it. */
-export function rekeyInitiativeProjectDraft(draft: PendingDraft, stubId: string, realId: string): void {
+export function rekeyInitiativeProjectDraft(
+  draft: PendingDraft,
+  stubId: string,
+  realId: string,
+): void {
   if (stubId !== realId) moveInitiativeProject(draft, stubId, realId);
 }
 
 /** A refused create leaves no stub behind in any goal. */
-export function detachProjectStubDraft(draft: PendingDraft, stubId: string): void {
+export function detachProjectStubDraft(
+  draft: PendingDraft,
+  stubId: string,
+): void {
   moveInitiativeProject(draft, stubId, null);
 }
 
 export function createInitiativeSlice(): InitiativeSliceActions {
   return {
-    createInitiative: action(function (this: InitiativeDraft, input: CreateInitiativeInput) {
+    createInitiative: action(function (
+      this: InitiativeDraft,
+      input: CreateInitiativeInput,
+    ) {
       const me = String(this.currentUser?._id ?? "");
       const title = input.title.trim();
       if (!title || !me) return;
@@ -158,40 +240,64 @@ export function createInitiativeSlice(): InitiativeSliceActions {
         status: "proposed",
         project_ids: [],
         health: "none",
-        workspace: workspace === "team" && team_id ? `team:${team_id}` : `user:${me}`,
+        workspace:
+          workspace === "team" && team_id ? `team:${team_id}` : `user:${me}`,
         team_id: workspace === "team" ? team_id : undefined,
         user_id: me,
         created_at: now,
         updated_at: now,
         title,
       };
-      writeAsServerShape(stub, { ...fields, title, owner: owner ? asStored(owner) : undefined });
+      writeAsServerShape(stub, {
+        ...fields,
+        title,
+        owner: owner ? asStored(owner) : undefined,
+      });
       this.initiatives[client_key] = stub;
       coverOwnerScope(this, stub);
     }),
 
-    updateInitiative: action(function (this: InitiativeDraft, id: string, fields: InitiativeFields) {
+    updateInitiative: action(function (
+      this: InitiativeDraft,
+      id: string,
+      fields: InitiativeFields,
+    ) {
       const row = this.initiatives[id];
       if (!row) return;
       // A metric edit moves what was reported with it, by the server's rule:
       // a renamed metric keeps its number and its trend in the same tick.
-      const carried = <T,>(byKey: Record<string, T> | undefined) => {
+      const carried = <T>(byKey: Record<string, T> | undefined) => {
         const next = carryMetricScores(row.metrics, fields.metrics, byKey);
-        return JSON.stringify(next) === JSON.stringify(byKey) ? undefined : next ?? null;
+        return JSON.stringify(next) === JSON.stringify(byKey)
+          ? undefined
+          : (next ?? null);
       };
-      const scores = fields.metrics ? { scoreboard: carried(row.scoreboard), score_history: carried(row.score_history) } : {};
+      const scores = fields.metrics
+        ? {
+            scoreboard: carried(row.scoreboard),
+            score_history: carried(row.score_history),
+          }
+        : {};
       writeAsServerShape(row, { ...withStoredOwner(fields), ...scores });
       if (fields.owner) coverOwnerScope(this, row);
     }),
 
-    addInitiativeProject: action(function (this: InitiativeDraft, id: string, projectId: string) {
+    addInitiativeProject: action(function (
+      this: InitiativeDraft,
+      id: string,
+      projectId: string,
+    ) {
       const row = this.initiatives[id];
       if (!row || row.project_ids.includes(projectId)) return;
       writeAsServerShape(row, { project_ids: [...row.project_ids, projectId] });
       coverOwnerScope(this, row);
     }),
 
-    removeInitiativeProject: action(function (this: InitiativeDraft, id: string, projectId: string) {
+    removeInitiativeProject: action(function (
+      this: InitiativeDraft,
+      id: string,
+      projectId: string,
+    ) {
       const row = this.initiatives[id];
       if (!row || !row.project_ids.includes(projectId)) return;
       // An empty list stays a list: `project_ids` is required on the row.
@@ -199,7 +305,11 @@ export function createInitiativeSlice(): InitiativeSliceActions {
       row.updated_at = Date.now();
     }),
 
-    setInitiativeProjects: action(function (this: InitiativeDraft, id: string, projectIds: string[]) {
+    setInitiativeProjects: action(function (
+      this: InitiativeDraft,
+      id: string,
+      projectIds: string[],
+    ) {
       const row = this.initiatives[id];
       if (!row) return;
       row.project_ids = [...new Set(projectIds)];
@@ -207,7 +317,15 @@ export function createInitiativeSlice(): InitiativeSliceActions {
       coverOwnerScope(this, row);
     }),
 
-    postInitiativeUpdate: action(function (this: InitiativeDraft, id: string, update: { client_key: string; body: string; health: InitiativeUpdateHealth }) {
+    postInitiativeUpdate: action(function (
+      this: InitiativeDraft,
+      id: string,
+      update: {
+        client_key: string;
+        body: string;
+        health: InitiativeUpdateHealth;
+      },
+    ) {
       const row = this.initiatives[id];
       const me = String(this.currentUser?._id ?? "");
       const body = update.body.trim();
@@ -234,12 +352,19 @@ export function createInitiativeSlice(): InitiativeSliceActions {
     // the page already shows. An entry that names nobody is signed by the
     // server's own rule, read against the roster the server reads: the goal's
     // team, or the viewer alone in a personal workspace.
-    recordInitiativeEntry: action(function (this: InitiativeDraft, id: string, op: InitiativeRecordOp) {
+    recordInitiativeEntry: action(function (
+      this: InitiativeDraft,
+      id: string,
+      op: InitiativeRecordOp,
+    ) {
       const row = this.initiatives[id];
       if (!row) return;
       const me = this.currentUser;
       const roster = row.team_id ? teamMembersOf(this) : me ? [me] : [];
-      const settled = settleRecordOp(row[op.list] ?? [], op, { by: initiativeSignature(me, roster), now: Date.now() });
+      const settled = settleRecordOp(row[op.list] ?? [], op, {
+        by: initiativeSignature(me, roster),
+        now: Date.now(),
+      });
       if (!settled) return;
       writeAsServerShape(row, { [op.list]: settled.next });
       return settled.op;

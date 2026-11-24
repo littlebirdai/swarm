@@ -51,7 +51,9 @@ const FENCE = /^\s*(```|~~~)/;
 const SEG = String.raw`(?:\[\[[\w.-]+\]\]|\[[\w.-]+\]|\([\w.-]+\)|[\w@.~-])+`;
 const LOCATION_BODY = String.raw`((?:${SEG}\/)*${SEG}\.[\w-]+|(?:${SEG}\/)+${SEG})(?::L?(\d+)(?:\s*[-–]\s*L?(\d+))?)?`;
 const LOCATION_TICKED = new RegExp("`" + LOCATION_BODY + "`", "g");
-const LOCATION_BARE = new RegExp(String.raw`(?:^|[\s(])` + LOCATION_BODY + String.raw`(?=$|[\s),])`);
+const LOCATION_BARE = new RegExp(
+  String.raw`(?:^|[\s(])` + LOCATION_BODY + String.raw`(?=$|[\s),])`,
+);
 
 /**
  * The step's location on a heading line, and the title with it taken out. A
@@ -59,7 +61,9 @@ const LOCATION_BARE = new RegExp(String.raw`(?:^|[\s(])` + LOCATION_BODY + Strin
  * `apps/server/deploy.sh:45-57`"): the location is the ticked path with a
  * line range, else the last ticked path, since the location ends the line.
  */
-export function parseStepHeading(text: string): { title: string; file: string; start?: number; end?: number } | null {
+export function parseStepHeading(
+  text: string,
+): { title: string; file: string; start?: number; end?: number } | null {
   const all = [...text.matchAll(LOCATION_TICKED)].reverse();
   const ticked = all.find((t) => t[2]) ?? all[0] ?? null;
   const m = ticked ?? text.match(LOCATION_BARE);
@@ -75,7 +79,13 @@ export function parseStepHeading(text: string): { title: string; file: string; s
     .replace(/^\s*[-–—·:|]\s*/, "")
     .replace(/\s+/g, " ")
     .trim();
-  return { title: title || file, file, ...(start !== undefined ? { start, end: Math.max(start, end ?? start) } : {}) };
+  return {
+    title: title || file,
+    file,
+    ...(start !== undefined
+      ? { start, end: Math.max(start, end ?? start) }
+      : {}),
+  };
 }
 
 type Hunk = { oldStart: number; newStart: number; lines: string[] };
@@ -96,14 +106,22 @@ function parseHunks(patch: string): Hunk[] {
     }
   }
   // A trailing "" from the final newline is not a context line.
-  for (const h of hunks) while (h.lines.length && h.lines[h.lines.length - 1] === " ") h.lines.pop();
+  for (const h of hunks)
+    while (h.lines.length && h.lines[h.lines.length - 1] === " ") h.lines.pop();
   return hunks;
 }
 
-function formatHunk(oldStart: number, newStart: number, lines: string[]): string {
+function formatHunk(
+  oldStart: number,
+  newStart: number,
+  lines: string[],
+): string {
   const oldCount = lines.filter((l) => l[0] === " " || l[0] === "-").length;
   const newCount = lines.filter((l) => l[0] === " " || l[0] === "+").length;
-  return [`@@ -${oldCount ? oldStart : Math.max(0, oldStart - 1)},${oldCount} +${newCount ? newStart : Math.max(0, newStart - 1)},${newCount} @@`, ...lines].join("\n");
+  return [
+    `@@ -${oldCount ? oldStart : Math.max(0, oldStart - 1)},${oldCount} +${newCount ? newStart : Math.max(0, newStart - 1)},${newCount} @@`,
+    ...lines,
+  ].join("\n");
 }
 
 /**
@@ -116,7 +134,12 @@ function formatHunk(oldStart: number, newStart: number, lines: string[]): string
  * the line before one, so two steps never repeat each other's code (ranges one
  * line apart share just the line between them).
  */
-export function focusHunks(patch: string, start?: number, end?: number, neighbors: ReadonlyArray<{ start: number; end: number }> = []): { hunk: string; truncated: boolean } | null {
+export function focusHunks(
+  patch: string,
+  start?: number,
+  end?: number,
+  neighbors: ReadonlyArray<{ start: number; end: number }> = [],
+): { hunk: string; truncated: boolean } | null {
   let lo = start === undefined ? -Infinity : start - RANGE_CONTEXT;
   let hi = end === undefined ? Infinity : end + RANGE_CONTEXT;
   if (start !== undefined && end !== undefined) {
@@ -142,15 +165,24 @@ export function focusHunks(patch: string, start?: number, end?: number, neighbor
       }
       // A removed line sits where the new text continues, so it is in range when that point is.
       if (newLine >= lo && newLine <= hi) {
-        if (!kept.length) { keptOld = oldLine; keptNew = newLine; }
+        if (!kept.length) {
+          keptOld = oldLine;
+          keptNew = newLine;
+        }
         kept.push(line);
       }
       if (kind !== "+") oldLine++;
       if (kind !== "-") newLine++;
     }
     if (!kept.some((l) => l[0] === "+" || l[0] === "-")) continue;
-    if (budget <= 0) { truncated = true; break; }
-    if (kept.length > budget) { kept = kept.slice(0, budget); truncated = true; }
+    if (budget <= 0) {
+      truncated = true;
+      break;
+    }
+    if (kept.length > budget) {
+      kept = kept.slice(0, budget);
+      truncated = true;
+    }
     budget -= kept.length;
     out.push(formatHunk(keptOld, keptNew, kept));
   }
@@ -162,7 +194,10 @@ export function focusHunks(patch: string, start?: number, end?: number, neighbor
  * hunk from `diffFor(file)` (the file's unified diff, or null when it has
  * none). Throws when the text holds no step heading, naming the form it wants.
  */
-export function parseChangeGuide(markdown: string, diffFor?: (file: string) => string | null): ChangeGuide {
+export function parseChangeGuide(
+  markdown: string,
+  diffFor?: (file: string) => string | null,
+): ChangeGuide {
   const summary: string[] = [];
   const steps: Array<ChangeGuideStep & { body: string[] }> = [];
   let inFence = false;
@@ -177,18 +212,28 @@ export function parseChangeGuide(markdown: string, diffFor?: (file: string) => s
     (steps.length ? steps[steps.length - 1].body : summary).push(line);
   }
   if (!steps.length) {
-    throw new Error("the guide needs a heading per step with its location on the heading line, e.g. ## Parse the guide `src/guide.ts:40-120`");
+    throw new Error(
+      "the guide needs a heading per step with its location on the heading line, e.g. ## Parse the guide `src/guide.ts:40-120`",
+    );
   }
   const diffs = new Map<string, string | null>();
-  const ranged = steps.filter((s) => s.start !== undefined && s.end !== undefined) as Array<{ file: string; start: number; end: number }>;
+  const ranged = steps.filter(
+    (s) => s.start !== undefined && s.end !== undefined,
+  ) as Array<{ file: string; start: number; end: number }>;
   const result: ChangeGuide = {
     steps: steps.map(({ body, ...step }) => {
       const out: ChangeGuideStep = { ...step, why: body.join("\n").trim() };
       if (diffFor) {
         if (!diffs.has(step.file)) diffs.set(step.file, diffFor(step.file));
         const patch = diffs.get(step.file);
-        const neighbors = ranged.filter((o) => o.file === step.file && !(o.start === step.start && o.end === step.end));
-        const focused = patch ? focusHunks(patch, step.start, step.end, neighbors) : null;
+        const neighbors = ranged.filter(
+          (o) =>
+            o.file === step.file &&
+            !(o.start === step.start && o.end === step.end),
+        );
+        const focused = patch
+          ? focusHunks(patch, step.start, step.end, neighbors)
+          : null;
         if (focused) {
           out.hunk = focused.hunk;
           if (focused.truncated) out.truncated = true;
@@ -203,9 +248,13 @@ export function parseChangeGuide(markdown: string, diffFor?: (file: string) => s
 }
 
 /** `path:12-40`, `path:12` or `path`. */
-export function stepLocation(step: Pick<ChangeGuideStep, "file" | "start" | "end">): string {
+export function stepLocation(
+  step: Pick<ChangeGuideStep, "file" | "start" | "end">,
+): string {
   if (step.start === undefined) return step.file;
-  return step.end !== undefined && step.end !== step.start ? `${step.file}:${step.start}-${step.end}` : `${step.file}:${step.start}`;
+  return step.end !== undefined && step.end !== step.start
+    ? `${step.file}:${step.start}-${step.end}`
+    : `${step.file}:${step.start}`;
 }
 
 /** GitHub caps a PR body at 65536 characters; past this budget the hunks are left out. */
@@ -216,8 +265,14 @@ const MARKDOWN_HUNK_BUDGET = 48_000;
  * step per heading with its location, reason and hunk. `hunks: false` (or a
  * guide whose hunks would not fit) leaves the code out.
  */
-export function changeGuideMarkdown(guide: ChangeGuide, opts: { heading?: string; hunks?: boolean } = {}): string {
-  const withHunks = (opts.hunks ?? true) && guide.steps.reduce((n, s) => n + (s.hunk?.length ?? 0), 0) <= MARKDOWN_HUNK_BUDGET;
+export function changeGuideMarkdown(
+  guide: ChangeGuide,
+  opts: { heading?: string; hunks?: boolean } = {},
+): string {
+  const withHunks =
+    (opts.hunks ?? true) &&
+    guide.steps.reduce((n, s) => n + (s.hunk?.length ?? 0), 0) <=
+      MARKDOWN_HUNK_BUDGET;
   const parts: string[] = [];
   if (opts.heading) parts.push(opts.heading);
   if (guide.summary) parts.push(guide.summary);
@@ -234,7 +289,9 @@ export function changeGuideOutline(guide: ChangeGuide): string {
   const lines = guide.summary ? [guide.summary, ""] : [];
   guide.steps.forEach((s, i) => {
     const why = s.why.replace(/\s+/g, " ").trim();
-    lines.push(`${i + 1}. ${s.title} (${stepLocation(s)})${why ? `: ${why}` : ""}`);
+    lines.push(
+      `${i + 1}. ${s.title} (${stepLocation(s)})${why ? `: ${why}` : ""}`,
+    );
   });
   return lines.join("\n");
 }

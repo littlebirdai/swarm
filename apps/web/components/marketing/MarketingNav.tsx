@@ -5,7 +5,13 @@ import { useState } from "react";
 import { ArrowRight, Download, Menu } from "lucide-react";
 import { AppleIcon } from "@/components/marketing/AppBadges";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/Logo";
 import { useLocalAuth } from "@/lib/localAuth";
 import { RepoChip } from "@/components/marketing/RepoChip";
@@ -44,7 +50,9 @@ const PHONE_EXTRA_LINKS = [
   { href: "/security", label: "Security" },
   { href: "/support", label: "Support" },
 ] as const;
-const WAY_FONT = { fontFamily: "var(--pd-font-ui, ui-sans-serif, system-ui, sans-serif)" } as const;
+const WAY_FONT = {
+  fontFamily: "var(--pd-font-ui, ui-sans-serif, system-ui, sans-serif)",
+} as const;
 
 const INK = "#002b36";
 const MUTED = "#657b83";
@@ -102,9 +110,16 @@ export function MarketingNav({
     return (
       <nav
         className="backdrop-blur-sm sticky top-0 z-50"
-        style={{ borderBottom: `1px solid ${DOOR.rule}`, backgroundColor: "color-mix(in srgb, var(--pd-bg, #f6f3ec) 85%, transparent)", ...WAY_FONT }}
+        style={{
+          borderBottom: `1px solid ${DOOR.rule}`,
+          backgroundColor:
+            "color-mix(in srgb, var(--pd-bg, #f6f3ec) 85%, transparent)",
+          ...WAY_FONT,
+        }}
       >
-        <div className={`${containerClassName} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2`}>
+        <div
+          className={`${containerClassName} mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2`}
+        >
           <Link href={EVERYONE_HREF} aria-label="Codecast for everyone">
             <HostedWordmark size={20} className="text-[19px]" />
           </Link>
@@ -115,7 +130,9 @@ export function MarketingNav({
                 href={link.href}
                 aria-current={link.active === active ? "page" : undefined}
                 className="hidden sm:flex items-center px-2.5 py-1.5 text-[14px] font-medium transition-colors"
-                style={{ color: link.active === active ? DOOR.ink : DOOR.muted }}
+                style={{
+                  color: link.active === active ? DOOR.ink : DOOR.muted,
+                }}
               >
                 {link.label}
               </Link>
@@ -125,15 +142,27 @@ export function MarketingNav({
             ) : signedIn ? (
               // A quiet link: the page's own Get started is the one filled
               // button on this door.
-              <Link href="/inbox" className="inline-flex h-9 items-center gap-1.5 px-2.5 text-[14px] font-medium underline-offset-4 hover:underline" style={{ color: DOOR.ink }}>
+              <Link
+                href="/inbox"
+                className="inline-flex h-9 items-center gap-1.5 px-2.5 text-[14px] font-medium underline-offset-4 hover:underline"
+                style={{ color: DOOR.ink }}
+              >
                 Open app <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
               <>
-                <Link href="/login" className="hidden sm:flex items-center px-2.5 py-1.5 text-[14px] font-medium" style={{ color: DOOR.muted }}>
+                <Link
+                  href="/login"
+                  className="hidden sm:flex items-center px-2.5 py-1.5 text-[14px] font-medium"
+                  style={{ color: DOOR.muted }}
+                >
                   Sign in
                 </Link>
-                <Link href="/signup" className="inline-flex h-9 items-center rounded-[10px] px-4 text-[14px] font-semibold" style={{ background: DOOR.accent, color: DOOR.accentInk }}>
+                <Link
+                  href="/signup"
+                  className="inline-flex h-9 items-center rounded-[10px] px-4 text-[14px] font-semibold"
+                  style={{ background: DOOR.accent, color: DOOR.accentInk }}
+                >
                   Get started
                 </Link>
               </>
@@ -146,9 +175,14 @@ export function MarketingNav({
   return (
     <nav
       className="backdrop-blur-sm sticky top-0 z-50"
-      style={{ borderBottom: "1px solid #eee8d5", backgroundColor: "rgba(253,246,227,0.8)" }}
+      style={{
+        borderBottom: "1px solid #eee8d5",
+        backgroundColor: "rgba(253,246,227,0.8)",
+      }}
     >
-      <div className={`${containerClassName} mx-auto px-4 sm:px-6 ${crumb ? "py-3" : "py-4"} flex items-center justify-between gap-2`}>
+      <div
+        className={`${containerClassName} mx-auto px-4 sm:px-6 ${crumb ? "py-3" : "py-4"} flex items-center justify-between gap-2`}
+      >
         <div className="flex items-center gap-6 shrink-0">
           <Link href="/" aria-label="Codecast home">
             <Logo size="md" mono className="text-[#002b36]" />
@@ -156,7 +190,12 @@ export function MarketingNav({
           {crumb && (
             <div className="hidden md:flex items-center gap-1">
               <span style={{ color: "#586e75" }}>/</span>
-              <span className="font-mono text-sm font-medium" style={{ color: INK }}>{crumb}</span>
+              <span
+                className="font-mono text-sm font-medium"
+                style={{ color: INK }}
+              >
+                {crumb}
+              </span>
             </div>
           )}
         </div>
@@ -178,9 +217,16 @@ export function MarketingNav({
             href="/download"
             aria-label="Download the apps"
             className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 sm:px-3 py-1.5 text-sm font-medium transition-colors hover:bg-[#eee8d5]"
-            style={{ borderColor: active === "/download" ? INK : "#93a1a1", color: INK }}
+            style={{
+              borderColor: active === "/download" ? INK : "#93a1a1",
+              color: INK,
+            }}
           >
-            {apple ? <AppleIcon className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+            {apple ? (
+              <AppleIcon className="w-4 h-4" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
             <span className="hidden sm:inline">Download</span>
             <span className="sm:hidden max-[379px]:hidden">Apps</span>
           </Link>
@@ -188,7 +234,11 @@ export function MarketingNav({
           {!mounted ? (
             <span aria-hidden className="block h-9 w-[7.5rem] shrink-0" />
           ) : signedIn ? (
-            <Button asChild className="font-medium text-[#fdf6e3] gap-1.5 hover:bg-[#073642]" style={{ backgroundColor: INK }}>
+            <Button
+              asChild
+              className="font-medium text-[#fdf6e3] gap-1.5 hover:bg-[#073642]"
+              style={{ backgroundColor: INK }}
+            >
               <Link href="/inbox">
                 Open app
                 <ArrowRight className="w-4 h-4" />
@@ -197,10 +247,18 @@ export function MarketingNav({
           ) : (
             <>
               {/* Phones have room for one auth button; sign in is in the menu. */}
-              <Button asChild variant="ghost" className="hidden sm:inline-flex font-medium text-[#657b83] hover:text-[#002b36] hover:bg-[#eee8d5]">
+              <Button
+                asChild
+                variant="ghost"
+                className="hidden sm:inline-flex font-medium text-[#657b83] hover:text-[#002b36] hover:bg-[#eee8d5]"
+              >
                 <Link href="/login">Sign in</Link>
               </Button>
-              <Button asChild className="max-[379px]:px-3 font-medium text-[#fdf6e3] hover:bg-[#073642]" style={{ backgroundColor: INK }}>
+              <Button
+                asChild
+                className="max-[379px]:px-3 font-medium text-[#fdf6e3] hover:bg-[#073642]"
+                style={{ backgroundColor: INK }}
+              >
                 <Link href="/signup">Get started</Link>
               </Button>
             </>
@@ -214,7 +272,13 @@ export function MarketingNav({
 
 /** Below md the bar's links fold into one menu, so Docs, Features, Pricing
  *  and Blog are a tap away on a phone rather than only in the footer. */
-function PhoneNavMenu({ active, signedIn }: { active?: string; signedIn: boolean }) {
+function PhoneNavMenu({
+  active,
+  signedIn,
+}: {
+  active?: string;
+  signedIn: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -227,18 +291,36 @@ function PhoneNavMenu({ active, signedIn }: { active?: string; signedIn: boolean
           <Menu className="w-5 h-5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} collisionPadding={12} className="w-56 border-[#eee8d5] bg-[#fdf6e3] p-1.5">
-        {[...MARKETING_NAV_LINKS, ...PHONE_EXTRA_LINKS].map(({ href, label }) => (
-          <DropdownMenuItem key={href} asChild className="font-medium focus:bg-[#eee8d5]">
-            <Link href={href} aria-current={href === active ? "page" : undefined} style={{ color: href === active ? INK : MUTED }}>
-              {label}
-            </Link>
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-56 border-[#eee8d5] bg-[#fdf6e3] p-1.5"
+      >
+        {[...MARKETING_NAV_LINKS, ...PHONE_EXTRA_LINKS].map(
+          ({ href, label }) => (
+            <DropdownMenuItem
+              key={href}
+              asChild
+              className="font-medium focus:bg-[#eee8d5]"
+            >
+              <Link
+                href={href}
+                aria-current={href === active ? "page" : undefined}
+                style={{ color: href === active ? INK : MUTED }}
+              >
+                {label}
+              </Link>
+            </DropdownMenuItem>
+          ),
+        )}
         {!signedIn && (
           <>
             <DropdownMenuSeparator className="bg-[#eee8d5]" />
-            <DropdownMenuItem asChild className="font-medium focus:bg-[#eee8d5]">
+            <DropdownMenuItem
+              asChild
+              className="font-medium focus:bg-[#eee8d5]"
+            >
               <Link href="/login" style={{ color: INK }}>
                 Sign in
               </Link>

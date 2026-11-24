@@ -58,10 +58,13 @@ export function measureBurst(input: {
   hasAudio: boolean;
 }): { durationMs: number; discard: boolean } {
   const holdMs = Math.max(0, input.releasedAt - input.startedAt);
-  const durationMs = input.captureAt ? Math.max(0, input.stoppedAt - input.captureAt) : holdMs;
+  const durationMs = input.captureAt
+    ? Math.max(0, input.stoppedAt - input.captureAt)
+    : holdMs;
   // Brushed, or a burst carrying neither words nor audio: the same nothing by
   // two routes, and the caller throws both away the same way.
-  const discard = holdMs < MIN_BURST_MS || (!input.transcript.trim() && !input.hasAudio);
+  const discard =
+    holdMs < MIN_BURST_MS || (!input.transcript.trim() && !input.hasAudio);
   return { durationMs, discard };
 }
 
@@ -95,7 +98,9 @@ export async function landBurst(
     return "landed";
   } catch {
     try {
-      await convex.mutation(api.chat.cancelVoiceBurst, { message_id: opts.messageId });
+      await convex.mutation(api.chat.cancelVoiceBurst, {
+        message_id: opts.messageId,
+      });
       return "cancelled";
     } catch {
       return "unresolved";

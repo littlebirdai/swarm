@@ -2,7 +2,11 @@
 // sits in its path, the edges it crossed, and how often it came back.
 import type { LineRunModel } from "../../../../../lib/line/lineModel";
 
-export type LitRun = { order: Map<string, number>; times: Map<string, number>; hot: Set<string> };
+export type LitRun = {
+  order: Map<string, number>;
+  times: Map<string, number>;
+  hot: Set<string>;
+};
 export function litRun(run: LineRunModel | null | undefined): LitRun | null {
   if (!run) return null;
   const order = new Map<string, number>();
@@ -16,4 +20,3 @@ export function litRun(run: LineRunModel | null | undefined): LitRun | null {
   });
   return { order, times, hot };
 }
-

@@ -12,7 +12,12 @@ export class CloudApiError extends Error {
   readonly fromApi: boolean;
   /** Set only when the provider named a wait (a 429's Retry-After); otherwise the caller picks its own delay. */
   readonly retryAfterMs?: number;
-  constructor(readonly status: number, readonly code: string | undefined, message: string, opts: { fromApi?: boolean; retryAfterMs?: number } = {}) {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+    message: string,
+    opts: { fromApi?: boolean; retryAfterMs?: number } = {},
+  ) {
     super(message);
     this.fromApi = opts.fromApi ?? true;
     this.retryAfterMs = opts.retryAfterMs;
@@ -34,7 +39,14 @@ export class CloudApiError extends Error {
  * its API changed), else "outage" (a 5xx, a timeout, the network, or a
  * proxy's page in front of the API: none says anything about the API).
  */
-export type CloudApiVerdict = "gone" | "busy" | "limit" | "refused" | "denied" | "unexpected" | "outage";
+export type CloudApiVerdict =
+  | "gone"
+  | "busy"
+  | "limit"
+  | "refused"
+  | "denied"
+  | "unexpected"
+  | "outage";
 
 /**
  * `oneAgent`: the call was about one agent, so a 404 or 410 finds it deleted,
@@ -42,15 +54,21 @@ export type CloudApiVerdict = "gone" | "busy" | "limit" | "refused" | "denied" |
  * `listed`: the provider listed that agent moments ago, so a 404 on it is no
  * deletion but an endpoint that moved.
  */
-export function cloudApiVerdict(err: unknown, opts: { oneAgent?: boolean; listed?: boolean } = {}): CloudApiVerdict {
+export function cloudApiVerdict(
+  err: unknown,
+  opts: { oneAgent?: boolean; listed?: boolean } = {},
+): CloudApiVerdict {
   if (!(err instanceof CloudApiError)) return "outage";
   const { status, fromApi } = err;
-  if (opts.oneAgent && !opts.listed && (status === 404 || status === 410)) return "gone";
+  if (opts.oneAgent && !opts.listed && (status === 404 || status === 410))
+    return "gone";
   if (opts.oneAgent && status === 403 && fromApi) return "denied";
   if (status === 409) return "busy";
   if (status === 429) return "limit";
   if (status === 401 || (status === 403 && fromApi)) return "refused";
-  return fromApi && status >= 400 && status < 500 && status !== 408 ? "unexpected" : "outage";
+  return fromApi && status >= 400 && status < 500 && status !== 408
+    ? "unexpected"
+    : "outage";
 }
 
 /**
@@ -58,13 +76,30 @@ export function cloudApiVerdict(err: unknown, opts: { oneAgent?: boolean; listed
  * `{error: {code|type, message}}`, `{code, message}`, `{detail}` or
  * `{detail: {type, message}}`.
  */
-export function cloudApiErrorOf(status: number, body: unknown, fallback: string, retryAfterMs?: number): CloudApiError {
-  const b = body && typeof body === "object" ? body as Record<string, any> : {};
-  const nested = [b.error, b.detail].find((o) => o && typeof o === "object") as Record<string, any> | undefined;
+export function cloudApiErrorOf(
+  status: number,
+  body: unknown,
+  fallback: string,
+  retryAfterMs?: number,
+): CloudApiError {
+  const b =
+    body && typeof body === "object" ? (body as Record<string, any>) : {};
+  const nested = [b.error, b.detail].find((o) => o && typeof o === "object") as
+    | Record<string, any>
+    | undefined;
   const inner = nested ?? b;
-  const code = [inner.code, inner.type].find((c): c is string => typeof c === "string" && !!c);
-  const reason = [inner.message, b.detail].find((m): m is string => typeof m === "string" && !!m);
-  return new CloudApiError(status, code, reason ? withoutKeys(reason) : fallback, { fromApi: !!(reason || code), retryAfterMs });
+  const code = [inner.code, inner.type].find(
+    (c): c is string => typeof c === "string" && !!c,
+  );
+  const reason = [inner.message, b.detail].find(
+    (m): m is string => typeof m === "string" && !!m,
+  );
+  return new CloudApiError(
+    status,
+    code,
+    reason ? withoutKeys(reason) : fallback,
+    { fromApi: !!(reason || code), retryAfterMs },
+  );
 }
 
 /**

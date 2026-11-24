@@ -11,9 +11,22 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { FunctionReturnType } from "convex/server";
-import { payloadFingerprint, type SecretMeta, type SecretPayload, type SecretVersionMeta } from "@codecast/shared/contracts/secrets";
-import { fillRequest, isStaged, stagedSwap, vaultFailure } from "../components/secrets/vaultModel";
-import { useSampleVault, type SampleVault } from "../components/secrets/sampleVault";
+import {
+  payloadFingerprint,
+  type SecretMeta,
+  type SecretPayload,
+  type SecretVersionMeta,
+} from "@codecast/shared/contracts/secrets";
+import {
+  fillRequest,
+  isStaged,
+  stagedSwap,
+  vaultFailure,
+} from "../components/secrets/vaultModel";
+import {
+  useSampleVault,
+  type SampleVault,
+} from "../components/secrets/sampleVault";
 import { usePresence } from "../lib/passkeyPresence";
 import { useSyncCollection } from "./useSyncCollection";
 import { useWorkspacesCollection } from "./useWorkspaceCollection";
@@ -26,7 +39,11 @@ import { useSwitchWorkspace } from "./useSwitchWorkspace";
 const SECRETS_FED = syncMetaKey("secrets", "viewer");
 
 export function useSyncSecrets(enabled = true) {
-  const { ready } = useSyncCollection("secrets", api.secrets.list, enabled ? {} : "skip");
+  const { ready } = useSyncCollection(
+    "secrets",
+    api.secrets.list,
+    enabled ? {} : "skip",
+  );
   const recordSyncMeta = useInboxStore((s) => s.recordSyncMeta);
   useWatchEffect(() => {
     if (ready) recordSyncMeta(SECRETS_FED, { backfilledAt: Date.now() });
@@ -38,7 +55,11 @@ const noSubscribe = () => () => {};
 /** What `read` answers from the sample Vault this tree shows, kept current; undefined under the real one. */
 function useSampleRead<T>(read: (sample: SampleVault) => T): T | undefined {
   const sample = useSampleVault();
-  return useSyncExternalStore(sample?.subscribe ?? noSubscribe, () => (sample ? read(sample) : undefined), () => undefined);
+  return useSyncExternalStore(
+    sample?.subscribe ?? noSubscribe,
+    () => (sample ? read(sample) : undefined),
+    () => undefined,
+  );
 }
 
 /** The server has answered for the Vault on this device, so an empty store means an empty Vault. */
@@ -52,34 +73,62 @@ export const secretSig = (s: SecretMeta) =>
   `${s.name}|${s.status}|${s.short_id ?? ""}|${(s.env ?? []).join(",")}|${(s.sites ?? []).join(",")}|${s.note ?? ""}|${s.updated_at}|${s.value_updated_at ?? 0}|${s.last_used_at ?? 0}|${s.use_count ?? 0}|${s.kind}|${s.ask_first ? 1 : 0}|${s.version_count ?? 0}|${s.fingerprint ?? ""}|${s.signin_expires_at ?? 0}|${s.has_otp ?? ""}|${s.updated_by_name ?? ""}`;
 
 /** Where a new secret can go: a team (the active one unless another is named) by key, id and name, and the viewer's own workspace. */
-export type VaultScope = { team: { key: string; id: string; name: string } | null; personal: string | null };
+export type VaultScope = {
+  team: { key: string; id: string; name: string } | null;
+  personal: string | null;
+};
 
 export function useVaultScope(teamId?: string | null): VaultScope {
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id ?? null);
-  const userId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id ?? null,
+  );
+  const userId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   const id = teamId === undefined ? activeTeamId : teamId;
-  const name = useInboxStore((s) => (id ? (s.teams ?? []).find((t: any) => String(t._id) === id)?.name ?? "Team" : null));
+  const name = useInboxStore((s) =>
+    id
+      ? ((s.teams ?? []).find((t: any) => String(t._id) === id)?.name ?? "Team")
+      : null,
+  );
   const personal = userId ? `user:${userId}` : null;
-  const scope = useMemo(() => ({ team: id && name ? { key: `team:${id}`, id, name } : null, personal }), [id, name, personal]);
+  const scope = useMemo(
+    () => ({
+      team: id && name ? { key: `team:${id}`, id, name } : null,
+      personal,
+    }),
+    [id, name, personal],
+  );
   return useSampleVault()?.scope ?? scope;
 }
 
 /** The Vault's rows: the team's in that scope (the active one unless another is named) beside the viewer's own. */
 export function useSecrets(teamId?: string | null): SecretMeta[] {
   const { team, personal } = useVaultScope(teamId);
-  const rows = useWorkspacesCollection<SecretMeta>("secrets", secretSig, [team?.key ?? null, personal]);
+  const rows = useWorkspacesCollection<SecretMeta>("secrets", secretSig, [
+    team?.key ?? null,
+    personal,
+  ]);
   return useSampleRead((s) => s.rows()) ?? rows;
 }
 
 /** Every secret the viewer holds, in each of their teams and their own: what a short id in a transcript resolves against. */
 export function useHeldSecrets(): SecretMeta[] {
-  const teamKeys = useInboxStore((s) => (s.teams ?? []).map((t: any) => `team:${t._id}`).join("\n"));
-  const personal = useInboxStore((s) => (s.currentUser?._id ? `user:${s.currentUser._id}` : null));
-  const keys = useMemo(() => [...(teamKeys ? teamKeys.split("\n") : []), personal], [teamKeys, personal]);
+  const teamKeys = useInboxStore((s) =>
+    (s.teams ?? []).map((t: any) => `team:${t._id}`).join("\n"),
+  );
+  const personal = useInboxStore((s) =>
+    s.currentUser?._id ? `user:${s.currentUser._id}` : null,
+  );
+  const keys = useMemo(
+    () => [...(teamKeys ? teamKeys.split("\n") : []), personal],
+    [teamKeys, personal],
+  );
   return useWorkspacesCollection<SecretMeta>("secrets", secretSig, keys);
 }
 
-const byId = (rows: SecretMeta[], ref: string) => rows.find((r) => r.short_id === ref || r._id === ref);
+const byId = (rows: SecretMeta[], ref: string) =>
+  rows.find((r) => r.short_id === ref || r._id === ref);
 
 /**
  * The secret a Vault link names (?s=sec-N, by short id or id, or by name for
@@ -88,14 +137,21 @@ const byId = (rows: SecretMeta[], ref: string) => rows.find((r) => r.short_id ==
  * page opens it there; a team picked by hand while the link is open stays.
  * `missing` once the Vault has loaded and no workspace of theirs holds it.
  */
-export function useLinkedSecret(rows: SecretMeta[], ref: string | null): { row: SecretMeta | undefined; missing: boolean } {
+export function useLinkedSecret(
+  rows: SecretMeta[],
+  ref: string | null,
+): { row: SecretMeta | undefined; missing: boolean } {
   const sample = !!useSampleVault();
   const held = useHeldSecrets();
   const loaded = useSecretsLoaded();
   const switchWorkspace = useSwitchWorkspace();
-  const row = ref ? byId(rows, ref) ?? rows.find((r) => r.name === ref) : undefined;
+  const row = ref
+    ? (byId(rows, ref) ?? rows.find((r) => r.name === ref))
+    : undefined;
   const elsewhere = ref && !row && !sample ? byId(held, ref) : undefined;
-  const team = elsewhere?.workspace.startsWith("team:") ? elsewhere.workspace.slice("team:".length) : null;
+  const team = elsewhere?.workspace.startsWith("team:")
+    ? elsewhere.workspace.slice("team:".length)
+    : null;
   const switchedFor = useRef<string | null>(null);
   useWatchEffect(() => {
     if (!ref) switchedFor.current = null;
@@ -106,7 +162,10 @@ export function useLinkedSecret(rows: SecretMeta[], ref: string | null): { row: 
   return { row, missing: !!ref && !row && !elsewhere && loaded };
 }
 
-export type SecretEvent = Extract<FunctionReturnType<typeof api.secrets.events>, unknown[]>[number];
+export type SecretEvent = Extract<
+  FunctionReturnType<typeof api.secrets.events>,
+  unknown[]
+>[number];
 type SecretHistory = { events: SecretEvent; versions: SecretVersionMeta };
 
 /**
@@ -115,17 +174,33 @@ type SecretHistory = { events: SecretEvent; versions: SecretVersionMeta };
  * opened before shows its last answer at once. `rows` is undefined until there
  * is an answer, cached or fresh; `error` is the query's terminal failure.
  */
-export function useSecretHistory<L extends keyof SecretHistory>(list: L, id: string, enabled: boolean) {
+export function useSecretHistory<L extends keyof SecretHistory>(
+  list: L,
+  id: string,
+  enabled: boolean,
+) {
   const key = `${list}:${id}`;
   const query = list === "events" ? api.secrets.events : api.secrets.versions;
   // A stable select: the feeder applies again whenever it changes, and a fresh
   // one each render would write the last answer back over a staged press.
-  const select = useCallback((data: unknown) => (Array.isArray(data) ? [{ _id: key, rows: data }] : []), [key]);
+  const select = useCallback(
+    (data: unknown) => (Array.isArray(data) ? [{ _id: key, rows: data }] : []),
+    [key],
+  );
   const sample = useSampleVault();
-  const { error, retry } = useSyncCollection("secretHistory", query, enabled && !sample ? { ref: id } : "skip", { select });
+  const { error, retry } = useSyncCollection(
+    "secretHistory",
+    query,
+    enabled && !sample ? { ref: id } : "skip",
+    { select },
+  );
   const stored = useInboxStore((s) => (s as any).secretHistory?.[key]?.rows);
   const sampled = useSampleRead((s) => s.history(key));
-  return { rows: (sample ? sampled : stored) as SecretHistory[L][] | undefined, error, retry };
+  return {
+    rows: (sample ? sampled : stored) as SecretHistory[L][] | undefined,
+    error,
+    retry,
+  };
 }
 
 /** Fills a requested secret: the row reads ready at once and goes back to requested on a refusal (fillRequest). */
@@ -133,13 +208,19 @@ export function useFillRequest() {
   const fulfill = useAction(api.secrets.fulfill);
   const stage = useInboxStore((s) => s.stageSecret);
   const sample = useSampleVault();
-  return async (row: SecretMeta, payload: SecretPayload) => (sample ? sample.fill(row, payload) : fillRequest(row, payload, { stage, fulfill }));
+  return async (row: SecretMeta, payload: SecretPayload) =>
+    sample
+      ? sample.fill(row, payload)
+      : fillRequest(row, payload, { stage, fulfill });
 }
 
 /** The value a swap shows, held over the list's pushes until the server's row carries it (a refusal holds the old one, which the next push retires). */
 const SWAP_HOLD = ["fingerprint"] as const;
 
-const historyOf = (key: string) => (useInboxStore.getState() as any).secretHistory?.[key]?.rows as object[] | undefined;
+const historyOf = (key: string) =>
+  (useInboxStore.getState() as any).secretHistory?.[key]?.rows as
+    | object[]
+    | undefined;
 
 /**
  * Replaces a secret's value (rotate) or puts a kept one back (restore),
@@ -154,16 +235,40 @@ export function useSwapValue() {
   const stage = useInboxStore((s) => s.stageSecret);
   const stageHistory = useInboxStore((s) => s.stageSecretHistory);
   const sample = useSampleVault();
-  return async (row: SecretMeta, swap: { kind: "rotated"; payload: SecretPayload } | { kind: "restored"; version: SecretVersionMeta }): Promise<string | null> => {
+  return async (
+    row: SecretMeta,
+    swap:
+      | { kind: "rotated"; payload: SecretPayload }
+      | { kind: "restored"; version: SecretVersionMeta },
+  ): Promise<string | null> => {
     if (sample) return sample.swap(row, swap);
-    const keys = { events: `events:${row._id}`, versions: `versions:${row._id}` };
-    const before = { events: historyOf(keys.events), versions: historyOf(keys.versions) as SecretVersionMeta[] | undefined };
+    const keys = {
+      events: `events:${row._id}`,
+      versions: `versions:${row._id}`,
+    };
+    const before = {
+      events: historyOf(keys.events),
+      versions: historyOf(keys.versions) as SecretVersionMeta[] | undefined,
+    };
     const me = useInboxStore.getState().currentUser?.name ?? "You";
-    const staged = stagedSwap(row, swap.kind === "rotated" ? { kind: "rotated", fingerprint: payloadFingerprint(row.kind, swap.payload) } : swap, { me, now: Date.now(), ...before });
+    const staged = stagedSwap(
+      row,
+      swap.kind === "rotated"
+        ? {
+            kind: "rotated",
+            fingerprint: payloadFingerprint(row.kind, swap.payload),
+          }
+        : swap,
+      { me, now: Date.now(), ...before },
+    );
     stage(staged.row, SWAP_HOLD);
     stageHistory(keys.events, staged.events);
     if (staged.versions) stageHistory(keys.versions, staged.versions);
-    const res: any = await (swap.kind === "rotated" ? rotate({ ref: row._id, payload: swap.payload }) : restore({ ref: row._id, version: swap.version._id })).catch(vaultFailure);
+    const res: any = await (
+      swap.kind === "rotated"
+        ? rotate({ ref: row._id, payload: swap.payload })
+        : restore({ ref: row._id, version: swap.version._id })
+    ).catch(vaultFailure);
     if (!res?.error) return null;
     stage(row, SWAP_HOLD);
     stageHistory(keys.events, before.events);
@@ -174,12 +279,24 @@ export function useSwapValue() {
 
 /** A value swap pressed here that the server has not answered in Activity yet. */
 export function useSwapPending(id: string): boolean {
-  return useInboxStore((s) => !!((s as any).secretHistory?.[`events:${id}`]?.rows as object[] | undefined)?.some(isStaged));
+  return useInboxStore(
+    (s) =>
+      !!(
+        (s as any).secretHistory?.[`events:${id}`]?.rows as object[] | undefined
+      )?.some(isStaged),
+  );
 }
 
 /** Ask first's field lock while the server has not echoed a press: its value is the one pressed. */
-export function useAskFirstLock(id: string): { value?: unknown; ts: number } | undefined {
-  return useInboxStore((s) => s.pending[`secrets:${id}:ask_first`] as { value?: unknown; ts: number } | undefined);
+export function useAskFirstLock(
+  id: string,
+): { value?: unknown; ts: number } | undefined {
+  return useInboxStore(
+    (s) =>
+      s.pending[`secrets:${id}:ask_first`] as
+        | { value?: unknown; ts: number }
+        | undefined,
+  );
 }
 
 /**
@@ -197,11 +314,20 @@ export function useVaultActions() {
   return useMemo(
     () =>
       sample
-        ? { updateMeta: sample.updateMeta, remove: sample.remove, setAskFirst: sample.setAskFirst }
+        ? {
+            updateMeta: sample.updateMeta,
+            remove: sample.remove,
+            setAskFirst: sample.setAskFirst,
+          }
         : {
             updateMeta: updateSecretMeta,
             remove: removeSecret,
-            setAskFirst: (id: string, on: boolean) => (on ? setSecretAskFirst(id, true) : void confirm("ask_first_off", id).then((grant) => grant && setSecretAskFirst(id, false, grant))),
+            setAskFirst: (id: string, on: boolean) =>
+              on
+                ? setSecretAskFirst(id, true)
+                : void confirm("ask_first_off", id).then(
+                    (grant) => grant && setSecretAskFirst(id, false, grant),
+                  ),
           },
     [sample, updateSecretMeta, removeSecret, setSecretAskFirst, confirm],
   );

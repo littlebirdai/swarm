@@ -1,4 +1,7 @@
-import { useInboxStore, type SessionDecisionItem } from "../../../store/inboxStore";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../../store/inboxStore";
 import type { ThreadInboxRow } from "../../../store/threadTypes";
 import type { ThreadCardModel } from "../../../lib/threadCards";
 import { DecisionDiscussion } from "../../decisions/DecisionDiscussion";
@@ -15,7 +18,19 @@ export function DecisionThreadLabel({ card }: { card: ThreadCardModel }) {
   return <span className="truncate">{rowOf(card).title ?? "A decision"}</span>;
 }
 
-export function DecisionThreadExpanded({ card, seen, present, frozenReadAt, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function DecisionThreadExpanded({
+  card,
+  seen,
+  present,
+  frozenReadAt,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const decisionId = String(rowOf(card).decision_id ?? "");
   const pending = useInboxStore((s) => {
     const d = s.sessionDecisions[decisionId] as SessionDecisionItem | undefined;
@@ -23,8 +38,21 @@ export function DecisionThreadExpanded({ card, seen, present, frozenReadAt, focu
   });
   return (
     <div className="th-card-open" data-thread-decision={decisionId}>
-      {pending && <QuestionExpanded card={{ ...card, kind: "question", source: pending }} present={present} seen={seen} frozenReadAt={frozenReadAt} focusComposer={false} />}
-      <DecisionDiscussion decisionId={decisionId} compact={!seen} open={focusComposer || undefined} className="mt-2" />
+      {pending && (
+        <QuestionExpanded
+          card={{ ...card, kind: "question", source: pending }}
+          present={present}
+          seen={seen}
+          frozenReadAt={frozenReadAt}
+          focusComposer={false}
+        />
+      )}
+      <DecisionDiscussion
+        decisionId={decisionId}
+        compact={!seen}
+        open={focusComposer || undefined}
+        className="mt-2"
+      />
     </div>
   );
 }

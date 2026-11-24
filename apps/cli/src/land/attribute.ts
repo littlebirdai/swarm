@@ -64,8 +64,19 @@ export interface Attribution {
 }
 
 const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
-export const SHELL_TOOLS = new Set(["Bash", "shell", "exec_command", "local_shell", "container.exec"]);
-const MID_TURN = new Set(["working", "thinking", "compacting", "permission_blocked"]);
+export const SHELL_TOOLS = new Set([
+  "Bash",
+  "shell",
+  "exec_command",
+  "local_shell",
+  "container.exec",
+]);
+const MID_TURN = new Set([
+  "working",
+  "thinking",
+  "compacting",
+  "permission_blocked",
+]);
 /** A mid-turn hook status this old says nothing about now. */
 const STATUS_TRUST_MS = 15 * 60_000;
 const TAIL_BYTES = 256 * 1024;
@@ -97,16 +108,32 @@ function realOf(p: string): string {
   const dir = path.dirname(p);
   let real = realDirs.get(dir);
   if (real === undefined) {
-    try { real = fs.realpathSync(dir); } catch { real = dir; }
+    try {
+      real = fs.realpathSync(dir);
+    } catch {
+      real = dir;
+    }
     realDirs.set(dir, real);
   }
   return path.join(real, path.basename(p));
 }
 
 /** Where other volumes and on-demand mounts live: resolving a path there can wait on a disk or the automounter for minutes. */
-const MOUNT_ROOTS = ["/Volumes", "/home", "/net", "/Network", "/mnt", "/media", "/run/media"];
+const MOUNT_ROOTS = [
+  "/Volumes",
+  "/home",
+  "/net",
+  "/Network",
+  "/mnt",
+  "/media",
+  "/run/media",
+];
 /** macOS's own symlinked roots: /tmp/x is /private/tmp/x. */
-const PRIVATE_LINKS: ReadonlyArray<[string, string]> = [["/tmp", "/private/tmp"], ["/var", "/private/var"], ["/etc", "/private/etc"]];
+const PRIVATE_LINKS: ReadonlyArray<[string, string]> = [
+  ["/tmp", "/private/tmp"],
+  ["/var", "/private/var"],
+  ["/etc", "/private/etc"],
+];
 
 /** The volume a path sits on under a mount root (`/Volumes/Archive`, `/home/ubuntu`), or null for the system's own disk. */
 function volumeOf(p: string): string | null {
@@ -118,19 +145,32 @@ function volumeOf(p: string): string | null {
   return null;
 }
 
-const under = (p: string, base: string) => p === base || p.startsWith(`${base}/`);
-const rootNames = new Map<string, { real: string; bases: string[]; volumes: Array<string | null> }>();
+const under = (p: string, base: string) =>
+  p === base || p.startsWith(`${base}/`);
+const rootNames = new Map<
+  string,
+  { real: string; bases: string[]; volumes: Array<string | null> }
+>();
 /** The names a checkout goes by without a symlink anyone made: as given, its real path, and through /tmp and /var's links. */
-function namesOf(root: string): { real: string; bases: string[]; volumes: Array<string | null> } {
+function namesOf(root: string): {
+  real: string;
+  bases: string[];
+  volumes: Array<string | null>;
+} {
   let n = rootNames.get(root);
   if (!n) {
     const real = realOf(path.join(root, "x")).slice(0, -2);
     const bases = new Set([root, real]);
-    for (const b of [root, real]) for (const [link, target] of PRIVATE_LINKS) {
-      if (under(b, target)) bases.add(link + b.slice(target.length));
-      if (under(b, link)) bases.add(target + b.slice(link.length));
-    }
-    n = { real, bases: [...bases], volumes: [...new Set([volumeOf(root), volumeOf(real)])] };
+    for (const b of [root, real])
+      for (const [link, target] of PRIVATE_LINKS) {
+        if (under(b, target)) bases.add(link + b.slice(target.length));
+        if (under(b, link)) bases.add(target + b.slice(link.length));
+      }
+    n = {
+      real,
+      bases: [...bases],
+      volumes: [...new Set([volumeOf(root), volumeOf(real)])],
+    };
     rootNames.set(root, n);
   }
   return n;
@@ -149,11 +189,17 @@ function aliasIn(root: string, cwd: string): string | null {
   const at = parts.lastIndexOf(name);
   if (at <= 0) return null;
   const candidate = parts.slice(0, at + 1).join("/");
-  if (n.bases.some((b) => under(candidate, b)) || !n.volumes.includes(volumeOf(candidate))) return null;
+  if (
+    n.bases.some((b) => under(candidate, b)) ||
+    !n.volumes.includes(volumeOf(candidate))
+  )
+    return null;
   const key = `${root}\0${candidate}`;
   if (!aliases.has(key)) {
     let real: string | null = null;
-    try { real = fs.realpathSync(candidate); } catch {}
+    try {
+      real = fs.realpathSync(candidate);
+    } catch {}
     aliases.set(key, real === n.real ? candidate : null);
   }
   return aliases.get(key)!;
@@ -187,7 +233,10 @@ function checkoutOf(dir: string): string | null {
   if (checkouts.has(start)) return checkouts.get(start)!;
   let found: string | null = null;
   for (let d = start; ; d = path.dirname(d)) {
-    if (fs.existsSync(path.join(d, ".git"))) { found = d; break; }
+    if (fs.existsSync(path.join(d, ".git"))) {
+      found = d;
+      break;
+    }
     if (path.dirname(d) === d) break;
   }
   checkouts.set(start, found);
@@ -196,7 +245,11 @@ function checkoutOf(dir: string): string | null {
 
 /** A path's stats, or undefined when nothing is there (missing, or under a file: `package.json/bun.lock`). */
 function statOf(p: string): fs.Stats | undefined {
-  try { return fs.statSync(p); } catch { return undefined; }
+  try {
+    return fs.statSync(p);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -205,15 +258,26 @@ function statOf(p: string): fs.Stats | undefined {
  * checkout (nearRoot). A path that does not exist (a file it deleted, or will create) still counts; a directory
  * does not.
  */
-export function shellWrites(command: string, cwd: string, root: string): string[] {
+export function shellWrites(
+  command: string,
+  cwd: string,
+  root: string,
+): string[] {
   const found = new Set<string>();
   const here = realOf(path.join(root, "."));
   for (const w of shellWritePaths(command, cwd)) {
-    let abs = path.isAbsolute(w.path) ? path.normalize(w.path) : path.resolve(w.dir, w.path);
+    let abs = path.isAbsolute(w.path)
+      ? path.normalize(w.path)
+      : path.resolve(w.dir, w.path);
     if (!nearRoot(root, abs, cwd)) continue;
     // A root-relative path written from a directory inside the checkout (the session's cwd is often a package):
     // the checkout's own file when only that one is there.
-    if (!path.isAbsolute(w.path) && !statOf(abs) && nearRoot(root, w.dir, cwd) && checkoutOf(w.dir) === here) {
+    if (
+      !path.isAbsolute(w.path) &&
+      !statOf(abs) &&
+      nearRoot(root, w.dir, cwd) &&
+      checkoutOf(w.dir) === here
+    ) {
       const fromRoot = path.resolve(root, w.path);
       if (statOf(fromRoot)) abs = fromRoot;
     }
@@ -236,7 +300,8 @@ function underAFile(p: string): boolean {
   return false;
 }
 
-const PATCH_HEADER = /\*\*\* (?:Update|Add|Delete) File: ([^\n\\]+)|\*\*\* Move to: ([^\n\\]+)/g;
+const PATCH_HEADER =
+  /\*\*\* (?:Update|Add|Delete) File: ([^\n\\]+)|\*\*\* Move to: ([^\n\\]+)/g;
 
 interface ScanState {
   offset: number;
@@ -253,48 +318,90 @@ export function scanChunk(chunk: string, root: string, state: ScanState): void {
   for (const line of chunk.split("\n")) {
     if (!line) continue;
     // Cheap gates before JSON.parse: most lines are messages, reads and results.
-    const hasCall = line.includes("\"tool_use\"") || line.includes("function_call") || line.includes("custom_tool_call");
+    const hasCall =
+      line.includes('"tool_use"') ||
+      line.includes("function_call") ||
+      line.includes("custom_tool_call");
     const hasPatch = line.includes("*** ");
-    if (!state.cwd && line.includes("\"cwd\"")) {
+    if (!state.cwd && line.includes('"cwd"')) {
       const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(line);
       if (m) state.cwd = JSON.parse(`"${m[1]}"`);
     }
     if (!hasCall && !hasPatch) continue;
     let obj: any;
-    try { obj = JSON.parse(line); } catch { continue; }
+    try {
+      obj = JSON.parse(line);
+    } catch {
+      continue;
+    }
     const at = Date.parse(obj?.timestamp) || 0;
     const cwd = (typeof obj?.cwd === "string" && obj.cwd) || state.cwd || root;
 
     // Claude: tool_use blocks in an assistant message.
-    for (const block of Array.isArray(obj?.message?.content) ? obj.message.content : []) {
+    for (const block of Array.isArray(obj?.message?.content)
+      ? obj.message.content
+      : []) {
       if (block?.type !== "tool_use") continue;
       const input = block.input ?? {};
       if (EDIT_TOOLS.has(block.name)) {
         const p = input.file_path ?? input.notebook_path;
-        if (typeof p === "string") note(relIn(root, path.resolve(cwd, p), cwd), at);
-      } else if (SHELL_TOOLS.has(block.name) && typeof input.command === "string") {
+        if (typeof p === "string")
+          note(relIn(root, path.resolve(cwd, p), cwd), at);
+      } else if (
+        SHELL_TOOLS.has(block.name) &&
+        typeof input.command === "string"
+      ) {
         for (const rel of shellWrites(input.command, cwd, root)) note(rel, at);
       }
     }
 
     // Codex: function calls carrying a shell command or a patch.
     const payload = obj?.payload;
-    if (payload && (payload.type === "function_call" || payload.type === "custom_tool_call")) {
+    if (
+      payload &&
+      (payload.type === "function_call" || payload.type === "custom_tool_call")
+    ) {
       let args: any = payload.arguments ?? payload.input;
-      if (typeof args === "string") { try { args = JSON.parse(args); } catch {} }
-      const command = Array.isArray(args?.command) ? args.command.join(" ") : typeof args?.command === "string" ? args.command : typeof args?.cmd === "string" ? args.cmd : null;
-      const workdir = typeof args?.workdir === "string" ? path.resolve(cwd, args.workdir) : cwd;
-      if (command) for (const rel of shellWrites(command, workdir, root)) note(rel, at);
-      const patchText = typeof args === "string" ? args : command ?? (typeof args?.input === "string" ? args.input : null);
+      if (typeof args === "string") {
+        try {
+          args = JSON.parse(args);
+        } catch {}
+      }
+      const command = Array.isArray(args?.command)
+        ? args.command.join(" ")
+        : typeof args?.command === "string"
+          ? args.command
+          : typeof args?.cmd === "string"
+            ? args.cmd
+            : null;
+      const workdir =
+        typeof args?.workdir === "string"
+          ? path.resolve(cwd, args.workdir)
+          : cwd;
+      if (command)
+        for (const rel of shellWrites(command, workdir, root)) note(rel, at);
+      const patchText =
+        typeof args === "string"
+          ? args
+          : (command ?? (typeof args?.input === "string" ? args.input : null));
       if (patchText?.includes("*** ")) {
-        for (const m of patchText.matchAll(PATCH_HEADER)) note(relIn(root, path.resolve(workdir, (m[1] ?? m[2]).trim()), workdir), at);
+        for (const m of patchText.matchAll(PATCH_HEADER))
+          note(
+            relIn(root, path.resolve(workdir, (m[1] ?? m[2]).trim()), workdir),
+            at,
+          );
       }
     }
   }
 }
 
-interface CacheEntry extends ScanState { size: number }
-type Cache = { version: number; roots: Record<string, Record<string, CacheEntry>> };
+interface CacheEntry extends ScanState {
+  size: number;
+}
+type Cache = {
+  version: number;
+  roots: Record<string, Record<string, CacheEntry>>;
+};
 
 function cacheFile(): string {
   return path.join(defaultConfigDir(), "cache", "land-attribution.json");
@@ -323,10 +430,18 @@ const CHUNK_BYTES = 8 * 1024 * 1024;
  * Read what `file` appended since the cached offset, a chunk at a time, until it is read or `deadline` passes; a
  * file left part read keeps `size` at what it has read, so the next call goes on from its offset.
  */
-function scanIncremental(file: string, size: number, root: string, prior: CacheEntry | undefined, deadline = Infinity, clock: () => number = Date.now): CacheEntry {
-  const state: CacheEntry = prior && prior.size <= size && prior.offset <= size
-    ? { ...prior, writes: { ...prior.writes } }
-    : { offset: 0, size: 0, cwd: null, writes: {} };
+function scanIncremental(
+  file: string,
+  size: number,
+  root: string,
+  prior: CacheEntry | undefined,
+  deadline = Infinity,
+  clock: () => number = Date.now,
+): CacheEntry {
+  const state: CacheEntry =
+    prior && prior.size <= size && prior.offset <= size
+      ? { ...prior, writes: { ...prior.writes } }
+      : { offset: 0, size: 0, cwd: null, writes: {} };
   if (state.offset >= size) return { ...state, size };
   const fd = fs.openSync(file, "r");
   try {
@@ -348,7 +463,9 @@ function scanIncremental(file: string, size: number, root: string, prior: CacheE
       if (clock() >= deadline) break;
     }
     // Read to the last whole line: the entry stands for the file at `size`, or, cut short, at the offset reached.
-    const done = state.offset >= size || size - state.offset < CHUNK_BYTES && clock() < deadline;
+    const done =
+      state.offset >= size ||
+      (size - state.offset < CHUNK_BYTES && clock() < deadline);
     return { ...state, size: done ? size : state.offset };
   } finally {
     fs.closeSync(fd);
@@ -357,11 +474,24 @@ function scanIncremental(file: string, size: number, root: string, prior: CacheE
 
 function readStatus(sessionId: string, now: number): string | null {
   try {
-    const file = path.join(defaultConfigDir(), "agent-status", `${sessionId}.json`);
+    const file = path.join(
+      defaultConfigDir(),
+      "agent-status",
+      `${sessionId}.json`,
+    );
     const st = fs.statSync(file);
     const data = JSON.parse(fs.readFileSync(file, "utf-8"));
-    const ts = typeof data.ts === "number" ? (data.ts < 1e12 ? data.ts * 1000 : data.ts) : st.mtimeMs;
-    if (MID_TURN.has(data.status) && now - Math.max(ts, st.mtimeMs) > STATUS_TRUST_MS) return "stale";
+    const ts =
+      typeof data.ts === "number"
+        ? data.ts < 1e12
+          ? data.ts * 1000
+          : data.ts
+        : st.mtimeMs;
+    if (
+      MID_TURN.has(data.status) &&
+      now - Math.max(ts, st.mtimeMs) > STATUS_TRUST_MS
+    )
+      return "stale";
     return typeof data.status === "string" ? data.status : null;
   } catch {
     return null;
@@ -377,47 +507,79 @@ function lastAssistantText(file: string, size: number): string | null {
     const buf = Buffer.alloc(len);
     fs.readSync(fd, buf, 0, len, size - len);
     for (const line of buf.toString("utf-8").split("\n").reverse()) {
-      if (!line.includes("assistant") && !line.includes("agent_message")) continue;
+      if (!line.includes("assistant") && !line.includes("agent_message"))
+        continue;
       let obj: any;
-      try { obj = JSON.parse(line); } catch { continue; }
-      const blocks = obj?.message?.role === "assistant" ? obj.message.content : null;
+      try {
+        obj = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const blocks =
+        obj?.message?.role === "assistant" ? obj.message.content : null;
       if (Array.isArray(blocks)) {
-        const text = blocks.filter((b: any) => b?.type === "text" && b.text?.trim()).map((b: any) => b.text).join("\n").trim();
+        const text = blocks
+          .filter((b: any) => b?.type === "text" && b.text?.trim())
+          .map((b: any) => b.text)
+          .join("\n")
+          .trim();
         if (text) return text;
       }
-      const codex = obj?.payload?.type === "agent_message" ? obj.payload.message : null;
+      const codex =
+        obj?.payload?.type === "agent_message" ? obj.payload.message : null;
       if (typeof codex === "string" && codex.trim()) return codex.trim();
     }
-  } catch {} finally {
+  } catch {
+  } finally {
     if (fd !== null) fs.closeSync(fd);
   }
   return null;
 }
 
 /** Subagent and workflow transcripts under this repo's Claude project dirs, keyed to their parent session. */
-function subagentTranscripts(root: string, since: number): Array<{ file: string; parent: string }> {
+function subagentTranscripts(
+  root: string,
+  since: number,
+): Array<{ file: string; parent: string }> {
   const projects = path.join(process.env.HOME ?? "", ".claude", "projects");
   const prefix = claudeProjectDirName(root);
   const out: Array<{ file: string; parent: string }> = [];
   let dirs: string[] = [];
-  try { dirs = fs.readdirSync(projects).filter((d) => d === prefix || d.startsWith(`${prefix}-`)); } catch { return out; }
+  try {
+    dirs = fs
+      .readdirSync(projects)
+      .filter((d) => d === prefix || d.startsWith(`${prefix}-`));
+  } catch {
+    return out;
+  }
   for (const d of dirs) {
     let parents: fs.Dirent[] = [];
-    try { parents = fs.readdirSync(path.join(projects, d), { withFileTypes: true }); } catch { continue; }
+    try {
+      parents = fs.readdirSync(path.join(projects, d), { withFileTypes: true });
+    } catch {
+      continue;
+    }
     for (const p of parents) {
       if (!p.isDirectory()) continue;
       const sub = path.join(projects, d, p.name, "subagents");
       let st: fs.Stats;
-      try { st = fs.statSync(sub); } catch { continue; }
+      try {
+        st = fs.statSync(sub);
+      } catch {
+        continue;
+      }
       if (st.mtimeMs < since - 86_400_000) continue;
       const walk = (dir: string) => {
         for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
           const f = path.join(dir, e.name);
           if (e.isDirectory()) walk(f);
-          else if (e.name.endsWith(".jsonl")) out.push({ file: f, parent: p.name });
+          else if (e.name.endsWith(".jsonl"))
+            out.push({ file: f, parent: p.name });
         }
       };
-      try { walk(sub); } catch {}
+      try {
+        walk(sub);
+      } catch {}
     }
   }
   return out;
@@ -428,12 +590,23 @@ function subagentTranscripts(root: string, since: number): Array<{ file: string;
  * transcripts written since `since` are read: a write older than the oldest
  * dirty file cannot be the one that left it dirty.
  */
-export function attributeEdits(root: string, paths: Iterable<string>, opts: { since: number; now?: number; ledger?: string; budgetMs?: number; clock?: () => number }): Attribution {
+export function attributeEdits(
+  root: string,
+  paths: Iterable<string>,
+  opts: {
+    since: number;
+    now?: number;
+    ledger?: string;
+    budgetMs?: number;
+    clock?: () => number;
+  },
+): Attribution {
   // The budget's clock (tests drive it, so a budget means the same under any load).
   const clock = opts.clock ?? Date.now;
   const started = clock();
   // A caller on a shared loop (the daemon's checkout report) reads for at most this long, and goes on next call.
-  const deadline = opts.budgetMs === undefined ? Infinity : started + opts.budgetMs;
+  const deadline =
+    opts.budgetMs === undefined ? Infinity : started + opts.budgetMs;
   let partial = false;
   const now = opts.now ?? started;
   const wanted = new Set(paths);
@@ -441,14 +614,33 @@ export function attributeEdits(root: string, paths: Iterable<string>, opts: { si
   const byFile = (cache.roots[root] ??= {});
   const conversationBySession = readLocalConversationMap();
 
-  const sources: Array<{ file: string; sessionId: string; conversationId: string | null; client: string }> = [];
+  const sources: Array<{
+    file: string;
+    sessionId: string;
+    conversationId: string | null;
+    client: string;
+  }> = [];
   for (const [file, record] of Object.entries(getAllSyncRecords())) {
-    const sessionId = record.sourceGeneration?.sessionId ?? path.basename(file).replace(/\.jsonl$/, "");
-    const client = record.sourceGeneration?.client ?? (file.includes("/.codex/") ? "codex" : "claude");
-    sources.push({ file, sessionId, conversationId: record.conversationId ?? null, client });
+    const sessionId =
+      record.sourceGeneration?.sessionId ??
+      path.basename(file).replace(/\.jsonl$/, "");
+    const client =
+      record.sourceGeneration?.client ??
+      (file.includes("/.codex/") ? "codex" : "claude");
+    sources.push({
+      file,
+      sessionId,
+      conversationId: record.conversationId ?? null,
+      client,
+    });
   }
   for (const { file, parent } of subagentTranscripts(root, opts.since)) {
-    sources.push({ file, sessionId: parent, conversationId: conversationBySession[parent] ?? null, client: "claude" });
+    sources.push({
+      file,
+      sessionId: parent,
+      conversationId: conversationBySession[parent] ?? null,
+      client: "claude",
+    });
   }
 
   const sessions = new Map<string, SessionEdits>();
@@ -456,13 +648,27 @@ export function attributeEdits(root: string, paths: Iterable<string>, opts: { si
   let scanned = 0;
   for (const src of sources) {
     let st: fs.Stats;
-    try { st = fs.statSync(src.file); } catch { continue; }
+    try {
+      st = fs.statSync(src.file);
+    } catch {
+      continue;
+    }
     seenFiles.add(src.file);
     if (st.mtimeMs < opts.since) continue;
     const prior = byFile[src.file];
     // Only a file with something left to read spends the budget.
-    if (prior?.size !== st.size && clock() >= deadline) { partial = true; continue; }
-    const entry = scanIncremental(src.file, st.size, root, prior, deadline, clock);
+    if (prior?.size !== st.size && clock() >= deadline) {
+      partial = true;
+      continue;
+    }
+    const entry = scanIncremental(
+      src.file,
+      st.size,
+      root,
+      prior,
+      deadline,
+      clock,
+    );
     if (entry.size < st.size) partial = true;
     if (entry.offset !== byFile[src.file]?.offset) scanned++;
     byFile[src.file] = entry;
@@ -471,10 +677,20 @@ export function attributeEdits(root: string, paths: Iterable<string>, opts: { si
     const key = src.conversationId ?? src.sessionId;
     let s = sessions.get(key);
     if (!s) {
-      s = { sessionId: src.sessionId, conversationId: src.conversationId, client: src.client, transcript: src.file, edits: new Map(), lastText: null, lastActivity: 0, status: readStatus(src.sessionId, now) };
+      s = {
+        sessionId: src.sessionId,
+        conversationId: src.conversationId,
+        client: src.client,
+        transcript: src.file,
+        edits: new Map(),
+        lastText: null,
+        lastActivity: 0,
+        status: readStatus(src.sessionId, now),
+      };
       sessions.set(key, s);
     }
-    for (const [p, at] of hits) if ((s.edits.get(p) ?? 0) < at) s.edits.set(p, at);
+    for (const [p, at] of hits)
+      if ((s.edits.get(p) ?? 0) < at) s.edits.set(p, at);
     // The parent's own transcript speaks for the session, not a worker's.
     if (st.mtimeMs > s.lastActivity) s.lastActivity = st.mtimeMs;
     if (!src.file.includes(`${path.sep}subagents${path.sep}`)) {
@@ -485,21 +701,39 @@ export function attributeEdits(root: string, paths: Iterable<string>, opts: { si
   // What a cast command wrote for a session (writeLedger.ts), credited like a write its transcript shows.
   for (const w of readSessionWrites(root, opts.since, opts.ledger)) {
     if (!wanted.has(w.path)) continue;
-    const conversationId = w.conversation ?? conversationBySession[w.session] ?? null;
+    const conversationId =
+      w.conversation ?? conversationBySession[w.session] ?? null;
     const key = conversationId ?? w.session;
     let s = sessions.get(key);
     if (!s) {
-      const own = sources.find((src) => src.sessionId === w.session && !src.file.includes(`${path.sep}subagents${path.sep}`));
+      const own = sources.find(
+        (src) =>
+          src.sessionId === w.session &&
+          !src.file.includes(`${path.sep}subagents${path.sep}`),
+      );
       let size = 0;
-      try { size = own ? fs.statSync(own.file).size : 0; } catch {}
-      s = { sessionId: w.session, conversationId, client: own?.client ?? "claude", transcript: own?.file ?? "", edits: new Map(), lastText: own && size ? lastAssistantText(own.file, size) : null, lastActivity: w.at, status: readStatus(w.session, now) };
+      try {
+        size = own ? fs.statSync(own.file).size : 0;
+      } catch {}
+      s = {
+        sessionId: w.session,
+        conversationId,
+        client: own?.client ?? "claude",
+        transcript: own?.file ?? "",
+        edits: new Map(),
+        lastText: own && size ? lastAssistantText(own.file, size) : null,
+        lastActivity: w.at,
+        status: readStatus(w.session, now),
+      };
       sessions.set(key, s);
     }
     if ((s.edits.get(w.path) ?? 0) < w.at) s.edits.set(w.path, w.at);
     if (w.at > s.lastActivity) s.lastActivity = w.at;
   }
   for (const f of Object.keys(byFile)) if (!seenFiles.has(f)) delete byFile[f];
-  try { saveCache(cache); } catch {}
+  try {
+    saveCache(cache);
+  } catch {}
 
   const owners = new Map<string, SessionEdits>();
   for (const s of sessions.values()) {
@@ -508,5 +742,11 @@ export function attributeEdits(root: string, paths: Iterable<string>, opts: { si
       if (!cur || (cur.edits.get(p) ?? 0) < at) owners.set(p, s);
     }
   }
-  return { owners, sessions: [...sessions.values()], scanned, tookMs: clock() - started, ...(partial ? { partial: true as const } : {}) };
+  return {
+    owners,
+    sessions: [...sessions.values()],
+    scanned,
+    tookMs: clock() - started,
+    ...(partial ? { partial: true as const } : {}),
+  };
 }

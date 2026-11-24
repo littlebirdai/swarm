@@ -43,23 +43,38 @@ export function lockDir(env: NodeJS.ProcessEnv = process.env): string {
   return env.SIM_LOCK_DIR || "/tmp/sim-locks";
 }
 
-export function poolFile(home: string = process.env.HOME || os.homedir()): string {
+export function poolFile(
+  home: string = process.env.HOME || os.homedir(),
+): string {
   return path.join(home, ".codecast", "sim", "pool.json");
 }
 
 export function parsePoolEnv(value: string): PoolDevice[] {
-  return value.split(":").map((s) => s.trim()).filter(Boolean).map((entry) => {
-    const eq = entry.indexOf("=");
-    return eq < 0 ? { udid: entry, name: entry } : { udid: entry.slice(0, eq), name: entry.slice(eq + 1) };
-  });
+  return value
+    .split(":")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const eq = entry.indexOf("=");
+      return eq < 0
+        ? { udid: entry, name: entry }
+        : { udid: entry.slice(0, eq), name: entry.slice(eq + 1) };
+    });
 }
 
 export function readPool(env: NodeJS.ProcessEnv = process.env): PoolDevice[] {
   if (env.SIM_POOL) return parsePoolEnv(env.SIM_POOL);
   try {
-    const raw = JSON.parse(fs.readFileSync(poolFile(env.HOME || os.homedir()), "utf-8"));
+    const raw = JSON.parse(
+      fs.readFileSync(poolFile(env.HOME || os.homedir()), "utf-8"),
+    );
     const devices = Array.isArray(raw?.devices) ? raw.devices : [];
-    return devices.filter((d: any) => typeof d?.udid === "string").map((d: any) => ({ udid: d.udid, name: typeof d.name === "string" ? d.name : d.udid }));
+    return devices
+      .filter((d: any) => typeof d?.udid === "string")
+      .map((d: any) => ({
+        udid: d.udid,
+        name: typeof d.name === "string" ? d.name : d.udid,
+      }));
   } catch {
     return [];
   }
@@ -77,7 +92,9 @@ export function orientationPath(udid: string, dir = lockDir()): string {
 
 export function readOrientation(udid: string, dir = lockDir()): SimOrientation {
   try {
-    const o = Number(fs.readFileSync(orientationPath(udid, dir), "utf-8").trim());
+    const o = Number(
+      fs.readFileSync(orientationPath(udid, dir), "utf-8").trim(),
+    );
     return o === 2 || o === 3 || o === 4 ? o : 1;
   } catch {
     return 1;
@@ -89,7 +106,10 @@ export function forgetOrientation(udid: string, dir = lockDir()): void {
   fs.rmSync(orientationPath(udid, dir), { force: true });
 }
 
-export function writePool(devices: PoolDevice[], home: string = process.env.HOME || os.homedir()): void {
+export function writePool(
+  devices: PoolDevice[],
+  home: string = process.env.HOME || os.homedir(),
+): void {
   const file = poolFile(home);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify({ devices }, null, 2)}\n`);
@@ -98,12 +118,28 @@ export function writePool(devices: PoolDevice[], home: string = process.env.HOME
 export { isPidAlive as pidAlive };
 
 function psField(pid: number, field: "ppid" | "comm"): string {
-  const r = spawnSync("ps", ["-o", `${field}=`, "-p", String(pid)], { encoding: "utf-8" });
+  const r = spawnSync("ps", ["-o", `${field}=`, "-p", String(pid)], {
+    encoding: "utf-8",
+  });
   return (r.stdout ?? "").trim();
 }
 
 /** Programs that run other programs: never the owner of a lock. */
-const WRAPPERS = new Set(["bash", "sh", "zsh", "fish", "dash", "login", "script", "timeout", "env", "nice", "caffeinate", "xargs", "sudo"]);
+const WRAPPERS = new Set([
+  "bash",
+  "sh",
+  "zsh",
+  "fish",
+  "dash",
+  "login",
+  "script",
+  "timeout",
+  "env",
+  "nice",
+  "caffeinate",
+  "xargs",
+  "sudo",
+]);
 
 export interface ProcInfo {
   ppid: number;
@@ -116,7 +152,10 @@ export interface ProcInfo {
  * ends at tmux or launchd is a human shell, and then the outermost shell owns
  * it, so the lock dies with the pane.
  */
-export function ownerPid(start: number, info: (pid: number) => ProcInfo | null = defaultProcInfo): number {
+export function ownerPid(
+  start: number,
+  info: (pid: number) => ProcInfo | null = defaultProcInfo,
+): number {
   let pid = start;
   let lastShell: number | undefined;
   for (let hops = 0; pid > 1 && hops < 64; hops++) {
@@ -158,19 +197,29 @@ function readNum(file: string): number | undefined {
 }
 
 /** `withOwner: false` skips the `ps` that names the owner's program: the daemon polls this. */
-export function readLock(udid: string, dir = lockDir(), opts: { withOwner?: boolean } = {}): Omit<PoolEntry, "index" | "name" | "udid"> {
+export function readLock(
+  udid: string,
+  dir = lockDir(),
+  opts: { withOwner?: boolean } = {},
+): Omit<PoolEntry, "index" | "name" | "udid"> {
   const p = lockPath(udid, dir);
   if (!fs.existsSync(p)) return { state: "free" };
   const pid = readNum(path.join(p, "pid"));
   let session: string | undefined;
-  try { session = fs.readFileSync(path.join(p, "session"), "utf-8").trim() || undefined; } catch {}
+  try {
+    session =
+      fs.readFileSync(path.join(p, "session"), "utf-8").trim() || undefined;
+  } catch {}
   const alive = isPidAlive(pid);
   return {
     state: alive ? "held" : "stale",
     pid,
     session,
     since: readNum(path.join(p, "since")),
-    owner: alive && pid && opts.withOwner !== false ? path.basename(psField(pid, "comm")) || undefined : undefined,
+    owner:
+      alive && pid && opts.withOwner !== false
+        ? path.basename(psField(pid, "comm")) || undefined
+        : undefined,
   };
 }
 
@@ -193,14 +242,27 @@ export interface AcquireResult {
 }
 
 /** Take one pool simulator for `owner`; `preferred` is tried first. Null when every one is held. */
-export function acquire(opts: { pool?: PoolDevice[]; preferred?: number; owner?: number; session?: string | null; dir?: string } = {}): AcquireResult | null {
+export function acquire(
+  opts: {
+    pool?: PoolDevice[];
+    preferred?: number;
+    owner?: number;
+    session?: string | null;
+    dir?: string;
+  } = {},
+): AcquireResult | null {
   const pool = opts.pool ?? readPool();
   const dir = opts.dir ?? lockDir();
   const owner = opts.owner ?? callerOwnerPid();
-  const session = opts.session === undefined ? sessionIdFromEnv() : opts.session;
+  const session =
+    opts.session === undefined ? sessionIdFromEnv() : opts.session;
   fs.mkdirSync(dir, { recursive: true });
   const order = pool.map((_, i) => i);
-  if (opts.preferred !== undefined && opts.preferred >= 0 && opts.preferred < pool.length) {
+  if (
+    opts.preferred !== undefined &&
+    opts.preferred >= 0 &&
+    opts.preferred < pool.length
+  ) {
     order.splice(order.indexOf(opts.preferred), 1);
     order.unshift(opts.preferred);
   }
@@ -219,7 +281,10 @@ export function acquire(opts: { pool?: PoolDevice[]; preferred?: number; owner?:
     }
     const p = lockPath(device.udid, dir);
     fs.writeFileSync(path.join(p, "pid"), `${owner}\n`);
-    fs.writeFileSync(path.join(p, "since"), `${Math.floor(Date.now() / 1000)}\n`);
+    fs.writeFileSync(
+      path.join(p, "since"),
+      `${Math.floor(Date.now() / 1000)}\n`,
+    );
     if (session) fs.writeFileSync(path.join(p, "session"), `${session}\n`);
     return { device, index: i, ...(reclaimed ? { reclaimed } : {}) };
   }
@@ -230,11 +295,20 @@ export function acquire(opts: { pool?: PoolDevice[]; preferred?: number; owner?:
  * The pool simulator one of these sessions holds, read without spawning
  * anything, so the daemon can ask on a timer (sim/watch.ts).
  */
-export function heldBySession(sessions: string[], pool = readPool(), dir = lockDir()): PoolEntry | undefined {
+export function heldBySession(
+  sessions: string[],
+  pool = readPool(),
+  dir = lockDir(),
+): PoolEntry | undefined {
   if (!sessions.length) return undefined;
   for (const [index, d] of pool.entries()) {
     const lock = readLock(d.udid, dir, { withOwner: false });
-    if (lock.state === "held" && lock.session && sessions.includes(lock.session)) return { ...d, index, ...lock };
+    if (
+      lock.state === "held" &&
+      lock.session &&
+      sessions.includes(lock.session)
+    )
+      return { ...d, index, ...lock };
   }
   return undefined;
 }
@@ -243,6 +317,14 @@ export function heldBySession(sessions: string[], pool = readPool(), dir = lockD
  * The simulator this caller holds: a held lock whose owner is our owner, or
  * whose session is ours. The default target of every per-device command.
  */
-export function heldByCaller(status = poolStatus(), owner = callerOwnerPid(), session = sessionIdFromEnv()): PoolEntry | undefined {
-  return status.find((e) => e.state === "held" && (e.pid === owner || (!!session && e.session === session)));
+export function heldByCaller(
+  status = poolStatus(),
+  owner = callerOwnerPid(),
+  session = sessionIdFromEnv(),
+): PoolEntry | undefined {
+  return status.find(
+    (e) =>
+      e.state === "held" &&
+      (e.pid === owner || (!!session && e.session === session)),
+  );
 }

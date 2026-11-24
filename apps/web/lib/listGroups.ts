@@ -6,7 +6,10 @@ import type { ListGroup } from "../components/GenericListView";
 
 /** The groups a reader can see: a collapsed group keeps its header and hides
  *  every group nested under it. */
-export function visibleGroups<T>(groups: ListGroup<T>[], collapsed: Set<string>): { group: ListGroup<T>; collapsed: boolean }[] {
+export function visibleGroups<T>(
+  groups: ListGroup<T>[],
+  collapsed: Set<string>,
+): { group: ListGroup<T>; collapsed: boolean }[] {
   const out: { group: ListGroup<T>; collapsed: boolean }[] = [];
   let hiddenBelow: number | null = null;
   for (const group of groups) {
@@ -24,7 +27,11 @@ export function visibleGroups<T>(groups: ListGroup<T>[], collapsed: Set<string>)
 export function groupsWithItems<T>(groups: ListGroup<T>[]): ListGroup<T>[] {
   return groups.filter((g, i) => {
     if (g.items.length > 0) return true;
-    for (let j = i + 1; j < groups.length && (groups[j].depth ?? 0) > (g.depth ?? 0); j++) {
+    for (
+      let j = i + 1;
+      j < groups.length && (groups[j].depth ?? 0) > (g.depth ?? 0);
+      j++
+    ) {
       if (groups[j].items.length > 0) return true;
     }
     return false;

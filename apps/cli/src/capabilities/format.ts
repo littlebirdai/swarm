@@ -47,7 +47,10 @@ export function relativeAge(ms: number, now = Date.now()): string {
 
 /** Parse a row's opaque entries. Total: bad JSON is a report problem to show,
  *  never a crash. */
-export function parseEntries(row: DeviceStateRow): { items: CapabilityEntry[]; error?: string } {
+export function parseEntries(row: DeviceStateRow): {
+  items: CapabilityEntry[];
+  error?: string;
+} {
   try {
     const parsed = JSON.parse(row.entries_json);
     const items = Array.isArray(parsed?.items) ? parsed.items : [];
@@ -61,7 +64,10 @@ export function parseEntries(row: DeviceStateRow): { items: CapabilityEntry[]; e
  * The status matrix: one line per device per client, counts by kind, honest
  * about staleness, truncation and scan errors.
  */
-export function formatDeviceMatrix(rows: DeviceStateRow[], now = Date.now()): string {
+export function formatDeviceMatrix(
+  rows: DeviceStateRow[],
+  now = Date.now(),
+): string {
   if (rows.length === 0) {
     return [
       "No machine has reported capabilities yet.",
@@ -73,7 +79,8 @@ export function formatDeviceMatrix(rows: DeviceStateRow[], now = Date.now()): st
   for (const row of rows) {
     const { items, error } = parseEntries(row);
     const byKind = new Map<string, number>();
-    for (const item of items) byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
+    for (const item of items)
+      byKind.set(item.kind, (byKind.get(item.kind) ?? 0) + 1);
     const counts =
       [...byKind.entries()]
         .sort(([a], [b]) => (a < b ? -1 : 1))
@@ -96,7 +103,10 @@ export function formatDeviceMatrix(rows: DeviceStateRow[], now = Date.now()): st
 }
 
 /** One capability as a list line. Foreign text fenced with its provenance. */
-export function formatCapabilityRow(entry: CapabilityEntry, deviceLabel?: string): string {
+export function formatCapabilityRow(
+  entry: CapabilityEntry,
+  deviceLabel?: string,
+): string {
   const state = entry.enabled === false ? "off" : "on";
   const scope = entry.scope && entry.scope !== "user" ? ` @${entry.scope}` : "";
   const where = deviceLabel ? `  (${deviceLabel})` : "";
@@ -109,7 +119,9 @@ export function formatCapabilityRow(entry: CapabilityEntry, deviceLabel?: string
     entry.description.length > DESCRIPTION_COLUMN
       ? entry.description.slice(0, DESCRIPTION_COLUMN - 1) + "…"
       : entry.description;
-  return `${head}\n  ${fenceUnlessBuiltin(bounded, entry.slug ?? "", provenance).split("\n").join("\n  ")}`;
+  return `${head}\n  ${fenceUnlessBuiltin(bounded, entry.slug ?? "", provenance)
+    .split("\n")
+    .join("\n  ")}`;
 }
 
 /** The --json shapes are the parsed data, never the fenced strings: a program

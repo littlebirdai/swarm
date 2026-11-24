@@ -26,7 +26,9 @@ export const TopbarButton = forwardRef<
       className={cn(
         desktopOnly ? "hidden md:flex" : "flex",
         "relative h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-cyan/60 [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:[stroke-width:1.75]",
-        active ? "bg-sol-cyan/10 text-sol-cyan" : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
+        active
+          ? "bg-sol-cyan/10 text-sol-cyan"
+          : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
         // Modern: the icon button at the small control height, the control
         // radius and the one focus ring.
         "modern:size-control-sm modern:rounded-control modern:focus-visible:ring-0 modern:focus-visible:[outline-style:solid] modern:focus-visible:outline-2 modern:focus-visible:outline-offset-1 modern:focus-visible:outline-[color:var(--focus-ring)]",
@@ -58,11 +60,21 @@ export const TopbarChip = forwardRef<
       data-topbar-chip={tinted ? "alert" : ""}
       className={cn(
         "flex h-6 shrink-0 items-center gap-1.5 rounded-md px-2 text-meta font-medium tabular-nums select-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sol-cyan/60",
-        tinted ? "hover:brightness-110" : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
+        tinted
+          ? "hover:brightness-110"
+          : "text-sol-text-muted hover:bg-sol-bg-alt hover:text-sol-text",
         "modern:rounded-control modern:focus-visible:ring-0 modern:focus-visible:[outline-style:solid] modern:focus-visible:outline-2 modern:focus-visible:outline-offset-1 modern:focus-visible:outline-[color:var(--focus-ring)]",
         className,
       )}
-      style={tinted ? { background: `color-mix(in srgb, ${tone} 14%, transparent)`, color: tone, ...style } : style}
+      style={
+        tinted
+          ? {
+              background: `color-mix(in srgb, ${tone} 14%, transparent)`,
+              color: tone,
+              ...style,
+            }
+          : style
+      }
     />
   );
 });
@@ -72,7 +84,13 @@ export const TopbarChip = forwardRef<
  * that separates the bar's other zones. The hairline is a pseudo-element so
  * the group (and its divider) disappears whenever no chip renders.
  */
-export function TopbarTray({ children, className }: { children: ReactNode; className?: string }) {
+export function TopbarTray({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       data-cc-topbar-tray
@@ -88,5 +106,10 @@ export function TopbarTray({ children, className }: { children: ReactNode; class
 
 /** A hairline between groups of top bar controls. */
 export function TopbarDivider() {
-  return <div aria-hidden className="hidden md:block h-4 w-px shrink-0 bg-sol-border" />;
+  return (
+    <div
+      aria-hidden
+      className="hidden md:block h-4 w-px shrink-0 bg-sol-border"
+    />
+  );
 }

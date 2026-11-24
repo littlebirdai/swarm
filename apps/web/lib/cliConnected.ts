@@ -17,7 +17,9 @@ export function markCliConnected(now = Date.now()): void {
 
 export function cliJustConnected(
   now = Date.now(),
-  store: Pick<Storage, "getItem"> | null = "sessionStorage" in globalThis ? sessionStorage : null,
+  store: Pick<Storage, "getItem"> | null = "sessionStorage" in globalThis
+    ? sessionStorage
+    : null,
 ): boolean {
   try {
     const at = Number(store?.getItem(CLI_CONNECTED_KEY));
@@ -30,6 +32,20 @@ export function cliJustConnected(
 /** No CLI has ever checked in for this account: the inbox's first run, which
  *  offers the hosted assistant or the person's own machine. False until the
  *  user doc has synced. */
-export function cliNeverConnected(user: { cli_version?: unknown; daemon_last_seen?: unknown; last_heartbeat?: unknown } | null | undefined): boolean {
-  return user != null && !user.cli_version && !user.daemon_last_seen && !user.last_heartbeat;
+export function cliNeverConnected(
+  user:
+    | {
+        cli_version?: unknown;
+        daemon_last_seen?: unknown;
+        last_heartbeat?: unknown;
+      }
+    | null
+    | undefined,
+): boolean {
+  return (
+    user != null &&
+    !user.cli_version &&
+    !user.daemon_last_seen &&
+    !user.last_heartbeat
+  );
 }

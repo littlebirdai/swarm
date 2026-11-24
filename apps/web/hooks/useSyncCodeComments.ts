@@ -17,11 +17,18 @@ const api = _api as any;
 const KEY = "codeComments";
 
 export function useSyncPRCodeComments(prId: string | undefined) {
-  return useSyncCollection(KEY, api.codeComments.listForPR, prId ? { pull_request_id: prId } : "skip");
+  return useSyncCollection(
+    KEY,
+    api.codeComments.listForPR,
+    prId ? { pull_request_id: prId } : "skip",
+  );
 }
 
 /** Every comment written against one commit or branch tip — the commit page. */
-export function useSyncRefCodeComments(repository: string | undefined, ref: string | undefined) {
+export function useSyncRefCodeComments(
+  repository: string | undefined,
+  ref: string | undefined,
+) {
   return useSyncCollection(
     KEY,
     api.codeComments.listForRef,
@@ -31,7 +38,10 @@ export function useSyncRefCodeComments(repository: string | undefined, ref: stri
 
 /** One file's comments. Left unfiltered by ref on purpose: a note on a line of
  *  source is worth seeing when you open that file at another commit. */
-export function useSyncFileCodeComments(repository: string | undefined, filePath: string | undefined) {
+export function useSyncFileCodeComments(
+  repository: string | undefined,
+  filePath: string | undefined,
+) {
   return useSyncCollection(
     KEY,
     api.codeComments.listForFile,
@@ -42,8 +52,15 @@ export function useSyncFileCodeComments(repository: string | undefined, filePath
 const codeCommentSig = (c: CodeCommentRow) =>
   `${c.content}|${c.resolved ?? ""}|${c.resolved_at ?? ""}|${c.line_number ?? ""}|${c.file_path ?? ""}|${c.pending_review ? 1 : 0}|${c.github_review_id ?? ""}|${c.html_url ?? ""}`;
 
-const byCreatedAsc = (a: CodeCommentRow, b: CodeCommentRow) => a.created_at - b.created_at;
+const byCreatedAsc = (a: CodeCommentRow, b: CodeCommentRow) =>
+  a.created_at - b.created_at;
 
-export function useCodeComments(where?: (row: CodeCommentRow) => boolean): CodeCommentRow[] {
-  return useCollectionRows<CodeCommentRow>(KEY, { where, sig: codeCommentSig, sort: byCreatedAsc });
+export function useCodeComments(
+  where?: (row: CodeCommentRow) => boolean,
+): CodeCommentRow[] {
+  return useCollectionRows<CodeCommentRow>(KEY, {
+    where,
+    sig: codeCommentSig,
+    sort: byCreatedAsc,
+  });
 }

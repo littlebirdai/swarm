@@ -25,9 +25,9 @@ function JoinShell({
   color?: string | null;
   children: ReactNode;
 }) {
-  const style = (color
-    ? { "--team-flow-accent": `var(--sol-${color})` }
-    : undefined) as CSSProperties | undefined;
+  const style = (
+    color ? { "--team-flow-accent": `var(--sol-${color})` } : undefined
+  ) as CSSProperties | undefined;
   return (
     <main
       style={style}
@@ -42,7 +42,10 @@ function JoinShell({
         }}
       />
       <div className="relative w-full max-w-sm">
-        <div className="tf-reveal mb-8 flex justify-center" style={{ "--tf-i": 0 } as CSSProperties}>
+        <div
+          className="tf-reveal mb-8 flex justify-center"
+          style={{ "--tf-i": 0 } as CSSProperties}
+        >
           <Logo size="lg" className="text-sol-text" />
         </div>
         <div className="rounded-2xl border border-sol-border bg-sol-bg-alt/60 p-8 shadow-xl backdrop-blur">
@@ -126,7 +129,7 @@ export default function JoinTeamPage() {
 
   const teamInfo = useQuery(
     api.teams.getTeamByInviteCode,
-    code ? { invite_code: code } : "skip"
+    code ? { invite_code: code } : "skip",
   );
 
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -136,7 +139,8 @@ export default function JoinTeamPage() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
 
-  const isAlreadyMember = currentUser?.team_id?.toString() === teamInfo?._id.toString();
+  const isAlreadyMember =
+    currentUser?.team_id?.toString() === teamInfo?._id.toString();
 
   const goTo = (path: string) => router.push(path);
 
@@ -168,10 +172,13 @@ export default function JoinTeamPage() {
           className="tf-reveal mt-3 text-center text-sm text-sol-text-muted"
           style={{ "--tf-i": 4 } as CSSProperties}
         >
-          This invite link is invalid or was removed. Ask a team admin for a new one.
+          This invite link is invalid or was removed. Ask a team admin for a new
+          one.
         </p>
         <div className="mt-6">
-          <PrimaryButton onClick={() => goTo("/inbox")}>Open codecast</PrimaryButton>
+          <PrimaryButton onClick={() => goTo("/inbox")}>
+            Open codecast
+          </PrimaryButton>
         </div>
       </JoinShell>
     );
@@ -193,7 +200,9 @@ export default function JoinTeamPage() {
           This invite link has expired. Ask a team admin for a new one.
         </p>
         <div className="mt-6">
-          <PrimaryButton onClick={() => goTo("/inbox")}>Open codecast</PrimaryButton>
+          <PrimaryButton onClick={() => goTo("/inbox")}>
+            Open codecast
+          </PrimaryButton>
         </div>
       </JoinShell>
     );
@@ -217,7 +226,9 @@ export default function JoinTeamPage() {
           You are on this team
         </p>
         <div className="mt-6">
-          <PrimaryButton onClick={() => goTo("/team/activity")}>Open the team</PrimaryButton>
+          <PrimaryButton onClick={() => goTo("/team/activity")}>
+            Open the team
+          </PrimaryButton>
         </div>
       </JoinShell>
     );
@@ -234,7 +245,9 @@ export default function JoinTeamPage() {
           memberCount={teamInfo.memberCount}
         />
         <div className="mt-6">
-          <PrimaryButton onClick={() => router.push(`/login?return_to=/join/${code}`)}>
+          <PrimaryButton
+            onClick={() => router.push(`/login?return_to=/join/${code}`)}
+          >
             Sign in to join
           </PrimaryButton>
         </div>

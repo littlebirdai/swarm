@@ -1,5 +1,9 @@
 import type { ConvexReactClient } from "convex/react";
-import type { FunctionArgs, FunctionReference, FunctionReturnType } from "convex/server";
+import type {
+  FunctionArgs,
+  FunctionReference,
+  FunctionReturnType,
+} from "convex/server";
 
 export async function queryWithSignal<Query extends FunctionReference<"query">>(
   client: Pick<ConvexReactClient, "watchQuery">,
@@ -24,10 +28,14 @@ export async function queryWithSignal<Query extends FunctionReference<"query">>(
     const abort = () => finish(() => reject(signal.reason));
     signal.addEventListener("abort", abort, { once: true });
     const read = () => {
-      void Promise.resolve().then(() => watch.localQueryResult()).then(
-        (value) => { if (value !== undefined) finish(() => resolve(value)); },
-        (error) => finish(() => reject(error)),
-      );
+      void Promise.resolve()
+        .then(() => watch.localQueryResult())
+        .then(
+          (value) => {
+            if (value !== undefined) finish(() => resolve(value));
+          },
+          (error) => finish(() => reject(error)),
+        );
     };
     unsubscribe = watch.onUpdate(read);
     if (settled) unsubscribe();

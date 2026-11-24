@@ -22,18 +22,63 @@ async function setup() {
   const t = convexTest(schema, modules);
   const ids = await t.run(async (ctx) => {
     const owner = await ctx.db.insert("users", { name: "Founder" } as any);
-    const team = await ctx.db.insert("teams", { name: "Union", created_at: T0 } as any);
-    const other = await ctx.db.insert("teams", { name: "Other", created_at: T0 } as any);
-    await ctx.db.insert("team_memberships", { user_id: owner, team_id: team, role: "admin", joined_at: T0 } as any);
-    await ctx.db.insert("api_tokens", { user_id: owner, token_hash: await hashToken(TOKEN), name: "cli", created_at: T0, last_used_at: T0 } as any);
-    return { owner, team, workspace: `team:${team}`, otherWorkspace: `team:${other}` };
+    const team = await ctx.db.insert("teams", {
+      name: "Union",
+      created_at: T0,
+    } as any);
+    const other = await ctx.db.insert("teams", {
+      name: "Other",
+      created_at: T0,
+    } as any);
+    await ctx.db.insert("team_memberships", {
+      user_id: owner,
+      team_id: team,
+      role: "admin",
+      joined_at: T0,
+    } as any);
+    await ctx.db.insert("api_tokens", {
+      user_id: owner,
+      token_hash: await hashToken(TOKEN),
+      name: "cli",
+      created_at: T0,
+      last_used_at: T0,
+    } as any);
+    return {
+      owner,
+      team,
+      workspace: `team:${team}`,
+      otherWorkspace: `team:${other}`,
+    };
   });
-  const run = (workspace = ids.workspace, current = "ship") => t.run((ctx) => ctx.db.insert("workflow_runs", {
-    user_id: ids.owner, workspace, team_id: ids.team, workflow_name: "agentwatch", status: "running", current_node_id: current,
-    node_statuses: [], created_at: T0, updated_at: T0,
-  } as any));
-  const admit = (runId: unknown, cap = 2) => t.mutation(api.workflow_runs.admitToStation, { api_token: TOKEN, run_id: runId, node_id: "eval", cap });
-  const report = (runId: unknown, node: string) => t.mutation(api.workflow_runs.updateProgress, { api_token: TOKEN, run_id: runId, current_node_id: node, node_id: node, node_status: "running" });
+  const run = (workspace = ids.workspace, current = "ship") =>
+    t.run((ctx) =>
+      ctx.db.insert("workflow_runs", {
+        user_id: ids.owner,
+        workspace,
+        team_id: ids.team,
+        workflow_name: "agentwatch",
+        status: "running",
+        current_node_id: current,
+        node_statuses: [],
+        created_at: T0,
+        updated_at: T0,
+      } as any),
+    );
+  const admit = (runId: unknown, cap = 2) =>
+    t.mutation(api.workflow_runs.admitToStation, {
+      api_token: TOKEN,
+      run_id: runId,
+      node_id: "eval",
+      cap,
+    });
+  const report = (runId: unknown, node: string) =>
+    t.mutation(api.workflow_runs.updateProgress, {
+      api_token: TOKEN,
+      run_id: runId,
+      current_node_id: node,
+      node_id: node,
+      node_status: "running",
+    });
   return { t, ids, run, admit, report };
 }
 
@@ -43,7 +88,11 @@ describe("workflow_runs.admitToStation", () => {
     const [a, b, c] = [await run(), await run(), await run()];
     expect(await admit(a)).toMatchObject({ admitted: true, inside: 1 });
     expect(await admit(b)).toMatchObject({ admitted: true, inside: 2 });
-    expect(await admit(c)).toMatchObject({ admitted: false, inside: 2, cap: 2 });
+    expect(await admit(c)).toMatchObject({
+      admitted: false,
+      inside: 2,
+      cap: 2,
+    });
     // a goes in, finishes the station and moves on: its place frees.
     await report(a, "eval");
     expect(await admit(c)).toMatchObject({ admitted: false });
@@ -56,9 +105,20 @@ describe("workflow_runs.admitToStation", () => {
   test("a report naming no station leaves the run's stations as they were", async () => {
     const { t, run } = await setup();
     const a = await run(undefined, "eval");
-    await t.mutation(api.workflow_runs.updateProgress, { api_token: TOKEN, run_id: a, current_node_id: "eval", runner_device: "dev-1", graph_hash: "h1" });
-    const row = await t.run((ctx) => ctx.db.get(a as any)) as any;
-    expect(row).toMatchObject({ current_node_id: "eval", runner_device: "dev-1", graph_hash: "h1", node_statuses: [] });
+    await t.mutation(api.workflow_runs.updateProgress, {
+      api_token: TOKEN,
+      run_id: a,
+      current_node_id: "eval",
+      runner_device: "dev-1",
+      graph_hash: "h1",
+    });
+    const row = (await t.run((ctx) => ctx.db.get(a as any))) as any;
+    expect(row).toMatchObject({
+      current_node_id: "eval",
+      runner_device: "dev-1",
+      graph_hash: "h1",
+      node_statuses: [],
+    });
   });
 
   test("a run that holds its place keeps it when its runner asks again", async () => {
@@ -73,7 +133,15 @@ describe("workflow_runs.admitToStation", () => {
     const { t, run, admit } = await setup();
     const [a, b] = [await run(), await run()];
     await admit(a, 1);
-    await t.mutation(api.workflow_runs.updateProgress, { api_token: TOKEN, run_id: a, current_node_id: "eval", node_id: "eval", node_status: "failed", run_status: "failed", fail_reason: "test" });
+    await t.mutation(api.workflow_runs.updateProgress, {
+      api_token: TOKEN,
+      run_id: a,
+      current_node_id: "eval",
+      node_id: "eval",
+      node_status: "failed",
+      run_status: "failed",
+      fail_reason: "test",
+    });
     expect(await admit(b, 1)).toMatchObject({ admitted: true });
   });
 

@@ -1,7 +1,11 @@
 import type { Components } from "react-markdown";
 import { useContext, useState, useCallback, Children } from "react";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { useImageGallery, useGalleryMessageId, ImageLightbox } from "../ImageGallery";
+import {
+  useImageGallery,
+  useGalleryMessageId,
+  ImageLightbox,
+} from "../ImageGallery";
 import { isVideoSrc } from "@codecast/shared/contracts/castPlayer";
 import { isRemoteImageSrc } from "../../lib/trustedImageOrigins";
 import { loadCastPlayer } from "../../lib/loadCastPlayer";
@@ -15,7 +19,10 @@ const WIDE_ASPECT = 2;
 // A portrait image shown whole stops at this height, so a phone screen reads at a glance.
 const WHOLE_PORTRAIT_MAX_HEIGHT = 440;
 
-function imageSizeFromTitle(title: string | null | undefined, fallback: ImageSize): ImageSize {
+function imageSizeFromTitle(
+  title: string | null | undefined,
+  fallback: ImageSize,
+): ImageSize {
   const hint = title?.trim().toLowerCase();
   if (hint === "wide" || hint === "full") return "wide";
   if (hint === "small") return "small";
@@ -33,16 +40,29 @@ function captionFromAlt(alt?: string): string | undefined {
 
 /** A third-party image or video held back until the viewer asks for it:
  *  nothing is fetched from that host before the click. */
-function RemoteMediaGate({ src, kind, onLoad }: { src: string; kind: "image" | "video"; onLoad: () => void }) {
+function RemoteMediaGate({
+  src,
+  kind,
+  onLoad,
+}: {
+  src: string;
+  kind: "image" | "video";
+  onLoad: () => void;
+}) {
   return (
     <span
       className="my-2 flex max-w-md flex-col gap-1.5 rounded-lg border border-dashed border-[color-mix(in_srgb,var(--sol-border)_50%,transparent)] bg-sol-bg-alt p-3 text-xs"
-      onClick={(e) => { e.stopPropagation(); onLoad(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onLoad();
+      }}
       role="button"
       tabIndex={0}
       title={`This ${kind} is served from a third party. Loading it would let that server see your IP and the click. Only load it if you trust the source.`}
     >
-      <span className="font-medium text-sol-text-muted">Remote {kind} not loaded</span>
+      <span className="font-medium text-sol-text-muted">
+        Remote {kind} not loaded
+      </span>
       <span className="break-all text-sol-text-dim">{src}</span>
       <span className="text-sol-blue">Click to load {kind}</span>
     </span>
@@ -67,7 +87,7 @@ export function CollapsibleImage({
    *  author could point at an arbitrary host. */
   trusted?: boolean;
 }) {
-  const src = typeof rawSrc === 'string' ? rawSrc : undefined;
+  const src = typeof rawSrc === "string" ? rawSrc : undefined;
   // Natural width over height, known once the bytes arrive.
   const [aspect, setAspect] = useState<number | null>(null);
   const [clipped, setClipped] = useState(false);
@@ -87,31 +107,47 @@ export function CollapsibleImage({
   const blocked = !!src && !revealed && !trusted && isRemoteImageSrc(src);
 
   useWatchEffect(() => {
-    if (src && gallery && !blocked) gallery.register({ src, href: src, messageId });
+    if (src && gallery && !blocked)
+      gallery.register({ src, href: src, messageId });
   }, [src, messageId, gallery, blocked]);
 
   if (!src || errored) return null;
 
-  if (blocked) return <RemoteMediaGate src={src} kind="image" onLoad={() => setRevealed(true)} />;
+  if (blocked)
+    return (
+      <RemoteMediaGate
+        src={src}
+        kind="image"
+        onLoad={() => setRevealed(true)}
+      />
+    );
 
   const caption = captionFromAlt(alt);
   const size = imageSizeFromTitle(title, fallbackSize);
   const portrait = size === "whole" && aspect !== null && aspect < 1;
-  const fullWidth = size === "wide" || (size === "whole" && !portrait) || (size === "auto" && aspect !== null && aspect >= WIDE_ASPECT);
+  const fullWidth =
+    size === "wide" ||
+    (size === "whole" && !portrait) ||
+    (size === "auto" && aspect !== null && aspect >= WIDE_ASPECT);
   // The frame hugs the image up to the cap, so a short image gets no dead
   // space under it and the fade appears only over a cut-off bottom.
-  const cap = size === "wide" || size === "whole" ? undefined : MD_IMAGE_COLLAPSED_HEIGHT;
+  const cap =
+    size === "wide" || size === "whole" ? undefined : MD_IMAGE_COLLAPSED_HEIGHT;
   return (
     <span
       className={`my-2 block cursor-pointer ${size === "small" ? "max-w-60" : portrait ? "w-fit max-w-full" : fullWidth ? "max-w-full" : "max-w-md"}`}
       onClick={() => (gallery ? gallery.open(src) : setSoloOpen(true))}
     >
-      {soloOpen && <ImageLightbox src={src} onClose={() => setSoloOpen(false)} />}
+      {soloOpen && (
+        <ImageLightbox src={src} onClose={() => setSoloOpen(false)} />
+      )}
       {/* Soft borders need explicit color-mix values: Tailwind's /opacity
           modifier is a silent no-op on the bare --sol-* var tokens. */}
       <span
         className="relative block overflow-hidden rounded-lg border border-[color-mix(in_srgb,var(--sol-border)_35%,transparent)] hover:border-[color-mix(in_srgb,var(--sol-blue)_40%,transparent)] transition-colors"
-        style={loaded ? { maxHeight: cap } : { height: MD_IMAGE_COLLAPSED_HEIGHT }}
+        style={
+          loaded ? { maxHeight: cap } : { height: MD_IMAGE_COLLAPSED_HEIGHT }
+        }
       >
         {!loaded && (
           <span className="absolute inset-0 bg-sol-bg-alt flex items-center justify-center z-10">
@@ -121,25 +157,47 @@ export function CollapsibleImage({
         <img
           src={src}
           alt={alt || "Image"}
-          className={portrait ? "block h-auto w-auto max-w-full" : "block w-full h-auto"}
-          style={loaded ? (portrait ? { maxHeight: WHOLE_PORTRAIT_MAX_HEIGHT } : undefined) : { width: 0, height: 0, overflow: 'hidden', position: 'absolute' }}
+          className={
+            portrait ? "block h-auto w-auto max-w-full" : "block w-full h-auto"
+          }
+          style={
+            loaded
+              ? portrait
+                ? { maxHeight: WHOLE_PORTRAIT_MAX_HEIGHT }
+                : undefined
+              : {
+                  width: 0,
+                  height: 0,
+                  overflow: "hidden",
+                  position: "absolute",
+                }
+          }
           onLoad={(e) => {
             const img = e.currentTarget;
-            setAspect(img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1);
+            setAspect(
+              img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1,
+            );
           }}
           onError={() => setErrored(true)}
         />
         {/* Measured from the rendered box, so a column resize re-decides it. */}
-        {loaded && cap !== undefined && <ClipProbe cap={cap} onChange={setClipped} />}
+        {loaded && cap !== undefined && (
+          <ClipProbe cap={cap} onChange={setClipped} />
+        )}
         {clipped && cap !== undefined && (
           <span
             className="absolute inset-x-0 bottom-0 h-16 pointer-events-none block"
-            style={{ background: 'linear-gradient(to bottom, transparent, var(--image-fade-bg, var(--sol-bg, #0a0a0a)))' }}
+            style={{
+              background:
+                "linear-gradient(to bottom, transparent, var(--image-fade-bg, var(--sol-bg, #0a0a0a)))",
+            }}
           />
         )}
       </span>
       {caption && (
-        <span className="block mt-1 text-meta leading-snug text-sol-text-muted">{caption}</span>
+        <span className="block mt-1 text-meta leading-snug text-sol-text-muted">
+          {caption}
+        </span>
       )}
     </span>
   );
@@ -147,45 +205,84 @@ export function CollapsibleImage({
 
 /** Reports whether the image in its frame runs past the cap. Lives inside the
  *  frame so it can watch the image beside it without a ref on the frame. */
-function ClipProbe({ cap, onChange }: { cap: number; onChange: (clipped: boolean) => void }) {
-  const watch = useCallback((probe: HTMLSpanElement | null) => {
-    const img = probe?.previousElementSibling;
-    if (!(img instanceof HTMLImageElement)) return;
-    // From the observer's entries: its first one lands after layout and
-    // before paint, so the answer costs no forced read on mount.
-    if (typeof ResizeObserver === "undefined") { onChange(img.getBoundingClientRect().height > cap + 1); return; }
-    const observer = new ResizeObserver((entries) => {
-      const box = entries[entries.length - 1]?.borderBoxSize?.[0];
-      onChange((box ? box.blockSize : img.getBoundingClientRect().height) > cap + 1);
-    });
-    observer.observe(img);
-    return () => observer.disconnect();
-  }, [cap, onChange]);
+function ClipProbe({
+  cap,
+  onChange,
+}: {
+  cap: number;
+  onChange: (clipped: boolean) => void;
+}) {
+  const watch = useCallback(
+    (probe: HTMLSpanElement | null) => {
+      const img = probe?.previousElementSibling;
+      if (!(img instanceof HTMLImageElement)) return;
+      // From the observer's entries: its first one lands after layout and
+      // before paint, so the answer costs no forced read on mount.
+      if (typeof ResizeObserver === "undefined") {
+        onChange(img.getBoundingClientRect().height > cap + 1);
+        return;
+      }
+      const observer = new ResizeObserver((entries) => {
+        const box = entries[entries.length - 1]?.borderBoxSize?.[0];
+        onChange(
+          (box ? box.blockSize : img.getBoundingClientRect().height) > cap + 1,
+        );
+      });
+      observer.observe(img);
+      return () => observer.disconnect();
+    },
+    [cap, onChange],
+  );
   return <span hidden ref={watch} />;
 }
 
 /** The `img` override every markdown surface shares. It forwards only what
  *  markdown can state, so a node prop can never switch on `trusted`. */
-export function MarkdownImg({ src, alt, title }: { src?: string | Blob; alt?: string; title?: string }) {
-  if (typeof src === "string" && isVideoSrc(src)) return <InlineVideo src={src} alt={alt} title={title} />;
+export function MarkdownImg({
+  src,
+  alt,
+  title,
+}: {
+  src?: string | Blob;
+  alt?: string;
+  title?: string;
+}) {
+  if (typeof src === "string" && isVideoSrc(src))
+    return <InlineVideo src={src} alt={alt} title={title} />;
   return <CollapsibleImage src={src} alt={alt} title={title} />;
 }
 
 // A portrait video stops at this height, like a portrait image shown whole.
 const VIDEO_MAX_HEIGHT = 480;
 
-type CastPlayerEl = HTMLElement & { currentTime: number; paused: boolean; playbackRate: number; seek(t: number): void; play(): void };
+type CastPlayerEl = HTMLElement & {
+  currentTime: number;
+  paused: boolean;
+  playbackRate: number;
+  seek(t: number): void;
+  play(): void;
+};
 
 // Where each video stood when its row last unmounted. The transcript is
 // virtualized, so a row scrolled far away unmounts and its player goes with
 // it; coming back picks up at the same time and speed, still playing if it was.
-const videoPlace = new Map<string, { t: number; rate: number; playing: boolean }>();
+const videoPlace = new Map<
+  string,
+  { t: number; rate: number; playing: boolean }
+>();
 
 function rememberPlace(src: string, player: CastPlayerEl) {
   try {
-    if (!player.shadowRoot || (player.currentTime < 0.5 && player.paused)) return;
-    videoPlace.set(src, { t: player.currentTime, rate: player.playbackRate, playing: !player.paused });
-  } catch { /* never built: nothing to keep */ }
+    if (!player.shadowRoot || (player.currentTime < 0.5 && player.paused))
+      return;
+    videoPlace.set(src, {
+      t: player.currentTime,
+      rate: player.playbackRate,
+      playing: !player.paused,
+    });
+  } catch {
+    /* never built: nothing to keep */
+  }
 }
 
 /** Put a remounted player back where it stood. Seeking waits for the length,
@@ -193,55 +290,88 @@ function rememberPlace(src: string, player: CastPlayerEl) {
 function restorePlace(src: string, player: CastPlayerEl) {
   const place = videoPlace.get(src);
   if (!place) return;
-  player.addEventListener("durationchange", () => {
-    player.playbackRate = place.rate;
-    player.setAttribute("data-started", "");
-    player.seek(place.t);
-    if (place.playing) player.play();
-  }, { once: true });
+  player.addEventListener(
+    "durationchange",
+    () => {
+      player.playbackRate = place.rate;
+      player.setAttribute("data-started", "");
+      player.seek(place.t);
+      if (place.playing) player.play();
+    },
+    { once: true },
+  );
 }
 
 /** `![caption](clip.mp4)`: the video plays inline in the cast player (speed,
  *  scrubbing, theater), sized like an image and captioned the same way. */
-function InlineVideo({ src, alt, title }: { src: string; alt?: string; title?: string }) {
+function InlineVideo({
+  src,
+  alt,
+  title,
+}: {
+  src: string;
+  alt?: string;
+  title?: string;
+}) {
   const [revealed, setRevealed] = useState(false);
   const blocked = !revealed && isRemoteImageSrc(src);
   const fallbackSize = useContext(MarkdownImageSize);
   const size = imageSizeFromTitle(title, fallbackSize);
   const caption = captionFromAlt(alt);
 
-  const mount = useCallback((host: HTMLSpanElement | null) => {
-    if (!host) return;
-    loadCastPlayer();
-    const player = document.createElement("cast-player") as CastPlayerEl;
-    player.setAttribute("src", src);
-    player.setAttribute("data-auto-aspect", "");
-    player.setAttribute("aria-label", caption ?? "Video");
-    // The player writes the file's shape into --cast-aspect once it knows it;
-    // a portrait clip then narrows so it stops at VIDEO_MAX_HEIGHT.
-    const shape = new MutationObserver(() => {
-      const [w, h] = player.style.getPropertyValue("--cast-aspect").split("/").map(Number);
-      if (w && h) player.style.maxWidth = h > w ? `${(VIDEO_MAX_HEIGHT * w) / h}px` : "";
-    });
-    shape.observe(player, { attributes: true, attributeFilter: ["style"] });
-    // Keys the player used (space, j/l, arrows, f, m) stop here, so they never
-    // also reach the app's own shortcuts.
-    const keys = (e: KeyboardEvent) => { if (e.defaultPrevented) e.stopPropagation(); };
-    host.addEventListener("keydown", keys);
-    restorePlace(src, player);
-    host.appendChild(player);
-    return () => {
-      rememberPlace(src, player);
-      shape.disconnect();
-      host.removeEventListener("keydown", keys);
-      player.remove();
-    };
-  }, [src, caption]);
+  const mount = useCallback(
+    (host: HTMLSpanElement | null) => {
+      if (!host) return;
+      loadCastPlayer();
+      const player = document.createElement("cast-player") as CastPlayerEl;
+      player.setAttribute("src", src);
+      player.setAttribute("data-auto-aspect", "");
+      player.setAttribute("aria-label", caption ?? "Video");
+      // The player writes the file's shape into --cast-aspect once it knows it;
+      // a portrait clip then narrows so it stops at VIDEO_MAX_HEIGHT.
+      const shape = new MutationObserver(() => {
+        const [w, h] = player.style
+          .getPropertyValue("--cast-aspect")
+          .split("/")
+          .map(Number);
+        if (w && h)
+          player.style.maxWidth =
+            h > w ? `${(VIDEO_MAX_HEIGHT * w) / h}px` : "";
+      });
+      shape.observe(player, { attributes: true, attributeFilter: ["style"] });
+      // Keys the player used (space, j/l, arrows, f, m) stop here, so they never
+      // also reach the app's own shortcuts.
+      const keys = (e: KeyboardEvent) => {
+        if (e.defaultPrevented) e.stopPropagation();
+      };
+      host.addEventListener("keydown", keys);
+      restorePlace(src, player);
+      host.appendChild(player);
+      return () => {
+        rememberPlace(src, player);
+        shape.disconnect();
+        host.removeEventListener("keydown", keys);
+        player.remove();
+      };
+    },
+    [src, caption],
+  );
 
-  if (blocked) return <RemoteMediaGate src={src} kind="video" onLoad={() => setRevealed(true)} />;
-  const width = size === "small" ? "max-w-60" : size === "auto" ? "max-w-xl" : "max-w-full";
+  if (blocked)
+    return (
+      <RemoteMediaGate
+        src={src}
+        kind="video"
+        onLoad={() => setRevealed(true)}
+      />
+    );
+  const width =
+    size === "small" ? "max-w-60" : size === "auto" ? "max-w-xl" : "max-w-full";
   return (
-    <span className={`my-2 block ${width}`} onClick={(e) => e.stopPropagation()}>
+    <span
+      className={`my-2 block ${width}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <span
         ref={mount}
         className="block [&>cast-player]:block [&>cast-player]:w-full"
@@ -251,7 +381,11 @@ function InlineVideo({ src, alt, title }: { src: string; alt?: string; title?: s
           ["--cast-font" as string]: "inherit",
         }}
       />
-      {caption && <span className="block mt-1 text-meta leading-snug text-sol-text-muted">{caption}</span>}
+      {caption && (
+        <span className="block mt-1 text-meta leading-snug text-sol-text-muted">
+          {caption}
+        </span>
+      )}
     </span>
   );
 }
@@ -262,27 +396,40 @@ function InlineVideo({ src, alt, title }: { src: string; alt?: string; title?: s
 // already rendered through the active component map's `img` (CollapsibleImage
 // here, VaultImage in the vault), so per-surface image behavior — click gates,
 // vault path resolution, gallery registration — is untouched.
-function countImageOnlyChildren(node: { children?: Array<{ type?: string; tagName?: string; value?: string }> } | undefined): number {
+function countImageOnlyChildren(
+  node:
+    | { children?: Array<{ type?: string; tagName?: string; value?: string }> }
+    | undefined,
+): number {
   let count = 0;
   for (const child of node?.children ?? []) {
-    if (child.type === 'element' && child.tagName === 'img') count++;
-    else if (child.type === 'text' && !child.value?.trim()) continue;
-    else if (child.type === 'element' && child.tagName === 'br') continue;
+    if (child.type === "element" && child.tagName === "img") count++;
+    else if (child.type === "text" && !child.value?.trim()) continue;
+    else if (child.type === "element" && child.tagName === "br") continue;
     else return 0;
   }
   return count;
 }
 
-export const ImageRowParagraph: Components['p'] = ({ node, children, ...props }) => {
+export const ImageRowParagraph: Components["p"] = ({
+  node,
+  children,
+  ...props
+}) => {
   const imageCount = countImageOnlyChildren(node);
   if (imageCount >= 2) {
     // Whitespace text nodes between the markdown images would become empty
     // grid cells — keep only the rendered elements.
-    const items = Children.toArray(children).filter((c) => typeof c !== 'string' || c.trim() !== '');
+    const items = Children.toArray(children).filter(
+      (c) => typeof c !== "string" || c.trim() !== "",
+    );
     return (
       <span
         className="my-2 grid gap-x-2"
-        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(200px, 1fr))`, maxWidth: imageCount === 2 ? 560 : undefined }}
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(200px, 1fr))`,
+          maxWidth: imageCount === 2 ? 560 : undefined,
+        }}
       >
         {items}
       </span>
@@ -290,4 +437,3 @@ export const ImageRowParagraph: Components['p'] = ({ node, children, ...props })
   }
   return <p {...props}>{children}</p>;
 };
-

@@ -31,7 +31,10 @@ export const MENTION_WAKES_PER_TARGET_HOUR = 30;
 // credit. The mention rail (sender: the person) and the mention-reply relay
 // (sender: the replying session) both count against these keys, so an agent
 // answering an agent costs what a fresh mention costs.
-export function mentionWakeQuotas(senderKey: string, targetKey: string): { key: string; limit: number }[] {
+export function mentionWakeQuotas(
+  senderKey: string,
+  targetKey: string,
+): { key: string; limit: number }[] {
   return [
     { key: `mention_from:${senderKey}`, limit: MENTION_WAKES_PER_SENDER_HOUR },
     { key: `mention_to:${targetKey}`, limit: MENTION_WAKES_PER_TARGET_HOUR },
@@ -42,7 +45,10 @@ export function mentionWakeQuotas(senderKey: string, targetKey: string): { key: 
 // line by the session behind it. The session id is the caller's own stamp (an
 // honest downgrade, like `origin`): narrowing the count to a session is a
 // convenience for a fleet of sessions under one human, not a boundary.
-export function agentPosterKey(userId: string, originSessionId?: string): string {
+export function agentPosterKey(
+  userId: string,
+  originSessionId?: string,
+): string {
   return originSessionId ? `${userId}:${originSessionId}` : String(userId);
 }
 
@@ -83,21 +89,33 @@ export async function reserveQuotas(
   bucket: string,
   quotas: { key: string; limit: number }[],
 ): Promise<(() => Promise<void>) | null> {
-  const rows = await Promise.all(quotas.map(({ key }) =>
-    ctx.db
-      .query("chat_agent_quota")
-      .withIndex("by_key_bucket", (q: any) => q.eq("key", key).eq("bucket", bucket))
-      .first(),
-  ));
-  if (quotas.some(({ limit }, i) => (rows[i]?.count ?? 0) + 1 > limit)) return null;
+  const rows = await Promise.all(
+    quotas.map(({ key }) =>
+      ctx.db
+        .query("chat_agent_quota")
+        .withIndex("by_key_bucket", (q: any) =>
+          q.eq("key", key).eq("bucket", bucket),
+        )
+        .first(),
+    ),
+  );
+  if (quotas.some(({ limit }, i) => (rows[i]?.count ?? 0) + 1 > limit))
+    return null;
   return async () => {
     const now = Date.now();
-    await Promise.all(quotas.map(({ key }, i) => {
-      const row = rows[i];
-      return row
-        ? ctx.db.patch(row._id, { count: row.count + 1, updated_at: now })
-        : ctx.db.insert("chat_agent_quota", { key, bucket, count: 1, updated_at: now });
-    }));
+    await Promise.all(
+      quotas.map(({ key }, i) => {
+        const row = rows[i];
+        return row
+          ? ctx.db.patch(row._id, { count: row.count + 1, updated_at: now })
+          : ctx.db.insert("chat_agent_quota", {
+              key,
+              bucket,
+              count: 1,
+              updated_at: now,
+            });
+      }),
+    );
   };
 }
 
@@ -116,10 +134,29 @@ export async function takeAgentPostQuota(
   const bucket = dm ? await dmQuotaBucket(ctx, channel._id) : dayBucket();
   const where = dm ? "this conversation" : `#${channel.name}`;
   const perDay = !bucket.startsWith("since:");
-  if (isRoot && !(await takeQuota(ctx, `root:${channel._id}:${posterKey}`, bucket, AGENT_ROOTS_PER_CHANNEL_DAY)).ok) {
+  if (
+    isRoot &&
+    !(
+      await takeQuota(
+        ctx,
+        `root:${channel._id}:${posterKey}`,
+        bucket,
+        AGENT_ROOTS_PER_CHANNEL_DAY,
+      )
+    ).ok
+  ) {
     return `An agent may start at most ${AGENT_ROOTS_PER_CHANNEL_DAY} threads ${perDay ? "per day " : ""}in ${where}${perDay ? "" : " until a person writes in it"}; reply in an existing thread instead (--thread <root>)`;
   }
-  if (!(await takeQuota(ctx, `post:${channel._id}:${posterKey}`, bucket, AGENT_POSTS_PER_CHANNEL_DAY)).ok) {
+  if (
+    !(
+      await takeQuota(
+        ctx,
+        `post:${channel._id}:${posterKey}`,
+        bucket,
+        AGENT_POSTS_PER_CHANNEL_DAY,
+      )
+    ).ok
+  ) {
     return perDay
       ? `An agent may post at most ${AGENT_POSTS_PER_CHANNEL_DAY} lines per day in ${where}; the cap resets at midnight UTC`
       : `An agent may post at most ${AGENT_POSTS_PER_CHANNEL_DAY} lines in ${where} until a person writes in it`;
@@ -134,7 +171,10 @@ export async function takeAgentPostQuota(
 // lines with no person among them it falls back to the room rule, per UTC day.
 const DM_QUOTA_SCAN = 300;
 
-async function dmQuotaBucket(ctx: Pick<MutationCtx, "db">, channelId: Id<"chat_channels">): Promise<string> {
+async function dmQuotaBucket(
+  ctx: Pick<MutationCtx, "db">,
+  channelId: Id<"chat_channels">,
+): Promise<string> {
   const bots = new Map<string, boolean>();
   let scanned = 0;
   for await (const row of ctx.db
@@ -144,7 +184,8 @@ async function dmQuotaBucket(ctx: Pick<MutationCtx, "db">, channelId: Id<"chat_c
     if (++scanned > DM_QUOTA_SCAN) return `day:${dayBucket()}`;
     if (row.origin === "agent" || row.author_kind === "agent") continue;
     const key = row.user_id.toString();
-    if (!bots.has(key)) bots.set(key, !!(await ctx.db.get(row.user_id))?.is_bot);
+    if (!bots.has(key))
+      bots.set(key, !!(await ctx.db.get(row.user_id))?.is_bot);
     if (!bots.get(key)) return `since:${row.created_at}`;
   }
   return "since:0";

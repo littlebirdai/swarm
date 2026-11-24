@@ -1,32 +1,79 @@
-import { heartbeatOf, heartbeatsFor, heartbeatsForUser } from "./lib/sessionHeartbeat";
+import {
+  heartbeatOf,
+  heartbeatsFor,
+  heartbeatsForUser,
+} from "./lib/sessionHeartbeat";
 import { refuseSeatKill } from "./lib/seatKill";
 import { hasDeliverableMessage } from "./lib/closeAside";
 import { sanitizeConvexObjectKeys } from "./lib/convexFieldNames";
 import { noteWriteCause } from "./lifecycleEvents";
 import { isClaudeSubagentSessionId } from "./lib/claudeSubagentSession";
 import { wakeFieldsOf } from "./wakeCost";
-import { cliSessionClassifier, recencyRankOf, type RecencyRank } from "./cliSessionClassifier";
-import { mutation, query, internalMutation, internalQuery, type QueryCtx, type MutationCtx } from "./functions";
+import {
+  cliSessionClassifier,
+  recencyRankOf,
+  type RecencyRank,
+} from "./cliSessionClassifier";
+import {
+  mutation,
+  query,
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+  type MutationCtx,
+} from "./functions";
 import { v } from "convex/values";
 import { enqueueStartSession, resolveOwnerDevice } from "./devices";
-import { fleetRowFields, outcomeOfDeclaration, subagentEnded } from "./subagentFleet";
-import { CLOUD_UNPARK_PATCH, parkOnCloudHost, resolveCloudDevice, supersedeCloudSpawns, unparkForMove } from "./cloudPlacement";
-import { cloudSeedArg, cloudStartFromArg, effectiveStartFrom, cloudWorkspaceValidator, findSharedCheckoutOccupant } from "./cloudPlacement";
-import { cloudPlacementFor,
+import {
+  fleetRowFields,
+  outcomeOfDeclaration,
+  subagentEnded,
+} from "./subagentFleet";
+import {
+  CLOUD_UNPARK_PATCH,
+  parkOnCloudHost,
+  resolveCloudDevice,
+  supersedeCloudSpawns,
+  unparkForMove,
+} from "./cloudPlacement";
+import {
+  cloudSeedArg,
+  cloudStartFromArg,
+  effectiveStartFrom,
+  cloudWorkspaceValidator,
+  findSharedCheckoutOccupant,
+} from "./cloudPlacement";
+import {
+  cloudPlacementFor,
   checkoutInUseMessage,
   posixRepoBasename,
   agentTypeChangeRefusal,
   titleLine,
 } from "@codecast/shared/contracts";
 import { enqueueCloudSpawn } from "./cloudPlacement";
-import { isConversationSafetyBlocked, safetyBlockPatch } from "./conversationSafety";
+import {
+  isConversationSafetyBlocked,
+  safetyBlockPatch,
+} from "./conversationSafety";
 import { onFreshApiErrorPark } from "./accountSwitch";
-import { findConversationBySessionReference, resolveConversationRefRanked, findConversationByAnyRefWhere, findConversationByAnyRef, otherShortIdMatches } from "./conversationSessionLookup";
+import {
+  findConversationBySessionReference,
+  resolveConversationRefRanked,
+  findConversationByAnyRefWhere,
+  findConversationByAnyRef,
+  otherShortIdMatches,
+} from "./conversationSessionLookup";
 import { applyHideTransition, cascadeHideToNestedChildren } from "./cleanup";
 import { paginationOptsValidator } from "convex/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { AgentStatus, ThreadStateStatus } from "@codecast/shared/contracts";
-import { PATCHABLE_CONVERSATION_FIELDS, forkSeedClientId } from "@codecast/shared/contracts";
+import type {
+  AgentStatus,
+  ThreadStateStatus,
+} from "@codecast/shared/contracts";
+import {
+  PATCHABLE_CONVERSATION_FIELDS,
+  forkSeedClientId,
+} from "@codecast/shared/contracts";
 import { identityFieldsOf } from "./lib/sessionIdentityFields";
 import { normalizeCharacterFields } from "@codecast/shared/contracts/sessionCharacter";
 import { isHotRow, splitRows } from "@codecast/shared/contracts/inboxSplit";
@@ -69,20 +116,103 @@ import { Doc, Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./rateLimit";
 import { verifyApiToken } from "./apiTokens";
 import { internal } from "./_generated/api";
-import { resetConversationPendingMessages, cancelQueuedMessagesOnKill, enqueuePendingMessage } from "./pendingMessages";
-import { latestImagePreviewUrl, listConversationFileChanges } from "./lib/messageReads";
-import { inboxVisibilityFields, INBOX_PINNED_CAP, pinCapExceeded, PIN_CAP_ERROR } from "./inboxProjection";
-import { cancelTasksBoundToConversation, reactivateTasksCanceledOnKill, stampRunConversation, tasksOriginatedBy } from "./lib/agentTaskRows";
+import {
+  resetConversationPendingMessages,
+  cancelQueuedMessagesOnKill,
+  enqueuePendingMessage,
+} from "./pendingMessages";
+import {
+  latestImagePreviewUrl,
+  listConversationFileChanges,
+} from "./lib/messageReads";
+import {
+  inboxVisibilityFields,
+  INBOX_PINNED_CAP,
+  pinCapExceeded,
+  PIN_CAP_ERROR,
+} from "./inboxProjection";
+import {
+  cancelTasksBoundToConversation,
+  reactivateTasksCanceledOnKill,
+  stampRunConversation,
+  tasksOriginatedBy,
+} from "./lib/agentTaskRows";
 import { advanceForkCopy, type ForkCopyCtx } from "./forkCopy";
-import { hasRecentPendingDaemonCommand, extractDaemonCommandConversationId, enqueueResumeSession, enqueueHibernateSession, requireSessionCommandTarget, findSessionCommandByRequest, recentConversationCommands, validateSessionCommandRequestId, stopAndSendForUser, insertEscapeCommand } from "./daemonCommandUtils";
+import {
+  hasRecentPendingDaemonCommand,
+  extractDaemonCommandConversationId,
+  enqueueResumeSession,
+  enqueueHibernateSession,
+  requireSessionCommandTarget,
+  findSessionCommandByRequest,
+  recentConversationCommands,
+  validateSessionCommandRequestId,
+  stopAndSendForUser,
+  insertEscapeCommand,
+} from "./daemonCommandUtils";
 import { normalizePaneUrl } from "@codecast/shared/contracts/browserPaneOffer";
-import { AGENT_MODEL_CONFIG, AGENT_CLIENTS, modelAgentKey, fromConvexAgentType, localAgentTypeOf, toConvexAgentType, normalizeThreadState, parseThreadStateStatus, clearedThreadStateFields, THREAD_STATE_RESULT_MAX_CHARS, formatAgentSwitchNotice, findModelOption, canSessionBecomeAgent, agentForksFromAnyMessage, agentForksNatively, isHostedAgentType, computeConversationTaskStats, isTodoStatTool } from "@codecast/shared/contracts";
-import { shouldShowInInbox, isNoiseTitle, isOrphanOrSubagent, isAdoptedChild, isRunLog, isSessionIdle, deriveSessionActivity, lastRoleIsUserOf, classifyWorkState, classifyRetirement, normalizeWorkStateFilter, trustedAgentStatus, subagentIsProducing, userRestOf, userRestStampOf, isSettleVerdictCurrent, ACTIVE_AGENT_STATUSES, SUBAGENT_PRODUCING_GRACE_MS, HEARTBEAT_ALIVE_MS, STATUS_TRUST_TTL_MS, AGENT_IDLE_GRACE_MS, type WorkState } from "./inboxFilters";
+import {
+  AGENT_MODEL_CONFIG,
+  AGENT_CLIENTS,
+  modelAgentKey,
+  fromConvexAgentType,
+  localAgentTypeOf,
+  toConvexAgentType,
+  normalizeThreadState,
+  parseThreadStateStatus,
+  clearedThreadStateFields,
+  THREAD_STATE_RESULT_MAX_CHARS,
+  formatAgentSwitchNotice,
+  findModelOption,
+  canSessionBecomeAgent,
+  agentForksFromAnyMessage,
+  agentForksNatively,
+  isHostedAgentType,
+  computeConversationTaskStats,
+  isTodoStatTool,
+} from "@codecast/shared/contracts";
+import {
+  shouldShowInInbox,
+  isNoiseTitle,
+  isOrphanOrSubagent,
+  isAdoptedChild,
+  isRunLog,
+  isSessionIdle,
+  deriveSessionActivity,
+  lastRoleIsUserOf,
+  classifyWorkState,
+  classifyRetirement,
+  normalizeWorkStateFilter,
+  trustedAgentStatus,
+  subagentIsProducing,
+  userRestOf,
+  userRestStampOf,
+  isSettleVerdictCurrent,
+  ACTIVE_AGENT_STATUSES,
+  SUBAGENT_PRODUCING_GRACE_MS,
+  HEARTBEAT_ALIVE_MS,
+  STATUS_TRUST_TTL_MS,
+  AGENT_IDLE_GRACE_MS,
+  type WorkState,
+} from "./inboxFilters";
 import { scheduleLiveActivityRefresh } from "./lib/liveActivityRefresh";
 import { nestParentIdOf, subagentLinkFields } from "./ccAccountsShared";
 import { isSessionOwner, sessionOwnerRow } from "./sessionOwners";
-import { hideConversationForViewer, unhideConversationForViewer, viewerHiddenConversationIds } from "./inboxHides";
-import { approxMessageBytes, filterUserMessages, isImportNotice, isNavigableUserMessage, navPromptField, navPromptPatch, toNavigatorRow, type FilteredUserMessage } from "./userMessagesFilter";
+import {
+  hideConversationForViewer,
+  unhideConversationForViewer,
+  viewerHiddenConversationIds,
+} from "./inboxHides";
+import {
+  approxMessageBytes,
+  filterUserMessages,
+  isImportNotice,
+  isNavigableUserMessage,
+  navPromptField,
+  navPromptPatch,
+  toNavigatorRow,
+  type FilteredUserMessage,
+} from "./userMessagesFilter";
 import {
   isTeamMember,
   canTeamMemberAccess,
@@ -103,15 +233,26 @@ import {
   type TeamFloor,
   matchDirectoryMapping,
 } from "./privacy";
-import { currentMembershipVisibility, effectiveMembershipVisibility } from "./teamVisibility";
+import {
+  currentMembershipVisibility,
+  effectiveMembershipVisibility,
+} from "./teamVisibility";
 import { activeTeamMembershipFor, canAccessConversation } from "./lib/access";
 import { linkedPullRequestNumbers } from "./lib/prSessions";
-import { resolveSearchSelf, searchParentId, selfFamilyTest } from "./lib/searchSelf";
+import {
+  resolveSearchSelf,
+  searchParentId,
+  selfFamilyTest,
+} from "./lib/searchSelf";
 import { patchConversationVisibility } from "./lib/conversationVisibility";
 import { isStaff } from "./lib/staff";
 import { batchScanConversations, paginateTeamFeed } from "./feedPagination";
 import { mergeUserMessageFeed, type FeedCandidate } from "./messageFeed";
-import { assignConversationToBucketForUser, resolveLabelConvIds, matchBucketByName } from "./buckets";
+import {
+  assignConversationToBucketForUser,
+  resolveLabelConvIds,
+  matchBucketByName,
+} from "./buckets";
 import { advanceCommentsAccessRevision } from "./commentViewWrites";
 import { projectOverlaps } from "./projectPaths";
 import {
@@ -131,9 +272,27 @@ import {
   type ParsedTerms,
 } from "./searchCore";
 import { MIRROR_WINDOW_MS } from "./searchMirror";
-import { READ_PAGE_SIZE, READ_STEP_BYTES, messageHasFindTerms, type ScanCursor } from "./lib/conversationRead";
-import { addEvidence, emptyEvidence, parseSearchTerms as parseFindTerms, parseSessionQuery, relevanceTier, snippetAround, stripWrapperTags, type SessionQuery } from "@codecast/shared/search";
-import { narrowByOperators, type OperatorCandidate, type OperatorScope } from "./sessionQuerySearch";
+import {
+  READ_PAGE_SIZE,
+  READ_STEP_BYTES,
+  messageHasFindTerms,
+  type ScanCursor,
+} from "./lib/conversationRead";
+import {
+  addEvidence,
+  emptyEvidence,
+  parseSearchTerms as parseFindTerms,
+  parseSessionQuery,
+  relevanceTier,
+  snippetAround,
+  stripWrapperTags,
+  type SessionQuery,
+} from "@codecast/shared/search";
+import {
+  narrowByOperators,
+  type OperatorCandidate,
+  type OperatorScope,
+} from "./sessionQuerySearch";
 import { requireUser } from "./lib/auth";
 import { isDaemonManagedRow, liveConversationIdSet } from "./lib/liveSessions";
 import { isDeletedSession } from "./lib/deletedSessions";
@@ -155,7 +314,11 @@ import {
   setFavoriteWithRevision,
   toggleFavoriteWithRevision,
 } from "./favoriteViewWrites";
-import { formatSlugAsTitle, generateShareToken, isNonEmptyMessage } from "./lib/conversationBasics";
+import {
+  formatSlugAsTitle,
+  generateShareToken,
+  isNonEmptyMessage,
+} from "./lib/conversationBasics";
 export { generateShareToken, isNonEmptyMessage };
 
 // Single relevance-ranked search-index lookup shared by every message-search
@@ -202,7 +365,11 @@ const MESSAGE_POOL_TAKE = 512;
 
 async function messageSearchTier(ctx: QueryCtx): Promise<{
   tier: "recent" | "deep";
-  search: (text: string, filter?: SearchPoolFilter, take?: number) => Promise<SearchPoolMessage[]>;
+  search: (
+    text: string,
+    filter?: SearchPoolFilter,
+    take?: number,
+  ) => Promise<SearchPoolMessage[]>;
 }> {
   // search_mirror_live changes only on liveness transitions, so this read
   // keeps open search subscriptions stable (the walker's per-tick cursor row
@@ -216,7 +383,8 @@ async function messageSearchTier(ctx: QueryCtx): Promise<{
           .query("message_search_recent")
           .withSearchIndex("search_content_r2", (q) => {
             let base: any = q.search("content", text);
-            if (filter.conversation_id) base = base.eq("conversation_id", filter.conversation_id);
+            if (filter.conversation_id)
+              base = base.eq("conversation_id", filter.conversation_id);
             if (filter.user_id) base = base.eq("user_id", filter.user_id);
             if (filter.team_id) base = base.eq("team_id", filter.team_id);
             return base;
@@ -242,7 +410,9 @@ async function messageSearchTier(ctx: QueryCtx): Promise<{
         .query("messages")
         .withSearchIndex("search_content_v2", (q) => {
           const base = q.search("content", text);
-          return filter.conversation_id ? base.eq("conversation_id", filter.conversation_id) : base;
+          return filter.conversation_id
+            ? base.eq("conversation_id", filter.conversation_id)
+            : base;
         })
         .take(take);
       return docs.map((m) => ({
@@ -271,8 +441,13 @@ async function fetchMessageSearchPool(
   // mirror rows are snapshots — visibility is still enforced downstream
   // against the live conversation doc.
   scope?: { userId: Id<"users">; teamIds: Id<"teams">[] },
-): Promise<{ pool: SearchPoolMessage[]; tier: "recent" | "deep"; saturated: boolean }> {
-  if (terms.all.length === 0) return { pool: [], tier: "deep", saturated: false };
+): Promise<{
+  pool: SearchPoolMessage[];
+  tier: "recent" | "deep";
+  saturated: boolean;
+}> {
+  if (terms.all.length === 0)
+    return { pool: [], tier: "deep", saturated: false };
   const searchQuery = terms.lookup;
   const { tier, search } = await messageSearchTier(ctx);
   // Scoped lookups FIRST: coverage ranking downstream is a stable sort, so
@@ -301,7 +476,11 @@ async function fetchMessageSearchPool(
       pool.push(r);
     }
   }
-  return { tier, pool, saturated: batches.some((batch) => batch.length >= MESSAGE_POOL_TAKE) };
+  return {
+    tier,
+    pool,
+    saturated: batches.some((batch) => batch.length >= MESSAGE_POOL_TAKE),
+  };
 }
 
 // How many operator-narrowed sessions get a text lookup of their own. The
@@ -313,7 +492,13 @@ const OPERATOR_TEXT_LOOKUPS = 150;
 const OPERATOR_TEXT_BATCH = 25;
 const OPERATOR_TEXT_TAKE = 20;
 
-type OperatorHit = OperatorCandidate & { messages: SearchPoolMessage[]; scores: number[]; coverage: number; relevance: number; missing: string[] };
+type OperatorHit = OperatorCandidate & {
+  messages: SearchPoolMessage[];
+  scores: number[];
+  coverage: number;
+  relevance: number;
+  missing: string[];
+};
 
 // Session query operators (file:, commit:, pr:, ...) narrow the conversations
 // first (sessionQuerySearch.ts); the query's free text then runs over only
@@ -325,17 +510,39 @@ async function searchByOperators(
   q: SessionQuery,
   scope: OperatorScope,
   opts: { userOnly: boolean; skipPool?: boolean },
-): Promise<{ hits: OperatorHit[]; terms: ParsedTerms; tier: "recent" | "deep"; truncated: string[] } | { error: string }> {
+): Promise<
+  | {
+      hits: OperatorHit[];
+      terms: ParsedTerms;
+      tier: "recent" | "deep";
+      truncated: string[];
+    }
+  | { error: string }
+> {
   const narrowed = await narrowByOperators(ctx, q, scope);
   if ("error" in narrowed) return narrowed;
   const truncated = narrowed.truncated;
   const terms = parseSearchTerms(q.text);
   const tier = await messageSearchTier(ctx);
   if (terms.all.length === 0) {
-    return { terms, tier: tier.tier, truncated, hits: narrowed.candidates.map((c) => ({ ...c, messages: [], scores: [], coverage: 1, relevance: 1, missing: [] })) };
+    return {
+      terms,
+      tier: tier.tier,
+      truncated,
+      hits: narrowed.candidates.map((c) => ({
+        ...c,
+        messages: [],
+        scores: [],
+        coverage: 1,
+        relevance: 1,
+        missing: [],
+      })),
+    };
   }
 
-  const byId = new Map(narrowed.candidates.map((c) => [c.conv._id.toString(), c]));
+  const byId = new Map(
+    narrowed.candidates.map((c) => [c.conv._id.toString(), c]),
+  );
   const groups = new Map<string, SearchPoolMessage[]>();
   const add = (msgs: SearchPoolMessage[]) => {
     for (const m of msgs) {
@@ -349,7 +556,14 @@ async function searchByOperators(
     }
   };
   if (!opts.skipPool) {
-    add((await fetchMessageSearchPool(ctx, terms, { userId: scope.viewerId, teamIds: scope.teamIds })).pool);
+    add(
+      (
+        await fetchMessageSearchPool(ctx, terms, {
+          userId: scope.viewerId,
+          teamIds: scope.teamIds,
+        })
+      ).pool,
+    );
   }
   // A session's title and summaries count as text too: a pseudo-message that
   // takes part in coverage ranking and is dropped from the returned matches.
@@ -359,9 +573,16 @@ async function searchByOperators(
       const fields = searchFieldsOf(c.conv).join(" ");
       if (!fields || !contentMatchesAnyTerm(fields, terms)) continue;
       const id = c.conv._id.toString();
-      groups.set(id, [...(groups.get(id) ?? []), {
-        _id: TITLE_ROW, conversation_id: c.conv._id, role: "user", content: fields, timestamp: c.matchedAt,
-      }]);
+      groups.set(id, [
+        ...(groups.get(id) ?? []),
+        {
+          _id: TITLE_ROW,
+          conversation_id: c.conv._id,
+          role: "user",
+          content: fields,
+          timestamp: c.matchedAt,
+        },
+      ]);
     }
   }
 
@@ -373,34 +594,60 @@ async function searchByOperators(
   const lookups = unmatched.slice(0, OPERATOR_TEXT_LOOKUPS);
   for (let i = 0; i < lookups.length; i += OPERATOR_TEXT_BATCH) {
     const batch = lookups.slice(i, i + OPERATOR_TEXT_BATCH);
-    (await Promise.all(batch.map((c) => tier.search(searchQuery, { conversation_id: c.conv._id }, OPERATOR_TEXT_TAKE)))).forEach(add);
+    (
+      await Promise.all(
+        batch.map((c) =>
+          tier.search(
+            searchQuery,
+            { conversation_id: c.conv._id },
+            OPERATOR_TEXT_TAKE,
+          ),
+        ),
+      )
+    ).forEach(add);
   }
   if (unmatched.length > lookups.length) {
-    truncated.push(`searched the text in the newest ${lookups.length} of ${unmatched.length} narrowed sessions; narrow further to reach the rest`);
+    truncated.push(
+      `searched the text in the newest ${lookups.length} of ${unmatched.length} narrowed sessions; narrow further to reach the rest`,
+    );
   }
 
-  const hits: OperatorHit[] = rankConversationsByCoverage(groups, terms).map((r) => {
-    const candidate = byId.get(r.convId)!;
-    const real = r.messages.map((m, i) => ({ m, score: r.scores[i] })).filter(({ m }) => m._id !== TITLE_ROW);
-    const evidence = evidenceWithFields(r, searchFieldsOf(candidate.conv), terms);
-    return {
-      ...candidate,
-      coverage: r.coverage,
-      relevance: relevanceOf(evidence, terms),
-      missing: missingWords(evidence, terms),
-      messages: real.map(({ m }) => m),
-      scores: real.map(({ score }) => score),
-    };
-  });
+  const hits: OperatorHit[] = rankConversationsByCoverage(groups, terms).map(
+    (r) => {
+      const candidate = byId.get(r.convId)!;
+      const real = r.messages
+        .map((m, i) => ({ m, score: r.scores[i] }))
+        .filter(({ m }) => m._id !== TITLE_ROW);
+      const evidence = evidenceWithFields(
+        r,
+        searchFieldsOf(candidate.conv),
+        terms,
+      );
+      return {
+        ...candidate,
+        coverage: r.coverage,
+        relevance: relevanceOf(evidence, terms),
+        missing: missingWords(evidence, terms),
+        messages: real.map(({ m }) => m),
+        scores: real.map(({ score }) => score),
+      };
+    },
+  );
   hits.sort((a, b) => b.coverage - a.coverage || b.matchedAt - a.matchedAt);
   return { hits, terms, tier: tier.tier, truncated };
 }
 
 /** A search scope's people as a list with the viewer first, the order the
  *  operator walks (checkout roots, remotes) spend their budgets in. */
-function usersViewerFirst(userById: Map<string, Doc<"users">>, viewerId: Id<"users">): Doc<"users">[] {
+function usersViewerFirst(
+  userById: Map<string, Doc<"users">>,
+  viewerId: Id<"users">,
+): Doc<"users">[] {
   const viewer = userById.get(viewerId.toString());
-  return [...(viewer ? [viewer] : []), ...[...userById.values()].filter((u) => u._id !== viewerId)];
+  return [
+    ...(viewer ? [viewer] : []),
+    ...[...userById.values()].filter((u) => u._id !== viewerId),
+  ];
 }
 
 // Days of message history the recent tier covers — returned to clients so UI
@@ -437,12 +684,18 @@ async function resolveReadScope(
   ctx: QueryCtx,
   userId: Id<"users">,
   user: Doc<"users">,
-  opts: { teamId?: Id<"teams">; projectPath?: string; allTeams?: boolean; mineOnly?: boolean },
+  opts: {
+    teamId?: Id<"teams">;
+    projectPath?: string;
+    allTeams?: boolean;
+    mineOnly?: boolean;
+  },
 ): Promise<ReadScope | { error: string }> {
   let teamIds: Id<"teams">[] = [];
   let ownTeamId: Id<"teams"> | undefined;
   if (opts.teamId) {
-    if (!(await isTeamMember(ctx, userId, opts.teamId))) return { error: "Unauthorized team" };
+    if (!(await isTeamMember(ctx, userId, opts.teamId)))
+      return { error: "Unauthorized team" };
     teamIds = [opts.teamId];
     ownTeamId = opts.teamId;
   } else if (opts.allTeams) {
@@ -458,7 +711,8 @@ async function resolveReadScope(
         .withIndex("by_user_id", (q) => q.eq("user_id", userId))
         .collect();
       const mapped = matchDirectoryMapping(mappings, opts.projectPath)?.team_id;
-      if (mapped && (await isTeamMember(ctx, userId, mapped))) ownTeamId = mapped;
+      if (mapped && (await isTeamMember(ctx, userId, mapped)))
+        ownTeamId = mapped;
     }
     const team = ownTeamId ?? (await resolveInboxTeamScope(ctx, userId));
     teamIds = team ? [team] : [];
@@ -471,7 +725,8 @@ async function resolveReadScope(
   for (const teamId of teamIds) {
     const floor = await teamFloorScope(ctx, teamId);
     floors.set(teamId.toString(), floor);
-    if (opts.allTeams) teamNames.set(teamId.toString(), (await ctx.db.get(teamId))?.name ?? "");
+    if (opts.allTeams)
+      teamNames.set(teamId.toString(), (await ctx.db.get(teamId))?.name ?? "");
     for (const u of floor.members) userById.set(u._id.toString(), u);
   }
   const teamUsers = [...userById.values()];
@@ -484,8 +739,10 @@ async function resolveReadScope(
   const scopeTeam = teamIds.length === 1 ? teamIds[0].toString() : null;
   const isOwn = (conv: Doc<"conversations">) =>
     conv.user_id.toString() === userId.toString() &&
-    (ownAnywhere || (scopeTeam ? String(conv.team_id ?? "") === scopeTeam : !conv.team_id));
-  const floorFor = (conv: Doc<"conversations">) => (conv.team_id ? floors.get(conv.team_id.toString()) : undefined);
+    (ownAnywhere ||
+      (scopeTeam ? String(conv.team_id ?? "") === scopeTeam : !conv.team_id));
+  const floorFor = (conv: Doc<"conversations">) =>
+    conv.team_id ? floors.get(conv.team_id.toString()) : undefined;
   const isVisible = (conv: Doc<"conversations">): boolean => {
     if (isRunLog(conv)) return false;
     if (isOwn(conv)) return true;
@@ -496,22 +753,41 @@ async function resolveReadScope(
     if (isOwn(conv)) return true;
     return floorFor(conv)?.contentVisible(conv) ?? false;
   };
-  const workspaceOf = (conv: Doc<"conversations">) => (conv.team_id ? `team:${conv.team_id}` : `user:${userId}`);
-  const teamNameOf = (conv: Doc<"conversations">) => (conv.team_id ? teamNames.get(conv.team_id.toString()) : undefined);
+  const workspaceOf = (conv: Doc<"conversations">) =>
+    conv.team_id ? `team:${conv.team_id}` : `user:${userId}`;
+  const teamNameOf = (conv: Doc<"conversations">) =>
+    conv.team_id ? teamNames.get(conv.team_id.toString()) : undefined;
 
-  return { teamIds, ownTeamId, teamUsers, userById, isVisible, contentVisible, workspaceOf, teamNameOf };
+  return {
+    teamIds,
+    ownTeamId,
+    teamUsers,
+    userById,
+    isVisible,
+    contentVisible,
+    workspaceOf,
+    teamNameOf,
+  };
 }
 
 // A session as search may read it for this viewer: a session whose content is
 // hidden keeps only its listed fields (title, summaries, earlier titles), never
 // its opening prompt.
-function searchableAs(scope: Pick<ReadScope, "contentVisible">, conv: Doc<"conversations">): Doc<"conversations"> {
-  return scope.contentVisible(conv) ? conv : { ...conv, first_prompt: undefined };
+function searchableAs(
+  scope: Pick<ReadScope, "contentVisible">,
+  conv: Doc<"conversations">,
+): Doc<"conversations"> {
+  return scope.contentVisible(conv)
+    ? conv
+    : { ...conv, first_prompt: undefined };
 }
 
 // Which workspace a CLI row belongs to, and its team's name when the read
 // spans every team, so rows from two teams never read as one list.
-function scopeLabels(scope: ReadScope, conv: Doc<"conversations">): { workspace: string; team?: string } {
+function scopeLabels(
+  scope: ReadScope,
+  conv: Doc<"conversations">,
+): { workspace: string; team?: string } {
   const team = scope.teamNameOf(conv);
   return { workspace: scope.workspaceOf(conv), ...(team ? { team } : {}) };
 }
@@ -530,7 +806,10 @@ async function loadConversationSearchScope(
     mineOnly: args.mineOnly,
   });
   // A named team the caller is not a member of scopes to their own sessions.
-  if ("error" in scope) return resolveReadScope(ctx, userId, user, { mineOnly: true }) as Promise<ReadScope>;
+  if ("error" in scope)
+    return resolveReadScope(ctx, userId, user, {
+      mineOnly: true,
+    }) as Promise<ReadScope>;
   return scope;
 }
 
@@ -554,14 +833,21 @@ async function titleFieldRows(ctx: QueryCtx, searchQuery: string) {
       .take(TITLE_FIELD_TAKE),
     ctx.db
       .query("conversations")
-      .withSearchIndex("search_subtitle", (q) => q.search("subtitle", searchQuery))
+      .withSearchIndex("search_subtitle", (q) =>
+        q.search("subtitle", searchQuery),
+      )
       .take(TITLE_FIELD_TAKE),
     ctx.db
       .query("conversations")
-      .withSearchIndex("search_idle_summary", (q) => q.search("idle_summary", searchQuery))
+      .withSearchIndex("search_idle_summary", (q) =>
+        q.search("idle_summary", searchQuery),
+      )
       .take(TITLE_FIELD_TAKE),
   ]);
-  return { rows: fieldHits.flat(), saturated: fieldHits.some((hits) => hits.length >= TITLE_FIELD_TAKE) };
+  return {
+    rows: fieldHits.flat(),
+    saturated: fieldHits.some((hits) => hits.length >= TITLE_FIELD_TAKE),
+  };
 }
 
 async function fetchTitleFieldHits(
@@ -584,10 +870,12 @@ async function fetchTitleFieldHits(
     convs.set(convId, conv);
     groups.set(convId, [{ content: searchFieldsOf(conv).join(" ") }]);
   }
-  return new Map(rankConversationsByCoverage(groups, terms).map((r) => {
-    const conv = convs.get(r.convId)!;
-    return [r.convId, searchCandidate(conv, { coverage: r.coverage }, terms)];
-  }));
+  return new Map(
+    rankConversationsByCoverage(groups, terms).map((r) => {
+      const conv = convs.get(r.convId)!;
+      return [r.convId, searchCandidate(conv, { coverage: r.coverage }, terms)];
+    }),
+  );
 }
 
 // One search result in the making: a conversation, the pooled messages that
@@ -609,10 +897,19 @@ type SearchCandidate = {
 
 function searchCandidate(
   conv: Doc<"conversations">,
-  ranked: Partial<Pick<RankedConversation<SearchPoolMessage>, "messages" | "scores" | "evidence">> & { coverage: number },
+  ranked: Partial<
+    Pick<
+      RankedConversation<SearchPoolMessage>,
+      "messages" | "scores" | "evidence"
+    >
+  > & { coverage: number },
   terms: ParsedTerms,
 ): SearchCandidate {
-  const evidence = evidenceWithFields({ evidence: ranked.evidence ?? emptyEvidence(terms) }, searchFieldsOf(conv), terms);
+  const evidence = evidenceWithFields(
+    { evidence: ranked.evidence ?? emptyEvidence(terms) },
+    searchFieldsOf(conv),
+    terms,
+  );
   return {
     conv,
     messages: ranked.messages ?? [],
@@ -626,8 +923,15 @@ function searchCandidate(
 
 // The matches a result row shows: the messages that hold the most of the
 // query, the person's own first, each cut to the stretch that shows it.
-function searchSnippets(c: Pick<SearchCandidate, "messages" | "scores">, terms: ParsedTerms, limit = 5) {
-  return bestMessages(c, limit).map((m) => ({ message: m, content: snippetAround(stripWrapperTags(m.content || ""), terms, 300) }));
+function searchSnippets(
+  c: Pick<SearchCandidate, "messages" | "scores">,
+  terms: ParsedTerms,
+  limit = 5,
+) {
+  return bestMessages(c, limit).map((m) => ({
+    message: m,
+    content: snippetAround(stripWrapperTags(m.content || ""), terms, 300),
+  }));
 }
 
 // Workers fold into the session that ran them. A worker's brief repeats its
@@ -645,7 +949,8 @@ async function foldWorkersUnderParents(
   const loaded = new Map<string, Doc<"conversations"> | null>();
   const load = async (id: Id<"conversations">) => {
     const key = id.toString();
-    if (!loaded.has(key)) loaded.set(key, byId.get(key)?.conv ?? (await ctx.db.get(id)));
+    if (!loaded.has(key))
+      loaded.set(key, byId.get(key)?.conv ?? (await ctx.db.get(id)));
     return loaded.get(key)!;
   };
   const folded = new Set<string>();
@@ -674,19 +979,26 @@ async function foldWorkersUnderParents(
     host.workers++;
     folded.add(c.conv._id.toString());
   }
-  return [...candidates, ...added].filter((c) => !folded.has(c.conv._id.toString()));
+  return [...candidates, ...added].filter(
+    (c) => !folded.has(c.conv._id.toString()),
+  );
 }
 
 // First-message fetch only feeds a title fallback, so it's only needed for
 // the title-less conversations that actually made the displayed slice.
-async function resolveFirstMessageTitles(ctx: QueryCtx, convs: Doc<"conversations">[]) {
+async function resolveFirstMessageTitles(
+  ctx: QueryCtx,
+  convs: Doc<"conversations">[],
+) {
   const firstMsgByConv = new Map<string, string>();
   await Promise.all(
     convs.map(async (conv) => {
       if (conv.title) return;
       const firstMessages = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conv._id),
+        )
         .order("asc")
         .take(10);
       for (const msg of firstMessages) {
@@ -701,7 +1013,7 @@ async function resolveFirstMessageTitles(ctx: QueryCtx, convs: Doc<"conversation
           }
         }
       }
-    })
+    }),
   );
   return firstMsgByConv;
 }
@@ -733,14 +1045,21 @@ export async function setConvGitDiff(
   const status = truncateGitDiff(gitStatus);
   const existing = await ctx.db
     .query("conversation_git_diffs")
-    .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   if (!diff && !staged && !status) {
     if (existing) await ctx.db.delete(existing._id);
     return;
   }
   if (existing) {
-    await ctx.db.patch(existing._id, { git_diff: diff, git_diff_staged: staged, git_status: status, updated_at: Date.now() });
+    await ctx.db.patch(existing._id, {
+      git_diff: diff,
+      git_diff_staged: staged,
+      git_status: status,
+      updated_at: Date.now(),
+    });
   } else {
     await ctx.db.insert("conversation_git_diffs", {
       conversation_id: conversationId,
@@ -762,10 +1081,15 @@ export async function setConvStableContext(
 ) {
   const existing = await ctx.db
     .query("conversation_context")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   if (existing) {
-    await ctx.db.patch(existing._id, { stable_context: data, updated_at: Date.now() });
+    await ctx.db.patch(existing._id, {
+      stable_context: data,
+      updated_at: Date.now(),
+    });
   } else {
     await ctx.db.insert("conversation_context", {
       conversation_id: conversationId,
@@ -781,7 +1105,9 @@ async function getConvStableContext(
 ): Promise<string | null> {
   const row = await ctx.db
     .query("conversation_context")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   return row?.stable_context ?? null;
 }
@@ -791,10 +1117,16 @@ async function getConvStableContext(
 async function getConvGitDiff(
   ctx: QueryCtx,
   conversationId: Id<"conversations">,
-): Promise<{ git_diff: string | null; git_diff_staged: string | null; git_status: string | null }> {
+): Promise<{
+  git_diff: string | null;
+  git_diff_staged: string | null;
+  git_status: string | null;
+}> {
   const row = await ctx.db
     .query("conversation_git_diffs")
-    .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversationId))
+    .withIndex("by_conversation_id", (q) =>
+      q.eq("conversation_id", conversationId),
+    )
     .first();
   return {
     git_diff: row?.git_diff ?? null,
@@ -808,7 +1140,10 @@ async function getConvGitDiff(
 // whitespace so a branch's divergent prompt reads cleanly in ~one line.
 function previewText(content: string | null | undefined): string | undefined {
   if (!content) return undefined;
-  const cleaned = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = content
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!cleaned) return undefined;
   return cleaned.length > 100 ? cleaned.slice(0, 100) + "…" : cleaned;
 }
@@ -836,7 +1171,10 @@ async function firstDivergentPreview(
   const rows = await ctx.db
     .query("messages")
     .withIndex("by_conversation_role_timestamp", (q: any) =>
-      q.eq("conversation_id", conversationId).eq("role", "user").gt("timestamp", afterTs)
+      q
+        .eq("conversation_id", conversationId)
+        .eq("role", "user")
+        .gt("timestamp", afterTs),
     )
     .order("asc")
     .take(40);
@@ -874,11 +1212,15 @@ async function computeOriginDivergentPreviews(
       const fp = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q: any) =>
-          q.eq("conversation_id", originLineId).eq("message_uuid", uuid)
+          q.eq("conversation_id", originLineId).eq("message_uuid", uuid),
         )
         .first();
       if (!fp) continue;
-      const preview = await firstDivergentPreview(ctx, originLineId, fp.timestamp);
+      const preview = await firstDivergentPreview(
+        ctx,
+        originLineId,
+        fp.timestamp,
+      );
       if (preview) out[uuid] = preview;
     }
   };
@@ -920,12 +1262,18 @@ export async function handoffLinkDetails(
 // that points back (an older row, or a patch that never landed).
 export async function handedOffToId(
   ctx: { db: any },
-  conv: { _id: Id<"conversations">; handed_off_to_conversation_id?: Id<"conversations"> | null },
+  conv: {
+    _id: Id<"conversations">;
+    handed_off_to_conversation_id?: Id<"conversations"> | null;
+  },
 ): Promise<Id<"conversations"> | null> {
-  if (conv.handed_off_to_conversation_id) return conv.handed_off_to_conversation_id;
+  if (conv.handed_off_to_conversation_id)
+    return conv.handed_off_to_conversation_id;
   const child = await ctx.db
     .query("conversations")
-    .withIndex("by_handed_off_from", (q: any) => q.eq("handed_off_from_conversation_id", conv._id))
+    .withIndex("by_handed_off_from", (q: any) =>
+      q.eq("handed_off_from_conversation_id", conv._id),
+    )
     .order("desc")
     .first();
   return child?._id ?? null;
@@ -983,7 +1331,7 @@ async function mapForkDetails(ctx: { db: any }, forks: any[]) {
         git_root: fork.git_root,
         ...inboxVisibilityFields(fork),
       };
-    })
+    }),
   );
 }
 
@@ -1004,13 +1352,21 @@ async function mapForkDetails(ctx: { db: any }, forks: any[]) {
 // rendered as a message FROM the parent, which hid the branch chips).
 export async function resolveSpawnParentId(
   ctx: { db: { query: QueryCtx["db"]["query"] } },
-  conversation: { parent_conversation_id?: Id<"conversations"> | null; parent_message_uuid?: string | null; forked_from?: Id<"conversations"> | null },
+  conversation: {
+    parent_conversation_id?: Id<"conversations"> | null;
+    parent_message_uuid?: string | null;
+    forked_from?: Id<"conversations"> | null;
+  },
 ): Promise<string | null> {
-  if (conversation.parent_conversation_id) return conversation.parent_conversation_id;
-  if (conversation.forked_from || !conversation.parent_message_uuid) return null;
+  if (conversation.parent_conversation_id)
+    return conversation.parent_conversation_id;
+  if (conversation.forked_from || !conversation.parent_message_uuid)
+    return null;
   const parentMsg = await ctx.db
     .query("messages")
-    .withIndex("by_message_uuid", (q) => q.eq("message_uuid", conversation.parent_message_uuid!))
+    .withIndex("by_message_uuid", (q) =>
+      q.eq("message_uuid", conversation.parent_message_uuid!),
+    )
     .first();
   return parentMsg ? parentMsg.conversation_id : null;
 }
@@ -1035,7 +1391,7 @@ async function getAccessibleForkChildren(
 
 async function getAuthenticatedUserId(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -1054,7 +1410,7 @@ async function getAuthenticatedUserId(
 
 async function getAuthenticatedUserIdReadOnly(
   ctx: { db: any },
-  apiToken?: string
+  apiToken?: string,
 ): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) {
@@ -1071,20 +1427,30 @@ async function getAuthenticatedUserIdReadOnly(
   return null;
 }
 
-function resolveUserSkills(userSkillsJson: string | undefined, projectPath: string | undefined | null): string | undefined {
+function resolveUserSkills(
+  userSkillsJson: string | undefined,
+  projectPath: string | undefined | null,
+): string | undefined {
   if (!userSkillsJson) return undefined;
   try {
     const parsed = JSON.parse(userSkillsJson);
     if (Array.isArray(parsed)) return userSkillsJson;
     const global: Array<{ name: string }> = parsed["global"] || [];
-    const project: Array<{ name: string }> = projectPath ? (parsed[projectPath] || []) : [];
+    const project: Array<{ name: string }> = projectPath
+      ? parsed[projectPath] || []
+      : [];
     const seen = new Set<string>();
     const merged = [];
     for (const s of [...global, ...project]) {
-      if (!seen.has(s.name)) { seen.add(s.name); merged.push(s); }
+      if (!seen.has(s.name)) {
+        seen.add(s.name);
+        merged.push(s);
+      }
     }
     return merged.length > 0 ? JSON.stringify(merged) : undefined;
-  } catch { return userSkillsJson; }
+  } catch {
+    return userSkillsJson;
+  }
 }
 
 /**
@@ -1102,7 +1468,10 @@ export function conversationForAccess<T extends Record<string, any>>(
 ): T {
   if (access === "owner") return conversation;
   if (access === "summary") {
-    const summary: Record<string, any> = conversationForAccess(conversation, "shared");
+    const summary: Record<string, any> = conversationForAccess(
+      conversation,
+      "shared",
+    );
     for (const key of SUMMARY_HIDDEN_CONVERSATION_FIELDS) delete summary[key];
     return summary as T;
   }
@@ -1112,9 +1481,12 @@ export function conversationForAccess<T extends Record<string, any>>(
     return teamConversation as T;
   }
   const publicConversation: Record<string, any> = { ...conversation };
-  for (const key of SHARE_HIDDEN_CONVERSATION_FIELDS) delete publicConversation[key];
+  for (const key of SHARE_HIDDEN_CONVERSATION_FIELDS)
+    delete publicConversation[key];
   if (typeof publicConversation.git_remote_url === "string") {
-    publicConversation.git_remote_url = stripUrlCredentials(publicConversation.git_remote_url);
+    publicConversation.git_remote_url = stripUrlCredentials(
+      publicConversation.git_remote_url,
+    );
   }
   return publicConversation as T;
 }
@@ -1154,12 +1526,24 @@ const SHARE_HIDDEN_CONVERSATION_FIELDS = [
  * see even that. `content_access: "summary"` tells the page to draw the
  * summary in place of a transcript.
  */
-async function summaryOnlyConversation(ctx: QueryCtx, viewerId: Id<"users"> | null, conversation: Doc<"conversations">) {
-  if (!viewerId || !(await canTeamMemberReadSummary(ctx, viewerId, conversation))) return null;
+async function summaryOnlyConversation(
+  ctx: QueryCtx,
+  viewerId: Id<"users"> | null,
+  conversation: Doc<"conversations">,
+) {
+  if (
+    !viewerId ||
+    !(await canTeamMemberReadSummary(ctx, viewerId, conversation))
+  )
+    return null;
   const owner = await ctx.db.get(conversation.user_id);
   return sanitizeConvexObjectKeys({
     ...conversationForAccess(conversation, "summary"),
-    title: conversation.title || (conversation.slug ? formatSlugAsTitle(conversation.slug) : "New Session"),
+    title:
+      conversation.title ||
+      (conversation.slug
+        ? formatSlugAsTitle(conversation.slug)
+        : "New Session"),
     user: conversationAuthorForAccess(owner, "shared"),
     content_access: "summary" as const,
   });
@@ -1183,12 +1567,18 @@ function stripUrlCredentials(url: string): string {
  *  name the UI would draw (name, else the email's local part) and the avatar,
  *  never the email itself. */
 export function conversationAuthorForAccess(
-  user: { name?: string | null; email?: string | null; image?: string | null; github_avatar_url?: string | null } | null,
+  user: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    github_avatar_url?: string | null;
+  } | null,
   access: AccessLevel,
 ) {
   if (!user) return null;
   const avatar_url = user.image || user.github_avatar_url || null;
-  if (access === "owner" || access === "team") return { name: user.name, email: user.email, avatar_url };
+  if (access === "owner" || access === "team")
+    return { name: user.name, email: user.email, avatar_url };
   return { name: user.name || user.email?.split("@")[0], avatar_url };
 }
 
@@ -1200,7 +1590,11 @@ function matchChildByPrompt(
   const promptStart = prompt.slice(0, 100).toLowerCase().trim();
   for (const child of subagents) {
     const preview = child.preview.slice(0, 100).toLowerCase().trim();
-    if (promptStart === preview || promptStart.startsWith(preview) || preview.startsWith(promptStart)) {
+    if (
+      promptStart === preview ||
+      promptStart.startsWith(preview) ||
+      preview.startsWith(promptStart)
+    ) {
       return child._id;
     }
   }
@@ -1210,9 +1604,17 @@ function matchChildByPrompt(
 async function findChildConversations(
   ctx: { db: any },
   conversationId: Id<"conversations">,
-  messages: Array<{ message_uuid?: string; tool_calls?: Array<{ name: string; input: string }> }>,
+  messages: Array<{
+    message_uuid?: string;
+    tool_calls?: Array<{ name: string; input: string }>;
+  }>,
 ): Promise<{
-  children: Array<{ _id: string; title: string; is_subagent?: boolean; first_message_preview?: string }>;
+  children: Array<{
+    _id: string;
+    title: string;
+    is_subagent?: boolean;
+    first_message_preview?: string;
+  }>;
   map: Record<string, string>;
   agentNameEntries: Array<[string, string]>;
 }> {
@@ -1221,27 +1623,36 @@ async function findChildConversations(
   const CHILDREN_LIMIT = 2000;
   const allChildren = await ctx.db
     .query("conversations")
-    .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", conversationId))
+    .withIndex("by_parent_conversation_id", (q: any) =>
+      q.eq("parent_conversation_id", conversationId),
+    )
     .order("desc")
     .take(CHILDREN_LIMIT);
 
-  const subagentChildren = allChildren.filter((c: any) => c.is_subagent || !c.parent_message_uuid);
+  const subagentChildren = allChildren.filter(
+    (c: any) => c.is_subagent || !c.parent_message_uuid,
+  );
   const PREVIEW_LIMIT = 24;
   const firstMessagePreviews = new Map<string, string>();
   const previewChildren = subagentChildren
     .filter((child: any) => !child.parent_message_uuid)
     .slice(0, PREVIEW_LIMIT);
-  await Promise.all(previewChildren.map(async (child: any) => {
-    const firstMsg = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", child._id))
-      .first();
-    if (firstMsg?.content) {
-      const content = typeof firstMsg.content === "string" ? firstMsg.content : "";
-      const cleaned = content.replace(/<[^>]+>/g, "").trim();
-      firstMessagePreviews.set(child._id as string, cleaned.slice(0, 150));
-    }
-  }));
+  await Promise.all(
+    previewChildren.map(async (child: any) => {
+      const firstMsg = await ctx.db
+        .query("messages")
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", child._id),
+        )
+        .first();
+      if (firstMsg?.content) {
+        const content =
+          typeof firstMsg.content === "string" ? firstMsg.content : "";
+        const cleaned = content.replace(/<[^>]+>/g, "").trim();
+        firstMessagePreviews.set(child._id as string, cleaned.slice(0, 150));
+      }
+    }),
+  );
 
   const children = allChildren
     .filter((conv: any) => !isNoiseTitle(conv.title))
@@ -1255,7 +1666,7 @@ async function findChildConversations(
   const childByParentUuid = new Map<string, string>(
     allChildren
       .filter((c: any) => c.parent_message_uuid)
-      .map((c: any) => [c.parent_message_uuid as string, c._id as string])
+      .map((c: any) => [c.parent_message_uuid as string, c._id as string]),
   );
   for (const [uuid, childId] of childByParentUuid) {
     map[uuid] = childId;
@@ -1272,11 +1683,14 @@ async function findChildConversations(
   // Fallback: scan parent messages for Agent/Task tool calls to build UUID map and
   // fill agentNameMap for children without subagent_description (legacy data)
   const unmappedChildren = subagentChildren.filter(
-    (c: any) => !c.subagent_description && firstMessagePreviews.has(c._id as string)
+    (c: any) =>
+      !c.subagent_description && firstMessagePreviews.has(c._id as string),
   );
   if (unmappedChildren.length > 0) {
-    const subagentMatchData = unmappedChildren
-      .map((c: any) => ({ _id: c._id as string, preview: firstMessagePreviews.get(c._id as string)! }));
+    const subagentMatchData = unmappedChildren.map((c: any) => ({
+      _id: c._id as string,
+      preview: firstMessagePreviews.get(c._id as string)!,
+    }));
 
     const matchToolCall = (msg: any, tc: any) => {
       try {
@@ -1298,19 +1712,25 @@ async function findChildConversations(
       }
     }
 
-    const matchedChildIds = new Set([...Object.values(map), ...Object.values(agentNameMap)]);
-    if (unmappedChildren.some((child: any) => !matchedChildIds.has(child._id))) {
+    const matchedChildIds = new Set([
+      ...Object.values(map),
+      ...Object.values(agentNameMap),
+    ]);
+    if (
+      unmappedChildren.some((child: any) => !matchedChildIds.has(child._id))
+    ) {
       const allParentMessages = await ctx.db
         .query("messages")
         .withIndex("by_conversation_role_timestamp", (q: any) =>
-          q.eq("conversation_id", conversationId).eq("role", "assistant")
+          q.eq("conversation_id", conversationId).eq("role", "assistant"),
         )
         .order("desc")
         .take(200);
       for (const msg of allParentMessages) {
         if (msg.tool_calls) {
           for (const tc of msg.tool_calls) {
-            if (tc.name === "Task" || tc.name === "Agent") matchToolCall(msg, tc);
+            if (tc.name === "Task" || tc.name === "Agent")
+              matchToolCall(msg, tc);
           }
         }
       }
@@ -1351,16 +1771,31 @@ export const resolveTeamFromDirectory = query({
  * is born stashed; a message sent to it brings it back like any stash.
  */
 export function daemonForkFields(
-  origin: Pick<Doc<"conversations">, "_id" | "inbox_dismissed_at" | "inbox_stashed_at" | "inbox_stash_hidden" | "inbox_snoozed_until">,
+  origin: Pick<
+    Doc<"conversations">,
+    | "_id"
+    | "inbox_dismissed_at"
+    | "inbox_stashed_at"
+    | "inbox_stash_hidden"
+    | "inbox_snoozed_until"
+  >,
   fork: { at_uuid: string; copied: number; cutoff?: number },
   now: number,
 ) {
-  const triage = (["inbox_dismissed_at", "inbox_stashed_at", "inbox_stash_hidden", "inbox_snoozed_until"] as const)
-    .filter((k) => origin[k] !== undefined && origin[k] !== null);
+  const triage = (
+    [
+      "inbox_dismissed_at",
+      "inbox_stashed_at",
+      "inbox_stash_hidden",
+      "inbox_snoozed_until",
+    ] as const
+  ).filter((k) => origin[k] !== undefined && origin[k] !== null);
   return {
     forked_from: origin._id,
     fork_copied: fork.copied,
-    ...(fork.cutoff !== undefined ? { fork_cutoff_timestamp: fork.cutoff } : {}),
+    ...(fork.cutoff !== undefined
+      ? { fork_cutoff_timestamp: fork.cutoff }
+      : {}),
     ...(origin.inbox_stashed_at ? {} : { inbox_stashed_at: now }),
     ...Object.fromEntries(triage.map((k) => [k, origin[k]])),
   };
@@ -1375,7 +1810,9 @@ async function ownedParentConversationId(
   parentRef: string | undefined,
 ): Promise<Id<"conversations"> | undefined> {
   if (!parentRef) return undefined;
-  const parentId = ctx.db.normalizeId ? ctx.db.normalizeId("conversations", parentRef) : (parentRef as Id<"conversations">);
+  const parentId = ctx.db.normalizeId
+    ? ctx.db.normalizeId("conversations", parentRef)
+    : (parentRef as Id<"conversations">);
   if (!parentId) return undefined;
   let parent: any = null;
   try {
@@ -1383,7 +1820,8 @@ async function ownedParentConversationId(
   } catch {
     return undefined;
   }
-  if (!parent || !(await isConversationOwner(ctx, userId, parent))) return undefined;
+  if (!parent || !(await isConversationOwner(ctx, userId, parent)))
+    return undefined;
   return parent._id;
 }
 
@@ -1429,11 +1867,9 @@ export const createConversation = mutation({
     worktree_name: v.optional(v.string()),
     worktree_branch: v.optional(v.string()),
     worktree_path: v.optional(v.string()),
-    worktree_status: v.optional(v.union(
-      v.literal("active"),
-      v.literal("merged"),
-      v.literal("archived")
-    )),
+    worktree_status: v.optional(
+      v.union(v.literal("active"), v.literal("merged"), v.literal("archived")),
+    ),
     subagent_description: v.optional(v.string()),
     // Daemon-asserted subagent flag (transcript lives under a subagents/ dir).
     // The parent LINK may resolve much later (parent not yet in the daemon's
@@ -1461,12 +1897,14 @@ export const createConversation = mutation({
     // `at_uuid` the message it forks at (the branch chips sit there),
     // `copied` how many of its messages are that shared history and `cutoff`
     // the fork point's time, so the chips count and label its own part.
-    fork: v.optional(v.object({
-      from: v.id("conversations"),
-      at_uuid: v.string(),
-      copied: v.number(),
-      cutoff: v.optional(v.number()),
-    })),
+    fork: v.optional(
+      v.object({
+        from: v.id("conversations"),
+        at_uuid: v.string(),
+        copied: v.number(),
+        cutoff: v.optional(v.number()),
+      }),
+    ),
     api_token: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -1478,7 +1916,9 @@ export const createConversation = mutation({
       throw new Error("Authentication failed: invalid token or session");
     }
     if (authUserId.toString() !== args.user_id.toString()) {
-      throw new Error("Unauthorized: can only create conversations for yourself");
+      throw new Error(
+        "Unauthorized: can only create conversations for yourself",
+      );
     }
 
     await checkRateLimit(ctx, args.user_id, "createConversation");
@@ -1494,7 +1934,11 @@ export const createConversation = mutation({
     // conversation, inherited that conversation's sharing, and (as a plan
     // handoff) dismissed and completed it. A parent that is not the caller's
     // is dropped and the transcript still syncs, unlinked.
-    const explicitParentId = await ownedParentConversationId(ctx, args.user_id, args.parent_conversation_id);
+    const explicitParentId = await ownedParentConversationId(
+      ctx,
+      args.user_id,
+      args.parent_conversation_id,
+    );
 
     const existing = await ctx.db
       .query("conversations")
@@ -1503,11 +1947,17 @@ export const createConversation = mutation({
       .first();
 
     if (!existing) {
-      const movedTo = await conversationMovedAwayFrom(ctx, args.user_id.toString(), args.session_id,
-        (c) => isSessionOwner(ctx, c._id, args.user_id));
+      const movedTo = await conversationMovedAwayFrom(
+        ctx,
+        args.user_id.toString(),
+        args.session_id,
+        (c) => isSessionOwner(ctx, c._id, args.user_id),
+      );
       if (movedTo) {
         const shortId = movedTo.short_id ?? movedTo._id.toString().slice(0, 7);
-        throw new Error(`Session moved to another account as ${shortId}; run \`cast pull ${shortId}\` to bring it back here`);
+        throw new Error(
+          `Session moved to another account as ${shortId}; run \`cast pull ${shortId}\` to bring it back here`,
+        );
       }
     }
 
@@ -1520,7 +1970,10 @@ export const createConversation = mutation({
         if (args.parent_message_uuid && !existing.parent_message_uuid) {
           patch.parent_message_uuid = args.parent_message_uuid;
           patch.is_subagent = undefined;
-        } else if (!existing.parent_conversation_id && !args.parent_message_uuid) {
+        } else if (
+          !existing.parent_conversation_id &&
+          !args.parent_message_uuid
+        ) {
           patch.is_subagent = true;
         }
         if (args.subagent_description && !existing.subagent_description) {
@@ -1538,7 +1991,8 @@ export const createConversation = mutation({
       }
       if (args.agent_team_name && !existing.agent_team_name) {
         patch.agent_team_name = args.agent_team_name;
-        if (args.agent_name && !existing.agent_name) patch.agent_name = args.agent_name;
+        if (args.agent_name && !existing.agent_name)
+          patch.agent_name = args.agent_name;
       }
       // Adopt an unowned conversation; never steal one another device owns
       // (explicit ownership transfers go through sessionOwnership).
@@ -1552,7 +2006,8 @@ export const createConversation = mutation({
       // still a trigger run: stamp it so it nests like one born here.
       if (args.agent_task_id && !existing.agent_task_id) {
         const task = await ctx.db.get(args.agent_task_id);
-        if (task && task.user_id === args.user_id) await stampRunConversation(ctx, args.user_id, task, args.session_id);
+        if (task && task.user_id === args.user_id)
+          await stampRunConversation(ctx, args.user_id, task, args.session_id);
       }
       return existing._id;
     }
@@ -1570,22 +2025,43 @@ export const createConversation = mutation({
     } else if (args.parent_message_uuid && !args.parent_conversation_id) {
       const parentMsg = await ctx.db
         .query("messages")
-        .withIndex("by_message_uuid", (q) => q.eq("message_uuid", args.parent_message_uuid!))
+        .withIndex("by_message_uuid", (q) =>
+          q.eq("message_uuid", args.parent_message_uuid!),
+        )
         .first();
       // A message uuid is the caller's claim too: link only to a conversation
       // the caller can open.
-      const uuidParent = parentMsg ? await ctx.db.get(parentMsg.conversation_id) : null;
-      if (uuidParent && (await canAccessConversation(ctx, args.user_id, uuidParent))) {
+      const uuidParent = parentMsg
+        ? await ctx.db.get(parentMsg.conversation_id)
+        : null;
+      if (
+        uuidParent &&
+        (await canAccessConversation(ctx, args.user_id, uuidParent))
+      ) {
         parentConversationId = uuidParent._id;
       }
     }
 
     // A subagent shares as its parent does; a fork (parent_message_uuid) and a
     // top-level session resolve from their own path.
-    const subagentParent = parentConversationId && !args.parent_message_uuid ? await ctx.db.get(parentConversationId) : null;
-    const { team_id: resolvedTeamId, is_private: isPrivate, auto_shared: autoShared, team_visibility: inheritedTeamVisibility } =
-      inheritedChildPrivacy(subagentParent, args.user_id) ??
-      (await resolveCreationPrivacy(ctx, args.user_id, conversationPath, args.team_id as Id<"teams"> | undefined, startedAt, args.git_remote_url));
+    const subagentParent =
+      parentConversationId && !args.parent_message_uuid
+        ? await ctx.db.get(parentConversationId)
+        : null;
+    const {
+      team_id: resolvedTeamId,
+      is_private: isPrivate,
+      auto_shared: autoShared,
+      team_visibility: inheritedTeamVisibility,
+    } = inheritedChildPrivacy(subagentParent, args.user_id) ??
+    (await resolveCreationPrivacy(
+      ctx,
+      args.user_id,
+      conversationPath,
+      args.team_id as Id<"teams"> | undefined,
+      startedAt,
+      args.git_remote_url,
+    ));
 
     const conversationId = await ctx.db.insert("conversations", {
       user_id: args.user_id,
@@ -1600,18 +2076,28 @@ export const createConversation = mutation({
       owner_device_id: args.owner_device_id,
       started_at: startedAt,
       updated_at: startedAt,
-      ...(startedAt < now - HISTORY_IMPORT_INBOX_MS ? { history_import: true } : {}),
+      ...(startedAt < now - HISTORY_IMPORT_INBOX_MS
+        ? { history_import: true }
+        : {}),
       message_count: 0,
       is_private: isPrivate,
       auto_shared: autoShared || undefined,
-      ...(inheritedTeamVisibility ? { team_visibility: inheritedTeamVisibility } : {}),
+      ...(inheritedTeamVisibility
+        ? { team_visibility: inheritedTeamVisibility }
+        : {}),
       status: "active",
       parent_message_uuid: args.parent_message_uuid ?? args.fork?.at_uuid,
       parent_conversation_id: parentConversationId,
-      ...(args.fork && forkOrigin ? daemonForkFields(forkOrigin, args.fork, now) : {}),
-      is_subagent: (args.is_subagent === true && !args.parent_message_uuid) ||
+      ...(args.fork && forkOrigin
+        ? daemonForkFields(forkOrigin, args.fork, now)
+        : {}),
+      is_subagent:
+        (args.is_subagent === true && !args.parent_message_uuid) ||
         (!!parentConversationId && !args.parent_message_uuid) ||
-        (args.agent_type === "claude_code" && !args.parent_message_uuid && isClaudeSubagentSessionId(args.session_id)) || undefined,
+        (args.agent_type === "claude_code" &&
+          !args.parent_message_uuid &&
+          isClaudeSubagentSessionId(args.session_id)) ||
+        undefined,
       agent_team_name: args.agent_team_name,
       agent_name: args.agent_name,
       git_commit_hash: args.git_commit_hash,
@@ -1629,7 +2115,8 @@ export const createConversation = mutation({
     await ctx.db.patch(conversationId, {
       short_id: conversationId.toString().slice(0, 7),
     });
-    if (forkOrigin) await recordFork(ctx, args.user_id, forkOrigin, conversationId);
+    if (forkOrigin)
+      await recordFork(ctx, args.user_id, forkOrigin, conversationId);
     // Funnel: the user's first synced session ever. Stamped on the users doc so
     // this stays an O(1) check instead of a conversations scan per create.
     const creator = await ctx.db.get(args.user_id);
@@ -1642,45 +2129,73 @@ export const createConversation = mutation({
       });
     }
     // git_diff blobs and git_status live off the hot doc in conversation_git_diffs.
-    await setConvGitDiff(ctx, conversationId, args.git_diff, args.git_diff_staged, args.git_status);
+    await setConvGitDiff(
+      ctx,
+      conversationId,
+      args.git_diff,
+      args.git_diff_staged,
+      args.git_status,
+    );
     // Terminal-started sessions: the SessionStart hook usually reports the
     // injected stable context before this registration — attach the parked record.
-    await consumeStableContextSpool(ctx, args.user_id, args.session_id, conversationId);
+    await consumeStableContextSpool(
+      ctx,
+      args.user_id,
+      args.session_id,
+      conversationId,
+    );
     if (args.agent_task_id) {
       const task = await ctx.db.get(args.agent_task_id);
-      if (task && task.user_id === args.user_id) await stampRunConversation(ctx, args.user_id, task, args.session_id);
+      if (task && task.user_id === args.user_id)
+        await stampRunConversation(ctx, args.user_id, task, args.session_id);
     }
 
     // Auto-dismiss parent only for plan handoffs (clear context -> implementation session)
     if (parentConversationId && args.parent_message_uuid === "plan-handoff") {
       const parent = await ctx.db.get(parentConversationId);
       // Only the caller's own session is dismissed by their handoff.
-      if (parent && !parent.inbox_dismissed_at && (await isConversationOwner(ctx, args.user_id, parent))) {
+      if (
+        parent &&
+        !parent.inbox_dismissed_at &&
+        (await isConversationOwner(ctx, args.user_id, parent))
+      ) {
         await ctx.db.patch(parentConversationId, {
           inbox_dismissed_at: Date.now(),
           status: "completed",
         });
 
-        if (parent.team_id && await isConversationTeamVisible(ctx, parent)) {
-          await ctx.scheduler.runAfter(0, internal.teamActivity.recordTeamActivity, {
-            team_id: parent.team_id,
-            actor_user_id: parent.user_id,
-            event_type: "session_completed" as const,
-            title: parent.title || (parent.slug ? formatSlugAsTitle(parent.slug) : "Session completed"),
-            description: parent.project_path,
-            related_conversation_id: parentConversationId,
-            metadata: {
-              duration_ms: parent.updated_at - parent.started_at,
-              message_count: parent.message_count,
-              git_branch: parent.git_branch,
+        if (parent.team_id && (await isConversationTeamVisible(ctx, parent))) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.teamActivity.recordTeamActivity,
+            {
+              team_id: parent.team_id,
+              actor_user_id: parent.user_id,
+              event_type: "session_completed" as const,
+              title:
+                parent.title ||
+                (parent.slug
+                  ? formatSlugAsTitle(parent.slug)
+                  : "Session completed"),
+              description: parent.project_path,
+              related_conversation_id: parentConversationId,
+              metadata: {
+                duration_ms: parent.updated_at - parent.started_at,
+                message_count: parent.message_count,
+                git_branch: parent.git_branch,
+              },
             },
-          });
+          );
         }
 
-        await ctx.scheduler.runAfter(0, internal.sessionInsights.generateSessionInsight, {
-          conversation_id: parentConversationId,
-          reason: "periodic",
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.sessionInsights.generateSessionInsight,
+          {
+            conversation_id: parentConversationId,
+            reason: "periodic",
+          },
+        );
       }
     }
 
@@ -1688,7 +2203,8 @@ export const createConversation = mutation({
 
     if (resolvedTeamId && !existing) {
       const bornSubagent =
-        args.is_subagent === true || (!!parentConversationId && !args.parent_message_uuid);
+        args.is_subagent === true ||
+        (!!parentConversationId && !args.parent_message_uuid);
       // A fork is another line of a session already announced, never a new start.
       if (!bornSubagent && !args.fork) {
         // Grace delay: subagent/spawned-by links are often stamped seconds
@@ -1696,23 +2212,32 @@ export const createConversation = mutation({
         // re-reads the conversation at fire time, so the delay lets a late
         // link suppress the push instead of racing it.
         const NOTIFY_GRACE_MS = 60 * 1000;
-        await ctx.scheduler.runAfter(NOTIFY_GRACE_MS, internal.notifications.notifyTeamSessionStart, {
-          conversation_id: conversationId,
-          user_id: args.user_id,
-        });
+        await ctx.scheduler.runAfter(
+          NOTIFY_GRACE_MS,
+          internal.notifications.notifyTeamSessionStart,
+          {
+            conversation_id: conversationId,
+            user_id: args.user_id,
+          },
+        );
       }
 
-      await ctx.scheduler.runAfter(0, internal.teamActivity.recordTeamActivity, {
-        team_id: resolvedTeamId,
-        actor_user_id: args.user_id,
-        event_type: "session_started" as const,
-        title: title || (args.slug ? formatSlugAsTitle(args.slug) : "New session"),
-        description: args.project_path,
-        related_conversation_id: conversationId,
-        metadata: {
-          git_branch: args.git_branch,
+      await ctx.scheduler.runAfter(
+        0,
+        internal.teamActivity.recordTeamActivity,
+        {
+          team_id: resolvedTeamId,
+          actor_user_id: args.user_id,
+          event_type: "session_started" as const,
+          title:
+            title || (args.slug ? formatSlugAsTitle(args.slug) : "New session"),
+          description: args.project_path,
+          related_conversation_id: conversationId,
+          metadata: {
+            git_branch: args.git_branch,
+          },
         },
-      });
+      );
     }
 
     return conversationId;
@@ -1736,7 +2261,11 @@ export async function insertStartedConversation(
     extra?: Partial<Omit<Doc<"conversations">, "_id" | "_creationTime">>;
   },
 ): Promise<Id<"conversations">> {
-  const privacy = await resolveCreationPrivacy(ctx, userId, fields.git_root || fields.project_path);
+  const privacy = await resolveCreationPrivacy(
+    ctx,
+    userId,
+    fields.git_root || fields.project_path,
+  );
   const conversationId = await ctx.db.insert("conversations", {
     user_id: userId,
     agent_type: fields.agent_type,
@@ -1758,17 +2287,19 @@ export async function insertStartedConversation(
 
 export const createQuickSession = mutation({
   args: {
-    agent_type: v.optional(v.union(
-      v.literal("claude_code"),
-      v.literal("codex"),
-      v.literal("cursor"),
-      v.literal("gemini"),
-      v.literal("opencode"),
-      v.literal("pi"),
-      v.literal("grok"),
-      v.literal("muse"),
-      v.literal("antigravity"),
-    )),
+    agent_type: v.optional(
+      v.union(
+        v.literal("claude_code"),
+        v.literal("codex"),
+        v.literal("cursor"),
+        v.literal("gemini"),
+        v.literal("opencode"),
+        v.literal("pi"),
+        v.literal("grok"),
+        v.literal("muse"),
+        v.literal("antigravity"),
+      ),
+    ),
     project_path: v.optional(v.string()),
     git_root: v.optional(v.string()),
     session_id: v.optional(v.string()),
@@ -1797,14 +2328,29 @@ export const createQuickSession = mutation({
     const sessionId = args.session_id || crypto.randomUUID();
     const agentType = args.agent_type || "claude_code";
 
-    if (args.cloud_device_id) await resolveCloudDevice(ctx, userId, args.cloud_device_id);
-    const cloudWorkspace = args.cloud_device_id ? (args.cloud_workspace ?? "isolated") : undefined;
-    const cloudStartFrom = args.cloud_device_id ? effectiveStartFrom(cloudWorkspace, args.cloud_start_from, undefined) : undefined;
+    if (args.cloud_device_id)
+      await resolveCloudDevice(ctx, userId, args.cloud_device_id);
+    const cloudWorkspace = args.cloud_device_id
+      ? (args.cloud_workspace ?? "isolated")
+      : undefined;
+    const cloudStartFrom = args.cloud_device_id
+      ? effectiveStartFrom(cloudWorkspace, args.cloud_start_from, undefined)
+      : undefined;
     if (args.cloud_device_id && cloudWorkspace === "shared") {
       // A direct mutation: the caller sees the refusal, so throw before any row exists.
       const repo = args.git_root || args.project_path;
-      const occupant = repo ? await findSharedCheckoutOccupant(ctx, userId, args.cloud_device_id, { repoBasename: posixRepoBasename(repo) }) : null;
-      if (occupant) throw new Error(checkoutInUseMessage(occupant.cloud_checkout_path ?? occupant.project_path ?? repo!, occupant));
+      const occupant = repo
+        ? await findSharedCheckoutOccupant(ctx, userId, args.cloud_device_id, {
+            repoBasename: posixRepoBasename(repo),
+          })
+        : null;
+      if (occupant)
+        throw new Error(
+          checkoutInUseMessage(
+            occupant.cloud_checkout_path ?? occupant.project_path ?? repo!,
+            occupant,
+          ),
+        );
     }
 
     const conversationId = await insertStartedConversation(ctx, userId, {
@@ -1814,7 +2360,12 @@ export const createQuickSession = mutation({
       project_path: args.project_path,
       git_root: args.git_root,
       extra: args.cloud_device_id
-        ? { owner_device_id: args.cloud_device_id, cloud_placement: "pending" as const, cloud_workspace: cloudWorkspace, cloud_start_from: cloudStartFrom }
+        ? {
+            owner_device_id: args.cloud_device_id,
+            cloud_placement: "pending" as const,
+            cloud_workspace: cloudWorkspace,
+            cloud_start_from: cloudStartFrom,
+          }
         : undefined,
     });
 
@@ -1874,7 +2425,7 @@ export async function resolveConversationRef(
   userId: Id<"users">,
 ): Promise<Doc<"conversations"> | null> {
   return resolveConversationRefRanked(ctx, ref, userId, (conversation) =>
-    canTeamMemberAccess(ctx, userId, conversation)
+    canTeamMemberAccess(ctx, userId, conversation),
   );
 }
 
@@ -1894,10 +2445,15 @@ async function isSharedChildOf(
   scopeToken: string | undefined,
 ): Promise<boolean> {
   if (!scopeId || !conv.share_token) return false;
-  const parentId = conv.parent_conversation_id ?? conv.spawned_by_conversation_id;
+  const parentId =
+    conv.parent_conversation_id ?? conv.spawned_by_conversation_id;
   if (!parentId || parentId.toString() !== scopeId) return false;
   const parent = await ctx.db.get(parentId);
-  return !!parent && (await checkConversationAccess(ctx, viewerId, parent, scopeToken)) !== "denied";
+  return (
+    !!parent &&
+    (await checkConversationAccess(ctx, viewerId, parent, scopeToken)) !==
+      "denied"
+  );
 }
 
 export const webGet = query({
@@ -1913,12 +2469,19 @@ export const webGet = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId && !args.in_conversation) return null;
-    const sharedChild = (c: Doc<"conversations">) => isSharedChildOf(ctx, userId, c, args.in_conversation, args.share_token);
+    const sharedChild = (c: Doc<"conversations">) =>
+      isSharedChildOf(ctx, userId, c, args.in_conversation, args.share_token);
 
     let conv: Doc<"conversations"> | null = null;
     if (args.short_id) {
-      conv = (await resolveConversationRefRanked(ctx, args.short_id, userId ?? "", async (c) =>
-        (userId ? await canTeamMemberAccess(ctx, userId, c as Doc<"conversations">) : false) || (await sharedChild(c as Doc<"conversations">)),
+      conv = (await resolveConversationRefRanked(
+        ctx,
+        args.short_id,
+        userId ?? "",
+        async (c) =>
+          (userId
+            ? await canTeamMemberAccess(ctx, userId, c as Doc<"conversations">)
+            : false) || (await sharedChild(c as Doc<"conversations">)),
       )) as Doc<"conversations"> | null;
     } else if (args.id) {
       const id = ctx.db.normalizeId("conversations", args.id);
@@ -1927,16 +2490,23 @@ export const webGet = query({
 
     if (!conv) return null;
     const isOwner = !!userId && conv.user_id.toString() === userId.toString();
-    const access: AccessLevel = userId && (await canOwnerOrTeamAccess(ctx, userId, conv))
-      ? (isOwner ? "owner" : "team")
-      : (await sharedChild(conv)) ? "shared" : "denied";
+    const access: AccessLevel =
+      userId && (await canOwnerOrTeamAccess(ctx, userId, conv))
+        ? isOwner
+          ? "owner"
+          : "team"
+        : (await sharedChild(conv))
+          ? "shared"
+          : "denied";
     if (access === "denied") return null;
 
     // Author identity, only for teammates' sessions (own sessions skip the read).
     // The reference pill/hover use this to show the author's avatar when the
     // session isn't yours — same name/avatar convention as the inbox feed rows.
     // An anchor always shows its bot identity, even on the host's own session.
-    const owner = isOwner ? null : conversationAuthorForAccess(await ctx.db.get(conv.user_id), access);
+    const owner = isOwner
+      ? null
+      : conversationAuthorForAccess(await ctx.db.get(conv.user_id), access);
     const acting = await resolveActingAuthor(ctx, conv);
 
     return {
@@ -1958,14 +2528,20 @@ export const webGet = query({
       // stamps so a stashed/dismissed session must not seed as an active row
       // (ct-42666).
       session_id: conv.session_id,
-      is_active: conv.status === "active" && conv.updated_at > Date.now() - 5 * 60 * 1000,
+      is_active:
+        conv.status === "active" &&
+        conv.updated_at > Date.now() - 5 * 60 * 1000,
       started_at: (conv as any).started_at || conv._creationTime,
       ...inboxVisibilityFields(conv),
       is_own: isOwner,
       acting_user_id: conv.acting_user_id ?? null,
       is_anchor: !!conv.anchor_id,
       anchor_id: conv.anchor_id ?? null,
-      author_name: acting ? acting.name : owner ? (owner.name || owner.email?.split("@")[0] || "Unknown") : null,
+      author_name: acting
+        ? acting.name
+        : owner
+          ? owner.name || owner.email?.split("@")[0] || "Unknown"
+          : null,
       author_avatar: acting ? acting.avatar : owner ? owner.avatar_url : null,
       // Summary/context fields (already on the doc — no extra reads). The pill
       // card coalesces these into a one-line summary + last-message preview so
@@ -2008,15 +2584,36 @@ export const getConversation = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) {
       return null;
     }
     const conversationId = conversation._id;
-    const accessLevel = await checkConversationAccess(ctx, authUserId, conversation, args.share_token);
+    const accessLevel = await checkConversationAccess(
+      ctx,
+      authUserId,
+      conversation,
+      args.share_token,
+    );
     if (accessLevel === "denied") {
-      const summary = await summaryOnlyConversation(ctx, authUserId, conversation);
-      return summary && { ...summary, messages: [], has_more_above: false, oldest_timestamp: null, active_plan: null, active_task: null };
+      const summary = await summaryOnlyConversation(
+        ctx,
+        authUserId,
+        conversation,
+      );
+      return (
+        summary && {
+          ...summary,
+          messages: [],
+          has_more_above: false,
+          oldest_timestamp: null,
+          active_plan: null,
+          active_task: null,
+        }
+      );
     }
 
     const limit = args.limit ?? 100;
@@ -2024,15 +2621,18 @@ export const getConversation = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_id", (q) =>
-        q.eq("conversation_id", conversationId)
+        q.eq("conversation_id", conversationId),
       )
       .order("desc")
       .take(limit + 1);
 
     const hasMore = messages.length > limit;
     const resultMessages = hasMore ? messages.slice(0, limit) : messages;
-    const sortedMessages = resultMessages.sort((a, b) => a.timestamp - b.timestamp);
-    const oldestTimestamp = sortedMessages.length > 0 ? sortedMessages[0].timestamp : null;
+    const sortedMessages = resultMessages.sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+    const oldestTimestamp =
+      sortedMessages.length > 0 ? sortedMessages[0].timestamp : null;
 
     const user = await ctx.db.get(conversation.user_id);
 
@@ -2049,10 +2649,11 @@ export const getConversation = query({
       }
     }
 
-    const title = conversation.title
-      || firstUserMessage
-      || (conversation.slug ? formatSlugAsTitle(conversation.slug) : null)
-      || "New Session";
+    const title =
+      conversation.title ||
+      firstUserMessage ||
+      (conversation.slug ? formatSlugAsTitle(conversation.slug) : null) ||
+      "New Session";
 
     // active_plan / active_task are team-scoped work items. A share-token guest
     // (accessLevel "shared") must never receive them — only an owner or a
@@ -2061,13 +2662,25 @@ export const getConversation = query({
     let active_plan = null;
     if (hasFullAccess && conversation.active_plan_id) {
       const plan = await ctx.db.get(conversation.active_plan_id);
-      if (plan) active_plan = { _id: plan._id, short_id: plan.short_id, title: plan.title, status: plan.status };
+      if (plan)
+        active_plan = {
+          _id: plan._id,
+          short_id: plan.short_id,
+          title: plan.title,
+          status: plan.status,
+        };
     }
 
     let active_task = null;
     if (hasFullAccess && conversation.active_task_id) {
       const task = await ctx.db.get(conversation.active_task_id);
-      if (task) active_task = { _id: task._id, short_id: task.short_id, title: task.title, status: task.status };
+      if (task)
+        active_task = {
+          _id: task._id,
+          short_id: task.short_id,
+          title: task.title,
+          status: task.status,
+        };
     }
 
     return sanitizeConvexObjectKeys({
@@ -2132,7 +2745,12 @@ export const getAllMessages = query({
       return null;
     }
 
-    const accessLevel = await checkConversationAccess(ctx, authUserId, conversation, args.share_token);
+    const accessLevel = await checkConversationAccess(
+      ctx,
+      authUserId,
+      conversation,
+      args.share_token,
+    );
     if (accessLevel === "denied") {
       return null;
     }
@@ -2147,14 +2765,19 @@ export const getAllMessages = query({
       { before: args.before_timestamp, order: "desc", limit: args.limit ?? 50 },
     );
     newestFirst.reverse();
-    const messages = await attachSenderIdentities(ctx, conversation.user_id, newestFirst);
+    const messages = await attachSenderIdentities(
+      ctx,
+      conversation.user_id,
+      newestFirst,
+    );
 
     // No conversation row in the result: the client already has meta from
     // getConversationWithMeta, and a live subscription (target-mode loadOlder)
     // would re-push the whole page on every heartbeat if updated_at rode along.
     return sanitizeConvexObjectKeys({
       messages,
-      last_timestamp: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      last_timestamp:
+        messages.length > 0 ? messages[messages.length - 1].timestamp : null,
       has_more_above: hasMore,
       oldest_timestamp: messages.length > 0 ? messages[0].timestamp : null,
     });
@@ -2177,17 +2800,25 @@ export const findUserLocalCheckouts = query({
     const convs = await ctx.db
       .query("conversations")
       .withIndex("by_user_git_remote_url", (q) =>
-        q.eq("user_id", userId).eq("git_remote_url", args.git_remote_url)
+        q.eq("user_id", userId).eq("git_remote_url", args.git_remote_url),
       )
       .collect();
     const seen = new Set<string>();
-    const out: { git_root: string; project_path: string | null; updated_at: number }[] = [];
+    const out: {
+      git_root: string;
+      project_path: string | null;
+      updated_at: number;
+    }[] = [];
     convs.sort((a, b) => b.updated_at - a.updated_at);
     for (const c of convs) {
       const root = c.git_root;
       if (!root || seen.has(root)) continue;
       seen.add(root);
-      out.push({ git_root: root, project_path: c.project_path ?? null, updated_at: c.updated_at });
+      out.push({
+        git_root: root,
+        project_path: c.project_path ?? null,
+        updated_at: c.updated_at,
+      });
     }
     return out;
   },
@@ -2206,16 +2837,24 @@ export async function recordedRepoForFolder(
   if (!folder || !folder.startsWith("/")) return null;
   const inFolder = await ctx.db
     .query("conversations")
-    .withIndex("by_user_project_path", (q) => q.eq("user_id", userId).eq("project_path", folder))
+    .withIndex("by_user_project_path", (q) =>
+      q.eq("user_id", userId).eq("project_path", folder),
+    )
     .order("desc")
     .take(8);
   const direct = inFolder.find((c) => c.git_remote_url && c.git_root);
-  if (direct) return { git_root: direct.git_root!, git_remote_url: direct.git_remote_url! };
+  if (direct)
+    return {
+      git_root: direct.git_root!,
+      git_remote_url: direct.git_remote_url!,
+    };
   let dir = folder.replace(/\/+$/, "");
   for (let depth = 0; dir && dir !== "/" && depth < 8; depth++) {
     const rows = await ctx.db
       .query("conversations")
-      .withIndex("by_user_git_root", (q) => q.eq("user_id", userId).eq("git_root", dir))
+      .withIndex("by_user_git_root", (q) =>
+        q.eq("user_id", userId).eq("git_root", dir),
+      )
       .order("desc")
       .take(4);
     const hit = rows.find((c) => c.git_remote_url);
@@ -2241,7 +2880,11 @@ export const getProjectInfo = query({
     // its checkout. The owner's earlier sessions in the same folder name it.
     const repo = conv.git_remote_url
       ? null
-      : await recordedRepoForFolder(ctx, conv.user_id, conv.git_root ?? conv.project_path ?? null);
+      : await recordedRepoForFolder(
+          ctx,
+          conv.user_id,
+          conv.git_root ?? conv.project_path ?? null,
+        );
     return {
       project_path: conv.project_path ?? null,
       git_root: conv.git_root ?? repo?.git_root ?? null,
@@ -2270,12 +2913,20 @@ export const getMessagesAroundTimestamp = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) {
       return null;
     }
 
-    const accessLevel = await checkConversationAccess(ctx, authUserId, conversation, args.share_token);
+    const accessLevel = await checkConversationAccess(
+      ctx,
+      authUserId,
+      conversation,
+      args.share_token,
+    );
     if (accessLevel === "denied") {
       return null;
     }
@@ -2293,16 +2944,18 @@ export const getMessagesAroundTimestamp = query({
       limit: args.limit_after ?? 50,
     });
 
-    const messages = await attachSenderIdentities(
-      ctx, conversation.user_id, [...before.messages, ...after.messages],
-    );
+    const messages = await attachSenderIdentities(ctx, conversation.user_id, [
+      ...before.messages,
+      ...after.messages,
+    ]);
 
     // Messages + cursors only. Spreading the conversation row made this live
     // jump query re-ship the window on every heartbeat (listMessagesTail
     // already keeps volatile fields out for the same reason).
     return sanitizeConvexObjectKeys({
       messages,
-      last_timestamp: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      last_timestamp:
+        messages.length > 0 ? messages[messages.length - 1].timestamp : null,
       oldest_timestamp: messages.length > 0 ? messages[0].timestamp : null,
       has_more_above: before.hasMore,
       has_more_below: after.hasMore,
@@ -2320,7 +2973,10 @@ export const getNewMessages = query({
     if (!authUserId) {
       return null;
     }
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) {
       return null;
     }
@@ -2332,7 +2988,9 @@ export const getNewMessages = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", conversation._id).gt("timestamp", args.after_timestamp)
+        q
+          .eq("conversation_id", conversation._id)
+          .gt("timestamp", args.after_timestamp),
       )
       .order("asc")
       .take(PAGE_LIMIT + 1);
@@ -2345,8 +3003,13 @@ export const getNewMessages = query({
     // computing it here cost O(children) queries per poll and timed out on
     // sessions with many subagent children.
     return sanitizeConvexObjectKeys({
-      messages: await attachSenderIdentities(ctx, conversation.user_id, messages),
-      last_timestamp: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      messages: await attachSenderIdentities(
+        ctx,
+        conversation.user_id,
+        messages,
+      ),
+      last_timestamp:
+        messages.length > 0 ? messages[messages.length - 1].timestamp : null,
       has_more: hasMore,
       updated_at: conversation.updated_at,
       title: conversation.title,
@@ -2376,9 +3039,19 @@ export const listMessagesTail = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) return null;
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
 
@@ -2386,7 +3059,9 @@ export const listMessagesTail = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", conversation._id).gt("timestamp", args.after_timestamp)
+        q
+          .eq("conversation_id", conversation._id)
+          .gt("timestamp", args.after_timestamp),
       )
       .order("asc")
       .take(TAIL_LIMIT + 1);
@@ -2394,8 +3069,13 @@ export const listMessagesTail = query({
     if (hasMore) messages.length = TAIL_LIMIT;
 
     return sanitizeConvexObjectKeys({
-      messages: await attachSenderIdentities(ctx, conversation.user_id, messages),
-      last_timestamp: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      messages: await attachSenderIdentities(
+        ctx,
+        conversation.user_id,
+        messages,
+      ),
+      last_timestamp:
+        messages.length > 0 ? messages[messages.length - 1].timestamp : null,
       has_more: hasMore,
     });
   },
@@ -2415,9 +3095,19 @@ export const getTranscriptWatermark = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) return null;
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
     return {
@@ -2438,7 +3128,14 @@ export const copyAllMessages = query({
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
 
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
 
@@ -2456,22 +3153,30 @@ export const copyAllMessages = query({
       const result = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", args.conversation_id)
+          q.eq("conversation_id", args.conversation_id),
         )
         .order("asc")
         .paginate(args.paginationOpts);
-      const page = sanitizeConvexObjectKeys(result.page.filter(isNonEmptyMessage).map(mapMsg));
-      return { page, isDone: result.isDone, continueCursor: result.continueCursor };
+      const page = sanitizeConvexObjectKeys(
+        result.page.filter(isNonEmptyMessage).map(mapMsg),
+      );
+      return {
+        page,
+        isDone: result.isDone,
+        continueCursor: result.continueCursor,
+      };
     }
 
     const allMessages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("asc")
       .collect();
-    return sanitizeConvexObjectKeys(allMessages.filter(isNonEmptyMessage).map(mapMsg));
+    return sanitizeConvexObjectKeys(
+      allMessages.filter(isNonEmptyMessage).map(mapMsg),
+    );
   },
 });
 
@@ -2480,19 +3185,28 @@ export const copyAllMessages = query({
 // to its pending row. Attach that sender's display identity so the UI renders
 // the turn as them instead of the conversation owner. Owner turns stay bare,
 // so the payload only grows for the rare cross-user message.
-export async function attachSenderIdentities<T extends { role?: string; from_user_id?: Id<"users"> }>(
+export async function attachSenderIdentities<
+  T extends { role?: string; from_user_id?: Id<"users"> },
+>(
   ctx: { db: { get: (id: Id<"users">) => Promise<any> } },
   ownerUserId: Id<"users">,
   messages: T[],
 ): Promise<T[]> {
   const senderIds = new Set<string>();
   for (const m of messages) {
-    if (m.role === "user" && m.from_user_id && m.from_user_id.toString() !== ownerUserId.toString()) {
+    if (
+      m.role === "user" &&
+      m.from_user_id &&
+      m.from_user_id.toString() !== ownerUserId.toString()
+    ) {
       senderIds.add(m.from_user_id.toString());
     }
   }
   if (senderIds.size === 0) return messages;
-  const senders = new Map<string, { name: string; avatar_url: string | null }>();
+  const senders = new Map<
+    string,
+    { name: string; avatar_url: string | null }
+  >();
   for (const id of senderIds) {
     const u = await ctx.db.get(id as Id<"users">);
     if (u) {
@@ -2503,8 +3217,12 @@ export async function attachSenderIdentities<T extends { role?: string; from_use
     }
   }
   return messages.map((m) => {
-    const sender = m.from_user_id ? senders.get(m.from_user_id.toString()) : undefined;
-    return sender ? { ...m, sender_name: sender.name, sender_avatar_url: sender.avatar_url } : m;
+    const sender = m.from_user_id
+      ? senders.get(m.from_user_id.toString())
+      : undefined;
+    return sender
+      ? { ...m, sender_name: sender.name, sender_avatar_url: sender.avatar_url }
+      : m;
   });
 }
 
@@ -2516,7 +3234,10 @@ export const listMessages = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     // Missing conversation must return the empty-page shape, not throw — a
     // client can hold a stale conversation_id (deleted row, lost access) in
     // local state, and throwing crashes the React tree via usePaginatedQuery.
@@ -2526,18 +3247,29 @@ export const listMessages = query({
       return { page: [], isDone: true, continueCursor: "" };
     }
 
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return { page: [], isDone: true, continueCursor: "" };
     }
 
     const result = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", conversation._id)
+        q.eq("conversation_id", conversation._id),
       )
       .order("desc")
       .paginate(args.paginationOpts);
-    const page = await attachSenderIdentities(ctx, conversation.user_id, result.page);
+    const page = await attachSenderIdentities(
+      ctx,
+      conversation.user_id,
+      result.page,
+    );
     return { ...result, page: sanitizeConvexObjectKeys(page) };
   },
 });
@@ -2555,12 +3287,20 @@ export const getConversationWithMeta = query({
   },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    const conversation = await getConversationByRawId(ctx, args.conversation_id);
+    const conversation = await getConversationByRawId(
+      ctx,
+      args.conversation_id,
+    );
     if (!conversation) {
       return null;
     }
 
-    const access = await checkConversationAccess(ctx, authUserId, conversation, args.share_token);
+    const access = await checkConversationAccess(
+      ctx,
+      authUserId,
+      conversation,
+      args.share_token,
+    );
     if (access === "denied") {
       return await summaryOnlyConversation(ctx, authUserId, conversation);
     }
@@ -2568,12 +3308,16 @@ export const getConversationWithMeta = query({
 
     const user = await ctx.db.get(conversation.user_id);
 
-    const title = conversation.title
-      || (conversation.slug ? formatSlugAsTitle(conversation.slug) : null)
-      || "New Session";
+    const title =
+      conversation.title ||
+      (conversation.slug ? formatSlugAsTitle(conversation.slug) : null) ||
+      "New Session";
 
-    const { children: childConversations, map: childByParentUuid, agentNameEntries } =
-      await findChildConversations(ctx, conversation._id, []);
+    const {
+      children: childConversations,
+      map: childByParentUuid,
+      agentNameEntries,
+    } = await findChildConversations(ctx, conversation._id, []);
 
     let forkedFromDetails = null;
     if (conversation.forked_from) {
@@ -2589,8 +3333,12 @@ export const getConversationWithMeta = query({
         forkedFromDetails = {
           conversation_id: originalConv._id,
           title: originalConv.title,
-          share_token: parentAccess === "denied" ? undefined : originalConv.share_token,
-          username: originalUser?.name || originalUser?.email?.split("@")[0] || "Unknown",
+          share_token:
+            parentAccess === "denied" ? undefined : originalConv.share_token,
+          username:
+            originalUser?.name ||
+            originalUser?.email?.split("@")[0] ||
+            "Unknown",
           // Triage state for the client-side parent preload (same contract as
           // mapForkDetails): a stashed/dismissed parent must seed as such, not
           // as an active row that flashes into the inbox at boot.
@@ -2602,14 +3350,28 @@ export const getConversationWithMeta = query({
     const parentConversationId = await resolveSpawnParentId(ctx, conversation);
 
     const getDocOnce = (id: any) => ctx.db.get(id);
-    const handedOffFromDetails = await handoffLinkDetails(getDocOnce, conversation.handed_off_from_conversation_id);
-    const handedOffToDetails = await handoffLinkDetails(getDocOnce, await handedOffToId(ctx, conversation));
+    const handedOffFromDetails = await handoffLinkDetails(
+      getDocOnce,
+      conversation.handed_off_from_conversation_id,
+    );
+    const handedOffToDetails = await handoffLinkDetails(
+      getDocOnce,
+      await handedOffToId(ctx, conversation),
+    );
 
-    const forkChildrenDetails = await getAccessibleForkChildren(ctx, authUserId, conversation._id);
+    const forkChildrenDetails = await getAccessibleForkChildren(
+      ctx,
+      authUserId,
+      conversation._id,
+    );
 
     let forkSiblings: typeof forkChildrenDetails = [];
     if (conversation.forked_from) {
-      forkSiblings = await getAccessibleForkChildren(ctx, authUserId, conversation.forked_from);
+      forkSiblings = await getAccessibleForkChildren(
+        ctx,
+        authUserId,
+        conversation.forked_from,
+      );
     }
 
     const mainDivergentPreviewsByFork = await computeOriginDivergentPreviews(
@@ -2624,32 +3386,54 @@ export const getConversationWithMeta = query({
       const membership = await ctx.db
         .query("team_memberships")
         .withIndex("by_user_team", (q: any) =>
-          q.eq("user_id", conversation.user_id).eq("team_id", conversation.team_id!)
+          q
+            .eq("user_id", conversation.user_id)
+            .eq("team_id", conversation.team_id!),
         )
         .first();
-      effective_team_visibility = effectiveMembershipVisibility(membership, conversation.started_at) as any;
+      effective_team_visibility = effectiveMembershipVisibility(
+        membership,
+        conversation.started_at,
+      ) as any;
     }
 
     let active_plan = null;
     if (conversation.active_plan_id) {
       const plan = await ctx.db.get(conversation.active_plan_id);
-      if (plan) active_plan = { _id: plan._id, short_id: plan.short_id, title: plan.title, status: plan.status };
+      if (plan)
+        active_plan = {
+          _id: plan._id,
+          short_id: plan.short_id,
+          title: plan.title,
+          status: plan.status,
+        };
     }
 
     let active_task = null;
     if (conversation.active_task_id) {
       const task = await ctx.db.get(conversation.active_task_id);
-      if (task) active_task = { _id: task._id, short_id: task.short_id, title: task.title, status: task.status };
+      if (task)
+        active_task = {
+          _id: task._id,
+          short_id: task.short_id,
+          title: task.title,
+          status: task.status,
+        };
     }
 
     // Strip the large on-demand field (available_skills). git_diff /
     // git_diff_staged now live in conversation_git_diffs, not on the doc.
-    const {
-      available_skills: _convSkills,
-      ...conversationLight
-    } = conversationForAccess(conversation, access);
+    const { available_skills: _convSkills, ...conversationLight } =
+      conversationForAccess(conversation, access);
     if (args.strip_volatile) {
-      for (const k of ["updated_at", "message_count", "last_message_at", "last_metrics_at", "last_active_at", "last_heartbeat"]) {
+      for (const k of [
+        "updated_at",
+        "message_count",
+        "last_message_at",
+        "last_metrics_at",
+        "last_active_at",
+        "last_heartbeat",
+      ]) {
         delete (conversationLight as any)[k];
       }
     }
@@ -2664,7 +3448,10 @@ export const getConversationWithMeta = query({
 
     return sanitizeConvexObjectKeys({
       ...conversationLight,
-      stable_context: (conversationLight as any).stable_context ?? sideStableContext ?? undefined,
+      stable_context:
+        (conversationLight as any).stable_context ??
+        sideStableContext ??
+        undefined,
       // Explicit null, never an absent key: the client merges rows, so a link
       // turned off on another device would otherwise stay "on" in an open tab.
       share_token: (conversationLight as any).share_token ?? null,
@@ -2676,7 +3463,9 @@ export const getConversationWithMeta = query({
       git_ahead: (conversationLight as any).git_ahead ?? null,
       git_behind: (conversationLight as any).git_behind ?? null,
       git_dirty: (conversationLight as any).git_dirty ?? null,
-      peer_transfer: isOwner ? (conversationLight as any).peer_transfer ?? null : null,
+      peer_transfer: isOwner
+        ? ((conversationLight as any).peer_transfer ?? null)
+        : null,
       is_own: !!isOwner,
       // A share-link viewer reads but may not fork or steer: forkFromMessage
       // admits owners and team members only, so the web hides those actions.
@@ -2712,7 +3501,15 @@ export const getConversationGitDiff = query({
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
 
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") return null;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return null;
 
     return await getConvGitDiff(ctx, args.conversation_id);
   },
@@ -2731,7 +3528,11 @@ export async function collectConversationToolStats(
   db: { query: (table: "messages") => any },
   conversationId: Id<"conversations">,
 ) {
-  const rows: Array<{ role?: string; timestamp?: number; tool_calls?: Array<{ name: string; input: string }> | null }> = [];
+  const rows: Array<{
+    role?: string;
+    timestamp?: number;
+    tool_calls?: Array<{ name: string; input: string }> | null;
+  }> = [];
   let scanned = 0;
   for await (const msg of db
     .query("messages")
@@ -2743,7 +3544,8 @@ export async function collectConversationToolStats(
     rows.push(msg);
     // Newest-first: the first TodoWrite is the panel. Stop so a session of
     // huge Write rows behind it is never read.
-    if (msg.tool_calls?.some((tc: { name: string }) => isTodoStatTool(tc.name))) break;
+    if (msg.tool_calls?.some((tc: { name: string }) => isTodoStatTool(tc.name)))
+      break;
   }
   return { taskStats: computeConversationTaskStats(rows) };
 }
@@ -2758,7 +3560,15 @@ export const getConversationToolStats = query({
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) return null;
 
-    if ((await checkConversationAccess(ctx, authUserId, conversation, args.share_token)) === "denied") return null;
+    if (
+      (await checkConversationAccess(
+        ctx,
+        authUserId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    )
+      return null;
 
     return collectConversationToolStats(ctx.db, args.conversation_id);
   },
@@ -2787,7 +3597,9 @@ export const getConversationMessages = query({
       messages = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", args.conversation_id).gt("timestamp", args.after_timestamp!)
+          q
+            .eq("conversation_id", args.conversation_id)
+            .gt("timestamp", args.after_timestamp!),
         )
         .order("asc")
         .collect();
@@ -2795,23 +3607,27 @@ export const getConversationMessages = query({
       messages = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", args.conversation_id)
+          q.eq("conversation_id", args.conversation_id),
         )
         .order("asc")
         .collect();
     }
 
-    const { children: childConversations, map: childConversationMap, agentNameEntries } =
-      messages.length > 0
-        ? await findChildConversations(ctx, args.conversation_id, messages)
-        : { children: [], map: {}, agentNameEntries: [] };
+    const {
+      children: childConversations,
+      map: childConversationMap,
+      agentNameEntries,
+    } = messages.length > 0
+      ? await findChildConversations(ctx, args.conversation_id, messages)
+      : { children: [], map: {}, agentNameEntries: [] };
 
     return {
       messages,
       child_conversations: childConversations,
       child_conversation_map: childConversationMap,
       agent_name_entries: agentNameEntries,
-      last_timestamp: messages.length > 0 ? messages[messages.length - 1].timestamp : null,
+      last_timestamp:
+        messages.length > 0 ? messages[messages.length - 1].timestamp : null,
     };
   },
 });
@@ -2872,14 +3688,19 @@ export const getOlderMessages = query({
     const { messages: newestFirst, hasMore } = await pageConversationMessages(
       ctx.db,
       args.conversation_id,
-      { before: args.before_timestamp, order: "desc", limit: args.limit ?? 100 },
+      {
+        before: args.before_timestamp,
+        order: "desc",
+        limit: args.limit ?? 100,
+      },
     );
     newestFirst.reverse();
 
     return {
       messages: newestFirst,
       has_more: hasMore,
-      oldest_timestamp: newestFirst.length > 0 ? newestFirst[0].timestamp : null,
+      oldest_timestamp:
+        newestFirst.length > 0 ? newestFirst[0].timestamp : null,
     };
   },
 });
@@ -2895,7 +3716,9 @@ export const listConversations = query({
     include_message_previews: v.optional(v.boolean()),
     memberId: v.optional(v.id("users")),
     activeTeamId: v.optional(v.id("teams")),
-    subagentFilter: v.optional(v.union(v.literal("main"), v.literal("subagent"))),
+    subagentFilter: v.optional(
+      v.union(v.literal("main"), v.literal("subagent")),
+    ),
     directoryFilter: v.optional(v.string()),
     timeFilter: v.optional(v.union(v.literal("long"), v.literal("active"))),
   },
@@ -2913,40 +3736,55 @@ export const listConversations = query({
     const includeMessagePreviews = args.include_message_previews ?? false;
     const cursorTimestamp = args.cursor ? parseInt(args.cursor, 10) : null;
 
-    const requestedTeamId = args.filter === "team" ? (args.activeTeamId || user.active_team_id) : undefined;
+    const requestedTeamId =
+      args.filter === "team"
+        ? args.activeTeamId || user.active_team_id
+        : undefined;
     const effectiveTeamId = requestedTeamId
-      ? (await resolveInboxTeamScope(ctx, userId, requestedTeamId)) ?? undefined
+      ? ((await resolveInboxTeamScope(ctx, userId, requestedTeamId)) ??
+        undefined)
       : undefined;
     if (args.filter === "team" && !effectiveTeamId) {
       return { conversations: [], nextCursor: null };
     }
 
-    const teamUsers = args.filter === "team" && effectiveTeamId
-      ? await ctx.db
-          .query("users")
-          .withIndex("by_team_id", (q) => q.eq("team_id", effectiveTeamId))
-          .collect()
-      : [];
+    const teamUsers =
+      args.filter === "team" && effectiveTeamId
+        ? await ctx.db
+            .query("users")
+            .withIndex("by_team_id", (q) => q.eq("team_id", effectiveTeamId))
+            .collect()
+        : [];
 
-    const feedFilter = args.filter === "team" && effectiveTeamId
-      ? await createTeamFeedFilter(ctx, effectiveTeamId)
-      : null;
+    const feedFilter =
+      args.filter === "team" && effectiveTeamId
+        ? await createTeamFeedFilter(ctx, effectiveTeamId)
+        : null;
 
     const additionalUsers = await Promise.all(
       (feedFilter?.memberships ?? [])
-        .filter(m => !teamUsers.some(u => u._id.toString() === m.user_id.toString()))
-        .map(m => ctx.db.get(m.user_id))
+        .filter(
+          (m) =>
+            !teamUsers.some((u) => u._id.toString() === m.user_id.toString()),
+        )
+        .map((m) => ctx.db.get(m.user_id)),
     );
-    const allTeamUsers = [...teamUsers, ...additionalUsers.filter((u): u is NonNullable<typeof u> => u !== null)];
-    const teamUserMap = new Map(allTeamUsers.map(u => [u._id.toString(), u]));
-
+    const allTeamUsers = [
+      ...teamUsers,
+      ...additionalUsers.filter((u): u is NonNullable<typeof u> => u !== null),
+    ];
+    const teamUserMap = new Map(allTeamUsers.map((u) => [u._id.toString(), u]));
 
     const now = Date.now();
     const fiveMinutesAgo = now - 5 * 60 * 1000;
 
     const liveConvIds = await liveConversationIdSet(ctx, userId, { now });
 
-    const needsBatchScan = !!(args.subagentFilter || args.directoryFilter || args.timeFilter);
+    const needsBatchScan = !!(
+      args.subagentFilter ||
+      args.directoryFilter ||
+      args.timeFilter
+    );
 
     const matchesFilters = (c: any): boolean => {
       if (isRunLog(c)) return false;
@@ -2960,16 +3798,21 @@ export const listConversations = query({
         // web feed does (ActivityFeed), so a subfolder or a teammate's copy counts.
         const root = c.git_root || c.project_path;
         if (!root) return false;
-        const filterName = args.directoryFilter.split('/').filter(Boolean).pop();
-        const rootParts = root.split('/').filter(Boolean);
+        const filterName = args.directoryFilter
+          .split("/")
+          .filter(Boolean)
+          .pop();
+        const rootParts = root.split("/").filter(Boolean);
         if (!filterName || !rootParts.includes(filterName)) return false;
       }
       if (args.timeFilter === "active") {
-        const isActive = c.status === "active" && (c.updated_at > fiveMinutesAgo || liveConvIds.has(c._id.toString()));
+        const isActive =
+          c.status === "active" &&
+          (c.updated_at > fiveMinutesAgo || liveConvIds.has(c._id.toString()));
         if (!isActive) return false;
       }
       if (args.timeFilter === "long") {
-        if ((c.updated_at - c.started_at) < 20 * 60 * 1000) return false;
+        if (c.updated_at - c.started_at < 20 * 60 * 1000) return false;
       }
       return true;
     };
@@ -2993,7 +3836,7 @@ export const listConversations = query({
             .withIndex("by_user_updated", (q) =>
               cursor
                 ? q.eq("user_id", userId).lt("updated_at", cursor)
-                : q.eq("user_id", userId)
+                : q.eq("user_id", userId),
             )
             .order("desc")
             .take(take),
@@ -3003,7 +3846,8 @@ export const listConversations = query({
         batchSize: needsBatchScan ? Math.min(limit * 3, 50) : limit + 1,
       });
       conversations = scan.rows;
-      if (!scan.exhausted && scan.oldestSeen != null) scanFloors.push(scan.oldestSeen);
+      if (!scan.exhausted && scan.oldestSeen != null)
+        scanFloors.push(scan.oldestSeen);
     } else if (args.memberId) {
       // Filter by specific team member - use index for efficient pagination
       const targetMember = teamUserMap.get(args.memberId.toString());
@@ -3024,8 +3868,13 @@ export const listConversations = query({
             .query("conversations")
             .withIndex("by_team_user_updated", (q) =>
               cursor
-                ? q.eq("team_id", effectiveTeamId!).eq("user_id", args.memberId!).lt("updated_at", cursor)
-                : q.eq("team_id", effectiveTeamId!).eq("user_id", args.memberId!)
+                ? q
+                    .eq("team_id", effectiveTeamId!)
+                    .eq("user_id", args.memberId!)
+                    .lt("updated_at", cursor)
+                : q
+                    .eq("team_id", effectiveTeamId!)
+                    .eq("user_id", args.memberId!),
             )
             .order("desc")
             .take(take),
@@ -3035,24 +3884,31 @@ export const listConversations = query({
         batchSize: Math.min(limit * 3, 50),
       });
       conversations = scan.rows;
-      if (!scan.exhausted && scan.oldestSeen != null) scanFloors.push(scan.oldestSeen);
+      if (!scan.exhausted && scan.oldestSeen != null)
+        scanFloors.push(scan.oldestSeen);
     } else {
       // Query recent conversations from each visible team member and merge.
       // Pagination uses a composite per-member cursor (see feedPagination.ts):
       // each member resumes below what THEY already returned, so pages never
       // re-serve rows the client has, and one member's filtered-out band
       // (e.g. a swarm of subagent sessions) can't stall everyone else.
-      const visibleMembers = (feedFilter?.memberships ?? []).filter(m => {
+      const visibleMembers = (feedFilter?.memberships ?? []).filter((m) => {
         const visibility = currentMembershipVisibility(m as any);
         return visibility !== "hidden";
       });
 
       const maxTotalReads = 100;
-      const perMemberFetch = Math.max(3, Math.min(
-        Math.ceil((limit + 1) * 2 / Math.max(visibleMembers.length, 1)),
-        Math.floor(maxTotalReads / Math.max(visibleMembers.length, 1))
-      ));
-      const perMemberLimit = Math.max(3, Math.ceil((limit + 1) / Math.max(visibleMembers.length, 1)));
+      const perMemberFetch = Math.max(
+        3,
+        Math.min(
+          Math.ceil(((limit + 1) * 2) / Math.max(visibleMembers.length, 1)),
+          Math.floor(maxTotalReads / Math.max(visibleMembers.length, 1)),
+        ),
+      );
+      const perMemberLimit = Math.max(
+        3,
+        Math.ceil((limit + 1) / Math.max(visibleMembers.length, 1)),
+      );
 
       const page = await paginateTeamFeed({
         memberIds: visibleMembers.map((m) => m.user_id.toString()),
@@ -3063,8 +3919,13 @@ export const listConversations = query({
             .query("conversations")
             .withIndex("by_team_user_updated", (q) =>
               cursor
-                ? q.eq("team_id", effectiveTeamId!).eq("user_id", memberId as Id<"users">).lt("updated_at", cursor)
-                : q.eq("team_id", effectiveTeamId!).eq("user_id", memberId as Id<"users">)
+                ? q
+                    .eq("team_id", effectiveTeamId!)
+                    .eq("user_id", memberId as Id<"users">)
+                    .lt("updated_at", cursor)
+                : q
+                    .eq("team_id", effectiveTeamId!)
+                    .eq("user_id", memberId as Id<"users">),
             )
             .order("desc")
             .take(take),
@@ -3082,15 +3943,25 @@ export const listConversations = query({
     // an unfinished scan's floor (those rows were never examined), and a short
     // page with a remaining floor is NOT end-of-history — null means the scan
     // truly ran its index dry.
-    const hasMore = teamMergeNextCursor !== undefined ? teamMergeNextCursor != null : conversations.length > limit;
-    const resultConversations = teamMergeNextCursor === undefined && hasMore ? conversations.slice(0, limit) : conversations;
+    const hasMore =
+      teamMergeNextCursor !== undefined
+        ? teamMergeNextCursor != null
+        : conversations.length > limit;
+    const resultConversations =
+      teamMergeNextCursor === undefined && hasMore
+        ? conversations.slice(0, limit)
+        : conversations;
     let nextCursor: string | null;
     if (teamMergeNextCursor !== undefined) {
       nextCursor = teamMergeNextCursor;
     } else {
-      const pageCursor = hasMore ? resultConversations[resultConversations.length - 1].updated_at : null;
-      const continuation = pageCursor != null ? [...scanFloors, pageCursor] : scanFloors;
-      nextCursor = continuation.length > 0 ? String(Math.max(...continuation)) : null;
+      const pageCursor = hasMore
+        ? resultConversations[resultConversations.length - 1].updated_at
+        : null;
+      const continuation =
+        pageCursor != null ? [...scanFloors, pageCursor] : scanFloors;
+      nextCursor =
+        continuation.length > 0 ? String(Math.max(...continuation)) : null;
     }
 
     const conversationsWithUsers = await Promise.all(
@@ -3098,21 +3969,34 @@ export const listConversations = query({
         const conversationUser =
           c.user_id.toString() === userId.toString()
             ? user
-            : teamUserMap.get(c.user_id.toString()) || await ctx.db.get(c.user_id);
+            : teamUserMap.get(c.user_id.toString()) ||
+              (await ctx.db.get(c.user_id));
 
         const visibilityMode = resolveVisibilityMode(
           c.team_visibility,
           feedFilter?.getVisibilityFor(c),
-          args.filter === "team"
+          args.filter === "team",
         );
-        let authorName = (conversationUser as any)?.name || (conversationUser as any)?.email?.split("@")[0] || "Unknown";
-        let authorAvatar = (conversationUser as any)?.image || (conversationUser as any)?.github_avatar_url || null;
+        let authorName =
+          (conversationUser as any)?.name ||
+          (conversationUser as any)?.email?.split("@")[0] ||
+          "Unknown";
+        let authorAvatar =
+          (conversationUser as any)?.image ||
+          (conversationUser as any)?.github_avatar_url ||
+          null;
         // An anchor renders under its bot identity even on the host's own row.
         const acting = await resolveActingAuthor(ctx, c);
-        if (acting) { authorName = acting.name; authorAvatar = acting.avatar; }
-        const projectName = (c.project_path || c.git_root)?.split("/").pop() || "unknown project";
+        if (acting) {
+          authorName = acting.name;
+          authorAvatar = acting.avatar;
+        }
+        const projectName =
+          (c.project_path || c.git_root)?.split("/").pop() || "unknown project";
         const durationMs = c.updated_at - c.started_at;
-        const isActive = c.status === "active" && (c.updated_at > fiveMinutesAgo || liveConvIds.has(c._id.toString()));
+        const isActive =
+          c.status === "active" &&
+          (c.updated_at > fiveMinutesAgo || liveConvIds.has(c._id.toString()));
         const title = c.title || "New Session";
 
         if (visibilityMode === "minimal") {
@@ -3139,7 +4023,8 @@ export const listConversations = query({
             worktree_branch: c.worktree_branch || null,
             cloud_placement: c.cloud_placement || null,
             cloud_workspace: c.cloud_workspace || null,
-            cloud_seed: c.cloud_seed ?? null, local_mirror: c.local_mirror ?? null,
+            cloud_seed: c.cloud_seed ?? null,
+            local_mirror: c.local_mirror ?? null,
             migration_batch_id: c.migration?.batch_id || null,
           };
         }
@@ -3172,7 +4057,8 @@ export const listConversations = query({
             worktree_branch: c.worktree_branch || null,
             cloud_placement: c.cloud_placement || null,
             cloud_workspace: c.cloud_workspace || null,
-            cloud_seed: c.cloud_seed ?? null, local_mirror: c.local_mirror ?? null,
+            cloud_seed: c.cloud_seed ?? null,
+            local_mirror: c.local_mirror ?? null,
             migration_batch_id: c.migration?.batch_id || null,
           };
         }
@@ -3185,10 +4071,16 @@ export const listConversations = query({
             visibility_mode: visibilityMode,
             title: fullTitle,
             short_title: c.short_title || null,
-            subtitle: (visibilityMode === "full" || visibilityMode === "detailed") ? (c.subtitle || null) : null,
+            subtitle:
+              visibilityMode === "full" || visibilityMode === "detailed"
+                ? c.subtitle || null
+                : null,
             // Row thumbnail (see schema.image_preview_url) — full/detailed
             // visibility only, so restricted teammates don't leak image URLs.
-            image_preview_url: (visibilityMode === "full" || visibilityMode === "detailed") ? (c.image_preview_url ?? null) : null,
+            image_preview_url:
+              visibilityMode === "full" || visibilityMode === "detailed"
+                ? (c.image_preview_url ?? null)
+                : null,
             first_user_message: null,
             first_assistant_message: null,
             message_alternates: [],
@@ -3196,7 +4088,7 @@ export const listConversations = query({
             subagent_types: [],
             agent_type: c.agent_type,
             model: c.model || null,
-            slug: visibilityMode === "full" ? (c.slug || null) : null,
+            slug: visibilityMode === "full" ? c.slug || null : null,
             started_at: c.started_at,
             updated_at: c.updated_at,
             duration_ms: durationMs,
@@ -3212,7 +4104,10 @@ export const listConversations = query({
             is_own: c.user_id.toString() === userId.toString(),
             parent_conversation_id: c.parent_conversation_id || null,
             parent_message_uuid: c.parent_message_uuid || null,
-            is_subagent: !!(c.is_subagent || (c.parent_conversation_id && !c.parent_message_uuid)),
+            is_subagent: !!(
+              c.is_subagent ||
+              (c.parent_conversation_id && !c.parent_message_uuid)
+            ),
             is_workflow_sub: c.is_workflow_sub || false,
             workflow_run_id: c.workflow_run_id || null,
             parent_title: null,
@@ -3239,7 +4134,8 @@ export const listConversations = query({
             worktree_branch: c.worktree_branch || null,
             cloud_placement: c.cloud_placement || null,
             cloud_workspace: c.cloud_workspace || null,
-            cloud_seed: c.cloud_seed ?? null, local_mirror: c.local_mirror ?? null,
+            cloud_seed: c.cloud_seed ?? null,
+            local_mirror: c.local_mirror ?? null,
             migration_batch_id: c.migration?.batch_id || null,
           };
         }
@@ -3249,7 +4145,7 @@ export const listConversations = query({
         const messages = await ctx.db
           .query("messages")
           .withIndex("by_conversation_id", (q) =>
-            q.eq("conversation_id", c._id)
+            q.eq("conversation_id", c._id),
           )
           .order("asc")
           .take(msgLimit);
@@ -3258,7 +4154,10 @@ export const listConversations = query({
         const toolNames: string[] = [];
         const subagentTypes: string[] = [];
         let aiMessageCount = 0;
-        const messageAlternates: Array<{ role: "user" | "assistant"; content: string }> = [];
+        const messageAlternates: Array<{
+          role: "user" | "assistant";
+          content: string;
+        }> = [];
         let latestTodos: { todos: any[]; timestamp: number } | undefined;
 
         for (const msg of messages) {
@@ -3271,7 +4170,10 @@ export const listConversations = query({
               if (tc.name === "Task" && tc.input) {
                 try {
                   const input = JSON.parse(tc.input);
-                  if (input.subagent_type && !subagentTypes.includes(input.subagent_type)) {
+                  if (
+                    input.subagent_type &&
+                    !subagentTypes.includes(input.subagent_type)
+                  ) {
                     subagentTypes.push(input.subagent_type);
                   }
                 } catch {}
@@ -3296,7 +4198,8 @@ export const listConversations = query({
             // isImportNotice: context-only import banner must not become the
             // preview / first_user_message / fallback title.
             if (text && !isImportNotice(text)) {
-              const truncated = text.length > 120 ? text.slice(0, 120) + "..." : text;
+              const truncated =
+                text.length > 120 ? text.slice(0, 120) + "..." : text;
               messageAlternates.push({ role: "user", content: truncated });
             }
           }
@@ -3307,18 +4210,21 @@ export const listConversations = query({
               text = msg.thinking.trim();
             }
             if (!text && msg.tool_calls && msg.tool_calls.length > 0) {
-              const toolNames = msg.tool_calls.map(tc => tc.name).join(", ");
+              const toolNames = msg.tool_calls.map((tc) => tc.name).join(", ");
               text = `[Using: ${toolNames}]`;
             }
             if (text) {
-              const truncated = text.length > 120 ? text.slice(0, 120) + "..." : text;
+              const truncated =
+                text.length > 120 ? text.slice(0, 120) + "..." : text;
               messageAlternates.push({ role: "assistant", content: truncated });
             }
           }
         }
 
-        const firstUserMessage = messageAlternates.find(m => m.role === "user")?.content || "";
-        const firstAssistantMessage = messageAlternates.find(m => m.role === "assistant")?.content || "";
+        const firstUserMessage =
+          messageAlternates.find((m) => m.role === "user")?.content || "";
+        const firstAssistantMessage =
+          messageAlternates.find((m) => m.role === "assistant")?.content || "";
 
         const fullTitle = c.title || firstUserMessage || "New Session";
 
@@ -3330,14 +4236,18 @@ export const listConversations = query({
         if (!parentConversationId && c.parent_message_uuid) {
           const parentMsg = await ctx.db
             .query("messages")
-            .withIndex("by_message_uuid", (q) => q.eq("message_uuid", c.parent_message_uuid))
+            .withIndex("by_message_uuid", (q) =>
+              q.eq("message_uuid", c.parent_message_uuid),
+            )
             .first();
           if (parentMsg) {
             parentConversationId = parentMsg.conversation_id;
           }
         }
         if (parentConversationId) {
-          const parentConv = await ctx.db.get(parentConversationId as Id<"conversations">);
+          const parentConv = await ctx.db.get(
+            parentConversationId as Id<"conversations">,
+          );
           if (parentConv) {
             parentTitle = parentConv.title || "New Session";
           }
@@ -3349,15 +4259,21 @@ export const listConversations = query({
           visibility_mode: visibilityMode,
           title: fullTitle,
           short_title: c.short_title || null,
-          subtitle: (visibilityMode === "full" || visibilityMode === "detailed") ? (c.subtitle || null) : null,
-          first_user_message: visibilityMode === "full" ? firstUserMessage : null,
-          first_assistant_message: visibilityMode === "full" ? firstAssistantMessage : null,
-          message_alternates: visibilityMode === "full" ? messageAlternates : [],
+          subtitle:
+            visibilityMode === "full" || visibilityMode === "detailed"
+              ? c.subtitle || null
+              : null,
+          first_user_message:
+            visibilityMode === "full" ? firstUserMessage : null,
+          first_assistant_message:
+            visibilityMode === "full" ? firstAssistantMessage : null,
+          message_alternates:
+            visibilityMode === "full" ? messageAlternates : [],
           tool_names: toolNames,
           subagent_types: subagentTypes,
           agent_type: c.agent_type,
           model: c.model || null,
-          slug: visibilityMode === "full" ? (c.slug || null) : null,
+          slug: visibilityMode === "full" ? c.slug || null : null,
           started_at: c.started_at,
           updated_at: c.updated_at,
           duration_ms: durationMs,
@@ -3371,14 +4287,39 @@ export const listConversations = query({
           is_anchor: !!c.anchor_id,
           anchor_id: c.anchor_id ?? null,
           is_own: c.user_id.toString() === userId.toString(),
-          parent_conversation_id: visibilityMode === "full" ? parentConversationId : null,
-          spawned_by_conversation_id: visibilityMode === "full" ? (c.spawned_by_conversation_id || null) : null,
-          handed_off_from_conversation_id: visibilityMode === "full" ? (c.handed_off_from_conversation_id || null) : null,
-          handed_off_to_conversation_id: visibilityMode === "full" ? (c.handed_off_to_conversation_id || null) : null,
-          handed_off_from_details: visibilityMode === "full" ? await handoffLinkDetails((id) => ctx.db.get(id), c.handed_off_from_conversation_id) : null,
-          handed_off_to_details: visibilityMode === "full" ? await handoffLinkDetails((id) => ctx.db.get(id), c.handed_off_to_conversation_id) : null,
+          parent_conversation_id:
+            visibilityMode === "full" ? parentConversationId : null,
+          spawned_by_conversation_id:
+            visibilityMode === "full"
+              ? c.spawned_by_conversation_id || null
+              : null,
+          handed_off_from_conversation_id:
+            visibilityMode === "full"
+              ? c.handed_off_from_conversation_id || null
+              : null,
+          handed_off_to_conversation_id:
+            visibilityMode === "full"
+              ? c.handed_off_to_conversation_id || null
+              : null,
+          handed_off_from_details:
+            visibilityMode === "full"
+              ? await handoffLinkDetails(
+                  (id) => ctx.db.get(id),
+                  c.handed_off_from_conversation_id,
+                )
+              : null,
+          handed_off_to_details:
+            visibilityMode === "full"
+              ? await handoffLinkDetails(
+                  (id) => ctx.db.get(id),
+                  c.handed_off_to_conversation_id,
+                )
+              : null,
           parent_message_uuid: c.parent_message_uuid || null,
-          is_subagent: !!(c.is_subagent || (c.parent_conversation_id && !c.parent_message_uuid)),
+          is_subagent: !!(
+            c.is_subagent ||
+            (c.parent_conversation_id && !c.parent_message_uuid)
+          ),
           is_workflow_sub: c.is_workflow_sub || false,
           workflow_run_id: c.workflow_run_id || null,
           parent_title: visibilityMode === "full" ? parentTitle : null,
@@ -3405,27 +4346,43 @@ export const listConversations = query({
           worktree_branch: c.worktree_branch || null,
           cloud_placement: c.cloud_placement || null,
           cloud_workspace: c.cloud_workspace || null,
-          cloud_seed: c.cloud_seed ?? null, local_mirror: c.local_mirror ?? null,
+          cloud_seed: c.cloud_seed ?? null,
+          local_mirror: c.local_mirror ?? null,
           migration_batch_id: c.migration?.batch_id || null,
         };
-      })
+      }),
     );
 
-    const sortedConvs = conversationsWithUsers.sort((a, b) => (b as { updated_at: number }).updated_at - (a as { updated_at: number }).updated_at);
+    const sortedConvs = conversationsWithUsers.sort(
+      (a, b) =>
+        (b as { updated_at: number }).updated_at -
+        (a as { updated_at: number }).updated_at,
+    );
 
     const planIds = new Set<string>();
     for (const c of sortedConvs) {
       const pid = (c as any).active_plan_id;
       if (pid) planIds.add(pid.toString());
     }
-    const planCache = new Map<string, { _id: string; short_id: string; title: string; status: string }>();
+    const planCache = new Map<
+      string,
+      { _id: string; short_id: string; title: string; status: string }
+    >();
     for (const pid of planIds) {
       const p = await ctx.db.get(pid as any);
-      if (p) planCache.set(pid, { _id: (p as any)._id, short_id: (p as any).short_id, title: (p as any).title, status: (p as any).status });
+      if (p)
+        planCache.set(pid, {
+          _id: (p as any)._id,
+          short_id: (p as any).short_id,
+          title: (p as any).title,
+          status: (p as any).status,
+        });
     }
     const enriched = sortedConvs.map((c: any) => ({
       ...c,
-      active_plan: c.active_plan_id ? planCache.get(c.active_plan_id.toString()) || null : null,
+      active_plan: c.active_plan_id
+        ? planCache.get(c.active_plan_id.toString()) || null
+        : null,
     }));
 
     return {
@@ -3458,7 +4415,14 @@ export const generateShareLink = mutation({
       return conversation.share_token;
     }
     const shareToken = generateShareToken();
-    await claimShareToken(ctx, "conversations", conversation, shareToken, authUserId, args.api_token);
+    await claimShareToken(
+      ctx,
+      "conversations",
+      conversation,
+      shareToken,
+      authUserId,
+      args.api_token,
+    );
     return shareToken;
   },
 });
@@ -3471,12 +4435,19 @@ export const generateShareLink = mutation({
 // counts only while its token matches), and turning it back on takes a new
 // token, so an old link never comes back to life. A profile pin is served by
 // that same token, so turning the link off also takes it off the profile.
-export async function writeShareLink(ctx: Pick<MutationCtx, "db">, userId: Id<"users">, conversationId: string, token: string | null) {
+export async function writeShareLink(
+  ctx: Pick<MutationCtx, "db">,
+  userId: Id<"users">,
+  conversationId: string,
+  token: string | null,
+) {
   const id = ctx.db.normalizeId("conversations", conversationId);
   const conversation = id ? await ctx.db.get(id) : null;
   if (!conversation) throw new Error("Conversation not found");
   if (conversation.user_id.toString() !== userId.toString())
-    throw new Error("Unauthorized: can only change sharing on your own conversations");
+    throw new Error(
+      "Unauthorized: can only change sharing on your own conversations",
+    );
   if (token === null && conversation.profile_pinned_at)
     await ctx.db.patch(conversation._id, { profile_pinned_at: undefined });
   await claimShareToken(ctx, "conversations", conversation, token, userId);
@@ -3488,7 +4459,10 @@ export async function writeShareLink(ctx: Pick<MutationCtx, "db">, userId: Id<"u
 // session that was private/team-only does NOT change is_private; it grants
 // anonymous read of *this one session* via its share link, nothing more.
 export const pinToProfile = mutation({
-  args: { conversation_id: v.id("conversations"), api_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!authUserId) throw new Error("Unauthorized: must be logged in");
@@ -3501,9 +4475,22 @@ export const pinToProfile = mutation({
       profile_pinned_at: Date.now(),
     };
     if (!conversation.share_token) patch.share_token = generateShareToken();
-    await ctx.db.patch(args.conversation_id, { profile_pinned_at: patch.profile_pinned_at });
-    if (patch.share_token) await claimShareToken(ctx, "conversations", conversation, patch.share_token, authUserId, args.api_token);
-    return { pinned: true, share_token: conversation.share_token ?? patch.share_token };
+    await ctx.db.patch(args.conversation_id, {
+      profile_pinned_at: patch.profile_pinned_at,
+    });
+    if (patch.share_token)
+      await claimShareToken(
+        ctx,
+        "conversations",
+        conversation,
+        patch.share_token,
+        authUserId,
+        args.api_token,
+      );
+    return {
+      pinned: true,
+      share_token: conversation.share_token ?? patch.share_token,
+    };
   },
 });
 
@@ -3511,7 +4498,10 @@ export const pinToProfile = mutation({
 // owner may have circulated that link elsewhere; un-pinning only delists it from
 // the profile (profilePublicSessionVisible then drops it).
 export const unpinFromProfile = mutation({
-  args: { conversation_id: v.id("conversations"), api_token: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    api_token: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!authUserId) throw new Error("Unauthorized: must be logged in");
@@ -3543,12 +4533,15 @@ export const redeemShareToken = mutation({
     const existing = await ctx.db
       .query("share_redemptions")
       .withIndex("by_conversation_user", (q) =>
-        q.eq("conversation_id", conversation._id).eq("user_id", userId)
+        q.eq("conversation_id", conversation._id).eq("user_id", userId),
       )
       .first();
     if (existing) {
       if (existing.token !== args.share_token) {
-        await ctx.db.patch(existing._id, { token: args.share_token, created_at: Date.now() });
+        await ctx.db.patch(existing._id, {
+          token: args.share_token,
+          created_at: Date.now(),
+        });
       }
     } else {
       await ctx.db.insert("share_redemptions", {
@@ -3588,7 +4581,7 @@ export const getSharedConversationMeta = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", conversation._id)
+        q.eq("conversation_id", conversation._id),
       )
       .order("asc")
       .take(10);
@@ -3606,18 +4599,24 @@ export const getSharedConversationMeta = query({
       }
     }
 
-    const title = conversation.title
-      || firstUserMessage
-      || (conversation.slug ? formatSlugAsTitle(conversation.slug) : null)
-      || "Coding Session";
+    const title =
+      conversation.title ||
+      firstUserMessage ||
+      (conversation.slug ? formatSlugAsTitle(conversation.slug) : null) ||
+      "Coding Session";
 
     // idle_summary is the purpose-built one-liner (same preference as the
     // session card's sessionCardSummary); subtitle is a multi-bullet block, so
     // only its first bullet fits a link preview.
-    const description = conversation.idle_summary?.trim()
-      || conversation.subtitle?.split("\n").find((l) => l.trim())?.trim().replace(/^[-*]\s+/, "")
-      || (conversation.title ? firstUserMessage : null)
-      || `${conversation.message_count || 0} messages${user?.name ? ` by ${user.name}` : ""}${conversation.project_path ? ` in ${conversation.project_path.split("/").pop()}` : ""}`;
+    const description =
+      conversation.idle_summary?.trim() ||
+      conversation.subtitle
+        ?.split("\n")
+        .find((l) => l.trim())
+        ?.trim()
+        .replace(/^[-*]\s+/, "") ||
+      (conversation.title ? firstUserMessage : null) ||
+      `${conversation.message_count || 0} messages${user?.name ? ` by ${user.name}` : ""}${conversation.project_path ? ` in ${conversation.project_path.split("/").pop()}` : ""}`;
 
     return {
       title,
@@ -3645,7 +4644,12 @@ export const getConversationPublic = query({
     }
 
     const authUserId = await getAuthUserId(ctx);
-    const accessLevel = await checkConversationAccess(ctx, authUserId, conversation, args.share_token);
+    const accessLevel = await checkConversationAccess(
+      ctx,
+      authUserId,
+      conversation,
+      args.share_token,
+    );
 
     if (accessLevel === "denied") {
       return { access_level: "denied" as const, conversation: null };
@@ -3654,11 +4658,16 @@ export const getConversationPublic = query({
     const { messages: newestFirst, hasMore } = await pageConversationMessages(
       ctx.db,
       args.conversation_id,
-      { before: args.before_timestamp, order: "desc", limit: args.limit ?? 100 },
+      {
+        before: args.before_timestamp,
+        order: "desc",
+        limit: args.limit ?? 100,
+      },
     );
     newestFirst.reverse();
     const sortedMessages = newestFirst;
-    const oldestTimestamp = sortedMessages.length > 0 ? sortedMessages[0].timestamp : null;
+    const oldestTimestamp =
+      sortedMessages.length > 0 ? sortedMessages[0].timestamp : null;
 
     const user = await ctx.db.get(conversation.user_id);
 
@@ -3675,10 +4684,11 @@ export const getConversationPublic = query({
       }
     }
 
-    const title = conversation.title
-      || firstUserMessage
-      || (conversation.slug ? formatSlugAsTitle(conversation.slug) : null)
-      || "New Session";
+    const title =
+      conversation.title ||
+      firstUserMessage ||
+      (conversation.slug ? formatSlugAsTitle(conversation.slug) : null) ||
+      "New Session";
 
     const parentConversationId = await resolveSpawnParentId(ctx, conversation);
 
@@ -3701,14 +4711,17 @@ export const getConversationPublic = query({
 
 // The command palette's row set. Split from the query wrapper (like
 // performListActiveSessions) so the projection is testable without auth.
-export async function performListRecentSessions(ctx: { db: QueryCtx["db"] }, userId: Id<"users">) {
+export async function performListRecentSessions(
+  ctx: { db: QueryCtx["db"] },
+  userId: Id<"users">,
+) {
   const user = await ctx.db.get(userId);
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
   const own = await ctx.db
     .query("conversations")
     .withIndex("by_user_updated", (q) =>
-      q.eq("user_id", userId).gte("updated_at", thirtyDaysAgo)
+      q.eq("user_id", userId).gte("updated_at", thirtyDaysAgo),
     )
     .order("desc")
     .filter((q) =>
@@ -3716,15 +4729,16 @@ export async function performListRecentSessions(ctx: { db: QueryCtx["db"] }, use
         q.neq(q.field("is_subagent"), true),
         q.or(
           q.eq(q.field("status"), "active"),
-          q.eq(q.field("status"), "completed")
-        )
-      )
+          q.eq(q.field("status"), "completed"),
+        ),
+      ),
     )
     .take(100);
 
-  type ConvRow = typeof own[number];
+  type ConvRow = (typeof own)[number];
   const isSessionRow = (c: ConvRow) =>
-    c.is_subagent !== true && (c.status === "active" || c.status === "completed");
+    c.is_subagent !== true &&
+    (c.status === "active" || c.status === "completed");
 
   const byId = new Map<string, { conv: ConvRow; isOwn: boolean }>();
   for (const c of own) byId.set(c._id.toString(), { conv: c, isOwn: true });
@@ -3734,14 +4748,21 @@ export async function performListRecentSessions(ctx: { db: QueryCtx["db"] }, use
   const authorById = new Map<string, { name: string; avatar: string | null }>();
   if (effectiveTeamId) {
     const { visibleMembers, rows } = await collectTeammateConversationsSince(
-      ctx, effectiveTeamId, userId, thirtyDaysAgo, () => 10,
+      ctx,
+      effectiveTeamId,
+      userId,
+      thirtyDaysAgo,
+      () => 10,
     );
-    const memberUsers = await Promise.all(visibleMembers.map((m) => ctx.db.get(m.user_id)));
+    const memberUsers = await Promise.all(
+      visibleMembers.map((m) => ctx.db.get(m.user_id)),
+    );
     for (const u of memberUsers) {
-      if (u) authorById.set(u._id.toString(), {
-        name: (u as any).name || (u as any).email?.split("@")[0] || "Unknown",
-        avatar: (u as any).image || (u as any).github_avatar_url || null,
-      });
+      if (u)
+        authorById.set(u._id.toString(), {
+          name: (u as any).name || (u as any).email?.split("@")[0] || "Unknown",
+          avatar: (u as any).image || (u as any).github_avatar_url || null,
+        });
     }
     for (const c of rows.filter(isSessionRow)) {
       const id = c._id.toString();
@@ -3825,39 +4846,66 @@ export const searchConversations = query({
     const userOnly = args.userOnly ?? false;
     const parsed = parseSessionQuery(searchTerm);
     if (parsed.errors.length > 0) {
-      return { results: [], totalMatches: 0, totalSessions: 0, error: parsed.errors.join("\n") };
+      return {
+        results: [],
+        totalMatches: 0,
+        totalSessions: 0,
+        error: parsed.errors.join("\n"),
+      };
     }
     // Operators narrow first; the range picker is the same window as after:.
     const operatorRun = parsed.hasFilters
       ? await searchByOperators(
           ctx,
-          { ...parsed, after: Math.max(parsed.after ?? 0, args.since ?? 0) || undefined },
+          {
+            ...parsed,
+            after: Math.max(parsed.after ?? 0, args.since ?? 0) || undefined,
+          },
           // Operators read what a session did (files, commits, its text), so
           // they only reach sessions whose content the viewer may read.
-          { viewerId: userId, users: usersViewerFirst(scope.userById, userId), contentVisible: scope.contentVisible, teamIds: scope.teamIds },
+          {
+            viewerId: userId,
+            users: usersViewerFirst(scope.userById, userId),
+            contentVisible: scope.contentVisible,
+            teamIds: scope.teamIds,
+          },
           { userOnly },
         )
       : null;
     if (operatorRun && "error" in operatorRun) {
-      return { results: [], totalMatches: 0, totalSessions: 0, error: operatorRun.error };
+      return {
+        results: [],
+        totalMatches: 0,
+        totalSessions: 0,
+        error: operatorRun.error,
+      };
     }
-    const terms = operatorRun ? operatorRun.terms : parseSearchTerms(searchTerm);
+    const terms = operatorRun
+      ? operatorRun.terms
+      : parseSearchTerms(searchTerm);
     const { pool: searchResults, tier: contentTier } = operatorRun
       ? { pool: [] as SearchPoolMessage[], tier: operatorRun.tier }
       : await fetchMessageSearchPool(ctx, terms, {
           userId,
           teamIds: scope.teamIds,
         });
-    const matchedAt = new Map(operatorRun?.hits.map((h) => [h.conv._id.toString(), h.matchedAt]));
+    const matchedAt = new Map(
+      operatorRun?.hits.map((h) => [h.conv._id.toString(), h.matchedAt]),
+    );
 
     // Which conversations qualify, as cast search decides it: a short query
     // needs every word, a longer one at least half, so a sentence degrades to
     // its best matches instead of to nothing. Quoted phrases stay required.
-    const ranked = rankConversationsByCoverage(groupMessagesByConversation(searchResults, terms, userOnly), terms);
+    const ranked = rankConversationsByCoverage(
+      groupMessagesByConversation(searchResults, terms, userOnly),
+      terms,
+    );
 
     // Hydrate conversation docs for message matches in parallel (was a serial
     // await-in-loop, the dominant source of latency on common queries).
-    const matchConvs = await Promise.all(ranked.map(({ messages }) => ctx.db.get(messages[0].conversation_id)));
+    const matchConvs = await Promise.all(
+      ranked.map(({ messages }) => ctx.db.get(messages[0].conversation_id)),
+    );
     const candidates: SearchCandidate[] = [];
     const seen = new Set<string>();
     ranked.forEach((r, i) => {
@@ -3869,7 +4917,9 @@ export const searchConversations = query({
     });
     // A session only its title or summaries matched has no message rows.
     if (!userOnly && !operatorRun) {
-      for (const [convId, hit] of await fetchTitleFieldHits(ctx, terms, (c) => searchableAs(scope, c))) {
+      for (const [convId, hit] of await fetchTitleFieldHits(ctx, terms, (c) =>
+        searchableAs(scope, c),
+      )) {
         if (!seen.has(convId)) candidates.push(hit);
       }
     }
@@ -3879,7 +4929,12 @@ export const searchConversations = query({
 
     // Visibility filter is synchronous (no DB): drop non-visible candidates
     // first, then fold workers into the sessions that ran them.
-    const visible = await foldWorkersUnderParents(ctx, candidates.filter(({ conv }) => scope.isVisible(conv)), terms, scope.isVisible);
+    const visible = await foldWorkersUnderParents(
+      ctx,
+      candidates.filter(({ conv }) => scope.isVisible(conv)),
+      terms,
+      scope.isVisible,
+    );
 
     // Time-range filter applies before totals so the counts reflect what's
     // actually browsable under the current filters.
@@ -3888,16 +4943,23 @@ export const searchConversations = query({
       : visible;
 
     if (args.sort === "relevance") {
-      scored.sort((a, b) =>
-        b.relevance - a.relevance ||
-        b.messages.length - a.messages.length ||
-        b.conv.updated_at - a.conv.updated_at);
+      scored.sort(
+        (a, b) =>
+          b.relevance - a.relevance ||
+          b.messages.length - a.messages.length ||
+          b.conv.updated_at - a.conv.updated_at,
+      );
     } else {
       // Newest first within a relevance tier: a near tie goes to the recent
       // session, a clear win does not. An operator match is as recent as the
       // change that matched it.
-      const at = (c: SearchCandidate) => matchedAt.get(c.conv._id.toString()) ?? c.conv.updated_at;
-      scored.sort((a, b) => relevanceTier(b.relevance) - relevanceTier(a.relevance) || at(b) - at(a));
+      const at = (c: SearchCandidate) =>
+        matchedAt.get(c.conv._id.toString()) ?? c.conv.updated_at;
+      scored.sort(
+        (a, b) =>
+          relevanceTier(b.relevance) - relevanceTier(a.relevance) ||
+          at(b) - at(a),
+      );
     }
 
     const results: Array<{
@@ -3936,7 +4998,10 @@ export const searchConversations = query({
     const totalSessions = scored.length;
     const top = scored.slice(0, limit);
 
-    const firstMsgByConv = await resolveFirstMessageTitles(ctx, top.map((c) => c.conv).filter(scope.contentVisible));
+    const firstMsgByConv = await resolveFirstMessageTitles(
+      ctx,
+      top.map((c) => c.conv).filter(scope.contentVisible),
+    );
 
     for (const candidate of top) {
       const { conv } = candidate;
@@ -3945,24 +5010,30 @@ export const searchConversations = query({
       const conversationUser = scope.userById.get(conv.user_id.toString());
       const firstUserMessage = firstMsgByConv.get(conv._id.toString()) || "";
 
-      const title = conv.title
-        || firstUserMessage
-        || (conv.slug ? formatSlugAsTitle(conv.slug) : null)
-        || "New Session";
+      const title =
+        conv.title ||
+        firstUserMessage ||
+        (conv.slug ? formatSlugAsTitle(conv.slug) : null) ||
+        "New Session";
 
       results.push({
         conversationId: conv._id,
         title,
         matchCount: messages.length,
-        matches: searchSnippets({ ...candidate, messages }, terms).map(({ message, content }) => ({
-          messageId: message._id,
-          content,
-          role: message.role,
-          timestamp: message.timestamp,
-        })),
+        matches: searchSnippets({ ...candidate, messages }, terms).map(
+          ({ message, content }) => ({
+            messageId: message._id,
+            content,
+            role: message.role,
+            timestamp: message.timestamp,
+          }),
+        ),
         updatedAt: conv.updated_at,
         authorName: conversationUser?.name || "Unknown",
-        authorAvatar: (conversationUser as any)?.image || (conversationUser as any)?.github_avatar_url || null,
+        authorAvatar:
+          (conversationUser as any)?.image ||
+          (conversationUser as any)?.github_avatar_url ||
+          null,
         isOwn,
         messageCount: conv.message_count || 0,
         relevance: candidate.relevance,
@@ -4027,48 +5098,67 @@ export const searchConversationTitles = query({
     const terms = parseSearchTerms(searchTerm);
     if (terms.all.length === 0) return empty;
     const scope = await loadConversationSearchScope(ctx, userId, user, args);
-    const hits = await fetchTitleFieldHits(ctx, terms, (c) => searchableAs(scope, c));
+    const hits = await fetchTitleFieldHits(ctx, terms, (c) =>
+      searchableAs(scope, c),
+    );
 
-    const visible = [...hits.values()].filter(({ conv }) => scope.isVisible(conv));
+    const visible = [...hits.values()].filter(({ conv }) =>
+      scope.isVisible(conv),
+    );
     const scoped = args.since
       ? visible.filter(({ conv }) => conv.updated_at >= args.since!)
       : visible;
-    scoped.sort((a, b) => relevanceTier(b.relevance) - relevanceTier(a.relevance) || b.conv.updated_at - a.conv.updated_at);
+    scoped.sort(
+      (a, b) =>
+        relevanceTier(b.relevance) - relevanceTier(a.relevance) ||
+        b.conv.updated_at - a.conv.updated_at,
+    );
     const top = scoped.slice(0, args.limit ?? 20);
-    const firstMsgByConv = await resolveFirstMessageTitles(ctx, top.map(({ conv }) => conv).filter(scope.contentVisible));
+    const firstMsgByConv = await resolveFirstMessageTitles(
+      ctx,
+      top.map(({ conv }) => conv).filter(scope.contentVisible),
+    );
 
-    const results = await Promise.all(top.map(async ({ conv, relevance }) => {
-      const conversationUser = scope.userById.get(conv.user_id.toString());
-      const title = conv.title
-        || firstMsgByConv.get(conv._id.toString())
-        || (conv.slug ? formatSlugAsTitle(conv.slug) : null)
-        || "New Session";
-      return {
-        conversationId: conv._id as string,
-        title,
-        matchCount: 0,
-        matches: [] as Array<{
-          messageId: string;
-          content: string;
-          role: string;
-          timestamp: number;
-        }>,
-        updatedAt: conv.updated_at,
-        authorName: conversationUser?.name || "Unknown",
-        authorAvatar: (conversationUser as any)?.image || (conversationUser as any)?.github_avatar_url || null,
-        isOwn: conv.user_id.toString() === userId.toString(),
-        messageCount: conv.message_count || 0,
-        relevance,
-        origin: originMatch(conv, terms),
-        workerCount: 0,
-        titleMatch: true,
-        projectPath: conv.project_path || null,
-        agentType: conv.agent_type || null,
-        workspace: scope.workspaceOf(conv),
-        ...(scope.teamNameOf(conv) ? { teamName: scope.teamNameOf(conv) } : {}),
-        identity: await identityFieldsOf(conv, (id: any) => ctx.db.get(id)),
-      };
-    }));
+    const results = await Promise.all(
+      top.map(async ({ conv, relevance }) => {
+        const conversationUser = scope.userById.get(conv.user_id.toString());
+        const title =
+          conv.title ||
+          firstMsgByConv.get(conv._id.toString()) ||
+          (conv.slug ? formatSlugAsTitle(conv.slug) : null) ||
+          "New Session";
+        return {
+          conversationId: conv._id as string,
+          title,
+          matchCount: 0,
+          matches: [] as Array<{
+            messageId: string;
+            content: string;
+            role: string;
+            timestamp: number;
+          }>,
+          updatedAt: conv.updated_at,
+          authorName: conversationUser?.name || "Unknown",
+          authorAvatar:
+            (conversationUser as any)?.image ||
+            (conversationUser as any)?.github_avatar_url ||
+            null,
+          isOwn: conv.user_id.toString() === userId.toString(),
+          messageCount: conv.message_count || 0,
+          relevance,
+          origin: originMatch(conv, terms),
+          workerCount: 0,
+          titleMatch: true,
+          projectPath: conv.project_path || null,
+          agentType: conv.agent_type || null,
+          workspace: scope.workspaceOf(conv),
+          ...(scope.teamNameOf(conv)
+            ? { teamName: scope.teamNameOf(conv) }
+            : {}),
+          identity: await identityFieldsOf(conv, (id: any) => ctx.db.get(id)),
+        };
+      }),
+    );
 
     return { results, totalMatches: 0, totalSessions: results.length };
   },
@@ -4114,7 +5204,9 @@ export const setPrivacy = mutation({
     }
     const isOwner = conversation.user_id.toString() === authUserId.toString();
     if (!isOwner) {
-      throw new Error("Unauthorized: can only change privacy of your own conversations");
+      throw new Error(
+        "Unauthorized: can only change privacy of your own conversations",
+      );
     }
 
     // Sharing must guarantee a team_id (buildShareUpdate); locking forces the
@@ -4149,7 +5241,9 @@ export const setTeamVisibility = mutation({
     }
     const isOwner = conversation.user_id.toString() === authUserId.toString();
     if (!isOwner) {
-      throw new Error("Unauthorized: can only change visibility of your own conversations");
+      throw new Error(
+        "Unauthorized: can only change visibility of your own conversations",
+      );
     }
 
     // Setting any team visibility shares the conversation, so guarantee a
@@ -4182,7 +5276,9 @@ export const setPrivacyBySessionId = mutation({
       .first();
 
     if (!conversation) {
-      throw new Error(`Conversation not found with session_id: ${args.session_id}`);
+      throw new Error(
+        `Conversation not found with session_id: ${args.session_id}`,
+      );
     }
 
     // Same contract as setPrivacy: sharing must guarantee a team_id
@@ -4222,7 +5318,6 @@ export const makeAllPrivate = mutation({
     return { updated, total: conversations.length };
   },
 });
-
 
 export const backfillShortIds = internalMutation({
   args: {
@@ -4272,9 +5367,7 @@ export const backfillTeamIds = internalMutation({
     const batchSize = args.limit ?? 100;
 
     // Get all users with team_id or active_team_id to build a lookup map
-    const allUsers = await ctx.db
-      .query("users")
-      .collect();
+    const allUsers = await ctx.db.query("users").collect();
 
     const userTeamMap = new Map<string, Id<"teams">>();
     for (const user of allUsers) {
@@ -4299,7 +5392,9 @@ export const backfillTeamIds = internalMutation({
         // every task, doc and plan linked to this conversation. A raw
         // ctx.db.patch leaves them on the old key, so a now team-visible session
         // keeps work items nobody on the team can read (ct-49655).
-        rescoped += await patchConversationVisibility(ctx, conv, { team_id: userTeamId });
+        rescoped += await patchConversationVisibility(ctx, conv, {
+          team_id: userTeamId,
+        });
         updated++;
         if (updated >= RESCOPE_BATCH) break;
       }
@@ -4310,12 +5405,11 @@ export const backfillTeamIds = internalMutation({
     return {
       updated,
       rescoped,
-      cursor: capped ? args.cursor ?? null : result.continueCursor,
+      cursor: capped ? (args.cursor ?? null) : result.continueCursor,
       isDone: capped ? false : result.isDone,
     };
   },
 });
-
 
 export const backfillUserTeamIds = internalMutation({
   args: { userId: v.string(), teamId: v.string() },
@@ -4338,7 +5432,12 @@ export const backfillUserTeamIds = internalMutation({
         }
         // Why: same as backfillTeamIds — the chokepoint patches the row and
         // rewrites the workspace key of every linked work item (ct-49655).
-        rescoped += await patchConversationVisibility(ctx, conv, { team_id: teamId }, userId);
+        rescoped += await patchConversationVisibility(
+          ctx,
+          conv,
+          { team_id: teamId },
+          userId,
+        );
         updated++;
         if (updated >= RESCOPE_BATCH) break;
       }
@@ -4382,7 +5481,10 @@ export async function resolveConversationForViewer(
   id: string,
   authUserId: Id<"users"> | null,
   presentedShareToken?: string | null,
-): Promise<{ access_level: "not_found" | "denied" | "owner" | "team" | "shared"; conversation_id: string | null }> {
+): Promise<{
+  access_level: "not_found" | "denied" | "owner" | "team" | "shared";
+  conversation_id: string | null;
+}> {
   let conversation = null;
 
   // Try as Convex document ID
@@ -4405,7 +5507,9 @@ export async function resolveConversationForViewer(
   if (!conversation) {
     const restored = await ctx.db
       .query("conversations")
-      .withIndex("by_restored_from", (q: any) => q.eq("restored_from_conversation_id", id))
+      .withIndex("by_restored_from", (q: any) =>
+        q.eq("restored_from_conversation_id", id),
+      )
       .collect();
     conversation = restored.reduce(
       (a: any, b: any) => ((b.updated_at ?? 0) > (a?.updated_at ?? 0) ? b : a),
@@ -4423,7 +5527,13 @@ export async function resolveConversationForViewer(
       ctx,
       id.toLowerCase(),
       authUserId ?? "",
-      async (c) => (await checkConversationAccess(ctx, authUserId, c, presentedShareToken)) !== "denied",
+      async (c) =>
+        (await checkConversationAccess(
+          ctx,
+          authUserId,
+          c,
+          presentedShareToken,
+        )) !== "denied",
     );
   }
 
@@ -4431,7 +5541,12 @@ export async function resolveConversationForViewer(
     return { access_level: "not_found" as const, conversation_id: null };
   }
 
-  const accessLevel = await checkConversationAccess(ctx, authUserId, conversation, presentedShareToken);
+  const accessLevel = await checkConversationAccess(
+    ctx,
+    authUserId,
+    conversation,
+    presentedShareToken,
+  );
 
   if (accessLevel === "denied") {
     return { access_level: "denied" as const, conversation_id: null };
@@ -4447,7 +5562,12 @@ export const resolveConversation = query({
   args: { id: v.string(), share_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const authUserId = await getAuthUserId(ctx);
-    return resolveConversationForViewer(ctx, args.id, authUserId, args.share_token);
+    return resolveConversationForViewer(
+      ctx,
+      args.id,
+      authUserId,
+      args.share_token,
+    );
   },
 });
 
@@ -4475,7 +5595,14 @@ export const getSessionLinks = mutation({
     let shareToken = conversation.share_token;
     if (!shareToken) {
       shareToken = generateShareToken();
-      await claimShareToken(ctx, "conversations", conversation, shareToken, authUserId, args.api_token);
+      await claimShareToken(
+        ctx,
+        "conversations",
+        conversation,
+        shareToken,
+        authUserId,
+        args.api_token,
+      );
     }
 
     return {
@@ -4500,7 +5627,12 @@ async function searchRowFacts(
   ctx: QueryCtx,
   conv: Doc<"conversations">,
   canSeeTeam: (teamId: Id<"teams">) => Promise<boolean>,
-): Promise<{ commits?: number; prs?: number[]; prs_capped?: boolean; failed_tools?: number }> {
+): Promise<{
+  commits?: number;
+  prs?: number[];
+  prs_capped?: boolean;
+  failed_tools?: number;
+}> {
   const prs = await linkedPullRequestNumbers(ctx, conv._id, canSeeTeam);
   const tallies = conv.session_tallies;
   return {
@@ -4559,27 +5691,36 @@ export const searchForCLI = query({
       allTeams: args.all_teams,
     });
     if ("error" in scope) return { error: scope.error };
-    const { teamUsers, teamIds: effectiveTeamIds, ownTeamId: resolvedTeamId } = scope;
+    const {
+      teamUsers,
+      teamIds: effectiveTeamIds,
+      ownTeamId: resolvedTeamId,
+    } = scope;
     const teamUserMap = scope.userById;
     // A pull request is readable by its team's members (canAccessPullRequest),
     // whichever team this read is scoped to.
     const teamMemberCache = new Map<string, boolean>();
     const canSeeTeam = async (teamId: Id<"teams">) => {
       const key = String(teamId);
-      if (!teamMemberCache.has(key)) teamMemberCache.set(key, await isTeamMember(ctx, authUserId, teamId));
+      if (!teamMemberCache.has(key))
+        teamMemberCache.set(key, await isTeamMember(ctx, authUserId, teamId));
       return teamMemberCache.get(key)!;
     };
-    const effectiveTeamIdSet = new Set(effectiveTeamIds.map(id => id.toString()));
+    const effectiveTeamIdSet = new Set(
+      effectiveTeamIds.map((id) => id.toString()),
+    );
 
     let filterUserId: string | null = null;
     if (args.mine_only) {
       filterUserId = authUserId.toString();
     } else if (args.member_name) {
       const memberNameLower = args.member_name.toLowerCase();
-      const matchingMember = teamUsers.find(u => {
+      const matchingMember = teamUsers.find((u) => {
         const name = u.name?.toLowerCase() || "";
         const email = u.email?.toLowerCase() || "";
-        return name.includes(memberNameLower) || email.includes(memberNameLower);
+        return (
+          name.includes(memberNameLower) || email.includes(memberNameLower)
+        );
       });
       if (!matchingMember) {
         return { error: `No team member found matching "${args.member_name}"` };
@@ -4625,13 +5766,21 @@ export const searchForCLI = query({
       if (!isVisibleConv(conv)) return false;
 
       // Filter by specific member (or self via --mine)
-      if (filterUserId && conv.user_id.toString() !== filterUserId) return false;
+      if (filterUserId && conv.user_id.toString() !== filterUserId)
+        return false;
 
       // Filter to sessions the caller filed under the given label —
       // project-bounded by default (the CLI passes cwd unless -g).
       if (labelConvIds) {
         if (!labelConvIds.has(conv._id.toString())) return false;
-        if (projectPath && !(projectOverlaps(projectPath, conv.project_path) || projectOverlaps(projectPath, conv.git_root))) return false;
+        if (
+          projectPath &&
+          !(
+            projectOverlaps(projectPath, conv.project_path) ||
+            projectOverlaps(projectPath, conv.git_root)
+          )
+        )
+          return false;
       }
 
       if (startTime && conv.updated_at < startTime) return false;
@@ -4646,30 +5795,44 @@ export const searchForCLI = query({
     const now = Date.now();
     const classifier = cliSessionClassifier(ctx, now);
     const convRank = (conv: any) => recencyRankOf(conv, now);
-    const byRankThenRecency = (a: any, b: any) => convRank(a) - convRank(b) || b.updated_at - a.updated_at;
+    const byRankThenRecency = (a: any, b: any) =>
+      convRank(a) - convRank(b) || b.updated_at - a.updated_at;
 
     // The calling session and its workers leave the results unless asked for;
     // the reply names what it left out, so an empty page never reads as "no
     // prior work" when the only matches were the caller's own.
     const selfId = args.include_self
       ? null
-      : await resolveSearchSelf(ctx, authUserId, { conversation_id: args.self_conversation_id, session_id: args.self_session_id });
+      : await resolveSearchSelf(ctx, authUserId, {
+          conversation_id: args.self_conversation_id,
+          session_id: args.self_session_id,
+        });
     const inSelfFamily = selfId ? selfFamilyTest(ctx, selfId) : null;
     const excludedSelf = new Set<string>();
-    const withoutSelf = async <T>(rows: T[], convOf: (row: T) => Doc<"conversations">): Promise<T[]> => {
+    const withoutSelf = async <T>(
+      rows: T[],
+      convOf: (row: T) => Doc<"conversations">,
+    ): Promise<T[]> => {
       if (!inSelfFamily) return rows;
-      const keep = await Promise.all(rows.map(async (row) => {
-        const conv = convOf(row);
-        if (!(await inSelfFamily(conv))) return true;
-        excludedSelf.add(conv._id.toString());
-        return false;
-      }));
+      const keep = await Promise.all(
+        rows.map(async (row) => {
+          const conv = convOf(row);
+          if (!(await inSelfFamily(conv))) return true;
+          excludedSelf.add(conv._id.toString());
+          return false;
+        }),
+      );
       return rows.filter((_, i) => keep[i]);
     };
     const selfReport = async () => {
       if (!selfId || excludedSelf.size === 0) return {};
       const self = await ctx.db.get(selfId);
-      return { excluded_self: { id: self?.short_id || selfId.toString().slice(0, 7), sessions: excludedSelf.size } };
+      return {
+        excluded_self: {
+          id: self?.short_id || selfId.toString().slice(0, 7),
+          sessions: excludedSelf.size,
+        },
+      };
     };
 
     // One row shape for every path: what the session is, where it works,
@@ -4682,20 +5845,37 @@ export const searchForCLI = query({
       if (!deviceLabels.has(devKey)) {
         const device = await ctx.db
           .query("devices")
-          .withIndex("by_user_device", (q: any) => q.eq("user_id", conv.user_id).eq("device_id", devId))
+          .withIndex("by_user_device", (q: any) =>
+            q.eq("user_id", conv.user_id).eq("device_id", devId),
+          )
           .first();
         deviceLabels.set(devKey, device?.label);
       }
       return deviceLabels.get(devKey);
     };
-    type SearchRowMatch = { line: number; message_id?: Id<"messages">; role: string; content: string; timestamp: string; tool_calls_count?: number; tool_results_count?: number };
+    type SearchRowMatch = {
+      line: number;
+      message_id?: Id<"messages">;
+      role: string;
+      content: string;
+      timestamp: string;
+      tool_calls_count?: number;
+      tool_results_count?: number;
+    };
     const rowOf = async (
       conv: Doc<"conversations">,
       title: string,
-      hit: { relevance: number; coverage: number; workers?: number; matches?: SearchRowMatch[]; title_match?: boolean },
+      hit: {
+        relevance: number;
+        coverage: number;
+        workers?: number;
+        matches?: SearchRowMatch[];
+        title_match?: boolean;
+      },
     ) => {
       const isOwnConv = conv.user_id.toString() === authUserId.toString();
-      const owner = teamUserMap.get(conv.user_id.toString()) || (isOwnConv ? user : null);
+      const owner =
+        teamUserMap.get(conv.user_id.toString()) || (isOwnConv ? user : null);
       const machine = await machineOf(conv);
       const base = {
         id: conv.short_id || conv._id.toString().slice(0, 7),
@@ -4710,8 +5890,15 @@ export const searchForCLI = query({
         origin: originMatch(searchableAs(scope, conv), terms),
         // Worker sessions that matched and are folded into this row.
         ...(hit.workers ? { workers: hit.workers } : {}),
-        user: !isOwnConv && owner ? { name: owner.name || null, email: owner.email || null } : undefined,
-        ...(scope.contentVisible(conv) && conv.recent_files && conv.recent_files.length > 0 ? { recent_files: conv.recent_files } : {}),
+        user:
+          !isOwnConv && owner
+            ? { name: owner.name || null, email: owner.email || null }
+            : undefined,
+        ...(scope.contentVisible(conv) &&
+        conv.recent_files &&
+        conv.recent_files.length > 0
+          ? { recent_files: conv.recent_files }
+          : {}),
         ...((conv as any).worktree_name &&
         (conv as any).worktree_status !== "merged" &&
         (conv as any).worktree_status !== "archived"
@@ -4720,7 +5907,9 @@ export const searchForCLI = query({
         ...(machine ? { machine } : {}),
         ...(await classifier.rowFields(conv)),
         // What a session did is its content: only where content may show.
-        ...(scope.contentVisible(conv) ? await searchRowFacts(ctx, conv, canSeeTeam) : {}),
+        ...(scope.contentVisible(conv)
+          ? await searchRowFacts(ctx, conv, canSeeTeam)
+          : {}),
         matches: hit.matches ?? [],
         context: [] as Array<{ line: number; role: string; content: string }>,
         ...(hit.title_match ? { title_match: true } : {}),
@@ -4731,11 +5920,14 @@ export const searchForCLI = query({
       return row;
     };
     const rowConvIds = new WeakMap<object, string>();
-    const titleOf = (conv: Doc<"conversations">, firstMessages: Map<string, string>) =>
-      conv.title
-      || firstMessages.get(conv._id.toString())
-      || (conv.slug ? formatSlugAsTitle(conv.slug) : null)
-      || "New Session";
+    const titleOf = (
+      conv: Doc<"conversations">,
+      firstMessages: Map<string, string>,
+    ) =>
+      conv.title ||
+      firstMessages.get(conv._id.toString()) ||
+      (conv.slug ? formatSlugAsTitle(conv.slug) : null) ||
+      "New Session";
 
     // titles_only: the reliable half of search — only the conversation-table
     // indexes (title/subtitle/idle_summary), never the messages full-text
@@ -4751,9 +5943,22 @@ export const searchForCLI = query({
       const operatorQuery: SessionQuery = {
         ...parsed,
         labels: [...parsed.labels, ...(args.label ? [args.label] : [])],
-        authors: [...parsed.authors, ...(args.mine_only ? ["me"] : args.member_name ? [args.member_name] : [])],
-        after: args.start_time !== undefined ? Math.max(parsed.after ?? 0, args.start_time) : parsed.after,
-        before: args.end_time !== undefined ? Math.min(parsed.before ?? Infinity, args.end_time) : parsed.before,
+        authors: [
+          ...parsed.authors,
+          ...(args.mine_only
+            ? ["me"]
+            : args.member_name
+              ? [args.member_name]
+              : []),
+        ],
+        after:
+          args.start_time !== undefined
+            ? Math.max(parsed.after ?? 0, args.start_time)
+            : parsed.after,
+        before:
+          args.end_time !== undefined
+            ? Math.min(parsed.before ?? Infinity, args.end_time)
+            : parsed.before,
       };
       const operatorRun = await searchByOperators(
         ctx,
@@ -4764,9 +5969,12 @@ export const searchForCLI = query({
           // Labels stay bounded to this project, as they are for --label.
           // Operators read what a session did: content-visible sessions only.
           contentVisible: (conv) =>
-            isVisibleConv(conv) && scope.contentVisible(conv) &&
-            (operatorQuery.labels.length === 0 || !projectPath ||
-              projectOverlaps(projectPath, conv.project_path) || projectOverlaps(projectPath, conv.git_root)),
+            isVisibleConv(conv) &&
+            scope.contentVisible(conv) &&
+            (operatorQuery.labels.length === 0 ||
+              !projectPath ||
+              projectOverlaps(projectPath, conv.project_path) ||
+              projectOverlaps(projectPath, conv.git_root)),
           teamIds: effectiveTeamIds,
         },
         // A titles_only retry means the shared message pool blew the budget;
@@ -4780,20 +5988,47 @@ export const searchForCLI = query({
     }
 
     if (args.titles_only && !operatorHits) {
-      const hits = await fetchTitleFieldHits(ctx, terms, (c) => searchableAs(scope, c));
-      const tierOf = new Map([...hits.values()].map((h) => [h.conv._id.toString(), relevanceTier(h.relevance)]));
-      const visibleConvs = (await withoutSelf([...hits.values()].map(({ conv }) => conv).filter(isEligibleConv), (conv) => conv))
-        .sort((a, b) => tierOf.get(b._id.toString())! - tierOf.get(a._id.toString())! || byRankThenRecency(a, b));
+      const hits = await fetchTitleFieldHits(ctx, terms, (c) =>
+        searchableAs(scope, c),
+      );
+      const tierOf = new Map(
+        [...hits.values()].map((h) => [
+          h.conv._id.toString(),
+          relevanceTier(h.relevance),
+        ]),
+      );
+      const visibleConvs = (
+        await withoutSelf(
+          [...hits.values()].map(({ conv }) => conv).filter(isEligibleConv),
+          (conv) => conv,
+        )
+      ).sort(
+        (a, b) =>
+          tierOf.get(b._id.toString())! - tierOf.get(a._id.toString())! ||
+          byRankThenRecency(a, b),
+      );
       const page = visibleConvs.slice(offset, offset + limit);
-      const firstMsgByConv = await resolveFirstMessageTitles(ctx, page.filter(scope.contentVisible));
-      const conversations = await Promise.all(page.map((conv) => rowOf(conv, titleOf(conv, firstMsgByConv), {
-        relevance: hits.get(conv._id.toString())?.relevance ?? 0,
-        coverage: hits.get(conv._id.toString())?.coverage ?? 1,
-        title_match: true,
-      })));
+      const firstMsgByConv = await resolveFirstMessageTitles(
+        ctx,
+        page.filter(scope.contentVisible),
+      );
+      const conversations = await Promise.all(
+        page.map((conv) =>
+          rowOf(conv, titleOf(conv, firstMsgByConv), {
+            relevance: hits.get(conv._id.toString())?.relevance ?? 0,
+            coverage: hits.get(conv._id.toString())?.coverage ?? 1,
+            title_match: true,
+          }),
+        ),
+      );
       // Titles match on half a long query's words too. Messages were not
       // searched here, so no word is named as held nowhere.
-      const partial = partialCoverage(visibleConvs.map((conv) => ({ missing: hits.get(conv._id.toString())?.missing ?? [] })), terms);
+      const partial = partialCoverage(
+        visibleConvs.map((conv) => ({
+          missing: hits.get(conv._id.toString())?.missing ?? [],
+        })),
+        terms,
+      );
       if (partial) {
         partial.missing_everywhere = [];
         for (const row of conversations) {
@@ -4821,7 +6056,11 @@ export const searchForCLI = query({
     // Best-coverage selection: full-coverage conversations first, then partial
     // matches for longer queries, so a natural-language task description degrades
     // to best-match instead of no-match. Quoted phrases stay required.
-    const messageGroups = groupMessagesByConversation(searchResults, terms, userOnly);
+    const messageGroups = groupMessagesByConversation(
+      searchResults,
+      terms,
+      userOnly,
+    );
     const rankedMatches = rankConversationsByCoverage(messageGroups, terms);
 
     // Of the words no result holds, the ones nothing searched holds either: a
@@ -4833,13 +6072,16 @@ export const searchForCLI = query({
     const TITLE_LOOKUPS = 3;
     const SATURATED_GAP_LOOKUPS = 30;
     const GAP_PROBE_TAKE = 5;
-    const wordsNoVisibleSessionHolds = async (words: string[]): Promise<string[]> => {
+    const wordsNoVisibleSessionHolds = async (
+      words: string[],
+    ): Promise<string[]> => {
       const index = new Map(terms.words.map((w, i) => [w, i]));
       const holders = new Map<string, string[]>(words.map((w) => [w, []]));
       for (const [convId, messages] of messageGroups) {
         const evidence = emptyEvidence(terms);
         for (const m of messages) addEvidence(evidence, m.content, terms);
-        for (const w of words) if (evidence.best[index.get(w)!] > 0) holders.get(w)!.push(convId);
+        for (const w of words)
+          if (evidence.best[index.get(w)!] > 0) holders.get(w)!.push(convId);
       }
       // A holder counts when the caller may see it: its messages only when its
       // content is visible, its listed fields (searchableAs) otherwise.
@@ -4849,8 +6091,13 @@ export const searchForCLI = query({
         if (!visible.has(key)) {
           const id = ctx.db.normalizeId("conversations", convId);
           const conv = id ? await ctx.db.get(id) : null;
-          visible.set(key, !!conv && isEligibleConv(conv) && (!needsContent || scope.contentVisible(conv)) &&
-            !(inSelfFamily && (await inSelfFamily(conv))));
+          visible.set(
+            key,
+            !!conv &&
+              isEligibleConv(conv) &&
+              (!needsContent || scope.contentVisible(conv)) &&
+              !(inSelfFamily && (await inSelfFamily(conv))),
+          );
         }
         return visible.get(key)!;
       };
@@ -4860,15 +6107,21 @@ export const searchForCLI = query({
         const ids = holders.get(w)!;
         if (ids.length > WORD_HOLDER_CHECKS) continue;
         let held = false;
-        for (const id of ids) if ((held = await isVisibleHolder(id, true))) break;
+        for (const id of ids)
+          if ((held = await isVisibleHolder(id, true))) break;
         if (held) continue;
         if (titleLookups++ >= TITLE_LOOKUPS) continue;
         const wordTerms = parseSearchTerms(w);
         const { rows, saturated } = await titleFieldRows(ctx, wordTerms.lookup);
         for (const conv of rows) {
           const fields = emptyEvidence(wordTerms);
-          for (const field of searchFieldsOf(searchableAs(scope, conv))) addEvidence(fields, field, wordTerms);
-          if (fields.best[0] > 0 && (held = await isVisibleHolder(conv._id.toString(), false))) break;
+          for (const field of searchFieldsOf(searchableAs(scope, conv)))
+            addEvidence(fields, field, wordTerms);
+          if (
+            fields.best[0] > 0 &&
+            (held = await isVisibleHolder(conv._id.toString(), false))
+          )
+            break;
         }
         // A capped lookup that found no visible holder proves nothing.
         if (!held && !saturated) missing.push(w);
@@ -4900,7 +6153,9 @@ export const searchForCLI = query({
     while (taken < want && taken < rankedEligible.length && taken < bound * 3) {
       const chunk = rankedEligible.slice(taken, Math.min(want, bound * 3));
       taken += chunk.length;
-      const hydratedConvs = await Promise.all(chunk.map(({ messages }) => ctx.db.get(messages[0].conversation_id)));
+      const hydratedConvs = await Promise.all(
+        chunk.map(({ messages }) => ctx.db.get(messages[0].conversation_id)),
+      );
       const round: SearchCandidate[] = [];
       chunk.forEach((r, i) => {
         const conv = hydratedConvs[i];
@@ -4917,17 +6172,28 @@ export const searchForCLI = query({
     // recency rank (live and recent above long-quiet above killed), then the
     // better answer, then the newer session. The caller's family is already
     // out, so its words never pull its parent onto the page either.
-    const eligible = await foldWorkersUnderParents(ctx, matched, terms, isEligibleConv);
-    eligible.sort((a, b) =>
-      relevanceTier(b.relevance) - relevanceTier(a.relevance) ||
-      convRank(a.conv) - convRank(b.conv) ||
-      b.relevance - a.relevance ||
-      b.conv.updated_at - a.conv.updated_at);
+    const eligible = await foldWorkersUnderParents(
+      ctx,
+      matched,
+      terms,
+      isEligibleConv,
+    );
+    eligible.sort(
+      (a, b) =>
+        relevanceTier(b.relevance) - relevanceTier(a.relevance) ||
+        convRank(a.conv) - convRank(b.conv) ||
+        b.relevance - a.relevance ||
+        b.conv.updated_at - a.conv.updated_at,
+    );
     // Operator hits arrive ranked: coverage, then the newest matching change.
-    if (operatorHits) eligible.push(...operatorHits.map((hit) => ({ ...hit, workers: 0 })));
+    if (operatorHits)
+      eligible.push(...operatorHits.map((hit) => ({ ...hit, workers: 0 })));
     const page = eligible.slice(offset, offset + limit);
 
-    const pageFirstMessages = await resolveFirstMessageTitles(ctx, page.map(({ conv }) => conv).filter(scope.contentVisible));
+    const pageFirstMessages = await resolveFirstMessageTitles(
+      ctx,
+      page.map(({ conv }) => conv).filter(scope.contentVisible),
+    );
 
     for (const candidate of page) {
       const { conv, coverage, relevance, workers } = candidate;
@@ -4935,7 +6201,13 @@ export const searchForCLI = query({
       // Line numbers are the match's rank, not its place in the transcript:
       // exact ones would need every message, which hits read limits. The
       // message id opens the match in place (`cast read <id>#<message_id>`).
-      const formattedMatches = searchSnippets({ ...candidate, messages: scope.contentVisible(conv) ? candidate.messages : [] }, terms).map(({ message: m, content }, idx) => ({
+      const formattedMatches = searchSnippets(
+        {
+          ...candidate,
+          messages: scope.contentVisible(conv) ? candidate.messages : [],
+        },
+        terms,
+      ).map(({ message: m, content }, idx) => ({
         line: idx + 1,
         message_id: m._id,
         role: m.role,
@@ -4946,12 +6218,14 @@ export const searchForCLI = query({
       }));
       totalMatches += formattedMatches.length;
 
-      results.push(await rowOf(conv, titleOf(conv, pageFirstMessages), {
-        relevance,
-        coverage,
-        workers,
-        matches: formattedMatches,
-      }));
+      results.push(
+        await rowOf(conv, titleOf(conv, pageFirstMessages), {
+          relevance,
+          coverage,
+          workers,
+          matches: formattedMatches,
+        }),
+      );
     }
 
     // A dated window usually points at history the content mirror no longer
@@ -4961,24 +6235,55 @@ export const searchForCLI = query({
     // content hit and only fill seats the content page left open.
     let windowTitleRows: typeof results = [];
     const windowTitleMissing = new Map<string, string[]>();
-    const hasTimeWindow = !operatorHits && (args.start_time !== undefined || args.end_time !== undefined);
+    const hasTimeWindow =
+      !operatorHits &&
+      (args.start_time !== undefined || args.end_time !== undefined);
     if (hasTimeWindow) {
-      const titleHits = await fetchTitleFieldHits(ctx, terms, (c) => searchableAs(scope, c));
-      const contentIds = new Set(eligible.map(({ conv }) => conv._id.toString()));
-      const titleConvs = (await withoutSelf([...titleHits.values()].map(({ conv }) => conv)
-        .filter((c) => !contentIds.has(c._id.toString()))
-        .filter(isEligibleConv), (conv) => conv))
-        .sort(byRankThenRecency);
+      const titleHits = await fetchTitleFieldHits(ctx, terms, (c) =>
+        searchableAs(scope, c),
+      );
+      const contentIds = new Set(
+        eligible.map(({ conv }) => conv._id.toString()),
+      );
+      const titleConvs = (
+        await withoutSelf(
+          [...titleHits.values()]
+            .map(({ conv }) => conv)
+            .filter((c) => !contentIds.has(c._id.toString()))
+            .filter(isEligibleConv),
+          (conv) => conv,
+        )
+      ).sort(byRankThenRecency);
       // Content pages consume the offset first; title rows page through once
       // the content matches are exhausted.
       const titleOffset = Math.max(0, offset - eligible.length);
       const fill = Math.max(0, limit - page.length);
       const titlePage = titleConvs.slice(titleOffset, titleOffset + fill);
-      const firstMsgByConv = await resolveFirstMessageTitles(ctx, titlePage.filter(scope.contentVisible));
-      windowTitleRows = await Promise.all(titlePage.map((conv) =>
-        rowOf(conv, titleOf(conv, firstMsgByConv), { relevance: 0, coverage: 0, title_match: true })));
+      const firstMsgByConv = await resolveFirstMessageTitles(
+        ctx,
+        titlePage.filter(scope.contentVisible),
+      );
+      windowTitleRows = await Promise.all(
+        titlePage.map((conv) =>
+          rowOf(conv, titleOf(conv, firstMsgByConv), {
+            relevance: 0,
+            coverage: 0,
+            title_match: true,
+          }),
+        ),
+      );
       for (const conv of titleConvs) {
-        windowTitleMissing.set(conv._id.toString(), missingWords(evidenceWithFields({ evidence: emptyEvidence(terms) }, searchFieldsOf(conv), terms), terms));
+        windowTitleMissing.set(
+          conv._id.toString(),
+          missingWords(
+            evidenceWithFields(
+              { evidence: emptyEvidence(terms) },
+              searchFieldsOf(conv),
+              terms,
+            ),
+            terms,
+          ),
+        );
       }
     }
 
@@ -4986,13 +6291,21 @@ export const searchForCLI = query({
     // them all, the reply says so before the rows, names the words nothing
     // holds, and each row names what it lacks.
     const missingById = new Map<string, string[]>([
-      ...eligible.map((c) => [c.conv._id.toString(), c.missing] as [string, string[]]),
+      ...eligible.map(
+        (c) => [c.conv._id.toString(), c.missing] as [string, string[]],
+      ),
       ...windowTitleMissing,
     ]);
     let gapRows = [...missingById.values()];
     // Operator hits came from per-session lookups that are capped too.
     const gapsUnproven = poolSaturated || !!operatorHits;
-    if (gapsUnproven && partialCoverage(gapRows.map((missing) => ({ missing })), terms)) {
+    if (
+      gapsUnproven &&
+      partialCoverage(
+        gapRows.map((missing) => ({ missing })),
+        terms,
+      )
+    ) {
       // A capped lookup left matches behind, so its gaps prove nothing. Each
       // page row's gaps are looked up in that session alone; the notice then
       // rests on those rows (and title rows, whose fields are whole), and a
@@ -5006,19 +6319,42 @@ export const searchForCLI = query({
         const gaps = missingById.get(id) ?? [];
         // A row whose content the caller cannot see was matched on its listed
         // fields alone, which are whole: its gaps stand without a lookup.
-        if (!scope.contentVisible(candidate.conv)) { gapRows.push(gaps); continue; }
+        if (!scope.contentVisible(candidate.conv)) {
+          gapRows.push(gaps);
+          continue;
+        }
         // A folded row speaks for its workers too, which one lookup cannot check.
-        if (candidate.workers && gaps.length) { unknown = true; break; }
+        if (candidate.workers && gaps.length) {
+          unknown = true;
+          break;
+        }
         const remaining: string[] = [];
         for (const w of gaps) {
-          if (lookups++ >= SATURATED_GAP_LOOKUPS) { unknown = true; break; }
+          if (lookups++ >= SATURATED_GAP_LOOKUPS) {
+            unknown = true;
+            break;
+          }
           const wordTerms = parseSearchTerms(w);
-          const found = await tier.search(wordTerms.lookup, { conversation_id: candidate.conv._id }, GAP_PROBE_TAKE);
+          const found = await tier.search(
+            wordTerms.lookup,
+            { conversation_id: candidate.conv._id },
+            GAP_PROBE_TAKE,
+          );
           // The same messages the search itself counts (-u: what the person wrote).
-          const counted = userOnly ? found.filter((m) => m.role === "user") : found;
-          if (counted.some((m) => contentMatchesAnyTerm(m.content || "", wordTerms))) continue;
+          const counted = userOnly
+            ? found.filter((m) => m.role === "user")
+            : found;
+          if (
+            counted.some((m) =>
+              contentMatchesAnyTerm(m.content || "", wordTerms),
+            )
+          )
+            continue;
           // A full probe may have stopped short of the match: unknown.
-          if (found.length >= GAP_PROBE_TAKE) { unknown = true; break; }
+          if (found.length >= GAP_PROBE_TAKE) {
+            unknown = true;
+            break;
+          }
           remaining.push(w);
         }
         if (unknown) break;
@@ -5027,12 +6363,17 @@ export const searchForCLI = query({
       }
       if (unknown) gapRows = [[]];
     }
-    const partial = partialCoverage(gapRows.map((missing) => ({ missing })), terms);
+    const partial = partialCoverage(
+      gapRows.map((missing) => ({ missing })),
+      terms,
+    );
     if (partial && partial.missing_everywhere.length > 0) {
       // Operator hits were ranked inside searchByOperators, whose rejected
       // sessions are not at hand here, and a full lookup hides what it left
       // behind: name no word in either case rather than guess.
-      partial.missing_everywhere = gapsUnproven ? [] : await wordsNoVisibleSessionHolds(partial.missing_everywhere);
+      partial.missing_everywhere = gapsUnproven
+        ? []
+        : await wordsNoVisibleSessionHolds(partial.missing_everywhere);
     }
     if (partial) {
       for (const row of [...results, ...windowTitleRows]) {
@@ -5042,14 +6383,17 @@ export const searchForCLI = query({
     }
 
     const windowPredatesContent =
-      args.start_time !== undefined && args.start_time < Date.now() - MIRROR_WINDOW_MS;
+      args.start_time !== undefined &&
+      args.start_time < Date.now() - MIRROR_WINDOW_MS;
     return {
       total_matches: totalMatches,
       conversations: [...results, ...windowTitleRows].slice(0, limit),
       search_scope: projectPath || "global",
       // Tells the CLI to explain that content matches can't reach the
       // requested window, so title hits are the reliable signal there.
-      ...(windowPredatesContent ? { content_window_days: CONTENT_WINDOW_DAYS } : {}),
+      ...(windowPredatesContent
+        ? { content_window_days: CONTENT_WINDOW_DAYS }
+        : {}),
       ...(operatorTruncated.length ? { truncated: operatorTruncated } : {}),
       ...(partial ? { partial } : {}),
       ...(await selfReport()),
@@ -5070,14 +6414,20 @@ export const conversationMessagesForCLI = query({
     full_content: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const access = await readableConversation(ctx, args.api_token, args.conversation_id);
+    const access = await readableConversation(
+      ctx,
+      args.api_token,
+      args.conversation_id,
+    );
     if ("error" in access) return { error: access.error };
     const { conv } = access;
 
     const limit = Math.min(Math.max(args.limit ?? 30, 1), 100);
     const recent = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conv._id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
       .order("desc")
       .take(limit * 2 + 20);
     const tail = recent.filter(isNonEmptyMessage).slice(0, limit).reverse();
@@ -5085,14 +6435,26 @@ export const conversationMessagesForCLI = query({
     const resultCap = args.full_content ? 100000 : 1000;
 
     return {
-      conversation: { id: conv._id, title: conv.title || "New Session", message_count: conv.message_count || 0 },
+      conversation: {
+        id: conv._id,
+        title: conv.title || "New Session",
+        message_count: conv.message_count || 0,
+      },
       messages: tail.map((m: any) => ({
         role: m.role,
         content: m.content || "",
         timestamp: new Date(m.timestamp).toISOString(),
         message_uuid: m.message_uuid || undefined,
-        tool_calls: m.tool_calls?.map((tc: any) => ({ id: tc.id, name: tc.name, input: (tc.input || "").slice(0, inputCap) })),
-        tool_results: m.tool_results?.map((tr: any) => ({ tool_use_id: tr.tool_use_id, content: (tr.content || "").slice(0, resultCap), is_error: tr.is_error })),
+        tool_calls: m.tool_calls?.map((tc: any) => ({
+          id: tc.id,
+          name: tc.name,
+          input: (tc.input || "").slice(0, inputCap),
+        })),
+        tool_results: m.tool_results?.map((tr: any) => ({
+          tool_use_id: tr.tool_use_id,
+          content: (tr.content || "").slice(0, resultCap),
+          is_error: tr.is_error,
+        })),
       })),
     };
   },
@@ -5100,13 +6462,26 @@ export const conversationMessagesForCLI = query({
 
 /** `cast diff`'s tree input: the changes a fold reads, with text, under a
  *  byte budget. `file_changes_truncated` names a tree missing files. */
-async function foldChangesPayload(ctx: QueryCtx, conversationId: Id<"conversations">) {
-  const { changes, truncated } = await listConversationFileChanges(ctx, conversationId);
-  return { file_changes: changes, file_changes_truncated: truncated || undefined };
+async function foldChangesPayload(
+  ctx: QueryCtx,
+  conversationId: Id<"conversations">,
+) {
+  const { changes, truncated } = await listConversationFileChanges(
+    ctx,
+    conversationId,
+  );
+  return {
+    file_changes: changes,
+    file_changes_truncated: truncated || undefined,
+  };
 }
 
 /** The conversation an API token names and may read, or the reason it may not. */
-export async function readableConversation(ctx: QueryCtx, apiToken: string, ref: string) {
+export async function readableConversation(
+  ctx: QueryCtx,
+  apiToken: string,
+  ref: string,
+) {
   const authUserId = await getAuthenticatedUserIdReadOnly(ctx, apiToken);
   if (!authUserId) return { error: "Unauthorized" as const };
   return readableConversationAs(ctx, authUserId, ref);
@@ -5114,13 +6489,18 @@ export async function readableConversation(ctx: QueryCtx, apiToken: string, ref:
 
 /** readableConversation for a caller already identified (a scheduled action
  *  acting for the person who asked): the same access rule, no token. */
-export async function readableConversationAs(ctx: QueryCtx, authUserId: Id<"users">, ref: string) {
+export async function readableConversationAs(
+  ctx: QueryCtx,
+  authUserId: Id<"users">,
+  ref: string,
+) {
   const user = await ctx.db.get(authUserId);
   if (!user) return { error: "User not found" as const };
   const conv = await resolveConversationRef(ctx, ref, authUserId);
   if (!conv) return { error: "Conversation not found" as const };
   // Owners read their own conversations; team members read non-private ones.
-  if (!(await canOwnerOrTeamAccess(ctx, authUserId, conv))) return { error: "Access denied" as const };
+  if (!(await canOwnerOrTeamAccess(ctx, authUserId, conv)))
+    return { error: "Access denied" as const };
   return { conv, user };
 }
 
@@ -5142,7 +6522,9 @@ export async function streamMessageRows(
     .withIndex("by_conversation_id", (q) => {
       const conv = q.eq("conversation_id", conversationId);
       if (!after) return conv;
-      return order === "asc" ? conv.gte("_creationTime", after.creation_time) : conv.lte("_creationTime", after.creation_time);
+      return order === "asc"
+        ? conv.gte("_creationTime", after.creation_time)
+        : conv.lte("_creationTime", after.creation_time);
     })
     .order(order);
   let bytes = 0;
@@ -5158,7 +6540,8 @@ export async function streamMessageRows(
     sameTime = m._creationTime === lastTime ? sameTime + 1 : 1;
     lastTime = m._creationTime;
     bytes += approxMessageBytes(m as any);
-    if (visit(m) === true || bytes >= READ_STEP_BYTES) return { creation_time: m._creationTime, skip: sameTime };
+    if (visit(m) === true || bytes >= READ_STEP_BYTES)
+      return { creation_time: m._creationTime, skip: sameTime };
   }
   return undefined;
 }
@@ -5175,8 +6558,11 @@ async function conversationHoldingMessage(
   const id = ctx.db.normalizeId("messages", messageId);
   const message = id ? await ctx.db.get(id) : null;
   if (!message || message.conversation_id === resolved._id) return resolved;
-  const holder = (await otherShortIdMatches(ctx, ref, resolved)).find((c) => String(c._id) === String(message.conversation_id));
-  if (!holder || !(await canOwnerOrTeamAccess(ctx, userId, holder))) return resolved;
+  const holder = (await otherShortIdMatches(ctx, ref, resolved)).find(
+    (c) => String(c._id) === String(message.conversation_id),
+  );
+  if (!holder || !(await canOwnerOrTeamAccess(ctx, userId, holder)))
+    return resolved;
   return holder as Doc<"conversations">;
 }
 
@@ -5188,13 +6574,18 @@ async function sameShortIdPayload(
   userId: Id<"users">,
   ref: string,
   conv: Doc<"conversations">,
-): Promise<{ same_short_id?: Array<{ id: string; title: string; updated_at: string }> }> {
+): Promise<{
+  same_short_id?: Array<{ id: string; title: string; updated_at: string }>;
+}> {
   const others = [];
   for (const other of await otherShortIdMatches(ctx, ref, conv)) {
     if (!(await canOwnerOrTeamAccess(ctx, userId, other))) continue;
     others.push({
       id: String(other._id),
-      title: other.title || (other.slug ? formatSlugAsTitle(other.slug) : null) || "New Session",
+      title:
+        other.title ||
+        (other.slug ? formatSlugAsTitle(other.slug) : null) ||
+        "New Session",
       updated_at: new Date(other.updated_at).toISOString(),
     });
     if (others.length >= 5) break;
@@ -5213,7 +6604,9 @@ export const scanConversationLines = internalQuery({
     conversation_id: v.string(),
     // Resume point: rows with this creation time, of which `skip` were already
     // scanned. Two rows can share a creation time, so the time alone is not enough.
-    after: v.optional(v.object({ creation_time: v.number(), skip: v.number() })),
+    after: v.optional(
+      v.object({ creation_time: v.number(), skip: v.number() }),
+    ),
     newest_first: v.optional(v.boolean()),
     // Anchor on a message (its Convex _id, as in the web's `#msg-<id>` links).
     around_message_id: v.optional(v.string()),
@@ -5224,53 +6617,94 @@ export const scanConversationLines = internalQuery({
     grep: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const access = await readableConversation(ctx, args.api_token, args.conversation_id);
+    const access = await readableConversation(
+      ctx,
+      args.api_token,
+      args.conversation_id,
+    );
     if ("error" in access) return { error: access.error };
     const after = args.after;
     // A short id with a message anchor (`cast read jx78gqj#<message>`, what
     // `cast search` prints) means the conversation holding that message, even
     // when a newer one shares the short id.
-    const conv = !after && args.around_message_id
-      ? await conversationHoldingMessage(ctx, access.user._id, args.conversation_id, args.around_message_id, access.conv)
-      : access.conv;
-    const findTerms = args.grep !== undefined ? parseFindTerms(args.grep) : undefined;
+    const conv =
+      !after && args.around_message_id
+        ? await conversationHoldingMessage(
+            ctx,
+            access.user._id,
+            args.conversation_id,
+            args.around_message_id,
+            access.conv,
+          )
+        : access.conv;
+    const findTerms =
+      args.grep !== undefined ? parseFindTerms(args.grep) : undefined;
 
     const ids: string[] = [];
     const matches: number[] = [];
     let anchorIndex: number | undefined;
     let firstUserMessage = "";
     let scanned = 0;
-    const cursor = await streamMessageRows(ctx, conv._id, after, args.newest_first ? "desc" : "asc", (m) => {
-      if (m._id === args.around_message_id) anchorIndex = ids.length;
-      if (isNonEmptyMessage(m)) {
-        if (findTerms?.length && messageHasFindTerms(m, findTerms)) matches.push(ids.length);
-        ids.push(m._id);
-      }
-      // The title falls back to the first user prompt among the first rows.
-      if (!after && !args.newest_first && !firstUserMessage && scanned < 10 && m.role === "user" && !m.tool_results?.length) {
-        const text = m.content?.trim();
-        if (text) firstUserMessage = text.length > 120 ? `${text.slice(0, 120)}...` : text;
-      }
-      scanned++;
-    });
+    const cursor = await streamMessageRows(
+      ctx,
+      conv._id,
+      after,
+      args.newest_first ? "desc" : "asc",
+      (m) => {
+        if (m._id === args.around_message_id) anchorIndex = ids.length;
+        if (isNonEmptyMessage(m)) {
+          if (findTerms?.length && messageHasFindTerms(m, findTerms))
+            matches.push(ids.length);
+          ids.push(m._id);
+        }
+        // The title falls back to the first user prompt among the first rows.
+        if (
+          !after &&
+          !args.newest_first &&
+          !firstUserMessage &&
+          scanned < 10 &&
+          m.role === "user" &&
+          !m.tool_results?.length
+        ) {
+          const text = m.content?.trim();
+          if (text)
+            firstUserMessage =
+              text.length > 120 ? `${text.slice(0, 120)}...` : text;
+        }
+        scanned++;
+      },
+    );
 
     return {
       ids,
       ...(findTerms ? { matches } : {}),
       anchor_index: anchorIndex,
       cursor,
-      ...(after ? {} : {
-        conversation: {
-          id: conv._id,
-          title: conv.title || firstUserMessage || (conv.slug ? formatSlugAsTitle(conv.slug) : null) || "New Session",
-          agent_type: conv.agent_type || "claude_code",
-          project_path: conv.project_path || null,
-          message_count: conv.message_count || 0,
-          updated_at: new Date(conv.updated_at).toISOString(),
-          ...(await sameShortIdPayload(ctx, access.user._id, args.conversation_id, conv)),
-        },
-      }),
-      ...(args.include_file_changes ? await foldChangesPayload(ctx, conv._id) : {}),
+      ...(after
+        ? {}
+        : {
+            conversation: {
+              id: conv._id,
+              title:
+                conv.title ||
+                firstUserMessage ||
+                (conv.slug ? formatSlugAsTitle(conv.slug) : null) ||
+                "New Session",
+              agent_type: conv.agent_type || "claude_code",
+              project_path: conv.project_path || null,
+              message_count: conv.message_count || 0,
+              updated_at: new Date(conv.updated_at).toISOString(),
+              ...(await sameShortIdPayload(
+                ctx,
+                access.user._id,
+                args.conversation_id,
+                conv,
+              )),
+            },
+          }),
+      ...(args.include_file_changes
+        ? await foldChangesPayload(ctx, conv._id)
+        : {}),
     };
   },
 });
@@ -5291,12 +6725,18 @@ export const readConversationLines = internalQuery({
     full_content: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const access = await readableConversation(ctx, args.api_token, args.conversation_id);
+    const access = await readableConversation(
+      ctx,
+      args.api_token,
+      args.conversation_id,
+    );
     if ("error" in access) return { error: access.error };
     const { conv } = access;
     const fullContent = args.full_content === true;
     const cap = (text: string | undefined, max: number) =>
-      fullContent || !text || text.length <= max ? text : `${text.slice(0, max)}...`;
+      fullContent || !text || text.length <= max
+        ? text
+        : `${text.slice(0, max)}...`;
 
     const messages = [];
     let consumed = 0;
@@ -5320,8 +6760,16 @@ export const readConversationLines = internalQuery({
         content: m.content || "",
         timestamp: new Date(m.timestamp).toISOString(),
         message_uuid: m.message_uuid || undefined,
-        tool_calls: m.tool_calls?.map((tc) => ({ id: tc.id, name: tc.name, input: cap(tc.input, 500) })),
-        tool_results: m.tool_results?.map((tr) => ({ tool_use_id: tr.tool_use_id, content: cap(tr.content, 1000), is_error: tr.is_error })),
+        tool_calls: m.tool_calls?.map((tc) => ({
+          id: tc.id,
+          name: tc.name,
+          input: cap(tc.input, 500),
+        })),
+        tool_results: m.tool_results?.map((tr) => ({
+          tool_use_id: tr.tool_use_id,
+          content: cap(tr.content, 1000),
+          is_error: tr.is_error,
+        })),
       });
     }
     return { messages, consumed };
@@ -5336,7 +6784,11 @@ export const exportConversationMessagesPage = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const access = await readableConversation(ctx, args.api_token, args.conversation_id);
+    const access = await readableConversation(
+      ctx,
+      args.api_token,
+      args.conversation_id,
+    );
     if ("error" in access) return { error: access.error };
     const { conv } = access;
 
@@ -5347,7 +6799,11 @@ export const exportConversationMessagesPage = query({
     if (args.cursor) {
       try {
         const parsed = JSON.parse(args.cursor);
-        if (typeof parsed?.creation_time !== "number" || typeof parsed?.skip !== "number") throw new Error();
+        if (
+          typeof parsed?.creation_time !== "number" ||
+          typeof parsed?.skip !== "number"
+        )
+          throw new Error();
         after = { creation_time: parsed.creation_time, skip: parsed.skip };
       } catch {
         return { error: "Invalid cursor" };
@@ -5405,14 +6861,17 @@ export const setCloudAgentArchived = mutation({
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) throw new Error("Conversation not found");
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
-    if (!authUserId) throw new Error("Authentication failed: invalid token or session");
+    if (!authUserId)
+      throw new Error("Authentication failed: invalid token or session");
     if (!(await canOwnerOrTeamAccess(ctx, authUserId, conversation))) {
       throw new Error("Unauthorized: can only update your own conversations");
     }
     if ((conversation.cloud_agent_archived ?? false) === args.archived) return;
     // Explicit false, never a removed field: the web merges a row per key and
     // keeps a field the payload omits, so a cleared flag would read archived.
-    await ctx.db.patch(args.conversation_id, { cloud_agent_archived: args.archived });
+    await ctx.db.patch(args.conversation_id, {
+      cloud_agent_archived: args.archived,
+    });
   },
 });
 
@@ -5452,8 +6911,12 @@ export const updateTitle = mutation({
     const title = storedTitle(args.title) ?? args.title;
     const replaceable = args.agent_guess
       ? !conversation.title_is_custom && conversation.subtitle === undefined
-      : !conversation.title_is_custom || (!!conversation.title && !!args.replaces?.includes(conversation.title));
-    const changed = replaceable && (conversation.title !== title || (!!args.title_is_custom && !conversation.title_is_custom));
+      : !conversation.title_is_custom ||
+        (!!conversation.title && !!args.replaces?.includes(conversation.title));
+    const changed =
+      replaceable &&
+      (conversation.title !== title ||
+        (!!args.title_is_custom && !conversation.title_is_custom));
     if (changed) {
       await ctx.db.patch(args.conversation_id, {
         title,
@@ -5486,20 +6949,38 @@ export const setAvailableSkills = mutation({
     const skillsJson = JSON.stringify(JSON.parse(args.skills));
     const skillsRow = await ctx.db
       .query("user_skills")
-      .withIndex("by_user_project", (q) => q.eq("user_id", authUserId).eq("project_path", key))
+      .withIndex("by_user_project", (q) =>
+        q.eq("user_id", authUserId).eq("project_path", key),
+      )
       .first();
     if (skillsRow) {
       if (skillsRow.skills_json !== skillsJson) {
-        await ctx.db.patch(skillsRow._id, { skills_json: skillsJson, updated_at: Date.now() });
+        await ctx.db.patch(skillsRow._id, {
+          skills_json: skillsJson,
+          updated_at: Date.now(),
+        });
       }
     } else {
-      await ctx.db.insert("user_skills", { user_id: authUserId, project_path: key, skills_json: skillsJson, updated_at: Date.now() });
+      await ctx.db.insert("user_skills", {
+        user_id: authUserId,
+        project_path: key,
+        skills_json: skillsJson,
+        updated_at: Date.now(),
+      });
     }
     if (user.available_skills !== undefined) {
-      const legacy = await ctx.db.query("user_skills")
-        .withIndex("by_user_project", (q) => q.eq("user_id", authUserId).eq("project_path", undefined))
+      const legacy = await ctx.db
+        .query("user_skills")
+        .withIndex("by_user_project", (q) =>
+          q.eq("user_id", authUserId).eq("project_path", undefined),
+        )
         .first();
-      if (!legacy) await ctx.db.insert("user_skills", { user_id: authUserId, skills_json: user.available_skills, updated_at: Date.now() });
+      if (!legacy)
+        await ctx.db.insert("user_skills", {
+          user_id: authUserId,
+          skills_json: user.available_skills,
+          updated_at: Date.now(),
+        });
       await ctx.db.patch(authUserId, { available_skills: undefined });
     }
     // Deliberately NOT stamped on the conversation doc: nothing reads
@@ -5540,14 +7021,19 @@ export const updateProjectPath = mutation({
     if (!conversation) {
       return { updated: false };
     }
-    if (args.device_id && conversation.owner_device_id && conversation.owner_device_id !== args.device_id) {
+    if (
+      args.device_id &&
+      conversation.owner_device_id &&
+      conversation.owner_device_id !== args.device_id
+    ) {
       return { updated: false };
     }
 
     if (
       conversation.project_path === args.project_path &&
       (!args.git_root || conversation.git_root === args.git_root) &&
-      (!args.git_remote_url || conversation.git_remote_url === args.git_remote_url)
+      (!args.git_remote_url ||
+        conversation.git_remote_url === args.git_remote_url)
     ) {
       return { updated: false };
     }
@@ -5568,16 +7054,21 @@ export const updateProjectPath = mutation({
     // were created without git info) stamps identity and nothing else: a
     // mapping on that checkout then reaches these rows when the owner sets
     // or re-saves it, never as a side effect of a daemon upgrade.
-    const restamp = conversation.project_path === args.project_path
-      ? null
-      : buildPathRestampUpdate(
-          { ...conversation, git_remote_url: args.git_remote_url ?? conversation.git_remote_url },
-          await ctx.db
-            .query("directory_team_mappings")
-            .withIndex("by_user_id", (q) => q.eq("user_id", authUserId))
-            .collect(),
-          args.git_root || args.project_path
-        );
+    const restamp =
+      conversation.project_path === args.project_path
+        ? null
+        : buildPathRestampUpdate(
+            {
+              ...conversation,
+              git_remote_url:
+                args.git_remote_url ?? conversation.git_remote_url,
+            },
+            await ctx.db
+              .query("directory_team_mappings")
+              .withIndex("by_user_id", (q) => q.eq("user_id", authUserId))
+              .collect(),
+            args.git_root || args.project_path,
+          );
     if (restamp) Object.assign(patch, restamp);
 
     // A restamp can flip visibility (born-blank → team-shared), so linked
@@ -5632,20 +7123,25 @@ export const listPrivateConversations = query({
 
     const conversations = await ctx.db
       .query("conversations")
-      .withIndex("by_user_private", (q) => q.eq("user_id", authUserId).eq("is_private", true))
+      .withIndex("by_user_private", (q) =>
+        q.eq("user_id", authUserId).eq("is_private", true),
+      )
       .collect();
 
     const result = await Promise.all(
       conversations.map(async (c) => {
         const messages = await ctx.db
           .query("messages")
-          .withIndex("by_conversation_id", (q) => q.eq("conversation_id", c._id))
+          .withIndex("by_conversation_id", (q) =>
+            q.eq("conversation_id", c._id),
+          )
           .order("asc")
           .take(20);
 
         let firstUserMessage = "";
         for (const msg of messages) {
-          const hasToolResults = msg.tool_results && msg.tool_results.length > 0;
+          const hasToolResults =
+            msg.tool_results && msg.tool_results.length > 0;
           if (msg.role === "user" && !hasToolResults) {
             const text = msg.content?.trim();
             if (text) {
@@ -5656,10 +7152,11 @@ export const listPrivateConversations = query({
           }
         }
 
-        const title = c.title
-          || firstUserMessage
-          || (c.slug ? formatSlugAsTitle(c.slug) : null)
-          || "New Session";
+        const title =
+          c.title ||
+          firstUserMessage ||
+          (c.slug ? formatSlugAsTitle(c.slug) : null) ||
+          "New Session";
 
         return {
           conversation_id: c._id,
@@ -5671,7 +7168,7 @@ export const listPrivateConversations = query({
           message_count: c.message_count,
           project_path: c.project_path,
         };
-      })
+      }),
     );
 
     return result.sort((a, b) => b.updated_at - a.updated_at);
@@ -5702,7 +7199,9 @@ export const publishToDirectory = mutation({
     }
 
     if (!conversation.share_token) {
-      throw new Error("Conversation must be shared before publishing to directory");
+      throw new Error(
+        "Conversation must be shared before publishing to directory",
+      );
     }
 
     const existingPublic = await ctx.db
@@ -5721,7 +7220,9 @@ export const publishToDirectory = mutation({
 
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("asc")
       .take(10);
 
@@ -5774,7 +7275,7 @@ export const listPublicConversations = query({
 
     if (args.agent_type) {
       publicConversations = publicConversations.filter(
-        (pc) => pc.agent_type === args.agent_type
+        (pc) => pc.agent_type === args.agent_type,
       );
     }
 
@@ -5783,7 +7284,9 @@ export const listPublicConversations = query({
       publicConversations = publicConversations.filter((pc) => {
         const titleMatch = pc.title.toLowerCase().includes(searchLower);
         const descMatch = pc.description?.toLowerCase().includes(searchLower);
-        const previewMatch = pc.preview_text.toLowerCase().includes(searchLower);
+        const previewMatch = pc.preview_text
+          .toLowerCase()
+          .includes(searchLower);
         return titleMatch || descMatch || previewMatch;
       });
     }
@@ -5813,7 +7316,7 @@ export const listPublicConversations = query({
           author_avatar: user?.image || user?.github_avatar_url,
           share_token: conversation?.share_token || null,
         };
-      })
+      }),
     );
 
     return results;
@@ -5846,12 +7349,15 @@ function makeForkCtx(ctx: any): ForkCopyCtx {
         const builder = ctx.db
           .query("messages")
           .withIndex("by_conversation_timestamp", (qq: any) =>
-            qq.eq("conversation_id", conversationId as Id<"conversations">)
+            qq.eq("conversation_id", conversationId as Id<"conversations">),
           )
           .filter((qq: any) =>
             cutoffLte !== undefined
-              ? qq.and(qq.gt(qq.field("timestamp"), cursorGt), qq.lte(qq.field("timestamp"), cutoffLte))
-              : qq.gt(qq.field("timestamp"), cursorGt)
+              ? qq.and(
+                  qq.gt(qq.field("timestamp"), cursorGt),
+                  qq.lte(qq.field("timestamp"), cutoffLte),
+                )
+              : qq.gt(qq.field("timestamp"), cursorGt),
           );
         return builder.order("asc").take(limit);
       },
@@ -5888,12 +7394,18 @@ async function inheritLabelAssignment(
   const sourceAssignment = await ctx.db
     .query("bucket_assignments")
     .withIndex("by_user_conversation", (q: any) =>
-      q.eq("user_id", userId).eq("conversation_id", sourceConvId))
+      q.eq("user_id", userId).eq("conversation_id", sourceConvId),
+    )
     .first();
   if (!sourceAssignment?.bucket_id) return;
   const bucket = await ctx.db.get(sourceAssignment.bucket_id);
   if (!bucket || bucket.archived_at) return;
-  await assignConversationToBucketForUser(ctx, userId, newConvId, sourceAssignment.bucket_id);
+  await assignConversationToBucketForUser(
+    ctx,
+    userId,
+    newConvId,
+    sourceAssignment.bucket_id,
+  );
 }
 
 /**
@@ -5909,7 +7421,10 @@ async function recordFork(
   forkId: Id<"conversations">,
   opts: { counted?: boolean } = {},
 ) {
-  if (opts.counted !== false) await ctx.db.patch(origin._id, { fork_count: (origin.fork_count ?? 0) + 1 });
+  if (opts.counted !== false)
+    await ctx.db.patch(origin._id, {
+      fork_count: (origin.fork_count ?? 0) + 1,
+    });
   await inheritLabelAssignment(ctx, userId, origin._id, forkId);
 }
 
@@ -6024,14 +7539,20 @@ export function nativeForkEligible(opts: {
   atTip: boolean;
   cloud: boolean;
 }): boolean {
-  return opts.isPlainFork && opts.atTip && !opts.cloud &&
-    typeof opts.sourceSessionId === "string" && opts.sourceSessionId.length > 0 &&
-    agentForksNatively(opts.daemonAgentType);
+  return (
+    opts.isPlainFork &&
+    opts.atTip &&
+    !opts.cloud &&
+    typeof opts.sourceSessionId === "string" &&
+    opts.sourceSessionId.length > 0 &&
+    agentForksNatively(opts.daemonAgentType)
+  );
 }
 
 // Clients with a native fork need a real UUID for the child (grok's --session-id
 // rejects anything else); a caller-supplied key of another shape is replaced.
-const UUID_SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_SESSION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function opencodeApiForkEligible(opts: {
   isPlainFork: boolean;
@@ -6065,17 +7586,19 @@ export const forkFromMessage = mutation({
     // @codecast/shared/contracts/forkSeed). Enqueued in this same transaction
     // so a retried fork can never seed twice or create a branch nobody seeds.
     direction: v.optional(v.string()),
-    target_agent_type: v.optional(v.union(
-      v.literal("claude_code"),
-      v.literal("codex"),
-      v.literal("cursor"),
-      v.literal("gemini"),
-      v.literal("opencode"),
-      v.literal("pi"),
-      v.literal("grok"),
-      v.literal("muse"),
-      v.literal("antigravity"),
-    )),
+    target_agent_type: v.optional(
+      v.union(
+        v.literal("claude_code"),
+        v.literal("codex"),
+        v.literal("cursor"),
+        v.literal("gemini"),
+        v.literal("opencode"),
+        v.literal("pi"),
+        v.literal("grok"),
+        v.literal("muse"),
+        v.literal("antigravity"),
+      ),
+    ),
     // `cast fork --cloud`: the branch runs on the cloud host, in a worktree the
     // CLI already acquired there. Routing goes to that device, the row and the
     // daemon args carry the worktree as project path, and the JSONL-copy fast
@@ -6083,11 +7606,13 @@ export const forkFromMessage = mutation({
     // deferred resume rebuilds the branch from the server copy).
     cloud_device_id: v.optional(v.string()),
     cloud_project_path: v.optional(v.string()),
-    cloud_worktree: v.optional(v.object({
-      name: v.string(),
-      branch: v.optional(v.string()),
-      path: v.optional(v.string()),
-    })),
+    cloud_worktree: v.optional(
+      v.object({
+        name: v.string(),
+        branch: v.optional(v.string()),
+        path: v.optional(v.string()),
+      }),
+    ),
     // What that worktree started from (the parent checkout's branch/HEAD/
     // dirty state, or origin/main); stamped as cloud_seed with the fork time.
     cloud_seed: v.optional(cloudSeedArg),
@@ -6098,7 +7623,11 @@ export const forkFromMessage = mutation({
       throw new Error("Unauthorized");
     }
 
-    const original = await resolveConversationRef(ctx, args.conversation_id, userId);
+    const original = await resolveConversationRef(
+      ctx,
+      args.conversation_id,
+      userId,
+    );
     if (!original) {
       throw new Error("Conversation not found");
     }
@@ -6167,7 +7696,10 @@ export const forkFromMessage = mutation({
       const forkPointMsg = await ctx.db
         .query("messages")
         .withIndex("by_conversation_uuid", (q) =>
-          q.eq("conversation_id", original._id).eq("message_uuid", args.message_uuid!))
+          q
+            .eq("conversation_id", original._id)
+            .eq("message_uuid", args.message_uuid!),
+        )
         .first();
       if (!forkPointMsg) {
         throw new Error("Fork point message not found");
@@ -6181,10 +7713,14 @@ export const forkFromMessage = mutation({
       const newestMsg = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", original._id))
+          q.eq("conversation_id", original._id),
+        )
         .order("desc")
         .first();
-      atTip = !!newestMsg && (newestMsg._id === forkPointMsg._id || forkPointMsg.timestamp >= newestMsg.timestamp);
+      atTip =
+        !!newestMsg &&
+        (newestMsg._id === forkPointMsg._id ||
+          forkPointMsg.timestamp >= newestMsg.timestamp);
       // The messageID opencode forks at = the first message strictly after the fork
       // point (same timestamp boundary the copy uses, so ties are handled the same
       // way on both sides). For an opencode source only; other agents don't use it.
@@ -6192,7 +7728,10 @@ export const forkFromMessage = mutation({
         const nextMsg = await ctx.db
           .query("messages")
           .withIndex("by_conversation_timestamp", (q) =>
-            q.eq("conversation_id", original._id).gt("timestamp", forkPointMsg.timestamp))
+            q
+              .eq("conversation_id", original._id)
+              .gt("timestamp", forkPointMsg.timestamp),
+          )
           .order("asc")
           .first();
         opencodeForkMessageId = nextMsg?.message_uuid;
@@ -6207,9 +7746,18 @@ export const forkFromMessage = mutation({
 
     const isAgentSwitch = !!args.target_agent_type && !args.message_uuid;
     const agentType = args.target_agent_type || original.agent_type;
-    const agentLabels: Record<string, string> = { claude_code: "Claude", codex: "Codex", cursor: "Cursor", gemini: "Gemini" };
-    const isCrossAgentSwitch = !!args.target_agent_type && args.target_agent_type !== original.agent_type;
-    const titlePrefix = isCrossAgentSwitch ? `${agentLabels[args.target_agent_type!] || args.target_agent_type}: ` : "Fork: ";
+    const agentLabels: Record<string, string> = {
+      claude_code: "Claude",
+      codex: "Codex",
+      cursor: "Cursor",
+      gemini: "Gemini",
+    };
+    const isCrossAgentSwitch =
+      !!args.target_agent_type &&
+      args.target_agent_type !== original.agent_type;
+    const titlePrefix = isCrossAgentSwitch
+      ? `${agentLabels[args.target_agent_type!] || args.target_agent_type}: `
+      : "Fork: ";
     // The daemon_command is deferred so it can't race a half-copied fork. It
     // gets inserted by advanceForkCopy when fork_status flips to "complete".
     const daemonAgentType = localAgentTypeOf(agentType);
@@ -6219,13 +7767,19 @@ export const forkFromMessage = mutation({
     // can only copy its whole context (native fork). The UI hides these
     // affordances from the same registry facts; this is the API's guard.
     const targetLabel = AGENT_CLIENTS[daemonAgentType].displayName;
-    if (isCrossAgentSwitch && !canSessionBecomeAgent(agentType, original.message_count)) {
-      throw new Error(`${targetLabel} cannot take over an existing session's history; start a new ${targetLabel} session instead`);
+    if (
+      isCrossAgentSwitch &&
+      !canSessionBecomeAgent(agentType, original.message_count)
+    ) {
+      throw new Error(
+        `${targetLabel} cannot take over an existing session's history; start a new ${targetLabel} session instead`,
+      );
     }
     if (!atTip && !agentForksFromAnyMessage(agentType)) {
       throw new Error(`${targetLabel} can only fork from the latest message`);
     }
-    const isPlainFork = !args.target_agent_type || args.target_agent_type === original.agent_type;
+    const isPlainFork =
+      !args.target_agent_type || args.target_agent_type === original.agent_type;
     const isNativeFork = nativeForkEligible({
       isPlainFork,
       daemonAgentType,
@@ -6234,8 +7788,11 @@ export const forkFromMessage = mutation({
       cloud: !!args.cloud_device_id,
     });
     const forkSessionId = isNativeFork
-      ? (args.session_id && UUID_SESSION_ID_RE.test(args.session_id) ? args.session_id : crypto.randomUUID())
-      : (args.session_id || `forked-${original.session_id}-${crypto.randomUUID()}`);
+      ? args.session_id && UUID_SESSION_ID_RE.test(args.session_id)
+        ? args.session_id
+        : crypto.randomUUID()
+      : args.session_id ||
+        `forked-${original.session_id}-${crypto.randomUUID()}`;
 
     // A fork defaults to the same visibility a fresh session in this directory
     // would get: re-resolve from the forker's directory mappings rather than
@@ -6247,30 +7804,39 @@ export const forkFromMessage = mutation({
     // visibility instead. The repository matters as much as the path: forking a
     // teammate's session hands over THEIR checkout path, which none of the
     // forker's path mappings name, while the forker's repo mapping does.
-    const { team_id: forkTeamId, is_private: forkIsPrivate, auto_shared: forkAutoShared } =
-      await resolveCreationPrivacy(
-        ctx,
-        userId,
-        original.git_root || original.project_path,
-        original.team_id,
-        undefined,
-        original.git_remote_url,
-      );
+    const {
+      team_id: forkTeamId,
+      is_private: forkIsPrivate,
+      auto_shared: forkAutoShared,
+    } = await resolveCreationPrivacy(
+      ctx,
+      userId,
+      original.git_root || original.project_path,
+      original.team_id,
+      undefined,
+      original.git_remote_url,
+    );
 
     // The fork lives where the parent's transcript lives: route daemon commands
     // to the parent's owner device (it has the JSONL and the checkout). Falls
     // back to project-root routing when the parent has no live owner.
-    const ownerTarget = args.cloud_device_id ?? await resolveOwnerDevice(ctx, userId, {
-      projectPath: original.project_path,
-      gitRoot: original.git_root,
-      ownerDeviceId: original.owner_device_id ?? null,
-    });
+    const ownerTarget =
+      args.cloud_device_id ??
+      (await resolveOwnerDevice(ctx, userId, {
+        projectPath: original.project_path,
+        gitRoot: original.git_root,
+        ownerDeviceId: original.owner_device_id ?? null,
+      }));
     const forkProjectPath = args.cloud_project_path ?? original.project_path;
     // Fast path applies when the fork's history is the parent's transcript
     // verbatim AND the same claude binary will resume it — the daemon copies
     // the parent's JSONL instead of waiting for the server copy + rebuild.
-    const fastPathEligible = atTip && isPlainFork && daemonAgentType === "claude" &&
-      (original.agent_type === "claude_code" || !original.agent_type) && !args.cloud_device_id;
+    const fastPathEligible =
+      atTip &&
+      isPlainFork &&
+      daemonAgentType === "claude" &&
+      (original.agent_type === "claude_code" || !original.agent_type) &&
+      !args.cloud_device_id;
     // opencode forks through its serve sidecar: POST /session/:id/fork mints a
     // REAL, resumable ses_ id from the parent session (a synthetic forked-<id>
     // never resolves in opencode.db — that's the bug this fixes). The daemon needs
@@ -6317,11 +7883,19 @@ export const forkFromMessage = mutation({
       git_root: original.git_root,
       cli_flags: original.cli_flags,
       worktree_name: args.cloud_worktree?.name ?? original.worktree_name,
-      worktree_branch: args.cloud_worktree ? args.cloud_worktree.branch : original.worktree_branch,
-      worktree_path: args.cloud_worktree ? args.cloud_worktree.path : original.worktree_path,
-      worktree_status: args.cloud_worktree ? ("active" as const) : original.worktree_status,
+      worktree_branch: args.cloud_worktree
+        ? args.cloud_worktree.branch
+        : original.worktree_branch,
+      worktree_path: args.cloud_worktree
+        ? args.cloud_worktree.path
+        : original.worktree_path,
+      worktree_status: args.cloud_worktree
+        ? ("active" as const)
+        : original.worktree_status,
       ...(args.cloud_worktree ? { cloud_workspace: "isolated" as const } : {}),
-      ...(args.cloud_seed ? { cloud_seed: { ...args.cloud_seed, at: now } } : {}),
+      ...(args.cloud_seed
+        ? { cloud_seed: { ...args.cloud_seed, at: now } }
+        : {}),
       fork_status: "copying",
       fork_copy_total: totalToCopy,
       fork_copied: 0,
@@ -6338,7 +7912,9 @@ export const forkFromMessage = mutation({
       project_path: forkProjectPath || original.git_root,
       // Copy-the-JSONL hints. The deferred (post-copy) command may also use
       // them: copy-first is cache-stable even when the rebuild would be safe.
-      ...(fastPathEligible ? { fork_fast_path: true, parent_session_id: original.session_id } : {}),
+      ...(fastPathEligible
+        ? { fork_fast_path: true, parent_session_id: original.session_id }
+        : {}),
       // Native fork (registry forkCmd): the daemon launches the client's own
       // fork of the parent; it needs the parent's session id.
       ...(isNativeFork ? { parent_session_id: original.session_id } : {}),
@@ -6349,7 +7925,9 @@ export const forkFromMessage = mutation({
         ? {
             fork_api: true,
             parent_session_id: original.session_id,
-            ...(opencodeForkMessageId ? { fork_message_id: opencodeForkMessageId } : {}),
+            ...(opencodeForkMessageId
+              ? { fork_message_id: opencodeForkMessageId }
+              : {}),
           }
         : {}),
       _target_device_id: ownerTarget ?? undefined,
@@ -6361,7 +7939,9 @@ export const forkFromMessage = mutation({
       // cannot rebuild the client's transcript), and a second resume while the
       // branch's seed is mid-delivery re-clears delivery state and injects the
       // seed twice.
-      ...(isNativeFork ? {} : { fork_daemon_args: JSON.stringify(forkDaemonArgs) }),
+      ...(isNativeFork
+        ? {}
+        : { fork_daemon_args: JSON.stringify(forkDaemonArgs) }),
     });
 
     // At-tip forks don't need the server-side message copy to start the
@@ -6379,7 +7959,11 @@ export const forkFromMessage = mutation({
       await ctx.db.insert("daemon_commands", {
         user_id: userId,
         command: "fork_session",
-        args: JSON.stringify({ ...forkDaemonArgs, _target_device_id: undefined, fork_fast_path_strict: true }),
+        args: JSON.stringify({
+          ...forkDaemonArgs,
+          _target_device_id: undefined,
+          fork_fast_path_strict: true,
+        }),
         created_at: now,
         target_device_id: ownerTarget ?? undefined,
       });
@@ -6388,7 +7972,9 @@ export const forkFromMessage = mutation({
     // Agent-switch continuations inherit the label too (they're the same
     // thread of work under a different agent, exactly like the visibility
     // inheritance above) but are not counted as forks.
-    await recordFork(ctx, userId, original, newConversationId, { counted: !isAgentSwitch });
+    await recordFork(ctx, userId, original, newConversationId, {
+      counted: !isAgentSwitch,
+    });
 
     // Carry the original's git side row (diff + status) over to the fork's.
     const originalGitDiff = await getConvGitDiff(ctx, original._id);
@@ -6462,7 +8048,11 @@ export const getConversationTree = query({
       return { error: "Unauthorized" };
     }
 
-    const conv = await resolveConversationRef(ctx, args.conversation_id, userId);
+    const conv = await resolveConversationRef(
+      ctx,
+      args.conversation_id,
+      userId,
+    );
     if (!conv) {
       return { error: "Conversation not found" };
     }
@@ -6493,7 +8083,11 @@ export const getConversationTree = query({
     const firstUserPrompt = (
       msgs: Array<{ role: string; content?: unknown }>,
     ): string | undefined => {
-      const clean = (s: string) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const clean = (s: string) =>
+        s
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
       for (const m of msgs) {
         if (m.role === "user" && typeof m.content === "string") {
           const c = clean(m.content);
@@ -6518,12 +8112,15 @@ export const getConversationTree = query({
       node: typeof root,
     ): Promise<{ label?: string; count?: number }> => {
       const hasForkPoint =
-        !!node.parent_message_uuid && node.parent_message_uuid !== "agent-switch";
+        !!node.parent_message_uuid &&
+        node.parent_message_uuid !== "agent-switch";
       if (hasForkPoint) {
         const forkPoint = await ctx.db
           .query("messages")
           .withIndex("by_conversation_uuid", (q) =>
-            q.eq("conversation_id", node._id).eq("message_uuid", node.parent_message_uuid!),
+            q
+              .eq("conversation_id", node._id)
+              .eq("message_uuid", node.parent_message_uuid!),
           )
           .first();
         if (forkPoint) {
@@ -6547,7 +8144,9 @@ export const getConversationTree = query({
       }
       const head = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_timestamp", (q) => q.eq("conversation_id", node._id))
+        .withIndex("by_conversation_timestamp", (q) =>
+          q.eq("conversation_id", node._id),
+        )
         .order("asc")
         .take(30);
       return { label: firstUserPrompt(head), count: node.message_count };
@@ -6600,7 +8199,11 @@ export const getForkBranchMessages = query({
       return { error: "Unauthorized" };
     }
 
-    const conv = await resolveConversationRef(ctx, args.conversation_id, userId);
+    const conv = await resolveConversationRef(
+      ctx,
+      args.conversation_id,
+      userId,
+    );
     if (!conv) {
       return { error: "Conversation not found" };
     }
@@ -6612,7 +8215,7 @@ export const getForkBranchMessages = query({
     const allMessages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", conv!._id)
+        q.eq("conversation_id", conv!._id),
       )
       .order("asc")
       .collect();
@@ -6622,11 +8225,14 @@ export const getForkBranchMessages = query({
     }
 
     const forkPointIdx = allMessages.findIndex(
-      (m) => m.message_uuid === conv!.parent_message_uuid
+      (m) => m.message_uuid === conv!.parent_message_uuid,
     );
 
     if (forkPointIdx === -1) {
-      return { messages: allMessages, fork_point_uuid: conv.parent_message_uuid };
+      return {
+        messages: allMessages,
+        fork_point_uuid: conv.parent_message_uuid,
+      };
     }
 
     const divergentMessages = allMessages.slice(forkPointIdx + 1);
@@ -6662,7 +8268,9 @@ export const backfillImagePreview = mutation({
     if (conversation.image_preview_url) return;
     const recent = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_timestamp", (q: any) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(300);
     for (const msg of recent) {
@@ -6707,42 +8315,51 @@ export const setFavoriteV2 = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "favorites.set/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        isFavorite: args.is_favorite,
-      },
-    }, async () => {
-      const conversation = await ctx.db.get(args.conversation_id);
-      if (!conversation) {
-        return {
-          status: "rejected" as const,
-          code: "MISSING",
-          message: "Conversation not found",
-        };
-      }
-      if (String(conversation.user_id) !== String(userId)) {
-        return {
-          status: "rejected" as const,
-          code: "FORBIDDEN",
-          message: "Can only favorite your own conversations",
-        };
-      }
-      await setFavoriteWithRevision(ctx, conversation, args.is_favorite, "receipt");
-      return {
-        status: "acknowledged" as const,
-        result: {
-          conversationId: conversation._id,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "favorites.set/v2",
+        arguments: {
+          conversationId: args.conversation_id,
           isFavorite: args.is_favorite,
         },
-        // A no-op still advances once for this new command receipt: its
-        // optimistic overlay needs positive authoritative coverage to settle.
-        coverageViews: [favoriteCoverageForConversation(conversation)],
-      };
-    });
+      },
+      async () => {
+        const conversation = await ctx.db.get(args.conversation_id);
+        if (!conversation) {
+          return {
+            status: "rejected" as const,
+            code: "MISSING",
+            message: "Conversation not found",
+          };
+        }
+        if (String(conversation.user_id) !== String(userId)) {
+          return {
+            status: "rejected" as const,
+            code: "FORBIDDEN",
+            message: "Can only favorite your own conversations",
+          };
+        }
+        await setFavoriteWithRevision(
+          ctx,
+          conversation,
+          args.is_favorite,
+          "receipt",
+        );
+        return {
+          status: "acknowledged" as const,
+          result: {
+            conversationId: conversation._id,
+            isFavorite: args.is_favorite,
+          },
+          // A no-op still advances once for this new command receipt: its
+          // optimistic overlay needs positive authoritative coverage to settle.
+          coverageViews: [favoriteCoverageForConversation(conversation)],
+        };
+      },
+    );
   },
 });
 
@@ -6757,7 +8374,8 @@ export const setConversationIcon = mutation({
     if (!authUserId) throw new Error("Unauthorized");
     const conversation = await ctx.db.get(args.conversation_id);
     if (!conversation) throw new Error("Conversation not found");
-    if (conversation.user_id.toString() !== authUserId.toString()) throw new Error("Can only update your own conversations");
+    if (conversation.user_id.toString() !== authUserId.toString())
+      throw new Error("Can only update your own conversations");
     const patch: Record<string, any> = {};
     if (args.icon !== undefined) patch.icon = args.icon;
     if (args.icon_color !== undefined) patch.icon_color = args.icon_color;
@@ -6776,7 +8394,7 @@ export const listFavorites = query({
     const favorites = await ctx.db
       .query("conversations")
       .withIndex("by_user_favorite", (q) =>
-        q.eq("user_id", authUserId).eq("is_favorite", true)
+        q.eq("user_id", authUserId).eq("is_favorite", true),
       )
       .collect();
 
@@ -6798,7 +8416,10 @@ export const listFavorites = query({
 export const listFavoritesV2 = query({
   args: {},
   handler: async (ctx) => {
-    const identity = { contractId: FAVORITES_VIEW_CONTRACT_ID, viewKey: FAVORITES_VIEW_KEY };
+    const identity = {
+      contractId: FAVORITES_VIEW_CONTRACT_ID,
+      viewKey: FAVORITES_VIEW_KEY,
+    };
     const userId = await getAuthUserId(ctx);
     if (!userId) return unauthenticatedView(identity);
 
@@ -6806,17 +8427,25 @@ export const listFavoritesV2 = query({
       ctx.db
         .query("conversations")
         .withIndex("by_user_favorite", (q) =>
-          q.eq("user_id", userId).eq("is_favorite", true))
+          q.eq("user_id", userId).eq("is_favorite", true),
+        )
         .collect(),
       readLocalViewRevision(ctx, userId, identity.contractId, identity.viewKey),
     ]);
     const projected = favorites
       .map(projectFavoriteMembership)
       .sort((left, right) =>
-        String(left.conversation_id).localeCompare(String(right.conversation_id)));
-    return grantedView(identity, { grantKeys: [FAVORITES_GRANT_KEY], viewRevision }, {
-      favorites: projected,
-    });
+        String(left.conversation_id).localeCompare(
+          String(right.conversation_id),
+        ),
+      );
+    return grantedView(
+      identity,
+      { grantKeys: [FAVORITES_GRANT_KEY], viewRevision },
+      {
+        favorites: projected,
+      },
+    );
   },
 });
 
@@ -6849,7 +8478,7 @@ export const listFavoriteSessions = query({
     const favorites = await ctx.db
       .query("conversations")
       .withIndex("by_user_favorite", (q) =>
-        q.eq("user_id", userId).eq("is_favorite", true)
+        q.eq("user_id", userId).eq("is_favorite", true),
       )
       .take(500);
 
@@ -6862,8 +8491,22 @@ export const listFavoriteSessions = query({
     for (const conv of favorites) {
       if (!shouldShowInInbox(conv)) continue;
       // clusterCutoff 0: favorites are deliberately kept — never gap-hide them.
-      const { row } = await enrichInboxSessionRow(ctx, conv, maps, now, false, undefined, getDoc);
-      await stampInboxViewerFields(row, conv, userId, await sessionOwnerRow(ctx, conv._id, userId), getDoc);
+      const { row } = await enrichInboxSessionRow(
+        ctx,
+        conv,
+        maps,
+        now,
+        false,
+        undefined,
+        getDoc,
+      );
+      await stampInboxViewerFields(
+        row,
+        conv,
+        userId,
+        await sessionOwnerRow(ctx, conv._id, userId),
+        getDoc,
+      );
       results.push(row);
     }
 
@@ -6893,19 +8536,39 @@ export const listKilledSessions = query({
     const now = Date.now();
     const result = await ctx.db
       .query("conversations")
-      .withIndex("by_user_killed", (q) => q.eq("user_id", userId).gt("inbox_killed_at", 0))
+      .withIndex("by_user_killed", (q) =>
+        q.eq("user_id", userId).gt("inbox_killed_at", 0),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
     const getDoc = makeMemoGet(ctx);
     const rows: any[] = [];
     for (const conv of result.page) {
       if (isOrphanOrSubagent(conv) || isRunLog(conv)) continue;
-      const { row } = await enrichInboxSessionRow(ctx, conv, EMPTY_INBOX_MAPS, now, false, undefined, getDoc);
-      await stampInboxViewerFields(row, conv, userId, await sessionOwnerRow(ctx, conv._id, userId), getDoc);
+      const { row } = await enrichInboxSessionRow(
+        ctx,
+        conv,
+        EMPTY_INBOX_MAPS,
+        now,
+        false,
+        undefined,
+        getDoc,
+      );
+      await stampInboxViewerFields(
+        row,
+        conv,
+        userId,
+        await sessionOwnerRow(ctx, conv._id, userId),
+        getDoc,
+      );
       stripInboxLiveness(row);
       rows.push(row);
     }
-    return { page: rows, isDone: result.isDone, continueCursor: result.continueCursor };
+    return {
+      page: rows,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 
@@ -6922,19 +8585,40 @@ export const listClosedSessions = query({
     const now = Date.now();
     const result = await ctx.db
       .query("conversations")
-      .withIndex("by_user_closed", (q) => q.eq("user_id", userId).gt("inbox_closed_at", 0))
+      .withIndex("by_user_closed", (q) =>
+        q.eq("user_id", userId).gt("inbox_closed_at", 0),
+      )
       .order("desc")
       .paginate(args.paginationOpts);
     const getDoc = makeMemoGet(ctx);
     const rows: any[] = [];
     for (const conv of result.page) {
-      if (!isClosedSession(conv) || isOrphanOrSubagent(conv) || isRunLog(conv)) continue;
-      const { row } = await enrichInboxSessionRow(ctx, conv, EMPTY_INBOX_MAPS, now, false, undefined, getDoc);
-      await stampInboxViewerFields(row, conv, userId, await sessionOwnerRow(ctx, conv._id, userId), getDoc);
+      if (!isClosedSession(conv) || isOrphanOrSubagent(conv) || isRunLog(conv))
+        continue;
+      const { row } = await enrichInboxSessionRow(
+        ctx,
+        conv,
+        EMPTY_INBOX_MAPS,
+        now,
+        false,
+        undefined,
+        getDoc,
+      );
+      await stampInboxViewerFields(
+        row,
+        conv,
+        userId,
+        await sessionOwnerRow(ctx, conv._id, userId),
+        getDoc,
+      );
       stripInboxLiveness(row);
       rows.push(row);
     }
-    return { page: rows, isDone: result.isDone, continueCursor: result.continueCursor };
+    return {
+      page: rows,
+      isDone: result.isDone,
+      continueCursor: result.continueCursor,
+    };
   },
 });
 
@@ -6973,7 +8657,9 @@ export const getMessageFeed = query({
     const CONV_CAP = 500; // viewer's own conversations considered
     const TEAM_MEMBER_CONV_CAP = 50; // recent conversations per teammate
 
-    type ConvDoc = NonNullable<Awaited<ReturnType<typeof ctx.db.get<"conversations">>>>;
+    type ConvDoc = NonNullable<
+      Awaited<ReturnType<typeof ctx.db.get<"conversations">>>
+    >;
     const candidates = new Map<
       string,
       { conv: ConvDoc; isOwn: boolean; authorName: string }
@@ -6991,7 +8677,9 @@ export const getMessageFeed = query({
         : null;
     const inScope = (conv: ConvDoc) =>
       args.filter !== "team" ||
-      (scopeTeamId ? String(conv.team_id ?? "") === String(scopeTeamId) : !conv.team_id);
+      (scopeTeamId
+        ? String(conv.team_id ?? "") === String(scopeTeamId)
+        : !conv.team_id);
 
     const ownAuthor = user.name || user.email?.split("@")[0] || "Unknown";
     const ownConvs = await ctx.db
@@ -7001,7 +8689,11 @@ export const getMessageFeed = query({
       .take(CONV_CAP);
     for (const conv of ownConvs) {
       if (!inScope(conv)) continue;
-      candidates.set(conv._id.toString(), { conv, isOwn: true, authorName: ownAuthor });
+      candidates.set(conv._id.toString(), {
+        conv,
+        isOwn: true,
+        authorName: ownAuthor,
+      });
     }
 
     if (scopeTeamId) {
@@ -7015,14 +8707,18 @@ export const getMessageFeed = query({
         const memberConvs = await ctx.db
           .query("conversations")
           .withIndex("by_team_user_updated", (q) =>
-            q.eq("team_id", scopeTeamId).eq("user_id", member.user_id)
+            q.eq("team_id", scopeTeamId).eq("user_id", member.user_id),
           )
           .order("desc")
           .take(TEAM_MEMBER_CONV_CAP);
         for (const conv of memberConvs) {
           if (candidates.has(conv._id.toString())) continue;
           if (!ff.contentVisible(conv as any)) continue; // the feed is prompt text: content, not summary
-          candidates.set(conv._id.toString(), { conv, isOwn: false, authorName: memberAuthor });
+          candidates.set(conv._id.toString(), {
+            conv,
+            isOwn: false,
+            authorName: memberAuthor,
+          });
         }
       }
     }
@@ -7039,19 +8735,26 @@ export const getMessageFeed = query({
     // only in its seed. Short ids are the first 7 chars of the conversation id.
     const feedCandidates: FeedCandidate[] = [...candidates.values()].map(
       ({ conv, isOwn, authorName }) => {
-        const agentSource = conv.parent_conversation_id ?? conv.spawned_by_conversation_id;
+        const agentSource =
+          conv.parent_conversation_id ?? conv.spawned_by_conversation_id;
         return {
           conversation_id: conv._id,
           updated_at: conv.updated_at,
-          title: conv.title || (conv.slug ? formatSlugAsTitle(conv.slug) : "New Session"),
+          title:
+            conv.title ||
+            (conv.slug ? formatSlugAsTitle(conv.slug) : "New Session"),
           session_id: conv.session_id,
           isOwn,
           authorName,
           isSubagent: conv.is_subagent === true,
-          machineSeeded: !!(conv.spawned_by_conversation_id || conv.agent_task_id),
-          agentSource: agentSource ? agentSource.toString().slice(0, 7) : undefined,
+          machineSeeded: !!(
+            conv.spawned_by_conversation_id || conv.agent_task_id
+          ),
+          agentSource: agentSource
+            ? agentSource.toString().slice(0, 7)
+            : undefined,
         };
-      }
+      },
     );
 
     const page = await mergeUserMessageFeed({
@@ -7075,7 +8778,7 @@ export const getMessageFeed = query({
           .withIndex("by_conversation_role_timestamp", (q) =>
             q
               .eq("conversation_id", conversationId as Id<"conversations">)
-              .eq("role", "user")
+              .eq("role", "user"),
           )
           .order("asc")
           .take(1);
@@ -7086,7 +8789,10 @@ export const getMessageFeed = query({
       ...page,
       messages: page.messages.map((m) => {
         const conv = candidates.get(String(m.conversation_id))?.conv;
-        return { ...m, workspace: conv?.team_id ? `team:${conv.team_id}` : `user:${userId}` };
+        return {
+          ...m,
+          workspace: conv?.team_id ? `team:${conv.team_id}` : `user:${userId}`,
+        };
       }),
     };
   },
@@ -7162,19 +8868,27 @@ export const feedForCLI = query({
       allTeams: args.all_teams,
     });
     if ("error" in scope) return { error: scope.error };
-    const { teamUsers, teamIds: effectiveTeamIds, ownTeamId: resolvedTeamId } = scope;
+    const {
+      teamUsers,
+      teamIds: effectiveTeamIds,
+      ownTeamId: resolvedTeamId,
+    } = scope;
     const teamUserMap = scope.userById;
-    const effectiveTeamIdSet = new Set(effectiveTeamIds.map(id => id.toString()));
+    const effectiveTeamIdSet = new Set(
+      effectiveTeamIds.map((id) => id.toString()),
+    );
 
     let filterUserId: string | null = null;
     if (args.mine_only) {
       filterUserId = authUserId.toString();
     } else if (args.member_name) {
       const memberNameLower = args.member_name.toLowerCase();
-      const matchingMember = teamUsers.find(u => {
+      const matchingMember = teamUsers.find((u) => {
         const name = u.name?.toLowerCase() || "";
         const email = u.email?.toLowerCase() || "";
-        return name.includes(memberNameLower) || email.includes(memberNameLower);
+        return (
+          name.includes(memberNameLower) || email.includes(memberNameLower)
+        );
       });
       if (!matchingMember) {
         return { error: `No team member found matching "${args.member_name}"` };
@@ -7186,19 +8900,27 @@ export const feedForCLI = query({
     // old sessions, which the recency-window fetches below would miss, so when a
     // label is given we hydrate its conversations directly instead.
     let labelConvIds: Set<string> | null = null;
-    let labeledConvs: NonNullable<Awaited<ReturnType<typeof ctx.db.get<"conversations">>>>[] = [];
+    let labeledConvs: NonNullable<
+      Awaited<ReturnType<typeof ctx.db.get<"conversations">>>
+    >[] = [];
     if (args.label) {
       const resolved = await resolveLabelConvIds(ctx, authUserId, args.label);
       if ("error" in resolved) return { error: resolved.error };
       const hydrated = await Promise.all(
-        [...resolved.convIds].slice(0, 200).map((id) => ctx.db.get(id as Id<"conversations">))
+        [...resolved.convIds]
+          .slice(0, 200)
+          .map((id) => ctx.db.get(id as Id<"conversations">)),
       );
-      labeledConvs = hydrated.filter((c): c is (typeof labeledConvs)[number] => c !== null);
+      labeledConvs = hydrated.filter(
+        (c): c is (typeof labeledConvs)[number] => c !== null,
+      );
       // Labels are project-bounded by default: the CLI passes cwd unless -g.
       if (args.project_path) {
         const bound = args.project_path;
-        labeledConvs = labeledConvs.filter((c) =>
-          projectOverlaps(bound, c.project_path) || projectOverlaps(bound, (c as any).git_root)
+        labeledConvs = labeledConvs.filter(
+          (c) =>
+            projectOverlaps(bound, c.project_path) ||
+            projectOverlaps(bound, (c as any).git_root),
         );
       }
       labelConvIds = new Set(labeledConvs.map((c) => c._id.toString()));
@@ -7216,34 +8938,48 @@ export const feedForCLI = query({
         teamIds: effectiveTeamIds,
       });
 
-      const rankedMatches = rankConversationsByCoverage(groupMessagesByConversation(searchResults, terms), terms);
+      const rankedMatches = rankConversationsByCoverage(
+        groupMessagesByConversation(searchResults, terms),
+        terms,
+      );
       matchingConvIds = new Set(rankedMatches.map((r) => r.convId));
 
       const matchedConvs = await Promise.all(
-        Array.from(matchingConvIds).slice(0, 25).map(async (convId) => {
-          try {
-            return await ctx.db.get(convId as Id<"conversations">);
-          } catch {
-            return null;
-          }
-        })
+        Array.from(matchingConvIds)
+          .slice(0, 25)
+          .map(async (convId) => {
+            try {
+              return await ctx.db.get(convId as Id<"conversations">);
+            } catch {
+              return null;
+            }
+          }),
       );
-      const validConvs = matchedConvs.filter((c): c is NonNullable<typeof c> => c !== null);
+      const validConvs = matchedConvs.filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      );
 
       // Filter own conversations by team when team is resolved
-      queryMatchedOwnConversations = validConvs.filter(c => {
+      queryMatchedOwnConversations = validConvs.filter((c) => {
         if (c.user_id.toString() !== authUserId.toString()) return false;
         if (resolvedTeamId) {
-          const convTeamId = ((c as any).team_id ?? (c as any).active_team_id)?.toString();
+          const convTeamId = (
+            (c as any).team_id ?? (c as any).active_team_id
+          )?.toString();
           if (!convTeamId || !effectiveTeamIdSet.has(convTeamId)) return false;
         }
         return true;
       });
 
-      const teamUserIdSet = new Set(teamUsers.filter(u => u._id.toString() !== authUserId.toString()).map(u => u._id.toString()));
+      const teamUserIdSet = new Set(
+        teamUsers
+          .filter((u) => u._id.toString() !== authUserId.toString())
+          .map((u) => u._id.toString()),
+      );
       // A message match is content: only sessions whose content may show.
-      queryMatchedTeamConversations = validConvs.filter(c =>
-        teamUserIdSet.has(c.user_id.toString()) && scope.contentVisible(c)
+      queryMatchedTeamConversations = validConvs.filter(
+        (c) =>
+          teamUserIdSet.has(c.user_id.toString()) && scope.contentVisible(c),
       );
     }
 
@@ -7254,68 +8990,90 @@ export const feedForCLI = query({
     // recency fetches below only see the newest rows per user, so an older
     // window post-filtered against them always came back empty — the range
     // has to ride by_user_updated for old windows to return their own top-N.
-    const hasTimeWindow = args.start_time !== undefined || args.end_time !== undefined;
+    const hasTimeWindow =
+      args.start_time !== undefined || args.end_time !== undefined;
     const boundByWindow = <Q extends { gte: any; lte: any }>(q: Q): Q => {
       let qq: any = q;
-      if (args.start_time !== undefined) qq = qq.gte("updated_at", args.start_time);
+      if (args.start_time !== undefined)
+        qq = qq.gte("updated_at", args.start_time);
       if (args.end_time !== undefined) qq = qq.lte("updated_at", args.end_time);
       return qq;
     };
     let ownConversations = labelConvIds
-      ? labeledConvs.filter((c) => c.user_id.toString() === authUserId.toString())
+      ? labeledConvs.filter(
+          (c) => c.user_id.toString() === authUserId.toString(),
+        )
       : await ctx.db
           .query("conversations")
-          .withIndex("by_user_updated", (q) => boundByWindow(q.eq("user_id", authUserId)))
+          .withIndex("by_user_updated", (q) =>
+            boundByWindow(q.eq("user_id", authUserId)),
+          )
           .order("desc")
           .take(fetchLimit);
 
     // Merge in query-matched conversations that might be older
     if (queryMatchedOwnConversations.length > 0) {
-      const existingIds = new Set(ownConversations.map(c => c._id.toString()));
-      const additionalConvs = queryMatchedOwnConversations.filter(c => !existingIds.has(c._id.toString()));
+      const existingIds = new Set(
+        ownConversations.map((c) => c._id.toString()),
+      );
+      const additionalConvs = queryMatchedOwnConversations.filter(
+        (c) => !existingIds.has(c._id.toString()),
+      );
       ownConversations = [...ownConversations, ...additionalConvs];
     }
 
     // Include non-private team conversations whose team_id matches effective teams
     let teamConversations: typeof ownConversations = [];
     if (effectiveTeamIds.length > 0 && !args.mine_only) {
-      const visibleTeamMembers = teamUsers.filter(u =>
-        u._id.toString() !== authUserId.toString() &&
-        (u.activity_visibility || "detailed") !== "hidden"
+      const visibleTeamMembers = teamUsers.filter(
+        (u) =>
+          u._id.toString() !== authUserId.toString() &&
+          (u.activity_visibility || "detailed") !== "hidden",
       );
 
-      const visibleMemberIds = new Set(visibleTeamMembers.map(u => u._id.toString()));
-      const isVisibleTeamConv = (c: typeof ownConversations[number]) => scope.isVisible(c);
+      const visibleMemberIds = new Set(
+        visibleTeamMembers.map((u) => u._id.toString()),
+      );
+      const isVisibleTeamConv = (c: (typeof ownConversations)[number]) =>
+        scope.isVisible(c);
 
       if (labelConvIds) {
-        teamConversations = labeledConvs.filter(c =>
-          visibleMemberIds.has(c.user_id.toString()) && isVisibleTeamConv(c)
+        teamConversations = labeledConvs.filter(
+          (c) =>
+            visibleMemberIds.has(c.user_id.toString()) && isVisibleTeamConv(c),
         );
       } else {
         const teamMemberConvos = await Promise.all(
           visibleTeamMembers.map(async (member) => {
             const convos = await ctx.db
               .query("conversations")
-              .withIndex("by_user_updated", (q) => boundByWindow(q.eq("user_id", member._id)))
+              .withIndex("by_user_updated", (q) =>
+                boundByWindow(q.eq("user_id", member._id)),
+              )
               .order("desc")
               // Recency justifies 10 per member on the hot path; a dated window
               // is a deliberate archaeology query, so give it real coverage.
               .take(hasTimeWindow ? 50 : 10);
             return convos.filter(isVisibleTeamConv);
-          })
+          }),
         );
         teamConversations = teamMemberConvos.flat();
       }
 
       // Merge in query-matched team conversations that might be older than top-20
       if (queryMatchedTeamConversations.length > 0) {
-        const existingTeamIds = new Set(teamConversations.map(c => c._id.toString()));
-        const additionalTeam = queryMatchedTeamConversations.filter(c => !existingTeamIds.has(c._id.toString()));
+        const existingTeamIds = new Set(
+          teamConversations.map((c) => c._id.toString()),
+        );
+        const additionalTeam = queryMatchedTeamConversations.filter(
+          (c) => !existingTeamIds.has(c._id.toString()),
+        );
         teamConversations = [...teamConversations, ...additionalTeam];
       }
     }
 
-    const isOwnConversation = (c: typeof ownConversations[number]) => c.user_id.toString() === authUserId.toString();
+    const isOwnConversation = (c: (typeof ownConversations)[number]) =>
+      c.user_id.toString() === authUserId.toString();
 
     // Sessions this user OWNS belong in their feed even in --mine scope (they're
     // run by another account, so the scans above miss them when mine_only skips
@@ -7331,7 +9089,7 @@ export const feedForCLI = query({
           .order("desc")
           .take(50);
     const myOwnedIds = new Set<string>(
-      myOwnerRows.map((r: any) => r.conversation_id.toString())
+      myOwnerRows.map((r: any) => r.conversation_id.toString()),
     );
     const isOwnedByMe = (c: { _id: { toString(): string } }) =>
       myOwnedIds.has(c._id.toString());
@@ -7339,34 +9097,56 @@ export const feedForCLI = query({
     const ownedConversations: typeof ownConversations = [];
     for (const r of myOwnerRows) {
       let conv: any = null;
-      try { conv = await ctx.db.get((r as any).conversation_id); } catch { conv = null; }
+      try {
+        conv = await ctx.db.get((r as any).conversation_id);
+      } catch {
+        conv = null;
+      }
       if (!conv || isOwnConversation(conv)) continue;
       ownedConversations.push(conv);
     }
 
-    const candidateById = new Map<string, typeof ownConversations[number]>();
-    for (const c of [...ownConversations, ...teamConversations, ...ownedConversations]) {
+    const candidateById = new Map<string, (typeof ownConversations)[number]>();
+    for (const c of [
+      ...ownConversations,
+      ...teamConversations,
+      ...ownedConversations,
+    ]) {
       candidateById.set(c._id.toString(), c);
     }
 
     let filteredConversations = [...candidateById.values()]
-      .filter((c): c is typeof ownConversations[number] => {
-        if (filterUserId && c.user_id.toString() !== filterUserId && !(args.mine_only && isOwnedByMe(c))) return false;
+      .filter((c): c is (typeof ownConversations)[number] => {
+        if (
+          filterUserId &&
+          c.user_id.toString() !== filterUserId &&
+          !(args.mine_only && isOwnedByMe(c))
+        )
+          return false;
         if (labelConvIds && !labelConvIds.has(c._id.toString())) return false;
 
         // Team filter: when team is resolved from directory, filter own sessions by team
         if (resolvedTeamId && isOwnConversation(c)) {
-          const convTeamId = ((c as any).team_id ?? (c as any).active_team_id)?.toString();
+          const convTeamId = (
+            (c as any).team_id ?? (c as any).active_team_id
+          )?.toString();
           if (!convTeamId || !effectiveTeamIdSet.has(convTeamId)) return false;
         }
         if (startTime && c.updated_at < startTime) return false;
         if (endTime && c.updated_at > endTime) return false;
         if (matchingConvIds && !matchingConvIds.has(c._id.toString())) {
           // Also match on conversation title/subtitle
-          const titleText = [c.title, c.subtitle].filter(Boolean).join(" ").toLowerCase();
+          const titleText = [c.title, c.subtitle]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
           const queryLower = query?.toLowerCase() || "";
-          const queryTerms = queryLower.split(/\s+/).filter(w => w.length > 1);
-          const titleMatch = queryTerms.length > 0 && queryTerms.every(w => titleText.includes(w));
+          const queryTerms = queryLower
+            .split(/\s+/)
+            .filter((w) => w.length > 1);
+          const titleMatch =
+            queryTerms.length > 0 &&
+            queryTerms.every((w) => titleText.includes(w));
           if (!titleMatch) return false;
         }
         return true;
@@ -7385,26 +9165,38 @@ export const feedForCLI = query({
       }
     }
     if (args.live_only) {
-      filteredConversations = filteredConversations.filter(c => liveStatusMap.has(c._id.toString()));
+      filteredConversations = filteredConversations.filter((c) =>
+        liveStatusMap.has(c._id.toString()),
+      );
     }
 
     const stateFilter = normalizeWorkStateFilter(args.state);
     if (stateFilter === "pinned") {
-      filteredConversations = filteredConversations.filter(c => !!c.inbox_pinned_at);
+      filteredConversations = filteredConversations.filter(
+        (c) => !!c.inbox_pinned_at,
+      );
     } else if (stateFilter === "hibernated") {
-      filteredConversations = filteredConversations.filter(c => managedMap.get(c._id.toString())?.agent_status === "hibernated");
+      filteredConversations = filteredConversations.filter(
+        (c) => managedMap.get(c._id.toString())?.agent_status === "hibernated",
+      );
     } else if (stateFilter === "live") {
-      filteredConversations = filteredConversations.filter(c => liveStatusMap.has(c._id.toString()));
+      filteredConversations = filteredConversations.filter((c) =>
+        liveStatusMap.has(c._id.toString()),
+      );
     } else if (stateFilter) {
       // A work_state filter needs every candidate classified before paginating.
       const matching: typeof filteredConversations = [];
       for (const c of filteredConversations) {
-        if ((await classifier.classify(c)).work_state === stateFilter) matching.push(c);
+        if ((await classifier.classify(c)).work_state === stateFilter)
+          matching.push(c);
       }
       filteredConversations = matching;
     }
 
-    const allConversations = filteredConversations.slice(offset, offset + Math.min(limit, 100));
+    const allConversations = filteredConversations.slice(
+      offset,
+      offset + Math.min(limit, 100),
+    );
 
     // Rows are classified as they are built below (cached if a state filter
     // above already classified the full set). Keeps the no-filter feed —
@@ -7462,7 +9254,9 @@ export const feedForCLI = query({
       if (deviceLabels.has(key)) continue;
       const device = await ctx.db
         .query("devices")
-        .withIndex("by_user_device", (q: any) => q.eq("user_id", conv.user_id).eq("device_id", devId))
+        .withIndex("by_user_device", (q: any) =>
+          q.eq("user_id", conv.user_id).eq("device_id", devId),
+        )
         .first();
       if (device?.label) deviceLabels.set(key, device.label);
     }
@@ -7475,7 +9269,9 @@ export const feedForCLI = query({
       const messages = readsContent
         ? await ctx.db
             .query("messages")
-            .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+            .withIndex("by_conversation_id", (q) =>
+              q.eq("conversation_id", conv._id),
+            )
             .order("asc")
             .take(6)
         : [];
@@ -7493,10 +9289,11 @@ export const feedForCLI = query({
         }
       }
 
-      const title = conv.title
-        || firstUserMessage
-        || (conv.slug ? formatSlugAsTitle(conv.slug) : null)
-        || "New Session";
+      const title =
+        conv.title ||
+        firstUserMessage ||
+        (conv.slug ? formatSlugAsTitle(conv.slug) : null) ||
+        "New Session";
 
       const preview: Array<{
         line: number;
@@ -7510,7 +9307,8 @@ export const feedForCLI = query({
       for (const msg of messages) {
         lineNum++;
         if (msg.role === "user") {
-          const hasToolResults = msg.tool_results && msg.tool_results.length > 0;
+          const hasToolResults =
+            msg.tool_results && msg.tool_results.length > 0;
           if (!hasToolResults && msg.content?.trim()) {
             let content = msg.content.trim();
             if (content.length > 200) content = content.slice(0, 200) + "...";
@@ -7539,12 +9337,15 @@ export const feedForCLI = query({
       // ordinals that line up with `cast read <id> <line>`. Skipped for rows
       // short enough that the head preview already covers them.
       const headPreview = preview.slice(0, 2);
-      const headMaxLine = headPreview.length > 0 ? headPreview[headPreview.length - 1].line : 0;
+      const headMaxLine =
+        headPreview.length > 0 ? headPreview[headPreview.length - 1].line : 0;
       const totalMessages = conv.message_count || 0;
       const recentMsgs = readsContent
         ? await ctx.db
             .query("messages")
-            .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+            .withIndex("by_conversation_id", (q) =>
+              q.eq("conversation_id", conv._id),
+            )
             .order("desc")
             .take(12)
         : [];
@@ -7568,19 +9369,29 @@ export const feedForCLI = query({
         });
       }
 
-      const owner = teamUserMap.get(conv.user_id.toString()) || (conv.user_id.toString() === authUserId.toString() ? user : null);
+      const owner =
+        teamUserMap.get(conv.user_id.toString()) ||
+        (conv.user_id.toString() === authUserId.toString() ? user : null);
       const isOwnConv = conv.user_id.toString() === authUserId.toString();
 
       // Second-party owner display (distinct from `owner` above, which is the
       // RUNNER — historical local name). Owner docs are usually teammates and
       // already loaded; fall back to a direct get for cross-team edge cases.
       const sessionOwnerId = (conv as any).owner_user_id?.toString();
-      let sessionOwner: { name: string | null; email: string | null } | undefined;
+      let sessionOwner:
+        | { name: string | null; email: string | null }
+        | undefined;
       if (sessionOwnerId) {
         const ownerDoc =
           teamUserMap.get(sessionOwnerId) ||
-          (sessionOwnerId === authUserId.toString() ? user : await ctx.db.get((conv as any).owner_user_id as Id<"users">));
-        if (ownerDoc) sessionOwner = { name: ownerDoc.name || null, email: ownerDoc.email || null };
+          (sessionOwnerId === authUserId.toString()
+            ? user
+            : await ctx.db.get((conv as any).owner_user_id as Id<"users">));
+        if (ownerDoc)
+          sessionOwner = {
+            name: ownerDoc.name || null,
+            email: ownerDoc.email || null,
+          };
       }
 
       results.push({
@@ -7594,25 +9405,41 @@ export const feedForCLI = query({
         agent_type: conv.agent_type,
         ...(await classifier.rowFields(conv)),
         is_pinned: !!conv.inbox_pinned_at,
-        user: !isOwnConv && owner ? { name: owner.name || null, email: owner.email || null } : undefined,
+        user:
+          !isOwnConv && owner
+            ? { name: owner.name || null, email: owner.email || null }
+            : undefined,
         ...(sessionOwner ? { owner: sessionOwner } : {}),
-        ...(sessionOwnerId === authUserId.toString() ? { owned_by_me: true } : {}),
+        ...(sessionOwnerId === authUserId.toString()
+          ? { owned_by_me: true }
+          : {}),
         // With a tail present the head shrinks to the goal + first reply; a
         // short row (no tail beyond the head) keeps the old 4-message preview.
         preview: tail.length > 0 ? headPreview : preview.slice(0, 4),
         ...(tail.length > 0 ? { tail } : {}),
         ...(conv.idle_summary ? { idle_summary: conv.idle_summary } : {}),
-        ...(readsContent && conv.recent_files && conv.recent_files.length > 0 ? { recent_files: conv.recent_files } : {}),
+        ...(readsContent && conv.recent_files && conv.recent_files.length > 0
+          ? { recent_files: conv.recent_files }
+          : {}),
         ...((conv as any).worktree_name &&
         (conv as any).worktree_status !== "merged" &&
         (conv as any).worktree_status !== "archived"
           ? { worktree: (conv as any).worktree_name }
           : {}),
         ...(conv.git_branch ? { git_branch: conv.git_branch } : {}),
-        ...((conv as any).owner_device_id && deviceLabels.get(`${conv.user_id.toString()}:${(conv as any).owner_device_id}`)
-          ? { machine: deviceLabels.get(`${conv.user_id.toString()}:${(conv as any).owner_device_id}`) }
+        ...((conv as any).owner_device_id &&
+        deviceLabels.get(
+          `${conv.user_id.toString()}:${(conv as any).owner_device_id}`,
+        )
+          ? {
+              machine: deviceLabels.get(
+                `${conv.user_id.toString()}:${(conv as any).owner_device_id}`,
+              ),
+            }
           : {}),
-        ...(lastActivityAt ? { last_activity_at: new Date(lastActivityAt).toISOString() } : {}),
+        ...(lastActivityAt
+          ? { last_activity_at: new Date(lastActivityAt).toISOString() }
+          : {}),
         ...scopeLabels(scope, conv),
       });
     }
@@ -7635,7 +9462,10 @@ export const listProjectHashes = query({
       .withIndex("by_user_id", (q) => q.eq("user_id", authUserId))
       .take(args.limit || 100);
 
-    const hashes = new Map<string, { count: number; sample_title: string | null }>();
+    const hashes = new Map<
+      string,
+      { count: number; sample_title: string | null }
+    >();
     for (const conv of conversations) {
       const hash = conv.project_hash || "__no_project__";
       const existing = hashes.get(hash);
@@ -7647,13 +9477,21 @@ export const listProjectHashes = query({
     }
 
     return Array.from(hashes.entries())
-      .map(([hash, data]) => ({ hash, count: data.count, sample_title: data.sample_title }))
+      .map(([hash, data]) => ({
+        hash,
+        count: data.count,
+        sample_title: data.sample_title,
+      }))
       .sort((a, b) => b.count - a.count);
   },
 });
 
 export const deleteByProjectHash = mutation({
-  args: { project_hash: v.string(), api_token: v.optional(v.string()), conv_id: v.optional(v.string()) },
+  args: {
+    project_hash: v.string(),
+    api_token: v.optional(v.string()),
+    conv_id: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const authUserId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!authUserId) throw new Error("Not authenticated");
@@ -7675,7 +9513,7 @@ export const deleteByProjectHash = mutation({
         .query("conversations")
         .withIndex("by_user_id", (q) => q.eq("user_id", authUserId))
         .take(100);
-      const conv = convs.find(c => c.project_hash === args.project_hash);
+      const conv = convs.find((c) => c.project_hash === args.project_hash);
       if (!conv) return { deleted: 0, hasMore: false, conv_id: null };
       convId = conv._id;
     }
@@ -7715,8 +9553,8 @@ export const getMessageCountsForReconciliation = query({
         v.object({
           session_id: v.string(),
           conversation_id: v.id("conversations"),
-        })
-      )
+        }),
+      ),
     ),
     api_token: v.optional(v.string()),
   },
@@ -7777,9 +9615,10 @@ export async function collectTeammateConversationsSince(
   perMember: (memberCount: number) => number,
 ) {
   const feedFilter = await createTeamFeedFilter(ctx, teamId);
-  const visibleMembers = feedFilter.memberships.filter((m) =>
-    m.user_id.toString() !== viewerId.toString() &&
-    currentMembershipVisibility(m) !== "hidden"
+  const visibleMembers = feedFilter.memberships.filter(
+    (m) =>
+      m.user_id.toString() !== viewerId.toString() &&
+      currentMembershipVisibility(m) !== "hidden",
   );
   const take = Math.max(1, perMember(visibleMembers.length));
   const perMemberRows = await Promise.all(
@@ -7787,12 +9626,15 @@ export async function collectTeammateConversationsSince(
       ctx.db
         .query("conversations")
         .withIndex("by_team_user_updated", (q) =>
-          q.eq("team_id", teamId).eq("user_id", m.user_id).gt("updated_at", since)
+          q
+            .eq("team_id", teamId)
+            .eq("user_id", m.user_id)
+            .gt("updated_at", since),
         )
         .order("desc")
         .take(take)
-        .then((rows) => rows.filter((c) => feedFilter.isVisible(c)))
-    )
+        .then((rows) => rows.filter((c) => feedFilter.isVisible(c))),
+    ),
   );
   return { feedFilter, visibleMembers, rows: perMemberRows.flat() };
 }
@@ -7830,13 +9672,16 @@ export const getTeamUnreadCount = query({
 
     const lastSeen = user.team_conversations_last_seen || 0;
     const { rows } = await collectTeammateConversationsSince(
-      ctx, effectiveTeamId, userId, lastSeen,
-      (members) => Math.max(3, Math.floor(TEAM_UNREAD_MAX_READS / Math.max(members, 1))),
+      ctx,
+      effectiveTeamId,
+      userId,
+      lastSeen,
+      (members) =>
+        Math.max(3, Math.floor(TEAM_UNREAD_MAX_READS / Math.max(members, 1))),
     );
     return rows.length;
   },
 });
-
 
 export const markTeamConversationsSeen = mutation({
   args: {},
@@ -7853,7 +9698,6 @@ export const markTeamConversationsSeen = mutation({
     return { success: true };
   },
 });
-
 
 // Debug function to investigate why a conversation isn't showing in team feed
 export const debugConversationVisibility = query({
@@ -7872,38 +9716,51 @@ export const debugConversationVisibility = query({
     // A debugging read of someone's sharing setup (owner email, paths,
     // mappings): the conversation's own owner, or staff. Anyone else gets the
     // same answer as for an id that does not exist.
-    if (!isStaff(user) && !(await isConversationOwner(ctx, userId, conversation))) {
+    if (
+      !isStaff(user) &&
+      !(await isConversationOwner(ctx, userId, conversation))
+    ) {
       return { error: "Conversation not found" };
     }
 
     const convOwner = await ctx.db.get(conversation.user_id);
 
     // Get the team this conversation belongs to
-    const convTeam = conversation.team_id ? await ctx.db.get(conversation.team_id) : null;
+    const convTeam = conversation.team_id
+      ? await ctx.db.get(conversation.team_id)
+      : null;
 
     // Get the user's active team
     const userTeamId = user.team_id;
     const userTeam = userTeamId ? await ctx.db.get(userTeamId) : null;
 
     // Check team membership for conversation owner
-    const ownerTeamMembership = convOwner && userTeamId
-      ? await ctx.db
-          .query("team_memberships")
-          .withIndex("by_user_team", (q) => q.eq("user_id", conversation.user_id).eq("team_id", userTeamId))
-          .first()
-      : null;
+    const ownerTeamMembership =
+      convOwner && userTeamId
+        ? await ctx.db
+            .query("team_memberships")
+            .withIndex("by_user_team", (q) =>
+              q.eq("user_id", conversation.user_id).eq("team_id", userTeamId),
+            )
+            .first()
+        : null;
 
     // Check directory mappings for the owner
     const ownerMappings = userTeamId
       ? await ctx.db
           .query("directory_team_mappings")
-          .withIndex("by_user_team", (q) => q.eq("user_id", conversation.user_id).eq("team_id", userTeamId))
+          .withIndex("by_user_team", (q) =>
+            q.eq("user_id", conversation.user_id).eq("team_id", userTeamId),
+          )
           .collect()
       : [];
 
     const projectPath = conversation.git_root || conversation.project_path;
     const isProjectMapped = ownerMappings.some(
-      m => projectPath && (projectPath === m.path_prefix || projectPath.startsWith(m.path_prefix + "/"))
+      (m) =>
+        projectPath &&
+        (projectPath === m.path_prefix ||
+          projectPath.startsWith(m.path_prefix + "/")),
     );
 
     return {
@@ -7916,12 +9773,14 @@ export const debugConversationVisibility = query({
         project_path: conversation.project_path,
         git_root: conversation.git_root,
       },
-      convOwner: convOwner ? {
-        _id: convOwner._id,
-        name: convOwner.name,
-        email: convOwner.email,
-        team_id: convOwner.team_id,
-      } : null,
+      convOwner: convOwner
+        ? {
+            _id: convOwner._id,
+            name: convOwner.name,
+            email: convOwner.email,
+            team_id: convOwner.team_id,
+          }
+        : null,
       convTeam: convTeam ? { _id: convTeam._id, name: convTeam.name } : null,
       currentUser: {
         _id: user._id,
@@ -7929,13 +9788,15 @@ export const debugConversationVisibility = query({
       },
       userTeam: userTeam ? { _id: userTeam._id, name: userTeam.name } : null,
       checks: {
-        teamsMatch: conversation.team_id?.toString() === user.team_id?.toString(),
+        teamsMatch:
+          conversation.team_id?.toString() === user.team_id?.toString(),
         ownerInTeam: !!ownerTeamMembership,
         ownerVisibility: ownerTeamMembership?.visibility || "no membership",
         ownerHasMappings: ownerMappings.length > 0,
         projectPath,
         isProjectMapped,
-        wouldShowWithPermissiveDefault: ownerMappings.length === 0 || isProjectMapped,
+        wouldShowWithPermissiveDefault:
+          ownerMappings.length === 0 || isProjectMapped,
       },
     };
   },
@@ -7960,7 +9821,14 @@ export const getConversationMeta = query({
     // authed viewer (owner/team) also passes. Mirrors that query's shape (no
     // project_path).
     const viewerId = await getAuthUserId(ctx);
-    if ((await checkConversationAccess(ctx, viewerId, conversation, args.share_token)) === "denied") {
+    if (
+      (await checkConversationAccess(
+        ctx,
+        viewerId,
+        conversation,
+        args.share_token,
+      )) === "denied"
+    ) {
       return null;
     }
 
@@ -7969,7 +9837,7 @@ export const getConversationMeta = query({
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q) =>
-        q.eq("conversation_id", args.conversation_id)
+        q.eq("conversation_id", args.conversation_id),
       )
       .order("asc")
       .take(10);
@@ -7987,18 +9855,24 @@ export const getConversationMeta = query({
       }
     }
 
-    const title = conversation.title
-      || firstUserMessage
-      || (conversation.slug ? formatSlugAsTitle(conversation.slug) : null)
-      || "Coding Session";
+    const title =
+      conversation.title ||
+      firstUserMessage ||
+      (conversation.slug ? formatSlugAsTitle(conversation.slug) : null) ||
+      "Coding Session";
 
     // idle_summary is the purpose-built one-liner (same preference as the
     // session card's sessionCardSummary); subtitle is a multi-bullet block, so
     // only its first bullet fits a link preview.
-    const description = conversation.idle_summary?.trim()
-      || conversation.subtitle?.split("\n").find((l) => l.trim())?.trim().replace(/^[-*]\s+/, "")
-      || (conversation.title ? firstUserMessage : null)
-      || `${conversation.message_count || 0} messages${user?.name ? ` by ${user.name}` : ""}${conversation.project_path ? ` in ${conversation.project_path.split("/").pop()}` : ""}`;
+    const description =
+      conversation.idle_summary?.trim() ||
+      conversation.subtitle
+        ?.split("\n")
+        .find((l) => l.trim())
+        ?.trim()
+        .replace(/^[-*]\s+/, "") ||
+      (conversation.title ? firstUserMessage : null) ||
+      `${conversation.message_count || 0} messages${user?.name ? ` by ${user.name}` : ""}${conversation.project_path ? ` in ${conversation.project_path.split("/").pop()}` : ""}`;
 
     return {
       title,
@@ -8017,7 +9891,9 @@ export const getConversationMention = query({
     // Mention-pill enrichment leaks idle_summary/model/status/project_path.
     // Gate on real access — routing team_id is not a read grant.
     const viewerId = await getAuthUserId(ctx);
-    if ((await checkConversationAccess(ctx, viewerId, conversation)) === "denied") {
+    if (
+      (await checkConversationAccess(ctx, viewerId, conversation)) === "denied"
+    ) {
       return null;
     }
     return {
@@ -8034,7 +9910,6 @@ export const getConversationMention = query({
   },
 });
 
-
 export const setParentConversation = mutation({
   args: {
     conversation_id: v.id("conversations"),
@@ -8050,7 +9925,8 @@ export const setParentConversation = mutation({
     // The parent must be the caller's too (linkSessions' rule): a link to
     // someone else's conversation surfaces its title in the caller's lists.
     const parent = await ctx.db.get(args.parent_conversation_id);
-    if (!parent || !(await isConversationOwner(ctx, userId, parent))) throw new Error("Not found");
+    if (!parent || !(await isConversationOwner(ctx, userId, parent)))
+      throw new Error("Not found");
     const isSubagent = !conv.parent_message_uuid;
     await ctx.db.patch(args.conversation_id, {
       parent_conversation_id: args.parent_conversation_id,
@@ -8087,7 +9963,6 @@ export const backfillIsSubagent = mutation({
   },
 });
 
-
 export const getConversationsBySessionIds = query({
   args: {
     api_token: v.string(),
@@ -8111,22 +9986,32 @@ export const getConversationsBySessionIds = query({
 
     for (const sessionId of args.session_ids.slice(0, 100)) {
       // An agent's session id first; a conversation id (a role's standing session, as the org template bind names it) resolves too.
-      const conv = (await findConversationBySessionReference(ctx as any, sessionId, authUserId)) ?? (await findConversationByAnyRef(ctx as any, sessionId, authUserId));
+      const conv =
+        (await findConversationBySessionReference(
+          ctx as any,
+          sessionId,
+          authUserId,
+        )) ??
+        (await findConversationByAnyRef(ctx as any, sessionId, authUserId));
       if (!conv) continue;
 
       let preview: string | null = null;
       const msgs = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conv._id),
+        )
         .take(3);
       const firstUser = msgs.find((m) => m.role === "user" && m.content);
       if (firstUser) {
-        preview = typeof firstUser.content === "string"
-          ? firstUser.content.slice(0, 200)
-          : null;
+        preview =
+          typeof firstUser.content === "string"
+            ? firstUser.content.slice(0, 200)
+            : null;
       }
 
-      const title = conv.title || (preview ? preview.slice(0, 80) : "New Session");
+      const title =
+        conv.title || (preview ? preview.slice(0, 80) : "New Session");
 
       results.push({
         conversation_id: conv._id.toString(),
@@ -8219,28 +10104,53 @@ const USER_DAEMON_ALIVE_MS = 6 * 60 * 1000;
 // …and only rows updated inside this window ride that fallback.
 const CONV_DAEMON_ALIVE_MS = 10 * 60 * 1000;
 
-function heartbeatAliveAt(maps: Pick<InboxSessionMaps, "lastHeartbeatMap">, cid: string, now: number): boolean {
+function heartbeatAliveAt(
+  maps: Pick<InboxSessionMaps, "lastHeartbeatMap">,
+  cid: string,
+  now: number,
+): boolean {
   const hb = maps.lastHeartbeatMap.get(cid);
   return hb !== undefined && now - hb < HEARTBEAT_ALIVE_MS;
 }
 
-function userDaemonAliveAt(maps: Pick<InboxSessionMaps, "latestHeartbeat">, now: number): boolean {
-  return maps.latestHeartbeat !== undefined && now - maps.latestHeartbeat < USER_DAEMON_ALIVE_MS;
+function userDaemonAliveAt(
+  maps: Pick<InboxSessionMaps, "latestHeartbeat">,
+  now: number,
+): boolean {
+  return (
+    maps.latestHeartbeat !== undefined &&
+    now - maps.latestHeartbeat < USER_DAEMON_ALIVE_MS
+  );
 }
 
-function noteHeartbeat(maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveConvIds">, cid: string, lastHeartbeat: number | undefined, now: number): void {
+function noteHeartbeat(
+  maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "liveConvIds">,
+  cid: string,
+  lastHeartbeat: number | undefined,
+  now: number,
+): void {
   if (typeof lastHeartbeat !== "number") return;
   const prev = maps.lastHeartbeatMap.get(cid);
-  if (prev === undefined || lastHeartbeat > prev) maps.lastHeartbeatMap.set(cid, lastHeartbeat);
+  if (prev === undefined || lastHeartbeat > prev)
+    maps.lastHeartbeatMap.set(cid, lastHeartbeat);
   if (heartbeatAliveAt(maps, cid, now)) maps.liveConvIds.add(cid);
 }
 
 // Whether the daemon's open-task report vouches for a "waiting" on this
 // conversation right now (non-empty, daemon heartbeating) — the fifth
 // trustedAgentStatus arg.
-function verifiedWaitingFor(maps: Pick<InboxSessionMaps, "openTasksMap" | "liveConvIds"> & Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>, cid: string, now: number): boolean {
+function verifiedWaitingFor(
+  maps: Pick<InboxSessionMaps, "openTasksMap" | "liveConvIds"> &
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+  cid: string,
+  now: number,
+): boolean {
   const rep = maps.openTasksMap.get(cid);
-  return openTasksVouchForWaiting(rep?.at, rep?.tasks.length ?? 0, isLiveAt(maps, cid, now));
+  return openTasksVouchForWaiting(
+    rep?.at,
+    rep?.tasks.length ?? 0,
+    isLiveAt(maps, cid, now),
+  );
 }
 
 // Build the per-user managed-session maps once, then look up by conversation id.
@@ -8253,7 +10163,11 @@ async function buildUserSessionMaps(
     .query("managed_sessions")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  return sessionMapsFromManagedRows(managedSessions, await heartbeatsForUser(ctx, userId, managedSessions), now);
+  return sessionMapsFromManagedRows(
+    managedSessions,
+    await heartbeatsForUser(ctx, userId, managedSessions),
+    now,
+  );
 }
 
 // Liveness maps for a NAMED set of conversations, for a caller that asked for
@@ -8279,20 +10193,27 @@ export async function buildNamedSessionMaps(
   // Two links make a child: parent_conversation_id (subagents, orphans, the
   // range enrichment reads) and spawned_by_conversation_id (agent team
   // teammates, whose asks surface on the lead through rollupParentIdOf).
-  const childLists = await Promise.all(convs.flatMap((conv: any) => [
-    ctx.db
-      .query("conversations")
-      .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", conv._id))
-      .order("desc")
-      .take(20),
-    ctx.db
-      .query("conversations")
-      .withIndex("by_spawned_by", (q: any) => q.eq("spawned_by_conversation_id", conv._id))
-      .order("desc")
-      .take(NAMED_TEAMMATE_CAP),
-  ]));
+  const childLists = await Promise.all(
+    convs.flatMap((conv: any) => [
+      ctx.db
+        .query("conversations")
+        .withIndex("by_parent_conversation_id", (q: any) =>
+          q.eq("parent_conversation_id", conv._id),
+        )
+        .order("desc")
+        .take(20),
+      ctx.db
+        .query("conversations")
+        .withIndex("by_spawned_by", (q: any) =>
+          q.eq("spawned_by_conversation_id", conv._id),
+        )
+        .order("desc")
+        .take(NAMED_TEAMMATE_CAP),
+    ]),
+  );
   const covered = new Map<string, any>();
-  for (const c of [...convs, ...childLists.flat()]) covered.set(c._id.toString(), c);
+  for (const c of [...convs, ...childLists.flat()])
+    covered.set(c._id.toString(), c);
   const uid = userId.toString();
   // Whether the user's daemon is alive comes from the daemon's own beat on the
   // user row (users.daemonHeartbeat writes it at most every 50 s), never from
@@ -8305,13 +10226,27 @@ export async function buildNamedSessionMaps(
   // daemon's own beat is the truer answer to "is the daemon alive".
   const [user, rowLists] = await Promise.all([
     ctx.db.get(userId),
-    Promise.all([...covered.values()].map((c: any) => ctx.db
-      .query("managed_sessions")
-      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", c._id))
-      .collect())),
+    Promise.all(
+      [...covered.values()].map((c: any) =>
+        ctx.db
+          .query("managed_sessions")
+          .withIndex("by_conversation_id", (q: any) =>
+            q.eq("conversation_id", c._id),
+          )
+          .collect(),
+      ),
+    ),
   ]);
   const own = rowLists.flat().filter((s: any) => s.user_id?.toString() === uid);
-  return { maps: sessionMapsFromManagedRows(own, await heartbeatsFor(ctx, own), now, user?.daemon_last_seen), children: childLists.flat() };
+  return {
+    maps: sessionMapsFromManagedRows(
+      own,
+      await heartbeatsFor(ctx, own),
+      now,
+      user?.daemon_last_seen,
+    ),
+    children: childLists.flat(),
+  };
 }
 
 // The one derivation of InboxSessionMaps from managed_sessions rows, shared by
@@ -8331,15 +10266,27 @@ export function sessionMapsFromManagedRows(
     const beat = beats[i];
     // Only a daemon's heartbeat vouches for the user's other sessions; a
     // hosted row's heartbeat is a running turn and stays on its own row.
-    if (isDaemonManagedRow(s) && (latestHeartbeat === undefined || beat > latestHeartbeat)) {
+    if (
+      isDaemonManagedRow(s) &&
+      (latestHeartbeat === undefined || beat > latestHeartbeat)
+    ) {
       latestHeartbeat = beat;
     }
-    if (s.conversation_id) noteHeartbeat({ lastHeartbeatMap, liveConvIds }, s.conversation_id.toString(), beat, now);
+    if (s.conversation_id)
+      noteHeartbeat(
+        { lastHeartbeatMap, liveConvIds },
+        s.conversation_id.toString(),
+        beat,
+        now,
+      );
   }
 
   const agentStatusMap = new Map<string, any>();
   const agentStatusUpdatedAtMap = new Map<string, number>();
-  const settleFactsMap = new Map<string, { boundary: boolean; turnCompletedAt?: number }>();
+  const settleFactsMap = new Map<
+    string,
+    { boundary: boolean; turnCompletedAt?: number }
+  >();
   const hibernatedAtMap = new Map<string, number>();
   const tmuxSessionMap = new Map<string, string>();
   const sdkBackendConvIds = new Set<string>();
@@ -8355,12 +10302,19 @@ export function sessionMapsFromManagedRows(
     // Above the agent_status guard on purpose: a session whose status hasn't
     // been reported yet still has a process generation, and that is exactly
     // what decides whether its standing watches are real.
-    if (s.agent_started_at !== undefined) agentStartedAtMap.set(cid, s.agent_started_at);
-    if (s.open_tasks !== undefined && s.open_tasks_at !== undefined) openTasksMap.set(cid, { tasks: s.open_tasks, at: s.open_tasks_at });
+    if (s.agent_started_at !== undefined)
+      agentStartedAtMap.set(cid, s.agent_started_at);
+    if (s.open_tasks !== undefined && s.open_tasks_at !== undefined)
+      openTasksMap.set(cid, { tasks: s.open_tasks, at: s.open_tasks_at });
     if (!s.agent_status) continue;
-    if (s.agent_status_updated_at !== undefined) agentStatusUpdatedAtMap.set(cid, s.agent_status_updated_at);
-    settleFactsMap.set(cid, { boundary: s.agent_status_boundary === true, turnCompletedAt: s.turn_completed_at });
-    if (s.hibernated_at !== undefined) hibernatedAtMap.set(cid, s.hibernated_at);
+    if (s.agent_status_updated_at !== undefined)
+      agentStatusUpdatedAtMap.set(cid, s.agent_status_updated_at);
+    settleFactsMap.set(cid, {
+      boundary: s.agent_status_boundary === true,
+      turnCompletedAt: s.turn_completed_at,
+    });
+    if (s.hibernated_at !== undefined)
+      hibernatedAtMap.set(cid, s.hibernated_at);
     // Raw status. The heartbeat-staleness coercion lives in trustedAgentStatus
     // (consumers pass liveConvIds membership as heartbeatAlive) so it can weigh
     // the conversation's own activity — a lapsed heartbeat on a session that is
@@ -8368,7 +10322,10 @@ export function sessionMapsFromManagedRows(
     agentStatusMap.set(cid, s.agent_status);
   }
 
-  if (typeof userLatestHeartbeat === "number" && (latestHeartbeat === undefined || userLatestHeartbeat > latestHeartbeat)) {
+  if (
+    typeof userLatestHeartbeat === "number" &&
+    (latestHeartbeat === undefined || userLatestHeartbeat > latestHeartbeat)
+  ) {
     latestHeartbeat = userLatestHeartbeat;
   }
   // At the minute, against a six minute window. The newest heartbeat over all
@@ -8377,10 +10334,25 @@ export function sessionMapsFromManagedRows(
   // daemon_alive_until, so at full precision each flush re-sent the whole
   // liveness overlay to every client (about 28 times a minute on 2026-10-11).
   // Flooring keeps the deadline honest: at most a minute early.
-  if (latestHeartbeat !== undefined) latestHeartbeat = Math.floor(latestHeartbeat / 60_000) * 60_000;
+  if (latestHeartbeat !== undefined)
+    latestHeartbeat = Math.floor(latestHeartbeat / 60_000) * 60_000;
   const userDaemonAlive = userDaemonAliveAt({ latestHeartbeat }, now);
 
-  return { agentStatusMap, agentStatusUpdatedAtMap, settleFactsMap, hibernatedAtMap, tmuxSessionMap, sdkBackendConvIds, permissionModeMap, agentStartedAtMap, openTasksMap, liveConvIds, userDaemonAlive, lastHeartbeatMap, latestHeartbeat };
+  return {
+    agentStatusMap,
+    agentStatusUpdatedAtMap,
+    settleFactsMap,
+    hibernatedAtMap,
+    tmuxSessionMap,
+    sdkBackendConvIds,
+    permissionModeMap,
+    agentStartedAtMap,
+    openTasksMap,
+    liveConvIds,
+    userDaemonAlive,
+    lastHeartbeatMap,
+    latestHeartbeat,
+  };
 }
 
 // Empty maps for the liveness-excluded path: computeInboxSessions({includeLiveness:false})
@@ -8414,28 +10386,47 @@ async function mergeForeignConversationLiveness(
   convs: any[],
   now: number,
 ): Promise<void> {
-  const managedRows = await Promise.all(convs.map((conv: any) => ctx.db
-    .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
-    .first()));
-  const beats = await Promise.all(managedRows.map((row: any) => heartbeatOf(ctx, row)));
+  const managedRows = await Promise.all(
+    convs.map((conv: any) =>
+      ctx.db
+        .query("managed_sessions")
+        .withIndex("by_conversation_id", (q: any) =>
+          q.eq("conversation_id", conv._id),
+        )
+        .first(),
+    ),
+  );
+  const beats = await Promise.all(
+    managedRows.map((row: any) => heartbeatOf(ctx, row)),
+  );
   for (let i = 0; i < convs.length; i++) {
     const conv = convs[i];
     const cid = conv._id.toString();
     const managed = managedRows[i];
     if (!managed) continue;
     noteHeartbeat(maps, cid, beats[i], now);
-    if (managed.tmux_session) maps.tmuxSessionMap.set(cid, managed.tmux_session);
+    if (managed.tmux_session)
+      maps.tmuxSessionMap.set(cid, managed.tmux_session);
     if (managed.backend === "sdk") maps.sdkBackendConvIds.add(cid);
-    if (managed.permission_mode) maps.permissionModeMap.set(cid, managed.permission_mode);
-    if (managed.agent_started_at !== undefined) maps.agentStartedAtMap.set(cid, managed.agent_started_at);
-    if (managed.open_tasks !== undefined && managed.open_tasks_at !== undefined) maps.openTasksMap.set(cid, { tasks: managed.open_tasks, at: managed.open_tasks_at });
-    if (managed.hibernated_at !== undefined) maps.hibernatedAtMap.set(cid, managed.hibernated_at);
+    if (managed.permission_mode)
+      maps.permissionModeMap.set(cid, managed.permission_mode);
+    if (managed.agent_started_at !== undefined)
+      maps.agentStartedAtMap.set(cid, managed.agent_started_at);
+    if (managed.open_tasks !== undefined && managed.open_tasks_at !== undefined)
+      maps.openTasksMap.set(cid, {
+        tasks: managed.open_tasks,
+        at: managed.open_tasks_at,
+      });
+    if (managed.hibernated_at !== undefined)
+      maps.hibernatedAtMap.set(cid, managed.hibernated_at);
     if (!managed.agent_status) continue;
     if (managed.agent_status_updated_at !== undefined) {
       maps.agentStatusUpdatedAtMap.set(cid, managed.agent_status_updated_at);
     }
-    maps.settleFactsMap.set(cid, { boundary: managed.agent_status_boundary === true, turnCompletedAt: managed.turn_completed_at });
+    maps.settleFactsMap.set(cid, {
+      boundary: managed.agent_status_boundary === true,
+      turnCompletedAt: managed.turn_completed_at,
+    });
     // Raw status — same contract as buildUserSessionMaps: trustedAgentStatus
     // applies the heartbeat coercion with conversation context.
     maps.agentStatusMap.set(cid, managed.agent_status);
@@ -8454,7 +10445,12 @@ async function mergeForeignConversationLiveness(
 // session no longer changes the list result and Convex stops re-pushing the
 // whole ~1.7MB list on every token. The wake-cost pair moves on every model
 // call the same way.
-export const INBOX_FAST_FIELDS = ["message_count", "updated_at", "context_tokens", "last_model_call_at"] as const;
+export const INBOX_FAST_FIELDS = [
+  "message_count",
+  "updated_at",
+  "context_tokens",
+  "last_model_call_at",
+] as const;
 export const INBOX_LIVENESS_FIELDS = INBOX_FACT_FIELDS.filter(
   (f) => !(INBOX_FAST_FIELDS as readonly string[]).includes(f),
 );
@@ -8516,7 +10512,11 @@ export async function stampInboxViewerFields(
     row.author_email = author?.email ?? null;
   }
   row.owned_by_me = !!myOwnerRow;
-  if (myOwnerRow && !myOwnerRow.seen_at && myOwnerRow.added_by?.toString() !== viewerId.toString()) {
+  if (
+    myOwnerRow &&
+    !myOwnerRow.seen_at &&
+    myOwnerRow.added_by?.toString() !== viewerId.toString()
+  ) {
     const byDoc = await getDoc(myOwnerRow.added_by);
     row.assigned_ping = {
       by_name: byDoc?.name ?? byDoc?.email ?? "A teammate",
@@ -8541,7 +10541,13 @@ async function enrichInboxSessionRow(
   hidden: boolean,
   skip?: InboxEnrichSkip,
   getDoc: (id: any) => Promise<any> = (id) => ctx.db.get(id),
-): Promise<{ row: any; subagentChildren: any[]; dismissed: boolean; stashed: boolean; hidden: boolean }> {
+): Promise<{
+  row: any;
+  subagentChildren: any[];
+  dismissed: boolean;
+  stashed: boolean;
+  hidden: boolean;
+}> {
   let hasPending = !!conv.has_pending_messages;
   let lastMsgRole = conv.last_message_role;
   let lastUserMessage = conv.last_message_preview || null;
@@ -8551,7 +10557,7 @@ async function enrichInboxSessionRow(
     const lastMsg = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q: any) =>
-        q.eq("conversation_id", conv._id)
+        q.eq("conversation_id", conv._id),
       )
       .order("desc")
       .first();
@@ -8587,10 +10593,12 @@ async function enrichInboxSessionRow(
     verifiedWaitingFor(maps, conv._id.toString(), now),
   );
   // Don't let userDaemonAlive resurrect sessions we know are stopped
-  const daemonAlive = agentStatus === "stopped"
-    ? false
-    : maps.liveConvIds.has(conv._id.toString()) ||
-      (userDaemonAliveAt(maps, now) && (now - conv.updated_at) < CONV_DAEMON_ALIVE_MS);
+  const daemonAlive =
+    agentStatus === "stopped"
+      ? false
+      : maps.liveConvIds.has(conv._id.toString()) ||
+        (userDaemonAliveAt(maps, now) &&
+          now - conv.updated_at < CONV_DAEMON_ALIVE_MS);
 
   // Even when the agent reports idle, recent activity (assistant just
   // finished streaming), pending messages, or a trailing user message all
@@ -8628,21 +10636,29 @@ async function enrichInboxSessionRow(
   // would miss exactly the blocked sessions we care about. The order("desc")
   // read below is authoritative.
   let awaitingInput = false;
-  if (!skip?.auq && (!isIdle || agentStatus === "hibernated") && conv.message_count > 0) {
+  if (
+    !skip?.auq &&
+    (!isIdle || agentStatus === "hibernated") &&
+    conv.message_count > 0
+  ) {
     const lastMsg = await ctx.db
       .query("messages")
       .withIndex("by_conversation_timestamp", (q: any) =>
-        q.eq("conversation_id", conv._id)
+        q.eq("conversation_id", conv._id),
       )
       .order("desc")
       .first();
-    if (lastMsg?.role === "assistant" && lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")) {
+    if (
+      lastMsg?.role === "assistant" &&
+      lastMsg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")
+    ) {
       awaitingInput = true;
       isIdle = true; // blocked on the user, not actively working
     }
   }
 
-  const deferred = conv.inbox_deferred_at && conv.inbox_deferred_at >= conv.updated_at;
+  const deferred =
+    conv.inbox_deferred_at && conv.inbox_deferred_at >= conv.updated_at;
 
   let implementationSession: { _id: string; title?: string } | undefined;
   const subagentChildren: any[] = [];
@@ -8663,37 +10679,60 @@ async function enrichInboxSessionRow(
     const children = await ctx.db
       .query("conversations")
       .withIndex("by_parent_conversation_id", (q: any) =>
-        q.eq("parent_conversation_id", conv._id)
+        q.eq("parent_conversation_id", conv._id),
       )
       .order("desc")
       .take(20);
     const implChild = children.find(
-      (c: any) => c.parent_message_uuid === "plan-handoff" && !c.is_subagent
+      (c: any) => c.parent_message_uuid === "plan-handoff" && !c.is_subagent,
     );
     if (implChild) {
-      implementationSession = { _id: implChild._id.toString(), title: implChild.title };
+      implementationSession = {
+        _id: implChild._id.toString(),
+        title: implChild.title,
+      };
     }
     // Until when a subagent child is genuinely PRODUCING, not merely alive (see
     // subagentIsProducing): a settled parent is parked on it until then
     // (classifyWorkState's childProducing).
     producingUntil = producingUntilOf(children, maps);
     for (const c of children) {
-      if ((c.is_subagent || (c.parent_conversation_id && !c.parent_message_uuid)) && c.message_count > 0) {
+      if (
+        (c.is_subagent ||
+          (c.parent_conversation_id && !c.parent_message_uuid)) &&
+        c.message_count > 0
+      ) {
         subagentChildren.push(c);
       }
     }
   }
 
-  let active_plan: { _id: string; short_id: string; title: string; status: string } | undefined;
+  let active_plan:
+    | { _id: string; short_id: string; title: string; status: string }
+    | undefined;
   if (!skip?.refs && conv.active_plan_id) {
     const p = await getDoc(conv.active_plan_id);
-    if (p) active_plan = { _id: p._id, short_id: p.short_id, title: p.title, status: p.status };
+    if (p)
+      active_plan = {
+        _id: p._id,
+        short_id: p.short_id,
+        title: p.title,
+        status: p.status,
+      };
   }
 
-  let active_task: { _id: string; short_id: string; title: string; status: string } | undefined;
+  let active_task:
+    | { _id: string; short_id: string; title: string; status: string }
+    | undefined;
   if (!skip?.refs && conv.active_task_id) {
     const t = await getDoc(conv.active_task_id);
-    if (t) active_task = { _id: t._id, short_id: t.short_id, title: t.title, status: t.status };
+    if (t)
+      active_task = {
+        _id: t._id,
+        short_id: t.short_id,
+        title: t.title,
+        status: t.status,
+      };
   }
 
   // The card's workflow bar renders from these scalars alone (the run doc is
@@ -8715,9 +10754,14 @@ async function enrichInboxSessionRow(
       workflow_run_name = run.workflow_name ?? null;
       const nodes = run.node_statuses ?? [];
       workflow_run_agents_total = run.agent_count ?? (nodes.length || null);
-      workflow_run_agents_done = nodes.filter((n: any) => n.status === "completed").length;
-      const runningNode = [...nodes].reverse().find((n: any) => n.status === "running");
-      workflow_run_activity = runningNode?.activity || runningNode?.label || null;
+      workflow_run_agents_done = nodes.filter(
+        (n: any) => n.status === "completed",
+      ).length;
+      const runningNode = [...nodes]
+        .reverse()
+        .find((n: any) => n.status === "running");
+      workflow_run_activity =
+        runningNode?.activity || runningNode?.label || null;
       workflow_run_started_at = run.created_at ?? null;
     }
   }
@@ -8739,7 +10783,9 @@ async function enrichInboxSessionRow(
   // Anchor identity: a personal anchor's bot isn't in the team roster, so the
   // client can't resolve it — stamp the bot's name/avatar here (self-guarded:
   // returns null for ordinary rows) so the sidebar shows the bot chip.
-  const acting = skip?.refs ? null : await resolveActingAuthor(ctx, conv, getDoc);
+  const acting = skip?.refs
+    ? null
+    : await resolveActingAuthor(ctx, conv, getDoc);
 
   // Open teammate-comment threads (message, code-line, or global anchors) so
   // the card can surface "someone flagged this" without the conversation being
@@ -8783,16 +10829,23 @@ async function enrichInboxSessionRow(
     status: conv.status ?? "active",
     // The is_idle inputs, on the enriched row too (the CLI and liveness-on
     // clients), so every channel that carries is_idle carries what derived it.
-    agent_status_updated_at: maps.agentStatusUpdatedAtMap.get(conv._id.toString()) ?? null,
+    agent_status_updated_at:
+      maps.agentStatusUpdatedAtMap.get(conv._id.toString()) ?? null,
     // The settle's own facts (ct-49533): a boundary settle carries no verdict,
     // and the turn stamp is the identity a completion consumer dedupes on.
-    agent_status_boundary: maps.settleFactsMap.get(conv._id.toString())?.boundary === true,
-    turn_completed_at: maps.settleFactsMap.get(conv._id.toString())?.turnCompletedAt ?? null,
+    agent_status_boundary:
+      maps.settleFactsMap.get(conv._id.toString())?.boundary === true,
+    turn_completed_at:
+      maps.settleFactsMap.get(conv._id.toString())?.turnCompletedAt ?? null,
     hibernated_at: maps.hibernatedAtMap.get(conv._id.toString()) ?? null,
     last_heartbeat: maps.lastHeartbeatMap.get(conv._id.toString()) ?? null,
     last_role_is_user: activity.lastRoleIsUser,
     auq_open: awaitingInput,
-    daemon_alive_until: daemonAliveUntil(maps, conv._id.toString(), conv.updated_at),
+    daemon_alive_until: daemonAliveUntil(
+      maps,
+      conv._id.toString(),
+      conv.updated_at,
+    ),
     producing_until: producingUntil,
     is_unresponsive: isUnresponsive,
     is_connected: !!daemonAlive,
@@ -8809,7 +10862,9 @@ async function enrichInboxSessionRow(
     user_rest: userRestOf(conv),
     inbox_rest: userRestStampOf(conv)?.rest ?? null,
     inbox_rest_at: userRestStampOf(conv)?.at ?? null,
-    settle_verdict: isSettleVerdictCurrent(conv) ? (conv.settle_verdict ?? null) : null,
+    settle_verdict: isSettleVerdictCurrent(conv)
+      ? (conv.settle_verdict ?? null)
+      : null,
     is_pinned: pinned,
     inbox_pinned_at: conv.inbox_pinned_at ?? null,
     inbox_dismissed_at: conv.inbox_dismissed_at ?? null,
@@ -8825,7 +10880,9 @@ async function enrichInboxSessionRow(
     // clock (trustedStatusAt), since a verdict does not replay (ct-56054).
     agent_status: maps.agentStatusMap.get(conv._id.toString()) ?? null,
     tmux_session: maps.tmuxSessionMap.get(conv._id.toString()) ?? null,
-    claude_backend: maps.sdkBackendConvIds.has(conv._id.toString()) ? "sdk" as const : null,
+    claude_backend: maps.sdkBackendConvIds.has(conv._id.toString())
+      ? ("sdk" as const)
+      : null,
     permission_mode: maps.permissionModeMap.get(conv._id.toString()) ?? null,
     agent_started_at: maps.agentStartedAtMap.get(conv._id.toString()) ?? null,
     open_tasks: maps.openTasksMap.get(conv._id.toString())?.tasks ?? null,
@@ -8836,7 +10893,9 @@ async function enrichInboxSessionRow(
     last_user_message: lastUserMessage,
     // Newest image in the conversation (see schema) — the inbox row thumbnail.
     // Presence doubles as "this session has images".
-    image_preview_url: conv.team_summary_only ? null : (conv.image_preview_url ?? null),
+    image_preview_url: conv.team_summary_only
+      ? null
+      : (conv.image_preview_url ?? null),
     open_comment_threads,
     // Who spoke last in the open threads and what they said — the chip's
     // "Alice: typo in step 2" without any per-row query. author_id is a users
@@ -8866,7 +10925,8 @@ async function enrichInboxSessionRow(
     worktree_branch: conv.worktree_branch,
     cloud_placement: (conv as any).cloud_placement ?? null,
     cloud_workspace: (conv as any).cloud_workspace ?? null,
-    cloud_seed: (conv as any).cloud_seed ?? null, local_mirror: (conv as any).local_mirror ?? null,
+    cloud_seed: (conv as any).cloud_seed ?? null,
+    local_mirror: (conv as any).local_mirror ?? null,
     cloud_context_too_large: (conv as any).cloud_context_too_large ?? null,
     cloud_placement_progress: (conv as any).cloud_placement_progress ?? null,
     migration_batch_id: (conv as any).migration?.batch_id ?? null,
@@ -8899,7 +10959,10 @@ async function enrichInboxSessionRow(
     // Harness /loop state (see loopState.ts) — an armed self-wakeup makes this
     // session a standing machine intent, so the trigger set can row it like an
     // armed trigger. Stopped loops are a server-side tombstone only.
-    loop_state: conv.loop_state && conv.loop_state.status !== "stopped" ? conv.loop_state : null,
+    loop_state:
+      conv.loop_state && conv.loop_state.status !== "stopped"
+        ? conv.loop_state
+        : null,
     forked_from: conv.forked_from?.toString() || null,
     // Parent-link fields so a session emitted via THIS top-level scan self-identifies
     // as a subagent and nests under its parent (a subagent active in the last 30d is
@@ -8909,16 +10972,25 @@ async function enrichInboxSessionRow(
     // Visible-child pointer + agent-team identity (see schema): links a
     // teammate/spawned session to its parent WITHOUT the subagent
     // nesting/hiding that parent_conversation_id implies.
-    spawned_by_conversation_id: conv.spawned_by_conversation_id?.toString() || null,
+    spawned_by_conversation_id:
+      conv.spawned_by_conversation_id?.toString() || null,
     // The project a person put this session in; workers derive theirs from
     // the links above (shared/contracts/sessionProject).
     project_id: conv.project_id?.toString() || null,
     // Handoff link (see schema): the card reads handed_off_from the way it
     // reads spawned_by, since a handoff run from a human shell has no spawner.
-    handed_off_from_conversation_id: conv.handed_off_from_conversation_id?.toString() || null,
-    handed_off_to_conversation_id: conv.handed_off_to_conversation_id?.toString() || null,
-    handed_off_from_details: await handoffLinkDetails(getDoc, conv.handed_off_from_conversation_id),
-    handed_off_to_details: await handoffLinkDetails(getDoc, conv.handed_off_to_conversation_id),
+    handed_off_from_conversation_id:
+      conv.handed_off_from_conversation_id?.toString() || null,
+    handed_off_to_conversation_id:
+      conv.handed_off_to_conversation_id?.toString() || null,
+    handed_off_from_details: await handoffLinkDetails(
+      getDoc,
+      conv.handed_off_from_conversation_id,
+    ),
+    handed_off_to_details: await handoffLinkDetails(
+      getDoc,
+      conv.handed_off_to_conversation_id,
+    ),
     agent_team_name: conv.agent_team_name ?? null,
     agent_name: conv.agent_name ?? null,
     parent_message_uuid: conv.parent_message_uuid || null,
@@ -8959,7 +11031,13 @@ async function enrichInboxSessionRow(
     browser_pane_offer: conv.browser_pane_offer ?? null,
   };
 
-  return { row: spellAbsentAsNull(row), subagentChildren, dismissed, stashed, hidden };
+  return {
+    row: spellAbsentAsNull(row),
+    subagentChildren,
+    dismissed,
+    stashed,
+    hidden,
+  };
 }
 
 // An inbox row spells every absent optional as null, the spelling the
@@ -8967,12 +11045,19 @@ async function enrichInboxSessionRow(
 // planSessions). A key one feeder omits and another nulls replaces the whole
 // row on every push of the other, so both row builders end here.
 function spellAbsentAsNull<T extends Record<string, any>>(row: T): T {
-  for (const k of Object.keys(row)) if (row[k] === undefined) (row as any)[k] = null;
+  for (const k of Object.keys(row))
+    if (row[k] === undefined) (row as any)[k] = null;
   return row;
 }
 
 // Build a subagent child row (lighter — children carry no AUQ/plan context).
-async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: number, parentId: Id<"conversations">, getDoc: (id: any) => Promise<any>) {
+async function buildSubagentChildRow(
+  child: any,
+  maps: InboxSessionMaps,
+  now: number,
+  parentId: Id<"conversations">,
+  getDoc: (id: any) => Promise<any>,
+) {
   const childDaemon = maps.liveConvIds.has(child._id.toString());
   const childAgentStatus = trustedAgentStatus(
     maps.agentStatusMap.get(child._id.toString()),
@@ -8981,9 +11066,11 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     childDaemon,
     verifiedWaitingFor(maps, child._id.toString(), now),
   );
-  const childRecentlyUpdated = (now - child.updated_at) < 45 * 1000;
+  const childRecentlyUpdated = now - child.updated_at < 45 * 1000;
   const childHasPending = !!child.has_pending_messages;
-  const childAgentIdle = childAgentStatus ? !ACTIVE_AGENT_STATUSES.has(childAgentStatus) : false;
+  const childAgentIdle = childAgentStatus
+    ? !ACTIVE_AGENT_STATUSES.has(childAgentStatus)
+    : false;
   const childIsIdle = childAgentStatus
     ? childAgentIdle && !childHasPending
     : childDaemon
@@ -9018,9 +11105,12 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     // child quiet past the window read stopped while is_connected said live: a
     // station hand mid tool call settled as needs_input (ct-59591).
     status: child.status ?? "active",
-    agent_status_updated_at: maps.agentStatusUpdatedAtMap.get(child._id.toString()) ?? null,
-    agent_status_boundary: maps.settleFactsMap.get(child._id.toString())?.boundary === true,
-    turn_completed_at: maps.settleFactsMap.get(child._id.toString())?.turnCompletedAt ?? null,
+    agent_status_updated_at:
+      maps.agentStatusUpdatedAtMap.get(child._id.toString()) ?? null,
+    agent_status_boundary:
+      maps.settleFactsMap.get(child._id.toString())?.boundary === true,
+    turn_completed_at:
+      maps.settleFactsMap.get(child._id.toString())?.turnCompletedAt ?? null,
     hibernated_at: maps.hibernatedAtMap.get(child._id.toString()) ?? null,
     last_heartbeat: maps.lastHeartbeatMap.get(child._id.toString()) ?? null,
     is_connected: !!childDaemon,
@@ -9045,7 +11135,9 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     inbox_rest_at: userRestStampOf(child)?.at ?? null,
     agent_status: maps.agentStatusMap.get(child._id.toString()) ?? null,
     tmux_session: maps.tmuxSessionMap.get(child._id.toString()) ?? null,
-    claude_backend: maps.sdkBackendConvIds.has(child._id.toString()) ? "sdk" as const : null,
+    claude_backend: maps.sdkBackendConvIds.has(child._id.toString())
+      ? ("sdk" as const)
+      : null,
     permission_mode: maps.permissionModeMap.get(child._id.toString()) ?? null,
     agent_started_at: maps.agentStartedAtMap.get(child._id.toString()) ?? null,
     open_tasks: maps.openTasksMap.get(child._id.toString())?.tasks ?? null,
@@ -9063,8 +11155,12 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     // two emission paths stay byte-consistent when the client dedups by _id. This
     // path is for confirmed children, so is_subagent is forced true (covers the
     // parent_message_uuid-less child that has no is_subagent flag of its own).
-    ...subagentLinkFields({ is_subagent: true, parent_conversation_id: parentId }),
-    spawned_by_conversation_id: child.spawned_by_conversation_id?.toString() || null,
+    ...subagentLinkFields({
+      is_subagent: true,
+      parent_conversation_id: parentId,
+    }),
+    spawned_by_conversation_id:
+      child.spawned_by_conversation_id?.toString() || null,
     agent_team_name: child.agent_team_name ?? null,
     agent_name: child.agent_name ?? null,
     owner_device_id: child.owner_device_id ?? null,
@@ -9072,7 +11168,8 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     codex_account: child.codex_account ?? null,
     cloud_placement: child.cloud_placement ?? null,
     cloud_workspace: child.cloud_workspace ?? null,
-    cloud_seed: child.cloud_seed ?? null, local_mirror: child.local_mirror ?? null,
+    cloud_seed: child.cloud_seed ?? null,
+    local_mirror: child.local_mirror ?? null,
     cloud_context_too_large: child.cloud_context_too_large ?? null,
     cloud_placement_progress: child.cloud_placement_progress ?? null,
     migration_batch_id: child.migration?.batch_id ?? null,
@@ -9098,7 +11195,6 @@ async function buildSubagentChildRow(child: any, maps: InboxSessionMaps, now: nu
     user_id: child.user_id,
   });
 }
-
 
 // Stable inbox ordering shared by the live query (the crawl leaves ordering to
 // the client, which re-sorts via sortSessions anyway).
@@ -9212,95 +11308,140 @@ export async function scanInboxConversations(
     rangeFor: (isSubagent: false | undefined) => Promise<any[]>,
     sortKey: string,
     kind: InboxTruncation,
-  ) => noWindows ? Promise.resolve([] as any[]) : Promise.all([rangeFor(undefined), rangeFor(false)])
-    .then(([a, b]: [any[], any[]]) => {
-      const merged = [...a, ...b].sort((x, y) => y[sortKey] - x[sortKey]);
-      if (merged.length > INBOX_WINDOW_CAP) truncated.add(kind);
-      return merged.slice(0, INBOX_WINDOW_CAP);
-    });
+  ) =>
+    noWindows
+      ? Promise.resolve([] as any[])
+      : Promise.all([rangeFor(undefined), rangeFor(false)]).then(
+          ([a, b]: [any[], any[]]) => {
+            const merged = [...a, ...b].sort((x, y) => y[sortKey] - x[sortKey]);
+            if (merged.length > INBOX_WINDOW_CAP) truncated.add(kind);
+            return merged.slice(0, INBOX_WINDOW_CAP);
+          },
+        );
 
-  const plainRange = (q: any, isSubagent: boolean | undefined) => q
-    .eq("user_id", userId)
-    .eq("is_subagent", isSubagent)
-    .eq("inbox_pinned_at", undefined)
-    .eq("inbox_dismissed_at", undefined)
-    .eq("inbox_stashed_at", undefined)
-    .eq("inbox_snoozed_until", undefined)
-    .gte("updated_at", sessionWindowCutoff);
-  const recentConversationsQ = topLevelWindow((isSubagent) => ctx.db
-    .query("conversations")
-    .withIndex("by_user_plain_updated", (q: any) => plainRange(q, isSubagent))
-    .order("desc")
-    .filter((q: any) => q.and(
-      q.or(
-        q.eq(q.field("status"), "active"),
-        q.eq(q.field("status"), "completed")
-      ),
-      // isStaleHistoryImport, as the replica's inWorkingSet reads it.
-      q.or(
-        q.neq(q.field("history_import"), true),
-        q.gte(q.field("updated_at"), now - HISTORY_IMPORT_INBOX_MS)
-      )
-    ))
-    .take(INBOX_WINDOW_CAP + 1), "updated_at", "recent");
+  const plainRange = (q: any, isSubagent: boolean | undefined) =>
+    q
+      .eq("user_id", userId)
+      .eq("is_subagent", isSubagent)
+      .eq("inbox_pinned_at", undefined)
+      .eq("inbox_dismissed_at", undefined)
+      .eq("inbox_stashed_at", undefined)
+      .eq("inbox_snoozed_until", undefined)
+      .gte("updated_at", sessionWindowCutoff);
+  const recentConversationsQ = topLevelWindow(
+    (isSubagent) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_user_plain_updated", (q: any) =>
+          plainRange(q, isSubagent),
+        )
+        .order("desc")
+        .filter((q: any) =>
+          q.and(
+            q.or(
+              q.eq(q.field("status"), "active"),
+              q.eq(q.field("status"), "completed"),
+            ),
+            // isStaleHistoryImport, as the replica's inWorkingSet reads it.
+            q.or(
+              q.neq(q.field("history_import"), true),
+              q.gte(q.field("updated_at"), now - HISTORY_IMPORT_INBOX_MS),
+            ),
+          ),
+        )
+        .take(INBOX_WINDOW_CAP + 1),
+    "updated_at",
+    "recent",
+  );
 
   // Newest pins first, so overflow drops the oldest pin, never a fresh one.
-  const pinnedConversationsQ = noWindows ? Promise.resolve([] as any[]) : ctx.db
-    .query("conversations")
-    .withIndex("by_user_pinned", (q: any) =>
-      q.eq("user_id", userId).gt("inbox_pinned_at", 0)
-    )
-    .order("desc")
-    .take(INBOX_PINNED_CAP + 1)
-    .then((rows: any[]) => {
-      if (rows.length > INBOX_PINNED_CAP) truncated.add("pinned");
-      return rows.slice(0, INBOX_PINNED_CAP);
-    });
+  const pinnedConversationsQ = noWindows
+    ? Promise.resolve([] as any[])
+    : ctx.db
+        .query("conversations")
+        .withIndex("by_user_pinned", (q: any) =>
+          q.eq("user_id", userId).gt("inbox_pinned_at", 0),
+        )
+        .order("desc")
+        .take(INBOX_PINNED_CAP + 1)
+        .then((rows: any[]) => {
+          if (rows.length > INBOX_PINNED_CAP) truncated.add("pinned");
+          return rows.slice(0, INBOX_PINNED_CAP);
+        });
 
   // Nested rows the person adopted (talked to): the one window that admits a
   // nested row as a member (shared isAdoptedChild), newest adoption first,
   // inside the same 30-day horizon as the hide windows.
-  const adoptedConversationsQ = noWindows ? Promise.resolve([] as any[]) : ctx.db
-    .query("conversations")
-    .withIndex("by_user_adopted", (q: any) =>
-      q.eq("user_id", userId).gte("inbox_adopted_at", dismissedCutoff)
-    )
-    .order("desc")
-    .take(INBOX_WINDOW_CAPS.adopted + 1)
-    .then((rows: any[]) => {
-      if (rows.length > INBOX_WINDOW_CAPS.adopted) truncated.add("adopted");
-      return rows.slice(0, INBOX_WINDOW_CAPS.adopted);
-    });
+  const adoptedConversationsQ = noWindows
+    ? Promise.resolve([] as any[])
+    : ctx.db
+        .query("conversations")
+        .withIndex("by_user_adopted", (q: any) =>
+          q.eq("user_id", userId).gte("inbox_adopted_at", dismissedCutoff),
+        )
+        .order("desc")
+        .take(INBOX_WINDOW_CAPS.adopted + 1)
+        .then((rows: any[]) => {
+          if (rows.length > INBOX_WINDOW_CAPS.adopted) truncated.add("adopted");
+          return rows.slice(0, INBOX_WINDOW_CAPS.adopted);
+        });
 
   // Killed rows are excluded at the index for the same reason: a kill stamps
   // inbox_dismissed_at alongside inbox_killed_at (applyHideTransition), so the
   // dismissed window was mostly retired rows the filter throws away. A pinned
   // killed row still shows, and the pinned window below covers it.
-  const dismissedConversationsQ = topLevelWindow((isSubagent) => ctx.db
-    .query("conversations")
-    .withIndex("by_user_live_dismissed", (q: any) =>
-      q.eq("user_id", userId).eq("is_subagent", isSubagent).eq("inbox_killed_at", undefined).gte("inbox_dismissed_at", dismissedCutoff)
-    )
-    .order("desc")
-    .take(INBOX_WINDOW_CAP + 1), "inbox_dismissed_at", "dismissed");
+  const dismissedConversationsQ = topLevelWindow(
+    (isSubagent) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_user_live_dismissed", (q: any) =>
+          q
+            .eq("user_id", userId)
+            .eq("is_subagent", isSubagent)
+            .eq("inbox_killed_at", undefined)
+            .gte("inbox_dismissed_at", dismissedCutoff),
+        )
+        .order("desc")
+        .take(INBOX_WINDOW_CAP + 1),
+    "inbox_dismissed_at",
+    "dismissed",
+  );
 
   // Stashed (set aside, agent still alive) mirror the dismissed window so the
   // Stashed bucket is populated even for rows older than the recent window.
-  const stashedConversationsQ = topLevelWindow((isSubagent) => ctx.db
-    .query("conversations")
-    .withIndex("by_user_live_stashed", (q: any) =>
-      q.eq("user_id", userId).eq("is_subagent", isSubagent).eq("inbox_killed_at", undefined).gte("inbox_stashed_at", dismissedCutoff)
-    )
-    .order("desc")
-    .take(INBOX_WINDOW_CAP + 1), "inbox_stashed_at", "stashed");
+  const stashedConversationsQ = topLevelWindow(
+    (isSubagent) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_user_live_stashed", (q: any) =>
+          q
+            .eq("user_id", userId)
+            .eq("is_subagent", isSubagent)
+            .eq("inbox_killed_at", undefined)
+            .gte("inbox_stashed_at", dismissedCutoff),
+        )
+        .order("desc")
+        .take(INBOX_WINDOW_CAP + 1),
+    "inbox_stashed_at",
+    "stashed",
+  );
 
-  const snoozedConversationsQ = topLevelWindow((isSubagent) => ctx.db
-    .query("conversations")
-    .withIndex("by_user_live_snoozed", (q: any) =>
-      q.eq("user_id", userId).eq("is_subagent", isSubagent).eq("inbox_killed_at", undefined).gt("inbox_snoozed_until", 0)
-    )
-    .order("desc")
-    .take(INBOX_WINDOW_CAP + 1), "inbox_snoozed_until", "snoozed");
+  const snoozedConversationsQ = topLevelWindow(
+    (isSubagent) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_user_live_snoozed", (q: any) =>
+          q
+            .eq("user_id", userId)
+            .eq("is_subagent", isSubagent)
+            .eq("inbox_killed_at", undefined)
+            .gt("inbox_snoozed_until", 0),
+        )
+        .order("desc")
+        .take(INBOX_WINDOW_CAP + 1),
+    "inbox_snoozed_until",
+    "snoozed",
+  );
 
   // Sessions this user OWNS — run by another member's account (e.g. Mr Bot) but
   // assigned to them — surface in the OWNER's inbox alongside their own.
@@ -9321,17 +11462,19 @@ export async function scanInboxConversations(
   // never admitted on that account; they only answer the lookup.
   let ownerLookupRows: any[] = [];
   let ownerLookupComplete = false;
-  const ownerRowsQ = noWindows ? Promise.resolve([] as any[]) : ctx.db
-    .query("session_owners")
-    .withIndex("by_user", (q: any) => q.eq("user_id", userId))
-    .order("desc")
-    .take(INBOX_OWNER_LOOKUP_CAP + 1)
-    .then((rows: any[]) => {
-      ownerLookupComplete = rows.length <= INBOX_OWNER_LOOKUP_CAP;
-      ownerLookupRows = rows.slice(0, INBOX_OWNER_LOOKUP_CAP);
-      if (rows.length > INBOX_WINDOW_CAP) truncated.add("owned");
-      return rows.slice(0, INBOX_WINDOW_CAP);
-    });
+  const ownerRowsQ = noWindows
+    ? Promise.resolve([] as any[])
+    : ctx.db
+        .query("session_owners")
+        .withIndex("by_user", (q: any) => q.eq("user_id", userId))
+        .order("desc")
+        .take(INBOX_OWNER_LOOKUP_CAP + 1)
+        .then((rows: any[]) => {
+          ownerLookupComplete = rows.length <= INBOX_OWNER_LOOKUP_CAP;
+          ownerLookupRows = rows.slice(0, INBOX_OWNER_LOOKUP_CAP);
+          if (rows.length > INBOX_WINDOW_CAP) truncated.add("owned");
+          return rows.slice(0, INBOX_WINDOW_CAP);
+        });
   // The five window scans are independent — issue them in ONE batched round
   // trip. This scan backs the heartbeat-hot sessionsLiveness/listInboxSessions
   // queries, whose latency was almost entirely sequential await depth (each
@@ -9342,24 +11485,44 @@ export async function scanInboxConversations(
   // they are returned on their own, not merged into the candidate set. The
   // index pins the filing stamps to absent, so a parked parent's children
   // (stamped by the hide cascade, discarded by every caller) are never read.
-  const recentSubagentsQ: Promise<any[]> = opts.subagentWindow && !opts.teamScope && !noWindows
-    ? ctx.db
-      .query("conversations")
-      .withIndex("by_user_plain_updated", (q: any) => plainRange(q, true))
-      .order("desc")
-      .filter((q: any) => q.or(
-        q.eq(q.field("status"), "active"),
-        q.eq(q.field("status"), "completed")
-      ))
-      .take(INBOX_WINDOW_CAP)
-    : Promise.resolve([]);
-  const [recentConversations, pinnedConversations, dismissedConversations, stashedConversations, snoozedConversations, ownerRows, recentSubagents, adoptedConversations] =
-    await Promise.all([recentConversationsQ, pinnedConversationsQ, dismissedConversationsQ, stashedConversationsQ, snoozedConversationsQ, ownerRowsQ, recentSubagentsQ, adoptedConversationsQ]);
+  const recentSubagentsQ: Promise<any[]> =
+    opts.subagentWindow && !opts.teamScope && !noWindows
+      ? ctx.db
+          .query("conversations")
+          .withIndex("by_user_plain_updated", (q: any) => plainRange(q, true))
+          .order("desc")
+          .filter((q: any) =>
+            q.or(
+              q.eq(q.field("status"), "active"),
+              q.eq(q.field("status"), "completed"),
+            ),
+          )
+          .take(INBOX_WINDOW_CAP)
+      : Promise.resolve([]);
+  const [
+    recentConversations,
+    pinnedConversations,
+    dismissedConversations,
+    stashedConversations,
+    snoozedConversations,
+    ownerRows,
+    recentSubagents,
+    adoptedConversations,
+  ] = await Promise.all([
+    recentConversationsQ,
+    pinnedConversationsQ,
+    dismissedConversationsQ,
+    stashedConversationsQ,
+    snoozedConversationsQ,
+    ownerRowsQ,
+    recentSubagentsQ,
+    adoptedConversationsQ,
+  ]);
   const ownedByMeIds = new Set<string>(
-    ownerRows.map((r: any) => r.conversation_id.toString())
+    ownerRows.map((r: any) => r.conversation_id.toString()),
   );
   const myOwnerRowById = new Map<string, any>(
-    ownerRows.map((r: any) => [r.conversation_id.toString(), r])
+    ownerRows.map((r: any) => [r.conversation_id.toString(), r]),
   );
   // The owner window holds my newest INBOX_WINDOW_CAP owner rows, and the
   // lookup range my newest INBOX_OWNER_LOOKUP_CAP. While the lookup range is
@@ -9367,7 +11530,7 @@ export async function scanInboxConversations(
   // proves nothing, and a row it missed is read by id (the read byIds and the
   // floor make), so one row reads one owner row whichever feeder served it.
   const ownerLookupById = new Map<string, any>(
-    ownerLookupRows.map((r: any) => [r.conversation_id.toString(), r])
+    ownerLookupRows.map((r: any) => [r.conversation_id.toString(), r]),
   );
   const ownerLookups = new Map<string, Promise<any | null>>();
   const ownerRowFor = (conv: any): Promise<any | null> => {
@@ -9392,7 +11555,10 @@ export async function scanInboxConversations(
     let hit = ownerLookups.get(idStr);
     if (!hit) {
       hit = sessionOwnerRow(ctx, conv._id, userId).then((row: any) => {
-        if (row) { ownedByMeIds.add(idStr); myOwnerRowById.set(idStr, row); }
+        if (row) {
+          ownedByMeIds.add(idStr);
+          myOwnerRowById.set(idStr, row);
+        }
         return row ?? null;
       });
       ownerLookups.set(idStr, hit);
@@ -9404,7 +11570,9 @@ export async function scanInboxConversations(
   for (const c of recentConversations) byId.set(c._id.toString(), c);
   for (const c of pinnedConversations) byId.set(c._id.toString(), c);
   const pinnedOverflowIds = new Set<string>(
-    pinnedConversations.slice(INBOX_PINNED_CHILDREN_SCAN).map((c: any) => c._id.toString()),
+    pinnedConversations
+      .slice(INBOX_PINNED_CHILDREN_SCAN)
+      .map((c: any) => c._id.toString()),
   );
   for (const c of dismissedConversations) byId.set(c._id.toString(), c);
   for (const c of stashedConversations) byId.set(c._id.toString(), c);
@@ -9414,9 +11582,13 @@ export async function scanInboxConversations(
   // Hydrate only the owned conversations the window scans above didn't already
   // fetch (an owned session of my OWN is usually in the recent window — the get
   // would be a wasted read on a query that re-runs every heartbeat).
-  const ownerRowsToHydrate = ownerRows.filter((r: any) => !byId.has(r.conversation_id.toString()));
+  const ownerRowsToHydrate = ownerRows.filter(
+    (r: any) => !byId.has(r.conversation_id.toString()),
+  );
   const ownerHydrated = await Promise.all(
-    ownerRowsToHydrate.map((r: any) => Promise.resolve(ctx.db.get(r.conversation_id)).catch(() => null))
+    ownerRowsToHydrate.map((r: any) =>
+      Promise.resolve(ctx.db.get(r.conversation_id)).catch(() => null),
+    ),
   );
   // An owned row is admitted on the owner seat ALONE — no recency window, no
   // status gate. Assignment means the session sits in that person's inbox
@@ -9456,35 +11628,57 @@ export async function scanInboxConversations(
     // filed windows a teammate's triage decides (dismissed, stashed,
     // snoozed) stay off the board; a teammate's pin is a session like any
     // other, so the pinned rows in this team are read on their own.
-    const inTeamAndLive = (q: any) => q.and(
-      q.eq(q.field("team_id"), opts.teamScope),
-      q.or(q.eq(q.field("status"), "active"), q.eq(q.field("status"), "completed")),
+    const inTeamAndLive = (q: any) =>
+      q.and(
+        q.eq(q.field("team_id"), opts.teamScope),
+        q.or(
+          q.eq(q.field("status"), "active"),
+          q.eq(q.field("status"), "completed"),
+        ),
+      );
+    const memberScans = await Promise.all(
+      memberIds.map((memberId) =>
+        Promise.all([
+          ...([undefined, false] as const).map((isSubagent) =>
+            ctx.db
+              .query("conversations")
+              .withIndex("by_user_plain_updated", (q: any) =>
+                q
+                  .eq("user_id", memberId)
+                  .eq("is_subagent", isSubagent)
+                  .eq("inbox_pinned_at", undefined)
+                  .eq("inbox_dismissed_at", undefined)
+                  .eq("inbox_stashed_at", undefined)
+                  .eq("inbox_snoozed_until", undefined)
+                  .gte("updated_at", sessionWindowCutoff),
+              )
+              .order("desc")
+              .filter(inTeamAndLive)
+              .take(TEAM_INBOX_PER_MEMBER_CAP + 1),
+          ),
+          ctx.db
+            .query("conversations")
+            .withIndex("by_user_pinned", (q: any) =>
+              q.eq("user_id", memberId).gt("inbox_pinned_at", 0),
+            )
+            .order("desc")
+            .filter((q: any) =>
+              q.and(
+                inTeamAndLive(q),
+                q.gte(q.field("updated_at"), sessionWindowCutoff),
+              ),
+            )
+            .take(TEAM_INBOX_PER_MEMBER_CAP + 1),
+        ]).then((ranges: any[][]) => {
+          const merged = ranges
+            .flat()
+            .sort((x, y) => y.updated_at - x.updated_at);
+          if (merged.length > TEAM_INBOX_PER_MEMBER_CAP)
+            truncated.add("member_rows");
+          return merged.slice(0, TEAM_INBOX_PER_MEMBER_CAP);
+        }),
+      ),
     );
-    const memberScans = await Promise.all(memberIds.map((memberId) => Promise.all([
-      ...([undefined, false] as const).map((isSubagent) => ctx.db
-        .query("conversations")
-        .withIndex("by_user_plain_updated", (q: any) => q
-          .eq("user_id", memberId)
-          .eq("is_subagent", isSubagent)
-          .eq("inbox_pinned_at", undefined)
-          .eq("inbox_dismissed_at", undefined)
-          .eq("inbox_stashed_at", undefined)
-          .eq("inbox_snoozed_until", undefined)
-          .gte("updated_at", sessionWindowCutoff))
-        .order("desc")
-        .filter(inTeamAndLive)
-        .take(TEAM_INBOX_PER_MEMBER_CAP + 1)),
-      ctx.db
-        .query("conversations")
-        .withIndex("by_user_pinned", (q: any) => q.eq("user_id", memberId).gt("inbox_pinned_at", 0))
-        .order("desc")
-        .filter((q: any) => q.and(inTeamAndLive(q), q.gte(q.field("updated_at"), sessionWindowCutoff)))
-        .take(TEAM_INBOX_PER_MEMBER_CAP + 1),
-    ]).then((ranges: any[][]) => {
-      const merged = ranges.flat().sort((x, y) => y.updated_at - x.updated_at);
-      if (merged.length > TEAM_INBOX_PER_MEMBER_CAP) truncated.add("member_rows");
-      return merged.slice(0, TEAM_INBOX_PER_MEMBER_CAP);
-    })));
     for (const memberRecent of memberScans) {
       for (const c of memberRecent) {
         if (byId.has(c._id.toString())) continue;
@@ -9492,7 +11686,10 @@ export async function scanInboxConversations(
         if (viewerHidden.has(c._id.toString())) continue; // the caller's triage of it
         if (!teamFilter.isVisible(c)) continue;
         // Shared as a summary: the row lists, its prompt text and images do not.
-        byId.set(c._id.toString(), teamFilter.contentVisible(c) ? c : { ...c, team_summary_only: true });
+        byId.set(
+          c._id.toString(),
+          teamFilter.contentVisible(c) ? c : { ...c, team_summary_only: true },
+        );
       }
     }
   }
@@ -9505,10 +11702,18 @@ export async function scanInboxConversations(
   for (const idStr of extraIds) {
     if (byId.has(idStr) || extraBudget <= 0) continue;
     let conv: any = null;
-    try { conv = await ctx.db.get(idStr as Id<"conversations">); } catch { conv = null; }
+    try {
+      conv = await ctx.db.get(idStr as Id<"conversations">);
+    } catch {
+      conv = null;
+    }
     if (!conv) continue;
     // Not the runner: admit only if they're an owner (ownerRowFor records it).
-    if (conv.user_id.toString() !== userId.toString() && !(await ownerRowFor(conv))) continue;
+    if (
+      conv.user_id.toString() !== userId.toString() &&
+      !(await ownerRowFor(conv))
+    )
+      continue;
     if (conv.status !== "active" && conv.status !== "completed") continue;
     byId.set(idStr, conv);
     extraBudget--;
@@ -9516,7 +11721,8 @@ export async function scanInboxConversations(
   // Every candidate's owner row before anything reads ownedByMeIds (the
   // assignment drop, the fold, the working set): a no-op while the owner
   // window is complete.
-  if (truncated.has("owned")) await Promise.all([...byId.values(), ...recentSubagents].map(ownerRowFor));
+  if (truncated.has("owned"))
+    await Promise.all([...byId.values(), ...recentSubagents].map(ownerRowFor));
 
   // Assignment moves the session into the owners' inboxes. The recent / pin /
   // stash windows are keyed on the runner (`user_id`), so without this drop a
@@ -9533,7 +11739,10 @@ export async function scanInboxConversations(
     if (extraIds.has(idStr)) continue;
     if (
       isAssignedAwayFromViewer(
-        { owner_user_id: conv.owner_user_id, owned_by_me: ownedByMeIds.has(idStr) },
+        {
+          owner_user_id: conv.owner_user_id,
+          owned_by_me: ownedByMeIds.has(idStr),
+        },
         uidForAssign,
       )
     ) {
@@ -9561,7 +11770,10 @@ export async function scanInboxConversations(
   } else if (opts.namedOnly) {
     const named = await buildNamedSessionMaps(ctx, userId, conversations, now);
     maps = named.maps;
-    poolChildren = named.children.filter((c: any) => !byId.has(c._id.toString()) && pooledByWindows(c, userId, now));
+    poolChildren = named.children.filter(
+      (c: any) =>
+        !byId.has(c._id.toString()) && pooledByWindows(c, userId, now),
+    );
   } else {
     maps = await buildUserSessionMaps(ctx, userId, now);
   }
@@ -9570,7 +11782,9 @@ export async function scanInboxConversations(
   // an owned foreign-run session's daemon rows belong to the running account,
   // so merge its liveness per-conversation or the row would always classify as
   // dead/idle even while the runner's agent is actively working.
-  const foreignConvs = conversations.filter((c) => c.user_id.toString() !== userId.toString());
+  const foreignConvs = conversations.filter(
+    (c) => c.user_id.toString() !== userId.toString(),
+  );
   if (opts.includeLiveness && foreignConvs.length > 0) {
     await mergeForeignConversationLiveness(ctx, maps, foreignConvs, now);
   }
@@ -9591,15 +11805,28 @@ export async function scanInboxConversations(
   for (const c of opts.namedOnly ? [] : conversations) {
     const idStr = c._id.toString();
     if (c.user_id.toString() !== uidStr && !ownedByMeIds.has(idStr)) continue;
-    selectionInput.push(ownedByMeIds.has(idStr) ? { ...c, owned_by_me: true } : c);
+    selectionInput.push(
+      ownedByMeIds.has(idStr) ? { ...c, owned_by_me: true } : c,
+    );
   }
   const selection = selectWorkingSet(selectionInput, now);
   for (const kind of selection.truncated) truncated.add(kind);
   const { cutoff: clusterCutoff, belowFold } = computeFold(selection.members);
 
   return {
-    conversations, maps, deliberateIds, clusterCutoff, selectionIds: new Set(selection.members.keys()), belowFold,
-    ownedByMeIds, myOwnerRowById, ownerRowFor, truncated, pinnedOverflowIds, recentSubagents, poolChildren,
+    conversations,
+    maps,
+    deliberateIds,
+    clusterCutoff,
+    selectionIds: new Set(selection.members.keys()),
+    belowFold,
+    ownedByMeIds,
+    myOwnerRowById,
+    ownerRowFor,
+    truncated,
+    pinnedOverflowIds,
+    recentSubagents,
+    poolChildren,
   };
 }
 
@@ -9610,7 +11837,8 @@ export async function scanInboxConversations(
 // killed row unless pinned.
 function pooledByWindows(c: any, userId: Id<"users">, now: number): boolean {
   if (c.user_id?.toString() !== userId.toString()) return false;
-  if (isAdoptedChild(c)) return c.inbox_adopted_at >= now - INBOX_DISMISSED_WINDOW_MS;
+  if (isAdoptedChild(c))
+    return c.inbox_adopted_at >= now - INBOX_DISMISSED_WINDOW_MS;
   if (c.is_subagent) return false;
   if (c.status !== "active" && c.status !== "completed") return false;
   if (c.inbox_pinned_at) return true;
@@ -9627,12 +11855,30 @@ function pooledByWindows(c: any, userId: Id<"users">, now: number): boolean {
 // the per-row cut, 0 for the deliberate ones. Pure over the doc and the scan
 // so the base list, the liveness overlay and the CLI agree byte for byte.
 export function belowFoldFor(
-  scan: { selectionIds: ReadonlySet<string>; belowFold: ReadonlySet<string>; deliberateIds: ReadonlySet<string>; ownedByMeIds: ReadonlySet<string>; clusterCutoff: number },
-  conv: { _id: { toString(): string } | string; updated_at: number; has_pending_messages?: boolean | null; inbox_pinned_at?: number | null; inbox_dismissed_at?: number | null; inbox_stashed_at?: number | null },
+  scan: {
+    selectionIds: ReadonlySet<string>;
+    belowFold: ReadonlySet<string>;
+    deliberateIds: ReadonlySet<string>;
+    ownedByMeIds: ReadonlySet<string>;
+    clusterCutoff: number;
+  },
+  conv: {
+    _id: { toString(): string } | string;
+    updated_at: number;
+    has_pending_messages?: boolean | null;
+    inbox_pinned_at?: number | null;
+    inbox_dismissed_at?: number | null;
+    inbox_stashed_at?: number | null;
+  },
 ): boolean {
   const cid = conv._id.toString();
   if (scan.selectionIds.has(cid)) return scan.belowFold.has(cid);
-  return isBelowFoldAt(conv as any, scan.deliberateIds.has(cid) || scan.ownedByMeIds.has(cid) ? 0 : scan.clusterCutoff);
+  return isBelowFoldAt(
+    conv as any,
+    scan.deliberateIds.has(cid) || scan.ownedByMeIds.has(cid)
+      ? 0
+      : scan.clusterCutoff,
+  );
 }
 
 // `truncated` as the payload carries it: the fixed alphabet's order, so two
@@ -9671,7 +11917,12 @@ export async function computeInboxSessions(
     // each row before its stamps are stripped. Only splitInboxList asks.
     splitHot?: boolean;
   },
-): Promise<{ sessions: any[]; hidden_count: number; truncated: InboxTruncation[]; hot_ids?: Set<string> }> {
+): Promise<{
+  sessions: any[];
+  hidden_count: number;
+  truncated: InboxTruncation[];
+  hot_ids?: Set<string>;
+}> {
   // Liveness (agent_status/is_idle/...) is heartbeat-derived and is the reason this
   // query re-runs ~every second. The live web subscription opts OUT (includeLiveness:
   // false) and gets those fields from the lightweight `sessionsLiveness` overlay; all
@@ -9689,7 +11940,8 @@ export async function computeInboxSessions(
   // liveness threshold compare against the minute, so two executions inside
   // one minute over the same data are byte identical (sync-convergence C2).
   const now = inboxEpoch(Date.now());
-  const fastFieldsInOverlay = !includeLiveness && opts.fastFieldsInOverlay === true;
+  const fastFieldsInOverlay =
+    !includeLiveness && opts.fastFieldsInOverlay === true;
   const scan = await scanInboxConversations(ctx, userId, now, {
     includeLiveness,
     extraConvIds: opts.extraConvIds,
@@ -9703,7 +11955,9 @@ export async function computeInboxSessions(
   // updated_at on its list row: the overlay never sees it, so a stripped row
   // would stay null on the client forever (an idle Agent-tool subagent showed
   // an idle age of 20705 days — Date.now() minus nothing).
-  const overlayOwnedChildIds = new Set<string>(scan.recentSubagents.map((c: any) => c._id.toString()));
+  const overlayOwnedChildIds = new Set<string>(
+    scan.recentSubagents.map((c: any) => c._id.toString()),
+  );
 
   let hiddenCount = 0;
   const results: any[] = [];
@@ -9714,10 +11968,15 @@ export async function computeInboxSessions(
   // window, zero extra reads. Newest child wins, matching the scan's order.
   const implHandoffByParent = new Map<string, any>();
   for (const c of conversations) {
-    if (c.parent_conversation_id && c.parent_message_uuid === "plan-handoff" && !c.is_subagent) {
+    if (
+      c.parent_conversation_id &&
+      c.parent_message_uuid === "plan-handoff" &&
+      !c.is_subagent
+    ) {
       const pid = c.parent_conversation_id.toString();
       const prev = implHandoffByParent.get(pid);
-      if (!prev || (c.started_at ?? 0) > (prev.started_at ?? 0)) implHandoffByParent.set(pid, c);
+      if (!prev || (c.started_at ?? 0) > (prev.started_at ?? 0))
+        implHandoffByParent.set(pid, c);
     }
   }
   // One memoized get for every per-row reference (plan/task/workflow run, the
@@ -9728,31 +11987,58 @@ export async function computeInboxSessions(
   // made this heartbeat-hot path slow enough to time out under load; see
   // computeSessionsLiveness). Assembly below stays in candidate order.
   const includeKilled = !!opts.includeKilled && !!opts.namedOnly;
-  const shownConvs = conversations.filter((conv) => shouldShowInInbox(conv) || (includeKilled && shouldShowInInbox({ ...conv, inbox_killed_at: undefined })));
-  const enrichedRows = await Promise.all(shownConvs.map(async (conv) => {
-    // Deliberately-filed rows (label extras, sessions assigned to me by another
-    // account) never cluster-hide: an assignment routes a session into my inbox
-    // on purpose, and it stays there until I dismiss it — otherwise a decision
-    // handed over on Friday is silently gone by Monday while `cast sessions`
-    // with explicit ids still lists it as needs input. Owned rows are a
-    // deliberate window in the shared selection (C4), so they are fold-exempt
-    // for the same reason.
-    // Pinned rows past the newest INBOX_PINNED_CHILDREN_SCAN skip the children
-    // scan unless the caller asked for everything: children are never counted,
-    // and the scan was the read that hit the system-operation limit.
-    const rowSkip = !opts.show_all && pinnedOverflowIds.has(conv._id.toString())
-      ? { ...(enrichSkip ?? {}), children: true }
-      : enrichSkip;
-    const { row, subagentChildren, dismissed, stashed, hidden } = await enrichInboxSessionRow(ctx, conv, maps, now, belowFoldFor(scan, conv), rowSkip, getDoc);
-    if ((dismissed || stashed) && !row.implementation_session) {
-      const impl = implHandoffByParent.get(conv._id.toString());
-      if (impl) row.implementation_session = { _id: impl._id.toString(), title: impl.title };
-    }
-    // The scan holds my owner rows (the owner window plus any extra id it
-    // admitted past that window's cap), so no per-row lookup here.
-    await stampInboxViewerFields(row, conv, userId, await scan.ownerRowFor(conv), getDoc);
-    return { conv, row, subagentChildren, dismissed, stashed, hidden };
-  }));
+  const shownConvs = conversations.filter(
+    (conv) =>
+      shouldShowInInbox(conv) ||
+      (includeKilled &&
+        shouldShowInInbox({ ...conv, inbox_killed_at: undefined })),
+  );
+  const enrichedRows = await Promise.all(
+    shownConvs.map(async (conv) => {
+      // Deliberately-filed rows (label extras, sessions assigned to me by another
+      // account) never cluster-hide: an assignment routes a session into my inbox
+      // on purpose, and it stays there until I dismiss it — otherwise a decision
+      // handed over on Friday is silently gone by Monday while `cast sessions`
+      // with explicit ids still lists it as needs input. Owned rows are a
+      // deliberate window in the shared selection (C4), so they are fold-exempt
+      // for the same reason.
+      // Pinned rows past the newest INBOX_PINNED_CHILDREN_SCAN skip the children
+      // scan unless the caller asked for everything: children are never counted,
+      // and the scan was the read that hit the system-operation limit.
+      const rowSkip =
+        !opts.show_all && pinnedOverflowIds.has(conv._id.toString())
+          ? { ...(enrichSkip ?? {}), children: true }
+          : enrichSkip;
+      const { row, subagentChildren, dismissed, stashed, hidden } =
+        await enrichInboxSessionRow(
+          ctx,
+          conv,
+          maps,
+          now,
+          belowFoldFor(scan, conv),
+          rowSkip,
+          getDoc,
+        );
+      if ((dismissed || stashed) && !row.implementation_session) {
+        const impl = implHandoffByParent.get(conv._id.toString());
+        if (impl)
+          row.implementation_session = {
+            _id: impl._id.toString(),
+            title: impl.title,
+          };
+      }
+      // The scan holds my owner rows (the owner window plus any extra id it
+      // admitted past that window's cap), so no per-row lookup here.
+      await stampInboxViewerFields(
+        row,
+        conv,
+        userId,
+        await scan.ownerRowFor(conv),
+        getDoc,
+      );
+      return { conv, row, subagentChildren, dismissed, stashed, hidden };
+    }),
+  );
   // The stamp for a subagent child row, assembled below and applied where the
   // children are emitted. A child never reaches the enriched top-level rows —
   // shouldShowInInbox drops subagents from the candidate set — so the emission
@@ -9765,23 +12051,44 @@ export async function computeInboxSessions(
     // The same placement the liveness overlay stamps (computeSessionsLiveness):
     // one classifier, one alphabet. The asking inputs come from the candidate
     // pool plus the children the per-row scans already read.
-    const childrenByParent = groupPoolChildren([...conversations, ...scan.poolChildren]);
+    const childrenByParent = groupPoolChildren([
+      ...conversations,
+      ...scan.poolChildren,
+    ]);
     for (const r of enrichedRows) {
       if (r.subagentChildren.length === 0) continue;
       const pid = r.conv._id.toString();
-      const seen = new Set((childrenByParent.get(pid) ?? []).map((c: any) => c._id.toString()));
+      const seen = new Set(
+        (childrenByParent.get(pid) ?? []).map((c: any) => c._id.toString()),
+      );
       const merged = [...(childrenByParent.get(pid) ?? [])];
-      for (const c of r.subagentChildren) if (!seen.has(c._id.toString())) merged.push(c);
+      for (const c of r.subagentChildren)
+        if (!seen.has(c._id.toString())) merged.push(c);
       childrenByParent.set(pid, merged);
     }
     // Decisions FIRST: a parent already asking through a pending `cast decide`
     // never spends child message probes (see buildAskingParents).
     const pendingDecisionIds = await loadPendingDecisionConvIds(ctx, userId);
-    const { asking: askingParents } = await buildAskingParents(ctx, childrenByParent, maps, now, pendingDecisionIds);
+    const { asking: askingParents } = await buildAskingParents(
+      ctx,
+      childrenByParent,
+      maps,
+      now,
+      pendingDecisionIds,
+    );
     for (const r of enrichedRows) {
       const cid = r.conv._id.toString();
-      const asking = ownAsk(r.row, r.conv) || pendingDecisionIds.has(cid) || askingParents.has(cid);
-      const placement = placeConversationRow(r.conv, r.row, asking, r.row.last_user_message, now);
+      const asking =
+        ownAsk(r.row, r.conv) ||
+        pendingDecisionIds.has(cid) ||
+        askingParents.has(cid);
+      const placement = placeConversationRow(
+        r.conv,
+        r.row,
+        asking,
+        r.row.last_user_message,
+        now,
+      );
       r.row.bucket = placement.bucket;
       r.row.work_state = placement.work_state;
       r.row.asking = asking;
@@ -9791,9 +12098,24 @@ export async function computeInboxSessions(
     // rideLeadPlacements), so `cast sessions` files the team where the
     // overlay and the web do.
     const byId = new Map(enrichedRows.map((r) => [r.conv._id.toString(), r]));
-    const childLive = new Set([...childrenByParent].filter(([, children]) => hasLiveNestedChild(children, maps, now)).map(([pid]) => pid));
-    const rideRowOf = (id: string) => (childLive.has(id) ? { ...byId.get(id)?.conv, child_live: true } : byId.get(id)?.conv);
-    rideLeadPlacements(new Map(enrichedRows.map((r) => [r.conv._id.toString(), r.row as { bucket: InboxBucket }])), rideRowOf);
+    const childLive = new Set(
+      [...childrenByParent]
+        .filter(([, children]) => hasLiveNestedChild(children, maps, now))
+        .map(([pid]) => pid),
+    );
+    const rideRowOf = (id: string) =>
+      childLive.has(id)
+        ? { ...byId.get(id)?.conv, child_live: true }
+        : byId.get(id)?.conv;
+    rideLeadPlacements(
+      new Map(
+        enrichedRows.map((r) => [
+          r.conv._id.toString(),
+          r.row as { bucket: InboxBucket },
+        ]),
+      ),
+      rideRowOf,
+    );
     // Children go through the SAME placement call as their parents, off the
     // same clock and the same asking inputs. A child has no probed last user
     // message (buildSubagentChildRow leaves it null), which is the honest
@@ -9801,8 +12123,17 @@ export async function computeInboxSessions(
     // for a row whose probe was skipped.
     stampChildRow = (child, row) => {
       const cid = child._id.toString();
-      const asking = ownAsk(row, child) || pendingDecisionIds.has(cid) || askingParents.has(cid);
-      const placement = placeConversationRow(child, row, asking, row.last_user_message, now);
+      const asking =
+        ownAsk(row, child) ||
+        pendingDecisionIds.has(cid) ||
+        askingParents.has(cid);
+      const placement = placeConversationRow(
+        child,
+        row,
+        asking,
+        row.last_user_message,
+        now,
+      );
       row.bucket = placement.bucket;
       row.work_state = placement.work_state;
       row.asking = asking;
@@ -9826,8 +12157,20 @@ export async function computeInboxSessions(
     if (r.dismissed || r.stashed) continue;
     for (const child of r.subagentChildren) {
       if (topLevelIds.has(child._id.toString())) continue;
-      const childRow = await buildSubagentChildRow(child, maps, now, r.conv._id, (id) => ctx.db.get(id));
-      await stampInboxViewerFields(childRow, child, userId, await scan.ownerRowFor(child), getDoc);
+      const childRow = await buildSubagentChildRow(
+        child,
+        maps,
+        now,
+        r.conv._id,
+        (id) => ctx.db.get(id),
+      );
+      await stampInboxViewerFields(
+        childRow,
+        child,
+        userId,
+        await scan.ownerRowFor(child),
+        getDoc,
+      );
       stampChildRow?.(child, childRow);
       childRowIds.add(childRow._id.toString());
       results.push(childRow);
@@ -9839,10 +12182,28 @@ export async function computeInboxSessions(
   const namedIds = new Set(opts.extraConvIds ?? []);
   for (const child of conversations) {
     const id = child._id.toString();
-    if (!namedIds.has(id) || childRowIds.has(id) || topLevelIds.has(id) || !child.parent_conversation_id) continue;
+    if (
+      !namedIds.has(id) ||
+      childRowIds.has(id) ||
+      topLevelIds.has(id) ||
+      !child.parent_conversation_id
+    )
+      continue;
     if (!(child.is_subagent || !child.parent_message_uuid)) continue;
-    const childRow = await buildSubagentChildRow(child, maps, now, child.parent_conversation_id, (docId) => ctx.db.get(docId));
-    await stampInboxViewerFields(childRow, child, userId, await scan.ownerRowFor(child), getDoc);
+    const childRow = await buildSubagentChildRow(
+      child,
+      maps,
+      now,
+      child.parent_conversation_id,
+      (docId) => ctx.db.get(docId),
+    );
+    await stampInboxViewerFields(
+      childRow,
+      child,
+      userId,
+      await scan.ownerRowFor(child),
+      getDoc,
+    );
     stampChildRow?.(child, childRow);
     childRowIds.add(id);
     results.push(childRow);
@@ -9858,10 +12219,19 @@ export async function computeInboxSessions(
     for (const row of results) {
       const id = row._id.toString();
       if (hotIds && isHotRow(row, now)) hotIds.add(id);
-      stripInboxLiveness(row, fastFieldsInOverlay && (!childRowIds.has(id) || overlayOwnedChildIds.has(id)));
+      stripInboxLiveness(
+        row,
+        fastFieldsInOverlay &&
+          (!childRowIds.has(id) || overlayOwnedChildIds.has(id)),
+      );
     }
   }
-  return { sessions: results, hidden_count: hiddenCount, truncated: truncatedList(truncated), ...(hotIds ? { hot_ids: hotIds } : {}) };
+  return {
+    sessions: results,
+    hidden_count: hiddenCount,
+    truncated: truncatedList(truncated),
+    ...(hotIds ? { hot_ids: hotIds } : {}),
+  };
 }
 
 export const listInboxSessions = query({
@@ -9885,7 +12255,10 @@ export const listInboxSessions = query({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return args.split ? splitInboxList({ sessions: [], hidden_count: 0, truncated: [] }) : { sessions: [], hidden_count: 0, truncated: [] };
+    if (!userId)
+      return args.split
+        ? splitInboxList({ sessions: [], hidden_count: 0, truncated: [] })
+        : { sessions: [], hidden_count: 0, truncated: [] };
     const result = await computeInboxSessions(ctx, userId, {
       show_all: args.show_all,
       includeLiveness: args.include_liveness,
@@ -9898,14 +12271,43 @@ export const listInboxSessions = query({
 
 // The split forms. `now` is the projection epoch, as every inbox clock is, so
 // two executions inside one minute stay byte identical (sync-convergence C2).
-export function splitInboxList(result: { sessions: any[]; hidden_count: number; truncated: InboxTruncation[]; hot_ids?: Set<string> }) {
-  const { ids, hot, cold_hash } = splitRows(result.sessions.map((r) => [r._id.toString(), r]), inboxEpoch(Date.now()), undefined, result.hot_ids);
-  return { split: true as const, ids, hot: hot.map(([, r]) => r), cold_hash, hidden_count: result.hidden_count, truncated: result.truncated };
+export function splitInboxList(result: {
+  sessions: any[];
+  hidden_count: number;
+  truncated: InboxTruncation[];
+  hot_ids?: Set<string>;
+}) {
+  const { ids, hot, cold_hash } = splitRows(
+    result.sessions.map((r) => [r._id.toString(), r]),
+    inboxEpoch(Date.now()),
+    undefined,
+    result.hot_ids,
+  );
+  return {
+    split: true as const,
+    ids,
+    hot: hot.map(([, r]) => r),
+    cold_hash,
+    hidden_count: result.hidden_count,
+    truncated: result.truncated,
+  };
 }
 
-export function splitInboxLiveness(result: { liveness: Record<string, any>; projection?: any }) {
-  const { ids, hot, cold_hash } = splitRows(Object.entries(result.liveness), inboxEpoch(Date.now()));
-  return { split: true as const, ids, hot: Object.fromEntries(hot), cold_hash, projection: result.projection };
+export function splitInboxLiveness(result: {
+  liveness: Record<string, any>;
+  projection?: any;
+}) {
+  const { ids, hot, cold_hash } = splitRows(
+    Object.entries(result.liveness),
+    inboxEpoch(Date.now()),
+  );
+  return {
+    split: true as const,
+    ids,
+    hot: Object.fromEntries(hot),
+    cold_hash,
+    projection: result.projection,
+  };
 }
 
 // Resolve which team the inbox "team mode" scopes to, membership-gated. A client
@@ -9918,7 +12320,9 @@ async function resolveInboxTeamScope(
   activeTeamId?: Id<"teams">,
 ): Promise<Id<"teams"> | null> {
   if (activeTeamId) {
-    return (await isTeamMember(ctx, userId, activeTeamId)) ? activeTeamId : null;
+    return (await isTeamMember(ctx, userId, activeTeamId))
+      ? activeTeamId
+      : null;
   }
   // No team named: the one the user is working in, through the one resolver
   // that reads that pointer and proves the membership behind it.
@@ -9943,9 +12347,15 @@ export const listTeamInboxSessions = query({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return { sessions: [], hidden_count: 0, truncated: [], team_id: null };
-    const teamScope = await resolveInboxTeamScope(ctx, userId, args.activeTeamId);
-    if (!teamScope) return { sessions: [], hidden_count: 0, truncated: [], team_id: null };
+    if (!userId)
+      return { sessions: [], hidden_count: 0, truncated: [], team_id: null };
+    const teamScope = await resolveInboxTeamScope(
+      ctx,
+      userId,
+      args.activeTeamId,
+    );
+    if (!teamScope)
+      return { sessions: [], hidden_count: 0, truncated: [], team_id: null };
     const result = await computeInboxSessions(ctx, userId, {
       show_all: args.show_all,
       includeLiveness: args.include_liveness,
@@ -10037,7 +12447,8 @@ export type InboxLivenessRow = LivenessFields & InboxProjectionRowFields;
 // A row in the overlay map: a projection MEMBER carries facts + stamps
 // (InboxLivenessRow); a live probed CHILD carries facts only — no bucket key —
 // so replicas can compute parent rollups from replicated child facts (C1).
-export type InboxOverlayRow = LivenessFields & Partial<InboxProjectionRowFields>;
+export type InboxOverlayRow = LivenessFields &
+  Partial<InboxProjectionRowFields>;
 
 // The projection fields, by name: what the paginated / byIds / base channels
 // must never carry (the overlay owns them), and what a client strips from
@@ -10066,8 +12477,18 @@ const FOREIGN_SCAN_BUDGET = 40;
 // heartbeat in lastHeartbeatMap (buildUserSessionMaps); a child the maps never
 // saw falls back to the liveConvIds set computed at the epoch, which is what
 // hand-built maps in tests supply.
-function isLiveAt(maps: Pick<InboxSessionMaps, "liveConvIds"> & Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>, cid: string, now: number): boolean {
-  if (maps.lastHeartbeatMap?.has(cid)) return heartbeatAliveAt(maps as Pick<InboxSessionMaps, "lastHeartbeatMap">, cid, now);
+function isLiveAt(
+  maps: Pick<InboxSessionMaps, "liveConvIds"> &
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+  cid: string,
+  now: number,
+): boolean {
+  if (maps.lastHeartbeatMap?.has(cid))
+    return heartbeatAliveAt(
+      maps as Pick<InboxSessionMaps, "lastHeartbeatMap">,
+      cid,
+      now,
+    );
   return maps.liveConvIds.has(cid);
 }
 
@@ -10075,7 +12496,8 @@ function isLiveAt(maps: Pick<InboxSessionMaps, "liveConvIds"> & Partial<Pick<Inb
 // child doc and the maps; see subagentIsProducing for the two proofs.
 function childIsProducing(
   c: any,
-  maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> & Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+  maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> &
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
   now: number,
 ): boolean {
   const cid = c._id.toString();
@@ -10085,7 +12507,12 @@ function childIsProducing(
     convStatus: c.status,
     updatedAt: c.updated_at,
     isLive: live,
-    agentStatus: trustedAgentStatus(maps.agentStatusMap.get(cid), c.updated_at, now, live),
+    agentStatus: trustedAgentStatus(
+      maps.agentStatusMap.get(cid),
+      c.updated_at,
+      now,
+      live,
+    ),
     now,
   });
 }
@@ -10111,12 +12538,27 @@ export function groupPoolChildren(pool: any[]): Map<string, any[]> {
 // A parent's child_live fact: some nested child with content holds a trusted
 // status that is still in play. A finished child (done, stopped, hibernated)
 // no longer puts its parent in front of the person.
-const SETTLED_CHILD_STATUSES: ReadonlySet<string> = new Set(["idle", "done", "stopped", "hibernated"]);
-export function hasLiveNestedChild(children: any[], maps: InboxSessionMaps, now: number): boolean {
+const SETTLED_CHILD_STATUSES: ReadonlySet<string> = new Set([
+  "idle",
+  "done",
+  "stopped",
+  "hibernated",
+]);
+export function hasLiveNestedChild(
+  children: any[],
+  maps: InboxSessionMaps,
+  now: number,
+): boolean {
   return children.some((c) => {
     if ((c.message_count ?? 0) === 0) return false;
     const cid = c._id.toString();
-    const status = trustedAgentStatus(maps.agentStatusMap.get(cid), c.updated_at, now, isLiveAt(maps, cid, now), verifiedWaitingFor(maps, cid, now));
+    const status = trustedAgentStatus(
+      maps.agentStatusMap.get(cid),
+      c.updated_at,
+      now,
+      isLiveAt(maps, cid, now),
+      verifiedWaitingFor(maps, cid, now),
+    );
     return status !== undefined && !SETTLED_CHILD_STATUSES.has(status);
   });
 }
@@ -10133,13 +12575,15 @@ export function hasLiveNestedChild(children: any[], maps: InboxSessionMaps, now:
 // unit-testable.
 export function deriveProducingParents(
   pool: any[],
-  maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> & Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+  maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap"> &
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
   now: number,
 ): Set<string> {
   const parents = new Set<string>();
   for (const c of pool) {
     if (!c.parent_conversation_id) continue;
-    if (childIsProducing(c, maps, now)) parents.add(c.parent_conversation_id.toString());
+    if (childIsProducing(c, maps, now))
+      parents.add(c.parent_conversation_id.toString());
   }
   return parents;
 }
@@ -10150,12 +12594,21 @@ export function deriveProducingParents(
 // conversation (a producing child parks its settled parent), and every row
 // holding a pending `cast decide` (a spawned worker's decision lifts its
 // parent whether or not the worker is still live).
-async function hydrateLivePool(ctx: any, conversations: any[], maps: InboxSessionMaps, extraIds: Iterable<string> = []): Promise<any[]> {
+async function hydrateLivePool(
+  ctx: any,
+  conversations: any[],
+  maps: InboxSessionMaps,
+  extraIds: Iterable<string> = [],
+): Promise<any[]> {
   const seen = new Set<string>(conversations.map((c: any) => c._id.toString()));
   const pool = [...conversations];
-  const missingLiveIds = [...new Set([...maps.liveConvIds, ...extraIds])].filter((cid) => !seen.has(cid));
+  const missingLiveIds = [
+    ...new Set([...maps.liveConvIds, ...extraIds]),
+  ].filter((cid) => !seen.has(cid));
   const hydratedLive = await Promise.all(
-    missingLiveIds.map((cid) => Promise.resolve(ctx.db.get(cid as Id<"conversations">)).catch(() => null))
+    missingLiveIds.map((cid) =>
+      Promise.resolve(ctx.db.get(cid as Id<"conversations">)).catch(() => null),
+    ),
   );
   for (const c of hydratedLive) if (c) pool.push(c);
   return pool;
@@ -10163,10 +12616,15 @@ async function hydrateLivePool(ctx: any, conversations: any[], maps: InboxSessio
 
 // Newest message of a conversation — the one authoritative read behind both the
 // un-backfilled last-role fallback and the AskUserQuestion probe.
-async function newestMessage(ctx: any, convId: Id<"conversations">): Promise<any | null> {
+async function newestMessage(
+  ctx: any,
+  convId: Id<"conversations">,
+): Promise<any | null> {
   return ctx.db
     .query("messages")
-    .withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", convId))
+    .withIndex("by_conversation_timestamp", (q: any) =>
+      q.eq("conversation_id", convId),
+    )
     .order("desc")
     .first();
 }
@@ -10175,7 +12633,11 @@ async function newestMessage(ctx: any, convId: Id<"conversations">): Promise<any
 // assistant's AskUserQuestion tool_use (an answer would be a later-timestamped
 // tool_result, so if the poll is still last, it's unanswered).
 function isOpenAskUserQuestion(msg: any): boolean {
-  return !!msg && msg.role === "assistant" && !!msg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion");
+  return (
+    !!msg &&
+    msg.role === "assistant" &&
+    !!msg.tool_calls?.some((tc: any) => tc.name === "AskUserQuestion")
+  );
 }
 
 // Pending `cast decide` questions for the user that lift a session into
@@ -10184,22 +12646,33 @@ function isOpenAskUserQuestion(msg: any): boolean {
 // for rows minted before asked_user_ids existed. session_decisions.user_id
 // is the RUNNER — using it here kept a hosted session's questions on the
 // host's stack after the seat was assigned away.
-export async function loadPendingDecisionConvIds(ctx: any, userId: Id<"users">): Promise<Set<string>> {
+export async function loadPendingDecisionConvIds(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<Set<string>> {
   const ids = new Set<string>();
   const uid = userId.toString();
   const inbox = await ctx.db
     .query("decision_inbox")
-    .withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "pending"))
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("user_id", userId).eq("status", "pending"),
+    )
     .collect();
   for (const r of inbox) {
     const d = await ctx.db.get(r.decision_id);
     if (!d || !isStackedAsk(d)) continue;
-    if (d.asked_user_ids !== undefined && !d.asked_user_ids.some((id: any) => String(id) === uid)) continue;
+    if (
+      d.asked_user_ids !== undefined &&
+      !d.asked_user_ids.some((id: any) => String(id) === uid)
+    )
+      continue;
     ids.add(d.conversation_id.toString());
   }
   const legacy = await ctx.db
     .query("session_decisions")
-    .withIndex("by_user_status", (q: any) => q.eq("user_id", userId).eq("status", "pending"))
+    .withIndex("by_user_status", (q: any) =>
+      q.eq("user_id", userId).eq("status", "pending"),
+    )
     .collect();
   for (const r of legacy) {
     if (r.asked_user_ids !== undefined || !isStackedAsk(r)) continue;
@@ -10241,7 +12714,11 @@ export function _resetChildAuqProbeCacheForTests(): void {
 export async function buildAskingParents(
   ctx: any,
   childrenByParent: Map<string, any[]>,
-  maps: Pick<InboxSessionMaps, "liveConvIds" | "agentStatusMap" | "openTasksMap"> & Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
+  maps: Pick<
+    InboxSessionMaps,
+    "liveConvIds" | "agentStatusMap" | "openTasksMap"
+  > &
+    Partial<Pick<InboxSessionMaps, "lastHeartbeatMap">>,
   now: number,
   alreadyAsking?: ReadonlySet<string>,
   // Whether a child is still in the pool at instant t (default: always). A
@@ -10255,39 +12732,61 @@ export async function buildAskingParents(
 }> {
   const asking = new Set<string>();
   const probedAuqOpen = new Map<string, boolean>();
-  const probes: Array<{ pid: string; cid: string; convId: Id<"conversations">; key: string }> = [];
+  const probes: Array<{
+    pid: string;
+    cid: string;
+    convId: Id<"conversations">;
+    key: string;
+  }> = [];
   const probeKey = (c: any) => `${c._id.toString()}:${c.message_count ?? 0}`;
   // What a child's status says about its ask at instant t: a permission
   // prompt, a status under which an AskUserQuestion poll may be open, or none.
   const childAskAt = (c: any, t: number): "permission" | "poll" | null => {
     const cid = c._id.toString();
     const status = trustedAgentStatus(
-      maps.agentStatusMap.get(cid), c.updated_at, t, isLiveAt(maps, cid, t), verifiedWaitingFor(maps, cid, t),
+      maps.agentStatusMap.get(cid),
+      c.updated_at,
+      t,
+      isLiveAt(maps, cid, t),
+      verifiedWaitingFor(maps, cid, t),
     );
     // A permission prompt is the child's own ask (ownAsk) whatever its
     // message count, so it lifts the parent the same way on every side.
     if (status === "permission_blocked") return "permission";
     // Only a child with content can hold an AskUserQuestion poll: an empty
     // one never spends the probe's message read.
-    if ((c.message_count ?? 0) > 0 && status !== undefined && status !== "idle") return "poll";
+    if ((c.message_count ?? 0) > 0 && status !== undefined && status !== "idle")
+      return "poll";
     return null;
   };
   for (const [pid, children] of childrenByParent) {
-    if (alreadyAsking?.has(pid)) { asking.add(pid); continue; }
+    if (alreadyAsking?.has(pid)) {
+      asking.add(pid);
+      continue;
+    }
     for (const c of children) {
       const cid = c._id.toString();
       if (c.inbox_killed_at || isClosedSession(c)) continue;
       // A child's own pending `cast decide` (a spawned subagent worker posts
       // on ITS session) lifts the parent exactly as its open prompt does.
-      if (alreadyAsking?.has(cid)) { asking.add(pid); break; }
+      if (alreadyAsking?.has(cid)) {
+        asking.add(pid);
+        break;
+      }
       const ask = childAskAt(c, now);
-      if (ask === "permission") { asking.add(pid); break; }
+      if (ask === "permission") {
+        asking.add(pid);
+        break;
+      }
       if (ask === "poll") {
         const key = probeKey(c);
         const hit = childAuqProbeCache.get(key);
         if (hit !== undefined) {
           probedAuqOpen.set(cid, hit);
-          if (hit) { asking.add(pid); break; }
+          if (hit) {
+            asking.add(pid);
+            break;
+          }
         } else {
           probes.push({ pid, cid, convId: c._id, key });
         }
@@ -10296,12 +12795,17 @@ export async function buildAskingParents(
   }
   // `undefined` marks a probe skipped because its parent resolved first — a
   // skipped probe is never cached (its answer was never read).
-  const results = await Promise.all(probes.map((p) => asking.has(p.pid) ? undefined : newestMessage(ctx, p.convId)));
+  const results = await Promise.all(
+    probes.map((p) =>
+      asking.has(p.pid) ? undefined : newestMessage(ctx, p.convId),
+    ),
+  );
   probes.forEach((p, i) => {
     const msg = results[i];
     if (msg === undefined) return;
     const open = isOpenAskUserQuestion(msg);
-    if (childAuqProbeCache.size >= CHILD_AUQ_PROBE_CACHE_MAX) childAuqProbeCache.clear();
+    if (childAuqProbeCache.size >= CHILD_AUQ_PROBE_CACHE_MAX)
+      childAuqProbeCache.clear();
     childAuqProbeCache.set(p.key, open);
     probedAuqOpen.set(p.cid, open);
     if (open) asking.add(p.pid);
@@ -10309,12 +12813,22 @@ export async function buildAskingParents(
   const askingAt = (pid: string, t: number): boolean => {
     if (alreadyAsking?.has(pid)) return true;
     return (childrenByParent.get(pid) ?? []).some((c) => {
-      if (c.inbox_killed_at || isClosedSession(c) || !pooledAt(c._id.toString(), t)) return false;
+      if (
+        c.inbox_killed_at ||
+        isClosedSession(c) ||
+        !pooledAt(c._id.toString(), t)
+      )
+        return false;
       if (alreadyAsking?.has(c._id.toString())) return true;
       const ask = childAskAt(c, t);
       // A poll this execution never read (its parent resolved first) is not
       // known closed, so it keeps the lift.
-      return ask === "permission" || (ask === "poll" && (probedAuqOpen.get(c._id.toString()) ?? childAuqProbeCache.get(probeKey(c))) !== false);
+      return (
+        ask === "permission" ||
+        (ask === "poll" &&
+          (probedAuqOpen.get(c._id.toString()) ??
+            childAuqProbeCache.get(probeKey(c))) !== false)
+      );
     });
   };
   // A lift only decays (a trusted status never turns into an ask with time),
@@ -10323,8 +12837,14 @@ export async function buildAskingParents(
   const liftUntil = (pid: string): number | null => {
     if (!asking.has(pid)) return null;
     const deadlines = (childrenByParent.get(pid) ?? []).flatMap((c) =>
-      rowLiveDeadlines({ updated_at: c.updated_at, last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null }));
-    const ahead = [...new Set(deadlines.filter((d): d is number => d != null && d > now))].sort((a, b) => a - b);
+      rowLiveDeadlines({
+        updated_at: c.updated_at,
+        last_heartbeat: maps.lastHeartbeatMap?.get(c._id.toString()) ?? null,
+      }),
+    );
+    const ahead = [
+      ...new Set(deadlines.filter((d): d is number => d != null && d > now)),
+    ].sort((a, b) => a - b);
     return ahead.find((d) => !askingAt(pid, d)) ?? null;
   };
   return { asking, probedAuqOpen, liftUntil };
@@ -10340,7 +12860,11 @@ export function ownAsk(
   lv: { awaiting_input?: boolean | null; agent_status?: string | null },
   conv?: { pending_api_error_kind?: string | null; agent_type?: string | null },
 ): boolean {
-  if (conv?.pending_api_error_kind && BLOCKED_BANNER_KINDS.has(conv.pending_api_error_kind)) return false;
+  if (
+    conv?.pending_api_error_kind &&
+    BLOCKED_BANNER_KINDS.has(conv.pending_api_error_kind)
+  )
+    return false;
   // A hosted conversation asks only through its decision row (the pending
   // decision ids every caller ORs in); its permission_blocked status lags an
   // answer. The web queue applies the same rule.
@@ -10355,8 +12879,16 @@ export function ownAsk(
 // it places carries each of them (conversationFields.guard.test.ts): a fact a
 // projection omits reads as absent, and an absent heartbeat reads as a dead one.
 export const PLACEMENT_LIVENESS_FIELDS = [
-  "agent_status", "updated_at", "is_idle", "awaiting_input", "is_unresponsive", "agent_status_boundary",
-  "open_tasks", "open_tasks_at", "producing_until", "last_heartbeat",
+  "agent_status",
+  "updated_at",
+  "is_idle",
+  "awaiting_input",
+  "is_unresponsive",
+  "agent_status_boundary",
+  "open_tasks",
+  "open_tasks_at",
+  "producing_until",
+  "last_heartbeat",
 ] as const satisfies ReadonlyArray<keyof LivenessFields>;
 
 export function placeConversationRow(
@@ -10377,13 +12909,17 @@ export function placeConversationRow(
     {
       ...conv,
       // The row ships the daemon's raw status; placement reads the verdict.
-      agent_status: trustedStatusAt({
-        agent_status: lv.agent_status ?? null,
-        updated_at: lv.updated_at ?? conv.updated_at,
-        last_heartbeat: lv.last_heartbeat ?? null,
-        open_tasks: lv.open_tasks ?? null,
-        open_tasks_at: lv.open_tasks_at ?? null,
-      }, now) ?? null,
+      agent_status:
+        trustedStatusAt(
+          {
+            agent_status: lv.agent_status ?? null,
+            updated_at: lv.updated_at ?? conv.updated_at,
+            last_heartbeat: lv.last_heartbeat ?? null,
+            open_tasks: lv.open_tasks ?? null,
+            open_tasks_at: lv.open_tasks_at ?? null,
+          },
+          now,
+        ) ?? null,
       agent_status_boundary: lv.agent_status_boundary ?? null,
       is_idle: lv.is_idle ?? null,
       awaiting_input: lv.awaiting_input ?? null,
@@ -10420,12 +12956,20 @@ type LivenessRowReads = {
 // status): the row's own heartbeat window, or the user's most recent daemon
 // vouching for a recently active conversation. Pure in the maps, so the same
 // value ships at every execution over the same data.
-function daemonAliveUntil(maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "latestHeartbeat">, cid: string, updatedAt: number): number | null {
+function daemonAliveUntil(
+  maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "latestHeartbeat">,
+  cid: string,
+  updatedAt: number,
+): number | null {
   const hb = maps.lastHeartbeatMap.get(cid);
   const own = hb !== undefined ? hb + HEARTBEAT_ALIVE_MS : null;
-  const user = maps.latestHeartbeat !== undefined
-    ? Math.min(maps.latestHeartbeat + USER_DAEMON_ALIVE_MS, updatedAt + CONV_DAEMON_ALIVE_MS)
-    : null;
+  const user =
+    maps.latestHeartbeat !== undefined
+      ? Math.min(
+          maps.latestHeartbeat + USER_DAEMON_ALIVE_MS,
+          updatedAt + CONV_DAEMON_ALIVE_MS,
+        )
+      : null;
   if (own == null) return user;
   if (user == null) return own;
   return Math.max(own, user);
@@ -10437,9 +12981,13 @@ function daemonAliveUntil(maps: Pick<InboxSessionMaps, "lastHeartbeatMap" | "lat
 // largest child deadline at which the predicate still held one instant
 // before. Evaluated through the predicate itself — never a re-derived
 // formula — so the fact cannot disagree with the rule.
-function producingUntilOf(children: any[], maps: InboxSessionMaps): number | null {
+function producingUntilOf(
+  children: any[],
+  maps: InboxSessionMaps,
+): number | null {
   if (children.length === 0) return null;
-  const producing = (t: number) => children.some((c: any) => childIsProducing(c, maps, t));
+  const producing = (t: number) =>
+    children.some((c: any) => childIsProducing(c, maps, t));
   let until: number | null = null;
   for (const c of children) {
     const chb = maps.lastHeartbeatMap.get(c._id.toString());
@@ -10486,7 +13034,10 @@ function deriveLivenessAt(
     last_heartbeat: maps.lastHeartbeatMap.get(cid) ?? null,
     daemon_alive_until: daemonAliveUntil(maps, cid, conv.updated_at),
     producing_until: producingUntil,
-    last_role_is_user: lastRoleIsUserOf(reads.lastMsgRole, reads.lastUserMessage),
+    last_role_is_user: lastRoleIsUserOf(
+      reads.lastMsgRole,
+      reads.lastUserMessage,
+    ),
     auq_open: reads.auqOpen,
     open_tasks: openTasks?.tasks ?? null,
     open_tasks_at: openTasks?.at ?? null,
@@ -10505,7 +13056,7 @@ function deriveLivenessAt(
     awaiting_input: live.awaiting_input,
     is_connected: live.daemon_alive,
     tmux_session: maps.tmuxSessionMap.get(cid) ?? null,
-    claude_backend: maps.sdkBackendConvIds.has(cid) ? "sdk" as const : null,
+    claude_backend: maps.sdkBackendConvIds.has(cid) ? ("sdk" as const) : null,
     permission_mode: maps.permissionModeMap.get(cid) ?? null,
     agent_started_at: maps.agentStartedAtMap.get(cid) ?? null,
     open_tasks: facts.open_tasks,
@@ -10514,7 +13065,9 @@ function deriveLivenessAt(
     updated_at: conv.updated_at,
     // reads.lastUserMessage is the row's preview with the probed fallback for
     // un-backfilled rows — exactly the input the park rule needs (C1).
-    last_turn_allows_park: rowLastTurnAllowsPark({ last_message_preview: reads.lastUserMessage }),
+    last_turn_allows_park: rowLastTurnAllowsPark({
+      last_message_preview: reads.lastUserMessage,
+    }),
     agent_status_updated_at: facts.agent_status_updated_at,
     agent_status_boundary: settle?.boundary === true,
     turn_completed_at: settle?.turnCompletedAt ?? null,
@@ -10544,7 +13097,11 @@ function placeLivenessRowAt(
 ): { lv: LivenessFields; asking: boolean; placement: InboxPlacement } {
   const lv = deriveLivenessAt(conv, maps, reads, producingUntil, t);
   const asking = askingFor(lv, t);
-  return { lv, asking, placement: placeConversationRow(conv, lv, asking, reads.lastUserMessage, t) };
+  return {
+    lv,
+    asking,
+    placement: placeConversationRow(conv, lv, asking, reads.lastUserMessage, t),
+  };
 }
 
 // The classifier verdict for rows OUTSIDE the inbox scan (the org tree,
@@ -10564,13 +13121,26 @@ export async function classifyWorkStates(
   const maps = await buildUserSessionMaps(ctx, userId, now);
   const uid = userId.toString();
   const foreign = conversations.filter((c) => c.user_id.toString() !== uid);
-  if (foreign.length > 0) await mergeForeignConversationLiveness(ctx, maps, foreign, now);
-  const reads = await Promise.all(conversations.map((conv) => readLivenessRowInputs(ctx, conv, maps, now)));
+  if (foreign.length > 0)
+    await mergeForeignConversationLiveness(ctx, maps, foreign, now);
+  const reads = await Promise.all(
+    conversations.map((conv) => readLivenessRowInputs(ctx, conv, maps, now)),
+  );
   const out = new Map<string, WorkState>();
   conversations.forEach((conv, i) => {
     const cid = conv._id.toString();
-    const producingUntil = producingUntilOf(childrenByParent.get(cid) ?? [], maps);
-    const { placement } = placeLivenessRowAt(conv, maps, reads[i], producingUntil, (lv) => ownAsk(lv, conv), now);
+    const producingUntil = producingUntilOf(
+      childrenByParent.get(cid) ?? [],
+      maps,
+    );
+    const { placement } = placeLivenessRowAt(
+      conv,
+      maps,
+      reads[i],
+      producingUntil,
+      (lv) => ownAsk(lv, conv),
+      now,
+    );
     out.set(cid, placement.work_state);
   });
   return out;
@@ -10585,17 +13155,40 @@ export async function classifyNamedWorkState(
   conv: any,
   now: number,
 ): Promise<{ state: WorkState; since: number }> {
-  const { maps, children } = await buildNamedSessionMaps(ctx, conv.user_id, [conv], now);
+  const { maps, children } = await buildNamedSessionMaps(
+    ctx,
+    conv.user_id,
+    [conv],
+    now,
+  );
   const reads = await readLivenessRowInputs(ctx, conv, maps, now);
   const cid = conv._id.toString();
-  const producingUntil = producingUntilOf(groupPoolChildren(children).get(cid) ?? [], maps);
-  const { placement } = placeLivenessRowAt(conv, maps, reads, producingUntil, (lv) => ownAsk(lv, conv), now);
-  return { state: placement.work_state, since: maps.agentStatusUpdatedAtMap.get(cid) ?? conv.updated_at };
+  const producingUntil = producingUntilOf(
+    groupPoolChildren(children).get(cid) ?? [],
+    maps,
+  );
+  const { placement } = placeLivenessRowAt(
+    conv,
+    maps,
+    reads,
+    producingUntil,
+    (lv) => ownAsk(lv, conv),
+    now,
+  );
+  return {
+    state: placement.work_state,
+    since: maps.agentStatusUpdatedAtMap.get(cid) ?? conv.updated_at,
+  };
 }
 
 // The reads for one row: the un-backfilled last-role fallback and the AUQ
 // probe are the same newest-message read, so a row pays it at most once.
-async function readLivenessRowInputs(ctx: any, conv: any, maps: InboxSessionMaps, now: number): Promise<LivenessRowReads> {
+async function readLivenessRowInputs(
+  ctx: any,
+  conv: any,
+  maps: InboxSessionMaps,
+  now: number,
+): Promise<LivenessRowReads> {
   let lastMsgRole: string | undefined = conv.last_message_role;
   let lastUserMessage: string | null = conv.last_message_preview || null;
   let facts: NewestMessageFacts | null | undefined = undefined; // undefined = not read yet
@@ -10606,9 +13199,16 @@ async function readLivenessRowInputs(ctx: any, conv: any, maps: InboxSessionMaps
       if (facts.userText !== null) lastUserMessage = facts.userText;
     }
   }
-  const reads: LivenessRowReads = { lastMsgRole, lastUserMessage, auqOpen: false };
+  const reads: LivenessRowReads = {
+    lastMsgRole,
+    lastUserMessage,
+    auqOpen: false,
+  };
   const base = deriveLivenessAt(conv, maps, reads, null, now);
-  if ((!base.is_idle || base.agent_status === "hibernated") && conv.message_count > 0) {
+  if (
+    (!base.is_idle || base.agent_status === "hibernated") &&
+    conv.message_count > 0
+  ) {
     if (facts === undefined) facts = await newestMessageFacts(ctx, conv);
     reads.auqOpen = !!facts?.auqOpen;
   }
@@ -10625,11 +13225,18 @@ async function readLivenessRowInputs(ctx: any, conv: any, maps: InboxSessionMaps
 // is patched without touching the conversation (so message_count holds), and
 // only an assistant row without its final usage is still streaming. Anything
 // else that moves the answer is a new message, which moves message_count.
-type NewestMessageFacts = { role: string; userText: string | null; auqOpen: boolean };
+type NewestMessageFacts = {
+  role: string;
+  userText: string | null;
+  auqOpen: boolean;
+};
 const NEWEST_MESSAGE_CACHE_MAX = 4096;
 const newestMessageCache = new Map<string, NewestMessageFacts>();
 
-async function newestMessageFacts(ctx: any, conv: any): Promise<NewestMessageFacts | null> {
+async function newestMessageFacts(
+  ctx: any,
+  conv: any,
+): Promise<NewestMessageFacts | null> {
   const key = `${conv._id.toString()}:${conv.message_count ?? 0}`;
   const hit = newestMessageCache.get(key);
   if (hit) return hit;
@@ -10637,22 +13244,23 @@ async function newestMessageFacts(ctx: any, conv: any): Promise<NewestMessageFac
   if (!msg) return null;
   const facts: NewestMessageFacts = {
     role: msg.role,
-    userText: msg.role === "user" && msg.content?.trim()
-      ? msg.content
-        .replace(/\[Image[:\s][^\]]*\]/gi, "")
-        .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
-        .trim()
-        .slice(0, 200)
-      : null,
+    userText:
+      msg.role === "user" && msg.content?.trim()
+        ? msg.content
+            .replace(/\[Image[:\s][^\]]*\]/gi, "")
+            .replace(/<image\b[^>]*\/?>\s*(?:<\/image>)?/gi, "")
+            .trim()
+            .slice(0, 200)
+        : null,
     auqOpen: isOpenAskUserQuestion(msg),
   };
   if (msg.role !== "assistant" || msg.usage || facts.auqOpen) {
-    if (newestMessageCache.size >= NEWEST_MESSAGE_CACHE_MAX) newestMessageCache.clear();
+    if (newestMessageCache.size >= NEWEST_MESSAGE_CACHE_MAX)
+      newestMessageCache.clear();
     newestMessageCache.set(key, facts);
   }
   return facts;
 }
-
 
 // Build the {convId: liveness + projection stamps} overlay for the user's inbox
 // window, plus the projection envelope (sync-convergence C1). Reuses the shared
@@ -10676,28 +13284,57 @@ export async function computeSessionsLiveness(
   ctx: any,
   userId: Id<"users">,
   teamScope?: Id<"teams">,
-): Promise<{ liveness: Record<string, InboxOverlayRow>; projection: InboxProjection }> {
+): Promise<{
+  liveness: Record<string, InboxOverlayRow>;
+  projection: InboxProjection;
+}> {
   // The epoch is the payload's ONLY clock: no raw Date.now() may reach the
   // result, so two executions inside one minute are byte identical (C2).
   const now = inboxEpoch(Date.now());
-  const scan = await scanInboxConversations(ctx, userId, now, { includeLiveness: true, teamScope, subagentWindow: true });
+  const scan = await scanInboxConversations(ctx, userId, now, {
+    includeLiveness: true,
+    teamScope,
+    subagentWindow: true,
+  });
   const { conversations, maps, truncated } = scan;
   // Decisions FIRST: a parent already asking through a pending `cast decide`
   // never spends child message probes (see buildAskingParents), and a child
   // holding one joins the pool so its parent is lifted.
   const pendingDecisionIds = await loadPendingDecisionConvIds(ctx, userId);
-  const pool = await hydrateLivePool(ctx, conversations, maps, pendingDecisionIds);
+  const pool = await hydrateLivePool(
+    ctx,
+    conversations,
+    maps,
+    pendingDecisionIds,
+  );
   const childrenByParent = groupPoolChildren(pool);
   const scannedIds = new Set(conversations.map((c: any) => c._id.toString()));
-  const pooledAt = (cid: string, t: number) => scannedIds.has(cid) || pendingDecisionIds.has(cid) || isLiveAt(maps, cid, t);
-  const { asking: askingParents, probedAuqOpen, liftUntil } = await buildAskingParents(ctx, childrenByParent, maps, now, pendingDecisionIds, pooledAt);
+  const pooledAt = (cid: string, t: number) =>
+    scannedIds.has(cid) ||
+    pendingDecisionIds.has(cid) ||
+    isLiveAt(maps, cid, t);
+  const {
+    asking: askingParents,
+    probedAuqOpen,
+    liftUntil,
+  } = await buildAskingParents(
+    ctx,
+    childrenByParent,
+    maps,
+    now,
+    pendingDecisionIds,
+    pooledAt,
+  );
   const uid = userId.toString();
   const shownConvs = conversations.filter((conv) => shouldShowInInbox(conv));
 
   // Phase 1 — the per-row reads, concurrently (one await depth, not one per row).
-  const reads = await Promise.all(shownConvs.map((conv) => readLivenessRowInputs(ctx, conv, maps, now)));
+  const reads = await Promise.all(
+    shownConvs.map((conv) => readLivenessRowInputs(ctx, conv, maps, now)),
+  );
 
-  const producingUntilFor = (cid: string): number | null => producingUntilOf(childrenByParent.get(cid) ?? [], maps);
+  const producingUntilFor = (cid: string): number | null =>
+    producingUntilOf(childrenByParent.get(cid) ?? [], maps);
 
   // Phase 2 — foreign-run parents whose children are invisible to the pool:
   // the budget goes to the most recently updated idle ones, and overflow is
@@ -10705,25 +13342,41 @@ export async function computeSessionsLiveness(
   const foreignCandidates: Array<{ conv: any; i: number }> = [];
   shownConvs.forEach((conv, i) => {
     if (conv.user_id.toString() === uid) return;
-    if (conv.inbox_dismissed_at || conv.inbox_stashed_at || !(conv.message_count > 0)) return;
+    if (
+      conv.inbox_dismissed_at ||
+      conv.inbox_stashed_at ||
+      !(conv.message_count > 0)
+    )
+      return;
     const cid = conv._id.toString();
     const base = deriveLivenessAt(conv, maps, reads[i], null, now);
     const pu = producingUntilFor(cid);
-    if (base.is_idle && !(pu != null && now < pu)) foreignCandidates.push({ conv, i });
+    if (base.is_idle && !(pu != null && now < pu))
+      foreignCandidates.push({ conv, i });
   });
   foreignCandidates.sort((a, b) => b.conv.updated_at - a.conv.updated_at);
-  if (foreignCandidates.length > FOREIGN_SCAN_BUDGET) truncated.add("foreign_scan");
+  if (foreignCandidates.length > FOREIGN_SCAN_BUDGET)
+    truncated.add("foreign_scan");
   const scanTargets = foreignCandidates.slice(0, FOREIGN_SCAN_BUDGET);
-  const scannedChildren = await Promise.all(scanTargets.map(({ conv }) => ctx.db
-    .query("conversations")
-    .withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", conv._id))
-    .order("desc")
-    .take(20)));
+  const scannedChildren = await Promise.all(
+    scanTargets.map(({ conv }) =>
+      ctx.db
+        .query("conversations")
+        .withIndex("by_parent_conversation_id", (q: any) =>
+          q.eq("parent_conversation_id", conv._id),
+        )
+        .order("desc")
+        .take(20),
+    ),
+  );
   scanTargets.forEach(({ conv }, k) => {
     const cid = conv._id.toString();
-    const known = new Set((childrenByParent.get(cid) ?? []).map((c: any) => c._id.toString()));
+    const known = new Set(
+      (childrenByParent.get(cid) ?? []).map((c: any) => c._id.toString()),
+    );
     const merged = [...(childrenByParent.get(cid) ?? [])];
-    for (const c of scannedChildren[k]) if (!known.has(c._id.toString())) merged.push(c);
+    for (const c of scannedChildren[k])
+      if (!known.has(c._id.toString())) merged.push(c);
     childrenByParent.set(cid, merged);
   });
 
@@ -10743,16 +13396,36 @@ export async function computeSessionsLiveness(
     const childFacts = {
       child_asking: childAsking,
       child_asking_until: childAsking ? liftUntil(cid) : null,
-      child_live: hasLiveNestedChild(childrenByParent.get(cid) ?? [], maps, now),
+      child_live: hasLiveNestedChild(
+        childrenByParent.get(cid) ?? [],
+        maps,
+        now,
+      ),
     };
-    const askingFor = (lv: LivenessFields, t: number) => ownAsk(lv, conv) || pendingDecisionIds.has(cid) || childAskingAt(childFacts, t);
-    const placeAt = (t: number): InboxPlacement => placeLivenessRowAt(conv, maps, reads[i], producingUntil, askingFor, t).placement;
-    const { lv, asking, placement } = placeLivenessRowAt(conv, maps, reads[i], producingUntil, askingFor, now);
+    const askingFor = (lv: LivenessFields, t: number) =>
+      ownAsk(lv, conv) ||
+      pendingDecisionIds.has(cid) ||
+      childAskingAt(childFacts, t);
+    const placeAt = (t: number): InboxPlacement =>
+      placeLivenessRowAt(conv, maps, reads[i], producingUntil, askingFor, t)
+        .placement;
+    const { lv, asking, placement } = placeLivenessRowAt(
+      conv,
+      maps,
+      reads[i],
+      producingUntil,
+      askingFor,
+      now,
+    );
     const stale = computeBucketStale(
       // The shared deadline list over the SHIPPED facts: the replica's
       // recompute scheduler reads the same list, so no time term exists on
       // one side only (C2).
-      { deadlines: rowLiveDeadlines({ ...conv, ...lv, ...childFacts }), placeAt, current: placement.bucket },
+      {
+        deadlines: rowLiveDeadlines({ ...conv, ...lv, ...childFacts }),
+        placeAt,
+        current: placement.bucket,
+      },
       now,
     );
     liveness[cid] = {
@@ -10769,15 +13442,29 @@ export async function computeSessionsLiveness(
   // Every shown row stamped on its own facts; then a teammate rides its
   // lead's bucket and time flip (the shared rideLeadPlacements — the fold rode
   // inside computeFold). The tally and the digest read the FINAL stamps.
-  const convById = new Map(shownConvs.map((conv) => [conv._id.toString(), conv]));
-  const stamped = new Map(shownConvs.map((conv) => [conv._id.toString(), liveness[conv._id.toString()] as InboxOverlayRow & { bucket: InboxBucket; below_fold: boolean }]));
-  const rideRowOf = (id: string) => (liveness[id]?.child_live ? { ...convById.get(id), child_live: true } : convById.get(id));
+  const convById = new Map(
+    shownConvs.map((conv) => [conv._id.toString(), conv]),
+  );
+  const stamped = new Map(
+    shownConvs.map((conv) => [
+      conv._id.toString(),
+      liveness[conv._id.toString()] as InboxOverlayRow & {
+        bucket: InboxBucket;
+        below_fold: boolean;
+      },
+    ]),
+  );
+  const rideRowOf = (id: string) =>
+    liveness[id]?.child_live
+      ? { ...convById.get(id), child_live: true }
+      : convById.get(id);
   rideLeadPlacements(stamped, rideRowOf, (rider, lead) => {
     rider.bucket_stale_at = lead.bucket_stale_at;
     rider.stale_bucket = lead.stale_bucket;
   });
   for (const [cid, row] of stamped) {
-    if (row.bucket !== "hidden") (row.below_fold ? tally.folded : tally.shown)[row.bucket]++;
+    if (row.bucket !== "hidden")
+      (row.below_fold ? tally.folded : tally.shown)[row.bucket]++;
     entries.push([cid, row.bucket, row.below_fold]);
   }
 
@@ -10795,12 +13482,17 @@ export async function computeSessionsLiveness(
       const cid = c._id.toString();
       if (liveness[cid] || (c.message_count ?? 0) === 0) continue;
       const status = trustedAgentStatus(
-        maps.agentStatusMap.get(cid), c.updated_at, now, isLiveAt(maps, cid, now), verifiedWaitingFor(maps, cid, now),
+        maps.agentStatusMap.get(cid),
+        c.updated_at,
+        now,
+        isLiveAt(maps, cid, now),
+        verifiedWaitingFor(maps, cid, now),
       );
       if (status === undefined || status === "idle") continue;
-      const auqOpen = probedAuqOpen.get(cid)
-        ?? childAuqProbeCache.get(`${cid}:${c.message_count ?? 0}`)
-        ?? false;
+      const auqOpen =
+        probedAuqOpen.get(cid) ??
+        childAuqProbeCache.get(`${cid}:${c.message_count ?? 0}`) ??
+        false;
       const childReads: LivenessRowReads = {
         lastMsgRole: c.last_message_role,
         lastUserMessage: c.last_message_preview || null,
@@ -10825,7 +13517,10 @@ export async function computeSessionsLiveness(
     const childReads: LivenessRowReads = {
       lastMsgRole: c.last_message_role,
       lastUserMessage: c.last_message_preview || null,
-      auqOpen: probedAuqOpen.get(cid) ?? childAuqProbeCache.get(`${cid}:${c.message_count ?? 0}`) ?? false,
+      auqOpen:
+        probedAuqOpen.get(cid) ??
+        childAuqProbeCache.get(`${cid}:${c.message_count ?? 0}`) ??
+        false,
     };
     liveness[cid] = deriveLivenessAt(c, maps, childReads, null, now);
   }
@@ -10859,7 +13554,10 @@ export const sessionsLiveness = query({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) return args.split ? splitInboxLiveness({ liveness: {} }) : { liveness: {} };
+    if (!userId)
+      return args.split
+        ? splitInboxLiveness({ liveness: {} })
+        : { liveness: {} };
     const result = await computeSessionsLiveness(ctx, userId);
     return args.split ? splitInboxLiveness(result) : result;
   },
@@ -10877,10 +13575,12 @@ export const teamSessionsLiveness = query({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    const teamScope = userId && await resolveInboxTeamScope(ctx, userId, args.activeTeamId);
-    const result = userId && teamScope
-      ? await computeSessionsLiveness(ctx, userId, teamScope)
-      : { liveness: {} };
+    const teamScope =
+      userId && (await resolveInboxTeamScope(ctx, userId, args.activeTeamId));
+    const result =
+      userId && teamScope
+        ? await computeSessionsLiveness(ctx, userId, teamScope)
+        : { liveness: {} };
     return args.split ? splitInboxLiveness(result) : result;
   },
 });
@@ -10912,7 +13612,21 @@ export function tallyInboxRows(
   // `unstamped` is a HEALTH figure, not a bucket: rows this tally had to drop
   // because an upstream emitter skipped the projection. It should always read
   // 0; a non-zero value names a gap in computeInboxSessions.
-  const counts = { working: 0, needs_input: 0, done: 0, dormant: 0, idle: 0, pinned: 0, live: 0, stashed: 0, dismissed: 0, killed: 0, below_fold: 0, total: 0, unstamped: 0 };
+  const counts = {
+    working: 0,
+    needs_input: 0,
+    done: 0,
+    dormant: 0,
+    idle: 0,
+    pinned: 0,
+    live: 0,
+    stashed: 0,
+    dismissed: 0,
+    killed: 0,
+    below_fold: 0,
+    total: 0,
+    unstamped: 0,
+  };
   const rows: Array<{
     id: string;
     session_id: string;
@@ -11004,7 +13718,9 @@ export function tallyInboxRows(
     // it in the logs so the upstream gap stays visible instead of silent.
     if (!work_state || !bucket) {
       counts.unstamped++;
-      console.error(`tallyInboxRows: row ${s._id} is not stamped with a projection — skipped`);
+      console.error(
+        `tallyInboxRows: row ${s._id} is not stamped with a projection — skipped`,
+      );
       continue;
     }
     const is_live = !!s.is_connected && s.agent_status !== "hibernated";
@@ -11018,8 +13734,16 @@ export function tallyInboxRows(
 
     if (opts.stateFilter === "pinned" && !s.is_pinned) continue;
     if (opts.stateFilter === "live" && !is_live) continue;
-    if (opts.stateFilter === "hibernated" && s.agent_status !== "hibernated") continue;
-    if (opts.stateFilter && opts.stateFilter !== "pinned" && opts.stateFilter !== "live" && opts.stateFilter !== "hibernated" && work_state !== opts.stateFilter) continue;
+    if (opts.stateFilter === "hibernated" && s.agent_status !== "hibernated")
+      continue;
+    if (
+      opts.stateFilter &&
+      opts.stateFilter !== "pinned" &&
+      opts.stateFilter !== "live" &&
+      opts.stateFilter !== "hibernated" &&
+      work_state !== opts.stateFilter
+    )
+      continue;
 
     rows.push({
       id: s._id,
@@ -11043,7 +13767,9 @@ export function tallyInboxRows(
       is_live,
       is_unresponsive: !!s.is_unresponsive,
       awaiting_input: !!s.awaiting_input,
-      blocked_on: s.pending_api_error ? (s.pending_api_error_kind ?? "error") : null,
+      blocked_on: s.pending_api_error
+        ? (s.pending_api_error_kind ?? "error")
+        : null,
       session_error: s.session_error || null,
       idle_summary: s.idle_summary || null,
       // The agent's own pinned state beats the generated blurb when both exist:
@@ -11052,13 +13778,21 @@ export function tallyInboxRows(
       thread_state_status: s.thread_state_status || null,
       last_user_message: s.last_user_message || null,
       label: rowLabel,
-      active_plan: s.active_plan ? { short_id: s.active_plan.short_id, title: s.active_plan.title } : null,
-      active_task: s.active_task ? { short_id: s.active_task.short_id, title: s.active_task.title } : null,
+      active_plan: s.active_plan
+        ? { short_id: s.active_plan.short_id, title: s.active_plan.title }
+        : null,
+      active_task: s.active_task
+        ? { short_id: s.active_task.short_id, title: s.active_task.title }
+        : null,
       run_by: s.author_name ?? null,
       role: s.role ? { handle: s.role.handle, name: s.role.name } : null,
-      owner: s.owner_user_id ? { name: s.owner_name ?? null, email: s.owner_email ?? null } : null,
+      owner: s.owner_user_id
+        ? { name: s.owner_name ?? null, email: s.owner_email ?? null }
+        : null,
       owned_by_me: !!s.owned_by_me,
-      activity: isSessionActivityFresh(s.activity, work_state, now) ? s.activity : null,
+      activity: isSessionActivityFresh(s.activity, work_state, now)
+        ? s.activity
+        : null,
     });
   }
   return { counts, rows };
@@ -11102,30 +13836,59 @@ export const inboxForCLI = query({
     // rows' labels and no summary, so it reads the filing of those
     // conversations alone. The user-wide reads were most of its ~1,080 docs a
     // run and re-ran every watch on any filing change (ct-56547).
-    const namedWatch = requestedIds.size > 0 && !args.label && !args.project_path;
+    const namedWatch =
+      requestedIds.size > 0 && !args.label && !args.project_path;
     const assignments = namedWatch
-      ? (await Promise.all([...requestedIds].map((id) => ctx.db
-        .query("bucket_assignments")
-        .withIndex("by_user_conversation", (q) => q.eq("user_id", userId).eq("conversation_id", id as Id<"conversations">))
-        .collect()))).flat()
+      ? (
+          await Promise.all(
+            [...requestedIds].map((id) =>
+              ctx.db
+                .query("bucket_assignments")
+                .withIndex("by_user_conversation", (q) =>
+                  q
+                    .eq("user_id", userId)
+                    .eq("conversation_id", id as Id<"conversations">),
+                )
+                .collect(),
+            ),
+          )
+        ).flat()
       : await ctx.db
-        .query("bucket_assignments")
-        .withIndex("by_user_id", (q) => q.eq("user_id", userId))
-        .collect();
+          .query("bucket_assignments")
+          .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+          .collect();
     const allBuckets = namedWatch
-      ? (await Promise.all([...new Set(assignments.flatMap((a) => a.bucket_id ? [a.bucket_id] : []))].map((id) => ctx.db.get(id))))
-        .filter((b): b is NonNullable<typeof b> => !!b && b.user_id.toString() === userId.toString())
+      ? (
+          await Promise.all(
+            [
+              ...new Set(
+                assignments.flatMap((a) => (a.bucket_id ? [a.bucket_id] : [])),
+              ),
+            ].map((id) => ctx.db.get(id)),
+          )
+        ).filter(
+          (b): b is NonNullable<typeof b> =>
+            !!b && b.user_id.toString() === userId.toString(),
+        )
       : await ctx.db
-        .query("inbox_buckets")
-        .withIndex("by_user_id", (q) => q.eq("user_id", userId))
-        .collect();
+          .query("inbox_buckets")
+          .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+          .collect();
     const activeBuckets = allBuckets
       .filter((b) => !b.archived_at)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
-    const bucketNameById = new Map(activeBuckets.map((b) => [b._id.toString(), b.name]));
+      .sort(
+        (a, b) =>
+          (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+          a.name.localeCompare(b.name),
+      );
+    const bucketNameById = new Map(
+      activeBuckets.map((b) => [b._id.toString(), b.name]),
+    );
     const labelByConv = new Map<string, string>();
     for (const a of assignments) {
-      const name = a.bucket_id ? bucketNameById.get(a.bucket_id.toString()) : undefined;
+      const name = a.bucket_id
+        ? bucketNameById.get(a.bucket_id.toString())
+        : undefined;
       if (name) labelByConv.set(a.conversation_id.toString(), name);
     }
 
@@ -11139,12 +13902,16 @@ export const inboxForCLI = query({
       const matched = matchBucketByName(activeBuckets, args.label);
       if ("error" in matched) return { error: matched.error };
       const matchedBucketIds = new Set(
-        activeBuckets.filter((b) => b.name === matched.name).map((b) => b._id.toString())
+        activeBuckets
+          .filter((b) => b.name === matched.name)
+          .map((b) => b._id.toString()),
       );
       labelConvIds = new Set(
         assignments
-          .filter((a) => a.bucket_id && matchedBucketIds.has(a.bucket_id.toString()))
-          .map((a) => a.conversation_id.toString())
+          .filter(
+            (a) => a.bucket_id && matchedBucketIds.has(a.bucket_id.toString()),
+          )
+          .map((a) => a.conversation_id.toString()),
       );
     }
 
@@ -11168,7 +13935,11 @@ export const inboxForCLI = query({
     // the repo's sessions, and a session created in a subdir still counts.
     if (args.project_path) {
       const bound = args.project_path;
-      sessions = sessions.filter((s) => projectOverlaps(bound, s.project_path) || projectOverlaps(bound, s.git_root));
+      sessions = sessions.filter(
+        (s) =>
+          projectOverlaps(bound, s.project_path) ||
+          projectOverlaps(bound, s.git_root),
+      );
     }
 
     if (labelConvIds) {
@@ -11177,7 +13948,13 @@ export const inboxForCLI = query({
       sessions = sessions.filter((s) => lci.has(s._id.toString()));
     }
     const stateFilter = normalizeWorkStateFilter(args.state);
-    const ORDER: Record<WorkState, number> = { needs_input: 0, done: 1, working: 2, dormant: 3, idle: 4 };
+    const ORDER: Record<WorkState, number> = {
+      needs_input: 0,
+      done: 1,
+      working: 2,
+      dormant: 3,
+      idle: 4,
+    };
 
     const { counts, rows } = tallyInboxRows(sessions, {
       showAll: args.show_all,
@@ -11193,7 +13970,8 @@ export const inboxForCLI = query({
     // Most-actionable first: pinned, then needs_input → done → working → dormant → idle, recent first.
     rows.sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-      if (ORDER[a.work_state] !== ORDER[b.work_state]) return ORDER[a.work_state] - ORDER[b.work_state];
+      if (ORDER[a.work_state] !== ORDER[b.work_state])
+        return ORDER[a.work_state] - ORDER[b.work_state];
       return b.ts - a.ts;
     });
 
@@ -11207,7 +13985,9 @@ export const inboxForCLI = query({
     // they're other projects' filing.
     const nameToConvIds = new Map<string, Set<string>>();
     for (const a of assignments) {
-      const name = a.bucket_id ? bucketNameById.get(a.bucket_id.toString()) : undefined;
+      const name = a.bucket_id
+        ? bucketNameById.get(a.bucket_id.toString())
+        : undefined;
       if (!name) continue;
       if (!nameToConvIds.has(name)) nameToConvIds.set(name, new Set());
       nameToConvIds.get(name)!.add(a.conversation_id.toString());
@@ -11215,14 +13995,25 @@ export const inboxForCLI = query({
     let inBound: ((id: string) => Promise<boolean>) | null = null;
     if (args.project_path) {
       const bound = args.project_path;
-      const pathById = new Map<string, { project_path?: string | null; git_root?: string | null } | null>();
-      for (const s of sessions) pathById.set(s._id.toString(), { project_path: s.project_path, git_root: s.git_root });
+      const pathById = new Map<
+        string,
+        { project_path?: string | null; git_root?: string | null } | null
+      >();
+      for (const s of sessions)
+        pathById.set(s._id.toString(), {
+          project_path: s.project_path,
+          git_root: s.git_root,
+        });
       let hydrationBudget = 500;
       inBound = async (id: string) => {
         if (!pathById.has(id)) {
           if (hydrationBudget-- <= 0) return false;
           let conv: any = null;
-          try { conv = await ctx.db.get(id as Id<"conversations">); } catch { conv = null; }
+          try {
+            conv = await ctx.db.get(id as Id<"conversations">);
+          } catch {
+            conv = null;
+          }
           pathById.set(
             id,
             conv && conv.user_id.toString() === userId.toString()
@@ -11231,7 +14022,11 @@ export const inboxForCLI = query({
           );
         }
         const p = pathById.get(id);
-        return !!p && (projectOverlaps(bound, p.project_path) || projectOverlaps(bound, p.git_root));
+        return (
+          !!p &&
+          (projectOverlaps(bound, p.project_path) ||
+            projectOverlaps(bound, p.git_root))
+        );
       };
     }
     const labels: Array<{ name: string; count: number }> = [];
@@ -11248,7 +14043,13 @@ export const inboxForCLI = query({
       labels.push({ name: b.name, count });
     }
 
-    return { sessions: rows.slice(0, limit), counts, hidden_count, labels, scope: "mine" };
+    return {
+      sessions: rows.slice(0, limit),
+      counts,
+      hidden_count,
+      labels,
+      scope: "mine",
+    };
   },
 });
 
@@ -11306,11 +14107,14 @@ export async function collectInboxSessionsPaginated(
     .withIndex("by_user_updated", (qb: any) =>
       args.since !== undefined
         ? qb.eq("user_id", userId).gte("updated_at", args.since)
-        : qb.eq("user_id", userId)
+        : qb.eq("user_id", userId),
     )
     .order("desc")
     .filter((qb: any) =>
-      qb.or(qb.eq(qb.field("status"), "active"), qb.eq(qb.field("status"), "completed"))
+      qb.or(
+        qb.eq(qb.field("status"), "active"),
+        qb.eq(qb.field("status"), "completed"),
+      ),
     );
 
   const result = await q.paginate(args.paginationOpts);
@@ -11320,22 +14124,52 @@ export async function collectInboxSessionsPaginated(
   for (const conv of result.page) {
     if (conv.inbox_dismissed_at || conv.inbox_stashed_at) continue; // dismissed/stashed: own accumulation path
     if (!shouldShowInInbox(conv)) continue;
-    const { row, subagentChildren } = await enrichInboxSessionRow(ctx, conv, maps, now, false, { auq: true }, getDoc);
-    await stampInboxViewerFields(row, conv, userId, await sessionOwnerRow(ctx, conv._id, userId), getDoc);
+    const { row, subagentChildren } = await enrichInboxSessionRow(
+      ctx,
+      conv,
+      maps,
+      now,
+      false,
+      { auq: true },
+      getDoc,
+    );
+    await stampInboxViewerFields(
+      row,
+      conv,
+      userId,
+      await sessionOwnerRow(ctx, conv._id, userId),
+      getDoc,
+    );
     stripInboxLiveness(row);
     rows.push(row);
     for (const child of subagentChildren) {
       // An adopted child is a top-level row of its own (shared isAdoptedChild),
       // listed by the scan itself, as listInboxSessions does.
       if (isAdoptedChild(child)) continue;
-      const childRow = await buildSubagentChildRow(child, maps, now, conv._id, (id) => ctx.db.get(id));
-      await stampInboxViewerFields(childRow, child, userId, await sessionOwnerRow(ctx, child._id, userId), getDoc);
+      const childRow = await buildSubagentChildRow(
+        child,
+        maps,
+        now,
+        conv._id,
+        (id) => ctx.db.get(id),
+      );
+      await stampInboxViewerFields(
+        childRow,
+        child,
+        userId,
+        await sessionOwnerRow(ctx, child._id, userId),
+        getDoc,
+      );
       stripInboxLiveness(childRow);
       rows.push(childRow);
     }
   }
 
-  return { page: rows, isDone: result.isDone, continueCursor: result.continueCursor };
+  return {
+    page: rows,
+    isDone: result.isDone,
+    continueCursor: result.continueCursor,
+  };
 }
 
 // Durable cross-device dismiss reconcile. Returns ONLY {_id, inbox_dismissed_at}
@@ -11406,7 +14240,11 @@ export async function collectHiddenSessionsLite(
       const idStr = r.conversation_id.toString();
       if (seen.has(idStr)) continue;
       let conv: any = null;
-      try { conv = await ctx.db.get(r.conversation_id); } catch { conv = null; }
+      try {
+        conv = await ctx.db.get(r.conversation_id);
+      } catch {
+        conv = null;
+      }
       if (!conv || conv.user_id.toString() === userId.toString()) continue;
       const at = conv[field];
       if (!at || at < cutoff) continue;
@@ -11422,7 +14260,12 @@ export const listDismissedSessionsLite = query({
     since: v.optional(v.number()),
   },
   handler: (ctx, args) =>
-    listHiddenSessionsLite(ctx, args, "by_user_dismissed", "inbox_dismissed_at"),
+    listHiddenSessionsLite(
+      ctx,
+      args,
+      "by_user_dismissed",
+      "inbox_dismissed_at",
+    ),
 });
 
 // Stashed twin of the dismissed reconcile — same contract, keyed on
@@ -11459,7 +14302,8 @@ export const existingConversationIds = query({
       if (
         conv.user_id.toString() === userId.toString() ||
         (await isSessionOwner(ctx, id, userId))
-      ) out.push(raw);
+      )
+        out.push(raw);
     }
     return out;
   },
@@ -11485,7 +14329,11 @@ export const getInboxSessionsByIds = query({
 });
 
 // Auth-free body of getInboxSessionsByIds, exported for tests.
-export async function collectInboxSessionsByIds(ctx: any, userId: Id<"users">, ids: string[]) {
+export async function collectInboxSessionsByIds(
+  ctx: any,
+  userId: Id<"users">,
+  ids: string[],
+) {
   const now = inboxEpoch(Date.now());
   const getDoc = makeMemoGet(ctx);
   const sessions: any[] = [];
@@ -11501,7 +14349,15 @@ export async function collectInboxSessionsByIds(ctx: any, userId: Id<"users">, i
     const myOwnerRow = await sessionOwnerRow(ctx, conv._id, userId);
     if (conv.user_id.toString() !== userId.toString() && !myOwnerRow) continue;
     if (conv.status !== "active" && conv.status !== "completed") continue;
-    const { row } = await enrichInboxSessionRow(ctx, conv, EMPTY_INBOX_MAPS, now, false, { auq: true }, getDoc);
+    const { row } = await enrichInboxSessionRow(
+      ctx,
+      conv,
+      EMPTY_INBOX_MAPS,
+      now,
+      false,
+      { auq: true },
+      getDoc,
+    );
     await stampInboxViewerFields(row, conv, userId, myOwnerRow, getDoc);
     stripInboxLiveness(row);
     sessions.push(row);
@@ -11530,13 +14386,17 @@ export const updateGitState = mutation({
     git_dirty: v.optional(v.boolean()),
     // Fields to unset: a cloud agent's session drops the branch its provider
     // no longer names and anything a local checkout stamped on it.
-    clear: v.optional(v.array(v.union(
-      v.literal("git_commit_hash"),
-      v.literal("git_branch"),
-      v.literal("git_ahead"),
-      v.literal("git_behind"),
-      v.literal("git_dirty"),
-    ))),
+    clear: v.optional(
+      v.array(
+        v.union(
+          v.literal("git_commit_hash"),
+          v.literal("git_branch"),
+          v.literal("git_ahead"),
+          v.literal("git_behind"),
+          v.literal("git_dirty"),
+        ),
+      ),
+    ),
   },
   handler: async (ctx, args): Promise<{ updated: boolean }> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
@@ -11546,12 +14406,21 @@ export const updateGitState = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id !== userId) return { updated: false };
     const next: Record<string, unknown> = {};
-    for (const key of ["git_commit_hash", "git_branch", "git_remote_url", "git_ahead", "git_behind", "git_dirty"] as const) {
+    for (const key of [
+      "git_commit_hash",
+      "git_branch",
+      "git_remote_url",
+      "git_ahead",
+      "git_behind",
+      "git_dirty",
+    ] as const) {
       const value = args[key];
-      if (value !== undefined && (conv as any)[key] !== value) next[key] = value;
+      if (value !== undefined && (conv as any)[key] !== value)
+        next[key] = value;
     }
     for (const key of args.clear ?? []) {
-      if (args[key] === undefined && (conv as any)[key] !== undefined) next[key] = undefined;
+      if (args[key] === undefined && (conv as any)[key] !== undefined)
+        next[key] = undefined;
     }
     if (Object.keys(next).length === 0) return { updated: false };
     await ctx.db.patch(convId, { ...next, git_state_at: Date.now() });
@@ -11575,7 +14444,11 @@ export const setSessionError = mutation({
     const conv = await ctx.db.get(convId);
     if (!conv || conv.user_id !== userId) return;
     if (isConversationSafetyBlocked(conv)) return;
-    const safetyPatch = safetyBlockPatch(conv, [{ role: "assistant", content: args.error }], Date.now());
+    const safetyPatch = safetyBlockPatch(
+      conv,
+      [{ role: "assistant", content: args.error }],
+      Date.now(),
+    );
     if (conv.session_error === args.error && !safetyPatch) return;
     // A "couldn't start / no local checkout" error is impossible if the session
     // is actually running. Reject stale error writes (device-agnostic, so it holds
@@ -11588,7 +14461,12 @@ export const setSessionError = mutation({
         .withIndex("by_conversation_id", (q) => q.eq("conversation_id", convId))
         .collect();
       const now = Date.now();
-      if ((await heartbeatsFor(ctx, managed)).some((beat) => now - beat < 2 * 60 * 1000)) return;
+      if (
+        (await heartbeatsFor(ctx, managed)).some(
+          (beat) => now - beat < 2 * 60 * 1000,
+        )
+      )
+        return;
     }
     await ctx.db.patch(convId, {
       session_error: args.error,
@@ -11633,7 +14511,7 @@ export const markSessionCompleted = mutation({
       const pendingMsg = await ctx.db
         .query("pending_messages")
         .withIndex("by_conversation_status", (q: any) =>
-          q.eq("conversation_id", convId).eq("status", "pending")
+          q.eq("conversation_id", convId).eq("status", "pending"),
         )
         .first();
       if (pendingMsg) {
@@ -11690,7 +14568,9 @@ export const getConversationLifecycle = query({
     // malformed call reads as "no opinion" like every other miss here.
     if (!!args.conversation_id === !!args.session_id) return null;
 
-    let conv = args.conversation_id ? await ctx.db.get(args.conversation_id) : null;
+    let conv = args.conversation_id
+      ? await ctx.db.get(args.conversation_id)
+      : null;
     if (!conv && args.session_id) {
       // NEWEST twin, never .first(): .first() is creation order, so it returns
       // the OLDEST row bound to a session_id — the ct-36973 foot-gun that once
@@ -11705,9 +14585,12 @@ export const getConversationLifecycle = query({
         .withIndex("by_session_id", (q) => q.eq("session_id", args.session_id!))
         .collect();
       const owned = twins.filter((t) => t.user_id === userId);
-      conv = owned.length > 0
-        ? owned.reduce((a, b) => ((b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a))
-        : null;
+      conv =
+        owned.length > 0
+          ? owned.reduce((a, b) =>
+              (b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a,
+            )
+          : null;
     }
     if (!conv || conv.user_id !== userId) return null;
     return {
@@ -11728,7 +14611,8 @@ export const getConversationLifecycle = query({
       // The person closed it (shared isClosedSession): the daemon does not
       // bring it back on its own. A message still waiting for it is a wake, so
       // a close never holds back its delivery, whatever has_pending_messages says.
-      closed: isClosedSession(conv) && !(await hasDeliverableMessage(ctx, conv._id)),
+      closed:
+        isClosedSession(conv) && !(await hasDeliverableMessage(ctx, conv._id)),
     };
   },
 });
@@ -11769,7 +14653,11 @@ async function resurfaceHiddenSession(
   conv: Doc<"conversations">,
   userId: Id<"users">,
 ): Promise<{ wasHidden: boolean; rearmed: number }> {
-  const wasHidden = !!(conv.inbox_dismissed_at || conv.inbox_stashed_at || conv.inbox_killed_at);
+  const wasHidden = !!(
+    conv.inbox_dismissed_at ||
+    conv.inbox_stashed_at ||
+    conv.inbox_killed_at
+  );
   if (!wasHidden) return { wasHidden: false, rearmed: 0 };
 
   await ctx.db.patch(conv._id, {
@@ -11807,7 +14695,11 @@ async function resurfaceHiddenSession(
 export const cliSetSessionVisibility = mutation({
   args: {
     session: v.string(),
-    action: v.union(v.literal("dismiss"), v.literal("kill"), v.literal("undismiss")),
+    action: v.union(
+      v.literal("dismiss"),
+      v.literal("kill"),
+      v.literal("undismiss"),
+    ),
     hidden: v.optional(v.boolean()),
     api_token: v.optional(v.string()),
   },
@@ -11818,32 +14710,61 @@ export const cliSetSessionVisibility = mutation({
       : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      c.user_id?.toString() === userId.toString() ||
-      c.owner_user_id?.toString() === userId.toString()
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      (c) =>
+        c.user_id?.toString() === userId.toString() ||
+        c.owner_user_id?.toString() === userId.toString(),
     );
     if (!conv) {
       // Not the runner or an owner: a teammate's session on the team board.
       // The row's own stamps are the owner's, so the caller's gesture is a
       // viewer hide (inbox_hides) — out of THEIR board only, the agent untouched.
-      const seen = await findConversationByAnyRefWhere(ctx, args.session, () => true);
+      const seen = await findConversationByAnyRefWhere(
+        ctx,
+        args.session,
+        () => true,
+      );
       if (!seen) {
         throw new Error(
-          `No session found for "${args.session}" (you can only manage sessions you run or own)`
+          `No session found for "${args.session}" (you can only manage sessions you run or own)`,
         );
       }
       const seenShortId = seen.short_id ?? seen._id.toString().slice(0, 7);
       if (args.action === "undismiss") {
-        const wasHidden = await unhideConversationForViewer(ctx, userId, seen._id);
-        return { ok: true as const, short_id: seenShortId, action: args.action, was_hidden: wasHidden, rearmed_schedules: 0, outcome: "viewer_hide" as const };
+        const wasHidden = await unhideConversationForViewer(
+          ctx,
+          userId,
+          seen._id,
+        );
+        return {
+          ok: true as const,
+          short_id: seenShortId,
+          action: args.action,
+          was_hidden: wasHidden,
+          rearmed_schedules: 0,
+          outcome: "viewer_hide" as const,
+        };
       }
-      const hid = await hideConversationForViewer(ctx, userId, seen, args.action === "kill" ? "dismiss" : "stash");
+      const hid = await hideConversationForViewer(
+        ctx,
+        userId,
+        seen,
+        args.action === "kill" ? "dismiss" : "stash",
+      );
       if (!hid) {
         throw new Error(
-          `No session found for "${args.session}" (you can only manage sessions you run or own, or hide a teammate's you can see)`
+          `No session found for "${args.session}" (you can only manage sessions you run or own, or hide a teammate's you can see)`,
         );
       }
-      return { ok: true as const, short_id: seenShortId, action: args.action, outcome: "viewer_hide" as const, was_hidden: false };
+      return {
+        ok: true as const,
+        short_id: seenShortId,
+        action: args.action,
+        outcome: "viewer_hide" as const,
+        was_hidden: false,
+      };
     }
     const shortId = conv.short_id ?? conv._id.toString().slice(0, 7);
 
@@ -11851,8 +14772,18 @@ export const cliSetSessionVisibility = mutation({
       // A restore clears the caller's viewer hide too, in case the row was hidden
       // before they became an owner of it.
       await unhideConversationForViewer(ctx, userId, conv._id);
-      const { wasHidden, rearmed } = await resurfaceHiddenSession(ctx, conv, userId);
-      return { ok: true as const, short_id: shortId, action: args.action, was_hidden: wasHidden, rearmed_schedules: rearmed };
+      const { wasHidden, rearmed } = await resurfaceHiddenSession(
+        ctx,
+        conv,
+        userId,
+      );
+      return {
+        ok: true as const,
+        short_id: shortId,
+        action: args.action,
+        was_hidden: wasHidden,
+        rearmed_schedules: rearmed,
+      };
     }
 
     const wasHidden = !!conv.inbox_dismissed_at;
@@ -11862,7 +14793,10 @@ export const cliSetSessionVisibility = mutation({
     const patch =
       args.action === "kill"
         ? { inbox_dismissed_at: Date.now() }
-        : { inbox_stashed_at: Date.now(), inbox_stash_hidden: args.hidden ? true : undefined };
+        : {
+            inbox_stashed_at: Date.now(),
+            inbox_stash_hidden: args.hidden ? true : undefined,
+          };
     await ctx.db.patch(conv._id, patch);
     // `conv` is the pre-patch row — applyHideTransition gates on the transition.
     // The nested group (Task subagents + agent-team teammates) comes down with
@@ -11870,8 +14804,16 @@ export const cliSetSessionVisibility = mutation({
     // `cast kill` is an EXPLICIT kill gesture, so it forces teardown even on an
     // already-dismissed session (whose worker a daemon bug may have revived) —
     // a re-asserted quiet dismiss still doesn't.
-    const { action: outcome, canceledSchedules, canceledMessages, cascaded, teardownEnqueued } =
-      await applyHideTransition(ctx, conv, patch, { forceKill: args.action === "kill", cause: `cli:${args.action}` });
+    const {
+      action: outcome,
+      canceledSchedules,
+      canceledMessages,
+      cascaded,
+      teardownEnqueued,
+    } = await applyHideTransition(ctx, conv, patch, {
+      forceKill: args.action === "kill",
+      cause: `cli:${args.action}`,
+    });
     return {
       ok: true as const,
       short_id: shortId,
@@ -11887,35 +14829,70 @@ export const cliSetSessionVisibility = mutation({
 });
 
 // Statuses of a live agent that is doing something or asking: retiring it would cut that off.
-const RETIRE_BUSY_STATUSES = new Set(["working", "thinking", "compacting", "starting", "waiting", "permission_blocked"]);
+const RETIRE_BUSY_STATUSES = new Set([
+  "working",
+  "thinking",
+  "compacting",
+  "starting",
+  "waiting",
+  "permission_blocked",
+]);
 
 /**
  * Why a session must not be retired now, or null when nothing would be lost. The run read the session settled and
  * found no other work of its own, but that read is old by the time it asks, and it only sees the inbox row. A kill
  * also cancels every trigger bound to the session, drops its queued messages and tears down its nested children.
  */
-export async function retireRefusal(ctx: { db: any }, conv: any, expectedMessageCount: number, now: number): Promise<string | null> {
+export async function retireRefusal(
+  ctx: { db: any },
+  conv: any,
+  expectedMessageCount: number,
+  now: number,
+): Promise<string | null> {
   if (conv.inbox_killed_at) return "it is already stopped";
   // A pin is a person keeping it in their inbox: theirs to end, not the run's.
   if (conv.inbox_pinned_at) return "a person pinned it";
-  if ((conv.message_count ?? 0) !== expectedMessageCount) return `it has moved since the run read it (${expectedMessageCount} messages then, ${conv.message_count ?? 0} now)`;
+  if ((conv.message_count ?? 0) !== expectedMessageCount)
+    return `it has moved since the run read it (${expectedMessageCount} messages then, ${conv.message_count ?? 0} now)`;
   const liveAgent = async (id: Id<"conversations">) => {
-    const rows = await ctx.db.query("managed_sessions").withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", id)).collect();
+    const rows = await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", id))
+      .collect();
     const beats = await heartbeatsFor(ctx, rows);
-    return rows.filter((_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS);
+    return rows.filter(
+      (_: any, i: number) => now - beats[i] < HEARTBEAT_ALIVE_MS,
+    );
   };
   const held = await queuedOrArmed(ctx, conv._id);
   if (held) return `${held} for it`;
-  if ((await liveAgent(conv._id)).some((m: any) => RETIRE_BUSY_STATUSES.has(m.agent_status ?? ""))) return "it is working";
+  if (
+    (await liveAgent(conv._id)).some((m: any) =>
+      RETIRE_BUSY_STATUSES.has(m.agent_status ?? ""),
+    )
+  )
+    return "it is working";
   // The kill cascades to its nested sessions, live or not, and takes their queued messages and triggers with them.
   const [subs, spawned] = await Promise.all([
-    ctx.db.query("conversations").withIndex("by_parent_conversation_id", (q: any) => q.eq("parent_conversation_id", conv._id)).take(200),
-    ctx.db.query("conversations").withIndex("by_spawned_by", (q: any) => q.eq("spawned_by_conversation_id", conv._id)).take(200),
+    ctx.db
+      .query("conversations")
+      .withIndex("by_parent_conversation_id", (q: any) =>
+        q.eq("parent_conversation_id", conv._id),
+      )
+      .take(200),
+    ctx.db
+      .query("conversations")
+      .withIndex("by_spawned_by", (q: any) =>
+        q.eq("spawned_by_conversation_id", conv._id),
+      )
+      .take(200),
   ]);
   for (const child of [...subs, ...spawned]) {
-    if (child.inbox_killed_at || nestParentIdOf(child) !== conv._id.toString()) continue;
+    if (child.inbox_killed_at || nestParentIdOf(child) !== conv._id.toString())
+      continue;
     const name = child.short_id ?? String(child._id).slice(0, 7);
-    if ((await liveAgent(child._id)).length) return `its nested session ${name} is live`;
+    if ((await liveAgent(child._id)).length)
+      return `its nested session ${name} is live`;
     const childHeld = await queuedOrArmed(ctx, child._id);
     if (childHeld) return `${childHeld} for its nested session ${name}`;
   }
@@ -11923,12 +14900,25 @@ export async function retireRefusal(ctx: { db: any }, conv: any, expectedMessage
 }
 
 /** What a kill of this conversation would drop: a queued message, or an armed trigger. */
-async function queuedOrArmed(ctx: { db: any }, id: Id<"conversations">): Promise<string | null> {
+async function queuedOrArmed(
+  ctx: { db: any },
+  id: Id<"conversations">,
+): Promise<string | null> {
   for (const status of ["pending", "injected", "held"]) {
-    const queued = await ctx.db.query("pending_messages").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", id).eq("status", status)).first();
+    const queued = await ctx.db
+      .query("pending_messages")
+      .withIndex("by_conversation_status", (q: any) =>
+        q.eq("conversation_id", id).eq("status", status),
+      )
+      .first();
     if (queued) return "a message is queued";
   }
-  const armed = (await tasksOriginatedBy(ctx, id)).find((t: any) => t.status === "scheduled" || t.status === "running" || t.status === "paused");
+  const armed = (await tasksOriginatedBy(ctx, id)).find(
+    (t: any) =>
+      t.status === "scheduled" ||
+      t.status === "running" ||
+      t.status === "paused",
+  );
   return armed ? "a trigger is armed" : null;
 }
 
@@ -11944,18 +14934,35 @@ export const cliRetireSession = mutation({
   },
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cli:retire");
-    const userId = args.api_token ? await getAuthenticatedUserId(ctx, args.api_token) : await getAuthUserId(ctx);
+    const userId = args.api_token
+      ? await getAuthenticatedUserId(ctx, args.api_token)
+      : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      c.user_id?.toString() === userId.toString() || c.owner_user_id?.toString() === userId.toString()
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      (c) =>
+        c.user_id?.toString() === userId.toString() ||
+        c.owner_user_id?.toString() === userId.toString(),
     );
-    if (!conv) throw new Error(`No session found for "${args.session}" (you can only retire sessions you run or own)`);
+    if (!conv)
+      throw new Error(
+        `No session found for "${args.session}" (you can only retire sessions you run or own)`,
+      );
     const shortId = conv.short_id ?? conv._id.toString().slice(0, 7);
-    const reason = await retireRefusal(ctx, conv, args.expected_message_count, Date.now());
+    const reason = await retireRefusal(
+      ctx,
+      conv,
+      args.expected_message_count,
+      Date.now(),
+    );
     if (reason) return { retired: false as const, short_id: shortId, reason };
     const patch = { inbox_dismissed_at: Date.now() };
     await ctx.db.patch(conv._id, patch);
-    await applyHideTransition(ctx, conv, patch, { forceKill: true, cause: "cli:retire" });
+    await applyHideTransition(ctx, conv, patch, {
+      forceKill: true,
+      cause: "cli:retire",
+    });
     return { retired: true as const, short_id: shortId };
   },
 });
@@ -11973,18 +14980,23 @@ async function resolveCommandableSession(
   session: string,
   verb: string,
 ): Promise<Doc<"conversations">> {
-  const conv = await findConversationByAnyRefWhere(ctx, session, (c) =>
-    c.user_id?.toString() === userId.toString() ||
-    c.owner_user_id?.toString() === userId.toString()
+  const conv = await findConversationByAnyRefWhere(
+    ctx,
+    session,
+    (c) =>
+      c.user_id?.toString() === userId.toString() ||
+      c.owner_user_id?.toString() === userId.toString(),
   );
   if (!conv) {
     throw new Error(
-      `No session found for "${session}" (you can only ${verb} sessions you run or own)`
+      `No session found for "${session}" (you can only ${verb} sessions you run or own)`,
     );
   }
   if (!conv.session_id) {
     const shortId = conv.short_id ?? conv._id.toString().slice(0, 7);
-    throw new Error(`Session ${shortId} has no agent transcript yet — nothing to ${verb}`);
+    throw new Error(
+      `Session ${shortId} has no agent transcript yet — nothing to ${verb}`,
+    );
   }
   return conv;
 }
@@ -12029,10 +15041,19 @@ export const cliResumeSession = mutation({
       : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await resolveCommandableSession(ctx, userId, args.session, "resume");
+    const conv = await resolveCommandableSession(
+      ctx,
+      userId,
+      args.session,
+      "resume",
+    );
     // A pane nobody can see is the same problem here as on restart: the card
     // comes back to the inbox before its agent does.
-    const { wasHidden, rearmed } = await resurfaceHiddenSession(ctx, conv, userId);
+    const { wasHidden, rearmed } = await resurfaceHiddenSession(
+      ctx,
+      conv,
+      userId,
+    );
     const { deduplicated, command_id } = await enqueueResumeSession(ctx, conv);
     // Re-queue stranded messages so the resume actually delivers them — the
     // same reason users.resumeSession does it.
@@ -12064,8 +15085,16 @@ export const cliHibernateSession = mutation({
       : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await resolveCommandableSession(ctx, userId, args.session, "hibernate");
-    const { deduplicated, command_id } = await enqueueHibernateSession(ctx, conv);
+    const conv = await resolveCommandableSession(
+      ctx,
+      userId,
+      args.session,
+      "hibernate",
+    );
+    const { deduplicated, command_id } = await enqueueHibernateSession(
+      ctx,
+      conv,
+    );
 
     return {
       ...sessionCommandResult(conv),
@@ -12098,11 +15127,25 @@ export const cliRestartSession = mutation({
       : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await resolveCommandableSession(ctx, userId, args.session, "restart");
-    const { wasHidden, rearmed } = await resurfaceHiddenSession(ctx, conv, userId);
-    const { deduplicated } = await enqueueKillAndResume(ctx, conv.user_id, conv, {
-      forceReconstitute: !!args.repair,
-    });
+    const conv = await resolveCommandableSession(
+      ctx,
+      userId,
+      args.session,
+      "restart",
+    );
+    const { wasHidden, rearmed } = await resurfaceHiddenSession(
+      ctx,
+      conv,
+      userId,
+    );
+    const { deduplicated } = await enqueueKillAndResume(
+      ctx,
+      conv.user_id,
+      conv,
+      {
+        forceReconstitute: !!args.repair,
+      },
+    );
 
     return {
       ...sessionCommandResult(conv),
@@ -12135,19 +15178,28 @@ export const cliRenameSession = mutation({
     const title = args.title.trim();
     if (!title) throw new Error("Title cannot be empty");
 
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, async (c) => {
-      const access = await checkConversationAccess(ctx, userId, c);
-      return access === "owner" || access === "team";
-    });
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      async (c) => {
+        const access = await checkConversationAccess(ctx, userId, c);
+        return access === "owner" || access === "team";
+      },
+    );
     if (!conv) {
       throw new Error(
-        `No session found for "${args.session}" (you can rename your own sessions and sessions shared with your team)`
+        `No session found for "${args.session}" (you can rename your own sessions and sessions shared with your team)`,
       );
     }
     const shortId = conv.short_id ?? conv._id.toString().slice(0, 7);
     const previous = conv.title ?? null;
     await ctx.db.patch(conv._id, { title, title_is_custom: true });
-    return { ok: true as const, short_id: shortId, title, previous_title: previous };
+    return {
+      ok: true as const,
+      short_id: shortId,
+      title,
+      previous_title: previous,
+    };
   },
 });
 
@@ -12206,7 +15258,11 @@ export async function performSetThreadState(
   // resurface anything: stash fails quiet except for asks. Killed rows are
   // exempt — kill tore the agent down; a straggling write must not resurrect.
   let resurfaced = false;
-  if (status === "blocked" && (conv.inbox_stashed_at || conv.inbox_dismissed_at) && !conv.inbox_killed_at) {
+  if (
+    status === "blocked" &&
+    (conv.inbox_stashed_at || conv.inbox_dismissed_at) &&
+    !conv.inbox_killed_at
+  ) {
     await ctx.db.patch(conv._id, {
       inbox_stashed_at: undefined,
       inbox_dismissed_at: undefined,
@@ -12216,18 +15272,23 @@ export async function performSetThreadState(
   // The pin is the strip's title, and a blocked / done declaration can move
   // the row between Lock Screen statuses: those refresh at once, a reworded
   // working line rides the next routine push.
-  await scheduleLiveActivityRefresh(ctx, conv.user_id, { urgent: status !== "working" });
+  await scheduleLiveActivityRefresh(ctx, conv.user_id, {
+    urgent: status !== "working",
+  });
   // A session under a role that declares blocked reaches its role through
   // the needs-input check (org-staffing.md S28), the one door for a waiting
   // episode: a declaration made mid-turn is heard when the turn settles, and
   // one made by a session already at rest is heard now.
   if ((conv.org_role_id || conv.standing_role_id) && status === "blocked") {
-    await ctx.scheduler?.runAfter(0, internal.notifications.checkNeedsInput, { conversation_id: conv._id });
+    await ctx.scheduler?.runAfter(0, internal.notifications.checkNeedsInput, {
+      conversation_id: conv._id,
+    });
   }
   // A worker declaring done or blocked frees its fleet slot and settles its
   // worktree (subagentFleet.ts).
   const outcome = outcomeOfDeclaration(status);
-  if (outcome && conv.parent_conversation_id) await subagentEnded(ctx, conv, outcome);
+  if (outcome && conv.parent_conversation_id)
+    await subagentEnded(ctx, conv, outcome);
   return { at, resurfaced };
 }
 
@@ -12248,13 +15309,16 @@ export const setThreadState = mutation({
       : await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      c.user_id?.toString() === userId.toString() ||
-      c.owner_user_id?.toString() === userId.toString()
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      (c) =>
+        c.user_id?.toString() === userId.toString() ||
+        c.owner_user_id?.toString() === userId.toString(),
     );
     if (!conv) {
       throw new Error(
-        `No session found for "${args.session}" (you can only set state on sessions you run or own)`
+        `No session found for "${args.session}" (you can only set state on sessions you run or own)`,
       );
     }
 
@@ -12265,12 +15329,33 @@ export const setThreadState = mutation({
     if (!text) {
       await ctx.db.patch(conv._id, clearedThreadStateFields());
       await scheduleLiveActivityRefresh(ctx, conv.user_id, {});
-      return { ok: true as const, short_id: shortId, cleared: true as const, state: null, previous_state: previous };
+      return {
+        ok: true as const,
+        short_id: shortId,
+        cleared: true as const,
+        state: null,
+        previous_state: previous,
+      };
     }
 
     const status = parseThreadStateStatus(args.status) ?? "working";
-    const { at, resurfaced } = await performSetThreadState(ctx, conv, text, status, threadStateResultOf(args.result));
-    return { ok: true as const, short_id: shortId, cleared: false as const, state: text, status, previous_state: previous, at, resurfaced };
+    const { at, resurfaced } = await performSetThreadState(
+      ctx,
+      conv,
+      text,
+      status,
+      threadStateResultOf(args.result),
+    );
+    return {
+      ok: true as const,
+      short_id: shortId,
+      cleared: false as const,
+      state: text,
+      status,
+      previous_state: previous,
+      at,
+      resurfaced,
+    };
   },
 });
 
@@ -12295,11 +15380,16 @@ export const getThreadState = query({
     // session you run or own, or a teammate's team-visible one. A Head of
     // People reads the standing session of a lead that reports to someone
     // else this way (org-staffing.md S29); the write above stays run-or-own.
-    const conv = await resolveConversationRefRanked(ctx, args.session, userId, (c) => canAccessConversation(ctx, userId, c as any));
+    const conv = await resolveConversationRefRanked(
+      ctx,
+      args.session,
+      userId,
+      (c) => canAccessConversation(ctx, userId, c as any),
+    );
     if (!conv || !(await canAccessConversation(ctx, userId, conv as any))) {
       if (args.if_exists) return null;
       throw new Error(
-        `No session found for "${args.session}" (you can only read state on sessions you run, own or can see in your team)`
+        `No session found for "${args.session}" (you can only read state on sessions you run, own or can see in your team)`,
       );
     }
     return {
@@ -12312,15 +15402,20 @@ export const getThreadState = query({
       // When the pin was written, or, once a person's message took it down,
       // when the report still standing was: a run reads a report as its hand's
       // answer only when it is newer than the one it sent the hand back with.
-      at: conv.thread_state_at ?? (conv.thread_state_result ? conv.thread_state_result_at : undefined) ?? null,
+      at:
+        conv.thread_state_at ??
+        (conv.thread_state_result ? conv.thread_state_result_at : undefined) ??
+        null,
       msg_count_at_write: conv.thread_state_msg_count ?? null,
       message_count: conv.message_count ?? 0,
       // The session's filing, for the daemon's trigger scheduler: a machine
       // wake into a stashed session tells the agent nobody is watching (see
       // taskScheduler's inject preamble). "stashed" | "killed" | null.
-      visibility: conv.inbox_killed_at ? ("killed" as const)
-        : conv.inbox_stashed_at ? ("stashed" as const)
-        : null,
+      visibility: conv.inbox_killed_at
+        ? ("killed" as const)
+        : conv.inbox_stashed_at
+          ? ("stashed" as const)
+          : null,
     };
   },
 });
@@ -12350,21 +15445,29 @@ export const offerBrowserPane = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const url = normalizePaneUrl(args.url);
-    if (!url) throw new Error(`"${args.url}" is not a web address a pane can load`);
+    if (!url)
+      throw new Error(`"${args.url}" is not a web address a pane can load`);
 
-    const conv = await findConversationByAnyRefWhere(ctx, args.session, (c) =>
-      c.user_id?.toString() === userId.toString() ||
-      c.owner_user_id?.toString() === userId.toString()
+    const conv = await findConversationByAnyRefWhere(
+      ctx,
+      args.session,
+      (c) =>
+        c.user_id?.toString() === userId.toString() ||
+        c.owner_user_id?.toString() === userId.toString(),
     );
     if (!conv) {
       throw new Error(
-        `No session found for "${args.session}" (you can only offer a pane in sessions you run or own)`
+        `No session found for "${args.session}" (you can only offer a pane in sessions you run or own)`,
       );
     }
 
     const title = args.title?.trim().slice(0, 120) || undefined;
     await ctx.db.patch(conv._id, {
-      browser_pane_offer: { url, offered_at: Date.now(), ...(title ? { title } : {}) },
+      browser_pane_offer: {
+        url,
+        offered_at: Date.now(),
+        ...(title ? { title } : {}),
+      },
     });
     return {
       ok: true as const,
@@ -12400,7 +15503,9 @@ export async function stampBrowserPaneOfferHandled(
   // Nothing to do twice: a second click (two windows, a re-render) must not
   // move the stamp and make a handled offer look freshly handled.
   if (!offer || offer.opened_at) return { changed: false };
-  await ctx.db.patch(conv._id, { browser_pane_offer: { ...offer, opened_at: at } });
+  await ctx.db.patch(conv._id, {
+    browser_pane_offer: { ...offer, opened_at: at },
+  });
   return { changed: true };
 }
 
@@ -12420,7 +15525,8 @@ export const dismissStaleInboxSessions = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    const cutoff = Date.now() - (args.older_than_days ?? 30) * 24 * 60 * 60 * 1000;
+    const cutoff =
+      Date.now() - (args.older_than_days ?? 30) * 24 * 60 * 60 * 1000;
     await ctx.scheduler.runAfter(0, internal.conversations.drainStaleDismiss, {
       userId,
       cutoff,
@@ -12455,7 +15561,7 @@ export const drainStaleDismiss = internalMutation({
       const result = await ctx.db
         .query("conversations")
         .withIndex("by_user_updated", (q) =>
-          q.eq("user_id", args.userId).lt("updated_at", args.cutoff)
+          q.eq("user_id", args.userId).lt("updated_at", args.cutoff),
         )
         .paginate({ cursor: args.cursor, numItems: 100 });
 
@@ -12466,22 +15572,30 @@ export const drainStaleDismiss = internalMutation({
       }
 
       if (!result.isDone) {
-        await ctx.scheduler.runAfter(150, internal.conversations.drainStaleDismiss, {
-          userId: args.userId,
-          cutoff: args.cutoff,
-          cursor: result.continueCursor,
-          attempt: 0,
-        });
+        await ctx.scheduler.runAfter(
+          150,
+          internal.conversations.drainStaleDismiss,
+          {
+            userId: args.userId,
+            cutoff: args.cutoff,
+            cursor: result.continueCursor,
+            attempt: 0,
+          },
+        );
       }
     } catch {
       const attempt = args.attempt + 1;
       if (attempt <= 6) {
-        await ctx.scheduler.runAfter(2000 * attempt, internal.conversations.drainStaleDismiss, {
-          userId: args.userId,
-          cutoff: args.cutoff,
-          cursor: args.cursor,
-          attempt,
-        });
+        await ctx.scheduler.runAfter(
+          2000 * attempt,
+          internal.conversations.drainStaleDismiss,
+          {
+            userId: args.userId,
+            cutoff: args.cutoff,
+            cursor: args.cursor,
+            attempt,
+          },
+        );
       }
     }
   },
@@ -12501,12 +15615,15 @@ export const patchConversation = mutation({
     if (!conv || conv.user_id !== userId) throw new Error("Not found");
 
     const patch: Record<string, any> = {};
-    for (const [key, value] of Object.entries(args.fields as Record<string, any>)) {
+    for (const [key, value] of Object.entries(
+      args.fields as Record<string, any>,
+    )) {
       if (!PATCHABLE_FIELDS.has(key)) continue;
       patch[key] = value === null ? undefined : value;
     }
     Object.assign(patch, normalizeCharacterFields(patch));
-    if (await pinCapExceeded(ctx, userId, conv, patch)) throw new Error(PIN_CAP_ERROR);
+    if (await pinCapExceeded(ctx, userId, conv, patch))
+      throw new Error(PIN_CAP_ERROR);
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(args.id, patch);
     }
@@ -12537,7 +15654,8 @@ export const healHistoricalUpdatedAt = mutation({
     if (!authUserId) throw new Error("Authentication required");
 
     const batchSize = args.limit ?? 100;
-    const dismissCutoffMs = (args.dismiss_older_than_days ?? 7) * 24 * 60 * 60 * 1000;
+    const dismissCutoffMs =
+      (args.dismiss_older_than_days ?? 7) * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     const result = await ctx.db
@@ -12551,7 +15669,7 @@ export const healHistoricalUpdatedAt = mutation({
       const lastMsg = await ctx.db
         .query("messages")
         .withIndex("by_conversation_timestamp", (q) =>
-          q.eq("conversation_id", conv._id)
+          q.eq("conversation_id", conv._id),
         )
         .order("desc")
         .first();
@@ -12564,10 +15682,7 @@ export const healHistoricalUpdatedAt = mutation({
         rewound++;
       }
 
-      if (
-        !conv.inbox_dismissed_at &&
-        now - realLastTs > dismissCutoffMs
-      ) {
+      if (!conv.inbox_dismissed_at && now - realLastTs > dismissCutoffMs) {
         patch.inbox_dismissed_at = now;
         dismissed++;
       }
@@ -12590,17 +15705,19 @@ export const healHistoricalUpdatedAt = mutation({
 export const reconfigureSession = mutation({
   args: {
     conversation_id: v.id("conversations"),
-    agent_type: v.optional(v.union(
-      v.literal("claude_code"),
-      v.literal("codex"),
-      v.literal("cursor"),
-      v.literal("gemini"),
-      v.literal("opencode"),
-      v.literal("pi"),
-      v.literal("grok"),
-      v.literal("muse"),
-      v.literal("antigravity"),
-    )),
+    agent_type: v.optional(
+      v.union(
+        v.literal("claude_code"),
+        v.literal("codex"),
+        v.literal("cursor"),
+        v.literal("gemini"),
+        v.literal("opencode"),
+        v.literal("pi"),
+        v.literal("grok"),
+        v.literal("muse"),
+        v.literal("antigravity"),
+      ),
+    ),
     project_path: v.optional(v.string()),
     git_root: v.optional(v.string()),
     isolated: v.optional(v.boolean()),
@@ -12637,22 +15754,36 @@ export const reconfigureSession = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || (conv.user_id !== userId && !(await isSessionOwner(ctx, conv._id, userId)))) throw new Error("Not found");
+    if (
+      !conv ||
+      (conv.user_id !== userId &&
+        !(await isSessionOwner(ctx, conv._id, userId)))
+    )
+      throw new Error("Not found");
     // A hosted conversation has no machine, folder or local agent to pick.
-    const hostedRefusal = agentTypeChangeRefusal(conv.agent_type, "claude_code");
+    const hostedRefusal = agentTypeChangeRefusal(
+      conv.agent_type,
+      "claude_code",
+    );
     if (hostedRefusal) throw new Error(hostedRefusal);
-    if ((conv.message_count ?? 0) > 0) throw new Error("Cannot reconfigure session with messages");
+    if ((conv.message_count ?? 0) > 0)
+      throw new Error("Cannot reconfigure session with messages");
     // What the row said BEFORE this call's patch — the placed-row rule below
     // compares the requested folder against it.
     const priorProjectPath = conv.project_path;
     if (args.cloud_device_id) {
-      if (userId !== conv.user_id) throw new Error("Only the session's runner can move it to the cloud");
+      if (userId !== conv.user_id)
+        throw new Error("Only the session's runner can move it to the cloud");
       await resolveCloudDevice(ctx, conv.user_id, args.cloud_device_id);
     }
     // Re-pointing a parked row is the runner's call, like parking it: a
     // co-owner may pick a model on a preparing row but not cancel or move
     // the runner's placement.
-    if (conv.cloud_placement === "pending" && args.target_device_id && userId !== conv.user_id) {
+    if (
+      conv.cloud_placement === "pending" &&
+      args.target_device_id &&
+      userId !== conv.user_id
+    ) {
       throw new Error("Only the session's runner can move it off the cloud");
     }
     // Un-park: a row parked on the cloud host pointed back at a laptop. The
@@ -12667,15 +15798,26 @@ export const reconfigureSession = mutation({
     let unpark = false;
     let hostTarget: any = null;
     const patch: Record<string, any> = { updated_at: Date.now() };
-    if (!args.cloud_device_id && conv.cloud_placement === "pending" && args.target_device_id) {
+    if (
+      !args.cloud_device_id &&
+      conv.cloud_placement === "pending" &&
+      args.target_device_id
+    ) {
       const target = await ctx.db
         .query("devices")
-        .withIndex("by_user_device", (q: any) => q.eq("user_id", conv.user_id).eq("device_id", args.target_device_id))
+        .withIndex("by_user_device", (q: any) =>
+          q.eq("user_id", conv.user_id).eq("device_id", args.target_device_id),
+        )
         .first();
       const unparkFields = await unparkForMove(ctx, conv, target);
       unpark = Object.keys(unparkFields).length > 0;
-      if (unpark) Object.assign(patch, unparkFields, { owner_device_id: undefined, session_error: undefined });
-      else if (target && target.device_id === conv.owner_device_id) hostTarget = target;
+      if (unpark)
+        Object.assign(patch, unparkFields, {
+          owner_device_id: undefined,
+          session_error: undefined,
+        });
+      else if (target && target.device_id === conv.owner_device_id)
+        hostTarget = target;
     }
     if (args.agent_type) patch.agent_type = args.agent_type;
     // An agent flip invalidates the previous agent's model/effort stamps
@@ -12687,11 +15829,15 @@ export const reconfigureSession = mutation({
     }
     const reconfAgent = args.agent_type || conv.agent_type || "claude_code";
     const launchCfg = AGENT_MODEL_CONFIG[modelAgentKey(reconfAgent)];
-    const launchModelOpt = args.model ? launchCfg?.models.find((m) => m.key === args.model) : undefined;
+    const launchModelOpt = args.model
+      ? launchCfg?.models.find((m) => m.key === args.model)
+      : undefined;
     if (args.model !== undefined) {
       if (!launchModelOpt) throw new Error(`Unknown model: ${args.model}`);
       patch.model = launchModelOpt.cliAlias
-        ? (modelAgentKey(reconfAgent) === "claude" ? `claude-${launchModelOpt.key}` : launchModelOpt.key)
+        ? modelAgentKey(reconfAgent) === "claude"
+          ? `claude-${launchModelOpt.key}`
+          : launchModelOpt.key
         : undefined;
     }
     if (args.effort !== undefined) {
@@ -12700,7 +15846,8 @@ export const reconfigureSession = mutation({
       if (args.effort === "default") {
         patch.effort = undefined;
       } else {
-        if (!launchCfg?.efforts.includes(args.effort)) throw new Error(`Unknown effort: ${args.effort}`);
+        if (!launchCfg?.efforts.includes(args.effort))
+          throw new Error(`Unknown effort: ${args.effort}`);
         patch.effort = args.effort;
       }
     }
@@ -12711,7 +15858,11 @@ export const reconfigureSession = mutation({
         .query("directory_team_mappings")
         .withIndex("by_user_id", (q) => q.eq("user_id", userId))
         .collect();
-      const { teamId, isPrivate, autoShared } = resolveTeamForPath(mappings, args.project_path, undefined);
+      const { teamId, isPrivate, autoShared } = resolveTeamForPath(
+        mappings,
+        args.project_path,
+        undefined,
+      );
       if (teamId) patch.team_id = teamId;
       patch.is_private = isPrivate;
       patch.auto_shared = autoShared || undefined;
@@ -12729,26 +15880,35 @@ export const reconfigureSession = mutation({
         .withIndex("by_user_id", (q: any) => q.eq("user_id", conv.user_id))
         .collect();
       const locals = devices.filter((d: any) => !d.is_remote);
-      const paths = [patch.git_root ?? conv.git_root, patch.project_path ?? conv.project_path];
-      unparkToHost = cloudPlacementFor({ target: hostTarget, locals, paths }) === "native";
-      if (unparkToHost) Object.assign(patch, CLOUD_UNPARK_PATCH, { session_error: undefined });
+      const paths = [
+        patch.git_root ?? conv.git_root,
+        patch.project_path ?? conv.project_path,
+      ];
+      unparkToHost =
+        cloudPlacementFor({ target: hostTarget, locals, paths }) === "native";
+      if (unparkToHost)
+        Object.assign(patch, CLOUD_UNPARK_PATCH, { session_error: undefined });
     }
 
     await ctx.db.patch(args.conversation_id, patch);
     // A project-path change re-resolves team/privacy; if the access inputs
     // actually moved, advance the comment view head (matrix SRV-02). Guarded
     // because reconfigure runs on every relaunch with unchanged access.
-    if (args.project_path !== undefined &&
+    if (
+      args.project_path !== undefined &&
       (patch.is_private !== conv.is_private ||
-        (patch.team_id !== undefined && patch.team_id !== conv.team_id))) {
+        (patch.team_id !== undefined && patch.team_id !== conv.team_id))
+    ) {
       await advanceCommentsAccessRevision(ctx, conv);
     }
 
-    if (unparkToHost) await supersedeCloudSpawns(ctx, conv.user_id, args.conversation_id);
+    if (unparkToHost)
+      await supersedeCloudSpawns(ctx, conv.user_id, args.conversation_id);
     // The folder moved under a park: the cloud_spawn a laptop may already be
     // running was chosen for (and would place) the OLD repo — supersede it and
     // ask again with a fresh token.
-    const pathChanged = args.project_path !== undefined && args.project_path !== priorProjectPath;
+    const pathChanged =
+      args.project_path !== undefined && args.project_path !== priorProjectPath;
 
     // start_session is now idempotent on the daemon: it kills any tmux with the
     // deterministic name `cc-<agent>-<convId-suffix>` and respawns it. One
@@ -12757,9 +15917,12 @@ export const reconfigureSession = mutation({
     const daemonAgentType = fromConvexAgentType(updated.agent_type);
     // Re-derive the launch payload from the (possibly just-patched) stamps so
     // an agent flip alone re-launches with the conversation's chosen model.
-    const stampedModelKey = args.model !== undefined
-      ? (launchModelOpt?.cliAlias ? launchModelOpt.key : undefined)
-      : launchModelKeyOf(reconfAgent, updated.model);
+    const stampedModelKey =
+      args.model !== undefined
+        ? launchModelOpt?.cliAlias
+          ? launchModelOpt.key
+          : undefined
+        : launchModelKeyOf(reconfAgent, updated.model);
     const launch = {
       conversationId: args.conversation_id,
       agentType: daemonAgentType,
@@ -12767,9 +15930,13 @@ export const reconfigureSession = mutation({
       gitRoot: updated.git_root,
       sessionId: updated.session_id,
       ...(stampedModelKey ? { model: stampedModelKey } : {}),
-      ...(updated.effort && launchCfg?.efforts.includes(updated.effort) ? { effort: updated.effort } : {}),
+      ...(updated.effort && launchCfg?.efforts.includes(updated.effort)
+        ? { effort: updated.effort }
+        : {}),
       ...(args.stable_mode ? { stableMode: args.stable_mode } : {}),
-      ...(args.stable_exclude?.length ? { stableExclude: args.stable_exclude } : {}),
+      ...(args.stable_exclude?.length
+        ? { stableExclude: args.stable_exclude }
+        : {}),
       callerUserId: userId,
     };
     if (args.cloud_device_id) {
@@ -12777,13 +15944,26 @@ export const reconfigureSession = mutation({
       // folder re-launches as a plain start on the host; another folder would
       // orphan a running worktree, so it is refused rather than re-parked.
       // A shared row holds the main checkout the same way (cloud_checkout_path).
-      const holdsCheckout = !!conv.worktree_path || (conv.cloud_workspace === "shared" && !!conv.cloud_checkout_path);
-      const placed = holdsCheckout && conv.owner_device_id === args.cloud_device_id && !conv.cloud_placement;
+      const holdsCheckout =
+        !!conv.worktree_path ||
+        (conv.cloud_workspace === "shared" && !!conv.cloud_checkout_path);
+      const placed =
+        holdsCheckout &&
+        conv.owner_device_id === args.cloud_device_id &&
+        !conv.cloud_placement;
       if (placed) {
-        if (args.project_path !== undefined && args.project_path !== priorProjectPath) {
-          throw new Error("This session is already placed on the host — start a new session for another folder");
+        if (
+          args.project_path !== undefined &&
+          args.project_path !== priorProjectPath
+        ) {
+          throw new Error(
+            "This session is already placed on the host — start a new session for another folder",
+          );
         }
-        await enqueueStartSession(ctx, conv.user_id, { ...launch, targetDeviceId: args.cloud_device_id });
+        await enqueueStartSession(ctx, conv.user_id, {
+          ...launch,
+          targetDeviceId: args.cloud_device_id,
+        });
         return;
       }
       await parkOnCloudHost(ctx, conv.user_id, updated, args.cloud_device_id, {
@@ -12814,11 +15994,21 @@ export const reconfigureSession = mutation({
 /** The launch option key a conversation's stamped model names ("claude-opus"
  *  → "opus"), or undefined when the stamp is no launchable option and the
  *  launch should fall back to the user's default. */
-export function launchModelKeyOf(agentType: string | null | undefined, model: string | null | undefined): string | undefined {
+export function launchModelKeyOf(
+  agentType: string | null | undefined,
+  model: string | null | undefined,
+): string | undefined {
   if (!model) return undefined;
   const agentKey = modelAgentKey(agentType || "claude_code");
-  const key = agentKey === "claude" && model.startsWith("claude-") ? model.slice("claude-".length) : model;
-  return AGENT_MODEL_CONFIG[agentKey]?.models.some((o) => o.key === key && o.cliAlias) ? key : undefined;
+  const key =
+    agentKey === "claude" && model.startsWith("claude-")
+      ? model.slice("claude-".length)
+      : model;
+  return AGENT_MODEL_CONFIG[agentKey]?.models.some(
+    (o) => o.key === key && o.cliAlias,
+  )
+    ? key
+    : undefined;
 }
 
 const switchAgentType = v.union(
@@ -12858,20 +16048,34 @@ export const switchSessionAgent = mutation({
         throw new Error("Not authorized");
       }
     } else if (args.session) {
-      conv = await resolveCommandableSession(ctx, userId, args.session, "switch");
+      conv = await resolveCommandableSession(
+        ctx,
+        userId,
+        args.session,
+        "switch",
+      );
     } else {
       throw new Error("conversation_id or session required");
     }
     if (!conv) throw new Error("Not found");
     // A hosted conversation never becomes a local agent session.
-    const hostedRefusal = agentTypeChangeRefusal(conv.agent_type, "claude_code");
+    const hostedRefusal = agentTypeChangeRefusal(
+      conv.agent_type,
+      "claude_code",
+    );
     if (hostedRefusal) throw new Error(hostedRefusal);
 
     const prevAgent = conv.agent_type || "claude_code";
     const nextAgent = args.agent_type || prevAgent;
     const agentChanged = !!args.agent_type && args.agent_type !== prevAgent;
-    const retryCodexSwitch = args.agent_type === "codex" && prevAgent === "codex";
-    if (!agentChanged && !retryCodexSwitch && args.model === undefined && args.effort === undefined) {
+    const retryCodexSwitch =
+      args.agent_type === "codex" && prevAgent === "codex";
+    if (
+      !agentChanged &&
+      !retryCodexSwitch &&
+      args.model === undefined &&
+      args.effort === undefined
+    ) {
       throw new Error("Nothing to switch");
     }
 
@@ -12881,10 +16085,20 @@ export const switchSessionAgent = mutation({
     // rebuilt — otherwise agent_type names an agent the daemon then fails to
     // launch, and every capability gate downstream (fork, model rail) reads
     // the lie while the old agent quietly resumes.
-    const blank = (conv.message_count ?? 0) === 0 && conv.fork_status !== "copying";
-    if (agentChanged && !canSessionBecomeAgent(args.agent_type, blank ? 0 : Math.max(1, conv.message_count ?? 0))) {
-      const label = AGENT_CLIENTS[fromConvexAgentType(args.agent_type)].displayName;
-      throw new Error(`${label} cannot take over an existing session's history; start a new ${label} session instead`);
+    const blank =
+      (conv.message_count ?? 0) === 0 && conv.fork_status !== "copying";
+    if (
+      agentChanged &&
+      !canSessionBecomeAgent(
+        args.agent_type,
+        blank ? 0 : Math.max(1, conv.message_count ?? 0),
+      )
+    ) {
+      const label =
+        AGENT_CLIENTS[fromConvexAgentType(args.agent_type)].displayName;
+      throw new Error(
+        `${label} cannot take over an existing session's history; start a new ${label} session instead`,
+      );
     }
 
     const patch: Record<string, any> = { updated_at: Date.now() };
@@ -12894,18 +16108,25 @@ export const switchSessionAgent = mutation({
       patch.effort = undefined;
     }
     const launchCfg = AGENT_MODEL_CONFIG[modelAgentKey(nextAgent)];
-    const launchModelOpt = args.model ? findModelOption(nextAgent, args.model) : undefined;
+    const launchModelOpt = args.model
+      ? findModelOption(nextAgent, args.model)
+      : undefined;
     if (args.model !== undefined) {
-      if (args.model !== "default" && !launchModelOpt) throw new Error(`Unknown model: ${args.model}`);
-      patch.model = args.model === "default" || !launchModelOpt?.cliAlias
-        ? undefined
-        : (modelAgentKey(nextAgent) === "claude" ? `claude-${launchModelOpt.key}` : launchModelOpt.key);
+      if (args.model !== "default" && !launchModelOpt)
+        throw new Error(`Unknown model: ${args.model}`);
+      patch.model =
+        args.model === "default" || !launchModelOpt?.cliAlias
+          ? undefined
+          : modelAgentKey(nextAgent) === "claude"
+            ? `claude-${launchModelOpt.key}`
+            : launchModelOpt.key;
     }
     if (args.effort !== undefined) {
       if (args.effort === "default") {
         patch.effort = undefined;
       } else {
-        if (!launchCfg?.efforts.includes(args.effort)) throw new Error(`Unknown effort: ${args.effort}`);
+        if (!launchCfg?.efforts.includes(args.effort))
+          throw new Error(`Unknown effort: ${args.effort}`);
         patch.effort = args.effort;
       }
     }
@@ -12917,9 +16138,12 @@ export const switchSessionAgent = mutation({
 
     if (blank) {
       const daemonAgentType = fromConvexAgentType(nextAgent);
-      const stampedModelKey = args.model !== undefined
-        ? (launchModelOpt?.cliAlias ? launchModelOpt.key : undefined)
-        : undefined;
+      const stampedModelKey =
+        args.model !== undefined
+          ? launchModelOpt?.cliAlias
+            ? launchModelOpt.key
+            : undefined
+          : undefined;
       await enqueueStartSession(ctx, conv.user_id, {
         conversationId: conv._id,
         agentType: daemonAgentType,
@@ -12927,9 +16151,16 @@ export const switchSessionAgent = mutation({
         gitRoot: updated.git_root,
         sessionId: updated.session_id,
         ...(stampedModelKey ? { model: stampedModelKey } : {}),
-        ...(updated.effort && launchCfg?.efforts.includes(updated.effort) ? { effort: updated.effort } : {}),
+        ...(updated.effort && launchCfg?.efforts.includes(updated.effort)
+          ? { effort: updated.effort }
+          : {}),
       });
-      return { ...sessionCommandResult(updated), switched: true, blank: true, reconstituted: false };
+      return {
+        ...sessionCommandResult(updated),
+        switched: true,
+        blank: true,
+        reconstituted: false,
+      };
     }
 
     if (reconstitutes) {
@@ -12938,7 +16169,11 @@ export const switchSessionAgent = mutation({
           toAgent: nextAgent,
           fromAgent: prevAgent,
           toModel: args.model ?? (agentChanged ? undefined : conv.model),
-          fromModel: agentChanged ? conv.model : (args.model !== undefined ? conv.model : undefined),
+          fromModel: agentChanged
+            ? conv.model
+            : args.model !== undefined
+              ? conv.model
+              : undefined,
         });
         await ctx.db.insert("messages", {
           conversation_id: conv._id,
@@ -12947,7 +16182,11 @@ export const switchSessionAgent = mutation({
           subtype: "agent_switch",
           message_uuid: crypto.randomUUID(),
           timestamp: Date.now(),
-          ...navPromptField({ role: "user", content: notice, subtype: "agent_switch" }),
+          ...navPromptField({
+            role: "user",
+            content: notice,
+            subtype: "agent_switch",
+          }),
         });
         await ctx.db.patch(conv._id, {
           message_count: (conv.message_count ?? 0) + 1,
@@ -12962,14 +16201,19 @@ export const switchSessionAgent = mutation({
         model: args.model ?? updated.model,
         effort: args.effort ?? updated.effort,
       });
-      return { ...sessionCommandResult(updated), switched: true, reconstituted: true };
+      return {
+        ...sessionCommandResult(updated),
+        switched: true,
+        reconstituted: true,
+      };
     }
 
     // Same-provider live rail: stamp the row, then inject `/model` / `/effort`
     // so the running agent applies it. The slash echo is the divider.
     const liveCommands: string[] = [];
     if (args.model !== undefined) {
-      const alias = args.model === "default" ? "default" : launchModelOpt?.cliAlias;
+      const alias =
+        args.model === "default" ? "default" : launchModelOpt?.cliAlias;
       if (alias) liveCommands.push(`/model ${alias}`);
     }
     if (args.effort !== undefined && args.effort !== "default") {
@@ -13002,10 +16246,14 @@ export const markInteractive = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     const conversation = await ctx.db.get(args.conversation_id);
-    if (!conversation || String(conversation.user_id) !== String(auth.userId)) throw new Error("Only the session's own account marks it interactive");
+    if (!conversation || String(conversation.user_id) !== String(auth.userId))
+      throw new Error("Only the session's own account marks it interactive");
     const flags = (conversation.cli_flags ?? "").split(/\s+/).filter(Boolean);
-    if (flags.includes("--interactive") || flags.includes("--print")) return { marked: false };
-    await ctx.db.patch(conversation._id, { cli_flags: [...flags, "--interactive"].join(" ") });
+    if (flags.includes("--interactive") || flags.includes("--print"))
+      return { marked: false };
+    await ctx.db.patch(conversation._id, {
+      cli_flags: [...flags, "--interactive"].join(" "),
+    });
     return { marked: true };
   },
 });
@@ -13027,7 +16275,8 @@ export const linkSessions = mutation({
     if (args.parent_conversation_id === args.child_conversation_id) return;
 
     const parent = await ctx.db.get(args.parent_conversation_id);
-    if (!parent || parent.user_id !== userId) throw new Error("Parent not found");
+    if (!parent || parent.user_id !== userId)
+      throw new Error("Parent not found");
 
     const child = await ctx.db.get(args.child_conversation_id);
     if (!child || child.user_id !== userId) throw new Error("Child not found");
@@ -13067,7 +16316,8 @@ export const linkSpawnedBy = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const parent = await ctx.db.get(args.parent_conversation_id);
-    if (!parent || parent.user_id !== userId) throw new Error("Parent not found");
+    if (!parent || parent.user_id !== userId)
+      throw new Error("Parent not found");
 
     const child = await ctx.db.get(args.child_conversation_id);
     if (!child || child.user_id !== userId) throw new Error("Child not found");
@@ -13078,7 +16328,9 @@ export const linkSpawnedBy = mutation({
         ...(args.agent_team_name && !child.agent_team_name
           ? { agent_team_name: args.agent_team_name }
           : {}),
-        ...(args.agent_name && !child.agent_name ? { agent_name: args.agent_name } : {}),
+        ...(args.agent_name && !child.agent_name
+          ? { agent_name: args.agent_name }
+          : {}),
       });
     }
 
@@ -13090,7 +16342,6 @@ export const linkSpawnedBy = mutation({
     }
   },
 });
-
 
 export const linkPlanHandoff = mutation({
   args: {
@@ -13111,7 +16362,8 @@ export const linkPlanHandoff = mutation({
     if (args.parent_conversation_id === args.child_conversation_id) return;
     // The parent must be the caller's too (linkSessions' rule).
     const parent = await ctx.db.get(args.parent_conversation_id);
-    if (!parent || !(await isConversationOwner(ctx, userId, parent))) throw new Error("Parent not found");
+    if (!parent || !(await isConversationOwner(ctx, userId, parent)))
+      throw new Error("Parent not found");
 
     await ctx.db.patch(args.child_conversation_id, {
       parent_conversation_id: args.parent_conversation_id,
@@ -13136,7 +16388,9 @@ export const adminLookupConversation = mutation({
     } else if (args.session_id) {
       conv = await ctx.db
         .query("conversations")
-        .withIndex("by_session_id", (q: any) => q.eq("session_id", args.session_id))
+        .withIndex("by_session_id", (q: any) =>
+          q.eq("session_id", args.session_id),
+        )
         .filter((q: any) => q.eq(q.field("user_id"), userId))
         .first();
     }
@@ -13166,7 +16420,7 @@ export const adminFindChildren = mutation({
     const children = await ctx.db
       .query("conversations")
       .withIndex("by_parent_conversation_id", (q) =>
-        q.eq("parent_conversation_id", args.parent_conversation_id)
+        q.eq("parent_conversation_id", args.parent_conversation_id),
       )
       .collect();
     // Scope to the caller's own children, matching adminLookupConversation. The
@@ -13196,12 +16450,18 @@ export const adminLinkChildrenBySessionId = mutation({
 
     const parent = await ctx.db
       .query("conversations")
-      .withIndex("by_session_id", (q) => q.eq("session_id", args.parent_session_id))
+      .withIndex("by_session_id", (q) =>
+        q.eq("session_id", args.parent_session_id),
+      )
       .filter((q) => q.eq(q.field("user_id"), userId))
       .first();
     if (!parent) throw new Error("Parent not found");
 
-    const results: Array<{session_id: string; status: string; conversation_id?: string}> = [];
+    const results: Array<{
+      session_id: string;
+      status: string;
+      conversation_id?: string;
+    }> = [];
     for (const childSessionId of args.child_session_ids) {
       const child = await ctx.db
         .query("conversations")
@@ -13213,7 +16473,11 @@ export const adminLinkChildrenBySessionId = mutation({
         continue;
       }
       if (child.parent_conversation_id === parent._id) {
-        results.push({ session_id: childSessionId, status: "already_linked", conversation_id: child._id });
+        results.push({
+          session_id: childSessionId,
+          status: "already_linked",
+          conversation_id: child._id,
+        });
         continue;
       }
       await ctx.db.patch(child._id, {
@@ -13221,9 +16485,17 @@ export const adminLinkChildrenBySessionId = mutation({
         is_subagent: true,
         inbox_dismissed_at: Date.now(),
       });
-      results.push({ session_id: childSessionId, status: "linked", conversation_id: child._id });
+      results.push({
+        session_id: childSessionId,
+        status: "linked",
+        conversation_id: child._id,
+      });
     }
-    return { parent_id: parent._id, parent_session_id: parent.session_id, results };
+    return {
+      parent_id: parent._id,
+      parent_session_id: parent.session_id,
+      results,
+    };
   },
 });
 
@@ -13295,12 +16567,21 @@ export const updateSessionId = mutation({
         .query("directory_team_mappings")
         .withIndex("by_user_id", (q) => q.eq("user_id", userId))
         .collect();
-      const restamp = buildPathRestampUpdate({ ...conv, git_remote_url: args.git_remote_url ?? conv.git_remote_url }, mappings, stampedPath);
+      const restamp = buildPathRestampUpdate(
+        { ...conv, git_remote_url: args.git_remote_url ?? conv.git_remote_url },
+        mappings,
+        stampedPath,
+      );
       if (restamp) Object.assign(patch, restamp);
     }
 
     // A restamp can flip visibility, so linked work items must follow.
-    if (patch.is_private !== undefined || patch.team_id !== undefined || patch.auto_shared !== undefined || patch.team_visibility !== undefined) {
+    if (
+      patch.is_private !== undefined ||
+      patch.team_id !== undefined ||
+      patch.auto_shared !== undefined ||
+      patch.team_visibility !== undefined
+    ) {
       await patchConversationVisibility(ctx, conv, patch);
     } else {
       await ctx.db.patch(args.conversation_id, patch);
@@ -13308,7 +16589,12 @@ export const updateSessionId = mutation({
     // A stable-context record posted under the REAL agent session id before
     // this rebind (web-started sessions briefly carry the client stub id)
     // is waiting in the spool — attach it now.
-    await consumeStableContextSpool(ctx, userId, args.session_id, args.conversation_id);
+    await consumeStableContextSpool(
+      ctx,
+      userId,
+      args.session_id,
+      args.conversation_id,
+    );
     return { updated: true };
   },
 });
@@ -13335,7 +16621,11 @@ export async function consumeStableContextSpool(
     const conv = await ctx.db.get(conversationId);
     // Don't clobber an existing record (side row, or a legacy on-doc value not
     // yet swept) — the direct recordStableContext write is fresher.
-    if (conv && !conv.stable_context && !(await getConvStableContext(ctx, conversationId))) {
+    if (
+      conv &&
+      !conv.stable_context &&
+      !(await getConvStableContext(ctx, conversationId))
+    ) {
       await setConvStableContext(ctx, conversationId, spooled.data);
     }
     await ctx.db.delete(spooled._id);
@@ -13343,7 +16633,9 @@ export async function consumeStableContextSpool(
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const stale = await ctx.db
     .query("stable_context_spool")
-    .withIndex("by_user_created", (q: any) => q.eq("user_id", userId).lt("created_at", cutoff))
+    .withIndex("by_user_created", (q: any) =>
+      q.eq("user_id", userId).lt("created_at", cutoff),
+    )
     .take(20);
   for (const row of stale) {
     if (row.created_at < cutoff) await ctx.db.delete(row._id);
@@ -13400,7 +16692,10 @@ export const recordStableContext = mutation({
         .filter((q) => q.eq(q.field("user_id"), userId))
         .first();
       if (existing) {
-        await ctx.db.patch(existing._id, { data: args.data, created_at: Date.now() });
+        await ctx.db.patch(existing._id, {
+          data: args.data,
+          created_at: Date.now(),
+        });
       } else {
         await ctx.db.insert("stable_context_spool", {
           user_id: userId,
@@ -13429,7 +16724,7 @@ export const listDismissedSessions = query({
     const conversations = await ctx.db
       .query("conversations")
       .withIndex("by_user_dismissed", (q) =>
-        q.eq("user_id", userId).gte("inbox_dismissed_at", cutoff)
+        q.eq("user_id", userId).gte("inbox_dismissed_at", cutoff),
       )
       .order("desc")
       .take(200);
@@ -13446,14 +16741,17 @@ export const listDismissedSessions = query({
         const children = await ctx.db
           .query("conversations")
           .withIndex("by_parent_conversation_id", (q) =>
-            q.eq("parent_conversation_id", conv._id)
+            q.eq("parent_conversation_id", conv._id),
           )
           .take(5);
         const implChild = children.find(
-          (c) => c.parent_message_uuid === "plan-handoff" && !c.is_subagent
+          (c) => c.parent_message_uuid === "plan-handoff" && !c.is_subagent,
         );
         if (implChild) {
-          implementationSession = { _id: implChild._id.toString(), title: implChild.title };
+          implementationSession = {
+            _id: implChild._id.toString(),
+            title: implChild.title,
+          };
         }
       }
 
@@ -13481,11 +16779,13 @@ export const listDismissedSessions = query({
       });
     }
 
-    results.sort((a, b) => (b.dismissed_at || b.updated_at) - (a.dismissed_at || a.updated_at));
+    results.sort(
+      (a, b) =>
+        (b.dismissed_at || b.updated_at) - (a.dismissed_at || a.updated_at),
+    );
     return results;
   },
 });
-
 
 // requireSessionCommandTarget lives in daemonCommandUtils (shared with
 // users.resumeSession and the dispatch resume handler); re-exported for callers
@@ -13514,10 +16814,18 @@ export const sendEscapeToSession = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    if (args.request_id !== undefined) validateSessionCommandRequestId(args.request_id);
+    if (args.request_id !== undefined)
+      validateSessionCommandRequestId(args.request_id);
 
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
-    await insertEscapeCommand(ctx, conv, { pressed_at: args.pressed_at, request_id: args.request_id });
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
+    await insertEscapeCommand(ctx, conv, {
+      pressed_at: args.pressed_at,
+      request_id: args.request_id,
+    });
   },
 });
 
@@ -13534,8 +16842,17 @@ export const stopAndSendToSession = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    if (args.request_id !== undefined) validateSessionCommandRequestId(args.request_id);
-    return await stopAndSendForUser(ctx, userId, args.conversation_id, args.content, args.client_id, args.pressed_at, args.request_id);
+    if (args.request_id !== undefined)
+      validateSessionCommandRequestId(args.request_id);
+    return await stopAndSendForUser(
+      ctx,
+      userId,
+      args.conversation_id,
+      args.content,
+      args.client_id,
+      args.pressed_at,
+      args.request_id,
+    );
   },
 });
 
@@ -13548,12 +16865,19 @@ export const sendKeysToSession = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
 
     await ctx.db.insert("daemon_commands", {
       user_id: conv.user_id,
       command: "send_keys",
-      args: JSON.stringify({ conversation_id: args.conversation_id, keys: args.keys }),
+      args: JSON.stringify({
+        conversation_id: args.conversation_id,
+        keys: args.keys,
+      }),
       created_at: Date.now(),
     });
   },
@@ -13573,7 +16897,11 @@ export const setPermissionMode = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
 
     // Routed to the owning device like a resume: a broadcast row is claimed by
     // whichever daemon answers first, and a daemon that predates this command
@@ -13584,7 +16912,10 @@ export const setPermissionMode = mutation({
       user_id: conv.user_id,
       command: "set_permission_mode",
       target_device_id: conv.owner_device_id ?? undefined,
-      args: JSON.stringify({ conversation_id: args.conversation_id, ...(args.target ? { target: args.target } : {}) }),
+      args: JSON.stringify({
+        conversation_id: args.conversation_id,
+        ...(args.target ? { target: args.target } : {}),
+      }),
       created_at: Date.now(),
     });
   },
@@ -13599,12 +16930,19 @@ export const rewindSession = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
 
     await ctx.db.insert("daemon_commands", {
       user_id: conv.user_id,
       command: "rewind",
-      args: JSON.stringify({ conversation_id: args.conversation_id, steps_back: args.steps_back }),
+      args: JSON.stringify({
+        conversation_id: args.conversation_id,
+        steps_back: args.steps_back,
+      }),
       created_at: Date.now(),
     });
   },
@@ -13651,7 +16989,8 @@ export async function resolveRestartTarget(
     // sendMessage/resumeSession. An owned session (Mr-Bot-run, assigned to this
     // user) restarts from the owner's inbox exactly like their own; the daemon
     // commands are routed to the runner by the callers.
-    if (conv.user_id !== userId && conv.owner_user_id !== userId) throw new Error("Not authorized");
+    if (conv.user_id !== userId && conv.owner_user_id !== userId)
+      throw new Error("Not authorized");
     // An explicit Restart IS the sanctioned revival — the same gesture class as
     // a human send, so it gets the send path's wake-up rules
     // (enqueuePendingMessage): clear the kill/hide stamps and re-activate, in
@@ -13693,11 +17032,17 @@ export async function resolveRestartTarget(
     // ghost context, for any ghost that has been restored once before).
     const prior = await ctx.db
       .query("conversations")
-      .withIndex("by_restored_from", (q) => q.eq("restored_from_conversation_id", conversationId.toString()))
+      .withIndex("by_restored_from", (q) =>
+        q.eq("restored_from_conversation_id", conversationId.toString()),
+      )
       .collect();
     const priorTarget = prior
       .filter((t) => t.user_id === userId)
-      .reduce((a: any, b: any) => ((b.updated_at ?? 0) > (a?.updated_at ?? 0) ? b : a), null);
+      .reduce(
+        (a: any, b: any) =>
+          (b.updated_at ?? 0) > (a?.updated_at ?? 0) ? b : a,
+        null,
+      );
     sessionId = priorTarget?.session_id;
   }
   if (!sessionId) {
@@ -13705,7 +17050,9 @@ export async function resolveRestartTarget(
     // outlive the conversation row — recover the session from there.
     const managed = await ctx.db
       .query("managed_sessions")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversationId))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversationId),
+      )
       .collect();
     const own = managed.filter((m) => m.user_id === userId);
     const beats = await heartbeatsFor(ctx, own);
@@ -13730,7 +17077,9 @@ export async function resolveRestartTarget(
     .collect();
   const owned = twins.filter((t) => t.user_id === userId);
   if (owned.length > 0) {
-    const twin = owned.reduce((a, b) => ((b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a));
+    const twin = owned.reduce((a, b) =>
+      (b.updated_at ?? 0) > (a.updated_at ?? 0) ? b : a,
+    );
     // Restarting is an explicit "bring this back" — resurface it in the inbox,
     // and tombstone the dead id so stale links resolve here from now on.
     await ctx.db.patch(twin._id, {
@@ -13749,7 +17098,11 @@ export async function resolveRestartTarget(
     .query("directory_team_mappings")
     .withIndex("by_user_id", (q) => q.eq("user_id", userId))
     .collect();
-  const { teamId, isPrivate, autoShared } = resolveTeamForPath(mappings, ghost.project_path, undefined);
+  const { teamId, isPrivate, autoShared } = resolveTeamForPath(
+    mappings,
+    ghost.project_path,
+    undefined,
+  );
   const agentType = toConvexAgentType(fromConvexAgentType(ghost.agent_type));
   const newId = await ctx.db.insert("conversations", {
     user_id: userId,
@@ -13776,17 +17129,35 @@ export async function resolveRestartTarget(
 export async function enqueueKillAndResume(
   ctx: MutationCtx,
   userId: Id<"users">,
-  conv: { _id: Id<"conversations">; session_id?: string; project_path?: string; git_root?: string; agent_type?: string; fork_status?: string; fork_daemon_args?: string },
+  conv: {
+    _id: Id<"conversations">;
+    session_id?: string;
+    project_path?: string;
+    git_root?: string;
+    agent_type?: string;
+    fork_status?: string;
+    fork_daemon_args?: string;
+  },
   // requestId: the client's id for this restart (store restartSession).
   // It lands on the resume row, the one whose outcome IS the restart's, so the
   // row the click painted settles from it. A replayed request queues nothing.
-  opts: { forceReconstitute?: boolean; switchAgent?: boolean; model?: string; effort?: string; requestId?: string; cause?: string } = {},
+  opts: {
+    forceReconstitute?: boolean;
+    switchAgent?: boolean;
+    model?: string;
+    effort?: string;
+    requestId?: string;
+    cause?: string;
+  } = {},
 ) {
   if (opts.cause) noteWriteCause(ctx, opts.cause);
   const now = Date.now();
   // Throws for a hosted conversation: no daemon kills or resumes it.
   const agentType = localAgentTypeOf(conv.agent_type);
-  if (opts.requestId !== undefined && await findSessionCommandByRequest(ctx, userId, opts.requestId)) {
+  if (
+    opts.requestId !== undefined &&
+    (await findSessionCommandByRequest(ctx, userId, opts.requestId))
+  ) {
     return { deduplicated: true };
   }
   const resumeArgs = {
@@ -13795,39 +17166,58 @@ export async function enqueueKillAndResume(
     project_path: conv.project_path ?? conv.git_root,
     agent_type: agentType,
     ...(opts.forceReconstitute ? { force_reconstitute: true } : {}),
-    ...(opts.switchAgent ? { switch_agent: true, force_reconstitute: true } : {}),
+    ...(opts.switchAgent
+      ? { switch_agent: true, force_reconstitute: true }
+      : {}),
     ...(opts.model !== undefined ? { model: opts.model } : {}),
     ...(opts.effort !== undefined ? { effort: opts.effort } : {}),
   };
   if (opts.switchAgent && conv.fork_status === "copying") {
     const deferred = JSON.parse(conv.fork_daemon_args || "{}");
     await ctx.db.patch(conv._id, {
-      fork_daemon_args: JSON.stringify({ ...resumeArgs, fork: true, _target_device_id: deferred._target_device_id }),
+      fork_daemon_args: JSON.stringify({
+        ...resumeArgs,
+        fork: true,
+        _target_device_id: deferred._target_device_id,
+      }),
     });
     return { deduplicated: false, deferred: true };
   }
   const pendingCommands = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q) => q.eq("user_id", userId).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
     .collect();
 
   const changesModel = opts.model !== undefined || opts.effort !== undefined;
-  const candidates = pendingCommands.filter(command => {
+  const candidates = pendingCommands.filter((command) => {
     if ((changesModel || opts.switchAgent) && command.claimed_by) return false;
     if (!opts.switchAgent) return true;
-    if (extractDaemonCommandConversationId(command.args) !== conv._id.toString()) return false;
+    if (
+      extractDaemonCommandConversationId(command.args) !== conv._id.toString()
+    )
+      return false;
     const args = JSON.parse(command.args || "{}");
-    return args.switch_agent === true && args.agent_type === resumeArgs.agent_type;
+    return (
+      args.switch_agent === true && args.agent_type === resumeArgs.agent_type
+    );
   });
-  if (hasRecentPendingDaemonCommand(candidates as any, {
-    conversationId: conv._id.toString(),
-    command: "resume_session",
-    now,
-  })) {
+  if (
+    hasRecentPendingDaemonCommand(candidates as any, {
+      conversationId: conv._id.toString(),
+      command: "resume_session",
+      now,
+    })
+  ) {
     if (changesModel) {
-      const queued = candidates.find(command => hasRecentPendingDaemonCommand([command], {
-        conversationId: conv._id.toString(), command: "resume_session", now,
-      }));
+      const queued = candidates.find((command) =>
+        hasRecentPendingDaemonCommand([command], {
+          conversationId: conv._id.toString(),
+          command: "resume_session",
+          now,
+        }),
+      );
       if (queued) {
         await ctx.db.patch(queued._id, {
           args: JSON.stringify({
@@ -13841,10 +17231,17 @@ export async function enqueueKillAndResume(
     // The click joins the resume already queued: it carries the request id
     // when no earlier click bound one, so the painted row still settles.
     if (opts.requestId !== undefined) {
-      const queued = candidates.find(command => !command.request_id && hasRecentPendingDaemonCommand([command], {
-        conversationId: conv._id.toString(), command: "resume_session", now,
-      }));
-      if (queued) await ctx.db.patch(queued._id, { request_id: opts.requestId });
+      const queued = candidates.find(
+        (command) =>
+          !command.request_id &&
+          hasRecentPendingDaemonCommand([command], {
+            conversationId: conv._id.toString(),
+            command: "resume_session",
+            now,
+          }),
+      );
+      if (queued)
+        await ctx.db.patch(queued._id, { request_id: opts.requestId });
     }
     await resetConversationPendingMessages(ctx, conv._id);
     return { deduplicated: true };
@@ -13860,7 +17257,8 @@ export async function enqueueKillAndResume(
       // as a user kill, marks the conversation completed, and Codex keeps
       // answering under the old thread (ct-51691).
       ...(opts.switchAgent ? { switch_agent: true } : {}),
-      cause: opts.cause ?? (opts.switchAgent ? "switch_agent" : "kill_and_resume"),
+      cause:
+        opts.cause ?? (opts.switchAgent ? "switch_agent" : "kill_and_resume"),
     }),
     created_at: now,
   });
@@ -13879,13 +17277,23 @@ export async function enqueueKillAndResume(
 
 /** The kill itself, for every caller that has already authenticated: the
  *  daemon teardown, the completed stamp, and the sweeps that keep it dead. */
-export async function killConversation(ctx: any, userId: Id<"users">, args: { conversation_id: Id<"conversations">; mark_completed?: boolean; session_id?: string }, opts?: { retiring?: boolean; cause?: string; keepWorkspace?: boolean }) {
+export async function killConversation(
+  ctx: any,
+  userId: Id<"users">,
+  args: {
+    conversation_id: Id<"conversations">;
+    mark_completed?: boolean;
+    session_id?: string;
+  },
+  opts?: { retiring?: boolean; cause?: string; keepWorkspace?: boolean },
+) {
   noteWriteCause(ctx, opts?.cause ?? "killSession");
   const conv = await ctx.db.get(args.conversation_id);
   // The runner, or the session's second-party owner — same rule as
   // restartSession/dispatch.sendMessage. An owned session kills from the
   // owner's inbox exactly like their own.
-  if (conv && conv.user_id !== userId && conv.owner_user_id !== userId) throw new Error("Not authorized");
+  if (conv && conv.user_id !== userId && conv.owner_user_id !== userId)
+    throw new Error("Not authorized");
   if (!opts?.retiring) await refuseSeatKill(ctx, conv);
 
   // Enqueue even when the row is gone: the daemon tears backends down from the
@@ -13912,7 +17320,9 @@ export async function killConversation(ctx: any, userId: Id<"users">, args: { co
     // First-kill time, preserved across re-kills (same rule as
     // applyHideTransition): a repeat kill re-runs teardown, it doesn't
     // rewrite when the session was retired.
-    const patch: Record<string, any> = conv.inbox_killed_at ? {} : { inbox_killed_at: Date.now() };
+    const patch: Record<string, any> = conv.inbox_killed_at
+      ? {}
+      : { inbox_killed_at: Date.now() };
     // A persistent anchor session never auto-completes — a dismiss/kill gesture
     // on its pinned card puts it to sleep, it isn't retired. Only an explicit
     // decommissionAnchor (which clears `persistent` first) may complete it.
@@ -13922,7 +17332,8 @@ export async function killConversation(ctx: any, userId: Id<"users">, args: { co
     await ctx.db.patch(args.conversation_id, patch);
     // A retired row leaves the Lock Screen strip with the next push. The org
     // cores that retire a seat run without a scheduler in their pure form.
-    if (ctx.scheduler) await scheduleLiveActivityRefresh(ctx, conv.user_id, { urgent: true });
+    if (ctx.scheduler)
+      await scheduleLiveActivityRefresh(ctx, conv.user_id, { urgent: true });
     // Kill must stick: cancel any armed schedule that injects into this
     // conversation, or its next fire would resurrect the session the user
     // just killed (see cancelTasksBoundToConversation). Scan the RUNNER's
@@ -13934,14 +17345,25 @@ export async function killConversation(ctx: any, userId: Id<"users">, args: { co
     // the web button and `cast kill` leave the same session in different
     // states (its queue survives one and not the other).
     if (!conv.persistent) {
-      canceledSchedules = await cancelTasksBoundToConversation(ctx, conv.user_id, args.conversation_id);
+      canceledSchedules = await cancelTasksBoundToConversation(
+        ctx,
+        conv.user_id,
+        args.conversation_id,
+      );
       if (conv.user_id !== userId) {
-        canceledSchedules += await cancelTasksBoundToConversation(ctx, userId, args.conversation_id);
+        canceledSchedules += await cancelTasksBoundToConversation(
+          ctx,
+          userId,
+          args.conversation_id,
+        );
       }
       // Kill is terminal for messages already queued too — same reason the
       // schedules die: a retained message that lands later revives the session
       // the user just killed. Only the pre-kill queue; a later send re-enqueues.
-      canceledMessages = await cancelQueuedMessagesOnKill(ctx, args.conversation_id);
+      canceledMessages = await cancelQueuedMessagesOnKill(
+        ctx,
+        args.conversation_id,
+      );
     }
     // Take the nested group (Task subagents + agent-team teammates) down
     // with the card. The web store also sweeps optimistically for its own
@@ -13949,10 +17371,19 @@ export async function killConversation(ctx: any, userId: Id<"users">, args: { co
     // unconditional enqueue above: this mutation IS an explicit kill gesture,
     // so an already-hidden child whose worker came back gets torn down again
     // rather than skipped — the group comes down as one unit.
-    await cascadeHideToNestedChildren(ctx, conv, { inbox_dismissed_at: Date.now() }, { forceKill: true, cause: opts?.cause ?? "killSession" });
+    await cascadeHideToNestedChildren(
+      ctx,
+      conv,
+      { inbox_dismissed_at: Date.now() },
+      { forceKill: true, cause: opts?.cause ?? "killSession" },
+    );
     if (!conv.persistent) await subagentEnded(ctx, conv, "killed");
   }
-  return { existed: !!conv, canceled_schedules: canceledSchedules, canceled_messages: canceledMessages };
+  return {
+    existed: !!conv,
+    canceled_schedules: canceledSchedules,
+    canceled_messages: canceledMessages,
+  };
 }
 
 export const killSession = mutation({
@@ -13971,12 +17402,18 @@ export const killSession = mutation({
 
 // A restart the dispatch outbox delivers twice: answer from the command the
 // first delivery queued, before a ghost restore can mint a second conversation.
-async function replayedRestart(ctx: MutationCtx, userId: Id<"users">, requestId: string | undefined) {
+async function replayedRestart(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  requestId: string | undefined,
+) {
   if (requestId === undefined) return null;
   validateSessionCommandRequestId(requestId);
   const existing = await findSessionCommandByRequest(ctx, userId, requestId);
   const convId = existing && extractDaemonCommandConversationId(existing.args);
-  return convId ? { conversation_id: convId as Id<"conversations">, restored: false } : null;
+  return convId
+    ? { conversation_id: convId as Id<"conversations">, restored: false }
+    : null;
 }
 
 export const restartSession = mutation({
@@ -13992,16 +17429,27 @@ export const restartSession = mutation({
     const replay = await replayedRestart(ctx, userId, args.request_id);
     if (replay) return replay;
     noteWriteCause(ctx, "restart");
-    const { conv, restored } = await resolveRestartTarget(ctx, userId, args.conversation_id, args);
+    const { conv, restored } = await resolveRestartTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+      args,
+    );
     if (!conv.session_id) throw new Error("No session to restart");
     // The hosted assistant runs on the server, not on a machine: no daemon
     // polls for it, and its turn engine owns delivery.
-    if (isHostedAgentType(conv.agent_type)) throw new Error("The assistant runs here, so there is nothing to restart");
+    if (isHostedAgentType(conv.agent_type))
+      throw new Error(
+        "The assistant runs here, so there is nothing to restart",
+      );
 
     // Daemon commands are polled by the RUNNER's daemon — for a second-party
     // owner restarting a session run by another account, address the commands
     // to the runner, not the caller (same routing as dispatch.resumeSession).
-    await enqueueKillAndResume(ctx, conv.user_id, conv, { requestId: args.request_id, cause: "restart" });
+    await enqueueKillAndResume(ctx, conv.user_id, conv, {
+      requestId: args.request_id,
+      cause: "restart",
+    });
     return { conversation_id: conv._id, restored };
   },
 });
@@ -14019,11 +17467,20 @@ export const repairSession = mutation({
     const replay = await replayedRestart(ctx, userId, args.request_id);
     if (replay) return replay;
     noteWriteCause(ctx, "repair");
-    const { conv, restored } = await resolveRestartTarget(ctx, userId, args.conversation_id, args);
+    const { conv, restored } = await resolveRestartTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+      args,
+    );
     if (!conv.session_id) throw new Error("No session to repair");
 
     // Runner-routed for the same reason as restartSession above.
-    await enqueueKillAndResume(ctx, conv.user_id, conv, { forceReconstitute: true, requestId: args.request_id, cause: "repair" });
+    await enqueueKillAndResume(ctx, conv.user_id, conv, {
+      forceReconstitute: true,
+      requestId: args.request_id,
+      cause: "repair",
+    });
     return { conversation_id: conv._id, restored };
   },
 });
@@ -14036,7 +17493,9 @@ export const getRestartProgress = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    return (await recentConversationCommands(ctx, userId, args.conversation_id)).map((c) => ({
+    return (
+      await recentConversationCommands(ctx, userId, args.conversation_id)
+    ).map((c) => ({
       command: c.command,
       created_at: c.created_at,
       executed_at: c.executed_at ?? null,
@@ -14058,14 +17517,21 @@ export const switchSessionProject = mutation({
     // Both the kill and the relaunch are routed under the runner's account —
     // the session stays on the machine that runs it, whichever party asked
     // for the switch (paths are that machine's).
-    const conv = await requireSessionCommandTarget(ctx, userId, args.conversation_id);
+    const conv = await requireSessionCommandTarget(
+      ctx,
+      userId,
+      args.conversation_id,
+    );
 
     const now = Date.now();
 
     await ctx.db.insert("daemon_commands", {
       user_id: conv.user_id,
       command: "kill_session",
-      args: JSON.stringify({ conversation_id: args.conversation_id, cause: "switch_project" }),
+      args: JSON.stringify({
+        conversation_id: args.conversation_id,
+        cause: "switch_project",
+      }),
       created_at: now,
     });
 
@@ -14139,11 +17605,18 @@ async function streamNavigableUserMessages(
   budget: NavScanBudget,
   indexed: boolean,
 ): Promise<void> {
-  const q = (indexed
-    ? db.query("messages").withIndex("by_conversation_nav_prompt", (qq: any) =>
-        qq.eq("conversation_id", conversationId).eq("nav_prompt", true))
-    : db.query("messages").withIndex("by_conversation_role_timestamp", (qq: any) =>
-        qq.eq("conversation_id", conversationId).eq("role", "user"))
+  const q = (
+    indexed
+      ? db
+          .query("messages")
+          .withIndex("by_conversation_nav_prompt", (qq: any) =>
+            qq.eq("conversation_id", conversationId).eq("nav_prompt", true),
+          )
+      : db
+          .query("messages")
+          .withIndex("by_conversation_role_timestamp", (qq: any) =>
+            qq.eq("conversation_id", conversationId).eq("role", "user"),
+          )
   ).order(order);
   let docs = 0;
   for await (const m of q) {
@@ -14154,7 +17627,11 @@ async function streamNavigableUserMessages(
       into.set(m._id, toNavigatorRow(m as any));
     }
     if (budget.bytes >= NAV_USER_MESSAGES_HARD_BYTE_CEILING) break;
-    if (budget.bytes >= NAV_USER_MESSAGES_BYTE_BUDGET && budget.kept >= NAV_USER_MESSAGES_MIN_ROWS) break;
+    if (
+      budget.bytes >= NAV_USER_MESSAGES_BYTE_BUDGET &&
+      budget.kept >= NAV_USER_MESSAGES_MIN_ROWS
+    )
+      break;
     if (docs >= docLimit) break;
   }
 }
@@ -14171,8 +17648,24 @@ export async function collectNavigableUserMessages(
   // it gets the budget first and the oldest pass only fills in the head with
   // whatever is left.
   const budget: NavScanBudget = { bytes: 0, kept: 0 };
-  await streamNavigableUserMessages(db, conversationId, "desc", NAV_USER_MESSAGES_SCAN_LIMIT, byId, budget, indexed);
-  await streamNavigableUserMessages(db, conversationId, "asc", NAV_USER_MESSAGES_OLDEST_LIMIT, byId, budget, indexed);
+  await streamNavigableUserMessages(
+    db,
+    conversationId,
+    "desc",
+    NAV_USER_MESSAGES_SCAN_LIMIT,
+    byId,
+    budget,
+    indexed,
+  );
+  await streamNavigableUserMessages(
+    db,
+    conversationId,
+    "asc",
+    NAV_USER_MESSAGES_OLDEST_LIMIT,
+    byId,
+    budget,
+    indexed,
+  );
   return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
 }
 
@@ -14185,8 +17678,16 @@ export const getUserMessages = query({
     // Same admission as listMessages: owner, team, or share link. The message
     // browser must serve every viewer the transcript itself serves — including
     // unauthenticated visitors presenting a public share token.
-    if ((await checkConversationAccess(ctx, userId, conv, args.share_token)) === "denied") return [];
-    return collectNavigableUserMessages(ctx.db, conv._id, conv.nav_prompts_indexed_at !== undefined);
+    if (
+      (await checkConversationAccess(ctx, userId, conv, args.share_token)) ===
+      "denied"
+    )
+      return [];
+    return collectNavigableUserMessages(
+      ctx.db,
+      conv._id,
+      conv.nav_prompts_indexed_at !== undefined,
+    );
   },
 });
 
@@ -14210,21 +17711,43 @@ export const backfillNavPrompts = mutation({
     const conv = await getConversationByRawId(ctx, args.conversation_id);
     if (!conv || conv.nav_prompts_indexed_at !== undefined) return;
     const userId = await getAuthUserId(ctx);
-    if ((await checkConversationAccess(ctx, userId, conv, args.share_token)) === "denied") return;
+    if (
+      (await checkConversationAccess(ctx, userId, conv, args.share_token)) ===
+      "denied"
+    )
+      return;
     const started = conv.nav_prompts_backfill_started_at;
-    if (started !== undefined && Date.now() - started < NAV_PROMPT_BACKFILL_CLAIM_MS) return;
-    await ctx.db.patch(conv._id, { nav_prompts_backfill_started_at: Date.now() });
-    await ctx.scheduler.runAfter(0, internal.conversations.backfillNavPromptsPage, { conversation_id: conv._id });
+    if (
+      started !== undefined &&
+      Date.now() - started < NAV_PROMPT_BACKFILL_CLAIM_MS
+    )
+      return;
+    await ctx.db.patch(conv._id, {
+      nav_prompts_backfill_started_at: Date.now(),
+    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.conversations.backfillNavPromptsPage,
+      { conversation_id: conv._id },
+    );
   },
 });
 
 export const backfillNavPromptsPage = internalMutation({
-  args: { conversation_id: v.id("conversations"), cursor: v.optional(v.string()) },
+  args: {
+    conversation_id: v.id("conversations"),
+    cursor: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const page = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_role_timestamp", (q) => q.eq("conversation_id", args.conversation_id).eq("role", "user"))
-      .paginate({ cursor: args.cursor ?? null, numItems: NAV_PROMPT_BACKFILL_PAGE_SIZE });
+      .withIndex("by_conversation_role_timestamp", (q) =>
+        q.eq("conversation_id", args.conversation_id).eq("role", "user"),
+      )
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: NAV_PROMPT_BACKFILL_PAGE_SIZE,
+      });
     let flagged = 0;
     for (const m of page.page) {
       const nav = navPromptPatch(m, {});
@@ -14234,12 +17757,19 @@ export const backfillNavPromptsPage = internalMutation({
       }
     }
     if (page.isDone) {
-      await ctx.db.patch(args.conversation_id, { nav_prompts_indexed_at: Date.now(), nav_prompts_backfill_started_at: undefined });
-    } else {
-      await ctx.scheduler.runAfter(0, internal.conversations.backfillNavPromptsPage, {
-        conversation_id: args.conversation_id,
-        cursor: page.continueCursor,
+      await ctx.db.patch(args.conversation_id, {
+        nav_prompts_indexed_at: Date.now(),
+        nav_prompts_backfill_started_at: undefined,
       });
+    } else {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.conversations.backfillNavPromptsPage,
+        {
+          conversation_id: args.conversation_id,
+          cursor: page.continueCursor,
+        },
+      );
     }
     return { scanned: page.page.length, flagged, done: page.isDone };
   },

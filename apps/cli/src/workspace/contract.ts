@@ -86,7 +86,10 @@ function stateFilePath(repoRoot: string, name: string): string {
   return path.join(repoRoot, WORKSPACES_STATE_DIR, name, "state.json");
 }
 
-export function readState(repoRoot: string, name: string): PersistedWorkspaceState | null {
+export function readState(
+  repoRoot: string,
+  name: string,
+): PersistedWorkspaceState | null {
   const p = stateFilePath(repoRoot, name);
   if (!fs.existsSync(p)) return null;
   try {
@@ -103,22 +106,34 @@ export function readState(repoRoot: string, name: string): PersistedWorkspaceSta
  * worktree is invisible from the main checkout. The tracked path wins over the
  * default layout; a path that no longer exists is skipped.
  */
-export function locateWorkspace(roots: string[], name: string): { path: string; root: string } | null {
+export function locateWorkspace(
+  roots: string[],
+  name: string,
+): { path: string; root: string } | null {
   for (const root of roots) {
-    const candidates = [readState(root, name)?.path, path.join(root, ".codecast/worktrees", name)];
+    const candidates = [
+      readState(root, name)?.path,
+      path.join(root, ".codecast/worktrees", name),
+    ];
     const hit = candidates.find((p): p is string => !!p && fs.existsSync(p));
     if (hit) return { path: hit, root };
   }
   return null;
 }
 
-export function writeState(repoRoot: string, state: PersistedWorkspaceState): void {
+export function writeState(
+  repoRoot: string,
+  state: PersistedWorkspaceState,
+): void {
   const p = stateFilePath(repoRoot, state.name);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   // Lifecycle writers rebuild the record from a Workspace, which does not carry
   // the sessions; they are history, so a rewrite keeps them.
   const sessions = state.sessions ?? readState(repoRoot, state.name)?.sessions;
-  atomicWriteFile(p, JSON.stringify(sessions ? { ...state, sessions } : state, null, 2));
+  atomicWriteFile(
+    p,
+    JSON.stringify(sessions ? { ...state, sessions } : state, null, 2),
+  );
 }
 
 export function deleteState(repoRoot: string, name: string): void {
@@ -151,10 +166,17 @@ export function listStates(repoRoot: string): PersistedWorkspaceState[] {
  * was started in the main checkout, so nothing on its conversation names the
  * worktree it then works in. Published with the worktree (worktreeMirror.ts).
  */
-export function recordWorkspaceSession(repoRoot: string, name: string, sessionId: string | null): void {
+export function recordWorkspaceSession(
+  repoRoot: string,
+  name: string,
+  sessionId: string | null,
+): void {
   const current = sessionId ? readState(repoRoot, name) : null;
   if (!current || current.sessions?.includes(sessionId!)) return;
-  writeState(repoRoot, { ...current, sessions: [...(current.sessions ?? []), sessionId!] });
+  writeState(repoRoot, {
+    ...current,
+    sessions: [...(current.sessions ?? []), sessionId!],
+  });
 }
 
 /** Transition a workspace's persisted state. No-op if state file is missing. */
@@ -182,64 +204,75 @@ export function setState(
 export async function validateContract(ws: Workspace): Promise<ContractResult> {
   const checks: ContractCheck[] = [];
 
-  checks.push(check("worktree-exists", () => {
-    if (!fs.existsSync(ws.path)) return "worktree directory missing";
-    if (!fs.statSync(ws.path).isDirectory()) return "worktree path is not a directory";
-    return null;
-  }));
-
-  checks.push(check("git-branch", () => {
-    if (!fs.existsSync(path.join(ws.path, ".git"))) {
-      return "no .git in worktree (not a git working tree)";
-    }
-    try {
-      const actual = execSync("git rev-parse --abbrev-ref HEAD", {
-        cwd: ws.path,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-      if (actual !== ws.branch) {
-        return `branch is '${actual}', expected '${ws.branch}'`;
-      }
+  checks.push(
+    check("worktree-exists", () => {
+      if (!fs.existsSync(ws.path)) return "worktree directory missing";
+      if (!fs.statSync(ws.path).isDirectory())
+        return "worktree path is not a directory";
       return null;
-    } catch (e) {
-      return `git rev-parse failed: ${(e as Error).message}`;
-    }
-  }));
+    }),
+  );
+
+  checks.push(
+    check("git-branch", () => {
+      if (!fs.existsSync(path.join(ws.path, ".git"))) {
+        return "no .git in worktree (not a git working tree)";
+      }
+      try {
+        const actual = execSync("git rev-parse --abbrev-ref HEAD", {
+          cwd: ws.path,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim();
+        if (actual !== ws.branch) {
+          return `branch is '${actual}', expected '${ws.branch}'`;
+        }
+        return null;
+      } catch (e) {
+        return `git rev-parse failed: ${(e as Error).message}`;
+      }
+    }),
+  );
 
   // Dependency directories. We can only check ones we know about — the
   // detected install commands give us hints. The check is light: presence
   // of a directory, not its contents.
-  checks.push(check("deps-installed", () => {
-    const probes = depsProbes(ws.manifest);
-    if (probes.length === 0) return null; // nothing to verify
-    for (const probe of probes) {
-      const p = path.resolve(ws.path, probe);
-      if (fs.existsSync(p)) return null;
-    }
-    return `none of expected dep dirs found: ${probes.join(", ")}`;
-  }));
+  checks.push(
+    check("deps-installed", () => {
+      const probes = depsProbes(ws.manifest);
+      if (probes.length === 0) return null; // nothing to verify
+      for (const probe of probes) {
+        const p = path.resolve(ws.path, probe);
+        if (fs.existsSync(p)) return null;
+      }
+      return `none of expected dep dirs found: ${probes.join(", ")}`;
+    }),
+  );
 
   // Manifest env vars present in the workspace env.
-  checks.push(check("env-vars", () => {
-    const missing: string[] = [];
-    for (const k of Object.keys(ws.manifest.env)) {
-      if (!(k in ws.env)) missing.push(k);
-    }
-    if (missing.length > 0) return `missing env vars: ${missing.join(", ")}`;
-    return null;
-  }));
+  checks.push(
+    check("env-vars", () => {
+      const missing: string[] = [];
+      for (const k of Object.keys(ws.manifest.env)) {
+        if (!(k in ws.env)) missing.push(k);
+      }
+      if (missing.length > 0) return `missing env vars: ${missing.join(", ")}`;
+      return null;
+    }),
+  );
 
   // Each declared named port should appear in computed ports + env.
   for (const portName of Object.keys(ws.manifest.ports)) {
-    checks.push(check(`port:${portName}`, () => {
-      if (!(portName in ws.ports)) return "not allocated";
-      const expectedEnv = `PORT_${portName.toUpperCase()}`;
-      if (ws.env[expectedEnv] !== String(ws.ports[portName])) {
-        return `env ${expectedEnv} missing or mismatched`;
-      }
-      return null;
-    }));
+    checks.push(
+      check(`port:${portName}`, () => {
+        if (!(portName in ws.ports)) return "not allocated";
+        const expectedEnv = `PORT_${portName.toUpperCase()}`;
+        if (ws.env[expectedEnv] !== String(ws.ports[portName])) {
+          return `env ${expectedEnv} missing or mismatched`;
+        }
+        return null;
+      }),
+    );
   }
 
   // Run async port-free checks in parallel.
@@ -253,13 +286,19 @@ export async function validateContract(ws: Workspace): Promise<ContractResult> {
       // free. For v1 we don't know which case applies, so we mark this
       // as a warning-style check that doesn't fail the contract.
       // (Bias toward "ok unless we're sure otherwise".)
-      ...(free ? {} : { reason: `port ${portNum} in use (may be a running service, ok if expected)` }),
+      ...(free
+        ? {}
+        : {
+            reason: `port ${portNum} in use (may be a running service, ok if expected)`,
+          }),
     });
   }
 
   // Aggregate (ignore warning-style port-free results since their meaning
   // depends on service state — see comment above).
-  const failures = checks.filter((c) => !c.ok && !c.name.startsWith("port-free:"));
+  const failures = checks.filter(
+    (c) => !c.ok && !c.name.startsWith("port-free:"),
+  );
   return { ok: failures.length === 0, checks };
 }
 
@@ -303,8 +342,12 @@ function depsProbes(m: WorkspaceManifest): string[] {
 
 /** The directory an install command runs in, relative to the workspace, after its leading `cd <dir> &&` (or `;`) steps. */
 function installDir(install: string): { dir: string; cmd: string } {
-  const step = /^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&]+)\s*(?:&&|;)\s*([\s\S]*)$/.exec(install);
+  const step =
+    /^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&]+)\s*(?:&&|;)\s*([\s\S]*)$/.exec(install);
   if (!step) return { dir: ".", cmd: install };
   const rest = installDir(step[2]);
-  return { dir: path.join(step[1].replace(/^(["'])(.*)\1$/, "$2"), rest.dir), cmd: rest.cmd };
+  return {
+    dir: path.join(step[1].replace(/^(["'])(.*)\1$/, "$2"), rest.dir),
+    cmd: rest.cmd,
+  };
 }

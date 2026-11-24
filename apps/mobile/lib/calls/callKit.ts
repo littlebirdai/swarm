@@ -54,7 +54,8 @@ function getCallKit(): CallKitApi | null {
     // without the pod redboxes at boot ("Cannot find native module").
     // requireOptionalNativeModule is Expo's throw-free probe for exactly this.
     if (!nativeModulePresent("ExpoCallKitTelecom")) {
-      ckLoadError = "ExpoCallKitTelecom native module absent (binary predates the pod)";
+      ckLoadError =
+        "ExpoCallKitTelecom native module absent (binary predates the pod)";
       ck = null;
       return null;
     }
@@ -105,7 +106,12 @@ const ANSWER_AUTH_WAIT_MS = 20_000;
 // CallKit's id ↔ our invite + room. One at a time — a second CallKit call
 // while one is up is the OS's "hold/end & accept" flow, which we map to
 // end-old + accept-new (huddles have no hold).
-type Active = { ckId: string; inviteId: string; roomKey: string; answered: boolean };
+type Active = {
+  ckId: string;
+  inviteId: string;
+  roomKey: string;
+  answered: boolean;
+};
 let active: Active | null = null;
 let started = false;
 
@@ -129,7 +135,9 @@ function setActive(next: Active | null): void {
 // so `false` always means the ring settled (answered or declined elsewhere,
 // cancelled, expired) and never "not synced yet".
 function watchRing(ring: Active): void {
-  const watch = convex.watchQuery(api.calls.ringLive, { invite_id: ring.inviteId });
+  const watch = convex.watchQuery(api.calls.ringLive, {
+    invite_id: ring.inviteId,
+  });
   const read = () => {
     let live: boolean | undefined;
     try {
@@ -150,19 +158,29 @@ async function endCallKitRingIfStale(ckId: string): Promise<void> {
   const k = getCallKit();
   if (!k || active?.ckId !== ckId || active.answered) return;
   setActive(null);
-  if (__DEV__) (global as any).__ckEvents?.push({ name: "bridge:endRingIfStale", e: { ckId } });
+  if (__DEV__)
+    (global as any).__ckEvents?.push({
+      name: "bridge:endRingIfStale",
+      e: { ckId },
+    });
   try {
     await k.reportCallEnded(ckId, "remoteEnded");
   } catch {}
 }
 
 /** Our call ended (user hung up in-app, or media dropped): mirror to CallKit. */
-async function endCallKitCall(reason: "local" | "remoteEnded" | "failed"): Promise<void> {
+async function endCallKitCall(
+  reason: "local" | "remoteEnded" | "failed",
+): Promise<void> {
   const k = getCallKit();
   if (!k || !active) return;
   const { ckId } = active;
   setActive(null);
-  if (__DEV__) (global as any).__ckEvents?.push({ name: "bridge:endCall:" + reason, e: { ckId } });
+  if (__DEV__)
+    (global as any).__ckEvents?.push({
+      name: "bridge:endCall:" + reason,
+      e: { ckId },
+    });
   try {
     if (reason === "local") await k.endCall(ckId);
     else await k.reportCallEnded(ckId, reason);
@@ -252,21 +270,39 @@ export function startCallKitBridge(): void {
   started = true;
 
   const dbg = (name: string, e: any) => {
-    if (__DEV__) (global as any).__ckEvents?.push({ name, e: JSON.parse(JSON.stringify(e ?? null)) });
+    if (__DEV__)
+      (global as any).__ckEvents?.push({
+        name,
+        e: JSON.parse(JSON.stringify(e ?? null)),
+      });
   };
   // The bridge lives as long as the app does, so the listeners are never removed.
-  k.addCallSessionAddedListener((e: any) => { dbg("sessionAdded", e); onSessionAdded(e.session); });
+  k.addCallSessionAddedListener((e: any) => {
+    dbg("sessionAdded", e);
+    onSessionAdded(e.session);
+  });
   k.addCallSessionUpdatedListener((e: any) => dbg("sessionUpdated", e));
   k.addCallSessionRemovedListener((e: any) => dbg("sessionRemoved", e));
-  k.addCallAnsweredListener((e: any) => { dbg("answered", e); void onAnswered(e); });
-  k.addCallEndedListener((e: any) => { dbg("ended", e); void onEnded(e); });
+  k.addCallAnsweredListener((e: any) => {
+    dbg("answered", e);
+    void onAnswered(e);
+  });
+  k.addCallEndedListener((e: any) => {
+    dbg("ended", e);
+    void onEnded(e);
+  });
   k.addReportedCallEndedListener((e: any) => dbg("reportedEnded", e));
   k.addIncomingCallReportedListener((e: any) => dbg("incomingReported", e));
   k.addSetMutedActionListener((e: any) => onSetMuted(e));
   // PushKit token → server, so invites route through APNs VoIP.
-  k.addVoIPPushTokenUpdatedListener((e: any) => void publishVoipToken(e?.token ?? null));
+  k.addVoIPPushTokenUpdatedListener(
+    (e: any) => void publishVoipToken(e?.token ?? null),
+  );
   // Cold start: the module queued the incoming session before JS was up.
-  void k.getActiveCallSession().then((s: any) => s && onSessionAdded(s)).catch(() => {});
+  void k
+    .getActiveCallSession()
+    .then((s: any) => s && onSessionAdded(s))
+    .catch(() => {});
   // Token may already be there.
   const tok = k.getVoIPPushToken?.();
   if (tok?.token) void publishVoipToken(tok.token);
@@ -278,8 +314,10 @@ export function startCallKitBridge(): void {
   subscribeCall(() => {
     const s = getCallSnapshot();
     if (active?.answered) {
-      if (lastPhase !== "idle" && s.phase === "idle") void endCallKitCall("local");
-      if (s.phase === "error" && lastPhase !== "error") void endCallKitCall("failed");
+      if (lastPhase !== "idle" && s.phase === "idle")
+        void endCallKitCall("local");
+      if (s.phase === "error" && lastPhase !== "error")
+        void endCallKitCall("failed");
       if (s.muted !== lastMuted) {
         const k2 = getCallKit();
         if (k2 && active) k2.setMuted(active.ckId, s.muted).catch(() => {});
@@ -295,7 +333,9 @@ async function publishVoipToken(token: string | null): Promise<void> {
   if (token === lastPublished) return;
   lastPublished = token;
   try {
-    await convex.mutation(api.users.storeVoipPushToken, { voip_push_token: token });
+    await convex.mutation(api.users.storeVoipPushToken, {
+      voip_push_token: token,
+    });
   } catch {
     // Not authenticated yet at cold start: the token listener fires again on
     // the next launch, and AuthGate re-runs the bridge start after sign-in.
@@ -307,7 +347,8 @@ async function publishVoipToken(token: string | null): Promise<void> {
 export function republishVoipToken(): void {
   const k = getCallKit();
   const tok = k?.getVoIPPushToken?.();
-  if (tok?.token && tok.token !== lastPublished) void publishVoipToken(tok.token);
+  if (tok?.token && tok.token !== lastPublished)
+    void publishVoipToken(tok.token);
 }
 
 if (__DEV__) {
@@ -328,7 +369,11 @@ if (__DEV__) {
         serverCallId: inviteId,
         hasVideo: false,
         caller: { id: "sim", displayName: name },
-        metadata: { type: "huddle_ring", invite_id: inviteId, room_key: roomKey },
+        metadata: {
+          type: "huddle_ring",
+          invite_id: inviteId,
+          room_key: roomKey,
+        },
       } as any);
       return "reported";
     },

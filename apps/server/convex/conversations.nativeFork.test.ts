@@ -31,13 +31,21 @@ describe("nativeForkEligible", () => {
   });
 
   test("a parent without a session id is NOT eligible", () => {
-    expect(nativeForkEligible({ ...atTip, sourceSessionId: undefined })).toBe(false);
+    expect(nativeForkEligible({ ...atTip, sourceSessionId: undefined })).toBe(
+      false,
+    );
     expect(nativeForkEligible({ ...atTip, sourceSessionId: "" })).toBe(false);
   });
 
   test("clients without a forkCmd take their own paths", () => {
-    expect(nativeForkEligible({ ...atTip, daemonAgentType: "claude" })).toBe(false);
-    expect(nativeForkEligible({ ...atTip, daemonAgentType: "opencode" })).toBe(false);
-    expect(nativeForkEligible({ ...atTip, daemonAgentType: "codex" })).toBe(false);
+    expect(nativeForkEligible({ ...atTip, daemonAgentType: "claude" })).toBe(
+      false,
+    );
+    expect(nativeForkEligible({ ...atTip, daemonAgentType: "opencode" })).toBe(
+      false,
+    );
+    expect(nativeForkEligible({ ...atTip, daemonAgentType: "codex" })).toBe(
+      false,
+    );
   });
 });

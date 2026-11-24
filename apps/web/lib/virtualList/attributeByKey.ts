@@ -24,7 +24,10 @@ type KeyedVirtualizer = {
 };
 
 /** Index of the row whose key is `key` in the list as it stands, or -1. */
-export function makeKeyIndex(count: number, getItemKey: (index: number) => VirtualKey) {
+export function makeKeyIndex(
+  count: number,
+  getItemKey: (index: number) => VirtualKey,
+) {
   let map: Map<string, number> | null = null;
   return (key: string): number => {
     if (!map) {
@@ -43,9 +46,12 @@ export function makeKeyIndex(count: number, getItemKey: (index: number) => Virtu
  */
 export function attributeMeasurementsByKey(virtualizer: KeyedVirtualizer) {
   const { count, getItemKey } = virtualizer.options;
-  const lib = (virtualizer as { __libIndexFromElement?: (node: any) => number }).__libIndexFromElement
-    ?? virtualizer.indexFromElement;
-  (virtualizer as { __libIndexFromElement?: (node: any) => number }).__libIndexFromElement = lib;
+  const lib =
+    (virtualizer as { __libIndexFromElement?: (node: any) => number })
+      .__libIndexFromElement ?? virtualizer.indexFromElement;
+  (
+    virtualizer as { __libIndexFromElement?: (node: any) => number }
+  ).__libIndexFromElement = lib;
   const indexOf = makeKeyIndex(count, getItemKey);
   virtualizer.indexFromElement = (node: HTMLElement) => {
     const stamp = node.dataset?.vkey;

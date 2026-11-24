@@ -13,7 +13,12 @@ import { rowScrollDelta, scrollMarginTopOf } from "./rowScroll";
 // heading (lib/rowScroll).
 export function scrollRowIntoView(container: HTMLElement, el: Element) {
   let marginTop = 0;
-  const remainingDelta = () => rowScrollDelta(container.getBoundingClientRect(), el.getBoundingClientRect(), marginTop);
+  const remainingDelta = () =>
+    rowScrollDelta(
+      container.getBoundingClientRect(),
+      el.getBoundingClientRect(),
+      marginTop,
+    );
   // Hidden/occluded tabs get no animation frames — settle instantly so the
   // row can't be stranded mid-glide until the tab is next viewed.
   if (document.visibilityState !== "visible") {
@@ -42,7 +47,10 @@ export function scrollRowIntoView(container: HTMLElement, el: Element) {
       container.removeEventListener("touchstart", cleanup);
     };
     container.addEventListener("wheel", cleanup, { passive: true, once: true });
-    container.addEventListener("touchstart", cleanup, { passive: true, once: true });
+    container.addEventListener("touchstart", cleanup, {
+      passive: true,
+      once: true,
+    });
     let frames = 0;
     const stop = visibleAnimationLoop(() => {
       // Row unmounted mid-glide (panel remount/resort) — a detached node

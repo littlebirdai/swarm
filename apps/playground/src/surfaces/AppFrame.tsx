@@ -18,14 +18,29 @@
 // The first frame can start from the link alone, before the app or the
 // visitor is known: it opens the app's live link, and learns which version
 // that is from its SDK's `ready`.
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 import type { PublicVisitor, VisitorCredentials } from "../../convex/visitors";
 import type { ElementRef } from "../../convex/validators";
 import { livePath, versionPath } from "../../convex/lib/runPaths";
 import { RUNTIME_CSP } from "../../convex/lib/runtime";
-import { RUNTIME_TOKEN_RENEW_MS, runtimeTokenForSecret, type TokenScope } from "../../convex/lib/identity";
-import { initFor, isAppMessage, postToApp, type PickTheme } from "../../runtime/protocol";
+import {
+  RUNTIME_TOKEN_RENEW_MS,
+  runtimeTokenForSecret,
+  type TokenScope,
+} from "../../convex/lib/identity";
+import {
+  initFor,
+  isAppMessage,
+  postToApp,
+  type PickTheme,
+} from "../../runtime/protocol";
 import { avatarUrlsForApps } from "../lib/avatars";
 import { RUN_ORIGIN } from "../lib/convex";
 import { useAfter } from "../lib/useAfter";
@@ -64,10 +79,16 @@ type Frame = {
   bootError?: string;
 };
 
-const newFrame = (key: number, version: number | null, slug: string): Frame => ({
+const newFrame = (
+  key: number,
+  version: number | null,
+  slug: string,
+): Frame => ({
   key,
   version,
-  src: RUN_ORIGIN + (version === null ? livePath(slug) : versionPath(slug, version)),
+  src:
+    RUN_ORIGIN +
+    (version === null ? livePath(slug) : versionPath(slug, version)),
   ready: false,
   inited: false,
   painted: false,
@@ -75,7 +96,11 @@ const newFrame = (key: number, version: number | null, slug: string): Frame => (
 });
 
 /** The version on screen did not load. */
-export type FailedFrame = { version: number; error: string | null; retry: () => void };
+export type FailedFrame = {
+  version: number;
+  error: string | null;
+  retry: () => void;
+};
 
 export type AppFrameEvents = {
   onPicked: (element: ElementRef) => void;
@@ -90,7 +115,12 @@ export type AppFrameEvents = {
 };
 
 /** Who the frames speak for, once known: what `init` is made of. */
-export type FrameSession = { creds: VisitorCredentials; me: PublicVisitor; appId: Id<"apps">; name: string };
+export type FrameSession = {
+  creds: VisitorCredentials;
+  me: PublicVisitor;
+  appId: Id<"apps">;
+  name: string;
+};
 
 export type AppFrameHandle = {
   /** Ring the elements `selector` matches in the frame on top; false when
@@ -112,8 +142,19 @@ export type AppFrameProps = {
   ref?: Ref<AppFrameHandle>;
 };
 
-export function AppFrame({ slug, version, live: liveVersion, preload = NONE, picking = false, session, events, ref }: AppFrameProps) {
-  const [frames, setFrames] = useState<Frame[]>(() => [newFrame(0, version, slug)]);
+export function AppFrame({
+  slug,
+  version,
+  live: liveVersion,
+  preload = NONE,
+  picking = false,
+  session,
+  events,
+  ref,
+}: AppFrameProps) {
+  const [frames, setFrames] = useState<Frame[]>(() => [
+    newFrame(0, version, slug),
+  ]);
   const [top, setTop] = useState<number | null>(null);
   const [under, setUnder] = useState<number | null>(null);
   const windows = useRef(new Map<number, HTMLIFrameElement>());
@@ -127,7 +168,8 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
   const [slow, setSlow] = useState(false);
   const live = useRef({ session, picking, events, liveVersion, frames });
   live.current = { session, picking, events, liveVersion, frames };
-  const scopeOf = (v: number): TokenScope => (v === live.current.liveVersion ? "use" : "watch");
+  const scopeOf = (v: number): TokenScope =>
+    v === live.current.liveVersion ? "use" : "watch";
 
   // The frames wanted now: the version to show and the ones to have ready.
   // A page opened at the live link is taken to be the live version once that
@@ -139,15 +181,34 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
     if (version === null) return;
     const wanted = new Set([version, ...preload]);
     setFrames((fs) => {
-      const named = fs.map((f) => (f.version === null && liveVersion !== null ? { ...f, version: liveVersion } : f));
-      const kept = named.filter((f) => f.version === null || wanted.has(f.version) || f.key === top || f.key === under);
-      const missing = [...wanted].filter((v) => !kept.some((f) => f.version === v));
-      const next = [...kept, ...missing.map((v) => newFrame(++seq.current, v, slug))];
-      return next.length === fs.length && next.every((f, i) => f === fs[i]) ? fs : next;
+      const named = fs.map((f) =>
+        f.version === null && liveVersion !== null
+          ? { ...f, version: liveVersion }
+          : f,
+      );
+      const kept = named.filter(
+        (f) =>
+          f.version === null ||
+          wanted.has(f.version) ||
+          f.key === top ||
+          f.key === under,
+      );
+      const missing = [...wanted].filter(
+        (v) => !kept.some((f) => f.version === v),
+      );
+      const next = [
+        ...kept,
+        ...missing.map((v) => newFrame(++seq.current, v, slug)),
+      ];
+      return next.length === fs.length && next.every((f, i) => f === fs[i])
+        ? fs
+        : next;
     });
   }, [wantKey, versionsKey, liveVersion, top, under]);
 
-  const target = frames.find((f) => f.version === version) ?? (version === null ? frames[0] : undefined);
+  const target =
+    frames.find((f) => f.version === version) ??
+    (version === null ? frames[0] : undefined);
   const topKey = useRef<number | null>(null);
   topKey.current = top;
 
@@ -165,21 +226,49 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
   // A version that started but never paints still comes on top after the
   // cap; one that never started does not, and says so.
   useEffect(() => {
-    if (!target || target.painted || target.failed || target.key === top) return;
+    if (!target || target.painted || target.failed || target.key === top)
+      return;
     if (target.ready && !target.inited) return;
-    const t = setTimeout(() => (target.ready ? show(target.key) : fail(target.key)), target.ready ? LOAD_CAP_MS : LOAD_GIVE_UP_MS);
+    const t = setTimeout(
+      () => (target.ready ? show(target.key) : fail(target.key)),
+      target.ready ? LOAD_CAP_MS : LOAD_GIVE_UP_MS,
+    );
     return () => clearTimeout(t);
-  }, [target?.key, target?.painted, target?.ready, target?.inited, target?.failed, top]);
-  const patch = (key: number, change: (f: Frame) => Frame) => setFrames((fs) => fs.map((f) => (f.key === key ? change(f) : f)));
-  const fail = (key: number) => patch(key, (f) => (f.ready || f.failed ? f : { ...f, failed: { error: f.bootError ?? null } }));
-  const retry = (key: number) => setFrames((fs) => fs.map((f) => (f.key === key ? newFrame(++seq.current, f.version, slug) : f)));
+  }, [
+    target?.key,
+    target?.painted,
+    target?.ready,
+    target?.inited,
+    target?.failed,
+    top,
+  ]);
+  const patch = (key: number, change: (f: Frame) => Frame) =>
+    setFrames((fs) => fs.map((f) => (f.key === key ? change(f) : f)));
+  const fail = (key: number) =>
+    patch(key, (f) =>
+      f.ready || f.failed
+        ? f
+        : { ...f, failed: { error: f.bootError ?? null } },
+    );
+  const retry = (key: number) =>
+    setFrames((fs) =>
+      fs.map((f) =>
+        f.key === key ? newFrame(++seq.current, f.version, slug) : f,
+      ),
+    );
   // The version on screen did not start. When its own code said why (a
   // module that failed to load or threw), the room hears it, once a version;
   // a page that never arrived is this screen's network, not the app's news.
   const failedNow = target?.failed && target.version !== null ? target : null;
   useEffect(() => {
     if (!events) return;
-    events.onFailed(failedNow && { version: failedNow.version!, error: failedNow.failed!.error, retry: () => retry(failedNow.key) });
+    events.onFailed(
+      failedNow && {
+        version: failedNow.version!,
+        error: failedNow.failed!.error,
+        retry: () => retry(failedNow.key),
+      },
+    );
     const error = failedNow?.failed?.error;
     if (failedNow && error) events.onError(failedNow.version!, error);
   }, [failedNow?.key, !events]);
@@ -190,22 +279,33 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
     return () => clearTimeout(t);
   }, [under, top]);
 
-  useImperativeHandle(ref, () => ({
-    spotlight: (selector) =>
-      new Promise((resolve) => {
-        const w = topKey.current === null ? null : windows.current.get(topKey.current)?.contentWindow;
-        if (!w) return resolve(false);
-        spotlit.current?.(false);
-        const timer = setTimeout(() => answer(false), SPOTLIT_WAIT_MS);
-        const answer = (found: boolean) => {
-          clearTimeout(timer);
-          spotlit.current = null;
-          resolve(found);
-        };
-        spotlit.current = answer;
-        postToApp(w, { type: "spotlight", selector, color: cssVar("--live") });
-      }),
-  }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      spotlight: (selector) =>
+        new Promise((resolve) => {
+          const w =
+            topKey.current === null
+              ? null
+              : windows.current.get(topKey.current)?.contentWindow;
+          if (!w) return resolve(false);
+          spotlit.current?.(false);
+          const timer = setTimeout(() => answer(false), SPOTLIT_WAIT_MS);
+          const answer = (found: boolean) => {
+            clearTimeout(timer);
+            spotlit.current = null;
+            resolve(found);
+          };
+          spotlit.current = answer;
+          postToApp(w, {
+            type: "spotlight",
+            selector,
+            color: cssVar("--live"),
+          });
+        }),
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (top !== null) {
@@ -224,34 +324,57 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
     if (!w || !session || answered.current.has(key)) return;
     answered.current.add(key);
     const { creds, me, appId, name } = session;
-    postToApp(w, await initFor({ creds, appId, version, visitor: me, avatars: await avatarUrlsForApps(), app: appLink(slug, name), scope: scopeOf(version) }));
+    postToApp(
+      w,
+      await initFor({
+        creds,
+        appId,
+        version,
+        visitor: me,
+        avatars: await avatarUrlsForApps(),
+        app: appLink(slug, name),
+        scope: scopeOf(version),
+      }),
+    );
     patch(key, (f) => ({ ...f, inited: true }));
-    if (picking && key === topKey.current) postToApp(w, { type: "pick", on: true, theme: pickTheme() });
+    if (picking && key === topKey.current)
+      postToApp(w, { type: "pick", on: true, theme: pickTheme() });
   };
   useEffect(() => {
     if (!session) return;
-    for (const f of frames) if (f.ready && f.version !== null && (loads.current.get(f.key) ?? 0) < 2) void answer(f.key, f.version);
+    for (const f of frames)
+      if (f.ready && f.version !== null && (loads.current.get(f.key) ?? 0) < 2)
+        void answer(f.key, f.version);
   }, [!session, frames]);
 
   // The protocol: match each message to the frame that sent it.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (!isAppMessage(e.data)) return;
-      const entry = [...windows.current.entries()].find(([, el]) => el.contentWindow === e.source);
+      const entry = [...windows.current.entries()].find(
+        ([, el]) => el.contentWindow === e.source,
+      );
       if (!entry) return;
       const [key, el] = entry;
       const { events } = live.current;
       const msg = e.data;
       const frame = frames.find((f) => f.key === key);
       if (msg.type === "ready") {
-        if (!frame || answered.current.has(key) || (loads.current.get(key) ?? 0) > 1) return;
+        if (
+          !frame ||
+          answered.current.has(key) ||
+          (loads.current.get(key) ?? 0) > 1
+        )
+          return;
         const version = msg.version ?? frame.version;
         if (version === null) return;
-        if (!frame.ready || frame.version !== version) patch(key, (f) => ({ ...f, version, ready: true, failed: null }));
+        if (!frame.ready || frame.version !== version)
+          patch(key, (f) => ({ ...f, version, ready: true, failed: null }));
         if (live.current.session) void answer(key, version);
         else postToApp(el.contentWindow!, { type: "hold" });
       } else if (msg.type === "painted") {
-        if ((loads.current.get(key) ?? 0) < 2) patch(key, (f) => (f.painted ? f : { ...f, painted: true }));
+        if ((loads.current.get(key) ?? 0) < 2)
+          patch(key, (f) => (f.painted ? f : { ...f, painted: true }));
       } else if (msg.type === "error" && !answered.current.has(key)) {
         // Before its SDK runs, an error is why the page may not start.
         patch(key, (f) => ({ ...f, bootError: msg.message }));
@@ -276,8 +399,18 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
     const { session } = live.current;
     if (!session) return;
     for (const f of frames) {
-      const w = answered.current.has(f.key) && f.version !== null ? windows.current.get(f.key)?.contentWindow : null;
-      if (w) void runtimeTokenForSecret(session.creds.secret, session.appId, f.version!, Date.now(), scopeOf(f.version!)).then((token) => postToApp(w, { type: "token", token }));
+      const w =
+        answered.current.has(f.key) && f.version !== null
+          ? windows.current.get(f.key)?.contentWindow
+          : null;
+      if (w)
+        void runtimeTokenForSecret(
+          session.creds.secret,
+          session.appId,
+          f.version!,
+          Date.now(),
+          scopeOf(f.version!),
+        ).then((token) => postToApp(w, { type: "token", token }));
     }
   };
   useEffect(() => {
@@ -294,7 +427,9 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
   // One ref callback per frame for its whole life: a new one each render
   // would detach and reattach the frame every time, forgetting its loads
   // and its answer (and with them its token renewals).
-  const refs = useRef(new Map<number, (el: HTMLIFrameElement | null) => void>());
+  const refs = useRef(
+    new Map<number, (el: HTMLIFrameElement | null) => void>(),
+  );
   const refFor = (key: number) => {
     let ref = refs.current.get(key);
     if (!ref) {
@@ -330,7 +465,12 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
   useEffect(() => {
     if (top == null) return;
     const w = windows.current.get(top)?.contentWindow;
-    if (w) postToApp(w, { type: "pick", on: picking, theme: picking ? pickTheme() : undefined });
+    if (w)
+      postToApp(w, {
+        type: "pick",
+        on: picking,
+        theme: picking ? pickTheme() : undefined,
+      });
   }, [picking, top]);
 
   const name = session?.name ?? "The app";
@@ -347,7 +487,11 @@ export function AppFrame({ slug, version, live: liveVersion, preload = NONE, pic
           src={f.src}
           sandbox={SANDBOX}
           allow="clipboard-write; fullscreen; autoplay"
-          title={f.version === null ? name : `${name}, v${f.version}, ${f.version === liveVersion ? "live" : "looking only"}`}
+          title={
+            f.version === null
+              ? name
+              : `${name}, v${f.version}, ${f.version === liveVersion ? "live" : "looking only"}`
+          }
           onLoad={(e) => onLoad(f, e.currentTarget)}
         />
       ))}
@@ -364,14 +508,23 @@ function Loading({ version }: { version: number | null }) {
   return (
     <div className={s.loading}>
       <Blob size={28} faint />
-      {long && <p className={s.still}>Still loading{version === null ? "" : ` v${version}`}</p>}
+      {long && (
+        <p className={s.still}>
+          Still loading{version === null ? "" : ` v${version}`}
+        </p>
+      )}
     </div>
   );
 }
 
-const cssVar = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const cssVar = (name: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 /** The picker draws with the shell's own tokens so it matches the room. */
 function pickTheme(): PickTheme {
-  return { accent: cssVar("--accent"), ink: cssVar("--ink"), font: cssVar("--mono") };
+  return {
+    accent: cssVar("--accent"),
+    ink: cssVar("--ink"),
+    font: cssVar("--mono"),
+  };
 }

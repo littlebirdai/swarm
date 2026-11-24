@@ -20,22 +20,40 @@ const api = _api as any;
 const ONE_ROW = { select: (row: any) => (row ? [row] : []) };
 
 export function useSyncWorkflows(enabled = true) {
-  return useSyncCollection("workflows", api.workflows.webList, enabled ? {} : "skip");
+  return useSyncCollection(
+    "workflows",
+    api.workflows.webList,
+    enabled ? {} : "skip",
+  );
 }
 
-const newestFirst = (a: any, b: any) => (b.created_at ?? b._creationTime ?? 0) - (a.created_at ?? a._creationTime ?? 0);
-const workflowSig = (w: any) => `${w.name}|${w.slug}|${w.goal ?? ""}|${w.updated_at ?? 0}|${w.nodes?.length ?? 0}`;
+const newestFirst = (a: any, b: any) =>
+  (b.created_at ?? b._creationTime ?? 0) -
+  (a.created_at ?? a._creationTime ?? 0);
+const workflowSig = (w: any) =>
+  `${w.name}|${w.slug}|${w.goal ?? ""}|${w.updated_at ?? 0}|${w.nodes?.length ?? 0}`;
 
 /** The viewer's id, for the readers that mean the viewer's own rows: the
  *  collection also holds the graphs teammates' runs ran (useSyncRunGraph). */
-const useViewerId = () => useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+const useViewerId = () =>
+  useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
 
 /** Reader: the viewer's workflows, newest first. */
-export function useWorkflows(enabled = true): { workflows: any[]; ready: boolean } {
+export function useWorkflows(enabled = true): {
+  workflows: any[];
+  ready: boolean;
+} {
   const { ready } = useSyncWorkflows(enabled);
   const viewerId = useViewerId();
-  const where = useMemo(() => (w: any) => isViewersWorkflow(w, viewerId), [viewerId]);
-  const workflows = useCollectionRows<any>("workflows", { where, sig: workflowSig, sort: newestFirst });
+  const where = useMemo(
+    () => (w: any) => isViewersWorkflow(w, viewerId),
+    [viewerId],
+  );
+  const workflows = useCollectionRows<any>("workflows", {
+    where,
+    sig: workflowSig,
+    sort: newestFirst,
+  });
   return { workflows, ready };
 }
 
@@ -43,17 +61,36 @@ export function useWorkflows(enabled = true): { workflows: any[]; ready: boolean
  *  teammate's included. The active workspace unless one is named. */
 export function useSyncPoolFlows(workspace?: string | null, enabled = true) {
   const { args } = useFeederWorkspace(workspace);
-  return useSyncCollection("workflows", api.workflows.webPool, enabled ? args : "skip");
+  return useSyncCollection(
+    "workflows",
+    api.workflows.webPool,
+    enabled ? args : "skip",
+  );
 }
 
 /** Reader: the pushed rows a workspace's pool draws from: the viewer's own
  *  workflows, then each flow published to the workspace, newest first. appPool
  *  keeps the first of a slug, so the viewer's own copy wins. */
-export function usePoolFlowRows(workspace?: string | null, enabled = true): any[] {
+export function usePoolFlowRows(
+  workspace?: string | null,
+  enabled = true,
+): any[] {
   useSyncPoolFlows(workspace, enabled);
   const { workflows: own } = useWorkflows(enabled);
-  const published = useWorkspaceCollection<any>("workflows", workflowSig, workspace ?? null);
-  return useMemo(() => [...own, ...published.slice().sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0))], [own, published]);
+  const published = useWorkspaceCollection<any>(
+    "workflows",
+    workflowSig,
+    workspace ?? null,
+  );
+  return useMemo(
+    () => [
+      ...own,
+      ...published
+        .slice()
+        .sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0)),
+    ],
+    [own, published],
+  );
 }
 
 /** The slug a team set as its default flow (teams.setDefaultFlow), or null when it set none or there is no team (the
@@ -61,7 +98,13 @@ export function usePoolFlowRows(workspace?: string | null, enabled = true): any[
 export function useTeamDefaultFlowSlug(teamId?: string | null): string | null {
   return useInboxStore((s) => {
     const team = teamId === undefined ? activeTeamIdOf(s) : teamId;
-    return (team && ((s.teams || []) as Array<{ _id: string; default_flow?: string }>).find((t) => String(t._id) === team)?.default_flow) || null;
+    return (
+      (team &&
+        ((s.teams || []) as Array<{ _id: string; default_flow?: string }>).find(
+          (t) => String(t._id) === team,
+        )?.default_flow) ||
+      null
+    );
   });
 }
 
@@ -79,16 +122,26 @@ export function useSyncWorkflowBySlug(slug: string | null | undefined) {
 /** Reader: the viewer's workflow of one slug, or null once the server said
  *  there is none (undefined while cold). Its graph is in the signature, so an
  *  edited station re-renders. */
-export function useWorkflowBySlug(slug: string | null | undefined): any | null | undefined {
+export function useWorkflowBySlug(
+  slug: string | null | undefined,
+): any | null | undefined {
   const { ready } = useSyncWorkflowBySlug(slug);
   const viewerId = useViewerId();
-  const where = useMemo(() => (w: any) => !!slug && w.slug === slug && isViewersWorkflow(w, viewerId), [slug, viewerId]);
-  const rows = useCollectionRows<any>("workflows", { where, sig: workflowGraphSig });
+  const where = useMemo(
+    () => (w: any) =>
+      !!slug && w.slug === slug && isViewersWorkflow(w, viewerId),
+    [slug, viewerId],
+  );
+  const rows = useCollectionRows<any>("workflows", {
+    where,
+    sig: workflowGraphSig,
+  });
   if (!slug) return null;
   if (rows[0]) return rows[0];
   return ready ? null : undefined;
 }
-const workflowGraphSig = (w: any) => `${workflowSig(w)}|${w.nodes ? stableRefId(w.nodes) : 0}|${w.edges ? stableRefId(w.edges) : 0}`;
+const workflowGraphSig = (w: any) =>
+  `${workflowSig(w)}|${w.nodes ? stableRefId(w.nodes) : 0}|${w.edges ? stableRefId(w.edges) : 0}`;
 
 /** Feeder: the graph one run ran (its workflows row), for any viewer who may
  *  read the run, the owner of the row or not (the line page's graphs). */
@@ -104,10 +157,19 @@ export function useSyncRunGraph(runId: string | null | undefined) {
 /** Reader: the workflows row a run ran, by the run's workflow_id (undefined
  *  while cold, null once the server said the viewer cannot read it). Its
  *  graph is in the signature, so an edited station re-renders. */
-export function useRunGraph(runId: string | null | undefined, workflowId: string | null | undefined): any | null | undefined {
+export function useRunGraph(
+  runId: string | null | undefined,
+  workflowId: string | null | undefined,
+): any | null | undefined {
   const { ready } = useSyncRunGraph(workflowId ? runId : null);
-  const where = useMemo(() => (w: any) => !!workflowId && w._id === workflowId, [workflowId]);
-  const rows = useCollectionRows<any>("workflows", { where, sig: workflowGraphSig });
+  const where = useMemo(
+    () => (w: any) => !!workflowId && w._id === workflowId,
+    [workflowId],
+  );
+  const rows = useCollectionRows<any>("workflows", {
+    where,
+    sig: workflowGraphSig,
+  });
   if (!workflowId) return null;
   if (rows[0]) return rows[0];
   return ready ? null : undefined;
@@ -115,7 +177,11 @@ export function useRunGraph(runId: string | null | undefined, workflowId: string
 
 /** Feeder: the viewer's dynamic (multi-agent) runs window. */
 export function useSyncDynamicRuns(enabled = true) {
-  return useSyncCollection("workflowRuns", api.workflow_runs.listDynamicRuns, enabled ? {} : "skip");
+  return useSyncCollection(
+    "workflowRuns",
+    api.workflow_runs.listDynamicRuns,
+    enabled ? {} : "skip",
+  );
 }
 
 /** Feeder: one workflow's recent runs. */
@@ -141,15 +207,23 @@ export function useSyncWorkflowRun(runId: string | null | undefined) {
 const runSig = (r: any) =>
   `${r.status}|${r.current_node_id ?? ""}|${r.updated_at ?? 0}|${r.total_tokens ?? 0}|${r.agent_count ?? 0}|${r.gate_prompt ?? ""}|` +
   `${r.waiting_on_session?.node_id ?? ""}:${r.waiting_on_session?.since ?? 0}|${r.merge?.sha ?? ""}|${r.gate_decision_id ?? ""}|` +
-  (r.node_statuses ?? []).map((n: any) =>
-    `${n.node_id}:${n.status}:${n.session?._id ?? ""}:${n.session?.is_active ? 1 : 0}:${n.session?.title ?? ""}:${n.session?.message_count ?? 0}:` +
-    `${n.completed_at ?? 0}:${n.outcome ?? ""}:${n.tokens ?? 0}:${n.activity ?? ""}:${n.result_preview ? 1 : 0}:${n.visits ?? 0}`,
-  ).join(",");
-const runNewestFirst = (a: any, b: any) => (b.updated_at ?? 0) - (a.updated_at ?? 0);
+  (r.node_statuses ?? [])
+    .map(
+      (n: any) =>
+        `${n.node_id}:${n.status}:${n.session?._id ?? ""}:${n.session?.is_active ? 1 : 0}:${n.session?.title ?? ""}:${n.session?.message_count ?? 0}:` +
+        `${n.completed_at ?? 0}:${n.outcome ?? ""}:${n.tokens ?? 0}:${n.activity ?? ""}:${n.result_preview ? 1 : 0}:${n.visits ?? 0}`,
+    )
+    .join(",");
+const runNewestFirst = (a: any, b: any) =>
+  (b.updated_at ?? 0) - (a.updated_at ?? 0);
 
 /** Reader: runs, optionally filtered. */
 export function useWorkflowRuns(where?: (r: any) => boolean): any[] {
-  return useCollectionRows<any>("workflowRuns", { where, sig: runSig, sort: runNewestFirst });
+  return useCollectionRows<any>("workflowRuns", {
+    where,
+    sig: runSig,
+    sort: runNewestFirst,
+  });
 }
 
 /** Reader: dynamic (multi-agent) runs, newest first. */
@@ -161,9 +235,14 @@ export function useDynamicRuns(): { runs: any[]; ready: boolean } {
 }
 
 /** Reader: one run by id (undefined while cold, null once the server said no). */
-export function useWorkflowRun(runId: string | null | undefined): any | null | undefined {
+export function useWorkflowRun(
+  runId: string | null | undefined,
+): any | null | undefined {
   const { ready } = useSyncWorkflowRun(runId);
-  const where = useMemo(() => (runId ? (r: any) => r._id === runId : () => false), [runId]);
+  const where = useMemo(
+    () => (runId ? (r: any) => r._id === runId : () => false),
+    [runId],
+  );
   const rows = useWorkflowRuns(where);
   if (!runId) return undefined;
   if (rows[0]) return rows[0];
@@ -181,22 +260,41 @@ export function useSyncWorkflow(id: string | null | undefined) {
 }
 
 /** Reader: one workflow (undefined while cold, null once the server said no). */
-export function useWorkflow(id: string | null | undefined): any | null | undefined {
+export function useWorkflow(
+  id: string | null | undefined,
+): any | null | undefined {
   const { ready } = useSyncWorkflow(id);
   const row = useInboxStore((s) => (id ? (s.workflows as any)[id] : undefined));
   if (!id) return undefined;
   return row ?? (ready ? null : undefined);
 }
 
-type PinnedRun = { _id: string; workflow_id?: string | null; graph_version_id?: string | null; flow_versions?: ReadonlyArray<{ version_id: string }> | null };
+type PinnedRun = {
+  _id: string;
+  workflow_id?: string | null;
+  graph_version_id?: string | null;
+  flow_versions?: ReadonlyArray<{ version_id: string }> | null;
+};
 
 /** A pinned graph as the capped `runGraphs` collection holds it: stamped with when it was last fed (lib/detailRows). */
 const RUN_GRAPH_FEED = {
-  select: (row: any) => (row ? [{ ...row, _cachedAt: cachedAt((useInboxStore.getState().runGraphs as any)?.[row._id], Date.now()) }] : []),
+  select: (row: any) =>
+    row
+      ? [
+          {
+            ...row,
+            _cachedAt: cachedAt(
+              (useInboxStore.getState().runGraphs as any)?.[row._id],
+              Date.now(),
+            ),
+          },
+        ]
+      : [],
 };
 
 /** The version a run pinned (convex lib/runGraph.ts): a library run's flow version, else its pin. */
-const pinOf = (run: PinnedRun | null | undefined) => run?.flow_versions?.[0]?.version_id ?? run?.graph_version_id ?? null;
+const pinOf = (run: PinnedRun | null | undefined) =>
+  run?.flow_versions?.[0]?.version_id ?? run?.graph_version_id ?? null;
 
 /**
  * Reader: the workflows row a run executes. A run that pinned a version reads
@@ -204,37 +302,71 @@ const pinOf = (run: PinnedRun | null | undefined) => run?.flow_versions?.[0]?.ve
  * same slug never redraws it; a run from before pins reads the row. The row's
  * own id stays `_id`. Undefined while cold, null once the server said no.
  */
-export function useRunWorkflow(run: PinnedRun | null | undefined): any | null | undefined {
+export function useRunWorkflow(
+  run: PinnedRun | null | undefined,
+): any | null | undefined {
   const pin = pinOf(run);
-  const { ready, error } = useSyncCollection("runGraphs", api.workflow_runs.pinnedGraphOfRun, pin && run ? { run_id: run._id } : "skip", RUN_GRAPH_FEED);
+  const { ready, error } = useSyncCollection(
+    "runGraphs",
+    api.workflow_runs.pinnedGraphOfRun,
+    pin && run ? { run_id: run._id } : "skip",
+    RUN_GRAPH_FEED,
+  );
   // The card on screen holds its graph against the collection's cap.
-  useWatchEffect(() => (pin ? pinDetailRows("runGraphs", [pin]) : undefined), [pin]);
+  useWatchEffect(
+    () => (pin ? pinDetailRows("runGraphs", [pin]) : undefined),
+    [pin],
+  );
   // A refusal answers as "no pinned graph" does: a backend without the query yet, or a version that kept no content
   // (one from before every push kept it), draws the row.
   const answered = ready || !!error;
-  const pinned = useInboxStore((s) => (pin ? (s.runGraphs as any)[pin] : undefined));
-  const row = useRunGraph(run?._id, pin && (pinned || !answered) ? null : run?.workflow_id);
-  const graph = useMemo(() => (pinned ? { ...pinned, _id: pinned.workflow_id, version_id: pinned._id } : null), [pinned]);
+  const pinned = useInboxStore((s) =>
+    pin ? (s.runGraphs as any)[pin] : undefined,
+  );
+  const row = useRunGraph(
+    run?._id,
+    pin && (pinned || !answered) ? null : run?.workflow_id,
+  );
+  const graph = useMemo(
+    () =>
+      pinned
+        ? { ...pinned, _id: pinned.workflow_id, version_id: pinned._id }
+        : null,
+    [pinned],
+  );
   if (!pin) return row;
   return graph ?? (answered ? row : undefined);
 }
 
 /** Feeder: the runs a session started for its change (convex sessionFlowRuns), live ones first. */
-export function useSyncSessionFlowRuns(conversationId: string | null | undefined) {
+export function useSyncSessionFlowRuns(
+  conversationId: string | null | undefined,
+) {
   // entityIdArgs: a session not yet created on the server is a local stub id,
   // and v.id("conversations") rejects it (a server error per pane per stub).
-  return useSyncCollection("workflowRuns", api.sessionFlowRuns.forConversation, entityIdArgs("conversation_id", conversationId ?? undefined));
+  return useSyncCollection(
+    "workflowRuns",
+    api.sessionFlowRuns.forConversation,
+    entityIdArgs("conversation_id", conversationId ?? undefined),
+  );
 }
 
 /** Reader: a session's own flow runs, newest first (undefined while cold and empty). */
-export function useSessionFlowRuns(conversationId: string | null | undefined): any[] | undefined {
+export function useSessionFlowRuns(
+  conversationId: string | null | undefined,
+): any[] | undefined {
   const { ready } = useSyncSessionFlowRuns(conversationId);
   // A session also starts runs of other flows (a deploy, a line run, an eval), which other feeds bring into the same
   // collection: only a run the server stamped as carrying a change (its flow takes a branch and lands it) is its Ship.
   const where = useMemo(
-    () => (r: any) => !!conversationId && String(r.spawner_conversation_id ?? "") === conversationId && r.takes_change === true,
+    () => (r: any) =>
+      !!conversationId &&
+      String(r.spawner_conversation_id ?? "") === conversationId &&
+      r.takes_change === true,
     [conversationId],
   );
   const rows = useWorkflowRuns(where);
-  return rows.length || ready ? rows.slice().sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0)) : undefined;
+  return rows.length || ready
+    ? rows.slice().sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
+    : undefined;
 }

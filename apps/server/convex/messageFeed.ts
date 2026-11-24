@@ -69,13 +69,15 @@ export type FeedMessage = {
 export type FetchUserMessages = (
   conversationId: string,
   cursor: number | undefined,
-  take: number
+  take: number,
 ) => Promise<FeedRawMessage[]>;
 
 // Id of a conversation's OLDEST user-role message — its seed prompt. Called at
 // most once per machine-started conversation that reaches the page, so the
 // per-page cost stays proportional to what the reader actually sees.
-export type FetchSeedMessageId = (conversationId: string) => Promise<string | null>;
+export type FetchSeedMessageId = (
+  conversationId: string,
+) => Promise<string | null>;
 
 // A user message only reaches the feed if it carries real prose. Mirrors the old
 // query's guard (and matches the conversation view's "meaningful content" bar).
@@ -90,7 +92,8 @@ export async function mergeUserMessageFeed(opts: {
   fetchUserMessages: FetchUserMessages;
   fetchSeedMessageId?: FetchSeedMessageId;
 }): Promise<{ messages: FeedMessage[]; nextCursor: number | null }> {
-  const { candidates, cursor, limit, fetchUserMessages, fetchSeedMessageId } = opts;
+  const { candidates, cursor, limit, fetchUserMessages, fetchSeedMessageId } =
+    opts;
   const KEEP = limit + 1; // the page plus one extra to know whether there's more
 
   // Newest-activity first. updated_at is an upper bound on any message timestamp
@@ -102,7 +105,9 @@ export async function mergeUserMessageFeed(opts: {
 
   for (const cand of sorted) {
     const convUpper =
-      cursor !== undefined ? Math.min(cand.updated_at, cursor) : cand.updated_at;
+      cursor !== undefined
+        ? Math.min(cand.updated_at, cursor)
+        : cand.updated_at;
     // The page is full and neither this conversation nor any older one (sorted
     // descending) can produce a message newer than the weakest already on the
     // page. Strict `<` keeps fetching on a tie so a boundary message is never
@@ -117,7 +122,8 @@ export async function mergeUserMessageFeed(opts: {
       if (!isMeaningfulFeedContent(m.content)) continue;
       let fromAgent = cand.isSubagent === true;
       if (!fromAgent && cand.machineSeeded && fetchSeedMessageId) {
-        if (seedId === undefined) seedId = await fetchSeedMessageId(cand.conversation_id);
+        if (seedId === undefined)
+          seedId = await fetchSeedMessageId(cand.conversation_id);
         fromAgent = seedId !== null && seedId === m._id;
       }
       collected.push({
@@ -133,7 +139,9 @@ export async function mergeUserMessageFeed(opts: {
         author_name: cand.authorName,
         is_own: cand.isOwn,
         from_agent: fromAgent,
-        ...(fromAgent && cand.agentSource ? { agent_source: cand.agentSource } : {}),
+        ...(fromAgent && cand.agentSource
+          ? { agent_source: cand.agentSource }
+          : {}),
       });
     }
 

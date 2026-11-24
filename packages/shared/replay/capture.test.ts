@@ -1,19 +1,63 @@
 import { describe, expect, test } from "bun:test";
-import { carryFromCapture, readVendorCapture, readVendorCapturePart } from "./capture";
+import {
+  carryFromCapture,
+  readVendorCapture,
+  readVendorCapturePart,
+} from "./capture";
 import type { RrwebEvent } from "./rrweb";
 
 // A recording as PostHog hands it over: a stray event long before the page
 // was drawn, then a page that a person used briefly and left open.
 function recording(): RrwebEvent[] {
   const T = 1_793_700_000_000;
-  const node = { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: "html", attributes: {}, childNodes: [{ type: 2, id: 3, tagName: "body", attributes: {}, childNodes: [{ type: 2, id: 4, tagName: "button", attributes: {}, childNodes: [{ type: 3, id: 5, textContent: "Join" }] }] }] }] };
+  const node = {
+    type: 0,
+    id: 1,
+    childNodes: [
+      {
+        type: 2,
+        id: 2,
+        tagName: "html",
+        attributes: {},
+        childNodes: [
+          {
+            type: 2,
+            id: 3,
+            tagName: "body",
+            attributes: {},
+            childNodes: [
+              {
+                type: 2,
+                id: 4,
+                tagName: "button",
+                attributes: {},
+                childNodes: [{ type: 3, id: 5, textContent: "Join" }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
   return [
     { type: 5, timestamp: T, data: { tag: "$pageview", payload: {} } },
-    { type: 4, timestamp: T + 2_449_300, data: { href: "https://app.test/worker", width: 900, height: 900 } },
-    { type: 2, timestamp: T + 2_449_301, data: { node, initialOffset: { top: 0, left: 0 } } },
+    {
+      type: 4,
+      timestamp: T + 2_449_300,
+      data: { href: "https://app.test/worker", width: 900, height: 900 },
+    },
+    {
+      type: 2,
+      timestamp: T + 2_449_301,
+      data: { node, initialOffset: { top: 0, left: 0 } },
+    },
     { type: 3, timestamp: T + 2_457_200, data: { source: 2, type: 2, id: 4 } },
     // The page keeps mutating for five more minutes after the click.
-    { type: 3, timestamp: T + 2_757_200, data: { source: 0, adds: [], removes: [], texts: [], attributes: [] } },
+    {
+      type: 3,
+      timestamp: T + 2_757_200,
+      data: { source: 0, adds: [], removes: [], texts: [], attributes: [] },
+    },
   ];
 }
 
@@ -39,20 +83,99 @@ describe("a vendor capture's clock", () => {
 describe("a long recording read in parts", () => {
   const T = 1_793_800_000_000;
   function whole(): RrwebEvent[] {
-    const node = { type: 0, id: 1, childNodes: [{ type: 2, id: 2, tagName: "body", attributes: {}, childNodes: [
-      { type: 2, id: 3, tagName: "textarea", attributes: {}, childNodes: [] },
-    ] }] };
+    const node = {
+      type: 0,
+      id: 1,
+      childNodes: [
+        {
+          type: 2,
+          id: 2,
+          tagName: "body",
+          attributes: {},
+          childNodes: [
+            {
+              type: 2,
+              id: 3,
+              tagName: "textarea",
+              attributes: {},
+              childNodes: [],
+            },
+          ],
+        },
+      ],
+    };
     return [
-      { type: 4, timestamp: T, data: { href: "https://app.test/queue?x=1", width: 1200, height: 800 } },
+      {
+        type: 4,
+        timestamp: T,
+        data: { href: "https://app.test/queue?x=1", width: 1200, height: 800 },
+      },
       { type: 2, timestamp: T + 10, data: { node } },
-      { type: 3, timestamp: T + 1_000, data: { source: 0, adds: [
-        { parentId: 2, nextId: null, node: { type: 2, id: 20, tagName: "button", attributes: {}, childNodes: [] } },
-        { parentId: 20, nextId: null, node: { type: 3, id: 21, textContent: "Claim" } },
-      ], removes: [], texts: [], attributes: [] } },
+      {
+        type: 3,
+        timestamp: T + 1_000,
+        data: {
+          source: 0,
+          adds: [
+            {
+              parentId: 2,
+              nextId: null,
+              node: {
+                type: 2,
+                id: 20,
+                tagName: "button",
+                attributes: {},
+                childNodes: [],
+              },
+            },
+            {
+              parentId: 20,
+              nextId: null,
+              node: { type: 3, id: 21, textContent: "Claim" },
+            },
+          ],
+          removes: [],
+          texts: [],
+          attributes: [],
+        },
+      },
       // The part boundary falls here: everything below reads with what the part above left.
       { type: 3, timestamp: T + 60_000, data: { source: 2, type: 2, id: 20 } },
-      { type: 3, timestamp: T + 61_000, data: { source: 0, adds: [{ parentId: 3, nextId: null, node: { type: 3, id: 30, textContent: "my note" } }], removes: [], texts: [], attributes: [] } },
-      { type: 6, timestamp: T + 62_000, data: { plugin: "rrweb/network@1", payload: { requests: [{ name: "/api/claim", method: "POST", responseStatus: 500, startTime: 0, endTime: 10 }] } } },
+      {
+        type: 3,
+        timestamp: T + 61_000,
+        data: {
+          source: 0,
+          adds: [
+            {
+              parentId: 3,
+              nextId: null,
+              node: { type: 3, id: 30, textContent: "my note" },
+            },
+          ],
+          removes: [],
+          texts: [],
+          attributes: [],
+        },
+      },
+      {
+        type: 6,
+        timestamp: T + 62_000,
+        data: {
+          plugin: "rrweb/network@1",
+          payload: {
+            requests: [
+              {
+                name: "/api/claim",
+                method: "POST",
+                responseStatus: 500,
+                startTime: 0,
+                endTime: 10,
+              },
+            ],
+          },
+        },
+      },
     ];
   }
 
@@ -64,12 +187,18 @@ describe("a long recording read in parts", () => {
     const rest = readVendorCapturePart(all.slice(3), first.carry!);
     const parts = [...first.events, ...rest.events];
     expect(parts).toEqual(one.events);
-    expect(parts.find((e) => e.type === "click")).toMatchObject({ t: 59_990 + 10, label: "Claim" });
+    expect(parts.find((e) => e.type === "click")).toMatchObject({
+      t: 59_990 + 10,
+      label: "Claim",
+    });
     // The textarea was seen in the first part; text added under it in the second is still masked.
     expect(JSON.stringify(rest.dom)).not.toContain("my note");
     expect(rest.end_t).toBe(62_000);
     // The carry survives the trip through storage as JSON.
-    const again = readVendorCapturePart(whole().slice(3), JSON.parse(JSON.stringify(first.carry)));
+    const again = readVendorCapturePart(
+      whole().slice(3),
+      JSON.parse(JSON.stringify(first.carry)),
+    );
     expect(again.events).toEqual(rest.events);
   });
 
@@ -82,11 +211,18 @@ describe("a long recording read in parts", () => {
     expect(rebuilt).not.toBeNull();
     const rest = readVendorCapturePart(whole().slice(3), rebuilt!);
     expect(rest.events).toEqual(kept.events);
-    expect(rest.events.find((e) => e.type === "click")).toMatchObject({ label: "Claim" });
+    expect(rest.events.find((e) => e.type === "click")).toMatchObject({
+      label: "Claim",
+    });
     expect(JSON.stringify(rest.dom)).not.toContain("my note");
   });
 
   test("no full snapshot in the stored capture: nothing to rebuild from", () => {
-    expect(carryFromCapture(whole().filter((e) => e.type !== 2), T)).toBeNull();
+    expect(
+      carryFromCapture(
+        whole().filter((e) => e.type !== 2),
+        T,
+      ),
+    ).toBeNull();
   });
 });

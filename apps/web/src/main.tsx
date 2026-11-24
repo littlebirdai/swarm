@@ -1,4 +1,7 @@
-import { bootAfterHandoffGate, isStandaloneSharePath } from "../lib/desktopHandoff";
+import {
+  bootAfterHandoffGate,
+  isStandaloneSharePath,
+} from "../lib/desktopHandoff";
 import "../app/globals.css";
 // The bundled faces' @font-face rules (Instrument Sans is the Modern style's
 // interface face, globals.css .modern-style --font-ui) in the same head
@@ -31,10 +34,12 @@ holdTextareaTextNodes();
 bootAfterHandoffGate(() => {
   // Share pages boot standalone: they hydrate server-rendered markup and never
   // need the store, the inbox, or auth. Everything else is the app.
-  if (isStandaloneSharePath(window.location.pathname)) return void import("./shareBoot");
+  if (isStandaloneSharePath(window.location.pathname))
+    return void import("./shareBoot");
   // The route's own modules load beside boot's, not after the shell reaches it.
   startRouteModule(window.location.pathname);
   // Docs shots (dev only) sign in to the fixture world before the app loads.
-  if (DOCS_SHOTS) void import("../lib/docsShots/install").then(() => import("./boot"));
+  if (DOCS_SHOTS)
+    void import("../lib/docsShots/install").then(() => import("./boot"));
   else void import("./boot");
 });

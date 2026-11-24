@@ -4,7 +4,10 @@
 // lib/acmeWorld/teamActivity.ts.
 import type { Shot, Step } from "../manifest";
 import { SESSIONS } from "../../lib/acmeWorld/world";
-import { CONVERSATIONS, SHARED_MESSAGE_TOKEN } from "../../lib/acmeWorld/conversations";
+import {
+  CONVERSATIONS,
+  SHARED_MESSAGE_TOKEN,
+} from "../../lib/acmeWorld/conversations";
 
 const conversation = (c: { _id: string }) => `/conversation/${c._id}`;
 const BACKOFF = conversation(CONVERSATIONS.backoff);
@@ -13,8 +16,12 @@ const PANE = "main[data-cc-conversation]";
 
 /** Settings open as a sheet over the page, the way the gear menu opens them (a /settings route
  *  turns into the page beneath once the sheet is up); later shots close it the same way. */
-const openSheet = (section: string): Step => ({ js: `__inboxStore.getState().openSettingsModal(${JSON.stringify(section)})` });
-const closeSheet: Step = { js: "__inboxStore.getState().closeSettingsModal?.()" };
+const openSheet = (section: string): Step => ({
+  js: `__inboxStore.getState().openSettingsModal(${JSON.stringify(section)})`,
+});
+const closeSheet: Step = {
+  js: "__inboxStore.getState().closeSettingsModal?.()",
+};
 /** Scrolls the sheet's panel so the section headed `title` sits at the top (the sheet caps its height at 880px). */
 const scrollTo = (title: string): Step => ({
   js: `(() => {
@@ -37,7 +44,14 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "app/team-settings",
     route: "/inbox",
     viewport: { width: 1200, height: 900 },
-    steps: [closeSheet, { sleep: 300 }, openSheet("team"), { wait: SHEET, text: "Members" }, scrollTo("Members"), { sleep: 3000 }],
+    steps: [
+      closeSheet,
+      { sleep: 300 },
+      openSheet("team"),
+      { wait: SHEET, text: "Members" },
+      scrollTo("Members"),
+      { sleep: 3000 },
+    ],
     crop: { selector: SHEET },
     frame: "element",
     out: "public/docs/app/team-settings.webp",
@@ -46,7 +60,14 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "app/sharing",
     route: "/inbox",
     viewport: { width: 1200, height: 960 },
-    steps: [closeSheet, { sleep: 300 }, openSheet("sync"), { wait: SHEET, text: "acme-api" }, scrollTo("Sharing"), { sleep: 500 }],
+    steps: [
+      closeSheet,
+      { sleep: 300 },
+      openSheet("sync"),
+      { wait: SHEET, text: "acme-api" },
+      scrollTo("Sharing"),
+      { sleep: 500 },
+    ],
     crop: { selector: SHEET },
     frame: "element",
     out: "public/docs/app/sharing.webp",
@@ -79,17 +100,27 @@ export const WORKING_TOGETHER_B: Shot[] = [
       openSheet("sync"),
       { wait: SHEET, text: "billing-api" },
       // The script's pointer presses miss inside the sheet's scroller; DOM clicks are the same presses.
-      { js: `(() => { document.querySelector('button[aria-label="Who can open billing-api"]').click(); })()` },
+      {
+        js: `(() => { document.querySelector('button[aria-label="Who can open billing-api"]').click(); })()`,
+      },
       { wait: "[data-share-panel]" },
-      { js: `[...document.querySelectorAll("[data-share-panel] [role=radio]")].find((b) => b.textContent.includes("Acme")).click()` },
+      {
+        js: `[...document.querySelectorAll("[data-share-panel] [role=radio]")].find((b) => b.textContent.includes("Acme")).click()`,
+      },
       { wait: "[data-share-panel] [role=radiogroup]", text: "From today on" },
-      { js: `[...document.querySelectorAll("[data-share-panel] label")].find((l) => l.textContent.includes("From today on")).click()` },
+      {
+        js: `[...document.querySelectorAll("[data-share-panel] label")].find((l) => l.textContent.includes("From today on")).click()`,
+      },
       // Scroll once the panel is open, so the scroller can bring the row to the top.
       scrollTo("billing-api"),
       markRow("billing-api"),
       { sleep: 800 },
     ],
-    crop: { selector: "[data-shot-row]", include: "[data-share-panel]", pad: 8 },
+    crop: {
+      selector: "[data-shot-row]",
+      include: "[data-share-panel]",
+      pad: 8,
+    },
     frame: "element",
     out: "public/documentation/team-sessions/share-review.webp",
   },
@@ -106,7 +137,11 @@ export const WORKING_TOGETHER_B: Shot[] = [
     route: BACKOFF,
     viewport: { width: 1440, height: 900 },
     rail: true,
-    steps: [closeSheet, { wait: PANE, text: "STAGING_API_KEY" }, { sleep: 800 }],
+    steps: [
+      closeSheet,
+      { wait: PANE, text: "STAGING_API_KEY" },
+      { sleep: 800 },
+    ],
     frame: "window",
     out: "public/documentation/shots/inbox.webp",
   },
@@ -114,8 +149,16 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "thread-state/pinned-panel",
     route: BACKOFF,
     viewport: { width: 1000, height: 800 },
-    steps: [closeSheet, { wait: "[data-cc-thread-state]", text: "STAGING_API_KEY" }, { sleep: 600 }],
-    crop: { selector: "[data-cc-thread-state]", include: "[data-cc-composer-box=dock]", pad: 12 },
+    steps: [
+      closeSheet,
+      { wait: "[data-cc-thread-state]", text: "STAGING_API_KEY" },
+      { sleep: 600 },
+    ],
+    crop: {
+      selector: "[data-cc-thread-state]",
+      include: "[data-cc-composer-box=dock]",
+      pad: 12,
+    },
     frame: "element",
     out: "public/documentation/thread-state/pinned-panel.webp",
   },
@@ -126,13 +169,21 @@ export const WORKING_TOGETHER_B: Shot[] = [
     rail: true,
     steps: [
       closeSheet,
-      { wait: `[data-mc=card][data-session-id="${CONVERSATIONS.backoff._id}"]` },
+      {
+        wait: `[data-mc=card][data-session-id="${CONVERSATIONS.backoff._id}"]`,
+      },
       // Fold Pinned and Done with their own section toggles, so the waiting card and the working one sit close.
-      { js: `for (const k of ["pinned", "done"]) { const b = document.querySelector('[data-inbox-section="' + k + '"]'); if (b && b.getAttribute("aria-expanded") === "true") b.click(); }` },
+      {
+        js: `for (const k of ["pinned", "done"]) { const b = document.querySelector('[data-inbox-section="' + k + '"]'); if (b && b.getAttribute("aria-expanded") === "true") b.click(); }`,
+      },
       { wait: `[data-mc=card][data-session-id="${SESSIONS.lead._id}"]` },
       { sleep: 800 },
     ],
-    crop: { selector: `[data-mc=card][data-session-id="${CONVERSATIONS.backoff._id}"]`, include: `[data-mc=card][data-session-id="${SESSIONS.lead._id}"]`, pad: 10 },
+    crop: {
+      selector: `[data-mc=card][data-session-id="${CONVERSATIONS.backoff._id}"]`,
+      include: `[data-mc=card][data-session-id="${SESSIONS.lead._id}"]`,
+      pad: 10,
+    },
     frame: "element",
     out: "public/documentation/thread-state/inbox-card.webp",
   },
@@ -141,8 +192,18 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "share-a-session/share-popover",
     route: BACKOFF,
     viewport: { width: 1100, height: 760 },
-    steps: [closeSheet, { wait: 'button[aria-label="Share session"]' }, { click: 'button[aria-label="Share session"]' }, { wait: "[data-radix-popper-content-wrapper]", text: "Link access" }, { sleep: 500 }],
-    crop: { selector: 'button[aria-label="Share session"]', include: "[data-radix-popper-content-wrapper]", pad: 16 },
+    steps: [
+      closeSheet,
+      { wait: 'button[aria-label="Share session"]' },
+      { click: 'button[aria-label="Share session"]' },
+      { wait: "[data-radix-popper-content-wrapper]", text: "Link access" },
+      { sleep: 500 },
+    ],
+    crop: {
+      selector: 'button[aria-label="Share session"]',
+      include: "[data-radix-popper-content-wrapper]",
+      pad: 16,
+    },
     frame: "element",
     out: "public/documentation/share-a-session/share-popover.webp",
   },
@@ -183,7 +244,16 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "opencode/codecast-session",
     route: conversation(CONVERSATIONS.opencode),
     viewport: { width: 1000, height: 1100 },
-    steps: [closeSheet, { wait: PANE, text: "All 14 tests pass" }, { js: `[...document.querySelectorAll("main [role=button]")].find((e) => e.textContent.startsWith("read 1 file")).click()` }, { sleep: 600 }, scrollPane("top"), { sleep: 400 }],
+    steps: [
+      closeSheet,
+      { wait: PANE, text: "All 14 tests pass" },
+      {
+        js: `[...document.querySelectorAll("main [role=button]")].find((e) => e.textContent.startsWith("read 1 file")).click()`,
+      },
+      { sleep: 600 },
+      scrollPane("top"),
+      { sleep: 400 },
+    ],
     crop: { selector: PANE },
     frame: "element",
     out: "public/documentation/opencode/codecast-session.webp",
@@ -194,15 +264,30 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "t3-code/codecast-session",
     route: conversation(CONVERSATIONS.t3),
     viewport: { width: 1000, height: 900 },
-    steps: [closeSheet, { wait: PANE, text: "all 13 tests pass" }, { sleep: 600 }, scrollPane("top")],
+    steps: [
+      closeSheet,
+      { wait: PANE, text: "all 13 tests pass" },
+      { sleep: 600 },
+      scrollPane("top"),
+    ],
     crop: { selector: PANE },
     frame: "element",
     out: "public/documentation/t3-code/codecast-session.webp",
-  },  {
+  },
+  {
     name: "opencode/codecast-follow-up",
     route: conversation(CONVERSATIONS.opencode),
     viewport: { width: 1000, height: 900 },
-    steps: [closeSheet, { wait: PANE, text: "Capped." }, { js: `[...document.querySelectorAll("main [role=button]")].find((e) => e.textContent.startsWith("1 edit · ran 1 command")).click()` }, { sleep: 600 }, scrollPane("bottom"), { sleep: 400 }],
+    steps: [
+      closeSheet,
+      { wait: PANE, text: "Capped." },
+      {
+        js: `[...document.querySelectorAll("main [role=button]")].find((e) => e.textContent.startsWith("1 edit · ran 1 command")).click()`,
+      },
+      { sleep: 600 },
+      scrollPane("bottom"),
+      { sleep: 400 },
+    ],
     crop: { selector: PANE },
     frame: "element",
     out: "public/documentation/opencode/codecast-follow-up.webp",
@@ -214,7 +299,9 @@ export const WORKING_TOGETHER_B: Shot[] = [
     viewport: { width: 1200, height: 800 },
     steps: [
       closeSheet,
-      { js: `__inboxStore.getState().openCompose(undefined, { agentType: "opencode", projectPath: "~/src/billing", gitRoot: "~/src/billing" })` },
+      {
+        js: `__inboxStore.getState().openCompose(undefined, { agentType: "opencode", projectPath: "~/src/billing", gitRoot: "~/src/billing" })`,
+      },
       { wait: "[data-cc-composer-box]" },
       { sleep: 1200 },
     ],
@@ -231,10 +318,16 @@ export const WORKING_TOGETHER_B: Shot[] = [
       { wait: "h1", text: "Agent features" },
       { wait: "body", text: " on Alex" },
       // The count line closes the filter row: mark it so the crop can reach it.
-      { js: `[...document.querySelectorAll("[data-main-scroll] *")].find((e) => /\\d+ of \\d+ on /.test(e.textContent) && e.textContent.length < 60).setAttribute("data-shot-count", "")` },
+      {
+        js: `[...document.querySelectorAll("[data-main-scroll] *")].find((e) => /\\d+ of \\d+ on /.test(e.textContent) && e.textContent.length < 60).setAttribute("data-shot-count", "")`,
+      },
       { sleep: 800 },
     ],
-    crop: { selector: "[data-main-scroll] header", include: "[data-shot-count]", pad: 16 },
+    crop: {
+      selector: "[data-main-scroll] header",
+      include: "[data-shot-count]",
+      pad: 16,
+    },
     frame: "element",
     out: "public/documentation/agent-snippets/agent-features-intro.webp",
   },
@@ -246,7 +339,9 @@ export const WORKING_TOGETHER_B: Shot[] = [
       closeSheet,
       { wait: "body", text: "Thread State" },
       // The Context group: the smallest block holding its heading and its three cards.
-      { js: `[...document.querySelectorAll("[data-main-scroll] *")].filter((e) => e.textContent.includes("3 of 3 on") && e.textContent.includes("Thread State") && e.textContent.includes("Stable context")).pop().setAttribute("data-shot-group", "")` },
+      {
+        js: `[...document.querySelectorAll("[data-main-scroll] *")].filter((e) => e.textContent.includes("3 of 3 on") && e.textContent.includes("Thread State") && e.textContent.includes("Stable context")).pop().setAttribute("data-shot-group", "")`,
+      },
       { sleep: 800 },
     ],
     crop: { selector: "[data-shot-group]", pad: 16 },
@@ -257,7 +352,11 @@ export const WORKING_TOGETHER_B: Shot[] = [
     name: "agent-snippets/feature-detail",
     route: "/agent-features?feature=memory",
     viewport: { width: 1200, height: 900 },
-    steps: [closeSheet, { wait: "[role=dialog][data-state=open]", text: "Memory" }, { sleep: 1000 }],
+    steps: [
+      closeSheet,
+      { wait: "[role=dialog][data-state=open]", text: "Memory" },
+      { sleep: 1000 },
+    ],
     crop: { selector: "[role=dialog][data-state=open]", pad: 0 },
     frame: "element",
     out: "public/documentation/agent-snippets/feature-detail.webp",
@@ -269,7 +368,9 @@ export const WORKING_TOGETHER_B: Shot[] = [
     steps: [
       closeSheet,
       // A cold first load: the projects feed still owes its first payload into an empty collection.
-      { js: `(() => { const s = __inboxStore.getState(); s.setLiveLoading("projects", true); s.setLiveLoading("stashed", true); s.setLiveLoading("dismissed", false); })()` },
+      {
+        js: `(() => { const s = __inboxStore.getState(); s.setLiveLoading("projects", true); s.setLiveLoading("stashed", true); s.setLiveLoading("dismissed", false); })()`,
+      },
       { wait: '[aria-label^="Sync status"]' },
       { hover: '[aria-label^="Sync status"]' },
       { wait: "[data-radix-popper-content-wrapper]", text: "Sync status" },
@@ -285,7 +386,9 @@ export const WORKING_TOGETHER_B: Shot[] = [
     viewport: { width: 1200, height: 800 },
     steps: [
       closeSheet,
-      { js: `(() => { const s = __inboxStore.getState(); for (const k of ["projects", "stashed", "dismissed"]) s.setLiveLoading(k, false); s.updateClientDismissed("snippet_intro_mods", 0); })()` },
+      {
+        js: `(() => { const s = __inboxStore.getState(); for (const k of ["projects", "stashed", "dismissed"]) s.setLiveLoading(k, false); s.updateClientDismissed("snippet_intro_mods", 0); })()`,
+      },
       { wait: "button", text: "See what" },
       { click: "button", text: "See what" },
       { wait: "[role=dialog]", text: "New agent features" },
@@ -300,9 +403,12 @@ export const WORKING_TOGETHER_B: Shot[] = [
     route: `/share/message/${SHARED_MESSAGE_TOKEN}`,
     viewport: { width: 1100, height: 540 },
     ready: "body",
-    steps: [closeSheet, { wait: "body", text: "View full conversation" }, { sleep: 800 }],
+    steps: [
+      closeSheet,
+      { wait: "body", text: "View full conversation" },
+      { sleep: 800 },
+    ],
     frame: "window",
     out: "public/documentation/share-a-session/shared-messages-page.webp",
   },
 ];
-

@@ -10,7 +10,9 @@ import { replaysBucketFromEnv, r2Presign } from "./r2";
 /** A moment's kept body, by its R2 key. The object is stored with Content-Encoding gzip (replays.putChunk), so fetch
  *  may hand it back already decoded: it is unzipped only when it still starts with gzip's magic bytes. Null when the
  *  bucket is not configured or the object is gone. */
-export async function readKeptBody(key: string | null): Promise<MomentRecord | null> {
+export async function readKeptBody(
+  key: string | null,
+): Promise<MomentRecord | null> {
   return await readKeptJson<MomentRecord>(key);
 }
 
@@ -26,9 +28,14 @@ export async function readKeptJson<T>(key: string | null): Promise<T | null> {
 }
 
 /** A moment's body key while the body is still in R2: a kept body has no expiry, a 30-day one until body_expires_at. */
-export function liveBodyKey(m: Pick<Doc<"moments">, "body_key" | "body_expires_at"> | null | undefined, now: number): string | null {
+export function liveBodyKey(
+  m: Pick<Doc<"moments">, "body_key" | "body_expires_at"> | null | undefined,
+  now: number,
+): string | null {
   if (!m?.body_key) return null;
-  return m.body_expires_at == null || m.body_expires_at > now ? m.body_key : null;
+  return m.body_expires_at == null || m.body_expires_at > now
+    ? m.body_key
+    : null;
 }
 
 export type JudgeRunRow = {
@@ -74,7 +81,9 @@ export function momentView(m: Doc<"moments">, now?: number) {
     events: m.events,
     first_event_at: m.first_event_at,
     event_at: m.event_at,
-    ...(m.extracted_at ? { extracted_at: m.extracted_at, gap_ms: m.gap_ms } : {}),
+    ...(m.extracted_at
+      ? { extracted_at: m.extracted_at, gap_ms: m.gap_ms }
+      : {}),
     ...(m.extractor_version ? { extractor_version: m.extractor_version } : {}),
     ...(m.who ? { who: m.who } : {}),
     storage: m.storage ?? "host",
@@ -88,4 +97,6 @@ export function momentView(m: Doc<"moments">, now?: number) {
 }
 
 /** The event refs that triggered a moment, parsed. */
-export const momentRefs = (m: Pick<Doc<"moments">, "refs_json">): Record<string, string> => (m.refs_json ? JSON.parse(m.refs_json) : {});
+export const momentRefs = (
+  m: Pick<Doc<"moments">, "refs_json">,
+): Record<string, string> => (m.refs_json ? JSON.parse(m.refs_json) : {});

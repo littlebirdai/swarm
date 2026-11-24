@@ -1,164 +1,603 @@
 /* The Flows stage (FlowsStage): the live flow's head; the flows, the drawn flow's map and the activity rail as one
    frame that fills the stage; the queue under it. */
-.fs { padding: var(--lw-s4) var(--lw-s5) var(--lw-s6); display: flex; flex-direction: column; gap: var(--lw-s4); }
-.fs-lib { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
-.fs-live { padding: 12px 16px; gap: 10px; }
+.fs {
+  padding: var(--lw-s4) var(--lw-s5) var(--lw-s6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lw-s4);
+}
+.fs-lib {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.fs-live {
+  padding: 12px 16px;
+  gap: 10px;
+}
 
 /* The frame: the stage's height less its head, so the map has room and each column scrolls on its own. */
 .fs-app {
-  display: grid; grid-template-columns: minmax(200px, 236px) minmax(0, 1fr) minmax(220px, 264px);
+  display: grid;
+  grid-template-columns: minmax(200px, 236px) minmax(0, 1fr) minmax(
+      220px,
+      264px
+    );
   height: clamp(520px, calc(100dvh - 250px), 1200px);
-  border: 1px solid var(--lw-rule); border-radius: var(--lw-r-lg); overflow: hidden; background: var(--lw-paper);
+  border: 1px solid var(--lw-rule);
+  border-radius: var(--lw-r-lg);
+  overflow: hidden;
+  background: var(--lw-paper);
 }
 .fs-col-h {
-  display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 14px 16px 8px;
-  font-size: var(--lw-fs-xs); font-weight: 650; color: var(--lw-ink-3); letter-spacing: .02em;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 16px 8px;
+  font-size: var(--lw-fs-xs);
+  font-weight: 650;
+  color: var(--lw-ink-3);
+  letter-spacing: 0.02em;
 }
-.fs-col-h .lw-num { font-weight: 500; }
+.fs-col-h .lw-num {
+  font-weight: 500;
+}
 
 /* The flows. */
-.fs-list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--lw-rule-2); background: var(--lw-card); }
-.fs-list ul { list-style: none; margin: 0; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 2px; }
-.fs-list-rest { border-top: 1px solid var(--lw-rule-2); padding-top: 8px !important; margin-top: 4px !important; }
-.fs-list li { border-radius: 10px; padding: 2px 0 8px; }
-.fs-list li[aria-current] { background: color-mix(in srgb, var(--lw-person) 16%, var(--lw-card)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--lw-person) 60%, transparent); }
-.fs-list li[data-link]:not([aria-current]):hover { background: color-mix(in srgb, var(--lw-ink) 4%, transparent); }
-.fs-row { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px 0; color: inherit; text-decoration: none; min-width: 0; }
-.fs-row[data-link] { cursor: pointer; }
-.fs-row-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.fs-row-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--lw-ink-3); opacity: .5; }
-.fs-row-dot[data-state="live"] { background: var(--lw-live); opacity: 1; }
-.fs-row-dot[data-state="you"] { background: var(--lw-person); opacity: 1; }
-.fs-row-dot[data-state="bad"] { background: var(--lw-bad); opacity: 1; }
-.fs-row-name { font-weight: 650; color: var(--lw-ink); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-a.fs-row-name:hover { text-decoration: underline; text-underline-offset: 3px; }
-.fs-list li[data-idle] .fs-row-name { color: var(--lw-ink-2); font-weight: 550; }
-.fs-row-role { margin-left: auto; flex: none; font-size: var(--lw-fs-2xs); color: var(--lw-ink-3); }
-.fs-row-figs { display: flex; flex-wrap: wrap; gap: 2px 12px; padding-left: 15px; font-size: var(--lw-fs-xs); color: var(--lw-ink-3); }
-.fs-row-figs b { color: var(--lw-ink); font-weight: 650; }
-.fs-row-figs [data-tone="you"], .fs-row-figs [data-tone="you"] b { color: var(--lw-person); }
-.fs-row-figs a { text-decoration: none; }
-.fs-row-figs a:hover { text-decoration: underline; text-underline-offset: 3px; }
-.fs-row-figs [data-tone="bad"], .fs-row-figs [data-tone="bad"] b { color: var(--lw-bad); }
+.fs-list {
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--lw-rule-2);
+  background: var(--lw-card);
+}
+.fs-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fs-list-rest {
+  border-top: 1px solid var(--lw-rule-2);
+  padding-top: 8px !important;
+  margin-top: 4px !important;
+}
+.fs-list li {
+  border-radius: 10px;
+  padding: 2px 0 8px;
+}
+.fs-list li[aria-current] {
+  background: color-mix(in srgb, var(--lw-person) 16%, var(--lw-card));
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--lw-person) 60%, transparent);
+}
+.fs-list li[data-link]:not([aria-current]):hover {
+  background: color-mix(in srgb, var(--lw-ink) 4%, transparent);
+}
+.fs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px 0;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+.fs-row[data-link] {
+  cursor: pointer;
+}
+.fs-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.fs-row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--lw-ink-3);
+  opacity: 0.5;
+}
+.fs-row-dot[data-state="live"] {
+  background: var(--lw-live);
+  opacity: 1;
+}
+.fs-row-dot[data-state="you"] {
+  background: var(--lw-person);
+  opacity: 1;
+}
+.fs-row-dot[data-state="bad"] {
+  background: var(--lw-bad);
+  opacity: 1;
+}
+.fs-row-name {
+  font-weight: 650;
+  color: var(--lw-ink);
+  text-decoration: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.fs-row-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fs-list li[data-idle] .fs-row-name {
+  color: var(--lw-ink-2);
+  font-weight: 550;
+}
+.fs-row-role {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--lw-fs-2xs);
+  color: var(--lw-ink-3);
+}
+.fs-row-figs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding-left: 15px;
+  font-size: var(--lw-fs-xs);
+  color: var(--lw-ink-3);
+}
+.fs-row-figs b {
+  color: var(--lw-ink);
+  font-weight: 650;
+}
+.fs-row-figs [data-tone="you"],
+.fs-row-figs [data-tone="you"] b {
+  color: var(--lw-person);
+}
+.fs-row-figs a {
+  text-decoration: none;
+}
+.fs-row-figs a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fs-row-figs [data-tone="bad"],
+.fs-row-figs [data-tone="bad"] b {
+  color: var(--lw-bad);
+}
 
 /* The stations holding work: name, then the runs there, colored by what needs a look. */
-.fs-hot { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0 25px; }
-.fs-hot-s {
-  display: inline-flex; align-items: baseline; gap: 6px; max-width: 100%; padding: 2px 8px; border-radius: 6px;
-  background: var(--lw-paper-2); border: 1px solid var(--lw-rule-2); color: var(--lw-ink-2); text-decoration: none;
-  font-size: var(--lw-fs-2xs); white-space: nowrap;
+.fs-hot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 10px 0 25px;
 }
-a.fs-hot-s:hover { border-color: var(--lw-rule); color: var(--lw-ink); }
-.fs-hot-l { overflow: hidden; text-overflow: ellipsis; }
-.fs-hot-s b { color: var(--lw-ink); font-weight: 700; }
-.fs-hot-s b[data-tone="you"] { color: var(--lw-person); }
+.fs-hot-s {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--lw-paper-2);
+  border: 1px solid var(--lw-rule-2);
+  color: var(--lw-ink-2);
+  text-decoration: none;
+  font-size: var(--lw-fs-2xs);
+  white-space: nowrap;
+}
+a.fs-hot-s:hover {
+  border-color: var(--lw-rule);
+  color: var(--lw-ink);
+}
+.fs-hot-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fs-hot-s b {
+  color: var(--lw-ink);
+  font-weight: 700;
+}
+.fs-hot-s b[data-tone="you"] {
+  color: var(--lw-person);
+}
 /* A station holding work for a person, or stalled work, is tinted so the pile reads before its number. */
-.fs-hot-s[data-tone="you"] { background: color-mix(in srgb, var(--lw-person) 14%, var(--lw-paper-2)); border-color: color-mix(in srgb, var(--lw-person) 40%, transparent); }
-.fs-hot-s[data-tone="bad"] { background: var(--lw-bad-soft); border-color: color-mix(in srgb, var(--lw-bad) 45%, transparent); }
-.fs-hot-s b[data-tone="bad"] { color: var(--lw-bad); }
-.fs-hot-more { align-self: center; background: none; border: 0; padding: 2px 4px; font: inherit; font-size: var(--lw-fs-2xs); color: var(--lw-ink-3); cursor: pointer; }
-.fs-hot-more:hover { color: var(--lw-ink); text-decoration: underline; }
+.fs-hot-s[data-tone="you"] {
+  background: color-mix(in srgb, var(--lw-person) 14%, var(--lw-paper-2));
+  border-color: color-mix(in srgb, var(--lw-person) 40%, transparent);
+}
+.fs-hot-s[data-tone="bad"] {
+  background: var(--lw-bad-soft);
+  border-color: color-mix(in srgb, var(--lw-bad) 45%, transparent);
+}
+.fs-hot-s b[data-tone="bad"] {
+  color: var(--lw-bad);
+}
+.fs-hot-more {
+  align-self: center;
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: var(--lw-fs-2xs);
+  color: var(--lw-ink-3);
+  cursor: pointer;
+}
+.fs-hot-more:hover {
+  color: var(--lw-ink);
+  text-decoration: underline;
+}
 
 /* The map fills the middle column; its table scrolls there. */
-.fs-map { position: relative; min-width: 0; min-height: 0; height: 100%; overflow: hidden; background: var(--lw-paper); container-type: inline-size; }
+.fs-map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--lw-paper);
+  container-type: inline-size;
+}
 /* A narrow middle column: the map's controls wrap under its mode switch, and Full view keeps only its icon. */
 @container (max-width: 700px) {
-  .fs-map .lwg-top { flex-wrap: wrap; gap: 6px 8px; padding: 8px 10px 14px; }
-  .fs-map .lwg-controls { margin-left: 0; gap: 6px; }
-  .fs-map .fs-full-label { display: none; }
+  .fs-map .lwg-top {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    padding: 8px 10px 14px;
+  }
+  .fs-map .lwg-controls {
+    margin-left: 0;
+    gap: 6px;
+  }
+  .fs-map .fs-full-label {
+    display: none;
+  }
 }
-.fs-map[data-mode="table"] { overflow-y: auto; }
+.fs-map[data-mode="table"] {
+  overflow-y: auto;
+}
 /* The steps table in the middle column: its own padding, and its bar's facts wrap whole rather than word by word. */
-.fs-app .fs-map[data-mode="table"] > .lst { padding: 14px 18px; }
-.fs-map .lst-bar { flex-wrap: wrap; gap: 8px 16px; }
-.fs-map .lst-facts { flex-wrap: wrap; gap: 4px 14px; }
-.fs-map .lst-fact { white-space: nowrap; }
-.fs-map .lst-bar-r { display: inline-flex; align-items: center; gap: 8px; }
+.fs-app .fs-map[data-mode="table"] > .lst {
+  padding: 14px 18px;
+}
+.fs-map .lst-bar {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.fs-map .lst-facts {
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.fs-map .lst-fact {
+  white-space: nowrap;
+}
+.fs-map .lst-bar-r {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 /* With no live flow the map stands alone in its own frame. */
-.fs > .fs-map { height: clamp(440px, 64vh, 820px); border: 1px solid var(--lw-rule); border-radius: var(--lw-r-lg); }
-.fs > .fs-map[data-mode="table"] { height: auto; overflow: visible; border: 0; }
-.fs-full-btn { display: inline-flex; align-items: center; gap: 6px; }
+.fs > .fs-map {
+  height: clamp(440px, 64vh, 820px);
+  border: 1px solid var(--lw-rule);
+  border-radius: var(--lw-r-lg);
+}
+.fs > .fs-map[data-mode="table"] {
+  height: auto;
+  overflow: visible;
+  border: 0;
+}
+.fs-full-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
 /* What just happened. */
-.fs-rail { min-height: 0; overflow-y: auto; border-left: 1px solid var(--lw-rule-2); background: var(--lw-card); display: flex; flex-direction: column; }
-.fs-rail-f { display: flex; flex: none; gap: 2px; padding: 0 10px 8px; overflow-x: auto; scrollbar-width: none; }
+.fs-rail {
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid var(--lw-rule-2);
+  background: var(--lw-card);
+  display: flex;
+  flex-direction: column;
+}
+.fs-rail-f {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 0 10px 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
 .fs-rail-f button {
-  display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 7px; border-radius: 999px; border: 1px solid transparent; flex: none; white-space: nowrap;
-  background: none; font: inherit; font-size: var(--lw-fs-2xs); color: var(--lw-ink-3); cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  flex: none;
+  white-space: nowrap;
+  background: none;
+  font: inherit;
+  font-size: var(--lw-fs-2xs);
+  color: var(--lw-ink-3);
+  cursor: pointer;
 }
-.fs-rail-f button:hover { color: var(--lw-ink); }
-.fs-rail-f button[aria-selected="true"] { color: var(--lw-ink); border-color: var(--lw-rule); background: var(--lw-paper-2); }
-.fs-rail-f button b { font-weight: 700; color: var(--lw-ink-2); }
-.fs-rail-f button[data-tone="you"] b { color: var(--lw-person); }
-.fs-rail-f button[data-tone="stalled"] b, .fs-rail-f button[data-tone="failed"] b { color: var(--lw-bad); }
-.fs-acts { list-style: none; margin: 0; padding: 0 6px 8px; }
+.fs-rail-f button:hover {
+  color: var(--lw-ink);
+}
+.fs-rail-f button[aria-selected="true"] {
+  color: var(--lw-ink);
+  border-color: var(--lw-rule);
+  background: var(--lw-paper-2);
+}
+.fs-rail-f button b {
+  font-weight: 700;
+  color: var(--lw-ink-2);
+}
+.fs-rail-f button[data-tone="you"] b {
+  color: var(--lw-person);
+}
+.fs-rail-f button[data-tone="stalled"] b,
+.fs-rail-f button[data-tone="failed"] b {
+  color: var(--lw-bad);
+}
+.fs-acts {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 8px;
+}
 .fs-act {
-  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; column-gap: 9px; row-gap: 1px; align-items: baseline;
-  padding: 7px 8px; border-radius: 8px; color: inherit; text-decoration: none;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  column-gap: 9px;
+  row-gap: 1px;
+  align-items: baseline;
+  padding: 7px 8px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
 }
-.fs-act:hover { background: color-mix(in srgb, var(--lw-ink) 5%, transparent); }
-.fs-act-dot { width: 7px; height: 7px; border-radius: 50%; align-self: center; background: var(--lw-ink-3); opacity: .45; }
-.fs-act-dot[data-state="live"] { background: var(--lw-live); opacity: 1; }
-.fs-act-dot[data-state="you"] { background: var(--lw-person); opacity: 1; }
-.fs-act-dot[data-state="stalled"], .fs-act-dot[data-state="failed"] { background: var(--lw-bad); opacity: 1; }
-.fs-act-what { font-size: var(--lw-fs-xs); font-weight: 600; color: var(--lw-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fs-act[data-state="you"] .fs-act-what { color: var(--lw-person); }
-.fs-act[data-state="stalled"] .fs-act-what, .fs-act[data-state="failed"] .fs-act-what { color: var(--lw-bad); }
-.fs-act[data-state="done"] .fs-act-what { color: var(--lw-ink-2); font-weight: 500; }
-.fs-act-age { font-size: var(--lw-fs-2xs); color: var(--lw-ink-3); }
-.fs-act-task, .fs-act-flow { grid-column: 2 / -1; font-size: var(--lw-fs-2xs); color: var(--lw-ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fs-act-task { color: var(--lw-ink-2); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
-.fs-act-ref { margin-right: 6px; color: var(--lw-ink-3); }
-.fs-act-flow { opacity: .8; }
-.fs-none { margin: 0; padding: 4px 16px; font-size: var(--lw-fs-xs); color: var(--lw-ink-3); }
-.fs-more { margin: 0 14px 12px; align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: var(--lw-fs-xs); color: var(--lw-ink-3); cursor: pointer; }
-.fs-more:hover { color: var(--lw-ink); text-decoration: underline; }
+.fs-act:hover {
+  background: color-mix(in srgb, var(--lw-ink) 5%, transparent);
+}
+.fs-act-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  align-self: center;
+  background: var(--lw-ink-3);
+  opacity: 0.45;
+}
+.fs-act-dot[data-state="live"] {
+  background: var(--lw-live);
+  opacity: 1;
+}
+.fs-act-dot[data-state="you"] {
+  background: var(--lw-person);
+  opacity: 1;
+}
+.fs-act-dot[data-state="stalled"],
+.fs-act-dot[data-state="failed"] {
+  background: var(--lw-bad);
+  opacity: 1;
+}
+.fs-act-what {
+  font-size: var(--lw-fs-xs);
+  font-weight: 600;
+  color: var(--lw-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fs-act[data-state="you"] .fs-act-what {
+  color: var(--lw-person);
+}
+.fs-act[data-state="stalled"] .fs-act-what,
+.fs-act[data-state="failed"] .fs-act-what {
+  color: var(--lw-bad);
+}
+.fs-act[data-state="done"] .fs-act-what {
+  color: var(--lw-ink-2);
+  font-weight: 500;
+}
+.fs-act-age {
+  font-size: var(--lw-fs-2xs);
+  color: var(--lw-ink-3);
+}
+.fs-act-task,
+.fs-act-flow {
+  grid-column: 2 / -1;
+  font-size: var(--lw-fs-2xs);
+  color: var(--lw-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fs-act-task {
+  color: var(--lw-ink-2);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.35;
+}
+.fs-act-ref {
+  margin-right: 6px;
+  color: var(--lw-ink-3);
+}
+.fs-act-flow {
+  opacity: 0.8;
+}
+.fs-none {
+  margin: 0;
+  padding: 4px 16px;
+  font-size: var(--lw-fs-xs);
+  color: var(--lw-ink-3);
+}
+.fs-more {
+  margin: 0 14px 12px;
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--lw-fs-xs);
+  color: var(--lw-ink-3);
+  cursor: pointer;
+}
+.fs-more:hover {
+  color: var(--lw-ink);
+  text-decoration: underline;
+}
 
-.fs-work { gap: 0; }
+.fs-work {
+  gap: 0;
+}
 
 /* A narrower stage: the flows become a strip of cards over the map and the rail, so the map keeps its width; narrower
    still, the rail goes and the strip scrolls sideways. */
-.fs { container: fs / inline-size; }
+.fs {
+  container: fs / inline-size;
+}
 @container fs (max-width: 1300px) {
-  .fs-app { grid-template-columns: minmax(0, 1fr) minmax(220px, 260px); grid-template-rows: auto minmax(0, 1fr); }
+  .fs-app {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
   /* Every flow on show: the cards wrap onto a second row rather than run past the frame's edge. */
   .fs-list {
-    grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; padding: 8px;
-    border-right: 0; border-bottom: 1px solid var(--lw-rule-2); overflow: visible;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 6px;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--lw-rule-2);
+    overflow: visible;
   }
-  .fs-list > .fs-col-h { display: none; }
-  .fs-list ul { display: contents; }
-  .fs-list li { min-width: 0; }
-  .fs-list-rest > li { background: color-mix(in srgb, var(--lw-ink) 3%, transparent); }
-  .fs-list .fs-row-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
+  .fs-list > .fs-col-h {
+    display: none;
+  }
+  .fs-list ul {
+    display: contents;
+  }
+  .fs-list li {
+    min-width: 0;
+  }
+  .fs-list-rest > li {
+    background: color-mix(in srgb, var(--lw-ink) 3%, transparent);
+  }
+  .fs-list .fs-row-name {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.3;
+  }
 }
 @container fs (max-width: 820px) {
-  .fs-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(440px, 1fr); }
-  .fs-app > .fs-rail { display: none; }
+  .fs-app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(440px, 1fr);
+  }
+  .fs-app > .fs-rail {
+    display: none;
+  }
 }
 /* Squeezed beside the step drawer: the map alone, so the step a person opened stays in view. */
 @container fs (max-width: 600px) {
-  .fs-app { grid-template-rows: minmax(440px, 1fr); }
-  .fs-app > .fs-list { display: none; }
+  .fs-app {
+    grid-template-rows: minmax(440px, 1fr);
+  }
+  .fs-app > .fs-list {
+    display: none;
+  }
 }
 
 /* Full view names the drawn flow and its counts beside Exit. */
-.fs-full-name { display: inline-flex; align-items: baseline; gap: 12px; margin: 0 4px 0 8px; font-size: var(--lw-fs-xs); color: var(--lw-ink-3); white-space: nowrap; }
-.fs-full-name > b { font-size: var(--lw-fs-sm); color: var(--lw-ink); font-weight: 650; }
-.fs-full-name span b, .fs-full-name a b { color: var(--lw-ink); }
-.fs-full-name [data-tone="you"], .fs-full-name [data-tone="you"] b { color: var(--lw-person); text-decoration: none; }
-.fs-full-name [data-tone="bad"], .fs-full-name [data-tone="bad"] b { color: var(--lw-bad); }
+.fs-full-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 4px 0 8px;
+  font-size: var(--lw-fs-xs);
+  color: var(--lw-ink-3);
+  white-space: nowrap;
+}
+.fs-full-name > b {
+  font-size: var(--lw-fs-sm);
+  color: var(--lw-ink);
+  font-weight: 650;
+}
+.fs-full-name span b,
+.fs-full-name a b {
+  color: var(--lw-ink);
+}
+.fs-full-name [data-tone="you"],
+.fs-full-name [data-tone="you"] b {
+  color: var(--lw-person);
+  text-decoration: none;
+}
+.fs-full-name [data-tone="bad"],
+.fs-full-name [data-tone="bad"] b {
+  color: var(--lw-bad);
+}
 
 /* Full view (FullView): the whole window, the map filling it, the open station's drawer on its right. */
-.fs-full { position: fixed; inset: 0; z-index: 150; margin: 0; max-width: none; background: var(--lw-paper); color: var(--lw-ink); font-family: var(--lw-ui); }
-.fs-full > .fs-map { position: absolute; inset: 0; height: auto; }
-.fs-full[data-drawer] > .fs-map { right: var(--lw-drawer-w); }
-:root[data-flows-full] .lw-body > .lw-drawer { visibility: hidden; }
-.fs-view { margin-right: 4px; }
+.fs-full {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  margin: 0;
+  max-width: none;
+  background: var(--lw-paper);
+  color: var(--lw-ink);
+  font-family: var(--lw-ui);
+}
+.fs-full > .fs-map {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
+.fs-full[data-drawer] > .fs-map {
+  right: var(--lw-drawer-w);
+}
+:root[data-flows-full] .lw-body > .lw-drawer {
+  visibility: hidden;
+}
+.fs-view {
+  margin-right: 4px;
+}
 
 /* ── Modern (.modern-style on <html>): the rail's filters are the segmented
    tray (components/ui/modernLook.ts modernTab), the counts in their tones. ── */
-.modern-style .fs-rail-f { margin: 0 10px 8px; padding: 2px; border-radius: var(--radius-control); background-color: color-mix(in srgb, var(--sol-text) 6%, transparent); width: fit-content; max-width: calc(100% - 20px); }
-.modern-style .fs-rail-f button { align-items: center; height: 24px; padding: 0 8px; border: 0; border-radius: 4px; font-size: var(--fs-meta); font-weight: 500; }
-.modern-style .fs-rail-f button[aria-selected="true"] { background-color: var(--sol-card); color: var(--sol-text); box-shadow: 0 0 0 1px var(--sol-border); }
-.modern-style .fs-rail-f button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.modern-style .fs-rail-f {
+  margin: 0 10px 8px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background-color: color-mix(in srgb, var(--sol-text) 6%, transparent);
+  width: fit-content;
+  max-width: calc(100% - 20px);
+}
+.modern-style .fs-rail-f button {
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  font-size: var(--fs-meta);
+  font-weight: 500;
+}
+.modern-style .fs-rail-f button[aria-selected="true"] {
+  background-color: var(--sol-card);
+  color: var(--sol-text);
+  box-shadow: 0 0 0 1px var(--sol-border);
+}
+.modern-style .fs-rail-f button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

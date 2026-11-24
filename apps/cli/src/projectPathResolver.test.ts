@@ -20,13 +20,19 @@ describe("claudeProjectDirName", () => {
   // can't find the JSONL we write and crashes with "No conversation found".
   test("replaces dots with dashes (the bug: dotted cwd landed in a dir Claude never reads)", () => {
     // A dot becomes "-"; combined with the leading slash's "-" it doubles up.
-    expect(claudeProjectDirName("/Users/ashot/.claude")).toBe("-Users-ashot--claude");
+    expect(claudeProjectDirName("/Users/ashot/.claude")).toBe(
+      "-Users-ashot--claude",
+    );
   });
 
   test("encodes a .claude/worktrees path like Claude does (cast ws / orchestrate)", () => {
     expect(
-      claudeProjectDirName("/Users/ashot/src/union-mobile/outreach/.claude/worktrees/agent-a5c06b4"),
-    ).toBe("-Users-ashot-src-union-mobile-outreach--claude-worktrees-agent-a5c06b4");
+      claudeProjectDirName(
+        "/Users/ashot/src/union-mobile/outreach/.claude/worktrees/agent-a5c06b4",
+      ),
+    ).toBe(
+      "-Users-ashot-src-union-mobile-outreach--claude-worktrees-agent-a5c06b4",
+    );
   });
 
   test("underscores also become dashes; hyphens are preserved", () => {
@@ -34,7 +40,9 @@ describe("claudeProjectDirName", () => {
   });
 
   test("a plain repo path (no dots) is unchanged except slashes", () => {
-    expect(claudeProjectDirName("/Users/ashot/src/codecast")).toBe("-Users-ashot-src-codecast");
+    expect(claudeProjectDirName("/Users/ashot/src/codecast")).toBe(
+      "-Users-ashot-src-codecast",
+    );
   });
 });
 
@@ -47,7 +55,11 @@ describe("resolveLocalProjectPath", () => {
       findCandidates: async () => [],
       exists: (p) => p === "/repo/foo",
     });
-    expect(result).toEqual({ path: "/repo/foo", remapped: false, reason: "recorded path exists locally" });
+    expect(result).toEqual({
+      path: "/repo/foo",
+      remapped: false,
+      reason: "recorded path exists locally",
+    });
   });
 
   test("remaps a foreign path to a local checkout, preserving the subpath", async () => {
@@ -58,7 +70,9 @@ describe("resolveLocalProjectPath", () => {
       gitRoot: "/Users/ec2-user/src/union-mobile/outreach",
       gitRemoteUrl: remote,
       findCandidates: async () => ["/Users/ashot/src/outreach"],
-      exists: (p) => p === "/Users/ashot/src/outreach" || p === "/Users/ashot/src/outreach/packages/x",
+      exists: (p) =>
+        p === "/Users/ashot/src/outreach" ||
+        p === "/Users/ashot/src/outreach/packages/x",
     });
     expect(result?.remapped).toBe(true);
     expect(result?.path).toBe("/Users/ashot/src/outreach/packages/x");
@@ -114,7 +128,10 @@ describe("resolveLocalProjectPath", () => {
       projectPath: "/Users/ec2-user/src/outreach",
       gitRoot: "/Users/ec2-user/src/outreach",
       gitRemoteUrl: remote,
-      findCandidates: async () => ["/Users/ashot/src/outreach", "/Users/ashot/.conductor/feat-x"],
+      findCandidates: async () => [
+        "/Users/ashot/src/outreach",
+        "/Users/ashot/.conductor/feat-x",
+      ],
       // Recorded ec2 path doesn't exist locally; both candidates do.
       exists: (p) => p !== "/Users/ec2-user/src/outreach",
     });
@@ -134,7 +151,8 @@ describe("resolveLocalRepoPath", () => {
     const local = new Set(["/Users/ashot/src/union-mobile/outreach"]);
     expect(
       resolveLocalRepoPath({
-        remotePath: "/Users/ashot/src/union-mobile/outreach/.claude/worktrees/agent-a5c06b4",
+        remotePath:
+          "/Users/ashot/src/union-mobile/outreach/.claude/worktrees/agent-a5c06b4",
         home: HOME,
         exists: (p) => local.has(p),
       }),
@@ -166,7 +184,11 @@ describe("resolveLocalRepoPath", () => {
 
   test("recorded path unchanged when it exists locally", () => {
     expect(
-      resolveLocalRepoPath({ remotePath: "/Users/ashot/src/codecast", home: HOME, exists: (p) => p === "/Users/ashot/src/codecast" }),
+      resolveLocalRepoPath({
+        remotePath: "/Users/ashot/src/codecast",
+        home: HOME,
+        exists: (p) => p === "/Users/ashot/src/codecast",
+      }),
     ).toBe("/Users/ashot/src/codecast");
   });
 
@@ -175,7 +197,10 @@ describe("resolveLocalRepoPath", () => {
   // stamped "clone it first". Walking up finds "codecast" → ~/src/codecast and
   // re-appends apps/cli.
   test("walks up a foreign subdir path to the repo ancestor and re-appends the subpath", () => {
-    const local = new Set(["/Users/ashot/src/codecast", "/Users/ashot/src/codecast/apps/cli"]);
+    const local = new Set([
+      "/Users/ashot/src/codecast",
+      "/Users/ashot/src/codecast/apps/cli",
+    ]);
     expect(
       resolveLocalRepoPath({
         remotePath: "/Users/m1/work/codecast/apps/cli",
@@ -188,7 +213,10 @@ describe("resolveLocalRepoPath", () => {
   test("non-leaf match without the subpath keeps walking — no generic-ancestor false positive", () => {
     // A coincidental ~/src/work exists but isn't the repo; the subpath under it
     // doesn't exist, so we must NOT return it. "codecast" resolves instead.
-    const local = new Set(["/Users/ashot/src/work", "/Users/ashot/src/codecast"]);
+    const local = new Set([
+      "/Users/ashot/src/work",
+      "/Users/ashot/src/codecast",
+    ]);
     expect(
       resolveLocalRepoPath({
         remotePath: "/Users/m1/work/codecast/sub",
@@ -213,7 +241,9 @@ describe("resolveLocalRepoPath", () => {
       resolveLocalRepoPath({
         remotePath: "/Users/m1/work/codecast/apps/cli",
         home: HOME,
-        userMap: { "/Users/m1/work/codecast/apps/cli": "/Users/ashot/elsewhere/cli" },
+        userMap: {
+          "/Users/m1/work/codecast/apps/cli": "/Users/ashot/elsewhere/cli",
+        },
         exists: (p) => p === "/Users/ashot/elsewhere/cli",
       }),
     ).toBe("/Users/ashot/elsewhere/cli");
@@ -224,7 +254,9 @@ describe("resolveLocalRepoPath", () => {
     resolveLocalRepoPath({
       remotePath: "/Users/m1/work/codecast/apps/cli",
       home: HOME,
-      exists: (p) => p === "/Users/ashot/src/codecast" || p === "/Users/ashot/src/codecast/apps/cli",
+      exists: (p) =>
+        p === "/Users/ashot/src/codecast" ||
+        p === "/Users/ashot/src/codecast/apps/cli",
       onLearn: (name, local) => learned.push([name, local]),
     });
     expect(learned).toContainEqual(["codecast", "/Users/ashot/src/codecast"]);
@@ -232,7 +264,11 @@ describe("resolveLocalRepoPath", () => {
 
   test("returns null when no ancestor maps to a local repo", () => {
     expect(
-      resolveLocalRepoPath({ remotePath: "/Users/m1/work/nope/deep", home: HOME, exists: () => false }),
+      resolveLocalRepoPath({
+        remotePath: "/Users/m1/work/nope/deep",
+        home: HOME,
+        exists: () => false,
+      }),
     ).toBeNull();
   });
 });
@@ -290,7 +326,10 @@ describe("resolveResumeCwd", () => {
   test("falls back to the local-repo map when the recorded cwd is foreign", async () => {
     const cwd = await resolveResumeCwd({
       recordedCwd: "/Users/ec2-user/src/outreach",
-      resolveLocalRepo: (p) => (p === "/Users/ec2-user/src/outreach" ? "/Users/ashot/src/outreach" : null),
+      resolveLocalRepo: (p) =>
+        p === "/Users/ec2-user/src/outreach"
+          ? "/Users/ashot/src/outreach"
+          : null,
       exists: (p) => p === "/Users/ashot/src/outreach",
     });
     expect(cwd).toBe("/Users/ashot/src/outreach");
@@ -364,7 +403,10 @@ describe("resolveResumeCwd", () => {
       const cwd = await resolveResumeCwd({
         recordedCwd: "/Users/ec2-user/src/outreach",
         recordedRoot: root,
-        resolveLocalRepo: (p) => { seen.push(p); return null; },
+        resolveLocalRepo: (p) => {
+          seen.push(p);
+          return null;
+        },
         remapViaRemote: async () => null,
         exists: () => false,
       });
@@ -379,61 +421,72 @@ describe("pickProjectPath", () => {
 
   test("normal session: real non-$HOME slug dir wins", () => {
     // The everyday case — slug decodes to the same dir the session ran in.
-    expect(pickProjectPath({
-      decodedSlugPath: "/Users/ashot/src/outreach",
-      recordedCwd: "/Users/ashot/src/outreach",
-      home: HOME,
-      exists: (p) => p === "/Users/ashot/src/outreach",
-    })).toBe("/Users/ashot/src/outreach");
+    expect(
+      pickProjectPath({
+        decodedSlugPath: "/Users/ashot/src/outreach",
+        recordedCwd: "/Users/ashot/src/outreach",
+        home: HOME,
+        exists: (p) => p === "/Users/ashot/src/outreach",
+      }),
+    ).toBe("/Users/ashot/src/outreach");
   });
 
   test("cross-machine fork: real local slug dir wins over a foreign recorded cwd", () => {
     // Fork lives under a real local project dir; its transcript still carries the
     // original author's (foreign, non-local) cwd. The local dir must win.
-    expect(pickProjectPath({
-      decodedSlugPath: "/Users/ashot/src/outreach",
-      recordedCwd: "/Users/ec2-user/src/outreach",
-      home: HOME,
-      exists: (p) => p === "/Users/ashot/src/outreach",
-    })).toBe("/Users/ashot/src/outreach");
+    expect(
+      pickProjectPath({
+        decodedSlugPath: "/Users/ashot/src/outreach",
+        recordedCwd: "/Users/ec2-user/src/outreach",
+        home: HOME,
+        exists: (p) => p === "/Users/ashot/src/outreach",
+      }),
+    ).toBe("/Users/ashot/src/outreach");
   });
 
   test("THE BUG: a transcript parked in the bare $HOME dir is relabeled to its real cwd", () => {
     // Remote-offloaded session: an old resume fell back to $HOME, so the JSONL sits
     // under ~/.claude/projects/-Users-m1/ → slug decodes to /Users/m1 (which exists,
     // it's the home dir). Without the fix this returns "/Users/m1" → label "m1".
-    expect(pickProjectPath({
-      decodedSlugPath: HOME,
-      recordedCwd: "/Users/ashot/src/union-mobile/outreach",
-      home: HOME,
-      exists: (p) => p === HOME, // home dir exists; the real project does not (foreign machine)
-    })).toBe("/Users/ashot/src/union-mobile/outreach");
+    expect(
+      pickProjectPath({
+        decodedSlugPath: HOME,
+        recordedCwd: "/Users/ashot/src/union-mobile/outreach",
+        home: HOME,
+        exists: (p) => p === HOME, // home dir exists; the real project does not (foreign machine)
+      }),
+    ).toBe("/Users/ashot/src/union-mobile/outreach");
   });
 
   test("foreign slug that doesn't exist locally falls back to the recorded cwd", () => {
-    expect(pickProjectPath({
-      decodedSlugPath: "/Users/ashot/src/union-mobile/outreach",
-      recordedCwd: "/Users/ashot/src/union-mobile/outreach",
-      home: HOME,
-      exists: () => false, // nothing exists on this (remote) machine
-    })).toBe("/Users/ashot/src/union-mobile/outreach");
+    expect(
+      pickProjectPath({
+        decodedSlugPath: "/Users/ashot/src/union-mobile/outreach",
+        recordedCwd: "/Users/ashot/src/union-mobile/outreach",
+        home: HOME,
+        exists: () => false, // nothing exists on this (remote) machine
+      }),
+    ).toBe("/Users/ashot/src/union-mobile/outreach");
   });
 
   test("$HOME slug with no recorded cwd falls back to the decoded slug (last resort)", () => {
     // A genuinely home-dir-run session (rare) or a cwd-less transcript: don't drop it.
-    expect(pickProjectPath({
-      decodedSlugPath: HOME,
-      recordedCwd: null,
-      home: HOME,
-      exists: (p) => p === HOME,
-    })).toBe(HOME);
+    expect(
+      pickProjectPath({
+        decodedSlugPath: HOME,
+        recordedCwd: null,
+        home: HOME,
+        exists: (p) => p === HOME,
+      }),
+    ).toBe(HOME);
   });
 });
 
 describe("chooseSessionTranscript", () => {
   // The live duplicate observed in pl-79: one session UUID, two .jsonl copies.
   const live: TranscriptCandidate = {
-    filePath: "/Users/ashot/.claude/projects/-Users-ashot-src-union-mobile/f0d46305.jsonl",
+    filePath:
+      "/Users/ashot/.claude/projects/-Users-ashot-src-union-mobile/f0d46305.jsonl",
     projectPath: "/Users/ashot/src/union-mobile",
     projectExists: true, // real local checkout
   };
@@ -474,7 +527,8 @@ describe("chooseSessionTranscript", () => {
 
   test("keeps both when both copies live in real checkouts (no clear artifact)", () => {
     const other: TranscriptCandidate = {
-      filePath: "/Users/ashot/.claude/projects/-Users-ashot-src-other/f0d46305.jsonl",
+      filePath:
+        "/Users/ashot/.claude/projects/-Users-ashot-src-other/f0d46305.jsonl",
       projectPath: "/Users/ashot/src/other",
       projectExists: true,
     };
@@ -486,7 +540,11 @@ describe("chooseSessionTranscript", () => {
   });
 
   test("keeps both when neither copy resolves to a real dir (never drop blindly)", () => {
-    const stale2: TranscriptCandidate = { ...stale, filePath: "/x/-Users-other/f0d46305.jsonl", projectPath: "/Users/other" };
+    const stale2: TranscriptCandidate = {
+      ...stale,
+      filePath: "/x/-Users-other/f0d46305.jsonl",
+      projectPath: "/Users/other",
+    };
     const choice = chooseSessionTranscript(stale2, stale);
     expect(choice.action).toBe("sync");
     if (choice.action === "sync") {
@@ -508,12 +566,16 @@ describe("conventionSeed", () => {
   });
 
   test("uses the recorded root when the path lives under it", () => {
-    expect(conventionSeed(RAW, "/Users/ec2-user/src/union-mobile")).toBe("/Users/ec2-user/src/union-mobile");
+    expect(conventionSeed(RAW, "/Users/ec2-user/src/union-mobile")).toBe(
+      "/Users/ec2-user/src/union-mobile",
+    );
     expect(conventionSeed(RAW, RAW)).toBe(RAW);
   });
 
   test("prefix match is per path segment, not per character", () => {
-    expect(conventionSeed("/Users/ashot/src/conv-other", "/Users/ashot/src/conv")).toBe("/Users/ashot/src/conv-other");
+    expect(
+      conventionSeed("/Users/ashot/src/conv-other", "/Users/ashot/src/conv"),
+    ).toBe("/Users/ashot/src/conv-other");
   });
 
   test("no recorded root falls through to the requested path", () => {
@@ -522,7 +584,11 @@ describe("conventionSeed", () => {
   });
 
   test("end-to-end: mismatched root no longer hijacks resolution; the real path resolves by learned map", () => {
-    const local = new Set(["/Users/ashot/src/conv", "/Users/ashot/src/union-mobile", "/Users/ashot/src/union-mobile/outreach"]);
+    const local = new Set([
+      "/Users/ashot/src/conv",
+      "/Users/ashot/src/union-mobile",
+      "/Users/ashot/src/union-mobile/outreach",
+    ]);
     const resolve = (seed: string) =>
       resolveLocalRepoPath({
         remotePath: seed,
@@ -533,7 +599,9 @@ describe("conventionSeed", () => {
     // Old behavior: seeding with the unrelated-but-existing git_root returned it verbatim.
     expect(resolve("/Users/ashot/src/conv")).toBe("/Users/ashot/src/conv");
     // Guarded behavior: the foreign task path seeds the walk and lands in the task's repo.
-    expect(resolve(conventionSeed(RAW, "/Users/ashot/src/conv"))).toBe("/Users/ashot/src/union-mobile/outreach");
+    expect(resolve(conventionSeed(RAW, "/Users/ashot/src/conv"))).toBe(
+      "/Users/ashot/src/union-mobile/outreach",
+    );
   });
 });
 

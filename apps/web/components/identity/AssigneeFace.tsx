@@ -3,16 +3,33 @@
 // the face knows who they are, the person hover card; a role is its face
 // (RoleFace: its animal or its icon tile, as the viewer chose) and the role hover card one hover away. `info` is what lib/liveEntities resolveAssigneeInfo returns, so the
 // face follows an optimistic reassignment in the same tick.
-import { isRoleAssignee, type AssigneeInfo } from "@codecast/shared/contracts/orgAssignee";
+import {
+  isRoleAssignee,
+  type AssigneeInfo,
+} from "@codecast/shared/contracts/orgAssignee";
 import { AvatarImg } from "../../lib/avatarCache";
 import { RoleFace } from "../org/RoleFace";
 import { RoleHoverCard } from "./RoleHoverCard";
 import { PersonHoverCard } from "./PersonHoverCard";
 
-const initialsOf = (name: string) => name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+const initialsOf = (name: string) =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
-export function AssigneeFace({ info, size = 16, hover = true, personId, className }: {
-  info: AssigneeInfo | { name: string; image?: string; github_username?: string };
+export function AssigneeFace({
+  info,
+  size = 16,
+  hover = true,
+  personId,
+  className,
+}: {
+  info:
+    | AssigneeInfo
+    | { name: string; image?: string; github_username?: string };
   size?: number;
   /** The hover card; off where the face sits inside another card. */
   hover?: boolean;
@@ -24,18 +41,43 @@ export function AssigneeFace({ info, size = 16, hover = true, personId, classNam
   if (isRoleAssignee(info as AssigneeInfo)) {
     const role = info as Extract<AssigneeInfo, { kind: "role" }>;
     const face = (
-      <span className={`inline-block flex-shrink-0 ${className ?? ""}`} style={{ ...box, lineHeight: 0 }} data-assignee-role={role.role_short_id}>
-        <RoleFace role={{ _id: role.role_id, short_id: role.role_short_id, handle: role.handle, avatar: role.avatar, name: role.name }} size={size} title={role.name} />
+      <span
+        className={`inline-block flex-shrink-0 ${className ?? ""}`}
+        style={{ ...box, lineHeight: 0 }}
+        data-assignee-role={role.role_short_id}
+      >
+        <RoleFace
+          role={{
+            _id: role.role_id,
+            short_id: role.role_short_id,
+            handle: role.handle,
+            avatar: role.avatar,
+            name: role.name,
+          }}
+          size={size}
+          title={role.name}
+        />
       </span>
     );
     if (!hover) return face;
     return (
-      <RoleHoverCard role={{ short_id: role.role_short_id, name: role.name, handle: role.handle, avatar: role.avatar }}>
+      <RoleHoverCard
+        role={{
+          short_id: role.role_short_id,
+          name: role.name,
+          handle: role.handle,
+          avatar: role.avatar,
+        }}
+      >
         {face}
       </RoleHoverCard>
     );
   }
-  const person = info as { name: string; image?: string; github_username?: string };
+  const person = info as {
+    name: string;
+    image?: string;
+    github_username?: string;
+  };
   const face = (
     <AvatarImg
       src={person.image}
@@ -56,7 +98,14 @@ export function AssigneeFace({ info, size = 16, hover = true, personId, classNam
   );
   if (!hover || !(personId || person.github_username)) return face;
   return (
-    <PersonHoverCard person={{ userId: personId, handle: person.github_username, name: person.name, image: person.image }}>
+    <PersonHoverCard
+      person={{
+        userId: personId,
+        handle: person.github_username,
+        name: person.name,
+        image: person.image,
+      }}
+    >
       {face}
     </PersonHoverCard>
   );

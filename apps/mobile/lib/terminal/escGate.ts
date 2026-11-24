@@ -10,7 +10,7 @@
 // after its own send was accepted committed after it, so it took the Esc.
 // MAX_WAIT_MS bounds it for a loop that has gone quiet.
 
-export const ESC = '\x1b';
+export const ESC = "\x1b";
 export const ESC_MAX_WAIT_MS = 4_500;
 
 export class EscGate {
@@ -22,7 +22,10 @@ export class EscGate {
   constructor(
     private readonly write: (bytes: string, onQueued?: () => void) => void,
     private readonly newestSeen: () => number,
-    private readonly timers: { set: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>; clear: (t: ReturnType<typeof setTimeout>) => void } = { set: setTimeout, clear: clearTimeout },
+    private readonly timers: {
+      set: (fn: () => void, ms: number) => ReturnType<typeof setTimeout>;
+      clear: (t: ReturnType<typeof setTimeout>) => void;
+    } = { set: setTimeout, clear: clearTimeout },
   ) {}
 
   send(bytes: string): void {

@@ -38,7 +38,8 @@ function installBrowser(opts: { doNotTrack?: string } = {}) {
 
 // Recording gtag replaces the real queue so a test can read the arguments.
 function captureGtag() {
-  (globalThis as any).window.gtag = (...args: unknown[]) => gtagCalls.push(args);
+  (globalThis as any).window.gtag = (...args: unknown[]) =>
+    gtagCalls.push(args);
 }
 
 const ads = await import("../googleAds");
@@ -83,7 +84,9 @@ describe("once configured, it loads the tag and reports one conversion", () => {
     ads.initGoogleAds();
     expect(scripts).toHaveLength(1);
     // The label belongs in the event, never in the script URL.
-    expect(scripts[0].src).toBe("https://www.googletagmanager.com/gtag/js?id=AW-11465219128");
+    expect(scripts[0].src).toBe(
+      "https://www.googletagmanager.com/gtag/js?id=AW-11465219128",
+    );
     expect(scripts[0].async).toBe(true);
   });
 

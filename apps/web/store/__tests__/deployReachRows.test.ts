@@ -3,7 +3,11 @@ import { useInboxStore } from "../inboxStore";
 import { COLLECTION_RETENTION } from "../cacheRetention";
 import { applyCollectionFeed } from "../../hooks/useSyncCollection";
 import { deployReachFeed } from "../../hooks/useDeployReach";
-import { DETAIL_ROW_CAPS, pinDetailRows, resetDetailPins } from "../../lib/detailRows";
+import {
+  DETAIL_ROW_CAPS,
+  pinDetailRows,
+  resetDetailPins,
+} from "../../lib/detailRows";
 import { _resetSnapshotLedger, deleteAllowed } from "../idbCollectionDiff";
 
 // deployReach rows say how far a merged change has gone (hooks/useDeployReach).
@@ -13,16 +17,30 @@ import { _resetSnapshotLedger, deleteAllowed } from "../idbCollectionDiff";
 const state = () => useInboxStore.getState() as any;
 const ref = (n: number) => `acme/app#${n}`;
 const reach = (n: number, extra: Record<string, unknown> = {}) => ({
-  _id: ref(n), ref: ref(n), state: "waiting", sha: null,
-  targets: [{ target: "web", state: "waiting", deploy: null, now: null }], ...extra,
+  _id: ref(n),
+  ref: ref(n),
+  state: "waiting",
+  sha: null,
+  targets: [{ target: "web", state: "waiting", deploy: null, now: null }],
+  ...extra,
 });
 const feed = (n: number, answer: unknown) => {
   const { select, dropAbsent } = deployReachFeed(ref(n));
-  applyCollectionFeed("deployReach", answer, select as any, undefined, dropAbsent);
+  applyCollectionFeed(
+    "deployReach",
+    answer,
+    select as any,
+    undefined,
+    dropAbsent,
+  );
 };
 
 beforeEach(() => {
-  useInboxStore.setState({ deployReach: {}, pending: {}, syncRole: "host" } as any);
+  useInboxStore.setState({
+    deployReach: {},
+    pending: {},
+    syncRole: "host",
+  } as any);
   resetDetailPins();
   _resetSnapshotLedger();
 });
@@ -64,13 +82,15 @@ describe("a ref's answer is the whole truth about it", () => {
 describe("the collection is capped like the detail collections", () => {
   const CAP = DETAIL_ROW_CAPS.deployReach;
   const fed = (from: number, count: number) => {
-    for (let n = from; n < from + count; n++) state().syncTable("deployReach", [reach(n, { _cachedAt: n })]);
+    for (let n = from; n < from + count; n++)
+      state().syncTable("deployReach", [reach(n, { _cachedAt: n })]);
   };
 
   it("keeps the most recently fed rows, never more than the cap", () => {
     fed(1, CAP + 5);
     expect(Object.keys(state().deployReach)).toHaveLength(CAP);
-    for (let n = 1; n <= 5; n++) expect(state().deployReach[ref(n)]).toBeUndefined();
+    for (let n = 1; n <= 5; n++)
+      expect(state().deployReach[ref(n)]).toBeUndefined();
     expect(state().deployReach[ref(CAP + 5)]).toBeDefined();
   });
 
@@ -86,7 +106,9 @@ describe("the collection is capped like the detail collections", () => {
   });
 
   it("holds the same cap at boot, oldest first", () => {
-    const rows = Array.from({ length: CAP + 2 }, (_, i) => reach(i + 1, { _cachedAt: Date.now() - (CAP + 2 - i) * 1000 }));
+    const rows = Array.from({ length: CAP + 2 }, (_, i) =>
+      reach(i + 1, { _cachedAt: Date.now() - (CAP + 2 - i) * 1000 }),
+    );
     const { keep, drop } = COLLECTION_RETENTION.deployReach(rows, Date.now());
     expect(keep).toHaveLength(CAP);
     expect([...drop].sort()).toEqual([ref(1), ref(2)]);

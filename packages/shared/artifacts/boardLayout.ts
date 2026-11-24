@@ -20,15 +20,33 @@ import {
 } from "./boardGeometry";
 
 /** One thing to place: what `place`, `add` and `timeline` read from a line. */
-export type BoardItem = { kind: string; fields: Record<string, Json>; w: number; h: number };
+export type BoardItem = {
+  kind: string;
+  fields: Record<string, Json>;
+  w: number;
+  h: number;
+};
 
-const ITEM_KINDS = new Set(["sticky", "text", "shape", "frame", "stamp", "card", "image"]);
+const ITEM_KINDS = new Set([
+  "sticky",
+  "text",
+  "shape",
+  "frame",
+  "stamp",
+  "card",
+  "image",
+]);
 const ART_LEAD = /^:([a-z]+):\s+/;
-const EMOJI_LEAD = /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s+/u;
+const EMOJI_LEAD =
+  /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s+/u;
 
 /** "title | body" or a literal "\n" become a line break. */
 export function itemText(raw: string): string {
-  return raw.replace(/\\n/g, "\n").split(/\s+\|\s+/).join("\n").trim();
+  return raw
+    .replace(/\\n/g, "\n")
+    .split(/\s+\|\s+/)
+    .join("\n")
+    .trim();
 }
 
 /**
@@ -58,10 +76,13 @@ export function parseItem(line: string): BoardItem | null {
     rest = m[3] ?? "";
   } else if (m && m[2]) {
     // `circle:red Vote` is a mistyped kind, not a sticky that says so.
-    throw new Error(`unknown kind "${m[1]}": use ${[...ITEM_KINDS].join(", ")} (a circle is shape:ellipse)`);
+    throw new Error(
+      `unknown kind "${m[1]}": use ${[...ITEM_KINDS].join(", ")} (a circle is shape:ellipse)`,
+    );
   }
   const fields: Record<string, Json> = {};
-  let sizeW: number | null = null, sizeH: number | null = null;
+  let sizeW: number | null = null,
+    sizeH: number | null = null;
   for (const v of variants) {
     if ((BOARD_COLORS as readonly string[]).includes(v)) fields.color = v;
     else if ((BOARD_SHAPES as readonly string[]).includes(v)) fields.shape = v;
@@ -70,7 +91,8 @@ export function parseItem(line: string): BoardItem | null {
     else if (/^h\d+$/.test(v)) sizeH = Number(v.slice(1));
   }
   const d = BOARD_DEFAULT_SIZE[kind];
-  let w = sizeW ?? d.w, h = sizeH ?? d.h;
+  let w = sizeW ?? d.w,
+    h = sizeH ?? d.h;
   if (kind === "card") {
     fields.ref = rest.trim();
     if (!fields.ref) return null;
@@ -79,7 +101,8 @@ export function parseItem(line: string): BoardItem | null {
     fields.emoji = name || "👍";
     // A painted illustration is a sticker worth seeing; an emoji stays a small reaction.
     const base = isBoardArt(name) ? 120 : d.w;
-    w = h = typeof fields.size === "number" ? fields.size : sizeW ?? sizeH ?? base;
+    w = h =
+      typeof fields.size === "number" ? fields.size : (sizeW ?? sizeH ?? base);
     if (isBoardArt(name) && typeof fields.size !== "number") fields.size = w;
     if (sizeW !== null || sizeH !== null) fields.size = w;
   } else if (kind === "image") {
@@ -100,11 +123,21 @@ export function parseItem(line: string): BoardItem | null {
     if (kind === "sticky") {
       if (fields.icon && sizeH === null) h = 200;
       // Long text grows the card rather than shrinking its type past reading size.
-      h = stickyFitHeight(String(fields.text), w, h, stickyIconHeight(fields.icon, boardArtFor(fields.icon) !== null, w, h));
+      h = stickyFitHeight(
+        String(fields.text),
+        w,
+        h,
+        stickyIconHeight(fields.icon, boardArtFor(fields.icon) !== null, w, h),
+      );
     }
     if (kind === "text") {
       const size = typeof fields.size === "number" ? fields.size : 20;
-      w = sizeW ?? Math.min(Math.max(560, size * 26), Math.max(40, textWidth(String(fields.text), size) + 4));
+      w =
+        sizeW ??
+        Math.min(
+          Math.max(560, size * 26),
+          Math.max(40, textWidth(String(fields.text), size) + 4),
+        );
       h = textHeight(String(fields.text), size, w);
     }
   }
@@ -120,10 +153,24 @@ export function resizeItem(item: BoardItem, w?: number, h?: number): BoardItem {
     return { ...item, w: size, h: size, fields: { ...item.fields, size } };
   }
   if (item.kind === "sticky") {
-    next.h = stickyFitHeight(String(item.fields.text ?? ""), next.w, next.h, stickyIconHeight(item.fields.icon, boardArtFor(item.fields.icon) !== null, next.w, next.h));
+    next.h = stickyFitHeight(
+      String(item.fields.text ?? ""),
+      next.w,
+      next.h,
+      stickyIconHeight(
+        item.fields.icon,
+        boardArtFor(item.fields.icon) !== null,
+        next.w,
+        next.h,
+      ),
+    );
   }
   if (item.kind === "text" && w !== undefined && h === undefined) {
-    next.h = textHeight(String(item.fields.text ?? ""), typeof item.fields.size === "number" ? item.fields.size : 20, next.w);
+    next.h = textHeight(
+      String(item.fields.text ?? ""),
+      typeof item.fields.size === "number" ? item.fields.size : 20,
+      next.w,
+    );
   }
   return next;
 }
@@ -141,48 +188,67 @@ export function parseItems(input: string): BoardItem[] {
 
 /** The box around everything on the board, or null when it is empty. */
 export function contentBox(view: Pick<ArtifactView, "elements">): Box | null {
-  return unionBox(view.elements.filter((e) => e.kind !== "connector").map(elementBox));
+  return unionBox(
+    view.elements.filter((e) => e.kind !== "connector").map(elementBox),
+  );
 }
 
 /** The z just above every element. */
 export function nextZ(view: Pick<ArtifactView, "elements">): number {
   let z = 0;
-  for (const e of view.elements) if (typeof e.z === "number" && e.z >= z) z = e.z + 1;
+  for (const e of view.elements)
+    if (typeof e.z === "number" && e.z >= z) z = e.z + 1;
   return z;
 }
 
 /** The z just below every element (for roads and frames that go under). */
 export function bottomZ(view: Pick<ArtifactView, "elements">): number {
   let z = 0;
-  for (const e of view.elements) if (typeof e.z === "number" && e.z <= z) z = e.z - 1;
+  for (const e of view.elements)
+    if (typeof e.z === "number" && e.z <= z) z = e.z - 1;
   return z;
 }
 
 /** Where new content goes when no spot is named: below what is there, left-aligned. */
 export function freeSpot(view: Pick<ArtifactView, "elements">, gap = 120): Pt {
   const b = contentBox(view);
-  return b ? { x: Math.round(b.x), y: Math.round(b.y + b.h + gap) } : { x: 0, y: 0 };
+  return b
+    ? { x: Math.round(b.x), y: Math.round(b.y + b.h + gap) }
+    : { x: 0, y: 0 };
 }
 
 export type GridOpts = { cols: number; gap: number; at: Pt };
 
 /** Top-left of each item in a grid whose rows are as tall as their tallest item. */
-export function gridPositions(sizes: readonly { w: number; h: number }[], opts: GridOpts): Pt[] {
+export function gridPositions(
+  sizes: readonly { w: number; h: number }[],
+  opts: GridOpts,
+): Pt[] {
   const cols = Math.max(1, Math.floor(opts.cols));
   const colW: number[] = [];
   const rowH: number[] = [];
   sizes.forEach((s, i) => {
-    const c = i % cols, row = Math.floor(i / cols);
+    const c = i % cols,
+      row = Math.floor(i / cols);
     colW[c] = Math.max(colW[c] ?? 0, s.w);
     rowH[row] = Math.max(rowH[row] ?? 0, s.h);
   });
   const colX: number[] = [];
   let x = opts.at.x;
-  for (let c = 0; c < colW.length; c++) { colX[c] = x; x += colW[c] + opts.gap; }
+  for (let c = 0; c < colW.length; c++) {
+    colX[c] = x;
+    x += colW[c] + opts.gap;
+  }
   const rowY: number[] = [];
   let y = opts.at.y;
-  for (let row = 0; row < rowH.length; row++) { rowY[row] = y; y += rowH[row] + opts.gap; }
-  return sizes.map((_, i) => ({ x: colX[i % cols], y: rowY[Math.floor(i / cols)] }));
+  for (let row = 0; row < rowH.length; row++) {
+    rowY[row] = y;
+    y += rowH[row] + opts.gap;
+  }
+  return sizes.map((_, i) => ({
+    x: colX[i % cols],
+    y: rowY[Math.floor(i / cols)],
+  }));
 }
 
 /** A near-square column count for n items, capped. */
@@ -195,44 +261,86 @@ export function squareCols(n: number, max = 6): number {
  * top-left corner, in reading order. Rows the set already has keep their
  * length; a pile with no rows becomes a near-square grid.
  */
-export function tidyBoxes(boxes: ReadonlyMap<string, { x: number; y: number; w: number; h: number }>, gap = 24): Map<string, Pt> {
+export function tidyBoxes(
+  boxes: ReadonlyMap<string, { x: number; y: number; w: number; h: number }>,
+  gap = 24,
+): Map<string, Pt> {
   const entries = [...boxes.entries()];
   const out = new Map<string, Pt>();
   if (entries.length < 2) return out;
   // Reading order: rows are boxes whose middles sit within half a box height of the row's first.
-  const byY = entries.sort((a, b) => a[1].y + a[1].h / 2 - (b[1].y + b[1].h / 2));
+  const byY = entries.sort(
+    (a, b) => a[1].y + a[1].h / 2 - (b[1].y + b[1].h / 2),
+  );
   const rows: (typeof entries)[] = [];
   for (const e of byY) {
     const row = rows[rows.length - 1];
     const mid = e[1].y + e[1].h / 2;
-    if (row && Math.abs(mid - (row[0][1].y + row[0][1].h / 2)) < Math.min(row[0][1].h, e[1].h) / 2) row.push(e);
+    if (
+      row &&
+      Math.abs(mid - (row[0][1].y + row[0][1].h / 2)) <
+        Math.min(row[0][1].h, e[1].h) / 2
+    )
+      row.push(e);
     else rows.push([e]);
   }
   for (const row of rows) row.sort((a, b) => a[1].x - b[1].x);
   const order = rows.flat();
-  const cols = rows.length > 1 && rows[0].length > 1 ? rows[0].length : squareCols(order.length, 8);
-  const at = { x: Math.min(...order.map(([, b]) => b.x)), y: Math.min(...order.map(([, b]) => b.y)) };
-  const spots = gridPositions(order.map(([, b]) => b), { cols, gap, at });
-  order.forEach(([k], i) => out.set(k, { x: Math.round(spots[i].x), y: Math.round(spots[i].y) }));
+  const cols =
+    rows.length > 1 && rows[0].length > 1
+      ? rows[0].length
+      : squareCols(order.length, 8);
+  const at = {
+    x: Math.min(...order.map(([, b]) => b.x)),
+    y: Math.min(...order.map(([, b]) => b.y)),
+  };
+  const spots = gridPositions(
+    order.map(([, b]) => b),
+    { cols, gap, at },
+  );
+  order.forEach(([k], i) =>
+    out.set(k, { x: Math.round(spots[i].x), y: Math.round(spots[i].y) }),
+  );
   return out;
 }
 
 /** Put ops for items at the given positions, each above the last. Returns keys in order. */
-export function placeItems(items: readonly BoardItem[], at: readonly Pt[], z0: number): { ops: ArtifactOp[]; keys: string[] } {
+export function placeItems(
+  items: readonly BoardItem[],
+  at: readonly Pt[],
+  z0: number,
+): { ops: ArtifactOp[]; keys: string[] } {
   const ops: ArtifactOp[] = [];
   const keys: string[] = [];
   items.forEach((item, i) => {
     const k = newElementKey("el");
     keys.push(k);
-    const sized: Record<string, Json> = item.kind === "stamp" ? {} : { w: item.w, h: item.h };
-    ops.push({ k, put: { kind: item.kind, x: at[i].x, y: at[i].y, ...sized, ...item.fields, z: z0 + i } });
+    const sized: Record<string, Json> =
+      item.kind === "stamp" ? {} : { w: item.w, h: item.h };
+    ops.push({
+      k,
+      put: {
+        kind: item.kind,
+        x: at[i].x,
+        y: at[i].y,
+        ...sized,
+        ...item.fields,
+        z: z0 + i,
+      },
+    });
   });
   return { ops, keys };
 }
 
 // ── Timeline ──────────────────────────────────────────────────────────────
 
-export type TimelineStop = { label: string; title: string; body?: string; icon?: string; color?: string };
+export type TimelineStop = {
+  label: string;
+  title: string;
+  body?: string;
+  icon?: string;
+  color?: string;
+};
 
 /** `Day 1 | Lock flavor | Huckleberry it is | 🫐 | yellow` per line. Only label and title are required. */
 export function parseTimeline(input: string): TimelineStop[] {
@@ -249,13 +357,24 @@ export function parseTimeline(input: string): TimelineStop[] {
       title: title.replace(/\\n/g, "\n"),
       ...(body ? { body: body.replace(/\\n/g, "\n") } : {}),
       ...(icon ? { icon: art && isBoardArt(art[1]) ? art[1] : icon } : {}),
-      ...(color && (BOARD_COLORS as readonly string[]).includes(color) ? { color } : {}),
+      ...(color && (BOARD_COLORS as readonly string[]).includes(color)
+        ? { color }
+        : {}),
     });
   }
   return out;
 }
 
-export type TimelineOpts = { at: Pt; step?: number; title?: string; subtitle?: string; road?: string; pill?: string; zBase: number; zRoad: number };
+export type TimelineOpts = {
+  at: Pt;
+  step?: number;
+  title?: string;
+  subtitle?: string;
+  road?: string;
+  pill?: string;
+  zBase: number;
+  zRoad: number;
+};
 
 /**
  * An illustrated timeline like a launch plan: a winding road rising left to
@@ -263,7 +382,10 @@ export type TimelineOpts = { at: Pt; step?: number; title?: string; subtitle?: s
  * and below it on a short stem. Every stop is its own element, so people and
  * agents can move, recolor or replace any of them afterwards.
  */
-export function timelineOps(stops: readonly TimelineStop[], opts: TimelineOpts): { ops: ArtifactOp[]; keys: string[] } {
+export function timelineOps(
+  stops: readonly TimelineStop[],
+  opts: TimelineOpts,
+): { ops: ArtifactOp[]; keys: string[] } {
   const ops: ArtifactOp[] = [];
   const keys: string[] = [];
   const n = stops.length;
@@ -283,24 +405,69 @@ export function timelineOps(stops: readonly TimelineStop[], opts: TimelineOpts):
     return Math.round(base - rise * t + (i % 2 === 0 ? 10 : -10));
   };
   let z = opts.zBase;
-  const add = (op: ArtifactOp) => { ops.push(op); keys.push(op.k); };
+  const add = (op: ArtifactOp) => {
+    ops.push(op);
+    keys.push(op.k);
+  };
 
   if (opts.title) {
-    add({ k: newElementKey("el"), put: { kind: "text", x: x0, y: y0, text: opts.title, size: 36, weight: "bold", z: z++ } });
-    if (opts.subtitle) add({ k: newElementKey("el"), put: { kind: "text", x: x0, y: y0 + 54, text: opts.subtitle, size: 16, color: "gray", z: z++ } });
+    add({
+      k: newElementKey("el"),
+      put: {
+        kind: "text",
+        x: x0,
+        y: y0,
+        text: opts.title,
+        size: 36,
+        weight: "bold",
+        z: z++,
+      },
+    });
+    if (opts.subtitle)
+      add({
+        k: newElementKey("el"),
+        put: {
+          kind: "text",
+          x: x0,
+          y: y0 + 54,
+          text: opts.subtitle,
+          size: 16,
+          color: "gray",
+          z: z++,
+        },
+      });
   }
 
   // The road: one smooth stroke through every stop, overshooting both ends.
   const pts: number[] = [];
   const first = { x: roadX(0) - step * 0.7, y: roadY(0) + 14 };
   const last = { x: roadX(n - 1) + step * 0.7, y: roadY(n - 1) - 14 };
-  const roadPts: Pt[] = [first, ...stops.map((_, i) => ({ x: roadX(i), y: roadY(i) })), last];
-  const ox = Math.round(first.x), oy = Math.round(Math.min(...roadPts.map((p) => p.y)));
+  const roadPts: Pt[] = [
+    first,
+    ...stops.map((_, i) => ({ x: roadX(i), y: roadY(i) })),
+    last,
+  ];
+  const ox = Math.round(first.x),
+    oy = Math.round(Math.min(...roadPts.map((p) => p.y)));
   for (const p of roadPts) pts.push(Math.round(p.x - ox), Math.round(p.y - oy));
-  add({ k: newElementKey("el"), put: { kind: "pen", x: ox, y: oy, points: pts, width: 22, color: opts.road ?? "orange", opacity: 0.8, smooth: true, z: opts.zRoad } });
+  add({
+    k: newElementKey("el"),
+    put: {
+      kind: "pen",
+      x: ox,
+      y: oy,
+      points: pts,
+      width: 22,
+      color: opts.road ?? "orange",
+      opacity: 0.8,
+      smooth: true,
+      z: opts.zRoad,
+    },
+  });
 
   stops.forEach((s, i) => {
-    const cx = roadX(i), cy = roadY(i);
+    const cx = roadX(i),
+      cy = roadY(i);
     const above = i % 2 === 0;
     const cardKey = newElementKey("el");
     // The last stop is the outcome the plan builds to: a bigger card, green unless named.
@@ -308,13 +475,55 @@ export function timelineOps(stops: readonly TimelineStop[], opts: TimelineOpts):
     const text = s.body ? `${s.title}\n${s.body}` : s.title;
     const w = goal ? Math.round(cardW * 1.3) : cardW;
     const h0 = goal ? Math.round(cardH * 1.2) : cardH;
-    const h = stickyFitHeight(text, w, h0, stickyIconHeight(s.icon, boardArtFor(s.icon) !== null, w, h0));
+    const h = stickyFitHeight(
+      text,
+      w,
+      h0,
+      stickyIconHeight(s.icon, boardArtFor(s.icon) !== null, w, h0),
+    );
     const cardY = above ? cy - stem - 16 - h : cy + stem + 16;
-    add({ k: cardKey, put: { kind: "sticky", x: Math.round(cx - w / 2), y: cardY, w, h, text, color: s.color ?? (goal ? "green" : "yellow"), ...(s.icon ? { icon: s.icon } : {}), z: z++ } });
+    add({
+      k: cardKey,
+      put: {
+        kind: "sticky",
+        x: Math.round(cx - w / 2),
+        y: cardY,
+        w,
+        h,
+        text,
+        color: s.color ?? (goal ? "green" : "yellow"),
+        ...(s.icon ? { icon: s.icon } : {}),
+        z: z++,
+      },
+    });
     const pillW = Math.max(72, textWidth(s.label, 13) + 28);
     const pillKey = newElementKey("el");
-    add({ k: pillKey, put: { kind: "shape", shape: "pill", x: Math.round(cx - pillW / 2), y: cy - 15, w: pillW, h: 30, text: s.label, color: opts.pill ?? "red", solid: true, z: z++ } });
-    add({ k: newElementKey("el"), put: { kind: "connector", from: cardKey, to: pillKey, arrow: "none", color: "gray", z: opts.zRoad + 1 } });
+    add({
+      k: pillKey,
+      put: {
+        kind: "shape",
+        shape: "pill",
+        x: Math.round(cx - pillW / 2),
+        y: cy - 15,
+        w: pillW,
+        h: 30,
+        text: s.label,
+        color: opts.pill ?? "red",
+        solid: true,
+        z: z++,
+      },
+    });
+    add({
+      k: newElementKey("el"),
+      put: {
+        kind: "connector",
+        from: cardKey,
+        to: pillKey,
+        arrow: "none",
+        color: "gray",
+        z: opts.zRoad + 1,
+      },
+    });
   });
   return { ops, keys };
 }
@@ -331,40 +540,98 @@ export function parseThemes(input: string): Theme[] {
     if (!line || line.startsWith("#")) continue;
     const i = line.lastIndexOf(":");
     if (i <= 0) continue;
-    const keys = line.slice(i + 1).split(/[\s,]+/).filter(Boolean);
+    const keys = line
+      .slice(i + 1)
+      .split(/[\s,]+/)
+      .filter(Boolean);
     if (keys.length) out.push({ title: line.slice(0, i).trim(), keys });
   }
   return out;
 }
 
-const THEME_COLORS = ["blue", "green", "violet", "orange", "cyan", "pink", "yellow", "red"] as const;
+const THEME_COLORS = [
+  "blue",
+  "green",
+  "violet",
+  "orange",
+  "cyan",
+  "pink",
+  "yellow",
+  "red",
+] as const;
 
 /**
  * Group elements into titled frames, one per theme, side by side, each
  * holding its members in a tidy grid. Members keep their keys, so connectors
  * and references to them stay intact.
  */
-export function themesOps(view: ArtifactView, themes: readonly Theme[], at: Pt | null, zFrame: number): { ops: ArtifactOp[]; keys: string[]; missing: string[] } {
+export function themesOps(
+  view: ArtifactView,
+  themes: readonly Theme[],
+  at: Pt | null,
+  zFrame: number,
+): { ops: ArtifactOp[]; keys: string[]; missing: string[] } {
   const ops: ArtifactOp[] = [];
   const keys: string[] = [];
   const missing: string[] = [];
-  const members = themes.map((t) => t.keys.map((k) => view.get(k)).filter((e): e is ArtifactElement => {
-    return !!e && e.kind !== "connector";
-  }));
-  themes.forEach((t) => t.keys.forEach((k) => { if (!view.get(k)) missing.push(k); }));
+  const members = themes.map((t) =>
+    t.keys
+      .map((k) => view.get(k))
+      .filter((e): e is ArtifactElement => {
+        return !!e && e.kind !== "connector";
+      }),
+  );
+  themes.forEach((t) =>
+    t.keys.forEach((k) => {
+      if (!view.get(k)) missing.push(k);
+    }),
+  );
   const allBoxes = members.flat().map(elementBox);
-  const origin = at ?? (unionBox(allBoxes) ? { x: Math.round(unionBox(allBoxes)!.x), y: Math.round(unionBox(allBoxes)!.y) } : freeSpot(view));
-  const pad = 32, head = 56, gap = 24, between = 64;
+  const origin =
+    at ??
+    (unionBox(allBoxes)
+      ? {
+          x: Math.round(unionBox(allBoxes)!.x),
+          y: Math.round(unionBox(allBoxes)!.y),
+        }
+      : freeSpot(view));
+  const pad = 32,
+    head = 56,
+    gap = 24,
+    between = 64;
   let x = origin.x;
   themes.forEach((t, ti) => {
     const els = members[ti];
     if (els.length === 0) return;
-    const sizes = els.map((e) => { const b = elementBox(e); return { w: b.w, h: b.h }; });
-    const pos = gridPositions(sizes, { cols: Math.min(3, squareCols(els.length)), gap, at: { x: x + pad, y: origin.y + head } });
-    const inner = unionBox(pos.map((p, i) => ({ x: p.x, y: p.y, w: sizes[i].w, h: sizes[i].h })))!;
-    const frame = { x, y: origin.y, w: inner.x + inner.w + pad - x, h: inner.y + inner.h + pad - origin.y };
+    const sizes = els.map((e) => {
+      const b = elementBox(e);
+      return { w: b.w, h: b.h };
+    });
+    const pos = gridPositions(sizes, {
+      cols: Math.min(3, squareCols(els.length)),
+      gap,
+      at: { x: x + pad, y: origin.y + head },
+    });
+    const inner = unionBox(
+      pos.map((p, i) => ({ x: p.x, y: p.y, w: sizes[i].w, h: sizes[i].h })),
+    )!;
+    const frame = {
+      x,
+      y: origin.y,
+      w: inner.x + inner.w + pad - x,
+      h: inner.y + inner.h + pad - origin.y,
+    };
     const fk = newElementKey("el");
-    ops.push({ k: fk, put: { kind: "frame", ...frame, title: t.title, color: THEME_COLORS[ti % THEME_COLORS.length], z: zFrame } });
+    ops.push({
+      k: fk,
+      put: {
+        kind: "frame",
+        ...frame,
+        title: t.title,
+        color: THEME_COLORS[ti % THEME_COLORS.length],
+        z: zFrame,
+      },
+    });
     keys.push(fk);
     els.forEach((e, i) => {
       ops.push({ k: e.key, set: { x: pos[i].x, y: pos[i].y } });
@@ -376,12 +643,27 @@ export function themesOps(view: ArtifactView, themes: readonly Theme[], at: Pt |
 }
 
 /** A frame that wraps the given elements, with room for its title. */
-export function frameAround(boxes: readonly Box[], title: string, z: number, padding = 40, color?: string): ArtifactOp | null {
+export function frameAround(
+  boxes: readonly Box[],
+  title: string,
+  z: number,
+  padding = 40,
+  color?: string,
+): ArtifactOp | null {
   const b = unionBox(boxes);
   if (!b) return null;
   return {
     k: newElementKey("el"),
-    put: { kind: "frame", x: Math.round(b.x - padding), y: Math.round(b.y - padding - 24), w: Math.round(b.w + padding * 2), h: Math.round(b.h + padding * 2 + 24), title, ...(color ? { color } : {}), z },
+    put: {
+      kind: "frame",
+      x: Math.round(b.x - padding),
+      y: Math.round(b.y - padding - 24),
+      w: Math.round(b.w + padding * 2),
+      h: Math.round(b.h + padding * 2 + 24),
+      title,
+      ...(color ? { color } : {}),
+      z,
+    },
   };
 }
 
@@ -394,11 +676,19 @@ export function frameAround(boxes: readonly Box[], title: string, z: number, pad
  * still exists on the board (`exists`). Groups get fresh ids, so a copy of
  * a group is its own group.
  */
-export function cloneOps(els: readonly ArtifactElement[], dx: number, dy: number, z0: number, exists: (key: string) => boolean = () => false): { ops: ArtifactOp[]; keys: string[]; map: Map<string, string> } {
+export function cloneOps(
+  els: readonly ArtifactElement[],
+  dx: number,
+  dy: number,
+  z0: number,
+  exists: (key: string) => boolean = () => false,
+): { ops: ArtifactOp[]; keys: string[]; map: Map<string, string> } {
   const keyMap = new Map(els.map((e) => [e.key, newElementKey("el")]));
   const groupMap = new Map<string, string>();
   const ops: ArtifactOp[] = [];
-  const sorted = [...els].sort((a, b) => (Number(a.z) || 0) - (Number(b.z) || 0));
+  const sorted = [...els].sort(
+    (a, b) => (Number(a.z) || 0) - (Number(b.z) || 0),
+  );
   let z = z0;
   for (const e of sorted) {
     const { key, kind, rev, by, at, ...fields } = e as any;
@@ -413,7 +703,10 @@ export function cloneOps(els: readonly ArtifactElement[], dx: number, dy: number
         else if (!exists(ref)) ok = false;
       }
       if (!ok) continue;
-      for (const [fx, fy] of [["x1", "y1"], ["x2", "y2"]] as const) {
+      for (const [fx, fy] of [
+        ["x1", "y1"],
+        ["x2", "y2"],
+      ] as const) {
         if (typeof fields[fx] === "number") out[fx] = fields[fx] + dx;
         if (typeof fields[fy] === "number") out[fy] = fields[fy] + dy;
       }
@@ -422,7 +715,8 @@ export function cloneOps(els: readonly ArtifactElement[], dx: number, dy: number
       if (typeof fields.y === "number") out.y = Math.round(fields.y + dy);
     }
     if (typeof fields.group === "string") {
-      if (!groupMap.has(fields.group)) groupMap.set(fields.group, newElementKey("g"));
+      if (!groupMap.has(fields.group))
+        groupMap.set(fields.group, newElementKey("g"));
       out.group = groupMap.get(fields.group)!;
     }
     ops.push({ k: keyMap.get(key)!, put: { kind, ...out } as any });
@@ -436,20 +730,44 @@ export function cloneOps(els: readonly ArtifactElement[], dx: number, dy: number
  * preferring down and right. Pasted lists and dropped content land beside
  * what is there, never on top of it.
  */
-export function clearOffset(block: Box, taken: readonly Box[], step = 40, maxRings = 30): Pt {
+export function clearOffset(
+  block: Box,
+  taken: readonly Box[],
+  step = 40,
+  maxRings = 30,
+): Pt {
   const gap = 24;
   const hits = (dx: number, dy: number) => {
-    const b = { x: block.x + dx - gap, y: block.y + dy - gap, w: block.w + gap * 2, h: block.h + gap * 2 };
-    return taken.some((t) => t.x < b.x + b.w && b.x < t.x + t.w && t.y < b.y + b.h && b.y < t.y + t.h);
+    const b = {
+      x: block.x + dx - gap,
+      y: block.y + dy - gap,
+      w: block.w + gap * 2,
+      h: block.h + gap * 2,
+    };
+    return taken.some(
+      (t) =>
+        t.x < b.x + b.w &&
+        b.x < t.x + t.w &&
+        t.y < b.y + b.h &&
+        b.y < t.y + t.h,
+    );
   };
   if (!hits(0, 0)) return { x: 0, y: 0 };
   for (let ring = 1; ring <= maxRings; ring++) {
     const d = ring * step;
     const candidates: Pt[] = [];
     for (let i = -ring; i <= ring; i++) {
-      candidates.push({ x: i * step, y: d }, { x: d, y: i * step }, { x: i * step, y: -d }, { x: -d, y: i * step });
+      candidates.push(
+        { x: i * step, y: d },
+        { x: d, y: i * step },
+        { x: i * step, y: -d },
+        { x: -d, y: i * step },
+      );
     }
-    candidates.sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || (b.x + b.y) - (a.x + a.y));
+    candidates.sort(
+      (a, b) =>
+        Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y) || b.x + b.y - (a.x + a.y),
+    );
     for (const c of candidates) if (!hits(c.x, c.y)) return c;
   }
   return { x: 0, y: 0 };
@@ -466,12 +784,26 @@ export function parseMatrix(input: string): MatrixRow[] {
     const line = raw.trim();
     if (!line || line.startsWith("#")) continue;
     const [label, ...cells] = line.split(/\s*::\s*/);
-    out.push({ label: label.trim(), cells: cells.map((c) => (c.trim() === "-" || !c.trim() ? null : parseItem(c))) });
+    out.push({
+      label: label.trim(),
+      cells: cells.map((c) =>
+        c.trim() === "-" || !c.trim() ? null : parseItem(c),
+      ),
+    });
   }
   return out;
 }
 
-export type MatrixOpts = { at: Pt; cols: readonly string[]; cell: { w: number; h: number }; gap: number; title?: string; colColor?: string; zFrame: number; z: number };
+export type MatrixOpts = {
+  at: Pt;
+  cols: readonly string[];
+  cell: { w: number; h: number };
+  gap: number;
+  title?: string;
+  colColor?: string;
+  zFrame: number;
+  z: number;
+};
 
 /**
  * A grid of rows by columns (a journey map, a comparison, a swimlane plan):
@@ -479,7 +811,10 @@ export type MatrixOpts = { at: Pt; cols: readonly string[]; cell: { w: number; h
  * per column. Every cell in a column has the column's width; a row is as tall
  * as its tallest cell, so long text grows its row instead of overflowing.
  */
-export function matrixOps(rows: readonly MatrixRow[], opts: MatrixOpts): { ops: ArtifactOp[]; keys: string[] } {
+export function matrixOps(
+  rows: readonly MatrixRow[],
+  opts: MatrixOpts,
+): { ops: ArtifactOp[]; keys: string[] } {
   const ops: ArtifactOp[] = [];
   let z = opts.z;
   const { at, cell, gap } = opts;
@@ -487,24 +822,85 @@ export function matrixOps(rows: readonly MatrixRow[], opts: MatrixOpts): { ops: 
   const pad = 24;
   let y = at.y;
   if (opts.title) {
-    ops.push({ k: newElementKey("el"), put: { kind: "text", x: at.x, y, text: opts.title, size: 36, weight: "bold", z: z++ } });
+    ops.push({
+      k: newElementKey("el"),
+      put: {
+        kind: "text",
+        x: at.x,
+        y,
+        text: opts.title,
+        size: 36,
+        weight: "bold",
+        z: z++,
+      },
+    });
     y += 76;
   }
   const colX = (c: number) => at.x + pad + c * (cell.w + gap);
   opts.cols.forEach((name, c) => {
-    ops.push({ k: newElementKey("el"), put: { kind: "shape", shape: "pill", x: colX(c), y, w: cell.w, h: 36, text: name, color: opts.colColor ?? "blue", solid: true, z: z++ } });
+    ops.push({
+      k: newElementKey("el"),
+      put: {
+        kind: "shape",
+        shape: "pill",
+        x: colX(c),
+        y,
+        w: cell.w,
+        h: 36,
+        text: name,
+        color: opts.colColor ?? "blue",
+        solid: true,
+        z: z++,
+      },
+    });
   });
   if (opts.cols.length) y += 36 + 48;
   const width = pad * 2 + ncols * cell.w + (ncols - 1) * gap;
   for (const row of rows) {
-    const sized = row.cells.map((it) => (it ? resizeItem(it, cell.w, it.kind === "sticky" || it.kind === "shape" ? cell.h : undefined) : null));
+    const sized = row.cells.map((it) =>
+      it
+        ? resizeItem(
+            it,
+            cell.w,
+            it.kind === "sticky" || it.kind === "shape" ? cell.h : undefined,
+          )
+        : null,
+    );
     const rowH = Math.max(cell.h, ...sized.map((it) => (it ? it.h : 0)));
-    ops.push({ k: newElementKey("el"), put: { kind: "frame", x: at.x, y, w: width, h: rowH + pad * 2, title: row.label, color: "gray", z: opts.zFrame } });
+    ops.push({
+      k: newElementKey("el"),
+      put: {
+        kind: "frame",
+        x: at.x,
+        y,
+        w: width,
+        h: rowH + pad * 2,
+        title: row.label,
+        color: "gray",
+        z: opts.zFrame,
+      },
+    });
     sized.forEach((it, c) => {
       if (!it) return;
       const k = newElementKey("el");
-      const box: Record<string, Json> = it.kind === "stamp" ? {} : { w: it.w, h: it.kind === "sticky" || it.kind === "shape" ? rowH : it.h };
-      ops.push({ k, put: { kind: it.kind, x: colX(c), y: y + pad, ...box, ...it.fields, z: z++ } });
+      const box: Record<string, Json> =
+        it.kind === "stamp"
+          ? {}
+          : {
+              w: it.w,
+              h: it.kind === "sticky" || it.kind === "shape" ? rowH : it.h,
+            };
+      ops.push({
+        k,
+        put: {
+          kind: it.kind,
+          x: colX(c),
+          y: y + pad,
+          ...box,
+          ...it.fields,
+          z: z++,
+        },
+      });
     });
     y += rowH + pad * 2 + 52;
   }

@@ -10,15 +10,25 @@ const api = _api as any;
 // ("sd-N") or Convex id, stored under the decision's Convex id so the page
 // paints from cache on the next visit. Returns readiness only; the page reads
 // the store (useDecisionDetail).
-export function useSyncDecisionDetail(ref: string | undefined): { ready: boolean; missing: boolean; error?: Error } {
-  const { data, error } = useQueryNoThrow(api.sessionDecisions.getWithDoc, ref ? { decision_id: ref } : "skip");
+export function useSyncDecisionDetail(ref: string | undefined): {
+  ready: boolean;
+  missing: boolean;
+  error?: Error;
+} {
+  const { data, error } = useQueryNoThrow(
+    api.sessionDecisions.getWithDoc,
+    ref ? { decision_id: ref } : "skip",
+  );
   const syncTable = useInboxStore((s) => s.syncTable);
   useConvexSync(
     data,
     useCallback(
       (payload: any) => {
         if (!payload?.decision?._id) return;
-        const row: DecisionDetailItem = { _id: payload.decision._id, ...payload };
+        const row: DecisionDetailItem = {
+          _id: payload.decision._id,
+          ...payload,
+        };
         syncTable("decisionDetails", [row]);
       },
       [syncTable],
@@ -34,7 +44,9 @@ const OPEN_DETAIL_CAP = 200;
 // decision inbox) as a stable id list: re-subscribes only when one opens or
 // closes, never on a field change.
 const openIdsByCollection = new WeakMap<object, string>();
-const openDecisionIds = (s: ReturnType<typeof useInboxStore.getState>): string => {
+const openDecisionIds = (
+  s: ReturnType<typeof useInboxStore.getState>,
+): string => {
   const rows = s.sessionDecisions;
   let key = openIdsByCollection.get(rows);
   if (key === undefined) {
@@ -43,7 +55,9 @@ const openDecisionIds = (s: ReturnType<typeof useInboxStore.getState>): string =
   }
   return key;
 };
-const computeOpenIds = (rows: ReturnType<typeof useInboxStore.getState>["sessionDecisions"]): string =>
+const computeOpenIds = (
+  rows: ReturnType<typeof useInboxStore.getState>["sessionDecisions"],
+): string =>
   Object.values(rows)
     .filter((d) => d.status === "pending")
     .sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))
@@ -57,15 +71,23 @@ const computeOpenIds = (rows: ReturnType<typeof useInboxStore.getState>["session
 // paints its document, facts and ladder from cache at once.
 export function useSyncOpenDecisionDetails(): void {
   const key = useInboxStore(openDecisionIds);
-  const args = useMemo(() => (key ? { decision_ids: key.split(",") } : "skip"), [key]);
-  const { data } = useQueryNoThrow(api.sessionDecisions.getWithDocMany, args as any);
+  const args = useMemo(
+    () => (key ? { decision_ids: key.split(",") } : "skip"),
+    [key],
+  );
+  const { data } = useQueryNoThrow(
+    api.sessionDecisions.getWithDocMany,
+    args as any,
+  );
   const syncTable = useInboxStore((s) => s.syncTable);
   useConvexSync(
     data,
     useCallback(
       (payload: any) => {
         if (!Array.isArray(payload) || !payload.length) return;
-        const rows: DecisionDetailItem[] = payload.filter((p: any) => p?.decision?._id).map((p: any) => ({ _id: p.decision._id, ...p }));
+        const rows: DecisionDetailItem[] = payload
+          .filter((p: any) => p?.decision?._id)
+          .map((p: any) => ({ _id: p.decision._id, ...p }));
         syncTable("decisionDetails", rows);
       },
       [syncTable],
@@ -74,7 +96,9 @@ export function useSyncOpenDecisionDetails(): void {
 }
 
 // The detail row for a short id or Convex id, from the store.
-export function useDecisionDetail(ref: string | undefined): DecisionDetailItem | undefined {
+export function useDecisionDetail(
+  ref: string | undefined,
+): DecisionDetailItem | undefined {
   return useInboxStore((s) => {
     if (!ref) return undefined;
     const direct = s.decisionDetails[ref];

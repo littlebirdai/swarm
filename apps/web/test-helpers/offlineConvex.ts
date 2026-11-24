@@ -15,6 +15,12 @@ class NoSocket {
   close() {}
 }
 
-export function offlineConvexClient(url = "https://example.convex.cloud"): ConvexReactClient {
-  return new ConvexReactClient(url, { webSocketConstructor: NoSocket as any, unsavedChangesWarning: false, skipConvexDeploymentUrlCheck: true } as any);
+export function offlineConvexClient(
+  url = "https://example.convex.cloud",
+): ConvexReactClient {
+  return new ConvexReactClient(url, {
+    webSocketConstructor: NoSocket as any,
+    unsavedChangesWarning: false,
+    skipConvexDeploymentUrlCheck: true,
+  } as any);
 }

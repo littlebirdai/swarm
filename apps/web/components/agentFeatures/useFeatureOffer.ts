@@ -8,7 +8,11 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { snippetAvailableForTeams, snippetBySlug, type SnippetDescriptor } from "@codecast/shared/contracts";
+import {
+  snippetAvailableForTeams,
+  snippetBySlug,
+  type SnippetDescriptor,
+} from "@codecast/shared/contracts";
 import { useInboxStore } from "../../store/inboxStore";
 import { deviceDisplayName, useDevices, type Device } from "../DeviceBadge";
 import { snippetEnabledOn, snippetIntroKey } from "../../lib/newSnippets";
@@ -17,14 +21,19 @@ import type { SwitchLedger } from "../consequential/ConsequentialSwitch";
 
 /** One feature turned on for one or more machines: the review a single "Turn on" or switch opens. The same review the
  *  new-features banner opens (NewSnippetsBanner turnOnLedger), so a feature reads the same wherever it is turned on. */
-export function featureOnLedger(s: SnippetDescriptor, machineNames: string[]): SwitchLedger {
+export function featureOnLedger(
+  s: SnippetDescriptor,
+  machineNames: string[],
+): SwitchLedger {
   const one = machineNames.length === 1;
   const machines = one ? machineNames[0]! : `${machineNames.length} machines`;
   return {
     ...featuresAllLedger({ group: s.name, machine: machines, names: [s.name] }),
     name: s.name,
     rows: [
-      one ? { k: "Machine", v: machines } : { k: "Machines", v: machines, list: machineNames },
+      one
+        ? { k: "Machine", v: machines }
+        : { k: "Machines", v: machines, list: machineNames },
       { k: "Writes", v: s.writesTo },
       { k: "Applies to", v: "New sessions" },
     ],
@@ -39,7 +48,14 @@ export function featureOnLedger(s: SnippetDescriptor, machineNames: string[]): S
  */
 export function turnOnFeature(devices: Device[], s: SnippetDescriptor) {
   const { setDeviceSnippet } = useInboxStore.getState();
-  return Promise.all(devices.map((d) => setDeviceSnippet(d.device_id, { snippet: s.wireSlug ?? s.slug, enabled: true })));
+  return Promise.all(
+    devices.map((d) =>
+      setDeviceSnippet(d.device_id, {
+        snippet: s.wireSlug ?? s.slug,
+        enabled: true,
+      }),
+    ),
+  );
 }
 
 /**
@@ -49,11 +65,23 @@ export function turnOnFeature(devices: Device[], s: SnippetDescriptor) {
  */
 export function isFeatureOffered(
   feature: SnippetDescriptor | undefined,
-  ctx: { teams: Parameters<typeof snippetAvailableForTeams>[1]; dismissed: Record<string, unknown> | undefined; devices: Device[] },
+  ctx: {
+    teams: Parameters<typeof snippetAvailableForTeams>[1];
+    dismissed: Record<string, unknown> | undefined;
+    devices: Device[];
+  },
 ): boolean {
-  if (!feature || !snippetAvailableForTeams(feature.slug, ctx.teams) || ctx.dismissed?.[snippetIntroKey(feature.slug)]) return false;
+  if (
+    !feature ||
+    !snippetAvailableForTeams(feature.slug, ctx.teams) ||
+    ctx.dismissed?.[snippetIntroKey(feature.slug)]
+  )
+    return false;
   const reporting = ctx.devices.filter((d) => !!d.settings);
-  return reporting.length > 0 && !reporting.some((d) => snippetEnabledOn(d.settings, feature));
+  return (
+    reporting.length > 0 &&
+    !reporting.some((d) => snippetEnabledOn(d.settings, feature))
+  );
 }
 
 /** Which of `slugs` the viewer could be offered right now, as a stable
@@ -62,7 +90,11 @@ export function useOfferedFeatures(slugs: readonly string[]): string {
   const teams = useInboxStore((s) => s.teams);
   const dismissed = useInboxStore((s) => s.clientState.dismissed);
   const { devices } = useDevices();
-  return slugs.filter((slug) => isFeatureOffered(snippetBySlug(slug), { teams, dismissed, devices })).join(" ");
+  return slugs
+    .filter((slug) =>
+      isFeatureOffered(snippetBySlug(slug), { teams, dismissed, devices }),
+    )
+    .join(" ");
 }
 
 export interface FeatureOffer {
@@ -102,7 +134,9 @@ export function useFeatureOffer(slug: string): FeatureOffer {
     onlineCount: online.length,
     // A roster row can arrive before its label: name it without the lookup,
     // which reads the label unguarded.
-    onlineNames: online.map((d) => (d?.label ? deviceDisplayName(d) : "Unknown device")),
+    onlineNames: online.map((d) =>
+      d?.label ? deviceDisplayName(d) : "Unknown device",
+    ),
     busy,
     turnedOn,
     dismiss: stamp,

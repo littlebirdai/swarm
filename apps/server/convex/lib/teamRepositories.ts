@@ -22,7 +22,9 @@ export async function teamRepositories(
   while (repositories.length < TEAM_REPOSITORY_WALK_CAP) {
     const row = await ctx.db
       .query(table)
-      .withIndex("by_team_repository", (q: any) => q.eq("team_id", teamId).gt("repository", last))
+      .withIndex("by_team_repository", (q: any) =>
+        q.eq("team_id", teamId).gt("repository", last),
+      )
       .first();
     if (!row) break;
     repositories.push(row.repository);

@@ -14,15 +14,26 @@ function runsAsWritten(src: string) {
 
 describe("the flow examples people and agents copy", () => {
   test("the workflow reference's backbone example", () => {
-    const example = /```dot\n(digraph flaky_fix \{[\s\S]*?\n\})\n```/.exec(WORKFLOW_REFERENCE)?.[1];
+    const example = /```dot\n(digraph flaky_fix \{[\s\S]*?\n\})\n```/.exec(
+      WORKFLOW_REFERENCE,
+    )?.[1];
     expect(example).toBeDefined();
     runsAsWritten(example!);
   });
 
   test("cast flow --help's backbone example", () => {
-    const example = /(digraph flaky_fix \{[\s\S]*?\n {2}\})/.exec(FLOW_HELP)?.[1];
+    const example = /(digraph flaky_fix \{[\s\S]*?\n {2}\})/.exec(
+      FLOW_HELP,
+    )?.[1];
     expect(example).toBeDefined();
     // The help aligns a note after the subgraph line; the graph is what precedes it.
-    runsAsWritten(example!.replace(/\s{2,}steps that fill.*$/m, "").replace(/subgraph check \{ reproduce -> prove \}/, "subgraph check { reproduce [prompt=\"Reproduce it\"] prove [shape=parallelogram, script=\"true\"] reproduce -> prove }"));
+    runsAsWritten(
+      example!
+        .replace(/\s{2,}steps that fill.*$/m, "")
+        .replace(
+          /subgraph check \{ reproduce -> prove \}/,
+          'subgraph check { reproduce [prompt="Reproduce it"] prove [shape=parallelogram, script="true"] reproduce -> prove }',
+        ),
+    );
   });
 });

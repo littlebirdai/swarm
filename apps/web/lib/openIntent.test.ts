@@ -24,13 +24,19 @@ describe("openTargetForClick", () => {
     expect(openTargetForClick({ button: 0, metaKey: true })).toBe("tab");
     expect(openTargetForClick({ button: 0, ctrlKey: true })).toBe("tab");
     expect(openTargetForClick({ button: 1 })).toBe("tab");
-    expect(openTargetForClick({ button: 0, metaKey: true, shiftKey: true })).toBe("window");
+    expect(
+      openTargetForClick({ button: 0, metaKey: true, shiftKey: true }),
+    ).toBe("window");
     // Shift alone is not ours; Option alone splits the stage, Option with
     // any other modifier (or a middle click) is nobody's gesture.
     expect(openTargetForClick({ button: 0, shiftKey: true })).toBeNull();
     expect(openTargetForClick({ button: 0, altKey: true })).toBe("split");
-    expect(openTargetForClick({ button: 0, metaKey: true, altKey: true })).toBeNull();
-    expect(openTargetForClick({ button: 0, shiftKey: true, altKey: true })).toBeNull();
+    expect(
+      openTargetForClick({ button: 0, metaKey: true, altKey: true }),
+    ).toBeNull();
+    expect(
+      openTargetForClick({ button: 0, shiftKey: true, altKey: true }),
+    ).toBeNull();
     expect(openTargetForClick({ button: 1, altKey: true })).toBeNull();
     expect(openTargetForClick({ button: 2, metaKey: true })).toBeNull();
   });
@@ -43,12 +49,22 @@ describe("divertNavigation", () => {
   beforeEach(() => {
     // A fresh copy per test: the split tests write a layout onto the tab, and
     // the shared fixture object carried it into the next test.
-    useInboxStore.setState({ tabs: [{ ...inboxTab }], activeTabId: inboxTab.id });
+    useInboxStore.setState({
+      tabs: [{ ...inboxTab }],
+      activeTabId: inboxTab.id,
+    });
     opened = [];
     (globalThis as any).window = {
-      location: { pathname: "/inbox", search: "", origin: "https://codecast.sh", href: "https://codecast.sh/inbox" },
+      location: {
+        pathname: "/inbox",
+        search: "",
+        origin: "https://codecast.sh",
+        href: "https://codecast.sh/inbox",
+      },
       history: { pushState() {}, replaceState() {} },
-      open: (url: string) => { opened.push(url); },
+      open: (url: string) => {
+        opened.push(url);
+      },
     };
   });
 
@@ -86,16 +102,23 @@ describe("divertNavigation", () => {
 
   it("a replace never claims the intent but stands down once a sibling did", async () => {
     beginClickIntent("tab");
-    expect(divertNavigation("/tasks?view=board", { openable: false })).toBe(false);
+    expect(divertNavigation("/tasks?view=board", { openable: false })).toBe(
+      false,
+    );
     expect(divertNavigation("/tasks/ct-1")).toBe(true);
     expect(divertNavigation("/tasks", { openable: false })).toBe(true);
     await flush();
-    expect(useInboxStore.getState().tabs.map((t) => t.path)).toEqual(["/inbox", "/tasks/ct-1"]);
+    expect(useInboxStore.getState().tabs.map((t) => t.path)).toEqual([
+      "/inbox",
+      "/tasks/ct-1",
+    ]);
   });
 
   it("holds a session tab on the inbox deep-link form, with its session id", async () => {
     beginClickIntent("tab");
-    expect(divertNavigation("/conversation/jx7abc00nvbf8jnk1234567890abcdef")).toBe(true);
+    expect(
+      divertNavigation("/conversation/jx7abc00nvbf8jnk1234567890abcdef"),
+    ).toBe(true);
     await flush();
     const tab = useInboxStore.getState().tabs[1];
     expect(tab.path).toBe("/inbox?s=jx7abc00nvbf8jnk1234567890abcdef");
@@ -131,7 +154,10 @@ describe("divertNavigation", () => {
     expect(divertSessionOpen("jx7abc")).toBe(true);
     await flush();
     const layout = useInboxStore.getState().tabs[0].layout;
-    expect(layout && leavesOf(layout).map((l) => l.path)).toEqual(["/inbox", "/conversation/jx7abc"]);
+    expect(layout && leavesOf(layout).map((l) => l.path)).toEqual([
+      "/inbox",
+      "/conversation/jx7abc",
+    ]);
   });
 
   it("Option-click on a stage too narrow to split navigates the tab instead", async () => {
@@ -161,7 +187,9 @@ describe("capture listener", () => {
   beforeEach(() => {
     onClick = null;
     (globalThis as any).window = {
-      addEventListener: (type: string, fn: (e: any) => void) => { if (type === "click") onClick = fn; },
+      addEventListener: (type: string, fn: (e: any) => void) => {
+        if (type === "click") onClick = fn;
+      },
       removeEventListener() {},
     };
     uninstall = installOpenIntent();
@@ -175,12 +203,16 @@ describe("capture listener", () => {
   });
 
   // Owns: whether the click lands inside a [data-owns-modifier-click] subtree.
-  const optionClick = (owns: boolean) => onClick!({
-    button: 0,
-    altKey: true,
-    target: { closest: (sel: string) => (sel === "[data-owns-modifier-click]" && owns ? {} : null) },
-    preventDefault() {},
-  });
+  const optionClick = (owns: boolean) =>
+    onClick!({
+      button: 0,
+      altKey: true,
+      target: {
+        closest: (sel: string) =>
+          sel === "[data-owns-modifier-click]" && owns ? {} : null,
+      },
+      preventDefault() {},
+    });
 
   it("arms a split for an Option-click on an ordinary row", () => {
     optionClick(false);
@@ -201,7 +233,9 @@ describe("inAppPath", () => {
     // Notification deep links are mostly relative app routes.
     expect(inAppPath("/decisions/sd-12")).toBe("/decisions/sd-12");
     expect(inAppPath("/vault?s=sc-4")).toBe("/vault?s=sc-4");
-    expect(inAppPath("https://codecast.sh/conversation/jx7abc?share=t#msg-1")).toBe("/conversation/jx7abc?share=t#msg-1");
+    expect(
+      inAppPath("https://codecast.sh/conversation/jx7abc?share=t#msg-1"),
+    ).toBe("/conversation/jx7abc?share=t#msg-1");
     // Public pages outside the shell and other sites stay real links.
     expect(inAppPath("https://codecast.sh/")).toBeNull();
     expect(inAppPath("https://example.com/tasks/ct-1")).toBeNull();

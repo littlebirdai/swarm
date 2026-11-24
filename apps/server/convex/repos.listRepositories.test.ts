@@ -16,28 +16,59 @@ function countingDb(db: any, docs = { n: 0 }) {
         if (typeof value !== "function") return value;
         return (...args: any[]) => {
           const out = value.apply(target, args);
-          if (prop === "first") return out.then((row: any) => (row && docs.n++, row));
-          if (prop === "take" || prop === "collect") return out.then((rows: any[]) => ((docs.n += rows.length), rows));
-          return out && typeof out === "object" && !("then" in out) ? wrap(out) : out;
+          if (prop === "first")
+            return out.then((row: any) => (row && docs.n++, row));
+          if (prop === "take" || prop === "collect")
+            return out.then((rows: any[]) => ((docs.n += rows.length), rows));
+          return out && typeof out === "object" && !("then" in out)
+            ? wrap(out)
+            : out;
         };
       },
     });
-  return new Proxy(db, { get: (t, p) => (p === "query" ? (table: string) => wrap(t.query(table)) : t[p]) });
+  return new Proxy(db, {
+    get: (t, p) =>
+      p === "query" ? (table: string) => wrap(t.query(table)) : t[p],
+  });
 }
 
 test("lists every repository a team's pull requests and commits name, one read per repository", async () => {
   const repos = ["acme/api", "acme/web", "acme/mobile"];
   const pull_requests = repos.flatMap((repository, r) =>
-    Array.from({ length: 400 }, (_, i) => ({ _id: `pr${r}_${i}`, team_id: "team", repository, number: i, files: [] })),
+    Array.from({ length: 400 }, (_, i) => ({
+      _id: `pr${r}_${i}`,
+      team_id: "team",
+      repository,
+      number: i,
+      files: [],
+    })),
   );
   const commits = [
     ...repos.flatMap((repository, r) =>
-      Array.from({ length: 400 }, (_, i) => ({ _id: `c${r}_${i}`, team_id: "team", repository, timestamp: i, sha: `${r}${i}` })),
+      Array.from({ length: 400 }, (_, i) => ({
+        _id: `c${r}_${i}`,
+        team_id: "team",
+        repository,
+        timestamp: i,
+        sha: `${r}${i}`,
+      })),
     ),
     // Only commits name this one; a commit with no repository names nothing.
-    { _id: "c_cli", team_id: "team", repository: "acme/cli", timestamp: 1, sha: "x" },
+    {
+      _id: "c_cli",
+      team_id: "team",
+      repository: "acme/cli",
+      timestamp: 1,
+      sha: "x",
+    },
     { _id: "c_none", team_id: "team", timestamp: 2, sha: "y" },
-    { _id: "c_other", team_id: "other-team", repository: "else/where", timestamp: 3, sha: "z" },
+    {
+      _id: "c_other",
+      team_id: "other-team",
+      repository: "else/where",
+      timestamp: 3,
+      sha: "z",
+    },
   ];
   const docs = { n: 0 };
   const db = countingDb(
@@ -54,9 +85,19 @@ test("lists every repository a team's pull requests and commits name, one read p
     ),
     docs,
   );
-  const ctx = { auth: { getUserIdentity: async () => ({ subject: "viewer|sess", tokenIdentifier: "t" }) }, db };
+  const ctx = {
+    auth: {
+      getUserIdentity: async () => ({
+        subject: "viewer|sess",
+        tokenIdentifier: "t",
+      }),
+    },
+    db,
+  };
 
-  const listed = (await (listRepositories as any)._handler(ctx, {})).map((r: any) => r.repository);
+  const listed = (await (listRepositories as any)._handler(ctx, {})).map(
+    (r: any) => r.repository,
+  );
 
   expect(listed).toEqual(["acme/api", "acme/cli", "acme/mobile", "acme/web"]);
   expect(docs.n).toBeLessThan(20);

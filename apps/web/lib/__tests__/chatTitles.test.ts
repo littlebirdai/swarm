@@ -9,9 +9,17 @@ import { chatTabTitle } from "../tabTitle";
 const CHANNEL = "chan1234567890123456789012345678";
 
 const state = {
-  chatChannels: { [CHANNEL]: { _id: CHANNEL, name: "design", created_at: 1, updated_at: 1 } },
+  chatChannels: {
+    [CHANNEL]: { _id: CHANNEL, name: "design", created_at: 1, updated_at: 1 },
+  },
   recentVisits: [
-    { kind: "page", key: `page:/chat/${CHANNEL}`, path: `/chat/${CHANNEL}`, label: "Chat", ts: 5 },
+    {
+      kind: "page",
+      key: `page:/chat/${CHANNEL}`,
+      path: `/chat/${CHANNEL}`,
+      label: "Chat",
+      ts: 5,
+    },
   ],
 };
 
@@ -28,7 +36,9 @@ describe("chat page titles", () => {
 
   it("names a channel tab", () => {
     expect(chatTabTitle(`/chat/${CHANNEL}`, state.chatChannels)).toBe("design");
-    expect(chatTabTitle(`/chat/${CHANNEL}?m=abc`, state.chatChannels)).toBe("design");
+    expect(chatTabTitle(`/chat/${CHANNEL}?m=abc`, state.chatChannels)).toBe(
+      "design",
+    );
     expect(chatTabTitle("/chat", state.chatChannels)).toBeNull();
     expect(chatTabTitle("/inbox", state.chatChannels)).toBeNull();
   });
@@ -38,6 +48,8 @@ describe("chat page titles", () => {
     const { tabTitle } = await import("../tabTitle");
     const tab = { id: "t1", title: "", path: "/chat/threads", createdAt: 1 };
     expect(tabTitle(tab as any, {}, state.chatChannels)).toBe("Threads");
-    expect(tabTitle({ ...tab, path: "/threads" } as any, {}, {})).toBe("Threads");
+    expect(tabTitle({ ...tab, path: "/threads" } as any, {}, {})).toBe(
+      "Threads",
+    );
   });
 });

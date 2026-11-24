@@ -61,7 +61,9 @@ describe("walkie: landing a burst", () => {
     messageId: "msg1",
     content: "back in five",
     durationMs: 1500,
-    attachments: [{ storage_id: "st1", mime: "audio/webm", name: "voice.webm" }],
+    attachments: [
+      { storage_id: "st1", mime: "audio/webm", name: "voice.webm" },
+    ],
   };
 
   function fakeConvex(behavior: Record<string, "ok" | "throw">) {
@@ -113,7 +115,10 @@ describe("walkie: measuring a burst", () => {
   // What setup actually cost on a warm room in the browser: about 1.2 seconds.
   const SETUP_MS = 1_200;
 
-  const measure = (holdMs: number, over: Partial<Parameters<typeof measureBurst>[0]> = {}) =>
+  const measure = (
+    holdMs: number,
+    over: Partial<Parameters<typeof measureBurst>[0]> = {},
+  ) =>
     measureBurst({
       startedAt: PRESS,
       captureAt: PRESS + SETUP_MS,
@@ -159,9 +164,13 @@ describe("walkie: measuring a burst", () => {
     // Audio with nothing recognized is still a voice note.
     expect(measure(5_000, { hasAudio: true }).discard).toBe(false);
     // As is a transcript with no recording behind it.
-    expect(measure(5_000, { hasAudio: false, transcript: "on my way" }).discard).toBe(false);
+    expect(
+      measure(5_000, { hasAudio: false, transcript: "on my way" }).discard,
+    ).toBe(false);
     // Whitespace is not words.
-    expect(measure(5_000, { hasAudio: false, transcript: "   " }).discard).toBe(true);
+    expect(measure(5_000, { hasAudio: false, transcript: "   " }).discard).toBe(
+      true,
+    );
   });
 });
 
@@ -289,9 +298,19 @@ describe("walkie: handing a room back", () => {
 
 describe("walkie: when the seat stops being worth holding", () => {
   const AUDIO = 1_700_000_000_000;
-  const live = (mode: "burst" | "listen" | "call") => ({ key: "dm:a:b", mode, since: AUDIO });
+  const live = (mode: "burst" | "listen" | "call") => ({
+    key: "dm:a:b",
+    mode,
+    since: AUDIO,
+  });
   const at = (over: Partial<Parameters<typeof seatDeadline>[0]> = {}) =>
-    seatDeadline({ live: live("burst"), bursting: false, incoming: null, lastAudioAt: AUDIO, ...over });
+    seatDeadline({
+      live: live("burst"),
+      bursting: false,
+      incoming: null,
+      lastAudioAt: AUDIO,
+      ...over,
+    });
 
   it("holds a room for half a minute after the last thing said in it", () => {
     // A burst is one half of a conversation. Leaving at once would send the
@@ -325,14 +344,20 @@ describe("walkie: when the seat stops being worth holding", () => {
     // byte-identical so nothing wakes. So the receiver counts from the burst's
     // own age instead.
     const opened = AUDIO - 4_000;
-    expect(at({ incoming: { createdAt: opened } })).toBe(hotListenDeadline(opened));
+    expect(at({ incoming: { createdAt: opened } })).toBe(
+      hotListenDeadline(opened),
+    );
     // It outranks the half minute: a burst that is still playing has not
     // finished being said.
-    expect(at({ incoming: { createdAt: opened }, lastAudioAt: AUDIO })).toBe(hotListenDeadline(opened));
+    expect(at({ incoming: { createdAt: opened }, lastAudioAt: AUDIO })).toBe(
+      hotListenDeadline(opened),
+    );
     // AND IT RUNS INSIDE A CALL TOO. The dead row still has to be cleared
     // there; handing the seat back is `shouldReleaseRoom`'s decision and it
     // refuses, which is what keeps a timer from ending a conversation.
-    expect(at({ live: live("call"), incoming: { createdAt: opened } })).toBe(hotListenDeadline(opened));
+    expect(at({ live: live("call"), incoming: { createdAt: opened } })).toBe(
+      hotListenDeadline(opened),
+    );
   });
 
   it("clears the sender's own cap by a real margin", () => {
@@ -423,20 +448,37 @@ describe("meterLevel", () => {
 import { walkieStageWords } from "../../hooks/useWalkie";
 
 describe("walkie: the stage words", () => {
-  const base = { sending: null, incoming: false, locked: false, muted: true, dropped: false, micDenied: false, name: "Jordan" };
+  const base = {
+    sending: null,
+    incoming: false,
+    locked: false,
+    muted: true,
+    dropped: false,
+    micDenied: false,
+    name: "Jordan",
+  };
 
   it("says RECORDING with the release and the lock in one breath", () => {
-    const w = walkieStageWords({ ...base, sending: { live: true, heardLive: false } });
+    const w = walkieStageWords({
+      ...base,
+      sending: { live: true, heardLive: false },
+    });
     expect(w.stage).toBe("recording");
     expect(w.badge).toBe("RECORDING");
     expect(w.hint).toContain("Click END");
   });
 
   it("says TALKING, one way, only once the room actually carries the voice", () => {
-    const w = walkieStageWords({ ...base, sending: { live: true, heardLive: true } });
+    const w = walkieStageWords({
+      ...base,
+      sending: { live: true, heardLive: true },
+    });
     expect(w.badge).toBe("TALKING");
     expect(w.hint).toContain("will not hear them until they JOIN");
-    expect(walkieStageWords({ ...base, sending: { live: false, heardLive: false } }).badge).toBe("OPENING MIC");
+    expect(
+      walkieStageWords({ ...base, sending: { live: false, heardLive: false } })
+        .badge,
+    ).toBe("OPENING MIC");
   });
 
   it("says ON THE LINE hands free, and names END as the door", () => {
@@ -456,16 +498,24 @@ describe("walkie: the stage words", () => {
     const w = walkieStageWords({ ...base, incoming: true });
     expect(w.badge).toBe("INCOMING");
     expect(w.hint).toContain("they cannot hear you");
-    for (const word of ["TALK", "JOIN LIVE", "SNOOZE"]) expect(w.hint).toContain(word);
+    for (const word of ["TALK", "JOIN LIVE", "SNOOZE"])
+      expect(w.hint).toContain(word);
   });
 
   it("bad news first: a dropped room outranks everything", () => {
-    const w = walkieStageWords({ ...base, sending: { live: true, heardLive: true }, incoming: true, dropped: true });
+    const w = walkieStageWords({
+      ...base,
+      sending: { live: true, heardLive: true },
+      incoming: true,
+      dropped: true,
+    });
     expect(w.badge).toBe("NOT HEARD");
   });
 
   it("a denied mic is said as a state, not hidden in a sentence", () => {
-    expect(walkieStageWords({ ...base, micDenied: true }).badge).toBe("MIC OFF");
+    expect(walkieStageWords({ ...base, micDenied: true }).badge).toBe(
+      "MIC OFF",
+    );
   });
 });
 
@@ -476,15 +526,43 @@ import { dmRoomEmptied } from "../../hooks/useWalkie";
 describe("walkie: the other person leaving a DM room", () => {
   const me = "u-me";
   it("ends once they were seen and their seat is gone", () => {
-    expect(dmRoomEmptied({ roomKey: "dm:a:b", seats: [{ user_id: me }], me, sawOther: true })).toBe(true);
+    expect(
+      dmRoomEmptied({
+        roomKey: "dm:a:b",
+        seats: [{ user_id: me }],
+        me,
+        sawOther: true,
+      }),
+    ).toBe(true);
   });
   it("waits while they have not arrived yet", () => {
-    expect(dmRoomEmptied({ roomKey: "dm:a:b", seats: [{ user_id: me }], me, sawOther: false })).toBe(false);
+    expect(
+      dmRoomEmptied({
+        roomKey: "dm:a:b",
+        seats: [{ user_id: me }],
+        me,
+        sawOther: false,
+      }),
+    ).toBe(false);
   });
   it("is nothing while they are in the room", () => {
-    expect(dmRoomEmptied({ roomKey: "dm:a:b", seats: [{ user_id: me }, { user_id: "u-them" }], me, sawOther: true })).toBe(false);
+    expect(
+      dmRoomEmptied({
+        roomKey: "dm:a:b",
+        seats: [{ user_id: me }, { user_id: "u-them" }],
+        me,
+        sawOther: true,
+      }),
+    ).toBe(false);
   });
   it("never ends a channel huddle, where people come and go", () => {
-    expect(dmRoomEmptied({ roomKey: "channel:x", seats: [{ user_id: me }], me, sawOther: true })).toBe(false);
+    expect(
+      dmRoomEmptied({
+        roomKey: "channel:x",
+        seats: [{ user_id: me }],
+        me,
+        sawOther: true,
+      }),
+    ).toBe(false);
   });
 });

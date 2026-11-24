@@ -5,7 +5,9 @@
 /** The first quoted passage in `markdown`, without its quote marks, or null
  *  when the answer quotes nothing. Blank quote lines inside it are kept as
  *  paragraph breaks. */
-export function sendableText(markdown: string | null | undefined): string | null {
+export function sendableText(
+  markdown: string | null | undefined,
+): string | null {
   if (!markdown) return null;
   const lines: string[] = [];
   let inQuote = false;

@@ -30,7 +30,12 @@ export type ReplayPlayerLinkState =
   | { state: "idle" }
   | { state: "opening" }
   /** `window`: the stretch of a long capture this player holds (replayDomWindow); null when it holds the whole. */
-  | { state: "ready"; url: string; origin: string; window: { start_ms: number; end_ms: number | null } | null }
+  | {
+      state: "ready";
+      url: string;
+      origin: string;
+      window: { start_ms: number; end_ms: number | null } | null;
+    }
   /** The replay keeps no page capture: there is nothing to play, only the text stream. */
   | { state: "no-capture" }
   | { state: "failed"; error: string };
@@ -61,21 +66,30 @@ export function useReplayPlayerLink(
     let cancelled = false;
     setLink({ state: "opening" });
     const { t_ms, controls, autoplay } = mintRef.current.opts;
-    mintRef.current.playerLink({
-      replay,
-      ...(t_ms != null ? { t_ms: Math.max(0, Math.round(t_ms)) } : {}),
-      ...(controls === false ? { controls: false } : {}),
-      ...(autoplay ? { autoplay: true } : {}),
-    }).then(
-      (res: ReplayPlayerLink) => {
-        if (cancelled) return;
-        if (!res.has_dom || !res.player_url) return setLink({ state: "no-capture" });
-        setLink({ state: "ready", url: res.player_url, origin: playerOrigin(res.player_url), window: res.window ?? null });
-      },
-      (e: unknown) => {
-        if (!cancelled) setLink({ state: "failed", error: playerLinkError(e) });
-      },
-    );
+    mintRef.current
+      .playerLink({
+        replay,
+        ...(t_ms != null ? { t_ms: Math.max(0, Math.round(t_ms)) } : {}),
+        ...(controls === false ? { controls: false } : {}),
+        ...(autoplay ? { autoplay: true } : {}),
+      })
+      .then(
+        (res: ReplayPlayerLink) => {
+          if (cancelled) return;
+          if (!res.has_dom || !res.player_url)
+            return setLink({ state: "no-capture" });
+          setLink({
+            state: "ready",
+            url: res.player_url,
+            origin: playerOrigin(res.player_url),
+            window: res.window ?? null,
+          });
+        },
+        (e: unknown) => {
+          if (!cancelled)
+            setLink({ state: "failed", error: playerLinkError(e) });
+        },
+      );
     return () => {
       cancelled = true;
     };
@@ -94,17 +108,26 @@ function playerOrigin(url: string): string {
 
 function playerLinkError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
-  return /not found/i.test(msg) ? "This replay is not available to you." : "The player could not be opened.";
+  return /not found/i.test(msg)
+    ? "This replay is not available to you."
+    : "The player could not be opened.";
 }
 
 /** A host command without its tag, one variant at a time. */
-export type ReplayHostCommand = ReplayHostMessage extends infer M ? (M extends ReplayHostMessage ? Omit<M, "source"> : never) : never;
+export type ReplayHostCommand = ReplayHostMessage extends infer M
+  ? M extends ReplayHostMessage
+    ? Omit<M, "source">
+    : never
+  : never;
 
 /**
  * The iframe's channel: a ref for the frame, `send` for commands, and
  * `onMessage` called with each message the player in THIS frame posts.
  */
-export function useReplayPlayerChannel(origin: string | null, onMessage: (msg: ReplayPlayerMessage) => void) {
+export function useReplayPlayerChannel(
+  origin: string | null,
+  onMessage: (msg: ReplayPlayerMessage) => void,
+) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const handler = useRef(onMessage);
   handler.current = onMessage;
@@ -112,11 +135,20 @@ export function useReplayPlayerChannel(origin: string | null, onMessage: (msg: R
     if (!origin) return;
     const on = (e: MessageEvent) => {
       const frame = frameRef.current?.contentWindow;
-      if (e.origin !== origin || !frame || e.source !== frame || !isReplayPlayerMessage(e.data)) return;
+      if (
+        e.origin !== origin ||
+        !frame ||
+        e.source !== frame ||
+        !isReplayPlayerMessage(e.data)
+      )
+        return;
       // A player that cannot see this page's origin holds its messages and
       // says hello until a command tells it; the answer is that command.
       if (e.data.type === "hello") {
-        frame.postMessage({ source: REPLAY_HOST_SOURCE, type: "hello" }, origin);
+        frame.postMessage(
+          { source: REPLAY_HOST_SOURCE, type: "hello" },
+          origin,
+        );
         return;
       }
       handler.current(e.data);
@@ -126,10 +158,13 @@ export function useReplayPlayerChannel(origin: string | null, onMessage: (msg: R
   }, [origin]);
   const send = useCallback(
     (cmd: ReplayHostCommand) => {
-      if (origin) frameRef.current?.contentWindow?.postMessage({ source: REPLAY_HOST_SOURCE, ...cmd }, origin);
+      if (origin)
+        frameRef.current?.contentWindow?.postMessage(
+          { source: REPLAY_HOST_SOURCE, ...cmd },
+          origin,
+        );
     },
     [origin],
   );
   return { frameRef, send };
 }
-

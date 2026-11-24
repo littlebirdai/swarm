@@ -1,16 +1,44 @@
-import type { CheckResult, ConvoMessage, GateResult, Score } from '@platform/evals';
-import { UsageError } from '@platform/evals/cli';
+import type {
+  CheckResult,
+  ConvoMessage,
+  GateResult,
+  Score,
+} from "@platform/evals";
+import { UsageError } from "@platform/evals/cli";
 
-import { stripInjectionNoise } from '@codecast/shared/contracts';
+import { stripInjectionNoise } from "@codecast/shared/contracts";
 
-import { cliFetchRead } from '../../../../../apps/cli/src/cliHttp';
-import { NO_TEAM_CONTENT_GATE } from '../../../../../apps/server/convex/lib/vendorGuard';
-import { contextFromRows, haikuRequest, isConversationTurn, isGenericNudge, isMachineCarrierText, normalizeForMatch, predictSuggestions, type StoredProfile } from '../../../../../apps/server/convex/composerSuggestions';
-import { parseJsonBlock } from '../../../../../apps/server/convex/lib/anthropic';
-import { apiConfig, splitLineRef, toConvoMessages, toRows, type CliReadConversation, type CliReadMessage, type MessageRow } from '../../adapters/convo';
-import { JUDGE_MAX_TOKENS } from '../../adapters/judge';
-import { JUDGE_MODEL } from '../../models';
-import type { Captured, CaptureCtx, ReplayCtx, ReplayResult, SurfaceImpl } from '../../surface';
+import { cliFetchRead } from "../../../../../apps/cli/src/cliHttp";
+import { NO_TEAM_CONTENT_GATE } from "../../../../../apps/server/convex/lib/vendorGuard";
+import {
+  contextFromRows,
+  haikuRequest,
+  isConversationTurn,
+  isGenericNudge,
+  isMachineCarrierText,
+  normalizeForMatch,
+  predictSuggestions,
+  type StoredProfile,
+} from "../../../../../apps/server/convex/composerSuggestions";
+import { parseJsonBlock } from "../../../../../apps/server/convex/lib/anthropic";
+import {
+  apiConfig,
+  splitLineRef,
+  toConvoMessages,
+  toRows,
+  type CliReadConversation,
+  type CliReadMessage,
+  type MessageRow,
+} from "../../adapters/convo";
+import { JUDGE_MAX_TOKENS } from "../../adapters/judge";
+import { JUDGE_MODEL } from "../../models";
+import type {
+  Captured,
+  CaptureCtx,
+  ReplayCtx,
+  ReplayResult,
+  SurfaceImpl,
+} from "../../surface";
 
 // Composer suggestions, graded against what the developer actually typed
 // next. A moment is an agent turn the developer replied to by typing. The
@@ -42,7 +70,15 @@ export interface SuggestRow {
 
 export interface SuggestSnap {
   /** The session metadata the prompt prints. */
-  conversation: { title?: string; subtitle?: string; idle_summary?: string; thread_state?: string; project_path?: string; git_branch?: string; status?: string };
+  conversation: {
+    title?: string;
+    subtitle?: string;
+    idle_summary?: string;
+    thread_state?: string;
+    project_path?: string;
+    git_branch?: string;
+    status?: string;
+  };
   /** Time order, ending at the agent turn the developer replied to. */
   rows: SuggestRow[];
   /** The developer's stored profile, as read; the replay scrubs the truth out of it. */
@@ -52,10 +88,23 @@ export interface SuggestSnap {
   truthAt: number;
 }
 
-export type Grade = 'hit' | 'partial' | 'miss' | 'silent' | 'nudge-silent' | 'nudge-shown';
+export type Grade =
+  | "hit"
+  | "partial"
+  | "miss"
+  | "silent"
+  | "nudge-silent"
+  | "nudge-shown";
 
 /** Shown nothing wrong passes (0.7 is the pass mark); a hit is the only full score. */
-export const GRADE_SCORE: Record<Grade, number> = { hit: 1, 'nudge-silent': 1, 'nudge-shown': 0.7, silent: 0.7, partial: 0.4, miss: 0 };
+export const GRADE_SCORE: Record<Grade, number> = {
+  hit: 1,
+  "nudge-silent": 1,
+  "nudge-shown": 0.7,
+  silent: 0.7,
+  partial: 0.4,
+  miss: 0,
+};
 
 /** Rows read before the reply. contextFromRows keeps the newest 60; the rest is headroom for a wider prod window. */
 const CONTEXT_HEADROOM = 120;
@@ -66,7 +115,8 @@ const CONTEXT_HEADROOM = 120;
  * pastes) in <pasted_content>; stripInjectionNoise takes that wrapper and the
  * harness's reminders off, so a typed reply is not mistaken for markup.
  */
-export const typedText = (content: string): string => stripInjectionNoise(content).trim();
+export const typedText = (content: string): string =>
+  stripInjectionNoise(content).trim();
 
 /** A user turn the developer typed, as opposed to a machine carrier (the habit miner's test) or a pasted wall. */
 export function isTyped(content: string): boolean {
@@ -75,14 +125,32 @@ export function isTyped(content: string): boolean {
 }
 
 /** Whether `reply` is a typed developer answer to the agent turn `turn` right before it. */
-export function isMoment(turn: MessageRow | undefined, reply: MessageRow | undefined): boolean {
-  return Boolean(turn && reply && turn.role === 'assistant' && isConversationTurn(turn) && reply.role === 'user' && isConversationTurn(reply) && isTyped(reply.content));
+export function isMoment(
+  turn: MessageRow | undefined,
+  reply: MessageRow | undefined,
+): boolean {
+  return Boolean(
+    turn &&
+    reply &&
+    turn.role === "assistant" &&
+    isConversationTurn(turn) &&
+    reply.role === "user" &&
+    isConversationTurn(reply) &&
+    isTyped(reply.content),
+  );
 }
 
 /** Every agent turn → typed reply pair in a run of rows, newest first: the reply's line, and whether it is a bare nudge. */
-export function momentsIn(rows: MessageRow[]): Array<{ line: number; nudge: boolean }> {
+export function momentsIn(
+  rows: MessageRow[],
+): Array<{ line: number; nudge: boolean }> {
   const out: Array<{ line: number; nudge: boolean }> = [];
-  for (let i = rows.length - 1; i >= 1; i--) if (isMoment(rows[i - 1], rows[i])) out.push({ line: rows[i]!.line, nudge: isGenericNudge(typedText(rows[i]!.content)) });
+  for (let i = rows.length - 1; i >= 1; i--)
+    if (isMoment(rows[i - 1], rows[i]))
+      out.push({
+        line: rows[i]!.line,
+        nudge: isGenericNudge(typedText(rows[i]!.content)),
+      });
   return out;
 }
 
@@ -92,7 +160,9 @@ const slimRow = (r: MessageRow): SuggestRow => ({
   content: r.content,
   timestamp: r.timestamp,
   ...(r.message_uuid ? { message_uuid: r.message_uuid } : {}),
-  ...(r.tool_results?.length ? { tool_results: r.tool_results.map(() => ({})) } : {}),
+  ...(r.tool_results?.length
+    ? { tool_results: r.tool_results.map(() => ({})) }
+    : {}),
   line: r.line,
 });
 
@@ -101,59 +171,111 @@ const slimRow = (r: MessageRow): SuggestRow => ({
  * predicts; at the moment it had not been typed yet. Removing it keeps the
  * replay's verbatim ban from deleting an exact hit.
  */
-export function scrubTruth(profile: StoredProfile, truth: string): StoredProfile {
+export function scrubTruth(
+  profile: StoredProfile,
+  truth: string,
+): StoredProfile {
   const key = normalizeForMatch(truth);
   return {
     ...profile,
     recent: profile.recent.filter((t) => normalizeForMatch(t) !== key),
     frequent: profile.frequent.filter((f) => normalizeForMatch(f.text) !== key),
-    patterns: profile.patterns?.filter((p) => normalizeForMatch(p.example) !== key),
+    patterns: profile.patterns?.filter(
+      (p) => normalizeForMatch(p.example) !== key,
+    ),
   };
 }
 
 /** The suggester's context at the moment: prod's own selector over the snapshot rows. */
-export const contextOf = (snap: SuggestSnap) => contextFromRows(snap.rows as Parameters<typeof contextFromRows>[0], { user_id: 'eval' as never, ...snap.conversation });
+export const contextOf = (snap: SuggestSnap) =>
+  contextFromRows(snap.rows as Parameters<typeof contextFromRows>[0], {
+    user_id: "eval" as never,
+    ...snap.conversation,
+  });
 
 /** The caller's own profile through the self-only route; the token names the user. */
 export async function ownSuggestionProfile(): Promise<StoredProfile> {
   const { siteUrl, apiToken } = apiConfig();
-  const r = await cliFetchRead(`${siteUrl}/cli/suggestion-profile`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_token: apiToken }) });
+  const r = await cliFetchRead(`${siteUrl}/cli/suggestion-profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_token: apiToken }),
+  });
   const text = await r.text();
-  let body: (StoredProfile & { _id?: string; _creationTime?: number; user_id?: string; error?: string }) | null;
+  let body:
+    | (StoredProfile & {
+        _id?: string;
+        _creationTime?: number;
+        user_id?: string;
+        error?: string;
+      })
+    | null;
   try {
     body = JSON.parse(text);
   } catch {
-    throw new Error(`cli/suggestion-profile answered ${r.status}: ${text.slice(0, 120)}`);
+    throw new Error(
+      `cli/suggestion-profile answered ${r.status}: ${text.slice(0, 120)}`,
+    );
   }
   if (body?.error) throw new Error(`cli/suggestion-profile: ${body.error}`);
-  if (!body) throw new UsageError('this account has no suggestion profile yet: prod mines one the first time it suggests for you');
+  if (!body)
+    throw new UsageError(
+      "this account has no suggestion profile yet: prod mines one the first time it suggests for you",
+    );
   const { _id, _creationTime, user_id, error, ...profile } = body;
   return profile;
 }
 
-export type Read = { conversation: CliReadConversation; messages: CliReadMessage[] };
+export type Read = {
+  conversation: CliReadConversation;
+  messages: CliReadMessage[];
+};
 
 const momentList = (conversation: string, rows: MessageRow[]): string => {
   const found = momentsIn(rows).slice(0, 10);
-  return found.length ? found.map((m) => `suggest@${conversation}:${m.line}${m.nudge ? ' (nudge)' : ''}`).join(', ') : 'none in these lines';
+  return found.length
+    ? found
+        .map(
+          (m) =>
+            `suggest@${conversation}:${m.line}${m.nudge ? " (nudge)" : ""}`,
+        )
+        .join(", ")
+    : "none in these lines";
 };
 
 /** The agent turn and the typed reply at `line`, or a UsageError naming the moments nearby. */
-function momentAt(read: Read, conversation: string, line: number): { rows: MessageRow[]; at: number } {
+function momentAt(
+  read: Read,
+  conversation: string,
+  line: number,
+): { rows: MessageRow[]; at: number } {
   const rows = toRows(read.messages);
   const at = rows.findIndex((r) => r.line === line);
-  if (at < 1 || !isMoment(rows[at - 1], rows[at])) throw new UsageError(`${conversation}:${line} is not a typed reply to an agent turn; moments nearby: ${momentList(conversation, rows)}`);
+  if (at < 1 || !isMoment(rows[at - 1], rows[at]))
+    throw new UsageError(
+      `${conversation}:${line} is not a typed reply to an agent turn; moments nearby: ${momentList(conversation, rows)}`,
+    );
   return { rows, at };
 }
 
 /** A moment as a private freeze: the rows up to the agent turn, the profile, and the reply as the truth. */
-export function momentSnapshot(read: Read, conversation: string, line: number, profile: StoredProfile): Captured {
+export function momentSnapshot(
+  read: Read,
+  conversation: string,
+  line: number,
+  profile: StoredProfile,
+): Captured {
   const { rows, at } = momentAt(read, conversation, line);
   const reply = rows[at]!;
   const turn = rows[at - 1]!;
-  const c = read.conversation as CliReadConversation & { project_path?: string | null };
+  const c = read.conversation as CliReadConversation & {
+    project_path?: string | null;
+  };
   const snapshot: SuggestSnap = {
-    conversation: { ...(c.title ? { title: c.title } : {}), ...(c.project_path ? { project_path: c.project_path } : {}) },
+    conversation: {
+      ...(c.title ? { title: c.title } : {}),
+      ...(c.project_path ? { project_path: c.project_path } : {}),
+    },
     rows: rows.slice(0, at).map(slimRow),
     profile,
     truth: typedText(reply.content),
@@ -162,22 +284,26 @@ export function momentSnapshot(read: Read, conversation: string, line: number, p
   return {
     snapshot,
     name: `suggest ${conversation}:${line}`,
-    subject: { kind: 'session', id: c.id, title: c.title ?? c.id },
+    subject: { kind: "session", id: c.id, title: c.title ?? c.id },
     asOf: new Date(turn.timestamp).toISOString(),
-    anchor: { kind: 'message', id: reply._id },
+    anchor: { kind: "message", id: reply._id },
     meta: {
       conversation_id: c.id,
       line,
       snapshot_approximate: [
-        'the profile is the one stored at capture, scrubbed of the truth, not the one prod held at the moment',
-        'the title is the current one; branch, idle summary and thread state are not on /cli/read and are left out',
-        'the 60 row window counts /cli/read lines, which skip empty rows',
+        "the profile is the one stored at capture, scrubbed of the truth, not the one prod held at the moment",
+        "the title is the current one; branch, idle summary and thread state are not on /cli/read and are left out",
+        "the 60 row window counts /cli/read lines, which skip empty rows",
       ],
     },
   };
 }
 
-export function graderPrompt(agentTail: string, truth: string, suggestions: string[]): string {
+export function graderPrompt(
+  agentTail: string,
+  truth: string,
+  suggestions: string[],
+): string {
   return `A coding agent said something; the developer then typed a reply. Separately, a system had predicted the developer's reply as one or more suggested messages, shown before they typed. Grade the prediction.
 
 Agent's message (end of it):
@@ -191,7 +317,7 @@ ${truth}
 """
 
 Predicted suggestions:
-${suggestions.map((s, i) => `${i + 1}. """${s}"""`).join('\n')}
+${suggestions.map((s, i) => `${i + 1}. """${s}"""`).join("\n")}
 
 Grade with ONE of:
 - hit: at least one suggestion says what the developer typed (same request, same decision or same answer), such that they would have sent it as written or with a trivial edit.
@@ -205,7 +331,7 @@ Return ONLY JSON: {"grade": "hit" | "partial" | "miss", "at": number | null, "wh
 
 export interface SuggestOutcome {
   suggestions: string[];
-  error?: 'provider_failed' | 'invalid_json';
+  error?: "provider_failed" | "invalid_json";
   /** null when the grader returned no grade. */
   grade: Grade | null;
   /** For hit and partial: the 1-based position of the matching suggestion (the ghost shows 1; ↓ steps on). */
@@ -214,30 +340,79 @@ export interface SuggestOutcome {
 }
 
 /** Grades the pills against the truth; only a moment with pills and a substantive truth needs the grader. */
-export async function gradeMoment(snap: SuggestSnap, suggestions: string[], ctx: Pick<ReplayCtx, 'call'>): Promise<{ grade: Grade | null; at?: number; why: string }> {
-  if (isGenericNudge(snap.truth)) return { grade: suggestions.length ? 'nudge-shown' : 'nudge-silent', why: 'the truth is a bare nudge' };
-  if (!suggestions.length) return { grade: 'silent', why: 'no pills' };
-  const agentTail = [...contextOf(snap).turns].reverse().find((t) => t.role === 'assistant')?.content ?? '';
-  const r = await ctx.call({ model: JUDGE_MODEL, prompt: graderPrompt(agentTail, snap.truth, suggestions), max_tokens: JUDGE_MAX_TOKENS }, { grader: true });
-  const parsed = parseJsonBlock(r.text) as { grade?: unknown; at?: unknown; why?: unknown } | null;
+export async function gradeMoment(
+  snap: SuggestSnap,
+  suggestions: string[],
+  ctx: Pick<ReplayCtx, "call">,
+): Promise<{ grade: Grade | null; at?: number; why: string }> {
+  if (isGenericNudge(snap.truth))
+    return {
+      grade: suggestions.length ? "nudge-shown" : "nudge-silent",
+      why: "the truth is a bare nudge",
+    };
+  if (!suggestions.length) return { grade: "silent", why: "no pills" };
+  const agentTail =
+    [...contextOf(snap).turns].reverse().find((t) => t.role === "assistant")
+      ?.content ?? "";
+  const r = await ctx.call(
+    {
+      model: JUDGE_MODEL,
+      prompt: graderPrompt(agentTail, snap.truth, suggestions),
+      max_tokens: JUDGE_MAX_TOKENS,
+    },
+    { grader: true },
+  );
+  const parsed = parseJsonBlock(r.text) as {
+    grade?: unknown;
+    at?: unknown;
+    why?: unknown;
+  } | null;
   const grade = parsed?.grade;
-  if (grade !== 'hit' && grade !== 'partial' && grade !== 'miss') return { grade: null, why: `the grader returned no grade: ${r.text.slice(0, 160)}` };
-  const at = typeof parsed?.at === 'number' && parsed.at >= 1 && parsed.at <= suggestions.length ? Math.round(parsed.at) : undefined;
-  return { grade, ...(grade !== 'miss' && at ? { at } : {}), why: String(parsed?.why ?? '') };
+  if (grade !== "hit" && grade !== "partial" && grade !== "miss")
+    return {
+      grade: null,
+      why: `the grader returned no grade: ${r.text.slice(0, 160)}`,
+    };
+  const at =
+    typeof parsed?.at === "number" &&
+    parsed.at >= 1 &&
+    parsed.at <= suggestions.length
+      ? Math.round(parsed.at)
+      : undefined;
+  return {
+    grade,
+    ...(grade !== "miss" && at ? { at } : {}),
+    why: String(parsed?.why ?? ""),
+  };
 }
 
-const gate = (id: string, pass: boolean, summary: string): GateResult => ({ id, pass, decidedBy: 'mechanical', evidence: { summary } });
-const outcomeOf = (out: ReplayResult): SuggestOutcome => out.parsed as SuggestOutcome;
+const gate = (id: string, pass: boolean, summary: string): GateResult => ({
+  id,
+  pass,
+  decidedBy: "mechanical",
+  evidence: { summary },
+});
+const outcomeOf = (out: ReplayResult): SuggestOutcome =>
+  out.parsed as SuggestOutcome;
 const GRADE_EVIDENCE = /^grade=([a-z-]+)(?:@(\d+))?/;
 
 /** Precision and coverage over a set of graded reps: the cost side and the value side of showing suggestions. `hitAt` holds each hit's position, when the grader named it. */
 export function gradeTotals(grades: Grade[], hitAt: number[] = []) {
   const count = (g: Grade) => grades.filter((x) => x === g).length;
-  const hit = count('hit'), partial = count('partial'), miss = count('miss'), silent = count('silent');
+  const hit = count("hit"),
+    partial = count("partial"),
+    miss = count("miss"),
+    silent = count("silent");
   const shown = hit + partial + miss;
   const n = shown + silent;
   return {
-    n, hit, partial, miss, silent, nudgeSilent: count('nudge-silent'), nudgeShown: count('nudge-shown'),
+    n,
+    hit,
+    partial,
+    miss,
+    silent,
+    nudgeSilent: count("nudge-silent"),
+    nudgeShown: count("nudge-shown"),
     // Of the pills shown at substantive moments, how many were right: the cost side.
     precision: shown ? hit / shown : 0,
     // Of all substantive moments, how many got a right pill: the value side.
@@ -249,62 +424,131 @@ export function gradeTotals(grades: Grade[], hitAt: number[] = []) {
 }
 
 const impl: SurfaceImpl = {
-  refForms: 'suggest@ needs the session line where the developer typed the reply, like suggest@jx7c6zk:142 (suggest@jx7c6zk lists the moments)',
+  refForms:
+    "suggest@ needs the session line where the developer typed the reply, like suggest@jx7c6zk:142 (suggest@jx7c6zk lists the moments)",
 
   async capture(ref: string, ctx: CaptureCtx): Promise<Captured> {
     const { conversation, line } = splitLineRef(ref);
     if (line === null) {
-      const head = (await ctx.readConversation(conversation, { from: 1, to: 1 })) as Read;
+      const head = (await ctx.readConversation(conversation, {
+        from: 1,
+        to: 1,
+      })) as Read;
       const total = head.conversation.message_count ?? 0;
-      const tail = (await ctx.readConversation(conversation, { from: Math.max(1, total - 199), to: total })) as Read;
-      throw new UsageError(`suggest@ needs a line; the newest moments in ${conversation}: ${momentList(conversation, toRows(tail.messages))}`);
+      const tail = (await ctx.readConversation(conversation, {
+        from: Math.max(1, total - 199),
+        to: total,
+      })) as Read;
+      throw new UsageError(
+        `suggest@ needs a line; the newest moments in ${conversation}: ${momentList(conversation, toRows(tail.messages))}`,
+      );
     }
-    const read = (await ctx.readConversation(conversation, { from: Math.max(1, line - CONTEXT_HEADROOM), to: line })) as Read;
+    const read = (await ctx.readConversation(conversation, {
+      from: Math.max(1, line - CONTEXT_HEADROOM),
+      to: line,
+    })) as Read;
     momentAt(read, conversation, line);
-    return momentSnapshot(read, conversation, line, await ownSuggestionProfile());
+    return momentSnapshot(
+      read,
+      conversation,
+      line,
+      await ownSuggestionProfile(),
+    );
   },
 
   async replay(snap: SuggestSnap, ctx) {
-    const predicted = await predictSuggestions(contextOf(snap), scrubTruth(snap.profile, snap.truth), 'anthropic', NO_TEAM_CONTENT_GATE, async (opts) => {
-      // prod's anthropic branch posts exactly this request (llmComplete).
-      const r = await ctx.call(haikuRequest(opts.prompt, opts.maxTokens));
-      // A dry call echoes the prompt; the canned answer is the one the prompt calls most common.
-      const text = ctx.dry ? '[]' : r.text.trim();
-      return !r.isError && text ? { text } : null;
-    });
-    const graded = predicted.error ? { grade: null, why: `pipeline failed: ${predicted.error}` } : await gradeMoment(snap, predicted.suggestions, ctx);
-    const outcome: SuggestOutcome = { suggestions: predicted.suggestions, ...(predicted.error ? { error: predicted.error } : {}), ...graded };
-    return { reply: predicted.suggestions.map((s) => `- ${s}`).join('\n'), parsed: outcome };
+    const predicted = await predictSuggestions(
+      contextOf(snap),
+      scrubTruth(snap.profile, snap.truth),
+      "anthropic",
+      NO_TEAM_CONTENT_GATE,
+      async (opts) => {
+        // prod's anthropic branch posts exactly this request (llmComplete).
+        const r = await ctx.call(haikuRequest(opts.prompt, opts.maxTokens));
+        // A dry call echoes the prompt; the canned answer is the one the prompt calls most common.
+        const text = ctx.dry ? "[]" : r.text.trim();
+        return !r.isError && text ? { text } : null;
+      },
+    );
+    const graded = predicted.error
+      ? { grade: null, why: `pipeline failed: ${predicted.error}` }
+      : await gradeMoment(snap, predicted.suggestions, ctx);
+    const outcome: SuggestOutcome = {
+      suggestions: predicted.suggestions,
+      ...(predicted.error ? { error: predicted.error } : {}),
+      ...graded,
+    };
+    return {
+      reply: predicted.suggestions.map((s) => `- ${s}`).join("\n"),
+      parsed: outcome,
+    };
   },
 
   gates(_snap: SuggestSnap, out) {
     const o = outcomeOf(out);
-    const gates = [gate('pipeline-ok', !o.error, o.error ? `the pipeline failed: ${o.error}` : `${o.suggestions.length} pill(s) came through parse and sanitize`)];
-    if (!o.error) gates.push(gate('graded', o.grade !== null, o.grade ? `graded ${o.grade}` : o.why));
+    const gates = [
+      gate(
+        "pipeline-ok",
+        !o.error,
+        o.error
+          ? `the pipeline failed: ${o.error}`
+          : `${o.suggestions.length} pill(s) came through parse and sanitize`,
+      ),
+    ];
+    if (!o.error)
+      gates.push(
+        gate("graded", o.grade !== null, o.grade ? `graded ${o.grade}` : o.why),
+      );
     return gates;
   },
 
   checks(snap: SuggestSnap, out): CheckResult[] {
     const o = outcomeOf(out);
     if (!o.grade) return [];
-    return [{ id: 'grade', ask: 'the pills against what the developer typed next', weight: 1, score: GRADE_SCORE[o.grade], reasoning: o.why, evidence: `grade=${o.grade}${o.at ? `@${o.at}` : ''}; typed: ${snap.truth.slice(0, 160)}` }];
+    return [
+      {
+        id: "grade",
+        ask: "the pills against what the developer typed next",
+        weight: 1,
+        score: GRADE_SCORE[o.grade],
+        reasoning: o.why,
+        evidence: `grade=${o.grade}${o.at ? `@${o.at}` : ""}; typed: ${snap.truth.slice(0, 160)}`,
+      },
+    ];
   },
 
   summarize(scores: Score[]): string[] {
     const parsed = scores.flatMap((s) => {
-      const m = GRADE_EVIDENCE.exec(s.checks.find((c) => c.id === 'grade')?.evidence ?? '');
-      return m ? [{ grade: m[1] as Grade, at: m[2] ? Number(m[2]) : undefined }] : [];
+      const m = GRADE_EVIDENCE.exec(
+        s.checks.find((c) => c.id === "grade")?.evidence ?? "",
+      );
+      return m
+        ? [{ grade: m[1] as Grade, at: m[2] ? Number(m[2]) : undefined }]
+        : [];
     });
-    if (!parsed.length) return ['grades: none graded'];
+    if (!parsed.length) return ["grades: none graded"];
     const grades = parsed.map((p) => p.grade);
-    const t = gradeTotals(grades, parsed.flatMap((p) => (p.grade === 'hit' && p.at ? [p.at] : [])));
+    const t = gradeTotals(
+      grades,
+      parsed.flatMap((p) => (p.grade === "hit" && p.at ? [p.at] : [])),
+    );
     const pct = (x: number) => `${Math.round(x * 100)}%`;
-    return [`grades: hit ${t.hit} partial ${t.partial} miss ${t.miss} silent ${t.silent} | precision ${pct(t.precision)} coverage ${pct(t.coverage)} | hit on the ghost ${t.hitFirst}, after ↓ ${t.hitLater} | nudge moments: silent ${t.nudgeSilent} shown ${t.nudgeShown}`];
+    return [
+      `grades: hit ${t.hit} partial ${t.partial} miss ${t.miss} silent ${t.silent} | precision ${pct(t.precision)} coverage ${pct(t.coverage)} | hit on the ghost ${t.hitFirst}, after ↓ ${t.hitLater} | nudge moments: silent ${t.nudgeSilent} shown ${t.nudgeShown}`,
+    ];
   },
 
   describe(snap: SuggestSnap): ConvoMessage[] {
     const turns = contextOf(snap).turns.map((t, i) => ({ ...t, line: i + 1 }));
-    return toConvoMessages([...turns, { role: 'user', content: snap.truth, timestamp: snap.truthAt, line: turns.length + 1 }]);
+    return toConvoMessages([
+      ...turns,
+      {
+        role: "user",
+        content: snap.truth,
+        timestamp: snap.truthAt,
+        line: turns.length + 1,
+      },
+    ]);
   },
 
   productionReply: () => null,

@@ -2,15 +2,21 @@
 // tiles across the top (images, search, share, copy, huddle); everything else
 // is a short grouped list under them, with setting the session aside last.
 // One sheet, no "More…" step: a group that has nothing to offer is left out.
-import type { ComponentProps } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { Text } from '@/components/Themed';
-import { BottomSheet, useRunAfterDismiss } from '@/components/BottomSheet';
-import { themedStyles, useTheme } from '@/constants/Theme';
+import type { ComponentProps } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { Text } from "@/components/Themed";
+import { BottomSheet, useRunAfterDismiss } from "@/components/BottomSheet";
+import { themedStyles, useTheme } from "@/constants/Theme";
 
-type IconName = ComponentProps<typeof Feather>['name'];
+type IconName = ComponentProps<typeof Feather>["name"];
 
 export type SessionTile = {
   key: string;
@@ -35,7 +41,12 @@ export type SessionRow = {
   destructive?: boolean;
 };
 
-export function SessionActionsSheet({ visible, onClose, tiles, groups }: {
+export function SessionActionsSheet({
+  visible,
+  onClose,
+  tiles,
+  groups,
+}: {
   visible: boolean;
   onClose: () => void;
   tiles: SessionTile[];
@@ -55,7 +66,11 @@ export function SessionActionsSheet({ visible, onClose, tiles, groups }: {
 
   return (
     <BottomSheet visible={visible} onClose={onClose} onDismiss={onDismiss}>
-      <ScrollView style={{ maxHeight: height * 0.72 }} bounces={false} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ maxHeight: height * 0.72 }}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         {tiles.length > 0 && (
           <View style={styles.tiles}>
             {tiles.map((t) => (
@@ -63,18 +78,39 @@ export function SessionActionsSheet({ visible, onClose, tiles, groups }: {
                 key={t.key}
                 onPress={() => run(t.onPress)}
                 accessibilityRole="button"
-                accessibilityLabel={t.count ? `${t.label}, ${t.count}` : t.label}
-                style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
+                accessibilityLabel={
+                  t.count ? `${t.label}, ${t.count}` : t.label
+                }
+                style={({ pressed }) => [
+                  styles.tile,
+                  pressed && styles.pressed,
+                ]}
               >
                 <View>
-                  <Feather name={t.icon} size={20} color={t.live ? Theme.green : Theme.text} />
+                  <Feather
+                    name={t.icon}
+                    size={20}
+                    color={t.live ? Theme.green : Theme.text}
+                  />
                   {t.count ? (
-                    <View style={[styles.count, t.live && { backgroundColor: Theme.green }]}>
-                      <Text style={styles.countText}>{t.count > 99 ? '99+' : t.count}</Text>
+                    <View
+                      style={[
+                        styles.count,
+                        t.live && { backgroundColor: Theme.green },
+                      ]}
+                    >
+                      <Text style={styles.countText}>
+                        {t.count > 99 ? "99+" : t.count}
+                      </Text>
                     </View>
                   ) : null}
                 </View>
-                <Text style={[styles.tileLabel, t.live && { color: Theme.green }]} numberOfLines={1}>{t.label}</Text>
+                <Text
+                  style={[styles.tileLabel, t.live && { color: Theme.green }]}
+                  numberOfLines={1}
+                >
+                  {t.label}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -88,12 +124,34 @@ export function SessionActionsSheet({ visible, onClose, tiles, groups }: {
                   key={r.key}
                   onPress={() => run(r.onPress)}
                   accessibilityRole="button"
-                  accessibilityState={r.on === undefined ? undefined : { checked: r.on }}
-                  style={({ pressed }) => [styles.row, ri > 0 && styles.rowRule, pressed && styles.pressed]}
+                  accessibilityState={
+                    r.on === undefined ? undefined : { checked: r.on }
+                  }
+                  style={({ pressed }) => [
+                    styles.row,
+                    ri > 0 && styles.rowRule,
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  <Feather name={r.icon} size={17} color={r.on ? Theme.yellow : r.destructive ? Theme.red : Theme.textMuted} />
-                  <Text style={[styles.rowLabel, { color }]} numberOfLines={1}>{r.label}</Text>
-                  {r.value ? <Text style={styles.rowValue} numberOfLines={1}>{r.value}</Text> : null}
+                  <Feather
+                    name={r.icon}
+                    size={17}
+                    color={
+                      r.on
+                        ? Theme.yellow
+                        : r.destructive
+                          ? Theme.red
+                          : Theme.textMuted
+                    }
+                  />
+                  <Text style={[styles.rowLabel, { color }]} numberOfLines={1}>
+                    {r.label}
+                  </Text>
+                  {r.value ? (
+                    <Text style={styles.rowValue} numberOfLines={1}>
+                      {r.value}
+                    </Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -104,35 +162,51 @@ export function SessionActionsSheet({ visible, onClose, tiles, groups }: {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  tiles: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  tile: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 7,
-    paddingTop: 14,
-    paddingBottom: 10,
-    borderRadius: 12,
-    backgroundColor: Theme.bg,
-  },
-  tileLabel: { fontSize: 11.5, color: Theme.textMuted },
-  count: {
-    position: 'absolute',
-    top: -6,
-    right: -12,
-    minWidth: 17,
-    height: 17,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Theme.blue,
-  },
-  countText: { fontSize: 10, fontWeight: '700', color: '#fff' },
-  group: { borderRadius: 12, backgroundColor: Theme.bg, overflow: 'hidden', marginBottom: 12 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 14 },
-  rowRule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Theme.borderLight },
-  rowLabel: { flex: 1, fontSize: 15 },
-  rowValue: { fontSize: 13, color: Theme.textMuted0, maxWidth: 140 },
-  pressed: { backgroundColor: Theme.bgHighlight },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    tiles: { flexDirection: "row", gap: 8, marginBottom: 12 },
+    tile: {
+      flex: 1,
+      alignItems: "center",
+      gap: 7,
+      paddingTop: 14,
+      paddingBottom: 10,
+      borderRadius: 12,
+      backgroundColor: Theme.bg,
+    },
+    tileLabel: { fontSize: 11.5, color: Theme.textMuted },
+    count: {
+      position: "absolute",
+      top: -6,
+      right: -12,
+      minWidth: 17,
+      height: 17,
+      paddingHorizontal: 4,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: Theme.blue,
+    },
+    countText: { fontSize: 10, fontWeight: "700", color: "#fff" },
+    group: {
+      borderRadius: 12,
+      backgroundColor: Theme.bg,
+      overflow: "hidden",
+      marginBottom: 12,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      minHeight: 48,
+      paddingHorizontal: 14,
+    },
+    rowRule: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Theme.borderLight,
+    },
+    rowLabel: { flex: 1, fontSize: 15 },
+    rowValue: { fontSize: 13, color: Theme.textMuted0, maxWidth: 140 },
+    pressed: { backgroundColor: Theme.bgHighlight },
+  }),
+);

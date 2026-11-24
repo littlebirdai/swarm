@@ -15,7 +15,10 @@ const CONTROL =
   "flex items-center gap-1.5 h-7 rounded-md border border-sol-border/60 px-2 text-[12px] text-sol-text-muted hover:text-sol-text hover:border-sol-border transition-colors";
 
 function openAsPage(here: string): void {
-  const url = new URL(toStandaloneHref(here), window.location.origin).toString();
+  const url = new URL(
+    toStandaloneHref(here),
+    window.location.origin,
+  ).toString();
   explainOpenInBrowser(openInBrowser(url), toast);
 }
 
@@ -30,7 +33,11 @@ export function RepoWindowControl() {
     // marketing home with no explanation of why.
     if (!signedIn) return null;
     return (
-      <Link href={toAppHref(here)} className={CONTROL} title="Open this page in the app">
+      <Link
+        href={toAppHref(here)}
+        className={CONTROL}
+        title="Open this page in the app"
+      >
         <PanelsTopLeft className="w-3 h-3" />
         Open in app
       </Link>
@@ -41,7 +48,12 @@ export function RepoWindowControl() {
     // Named, like its twin: the page as it stands (the view, the file, the
     // lines) opened in the person's browser, where it can be bookmarked or
     // handed on.
-    <button type="button" onClick={() => openAsPage(here)} className={CONTROL} title="Open this exact page in your browser">
+    <button
+      type="button"
+      onClick={() => openAsPage(here)}
+      className={CONTROL}
+      title="Open this exact page in your browser"
+    >
       <ExternalLink className="w-3 h-3" />
       <span className="repo-github-label">Open in browser</span>
     </button>

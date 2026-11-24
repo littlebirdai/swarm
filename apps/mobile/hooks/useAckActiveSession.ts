@@ -11,12 +11,22 @@ import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { sessionActivityAt, shouldAcknowledge } from "@codecast/shared/contracts";
-import { sessionActivityFacts, useInboxStore } from "@codecast/web/store/inboxStore";
+import {
+  sessionActivityAt,
+  shouldAcknowledge,
+} from "@codecast/shared/contracts";
+import {
+  sessionActivityFacts,
+  useInboxStore,
+} from "@codecast/web/store/inboxStore";
 
-export function useAckActiveSession(conversationId: string | null | undefined): void {
+export function useAckActiveSession(
+  conversationId: string | null | undefined,
+): void {
   const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState(() => AppState.currentState === "active");
+  const [active, setActive] = useState(
+    () => AppState.currentState === "active",
+  );
   // The number the card compares the mark against — the last turn ending, or
   // the row's activity watermark when no turn stamp exists. Acknowledging
   // exactly it is what puts the dot out.
@@ -26,13 +36,17 @@ export function useAckActiveSession(conversationId: string | null | undefined): 
     return sessionActivityAt(sessionActivityFacts(row as any));
   });
 
-  useFocusEffect(useCallback(() => {
-    setFocused(true);
-    return () => setFocused(false);
-  }, []));
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => setActive(state === "active"));
+    const sub = AppState.addEventListener("change", (state) =>
+      setActive(state === "active"),
+    );
     return () => sub.remove();
   }, []);
 
@@ -42,7 +56,15 @@ export function useAckActiveSession(conversationId: string | null | undefined): 
   // cannot re-dispatch.
   const lastAcked = useRef<string>("");
   useEffect(() => {
-    if (!shouldAcknowledge({ conversationId, isActiveView: focused, present: active, updatedAt })) return;
+    if (
+      !shouldAcknowledge({
+        conversationId,
+        isActiveView: focused,
+        present: active,
+        updatedAt,
+      })
+    )
+      return;
     const key = `${conversationId}:${updatedAt}`;
     if (lastAcked.current === key) return;
     lastAcked.current = key;

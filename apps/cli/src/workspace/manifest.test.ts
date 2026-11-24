@@ -69,8 +69,10 @@ run = ["bun run db:reset"]
 
   test("setup commands parsed", () => {
     expect(m.setup.copy).toEqual([".env", ".env.local"]);
-    expect(parseManifestText('[setup]\nshare = ["node_modules", ".venv"]\n').setup.share)
-      .toEqual(["node_modules", ".venv"]);
+    expect(
+      parseManifestText('[setup]\nshare = ["node_modules", ".venv"]\n').setup
+        .share,
+    ).toEqual(["node_modules", ".venv"]);
     expect(m.setup.install).toEqual(["bun install"]);
     expect(m.setup.generate).toEqual(["bun run codegen"]);
     expect(m.setup.migrate).toEqual(["bun run db:migrate"]);
@@ -174,7 +176,9 @@ describe("parseManifestText — [browser] section", () => {
   });
 
   test("[browser] non-headless honored", () => {
-    const m = parseManifestText(`[browser]\nenabled = true\nheadless = false\n`);
+    const m = parseManifestText(
+      `[browser]\nenabled = true\nheadless = false\n`,
+    );
     expect(m.browser.headless).toBe(false);
   });
 
@@ -199,30 +203,36 @@ describe("parseManifestText — [browser] section", () => {
 
   test("rejects invalid cdp_port.base", () => {
     expect(() =>
-      parseManifestText(`[browser]\nenabled = true\n[browser.cdp_port]\nbase = 70000\nrange = 100\n`),
+      parseManifestText(
+        `[browser]\nenabled = true\n[browser.cdp_port]\nbase = 70000\nrange = 100\n`,
+      ),
     ).toThrow(/cdp_port.base' must be an integer 1\.\.65535/);
   });
 });
 
 describe("parseManifestText — error reporting", () => {
   test("syntax error gets ManifestError with location info", () => {
-    expect(() => parseManifestText(`[setup\ninstall = "x"`)).toThrow(ManifestError);
+    expect(() => parseManifestText(`[setup\ninstall = "x"`)).toThrow(
+      ManifestError,
+    );
   });
 
   test("unknown top-level key is rejected loudly", () => {
-    expect(() => parseManifestText(`[bogus]\nfoo = 1\n`)).toThrow(/unknown top-level key 'bogus'/);
+    expect(() => parseManifestText(`[bogus]\nfoo = 1\n`)).toThrow(
+      /unknown top-level key 'bogus'/,
+    );
   });
 
   test("port with non-integer base", () => {
-    expect(() => parseManifestText(`[ports.web]\nbase = "three thousand"\nrange = 100\n`)).toThrow(
-      /port 'web': 'base' must be an integer/,
-    );
+    expect(() =>
+      parseManifestText(`[ports.web]\nbase = "three thousand"\nrange = 100\n`),
+    ).toThrow(/port 'web': 'base' must be an integer/);
   });
 
   test("port out of range", () => {
-    expect(() => parseManifestText(`[ports.web]\nbase = 70000\nrange = 100\n`)).toThrow(
-      /port 'web': 'base' must be an integer 1\.\.65535/,
-    );
+    expect(() =>
+      parseManifestText(`[ports.web]\nbase = 70000\nrange = 100\n`),
+    ).toThrow(/port 'web': 'base' must be an integer 1\.\.65535/);
   });
 
   test("service with invalid mode", () => {
@@ -232,9 +242,9 @@ describe("parseManifestText — error reporting", () => {
   });
 
   test("isolated service missing start command", () => {
-    expect(() => parseManifestText(`[services.x]\nmode = "isolated"\n`)).toThrow(
-      /mode='isolated' requires 'start'/,
-    );
+    expect(() =>
+      parseManifestText(`[services.x]\nmode = "isolated"\n`),
+    ).toThrow(/mode='isolated' requires 'start'/);
   });
 
   test("shared service missing url", () => {
@@ -250,7 +260,9 @@ describe("parseManifestText — error reporting", () => {
   });
 
   test("env with non-string value", () => {
-    expect(() => parseManifestText(`[env]\nFOO = 42\n`)).toThrow(/env\.FOO must be a string/);
+    expect(() => parseManifestText(`[env]\nFOO = 42\n`)).toThrow(
+      /env\.FOO must be a string/,
+    );
   });
 
   test("unknown key in [setup]", () => {
@@ -261,13 +273,18 @@ describe("parseManifestText — error reporting", () => {
 
   test("unknown key in service table", () => {
     expect(() =>
-      parseManifestText(`[services.x]\nmode = "shared"\nurl = "redis://x"\nfoo = "bar"\n`),
+      parseManifestText(
+        `[services.x]\nmode = "shared"\nurl = "redis://x"\nfoo = "bar"\n`,
+      ),
     ).toThrow(/unknown key in service 'x': 'foo'/);
   });
 
   test("error includes file path when provided", () => {
     try {
-      parseManifestText(`[ports.web]\nbase = "x"\nrange = 100\n`, "/tmp/workspace.toml");
+      parseManifestText(
+        `[ports.web]\nbase = "x"\nrange = 100\n`,
+        "/tmp/workspace.toml",
+      );
       throw new Error("expected throw");
     } catch (e) {
       expect(e).toBeInstanceOf(ManifestError);
@@ -282,23 +299,33 @@ describe("[verify]", () => {
   test("verify.command parses; absent verify is absent, not defaulted", () => {
     const m = parseManifestText(`[verify]\ncommand = "bun test"\n`);
     expect(m.verify).toEqual({ command: "bun test" });
-    expect(parseManifestText(`[setup]\ninstall = ["true"]\n`).verify).toBeUndefined();
+    expect(
+      parseManifestText(`[setup]\ninstall = ["true"]\n`).verify,
+    ).toBeUndefined();
   });
 
   test("unknown keys and empty commands are refused", () => {
-    expect(() => parseManifestText(`[verify]\nrun = "x"\n`)).toThrow(/unknown key in \[verify\]/);
-    expect(() => parseManifestText(`[verify]\ncommand = ""\n`)).toThrow(/verify.command/);
+    expect(() => parseManifestText(`[verify]\nrun = "x"\n`)).toThrow(
+      /unknown key in \[verify\]/,
+    );
+    expect(() => parseManifestText(`[verify]\ncommand = ""\n`)).toThrow(
+      /verify.command/,
+    );
   });
 });
 
 describe("[vault]", () => {
   test("a name, or a table marking it required", () => {
-    const m = parseManifestText(`[vault]\nSTRIPE_SECRET_KEY = "stripe-test"\nDATABASE_URL = { secret = "staging-db", required = true }\n`);
+    const m = parseManifestText(
+      `[vault]\nSTRIPE_SECRET_KEY = "stripe-test"\nDATABASE_URL = { secret = "staging-db", required = true }\n`,
+    );
     expect(m.vault).toEqual({
       STRIPE_SECRET_KEY: { secret: "stripe-test", required: false },
       DATABASE_URL: { secret: "staging-db", required: true },
     });
-    expect(parseManifestText(`[setup]\ninstall = ["true"]\n`).vault).toBeUndefined();
+    expect(
+      parseManifestText(`[setup]\ninstall = ["true"]\n`).vault,
+    ).toBeUndefined();
   });
 
   test("a bad line is refused naming its env var and the rule it broke, never quoting the value side", () => {
@@ -314,10 +341,18 @@ describe("[vault]", () => {
     expect(refusal(`[vault]\nSTRIPE_KEY = "sk_test_51HXabcdefghijkl"\n`)).toBe(
       "[vault] STRIPE_KEY: the value is not a secret name: use 1 to 63 lowercase letters, digits and dashes, like stripe-test. A value itself goes in with cast vault add (/r/.codecast/workspace.toml: vault.STRIPE_KEY)",
     );
-    expect(refusal(`[vault]\n"1BAD" = "x"\n`)).toContain(`"1BAD" is not an env var name`);
-    expect(refusal(`[vault]\nKEY = 3\n`)).toContain("must be a secret name in quotes");
-    expect(refusal(`[vault]\nKEY = { secret = "x", optional = true }\n`)).toContain("unknown key 'optional'");
-    expect(refusal(`[vault]\nKEY = { secret = "x", required = "yes" }\n`)).toContain("'required' must be true or false");
+    expect(refusal(`[vault]\n"1BAD" = "x"\n`)).toContain(
+      `"1BAD" is not an env var name`,
+    );
+    expect(refusal(`[vault]\nKEY = 3\n`)).toContain(
+      "must be a secret name in quotes",
+    );
+    expect(
+      refusal(`[vault]\nKEY = { secret = "x", optional = true }\n`),
+    ).toContain("unknown key 'optional'");
+    expect(
+      refusal(`[vault]\nKEY = { secret = "x", required = "yes" }\n`),
+    ).toContain("'required' must be true or false");
     expect(refusal(`vault = "x"\n`)).toContain("[vault] must be a table");
   });
 });
@@ -343,28 +378,59 @@ keep_daemons = true
       keepDeps: 3,
       maxUploadMb: 50,
       jobs: [
-        { name: "bun test", argv: ["bun", "test"], outputs: ["packages/*/coverage/**"], memoryGb: 4 },
-        { name: "check", argv: ["cast", "check"], outputs: [], timeoutMin: 10, keepDaemons: true },
+        {
+          name: "bun test",
+          argv: ["bun", "test"],
+          outputs: ["packages/*/coverage/**"],
+          memoryGb: 4,
+        },
+        {
+          name: "check",
+          argv: ["cast", "check"],
+          outputs: [],
+          timeoutMin: 10,
+          keepDaemons: true,
+        },
       ],
     });
   });
 
   test("absent [run] stays absent", () => {
-    expect(parseManifestText(`[setup]\ninstall = ["bun install"]\n`).run).toBeUndefined();
+    expect(
+      parseManifestText(`[setup]\ninstall = ["bun install"]\n`).run,
+    ).toBeUndefined();
   });
 
   test.each([
     [`[run]\nbogus = 1\n`, "unknown key in [run]: 'bogus'"],
     [`[[run.jobs]]\nargv = []\n`, "run.jobs[0].argv"],
-    [`[[run.jobs]]\nargv = ["x"]\noutputs = ["../escape"]\n`, "run.jobs[0].outputs[0]"],
-    [`[[run.jobs]]\nargv = ["x"]\noutputs = ["/abs"]\n`, "run.jobs[0].outputs[0]"],
-    [`[[run.jobs]]\nargv = ["x"]\noutputs = [".git/config"]\n`, "run.jobs[0].outputs[0]"],
+    [
+      `[[run.jobs]]\nargv = ["x"]\noutputs = ["../escape"]\n`,
+      "run.jobs[0].outputs[0]",
+    ],
+    [
+      `[[run.jobs]]\nargv = ["x"]\noutputs = ["/abs"]\n`,
+      "run.jobs[0].outputs[0]",
+    ],
+    [
+      `[[run.jobs]]\nargv = ["x"]\noutputs = [".git/config"]\n`,
+      "run.jobs[0].outputs[0]",
+    ],
     [`[[run.jobs]]\nargv = ["x"]\nmemory_gb = 0\n`, "run.jobs[0].memory_gb"],
-    [`[[run.jobs]]\nargv = ["x"]\n\n[[run.jobs]]\nargv = ["x"]\n`, "repeats job 'x'"],
-    [`[[run.jobs]]\nargv = ["x"]\nwhat = 1\n`, "unknown key in [[run.jobs]]: 'what'"],
+    [
+      `[[run.jobs]]\nargv = ["x"]\n\n[[run.jobs]]\nargv = ["x"]\n`,
+      "repeats job 'x'",
+    ],
+    [
+      `[[run.jobs]]\nargv = ["x"]\nwhat = 1\n`,
+      "unknown key in [[run.jobs]]: 'what'",
+    ],
     [`[run]\nkeep_deps = 1.5\n`, "run.keep_deps"],
     [`[run]\ndeps_key = ["../lock"]\n`, "run.deps_key[0]"],
-    [`[[run.jobs]]\nargv = ["x"]\nkeep_daemons = "yes"\n`, "run.jobs[0].keep_daemons"],
+    [
+      `[[run.jobs]]\nargv = ["x"]\nkeep_daemons = "yes"\n`,
+      "run.jobs[0].keep_daemons",
+    ],
   ])("refuses %p", (text, needle) => {
     expect(() => parseManifestText(text)).toThrow(needle);
   });
@@ -372,8 +438,13 @@ keep_daemons = true
 
 describe("[host] data", () => {
   test("folders under $HOME a repo's code keeps outside the checkout", () => {
-    const m = parseManifestText(`[host]\ndata = ["~/.local/share/tool/freezes", "~/.cache/tool/snapshots/"]\n`);
-    expect(m.host?.data).toEqual(["~/.local/share/tool/freezes", "~/.cache/tool/snapshots/"]);
+    const m = parseManifestText(
+      `[host]\ndata = ["~/.local/share/tool/freezes", "~/.cache/tool/snapshots/"]\n`,
+    );
+    expect(m.host?.data).toEqual([
+      "~/.local/share/tool/freezes",
+      "~/.cache/tool/snapshots/",
+    ]);
   });
 
   test.each([

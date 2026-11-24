@@ -31,7 +31,13 @@ export type ExtractedAudio = {
 
 export class Mp4AudioError extends Error {
   constructor(
-    readonly reason: "not_mp4" | "fragmented" | "compressed_header" | "no_moov" | "too_large" | "malformed",
+    readonly reason:
+      | "not_mp4"
+      | "fragmented"
+      | "compressed_header"
+      | "no_moov"
+      | "too_large"
+      | "malformed",
     message: string,
   ) {
     super(message);
@@ -40,9 +46,11 @@ export class Mp4AudioError extends Error {
 
 type Box = { type: string; start: number; headerSize: number; size: number };
 
-const u32 = (b: Uint8Array, o: number) => ((b[o] << 24) >>> 0) + (b[o + 1] << 16) + (b[o + 2] << 8) + b[o + 3];
+const u32 = (b: Uint8Array, o: number) =>
+  ((b[o] << 24) >>> 0) + (b[o + 1] << 16) + (b[o + 2] << 8) + b[o + 3];
 const u64 = (b: Uint8Array, o: number) => u32(b, o) * 2 ** 32 + u32(b, o + 4);
-const fourcc = (b: Uint8Array, o: number) => String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]);
+const fourcc = (b: Uint8Array, o: number) =>
+  String.fromCharCode(b[o], b[o + 1], b[o + 2], b[o + 3]);
 
 /** The child boxes of `b[from, to)`. */
 function boxesIn(b: Uint8Array, from: number, to: number): Box[] {
@@ -66,7 +74,9 @@ function boxesIn(b: Uint8Array, from: number, to: number): Box[] {
 }
 
 const child = (b: Uint8Array, parent: Box, type: string) =>
-  boxesIn(b, parent.start + parent.headerSize, parent.start + parent.size).find((x) => x.type === type) ?? null;
+  boxesIn(b, parent.start + parent.headerSize, parent.start + parent.size).find(
+    (x) => x.type === type,
+  ) ?? null;
 
 function path(b: Uint8Array, root: Box, types: string[]): Box | null {
   let cur: Box | null = root;
@@ -85,12 +95,16 @@ const MAX_TOP_BOXES = 4096;
  *  few MB. */
 export const MAX_MOOV_BYTES = 64 * 1024 * 1024;
 
-const malformed = (what: string) => new Mp4AudioError("malformed", `malformed file: ${what}`);
+const malformed = (what: string) =>
+  new Mp4AudioError("malformed", `malformed file: ${what}`);
 
 /** How many fixed-size entries a full box's table can hold after `skip`
  *  bytes of its payload: what a count it declares must not exceed. */
 function tableRoom(box: Box, skip: number, entryBytes: number): number {
-  return Math.max(0, Math.floor((box.size - box.headerSize - 4 - skip) / entryBytes));
+  return Math.max(
+    0,
+    Math.floor((box.size - box.headerSize - 4 - skip) / entryBytes),
+  );
 }
 
 /** The top-level boxes of the whole source, read header by header. */
@@ -98,7 +112,8 @@ async function topLevel(src: ByteSource): Promise<Box[]> {
   const out: Box[] = [];
   let o = 0;
   while (o + 8 <= src.size) {
-    if (out.length >= MAX_TOP_BOXES) throw malformed("too many top-level boxes");
+    if (out.length >= MAX_TOP_BOXES)
+      throw malformed("too many top-level boxes");
     const h = await src.read(o, Math.min(16, src.size - o));
     let size = u32(h, 0);
     const type = fourcc(h, 4);
@@ -117,7 +132,8 @@ async function topLevel(src: ByteSource): Promise<Box[]> {
 }
 
 /** The full box (header included), from the bytes of its parent. */
-const slice = (b: Uint8Array, box: Box) => b.subarray(box.start, box.start + box.size);
+const slice = (b: Uint8Array, box: Box) =>
+  b.subarray(box.start, box.start + box.size);
 
 /** Full-box payload start: after the header and the version/flags word. */
 const fullPayload = (box: Box) => box.start + box.headerSize + 4;
@@ -162,23 +178,47 @@ const READ_CONCURRENCY = 6;
  * `maxBytes` bounds the output: a recording whose sound alone is larger than
  * that is refused before any of it is read.
  */
-export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: number } = {}): Promise<ExtractedAudio | null> {
+export async function extractAudioTrack(
+  src: ByteSource,
+  opts: { maxBytes?: number } = {},
+): Promise<ExtractedAudio | null> {
   const top = await topLevel(src);
-  if (!top.some((b) => b.type === "ftyp" || b.type === "moov" || b.type === "mdat" || b.type === "wide")) {
+  if (
+    !top.some(
+      (b) =>
+        b.type === "ftyp" ||
+        b.type === "moov" ||
+        b.type === "mdat" ||
+        b.type === "wide",
+    )
+  ) {
     throw new Mp4AudioError("not_mp4", "not an MP4 or QuickTime file");
   }
   const moovBox = top.find((b) => b.type === "moov");
-  if (!moovBox) throw new Mp4AudioError("no_moov", "the file has no movie header (was it cut off mid-upload?)");
-  if (moovBox.size > MAX_MOOV_BYTES) throw malformed(`movie header of ${moovBox.size} bytes`);
-  if (moovBox.start + moovBox.size > src.size) throw malformed("movie header runs past the end of the file");
+  if (!moovBox)
+    throw new Mp4AudioError(
+      "no_moov",
+      "the file has no movie header (was it cut off mid-upload?)",
+    );
+  if (moovBox.size > MAX_MOOV_BYTES)
+    throw malformed(`movie header of ${moovBox.size} bytes`);
+  if (moovBox.start + moovBox.size > src.size)
+    throw malformed("movie header runs past the end of the file");
   const moov = await src.read(moovBox.start, moovBox.size);
   const root: Box = { ...moovBox, start: 0 };
-  if (child(moov, root, "cmov")) throw new Mp4AudioError("compressed_header", "compressed movie headers are not supported");
-  if (child(moov, root, "mvex")) throw new Mp4AudioError("fragmented", "fragmented MP4 is not supported");
+  if (child(moov, root, "cmov"))
+    throw new Mp4AudioError(
+      "compressed_header",
+      "compressed movie headers are not supported",
+    );
+  if (child(moov, root, "mvex"))
+    throw new Mp4AudioError("fragmented", "fragmented MP4 is not supported");
   const mvhd = child(moov, root, "mvhd");
   if (!mvhd) throw new Mp4AudioError("no_moov", "the movie header has no mvhd");
 
-  const traks = boxesIn(moov, root.headerSize, root.size).filter((b) => b.type === "trak");
+  const traks = boxesIn(moov, root.headerSize, root.size).filter(
+    (b) => b.type === "trak",
+  );
   const audio = traks.find((t) => {
     const hdlr = path(moov, t, ["mdia", "hdlr"]);
     return hdlr && fourcc(moov, fullPayload(hdlr) + 4) === "soun";
@@ -187,21 +227,33 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
 
   const mdhd = path(moov, audio, ["mdia", "mdhd"])!;
   const mdhdVersion = moov[mdhd.start + mdhd.headerSize];
-  const timescale = mdhdVersion === 1 ? u32(moov, fullPayload(mdhd) + 16) : u32(moov, fullPayload(mdhd) + 8);
-  const duration = mdhdVersion === 1 ? u64(moov, fullPayload(mdhd) + 20) : u32(moov, fullPayload(mdhd) + 12);
+  const timescale =
+    mdhdVersion === 1
+      ? u32(moov, fullPayload(mdhd) + 16)
+      : u32(moov, fullPayload(mdhd) + 8);
+  const duration =
+    mdhdVersion === 1
+      ? u64(moov, fullPayload(mdhd) + 20)
+      : u32(moov, fullPayload(mdhd) + 12);
 
   const stbl = path(moov, audio, ["mdia", "minf", "stbl"]);
-  if (!stbl) throw new Mp4AudioError("not_mp4", "the audio track has no sample table");
+  if (!stbl)
+    throw new Mp4AudioError("not_mp4", "the audio track has no sample table");
   const stsc = child(moov, stbl, "stsc");
   const stsz = child(moov, stbl, "stsz");
   const stco = child(moov, stbl, "stco") ?? child(moov, stbl, "co64");
-  if (!stsc || !stsz || !stco) throw new Mp4AudioError("not_mp4", "the audio track's sample table is incomplete");
+  if (!stsc || !stsz || !stco)
+    throw new Mp4AudioError(
+      "not_mp4",
+      "the audio track's sample table is incomplete",
+    );
   const wide = stco.type === "co64";
 
   // Chunk offsets, as the source has them. Each declared count is held to
   // what its own box can carry.
   const chunkCount = u32(moov, fullPayload(stco));
-  if (chunkCount > tableRoom(stco, 4, wide ? 8 : 4)) throw malformed("chunk table longer than its box");
+  if (chunkCount > tableRoom(stco, 4, wide ? 8 : 4))
+    throw malformed("chunk table longer than its box");
   const offsets: number[] = [];
   for (let i = 0; i < chunkCount; i++) {
     const at = fullPayload(stco) + 4 + i * (wide ? 8 : 4);
@@ -211,13 +263,16 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
   // Sample sizes: one size for all, or a table.
   const constantSize = u32(moov, fullPayload(stsz));
   const sampleCount = u32(moov, fullPayload(stsz) + 4);
-  if (!constantSize && sampleCount > tableRoom(stsz, 8, 4)) throw malformed("sample size table longer than its box");
-  const sizeOf = (i: number) => (constantSize ? constantSize : u32(moov, fullPayload(stsz) + 8 + i * 4));
+  if (!constantSize && sampleCount > tableRoom(stsz, 8, 4))
+    throw malformed("sample size table longer than its box");
+  const sizeOf = (i: number) =>
+    constantSize ? constantSize : u32(moov, fullPayload(stsz) + 8 + i * 4);
 
   // Samples per chunk, from stsc's runs.
   const runs: Array<{ first: number; perChunk: number }> = [];
   const stscCount = u32(moov, fullPayload(stsc));
-  if (stscCount > tableRoom(stsc, 4, 12)) throw malformed("chunk run table longer than its box");
+  if (stscCount > tableRoom(stsc, 4, 12))
+    throw malformed("chunk run table longer than its box");
   for (let i = 0; i < stscCount; i++) {
     const at = fullPayload(stsc) + 4 + i * 12;
     runs.push({ first: u32(moov, at), perChunk: u32(moov, at + 4) });
@@ -232,18 +287,30 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
     while (run + 1 < runs.length && runs[run + 1].first <= chunkNo) run++;
     const perChunk = run >= 0 ? runs[run].perChunk : 0;
     let len = 0;
-    for (let k = 0; k < perChunk && sample < sampleCount; k++, sample++) len += sizeOf(sample);
-    if (len > 0 && (offsets[c] < 0 || offsets[c] + len > src.size)) throw malformed("a chunk lies outside the file");
+    for (let k = 0; k < perChunk && sample < sampleCount; k++, sample++)
+      len += sizeOf(sample);
+    if (len > 0 && (offsets[c] < 0 || offsets[c] + len > src.size))
+      throw malformed("a chunk lies outside the file");
     lengths.push(len);
   }
   const total = lengths.reduce((n, l) => n + l, 0);
   if (opts.maxBytes && total > opts.maxBytes) {
-    throw new Mp4AudioError("too_large", `the sound alone is ${Math.round(total / 1024 / 1024)} MB, over the ${Math.round(opts.maxBytes / 1024 / 1024)} MB limit`);
+    throw new Mp4AudioError(
+      "too_large",
+      `the sound alone is ${Math.round(total / 1024 / 1024)} MB, over the ${Math.round(opts.maxBytes / 1024 / 1024)} MB limit`,
+    );
   }
 
   // The new file: ftyp, then a moov holding mvhd and the audio trak (stco
   // patched in place, so no box changes size), then the chunks back to back.
-  const ftyp = boxBytes("ftyp", ascii("M4A "), new Uint8Array(4), ascii("M4A "), ascii("mp42"), ascii("isom"));
+  const ftyp = boxBytes(
+    "ftyp",
+    ascii("M4A "),
+    new Uint8Array(4),
+    ascii("M4A "),
+    ascii("mp42"),
+    ascii("isom"),
+  );
   const trak = slice(moov, audio).slice();
   const newMoov = boxBytes("moov", slice(moov, mvhd), trak);
   const mdatHeader = 8;
@@ -253,7 +320,8 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
   const stcoInTrak = stco.start - audio.start;
   let cursor = dataStart;
   for (let i = 0; i < chunkCount; i++) {
-    const at = trakAt + stcoInTrak + (stco.headerSize + 4) + 4 + i * (wide ? 8 : 4);
+    const at =
+      trakAt + stcoInTrak + (stco.headerSize + 4) + 4 + i * (wide ? 8 : 4);
     const dv = new DataView(newMoov.buffer, newMoov.byteOffset);
     if (wide) {
       dv.setUint32(at, Math.floor(cursor / 2 ** 32));
@@ -266,7 +334,10 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
 
   const data = new Uint8Array(total);
   // Plan reads in source order, coalescing near chunks.
-  const order = offsets.map((o, i) => ({ o, i })).filter((x) => lengths[x.i] > 0).sort((a, b) => a.o - b.o);
+  const order = offsets
+    .map((o, i) => ({ o, i }))
+    .filter((x) => lengths[x.i] > 0)
+    .sort((a, b) => a.o - b.o);
   const dest: number[] = [];
   let acc = 0;
   for (let i = 0; i < chunkCount; i++) {
@@ -290,10 +361,16 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
     while (next < reads.length) {
       const r = reads[next++];
       const bytes = await src.read(r.from, r.to - r.from);
-      for (const i of r.chunks) data.set(bytes.subarray(offsets[i] - r.from, offsets[i] - r.from + lengths[i]), dest[i]);
+      for (const i of r.chunks)
+        data.set(
+          bytes.subarray(offsets[i] - r.from, offsets[i] - r.from + lengths[i]),
+          dest[i],
+        );
     }
   };
-  await Promise.all(Array.from({ length: Math.min(READ_CONCURRENCY, reads.length) }, worker));
+  await Promise.all(
+    Array.from({ length: Math.min(READ_CONCURRENCY, reads.length) }, worker),
+  );
 
   const mdat = new Uint8Array(mdatHeader);
   new DataView(mdat.buffer).setUint32(0, mdatHeader + total);
@@ -305,12 +382,19 @@ export async function extractAudioTrack(src: ByteSource, opts: { maxBytes?: numb
 }
 
 /** A ByteSource over a URL that answers Range requests (a presigned R2 GET). */
-export function urlByteSource(url: string, size: number, fetchFn: typeof fetch = fetch): ByteSource {
+export function urlByteSource(
+  url: string,
+  size: number,
+  fetchFn: typeof fetch = fetch,
+): ByteSource {
   return {
     size,
     async read(offset, length) {
-      const res = await fetchFn(url, { headers: { Range: `bytes=${offset}-${offset + length - 1}` } });
-      if (res.status !== 206 && res.status !== 200) throw new Error(`range read ${res.status}`);
+      const res = await fetchFn(url, {
+        headers: { Range: `bytes=${offset}-${offset + length - 1}` },
+      });
+      if (res.status !== 206 && res.status !== 200)
+        throw new Error(`range read ${res.status}`);
       const buf = new Uint8Array(await res.arrayBuffer());
       // A server that ignores Range answers 200 with the whole file.
       return res.status === 200 ? buf.subarray(offset, offset + length) : buf;

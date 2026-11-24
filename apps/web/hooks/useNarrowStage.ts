@@ -8,10 +8,14 @@ export const NARROW_STAGE_MAX_WIDTH = 900;
 
 export function useNarrowStage(): boolean {
   const [narrow, setNarrow] = useState(
-    () => typeof window !== "undefined" && window.innerWidth < NARROW_STAGE_MAX_WIDTH,
+    () =>
+      typeof window !== "undefined" &&
+      window.innerWidth < NARROW_STAGE_MAX_WIDTH,
   );
   useMountEffect(() => {
-    const mq = window.matchMedia?.(`(max-width: ${NARROW_STAGE_MAX_WIDTH - 1}px)`);
+    const mq = window.matchMedia?.(
+      `(max-width: ${NARROW_STAGE_MAX_WIDTH - 1}px)`,
+    );
     if (!mq) return;
     const on = () => setNarrow(mq.matches);
     mq.addEventListener("change", on);

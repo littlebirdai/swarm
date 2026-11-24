@@ -14,16 +14,27 @@ import { placeAcmeInbox, seedAcmeWorld } from "../acmeWorld/seed";
 export function seedDocsShots(ui: Record<string, unknown>) {
   const extra = {
     // Every tip seen: a milestone ("Keyboard shortcut unlocked") otherwise toasts on the first shortcut a step presses.
-    tips: { completed: TOURS.map((t) => tourSeenId(t.id)), seen: TIPS.map((t) => t.id), dismissed: [] },
+    tips: {
+      completed: TOURS.map((t) => tourSeenId(t.id)),
+      seen: TIPS.map((t) => t.id),
+      dismissed: [],
+    },
     dismissed: {
       desktop_app: true,
       ios_app: true,
       has_used_desktop: true,
       notif_nudge: Date.now(),
-      ...Object.fromEntries(SNIPPET_CATALOG.map((s) => [snippetIntroKey(s.slug), true])),
+      ...Object.fromEntries(
+        SNIPPET_CATALOG.map((s) => [snippetIntroKey(s.slug), true]),
+      ),
     },
   };
-  const seed = () => seedAcmeWorld({ now: Date.now(), ui: { org_upsell_seen: true, ...ui }, extra });
+  const seed = () =>
+    seedAcmeWorld({
+      now: Date.now(),
+      ui: { org_upsell_seen: true, ...ui },
+      extra,
+    });
   seed();
   // Hydration settles a fresh launch (it opens the new-session page when it
   // has nowhere to restore to); with persistence off, nothing hydrates.

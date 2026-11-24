@@ -6,8 +6,10 @@ import { v } from "convex/values";
 // daemon declares them from `line.checkouts` in ~/.codecast/config.json and
 // reports them on the heartbeat when they change; an empty list takes the
 // device out of the pool.
-export const lineSlotsValidator = v.array(v.object({
-  root: v.string(),
-  origin: v.optional(v.string()),
-  runs: v.number(),
-}));
+export const lineSlotsValidator = v.array(
+  v.object({
+    root: v.string(),
+    origin: v.optional(v.string()),
+    runs: v.number(),
+  }),
+);

@@ -2,7 +2,16 @@ import { describe, expect, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
-import { filePathMention, filePathHref, parseFilePathHref, matchSessionChangedFile, FILE_PATH_SCAN_RE, mentionFromMatch, namedAbsolutePaths, resolveMentionPath } from "../filePathLinks";
+import {
+  filePathMention,
+  filePathHref,
+  parseFilePathHref,
+  matchSessionChangedFile,
+  FILE_PATH_SCAN_RE,
+  mentionFromMatch,
+  namedAbsolutePaths,
+  resolveMentionPath,
+} from "../filePathLinks";
 import { entityRemarkPlugins } from "../remarkEntityIds";
 import { resolveVaultTarget, filesHref } from "../vault/vaultHref";
 
@@ -17,27 +26,30 @@ const scan = (text: string) => {
 
 describe("file path mentions in prose", () => {
   test("absolute, home and relative file paths are found", () => {
-    expect(scan("see /Users/ashot/src/codecast/apps/web/lib/pageLayout.tsx:38 for it")).toEqual([
-      "/Users/ashot/src/codecast/apps/web/lib/pageLayout.tsx:38",
+    expect(
+      scan(
+        "see /Users/ashot/src/codecast/apps/web/lib/pageLayout.tsx:38 for it",
+      ),
+    ).toEqual(["/Users/ashot/src/codecast/apps/web/lib/pageLayout.tsx:38"]);
+    expect(scan("notes live in ~/vault-fixture/Daily/ now")).toEqual([
+      "~/vault-fixture/Daily/",
     ]);
-    expect(scan("notes live in ~/vault-fixture/Daily/ now")).toEqual(["~/vault-fixture/Daily/"]);
-    expect(scan("edited apps/web/app/vault/page.tsx and lib/utils.ts.")).toEqual([
-      "apps/web/app/vault/page.tsx",
-      "lib/utils.ts",
+    expect(
+      scan("edited apps/web/app/vault/page.tsx and lib/utils.ts."),
+    ).toEqual(["apps/web/app/vault/page.tsx", "lib/utils.ts"]);
+    expect(scan("the dir apps/web/components/vault holds it")).toEqual([
+      "apps/web/components/vault",
     ]);
-    expect(scan("the dir apps/web/components/vault holds it")).toEqual(["apps/web/components/vault"]);
-    expect(scan("in app/conversation/[id]/page.tsx and app/(marketing)/page.tsx")).toEqual([
-      "app/conversation/[id]/page.tsx",
-      "app/(marketing)/page.tsx",
-    ]);
-    expect(scan("config is .claude/settings.json, also ./scripts/run.sh")).toEqual([
-      ".claude/settings.json",
-      "./scripts/run.sh",
-    ]);
+    expect(
+      scan("in app/conversation/[id]/page.tsx and app/(marketing)/page.tsx"),
+    ).toEqual(["app/conversation/[id]/page.tsx", "app/(marketing)/page.tsx"]);
+    expect(
+      scan("config is .claude/settings.json, also ./scripts/run.sh"),
+    ).toEqual([".claude/settings.json", "./scripts/run.sh"]);
   });
 
   test("a sentence-ending period is not part of the path", () => {
-    const m = [...("fixed lib/x.ts.".matchAll(FILE_PATH_SCAN_RE))][0];
+    const m = [..."fixed lib/x.ts.".matchAll(FILE_PATH_SCAN_RE)][0];
     const mention = mentionFromMatch(m[0], m[1], m[2])!;
     expect(mention.path).toBe("lib/x.ts");
     expect(mention.rest).toBe(".");
@@ -61,8 +73,15 @@ describe("file path mentions in prose", () => {
   });
 
   test("whole-string form for code spans", () => {
-    expect(filePathMention("lib/pageLayout.tsx:38")).toEqual({ path: "lib/pageLayout.tsx", text: "lib/pageLayout.tsx:38", rest: "", line: 38 });
-    expect(filePathMention("/tmp/codecast/images/a.png")).toMatchObject({ path: "/tmp/codecast/images/a.png" });
+    expect(filePathMention("lib/pageLayout.tsx:38")).toEqual({
+      path: "lib/pageLayout.tsx",
+      text: "lib/pageLayout.tsx:38",
+      rest: "",
+      line: 38,
+    });
+    expect(filePathMention("/tmp/codecast/images/a.png")).toMatchObject({
+      path: "/tmp/codecast/images/a.png",
+    });
     expect(filePathMention("npm run build")).toBeNull();
     expect(filePathMention("page.tsx")).toBeNull();
     expect(filePathMention("/files?f=x")).toBeNull();
@@ -72,55 +91,107 @@ describe("file path mentions in prose", () => {
 describe("hrefs", () => {
   test("authored absolute Markdown destinations carry their line into Files", () => {
     expect(parseFilePathHref("/Users/ashot/.codex/AGENTS.md:1042")).toEqual({
-      path: "/Users/ashot/.codex/AGENTS.md", line: 1042,
+      path: "/Users/ashot/.codex/AGENTS.md",
+      line: 1042,
     });
-    expect(parseFilePathHref("/home/ashot/project/main.ts:12:4")).toEqual({ path: "/home/ashot/project/main.ts", line: 12 });
-    expect(parseFilePathHref("/tmp/report.md:12-20")).toEqual({ path: "/tmp/report.md", line: 12 });
-    expect(parseFilePathHref("/Users/ashot/.codex/AGENTS.md")).toEqual({ path: "/Users/ashot/.codex/AGENTS.md" });
-    expect(parseFilePathHref("file:///Users/alexandergreen/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md")).toEqual({
+    expect(parseFilePathHref("/home/ashot/project/main.ts:12:4")).toEqual({
+      path: "/home/ashot/project/main.ts",
+      line: 12,
+    });
+    expect(parseFilePathHref("/tmp/report.md:12-20")).toEqual({
+      path: "/tmp/report.md",
+      line: 12,
+    });
+    expect(parseFilePathHref("/Users/ashot/.codex/AGENTS.md")).toEqual({
+      path: "/Users/ashot/.codex/AGENTS.md",
+    });
+    expect(
+      parseFilePathHref(
+        "file:///Users/alexandergreen/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
+      ),
+    ).toEqual({
       path: "/Users/alexandergreen/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
     });
-    expect(parseFilePathHref("file:///Users/ashot/My%20Project/Message.tsx#L123-L145")).toEqual({
-      path: "/Users/ashot/My Project/Message.tsx", line: 123,
+    expect(
+      parseFilePathHref(
+        "file:///Users/ashot/My%20Project/Message.tsx#L123-L145",
+      ),
+    ).toEqual({
+      path: "/Users/ashot/My Project/Message.tsx",
+      line: 123,
     });
   });
 
   test("file destinations decode spaces once and preserve filename characters", () => {
-    expect(parseFilePathHref("/Users/ashot/My%20Project/My%20Report.md:3")).toEqual({ path: "/Users/ashot/My Project/My Report.md", line: 3 });
-    expect(parseFilePathHref("/Users/ashot/My Project/My Report.md:3")).toEqual({ path: "/Users/ashot/My Project/My Report.md", line: 3 });
-    expect(parseFilePathHref("/tmp/C++ & notes%23%3F.md:9")).toEqual({ path: "/tmp/C++ & notes#?.md", line: 9 });
-    expect(parseFilePathHref("/tmp/100%25%20ready%2520.md")).toEqual({ path: "/tmp/100% ready%20.md" });
-    expect(parseFilePathHref("/tmp/notes%3A12")).toEqual({ path: "/tmp/notes:12" });
+    expect(
+      parseFilePathHref("/Users/ashot/My%20Project/My%20Report.md:3"),
+    ).toEqual({ path: "/Users/ashot/My Project/My Report.md", line: 3 });
+    expect(parseFilePathHref("/Users/ashot/My Project/My Report.md:3")).toEqual(
+      { path: "/Users/ashot/My Project/My Report.md", line: 3 },
+    );
+    expect(parseFilePathHref("/tmp/C++ & notes%23%3F.md:9")).toEqual({
+      path: "/tmp/C++ & notes#?.md",
+      line: 9,
+    });
+    expect(parseFilePathHref("/tmp/100%25%20ready%2520.md")).toEqual({
+      path: "/tmp/100% ready%20.md",
+    });
+    expect(parseFilePathHref("/tmp/notes%3A12")).toEqual({
+      path: "/tmp/notes:12",
+    });
   });
 
   test("web URLs and app routes never become filesystem destinations", () => {
     for (const href of [
       "https://example.com/Users/ashot/AGENTS.md:1042",
       "//example.com/Users/ashot/AGENTS.md:1042",
-      "/tasks/ct-12", "/org/or-7", "/files?f=notes.md&l=3", "/a/report",
-      "/UsersGuide/page.md", "/Users/profile?tab=files", "/Users/profile#bio",
-      "#section", "mailto:ashot@example.com", "javascript:alert(1)", undefined,
-    ]) expect(parseFilePathHref(href)).toBeNull();
+      "/tasks/ct-12",
+      "/org/or-7",
+      "/files?f=notes.md&l=3",
+      "/a/report",
+      "/UsersGuide/page.md",
+      "/Users/profile?tab=files",
+      "/Users/profile#bio",
+      "#section",
+      "mailto:ashot@example.com",
+      "javascript:alert(1)",
+      undefined,
+    ])
+      expect(parseFilePathHref(href)).toBeNull();
   });
 
   test("without context the raw path rides in ?path=", () => {
-    expect(filePathHref("lib/x.ts", 12, null)).toBe("/files?path=lib%2Fx.ts&l=12");
-    expect(parseFilePathHref("/files?path=lib%2Fx.ts&l=12")).toEqual({ path: "lib/x.ts", line: 12 });
+    expect(filePathHref("lib/x.ts", 12, null)).toBe(
+      "/files?path=lib%2Fx.ts&l=12",
+    );
+    expect(parseFilePathHref("/files?path=lib%2Fx.ts&l=12")).toEqual({
+      path: "lib/x.ts",
+      line: 12,
+    });
     expect(parseFilePathHref("/files?f=notes%2Fa.md")).toBeNull();
   });
 
   test("with context a relative or ~ path becomes absolute", () => {
     const ctx = { base: "/Users/ashot/src/codecast", home: "/Users/ashot" };
-    expect(filePathHref("lib/x.ts", undefined, ctx)).toBe(filesHref({ localPath: "/Users/ashot/src/codecast/lib/x.ts" }));
-    expect(filePathHref("~/notes/a.md", undefined, ctx)).toBe(filesHref({ localPath: "/Users/ashot/notes/a.md" }));
-    expect(filePathHref("/tmp/x.png", undefined, ctx)).toBe(filesHref({ localPath: "/tmp/x.png" }));
+    expect(filePathHref("lib/x.ts", undefined, ctx)).toBe(
+      filesHref({ localPath: "/Users/ashot/src/codecast/lib/x.ts" }),
+    );
+    expect(filePathHref("~/notes/a.md", undefined, ctx)).toBe(
+      filesHref({ localPath: "/Users/ashot/notes/a.md" }),
+    );
+    expect(filePathHref("/tmp/x.png", undefined, ctx)).toBe(
+      filesHref({ localPath: "/tmp/x.png" }),
+    );
   });
 
   test("a mention written relative to somewhere else resolves to the path the session touched", () => {
     const home = "/Users/ashot";
     const knownPaths = namedAbsolutePaths(
       [
-        JSON.stringify({ command: "cd /Users/ashot/src/video/projects/hotel-lobby && ls ~/src/union-mobile/outreach/landing/public/team/" }),
+        JSON.stringify({
+          command:
+            "cd /Users/ashot/src/video/projects/hotel-lobby && ls ~/src/union-mobile/outreach/landing/public/team/",
+        }),
         JSON.stringify({ file_path: "/Users/ashot/src/video/bin/vid" }),
         "not json ~/src/other/lib/x.ts",
       ],
@@ -133,21 +204,41 @@ describe("hrefs", () => {
       "/Users/ashot/src/video/projects/hotel-lobby",
     ]);
     const ctx = { base: "/Users/ashot/src/video", home, knownPaths };
-    expect(resolveMentionPath("union-mobile/outreach/landing/public/team/ashot.jpg", ctx)).toBe(
+    expect(
+      resolveMentionPath(
+        "union-mobile/outreach/landing/public/team/ashot.jpg",
+        ctx,
+      ),
+    ).toBe(
       "/Users/ashot/src/union-mobile/outreach/landing/public/team/ashot.jpg",
     );
     // Two shared segments place it; one ("team/x.jpg") is too common a name to.
     expect(resolveMentionPath("landing/public/team/samvit.jpg", ctx)).toBe(
       "/Users/ashot/src/union-mobile/outreach/landing/public/team/samvit.jpg",
     );
-    expect(resolveMentionPath("team/samvit.jpg", ctx)).toBe("/Users/ashot/src/video/team/samvit.jpg");
+    expect(resolveMentionPath("team/samvit.jpg", ctx)).toBe(
+      "/Users/ashot/src/video/team/samvit.jpg",
+    );
     // A directory inside a touched path, and the working directory when it was touched itself.
-    expect(resolveMentionPath("outreach/landing/public/", ctx)).toBe("/Users/ashot/src/union-mobile/outreach/landing/public");
-    expect(resolveMentionPath("bin/vid", ctx)).toBe("/Users/ashot/src/video/bin/vid");
+    expect(resolveMentionPath("outreach/landing/public/", ctx)).toBe(
+      "/Users/ashot/src/union-mobile/outreach/landing/public",
+    );
+    expect(resolveMentionPath("bin/vid", ctx)).toBe(
+      "/Users/ashot/src/video/bin/vid",
+    );
     // Nothing touched matches, two do, or the mention is explicitly cwd-relative: the working directory.
-    expect(resolveMentionPath("lib/y.ts", ctx)).toBe("/Users/ashot/src/video/lib/y.ts");
-    expect(resolveMentionPath("x.ts", { ...ctx, knownPaths: ["/a/x.ts", "/b/x.ts"] })).toBe("/Users/ashot/src/video/x.ts");
-    expect(resolveMentionPath("./lib/x.ts", ctx)).toBe("/Users/ashot/src/video/lib/x.ts");
+    expect(resolveMentionPath("lib/y.ts", ctx)).toBe(
+      "/Users/ashot/src/video/lib/y.ts",
+    );
+    expect(
+      resolveMentionPath("x.ts", {
+        ...ctx,
+        knownPaths: ["/a/x.ts", "/b/x.ts"],
+      }),
+    ).toBe("/Users/ashot/src/video/x.ts");
+    expect(resolveMentionPath("./lib/x.ts", ctx)).toBe(
+      "/Users/ashot/src/video/lib/x.ts",
+    );
   });
 });
 
@@ -159,15 +250,27 @@ describe("resolveVaultTarget", () => {
     { id: "remote" },
   ];
   test("longest root wins; rel is vault-relative", () => {
-    expect(resolveVaultTarget("/Users/ashot/src/codecast/apps/web/x.ts", vaults)).toEqual({
-      vaultId: "cc", rel: "apps/web/x.ts", abs: "/Users/ashot/src/codecast/apps/web/x.ts",
+    expect(
+      resolveVaultTarget("/Users/ashot/src/codecast/apps/web/x.ts", vaults),
+    ).toEqual({
+      vaultId: "cc",
+      rel: "apps/web/x.ts",
+      abs: "/Users/ashot/src/codecast/apps/web/x.ts",
     });
-    expect(resolveVaultTarget("/Users/ashot/src/mail/app.ts", vaults)).toMatchObject({ vaultId: "src", rel: "mail/app.ts" });
-    expect(resolveVaultTarget("/Users/ashot/src/codecast", vaults)).toMatchObject({ vaultId: "cc", rel: "" });
+    expect(
+      resolveVaultTarget("/Users/ashot/src/mail/app.ts", vaults),
+    ).toMatchObject({ vaultId: "src", rel: "mail/app.ts" });
+    expect(
+      resolveVaultTarget("/Users/ashot/src/codecast", vaults),
+    ).toMatchObject({ vaultId: "cc", rel: "" });
   });
   test("~ expands against the home the roots reveal; relative against the active root", () => {
-    expect(resolveVaultTarget("~/vault-fixture/Daily/2026-08-20.md", vaults)).toMatchObject({ vaultId: "notes", rel: "Daily/2026-08-20.md" });
-    expect(resolveVaultTarget("lib/x.ts", vaults, "/Users/ashot/src/codecast")).toMatchObject({ vaultId: "cc", rel: "lib/x.ts" });
+    expect(
+      resolveVaultTarget("~/vault-fixture/Daily/2026-08-20.md", vaults),
+    ).toMatchObject({ vaultId: "notes", rel: "Daily/2026-08-20.md" });
+    expect(
+      resolveVaultTarget("lib/x.ts", vaults, "/Users/ashot/src/codecast"),
+    ).toMatchObject({ vaultId: "cc", rel: "lib/x.ts" });
     expect(resolveVaultTarget("lib/x.ts", vaults)).toBeNull();
   });
   test("a path outside every vault resolves to nothing", () => {
@@ -177,46 +280,86 @@ describe("resolveVaultTarget", () => {
 
 describe("remark integration", () => {
   const render = (md: string) =>
-    renderToStaticMarkup(React.createElement(ReactMarkdown, { remarkPlugins: entityRemarkPlugins }, md));
+    renderToStaticMarkup(
+      React.createElement(
+        ReactMarkdown,
+        { remarkPlugins: entityRemarkPlugins },
+        md,
+      ),
+    );
 
   test("a bare path in prose becomes a /files?path= link; URLs and routes do not", () => {
-    const html = render("Edited apps/web/lib/pageLayout.tsx:38. See https://github.com/a/b/c.ts and /tasks/:id.");
-    expect(html).toContain('href="/files?path=apps%2Fweb%2Flib%2FpageLayout.tsx&amp;l=38"');
+    const html = render(
+      "Edited apps/web/lib/pageLayout.tsx:38. See https://github.com/a/b/c.ts and /tasks/:id.",
+    );
+    expect(html).toContain(
+      'href="/files?path=apps%2Fweb%2Flib%2FpageLayout.tsx&amp;l=38"',
+    );
     expect(html).toContain(">apps/web/lib/pageLayout.tsx:38</a>.");
     expect(html).toContain('href="https://github.com/a/b/c.ts"');
     expect(html).not.toContain("tasks%2F");
   });
 
   test("inline code and existing links are left to the component layer, while file:// links rewrite to /files?path=", () => {
-    const html = render("run `lib/x.ts` and [doc](lib/y.ts) and [perf-scorecard.md](file:///Users/alexandergreen/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md#L10-L20)");
+    const html = render(
+      "run `lib/x.ts` and [doc](lib/y.ts) and [perf-scorecard.md](file:///Users/alexandergreen/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md#L10-L20)",
+    );
     expect(html).toContain("<code>lib/x.ts</code>");
     expect(html).toContain('href="lib/y.ts"');
     expect(html).not.toContain("path=lib%2Fx.ts");
-    expect(html).toContain('href="/files?path=%2FUsers%2Falexandergreen%2F.gemini%2Fantigravity-cli%2Fbrain%2F997582c1%2Fperf-scorecard.md&amp;l=10"');
+    expect(html).toContain(
+      'href="/files?path=%2FUsers%2Falexandergreen%2F.gemini%2Fantigravity-cli%2Fbrain%2F997582c1%2Fperf-scorecard.md&amp;l=10"',
+    );
     expect(html).toContain(">perf-scorecard.md</a>");
   });
 });
 
 describe("matchSessionChangedFile", () => {
   const changes = [
-    { filePath: "/Users/alex/Posix/littlebird-perf-hillclimb/apps/desktop/src/Message.tsx", changeType: "edit" },
-    { filePath: "/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md", changeType: "write" },
+    {
+      filePath:
+        "/Users/alex/Posix/littlebird-perf-hillclimb/apps/desktop/src/Message.tsx",
+      changeType: "edit",
+    },
+    {
+      filePath:
+        "/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
+      changeType: "write",
+    },
     { filePath: "abc1234", changeType: "commit" },
   ];
   const ctx = { base: "/Users/alex/Posix/littlebird", home: "/Users/alex" };
 
   test("matches exact artifact and worktree files, relative suffixes, and worktree directories", () => {
-    expect(matchSessionChangedFile("/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md", changes, ctx)).toEqual({
+    expect(
+      matchSessionChangedFile(
+        "/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
+        changes,
+        ctx,
+      ),
+    ).toEqual({
       kind: "file",
-      filePath: "/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
+      filePath:
+        "/Users/alex/.gemini/antigravity-cli/brain/997582c1/perf-scorecard.md",
     });
-    expect(matchSessionChangedFile("apps/desktop/src/Message.tsx", changes, ctx)).toEqual({
+    expect(
+      matchSessionChangedFile("apps/desktop/src/Message.tsx", changes, ctx),
+    ).toEqual({
       kind: "file",
-      filePath: "/Users/alex/Posix/littlebird-perf-hillclimb/apps/desktop/src/Message.tsx",
+      filePath:
+        "/Users/alex/Posix/littlebird-perf-hillclimb/apps/desktop/src/Message.tsx",
     });
-    expect(matchSessionChangedFile("/Users/alex/Posix/littlebird-perf-hillclimb", changes, ctx)).toEqual({
+    expect(
+      matchSessionChangedFile(
+        "/Users/alex/Posix/littlebird-perf-hillclimb",
+        changes,
+        ctx,
+      ),
+    ).toEqual({
       kind: "dir",
     });
-    expect(matchSessionChangedFile("/Users/alex/Posix/untouched.ts", changes, ctx)).toBeNull();
+    expect(
+      matchSessionChangedFile("/Users/alex/Posix/untouched.ts", changes, ctx),
+    ).toBeNull();
   });
 });

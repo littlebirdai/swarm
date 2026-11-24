@@ -12,7 +12,9 @@ import { BlockFrame } from "../BlockFrame";
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
 let report: (() => void) | null = null;
 class FakeResizeObserver {
-  constructor(cb: () => void) { report = cb; }
+  constructor(cb: () => void) {
+    report = cb;
+  }
   observe() {}
   disconnect() {}
 }
@@ -36,7 +38,11 @@ test("a block is capped before its height is known, and Show all lifts the cap",
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(<BlockFrame title="Table"><div data-body>rows</div></BlockFrame>);
+    root.render(
+      <BlockFrame title="Table">
+        <div data-body>rows</div>
+      </BlockFrame>,
+    );
   });
   const body = host.querySelector("[data-body]") as HTMLElement;
   const clip = body.parentElement as HTMLElement;
@@ -45,14 +51,27 @@ test("a block is capped before its height is known, and Show all lifts the cap",
   expect(host.textContent).not.toContain("Show all");
 
   // The content turns out taller than the cap.
-  Object.defineProperty(body, "offsetHeight", { configurable: true, value: 2500 });
-  await act(async () => { report?.(); });
+  Object.defineProperty(body, "offsetHeight", {
+    configurable: true,
+    value: 2500,
+  });
+  await act(async () => {
+    report?.();
+  });
   expect(clip.style.maxHeight).toBe("620px");
-  const showAll = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("Show all"))!;
+  const showAll = [...host.querySelectorAll("button")].find((b) =>
+    b.textContent?.includes("Show all"),
+  )!;
   expect(showAll).toBeTruthy();
 
-  await act(async () => { showAll.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await act(async () => {
+    showAll.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
   expect(clip.style.maxHeight).toBe("");
   expect(host.textContent).toContain("Collapse");
-  await act(async () => { root.unmount(); });
+  await act(async () => {
+    root.unmount();
+  });
 });

@@ -5,7 +5,12 @@ import { modernField, modernLook } from "../ui/modernLook";
 /** The magnifier the search field and its folded button both draw. */
 export function SearchGlyph({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -39,7 +44,10 @@ export function SearchField({
   inputRef?: Ref<HTMLInputElement>;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   /** Focus, blur, selection and key handlers for the input. */
-  inputProps?: Pick<InputHTMLAttributes<HTMLInputElement>, "onSelect" | "onFocus" | "onBlur" | "onKeyDown">;
+  inputProps?: Pick<
+    InputHTMLAttributes<HTMLInputElement>,
+    "onSelect" | "onFocus" | "onBlur" | "onKeyDown"
+  >;
   placeholder?: string;
   /** Drawn inside the field's box, e.g. the autocomplete list. */
   children?: ReactNode;
@@ -57,7 +65,9 @@ export function SearchField({
       }`}
     >
       <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-        <SearchGlyph className={`w-3.5 h-3.5 transition-colors duration-200 ${expanded ? "text-sol-cyan" : "text-sol-text-dim"}`} />
+        <SearchGlyph
+          className={`w-3.5 h-3.5 transition-colors duration-200 ${expanded ? "text-sol-cyan" : "text-sol-text-dim"}`}
+        />
       </div>
       <input
         ref={inputRef}

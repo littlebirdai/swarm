@@ -22,34 +22,73 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileAsync } from "./proc.js";
 import { LANDED_REF, MOVE_CLONE_RE } from "./remote/session-move.js";
-import { releaseSessionWorktree, type GcVerdict, type RunTreesInUse } from "./worktreeGc.js";
+import {
+  releaseSessionWorktree,
+  type GcVerdict,
+  type RunTreesInUse,
+} from "./worktreeGc.js";
 
 async function git(cwd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], { encoding: "utf-8", timeout: 60_000, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
+  const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    timeout: 60_000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+  });
   return String(stdout).trim();
 }
 
 const isRepo = (dir: string) => fs.existsSync(path.join(dir, ".git"));
-const inUse = (dir: string, paths: readonly string[]) => paths.some((p) => p === dir || p.startsWith(`${dir}/`));
+const inUse = (dir: string, paths: readonly string[]) =>
+  paths.some((p) => p === dir || p.startsWith(`${dir}/`));
 
 /** Why a move clone must stay, or null when it may go. */
 export async function moveCloneKeepReason(dir: string): Promise<string | null> {
   if (await git(dir, ["status", "--porcelain"])) return "uncommitted changes";
   if (await git(dir, ["stash", "list"])) return "stashed work";
-  if (!(await git(dir, ["rev-parse", "--verify", "--quiet", LANDED_REF]).catch(() => ""))) return "no record of what the move landed";
+  if (
+    !(await git(dir, ["rev-parse", "--verify", "--quiet", LANDED_REF]).catch(
+      () => "",
+    ))
+  )
+    return "no record of what the move landed";
   // Commits on any branch beyond what the move handed over or the remotes already hold.
-  if (Number(await git(dir, ["rev-list", "--count", "--branches", "--not", LANDED_REF, "--remotes"])) > 0) return "commits made on this host";
+  if (
+    Number(
+      await git(dir, [
+        "rev-list",
+        "--count",
+        "--branches",
+        "--not",
+        LANDED_REF,
+        "--remotes",
+      ]),
+    ) > 0
+  )
+    return "commits made on this host";
   return null;
 }
 
-export type SweepResult = { released: string[]; kept: Array<{ path: string; reason: string }> };
+export type SweepResult = {
+  released: string[];
+  kept: Array<{ path: string; reason: string }>;
+};
 
-type SweepOpts = { inUsePaths: readonly string[]; runTreesInUse?: RunTreesInUse; log: (m: string) => void };
+type SweepOpts = {
+  inUsePaths: readonly string[];
+  runTreesInUse?: RunTreesInUse;
+  log: (m: string) => void;
+};
 
-export async function sweepHostDisk(opts: SweepOpts & { workDir: string; checkouts?: readonly string[] }): Promise<SweepResult> {
+export async function sweepHostDisk(
+  opts: SweepOpts & { workDir: string; checkouts?: readonly string[] },
+): Promise<SweepResult> {
   const result: SweepResult = { released: [], kept: [] };
   let entries: string[] = [];
-  try { entries = fs.readdirSync(opts.workDir); } catch { return result; }
+  try {
+    entries = fs.readdirSync(opts.workDir);
+  } catch {
+    return result;
+  }
   for (const name of entries) {
     const dir = path.join(opts.workDir, name);
     if (!isRepo(dir)) continue;
@@ -58,7 +97,9 @@ export async function sweepHostDisk(opts: SweepOpts & { workDir: string; checkou
       continue;
     }
     if (inUse(dir, opts.inUsePaths)) continue;
-    const reason = await moveCloneKeepReason(dir).catch((err) => `could not inspect it: ${String(err).split("\n")[0]}`);
+    const reason = await moveCloneKeepReason(dir).catch(
+      (err) => `could not inspect it: ${String(err).split("\n")[0]}`,
+    );
     if (reason) {
       result.kept.push({ path: dir, reason });
       continue;
@@ -68,20 +109,40 @@ export async function sweepHostDisk(opts: SweepOpts & { workDir: string; checkou
     result.released.push(dir);
   }
   for (const dir of opts.checkouts ?? []) {
-    if (path.dirname(dir) !== opts.workDir && isRepo(dir)) await sweepWorktrees(dir, opts, result);
+    if (path.dirname(dir) !== opts.workDir && isRepo(dir))
+      await sweepWorktrees(dir, opts, result);
   }
   return result;
 }
 
-async function sweepWorktrees(repo: string, opts: SweepOpts, result: SweepResult): Promise<void> {
+async function sweepWorktrees(
+  repo: string,
+  opts: SweepOpts,
+  result: SweepResult,
+): Promise<void> {
   const root = path.join(repo, ".codecast", "worktrees");
   let names: string[] = [];
-  try { names = fs.readdirSync(root); } catch { return; }
+  try {
+    names = fs.readdirSync(root);
+  } catch {
+    return;
+  }
   for (const name of names) {
     const wt = path.join(root, name);
     if (!fs.statSync(wt).isDirectory() || inUse(wt, opts.inUsePaths)) continue;
-    const verdict: GcVerdict = await releaseSessionWorktree(wt, opts.log, undefined, opts.runTreesInUse).catch((err) => ({ action: "kept" as const, name, path: wt, reason: String(err).slice(0, 120) }));
+    const verdict: GcVerdict = await releaseSessionWorktree(
+      wt,
+      opts.log,
+      undefined,
+      opts.runTreesInUse,
+    ).catch((err) => ({
+      action: "kept" as const,
+      name,
+      path: wt,
+      reason: String(err).slice(0, 120),
+    }));
     if (verdict.action === "released") result.released.push(wt);
-    else if (verdict.action === "kept") result.kept.push({ path: wt, reason: verdict.reason });
+    else if (verdict.action === "kept")
+      result.kept.push({ path: wt, reason: verdict.reason });
   }
 }

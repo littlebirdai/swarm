@@ -1,8 +1,30 @@
 import { findAndReplace } from "mdast-util-find-and-replace";
 import remarkGfm from "remark-gfm";
 import type { Options as ReactMarkdownOptions } from "react-markdown";
-import { isConvexId, isEntityId, bareEntityIdRegex, entityMentionRegex, entityTypeFromId, parseEntityUrl, parsePublishedPageUrl, parseModPaneUrl, parseClaudeArtifactUrl, parseLinkPreviewUrl, parseMessageRefUrl, messageRefPayload, contextualPrRefRegex, contextualPrRefPayload, splitContextualPrRefs, deployRunRefRegex, splitDeployRunRef } from "./entityLinks";
-import { FILE_PATH_SCAN_RE, mentionFromMatch, parseFilePathHref } from "./filePathLinks";
+import {
+  isConvexId,
+  isEntityId,
+  bareEntityIdRegex,
+  entityMentionRegex,
+  entityTypeFromId,
+  parseEntityUrl,
+  parsePublishedPageUrl,
+  parseModPaneUrl,
+  parseClaudeArtifactUrl,
+  parseLinkPreviewUrl,
+  parseMessageRefUrl,
+  messageRefPayload,
+  contextualPrRefRegex,
+  contextualPrRefPayload,
+  splitContextualPrRefs,
+  deployRunRefRegex,
+  splitDeployRunRef,
+} from "./entityLinks";
+import {
+  FILE_PATH_SCAN_RE,
+  mentionFromMatch,
+  parseFilePathHref,
+} from "./filePathLinks";
 import { mdastText } from "./remarkEntityCards";
 import { filesHref } from "./vault/vaultHref";
 import { isObjectRef, objectRefScanRegex } from "./mods/objects";
@@ -37,7 +59,11 @@ const EMBED_RE = /!\[\[(doc:[a-z0-9]{32})\]\]/g;
 const VIEW_REF_RE = viewRefScanRegex();
 
 function isEmbedLink(node: any): boolean {
-  return node?.type === "link" && typeof node.url === "string" && node.url.startsWith("embed://");
+  return (
+    node?.type === "link" &&
+    typeof node.url === "string" &&
+    node.url.startsWith("embed://")
+  );
 }
 
 function isUrlLabel(text: string, href: string): boolean {
@@ -70,7 +96,13 @@ function toPageEmbedLink(link: any): any | null {
   if (!modPane && !page && !claude && !web) return null;
   const text = mdastText(link).trim();
   const caption = text && !isUrlLabel(text, link.url) ? text : "";
-  const ref = modPane ? `mod:${modPane.mod}/${modPane.pane ?? ""}` : page ? `artifact:${page.slug}` : claude ? `claude:${claude.id}` : `link:${encodeURIComponent(web!)}`;
+  const ref = modPane
+    ? `mod:${modPane.mod}/${modPane.pane ?? ""}`
+    : page
+      ? `artifact:${page.slug}`
+      : claude
+        ? `claude:${claude.id}`
+        : `link:${encodeURIComponent(web!)}`;
   const payload = `${ref}${caption ? `|${caption}` : ""}`;
   return {
     type: "link",
@@ -90,7 +122,9 @@ function isWebPreview(embed: any): boolean {
  *  preview, so the link stays a link instead of drawing a second card. */
 function quotesLink(node: any, url: string): boolean {
   if (node?.type !== "blockquote") return false;
-  const has = (n: any): boolean => (n?.type === "link" && n.url === url) || (Array.isArray(n?.children) && n.children.some(has));
+  const has = (n: any): boolean =>
+    (n?.type === "link" && n.url === url) ||
+    (Array.isArray(n?.children) && n.children.some(has));
   return has(node);
 }
 
@@ -145,11 +179,18 @@ function hoistEmbeds(node: any, isRoot = true) {
     if (child.type === "paragraph" && Array.isArray(child.children)) {
       const lines = paragraphLines(child.children);
       const embeds = lines.map(({ nodes }) => {
-        const meaningful = nodes.filter((c: any) => !(c.type === "text" && !c.value?.trim()));
+        const meaningful = nodes.filter(
+          (c: any) => !(c.type === "text" && !c.value?.trim()),
+        );
         if (meaningful.length !== 1) return null;
         if (isEmbedLink(meaningful[0])) return meaningful[0];
         const pageEmbed = toPageEmbedLink(meaningful[0]);
-        if (pageEmbed && isWebPreview(pageEmbed) && (!isRoot || quotesLink(node.children[i + 1], meaningful[0].url))) return null;
+        if (
+          pageEmbed &&
+          isWebPreview(pageEmbed) &&
+          (!isRoot || quotesLink(node.children[i + 1], meaningful[0].url))
+        )
+          return null;
         return pageEmbed;
       });
       if (embeds.some(Boolean)) {
@@ -157,8 +198,17 @@ function hoistEmbeds(node: any, isRoot = true) {
         let prose: typeof lines = [];
         const flush = () => {
           while (prose.length && isBlank(prose[0].nodes)) prose.shift();
-          while (prose.length && isBlank(prose[prose.length - 1].nodes)) prose.pop();
-          if (prose.length) out.push(demoteInlineEmbeds({ ...child, children: prose.flatMap((l, k) => (k && l.sep ? [l.sep, ...l.nodes] : l.nodes)) }));
+          while (prose.length && isBlank(prose[prose.length - 1].nodes))
+            prose.pop();
+          if (prose.length)
+            out.push(
+              demoteInlineEmbeds({
+                ...child,
+                children: prose.flatMap((l, k) =>
+                  k && l.sep ? [l.sep, ...l.nodes] : l.nodes,
+                ),
+              }),
+            );
           prose = [];
         };
         lines.forEach((line, k) => {
@@ -196,13 +246,20 @@ function promoteMessageLinks(node: any) {
       if (typeof child.url === "string" && /^file:\/\//i.test(child.url)) {
         const file = parseFilePathHref(child.url);
         if (file) {
-          return { ...child, url: filesHref({ localPath: file.path, line: file.line }) };
+          return {
+            ...child,
+            url: filesHref({ localPath: file.path, line: file.line }),
+          };
         }
       }
       const ref = parseMessageRefUrl(child.url);
       if (ref && isUrlLabel(mdastText(child), child.url)) {
         const payload = messageRefPayload(ref);
-        return { type: "link", url: `entity://${payload}`, children: [{ type: "text", value: payload }] };
+        return {
+          type: "link",
+          url: `entity://${payload}`,
+          children: [{ type: "text", value: payload }],
+        };
       }
       return child;
     }
@@ -250,14 +307,21 @@ function referenceKey(node: any): string | null {
     if (parsed) return parsed.id.toLowerCase();
     return null;
   }
-  if (node?.type === "inlineCode" && typeof node.value === "string" && isEntityId(node.value)) {
+  if (
+    node?.type === "inlineCode" &&
+    typeof node.value === "string" &&
+    isEntityId(node.value)
+  ) {
     return node.value.trim().toLowerCase();
   }
   return null;
 }
 
 function stamp(node: any, props: Record<string, string>) {
-  node.data = { ...node.data, hProperties: { ...node.data?.hProperties, ...props } };
+  node.data = {
+    ...node.data,
+    hProperties: { ...node.data?.hProperties, ...props },
+  };
 }
 
 function numberMentions(tree: any) {
@@ -274,7 +338,11 @@ function numberMentions(tree: any) {
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
       const next = node.children[i + 1];
-      if (referenceKey(child) && next?.type === "text" && typeof next.value === "string") {
+      if (
+        referenceKey(child) &&
+        next?.type === "text" &&
+        typeof next.value === "string"
+      ) {
         const m = POSSESSIVE_RE.exec(next.value);
         if (m) {
           stamp(child, { [REF_SUFFIX_ATTR]: m[1] });
@@ -290,135 +358,170 @@ function numberMentions(tree: any) {
 export function remarkEntityIds() {
   return (tree: any) => {
     promoteMessageLinks(tree);
-    findAndReplace(tree, [
+    findAndReplace(
+      tree,
       [
-        EMBED_RE,
-        (_match: string, docRef: string) => ({
-          type: "link",
-          url: `embed://${docRef}`,
-          // react-markdown's url sanitizer drops the embed:// href, so — as
-          // with entity:// below — the text node is the real payload carrier.
-          children: [{ type: "text", value: `embed:${docRef}` }],
-        }),
-      ],
-      [
-        VIEW_REF_RE,
-        (match: string) => ({ type: "link", url: `embed://${VIEW_REF_PREFIX}${match}`, children: [{ type: "text", value: `embed:${VIEW_REF_PREFIX}${match}` }] }),
-      ],
-      [
-        MENTION_RE,
-        (_match: string, name: string, entityId?: string) => {
-          // A serialized date pill (`@[<label> date:<iso>]`, written by the doc
-          // editor). The text node carries `date:<iso>|<label>` — as with
-          // entity:// below, react-markdown strips the href, so the text is
-          // the payload EntityAwareLink parses into a DatePill.
-          if (entityId && /^date:\d{4}-\d{2}-\d{2}$/i.test(entityId)) {
-            const payload = `${entityId.toLowerCase()}|${name.trim()}`;
+        [
+          EMBED_RE,
+          (_match: string, docRef: string) => ({
+            type: "link",
+            url: `embed://${docRef}`,
+            // react-markdown's url sanitizer drops the embed:// href, so — as
+            // with entity:// below — the text node is the real payload carrier.
+            children: [{ type: "text", value: `embed:${docRef}` }],
+          }),
+        ],
+        [
+          VIEW_REF_RE,
+          (match: string) => ({
+            type: "link",
+            url: `embed://${VIEW_REF_PREFIX}${match}`,
+            children: [
+              { type: "text", value: `embed:${VIEW_REF_PREFIX}${match}` },
+            ],
+          }),
+        ],
+        [
+          MENTION_RE,
+          (_match: string, name: string, entityId?: string) => {
+            // A serialized date pill (`@[<label> date:<iso>]`, written by the doc
+            // editor). The text node carries `date:<iso>|<label>` — as with
+            // entity:// below, react-markdown strips the href, so the text is
+            // the payload EntityAwareLink parses into a DatePill.
+            if (entityId && /^date:\d{4}-\d{2}-\d{2}$/i.test(entityId)) {
+              const payload = `${entityId.toLowerCase()}|${name.trim()}`;
+              return {
+                type: "link",
+                url: `entity://${payload}`,
+                children: [{ type: "text", value: payload }],
+              };
+            }
+            if (
+              entityId &&
+              !/^doc:/i.test(entityId) &&
+              (entityTypeFromId(entityId) || isConvexId(entityId))
+            ) {
+              return {
+                type: "link",
+                url: `entity://${entityId.toLowerCase()}`,
+                children: [{ type: "text", value: entityId.toLowerCase() }],
+                data: { hProperties: { [REF_NAMED_ATTR]: "1" } },
+              };
+            }
+            if (entityId && entityId.startsWith("doc:")) {
+              // Docs have no short id, so the doc's convex id rides in the link
+              // *text* — react-markdown drops the `entity://` href via its url
+              // sanitizer, so the text node is the real carrier. EntityAwareLink
+              // reads "doc:<id>" and renders a doc pill, same path as ct-/jx ids.
+              return {
+                type: "link",
+                url: `entity://${entityId}`,
+                children: [{ type: "text", value: entityId }],
+                data: { hProperties: { [REF_NAMED_ATTR]: "1" } },
+              };
+            }
+            return {
+              type: "link",
+              url: `mention://${name.trim()}`,
+              children: [{ type: "text", value: `@${name.trim()}` }],
+            };
+          },
+        ],
+        [
+          // Local file/directory mentions → the Files surface, scanned ahead
+          // of object ids so an id inside a path (a worktree named line-ct-42)
+          // stays part of one path link instead of splitting it around a pill.
+          // The href carries
+          // the path as written (`?path=`), which is a real in-app URL: it works
+          // on surfaces that render links plainly, and EntityAwareLink upgrades
+          // it with the session's working directory when it has one.
+          FILE_PATH_SCAN_RE,
+          (full: string, rawPath: string, line?: string) => {
+            const mention = mentionFromMatch(full, rawPath, line);
+            if (!mention) return false;
+            const link = {
+              type: "link" as const,
+              url: filesHref({ localPath: mention.path, line: mention.line }),
+              children: [{ type: "text" as const, value: mention.text }],
+            };
+            return mention.rest
+              ? [link, { type: "text" as const, value: mention.rest }]
+              : link;
+          },
+        ],
+        [
+          ENTITY_ID_RE,
+          (match: string) => {
+            // The bare-32-char alternative matched case-insensitively, but real
+            // Convex ids are all-lowercase — leave an uppercase hash lookalike
+            // as plain text rather than lowercasing (= altering) displayed text.
+            if (/^[a-z0-9]{32}$/i.test(match) && !isConvexId(match))
+              return false;
+            return {
+              type: "link",
+              url: `entity://${match.toLowerCase()}`,
+              children: [{ type: "text", value: match.toLowerCase() }],
+            };
+          },
+        ],
+        [
+          OBJECT_REF_RE,
+          (match: string) => {
+            if (!isObjectRef(match)) return false;
+            const payload = `${OBJECT_REF_PREFIX}${match.toLowerCase()}`;
             return {
               type: "link",
               url: `entity://${payload}`,
               children: [{ type: "text", value: payload }],
             };
-          }
-          if (entityId && !/^doc:/i.test(entityId) && (entityTypeFromId(entityId) || isConvexId(entityId))) {
-            return {
-              type: "link",
-              url: `entity://${entityId.toLowerCase()}`,
-              children: [{ type: "text", value: entityId.toLowerCase() }],
-              data: { hProperties: { [REF_NAMED_ATTR]: "1" } },
-            };
-          }
-          if (entityId && entityId.startsWith("doc:")) {
-            // Docs have no short id, so the doc's convex id rides in the link
-            // *text* — react-markdown drops the `entity://` href via its url
-            // sanitizer, so the text node is the real carrier. EntityAwareLink
-            // reads "doc:<id>" and renders a doc pill, same path as ct-/jx ids.
-            return {
-              type: "link",
-              url: `entity://${entityId}`,
-              children: [{ type: "text", value: entityId }],
-              data: { hProperties: { [REF_NAMED_ATTR]: "1" } },
-            };
-          }
-          return {
-            type: "link",
-            url: `mention://${name.trim()}`,
-            children: [{ type: "text", value: `@${name.trim()}` }],
-          };
-        },
+          },
+        ],
+        [
+          CONTEXTUAL_PR_RE,
+          (_full: string, lead: string, digits: string, tail: string) => {
+            // Each number is its own link and every other character stays a
+            // text node, so the prose a reader sees never changes: "PRs 3263
+            // (a), 3262 (b)" keeps its words and gains two references.
+            return splitContextualPrRefs(lead, digits, tail ?? "").map(
+              (token) =>
+                "text" in token
+                  ? { type: "text" as const, value: token.text }
+                  : {
+                      type: "link" as const,
+                      url: `entity://${contextualPrRefPayload(token.number, token.label, token.bare)}`,
+                      children: [
+                        {
+                          type: "text" as const,
+                          value: contextualPrRefPayload(
+                            token.number,
+                            token.label,
+                            token.bare,
+                          ),
+                        },
+                      ],
+                    },
+            );
+          },
+        ],
+        [
+          DEPLOY_RUN_RE,
+          // "Deploy 44822506482": the word stays prose, the run id becomes a
+          // reference that renders as the deploy only if the run carried one.
+          (_full: string, lead: string, id: string) => {
+            const { text, payload } = splitDeployRunRef(lead, id);
+            return [
+              { type: "text" as const, value: text },
+              {
+                type: "link" as const,
+                url: `entity://${payload}`,
+                children: [{ type: "text" as const, value: payload }],
+              },
+            ];
+          },
+        ],
       ],
-      [
-        // Local file/directory mentions → the Files surface, scanned ahead
-        // of object ids so an id inside a path (a worktree named line-ct-42)
-        // stays part of one path link instead of splitting it around a pill.
-        // The href carries
-        // the path as written (`?path=`), which is a real in-app URL: it works
-        // on surfaces that render links plainly, and EntityAwareLink upgrades
-        // it with the session's working directory when it has one.
-        FILE_PATH_SCAN_RE,
-        (full: string, rawPath: string, line?: string) => {
-          const mention = mentionFromMatch(full, rawPath, line);
-          if (!mention) return false;
-          const link = {
-            type: "link" as const,
-            url: filesHref({ localPath: mention.path, line: mention.line }),
-            children: [{ type: "text" as const, value: mention.text }],
-          };
-          return mention.rest ? [link, { type: "text" as const, value: mention.rest }] : link;
-        },
-      ],
-      [
-        ENTITY_ID_RE,
-        (match: string) => {
-          // The bare-32-char alternative matched case-insensitively, but real
-          // Convex ids are all-lowercase — leave an uppercase hash lookalike
-          // as plain text rather than lowercasing (= altering) displayed text.
-          if (/^[a-z0-9]{32}$/i.test(match) && !isConvexId(match)) return false;
-          return {
-            type: "link",
-            url: `entity://${match.toLowerCase()}`,
-            children: [{ type: "text", value: match.toLowerCase() }],
-          };
-        },
-      ],
-      [
-        OBJECT_REF_RE,
-        (match: string) => {
-          if (!isObjectRef(match)) return false;
-          const payload = `${OBJECT_REF_PREFIX}${match.toLowerCase()}`;
-          return { type: "link", url: `entity://${payload}`, children: [{ type: "text", value: payload }] };
-        },
-      ],
-      [
-        CONTEXTUAL_PR_RE,
-        (_full: string, lead: string, digits: string, tail: string) => {
-          // Each number is its own link and every other character stays a
-          // text node, so the prose a reader sees never changes: "PRs 3263
-          // (a), 3262 (b)" keeps its words and gains two references.
-          return splitContextualPrRefs(lead, digits, tail ?? "").map((token) =>
-            "text" in token
-              ? { type: "text" as const, value: token.text }
-              : {
-                  type: "link" as const,
-                  url: `entity://${contextualPrRefPayload(token.number, token.label, token.bare)}`,
-                  children: [{ type: "text" as const, value: contextualPrRefPayload(token.number, token.label, token.bare) }],
-                },
-          );
-        },
-      ],
-      [
-        DEPLOY_RUN_RE,
-        // "Deploy 44822506482": the word stays prose, the run id becomes a
-        // reference that renders as the deploy only if the run carried one.
-        (_full: string, lead: string, id: string) => {
-          const { text, payload } = splitDeployRunRef(lead, id);
-          return [
-            { type: "text" as const, value: text },
-            { type: "link" as const, url: `entity://${payload}`, children: [{ type: "text" as const, value: payload }] },
-          ];
-        },
-      ],
-    ], { ignore: ['link', 'inlineCode'] });
+      { ignore: ["link", "inlineCode"] },
+    );
     hoistEmbeds(tree);
     numberMentions(tree);
   };
@@ -436,7 +539,6 @@ export function remarkEntityIds() {
  * everything between them. With this off, lone tildes render literally while
  * intentional "~~strikethrough~~" (double tilde) still works.
  */
-export const entityRemarkPlugins: NonNullable<ReactMarkdownOptions["remarkPlugins"]> = [
-  [remarkGfm, { singleTilde: false }],
-  remarkEntityIds,
-];
+export const entityRemarkPlugins: NonNullable<
+  ReactMarkdownOptions["remarkPlugins"]
+> = [[remarkGfm, { singleTilde: false }], remarkEntityIds];

@@ -2,18 +2,35 @@
 // session's commands (its skills and the agent's built-ins, the web
 // composer's list) as a row of pills above the composer; a tap completes the
 // token. The list and the matching are web's (lib/sessionSkills).
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { themedStyles } from '@/constants/Theme';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
-import { useUserSkills } from '@codecast/web/hooks/useSyncUserSkills';
-import { applySlashSkill, matchSlashSkills, resolveSessionSkills, slashQueryAt } from '@codecast/web/lib/sessionSkills';
+import { useMemo } from "react";
+import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { themedStyles } from "@/constants/Theme";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
+import { useUserSkills } from "@codecast/web/hooks/useSyncUserSkills";
+import {
+  applySlashSkill,
+  matchSlashSkills,
+  resolveSessionSkills,
+  slashQueryAt,
+} from "@codecast/web/lib/sessionSkills";
 
-export function SlashCommandPills({ conversationId, text, onPick }: { conversationId: string; text: string; onPick: (next: string) => void }) {
+export function SlashCommandPills({
+  conversationId,
+  text,
+  onPick,
+}: {
+  conversationId: string;
+  text: string;
+  onPick: (next: string) => void;
+}) {
   const availableSkills = useUserSkills();
-  const projectPath = useInboxStore((s) => s.sessions[conversationId]?.project_path);
-  const agentType = useInboxStore((s) => s.sessions[conversationId]?.agent_type);
+  const projectPath = useInboxStore(
+    (s) => s.sessions[conversationId]?.project_path,
+  );
+  const agentType = useInboxStore(
+    (s) => s.sessions[conversationId]?.agent_type,
+  );
   const skills = useMemo(
     () => resolveSessionSkills({ availableSkills, projectPath, agentType }),
     [availableSkills, projectPath, agentType],
@@ -23,16 +40,26 @@ export function SlashCommandPills({ conversationId, text, onPick }: { conversati
   const matches = slash ? matchSlashSkills(skills, slash.query, 20) : [];
   if (!slash || matches.length === 0) return null;
   return (
-    <ScrollView horizontal keyboardShouldPersistTaps="always" showsHorizontalScrollIndicator={false} style={pillStyles.strip} contentContainerStyle={pillStyles.stripContent}>
+    <ScrollView
+      horizontal
+      keyboardShouldPersistTaps="always"
+      showsHorizontalScrollIndicator={false}
+      style={pillStyles.strip}
+      contentContainerStyle={pillStyles.stripContent}
+    >
       {matches.map((s) => (
         <TouchableOpacity
           key={s.name}
           activeOpacity={0.7}
           style={pillStyles.pill}
-          onPress={() => onPick(applySlashSkill(text, slash.start, s.name).text)}
-          accessibilityLabel={`/${s.name}${s.description ? `: ${s.description}` : ''}`}
+          onPress={() =>
+            onPick(applySlashSkill(text, slash.start, s.name).text)
+          }
+          accessibilityLabel={`/${s.name}${s.description ? `: ${s.description}` : ""}`}
         >
-          <RNText style={pillStyles.pillText} numberOfLines={1}>/{s.name}</RNText>
+          <RNText style={pillStyles.pillText} numberOfLines={1}>
+            /{s.name}
+          </RNText>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -40,27 +67,29 @@ export function SlashCommandPills({ conversationId, text, onPick }: { conversati
 }
 
 // Inset like the composer card below, so the row lines up with it.
-const pillStyles = themedStyles((Theme) => StyleSheet.create({
-  strip: {
-    flexGrow: 0,
-    marginBottom: 6,
-  },
-  stripContent: {
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-  },
-  pill: {
-    maxWidth: 300,
-    borderWidth: 1,
-    borderColor: Theme.border,
-    backgroundColor: Theme.bgAlt,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  pillText: {
-    fontSize: 12,
-    color: Theme.textMuted,
-  },
-}));
+const pillStyles = themedStyles((Theme) =>
+  StyleSheet.create({
+    strip: {
+      flexGrow: 0,
+      marginBottom: 6,
+    },
+    stripContent: {
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+    },
+    pill: {
+      maxWidth: 300,
+      borderWidth: 1,
+      borderColor: Theme.border,
+      backgroundColor: Theme.bgAlt,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    pillText: {
+      fontSize: 12,
+      color: Theme.textMuted,
+    },
+  }),
+);

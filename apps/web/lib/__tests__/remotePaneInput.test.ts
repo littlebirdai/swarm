@@ -30,14 +30,24 @@ function fakeConvex(opts: { delays?: number[]; reply?: any } = {}) {
         }
         return { ok: true, dispatched: false };
       },
-      watchQuery: () => ({ onUpdate: () => () => {}, localQueryResult: () => null }),
+      watchQuery: () => ({
+        onUpdate: () => () => {},
+        localQueryResult: () => null,
+      }),
     } as any,
   };
 }
 
 const errors: string[] = [];
-const handlers = { onFrame: () => {}, onError: (m: string) => void errors.push(m) };
-const src = (client: any) => ({ convex: client, deviceId: "dev1", target: "cc-x" });
+const handlers = {
+  onFrame: () => {},
+  onError: (m: string) => void errors.push(m),
+};
+const src = (client: any) => ({
+  convex: client,
+  deviceId: "dev1",
+  target: "cc-x",
+});
 /** Decode everything the fake received back into one byte string. */
 const received = (sent: string[]) => sent.flatMap((h) => hexToBytes(h) ?? []);
 
@@ -152,7 +162,10 @@ describe("remote pane input", () => {
         calls.push(args);
         return { ok: true };
       },
-      watchQuery: () => ({ onUpdate: () => () => {}, localQueryResult: () => null }),
+      watchQuery: () => ({
+        onUpdate: () => () => {},
+        localQueryResult: () => null,
+      }),
     } as any;
     const conn = connect(client);
     await sleep(10);
@@ -172,7 +185,10 @@ describe("remote pane input", () => {
         calls.push(args);
         return { ok: true };
       },
-      watchQuery: () => ({ onUpdate: () => () => {}, localQueryResult: () => null }),
+      watchQuery: () => ({
+        onUpdate: () => () => {},
+        localQueryResult: () => null,
+      }),
     } as any;
     const conn = connect(client);
     conn.setInteractive(true);

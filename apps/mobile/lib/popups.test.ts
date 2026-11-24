@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { appAlert, appPrompt, closePopup, orderedButtons, outsideTap, showActionSheet, usePopups } from "./popups";
+import {
+  appAlert,
+  appPrompt,
+  closePopup,
+  orderedButtons,
+  outsideTap,
+  showActionSheet,
+  usePopups,
+} from "./popups";
 
 const queue = () => usePopups.getState().queue;
 
@@ -18,8 +26,21 @@ describe("the popup queue", () => {
 
   test("a popup's action runs after it is gone, so one it opens shows next", () => {
     let seen = -1;
-    appAlert("Ask", undefined, [{ text: "Go", onPress: () => { seen = queue().length; appAlert("Then"); } }]);
-    closePopup(queue()[0].id, queue()[0].kind === "alert" ? (queue()[0] as any).buttons[0].onPress : undefined);
+    appAlert("Ask", undefined, [
+      {
+        text: "Go",
+        onPress: () => {
+          seen = queue().length;
+          appAlert("Then");
+        },
+      },
+    ]);
+    closePopup(
+      queue()[0].id,
+      queue()[0].kind === "alert"
+        ? (queue()[0] as any).buttons[0].onPress
+        : undefined,
+    );
     expect(seen).toBe(0);
     expect(queue().map((p) => (p as any).title)).toEqual(["Then"]);
   });
@@ -35,7 +56,11 @@ describe("the popup queue", () => {
 describe("a tap outside", () => {
   test("cancels a sheet, running its onCancel", () => {
     let cancelled = false;
-    showActionSheet("Pick", [{ label: "A", onPress: () => {} }], { onCancel: () => { cancelled = true; } });
+    showActionSheet("Pick", [{ label: "A", onPress: () => {} }], {
+      onCancel: () => {
+        cancelled = true;
+      },
+    });
     const t = outsideTap(queue()[0]);
     t.run?.();
     expect(t.close).toBe(true);
@@ -44,10 +69,26 @@ describe("a tap outside", () => {
 
   test("runs a dialog's cancel button, or its lone OK", () => {
     let which = "";
-    appAlert("Sure?", undefined, [{ text: "Keep", style: "cancel", onPress: () => { which = "keep"; } }, { text: "Stop", style: "destructive" }]);
+    appAlert("Sure?", undefined, [
+      {
+        text: "Keep",
+        style: "cancel",
+        onPress: () => {
+          which = "keep";
+        },
+      },
+      { text: "Stop", style: "destructive" },
+    ]);
     outsideTap(queue()[0]).run?.();
     expect(which).toBe("keep");
-    appAlert("Saved", undefined, [{ text: "OK", onPress: () => { which = "ok"; } }]);
+    appAlert("Saved", undefined, [
+      {
+        text: "OK",
+        onPress: () => {
+          which = "ok";
+        },
+      },
+    ]);
     outsideTap(queue()[1]).run?.();
     expect(which).toBe("ok");
   });
@@ -59,8 +100,12 @@ describe("a tap outside", () => {
 });
 
 test("a dialog draws its cancel first", () => {
-  expect(orderedButtons([{ text: "Delete", style: "destructive" }, { text: "Cancel", style: "cancel" }]).map((b) => b.text))
-    .toEqual(["Cancel", "Delete"]);
+  expect(
+    orderedButtons([
+      { text: "Delete", style: "destructive" },
+      { text: "Cancel", style: "cancel" },
+    ]).map((b) => b.text),
+  ).toEqual(["Cancel", "Delete"]);
 });
 
 // Every popup is the app's own (lib/popups, drawn by components/PopupHost):
@@ -70,12 +115,27 @@ test("no screen opens a system alert or action sheet", () => {
   const hits: string[] = [];
   (function walk(dir: string) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (["node_modules", "ios", "android", ".expo", "dist", "targets", "store-shots"].includes(e.name)) continue;
+      if (
+        [
+          "node_modules",
+          "ios",
+          "android",
+          ".expo",
+          "dist",
+          "targets",
+          "store-shots",
+        ].includes(e.name)
+      )
+        continue;
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
       else if (/\.tsx?$/.test(e.name) && !/\.(test|d)\.tsx?$/.test(e.name)) {
         const src = fs.readFileSync(p, "utf8");
-        if (/\bAlert\.(alert|prompt)\(|\bActionSheetIOS\b/.test(src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""))) {
+        if (
+          /\bAlert\.(alert|prompt)\(|\bActionSheetIOS\b/.test(
+            src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, ""),
+          )
+        ) {
           hits.push(path.relative(root, p));
         }
       }

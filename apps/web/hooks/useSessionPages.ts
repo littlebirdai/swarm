@@ -17,21 +17,36 @@ const api = _typedApi as any;
  *  the phone through usePageEmbedQuery). A plain query rather than
  *  useSyncCollection: a share-link guest reads it too. `conversationId` is a
  *  Convex id or null. */
-export function useSessionPages(conversationId: string | null, enabled = true): GalleryPage[] {
+export function useSessionPages(
+  conversationId: string | null,
+  enabled = true,
+): GalleryPage[] {
   const { data: pagesFeed, error: pagesError } = useQueryNoThrow(
     api.conversationPages.list,
     enabled && conversationId
-      ? { conversation_id: conversationId as Id<"conversations">, ...shareTokenArg(conversationId) }
-      : "skip"
+      ? {
+          conversation_id: conversationId as Id<"conversations">,
+          ...shareTokenArg(conversationId),
+        }
+      : "skip",
   );
   useFeederError("conversationPages.list", pagesError);
-  useConvexSync(pagesFeed, useCallback((row: any) => applyCollectionFeed("conversationPages", [row]), []));
-  const pageRows = useInboxStore((s) => (conversationId ? (s as any).conversationPages?.[conversationId]?.pages : undefined)) as
-    | Array<{ slug: string; created_at: number }>
-    | undefined;
+  useConvexSync(
+    pagesFeed,
+    useCallback(
+      (row: any) => applyCollectionFeed("conversationPages", [row]),
+      [],
+    ),
+  );
+  const pageRows = useInboxStore((s) =>
+    conversationId
+      ? (s as any).conversationPages?.[conversationId]?.pages
+      : undefined,
+  ) as Array<{ slug: string; created_at: number }> | undefined;
   const pages = useMemo<GalleryPage[]>(
-    () => (pageRows ?? []).map((p) => ({ page: p.slug, timestamp: p.created_at })),
-    [pageRows]
+    () =>
+      (pageRows ?? []).map((p) => ({ page: p.slug, timestamp: p.created_at })),
+    [pageRows],
   );
   return pages;
 }

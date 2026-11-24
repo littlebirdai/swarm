@@ -1,7 +1,13 @@
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { ThreadRow } from "../components/calls/roomThreadModel";
 import { useRef } from "react";
-import { isArrival, markRoomThreadSeen, setRoomThreadWatching, unreadArrivals, useRoomThreadSeen } from "../lib/calls/roomThreadSeen";
+import {
+  isArrival,
+  markRoomThreadSeen,
+  setRoomThreadWatching,
+  unreadArrivals,
+  useRoomThreadSeen,
+} from "../lib/calls/roomThreadSeen";
 import { useEventListener } from "./useEventListener";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useWatchEffect } from "./useWatchEffect";
@@ -20,18 +26,25 @@ import { useWatchEffect } from "./useWatchEffect";
 export function useRoomThreadUnread(
   roomKey: string | null | undefined,
   open = false,
-): { rows: ThreadRow[] | null | undefined; unread: number; latest: ThreadRow | null; arrived: ThreadRow | null } {
-  const rows = useQueryNoThrow(api.callChat.list, roomKey ? { room_key: roomKey } : "skip").data as
-    | ThreadRow[]
-    | null
-    | undefined;
+): {
+  rows: ThreadRow[] | null | undefined;
+  unread: number;
+  latest: ThreadRow | null;
+  arrived: ThreadRow | null;
+} {
+  const rows = useQueryNoThrow(
+    api.callChat.list,
+    roomKey ? { room_key: roomKey } : "skip",
+  ).data as ThreadRow[] | null | undefined;
   const seen = useRoomThreadSeen(roomKey);
   const newestAt = rows?.[rows.length - 1]?.at ?? 0;
   const base = useRef<{ roomKey: string; at: number } | null>(null);
-  if (roomKey && rows && base.current?.roomKey !== roomKey) base.current = { roomKey, at: newestAt };
+  if (roomKey && rows && base.current?.roomKey !== roomKey)
+    base.current = { roomKey, at: newestAt };
   const b = base.current;
   const since = b && b.roomKey === roomKey ? b.at : Infinity;
-  const arrived = rows?.findLast((r) => r.agent && r.at > since && isArrival(r)) ?? null;
+  const arrived =
+    rows?.findLast((r) => r.agent && r.at > since && isArrival(r)) ?? null;
 
   useWatchEffect(() => {
     if (roomKey && rows) markRoomThreadSeen(roomKey, rows, open);
@@ -50,5 +63,10 @@ export function useRoomThreadUnread(
   useEventListener("pagehide", () => watch(false));
 
   const fresh = open ? [] : unreadArrivals(rows, seen);
-  return { rows, unread: fresh.length, latest: fresh[fresh.length - 1] ?? null, arrived };
+  return {
+    rows,
+    unread: fresh.length,
+    latest: fresh[fresh.length - 1] ?? null,
+    arrived,
+  };
 }

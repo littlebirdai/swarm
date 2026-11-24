@@ -76,7 +76,9 @@
   margin: -3px;
   border-radius: 3px;
   color: var(--sol-text-muted);
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .ch-rail-add:hover {
@@ -108,7 +110,9 @@
   line-height: 1.5;
   color: var(--sol-text-muted);
   text-align: left;
-  transition: background 110ms ease, color 110ms ease;
+  transition:
+    background 110ms ease,
+    color 110ms ease;
 }
 
 .ch-chan:hover {
@@ -196,7 +200,8 @@
   gap: 10px;
   padding: 9px 14px;
   flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
   background: color-mix(in srgb, var(--sol-bg-alt) 28%, var(--sol-bg));
 }
 
@@ -280,7 +285,8 @@
   border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
   border-radius: 8px;
   background: var(--sol-bg);
-  box-shadow: 0 12px 32px -12px color-mix(in srgb, var(--sol-text) 35%, transparent);
+  box-shadow: 0 12px 32px -12px
+    color-mix(in srgb, var(--sol-text) 35%, transparent);
 }
 
 .ch-listen-head {
@@ -438,12 +444,20 @@
 }
 
 @keyframes ch-jump-in {
-  from { opacity: 0; transform: translate(-50%, 6px); }
-  to   { opacity: 1; transform: translate(-50%, 0); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-jump { animation: none; }
+  .ch-jump {
+    animation: none;
+  }
 }
 
 /* Over a selection of chat lines: hands the excerpt to a session. */
@@ -464,7 +478,9 @@
   color: var(--sol-blue);
   white-space: nowrap;
 }
-.ch-sel-send:hover { background: color-mix(in srgb, var(--sol-blue) 12%, var(--sol-card)); }
+.ch-sel-send:hover {
+  background: color-mix(in srgb, var(--sol-blue) 12%, var(--sol-card));
+}
 
 /* ── Send states ─────────────────────────────────────────────────────────── */
 
@@ -520,12 +536,19 @@
 }
 
 @keyframes ch-flash {
-  0% { background: color-mix(in srgb, var(--sol-yellow) 26%, transparent); }
-  100% { background: transparent; }
+  0% {
+    background: color-mix(in srgb, var(--sol-yellow) 26%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-msg-flash { animation: none; background: color-mix(in srgb, var(--sol-yellow) 14%, transparent); }
+  .ch-msg-flash {
+    animation: none;
+    background: color-mix(in srgb, var(--sol-yellow) 14%, transparent);
+  }
 }
 
 .ch-msg-gutter {
@@ -779,16 +802,31 @@
   animation: ch-breathe 1.25s ease-in-out infinite;
 }
 
-.ch-thinking-dot:nth-child(2) { animation-delay: 0.16s; }
-.ch-thinking-dot:nth-child(3) { animation-delay: 0.32s; }
+.ch-thinking-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.ch-thinking-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
 
 @keyframes ch-breathe {
-  0%, 60%, 100% { opacity: 0.28; transform: translateY(0); }
-  30%           { opacity: 1;    transform: translateY(-2px); }
+  0%,
+  60%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-thinking-dot { animation: none; opacity: 0.7; }
+  .ch-thinking-dot {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 .ch-agent-error {
@@ -826,7 +864,9 @@
   background: color-mix(in srgb, var(--sol-bg-alt) 50%, transparent);
   font-size: var(--fs-meta);
   color: var(--sol-text-muted);
-  transition: border-color 110ms ease, background 110ms ease;
+  transition:
+    border-color 110ms ease,
+    background 110ms ease;
 }
 
 .ch-reaction:hover {
@@ -919,7 +959,9 @@ div.ch-reaction-tip {
   border-radius: 5px;
   font-size: var(--fs-meta);
   color: var(--sol-blue);
-  transition: background 110ms ease, border-color 110ms ease;
+  transition:
+    background 110ms ease,
+    border-color 110ms ease;
 }
 
 .ch-thread-link:hover {
@@ -979,7 +1021,9 @@ div.ch-reaction-tip {
   height: 22px;
   border-radius: 4px;
   color: var(--sol-text-muted);
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 .ch-tool:hover {
@@ -990,7 +1034,9 @@ div.ch-reaction-tip {
 .ch-tool-emoji {
   font-size: 13px;
   line-height: 1;
-  transition: background 100ms ease, transform 100ms ease;
+  transition:
+    background 100ms ease,
+    transform 100ms ease;
 }
 
 .ch-tool-emoji:hover {
@@ -1125,7 +1171,9 @@ div.ch-reaction-tip {
   border: 1px solid color-mix(in srgb, var(--sol-border) 42%, transparent);
   border-radius: 7px;
   background: var(--sol-card);
-  transition: border-color 130ms ease, box-shadow 130ms ease;
+  transition:
+    border-color 130ms ease,
+    box-shadow 130ms ease;
 }
 
 .ch-composer:focus-within {
@@ -1139,7 +1187,8 @@ div.ch-reaction-tip {
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 50%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 50%, transparent);
   border-radius: 7px 7px 0 0;
   background: color-mix(in srgb, var(--sol-cyan) 4%, transparent);
   font-size: var(--fs-meta);
@@ -1187,7 +1236,9 @@ div.ch-reaction-tip {
   color: var(--sol-text);
   font-size: var(--fs-meta);
   font-weight: 500;
-  transition: background 130ms ease, transform 130ms ease;
+  transition:
+    background 130ms ease,
+    transform 130ms ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1221,8 +1272,12 @@ div.ch-reaction-tip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-slack-connect-button { transition: background 130ms ease; }
-  .ch-slack-connect-button:active:not(:disabled) { transform: none; }
+  .ch-slack-connect-button {
+    transition: background 130ms ease;
+  }
+  .ch-slack-connect-button:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .ch-composer-options {
@@ -1238,7 +1293,9 @@ div.ch-reaction-tip {
   border-radius: 6px;
   color: var(--sol-text-muted);
   font-size: var(--fs-meta);
-  transition: color 130ms ease, background 130ms ease;
+  transition:
+    color 130ms ease,
+    background 130ms ease;
 }
 
 .ch-composer-options > span {
@@ -1283,7 +1340,8 @@ div.ch-reaction-tip {
 .ch-composer-delivery {
   padding-bottom: 12px;
   margin-bottom: 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 50%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 50%, transparent);
 }
 
 .ch-composer-choice {
@@ -1397,7 +1455,8 @@ div.ch-reaction-tip {
   align-items: center;
   gap: 6px;
   padding: 9px 10px 9px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
 }
 
 .ch-thread-mute-on,
@@ -1419,7 +1478,9 @@ div.ch-reaction-tip {
   margin-left: -6px;
   border-radius: 5px;
   color: var(--sol-text-muted);
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 .ch-thread-back:hover {
@@ -1448,7 +1509,8 @@ div.ch-reaction-tip {
 /* The root message of a thread reads as the subject of the panel, so it gets a
  * rule under it and the replies hang below. */
 .ch-thread-root {
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 26%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 26%, transparent);
   padding-bottom: 8px;
   margin-bottom: 6px;
 }
@@ -1575,7 +1637,9 @@ div.ch-reaction-tip {
   box-shadow: 0 6px 20px color-mix(in srgb, var(--sol-text) 16%, transparent);
   text-align: left;
   cursor: pointer;
-  transition: border-color 130ms ease, transform 130ms ease;
+  transition:
+    border-color 130ms ease,
+    transform 130ms ease;
 }
 
 .ch-toast:hover {
@@ -1622,7 +1686,9 @@ div.ch-reaction-tip {
   margin: -1.5px;
   border-radius: 4px;
   color: var(--sol-text-muted);
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 .ch-toast-action:hover {
@@ -1700,7 +1766,6 @@ div.ch-reaction-tip {
   line-height: 1.55;
 }
 
-
 /* ── Narrow windows ──────────────────────────────────────────────────────────
  *
  * Three fixed columns is a 1500px design. A 13" laptop, or any split window, is
@@ -1763,7 +1828,9 @@ div.ch-reaction-tip {
     line-height: 1;
     color: #fff;
     opacity: 0.72;
-    transition: opacity 110ms ease, box-shadow 110ms ease;
+    transition:
+      opacity 110ms ease,
+      box-shadow 110ms ease;
   }
 
   .ch-chan-unread .ch-chan-mono,
@@ -1773,7 +1840,9 @@ div.ch-reaction-tip {
 
   .ch-chan-active .ch-chan-mono {
     opacity: 1;
-    box-shadow: 0 0 0 2px var(--sol-bg), 0 0 0 3.5px var(--sol-blue);
+    box-shadow:
+      0 0 0 2px var(--sol-bg),
+      0 0 0 3.5px var(--sol-blue);
   }
 
   .ch-chan-muted .ch-chan-mono {
@@ -1807,7 +1876,9 @@ div.ch-reaction-tip {
 
   .ch-chan-live .ch-chan-mono,
   .ch-chan-live .ch-chan-hash .cc-cmt-avatar {
-    box-shadow: 0 0 0 2px var(--sol-bg), 0 0 0 3.5px var(--sol-violet);
+    box-shadow:
+      0 0 0 2px var(--sol-bg),
+      0 0 0 3.5px var(--sol-violet);
   }
 
   /* The count would not fit beside the tile, so it rides the corner. */
@@ -1848,7 +1919,9 @@ div.ch-reaction-tip {
   background: var(--sol-card);
   color: var(--sol-text);
   border: 1px solid color-mix(in srgb, var(--sol-border) 50%, transparent);
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 8px 24px -8px rgba(0, 0, 0, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.1);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -1868,7 +1941,6 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-text-dim);
 }
-
 
 /* Phone-width header: the chords and the huddle label go before the words
  * that say who is here. (HuddleButton takes `compact` from the page for the
@@ -1960,12 +2032,20 @@ div.ch-reaction-tip {
 }
 
 @keyframes ch-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-skel-avatar, .ch-skel-line { animation: none; }
+  .ch-skel-avatar,
+  .ch-skel-line {
+    animation: none;
+  }
 }
 
 /* ── Empty state extras ──────────────────────────────────────────────────── */
@@ -2038,7 +2118,9 @@ div.ch-reaction-tip {
   border-radius: 5px;
   font-size: 14px;
   line-height: 1;
-  transition: background 100ms ease, transform 100ms ease;
+  transition:
+    background 100ms ease,
+    transform 100ms ease;
 }
 
 .ch-emoji-picker-item:hover {
@@ -2061,7 +2143,9 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-text-secondary);
   text-align: left;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
 }
 
 .ch-menu-item:hover {
@@ -2177,11 +2261,6 @@ div.ch-reaction-tip {
 }
 
 /* ── Channel management menu (ChannelMenu.tsx) ──────────────────────────── */
-
-
-
-
-
 
 .ch-channel-menu-edit {
   display: flex;
@@ -2299,7 +2378,9 @@ div.ch-reaction-tip {
 }
 
 @keyframes ch-typing-dot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     opacity: 0.35;
     transform: translateY(0);
   }
@@ -2352,7 +2433,9 @@ div.ch-reaction-tip {
   border-radius: 9999px;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sol-bg-alt) 28%, var(--sol-bg));
 }
-.ch-dm-face + .ch-dm-face { margin-left: -6px; }
+.ch-dm-face + .ch-dm-face {
+  margin-left: -6px;
+}
 
 .ch-dm-presence {
   display: inline-flex;
@@ -2414,10 +2497,17 @@ div.ch-reaction-tip {
   color: var(--sol-text);
   text-align: left;
 }
-.ch-people-row:hover { background: color-mix(in srgb, var(--sol-text) 5%, transparent); }
+.ch-people-row:hover {
+  background: color-mix(in srgb, var(--sol-text) 5%, transparent);
+}
 
-.ch-people-name { flex: 1 1 auto; min-width: 0; }
-.ch-people-you { color: var(--sol-text-dim); }
+.ch-people-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ch-people-you {
+  color: var(--sol-text-dim);
+}
 
 .ch-people-remove {
   display: inline-flex;
@@ -2425,10 +2515,16 @@ div.ch-reaction-tip {
   border-radius: 5px;
   color: var(--sol-text-dim);
   opacity: 0;
-  transition: opacity 120ms, color 120ms;
+  transition:
+    opacity 120ms,
+    color 120ms;
 }
-.ch-people-row:hover .ch-people-remove { opacity: 1; }
-.ch-people-remove:hover { color: var(--sol-red); }
+.ch-people-row:hover .ch-people-remove {
+  opacity: 1;
+}
+.ch-people-remove:hover {
+  color: var(--sol-red);
+}
 
 .ch-people-add {
   display: flex;
@@ -2447,10 +2543,22 @@ div.ch-reaction-tip {
 }
 
 /* Roles and sessions inside a room (ChannelAgents.tsx). */
-.ch-people-actions { display: flex; gap: 2px; }
-.ch-people-actions .ch-people-add { width: auto; flex: 1 1 0; }
-.ch-agents-head { display: flex; align-items: center; gap: 5px; }
-.ch-agents-head .ch-roster-count { margin-left: auto; }
+.ch-people-actions {
+  display: flex;
+  gap: 2px;
+}
+.ch-people-actions .ch-people-add {
+  width: auto;
+  flex: 1 1 0;
+}
+.ch-agents-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.ch-agents-head .ch-roster-count {
+  margin-left: auto;
+}
 .ch-agent-sub {
   flex: 0 1 auto;
   min-width: 0;
@@ -2473,14 +2581,18 @@ div.ch-reaction-tip {
 /* ── Roster: one row per person, one mark per side ─────────────────────────
  * The marks sit in fixed-width columns so "here" and the Slack mark line up
  * down the list and under their column labels. */
-.ch-roster-pop-wide { width: 312px; }
+.ch-roster-pop-wide {
+  width: 312px;
+}
 
 .ch-roster-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.ch-roster-head .ch-people-title { padding-right: 0; }
+.ch-roster-head .ch-people-title {
+  padding-right: 0;
+}
 .ch-roster-count {
   font-weight: 500;
   letter-spacing: 0;
@@ -2508,11 +2620,19 @@ div.ch-reaction-tip {
   color: var(--sol-text-dim);
 }
 
-.ch-roster-search { margin: 0 0 6px; }
+.ch-roster-search {
+  margin: 0 0 6px;
+}
 
-.ch-roster-row { gap: 4px; }
-.ch-roster-row > :first-child { margin-right: 4px; }
-.ch-roster-row .ch-people-name { margin-right: 4px; }
+.ch-roster-row {
+  gap: 4px;
+}
+.ch-roster-row > :first-child {
+  margin-right: 4px;
+}
+.ch-roster-row .ch-people-name {
+  margin-right: 4px;
+}
 
 .ch-roster-mark {
   position: relative;
@@ -2537,29 +2657,42 @@ div.ch-reaction-tip {
 .ch-roster-mark-team {
   color: color-mix(in srgb, var(--sol-cyan) 55%, var(--sol-text-dim));
 }
-.ch-roster-mark-none { opacity: 0.45; }
+.ch-roster-mark-none {
+  opacity: 0.45;
+}
 .ch-roster-mark-out {
   border: 1px dashed color-mix(in srgb, var(--sol-border) 80%, transparent);
 }
 .ch-roster-mark-btn {
   cursor: pointer;
-  transition: color 120ms, background 120ms, border-color 120ms;
+  transition:
+    color 120ms,
+    background 120ms,
+    border-color 120ms;
 }
 .ch-roster-mark-btn.ch-roster-mark-out:hover {
   color: var(--sol-text);
   border-color: var(--sol-cyan);
   border-style: solid;
 }
-.ch-roster-mark-slack.ch-roster-mark-btn.ch-roster-mark-out:hover { border-color: var(--sol-magenta); }
+.ch-roster-mark-slack.ch-roster-mark-btn.ch-roster-mark-out:hover {
+  border-color: var(--sol-magenta);
+}
 
 /* An "in" mark that can be undone becomes its own undo on hover. */
-.ch-roster-mark-off { display: none; }
+.ch-roster-mark-off {
+  display: none;
+}
 .ch-roster-mark-btn.ch-roster-mark-in:hover {
   color: var(--sol-red);
   background: color-mix(in srgb, var(--sol-red) 12%, transparent);
 }
-.ch-roster-mark-btn.ch-roster-mark-in:hover .ch-roster-mark-on { display: none; }
-.ch-roster-mark-btn.ch-roster-mark-in:hover .ch-roster-mark-off { display: inline; }
+.ch-roster-mark-btn.ch-roster-mark-in:hover .ch-roster-mark-on {
+  display: none;
+}
+.ch-roster-mark-btn.ch-roster-mark-in:hover .ch-roster-mark-off {
+  display: inline;
+}
 
 .ch-roster-divider {
   margin: 8px 6px 2px;
@@ -2568,7 +2701,9 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-text-dim);
 }
-.ch-roster-candidate .ch-people-name { color: var(--sol-text-muted); }
+.ch-roster-candidate .ch-people-name {
+  color: var(--sol-text-muted);
+}
 .ch-roster-add {
   display: inline-flex;
   align-items: center;
@@ -2578,11 +2713,17 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-cyan);
   opacity: 0;
-  transition: opacity 120ms, background 120ms;
+  transition:
+    opacity 120ms,
+    background 120ms;
 }
 .ch-roster-candidate:hover .ch-roster-add,
-.ch-roster-add:focus-visible { opacity: 1; }
-.ch-roster-add:hover { background: color-mix(in srgb, var(--sol-cyan) 12%, transparent); }
+.ch-roster-add:focus-visible {
+  opacity: 1;
+}
+.ch-roster-add:hover {
+  background: color-mix(in srgb, var(--sol-cyan) 12%, transparent);
+}
 
 .ch-roster-err {
   margin: 6px 6px 0;
@@ -2590,7 +2731,9 @@ div.ch-reaction-tip {
   line-height: 1.4;
   color: var(--sol-red);
 }
-.ch-roster-err-inline { color: var(--sol-red); }
+.ch-roster-err-inline {
+  color: var(--sol-red);
+}
 
 .ch-roster-reconnect {
   display: flex;
@@ -2604,7 +2747,9 @@ div.ch-reaction-tip {
   color: var(--sol-text-muted);
   background: color-mix(in srgb, var(--sol-magenta) 7%, transparent);
 }
-.ch-roster-reconnect svg { margin-top: 2px; }
+.ch-roster-reconnect svg {
+  margin-top: 2px;
+}
 .ch-roster-reconnect-btn {
   flex: 0 0 auto;
   padding: 3px 9px;
@@ -2614,9 +2759,13 @@ div.ch-reaction-tip {
   color: var(--sol-bg);
   background: var(--sol-magenta);
 }
-.ch-roster-reconnect-btn:disabled { opacity: 0.5; }
+.ch-roster-reconnect-btn:disabled {
+  opacity: 0.5;
+}
 
-.ch-picker { margin-top: 4px; }
+.ch-picker {
+  margin-top: 4px;
+}
 
 .ch-picker-search {
   display: flex;
@@ -2643,8 +2792,12 @@ div.ch-reaction-tip {
   margin-top: 4px;
 }
 
-.ch-picker-on { background: color-mix(in srgb, var(--sol-cyan) 8%, transparent); }
-.ch-picker-on:hover { background: color-mix(in srgb, var(--sol-cyan) 12%, transparent); }
+.ch-picker-on {
+  background: color-mix(in srgb, var(--sol-cyan) 8%, transparent);
+}
+.ch-picker-on:hover {
+  background: color-mix(in srgb, var(--sol-cyan) 12%, transparent);
+}
 
 .ch-picker-empty {
   padding: 12px 6px;
@@ -2668,8 +2821,13 @@ div.ch-reaction-tip {
   background: var(--sol-cyan);
   transition: opacity 120ms;
 }
-.ch-picker-go:disabled { opacity: 0.35; cursor: default; }
-.ch-picker-go:not(:disabled):hover { opacity: 0.9; }
+.ch-picker-go:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ch-picker-go:not(:disabled):hover {
+  opacity: 0.9;
+}
 
 .ch-rail-head-dms {
   margin-top: 10px;
@@ -2694,7 +2852,9 @@ div.ch-reaction-tip {
   margin-right: 2px;
   border-radius: 6px;
   color: var(--sol-text-dim);
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 .ch-composer-attach:hover {
   color: var(--sol-text);
@@ -2703,7 +2863,9 @@ div.ch-reaction-tip {
 
 /* ── Drop target ─────────────────────────────────────────────────────────── */
 
-.ch-main { position: relative; }
+.ch-main {
+  position: relative;
+}
 
 .ch-drop-overlay {
   position: absolute;
@@ -2745,9 +2907,13 @@ div.ch-reaction-tip {
   border: 1px solid color-mix(in srgb, var(--sol-border) 45%, transparent);
   background: color-mix(in srgb, var(--sol-text) 3%, transparent);
   cursor: zoom-in;
-  transition: border-color 120ms, transform 120ms;
+  transition:
+    border-color 120ms,
+    transform 120ms;
 }
-.ch-att:hover { border-color: color-mix(in srgb, var(--sol-cyan) 45%, transparent); }
+.ch-att:hover {
+  border-color: color-mix(in srgb, var(--sol-cyan) 45%, transparent);
+}
 .ch-att img {
   display: block;
   max-width: 100%;
@@ -2777,21 +2943,29 @@ div.ch-reaction-tip {
   display: block;
   width: 168px;
   height: 120px;
-  background: linear-gradient(100deg,
+  background: linear-gradient(
+    100deg,
     color-mix(in srgb, var(--sol-text) 4%, transparent) 40%,
     color-mix(in srgb, var(--sol-text) 8%, transparent) 50%,
-    color-mix(in srgb, var(--sol-text) 4%, transparent) 60%);
+    color-mix(in srgb, var(--sol-text) 4%, transparent) 60%
+  );
   background-size: 200% 100%;
   animation: ch-att-shimmer 1.4s infinite;
 }
-@keyframes ch-att-shimmer { to { background-position: -200% 0; } }
+@keyframes ch-att-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
 
 /* Sent before its upload finished: the local preview, dimmed under a ring. */
 .ch-att-uploading {
   position: relative;
   cursor: default;
 }
-.ch-att-uploading img { opacity: 0.55; }
+.ch-att-uploading img {
+  opacity: 0.55;
+}
 .ch-att-spinner {
   position: absolute;
   top: 50%;
@@ -2804,7 +2978,11 @@ div.ch-reaction-tip {
   border-top-color: var(--sol-text);
   animation: ch-att-spin 0.8s linear infinite;
 }
-@keyframes ch-att-spin { to { transform: rotate(360deg); } }
+@keyframes ch-att-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .ch-att-missing {
   display: inline-flex;
@@ -2845,8 +3023,17 @@ div.ch-reaction-tip {
   animation: ch-modal-rise 160ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
-@keyframes ch-modal-fade { from { opacity: 0; } }
-@keyframes ch-modal-rise { from { opacity: 0; transform: translateY(10px) scale(0.985); } }
+@keyframes ch-modal-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ch-modal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
 
 .ch-modal-close {
   display: inline-flex;
@@ -2854,10 +3041,15 @@ div.ch-reaction-tip {
   border-radius: 6px;
   color: var(--sol-text-dim);
 }
-.ch-modal-close:hover { color: var(--sol-text); background: color-mix(in srgb, var(--sol-text) 7%, transparent); }
+.ch-modal-close:hover {
+  color: var(--sol-text);
+  background: color-mix(in srgb, var(--sol-text) 7%, transparent);
+}
 
 /* The keyboard cursor's row, in any chat list. */
-.ch-row-hot { background: color-mix(in srgb, var(--sol-cyan) 10%, transparent); }
+.ch-row-hot {
+  background: color-mix(in srgb, var(--sol-cyan) 10%, transparent);
+}
 
 /* Small uppercase eyebrow over a group of rows. A room NAME inside one keeps
  * its case: a slug or a person's name shouted in caps reads as a different word. */
@@ -2869,7 +3061,10 @@ div.ch-reaction-tip {
   text-transform: uppercase;
   color: var(--sol-text-dim);
 }
-.ch-eyebrow-name { text-transform: none; letter-spacing: 0; }
+.ch-eyebrow-name {
+  text-transform: none;
+  letter-spacing: 0;
+}
 
 /* Key legend at the foot of a chat dialog — the palette's, verbatim. */
 .ch-modal-legend {
@@ -2881,7 +3076,11 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-text-dim);
 }
-.ch-modal-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.ch-modal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* ── New message modal ───────────────────────────────────────────────────── */
 
@@ -2949,7 +3148,9 @@ div.ch-reaction-tip {
   border-radius: 999px;
   color: var(--sol-text-dim);
 }
-.ch-nm-chip button:hover { color: var(--sol-red); }
+.ch-nm-chip button:hover {
+  color: var(--sol-red);
+}
 
 .ch-nm-list {
   flex: 1 1 auto;
@@ -2993,7 +3194,10 @@ div.ch-reaction-tip {
   background: color-mix(in srgb, var(--sol-text) 6%, transparent);
 }
 
-.ch-nm-go-icon { color: var(--sol-text-dim); flex-shrink: 0; }
+.ch-nm-go-icon {
+  color: var(--sol-text-dim);
+  flex-shrink: 0;
+}
 
 .ch-nm-empty {
   display: flex;
@@ -3015,7 +3219,10 @@ div.ch-reaction-tip {
   font-size: 12px;
   color: var(--sol-text-muted);
 }
-.ch-nm-empty-action:hover { color: var(--sol-text); border-color: var(--sol-border); }
+.ch-nm-empty-action:hover {
+  color: var(--sol-text);
+  border-color: var(--sol-border);
+}
 
 .ch-nm-foot {
   display: flex;
@@ -3037,9 +3244,16 @@ div.ch-reaction-tip {
   background: var(--sol-cyan);
   transition: opacity 120ms;
 }
-.ch-nm-start:disabled { opacity: 0.35; cursor: default; }
-.ch-nm-start kbd { margin-left: 2px; }
-.ch-nm-start:not(:disabled):hover { opacity: 0.9; }
+.ch-nm-start:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ch-nm-start kbd {
+  margin-left: 2px;
+}
+.ch-nm-start:not(:disabled):hover {
+  opacity: 0.9;
+}
 
 .ch-nm-alt {
   display: inline-flex;
@@ -3049,29 +3263,46 @@ div.ch-reaction-tip {
   font-size: 12px;
   color: var(--sol-text-muted);
 }
-.ch-nm-alt:hover { color: var(--sol-text); }
+.ch-nm-alt:hover {
+  color: var(--sol-text);
+}
 
 /* ── Suggested DMs (teammates without an open room) ──────────────────────── */
 
-.ch-chan-suggest { opacity: 0.62; }
-.ch-chan-suggest:hover { opacity: 1; }
+.ch-chan-suggest {
+  opacity: 0.62;
+}
+.ch-chan-suggest:hover {
+  opacity: 1;
+}
 
-.ch-chan-suggest .ch-chan-name { font-weight: 400; }
+.ch-chan-suggest .ch-chan-name {
+  font-weight: 400;
+}
 
 /* ── Chat search ─────────────────────────────────────────────────────────── */
 
-.ch-search-overlay { --ch-modal-top: 9vh; }
-.ch-search { --ch-modal-w: 680px; --ch-modal-h: 74vh; }
+.ch-search-overlay {
+  --ch-modal-top: 9vh;
+}
+.ch-search {
+  --ch-modal-w: 680px;
+  --ch-modal-h: 74vh;
+}
 
 .ch-search-bar {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 40%, transparent);
 }
 
-.ch-search-bar-icon { color: var(--sol-text-muted); flex-shrink: 0; }
+.ch-search-bar-icon {
+  color: var(--sol-text-muted);
+  flex-shrink: 0;
+}
 
 .ch-search-bar input {
   flex: 1 1 auto;
@@ -3082,7 +3313,9 @@ div.ch-reaction-tip {
   font-size: 14px;
   color: var(--sol-text);
 }
-.ch-search-bar input::placeholder { color: var(--sol-text-dim); }
+.ch-search-bar input::placeholder {
+  color: var(--sol-text-dim);
+}
 
 .ch-search-chips {
   display: flex;
@@ -3100,9 +3333,14 @@ div.ch-reaction-tip {
   font-size: var(--fs-meta);
   color: var(--sol-text-muted);
   border: 1px solid color-mix(in srgb, var(--sol-border) 70%, transparent);
-  transition: color 120ms, border-color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    border-color 120ms,
+    background 120ms;
 }
-button.ch-search-chip:hover { color: var(--sol-text); }
+button.ch-search-chip:hover {
+  color: var(--sol-text);
+}
 
 .ch-search-chip-on {
   color: var(--sol-cyan);
@@ -3151,7 +3389,9 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   padding: 10px 8px;
 }
 
-.ch-search-group { margin-bottom: 6px; }
+.ch-search-group {
+  margin-bottom: 6px;
+}
 
 .ch-search-room {
   display: flex;
@@ -3220,7 +3460,9 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   margin-top: 4px;
   flex-shrink: 0;
 }
-.ch-row-hot .ch-search-hit-go { opacity: 1; }
+.ch-row-hot .ch-search-hit-go {
+  opacity: 1;
+}
 
 /* The header affordance: a quiet pill that reads as "this surface is searchable". */
 .ch-search-open {
@@ -3234,14 +3476,14 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   border-radius: 7px;
   font-size: var(--fs-meta);
   color: var(--sol-text-dim);
-  transition: color 120ms, border-color 120ms;
+  transition:
+    color 120ms,
+    border-color 120ms;
 }
 .ch-search-open:hover {
   color: var(--sol-text-muted);
   border-color: color-mix(in srgb, var(--sol-border) 90%, transparent);
 }
-
-
 
 /* ── Walkie: voice messages ──────────────────────────────────────────────────
  *
@@ -3323,11 +3565,15 @@ button.ch-search-chip:hover { color: var(--sol-text); }
 }
 
 @keyframes ch-voice-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-voice-spinner { animation: none; }
+  .ch-voice-spinner {
+    animation: none;
+  }
 }
 
 /* The walkie's cool accent, not the call's violet: playing a voice note is
@@ -3346,7 +3592,9 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   border-radius: 50%;
   color: var(--walkie-rx);
   background: color-mix(in srgb, var(--walkie-rx) 14%, transparent);
-  transition: background 120ms, color 120ms;
+  transition:
+    background 120ms,
+    color 120ms;
 }
 
 .ch-voice-play:hover:not(:disabled) {
@@ -3386,11 +3634,17 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   --dir: var(--walkie-rx);
   border-color: color-mix(in srgb, var(--dir) 45%, transparent);
   background: color-mix(in srgb, var(--dir) 8%, transparent);
-  transition: background 120ms, border-color 120ms;
+  transition:
+    background 120ms,
+    border-color 120ms;
 }
 
-.ch-voice-tx { --dir: var(--walkie-tx); }
-.ch-voice-rx { --dir: var(--walkie-rx); }
+.ch-voice-tx {
+  --dir: var(--walkie-tx);
+}
+.ch-voice-rx {
+  --dir: var(--walkie-rx);
+}
 
 .ch-voice-live:hover:not(:disabled) {
   background: color-mix(in srgb, var(--dir) 16%, transparent);
@@ -3422,12 +3676,22 @@ button.ch-search-chip:hover { color: var(--sol-text); }
 }
 
 @keyframes ch-voice-breathe {
-  0%, 100% { opacity: 0.35; transform: scale(0.82); }
-  45%      { opacity: 1;    transform: scale(1); }
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-voice-dot { animation: none; opacity: 1; }
+  .ch-voice-dot {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* Where a visitor's composer would be (community page): reading is open,
@@ -3445,10 +3709,22 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   color: var(--sol-text-muted);
   font-size: 13px;
 }
-.ch-guest-post-compact { margin: 0 12px 12px; padding: 10px 12px; }
-.ch-guest-post-text { flex: 1; min-width: 12em; }
-.ch-guest-post-alt { color: var(--sol-text-dim); text-decoration: underline; text-underline-offset: 3px; }
-.ch-guest-post-alt:hover { color: var(--sol-text); }
+.ch-guest-post-compact {
+  margin: 0 12px 12px;
+  padding: 10px 12px;
+}
+.ch-guest-post-text {
+  flex: 1;
+  min-width: 12em;
+}
+.ch-guest-post-alt {
+  color: var(--sol-text-dim);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ch-guest-post-alt:hover {
+  color: var(--sol-text);
+}
 
 /* ── Slack mirror ─────────────────────────────────────────────────────────────
  * Every colour a --sol-* token, with two deliberate exceptions: the Slack mark
@@ -3472,7 +3748,10 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   font-size: var(--fs-meta);
   line-height: 1;
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease;
 }
 .ch-head-slack:hover {
   color: var(--sol-text);
@@ -3490,23 +3769,43 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   opacity: 0.55;
   margin-right: 1px;
 }
-.ch-head-slack-quiet::before { content: none; }
+.ch-head-slack-quiet::before {
+  content: none;
+}
 /* Mirrored: the pill is the mark and a dot, nothing to read twice. */
-.ch-head-slack-live, .ch-head-slack-paused, .ch-head-slack-error { padding: 0 6px; gap: 4px; }
+.ch-head-slack-live,
+.ch-head-slack-paused,
+.ch-head-slack-error {
+  padding: 0 6px;
+  gap: 4px;
+}
 
 /* The Slack mark as a channel row's label (drawn quiet by SlackLogo). Sits
  * after the name, a size under the row's other glyphs; hidden with the names
  * in the narrow strip. */
-.ch-chan-slack { width: 9px; height: 9px; flex: 0 0 auto; }
-.ch-head-slack-none { border-style: dashed; color: var(--sol-text-dim); }
+.ch-chan-slack {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+}
+.ch-head-slack-none {
+  border-style: dashed;
+  color: var(--sol-text-dim);
+}
 .ch-head-slack-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
   background: var(--sol-green);
 }
-.ch-head-slack-glyph { width: 9px; height: 9px; color: var(--sol-text-dim); }
-.ch-head-slack-glyph-warn { color: var(--sol-orange); }
+.ch-head-slack-glyph {
+  width: 9px;
+  height: 9px;
+  color: var(--sol-text-dim);
+}
+.ch-head-slack-glyph-warn {
+  color: var(--sol-orange);
+}
 
 /* Per-line glyph, beside the time; its title names it. */
 .ch-slack-mark {
@@ -3515,8 +3814,13 @@ button.ch-search-chip:hover { color: var(--sol-text); }
   align-self: center;
   color: var(--sol-text-muted);
 }
-a.ch-slack-mark:hover { color: var(--sol-text); }
-.ch-slack-mark-local { color: var(--sol-text-dim); opacity: 0.8; }
+a.ch-slack-mark:hover {
+  color: var(--sol-text);
+}
+.ch-slack-mark-local {
+  color: var(--sol-text-dim);
+  opacity: 0.8;
+}
 .ch-slack-chip {
   border-color: color-mix(in srgb, var(--sol-text-muted) 45%, transparent);
   color: var(--sol-text-muted);
@@ -3539,8 +3843,13 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-left: 2px solid color-mix(in srgb, var(--sol-border) 90%, transparent);
   color: var(--sol-text-secondary);
 }
-.ch-msg-body blockquote p { margin: 2px 0; }
-.ch-msg-body blockquote img { max-height: 200px; border-radius: 4px; }
+.ch-msg-body blockquote p {
+  margin: 2px 0;
+}
+.ch-msg-body blockquote img {
+  max-height: 200px;
+  border-radius: 4px;
+}
 
 /* A quoted message (ChatQuote): the author's face, room and time over the
    quoted words, opening the original. */
@@ -3563,9 +3872,21 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   text-decoration: none;
   color: inherit;
 }
-.ch-quote-head:hover .ch-quote-author { text-decoration: underline; }
-.ch-quote-author { font-weight: 600; color: var(--sol-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ch-quote-meta { font-size: var(--fs-meta); color: var(--sol-text-dim); white-space: nowrap; }
+.ch-quote-head:hover .ch-quote-author {
+  text-decoration: underline;
+}
+.ch-quote-author {
+  font-weight: 600;
+  color: var(--sol-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-quote-meta {
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+  white-space: nowrap;
+}
 .ch-quote-slack {
   display: inline-grid;
   place-items: center;
@@ -3574,8 +3895,13 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-radius: 5px;
   background: color-mix(in srgb, var(--sol-bg-alt) 80%, transparent);
 }
-.ch-quote-body { color: var(--sol-text-secondary); }
-.ch-quote-body p { margin: 2px 0; font-style: normal; }
+.ch-quote-body {
+  color: var(--sol-text-secondary);
+}
+.ch-quote-body p {
+  margin: 2px 0;
+  font-style: normal;
+}
 
 /* A Slack person named in a mirrored line (slackSync slackPersonHref): a
    mention chip that opens the DM with them, or them in Slack. */
@@ -3606,8 +3932,24 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   backdrop-filter: blur(3px);
   animation: ch-slack-fade 140ms ease-out;
 }
-@keyframes ch-slack-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ch-slack-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ch-slack-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ch-slack-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .ch-slack-dialog {
   width: min(560px, calc(100vw - 24px));
   max-height: calc(100vh - 12vh);
@@ -3627,9 +3969,14 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   align-items: center;
   gap: 10px;
   padding: 14px 16px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 55%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 55%, transparent);
 }
-.ch-slack-title { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+.ch-slack-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
 .ch-slack-sub {
   display: flex;
   align-items: center;
@@ -3641,8 +3988,14 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ch-slack-arrow { margin: 0 4px; color: var(--sol-text-dim); }
-.ch-slack-ws { color: var(--sol-text-dim); font-weight: 400; }
+.ch-slack-arrow {
+  margin: 0 4px;
+  color: var(--sol-text-dim);
+}
+.ch-slack-ws {
+  color: var(--sol-text-dim);
+  font-weight: 400;
+}
 .ch-slack-close {
   margin-left: auto;
   width: 24px;
@@ -3652,23 +4005,68 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-size: 16px;
   line-height: 1;
 }
-.ch-slack-close:hover { color: var(--sol-text); background: var(--sol-bg-highlight); }
-.ch-slack-body { padding: 12px 16px 14px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
-.ch-slack-lede { font-size: 12px; line-height: 1.55; color: var(--sol-text-secondary); margin: 0; }
-.ch-slack-fine { font-size: var(--fs-meta); line-height: 1.5; color: var(--sol-text-dim); margin: 0; }
-.ch-slack-quiet { font-size: var(--fs-meta); color: var(--sol-text-dim); padding: 8px 2px; }
-.ch-slack-quiet:hover:not(:disabled) { color: var(--sol-text); }
-.ch-slack-quiet:disabled { opacity: 0.45; cursor: not-allowed; }
+.ch-slack-close:hover {
+  color: var(--sol-text);
+  background: var(--sol-bg-highlight);
+}
+.ch-slack-body {
+  padding: 12px 16px 14px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ch-slack-lede {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--sol-text-secondary);
+  margin: 0;
+}
+.ch-slack-fine {
+  font-size: var(--fs-meta);
+  line-height: 1.5;
+  color: var(--sol-text-dim);
+  margin: 0;
+}
+.ch-slack-quiet {
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+  padding: 8px 2px;
+}
+.ch-slack-quiet:hover:not(:disabled) {
+  color: var(--sol-text);
+}
+.ch-slack-quiet:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* ── Channel browser (add channels from Slack) ─────────────────────────────
  * Wider than the per channel dialog: the list is the point, and a row carries
  * a name, a purpose, a member count and an import state side by side. */
-.ch-slack-browser { width: min(680px, calc(100vw - 24px)); }
-.ch-slack-browser-body { gap: 16px; }
-.ch-slack-browser-tools { display: flex; align-items: center; gap: 10px; }
-.ch-slack-browser-tools .ch-slack-search { flex: 1 1 auto; }
-.ch-slack-browser-quick { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.ch-slack-browser-list { max-height: min(340px, 44vh); }
+.ch-slack-browser {
+  width: min(680px, calc(100vw - 24px));
+}
+.ch-slack-browser-body {
+  gap: 16px;
+}
+.ch-slack-browser-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ch-slack-browser-tools .ch-slack-search {
+  flex: 1 1 auto;
+}
+.ch-slack-browser-quick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.ch-slack-browser-list {
+  max-height: min(340px, 44vh);
+}
 .ch-slack-browser-heading {
   padding: 8px 9px 3px;
   font-size: var(--fs-mark);
@@ -3676,10 +4074,18 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sol-text-dim);
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
 }
-.ch-slack-browser-row { height: auto; min-height: 34px; padding: 0 9px 0 0; gap: 0; }
-.ch-slack-browser-row-here { color: var(--sol-text-dim); }
+.ch-slack-browser-row {
+  height: auto;
+  min-height: 34px;
+  padding: 0 9px 0 0;
+  gap: 0;
+}
+.ch-slack-browser-row-here {
+  color: var(--sol-text-dim);
+}
 .ch-slack-browser-main {
   display: flex;
   align-items: center;
@@ -3691,7 +4097,9 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   text-align: left;
   color: inherit;
 }
-.ch-slack-browser-main:disabled { cursor: default; }
+.ch-slack-browser-main:disabled {
+  cursor: default;
+}
 .ch-slack-box {
   width: 14px;
   height: 14px;
@@ -3703,13 +4111,24 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-radius: 3px;
   color: var(--sol-bg);
   background: transparent;
-  transition: background 100ms ease, border-color 100ms ease;
+  transition:
+    background 100ms ease,
+    border-color 100ms ease;
 }
-.ch-slack-box-on { background: var(--sol-cyan); border-color: var(--sol-cyan); }
-.ch-slack-browser-row-here .ch-slack-box { border-style: dashed; color: var(--sol-text-dim); }
+.ch-slack-box-on {
+  background: var(--sol-cyan);
+  border-color: var(--sol-cyan);
+}
+.ch-slack-browser-row-here .ch-slack-box {
+  border-style: dashed;
+  color: var(--sol-text-dim);
+}
 /* The name never truncates in favour of the purpose: the purpose is the one
  * that gives way, since the name is what the row is FOR. */
-.ch-slack-browser-main .ch-slack-row-name { flex: 0 0 auto; max-width: 45%; }
+.ch-slack-browser-main .ch-slack-row-name {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
 .ch-slack-browser-purpose {
   flex: 1 1 0;
   min-width: 0;
@@ -3719,8 +4138,15 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-size: var(--fs-meta);
   color: var(--sol-text-dim);
 }
-.ch-slack-browser-row .ch-slack-row-meta { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-.ch-slack-browser-since { color: color-mix(in srgb, var(--sol-text-dim) 75%, transparent); }
+.ch-slack-browser-row .ch-slack-row-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.ch-slack-browser-since {
+  color: color-mix(in srgb, var(--sol-text-dim) 75%, transparent);
+}
 .ch-slack-browser-state {
   flex: 0 0 auto;
   display: inline-flex;
@@ -3732,17 +4158,59 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   color: var(--sol-text-muted);
   white-space: nowrap;
 }
-.ch-slack-browser-state:empty { display: none; }
-.ch-slack-browser-progress { display: inline-flex; align-items: center; gap: 4px; color: var(--sol-green); }
-.ch-slack-browser-fail { display: inline-flex; align-items: center; gap: 4px; color: var(--sol-red); overflow: hidden; text-overflow: ellipsis; }
-.ch-slack-browser-invite { color: var(--sol-orange); }
-.ch-slack-browser-open { display: inline-flex; align-items: center; gap: 3px; color: var(--sol-cyan); }
-.ch-slack-browser-open:hover { text-decoration: underline; }
-.ch-slack-tag-quiet { color: var(--sol-text-dim); border-color: color-mix(in srgb, var(--sol-border) 80%, transparent); margin-left: 5px; }
-.ch-slack-import { margin-top: 6px; }
-.ch-slack-import-failed { color: var(--sol-orange); }
-.ch-slack-import-again { padding: 0 0 0 8px; text-decoration: underline; text-underline-offset: 2px; }
-.ch-slack-empty { display: flex; align-items: center; gap: 6px; padding: 14px 10px; font-size: var(--fs-meta); color: var(--sol-text-dim); }
+.ch-slack-browser-state:empty {
+  display: none;
+}
+.ch-slack-browser-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sol-green);
+}
+.ch-slack-browser-fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sol-red);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-slack-browser-invite {
+  color: var(--sol-orange);
+}
+.ch-slack-browser-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--sol-cyan);
+}
+.ch-slack-browser-open:hover {
+  text-decoration: underline;
+}
+.ch-slack-tag-quiet {
+  color: var(--sol-text-dim);
+  border-color: color-mix(in srgb, var(--sol-border) 80%, transparent);
+  margin-left: 5px;
+}
+.ch-slack-import {
+  margin-top: 6px;
+}
+.ch-slack-import-failed {
+  color: var(--sol-orange);
+}
+.ch-slack-import-again {
+  padding: 0 0 0 8px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ch-slack-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+}
 
 /* The step for private channels: one line and one button, in the browser
  * body under the list, only while the person has not connected. */
@@ -3757,7 +4225,9 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   line-height: 1.5;
   color: var(--sol-text-dim);
 }
-.ch-slack-connect-self > span { flex: 1 1 auto; }
+.ch-slack-connect-self > span {
+  flex: 1 1 auto;
+}
 .ch-slack-secondary {
   display: inline-flex;
   align-items: center;
@@ -3771,23 +4241,73 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   white-space: nowrap;
   background: var(--sol-bg);
 }
-.ch-slack-secondary:hover:not(:disabled) { background: var(--sol-bg-highlight); }
-.ch-slack-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-.ch-slack-browser-footnote { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
-.ch-slack-people-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; color: var(--sol-cyan); }
-.ch-slack-people-link:hover { text-decoration: underline; }
+.ch-slack-secondary:hover:not(:disabled) {
+  background: var(--sol-bg-highlight);
+}
+.ch-slack-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ch-slack-browser-footnote {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ch-slack-people-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  color: var(--sol-cyan);
+}
+.ch-slack-people-link:hover {
+  text-decoration: underline;
+}
 
 /* Your direct messages: a row with a switch, the history windows under it
  * while off. Compact on the settings card, boxed inside the browser. */
-.ch-slack-dms { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border: 1px dashed color-mix(in srgb, var(--sol-border) 80%, transparent); border-radius: 6px; }
-.ch-slack-dms-compact { border: 0; padding: 6px 0 0; border-top: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent); border-radius: 0; }
-.ch-slack-dms-row { display: flex; align-items: flex-start; gap: 10px; }
-.ch-slack-dms-row .ch-slack-secondary, .ch-slack-dms-row [role=switch] { flex: 0 0 auto; margin-top: 2px; }
-.ch-slack-dms-title { font-size: var(--fs-meta); font-weight: 600; color: var(--sol-text); margin-bottom: 2px; }
-.ch-slack-dms-window { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ch-slack-dms {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, var(--sol-border) 80%, transparent);
+  border-radius: 6px;
+}
+.ch-slack-dms-compact {
+  border: 0;
+  padding: 6px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent);
+  border-radius: 0;
+}
+.ch-slack-dms-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ch-slack-dms-row .ch-slack-secondary,
+.ch-slack-dms-row [role="switch"] {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.ch-slack-dms-title {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  color: var(--sol-text);
+  margin-bottom: 2px;
+}
+.ch-slack-dms-window {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 /* People from Slack: one row per person, the picker on the right. */
-.ch-slack-people { width: min(640px, calc(100vw - 24px)); }
+.ch-slack-people {
+  width: min(640px, calc(100vw - 24px));
+}
 .ch-slack-people-list {
   margin: 0;
   padding: 0;
@@ -3802,15 +4322,47 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   align-items: center;
   gap: 9px;
   padding: 6px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
 }
-.ch-slack-person:last-child { border-bottom: 0; }
-.ch-slack-person-face { flex: 0 0 auto; display: inline-flex; }
-.ch-slack-person-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.ch-slack-person-name { font-size: 12px; color: var(--sol-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ch-slack-person-meta { font-size: var(--fs-meta); color: var(--sol-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ch-slack-person-pick { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
-.ch-slack-person-as { flex: 0 0 auto; display: inline-flex; }
+.ch-slack-person:last-child {
+  border-bottom: 0;
+}
+.ch-slack-person-face {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+.ch-slack-person-who {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ch-slack-person-name {
+  font-size: 12px;
+  color: var(--sol-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-slack-person-meta {
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-slack-person-pick {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ch-slack-person-as {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
 .ch-slack-select {
   height: 26px;
   max-width: 220px;
@@ -3821,11 +4373,18 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   color: var(--sol-text);
   font-size: var(--fs-meta);
 }
-.ch-slack-select:disabled { opacity: 0.55; cursor: not-allowed; }
+.ch-slack-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 /* History windows: one row of cards, the default marked, each with its own
  * one line reason, so the choice is made from the words and not from memory. */
-.ch-slack-windows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ch-slack-windows {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
 .ch-slack-window {
   display: flex;
   flex-direction: column;
@@ -3837,18 +4396,51 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-radius: 6px;
   color: var(--sol-text-muted);
 }
-.ch-slack-window:hover:not(:disabled) { border-color: var(--sol-border); color: var(--sol-text); }
-.ch-slack-window:disabled { opacity: 0.6; cursor: not-allowed; }
-.ch-slack-window-on { border-color: var(--sol-cyan); background: color-mix(in srgb, var(--sol-cyan) 9%, transparent); color: var(--sol-text); }
-.ch-slack-window-label { display: inline-flex; align-items: center; font-size: var(--fs-meta); font-weight: 600; }
-.ch-slack-window-hint { font-size: var(--fs-meta); line-height: 1.4; color: var(--sol-text-dim); }
-.ch-slack-browser-foot { padding: 10px 16px 12px; border-top: 1px solid color-mix(in srgb, var(--sol-border) 55%, transparent); }
-@media (max-width: 640px) {
-  .ch-slack-windows { grid-template-columns: repeat(2, 1fr); }
-  .ch-slack-browser-tools { flex-wrap: wrap; }
-  .ch-slack-browser-purpose, .ch-slack-browser-since { display: none; }
+.ch-slack-window:hover:not(:disabled) {
+  border-color: var(--sol-border);
+  color: var(--sol-text);
 }
-.ch-slack-section { display: flex; flex-direction: column; gap: 7px; }
+.ch-slack-window:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.ch-slack-window-on {
+  border-color: var(--sol-cyan);
+  background: color-mix(in srgb, var(--sol-cyan) 9%, transparent);
+  color: var(--sol-text);
+}
+.ch-slack-window-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+.ch-slack-window-hint {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--sol-text-dim);
+}
+.ch-slack-browser-foot {
+  padding: 10px 16px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--sol-border) 55%, transparent);
+}
+@media (max-width: 640px) {
+  .ch-slack-windows {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ch-slack-browser-tools {
+    flex-wrap: wrap;
+  }
+  .ch-slack-browser-purpose,
+  .ch-slack-browser-since {
+    display: none;
+  }
+}
+.ch-slack-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
 .ch-slack-label {
   display: flex;
   align-items: baseline;
@@ -3868,12 +4460,14 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   height: 32px;
   padding: 0 14px;
   border-radius: 7px;
-  background: #4A154B;
+  background: #4a154b;
   color: #fff;
   font-size: 12px;
   font-weight: 600;
 }
-.ch-slack-add:disabled { opacity: 0.6; }
+.ch-slack-add:disabled {
+  opacity: 0.6;
+}
 .ch-slack-err {
   display: flex;
   gap: 6px;
@@ -3885,7 +4479,10 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-radius: 5px;
   background: color-mix(in srgb, var(--sol-red) 9%, transparent);
 }
-.ch-slack-err-inline { color: var(--sol-orange); background: color-mix(in srgb, var(--sol-orange) 10%, transparent); }
+.ch-slack-err-inline {
+  color: var(--sol-orange);
+  background: color-mix(in srgb, var(--sol-orange) 10%, transparent);
+}
 
 .ch-slack-search {
   display: flex;
@@ -3898,8 +4495,17 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   background: var(--sol-bg-inset, var(--sol-bg-alt));
   color: var(--sol-text-dim);
 }
-.ch-slack-search:focus-within { border-color: var(--sol-cyan); }
-.ch-slack-search input { flex: 1; min-width: 0; background: transparent; outline: none; font-size: 12px; color: var(--sol-text); }
+.ch-slack-search:focus-within {
+  border-color: var(--sol-cyan);
+}
+.ch-slack-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  outline: none;
+  font-size: 12px;
+  color: var(--sol-text);
+}
 .ch-slack-list {
   max-height: 200px;
   overflow: auto;
@@ -3915,14 +4521,37 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   padding: 0 9px;
   text-align: left;
   color: var(--sol-text-secondary);
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
 }
-.ch-slack-row:last-child { border-bottom: 0; }
-.ch-slack-row:hover:not(:disabled) { background: var(--sol-bg-highlight); color: var(--sol-text); }
-.ch-slack-row:disabled { opacity: 0.5; cursor: not-allowed; }
-.ch-slack-row-on { background: color-mix(in srgb, var(--sol-cyan) 12%, transparent); color: var(--sol-text); }
-.ch-slack-row-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ch-slack-row-meta { margin-left: auto; font-size: var(--fs-meta); color: var(--sol-text-dim); white-space: nowrap; }
+.ch-slack-row:last-child {
+  border-bottom: 0;
+}
+.ch-slack-row:hover:not(:disabled) {
+  background: var(--sol-bg-highlight);
+  color: var(--sol-text);
+}
+.ch-slack-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ch-slack-row-on {
+  background: color-mix(in srgb, var(--sol-cyan) 12%, transparent);
+  color: var(--sol-text);
+}
+.ch-slack-row-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-slack-row-meta {
+  margin-left: auto;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+  white-space: nowrap;
+}
 .ch-slack-tag {
   font-size: var(--fs-mark);
   font-weight: 700;
@@ -3934,9 +4563,15 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   padding: 0 4px;
   line-height: 13px;
 }
-.ch-slack-check { color: var(--sol-cyan); }
+.ch-slack-check {
+  color: var(--sol-cyan);
+}
 
-.ch-slack-dirs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ch-slack-dirs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
 .ch-slack-dir {
   display: flex;
   flex-direction: column;
@@ -3948,38 +4583,113 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   text-align: left;
   color: var(--sol-text-muted);
   background: transparent;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
 }
-.ch-slack-dir:hover { border-color: var(--sol-border); color: var(--sol-text); }
-.ch-slack-dir-on { border-color: var(--sol-cyan); background: color-mix(in srgb, var(--sol-cyan) 9%, transparent); color: var(--sol-text); }
-.ch-slack-dir-label { font-size: var(--fs-meta); font-weight: 600; }
-.ch-slack-dir-hint { font-size: var(--fs-meta); line-height: 1.4; color: var(--sol-text-dim); }
-@media (max-width: 520px) { .ch-slack-dirs { grid-template-columns: 1fr; } }
+.ch-slack-dir:hover {
+  border-color: var(--sol-border);
+  color: var(--sol-text);
+}
+.ch-slack-dir-on {
+  border-color: var(--sol-cyan);
+  background: color-mix(in srgb, var(--sol-cyan) 9%, transparent);
+  color: var(--sol-text);
+}
+.ch-slack-dir-label {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+.ch-slack-dir-hint {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--sol-text-dim);
+}
+@media (max-width: 520px) {
+  .ch-slack-dirs {
+    grid-template-columns: 1fr;
+  }
+}
 
-.ch-slack-opts { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid color-mix(in srgb, var(--sol-border) 55%, transparent); border-radius: 6px; }
+.ch-slack-opts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--sol-border) 55%, transparent);
+  border-radius: 6px;
+}
 .ch-slack-opt {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 7px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 30%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 30%, transparent);
 }
-.ch-slack-opt:last-child { border-bottom: 0; }
-.ch-slack-opt-dim { opacity: 0.5; }
-.ch-slack-opt-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.ch-slack-opt-label { font-size: var(--fs-meta); color: var(--sol-text); }
-.ch-slack-opt-hint { font-size: var(--fs-meta); line-height: 1.4; color: var(--sol-text-dim); }
+.ch-slack-opt:last-child {
+  border-bottom: 0;
+}
+.ch-slack-opt-dim {
+  opacity: 0.5;
+}
+.ch-slack-opt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ch-slack-opt-label {
+  font-size: var(--fs-meta);
+  color: var(--sol-text);
+}
+.ch-slack-opt-hint {
+  font-size: var(--fs-meta);
+  line-height: 1.4;
+  color: var(--sol-text-dim);
+}
 
-.ch-slack-seg { display: inline-flex; border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent); border-radius: 6px; overflow: hidden; align-self: flex-start; }
-.ch-slack-seg-item { height: 26px; padding: 0 10px; font-size: var(--fs-meta); color: var(--sol-text-muted); border-right: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent); }
-.ch-slack-seg-item:last-child { border-right: 0; }
-.ch-slack-seg-item:hover { color: var(--sol-text); background: var(--sol-bg-highlight); }
-.ch-slack-seg-on { color: var(--sol-text); background: color-mix(in srgb, var(--sol-cyan) 12%, transparent); }
+.ch-slack-seg {
+  display: inline-flex;
+  border: 1px solid color-mix(in srgb, var(--sol-border) 60%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+  align-self: flex-start;
+}
+.ch-slack-seg-item {
+  height: 26px;
+  padding: 0 10px;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-muted);
+  border-right: 1px solid color-mix(in srgb, var(--sol-border) 40%, transparent);
+}
+.ch-slack-seg-item:last-child {
+  border-right: 0;
+}
+.ch-slack-seg-item:hover {
+  color: var(--sol-text);
+  background: var(--sol-bg-highlight);
+}
+.ch-slack-seg-on {
+  color: var(--sol-text);
+  background: color-mix(in srgb, var(--sol-cyan) 12%, transparent);
+}
 
-.ch-slack-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; }
-.ch-slack-foot-split { justify-content: flex-start; }
-.ch-slack-foot-split > :last-child { margin-left: auto; }
+.ch-slack-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+}
+.ch-slack-foot-split {
+  justify-content: flex-start;
+}
+.ch-slack-foot-split > :last-child {
+  margin-left: auto;
+}
 .ch-slack-primary {
   height: 30px;
   padding: 0 14px;
@@ -3990,7 +4700,10 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-weight: 600;
   white-space: nowrap;
 }
-.ch-slack-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.ch-slack-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .ch-slack-secondary {
   display: inline-flex;
   align-items: center;
@@ -4002,10 +4715,30 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-size: var(--fs-meta);
   color: var(--sol-text-muted);
 }
-.ch-slack-secondary:hover { color: var(--sol-text); background: var(--sol-bg-highlight); }
-.ch-slack-secondary-danger:hover { color: var(--sol-red); border-color: color-mix(in srgb, var(--sol-red) 50%, transparent); }
-.ch-slack-danger { height: 28px; padding: 0 10px; border-radius: 6px; background: var(--sol-red); color: #fff; font-size: var(--fs-meta); font-weight: 600; }
-.ch-slack-confirm { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-meta); color: var(--sol-text-muted); }
+.ch-slack-secondary:hover {
+  color: var(--sol-text);
+  background: var(--sol-bg-highlight);
+}
+.ch-slack-secondary-danger:hover {
+  color: var(--sol-red);
+  border-color: color-mix(in srgb, var(--sol-red) 50%, transparent);
+}
+.ch-slack-danger {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--sol-red);
+  color: #fff;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+.ch-slack-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-muted);
+}
 
 .ch-slack-status {
   display: flex;
@@ -4016,30 +4749,117 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   border-radius: 7px;
   background: color-mix(in srgb, var(--sol-green) 6%, transparent);
 }
-.ch-slack-status-paused { border-color: color-mix(in srgb, var(--sol-border) 80%, transparent); background: color-mix(in srgb, var(--sol-bg-alt) 60%, transparent); }
-.ch-slack-status-row { display: flex; align-items: center; gap: 8px; }
-.ch-slack-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--sol-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-green) 18%, transparent); }
-.ch-slack-dot-paused { background: var(--sol-text-dim); box-shadow: none; }
-.ch-slack-dot-err { background: var(--sol-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-orange) 18%, transparent); }
-.ch-slack-status-text { font-size: 12px; font-weight: 600; }
-.ch-slack-open { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-meta); color: var(--sol-text-muted); }
-.ch-slack-open:hover { color: var(--sol-text); text-decoration: underline; }
-.ch-slack-open-next { margin-left: 10px; }
-.ch-slack-facts { display: grid; grid-template-columns: repeat(3, auto); gap: 4px 18px; margin: 0; }
-.ch-slack-facts dt { font-size: var(--fs-mark); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sol-text-dim); }
-.ch-slack-facts dd { margin: 1px 0 0; font-size: var(--fs-meta); color: var(--sol-text-secondary); font-variant-numeric: tabular-nums; }
+.ch-slack-status-paused {
+  border-color: color-mix(in srgb, var(--sol-border) 80%, transparent);
+  background: color-mix(in srgb, var(--sol-bg-alt) 60%, transparent);
+}
+.ch-slack-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ch-slack-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sol-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-green) 18%, transparent);
+}
+.ch-slack-dot-paused {
+  background: var(--sol-text-dim);
+  box-shadow: none;
+}
+.ch-slack-dot-err {
+  background: var(--sol-orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sol-orange) 18%, transparent);
+}
+.ch-slack-status-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+.ch-slack-open {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-muted);
+}
+.ch-slack-open:hover {
+  color: var(--sol-text);
+  text-decoration: underline;
+}
+.ch-slack-open-next {
+  margin-left: 10px;
+}
+.ch-slack-facts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 4px 18px;
+  margin: 0;
+}
+.ch-slack-facts dt {
+  font-size: var(--fs-mark);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sol-text-dim);
+}
+.ch-slack-facts dd {
+  margin: 1px 0 0;
+  font-size: var(--fs-meta);
+  color: var(--sol-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
 
-.ch-slack-ledger { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; border: 1px solid color-mix(in srgb, var(--sol-border) 45%, transparent); border-radius: 6px; max-height: 150px; overflow: auto; }
-.ch-slack-ledger-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 4px 9px; font-size: var(--fs-meta); border-bottom: 1px solid color-mix(in srgb, var(--sol-border) 25%, transparent); color: var(--sol-text-muted); }
-.ch-slack-ledger-row:last-child { border-bottom: 0; }
-.ch-slack-ledger-kind { color: var(--sol-text-secondary); }
-.ch-slack-ledger-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
-.ch-slack-ledger-done .ch-slack-ledger-status { color: var(--sol-green); }
-.ch-slack-ledger-failed .ch-slack-ledger-status { color: var(--sol-red); }
-.ch-slack-ledger-time { color: var(--sol-text-dim); font-variant-numeric: tabular-nums; }
+.ch-slack-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--sol-border) 45%, transparent);
+  border-radius: 6px;
+  max-height: 150px;
+  overflow: auto;
+}
+.ch-slack-ledger-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  padding: 4px 9px;
+  font-size: var(--fs-meta);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-border) 25%, transparent);
+  color: var(--sol-text-muted);
+}
+.ch-slack-ledger-row:last-child {
+  border-bottom: 0;
+}
+.ch-slack-ledger-kind {
+  color: var(--sol-text-secondary);
+}
+.ch-slack-ledger-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+}
+.ch-slack-ledger-done .ch-slack-ledger-status {
+  color: var(--sol-green);
+}
+.ch-slack-ledger-failed .ch-slack-ledger-status {
+  color: var(--sol-red);
+}
+.ch-slack-ledger-time {
+  color: var(--sol-text-dim);
+  font-variant-numeric: tabular-nums;
+}
 
 /* "More" behind the four everyday switches. */
-.ch-slack-more { margin-top: -6px; }
+.ch-slack-more {
+  margin-top: -6px;
+}
 .ch-slack-more > summary {
   display: inline-flex;
   align-items: center;
@@ -4051,22 +4871,57 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   padding: 4px 2px;
   user-select: none;
 }
-.ch-slack-more > summary::-webkit-details-marker { display: none; }
-.ch-slack-more > summary::before { content: "▸"; font-size: var(--fs-meta); color: var(--sol-text-dim); }
-.ch-slack-more[open] > summary::before { content: "▾"; }
-.ch-slack-more > summary:hover { color: var(--sol-text); }
-.ch-slack-more-count { font-size: var(--fs-mark); color: var(--sol-cyan); }
-.ch-slack-more > .ch-slack-opts { margin-top: 6px; }
-.ch-slack-summary { padding: 6px 8px; border-left: 2px solid color-mix(in srgb, var(--sol-border) 90%, transparent); }
+.ch-slack-more > summary::-webkit-details-marker {
+  display: none;
+}
+.ch-slack-more > summary::before {
+  content: "▸";
+  font-size: var(--fs-meta);
+  color: var(--sol-text-dim);
+}
+.ch-slack-more[open] > summary::before {
+  content: "▾";
+}
+.ch-slack-more > summary:hover {
+  color: var(--sol-text);
+}
+.ch-slack-more-count {
+  font-size: var(--fs-mark);
+  color: var(--sol-cyan);
+}
+.ch-slack-more > .ch-slack-opts {
+  margin-top: 6px;
+}
+.ch-slack-summary {
+  padding: 6px 8px;
+  border-left: 2px solid color-mix(in srgb, var(--sol-border) 90%, transparent);
+}
 
 /* Phone width: stack what was a row. */
 @media (max-width: 520px) {
-  .ch-slack-seg { display: flex; flex-wrap: wrap; align-self: stretch; }
-  .ch-slack-seg-item { flex: 1 1 45%; }
-  .ch-slack-ledger-row { grid-template-columns: 1fr auto; }
-  .ch-slack-ledger-status { grid-column: 1 / -1; max-width: none; white-space: normal; }
-  .ch-slack-facts { grid-template-columns: 1fr 1fr; }
-  .ch-slack-foot, .ch-slack-foot-split { flex-wrap: wrap; }
+  .ch-slack-seg {
+    display: flex;
+    flex-wrap: wrap;
+    align-self: stretch;
+  }
+  .ch-slack-seg-item {
+    flex: 1 1 45%;
+  }
+  .ch-slack-ledger-row {
+    grid-template-columns: 1fr auto;
+  }
+  .ch-slack-ledger-status {
+    grid-column: 1 / -1;
+    max-width: none;
+    white-space: normal;
+  }
+  .ch-slack-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ch-slack-foot,
+  .ch-slack-foot-split {
+    flex-wrap: wrap;
+  }
 }
 
 /* The standalone community page: a slim header over the three column shell. */
@@ -4077,7 +4932,10 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   min-height: 0;
   background: var(--sol-bg);
 }
-.ch-community-page > .ch-shell { flex: 1 1 auto; min-height: 0; }
+.ch-community-page > .ch-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .ch-community-bar {
   display: flex;
   align-items: center;
@@ -4090,13 +4948,36 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-size: 13px;
   flex: 0 0 auto;
 }
-.ch-community-brand { display: inline-flex; align-items: center; color: var(--sol-text); }
-.ch-community-where { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
-.ch-community-slash { color: var(--sol-text-dim); font-weight: 400; }
-.ch-community-links { display: flex; gap: 14px; margin-left: 10px; }
-.ch-community-links a { color: var(--sol-text-muted); text-decoration: none; }
-.ch-community-links a:hover { color: var(--sol-text); }
-.ch-community-spacer { flex: 1; }
+.ch-community-brand {
+  display: inline-flex;
+  align-items: center;
+  color: var(--sol-text);
+}
+.ch-community-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.ch-community-slash {
+  color: var(--sol-text-dim);
+  font-weight: 400;
+}
+.ch-community-links {
+  display: flex;
+  gap: 14px;
+  margin-left: 10px;
+}
+.ch-community-links a {
+  color: var(--sol-text-muted);
+  text-decoration: none;
+}
+.ch-community-links a:hover {
+  color: var(--sol-text);
+}
+.ch-community-spacer {
+  flex: 1;
+}
 .ch-community-cta {
   padding: 5px 12px;
   border-radius: 8px;
@@ -4105,34 +4986,103 @@ a.ch-slack-mark:hover { color: var(--sol-text); }
   font-weight: 600;
   text-decoration: none;
 }
-.ch-community-cta:hover { opacity: 0.9; }
-@media (max-width: 640px) { .ch-community-links { display: none; } }
+.ch-community-cta:hover {
+  opacity: 0.9;
+}
+@media (max-width: 640px) {
+  .ch-community-links {
+    display: none;
+  }
+}
 
 /* Modern (.modern-style): words in the interface sans. */
-.ch-listen-handle:is(.modern-style *), .ch-community-bar:is(.modern-style *) { font-family: var(--font-ui, system-ui, sans-serif); }
+.ch-listen-handle:is(.modern-style *),
+.ch-community-bar:is(.modern-style *) {
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
 
 /* ── Modern (.modern-style on <html>): chat's controls are the app's
    primitives (components/ui/modernLook.ts), drawn from the same tokens: the
    control radius, the 24px floor for anything pressable, the menu row, the
    tooltip card, the filter chip and the segmented tray. ── */
-.modern-style .ch-tool { width: 24px; height: 24px; border-radius: var(--radius-control); }
+.modern-style .ch-tool {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-control);
+}
 /* The members control is a .ch-tool that holds a face pile and a count. The
    square above would pin it to 24px and paint both across the search button. */
-.modern-style .ch-members-btn { width: auto; height: 24px; }
-.modern-style .ch-round-btn { min-height: 24px; padding: 0 8px; border-radius: var(--radius-control); font-weight: 500; }
-.modern-style .ch-round-chip { min-height: 24px; padding: 0 8px; border-radius: var(--radius-control); }
-.modern-style .ch-menu-item { min-height: var(--control-sm); padding: 4px 8px; border-radius: var(--radius-control); font-size: var(--fs-ui); color: var(--sol-text); }
-.modern-style .ch-menu-item:hover { background-color: color-mix(in srgb, var(--sol-class-cyan) 10%, transparent); }
+.modern-style .ch-members-btn {
+  width: auto;
+  height: 24px;
+}
+.modern-style .ch-round-btn {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  font-weight: 500;
+}
+.modern-style .ch-round-chip {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+}
+.modern-style .ch-menu-item {
+  min-height: var(--control-sm);
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-ui);
+  color: var(--sol-text);
+}
+.modern-style .ch-menu-item:hover {
+  background-color: color-mix(in srgb, var(--sol-class-cyan) 10%, transparent);
+}
 .modern-style .ch-rail-tip,
-.modern-style .ch-reaction-tip { border-radius: var(--radius-control); border-color: var(--sol-border); background-color: var(--sol-card); box-shadow: var(--shadow-popover); font-size: var(--fs-meta); }
-.modern-style .ch-nm-chip { border-radius: var(--radius-control); }
-.modern-style .ch-search-chip { min-height: 24px; padding: 0 8px; border-radius: var(--radius-control); border-color: var(--sol-border); font-weight: 500; }
-.modern-style .ch-search-chip.ch-search-chip-on { color: var(--sol-class-cyan); border-color: color-mix(in srgb, var(--sol-class-cyan) 40%, transparent); background-color: color-mix(in srgb, var(--sol-class-cyan) 10%, transparent); }
-.modern-style .ch-slack-seg { gap: 2px; padding: 2px; border: 0; border-radius: var(--radius-control); background-color: color-mix(in srgb, var(--sol-text) 6%, transparent); }
-.modern-style .ch-slack-seg-item { height: 24px; border-right: 0; border-radius: 4px; font-weight: 500; }
-.modern-style .ch-slack-seg-item.ch-slack-seg-on { background-color: var(--sol-card); color: var(--sol-text); box-shadow: 0 0 0 1px var(--sol-border); }
+.modern-style .ch-reaction-tip {
+  border-radius: var(--radius-control);
+  border-color: var(--sol-border);
+  background-color: var(--sol-card);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--fs-meta);
+}
+.modern-style .ch-nm-chip {
+  border-radius: var(--radius-control);
+}
+.modern-style .ch-search-chip {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-control);
+  border-color: var(--sol-border);
+  font-weight: 500;
+}
+.modern-style .ch-search-chip.ch-search-chip-on {
+  color: var(--sol-class-cyan);
+  border-color: color-mix(in srgb, var(--sol-class-cyan) 40%, transparent);
+  background-color: color-mix(in srgb, var(--sol-class-cyan) 10%, transparent);
+}
+.modern-style .ch-slack-seg {
+  gap: 2px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background-color: color-mix(in srgb, var(--sol-text) 6%, transparent);
+}
+.modern-style .ch-slack-seg-item {
+  height: 24px;
+  border-right: 0;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.modern-style .ch-slack-seg-item.ch-slack-seg-on {
+  background-color: var(--sol-card);
+  color: var(--sol-text);
+  box-shadow: 0 0 0 1px var(--sol-border);
+}
 .modern-style .ch-tool:focus-visible,
 .modern-style .ch-round-btn:focus-visible,
 .modern-style .ch-menu-item:focus-visible,
 .modern-style .ch-search-chip:focus-visible,
-.modern-style .ch-slack-seg-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.modern-style .ch-slack-seg-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

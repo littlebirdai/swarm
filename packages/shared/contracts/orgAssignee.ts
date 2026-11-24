@@ -20,9 +20,15 @@ import { avatarOf, type AvatarKey } from "./orgAvatars";
 // ship a task because it was assigned to someone else; nothing had told it
 // that. Every place the CLI shows an assignee to an agent says this sentence,
 // so no model infers a permission from a name.
-export const ASSIGNEE_MEANS = "An assignee is who answers for the task being done, never who may work on it: any session may work any task.";
+export const ASSIGNEE_MEANS =
+  "An assignee is who answers for the task being done, never who may work on it: any session may work any task.";
 
-export type PersonAssigneeInfo = { kind?: undefined; name: string; image?: string; github_username?: string };
+export type PersonAssigneeInfo = {
+  kind?: undefined;
+  name: string;
+  image?: string;
+  github_username?: string;
+};
 
 export type RoleAssigneeInfo = {
   kind: "role";
@@ -62,14 +68,28 @@ export function roleAssigneeInfo(role: AssigneeRole): RoleAssigneeInfo {
   };
 }
 
-export function isRoleAssignee(info: { kind?: string } | null | undefined): info is RoleAssigneeInfo {
+export function isRoleAssignee(
+  info: { kind?: string } | null | undefined,
+): info is RoleAssigneeInfo {
   return info?.kind === "role";
 }
 
 /** Every field of either shape, so one comparison serves both. */
-const ASSIGNEE_FIELDS = ["kind", "name", "image", "github_username", "handle", "avatar", "role_id", "role_short_id"] as const;
+const ASSIGNEE_FIELDS = [
+  "kind",
+  "name",
+  "image",
+  "github_username",
+  "handle",
+  "avatar",
+  "role_id",
+  "role_short_id",
+] as const;
 
-export function sameAssigneeInfo(a: AssigneeInfo | null | undefined, b: unknown): boolean {
+export function sameAssigneeInfo(
+  a: AssigneeInfo | null | undefined,
+  b: unknown,
+): boolean {
   if (!a && !b) return true;
   if (!a || !b) return false;
   return ASSIGNEE_FIELDS.every((f) => (a as any)[f] === (b as any)[f]);
@@ -89,30 +109,46 @@ export function sameAssigneeInfo(a: AssigneeInfo | null | undefined, b: unknown)
 export type ChainRole = {
   _id: unknown;
   status?: string;
-  reports_to?: { kind: "user"; user_id: unknown } | { kind: "role"; role_id: unknown } | null;
+  reports_to?:
+    | { kind: "user"; user_id: unknown }
+    | { kind: "role"; role_id: unknown }
+    | null;
 };
 
 /** Deeper than any real chart; also the guard against a cycle in bad data. */
 export const MAX_CHAIN_DEPTH = 32;
 
-export type ChainParent = { kind: "user"; key: string } | { kind: "role"; key: string; role: ChainRole } | null;
+export type ChainParent =
+  | { kind: "user"; key: string }
+  | { kind: "role"; key: string; role: ChainRole }
+  | null;
 
 /** One step up the chain: the person a role answers to, the role above it
  *  when that role is in `byId`, or null when the chain ends here (no parent
  *  set, or a parent role the caller's tree does not hold). */
-export function chainParentOf(role: ChainRole, byId: ReadonlyMap<string, ChainRole>): ChainParent {
+export function chainParentOf(
+  role: ChainRole,
+  byId: ReadonlyMap<string, ChainRole>,
+): ChainParent {
   const up = role.reports_to;
   if (!up) return null;
   if (up.kind === "user") return { kind: "user", key: String(up.user_id) };
   const parent = byId.get(String(up.role_id));
-  return parent ? { kind: "role", key: String(parent._id), role: parent } : null;
+  return parent
+    ? { kind: "role", key: String(parent._id), role: parent }
+    : null;
 }
 
-export const chainIndex = (roles: readonly ChainRole[]): Map<string, ChainRole> => new Map(roles.map((r) => [String(r._id), r]));
+export const chainIndex = (
+  roles: readonly ChainRole[],
+): Map<string, ChainRole> => new Map(roles.map((r) => [String(r._id), r]));
 
 /** The person at the top of a role's reporting chain, or null when the chain
  *  ends without one (a missing parent, a cycle). */
-export function chainHeadOf(roleId: unknown, roles: readonly ChainRole[]): string | null {
+export function chainHeadOf(
+  roleId: unknown,
+  roles: readonly ChainRole[],
+): string | null {
   const byId = chainIndex(roles);
   let cur = byId.get(String(roleId));
   for (let depth = 0; cur && depth < MAX_CHAIN_DEPTH; depth++) {
@@ -127,11 +163,19 @@ export function chainHeadOf(roleId: unknown, roles: readonly ChainRole[]): strin
 /** The roles whose chain ends at `userId`, parents before children, so a
  *  caller that nests groups can render them in order. Retired roles included
  *  (see above). */
-export function rolesInChainOf<R extends ChainRole>(userId: unknown, roles: readonly R[]): R[] {
+export function rolesInChainOf<R extends ChainRole>(
+  userId: unknown,
+  roles: readonly R[],
+): R[] {
   const byId = chainIndex(roles);
   const depthOf = (r: ChainRole): number => {
     let d = 0;
-    for (let up = chainParentOf(r, byId); up?.kind === "role" && d < MAX_CHAIN_DEPTH; up = chainParentOf(up.role, byId)) d++;
+    for (
+      let up = chainParentOf(r, byId);
+      up?.kind === "role" && d < MAX_CHAIN_DEPTH;
+      up = chainParentOf(up.role, byId)
+    )
+      d++;
     return d;
   };
   return roles
@@ -141,6 +185,12 @@ export function rolesInChainOf<R extends ChainRole>(userId: unknown, roles: read
 
 /** Every assignee value in a person's chain: the person, then each role under
  *  them. What `--chain me` filters on and what the Chain axis groups. */
-export function chainAssignees(userId: unknown, roles: readonly ChainRole[]): string[] {
-  return [String(userId), ...rolesInChainOf(userId, roles).map((r) => String(r._id))];
+export function chainAssignees(
+  userId: unknown,
+  roles: readonly ChainRole[],
+): string[] {
+  return [
+    String(userId),
+    ...rolesInChainOf(userId, roles).map((r) => String(r._id)),
+  ];
 }

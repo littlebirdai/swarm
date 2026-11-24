@@ -21,19 +21,32 @@ let cleanupInstalled = false;
 
 function kill(p: ChildProcess): void {
   live.delete(p);
-  if (p.pid) { try { process.kill(-p.pid, "SIGKILL"); } catch { /* already gone */ } }
-  try { p.kill("SIGKILL"); } catch { /* already gone */ }
+  if (p.pid) {
+    try {
+      process.kill(-p.pid, "SIGKILL");
+    } catch {
+      /* already gone */
+    }
+  }
+  try {
+    p.kill("SIGKILL");
+  } catch {
+    /* already gone */
+  }
 }
 
 function installCleanup(): void {
   if (cleanupInstalled) return;
   cleanupInstalled = true;
-  const offAll = () => { for (const p of [...live]) kill(p); };
+  const offAll = () => {
+    for (const p of [...live]) kill(p);
+  };
   process.on("exit", offAll);
   for (const sig of SIGNALS) {
     const onSignal = () => {
       offAll();
-      if (process.listenerCount(sig) === 1) process.exit(128 + (os.constants.signals[sig] ?? 1));
+      if (process.listenerCount(sig) === 1)
+        process.exit(128 + (os.constants.signals[sig] ?? 1));
     };
     process.on(sig, onSignal);
   }
@@ -50,6 +63,8 @@ export function cpuLoad(): CpuLoad {
         live.add(p);
       }
     },
-    off: () => { for (const p of loaders.splice(0)) kill(p); },
+    off: () => {
+      for (const p of loaders.splice(0)) kill(p);
+    },
   };
 }

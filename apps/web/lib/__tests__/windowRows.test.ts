@@ -13,7 +13,11 @@ describe("windowRows", () => {
     // The live page reached back to Sept 16 only.
     expect(windowRows(rows, sept16.created_at)).toEqual([sept16, today]);
     // Paging older lowered the floor.
-    expect(windowRows(rows, sept15.created_at)).toEqual([sept15, sept16, today]);
+    expect(windowRows(rows, sept15.created_at)).toEqual([
+      sept15,
+      sept16,
+      today,
+    ]);
     // History exhausted: everything.
     expect(windowRows(rows, 0)).toEqual(rows);
   });

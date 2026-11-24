@@ -12,10 +12,18 @@ import { projectCountsFor } from "./projectTaskCounts";
 type Ctx = { db: any };
 
 /** The tasks that name the project, the ones the caller may read. */
-export async function projectTasks(ctx: Ctx, userId: Id<"users">, projectId: Id<"projects">): Promise<any[]> {
-  const rows = await ctx.db.query("tasks").withIndex("by_project_id", (q: any) => q.eq("project_id", projectId)).collect();
+export async function projectTasks(
+  ctx: Ctx,
+  userId: Id<"users">,
+  projectId: Id<"projects">,
+): Promise<any[]> {
+  const rows = await ctx.db
+    .query("tasks")
+    .withIndex("by_project_id", (q: any) => q.eq("project_id", projectId))
+    .collect();
   const out: any[] = [];
-  for (const task of rows) if (await canAccessTask(ctx, userId, task)) out.push(task);
+  for (const task of rows)
+    if (await canAccessTask(ctx, userId, task)) out.push(task);
   return out;
 }
 
@@ -33,12 +41,29 @@ export async function projectTasksIn(
   userId: Id<"users">,
   projectId: Id<"projects">,
   statuses: readonly string[],
-  opts: { limit?: number; triage?: readonly (string | undefined)[]; keep?: (task: any) => boolean | Promise<boolean> } = {},
+  opts: {
+    limit?: number;
+    triage?: readonly (string | undefined)[];
+    keep?: (task: any) => boolean | Promise<boolean>;
+  } = {},
 ): Promise<any[]> {
   const tasks = () => ctx.db.query("tasks");
-  const ranges = statuses.flatMap((status) => opts.triage
-    ? opts.triage.map((triage) => tasks().withIndex("by_project_triage_status_updated", (q: any) => q.eq("project_id", projectId).eq("triage_status", triage).eq("status", status)))
-    : [tasks().withIndex("by_project_status_updated", (q: any) => q.eq("project_id", projectId).eq("status", status))]);
+  const ranges = statuses.flatMap((status) =>
+    opts.triage
+      ? opts.triage.map((triage) =>
+          tasks().withIndex("by_project_triage_status_updated", (q: any) =>
+            q
+              .eq("project_id", projectId)
+              .eq("triage_status", triage)
+              .eq("status", status),
+          ),
+        )
+      : [
+          tasks().withIndex("by_project_status_updated", (q: any) =>
+            q.eq("project_id", projectId).eq("status", status),
+          ),
+        ],
+  );
   const out: any[] = [];
   for (const range of ranges) {
     let taken = 0;
@@ -53,6 +78,12 @@ export async function projectTasksIn(
 }
 
 /** The same number, from project_task_counts rather than the tasks. */
-export async function projectProgress(ctx: Ctx, userId: Id<"users">, projectId: Id<"projects">): Promise<ProjectProgress> {
-  return (await projectCountsFor(ctx, userId, [projectId])).get(String(projectId))!;
+export async function projectProgress(
+  ctx: Ctx,
+  userId: Id<"users">,
+  projectId: Id<"projects">,
+): Promise<ProjectProgress> {
+  return (await projectCountsFor(ctx, userId, [projectId])).get(
+    String(projectId),
+  )!;
 }

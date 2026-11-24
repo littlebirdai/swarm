@@ -28,7 +28,12 @@ describe("pending-message insertion boundary", () => {
     const first = await insertEnqueuedPendingMessage(ctx, baseFields());
     expect(await ctx.db.get(first)).toMatchObject({ kill_generation: 0 });
     await ctx.db.patch("conversation_1", { pending_kill_generation: 7 });
-    const fields = { ...baseFields(), clientId: "message-command-2", kill_generation: 0, killGeneration: 0 };
+    const fields = {
+      ...baseFields(),
+      clientId: "message-command-2",
+      kill_generation: 0,
+      killGeneration: 0,
+    };
     const second = await insertEnqueuedPendingMessage(ctx, fields);
     expect(await ctx.db.get(second)).toMatchObject({ kill_generation: 7 });
     expect(await ctx.db.get(first)).toMatchObject({ kill_generation: 0 });
@@ -36,15 +41,26 @@ describe("pending-message insertion boundary", () => {
 
   test("a risk resend is a new admission at the current generation without restamping its original", async () => {
     const ctx = context();
-    ctx.db._tables.conversations = [{ _id: "conversation_1", pending_kill_generation: 2 }];
+    ctx.db._tables.conversations = [
+      { _id: "conversation_1", pending_kill_generation: 2 },
+    ];
     const original = await insertEnqueuedPendingMessage(ctx, baseFields());
     await ctx.db.patch("conversation_1", { pending_kill_generation: 3 });
     const resend = await insertRiskResendPendingMessage(ctx, {
-      ...baseFields(), clientId: "message-command-2",
-      delivery: { protocolVersion: 1, deliveryId: "message-command-2", conversationSequence: 8, executionEpoch: 3 },
+      ...baseFields(),
+      clientId: "message-command-2",
+      delivery: {
+        protocolVersion: 1,
+        deliveryId: "message-command-2",
+        conversationSequence: 8,
+        executionEpoch: 3,
+      },
       resendOfDeliveryId: "message-command-1",
     });
-    expect(await ctx.db.get(resend)).toMatchObject({ kill_generation: 3, resend_of_delivery_id: "message-command-1" });
+    expect(await ctx.db.get(resend)).toMatchObject({
+      kill_generation: 3,
+      resend_of_delivery_id: "message-command-1",
+    });
     expect(await ctx.db.get(original)).toMatchObject({ kill_generation: 2 });
   });
 
@@ -94,31 +110,50 @@ describe("pending-message insertion boundary", () => {
   test("fenced admission rejects a missing or mismatched caller-stable id", async () => {
     for (const clientId of [undefined, "different-id"]) {
       const ctx = context();
-      await expect(insertEnqueuedPendingMessage(ctx, {
-        ...baseFields(),
-        clientId,
-        delivery: {
-          protocolVersion: 1,
-          deliveryId: "message-command-1",
-          conversationSequence: 1,
-          executionEpoch: 1,
-        },
-      })).rejects.toBeInstanceOf(PendingMessageWriteError);
+      await expect(
+        insertEnqueuedPendingMessage(ctx, {
+          ...baseFields(),
+          clientId,
+          delivery: {
+            protocolVersion: 1,
+            deliveryId: "message-command-1",
+            conversationSequence: 1,
+            executionEpoch: 1,
+          },
+        }),
+      ).rejects.toBeInstanceOf(PendingMessageWriteError);
       expect(ctx.db._tables.pending_messages).toEqual([]);
     }
   });
 
   test("fenced admission rejects invalid protocol coordinates before insertion", async () => {
     for (const delivery of [
-      { protocolVersion: 0, deliveryId: "message-command-1", conversationSequence: 1, executionEpoch: 1 },
-      { protocolVersion: 1, deliveryId: "message-command-1", conversationSequence: 0, executionEpoch: 1 },
-      { protocolVersion: 1, deliveryId: "message-command-1", conversationSequence: 1, executionEpoch: Number.NaN },
+      {
+        protocolVersion: 0,
+        deliveryId: "message-command-1",
+        conversationSequence: 1,
+        executionEpoch: 1,
+      },
+      {
+        protocolVersion: 1,
+        deliveryId: "message-command-1",
+        conversationSequence: 0,
+        executionEpoch: 1,
+      },
+      {
+        protocolVersion: 1,
+        deliveryId: "message-command-1",
+        conversationSequence: 1,
+        executionEpoch: Number.NaN,
+      },
     ]) {
       const ctx = context();
-      await expect(insertEnqueuedPendingMessage(ctx, {
-        ...baseFields(),
-        delivery,
-      })).rejects.toBeInstanceOf(PendingMessageWriteError);
+      await expect(
+        insertEnqueuedPendingMessage(ctx, {
+          ...baseFields(),
+          delivery,
+        }),
+      ).rejects.toBeInstanceOf(PendingMessageWriteError);
       expect(ctx.db._tables.pending_messages).toEqual([]);
     }
   });
@@ -143,16 +178,18 @@ describe("pending-message insertion boundary", () => {
     });
 
     const rejected = context();
-    await expect(insertRiskResendPendingMessage(rejected, {
-      ...baseFields(),
-      delivery: {
-        protocolVersion: 1,
-        deliveryId: "message-command-1",
-        conversationSequence: 9,
-        executionEpoch: 3,
-      },
-      resendOfDeliveryId: "message-command-1",
-    })).rejects.toMatchObject({ code: "RISK_RESEND_REQUIRES_NEW_ID" });
+    await expect(
+      insertRiskResendPendingMessage(rejected, {
+        ...baseFields(),
+        delivery: {
+          protocolVersion: 1,
+          deliveryId: "message-command-1",
+          conversationSequence: 9,
+          executionEpoch: 3,
+        },
+        resendOfDeliveryId: "message-command-1",
+      }),
+    ).rejects.toMatchObject({ code: "RISK_RESEND_REQUIRES_NEW_ID" });
     expect(rejected.db._tables.pending_messages).toEqual([]);
   });
 });

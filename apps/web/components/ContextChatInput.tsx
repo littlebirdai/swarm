@@ -3,19 +3,30 @@ import { useState, useRef, useCallback } from "react";
 import { ArrowUp, Sparkles } from "lucide-react";
 import { useInboxStore } from "../store/inboxStore";
 import { useOpenLinkedSession } from "../hooks/useOpenLinkedSession";
-import { resolveContextRow, resolveContextProjectPath } from "../lib/contextProjectPath";
+import {
+  resolveContextRow,
+  resolveContextProjectPath,
+} from "../lib/contextProjectPath";
 import { soundNewSession } from "../lib/sounds";
 import { AgentTypeIcon } from "./AgentTypeIcon";
 import { usePinnedPickerOptions } from "../hooks/usePinnedAgents";
 import { agentAccent } from "../lib/agentColors";
 import { newConversationAgentType } from "../lib/defaultAgent";
 import { startHostedConversation } from "../lib/startHostedConversation";
-import { fromConvexAgentType, isHostedAgentType, type AgentClientId } from "@codecast/shared/contracts";
+import {
+  fromConvexAgentType,
+  isHostedAgentType,
+  type AgentClientId,
+} from "@codecast/shared/contracts";
 import { AskHeldLine, useHostedAskGate } from "./simple/useHostedAskGate";
 
 type AgentKey = AgentClientId;
 const escapeContext = (value: string) =>
-  value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 // Preserve exact prose and command examples in the context body (notably doc
 // edit strings) while preventing body content from closing the envelope.
 const protectContextBody = (value: string) =>
@@ -64,7 +75,9 @@ export function ContextChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // The conversation on screen's agent carries over; the default
   // (lib/defaultAgent) fills in.
-  const currentAgent = useInboxStore((s) => newConversationAgentType(s, s.currentConversation.agentType));
+  const currentAgent = useInboxStore((s) =>
+    newConversationAgentType(s, s.currentConversation.agentType),
+  );
   const [selectedAgent, setSelectedAgent] = useState<AgentKey | null>(null);
   // Same gesture as clicking a card in the object's "Sessions" list: the
   // conversation takes the stage (routed to /conversation → the inbox); a
@@ -77,7 +90,9 @@ export function ContextChatInput({
   const agentOptions = usePinnedPickerOptions(agentKey);
   const isExpanded = !!open || isFocused || message.length > 0;
   // Whether this asks the hosted assistant.
-  const askingHosted = isHostedAgentType(agentOptions.find((a) => a.id === agentKey)?.convexType ?? currentAgent);
+  const askingHosted = isHostedAgentType(
+    agentOptions.find((a) => a.id === agentKey)?.convexType ?? currentAgent,
+  );
   // A held month or a thinking outage keeps the words and says why, rather
   // than starting a conversation that can only stop.
   const hold = useHostedAskGate(askingHosted);
@@ -93,11 +108,14 @@ export function ContextChatInput({
     const text = message.trim();
     if (!text) return;
 
-    const convexAgentType = agentOptions.find((a) => a.id === agentKey)?.convexType ?? currentAgent;
+    const convexAgentType =
+      agentOptions.find((a) => a.id === agentKey)?.convexType ?? currentAgent;
     const hosted = isHostedAgentType(convexAgentType);
     if (hosted && hold) return;
     const body = getContextBody();
-    const idAttr = linkedObjectId ? ` id="${escapeContext(linkedObjectId)}"` : "";
+    const idAttr = linkedObjectId
+      ? ` id="${escapeContext(linkedObjectId)}"`
+      : "";
     let contextBody = body || "";
     // Prepend editing instructions for docs so the model knows how to modify
     // them. The hosted assistant has no `cast` to run, so it reads the body only.
@@ -149,13 +167,20 @@ export function ContextChatInput({
     // (resolveTaskGitContext) overrides it with the task's team directory
     // unless it already sits inside that team. activeTask is a side product
     // for optimistic rendering (task badge in header/sidebar).
-    let activeTask: { _id: string; short_id: string; title: string; status: string } | undefined;
+    let activeTask:
+      | { _id: string; short_id: string; title: string; status: string }
+      | undefined;
     let contextDerivedPath: string | undefined;
     if (linkedObjectId) {
       const row = resolveContextRow(store, contextType, linkedObjectId);
       contextDerivedPath = resolveContextProjectPath(store, row);
       if (contextType === "task" && row) {
-        activeTask = { _id: row._id, short_id: row.short_id, title: row.title, status: row.status };
+        activeTask = {
+          _id: row._id,
+          short_id: row.short_id,
+          title: row.title,
+          status: row.status,
+        };
       }
     }
     const contextPath = projectPathProp || contextDerivedPath;
@@ -169,16 +194,22 @@ export function ContextChatInput({
       agentType: convexAgentType,
       projectPath: path,
       gitRoot: resolvedGitRoot,
-      create: (stubId) => store.createSession({
-        agent_type: convexAgentType,
-        project_path: path,
-        git_root: resolvedGitRoot,
-        session_id: stubId,
-        ...(linkedObjectId
-          ? { linked_object: { type: contextType, id: linkedObjectId } }
-          : {}),
-        ...(projectId ? { project_id: projectId, ...(projectDefault ? { project_default: true } : {}) } : {}),
-      }),
+      create: (stubId) =>
+        store.createSession({
+          agent_type: convexAgentType,
+          project_path: path,
+          git_root: resolvedGitRoot,
+          session_id: stubId,
+          ...(linkedObjectId
+            ? { linked_object: { type: contextType, id: linkedObjectId } }
+            : {}),
+          ...(projectId
+            ? {
+                project_id: projectId,
+                ...(projectDefault ? { project_default: true } : {}),
+              }
+            : {}),
+        }),
     });
 
     // beginOptimisticSession owns the stub shape and rekey lifecycle. Enrich its
@@ -201,7 +232,23 @@ export function ContextChatInput({
     finish(sid);
 
     store.sendMessageWhenReady(sid, fullMessage, undefined, clientId);
-  }, [message, contextType, contextTitle, getContextBody, agentKey, agentOptions, currentAgent, linkedObjectId, projectPathProp, conversationId, openLinkedSession, hold, projectId, projectDefault, onSent]);
+  }, [
+    message,
+    contextType,
+    contextTitle,
+    getContextBody,
+    agentKey,
+    agentOptions,
+    currentAgent,
+    linkedObjectId,
+    projectPathProp,
+    conversationId,
+    openLinkedSession,
+    hold,
+    projectId,
+    projectDefault,
+    onSent,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -210,7 +257,7 @@ export function ContextChatInput({
         handleSubmit();
       }
     },
-    [handleSubmit]
+    [handleSubmit],
   );
 
   const defaultPlaceholder = `Work on this ${contextType} with an agent...`;
@@ -221,7 +268,10 @@ export function ContextChatInput({
   // folds back when it loses focus empty.
   if (!isExpanded) {
     return (
-      <div data-context-composer className="shrink-0 pointer-events-none sticky bottom-0 z-10 flex justify-end px-4 pb-3">
+      <div
+        data-context-composer
+        className="shrink-0 pointer-events-none sticky bottom-0 z-10 flex justify-end px-4 pb-3"
+      >
         <button
           type="button"
           onClick={() => setIsFocused(true)}
@@ -236,75 +286,105 @@ export function ContextChatInput({
   }
 
   return (
-    <div data-context-composer className={inline ? "shrink-0" : "shrink-0 pointer-events-none sticky bottom-0 z-10"}>
-      {!inline && <div className="h-16 bg-gradient-to-t from-sol-bg via-[color-mix(in_srgb,var(--sol-bg)_80%,transparent)] to-transparent -mt-16 relative" />}
+    <div
+      data-context-composer
+      className={
+        inline
+          ? "shrink-0"
+          : "shrink-0 pointer-events-none sticky bottom-0 z-10"
+      }
+    >
+      {!inline && (
+        <div className="h-16 bg-gradient-to-t from-sol-bg via-[color-mix(in_srgb,var(--sol-bg)_80%,transparent)] to-transparent -mt-16 relative" />
+      )}
       <div className={inline ? "" : "pb-4 pointer-events-auto bg-sol-bg"}>
-      <div className={inline ? "" : "mx-auto px-2 sm:px-4 conv-col"}>
-        <div className={inline ? "mb-1.5 flex items-center" : "mx-auto px-4 mb-1 flex justify-between items-center conv-col"}>
-          <div className={inline ? "flex flex-wrap items-center gap-1" : "flex items-center gap-1"}>
-            {agentOptions.map((agent) => (
-              <button
-                key={agent.id}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setSelectedAgent(agent.id)}
-                title={agent.label}
-                className={`px-2 py-0.5 text-meta font-medium rounded-md border transition-colors flex items-center gap-1 ${
-                  agentKey === agent.id
-                    ? agentAccent(agent.convexType).chip
-                    : "bg-transparent text-sol-text-dim border-transparent hover:text-sol-text-muted"
-                }`}
-              >
-                <AgentTypeIcon agentType={agent.convexType} className="w-3 h-3" />
-                {/* Inline, the row stays one line: the picked agent says its
-                    name, the others are their mark (named on hover). */}
-                {(!inline || agentKey === agent.id) && agent.label}
-              </button>
-            ))}
-          </div>
-          {!inline && <span className="text-meta text-sol-text-dim/50">
-            {contextType}
-          </span>}
-        </div>
-      <div className={`flex flex-col border shadow-lg px-4 py-2 rounded-2xl bg-sol-bg-alt ${isFocused ? "border-sol-border" : "border-sol-border/50"}`}>
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            data-chat-input
-            autoFocus
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              resetHeight();
-            }}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              if (!message.trim()) setIsFocused(false);
-            }}
-            placeholder={placeholder || defaultPlaceholder}
-            rows={1}
-            className="flex-1 bg-transparent text-sol-text placeholder:text-sol-text-dim focus:outline-none resize-none overflow-hidden leading-relaxed text-sm py-1"
-          />
-          <div className="shrink-0">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!hasText || (askingHosted && !!hold)}
-              className={`w-8 h-8 rounded-full transition-colors flex items-center justify-center border ${
-                !hasText
-                  ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
-                  : "border-sol-blue/50 bg-sol-blue/20 text-sol-blue hover:bg-sol-blue/30 hover:border-sol-blue"
-              }`}
+        <div className={inline ? "" : "mx-auto px-2 sm:px-4 conv-col"}>
+          <div
+            className={
+              inline
+                ? "mb-1.5 flex items-center"
+                : "mx-auto px-4 mb-1 flex justify-between items-center conv-col"
+            }
+          >
+            <div
+              className={
+                inline
+                  ? "flex flex-wrap items-center gap-1"
+                  : "flex items-center gap-1"
+              }
             >
-              <ArrowUp className="w-4 h-4" />
-            </button>
+              {agentOptions.map((agent) => (
+                <button
+                  key={agent.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setSelectedAgent(agent.id)}
+                  title={agent.label}
+                  className={`px-2 py-0.5 text-meta font-medium rounded-md border transition-colors flex items-center gap-1 ${
+                    agentKey === agent.id
+                      ? agentAccent(agent.convexType).chip
+                      : "bg-transparent text-sol-text-dim border-transparent hover:text-sol-text-muted"
+                  }`}
+                >
+                  <AgentTypeIcon
+                    agentType={agent.convexType}
+                    className="w-3 h-3"
+                  />
+                  {/* Inline, the row stays one line: the picked agent says its
+                    name, the others are their mark (named on hover). */}
+                  {(!inline || agentKey === agent.id) && agent.label}
+                </button>
+              ))}
+            </div>
+            {!inline && (
+              <span className="text-meta text-sol-text-dim/50">
+                {contextType}
+              </span>
+            )}
+          </div>
+          <div
+            className={`flex flex-col border shadow-lg px-4 py-2 rounded-2xl bg-sol-bg-alt ${isFocused ? "border-sol-border" : "border-sol-border/50"}`}
+          >
+            <div className="flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
+                data-chat-input
+                autoFocus
+                value={message}
+                onChange={(e) => {
+                  setMessage(e.target.value);
+                  resetHeight();
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => {
+                  if (!message.trim()) setIsFocused(false);
+                }}
+                placeholder={placeholder || defaultPlaceholder}
+                rows={1}
+                className="flex-1 bg-transparent text-sol-text placeholder:text-sol-text-dim focus:outline-none resize-none overflow-hidden leading-relaxed text-sm py-1"
+              />
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={!hasText || (askingHosted && !!hold)}
+                  className={`w-8 h-8 rounded-full transition-colors flex items-center justify-center border ${
+                    !hasText
+                      ? "border-sol-border/30 text-sol-text-dim/25 cursor-not-allowed"
+                      : "border-sol-blue/50 bg-sol-blue/20 text-sol-blue hover:bg-sol-blue/30 hover:border-sol-blue"
+                  }`}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {askingHosted && hold && (
+              <AskHeldLine hold={hold} className="pt-1 text-xs" />
+            )}
           </div>
         </div>
-        {askingHosted && hold && <AskHeldLine hold={hold} className="pt-1 text-xs" />}
       </div>
-    </div>
-    </div>
     </div>
   );
 }

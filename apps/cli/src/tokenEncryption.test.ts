@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { encryptToken, decryptToken, isEncryptedToken, TokenDecryptError } from "./tokenEncryption.js";
+import {
+  encryptToken,
+  decryptToken,
+  isEncryptedToken,
+  TokenDecryptError,
+} from "./tokenEncryption.js";
 
 describe("tokenEncryption", () => {
   const testToken = "cxt_abc123def456_test_token_value";

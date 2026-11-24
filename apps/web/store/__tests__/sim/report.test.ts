@@ -35,7 +35,23 @@ function world() {
 }
 
 // Fifteen deliveries, so the block shows only the last twelve.
-const CHANNELS = ["conn:A", "conn:A", "live:B:docs", "sched", "conn:A", "repl:A>A1", "repl:A>A1", "repl:A>A1", "timer:A", "conn:B", "conn:B", "live:B:docs", "conn:A", "conn:B", "conn:B"];
+const CHANNELS = [
+  "conn:A",
+  "conn:A",
+  "live:B:docs",
+  "sched",
+  "conn:A",
+  "repl:A>A1",
+  "repl:A>A1",
+  "repl:A>A1",
+  "timer:A",
+  "conn:B",
+  "conn:B",
+  "live:B:docs",
+  "conn:A",
+  "conn:B",
+  "conn:B",
+];
 const ring: DeliveryRecord[] = CHANNELS.map((channel, i) => ({
   seq: i + 1,
   channel,
@@ -51,14 +67,34 @@ function forced(over: Partial<FailureContext> = {}): FailureContext {
     seed: 7,
     step: "settle #2",
     delivery: 15,
-    invariant: { id: "INV-workspace-rows", meaning: "a window holds exactly the work items its principal may read" },
+    invariant: {
+      id: "INV-workspace-rows",
+      meaning: "a window holds exactly the work items its principal may read",
+    },
     message: `bo holds ${DOC} after the flip back to private`,
     window: { name: "B.host", principal: BO, scope: ACME },
     row: {
       table: "docs",
       id: DOC,
-      server: { _id: DOC, title: "Plan", workspace: `user:${ADA}`, owner: ADA, content: SECRET, team_id: ACME, tags: { b: 1, a: 2 }, archived_at: 5 },
-      replica: { _id: DOC, title: "Plan v0", workspace: `team:${ACME}`, owner: ADA, content: "older body", team_id: BO, tags: { a: 2, b: 1 } },
+      server: {
+        _id: DOC,
+        title: "Plan",
+        workspace: `user:${ADA}`,
+        owner: ADA,
+        content: SECRET,
+        team_id: ACME,
+        tags: { b: 1, a: 2 },
+        archived_at: 5,
+      },
+      replica: {
+        _id: DOC,
+        title: "Plan v0",
+        workspace: `team:${ACME}`,
+        owner: ADA,
+        content: "older body",
+        team_id: BO,
+        tags: { a: 2, b: 1 },
+      },
     },
     ring,
     order: CHANNELS,
@@ -70,7 +106,8 @@ function forced(over: Partial<FailureContext> = {}): FailureContext {
 
 describe("formatFailure", () => {
   test("the full block for a forced diff", () => {
-    expect(formatFailure(forced(), "/sim-out/visibilityFlip-interleave-7")).toMatchInlineSnapshot(`
+    expect(formatFailure(forced(), "/sim-out/visibilityFlip-interleave-7"))
+      .toMatchInlineSnapshot(`
       "sim failure: visibilityFlip [interleave seed 7] at step "settle #2", after 15 deliveries
         INV-workspace-rows: a window holds exactly the work items its principal may read
         bo holds docs#1 after the flip back to private
@@ -104,25 +141,45 @@ describe("formatFailure", () => {
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain("older body");
     expect(text).not.toMatch(/^\s+(content|team_id)\s/m);
-    expect(fieldDiff("docs", { content: "a", team_id: "x" }, { content: "b", team_id: "y" })).toEqual([]);
+    expect(
+      fieldDiff(
+        "docs",
+        { content: "a", team_id: "x" },
+        { content: "b", team_id: "y" },
+      ),
+    ).toEqual([]);
     expect(fieldDiff("tasks", { steps: [1] }, { steps: [2] })).toEqual([]);
   });
 
   test("key order inside a value is not a difference", () => {
-    expect(fieldDiff("docs", { tags: { a: 1, b: 2 } }, { tags: { b: 2, a: 1 } })).toEqual([]);
+    expect(
+      fieldDiff("docs", { tags: { a: 1, b: 2 } }, { tags: { b: 2, a: 1 } }),
+    ).toEqual([]);
   });
 
   test("both replay lines, and the order line replays the run", () => {
-    const lines = formatFailure(forced(), "/out").split("\n").map((l) => l.trim());
-    expect(lines).toContain("bun run sim visibilityFlip --seed 7 --trace docs#1");
+    const lines = formatFailure(forced(), "/out")
+      .split("\n")
+      .map((l) => l.trim());
+    expect(lines).toContain(
+      "bun run sim visibilityFlip --seed 7 --trace docs#1",
+    );
     const orderLine = lines.find((l) => l.includes("--order"))!;
-    expect(orderLine.startsWith("bun run sim visibilityFlip --seed 7 --order=")).toBe(true);
-    expect(parseOrder(orderLine.match(/--order="([^"]*)"/)![1])).toEqual(CHANNELS);
+    expect(
+      orderLine.startsWith("bun run sim visibilityFlip --seed 7 --order="),
+    ).toBe(true);
+    expect(parseOrder(orderLine.match(/--order="([^"]*)"/)![1])).toEqual(
+      CHANNELS,
+    );
   });
 
   test("a failure a red marker names says it was expected", () => {
-    const head = formatFailure(forced({ expected: "ct-56011" }), "/out").split("\n")[0];
-    expect(head).toBe('sim failure (expected, red: ct-56011): visibilityFlip [interleave seed 7] at step "settle #2", after 15 deliveries');
+    const head = formatFailure(forced({ expected: "ct-56011" }), "/out").split(
+      "\n",
+    )[0];
+    expect(head).toBe(
+      'sim failure (expected, red: ct-56011): visibilityFlip [interleave seed 7] at step "settle #2", after 15 deliveries',
+    );
   });
 
   test("a failure with no row traces everything", () => {
@@ -132,8 +189,13 @@ describe("formatFailure", () => {
 
   test("a row missing on one side says so instead of diffing", () => {
     const ctx = forced();
-    const text = formatFailure({ ...ctx, row: { ...ctx.row!, server: null } }, "/out");
-    expect(text).toContain("  row docs#1 (docs)\n    absent on the server\n  last 12");
+    const text = formatFailure(
+      { ...ctx, row: { ...ctx.row!, server: null } },
+      "/out",
+    );
+    expect(text).toContain(
+      "  row docs#1 (docs)\n    absent on the server\n  last 12",
+    );
   });
 });
 
@@ -158,10 +220,16 @@ describe("SimLabels", () => {
 
   test("a label names one id", () => {
     const labels = world();
-    expect(() => labels.register(convexIdFor("user:cy"), "ada")).toThrow(`"ada" already names ${ADA}`);
-    expect(() => labels.register(ADA, "ada2")).toThrow(`${ADA} is already "ada"`);
+    expect(() => labels.register(convexIdFor("user:cy"), "ada")).toThrow(
+      `"ada" already names ${ADA}`,
+    );
+    expect(() => labels.register(ADA, "ada2")).toThrow(
+      `${ADA} is already "ada"`,
+    );
     labels.register(ADA, "ada");
-    expect(() => labels.id("nobody")).toThrow('no row is labelled "nobody"; known: acme, ada, bo, docs#1');
+    expect(() => labels.id("nobody")).toThrow(
+      'no row is labelled "nobody"; known: acme, ada, bo, docs#1',
+    );
   });
 });
 
@@ -174,7 +242,15 @@ describe("reportFailure", () => {
       const dir = artifactDir("visibilityFlip", "interleave", 7, root);
       let thrown: unknown;
       try {
-        reportFailure(ctx, { events: ring, world: { users: ["ada", "bo"] }, final: { ok: false } }, dir);
+        reportFailure(
+          ctx,
+          {
+            events: ring,
+            world: { users: ["ada", "bo"] },
+            final: { ok: false },
+          },
+          dir,
+        );
       } catch (e) {
         thrown = e;
       }
@@ -189,11 +265,23 @@ describe("reportFailure", () => {
         { field: "title", server: '"Plan"', replica: '"Plan v0"' },
         { field: "workspace", server: '"user:ada"', replica: '"team:acme"' },
       ]);
-      const events = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n");
+      const events = readFileSync(join(dir, "events.jsonl"), "utf8")
+        .trim()
+        .split("\n");
       expect(events).toHaveLength(15);
-      expect(JSON.parse(events[0])).toEqual({ seq: 1, channel: "conn:A", due: T0, label: `res docs:update ${DOC}`, producer: "net" });
-      expect(JSON.parse(readFileSync(join(dir, "world.json"), "utf8"))).toEqual({ users: ["ada", "bo"] });
-      expect(JSON.parse(readFileSync(join(dir, "final.json"), "utf8"))).toEqual({ ok: false });
+      expect(JSON.parse(events[0])).toEqual({
+        seq: 1,
+        channel: "conn:A",
+        due: T0,
+        label: `res docs:update ${DOC}`,
+        producer: "net",
+      });
+      expect(JSON.parse(readFileSync(join(dir, "world.json"), "utf8"))).toEqual(
+        { users: ["ada", "bo"] },
+      );
+      expect(JSON.parse(readFileSync(join(dir, "final.json"), "utf8"))).toEqual(
+        { ok: false },
+      );
     } finally {
       err.mockRestore();
       rmSync(root, { recursive: true, force: true });
@@ -210,19 +298,51 @@ describe("run history fields", () => {
       const steps = [
         { at: 0, seq: 0, verb: "settle", actor: "world", label: "settle #1" },
         { at: 2, seq: 3, verb: "kill", actor: "B", label: "kill ada/s" },
-        { at: 15, seq: 0, verb: "expect", actor: "world", label: "expect window B hides ada/s" },
+        {
+          at: 15,
+          seq: 0,
+          verb: "expect",
+          actor: "world",
+          label: "expect window B hides ada/s",
+        },
       ];
-      const meta = { gitHead: "a".repeat(40), dirty: true, startedAt: "2026-10-03T22:00:00.000Z", realMs: 812 };
-      writeArtifacts(dir, { scenario: "visibilityFlip", passed: true }, { events: ring, steps, world: {}, final: {}, meta });
-      const rows = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      const meta = {
+        gitHead: "a".repeat(40),
+        dirty: true,
+        startedAt: "2026-10-03T22:00:00.000Z",
+        realMs: 812,
+      };
+      writeArtifacts(
+        dir,
+        { scenario: "visibilityFlip", passed: true },
+        { events: ring, steps, world: {}, final: {}, meta },
+      );
+      const rows = readFileSync(join(dir, "events.jsonl"), "utf8")
+        .trim()
+        .split("\n")
+        .map((l) => JSON.parse(l));
       expect(rows).toHaveLength(ring.length + steps.length);
-      expect(rows[0]).toEqual({ kind: "step", seq: 0, verb: "settle", actor: "world", label: "settle #1" });
-      expect(rows[3]).toEqual({ kind: "step", seq: 3, verb: "kill", actor: "B", label: "kill ada/s" });
+      expect(rows[0]).toEqual({
+        kind: "step",
+        seq: 0,
+        verb: "settle",
+        actor: "world",
+        label: "settle #1",
+      });
+      expect(rows[3]).toEqual({
+        kind: "step",
+        seq: 3,
+        verb: "kill",
+        actor: "B",
+        label: "kill ada/s",
+      });
       expect(rows[1].kind).toBeUndefined();
       expect(rows.at(-1).label).toBe("expect window B hides ada/s");
       // With no steps the file is what it was before step markers existed.
       expect(eventsJsonl(ring, [])).toBe(eventsJsonl(ring));
-      expect(JSON.parse(readFileSync(join(dir, "result.json"), "utf8"))).toEqual({ scenario: "visibilityFlip", passed: true, ...meta });
+      expect(
+        JSON.parse(readFileSync(join(dir, "result.json"), "utf8")),
+      ).toEqual({ scenario: "visibilityFlip", passed: true, ...meta });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -234,7 +354,9 @@ describe("run history fields", () => {
       "bun run sim visibilityFlip --seed 7 --trace ada/s",
       'bun run sim visibilityFlip --seed 7 --order="scripted actor:ada conn:A"',
     ]);
-    expect(replayCommands("visibilityFlip", 7, order, null, ["scripted", "conn:A"])).toEqual([
+    expect(
+      replayCommands("visibilityFlip", 7, order, null, ["scripted", "conn:A"]),
+    ).toEqual([
       "bun run sim visibilityFlip --seed 7 --trace",
       'bun run sim visibilityFlip --seed 7 --order="scripted actor:ada conn:A"',
       'bun run sim visibilityFlip --seed 7 --order="scripted conn:A"',
@@ -244,9 +366,17 @@ describe("run history fields", () => {
   // The order and seed come back from result.json, so a planted value must
   // never reach the shell as code when the founder pastes the line.
   test("an order or seed that would run code is single-quoted", () => {
-    const [, full] = replayCommands("s", "1;id" as unknown as number, ["a", "$(id)", "`id`"], null);
+    const [, full] = replayCommands(
+      "s",
+      "1;id" as unknown as number,
+      ["a", "$(id)", "`id`"],
+      null,
+    );
     expect(full).toBe("bun run sim s --seed '1;id' '--order=a $(id) `id`'");
-    const r = Bun.spawnSync(["sh", "-c", `printf '%s\\n' ${full.slice("bun run sim ".length)}`], { stdout: "pipe" });
+    const r = Bun.spawnSync(
+      ["sh", "-c", `printf '%s\\n' ${full.slice("bun run sim ".length)}`],
+      { stdout: "pipe" },
+    );
     expect(r.stdout.toString()).toBe("s\n--seed\n1;id\n--order=a $(id) `id`\n");
   });
 
@@ -259,7 +389,11 @@ describe("run history fields", () => {
     expect(minimal).toBe(full);
     // --list parses every flag and then only reads the catalog, so this runs the
     // printed argv through the real script without running a scenario.
-    const r = Bun.spawnSync(["sh", "-c", `${full} --list --json`], { cwd: join(import.meta.dir, "../../.."), stderr: "pipe", stdout: "pipe" });
+    const r = Bun.spawnSync(["sh", "-c", `${full} --list --json`], {
+      cwd: join(import.meta.dir, "../../.."),
+      stderr: "pipe",
+      stdout: "pipe",
+    });
     expect(r.stderr.toString()).not.toContain("needs a value");
     expect(r.exitCode).toBe(0);
     expect(Array.isArray(JSON.parse(r.stdout.toString()))).toBe(true);

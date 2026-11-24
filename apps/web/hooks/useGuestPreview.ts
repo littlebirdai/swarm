@@ -10,7 +10,11 @@ export function usePreview(): GuestPreview | null {
   const [preview, setPreview] = useState<GuestPreview | null>(null);
   useMountEffect(() => {
     const prefs = readJoinPrefs();
-    const p = new GuestPreview({ micId: prefs.micDeviceId, cameraId: prefs.cameraDeviceId, speakerId: prefs.speakerDeviceId });
+    const p = new GuestPreview({
+      micId: prefs.micDeviceId,
+      cameraId: prefs.cameraDeviceId,
+      speakerId: prefs.speakerDeviceId,
+    });
     setPreview(p);
     void p.start({ mic: prefs.micOn, camera: prefs.cameraOn });
     return () => p.dispose();

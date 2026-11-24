@@ -30,12 +30,12 @@ was true only for this task.
   rule when one is close, never add a duplicate.
 - A decision: `cast decisions add "<title>" --reason "<why>" --tags <area>`.
 - A gotcha that needs more than two sentences: `cast doc create "<title>"
-  -t insight -c -` with the body on stdin, and one line in the instructions
+-t insight -c -` with the body on stdin, and one line in the instructions
   pointing at it.
 - A rule the whole team should follow in every repository, not just this
   one, goes into the team's kit as an instructions item: write it under its
   own heading in a file and publish it with `cast cap publish --instructions
-  <file>#<heading>`. Every member's agents then read it. Extend an existing
+<file>#<heading>`. Every member's agents then read it. Extend an existing
   team item when one covers the topic; the installed ones are the team's
   sections in your own CLAUDE.md.
 - A rule about how the human wants to be worked with, not about the code,

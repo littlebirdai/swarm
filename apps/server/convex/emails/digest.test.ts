@@ -34,7 +34,13 @@ describe("EMAIL_WORTHY", () => {
   });
 
   test("direct, personal types are included", () => {
-    for (const t of ["mention", "comment_reply", "chat_mention", "task_assigned", "team_invite"]) {
+    for (const t of [
+      "mention",
+      "comment_reply",
+      "chat_mention",
+      "task_assigned",
+      "team_invite",
+    ]) {
       expect(EMAIL_WORTHY.has(t)).toBe(true);
     }
   });
@@ -42,43 +48,103 @@ describe("EMAIL_WORTHY", () => {
 
 describe("digestEligible", () => {
   test("unsubscribed never sends", () => {
-    expect(digestEligible({ emailPref: false, lastSentAt: undefined, lastInputAt: undefined, now: NOW }).send).toBe(false);
+    expect(
+      digestEligible({
+        emailPref: false,
+        lastSentAt: undefined,
+        lastInputAt: undefined,
+        now: NOW,
+      }).send,
+    ).toBe(false);
   });
   test("absent preference reads as on", () => {
-    expect(digestEligible({ emailPref: undefined, lastSentAt: undefined, lastInputAt: undefined, now: NOW }).send).toBe(true);
+    expect(
+      digestEligible({
+        emailPref: undefined,
+        lastSentAt: undefined,
+        lastInputAt: undefined,
+        now: NOW,
+      }).send,
+    ).toBe(true);
   });
   test("recent keyboard input suppresses", () => {
-    const r = digestEligible({ emailPref: true, lastSentAt: undefined, lastInputAt: NOW - ACTIVE_MS + 1000, now: NOW });
+    const r = digestEligible({
+      emailPref: true,
+      lastSentAt: undefined,
+      lastInputAt: NOW - ACTIVE_MS + 1000,
+      now: NOW,
+    });
     expect(r).toEqual({ send: false, reason: "active" });
   });
   test("input older than ACTIVE_MS does not suppress", () => {
-    expect(digestEligible({ emailPref: true, lastSentAt: undefined, lastInputAt: NOW - ACTIVE_MS - 1000, now: NOW }).send).toBe(true);
+    expect(
+      digestEligible({
+        emailPref: true,
+        lastSentAt: undefined,
+        lastInputAt: NOW - ACTIVE_MS - 1000,
+        now: NOW,
+      }).send,
+    ).toBe(true);
   });
   test("cooldown suppresses a second digest", () => {
-    const r = digestEligible({ emailPref: true, lastSentAt: NOW - COOLDOWN_MS + 60_000, lastInputAt: undefined, now: NOW });
+    const r = digestEligible({
+      emailPref: true,
+      lastSentAt: NOW - COOLDOWN_MS + 60_000,
+      lastInputAt: undefined,
+      now: NOW,
+    });
     expect(r).toEqual({ send: false, reason: "cooldown" });
   });
   test("cooldown elapsed allows", () => {
-    expect(digestEligible({ emailPref: true, lastSentAt: NOW - COOLDOWN_MS - 1, lastInputAt: undefined, now: NOW }).send).toBe(true);
+    expect(
+      digestEligible({
+        emailPref: true,
+        lastSentAt: NOW - COOLDOWN_MS - 1,
+        lastInputAt: undefined,
+        now: NOW,
+      }).send,
+    ).toBe(true);
   });
 });
 
 describe("entityUrl", () => {
   const site = "https://codecast.sh";
   test("explicit link wins", () => {
-    expect(entityUrl(site, { link: "https://codecast.sh/a/x?c=1", entity_type: "task", entity_id: "t1" })).toBe("https://codecast.sh/a/x?c=1");
+    expect(
+      entityUrl(site, {
+        link: "https://codecast.sh/a/x?c=1",
+        entity_type: "task",
+        entity_id: "t1",
+      }),
+    ).toBe("https://codecast.sh/a/x?c=1");
   });
   test("task/doc/plan routes", () => {
-    expect(entityUrl(site, { entity_type: "task", entity_id: "t1" })).toBe("https://codecast.sh/tasks/t1");
-    expect(entityUrl(site, { entity_type: "doc", entity_id: "d1" })).toBe("https://codecast.sh/docs/d1");
-    expect(entityUrl(site, { entity_type: "plan", entity_id: "p1" })).toBe("https://codecast.sh/plans/p1");
+    expect(entityUrl(site, { entity_type: "task", entity_id: "t1" })).toBe(
+      "https://codecast.sh/tasks/t1",
+    );
+    expect(entityUrl(site, { entity_type: "doc", entity_id: "d1" })).toBe(
+      "https://codecast.sh/docs/d1",
+    );
+    expect(entityUrl(site, { entity_type: "plan", entity_id: "p1" })).toBe(
+      "https://codecast.sh/plans/p1",
+    );
   });
   test("chat deep-links to the message", () => {
-    expect(entityUrl(site, { entity_type: "chat_channel", entity_id: "c1", chat_message_id: "m9" })).toBe("https://codecast.sh/chat/c1?m=m9");
-    expect(entityUrl(site, { entity_type: "chat_channel", entity_id: "c1" })).toBe("https://codecast.sh/chat/c1");
+    expect(
+      entityUrl(site, {
+        entity_type: "chat_channel",
+        entity_id: "c1",
+        chat_message_id: "m9",
+      }),
+    ).toBe("https://codecast.sh/chat/c1?m=m9");
+    expect(
+      entityUrl(site, { entity_type: "chat_channel", entity_id: "c1" }),
+    ).toBe("https://codecast.sh/chat/c1");
   });
   test("conversation fallback, then notifications page", () => {
-    expect(entityUrl(site, { conversation_id: "cv1" })).toBe("https://codecast.sh/conversation/cv1");
+    expect(entityUrl(site, { conversation_id: "cv1" })).toBe(
+      "https://codecast.sh/conversation/cv1",
+    );
     expect(entityUrl(site, {})).toBe("https://codecast.sh/notifications");
   });
 });
@@ -97,18 +163,37 @@ describe("notificationEntry", () => {
     expect(e.excerpt!.endsWith("…")).toBe(true);
   });
   test("unknown actor falls back to Someone", () => {
-    expect(notificationEntry("https://codecast.sh", { type: "mention", message: "hi" }).title).toBe("**Someone** mentioned you");
+    expect(
+      notificationEntry("https://codecast.sh", {
+        type: "mention",
+        message: "hi",
+      }).title,
+    ).toBe("**Someone** mentioned you");
   });
 });
 
 describe("digestSubject", () => {
   test("blocking decisions lead", () => {
-    const s = digestSubject({ blockingDecisions: 2, advisoryDecisions: 0, personalCount: 5, chatChannels: [], chatCount: 0 });
+    const s = digestSubject({
+      blockingDecisions: 2,
+      advisoryDecisions: 0,
+      personalCount: 5,
+      chatChannels: [],
+      chatCount: 0,
+    });
     expect(s.subject).toBe("2 agents are blocked on your decisions");
     expect(s.preheader).toContain("2 decisions");
   });
   test("single blocking decision is singular", () => {
-    expect(digestSubject({ blockingDecisions: 1, advisoryDecisions: 0, personalCount: 0, chatChannels: [], chatCount: 0 }).subject).toBe("An agent is blocked on your decision");
+    expect(
+      digestSubject({
+        blockingDecisions: 1,
+        advisoryDecisions: 0,
+        personalCount: 0,
+        chatChannels: [],
+        chatCount: 0,
+      }).subject,
+    ).toBe("An agent is blocked on your decision");
   });
   test("personal item leads with the actor line and a count of the rest", () => {
     const s = digestSubject({
@@ -123,7 +208,15 @@ describe("digestSubject", () => {
     expect(s.subject).not.toContain("**");
   });
   test("chat-only subject names the channel", () => {
-    expect(digestSubject({ blockingDecisions: 0, advisoryDecisions: 0, personalCount: 0, chatChannels: ["design"], chatCount: 7 }).subject).toBe("7 unread messages in #design");
+    expect(
+      digestSubject({
+        blockingDecisions: 0,
+        advisoryDecisions: 0,
+        personalCount: 0,
+        chatChannels: ["design"],
+        chatCount: 7,
+      }).subject,
+    ).toBe("7 unread messages in #design");
   });
 });
 
@@ -131,8 +224,12 @@ describe("countableChatMessage", () => {
   test("mirrors chat.ts channel-unread rules", () => {
     expect(countableChatMessage({ user_id: "other" }, "me")).toBe(true);
     expect(countableChatMessage({ user_id: "me" }, "me")).toBe(false);
-    expect(countableChatMessage({ user_id: "other", deleted_at: 1 }, "me")).toBe(false);
-    expect(countableChatMessage({ user_id: "other", thread_root_id: "root" }, "me")).toBe(false);
+    expect(
+      countableChatMessage({ user_id: "other", deleted_at: 1 }, "me"),
+    ).toBe(false);
+    expect(
+      countableChatMessage({ user_id: "other", thread_root_id: "root" }, "me"),
+    ).toBe(false);
   });
 });
 
@@ -144,26 +241,44 @@ describe("notificationDigest template", () => {
       sections: [
         {
           heading: "Decisions waiting on you",
-          entries: [{ title: "**Ship the migration now or after backup?**", excerpt: "Backup runs at 02:00 UTC.", url: "https://codecast.sh/conversation/x", linkLabel: "Answer" }],
+          entries: [
+            {
+              title: "**Ship the migration now or after backup?**",
+              excerpt: "Backup runs at 02:00 UTC.",
+              url: "https://codecast.sh/conversation/x",
+              linkLabel: "Answer",
+            },
+          ],
         },
         {
           heading: "Mentions & comments",
-          entries: [{ title: "**Grace** mentioned you", excerpt: "<b>can</b> you look?", url: "https://codecast.sh/chat/c?m=m" }],
+          entries: [
+            {
+              title: "**Grace** mentioned you",
+              excerpt: "<b>can</b> you look?",
+              url: "https://codecast.sh/chat/c?m=m",
+            },
+          ],
         },
       ],
       moreCount: 4,
       settingsUrl: "https://codecast.sh/settings/notifications",
-      unsubscribeUrl: "https://convex.codecast.sh/cli/email/unsubscribe?token=abc",
+      unsubscribeUrl:
+        "https://convex.codecast.sh/cli/email/unsubscribe?token=abc",
     });
     expect(e.html).toContain("DECISIONS WAITING ON YOU");
     expect(e.html).toContain("Ship the migration now or after backup?");
     expect(e.html).toContain("&lt;b&gt;can&lt;/b&gt;");
     expect(e.html).not.toContain("<b>can</b>");
     expect(e.html).toContain("and 4 more");
-    expect(e.html).toContain('href="https://convex.codecast.sh/cli/email/unsubscribe?token=abc"');
+    expect(e.html).toContain(
+      'href="https://convex.codecast.sh/cli/email/unsubscribe?token=abc"',
+    );
     expect(e.text).toContain("* Grace mentioned you");
     expect(e.text).toContain("https://codecast.sh/chat/c?m=m");
-    expect(e.text).toContain("Unsubscribe (https://convex.codecast.sh/cli/email/unsubscribe?token=abc)");
+    expect(e.text).toContain(
+      "Unsubscribe (https://convex.codecast.sh/cli/email/unsubscribe?token=abc)",
+    );
   });
 });
 
@@ -227,7 +342,10 @@ const runSweep = (ctx: any) => (sweep as any)._handler(ctx, {});
 describe("digest sweep", () => {
   test("an unread mention schedules one digest, mints a token, and stamps the send", async () => {
     const now = Date.now();
-    const c = sweepCtx({ users: [user()], notifications: [mention(now - 20 * MIN)] });
+    const c = sweepCtx({
+      users: [user()],
+      notifications: [mention(now - 20 * MIN)],
+    });
 
     const res = await runSweep(c.ctx);
 
@@ -235,7 +353,9 @@ describe("digest sweep", () => {
     expect(c.scheduled.length).toBe(1);
     expect(c.scheduled[0].to).toBe("ada@example.com");
     expect(c.scheduled[0].sections[0].heading).toBe("Mentions & comments");
-    expect(c.scheduled[0].sections[0].entries[0].title).toBe("**Grace** mentioned you");
+    expect(c.scheduled[0].sections[0].entries[0].title).toBe(
+      "**Grace** mentioned you",
+    );
 
     const row = c.tables.users[0];
     // A fresh token is minted, persisted, and handed to the delivery action.
@@ -248,13 +368,27 @@ describe("digest sweep", () => {
   test("a Slack snapshot name beats the workspace bridge user", async () => {
     const now = Date.now();
     const c = sweepCtx({
-      users: [user(), { _id: "users_bridge", name: "Union (Slack)", email: "slack@example.com" }],
-      notifications: [mention(now - 20 * MIN, { actor_user_id: "users_bridge", actor_name: "Aivery" })],
+      users: [
+        user(),
+        {
+          _id: "users_bridge",
+          name: "Union (Slack)",
+          email: "slack@example.com",
+        },
+      ],
+      notifications: [
+        mention(now - 20 * MIN, {
+          actor_user_id: "users_bridge",
+          actor_name: "Aivery",
+        }),
+      ],
     });
 
     await runSweep(c.ctx);
 
-    expect(c.scheduled[0].sections[0].entries[0].title).toBe("**Aivery** mentioned you");
+    expect(c.scheduled[0].sections[0].entries[0].title).toBe(
+      "**Aivery** mentioned you",
+    );
   });
 
   test("an existing unsubscribe token is reused, never re-minted", async () => {
@@ -276,7 +410,9 @@ describe("digest sweep", () => {
     const c = sweepCtx({
       users: [user()],
       notifications: [mention(now - 20 * MIN)],
-      user_presence: [{ _id: "user_presence_1", user_id: ADA, last_input_at: now - MIN }],
+      user_presence: [
+        { _id: "user_presence_1", user_id: ADA, last_input_at: now - MIN },
+      ],
     });
 
     expect(await runSweep(c.ctx)).toEqual({ candidates: 1, sent: 0 });
@@ -298,7 +434,9 @@ describe("digest sweep", () => {
   test("the master switch off suppresses the send", async () => {
     const now = Date.now();
     const c = sweepCtx({
-      users: [user({ notification_preferences: { email_notifications: false } })],
+      users: [
+        user({ notification_preferences: { email_notifications: false } }),
+      ],
       notifications: [mention(now - 20 * MIN)],
     });
 
@@ -367,15 +505,30 @@ describe("digest sweep", () => {
       asked_user_ids: [GRACE],
     };
     const c = sweepCtx({
-      users: [user(), user({ _id: GRACE, email: "grace@example.com", name: "Grace" })],
+      users: [
+        user(),
+        user({ _id: GRACE, email: "grace@example.com", name: "Grace" }),
+      ],
       session_decisions: [shared],
-      decision_inbox: [{ _id: "decision_inbox_1", decision_id: shared._id, user_id: GRACE, status: "pending", created_at: shared.created_at }],
+      decision_inbox: [
+        {
+          _id: "decision_inbox_1",
+          decision_id: shared._id,
+          user_id: GRACE,
+          status: "pending",
+          created_at: shared.created_at,
+        },
+      ],
     });
 
     expect(await runSweep(c.ctx)).toEqual({ candidates: 1, sent: 1 });
     expect(c.scheduled.map((s) => s.to)).toEqual(["grace@example.com"]);
-    expect(c.scheduled[0].sections[0].entries[0].title).toBe("**Which buyer first?**");
-    expect(c.scheduled[0].sections[0].entries[0].url).toMatch(/\/decisions\/sd-9$/);
+    expect(c.scheduled[0].sections[0].entries[0].title).toBe(
+      "**Which buyer first?**",
+    );
+    expect(c.scheduled[0].sections[0].entries[0].url).toMatch(
+      /\/decisions\/sd-9$/,
+    );
   });
 
   test("a user with no email address is skipped", async () => {

@@ -13,7 +13,10 @@
 import { createContext, useContext } from "react";
 import type React from "react";
 import { useInboxStore } from "../store/inboxStore";
-import { animatedCloseSessions, animatedHideSessions } from "../store/undoActions";
+import {
+  animatedCloseSessions,
+  animatedHideSessions,
+} from "../store/undoActions";
 import { selectionIdsFor, useInboxSelection } from "../lib/inboxSelection";
 import { isSessionSetAside } from "../lib/sessionRetirement";
 import { useTriggerKillNotice } from "./useTriggerKillNotice";
@@ -34,7 +37,8 @@ export function useFeedCardTriage(id: string, own: boolean, open: () => void) {
   });
   const ticked = useInboxSelection((sel) => !off && sel.ids.includes(id));
   const menu = useContextMenu<null>();
-  if (!triageable) return { ticked: false, onContextMenu: undefined, overlay: null };
+  if (!triageable)
+    return { ticked: false, onContextMenu: undefined, overlay: null };
   const session = useInboxStore.getState().sessions[id]!;
   const overlay = (
     <>
@@ -42,12 +46,20 @@ export function useFeedCardTriage(id: string, own: boolean, open: () => void) {
         session={session}
         labels={false}
         fadeGround="var(--sol-card-hover)"
-        onClose={() => { void animatedCloseSessions(selectionIdsFor(id)); }}
+        onClose={() => {
+          void animatedCloseSessions(selectionIdsFor(id));
+        }}
       />
-      <ContextMenu state={menu}>{() => <FeedCardMenu id={id} open={open} />}</ContextMenu>
+      <ContextMenu state={menu}>
+        {() => <FeedCardMenu id={id} open={open} />}
+      </ContextMenu>
     </>
   );
-  return { ticked, onContextMenu: (e: React.MouseEvent) => menu.open(e, null), overlay };
+  return {
+    ticked,
+    onContextMenu: (e: React.MouseEvent) => menu.open(e, null),
+    overlay,
+  };
 }
 
 // Mounted only while the menu is open, so the trigger-notice subscription
@@ -55,14 +67,20 @@ export function useFeedCardTriage(id: string, own: boolean, open: () => void) {
 function FeedCardMenu({ id, open }: { id: string; open: () => void }) {
   const { killWithNotice, killManyWithNotice } = useTriggerKillNotice();
   const store = useInboxStore.getState();
-  const sessions = selectionIdsFor(id).map((x) => store.sessions[x]).filter((row) => !!row);
+  const sessions = selectionIdsFor(id)
+    .map((x) => store.sessions[x])
+    .filter((row) => !!row);
   const clear = () => useInboxSelection.getState().clear();
   if (sessions.length > 1) {
     return (
       <BulkSessionMenuItems
         sessions={sessions}
-        onStash={(ids) => { void animatedHideSessions(ids, "stash"); }}
-        onClose={(ids) => { void animatedCloseSessions(ids); }}
+        onStash={(ids) => {
+          void animatedHideSessions(ids, "stash");
+        }}
+        onClose={(ids) => {
+          void animatedCloseSessions(ids);
+        }}
         onKill={killManyWithNotice}
         onClear={clear}
       />
@@ -74,7 +92,9 @@ function FeedCardMenu({ id, open }: { id: string; open: () => void }) {
     <SessionMenuItems
       session={session}
       onOpen={open}
-      onStash={() => { void animatedHideSessions([id], "stash"); }}
+      onStash={() => {
+        void animatedHideSessions([id], "stash");
+      }}
       onKill={() => killWithNotice(id)}
       onRename={() => store.openSessionRename(session)}
     />

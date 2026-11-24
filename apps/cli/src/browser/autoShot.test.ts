@@ -12,7 +12,16 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { autoShotsEnabled, clearAutoShots, isMutatingStep, MAX_HASHES, maybeAutoShot, pruneHashes, recordIfChanged, setAutoShots } from "./autoShot.js";
+import {
+  autoShotsEnabled,
+  clearAutoShots,
+  isMutatingStep,
+  MAX_HASHES,
+  maybeAutoShot,
+  pruneHashes,
+  recordIfChanged,
+  setAutoShots,
+} from "./autoShot.js";
 import { readSharedConfig } from "../config/sharedConfig.js";
 import { runBatch, type BatchContext } from "./batch.js";
 import type { PageSession } from "./instance.js";
@@ -21,13 +30,42 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "autoshot-test-"));
 
 describe("isMutatingStep", () => {
   test("navigation and input verbs fire a shot", () => {
-    for (const v of ["open", "goto", "back", "forward", "reload", "click", "click-at", "press", "select", "upload"]) {
+    for (const v of [
+      "open",
+      "goto",
+      "back",
+      "forward",
+      "reload",
+      "click",
+      "click-at",
+      "press",
+      "select",
+      "upload",
+    ]) {
       expect(isMutatingStep(v)).toBe(true);
     }
   });
 
   test("read-only verbs never fire", () => {
-    for (const v of ["snapshot", "snap", "text", "find", "console", "network", "tabs", "eval", "shot", "screenshot", "wait", "hover", "focus", "scroll", "viewport", "dialogs", "status"]) {
+    for (const v of [
+      "snapshot",
+      "snap",
+      "text",
+      "find",
+      "console",
+      "network",
+      "tabs",
+      "eval",
+      "shot",
+      "screenshot",
+      "wait",
+      "hover",
+      "focus",
+      "scroll",
+      "viewport",
+      "dialogs",
+      "status",
+    ]) {
       expect(isMutatingStep(v)).toBe(false);
     }
   });
@@ -35,7 +73,9 @@ describe("isMutatingStep", () => {
   test("type fires only when it submits", () => {
     // Keystrokes are mid-flow; the page that matters is the one submit produces.
     expect(isMutatingStep("type", ["type", "#e7", "hello"])).toBe(false);
-    expect(isMutatingStep("type", ["type", "#e7", "hello", "--submit"])).toBe(true);
+    expect(isMutatingStep("type", ["type", "#e7", "hello", "--submit"])).toBe(
+      true,
+    );
   });
 });
 
@@ -75,9 +115,12 @@ describe("recordIfChanged", () => {
 
   test("the store is capped: the tabs written longest ago are dropped", () => {
     const dir = tmp();
-    for (let i = 0; i < MAX_HASHES + 5; i++) recordIfChanged(`engine:s${i}`, "h", dir);
+    for (let i = 0; i < MAX_HASHES + 5; i++)
+      recordIfChanged(`engine:s${i}`, "h", dir);
     recordIfChanged("engine:s10", "h2", dir); // touched again: now the newest
-    const map = JSON.parse(fs.readFileSync(path.join(dir, "auto-shots.json"), "utf-8"));
+    const map = JSON.parse(
+      fs.readFileSync(path.join(dir, "auto-shots.json"), "utf-8"),
+    );
     expect(Object.keys(map)).toHaveLength(MAX_HASHES);
     expect(map["engine:s0"]).toBeUndefined();
     expect(map["engine:s10"]).toBe("h2");
@@ -134,24 +177,39 @@ describe("auto-shots setting", () => {
 describe("maybeAutoShot (engine-agnostic seam)", () => {
   // The seam is bytes + a tab key, nothing CDP-specific: any browser engine
   // that can hand back a small JPEG gets identical dedupe and opt-out policy.
-  const jpeg = (n: number) => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(16, n)]);
+  const jpeg = (n: number) =>
+    Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(16, n)]);
 
   test("writes a file on the first capture and suppresses an identical one", async () => {
     // Pin the setting on: the test process runs under an agent env, where the
     // audience default is off (autoShotsEnabled).
     process.env.CODECAST_DIR = tmp();
     setAutoShots(true, process.env.CODECAST_DIR);
-    const src = { tabKey: `engine-tab-${Date.now()}`, capture: async () => jpeg(1) };
+    const src = {
+      tabKey: `engine-tab-${Date.now()}`,
+      capture: async () => jpeg(1),
+    };
     const first = await maybeAutoShot(src);
     expect(first && fs.existsSync(first)).toBe(true);
     expect(await maybeAutoShot(src)).toBeNull();
-    expect(await maybeAutoShot({ ...src, capture: async () => jpeg(2) })).not.toBeNull();
+    expect(
+      await maybeAutoShot({ ...src, capture: async () => jpeg(2) }),
+    ).not.toBeNull();
     delete process.env.CODECAST_DIR;
   });
 
   test("--no-shot short-circuits before capture", async () => {
     let captured = false;
-    const out = await maybeAutoShot({ tabKey: "t", capture: async () => { captured = true; return jpeg(1); } }, false);
+    const out = await maybeAutoShot(
+      {
+        tabKey: "t",
+        capture: async () => {
+          captured = true;
+          return jpeg(1);
+        },
+      },
+      false,
+    );
     expect(out).toBeNull();
     expect(captured).toBe(false);
   });
@@ -159,7 +217,12 @@ describe("maybeAutoShot (engine-agnostic seam)", () => {
   test("a failing capture is silent, never a thrown error", async () => {
     process.env.CODECAST_DIR = tmp();
     setAutoShots(true, process.env.CODECAST_DIR);
-    const out = await maybeAutoShot({ tabKey: "t", capture: async () => { throw new Error("engine gone"); } });
+    const out = await maybeAutoShot({
+      tabKey: "t",
+      capture: async () => {
+        throw new Error("engine gone");
+      },
+    });
     expect(out).toBeNull();
     delete process.env.CODECAST_DIR;
   });
@@ -170,9 +233,19 @@ describe("auto shots in a batch", () => {
     const page = {
       sessionId: "s",
       targetId: "t",
-      conn: { send: async () => ({ result: { value: JSON.stringify(["complete", 0]) } }) },
+      conn: {
+        send: async () => ({
+          result: { value: JSON.stringify(["complete", 0]) },
+        }),
+      },
     } as unknown as PageSession;
-    return { page, shots: [], capture: async () => "/tmp/shot.png", navigate: async (u) => `went to ${u}`, ...overrides };
+    return {
+      page,
+      shots: [],
+      capture: async () => "/tmp/shot.png",
+      navigate: async (u) => `went to ${u}`,
+      ...overrides,
+    };
   }
 
   test("fires after page-changing steps, not after reads", async () => {

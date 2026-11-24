@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { makeFakeDb } from "./testDb";
 import { hashToken } from "./apiTokens";
-import { reportInventory, reportAppliedOps, sweepCapabilityState, DEVICE_RETENTION_MS, SWEEP_DEVICE_PAGE } from "./capabilities";
+import {
+  reportInventory,
+  reportAppliedOps,
+  sweepCapabilityState,
+  DEVICE_RETENTION_MS,
+  SWEEP_DEVICE_PAGE,
+} from "./capabilities";
 
 // Retention has two halves and two different owners. Scope rows are retired by
 // the INGEST, because only the daemon knows what still exists — and it takes
@@ -16,7 +22,9 @@ const DEV = "dev_gone";
 async function tables(extra: Record<string, any[]> = {}) {
   return {
     users: [{ _id: OWNER, name: "o" }],
-    api_tokens: [{ _id: "t1", user_id: OWNER, token_hash: await hashToken(TOKEN) }],
+    api_tokens: [
+      { _id: "t1", user_id: OWNER, token_hash: await hashToken(TOKEN) },
+    ],
     capability_state: [],
     capability_observation: [],
     capability_events: [],
@@ -30,11 +38,19 @@ const ctx = (t: Record<string, any[]>) =>
   ({ db: makeFakeDb(t), scheduler: { runAfter: async () => null } }) as any;
 
 const entries = (name: string) =>
-  JSON.stringify({ items: [{ kind: "skill", name, scope: "user", enabled: true }], marketplaces: [] });
+  JSON.stringify({
+    items: [{ kind: "skill", name, scope: "user", enabled: true }],
+    marketplaces: [],
+  });
 
 async function report(
   c: any,
-  over: { scope_key?: string; full?: boolean; covered_scopes?: string[]; name?: string } = {},
+  over: {
+    scope_key?: string;
+    full?: boolean;
+    covered_scopes?: string[];
+    name?: string;
+  } = {},
 ) {
   return await (reportInventory as any)._handler(c, {
     api_token: TOKEN,
@@ -53,7 +69,7 @@ describe("scope retention on full reports", () => {
   test("a partial report deletes nothing", async () => {
     const t = await tables();
     const c = ctx(t);
-    await report(c, { scope_key: "" , full: true, covered_scopes: ["git:x/a"] });
+    await report(c, { scope_key: "", full: true, covered_scopes: ["git:x/a"] });
     await report(c, { scope_key: "git:x/a", name: "proj" });
     // Partial (no full flag): the scope stays, whatever covered_scopes says.
     await report(c, { scope_key: "", covered_scopes: [] });
@@ -75,7 +91,12 @@ describe("scope retention on full reports", () => {
     await report(c, { scope_key: "git:x/a", name: "proj" });
     await report(c, { scope_key: "", full: true, covered_scopes: ["git:x/a"] });
     // Second full, scope gone from coverage: now the omission means something.
-    await report(c, { scope_key: "", full: true, covered_scopes: [], name: "deploy2" });
+    await report(c, {
+      scope_key: "",
+      full: true,
+      covered_scopes: [],
+      name: "deploy2",
+    });
     expect(scopeKeys(t)).toEqual([""]);
   });
 
@@ -84,8 +105,18 @@ describe("scope retention on full reports", () => {
     const c = ctx(t);
     await report(c, { scope_key: "git:x/a", name: "proj" });
     await report(c, { scope_key: "", full: true, covered_scopes: ["git:x/a"] });
-    await report(c, { scope_key: "", full: true, covered_scopes: ["git:x/a"], name: "d2" });
-    await report(c, { scope_key: "", full: true, covered_scopes: ["git:x/a"], name: "d3" });
+    await report(c, {
+      scope_key: "",
+      full: true,
+      covered_scopes: ["git:x/a"],
+      name: "d2",
+    });
+    await report(c, {
+      scope_key: "",
+      full: true,
+      covered_scopes: ["git:x/a"],
+      name: "d3",
+    });
     expect(scopeKeys(t)).toEqual(["", "git:x/a"]);
   });
 
@@ -93,7 +124,12 @@ describe("scope retention on full reports", () => {
     const t = await tables();
     const c = ctx(t);
     await report(c, { scope_key: "", full: true, covered_scopes: [] });
-    await report(c, { scope_key: "", full: true, covered_scopes: [], name: "d2" });
+    await report(c, {
+      scope_key: "",
+      full: true,
+      covered_scopes: [],
+      name: "d2",
+    });
     expect(scopeKeys(t)).toEqual([""]);
   });
 });
@@ -115,8 +151,18 @@ describe("dead-device sweep", () => {
     const now = Date.now();
     const t = await tables({
       devices: [
-        { _id: "d1", user_id: OWNER, device_id: "dev_gone", last_seen: now - DEVICE_RETENTION_MS - 86_400_000 },
-        { _id: "d2", user_id: OWNER, device_id: "dev_live", last_seen: now - 60_000 },
+        {
+          _id: "d1",
+          user_id: OWNER,
+          device_id: "dev_gone",
+          last_seen: now - DEVICE_RETENTION_MS - 86_400_000,
+        },
+        {
+          _id: "d2",
+          user_id: OWNER,
+          device_id: "dev_live",
+          last_seen: now - 60_000,
+        },
       ],
       capability_state: [
         stateRow("dev_gone"),
@@ -126,18 +172,35 @@ describe("dead-device sweep", () => {
     });
     const res = await (sweepCapabilityState as any)._handler(ctx(t), {});
     expect(res.deleted).toBe(2);
-    expect(t.capability_state.map((r: any) => r.device_id)).toEqual(["dev_live"]);
+    expect(t.capability_state.map((r: any) => r.device_id)).toEqual([
+      "dev_live",
+    ]);
   });
 
   test("devices past the first page are reached: each run schedules the next from its cursor", async () => {
     const now = Date.now();
     const total = SWEEP_DEVICE_PAGE * 2 + 5;
     const devices = Array.from({ length: total }, (_, i) => ({
-      _id: `d${String(i).padStart(5, "0")}`, _creationTime: i + 1, user_id: OWNER, device_id: `dev_${i}`, last_seen: now - DEVICE_RETENTION_MS - 86_400_000,
+      _id: `d${String(i).padStart(5, "0")}`,
+      _creationTime: i + 1,
+      user_id: OWNER,
+      device_id: `dev_${i}`,
+      last_seen: now - DEVICE_RETENTION_MS - 86_400_000,
     }));
-    const t = await tables({ devices, capability_state: [stateRow(`dev_${total - 1}`), stateRow("dev_0")] });
+    const t = await tables({
+      devices,
+      capability_state: [stateRow(`dev_${total - 1}`), stateRow("dev_0")],
+    });
     const scheduled: any[] = [];
-    const c = { db: makeFakeDb(t), scheduler: { runAfter: async (_ms: number, _fn: unknown, args: any) => { scheduled.push(args); return null; } } } as any;
+    const c = {
+      db: makeFakeDb(t),
+      scheduler: {
+        runAfter: async (_ms: number, _fn: unknown, args: any) => {
+          scheduled.push(args);
+          return null;
+        },
+      },
+    } as any;
     let res = await (sweepCapabilityState as any)._handler(c, {});
     expect(res.done).toBe(false);
     let runs = 1;
@@ -154,7 +217,12 @@ describe("dead-device sweep", () => {
     const now = Date.now();
     const t = await tables({
       devices: [
-        { _id: "d1", user_id: OWNER, device_id: "dev_edge", last_seen: now - DEVICE_RETENTION_MS + 60_000 },
+        {
+          _id: "d1",
+          user_id: OWNER,
+          device_id: "dev_edge",
+          last_seen: now - DEVICE_RETENTION_MS + 60_000,
+        },
       ],
       capability_state: [stateRow("dev_edge")],
     });
@@ -174,12 +242,16 @@ describe("owned-ops divergence (ct-42860)", () => {
     const c = ctx(t);
     await report(c, {});
     const seed = await (reportAppliedOps as any)._handler(c, {
-      api_token: TOKEN, device_id: DEV, owned_ops_json: ops("hash-a"),
+      api_token: TOKEN,
+      device_id: DEV,
+      owned_ops_json: ops("hash-a"),
     });
     expect(seed.status).toBe("recorded");
     const beat = await report(c, {});
     expect(beat.server_owned_ops).toBeUndefined();
-    expect(t.capability_events.filter((e: any) => e.kind === "conflict")).toHaveLength(0);
+    expect(
+      t.capability_events.filter((e: any) => e.kind === "conflict"),
+    ).toHaveLength(0);
   });
 
   test("a diverging mirror fires a conflict event and hands the server copy back", async () => {
@@ -187,15 +259,21 @@ describe("owned-ops divergence (ct-42860)", () => {
     const c = ctx(t);
     await report(c, {});
     await (reportAppliedOps as any)._handler(c, {
-      api_token: TOKEN, device_id: DEV, owned_ops_json: ops("hash-a"),
+      api_token: TOKEN,
+      device_id: DEV,
+      owned_ops_json: ops("hash-a"),
     });
     // The hostile edit: the local sidecar claims different ownership.
     const beat = await (reportInventory as any)._handler(c, {
-      api_token: TOKEN, device_id: DEV, entries_json: entries("deploy"),
+      api_token: TOKEN,
+      device_id: DEV,
+      entries_json: entries("deploy"),
       local_owned_ops_json: ops("hash-TAMPERED"),
     });
     expect(beat.server_owned_ops).toBe(ops("hash-a")); // server copy wins
-    const conflicts = t.capability_events.filter((e: any) => e.kind === "conflict");
+    const conflicts = t.capability_events.filter(
+      (e: any) => e.kind === "conflict",
+    );
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0].ops_json).toContain("owned_ops_divergence");
   });
@@ -205,10 +283,14 @@ describe("owned-ops divergence (ct-42860)", () => {
     const c = ctx(t);
     await report(c, {});
     await (reportAppliedOps as any)._handler(c, {
-      api_token: TOKEN, device_id: DEV, owned_ops_json: ops("hash-a"),
+      api_token: TOKEN,
+      device_id: DEV,
+      owned_ops_json: ops("hash-a"),
     });
     await (reportInventory as any)._handler(c, {
-      api_token: TOKEN, device_id: DEV, entries_json: entries("deploy"),
+      api_token: TOKEN,
+      device_id: DEV,
+      entries_json: entries("deploy"),
       local_owned_ops_json: ops("hash-TAMPERED"),
     });
     // The server copy is unchanged after the tampered beat.

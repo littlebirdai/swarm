@@ -2,10 +2,18 @@ import { useConvex, useConvexConnectionState } from "convex/react";
 import { useWatchEffect } from "./useWatchEffect";
 import { useInboxStore } from "../store/inboxStore";
 import { installBrowserFocusHold, isElectron } from "../lib/desktop";
-import { getTerminalEndpoint, termHttpBase, type TerminalEndpoint } from "../lib/terminal/endpoint";
 import {
-  agentAlertsSuppressed, claimBrowserAlert, createNotificationDelivery,
-  installNotificationDelivery, type AlertClaim, type ClaimResult,
+  getTerminalEndpoint,
+  termHttpBase,
+  type TerminalEndpoint,
+} from "../lib/terminal/endpoint";
+import {
+  agentAlertsSuppressed,
+  claimBrowserAlert,
+  createNotificationDelivery,
+  installNotificationDelivery,
+  type AlertClaim,
+  type ClaimResult,
 } from "../lib/notificationDelivery";
 
 export function useNotificationDelivery(ready: boolean) {
@@ -25,14 +33,21 @@ export function useNotificationDelivery(ready: boolean) {
     let retryAt = 0;
     let discoverFresh = false;
 
-    const request = async (path: string, params: Record<string, string>, keepalive = false): Promise<any> => {
+    const request = async (
+      path: string,
+      params: Record<string, string>,
+      keepalive = false,
+    ): Promise<any> => {
       if (!endpoint) return null;
-      const res = await fetch(`${termHttpBase(endpoint)}/notifications/${path}?${new URLSearchParams({ scope, ...params })}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${endpoint.token}` },
-        signal: AbortSignal.timeout(1_500),
-        keepalive,
-      }).catch(() => null);
+      const res = await fetch(
+        `${termHttpBase(endpoint)}/notifications/${path}?${new URLSearchParams({ scope, ...params })}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${endpoint.token}` },
+          signal: AbortSignal.timeout(1_500),
+          keepalive,
+        },
+      ).catch(() => null);
       if (!res?.ok) {
         discoverFresh = res?.status !== 404;
         endpoint = null;
@@ -43,15 +58,25 @@ export function useNotificationDelivery(ready: boolean) {
     };
 
     const heartbeat = async () => {
-      if (stopped || !ready || !isWebSocketConnected || agentAlertsSuppressed()) return;
+      if (stopped || !ready || !isWebSocketConnected || agentAlertsSuppressed())
+        return;
       if (!endpoint && Date.now() >= retryAt && !connecting) {
-        connecting = getTerminalEndpoint(convex, { trustCache: !discoverFresh, force: discoverFresh })
-          .then((ep) => { if (!stopped) endpoint = ep; })
+        connecting = getTerminalEndpoint(convex, {
+          trustCache: !discoverFresh,
+          force: discoverFresh,
+        })
+          .then((ep) => {
+            if (!stopped) endpoint = ep;
+          })
           .catch(() => {})
-          .finally(() => { connecting = null; retryAt = Date.now() + 30_000; });
+          .finally(() => {
+            connecting = null;
+            retryAt = Date.now() + 30_000;
+          });
       }
       await connecting;
-      if (desktop && !stopped) await request("desktop", { client, active: "1" });
+      if (desktop && !stopped)
+        await request("desktop", { client, active: "1" });
     };
 
     const delivery = createNotificationDelivery({
@@ -59,15 +84,22 @@ export function useNotificationDelivery(ready: boolean) {
       remote: async (claim: AlertClaim): Promise<ClaimResult> => {
         await connecting;
         const body = await request("claim", {
-          event: claim.key, ttl: String(claim.ttl), desktop: desktop ? "1" : "0", preferDesktop: claim.preferDesktop ? "1" : "0",
+          event: claim.key,
+          ttl: String(claim.ttl),
+          desktop: desktop ? "1" : "0",
+          preferDesktop: claim.preferDesktop ? "1" : "0",
         });
-        return ["claimed", "duplicate", "desktop"].includes(body?.result) ? body.result : null;
+        return ["claimed", "duplicate", "desktop"].includes(body?.result)
+          ? body.result
+          : null;
       },
       fallback: (claim) => claimBrowserAlert(scope, claim),
     });
     const uninstall = installNotificationDelivery(delivery);
     void heartbeat();
-    const timer = setInterval(() => { void heartbeat(); }, 5_000);
+    const timer = setInterval(() => {
+      void heartbeat();
+    }, 5_000);
     const release = () => {
       if (desktop) void request("desktop", { client, active: "0" }, true);
     };

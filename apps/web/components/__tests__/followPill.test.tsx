@@ -20,9 +20,12 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const ann = { _id: "u-ann", name: "Ann Lee", presence_state: "active" };
 
@@ -35,7 +38,12 @@ async function render() {
 }
 
 afterEach(() => {
-  useInboxStore.setState({ followLeaderId: null, followBlocked: false, followedBy: [], teamMembers: [] } as any);
+  useInboxStore.setState({
+    followLeaderId: null,
+    followBlocked: false,
+    followedBy: [],
+    teamMembers: [],
+  } as any);
 });
 
 describe("FollowPill", () => {
@@ -46,28 +54,52 @@ describe("FollowPill", () => {
   });
 
   test("following: the leader's face, the name, a stop that ends the follow, and the blocked wording", async () => {
-    useInboxStore.setState({ followLeaderId: "u-ann", ...withTeamRoster([ann], { clientState: useInboxStore.getState().clientState }) } as any);
+    useInboxStore.setState({
+      followLeaderId: "u-ann",
+      ...withTeamRoster([ann], {
+        clientState: useInboxStore.getState().clientState,
+      }),
+    } as any);
     const r = await render();
-    expect(r.container.querySelector("[data-sv-follow-pill='following']")).not.toBeNull();
+    expect(
+      r.container.querySelector("[data-sv-follow-pill='following']"),
+    ).not.toBeNull();
     expect(r.container.textContent).toContain("Following Ann");
-    await act(() => { useInboxStore.getState().setFollowBlocked(true); });
-    expect(r.container.textContent).toContain("Ann is somewhere you can't open");
-    const stop = r.container.querySelector("button[aria-label='Stop following Ann']") as HTMLButtonElement;
+    await act(() => {
+      useInboxStore.getState().setFollowBlocked(true);
+    });
+    expect(r.container.textContent).toContain(
+      "Ann is somewhere you can't open",
+    );
+    const stop = r.container.querySelector(
+      "button[aria-label='Stop following Ann']",
+    ) as HTMLButtonElement;
     expect(stop).not.toBeNull();
-    await act(() => { stop.click(); });
+    await act(() => {
+      stop.click();
+    });
     expect(useInboxStore.getState().followLeaderId).toBeNull();
     expect(r.container.innerHTML).toBe("");
     await r.unmount();
   });
 
   test("followed: faces only, ringed, the names in the tooltip and the label", async () => {
-    useInboxStore.setState({ followedBy: [{ user_id: "b", name: "Bob Stone" }, { user_id: "c", name: "Cy" }] } as any);
+    useInboxStore.setState({
+      followedBy: [
+        { user_id: "b", name: "Bob Stone" },
+        { user_id: "c", name: "Cy" },
+      ],
+    } as any);
     const r = await render();
-    const pill = r.container.querySelector("[data-sv-follow-pill='followed']") as HTMLButtonElement;
+    const pill = r.container.querySelector(
+      "[data-sv-follow-pill='followed']",
+    ) as HTMLButtonElement;
     expect(pill.tagName).toBe("BUTTON");
     expect(pill.textContent).not.toContain("following you");
     expect(pill.title).toBe("Bob Stone, Cy");
-    expect(pill.getAttribute("aria-label")).toBe("Bob and Cy are following you: manage");
+    expect(pill.getAttribute("aria-label")).toBe(
+      "Bob and Cy are following you: manage",
+    );
     await r.unmount();
   });
 });

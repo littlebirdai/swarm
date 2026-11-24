@@ -19,18 +19,36 @@
 // sentence that says what to do next.
 
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery, mutation, query } from "./functions";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./functions";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { enqueuePendingMessage, getAuthenticatedUserId } from "./pendingMessages";
-import { canAccessConversation, heldKeysFor, requireTeamMembership, workspaceKey } from "./lib/access";
+import {
+  enqueuePendingMessage,
+  getAuthenticatedUserId,
+} from "./pendingMessages";
+import {
+  canAccessConversation,
+  heldKeysFor,
+  requireTeamMembership,
+  workspaceKey,
+} from "./lib/access";
 import { decryptRefreshToken, encryptRefreshToken } from "./googleOAuth";
 import { connectionKey } from "./tokenConnectors";
 import { nextShortId } from "./counters";
 import { emitNotification } from "./notificationRouter";
 import { askCore, peopleFor, withdrawCore } from "./sessionDecisions";
-import { bumpRedaction, recordSecretEvent, redactionCounter } from "./lib/secretApprovals";
+import {
+  bumpRedaction,
+  recordSecretEvent,
+  redactionCounter,
+} from "./lib/secretApprovals";
 import { consumePresence } from "./lib/presence";
 import { displayName } from "./lib/displayNames";
 import { findConversationByAnyRefWhere } from "./conversationSessionLookup";
@@ -69,15 +87,34 @@ import {
   type SecretVersionMeta,
   type SigninPayload,
 } from "@codecast/shared/contracts/secrets";
-import { DAEMON_COMMAND_TTL_MS, formatVaultDeclined, formatVaultReady, isHostedAgentType } from "@codecast/shared/contracts";
+import {
+  DAEMON_COMMAND_TTL_MS,
+  formatVaultDeclined,
+  formatVaultReady,
+  isHostedAgentType,
+} from "@codecast/shared/contracts";
 
 type SecretRow = Doc<"secrets">;
 
-const kindValidator = v.union(v.literal("key"), v.literal("login"), v.literal("signin"), v.literal("file"));
-const purposeValidator = v.union(v.literal("get"), v.literal("run"), v.literal("env"), v.literal("otp"), v.literal("signin"));
+const kindValidator = v.union(
+  v.literal("key"),
+  v.literal("login"),
+  v.literal("signin"),
+  v.literal("file"),
+);
+const purposeValidator = v.union(
+  v.literal("get"),
+  v.literal("run"),
+  v.literal("env"),
+  v.literal("otp"),
+  v.literal("signin"),
+);
 
 /** Where a write lands: a team (membership checked) or the caller's personal workspace. Exactly one. */
-const workspaceArgs = { team_id: v.optional(v.id("teams")), personal: v.optional(v.boolean()) };
+const workspaceArgs = {
+  team_id: v.optional(v.id("teams")),
+  personal: v.optional(v.boolean()),
+};
 
 const HKDF_PREFIX = "codecast-secret-v1:";
 const MAX_NOTE = 2000;
@@ -86,13 +123,27 @@ const EVENTS_SHOWN = 50;
 
 const deploymentKey = () => connectionKey("Vault");
 
-export async function encryptSecret(payload: SecretPayload, workspace: string): Promise<string> {
-  return encryptRefreshToken(JSON.stringify(payload), deploymentKey(), HKDF_PREFIX + workspace);
+export async function encryptSecret(
+  payload: SecretPayload,
+  workspace: string,
+): Promise<string> {
+  return encryptRefreshToken(
+    JSON.stringify(payload),
+    deploymentKey(),
+    HKDF_PREFIX + workspace,
+  );
 }
 
 /** The payload, or null when the ciphertext does not belong to this workspace (or the key changed). */
-export async function decryptSecret(enc: string, workspace: string): Promise<SecretPayload | null> {
-  const json = await decryptRefreshToken(enc, deploymentKey(), HKDF_PREFIX + workspace);
+export async function decryptSecret(
+  enc: string,
+  workspace: string,
+): Promise<SecretPayload | null> {
+  const json = await decryptRefreshToken(
+    enc,
+    deploymentKey(),
+    HKDF_PREFIX + workspace,
+  );
   return json === null ? null : JSON.parse(json);
 }
 
@@ -101,16 +152,23 @@ const undecryptable = (row: { name: string }) =>
 
 // ── Access ───────────────────────────────────────────────────────────────────
 
-async function requireCaller(ctx: any, apiToken?: string): Promise<Id<"users">> {
+async function requireCaller(
+  ctx: any,
+  apiToken?: string,
+): Promise<Id<"users">> {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
-  if (!userId) throw new Error("Unauthorized: sign in, or run `cast auth` on this machine");
+  if (!userId)
+    throw new Error(
+      "Unauthorized: sign in, or run `cast auth` on this machine",
+    );
   return userId;
 }
 
 /** For actions, which have no db: the web session or the token's user. */
 export const callerOf = internalQuery({
   args: { api_token: v.optional(v.string()) },
-  handler: async (ctx, args) => await getAuthenticatedUserId(ctx, args.api_token),
+  handler: async (ctx, args) =>
+    await getAuthenticatedUserId(ctx, args.api_token),
 });
 
 async function resolveWriteKey(
@@ -118,24 +176,48 @@ async function resolveWriteKey(
   userId: Id<"users">,
   args: { team_id?: Id<"teams">; personal?: boolean },
 ): Promise<{ workspace: string; team_id?: Id<"teams"> } | { error: string }> {
-  if (args.team_id && args.personal) return { error: "Choose one place for the secret: a team or personal, not both" };
+  if (args.team_id && args.personal)
+    return {
+      error: "Choose one place for the secret: a team or personal, not both",
+    };
   if (args.team_id) {
     await requireTeamMembership(ctx, userId, args.team_id);
-    return { workspace: workspaceKey({ type: "team", teamId: args.team_id }), team_id: args.team_id };
+    return {
+      workspace: workspaceKey({ type: "team", teamId: args.team_id }),
+      team_id: args.team_id,
+    };
   }
-  if (args.personal) return { workspace: workspaceKey({ type: "personal", userId }) };
-  return { error: "Say where the secret goes: --team <team> for the team, or --personal for you alone" };
+  if (args.personal)
+    return { workspace: workspaceKey({ type: "personal", userId }) };
+  return {
+    error:
+      "Say where the secret goes: --team <team> for the team, or --personal for you alone",
+  };
 }
 
-async function byName(ctx: any, workspace: string, name: string): Promise<SecretRow | null> {
-  return await ctx.db.query("secrets").withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace).eq("name", name)).first();
+async function byName(
+  ctx: any,
+  workspace: string,
+  name: string,
+): Promise<SecretRow | null> {
+  return await ctx.db
+    .query("secrets")
+    .withIndex("by_workspace_name", (q: any) =>
+      q.eq("workspace", workspace).eq("name", name),
+    )
+    .first();
 }
 
 /** All rows across the workspaces the viewer holds a key for. */
 async function rowsFor(ctx: any, userId: Id<"users">): Promise<SecretRow[]> {
   const rows: SecretRow[] = [];
   for (const key of await heldKeysFor(ctx, userId)) {
-    rows.push(...(await ctx.db.query("secrets").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).collect()));
+    rows.push(
+      ...(await ctx.db
+        .query("secrets")
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+        .collect()),
+    );
   }
   return rows;
 }
@@ -159,7 +241,11 @@ async function findSecret(
   const r = ref.trim();
   const keys = await heldKeysFor(ctx, userId);
   let row: SecretRow | null = null;
-  if (/^sec-\d+$/i.test(r)) row = await ctx.db.query("secrets").withIndex("by_short_id", (q: any) => q.eq("short_id", r.toLowerCase())).first();
+  if (/^sec-\d+$/i.test(r))
+    row = await ctx.db
+      .query("secrets")
+      .withIndex("by_short_id", (q: any) => q.eq("short_id", r.toLowerCase()))
+      .first();
   else if (isConvexId(r)) {
     const id = ctx.db.normalizeId("secrets", r);
     row = id ? await ctx.db.get(id) : null;
@@ -171,10 +257,14 @@ async function findSecret(
       if (hit) found.push(hit);
     }
     const picked = pickSecretByName(found, r, opts);
-    if (picked && "ambiguous" in picked) return { error: ambiguousSecretName(r, picked.ambiguous) };
+    if (picked && "ambiguous" in picked)
+      return { error: ambiguousSecretName(r, picked.ambiguous) };
     row = picked;
   }
-  if (!row) return { error: `No secret ${r} that you can read: cast vault lists them, and cast vault request ${r} asks a person for it` };
+  if (!row)
+    return {
+      error: `No secret ${r} that you can read: cast vault lists them, and cast vault request ${r} asks a person for it`,
+    };
   return row;
 }
 
@@ -184,9 +274,15 @@ async function findSecret(
  * naming it would wake it with a "human" line, notify its people and put the
  * read on its record.
  */
-async function resolveConversation(ctx: any, userId: Id<"users">, ref?: string): Promise<Doc<"conversations"> | null> {
+async function resolveConversation(
+  ctx: any,
+  userId: Id<"users">,
+  ref?: string,
+): Promise<Doc<"conversations"> | null> {
   if (!ref) return null;
-  return (await findConversationByAnyRefWhere(ctx, ref, (c: any) => isConversationOwner(ctx, userId, c))) as any;
+  return (await findConversationByAnyRefWhere(ctx, ref, (c: any) =>
+    isConversationOwner(ctx, userId, c),
+  )) as any;
 }
 
 // ── Who answers for a sign-in's sites ────────────────────────────────────────
@@ -200,23 +296,42 @@ async function resolveConversation(ctx: any, userId: Id<"users">, ref?: string):
  * else the user whose token did; such a sign-in signs in and takes write-backs
  * only from that user's browsers until a person sets its sites.
  */
-async function scopedBy(ctx: any, userId: Id<"users">, person: boolean, sites: string[] | undefined): Promise<Id<"users"> | undefined> {
-  if (person || !sites?.length || (await captureAskedFor(ctx, userId, sites))) return undefined;
+async function scopedBy(
+  ctx: any,
+  userId: Id<"users">,
+  person: boolean,
+  sites: string[] | undefined,
+): Promise<Id<"users"> | undefined> {
+  if (person || !sites?.length || (await captureAskedFor(ctx, userId, sites)))
+    return undefined;
   return userId;
 }
 
 /** The person's own Save sign-in from my Chrome (requestSigninCapture) still running for these sites: the cookies their laptop stores with their token are theirs. */
-async function captureAskedFor(ctx: any, userId: Id<"users">, sites: string[]): Promise<boolean> {
+async function captureAskedFor(
+  ctx: any,
+  userId: Id<"users">,
+  sites: string[],
+): Promise<boolean> {
   const now = Date.now();
   const pending: Doc<"daemon_commands">[] = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", userId).eq("executed_at", undefined),
+    )
     .collect();
   return pending.some((c) => {
-    if (c.command !== "vault_capture_signin" || now - c.created_at > DAEMON_COMMAND_TTL_MS) return false;
+    if (
+      c.command !== "vault_capture_signin" ||
+      now - c.created_at > DAEMON_COMMAND_TTL_MS
+    )
+      return false;
     try {
       const site = JSON.parse(c.args ?? "{}").site;
-      return typeof site === "string" && sites.every((s) => bareSite(s) === bareSite(site));
+      return (
+        typeof site === "string" &&
+        sites.every((s) => bareSite(s) === bareSite(site))
+      );
     } catch {
       return false;
     }
@@ -232,10 +347,19 @@ const isPerson = async (ctx: any) => !!(await getAuthUserId(ctx));
  * the next run's payments or traffic to that key's owner as surely as a read
  * leaks it. A person signed in to the app does all of these.
  */
-const askFirstRefusal = (row: { name: string; ask_first?: boolean }, person: boolean, change: string) =>
-  row.ask_first && !person ? `${row.name} is Ask first, so only a person ${change}: do it in its panel on the Vault page` : null;
+const askFirstRefusal = (
+  row: { name: string; ask_first?: boolean },
+  person: boolean,
+  change: string,
+) =>
+  row.ask_first && !person
+    ? `${row.name} is Ask first, so only a person ${change}: do it in its panel on the Vault page`
+    : null;
 
-const foreignScope = (row: { name: string; sites_by_token?: Id<"users"> }, userId: Id<"users">) =>
+const foreignScope = (
+  row: { name: string; sites_by_token?: Id<"users"> },
+  userId: Id<"users">,
+) =>
   row.sites_by_token && String(row.sites_by_token) !== String(userId)
     ? `${row.name}'s site was set by a teammate's agent, not a person, so only their browsers use it: a person confirms its sites in its panel on the Vault page, or saves the sign-in again from their own Chrome`
     : null;
@@ -248,18 +372,30 @@ type ValueRef = { value_id?: Id<"secret_values">; value_enc?: string };
 const hasValue = (h: ValueRef) => !!(h.value_id || h.value_enc);
 
 /** What an action carries to load a value later: the id, or the legacy inline ciphertext when there is none. */
-const valueRefOf = (h: ValueRef): ValueRef => (h.value_id ? { value_id: h.value_id } : { value_enc: h.value_enc });
+const valueRefOf = (h: ValueRef): ValueRef =>
+  h.value_id ? { value_id: h.value_id } : { value_enc: h.value_enc };
 
 /** A holder's value as a secret_values row, moving a legacy inline ciphertext there first. */
-async function valueIdOf(ctx: any, secret: { _id: Id<"secrets">; workspace: string }, h: ValueRef): Promise<Id<"secret_values"> | undefined> {
+async function valueIdOf(
+  ctx: any,
+  secret: { _id: Id<"secrets">; workspace: string },
+  h: ValueRef,
+): Promise<Id<"secret_values"> | undefined> {
   if (h.value_id) return h.value_id;
   if (!h.value_enc) return undefined;
-  return await ctx.db.insert("secret_values", { secret_id: secret._id, workspace: secret.workspace, value_enc: h.value_enc });
+  return await ctx.db.insert("secret_values", {
+    secret_id: secret._id,
+    workspace: secret.workspace,
+    value_enc: h.value_enc,
+  });
 }
 
 export const ciphertexts = internalQuery({
   args: { ids: v.array(v.id("secret_values")) },
-  handler: async (ctx, args) => await Promise.all(args.ids.map(async (id) => (await ctx.db.get(id))?.value_enc ?? null)),
+  handler: async (ctx, args) =>
+    await Promise.all(
+      args.ids.map(async (id) => (await ctx.db.get(id))?.value_enc ?? null),
+    ),
 });
 
 // A value runs to SECRET_PAYLOAD_MAX before encryption, so a handful per query
@@ -267,13 +403,23 @@ export const ciphertexts = internalQuery({
 const CIPHER_BATCH = 8;
 
 /** The ciphertexts refs point at, in order (null for one that is gone), read a batch per query. */
-async function loadCiphertexts(ctx: any, refs: ValueRef[]): Promise<(string | null)[]> {
-  const out = refs.map((r) => (r.value_id ? null : r.value_enc ?? null));
-  const ids = refs.flatMap((r, i) => (r.value_id ? [[i, r.value_id] as const] : []));
+async function loadCiphertexts(
+  ctx: any,
+  refs: ValueRef[],
+): Promise<(string | null)[]> {
+  const out = refs.map((r) => (r.value_id ? null : (r.value_enc ?? null)));
+  const ids = refs.flatMap((r, i) =>
+    r.value_id ? [[i, r.value_id] as const] : [],
+  );
   for (let i = 0; i < ids.length; i += CIPHER_BATCH) {
     const chunk = ids.slice(i, i + CIPHER_BATCH);
-    const got: (string | null)[] = await ctx.runQuery(internal.secrets.ciphertexts, { ids: chunk.map(([, id]) => id) });
-    chunk.forEach(([at], k) => { out[at] = got[k]; });
+    const got: (string | null)[] = await ctx.runQuery(
+      internal.secrets.ciphertexts,
+      { ids: chunk.map(([, id]) => id) },
+    );
+    chunk.forEach(([at], k) => {
+      out[at] = got[k];
+    });
   }
   return out;
 }
@@ -281,8 +427,14 @@ async function loadCiphertexts(ctx: any, refs: ValueRef[]): Promise<(string | nu
 // ── Ask first approvals ──────────────────────────────────────────────────────
 
 /** An approval lets its session read while the session is active, for SECRET_APPROVAL_TTL_MS at most. */
-const approvalHolds = (a: Doc<"secret_approvals"> | null | undefined, conversation: any, now: number) =>
-  a?.status === "approved" && now - a.at < SECRET_APPROVAL_TTL_MS && conversation?.status === "active";
+const approvalHolds = (
+  a: Doc<"secret_approvals"> | null | undefined,
+  conversation: any,
+  now: number,
+) =>
+  a?.status === "approved" &&
+  now - a.at < SECRET_APPROVAL_TTL_MS &&
+  conversation?.status === "active";
 
 /**
  * Drop a secret's approvals. After a new value, the approved ones: a person
@@ -290,15 +442,24 @@ const approvalHolds = (a: Doc<"secret_approvals"> | null | undefined, conversati
  * goes, every one, and a decision still open is withdrawn with `reason`, so
  * the queue keeps nothing that can no longer do anything.
  */
-async function clearApprovals(ctx: any, row: SecretRow, which: "approved" | "all", reason = "") {
+async function clearApprovals(
+  ctx: any,
+  row: SecretRow,
+  which: "approved" | "all",
+  reason = "",
+) {
   const now = Date.now();
-  for (const a of await ctx.db.query("secret_approvals").withIndex("by_secret_conversation", (q: any) => q.eq("secret_id", row._id)).collect()) {
+  for (const a of await ctx.db
+    .query("secret_approvals")
+    .withIndex("by_secret_conversation", (q: any) => q.eq("secret_id", row._id))
+    .collect()) {
     if (which === "approved" && a.status !== "approved") continue;
     // Deleted before the withdraw, so its settle finds no approval to mark denied.
     await ctx.db.delete(a._id);
     if (a.status !== "pending") continue;
     const decision = await ctx.db.get(a.decision_id);
-    if (decision?.status === "pending") await withdrawCore(ctx, decision, now, undefined, reason);
+    if (decision?.status === "pending")
+      await withdrawCore(ctx, decision, now, undefined, reason);
   }
 }
 
@@ -313,26 +474,43 @@ const valueVersion = (row: SecretRow) => row.value_updated_at ?? row.updated_at;
  * before the rotate) belongs to the value it replaced, so reachedUser never
  * counts it as the new value reaching anyone.
  */
-const nextValueVersion = (row: SecretRow, now: number) => Math.max(now + 1, valueVersion(row) + 1);
+const nextValueVersion = (row: SecretRow, now: number) =>
+  Math.max(now + 1, valueVersion(row) + 1);
 
 /**
  * The fields a metadata write patches: who and when, for display. A row from
  * before value_updated_at gets it pinned first, so the edit does not look like
  * a new value to a machine about to write a sign-in back.
  */
-const metaStamp = (row: SecretRow, by: Id<"users">) => ({ updated_by: by, updated_at: Date.now(), value_updated_at: valueVersion(row) });
+const metaStamp = (row: SecretRow, by: Id<"users">) => ({
+  updated_by: by,
+  updated_at: Date.now(),
+  value_updated_at: valueVersion(row),
+});
 
-async function redactionVersionFor(ctx: any, userId: Id<"users">): Promise<string> {
+async function redactionVersionFor(
+  ctx: any,
+  userId: Id<"users">,
+): Promise<string> {
   const parts: string[] = [];
   for (const key of [...(await heldKeysFor(ctx, userId))].sort()) {
-    const row = await ctx.db.query("counters").withIndex("by_name", (q: any) => q.eq("name", redactionCounter(key))).unique();
+    const row = await ctx.db
+      .query("counters")
+      .withIndex("by_name", (q: any) => q.eq("name", redactionCounter(key)))
+      .unique();
     parts.push(`${key}=${row?.value ?? 0}`);
   }
   return parts.join(",");
 }
 
 /** With `kind`, the vars the secret would inject (named, or derived from its name) are checked too (secretEnvProblem). */
-function metaProblem(fields: { name?: string; kind?: SecretKind; env?: string[]; note?: string; sites?: string[] }): string | null {
+function metaProblem(fields: {
+  name?: string;
+  kind?: SecretKind;
+  env?: string[];
+  note?: string;
+  sites?: string[];
+}): string | null {
   if (fields.name !== undefined) {
     const p = secretNameProblem(fields.name);
     if (p) return p;
@@ -342,10 +520,15 @@ function metaProblem(fields: { name?: string; kind?: SecretKind; env?: string[];
     if (p) return p;
   }
   if (fields.name !== undefined && fields.kind) {
-    const p = secretEnvProblem({ name: fields.name, kind: fields.kind, env: fields.env });
+    const p = secretEnvProblem({
+      name: fields.name,
+      kind: fields.kind,
+      env: fields.env,
+    });
     if (p) return p;
   }
-  if ((fields.note?.length ?? 0) > MAX_NOTE) return `A note holds at most ${MAX_NOTE} characters: keep the details in a doc and link it`;
+  if ((fields.note?.length ?? 0) > MAX_NOTE)
+    return `A note holds at most ${MAX_NOTE} characters: keep the details in a doc and link it`;
   for (const site of fields.sites ?? []) {
     const p = siteProblem(site);
     if (p) return p;
@@ -353,13 +536,14 @@ function metaProblem(fields: { name?: string; kind?: SecretKind; env?: string[];
   return null;
 }
 
-
 /** What a row stores about its value, computed when the value is written: nothing here is ever read by decrypting. */
 function valueFields(kind: SecretKind, payload: SecretPayload) {
   return {
     fingerprint: payloadFingerprint(kind, payload),
-    signin_expires_at: kind === "signin" ? signinExpiresAt(payload as SigninPayload) : undefined,
-    has_otp: kind === "login" ? !!(payload as LoginPayload).totp_seed : undefined,
+    signin_expires_at:
+      kind === "signin" ? signinExpiresAt(payload as SigninPayload) : undefined,
+    has_otp:
+      kind === "login" ? !!(payload as LoginPayload).totp_seed : undefined,
   };
 }
 
@@ -369,9 +553,13 @@ const valueFieldValidators = {
   has_otp: v.optional(v.boolean()),
 };
 
-async function namesOf(ctx: any, ids: (Id<"users"> | undefined)[]): Promise<Map<string, string>> {
+async function namesOf(
+  ctx: any,
+  ids: (Id<"users"> | undefined)[],
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  for (const id of new Set(ids.filter(Boolean).map(String))) out.set(id, displayName(await ctx.db.get(id as Id<"users">)));
+  for (const id of new Set(ids.filter(Boolean).map(String)))
+    out.set(id, displayName(await ctx.db.get(id as Id<"users">)));
   return out;
 }
 
@@ -397,13 +585,21 @@ function metaOf(row: SecretRow, names: Map<string, string>): SecretMeta {
     value_updated_at: valueVersion(row),
     rotated_at: row.rotated_at,
     last_used_at: row.last_used_at,
-    last_used_by_conversation: row.last_used_by_conversation ? String(row.last_used_by_conversation) : undefined,
+    last_used_by_conversation: row.last_used_by_conversation
+      ? String(row.last_used_by_conversation)
+      : undefined,
     use_count: row.use_count,
     requested_by: row.requested_by ? String(row.requested_by) : undefined,
-    requested_by_name: row.requested_by ? names.get(String(row.requested_by)) : undefined,
-    requested_from_conversation: row.requested_from_conversation ? String(row.requested_from_conversation) : undefined,
+    requested_by_name: row.requested_by
+      ? names.get(String(row.requested_by))
+      : undefined,
+    requested_from_conversation: row.requested_from_conversation
+      ? String(row.requested_from_conversation)
+      : undefined,
     request_why: row.request_why,
-    updated_by_name: row.updated_by ? names.get(String(row.updated_by)) : undefined,
+    updated_by_name: row.updated_by
+      ? names.get(String(row.updated_by))
+      : undefined,
     has_otp: row.has_otp,
     ask_first: row.ask_first,
     version_count: row.version_count,
@@ -421,18 +617,22 @@ export const list = query({
     const userId = await requireCaller(ctx, args.api_token);
     const rows = await rowsFor(ctx, userId);
     const names = await namesOf(ctx, rows.flatMap(peopleOf));
-    return rows
-      .sort(compareSecrets)
-      .map((r) => metaOf(r, names));
+    return rows.sort(compareSecrets).map((r) => metaOf(r, names));
   },
 });
 
 /** One secret's metadata (`cast vault show`). `status` settles a name in several workspaces the way a fill does (`cast vault fill` asks for the request). */
 export const show = query({
-  args: { api_token: v.optional(v.string()), ref: v.string(), status: v.optional(v.union(v.literal("ready"), v.literal("requested"))) },
+  args: {
+    api_token: v.optional(v.string()),
+    ref: v.string(),
+    status: v.optional(v.union(v.literal("ready"), v.literal("requested"))),
+  },
   handler: async (ctx, args): Promise<SecretMeta | { error: string }> => {
     const userId = await requireCaller(ctx, args.api_token);
-    const row = await findSecret(ctx, userId, args.ref, { status: args.status });
+    const row = await findSecret(ctx, userId, args.ref, {
+      status: args.status,
+    });
     if ("error" in row) return row;
     return metaOf(row, await namesOf(ctx, peopleOf(row)));
   },
@@ -450,36 +650,79 @@ export const events = query({
     const row = await findSecret(ctx, userId, args.ref);
     let evs: Doc<"secret_events">[];
     if (!("error" in row)) {
-      evs = await ctx.db.query("secret_events").withIndex("by_secret_at", (q: any) => q.eq("secret_id", row._id)).order("desc").take(EVENTS_SHOWN);
+      evs = await ctx.db
+        .query("secret_events")
+        .withIndex("by_secret_at", (q: any) => q.eq("secret_id", row._id))
+        .order("desc")
+        .take(EVENTS_SHOWN);
     } else {
       const shortId = args.ref.trim().toLowerCase();
       if (!/^sec-\d+$/.test(shortId)) return row;
       const keys = await heldKeysFor(ctx, userId);
-      evs = (await ctx.db.query("secret_events").withIndex("by_short_id_at", (q: any) => q.eq("secret_short_id", shortId)).order("desc").take(EVENTS_SHOWN))
-        .filter((e) => keys.has(e.workspace));
+      evs = (
+        await ctx.db
+          .query("secret_events")
+          .withIndex("by_short_id_at", (q: any) =>
+            q.eq("secret_short_id", shortId),
+          )
+          .order("desc")
+          .take(EVENTS_SHOWN)
+      ).filter((e) => keys.has(e.workspace));
       if (!evs.length) return row;
     }
-    const names = await namesOf(ctx, evs.map((e) => e.actor_user_id));
+    const names = await namesOf(
+      ctx,
+      evs.map((e) => e.actor_user_id),
+    );
     const decisions = new Map<string, string | undefined>();
-    for (const id of new Set(evs.map((e) => e.decision_id).filter(Boolean).map(String))) {
-      decisions.set(id, ((await ctx.db.get(id as Id<"session_decisions">)) as any)?.short_id);
+    for (const id of new Set(
+      evs
+        .map((e) => e.decision_id)
+        .filter(Boolean)
+        .map(String),
+    )) {
+      decisions.set(
+        id,
+        ((await ctx.db.get(id as Id<"session_decisions">)) as any)?.short_id,
+      );
     }
     const convs = new Map<string, any>();
-    for (const id of new Set(evs.map((e) => e.conversation_id).filter(Boolean).map(String))) {
+    for (const id of new Set(
+      evs
+        .map((e) => e.conversation_id)
+        .filter(Boolean)
+        .map(String),
+    )) {
       const c: any = await ctx.db.get(id as Id<"conversations">);
       // A session the viewer cannot open is named as a session, never by its title.
-      if (c) convs.set(id, (await canAccessConversation(ctx, userId, c)) ? { short_id: c.short_id, title: c.title } : { short_id: c.short_id });
+      if (c)
+        convs.set(
+          id,
+          (await canAccessConversation(ctx, userId, c))
+            ? { short_id: c.short_id, title: c.title }
+            : { short_id: c.short_id },
+        );
     }
     return evs.map((e) => ({
       _id: String(e._id),
       kind: e.kind,
       at: e.at,
       purpose: e.purpose,
-      actor_name: e.actor_user_id ? names.get(String(e.actor_user_id)) : undefined,
-      conversation_id: e.conversation_id ? String(e.conversation_id) : undefined,
-      session_short_id: e.conversation_id ? convs.get(String(e.conversation_id))?.short_id : undefined,
-      session_title: e.conversation_id ? convs.get(String(e.conversation_id))?.title : undefined,
-      decision_short_id: e.decision_id ? decisions.get(String(e.decision_id)) : undefined,
+      actor_name: e.actor_user_id
+        ? names.get(String(e.actor_user_id))
+        : undefined,
+      conversation_id: e.conversation_id
+        ? String(e.conversation_id)
+        : undefined,
+      session_short_id: e.conversation_id
+        ? convs.get(String(e.conversation_id))?.short_id
+        : undefined,
+      session_title: e.conversation_id
+        ? convs.get(String(e.conversation_id))?.title
+        : undefined,
+      decision_short_id: e.decision_id
+        ? decisions.get(String(e.decision_id))
+        : undefined,
     }));
   },
 });
@@ -487,7 +730,12 @@ export const events = query({
 /** Cheap poll for daemons: changes whenever any value the caller can read is written or deleted, or their workspaces change. */
 export const redactionVersion = query({
   args: { api_token: v.string() },
-  handler: async (ctx, args) => ({ version: await redactionVersionFor(ctx, await requireCaller(ctx, args.api_token)) }),
+  handler: async (ctx, args) => ({
+    version: await redactionVersionFor(
+      ctx,
+      await requireCaller(ctx, args.api_token),
+    ),
+  }),
 });
 
 // ── Writes ───────────────────────────────────────────────────────────────────
@@ -528,11 +776,35 @@ export const insertSecret = internalMutation({
     if (twin) return { error: duplicate(twin) };
     const now = Date.now();
     const { user_id, value_enc, person, ...fields } = args;
-    const sites_by_token = args.kind === "signin" ? await scopedBy(ctx, user_id, person, args.sites) : undefined;
+    const sites_by_token =
+      args.kind === "signin"
+        ? await scopedBy(ctx, user_id, person, args.sites)
+        : undefined;
     const short_id = await nextShortId(ctx.db as any, "sec");
-    const id = await ctx.db.insert("secrets", { ...fields, sites_by_token, short_id, status: "ready", created_by: user_id, created_at: now, updated_by: user_id, updated_at: now, value_updated_at: now } as any);
-    await ctx.db.patch(id, { value_id: await valueIdOf(ctx, { _id: id, workspace: args.workspace }, { value_enc }) });
-    await recordSecretEvent(ctx, { _id: id, workspace: args.workspace, name: args.name, short_id }, "created", { actor: user_id });
+    const id = await ctx.db.insert("secrets", {
+      ...fields,
+      sites_by_token,
+      short_id,
+      status: "ready",
+      created_by: user_id,
+      created_at: now,
+      updated_by: user_id,
+      updated_at: now,
+      value_updated_at: now,
+    } as any);
+    await ctx.db.patch(id, {
+      value_id: await valueIdOf(
+        ctx,
+        { _id: id, workspace: args.workspace },
+        { value_enc },
+      ),
+    });
+    await recordSecretEvent(
+      ctx,
+      { _id: id, workspace: args.workspace, name: args.name, short_id },
+      "created",
+      { actor: user_id },
+    );
     await bumpRedaction(ctx, args.workspace);
     return { id: String(id), short_id, name: args.name, value_updated_at: now };
   },
@@ -550,22 +822,43 @@ export const create = action({
     note: v.optional(v.string()),
     ...workspaceArgs,
   },
-  handler: async (ctx, args): Promise<{ id: string; short_id: string; name: string; value_updated_at: number } | { error: string }> => {
-    const userId = await ctx.runQuery(internal.secrets.callerOf, { api_token: args.api_token });
-    if (!userId) return { error: "Unauthorized: sign in, or run `cast auth` on this machine" };
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { id: string; short_id: string; name: string; value_updated_at: number }
+    | { error: string }
+  > => {
+    const userId = await ctx.runQuery(internal.secrets.callerOf, {
+      api_token: args.api_token,
+    });
+    if (!userId)
+      return {
+        error: "Unauthorized: sign in, or run `cast auth` on this machine",
+      };
     const name = args.name.trim();
     const env = cleanSecretList(args.env);
     const sites = cleanSecretSites(args.sites);
     const note = args.note?.trim() || undefined;
-    const problem = metaProblem({ name, kind: args.kind, env, sites, note }) ?? loginSitesProblem(args.kind, sites);
+    const problem =
+      metaProblem({ name, kind: args.kind, env, sites, note }) ??
+      loginSitesProblem(args.kind, sites);
     if (problem) return { error: problem };
     const checked = validatePayload(args.kind as SecretKind, args.payload);
     if ("error" in checked) return checked;
     if (args.kind === "signin") {
-      const outside = signinScopeProblem(checked.payload as SigninPayload, sites);
+      const outside = signinScopeProblem(
+        checked.payload as SigninPayload,
+        sites,
+      );
       if (outside) return { error: outside };
     }
-    const where = await ctx.runQuery(internal.secrets.resolveCreate, { user_id: userId, name, team_id: args.team_id, personal: args.personal });
+    const where = await ctx.runQuery(internal.secrets.resolveCreate, {
+      user_id: userId,
+      name,
+      team_id: args.team_id,
+      personal: args.personal,
+    });
     if ("error" in where) return where;
     return await ctx.runMutation(internal.secrets.insertSecret, {
       user_id: userId,
@@ -583,19 +876,42 @@ export const create = action({
   },
 });
 
-const alreadyFilled = (row: SecretRow) => `${row.name} already has a value: replace it with cast vault rotate ${row.name}`;
+const alreadyFilled = (row: SecretRow) =>
+  `${row.name} already has a value: replace it with cast vault rotate ${row.name}`;
 
 /** The row an action is about to write a value into, checked for access. */
 export const valueTarget = internalQuery({
-  args: { user_id: v.id("users"), ref: v.string(), want: v.union(v.literal("ready"), v.literal("requested")) },
+  args: {
+    user_id: v.id("users"),
+    ref: v.string(),
+    want: v.union(v.literal("ready"), v.literal("requested")),
+  },
   handler: async (ctx, args) => {
     // A fill means the request: of one name in two workspaces, the requested row.
-    const row = await findSecret(ctx, args.user_id, args.ref, args.want === "requested" ? { status: "requested" } : {});
+    const row = await findSecret(
+      ctx,
+      args.user_id,
+      args.ref,
+      args.want === "requested" ? { status: "requested" } : {},
+    );
     if ("error" in row) return row;
     if (row.status !== args.want) {
-      return { error: args.want === "ready" ? `${row.name} has no value yet (${row.short_id} is a request): fill it with cast vault fulfill ${row.name}` : alreadyFilled(row) };
+      return {
+        error:
+          args.want === "ready"
+            ? `${row.name} has no value yet (${row.short_id} is a request): fill it with cast vault fulfill ${row.name}`
+            : alreadyFilled(row),
+      };
     }
-    return { id: row._id, workspace: row.workspace, kind: row.kind, name: row.name, sites: row.sites, value_updated_at: valueVersion(row), ...valueRefOf(row) };
+    return {
+      id: row._id,
+      workspace: row.workspace,
+      kind: row.kind,
+      name: row.name,
+      sites: row.sites,
+      value_updated_at: valueVersion(row),
+      ...valueRefOf(row),
+    };
   },
 });
 
@@ -606,7 +922,11 @@ export const storeValue = internalMutation({
     workspace: v.string(),
     value_enc: v.string(),
     ...valueFieldValidators,
-    event: v.union(v.literal("rotated"), v.literal("fulfilled"), v.literal("refreshed")),
+    event: v.union(
+      v.literal("rotated"),
+      v.literal("fulfilled"),
+      v.literal("refreshed"),
+    ),
     person: v.boolean(),
     // refresh: the value_updated_at this machine read the row at; a value written since refuses the write-back.
     // A login rotate passes the version it merged from, so a write in between is merged again rather than lost.
@@ -616,20 +936,36 @@ export const storeValue = internalMutation({
     const row = await ctx.db.get(args.id);
     // The ciphertext is bound to the workspace it was encrypted for; a row
     // that moved or vanished meanwhile must not take it.
-    if (!row || row.workspace !== args.workspace) return { error: "The secret changed while saving: try again" };
-    if (!(await heldKeysFor(ctx, args.user_id)).has(row.workspace)) return { error: `You can no longer write ${row.name}: ask someone in its team` };
+    if (!row || row.workspace !== args.workspace)
+      return { error: "The secret changed while saving: try again" };
+    if (!(await heldKeysFor(ctx, args.user_id)).has(row.workspace))
+      return {
+        error: `You can no longer write ${row.name}: ask someone in its team`,
+      };
     if (args.event === "refreshed") {
       const foreign = foreignScope(row, args.user_id);
       if (foreign) return { error: foreign };
       // A write-back follows an approved read: without one, a token's cookies would replace the session a person approved.
-      if (row.ask_first && !args.person && !(await approvedForUser(ctx, row, args.user_id, Date.now()))) {
-        return { error: `${row.name} is Ask first: a browser writes its cookies back only while one of your sessions holds an approval to read it` };
+      if (
+        row.ask_first &&
+        !args.person &&
+        !(await approvedForUser(ctx, row, args.user_id, Date.now()))
+      ) {
+        return {
+          error: `${row.name} is Ask first: a browser writes its cookies back only while one of your sessions holds an approval to read it`,
+        };
       }
     }
-    const held = args.event === "rotated" ? askFirstRefusal(row, args.person, "replaces its value") : null;
+    const held =
+      args.event === "rotated"
+        ? askFirstRefusal(row, args.person, "replaces its value")
+        : null;
     if (held) return { error: held };
     // A refresh names the value it read; naming none is as stale as naming an old one, so a blind overwrite never lands.
-    if ((args.event === "refreshed" || args.expected_updated_at !== undefined) && valueVersion(row) !== args.expected_updated_at) {
+    if (
+      (args.event === "refreshed" || args.expected_updated_at !== undefined) &&
+      valueVersion(row) !== args.expected_updated_at
+    ) {
       return {
         stale: true as const,
         value_updated_at: valueVersion(row),
@@ -639,14 +975,16 @@ export const storeValue = internalMutation({
     // A fill is the request's: a second fill that read the row while it was
     // still a request lands after the first, and would replace its value and
     // record a second fill.
-    if (args.event === "fulfilled" && row.status !== "requested") return { error: alreadyFilled(row) };
+    if (args.event === "fulfilled" && row.status !== "requested")
+      return { error: alreadyFilled(row) };
     const now = Date.now();
     const version = nextValueVersion(row, now);
     const wasRequest = row.status === "requested";
     // A sign-in's cookie refresh replaces in place; every other value write
     // keeps the one it replaces, and ends the approvals given for it.
     let value_id = row.value_id;
-    if (args.event === "refreshed" && value_id) await ctx.db.patch(value_id, { value_enc: args.value_enc });
+    if (args.event === "refreshed" && value_id)
+      await ctx.db.patch(value_id, { value_enc: args.value_enc });
     else {
       if (args.event !== "refreshed" && hasValue(row)) {
         await keepVersion(ctx, row, args.user_id, now);
@@ -666,17 +1004,45 @@ export const storeValue = internalMutation({
       value_updated_at: version,
       ...(args.event === "rotated" ? { rotated_at: now } : {}),
       // New cookies under the row's sites: whoever wrote them answers for them, as at create.
-      ...(row.kind === "signin" && args.event !== "refreshed" ? { sites_by_token: await scopedBy(ctx, args.user_id, args.person, row.sites) } : {}),
+      ...(row.kind === "signin" && args.event !== "refreshed"
+        ? {
+            sites_by_token: await scopedBy(
+              ctx,
+              args.user_id,
+              args.person,
+              row.sites,
+            ),
+          }
+        : {}),
     });
     await recordSecretEvent(ctx, row, args.event, { actor: args.user_id });
     await bumpRedaction(ctx, row.workspace);
-    const delivered = wasRequest && args.event === "fulfilled" ? await deliverReady(ctx, { ...row, status: "ready" }, args.user_id, !!args.has_otp) : false;
-    return { id: String(row._id), short_id: row.short_id, name: row.name, delivered, value_updated_at: version };
+    const delivered =
+      wasRequest && args.event === "fulfilled"
+        ? await deliverReady(
+            ctx,
+            { ...row, status: "ready" },
+            args.user_id,
+            !!args.has_otp,
+          )
+        : false;
+    return {
+      id: String(row._id),
+      short_id: row.short_id,
+      name: row.name,
+      delivered,
+      value_updated_at: version,
+    };
   },
 });
 
 /** The row's current value as a version, restorable for SECRET_VERSION_TTL_MS. */
-async function keepVersion(ctx: any, row: SecretRow, by: Id<"users">, now: number) {
+async function keepVersion(
+  ctx: any,
+  row: SecretRow,
+  by: Id<"users">,
+  now: number,
+) {
   await ctx.db.insert("secret_versions", {
     secret_id: row._id,
     workspace: row.workspace,
@@ -692,25 +1058,64 @@ async function keepVersion(ctx: any, row: SecretRow, by: Id<"users">, now: numbe
 }
 
 /** Every session that asked for a requested secret, the first asker first. */
-const askersOf = (row: SecretRow): Id<"conversations">[] =>
-  [...new Set([row.requested_from_conversation, ...(row.also_requested_from ?? [])].filter((c): c is Id<"conversations"> => !!c))];
+const askersOf = (row: SecretRow): Id<"conversations">[] => [
+  ...new Set(
+    [
+      row.requested_from_conversation,
+      ...(row.also_requested_from ?? []),
+    ].filter((c): c is Id<"conversations"> => !!c),
+  ),
+];
 
 // A line from a person into every session that asked, waking each like a
 // decision answer does. A hosted conversation takes input from its owner alone.
-async function tellAskers(ctx: any, row: SecretRow, from: Id<"users">, content: string, clientId: string): Promise<boolean> {
+async function tellAskers(
+  ctx: any,
+  row: SecretRow,
+  from: Id<"users">,
+  content: string,
+  clientId: string,
+): Promise<boolean> {
   let delivered = false;
   for (const id of askersOf(row)) {
     const conversation: any = await ctx.db.get(id);
     if (!conversation) continue;
-    if (isHostedAgentType(conversation.agent_type) && String(from) !== String(conversation.user_id)) continue;
-    await enqueuePendingMessage(ctx, conversation, from, { content, client_id: clientId, human: true, wake_cause: "approval" });
+    if (
+      isHostedAgentType(conversation.agent_type) &&
+      String(from) !== String(conversation.user_id)
+    )
+      continue;
+    await enqueuePendingMessage(ctx, conversation, from, {
+      content,
+      client_id: clientId,
+      human: true,
+      wake_cause: "approval",
+    });
     delivered = true;
   }
   return delivered;
 }
 
-const deliverReady = (ctx: any, row: SecretRow, fulfiller: Id<"users">, hasOtp: boolean) =>
-  tellAskers(ctx, row, fulfiller, formatVaultReady({ short_id: row.short_id, name: row.name, kind: row.kind, vars: envFor(row).map((b) => b.var), sites: row.sites, has_otp: hasOtp }), `vault-ready:${String(row._id)}`);
+const deliverReady = (
+  ctx: any,
+  row: SecretRow,
+  fulfiller: Id<"users">,
+  hasOtp: boolean,
+) =>
+  tellAskers(
+    ctx,
+    row,
+    fulfiller,
+    formatVaultReady({
+      short_id: row.short_id,
+      name: row.name,
+      kind: row.kind,
+      vars: envFor(row).map((b) => b.var),
+      sites: row.sites,
+      has_otp: hasOtp,
+    }),
+    `vault-ready:${String(row._id)}`,
+  );
 
 const LOGIN_FIELDS = ["username", "password", "totp_seed", "url"] as const;
 
@@ -718,7 +1123,8 @@ const LOGIN_FIELDS = ["username", "password", "totp_seed", "url"] as const;
 function mergeLogin(stored: LoginPayload, raw: unknown): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
   const next: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
-  for (const k of LOGIN_FIELDS) if (next[k] === undefined && stored[k] !== undefined) next[k] = stored[k];
+  for (const k of LOGIN_FIELDS)
+    if (next[k] === undefined && stored[k] !== undefined) next[k] = stored[k];
   return next;
 }
 
@@ -727,18 +1133,34 @@ const MERGE_ATTEMPTS = 3;
 
 async function writeValue(
   ctx: any,
-  args: { api_token?: string; ref: string; payload: unknown; expected_updated_at?: number },
+  args: {
+    api_token?: string;
+    ref: string;
+    payload: unknown;
+    expected_updated_at?: number;
+  },
   want: "ready" | "requested",
   event: "rotated" | "fulfilled" | "refreshed",
 ) {
-  const userId = await ctx.runQuery(internal.secrets.callerOf, { api_token: args.api_token });
-  if (!userId) return { error: "Unauthorized: sign in, or run `cast auth` on this machine" };
+  const userId = await ctx.runQuery(internal.secrets.callerOf, {
+    api_token: args.api_token,
+  });
+  if (!userId)
+    return {
+      error: "Unauthorized: sign in, or run `cast auth` on this machine",
+    };
   for (let attempt = 1; ; attempt++) {
-    const target = await ctx.runQuery(internal.secrets.valueTarget, { user_id: userId, ref: args.ref, want });
+    const target = await ctx.runQuery(internal.secrets.valueTarget, {
+      user_id: userId,
+      ref: args.ref,
+      want,
+    });
     if ("error" in target) return target;
     // A refresh keeps no version, so it is only ever a sign-in's cookie upkeep; a new value for anything else is a rotate.
     if (event === "refreshed" && target.kind !== "signin") {
-      return { error: `${target.name} is a ${target.kind}, and refresh only writes a saved sign-in's cookies back: replace its value with cast vault rotate ${target.name}, which keeps the old one for 7 days` };
+      return {
+        error: `${target.name} is a ${target.kind}, and refresh only writes a saved sign-in's cookies back: replace its value with cast vault rotate ${target.name}, which keeps the old one for 7 days`,
+      };
     }
     let raw = args.payload;
     // A merged login is written only over the value it merged from.
@@ -755,7 +1177,10 @@ async function writeValue(
     const checked = validatePayload(target.kind as SecretKind, raw);
     if ("error" in checked) return checked;
     if (target.kind === "signin") {
-      const outside = signinScopeProblem(checked.payload as SigninPayload, target.sites);
+      const outside = signinScopeProblem(
+        checked.payload as SigninPayload,
+        target.sites,
+      );
       if (outside) return { error: outside };
     }
     const res = await ctx.runMutation(internal.secrets.storeValue, {
@@ -769,16 +1194,22 @@ async function writeValue(
       expected_updated_at: expected,
     });
     if (!res.stale || event !== "rotated") return res;
-    if (attempt === MERGE_ATTEMPTS) return { error: `${target.name} kept changing while saving: try again` };
+    if (attempt === MERGE_ATTEMPTS)
+      return { error: `${target.name} kept changing while saving: try again` };
   }
 }
 
-const valueArgs = { api_token: v.optional(v.string()), ref: v.string(), payload: v.any() };
+const valueArgs = {
+  api_token: v.optional(v.string()),
+  ref: v.string(),
+  payload: v.any(),
+};
 
 /** Replace a secret's value; the previous one stays restorable for 7 days. A login keeps the fields the new payload leaves out. */
 export const rotate = action({
   args: valueArgs,
-  handler: async (ctx, args): Promise<any> => writeValue(ctx, args, "ready", "rotated"),
+  handler: async (ctx, args): Promise<any> =>
+    writeValue(ctx, args, "ready", "rotated"),
 });
 
 /**
@@ -792,13 +1223,15 @@ export const rotate = action({
  */
 export const refresh = action({
   args: { ...valueArgs, expected_updated_at: v.optional(v.number()) },
-  handler: async (ctx, args): Promise<any> => writeValue(ctx, args, "ready", "refreshed"),
+  handler: async (ctx, args): Promise<any> =>
+    writeValue(ctx, args, "ready", "refreshed"),
 });
 
 /** Fill a requested secret; the session that asked is told it is ready (never the value) and wakes. */
 export const fulfill = action({
   args: valueArgs,
-  handler: async (ctx, args): Promise<any> => writeValue(ctx, args, "requested", "fulfilled"),
+  handler: async (ctx, args): Promise<any> =>
+    writeValue(ctx, args, "requested", "fulfilled"),
 });
 
 /** Name, note, env and sites; never the value. The web's dispatch side effect calls this too. */
@@ -818,32 +1251,62 @@ export const updateMeta = mutation({
     const patch: Partial<SecretRow> = cleanSecretEdit(args);
     const person = await isPerson(ctx);
     // A new name frees the old one for a twin holding another value; new env or sites point the value somewhere else.
-    const moves = (patch.name !== undefined && patch.name !== row.name)
-      || ("env" in patch && String(patch.env ?? "") !== String(row.env ?? ""))
-      || ("sites" in patch && String(patch.sites ?? "") !== String(row.sites ?? ""));
-    const held = moves ? askFirstRefusal(row, person, "renames it or changes its env or sites") : null;
+    const moves =
+      (patch.name !== undefined && patch.name !== row.name) ||
+      ("env" in patch && String(patch.env ?? "") !== String(row.env ?? "")) ||
+      ("sites" in patch &&
+        String(patch.sites ?? "") !== String(row.sites ?? ""));
+    const held = moves
+      ? askFirstRefusal(row, person, "renames it or changes its env or sites")
+      : null;
     if (held) return { error: held };
     // A saved sign-in's next write-back captures the browser's cookies for every
     // site it names, so a site added to one is a person's call, never a token's.
     const widens = patch.sites?.some((s) => !row.sites?.includes(s));
     if (widens && row.kind === "signin" && row.status === "ready" && !person) {
-      return { error: `Only a person adds a site to a saved sign-in: add it in ${row.name}'s panel on the Vault page, or save a sign-in for that site with cast vault save-signin` };
+      return {
+        error: `Only a person adds a site to a saved sign-in: add it in ${row.name}'s panel on the Vault page, or save a sign-in for that site with cast vault save-signin`,
+      };
     }
     // A person setting a sign-in's sites vouches for them; a token naming a new one (a request's) answers for it.
-    if (row.kind === "signin" && (person ? "sites" in patch : widens)) patch.sites_by_token = await scopedBy(ctx, userId, person, patch.sites);
-    const problem = metaProblem({ name: patch.name, env: patch.env, sites: patch.sites, note: patch.note })
-      ?? ("sites" in patch ? loginSitesProblem(row.kind, patch.sites) : null)
-      ?? secretEnvProblem({ name: patch.name ?? row.name, kind: row.kind, env: "env" in patch ? patch.env : row.env });
+    if (row.kind === "signin" && (person ? "sites" in patch : widens))
+      patch.sites_by_token = await scopedBy(ctx, userId, person, patch.sites);
+    const problem =
+      metaProblem({
+        name: patch.name,
+        env: patch.env,
+        sites: patch.sites,
+        note: patch.note,
+      }) ??
+      ("sites" in patch ? loginSitesProblem(row.kind, patch.sites) : null) ??
+      secretEnvProblem({
+        name: patch.name ?? row.name,
+        kind: row.kind,
+        env: "env" in patch ? patch.env : row.env,
+      });
     if (problem) return { error: problem };
     if (patch.name && patch.name !== row.name) {
       const twin = await byName(ctx, row.workspace, patch.name);
-      if (twin) return { error: `${patch.name} is already taken here (${twin.short_id}): pick another name, or remove that one first` };
+      if (twin)
+        return {
+          error: `${patch.name} is already taken here (${twin.short_id}): pick another name, or remove that one first`,
+        };
     }
     await ctx.db.patch(row._id, { ...patch, ...metaStamp(row, userId) });
     // Redaction markers carry the name, so daemons fetch the values again.
-    if (patch.name && patch.name !== row.name) await bumpRedaction(ctx, row.workspace);
-    await recordSecretEvent(ctx, { ...row, name: patch.name ?? row.name }, "updated", { actor: userId });
-    return { id: String(row._id), short_id: row.short_id, name: patch.name ?? row.name };
+    if (patch.name && patch.name !== row.name)
+      await bumpRedaction(ctx, row.workspace);
+    await recordSecretEvent(
+      ctx,
+      { ...row, name: patch.name ?? row.name },
+      "updated",
+      { actor: userId },
+    );
+    return {
+      id: String(row._id),
+      short_id: row.short_id,
+      name: patch.name ?? row.name,
+    };
   },
 });
 
@@ -855,20 +1318,53 @@ export const updateMeta = mutation({
  * ones and answers `removed: false` instead of an error.
  */
 export const remove = mutation({
-  args: { api_token: v.optional(v.string()), ref: v.string(), only: v.optional(v.literal("requested")) },
+  args: {
+    api_token: v.optional(v.string()),
+    ref: v.string(),
+    only: v.optional(v.literal("requested")),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const row = await findSecret(ctx, userId, args.ref);
     if ("error" in row) return row;
-    if (args.only && row.status !== args.only) return { removed: false, short_id: row.short_id, name: row.name, status: row.status };
+    if (args.only && row.status !== args.only)
+      return {
+        removed: false,
+        short_id: row.short_id,
+        name: row.name,
+        status: row.status,
+      };
     // Deleting frees the name for a twin holding a value the agent chose; a request holds no value, so declining one stays open.
-    const held = row.status === "ready" ? askFirstRefusal(row, await isPerson(ctx), "deletes it") : null;
+    const held =
+      row.status === "ready"
+        ? askFirstRefusal(row, await isPerson(ctx), "deletes it")
+        : null;
     if (held) return { error: held };
-    if (row.status === "requested") await tellAskers(ctx, row, userId, formatVaultDeclined(row.name), `vault-declined:${String(row._id)}`);
+    if (row.status === "requested")
+      await tellAskers(
+        ctx,
+        row,
+        userId,
+        formatVaultDeclined(row.name),
+        `vault-declined:${String(row._id)}`,
+      );
     await recordSecretEvent(ctx, row, "deleted", { actor: userId });
-    for (const r of await ctx.db.query("secret_versions").withIndex("by_secret", (q) => q.eq("secret_id", row._id)).collect()) await ctx.db.delete(r._id);
-    for (const r of await ctx.db.query("secret_values").withIndex("by_secret", (q) => q.eq("secret_id", row._id)).collect()) await ctx.db.delete(r._id);
-    await clearApprovals(ctx, row, "all", `${row.name} was removed from the Vault`);
+    for (const r of await ctx.db
+      .query("secret_versions")
+      .withIndex("by_secret", (q) => q.eq("secret_id", row._id))
+      .collect())
+      await ctx.db.delete(r._id);
+    for (const r of await ctx.db
+      .query("secret_values")
+      .withIndex("by_secret", (q) => q.eq("secret_id", row._id))
+      .collect())
+      await ctx.db.delete(r._id);
+    await clearApprovals(
+      ctx,
+      row,
+      "all",
+      `${row.name} was removed from the Vault`,
+    );
     await ctx.db.delete(row._id);
     await bumpRedaction(ctx, row.workspace);
     return { removed: true, short_id: row.short_id, name: row.name };
@@ -886,41 +1382,94 @@ export const remove = mutation({
  * dispatch side effect calls this.
  */
 export const setAskFirst = mutation({
-  args: { api_token: v.optional(v.string()), ref: v.string(), ask_first: v.boolean(), grant: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    ref: v.string(),
+    ask_first: v.boolean(),
+    grant: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const userId = args.ask_first ? await requireCaller(ctx, args.api_token) : await getAuthUserId(ctx);
-    if (!userId) return { error: "Only a person turns Ask first off: switch it off in the secret's panel on the Vault page" };
+    const userId = args.ask_first
+      ? await requireCaller(ctx, args.api_token)
+      : await getAuthUserId(ctx);
+    if (!userId)
+      return {
+        error:
+          "Only a person turns Ask first off: switch it off in the secret's panel on the Vault page",
+      };
     const row = await findSecret(ctx, userId, args.ref);
     if ("error" in row) return row;
     if (!!row.ask_first !== args.ask_first) {
       // The person's own browser may be driven by an agent, so off takes a passkey too.
-      const refusal = args.ask_first ? null : await consumePresence(ctx, userId, "ask_first_off", String(row._id), args.grant);
+      const refusal = args.ask_first
+        ? null
+        : await consumePresence(
+            ctx,
+            userId,
+            "ask_first_off",
+            String(row._id),
+            args.grant,
+          );
       if (refusal) return { error: refusal };
-      await ctx.db.patch(row._id, { ask_first: args.ask_first, ...metaStamp(row, userId) });
-      await recordSecretEvent(ctx, row, args.ask_first ? "ask_first_on" : "ask_first_off", { actor: userId });
+      await ctx.db.patch(row._id, {
+        ask_first: args.ask_first,
+        ...metaStamp(row, userId),
+      });
+      await recordSecretEvent(
+        ctx,
+        row,
+        args.ask_first ? "ask_first_on" : "ask_first_off",
+        { actor: userId },
+      );
       // Switched either way, earlier approvals end: re-armed, every session asks afresh.
-      await clearApprovals(ctx, row, "all", args.ask_first ? `${row.name} was set to Ask first again: read it again to ask afresh` : `${row.name} is no longer Ask first: read it again`);
+      await clearApprovals(
+        ctx,
+        row,
+        "all",
+        args.ask_first
+          ? `${row.name} was set to Ask first again: read it again to ask afresh`
+          : `${row.name} is no longer Ask first: read it again`,
+      );
       // The daemon feed holds an Ask first value only for users it reached (redactionRows), so the switch changes what it holds.
       await bumpRedaction(ctx, row.workspace);
     }
-    return { id: String(row._id), short_id: row.short_id, name: row.name, ask_first: args.ask_first };
+    return {
+      id: String(row._id),
+      short_id: row.short_id,
+      name: row.name,
+      ask_first: args.ask_first,
+    };
   },
 });
 
-async function liveVersions(ctx: any, secretId: Id<"secrets">, now: number): Promise<Doc<"secret_versions">[]> {
-  const rows: Doc<"secret_versions">[] = await ctx.db.query("secret_versions").withIndex("by_secret", (q: any) => q.eq("secret_id", secretId)).order("desc").collect();
+async function liveVersions(
+  ctx: any,
+  secretId: Id<"secrets">,
+  now: number,
+): Promise<Doc<"secret_versions">[]> {
+  const rows: Doc<"secret_versions">[] = await ctx.db
+    .query("secret_versions")
+    .withIndex("by_secret", (q: any) => q.eq("secret_id", secretId))
+    .order("desc")
+    .collect();
   return rows.filter((r) => r.expires_at > now);
 }
 
 /** A secret's previous values, newest first: metadata only. */
 export const versions = query({
   args: { api_token: v.optional(v.string()), ref: v.string() },
-  handler: async (ctx, args): Promise<SecretVersionMeta[] | { error: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<SecretVersionMeta[] | { error: string }> => {
     const userId = await requireCaller(ctx, args.api_token);
     const row = await findSecret(ctx, userId, args.ref);
     if ("error" in row) return row;
     const rows = await liveVersions(ctx, row._id, Date.now());
-    const names = await namesOf(ctx, rows.map((r) => r.rotated_by));
+    const names = await namesOf(
+      ctx,
+      rows.map((r) => r.rotated_by),
+    );
     return rows.map((r) => ({
       _id: String(r._id),
       rotated_at: r.rotated_at,
@@ -932,7 +1481,12 @@ export const versions = query({
 });
 
 export const restoreVersion = internalMutation({
-  args: { user_id: v.id("users"), ref: v.string(), version: v.optional(v.string()), person: v.boolean() },
+  args: {
+    user_id: v.id("users"),
+    ref: v.string(),
+    version: v.optional(v.string()),
+    person: v.boolean(),
+  },
   handler: async (ctx, args) => {
     const row = await findSecret(ctx, args.user_id, args.ref);
     if ("error" in row) return row;
@@ -940,11 +1494,18 @@ export const restoreVersion = internalMutation({
     if (held) return { error: held };
     const now = Date.now();
     const kept = await liveVersions(ctx, row._id, now);
-    const ver = args.version ? kept.find((k) => String(k._id) === args.version) : kept[0];
+    const ver = args.version
+      ? kept.find((k) => String(k._id) === args.version)
+      : kept[0];
     if (!ver) {
-      return { error: args.version ? `That version of ${row.name} is gone (versions last 7 days): cast vault restore ${row.name} lists the ones left` : `${row.name} has no earlier value to restore: rotate keeps one for 7 days` };
+      return {
+        error: args.version
+          ? `That version of ${row.name} is gone (versions last 7 days): cast vault restore ${row.name} lists the ones left`
+          : `${row.name} has no earlier value to restore: rotate keeps one for 7 days`,
+      };
     }
-    if (ver.workspace !== row.workspace || !hasValue(row)) return { error: undecryptable(row) };
+    if (ver.workspace !== row.workspace || !hasValue(row))
+      return { error: undecryptable(row) };
     // A swap: the current value becomes a version, so a wrong restore is undone the same way.
     await keepVersion(ctx, row, args.user_id, now);
     await clearApprovals(ctx, row, "approved");
@@ -963,17 +1524,42 @@ export const restoreVersion = internalMutation({
     });
     await recordSecretEvent(ctx, row, "restored", { actor: args.user_id });
     await bumpRedaction(ctx, row.workspace);
-    return { id: String(row._id), short_id: row.short_id, name: row.name, restored_from: ver.rotated_at };
+    return {
+      id: String(row._id),
+      short_id: row.short_id,
+      name: row.name,
+      restored_from: ver.rotated_at,
+    };
   },
 });
 
 /** Put a previous value back (the newest, or `version` from `versions`); the value it replaces becomes a version. */
 export const restore = action({
-  args: { api_token: v.optional(v.string()), ref: v.string(), version: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ id: string; short_id: string; name: string; restored_from: number } | { error: string }> => {
-    const userId = await ctx.runQuery(internal.secrets.callerOf, { api_token: args.api_token });
-    if (!userId) return { error: "Unauthorized: sign in, or run `cast auth` on this machine" };
-    return await ctx.runMutation(internal.secrets.restoreVersion, { user_id: userId, ref: args.ref, version: args.version, person: await isPerson(ctx) });
+  args: {
+    api_token: v.optional(v.string()),
+    ref: v.string(),
+    version: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { id: string; short_id: string; name: string; restored_from: number }
+    | { error: string }
+  > => {
+    const userId = await ctx.runQuery(internal.secrets.callerOf, {
+      api_token: args.api_token,
+    });
+    if (!userId)
+      return {
+        error: "Unauthorized: sign in, or run `cast auth` on this machine",
+      };
+    return await ctx.runMutation(internal.secrets.restoreVersion, {
+      user_id: userId,
+      ref: args.ref,
+      version: args.version,
+      person: await isPerson(ctx),
+    });
   },
 });
 
@@ -981,16 +1567,28 @@ export const restore = action({
 export const purgeExpiredVersions = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const expired = await ctx.db.query("secret_versions").withIndex("by_expires_at", (q: any) => q.lte("expires_at", Date.now())).take(200);
+    const expired = await ctx.db
+      .query("secret_versions")
+      .withIndex("by_expires_at", (q: any) => q.lte("expires_at", Date.now()))
+      .take(200);
     for (const ver of expired) {
       await ctx.db.delete(ver._id);
       if (ver.value_id) await ctx.db.delete(ver.value_id);
       const row = await ctx.db.get(ver.secret_id);
-      if (row) await ctx.db.patch(row._id, { version_count: Math.max(0, (row.version_count ?? 1) - 1) });
+      if (row)
+        await ctx.db.patch(row._id, {
+          version_count: Math.max(0, (row.version_count ?? 1) - 1),
+        });
     }
     // The redaction feed carries live versions; one gone changes what it holds.
-    for (const workspace of new Set(expired.map((ver) => ver.workspace))) await bumpRedaction(ctx, workspace);
-    if (expired.length === 200) await ctx.scheduler.runAfter(5_000, internal.secrets.purgeExpiredVersions, {});
+    for (const workspace of new Set(expired.map((ver) => ver.workspace)))
+      await bumpRedaction(ctx, workspace);
+    if (expired.length === 200)
+      await ctx.scheduler.runAfter(
+        5_000,
+        internal.secrets.purgeExpiredVersions,
+        {},
+      );
     return { purged: expired.length };
   },
 });
@@ -1023,37 +1621,64 @@ export const request = mutation({
     if (problem) return { error: problem };
     const where = await resolveWriteKey(ctx, userId, args);
     if ("error" in where) return where;
-    const conversation = await resolveConversation(ctx, userId, args.conversation);
+    const conversation = await resolveConversation(
+      ctx,
+      userId,
+      args.conversation,
+    );
     const now = Date.now();
     let row = await byName(ctx, where.workspace, name);
     if (row?.status === "ready") {
-      return { exists: true, id: String(row._id), short_id: row.short_id, name, message: `${name} already exists (${row.short_id}): read it with cast vault get ${name}` };
+      return {
+        exists: true,
+        id: String(row._id),
+        short_id: row.short_id,
+        name,
+        message: `${name} already exists (${row.short_id}): read it with cast vault get ${name}`,
+      };
     }
     // The first asker's kind decides the form the person fills: a later ask
     // naming another kind is refused rather than turning a login into a key.
     if (row && args.kind && args.kind !== row.kind) {
-      return { error: `${name} is already requested as a ${row.kind} (${row.short_id}): ask with --kind ${row.kind}, or pick another name` };
+      return {
+        error: `${name} is already requested as a ${row.kind} (${row.short_id}): ask with --kind ${row.kind}, or pick another name`,
+      };
     }
     const kind = row?.kind ?? args.kind ?? "key";
-    const envProblem = secretEnvProblem({ name, kind, env }) ?? loginSitesProblem(kind, sites ?? row?.sites);
+    const envProblem =
+      secretEnvProblem({ name, kind, env }) ??
+      loginSitesProblem(kind, sites ?? row?.sites);
     if (envProblem) return { error: envProblem };
     // The sites a sign-in is asked for are the ones its fill's cookies go under (scopedBy).
     const person = await isPerson(ctx);
-    const scope = kind === "signin" && sites?.some((s) => !row?.sites?.includes(s)) ? { sites_by_token: await scopedBy(ctx, userId, person, sites) } : {};
+    const scope =
+      kind === "signin" && sites?.some((s) => !row?.sites?.includes(s))
+        ? { sites_by_token: await scopedBy(ctx, userId, person, sites) }
+        : {};
     if (row) {
       // Asked again: the first asker stays the asker, a new session joins the
       // ones the fill wakes, and what this ask leaves out keeps the first's.
       const askers = askersOf(row);
-      const joins = !!conversation && !askers.some((c) => String(c) === String(conversation._id)) && askers.length < MAX_LIST;
+      const joins =
+        !!conversation &&
+        !askers.some((c) => String(c) === String(conversation._id)) &&
+        askers.length < MAX_LIST;
       await ctx.db.patch(row._id, {
         env: env ?? row.env,
         sites: sites ?? row.sites,
         ...scope,
         request_why: why ?? row.request_why,
         requested_by: row.requested_by ?? userId,
-        ...(!joins ? {}
-          : row.requested_from_conversation ? { also_requested_from: [...(row.also_requested_from ?? []), conversation!._id] }
-          : { requested_from_conversation: conversation!._id }),
+        ...(!joins
+          ? {}
+          : row.requested_from_conversation
+            ? {
+                also_requested_from: [
+                  ...(row.also_requested_from ?? []),
+                  conversation!._id,
+                ],
+              }
+            : { requested_from_conversation: conversation!._id }),
         updated_by: userId,
         updated_at: now,
       });
@@ -1079,8 +1704,14 @@ export const request = mutation({
       });
       row = (await ctx.db.get(id))!;
     }
-    await recordSecretEvent(ctx, row, "requested", { actor: userId, conversation_id: conversation?._id });
-    if (kind === "signin") await ctx.scheduler.runAfter(0, internal.signinAutofill.asked, { workspace: row.workspace });
+    await recordSecretEvent(ctx, row, "requested", {
+      actor: userId,
+      conversation_id: conversation?._id,
+    });
+    if (kind === "signin")
+      await ctx.scheduler.runAfter(0, internal.signinAutofill.asked, {
+        workspace: row.workspace,
+      });
     if (conversation) {
       const people = await peopleFor(ctx, conversation);
       await emitNotification(ctx as any, {
@@ -1096,7 +1727,12 @@ export const request = mutation({
         recipient_ids: people,
       });
     }
-    return { id: String(row._id), short_id: row.short_id, name, requested: true };
+    return {
+      id: String(row._id),
+      short_id: row.short_id,
+      name,
+      requested: true,
+    };
   },
 });
 
@@ -1111,7 +1747,13 @@ export const request = mutation({
  */
 export const requestSigninCapture = mutation({
   // check: only count the site's cookies there (vault_check_signin), so the dialog shows what a share hands over before it is confirmed.
-  args: { site: v.string(), name: v.optional(v.string()), device_id: v.string(), check: v.optional(v.boolean()), ...workspaceArgs },
+  args: {
+    site: v.string(),
+    name: v.optional(v.string()),
+    device_id: v.string(),
+    check: v.optional(v.boolean()),
+    ...workspaceArgs,
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Sign in to codecast to save a sign-in" };
@@ -1126,13 +1768,30 @@ export const requestSigninCapture = mutation({
     }
     const where = await resolveWriteKey(ctx, userId, args);
     if ("error" in where) return where;
-    const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
-    const laptop = pickOnlineLocalDevice(devices as any, Date.now(), args.device_id);
-    if (!laptop) return { error: "That laptop is not online: wake it or pick another, or sign in through the agent browser" };
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
+    const laptop = pickOnlineLocalDevice(
+      devices as any,
+      Date.now(),
+      args.device_id,
+    );
+    if (!laptop)
+      return {
+        error:
+          "That laptop is not online: wake it or pick another, or sign in through the agent browser",
+      };
     const command_id = await ctx.db.insert("daemon_commands", {
       user_id: userId,
-      command: args.check ? ("vault_check_signin" as const) : ("vault_capture_signin" as const),
-      args: JSON.stringify({ site, ...(name ? { name } : {}), ...(where.team_id ? { team_id: where.team_id } : { personal: true }) }),
+      command: args.check
+        ? ("vault_check_signin" as const)
+        : ("vault_capture_signin" as const),
+      args: JSON.stringify({
+        site,
+        ...(name ? { name } : {}),
+        ...(where.team_id ? { team_id: where.team_id } : { personal: true }),
+      }),
       created_at: Date.now(),
       target_device_id: laptop.device_id,
     });
@@ -1143,20 +1802,54 @@ export const requestSigninCapture = mutation({
 // ── Values out ───────────────────────────────────────────────────────────────
 
 export const readTargets = internalQuery({
-  args: { user_id: v.id("users"), refs: v.array(v.string()), conversation: v.optional(v.string()), prefer: v.optional(v.string()) },
+  args: {
+    user_id: v.id("users"),
+    refs: v.array(v.string()),
+    conversation: v.optional(v.string()),
+    prefer: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const rows: ({ id: Id<"secrets">; short_id: string; name: string; kind: SecretKind; workspace: string; env?: string[]; sites?: string[]; sites_by_token?: Id<"users">; value_updated_at: number } & ValueRef)[] = [];
+    const rows: ({
+      id: Id<"secrets">;
+      short_id: string;
+      name: string;
+      kind: SecretKind;
+      workspace: string;
+      env?: string[];
+      sites?: string[];
+      sites_by_token?: Id<"users">;
+      value_updated_at: number;
+    } & ValueRef)[] = [];
     for (const ref of args.refs) {
-      const row = await findSecret(ctx, args.user_id, ref, { prefer: args.prefer });
+      const row = await findSecret(ctx, args.user_id, ref, {
+        prefer: args.prefer,
+      });
       if ("error" in row) return row;
       // A name and its sec-N are one secret: read, counted, logged and asked for once.
       if (rows.some((r) => r.id === row._id)) continue;
       if (row.status !== "ready" || !hasValue(row)) {
-        return { error: `${row.name} has no value yet (${row.short_id} is a request): wait for a person to fill it on the Vault page` };
+        return {
+          error: `${row.name} has no value yet (${row.short_id} is a request): wait for a person to fill it on the Vault page`,
+        };
       }
-      rows.push({ id: row._id, short_id: row.short_id, name: row.name, kind: row.kind, workspace: row.workspace, ...valueRefOf(row), env: row.env, sites: row.sites, sites_by_token: row.sites_by_token, value_updated_at: valueVersion(row) });
+      rows.push({
+        id: row._id,
+        short_id: row.short_id,
+        name: row.name,
+        kind: row.kind,
+        workspace: row.workspace,
+        ...valueRefOf(row),
+        env: row.env,
+        sites: row.sites,
+        sites_by_token: row.sites_by_token,
+        value_updated_at: valueVersion(row),
+      });
     }
-    const conversation = await resolveConversation(ctx, args.user_id, args.conversation);
+    const conversation = await resolveConversation(
+      ctx,
+      args.user_id,
+      args.conversation,
+    );
     return { rows, conversation_id: conversation?._id };
   },
 });
@@ -1187,42 +1880,80 @@ async function askFirstGate(
 ): Promise<SecretNeedsApproval | { error: string } | null> {
   const gated = rows.filter((r) => r.ask_first);
   if (!gated.length) return null;
-  const conversation: any = conversationId ? await ctx.db.get(conversationId) : null;
+  const conversation: any = conversationId
+    ? await ctx.db.get(conversationId)
+    : null;
   // An ended session's approval lends nothing: its id is visible to every other session of the user.
-  if (!conversation || !conversation.session_id || String(conversation.user_id) !== String(userId) || conversation.status !== "active") {
-    return { error: `${gated[0].name} is Ask first: a person approves each session's use, so read it from inside your own live agent session` };
+  if (
+    !conversation ||
+    !conversation.session_id ||
+    String(conversation.user_id) !== String(userId) ||
+    conversation.status !== "active"
+  ) {
+    return {
+      error: `${gated[0].name} is Ask first: a person approves each session's use, so read it from inside your own live agent session`,
+    };
   }
   const now = Date.now();
   const approvals: { decision: string; secret: string }[] = [];
   for (const row of gated) {
     const existing = await ctx.db
       .query("secret_approvals")
-      .withIndex("by_secret_conversation", (q: any) => q.eq("secret_id", row._id).eq("conversation_id", conversation._id))
+      .withIndex("by_secret_conversation", (q: any) =>
+        q.eq("secret_id", row._id).eq("conversation_id", conversation._id),
+      )
       .first();
     if (approvalHolds(existing, conversation, now)) continue;
     // The why is the agent's own words, so it is the context's first line rather than part of the question.
-    const reason = why?.trim() ? `Why: ${why.trim()}` : `To ${purpose === "signin" && row.sites?.[0] ? `sign in to ${row.sites[0]}` : PURPOSE_PHRASE[purpose]}.`;
+    const reason = why?.trim()
+      ? `Why: ${why.trim()}`
+      : `To ${purpose === "signin" && row.sites?.[0] ? `sign in to ${row.sites[0]}` : PURPOSE_PHRASE[purpose]}.`;
     const context_md = `${reason}\n\n${row.name} (${row.short_id}) is Ask first in the Vault. Approve lets this session read it until the session ends, for ${SECRET_APPROVAL_TTL_MS / 3_600_000} hours at most, and a new value asks again.`;
-    const open = existing?.status === "pending" ? await ctx.db.get(existing.decision_id) : null;
+    const open =
+      existing?.status === "pending"
+        ? await ctx.db.get(existing.decision_id)
+        : null;
     if (open?.status === "pending") {
       // A newer why rewrites the open decision in place; a repeat without one leaves it as asked.
-      if (why?.trim() && open.context_md !== context_md) await ctx.db.patch(open._id, { context_md, updated_at: now });
+      if (why?.trim() && open.context_md !== context_md)
+        await ctx.db.patch(open._id, { context_md, updated_at: now });
       approvals.push({ decision: open.short_id, secret: row.name });
       continue;
     }
-    const asked = await askCore(ctx, { userId: conversation.user_id }, {
-      session_id: conversation.session_id,
-      question: `${conversation.title || conversation.short_id || "A session"} asks to use ${row.name}`,
-      options: [{ label: APPROVE_FOR_SESSION }, { label: DENY }],
-      context_md,
-      category: "access",
-      blocking: true,
-    });
-    if (asked?.error) return { error: `Could not ask for ${row.name}: ${asked.error}` };
-    const fields = { decision_id: asked.id, status: "pending" as const, approved_by: undefined, at: now };
+    const asked = await askCore(
+      ctx,
+      { userId: conversation.user_id },
+      {
+        session_id: conversation.session_id,
+        question: `${conversation.title || conversation.short_id || "A session"} asks to use ${row.name}`,
+        options: [{ label: APPROVE_FOR_SESSION }, { label: DENY }],
+        context_md,
+        category: "access",
+        blocking: true,
+      },
+    );
+    if (asked?.error)
+      return { error: `Could not ask for ${row.name}: ${asked.error}` };
+    const fields = {
+      decision_id: asked.id,
+      status: "pending" as const,
+      approved_by: undefined,
+      at: now,
+    };
     if (existing) await ctx.db.patch(existing._id, fields);
-    else await ctx.db.insert("secret_approvals", { secret_id: row._id, workspace: row.workspace, conversation_id: conversation._id, ...fields });
-    await recordSecretEvent(ctx, row, "approval_requested", { actor: userId, conversation_id: conversation._id, purpose, decision_id: asked.id });
+    else
+      await ctx.db.insert("secret_approvals", {
+        secret_id: row._id,
+        workspace: row.workspace,
+        conversation_id: conversation._id,
+        ...fields,
+      });
+    await recordSecretEvent(ctx, row, "approval_requested", {
+      actor: userId,
+      conversation_id: conversation._id,
+      purpose,
+      decision_id: asked.id,
+    });
     approvals.push({ decision: asked.short_id, secret: row.name });
   }
   if (!approvals.length) return null;
@@ -1246,16 +1977,36 @@ export const recordReads = internalMutation({
     // revealed: the Touch ID grant string an Ask first secret's reveal spends.
     grant: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<SecretNeedsApproval | { error: string } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<SecretNeedsApproval | { error: string } | null> => {
     if (args.kind === "read") {
-      const rows = (await Promise.all(args.ids.map((id) => ctx.db.get(id)))).filter((r): r is SecretRow => !!r);
-      const held = await askFirstGate(ctx, args.user_id, rows, args.conversation_id, args.purpose ?? "get", args.why);
+      const rows = (
+        await Promise.all(args.ids.map((id) => ctx.db.get(id)))
+      ).filter((r): r is SecretRow => !!r);
+      const held = await askFirstGate(
+        ctx,
+        args.user_id,
+        rows,
+        args.conversation_id,
+        args.purpose ?? "get",
+        args.why,
+      );
       if (held) return held;
     } else {
       // A reveal of an Ask first secret takes a passkey: the click may be an agent driving the person's own browser.
       for (const id of args.ids) {
         const row = await ctx.db.get(id);
-        const refusal = row?.ask_first ? await consumePresence(ctx, args.user_id, "reveal", String(row._id), args.grant) : null;
+        const refusal = row?.ask_first
+          ? await consumePresence(
+              ctx,
+              args.user_id,
+              "reveal",
+              String(row._id),
+              args.grant,
+            )
+          : null;
         if (refusal) return { error: refusal };
       }
     }
@@ -1264,12 +2015,28 @@ export const recordReads = internalMutation({
       const row = await ctx.db.get(id);
       if (!row) continue;
       // A browser's read of a saved sign-in is the moment an agent was signed in with it.
-      const kind = args.kind === "read" && args.purpose === "signin" ? "signed_in" : args.kind;
+      const kind =
+        args.kind === "read" && args.purpose === "signin"
+          ? "signed_in"
+          : args.kind;
       // An Ask first value reaching this user's agents the first time joins their daemon's feed (redactionRows); a reveal reached only their screen.
-      if (kind !== "revealed" && row.ask_first && !(await reachedUser(ctx, row, args.user_id))) await bumpRedaction(ctx, row.workspace);
-      await recordSecretEvent(ctx, row, kind, { actor: args.user_id, conversation_id: args.conversation_id, purpose: args.purpose });
+      if (
+        kind !== "revealed" &&
+        row.ask_first &&
+        !(await reachedUser(ctx, row, args.user_id))
+      )
+        await bumpRedaction(ctx, row.workspace);
+      await recordSecretEvent(ctx, row, kind, {
+        actor: args.user_id,
+        conversation_id: args.conversation_id,
+        purpose: args.purpose,
+      });
       if (args.kind === "read") {
-        await ctx.db.patch(row._id, { last_used_at: now, last_used_by_conversation: args.conversation_id, use_count: (row.use_count ?? 0) + 1 });
+        await ctx.db.patch(row._id, {
+          last_used_at: now,
+          last_used_by_conversation: args.conversation_id,
+          use_count: (row.use_count ?? 0) + 1,
+        });
       }
     }
     return null;
@@ -1277,11 +2044,16 @@ export const recordReads = internalMutation({
 });
 
 /** Decrypt rows whose read was already recorded; one that no longer decrypts refuses the whole read. */
-async function openRows(ctx: any, rows: ({ name: string; workspace: string } & ValueRef)[]): Promise<{ payloads: SecretPayload[] } | { error: string }> {
+async function openRows(
+  ctx: any,
+  rows: ({ name: string; workspace: string } & ValueRef)[],
+): Promise<{ payloads: SecretPayload[] } | { error: string }> {
   const encs = await loadCiphertexts(ctx, rows);
   const out: SecretPayload[] = [];
   for (const [i, row] of rows.entries()) {
-    const payload = encs[i] ? await decryptSecret(encs[i], row.workspace) : null;
+    const payload = encs[i]
+      ? await decryptSecret(encs[i], row.workspace)
+      : null;
     if (!payload) return { error: undecryptable(row) };
     out.push(payload);
   }
@@ -1296,12 +2068,23 @@ async function openRows(ctx: any, rows: ({ name: string; workspace: string } & V
  */
 export const reveal = action({
   args: { ref: v.string(), grant: v.optional(v.string()) },
-  handler: async (ctx, args): Promise<{ payload: SecretPayload } | { error: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ payload: SecretPayload } | { error: string }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { error: "Sign in to codecast to reveal a secret" };
-    const got = await ctx.runQuery(internal.secrets.readTargets, { user_id: userId, refs: [args.ref] });
+    const got = await ctx.runQuery(internal.secrets.readTargets, {
+      user_id: userId,
+      refs: [args.ref],
+    });
     if ("error" in got) return got;
-    const held = await ctx.runMutation(internal.secrets.recordReads, { user_id: userId, ids: got.rows.map((r) => r.id), kind: "revealed", grant: args.grant });
+    const held = await ctx.runMutation(internal.secrets.recordReads, {
+      user_id: userId,
+      ids: got.rows.map((r) => r.id),
+      kind: "revealed",
+      grant: args.grant,
+    });
     if (held) return held as { error: string };
     const opened = await openRows(ctx, got.rows);
     if ("error" in opened) return opened;
@@ -1328,12 +2111,22 @@ export const cliRead = action({
     prefer: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
-    const userId = await ctx.runQuery(internal.secrets.callerOf, { api_token: args.api_token });
-    if (!userId) return { error: "Unauthorized: run `cast auth` on this machine" };
+    const userId = await ctx.runQuery(internal.secrets.callerOf, {
+      api_token: args.api_token,
+    });
+    if (!userId)
+      return { error: "Unauthorized: run `cast auth` on this machine" };
     const refs = [...new Set(args.refs.map((r) => r.trim()).filter(Boolean))];
-    if (!refs.length) return { error: "Name the secrets to read: cast vault lists them" };
-    if (refs.length > MAX_LIST) return { error: `Read at most ${MAX_LIST} secrets at once` };
-    const got = await ctx.runQuery(internal.secrets.readTargets, { user_id: userId, refs, conversation: args.conversation, prefer: args.prefer });
+    if (!refs.length)
+      return { error: "Name the secrets to read: cast vault lists them" };
+    if (refs.length > MAX_LIST)
+      return { error: `Read at most ${MAX_LIST} secrets at once` };
+    const got = await ctx.runQuery(internal.secrets.readTargets, {
+      user_id: userId,
+      refs,
+      conversation: args.conversation,
+      prefer: args.prefer,
+    });
     if ("error" in got) return got;
     if (args.purpose === "signin") {
       for (const row of got.rows) {
@@ -1369,12 +2162,26 @@ export const cliRead = action({
 });
 
 /** Whether one of the user's own sessions holds a live approval (approvalHolds) to read this Ask first secret; with `live` false, whether any ever got one for its current value (a new value or a switch drops them). */
-async function approvedForUser(ctx: any, row: SecretRow, userId: Id<"users">, now: number, live = true): Promise<boolean> {
-  const approvals = await ctx.db.query("secret_approvals").withIndex("by_secret_conversation", (q: any) => q.eq("secret_id", row._id)).collect();
+async function approvedForUser(
+  ctx: any,
+  row: SecretRow,
+  userId: Id<"users">,
+  now: number,
+  live = true,
+): Promise<boolean> {
+  const approvals = await ctx.db
+    .query("secret_approvals")
+    .withIndex("by_secret_conversation", (q: any) => q.eq("secret_id", row._id))
+    .collect();
   for (const a of approvals) {
     if (a.status !== "approved") continue;
     const conversation: any = await ctx.db.get(a.conversation_id);
-    if (conversation && String(conversation.user_id) === String(userId) && (!live || approvalHolds(a, conversation, now))) return true;
+    if (
+      conversation &&
+      String(conversation.user_id) === String(userId) &&
+      (!live || approvalHolds(a, conversation, now))
+    )
+      return true;
   }
   return false;
 }
@@ -1393,14 +2200,22 @@ async function reachedUser(
   ctx: any,
   row: SecretRow,
   userId: Id<"users">,
-  { kinds = FEED_KINDS, before }: { kinds?: readonly (typeof FEED_KINDS)[number][]; before?: number } = {},
+  {
+    kinds = FEED_KINDS,
+    before,
+  }: { kinds?: readonly (typeof FEED_KINDS)[number][]; before?: number } = {},
 ): Promise<boolean> {
   for (const kind of kinds) {
     const hit = await ctx.db
       .query("secret_events")
       .withIndex("by_secret_actor_kind_at", (q: any) => {
-        const at = q.eq("secret_id", row._id).eq("actor_user_id", userId).eq("kind", kind);
-        return before === undefined ? at.gte("at", valueVersion(row)) : at.lte("at", before);
+        const at = q
+          .eq("secret_id", row._id)
+          .eq("actor_user_id", userId)
+          .eq("kind", kind);
+        return before === undefined
+          ? at.gte("at", valueVersion(row))
+          : at.lte("at", before);
       })
       .first();
     if (hit) return true;
@@ -1428,18 +2243,43 @@ export const redactionRows = internalQuery({
   args: { user_id: v.id("users") },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const rows: { id: Id<"secrets">; name: string; kind: SecretKind; workspace: string; values: ValueRef[]; unsent: boolean }[] = [];
+    const rows: {
+      id: Id<"secrets">;
+      name: string;
+      kind: SecretKind;
+      workspace: string;
+      values: ValueRef[];
+      unsent: boolean;
+    }[] = [];
     for (const r of await rowsFor(ctx, args.user_id)) {
       if (r.status !== "ready" || !hasValue(r)) continue;
-      const held = !r.ask_first || (await approvedForUser(ctx, r, args.user_id, now, false)) || (await reachedUser(ctx, r, args.user_id));
+      const held =
+        !r.ask_first ||
+        (await approvedForUser(ctx, r, args.user_id, now, false)) ||
+        (await reachedUser(ctx, r, args.user_id));
       const kept: ValueRef[] = [];
       for (const ver of await liveVersions(ctx, r._id, now)) {
         if (ver.workspace !== r.workspace) continue;
-        if (held || (await reachedUser(ctx, r, args.user_id, { before: ver.rotated_at }))) kept.push(valueRefOf(ver));
+        if (
+          held ||
+          (await reachedUser(ctx, r, args.user_id, { before: ver.rotated_at }))
+        )
+          kept.push(valueRefOf(ver));
       }
       if (!held && !kept.length) continue;
-      const unsent = held && !(await reachedUser(ctx, r, args.user_id, { kinds: ["redaction_sync"] }));
-      rows.push({ id: r._id, name: r.name, kind: r.kind, workspace: r.workspace, values: held ? [valueRefOf(r), ...kept] : kept, unsent });
+      const unsent =
+        held &&
+        !(await reachedUser(ctx, r, args.user_id, {
+          kinds: ["redaction_sync"],
+        }));
+      rows.push({
+        id: r._id,
+        name: r.name,
+        kind: r.kind,
+        workspace: r.workspace,
+        values: held ? [valueRefOf(r), ...kept] : kept,
+        unsent,
+      });
     }
     return { version: await redactionVersionFor(ctx, args.user_id), rows };
   },
@@ -1458,7 +2298,15 @@ export const recordRedactionSync = internalMutation({
   handler: async (ctx, args) => {
     for (const id of args.ids) {
       const row = await ctx.db.get(id);
-      if (row && !(await reachedUser(ctx, row, args.user_id, { kinds: ["redaction_sync"] }))) await recordSecretEvent(ctx, row, "redaction_sync", { actor: args.user_id });
+      if (
+        row &&
+        !(await reachedUser(ctx, row, args.user_id, {
+          kinds: ["redaction_sync"],
+        }))
+      )
+        await recordSecretEvent(ctx, row, "redaction_sync", {
+          actor: args.user_id,
+        });
     }
   },
 });
@@ -1471,13 +2319,27 @@ export const recordRedactionSync = internalMutation({
  */
 export const redactionValues = action({
   args: { api_token: v.string() },
-  handler: async (ctx, args): Promise<{ version: string; values: { name: string; value: string }[] } | { error: string }> => {
-    const userId = await ctx.runQuery(internal.secrets.callerOf, { api_token: args.api_token });
-    if (!userId) return { error: "Unauthorized: run `cast auth` on this machine" };
-    const got = await ctx.runQuery(internal.secrets.redactionRows, { user_id: userId });
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    | { version: string; values: { name: string; value: string }[] }
+    | { error: string }
+  > => {
+    const userId = await ctx.runQuery(internal.secrets.callerOf, {
+      api_token: args.api_token,
+    });
+    if (!userId)
+      return { error: "Unauthorized: run `cast auth` on this machine" };
+    const got = await ctx.runQuery(internal.secrets.redactionRows, {
+      user_id: userId,
+    });
     const values: { name: string; value: string }[] = [];
     const unsent: Id<"secrets">[] = [];
-    const encs = await loadCiphertexts(ctx, got.rows.flatMap((row) => row.values));
+    const encs = await loadCiphertexts(
+      ctx,
+      got.rows.flatMap((row) => row.values),
+    );
     let at = 0;
     for (const row of got.rows) {
       const found = new Set<string>();
@@ -1486,13 +2348,18 @@ export const redactionValues = action({
         const payload = enc ? await decryptSecret(enc, row.workspace) : null;
         if (!payload) continue;
         opened = true;
-        for (const value of redactionValuesOf(row.kind, payload)) found.add(value);
+        for (const value of redactionValuesOf(row.kind, payload))
+          found.add(value);
       }
       if (!opened) continue;
       for (const value of found) values.push({ name: row.name, value });
       if (row.unsent) unsent.push(row.id);
     }
-    if (unsent.length) await ctx.runMutation(internal.secrets.recordRedactionSync, { user_id: userId, ids: unsent });
+    if (unsent.length)
+      await ctx.runMutation(internal.secrets.recordRedactionSync, {
+        user_id: userId,
+        ids: unsent,
+      });
     return { version: got.version, values };
   },
 });
@@ -1503,19 +2370,38 @@ export const redactionValues = action({
  * version's inline value_enc there, a page at a time, secrets first.
  */
 export const moveValuesOut = internalMutation({
-  args: { table: v.optional(v.union(v.literal("secrets"), v.literal("secret_versions"))), cursor: v.optional(v.union(v.string(), v.null())) },
+  args: {
+    table: v.optional(
+      v.union(v.literal("secrets"), v.literal("secret_versions")),
+    ),
+    cursor: v.optional(v.union(v.string(), v.null())),
+  },
   handler: async (ctx, args) => {
     const table = args.table ?? "secrets";
-    const page = await (ctx.db.query(table) as any).paginate({ cursor: args.cursor ?? null, numItems: 20 });
+    const page = await (ctx.db.query(table) as any).paginate({
+      cursor: args.cursor ?? null,
+      numItems: 20,
+    });
     let moved = 0;
     for (const r of page.page as any[]) {
       if (!r.value_enc) continue;
-      const secret = table === "secrets" ? r : { _id: r.secret_id, workspace: r.workspace };
-      await ctx.db.patch(r._id, { value_id: await valueIdOf(ctx, secret, r), value_enc: undefined });
+      const secret =
+        table === "secrets" ? r : { _id: r.secret_id, workspace: r.workspace };
+      await ctx.db.patch(r._id, {
+        value_id: await valueIdOf(ctx, secret, r),
+        value_enc: undefined,
+      });
       moved++;
     }
-    if (!page.isDone) await ctx.scheduler.runAfter(0, internal.secrets.moveValuesOut, { table, cursor: page.continueCursor });
-    else if (table === "secrets") await ctx.scheduler.runAfter(0, internal.secrets.moveValuesOut, { table: "secret_versions" });
+    if (!page.isDone)
+      await ctx.scheduler.runAfter(0, internal.secrets.moveValuesOut, {
+        table,
+        cursor: page.continueCursor,
+      });
+    else if (table === "secrets")
+      await ctx.scheduler.runAfter(0, internal.secrets.moveValuesOut, {
+        table: "secret_versions",
+      });
     return { table, moved, done: page.isDone };
   },
 });

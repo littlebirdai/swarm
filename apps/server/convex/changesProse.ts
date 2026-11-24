@@ -35,13 +35,28 @@ import {
   type ChangeCommit,
   type ChangeKind,
 } from "@codecast/shared/changes";
-import { callModel, modelCost, parseJsonBlock, type SurfaceRequest } from "./lib/anthropic";
+import {
+  callModel,
+  modelCost,
+  parseJsonBlock,
+  type SurfaceRequest,
+} from "./lib/anthropic";
 import { PROSE_MODEL } from "./lib/changesProseModel";
-import { teamVisibleInputs, teamVisibleMedia, type ChangesInputMode, type ChangesMedia, type TeamVisibleInput } from "./lib/changesAccess";
+import {
+  teamVisibleInputs,
+  teamVisibleMedia,
+  type ChangesInputMode,
+  type ChangesMedia,
+  type TeamVisibleInput,
+} from "./lib/changesAccess";
 import { changesZone, markDayDirty } from "./lib/changesDirty";
 import { teamDayBounds } from "./lib/teamDay";
 import { normalizeRepository } from "./lib/gitRefs";
-import { STORY_PROMPT_VERSION, hasEditionProse, projectCommit } from "./changes";
+import {
+  STORY_PROMPT_VERSION,
+  hasEditionProse,
+  projectCommit,
+} from "./changes";
 import { linkedEntityIdsForConversation } from "./conversationLinks";
 import { changeGuideOutline } from "@codecast/shared/contracts/changeGuide";
 
@@ -102,7 +117,16 @@ export const STANDFIRST_WORDS = 60;
 /** Commits per read: a commit someone opened on /commit carries its patches. */
 const COMMIT_READ_CHUNK = 8;
 
-const KINDS: readonly ChangeKind[] = ["feature", "fix", "perf", "infra", "docs", "test", "release", "revert"];
+const KINDS: readonly ChangeKind[] = [
+  "feature",
+  "fix",
+  "perf",
+  "infra",
+  "docs",
+  "test",
+  "release",
+  "revert",
+];
 
 export type WhySource = "session" | "commit" | "pr" | "none";
 
@@ -128,7 +152,12 @@ export type StoryPromptSession = {
 };
 
 /** A screenshot the story may place, by ref; its URL stays out of the prompt. */
-export type StoryPromptImage = { ref: string; at: string; context: string; origin?: string };
+export type StoryPromptImage = {
+  ref: string;
+  at: string;
+  context: string;
+  origin?: string;
+};
 
 /** An edit to instruction text (a prompt, a skill, an agent guide) from a session the team sees in full. */
 export type StoryPromptEdit = { path: string; before: string; after: string };
@@ -141,7 +170,12 @@ export type StoryPromptInput = {
   commits: StoryPromptCommit[];
   /** Commits in the story beyond those shown. */
   more_commits: number;
-  areas: Array<{ area: string; files: number; insertions: number; deletions: number }>;
+  areas: Array<{
+    area: string;
+    files: number;
+    insertions: number;
+    deletions: number;
+  }>;
   top_paths: string[];
   release: { surface: string; version?: string; sha: string } | null;
   prs: Array<{ number: number; title: string; body: string }>;
@@ -180,9 +214,20 @@ export type GatedSession = {
 const shortSha = (s: string) => (/^[0-9a-f]{40}$/i.test(s) ? s.slice(0, 9) : s);
 
 /** The first turns carry what was asked for and the last ones what landed; the middle goes when there are too many. */
-function pickTurns(turns: ReadonlyArray<{ ask: string; did: string[] }>): Array<{ ask: string; did: string[] }> {
-  const kept = turns.length <= PROMPT_TURNS ? turns : [...turns.slice(0, 2), ...turns.slice(turns.length - (PROMPT_TURNS - 2))];
-  return kept.map((t) => ({ ask: clip(t.ask, ASK_CHARS), did: t.did.map((d) => clip(d, DID_CHARS)) }));
+function pickTurns(
+  turns: ReadonlyArray<{ ask: string; did: string[] }>,
+): Array<{ ask: string; did: string[] }> {
+  const kept =
+    turns.length <= PROMPT_TURNS
+      ? turns
+      : [
+          ...turns.slice(0, 2),
+          ...turns.slice(turns.length - (PROMPT_TURNS - 2)),
+        ];
+  return kept.map((t) => ({
+    ask: clip(t.ask, ASK_CHARS),
+    did: t.did.map((d) => clip(d, DID_CHARS)),
+  }));
 }
 
 /**
@@ -190,23 +235,41 @@ function pickTurns(turns: ReadonlyArray<{ ask: string; did: string[] }>): Array<
  * dominant area into its subareas (narrowAreas), so an area the story lacks is
  * split the same way when that names areas the story has.
  */
-function storyAreasOf(c: ChangeCommit, storyAreas: ReadonlySet<string>): ChangeCommit {
+function storyAreasOf(
+  c: ChangeCommit,
+  storyAreas: ReadonlySet<string>,
+): ChangeCommit {
   let out = c;
   for (const a of Object.keys(c.areas)) {
     if (storyAreas.has(a)) continue;
     const split = splitArea(out, a);
-    if (split !== out && Object.keys(split.areas).some((k) => !(k in out.areas) && storyAreas.has(k))) out = split;
+    if (
+      split !== out &&
+      Object.keys(split.areas).some(
+        (k) => !(k in out.areas) && storyAreas.has(k),
+      )
+    )
+      out = split;
   }
   return out;
 }
 
 /** A commit's share of a story: the whole commit, or the story's areas of it when it touched others too. Takes the commit as storyAreasOf names its areas. */
-function commitShare(c: ChangeCommit, storyAreas: ReadonlySet<string>): StoryPromptCommit {
+function commitShare(
+  c: ChangeCommit,
+  storyAreas: ReadonlySet<string>,
+): StoryPromptCommit {
   const areas = Object.keys(c.areas);
   const inStory = areas.filter((a) => storyAreas.has(a));
   const partial = areas.length > 0 && inStory.length < areas.length;
   const lines = partial
-    ? inStory.reduce((n, a) => ({ i: n.i + c.areas[a].insertions, d: n.d + c.areas[a].deletions }), { i: 0, d: 0 })
+    ? inStory.reduce(
+        (n, a) => ({
+          i: n.i + c.areas[a].insertions,
+          d: n.d + c.areas[a].deletions,
+        }),
+        { i: 0, d: 0 },
+      )
     : { i: c.insertions, d: c.deletions };
   return {
     sha: shortSha(c.sha),
@@ -235,7 +298,14 @@ export function storyPromptInput(
     .filter((c) => wanted.has(c.sha))
     .map((raw) => storyAreasOf(raw, storyAreas))
     .map((c) => ({ c, share: commitShare(c, storyAreas) }))
-    .sort((a, b) => b.share.insertions + b.share.deletions - (a.share.insertions + a.share.deletions) || a.c.timestamp - b.c.timestamp || a.c.sha.localeCompare(b.c.sha));
+    .sort(
+      (a, b) =>
+        b.share.insertions +
+          b.share.deletions -
+          (a.share.insertions + a.share.deletions) ||
+        a.c.timestamp - b.c.timestamp ||
+        a.c.sha.localeCompare(b.c.sha),
+    );
 
   const areas = Object.entries(story.area_counts).map(([area, files]) => {
     let insertions = 0;
@@ -248,15 +318,22 @@ export function storyPromptInput(
   });
   const paths: string[] = [];
   for (const { c } of shares) {
-    for (const p of c.top_paths ?? []) if (storyAreas.has(areaOf(p)) && !paths.includes(p)) paths.push(p);
+    for (const p of c.top_paths ?? [])
+      if (storyAreas.has(areaOf(p)) && !paths.includes(p)) paths.push(p);
   }
 
-  const headlineOf = new Map(sessions.map((s) => [String(s.conversation_id), s.headline || s.summary]));
+  const headlineOf = new Map(
+    sessions.map((s) => [String(s.conversation_id), s.headline || s.summary]),
+  );
   const risks = story.risks.map((r) => ({
     code: r.code,
-    evidence: r.code === "blocked"
-      ? r.evidence.map((id) => headlineOf.get(id)).filter((h): h is string => !!h).map((h) => `a session reports it is blocked: ${clip(h, 160)}`)
-      : r.evidence.map(shortSha),
+    evidence:
+      r.code === "blocked"
+        ? r.evidence
+            .map((id) => headlineOf.get(id))
+            .filter((h): h is string => !!h)
+            .map((h) => `a session reports it is blocked: ${clip(h, 160)}`)
+        : r.evidence.map(shortSha),
   }));
 
   return {
@@ -266,15 +343,29 @@ export function storyPromptInput(
     more_commits: Math.max(0, shares.length - PROMPT_COMMITS),
     areas,
     top_paths: paths.slice(0, PROMPT_PATHS),
-    release: story.release ? { surface: story.release.surface, ...(story.release.version ? { version: story.release.version } : {}), sha: shortSha(story.release.sha) } : null,
-    prs: prs.map((p) => ({ number: p.number, title: p.title, body: clipToSentence(p.body ?? "", PR_BODY_CHARS) })),
-    // A session with no words of its own lends only its media (storyMedia below).
-    sessions: sessions.filter((s) => s.summary).map((s) => ({
-      ...(s.headline ? { headline: s.headline } : {}),
-      summary: s.summary,
-      ...(s.mode === "full" && s.turns?.length ? { turns: pickTurns(s.turns) } : {}),
-      ...(s.guide ? { guide: s.guide } : {}),
+    release: story.release
+      ? {
+          surface: story.release.surface,
+          ...(story.release.version ? { version: story.release.version } : {}),
+          sha: shortSha(story.release.sha),
+        }
+      : null,
+    prs: prs.map((p) => ({
+      number: p.number,
+      title: p.title,
+      body: clipToSentence(p.body ?? "", PR_BODY_CHARS),
     })),
+    // A session with no words of its own lends only its media (storyMedia below).
+    sessions: sessions
+      .filter((s) => s.summary)
+      .map((s) => ({
+        ...(s.headline ? { headline: s.headline } : {}),
+        summary: s.summary,
+        ...(s.mode === "full" && s.turns?.length
+          ? { turns: pickTurns(s.turns) }
+          : {}),
+        ...(s.guide ? { guide: s.guide } : {}),
+      })),
     risks,
     ...storyMedia(sessions),
   };
@@ -285,60 +376,110 @@ const PROMPT_EDITS = 3;
 const PROMPT_EMBEDS = 4;
 
 /** The sessions' images, oldest first and numbered, with their URLs aside; and their instruction edits, largest first. */
-function storyMedia(sessions: readonly GatedSession[]): Pick<StoryPromptInput, "images" | "image_urls" | "edits" | "embeds" | "embed_blocks"> {
+function storyMedia(
+  sessions: readonly GatedSession[],
+): Pick<
+  StoryPromptInput,
+  "images" | "image_urls" | "edits" | "embeds" | "embed_blocks"
+> {
   const full = sessions.filter((s) => s.mode === "full" && s.media);
-  const found = full.flatMap((s) => s.media!.images).sort((a, b) => a.timestamp - b.timestamp).slice(-PROMPT_IMAGES);
+  const found = full
+    .flatMap((s) => s.media!.images)
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-PROMPT_IMAGES);
   const images: StoryPromptImage[] = [];
   const image_urls: Record<string, string> = {};
   found.forEach((img, i) => {
     const ref = `img${i + 1}`;
-    images.push({ ref, at: new Date(img.timestamp).toISOString().slice(0, 16).replace("T", " "), context: img.context, ...(img.origin ? { origin: img.origin } : {}) });
+    images.push({
+      ref,
+      at: new Date(img.timestamp).toISOString().slice(0, 16).replace("T", " "),
+      context: img.context,
+      ...(img.origin ? { origin: img.origin } : {}),
+    });
     image_urls[ref] = img.url;
   });
   const edits = full
     .flatMap((s) => s.media!.edits)
-    .sort((a, b) => b.before.length + b.after.length - (a.before.length + a.after.length))
+    .sort(
+      (a, b) =>
+        b.before.length + b.after.length - (a.before.length + a.after.length),
+    )
     .slice(0, PROMPT_EDITS)
     .map((e) => ({ path: e.path, before: e.before, after: e.after }));
   const embeds: StoryPromptInput["embeds"] = [];
   const embed_blocks: Record<string, string> = {};
   const counts = { page: 0, canvas: 0 };
-  for (const a of full.flatMap((s) => s.media!.artifacts ?? []).sort((x, y) => x.timestamp - y.timestamp).slice(-PROMPT_EMBEDS)) {
+  for (const a of full
+    .flatMap((s) => s.media!.artifacts ?? [])
+    .sort((x, y) => x.timestamp - y.timestamp)
+    .slice(-PROMPT_EMBEDS)) {
     const ref = `${a.kind}${++counts[a.kind]}`;
-    embeds.push({ ref, kind: a.kind, title: a.title || (a.kind === "page" ? "a published page" : "a canvas") });
+    embeds.push({
+      ref,
+      kind: a.kind,
+      title: a.title || (a.kind === "page" ? "a published page" : "a canvas"),
+    });
     embed_blocks[ref] = a.kind === "page" ? a.url : a.block;
   }
   return { images, image_urls, edits, embeds, embed_blocks };
 }
 
 /** The sources a story's why may name: only inputs the story actually has. */
-export function allowedWhySources(input: Pick<StoryPromptInput, "sessions" | "prs">): WhySource[] {
-  return [...(input.sessions.length ? ["session" as const] : []), "commit", ...(input.prs.length ? ["pr" as const] : []), "none"];
+export function allowedWhySources(
+  input: Pick<StoryPromptInput, "sessions" | "prs">,
+): WhySource[] {
+  return [
+    ...(input.sessions.length ? ["session" as const] : []),
+    "commit",
+    ...(input.prs.length ? ["pr" as const] : []),
+    "none",
+  ];
 }
 
 const STORY_SYSTEM = `You write one story for a team's Changes page, a daily edition of what the team shipped. Your reader is a teammate who was not there: they know the product but not this work, and they trust the page because it reports only what its sources say. You write like a careful reporter: what changed, plainly, and the reason only when a source gives one. Answer with one JSON object and nothing else.`;
 
 /** "a", "a and b", "a, b and c". */
-const listed = (xs: readonly string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+const listed = (xs: readonly string[]) =>
+  xs.length < 2
+    ? xs.join("")
+    : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 
-const indent = (text: string, pad = "    ") => text.split("\n").map((l) => pad + l).join("\n");
+const indent = (text: string, pad = "    ") =>
+  text
+    .split("\n")
+    .map((l) => pad + l)
+    .join("\n");
 
 function renderStoryInput(i: StoryPromptInput): string {
   const out: string[] = [];
   out.push(`Area: ${i.area}. Branch: ${i.branch}.`);
-  if (i.release) out.push(`Shipped in: ${i.release.surface}${i.release.version ? ` ${i.release.version}` : ""} (${i.release.sha}).`);
+  if (i.release)
+    out.push(
+      `Shipped in: ${i.release.surface}${i.release.version ? ` ${i.release.version}` : ""} (${i.release.sha}).`,
+    );
 
   out.push("", "Commits, largest first:");
   for (const c of i.commits) {
     out.push(`- ${c.sha} +${c.insertions} -${c.deletions} ${c.subject}`);
-    if (c.partial) out.push(`    Only its ${listed(c.partial)} ${c.partial.length === 1 ? "part belongs" : "parts belong"} to this story; other stories tell the rest.`);
+    if (c.partial)
+      out.push(
+        `    Only its ${listed(c.partial)} ${c.partial.length === 1 ? "part belongs" : "parts belong"} to this story; other stories tell the rest.`,
+      );
     if (c.body) out.push(indent(c.body));
   }
-  if (i.more_commits) out.push(`- and ${i.more_commits} smaller ${i.more_commits === 1 ? "commit" : "commits"}`);
+  if (i.more_commits)
+    out.push(
+      `- and ${i.more_commits} smaller ${i.more_commits === 1 ? "commit" : "commits"}`,
+    );
 
   out.push("", "Files by area:");
-  for (const a of i.areas) out.push(`- ${a.area}: ${a.files} ${a.files === 1 ? "file" : "files"}, +${a.insertions} -${a.deletions}`);
-  if (i.top_paths.length) out.push("", "Largest files:", ...i.top_paths.map((p) => `- ${p}`));
+  for (const a of i.areas)
+    out.push(
+      `- ${a.area}: ${a.files} ${a.files === 1 ? "file" : "files"}, +${a.insertions} -${a.deletions}`,
+    );
+  if (i.top_paths.length)
+    out.push("", "Largest files:", ...i.top_paths.map((p) => `- ${p}`));
 
   if (i.prs.length) {
     out.push("", "Pull requests:");
@@ -357,14 +498,27 @@ function renderStoryInput(i: StoryPromptInput): string {
         out.push(`    Asked: ${t.ask}`);
         if (t.did.length) out.push(`    Did: ${t.did.join("; ")}`);
       }
-      if (s.guide) out.push("    The author's guide to the change, in their order:", indent(s.guide, "      "));
+      if (s.guide)
+        out.push(
+          "    The author's guide to the change, in their order:",
+          indent(s.guide, "      "),
+        );
     }
   }
 
   if (i.edits.length) {
-    out.push("", "Edits the sessions made to instruction text (prompts, skills, agent guides), before and after:");
+    out.push(
+      "",
+      "Edits the sessions made to instruction text (prompts, skills, agent guides), before and after:",
+    );
     for (const e of i.edits) {
-      out.push(`- ${e.path}`, "    Before:", indent(e.before || "(new text)", "      "), "    After:", indent(e.after, "      "));
+      out.push(
+        `- ${e.path}`,
+        "    Before:",
+        indent(e.before || "(new text)", "      "),
+        "    After:",
+        indent(e.after, "      "),
+      );
     }
   }
 
@@ -374,13 +528,22 @@ function renderStoryInput(i: StoryPromptInput): string {
   }
 
   if (i.images.length) {
-    out.push("", "Screenshots from the sessions, by ref, with the words around each:");
-    for (const img of i.images) out.push(`- ${img.ref} (${[img.at, img.origin].filter(Boolean).join(", ")}): ${img.context || "(no words around it)"}`);
+    out.push(
+      "",
+      "Screenshots from the sessions, by ref, with the words around each:",
+    );
+    for (const img of i.images)
+      out.push(
+        `- ${img.ref} (${[img.at, img.origin].filter(Boolean).join(", ")}): ${img.context || "(no words around it)"}`,
+      );
   }
 
   if (i.risks.length) {
     out.push("", "Risks the page flags on this story:");
-    for (const r of i.risks) out.push(`- ${r.code}${r.evidence.length ? `: ${r.evidence.join(", ")}` : ""}`);
+    for (const r of i.risks)
+      out.push(
+        `- ${r.code}${r.evidence.length ? `: ${r.evidence.join(", ")}` : ""}`,
+      );
   }
   return out.join("\n");
 }
@@ -414,12 +577,21 @@ Fields:
 - risk_lines: ${riskCodes.length ? "an object from risk code to its line" : "{}"}.
 
 {"headline": "...", "dek": "...", "body": "...", "kind": "...", "importance": 3, "why_source": "...", "risk_lines": {}}`;
-  return { model: PROSE_MODEL, max_tokens: STORY_MAX_TOKENS, system: STORY_SYSTEM, prompt };
+  return {
+    model: PROSE_MODEL,
+    max_tokens: STORY_MAX_TOKENS,
+    system: STORY_SYSTEM,
+    prompt,
+  };
 }
 
 /** The story's screenshots as images the model can see, each under its ref. */
-export const storyImages = (input: Pick<StoryPromptInput, "images" | "image_urls">) =>
-  input.images.map((img) => ({ label: img.ref, url: input.image_urls[img.ref] })).filter((img) => !!img.url);
+export const storyImages = (
+  input: Pick<StoryPromptInput, "images" | "image_urls">,
+) =>
+  input.images
+    .map((img) => ({ label: img.ref, url: input.image_urls[img.ref] }))
+    .filter((img) => !!img.url);
 
 export type StoryProse = {
   headline: string;
@@ -431,7 +603,8 @@ export type StoryProse = {
   risk_lines?: Record<string, string>;
 };
 
-export const str = (x: unknown): string => (typeof x === "string" ? x.replace(/\s+/g, " ").trim() : "");
+export const str = (x: unknown): string =>
+  typeof x === "string" ? x.replace(/\s+/g, " ").trim() : "";
 
 /** At most `n` sentences. */
 export function sentences(text: string, n: number): string {
@@ -457,17 +630,32 @@ const MD_IMAGE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
  * reply can only show what the server offered), and a reply that runs long
  * cut at the last paragraph that fits.
  */
-export function articleBody(raw: unknown, urls: Readonly<Record<string, string>>, embeds: Readonly<Record<string, string>> = {}): string {
+export function articleBody(
+  raw: unknown,
+  urls: Readonly<Record<string, string>>,
+  embeds: Readonly<Record<string, string>> = {},
+): string {
   if (typeof raw !== "string") return "";
-  let text = raw.replace(/\r\n?/g, "\n").replace(MD_IMAGE, (_m, alt: string, src: string) => (urls[src] ? `![${alt.trim()}](${urls[src]})` : ""));
-  text = text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  let text = raw
+    .replace(/\r\n?/g, "\n")
+    .replace(MD_IMAGE, (_m, alt: string, src: string) =>
+      urls[src] ? `![${alt.trim()}](${urls[src]})` : "",
+    );
+  text = text
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
   if (text.length > BODY_CHARS) {
     const cut = text.lastIndexOf("\n\n", BODY_CHARS);
-    text = (cut > 0 ? text.slice(0, cut) : sentences(text.slice(0, BODY_CHARS), 99)).trim();
+    text = (
+      cut > 0 ? text.slice(0, cut) : sentences(text.slice(0, BODY_CHARS), 99)
+    ).trim();
   }
   // Embeds go in after the cut: a canvas is a figure, not words the limit counts.
   return text
-    .replace(/^embed:\s*([a-z]+\d+)\s*$/gm, (_m, ref: string) => (embeds[ref] ? `\n${embeds[ref]}\n` : ""))
+    .replace(/^embed:\s*([a-z]+\d+)\s*$/gm, (_m, ref: string) =>
+      embeds[ref] ? `\n${embeds[ref]}\n` : "",
+    )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -477,7 +665,12 @@ export function articleBody(raw: unknown, urls: Readonly<Record<string, string>>
  * checked. A reply that is not JSON, has no headline, or names a why source
  * the story does not have is unusable, and the deterministic text stays.
  */
-export function parseStoryReply(text: string, input: Pick<StoryPromptInput, "sessions" | "prs" | "risks"> & Partial<Pick<StoryPromptInput, "image_urls" | "embed_blocks">>, fallback: { kind: string; importance: number }): StoryProse | null {
+export function parseStoryReply(
+  text: string,
+  input: Pick<StoryPromptInput, "sessions" | "prs" | "risks"> &
+    Partial<Pick<StoryPromptInput, "image_urls" | "embed_blocks">>,
+  fallback: { kind: string; importance: number },
+): StoryProse | null {
   const raw = parseJsonBlock(text);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
@@ -485,18 +678,34 @@ export function parseStoryReply(text: string, input: Pick<StoryPromptInput, "ses
   const why = str(r.why_source) as WhySource;
   if (!headline || !allowedWhySources(input).includes(why)) return null;
 
-  const kind = KINDS.includes(str(r.kind) as ChangeKind) ? (str(r.kind) as ChangeKind) : (KINDS.includes(fallback.kind as ChangeKind) ? fallback.kind as ChangeKind : "infra");
+  const kind = KINDS.includes(str(r.kind) as ChangeKind)
+    ? (str(r.kind) as ChangeKind)
+    : KINDS.includes(fallback.kind as ChangeKind)
+      ? (fallback.kind as ChangeKind)
+      : "infra";
   const n = typeof r.importance === "number" ? Math.round(r.importance) : NaN;
   const importance = n >= 1 && n <= 5 ? n : fallback.importance;
-  const body = articleBody(r.body, input.image_urls ?? {}, input.embed_blocks ?? {});
+  const body = articleBody(
+    r.body,
+    input.image_urls ?? {},
+    input.embed_blocks ?? {},
+  );
   const codes = new Set(input.risks.map((x) => x.code));
-  const lines = r.risk_lines && typeof r.risk_lines === "object" && !Array.isArray(r.risk_lines)
-    ? Object.fromEntries(Object.entries(r.risk_lines as Record<string, unknown>)
-      .filter(([code]) => codes.has(code))
-      // A line too long to keep one whole sentence is dropped, and the risk shows by its code.
-      .map(([code, line]) => [code, sentencesWithin(str(line), RISK_LINE_CHARS)])
-      .filter(([, line]) => line))
-    : {};
+  const lines =
+    r.risk_lines &&
+    typeof r.risk_lines === "object" &&
+    !Array.isArray(r.risk_lines)
+      ? Object.fromEntries(
+          Object.entries(r.risk_lines as Record<string, unknown>)
+            .filter(([code]) => codes.has(code))
+            // A line too long to keep one whole sentence is dropped, and the risk shows by its code.
+            .map(([code, line]) => [
+              code,
+              sentencesWithin(str(line), RISK_LINE_CHARS),
+            ])
+            .filter(([, line]) => line),
+        )
+      : {};
   return {
     headline,
     dek: fitProse(str(r.dek), DEK_MAX, DEK_MAX + HEADLINE_SLACK),
@@ -517,14 +726,26 @@ export function parseStoryReply(text: string, input: Pick<StoryPromptInput, "ses
  * describes the whole batch. Neither does a subject that lists several changes
  * or would have to be clipped to fit.
  */
-export function skipHeadline(story: Pick<Doc<"change_stories">, "commit_shas" | "conversation_ids" | "area_counts">, commits: readonly ChangeCommit[]): string | null {
-  if (story.commit_shas.length !== 1 || story.conversation_ids.length) return null;
+export function skipHeadline(
+  story: Pick<
+    Doc<"change_stories">,
+    "commit_shas" | "conversation_ids" | "area_counts"
+  >,
+  commits: readonly ChangeCommit[],
+): string | null {
+  if (story.commit_shas.length !== 1 || story.conversation_ids.length)
+    return null;
   const c = commits.find((x) => x.sha === story.commit_shas[0]);
-  if (!c || Object.keys(c.areas).some((a) => !(a in story.area_counts))) return null;
+  if (!c || Object.keys(c.areas).some((a) => !(a in story.area_counts)))
+    return null;
   const kind = subjectKind(c.subject);
   const cleaned = cleanSubject(c.subject);
   if (kind !== "fix" && kind !== "feature") return null;
-  return cleaned.length >= SKIP_SUBJECT_CHARS && cleaned.length <= HEADLINE_MAX && namesOneChange(cleaned) ? cleaned : null;
+  return cleaned.length >= SKIP_SUBJECT_CHARS &&
+    cleaned.length <= HEADLINE_MAX &&
+    namesOneChange(cleaned)
+    ? cleaned
+    : null;
 }
 
 /** A subject that lists several changes ("a, b; c") is a batch summary, not a headline. */
@@ -533,7 +754,10 @@ function namesOneChange(subject: string): boolean {
 }
 
 /** When a story may be written: 20 minutes after its last commit, or when its day ends, whichever is first. */
-export function settlesAt(story: Pick<Doc<"change_stories">, "last_at">, dayEnd: number): number {
+export function settlesAt(
+  story: Pick<Doc<"change_stories">, "last_at">,
+  dayEnd: number,
+): number {
   return Math.min(story.last_at + SETTLE_MS, dayEnd);
 }
 
@@ -558,8 +782,19 @@ export type EditionStory = {
 /** Everything the edition prompt reads, as plain data. Built only from story text and facts. */
 export type EditionPromptInput = {
   date: string;
-  stats: { commits: number; stories: number; releases: number; people: number; sessions: number } | null;
-  releases: Array<{ surface: string; version?: string; sha: string; time: string }>;
+  stats: {
+    commits: number;
+    stories: number;
+    releases: number;
+    people: number;
+    sessions: number;
+  } | null;
+  releases: Array<{
+    surface: string;
+    version?: string;
+    sha: string;
+    time: string;
+  }>;
   /** Default-branch stories, most important first, at most 80. */
   stories: EditionStory[];
   /** Work on other branches, as counts. */
@@ -568,26 +803,51 @@ export type EditionPromptInput = {
   blocked: string[];
 };
 
-const releaseName = (r: { surface: string; version?: string; sha: string }) => `${r.surface} ${r.version ?? shortSha(r.sha)}`;
-
+const releaseName = (r: { surface: string; version?: string; sha: string }) =>
+  `${r.surface} ${r.version ?? shortSha(r.sha)}`;
 
 const EDITION_SYSTEM = `You are the editor of a team's Changes page, a daily edition of what the team shipped and why, read by everyone on the team in about a minute and a half. You are given the day's stories, already written, and the day's facts. You decide what the day was about and how it reads. Answer with one JSON object and nothing else.`;
 
 function renderEditionInput(i: EditionPromptInput): string {
   const out: string[] = [`Day: ${i.date}.`];
-  if (i.stats) out.push(`${i.stats.commits} commits, ${i.stats.stories} stories, ${i.stats.releases} releases, ${i.stats.people} people, ${i.stats.sessions} team-visible sessions.`);
-  if (i.releases.length) out.push("", "Releases and deploys:", ...i.releases.map((r) => `- ${releaseName(r)} at ${r.time}`));
+  if (i.stats)
+    out.push(
+      `${i.stats.commits} commits, ${i.stats.stories} stories, ${i.stats.releases} releases, ${i.stats.people} people, ${i.stats.sessions} team-visible sessions.`,
+    );
+  if (i.releases.length)
+    out.push(
+      "",
+      "Releases and deploys:",
+      ...i.releases.map((r) => `- ${releaseName(r)} at ${r.time}`),
+    );
   out.push("", "Stories:");
   for (const s of i.stories) {
-    const facts = [s.area, s.kind, `importance ${s.importance}`, `+${s.insertions} -${s.deletions}`];
+    const facts = [
+      s.area,
+      s.kind,
+      `importance ${s.importance}`,
+      `+${s.insertions} -${s.deletions}`,
+    ];
     if (s.release) facts.push(`shipped in ${s.release}`);
-    facts.push(`${s.authors} ${s.authors === 1 ? "author" : "authors"}`, `${s.sessions} ${s.sessions === 1 ? "session" : "sessions"}`);
+    facts.push(
+      `${s.authors} ${s.authors === 1 ? "author" : "authors"}`,
+      `${s.sessions} ${s.sessions === 1 ? "session" : "sessions"}`,
+    );
     if (s.risks.length) facts.push(`risks: ${s.risks.join(", ")}`);
     out.push(`- ${s.key} [${facts.join("; ")}] ${s.headline}`);
     if (s.dek) out.push(`    ${s.dek}`);
   }
-  if (i.branches.length) out.push("", "Other branches with commits today:", ...i.branches.map((b) => `- ${b.branch}: ${b.commits} ${b.commits === 1 ? "commit" : "commits"}, mostly ${b.area}`));
-  if (i.blocked.length) out.push("", "Blocked work:", ...i.blocked.map((h) => `- ${h}`));
+  if (i.branches.length)
+    out.push(
+      "",
+      "Other branches with commits today:",
+      ...i.branches.map(
+        (b) =>
+          `- ${b.branch}: ${b.commits} ${b.commits === 1 ? "commit" : "commits"}, mostly ${b.area}`,
+      ),
+    );
+  if (i.blocked.length)
+    out.push("", "Blocked work:", ...i.blocked.map((h) => `- ${h}`));
   return out.join("\n");
 }
 
@@ -605,7 +865,12 @@ Edit this day into an edition.
 - No em dashes.
 
 {"edition_headline": "...", "standfirst": "...", "lead_story_key": "s1", "brief_story_keys": ["..."]}`;
-  return { model: PROSE_MODEL, max_tokens: EDITION_MAX_TOKENS, system: EDITION_SYSTEM, prompt };
+  return {
+    model: PROSE_MODEL,
+    max_tokens: EDITION_MAX_TOKENS,
+    system: EDITION_SYSTEM,
+    prompt,
+  };
 }
 
 export type EditionProse = {
@@ -630,17 +895,34 @@ function words(text: string, n: number): string {
  * and keys the input does not have are dropped; areas the reply left out
  * follow in the input's order. No headline or no known lead is unusable.
  */
-export function parseEditionReply(text: string, input: EditionPromptInput, keyOf: Record<string, string>): EditionProse | null {
+export function parseEditionReply(
+  text: string,
+  input: EditionPromptInput,
+  keyOf: Record<string, string>,
+): EditionProse | null {
   const raw = parseJsonBlock(text);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw as Record<string, unknown>;
-  const headline = fitProse(str(r.edition_headline), EDITION_HEADLINE_MAX, EDITION_HEADLINE_MAX + HEADLINE_SLACK);
+  const headline = fitProse(
+    str(r.edition_headline),
+    EDITION_HEADLINE_MAX,
+    EDITION_HEADLINE_MAX + HEADLINE_SLACK,
+  );
   const lead = keyOf[str(r.lead_story_key)];
   if (!headline || !lead) return null;
-  const list = (x: unknown) => (Array.isArray(x) ? x.map(str).filter(Boolean) : []);
+  const list = (x: unknown) =>
+    Array.isArray(x) ? x.map(str).filter(Boolean) : [];
   const areas = [...new Set(input.stories.map((s) => s.area))];
-  const ordered = [...new Set(list(r.section_order).filter((a) => areas.includes(a)))];
-  const brief = [...new Set(list(r.brief_story_keys).map((k) => keyOf[k]).filter((k): k is string => !!k && k !== lead))];
+  const ordered = [
+    ...new Set(list(r.section_order).filter((a) => areas.includes(a))),
+  ];
+  const brief = [
+    ...new Set(
+      list(r.brief_story_keys)
+        .map((k) => keyOf[k])
+        .filter((k): k is string => !!k && k !== lead),
+    ),
+  ];
   return {
     headline,
     standfirst: words(str(r.standfirst), STANDFIRST_WORDS),
@@ -658,13 +940,20 @@ export const spentOn = internalQuery({
   handler: async (ctx, args): Promise<number> => {
     const stories = await ctx.db
       .query("change_stories")
-      .withIndex("by_team_date", (q) => q.eq("team_id", args.team_id).eq("date", args.date))
+      .withIndex("by_team_date", (q) =>
+        q.eq("team_id", args.team_id).eq("date", args.date),
+      )
       .collect();
     const editions = await ctx.db
       .query("digests")
-      .withIndex("by_team_scope_date", (q) => q.eq("team_id", args.team_id).eq("scope", "day").eq("date", args.date))
+      .withIndex("by_team_scope_date", (q) =>
+        q.eq("team_id", args.team_id).eq("scope", "day").eq("date", args.date),
+      )
       .collect();
-    return stories.reduce((n, row) => n + capSpend(row, STORY_PROMPT_VERSION), 0) + editions.reduce((n, row) => n + capSpend(row, EDITION_PROMPT_VERSION), 0);
+    return (
+      stories.reduce((n, row) => n + capSpend(row, STORY_PROMPT_VERSION), 0) +
+      editions.reduce((n, row) => n + capSpend(row, EDITION_PROMPT_VERSION), 0)
+    );
   },
 });
 
@@ -675,7 +964,9 @@ async function gatedSessions(
   work?: { first_at: number; last_at: number },
 ): Promise<GatedSession[]> {
   const gate = await teamVisibleInputs(ctx, teamId, ids);
-  const media = work ? await teamVisibleMedia(ctx, [...gate.values()], work) : new Map<string, ChangesMedia>();
+  const media = work
+    ? await teamVisibleMedia(ctx, [...gate.values()], work)
+    : new Map<string, ChangesMedia>();
   const out: GatedSession[] = [];
   const guidedTasks = new Set<string>();
   for (const id of ids) {
@@ -703,20 +994,30 @@ async function gatedSessions(
  * task in the team's workspace lends its guide, and each task's guide is told
  * once per story (`seen`).
  */
-async function sessionGuide(ctx: { db: any }, teamId: Id<"teams">, input: TeamVisibleInput, seen: Set<string>): Promise<string | undefined> {
-  const ids = new Set(await linkedEntityIdsForConversation(ctx, input.conversation_id, "task"));
+async function sessionGuide(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  input: TeamVisibleInput,
+  seen: Set<string>,
+): Promise<string | undefined> {
+  const ids = new Set(
+    await linkedEntityIdsForConversation(ctx, input.conversation_id, "task"),
+  );
   if (input.active_task_id) ids.add(String(input.active_task_id));
   for (const raw of [...ids].slice(0, 10)) {
     if (seen.has(raw)) continue;
     const id = ctx.db.normalizeId("tasks", raw);
     const task = id ? await ctx.db.get(id) : null;
-    if (!task?.change_guide?.steps?.length || task.workspace !== `team:${teamId}`) continue;
+    if (
+      !task?.change_guide?.steps?.length ||
+      task.workspace !== `team:${teamId}`
+    )
+      continue;
     seen.add(raw);
     return clip(changeGuideOutline(task.change_guide), GUIDE_CHARS);
   }
   return undefined;
 }
-
 
 export type StoryRead = {
   story: Doc<"change_stories">;
@@ -735,12 +1036,19 @@ export const mediaAudit = internalQuery({
   handler: async (ctx, args) => {
     const stories: Doc<"change_stories">[] = await ctx.db
       .query("change_stories")
-      .withIndex("by_team_date", (q) => q.eq("team_id", args.team_id).eq("date", args.date))
+      .withIndex("by_team_date", (q) =>
+        q.eq("team_id", args.team_id).eq("date", args.date),
+      )
       .take(80);
     const out = [];
     for (const story of stories) {
       if (!story.on_default_branch) continue;
-      const sessions = await gatedSessions(ctx, story.team_id, story.conversation_ids, story);
+      const sessions = await gatedSessions(
+        ctx,
+        story.team_id,
+        story.conversation_ids,
+        story,
+      );
       const media = storyMedia(sessions);
       const body = story.body ?? "";
       out.push({
@@ -748,22 +1056,40 @@ export const mediaAudit = internalQuery({
         headline: story.headline,
         sessions: story.conversation_ids.length,
         gated: sessions.map((x) => x.mode),
-        offered: { images: media.images.length, edits: media.edits.length, embeds: media.embeds.length },
+        offered: {
+          images: media.images.length,
+          edits: media.edits.length,
+          embeds: media.embeds.length,
+        },
         contexts: media.images.map((i) => i.context),
         embeds: media.embeds.map((e) => `${e.ref}: ${e.title}`),
         // Minutes from the story's first commit (negative: before) and past its last, per image and artifact.
-        offsets: sessions.flatMap((x) => [...(x.media?.images ?? []), ...(x.media?.artifacts ?? [])].map((m) => ({
-          kind: "kind" in m ? (m as any).kind : "image",
-          url: "url" in m ? (m as any).url : "",
-          before_first: Math.round((m.timestamp - story.first_at) / 60_000),
-          after_last: Math.round((m.timestamp - story.last_at) / 60_000),
-        }))),
+        offsets: sessions.flatMap((x) =>
+          [...(x.media?.images ?? []), ...(x.media?.artifacts ?? [])].map(
+            (m) => ({
+              kind: "kind" in m ? (m as any).kind : "image",
+              url: "url" in m ? (m as any).url : "",
+              before_first: Math.round((m.timestamp - story.first_at) / 60_000),
+              after_last: Math.round((m.timestamp - story.last_at) / 60_000),
+            }),
+          ),
+        ),
         span_min: Math.round((story.last_at - story.first_at) / 60_000),
-        placed_urls: [...body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)].map((m) => m[1]),
+        placed_urls: [...body.matchAll(/!\[[^\]]*\]\(([^)\s]+)/g)].map(
+          (m) => m[1],
+        ),
         why_source: story.why_source ?? null,
         // What the prompt had to find a reason in: each passing session's summary and first asks.
-        why_inputs: sessions.map((x) => ({ mode: x.mode, summary: clip(x.summary, 300), asks: (x.turns ?? []).slice(0, 3).map((t) => clip(t.ask, 200)) })),
-        placed: { images: (body.match(/!\[/g) ?? []).length, embeds: (body.match(/```cast-canvas|codecast\.sh\/a\//g) ?? []).length },
+        why_inputs: sessions.map((x) => ({
+          mode: x.mode,
+          summary: clip(x.summary, 300),
+          asks: (x.turns ?? []).slice(0, 3).map((t) => clip(t.ask, 200)),
+        })),
+        placed: {
+          images: (body.match(/!\[/g) ?? []).length,
+          embeds: (body.match(/```cast-canvas|codecast\.sh\/a\//g) ?? [])
+            .length,
+        },
       });
     }
     return out;
@@ -771,12 +1097,25 @@ export const mediaAudit = internalQuery({
 });
 
 /** A pending story with the sessions that pass the gate now and its pull requests; null once it is no longer pending. */
-async function loadStoryRead(ctx: { db: any; storage?: any }, story: Doc<"change_stories">): Promise<StoryRead> {
-  const sessions = await gatedSessions(ctx, story.team_id, story.conversation_ids, story);
+async function loadStoryRead(
+  ctx: { db: any; storage?: any },
+  story: Doc<"change_stories">,
+): Promise<StoryRead> {
+  const sessions = await gatedSessions(
+    ctx,
+    story.team_id,
+    story.conversation_ids,
+    story,
+  );
   const prs: StoryRead["prs"] = [];
   for (const prId of story.pr_ids) {
     const pr = await ctx.db.get(prId);
-    if (pr && String(pr.team_id) === String(story.team_id)) prs.push({ number: pr.number, title: pr.title, body: clipToSentence(pr.body ?? "", PR_BODY_CHARS) });
+    if (pr && String(pr.team_id) === String(story.team_id))
+      prs.push({
+        number: pr.number,
+        title: pr.title,
+        body: clipToSentence(pr.body ?? "", PR_BODY_CHARS),
+      });
   }
   return { story, sessions, prs };
 }
@@ -794,28 +1133,55 @@ export const readStory = internalQuery({
 export const storyInputAudit = internalQuery({
   args: { story_key: v.string() },
   handler: async (ctx, args) => {
-    const story: Doc<"change_stories"> | null = await ctx.db.query("change_stories").withIndex("by_story_key", (q) => q.eq("story_key", args.story_key)).first();
+    const story: Doc<"change_stories"> | null = await ctx.db
+      .query("change_stories")
+      .withIndex("by_story_key", (q) => q.eq("story_key", args.story_key))
+      .first();
     if (!story) return null;
     const { sessions, prs } = await loadStoryRead(ctx, story);
     const commits: ChangeCommit[] = [];
     for (const sha of new Set(story.commit_shas)) {
-      const rows = await ctx.db.query("commits").withIndex("by_sha", (q) => q.eq("sha", sha)).take(10);
-      const row = rows.find((c) => String(c.team_id) === String(story.team_id) && normalizeRepository(c.repository) === normalizeRepository(story.repository));
+      const rows = await ctx.db
+        .query("commits")
+        .withIndex("by_sha", (q) => q.eq("sha", sha))
+        .take(10);
+      const row = rows.find(
+        (c) =>
+          String(c.team_id) === String(story.team_id) &&
+          normalizeRepository(c.repository) ===
+            normalizeRepository(story.repository),
+      );
       if (row) commits.push(projectCommit(row));
     }
-    return { story_key: story.story_key, team_id: story.team_id, headline: story.headline, input: storyPromptInput(story, commits, sessions, prs) };
+    return {
+      story_key: story.story_key,
+      team_id: story.team_id,
+      headline: story.headline,
+      input: storyPromptInput(story, commits, sessions, prs),
+    };
   },
 });
 
 /** The team's commits in this repository among `shas`, as layer 0 projects them. */
 export const readCommits = internalQuery({
-  args: { team_id: v.id("teams"), repository: v.string(), shas: v.array(v.string()) },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    shas: v.array(v.string()),
+  },
   handler: async (ctx, args): Promise<ChangeCommit[]> => {
     const repository = normalizeRepository(args.repository);
     const out: ChangeCommit[] = [];
     for (const sha of new Set(args.shas)) {
-      const rows = await ctx.db.query("commits").withIndex("by_sha", (q) => q.eq("sha", sha)).take(10);
-      const row = rows.find((c) => String(c.team_id) === String(args.team_id) && normalizeRepository(c.repository) === repository);
+      const rows = await ctx.db
+        .query("commits")
+        .withIndex("by_sha", (q) => q.eq("sha", sha))
+        .take(10);
+      const row = rows.find(
+        (c) =>
+          String(c.team_id) === String(args.team_id) &&
+          normalizeRepository(c.repository) === repository,
+      );
       if (row) out.push(projectCommit(row));
     }
     return out;
@@ -823,7 +1189,12 @@ export const readCommits = internalQuery({
 });
 
 const minutes = (t: number, zone: string) =>
-  new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: zone }).format(new Date(t));
+  new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: zone,
+  }).format(new Date(t));
 
 export type EditionLoad = {
   input: EditionPromptInput;
@@ -839,34 +1210,64 @@ export type EditionLoad = {
  * the read before the call and again in the write after it, so an edition is
  * written only over the stories it was asked about.
  */
-export async function loadEditionInput(ctx: { db: any }, teamId: Id<"teams">, repository: string, date: string): Promise<EditionLoad | null> {
+export async function loadEditionInput(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  repository: string,
+  date: string,
+): Promise<EditionLoad | null> {
   const rows: Doc<"change_stories">[] = await ctx.db
     .query("change_stories")
-    .withIndex("by_team_repo_date", (q: any) => q.eq("team_id", teamId).eq("repository", repository).eq("date", date))
+    .withIndex("by_team_repo_date", (q: any) =>
+      q.eq("team_id", teamId).eq("repository", repository).eq("date", date),
+    )
     .collect();
   const main = rows
     .filter((s) => s.on_default_branch)
-    .sort((a, b) => b.importance - a.importance || b.insertions + b.deletions - (a.insertions + a.deletions) || a.story_key.localeCompare(b.story_key))
+    .sort(
+      (a, b) =>
+        b.importance - a.importance ||
+        b.insertions + b.deletions - (a.insertions + a.deletions) ||
+        a.story_key.localeCompare(b.story_key),
+    )
     .slice(0, EDITION_STORIES);
   if (!main.length) return null;
 
   const digest: Doc<"digests"> | null = await ctx.db
     .query("digests")
-    .withIndex("by_team_repo_scope_date", (q: any) => q.eq("team_id", teamId).eq("repository", repository).eq("scope", "day").eq("date", date))
+    .withIndex("by_team_repo_scope_date", (q: any) =>
+      q
+        .eq("team_id", teamId)
+        .eq("repository", repository)
+        .eq("scope", "day")
+        .eq("date", date),
+    )
     .first();
   const day = await teamDayBounds(ctx, teamId, date);
 
-  const branches = new Map<string, { commits: number; files: Record<string, number> }>();
+  const branches = new Map<
+    string,
+    { commits: number; files: Record<string, number> }
+  >();
   for (const s of rows) {
     if (s.on_default_branch) continue;
     const b = branches.get(s.branch) ?? { commits: 0, files: {} };
     b.commits += s.commit_shas.length;
-    for (const [a, n] of Object.entries(s.area_counts)) b.files[a] = (b.files[a] ?? 0) + n;
+    for (const [a, n] of Object.entries(s.area_counts))
+      b.files[a] = (b.files[a] ?? 0) + n;
     branches.set(s.branch, b);
   }
 
-  const blockedIds = [...new Set(main.flatMap((s) => s.risks.filter((r) => r.code === "blocked").flatMap((r) => r.evidence)))];
-  const blocked = (await gatedSessions(ctx, teamId, blockedIds as Id<"conversations">[]))
+  const blockedIds = [
+    ...new Set(
+      main.flatMap((s) =>
+        s.risks.filter((r) => r.code === "blocked").flatMap((r) => r.evidence),
+      ),
+    ),
+  ];
+  const blocked = (
+    await gatedSessions(ctx, teamId, blockedIds as Id<"conversations">[])
+  )
     .filter((s) => s.outcome_type === "blocked")
     .map((s) => clip(s.headline || s.summary, 160));
 
@@ -892,22 +1293,56 @@ export async function loadEditionInput(ctx: { db: any }, teamId: Id<"teams">, re
 
   const input: EditionPromptInput = {
     date,
-    stats: digest?.stats ? { commits: digest.stats.commits, stories: digest.stats.stories, releases: digest.stats.releases, people: digest.stats.people, sessions: digest.stats.sessions } : null,
-    releases: (digest?.releases ?? []).map((r) => ({ surface: r.surface, ...(r.version ? { version: r.version } : {}), sha: shortSha(r.sha), time: minutes(r.at, day.timezone) })),
+    stats: digest?.stats
+      ? {
+          commits: digest.stats.commits,
+          stories: digest.stats.stories,
+          releases: digest.stats.releases,
+          people: digest.stats.people,
+          sessions: digest.stats.sessions,
+        }
+      : null,
+    releases: (digest?.releases ?? []).map((r) => ({
+      surface: r.surface,
+      ...(r.version ? { version: r.version } : {}),
+      sha: shortSha(r.sha),
+      time: minutes(r.at, day.timezone),
+    })),
     stories,
     branches: [...branches.entries()]
       .sort((a, b) => b[1].commits - a[1].commits || a[0].localeCompare(b[0]))
       .slice(0, EDITION_BRANCHES)
-      .map(([branch, b]) => ({ branch, commits: b.commits, area: Object.entries(b.files).sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0]?.[0] ?? "" })),
+      .map(([branch, b]) => ({
+        branch,
+        commits: b.commits,
+        area:
+          Object.entries(b.files).sort(
+            (x, y) => y[1] - x[1] || x[0].localeCompare(y[0]),
+          )[0]?.[0] ?? "",
+      })),
     blocked: blocked.slice(0, EDITION_BLOCKED),
   };
   const model = PROSE_MODEL;
-  return { input, keys, model, hash: hash64(["edition", EDITION_PROMPT_VERSION, model, JSON.stringify(input), JSON.stringify(keys)]) };
+  return {
+    input,
+    keys,
+    model,
+    hash: hash64([
+      "edition",
+      EDITION_PROMPT_VERSION,
+      model,
+      JSON.stringify(input),
+      JSON.stringify(keys),
+    ]),
+  };
 }
 
 export type EditionRead = {
   load: EditionLoad | null;
-  digest: Pick<Doc<"digests">, "status" | "inputs_hash" | "generated_at" | "headline"> | null;
+  digest: Pick<
+    Doc<"digests">,
+    "status" | "inputs_hash" | "generated_at" | "headline"
+  > | null;
 };
 
 export const readEdition = internalQuery({
@@ -915,21 +1350,50 @@ export const readEdition = internalQuery({
   handler: async (ctx, args): Promise<EditionRead> => {
     const digest = await ctx.db
       .query("digests")
-      .withIndex("by_team_repo_scope_date", (q) => q.eq("team_id", args.team_id).eq("repository", args.repository).eq("scope", "day").eq("date", args.date))
+      .withIndex("by_team_repo_scope_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("scope", "day")
+          .eq("date", args.date),
+      )
       .first();
     return {
-      load: await loadEditionInput(ctx, args.team_id, args.repository, args.date),
-      digest: digest ? { status: digest.status, inputs_hash: digest.inputs_hash, generated_at: digest.generated_at, headline: digest.headline } : null,
+      load: await loadEditionInput(
+        ctx,
+        args.team_id,
+        args.repository,
+        args.date,
+      ),
+      digest: digest
+        ? {
+            status: digest.status,
+            inputs_hash: digest.inputs_hash,
+            generated_at: digest.generated_at,
+            headline: digest.headline,
+          }
+        : null,
     };
   },
 });
 
 // ── Writes ───────────────────────────────────────────────────────────────
 
-export const usageArg = v.object({ model: v.string(), input_tokens: v.number(), output_tokens: v.number(), cost_usd: v.number() });
+export const usageArg = v.object({
+  model: v.string(),
+  input_tokens: v.number(),
+  output_tokens: v.number(),
+  cost_usd: v.number(),
+});
 export type Usage = typeof usageArg.type;
 
-type Spent = { input_tokens?: number; output_tokens?: number; cost_usd?: number; cap_version?: string; cap_cost_usd?: number };
+type Spent = {
+  input_tokens?: number;
+  output_tokens?: number;
+  cost_usd?: number;
+  cap_version?: string;
+  cap_cost_usd?: number;
+};
 
 /**
  * A row's spend after one more call. Tokens and dollars add up over every call
@@ -945,12 +1409,20 @@ export function spend(row: Spent, usage: Usage | undefined, version?: string) {
     input_tokens: (row.input_tokens ?? 0) + usage.input_tokens,
     output_tokens: (row.output_tokens ?? 0) + usage.output_tokens,
     cost_usd: (row.cost_usd ?? 0) + usage.cost_usd,
-    ...(version ? { cap_version: version, cap_cost_usd: (row.cap_version === version ? row.cap_cost_usd ?? 0 : 0) + usage.cost_usd } : {}),
+    ...(version
+      ? {
+          cap_version: version,
+          cap_cost_usd:
+            (row.cap_version === version ? (row.cap_cost_usd ?? 0) : 0) +
+            usage.cost_usd,
+        }
+      : {}),
   };
 }
 
 /** What a row has spent under `version`, the amount the daily cap counts. */
-export const capSpend = (row: Spent, version: string) => (row.cap_version === version ? row.cap_cost_usd ?? 0 : 0);
+export const capSpend = (row: Spent, version: string) =>
+  row.cap_version === version ? (row.cap_cost_usd ?? 0) : 0;
 
 const storyOutcome = v.union(
   v.object({
@@ -960,7 +1432,12 @@ const storyOutcome = v.union(
     body: v.optional(v.string()),
     kind: v.string(),
     importance: v.number(),
-    why_source: v.union(v.literal("session"), v.literal("commit"), v.literal("pr"), v.literal("none")),
+    why_source: v.union(
+      v.literal("session"),
+      v.literal("commit"),
+      v.literal("pr"),
+      v.literal("none"),
+    ),
     risk_lines: v.optional(v.record(v.string(), v.string())),
   }),
   // The skip path: the subject is the headline, and the commit is the why.
@@ -980,7 +1457,12 @@ export const writeStoryProse = internalMutation({
   args: {
     story_id: v.id("change_stories"),
     inputs_hash: v.string(),
-    used: v.array(v.object({ conversation_id: v.id("conversations"), mode: v.union(v.literal("summary"), v.literal("full")) })),
+    used: v.array(
+      v.object({
+        conversation_id: v.id("conversations"),
+        mode: v.union(v.literal("summary"), v.literal("full")),
+      }),
+    ),
     outcome: storyOutcome,
     usage: v.optional(usageArg),
   },
@@ -989,13 +1471,22 @@ export const writeStoryProse = internalMutation({
     if (!row) return "gone";
     const cost = spend(row, args.usage, STORY_PROMPT_VERSION);
 
-    let current = row.inputs_hash === args.inputs_hash && row.prose_status === "pending";
+    let current =
+      row.inputs_hash === args.inputs_hash && row.prose_status === "pending";
     if (current && args.used.length) {
       const kept = new Set(row.conversation_ids.map(String));
-      const gate = await teamVisibleInputs(ctx, row.team_id, args.used.map((u) => u.conversation_id));
+      const gate = await teamVisibleInputs(
+        ctx,
+        row.team_id,
+        args.used.map((u) => u.conversation_id),
+      );
       current = args.used.every((u) => {
         const now = gate.get(String(u.conversation_id));
-        return kept.has(String(u.conversation_id)) && !!now && !(u.mode === "full" && now.mode === "summary");
+        return (
+          kept.has(String(u.conversation_id)) &&
+          !!now &&
+          !(u.mode === "full" && now.mode === "summary")
+        );
       });
     }
     if (!current) {
@@ -1020,11 +1511,21 @@ export const writeStoryProse = internalMutation({
         ...cost,
       });
     } else if (o.status === "skipped") {
-      await ctx.db.patch(row._id, { headline: o.headline, why_source: "commit", prose_status: "skipped", prose_attempts: undefined, generated_at: at });
+      await ctx.db.patch(row._id, {
+        headline: o.headline,
+        why_source: "commit",
+        prose_status: "skipped",
+        prose_attempts: undefined,
+        generated_at: at,
+      });
     } else if (o.status === "branch") {
       await ctx.db.patch(row._id, { prose_status: "skipped" });
     } else {
-      await ctx.db.patch(row._id, { prose_status: "failed", prose_attempts: (row.prose_attempts ?? 0) + 1, ...cost });
+      await ctx.db.patch(row._id, {
+        prose_status: "failed",
+        prose_attempts: (row.prose_attempts ?? 0) + 1,
+        ...cost,
+      });
     }
     return "written";
   },
@@ -1062,7 +1563,13 @@ export const writeEditionProse = internalMutation({
   handler: async (ctx, args): Promise<"written" | "stale" | "gone"> => {
     const digest = await ctx.db
       .query("digests")
-      .withIndex("by_team_repo_scope_date", (q) => q.eq("team_id", args.team_id).eq("repository", args.repository).eq("scope", "day").eq("date", args.date))
+      .withIndex("by_team_repo_scope_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("scope", "day")
+          .eq("date", args.date),
+      )
       .first();
     if (!digest) return "gone";
     const cost = spend(digest, args.usage, EDITION_PROMPT_VERSION);
@@ -1072,18 +1579,28 @@ export const writeEditionProse = internalMutation({
       if (hasEditionProse(digest)) {
         if (args.usage) await ctx.db.patch(digest._id, cost);
       } else {
-        await ctx.db.patch(digest._id, { status: "failed", generated_at: Date.now(), ...cost });
+        await ctx.db.patch(digest._id, {
+          status: "failed",
+          generated_at: Date.now(),
+          ...cost,
+        });
       }
       return "written";
     }
 
-    const load = await loadEditionInput(ctx, args.team_id, args.repository, args.date);
+    const load = await loadEditionInput(
+      ctx,
+      args.team_id,
+      args.repository,
+      args.date,
+    );
     if (!load || load.hash !== args.inputs_hash) {
       if (args.usage) await ctx.db.patch(digest._id, cost);
       return "stale";
     }
     if (o.status === "final") {
-      if (digest.inputs_hash === args.inputs_hash && hasEditionProse(digest)) await ctx.db.patch(digest._id, { status: "final" });
+      if (digest.inputs_hash === args.inputs_hash && hasEditionProse(digest))
+        await ctx.db.patch(digest._id, { status: "final" });
       return "written";
     }
     await ctx.db.patch(digest._id, {
@@ -1107,18 +1624,34 @@ export const markCapped = internalMutation({
   handler: async (ctx, args): Promise<void> => {
     const digest = await ctx.db
       .query("digests")
-      .withIndex("by_team_repo_scope_date", (q) => q.eq("team_id", args.team_id).eq("repository", args.repository).eq("scope", "day").eq("date", args.date))
+      .withIndex("by_team_repo_scope_date", (q) =>
+        q
+          .eq("team_id", args.team_id)
+          .eq("repository", args.repository)
+          .eq("scope", "day")
+          .eq("date", args.date),
+      )
       .first();
-    if (digest && !digest.capped_at) await ctx.db.patch(digest._id, { capped_at: Date.now() });
+    if (digest && !digest.capped_at)
+      await ctx.db.patch(digest._id, { capped_at: Date.now() });
   },
 });
 
 /** Come back to a team day after `delay`: a story still settling, or an edition inside its hourly interval. */
 export const deferDay = internalMutation({
-  args: { team_id: v.id("teams"), repository: v.string(), date: v.string(), delay: v.number() },
+  args: {
+    team_id: v.id("teams"),
+    repository: v.string(),
+    date: v.string(),
+    delay: v.number(),
+  },
   handler: async (ctx, args): Promise<void> => {
     if (!(await changesZone(ctx, args.team_id))) return;
-    await markDayDirty(ctx, { team_id: args.team_id, repository: args.repository, date: args.date }, Math.max(60_000, args.delay));
+    await markDayDirty(
+      ctx,
+      { team_id: args.team_id, repository: args.repository, date: args.date },
+      Math.max(60_000, args.delay),
+    );
   },
 });
 
@@ -1135,47 +1668,100 @@ export type ProseResult = {
   capped: number;
   /** Stories left pending because this deployment has no model key. */
   held: number;
-  edition: "written" | "final" | "unchanged" | "deferred" | "capped" | "held" | "failed" | "stale" | "none";
+  edition:
+    | "written"
+    | "final"
+    | "unchanged"
+    | "deferred"
+    | "capped"
+    | "held"
+    | "failed"
+    | "stale"
+    | "none";
   spent_usd: number;
 };
 
 /** Edition outcomes of an ended day that schedule its week (changesWeek.ts). */
-const WEEK_AFTER: ReadonlySet<ProseResult["edition"]> = new Set(["final", "failed", "capped", "held"]);
+const WEEK_AFTER: ReadonlySet<ProseResult["edition"]> = new Set([
+  "final",
+  "failed",
+  "capped",
+  "held",
+]);
 
-export const usageOf = (model: string, u: { input_tokens: number; output_tokens: number }): Usage => ({
+export const usageOf = (
+  model: string,
+  u: { input_tokens: number; output_tokens: number },
+): Usage => ({
   model,
   input_tokens: u.input_tokens,
   output_tokens: u.output_tokens,
   cost_usd: modelCost(model, u),
 });
 
-async function readStoryCommits(ctx: ActionCtx, story: Doc<"change_stories">): Promise<ChangeCommit[]> {
+async function readStoryCommits(
+  ctx: ActionCtx,
+  story: Doc<"change_stories">,
+): Promise<ChangeCommit[]> {
   const out: ChangeCommit[] = [];
   for (let i = 0; i < story.commit_shas.length; i += COMMIT_READ_CHUNK) {
-    out.push(...(await ctx.runQuery(internal.changesProse.readCommits, {
-      team_id: story.team_id,
-      repository: story.repository,
-      shas: story.commit_shas.slice(i, i + COMMIT_READ_CHUNK),
-    })));
+    out.push(
+      ...(await ctx.runQuery(internal.changesProse.readCommits, {
+        team_id: story.team_id,
+        repository: story.repository,
+        shas: story.commit_shas.slice(i, i + COMMIT_READ_CHUNK),
+      })),
+    );
   }
   return out;
 }
 
 type Budget = { spent: number };
-type StoryStep = "written" | "skipped" | "failed" | "stale" | "deferred" | "capped" | "held" | "gone";
+type StoryStep =
+  | "written"
+  | "skipped"
+  | "failed"
+  | "stale"
+  | "deferred"
+  | "capped"
+  | "held"
+  | "gone";
 
 /** A deployment without a model key writes no prose and marks nothing failed: the stories wait for one. */
 export const hasModelKey = () => !!process.env.ANTHROPIC_API_KEY;
 
-async function proseForStory(ctx: ActionCtx, storyId: Id<"change_stories">, dayEnd: number, now: number, budget: Budget, settle: number[]): Promise<StoryStep> {
-  const read: StoryRead | null = await ctx.runQuery(internal.changesProse.readStory, { story_id: storyId });
+async function proseForStory(
+  ctx: ActionCtx,
+  storyId: Id<"change_stories">,
+  dayEnd: number,
+  now: number,
+  budget: Budget,
+  settle: number[],
+): Promise<StoryStep> {
+  const read: StoryRead | null = await ctx.runQuery(
+    internal.changesProse.readStory,
+    { story_id: storyId },
+  );
   if (!read) return "gone";
   const { story, sessions, prs } = read;
-  const used = sessions.map((s) => ({ conversation_id: s.conversation_id, mode: s.mode }));
-  const write = async (outcome: typeof storyOutcome.type, usage?: Usage): Promise<StoryStep> => {
-    const r: "written" | "stale" | "gone" = await ctx.runMutation(internal.changesProse.writeStoryProse, {
-      story_id: storyId, inputs_hash: story.inputs_hash, used, outcome, ...(usage ? { usage } : {}),
-    });
+  const used = sessions.map((s) => ({
+    conversation_id: s.conversation_id,
+    mode: s.mode,
+  }));
+  const write = async (
+    outcome: typeof storyOutcome.type,
+    usage?: Usage,
+  ): Promise<StoryStep> => {
+    const r: "written" | "stale" | "gone" = await ctx.runMutation(
+      internal.changesProse.writeStoryProse,
+      {
+        story_id: storyId,
+        inputs_hash: story.inputs_hash,
+        used,
+        outcome,
+        ...(usage ? { usage } : {}),
+      },
+    );
     if (r !== "written") return r;
     return outcome.status === "branch" ? "skipped" : outcome.status;
   };
@@ -1194,13 +1780,22 @@ async function proseForStory(ctx: ActionCtx, storyId: Id<"change_stories">, dayE
 
   const input = storyPromptInput(story, commits, sessions, prs);
   const req = storyRequest(input);
-  const reply = await callModel({ ...req, label: "Changes story", timeout_ms: STORY_TIMEOUT_MS, gate: { ctx, scope: { workspace: `team:${story.team_id}` } } });
+  const reply = await callModel({
+    ...req,
+    label: "Changes story",
+    timeout_ms: STORY_TIMEOUT_MS,
+    gate: { ctx, scope: { workspace: `team:${story.team_id}` } },
+  });
   if (!reply) return await write({ status: "failed" });
   const usage = usageOf(req.model, reply.usage);
   budget.spent += usage.cost_usd;
   const prose = parseStoryReply(reply.text, input, story);
   if (!prose) {
-    console.error("Changes story: unusable reply", story.story_key, reply.text.slice(0, 300));
+    console.error(
+      "Changes story: unusable reply",
+      story.story_key,
+      reply.text.slice(0, 300),
+    );
     return await write({ status: "failed" }, usage);
   }
   return await write({ status: "written", ...prose }, usage);
@@ -1214,25 +1809,45 @@ async function proseForEdition(
   budget: Budget,
   settle: number[],
 ): Promise<ProseResult["edition"]> {
-  const { load, digest }: EditionRead = await ctx.runQuery(internal.changesProse.readEdition, args);
+  const { load, digest }: EditionRead = await ctx.runQuery(
+    internal.changesProse.readEdition,
+    args,
+  );
   if (!load || !digest) return "none";
   const final = now >= dayEnd;
-  const write = (outcome: typeof editionOutcome.type, usage?: Usage): Promise<"written" | "stale" | "gone"> =>
-    ctx.runMutation(internal.changesProse.writeEditionProse, { ...args, inputs_hash: load.hash, outcome, ...(usage ? { usage } : {}) });
+  const write = (
+    outcome: typeof editionOutcome.type,
+    usage?: Usage,
+  ): Promise<"written" | "stale" | "gone"> =>
+    ctx.runMutation(internal.changesProse.writeEditionProse, {
+      ...args,
+      inputs_hash: load.hash,
+      outcome,
+      ...(usage ? { usage } : {}),
+    });
 
   if (hasEditionProse(digest) && digest.inputs_hash === load.hash) {
     if (!final || digest.status === "final") return "unchanged";
     return (await write({ status: "final" })) === "written" ? "final" : "stale";
   }
   if (budget.spent >= DAILY_CAP_USD) return "capped";
-  if (!final && (digest.status === "written" || digest.status === "failed") && now - digest.generated_at < EDITION_INTERVAL_MS) {
+  if (
+    !final &&
+    (digest.status === "written" || digest.status === "failed") &&
+    now - digest.generated_at < EDITION_INTERVAL_MS
+  ) {
     settle.push(digest.generated_at + EDITION_INTERVAL_MS);
     return "deferred";
   }
   if (!hasModelKey()) return "held";
 
   const req = editionRequest(load.input);
-  const reply = await callModel({ ...req, label: "Changes edition", timeout_ms: EDITION_TIMEOUT_MS, gate: { ctx, scope: { workspace: `team:${args.team_id}` } } });
+  const reply = await callModel({
+    ...req,
+    label: "Changes edition",
+    timeout_ms: EDITION_TIMEOUT_MS,
+    gate: { ctx, scope: { workspace: `team:${args.team_id}` } },
+  });
   if (!reply) {
     await write({ status: "failed" });
     return "failed";
@@ -1241,7 +1856,12 @@ async function proseForEdition(
   budget.spent += usage.cost_usd;
   const edition = parseEditionReply(reply.text, load.input, load.keys);
   if (!edition) {
-    console.error("Changes edition: unusable reply", args.repository, args.date, reply.text.slice(0, 300));
+    console.error(
+      "Changes edition: unusable reply",
+      args.repository,
+      args.date,
+      reply.text.slice(0, 300),
+    );
     await write({ status: "failed" }, usage);
     return "failed";
   }
@@ -1257,13 +1877,37 @@ async function proseForEdition(
  */
 export async function runProse(
   ctx: ActionCtx,
-  args: { team_id: Id<"teams">; repository: string; date: string; pending: readonly Id<"change_stories">[] },
+  args: {
+    team_id: Id<"teams">;
+    repository: string;
+    date: string;
+    pending: readonly Id<"change_stories">[];
+  },
 ): Promise<ProseResult> {
   const now = Date.now();
-  const day: { end: number } = await ctx.runQuery(internal.changes.readDay, { team_id: args.team_id, repository: args.repository, date: args.date });
-  const budget: Budget = { spent: await ctx.runQuery(internal.changesProse.spentOn, { team_id: args.team_id, date: args.date }) };
+  const day: { end: number } = await ctx.runQuery(internal.changes.readDay, {
+    team_id: args.team_id,
+    repository: args.repository,
+    date: args.date,
+  });
+  const budget: Budget = {
+    spent: await ctx.runQuery(internal.changesProse.spentOn, {
+      team_id: args.team_id,
+      date: args.date,
+    }),
+  };
   const settle: number[] = [];
-  const result: ProseResult = { written: 0, skipped: 0, failed: 0, stale: 0, deferred: 0, capped: 0, held: 0, edition: "none", spent_usd: 0 };
+  const result: ProseResult = {
+    written: 0,
+    skipped: 0,
+    failed: 0,
+    stale: 0,
+    deferred: 0,
+    capped: 0,
+    held: 0,
+    edition: "none",
+    spent_usd: 0,
+  };
   const startSpent = budget.spent;
 
   let unfinished = false;
@@ -1273,37 +1917,62 @@ export async function runProse(
       settle.push(Date.now() + 60_000);
       break;
     }
-    const steps = await Promise.all(args.pending.slice(i, i + STORY_PARALLEL).map(async (id) => {
-      try {
-        return await proseForStory(ctx, id, day.end, now, budget, settle);
-      } catch (error) {
-        console.error("Changes story prose failed:", String(id), error);
-        return "gone" as const;
-      }
-    }));
+    const steps = await Promise.all(
+      args.pending.slice(i, i + STORY_PARALLEL).map(async (id) => {
+        try {
+          return await proseForStory(ctx, id, day.end, now, budget, settle);
+        } catch (error) {
+          console.error("Changes story prose failed:", String(id), error);
+          return "gone" as const;
+        }
+      }),
+    );
     for (const s of steps) if (s !== "gone") result[s] += 1;
   }
 
   // The edition reads the stories' prose, so it waits for a run that wrote them all.
   if (!unfinished) {
     try {
-      result.edition = await proseForEdition(ctx, { team_id: args.team_id, repository: args.repository, date: args.date }, day.end, now, budget, settle);
+      result.edition = await proseForEdition(
+        ctx,
+        { team_id: args.team_id, repository: args.repository, date: args.date },
+        day.end,
+        now,
+        budget,
+        settle,
+      );
     } catch (error) {
-      console.error("Changes edition prose failed:", args.repository, args.date, error);
+      console.error(
+        "Changes edition prose failed:",
+        args.repository,
+        args.date,
+        error,
+      );
     }
   }
 
   if (result.capped || result.edition === "capped") {
-    await ctx.runMutation(internal.changesProse.markCapped, { team_id: args.team_id, repository: args.repository, date: args.date });
+    await ctx.runMutation(internal.changesProse.markCapped, {
+      team_id: args.team_id,
+      repository: args.repository,
+      date: args.date,
+    });
   }
   // An ended day's edition is as written as it will get (prose, or facts the
   // cap, a missing key or a failure left): its week is built from it.
   if (now >= day.end && WEEK_AFTER.has(result.edition)) {
-    await ctx.runMutation(internal.changesWeek.scheduleWeek, { team_id: args.team_id, repository: args.repository, date: args.date });
+    await ctx.runMutation(internal.changesWeek.scheduleWeek, {
+      team_id: args.team_id,
+      repository: args.repository,
+      date: args.date,
+    });
   }
   if (settle.length) {
     await ctx.runMutation(internal.changesProse.deferDay, {
-      team_id: args.team_id, repository: args.repository, date: args.date, delay: Math.min(...settle) - now,
+      team_id: args.team_id,
+      repository: args.repository,
+      date: args.date,
+      delay: Math.min(...settle) - now,
     });
   }
   result.spent_usd = budget.spent - startSpent;

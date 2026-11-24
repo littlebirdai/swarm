@@ -52,9 +52,9 @@ export function useMentionLinkNavigation() {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      const anchor = target?.closest?.(MENTION_ANCHOR_SELECTOR) as
-        | HTMLAnchorElement
-        | null;
+      const anchor = target?.closest?.(
+        MENTION_ANCHOR_SELECTOR,
+      ) as HTMLAnchorElement | null;
       if (!anchor) return;
 
       const path = resolveMentionClickNavigation({

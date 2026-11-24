@@ -36,7 +36,9 @@ export const resolveIdType = query({
   args: { id: v.string(), api_token: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // The browser, or the CLI with its token (`cast link <id>`).
-    const userId = args.api_token ? await getAuthenticatedUserId(ctx, args.api_token) : await getAuthUserId(ctx);
+    const userId = args.api_token
+      ? await getAuthenticatedUserId(ctx, args.api_token)
+      : await getAuthUserId(ctx);
     if (!userId) return null;
     for (const [table, type] of ID_TYPE_TABLES) {
       if (ctx.db.normalizeId(table, args.id)) return type;

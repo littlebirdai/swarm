@@ -13,7 +13,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFile, spawnSync } from "node:child_process";
 import { promisify } from "node:util";
-import { ccKeychainReadArgs, ccKeychainReadItems, ccKeychainWriteItem } from "../../src/ccKeychain.ts";
+import {
+  ccKeychainReadArgs,
+  ccKeychainReadItems,
+  ccKeychainWriteItem,
+} from "../../src/ccKeychain.ts";
 import { machineClaudeFeatureCache } from "../../src/test-helpers/claudeFeatureCache.ts";
 
 const run = promisify(execFile);
@@ -28,18 +32,44 @@ const planted = new Set<string>();
 export function plantLogin(configDir: string): void {
   let blob: string | null = null;
   for (const item of ccKeychainReadItems(undefined)) {
-    const r = spawnSync("security", ccKeychainReadArgs(item), { encoding: "utf8" });
-    if (r.status === 0 && r.stdout.trim()) { blob = r.stdout.trim(); break; }
+    const r = spawnSync("security", ccKeychainReadArgs(item), {
+      encoding: "utf8",
+    });
+    if (r.status === 0 && r.stdout.trim()) {
+      blob = r.stdout.trim();
+      break;
+    }
   }
-  if (!blob) throw new Error("no Claude Code login in the keychain; run `claude` once on this machine");
+  if (!blob)
+    throw new Error(
+      "no Claude Code login in the keychain; run `claude` once on this machine",
+    );
   const item = ccKeychainWriteItem(configDir);
   if (planted.has(item.service)) return;
-  const r = spawnSync("security", ["add-generic-password", "-U", "-A", "-a", item.account, "-s", item.service, "-w", blob], { encoding: "utf8" });
-  if (r.status !== 0) throw new Error(`could not plant the scoped login: ${r.stderr}`);
+  const r = spawnSync(
+    "security",
+    [
+      "add-generic-password",
+      "-U",
+      "-A",
+      "-a",
+      item.account,
+      "-s",
+      item.service,
+      "-w",
+      blob,
+    ],
+    { encoding: "utf8" },
+  );
+  if (r.status !== 0)
+    throw new Error(`could not plant the scoped login: ${r.stderr}`);
   planted.add(item.service);
 }
 export function unplantLogins(): void {
-  for (const service of planted) spawnSync("security", ["delete-generic-password", "-s", service], { encoding: "utf8" });
+  for (const service of planted)
+    spawnSync("security", ["delete-generic-password", "-s", service], {
+      encoding: "utf8",
+    });
   planted.clear();
 }
 process.on("exit", unplantLogins);
@@ -50,41 +80,92 @@ process.on("exit", unplantLogins);
  * it, so a session here pastes the way a real one does (the flag is fetched
  * remotely; a fresh dir would otherwise start without it).
  */
-export function seedConfigDir(configDir: string, opts: { claudeMd?: string; settings?: object } = {}): void {
+export function seedConfigDir(
+  configDir: string,
+  opts: { claudeMd?: string; settings?: object } = {},
+): void {
   fs.mkdirSync(configDir, { recursive: true });
   const state = path.join(configDir, ".claude.json");
   if (!fs.existsSync(state)) {
-    fs.writeFileSync(state, JSON.stringify({ hasCompletedOnboarding: true, theme: "dark", ...machineClaudeFeatureCache() }));
+    fs.writeFileSync(
+      state,
+      JSON.stringify({
+        hasCompletedOnboarding: true,
+        theme: "dark",
+        ...machineClaudeFeatureCache(),
+      }),
+    );
   }
-  if (opts.claudeMd !== undefined) fs.writeFileSync(path.join(configDir, "CLAUDE.md"), opts.claudeMd);
-  if (opts.settings !== undefined) fs.writeFileSync(path.join(configDir, "settings.json"), JSON.stringify(opts.settings, null, 2));
+  if (opts.claudeMd !== undefined)
+    fs.writeFileSync(path.join(configDir, "CLAUDE.md"), opts.claudeMd);
+  if (opts.settings !== undefined)
+    fs.writeFileSync(
+      path.join(configDir, "settings.json"),
+      JSON.stringify(opts.settings, null, 2),
+    );
 }
 
-const DROP = ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CODECAST_LAUNCH_TOKEN", "CODECAST_SESSION_ID", "TMUX", "TMUX_PANE", "CLAUDE_CONFIG_DIR"];
+const DROP = [
+  "CLAUDECODE",
+  "CLAUDE_CODE_ENTRYPOINT",
+  "CODECAST_LAUNCH_TOKEN",
+  "CODECAST_SESSION_ID",
+  "TMUX",
+  "TMUX_PANE",
+  "CLAUDE_CONFIG_DIR",
+];
 
 /** Start claude in a fresh tmux session; the pane is `${session}:0.0`. */
-export async function launchClaude(session: string, projectDir: string, configDir: string, claudeArgs: string[]): Promise<string> {
+export async function launchClaude(
+  session: string,
+  projectDir: string,
+  configDir: string,
+  claudeArgs: string[],
+): Promise<string> {
   fs.mkdirSync(projectDir, { recursive: true });
   seedConfigDir(configDir);
   plantLogin(configDir);
-  try { await tmux(["kill-session", "-t", session]); } catch { /* none */ }
+  try {
+    await tmux(["kill-session", "-t", session]);
+  } catch {
+    /* none */
+  }
   const envArgs: string[] = [];
   for (const k of DROP) envArgs.push("-e", `${k}=`);
   envArgs.push("-e", `CLAUDE_CONFIG_DIR=${configDir}`);
   const claude = process.env.SCRATCH_CLAUDE ?? "claude";
-  await tmux(["new-session", "-d", "-s", session, "-x", "180", "-y", "45", "-c", projectDir, ...envArgs, `${claude} ${claudeArgs.join(" ")}`]);
+  await tmux([
+    "new-session",
+    "-d",
+    "-s",
+    session,
+    "-x",
+    "180",
+    "-y",
+    "45",
+    "-c",
+    projectDir,
+    ...envArgs,
+    `${claude} ${claudeArgs.join(" ")}`,
+  ]);
   return `${session}:0.0`;
 }
 
-export const capturePane = (pane: string) => tmux(["capture-pane", "-p", "-t", pane, "-S", "-45"]);
-export const sendKey = (pane: string, key: string) => tmux(["send-keys", "-t", pane, key]);
+export const capturePane = (pane: string) =>
+  tmux(["capture-pane", "-p", "-t", pane, "-S", "-45"]);
+export const sendKey = (pane: string, key: string) =>
+  tmux(["send-keys", "-t", pane, key]);
 // `--` ends tmux option parsing: without it a payload that starts with "-"
 // ("-1", "- fix the thing") is read as a flag and the send fails.
-export const sendLiteral = (pane: string, text: string) => tmux(["send-keys", "-t", pane, "-l", "--", text]);
+export const sendLiteral = (pane: string, text: string) =>
+  tmux(["send-keys", "-t", pane, "-l", "--", text]);
 
 /** A bracketed paste through a tmux buffer, the way the daemon delivers. */
 export async function pasteIntoPane(pane: string, text: string): Promise<void> {
-  const file = path.join(fs.mkdtempSync(path.join(process.env.TMPDIR ?? "/tmp", "scratch-paste-")), "payload");
+  const file = path.join(
+    fs.mkdtempSync(path.join(process.env.TMPDIR ?? "/tmp", "scratch-paste-")),
+    "payload",
+  );
   fs.writeFileSync(file, text, { mode: 0o600 });
   const id = `scratch-${process.pid}-${Date.now()}`;
   try {
@@ -106,20 +187,40 @@ export function dialogSignature(pane: string): string | null {
   const lines = pane.split("\n");
   let cursorAt = -1;
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (/^\s+❯\s+\S/.test(lines[i]!)) { cursorAt = i; break; }
+    if (/^\s+❯\s+\S/.test(lines[i]!)) {
+      cursorAt = i;
+      break;
+    }
   }
   if (cursorAt === -1) return null;
-  const col = lines[cursorAt]!.search(/❯\s+\S/) + lines[cursorAt]!.match(/❯\s+/)![0].length;
-  const isRow = (l: string) => l.length > col && /^\s*$/.test(l.slice(0, col).replace("❯", " ")) && /\S/.test(l[col]!);
-  const rows = lines.slice(Math.max(0, cursorAt - 8), cursorAt + 9).filter(isRow);
+  const col =
+    lines[cursorAt]!.search(/❯\s+\S/) +
+    lines[cursorAt]!.match(/❯\s+/)![0].length;
+  const isRow = (l: string) =>
+    l.length > col &&
+    /^\s*$/.test(l.slice(0, col).replace("❯", " ")) &&
+    /\S/.test(l[col]!);
+  const rows = lines
+    .slice(Math.max(0, cursorAt - 8), cursorAt + 9)
+    .filter(isRow);
   if (rows.length < 2) return null;
-  return JSON.stringify([lines[cursorAt]!.trim(), rows.length, rows[0]!.trim()]);
+  return JSON.stringify([
+    lines[cursorAt]!.trim(),
+    rows.length,
+    rows[0]!.trim(),
+  ]);
 }
 
-export const composerReady = (p: string) => /^❯\s*$/m.test(p) && !dialogSignature(p);
+export const composerReady = (p: string) =>
+  /^❯\s*$/m.test(p) && !dialogSignature(p);
 export const turnRunning = (p: string) => /esc to interrupt/.test(p);
 
-export async function waitFor(pane: string, test: (p: string) => boolean, timeoutMs: number, everyMs = 500): Promise<string | null> {
+export async function waitFor(
+  pane: string,
+  test: (p: string) => boolean,
+  timeoutMs: number,
+  everyMs = 500,
+): Promise<string | null> {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
     const p = await capturePane(pane);
@@ -138,7 +239,8 @@ export async function dismissDialogs(pane: string): Promise<boolean> {
   for (let i = 0; i < 6; i++) {
     const p = await capturePane(pane);
     if (composerReady(p)) return true;
-    if (/I trust this folder/.test(p) && /❯\s+No, exit/.test(p)) await sendKey(pane, "Down");
+    if (/I trust this folder/.test(p) && /❯\s+No, exit/.test(p))
+      await sendKey(pane, "Down");
     await sendKey(pane, "Enter");
     await sleep(1500);
   }

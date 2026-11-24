@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { groupTurns, oneSegmentTurns, type TranscriptSegment } from "./transcriptTurnModel";
+import {
+  groupTurns,
+  oneSegmentTurns,
+  type TranscriptSegment,
+} from "./transcriptTurnModel";
 
 const seg = (
   over: Partial<TranscriptSegment> & Pick<TranscriptSegment, "seq" | "text">,
@@ -31,7 +35,11 @@ describe("oneSegmentTurns", () => {
       seg({ seq: 3, text: "three" }),
     ]);
     expect(turns).toHaveLength(3);
-    expect(turns.map((t) => t.segments.map((s) => s.text))).toEqual([["one"], ["two"], ["three"]]);
+    expect(turns.map((t) => t.segments.map((s) => s.text))).toEqual([
+      ["one"],
+      ["two"],
+      ["three"],
+    ]);
     expect(turns.map((t) => t.t0)).toEqual([1000, 2000, 3000]);
   });
 });

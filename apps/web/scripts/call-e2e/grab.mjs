@@ -24,20 +24,44 @@ import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 // livekit.mjs first: it quiets the SDK logger before rtc-node loads.
-import { die, loadLivekitEnv, parseArgs, participantToken } from "./livekit.mjs";
-import { Room, RoomEvent, TrackSource, VideoBufferType, VideoStream, dispose } from "@livekit/rtc-node";
+import {
+  die,
+  loadLivekitEnv,
+  parseArgs,
+  participantToken,
+} from "./livekit.mjs";
+import {
+  Room,
+  RoomEvent,
+  TrackSource,
+  VideoBufferType,
+  VideoStream,
+  dispose,
+} from "@livekit/rtc-node";
 import { decodeStrips, grayOf, writePng } from "./frames.mjs";
 
-const { flags, positionals } = parseArgs(process.argv.slice(2), { booleans: ["json", "refresh-env"] });
+const { flags, positionals } = parseArgs(process.argv.slice(2), {
+  booleans: ["json", "refresh-env"],
+});
 const room = positionals[0];
-if (!room) die("usage: node grab.mjs <room> [--source screen_share|camera] [--from <identity>] [--count N] [--every S] [--out DIR] [--json]", 64);
-const SOURCES = { camera: TrackSource.SOURCE_CAMERA, screen_share: TrackSource.SOURCE_SCREENSHARE };
+if (!room)
+  die(
+    "usage: node grab.mjs <room> [--source screen_share|camera] [--from <identity>] [--count N] [--every S] [--out DIR] [--json]",
+    64,
+  );
+const SOURCES = {
+  camera: TrackSource.SOURCE_CAMERA,
+  screen_share: TrackSource.SOURCE_SCREENSHARE,
+};
 const sourceKey = String(flags.source ?? "screen_share");
 const wanted = SOURCES[sourceKey];
-if (wanted === undefined) die(`--source must be one of ${Object.keys(SOURCES).join(", ")}`, 64);
+if (wanted === undefined)
+  die(`--source must be one of ${Object.keys(SOURCES).join(", ")}`, 64);
 const count = Math.max(1, Number(flags.count ?? 1));
 const everyMs = Math.max(0, Number(flags.every ?? 1) * 1000);
-const outDir = resolve(flags.out ?? join(tmpdir(), "codecast-call-e2e", "grabs"));
+const outDir = resolve(
+  flags.out ?? join(tmpdir(), "codecast-call-e2e", "grabs"),
+);
 mkdirSync(outDir, { recursive: true });
 
 const env = loadLivekitEnv({ refresh: Boolean(flags["refresh-env"]) });
@@ -46,7 +70,13 @@ const token = await participantToken(env, {
   identity: `call-e2e-grab:${process.pid}`,
   name: "call-e2e grab",
   ttlSeconds: 3600,
-  grant: { roomJoin: true, canPublish: false, canPublishData: false, canSubscribe: true, hidden: true },
+  grant: {
+    roomJoin: true,
+    canPublish: false,
+    canPublishData: false,
+    canSubscribe: true,
+    hidden: true,
+  },
 });
 const lk = new Room();
 const say = (line) => !flags.json && process.stderr.write(`${line}\n`);
@@ -56,32 +86,54 @@ const finish = async (code) => {
   await dispose().catch(() => {});
   process.exit(code);
 };
-const timer = setTimeout(() => {
-  process.stderr.write(`No ${sourceKey} track${flags.from ? ` from ${flags.from}` : ""} in ${room} within ${flags.timeout ?? 60}s.\n`);
-  finish(3);
-}, Number(flags.timeout ?? 60) * 1000);
+const timer = setTimeout(
+  () => {
+    process.stderr.write(
+      `No ${sourceKey} track${flags.from ? ` from ${flags.from}` : ""} in ${room} within ${flags.timeout ?? 60}s.\n`,
+    );
+    finish(3);
+  },
+  Number(flags.timeout ?? 60) * 1000,
+);
 
 let reading = false;
 async function read(track, participant) {
   reading = true;
   clearTimeout(timer);
-  say(`reading ${sourceKey} from ${participant.name || participant.identity} (${participant.identity})`);
+  say(
+    `reading ${sourceKey} from ${participant.name || participant.identity} (${participant.identity})`,
+  );
   let saved = 0;
   let nextAt = 0;
   for await (const { frame } of new VideoStream(track)) {
     const now = Date.now();
     if (now < nextAt) continue;
     const rgba = frame.convert(VideoBufferType.RGBA);
-    const path = join(outDir, `${room.replace(/[^\w.-]+/g, "_")}-${sourceKey}-${now}.png`);
+    const path = join(
+      outDir,
+      `${room.replace(/[^\w.-]+/g, "_")}-${sourceKey}-${now}.png`,
+    );
     writePng(path, rgba.data, rgba.width, rgba.height);
-    const [strip] = decodeStrips(grayOf(rgba.data, rgba.width, rgba.height), rgba.width, rgba.height);
+    const [strip] = decodeStrips(
+      grayOf(rgba.data, rgba.width, rgba.height),
+      rgba.width,
+      rgba.height,
+    );
     const row = {
       path,
       identity: participant.identity,
       width: rgba.width,
       height: rgba.height,
       receivedAt: new Date(now).toISOString(),
-      ...(strip ? { strip: { ...strip, capturedAt: new Date(strip.capturedAtMs).toISOString() }, ageMs: now - strip.capturedAtMs } : {}),
+      ...(strip
+        ? {
+            strip: {
+              ...strip,
+              capturedAt: new Date(strip.capturedAtMs).toISOString(),
+            },
+            ageMs: now - strip.capturedAtMs,
+          }
+        : {}),
     };
     if (flags.json) process.stdout.write(`${JSON.stringify(row)}\n`);
     else
@@ -94,7 +146,8 @@ async function read(track, participant) {
   die("The track ended before every frame was saved.");
 }
 
-const matches = (pub, p) => pub.source === wanted && (!flags.from || p.identity === flags.from);
+const matches = (pub, p) =>
+  pub.source === wanted && (!flags.from || p.identity === flags.from);
 lk.on(RoomEvent.TrackPublished, (pub, p) => {
   if (!reading && matches(pub, p)) pub.setSubscribed(true);
 });
@@ -103,7 +156,10 @@ lk.on(RoomEvent.TrackSubscribed, (track, pub, p) => {
 });
 
 say(`joining ${room} hidden...`);
-await lk.connect(env.LIVEKIT_URL, token, { autoSubscribe: false, dynacast: false });
+await lk.connect(env.LIVEKIT_URL, token, {
+  autoSubscribe: false,
+  dynacast: false,
+});
 for (const p of lk.remoteParticipants.values()) {
   for (const pub of p.trackPublications.values()) {
     if (!reading && matches(pub, p)) {

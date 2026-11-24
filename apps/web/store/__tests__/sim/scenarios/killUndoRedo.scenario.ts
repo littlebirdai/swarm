@@ -16,7 +16,10 @@
 import { HIDDEN_OVERRIDE_SETTLE_MS } from "../../../inboxOverlays";
 import { scenario, type ScenarioWorld } from "../dsl";
 
-async function killUndoAgain(w: ScenarioWorld, opts: { follower: boolean; again: "redo" | "kill" }) {
+async function killUndoAgain(
+  w: ScenarioWorld,
+  opts: { follower: boolean; again: "redo" | "kill" },
+) {
   w.user("ada");
   const s = w.session("ada", "s", { agentStatus: "idle" });
   const a = await w.device("ada", opts.follower ? { followers: 1 } : {});
@@ -39,7 +42,17 @@ async function killUndoAgain(w: ScenarioWorld, opts: { follower: boolean; again:
 }
 
 const FOLLOWER_KNOWN = { "INV-followers": "ct-56817" };
-scenario({ name: "killUndoRedoFollower", seeds: 3, known: FOLLOWER_KNOWN }, (w) => killUndoAgain(w, { follower: true, again: "redo" }));
-scenario({ name: "killUndoRekillFollower", seeds: 3, known: FOLLOWER_KNOWN }, (w) => killUndoAgain(w, { follower: true, again: "kill" }));
-scenario({ name: "killUndoRedoQuickHost", seeds: 5 }, (w) => killUndoAgain(w, { follower: false, again: "redo" }));
-scenario({ name: "killUndoRekillQuickHost", seeds: 3 }, (w) => killUndoAgain(w, { follower: false, again: "kill" }));
+scenario(
+  { name: "killUndoRedoFollower", seeds: 3, known: FOLLOWER_KNOWN },
+  (w) => killUndoAgain(w, { follower: true, again: "redo" }),
+);
+scenario(
+  { name: "killUndoRekillFollower", seeds: 3, known: FOLLOWER_KNOWN },
+  (w) => killUndoAgain(w, { follower: true, again: "kill" }),
+);
+scenario({ name: "killUndoRedoQuickHost", seeds: 5 }, (w) =>
+  killUndoAgain(w, { follower: false, again: "redo" }),
+);
+scenario({ name: "killUndoRekillQuickHost", seeds: 3 }, (w) =>
+  killUndoAgain(w, { follower: false, again: "kill" }),
+);

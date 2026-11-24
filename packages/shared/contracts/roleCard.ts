@@ -31,7 +31,9 @@ export function roleCardInitiativeLine(i: RoleCardInitiative): string {
  *  session's org context (`cast org where`) both print. */
 export function roleCardLines(r: RoleCard): string[] {
   return [
-    r.scope.length ? `Looks after: ${r.scope.join(", ")}` : "Looks after no area of its own: it runs its routine and answers what it is asked.",
+    r.scope.length
+      ? `Looks after: ${r.scope.join(", ")}`
+      : "Looks after no area of its own: it runs its routine and answers what it is asked.",
     r.charter ? `Charter: ${r.charter}` : "",
     r.goals.length ? `Goals: ${r.goals.join("; ")}` : "",
     ...(r.initiatives ?? []).map((i) => `Serves: ${roleCardInitiativeLine(i)}`),
@@ -41,6 +43,11 @@ export function parseRoleCardInitiativeLine(line: string): RoleCardInitiative {
   const [head, ...metrics] = line.split("; ");
   const m = head.match(/^(.*?) \((in-\d+)\)(?:, under (.*))?$/);
   return m
-    ? { title: m[1], short_id: m[2], chain: m[3] ? m[3].split(", under ") : [], metrics }
+    ? {
+        title: m[1],
+        short_id: m[2],
+        chain: m[3] ? m[3].split(", under ") : [],
+        metrics,
+      }
     : { title: head, short_id: "", chain: [], metrics };
 }

@@ -11,7 +11,9 @@ import { isRefusedDispatchError } from "../store/mutativeMiddleware";
  *  again rather than a row of dead buttons. */
 export const APPROVAL_REFUSED = "That answer didn't go through. Try again.";
 
-export function useOneAnswer(answer: (index: number) => Promise<unknown> | undefined | void) {
+export function useOneAnswer(
+  answer: (index: number) => Promise<unknown> | undefined | void,
+) {
   const [answered, setAnswered] = useState(false);
   const [refused, setRefused] = useState(false);
   const pick = (index: number) => {

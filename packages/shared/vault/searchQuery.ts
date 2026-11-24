@@ -89,7 +89,11 @@ export function parseVaultQuery(input: string): VaultQuery {
 
   q.text = terms.join(" ").trim();
   q.isEmpty =
-    !q.text && !q.paths.length && !q.files.length && !q.tags.length && !q.negations.length;
+    !q.text &&
+    !q.paths.length &&
+    !q.files.length &&
+    !q.tags.length &&
+    !q.negations.length;
   return q;
 }
 
@@ -101,7 +105,11 @@ export function hasRankableText(q: VaultQuery): boolean {
 
 /** `path:` / `file:` / `-term`, everything decidable from one file's path and
  *  prose. Tags are decided by the index (nested tags), phrases per block. */
-export function fileMatchesQuery(q: VaultQuery, path: string, text: string): boolean {
+export function fileMatchesQuery(
+  q: VaultQuery,
+  path: string,
+  text: string,
+): boolean {
   const lowerPath = path.toLowerCase();
   if (!q.paths.every((p) => lowerPath.includes(p))) return false;
   if (q.files.length) {

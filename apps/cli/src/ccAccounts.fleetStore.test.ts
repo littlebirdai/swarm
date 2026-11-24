@@ -41,15 +41,32 @@ describe("fleet store (sandboxed $HOME)", () => {
   const now = Date.now();
 
   const login = (accessToken: string, expiresAt: number) => ({
-    claudeAiOauth: { accessToken, refreshToken: "refresh-secret", expiresAt, scopes: ["user:inference", "user:profile"], subscriptionType: "max" },
+    claudeAiOauth: {
+      accessToken,
+      refreshToken: "refresh-secret",
+      expiresAt,
+      scopes: ["user:inference", "user:profile"],
+      subscriptionType: "max",
+    },
   });
 
   const save = (name: string, cred: unknown) =>
-    fs.writeFileSync(path.join(home, ".codecast", "cc-accounts", `${name}.json`), JSON.stringify({ credentials: cred, oauthAccount: {}, saved_at: 1 }));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "cc-accounts", `${name}.json`),
+      JSON.stringify({ credentials: cred, oauthAccount: {}, saved_at: 1 }),
+    );
 
   beforeEach(() => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), "cc-fleet-test-"));
-    for (const k of ["HOME", "PATH", "CC_ACCOUNTS_FORCE_FILE", "CODECAST_DIR", "CODECAST_CC_FLEET", "CODECAST_REMOTE_DEVICE"]) savedEnv[k] = process.env[k];
+    for (const k of [
+      "HOME",
+      "PATH",
+      "CC_ACCOUNTS_FORCE_FILE",
+      "CODECAST_DIR",
+      "CODECAST_CC_FLEET",
+      "CODECAST_REMOTE_DEVICE",
+    ])
+      savedEnv[k] = process.env[k];
     process.env.HOME = home;
     process.env.PATH = path.join(home, "empty-path");
     process.env.CC_ACCOUNTS_FORCE_FILE = "1";
@@ -58,14 +75,33 @@ describe("fleet store (sandboxed $HOME)", () => {
     process.env.CODECAST_REMOTE_DEVICE = "0";
     const cfg = path.join(home, ".codecast");
     fs.mkdirSync(path.join(cfg, "cc-accounts"), { recursive: true });
-    fs.writeFileSync(path.join(cfg, "cc-accounts.json"), JSON.stringify({
-      profiles: {
-        tok: { email: "tok@x.com", uuid: "u-tok", tier: "default_claude_max_20x", subscription: "max", saved_at: 1 },
-        live: { email: "live@x.com", uuid: "u-live", subscription: "max", saved_at: 1 },
-        lapsing: { email: "lapsing@x.com", uuid: "u-lapsing", saved_at: 1 },
-        dead: { email: "dead@x.com", uuid: "u-dead", saved_at: 1, login_expired_at: 1 },
-      },
-    }));
+    fs.writeFileSync(
+      path.join(cfg, "cc-accounts.json"),
+      JSON.stringify({
+        profiles: {
+          tok: {
+            email: "tok@x.com",
+            uuid: "u-tok",
+            tier: "default_claude_max_20x",
+            subscription: "max",
+            saved_at: 1,
+          },
+          live: {
+            email: "live@x.com",
+            uuid: "u-live",
+            subscription: "max",
+            saved_at: 1,
+          },
+          lapsing: { email: "lapsing@x.com", uuid: "u-lapsing", saved_at: 1 },
+          dead: {
+            email: "dead@x.com",
+            uuid: "u-dead",
+            saved_at: 1,
+            login_expired_at: 1,
+          },
+        },
+      }),
+    );
     save("live", login("access-live", now + 6 * 3_600_000));
     save("lapsing", login("access-lapsing", now + FLEET_MIN_ACCESS_MS / 2));
     save("dead", login("access-dead", now + 6 * 3_600_000));
@@ -94,13 +130,21 @@ describe("fleet store (sandboxed $HOME)", () => {
     expect(oauth.accessToken).toBe("access-live");
     expect(oauth.refreshToken).toBeUndefined();
 
-    expect(fleetBearer("lapsing", JSON.stringify(login("x", now + FLEET_MIN_ACCESS_MS / 2)), now)).toBeNull();
+    expect(
+      fleetBearer(
+        "lapsing",
+        JSON.stringify(login("x", now + FLEET_MIN_ACCESS_MS / 2)),
+        now,
+      ),
+    ).toBeNull();
     expect(fleetBearer("dead", liveLogin, now)).toBeNull();
   });
 
   it("putting a profile on the store records it as the fleet, and sessions with no pin launch on the store", async () => {
     await putFleetOn("live", now);
-    const stored = JSON.parse(fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8"));
+    const stored = JSON.parse(
+      fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8"),
+    );
     expect(stored.claudeAiOauth.accessToken).toBe("access-live");
     expect(stored.claudeAiOauth.refreshToken).toBeUndefined();
     expect(readFleetState()?.profile).toBe("live");
@@ -109,19 +153,42 @@ describe("fleet store (sandboxed $HOME)", () => {
     const fleet = launchAccountPrefix(undefined);
     expect(fleet.account).toBe(FLEET_GATE_ACCOUNT);
     expect(fleet.prefix).toContain("cc-fleet.env");
-    expect(fs.readFileSync(path.join(home, ".codecast", "cc-fleet.env"), "utf-8")).toContain(fleetStoreDir());
+    expect(
+      fs.readFileSync(path.join(home, ".codecast", "cc-fleet.env"), "utf-8"),
+    ).toContain(fleetStoreDir());
 
-    const shell = Bun.spawnSync(["/bin/bash", "-c", `${fleet.prefix}echo "key=\${ANTHROPIC_API_KEY-none} auth=\${ANTHROPIC_AUTH_TOKEN-none} oauth=\${CLAUDE_CODE_OAUTH_TOKEN-none}"`], {
-      env: { ...process.env, ANTHROPIC_API_KEY: "sk-ant-api03-stray", ANTHROPIC_AUTH_TOKEN: "stray", CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-stray" },
-    });
-    expect(shell.stdout.toString().trim()).toBe("key=none auth=none oauth=none");
+    const shell = Bun.spawnSync(
+      [
+        "/bin/bash",
+        "-c",
+        `${fleet.prefix}echo "key=\${ANTHROPIC_API_KEY-none} auth=\${ANTHROPIC_AUTH_TOKEN-none} oauth=\${CLAUDE_CODE_OAUTH_TOKEN-none}"`,
+      ],
+      {
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: "sk-ant-api03-stray",
+          ANTHROPIC_AUTH_TOKEN: "stray",
+          CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-stray",
+        },
+      },
+    );
+    expect(shell.stdout.toString().trim()).toBe(
+      "key=none auth=none oauth=none",
+    );
 
     // A person's pin still sources that profile.
     const pinned = launchAccountPrefix("tok");
     expect(pinned.prefix.startsWith(ACCOUNT_LAUNCH_UNSET)).toBe(true);
-    const pinnedShell = Bun.spawnSync(["/bin/bash", "-c", `${pinned.prefix}echo "\${CLAUDE_CODE_OAUTH_TOKEN-none}"`], {
-      env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-stray" },
-    });
+    const pinnedShell = Bun.spawnSync(
+      [
+        "/bin/bash",
+        "-c",
+        `${pinned.prefix}echo "\${CLAUDE_CODE_OAUTH_TOKEN-none}"`,
+      ],
+      {
+        env: { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-stray" },
+      },
+    );
     expect(pinnedShell.stdout.toString().trim()).toBe(TOKEN);
     expect(pinned.account).toBe("tok");
     expect(pinned.prefix).not.toContain("cc-fleet.env");
@@ -129,34 +196,67 @@ describe("fleet store (sandboxed $HOME)", () => {
     // A token inherited from the tmux server or a shell rc outranks the store:
     // the store launch drops it, and a pin still runs on its own token.
     const launchedEnv = (prefix: string) =>
-      spawnSync("/bin/bash", ["-c", `${prefix}echo "tok=\${CLAUDE_CODE_OAUTH_TOKEN:-} store=\${CLAUDE_SECURESTORAGE_CONFIG_DIR:-}"`], {
-        env: { ...process.env, CLAUDE_SECURESTORAGE_CONFIG_DIR: "", CLAUDE_CODE_OAUTH_TOKEN: "inherited-spent-account" },
-        encoding: "utf-8",
-      }).stdout.trim();
+      spawnSync(
+        "/bin/bash",
+        [
+          "-c",
+          `${prefix}echo "tok=\${CLAUDE_CODE_OAUTH_TOKEN:-} store=\${CLAUDE_SECURESTORAGE_CONFIG_DIR:-}"`,
+        ],
+        {
+          env: {
+            ...process.env,
+            CLAUDE_SECURESTORAGE_CONFIG_DIR: "",
+            CLAUDE_CODE_OAUTH_TOKEN: "inherited-spent-account",
+          },
+          encoding: "utf-8",
+        },
+      ).stdout.trim();
     expect(launchedEnv(fleet.prefix)).toBe(`tok= store=${fleetStoreDir()}`);
     expect(launchedEnv(pinned.prefix)).toBe(`tok=${TOKEN} store=`);
 
     await putFleetOn("tok", now);
-    expect(JSON.parse(fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8")).claudeAiOauth.accessToken).toBe(TOKEN);
+    expect(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(fleetStoreDir(), ".credentials.json"),
+          "utf-8",
+        ),
+      ).claudeAiOauth.accessToken,
+    ).toBe(TOKEN);
     expect(launchProfileName(now)).toBe("tok");
   });
 
   it("a cloud host drops a launch account of its own and launches on the pushed login", () => {
     process.env.CODECAST_REMOTE_DEVICE = "1";
     setLaunchProfile("tok", undefined, now);
-    expect(fs.existsSync(path.join(home, ".codecast", "cc-launch.json"))).toBe(true);
+    expect(fs.existsSync(path.join(home, ".codecast", "cc-launch.json"))).toBe(
+      true,
+    );
     expect(launchProfileName(now)).toBeUndefined();
-    expect(fs.existsSync(path.join(home, ".codecast", "cc-launch.json"))).toBe(false);
-    expect(launchAccountPrefix(undefined)).toEqual({ prefix: SUBSCRIPTION_KEY_UNSET, account: undefined });
+    expect(fs.existsSync(path.join(home, ".codecast", "cc-launch.json"))).toBe(
+      false,
+    );
+    expect(launchAccountPrefix(undefined)).toEqual({
+      prefix: SUBSCRIPTION_KEY_UNSET,
+      account: undefined,
+    });
   });
 
   describe("a cloud host drawing on the pool", () => {
     const POOL = "sk-ant-oat01-" + "p".repeat(90);
     const addCopy = (name: string, email: string, shareId: string) => {
       writeAccountToken(name, POOL);
-      const index = JSON.parse(fs.readFileSync(path.join(home, ".codecast", "cc-accounts.json"), "utf-8"));
+      const index = JSON.parse(
+        fs.readFileSync(
+          path.join(home, ".codecast", "cc-accounts.json"),
+          "utf-8",
+        ),
+      );
       index.profiles[name] = { email, saved_at: 1, pool_share_id: shareId };
-      fs.writeFileSync(path.join(home, ".codecast", "cc-accounts.json"), JSON.stringify(index));
+      fs.writeFileSync(
+        path.join(home, ".codecast", "cc-accounts.json"),
+        JSON.stringify(index),
+      );
       invalidateAccountsCache();
     };
 
@@ -177,10 +277,20 @@ describe("fleet store (sandboxed $HOME)", () => {
       // Only a pool copy, never one of the host's own profiles or its pushed login.
       expect(readFleetState()?.profile).toBe("pool-a");
       expect(launchProfileName(now)).toBe("pool-a");
-      expect(JSON.parse(fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8")).claudeAiOauth.accessToken).toBe(POOL);
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(fleetStoreDir(), ".credentials.json"),
+            "utf-8",
+          ),
+        ).claudeAiOauth.accessToken,
+      ).toBe(POOL);
       expect(launchAccountPrefix(undefined).account).toBe(FLEET_GATE_ACCOUNT);
       // Recovery sees the host's account: the inventory names the fleet's copy.
-      expect(getAccountsHeartbeatPayload()).toMatchObject({ fleet_store: true, launch_profile: "pool-a" });
+      expect(getAccountsHeartbeatPayload()).toMatchObject({
+        fleet_store: true,
+        launch_profile: "pool-a",
+      });
       // The server's switch moves it like any fleet machine.
       addCopy("pool-b", "b@x.com", "account_shares_b");
       expect((await switchFleetTo("pool-b", now)).mode).toBe("fleet");
@@ -198,10 +308,15 @@ describe("fleet store (sandboxed $HOME)", () => {
       process.env.CODECAST_REMOTE_DEVICE = "1";
       addCopy("pool-a", "a@x.com", "account_shares_a");
       await maintainFleetStore(now);
-      expect(await removePoolProfile("pool-a", now)).toContain("emptied the fleet store");
+      expect(await removePoolProfile("pool-a", now)).toContain(
+        "emptied the fleet store",
+      );
       expect(fleetStoreEnabled()).toBe(false);
       expect(launchProfileName(now)).toBeUndefined();
-      expect(launchAccountPrefix(undefined)).toEqual({ prefix: SUBSCRIPTION_KEY_UNSET, account: undefined });
+      expect(launchAccountPrefix(undefined)).toEqual({
+        prefix: SUBSCRIPTION_KEY_UNSET,
+        account: undefined,
+      });
     });
 
     it("moves to the next copy when one is taken back", async () => {
@@ -226,15 +341,18 @@ describe("fleet store (sandboxed $HOME)", () => {
       const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
       index.profiles.hand = { email: "M@x.com", saved_at: 1 };
       fs.writeFileSync(indexPath, JSON.stringify(index));
-      fs.writeFileSync(path.join(home, ".codecast", "cc-usage.json"), JSON.stringify({
-        accounts: {
-          "o@x.com": {
-            fetched_at: now,
-            session: { percent: 10, resets_at: now + 3_600_000 },
-            weekly: { percent: 10, resets_at: now + 86_400_000 },
+      fs.writeFileSync(
+        path.join(home, ".codecast", "cc-usage.json"),
+        JSON.stringify({
+          accounts: {
+            "o@x.com": {
+              fetched_at: now,
+              session: { percent: 10, resets_at: now + 3_600_000 },
+              weekly: { percent: 10, resets_at: now + 86_400_000 },
+            },
           },
-        },
-      }));
+        }),
+      );
       invalidateAccountsCache();
 
       const switched = await switchFleetTo("hand", now);
@@ -282,39 +400,96 @@ describe("fleet store (sandboxed $HOME)", () => {
   it("moves the fleet off an account its organization refuses, setup-token or not", async () => {
     save("tok", login("access-tok", now + 6 * 3_600_000));
     await putFleetOn("tok", now);
-    const refusal = JSON.stringify({ type: "error", error: { type: "permission_error", message: "OAuth authentication is currently not allowed for this organization.", details: { error_code: "oauth_not_allowed_for_organization" } } });
+    const refusal = JSON.stringify({
+      type: "error",
+      error: {
+        type: "permission_error",
+        message:
+          "OAuth authentication is currently not allowed for this organization.",
+        details: { error_code: "oauth_not_allowed_for_organization" },
+      },
+    });
     const fetchImpl = (async (_url: string, init: RequestInit) =>
       new Headers(init.headers).get("authorization") === "Bearer access-tok"
-        ? new Response(refusal, { status: 403, headers: { "content-type": "application/json" } })
-        : new Response(JSON.stringify({ five_hour: { utilization: 1 }, seven_day: { utilization: 1 } }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
-    const summary = await refreshUsageSnapshots({ fetchImpl, now, minIntervalMs: 0 });
+        ? new Response(refusal, {
+            status: 403,
+            headers: { "content-type": "application/json" },
+          })
+        : new Response(
+            JSON.stringify({
+              five_hour: { utilization: 1 },
+              seven_day: { utilization: 1 },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          )) as unknown as typeof fetch;
+    const summary = await refreshUsageSnapshots({
+      fetchImpl,
+      now,
+      minIntervalMs: 0,
+    });
     expect(summary.failed.map((f) => f.name)).toContain("tok");
     expect(fleetLoginDead("tok", null, now)).toBe(true);
 
     const did = await maintainFleetStore(now);
     expect(did).toContain(`"tok"'s organization refuses subscription access`);
     expect(readFleetState()?.profile).toBe("live");
-    expect(fallbackProfiles(listProfiles().map((p) => ({ ...p, setup_token: { expires_at: now + 86_400_000 } })), undefined, now).map((p) => p.name)).not.toContain("tok");
+    expect(
+      fallbackProfiles(
+        listProfiles().map((p) => ({
+          ...p,
+          setup_token: { expires_at: now + 86_400_000 },
+        })),
+        undefined,
+        now,
+      ).map((p) => p.name),
+    ).not.toContain("tok");
 
     // A good probe later clears the stamp.
-    const ok = (async () => new Response(JSON.stringify({ five_hour: { utilization: 1 }, seven_day: { utilization: 1 } }), { status: 200, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
-    await refreshUsageSnapshots({ fetchImpl: ok, now: now + 1, minIntervalMs: 0 });
+    const ok = (async () =>
+      new Response(
+        JSON.stringify({
+          five_hour: { utilization: 1 },
+          seven_day: { utilization: 1 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      )) as unknown as typeof fetch;
+    await refreshUsageSnapshots({
+      fetchImpl: ok,
+      now: now + 1,
+      minIntervalMs: 0,
+    });
     expect(fleetLoginDead("tok", null, now)).toBe(false);
   });
 
   it("stays put on an account whose login is only about to lapse", async () => {
     // No refresh token, so the tick's refresh fails without reaching the network.
-    const lapsingLogin = { claudeAiOauth: { accessToken: "access-lapsing", expiresAt: now + FLEET_MIN_ACCESS_MS / 2 } };
-    fs.writeFileSync(path.join(home, ".codecast", "cc-accounts", "lapsing.json"), JSON.stringify({ credentials: lapsingLogin, oauthAccount: {}, saved_at: 1 }));
+    const lapsingLogin = {
+      claudeAiOauth: {
+        accessToken: "access-lapsing",
+        expiresAt: now + FLEET_MIN_ACCESS_MS / 2,
+      },
+    };
+    fs.writeFileSync(
+      path.join(home, ".codecast", "cc-accounts", "lapsing.json"),
+      JSON.stringify({
+        credentials: lapsingLogin,
+        oauthAccount: {},
+        saved_at: 1,
+      }),
+    );
     setLaunchProfile("lapsing", undefined, now);
     const did = await maintainFleetStore(now);
     expect(did).toStartWith("cannot carry");
     expect(readFleetState()).toBeNull();
-    expect(fleetLoginDead("lapsing", JSON.stringify(login("x", now + 1000)), now)).toBe(false);
+    expect(
+      fleetLoginDead("lapsing", JSON.stringify(login("x", now + 1000)), now),
+    ).toBe(false);
   });
 
   it("reads a logged-out stub as dead, and a live setup-token as never dead", () => {
-    const stub = JSON.stringify({ claudeAiOauth: { accessToken: "", refreshToken: "", expiresAt: 0 } });
+    const stub = JSON.stringify({
+      claudeAiOauth: { accessToken: "", refreshToken: "", expiresAt: 0 },
+    });
     expect(fleetLoginDead("live", stub, now)).toBe(true);
     expect(fleetLoginDead("tok", stub, now)).toBe(false);
   });
@@ -323,12 +498,22 @@ describe("fleet store (sandboxed $HOME)", () => {
   // account's sessions kept its saved login live, and a switch onto it failed
   // with "no live login" beside a card showing a healthy machine login.
   it("carries the machine's account from its saved login when the keychain is a logged-out stub", async () => {
-    fs.writeFileSync(path.join(home, ".codecast", "cc-active.json"), JSON.stringify({ key: "u-live", since: 1 }));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "cc-active.json"),
+      JSON.stringify({ key: "u-live", since: 1 }),
+    );
     fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), JSON.stringify({ claudeAiOauth: { accessToken: "", refreshToken: "", expiresAt: 0 } }));
+    fs.writeFileSync(
+      path.join(home, ".claude", ".credentials.json"),
+      JSON.stringify({
+        claudeAiOauth: { accessToken: "", refreshToken: "", expiresAt: 0 },
+      }),
+    );
     const state = await putFleetOn("live", now);
     expect(state.via).toBe("login");
-    expect(fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8")).toContain("access-live");
+    expect(
+      fs.readFileSync(path.join(fleetStoreDir(), ".credentials.json"), "utf-8"),
+    ).toContain("access-live");
   });
 
   // The store holds no refresh token, and the daemon defers the keychain
@@ -337,9 +522,15 @@ describe("fleet store (sandboxed $HOME)", () => {
   // session launched on it. Those launches run on the keychain login instead,
   // which refreshes itself; a dormant profile the daemon refreshes stays on the store.
   it("launches on the keychain, not the store, when the store carries the machine's keychain login", async () => {
-    fs.writeFileSync(path.join(home, ".codecast", "cc-active.json"), JSON.stringify({ key: "u-live", since: 1 }));
+    fs.writeFileSync(
+      path.join(home, ".codecast", "cc-active.json"),
+      JSON.stringify({ key: "u-live", since: 1 }),
+    );
     fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
-    fs.writeFileSync(path.join(home, ".claude", ".credentials.json"), JSON.stringify(login("access-keychain", now + 6 * 3_600_000)));
+    fs.writeFileSync(
+      path.join(home, ".claude", ".credentials.json"),
+      JSON.stringify(login("access-keychain", now + 6 * 3_600_000)),
+    );
     invalidateAccountsCache();
 
     const state = await putFleetOn("live", now);

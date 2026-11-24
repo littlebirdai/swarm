@@ -7,12 +7,26 @@ import { formatRunDuration } from "../../../lib/workflowRun";
 // glyph, the first sentence of the reply, how long the agent worked (prompt to
 // last reply) and a count of what's inside. Click
 // anywhere to expand the turn to full.
-export const CompactTurnCard = memo(function CompactTurnCard({ preview, messageCount, toolCount, workedMs = 0, onExpand }: { preview: string; messageCount: number; toolCount: number; workedMs?: number; onExpand: () => void }) {
+export const CompactTurnCard = memo(function CompactTurnCard({
+  preview,
+  messageCount,
+  toolCount,
+  workedMs = 0,
+  onExpand,
+}: {
+  preview: string;
+  messageCount: number;
+  toolCount: number;
+  workedMs?: number;
+  onExpand: () => void;
+}) {
   const bits: string[] = [];
   // A span with both ends given; the third argument keeps the helper's default clock read out of render.
-  if (workedMs >= 1000) bits.push(`Worked ${formatRunDuration(0, workedMs, workedMs)}`);
+  if (workedMs >= 1000)
+    bits.push(`Worked ${formatRunDuration(0, workedMs, workedMs)}`);
   if (messageCount > 1) bits.push(`${messageCount} messages`);
-  if (toolCount > 0) bits.push(`${toolCount} ${toolCount === 1 ? "tool" : "tools"}`);
+  if (toolCount > 0)
+    bits.push(`${toolCount} ${toolCount === 1 ? "tool" : "tools"}`);
   return (
     <button
       data-cc-compact-turn
@@ -21,8 +35,14 @@ export const CompactTurnCard = memo(function CompactTurnCard({ preview, messageC
       title="Expand this turn"
     >
       <LogoIcon size={15} className="shrink-0 opacity-80" />
-      <span className="flex-1 min-w-0 truncate text-[13px] text-sol-text-secondary">{preview || "Worked on the task"}</span>
-      {bits.length > 0 && <span className="shrink-0 text-meta text-sol-text-dim/70 tabular-nums">{bits.join(" · ")}</span>}
+      <span className="flex-1 min-w-0 truncate text-[13px] text-sol-text-secondary">
+        {preview || "Worked on the task"}
+      </span>
+      {bits.length > 0 && (
+        <span className="shrink-0 text-meta text-sol-text-dim/70 tabular-nums">
+          {bits.join(" · ")}
+        </span>
+      )}
       <ChevronDown className="w-3.5 h-3.5 shrink-0 text-sol-text-dim/60 group-hover/turn:text-sol-cyan transition-colors" />
     </button>
   );

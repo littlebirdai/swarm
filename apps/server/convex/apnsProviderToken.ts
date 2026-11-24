@@ -5,11 +5,18 @@ import type { QueryCtx } from "./_generated/server";
 export const APNS_TOKEN_REFRESH_MS = 50 * 60 * 1000;
 
 async function tokenRow(ctx: Pick<QueryCtx, "db">, key: string) {
-  return ctx.db.query("system_config").withIndex("by_key", (q) => q.eq("key", key)).unique();
+  return ctx.db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
 }
 
 function fresh(row: { updated_at: number } | null, now: number): boolean {
-  return !!row && row.updated_at <= now && now - row.updated_at < APNS_TOKEN_REFRESH_MS;
+  return (
+    !!row &&
+    row.updated_at <= now &&
+    now - row.updated_at < APNS_TOKEN_REFRESH_MS
+  );
 }
 
 const identity = { key_id: v.string(), team_id: v.string() };
@@ -31,7 +38,8 @@ export const retain = internalMutation({
     const row = await tokenRow(ctx, key);
     const now = Date.now();
     if (fresh(row, now)) return row!.value;
-    if (!fresh({ updated_at: args.issued_at }, now)) throw new Error("APNs provider token is stale");
+    if (!fresh({ updated_at: args.issued_at }, now))
+      throw new Error("APNs provider token is stale");
     const value = { value: args.token, updated_at: args.issued_at };
     if (row) await ctx.db.patch(row._id, value);
     else await ctx.db.insert("system_config", { key, ...value });

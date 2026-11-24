@@ -33,7 +33,9 @@ describe("oauthJustFailed", () => {
 
   test("a stale start flag is ignored", () => {
     const now = 1_000_000;
-    const store = memStore({ [OAUTH_STARTED_KEY]: String(now - OAUTH_STARTED_TTL_MS - 1) });
+    const store = memStore({
+      [OAUTH_STARTED_KEY]: String(now - OAUTH_STARTED_TTL_MS - 1),
+    });
     expect(oauthJustFailed("", now, store)).toBe(false);
   });
 
@@ -41,5 +43,3 @@ describe("oauthJustFailed", () => {
     expect(oauthJustFailed("", Date.now(), memStore())).toBe(false);
   });
 });
-
-

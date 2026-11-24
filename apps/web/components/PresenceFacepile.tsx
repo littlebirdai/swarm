@@ -13,11 +13,26 @@ export type PresenceFace = {
 };
 
 /** One person's face at `size` px. */
-export function PresenceAvatar({ person, size = 20, ring = true, title }: { person: PresenceFace; size?: number; ring?: boolean; title?: string }) {
+export function PresenceAvatar({
+  person,
+  size = 20,
+  ring = true,
+  title,
+}: {
+  person: PresenceFace;
+  size?: number;
+  ring?: boolean;
+  title?: string;
+}) {
   const initial = (
     <span
       className={`rounded-full grid place-items-center font-semibold text-sol-bg shrink-0 ${ring ? "ring-2 ring-sol-bg" : ""}`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.5), backgroundColor: person.user_color }}
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.round(size * 0.5),
+        backgroundColor: person.user_color,
+      }}
     >
       {(person.user_name || "?").charAt(0).toUpperCase()}
     </span>
@@ -32,7 +47,9 @@ export function PresenceAvatar({ person, size = 20, ring = true, title }: { pers
           style={{ width: size, height: size }}
           fallback={initial}
         />
-      ) : initial}
+      ) : (
+        initial
+      )}
     </span>
   );
 }
@@ -51,11 +68,17 @@ export function PresenceFacepile({
   const overflow = present.length - shown.length;
   return (
     <div className="flex -space-x-1.5 shrink-0">
-      {shown.map((p) => <PresenceAvatar key={p.user_id} person={p} size={size} />)}
+      {shown.map((p) => (
+        <PresenceAvatar key={p.user_id} person={p} size={size} />
+      ))}
       {overflow > 0 && (
         <span
           className="rounded-full grid place-items-center font-semibold text-sol-text-dim bg-sol-bg-alt ring-2 ring-sol-bg"
-          style={{ width: size, height: size, fontSize: Math.round(size * 0.45) }}
+          style={{
+            width: size,
+            height: size,
+            fontSize: Math.round(size * 0.45),
+          }}
         >
           +{overflow}
         </span>

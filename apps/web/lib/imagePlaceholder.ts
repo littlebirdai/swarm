@@ -31,7 +31,7 @@ export function splitOnImagePlaceholders(text: string): string[] {
 export function insertImagePlaceholder(
   text: string,
   caret: number,
-  n: number
+  n: number,
 ): { text: string; caret: number } {
   const token = imagePlaceholderToken(n);
   const pos = Math.max(0, Math.min(caret, text.length));
@@ -40,7 +40,10 @@ export function insertImagePlaceholder(
   const lead = before && !/\s$/.test(before) ? " " : "";
   const trail = /^\s/.test(after) ? "" : " ";
   const inserted = lead + token + trail;
-  return { text: before + inserted + after, caret: before.length + inserted.length };
+  return {
+    text: before + inserted + after,
+    caret: before.length + inserted.length,
+  };
 }
 
 /**
@@ -55,7 +58,7 @@ export function dropImagePlaceholder(text: string, removed: number): string {
   // and line breaks elsewhere are untouched.
   const dropped = text.replace(
     new RegExp(`([ \\t]*)\\[Image ${Math.floor(removed)}\\]([ \\t]*)`, "g"),
-    (_match, before: string, after: string) => (before && after ? " " : "")
+    (_match, before: string, after: string) => (before && after ? " " : ""),
   );
   return dropped.replace(TOKEN_RE, (match, digits: string) => {
     const n = Number(digits);

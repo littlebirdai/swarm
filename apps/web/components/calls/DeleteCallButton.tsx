@@ -9,10 +9,22 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useInboxStore } from "../../store/inboxStore";
 import { SwitchReview } from "../consequential/ConsequentialSwitch";
-import { CALL_REACHES, permanentDeleteLedger, regulatedTeam } from "../consequential/deletionLedgers";
+import {
+  CALL_REACHES,
+  permanentDeleteLedger,
+  regulatedTeam,
+} from "../consequential/deletionLedgers";
 import { humanizeConvexError } from "@codecast/shared/contracts";
 
-export function DeleteCallButton({ call, live, title }: { call: { _id: unknown; team_id?: unknown; segments?: unknown[] }; live: boolean; title: string }) {
+export function DeleteCallButton({
+  call,
+  live,
+  title,
+}: {
+  call: { _id: unknown; team_id?: unknown; segments?: unknown[] };
+  live: boolean;
+  title: string;
+}) {
   const teams = useInboxStore((s) => s.teams);
   const team = regulatedTeam(teams, call.team_id);
   const [reviewing, setReviewing] = useState(false);
@@ -21,10 +33,13 @@ export function DeleteCallButton({ call, live, title }: { call: { _id: unknown; 
   const confirm = () => {
     setReviewing(false);
     router.push("/calls");
-    useInboxStore.getState().deleteCall(String(call._id)).then(
-      () => toast.success("Call deleted"),
-      (err: unknown) => toast.error(humanizeConvexError(err)),
-    );
+    useInboxStore
+      .getState()
+      .deleteCall(String(call._id))
+      .then(
+        () => toast.success("Call deleted"),
+        (err: unknown) => toast.error(humanizeConvexError(err)),
+      );
   };
   return (
     <>
@@ -43,7 +58,13 @@ export function DeleteCallButton({ call, live, title }: { call: { _id: unknown; 
             what: "call",
             title,
             team: team.name,
-            figures: [{ value: String(call.segments?.length ?? 0), label: "transcript lines", tone: "warn" }],
+            figures: [
+              {
+                value: String(call.segments?.length ?? 0),
+                label: "transcript lines",
+                tone: "warn",
+              },
+            ],
             reaches: CALL_REACHES,
           })}
           onClose={() => setReviewing(false)}

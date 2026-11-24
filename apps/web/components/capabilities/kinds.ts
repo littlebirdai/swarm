@@ -2,8 +2,20 @@
 // the execution-confidence verdict derived from the consent gate, and the
 // device shape the fleet rows are keyed by.
 
-import { Bot, FileText, Plug, Puzzle, Sparkles, Terminal, Webhook } from "lucide-react";
-import { deviceDisplayName, deviceKindLabel, type Device } from "../DeviceBadge";
+import {
+  Bot,
+  FileText,
+  Plug,
+  Puzzle,
+  Sparkles,
+  Terminal,
+  Webhook,
+} from "lucide-react";
+import {
+  deviceDisplayName,
+  deviceKindLabel,
+  type Device,
+} from "../DeviceBadge";
 import {
   isExecutionSurface,
   requiresExplicitConsent,
@@ -166,7 +178,9 @@ export function confidenceFromSurfaces(
  * like markdown from the outside. Calling those prose would be the one thing the
  * contract forbids, an unclassified capability rendered as harmless.
  */
-export function confidenceFromKind(kind: CapabilityKind | string): ExecutionConfidence {
+export function confidenceFromKind(
+  kind: CapabilityKind | string,
+): ExecutionConfidence {
   if (kind === "mcp" || kind === "hook" || kind === "plugin") return "code";
   return kind === "snippet" ? "prose" : "unknown";
 }
@@ -191,7 +205,9 @@ export function confidenceFromKind(kind: CapabilityKind | string): ExecutionConf
  * Only a genuinely absent field means no scan, and only that reaches the kind
  * floor.
  */
-function observedSurfaces(value: unknown): readonly ExecutionSurface[] | undefined {
+function observedSurfaces(
+  value: unknown,
+): readonly ExecutionSurface[] | undefined {
   if (value === undefined || value === null) return undefined;
   if (!Array.isArray(value)) return [];
   return value.every(isExecutionSurface) ? (value as ExecutionSurface[]) : [];
@@ -204,11 +220,14 @@ function observedSurfaces(value: unknown): readonly ExecutionSurface[] | undefin
  * It exists so the choice between the two is written once. A second copy of
  * this conditional is how one caller starts trusting a field another derives.
  */
-export function entryConfidence(
-  entry: { kind: CapabilityKind | string; surfaces?: unknown },
-): ExecutionConfidence {
+export function entryConfidence(entry: {
+  kind: CapabilityKind | string;
+  surfaces?: unknown;
+}): ExecutionConfidence {
   const surfaces = observedSurfaces(entry.surfaces);
-  return surfaces ? confidenceFromSurfaces(surfaces) : confidenceFromKind(entry.kind);
+  return surfaces
+    ? confidenceFromSurfaces(surfaces)
+    : confidenceFromKind(entry.kind);
 }
 
 // ----------------------------------------------------------------- devices
@@ -246,7 +265,12 @@ export interface CapabilityDevice {
  *  device chip elsewhere in the app. */
 export function toCapabilityDevice(
   d: Device,
-  report?: { reportedAt?: number; stale?: boolean; error?: string; clientVersion?: string },
+  report?: {
+    reportedAt?: number;
+    stale?: boolean;
+    error?: string;
+    clientVersion?: string;
+  },
 ): CapabilityDevice {
   return {
     deviceId: d.device_id,
@@ -258,7 +282,9 @@ export function toCapabilityDevice(
     // 0, and treating that as "reported at the epoch" would turn a silent
     // machine into one claiming to have nothing.
     reportedAt:
-      typeof report?.reportedAt === "number" && report.reportedAt > 0 ? report.reportedAt : null,
+      typeof report?.reportedAt === "number" && report.reportedAt > 0
+        ? report.reportedAt
+        : null,
     stale: report?.stale,
     error: report?.error,
     clientVersion: report?.clientVersion,

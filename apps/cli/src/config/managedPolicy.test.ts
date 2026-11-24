@@ -22,7 +22,11 @@ import { isCloudMirrorEnabled, type Config } from "./types.js";
 import { ENROLL_SIGN_IN_COOLDOWN_MS, nextEnrollStep } from "../mdm.js";
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "managed-policy-"));
-const saved = { prefs: process.env[MANAGED_PREFS_ENV], dir: process.env.CODECAST_DIR, home: process.env.HOME };
+const saved = {
+  prefs: process.env[MANAGED_PREFS_ENV],
+  dir: process.env.CODECAST_DIR,
+  home: process.env.HOME,
+};
 let n = 0;
 let dir = "";
 let profile = "";
@@ -31,7 +35,11 @@ const TEAM: Config["team_policy"] = {
   team_id: "t1",
   team_name: "Acme",
   enrolled: true,
-  policy: { browser_control_disabled: true, excluded_paths: ["/srv/team-secret"], auto_update: "on" },
+  policy: {
+    browser_control_disabled: true,
+    excluded_paths: ["/srv/team-secret"],
+    auto_update: "on",
+  },
 };
 
 function writeProfile(body: unknown): void {
@@ -53,7 +61,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const [k, v] of [[MANAGED_PREFS_ENV, saved.prefs], ["CODECAST_DIR", saved.dir], ["HOME", saved.home]] as const) {
+  for (const [k, v] of [
+    [MANAGED_PREFS_ENV, saved.prefs],
+    ["CODECAST_DIR", saved.dir],
+    ["HOME", saved.home],
+  ] as const) {
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;
   }
@@ -67,7 +79,12 @@ test("no profile and no team policy: nothing is managed", () => {
 });
 
 test("profile and team policy merge, profile first, and each value names its source", () => {
-  writeProfile({ PublicSharingDisabled: true, AutoUpdate: false, ExcludedPaths: ["~/clients"], ServerURL: "https://convex.acme.test" });
+  writeProfile({
+    PublicSharingDisabled: true,
+    AutoUpdate: false,
+    ExcludedPaths: ["~/clients"],
+    ServerURL: "https://convex.acme.test",
+  });
   const eff = effectivePolicy({ team_policy: TEAM });
   expect(eff.values).toEqual({
     public_sharing_disabled: true,
@@ -77,9 +94,17 @@ test("profile and team policy merge, profile first, and each value names its sou
     convex_url: "https://convex.acme.test",
   });
   expect(eff.sources.auto_update).toEqual({ kind: "profile" });
-  expect(eff.sources.browser_control_disabled).toEqual({ kind: "team", team_id: "t1", team_name: "Acme" });
-  expect(policyRefusal("browser_control_disabled", { team_policy: TEAM })).toBe("Agent browser control is turned off by Acme's admins.");
-  expect(policyRefusal("public_sharing_disabled", {})).toBe("Public sharing is turned off by your device's management profile.");
+  expect(eff.sources.browser_control_disabled).toEqual({
+    kind: "team",
+    team_id: "t1",
+    team_name: "Acme",
+  });
+  expect(policyRefusal("browser_control_disabled", { team_policy: TEAM })).toBe(
+    "Agent browser control is turned off by Acme's admins.",
+  );
+  expect(policyRefusal("public_sharing_disabled", {})).toBe(
+    "Public sharing is turned off by your device's management profile.",
+  );
 });
 
 test("the team half comes from config.json when no config is passed", () => {
@@ -93,7 +118,12 @@ test("the profile is parsed once per file change", () => {
   fs.utimesSync(profile, then, then);
   expect(policyRefusal("browser_control_disabled", {})).not.toBeNull();
   // Same size and mtime: the cached parse answers, the file is not read again.
-  fs.writeFileSync(profile, JSON.stringify({ BrowserControlDisabled: 1 }).padEnd(fs.statSync(profile).size));
+  fs.writeFileSync(
+    profile,
+    JSON.stringify({ BrowserControlDisabled: 1 }).padEnd(
+      fs.statSync(profile).size,
+    ),
+  );
   fs.utimesSync(profile, then, then);
   expect(policyRefusal("browser_control_disabled", {})).not.toBeNull();
   // A real change moves the stamp.
@@ -103,27 +133,48 @@ test("the profile is parsed once per file change", () => {
   expect(effectivePolicy({}).values).toEqual({});
 });
 
-test.skipIf(process.platform !== "darwin")("a plist profile reads through plutil, even beside values JSON cannot hold", () => {
-  const plist = path.join(dir, "sh.codecast.plist");
-  fs.writeFileSync(plist, `<?xml version="1.0" encoding="UTF-8"?>
+test.skipIf(process.platform !== "darwin")(
+  "a plist profile reads through plutil, even beside values JSON cannot hold",
+  () => {
+    const plist = path.join(dir, "sh.codecast.plist");
+    fs.writeFileSync(
+      plist,
+      `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>ComputerControlDisabled</key><true/>
   <key>ExcludedPaths</key><array><string>/Volumes/Clients</string></array>
   <key>PayloadInstalled</key><date>2026-10-26T10:00:00Z</date>
-</dict></plist>`);
-  process.env[MANAGED_PREFS_ENV] = plist;
-  expect(effectivePolicy({}).values).toEqual({ computer_control_disabled: true, excluded_paths: ["/Volumes/Clients"] });
-}, 30_000);
+</dict></plist>`,
+    );
+    process.env[MANAGED_PREFS_ENV] = plist;
+    expect(effectivePolicy({}).values).toEqual({
+      computer_control_disabled: true,
+      excluded_paths: ["/Volumes/Clients"],
+    });
+  },
+  30_000,
+);
 
 test("the overlay shows managed values to readers and never reaches config.json", () => {
-  writeProfile({ ServerURL: "https://convex.acme.test", ExcludedPaths: ["~/clients"], CloudHostsDisabled: true });
-  const raw: Config = { convex_url: "https://convex.codecast.sh", excluded_paths: "/tmp/mine", auto_update: false, team_policy: TEAM };
+  writeProfile({
+    ServerURL: "https://convex.acme.test",
+    ExcludedPaths: ["~/clients"],
+    CloudHostsDisabled: true,
+  });
+  const raw: Config = {
+    convex_url: "https://convex.codecast.sh",
+    excluded_paths: "/tmp/mine",
+    auto_update: false,
+    team_policy: TEAM,
+  };
   const read = applyManagedPolicy(structuredClone(raw));
   expect(read.convex_url).toBe("https://convex.acme.test");
   expect(read.auto_update).toBe(true);
   expect(read.desktop_auto_update).toBe(true);
-  expect(read.excluded_paths).toBe(`/tmp/mine,${path.join(process.env.HOME!, "clients")},/srv/team-secret`);
+  expect(read.excluded_paths).toBe(
+    `/tmp/mine,${path.join(process.env.HOME!, "clients")},/srv/team-secret`,
+  );
   expect(isCloudMirrorEnabled(read)).toBe(false);
 
   // A read-modify-write that touched something else writes the file back as it was.
@@ -137,8 +188,14 @@ test("the overlay shows managed values to readers and never reaches config.json"
 test("a locked key refuses the write and says who manages it", () => {
   writeProfile({ WebURL: "https://codecast.acme.test" });
   const eff = effectivePolicy({ team_policy: TEAM });
-  expect(lockedConfigKey("web_url", eff)?.message).toBe("Web URL is set by your device's management profile.");
-  expect(lockedConfigKey("auto_update", eff)?.source).toEqual({ kind: "team", team_id: "t1", team_name: "Acme" });
+  expect(lockedConfigKey("web_url", eff)?.message).toBe(
+    "Web URL is set by your device's management profile.",
+  );
+  expect(lockedConfigKey("auto_update", eff)?.source).toEqual({
+    kind: "team",
+    team_id: "t1",
+    team_name: "Acme",
+  });
   expect(lockedConfigKey("convex_url", eff)).toBeNull();
   expect(lockedConfigKey("excluded_paths", eff)).toBeNull();
   expect(lockedConfigKey("cloud_mirror_enabled", eff)).toBeNull();
@@ -163,52 +220,131 @@ test("snippets follow their restriction off, and back on only when the policy tu
   const on = effectivePolicy({ team_policy: TEAM });
   expect(policySnippetAvailability(on, {})).toEqual({ browser: false });
   const off = effectivePolicy({});
-  expect(policySnippetAvailability(off, { browser: false, chat: false })).toEqual({ browser: true });
+  expect(
+    policySnippetAvailability(off, { browser: false, chat: false }),
+  ).toEqual({ browser: true });
   expect(policySnippetAvailability(off, {})).toEqual({});
 });
 
 test("the desktop app's file holds the effective policy without the enrollment token", () => {
-  writeProfile({ AutoUpdate: false, EnrollmentToken: "cc_enr_0123456789abcdefghij" });
+  writeProfile({
+    AutoUpdate: false,
+    EnrollmentToken: "cc_enr_0123456789abcdefghij",
+  });
   expect(writeEffectivePolicyFile()).toBe(true);
   expect(writeEffectivePolicyFile()).toBe(false);
-  const file = JSON.parse(fs.readFileSync(path.join(dir, "managed-policy.json"), "utf-8"));
-  expect(file).toEqual({ values: { auto_update: "off" }, sources: { auto_update: { kind: "profile" } } });
+  const file = JSON.parse(
+    fs.readFileSync(path.join(dir, "managed-policy.json"), "utf-8"),
+  );
+  expect(file).toEqual({
+    values: { auto_update: "off" },
+    sources: { auto_update: { kind: "profile" } },
+  });
 });
 
 test("enroll is a no-op once enrolled and signed in", () => {
   const token = "cc_enr_0123456789abcdefghij";
   expect(nextEnrollStep({}, {})).toEqual({ kind: "unmanaged" });
-  expect(nextEnrollStep({}, { enrollment_token: "nope" })).toEqual({ kind: "invalid_token" });
-  expect(nextEnrollStep({}, { enrollment_token: token })).toEqual({ kind: "enroll", token, signIn: true });
+  expect(nextEnrollStep({}, { enrollment_token: "nope" })).toEqual({
+    kind: "invalid_token",
+  });
+  expect(nextEnrollStep({}, { enrollment_token: token })).toEqual({
+    kind: "enroll",
+    token,
+    signIn: true,
+  });
   const signedIn: Config = { auth_token: "x", user_id: "u" };
-  expect(nextEnrollStep(signedIn, { enrollment_token: token })).toEqual({ kind: "enroll", token, signIn: false });
-  const enrolled = { ...signedIn, managed_enrollment: { enrollment_id: "e", team_id: "t", team_name: "Acme", token_prefix: token.slice(0, 16), at: "" } };
-  expect(nextEnrollStep(enrolled, { enrollment_token: token })).toEqual({ kind: "done" });
+  expect(nextEnrollStep(signedIn, { enrollment_token: token })).toEqual({
+    kind: "enroll",
+    token,
+    signIn: false,
+  });
+  const enrolled = {
+    ...signedIn,
+    managed_enrollment: {
+      enrollment_id: "e",
+      team_id: "t",
+      team_name: "Acme",
+      token_prefix: token.slice(0, 16),
+      at: "",
+    },
+  };
+  expect(nextEnrollStep(enrolled, { enrollment_token: token })).toEqual({
+    kind: "done",
+  });
   // A sign-in page already opened is left to the person until the cooldown ends.
-  const asked = { managed_enrollment: { ...enrolled.managed_enrollment, sign_in_at: "2026-10-26T10:00:00Z" } };
+  const asked = {
+    managed_enrollment: {
+      ...enrolled.managed_enrollment,
+      sign_in_at: "2026-10-26T10:00:00Z",
+    },
+  };
   const at = Date.parse("2026-10-26T10:00:00Z");
-  expect(nextEnrollStep(asked, { enrollment_token: token }, at + 60_000)).toEqual({ kind: "waiting" });
-  expect(nextEnrollStep(asked, { enrollment_token: token }, at + 60_000, true).kind).toBe("enroll");
-  expect(nextEnrollStep(asked, { enrollment_token: token }, at + ENROLL_SIGN_IN_COOLDOWN_MS + 1)).toEqual({ kind: "enroll", token, signIn: true });
+  expect(
+    nextEnrollStep(asked, { enrollment_token: token }, at + 60_000),
+  ).toEqual({ kind: "waiting" });
+  expect(
+    nextEnrollStep(asked, { enrollment_token: token }, at + 60_000, true).kind,
+  ).toBe("enroll");
+  expect(
+    nextEnrollStep(
+      asked,
+      { enrollment_token: token },
+      at + ENROLL_SIGN_IN_COOLDOWN_MS + 1,
+    ),
+  ).toEqual({ kind: "enroll", token, signIn: true });
   // A rotated token enrolls again.
-  expect(nextEnrollStep(enrolled, { enrollment_token: "cc_enr_ffffffffffffffffffff" }).kind).toBe("enroll");
+  expect(
+    nextEnrollStep(enrolled, {
+      enrollment_token: "cc_enr_ffffffffffffffffffff",
+    }).kind,
+  ).toBe("enroll");
 });
 
 test("cast mdm status --json reports a fixture profile", () => {
-  writeProfile({ BrowserControlDisabled: true, EnrollmentToken: "cc_enr_0123456789abcdefghij" });
-  writeConfig({ team_policy: TEAM });
-  const res = spawnSync(process.execPath, [path.join(import.meta.dir, "..", "index.ts"), "mdm", "status", "--json"], {
-    encoding: "utf-8",
-    env: { ...process.env, CODECAST_NO_AUTO_UPDATE: "1", NO_COLOR: "1" },
-    timeout: 60_000,
+  writeProfile({
+    BrowserControlDisabled: true,
+    EnrollmentToken: "cc_enr_0123456789abcdefghij",
   });
+  writeConfig({ team_policy: TEAM });
+  const res = spawnSync(
+    process.execPath,
+    [path.join(import.meta.dir, "..", "index.ts"), "mdm", "status", "--json"],
+    {
+      encoding: "utf-8",
+      env: { ...process.env, CODECAST_NO_AUTO_UPDATE: "1", NO_COLOR: "1" },
+      timeout: 60_000,
+    },
+  );
   expect(res.status).toBe(0);
   const status = JSON.parse(res.stdout.slice(res.stdout.indexOf("{")));
-  expect(status.profile).toEqual({ paths: [{ path: profile, installed: true }], installed: true });
-  expect(status.team).toEqual({ team_id: "t1", team_name: "Acme", enrolled: true });
+  expect(status.profile).toEqual({
+    paths: [{ path: profile, installed: true }],
+    installed: true,
+  });
+  expect(status.team).toEqual({
+    team_id: "t1",
+    team_name: "Acme",
+    enrolled: true,
+  });
   expect(status.signed_in).toBe(false);
   expect(status.managed_install).toBe(false);
-  expect(status.policy).toContainEqual({ key: "browser_control_disabled", name: "Block agent browser control", value: true, source: "device profile" });
-  expect(status.policy).toContainEqual({ key: "enrollment_token", name: "Enrollment token", value: "(set)", source: "device profile" });
-  expect(status.policy).toContainEqual({ key: "excluded_paths", name: "Never sync these folders", value: ["/srv/team-secret"], source: "team Acme" });
+  expect(status.policy).toContainEqual({
+    key: "browser_control_disabled",
+    name: "Block agent browser control",
+    value: true,
+    source: "device profile",
+  });
+  expect(status.policy).toContainEqual({
+    key: "enrollment_token",
+    name: "Enrollment token",
+    value: "(set)",
+    source: "device profile",
+  });
+  expect(status.policy).toContainEqual({
+    key: "excluded_paths",
+    name: "Never sync these folders",
+    value: ["/srv/team-secret"],
+    source: "team Acme",
+  });
 }, 70_000);

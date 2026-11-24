@@ -49,9 +49,22 @@ async function installerName(
 }
 
 /** S1.5 health stamps as the connector writes them; undefined until it has. */
-function healthOf(row: { last_webhook_at?: number; last_sync_at?: number; last_error?: string }) {
-  if (row.last_webhook_at === undefined && row.last_sync_at === undefined && row.last_error === undefined) return undefined;
-  return { last_webhook_at: row.last_webhook_at, last_sync_at: row.last_sync_at, last_error: row.last_error };
+function healthOf(row: {
+  last_webhook_at?: number;
+  last_sync_at?: number;
+  last_error?: string;
+}) {
+  if (
+    row.last_webhook_at === undefined &&
+    row.last_sync_at === undefined &&
+    row.last_error === undefined
+  )
+    return undefined;
+  return {
+    last_webhook_at: row.last_webhook_at,
+    last_sync_at: row.last_sync_at,
+    last_error: row.last_error,
+  };
 }
 
 /** Who is asking, and at which scope. */
@@ -70,7 +83,11 @@ type Connected = Extract<AppConnectionStatus, { status: "connected" }>;
  * there. Each branch reads the table its connector writes, by the index that
  * matches the lens.
  */
-async function connectedAt(ctx: { db: any }, id: AppId, lens: Lens): Promise<Connected | null> {
+async function connectedAt(
+  ctx: { db: any },
+  id: AppId,
+  lens: Lens,
+): Promise<Connected | null> {
   const { userId, scope, teamId } = lens;
 
   // Every app whose connection is an `app_installations` row, OAuth or
@@ -80,11 +97,15 @@ async function connectedAt(ctx: { db: any }, id: AppId, lens: Lens): Promise<Con
       scope === "team"
         ? await ctx.db
             .query("app_installations")
-            .withIndex("by_provider_team", (q: any) => q.eq("provider", id).eq("team_id", teamId))
+            .withIndex("by_provider_team", (q: any) =>
+              q.eq("provider", id).eq("team_id", teamId),
+            )
             .first()
         : await ctx.db
             .query("app_installations")
-            .withIndex("by_provider_user", (q: any) => q.eq("provider", id).eq("scope_user_id", userId))
+            .withIndex("by_provider_user", (q: any) =>
+              q.eq("provider", id).eq("scope_user_id", userId),
+            )
             .first();
     if (!row || row.pending_confirm_hash) return null;
     return {
@@ -130,7 +151,9 @@ async function connectedAt(ctx: { db: any }, id: AppId, lens: Lens): Promise<Con
         ? await installationsForTeam(ctx, teamId!)
         : await ctx.db
             .query("slack_installations")
-            .withIndex("by_scope_user", (q: any) => q.eq("scope_user_id", userId))
+            .withIndex("by_scope_user", (q: any) =>
+              q.eq("scope_user_id", userId),
+            )
             .collect();
     const install = installs[0];
     if (!install) return null;
@@ -141,7 +164,10 @@ async function connectedAt(ctx: { db: any }, id: AppId, lens: Lens): Promise<Con
       by: await installerName(ctx, install.installed_by_user_id),
       by_me: String(install.installed_by_user_id) === String(userId),
       at: install.created_at,
-      detail: installs.map((i: any) => i.workspace_name ?? i.workspace_id).join(", ") || undefined,
+      detail:
+        installs
+          .map((i: any) => i.workspace_name ?? i.workspace_id)
+          .join(", ") || undefined,
       // No Slack uninstall path exists server-side, so no disconnect_id —
       // the UI shows nothing rather than a dead button.
     };
@@ -171,7 +197,9 @@ async function connectedAt(ctx: { db: any }, id: AppId, lens: Lens): Promise<Con
     // rule (team admin, or the personal owner), so only a caller it would
     // accept gets it — a plain member would otherwise see a Disconnect button
     // that can only fail.
-    disconnect_id: (await canRevokeInstallation(ctx, userId, install)) ? String(install._id) : undefined,
+    disconnect_id: (await canRevokeInstallation(ctx, userId, install))
+      ? String(install._id)
+      : undefined,
     health: healthOf(install),
   };
 }
@@ -195,7 +223,9 @@ export const listConnections = query({
     const teamRow = teamId ? await ctx.db.get(teamId) : null;
 
     const lenses: Lens[] = [
-      ...(teamId ? [{ userId, scope: "team" as const, teamId, isTeamAdmin }] : []),
+      ...(teamId
+        ? [{ userId, scope: "team" as const, teamId, isTeamAdmin }]
+        : []),
       { userId, scope: "personal" as const, isTeamAdmin: false },
     ];
 
@@ -208,13 +238,21 @@ export const listConnections = query({
       }
       for (const lens of lenses) {
         if (!descriptor.scopes.includes(lens.scope)) continue;
-        apps.push((await connectedAt(ctx, id, lens)) ?? { id, status: "not_connected", scope: lens.scope });
+        apps.push(
+          (await connectedAt(ctx, id, lens)) ?? {
+            id,
+            status: "not_connected",
+            scope: lens.scope,
+          },
+        );
       }
     }
 
     return {
       apps,
-      team: teamId ? { id: String(teamId), name: teamRow?.name ?? "your team" } : null,
+      team: teamId
+        ? { id: String(teamId), name: teamRow?.name ?? "your team" }
+        : null,
     };
   },
 });

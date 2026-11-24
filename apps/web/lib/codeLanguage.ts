@@ -25,31 +25,70 @@ import "prismjs/components/prism-swift";
 
 /** Fence labels people write that aren't Prism's own grammar name. */
 export const LANG_ALIASES: Record<string, string> = {
-  ts: "typescript", tsx: "tsx", js: "javascript", jsx: "jsx",
-  py: "python", sh: "bash", shell: "bash", zsh: "bash",
-  yml: "yaml", md: "markdown", html: "markup", xml: "markup",
+  ts: "typescript",
+  tsx: "tsx",
+  js: "javascript",
+  jsx: "jsx",
+  py: "python",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  yml: "yaml",
+  md: "markdown",
+  html: "markup",
+  xml: "markup",
 };
 
 /** Filename extension → grammar. Only entries whose grammar is actually loaded
  *  above earn a place; anything else renders as plain text, which is honest and
  *  still perfectly readable. */
 const EXT_LANGUAGES: Record<string, string> = {
-  ts: "typescript", mts: "typescript", cts: "typescript", tsx: "tsx",
-  js: "javascript", mjs: "javascript", cjs: "javascript", jsx: "jsx",
-  py: "python", rs: "rust", go: "go", swift: "swift",
-  json: "json", jsonc: "json", json5: "json",
-  yaml: "yaml", yml: "yaml",
-  css: "css", scss: "css", sass: "css", less: "css",
-  html: "markup", htm: "markup", xml: "markup", svg: "markup", vue: "markup",
-  sh: "bash", bash: "bash", zsh: "bash", fish: "bash",
-  sql: "sql", md: "markdown", markdown: "markdown",
-  diff: "diff", patch: "diff",
+  ts: "typescript",
+  mts: "typescript",
+  cts: "typescript",
+  tsx: "tsx",
+  js: "javascript",
+  mjs: "javascript",
+  cjs: "javascript",
+  jsx: "jsx",
+  py: "python",
+  rs: "rust",
+  go: "go",
+  swift: "swift",
+  json: "json",
+  jsonc: "json",
+  json5: "json",
+  yaml: "yaml",
+  yml: "yaml",
+  css: "css",
+  scss: "css",
+  sass: "css",
+  less: "css",
+  html: "markup",
+  htm: "markup",
+  xml: "markup",
+  svg: "markup",
+  vue: "markup",
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
+  fish: "bash",
+  sql: "sql",
+  md: "markdown",
+  markdown: "markdown",
+  diff: "diff",
+  patch: "diff",
 };
 
 /** Extensionless filenames whose content has a grammar we load. */
 const FILENAME_LANGUAGES: Record<string, string> = {
-  dockerfile: "bash", makefile: "bash", justfile: "bash",
-  procfile: "bash", brewfile: "bash", gemfile: "bash", rakefile: "bash",
+  dockerfile: "bash",
+  makefile: "bash",
+  justfile: "bash",
+  procfile: "bash",
+  brewfile: "bash",
+  gemfile: "bash",
+  rakefile: "bash",
 };
 
 /** Grammar for a file path, or undefined when we have none — the viewer then
@@ -90,7 +129,10 @@ export function highlightCode(code: string, language?: string): string | null {
  *
  * Returns null when there is no grammar, exactly as highlightCode does.
  */
-export function highlightLines(code: string, language?: string): string[] | null {
+export function highlightLines(
+  code: string,
+  language?: string,
+): string[] | null {
   const html = highlightCode(code, language);
   return html === null ? null : splitHighlightedLines(html);
 }
@@ -109,7 +151,11 @@ export function splitHighlightedLines(html: string): string[] {
     const nextBreak = html.indexOf("\n", i);
     // Whichever comes first; -1 means "not in the rest of the string".
     const stop =
-      nextTag === -1 ? nextBreak : nextBreak === -1 ? nextTag : Math.min(nextTag, nextBreak);
+      nextTag === -1
+        ? nextBreak
+        : nextBreak === -1
+          ? nextTag
+          : Math.min(nextTag, nextBreak);
 
     if (stop === -1) {
       current += html.slice(i);

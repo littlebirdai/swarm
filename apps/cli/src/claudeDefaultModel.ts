@@ -13,7 +13,10 @@ import { findModelOption } from "@codecast/shared/contracts";
 // codecast. No codecast default = the file is the user's own business.
 
 /** Pure planner: the new file text, or null when nothing needs writing. */
-export function planClaudeSettingsModel(text: string | null, desiredAlias: string | undefined): string | null {
+export function planClaudeSettingsModel(
+  text: string | null,
+  desiredAlias: string | undefined,
+): string | null {
   if (!desiredAlias || text === null) return null;
   let parsed: any;
   try {
@@ -21,7 +24,8 @@ export function planClaudeSettingsModel(text: string | null, desiredAlias: strin
   } catch {
     return null; // an unreadable file is nothing trustworthy to rewrite
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    return null;
   if (parsed.model === desiredAlias) return null;
   parsed.model = desiredAlias;
   return JSON.stringify(parsed, null, 2);
@@ -29,7 +33,9 @@ export function planClaudeSettingsModel(text: string | null, desiredAlias: strin
 
 /** The settings.json alias for a codecast default key ("opus" → "opus"; unset,
  *  "default" or an unknown key → undefined = leave the file alone). */
-export function claudeDefaultAlias(defaultModels: Record<string, string> | undefined): string | undefined {
+export function claudeDefaultAlias(
+  defaultModels: Record<string, string> | undefined,
+): string | undefined {
   const key = defaultModels?.claude;
   return key ? findModelOption("claude_code", key)?.cliAlias : undefined;
 }

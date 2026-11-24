@@ -146,7 +146,9 @@ export interface LiveDecorations {
  *  emphasis node), so spans genuinely overlap and arrive in an order no single
  *  comparison of mine would get right — sorting by position AND side is exactly
  *  what that flag does. */
-export function decorationsFromSpans(spans: readonly LiveSpan[]): LiveDecorations {
+export function decorationsFromSpans(
+  spans: readonly LiveSpan[],
+): LiveDecorations {
   const hidden = Decoration.replace({});
   const all = [];
   const atomic = [];
@@ -158,7 +160,10 @@ export function decorationsFromSpans(spans: readonly LiveSpan[]): LiveDecoration
         break;
       case "mark":
         all.push(
-          Decoration.mark({ class: span.class, attributes: span.attrs }).range(span.from, span.to),
+          Decoration.mark({ class: span.class, attributes: span.attrs }).range(
+            span.from,
+            span.to,
+          ),
         );
         break;
       case "hide": {
@@ -168,10 +173,9 @@ export function decorationsFromSpans(spans: readonly LiveSpan[]): LiveDecoration
         break;
       }
       case "widget": {
-        const range = Decoration.replace({ widget: widgetFor(span.widget) }).range(
-          span.from,
-          span.to,
-        );
+        const range = Decoration.replace({
+          widget: widgetFor(span.widget),
+        }).range(span.from, span.to);
         all.push(range);
         atomic.push(range);
         break;
@@ -179,12 +183,17 @@ export function decorationsFromSpans(spans: readonly LiveSpan[]): LiveDecoration
     }
   }
 
-  return { decorations: Decoration.set(all, true), atomic: Decoration.set(atomic, true) };
+  return {
+    decorations: Decoration.set(all, true),
+    atomic: Decoration.set(atomic, true),
+  };
 }
 
 function build(view: EditorView): LiveDecorations {
   const ctx = view.state.facet(contextFacet);
-  return decorationsFromSpans(scanLivePreview(view.state, view.visibleRanges, ctx));
+  return decorationsFromSpans(
+    scanLivePreview(view.state, view.visibleRanges, ctx),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +218,13 @@ const livePreviewPlugin = ViewPlugin.fromClass(
       const forced = update.transactions.some((tr) =>
         tr.effects.some((e) => e.is(refreshLivePreview)),
       );
-      if (!update.docChanged && !update.selectionSet && !update.viewportChanged && !forced) return;
+      if (
+        !update.docChanged &&
+        !update.selectionSet &&
+        !update.viewportChanged &&
+        !forced
+      )
+        return;
       const built = build(update.view);
       this.decorations = built.decorations;
       this.atomic = built.atomic;
@@ -232,7 +247,9 @@ function clickHandlers(): Extension {
     mousedown(event, view) {
       if (event.button !== 0 || event.shiftKey || event.altKey) return false;
       const target = event.target as HTMLElement | null;
-      const el = target?.closest?.("[data-live-wiki], [data-live-tag], [data-live-href]");
+      const el = target?.closest?.(
+        "[data-live-wiki], [data-live-tag], [data-live-href]",
+      );
       if (!el || !view.contentDOM.contains(el)) return false;
       const ctx = view.state.facet(contextFacet);
       const newTab = event.metaKey || event.ctrlKey;

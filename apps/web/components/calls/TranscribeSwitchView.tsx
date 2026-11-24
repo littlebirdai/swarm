@@ -1,7 +1,15 @@
 import { LivePulseDot } from "../SessionActivityLine";
 
 /** The switch drawn from props: whether the room is transcribing, and what pressing it does. */
-export function TranscribeSwitchView({ on, onToggle, className = "" }: { on: boolean; onToggle: () => void; className?: string }) {
+export function TranscribeSwitchView({
+  on,
+  onToggle,
+  className = "",
+}: {
+  on: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
   return (
     <button
       onClick={onToggle}
@@ -18,7 +26,11 @@ export function TranscribeSwitchView({ on, onToggle, className = "" }: { on: boo
           : "Not transcribing. Click to start; every word lands in this thread."
       }
     >
-      {on ? <LivePulseDot className="h-1.5 w-1.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-sol-text-dim" />}
+      {on ? (
+        <LivePulseDot className="h-1.5 w-1.5" />
+      ) : (
+        <span className="h-1.5 w-1.5 rounded-full bg-sol-text-dim" />
+      )}
       <span>
         <span className="ts-switch-word">transcribing · </span>
         {on ? "on" : "off"}

@@ -24,27 +24,50 @@ function makeFakeDb(tables: Record<string, any[]>) {
     _deleted: deleted,
     query(table: string) {
       const preds: Array<(r: any) => boolean> = [];
-      const apply = () => (tables[table] ?? []).filter((r) => isLive(table, r) && preds.every((p) => p(r)));
+      const apply = () =>
+        (tables[table] ?? []).filter(
+          (r) => isLive(table, r) && preds.every((p) => p(r)),
+        );
       const builder: any = {
         withIndex(_name: string, fn?: (q: any) => any) {
           if (fn) {
             const q: any = {
-              eq(field: string, val: any) { preds.push((r) => r[field] === val); return q; },
-              lt(field: string, val: any) { preds.push((r) => r[field] < val); return q; },
-              gt(field: string, val: any) { preds.push((r) => r[field] > val); return q; },
-              gte(field: string, val: any) { preds.push((r) => r[field] >= val); return q; },
+              eq(field: string, val: any) {
+                preds.push((r) => r[field] === val);
+                return q;
+              },
+              lt(field: string, val: any) {
+                preds.push((r) => r[field] < val);
+                return q;
+              },
+              gt(field: string, val: any) {
+                preds.push((r) => r[field] > val);
+                return q;
+              },
+              gte(field: string, val: any) {
+                preds.push((r) => r[field] >= val);
+                return q;
+              },
             };
             fn(q);
           }
           return builder;
         },
-        async first() { return apply()[0] ?? null; },
-        async collect() { return apply(); },
-        async take(n: number) { return apply().slice(0, n); },
+        async first() {
+          return apply()[0] ?? null;
+        },
+        async collect() {
+          return apply();
+        },
+        async take(n: number) {
+          return apply().slice(0, n);
+        },
       };
       return builder;
     },
-    async delete(id: any) { deleted.push(id); },
+    async delete(id: any) {
+      deleted.push(id);
+    },
   };
   return db;
 }
@@ -152,7 +175,10 @@ describe("sweepExpiredCliAuthRequests", () => {
 
   test("tolerates an already-revoked token", async () => {
     const now = Date.now();
-    const db = await seededDb({ createdAt: now - CLI_AUTH_TTL_MS - 1, withApiToken: false });
+    const db = await seededDb({
+      createdAt: now - CLI_AUTH_TTL_MS - 1,
+      withApiToken: false,
+    });
 
     expect(await sweepExpiredCliAuthRequests({ db }, now)).toBe(1);
     expect(db._deleted.length).toBe(1);

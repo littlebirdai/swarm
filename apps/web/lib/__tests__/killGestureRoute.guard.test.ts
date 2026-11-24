@@ -18,8 +18,23 @@ const ALLOWED = new Set(["components/GlobalSessionPanel.tsx"]);
 
 describe("kill gestures go through the recorded kill action", () => {
   test("no surface sends killSession over the conversation command rail", () => {
-    const out = Bun.spawnSync(["git", "grep", "-lE", 'convCommand\\([^)]*"killSession"', "--", "app", "components", "hooks"], { cwd: ROOT });
-    const files = out.stdout.toString().split("\n").filter((f) => f && !/(__tests__|\.test\.tsx?$)/.test(f));
+    const out = Bun.spawnSync(
+      [
+        "git",
+        "grep",
+        "-lE",
+        'convCommand\\([^)]*"killSession"',
+        "--",
+        "app",
+        "components",
+        "hooks",
+      ],
+      { cwd: ROOT },
+    );
+    const files = out.stdout
+      .toString()
+      .split("\n")
+      .filter((f) => f && !/(__tests__|\.test\.tsx?$)/.test(f));
     expect(files.filter((f) => !ALLOWED.has(f))).toEqual([]);
   }, 60_000);
 });
@@ -33,14 +48,34 @@ describe("kill gestures go through the recorded kill action", () => {
 // the gesture's toast and is left alone.)
 describe("a recorded kill raises one toast", () => {
   test("no surface adds its own toast right after a kill call", () => {
-    const out = Bun.spawnSync(["git", "grep", "-lE", "(killManyWithNotice|killWithNotice|animatedHideSessions)\\(", "--", "app", "components", "hooks"], { cwd: ROOT });
-    const files = out.stdout.toString().split("\n").filter((f) => f && !/(__tests__|\.test\.tsx?$)/.test(f));
+    const out = Bun.spawnSync(
+      [
+        "git",
+        "grep",
+        "-lE",
+        "(killManyWithNotice|killWithNotice|animatedHideSessions)\\(",
+        "--",
+        "app",
+        "components",
+        "hooks",
+      ],
+      { cwd: ROOT },
+    );
+    const files = out.stdout
+      .toString()
+      .split("\n")
+      .filter((f) => f && !/(__tests__|\.test\.tsx?$)/.test(f));
     expect(files.length).toBeGreaterThan(2);
     const offenders: string[] = [];
     for (const rel of files) {
       const lines = readFileSync(join(ROOT, rel), "utf8").split("\n");
       lines.forEach((line, i) => {
-        if (!/(killManyWithNotice|killWithNotice|animatedHideSessions)\([^)]/.test(line)) return;
+        if (
+          !/(killManyWithNotice|killWithNotice|animatedHideSessions)\([^)]/.test(
+            line,
+          )
+        )
+          return;
         const after = lines.slice(i + 1, i + 4).join("\n");
         if (/toast\.success\(/.test(after)) offenders.push(`${rel}:${i + 1}`);
       });

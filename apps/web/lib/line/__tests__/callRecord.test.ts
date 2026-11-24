@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { callExcerpt, callHead, citedTimes, quotesIn, readCallRecord } from "../callRecord";
+import {
+  callExcerpt,
+  callHead,
+  citedTimes,
+  quotesIn,
+  readCallRecord,
+} from "../callRecord";
 
 // The shape Union's history.item answers for a call, with made-up people.
 const READ = `Read as email, call, chat message or activity 11112222-aaaa-4bbb-8ccc-333344445555: the id you passed was a shortened one.
@@ -23,28 +29,48 @@ Transcript (3 lines, [mm:ss] from call start):
 describe("a call read through the app's history reader", () => {
   test("head, who was on it, the summary, and each transcript line by speaker", () => {
     const c = readCallRecord(READ)!;
-    expect(c.head).toBe("Call Outbound — 2026-10-09 14:02 (2 min, connected, status ended)");
+    expect(c.head).toBe(
+      "Call Outbound — 2026-10-09 14:02 (2 min, connected, status ended)",
+    );
     expect(c.contact).toBe("Dana Reyes");
     expect(c.caller).toBe("Sam");
     expect(c.summary?.startsWith("## Names")).toBe(true);
     expect(c.summary).not.toContain("Transcript");
-    expect(c.lines.map((l) => [l.at, l.who])).toEqual([["00:00", "contact"], ["00:03", "caller"], ["00:18", "contact"]]);
+    expect(c.lines.map((l) => [l.at, l.who])).toEqual([
+      ["00:00", "contact"],
+      ["00:03", "caller"],
+      ["00:18", "contact"],
+    ]);
   });
 
   test("the lines a finding quotes are marked", () => {
-    const quotes = quotesIn("Transcript: Dana said 'Not really looked at it yet. I will read the email' and hung up.");
-    expect(quotes).toEqual(["Not really looked at it yet. I will read the email"]);
+    const quotes = quotesIn(
+      "Transcript: Dana said 'Not really looked at it yet. I will read the email' and hung up.",
+    );
+    expect(quotes).toEqual([
+      "Not really looked at it yet. I will read the email",
+    ]);
     const c = readCallRecord(READ, quotes)!;
     expect(c.lines.filter((l) => l.marked).map((l) => l.at)).toEqual(["00:18"]);
   });
 
   test("the reader's JSON answer is read by its text", () => {
-    expect(readCallRecord(JSON.stringify({ text: READ }))?.contact).toBe("Dana Reyes");
+    expect(readCallRecord(JSON.stringify({ text: READ }))?.contact).toBe(
+      "Dana Reyes",
+    );
   });
 
   test("its head names the people, the day and the length", () => {
-    expect(callHead(readCallRecord(READ)!)).toEqual({ who: "Sam called Dana Reyes", when: "Oct 9, 14:02", length: "2 min" });
-    expect(callHead({ head: null, contact: null, caller: null })).toEqual({ who: "Call", when: null, length: null });
+    expect(callHead(readCallRecord(READ)!)).toEqual({
+      who: "Sam called Dana Reyes",
+      when: "Oct 9, 14:02",
+      length: "2 min",
+    });
+    expect(callHead({ head: null, contact: null, caller: null })).toEqual({
+      who: "Call",
+      when: null,
+      length: null,
+    });
   });
 
   test("an answer that is not a call is null", () => {
@@ -79,17 +105,22 @@ Transcript (6 lines, [mm:ss] from call start):
   });
 
   test("the call times a finding cites mark the line said then", () => {
-    const finding = 'Samvit promised "a confirmation email" [10:52]. Caio: "yeah" [10:52–11:07].';
+    const finding =
+      'Samvit promised "a confirmation email" [10:52]. Caio: "yeah" [10:52–11:07].';
     expect(citedTimes(finding)).toEqual(["10:52", "10:52"]);
     const c = readCallRecord(RILEY, [], citedTimes(finding))!;
     expect(c.lines.filter((l) => l.marked).map((l) => l.at)).toEqual(["10:53"]);
   });
 
   test("the call opens on the cited lines and a few either side", () => {
-    const marked = (at: number[]) => Array.from({ length: 20 }, (_, i) => ({ marked: at.includes(i) }));
+    const marked = (at: number[]) =>
+      Array.from({ length: 20 }, (_, i) => ({ marked: at.includes(i) }));
     expect(callExcerpt(marked([]))).toEqual([]);
     expect(callExcerpt(marked([10]))).toEqual([{ from: 7, to: 13 }]);
     expect(callExcerpt(marked([1, 5]))).toEqual([{ from: 0, to: 8 }]);
-    expect(callExcerpt(marked([2, 15]))).toEqual([{ from: 0, to: 5 }, { from: 12, to: 18 }]);
+    expect(callExcerpt(marked([2, 15]))).toEqual([
+      { from: 0, to: 5 },
+      { from: 12, to: 18 },
+    ]);
   });
 });

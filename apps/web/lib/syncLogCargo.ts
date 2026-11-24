@@ -13,7 +13,12 @@ import {
   userRestOf,
 } from "@codecast/shared/contracts";
 
-export type CargoCollection = "sessions" | "tasks" | "docs" | "plans" | "projects";
+export type CargoCollection =
+  | "sessions"
+  | "tasks"
+  | "docs"
+  | "plans"
+  | "projects";
 
 export type Cargo = {
   patch?: Record<string, any>;
@@ -37,7 +42,10 @@ export type CargoPlan = {
 // Raw field changes that invalidate a join the replica does not hold
 // (enrichment audit, pl-498). A patch touching one of these applies its raw
 // fields first (the visible change is instant) and then refetches the row.
-export const ENRICH_TRIGGER_FIELDS: Record<CargoCollection, ReadonlySet<string>> = {
+export const ENRICH_TRIGGER_FIELDS: Record<
+  CargoCollection,
+  ReadonlySet<string>
+> = {
   // last_comment_at: stamped by every task_comments insert — the comments
   // join lives on another table, so this is the only signal a replica gets.
   tasks: new Set(["plan_id", "last_comment_at"]),
@@ -57,7 +65,9 @@ const SESSION_RENAMES: Record<string, string> = {
 const FACT_FIELDS = new Set<string>(INBOX_FACT_FIELDS as readonly string[]);
 
 function teamIdFromWorkspace(ws: unknown): string | undefined {
-  return typeof ws === "string" && ws.startsWith("team:") ? ws.slice(5) : undefined;
+  return typeof ws === "string" && ws.startsWith("team:")
+    ? ws.slice(5)
+    : undefined;
 }
 
 export function planCargoApply(
@@ -74,12 +84,19 @@ export function planCargoApply(
   // has always had one), and a refetch per re-shipped field would put every
   // coalesced row back on the byIds path.
   const same = (a: unknown, b: unknown) =>
-    a === b || (a != null && b != null && typeof a === "object" && typeof b === "object" && JSON.stringify(a) === JSON.stringify(b));
+    a === b ||
+    (a != null &&
+      b != null &&
+      typeof a === "object" &&
+      typeof b === "object" &&
+      JSON.stringify(a) === JSON.stringify(b));
   for (const k of Object.keys(raw)) {
-    if (triggers.has(k) && !(existing && same(existing[k], raw[k]))) refetch = true;
+    if (triggers.has(k) && !(existing && same(existing[k], raw[k])))
+      refetch = true;
   }
   for (const k of unsetIn) {
-    if (triggers.has(k) && !(existing && existing[k] === undefined)) refetch = true;
+    if (triggers.has(k) && !(existing && existing[k] === undefined))
+      refetch = true;
   }
 
   if (coll === "sessions") return planSessions(raw, unsetIn, existing, refetch);
@@ -92,13 +109,21 @@ export function planCargoApply(
     // for these two (payload denylist), so derive it from `workspace` here.
     if ("workspace" in raw) {
       const t = teamIdFromWorkspace(raw.workspace);
-      if (t) fields.team_id = t; else unset.push("team_id");
+      if (t) fields.team_id = t;
+      else unset.push("team_id");
     }
   }
   if (coll === "tasks") {
-    if ("conversation_ids" in raw) fields.session_count = Array.isArray(raw.conversation_ids) ? raw.conversation_ids.length : 0;
+    if ("conversation_ids" in raw)
+      fields.session_count = Array.isArray(raw.conversation_ids)
+        ? raw.conversation_ids.length
+        : 0;
   }
-  if (coll === "docs" && cargo.omitted?.includes("content") && existing?.source === "plan_mode") {
+  if (
+    coll === "docs" &&
+    cargo.omitted?.includes("content") &&
+    existing?.source === "plan_mode"
+  ) {
     // display_title derives from the body for plan-mode docs; the body never
     // rides the log, so a content change means the title may have moved.
     refetch = true;
@@ -121,7 +146,13 @@ function planSessions(
   for (const [k, v] of Object.entries(raw)) {
     if (FACT_FIELDS.has(k)) continue;
     let value = v;
-    if (k === "loop_state" && value && typeof value === "object" && value.status === "stopped") value = null;
+    if (
+      k === "loop_state" &&
+      value &&
+      typeof value === "object" &&
+      value.status === "stopped"
+    )
+      value = null;
     changed[SESSION_RENAMES[k] ?? k] = value === undefined ? null : value;
   }
   // Absent → null: enrichment spells every optional as `?? null`.
@@ -133,27 +164,40 @@ function planSessions(
   // (title_gen_scheduled_at, persistent, short_id...) is not on the row the
   // list and byIds write, so landing it would flap on their next push.
   const fields: Record<string, any> = {};
-  for (const [k, v] of Object.entries(changed)) if (isInboxRowField(k)) fields[k] = v;
+  for (const [k, v] of Object.entries(changed))
+    if (isInboxRowField(k)) fields[k] = v;
   const unset: string[] = [];
   // Derived twins, recomputed from the merged row with the shared helpers.
   const merged = { ...(existing ?? {}), ...changed };
-  if ("inbox_pinned_at" in changed) fields.is_pinned = !!changed.inbox_pinned_at;
+  if ("inbox_pinned_at" in changed)
+    fields.is_pinned = !!changed.inbox_pinned_at;
   if ("anchor_id" in changed) fields.is_anchor = !!changed.anchor_id;
-  if ("is_subagent" in changed) fields.is_subagent = changed.is_subagent === true;
-  const updatedAt = typeof merged.updated_at === "number" ? merged.updated_at : 0;
+  if ("is_subagent" in changed)
+    fields.is_subagent = changed.is_subagent === true;
+  const updatedAt =
+    typeof merged.updated_at === "number" ? merged.updated_at : 0;
   if ("inbox_deferred_at" in changed) {
-    fields.is_deferred = !!merged.inbox_deferred_at && merged.inbox_deferred_at >= updatedAt;
+    fields.is_deferred =
+      !!merged.inbox_deferred_at && merged.inbox_deferred_at >= updatedAt;
   }
   if ("inbox_rest" in changed || "inbox_rest_at" in changed) {
-    fields.user_rest = userRestOf({ inbox_rest: merged.inbox_rest, inbox_rest_at: merged.inbox_rest_at, updated_at: updatedAt });
+    fields.user_rest = userRestOf({
+      inbox_rest: merged.inbox_rest,
+      inbox_rest_at: merged.inbox_rest_at,
+      updated_at: updatedAt,
+    });
   }
   if ("settle_verdict" in changed || "settle_verdict_at" in changed) {
-    fields.settle_verdict = isSettleVerdictCurrent({ settle_verdict_at: merged.settle_verdict_at, updated_at: updatedAt })
+    fields.settle_verdict = isSettleVerdictCurrent({
+      settle_verdict_at: merged.settle_verdict_at,
+      updated_at: updatedAt,
+    })
       ? (merged.settle_verdict ?? null)
       : null;
   }
   // A row leaving the inbox's admitted statuses would be OMITTED by byIds
   // (pruned), which a patch alone cannot express — refetch decides.
-  if ("status" in raw && raw.status !== "active" && raw.status !== "completed") refetch = true;
+  if ("status" in raw && raw.status !== "active" && raw.status !== "completed")
+    refetch = true;
   return { fields, unset, refetch };
 }

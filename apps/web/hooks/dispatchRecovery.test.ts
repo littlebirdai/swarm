@@ -62,8 +62,12 @@ describe("browser dispatch self-heal", () => {
         return true;
       },
       isDispatchWired: () => wired,
-      drainOutbox: () => { drains++; },
-      clearDispatch: () => { clears++; },
+      drainOutbox: () => {
+        drains++;
+      },
+      clearDispatch: () => {
+        clears++;
+      },
       browserWindow: browser.browserWindow,
       browserDocument: browser.browserDocument,
     });
@@ -90,12 +94,17 @@ describe("browser dispatch self-heal", () => {
     let binds = 0;
     let clears = 0;
     const cleanup = installBrowserDispatchSelfHeal({
-      bindDispatch: () => { binds++; return true; },
+      bindDispatch: () => {
+        binds++;
+        return true;
+      },
       isDispatchWired: () => true,
       drainOutbox: () => {
         throw new Error("non-browser recovery must not drain");
       },
-      clearDispatch: () => { clears++; },
+      clearDispatch: () => {
+        clears++;
+      },
       browserWindow: null,
       browserDocument: null,
     });
@@ -112,7 +121,9 @@ describe("browser dispatch self-heal", () => {
     installBrowserDispatchSelfHeal({
       bindDispatch: () => true,
       isDispatchWired: () => true,
-      drainOutbox: () => { drains++; },
+      drainOutbox: () => {
+        drains++;
+      },
       canDrain: () => authenticated,
       clearDispatch: () => {},
       browserWindow: browser.browserWindow,

@@ -7,7 +7,14 @@ import { SyncProgressBadge } from "./SyncProgressBadge";
 import { PageHeader } from "./ui/page-header";
 import { activeTabOf, tabSelectionSummary } from "./listTabSelection";
 import type { ListTab } from "./GenericListView";
-import { modernButton, modernLook, modernMenuRow, modernPopover, modernTab, modernTabList } from "./ui/modernLook";
+import {
+  modernButton,
+  modernLook,
+  modernMenuRow,
+  modernPopover,
+  modernTab,
+  modernTabList,
+} from "./ui/modernLook";
 
 const M_TRIGGER = modernButton({ variant: "outline", size: "sm" });
 
@@ -42,17 +49,23 @@ function TabDropdown({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     // Esc closes the popover, and only the popover (captured before the
     // list's own Esc and the detail's close).
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      e.preventDefault(); e.stopPropagation(); setOpen(false);
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", onKey, true);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", onKey, true); };
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKey, true);
+    };
   }, [open]);
 
   // The label/count only collapse when there's an icon to stand in for them, so
@@ -68,35 +81,63 @@ function TabDropdown({
       >
         {summary.icons.length > 0 && (
           <span className="flex items-center -space-x-0.5 flex-shrink-0">
-            {summary.icons.slice(0, 4).map((I, i) => <I key={i} className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-muted" />)}
+            {summary.icons.slice(0, 4).map((I, i) => (
+              <I
+                key={i}
+                className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-muted"
+              />
+            ))}
           </span>
         )}
-        <span className={`font-medium whitespace-nowrap max-w-[14rem] truncate ${labelCollapse}`}>{summary.label}</span>
+        <span
+          className={`font-medium whitespace-nowrap max-w-[14rem] truncate ${labelCollapse}`}
+        >
+          {summary.label}
+        </span>
         {summary.count != null && summary.count > 0 && (
-          <span className={`text-meta tabular-nums text-sol-text-dim ${labelCollapse}`}>{summary.count}</span>
+          <span
+            className={`text-meta tabular-nums text-sol-text-dim ${labelCollapse}`}
+          >
+            {summary.count}
+          </span>
         )}
         <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0 cq-caret" />
       </button>
       {open && (
-        <div className={`absolute top-full left-0 mt-1 w-52 max-h-[min(70vh,28rem)] overflow-y-auto bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 ${modernLook(modernPopover, "modern:p-1")}`}>
+        <div
+          className={`absolute top-full left-0 mt-1 w-52 max-h-[min(70vh,28rem)] overflow-y-auto bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 ${modernLook(modernPopover, "modern:p-1")}`}
+        >
           {tabs.map((t) => {
             const TIcon = t.icon;
             const isActive = active?.key === t.key;
             return (
               <button
                 key={t.key}
-                onClick={() => { onChange(t.key); setOpen(false); }}
+                onClick={() => {
+                  onChange(t.key);
+                  setOpen(false);
+                }}
                 title={t.title ?? t.label}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
-                  isActive ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt"
+                  isActive
+                    ? "bg-sol-bg-highlight text-sol-text"
+                    : "text-sol-text-muted hover:bg-sol-bg-alt"
                 } ${modernMenuRow({ selected: isActive })}`}
               >
-                {TIcon && <TIcon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim" />}
-                <span className="flex-1 text-left whitespace-nowrap">{t.label}</span>
-                {t.count != null && t.count > 0 && (
-                  <span className="text-meta tabular-nums text-sol-text-dim">{t.count}</span>
+                {TIcon && (
+                  <TIcon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim" />
                 )}
-                {isActive && <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />}
+                <span className="flex-1 text-left whitespace-nowrap">
+                  {t.label}
+                </span>
+                {t.count != null && t.count > 0 && (
+                  <span className="text-meta tabular-nums text-sol-text-dim">
+                    {t.count}
+                  </span>
+                )}
+                {isActive && (
+                  <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />
+                )}
               </button>
             );
           })}
@@ -108,12 +149,23 @@ function TabDropdown({
 
 /** The status tabs: a segmented pill row while there is room, one compact
  *  dropdown once the header is too tight (≤1235px, .cq-tabs-compact). */
-function ListTabs({ tabs, activeTab, onChange }: { tabs: ListTab[]; activeTab: string; onChange: (key: string) => void }) {
+function ListTabs({
+  tabs,
+  activeTab,
+  onChange,
+}: {
+  tabs: ListTab[];
+  activeTab: string;
+  onChange: (key: string) => void;
+}) {
   if (tabs.length < 2) return null;
   const activeKey = activeTabOf(tabs, activeTab)?.key ?? null;
   return (
     <>
-      <div data-list-tabs className={`cq-tabs-pills flex items-center gap-0.5 p-0.5 rounded-lg bg-sol-bg-alt/40 border border-sol-border/30 flex-wrap ${modernTabList}`}>
+      <div
+        data-list-tabs
+        className={`cq-tabs-pills flex items-center gap-0.5 p-0.5 rounded-lg bg-sol-bg-alt/40 border border-sol-border/30 flex-wrap ${modernTabList}`}
+      >
         {tabs.map((tab) => {
           const isActive = activeKey === tab.key;
           return (
@@ -128,7 +180,11 @@ function ListTabs({ tabs, activeTab, onChange }: { tabs: ListTab[]; activeTab: s
               } ${modernTab({ active: isActive })}`}
             >
               {tab.label}
-              {tab.count != null && tab.count > 0 && <span className="text-meta tabular-nums opacity-60">{tab.count}</span>}
+              {tab.count != null && tab.count > 0 && (
+                <span className="text-meta tabular-nums opacity-60">
+                  {tab.count}
+                </span>
+              )}
             </button>
           );
         })}
@@ -156,26 +212,59 @@ export interface ListViewHeaderProps {
 
 export function ListViewHeader(props: ListViewHeaderProps) {
   const modern = useIsModernStyle();
-  return props.page && modern ? <ListPageHeader {...props} /> : <ListPaneHeader {...props} />;
+  return props.page && modern ? (
+    <ListPageHeader {...props} />
+  ) : (
+    <ListPaneHeader {...props} />
+  );
 }
 
-function ListPageHeader({ title, syncScope, tabs, activeTab, onTabChange, toolbar, children }: ListViewHeaderProps) {
+function ListPageHeader({
+  title,
+  syncScope,
+  tabs,
+  activeTab,
+  onTabChange,
+  toolbar,
+  children,
+}: ListViewHeaderProps) {
   return (
     <PageHeader
       legacy={null}
       title={title}
-      tabs={<>
-        {syncScope && <SyncProgressBadge scope={syncScope} />}
-        <ListTabs tabs={tabs} activeTab={activeTab} onChange={onTabChange} />
-      </>}
-      actions={<div data-list-toolbar className="cq-header-toolbar flex flex-wrap items-center justify-end gap-1.5">{toolbar}</div>}
+      tabs={
+        <>
+          {syncScope && <SyncProgressBadge scope={syncScope} />}
+          <ListTabs tabs={tabs} activeTab={activeTab} onChange={onTabChange} />
+        </>
+      }
+      actions={
+        <div
+          data-list-toolbar
+          className="cq-header-toolbar flex flex-wrap items-center justify-end gap-1.5"
+        >
+          {toolbar}
+        </div>
+      }
     >
-      {children ? <div className="cq-filter-bar flex w-full items-center flex-wrap gap-x-1.5 gap-y-1.5">{children}</div> : null}
+      {children ? (
+        <div className="cq-filter-bar flex w-full items-center flex-wrap gap-x-1.5 gap-y-1.5">
+          {children}
+        </div>
+      ) : null}
     </PageHeader>
   );
 }
 
-function ListPaneHeader({ title, syncScope, tabs, activeTab, onTabChange, toolbar, children }: ListViewHeaderProps) {
+function ListPaneHeader({
+  title,
+  syncScope,
+  tabs,
+  activeTab,
+  onTabChange,
+  toolbar,
+  children,
+}: ListViewHeaderProps) {
   const titlebarRef = useTitlebarHead<HTMLDivElement>();
   // The outer wrapper is the container-query context; the inner .cq-header row
   // is what adapts (wraps the toolbar below the tabs) as the panel narrows. The
@@ -183,17 +272,27 @@ function ListPaneHeader({ title, syncScope, tabs, activeTab, onTabChange, toolba
   // bar draws its own top rule.
   return (
     <div className="cq-container">
-      <div ref={titlebarRef} className="cq-header cq-header-pad cc-panel__head cc-panel__head--flow flex-wrap justify-between gap-x-2">
+      <div
+        ref={titlebarRef}
+        className="cq-header cq-header-pad cc-panel__head cc-panel__head--flow flex-wrap justify-between gap-x-2"
+      >
         <div className="flex items-center gap-2 min-w-0">
           {/* The header keeps the page's name for screen readers only. */}
           <h1 className="sr-only">{title}</h1>
           {syncScope && <SyncProgressBadge scope={syncScope} />}
           <ListTabs tabs={tabs} activeTab={activeTab} onChange={onTabChange} />
         </div>
-        <div data-list-toolbar className="cq-header-toolbar flex flex-wrap items-center justify-end gap-1.5 ml-auto">{toolbar}</div>
+        <div
+          data-list-toolbar
+          className="cq-header-toolbar flex flex-wrap items-center justify-end gap-1.5 ml-auto"
+        >
+          {toolbar}
+        </div>
       </div>
       {children ? (
-        <div className="cq-header-pad cq-filter-bar flex items-center flex-wrap gap-x-1.5 gap-y-1.5 px-6 py-2 border-t border-sol-border/30 bg-sol-bg-alt/20">{children}</div>
+        <div className="cq-header-pad cq-filter-bar flex items-center flex-wrap gap-x-1.5 gap-y-1.5 px-6 py-2 border-t border-sol-border/30 bg-sol-bg-alt/20">
+          {children}
+        </div>
       ) : null}
     </div>
   );

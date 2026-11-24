@@ -1,6 +1,17 @@
 import type { FaceCard } from "./faceRow";
-import { cancelOutgoing, declineInvite, leaveCall, setCamera, setMuted } from "../calls/callManager";
-import { endWalkie, getWalkieStatus, joinWalkieLive, shutWalkieDoor } from "../calls/walkie";
+import {
+  cancelOutgoing,
+  declineInvite,
+  leaveCall,
+  setCamera,
+  setMuted,
+} from "../calls/callManager";
+import {
+  endWalkie,
+  getWalkieStatus,
+  joinWalkieLive,
+  shutWalkieDoor,
+} from "../calls/walkie";
 import { useInboxStore } from "../../store/inboxStore";
 import { requestAnswer } from "../calls/huddleStart";
 export type Incoming = Extract<FaceCard, { kind: "incoming" }>;
@@ -67,12 +78,16 @@ function hangUp(roomKey: string): void {
 
 function inviteIn(c: RingIn): { _id: unknown; room_key: string } | undefined {
   const rows: any[] = useInboxStore.getState().myCalls?.incoming ?? [];
-  return rows.find((r) => r.room_key === c.roomKey && String(r.from_user) === c.from);
+  return rows.find(
+    (r) => r.room_key === c.roomKey && String(r.from_user) === c.from,
+  );
 }
 
 function inviteOut(c: RingOut): { _id: unknown } | undefined {
   const rows: any[] = useInboxStore.getState().myCalls?.outgoing ?? [];
-  return rows.find((r) => r.room_key === c.roomKey && String(r.to_user) === c.to);
+  return rows.find(
+    (r) => r.room_key === c.roomKey && String(r.to_user) === c.to,
+  );
 }
 
 export function sentence(badge: string): string {

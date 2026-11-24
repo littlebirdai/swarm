@@ -26,10 +26,10 @@ the vim-fugitive integration.
 
 ## Settings
 
-| Setting | Default | Description |
-| --- | --- | --- |
-| `codecast.cliPath` | `cast` | Path to the `cast` CLI. |
-| `codecast.inlineBlame` | `true` | Show the current-line session annotation. |
+| Setting                | Default | Description                               |
+| ---------------------- | ------- | ----------------------------------------- |
+| `codecast.cliPath`     | `cast`  | Path to the `cast` CLI.                   |
+| `codecast.inlineBlame` | `true`  | Show the current-line session annotation. |
 
 ## Coverage
 

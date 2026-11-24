@@ -9,7 +9,12 @@ import { useSyncTeamMembers } from "../hooks/useSyncTeamMembers";
 import { useFaceRow } from "../hooks/useFaceRow";
 import { copyToClipboard, shareOrigin } from "../lib/utils";
 import { DOCK_FACES_TITLE, useFacesFloating } from "../lib/desktop";
-import { ContextMenu, useContextMenu, CtxItem, CtxHeader } from "./ui/context-menu";
+import {
+  ContextMenu,
+  useContextMenu,
+  CtxItem,
+  CtxHeader,
+} from "./ui/context-menu";
 import { memberDisplayName } from "./presence/memberPresence";
 import { FaceRow } from "./faces/FaceRow";
 import { EngagementCard } from "./faces/EngagementCard";
@@ -33,7 +38,11 @@ interface TeamAvatarBarProps {
 // avatar row on each push. The pump renders nothing; the bar below reads the
 // store through the face row, whose identity only changes when something a
 // face draws changed.
-export function TeamMembersPump({ teamId }: { teamId: Id<"teams"> | undefined }) {
+export function TeamMembersPump({
+  teamId,
+}: {
+  teamId: Id<"teams"> | undefined;
+}) {
   useSyncTeamMembers(teamId);
   return null;
 }
@@ -57,10 +66,14 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const memberFilter = searchParams.get("member");
-  const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id) as Id<"teams"> | undefined;
+  const activeTeamId = useInboxStore(
+    (s) => s.clientState.ui?.active_team_id,
+  ) as Id<"teams"> | undefined;
   // Only the viewer's id is rendered, never the whole user doc, whose
   // identity churns on daemon heartbeats.
-  const viewerId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : ""));
+  const viewerId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : "",
+  );
   // Explicit prop, else the active workspace. No currentUser.team_id fallback:
   // an unset pointer IS the personal workspace, and falling back to the user's
   // default team would render that team's roster inside the personal space.
@@ -72,7 +85,11 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
   // a mute that moves no face hands back the same row and this bar sleeps.
   const row = useFaceRow();
   const floating = useFacesFloating();
-  const ctxMenu = useContextMenu<{ id: string; profileHref: string; displayName: string }>();
+  const ctxMenu = useContextMenu<{
+    id: string;
+    profileHref: string;
+    displayName: string;
+  }>();
 
   const barRef = useRef<HTMLDivElement | null>(null);
   // Whoever is talking in chat right now, or holds a count, keeps a seat.
@@ -82,17 +99,29 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
   // puts them at the head), then the rest by presence, up to the cap. Agents
   // are off the header for now (people only); a teammate speaking in chat is
   // pulled into the last seats so their line can drop from their face.
-  const people = useMemo(() => row.entries.filter((e) => !e.bot || row.links.some((l) => l.to === e.id)), [row]);
+  const people = useMemo(
+    () =>
+      row.entries.filter((e) => !e.bot || row.links.some((l) => l.to === e.id)),
+    [row],
+  );
   const shown = useMemo(() => {
-    if (people.length <= BAR_FACES) return people === row.entries ? row : { ...row, entries: people };
+    if (people.length <= BAR_FACES)
+      return people === row.entries ? row : { ...row, entries: people };
     const head = people.slice(0, BAR_FACES);
     const want = chatActive ? chatActive.split(",") : [];
-    const pulled = people.filter((e, i) => i >= BAR_FACES && want.includes(e.id)).slice(0, BAR_FACES - 1);
+    const pulled = people
+      .filter((e, i) => i >= BAR_FACES && want.includes(e.id))
+      .slice(0, BAR_FACES - 1);
     if (!pulled.length) return { ...row, entries: head };
     // Make room from the end of the slice, never taking a linked face or me.
     const keep = [...head];
     for (const p of pulled) {
-      const at = keep.findLastIndex((e) => !e.me && !want.includes(e.id) && !row.links.some((l) => l.to === e.id));
+      const at = keep.findLastIndex(
+        (e) =>
+          !e.me &&
+          !want.includes(e.id) &&
+          !row.links.some((l) => l.to === e.id),
+      );
       if (at < 0) break;
       keep.splice(at, 1);
       keep.push(p);
@@ -126,14 +155,19 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
   };
 
   const selectedMember = memberFilter
-    ? teamMembersOf(useInboxStore.getState()).find((m: any) => String(m?._id) === memberFilter)
+    ? teamMembersOf(useInboxStore.getState()).find(
+        (m: any) => String(m?._id) === memberFilter,
+      )
     : null;
 
   // The row is floating over the work: one chip, and the pump. The chip
   // says what a click does, in the same verb the float's own button uses.
   if (floating.floating) {
     return (
-      <div className="people-bar flex items-center gap-1 px-2" data-floating="1">
+      <div
+        className="people-bar flex items-center gap-1 px-2"
+        data-floating="1"
+      >
         <TeamMembersPump teamId={effectiveTeamId} />
         <button
           type="button"
@@ -155,11 +189,27 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
       className="people-bar flex items-center gap-1 px-2"
       data-live={live ? "1" : undefined}
       onContextMenu={(e) => {
-        const seat = ((e.target as Element | null)?.closest?.("[data-face-id]") as HTMLElement | null) ?? null;
-        const face = seat && row.entries.find((f) => f.id === seat.dataset.faceId);
+        const seat =
+          ((e.target as Element | null)?.closest?.(
+            "[data-face-id]",
+          ) as HTMLElement | null) ?? null;
+        const face =
+          seat && row.entries.find((f) => f.id === seat.dataset.faceId);
         if (!face) return;
-        const member = teamMembersOf(useInboxStore.getState()).find((m: any) => String(m?._id) === face.id);
-        ctxMenu.open(e, { id: face.id, profileHref: objectHref("person", personRefOf({ _id: face.id, github_username: member?.github_username })), displayName: face.name });
+        const member = teamMembersOf(useInboxStore.getState()).find(
+          (m: any) => String(m?._id) === face.id,
+        );
+        ctxMenu.open(e, {
+          id: face.id,
+          profileHref: objectHref(
+            "person",
+            personRefOf({
+              _id: face.id,
+              github_username: member?.github_username,
+            }),
+          ),
+          displayName: face.name,
+        });
       }}
     >
       <TeamMembersPump teamId={effectiveTeamId} />
@@ -204,9 +254,21 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
             className="ml-1 flex items-center gap-1.5 rounded-full border border-sol-cyan/40 bg-sol-cyan/20 px-2 py-1 text-xs text-sol-cyan transition-colors hover:bg-sol-cyan/30"
             aria-label="Clear filter"
           >
-            <span className="max-w-[80px] truncate">{memberDisplayName(selectedMember)}</span>
-            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <span className="max-w-[80px] truncate">
+              {memberDisplayName(selectedMember)}
+            </span>
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </ShortcutTooltip>
@@ -215,7 +277,10 @@ export function TeamAvatarBar({ teamId: propTeamId }: TeamAvatarBarProps) {
         {(m) => (
           <>
             <CtxHeader title={m.displayName} />
-            <CtxItem icon={UserRound} onSelect={() => router.push(m.profileHref)}>
+            <CtxItem
+              icon={UserRound}
+              onSelect={() => router.push(m.profileHref)}
+            >
               Open profile
             </CtxItem>
             <CtxItem icon={Filter} onSelect={() => handleMemberClick(m.id)}>

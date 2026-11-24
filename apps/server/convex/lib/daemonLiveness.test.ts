@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { DAEMON_LAST_SEEN_THROTTLE_MS, touchDaemonLastSeen } from "./daemonLiveness";
+import {
+  DAEMON_LAST_SEEN_THROTTLE_MS,
+  touchDaemonLastSeen,
+} from "./daemonLiveness";
 
 function fakeDb(user: any) {
   const patches: any[] = [];
@@ -7,7 +10,10 @@ function fakeDb(user: any) {
     patches,
     db: {
       get: async () => user,
-      patch: async (_id: any, p: any) => { patches.push(p); Object.assign(user, p); },
+      patch: async (_id: any, p: any) => {
+        patches.push(p);
+        Object.assign(user, p);
+      },
     },
   };
 }
@@ -20,11 +26,15 @@ describe("touchDaemonLastSeen", () => {
   });
 
   test("a stale stamp is refreshed; a passed-in fresh doc is not re-read or written", async () => {
-    const stale = fakeDb({ daemon_last_seen: Date.now() - DAEMON_LAST_SEEN_THROTTLE_MS - 1 });
+    const stale = fakeDb({
+      daemon_last_seen: Date.now() - DAEMON_LAST_SEEN_THROTTLE_MS - 1,
+    });
     await touchDaemonLastSeen({ db: stale.db }, "u1" as any);
     expect(stale.patches.length).toBe(1);
     const fresh = fakeDb({});
-    await touchDaemonLastSeen({ db: fresh.db }, "u1" as any, { daemon_last_seen: Date.now() });
+    await touchDaemonLastSeen({ db: fresh.db }, "u1" as any, {
+      daemon_last_seen: Date.now(),
+    });
     expect(fresh.patches.length).toBe(0);
   });
 });

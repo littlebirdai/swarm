@@ -17,7 +17,13 @@ export function textWidth(text: string, fs = 13, bold = false): number {
  * below the default width: that is what an agent's write uses, so its
  * headers and numbers are not clipped.
  */
-export function fitWidthOps(model: SheetModel, wb: Workbook, tabId: string, cols: number[], opts: { onlyUnset?: boolean; defaultWidth?: number } = {}): ArtifactOp[] {
+export function fitWidthOps(
+  model: SheetModel,
+  wb: Workbook,
+  tabId: string,
+  cols: number[],
+  opts: { onlyUnset?: boolean; defaultWidth?: number } = {},
+): ArtifactOp[] {
   const t = model.byId.get(tabId);
   if (!t) return [];
   const want = new Set(cols);
@@ -28,9 +34,18 @@ export function fitWidthOps(model: SheetModel, wb: Workbook, tabId: string, cols
     const row = Math.floor(n / 32768);
     const info = wb.cell(tabId, col, row);
     if (!info) continue;
-    const implied = info.formula && !el.nf ? (inheritedFormat(model, tabId, info.input) ?? info.implied) : info.implied;
+    const implied =
+      info.formula && !el.nf
+        ? (inheritedFormat(model, tabId, info.input) ?? info.implied)
+        : info.implied;
     const text = formatValue(info.value, styleOf(el), implied);
-    widest.set(col, Math.max(widest.get(col) ?? 0, textWidth(text, typeof el.fs === "number" ? el.fs : 13, !!el.b)));
+    widest.set(
+      col,
+      Math.max(
+        widest.get(col) ?? 0,
+        textWidth(text, typeof el.fs === "number" ? el.fs : 13, !!el.b),
+      ),
+    );
   }
   // Values an array formula spills into cells with no input of their own count too.
   for (const sp of wb.spillRects(tabId))
@@ -39,7 +54,10 @@ export function fitWidthOps(model: SheetModel, wb: Workbook, tabId: string, cols
       for (let row = sp.r0; row <= sp.r1; row++) {
         if (t.cells.has(cellNum(col, row))) continue;
         const text = formatValue(wb.value(tabId, col, row), undefined);
-        widest.set(col, Math.max(widest.get(col) ?? 0, textWidth(text, 13, false)));
+        widest.set(
+          col,
+          Math.max(widest.get(col) ?? 0, textWidth(text, 13, false)),
+        );
       }
     }
   const def = opts.defaultWidth ?? 104;
@@ -48,7 +66,9 @@ export function fitWidthOps(model: SheetModel, wb: Workbook, tabId: string, cols
     const w = widest.get(col);
     if (w === undefined) continue;
     if (opts.onlyUnset && t.colWidths.has(col)) continue;
-    const fit = Math.round(Math.max(opts.onlyUnset ? def : 48, Math.min(360, w)));
+    const fit = Math.round(
+      Math.max(opts.onlyUnset ? def : 48, Math.min(360, w)),
+    );
     if (opts.onlyUnset && fit <= def) continue;
     ops.push({ k: colKey(tabId, col), put: { kind: "col", w: fit } });
   }

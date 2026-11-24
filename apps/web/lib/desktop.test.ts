@@ -38,15 +38,21 @@ const PASSING: HandoffContext = {
 
 describe("buildDesktopDeepLink", () => {
   test("nests the route under the 'open' host", () => {
-    expect(buildDesktopDeepLink("/conversation/jx7c89")).toBe("codecast://open/conversation/jx7c89");
+    expect(buildDesktopDeepLink("/conversation/jx7c89")).toBe(
+      "codecast://open/conversation/jx7c89",
+    );
   });
 
   test("preserves the query string", () => {
-    expect(buildDesktopDeepLink("/tasks/ct-1?tab=files")).toBe("codecast://open/tasks/ct-1?tab=files");
+    expect(buildDesktopDeepLink("/tasks/ct-1?tab=files")).toBe(
+      "codecast://open/tasks/ct-1?tab=files",
+    );
   });
 
   test("tolerates a path missing its leading slash", () => {
-    expect(buildDesktopDeepLink("plans/pl-9")).toBe("codecast://open/plans/pl-9");
+    expect(buildDesktopDeepLink("plans/pl-9")).toBe(
+      "codecast://open/plans/pl-9",
+    );
   });
 });
 
@@ -64,11 +70,15 @@ describe("parseDesktopDeepLinkPath", () => {
   // The bug the 'open' host guards against: a bare scheme parses the first
   // segment as the host. We still recover it rather than dropping it.
   test("recovers the legacy host-as-segment shape", () => {
-    expect(parseDesktopDeepLinkPath("codecast://conversation/jx7c89")).toBe("/conversation/jx7c89");
+    expect(parseDesktopDeepLinkPath("codecast://conversation/jx7c89")).toBe(
+      "/conversation/jx7c89",
+    );
   });
 
   test("handles a triple-slash (empty host) link", () => {
-    expect(parseDesktopDeepLinkPath("codecast:///conversation/jx7c89")).toBe("/conversation/jx7c89");
+    expect(parseDesktopDeepLinkPath("codecast:///conversation/jx7c89")).toBe(
+      "/conversation/jx7c89",
+    );
   });
 
   test("returns null when there's no navigable path", () => {
@@ -123,7 +133,9 @@ describe("isHandoffEligiblePath", () => {
     expect(isHandoffEligiblePath("/community/abc")).toBe(false);
     expect(isHandoffEligiblePath("/a/wbYnhK4Qv9zw")).toBe(false);
     expect(isHandoffEligiblePath("/r")).toBe(false);
-    expect(isHandoffEligiblePath("/r/union-ai/union-mobile/commits/HEAD")).toBe(false);
+    expect(isHandoffEligiblePath("/r/union-ai/union-mobile/commits/HEAD")).toBe(
+      false,
+    );
     expect(isHandoffEligiblePath("/r/acme/demo/commit/abc123")).toBe(false);
     expect(isHandoffEligiblePath("/palette")).toBe(false);
     expect(isHandoffEligiblePath("/api/x")).toBe(false);
@@ -140,19 +152,27 @@ describe("shouldAttemptHandoff", () => {
   });
 
   test("waits for synced prefs to load", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, initialized: false })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, initialized: false })).toBe(
+      false,
+    );
   });
 
   test("requires that the user has used the desktop app", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, hasUsedDesktop: false })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, hasUsedDesktop: false })).toBe(
+      false,
+    );
   });
 
   test("respects a remembered 'stay in browser' choice", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, preferBrowser: true })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, preferBrowser: true })).toBe(
+      false,
+    );
   });
 
   test("ignores non-top-level (iframe) windows", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, isTopWindow: false })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, isTopWindow: false })).toBe(
+      false,
+    );
   });
 
   test("stays inert in background / unfocused tabs (the agent-tab jump fix)", () => {
@@ -161,24 +181,46 @@ describe("shouldAttemptHandoff", () => {
 
   test("never fires in a tab an agent drives, foreground or not", () => {
     expect(shouldAttemptHandoff({ ...PASSING, agentDriven: true })).toBe(false);
-    expect(shouldAttemptHandoff({ ...PASSING, agentDriven: true, foreground: false })).toBe(false);
+    expect(
+      shouldAttemptHandoff({
+        ...PASSING,
+        agentDriven: true,
+        foreground: false,
+      }),
+    ).toBe(false);
   });
 
   test("fires only on the production host — never local dev (agent tabs live there) or foreign hosts", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, host: "codecast.sh" })).toBe(true);
-    expect(shouldAttemptHandoff({ ...PASSING, host: "www.codecast.sh" })).toBe(true);
-    expect(shouldAttemptHandoff({ ...PASSING, host: "local.codecast.sh" })).toBe(false);
-    expect(shouldAttemptHandoff({ ...PASSING, host: "localhost:5173" })).toBe(false);
-    expect(shouldAttemptHandoff({ ...PASSING, host: "127.0.0.1:5173" })).toBe(false);
-    expect(shouldAttemptHandoff({ ...PASSING, host: "evil.example.com" })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, host: "codecast.sh" })).toBe(
+      true,
+    );
+    expect(shouldAttemptHandoff({ ...PASSING, host: "www.codecast.sh" })).toBe(
+      true,
+    );
+    expect(
+      shouldAttemptHandoff({ ...PASSING, host: "local.codecast.sh" }),
+    ).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, host: "localhost:5173" })).toBe(
+      false,
+    );
+    expect(shouldAttemptHandoff({ ...PASSING, host: "127.0.0.1:5173" })).toBe(
+      false,
+    );
+    expect(shouldAttemptHandoff({ ...PASSING, host: "evil.example.com" })).toBe(
+      false,
+    );
   });
 
   test("respects reload / back-forward (only fires on fresh navigation)", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, freshNavigation: false })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, freshNavigation: false })).toBe(
+      false,
+    );
   });
 
   test("skips auth/share/etc. paths", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, path: "/share/abc" })).toBe(false);
+    expect(shouldAttemptHandoff({ ...PASSING, path: "/share/abc" })).toBe(
+      false,
+    );
     expect(shouldAttemptHandoff({ ...PASSING, path: "/login" })).toBe(false);
   });
 
@@ -188,14 +230,24 @@ describe("shouldAttemptHandoff", () => {
   });
 
   test("skips oauth callbacks carrying code + state", () => {
-    expect(shouldAttemptHandoff({ ...PASSING, path: "/", search: "?code=abc&state=xyz" })).toBe(false);
+    expect(
+      shouldAttemptHandoff({
+        ...PASSING,
+        path: "/",
+        search: "?code=abc&state=xyz",
+      }),
+    ).toBe(false);
   });
 
   test("respects 'use the browser for this page', matched on the full url", () => {
     const c = { ...PASSING, path: "/conversation/jx7c89", search: "?m=5" };
-    expect(shouldAttemptHandoff({ ...c, skippedUrl: "/conversation/jx7c89?m=5" })).toBe(false);
+    expect(
+      shouldAttemptHandoff({ ...c, skippedUrl: "/conversation/jx7c89?m=5" }),
+    ).toBe(false);
     // A different page in the same tab still hands off.
-    expect(shouldAttemptHandoff({ ...c, skippedUrl: "/conversation/other" })).toBe(true);
+    expect(
+      shouldAttemptHandoff({ ...c, skippedUrl: "/conversation/other" }),
+    ).toBe(true);
   });
 });
 
@@ -226,26 +278,59 @@ describe("shouldAttemptPreBootHandoff", () => {
   });
 
   test("never fires inside the desktop app, which loads this same html", () => {
-    expect(shouldAttemptPreBootHandoff({ ...PRE, isDesktopShell: true })).toBe(false);
+    expect(shouldAttemptPreBootHandoff({ ...PRE, isDesktopShell: true })).toBe(
+      false,
+    );
   });
 
   test("the 'dev' mirror value opts a local host in, for verification only", () => {
-    expect(shouldAttemptPreBootHandoff({ ...PRE, host: "local.codecast.sh" })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, host: "local.codecast.sh", mirror: HANDOFF_MIRROR_DEV })).toBe(true);
+    expect(
+      shouldAttemptPreBootHandoff({ ...PRE, host: "local.codecast.sh" }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPreBootHandoff({
+        ...PRE,
+        host: "local.codecast.sh",
+        mirror: HANDOFF_MIRROR_DEV,
+      }),
+    ).toBe(true);
   });
 
   // Everything else is the full gate's business; spot-check that it is really
   // delegating rather than re-deciding.
   test("inherits the full gate's rules", () => {
-    expect(shouldAttemptPreBootHandoff({ ...PRE, foreground: false })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, freshNavigation: false })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, isTopWindow: false })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, path: "/share/abc" })).toBe(false);
+    expect(shouldAttemptPreBootHandoff({ ...PRE, foreground: false })).toBe(
+      false,
+    );
+    expect(
+      shouldAttemptPreBootHandoff({ ...PRE, freshNavigation: false }),
+    ).toBe(false);
+    expect(shouldAttemptPreBootHandoff({ ...PRE, isTopWindow: false })).toBe(
+      false,
+    );
+    expect(shouldAttemptPreBootHandoff({ ...PRE, path: "/share/abc" })).toBe(
+      false,
+    );
     // A guest's meeting page belongs to somebody with no account: never the app.
-    expect(shouldAttemptPreBootHandoff({ ...PRE, path: "/meet/abc123def" })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, path: "/", search: "?code=a&state=b" })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, skippedUrl: "/conversation/jx7c89" })).toBe(false);
-    expect(shouldAttemptPreBootHandoff({ ...PRE, agentDriven: true })).toBe(false);
+    expect(
+      shouldAttemptPreBootHandoff({ ...PRE, path: "/meet/abc123def" }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPreBootHandoff({
+        ...PRE,
+        path: "/",
+        search: "?code=a&state=b",
+      }),
+    ).toBe(false);
+    expect(
+      shouldAttemptPreBootHandoff({
+        ...PRE,
+        skippedUrl: "/conversation/jx7c89",
+      }),
+    ).toBe(false);
+    expect(shouldAttemptPreBootHandoff({ ...PRE, agentDriven: true })).toBe(
+      false,
+    );
   });
 });
 
@@ -257,25 +342,34 @@ describe("auto-handoff deep-link intent", () => {
   test("manual links carry no marker and parse as not-auto", () => {
     const url = buildDesktopDeepLink("/conversation/x");
     expect(url).toBe("codecast://open/conversation/x");
-    expect(extractDeepLinkIntent("/conversation/x")).toEqual({ path: "/conversation/x", auto: false });
+    expect(extractDeepLinkIntent("/conversation/x")).toEqual({
+      path: "/conversation/x",
+      auto: false,
+    });
   });
 
   test("auto links round-trip the marker and strip it from the path", () => {
     const url = buildDesktopDeepLink("/conversation/x", { auto: true });
     const parsed = parseDesktopDeepLinkPath(url)!;
-    expect(extractDeepLinkIntent(parsed)).toEqual({ path: "/conversation/x", auto: true });
+    expect(extractDeepLinkIntent(parsed)).toEqual({
+      path: "/conversation/x",
+      auto: true,
+    });
   });
 
   test("the marker composes with existing query params and preserves them", () => {
     const url = buildDesktopDeepLink("/conversation/x?m=5", { auto: true });
     const parsed = parseDesktopDeepLinkPath(url)!;
-    expect(extractDeepLinkIntent(parsed)).toEqual({ path: "/conversation/x?m=5", auto: true });
+    expect(extractDeepLinkIntent(parsed)).toEqual({
+      path: "/conversation/x?m=5",
+      auto: true,
+    });
   });
 
   test("auto navigation applies only after the desktop has been quiet", () => {
     const now = 1_000_000;
-    expect(shouldApplyAutoDeepLink(now, now - 5_000)).toBe(false);  // user mid-work
-    expect(shouldApplyAutoDeepLink(now, now - 60_000)).toBe(true);  // idle desktop
+    expect(shouldApplyAutoDeepLink(now, now - 5_000)).toBe(false); // user mid-work
+    expect(shouldApplyAutoDeepLink(now, now - 60_000)).toBe(true); // idle desktop
   });
 });
 
@@ -287,32 +381,50 @@ describe("planDeepLinkArrival", () => {
 
   test("a clicked link navigates even while the user is mid-work", () => {
     const url = buildDesktopDeepLink("/conversation/abc");
-    expect(planDeepLinkArrival(url, null, now, busy)).toEqual({ kind: "navigate", path: "/conversation/abc" });
+    expect(planDeepLinkArrival(url, null, now, busy)).toEqual({
+      kind: "navigate",
+      path: "/conversation/abc",
+    });
   });
 
   test("an auto handoff navigates once the desktop has been quiet", () => {
     const url = buildDesktopDeepLink(share, { auto: true });
-    expect(planDeepLinkArrival(url, null, now, idle)).toEqual({ kind: "navigate", path: share });
+    expect(planDeepLinkArrival(url, null, now, idle)).toEqual({
+      kind: "navigate",
+      path: share,
+    });
   });
 
   test("an auto handoff into a busy desktop is offered, with the share token intact", () => {
     const url = buildDesktopDeepLink(share, { auto: true });
-    expect(planDeepLinkArrival(url, "other", now, busy)).toEqual({ kind: "offer", path: share });
+    expect(planDeepLinkArrival(url, "other", now, busy)).toEqual({
+      kind: "offer",
+      path: share,
+    });
   });
 
   test("an auto handoff to the conversation already on screen is ignored", () => {
     const url = buildDesktopDeepLink(share, { auto: true });
-    expect(planDeepLinkArrival(url, "abc", now, busy)).toEqual({ kind: "ignore" });
+    expect(planDeepLinkArrival(url, "abc", now, busy)).toEqual({
+      kind: "ignore",
+    });
   });
 
   test("a non-conversation page is offered while busy, never ignored", () => {
     const url = buildDesktopDeepLink("/tasks", { auto: true });
-    expect(planDeepLinkArrival(url, "abc", now, busy)).toEqual({ kind: "offer", path: "/tasks" });
+    expect(planDeepLinkArrival(url, "abc", now, busy)).toEqual({
+      kind: "offer",
+      path: "/tasks",
+    });
   });
 
   test("a link with nothing navigable is ignored", () => {
-    expect(planDeepLinkArrival("codecast://open/", null, now, idle)).toEqual({ kind: "ignore" });
-    expect(planDeepLinkArrival("not a url", null, now, idle)).toEqual({ kind: "ignore" });
+    expect(planDeepLinkArrival("codecast://open/", null, now, idle)).toEqual({
+      kind: "ignore",
+    });
+    expect(planDeepLinkArrival("not a url", null, now, idle)).toEqual({
+      kind: "ignore",
+    });
   });
 });
 
@@ -331,8 +443,12 @@ describe("shareTokenInPath", () => {
 describe("conversationIdFromPath", () => {
   test("extracts the id from a conversation path, dropping query and hash", () => {
     expect(conversationIdFromPath("/conversation/jx7abc123")).toBe("jx7abc123");
-    expect(conversationIdFromPath("/conversation/jx7abc123?m=5")).toBe("jx7abc123");
-    expect(conversationIdFromPath("/conversation/jx7abc123#msg-1")).toBe("jx7abc123");
+    expect(conversationIdFromPath("/conversation/jx7abc123?m=5")).toBe(
+      "jx7abc123",
+    );
+    expect(conversationIdFromPath("/conversation/jx7abc123#msg-1")).toBe(
+      "jx7abc123",
+    );
   });
 
   test("returns null for non-conversation pages", () => {
@@ -352,7 +468,11 @@ describe("directConversationId — the one spelling an in-place shortcut may tak
     // The published-page chip linked /conversation/jx7etg8: the shell read the
     // short id as an id, selected nothing, and the inbox adopted its top session.
     expect(directConversationId("/conversation/jx7etg8")).toBeNull();
-    expect(directConversationId("/conversation/3f2c9a1e-7b1d-4c55-9a0e-1c2d3e4f5a6b")).toBeNull();
+    expect(
+      directConversationId(
+        "/conversation/3f2c9a1e-7b1d-4c55-9a0e-1c2d3e4f5a6b",
+      ),
+    ).toBeNull();
     expect(directConversationId(`/conversation/${id}?share=tok`)).toBeNull();
     expect(directConversationId(`/conversation/${id}#msg-1`)).toBeNull();
     expect(directConversationId(`/conversation/${id}/diff`)).toBeNull();
@@ -408,7 +528,9 @@ describe("desktop window role", () => {
     const prevDocument = g.document;
     g.window = {
       __CODECAST_ELECTRON__: {
-        onWindowRole: (cb: any) => { roleCb = cb; },
+        onWindowRole: (cb: any) => {
+          roleCb = cb;
+        },
         reportWindowState: (s: any) => reported.push(s),
         showNotification: async (title: string, _body: string, data: any) => {
           shown.push({ title, data });
@@ -423,8 +545,15 @@ describe("desktop window role", () => {
       // A surface that DRAWS the role (the pin, the "call is elsewhere" pill)
       // has to learn when it changes; the sound paths only ever ask.
       let woke = 0;
-      const unsubscribe = subscribeWindowRole(() => { woke += 1; });
-      roleCb!({ leader: false, appFocused: true, anyInCall: true, peopleWindow: true });
+      const unsubscribe = subscribeWindowRole(() => {
+        woke += 1;
+      });
+      roleCb!({
+        leader: false,
+        appFocused: true,
+        anyInCall: true,
+        peopleWindow: true,
+      });
       expect(woke).toBe(1);
       expect(isNotificationLeader()).toBe(false);
       expect(getDesktopWindowRole().anyInCall).toBe(true);
@@ -436,16 +565,36 @@ describe("desktop window role", () => {
       // (an older build) means "no panel", never undefined.
       expect(getDesktopWindowRole().callPanel).toBe(false);
       expect(hasCallPanel()).toBe(false);
-      roleCb!({ leader: false, appFocused: true, anyInCall: true, peopleWindow: true, callPanel: true });
+      roleCb!({
+        leader: false,
+        appFocused: true,
+        anyInCall: true,
+        peopleWindow: true,
+        callPanel: true,
+      });
       expect(hasCallPanel()).toBe(true);
       expect(isCallPanelWindow()).toBe(false);
 
-      reportDesktopWindowState({ active: "/chat/a", open: [{ id: "t1", path: "/chat/a" }], inCall: false });
-      expect(reported).toEqual([{ active: "/chat/a", open: [{ id: "t1", path: "/chat/a" }], inCall: false }]);
+      reportDesktopWindowState({
+        active: "/chat/a",
+        open: [{ id: "t1", path: "/chat/a" }],
+        inCall: false,
+      });
+      expect(reported).toEqual([
+        {
+          active: "/chat/a",
+          open: [{ id: "t1", path: "/chat/a" }],
+          inCall: false,
+        },
+      ]);
 
       // The shell decides who announced: the same key from two windows shows once.
-      expect(await notifyNative("t", "b", { key: "first", route: "/chat/a?m=1" })).toBe(true);
-      expect(await notifyNative("t", "b", { key: "dup", route: "/chat/a?m=1" })).toBe(false);
+      expect(
+        await notifyNative("t", "b", { key: "first", route: "/chat/a?m=1" }),
+      ).toBe(true);
+      expect(
+        await notifyNative("t", "b", { key: "dup", route: "/chat/a?m=1" }),
+      ).toBe(false);
       // The route rides along, and a conversationId still becomes one.
       expect(shown[0].data.route).toBe("/chat/a?m=1");
       await notifyNative("t", "b", { conversationId: "c1", key: "first" });
@@ -460,7 +609,12 @@ describe("desktop window role", () => {
       // pin must not keep a dead callback alive for the life of the process.
       unsubscribe();
       const before = woke;
-      roleCb!({ leader: false, appFocused: true, anyInCall: false, peopleWindow: true });
+      roleCb!({
+        leader: false,
+        appFocused: true,
+        anyInCall: false,
+        peopleWindow: true,
+      });
       expect(woke).toBe(before);
     } finally {
       // Module state is shared with any later test: hand the role back.
@@ -478,13 +632,19 @@ describe("notifyNative in a browser", () => {
 
   function browserRig(focused: boolean) {
     const built: any[] = [];
-    const prev = { window: g.window, document: g.document, Notification: g.Notification };
+    const prev = {
+      window: g.window,
+      document: g.document,
+      Notification: g.Notification,
+    };
     g.window = { focus: () => {}, location: { href: "" } };
     g.document = { hasFocus: () => focused };
     g.Notification = class {
       static permission = "granted";
       onclick: (() => void) | null = null;
-      constructor(title: string, opts: any) { built.push({ title, ...opts }); }
+      constructor(title: string, opts: any) {
+        built.push({ title, ...opts });
+      }
     };
     return { built, restore: () => Object.assign(g, prev) };
   }
@@ -492,15 +652,31 @@ describe("notifyNative in a browser", () => {
   test("a focused tab silences the conversation it shows and banners the rest", async () => {
     const { built, restore } = browserRig(true);
     try {
-      reportDesktopWindowState({ active: "/conversation/br1", open: [], inCall: false });
+      reportDesktopWindowState({
+        active: "/conversation/br1",
+        open: [],
+        inCall: false,
+      });
       // The conversation on screen: the toast and the bell already say it.
-      expect(await notifyNative("t", "b", { conversationId: "br1", kind: "session_idle" })).toBe(false);
+      expect(
+        await notifyNative("t", "b", {
+          conversationId: "br1",
+          kind: "session_idle",
+        }),
+      ).toBe(false);
       expect(built.length).toBe(0);
       // Any other conversation still gets its banner.
-      expect(await notifyNative("t", "b", { conversationId: "br2", kind: "session_idle" })).toBe(true);
+      expect(
+        await notifyNative("t", "b", {
+          conversationId: "br2",
+          kind: "session_idle",
+        }),
+      ).toBe(true);
       expect(built[0].body).toBe("b");
       // ...and a ring goes up even over the conversation on screen.
-      expect(await notifyNative("ring", "b", { conversationId: "br1", force: true })).toBe(true);
+      expect(
+        await notifyNative("ring", "b", { conversationId: "br1", force: true }),
+      ).toBe(true);
     } finally {
       restore();
     }
@@ -510,12 +686,24 @@ describe("notifyNative in a browser", () => {
     const { built, restore } = browserRig(false);
     try {
       let pending = true;
-      const shown = notifyNative("t", "b", { conversationId: "br5", kind: "permission_request", key: "row-5" }, { due: () => pending });
+      const shown = notifyNative(
+        "t",
+        "b",
+        { conversationId: "br5", kind: "permission_request", key: "row-5" },
+        { due: () => pending },
+      );
       // The person answers while the gate holds the banner.
       pending = false;
       expect(await shown).toBe(false);
       expect(built.length).toBe(0);
-      expect(await notifyNative("t", "b", { conversationId: "br6", kind: "permission_request", key: "row-6" }, { due: () => true })).toBe(true);
+      expect(
+        await notifyNative(
+          "t",
+          "b",
+          { conversationId: "br6", kind: "permission_request", key: "row-6" },
+          { due: () => true },
+        ),
+      ).toBe(true);
       expect(built.length).toBe(1);
     } finally {
       restore();
@@ -525,10 +713,24 @@ describe("notifyNative in a browser", () => {
   test("an unfocused tab banners the conversation it shows, once per burst", async () => {
     const { built, restore } = browserRig(false);
     try {
-      reportDesktopWindowState({ active: "/conversation/br3", open: [], inCall: false });
-      expect(await notifyNative("t", "b", { conversationId: "br3", kind: "session_idle" })).toBe(true);
+      reportDesktopWindowState({
+        active: "/conversation/br3",
+        open: [],
+        inCall: false,
+      });
+      expect(
+        await notifyNative("t", "b", {
+          conversationId: "br3",
+          kind: "session_idle",
+        }),
+      ).toBe(true);
       // A second state change for that conversation is the same episode.
-      expect(await notifyNative("t", "b", { conversationId: "br3", kind: "session_error" })).toBe(false);
+      expect(
+        await notifyNative("t", "b", {
+          conversationId: "br3",
+          kind: "session_error",
+        }),
+      ).toBe(false);
       expect(built.length).toBe(1);
     } finally {
       restore();
@@ -542,7 +744,9 @@ describe("navigateMainWindow", () => {
   test("hands the path to the shell, which raises the main window", () => {
     const sent: string[] = [];
     const prev = g.window;
-    g.window = { __CODECAST_ELECTRON__: { paletteNavigate: (p: string) => sent.push(p) } };
+    g.window = {
+      __CODECAST_ELECTRON__: { paletteNavigate: (p: string) => sent.push(p) },
+    };
     try {
       expect(navigateMainWindow("/chat/c1")).toBe(true);
       expect(sent).toEqual(["/chat/c1"]);
@@ -553,8 +757,14 @@ describe("navigateMainWindow", () => {
 
   test("in a browser popup, moves the opener and raises it", () => {
     const prev = g.window;
-    const opener: any = { closed: false, location: { href: "/inbox" }, focused: 0 };
-    opener.focus = () => { opener.focused += 1; };
+    const opener: any = {
+      closed: false,
+      location: { href: "/inbox" },
+      focused: 0,
+    };
+    opener.focus = () => {
+      opener.focused += 1;
+    };
     g.window = { opener };
     try {
       expect(navigateMainWindow("/chat/c1")).toBe(true);
@@ -583,7 +793,9 @@ describe("navigateMainWindow", () => {
     g.window = {
       opener: {
         closed: false,
-        get location() { throw new Error("cross-origin"); },
+        get location() {
+          throw new Error("cross-origin");
+        },
       },
     };
     try {
@@ -616,13 +828,20 @@ describe("desktop input vs activity", () => {
     const prevDocument = g.document;
     const handlers: Record<string, () => void> = {};
     g.window = {
-      addEventListener: (type: string, fn: () => void) => { handlers[type] = fn; },
+      addEventListener: (type: string, fn: () => void) => {
+        handlers[type] = fn;
+      },
       removeEventListener: () => {},
     };
     g.document = { ...(prevDocument ?? {}) };
     try {
       installDesktopInputTracker();
-      expect(Object.keys(handlers).sort()).toEqual(["keydown", "pointerdown", "pointermove", "wheel"]);
+      expect(Object.keys(handlers).sort()).toEqual([
+        "keydown",
+        "pointerdown",
+        "pointermove",
+        "wheel",
+      ]);
 
       // Scroll first and never click: the case that used to read as idle.
       // Nothing has been committed, so the handoff clock must stay at zero
@@ -648,7 +867,6 @@ describe("desktop input vs activity", () => {
   });
 });
 
-
 describe("the call panel's route", () => {
   test("carries the room, and only the state that is actually on", () => {
     // A room key is not a path segment — every kind of them carries colons —
@@ -661,12 +879,16 @@ describe("the call panel's route", () => {
     expect(callPanelRoute("session:abc", { mic: true })).toBe(
       "/call-panel?room=session%3Aabc&mic=1",
     );
-    expect(callPanelRoute("session:abc", { mic: true, camera: true, scribe: true })).toBe(
-      "/call-panel?room=session%3Aabc&mic=1&cam=1&scribe=1",
-    );
-    expect(callPanelRoute("session:abc", { mic: false, camera: false, scribe: false })).toBe(
-      "/call-panel?room=session%3Aabc",
-    );
+    expect(
+      callPanelRoute("session:abc", { mic: true, camera: true, scribe: true }),
+    ).toBe("/call-panel?room=session%3Aabc&mic=1&cam=1&scribe=1");
+    expect(
+      callPanelRoute("session:abc", {
+        mic: false,
+        camera: false,
+        scribe: false,
+      }),
+    ).toBe("/call-panel?room=session%3Aabc");
   });
 
   test("a browser is offered no popout at all", () => {
@@ -719,12 +941,21 @@ describe("the call panel's route", () => {
 describe("isDesktopShell", () => {
   const realNav = globalThis.navigator;
   const setUserAgent = (ua: string) =>
-    Object.defineProperty(globalThis, "navigator", { value: { userAgent: ua }, configurable: true });
+    Object.defineProperty(globalThis, "navigator", {
+      value: { userAgent: ua },
+      configurable: true,
+    });
   const restore = () =>
-    Object.defineProperty(globalThis, "navigator", { value: realNav, configurable: true, writable: true });
+    Object.defineProperty(globalThis, "navigator", {
+      value: realNav,
+      configurable: true,
+      writable: true,
+    });
 
   test("sees the shell through a dead preload", () => {
-    setUserAgent("Mozilla/5.0 (Macintosh) Codecast/1.1.100 Chrome/140 Electron/38.0.0 Safari/537.36");
+    setUserAgent(
+      "Mozilla/5.0 (Macintosh) Codecast/1.1.100 Chrome/140 Electron/38.0.0 Safari/537.36",
+    );
     try {
       expect((globalThis as any).window?.__CODECAST_ELECTRON__).toBeUndefined();
       expect(isDesktopShell()).toBe(true);
@@ -734,7 +965,9 @@ describe("isDesktopShell", () => {
   });
 
   test("a plain browser is still a browser", () => {
-    setUserAgent("Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36");
+    setUserAgent(
+      "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
+    );
     try {
       expect(isDesktopShell()).toBe(false);
     } finally {
@@ -779,8 +1012,15 @@ describe("afterDocumentParsed", () => {
     saved = Object.getOwnPropertyDescriptor(g, "document");
     dom = new JSDOM("<!doctype html><html><head></head><body></body></html>");
     readyState = "loading";
-    Object.defineProperty(dom.window.document, "readyState", { get: () => readyState, configurable: true });
-    Object.defineProperty(g, "document", { value: dom.window.document, configurable: true, writable: true });
+    Object.defineProperty(dom.window.document, "readyState", {
+      get: () => readyState,
+      configurable: true,
+    });
+    Object.defineProperty(g, "document", {
+      value: dom.window.document,
+      configurable: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {
@@ -789,7 +1029,8 @@ describe("afterDocumentParsed", () => {
     closeDomWindow(dom);
   });
 
-  const fire = () => dom.window.document.dispatchEvent(new dom.window.Event("readystatechange"));
+  const fire = () =>
+    dom.window.document.dispatchEvent(new dom.window.Event("readystatechange"));
 
   test("waits while the document is still loading, then runs once", async () => {
     const launch = mock(() => {});
@@ -838,19 +1079,27 @@ describe("preBootVerdict", () => {
 
   test("an agent's tab boots at once — never held, never handed off", () => {
     expect(preBootVerdict({ ...PRE, agentDriven: true })).toBe("boot");
-    expect(preBootVerdict({ ...PRE, agentDriven: true, foreground: false })).toBe("boot");
+    expect(
+      preBootVerdict({ ...PRE, agentDriven: true, foreground: false }),
+    ).toBe("boot");
   });
 
   test("boots when any permanent blocker applies, foreground or not", () => {
     expect(preBootVerdict({ ...PRE, mirror: null })).toBe("boot");
-    expect(preBootVerdict({ ...PRE, mirror: null, foreground: false })).toBe("boot");
-    expect(preBootVerdict({ ...PRE, path: "/share/abc", foreground: false })).toBe("boot");
+    expect(preBootVerdict({ ...PRE, mirror: null, foreground: false })).toBe(
+      "boot",
+    );
+    expect(
+      preBootVerdict({ ...PRE, path: "/share/abc", foreground: false }),
+    ).toBe("boot");
     expect(preBootVerdict({ ...PRE, isDesktopShell: true })).toBe("boot");
   });
 
   test("the marketing root boots — never handed off, never held for later", () => {
     expect(preBootVerdict({ ...PRE, path: "/" })).toBe("boot");
-    expect(preBootVerdict({ ...PRE, path: "/", foreground: false })).toBe("boot");
+    expect(preBootVerdict({ ...PRE, path: "/", foreground: false })).toBe(
+      "boot",
+    );
     expect(preBootVerdict({ ...PRE, path: "/pricing" })).toBe("boot");
   });
 });
@@ -858,7 +1107,13 @@ describe("preBootVerdict", () => {
 describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
   const g = globalThis as Record<string, unknown>;
   const saved: Record<string, PropertyDescriptor | undefined> = {};
-  const GLOBALS = ["window", "document", "localStorage", "sessionStorage", "navigator"];
+  const GLOBALS = [
+    "window",
+    "document",
+    "localStorage",
+    "sessionStorage",
+    "navigator",
+  ];
   let dom: JSDOM;
   let focused = true;
   const realNow = Date.now;
@@ -866,8 +1121,14 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
   // The screen markup the gate reveals, straight from the shell so the test
   // fails if an action attribute is renamed on one side only.
   const shellBody = () => {
-    const html = readFileSync(join(import.meta.dir, "..", "index.html"), "utf8");
-    return html.slice(html.indexOf('<div id="cc-handoff">'), html.indexOf("<script type=\"module\""));
+    const html = readFileSync(
+      join(import.meta.dir, "..", "index.html"),
+      "utf8",
+    );
+    return html.slice(
+      html.indexOf('<div id="cc-handoff">'),
+      html.indexOf('<script type="module"'),
+    );
   };
 
   beforeAll(() => {
@@ -876,15 +1137,21 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
 
   beforeEach(() => {
     focused = true;
-    dom = new JSDOM(`<!doctype html><html><head></head><body>${shellBody()}</body></html>`, {
-      url: "https://codecast.sh/conversation/jx7c89?m=5",
-      // Swallow jsdom's "not implemented: navigation" for the codecast:// link.
-      virtualConsole: new VirtualConsole(),
-      // Otherwise document.visibilityState is "prerender" and no tab is ever foreground.
-      pretendToBeVisual: true,
-    });
+    dom = new JSDOM(
+      `<!doctype html><html><head></head><body>${shellBody()}</body></html>`,
+      {
+        url: "https://codecast.sh/conversation/jx7c89?m=5",
+        // Swallow jsdom's "not implemented: navigation" for the codecast:// link.
+        virtualConsole: new VirtualConsole(),
+        // Otherwise document.visibilityState is "prerender" and no tab is ever foreground.
+        pretendToBeVisual: true,
+      },
+    );
     const w = dom.window;
-    Object.defineProperty(w.document, "hasFocus", { value: () => focused, configurable: true });
+    Object.defineProperty(w.document, "hasFocus", {
+      value: () => focused,
+      configurable: true,
+    });
     for (const [k, v] of Object.entries({
       window: w,
       document: w.document,
@@ -892,7 +1159,11 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
       sessionStorage: w.sessionStorage,
       navigator: w.navigator,
     })) {
-      Object.defineProperty(g, k, { value: v, configurable: true, writable: true });
+      Object.defineProperty(g, k, {
+        value: v,
+        configurable: true,
+        writable: true,
+      });
     }
     w.localStorage.clear();
     w.sessionStorage.clear();
@@ -917,8 +1188,10 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
     }
   });
 
-  const screenShown = () => dom.window.document.documentElement.hasAttribute("data-cc-handoff");
-  const preloads = () => dom.window.document.querySelectorAll('link[rel="modulepreload"]').length;
+  const screenShown = () =>
+    dom.window.document.documentElement.hasAttribute("data-cc-handoff");
+  const preloads = () =>
+    dom.window.document.querySelectorAll('link[rel="modulepreload"]').length;
 
   test("no mirror: boots at once and injects the app preload hints", () => {
     const boot = mock(() => {});
@@ -932,9 +1205,9 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
   test("share pages preload the share graph instead of the app", () => {
     dom.reconfigure({ url: "https://codecast.sh/share/message/tok" });
     runPreBootHandoff(["/assets/boot.js"], ["/assets/share.js"]);
-    const hrefs = Array.from(dom.window.document.querySelectorAll('link[rel="modulepreload"]')).map((l) =>
-      l.getAttribute("href"),
-    );
+    const hrefs = Array.from(
+      dom.window.document.querySelectorAll('link[rel="modulepreload"]'),
+    ).map((l) => l.getAttribute("href"));
     expect(hrefs).toEqual(["/assets/share.js"]);
   });
 
@@ -1043,7 +1316,9 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
 
   describe("the screen's actions", () => {
     const click = (action: string) => {
-      const el = dom.window.document.querySelector(`[data-cc-handoff-action="${action}"]`)!;
+      const el = dom.window.document.querySelector(
+        `[data-cc-handoff-action="${action}"]`,
+      )!;
       expect(el).not.toBeNull();
       el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     };
@@ -1051,20 +1326,28 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
     test("close: closes the tab; a refused close reveals the keyboard hint with the platform modifier", () => {
       const close = mock(() => {});
       dom.window.close = close;
-      Object.defineProperty(dom.window.navigator, "platform", { value: "MacIntel", configurable: true });
+      Object.defineProperty(dom.window.navigator, "platform", {
+        value: "MacIntel",
+        configurable: true,
+      });
       showHandoffScreen({ booted: true });
       click("close");
       expect(close).toHaveBeenCalledTimes(1);
       const root = dom.window.document.documentElement;
       expect(root.hasAttribute("data-cc-handoff-kept")).toBe(true);
-      expect(dom.window.document.querySelector("[data-cc-handoff-modifier]")!.textContent).toBe("⌘");
+      expect(
+        dom.window.document.querySelector("[data-cc-handoff-modifier]")!
+          .textContent,
+      ).toBe("⌘");
     });
 
     test("browser (booted): remembers the page for this tab and hides the screen", () => {
       showHandoffScreen({ booted: true });
       click("browser");
       expect(screenShown()).toBe(false);
-      expect(dom.window.sessionStorage.getItem(HANDOFF_SKIP_KEY)).toBe("/conversation/jx7c89?m=5");
+      expect(dom.window.sessionStorage.getItem(HANDOFF_SKIP_KEY)).toBe(
+        "/conversation/jx7c89?m=5",
+      );
     });
 
     test("always (booted): clears the mirror and persists through the app", () => {
@@ -1084,14 +1367,15 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
       click("always");
       expect(dom.window.localStorage.getItem(HANDOFF_MIRROR_KEY)).toBeNull();
       expect(dom.window.sessionStorage.getItem(HANDOFF_PERSIST_KEY)).toBe("1");
-      expect(dom.window.sessionStorage.getItem(HANDOFF_SKIP_KEY)).toBe("/conversation/jx7c89?m=5");
+      expect(dom.window.sessionStorage.getItem(HANDOFF_SKIP_KEY)).toBe(
+        "/conversation/jx7c89?m=5",
+      );
     });
 
     test("the primary action is Close this tab, Open in browser is secondary", () => {
-      const actions = Array.from(dom.window.document.querySelectorAll("#cc-handoff .actions button")).map((b) => [
-        b.className,
-        b.getAttribute("data-cc-handoff-action"),
-      ]);
+      const actions = Array.from(
+        dom.window.document.querySelectorAll("#cc-handoff .actions button"),
+      ).map((b) => [b.className, b.getAttribute("data-cc-handoff-action")]);
       expect(actions).toEqual([
         ["primary", "close"],
         ["secondary", "browser"],
@@ -1136,19 +1420,43 @@ describe("runPreBootHandoff + bootAfterHandoffGate (jsdom)", () => {
 // exact names before any page script. The extension is plain JS with no
 // import from the CLI, so the names are pinned by text.
 describe("agent-tab stamp contract", () => {
-  const cliDir = join(import.meta.dir, "..", "..", "..", "apps", "cli", "src", "browser");
-  const extDir = join(import.meta.dir, "..", "..", "..", "apps", "browser-extension");
+  const cliDir = join(
+    import.meta.dir,
+    "..",
+    "..",
+    "..",
+    "apps",
+    "cli",
+    "src",
+    "browser",
+  );
+  const extDir = join(
+    import.meta.dir,
+    "..",
+    "..",
+    "..",
+    "apps",
+    "browser-extension",
+  );
 
   test("the CLI recorder (shared by the engine init script) exports the gate's names", () => {
     const recorder = readFileSync(join(cliDir, "observe.ts"), "utf8");
-    expect(recorder).toContain(`export const AGENT_TAB_KEY = ${JSON.stringify(AGENT_TAB_KEY)};`);
-    expect(recorder).toContain(`export const AGENT_TAB_EVENT = ${JSON.stringify(AGENT_TAB_EVENT)};`);
+    expect(recorder).toContain(
+      `export const AGENT_TAB_KEY = ${JSON.stringify(AGENT_TAB_KEY)};`,
+    );
+    expect(recorder).toContain(
+      `export const AGENT_TAB_EVENT = ${JSON.stringify(AGENT_TAB_EVENT)};`,
+    );
   });
 
   test("the extension's overlay script writes the same key and fires the same event", () => {
     const extension = readFileSync(join(extDir, "background.js"), "utf8");
-    expect(extension).toContain(`sessionStorage.setItem(${JSON.stringify(AGENT_TAB_KEY)}, "1")`);
-    expect(extension).toContain(`document.dispatchEvent(new Event(${JSON.stringify(AGENT_TAB_EVENT)}))`);
+    expect(extension).toContain(
+      `sessionStorage.setItem(${JSON.stringify(AGENT_TAB_KEY)}, "1")`,
+    );
+    expect(extension).toContain(
+      `document.dispatchEvent(new Event(${JSON.stringify(AGENT_TAB_EVENT)}))`,
+    );
   });
 });
 
@@ -1156,7 +1464,10 @@ describe("agent-tab stamp contract", () => {
 // committed without being registered, and every handoff paid for a full boot.
 describe("handoffBoot plugin registration", () => {
   test("vite.config.ts registers handoffBootPlugin", () => {
-    const cfg = readFileSync(join(import.meta.dir, "..", "vite.config.ts"), "utf8");
+    const cfg = readFileSync(
+      join(import.meta.dir, "..", "vite.config.ts"),
+      "utf8",
+    );
     expect(cfg).toMatch(/handoffBootPlugin\(\)/);
   });
 });

@@ -7,7 +7,9 @@ import type { ForkChild } from "../store/inboxStore";
 // This branch's own size: total messages minus the history it inherited from the
 // parent up to the fork point (fork_copied). Falls back to the raw count for
 // legacy forks missing the cursor.
-export function branchSizeOf(fork: Pick<ForkChild, "message_count" | "fork_copied">): number {
+export function branchSizeOf(
+  fork: Pick<ForkChild, "message_count" | "fork_copied">,
+): number {
   const total = fork.message_count ?? 0;
   if (typeof fork.fork_copied !== "number") return total;
   return Math.max(0, total - fork.fork_copied);
@@ -22,12 +24,17 @@ export function branchSizeOf(fork: Pick<ForkChild, "message_count" | "fork_copie
 // it had loaded. Undefined when nothing can vouch, so the chip hides the number
 // rather than show a guess.
 export function originSizeSinceFork(
-  forks: ReadonlyArray<Pick<ForkChild, "fork_copied" | "fork_status" | "optimistic">>,
+  forks: ReadonlyArray<
+    Pick<ForkChild, "fork_copied" | "fork_status" | "optimistic">
+  >,
   originMessageCount: number | undefined,
 ): number | undefined {
   if (typeof originMessageCount !== "number") return undefined;
   const vouching = forks.find(
-    (f) => !f.optimistic && f.fork_status !== "copying" && typeof f.fork_copied === "number",
+    (f) =>
+      !f.optimistic &&
+      f.fork_status !== "copying" &&
+      typeof f.fork_copied === "number",
   );
   if (!vouching) return undefined;
   return Math.max(0, originMessageCount - vouching.fork_copied!);

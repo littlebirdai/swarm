@@ -11,9 +11,16 @@ function records(): boolean {
   return getUndoHistory().undoOrder.length > before;
 }
 const isUndoSuppressed = () => !records();
-import { _resetUndoReachGate, holdUndoReach, recordUndoOnlyWhereReachable } from "../useUndoUnreachable";
+import {
+  _resetUndoReachGate,
+  holdUndoReach,
+  recordUndoOnlyWhereReachable,
+} from "../useUndoUnreachable";
 
-afterEach(() => { _resetUndoReachGate(); _resetUndoStacks(); });
+afterEach(() => {
+  _resetUndoReachGate();
+  _resetUndoStacks();
+});
 
 describe("the undo reach gate", () => {
   it("records nothing once armed until a reach mounts, and stops when the last one goes", () => {

@@ -20,7 +20,15 @@
 // or says it cannot draw (`error`). When the app declares no such view, the
 // mint is refused, or the frame errors, the card shows its fallback (a
 // moment, a link) under a one-line head that says why.
-import { memo, useCallback, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useAction } from "convex/react";
 import { AppWindow, ArrowUpRight, ChevronDown } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -42,7 +50,9 @@ import { viewLabel } from "../../../lib/productViewRefs";
 import "../workspace/workspace.css";
 import "./productView.css";
 
-export type ProductViewMint = NonNullable<FunctionReturnType<typeof api.sources.appViews.mint>>;
+export type ProductViewMint = NonNullable<
+  FunctionReturnType<typeof api.sources.appViews.mint>
+>;
 
 /** Until the frame says how tall it is. */
 const FIRST_HEIGHT = 320;
@@ -53,7 +63,10 @@ const REUSE_MARGIN_MS = 60_000;
 
 // Mints this page load, by viewer and reference: a card scrolled away and back,
 // or the same view named twice, frames the url already minted while it is good.
-const mints = new Map<string, { at: number; p: Promise<ProductViewMint | null> }>();
+const mints = new Map<
+  string,
+  { at: number; p: Promise<ProductViewMint | null> }
+>();
 // Views no connected app declares, by viewer, workspace, app and view: answered once a page load, for every id.
 const noView = new Set<string>();
 // Views a mint has shown to exist, the same key: a card that cannot know may then offer its button.
@@ -62,13 +75,28 @@ const hasView = new Set<string>();
 const probes = new Set<string>();
 let mintsOf: string | null = null;
 const noViewListeners = new Set<() => void>();
-const subscribeNoView = (fn: () => void) => { noViewListeners.add(fn); return () => { noViewListeners.delete(fn); }; };
+const subscribeNoView = (fn: () => void) => {
+  noViewListeners.add(fn);
+  return () => {
+    noViewListeners.delete(fn);
+  };
+};
 const noViewSize = () => noView.size + hasView.size;
-const tellViewKnown = () => { for (const fn of noViewListeners) fn(); };
+const tellViewKnown = () => {
+  for (const fn of noViewListeners) fn();
+};
 
 /** `exists`: whether a connected app declares the view, once any mint this page load has said so; null until then.
  *  `probe` asks to find that out for a card with no slot: the first such card of an app and view mints, the rest wait on it. */
-export function useProductViewMint(ref: ProductViewRef, want: boolean, probe = false): { state: "idle" | "minting" | "done"; mint: ProductViewMint | null; exists: boolean | null } {
+export function useProductViewMint(
+  ref: ProductViewRef,
+  want: boolean,
+  probe = false,
+): {
+  state: "idle" | "minting" | "done";
+  mint: ProductViewMint | null;
+  exists: boolean | null;
+} {
   const run = useAction(api.sources.appViews.mint);
   const viewer = useInboxStore((s) => s.currentUser?._id?.toString?.() ?? null);
   // The mint goes through the viewer's active workspace: the server reads that workspace's sources and no other.
@@ -78,14 +106,32 @@ export function useProductViewMint(ref: ProductViewRef, want: boolean, probe = f
   const none = `${scope}:${ref.app}:${ref.view}`;
   // Another card of the same app and view learned there is none: this one is answered without asking.
   useSyncExternalStore(subscribeNoView, noViewSize, noViewSize);
-  const known = !!viewer && !!workspace && mintsOf === scope && noView.has(none);
-  const exists = !viewer || !workspace || mintsOf !== scope ? null : noView.has(none) ? false : hasView.has(none) ? true : null;
-  const [got, setGot] = useState<{ key: string; mint: ProductViewMint | null } | null>(null);
+  const known =
+    !!viewer && !!workspace && mintsOf === scope && noView.has(none);
+  const exists =
+    !viewer || !workspace || mintsOf !== scope
+      ? null
+      : noView.has(none)
+        ? false
+        : hasView.has(none)
+          ? true
+          : null;
+  const [got, setGot] = useState<{
+    key: string;
+    mint: ProductViewMint | null;
+  } | null>(null);
   // The one card that asks whether the view exists, when no card of this app and view has a slot.
   const [probing, setProbing] = useState(false);
   useWatchEffect(() => {
-    if (!probe || want || probing || !viewer || !workspace || exists !== null) return;
-    if (mintsOf !== scope) { mints.clear(); noView.clear(); hasView.clear(); probes.clear(); mintsOf = scope; }
+    if (!probe || want || probing || !viewer || !workspace || exists !== null)
+      return;
+    if (mintsOf !== scope) {
+      mints.clear();
+      noView.clear();
+      hasView.clear();
+      probes.clear();
+      mintsOf = scope;
+    }
     if (probes.has(none)) return;
     probes.add(none);
     setProbing(true);
@@ -93,47 +139,89 @@ export function useProductViewMint(ref: ProductViewRef, want: boolean, probe = f
   const asks = want || probing;
   useWatchEffect(() => {
     if (!asks || !viewer || !workspace) return;
-    if (mintsOf !== scope) { mints.clear(); noView.clear(); hasView.clear(); probes.clear(); mintsOf = scope; }
+    if (mintsOf !== scope) {
+      mints.clear();
+      noView.clear();
+      hasView.clear();
+      probes.clear();
+      mintsOf = scope;
+    }
     if (noView.has(none)) return;
     const key = `${scope}:${text}`;
     let p = mints.get(key)?.p;
     if (!p) {
-      p = run({ ref: text, workspace }).catch(() => ({ ok: false as const, app: ref.app, view: ref.view, title: ref.view, error: "could not reach codecast" }));
+      p = run({ ref: text, workspace }).catch(() => ({
+        ok: false as const,
+        app: ref.app,
+        view: ref.view,
+        title: ref.view,
+        error: "could not reach codecast",
+      }));
       mints.set(key, { at: Date.now(), p });
       // Only a good url is reused, and only while it is good; a refusal is asked again next time. "No such view" is a
       // fact about the app, not this id: remembered for the page load.
       void p.then((m) => {
-        if (m === null) { noView.add(none); mints.delete(key); tellViewKnown(); return; }
+        if (m === null) {
+          noView.add(none);
+          mints.delete(key);
+          tellViewKnown();
+          return;
+        }
         // An app that answered, even with a refusal, declares the view.
-        if (!hasView.has(none)) { hasView.add(none); tellViewKnown(); }
+        if (!hasView.has(none)) {
+          hasView.add(none);
+          tellViewKnown();
+        }
         if (!m.ok) return void mints.delete(key);
         const left = Date.parse(m.expires_at) - Date.now() - REUSE_MARGIN_MS;
-        setTimeout(() => { if (mints.get(key)?.p === p) mints.delete(key); }, Math.max(0, left));
+        setTimeout(
+          () => {
+            if (mints.get(key)?.p === p) mints.delete(key);
+          },
+          Math.max(0, left),
+        );
       });
     }
     let live = true;
-    void p.then((mint) => { if (live) setGot({ key: text, mint }); });
-    return () => { live = false; };
+    void p.then((mint) => {
+      if (live) setGot({ key: text, mint });
+    });
+    return () => {
+      live = false;
+    };
   }, [asks, viewer, workspace, text]);
   if (known) return { state: "done", mint: null, exists: false };
   if (!asks) return { state: "idle", mint: null, exists };
-  return got?.key === text ? { state: "done", mint: got.mint, exists } : { state: "minting", mint: null, exists };
+  return got?.key === text
+    ? { state: "done", mint: got.mint, exists }
+    : { state: "minting", mint: null, exists };
 }
 
 /** The frame's messages, trusted only from `origin` and from this iframe's window. */
-function useProductViewChannel(origin: string | null, on: { size: (h: number) => void; error: (m: string) => void }) {
+function useProductViewChannel(
+  origin: string | null,
+  on: { size: (h: number) => void; error: (m: string) => void },
+) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const handlers = useRef(on);
   handlers.current = on;
   const hello = useCallback(() => {
     if (!origin) return;
-    const msg: ProductViewHostMessage = { source: PRODUCT_VIEW_HOST_SOURCE, type: "hello" };
+    const msg: ProductViewHostMessage = {
+      source: PRODUCT_VIEW_HOST_SOURCE,
+      type: "hello",
+    };
     frameRef.current?.contentWindow?.postMessage(msg, origin);
   }, [origin]);
   useWatchEffect(() => {
     if (!origin) return;
     const listen = (e: MessageEvent) => {
-      if (e.origin !== origin || !frameRef.current || e.source !== frameRef.current.contentWindow) return;
+      if (
+        e.origin !== origin ||
+        !frameRef.current ||
+        e.source !== frameRef.current.contentWindow
+      )
+        return;
       const msg = parseProductViewMessage(e.data);
       if (!msg) return;
       if (msg.type === "hello") hello();
@@ -147,7 +235,13 @@ function useProductViewChannel(origin: string | null, on: { size: (h: number) =>
 }
 
 const shortId = (id: string) => (id.length > 12 ? `${id.slice(0, 8)}…` : id);
-const atWords = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const atWords = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
 export type ProductViewProps = {
   viewRef: ProductViewRef;
@@ -168,7 +262,16 @@ export type ProductViewProps = {
   className?: string;
 };
 
-export const ProductView = memo(function ProductView({ viewRef, fallback, foldAt = FOLD_AT, eager, hideWhenNone, hideWhenUnframed, fallbackNames, className }: ProductViewProps) {
+export const ProductView = memo(function ProductView({
+  viewRef,
+  fallback,
+  foldAt = FOLD_AT,
+  eager,
+  hideWhenNone,
+  hideWhenUnframed,
+  fallbackNames,
+  className,
+}: ProductViewProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const near = useNearViewport(boxRef, "800px");
   // A card with nothing to frame (no such view, a refusal) gives its slot back: the budget is for frames that draw.
@@ -176,20 +279,41 @@ export const ProductView = memo(function ProductView({ viewRef, fallback, foldAt
   const slot = useLivePlayerSlot(near && !eager && !spent, spent);
   const [clicked, setClicked] = useState(false);
   const open = !!eager || slot || clicked;
-  const { state, mint, exists } = useProductViewMint(viewRef, open || spent, !!hideWhenNone && near);
+  const { state, mint, exists } = useProductViewMint(
+    viewRef,
+    open || spent,
+    !!hideWhenNone && near,
+  );
   const unframed = state === "done" && !mint?.ok;
-  useWatchEffect(() => { if (unframed) setSpent(true); }, [unframed]);
+  useWatchEffect(() => {
+    if (unframed) setSpent(true);
+  }, [unframed]);
   const [height, setHeight] = useState<number | null>(null);
   const [frameError, setFrameError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   // A frame of codecast's own origin or site is never mounted: sandboxed with scripts and its own origin, it would
   // be this page's origin and could read it. The server refuses such a url (readViewToken); this is the second wall.
-  const ownSite = !!mint?.ok && typeof window !== "undefined" && framesOwnSite(mint.url, window.location.href);
+  const ownSite =
+    !!mint?.ok &&
+    typeof window !== "undefined" &&
+    framesOwnSite(mint.url, window.location.href);
   const ready = mint?.ok && !ownSite ? mint : null;
-  const channel = useProductViewChannel(ready?.origin ?? null, { size: setHeight, error: setFrameError });
+  const channel = useProductViewChannel(ready?.origin ?? null, {
+    size: setHeight,
+    error: setFrameError,
+  });
 
   const label = viewLabel(viewRef, mint?.app);
-  const why = state !== "done" ? null : !mint ? `${viewRef.app} has no ${viewRef.view} view here` : !mint.ok ? mint.error : ownSite ? "the view is on codecast's own site, which is never framed here" : frameError;
+  const why =
+    state !== "done"
+      ? null
+      : !mint
+        ? `${viewRef.app} has no ${viewRef.view} view here`
+        : !mint.ok
+          ? mint.error
+          : ownSite
+            ? "the view is on codecast's own site, which is never framed here"
+            : frameError;
   const fellBack = !!why;
   // What the reader is told: the view could not be drawn. Why, in the connection's own terms, is for whoever set it up (the title).
   const whyWords = !mint ? why : "can't be shown here";
@@ -198,38 +322,92 @@ export const ProductView = memo(function ProductView({ viewRef, fallback, foldAt
 
   // A fallback that names the thing (codecast's own reading of a call) is the thing: it shows until a frame is ready,
   // and in place of one that never comes, rather than an empty slot waiting on the viewport or the app.
-  const reading = !!fallbackNames && !!fallback && (!ready || fellBack) && !(mint && !mint.ok && mint.grant_url);
+  const reading =
+    !!fallbackNames &&
+    !!fallback &&
+    (!ready || fellBack) &&
+    !(mint && !mint.ok && mint.grant_url);
   if (hideWhenNone && state === "done" && !mint && !reading) return null;
-  if (hideWhenUnframed && fellBack && !(mint && !mint.ok && mint.grant_url)) return null;
+  if (hideWhenUnframed && fellBack && !(mint && !mint.ok && mint.grant_url))
+    return null;
   if (reading) {
-    return <div ref={boxRef} className={`pv${className ? ` ${className}` : ""}`} data-product-view={formatProductViewRef(viewRef)} data-state="fallback" title={why ?? undefined}><div className="pv-fallback">{fallback}</div></div>;
+    return (
+      <div
+        ref={boxRef}
+        className={`pv${className ? ` ${className}` : ""}`}
+        data-product-view={formatProductViewRef(viewRef)}
+        data-state="fallback"
+        title={why ?? undefined}
+      >
+        <div className="pv-fallback">{fallback}</div>
+      </div>
+    );
   }
   // A surface that cannot know the view exists draws nothing until a mint has said it does: never a button for a view that may not be there.
-  if (hideWhenNone && !ready && !fellBack && exists !== true) return <div ref={boxRef} data-product-view={formatProductViewRef(viewRef)} data-state="unknown" />;
+  if (hideWhenNone && !ready && !fellBack && exists !== true)
+    return (
+      <div
+        ref={boxRef}
+        data-product-view={formatProductViewRef(viewRef)}
+        data-state="unknown"
+      />
+    );
   return (
-    <div ref={boxRef} className={`pv${className ? ` ${className}` : ""}`} data-product-view={formatProductViewRef(viewRef)} data-state={fellBack ? "fallback" : ready ? "ready" : state}>
+    <div
+      ref={boxRef}
+      className={`pv${className ? ` ${className}` : ""}`}
+      data-product-view={formatProductViewRef(viewRef)}
+      data-state={fellBack ? "fallback" : ready ? "ready" : state}
+    >
       <div className="pv-head">
         <AppWindow className="pv-icon" aria-hidden />
         <b className="pv-title">{label}</b>
-        <span className="pv-id" title={viewRef.id}>{shortId(viewRef.id)}</span>
-        {viewRef.at && <span className="pv-at" title={`As of ${viewRef.at}`}>as of {atWords(viewRef.at)}</span>}
+        <span className="pv-id" title={viewRef.id}>
+          {shortId(viewRef.id)}
+        </span>
+        {viewRef.at && (
+          <span className="pv-at" title={`As of ${viewRef.at}`}>
+            as of {atWords(viewRef.at)}
+          </span>
+        )}
         <span className="pv-sp" />
         {why && (
           <span className="pv-why" title={why}>
-            {mint && !mint.ok && mint.grant_url ? <>not allowed · <a href={mint.grant_url} target="_blank" rel="noreferrer">Allow</a></> : whyWords}
+            {mint && !mint.ok && mint.grant_url ? (
+              <>
+                not allowed ·{" "}
+                <a href={mint.grant_url} target="_blank" rel="noreferrer">
+                  Allow
+                </a>
+              </>
+            ) : (
+              whyWords
+            )}
           </span>
         )}
         {ready && !frameError && (
-          <a className="pv-open" href={ready.url} target="_blank" rel="noreferrer" title={`Open in ${ready.app}`}>
-            {ready.app}<ArrowUpRight aria-hidden />
+          <a
+            className="pv-open"
+            href={ready.url}
+            target="_blank"
+            rel="noreferrer"
+            title={`Open in ${ready.app}`}
+          >
+            {ready.app}
+            <ArrowUpRight aria-hidden />
           </a>
         )}
       </div>
 
       {fellBack ? (
-        fallback ? <div className="pv-fallback">{fallback}</div> : null
+        fallback ? (
+          <div className="pv-fallback">{fallback}</div>
+        ) : null
       ) : ready ? (
-        <div className="pv-frame-wrap" data-folded={tall && !all ? "" : undefined}>
+        <div
+          className="pv-frame-wrap"
+          data-folded={tall && !all ? "" : undefined}
+        >
           <iframe
             ref={channel.frameRef}
             className="pv-frame"
@@ -242,18 +420,35 @@ export const ProductView = memo(function ProductView({ viewRef, fallback, foldAt
             onLoad={channel.hello}
             style={{ height: shown, opacity: height == null ? 0.001 : 1 }}
           />
-          {height == null && <div className="pv-wait"><span className="lw-spin" aria-hidden /> Opening {label}</div>}
+          {height == null && (
+            <div className="pv-wait">
+              <span className="lw-spin" aria-hidden /> Opening {label}
+            </div>
+          )}
           {tall && (
-            <button type="button" className="pv-more" aria-expanded={all} onClick={() => setAll(!all)}>
-              <ChevronDown aria-hidden />{all ? "Fold" : "Show all"}
+            <button
+              type="button"
+              className="pv-more"
+              aria-expanded={all}
+              onClick={() => setAll(!all)}
+            >
+              <ChevronDown aria-hidden />
+              {all ? "Fold" : "Show all"}
             </button>
           )}
         </div>
       ) : open ? (
-        <div className="pv-wait pv-wait-box"><span className="lw-spin" aria-hidden /> Opening {label}</div>
+        <div className="pv-wait pv-wait-box">
+          <span className="lw-spin" aria-hidden /> Opening {label}
+        </div>
       ) : (
-        <button type="button" className="pv-play" onClick={() => setClicked(true)}>
-          <AppWindow aria-hidden />Open {label}
+        <button
+          type="button"
+          className="pv-play"
+          onClick={() => setClicked(true)}
+        >
+          <AppWindow aria-hidden />
+          Open {label}
         </button>
       )}
     </div>
@@ -275,7 +470,13 @@ export function ProductViewPill({ viewRef }: { viewRef: ProductViewRef }) {
   const failed = state === "done" && !mint?.ok;
   const text = formatProductViewRef(viewRef);
   // A view the app cannot open is read as its name, never a button that does nothing.
-  if (failed) return <span className="pv-pill" data-product-view-pill={text} data-failed=""><span>{viewLabel(viewRef, mint?.app)}</span><span className="pv-pill-id">{shortId(viewRef.id)}</span></span>;
+  if (failed)
+    return (
+      <span className="pv-pill" data-product-view-pill={text} data-failed="">
+        <span>{viewLabel(viewRef, mint?.app)}</span>
+        <span className="pv-pill-id">{shortId(viewRef.id)}</span>
+      </span>
+    );
   return (
     <button
       type="button"
@@ -303,7 +504,10 @@ export function ProductViewEmbed({ viewRef }: { viewRef: ProductViewRef }) {
   const text = useMemo(() => formatProductViewRef(viewRef), [viewRef]);
   return (
     <div className="lw-widget">
-      <ProductView viewRef={viewRef} fallback={<code className="pv-ref-text">{text}</code>} />
+      <ProductView
+        viewRef={viewRef}
+        fallback={<code className="pv-ref-text">{text}</code>}
+      />
     </div>
   );
 }

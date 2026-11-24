@@ -36,14 +36,20 @@ export const MAX_STORE_FILES = 500;
 export const MAX_STORE_BYTES = 8 * 1024 * 1024;
 
 /** Names never packed: VCS metadata and OS litter that differs per machine. */
-const SKIPPED_NAMES = new Set([".git", ".DS_Store", "node_modules", "Thumbs.db"]);
+const SKIPPED_NAMES = new Set([
+  ".git",
+  ".DS_Store",
+  "node_modules",
+  "Thumbs.db",
+]);
 
 export function storeRoot(home: string): string {
   return path.join(home, ".codecast", "capabilities", "store");
 }
 
 export function storeDir(home: string, hash: string): string {
-  if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error(`not a folder hash: ${hash}`);
+  if (!/^[0-9a-f]{64}$/.test(hash))
+    throw new Error(`not a folder hash: ${hash}`);
   return path.join(storeRoot(home), hash);
 }
 
@@ -52,20 +58,26 @@ function isText(bytes: Buffer): boolean {
 }
 
 function hashBytes(bytes: Buffer): string {
-  const normalized = isText(bytes) ? Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1") : bytes;
+  const normalized = isText(bytes)
+    ? Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1")
+    : bytes;
   return crypto.createHash("sha256").update(normalized).digest("hex");
 }
 
 export function folderHash(files: readonly StoreFile[]): string {
   const lines = [...files]
     .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
-    .map((f) => `${f.executable ? "755" : "644"} ${hashBytes(f.bytes)} ${f.path}\n`);
+    .map(
+      (f) =>
+        `${f.executable ? "755" : "644"} ${hashBytes(f.bytes)} ${f.path}\n`,
+    );
   return crypto.createHash("sha256").update(lines.join("")).digest("hex");
 }
 
 /** A relative path we would write: no root, no "..", no backslash, no NUL. */
 export function safeRelPath(p: string): boolean {
-  if (!p || p.startsWith("/") || p.includes("\\") || p.includes("\0")) return false;
+  if (!p || p.startsWith("/") || p.includes("\\") || p.includes("\0"))
+    return false;
   return p.split("/").every((seg) => seg !== "" && seg !== "." && seg !== "..");
 }
 
@@ -77,7 +89,13 @@ export function safeRelPath(p: string): boolean {
 export function readTree(root: string): StoreFile[] {
   const stat = fs.statSync(root);
   if (stat.isFile()) {
-    return [{ path: path.basename(root), bytes: fs.readFileSync(root), executable: (stat.mode & 0o111) !== 0 }];
+    return [
+      {
+        path: path.basename(root),
+        bytes: fs.readFileSync(root),
+        executable: (stat.mode & 0o111) !== 0,
+      },
+    ];
   }
   const out: StoreFile[] = [];
   let total = 0;
@@ -95,9 +113,15 @@ export function readTree(root: string): StoreFile[] {
       if (!st.isFile()) continue;
       total += st.size;
       if (out.length >= MAX_STORE_FILES || total > MAX_STORE_BYTES) {
-        throw new Error(`${root} is too large to share (over ${MAX_STORE_FILES} files or ${MAX_STORE_BYTES / 1024 / 1024} MB)`);
+        throw new Error(
+          `${root} is too large to share (over ${MAX_STORE_FILES} files or ${MAX_STORE_BYTES / 1024 / 1024} MB)`,
+        );
       }
-      out.push({ path: relPath, bytes: fs.readFileSync(abs), executable: (st.mode & 0o111) !== 0 });
+      out.push({
+        path: relPath,
+        bytes: fs.readFileSync(abs),
+        executable: (st.mode & 0o111) !== 0,
+      });
     }
   };
   walk(root, "");
@@ -118,7 +142,8 @@ function header(file: StoreFile): Buffer {
   let prefix = "";
   if (Buffer.byteLength(name) > 100) {
     const cut = name.lastIndexOf("/", 155);
-    if (cut <= 0 || Buffer.byteLength(name.slice(cut + 1)) > 100) throw new Error(`path too long to archive: ${file.path}`);
+    if (cut <= 0 || Buffer.byteLength(name.slice(cut + 1)) > 100)
+      throw new Error(`path too long to archive: ${file.path}`);
     prefix = name.slice(0, cut);
     name = name.slice(cut + 1);
   }
@@ -142,8 +167,13 @@ function header(file: StoreFile): Buffer {
 export function packArchive(files: readonly StoreFile[]): Buffer {
   const parts: Buffer[] = [];
   for (const f of [...files].sort((a, b) => (a.path < b.path ? -1 : 1))) {
-    if (!safeRelPath(f.path)) throw new Error(`refusing to archive path ${f.path}`);
-    parts.push(header(f), f.bytes, Buffer.alloc((512 - (f.bytes.length % 512)) % 512));
+    if (!safeRelPath(f.path))
+      throw new Error(`refusing to archive path ${f.path}`);
+    parts.push(
+      header(f),
+      f.bytes,
+      Buffer.alloc((512 - (f.bytes.length % 512)) % 512),
+    );
   }
   parts.push(Buffer.alloc(1024));
   return zlib.gzipSync(Buffer.concat(parts), { level: 9 });
@@ -159,7 +189,9 @@ function field(h: Buffer, start: number, len: number): string {
  *  files and directories (links, devices, pax headers) and on unsafe paths:
  *  this runs over bytes from the network, before any of them are trusted. */
 export function unpackArchive(archive: Buffer): StoreFile[] {
-  const tar = zlib.gunzipSync(archive, { maxOutputLength: MAX_STORE_BYTES + 1024 * 1024 });
+  const tar = zlib.gunzipSync(archive, {
+    maxOutputLength: MAX_STORE_BYTES + 1024 * 1024,
+  });
   const out: StoreFile[] = [];
   let off = 0;
   while (off + 512 <= tar.length) {
@@ -171,18 +203,28 @@ export function unpackArchive(archive: Buffer): StoreFile[] {
     const size = parseInt(field(h, 124, 12).trim() || "0", 8);
     const mode = parseInt(field(h, 100, 8).trim() || "0", 8);
     const type = String.fromCharCode(h[156] || 48);
-    if (!Number.isFinite(size) || size < 0) throw new Error(`bad size for ${rel}`);
+    if (!Number.isFinite(size) || size < 0)
+      throw new Error(`bad size for ${rel}`);
     off += 512;
     if (type === "5") {
       off += Math.ceil(size / 512) * 512;
       continue;
     }
-    if (type !== "0") throw new Error(`archive entry ${rel} is not a regular file (type ${type})`);
+    if (type !== "0")
+      throw new Error(
+        `archive entry ${rel} is not a regular file (type ${type})`,
+      );
     const clean = rel.replace(/\/+$/, "");
-    if (!safeRelPath(clean)) throw new Error(`archive entry has an unsafe path: ${rel}`);
+    if (!safeRelPath(clean))
+      throw new Error(`archive entry has an unsafe path: ${rel}`);
     if (off + size > tar.length) throw new Error(`archive truncated at ${rel}`);
-    out.push({ path: clean, bytes: Buffer.from(tar.subarray(off, off + size)), executable: (mode & 0o111) !== 0 });
-    if (out.length > MAX_STORE_FILES) throw new Error("archive has too many files");
+    out.push({
+      path: clean,
+      bytes: Buffer.from(tar.subarray(off, off + size)),
+      executable: (mode & 0o111) !== 0,
+    });
+    if (out.length > MAX_STORE_FILES)
+      throw new Error("archive has too many files");
     off += Math.ceil(size / 512) * 512;
   }
   return out;
@@ -213,7 +255,11 @@ export function readStored(home: string, hash: string): StoreFile[] | null {
 
 export type StoreResult =
   | { ok: true; files: StoreFile[]; fetched: boolean }
-  | { ok: false; reason: "fetch_failed" | "bad_archive" | "hash_mismatch" | "lock_busy"; detail: string };
+  | {
+      ok: false;
+      reason: "fetch_failed" | "bad_archive" | "hash_mismatch" | "lock_busy";
+      detail: string;
+    };
 
 /**
  * Put the version named by `hash` in the store, fetching `url` only when it
@@ -232,45 +278,80 @@ export async function fetchIntoStore(opts: {
 
   let archive: Buffer;
   try {
-    const res = await (opts.fetchImpl ?? fetch)(opts.url, { signal: AbortSignal.timeout(30_000) });
-    if (!res.ok) return { ok: false, reason: "fetch_failed", detail: `HTTP ${res.status}` };
+    const res = await (opts.fetchImpl ?? fetch)(opts.url, {
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok)
+      return {
+        ok: false,
+        reason: "fetch_failed",
+        detail: `HTTP ${res.status}`,
+      };
     archive = Buffer.from(await res.arrayBuffer());
   } catch (err) {
-    return { ok: false, reason: "fetch_failed", detail: String(err).slice(0, 200) };
+    return {
+      ok: false,
+      reason: "fetch_failed",
+      detail: String(err).slice(0, 200),
+    };
   }
   return storeArchive(opts.home, opts.hash, archive, opts.log);
 }
 
 /** Verify an archive against its hash and write it into the store. */
-export function storeArchive(home: string, hash: string, archive: Buffer, log?: (line: string) => void): StoreResult {
+export function storeArchive(
+  home: string,
+  hash: string,
+  archive: Buffer,
+  log?: (line: string) => void,
+): StoreResult {
   let files: StoreFile[];
   try {
     files = unpackArchive(archive);
   } catch (err) {
-    return { ok: false, reason: "bad_archive", detail: String(err).slice(0, 200) };
+    return {
+      ok: false,
+      reason: "bad_archive",
+      detail: String(err).slice(0, 200),
+    };
   }
   const actual = folderHash(files);
   if (actual !== hash) {
-    return { ok: false, reason: "hash_mismatch", detail: `archive hashes to ${actual.slice(0, 12)}, expected ${hash.slice(0, 12)}` };
+    return {
+      ok: false,
+      reason: "hash_mismatch",
+      detail: `archive hashes to ${actual.slice(0, 12)}, expected ${hash.slice(0, 12)}`,
+    };
   }
 
   const root = storeRoot(home);
-  const locked = withLock(root, () => {
-    const final = storeDir(home, hash);
-    if (fs.existsSync(final)) return;
-    const tmp = fs.mkdtempSync(path.join(root, `.tmp-${hash.slice(0, 8)}-`));
-    try {
-      for (const f of files) {
-        const abs = path.join(tmp, ...f.path.split("/"));
-        fs.mkdirSync(path.dirname(abs), { recursive: true });
-        fs.writeFileSync(abs, f.bytes, { mode: f.executable ? 0o755 : 0o644 });
+  const locked = withLock(
+    root,
+    () => {
+      const final = storeDir(home, hash);
+      if (fs.existsSync(final)) return;
+      const tmp = fs.mkdtempSync(path.join(root, `.tmp-${hash.slice(0, 8)}-`));
+      try {
+        for (const f of files) {
+          const abs = path.join(tmp, ...f.path.split("/"));
+          fs.mkdirSync(path.dirname(abs), { recursive: true });
+          fs.writeFileSync(abs, f.bytes, {
+            mode: f.executable ? 0o755 : 0o644,
+          });
+        }
+        fs.renameSync(tmp, final);
+      } catch (err) {
+        fs.rmSync(tmp, { recursive: true, force: true });
+        throw err;
       }
-      fs.renameSync(tmp, final);
-    } catch (err) {
-      fs.rmSync(tmp, { recursive: true, force: true });
-      throw err;
-    }
-  }, log);
-  if (!locked.ok) return { ok: false, reason: "lock_busy", detail: `store locked by pid ${locked.heldBy?.pid ?? "?"}` };
+    },
+    log,
+  );
+  if (!locked.ok)
+    return {
+      ok: false,
+      reason: "lock_busy",
+      detail: `store locked by pid ${locked.heldBy?.pid ?? "?"}`,
+    };
   return { ok: true, files, fetched: true };
 }

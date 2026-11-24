@@ -19,15 +19,37 @@ import { SettingsRow, SettingsSection } from "./ui";
 import { MeterBar } from "../plan/UsageMeter";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useInboxStore } from "../../store/inboxStore";
-import { BUDGET_PURPOSES, budgetWords, type BudgetSummary } from "@codecast/shared/contracts/modelCall";
+import {
+  BUDGET_PURPOSES,
+  budgetWords,
+  type BudgetSummary,
+} from "@codecast/shared/contracts/modelCall";
 
-const PURPOSE_LABEL = { judge: "Judging moments", grouping: "Grouping findings", call: "Model steps in workflows" } as const;
-const dollars = (n: number) => (n >= 100 ? `$${Math.round(n)}` : `$${n.toFixed(2)}`);
-const monthName = (month: string) => new Date(`${month}-01T00:00:00Z`).toLocaleString(undefined, { month: "long", timeZone: "UTC" });
+const PURPOSE_LABEL = {
+  judge: "Judging moments",
+  grouping: "Grouping findings",
+  call: "Model steps in workflows",
+} as const;
+const dollars = (n: number) =>
+  n >= 100 ? `$${Math.round(n)}` : `$${n.toFixed(2)}`;
+const monthName = (month: string) =>
+  new Date(`${month}-01T00:00:00Z`).toLocaleString(undefined, {
+    month: "long",
+    timeZone: "UTC",
+  });
 
-export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAdmin: boolean }) {
+export function TeamModelBudget({
+  teamId,
+  isAdmin,
+}: {
+  teamId: Id<"teams">;
+  isAdmin: boolean;
+}) {
   const { data } = useSettingsData("teamBudget", String(teamId));
-  const budget = data as (BudgetSummary & { team_id: string }) | null | undefined;
+  const budget = data as
+    | (BudgetSummary & { team_id: string })
+    | null
+    | undefined;
   // The draft starts over from the server's cap whenever that cap changes.
   const [draft, setDraft] = useState("");
   const [draftCap, setDraftCap] = useState<number | undefined>(undefined);
@@ -55,7 +77,11 @@ export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAd
       icon={Gauge}
       description="What codecast may spend each month on model calls for this team: judging moments, grouping findings into problems, and single model steps in your workflows. At $0 none of them run."
     >
-      <SettingsRow label={`This month${budget.month ? `, ${monthName(budget.month)}` : ""}`} description={budgetWords(budget)} alignTop>
+      <SettingsRow
+        label={`This month${budget.month ? `, ${monthName(budget.month)}` : ""}`}
+        description={budgetWords(budget)}
+        alignTop
+      >
         <div className="flex w-48 flex-col gap-1.5 pt-1">
           <MeterBar
             label="Model budget used this month"
@@ -63,7 +89,12 @@ export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAd
             cap={cap}
             used={used}
             full={known && used >= cap}
-            fill={{ used: known ? Math.min(1, used / cap) : 0, held: known ? Math.min(1 - Math.min(1, used / cap), budget.held_usd / cap) : 0 }}
+            fill={{
+              used: known ? Math.min(1, used / cap) : 0,
+              held: known
+                ? Math.min(1 - Math.min(1, used / cap), budget.held_usd / cap)
+                : 0,
+            }}
             minUsedPx={3}
           />
           <div className="flex justify-between text-meta tabular-nums text-sol-text-dim">
@@ -78,7 +109,9 @@ export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAd
             {spentBy.map((p) => (
               <div key={p} className="contents">
                 <dt className="text-sol-text-muted">{PURPOSE_LABEL[p]}</dt>
-                <dd className="text-right text-sol-text">{dollars(budget.by_purpose[p])}</dd>
+                <dd className="text-right text-sol-text">
+                  {dollars(budget.by_purpose[p])}
+                </dd>
               </div>
             ))}
           </dl>
@@ -86,12 +119,24 @@ export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAd
       )}
       <SettingsRow
         label="Monthly cap"
-        description={isAdmin ? "The most it may spend in a calendar month (UTC). Calls past it are skipped until the next month or a higher cap." : "Only team admins can change the cap."}
+        description={
+          isAdmin
+            ? "The most it may spend in a calendar month (UTC). Calls past it are skipped until the next month or a higher cap."
+            : "Only team admins can change the cap."
+        }
       >
         {isAdmin ? (
-          <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); apply(); }}>
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              apply();
+            }}
+          >
             <div className="relative">
-              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-sol-text-dim">$</span>
+              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-sol-text-dim">
+                $
+              </span>
               <Input
                 inputMode="decimal"
                 aria-label="Monthly cap in dollars"
@@ -102,18 +147,32 @@ export function TeamModelBudget({ teamId, isAdmin }: { teamId: Id<"teams">; isAd
                 className="h-8 w-24 pl-5 text-right tabular-nums"
               />
             </div>
-            <Button type="submit" size="sm" variant="outline" disabled={!changed}>
-              {next === 0 && cap > 0 ? "Turn off" : cap === 0 && next > 0 ? "Turn on" : "Save"}
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              disabled={!changed}
+            >
+              {next === 0 && cap > 0
+                ? "Turn off"
+                : cap === 0 && next > 0
+                  ? "Turn on"
+                  : "Save"}
             </Button>
           </form>
         ) : (
-          <span className="text-sm tabular-nums text-sol-text-muted">{known ? dollars(cap) : "Off"}</span>
+          <span className="text-sm tabular-nums text-sol-text-muted">
+            {known ? dollars(cap) : "Off"}
+          </span>
         )}
       </SettingsRow>
       {budget.history.length > 0 && (
         <SettingsRow label="Earlier months">
           <span className="text-xs tabular-nums text-sol-text-muted">
-            {budget.history.slice(0, 3).map((h) => `${monthName(h.month)} ${dollars(h.spent_usd)}`).join(" · ")}
+            {budget.history
+              .slice(0, 3)
+              .map((h) => `${monthName(h.month)} ${dollars(h.spent_usd)}`)
+              .join(" · ")}
           </span>
         </SettingsRow>
       )}

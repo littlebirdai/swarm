@@ -11,13 +11,33 @@ const activity = { text: "running bun test", tool: "Bash", at: 100 };
 function fixture(agent_status = "working") {
   const db = makeFakeDb({
     users: [{ _id: "owner" }],
-    conversations: [{ _id: "conv", user_id: "owner", session_id: "session", activity }],
-    managed_sessions: [{ _id: "managed", user_id: "owner", conversation_id: "conv", session_id: "session", agent_status, agent_status_updated_at: 100, last_heartbeat: 100 }],
+    conversations: [
+      { _id: "conv", user_id: "owner", session_id: "session", activity },
+    ],
+    managed_sessions: [
+      {
+        _id: "managed",
+        user_id: "owner",
+        conversation_id: "conv",
+        session_id: "session",
+        agent_status,
+        agent_status_updated_at: 100,
+        last_heartbeat: 100,
+      },
+    ],
     pending_messages: [],
   });
-  const ctx = { db, auth: { getUserIdentity: async () => ({ subject: "owner|auth-session" }) }, scheduler: { runAfter: async () => {} } };
+  const ctx = {
+    db,
+    auth: { getUserIdentity: async () => ({ subject: "owner|auth-session" }) },
+    scheduler: { runAfter: async () => {} },
+  };
   const write = (status: string, client_ts: number) =>
-    (updateAgentStatus as any)._handler(ctx, { conversation_id: "conv", agent_status: status, client_ts });
+    (updateAgentStatus as any)._handler(ctx, {
+      conversation_id: "conv",
+      agent_status: status,
+      client_ts,
+    });
   return { db, write, conv: () => db._tables.conversations[0] };
 }
 

@@ -6,13 +6,37 @@ import * as path from "node:path";
 import type { CloudHost } from "../browser/cloudHost";
 import {
   bridgeAddressStale,
-  AGENT_BRIDGE_ARGV0, AGENT_BRIDGE_HEALTHY_MS, AGENT_BRIDGE_MAX_BACKOFF_MS, AGENT_BRIDGE_REFUSED_EXIT, AGENT_BRIDGE_REMOTE,
-  AGENT_BRIDGE_TICK_MS, HOST_AGENT_SOCK, agentBridgeArgs, hostAgentSocketEnv, nextBridgeBackoff, shouldRunBridge,
+  AGENT_BRIDGE_ARGV0,
+  AGENT_BRIDGE_HEALTHY_MS,
+  AGENT_BRIDGE_MAX_BACKOFF_MS,
+  AGENT_BRIDGE_REFUSED_EXIT,
+  AGENT_BRIDGE_REMOTE,
+  AGENT_BRIDGE_TICK_MS,
+  HOST_AGENT_SOCK,
+  agentBridgeArgs,
+  hostAgentSocketEnv,
+  nextBridgeBackoff,
+  shouldRunBridge,
 } from "./agentBridge";
 import { sshBase } from "../remote/session-move";
 
-const host = { address: "1.2.3.4", user: "ubuntu", keyPath: "/k", remoteBaseDir: "/home/ubuntu/work", homeDir: "/home/ubuntu" };
-const cloud: CloudHost = { id: "i-1", provider: "aws", region: "us-west-2", user: "ubuntu", keyPath: "/k", address: "1.2.3.4", forwardAgent: true, watchdogVersion: 2 };
+const host = {
+  address: "1.2.3.4",
+  user: "ubuntu",
+  keyPath: "/k",
+  remoteBaseDir: "/home/ubuntu/work",
+  homeDir: "/home/ubuntu",
+};
+const cloud: CloudHost = {
+  id: "i-1",
+  provider: "aws",
+  region: "us-west-2",
+  user: "ubuntu",
+  keyPath: "/k",
+  address: "1.2.3.4",
+  forwardAgent: true,
+  watchdogVersion: 2,
+};
 
 describe("agentBridgeArgs — one dedicated forwarding connection", () => {
   const args = agentBridgeArgs(host);
@@ -38,10 +62,18 @@ describe("agentBridgeArgs — one dedicated forwarding connection", () => {
 
   test("the remote side verifies the forwarded socket, exits 3 without one, links it, and blocks as cast-agent-bridge on stdin", () => {
     expect(AGENT_BRIDGE_REFUSED_EXIT).toBe(3);
-    expect(AGENT_BRIDGE_REMOTE.startsWith('[ -S "$SSH_AUTH_SOCK" ] || exit 3; ')).toBe(true);
-    expect(AGENT_BRIDGE_REMOTE).toContain('ln -sfn "$SSH_AUTH_SOCK" ~/.codecast/ssh-agent.sock');
-    expect(AGENT_BRIDGE_REMOTE).toContain(`(exec -a ${AGENT_BRIDGE_ARGV0} cat >/dev/null)`);
-    expect(AGENT_BRIDGE_REMOTE.endsWith("rm -f ~/.codecast/ssh-agent.sock")).toBe(true);
+    expect(
+      AGENT_BRIDGE_REMOTE.startsWith('[ -S "$SSH_AUTH_SOCK" ] || exit 3; '),
+    ).toBe(true);
+    expect(AGENT_BRIDGE_REMOTE).toContain(
+      'ln -sfn "$SSH_AUTH_SOCK" ~/.codecast/ssh-agent.sock',
+    );
+    expect(AGENT_BRIDGE_REMOTE).toContain(
+      `(exec -a ${AGENT_BRIDGE_ARGV0} cat >/dev/null)`,
+    );
+    expect(
+      AGENT_BRIDGE_REMOTE.endsWith("rm -f ~/.codecast/ssh-agent.sock"),
+    ).toBe(true);
     expect(AGENT_BRIDGE_ARGV0).toBe("cast-agent-bridge");
     // No sleeper that survives a disconnect.
     expect(AGENT_BRIDGE_REMOTE).not.toContain("sleep");
@@ -51,13 +83,37 @@ describe("agentBridgeArgs — one dedicated forwarding connection", () => {
 describe("shouldRunBridge", () => {
   test("only when on, reachable, with a laptop agent, on a watchdog that ignores the bridge", () => {
     expect(shouldRunBridge(cloud, true, "/tmp/agent.sock")).toBe(true);
-    expect(shouldRunBridge({ ...cloud, forwardAgent: false }, true, "/tmp/agent.sock")).toBe(false);
-    expect(shouldRunBridge({ ...cloud, forwardAgent: undefined }, true, "/tmp/agent.sock")).toBe(false);
+    expect(
+      shouldRunBridge(
+        { ...cloud, forwardAgent: false },
+        true,
+        "/tmp/agent.sock",
+      ),
+    ).toBe(false);
+    expect(
+      shouldRunBridge(
+        { ...cloud, forwardAgent: undefined },
+        true,
+        "/tmp/agent.sock",
+      ),
+    ).toBe(false);
     expect(shouldRunBridge(cloud, false, "/tmp/agent.sock")).toBe(false);
     expect(shouldRunBridge(cloud, true, undefined)).toBe(false);
     expect(shouldRunBridge(cloud, true, "")).toBe(false);
-    expect(shouldRunBridge({ ...cloud, watchdogVersion: 1 }, true, "/tmp/agent.sock")).toBe(false);
-    expect(shouldRunBridge({ ...cloud, watchdogVersion: undefined }, true, "/tmp/agent.sock")).toBe(false);
+    expect(
+      shouldRunBridge(
+        { ...cloud, watchdogVersion: 1 },
+        true,
+        "/tmp/agent.sock",
+      ),
+    ).toBe(false);
+    expect(
+      shouldRunBridge(
+        { ...cloud, watchdogVersion: undefined },
+        true,
+        "/tmp/agent.sock",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -70,17 +126,32 @@ describe("nextBridgeBackoff — a broken bridge cannot keep a box awake", () => 
       prev = nextBridgeBackoff(prev, 500, now);
       waits.push(prev.notBefore - now);
     }
-    expect(waits).toEqual([60_000, 120_000, 240_000, 300_000, 300_000, 300_000]);
+    expect(waits).toEqual([
+      60_000, 120_000, 240_000, 300_000, 300_000, 300_000,
+    ]);
     expect(prev!.failures).toBe(6);
     expect(AGENT_BRIDGE_MAX_BACKOFF_MS).toBe(5 * AGENT_BRIDGE_TICK_MS);
   });
 
   test("a bridge that lived past two ticks was working: its exit is the first failure again", () => {
     const now = 1_000_000;
-    const deep = nextBridgeBackoff({ failures: 5, notBefore: 0 }, AGENT_BRIDGE_HEALTHY_MS, now);
-    expect(deep).toEqual({ failures: 1, notBefore: now + AGENT_BRIDGE_TICK_MS });
+    const deep = nextBridgeBackoff(
+      { failures: 5, notBefore: 0 },
+      AGENT_BRIDGE_HEALTHY_MS,
+      now,
+    );
+    expect(deep).toEqual({
+      failures: 1,
+      notBefore: now + AGENT_BRIDGE_TICK_MS,
+    });
     // One millisecond short of healthy still compounds.
-    expect(nextBridgeBackoff({ failures: 2, notBefore: 0 }, AGENT_BRIDGE_HEALTHY_MS - 1, now).failures).toBe(3);
+    expect(
+      nextBridgeBackoff(
+        { failures: 2, notBefore: 0 },
+        AGENT_BRIDGE_HEALTHY_MS - 1,
+        now,
+      ).failures,
+    ).toBe(3);
   });
 });
 
@@ -92,7 +163,8 @@ describe("hostAgentSocketEnv — the launch-prefix token on the host", () => {
     saved = process.env.CODECAST_REMOTE_DEVICE;
   });
   afterEach(async () => {
-    if (saved === undefined) delete process.env.CODECAST_REMOTE_DEVICE; else process.env.CODECAST_REMOTE_DEVICE = saved;
+    if (saved === undefined) delete process.env.CODECAST_REMOTE_DEVICE;
+    else process.env.CODECAST_REMOTE_DEVICE = saved;
     if (server) await new Promise<void>((r) => server!.close(() => r()));
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -122,12 +194,21 @@ describe("hostAgentSocketEnv — the launch-prefix token on the host", () => {
     // A plain file at the path is not an agent either.
     fs.writeFileSync(path.join(dir, "file"), "");
     expect(hostAgentSocketEnv(path.join(dir, "file"))).toBe("");
-    expect(HOST_AGENT_SOCK).toBe(path.join(os.homedir(), ".codecast", "ssh-agent.sock"));
+    expect(HOST_AGENT_SOCK).toBe(
+      path.join(os.homedir(), ".codecast", "ssh-agent.sock"),
+    );
   });
 });
 
 describe("bridgeAddressStale", () => {
-  const h = { id: "i-1", provider: "aws", region: "r", user: "ubuntu", keyPath: "/k", address: "54.1.1.1" } as CloudHost;
+  const h = {
+    id: "i-1",
+    provider: "aws",
+    region: "r",
+    user: "ubuntu",
+    keyPath: "/k",
+    address: "54.1.1.1",
+  } as CloudHost;
   test("a bridge on the public or the dial address is current", () => {
     expect(bridgeAddressStale(h, "54.1.1.1", "54.1.1.1")).toBe(false);
     expect(bridgeAddressStale(h, "100.64.1.1", "100.64.1.1")).toBe(false);

@@ -18,7 +18,9 @@ type Ask = { conversationId: string; nonce: number };
 let asked: Ask | null = null;
 let nonces = 0;
 const listeners = new Set<() => void>();
-const emit = () => { for (const l of listeners) l(); };
+const emit = () => {
+  for (const l of listeners) l();
+};
 
 /** A page asks for the plain view of `conversationId` on its next show. */
 export function askSessionView(conversationId: string): void {
@@ -42,11 +44,17 @@ export function settleSessionViewAsk(conversationId: string): void {
 
 export function subscribeSessionViewAsk(listener: () => void): () => void {
   listeners.add(listener);
-  return () => { listeners.delete(listener); };
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 /** The open ask for `conversationId` as it changes: null, or a nonce that is
  *  new for every ask. */
 export function useSessionViewAsk(conversationId: string): number | null {
-  return useSyncExternalStore(subscribeSessionViewAsk, () => sessionViewAskFor(conversationId), () => null);
+  return useSyncExternalStore(
+    subscribeSessionViewAsk,
+    () => sessionViewAskFor(conversationId),
+    () => null,
+  );
 }

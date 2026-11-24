@@ -16,12 +16,24 @@ export function readSession(el: BoardEl | undefined): BoardSession {
   const v = el?.voting as Voting | null | undefined;
   const t = el?.timer as Timer | null | undefined;
   return {
-    voting: v && typeof v === "object" ? { open: v.open !== false, per: typeof v.per === "number" ? v.per : VOTES_PER_PERSON } : null,
-    timer: t && typeof t.ends_at === "number" ? { ends_at: t.ends_at, ms: typeof t.ms === "number" ? t.ms : 0 } : null,
+    voting:
+      v && typeof v === "object"
+        ? {
+            open: v.open !== false,
+            per: typeof v.per === "number" ? v.per : VOTES_PER_PERSON,
+          }
+        : null,
+    timer:
+      t && typeof t.ends_at === "number"
+        ? { ends_at: t.ends_at, ms: typeof t.ms === "number" ? t.ms : 0 }
+        : null,
   };
 }
 
-export const votesOf = (el: BoardEl): string[] => (Array.isArray(el.votes) ? (el.votes as unknown[]).filter((v): v is string => typeof v === "string") : []);
+export const votesOf = (el: BoardEl): string[] =>
+  Array.isArray(el.votes)
+    ? (el.votes as unknown[]).filter((v): v is string => typeof v === "string")
+    : [];
 
 /** How many of `me`'s votes are placed on the board. */
 export function votesUsed(els: Iterable<BoardEl>, me: string): number {
@@ -31,24 +43,55 @@ export function votesUsed(els: Iterable<BoardEl>, me: string): number {
 }
 
 /** A click on a sticky while voting: my vote goes on it, or (when it is already there) comes off. Null when out of votes. */
-export function toggleVoteOps(sticky: BoardEl, me: string, used: number, per: number): ArtifactOp[] | null {
+export function toggleVoteOps(
+  sticky: BoardEl,
+  me: string,
+  used: number,
+  per: number,
+): ArtifactOp[] | null {
   const votes = votesOf(sticky);
   const i = votes.indexOf(me);
-  if (i >= 0) return [{ k: sticky.key, set: { votes: [...votes.slice(0, i), ...votes.slice(i + 1)] } }];
+  if (i >= 0)
+    return [
+      {
+        k: sticky.key,
+        set: { votes: [...votes.slice(0, i), ...votes.slice(i + 1)] },
+      },
+    ];
   if (used >= per) return null;
   return [{ k: sticky.key, set: { votes: [...votes, me] } }];
 }
 
 /** A write to the session element, creating it the first time. */
-export function sessionOp(hasSession: boolean, set: Partial<BoardSession>): ArtifactOp {
-  return (hasSession ? { k: SESSION_KEY, set } : { k: SESSION_KEY, put: { kind: "session", voting: null, timer: null, ...set } }) as ArtifactOp;
+export function sessionOp(
+  hasSession: boolean,
+  set: Partial<BoardSession>,
+): ArtifactOp {
+  return (
+    hasSession
+      ? { k: SESSION_KEY, set }
+      : {
+          k: SESSION_KEY,
+          put: { kind: "session", voting: null, timer: null, ...set },
+        }
+  ) as ArtifactOp;
 }
 
-const clearVotes = (els: Iterable<BoardEl>) => [...els].filter((e) => votesOf(e).length).map((e) => ({ k: e.key, set: { votes: null } }) as ArtifactOp);
+const clearVotes = (els: Iterable<BoardEl>) =>
+  [...els]
+    .filter((e) => votesOf(e).length)
+    .map((e) => ({ k: e.key, set: { votes: null } }) as ArtifactOp);
 
 /** Start a vote: the session opens, and votes from a last round come off. */
-export function startVotingOps(els: Iterable<BoardEl>, hasSession: boolean, per = VOTES_PER_PERSON): ArtifactOp[] {
-  return [sessionOp(hasSession, { voting: { open: true, per } }), ...clearVotes(els)];
+export function startVotingOps(
+  els: Iterable<BoardEl>,
+  hasSession: boolean,
+  per = VOTES_PER_PERSON,
+): ArtifactOp[] {
+  return [
+    sessionOp(hasSession, { voting: { open: true, per } }),
+    ...clearVotes(els),
+  ];
 }
 
 /** Clear the results: the vote closes and every dot comes off. */
@@ -57,8 +100,13 @@ export function clearVotingOps(els: Iterable<BoardEl>): ArtifactOp[] {
 }
 
 /** Stickies with votes, most votes first: the results. */
-export function voteResults(els: Iterable<BoardEl>): { key: string; count: number }[] {
-  return [...els].map((e) => ({ key: e.key, count: votesOf(e).length })).filter((r) => r.count > 0).sort((a, b) => b.count - a.count);
+export function voteResults(
+  els: Iterable<BoardEl>,
+): { key: string; count: number }[] {
+  return [...els]
+    .map((e) => ({ key: e.key, count: votesOf(e).length }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
 }
 
 /** Time left on a timer, as m:ss. */

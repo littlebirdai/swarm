@@ -9,8 +9,16 @@ import { useInboxStore } from "../store/inboxStore";
 import { useConvexSync } from "./useConvexSync";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { useRecentProjectsFeed } from "./useRecentProjectsFeed";
-import { mergeRecentProjectPaths, recentProjectPathsFromSessionKeys, recentProjectSessionKey, type RecentProject } from "../lib/recentProjectPaths";
-import { resolveScopedProjects, type MachineCandidate } from "../lib/machinePicker";
+import {
+  mergeRecentProjectPaths,
+  recentProjectPathsFromSessionKeys,
+  recentProjectSessionKey,
+  type RecentProject,
+} from "../lib/recentProjectPaths";
+import {
+  resolveScopedProjects,
+  type MachineCandidate,
+} from "../lib/machinePicker";
 
 const NO_KEYS: string[] = [];
 
@@ -32,13 +40,21 @@ export function useScopedRecentProjects(opts: {
   // dropping the picker into its ErrorBoundary.
   const freshProjects = useRecentProjectsFeed();
   const cachedProjects = useInboxStore((s) => s.recentProjects);
-  const currentUserId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const currentUserId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   // Stable primitive keys, not session objects (replaced on heartbeats).
-  const loadedSessionProjectKeys = useInboxStore(useShallow((s) =>
-    active ? Object.values(s.sessions).map(recentProjectSessionKey) : NO_KEYS,
-  ));
+  const loadedSessionProjectKeys = useInboxStore(
+    useShallow((s) =>
+      active ? Object.values(s.sessions).map(recentProjectSessionKey) : NO_KEYS,
+    ),
+  );
   const ownSessionProjects = useMemo(
-    () => recentProjectPathsFromSessionKeys(loadedSessionProjectKeys, currentUserId),
+    () =>
+      recentProjectPathsFromSessionKeys(
+        loadedSessionProjectKeys,
+        currentUserId,
+      ),
     [loadedSessionProjectKeys, currentUserId],
   );
 
@@ -48,28 +64,46 @@ export function useScopedRecentProjects(opts: {
     api.users.getRecentProjectPaths,
     scopedDeviceId ? { limit: 50, device_id: scopedDeviceId } : "skip",
   );
-  const cachedScopedProjects = useInboxStore((s) => (scopedDeviceId ? s.recentProjectsByDevice[scopedDeviceId] : undefined));
-  const setRecentProjectsForDevice = useInboxStore((s) => s.setRecentProjectsForDevice);
+  const cachedScopedProjects = useInboxStore((s) =>
+    scopedDeviceId ? s.recentProjectsByDevice[scopedDeviceId] : undefined,
+  );
+  const setRecentProjectsForDevice = useInboxStore(
+    (s) => s.setRecentProjectsForDevice,
+  );
   const syncScopedProjects = useCallback(
     (projects: RecentProject[]) => {
       if (scopedDeviceId) setRecentProjectsForDevice(scopedDeviceId, projects);
     },
     [scopedDeviceId, setRecentProjectsForDevice],
   );
-  useConvexSync(scopedProjects as RecentProject[] | undefined, syncScopedProjects);
+  useConvexSync(
+    scopedProjects as RecentProject[] | undefined,
+    syncScopedProjects,
+  );
 
   const unionProjects = useMemo<RecentProject[]>(
-    () => mergeRecentProjectPaths(freshProjects ?? cachedProjects, ownSessionProjects),
+    () =>
+      mergeRecentProjectPaths(
+        freshProjects ?? cachedProjects,
+        ownSessionProjects,
+      ),
     [freshProjects, cachedProjects, ownSessionProjects],
   );
   return useMemo<RecentProject[]>(
-    () => resolveScopedProjects({
+    () =>
+      resolveScopedProjects({
+        scopedDeviceId,
+        scoped: scopedProjects as RecentProject[] | undefined,
+        cached: cachedScopedProjects,
+        union: unionProjects,
+        routedDevice,
+      }),
+    [
       scopedDeviceId,
-      scoped: scopedProjects as RecentProject[] | undefined,
-      cached: cachedScopedProjects,
-      union: unionProjects,
+      scopedProjects,
+      cachedScopedProjects,
+      unionProjects,
       routedDevice,
-    }),
-    [scopedDeviceId, scopedProjects, cachedScopedProjects, unionProjects, routedDevice],
+    ],
   );
 }

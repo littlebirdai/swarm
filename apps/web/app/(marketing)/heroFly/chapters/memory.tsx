@@ -13,15 +13,27 @@ import { useMemo, useState } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { CommandPaletteList } from "@/components/CommandPaletteList";
 import { KeyCap } from "@/components/KeyboardShortcutsHelp";
-import { PaletteSearchBar, PaletteSearchResultRow, PaletteSessionRow, PaletteTaskRow } from "@/components/PaletteRows";
-import { groupClass, paletteClass, paletteInputClass } from "@/components/paletteStyles";
+import {
+  PaletteSearchBar,
+  PaletteSearchResultRow,
+  PaletteSessionRow,
+  PaletteTaskRow,
+} from "@/components/PaletteRows";
+import {
+  groupClass,
+  paletteClass,
+  paletteInputClass,
+} from "@/components/paletteStyles";
 import { STATUS_OPTIONS } from "@/components/menus/entityOptions";
 import { BlobView } from "@/components/repo/BlobView";
 import { SessionBlameStrip } from "@/components/repo/SessionBlame";
 import { Breadcrumb } from "@/components/repo/TreeContent";
 import { sessionMatchesQuery } from "@/lib/instantSessionSearch";
 import { paletteItemScore } from "@/lib/paletteActions";
-import { paletteSearchValue, paletteSessionValue } from "@/lib/paletteRowValues";
+import {
+  paletteSearchValue,
+  paletteSessionValue,
+} from "@/lib/paletteRowValues";
 import { sessionBlameColors, summarizeSessionBlame } from "@/lib/repoView";
 import "@/components/CommandPalette.css";
 import "@/components/repo/repo.css";
@@ -29,16 +41,31 @@ import type { PartProps } from "./contract";
 import { fly, useFilmTime } from "../filmClock";
 import { FilmSwap } from "../film";
 import { typed } from "../timeline";
-import { FILE, MEMORY, RECENT, RESULTS, SEARCH_MIN, TASK, VIEWER, blameRanges } from "../fixtures/memory";
+import {
+  FILE,
+  MEMORY,
+  RECENT,
+  RESULTS,
+  SEARCH_MIN,
+  TASK,
+  VIEWER,
+  blameRanges,
+} from "../fixtures/memory";
 import { PEOPLE, SESSIONS } from "../fixtures/story";
 
 const noop = () => {};
 const DONE = STATUS_OPTIONS.find((o) => o.key === TASK.status);
-const TASK_STATUS = DONE ? { label: DONE.label, color: DONE.color ?? "" } : undefined;
+const TASK_STATUS = DONE
+  ? { label: DONE.label, color: DONE.color ?? "" }
+  : undefined;
 const AUTHOR = PEOPLE.me.name;
 
 /** Every word of the query somewhere in the text: how the fixtures stand in for the server's content search. */
-const wordsIn = (q: string, text: string) => q.split(/\s+/).filter(Boolean).every((w) => text.toLowerCase().includes(w));
+const wordsIn = (q: string, text: string) =>
+  q
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => text.toLowerCase().includes(w));
 
 /** When the film's query reaches the server search's three letters: the list goes from Recent to what the search finds. */
 const SEARCH_AT = MEMORY.typeAt + SEARCH_MIN / MEMORY.typeRate;
@@ -47,26 +74,48 @@ const SEARCH_AT = MEMORY.typeAt + SEARCH_MIN / MEMORY.typeRate;
 const SWAP_DUR = 0.6;
 /** The first row of each list, as cmdk names it. */
 const FIRST_RECENT = paletteSessionValue(RECENT[0]);
-const FIRST_RESULT = paletteSearchValue({ conversationId: RESULTS[0].session.id, title: RESULTS[0].session.title, matches: [{ content: RESULTS[0].match }] });
+const FIRST_RESULT = paletteSearchValue({
+  conversationId: RESULTS[0].session.id,
+  title: RESULTS[0].session.title,
+  matches: [{ content: RESULTS[0].match }],
+});
 
 /** The palette's groups for a query, as the app lists them. */
 function PaletteGroups({ query, now }: { query: string; now: number }) {
   const q = query.trim().toLowerCase();
-  const recent = RECENT.filter((r) => sessionMatchesQuery({ ...r, authorName: VIEWER.name }, q)).slice(0, 4);
+  const recent = RECENT.filter((r) =>
+    sessionMatchesQuery({ ...r, authorName: VIEWER.name }, q),
+  ).slice(0, 4);
   const searching = q.length >= SEARCH_MIN;
-  const results = searching ? RESULTS.filter((r) => wordsIn(q, `${r.session.title} ${r.match}`)) : [];
-  const tasks = searching && wordsIn(q, `${TASK.title} ${TASK.short_id} webhook retry`) ? [TASK] : [];
+  const results = searching
+    ? RESULTS.filter((r) => wordsIn(q, `${r.session.title} ${r.match}`))
+    : [];
+  const tasks =
+    searching && wordsIn(q, `${TASK.title} ${TASK.short_id} webhook retry`)
+      ? [TASK]
+      : [];
   return (
     <>
       {recent.length > 0 && (
-        <CommandPrimitive.Group heading="Recent Sessions" className={groupClass}>
+        <CommandPrimitive.Group
+          heading="Recent Sessions"
+          className={groupClass}
+        >
           {recent.map((r) => (
-            <PaletteSessionRow key={r._id} conv={{ ...r, updated_at: now - r.ago, isOwn: true }} bucket={null} onSelect={noop} />
+            <PaletteSessionRow
+              key={r._id}
+              conv={{ ...r, updated_at: now - r.ago, isOwn: true }}
+              bucket={null}
+              onSelect={noop}
+            />
           ))}
         </CommandPrimitive.Group>
       )}
       {searching && (
-        <CommandPrimitive.Group heading={`Search Results (${results.length})`} className={groupClass}>
+        <CommandPrimitive.Group
+          heading={`Search Results (${results.length})`}
+          className={groupClass}
+        >
           {results.map((r) => (
             <PaletteSearchResultRow
               key={r.session.id}
@@ -76,7 +125,9 @@ function PaletteGroups({ query, now }: { query: string; now: number }) {
                 updatedAt: now - r.ago,
                 isOwn: false,
                 authorName: AUTHOR,
-                matches: Array.from({ length: r.matches }, (_, i) => ({ content: i === 0 ? r.match : undefined })),
+                matches: Array.from({ length: r.matches }, (_, i) => ({
+                  content: i === 0 ? r.match : undefined,
+                })),
               }}
               onSelect={noop}
             />
@@ -86,7 +137,12 @@ function PaletteGroups({ query, now }: { query: string; now: number }) {
       {tasks.length > 0 && (
         <CommandPrimitive.Group heading="Tasks" className={groupClass}>
           {tasks.map((t) => (
-            <PaletteTaskRow key={t._id} task={{ ...t, updated_at: now - t.ago }} status={TASK_STATUS} onSelect={noop} />
+            <PaletteTaskRow
+              key={t._id}
+              task={{ ...t, updated_at: now - t.ago }}
+              status={TASK_STATUS}
+              onSelect={noop}
+            />
           ))}
         </CommandPrimitive.Group>
       )}
@@ -95,7 +151,9 @@ function PaletteGroups({ query, now }: { query: string; now: number }) {
 }
 
 export function PaletteSearch({ now }: PartProps) {
-  const filmQuery = useFilmTime((t) => typed(MEMORY.query, t, MEMORY.typeAt, MEMORY.typeRate));
+  const filmQuery = useFilmTime((t) =>
+    typed(MEMORY.query, t, MEMORY.typeAt, MEMORY.typeRate),
+  );
   const [typedByVisitor, setTypedByVisitor] = useState<string | null>(null);
   // cmdk scrolls its selected row into view, through every scrolling
   // ancestor, the stage's clip included. A row is selected only while the
@@ -103,8 +161,12 @@ export function PaletteSearch({ now }: PartProps) {
   const [picked, setPicked] = useState("");
   // Once a visitor's pointer moves over the rows, the highlight follows it, as the app's does.
   const [pointed, setPointed] = useState(false);
-  const onScreen = useFilmTime((t) => t >= MEMORY.selectFrom && t < MEMORY.selectTo);
-  const filmPick = useFilmTime((t) => (t < SEARCH_AT + SWAP_DUR / 2 ? FIRST_RECENT : FIRST_RESULT));
+  const onScreen = useFilmTime(
+    (t) => t >= MEMORY.selectFrom && t < MEMORY.selectTo,
+  );
+  const filmPick = useFilmTime((t) =>
+    t < SEARCH_AT + SWAP_DUR / 2 ? FIRST_RECENT : FIRST_RESULT,
+  );
   const visitor = typedByVisitor !== null;
   return (
     // The dialog is the surface, flush: one window, one shadow (the surface's).
@@ -130,15 +192,26 @@ export function PaletteSearch({ now }: PartProps) {
             className={paletteInputClass}
           />
         </PaletteSearchBar>
-        <div className="contents" data-hero-live="" onPointerMove={() => setPointed(true)}>
-        <CommandPaletteList>
-          {visitor ? (
-            <PaletteGroups query={typedByVisitor} now={now} />
-          ) : (
-            // The list changes once, as the query reaches the search: the results dissolve in over the recent sessions while the rest of the query types.
-            <FilmSwap cues={[SEARCH_AT]} dur={SWAP_DUR} through render={(step) => <PaletteGroups query={step ? MEMORY.query : ""} now={now} />} />
-          )}
-        </CommandPaletteList>
+        <div
+          className="contents"
+          data-hero-live=""
+          onPointerMove={() => setPointed(true)}
+        >
+          <CommandPaletteList>
+            {visitor ? (
+              <PaletteGroups query={typedByVisitor} now={now} />
+            ) : (
+              // The list changes once, as the query reaches the search: the results dissolve in over the recent sessions while the rest of the query types.
+              <FilmSwap
+                cues={[SEARCH_AT]}
+                dur={SWAP_DUR}
+                through
+                render={(step) => (
+                  <PaletteGroups query={step ? MEMORY.query : ""} now={now} />
+                )}
+              />
+            )}
+          </CommandPaletteList>
         </div>
       </CommandPrimitive>
     </div>
@@ -154,13 +227,22 @@ export function Blame({ now }: PartProps) {
   const ranges = useMemo(() => blameRanges(now), [now]);
   const summary = useMemo(() => summarizeSessionBlame(ranges), [ranges]);
   const colors = useMemo(() => sessionBlameColors(summary), [summary]);
-  const filmFocus = useFilmTime((t) => (t >= MEMORY.focus ? SESSIONS.lead.id : null));
+  const filmFocus = useFilmTime((t) =>
+    t >= MEMORY.focus ? SESSIONS.lead.id : null,
+  );
   const [hovered, setHovered] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const focus = hovered ?? pinned ?? filmFocus;
   return (
-    <div className="flex h-full flex-col bg-sol-bg pt-3" {...fly("blame/memory.file")}>
-      <Breadcrumb repository={FILE.repository} refName="main" path={FILE.path} />
+    <div
+      className="flex h-full flex-col bg-sol-bg pt-3"
+      {...fly("blame/memory.file")}
+    >
+      <Breadcrumb
+        repository={FILE.repository}
+        refName="main"
+        path={FILE.path}
+      />
       <div data-hero-live="">
         <SessionBlameStrip
           summary={summary}
@@ -198,7 +280,8 @@ export function Blame({ now }: PartProps) {
             transformOrigin: "left",
             pointerEvents: "none",
             mixBlendMode: "multiply",
-            background: "color-mix(in srgb, var(--sol-yellow) 22%, transparent)",
+            background:
+              "color-mix(in srgb, var(--sol-yellow) 22%, transparent)",
           })}
         />
       </div>

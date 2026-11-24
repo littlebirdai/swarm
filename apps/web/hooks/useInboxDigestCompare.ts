@@ -10,7 +10,10 @@ import {
   type InboxDigestComparerIO,
 } from "../store/inboxDigestCompare";
 import { syncMetaKey } from "./reconcileCrawl";
-import { applyMineLivenessPayload, inboxCrawlWsKey } from "./useSyncInboxSessions";
+import {
+  applyMineLivenessPayload,
+  inboxCrawlWsKey,
+} from "./useSyncInboxSessions";
 import { batchGet } from "./useSyncChangeFeed";
 import { subscribeCoarseTick } from "./useCoarseNow";
 import { getPlatform, track } from "../lib/analytics";
@@ -30,10 +33,14 @@ import { getPlatform, track } from "../lib/analytics";
 // suites use it to collect telemetry and run heals by hand.
 export function startInboxDigestCompare(
   convex: { query: (fn: any, args: any) => Promise<any> },
-  subscribeTick: (intervalMs: number, fn: () => void) => () => void = subscribeCoarseTick,
+  subscribeTick: (
+    intervalMs: number,
+    fn: () => void,
+  ) => () => void = subscribeCoarseTick,
   io: Partial<InboxDigestComparerIO> = {},
 ): { comparer: InboxDigestComparer; dispose: () => void } {
-  const crawlMetaKeyFor = (meId: string | null) => (meId ? syncMetaKey("sessions", inboxCrawlWsKey(meId)) : null);
+  const crawlMetaKeyFor = (meId: string | null) =>
+    meId ? syncMetaKey("sessions", inboxCrawlWsKey(meId)) : null;
   const comparer = createInboxDigestComparer({
     platform: getPlatform(),
     track,
@@ -43,19 +50,29 @@ export function startInboxDigestCompare(
       useInboxStore.getState().applyHealedSessions(ids, rows);
     },
     probeOverlay: async () => {
-      applyMineLivenessPayload(await convex.query(api.conversations.sessionsLiveness, { _probe: Date.now() }));
+      applyMineLivenessPayload(
+        await convex.query(api.conversations.sessionsLiveness, {
+          _probe: Date.now(),
+        }),
+      );
     },
     ...io,
   });
   // Dev console handle (same convention as __inboxStore): the read-only
   // diagnostics live in the compare module (an allowed reader of the stamp
   // buffer); this mount only adds the two IO peeks and attaches it.
-  const dev = process.env.NODE_ENV !== "production" ? createInboxDigestDevHandle(comparer, crawlMetaKeyFor) : null;
+  const dev =
+    process.env.NODE_ENV !== "production"
+      ? createInboxDigestDevHandle(comparer, crawlMetaKeyFor)
+      : null;
   if (dev && typeof window !== "undefined") {
     (window as any).__inboxDigest = {
       ...dev,
       /** One raw overlay execution, as the server ships it (nothing applied). */
-      overlay: () => convex.query(api.conversations.sessionsLiveness, { _probe: Date.now() }),
+      overlay: () =>
+        convex.query(api.conversations.sessionsLiveness, {
+          _probe: Date.now(),
+        }),
       /** The server's current rows for ids (read only; nothing applied). */
       peek: (ids: string[]) => batchGet(convex, "sessions", ids),
     };

@@ -21,9 +21,15 @@ export const FOLDER_EXPORT_PEER_CAP = 6;
 type PeerDevice = { device_id: string; last_seen: number; label?: string };
 
 /** The machines worth asking: online, not the requester, most recently seen first. */
-export function pickFolderPeers<D extends PeerDevice>(devices: D[], requester: string, now: number): D[] {
+export function pickFolderPeers<D extends PeerDevice>(
+  devices: D[],
+  requester: string,
+  now: number,
+): D[] {
   return devices
-    .filter((d) => d.device_id !== requester && now - d.last_seen < DEVICE_ONLINE_MS)
+    .filter(
+      (d) => d.device_id !== requester && now - d.last_seen < DEVICE_ONLINE_MS,
+    )
     .sort((a, b) => b.last_seen - a.last_seen)
     .slice(0, FOLDER_EXPORT_PEER_CAP);
 }
@@ -33,9 +39,16 @@ function trimSlash(p: string): string {
 }
 
 /** The folders a conversation recorded: the only paths a fetch may name. */
-export function conversationFolders(conv: { project_path?: string; git_root?: string; worktree_path?: string }): string[] {
+export function conversationFolders(conv: {
+  project_path?: string;
+  git_root?: string;
+  worktree_path?: string;
+}): string[] {
   return [conv.project_path, conv.git_root, conv.worktree_path]
-    .filter((p): p is string => typeof p === "string" && p.startsWith("/") && p !== "/")
+    .filter(
+      (p): p is string =>
+        typeof p === "string" && p.startsWith("/") && p !== "/",
+    )
     .map(trimSlash);
 }
 
@@ -61,10 +74,14 @@ export const requestFolderExport = mutation({
     // Ask this one machine only (the retry goes back to the machine that answered).
     only_device_id: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ command_ids: string[]; labels: Record<string, string> }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ command_ids: string[]; labels: Record<string, string> }> => {
     const path = trimSlash(args.path);
     return await requestPeerExport(ctx, args, "export_folder", (conv) => {
-      if (!conversationFolders(conv).includes(path)) throw new Error("path is not this conversation's folder");
+      if (!conversationFolders(conv).includes(path))
+        throw new Error("path is not this conversation's folder");
       return { path };
     });
   },
@@ -90,43 +107,70 @@ export async function requestPeerExport(
   ctx: { db: any },
   args: PeerExportArgs,
   command: PeerExportCommand,
-  payload: (conv: any) => Record<string, unknown> | Promise<Record<string, unknown>>,
+  payload: (
+    conv: any,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>,
 ): Promise<{ command_ids: string[]; labels: Record<string, string> }> {
   const userId = await getAuthenticatedUserId(ctx, args.api_token);
   if (!userId) throw new Error("Authentication required");
   const conv = await ctx.db.get(args.conversation_id);
-  if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+  if (!conv || conv.user_id.toString() !== userId.toString())
+    throw new Error("not your conversation");
   const extra = await payload(conv);
-  if (args.token_hash !== undefined && !TOKEN_HASH.test(args.token_hash)) throw new Error("token_hash must be 64 lowercase hex characters");
-  if (args.tailnet && !normalizePeerTailnet(args.tailnet)) throw new Error("tailnet must be an IPv4 address and a node name");
+  if (args.token_hash !== undefined && !TOKEN_HASH.test(args.token_hash))
+    throw new Error("token_hash must be 64 lowercase hex characters");
+  if (args.tailnet && !normalizePeerTailnet(args.tailnet))
+    throw new Error("tailnet must be an IPv4 address and a node name");
   const now = Date.now();
   const devices = (await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
-    .collect()) as Array<PeerDevice & { _id: Id<"devices">; direct_links_off?: boolean; folder_export_at?: number[] }>;
+    .collect()) as Array<
+    PeerDevice & {
+      _id: Id<"devices">;
+      direct_links_off?: boolean;
+      folder_export_at?: number[];
+    }
+  >;
   const requester = devices.find((d) => d.device_id === args.device_id);
   if (!requester) throw new Error("device_id is not one of your machines");
-  const candidates = args.only_device_id ? devices.filter((d) => d.device_id === args.only_device_id) : devices;
+  const candidates = args.only_device_id
+    ? devices.filter((d) => d.device_id === args.only_device_id)
+    : devices;
   const peers = pickFolderPeers(candidates, args.device_id, now);
-  if (args.only_device_id && peers.length === 0) throw new Error("that machine is not one of your online machines");
+  if (args.only_device_id && peers.length === 0)
+    throw new Error("that machine is not one of your online machines");
 
-  const grant = args.tailnet && args.token_hash && args.relay_only !== true && requester.direct_links_off !== true
-    ? { requester: { ip: args.tailnet.ip, name: args.tailnet.name }, token_hash: args.token_hash }
-    : undefined;
-  const argsFor = (peer: { direct_links_off?: boolean }) => JSON.stringify({
-    ...extra,
-    conversation_id: args.conversation_id,
-    requester: args.device_id,
-    ...(grant && peer.direct_links_off !== true ? { direct: grant } : {}),
-  });
+  const grant =
+    args.tailnet &&
+    args.token_hash &&
+    args.relay_only !== true &&
+    requester.direct_links_off !== true
+      ? {
+          requester: { ip: args.tailnet.ip, name: args.tailnet.name },
+          token_hash: args.token_hash,
+        }
+      : undefined;
+  const argsFor = (peer: { direct_links_off?: boolean }) =>
+    JSON.stringify({
+      ...extra,
+      conversation_id: args.conversation_id,
+      requester: args.device_id,
+      ...(grant && peer.direct_links_off !== true ? { direct: grant } : {}),
+    });
   const since = now - FOLDER_EXPORT_RATE_WINDOW_MS;
-  const inWindow = (d: { folder_export_at?: number[] }) => (d.folder_export_at ?? []).filter((t) => t > since);
+  const inWindow = (d: { folder_export_at?: number[] }) =>
+    (d.folder_export_at ?? []).filter((t) => t > since);
   const recent = devices.reduce((n, d) => n + inWindow(d).length, 0);
   if (peers.length > 0) {
     if (recent + 1 > FOLDER_EXPORT_RATE_LIMIT) {
-      throw new Error(`too many ${command === "export_folder" ? "folder" : "transcript"} requests: at most ${FOLDER_EXPORT_RATE_LIMIT} every ${FOLDER_EXPORT_RATE_WINDOW_MS / 60_000} minutes`);
+      throw new Error(
+        `too many ${command === "export_folder" ? "folder" : "transcript"} requests: at most ${FOLDER_EXPORT_RATE_LIMIT} every ${FOLDER_EXPORT_RATE_WINDOW_MS / 60_000} minutes`,
+      );
     }
-    await ctx.db.patch(requester._id, { folder_export_at: [...inWindow(requester), now] });
+    await ctx.db.patch(requester._id, {
+      folder_export_at: [...inWindow(requester), now],
+    });
   }
 
   const command_ids: string[] = [];
@@ -145,26 +189,45 @@ export async function requestPeerExport(
   return { command_ids, labels };
 }
 
-async function ownExportCommand(ctx: { db: any }, userId: Id<"users">, id: Id<"daemon_commands">, command: PeerExportCommand) {
+async function ownExportCommand(
+  ctx: { db: any },
+  userId: Id<"users">,
+  id: Id<"daemon_commands">,
+  command: PeerExportCommand,
+) {
   const cmd = await ctx.db.get(id);
-  if (!cmd || cmd.user_id.toString() !== userId.toString() || cmd.command !== command) return null;
+  if (
+    !cmd ||
+    cmd.user_id.toString() !== userId.toString() ||
+    cmd.command !== command
+  )
+    return null;
   return cmd;
 }
 
 export const folderExportOutcomes = query({
-  args: { api_token: v.optional(v.string()), command_ids: v.array(v.id("daemon_commands")) },
+  args: {
+    api_token: v.optional(v.string()),
+    command_ids: v.array(v.id("daemon_commands")),
+  },
   handler: (ctx, args) => peerExportOutcomes(ctx, args, "export_folder"),
 });
 
 /** The answers to the caller's own `command` rows, with the answering machine's label. */
-export async function peerExportOutcomes(ctx: { db: any }, args: { api_token?: string; command_ids: Id<"daemon_commands">[] }, command: PeerExportCommand) {
+export async function peerExportOutcomes(
+  ctx: { db: any },
+  args: { api_token?: string; command_ids: Id<"daemon_commands">[] },
+  command: PeerExportCommand,
+) {
   const userId = await getAuthenticatedUserId(ctx, args.api_token);
   if (!userId) return [];
   const devices = await ctx.db
     .query("devices")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  const labelOf = new Map(devices.map((d: any) => [d.device_id, d.label ?? null]));
+  const labelOf = new Map(
+    devices.map((d: any) => [d.device_id, d.label ?? null]),
+  );
   const out = [];
   for (const id of args.command_ids.slice(0, FOLDER_EXPORT_PEER_CAP)) {
     const cmd = await ownExportCommand(ctx, userId, id, command);
@@ -174,7 +237,8 @@ export async function peerExportOutcomes(ctx: { db: any }, args: { api_token?: s
       executed_at: cmd.executed_at ?? null,
       result: cmd.result ?? null,
       error: cmd.error ?? null,
-      label: (cmd.target_device_id && labelOf.get(cmd.target_device_id)) ?? null,
+      label:
+        (cmd.target_device_id && labelOf.get(cmd.target_device_id)) ?? null,
       device_id: cmd.target_device_id ?? null,
     });
   }
@@ -183,21 +247,33 @@ export async function peerExportOutcomes(ctx: { db: any }, args: { api_token?: s
 
 /** Delete an export's archive from storage once the requester has it (or gave up on it). */
 export const discardFolderBundle = mutation({
-  args: { api_token: v.optional(v.string()), command_id: v.id("daemon_commands") },
+  args: {
+    api_token: v.optional(v.string()),
+    command_id: v.id("daemon_commands"),
+  },
   handler: (ctx, args) => discardPeerBundle(ctx, args, "export_folder"),
 });
 
-export async function discardPeerBundle(ctx: { db: any; storage: any }, args: { api_token?: string; command_id: Id<"daemon_commands"> }, command: PeerExportCommand) {
+export async function discardPeerBundle(
+  ctx: { db: any; storage: any },
+  args: { api_token?: string; command_id: Id<"daemon_commands"> },
+  command: PeerExportCommand,
+) {
   const userId = await getAuthenticatedUserId(ctx, args.api_token);
   if (!userId) throw new Error("Authentication required");
   const cmd = await ownExportCommand(ctx, userId, args.command_id, command);
   if (cmd && cmd.executed_at === undefined) {
-    await ctx.db.patch(cmd._id, { executed_at: Date.now(), error: "abandoned" });
+    await ctx.db.patch(cmd._id, {
+      executed_at: Date.now(),
+      error: "abandoned",
+    });
     return { discarded: false };
   }
   if (!cmd?.result) return { discarded: false };
   let storageId: string | undefined;
-  try { storageId = JSON.parse(cmd.result)?.storage_id; } catch {}
+  try {
+    storageId = JSON.parse(cmd.result)?.storage_id;
+  } catch {}
   if (!storageId) return { discarded: false };
   await ctx.storage.delete(storageId as Id<"_storage">).catch(() => {});
   return { discarded: true };
@@ -206,10 +282,22 @@ export async function discardPeerBundle(ctx: { db: any; storage: any }, args: { 
 /** An export answer that arrives after its requester discarded the request
  *  (or after another answer settled it) is not recorded: its archive is
  *  deleted and the row stays as it was. True when the report was handled here. */
-export async function dropLateExportAnswer(ctx: { storage: any }, command: { command: string; executed_at?: number }, result: string | undefined): Promise<boolean> {
-  if ((command.command !== "export_folder" && command.command !== "export_session") || command.executed_at === undefined) return false;
+export async function dropLateExportAnswer(
+  ctx: { storage: any },
+  command: { command: string; executed_at?: number },
+  result: string | undefined,
+): Promise<boolean> {
+  if (
+    (command.command !== "export_folder" &&
+      command.command !== "export_session") ||
+    command.executed_at === undefined
+  )
+    return false;
   let storageId: unknown;
-  try { storageId = result ? JSON.parse(result)?.storage_id : undefined; } catch {}
-  if (typeof storageId === "string" && storageId) await ctx.storage.delete(storageId as Id<"_storage">).catch(() => {});
+  try {
+    storageId = result ? JSON.parse(result)?.storage_id : undefined;
+  } catch {}
+  if (typeof storageId === "string" && storageId)
+    await ctx.storage.delete(storageId as Id<"_storage">).catch(() => {});
   return true;
 }

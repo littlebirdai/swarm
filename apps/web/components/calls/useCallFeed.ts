@@ -12,10 +12,23 @@ import {
   transcriptChunkHeader,
 } from "@codecast/shared/contracts";
 import { AVATAR_KEYS } from "@codecast/shared/contracts/orgAvatars";
-import { characterNameFor, defaultCharacterFor, type Character } from "@codecast/shared/contracts/sessionCharacter";
-import { SessionCreatePendingError, defaultNewSessionPath, useInboxStore, useTrackedStore } from "../../store/inboxStore";
+import {
+  characterNameFor,
+  defaultCharacterFor,
+  type Character,
+} from "@codecast/shared/contracts/sessionCharacter";
+import {
+  SessionCreatePendingError,
+  defaultNewSessionPath,
+  useInboxStore,
+  useTrackedStore,
+} from "../../store/inboxStore";
 import { withoutUndo } from "../../store/undoStack";
-import { getRoom, ringInto, startTranscribing } from "../../lib/calls/callManager";
+import {
+  getRoom,
+  ringInto,
+  startTranscribing,
+} from "../../lib/calls/callManager";
 import { useRecentProjectsFeed } from "../../hooks/useRecentProjectsFeed";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { agentStatusAt } from "../../lib/liveness";
@@ -24,7 +37,11 @@ import { agentRoomName, findSessionRow } from "../../lib/calls/findSessionRow";
 import { identityPrefsNow } from "../../hooks/useIdentityPrefs";
 import { teamHasFeature } from "../../lib/teamFeatures";
 import { characterFor, identitySig } from "../../lib/sessionIdentity";
-import type { PalettePick, PalettePickTarget, PalettePickResult } from "../../lib/palettePick";
+import type {
+  PalettePick,
+  PalettePickTarget,
+  PalettePickResult,
+} from "../../lib/palettePick";
 
 // The two gestures that connect a huddle's words to the rest of the product:
 //
@@ -66,9 +83,13 @@ export function openFeedTargetPicker(opts: {
   useInboxStore.getState().openPalette({
     pick: {
       title: opts.title,
-      kinds: opts.who ? ["person", "role", "session", "doc"] : ["session", "doc"],
+      kinds: opts.who
+        ? ["person", "role", "session", "doc"]
+        : ["session", "doc"],
       exclude: opts.who?.exclude,
-      notePlaceholder: opts.withNote ? "Tell the agent what to do with it (optional)" : undefined,
+      notePlaceholder: opts.withNote
+        ? "Tell the agent what to do with it (optional)"
+        : undefined,
       confirmLabel: feed ? "Add" : "Send",
       toggle: opts.toggle,
       extras: [
@@ -83,9 +104,22 @@ export function openFeedTargetPicker(opts: {
         },
         ...(feed
           ? []
-          : [{ key: "new-doc", label: "Save as a new doc", icon: "doc" as const }]),
+          : [
+              {
+                key: "new-doc",
+                label: "Save as a new doc",
+                icon: "doc" as const,
+              },
+            ]),
         ...(opts.showSlack
-          ? [{ key: "slack", label: "The Slack channel id typed above", icon: "slack" as const, needsQuery: true }]
+          ? [
+              {
+                key: "slack",
+                label: "The Slack channel id typed above",
+                icon: "slack" as const,
+                needsQuery: true,
+              },
+            ]
           : []),
       ],
       onPick: (t: PalettePickTarget, r: PalettePickResult) => {
@@ -94,12 +128,14 @@ export function openFeedTargetPicker(opts: {
           t.kind === "role"
             ? { kind: "session", id: t.id, label: t.label }
             : t.kind === "session" || t.kind === "doc"
-            ? { kind: t.kind, id: t.id, label: t.label }
-            : t.kind === "extra" && t.key === "slack"
-              ? r.query ? { kind: "slack", id: r.query } : null
-              : t.kind === "extra"
-                ? ({ kind: t.key } as FeedTarget)
-                : null;
+              ? { kind: t.kind, id: t.id, label: t.label }
+              : t.kind === "extra" && t.key === "slack"
+                ? r.query
+                  ? { kind: "slack", id: r.query }
+                  : null
+                : t.kind === "extra"
+                  ? ({ kind: t.key } as FeedTarget)
+                  : null;
         if (target) opts.onPick(target, r.note);
       },
     },
@@ -140,7 +176,9 @@ async function awaitSpawn(stubId: string): Promise<string> {
     try {
       return await store.awaitConvexId(stubId);
     } catch (e) {
-      const parked = e instanceof SessionCreatePendingError && (store.sessions[stubId] || store.conversations[stubId]);
+      const parked =
+        e instanceof SessionCreatePendingError &&
+        (store.sessions[stubId] || store.conversations[stubId]);
       if (!parked || Date.now() >= deadline) throw e;
     }
   }
@@ -184,7 +222,10 @@ function spawnSessionWithMessage(
  *  id), so the room's name for it holds on every surface. */
 export function characterForRoom(seed: string, taken: Character[]): Character {
   const clash = (c: { avatar: string; name: string }) =>
-    taken.some((t) => t.avatar === c.avatar || t.name.toLowerCase() === c.name.toLowerCase());
+    taken.some(
+      (t) =>
+        t.avatar === c.avatar || t.name.toLowerCase() === c.name.toLowerCase(),
+    );
   const own = defaultCharacterFor(seed);
   if (!clash(own)) return { ...own, chosen: true };
   const start = AVATAR_KEYS.indexOf(own.avatar);
@@ -198,7 +239,9 @@ export function characterForRoom(seed: string, taken: Character[]): Character {
 
 /** The characters of the agents a live transcript already feeds, read from
  *  the store, so a newcomer can avoid their faces and names. */
-function charactersInRoom(routes: Array<{ kind: string; target: string }>): Character[] {
+function charactersInRoom(
+  routes: Array<{ kind: string; target: string }>,
+): Character[] {
   const st = useInboxStore.getState() as any;
   return routes
     .filter((r) => r.kind === "session")
@@ -226,45 +269,54 @@ const DEFAULT_ASK =
 // session targets (so callers can follow up), null otherwise.
 export function useSendExcerpt() {
   const convex = useConvex();
-  return useCallback(async (target: FeedTarget, excerpt: TranscriptExcerpt, note?: string) => {
-    const store = useInboxStore.getState() as any;
-    const link = (conversation: string) => {
-      const seqs = excerpt.segments.map((s) => s.seq).filter((n): n is number => typeof n === "number");
-      if (!excerpt.transcriptId || seqs.length === 0) return;
-      void convex
-        .mutation(api.transcripts.linkExcerpt, {
-          transcript_id: excerpt.transcriptId as any,
-          conversation,
-          from_seq: Math.min(...seqs),
-          to_seq: Math.max(...seqs),
-        })
-        .catch(() => {});
-    };
-    if (target.kind === "session") {
-      store.sendMessage(target.id, excerptBody(excerpt, note));
-      store.openSidePanel(target.id);
-      link(target.id);
-      return target.id;
-    }
-    if (target.kind === "new-session") {
-      const body = excerptBody(excerpt, note) + ((note ?? "").trim() ? "" : `\n\n${DEFAULT_ASK}`);
-      const convexId = await spawnSessionWithMessage(body);
-      link(convexId);
-      return convexId;
-    }
-    if (target.kind === "new-doc") {
-      const when = new Date(excerpt.startedAt).toLocaleDateString([], {
-        month: "short",
-        day: "numeric",
-      });
-      await store.createDoc({
-        title: excerpt.title ? `${excerpt.title} · huddle notes` : `Huddle notes · ${when}`,
-        content: excerptBody(excerpt, note),
-      });
+  return useCallback(
+    async (target: FeedTarget, excerpt: TranscriptExcerpt, note?: string) => {
+      const store = useInboxStore.getState() as any;
+      const link = (conversation: string) => {
+        const seqs = excerpt.segments
+          .map((s) => s.seq)
+          .filter((n): n is number => typeof n === "number");
+        if (!excerpt.transcriptId || seqs.length === 0) return;
+        void convex
+          .mutation(api.transcripts.linkExcerpt, {
+            transcript_id: excerpt.transcriptId as any,
+            conversation,
+            from_seq: Math.min(...seqs),
+            to_seq: Math.max(...seqs),
+          })
+          .catch(() => {});
+      };
+      if (target.kind === "session") {
+        store.sendMessage(target.id, excerptBody(excerpt, note));
+        store.openSidePanel(target.id);
+        link(target.id);
+        return target.id;
+      }
+      if (target.kind === "new-session") {
+        const body =
+          excerptBody(excerpt, note) +
+          ((note ?? "").trim() ? "" : `\n\n${DEFAULT_ASK}`);
+        const convexId = await spawnSessionWithMessage(body);
+        link(convexId);
+        return convexId;
+      }
+      if (target.kind === "new-doc") {
+        const when = new Date(excerpt.startedAt).toLocaleDateString([], {
+          month: "short",
+          day: "numeric",
+        });
+        await store.createDoc({
+          title: excerpt.title
+            ? `${excerpt.title} · huddle notes`
+            : `Huddle notes · ${when}`,
+          content: excerptBody(excerpt, note),
+        });
+        return null;
+      }
       return null;
-    }
-    return null;
-  }, [convex]);
+    },
+    [convex],
+  );
 }
 
 // Live feed: point the flowing words at a target. If nobody is scribing yet,
@@ -287,11 +339,15 @@ export function useAddLiveFeed(opts: {
   return useCallback(
     async (target: FeedTarget, opts?: { face?: boolean }) => {
       if (!roomKey) return;
-      let route: { kind: "session" | "doc" | "slack"; target: string } | null = null;
+      let route: { kind: "session" | "doc" | "slack"; target: string } | null =
+        null;
       const face = opts?.face === false ? { face: false } : {};
-      if (target.kind === "session") route = { kind: "session", target: target.id };
-      else if (target.kind === "doc") route = { kind: "doc", target: target.id };
-      else if (target.kind === "slack") route = { kind: "slack", target: target.id };
+      if (target.kind === "session")
+        route = { kind: "session", target: target.id };
+      else if (target.kind === "doc")
+        route = { kind: "doc", target: target.id };
+      else if (target.kind === "slack")
+        route = { kind: "slack", target: target.id };
       else if (target.kind === "new-session") {
         const st = useInboxStore.getState() as any;
         const label = st.call?.roomKey === roomKey ? "this huddle" : "a huddle";
@@ -307,14 +363,24 @@ export function useAddLiveFeed(opts: {
           convexId = await spawnSessionWithMessage(
             (stubId) => {
               stub = stubId;
-              character = characterForRoom(stubId, charactersInRoom(routes ?? []));
+              character = characterForRoom(
+                stubId,
+                charactersInRoom(routes ?? []),
+              );
               return huddleFeedBriefing({ name: character.name, label });
             },
             (id) => {
               // The feed names its own session; that is not the user's change.
-              if (character) withoutUndo(() => st.setSessionCharacter(id, { avatar: character!.avatar, name: character!.name }));
+              if (character)
+                withoutUndo(() =>
+                  st.setSessionCharacter(id, {
+                    avatar: character!.avatar,
+                    name: character!.name,
+                  }),
+                );
             },
-            teamId ?? (st.clientState?.ui?.active_team_id as string | undefined),
+            teamId ??
+              (st.clientState?.ui?.active_team_id as string | undefined),
           );
         } catch (err) {
           // Given up on the wait, but the session may have landed by now
@@ -361,8 +427,14 @@ export function useAddLiveFeed(opts: {
                 : "Join the huddle to start its transcription",
           );
         }
-        if (!(await startTranscribing(roomKey, [{ ...route, mode: "live", ...face }]))) {
-          throw new Error("Could not start transcribing. Somebody else may be the scribe already; pick the feed again once their words show here.");
+        if (
+          !(await startTranscribing(roomKey, [
+            { ...route, mode: "live", ...face },
+          ]))
+        ) {
+          throw new Error(
+            "Could not start transcribing. Somebody else may be the scribe already; pick the feed again once their words show here.",
+          );
         }
       };
       try {
@@ -372,7 +444,10 @@ export function useAddLiveFeed(opts: {
         // refusal must not leave that session waiting forever for words that
         // will never come.
         if (target.kind === "new-session") {
-          (useInboxStore.getState() as any).sendMessage(route.target, HUDDLE_FEED_DISREGARD);
+          (useInboxStore.getState() as any).sendMessage(
+            route.target,
+            HUDDLE_FEED_DISREGARD,
+          );
         }
         throw err;
       }
@@ -414,7 +489,9 @@ export type AgentInRoom = {
  *  whether one is mid-turn. Read from the store's session rows, subscribed
  *  through a signature of the fields shown so the thread's header and the
  *  stage's button do not re-render on every heartbeat of every session. */
-export function useAgentsInRoom(routes: Array<{ kind: string; target: string; added_by: string }>): AgentInRoom[] {
+export function useAgentsInRoom(
+  routes: Array<{ kind: string; target: string; added_by: string }>,
+): AgentInRoom[] {
   const targets = routes.filter((r) => r.kind === "session");
   const sig = targets.map((r) => r.target).join("|");
   const now = useCoarseNow(30_000);
@@ -423,7 +500,9 @@ export function useAgentsInRoom(routes: Array<{ kind: string; target: string; ad
       targets
         .map((r) => {
           const row = findSessionRow(st, r.target);
-          return row ? `${identitySig(row)}:${row.title ?? ""}:${row.agent_type ?? ""}:${agentStatusAt(row, now) ?? ""}` : r.target;
+          return row
+            ? `${identitySig(row)}:${row.title ?? ""}:${row.agent_type ?? ""}:${agentStatusAt(row, now) ?? ""}`
+            : r.target;
         })
         .join("|"),
   ]);
@@ -435,9 +514,13 @@ export function useAgentsInRoom(routes: Array<{ kind: string; target: string; ad
           id: String(row?._id ?? r.target),
           target: r.target,
           addedBy: r.added_by,
-          name: (row ? agentRoomName(row, identityPrefsNow()) : "new agent").slice(0, 40),
+          name: (row
+            ? agentRoomName(row, identityPrefsNow())
+            : "new agent"
+          ).slice(0, 40),
           agentType: row?.agent_type ?? "claude_code",
-          working: !!row && ACTIVE_AGENT_STATUSES.has(agentStatusAt(row, now) ?? ""),
+          working:
+            !!row && ACTIVE_AGENT_STATUSES.has(agentStatusAt(row, now) ?? ""),
           row,
         };
       }),
@@ -475,7 +558,13 @@ export function useAddToCall(opts: {
   const { roomKey, liveTranscriptId, routes, teamId } = opts;
   // A new agent starts in the room team's most used repo, read off this list.
   useRecentProjectsFeed();
-  const addFeed = useAddLiveFeed({ roomKey, liveTranscriptId, routes, teamId, getRoom });
+  const addFeed = useAddLiveFeed({
+    roomKey,
+    liveTranscriptId,
+    routes,
+    teamId,
+    getRoom,
+  });
   // From the pick to the route landing there is a wait (a new session's
   // create can park for minutes on a slow link): the caller shows the agent
   // on its way and rests its button, so a second click cannot spawn a
@@ -486,7 +575,10 @@ export function useAddToCall(opts: {
     // describeRoomLive, not describeRoom: a caller sitting in a redacted
     // session room may not read its name, so they must not be the one to
     // publish it. Outcome toasts live in ringInto.
-    const { anchorTitle } = describeRoomLive(roomKey, useInboxStore.getState() as any);
+    const { anchorTitle } = describeRoomLive(
+      roomKey,
+      useInboxStore.getState() as any,
+    );
     void ringInto(roomKey, [id], anchorTitle);
   };
   const feed = (t: FeedTarget, face?: boolean) => {
@@ -515,14 +607,25 @@ export function useAddToCall(opts: {
     // Where the team has agent faces, the agent may come with its video
     // avatar or as itself in the chat; the last choice is the next default.
     let face = readAgentFacePref();
-    const facesOn = teamHasFeature(st.teams, teamId ?? st.clientState?.ui?.active_team_id, "agent_faces");
+    const facesOn = teamHasFeature(
+      st.teams,
+      teamId ?? st.clientState?.ui?.active_team_id,
+      "agent_faces",
+    );
     openFeedTargetPicker({
       title: "Add to the call",
       gesture: "feed",
       showSlack: true,
       who: { exclude, onPerson: ring },
       toggle: facesOn
-        ? { label: "Video avatar", value: face, onChange: (v) => { face = v; writeAgentFacePref(v); } }
+        ? {
+            label: "Video avatar",
+            value: face,
+            onChange: (v) => {
+              face = v;
+              writeAgentFacePref(v);
+            },
+          }
         : undefined,
       onPick: (t) => feed(t, facesOn ? face : undefined),
     });

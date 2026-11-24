@@ -1,12 +1,25 @@
-import { join } from 'node:path';
+import { join } from "node:path";
 
-import type { BisectPlanRequest, BisectResponse, BisectStartRequest, BisectState } from '@codecast/shared/contracts/evalsApi';
-import { bisectResponseOf, isBisectLive } from '@platform/evals/analysis';
+import type {
+  BisectPlanRequest,
+  BisectResponse,
+  BisectStartRequest,
+  BisectState,
+} from "@codecast/shared/contracts/evalsApi";
+import { bisectResponseOf, isBisectLive } from "@platform/evals/analysis";
 
-import { BISECT_ID_RE, bisectPaths, bisectsDir, listBisects, readBisectState, readSteps, requestStop } from '../bisect/state';
-import { writeJsonAtomic } from '../paths';
-import { readJsonFile, tailLines } from './files';
-import { stillRunning, type Launched } from './spawn';
+import {
+  BISECT_ID_RE,
+  bisectPaths,
+  bisectsDir,
+  listBisects,
+  readBisectState,
+  readSteps,
+  requestStop,
+} from "../bisect/state";
+import { writeJsonAtomic } from "../paths";
+import { readJsonFile, tailLines } from "./files";
+import { stillRunning, type Launched } from "./spawn";
 
 // The api child's side of EVALS_HOME/bisects/<id>/ (evals-ui.md section 5,
 // "Process and state"). The runner (`./evals bisect start`) owns the folder
@@ -16,7 +29,8 @@ import { stillRunning, type Launched } from './spawn';
 // holds the machine, and the argv that plans or starts one.
 
 /** Where the api child records how it launched a bisect (spawn.ts Launched), beside the bisect's own files. */
-export const launchPath = (id: string): string => join(bisectPaths(id).dir, 'launch.json');
+export const launchPath = (id: string): string =>
+  join(bisectPaths(id).dir, "launch.json");
 
 /** A pending placeholder whose job is still alive (or not launched yet): the runner has not taken over. */
 function pendingAlive(state: BisectState): boolean {
@@ -32,11 +46,16 @@ function pendingAlive(state: BisectState): boolean {
  */
 export function settlePendingBisects(): void {
   for (const b of listBisects()) {
-    if (b.status !== 'planning') continue;
+    if (b.status !== "planning") continue;
     const state = readBisectState(b.id);
     if (!state?.pending || pendingAlive(state)) continue;
     const at = new Date().toISOString();
-    writeJsonAtomic(bisectPaths(b.id).state, { ...state, status: 'failed', finishedAt: at, updatedAt: at } satisfies BisectState);
+    writeJsonAtomic(bisectPaths(b.id).state, {
+      ...state,
+      status: "failed",
+      finishedAt: at,
+      updatedAt: at,
+    } satisfies BisectState);
   }
 }
 
@@ -46,18 +65,31 @@ export function settlePendingBisects(): void {
  * the runner never took over or that failed: then it is job.log, everything
  * the process printed, which holds the reason. Null when there is no such bisect.
  */
-export function readBisect(id: string, since: number, now = Date.now()): BisectResponse | null {
+export function readBisect(
+  id: string,
+  since: number,
+  now = Date.now(),
+): BisectResponse | null {
   if (!BISECT_ID_RE.test(id)) return null;
   settlePendingBisects();
   const state = readBisectState(id);
   if (!state) return null;
   const paths = bisectPaths(id);
-  const job = state.pending || state.status === 'failed' ? tailLines(paths.job) : [];
-  return bisectResponseOf({ state, steps: readSteps(id), since, logTail: job.length ? job : tailLines(paths.log), now });
+  const job =
+    state.pending || state.status === "failed" ? tailLines(paths.job) : [];
+  return bisectResponseOf({
+    state,
+    steps: readSteps(id),
+    since,
+    logTail: job.length ? job : tailLines(paths.log),
+    now,
+  });
 }
 
 /** Asks a running bisect to stop between reps; a finished one is left as it is. Null when there is no such bisect. */
-export function stopBisect(id: string): { id: string; stopping: boolean } | null {
+export function stopBisect(
+  id: string,
+): { id: string; stopping: boolean } | null {
   const state = BISECT_ID_RE.test(id) ? readBisectState(id) : null;
   if (!state) return null;
   return { id, stopping: isBisectLive(state.status) && requestStop(id) };
@@ -69,35 +101,38 @@ export function stopBisect(id: string): { id: string; stopping: boolean } | null
  * whose runner has not taken the lock yet, else null.
  */
 export function runningBisect(): string | null {
-  const held = readJsonFile<{ id?: string; pid?: number }>(join(bisectsDir(), 'running.json'));
+  const held = readJsonFile<{ id?: string; pid?: number }>(
+    join(bisectsDir(), "running.json"),
+  );
   if (held?.id && held.pid) {
     try {
       process.kill(held.pid, 0);
       return held.id;
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'EPERM') return held.id;
+      if ((e as NodeJS.ErrnoException).code === "EPERM") return held.id;
     }
   }
   return (
     listBisects()
-      .filter((b) => b.status === 'planning')
+      .filter((b) => b.status === "planning")
       .map((b) => readBisectState(b.id))
-      .find((s): s is BisectState => !!s?.pending && pendingAlive(s))?.id ?? null
+      .find((s): s is BisectState => !!s?.pending && pendingAlive(s))?.id ??
+    null
   );
 }
 
 /** The flags `bisect plan` and `bisect start` share (commands/bisect.ts planOptions), each its own argument. */
 const planFlags = (req: BisectPlanRequest): string[] => [
   req.surface,
-  '--good',
+  "--good",
   req.good,
-  '--bad',
+  "--bad",
   req.bad,
-  ...(req.freezes?.length ? ['--freeze', req.freezes.join(',')] : []),
-  ...(req.reps ? ['--reps', String(req.reps)] : []),
-  ...(req.budgetUsd ? ['--budget', String(req.budgetUsd)] : []),
-  ...(req.maxMinutes ? ['--max-minutes', String(req.maxMinutes)] : []),
-  ...(req.allCommits ? ['--all-commits'] : []),
+  ...(req.freezes?.length ? ["--freeze", req.freezes.join(",")] : []),
+  ...(req.reps ? ["--reps", String(req.reps)] : []),
+  ...(req.budgetUsd ? ["--budget", String(req.budgetUsd)] : []),
+  ...(req.maxMinutes ? ["--max-minutes", String(req.maxMinutes)] : []),
+  ...(req.allCommits ? ["--all-commits"] : []),
 ];
 
 /**
@@ -108,7 +143,23 @@ const planFlags = (req: BisectPlanRequest): string[] => [
  * `start` renders (and keeps the renders for any later bisect) before it
  * spends anything, and its state carries the classes.
  */
-export const bisectPlanArgs = (req: BisectPlanRequest): string[] => ['bisect', 'plan', ...planFlags(req), '--no-render', '--json'];
+export const bisectPlanArgs = (req: BisectPlanRequest): string[] => [
+  "bisect",
+  "plan",
+  ...planFlags(req),
+  "--no-render",
+  "--json",
+];
 
 /** `./evals bisect start … --id <id>` argv: --yes only on an explicit confirm. */
-export const bisectStartArgs = (req: BisectStartRequest, id: string): string[] => ['bisect', 'start', ...planFlags(req), ...(req.confirm ? ['--yes'] : []), '--id', id];
+export const bisectStartArgs = (
+  req: BisectStartRequest,
+  id: string,
+): string[] => [
+  "bisect",
+  "start",
+  ...planFlags(req),
+  ...(req.confirm ? ["--yes"] : []),
+  "--id",
+  id,
+];

@@ -23,16 +23,33 @@
 // derived/enriched field for an entity that also lives in the store, route it
 // through these helpers.
 
-import { parseProposalChangeRef, parseReplayRef, parseRepoObjectId, type EntityType } from "@codecast/shared/entities";
+import {
+  parseProposalChangeRef,
+  parseReplayRef,
+  parseRepoObjectId,
+  type EntityType,
+} from "@codecast/shared/entities";
 import { docRelatesToTask } from "@codecast/shared/tasks";
-import { roleAssigneeInfo, sameAssigneeInfo, type AssigneeInfo as ResolvedAssignee, type AssigneeRole } from "@codecast/shared/contracts/orgAssignee";
+import {
+  roleAssigneeInfo,
+  sameAssigneeInfo,
+  type AssigneeInfo as ResolvedAssignee,
+  type AssigneeRole,
+} from "@codecast/shared/contracts/orgAssignee";
 import type { AvatarKey } from "@codecast/shared/contracts/orgAvatars";
 import { roleAuthorOf, type IdentityPrefs } from "./sessionIdentity";
 import { deployMatchesRef } from "./deploys/deployPill";
 import { teamMembersOf } from "./activeTeam";
 import type { SessionRoleSnapshot } from "../store/inboxStore";
 
-type Member = { _id: string; name?: string; email?: string; image?: string; github_avatar_url?: string; github_username?: string };
+type Member = {
+  _id: string;
+  name?: string;
+  email?: string;
+  image?: string;
+  github_avatar_url?: string;
+  github_username?: string;
+};
 type AssigneeInfo = ResolvedAssignee | null;
 
 /**
@@ -40,12 +57,17 @@ type AssigneeInfo = ResolvedAssignee | null;
  * display name is not "sarah" in chat and "sarah@example.com" on every task and
  * doc chip. Chat's lib/chatViews calls this too.
  */
-export function memberDisplayName(m: Member | null | undefined, fallback = "Unknown"): string {
+export function memberDisplayName(
+  m: Member | null | undefined,
+  fallback = "Unknown",
+): string {
   return m?.name || m?.github_username || m?.email || fallback;
 }
 
 /** Their face: an uploaded image, else whatever GitHub has. */
-export function memberAvatarUrl(m: Member | null | undefined): string | undefined {
+export function memberAvatarUrl(
+  m: Member | null | undefined,
+): string | undefined {
   return m?.image || m?.github_avatar_url;
 }
 
@@ -64,14 +86,23 @@ export function resolveAssigneeInfo(
 ): AssigneeInfo {
   if (!assignee) return null;
   const m = teamMembers?.find((x) => x && x._id === assignee);
-  if (m) return { name: memberDisplayName(m), image: memberAvatarUrl(m), github_username: m.github_username };
+  if (m)
+    return {
+      name: memberDisplayName(m),
+      image: memberAvatarUrl(m),
+      github_username: m.github_username,
+    };
   // A role owns the task (org-roles-run-work.md R5): its face, name and handle
   // come from the org tree slice, so a rename or a new face shows on every task
   // at once, and a task just handed to a role shows it before the server echo.
   const role = roles?.find((r) => r && String(r._id) === assignee);
   if (role) return roleAssigneeInfo(role);
   if (currentUser && (assignee === currentUser._id || assignee === "me")) {
-    return { name: memberDisplayName(currentUser), image: memberAvatarUrl(currentUser), github_username: currentUser.github_username };
+    return {
+      name: memberDisplayName(currentUser),
+      image: memberAvatarUrl(currentUser),
+      github_username: currentUser.github_username,
+    };
   }
   if (fallback) return fallback;
   // A bare name typed by hand ("Priya") names a person; an id nobody here can
@@ -85,7 +116,10 @@ const isEntityId = (value: string): boolean => /^[a-z0-9]{32}$/.test(value);
 /** What a surface prints for an assignee key: the resolved name, the bare
  *  name a person typed, or, for an id nobody here can resolve, a phrase that
  *  says so instead of the id. */
-export function assigneeLabelOf(key: string, info: { name: string } | null | undefined): string {
+export function assigneeLabelOf(
+  key: string,
+  info: { name: string } | null | undefined,
+): string {
   if (info?.name) return info.name;
   return isEntityId(key) ? "Outside the team" : key;
 }
@@ -94,7 +128,12 @@ export function assigneeLabelOf(key: string, info: { name: string } | null | und
  *  as its face (RoleAvatar) rather than an image url. */
 /** `role` is set when the author is a role: draw it with RoleFace, which
  *  picks its animal (`face`) or its icon for the viewer. */
-type SessionAuthor = { name: string; avatar?: string | null; face?: AvatarKey; role?: SessionRoleSnapshot } | null;
+type SessionAuthor = {
+  name: string;
+  avatar?: string | null;
+  face?: AvatarKey;
+  role?: SessionRoleSnapshot;
+} | null;
 
 /**
  * Is this cached session a TEAMMATE's (injected by viewing/searching), not the
@@ -120,7 +159,12 @@ type SessionAuthor = { name: string; avatar?: string | null; face?: AvatarKey; r
  * rule instead (isForeignRow, which adds isAssignedAwayFromViewer).
  */
 export function isForeignSession(
-  session: { user_id?: string; author_name?: string | null; owned_by_me?: boolean; owner_user_id?: string | null },
+  session: {
+    user_id?: string;
+    author_name?: string | null;
+    owned_by_me?: boolean;
+    owner_user_id?: string | null;
+  },
   conv: { user_id?: string; is_own?: boolean } | null | undefined,
   myId: string | null | undefined,
 ): boolean {
@@ -180,25 +224,45 @@ export function ownsConversationAccount(
  * human host, so keying on it files the seat under the host and, because the
  * seat is usually the host's newest row, labels the host with the bot's name
  * and hides the human entirely (Littlebird's "Chief 19", 2026-09-23). */
-export function feedActorId(c: { user_id?: string | null; acting_user_id?: string | null }): string | undefined {
+export function feedActorId(c: {
+  user_id?: string | null;
+  acting_user_id?: string | null;
+}): string | undefined {
   const id = c.acting_user_id ?? c.user_id;
   return id ? String(id) : undefined;
 }
 
-export type FeedPerson = { id: string; name: string; image?: string | null; sessions: number; isRole: boolean };
+export type FeedPerson = {
+  id: string;
+  name: string;
+  image?: string | null;
+  sessions: number;
+  isRole: boolean;
+};
 
 /** People pills for a feed: one entry per acting identity, newest row's name
  * and avatar, sorted by session count. `author_name` is already the bot's for
  * a seat row and the host's for the rest, so keyed by feedActorId the names
  * line up with the ids. */
 export function derivePeople(
-  convs: Array<{ user_id?: string | null; acting_user_id?: string | null; author_name?: string | null; author_avatar?: string | null }>,
+  convs: Array<{
+    user_id?: string | null;
+    acting_user_id?: string | null;
+    author_name?: string | null;
+    author_avatar?: string | null;
+  }>,
 ): FeedPerson[] {
   const map = new Map<string, FeedPerson>();
   for (const c of convs) {
     const id = feedActorId(c);
     if (!id) continue;
-    const cur = map.get(id) || { id, name: c.author_name || "Unknown", image: c.author_avatar, sessions: 0, isRole: !!c.acting_user_id };
+    const cur = map.get(id) || {
+      id,
+      name: c.author_name || "Unknown",
+      image: c.author_avatar,
+      sessions: 0,
+      isRole: !!c.acting_user_id,
+    };
     cur.sessions += 1;
     map.set(id, cur);
   }
@@ -206,8 +270,27 @@ export function derivePeople(
 }
 
 export function resolveSessionAuthor(
-  session: { user_id?: string; author_name?: string | null; author_avatar?: string | null; acting_user_id?: string | null; standing_role_id?: string | null; role?: SessionRoleSnapshot | null },
-  conv: { user_id?: string; is_own?: boolean; acting_user_id?: string | null; user?: { name?: string | null; email?: string | null; avatar_url?: string | null } | null } | null | undefined,
+  session: {
+    user_id?: string;
+    author_name?: string | null;
+    author_avatar?: string | null;
+    acting_user_id?: string | null;
+    standing_role_id?: string | null;
+    role?: SessionRoleSnapshot | null;
+  },
+  conv:
+    | {
+        user_id?: string;
+        is_own?: boolean;
+        acting_user_id?: string | null;
+        user?: {
+          name?: string | null;
+          email?: string | null;
+          avatar_url?: string | null;
+        } | null;
+      }
+    | null
+    | undefined,
   currentUser: Member | null | undefined,
   teamMembers: Member[] | null | undefined,
   prefs?: IdentityPrefs,
@@ -217,8 +300,17 @@ export function resolveSessionAuthor(
   // the role (lib/sessionIdentity), never from the bot user minted for it,
   // whose name is the role's title. Pass the row through withLiveRole first
   // so a row with no snapshot still finds its role.
-  const roleAuthor = roleAuthorOf({ _id: "", standing_role_id: session.standing_role_id, role: session.role }, prefs);
-  if (roleAuthor) return { name: roleAuthor.name, avatar: null, face: roleAuthor.face, role: session.role! };
+  const roleAuthor = roleAuthorOf(
+    { _id: "", standing_role_id: session.standing_role_id, role: session.role },
+    prefs,
+  );
+  if (roleAuthor)
+    return {
+      name: roleAuthor.name,
+      avatar: null,
+      face: roleAuthor.face,
+      role: session.role!,
+    };
   // An anchor renders under its bot identity (acting_user_id) even when it is the
   // current user's OWN session — so resolve that BEFORE the own-session short
   // circuit. Team bots are in the roster; a personal bot isn't, but the server
@@ -226,23 +318,41 @@ export function resolveSessionAuthor(
   const actingId = session.acting_user_id ?? conv?.acting_user_id;
   if (actingId) {
     const bot = teamMembers?.find((x) => x && x._id === actingId);
-    if (bot) return { name: bot.name || bot.email || "Workspace agent", avatar: bot.image || bot.github_avatar_url };
-    if (session.author_name) return { name: session.author_name, avatar: session.author_avatar ?? null };
+    if (bot)
+      return {
+        name: bot.name || bot.email || "Workspace agent",
+        avatar: bot.image || bot.github_avatar_url,
+      };
+    if (session.author_name)
+      return {
+        name: session.author_name,
+        avatar: session.author_avatar ?? null,
+      };
   }
   // Authorship, not steering rights: a second-party-owned session is "mine"
   // per conv.is_own (the owner steers it like their own) but still RUN by
   // another account — the chip must name the runner. A known user_id decides;
   // only thin rows with no uid fall back to the is_own verdict.
-  const foreignAuthor = uid && currentUser?._id
-    ? uid !== currentUser._id
-    : isForeignSession(session, conv, currentUser?._id);
+  const foreignAuthor =
+    uid && currentUser?._id
+      ? uid !== currentUser._id
+      : isForeignSession(session, conv, currentUser?._id);
   if (!foreignAuthor) return null;
 
   // Display: live roster first (instant rename/avatar), then source fields, then meta.
   const m = uid ? teamMembers?.find((x) => x && x._id === uid) : null;
-  if (m) return { name: m.name || m.email || "Unknown", avatar: m.image || m.github_avatar_url };
-  const name = session.author_name ?? conv?.user?.name ?? conv?.user?.email ?? null;
-  if (name) return { name, avatar: session.author_avatar ?? conv?.user?.avatar_url ?? null };
+  if (m)
+    return {
+      name: m.name || m.email || "Unknown",
+      avatar: m.image || m.github_avatar_url,
+    };
+  const name =
+    session.author_name ?? conv?.user?.name ?? conv?.user?.email ?? null;
+  if (name)
+    return {
+      name,
+      avatar: session.author_avatar ?? conv?.user?.avatar_url ?? null,
+    };
   return null;
 }
 
@@ -254,12 +364,16 @@ export function resolveSessionAuthor(
 export function computePlanProgress(
   tasks: Array<{ status?: string }> | null | undefined,
 ): { total: number; done: number; in_progress: number; open: number } {
-  let total = 0, done = 0, in_progress = 0, open = 0;
+  let total = 0,
+    done = 0,
+    in_progress = 0,
+    open = 0;
   for (const t of tasks || []) {
     if (t.status === "dropped") continue;
     total++;
     if (t.status === "done") done++;
-    else if (t.status === "in_progress" || t.status === "in_review") in_progress++;
+    else if (t.status === "in_progress" || t.status === "in_review")
+      in_progress++;
     else if (t.status === "open" || t.status === "backlog") open++;
   }
   return { total, done, in_progress, open };
@@ -270,13 +384,27 @@ export function computePlanProgress(
 // server-only enrichment — origin_session, session_count, etc. — is preserved).
 // blocked_by and waits carry the task graph, so a plan graph shows a blocker or
 // wait the moment it is edited (task-graph.md TG12).
-const LIVE_TASK_FIELDS = ["status", "priority", "title", "assignee", "labels", "execution_status", "description", "updated_at", "blocked_by", "waits"] as const;
+const LIVE_TASK_FIELDS = [
+  "status",
+  "priority",
+  "title",
+  "assignee",
+  "labels",
+  "execution_status",
+  "description",
+  "updated_at",
+  "blocked_by",
+  "waits",
+] as const;
 
 // A list field from the store and the same list from a server snapshot are two
 // arrays even when equal, so lists compare by content: a reference check would
 // rebuild every row on every pass.
 const sameField = (a: unknown, b: unknown) =>
-  a === b || (Array.isArray(a) && Array.isArray(b) && JSON.stringify(a) === JSON.stringify(b));
+  a === b ||
+  (Array.isArray(a) &&
+    Array.isArray(b) &&
+    JSON.stringify(a) === JSON.stringify(b));
 
 /**
  * Overlay live store tasks onto a server-query snapshot (e.g. plan.tasks), so a
@@ -296,8 +424,16 @@ export function mergeLiveTasks(
   return snapshotTasks.map((t) => {
     const live = storeTasks[t._id];
     const assignee = live ? live.assignee : t.assignee;
-    const assignee_info = resolveAssigneeInfo(assignee, t.assignee_info, teamMembers, currentUser, roles);
-    let merged = sameAssigneeInfo(assignee_info, t.assignee_info) ? t : { ...t, assignee_info };
+    const assignee_info = resolveAssigneeInfo(
+      assignee,
+      t.assignee_info,
+      teamMembers,
+      currentUser,
+      roles,
+    );
+    let merged = sameAssigneeInfo(assignee_info, t.assignee_info)
+      ? t
+      : { ...t, assignee_info };
     if (live) {
       for (const f of LIVE_TASK_FIELDS) {
         if (live[f] !== undefined && !sameField(live[f], t[f])) {
@@ -316,11 +452,20 @@ export function mergeLiveTasks(
  * task adopted by a later session lists that session too.
  */
 export function taskLinkedConversationIds(
-  task: { created_from_conversation?: string | null; conversation_ids?: string[] | null } | null | undefined,
+  task:
+    | {
+        created_from_conversation?: string | null;
+        conversation_ids?: string[] | null;
+      }
+    | null
+    | undefined,
 ): string[] {
   if (!task) return [];
   const out: string[] = [];
-  for (const id of [task.created_from_conversation, ...(task.conversation_ids ?? [])]) {
+  for (const id of [
+    task.created_from_conversation,
+    ...(task.conversation_ids ?? []),
+  ]) {
     if (id && !out.includes(String(id))) out.push(String(id));
   }
   return out;
@@ -336,12 +481,20 @@ export function taskLinkedConversationIds(
  * wins (it carries the insight enrichment).
  */
 export function resolveTaskLinkedConversations(
-  task: { linked_conversations?: any[]; created_from_conversation?: string | null; conversation_ids?: string[] | null } | null | undefined,
+  task:
+    | {
+        linked_conversations?: any[];
+        created_from_conversation?: string | null;
+        conversation_ids?: string[] | null;
+      }
+    | null
+    | undefined,
   sessions: Record<string, any> | null | undefined,
   originBadges: Record<string, any> | null | undefined,
 ): any[] {
   if (!task) return [];
-  if (Array.isArray(task.linked_conversations)) return task.linked_conversations;
+  if (Array.isArray(task.linked_conversations))
+    return task.linked_conversations;
   const out: any[] = [];
   for (const id of taskLinkedConversationIds(task)) {
     const row = sessions?.[id];
@@ -385,14 +538,18 @@ export function taskOwnerOf<T extends { _id: string; is_owner?: boolean }>(
   sessions: Record<string, any> | null | undefined,
   taskId: string | null | undefined,
 ): T | null {
-  return linked.find((c) => sessionOwnsTask(c, sessions?.[c._id], taskId)) ?? null;
+  return (
+    linked.find((c) => sessionOwnsTask(c, sessions?.[c._id], taskId)) ?? null
+  );
 }
 
 /**
  * Conversation page href for a linked session. Always the Convex conversation
  * id — `session_id` is the daemon handle and 404s at /conversation/<session_id>.
  */
-export function taskSessionHref(conv: { _id?: string | null } | null | undefined): string | null {
+export function taskSessionHref(
+  conv: { _id?: string | null } | null | undefined,
+): string | null {
   return conv?._id ? `/conversation/${conv._id}` : null;
 }
 
@@ -400,10 +557,9 @@ export function taskSessionHref(conv: { _id?: string | null } | null | undefined
  * Origin session first, then live, then most recently updated. The server
  * snapshot walks conversation_ids in write order, which is not origin-first.
  */
-export function sortTaskLinkedConversations<T extends { _id: string; is_active?: boolean; updated_at?: number }>(
-  convs: T[],
-  originId?: string | null,
-): T[] {
+export function sortTaskLinkedConversations<
+  T extends { _id: string; is_active?: boolean; updated_at?: number },
+>(convs: T[], originId?: string | null): T[] {
   return [...convs].sort((a, b) => {
     if (originId) {
       const ao = a._id === originId ? 0 : 1;
@@ -424,7 +580,15 @@ export function sortTaskLinkedConversations<T extends { _id: string; is_active?:
  * timing applies until the snapshot lands).
  */
 export function resolveTaskRelatedDocs(
-  task: { related_docs?: any[]; created_from_conversation?: string | null; short_id?: string | null; created_at?: number | null } | null | undefined,
+  task:
+    | {
+        related_docs?: any[];
+        created_from_conversation?: string | null;
+        short_id?: string | null;
+        created_at?: number | null;
+      }
+    | null
+    | undefined,
   docs: Record<string, any> | null | undefined,
 ): any[] {
   if (!task) return [];
@@ -434,8 +598,19 @@ export function resolveTaskRelatedDocs(
   const out: any[] = [];
   for (const id in docs) {
     const d = docs[id];
-    if (d && d.conversation_id === origin && !d.archived_at && docRelatesToTask(d, task)) {
-      out.push({ _id: d._id, title: d.display_title ?? d.title, doc_type: d.doc_type, source: d.source, created_at: d.created_at });
+    if (
+      d &&
+      d.conversation_id === origin &&
+      !d.archived_at &&
+      docRelatesToTask(d, task)
+    ) {
+      out.push({
+        _id: d._id,
+        title: d.display_title ?? d.title,
+        doc_type: d.doc_type,
+        source: d.source,
+        created_at: d.created_at,
+      });
     }
   }
   return out.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
@@ -449,7 +624,9 @@ export function resolveTaskRelatedDocs(
  * Unlike the object derived-fields above, display_title is a string, so it
  * reconciles cleanly under the store's === field-protection — safe to store.
  */
-export function deriveDocDisplayTitle(doc: { source?: string; content?: string } | null | undefined): string | undefined {
+export function deriveDocDisplayTitle(
+  doc: { source?: string; content?: string } | null | undefined,
+): string | undefined {
   if (!doc || doc.source !== "plan_mode" || !doc.content) return undefined;
   const m = doc.content.match(/^#\s+(.+)/m);
   return m ? m[1].trim() : undefined;
@@ -464,10 +641,15 @@ export function deriveDocDisplayTitle(doc: { source?: string; content?: string }
  * match as substrings.
  */
 export function docSearchText(
-  doc: { display_title?: string; title?: string; source_file?: string | null } | null | undefined,
+  doc:
+    | { display_title?: string; title?: string; source_file?: string | null }
+    | null
+    | undefined,
 ): string {
   if (!doc) return "";
-  return [doc.display_title, doc.title, doc.source_file].filter(Boolean).join(" ");
+  return [doc.display_title, doc.title, doc.source_file]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -501,7 +683,9 @@ export type StoreEntitySeed = {
 // pill on screen, instead of each one scanning thousands of rows.
 const shortIdIndexes = new WeakMap<object, Map<string, any>>();
 
-function byShortId(collection: Record<string, any> | undefined | null): Map<string, any> | null {
+function byShortId(
+  collection: Record<string, any> | undefined | null,
+): Map<string, any> | null {
   if (!collection) return null;
   const cached = shortIdIndexes.get(collection);
   if (cached) return cached;
@@ -517,7 +701,10 @@ function byShortId(collection: Record<string, any> | undefined | null): Map<stri
 }
 
 /** Look an id up in a collection by Convex id first, then by short id. */
-export function lookup(collection: Record<string, any> | undefined | null, rawId: string): any {
+export function lookup(
+  collection: Record<string, any> | undefined | null,
+  rawId: string,
+): any {
   if (!collection) return undefined;
   return collection[rawId] ?? byShortId(collection)?.get(rawId.toLowerCase());
 }
@@ -542,7 +729,10 @@ const TYPE_BY_COLLECTION: Array<[string, EntityType]> = [
   ["opsReplays", "replay"],
 ];
 
-export function entityTypeInStore(state: any, convexId: string): EntityType | undefined {
+export function entityTypeInStore(
+  state: any,
+  convexId: string,
+): EntityType | undefined {
   if (!state || !convexId) return undefined;
   for (const [key, type] of TYPE_BY_COLLECTION) {
     if (state[key]?.[convexId]) return type;
@@ -571,7 +761,12 @@ export function personInStore(state: any, ref: string): any {
   const members = teamMembersOf(state);
   if (!ref) return undefined;
   const key = ref.replace(/^@/, "").toLowerCase();
-  return members.find((m: any) => String(m?._id) === ref || m?.github_username?.toLowerCase() === key || m?.username?.toLowerCase() === key);
+  return members.find(
+    (m: any) =>
+      String(m?._id) === ref ||
+      m?.github_username?.toLowerCase() === key ||
+      m?.username?.toLowerCase() === key,
+  );
 }
 
 /**
@@ -609,7 +804,10 @@ export function findEntityInStore(
     case "proposal":
       // The workspace's proposals (list rows, and any the org page opened).
       // One change of a proposal (`op-55#3`) names the proposal's row.
-      return lookup(state.orgProposals, parseProposalChangeRef(rawId)?.proposal ?? rawId);
+      return lookup(
+        state.orgProposals,
+        parseProposalChangeRef(rawId)?.proposal ?? rawId,
+      );
     case "decision":
       // The viewer's decision queue (open rows, and answered ones for a day).
       return lookup(state.sessionDecisions, rawId);
@@ -622,8 +820,12 @@ export function findEntityInStore(
       return lookup(state.opsReplays, parseReplayRef(rawId)?.replay ?? rawId);
     case "deploy":
       // The line's deploys (lineDeploys), then the Deploys page's (teamDeploys), by `dp-N` or the Actions run that carries it.
-      return (Object.values(state.lineDeploys ?? {}).find((d: any) => deployMatchesRef(d, rawId))
-        ?? Object.values(state.teamDeploys ?? {}).find((d: any) => deployMatchesRef(d, rawId))) as StoreEntitySeed | undefined;
+      return (Object.values(state.lineDeploys ?? {}).find((d: any) =>
+        deployMatchesRef(d, rawId),
+      ) ??
+        Object.values(state.teamDeploys ?? {}).find((d: any) =>
+          deployMatchesRef(d, rawId),
+        )) as StoreEntitySeed | undefined;
     case "trigger":
       // The viewer's own triggers (agentTasks) resolve locally by Convex id or
       // short id; a foreign (bot-owned) trigger waits for webGet.
@@ -635,7 +837,10 @@ export function findEntityInStore(
       if (direct) return direct;
       const ref = parseRepoObjectId(rawId);
       if (ref?.type !== "pr" || !state.pullRequests) return undefined;
-      return Object.values<any>(state.pullRequests).find((row) => row?.number === ref.number && row?.repository === ref.repository);
+      return Object.values<any>(state.pullRequests).find(
+        (row) =>
+          row?.number === ref.number && row?.repository === ref.repository,
+      );
     }
     case "commit": {
       const direct = state.commits?.[rawId];
@@ -643,16 +848,19 @@ export function findEntityInStore(
       const ref = parseRepoObjectId(rawId);
       if (ref?.type !== "commit" || !state.commits) return undefined;
       return Object.values<any>(state.commits).find(
-        (row) => typeof row?.sha === "string" && row.sha.startsWith(ref.sha) && (!row.repository || row.repository === ref.repository),
+        (row) =>
+          typeof row?.sha === "string" &&
+          row.sha.startsWith(ref.sha) &&
+          (!row.repository || row.repository === ref.repository),
       );
     }
     case "session": {
       const short = rawId.slice(0, 7).toLowerCase();
       return (
-        state.conversations?.[rawId]
-        ?? state.sessions?.[rawId]
-        ?? lookup(state.conversations, short)
-        ?? lookup(state.sessions, short)
+        state.conversations?.[rawId] ??
+        state.sessions?.[rawId] ??
+        lookup(state.conversations, short) ??
+        lookup(state.sessions, short)
       );
     }
     default:

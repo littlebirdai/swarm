@@ -63,7 +63,10 @@ export function upsertGrokTrustedFolder(
 /** Returns true when the file was written. Failures are swallowed so a
  *  toml problem cannot block a grok launch — the pane classifier still
  *  answers the dialog if it appears. */
-export function ensureGrokFolderTrusted(cwd: string, grokHome?: string): boolean {
+export function ensureGrokFolderTrusted(
+  cwd: string,
+  grokHome?: string,
+): boolean {
   try {
     if (!cwd) return false;
     const file = grokTrustedFoldersPath(grokHome);

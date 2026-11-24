@@ -10,7 +10,10 @@ export default function GoalPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <div className="h-full overflow-y-auto" style={{ background: "var(--sol-bg)" }}>
+        <div
+          className="h-full overflow-y-auto"
+          style={{ background: "var(--sol-bg)" }}
+        >
           <div className="mx-auto max-w-[860px]">
             <GoalSheet sheet={{ kind: "initiative", ref: id }} />
           </div>

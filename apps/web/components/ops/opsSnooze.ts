@@ -29,7 +29,8 @@ export function snoozeChoices(kind: AttentionItem["kind"]): SnoozeChoice[] {
   const d1 = { key: "24h", label: "24 hours", ms: 24 * HOUR };
   const d7 = { key: "7d", label: "7 days", ms: 7 * 24 * HOUR };
   if (kind === "watch") return [h1, d1, d7];
-  if (kind === "issue") return [h1, d1, { key: "change", label: "Until it gets worse", ms: null }];
+  if (kind === "issue")
+    return [h1, d1, { key: "change", label: "Until it gets worse", ms: null }];
   return [d1, d7];
 }
 
@@ -39,28 +40,52 @@ function grewPast(volume: number, at: number): boolean {
 }
 
 /** Whether an item is snoozed now: a muted watch, or a person's snooze it has not outgrown. */
-export function isSnoozed(item: AttentionItem, snoozes: OpsSnoozes | null | undefined, now: number): boolean {
-  if (item.kind === "watch") return !!item.watch.muted_until && item.watch.muted_until > now;
+export function isSnoozed(
+  item: AttentionItem,
+  snoozes: OpsSnoozes | null | undefined,
+  now: number,
+): boolean {
+  if (item.kind === "watch")
+    return !!item.watch.muted_until && item.watch.muted_until > now;
   const rec = snoozes?.[item.key];
   if (!rec) return false;
   if (rec.until !== null && now >= rec.until) return false;
   // A snooze taken under an older name for the same state (spiking, a reader's watch error) still holds.
-  const was = rec.state === ("spiking" as string) ? "escalating" : item.kind === "reader" && rec.state === "erroring" ? "reader" : rec.state;
+  const was =
+    rec.state === ("spiking" as string)
+      ? "escalating"
+      : item.kind === "reader" && rec.state === "erroring"
+        ? "reader"
+        : rec.state;
   if (was !== item.state) return false;
-  if (rec.until === null && item.kind === "issue" && Number.isFinite(item.volume) && grewPast(item.volume, rec.volume)) return false;
+  if (
+    rec.until === null &&
+    item.kind === "issue" &&
+    Number.isFinite(item.volume) &&
+    grewPast(item.volume, rec.volume)
+  )
+    return false;
   return true;
 }
 
 /** When a snoozed item comes back, as a time; null for "until it gets worse". */
-export function snoozedUntil(item: AttentionItem, snoozes: OpsSnoozes | null | undefined): number | null {
+export function snoozedUntil(
+  item: AttentionItem,
+  snoozes: OpsSnoozes | null | undefined,
+): number | null {
   if (item.kind === "watch") return item.watch.muted_until ?? null;
   return snoozes?.[item.key]?.until ?? null;
 }
 
-export function splitSnoozed<T extends AttentionItem>(items: T[], snoozes: OpsSnoozes | null | undefined, now: number): { live: T[]; snoozed: T[] } {
+export function splitSnoozed<T extends AttentionItem>(
+  items: T[],
+  snoozes: OpsSnoozes | null | undefined,
+  now: number,
+): { live: T[]; snoozed: T[] } {
   const live: T[] = [];
   const snoozed: T[] = [];
-  for (const it of items) (isSnoozed(it, snoozes, now) ? snoozed : live).push(it);
+  for (const it of items)
+    (isSnoozed(it, snoozes, now) ? snoozed : live).push(it);
   return { live, snoozed };
 }
 
@@ -68,10 +93,22 @@ export function splitSnoozed<T extends AttentionItem>(items: T[], snoozes: OpsSn
  * The person's snoozes with one added (or, with `choice` null, removed), and
  * every one that has run out dropped, so the bag never grows past what is live.
  */
-export function nextSnoozes(current: OpsSnoozes | null | undefined, item: AttentionItem, choice: SnoozeChoice | null, now: number): OpsSnoozes {
+export function nextSnoozes(
+  current: OpsSnoozes | null | undefined,
+  item: AttentionItem,
+  choice: SnoozeChoice | null,
+  now: number,
+): OpsSnoozes {
   const out: OpsSnoozes = {};
-  for (const [k, v] of Object.entries(current ?? {})) if (v.until === null || v.until > now) out[k] = v;
-  if (choice) out[item.key] = { until: choice.ms === null ? null : now + choice.ms, state: item.state, volume: Number.isFinite(item.volume) ? item.volume : 0, at: now };
+  for (const [k, v] of Object.entries(current ?? {}))
+    if (v.until === null || v.until > now) out[k] = v;
+  if (choice)
+    out[item.key] = {
+      until: choice.ms === null ? null : now + choice.ms,
+      state: item.state,
+      volume: Number.isFinite(item.volume) ? item.volume : 0,
+      at: now,
+    };
   else delete out[item.key];
   return out;
 }

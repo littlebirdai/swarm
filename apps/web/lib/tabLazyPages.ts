@@ -16,14 +16,18 @@ type PageModule = { default: ComponentType<any> };
 // pane, unmounts the page through its Suspense fallback and mounts it again —
 // a blank flash and lost page state (open dialogs, scroll) on an unrelated
 // edit. Keyed by page path, so a genuinely new route still gets a fresh lazy.
-const lazyPages: Map<string, LazyExoticComponent<ComponentType<any>>> =
-  ((globalThis as any).__codecastLazyPages ??= new Map());
+const lazyPages: Map<string, LazyExoticComponent<ComponentType<any>>> = ((
+  globalThis as any
+).__codecastLazyPages ??= new Map());
 const lazyLoaders = new Map<string, () => Promise<unknown>>();
 
 export function lazyPage(key: string, loader: () => Promise<PageModule>) {
   lazyLoaders.set(key, loader);
   let c = lazyPages.get(key);
-  if (!c) { c = lazy(() => loadPage(key, loader)); lazyPages.set(key, c); }
+  if (!c) {
+    c = lazy(() => loadPage(key, loader));
+    lazyPages.set(key, c);
+  }
   return c;
 }
 
@@ -72,7 +76,10 @@ const viteRecovery: LazyPageRecovery | null = import.meta.hot
       // Every shell page is a .tsx file under the web root, which is what the
       // `@/` alias names. A page that is not would 404 here and fall through
       // to the boundary, the same outcome as having no retry at all.
-      reimport: (key) => import(/* @vite-ignore */ `${key.replace(/^@\//, "/")}.tsx?t=${Date.now()}`),
+      reimport: (key) =>
+        import(
+          /* @vite-ignore */ `${key.replace(/^@\//, "/")}.tsx?t=${Date.now()}`
+        ),
     }
   : null;
 
@@ -91,7 +98,11 @@ export async function loadPage(
     if (!recovery || !isChunkLoadError(errorSummary(error))) throw error;
     const deadline = now() + windowMs;
     let last: unknown = error;
-    for (let updated = true; updated; updated = await recovery.waitForUpdate(deadline - now())) {
+    for (
+      let updated = true;
+      updated;
+      updated = await recovery.waitForUpdate(deadline - now())
+    ) {
       try {
         return await recovery.reimport(key);
       } catch (retryError) {

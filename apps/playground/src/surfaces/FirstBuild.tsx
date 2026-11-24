@@ -12,20 +12,37 @@ import { Face } from "../ui/Face";
 import { Narration } from "./BuildCard";
 import s from "./FirstBuild.module.css";
 
-export function FirstBuild({ m, leaving }: { m: MessageView; leaving: boolean }) {
+export function FirstBuild({
+  m,
+  leaving,
+}: {
+  m: MessageView;
+  leaving: boolean;
+}) {
   const b = m.build;
   const { narration } = useBuildProgress(b?.id);
   const now = useNow(1000);
   const live = b?.status === "live";
-  const elapsed = b?.started_at ? (live && b.finished_at ? b.finished_at : now) - b.started_at : 0;
-  const status = live ? "Going live" : b?.status === "building" ? `Clay is making it · ${clock(elapsed)}` : "Clay is about to start";
+  const elapsed = b?.started_at
+    ? (live && b.finished_at ? b.finished_at : now) - b.started_at
+    : 0;
+  const status = live
+    ? "Going live"
+    : b?.status === "building"
+      ? `Clay is making it · ${clock(elapsed)}`
+      : "Clay is about to start";
   return (
     <div className={`${s.first} ${leaving ? s.leaving : ""}`} role="status">
-      <BuildLine progress={live ? 100 : buildProgress(elapsed)} state={live ? "live" : "building"} />
+      <BuildLine
+        progress={live ? 100 : buildProgress(elapsed)}
+        state={live ? "live" : "building"}
+      />
       <div className={s.inner}>
         <p className={s.asked}>
           {m.author ? <Face person={m.author} size={20} /> : <Blob size={20} />}
-          <span><b>{m.author?.name ?? "Someone"}</b> asked for</span>
+          <span>
+            <b>{m.author?.name ?? "Someone"}</b> asked for
+          </span>
         </p>
         <p className={s.request}>{m.body}</p>
         <div className={s.steps}>

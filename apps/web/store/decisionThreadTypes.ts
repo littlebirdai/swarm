@@ -10,7 +10,12 @@ export type DecisionThreadOwnerVia = "asker" | "run" | "lead" | "workspace";
 export type DecisionThreadItem = {
   _id: string;
   decision_short_id?: string;
-  owner: { conversation_id: string; short_id?: string; name: string; via: DecisionThreadOwnerVia } | null;
+  owner: {
+    conversation_id: string;
+    short_id?: string;
+    name: string;
+    via: DecisionThreadOwnerVia;
+  } | null;
 };
 
 /** One entry of a decision's thread (convex DecisionComment). A local stub
@@ -43,7 +48,13 @@ export type DecisionCommentRow = {
 export const decisionCommentStubId = (clientId: string) => `dcstub-${clientId}`;
 
 /** The row a comment paints as before the server has it. */
-export function decisionCommentStub(o: { decisionId: string; text: string; clientId: string; parentId?: string; me?: { _id?: string; name?: string } }): DecisionCommentRow {
+export function decisionCommentStub(o: {
+  decisionId: string;
+  text: string;
+  clientId: string;
+  parentId?: string;
+  me?: { _id?: string; name?: string };
+}): DecisionCommentRow {
   return {
     _id: decisionCommentStubId(o.clientId),
     decision_id: o.decisionId,

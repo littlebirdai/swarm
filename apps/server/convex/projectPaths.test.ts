@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { conversationProjectRoot, foldCheckoutsByRepository, knownCheckoutRoots, normalizeProjectPath, pathWithinLocalRoots, pickInheritedGitMeta, projectContainingPath } from "./projectPaths";
+import {
+  conversationProjectRoot,
+  foldCheckoutsByRepository,
+  knownCheckoutRoots,
+  normalizeProjectPath,
+  pathWithinLocalRoots,
+  pickInheritedGitMeta,
+  projectContainingPath,
+} from "./projectPaths";
 
 describe("normalizeProjectPath", () => {
   // Regression: a session whose cwd fell back to $HOME (e.g. a remote/resume
@@ -16,26 +24,44 @@ describe("normalizeProjectPath", () => {
   });
 
   test("keeps real project roots", () => {
-    expect(normalizeProjectPath("/Users/ashot/src/codecast")).toBe("/Users/ashot/src/codecast");
-    expect(normalizeProjectPath("/home/ubuntu/repos/api")).toBe("/home/ubuntu/repos/api");
-    expect(normalizeProjectPath("/Users/ashot/Desktop/scratch")).toBe("/Users/ashot/Desktop/scratch");
+    expect(normalizeProjectPath("/Users/ashot/src/codecast")).toBe(
+      "/Users/ashot/src/codecast",
+    );
+    expect(normalizeProjectPath("/home/ubuntu/repos/api")).toBe(
+      "/home/ubuntu/repos/api",
+    );
+    expect(normalizeProjectPath("/Users/ashot/Desktop/scratch")).toBe(
+      "/Users/ashot/Desktop/scratch",
+    );
   });
 
   test("never guesses a repo from the folder layout", () => {
-    expect(normalizeProjectPath("/Users/a/code/work.noindex/GitHub/slack-bot")).toBe("/Users/a/code/work.noindex/GitHub/slack-bot");
-    expect(normalizeProjectPath("/Users/ashot/src/codecast/apps/web/")).toBe("/Users/ashot/src/codecast/apps/web");
+    expect(
+      normalizeProjectPath("/Users/a/code/work.noindex/GitHub/slack-bot"),
+    ).toBe("/Users/a/code/work.noindex/GitHub/slack-bot");
+    expect(normalizeProjectPath("/Users/ashot/src/codecast/apps/web/")).toBe(
+      "/Users/ashot/src/codecast/apps/web",
+    );
   });
 
   test("strips worktree suffixes", () => {
-    expect(normalizeProjectPath("/Users/ashot/src/codecast/.conductor/feat-x")).toBe("/Users/ashot/src/codecast");
-    expect(normalizeProjectPath("/Users/ashot/src/codecast/.codecast/worktrees/wt1")).toBe("/Users/ashot/src/codecast");
+    expect(
+      normalizeProjectPath("/Users/ashot/src/codecast/.conductor/feat-x"),
+    ).toBe("/Users/ashot/src/codecast");
+    expect(
+      normalizeProjectPath("/Users/ashot/src/codecast/.codecast/worktrees/wt1"),
+    ).toBe("/Users/ashot/src/codecast");
   });
 
   test("drops temp dirs (incl. macOS /private/var/folders)", () => {
     expect(normalizeProjectPath("/tmp/whatever")).toBeNull();
     expect(normalizeProjectPath("/private/tmp/x")).toBeNull();
-    expect(normalizeProjectPath("/var/folders/sr/t5/T/cc-inject-clear-1")).toBeNull();
-    expect(normalizeProjectPath("/private/var/folders/sr/t5/T/cc-inject-clear-1")).toBeNull();
+    expect(
+      normalizeProjectPath("/var/folders/sr/t5/T/cc-inject-clear-1"),
+    ).toBeNull();
+    expect(
+      normalizeProjectPath("/private/var/folders/sr/t5/T/cc-inject-clear-1"),
+    ).toBeNull();
   });
 });
 
@@ -46,17 +72,50 @@ describe("conversationProjectRoot", () => {
   test("a git_root is the checkout, however deep below a code parent", () => {
     const root = "/Users/a/code/work.noindex/GitHub/littlebird";
     expect(conversationProjectRoot({ git_root: root })).toBe(root);
-    expect(conversationProjectRoot({ git_root: root, project_path: `${root}/apps/web` })).toBe(root);
+    expect(
+      conversationProjectRoot({
+        git_root: root,
+        project_path: `${root}/apps/web`,
+      }),
+    ).toBe(root);
     expect(conversationProjectRoot({ git_root: `${root}/` })).toBe(root);
   });
 
   test("a bare cwd joins the deepest known checkout containing it, else stands as it is", () => {
-    const known = ["/Users/a/src/app", "/Users/a/src/app/vendor/lib", "/Users/a/code/work/GitHub/bot"];
-    expect(conversationProjectRoot({ project_path: "/Users/a/src/app/apps/web" }, known)).toBe("/Users/a/src/app");
-    expect(conversationProjectRoot({ project_path: "/Users/a/src/app/vendor/lib/x" }, known)).toBe("/Users/a/src/app/vendor/lib");
-    expect(conversationProjectRoot({ git_root: "", project_path: "/Users/a/code/work/GitHub/bot" }, known)).toBe("/Users/a/code/work/GitHub/bot");
-    expect(conversationProjectRoot({ project_path: "/Users/a/src/application" }, known)).toBe("/Users/a/src/application");
-    expect(conversationProjectRoot({ project_path: "/Users/a/code/work/GitHub/other/sub" })).toBe("/Users/a/code/work/GitHub/other/sub");
+    const known = [
+      "/Users/a/src/app",
+      "/Users/a/src/app/vendor/lib",
+      "/Users/a/code/work/GitHub/bot",
+    ];
+    expect(
+      conversationProjectRoot(
+        { project_path: "/Users/a/src/app/apps/web" },
+        known,
+      ),
+    ).toBe("/Users/a/src/app");
+    expect(
+      conversationProjectRoot(
+        { project_path: "/Users/a/src/app/vendor/lib/x" },
+        known,
+      ),
+    ).toBe("/Users/a/src/app/vendor/lib");
+    expect(
+      conversationProjectRoot(
+        { git_root: "", project_path: "/Users/a/code/work/GitHub/bot" },
+        known,
+      ),
+    ).toBe("/Users/a/code/work/GitHub/bot");
+    expect(
+      conversationProjectRoot(
+        { project_path: "/Users/a/src/application" },
+        known,
+      ),
+    ).toBe("/Users/a/src/application");
+    expect(
+      conversationProjectRoot({
+        project_path: "/Users/a/code/work/GitHub/other/sub",
+      }),
+    ).toBe("/Users/a/code/work/GitHub/other/sub");
   });
 
   test("knownCheckoutRoots reads git_roots only", () => {
@@ -70,21 +129,39 @@ describe("conversationProjectRoot", () => {
 
   test("a managed worktree's git_root is its repository's checkout", () => {
     const root = "/Users/a/code/work/GitHub/app";
-    expect(conversationProjectRoot({ git_root: `${root}/.codecast/worktrees/wt1` })).toBe(root);
-    expect(conversationProjectRoot({ git_root: `${root}/.claude/worktrees/wt1` })).toBe(root);
-    expect(conversationProjectRoot({ git_root: `${root}/.conductor/wt1` })).toBe(root);
+    expect(
+      conversationProjectRoot({ git_root: `${root}/.codecast/worktrees/wt1` }),
+    ).toBe(root);
+    expect(
+      conversationProjectRoot({ git_root: `${root}/.claude/worktrees/wt1` }),
+    ).toBe(root);
+    expect(
+      conversationProjectRoot({ git_root: `${root}/.conductor/wt1` }),
+    ).toBe(root);
   });
 
   test("phantoms stay out, and a phantom git_root does not fall back to the cwd", () => {
-    expect(conversationProjectRoot({ git_root: "/Users/a", project_path: "/Users/a/src/app" })).toBeNull();
+    expect(
+      conversationProjectRoot({
+        git_root: "/Users/a",
+        project_path: "/Users/a/src/app",
+      }),
+    ).toBeNull();
     expect(conversationProjectRoot({ git_root: "/private/tmp/x" })).toBeNull();
-    expect(conversationProjectRoot({ git_root: "/Users/a/.claude/worktrees/wt1" })).toBeNull();
+    expect(
+      conversationProjectRoot({ git_root: "/Users/a/.claude/worktrees/wt1" }),
+    ).toBeNull();
     expect(conversationProjectRoot({})).toBeNull();
   });
 });
 
 describe("foldCheckoutsByRepository", () => {
-  const tally = (path: string, count: number, repository?: string, lastActive = 100) => ({ path, count, lastActive, repository });
+  const tally = (
+    path: string,
+    count: number,
+    repository?: string,
+    lastActive = 100,
+  ) => ({ path, count, lastActive, repository });
   const GH = "/Users/a/code/work/GitHub";
 
   test("worktrees of one repo become one entry with all their sessions", () => {
@@ -93,60 +170,79 @@ describe("foldCheckoutsByRepository", () => {
       tally(`${GH}/littlebird`, 2, "acme/littlebird", 100),
       tally("/Users/a/code/work/lb2/wt-1", 8, "acme/littlebird", 300),
     ]);
-    expect(folded).toEqual([tally(`${GH}/littlebird`, 50, "acme/littlebird", 500)]);
+    expect(folded).toEqual([
+      tally(`${GH}/littlebird`, 50, "acme/littlebird", 500),
+    ]);
   });
 
   test("with no checkout named after the repo, the most used one stands for it", () => {
-    expect(foldCheckoutsByRepository([
-      tally(`${GH}/app-a`, 2, "acme/app"),
-      tally(`${GH}/app-b`, 9, "acme/app"),
-    ])).toEqual([tally(`${GH}/app-b`, 11, "acme/app")]);
+    expect(
+      foldCheckoutsByRepository([
+        tally(`${GH}/app-a`, 2, "acme/app"),
+        tally(`${GH}/app-b`, 9, "acme/app"),
+      ]),
+    ).toEqual([tally(`${GH}/app-b`, 11, "acme/app")]);
   });
 
   test("the repo name matches whatever the case", () => {
-    expect(foldCheckoutsByRepository([
-      tally(`${GH}/wt`, 9, "acme/littlebird"),
-      tally(`${GH}/LittleBird`, 1, "acme/littlebird"),
-    ])[0].path).toBe(`${GH}/LittleBird`);
+    expect(
+      foldCheckoutsByRepository([
+        tally(`${GH}/wt`, 9, "acme/littlebird"),
+        tally(`${GH}/LittleBird`, 1, "acme/littlebird"),
+      ])[0].path,
+    ).toBe(`${GH}/LittleBird`);
   });
 
   test("a worktree under a dot folder never stands for the repo by borrowing its name", () => {
-    expect(foldCheckoutsByRepository([
-      tally("/Users/a/.codex/worktrees/abc/app", 50, "acme/app"),
-      tally(`${GH}/app-main`, 1, "acme/app"),
-    ])[0].path).toBe("/Users/a/.codex/worktrees/abc/app");
-    expect(foldCheckoutsByRepository([
-      tally("/Users/a/.codex/worktrees/abc/app", 50, "acme/app"),
-      tally(`${GH}/app`, 1, "acme/app"),
-    ])[0].path).toBe(`${GH}/app`);
+    expect(
+      foldCheckoutsByRepository([
+        tally("/Users/a/.codex/worktrees/abc/app", 50, "acme/app"),
+        tally(`${GH}/app-main`, 1, "acme/app"),
+      ])[0].path,
+    ).toBe("/Users/a/.codex/worktrees/abc/app");
+    expect(
+      foldCheckoutsByRepository([
+        tally("/Users/a/.codex/worktrees/abc/app", 50, "acme/app"),
+        tally(`${GH}/app`, 1, "acme/app"),
+      ])[0].path,
+    ).toBe(`${GH}/app`);
   });
 
   test("plain folders and other repositories stay separate", () => {
-    const rows = [tally("/Users/a/notes", 3), tally("/Users/a/draft", 1), tally(`${GH}/one`, 2, "acme/one"), tally(`${GH}/two`, 2, "acme/two")];
+    const rows = [
+      tally("/Users/a/notes", 3),
+      tally("/Users/a/draft", 1),
+      tally(`${GH}/one`, 2, "acme/one"),
+      tally(`${GH}/two`, 2, "acme/two"),
+    ];
     expect(foldCheckoutsByRepository(rows)).toEqual(rows);
   });
 
   test("the same repo in two home directories keeps a path for each machine", () => {
-    expect(foldCheckoutsByRepository([
-      tally("/Users/a/src/app", 3, "acme/app"),
-      tally("/Users/m1/work/app", 2, "acme/app"),
-    ]).map((p) => p.path)).toEqual(["/Users/a/src/app", "/Users/m1/work/app"]);
+    expect(
+      foldCheckoutsByRepository([
+        tally("/Users/a/src/app", 3, "acme/app"),
+        tally("/Users/m1/work/app", 2, "acme/app"),
+      ]).map((p) => p.path),
+    ).toEqual(["/Users/a/src/app", "/Users/m1/work/app"]);
   });
 });
 
 describe("pathWithinLocalRoots", () => {
   test("accepts a project nested below a reported project parent", () => {
-    expect(pathWithinLocalRoots(
-      "/Users/samvit/dev/union/union-mobile",
-      ["/Users/samvit/dev/union"],
-    )).toBe(true);
+    expect(
+      pathWithinLocalRoots("/Users/samvit/dev/union/union-mobile", [
+        "/Users/samvit/dev/union",
+      ]),
+    ).toBe(true);
   });
 
   test("does not confuse sibling path prefixes", () => {
-    expect(pathWithinLocalRoots(
-      "/Users/samvit/dev/union-mobile-old",
-      ["/Users/samvit/dev/union-mobile"],
-    )).toBe(false);
+    expect(
+      pathWithinLocalRoots("/Users/samvit/dev/union-mobile-old", [
+        "/Users/samvit/dev/union-mobile",
+      ]),
+    ).toBe(false);
   });
 });
 
@@ -174,43 +270,92 @@ describe("pickInheritedGitMeta", () => {
   test("picks the most-recently-active source that has a remote", () => {
     expect(
       pickInheritedGitMeta([
-        { git_remote_url: "git@github.com:ashot/old.git", git_root: "/a", updated_at: 10 },
-        { git_remote_url: "git@github.com:ashot/new.git", git_root: "/b", updated_at: 99 },
-        { git_remote_url: "git@github.com:ashot/mid.git", git_root: "/c", updated_at: 50 },
+        {
+          git_remote_url: "git@github.com:ashot/old.git",
+          git_root: "/a",
+          updated_at: 10,
+        },
+        {
+          git_remote_url: "git@github.com:ashot/new.git",
+          git_root: "/b",
+          updated_at: 99,
+        },
+        {
+          git_remote_url: "git@github.com:ashot/mid.git",
+          git_root: "/c",
+          updated_at: 50,
+        },
       ]),
-    ).toEqual({ git_remote_url: "git@github.com:ashot/new.git", git_root: "/b" });
+    ).toEqual({
+      git_remote_url: "git@github.com:ashot/new.git",
+      git_root: "/b",
+    });
   });
 
   test("skips sources with no remote and falls back to started_at", () => {
     expect(
       pickInheritedGitMeta([
         { git_root: "/no-remote", updated_at: 999 },
-        { git_remote_url: "git@github.com:ashot/real.git", git_root: "/real", started_at: 5 },
+        {
+          git_remote_url: "git@github.com:ashot/real.git",
+          git_root: "/real",
+          started_at: 5,
+        },
       ]),
-    ).toEqual({ git_remote_url: "git@github.com:ashot/real.git", git_root: "/real" });
+    ).toEqual({
+      git_remote_url: "git@github.com:ashot/real.git",
+      git_root: "/real",
+    });
   });
 
   test("returns nulls when no source carries a remote", () => {
-    expect(pickInheritedGitMeta([])).toEqual({ git_remote_url: null, git_root: null });
+    expect(pickInheritedGitMeta([])).toEqual({
+      git_remote_url: null,
+      git_root: null,
+    });
     expect(
-      pickInheritedGitMeta([{ git_root: "/x", updated_at: 1 }, { git_remote_url: null, git_root: "/y" }]),
+      pickInheritedGitMeta([
+        { git_root: "/x", updated_at: 1 },
+        { git_remote_url: null, git_root: "/y" },
+      ]),
     ).toEqual({ git_remote_url: null, git_root: null });
   });
 });
 
 describe("projectContainingPath", () => {
-  const p = (title: string, project_path?: string, isDefault?: boolean) => ({ title, project_path, ...(isDefault ? { line_profile: { default: true } } : {}) });
+  const p = (title: string, project_path?: string, isDefault?: boolean) => ({
+    title,
+    project_path,
+    ...(isDefault ? { line_profile: { default: true } } : {}),
+  });
 
   test("the deepest path holding the directory wins; a sibling prefix does not hold it", () => {
-    const rows = [p("Repo", "/src/repo"), p("Web", "/src/repo/apps/web/"), p("Other", "/src/repo-two"), p("None")];
-    expect(projectContainingPath(rows, "/src/repo/apps/web/app")?.title).toBe("Web");
+    const rows = [
+      p("Repo", "/src/repo"),
+      p("Web", "/src/repo/apps/web/"),
+      p("Other", "/src/repo-two"),
+      p("None"),
+    ];
+    expect(projectContainingPath(rows, "/src/repo/apps/web/app")?.title).toBe(
+      "Web",
+    );
     expect(projectContainingPath(rows, "/src/repo")?.title).toBe("Repo");
     expect(projectContainingPath(rows, "/src/repo-twofold")).toBeNull();
     expect(projectContainingPath(rows, undefined)).toBeNull();
   });
 
   test("projects sharing the path are told apart by the profile default, else none", () => {
-    expect(projectContainingPath([p("Product", "/src/cc", true), p("Sync", "/src/cc")], "/src/cc/x")?.title).toBe("Product");
-    expect(projectContainingPath([p("Product", "/src/cc"), p("Sync", "/src/cc")], "/src/cc/x")).toBeNull();
+    expect(
+      projectContainingPath(
+        [p("Product", "/src/cc", true), p("Sync", "/src/cc")],
+        "/src/cc/x",
+      )?.title,
+    ).toBe("Product");
+    expect(
+      projectContainingPath(
+        [p("Product", "/src/cc"), p("Sync", "/src/cc")],
+        "/src/cc/x",
+      ),
+    ).toBeNull();
   });
 });

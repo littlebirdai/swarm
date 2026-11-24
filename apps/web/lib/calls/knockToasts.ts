@@ -36,10 +36,12 @@ export type KnockAnswers = {
   denyGuest: (guestId: string) => void;
 };
 
-type Toaster = Pick<typeof sonner, "dismiss"> & ((message: string, data?: any) => string | number);
+type Toaster = Pick<typeof sonner, "dismiss"> &
+  ((message: string, data?: any) => string | number);
 type Notify = (title: string, body: string, key: string) => void;
 
-const idOf = (roomKey: string, k: Pick<RoomKnock, "from_user">) => `knock:${roomKey}:${k.from_user}`;
+const idOf = (roomKey: string, k: Pick<RoomKnock, "from_user">) =>
+  `knock:${roomKey}:${k.from_user}`;
 
 /** Show a toast for each knock in `fresh`, and take down the toast of every
  *  knock no longer in `current`. `shown` is the set of toast ids up, carried
@@ -75,8 +77,15 @@ export function syncKnockToasts(opts: {
     const canAnswer = k.can_answer !== false;
     const name = guest ? k.from_name : firstName(k.from_name);
     const title = `${name} ${canAnswer ? "wants to join the call" : "is waiting at the door"}`;
-    const description = guest ? "A guest from outside the team, on a guest link" : undefined;
-    if (!opts.shown.has(id)) opts.notify?.(title, description ?? "Open the call to let them in", `${id}:${k.created_at}`);
+    const description = guest
+      ? "A guest from outside the team, on a guest link"
+      : undefined;
+    if (!opts.shown.has(id))
+      opts.notify?.(
+        title,
+        description ?? "Open the call to let them in",
+        `${id}:${k.created_at}`,
+      );
     toast(title, {
       id,
       duration: Infinity,
@@ -86,9 +95,18 @@ export function syncKnockToasts(opts: {
             action: {
               label: "Admit",
               onClick: () =>
-                guest ? opts.answers.admitGuest(k.guest_id!, k.from_name) : opts.answers.admitPerson(opts.roomKey, String(k.from_user)),
+                guest
+                  ? opts.answers.admitGuest(k.guest_id!, k.from_name)
+                  : opts.answers.admitPerson(opts.roomKey, String(k.from_user)),
             },
-            ...(guest ? { cancel: { label: "Deny", onClick: () => opts.answers.denyGuest(k.guest_id!) } } : {}),
+            ...(guest
+              ? {
+                  cancel: {
+                    label: "Deny",
+                    onClick: () => opts.answers.denyGuest(k.guest_id!),
+                  },
+                }
+              : {}),
           }
         : {}),
     });
@@ -112,14 +130,23 @@ export function syncKnockToasts(opts: {
 
 /** The guests still at their door: inside their lease, and not at the room
  *  the viewer is seated in (that room's door already shows them). */
-export function guestsStillWaiting(waiting: readonly GuestWaiting[], now: number, seatedRoomKey: string | null): GuestWaiting[] {
-  return waiting.filter((g) => g.present_until > now && g.room_key !== seatedRoomKey);
+export function guestsStillWaiting(
+  waiting: readonly GuestWaiting[],
+  now: number,
+  seatedRoomKey: string | null,
+): GuestWaiting[] {
+  return waiting.filter(
+    (g) => g.present_until > now && g.room_key !== seatedRoomKey,
+  );
 }
 
-const waitingId = (g: Pick<GuestWaiting, "guest_id">) => `guest-waiting:${g.guest_id}`;
+const waitingId = (g: Pick<GuestWaiting, "guest_id">) =>
+  `guest-waiting:${g.guest_id}`;
 
 /** What the toast, the banner and the Live now row call it. */
-export function guestWaitingTitle(g: Pick<GuestWaiting, "name" | "title">): string {
+export function guestWaitingTitle(
+  g: Pick<GuestWaiting, "name" | "title">,
+): string {
   return `${guestDisplayName(g.name)} is waiting to join ${g.title ?? "your call"}`;
 }
 
@@ -146,7 +173,8 @@ export function syncGuestWaitingToasts(opts: {
   const fresh = opts.waiting.filter((g) => !opts.shown.has(waitingId(g)));
   for (const g of fresh) {
     const title = guestWaitingTitle(g);
-    const description = "They opened your guest link, and nobody is in the call yet. Join to let them in.";
+    const description =
+      "They opened your guest link, and nobody is in the call yet. Join to let them in.";
     opts.notify?.(title, description, `${waitingId(g)}:${g.knocked_at}`);
     toast(title, {
       id: waitingId(g),

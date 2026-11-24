@@ -1,21 +1,49 @@
 // The clipboard bridge inside the capture loop: after the viewer types, a tmux
 // buffer that was not there when the typing began is offered once, redacted.
 import { describe, expect, test } from "bun:test";
-import { clipboardWatch, paneBufferReader, runPaneStream, splitLoneEscape } from "./paneStream.js";
-import { PANE_CLIPBOARD_MAINTAIN_MS, PANE_CLIPBOARD_POLL_MS, PANE_CLIPBOARD_WINDOW_MS, PANE_MAX_CLIPBOARD_CHARS, bytesToHex } from "@codecast/shared/contracts";
+import {
+  clipboardWatch,
+  paneBufferReader,
+  runPaneStream,
+  splitLoneEscape,
+} from "./paneStream.js";
+import {
+  PANE_CLIPBOARD_MAINTAIN_MS,
+  PANE_CLIPBOARD_POLL_MS,
+  PANE_CLIPBOARD_WINDOW_MS,
+  PANE_MAX_CLIPBOARD_CHARS,
+  bytesToHex,
+} from "@codecast/shared/contracts";
 
 function clock() {
   let t = 0;
-  return { now: () => t, advance: (ms: number) => { t += ms; } };
+  return {
+    now: () => t,
+    advance: (ms: number) => {
+      t += ms;
+    },
+  };
 }
 
 describe("clipboardWatch", () => {
   test("offers a buffer that appears inside the window, once", () => {
     const c = clock();
     let names = ["buffer3"];
-    const texts: Record<string, string> = { buffer3: "old", buffer4: "fresh copy" };
+    const texts: Record<string, string> = {
+      buffer3: "old",
+      buffer4: "fresh copy",
+    };
     const pushed: string[] = [];
-    const w = clipboardWatch({ list: () => names, read: (k) => texts[k] ?? null, push: async (t) => { pushed.push(t); } }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => names,
+        read: (k) => texts[k] ?? null,
+        push: async (t) => {
+          pushed.push(t);
+        },
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     c.advance(PANE_CLIPBOARD_POLL_MS);
@@ -33,7 +61,16 @@ describe("clipboardWatch", () => {
     const c = clock();
     let names = ["buffer4", "buffer3"];
     const pushed: string[] = [];
-    const w = clipboardWatch({ list: () => names, read: () => "old", push: async (t) => { pushed.push(t); } }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => names,
+        read: () => "old",
+        push: async (t) => {
+          pushed.push(t);
+        },
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     names = ["buffer3"];
@@ -45,7 +82,17 @@ describe("clipboardWatch", () => {
   test("a keystroke costs no tmux call; looks happen on the loop's own clock", () => {
     const c = clock();
     let calls = 0;
-    const w = clipboardWatch({ list: () => { calls++; return ["buffer9"]; }, read: () => "x", push: async () => {} }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => {
+          calls++;
+          return ["buffer9"];
+        },
+        read: () => "x",
+        push: async () => {},
+      },
+      c.now,
+    );
     w.maintain();
     expect(calls).toBe(1);
     w.arm();
@@ -61,7 +108,17 @@ describe("clipboardWatch", () => {
   test("nothing outside the window", () => {
     const c = clock();
     let calls = 0;
-    const w = clipboardWatch({ list: () => { calls++; return ["buffer9"]; }, read: () => "x", push: async () => {} }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => {
+          calls++;
+          return ["buffer9"];
+        },
+        read: () => "x",
+        push: async () => {},
+      },
+      c.now,
+    );
     w.tick();
     expect(calls).toBe(0);
     w.maintain();
@@ -76,7 +133,16 @@ describe("clipboardWatch", () => {
     const c = clock();
     let names: string[] | null = ["buffer1"];
     const pushed: string[] = [];
-    const w = clipboardWatch({ list: () => names, read: () => "x", push: async (t) => { pushed.push(t); } }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => names,
+        read: () => "x",
+        push: async (t) => {
+          pushed.push(t);
+        },
+      },
+      c.now,
+    );
     w.maintain();
     names = null;
     c.advance(PANE_CLIPBOARD_MAINTAIN_MS);
@@ -91,11 +157,24 @@ describe("clipboardWatch", () => {
   test("polls at most every PANE_CLIPBOARD_POLL_MS", () => {
     const c = clock();
     let calls = 0;
-    const w = clipboardWatch({ list: () => { calls++; return []; }, read: () => null, push: async () => {} }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => {
+          calls++;
+          return [];
+        },
+        read: () => null,
+        push: async () => {},
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     const armed = calls;
-    for (let i = 0; i < 10; i++) { c.advance(100); w.tick(); }
+    for (let i = 0; i < 10; i++) {
+      c.advance(100);
+      w.tick();
+    }
     expect(calls - armed).toBe(1);
   });
 
@@ -104,7 +183,16 @@ describe("clipboardWatch", () => {
     let names: string[] = [];
     const pushed: string[] = [];
     const secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789";
-    const w = clipboardWatch({ list: () => names, read: () => "x".repeat(PANE_MAX_CLIPBOARD_CHARS - 10) + secret, push: async (t) => { pushed.push(t); } }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => names,
+        read: () => "x".repeat(PANE_MAX_CLIPBOARD_CHARS - 10) + secret,
+        push: async (t) => {
+          pushed.push(t);
+        },
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     names = ["buffer0"];
@@ -119,7 +207,16 @@ describe("clipboardWatch", () => {
     const c = clock();
     let names: string[] | null = null;
     const pushed: string[] = [];
-    const w = clipboardWatch({ list: () => names, read: () => "old token", push: async (t) => { pushed.push(t); } }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => names,
+        read: () => "old token",
+        push: async (t) => {
+          pushed.push(t);
+        },
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     names = ["buffer7"];
@@ -130,7 +227,16 @@ describe("clipboardWatch", () => {
 
   test("a tmux failure is no offer, never a throw", () => {
     const c = clock();
-    const w = clipboardWatch({ list: () => { throw new Error("no server"); }, read: () => null, push: async () => {} }, c.now);
+    const w = clipboardWatch(
+      {
+        list: () => {
+          throw new Error("no server");
+        },
+        read: () => null,
+        push: async () => {},
+      },
+      c.now,
+    );
     w.maintain();
     w.arm();
     c.advance(PANE_CLIPBOARD_POLL_MS);
@@ -140,9 +246,18 @@ describe("clipboardWatch", () => {
 
 describe("splitLoneEscape", () => {
   test("a lone Esc before an arrow goes alone; sequences stay whole", () => {
-    expect(splitLoneEscape([0x1b, 0x1b, 0x5b, 0x41])).toEqual([[0x1b], [0x1b, 0x5b, 0x41]]);
-    expect(splitLoneEscape([0x1b, 0x5b, 0x41, 0x0d])).toEqual([[0x1b, 0x5b, 0x41, 0x0d]]);
-    expect(splitLoneEscape([0x61, 0x1b, 0x1b, 0x1b])).toEqual([[0x61, 0x1b], [0x1b], [0x1b]]);
+    expect(splitLoneEscape([0x1b, 0x1b, 0x5b, 0x41])).toEqual([
+      [0x1b],
+      [0x1b, 0x5b, 0x41],
+    ]);
+    expect(splitLoneEscape([0x1b, 0x5b, 0x41, 0x0d])).toEqual([
+      [0x1b, 0x5b, 0x41, 0x0d],
+    ]);
+    expect(splitLoneEscape([0x61, 0x1b, 0x1b, 0x1b])).toEqual([
+      [0x61, 0x1b],
+      [0x1b],
+      [0x1b],
+    ]);
   });
 });
 
@@ -160,16 +275,34 @@ describe("runPaneStream with the bridge", () => {
     let names = ["buffer1"];
     const offers: string[] = [];
     await runPaneStream("cc-test", {
-      capture: () => ({ frame: "screen", cols: 80, rows: 24, cursorX: 0, cursorY: 0 }),
+      capture: () => ({
+        frame: "screen",
+        cols: 80,
+        rows: 24,
+        cursorX: 0,
+        cursorY: 0,
+      }),
       push: async () => {
         pushes++;
-        if (pushes === 2) return { stop: false, input: bytesToHex(new TextEncoder().encode("\r")) };
+        if (pushes === 2)
+          return {
+            stop: false,
+            input: bytesToHex(new TextEncoder().encode("\r")),
+          };
         return { stop: pushes > 40 };
       },
-      write: () => { names = ["buffer2", "buffer1"]; },
+      write: () => {
+        names = ["buffer2", "buffer1"];
+      },
       now: c.now,
       sleep: async (ms) => c.advance(ms),
-      clipboard: { list: () => names, read: (k) => (k === "buffer2" ? "selected text" : null), push: async (t) => { offers.push(t); } },
+      clipboard: {
+        list: () => names,
+        read: (k) => (k === "buffer2" ? "selected text" : null),
+        push: async (t) => {
+          offers.push(t);
+        },
+      },
     });
     expect(offers).toEqual(["selected text"]);
   });
@@ -179,14 +312,29 @@ describe("runPaneStream with the bridge", () => {
     let pushes = 0;
     let asked = 0;
     await runPaneStream("cc-test", {
-      capture: () => ({ frame: "screen", cols: 80, rows: 24, cursorX: 0, cursorY: 0 }),
+      capture: () => ({
+        frame: "screen",
+        cols: 80,
+        rows: 24,
+        cursorX: 0,
+        cursorY: 0,
+      }),
       push: async () => ({ stop: ++pushes > 20 }),
       write: () => {},
       now: c.now,
       sleep: async (ms) => c.advance(ms),
-      clipboard: { list: () => { asked++; return []; }, read: () => null, push: async () => {} },
+      clipboard: {
+        list: () => {
+          asked++;
+          return [];
+        },
+        read: () => null,
+        push: async () => {},
+      },
     });
-    expect(asked).toBeLessThanOrEqual(Math.ceil(c.now() / PANE_CLIPBOARD_MAINTAIN_MS) + 1);
+    expect(asked).toBeLessThanOrEqual(
+      Math.ceil(c.now() / PANE_CLIPBOARD_MAINTAIN_MS) + 1,
+    );
   });
 
   test("Esc then an arrow, drained together, reach the pane as two writes", async () => {
@@ -194,13 +342,21 @@ describe("runPaneStream with the bridge", () => {
     let pushes = 0;
     const writes: number[][] = [];
     await runPaneStream("cc-test", {
-      capture: () => ({ frame: "screen", cols: 80, rows: 24, cursorX: 0, cursorY: 0 }),
+      capture: () => ({
+        frame: "screen",
+        cols: 80,
+        rows: 24,
+        cursorX: 0,
+        cursorY: 0,
+      }),
       push: async () => {
         pushes++;
         if (pushes === 2) return { stop: false, input: "1b1b5b41" };
         return { stop: pushes > 6 };
       },
-      write: (_t, b) => { writes.push(b); },
+      write: (_t, b) => {
+        writes.push(b);
+      },
       now: c.now,
       sleep: async (ms) => c.advance(ms),
     });

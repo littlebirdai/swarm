@@ -25,24 +25,67 @@ import swan from "../components/org/avatars/swan.webp";
 import toucan from "../components/org/avatars/toucan.webp";
 import whale from "../components/org/avatars/whale.webp";
 
-export type AvatarArt = React.ComponentType<{ className?: string; title?: string }>;
+export type AvatarArt = React.ComponentType<{
+  className?: string;
+  title?: string;
+}>;
 
 /** Every key's file, by key. */
 export const AVATAR_URLS: Record<AvatarKey, string> = {
-  fox, owl, otter, crane, bear, hare,
-  moth, whale, hedgehog, stag, raccoon, penguin,
-  seal, lynx, octopus, toucan, frog, goat,
-  swan, snail, elephant, koala, squirrel, robin,
+  fox,
+  owl,
+  otter,
+  crane,
+  bear,
+  hare,
+  moth,
+  whale,
+  hedgehog,
+  stag,
+  raccoon,
+  penguin,
+  seal,
+  lynx,
+  octopus,
+  toucan,
+  frog,
+  goat,
+  swan,
+  snail,
+  elephant,
+  koala,
+  squirrel,
+  robin,
 };
 
 /** What sets each face apart, for the alt text and the pickers, which match
  *  what is typed against it. The keys still name the animals the set began
  *  as, because roles store them; the label is what a person sees. */
 export const AVATAR_LABELS: Record<AvatarKey, string> = {
-  fox: "Bob", owl: "Glasses", otter: "Curls", crane: "Braids", bear: "Beanie", hare: "Headphones",
-  moth: "Top knot", whale: "Afro", hedgehog: "Mustache", stag: "Hijab", raccoon: "Buzzcut", penguin: "Spectacles",
-  seal: "Ponytail", lynx: "Cap", octopus: "Turban", toucan: "Pixie", frog: "Mohawk", goat: "Beard",
-  swan: "Bucket hat", snail: "Locs", elephant: "Bandana", koala: "Space buns", squirrel: "Fedora", robin: "Waves",
+  fox: "Bob",
+  owl: "Glasses",
+  otter: "Curls",
+  crane: "Braids",
+  bear: "Beanie",
+  hare: "Headphones",
+  moth: "Top knot",
+  whale: "Afro",
+  hedgehog: "Mustache",
+  stag: "Hijab",
+  raccoon: "Buzzcut",
+  penguin: "Spectacles",
+  seal: "Ponytail",
+  lynx: "Cap",
+  octopus: "Turban",
+  toucan: "Pixie",
+  frog: "Mohawk",
+  goat: "Beard",
+  swan: "Bucket hat",
+  snail: "Locs",
+  elephant: "Bandana",
+  koala: "Space buns",
+  squirrel: "Fedora",
+  robin: "Waves",
 };
 
 /** One component per key, each an <img> that fills the box it is given. */
@@ -50,7 +93,21 @@ export const AVATAR_ART: Record<AvatarKey, AvatarArt> = Object.fromEntries(
   AVATAR_KEYS.map((key) => [
     key,
     function Art({ className, title }: { className?: string; title?: string }) {
-      return <img src={AVATAR_URLS[key]} alt={title ?? AVATAR_LABELS[key]} data-avatar={key} className={className} style={{ width: "100%", height: "100%", display: "block", objectFit: "cover", borderRadius: "9999px" }} />;
+      return (
+        <img
+          src={AVATAR_URLS[key]}
+          alt={title ?? AVATAR_LABELS[key]}
+          data-avatar={key}
+          className={className}
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "block",
+            objectFit: "cover",
+            borderRadius: "9999px",
+          }}
+        />
+      );
     },
   ]),
 ) as Record<AvatarKey, AvatarArt>;

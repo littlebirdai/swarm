@@ -13,10 +13,14 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import open from "open";
 import { cliFetchRead } from "./cliHttp.js";
-import { contentLinesToMatch as selectContentLines, extractSessionTrailer, overlapLinesBySha, type ContentLine } from "@codecast/shared/blame";
+import {
+  contentLinesToMatch as selectContentLines,
+  extractSessionTrailer,
+  overlapLinesBySha,
+  type ContentLine,
+} from "@codecast/shared/blame";
 import { defaultConfigDir } from "./config/configDir.js";
 import { webBaseUrl } from "./config/readLocalConfig.js";
-
 
 // Deep link to the session behind a blamed line. When the resolution carries
 // the originating message id, anchor on it (#msg-<id>) so the conversation
@@ -88,7 +92,11 @@ export function parseBlamePorcelain(output: string): ParsedBlame {
   for (const raw of output.split("\n")) {
     if (raw.startsWith("\t")) {
       if (currentSha !== null) {
-        lines.push({ sha: currentSha, finalLine: currentFinalLine, content: raw.slice(1) });
+        lines.push({
+          sha: currentSha,
+          finalLine: currentFinalLine,
+          content: raw.slice(1),
+        });
       }
       continue;
     }
@@ -136,7 +144,9 @@ export function parseBlamePorcelain(output: string): ParsedBlame {
 // git renders the timestamp in the commit author's own timezone.
 export function formatGitDate(epochSeconds: number, tz: string): string {
   const m = tz.match(/^([+-])(\d{2})(\d{2})$/);
-  const offsetMinutes = m ? (m[1] === "-" ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10)) : 0;
+  const offsetMinutes = m
+    ? (m[1] === "-" ? -1 : 1) * (parseInt(m[2], 10) * 60 + parseInt(m[3], 10))
+    : 0;
   const d = new Date((epochSeconds + offsetMinutes * 60) * 1000);
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
@@ -150,19 +160,31 @@ export function formatGitDate(epochSeconds: number, tz: string): string {
 // editor regexes that scan for the `(...)` group, so strip them. First name
 // only keeps the column tight while still showing who owns the work.
 export function sessionLabel(ref: SessionRef): string {
-  const clean = (s: string) => s.replace(/[()\r\n\t]/g, " ").replace(/\s+/g, " ").trim();
+  const clean = (s: string) =>
+    s
+      .replace(/[()\r\n\t]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   const title = clean(ref.title);
   const first = ref.author_name ? clean(ref.author_name).split(" ")[0] : "";
   const label = first
     ? `${ref.conversation_id.slice(0, 7)} ${first} ${title}`
     : `${ref.conversation_id.slice(0, 7)} ${title}`;
-  return label.length > MAX_WHO_LABEL ? label.slice(0, MAX_WHO_LABEL - 2) + ".." : label;
+  return label.length > MAX_WHO_LABEL
+    ? label.slice(0, MAX_WHO_LABEL - 2) + ".."
+    : label;
 }
 
-function whoFor(line: BlameLine, meta: BlameCommitMeta, resolution: BlameResolution): string {
+function whoFor(
+  line: BlameLine,
+  meta: BlameCommitMeta,
+  resolution: BlameResolution,
+): string {
   // Authoring session (content match) beats committing session (sha match)
   // beats the git author.
-  const ref = resolution.byLine.get(line.content.trim()) ?? resolution.bySha.get(line.sha);
+  const ref =
+    resolution.byLine.get(line.content.trim()) ??
+    resolution.bySha.get(line.sha);
   return ref ? sessionLabel(ref) : meta.author;
 }
 
@@ -212,7 +234,10 @@ export function formatDefaultBlame(
  * all-zeros uncommitted pseudo-commit, attribution is per-line, so look ahead
  * to the block's content line and use its match.
  */
-export function augmentPorcelain(raw: string, resolution: BlameResolution): string {
+export function augmentPorcelain(
+  raw: string,
+  resolution: BlameResolution,
+): string {
   const lines = raw.split("\n");
   const out: string[] = [];
   let currentSha: string | null = null;
@@ -244,8 +269,11 @@ export function augmentPorcelain(raw: string, resolution: BlameResolution): stri
     out.push(`codecast-session ${ref.conversation_id.slice(0, 7)}`);
     out.push(`codecast-conversation ${ref.conversation_id}`);
     out.push(`codecast-title ${ref.title.replace(/[\r\n]/g, " ")}`);
-    if (ref.author_name) out.push(`codecast-author ${ref.author_name.replace(/[\r\n]/g, " ")}`);
-    out.push(`codecast-url https://codecast.sh/conversation/${ref.conversation_id}`);
+    if (ref.author_name)
+      out.push(`codecast-author ${ref.author_name.replace(/[\r\n]/g, " ")}`);
+    out.push(
+      `codecast-url https://codecast.sh/conversation/${ref.conversation_id}`,
+    );
     if (ref.message_id) out.push(`codecast-message ${ref.message_id}`);
     if (ref.via) out.push(`codecast-via ${ref.via}`);
   }
@@ -254,23 +282,35 @@ export function augmentPorcelain(raw: string, resolution: BlameResolution): stri
 
 export type { ContentLine };
 
-export function contentLinesToMatch(parsed: ParsedBlame, nowMs: number): ContentLine[] {
+export function contentLinesToMatch(
+  parsed: ParsedBlame,
+  nowMs: number,
+): ContentLine[] {
   return selectContentLines(
     parsed.lines.map((line) => ({
       text: line.content,
       uncommitted: line.sha === ZERO_SHA,
-      authorMs: (parsed.commits.get(line.sha)?.authorTime ?? 0) * 1000 || undefined,
+      authorMs:
+        (parsed.commits.get(line.sha)?.authorTime ?? 0) * 1000 || undefined,
     })),
     nowMs,
   );
 }
 
-function execGit(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
+function execGit(
+  args: string[],
+  cwd: string,
+): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    execFile("git", args, { cwd, maxBuffer: 256 * 1024 * 1024 }, (error, stdout, stderr) => {
-      if (error) reject(new Error(stderr.trim() || error.message));
-      else resolve({ stdout, stderr });
-    });
+    execFile(
+      "git",
+      args,
+      { cwd, maxBuffer: 256 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        if (error) reject(new Error(stderr.trim() || error.message));
+        else resolve({ stdout, stderr });
+      },
+    );
   });
 }
 
@@ -293,13 +333,22 @@ export interface CommitDescriptor {
 // commit objects in one `git cat-file --batch`. The shas go in on stdin, so a
 // file with any number of blamed commits fits, and a commit git cannot read (a
 // shallow clone missing it) answers "missing" and costs only itself.
-export async function readSessionTrailers(shas: string[], cwd: string): Promise<Map<string, string>> {
+export async function readSessionTrailers(
+  shas: string[],
+  cwd: string,
+): Promise<Map<string, string>> {
   const found = new Map<string, string>();
-  const wanted = [...new Set(shas)].filter((sha) => /^[0-9a-f]{4,64}$/i.test(sha));
+  const wanted = [...new Set(shas)].filter((sha) =>
+    /^[0-9a-f]{4,64}$/i.test(sha),
+  );
   if (wanted.length === 0) return found;
   let out: Buffer;
   try {
-    out = await execGitBuffer(["cat-file", "--batch"], cwd, `${wanted.join("\n")}\n`);
+    out = await execGitBuffer(
+      ["cat-file", "--batch"],
+      cwd,
+      `${wanted.join("\n")}\n`,
+    );
   } catch {
     return found; // Attribution falls back to the server's other evidence.
   }
@@ -316,18 +365,29 @@ export async function readSessionTrailers(shas: string[], cwd: string): Promise<
     if (type !== "commit") continue;
     const text = body.toString("utf-8");
     const headerEnd = text.indexOf("\n\n");
-    const session = extractSessionTrailer(headerEnd < 0 ? "" : text.slice(headerEnd + 2));
+    const session = extractSessionTrailer(
+      headerEnd < 0 ? "" : text.slice(headerEnd + 2),
+    );
     if (session) found.set(sha, session);
   }
   return found;
 }
 
-function execGitBuffer(args: string[], cwd: string, input: string): Promise<Buffer> {
+function execGitBuffer(
+  args: string[],
+  cwd: string,
+  input: string,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const child = execFile("git", args, { cwd, maxBuffer: 256 * 1024 * 1024, encoding: "buffer" }, (error, stdout, stderr) => {
-      if (error) reject(new Error(String(stderr).trim() || error.message));
-      else resolve(stdout as Buffer);
-    });
+    const child = execFile(
+      "git",
+      args,
+      { cwd, maxBuffer: 256 * 1024 * 1024, encoding: "buffer" },
+      (error, stdout, stderr) => {
+        if (error) reject(new Error(String(stderr).trim() || error.message));
+        else resolve(stdout as Buffer);
+      },
+    );
     child.stdin?.end(input);
   });
 }
@@ -339,14 +399,31 @@ async function resolveSessions(
   filePath: string,
   contentLines: ContentLine[],
 ): Promise<BlameResolution> {
-  if (commits.length === 0 && contentLines.length === 0) return EMPTY_RESOLUTION;
+  if (commits.length === 0 && contentLines.length === 0)
+    return EMPTY_RESOLUTION;
   try {
-    return await postResolve(siteUrl, apiToken, commits, filePath, contentLines);
+    return await postResolve(
+      siteUrl,
+      apiToken,
+      commits,
+      filePath,
+      contentLines,
+    );
   } catch (error) {
     // A backend older than the overlap match rejects the unknown `lines`
     // field (closed validators); the rest of the answer is still worth having.
-    if (!commits.some((c) => c.lines) || !(error instanceof Error && error.message === "Internal error")) throw error;
-    return postResolve(siteUrl, apiToken, commits.map(({ lines: _lines, ...c }) => c), filePath, contentLines);
+    if (
+      !commits.some((c) => c.lines) ||
+      !(error instanceof Error && error.message === "Internal error")
+    )
+      throw error;
+    return postResolve(
+      siteUrl,
+      apiToken,
+      commits.map(({ lines: _lines, ...c }) => c),
+      filePath,
+      contentLines,
+    );
   }
 }
 
@@ -399,12 +476,19 @@ export async function resolveFromParsed(
   config: { auth_token?: string; convex_url?: string },
 ): Promise<BlameResolution> {
   if (!config.auth_token || !config.convex_url) return EMPTY_RESOLUTION;
-  const shas = [...new Set(parsed.lines.map((l) => l.sha))].filter((s) => s !== ZERO_SHA);
+  const shas = [...new Set(parsed.lines.map((l) => l.sha))].filter(
+    (s) => s !== ZERO_SHA,
+  );
   const trailers = await readSessionTrailers(shas, path.dirname(absFilePath));
   const overlapLines = overlapLinesBySha(
     parsed.lines
       .filter((line) => line.sha !== ZERO_SHA && !trailers.has(line.sha))
-      .map((line) => ({ sha: line.sha, text: line.content, authorMs: (parsed.commits.get(line.sha)?.authorTime ?? 0) * 1000 || undefined })),
+      .map((line) => ({
+        sha: line.sha,
+        text: line.content,
+        authorMs:
+          (parsed.commits.get(line.sha)?.authorTime ?? 0) * 1000 || undefined,
+      })),
     Date.now(),
   );
   const commits: CommitDescriptor[] = shas.map((sha) => {
@@ -420,7 +504,13 @@ export async function resolveFromParsed(
   const contentLines = contentLinesToMatch(parsed, Date.now());
   const siteUrl = config.convex_url.replace(".cloud", ".site");
   try {
-    return await resolveSessions(siteUrl, config.auth_token, commits, absFilePath, contentLines);
+    return await resolveSessions(
+      siteUrl,
+      config.auth_token,
+      commits,
+      absFilePath,
+      contentLines,
+    );
   } catch (error) {
     console.error(
       `cast blame: session resolution unavailable (${error instanceof Error ? error.message : error})`,
@@ -445,10 +535,14 @@ export async function runBlameCommand(
   options: BlameCommandOptions,
   config: { auth_token?: string; convex_url?: string },
 ): Promise<void> {
-  const absPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+  const absPath = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(process.cwd(), filePath);
   const cwd = path.dirname(absPath);
 
-  const porcelainFlag = options.linePorcelain ? "--line-porcelain" : "--porcelain";
+  const porcelainFlag = options.linePorcelain
+    ? "--line-porcelain"
+    : "--porcelain";
   const gitArgs = [
     "blame",
     porcelainFlag,
@@ -462,7 +556,8 @@ export async function runBlameCommand(
   const { stdout: rawPorcelain } = await execGit(gitArgs, cwd);
   const parsed = parseBlamePorcelain(rawPorcelain);
 
-  const wantSessions = options.sessions !== false && config.auth_token && config.convex_url;
+  const wantSessions =
+    options.sessions !== false && config.auth_token && config.convex_url;
   const resolution = wantSessions
     ? await resolveFromParsed(parsed, absPath, config)
     : EMPTY_RESOLUTION;
@@ -522,7 +617,9 @@ export function rewriteFugitiveBlame(
   // back real git's bytes untouched rather than risk it.
   if (rawLines.length !== parsed.lines.length) return standardOut;
 
-  type Row = { prefix: string; who: string; dateOnward: string } | { raw: string };
+  type Row =
+    | { prefix: string; who: string; dateOnward: string }
+    | { raw: string };
   const rows: Row[] = rawLines.map((line, i) => {
     const date = line.match(BLAME_DATE_RE);
     const open = line.indexOf("(");
@@ -540,9 +637,14 @@ export function rewriteFugitiveBlame(
     };
   });
 
-  const width = Math.max(0, ...rows.map((r) => ("who" in r ? r.who.length : 0)));
+  const width = Math.max(
+    0,
+    ...rows.map((r) => ("who" in r ? r.who.length : 0)),
+  );
   const out = rows
-    .map((r) => ("raw" in r ? r.raw : `${r.prefix}${r.who.padEnd(width)} ${r.dateOnward}`))
+    .map((r) =>
+      "raw" in r ? r.raw : `${r.prefix}${r.who.padEnd(width)} ${r.dateOnward}`,
+    )
     .join("\n");
   return hadTrailingNewline ? out + "\n" : out;
 }
@@ -562,16 +664,25 @@ function fugitiveFilePath(argv: string[]): string | null {
 
 function execGitRaw(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("git", args, { cwd: process.cwd(), maxBuffer: 256 * 1024 * 1024 }, (err, stdout) => {
-      if (err) reject(err);
-      else resolve(stdout);
-    });
+    execFile(
+      "git",
+      args,
+      { cwd: process.cwd(), maxBuffer: 256 * 1024 * 1024 },
+      (err, stdout) => {
+        if (err) reject(err);
+        else resolve(stdout);
+      },
+    );
   });
 }
 
 function resolveOnPath(cmd: string, fallback: string): string {
   try {
-    return execFileSync("command", ["-v", cmd], { shell: "/bin/bash" }).toString().trim() || fallback;
+    return (
+      execFileSync("command", ["-v", cmd], { shell: "/bin/bash" })
+        .toString()
+        .trim() || fallback
+    );
   } catch {
     return fallback;
   }
@@ -729,8 +840,12 @@ command! -nargs=? -complete=file Gslog call s:CastSessionLog(<q-args>)
   console.log(`\nAdd this to your vimrc (or init.vim), then restart vim:\n`);
   console.log(`    source ~/.codecast/fugitive.vim\n`);
   console.log(`Then:`);
-  console.log(`  :Git blame  — author column shows the codecast session (<CR> opens it)`);
-  console.log(`  :Gslog      — session log for the file; <CR> opens the conversation,`);
+  console.log(
+    `  :Git blame  — author column shows the codecast session (<CR> opens it)`,
+  );
+  console.log(
+    `  :Gslog      — session log for the file; <CR> opens the conversation,`,
+  );
   console.log(`               O opens the file at that session's commit`);
 }
 
@@ -748,7 +863,11 @@ export async function runFugitiveBlame(
   // Fugitive also runs blame for navigation with -s (no author column) or
   // machine formats — nothing to rewrite there, pass straight through.
   const navOnly = argv.some(
-    (a) => a === "-s" || a === "--porcelain" || a === "--line-porcelain" || a === "--incremental",
+    (a) =>
+      a === "-s" ||
+      a === "--porcelain" ||
+      a === "--line-porcelain" ||
+      a === "--incremental",
   );
   if (blameIdx === -1 || navOnly) {
     process.stdout.write(await execGitRaw(argv));
@@ -795,13 +914,18 @@ export async function runBlameConversation(
     process.exitCode = 1;
     return;
   }
-  const absPath = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);
+  const absPath = path.isAbsolute(file)
+    ? file
+    : path.resolve(process.cwd(), file);
   const cwd = path.dirname(absPath);
 
   let porcelain: string;
   try {
     porcelain = (
-      await execGit(["blame", "-L", `${lnum},${lnum}`, "--porcelain", "--", absPath], cwd)
+      await execGit(
+        ["blame", "-L", `${lnum},${lnum}`, "--porcelain", "--", absPath],
+        cwd,
+      )
     ).stdout;
   } catch {
     process.exitCode = 1;
@@ -816,7 +940,9 @@ export async function runBlameConversation(
 
   const resolution = await resolveFromParsed(parsed, absPath, config);
   const line = parsed.lines[0];
-  const ref = resolution.byLine.get(line.content.trim()) ?? resolution.bySha.get(line.sha);
+  const ref =
+    resolution.byLine.get(line.content.trim()) ??
+    resolution.bySha.get(line.sha);
   if (!ref) {
     process.exitCode = 1;
     return;
@@ -862,7 +988,9 @@ export function groupBlameBySession(
   let attributed = 0;
 
   for (const line of parsed.lines) {
-    const ref = resolution.byLine.get(line.content.trim()) ?? resolution.bySha.get(line.sha);
+    const ref =
+      resolution.byLine.get(line.content.trim()) ??
+      resolution.bySha.get(line.sha);
     if (!ref) continue;
     attributed++;
     const meta = parsed.commits.get(line.sha);
@@ -888,7 +1016,8 @@ export function groupBlameBySession(
       existing.lineCount++;
       existing.firstLine = Math.min(existing.firstLine, line.finalLine);
       existing.newestTime = Math.max(existing.newestTime, t);
-      existing.oldestTime = existing.oldestTime === 0 ? t : Math.min(existing.oldestTime, t);
+      existing.oldestTime =
+        existing.oldestTime === 0 ? t : Math.min(existing.oldestTime, t);
       // Track the newest COMMITTED sha so "open file at this state" lands on a
       // real revision even when the session also has uncommitted lines.
       if (committed && t >= (shaTime.get(ref.conversation_id) ?? -1)) {
@@ -922,13 +1051,24 @@ export async function runBlameLog(
   options: { quickfix?: boolean; rev?: string },
   config: { auth_token?: string; convex_url?: string },
 ): Promise<void> {
-  const absPath = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);
+  const absPath = path.isAbsolute(file)
+    ? file
+    : path.resolve(process.cwd(), file);
   const cwd = path.dirname(absPath);
 
   let porcelain: string;
   try {
     porcelain = (
-      await execGit(["blame", "--porcelain", ...(options.rev ? [options.rev] : []), "--", absPath], cwd)
+      await execGit(
+        [
+          "blame",
+          "--porcelain",
+          ...(options.rev ? [options.rev] : []),
+          "--",
+          absPath,
+        ],
+        cwd,
+      )
     ).stdout;
   } catch (err: any) {
     process.stderr.write((err?.message ?? String(err)) + "\n");
@@ -938,13 +1078,18 @@ export async function runBlameLog(
 
   const parsed = parseBlamePorcelain(porcelain);
   const resolution = await resolveFromParsed(parsed, absPath, config);
-  const { entries, attributed, total } = groupBlameBySession(parsed, resolution);
+  const { entries, attributed, total } = groupBlameBySession(
+    parsed,
+    resolution,
+  );
 
   // Repo-relative path (same for all entries) so the editor can open the file
   // at a session's revision via `<sha>:<relpath>`.
   let relPath = "";
   try {
-    relPath = (await execGit(["ls-files", "--full-name", "--", absPath], cwd)).stdout.trim();
+    relPath = (
+      await execGit(["ls-files", "--full-name", "--", absPath], cwd)
+    ).stdout.trim();
   } catch {
     // not tracked / not a repo — leave empty; revision-open just won't apply
   }
@@ -963,16 +1108,24 @@ export async function runBlameLog(
   }
 
   const rel = file.replace(process.env.HOME || "", "~");
-  console.log(`Sessions that shaped ${rel}  (${attributed}/${total} lines attributed)\n`);
+  console.log(
+    `Sessions that shaped ${rel}  (${attributed}/${total} lines attributed)\n`,
+  );
   if (entries.length === 0) {
     console.log("  (no codecast sessions resolved for this file)");
     return;
   }
-  const wAuthor = Math.max(6, ...entries.map((e) => (e.authorName?.split(" ")[0] ?? "").length));
+  const wAuthor = Math.max(
+    6,
+    ...entries.map((e) => (e.authorName?.split(" ")[0] ?? "").length),
+  );
   for (const e of entries) {
     const author = (e.authorName?.split(" ")[0] ?? "").padEnd(wAuthor);
     const title = e.title.length > 40 ? e.title.slice(0, 38) + ".." : e.title;
-    const range = ymd(e.oldestTime) === ymd(e.newestTime) ? ymd(e.newestTime) : `${ymd(e.oldestTime)}→${ymd(e.newestTime)}`;
+    const range =
+      ymd(e.oldestTime) === ymd(e.newestTime)
+        ? ymd(e.newestTime)
+        : `${ymd(e.oldestTime)}→${ymd(e.newestTime)}`;
     const sha = (e.newestSha || "").slice(0, 9).padEnd(9);
     console.log(
       `  ${e.shortId}  ${author}  ${sha}  ${title.padEnd(40)}  ${String(e.lineCount).padStart(4)} lines  ${range}`,

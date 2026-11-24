@@ -41,12 +41,20 @@ export type PendingMessageInsertFields = {
  * limit "continue", a button's words, a joint send carrying others' drafts)
  * leaves it unset and reads as a program.
  */
-export function composerChannel(typed: unknown): { channel?: "composer"; typed_text?: string } {
-  return typeof typed === "string" && typed.trim() ? { channel: "composer", typed_text: typed } : {};
+export function composerChannel(typed: unknown): {
+  channel?: "composer";
+  typed_text?: string;
+} {
+  return typeof typed === "string" && typed.trim()
+    ? { channel: "composer", typed_text: typed }
+    : {};
 }
 
 export class PendingMessageWriteError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(`${code}: ${message}`);
     this.name = "PendingMessageWriteError";
   }
@@ -58,14 +66,20 @@ function fail(code: string, message: string): never {
 
 function requireCanonicalId(value: string | undefined, field: string): string {
   if (!value?.trim() || value !== value.trim()) {
-    fail("INVALID_PENDING_MESSAGE_ID", `${field} must be non-empty canonical text`);
+    fail(
+      "INVALID_PENDING_MESSAGE_ID",
+      `${field} must be non-empty canonical text`,
+    );
   }
   return value;
 }
 
 function requirePositiveSafeInteger(value: number, field: string): void {
   if (!Number.isSafeInteger(value) || value < 1) {
-    fail("INVALID_PENDING_MESSAGE_DELIVERY", `${field} must be a positive safe integer`);
+    fail(
+      "INVALID_PENDING_MESSAGE_DELIVERY",
+      `${field} must be a positive safe integer`,
+    );
   }
 }
 
@@ -82,7 +96,10 @@ function validateDelivery(
     );
   }
   requirePositiveSafeInteger(delivery.protocolVersion, "protocolVersion");
-  requirePositiveSafeInteger(delivery.conversationSequence, "conversationSequence");
+  requirePositiveSafeInteger(
+    delivery.conversationSequence,
+    "conversationSequence",
+  );
   requirePositiveSafeInteger(delivery.executionEpoch, "executionEpoch");
 }
 
@@ -126,8 +143,14 @@ async function insertPendingMessageRow(
     client_id: fields.clientId,
     origin: fields.origin,
     human: fields.human || undefined,
-    ...(fields.channel ? { channel: fields.channel, ...(fields.typedText ? { typed_text: fields.typedText } : {}) } : {}),
-    status: fields.held || fields.queued ? ("held" as const) : ("pending" as const),
+    ...(fields.channel
+      ? {
+          channel: fields.channel,
+          ...(fields.typedText ? { typed_text: fields.typedText } : {}),
+        }
+      : {}),
+    status:
+      fields.held || fields.queued ? ("held" as const) : ("pending" as const),
     ...(fields.queued ? { queued: true } : {}),
     ...(fields.quiet ? { quiet: true } : {}),
     created_at: fields.createdAt,
@@ -214,9 +237,16 @@ export async function insertRiskResendPendingMessage(
  * them next. Called where a turn is seen to end (managedSessions'
  * applyAgentStatus) and by anyone who may send into the session. Idempotent.
  */
-export async function releaseQueuedRows(ctx: { db: any }, conversationId: Id<"conversations">): Promise<number> {
-  const held: any[] = await ctx.db.query("pending_messages")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId).eq("status", "held")).collect();
+export async function releaseQueuedRows(
+  ctx: { db: any },
+  conversationId: Id<"conversations">,
+): Promise<number> {
+  const held: any[] = await ctx.db
+    .query("pending_messages")
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId).eq("status", "held"),
+    )
+    .collect();
   const queued = held.filter((r) => r.queued);
   for (const row of queued) await ctx.db.patch(row._id, { status: "pending" });
   return queued.length;

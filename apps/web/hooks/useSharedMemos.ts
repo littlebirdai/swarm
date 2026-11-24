@@ -16,8 +16,10 @@ import { useMemo, type DependencyList } from "react";
 type Slot = { deps: DependencyList; value: unknown };
 const slots = new Map<string, Slot>();
 
-const sameDeps = (a: DependencyList, b: DependencyList) => a.length === b.length && a.every((d, i) => Object.is(d, b[i]));
-const sameRows = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) => a.length === b.length && a.every((r, i) => r === b[i]);
+const sameDeps = (a: DependencyList, b: DependencyList) =>
+  a.length === b.length && a.every((d, i) => Object.is(d, b[i]));
+const sameRows = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
+  a.length === b.length && a.every((r, i) => r === b[i]);
 
 /** `useShared` and `useSharedRows` for one instance of a hook (`instance` names it, e.g. by its arguments). Call them in
  *  a fixed order at the top level of that hook, as any hook. */

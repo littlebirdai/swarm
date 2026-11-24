@@ -65,26 +65,39 @@ describe("walkie: the sender's own bubble", () => {
     expect(s().chatMessages[CLIENT]).toBeUndefined();
     expect(s().chatMessages[REAL]).toBeDefined();
 
-    s().updateVoiceBurstRow({ clientId: CLIENT, messageId: REAL }, { content: "on my way" });
+    s().updateVoiceBurstRow(
+      { clientId: CLIENT, messageId: REAL },
+      { content: "on my way" },
+    );
     expect(s().chatMessages[REAL].content).toBe("on my way");
 
     s().updateVoiceBurstRow(
       { clientId: CLIENT, messageId: REAL },
-      { content: "on my way", status: "done", durationMs: 2400, attachments: [{ storage_id: "st1", mime: "audio/webm" }] },
+      {
+        content: "on my way",
+        status: "done",
+        durationMs: 2400,
+        attachments: [{ storage_id: "st1", mime: "audio/webm" }],
+      },
     );
     expect(s().chatMessages[REAL].voice).toEqual({
       status: "done",
       duration_ms: 2400,
       room_key: ROOM,
     });
-    expect(s().chatMessages[REAL].attachments).toEqual([{ storage_id: "st1", mime: "audio/webm" }]);
+    expect(s().chatMessages[REAL].attachments).toEqual([
+      { storage_id: "st1", mime: "audio/webm" },
+    ]);
   });
 
   it("writes to the stub while the start mutation is still in flight", () => {
     const s = () => useInboxStore.getState();
     s().beginVoiceBurstRow(CHANNEL, CLIENT, ROOM);
     // No message id yet — the words still have to land somewhere.
-    s().updateVoiceBurstRow({ clientId: CLIENT, messageId: null }, { content: "hey" });
+    s().updateVoiceBurstRow(
+      { clientId: CLIENT, messageId: null },
+      { content: "hey" },
+    );
     expect(s().chatMessages[CLIENT].content).toBe("hey");
   });
 

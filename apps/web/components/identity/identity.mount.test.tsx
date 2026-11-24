@@ -14,8 +14,19 @@ let act: typeof import("react").act;
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
   dom = new JSDOM("<!doctype html><html><body></body></html>") as never;
-  for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "getComputedStyle"]) {
-    (globalThis as Record<string, unknown>)[key] = (dom.window as unknown as Record<string, unknown>)[key];
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "MutationObserver",
+    "getComputedStyle",
+  ]) {
+    (globalThis as Record<string, unknown>)[key] = (
+      dom.window as unknown as Record<string, unknown>
+    )[key];
   }
   React = await import("react");
   ({ createRoot } = await import("react-dom/client"));
@@ -28,7 +39,9 @@ async function render(node: React.ReactNode): Promise<HTMLElement> {
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
   const root = createRoot(host);
-  await act(async () => { root.render(node as never); });
+  await act(async () => {
+    root.render(node as never);
+  });
   return host as unknown as HTMLElement;
 }
 
@@ -38,10 +51,20 @@ async function render(node: React.ReactNode): Promise<HTMLElement> {
 async function setPersonifyAll(on: boolean) {
   const { useInboxStore } = await import("../../store/inboxStore");
   await act(async () => {
-    useInboxStore.setState((s: Record<string, unknown>) => ({
-      ...s,
-      clientState: { ...((s.clientState as object) ?? {}), ui: { ...(((s.clientState as { ui?: object })?.ui) ?? {}), show_characters: true, personify_sessions: on } },
-    }) as never);
+    useInboxStore.setState(
+      (s: Record<string, unknown>) =>
+        ({
+          ...s,
+          clientState: {
+            ...((s.clientState as object) ?? {}),
+            ui: {
+              ...((s.clientState as { ui?: object })?.ui ?? {}),
+              show_characters: true,
+              personify_sessions: on,
+            },
+          },
+        }) as never,
+    );
   });
 }
 
@@ -53,19 +76,30 @@ test("a session nobody personified renders as it always did: no face, plain titl
   const face = await render(<IdentityFace row={{ _id: ID }} hover={false} />);
   assert.equal(face.querySelector("img"), null, "a plain row draws no face");
 
-  const line = await render(<SessionIdentityLine row={{ _id: ID }} title="Fixing the auth race" />);
+  const line = await render(
+    <SessionIdentityLine row={{ _id: ID }} title="Fixing the auth race" />,
+  );
   assert.equal(line.textContent, "Fixing the auth race");
   // The title is the only thing on the line, so it must NOT be dimmed.
   const title = line.querySelector("span > span") as HTMLElement;
-  assert.ok(title.className.includes("text-sol-text"), "an unpersonified title keeps full contrast");
-  assert.ok(!title.className.includes("text-sol-text-dim"), "…and is not dimmed");
+  assert.ok(
+    title.className.includes("text-sol-text"),
+    "an unpersonified title keeps full contrast",
+  );
+  assert.ok(
+    !title.className.includes("text-sol-text-dim"),
+    "…and is not dimmed",
+  );
 });
 
 test("the workspace switch personifies a plain session without touching its row", async () => {
   const { IdentityFace } = await import("./IdentityFace");
   await setPersonifyAll(true);
   const face = await render(<IdentityFace row={{ _id: ID }} hover={false} />);
-  assert.ok(face.querySelector("img"), "the switch alone gives an untouched row a face");
+  assert.ok(
+    face.querySelector("img"),
+    "the switch alone gives an untouched row a face",
+  );
   await setPersonifyAll(false);
 });
 
@@ -73,25 +107,49 @@ test("a personified session leads with the name and dims what it is working on",
   const { SessionIdentityLine } = await import("./SessionIdentityLine");
   await setPersonifyAll(false);
   const host = await render(
-    <SessionIdentityLine row={{ _id: ID, character_name: "Ember", character_avatar: "fox" }} title="Fixing the auth race" />,
+    <SessionIdentityLine
+      row={{ _id: ID, character_name: "Ember", character_avatar: "fox" }}
+      title="Fixing the auth race"
+    />,
   );
   assert.equal(host.textContent, "Ember·Fixing the auth race");
-  const spans = Array.from(host.querySelectorAll("span > span")) as HTMLElement[];
+  const spans = Array.from(
+    host.querySelectorAll("span > span"),
+  ) as HTMLElement[];
   const name = host.querySelector("[data-sv-name]") as HTMLElement;
   const title = spans.find((s) => s.textContent === "Fixing the auth race")!;
   assert.equal(name.textContent, "Ember");
-  assert.ok(name.className.includes("text-sol-text") && name.className.includes("font-medium"), "the name is dominant");
-  assert.ok(title.className.includes("text-sol-text-dim"), "the work is secondary");
-  assert.ok(name.className.includes("flex-shrink-0"), "the name never gives way to the title");
-  assert.ok(name.className.includes("truncate") && name.parentElement!.className.includes("max-w-"), "a name wider than the line ellipsizes instead of painting under the chips");
+  assert.ok(
+    name.className.includes("text-sol-text") &&
+      name.className.includes("font-medium"),
+    "the name is dominant",
+  );
+  assert.ok(
+    title.className.includes("text-sol-text-dim"),
+    "the work is secondary",
+  );
+  assert.ok(
+    name.className.includes("flex-shrink-0"),
+    "the name never gives way to the title",
+  );
+  assert.ok(
+    name.className.includes("truncate") &&
+      name.parentElement!.className.includes("max-w-"),
+    "a name wider than the line ellipsizes instead of painting under the chips",
+  );
   assert.ok(title.className.includes("truncate"), "the title does");
 });
 
 test("the line carries the minimal style's title marker whether or not it is personified", async () => {
   const { SessionIdentityLine } = await import("./SessionIdentityLine");
   for (const row of [{ _id: ID }, { _id: ID, character_name: "Ember" }]) {
-    const host = await render(<SessionIdentityLine row={row} title="Something" />);
-    assert.ok(host.querySelector("[data-sv-title]"), "globals.css keys the 15px rule on this");
+    const host = await render(
+      <SessionIdentityLine row={row} title="Something" />,
+    );
+    assert.ok(
+      host.querySelector("[data-sv-title]"),
+      "globals.css keys the 15px rule on this",
+    );
   }
 });
 
@@ -102,16 +160,29 @@ test("a role's standing session wears the role and is personified without opting
   const row = {
     _id: ID,
     standing_role_id: "org_roles_infra",
-    role: { _id: "org_roles_infra", short_id: "or-7", name: "Infra lead", given_name: "Hazel", handle: "infra", avatar: "stag", status: "active", tenure_kind: "standing" },
+    role: {
+      _id: "org_roles_infra",
+      short_id: "or-7",
+      name: "Infra lead",
+      given_name: "Hazel",
+      handle: "infra",
+      avatar: "stag",
+      status: "active",
+      tenure_kind: "standing",
+    },
   };
   const face = await render(<IdentityFace row={row as never} hover={false} />);
   assert.ok(face.querySelector("img"), "a role always has a face");
 
-  const line = await render(<SessionIdentityLine row={row as never} title="Rolling the canary" />);
+  const line = await render(
+    <SessionIdentityLine row={row as never} title="Rolling the canary" />,
+  );
   // The role speaks by its given name, never its title (org-staffing.md S30).
   assert.equal(line.textContent, "Hazel@infra·Rolling the canary");
   // A title that only repeats the name is not shown twice.
-  const same = await render(<SessionIdentityLine row={row as never} title="Hazel" />);
+  const same = await render(
+    <SessionIdentityLine row={row as never} title="Hazel" />,
+  );
   assert.equal(same.textContent, "Hazel@infra");
 });
 
@@ -119,36 +190,82 @@ test("a list's glyph: the face when personified, the surface's own mark when not
   const { SessionGlyph } = await import("./SessionGlyph");
   await setPersonifyAll(false);
   const plain = await render(
-    <SessionGlyph row={{ _id: ID }} fallback={<span data-old-mark>icon</span>} />,
+    <SessionGlyph
+      row={{ _id: ID }}
+      fallback={<span data-old-mark>icon</span>}
+    />,
   );
   assert.ok(!plain.querySelector("img"), "nobody opted in: no face");
-  assert.ok(plain.querySelector("[data-old-mark]"), "the row keeps the mark it always had");
+  assert.ok(
+    plain.querySelector("[data-old-mark]"),
+    "the row keeps the mark it always had",
+  );
 
   const chosen = await render(
-    <SessionGlyph row={{ _id: ID, character_avatar: "otter" }} fallback={<span data-old-mark>icon</span>} />,
+    <SessionGlyph
+      row={{ _id: ID, character_avatar: "otter" }}
+      fallback={<span data-old-mark>icon</span>}
+    />,
   );
   assert.ok(chosen.querySelector("img"), "a chosen character shows its face");
-  assert.ok(!chosen.querySelector("[data-old-mark]"), "and replaces the old mark");
+  assert.ok(
+    !chosen.querySelector("[data-old-mark]"),
+    "and replaces the old mark",
+  );
 
   await setPersonifyAll(true);
-  const all = await render(<SessionGlyph row={{ _id: ID }} fallback={<span data-old-mark>icon</span>} />);
-  assert.ok(all.querySelector("img"), "the workspace switch personifies every row");
+  const all = await render(
+    <SessionGlyph
+      row={{ _id: ID }}
+      fallback={<span data-old-mark>icon</span>}
+    />,
+  );
+  assert.ok(
+    all.querySelector("img"),
+    "the workspace switch personifies every row",
+  );
   await setPersonifyAll(false);
 });
 
 test("a session tag names a personified session the same way at every size, and a plain one by its title", async () => {
   const { SessionTag } = await import("./SessionTag");
   await setPersonifyAll(false);
-  const personified = { _id: ID, title: "Team huddle observation", character_avatar: "cat", character_name: "Whisker", agent_type: "claude_code" };
+  const personified = {
+    _id: ID,
+    title: "Team huddle observation",
+    character_avatar: "cat",
+    character_name: "Whisker",
+    agent_type: "claude_code",
+  };
   for (const size of ["xs", "sm", "md", "lg"] as const) {
     const tag = await render(<SessionTag session={personified} size={size} />);
-    assert.equal(tag.textContent, "Whisker·Team huddle observation", `size ${size}`);
-    assert.ok(tag.querySelector("[data-identity]"), `size ${size} draws the face`);
+    assert.equal(
+      tag.textContent,
+      "Whisker·Team huddle observation",
+      `size ${size}`,
+    );
+    assert.ok(
+      tag.querySelector("[data-identity]"),
+      `size ${size} draws the face`,
+    );
   }
   let opened = 0;
-  const plain = await render(<SessionTag session={{ _id: ID, title: "Fixing the auth race", agent_type: "codex" }} onClick={() => { opened++; }} />);
+  const plain = await render(
+    <SessionTag
+      session={{ _id: ID, title: "Fixing the auth race", agent_type: "codex" }}
+      onClick={() => {
+        opened++;
+      }}
+    />,
+  );
   assert.equal(plain.textContent, "Fixing the auth race");
-  assert.equal(plain.querySelector("[data-identity]"), null, "a plain session keeps its agent brand, no face");
-  await act(async () => { (plain.querySelector("button") as HTMLButtonElement).click(); });
+  assert.equal(
+    plain.querySelector("[data-identity]"),
+    null,
+    "a plain session keeps its agent brand, no face",
+  );
+  await act(async () => {
+    (plain.querySelector("button") as HTMLButtonElement).click();
+  });
   assert.equal(opened, 1);
 });

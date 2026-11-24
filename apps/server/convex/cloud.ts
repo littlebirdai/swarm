@@ -14,7 +14,10 @@ import { action, internalQuery, mutation, query } from "./functions";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { verifyApiToken } from "./apiTokens";
-import { policyWorkspaceOf, requireTeamPolicyAllows } from "./lib/teamPolicyGuard";
+import {
+  policyWorkspaceOf,
+  requireTeamPolicyAllows,
+} from "./lib/teamPolicyGuard";
 import { internal } from "./_generated/api";
 import { grantsContentsWrite, installationForRepo } from "./githubApp";
 import { Id } from "./_generated/dataModel";
@@ -22,10 +25,38 @@ import { DEVICE_ONLINE_MS } from "./deviceRouting";
 import { enqueueStartSession } from "./devices";
 import { enqueuePendingMessage } from "./pendingMessages";
 import { releasePreviousOwner } from "./sessionRelease";
-import { checkoutInUseMessage, CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES, CLOUD_HOST_ACTIONS, isCloudHostSize, CLOUD_LEAVE_OUT_MAX, CLOUD_PLACEMENT_LINE_CHARS, CLOUD_PLACEMENT_LINES_MAX, CLOUD_PLACEMENT_STEPS, fromConvexAgentType, isHttpOrigin, LOCAL_MIRROR_MODES, LOCAL_MIRROR_STATUSES, mirrorLaptops, parseOwnerRepo, type CloudHostAction, type CloudWorkspaceMode, type LocalMirrorMode, type MirrorResolve } from "@codecast/shared/contracts";
+import {
+  checkoutInUseMessage,
+  CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES,
+  CLOUD_HOST_ACTIONS,
+  isCloudHostSize,
+  CLOUD_LEAVE_OUT_MAX,
+  CLOUD_PLACEMENT_LINE_CHARS,
+  CLOUD_PLACEMENT_LINES_MAX,
+  CLOUD_PLACEMENT_STEPS,
+  fromConvexAgentType,
+  isHttpOrigin,
+  LOCAL_MIRROR_MODES,
+  LOCAL_MIRROR_STATUSES,
+  mirrorLaptops,
+  parseOwnerRepo,
+  type CloudHostAction,
+  type CloudWorkspaceMode,
+  type LocalMirrorMode,
+  type MirrorResolve,
+} from "@codecast/shared/contracts";
 import { resolveConversationRefRanked } from "./conversationSessionLookup";
-import { cloudHostReportValidator, cloudPlacementProgressValidator, hostReadinessValidator, localMirrorFields } from "./lib/cloudHostValidators";
-import { cloudSeedArg, cloudWorkspaceValidator, findSharedCheckoutOccupant } from "./cloudPlacement";
+import {
+  cloudHostReportValidator,
+  cloudPlacementProgressValidator,
+  hostReadinessValidator,
+  localMirrorFields,
+} from "./lib/cloudHostValidators";
+import {
+  cloudSeedArg,
+  cloudWorkspaceValidator,
+  findSharedCheckoutOccupant,
+} from "./cloudPlacement";
 
 // The park/prepare logic moved to cloudPlacement.ts (a leaf every creator can
 // import); re-exported here for older importers.
@@ -35,9 +66,17 @@ export { enqueueCloudSpawn } from "./cloudPlacement";
 // cloudPlacement.ts (the leaf devices.ts / conversations.ts / dispatch.ts /
 // spawn.ts import); this module re-exports them beside the mutations that
 // use them.
-export { cloudSeedArg, cloudStartFromArg, cloudWorkspaceValidator, findSharedCheckoutOccupant } from "./cloudPlacement";
+export {
+  cloudSeedArg,
+  cloudStartFromArg,
+  cloudWorkspaceValidator,
+  findSharedCheckoutOccupant,
+} from "./cloudPlacement";
 
-async function getAuthenticatedUserId(ctx: { db: any }, apiToken?: string): Promise<Id<"users"> | null> {
+async function getAuthenticatedUserId(
+  ctx: { db: any },
+  apiToken?: string,
+): Promise<Id<"users"> | null> {
   const sessionUserId = await getAuthUserId(ctx as any);
   if (sessionUserId) return sessionUserId;
   if (apiToken) {
@@ -91,26 +130,54 @@ export const placeConversation = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      throw new Error("not your conversation");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     if (!device) throw new Error(`Unknown device ${args.device_id}`);
-    await requireTeamPolicyAllows(ctx, { workspace: policyWorkspaceOf("conversations", conv), apiToken: args.api_token }, "cloud_hosts_disabled");
+    await requireTeamPolicyAllows(
+      ctx,
+      {
+        workspace: policyWorkspaceOf("conversations", conv),
+        apiToken: args.api_token,
+      },
+      "cloud_hosts_disabled",
+    );
 
     const fence = placementFence(conv, args.expect_token);
-    if (fence) return { placed: false as const, reason: fence, command_id: null, owner_device_id: conv.owner_device_id ?? null };
+    if (fence)
+      return {
+        placed: false as const,
+        reason: fence,
+        command_id: null,
+        owner_device_id: conv.owner_device_id ?? null,
+      };
     const priorOwner: string | undefined = conv.owner_device_id;
-    const mode: CloudWorkspaceMode | undefined = args.cloud_workspace
-      ?? (conv.cloud_workspace as CloudWorkspaceMode | undefined)
-      ?? (args.worktree_name ? "isolated" : undefined);
+    const mode: CloudWorkspaceMode | undefined =
+      args.cloud_workspace ??
+      (conv.cloud_workspace as CloudWorkspaceMode | undefined) ??
+      (args.worktree_name ? "isolated" : undefined);
     if (mode === "shared") {
       if (conv.cloud_checkout_path !== args.project_path) {
-        throw new Error(`place after claimSharedCheckout: the row claimed ${conv.cloud_checkout_path ?? "no checkout"}, not ${args.project_path}`);
+        throw new Error(
+          `place after claimSharedCheckout: the row claimed ${conv.cloud_checkout_path ?? "no checkout"}, not ${args.project_path}`,
+        );
       }
-      const occupant = await findSharedCheckoutOccupant(ctx, userId, args.device_id, { projectPath: args.project_path, excludeId: args.conversation_id.toString() });
-      if (occupant) throw new Error(checkoutInUseMessage(args.project_path, occupant));
+      const occupant = await findSharedCheckoutOccupant(
+        ctx,
+        userId,
+        args.device_id,
+        {
+          projectPath: args.project_path,
+          excludeId: args.conversation_id.toString(),
+        },
+      );
+      if (occupant)
+        throw new Error(checkoutInUseMessage(args.project_path, occupant));
     }
 
     await ctx.db.patch(args.conversation_id, {
@@ -118,8 +185,15 @@ export const placeConversation = mutation({
       project_path: args.project_path,
       git_root: args.git_root ?? args.project_path,
       ...(args.worktree_name ? { worktree_name: args.worktree_name } : {}),
-      ...(args.worktree_branch ? { worktree_branch: args.worktree_branch } : {}),
-      ...(args.worktree_path ? { worktree_path: args.worktree_path, worktree_status: "active" as const } : {}),
+      ...(args.worktree_branch
+        ? { worktree_branch: args.worktree_branch }
+        : {}),
+      ...(args.worktree_path
+        ? {
+            worktree_path: args.worktree_path,
+            worktree_status: "active" as const,
+          }
+        : {}),
       ...(mode ? { cloud_workspace: mode } : {}),
       // Only a shared row holds the checkout; an isolated placement after a
       // failed shared attempt must not keep attributing the root to itself.
@@ -164,7 +238,11 @@ export const placeConversation = mutation({
       const placed = await ctx.db.get(args.conversation_id);
       await enqueuePendingMessage(ctx, placed, userId, { content: prompt });
     }
-    return { placed: true as const, command_id: commandId, owner_device_id: args.device_id };
+    return {
+      placed: true as const,
+      command_id: commandId,
+      owner_device_id: args.device_id,
+    };
   },
 });
 
@@ -190,17 +268,30 @@ export const claimSharedCheckout = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      throw new Error("not your conversation");
     const device = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
     if (!device) throw new Error(`Unknown device ${args.device_id}`);
-    if (conv.cloud_placement !== "pending") return { claimed: false as const, reason: "not_pending" as const };
+    if (conv.cloud_placement !== "pending")
+      return { claimed: false as const, reason: "not_pending" as const };
     const fence = placementFence(conv, args.expect_token);
     if (fence) return { claimed: false as const, reason: fence };
-    const occupant = await findSharedCheckoutOccupant(ctx, userId, args.device_id, { projectPath: args.project_path, excludeId: args.conversation_id.toString() });
-    if (occupant) throw new Error(checkoutInUseMessage(args.project_path, occupant));
+    const occupant = await findSharedCheckoutOccupant(
+      ctx,
+      userId,
+      args.device_id,
+      {
+        projectPath: args.project_path,
+        excludeId: args.conversation_id.toString(),
+      },
+    );
+    if (occupant)
+      throw new Error(checkoutInUseMessage(args.project_path, occupant));
     await ctx.db.patch(args.conversation_id, {
       cloud_workspace: "shared" as const,
       cloud_checkout_path: args.project_path,
@@ -218,7 +309,10 @@ export const claimSharedCheckout = mutation({
  * only the one holding the CURRENT token may place.
  */
 export function placementFence(
-  conv: { cloud_placement?: string | null; cloud_placement_token?: string | null },
+  conv: {
+    cloud_placement?: string | null;
+    cloud_placement_token?: string | null;
+  },
   expectToken: string | undefined,
 ): "not_pending" | "superseded" | null {
   if (expectToken === undefined) return null;
@@ -248,25 +342,35 @@ export const reportPlacementFailure = mutation({
     placement_token: v.optional(v.string()),
     error: v.string(),
     /** The child's context_too_large line: what would have to stay behind. */
-    context_too_large: v.optional(v.object({
-      total_bytes: v.number(),
-      cap_bytes: v.number(),
-      files: v.array(v.object({ path: v.string(), bytes: v.number() })),
-    })),
+    context_too_large: v.optional(
+      v.object({
+        total_bytes: v.number(),
+        cap_bytes: v.number(),
+        files: v.array(v.object({ path: v.string(), bytes: v.number() })),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) return { recorded: false as const, reason: "not_yours" };
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      return { recorded: false as const, reason: "not_yours" };
     const fence = placementFence(conv, args.placement_token);
     if (fence) return { recorded: false as const, reason: fence };
     const progress = (conv as any).cloud_placement_progress;
     await ctx.db.patch(args.conversation_id, {
       session_error: args.error,
       cloud_placement_failed_at: Date.now(),
-      ...(progress && progress.token === args.placement_token ? { cloud_placement_progress: { ...progress, failed_at: Date.now() } } : {}),
-      cloud_context_too_large: args.context_too_large?.files.length ? { ...args.context_too_large, files: args.context_too_large.files.slice(0, CLOUD_LEAVE_OUT_MAX) } : undefined,
+      ...(progress && progress.token === args.placement_token
+        ? { cloud_placement_progress: { ...progress, failed_at: Date.now() } }
+        : {}),
+      cloud_context_too_large: args.context_too_large?.files.length
+        ? {
+            ...args.context_too_large,
+            files: args.context_too_large.files.slice(0, CLOUD_LEAVE_OUT_MAX),
+          }
+        : undefined,
       updated_at: Date.now(),
     });
     return { recorded: true as const };
@@ -289,7 +393,8 @@ export const reportPlacementProgress = mutation({
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) return { recorded: false as const, reason: "not_yours" };
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      return { recorded: false as const, reason: "not_yours" };
     const fence = placementFence(conv, args.progress.token);
     if (fence) return { recorded: false as const, reason: fence };
     const { lines, steps } = args.progress;
@@ -297,7 +402,9 @@ export const reportPlacementProgress = mutation({
       cloud_placement_progress: {
         ...args.progress,
         steps: steps.slice(-CLOUD_PLACEMENT_STEPS.length * 2),
-        lines: lines.slice(-CLOUD_PLACEMENT_LINES_MAX).map((l) => l.slice(0, CLOUD_PLACEMENT_LINE_CHARS)),
+        lines: lines
+          .slice(-CLOUD_PLACEMENT_LINES_MAX)
+          .map((l) => l.slice(0, CLOUD_PLACEMENT_LINE_CHARS)),
       },
     });
     return { recorded: true as const };
@@ -309,7 +416,10 @@ export const reportPlacementProgress = mutation({
  * "run in the cloud") needs to know about the row it is placing.
  */
 export const placementTarget = query({
-  args: { api_token: v.optional(v.string()), conversation_id: v.id("conversations") },
+  args: {
+    api_token: v.optional(v.string()),
+    conversation_id: v.id("conversations"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
@@ -351,7 +461,12 @@ export const hostSessions = query({
     // long history (`cast land scan --hosts`, `cast hosts ls`).
     const owned = await ctx.db
       .query("conversations")
-      .withIndex("by_owner_device_status", (q: any) => q.eq("user_id", userId).eq("owner_device_id", args.device_id).eq("status", "active"))
+      .withIndex("by_owner_device_status", (q: any) =>
+        q
+          .eq("user_id", userId)
+          .eq("owner_device_id", args.device_id)
+          .eq("status", "active"),
+      )
       .collect();
     return owned
       .filter((c: any) => !c.inbox_killed_at)
@@ -371,7 +486,14 @@ export const hostSessions = query({
         // pending shared row failed, and the message may quote paths.
         session_error: !!c.session_error,
         cloud_seed: c.cloud_seed
-          ? { source: c.cloud_seed.source, base: c.cloud_seed.base, branch: c.cloud_seed.branch ?? null, dirty: c.cloud_seed.dirty ?? null, device_id: c.cloud_seed.device_id ?? null, reason: c.cloud_seed.reason ?? null }
+          ? {
+              source: c.cloud_seed.source,
+              base: c.cloud_seed.base,
+              branch: c.cloud_seed.branch ?? null,
+              dirty: c.cloud_seed.dirty ?? null,
+              device_id: c.cloud_seed.device_id ?? null,
+              reason: c.cloud_seed.reason ?? null,
+            }
           : null,
         updated_at: c.updated_at ?? null,
       }))
@@ -383,7 +505,12 @@ export const hostSessions = query({
 // Browser logins on the host: `cast browser sync <site>` from a cloud session
 // ---------------------------------------------------------------------------
 
-type CarrierDevice = { device_id: string; is_remote?: boolean; last_seen: number; label?: string };
+type CarrierDevice = {
+  device_id: string;
+  is_remote?: boolean;
+  last_seen: number;
+  label?: string;
+};
 
 /**
  * The laptop that carries a login into the host's browser: the most recently
@@ -398,8 +525,12 @@ export function pickOnlineLocalDevice(
   now: number,
   via?: string,
 ): { device_id: string; label: string | null } | null {
-  const online = devices.filter((d) => !d.is_remote && now - d.last_seen < DEVICE_ONLINE_MS);
-  const pick = via ? online.find((d) => d.device_id === via) : [...online].sort((a, b) => b.last_seen - a.last_seen)[0];
+  const online = devices.filter(
+    (d) => !d.is_remote && now - d.last_seen < DEVICE_ONLINE_MS,
+  );
+  const pick = via
+    ? online.find((d) => d.device_id === via)
+    : [...online].sort((a, b) => b.last_seen - a.last_seen)[0];
   return pick ? { device_id: pick.device_id, label: pick.label ?? null } : null;
 }
 
@@ -436,13 +567,27 @@ export const requestBrowserSync = mutation({
     if (!userId) throw new Error("Authentication required");
     const host = await ctx.db
       .query("devices")
-      .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+      .withIndex("by_user_device", (q: any) =>
+        q.eq("user_id", userId).eq("device_id", args.device_id),
+      )
       .first();
-    if (!host || host.is_remote !== true) throw new Error(`device ${args.device_id.slice(0, 8)} is not a cloud host of yours`);
-    if (!Number.isInteger(args.cdp_port) || args.cdp_port < 1 || args.cdp_port > 65535) throw new Error(`cdp_port ${args.cdp_port} is not a port`);
+    if (!host || host.is_remote !== true)
+      throw new Error(
+        `device ${args.device_id.slice(0, 8)} is not a cloud host of yours`,
+      );
+    if (
+      !Number.isInteger(args.cdp_port) ||
+      args.cdp_port < 1 ||
+      args.cdp_port > 65535
+    )
+      throw new Error(`cdp_port ${args.cdp_port} is not a port`);
     const origin = args.origin;
-    if ((origin === undefined) === !args.all) throw new Error("name exactly one of: origin, all");
-    if (origin !== undefined && !isHttpOrigin(origin)) throw new Error(`${origin} is not an http(s) origin (scheme + host only)`);
+    if ((origin === undefined) === !args.all)
+      throw new Error("name exactly one of: origin, all");
+    if (origin !== undefined && !isHttpOrigin(origin))
+      throw new Error(
+        `${origin} is not an http(s) origin (scheme + host only)`,
+      );
     // The id is attribution, never authorization (the host device is). A
     // conversation that moved off the host, or an id inherited from another
     // session's shell, must not block the carry: keep the ownership check and
@@ -450,7 +595,8 @@ export const requestBrowserSync = mutation({
     let conversationId = args.conversation_id;
     if (conversationId) {
       const conv = await ctx.db.get(conversationId);
-      if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("not your conversation");
+      if (!conv || conv.user_id.toString() !== userId.toString())
+        throw new Error("not your conversation");
       if (conv.owner_device_id !== args.device_id) conversationId = undefined;
     }
     const now = Date.now();
@@ -458,11 +604,20 @@ export const requestBrowserSync = mutation({
     // ssh forward, and a looping session on the host must not queue them.
     const unanswered = await ctx.db
       .query("daemon_commands")
-      .withIndex("by_user_pending", (q: any) => q.eq("user_id", userId).eq("executed_at", undefined))
-      .filter((q: any) => q.and(q.eq(q.field("command"), "cloud_browser_sync"), q.gt(q.field("created_at"), now - BROWSER_SYNC_WINDOW_MS)))
+      .withIndex("by_user_pending", (q: any) =>
+        q.eq("user_id", userId).eq("executed_at", undefined),
+      )
+      .filter((q: any) =>
+        q.and(
+          q.eq(q.field("command"), "cloud_browser_sync"),
+          q.gt(q.field("created_at"), now - BROWSER_SYNC_WINDOW_MS),
+        ),
+      )
       .take(BROWSER_SYNC_PENDING_CAP);
     if (unanswered.length >= BROWSER_SYNC_PENDING_CAP) {
-      throw new Error(`${BROWSER_SYNC_PENDING_CAP} browser sync requests are already waiting for your laptop — wait for them to finish and retry`);
+      throw new Error(
+        `${BROWSER_SYNC_PENDING_CAP} browser sync requests are already waiting for your laptop — wait for them to finish and retry`,
+      );
     }
     const devices = await ctx.db
       .query("devices")
@@ -489,7 +644,11 @@ export const requestBrowserSync = mutation({
       created_at: now,
       target_device_id: preparer.device_id,
     });
-    return { command_id: commandId, device_id: preparer.device_id, label: preparer.label };
+    return {
+      command_id: commandId,
+      device_id: preparer.device_id,
+      label: preparer.label,
+    };
   },
 });
 
@@ -499,12 +658,21 @@ export const requestBrowserSync = mutation({
  * only), and the query exposes only this feature's rows.
  */
 export const commandOutcome = query({
-  args: { api_token: v.optional(v.string()), command_id: v.id("daemon_commands") },
+  args: {
+    api_token: v.optional(v.string()),
+    command_id: v.id("daemon_commands"),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return null;
     const cmd = await ctx.db.get(args.command_id);
-    if (!cmd || cmd.user_id.toString() !== userId.toString() || (cmd.command !== "cloud_browser_sync" && cmd.command !== "cloud_live_sync")) return null;
+    if (
+      !cmd ||
+      cmd.user_id.toString() !== userId.toString() ||
+      (cmd.command !== "cloud_browser_sync" &&
+        cmd.command !== "cloud_live_sync")
+    )
+      return null;
     return {
       executed_at: cmd.executed_at ?? null,
       result: cmd.result ?? null,
@@ -561,20 +729,38 @@ export async function hostGitInstallationFor(
   ctx: { db: any; auth?: any },
   userId: Id<"users">,
   args: { device_id: string; repository: string; host?: string },
-): Promise<{ installation_id: number; account_login: string; personal: boolean; repository: string } | HostGitCredentialRefusal> {
+): Promise<
+  | {
+      installation_id: number;
+      account_login: string;
+      personal: boolean;
+      repository: string;
+    }
+  | HostGitCredentialRefusal
+> {
   const device = await ctx.db
     .query("devices")
-    .withIndex("by_user_device", (q: any) => q.eq("user_id", userId).eq("device_id", args.device_id))
+    .withIndex("by_user_device", (q: any) =>
+      q.eq("user_id", userId).eq("device_id", args.device_id),
+    )
     .first();
   if (!device || device.is_remote !== true) {
-    return { reason: `device ${args.device_id.slice(0, 8)} is not a cloud host of yours` };
+    return {
+      reason: `device ${args.device_id.slice(0, 8)} is not a cloud host of yours`,
+    };
   }
   if (args.host !== undefined && args.host !== "github.com") {
-    return { reason: `${args.host} is not github.com — the codecast app only holds GitHub credentials` };
+    return {
+      reason: `${args.host} is not github.com — the codecast app only holds GitHub credentials`,
+    };
   }
   const repository = parseOwnerRepo(args.repository);
-  if (!repository) return { reason: `${args.repository} is not an owner/name repository` };
-  const installation = await installationForRepo(ctx as any, { repository, user_id: userId });
+  if (!repository)
+    return { reason: `${args.repository} is not an owner/name repository` };
+  const installation = await installationForRepo(ctx as any, {
+    repository,
+    user_id: userId,
+  });
   if (!installation) {
     return {
       reason:
@@ -585,7 +771,9 @@ export async function hostGitInstallationFor(
   return {
     installation_id: installation.installation_id,
     account_login: installation.account_login,
-    personal: !!installation.scope_user_id && String(installation.scope_user_id) === String(userId),
+    personal:
+      !!installation.scope_user_id &&
+      String(installation.scope_user_id) === String(userId),
     repository,
   };
 }
@@ -598,7 +786,10 @@ export const hostGitInstallation = internalQuery({
     repository: v.string(),
     host: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<HostGitInstallationAnswer | HostGitCredentialRefusal> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<HostGitInstallationAnswer | HostGitCredentialRefusal> => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const resolved = await hostGitInstallationFor(ctx, userId, args);
@@ -638,7 +829,11 @@ export async function viewerCanPush(
   if (!token) return null;
   try {
     const r = await fetchImpl(`https://api.github.com/repos/${repository}`, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
     });
     if (!r.ok) return r.status === 403 || r.status === 404 ? false : null;
     const body: any = await r.json();
@@ -680,7 +875,10 @@ export const hostGitCredential = action({
     /** The git host; only github.com has an installation to mint from. */
     host: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<HostGitCredential | HostGitCredentialRefusal> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<HostGitCredential | HostGitCredentialRefusal> => {
     const resolved: HostGitInstallationAnswer | HostGitCredentialRefusal =
       await ctx.runQuery(internal.cloud.hostGitInstallation, {
         ...(args.api_token ? { api_token: args.api_token } : {}),
@@ -693,20 +891,30 @@ export const hostGitCredential = action({
     // push to on GitHub, so GitHub decides, with their own credential. Their
     // own installation needs no second opinion: it is their access already.
     if (!resolved.personal) {
-      const allowed = await viewerCanPush(resolved.repository, resolved.viewer_github_token);
+      const allowed = await viewerCanPush(
+        resolved.repository,
+        resolved.viewer_github_token,
+      );
       if (allowed !== true) {
-        const who = resolved.viewer_github_login ? ` (${resolved.viewer_github_login})` : "";
+        const who = resolved.viewer_github_login
+          ? ` (${resolved.viewer_github_login})`
+          : "";
         return {
-          reason: allowed === false
-            ? `your GitHub account${who} cannot push to ${resolved.repository}, so the ${resolved.account_login} installation will not push for you`
-            : `the ${resolved.account_login} installation covers ${resolved.repository}, but GitHub could not confirm that you may push there — link your GitHub account in codecast settings and retry`,
+          reason:
+            allowed === false
+              ? `your GitHub account${who} cannot push to ${resolved.repository}, so the ${resolved.account_login} installation will not push for you`
+              : `the ${resolved.account_login} installation covers ${resolved.repository}, but GitHub could not confirm that you may push there — link your GitHub account in codecast settings and retry`,
         };
       }
     }
     // Scoped to the repository git named, and to push access. GitHub refuses
     // (422) when the installation does not hold that permission, so a mint
     // that throws is a refusal the helper can print, not a crash.
-    let minted: { token: string; expires_at: number; permissions?: Record<string, string> };
+    let minted: {
+      token: string;
+      expires_at: number;
+      permissions?: Record<string, string>;
+    };
     try {
       minted = await ctx.runAction(internal.githubApp.getInstallationToken, {
         installation_id: resolved.installation_id,
@@ -752,35 +960,93 @@ export const hostGitCredential = action({
  * stopped on a local edit, saving that edit to a backup ref first.
  */
 /** Where a session's sync runs: the laptop and checkout that hold its copy, and the host it pairs with. */
-async function syncTarget(ctx: any, userId: Id<"users">, conversationId: Id<"conversations">, prefer?: string) {
+async function syncTarget(
+  ctx: any,
+  userId: Id<"users">,
+  conversationId: Id<"conversations">,
+  prefer?: string,
+) {
   const conv = await ctx.db.get(conversationId);
-  if (!conv || conv.user_id.toString() !== userId.toString()) throw new Error("Unauthorized");
-  const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+  if (!conv || conv.user_id.toString() !== userId.toString())
+    throw new Error("Unauthorized");
+  const devices = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   const host = devices.find((d: any) => d.device_id === conv.owner_device_id);
-  if (!host?.is_remote) throw new Error("This session does not run on a cloud host");
-  if (!conv.project_path) throw new Error("The session has no working directory on the host yet");
+  if (!host?.is_remote)
+    throw new Error("This session does not run on a cloud host");
+  if (!conv.project_path)
+    throw new Error("The session has no working directory on the host yet");
   const now = Date.now();
   const laptops = mirrorLaptops(devices, conv, now, DEVICE_ONLINE_MS);
   // A running sync lives on its laptop; otherwise the named laptop, then the best one.
-  const running = conv.local_mirror ? laptops.find((l) => l.device_id === conv.local_mirror.device_id) ?? { device_id: conv.local_mirror.device_id, root: "", online: false } : undefined;
-  const target = running ?? (prefer ? laptops.find((l) => l.device_id === prefer) : undefined) ?? laptops[0];
-  return { conv, devices, now, target, args: target ? { conversation_id: conversationId, host_device_id: conv.owner_device_id, remote_cwd: conv.project_path, local_root: target.root } : null };
+  const running = conv.local_mirror
+    ? (laptops.find((l) => l.device_id === conv.local_mirror.device_id) ?? {
+        device_id: conv.local_mirror.device_id,
+        root: "",
+        online: false,
+      })
+    : undefined;
+  const target =
+    running ??
+    (prefer ? laptops.find((l) => l.device_id === prefer) : undefined) ??
+    laptops[0];
+  return {
+    conv,
+    devices,
+    now,
+    target,
+    args: target
+      ? {
+          conversation_id: conversationId,
+          host_device_id: conv.owner_device_id,
+          remote_cwd: conv.project_path,
+          local_root: target.root,
+        }
+      : null,
+  };
 }
 
 export async function performSetLocalMirror(
   ctx: any,
   userId: Id<"users">,
   conversationId: Id<"conversations">,
-  opts: { enable: boolean; deviceId?: string; overwrite?: boolean; mode?: LocalMirrorMode; resolve?: MirrorResolve },
+  opts: {
+    enable: boolean;
+    deviceId?: string;
+    overwrite?: boolean;
+    mode?: LocalMirrorMode;
+    resolve?: MirrorResolve;
+  },
 ): Promise<{ device_id: string; command_id: Id<"daemon_commands"> }> {
-  if (opts.mode && !LOCAL_MIRROR_MODES.includes(opts.mode)) throw new Error(`unknown mirror mode ${opts.mode}`);
-  if (opts.resolve && (!["laptop", "cloud"].includes(opts.resolve.keep) || (opts.resolve.paths && !Array.isArray(opts.resolve.paths)))) throw new Error("resolve names keep: laptop or cloud, and optional paths");
-  const { conv, devices, now, target: found, args } = await syncTarget(ctx, userId, conversationId, opts.deviceId);
+  if (opts.mode && !LOCAL_MIRROR_MODES.includes(opts.mode))
+    throw new Error(`unknown mirror mode ${opts.mode}`);
+  if (
+    opts.resolve &&
+    (!["laptop", "cloud"].includes(opts.resolve.keep) ||
+      (opts.resolve.paths && !Array.isArray(opts.resolve.paths)))
+  )
+    throw new Error("resolve names keep: laptop or cloud, and optional paths");
+  const {
+    conv,
+    devices,
+    now,
+    target: found,
+    args,
+  } = await syncTarget(ctx, userId, conversationId, opts.deviceId);
   // Starting on a named laptop moves the sync there; stopping always goes to the one running it.
-  const target = opts.enable && opts.deviceId && found?.device_id !== opts.deviceId && !conv.local_mirror
-    ? undefined
-    : found;
-  if (!target || !args) throw new Error("No laptop of yours has a checkout of this repository to sync with");
+  const target =
+    opts.enable &&
+    opts.deviceId &&
+    found?.device_id !== opts.deviceId &&
+    !conv.local_mirror
+      ? undefined
+      : found;
+  if (!target || !args)
+    throw new Error(
+      "No laptop of yours has a checkout of this repository to sync with",
+    );
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "cloud_live_sync" as const,
@@ -789,7 +1055,16 @@ export async function performSetLocalMirror(
       enable: opts.enable,
       ...(opts.overwrite ? { overwrite: true } : {}),
       ...(opts.mode ? { mode: opts.mode } : {}),
-      ...(opts.resolve ? { resolve: { keep: opts.resolve.keep, ...(opts.resolve.paths ? { paths: opts.resolve.paths.slice(0, 200).map(String) } : {}) } } : {}),
+      ...(opts.resolve
+        ? {
+            resolve: {
+              keep: opts.resolve.keep,
+              ...(opts.resolve.paths
+                ? { paths: opts.resolve.paths.slice(0, 200).map(String) }
+                : {}),
+            },
+          }
+        : {}),
     }),
     created_at: now,
     target_device_id: target.device_id,
@@ -797,15 +1072,41 @@ export async function performSetLocalMirror(
   // A stop the laptop cannot answer now (offline) or was already asked for clears the row at
   // once; the queued command still tidies the laptop's job when it comes back.
   const laptop = devices.find((d: any) => d.device_id === target.device_id);
-  const clearNow = !opts.enable && (!laptop || now - laptop.last_seen >= DEVICE_ONLINE_MS || conv.local_mirror?.status === "stopping");
+  const clearNow =
+    !opts.enable &&
+    (!laptop ||
+      now - laptop.last_seen >= DEVICE_ONLINE_MS ||
+      conv.local_mirror?.status === "stopping");
   // A mode change or a conflict pick on a running mirror keeps its state until the laptop reports.
-  const adjusting = opts.enable && !opts.overwrite && (opts.mode || opts.resolve) && conv.local_mirror?.device_id === target.device_id && conv.local_mirror.status !== "stopping";
+  const adjusting =
+    opts.enable &&
+    !opts.overwrite &&
+    (opts.mode || opts.resolve) &&
+    conv.local_mirror?.device_id === target.device_id &&
+    conv.local_mirror.status !== "stopping";
   await ctx.db.patch(conversationId, {
     local_mirror: adjusting
-      ? { ...conv.local_mirror, ...(opts.mode ? { mode: opts.mode } : {}), at: now }
+      ? {
+          ...conv.local_mirror,
+          ...(opts.mode ? { mode: opts.mode } : {}),
+          at: now,
+        }
       : opts.enable
-      ? { ...(conv.local_mirror?.device_id === target.device_id ? conv.local_mirror : {}), device_id: target.device_id, status: "starting" as const, ...(opts.mode ? { mode: opts.mode } : {}), files: undefined, conflicts: undefined, error: undefined, at: now }
-      : conv.local_mirror && !clearNow ? { ...conv.local_mirror, status: "stopping" as const, at: now } : undefined,
+        ? {
+            ...(conv.local_mirror?.device_id === target.device_id
+              ? conv.local_mirror
+              : {}),
+            device_id: target.device_id,
+            status: "starting" as const,
+            ...(opts.mode ? { mode: opts.mode } : {}),
+            files: undefined,
+            conflicts: undefined,
+            error: undefined,
+            at: now,
+          }
+        : conv.local_mirror && !clearNow
+          ? { ...conv.local_mirror, status: "stopping" as const, at: now }
+          : undefined,
   });
   return { device_id: target.device_id, command_id: commandId };
 }
@@ -823,28 +1124,53 @@ export async function performSyncRequest(
   ctx: any,
   userId: Id<"users">,
   conversationId: Id<"conversations">,
-  req: { op: (typeof SYNC_REQUEST_OPS)[number]; paths?: string[]; ref?: string; callerDevice?: string },
+  req: {
+    op: (typeof SYNC_REQUEST_OPS)[number];
+    paths?: string[];
+    ref?: string;
+    callerDevice?: string;
+  },
 ) {
-  if (!SYNC_REQUEST_OPS.includes(req.op)) throw new Error(`unknown sync op ${req.op}`);
-  if (req.ref !== undefined && !/^[A-Za-z0-9._/-]{1,200}$/.test(req.ref)) throw new Error(`${req.ref} is not a branch or commit name`);
-  const { conv, devices, now, target, args } = await syncTarget(ctx, userId, conversationId, req.callerDevice);
-  if (!target || !args) throw new Error("No laptop of yours has a checkout of this repository");
+  if (!SYNC_REQUEST_OPS.includes(req.op))
+    throw new Error(`unknown sync op ${req.op}`);
+  if (req.ref !== undefined && !/^[A-Za-z0-9._/-]{1,200}$/.test(req.ref))
+    throw new Error(`${req.ref} is not a branch or commit name`);
+  const { conv, devices, now, target, args } = await syncTarget(
+    ctx,
+    userId,
+    conversationId,
+    req.callerDevice,
+  );
+  if (!target || !args)
+    throw new Error("No laptop of yours has a checkout of this repository");
   const laptop = devices.find((d: any) => d.device_id === target.device_id);
-  if (!laptop || now - laptop.last_seen >= DEVICE_ONLINE_MS) throw new Error(`${laptop?.label ?? "Your laptop"} is offline; the sync runs through it`);
+  if (!laptop || now - laptop.last_seen >= DEVICE_ONLINE_MS)
+    throw new Error(
+      `${laptop?.label ?? "Your laptop"} is offline; the sync runs through it`,
+    );
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "cloud_live_sync" as const,
     args: JSON.stringify({
       ...args,
       op: req.op,
-      ...(req.paths?.length ? { paths: req.paths.slice(0, 200).map(String) } : {}),
+      ...(req.paths?.length
+        ? { paths: req.paths.slice(0, 200).map(String) }
+        : {}),
       ...(req.ref ? { ref: req.ref } : {}),
-      ...(conv.cloud_seed?.tree && conv.cloud_seed.device_id === target.device_id ? { seed_tree: conv.cloud_seed.tree } : {}),
+      ...(conv.cloud_seed?.tree &&
+      conv.cloud_seed.device_id === target.device_id
+        ? { seed_tree: conv.cloud_seed.tree }
+        : {}),
     }),
     created_at: now,
     target_device_id: target.device_id,
   });
-  return { command_id: commandId, device_id: target.device_id, label: laptop.label ?? null };
+  return {
+    command_id: commandId,
+    device_id: target.device_id,
+    label: laptop.label ?? null,
+  };
 }
 
 /** The CLI's door to the two calls above: an agent's verb, or a person's start, stop, mode or pick. */
@@ -853,7 +1179,12 @@ export const requestSync = mutation({
     api_token: v.optional(v.string()),
     /** A full id or a short one (its first seven characters), as people and agents name sessions. */
     conversation_id: v.string(),
-    op: v.union(...SYNC_REQUEST_OPS.map((o) => v.literal(o)), v.literal("start"), v.literal("stop"), v.literal("keep")),
+    op: v.union(
+      ...SYNC_REQUEST_OPS.map((o) => v.literal(o)),
+      v.literal("start"),
+      v.literal("stop"),
+      v.literal("keep"),
+    ),
     paths: v.optional(v.array(v.string())),
     ref: v.optional(v.string()),
     keep: v.optional(v.union(v.literal("laptop"), v.literal("cloud"))),
@@ -863,21 +1194,50 @@ export const requestSync = mutation({
   handler: async (ctx, a) => {
     const userId = await getAuthenticatedUserId(ctx, a.api_token);
     if (!userId) throw new Error("Authentication required");
-    const found = await resolveConversationRefRanked(ctx, a.conversation_id, userId, (c: any) => c.user_id?.toString() === userId.toString());
-    if (!found || found.user_id?.toString() !== userId.toString()) throw new Error(`${a.conversation_id} is not one of your sessions`);
+    const found = await resolveConversationRefRanked(
+      ctx,
+      a.conversation_id,
+      userId,
+      (c: any) => c.user_id?.toString() === userId.toString(),
+    );
+    if (!found || found.user_id?.toString() !== userId.toString())
+      throw new Error(`${a.conversation_id} is not one of your sessions`);
     const conversationId = found._id as Id<"conversations">;
     if (a.op === "start" || a.op === "stop" || a.op === "keep") {
-      if (a.op === "keep" && !a.keep) throw new Error("keep names laptop or cloud");
+      if (a.op === "keep" && !a.keep)
+        throw new Error("keep names laptop or cloud");
       const r = await performSetLocalMirror(ctx, userId, conversationId, {
         enable: a.op !== "stop",
-        ...(a.op === "start" && a.caller_device_id ? { deviceId: a.caller_device_id } : {}),
+        ...(a.op === "start" && a.caller_device_id
+          ? { deviceId: a.caller_device_id }
+          : {}),
         ...(a.mode ? { mode: a.mode } : {}),
-        ...(a.op === "keep" ? { resolve: { keep: a.keep!, ...(a.paths?.length ? { paths: a.paths } : {}) } } : {}),
+        ...(a.op === "keep"
+          ? {
+              resolve: {
+                keep: a.keep!,
+                ...(a.paths?.length ? { paths: a.paths } : {}),
+              },
+            }
+          : {}),
       });
-      const laptop = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).filter((q: any) => q.eq(q.field("device_id"), r.device_id)).first();
-      return { ...r, label: laptop?.label ?? null, conversation_id: conversationId };
+      const laptop = await ctx.db
+        .query("devices")
+        .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+        .filter((q: any) => q.eq(q.field("device_id"), r.device_id))
+        .first();
+      return {
+        ...r,
+        label: laptop?.label ?? null,
+        conversation_id: conversationId,
+      };
     }
-    return performSyncRequest(ctx, userId, conversationId, { op: a.op, paths: a.paths, ref: a.ref, callerDevice: a.caller_device_id });
+    return performSyncRequest(ctx, userId, conversationId, {
+      op: a.op,
+      paths: a.paths,
+      ref: a.ref,
+      callerDevice: a.caller_device_id,
+    });
   },
 });
 
@@ -891,32 +1251,48 @@ export const reportLocalMirror = mutation({
     api_token: v.optional(v.string()),
     conversation_id: v.id("conversations"),
     device_id: v.string(),
-    status: v.union(...LOCAL_MIRROR_STATUSES.map((s) => v.literal(s)), v.literal("off")),
+    status: v.union(
+      ...LOCAL_MIRROR_STATUSES.map((s) => v.literal(s)),
+      v.literal("off"),
+    ),
     ...localMirrorFields,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
     const conv = await ctx.db.get(args.conversation_id);
-    if (!conv || conv.user_id.toString() !== userId.toString()) return { recorded: false as const };
-    if ((conv as any).local_mirror && (conv as any).local_mirror.device_id !== args.device_id) return { recorded: false as const };
+    if (!conv || conv.user_id.toString() !== userId.toString())
+      return { recorded: false as const };
+    if (
+      (conv as any).local_mirror &&
+      (conv as any).local_mirror.device_id !== args.device_id
+    )
+      return { recorded: false as const };
     const { api_token: _, conversation_id: __, status, ...rest } = args;
     const prev = (conv as any).local_mirror ?? {};
     // A report carries what changed. What describes the sync (path, mode, what
     // stayed behind, the last landing) keeps its last value until a report
     // names it; what describes a state (its conflicts, the edited files, the
     // error) lasts while the status still says that state.
-    const given = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
-    const holds = (field: "conflicts" | "files" | "error", state: string) => rest[field] ?? (status === state ? prev[field] : undefined);
+    const given = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined),
+    );
+    const holds = (field: "conflicts" | "files" | "error", state: string) =>
+      rest[field] ?? (status === state ? prev[field] : undefined);
     await ctx.db.patch(args.conversation_id, {
-      local_mirror: status === "off" ? undefined : {
-        ...prev, ...given, status,
-        conflicts: holds("conflicts", "conflict")?.slice(0, 50),
-        files: holds("files", "local_edit")?.slice(0, 50),
-        error: holds("error", "error")?.slice(0, 500),
-        ...(rest.skipped ? { skipped: rest.skipped.slice(0, 40) } : {}),
-        at: Date.now(),
-      },
+      local_mirror:
+        status === "off"
+          ? undefined
+          : {
+              ...prev,
+              ...given,
+              status,
+              conflicts: holds("conflicts", "conflict")?.slice(0, 50),
+              files: holds("files", "local_edit")?.slice(0, 50),
+              error: holds("error", "error")?.slice(0, 500),
+              ...(rest.skipped ? { skipped: rest.skipped.slice(0, 40) } : {}),
+              at: Date.now(),
+            },
     });
     return { recorded: true as const };
   },
@@ -924,19 +1300,36 @@ export const reportLocalMirror = mutation({
 
 /** What a mirroring laptop polls to tell a working session from an idle one, without touching the host. */
 export const localMirrorActivity = query({
-  args: { api_token: v.optional(v.string()), conversation_ids: v.array(v.id("conversations")) },
+  args: {
+    api_token: v.optional(v.string()),
+    conversation_ids: v.array(v.id("conversations")),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return [];
-    const out: Array<{ conversation_id: string; message_count: number; status: string; mirror: string | null; owner_device_id: string | null; host_online: boolean }> = [];
-    const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+    const out: Array<{
+      conversation_id: string;
+      message_count: number;
+      status: string;
+      mirror: string | null;
+      owner_device_id: string | null;
+      host_online: boolean;
+    }> = [];
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
     const now = Date.now();
     for (const id of args.conversation_ids.slice(0, 50)) {
       const c: any = await ctx.db.get(id);
       if (!c || c.user_id.toString() !== userId.toString()) continue;
       const host = devices.find((d: any) => d.device_id === c.owner_device_id);
       out.push({
-        conversation_id: id, message_count: c.message_count ?? 0, status: c.status, mirror: c.local_mirror?.status ?? null, owner_device_id: c.owner_device_id ?? null,
+        conversation_id: id,
+        message_count: c.message_count ?? 0,
+        status: c.status,
+        mirror: c.local_mirror?.status ?? null,
+        owner_device_id: c.owner_device_id ?? null,
         // Awake is what lets the laptop send its own edits without waking the host up for them.
         host_online: !!host && now - host.last_seen < DEVICE_ONLINE_MS,
       });
@@ -955,11 +1348,19 @@ export const localMirrorActivity = query({
  * here, never the heartbeat that keeps the host online.
  */
 export const reportHostReadiness = mutation({
-  args: { api_token: v.string(), device_id: v.string(), readiness: hostReadinessValidator },
+  args: {
+    api_token: v.string(),
+    device_id: v.string(),
+    readiness: hostReadinessValidator,
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    const device = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).filter((q: any) => q.eq(q.field("device_id"), args.device_id)).first();
+    const device = await ctx.db
+      .query("devices")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .filter((q: any) => q.eq(q.field("device_id"), args.device_id))
+      .first();
     if (!device?.is_remote) return { recorded: false as const };
     await ctx.db.patch(device._id, { host_readiness: args.readiness });
     return { recorded: true as const };
@@ -968,16 +1369,36 @@ export const reportHostReadiness = mutation({
 
 /** The managing laptop writes what only it knows about a host (AWS state, cost, images, held logins, last action). */
 export const reportCloudHost = mutation({
-  args: { api_token: v.optional(v.string()), host_device_id: v.string(), report: cloudHostReportValidator },
+  args: {
+    api_token: v.optional(v.string()),
+    host_device_id: v.string(),
+    report: cloudHostReportValidator,
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    const host = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).filter((q: any) => q.eq(q.field("device_id"), args.host_device_id)).first();
+    const host = await ctx.db
+      .query("devices")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .filter((q: any) => q.eq(q.field("device_id"), args.host_device_id))
+      .first();
     if (!host) return { recorded: false as const };
     const prev = (host as any).cloud_host;
     // An action the web just asked for stays "running" until its own outcome arrives.
-    const lastAction = prev?.last_action?.status === "running" && (!args.report.last_action || args.report.last_action.at < prev.last_action.at) ? prev.last_action : args.report.last_action;
-    await ctx.db.patch(host._id, { cloud_host: { ...args.report, images: args.report.images.slice(0, 20), logins_held: args.report.logins_held.slice(0, 30), ...(lastAction ? { last_action: lastAction } : {}) } });
+    const lastAction =
+      prev?.last_action?.status === "running" &&
+      (!args.report.last_action ||
+        args.report.last_action.at < prev.last_action.at)
+        ? prev.last_action
+        : args.report.last_action;
+    await ctx.db.patch(host._id, {
+      cloud_host: {
+        ...args.report,
+        images: args.report.images.slice(0, 20),
+        logins_held: args.report.logins_held.slice(0, 30),
+        ...(lastAction ? { last_action: lastAction } : {}),
+      },
+    });
     return { recorded: true as const };
   },
 });
@@ -987,13 +1408,40 @@ export const reportCloudHost = mutation({
  * template. Only the policy is stored; the laptop that prepares a placement
  * reads it and does the waking and launching (cli cloud/hostHeadroom).
  */
-export async function performSetCloudAutoscale(ctx: any, userId: Id<"users">, hostDeviceId: string, policy: { enabled: boolean; max_extra: number; size: string }) {
-  const host = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).filter((q: any) => q.eq(q.field("device_id"), hostDeviceId)).first();
+export async function performSetCloudAutoscale(
+  ctx: any,
+  userId: Id<"users">,
+  hostDeviceId: string,
+  policy: { enabled: boolean; max_extra: number; size: string },
+) {
+  const host = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .filter((q: any) => q.eq(q.field("device_id"), hostDeviceId))
+    .first();
   if (!host?.is_remote) throw new Error("Not a cloud host of yours");
-  if (!/linux/i.test(host.platform ?? "")) throw new Error("Autoscale adds Linux hosts; a Mac needs a dedicated host first");
-  if (!(CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES as readonly number[]).includes(policy.max_extra)) throw new Error(`autoscale adds 1 to ${Math.max(...CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES)} hosts`);
-  if (!isCloudHostSize(policy.size)) throw new Error(`unknown host size ${policy.size}`);
-  await ctx.db.patch(host._id, { cloud_autoscale: { enabled: policy.enabled, max_extra: policy.max_extra, size: policy.size, at: Date.now() } });
+  if (!/linux/i.test(host.platform ?? ""))
+    throw new Error(
+      "Autoscale adds Linux hosts; a Mac needs a dedicated host first",
+    );
+  if (
+    !(CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES as readonly number[]).includes(
+      policy.max_extra,
+    )
+  )
+    throw new Error(
+      `autoscale adds 1 to ${Math.max(...CLOUD_AUTOSCALE_MAX_EXTRA_CHOICES)} hosts`,
+    );
+  if (!isCloudHostSize(policy.size))
+    throw new Error(`unknown host size ${policy.size}`);
+  await ctx.db.patch(host._id, {
+    cloud_autoscale: {
+      enabled: policy.enabled,
+      max_extra: policy.max_extra,
+      size: policy.size,
+      at: Date.now(),
+    },
+  });
 }
 
 /** Set a host's autoscale policy: the CLI's `cast hosts autoscale`. The web
@@ -1009,8 +1457,16 @@ export const setCloudAutoscale = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) throw new Error("Authentication required");
-    await performSetCloudAutoscale(ctx, userId, args.host_device_id, { enabled: args.enabled, max_extra: args.max_extra, size: args.size });
-    return { enabled: args.enabled, max_extra: args.max_extra, size: args.size };
+    await performSetCloudAutoscale(ctx, userId, args.host_device_id, {
+      enabled: args.enabled,
+      max_extra: args.max_extra,
+      size: args.size,
+    });
+    return {
+      enabled: args.enabled,
+      max_extra: args.max_extra,
+      size: args.size,
+    };
   },
 });
 
@@ -1020,10 +1476,17 @@ export const autoscalePolicies = query({
   handler: async (ctx, args) => {
     const userId = await getAuthenticatedUserId(ctx, args.api_token);
     if (!userId) return [];
-    const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+      .collect();
     return devices
       .filter((d: any) => d.cloud_autoscale?.enabled)
-      .map((d: any) => ({ device_id: d.device_id as string, max_extra: d.cloud_autoscale.max_extra as number, size: d.cloud_autoscale.size as string }));
+      .map((d: any) => ({
+        device_id: d.device_id as string,
+        max_extra: d.cloud_autoscale.max_extra as number,
+        size: d.cloud_autoscale.size as string,
+      }));
   },
 });
 
@@ -1033,25 +1496,55 @@ export const autoscalePolicies = query({
  * The host's row shows it as running at once; the laptop's next report
  * carries the outcome.
  */
-export async function performCloudHostAction(ctx: any, userId: Id<"users">, hostDeviceId: string, action: CloudHostAction, arg?: string) {
-  if (!CLOUD_HOST_ACTIONS.includes(action)) throw new Error(`unknown action ${action}`);
+export async function performCloudHostAction(
+  ctx: any,
+  userId: Id<"users">,
+  hostDeviceId: string,
+  action: CloudHostAction,
+  arg?: string,
+) {
+  if (!CLOUD_HOST_ACTIONS.includes(action))
+    throw new Error(`unknown action ${action}`);
   // The one argument an action takes: the image to delete, or the size of the
   // new host a clone launches (CLOUD_HOST_SIZES, the sizes the app prices).
-  if (action === "clone" && !isCloudHostSize(arg)) throw new Error(`unknown host size ${arg}`);
-  const devices = await ctx.db.query("devices").withIndex("by_user_id", (q: any) => q.eq("user_id", userId)).collect();
+  if (action === "clone" && !isCloudHostSize(arg))
+    throw new Error(`unknown host size ${arg}`);
+  const devices = await ctx.db
+    .query("devices")
+    .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
+    .collect();
   const host = devices.find((d: any) => d.device_id === hostDeviceId);
   if (!host?.is_remote) throw new Error("Not a cloud host of yours");
   const now = Date.now();
-  const online = devices.filter((d: any) => !d.is_remote && now - d.last_seen < DEVICE_ONLINE_MS).sort((a: any, b: any) => b.last_seen - a.last_seen);
-  const manager = online.find((d: any) => d.device_id === host.cloud_host?.managed_by) ?? online[0];
-  if (!manager) throw new Error("No laptop of yours is online to act on the host");
+  const online = devices
+    .filter((d: any) => !d.is_remote && now - d.last_seen < DEVICE_ONLINE_MS)
+    .sort((a: any, b: any) => b.last_seen - a.last_seen);
+  const manager =
+    online.find((d: any) => d.device_id === host.cloud_host?.managed_by) ??
+    online[0];
+  if (!manager)
+    throw new Error("No laptop of yours is online to act on the host");
   const commandId = await ctx.db.insert("daemon_commands", {
     user_id: userId,
     command: "cloud_host_action" as const,
-    args: JSON.stringify({ host_device_id: hostDeviceId, action, ...(action === "clone" ? { instance_type: arg } : arg ? { image_id: arg } : {}) }),
+    args: JSON.stringify({
+      host_device_id: hostDeviceId,
+      action,
+      ...(action === "clone"
+        ? { instance_type: arg }
+        : arg
+          ? { image_id: arg }
+          : {}),
+    }),
     created_at: now,
     target_device_id: manager.device_id,
   });
-  if (host.cloud_host) await ctx.db.patch(host._id, { cloud_host: { ...host.cloud_host, last_action: { action, status: "running" as const, at: now } } });
+  if (host.cloud_host)
+    await ctx.db.patch(host._id, {
+      cloud_host: {
+        ...host.cloud_host,
+        last_action: { action, status: "running" as const, at: now },
+      },
+    });
   return { command_id: commandId, managed_by: manager.device_id };
 }

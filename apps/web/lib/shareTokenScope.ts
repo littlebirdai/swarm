@@ -12,17 +12,24 @@
 // redemption lands — working.
 const tokensByConversation = new Map<string, string>();
 
-export function setShareTokenScope(conversationId: string, token: string): void {
+export function setShareTokenScope(
+  conversationId: string,
+  token: string,
+): void {
   tokensByConversation.set(conversationId, token);
 }
 
-export function getShareTokenScope(conversationId: string | null | undefined): string | undefined {
+export function getShareTokenScope(
+  conversationId: string | null | undefined,
+): string | undefined {
   if (!conversationId) return undefined;
   return tokensByConversation.get(conversationId);
 }
 
 /** Spread into query args: `{...shareTokenArg(id)}` adds share_token only when one was presented. */
-export function shareTokenArg(conversationId: string | null | undefined): { share_token?: string } {
+export function shareTokenArg(conversationId: string | null | undefined): {
+  share_token?: string;
+} {
   const token = getShareTokenScope(conversationId);
   return token ? { share_token: token } : {};
 }

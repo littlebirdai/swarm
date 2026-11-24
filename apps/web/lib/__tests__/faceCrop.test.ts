@@ -32,7 +32,11 @@ const ASPECT = VIDEO.w / VIDEO.h;
 describe("cropFromFace", () => {
   it("centers on the face and leaves room around it", () => {
     // A 100px-tall face in the middle of the frame.
-    const crop = cropFromFace({ x: 270, y: 190, width: 100, height: 100 }, VIDEO.w, VIDEO.h);
+    const crop = cropFromFace(
+      { x: 270, y: 190, width: 100, height: 100 },
+      VIDEO.w,
+      VIDEO.h,
+    );
     expect(crop.cx).toBeCloseTo(320 / 640, 5);
     expect(crop.cy).toBeCloseTo(240 / 480, 5);
     // The crop is the face plus padding, not the face box.
@@ -41,7 +45,9 @@ describe("cropFromFace", () => {
   });
 
   it("falls back to the center when the frame has no dimensions yet", () => {
-    expect(cropFromFace({ x: 0, y: 0, width: 10, height: 10 }, 0, 0)).toEqual(CENTER_CROP);
+    expect(cropFromFace({ x: 0, y: 0, width: 10, height: 10 }, 0, 0)).toEqual(
+      CENTER_CROP,
+    );
   });
 });
 
@@ -96,7 +102,11 @@ describe("lerpCrop", () => {
   });
 
   it("clamps alpha, so a bad rate cannot fling the crop past its target", () => {
-    const next = lerpCrop({ cx: 0.2, cy: 0.5, size: 0.4 }, { cx: 0.8, cy: 0.5, size: 0.4 }, 5);
+    const next = lerpCrop(
+      { cx: 0.2, cy: 0.5, size: 0.4 },
+      { cx: 0.8, cy: 0.5, size: 0.4 },
+      5,
+    );
     expect(next.cx).toBeCloseTo(0.8, 6);
   });
 });
@@ -122,7 +132,11 @@ describe("cropBox", () => {
 
   it("covers the circle: the scaled frame overhangs it on both axes", () => {
     const d = 120;
-    const box = cropBox(clampCrop({ cx: 0.5, cy: 0.5, size: 0.6 }, ASPECT), d, ASPECT);
+    const box = cropBox(
+      clampCrop({ cx: 0.5, cy: 0.5, size: 0.6 }, ASPECT),
+      d,
+      ASPECT,
+    );
     expect(box.left).toBeLessThanOrEqual(0);
     expect(box.top).toBeLessThanOrEqual(0);
     expect(box.left + box.width).toBeGreaterThanOrEqual(d);
@@ -135,8 +149,14 @@ describe("cropTransform", () => {
   // Apply the transform the way the browser would: the element is a D×D box
   // with transform-origin 0 0, so a point x in it lands at tx + sx*x.
   const parse = (t: string) => {
-    const [tx, ty] = /translate3d\(([-\d.]+)px, ([-\d.]+)px/.exec(t)!.slice(1).map(Number);
-    const [sx, sy] = /scale\(([-\d.]+), ([-\d.]+)\)/.exec(t)!.slice(1).map(Number);
+    const [tx, ty] = /translate3d\(([-\d.]+)px, ([-\d.]+)px/
+      .exec(t)!
+      .slice(1)
+      .map(Number);
+    const [sx, sy] = /scale\(([-\d.]+), ([-\d.]+)\)/
+      .exec(t)!
+      .slice(1)
+      .map(Number);
     return { tx, ty, sx, sy };
   };
 
@@ -173,7 +193,10 @@ describe("pickSpeaker", () => {
   const T = 1_000_000;
 
   it("takes the first voice of the call immediately", () => {
-    expect(pickSpeaker({ id: null, since: 0 }, ["riley"], T)).toEqual({ id: "riley", since: T });
+    expect(pickSpeaker({ id: null, since: 0 }, ["riley"], T)).toEqual({
+      id: "riley",
+      since: T,
+    });
   });
 
   it("holds the current face through silence", () => {
@@ -186,7 +209,10 @@ describe("pickSpeaker", () => {
     const pending = pickSpeaker(prev, ["jordan"], T + 9000);
     expect(pending.id).toBe("riley");
     expect(pickSpeaker(pending, ["jordan"], T + 9499).id).toBe("riley");
-    expect(pickSpeaker(pending, ["jordan"], T + 9500)).toEqual({ id: "jordan", since: T + 9500 });
+    expect(pickSpeaker(pending, ["jordan"], T + 9500)).toEqual({
+      id: "jordan",
+      since: T + 9500,
+    });
   });
 
   it("does not restart the clock on the face already showing", () => {
@@ -203,12 +229,16 @@ describe("pickSpeaker", () => {
     expect(pick.candidateSince).toBe(T + 1100);
     expect(pickSpeaker(pick, ["jordan"], T + 1600).id).toBe("jordan");
   });
-
 });
 
 describe("facePeople", () => {
   const roster = [
-    { user_id: "riley", user_name: "Riley Chen", user_image: "r.png", muted: false },
+    {
+      user_id: "riley",
+      user_name: "Riley Chen",
+      user_image: "r.png",
+      muted: false,
+    },
     { user_id: "jordan", user_name: "Jordan Lee", muted: true },
   ];
   const tiles = [{ identity: "riley", name: "Riley Chen", isLocal: true }];
@@ -216,24 +246,47 @@ describe("facePeople", () => {
   it("keeps roster order and marks who is on camera", () => {
     const people = facePeople(roster, tiles, "riley");
     expect(people.map((p) => p.id)).toEqual(["riley", "jordan"]);
-    expect(people[0]).toMatchObject({ isLocal: true, hasVideo: true, muted: false });
-    expect(people[1]).toMatchObject({ isLocal: false, hasVideo: false, muted: true });
+    expect(people[0]).toMatchObject({
+      isLocal: true,
+      hasVideo: true,
+      muted: false,
+    });
+    expect(people[1]).toMatchObject({
+      isLocal: false,
+      hasVideo: false,
+      muted: true,
+    });
   });
 
   it("gives a circle to a camera that arrived before its occupancy row", () => {
-    const people = facePeople(roster, [...tiles, { identity: "sam", name: "Sam", isLocal: false }], "riley");
+    const people = facePeople(
+      roster,
+      [...tiles, { identity: "sam", name: "Sam", isLocal: false }],
+      "riley",
+    );
     expect(people.map((p) => p.id)).toEqual(["riley", "jordan", "sam"]);
     expect(people[2].hasVideo).toBe(true);
   });
 
   it("survives a roster row with no id, and never doubles a person", () => {
-    const people = facePeople([...roster, { user_name: "ghost" }, roster[0]], tiles, "riley");
+    const people = facePeople(
+      [...roster, { user_name: "ghost" }, roster[0]],
+      tiles,
+      "riley",
+    );
     expect(people.map((p) => p.id)).toEqual(["riley", "jordan"]);
   });
 
   it("marks a guest, camera off from the folded roster or camera on from a tile", () => {
-    const folded = [...roster, { user_id: "guest:g1", user_name: "Pat", guest: true }];
-    const people = facePeople(folded, [...tiles, { identity: "guest:g2", name: "Lee (guest)", isLocal: false }], "riley");
+    const folded = [
+      ...roster,
+      { user_id: "guest:g1", user_name: "Pat", guest: true },
+    ];
+    const people = facePeople(
+      folded,
+      [...tiles, { identity: "guest:g2", name: "Lee (guest)", isLocal: false }],
+      "riley",
+    );
     expect(people.map((p) => [p.id, p.guest, p.hasVideo])).toEqual([
       ["riley", false, true],
       ["jordan", false, false],
@@ -244,15 +297,32 @@ describe("facePeople", () => {
 });
 
 describe("facesToShow", () => {
-  const me = { id: "riley", name: "Riley", isLocal: true, muted: false, hasVideo: true };
-  const them = { id: "jordan", name: "Jordan", isLocal: false, muted: false, hasVideo: true };
+  const me = {
+    id: "riley",
+    name: "Riley",
+    isLocal: true,
+    muted: false,
+    hasVideo: true,
+  };
+  const them = {
+    id: "jordan",
+    name: "Jordan",
+    isLocal: false,
+    muted: false,
+    hasVideo: true,
+  };
 
   it("includes your own face in All", () => {
-    expect(facesToShow([me, them], "everyone").map((p) => p.id)).toEqual(["riley", "jordan"]);
+    expect(facesToShow([me, them], "everyone").map((p) => p.id)).toEqual([
+      "riley",
+      "jordan",
+    ]);
   });
 
   it("keeps the talker view on teammates", () => {
-    expect(facesToShow([me, them], "speaker").map((p) => p.id)).toEqual(["jordan"]);
+    expect(facesToShow([me, them], "speaker").map((p) => p.id)).toEqual([
+      "jordan",
+    ]);
   });
 
   it("shows you when nobody else is here yet", () => {
@@ -262,7 +332,13 @@ describe("facesToShow", () => {
 
 describe("hitsInteractive", () => {
   const circle = { kind: "circle", cx: 60, cy: 60, r: 36 } as const;
-  const chrome = { kind: "rect", x: 20, y: 100, width: 80, height: 24 } as const;
+  const chrome = {
+    kind: "rect",
+    x: 20,
+    y: 100,
+    width: 80,
+    height: 24,
+  } as const;
 
   it("takes the pointer inside a face", () => {
     expect(hitsInteractive([circle], 60, 60)).toBe(true);
@@ -313,17 +389,22 @@ describe("facesWindowSize", () => {
     // No chrome row waiting under the faces. The WIDTH holds the chrome at
     // rest so nothing slides on hover; the extra glass is click-through.
     expect(facesWindowSize("speaker", 1)).toEqual({
-      width: Math.max(TIER_DIAMETER.speaker, CALL_CHROME_WIDTH) + FACES_PADDING * 2,
+      width:
+        Math.max(TIER_DIAMETER.speaker, CALL_CHROME_WIDTH) + FACES_PADDING * 2,
       height: TIER_DIAMETER.speaker + FACES_PADDING * 2,
     });
     expect(facesWindowSize("everyone", 3)).toEqual({
-      width: Math.max(3 * TIER_DIAMETER.row + 2 * FACE_GAP, CALL_CHROME_WIDTH) + FACES_PADDING * 2,
+      width:
+        Math.max(3 * TIER_DIAMETER.row + 2 * FACE_GAP, CALL_CHROME_WIDTH) +
+        FACES_PADDING * 2,
       height: TIER_DIAMETER.row + FACES_PADDING * 2,
     });
   });
 
   it("is one circle wide in speaker mode, whoever else is in the call", () => {
-    expect(facesWindowSize("speaker", 5)).toEqual(facesWindowSize("speaker", 1));
+    expect(facesWindowSize("speaker", 5)).toEqual(
+      facesWindowSize("speaker", 1),
+    );
   });
 
   it("grows by a circle and a gap per person in everyone mode, once past the chrome", () => {
@@ -334,7 +415,9 @@ describe("facesWindowSize", () => {
   });
 
   it("never collapses to nothing when the room is empty", () => {
-    expect(facesWindowSize("everyone", 0).width).toBe(facesWindowSize("everyone", 1).width);
+    expect(facesWindowSize("everyone", 0).width).toBe(
+      facesWindowSize("everyone", 1).width,
+    );
   });
 
   it("shrinks the circles, and the window with them, at the mini tier", () => {
@@ -351,7 +434,9 @@ describe("facesWindowSize", () => {
     expect(hovered.height - idle.height).toBe(HOVER_ROWS);
     // The chrome carries words now; three full faces may already be wider:
     // the window is the max of the two, and never past what it needs.
-    expect(hovered.width).toBe(Math.max(idle.width, CALL_CHROME_WIDTH + FACES_PADDING * 2));
+    expect(hovered.width).toBe(
+      Math.max(idle.width, CALL_CHROME_WIDTH + FACES_PADDING * 2),
+    );
   });
 
   it("is always as wide as the chrome, so nothing slides on hover", () => {
@@ -362,7 +447,9 @@ describe("facesWindowSize", () => {
     const hovered = facesWindowSize("speaker", 1, { hovered: true });
     expect(idle.width).toBe(CALL_CHROME_WIDTH + FACES_PADDING * 2);
     expect(hovered.width).toBe(CALL_CHROME_WIDTH + FACES_PADDING * 2);
-    expect(hovered.height).toBe(TIER_DIAMETER.speaker + HOVER_ROWS + FACES_PADDING * 2);
+    expect(hovered.height).toBe(
+      TIER_DIAMETER.speaker + HOVER_ROWS + FACES_PADDING * 2,
+    );
   });
 
   it("never reserves either row while the pointer is away", () => {

@@ -22,7 +22,7 @@ The agent gets a window back as lines: a number, a role, a name and the extra ac
 
 Delivered is not the same as taken, so every action reports a verdict and the lines of the window that changed. A value the agent set can be read back, so it reads **completed**. macOS cannot confirm that a press did what a button promises, so a click reads **attempted**, and the diff under it is the evidence: in Preview, pressing Sign added a popover with a saved signature and a Create Signature button, along with the numbers to use next. An action the app ignored says **No change**, and the agent knows not to assume it worked.
 
-![Three verdict cards: set-value completed (read back and confirmed), click attempted (delivered, and here is the evidence), ignored click No change. Beside them, the click command's output with the three added tree lines and the JSON verification state unverified, reason accessibility_action_unasserted.](/blog/field-manual/computer-changes.webp "Each action reports its own verdict and its diff. &quot;Attempted&quot; with a diff is normal for a press; only a read-back earns &quot;verified&quot;.")
+![Three verdict cards: set-value completed (read back and confirmed), click attempted (delivered, and here is the evidence), ignored click No change. Beside them, the click command's output with the three added tree lines and the JSON verification state unverified, reason accessibility_action_unasserted.](/blog/field-manual/computer-changes.webp 'Each action reports its own verdict and its diff. "Attempted" with a diff is normal for a press; only a read-back earns "verified".')
 
 These rows land in the conversation like any other step, with screenshots, so you can review what it did without having watched.
 

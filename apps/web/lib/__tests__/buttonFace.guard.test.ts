@@ -22,13 +22,21 @@ const ALLOWED = new Set([
   "components/ImageGallery.tsx",
 ]);
 
-const ACCENT = "(?:sol-(?:yellow|blue|cyan|green|red|violet|magenta|orange|amber)|(?:amber|emerald|green|red|blue|violet|orange|yellow|sky|indigo)-[4-9]00|primary|destructive)";
+const ACCENT =
+  "(?:sol-(?:yellow|blue|cyan|green|red|violet|magenta|orange|amber)|(?:amber|emerald|green|red|blue|violet|orange|yellow|sky|indigo)-[4-9]00|primary|destructive)";
 // Solid, or a wash of half strength or more.
-const FILL = new RegExp(`(?<![\\w:\\[-])bg-${ACCENT}(?:/(?:[5-9]\\d|100))?(?![\\w/-])`);
+const FILL = new RegExp(
+  `(?<![\\w:\\[-])bg-${ACCENT}(?:/(?:[5-9]\\d|100))?(?![\\w/-])`,
+);
 
 function files(dir: string): string[] {
   return (readdirSync(join(ROOT, dir), { recursive: true }) as string[])
-    .filter((f) => f.endsWith(".tsx") && !f.includes(".test.") && !f.includes("node_modules"))
+    .filter(
+      (f) =>
+        f.endsWith(".tsx") &&
+        !f.includes(".test.") &&
+        !f.includes("node_modules"),
+    )
     .map((f) => join(dir, f))
     .filter((f) => !f.startsWith("components/ui/"));
 }
@@ -36,7 +44,10 @@ function files(dir: string): string[] {
 /** Module-level string constants: NAME -> value. */
 function constants(src: string): Map<string, string> {
   const out = new Map<string, string>();
-  for (const m of src.matchAll(/^(?:export )?const ([A-Z][A-Z0-9_]*) = (["`])([^"`]*)\2;?$/gm)) out.set(m[1], m[3]);
+  for (const m of src.matchAll(
+    /^(?:export )?const ([A-Z][A-Z0-9_]*) = (["`])([^"`]*)\2;?$/gm,
+  ))
+    out.set(m[1], m[3]);
   return out;
 }
 
@@ -64,7 +75,8 @@ function classAttr(tag: string): string | null {
   const m = /\bclassName=/.exec(tag);
   if (!m) return null;
   const start = m.index + m[0].length;
-  if (tag[start] === '"') return tag.slice(start, tag.indexOf('"', start + 1) + 1);
+  if (tag[start] === '"')
+    return tag.slice(start, tag.indexOf('"', start + 1) + 1);
   if (tag[start] !== "{") return null;
   let depth = 0;
   for (let i = start; i < tag.length; i++) {
@@ -82,7 +94,12 @@ function alwaysClasses(value: string, consts: Map<string, string>): string {
     const p = part.trim();
     const lit = /^(["'`])([\s\S]*)\1$/.exec(p);
     if (lit && !lit[2].includes(lit[1])) {
-      return lit[2].replace(/\$\{\s*([A-Z][A-Z0-9_]*)\s*\}/g, (_, n) => consts.get(n) ?? "").replace(/\$\{[^}]*\}/g, "");
+      return lit[2]
+        .replace(
+          /\$\{\s*([A-Z][A-Z0-9_]*)\s*\}/g,
+          (_, n) => consts.get(n) ?? "",
+        )
+        .replace(/\$\{[^}]*\}/g, "");
     }
     return consts.get(p) ?? "";
   };
@@ -108,7 +125,10 @@ function alwaysClasses(value: string, consts: Map<string, string>): string {
     } else cur += c;
   }
   args.push(cur);
-  return args.filter((a) => !/\?|&&|\|\|/.test(a.replace(/(["'`])(?:(?!\1).)*\1/g, ""))).map(resolve).join(" ");
+  return args
+    .filter((a) => !/\?|&&|\|\|/.test(a.replace(/(["'`])(?:(?!\1).)*\1/g, "")))
+    .map(resolve)
+    .join(" ");
 }
 
 describe("button faces", () => {
@@ -119,13 +139,18 @@ describe("button faces", () => {
       const src = readFileSync(join(ROOT, file), "utf8");
       const consts = constants(src);
       for (const m of src.matchAll(/<(button|a|Link|Button)\b/g)) {
-        const tag = src.slice(m.index!, tagEnd(src, m.index! + m[0].length) + 1);
+        const tag = src.slice(
+          m.index!,
+          tagEnd(src, m.index! + m[0].length) + 1,
+        );
         const value = classAttr(tag);
         if (!value) continue;
         const fill = FILL.exec(alwaysClasses(value, consts));
         if (fill) {
           const line = src.slice(0, m.index).split("\n").length;
-          offenders.push(`${relative(ROOT, join(ROOT, file))}:${line} <${m[1]}> ${fill[0]}`);
+          offenders.push(
+            `${relative(ROOT, join(ROOT, file))}:${line} <${m[1]}> ${fill[0]}`,
+          );
         }
       }
     }
@@ -134,12 +159,22 @@ describe("button faces", () => {
 
   test("the guard reads what a tag always applies", () => {
     const c = new Map([["FACE", "bg-sol-blue text-sol-bg"]]);
-    expect(FILL.test(alwaysClasses('"rounded bg-amber-500 px-2"', c))).toBe(true);
+    expect(FILL.test(alwaysClasses('"rounded bg-amber-500 px-2"', c))).toBe(
+      true,
+    );
     expect(FILL.test(alwaysClasses("{`${FACE} px-2`}", c))).toBe(true);
-    expect(FILL.test(alwaysClasses('{cn("h-7", "bg-sol-green")}', c))).toBe(true);
-    expect(FILL.test(alwaysClasses('{cn("h-7", on ? "bg-sol-cyan" : "")}', c))).toBe(false);
-    expect(FILL.test(alwaysClasses('{`px-2 ${on ? "bg-sol-cyan" : ""}`}', c))).toBe(false);
-    expect(FILL.test(alwaysClasses('"bg-sol-green/10 text-sol-green"', c))).toBe(false);
+    expect(FILL.test(alwaysClasses('{cn("h-7", "bg-sol-green")}', c))).toBe(
+      true,
+    );
+    expect(
+      FILL.test(alwaysClasses('{cn("h-7", on ? "bg-sol-cyan" : "")}', c)),
+    ).toBe(false);
+    expect(
+      FILL.test(alwaysClasses('{`px-2 ${on ? "bg-sol-cyan" : ""}`}', c)),
+    ).toBe(false);
+    expect(
+      FILL.test(alwaysClasses('"bg-sol-green/10 text-sol-green"', c)),
+    ).toBe(false);
     expect(FILL.test(alwaysClasses('"hover:bg-sol-red"', c))).toBe(false);
   });
 });

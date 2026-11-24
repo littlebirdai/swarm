@@ -6,7 +6,9 @@ import { FrameBackend } from "../browser/backends/FrameBackend";
 import type { BrowserPaneState } from "../browser/backends/types";
 
 import { closeDomWindow } from "../../test-helpers/domGlobals";
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+});
 let answer: "refuse" | "answer" = "refuse";
 const fetched: string[] = [];
 let permissionState = "prompt";
@@ -16,7 +18,8 @@ const restoreGlobals = replaceGlobals({
   navigator: Object.assign(dom.window.navigator, {
     permissions: {
       query: async ({ name }: { name: string }) => {
-        if (name !== "loopback-network") throw new TypeError("unknown permission");
+        if (name !== "loopback-network")
+          throw new TypeError("unknown permission");
         return { state: permissionState };
       },
     },
@@ -28,20 +31,23 @@ const restoreGlobals = replaceGlobals({
   cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
   fetch: (url: string) => {
     fetched.push(url);
-    return answer === "answer" ? Promise.resolve({}) : Promise.reject(new TypeError("Failed to fetch"));
+    return answer === "answer"
+      ? Promise.resolve({})
+      : Promise.reject(new TypeError("Failed to fetch"));
   },
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
 afterAll(() => {
   closeDomWindow(dom);
   restoreGlobals();
 });
 
-const wait = (ms: number) => act(() => new Promise<void>((r) => setTimeout(r, ms)));
+const wait = (ms: number) =>
+  act(() => new Promise<void>((r) => setTimeout(r, ms)));
 
 function mount(url: string) {
   const states: BrowserPaneState[] = [];
@@ -57,7 +63,13 @@ function mount(url: string) {
     onUrl: () => {},
     onState: (s: BrowserPaneState) => states.push(s),
   };
-  return { states, titles, container, root, render: () => act(() => root.render(<FrameBackend {...props} />)) };
+  return {
+    states,
+    titles,
+    container,
+    root,
+    render: () => act(() => root.render(<FrameBackend {...props} />)),
+  };
 }
 
 test("a dead address polls, and flips to the page when a server comes up", async () => {
@@ -95,7 +107,10 @@ test("Chrome's local network denial is named, and not polled", async () => {
   try {
     await pane.render();
     await wait(50);
-    expect(pane.states.at(-1)).toEqual({ kind: "blocked", reason: "local-network" });
+    expect(pane.states.at(-1)).toEqual({
+      kind: "blocked",
+      reason: "local-network",
+    });
     const probes = fetched.length;
     await wait(3400);
     expect(fetched.length).toBe(probes);
@@ -208,7 +223,10 @@ test("the probe runs once per address, however often the pane re-renders", async
 
     await renderWith("http://localhost:8771/");
     await wait(50);
-    expect(fetched).toEqual(["http://localhost:8770/", "http://localhost:8771/"]);
+    expect(fetched).toEqual([
+      "http://localhost:8770/",
+      "http://localhost:8771/",
+    ]);
   } finally {
     await act(() => root.unmount());
   }

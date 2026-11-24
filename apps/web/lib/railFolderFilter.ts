@@ -13,7 +13,8 @@ export const FOLDER_ACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /** Per folder: sessions active inside the window, and the newest activity. */
 export type FolderActivity = { recent: number; lastActive: number };
 
-const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const UUID_LIKE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const LONG_HEX = /^[0-9a-f]{16,}$/i;
 
 /** A folder named like a generated id: a UUID (possibly with a suffix) or a long hex run. */
@@ -31,7 +32,9 @@ export function looksPromptDerived(name: string): boolean {
 
 /** Scratch: a generated id, or a prompt-named folder that only ever held one session. */
 export function isScratchFolder(name: string, sessionCount: number): boolean {
-  return isUuidLikeFolder(name) || (sessionCount <= 1 && looksPromptDerived(name));
+  return (
+    isUuidLikeFolder(name) || (sessionCount <= 1 && looksPromptDerived(name))
+  );
 }
 
 /**
@@ -45,12 +48,20 @@ export function folderShortList(
   activity: Readonly<Record<string, FolderActivity>> | undefined,
   limit: number = FOLDER_SHORT_LIST_SIZE,
 ): string[] {
-  const candidates = projectCounts.filter(([name, count]) => !isScratchFolder(name, count));
+  const candidates = projectCounts.filter(
+    ([name, count]) => !isScratchFolder(name, count),
+  );
   const recentOf = (name: string) => activity?.[name]?.recent ?? 0;
   const lastOf = (name: string) => activity?.[name]?.lastActive ?? 0;
   const ranked = [...candidates].sort(
-    ([a, ac], [b, bc]) => recentOf(b) - recentOf(a) || lastOf(b) - lastOf(a) || bc - ac || a.localeCompare(b),
+    ([a, ac], [b, bc]) =>
+      recentOf(b) - recentOf(a) ||
+      lastOf(b) - lastOf(a) ||
+      bc - ac ||
+      a.localeCompare(b),
   );
   const active = ranked.filter(([name]) => recentOf(name) > 0);
-  return (active.length > 0 ? active : ranked).slice(0, limit).map(([name]) => name);
+  return (active.length > 0 ? active : ranked)
+    .slice(0, limit)
+    .map(([name]) => name);
 }

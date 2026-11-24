@@ -14,9 +14,25 @@
  */
 import { createHash } from "node:crypto";
 import * as path from "node:path";
-import { defaultBranchFor, repositoryKeyFor, runGit, tryGitLine, type GitRunner, type RepoMirror } from "./repoMirror.js";
-import { WORKTREES_KIND, worktreeOfPath, type WorktreeEntry, type WorktreeManager, type WorktreesPayload } from "@codecast/shared/contracts";
-import { listStates, type PersistedWorkspaceState } from "./workspace/contract.js";
+import {
+  defaultBranchFor,
+  repositoryKeyFor,
+  runGit,
+  tryGitLine,
+  type GitRunner,
+  type RepoMirror,
+} from "./repoMirror.js";
+import {
+  WORKTREES_KIND,
+  worktreeOfPath,
+  type WorktreeEntry,
+  type WorktreeManager,
+  type WorktreesPayload,
+} from "@codecast/shared/contracts";
+import {
+  listStates,
+  type PersistedWorkspaceState,
+} from "./workspace/contract.js";
 import { defaultConfigDir, readAuthConfig } from "./config/readAuthConfig.js";
 import { readLocalConversationMap } from "./localConversationMap.js";
 import { deviceId, deviceLabel } from "./remote/device.js";
@@ -42,8 +58,15 @@ export interface WorktreeMirrorOptions {
 }
 
 /** The main checkout behind any path inside a repository or one of its worktrees. */
-export async function mainRootFor(cwd: string, run: GitRunner = runGit): Promise<string | null> {
-  const common = await tryGitLine(run, cwd, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+export async function mainRootFor(
+  cwd: string,
+  run: GitRunner = runGit,
+): Promise<string | null> {
+  const common = await tryGitLine(run, cwd, [
+    "rev-parse",
+    "--path-format=absolute",
+    "--git-common-dir",
+  ]);
   if (!common) return null;
   return path.basename(common) === ".git" ? path.dirname(common) : null;
 }
@@ -55,7 +78,11 @@ export function worktreeManagerFor(worktreePath: string): WorktreeManager {
 }
 
 /** `git worktree list --porcelain`: blank-line separated blocks, the main checkout first. */
-export function parseWorktreeList(out: string): Array<Pick<WorktreeEntry, "path" | "branch" | "head_sha" | "locked" | "prunable">> {
+export function parseWorktreeList(
+  out: string,
+): Array<
+  Pick<WorktreeEntry, "path" | "branch" | "head_sha" | "locked" | "prunable">
+> {
   return out.split(/\n\s*\n/).flatMap((block) => {
     const entry: Partial<WorktreeEntry> = {};
     for (const line of block.split("\n")) {
@@ -63,7 +90,8 @@ export function parseWorktreeList(out: string): Array<Pick<WorktreeEntry, "path"
       const value = rest.join(" ");
       if (key === "worktree") entry.path = value;
       else if (key === "HEAD") entry.head_sha = value;
-      else if (key === "branch") entry.branch = value.replace(/^refs\/heads\//, "");
+      else if (key === "branch")
+        entry.branch = value.replace(/^refs\/heads\//, "");
       else if (key === "locked") entry.locked = true;
       else if (key === "prunable") entry.prunable = true;
     }
@@ -80,9 +108,19 @@ export function parseWorktreeList(out: string): Array<Pick<WorktreeEntry, "path"
  * was made with a plain `git worktree add` (14 of the 35); it then has no
  * state and no ports, and the page says so.
  */
-export function workspaceStatesFor(root: string, worktreePaths: string[]): Array<{ stateRoot: string; state: PersistedWorkspaceState }> {
-  const roots = new Set([root, ...worktreePaths.map((p) => worktreeOfPath(p)?.root).filter((r): r is string => !!r)]);
-  return [...roots].flatMap((stateRoot) => listStates(stateRoot).map((state) => ({ stateRoot, state })));
+export function workspaceStatesFor(
+  root: string,
+  worktreePaths: string[],
+): Array<{ stateRoot: string; state: PersistedWorkspaceState }> {
+  const roots = new Set([
+    root,
+    ...worktreePaths
+      .map((p) => worktreeOfPath(p)?.root)
+      .filter((r): r is string => !!r),
+  ]);
+  return [...roots].flatMap((stateRoot) =>
+    listStates(stateRoot).map((state) => ({ stateRoot, state })),
+  );
 }
 
 /**
@@ -95,12 +133,22 @@ export function workspaceStatesFor(root: string, worktreePaths: string[]): Array
  * commits: it can change only when main or the worktree's head moves.
  */
 const aheadByPatch = new Map<string, number>();
-async function patchesMainLacks(run: GitRunner, root: string, mainSha: string, headSha: string): Promise<number | undefined> {
+async function patchesMainLacks(
+  run: GitRunner,
+  root: string,
+  mainSha: string,
+  headSha: string,
+): Promise<number | undefined> {
   const key = `${mainSha}:${headSha}`;
   if (!aheadByPatch.has(key)) {
-    const out = await run(root, ["cherry", mainSha, headSha]).catch(() => undefined);
+    const out = await run(root, ["cherry", mainSha, headSha]).catch(
+      () => undefined,
+    );
     if (out === undefined) return undefined;
-    aheadByPatch.set(key, out.split("\n").filter((line) => line.startsWith("+")).length);
+    aheadByPatch.set(
+      key,
+      out.split("\n").filter((line) => line.startsWith("+")).length,
+    );
   }
   return aheadByPatch.get(key);
 }
@@ -110,20 +158,32 @@ export function resetWorktreeMirrorCache(): void {
   aheadByPatch.clear();
 }
 
-const inside = (dir: string, cwd: string) => cwd === dir || cwd.startsWith(`${dir}/`);
+const inside = (dir: string, cwd: string) =>
+  cwd === dir || cwd.startsWith(`${dir}/`);
 
 export async function buildWorktreeMirror(
   root: string,
   opts: WorktreeMirrorOptions = {},
   run: GitRunner = runGit,
 ): Promise<RepoMirror | null> {
-  const listing = await run(root, ["worktree", "list", "--porcelain"]).catch(() => "");
+  const listing = await run(root, ["worktree", "list", "--porcelain"]).catch(
+    () => "",
+  );
   const listed = parseWorktreeList(listing);
   if (!listed.length) return null;
   const origin = await tryGitLine(run, root, ["remote", "get-url", "origin"]);
-  const current = await tryGitLine(run, root, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  const current = await tryGitLine(run, root, [
+    "rev-parse",
+    "--abbrev-ref",
+    "HEAD",
+  ]);
   const defaultBranch = await defaultBranchFor(run, root, current);
-  const states = new Map(workspaceStatesFor(root, listed.map((w) => w.path)).map(({ state }) => [state.path, state]));
+  const states = new Map(
+    workspaceStatesFor(
+      root,
+      listed.map((w) => w.path),
+    ).map(({ state }) => [state.path, state]),
+  );
   const mainSha = await tryGitLine(run, root, ["rev-parse", defaultBranch]);
 
   const knownDirty = new Map<string, boolean>();
@@ -135,27 +195,41 @@ export async function buildWorktreeMirror(
     sessionsIn.set(worktreePath, set);
   };
   for (const session of opts.sessions ?? []) {
-    const home = listed.filter((w) => inside(w.path, session.cwd)).sort((a, b) => b.path.length - a.path.length)[0];
+    const home = listed
+      .filter((w) => inside(w.path, session.cwd))
+      .sort((a, b) => b.path.length - a.path.length)[0];
     if (!home) continue;
     attach(home.path, session.conversationId);
     if (session.dirty !== undefined) knownDirty.set(home.path, session.dirty);
   }
   for (const state of states.values()) {
-    for (const sessionId of state.sessions ?? []) attach(state.path, opts.resolveSession?.(sessionId));
+    for (const sessionId of state.sessions ?? [])
+      attach(state.path, opts.resolveSession?.(sessionId));
   }
 
-  const worktrees: WorktreeEntry[] = listed.slice(0, WORKTREE_LIST_CAP).map((w, index) => {
-    const state = states.get(w.path);
-    const sessions = [...(sessionsIn.get(w.path) ?? [])].sort().slice(-WORKTREE_SESSIONS_CAP);
-    return {
-      ...w,
-      name: state?.name ?? path.basename(w.path),
-      manager: worktreeManagerFor(w.path),
-      ...(index === 0 ? { main: true } : {}),
-      ...(state ? { state: state.state, ...(Object.keys(state.ports ?? {}).length ? { ports: state.ports } : {}) } : {}),
-      ...(sessions.length ? { sessions } : {}),
-    };
-  });
+  const worktrees: WorktreeEntry[] = listed
+    .slice(0, WORKTREE_LIST_CAP)
+    .map((w, index) => {
+      const state = states.get(w.path);
+      const sessions = [...(sessionsIn.get(w.path) ?? [])]
+        .sort()
+        .slice(-WORKTREE_SESSIONS_CAP);
+      return {
+        ...w,
+        name: state?.name ?? path.basename(w.path),
+        manager: worktreeManagerFor(w.path),
+        ...(index === 0 ? { main: true } : {}),
+        ...(state
+          ? {
+              state: state.state,
+              ...(Object.keys(state.ports ?? {}).length
+                ? { ports: state.ports }
+                : {}),
+            }
+          : {}),
+        ...(sessions.length ? { sessions } : {}),
+      };
+    });
 
   // The git reads cost a process each, and a busy repository holds hundreds of
   // agent worktrees (135 here) that nobody browses: those are read only while
@@ -165,27 +239,49 @@ export async function buildWorktreeMirror(
   // checkout, then occupied ones, then the ones `cast ws` manages. A repository
   // with 300 worktrees (union-mobile here) spent it on the first 40 listed and
   // left an occupied one "not inspected".
-  const priority = (w: WorktreeEntry) => (w.main ? 3 : w.sessions?.length ? 2 : w.manager === "codecast" ? 1 : 0);
+  const priority = (w: WorktreeEntry) =>
+    w.main ? 3 : w.sessions?.length ? 2 : w.manager === "codecast" ? 1 : 0;
   const detailed = worktrees
-    .filter((w) => !w.prunable && (w.manager !== "claude" || w.sessions?.length))
+    .filter(
+      (w) => !w.prunable && (w.manager !== "claude" || w.sessions?.length),
+    )
     .sort((a, b) => priority(b) - priority(a))
     .slice(0, WORKTREE_DETAIL_CAP);
   // One worktree at a time: three processes, never three times the cap.
   for (const w of detailed) {
     const [status, counts, last] = await Promise.all([
       // The same read, with the same meaning, as the session header's dirty mark.
-      knownDirty.has(w.path) ? (knownDirty.get(w.path) ? "dirty" : "") : run(w.path, ["status", "--porcelain"]).catch(() => undefined),
-      w.main ? undefined : tryGitLine(run, root, ["rev-list", "--left-right", "--count", `${defaultBranch}...${w.head_sha}`]),
+      knownDirty.has(w.path)
+        ? knownDirty.get(w.path)
+          ? "dirty"
+          : ""
+        : run(w.path, ["status", "--porcelain"]).catch(() => undefined),
+      w.main
+        ? undefined
+        : tryGitLine(run, root, [
+            "rev-list",
+            "--left-right",
+            "--count",
+            `${defaultBranch}...${w.head_sha}`,
+          ]),
       tryGitLine(run, root, ["log", "-1", "--format=%ct%x00%s", w.head_sha]),
     ]);
     if (status !== undefined) w.dirty = !!status.trim();
     const [behind, aheadByHash] = (counts ?? "").split(/\s+/).map(Number);
     if (Number.isFinite(aheadByHash) && Number.isFinite(behind)) {
-      const ahead = aheadByHash > 0 && mainSha ? await patchesMainLacks(run, root, mainSha, w.head_sha) ?? aheadByHash : aheadByHash;
+      const ahead =
+        aheadByHash > 0 && mainSha
+          ? ((await patchesMainLacks(run, root, mainSha, w.head_sha)) ??
+            aheadByHash)
+          : aheadByHash;
       Object.assign(w, { ahead, behind });
     }
     const [at, subject] = (last ?? "").split("\0");
-    if (at) Object.assign(w, { committed_at: Number(at) * 1000, subject: subject ?? "" });
+    if (at)
+      Object.assign(w, {
+        committed_at: Number(at) * 1000,
+        subject: subject ?? "",
+      });
   }
 
   const payload: WorktreesPayload = {
@@ -204,14 +300,23 @@ export async function buildWorktreeMirror(
     default_branch: defaultBranch,
     head_sha: worktrees[0].head_sha,
     // The server keys this row by publisher and root, so checkouts never overwrite each other.
-    rows: [{ kind: WORKTREES_KIND, ref: "", path: root, content: JSON.stringify(payload) }],
+    rows: [
+      {
+        kind: WORKTREES_KIND,
+        ref: "",
+        path: root,
+        content: JSON.stringify(payload),
+      },
+    ],
     commits: [],
   };
 }
 
 /** What changed, ignoring when it was read: the daemon publishes only when this moves. */
 export function worktreeFingerprint(mirror: RepoMirror): string {
-  const { at: _at, ...stable } = JSON.parse(mirror.rows[0].content) as WorktreesPayload;
+  const { at: _at, ...stable } = JSON.parse(
+    mirror.rows[0].content,
+  ) as WorktreesPayload;
   return createHash("sha1").update(JSON.stringify(stable)).digest("hex");
 }
 
@@ -229,10 +334,25 @@ export async function publishWorktrees(cwd: string): Promise<void> {
     const root = await mainRootFor(cwd);
     if (!config?.auth_token || !config.convex_url || !root) return;
     const sessions = readLocalConversationMap();
-    const mirror = await buildWorktreeMirror(root, { device_id: deviceId(), device_label: deviceLabel(), resolveSession: (id) => sessions[id] });
+    const mirror = await buildWorktreeMirror(root, {
+      device_id: deviceId(),
+      device_label: deviceLabel(),
+      resolveSession: (id) => sessions[id],
+    });
     if (!mirror) return;
-    const service = new SyncService({ convexUrl: config.convex_url, authToken: config.auth_token, userId: config.user_id });
-    await service.ingestLocalRepo({ root, device_label: deviceLabel(), ...mirror });
+    const service = new SyncService({
+      convexUrl: config.convex_url,
+      authToken: config.auth_token,
+      userId: config.user_id,
+    });
+    await service.ingestLocalRepo({
+      root,
+      device_label: deviceLabel(),
+      ...mirror,
+    });
   };
-  await Promise.race([publish().catch(() => {}), new Promise((resolve) => setTimeout(resolve, PUBLISH_BUDGET_MS).unref?.())]);
+  await Promise.race([
+    publish().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, PUBLISH_BUDGET_MS).unref?.()),
+  ]);
 }

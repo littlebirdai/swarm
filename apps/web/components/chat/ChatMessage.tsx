@@ -1,23 +1,55 @@
 import { memo, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { SmilePlus, MessageSquare, MoreHorizontal, RotateCw, AlertTriangle, Link2, Pencil, Trash2, Forward, PhoneCall, EyeOff, ExternalLink, Bot } from "lucide-react";
+import {
+  SmilePlus,
+  MessageSquare,
+  MoreHorizontal,
+  RotateCw,
+  AlertTriangle,
+  Link2,
+  Pencil,
+  Trash2,
+  Forward,
+  PhoneCall,
+  EyeOff,
+  ExternalLink,
+  Bot,
+} from "lucide-react";
 import { SlackLogo } from "../SlackLogo";
 import { parseHuddleDigestContent } from "@codecast/shared/contracts";
-import { mentionRoles, mentionSessions, mentionSlack, type ChatRoleMention, type ChatSlackMention } from "@codecast/shared/chat";
+import {
+  mentionRoles,
+  mentionSessions,
+  mentionSlack,
+  type ChatRoleMention,
+  type ChatSlackMention,
+} from "@codecast/shared/chat";
 import { openForwardToChat } from "../../lib/forwardToChat";
 import { remarkSanitizeInvisibleUnicode } from "../../lib/markdownPlugins";
 import { remarkEmojiShortcodes } from "../../lib/remarkEmojiShortcodes";
-import { MESSAGE_MD_COMPONENTS, MESSAGE_MD_REHYPE, USER_MD_REMARK } from "../messageMarkdown";
+import {
+  MESSAGE_MD_COMPONENTS,
+  MESSAGE_MD_REHYPE,
+  USER_MD_REMARK,
+} from "../messageMarkdown";
 import { RevealHost } from "../ObjectReveal";
 import { ChatAuthorFace } from "./ChatAuthorFace";
 import { EntityIdPill } from "../EntityIdPill";
 import Link from "next/link";
-import { remarkChatMentions, channelNameMap } from "../../lib/remarkChatMentions";
+import {
+  remarkChatMentions,
+  channelNameMap,
+} from "../../lib/remarkChatMentions";
 import { remarkEntityCards } from "../../lib/remarkEntityCards";
 import { compactAge } from "../../lib/threadState";
 import { copyToClipboard, sharePageUrl } from "../../lib/utils";
 import { threadRootOf, type ChatMessageView } from "./chatTypes";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import { ChatVoiceBubble } from "./ChatVoiceBubble";
 import { ChatAttachments } from "./ChatAttachments";
 import { CallTranscriptDisclosure } from "../calls/TranscriptTurns";
@@ -44,11 +76,22 @@ import { isConvexId } from "../../lib/entityLinks";
 // renderable from a fixture and cheap to memo under a virtualizer, where rows
 // remount constantly.
 
-const HOVER_TIME = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-const FULL_TIME = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
-let chatMdComponents: (typeof MESSAGE_MD_COMPONENTS & { blockquote: typeof ChatBlockquote }) | undefined;
+const HOVER_TIME = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
+const FULL_TIME = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+let chatMdComponents:
+  | (typeof MESSAGE_MD_COMPONENTS & { blockquote: typeof ChatBlockquote })
+  | undefined;
 function getChatMdComponents() {
-  return chatMdComponents ??= { ...MESSAGE_MD_COMPONENTS, blockquote: ChatBlockquote };
+  return (chatMdComponents ??= {
+    ...MESSAGE_MD_COMPONENTS,
+    blockquote: ChatBlockquote,
+  });
 }
 
 function clockTime(ts: number): string {
@@ -187,22 +230,45 @@ export const ChatMessage = memo(function ChatMessage({
   const roleRefs = message.mentionRefs;
   const mentionVocab = useMemo(() => {
     const roles = new Map<string, ChatRoleMention>();
-    for (const r of mentionRoles(roleRefs)) roles.set(r.handle.toLowerCase(), r);
-    const sessions = new Set(mentionSessions(roleRefs).map((s) => s.short_id.toLowerCase()));
+    for (const r of mentionRoles(roleRefs))
+      roles.set(r.handle.toLowerCase(), r);
+    const sessions = new Set(
+      mentionSessions(roleRefs).map((s) => s.short_id.toLowerCase()),
+    );
     const slack = new Map<string, ChatSlackMention>();
-    for (const p of mentionSlack(roleRefs)) slack.set(p.handle.toLowerCase(), p);
-    return { roles: roles.size ? roles : undefined, sessions: sessions.size ? sessions : undefined, slack: slack.size ? slack : undefined };
+    for (const p of mentionSlack(roleRefs))
+      slack.set(p.handle.toLowerCase(), p);
+    return {
+      roles: roles.size ? roles : undefined,
+      sessions: sessions.size ? sessions : undefined,
+      slack: slack.size ? slack : undefined,
+    };
   }, [roleRefs]);
   // `#name` links into the room, from this team's channels. Only a line that
   // has a "#" subscribes, so the rest of the list never re-renders for it.
   const hasHash = message.content.includes("#");
-  const channels = useInboxStore((s) => hasHash && channelId ? channelNameMap(s.chatChannels, s.chatChannels[channelId]?.team_id) : undefined);
+  const channels = useInboxStore((s) =>
+    hasHash && channelId
+      ? channelNameMap(s.chatChannels, s.chatChannels[channelId]?.team_id)
+      : undefined,
+  );
   const remarkPlugins = useMemo(
     () => [
       [
         remarkChatMentions,
-        { known: knownHandles, self: selfHandles, names: handleNames, roles: mentionVocab.roles, sessions: mentionVocab.sessions, slack: mentionVocab.slack, channels },
-      ] as [typeof remarkChatMentions, Parameters<typeof remarkChatMentions>[0]],
+        {
+          known: knownHandles,
+          self: selfHandles,
+          names: handleNames,
+          roles: mentionVocab.roles,
+          sessions: mentionVocab.sessions,
+          slack: mentionVocab.slack,
+          channels,
+        },
+      ] as [
+        typeof remarkChatMentions,
+        Parameters<typeof remarkChatMentions>[0],
+      ],
       ...USER_MD_REMARK,
       remarkSanitizeInvisibleUnicode,
       // After the invisible-unicode strip so a converted ZWJ sequence
@@ -237,7 +303,9 @@ export const ChatMessage = memo(function ChatMessage({
     };
   }, [menuOpen, pickerOpen]);
 
-  const permalink = channelId ? `/chat/${channelId}?m=${message.id}` : undefined;
+  const permalink = channelId
+    ? `/chat/${channelId}?m=${message.id}`
+    : undefined;
   // A huddle digest is a system row about the call, not something its author
   // typed: the header names the huddle instead of the person who happened to
   // start it, and the gutter wears a call badge instead of their face. The
@@ -245,16 +313,30 @@ export const ChatMessage = memo(function ChatMessage({
   const isCall = !!message.call && !message.deletedAt;
   const callHead = isCall ? parseHuddleDigestContent(message.content) : null;
   // An untitled huddle's title IS "Huddle" — the kicker already says it once.
-  const callTitle = callHead && callHead.title !== "Huddle" ? callHead.title : null;
+  const callTitle =
+    callHead && callHead.title !== "Huddle" ? callHead.title : null;
   // A voice burst has no typed text to correct: its content is a transcript of
   // something already said out loud, and editing it would put words in the
   // speaker's mouth. Delete stays — you can take a voice note back.
   // A huddle digest's content is the server's summary of what was said, not
   // something its author typed — like a voice transcript, there is nothing of
   // theirs to correct.
-  const canEdit = !!mine && !!onEdit && !message.deletedAt && !author.isAgent && !message.voice && !message.call;
+  const canEdit =
+    !!mine &&
+    !!onEdit &&
+    !message.deletedAt &&
+    !author.isAgent &&
+    !message.voice &&
+    !message.call;
   const canDelete = !!mine && !!onDelete && !message.deletedAt;
-  const canHand = !!channelId && !!onReact && isConvexId(message.id) && !message.deletedAt && !message.voice && !message.call && !message.agentStatus;
+  const canHand =
+    !!channelId &&
+    !!onReact &&
+    isConvexId(message.id) &&
+    !message.deletedAt &&
+    !message.voice &&
+    !message.call &&
+    !message.agentStatus;
 
   const react = (emoji: string) => {
     setPickerOpen(false);
@@ -283,7 +365,12 @@ export const ChatMessage = memo(function ChatMessage({
   const errored = agentStatus === "error";
 
   return (
-    <div className={rowClass} data-message-id={message.id} id={`chatmsg-${message.id}`} ref={rowRef}>
+    <div
+      className={rowClass}
+      data-message-id={message.id}
+      id={`chatmsg-${message.id}`}
+      ref={rowRef}
+    >
       <div className="ch-msg-gutter">
         {isCall ? (
           <span className="ch-call-badge" aria-hidden="true">
@@ -300,7 +387,11 @@ export const ChatMessage = memo(function ChatMessage({
             <SlackLogo className="w-3.5 h-3.5" />
           </span>
         ) : author.role ? (
-          <Link href={`/org/${author.role.shortId}`} className="flex" title={`${author.name} · ${author.role.title}`}>
+          <Link
+            href={`/org/${author.role.shortId}`}
+            className="flex"
+            title={`${author.name} · ${author.role.title}`}
+          >
             <ChatAuthorFace author={author} />
           </Link>
         ) : (
@@ -313,9 +404,14 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="ch-msg-head ch-call-head">
             <span className="ch-call-kicker">Huddle</span>
             {callTitle && <span className="ch-msg-author">{callTitle}</span>}
-            {callHead?.lead && <span className="ch-call-lead">{callHead.lead}</span>}
+            {callHead?.lead && (
+              <span className="ch-call-lead">{callHead.lead}</span>
+            )}
             {callHead?.video && message.call && (
-              <CallVideoStretchChip stretches={callHead.video} callRef={message.call.transcriptId} />
+              <CallVideoStretchChip
+                stretches={callHead.video}
+                callRef={message.call.transcriptId}
+              />
             )}
             <a
               className="ch-msg-time"
@@ -325,54 +421,69 @@ export const ChatMessage = memo(function ChatMessage({
               {headerTime(message.createdAt, now)}
             </a>
           </div>
-        ) : !grouped && (
-          <div className="ch-msg-head">
-            {author.session ? (
-              <a
-                className="ch-msg-author"
-                href={`/conversation/${encodeURIComponent(author.session.id)}`}
-                title={`${author.name} · open session`}
-              >
-                {author.name}
-              </a>
-            ) : author.role ? (
-              <>
-                <Link className="ch-msg-author" href={`/org/${author.role.shortId}`} title={`${author.name} · open the role`}>
+        ) : (
+          !grouped && (
+            <div className="ch-msg-head">
+              {author.session ? (
+                <a
+                  className="ch-msg-author"
+                  href={`/conversation/${encodeURIComponent(author.session.id)}`}
+                  title={`${author.name} · open session`}
+                >
                   {author.name}
-                </Link>
-                {author.role.title !== author.name && <span className="ch-msg-via">{author.role.title}</span>}
-              </>
-            ) : (
-              <span className="ch-msg-author" title={author.name}>{author.name}</span>
-            )}
-            {/* A session persona wears a "session" chip and credits the human
+                </a>
+              ) : author.role ? (
+                <>
+                  <Link
+                    className="ch-msg-author"
+                    href={`/org/${author.role.shortId}`}
+                    title={`${author.name} · open the role`}
+                  >
+                    {author.name}
+                  </Link>
+                  {author.role.title !== author.name && (
+                    <span className="ch-msg-via">{author.role.title}</span>
+                  )}
+                </>
+              ) : (
+                <span className="ch-msg-author" title={author.name}>
+                  {author.name}
+                </span>
+              )}
+              {/* A session persona wears a "session" chip and credits the human
                 it ran as; the anchor keeps its plain "agent" chip. */}
-            {author.session ? (
-              <>
-                <span className="ch-agent-chip">session</span>
-                {author.session.via && <span className="ch-msg-via">via {author.session.via}</span>}
-              </>
-            ) : (
-              author.isAgent && <span className="ch-agent-chip">agent</span>
-            )}
-            {author.slack?.isBot && !author.isAgent && <span className="ch-agent-chip ch-slack-chip">app</span>}
-            {contextSessionId && (
-              <span className="ch-msg-via ch-msg-context">
-                from <EntityIdPill type="session" id={contextSessionId} compact />
-              </span>
-            )}
-            <SlackMark message={message} slackOutbound={slackOutbound} />
-            <a
-              className="ch-msg-time"
-              // The permalink the server mints, not a DOM fragment: a fragment
-              // is meaningless outside this tab, and clicking one asks the
-              // browser to scroll a row the virtualizer may have unmounted.
-              href={permalink ?? `#chatmsg-${message.id}`}
-              title={FULL_TIME.format(new Date(message.createdAt))}
-            >
-              {headerTime(message.createdAt, now)}
-            </a>
-          </div>
+              {author.session ? (
+                <>
+                  <span className="ch-agent-chip">session</span>
+                  {author.session.via && (
+                    <span className="ch-msg-via">via {author.session.via}</span>
+                  )}
+                </>
+              ) : (
+                author.isAgent && <span className="ch-agent-chip">agent</span>
+              )}
+              {author.slack?.isBot && !author.isAgent && (
+                <span className="ch-agent-chip ch-slack-chip">app</span>
+              )}
+              {contextSessionId && (
+                <span className="ch-msg-via ch-msg-context">
+                  from{" "}
+                  <EntityIdPill type="session" id={contextSessionId} compact />
+                </span>
+              )}
+              <SlackMark message={message} slackOutbound={slackOutbound} />
+              <a
+                className="ch-msg-time"
+                // The permalink the server mints, not a DOM fragment: a fragment
+                // is meaningless outside this tab, and clicking one asks the
+                // browser to scroll a row the virtualizer may have unmounted.
+                href={permalink ?? `#chatmsg-${message.id}`}
+                title={FULL_TIME.format(new Date(message.createdAt))}
+              >
+                {headerTime(message.createdAt, now)}
+              </a>
+            </div>
+          )
         )}
 
         {/* A broadcast reply ("also send to #channel"): the only way a reply
@@ -412,7 +523,11 @@ export const ChatMessage = memo(function ChatMessage({
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>{author.name} could not answer</span>
             {onRetryAgent && (
-              <button type="button" className="ch-agent-retry" onClick={() => onRetryAgent(message.id)}>
+              <button
+                type="button"
+                className="ch-agent-retry"
+                onClick={() => onRetryAgent(message.id)}
+              >
                 <RotateCw className="w-3 h-3 inline-block mr-1 -mt-px" />
                 try again
               </button>
@@ -469,13 +584,22 @@ export const ChatMessage = memo(function ChatMessage({
               </ReactMarkdown>
             </RevealHost>
             {message.attachments && message.attachments.length > 0 && (
-              <ChatAttachments messageId={message.id} attachments={message.attachments} />
+              <ChatAttachments
+                messageId={message.id}
+                attachments={message.attachments}
+              />
             )}
             {message.call && (
-              <CallTranscriptDisclosure transcriptId={message.call.transcriptId} className="mt-1.5" />
+              <CallTranscriptDisclosure
+                transcriptId={message.call.transcriptId}
+                className="mt-1.5"
+              />
             )}
             {message.editedAt && (
-              <span className="ch-msg-edited" title={FULL_TIME.format(new Date(message.editedAt))}>
+              <span
+                className="ch-msg-edited"
+                title={FULL_TIME.format(new Date(message.editedAt))}
+              >
                 (edited)
               </span>
             )}
@@ -487,9 +611,13 @@ export const ChatMessage = memo(function ChatMessage({
               <TooltipProvider delayDuration={250}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="ch-msg-folded" tabIndex={0}>folded</span>
+                    <span className="ch-msg-folded" tabIndex={0}>
+                      folded
+                    </span>
                   </TooltipTrigger>
-                  <TooltipContent side="top">Over the hourly mention cap — not woken</TooltipContent>
+                  <TooltipContent side="top">
+                    Over the hourly mention cap — not woken
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
@@ -499,9 +627,17 @@ export const ChatMessage = memo(function ChatMessage({
         {message.failed && (
           <div className="ch-send-failed">
             <AlertTriangle className="w-3 h-3" />
-            <span>{message.failReason ? `Not sent: ${message.failReason}` : "Not sent"}</span>
+            <span>
+              {message.failReason
+                ? `Not sent: ${message.failReason}`
+                : "Not sent"}
+            </span>
             {onRetrySend && (
-              <button type="button" className="ch-send-retry" onClick={() => onRetrySend(message.id)}>
+              <button
+                type="button"
+                className="ch-send-retry"
+                onClick={() => onRetrySend(message.id)}
+              >
                 Retry
               </button>
             )}
@@ -525,7 +661,10 @@ export const ChatMessage = memo(function ChatMessage({
                   </TooltipTrigger>
                   {r.names && r.names.length > 0 && (
                     <TooltipContent side="top" className="ch-reaction-tip">
-                      <span className="ch-reaction-tip-emoji" aria-hidden="true">
+                      <span
+                        className="ch-reaction-tip-emoji"
+                        aria-hidden="true"
+                      >
                         {r.emoji}
                       </span>
                       <span>{reactorNames(r.names)} reacted</span>
@@ -537,35 +676,53 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         )}
 
-        {message.boundSessionId && !message.threadRootId && !message.deletedAt && (
-          <div className="ch-handed" data-hand-pill>
-            <Bot className="w-3 h-3" aria-hidden="true" />
-            <EntityIdPill type="session" id={message.boundSessionId} />
-          </div>
-        )}
+        {message.boundSessionId &&
+          !message.threadRootId &&
+          !message.deletedAt && (
+            <div className="ch-handed" data-hand-pill>
+              <Bot className="w-3 h-3" aria-hidden="true" />
+              <EntityIdPill type="session" id={message.boundSessionId} />
+            </div>
+          )}
 
-        {!inThread && <RoundStrip rootId={message.id} round={message.round} openOnly />}
+        {!inThread && (
+          <RoundStrip rootId={message.id} round={message.round} openOnly />
+        )}
         {!inThread && !!message.replyCount && message.replyCount > 0 && (
-          <button type="button" className="ch-thread-link" onClick={() => onOpenThread?.(message.id)}>
+          <button
+            type="button"
+            className="ch-thread-link"
+            onClick={() => onOpenThread?.(message.id)}
+          >
             <span className="ch-thread-faces">
               {(message.replyFaces ?? []).slice(0, 4).map((f) => (
-                <ChatAuthorFace key={f.id} author={f} size={16} className="ch-thread-face" />
+                <ChatAuthorFace
+                  key={f.id}
+                  author={f}
+                  size={16}
+                  className="ch-thread-face"
+                />
               ))}
             </span>
             <span className="ch-thread-count">
-              {message.threadAgentStatus === "thinking" || message.threadAgentStatus === "streaming"
+              {message.threadAgentStatus === "thinking" ||
+              message.threadAgentStatus === "streaming"
                 ? "thinking…"
                 : `${message.replyCount} ${message.replyCount === 1 ? "reply" : "replies"}`}
             </span>
             {message.lastReplyAt && (
-              <span className="ch-thread-last">{relativeReplyTime(message.lastReplyAt, now)}</span>
+              <span className="ch-thread-last">
+                {relativeReplyTime(message.lastReplyAt, now)}
+              </span>
             )}
           </button>
         )}
       </div>
 
       {!message.deletedAt && !editing && (
-        <div className={`ch-tools ${menuOpen || pickerOpen ? "ch-tools-open" : ""}`}>
+        <div
+          className={`ch-tools ${menuOpen || pickerOpen ? "ch-tools-open" : ""}`}
+        >
           {onReact &&
             TOOLBAR_REACTIONS.map((emoji) => (
               <button
@@ -606,7 +763,11 @@ export const ChatMessage = memo(function ChatMessage({
           {/* Rendered only when it can do something, the way the retry buttons
               already are. An overflow button that opens nothing is worse than
               no overflow button. */}
-          {(permalink || canEdit || canDelete || message.slack?.permalink || (slackOutbound && !message.slack && onShareToSlack)) && (
+          {(permalink ||
+            canEdit ||
+            canDelete ||
+            message.slack?.permalink ||
+            (slackOutbound && !message.slack && onShareToSlack)) && (
             <button
               type="button"
               className="ch-tool"
@@ -662,9 +823,7 @@ export const ChatMessage = memo(function ChatMessage({
                   role="menuitem"
                   onClick={() => {
                     setMenuOpen(false);
-                    void copyToClipboard(
-                      sharePageUrl(permalink),
-                    );
+                    void copyToClipboard(sharePageUrl(permalink));
                   }}
                 >
                   <Link2 className="w-3 h-3" />
@@ -702,20 +861,23 @@ export const ChatMessage = memo(function ChatMessage({
                   Open in Slack
                 </a>
               )}
-              {slackOutbound && !message.slack && onShareToSlack && (mine || canDelete) && (
-                <button
-                  type="button"
-                  className="ch-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onShareToSlack(message.id);
-                  }}
-                >
-                  <SlackLogo className="w-3 h-3" />
-                  Share to Slack
-                </button>
-              )}
+              {slackOutbound &&
+                !message.slack &&
+                onShareToSlack &&
+                (mine || canDelete) && (
+                  <button
+                    type="button"
+                    className="ch-menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onShareToSlack(message.id);
+                    }}
+                  >
+                    <SlackLogo className="w-3 h-3" />
+                    Share to Slack
+                  </button>
+                )}
               {canEdit && (
                 <button
                   type="button"
@@ -766,22 +928,49 @@ export const ChatMessage = memo(function ChatMessage({
  *  "From Slack" for a mirrored-in line, "Also in Slack" for ours that crossed
  *  over (both open the Slack copy), and a muted eye for a line its author kept
  *  local in a channel that otherwise mirrors. Nothing in a channel with no mirror. */
-function SlackMark({ message, slackOutbound }: { message: ChatMessageView; slackOutbound?: boolean }) {
+function SlackMark({
+  message,
+  slackOutbound,
+}: {
+  message: ChatMessageView;
+  slackOutbound?: boolean;
+}) {
   const s = message.slack;
   if (s) {
     const label = s.direction === "inbound" ? "From Slack" : "Also in Slack";
-    const inner = <SlackLogo className="w-3 h-3" muted={s.direction === "outbound"} />;
+    const inner = (
+      <SlackLogo className="w-3 h-3" muted={s.direction === "outbound"} />
+    );
     return s.permalink ? (
-      <a className="ch-slack-mark" href={s.permalink} target="_blank" rel="noreferrer" title={`${label} · open there`} aria-label={`${label}, open there`}>
+      <a
+        className="ch-slack-mark"
+        href={s.permalink}
+        target="_blank"
+        rel="noreferrer"
+        title={`${label} · open there`}
+        aria-label={`${label}, open there`}
+      >
         {inner}
       </a>
     ) : (
-      <span className="ch-slack-mark" title={label} aria-label={label} role="img">{inner}</span>
+      <span
+        className="ch-slack-mark"
+        title={label}
+        aria-label={label}
+        role="img"
+      >
+        {inner}
+      </span>
     );
   }
   if (slackOutbound && message.localOnly) {
     return (
-      <span className="ch-slack-mark ch-slack-mark-local" title="Not in Slack: kept out by its author" aria-label="Not in Slack" role="img">
+      <span
+        className="ch-slack-mark ch-slack-mark-local"
+        title="Not in Slack: kept out by its author"
+        aria-label="Not in Slack"
+        role="img"
+      >
         <EyeOff className="w-3 h-3" />
       </span>
     );

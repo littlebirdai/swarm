@@ -8,6 +8,8 @@ export default function LineTraceRoute() {
   const { ref } = useParams<{ ref: string }>();
   const router = useRouter();
   const to = lineRefHref(lineRefOf(ref ?? ""));
-  useWatchEffect(() => { router.replace(to); }, [router, to]);
+  useWatchEffect(() => {
+    router.replace(to);
+  }, [router, to]);
   return null;
 }

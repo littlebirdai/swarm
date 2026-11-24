@@ -70,8 +70,18 @@ export type ShellMessage =
   | { protocol: typeof PROTOCOL; type: "hold" }
   | { protocol: typeof PROTOCOL; type: "token"; token: string }
   | { protocol: typeof PROTOCOL; type: "pick"; on: boolean; theme?: PickTheme }
-  | { protocol: typeof PROTOCOL; type: "spotlight"; selector: string; color: string }
-  | { protocol: typeof PROTOCOL; type: "capture"; width: number; height: number };
+  | {
+      protocol: typeof PROTOCOL;
+      type: "spotlight";
+      selector: string;
+      color: string;
+    }
+  | {
+      protocol: typeof PROTOCOL;
+      type: "capture";
+      width: number;
+      height: number;
+    };
 
 export type AppMessage =
   /** `version`: the one its page is, which a page opened at an app's live
@@ -88,15 +98,36 @@ export type AppMessage =
 type Body<M> = M extends unknown ? Omit<M, "protocol"> : never;
 
 function isOurs(data: unknown): data is { protocol: string; type: string } {
-  return typeof data === "object" && data !== null && (data as { protocol?: unknown }).protocol === PROTOCOL;
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { protocol?: unknown }).protocol === PROTOCOL
+  );
 }
 
 export function isShellMessage(data: unknown): data is ShellMessage {
-  return isOurs(data) && ["init", "hold", "token", "pick", "spotlight", "capture"].includes(data.type);
+  return (
+    isOurs(data) &&
+    ["init", "hold", "token", "pick", "spotlight", "capture"].includes(
+      data.type,
+    )
+  );
 }
 
 export function isAppMessage(data: unknown): data is AppMessage {
-  return isOurs(data) && ["ready", "painted", "spotlit", "picked", "pick-cancelled", "error", "refused", "captured"].includes(data.type);
+  return (
+    isOurs(data) &&
+    [
+      "ready",
+      "painted",
+      "spotlit",
+      "picked",
+      "pick-cancelled",
+      "error",
+      "refused",
+      "captured",
+    ].includes(data.type)
+  );
 }
 
 /** Post to an app's iframe window. */
@@ -106,7 +137,8 @@ export function postToApp(target: Window, message: Body<ShellMessage>): void {
 
 /** Post to the shell (the app's parent). */
 export function postToShell(message: Body<AppMessage>): void {
-  if (window.parent !== window) window.parent.postMessage({ protocol: PROTOCOL, ...message }, "*");
+  if (window.parent !== window)
+    window.parent.postMessage({ protocol: PROTOCOL, ...message }, "*");
 }
 
 /** The shell's `init` for one version of an app, derived from the
@@ -121,6 +153,20 @@ export async function initFor(opts: {
   scope?: TokenScope;
 }): Promise<Body<InitMessage>> {
   const { creds, appId, version, visitor, avatars, app, scope = "use" } = opts;
-  const token = await runtimeTokenForSecret(creds.secret, appId, version, Date.now(), scope);
-  return { type: "init", app_id: appId, visitor_id: creds.visitor_id, token, visitor, avatars, app };
+  const token = await runtimeTokenForSecret(
+    creds.secret,
+    appId,
+    version,
+    Date.now(),
+    scope,
+  );
+  return {
+    type: "init",
+    app_id: appId,
+    visitor_id: creds.visitor_id,
+    token,
+    visitor,
+    avatars,
+    app,
+  };
 }

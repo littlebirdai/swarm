@@ -6,12 +6,16 @@ import { fireUndoHistoryMilestone } from "../undoHistory";
 // The milestone tip points at the undo timeline. While the card is showing,
 // or the same press is opening it (the held peek), it stays quiet: it would
 // sit over the rows the card narrates.
-const seen = () => ((useInboxStore.getState().clientState as any).tips?.seen ?? []) as string[];
+const seen = () =>
+  ((useInboxStore.getState().clientState as any).tips?.seen ?? []) as string[];
 
 describe("the undo history milestone", () => {
   beforeEach(() => {
     undoTimeline.close();
-    useInboxStore.setState({ clientStateInitialized: true, clientState: { tips: { seen: [] } } } as any);
+    useInboxStore.setState({
+      clientStateInitialized: true,
+      clientState: { tips: { seen: [] } },
+    } as any);
   });
 
   it("does not fire while the card is open", () => {

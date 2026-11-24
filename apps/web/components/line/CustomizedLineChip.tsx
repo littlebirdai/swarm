@@ -7,25 +7,54 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-const CLASS = "shrink-0 inline-flex items-center px-1.5 rounded text-meta leading-[16px]";
+const CLASS =
+  "shrink-0 inline-flex items-center px-1.5 rounded text-meta leading-[16px]";
 const toneStyle = (tone: "magenta" | "muted") => {
-  const color = tone === "magenta" ? "var(--sol-magenta)" : "var(--sol-text-muted)";
+  const color =
+    tone === "magenta" ? "var(--sol-magenta)" : "var(--sol-text-muted)";
   return { color, background: `color-mix(in srgb, ${color} 12%, transparent)` };
 };
 
 /** A small mark: magenta for what belongs to a customized line, muted for a plain fact. */
-export function LineChip({ children, tone = "muted", ...rest }: { children: ReactNode; tone?: "magenta" | "muted" } & Partial<Record<`data-${string}` | "title", string>>) {
-  return <span className={CLASS} style={toneStyle(tone)} {...rest}>{children}</span>;
+export function LineChip({
+  children,
+  tone = "muted",
+  ...rest
+}: { children: ReactNode; tone?: "magenta" | "muted" } & Partial<
+  Record<`data-${string}` | "title", string>
+>) {
+  return (
+    <span className={CLASS} style={toneStyle(tone)} {...rest}>
+      {children}
+    </span>
+  );
 }
 
-export function CustomizedLineChip({ project, href }: { project?: string | null; href?: string }) {
+export function CustomizedLineChip({
+  project,
+  href,
+}: {
+  project?: string | null;
+  href?: string;
+}) {
   const title = `Runs ${project ? `${project}'s` : "this project's"} customized steps, not the Standard ones`;
   if (href) {
     return (
-      <Link href={href} onClick={(e) => e.stopPropagation()} className={`${CLASS} hover:underline`} style={toneStyle("magenta")} title={`${title}. Open its stations.`} data-line-customized>
+      <Link
+        href={href}
+        onClick={(e) => e.stopPropagation()}
+        className={`${CLASS} hover:underline`}
+        style={toneStyle("magenta")}
+        title={`${title}. Open its stations.`}
+        data-line-customized
+      >
         customized
       </Link>
     );
   }
-  return <LineChip tone="magenta" title={title} data-line-customized="">customized</LineChip>;
+  return (
+    <LineChip tone="magenta" title={title} data-line-customized="">
+      customized
+    </LineChip>
+  );
 }

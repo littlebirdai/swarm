@@ -98,11 +98,17 @@ export interface GitPlaneDeps {
 /** A URL usable as a rendezvous: reachable from other machines, not a file on this one. */
 export function isRendezvousUrl(url: string | undefined): url is string {
   if (!url) return false;
-  return !url.startsWith("/") && !url.startsWith("file://") && !url.startsWith(".");
+  return (
+    !url.startsWith("/") && !url.startsWith("file://") && !url.startsWith(".")
+  );
 }
 
 /** `git -C cwd <args>`, its output as git wrote it (porcelain's leading spaces kept). Throws git's failure. */
-export async function gitRaw(cwd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<string> {
+export async function gitRaw(
+  cwd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
     encoding: "utf-8",
     timeout: GIT_TIMEOUT_MS,
@@ -113,12 +119,19 @@ export async function gitRaw(cwd: string, args: string[], env?: NodeJS.ProcessEn
 }
 
 /** `git -C cwd <args>`, its output trimmed. Throws git's failure. */
-export async function git(cwd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<string> {
+export async function git(
+  cwd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+): Promise<string> {
   return (await gitRaw(cwd, args, env)).trim();
 }
 
 /** `git -C cwd <args>`, or undefined when it failed. */
-export async function gitTry(cwd: string, args: string[]): Promise<string | undefined> {
+export async function gitTry(
+  cwd: string,
+  args: string[],
+): Promise<string | undefined> {
   try {
     return await git(cwd, args);
   } catch {
@@ -146,7 +159,9 @@ export async function repoRootFor(cwd: string): Promise<string | null> {
 
 /** The GitHub repository a checkout's origin is (`https://github.com/owner/name`), read locally; null when it has none. */
 export async function githubOriginAt(dir: string): Promise<string | null> {
-  const repo = githubRepo(await gitTry(dir, ["config", "--get", "remote.origin.url"]));
+  const repo = githubRepo(
+    await gitTry(dir, ["config", "--get", "remote.origin.url"]),
+  );
   return repo ? `https://github.com/${repo}` : null;
 }
 
@@ -155,7 +170,9 @@ export async function githubOriginAt(dir: string): Promise<string | null> {
  * where a rename or copy adds its original path as the next entry (skipped:
  * each entry is the path as it is now).
  */
-export function porcelainEntries(out: string): Array<{ status: string; path: string }> {
+export function porcelainEntries(
+  out: string,
+): Array<{ status: string; path: string }> {
   const entries = out.split("\0");
   const found: Array<{ status: string; path: string }> = [];
   for (let i = 0; i < entries.length; i++) {
@@ -182,7 +199,11 @@ export function resetGitPlaneState(): void {
   repoRootCache.clear();
 }
 
-async function sweepRepo(repo: GitPlaneRepo, deps: GitPlaneDeps, now: number): Promise<RepoPlaneState> {
+async function sweepRepo(
+  repo: GitPlaneRepo,
+  deps: GitPlaneDeps,
+  now: number,
+): Promise<RepoPlaneState> {
   const state: RepoPlaneState = { root: repo.root, origin_ok: false };
 
   let origin = await gitTry(repo.root, ["remote", "get-url", "origin"]);
@@ -193,13 +214,21 @@ async function sweepRepo(repo: GitPlaneRepo, deps: GitPlaneDeps, now: number): P
   // the same repo or the sessions wouldn't share a checkout.
   if (!isRendezvousUrl(origin)) {
     for (const conversationId of repo.conversationIds) {
-      const canonical = await deps.resolveCanonical(conversationId).catch(() => undefined);
+      const canonical = await deps
+        .resolveCanonical(conversationId)
+        .catch(() => undefined);
       if (!isRendezvousUrl(canonical)) continue;
       const setOk = origin
         ? await gitTry(repo.root, ["remote", "set-url", "origin", canonical])
         : await gitTry(repo.root, ["remote", "add", "origin", canonical]);
-      if (setOk === undefined && (await gitTry(repo.root, ["remote", "get-url", "origin"])) !== canonical) continue;
-      deps.log(`[GITPLANE] repaired origin in ${repo.root}: ${origin || "(none)"} -> ${canonical}`);
+      if (
+        setOk === undefined &&
+        (await gitTry(repo.root, ["remote", "get-url", "origin"])) !== canonical
+      )
+        continue;
+      deps.log(
+        `[GITPLANE] repaired origin in ${repo.root}: ${origin || "(none)"} -> ${canonical}`,
+      );
       state.repaired_from = origin || "(none)";
       origin = canonical;
       state.origin = canonical;
@@ -232,7 +261,11 @@ async function sweepRepo(repo: GitPlaneRepo, deps: GitPlaneDeps, now: number): P
       lastFetchOk.set(repo.root, true);
     };
     try {
-      await git(repo.root, ["fetch", "origin", "--quiet", "--prune"], gitEnvFor(repo.root));
+      await git(
+        repo.root,
+        ["fetch", "origin", "--quiet", "--prune"],
+        gitEnvFor(repo.root),
+      );
       fetchOk();
     } catch (e) {
       const stderr = stderrOf(e);
@@ -242,14 +275,26 @@ async function sweepRepo(repo: GitPlaneRepo, deps: GitPlaneDeps, now: number): P
       if (isGitAuthError(stderr)) {
         // Mint the key even when it can't help this remote (https): the web
         // card needs a pubkey to offer, and the user may switch the remote.
-        const pubkey = deps.mintDeviceKey ? await deps.mintDeviceKey() : undefined;
-        if (pubkey && isSshRemote(origin) && identityFor(repo.root) !== "device") {
+        const pubkey = deps.mintDeviceKey
+          ? await deps.mintDeviceKey()
+          : undefined;
+        if (
+          pubkey &&
+          isSshRemote(origin) &&
+          identityFor(repo.root) !== "device"
+        ) {
           try {
-            await git(repo.root, ["fetch", "origin", "--quiet", "--prune"], deviceKeyEnv());
+            await git(
+              repo.root,
+              ["fetch", "origin", "--quiet", "--prune"],
+              deviceKeyEnv(),
+            );
             recordIdentity(repo.root, "device");
             state.identity = "device";
             state.error = undefined;
-            deps.log(`[GITPLANE] device key is the working identity for ${repo.root}`);
+            deps.log(
+              `[GITPLANE] device key is the working identity for ${repo.root}`,
+            );
             fetchOk();
           } catch (retryErr) {
             state.needs_access = true;
@@ -270,13 +315,27 @@ async function sweepRepo(repo: GitPlaneRepo, deps: GitPlaneDeps, now: number): P
   // MEASURE: ahead/behind vs the branch's upstream, falling back to the
   // remote's default branch. Absent counts mean "not measurable", not zero.
   state.branch = await gitTry(repo.root, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  let base = await gitTry(repo.root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]);
+  let base = await gitTry(repo.root, [
+    "rev-parse",
+    "--abbrev-ref",
+    "--symbolic-full-name",
+    "@{upstream}",
+  ]);
   if (!base) {
-    const head = await gitTry(repo.root, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"]);
+    const head = await gitTry(repo.root, [
+      "symbolic-ref",
+      "--short",
+      "refs/remotes/origin/HEAD",
+    ]);
     base = head || undefined;
   }
   if (base) {
-    const counts = await gitTry(repo.root, ["rev-list", "--left-right", "--count", `HEAD...${base}`]);
+    const counts = await gitTry(repo.root, [
+      "rev-list",
+      "--left-right",
+      "--count",
+      `HEAD...${base}`,
+    ]);
     const m = counts?.match(/^(\d+)\s+(\d+)$/);
     if (m) {
       state.ahead = Number(m[1]);
@@ -297,16 +356,23 @@ export async function sweepGitPlane(
 ): Promise<RepoPlaneState[]> {
   const results: RepoPlaneState[] = [];
   let i = 0;
-  const workers = Array.from({ length: Math.min(SWEEP_CONCURRENCY, repos.length) }, async () => {
-    while (i < repos.length) {
-      const repo = repos[i++];
-      try {
-        results.push(await sweepRepo(repo, deps, now));
-      } catch (e) {
-        results.push({ root: repo.root, origin_ok: false, error: (e as Error)?.message?.slice(0, 200) });
+  const workers = Array.from(
+    { length: Math.min(SWEEP_CONCURRENCY, repos.length) },
+    async () => {
+      while (i < repos.length) {
+        const repo = repos[i++];
+        try {
+          results.push(await sweepRepo(repo, deps, now));
+        } catch (e) {
+          results.push({
+            root: repo.root,
+            origin_ok: false,
+            error: (e as Error)?.message?.slice(0, 200),
+          });
+        }
       }
-    }
-  });
+    },
+  );
   await Promise.all(workers);
   return results;
 }

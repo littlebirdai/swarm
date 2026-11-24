@@ -23,20 +23,37 @@ export function rulesText(source: string): string {
 }
 
 export const rulesHash = () =>
-  createHash("sha256").update(RULES.map((f) => `${f}\n${rulesText(fs.readFileSync(path.join(import.meta.dir, f), "utf-8"))}`).join("\n")).digest("hex").slice(0, 16);
+  createHash("sha256")
+    .update(
+      RULES.map(
+        (f) =>
+          `${f}\n${rulesText(fs.readFileSync(path.join(import.meta.dir, f), "utf-8"))}`,
+      ).join("\n"),
+    )
+    .digest("hex")
+    .slice(0, 16);
 
 describe("the attribution cache's rules", () => {
   test("are the ones its version was pinned for", () => {
     const now = rulesHash();
     if (now !== CACHE_RULES_HASH) {
-      throw new Error(`attribution rules changed: bump CACHE_VERSION (cached credits were read under the old rules) or, if credits can't change, update the pin. CACHE_RULES_HASH in attribute.ts is ${CACHE_RULES_HASH}; the rules now hash to ${now}.`);
+      throw new Error(
+        `attribution rules changed: bump CACHE_VERSION (cached credits were read under the old rules) or, if credits can't change, update the pin. CACHE_RULES_HASH in attribute.ts is ${CACHE_RULES_HASH}; the rules now hash to ${now}.`,
+      );
     }
     expect(now).toBe(CACHE_RULES_HASH);
   });
 
   test("comments and the pin do not move the hash; code does", () => {
-    const code = "const a = 1;\n// why\n/** doc */\nexport const CACHE_RULES_HASH = \"x\";\n\nfunction f() { return a; }";
-    expect(rulesText(code)).toBe(rulesText(code.replace("// why", "// a better why").replace("\"x\"", "\"y\"")));
-    expect(rulesText(code)).not.toBe(rulesText(code.replace("return a", "return a + 1")));
+    const code =
+      'const a = 1;\n// why\n/** doc */\nexport const CACHE_RULES_HASH = "x";\n\nfunction f() { return a; }';
+    expect(rulesText(code)).toBe(
+      rulesText(
+        code.replace("// why", "// a better why").replace('"x"', '"y"'),
+      ),
+    );
+    expect(rulesText(code)).not.toBe(
+      rulesText(code.replace("return a", "return a + 1")),
+    );
   });
 });

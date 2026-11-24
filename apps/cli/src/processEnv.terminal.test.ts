@@ -4,7 +4,11 @@ import { terminalProgramForApp, terminalProgramOnTty } from "./processEnv.js";
 // Shapes seen on macOS (2026-11-05): Ghostty opens a tty with a root-owned
 // login, whose environment is unreadable, then the shell, then the agent.
 const rows: Record<number, { ppid: number; tty: string; comm: string }> = {
-  18512: { ppid: 1, tty: "??", comm: "/Applications/Ghostty.app/Contents/MacOS/ghostty" },
+  18512: {
+    ppid: 1,
+    tty: "??",
+    comm: "/Applications/Ghostty.app/Contents/MacOS/ghostty",
+  },
   29738: { ppid: 18512, tty: "ttys091", comm: "/usr/bin/login" },
   29790: { ppid: 29738, tty: "ttys091", comm: "-/bin/bash" },
   29855: { ppid: 29790, tty: "ttys091", comm: "pi" },
@@ -18,7 +22,13 @@ const noEnv = () => null;
 
 describe("terminalProgramOnTty", () => {
   test("reads TERM_PROGRAM from the process's own environment first", async () => {
-    expect(await terminalProgramOnTty(29855, () => ({ TERM_PROGRAM: "iTerm.app" }), row)).toBe("iTerm.app");
+    expect(
+      await terminalProgramOnTty(
+        29855,
+        () => ({ TERM_PROGRAM: "iTerm.app" }),
+        row,
+      ),
+    ).toBe("iTerm.app");
   });
 
   // pi renames its process, which wipes the env it was exec'd with, and macOS
@@ -37,10 +47,26 @@ describe("terminalProgramOnTty", () => {
 });
 
 test("terminalProgramForApp maps each terminal app to its TERM_PROGRAM", () => {
-  expect(terminalProgramForApp("/Applications/Ghostty.app/Contents/MacOS/ghostty")).toBe("ghostty");
-  expect(terminalProgramForApp("/Applications/iTerm.app/Contents/MacOS/iTermServer-3.6.6")).toBe("iTerm.app");
-  expect(terminalProgramForApp("/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal")).toBe("Apple_Terminal");
-  expect(terminalProgramForApp("/Applications/kitty.app/Contents/MacOS/kitty")).toBe("kitty");
-  expect(terminalProgramForApp("/Applications/WezTerm.app/Contents/MacOS/wezterm-gui")).toBe("WezTerm");
+  expect(
+    terminalProgramForApp("/Applications/Ghostty.app/Contents/MacOS/ghostty"),
+  ).toBe("ghostty");
+  expect(
+    terminalProgramForApp(
+      "/Applications/iTerm.app/Contents/MacOS/iTermServer-3.6.6",
+    ),
+  ).toBe("iTerm.app");
+  expect(
+    terminalProgramForApp(
+      "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+    ),
+  ).toBe("Apple_Terminal");
+  expect(
+    terminalProgramForApp("/Applications/kitty.app/Contents/MacOS/kitty"),
+  ).toBe("kitty");
+  expect(
+    terminalProgramForApp(
+      "/Applications/WezTerm.app/Contents/MacOS/wezterm-gui",
+    ),
+  ).toBe("WezTerm");
   expect(terminalProgramForApp("launchd")).toBeUndefined();
 });

@@ -11,7 +11,10 @@ export type CallLinkHow = {
 
 export function callLinkHow(link: CallLinkHow): string {
   const n = link.excerpts.length;
-  return [link.live ? "fed live" : "", n ? `${n === 1 ? "an excerpt" : `${n} excerpts`} sent` : ""]
+  return [
+    link.live ? "fed live" : "",
+    n ? `${n === 1 ? "an excerpt" : `${n} excerpts`} sent` : "",
+  ]
     .filter(Boolean)
     .join(", ");
 }
@@ -28,7 +31,10 @@ export type CallAnchor =
  *  else its full id. The short id is the one the page header shows, agents
  *  cite and `cast call` prints, so the address bar and a copied link name the
  *  call the way everything else does. The page reads either. */
-export function callPathRef(call: { _id: string; short_id?: string | null }): string {
+export function callPathRef(call: {
+  _id: string;
+  short_id?: string | null;
+}): string {
   return call.short_id || String(call._id);
 }
 
@@ -37,26 +43,37 @@ export function callPathRef(call: { _id: string; short_id?: string | null }): st
  *  it has only that. Turns ride `?turns=<from>-<to>` (they open selected);
  *  the recap's parts ride `?part=summary` and `?part=action-<n>` (1-based,
  *  as people count them). */
-export function callAnchorHref(call: string, anchor?: CallAnchor | null): string {
+export function callAnchorHref(
+  call: string,
+  anchor?: CallAnchor | null,
+): string {
   const base = `/calls/${call}`;
   if (!anchor) return base;
-  if (anchor.kind === "turns") return `${base}?turns=${anchor.from_seq}-${anchor.to_seq}`;
+  if (anchor.kind === "turns")
+    return `${base}?turns=${anchor.from_seq}-${anchor.to_seq}`;
   return `${base}?part=${anchor.kind === "summary" ? "summary" : `action-${anchor.index + 1}`}`;
 }
 
 /** The anchor a call page URL names, or null for the whole call. */
-export function parseCallAnchor(params: { get(name: string): string | null } | null | undefined): CallAnchor | null {
+export function parseCallAnchor(
+  params: { get(name: string): string | null } | null | undefined,
+): CallAnchor | null {
   const turns = params?.get("turns");
   if (turns) {
     const [from, to = from] = turns.split("-").map(Number);
     if (Number.isFinite(from) && Number.isFinite(to)) {
-      return { kind: "turns", from_seq: Math.min(from, to), to_seq: Math.max(from, to) };
+      return {
+        kind: "turns",
+        from_seq: Math.min(from, to),
+        to_seq: Math.max(from, to),
+      };
     }
   }
   const part = params?.get("part");
   if (part === "summary") return { kind: "summary" };
   const m = part ? /^action-(\d+)$/.exec(part) : null;
-  if (m && Number(m[1]) >= 1) return { kind: "action", index: Number(m[1]) - 1 };
+  if (m && Number(m[1]) >= 1)
+    return { kind: "action", index: Number(m[1]) - 1 };
   return null;
 }
 
@@ -65,7 +82,12 @@ export function parseCallAnchor(params: { get(name: string): string | null } | n
  *  lights the line being said. Kept apart from CallAnchor on purpose: an
  *  anchor selects a place in the record, a moment positions the player, and
  *  one link can carry both. */
-export function callMomentHref(transcriptId: string, atMs: number, anchor?: CallAnchor | null, view?: CallView | null): string {
+export function callMomentHref(
+  transcriptId: string,
+  atMs: number,
+  anchor?: CallAnchor | null,
+  view?: CallView | null,
+): string {
   const base = callAnchorHref(transcriptId, anchor);
   const at = `${base}${base.includes("?") ? "&" : "?"}t=${Math.max(0, Math.floor(atMs / 1000))}`;
   const v = callViewParam(view);
@@ -92,10 +114,22 @@ export function callViewParam(view?: CallView | null): string | null {
 export function callFrameHref(
   transcriptId: string,
   atMs: number,
-  shown?: { kind: CallRecordingKind; participant_identity?: string | null } | null,
+  shown?: {
+    kind: CallRecordingKind;
+    participant_identity?: string | null;
+  } | null,
 ): string {
-  const screen = shown ? shown.kind === "screen" : CALL_FRAME_PREFER === "screen";
-  return callMomentHref(transcriptId, atMs, null, screen ? { screen: true, identity: shown?.participant_identity ?? null } : null);
+  const screen = shown
+    ? shown.kind === "screen"
+    : CALL_FRAME_PREFER === "screen";
+  return callMomentHref(
+    transcriptId,
+    atMs,
+    null,
+    screen
+      ? { screen: true, identity: shown?.participant_identity ?? null }
+      : null,
+  );
 }
 
 /** The call page with its share control open (`?share=open`): where anyone
@@ -107,12 +141,16 @@ export function callShareHref(call: string): string {
 }
 
 /** Does a call page URL ask for its share control open (callShareHref)? */
-export function parseCallShareParam(params: { get(name: string): string | null } | null | undefined): boolean {
+export function parseCallShareParam(
+  params: { get(name: string): string | null } | null | undefined,
+): boolean {
   return params?.get("share") === "open";
 }
 
 /** The moment a call page URL names (`?t=754`, also `754s`), in ms, or null. */
-export function parseCallMomentParam(params: { get(name: string): string | null } | null | undefined): number | null {
+export function parseCallMomentParam(
+  params: { get(name: string): string | null } | null | undefined,
+): number | null {
   const m = /^(\d+(?:\.\d+)?)s?$/.exec(params?.get("t")?.trim() ?? "");
   return m ? Math.round(Number(m[1]) * 1000) : null;
 }
@@ -128,7 +166,9 @@ export type CallView = { screen: true; identity?: string | null };
 
 /** The view a call page URL names (`view=screen`, `view=screen:<identity>`),
  *  or null for the room. */
-export function parseCallViewParam(params: { get(name: string): string | null } | null | undefined): CallView | null {
+export function parseCallViewParam(
+  params: { get(name: string): string | null } | null | undefined,
+): CallView | null {
   const m = /^screen(?::(.+))?$/.exec(params?.get("view")?.trim() ?? "");
   if (!m) return null;
   let identity: string | null = null;
@@ -155,7 +195,10 @@ export function callExcerptHref(
   transcriptId: string,
   excerpt?: { from_seq: number; to_seq: number } | null,
 ): string {
-  return callAnchorHref(transcriptId, excerpt ? { kind: "turns", ...excerpt } : null);
+  return callAnchorHref(
+    transcriptId,
+    excerpt ? { kind: "turns", ...excerpt } : null,
+  );
 }
 
 /** The call page link for a session's side of the link: the latest excerpt

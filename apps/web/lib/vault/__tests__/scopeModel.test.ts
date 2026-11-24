@@ -14,7 +14,10 @@ import {
 
 const TEAMS = { t1: "Acme", t2: "Widgets" };
 
-function session(path: string, over: Partial<ScopeEvidence> = {}): ScopeEvidence {
+function session(
+  path: string,
+  over: Partial<ScopeEvidence> = {},
+): ScopeEvidence {
   return { path, teamId: null, isPrivate: true, ...over };
 }
 
@@ -25,11 +28,15 @@ const privately = (path: string, teamId: string | null = null, weight = 1) =>
 
 describe("deriveTeamForRoot", () => {
   test("no evidence is personal — an unsynced folder really is", () => {
-    expect(deriveTeamForRoot("/Users/ada/notes", [], TEAMS)).toEqual({ kind: "personal" });
+    expect(deriveTeamForRoot("/Users/ada/notes", [], TEAMS)).toEqual({
+      kind: "personal",
+    });
   });
 
   test("a shared directory names its team", () => {
-    expect(deriveTeamForRoot("/w/api", [shared("/w/api", "t1")], TEAMS)).toEqual({
+    expect(
+      deriveTeamForRoot("/w/api", [shared("/w/api", "t1")], TEAMS),
+    ).toEqual({
       kind: "team",
       teamId: "t1",
       teamName: "Acme",
@@ -38,18 +45,31 @@ describe("deriveTeamForRoot", () => {
   });
 
   test("a team that routes but does not auto-share is not shared", () => {
-    const scope = deriveTeamForRoot("/w/api", [privately("/w/api", "t1")], TEAMS);
-    expect(scope).toMatchObject({ kind: "team", teamName: "Acme", shared: false });
+    const scope = deriveTeamForRoot(
+      "/w/api",
+      [privately("/w/api", "t1")],
+      TEAMS,
+    );
+    expect(scope).toMatchObject({
+      kind: "team",
+      teamName: "Acme",
+      shared: false,
+    });
   });
 
   test("sessions carrying no team leave the scope personal", () => {
-    expect(deriveTeamForRoot("/w/api", [privately("/w/api")], TEAMS)).toEqual({ kind: "personal" });
+    expect(deriveTeamForRoot("/w/api", [privately("/w/api")], TEAMS)).toEqual({
+      kind: "personal",
+    });
   });
 
   // The rule that matters: a mapping deeper in the tree governs its own subtree,
   // not the root. Only the shallowest evidence speaks for the root.
   test("a deeper session does not speak for the root", () => {
-    const evidence = [privately("/w/api", "t1"), shared("/w/api/vendor/docs", "t2")];
+    const evidence = [
+      privately("/w/api", "t1"),
+      shared("/w/api/vendor/docs", "t2"),
+    ];
     expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({
       teamName: "Acme",
       shared: false,
@@ -67,7 +87,10 @@ describe("deriveTeamForRoot", () => {
   // Closeness is directory depth, not string length: /w/api/a/b sits deeper
   // than /w/api/vendor even though it is the shorter path.
   test("a shallower directory wins even when its path is the longer string", () => {
-    const evidence = [shared("/w/api/a/b", "t2"), privately("/w/api/vendor", "t1")];
+    const evidence = [
+      shared("/w/api/a/b", "t2"),
+      privately("/w/api/vendor", "t1"),
+    ];
     expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({
       teamName: "Acme",
       shared: false,
@@ -76,25 +99,37 @@ describe("deriveTeamForRoot", () => {
 
   test("a sibling directory sharing a name prefix is not evidence", () => {
     const evidence = [shared("/w/api-gateway", "t1")];
-    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toEqual({ kind: "personal" });
+    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toEqual({
+      kind: "personal",
+    });
   });
 
   test("trailing slashes do not break the exact match", () => {
-    expect(deriveTeamForRoot("/w/api/", [shared("/w/api", "t1")], TEAMS)).toMatchObject({
+    expect(
+      deriveTeamForRoot("/w/api/", [shared("/w/api", "t1")], TEAMS),
+    ).toMatchObject({
       teamName: "Acme",
     });
-    expect(deriveTeamForRoot("/w/api", [shared("/w/api/", "t1")], TEAMS)).toMatchObject({
+    expect(
+      deriveTeamForRoot("/w/api", [shared("/w/api/", "t1")], TEAMS),
+    ).toMatchObject({
       teamName: "Acme",
     });
   });
 
   test("one hand-shared session does not relabel a private folder as shared", () => {
     const evidence = [privately("/w/api", "t1", 9), shared("/w/api", "t1", 1)];
-    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({ shared: false });
+    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({
+      shared: false,
+    });
   });
 
   test("weights aggregate, so a deduped cohort votes the same as a flat one", () => {
-    const flat = [shared("/w/api", "t1"), shared("/w/api", "t1"), privately("/w/api", "t1")];
+    const flat = [
+      shared("/w/api", "t1"),
+      shared("/w/api", "t1"),
+      privately("/w/api", "t1"),
+    ];
     const weighted = [shared("/w/api", "t1", 2), privately("/w/api", "t1", 1)];
     expect(deriveTeamForRoot("/w/api", flat, TEAMS)).toEqual(
       deriveTeamForRoot("/w/api", weighted, TEAMS),
@@ -103,11 +138,15 @@ describe("deriveTeamForRoot", () => {
 
   test("an even split counts as shared — the sharing fact is the one worth stating", () => {
     const evidence = [shared("/w/api", "t1"), privately("/w/api", "t1")];
-    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({ shared: true });
+    expect(deriveTeamForRoot("/w/api", evidence, TEAMS)).toMatchObject({
+      shared: true,
+    });
   });
 
   test("a team missing from the roster is still reported as a team", () => {
-    expect(deriveTeamForRoot("/w/api", [shared("/w/api", "t9")], TEAMS)).toMatchObject({
+    expect(
+      deriveTeamForRoot("/w/api", [shared("/w/api", "t9")], TEAMS),
+    ).toMatchObject({
       kind: "team",
       teamId: "t9",
       teamName: "your team",
@@ -115,7 +154,9 @@ describe("deriveTeamForRoot", () => {
   });
 
   test("sessions with no path are ignored", () => {
-    expect(deriveTeamForRoot("/w/api", [shared("", "t1")], TEAMS)).toEqual({ kind: "personal" });
+    expect(deriveTeamForRoot("/w/api", [shared("", "t1")], TEAMS)).toEqual({
+      kind: "personal",
+    });
   });
 });
 
@@ -131,12 +172,19 @@ describe("vaultPresence", () => {
   });
 
   test("every presence has a badge label", () => {
-    expect(Object.values(PRESENCE_LABELS).every((l) => l.length > 0)).toBe(true);
+    expect(Object.values(PRESENCE_LABELS).every((l) => l.length > 0)).toBe(
+      true,
+    );
   });
 });
 
 describe("wording", () => {
-  const team: VaultTeamScope = { kind: "team", teamId: "t1", teamName: "Acme", shared: true };
+  const team: VaultTeamScope = {
+    kind: "team",
+    teamId: "t1",
+    teamName: "Acme",
+    shared: true,
+  };
   const routed: VaultTeamScope = { ...team, shared: false };
 
   test("the label is the team name, or Personal", () => {
@@ -170,9 +218,12 @@ describe("wording", () => {
   });
 
   test("a scope with no local path still gets a sentence", () => {
-    expect(describeVaultScope({ presence: "other-machine", team: { kind: "personal" } })).toBe(
-      "on another machine, read only, personal",
-    );
+    expect(
+      describeVaultScope({
+        presence: "other-machine",
+        team: { kind: "personal" },
+      }),
+    ).toBe("on another machine, read only, personal");
   });
 });
 

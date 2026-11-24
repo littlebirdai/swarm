@@ -8,16 +8,31 @@ import { cn } from "../../lib/utils";
 import type { CauseDoubt } from "../../lib/line/lineTrace";
 import { modernButton } from "../ui/modernLook";
 
-export function DoubtChip({ doubt, className }: { doubt: CauseDoubt; className?: string }) {
+export function DoubtChip({
+  doubt,
+  className,
+}: {
+  doubt: CauseDoubt;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   return (
-    <div className={cn("flex flex-col items-start gap-1.5", className)} data-cause-doubt>
+    <div
+      className={cn("flex flex-col items-start gap-1.5", className)}
+      data-cause-doubt
+    >
       <button
         type="button"
         onClick={() => {
           // On a trace the doubt has its own step: go to it rather than repeat it here.
-          const step = typeof document !== "undefined" ? document.getElementById("trace-doubt") : null;
-          if (step) { step.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+          const step =
+            typeof document !== "undefined"
+              ? document.getElementById("trace-doubt")
+              : null;
+          if (step) {
+            step.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
           setOpen((o) => !o);
         }}
         aria-expanded={open}
@@ -25,9 +40,21 @@ export function DoubtChip({ doubt, className }: { doubt: CauseDoubt; className?:
       >
         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
         {doubt.words}
-        <ChevronRight className={cn("w-3 h-3 shrink-0 transition-transform", open && "rotate-90")} />
+        <ChevronRight
+          className={cn(
+            "w-3 h-3 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
       </button>
-      {open && <p className="max-w-[46rem] border-l-2 border-sol-yellow/40 pl-2.5 text-[12.5px] leading-relaxed text-sol-text-muted" data-cause-doubt-why>{doubt.why}</p>}
+      {open && (
+        <p
+          className="max-w-[46rem] border-l-2 border-sol-yellow/40 pl-2.5 text-[12.5px] leading-relaxed text-sol-text-muted"
+          data-cause-doubt-why
+        >
+          {doubt.why}
+        </p>
+      )}
     </div>
   );
 }

@@ -10,7 +10,10 @@ import { useInboxStore } from "../../store/inboxStore";
 // "in place" only writes the store's pointer: the page never moves. Outside
 // the shell, opening a session must leave for it.
 const { JSDOM } = await import("jsdom");
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh/r/acme/app", pretendToBeVisual: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://local.codecast.sh/r/acme/app", pretendToBeVisual: true },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -46,9 +49,20 @@ afterAll(() => {
 
 describe("useOpenSession outside the tab shell", () => {
   it("leaves for the session even when the store holds an inbox tab", async () => {
-    useInboxStore.setState({ tabs: [{ id: "tab_1", path: "/inbox" }], activeTabId: "tab_1", sessions: { [ID]: { _id: ID, title: "Worker" } }, currentSessionId: null } as any);
+    useInboxStore.setState({
+      tabs: [{ id: "tab_1", path: "/inbox" }],
+      activeTabId: "tab_1",
+      sessions: { [ID]: { _id: ID, title: "Worker" } },
+      currentSessionId: null,
+    } as any);
     const root = createRoot(document.getElementById("root")!);
-    await act(async () => root.render(<MemoryRouter initialEntries={["/r/acme/app"]}><Probe /></MemoryRouter>));
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={["/r/acme/app"]}>
+          <Probe />
+        </MemoryRouter>,
+      ),
+    );
     await act(async () => open!(ID));
     expect(at).toBe(`/inbox?s=${ID}`);
     await act(async () => root.unmount());

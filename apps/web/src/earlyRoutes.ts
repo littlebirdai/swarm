@@ -10,7 +10,9 @@ const once = <T>(load: () => Promise<T>) => {
 };
 
 export const loadFlowsPage = once(() => import("@/app/flows/page"));
-export const loadFlowSettingsPage = once(() => import("@/app/flows/settings/page"));
+export const loadFlowSettingsPage = once(
+  () => import("@/app/flows/settings/page"),
+);
 export const loadFlowPage = once(() => import("@/app/flows/[flow]/page"));
 
 const LOADERS: Record<EarlyRouteModule, () => Promise<unknown>> = {
@@ -21,5 +23,6 @@ const LOADERS: Record<EarlyRouteModule, () => Promise<unknown>> = {
 
 /** Starts the module of the route `path` opens on, when it is one worth starting early. */
 export function startRouteModule(path: string): void {
-  for (const { path: opensOn, module } of EARLY_ROUTES) if (opensOn.test(path)) void LOADERS[module]();
+  for (const { path: opensOn, module } of EARLY_ROUTES)
+    if (opensOn.test(path)) void LOADERS[module]();
 }

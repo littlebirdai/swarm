@@ -7,7 +7,11 @@ import { followServerUiKey, mergeStampedBagLww } from "../inboxStore";
 // server's value wins on that client.
 describe("followServerUiKey", () => {
   it("an unstamped key a client holds is local-wins by default", () => {
-    const merged = mergeStampedBagLww({ test_follow_a: true }, { test_follow_a: false }, true);
+    const merged = mergeStampedBagLww(
+      { test_follow_a: true },
+      { test_follow_a: false },
+      true,
+    );
     expect(merged.test_follow_a).toBe(true);
   });
 
@@ -24,6 +28,9 @@ describe("followServerUiKey", () => {
 
   it("a followed key the server does not hold keeps the local value", () => {
     followServerUiKey("test_follow_c");
-    expect(mergeStampedBagLww({ test_follow_c: true }, { unrelated: 1 }, true).test_follow_c).toBe(true);
+    expect(
+      mergeStampedBagLww({ test_follow_c: true }, { unrelated: 1 }, true)
+        .test_follow_c,
+    ).toBe(true);
   });
 });

@@ -43,11 +43,12 @@ export function UsageDisplay({ usage }: { usage: UsageData }) {
             style={{ width: `${Math.min(100, contextPercent)}%` }}
           />
         </div>
-        <span className={`font-mono ${isWarning ? "text-red-400" : "text-sol-text-muted"}`}>
+        <span
+          className={`font-mono ${isWarning ? "text-red-400" : "text-sol-text-muted"}`}
+        >
           {Math.round(contextPercent)}%
         </span>
       </div>
     </div>
   );
 }
-

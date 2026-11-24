@@ -10,7 +10,9 @@ export default function OrgPage() {
   return (
     <AuthGuard>
       <DashboardLayout>
-        <OrgFeatureGate><OrgChart /></OrgFeatureGate>
+        <OrgFeatureGate>
+          <OrgChart />
+        </OrgFeatureGate>
       </DashboardLayout>
     </AuthGuard>
   );

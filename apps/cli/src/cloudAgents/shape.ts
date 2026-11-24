@@ -16,8 +16,16 @@ export class CloudShapeError extends Error {
    * `request`: the call that answered (`GET /tasks/list`); `path`: the field in its body (`items[].updated_at`), "" for the body itself.
    * `wrote`: the call was one that changes something (not a GET), so the provider may have acted on it.
    */
-  constructor(readonly path: string, readonly expected: string, readonly got: string, readonly request?: string, readonly wrote = false) {
-    super(`${request ? `${request}: ` : ""}${path || "the body"} should be ${expected}, got ${got}`);
+  constructor(
+    readonly path: string,
+    readonly expected: string,
+    readonly got: string,
+    readonly request?: string,
+    readonly wrote = false,
+  ) {
+    super(
+      `${request ? `${request}: ` : ""}${path || "the body"} should be ${expected}, got ${got}`,
+    );
   }
 }
 
@@ -43,9 +51,18 @@ function leaf<T>(expected: string, test: (v: unknown) => boolean): Shape<T> {
   };
 }
 
-export const str: Shape<string> = leaf("a string", (v) => typeof v === "string");
-export const num: Shape<number> = leaf("a number", (v) => typeof v === "number" && Number.isFinite(v));
-export const bool: Shape<boolean> = leaf("a boolean", (v) => typeof v === "boolean");
+export const str: Shape<string> = leaf(
+  "a string",
+  (v) => typeof v === "string",
+);
+export const num: Shape<number> = leaf(
+  "a number",
+  (v) => typeof v === "number" && Number.isFinite(v),
+);
+export const bool: Shape<boolean> = leaf(
+  "a boolean",
+  (v) => typeof v === "boolean",
+);
 /** Anything, read as unknown (a field the adapter passes on without depending on its shape). */
 export const unknownValue: Shape<unknown> = () => {};
 
@@ -56,8 +73,15 @@ export const unknownValue: Shape<unknown> = () => {};
 export function oneOf<const V extends string>(...values: V[]): Shape<V> {
   const expected = values.map((v) => JSON.stringify(v)).join(" or ");
   return (value, path) => {
-    if (typeof value === "string" && (values as string[]).includes(value)) return;
-    throw new CloudShapeError(path, expected, typeof value === "string" && value.length <= 40 ? JSON.stringify(value) : kindOf(value));
+    if (typeof value === "string" && (values as string[]).includes(value))
+      return;
+    throw new CloudShapeError(
+      path,
+      expected,
+      typeof value === "string" && value.length <= 40
+        ? JSON.stringify(value)
+        : kindOf(value),
+    );
   };
 }
 
@@ -77,7 +101,8 @@ export function maybe<T>(shape: Shape<T>): Shape<T | null | undefined> {
 
 export function arrayOf<T>(shape: Shape<T>): Shape<T[]> {
   return (value, path) => {
-    if (!Array.isArray(value)) throw new CloudShapeError(path, "an array", kindOf(value));
+    if (!Array.isArray(value))
+      throw new CloudShapeError(path, "an array", kindOf(value));
     value.forEach((item) => shape(item, `${path}[]`));
   };
 }
@@ -89,26 +114,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** An object keyed by ids (a task's turn_mapping): every value has the shape. */
 export function recordOf<T>(shape: Shape<T>): Shape<Record<string, T>> {
   return (value, path) => {
-    if (!isRecord(value)) throw new CloudShapeError(path, "an object", kindOf(value));
+    if (!isRecord(value))
+      throw new CloudShapeError(path, "an object", kindOf(value));
     for (const v of Object.values(value)) shape(v, path ? `${path}.*` : "*");
   };
 }
 
 type Fields = Record<string, Shape<any>>;
-type OptionalKeys<F extends Fields> = { [K in keyof F]: undefined extends Infer<F[K]> ? K : never }[keyof F];
+type OptionalKeys<F extends Fields> = {
+  [K in keyof F]: undefined extends Infer<F[K]> ? K : never;
+}[keyof F];
 type Simplify<T> = { [K in keyof T]: T[K] } & {};
-export type ObjectOf<F extends Fields> = Simplify<{ [K in Exclude<keyof F, OptionalKeys<F>>]: Infer<F[K]> } & { [K in OptionalKeys<F>]?: Infer<F[K]> }>;
+export type ObjectOf<F extends Fields> = Simplify<
+  { [K in Exclude<keyof F, OptionalKeys<F>>]: Infer<F[K]> } & {
+    [K in OptionalKeys<F>]?: Infer<F[K]>;
+  }
+>;
 
 /** An object with these fields (others are ignored: the provider adds fields freely, and none of them is read). */
 export function object<F extends Fields>(fields: F): Shape<ObjectOf<F>> {
   return (value, path) => {
-    if (!isRecord(value)) throw new CloudShapeError(path, "an object", kindOf(value));
-    for (const [key, shape] of Object.entries(fields)) shape(value[key], path ? `${path}.${key}` : key);
+    if (!isRecord(value))
+      throw new CloudShapeError(path, "an object", kindOf(value));
+    for (const [key, shape] of Object.entries(fields))
+      shape(value[key], path ? `${path}.${key}` : key);
   };
 }
 
 /** One item of a list as checkEach judged it: its shape's type, or the break that sets it aside. */
-export type CheckedItem<T> = { ok: true; value: T } | { ok: false; value: unknown; error: CloudShapeError };
+export type CheckedItem<T> =
+  | { ok: true; value: T }
+  | { ok: false; value: unknown; error: CloudShapeError };
 
 /**
  * Each item of a list checked on its own, in order, under `path`
@@ -116,26 +152,53 @@ export type CheckedItem<T> = { ok: true; value: T } | { ok: false; value: unknow
  * than failing the whole answer. When every item of two or more breaks, the
  * provider changed the list, and the first break is thrown.
  */
-export function checkEach<T>(shape: Shape<T>, items: unknown[], request: string, path = "items[]"): CheckedItem<T>[] {
+export function checkEach<T>(
+  shape: Shape<T>,
+  items: unknown[],
+  request: string,
+  path = "items[]",
+): CheckedItem<T>[] {
   const checked = items.map((value): CheckedItem<T> => {
     try {
       return { ok: true, value: checkShape(shape, value, request) };
     } catch (err) {
       if (!(err instanceof CloudShapeError)) throw err;
-      return { ok: false, value, error: new CloudShapeError(err.path ? `${path}.${err.path}` : path, err.expected, err.got, request) };
+      return {
+        ok: false,
+        value,
+        error: new CloudShapeError(
+          err.path ? `${path}.${err.path}` : path,
+          err.expected,
+          err.got,
+          request,
+        ),
+      };
     }
   });
   const first = checked.find((c) => !c.ok);
-  if (first && !first.ok && checked.length >= 2 && checked.every((c) => !c.ok)) throw first.error;
+  if (first && !first.ok && checked.length >= 2 && checked.every((c) => !c.ok))
+    throw first.error;
   return checked;
 }
 
 /** The value as its shape's type, or CloudShapeError naming where it differs in the answer to `request` (`wrote`: see CloudShapeError). */
-export function checkShape<T>(shape: Shape<T>, value: unknown, request: string, wrote = false): T {
+export function checkShape<T>(
+  shape: Shape<T>,
+  value: unknown,
+  request: string,
+  wrote = false,
+): T {
   try {
     shape(value, "");
   } catch (err) {
-    if (err instanceof CloudShapeError) throw new CloudShapeError(err.path, err.expected, err.got, request, wrote);
+    if (err instanceof CloudShapeError)
+      throw new CloudShapeError(
+        err.path,
+        err.expected,
+        err.got,
+        request,
+        wrote,
+      );
     throw err;
   }
   return value as T;

@@ -9,26 +9,51 @@
 // Components never call these directly: components/live/useLiveArtifact.ts
 // batches gestures (preview + commit) and keeps the undo stack.
 import { action, asyncAction, sync } from "./mutativeMiddleware";
-import { applyOp, fromElement, type ArtifactOp, type ElementState } from "@codecast/shared/artifacts";
+import {
+  applyOp,
+  fromElement,
+  type ArtifactOp,
+  type ElementState,
+} from "@codecast/shared/artifacts";
 
 export type LiveLayer = "main" | "draft" | "comments";
 
 /** The store key of one element row. */
-export const liveRowId = (docId: string, layer: LiveLayer, key: string) => `${docId}|${layer}|${key}`;
+export const liveRowId = (docId: string, layer: LiveLayer, key: string) =>
+  `${docId}|${layer}|${key}`;
 
-const ROW_META = new Set(["_id", "doc_id", "layer", "key", "kind", "rev", "by", "at", "deleted", "dead"]);
+const ROW_META = new Set([
+  "_id",
+  "doc_id",
+  "layer",
+  "key",
+  "kind",
+  "rev",
+  "by",
+  "at",
+  "deleted",
+  "dead",
+]);
 
 /** Write an element state onto a store row in place: fields flat, removed fields deleted. */
 export function writeRowState(row: Record<string, any>, state: ElementState) {
-  for (const f of Object.keys(row)) if (!ROW_META.has(f) && !(f in state.fields)) delete row[f];
-  for (const [f, val] of Object.entries(state.fields)) if (row[f] !== val) row[f] = val;
+  for (const f of Object.keys(row))
+    if (!ROW_META.has(f) && !(f in state.fields)) delete row[f];
+  for (const [f, val] of Object.entries(state.fields))
+    if (row[f] !== val) row[f] = val;
   row.kind = state.kind;
   if (state.deleted) row.deleted = true;
   else if (row.deleted) delete row.deleted;
 }
 
 /** Apply ops to the liveElements slice (a draft or a plain object). Shared with the tests. */
-export function applyOpsToRows(rows: Record<string, any>, docId: string, layer: LiveLayer, ops: readonly ArtifactOp[], by?: string) {
+export function applyOpsToRows(
+  rows: Record<string, any>,
+  docId: string,
+  layer: LiveLayer,
+  ops: readonly ArtifactOp[],
+  by?: string,
+) {
   for (const op of ops) {
     const id = liveRowId(docId, layer, op.k);
     let row = rows[id];
@@ -41,7 +66,15 @@ export function applyOpsToRows(rows: Record<string, any>, docId: string, layer: 
     if ("set" in op && (!prev || prev.deleted)) continue;
     const next = applyOp(prev, op);
     if (!row) {
-      row = { _id: id, doc_id: docId, layer, key: op.k, kind: next.kind, rev: 0, ...(by ? { by } : {}) };
+      row = {
+        _id: id,
+        doc_id: docId,
+        layer,
+        key: op.k,
+        kind: next.kind,
+        rev: 0,
+        ...(by ? { by } : {}),
+      };
       rows[id] = row;
     }
     writeRowState(row, next);
@@ -56,11 +89,23 @@ type LiveDraft = {
 };
 
 /** One batch of a whole-range rewrite, as the server's claim check reads it. */
-export type LiveBatchClaim = { scope: string; write: string; base: number; first: boolean; last: boolean };
+export type LiveBatchClaim = {
+  scope: string;
+  write: string;
+  base: number;
+  first: boolean;
+  last: boolean;
+};
 
 export type LiveArtifactsSliceActions = {
   /** One batch of element ops, painted now and sent as one write. Resolves to the server's revision once it lands. */
-  applyLiveOps: (docId: string, layer: LiveLayer, ops: ArtifactOp[], clientId?: string, claim?: LiveBatchClaim) => Promise<{ rev: number; keys: string[] } | null>;
+  applyLiveOps: (
+    docId: string,
+    layer: LiveLayer,
+    ops: ArtifactOp[],
+    clientId?: string,
+    claim?: LiveBatchClaim,
+  ) => Promise<{ rev: number; keys: string[] } | null>;
   /**
    * One batch of a big write past its first, while the page holds the doc's rows back (heldRows):
    * painted with no pending locks (a lock per field of a 60k-cell sort is a pending map every later
@@ -69,10 +114,20 @@ export type LiveArtifactsSliceActions = {
   livePaintHeld: (docId: string, layer: LiveLayer, ops: ArtifactOp[]) => void;
   /** A placeholder doc's rows go once its elements were sent under the real doc (components/live/liveStubDocs.ts). */
   liveDropStub: (stubId: string) => void;
-  liveSendOps: (docId: string, layer: LiveLayer, ops: ArtifactOp[], clientId?: string, claim?: LiveBatchClaim) => Promise<{ rev: number; keys: string[] } | null>;
+  liveSendOps: (
+    docId: string,
+    layer: LiveLayer,
+    ops: ArtifactOp[],
+    clientId?: string,
+    claim?: LiveBatchClaim,
+  ) => Promise<{ rev: number; keys: string[] } | null>;
   /** Start, save or discard the doc's draft. Save resolves to the revision it wrote. */
   /** `draftAt` names the draft being closed, so a retried close never hits a newer draft. */
-  liveDraft: (docId: string, op: "start" | "save" | "discard", draftAt?: number) => Promise<{ rev?: number } | null>;
+  liveDraft: (
+    docId: string,
+    op: "start" | "save" | "discard",
+    draftAt?: number,
+  ) => Promise<{ rev?: number } | null>;
   /**
    * The server has a write and the feed has caught up past it: drop the field
    * locks it planted (those no newer than `before`). Whatever the server holds
@@ -84,44 +139,111 @@ export type LiveArtifactsSliceActions = {
   /** A named checkpoint of the artifact as it is now. */
   liveCheckpoint: (docId: string, label?: string) => void;
   /** Who may change the artifact: everyone who can open it ("team"), or its owner and `editors` ("owners"). Owner only. */
-  liveSetEditAccess: (docId: string, edit: "team" | "owners", editors: string[]) => void;
+  liveSetEditAccess: (
+    docId: string,
+    edit: "team" | "owners",
+    editors: string[],
+  ) => void;
   /** A viewer asks the owner to let them edit. Resolves once the owner is notified. */
   liveAskToEdit: (docId: string) => Promise<{ asked: boolean } | null>;
 };
 
 // The middleware wraps an asyncAction so its CALLER receives the server
 // result as a promise; the body returns nothing.
-type LiveSliceImpl = Omit<LiveArtifactsSliceActions, "applyLiveOps" | "liveSendOps" | "liveDraft" | "liveAskToEdit"> & {
-  liveSendOps: (docId: string, layer: LiveLayer, ops: ArtifactOp[], clientId?: string, claim?: LiveBatchClaim) => void;
+type LiveSliceImpl = Omit<
+  LiveArtifactsSliceActions,
+  "applyLiveOps" | "liveSendOps" | "liveDraft" | "liveAskToEdit"
+> & {
+  liveSendOps: (
+    docId: string,
+    layer: LiveLayer,
+    ops: ArtifactOp[],
+    clientId?: string,
+    claim?: LiveBatchClaim,
+  ) => void;
   liveAskToEdit: (docId: string) => void;
-  applyLiveOps: (docId: string, layer: LiveLayer, ops: ArtifactOp[], clientId?: string, claim?: LiveBatchClaim) => void;
-  liveDraft: (docId: string, op: "start" | "save" | "discard", draftAt?: number) => void;
+  applyLiveOps: (
+    docId: string,
+    layer: LiveLayer,
+    ops: ArtifactOp[],
+    clientId?: string,
+    claim?: LiveBatchClaim,
+  ) => void;
+  liveDraft: (
+    docId: string,
+    op: "start" | "save" | "discard",
+    draftAt?: number,
+  ) => void;
 };
 
 export function createLiveArtifactsSlice(): LiveArtifactsSliceActions {
   const impl: LiveSliceImpl = {
-    liveDropStub: sync(function (this: LiveDraft & { docs: Record<string, any>; pending: Record<string, any> }, stubId: string) {
+    liveDropStub: sync(function (
+      this: LiveDraft & {
+        docs: Record<string, any>;
+        pending: Record<string, any>;
+      },
+      stubId: string,
+    ) {
       const prefix = `${stubId}|`;
-      for (const id of Object.keys(this.liveElements)) if (id.startsWith(prefix)) delete this.liveElements[id];
+      for (const id of Object.keys(this.liveElements))
+        if (id.startsWith(prefix)) delete this.liveElements[id];
       delete this.liveHeads[stubId];
       delete this.docs[stubId];
-      for (const key of Object.keys(this.pending)) if (key === `docs:${stubId}` || key.startsWith(`docs:${stubId}:`)) delete this.pending[key];
+      for (const key of Object.keys(this.pending))
+        if (key === `docs:${stubId}` || key.startsWith(`docs:${stubId}:`))
+          delete this.pending[key];
     }),
 
-    livePaintHeld: sync(function (this: LiveDraft, docId: string, layer: LiveLayer, ops: ArtifactOp[]) {
+    livePaintHeld: sync(function (
+      this: LiveDraft,
+      docId: string,
+      layer: LiveLayer,
+      ops: ArtifactOp[],
+    ) {
       const me = this.currentUser?._id;
-      applyOpsToRows(this.liveElements, docId, layer, ops, me ? `u:${me}` : undefined);
+      applyOpsToRows(
+        this.liveElements,
+        docId,
+        layer,
+        ops,
+        me ? `u:${me}` : undefined,
+      );
     }),
 
     // Draws nothing (livePaintHeld did): its draft is empty, so it plants no locks; it only carries the batch to the server.
-    liveSendOps: asyncAction(function (this: LiveDraft, _docId: string, _layer: LiveLayer, _ops: ArtifactOp[], _clientId?: string) {}),
+    liveSendOps: asyncAction(function (
+      this: LiveDraft,
+      _docId: string,
+      _layer: LiveLayer,
+      _ops: ArtifactOp[],
+      _clientId?: string,
+    ) {}),
 
-    applyLiveOps: asyncAction(function (this: LiveDraft, docId: string, layer: LiveLayer, ops: ArtifactOp[]) {
+    applyLiveOps: asyncAction(function (
+      this: LiveDraft,
+      docId: string,
+      layer: LiveLayer,
+      ops: ArtifactOp[],
+    ) {
       const me = this.currentUser?._id;
-      applyOpsToRows(this.liveElements, docId, layer, ops, me ? `u:${me}` : undefined);
+      applyOpsToRows(
+        this.liveElements,
+        docId,
+        layer,
+        ops,
+        me ? `u:${me}` : undefined,
+      );
       if (layer === "draft") {
-        const head = this.liveHeads[docId] ?? (this.liveHeads[docId] = { _id: docId, head: 0 });
-        if (!head.draft) head.draft = { by: me ? `u:${me}` : "", by_name: this.currentUser?.name ?? "You", at: Date.now() };
+        const head =
+          this.liveHeads[docId] ??
+          (this.liveHeads[docId] = { _id: docId, head: 0 });
+        if (!head.draft)
+          head.draft = {
+            by: me ? `u:${me}` : "",
+            by_name: this.currentUser?.name ?? "You",
+            at: Date.now(),
+          };
       }
     }),
 
@@ -129,11 +251,23 @@ export function createLiveArtifactsSlice(): LiveArtifactsSliceActions {
     // only while one is open); the server retires them and the feed drops
     // them. Rows are never deleted here: a delete would plant an exclude
     // that hides the next draft's rows for the same keys.
-    liveDraft: asyncAction(function (this: LiveDraft, docId: string, op: "start" | "save" | "discard", _draftAt?: number) {
-      const head = this.liveHeads[docId] ?? (this.liveHeads[docId] = { _id: docId, head: 0 });
+    liveDraft: asyncAction(function (
+      this: LiveDraft,
+      docId: string,
+      op: "start" | "save" | "discard",
+      _draftAt?: number,
+    ) {
+      const head =
+        this.liveHeads[docId] ??
+        (this.liveHeads[docId] = { _id: docId, head: 0 });
       const me = this.currentUser?._id;
       if (op === "start") {
-        if (!head.draft) head.draft = { by: me ? `u:${me}` : "", by_name: this.currentUser?.name ?? "You", at: Date.now() };
+        if (!head.draft)
+          head.draft = {
+            by: me ? `u:${me}` : "",
+            by_name: this.currentUser?.name ?? "You",
+            at: Date.now(),
+          };
         return;
       }
       if (op === "save") {
@@ -142,7 +276,14 @@ export function createLiveArtifactsSlice(): LiveArtifactsSliceActions {
           if (!id.startsWith(prefix)) continue;
           const row = this.liveElements[id];
           const state = fromElement(row);
-          const ops: ArtifactOp[] = state.deleted ? [{ k: row.key, del: true }] : [{ k: row.key, put: { kind: state.kind, ...state.fields } as any }];
+          const ops: ArtifactOp[] = state.deleted
+            ? [{ k: row.key, del: true }]
+            : [
+                {
+                  k: row.key,
+                  put: { kind: state.kind, ...state.fields } as any,
+                },
+              ];
           applyOpsToRows(this.liveElements, docId, "main", ops);
         }
       }
@@ -152,32 +293,59 @@ export function createLiveArtifactsSlice(): LiveArtifactsSliceActions {
     // The server has these rows as of `before`: their field locks and the include a put planted go,
     // so the next echo stands. An exclude stays (it authorizes the row's removal from disk). One pass
     // over the pending map for any number of rows.
-    settleLiveRows: sync(function (this: { pending: Record<string, any> }, settled: Record<string, number>) {
+    settleLiveRows: sync(function (
+      this: { pending: Record<string, any> },
+      settled: Record<string, number>,
+    ) {
       const prefix = "liveElements:";
       for (const key of Object.keys(this.pending)) {
         if (!key.startsWith(prefix)) continue;
         const entry = this.pending[key];
         const rest = key.slice(prefix.length);
-        const id = entry?.type === "include" ? rest : entry?.type === "field" ? rest.slice(0, rest.lastIndexOf(":")) : null;
+        const id =
+          entry?.type === "include"
+            ? rest
+            : entry?.type === "field"
+              ? rest.slice(0, rest.lastIndexOf(":"))
+              : null;
         const before = id === null ? undefined : settled[id];
-        if (before !== undefined && (entry.ts ?? 0) <= before) delete this.pending[key];
+        if (before !== undefined && (entry.ts ?? 0) <= before)
+          delete this.pending[key];
       }
     }),
 
     // Nothing to paint: the version list fills from the server.
     // The version shows in History at once: a stub at the current head, which the
     // server's row for the same revision replaces in the reader (useLiveVersions).
-    liveCheckpoint: action(function (this: LiveDraft, docId: string, label?: string) {
+    liveCheckpoint: action(function (
+      this: LiveDraft,
+      docId: string,
+      label?: string,
+    ) {
       const rev = Number(this.liveHeads[docId]?.head ?? 0);
       const id = `stub:${docId}:${rev}`;
       this.liveVersions[id] = {
-        _id: id, doc_id: docId, rev, label: label?.trim() || "Saved version", reason: "manual",
-        by: this.currentUser?._id ? `u:${this.currentUser._id}` : "", by_name: this.currentUser?.name ?? "You", at: Date.now(), stub: true,
+        _id: id,
+        doc_id: docId,
+        rev,
+        label: label?.trim() || "Saved version",
+        reason: "manual",
+        by: this.currentUser?._id ? `u:${this.currentUser._id}` : "",
+        by_name: this.currentUser?.name ?? "You",
+        at: Date.now(),
+        stub: true,
       };
     }),
 
-    liveSetEditAccess: action(function (this: LiveDraft, docId: string, edit: "team" | "owners", editors: string[]) {
-      const head = this.liveHeads[docId] ?? (this.liveHeads[docId] = { _id: docId, head: 0 });
+    liveSetEditAccess: action(function (
+      this: LiveDraft,
+      docId: string,
+      edit: "team" | "owners",
+      editors: string[],
+    ) {
+      const head =
+        this.liveHeads[docId] ??
+        (this.liveHeads[docId] = { _id: docId, head: 0 });
       head.edit = edit;
       head.editors = editors;
     }),

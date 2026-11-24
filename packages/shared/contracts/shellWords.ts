@@ -8,14 +8,36 @@ export function shellWords(line: string): string[] {
   let cur: string | null = null;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
-    if (ch === "'") { const end = line.indexOf("'", i + 1); cur = (cur ?? "") + line.slice(i + 1, end < 0 ? line.length : end); i = end < 0 ? line.length : end; continue; }
-    if (ch === '"') {
-      let j = i + 1; let v = "";
-      while (j < line.length && line[j] !== '"') { if (line[j] === "\\" && /["\\$`\n]/.test(line[j + 1] ?? "")) { v += line[j + 1]; j += 2; } else v += line[j++]; }
-      cur = (cur ?? "") + v; i = j; continue;
+    if (ch === "'") {
+      const end = line.indexOf("'", i + 1);
+      cur = (cur ?? "") + line.slice(i + 1, end < 0 ? line.length : end);
+      i = end < 0 ? line.length : end;
+      continue;
     }
-    if (ch === "\\") { cur = (cur ?? "") + (line[i + 1] ?? ""); i++; continue; }
-    if (/\s/.test(ch) || ch === "|" || ch === ";" || ch === "&") { if (cur !== null) out.push(cur); cur = null; if (ch !== " " && ch !== "\t" && ch !== "\n") out.push(ch); continue; }
+    if (ch === '"') {
+      let j = i + 1;
+      let v = "";
+      while (j < line.length && line[j] !== '"') {
+        if (line[j] === "\\" && /["\\$`\n]/.test(line[j + 1] ?? "")) {
+          v += line[j + 1];
+          j += 2;
+        } else v += line[j++];
+      }
+      cur = (cur ?? "") + v;
+      i = j;
+      continue;
+    }
+    if (ch === "\\") {
+      cur = (cur ?? "") + (line[i + 1] ?? "");
+      i++;
+      continue;
+    }
+    if (/\s/.test(ch) || ch === "|" || ch === ";" || ch === "&") {
+      if (cur !== null) out.push(cur);
+      cur = null;
+      if (ch !== " " && ch !== "\t" && ch !== "\n") out.push(ch);
+      continue;
+    }
     cur = (cur ?? "") + ch;
   }
   if (cur !== null) out.push(cur);

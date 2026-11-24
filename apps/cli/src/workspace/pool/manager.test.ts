@@ -11,7 +11,10 @@ import {
 } from "./manager.js";
 import { readPoolState, writePoolState } from "./state.js";
 import { listWorkspaces, releaseWorkspace } from "../lifecycle.js";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
 
 let repoRoot: string;
 let home: IsolatedCodecastDir;
@@ -22,13 +25,17 @@ beforeEach(() => {
   home = isolateCodecastDir();
   repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ws-pool-mgr-"));
   execSync("git init -q -b main", { cwd: repoRoot });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: repoRoot });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: repoRoot,
+  });
   fs.writeFileSync(path.join(repoRoot, "README.md"), "pool-test\n");
   execSync("git add . && git commit -q -m init", { cwd: repoRoot });
 });
 
 afterEach(() => {
-  try { execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" }); } catch {}
+  try {
+    execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" });
+  } catch {}
   fs.rmSync(repoRoot, { recursive: true, force: true });
   home.restore();
 });
@@ -53,7 +60,10 @@ describe("maintainPool + waitForReadySlot — pre-warm flow", () => {
     await maintainPool(repoRoot, 2);
     // First call schedules warming (fire-and-forget). Wait for at least one
     // slot to become ready.
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 10000, pollMs: 100 });
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 10000,
+      pollMs: 100,
+    });
     expect(ready).not.toBeNull();
     expect(ready?.workspaceName).toMatch(/^pool-\d+$/);
 
@@ -73,7 +83,10 @@ describe("maintainPool + waitForReadySlot — pre-warm flow", () => {
 describe("claimFromPool — atomically renames", () => {
   test("claims a ready slot, returns workspace with the requested name", async () => {
     await maintainPool(repoRoot, 1);
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
     expect(ready).not.toBeNull();
 
     const claim = await claimFromPool(repoRoot, "feat-foo");
@@ -123,7 +136,8 @@ describe("claimFromPool — atomically renames", () => {
 describe("maintainPool — crash recovery", () => {
   test("orphaned 'warming' slot (no workspace state) is recycled to empty", async () => {
     // Manually corrupt the pool: a warming slot with no backing workspace.
-    const { initPool, transitionSlot, writePoolState, readPoolState } = await import("./state.js");
+    const { initPool, transitionSlot, writePoolState, readPoolState } =
+      await import("./state.js");
     const p = initPool(1);
     transitionSlot(p, "pool-0", "warming", { workspaceName: "pool-0" });
     writePoolState(repoRoot, p);
@@ -132,7 +146,9 @@ describe("maintainPool — crash recovery", () => {
     const s1 = readPoolState(repoRoot)!;
     // The orphaned warming slot should have been recycled and re-warmed.
     // After maintainPool, it's been transitioned through stale → empty → warming.
-    expect(s1.slots[0]!.state === "warming" || s1.slots[0]!.state === "ready").toBe(true);
+    expect(
+      s1.slots[0]!.state === "warming" || s1.slots[0]!.state === "ready",
+    ).toBe(true);
     if (s1.slots[0]!.state === "warming") {
       expect(s1.slots[0]!.workspaceName).toBe("pool-0");
     }
@@ -141,7 +157,10 @@ describe("maintainPool — crash recovery", () => {
   test("a slot whose workspace already exists on disk is resumed to ready", async () => {
     // Phase 1: real pre-warm
     await maintainPool(repoRoot, 1);
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
     expect(ready).not.toBeNull();
 
     // Phase 2: simulate daemon crash mid-warm by manually flipping the slot
@@ -156,7 +175,9 @@ describe("maintainPool — crash recovery", () => {
     // Phase 3: re-run maintainPool — recovery should resume to 'ready'.
     await maintainPool(repoRoot, 1);
     const recovered = readPoolState(repoRoot)!;
-    const recoveredSlot = recovered.slots.find((s) => s.slotId === ready!.slotId)!;
+    const recoveredSlot = recovered.slots.find(
+      (s) => s.slotId === ready!.slotId,
+    )!;
     expect(recoveredSlot.state).toBe("ready");
     expect(recoveredSlot.headSha).toMatch(/^[0-9a-f]{40}$/);
   }, 25000);
@@ -164,7 +185,8 @@ describe("maintainPool — crash recovery", () => {
 
 describe("end-to-end latency benchmark — pool fast path vs fresh acquire", () => {
   test("warm acquire is significantly faster than cold acquire", async () => {
-    const { acquireWorkspace, releaseWorkspace } = await import("../lifecycle.js");
+    const { acquireWorkspace, releaseWorkspace } =
+      await import("../lifecycle.js");
 
     // Cold: no pool — first fresh acquire
     const startCold = Date.now();
@@ -181,7 +203,9 @@ describe("end-to-end latency benchmark — pool fast path vs fresh acquire", () 
     expect(r.workspace.name).toBe("warm-feat");
     await releaseWorkspace(repoRoot, "warm-feat");
 
-    console.log(`[bench] cold=${coldMs}ms warm=${warmMs}ms (ratio ${(coldMs / Math.max(warmMs, 1)).toFixed(2)}x)`);
+    console.log(
+      `[bench] cold=${coldMs}ms warm=${warmMs}ms (ratio ${(coldMs / Math.max(warmMs, 1)).toFixed(2)}x)`,
+    );
     // For this trivial repo cold is already fast (~50-100ms), so warm being
     // <= cold is a soft assertion. The benchmark output is the real value.
     expect(warmMs).toBeLessThan(2000);
@@ -203,7 +227,8 @@ describe("maintainPool — stale handling", () => {
 
     // Wait for fresh slot to come up with new head sha.
     const newHead = execSync("git rev-parse HEAD", {
-      cwd: repoRoot, encoding: "utf-8",
+      cwd: repoRoot,
+      encoding: "utf-8",
     }).trim();
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
@@ -227,9 +252,16 @@ describe("maintainPool — the cap and the max age", () => {
 
   test("a ready slot past the max age is torn down and replaced", async () => {
     await maintainPool(repoRoot, 1);
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
     expect(ready).not.toBeNull();
-    const wornPath = path.join(repoRoot, ".codecast/worktrees", ready!.workspaceName!);
+    const wornPath = path.join(
+      repoRoot,
+      ".codecast/worktrees",
+      ready!.workspaceName!,
+    );
     expect(fs.existsSync(wornPath)).toBe(true);
 
     // Age the slot without touching HEAD or the lockfile, so ONLY the age bar
@@ -249,9 +281,14 @@ describe("maintainPool — the cap and the max age", () => {
 
   test("an unexpired slot survives the same pass", async () => {
     await maintainPool(repoRoot, 1);
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
     await maintainPool(repoRoot, 1, { maxAgeMs: 30 * 60_000 });
-    const slot = readPoolState(repoRoot)!.slots.find((s) => s.slotId === ready!.slotId)!;
+    const slot = readPoolState(repoRoot)!.slots.find(
+      (s) => s.slotId === ready!.slotId,
+    )!;
     expect(slot.state).toBe("ready");
     expect(slot.workspaceName).toBe(ready!.workspaceName);
   }, 45000);
@@ -261,15 +298,24 @@ describe("maintainPool — the cap and the max age", () => {
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       const s = readPoolState(repoRoot);
-      if (s && s.slots.length === 2 && s.slots.every((x) => x.state === "ready")) break;
+      if (
+        s &&
+        s.slots.length === 2 &&
+        s.slots.every((x) => x.state === "ready")
+      )
+        break;
       await new Promise((r) => setTimeout(r, 100));
     }
-    expect(readPoolState(repoRoot)!.slots.filter((s) => s.state === "ready").length).toBe(2);
+    expect(
+      readPoolState(repoRoot)!.slots.filter((s) => s.state === "ready").length,
+    ).toBe(2);
 
     await maintainPool(repoRoot, 1);
     const after = readPoolState(repoRoot)!;
     expect(after.slots.length).toBe(1);
-    expect(listWorkspaces(repoRoot).filter((w) => w.name.startsWith("pool-")).length).toBeLessThanOrEqual(1);
+    expect(
+      listWorkspaces(repoRoot).filter((w) => w.name.startsWith("pool-")).length,
+    ).toBeLessThanOrEqual(1);
   }, 60000);
 });
 
@@ -279,8 +325,15 @@ describe("drainPool", () => {
     const { recordWorkspaceCreate, readDemand } = await import("./demand.js");
     await recordWorkspaceCreate(repoRoot);
     await maintainPool(repoRoot, 1);
-    const ready = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
-    const wtPath = path.join(repoRoot, ".codecast/worktrees", ready!.workspaceName!);
+    const ready = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
+    const wtPath = path.join(
+      repoRoot,
+      ".codecast/worktrees",
+      ready!.workspaceName!,
+    );
 
     const removed = await drainPool(repoRoot);
     expect(removed).toBe(1);
@@ -297,7 +350,8 @@ describe("drainPool", () => {
 
 describe("acquireWorkspace — records demand so the pool can re-arm", () => {
   test("a real create is recorded; a --skip-pool create is not", async () => {
-    const { acquireWorkspace, releaseWorkspace: release } = await import("../lifecycle.js");
+    const { acquireWorkspace, releaseWorkspace: release } =
+      await import("../lifecycle.js");
     const { readDemand } = await import("./demand.js");
 
     await acquireWorkspace(repoRoot, "skipped", { skipPool: true });
@@ -317,27 +371,43 @@ describe("acquireWorkspace — records demand so the pool can re-arm", () => {
 describe("maintainPool — a recycled slot is checked out at the CURRENT head", () => {
   test("the re-warmed worktree is on the new commit, not the branch's old tip", async () => {
     await maintainPool(repoRoot, 1);
-    const first = await waitForReadySlot(repoRoot, { timeoutMs: 15000, pollMs: 100 });
+    const first = await waitForReadySlot(repoRoot, {
+      timeoutMs: 15000,
+      pollMs: 100,
+    });
     expect(first).not.toBeNull();
 
     fs.writeFileSync(path.join(repoRoot, "second.txt"), "x");
     execSync("git add . && git commit -q -m second", { cwd: repoRoot });
-    const newHead = execSync("git rev-parse HEAD", { cwd: repoRoot, encoding: "utf-8" }).trim();
+    const newHead = execSync("git rev-parse HEAD", {
+      cwd: repoRoot,
+      encoding: "utf-8",
+    }).trim();
 
     await maintainPool(repoRoot, 1);
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       const s = readPoolState(repoRoot);
-      if (s?.slots.some((x) => x.state === "ready" && x.headSha === newHead)) break;
+      if (s?.slots.some((x) => x.state === "ready" && x.headSha === newHead))
+        break;
       await new Promise((r) => setTimeout(r, 100));
     }
-    const ready = readPoolState(repoRoot)!.slots.find((s) => s.state === "ready")!;
+    const ready = readPoolState(repoRoot)!.slots.find(
+      (s) => s.state === "ready",
+    )!;
     expect(ready.headSha).toBe(newHead);
 
     // The fingerprint says "current"; check the tree actually is. Reusing the
     // surviving codecast/pool-N branch would leave it one commit behind.
-    const slotPath = path.join(repoRoot, ".codecast/worktrees", ready.workspaceName!);
-    const slotHead = execSync("git rev-parse HEAD", { cwd: slotPath, encoding: "utf-8" }).trim();
+    const slotPath = path.join(
+      repoRoot,
+      ".codecast/worktrees",
+      ready.workspaceName!,
+    );
+    const slotHead = execSync("git rev-parse HEAD", {
+      cwd: slotPath,
+      encoding: "utf-8",
+    }).trim();
     expect(slotHead).toBe(newHead);
   }, 60000);
 });

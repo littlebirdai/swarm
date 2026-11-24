@@ -23,7 +23,9 @@ export type QuoteDraftWire = {
   created_at: number;
 };
 
-type UiState = { clientState?: { ui?: { quote_drafts?: boolean } | null } | null };
+type UiState = {
+  clientState?: { ui?: { quote_drafts?: boolean } | null } | null;
+};
 
 /** On for everyone unless the person set clientState.ui.quote_drafts to false. */
 export function quoteDraftsOn(state: UiState): boolean {
@@ -35,8 +37,17 @@ export function quoteDraftsOn(state: UiState): boolean {
  * message in a conversation's batch. Doc and plan batches, pictures, page pins
  * and proposal answers stay local.
  */
-export function isRecordedQuote(batchKey: string, item: PendingComment): boolean {
-  return isConvexId(batchKey) && isConvexId(item.messageId) && !item.image && !item.page && !item.proposal;
+export function isRecordedQuote(
+  batchKey: string,
+  item: PendingComment,
+): boolean {
+  return (
+    isConvexId(batchKey) &&
+    isConvexId(item.messageId) &&
+    !item.image &&
+    !item.page &&
+    !item.proposal
+  );
 }
 
 export function toQuoteDraftWire(item: PendingComment): QuoteDraftWire {
@@ -62,7 +73,12 @@ type MirrorState = UiState & {
  * the batch, and drop the ones in `removed`. Nothing happens with the
  * preference off.
  */
-export function mirrorQuoteBatch(state: MirrorState, batchKey: string, ids: string[], removed: string[] = []): void {
+export function mirrorQuoteBatch(
+  state: MirrorState,
+  batchKey: string,
+  ids: string[],
+  removed: string[] = [],
+): void {
   if (!quoteDraftsOn(state)) return;
   const wanted = new Set(ids);
   const drafts = (state.reviewComments[batchKey] ?? [])
@@ -77,8 +93,11 @@ export function uploadQuoteBatches(state: MirrorState): number {
   if (!quoteDraftsOn(state)) return 0;
   let n = 0;
   for (const [key, items] of Object.entries(state.reviewComments)) {
-    const drafts = (items ?? []).filter((c) => isRecordedQuote(key, c)).map(toQuoteDraftWire);
-    for (let i = 0; i < drafts.length; i += 100) state.saveQuoteDrafts(key, drafts.slice(i, i + 100));
+    const drafts = (items ?? [])
+      .filter((c) => isRecordedQuote(key, c))
+      .map(toQuoteDraftWire);
+    for (let i = 0; i < drafts.length; i += 100)
+      state.saveQuoteDrafts(key, drafts.slice(i, i + 100));
     n += drafts.length;
   }
   return n;

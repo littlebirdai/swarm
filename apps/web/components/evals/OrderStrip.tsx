@@ -26,16 +26,32 @@ function chipTone(channel: string, feeds: readonly string[]): string {
   return "var(--sol-text-dim)";
 }
 
-export function OrderStrip({ channels, scripted, minimal, failAt, playhead, onPick, feeds }: OrderStripProps) {
+export function OrderStrip({
+  channels,
+  scripted,
+  minimal,
+  failAt,
+  playhead,
+  onPick,
+  feeds,
+}: OrderStripProps) {
   const removed = new Set(minimal?.removed ?? []);
   return (
-    <section className="evs-order" data-evs-order={channels.length} data-evs-shrunk={minimal ? "yes" : "no"}>
+    <section
+      className="evs-order"
+      data-evs-order={channels.length}
+      data-evs-shrunk={minimal ? "yes" : "no"}
+    >
       <div className="evs-section-title" style={{ margin: 0 }}>
         Delivery order
         <span className="evs-note" data-evs-caption>
           {shrinkCaption(channels.length, minimal)}
-          {scripted ? ", a scripted run (the order leads with the scripted mark)" : ""}
-          {minimal ? `, ${minimal.attempts} attempts in ${Math.round(minimal.ms / 1000)} s` : ""}
+          {scripted
+            ? ", a scripted run (the order leads with the scripted mark)"
+            : ""}
+          {minimal
+            ? `, ${minimal.attempts} attempts in ${Math.round(minimal.ms / 1000)} s`
+            : ""}
         </span>
       </div>
       <div className="evs-order-chips">
@@ -51,7 +67,10 @@ export function OrderStrip({ channels, scripted, minimal, failAt, playhead, onPi
             onClick={() => onPick(i)}
           >
             <span className="evs-ochip-n">{i + 1}</span>
-            <span className="evs-ochip-dot" style={{ background: chipTone(c, feeds) } as CSSProperties} />
+            <span
+              className="evs-ochip-dot"
+              style={{ background: chipTone(c, feeds) } as CSSProperties}
+            />
             {chipText(c)}
           </button>
         ))}

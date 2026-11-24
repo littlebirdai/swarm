@@ -36,10 +36,17 @@ function withChangeLog(ctx: any): any {
   attachSyncOutbox(ctx, collector);
   // The lifecycle trail (lifecycleEvents.ts) is outermost: it sees each write
   // as the mutation asked for it, and records through the raw db.
-  const tracked = makePrincipalViewTrackedDb(makeChangeTrackedDb(ctx.db, collector));
+  const tracked = makePrincipalViewTrackedDb(
+    makeChangeTrackedDb(ctx.db, collector),
+  );
   // session_starts follows conversation writes beneath it (lib/sessionStarts.ts).
   // Outermost of all: every layer beneath sees only well-formed strings (lib/wellFormed.ts).
-  const wrapped: any = { ...ctx, db: makeWellFormedDb(makeLifecycleEventDb(makeSessionStartsDb(tracked, ctx.db), ctx.db)) };
+  const wrapped: any = {
+    ...ctx,
+    db: makeWellFormedDb(
+      makeLifecycleEventDb(makeSessionStartsDb(tracked, ctx.db), ctx.db),
+    ),
+  };
   wrapped[SYNC_ACK] = collector;
   return wrapped;
 }
@@ -70,7 +77,8 @@ function wrapDefinition(def: any): any {
 
 // Same call signatures as the generated builders (cast preserves the rich
 // validator/typing surface; the runtime wrapper only swaps ctx.db).
-export const mutation = ((def: any) => rawMutation(wrapDefinition(def))) as typeof rawMutation;
+export const mutation = ((def: any) =>
+  rawMutation(wrapDefinition(def))) as typeof rawMutation;
 export const internalMutation = ((def: any) =>
   rawInternalMutation(wrapDefinition(def))) as typeof rawInternalMutation;
 
@@ -79,5 +87,10 @@ export const internalMutation = ((def: any) =>
 // later imports from here gets the change-tracking mutation by default. Only
 // mutation/internalMutation above are wrapped; the rest are plain pass-throughs
 // (queries and actions have no ctx.db to intercept).
-export { query, internalQuery, action, internalAction } from "./_generated/server";
+export {
+  query,
+  internalQuery,
+  action,
+  internalAction,
+} from "./_generated/server";
 export type { QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";

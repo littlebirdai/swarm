@@ -62,7 +62,8 @@ export function useSyncCore(profile: SyncCoreProfile): void {
   // eslint-disable-next-line no-restricted-syntax -- platform wake-source wiring
   useEffect(() => {
     if (profile !== "web") return;
-    if (typeof document === "undefined" || typeof window === "undefined") return;
+    if (typeof document === "undefined" || typeof window === "undefined")
+      return;
     const onVisible = () => {
       if (document.visibilityState === "visible") emitSyncWake();
     };

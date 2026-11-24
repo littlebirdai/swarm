@@ -88,7 +88,9 @@ export class TabIds {
 
   /** Every mapping of one profile, for when its link is gone for good (revoked). */
   dropLink(link: string): number[] {
-    const ids = [...this.fromHost].filter(([, e]) => e.link === link).map(([id]) => id);
+    const ids = [...this.fromHost]
+      .filter(([, e]) => e.link === link)
+      .map(([id]) => id);
     for (const id of ids) this.drop(id);
     return ids;
   }
@@ -99,7 +101,9 @@ export class Links {
   private byId = new Map<string, ExtLink>();
 
   list(): ExtLink[] {
-    return [...this.byId.values()].sort((a, b) => a.connectedAt - b.connectedAt);
+    return [...this.byId.values()].sort(
+      (a, b) => a.connectedAt - b.connectedAt,
+    );
   }
 
   get(id: string): ExtLink | undefined {
@@ -135,6 +139,8 @@ export class Links {
    */
   default(pinnedDir?: string): ExtLink | undefined {
     const all = this.list();
-    return (pinnedDir ? all.find((l) => l.dir === pinnedDir) : undefined) ?? all[0];
+    return (
+      (pinnedDir ? all.find((l) => l.dir === pinnedDir) : undefined) ?? all[0]
+    );
   }
 }

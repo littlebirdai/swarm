@@ -21,7 +21,9 @@ describe("supersededChannelId", () => {
     expect(supersededChannelId(channels, "real1")).toBeUndefined();
     // A Convex id absent from the cache is a pruned/foreign channel, not a
     // stub — forwarding by client_id would be a false match.
-    expect(supersededChannelId(channels, "hx7pxdhcb6qp6tpygjwk7vtmy98ch7p5")).toBeUndefined();
+    expect(
+      supersededChannelId(channels, "hx7pxdhcb6qp6tpygjwk7vtmy98ch7p5"),
+    ).toBeUndefined();
     expect(supersededChannelId(channels, undefined)).toBeUndefined();
     expect(supersededChannelId(channels, "chatstub-unknown")).toBeUndefined();
   });

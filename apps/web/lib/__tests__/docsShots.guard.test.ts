@@ -10,15 +10,32 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const WEB = join(import.meta.dir, "..", "..");
-const SKIP_DIRS = new Set(["node_modules", "dist", "dist-ssr", "dist-perf", "public", "docs-shots", "scripts", "e2e", "test-helpers", "__tests__"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  "dist",
+  "dist-ssr",
+  "dist-perf",
+  "public",
+  "docs-shots",
+  "scripts",
+  "e2e",
+  "test-helpers",
+  "__tests__",
+]);
 const SKIP_PREFIXES = ["lib/acmeWorld/", "lib/docsShots/"];
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
-    if (SKIP_DIRS.has(name) || name.startsWith(".") || name.startsWith("__harness")) continue;
+    if (
+      SKIP_DIRS.has(name) ||
+      name.startsWith(".") ||
+      name.startsWith("__harness")
+    )
+      continue;
     const path = join(dir, name);
     if (statSync(path).isDirectory()) sources(path, out);
-    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(path);
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(path);
   }
   return out;
 }
@@ -30,10 +47,17 @@ describe("docs shots stay out of production code", () => {
       const rel = relative(WEB, file);
       if (SKIP_PREFIXES.some((p) => rel.startsWith(p))) continue;
       const text = readFileSync(file, "utf-8");
-      for (const m of text.matchAll(/(?:from\s+|import\s*\(\s*)["']([^"']*(?:acmeWorld|docsShots)[^"']*)["']/g)) {
+      for (const m of text.matchAll(
+        /(?:from\s+|import\s*\(\s*)["']([^"']*(?:acmeWorld|docsShots)[^"']*)["']/g,
+      )) {
         const spec = m[1];
         if (/docsShots\/flag$/.test(spec)) continue;
-        if (rel === "src/main.tsx" && /docsShots\/install$/.test(spec) && m[0].startsWith("import")) continue;
+        if (
+          rel === "src/main.tsx" &&
+          /docsShots\/install$/.test(spec) &&
+          m[0].startsWith("import")
+        )
+          continue;
         offenders.push(`${rel}: ${spec}`);
       }
     }
@@ -42,7 +66,9 @@ describe("docs shots stay out of production code", () => {
 
   test("main.tsx loads the mode only when the flag is on", () => {
     const main = readFileSync(join(WEB, "src/main.tsx"), "utf-8");
-    expect(main).toMatch(/if \(DOCS_SHOTS\) void import\("\.\.\/lib\/docsShots\/install"\)/);
+    expect(main).toMatch(
+      /if \(DOCS_SHOTS\) void import\("\.\.\/lib\/docsShots\/install"\)/,
+    );
   });
 
   test("the flag is off in production builds", () => {

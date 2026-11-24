@@ -6,7 +6,11 @@
 // with no extra row. The commit hash rule is the one the server's file change
 // extractor uses, so the two never disagree about which sha a call produced.
 import { extractCommitHashFromContent } from "@codecast/convex/convex/fileChanges/extractor";
-import { namedPullRequests, parseEntityUrl, repoObjectId } from "@codecast/shared/entities";
+import {
+  namedPullRequests,
+  parseEntityUrl,
+  repoObjectId,
+} from "@codecast/shared/entities";
 import { pullRequestRepository } from "./entityLinks";
 
 export type GitToolOutcome =
@@ -15,15 +19,24 @@ export type GitToolOutcome =
 
 const COMMIT_COMMAND = /(^|[;&|]\s*|\bthen\s+|\bdo\s+)git\b[^;&|\n]*\bcommit\b/;
 const PR_CREATE_COMMAND = /(^|[;&|]\s*|\bthen\s+|\bdo\s+)gh\s+pr\s+create\b/;
-const GITHUB_PR_URL = /https:\/\/(?:www\.)?github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/;
+const GITHUB_PR_URL =
+  /https:\/\/(?:www\.)?github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/;
 
 /** `[main abc1234] subject` or `[main (root-commit) abc1234] subject`, the line git commit prints. */
-function commitSummaryLine(output: string): { hash: string; subject: string; branch?: string } | null {
+function commitSummaryLine(
+  output: string,
+): { hash: string; subject: string; branch?: string } | null {
   const hash = extractCommitHashFromContent(output);
   if (!hash) return null;
   const line = output.split("\n").find((l) => l.includes(`${hash}]`)) ?? "";
-  const m = /^\s*\[([^\s\]]+)(?:\s+\([^)]*\))?\s+[0-9a-f]{7,40}\]\s*(.*)$/.exec(line);
-  return { hash, subject: (m?.[2] ?? "").trim(), ...(m?.[1] ? { branch: m[1] } : {}) };
+  const m = /^\s*\[([^\s\]]+)(?:\s+\([^)]*\))?\s+[0-9a-f]{7,40}\]\s*(.*)$/.exec(
+    line,
+  );
+  return {
+    hash,
+    subject: (m?.[2] ?? "").trim(),
+    ...(m?.[1] ? { branch: m[1] } : {}),
+  };
 }
 
 /**
@@ -35,7 +48,11 @@ export function commandLeavesCheckout(command: string): boolean {
   return /(^|[;&|(]\s*)cd\s|\bgit\s+-C\s|\bmktemp\b|\bpushd\s/.test(command);
 }
 
-export function gitToolOutcome(command: string | undefined, output: string | undefined, isError?: boolean): GitToolOutcome | null {
+export function gitToolOutcome(
+  command: string | undefined,
+  output: string | undefined,
+  isError?: boolean,
+): GitToolOutcome | null {
   if (!command || !output || isError) return null;
   if (PR_CREATE_COMMAND.test(command)) {
     const url = GITHUB_PR_URL.exec(output)?.[0];
@@ -52,7 +69,9 @@ export function gitToolOutcome(command: string | undefined, output: string | und
 export type TranscriptMessage = {
   content?: string | null;
   tool_calls?: { id: string; name: string; input?: unknown }[] | null;
-  tool_results?: { tool_use_id: string; content?: string; is_error?: boolean }[] | null;
+  tool_results?:
+    | { tool_use_id: string; content?: string; is_error?: boolean }[]
+    | null;
 };
 
 const commandCache = new WeakMap<object, { input: string; command: string }>();
@@ -62,7 +81,10 @@ function transcriptCommand(call: { input?: unknown }): string {
   const cached = typeof raw === "string" ? commandCache.get(call) : undefined;
   if (cached && cached.input === raw) return cached.command;
   const input = typeof raw === "string" ? safeParse(raw) : raw;
-  const command = input && typeof input === "object" ? String((input as any).command ?? (input as any).cmd ?? "") : "";
+  const command =
+    input && typeof input === "object"
+      ? String((input as any).command ?? (input as any).cmd ?? "")
+      : "";
   if (typeof raw === "string") commandCache.set(call, { input: raw, command });
   else commandCache.delete(call);
   return command;
@@ -73,7 +95,10 @@ function transcriptCommand(call: { input?: unknown }): string {
  * transcript renders those on the calls themselves, so a linked commit or PR
  * that is NOT in here is one made outside the transcript and gets a card.
  */
-export function transcriptGitOutcomes(messages: readonly TranscriptMessage[]): { commitShas: Set<string>; prRefs: Set<string> } {
+export function transcriptGitOutcomes(messages: readonly TranscriptMessage[]): {
+  commitShas: Set<string>;
+  prRefs: Set<string>;
+} {
   const commands = new Map<string, string>();
   const commitShas = new Set<string>();
   const prRefs = new Set<string>();
@@ -83,7 +108,11 @@ export function transcriptGitOutcomes(messages: readonly TranscriptMessage[]): {
       if (command) commands.set(call.id, command);
     }
     for (const result of message.tool_results ?? []) {
-      const outcome = gitToolOutcome(commands.get(result.tool_use_id), result.content, result.is_error);
+      const outcome = gitToolOutcome(
+        commands.get(result.tool_use_id),
+        result.content,
+        result.is_error,
+      );
       if (outcome?.kind === "commit") commitShas.add(outcome.hash);
       if (outcome?.kind === "pr") prRefs.add(outcome.ref);
     }
@@ -91,7 +120,10 @@ export function transcriptGitOutcomes(messages: readonly TranscriptMessage[]): {
   return { commitShas, prRefs };
 }
 
-const namedCache = new WeakMap<object, { content: string; named: { ids: string[]; numbers: number[] } }>();
+const namedCache = new WeakMap<
+  object,
+  { content: string; named: { ids: string[]; numbers: number[] } }
+>();
 
 /**
  * The pull requests a conversation knows, as repo object ids: the ones linked
@@ -108,7 +140,14 @@ export function knownPullRequestIds(
 ): Set<string> {
   const ids = new Set<string>(prRefs);
   for (const pr of linked) {
-    if (pr.repository && typeof pr.number === "number") ids.add(repoObjectId({ type: "pr", repository: pr.repository, number: pr.number }));
+    if (pr.repository && typeof pr.number === "number")
+      ids.add(
+        repoObjectId({
+          type: "pr",
+          repository: pr.repository,
+          number: pr.number,
+        }),
+      );
   }
   const numbers = new Set<number>();
   for (const message of messages) {
@@ -131,7 +170,10 @@ export function knownPullRequestIds(
 }
 
 /** A commit made in the transcript, by any prefix of its sha. */
-export function madeInTranscript(sha: string, commitShas: Set<string>): boolean {
+export function madeInTranscript(
+  sha: string,
+  commitShas: Set<string>,
+): boolean {
   for (const prefix of commitShas) if (sha.startsWith(prefix)) return true;
   return false;
 }

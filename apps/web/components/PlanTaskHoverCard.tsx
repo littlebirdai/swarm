@@ -30,18 +30,24 @@ function PlanHoverContent({ planId }: { planId: Id<"plans"> }) {
     return { ...row, tasks, progress: computePlanProgress(tasks) };
   }, [queryPlan, planId]);
 
-  if (!plan) return <AppLoader className="min-h-0 bg-transparent py-4 gap-3" size={20} />;
+  if (!plan)
+    return (
+      <AppLoader className="min-h-0 bg-transparent py-4 gap-3" size={20} />
+    );
 
-  const pct = plan.progress.total > 0
-    ? Math.round((plan.progress.done / plan.progress.total) * 100)
-    : 0;
+  const pct =
+    plan.progress.total > 0
+      ? Math.round((plan.progress.done / plan.progress.total) * 100)
+      : 0;
 
   return (
     <div className="space-y-2.5">
       <div>
         <div className="text-xs font-medium text-sol-text">{plan.title}</div>
         {plan.goal && (
-          <p className="text-meta text-sol-text-muted mt-1 line-clamp-2">{plan.goal}</p>
+          <p className="text-meta text-sol-text-muted mt-1 line-clamp-2">
+            {plan.goal}
+          </p>
         )}
       </div>
 
@@ -62,9 +68,14 @@ function PlanHoverContent({ planId }: { planId: Id<"plans"> }) {
           {plan.tasks.slice(0, 10).map((task: any) => {
             const { icon: Icon, color } = taskVisual(task.status);
             return (
-              <div key={task._id} className="flex items-center gap-1.5 py-0.5 text-meta">
+              <div
+                key={task._id}
+                className="flex items-center gap-1.5 py-0.5 text-meta"
+              >
                 <Icon className={`w-2.5 h-2.5 flex-shrink-0 ${color}`} />
-                <span className={`truncate ${task.status === "done" ? "line-through text-sol-text-dim" : "text-sol-text-muted"}`}>
+                <span
+                  className={`truncate ${task.status === "done" ? "line-through text-sol-text-dim" : "text-sol-text-muted"}`}
+                >
                   {task.title}
                 </span>
               </div>
@@ -97,7 +108,15 @@ export function PlanBadge({
 }) {
   const router = useRouter();
   return (
-    <HoverCard side="bottom" className="w-72" card={<div className="p-3"><PlanHoverContent planId={plan._id as Id<"plans">} /></div>}>
+    <HoverCard
+      side="bottom"
+      className="w-72"
+      card={
+        <div className="p-3">
+          <PlanHoverContent planId={plan._id as Id<"plans">} />
+        </div>
+      }
+    >
       <button
         onClick={() => router.push(`/plans/${plan._id}`)}
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-meta flex-shrink-0 bg-sol-cyan/10 text-sol-cyan border border-sol-cyan/20 hover:bg-sol-cyan/20 transition-colors max-w-[180px] ${className || ""}`}

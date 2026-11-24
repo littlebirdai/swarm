@@ -15,7 +15,11 @@ import { LogoMark } from "../Logo";
 import { useLocalAuth } from "../../lib/localAuth";
 import { useRepoFamily } from "./useRepoFamily";
 import { useRepoAccess } from "../../hooks/useRepoAccess";
-import { RepoTransportProvider, publicRepoUrl, usePublicRepoRead } from "../../lib/repoTransport";
+import {
+  RepoTransportProvider,
+  publicRepoUrl,
+  usePublicRepoRead,
+} from "../../lib/repoTransport";
 import { LoadingSkeleton } from "../LoadingSkeleton";
 import { UndoReach } from "../undo/UndoTimeline";
 import { api } from "@codecast/convex/convex/_generated/api";
@@ -28,7 +32,13 @@ import { useIsSyncHost } from "../../hooks/useSyncRole";
  * RepoWindowControl in its own slot, and two links saying the same thing on
  * one screen is one too many.
  */
-function StandaloneRepoShell({ repository, children }: { repository: string; children: ReactNode }) {
+function StandaloneRepoShell({
+  repository,
+  children,
+}: {
+  repository: string;
+  children: ReactNode;
+}) {
   const signedIn = useLocalAuth();
   const [owner, name] = repository.split("/");
 
@@ -60,30 +70,60 @@ function StandaloneRepoShell({ repository, children }: { repository: string; chi
   );
 }
 
-export function RepoPageShell({ repository, children }: { repository: string; children: ReactNode }) {
+export function RepoPageShell({
+  repository,
+  children,
+}: {
+  repository: string;
+  children: ReactNode;
+}) {
   const family = useRepoFamily();
   const signedIn = useLocalAuth();
   const isHost = useIsSyncHost();
-  useSyncCollection("currentUser", api.users.getCurrentUser, family === "standalone" && isHost ? {} : "skip");
+  useSyncCollection(
+    "currentUser",
+    api.users.getCurrentUser,
+    family === "standalone" && isHost ? {} : "skip",
+  );
   const access = useRepoAccess(repository, signedIn);
   const mode = access.allowed === true ? "convex" : "public";
-  const publicMeta = usePublicRepoRead<{ private: boolean }>(family === "standalone" && mode === "public"
-    ? publicRepoUrl(repository, "meta", {}) : null);
+  const publicMeta = usePublicRepoRead<{ private: boolean }>(
+    family === "standalone" && mode === "public"
+      ? publicRepoUrl(repository, "meta", {})
+      : null,
+  );
 
   if (family === "standalone") {
     if (mode === "public" && publicMeta.data?.private !== false) {
-      if (!publicMeta.ready) return <div className="h-screen bg-sol-bg"><LoadingSkeleton /></div>;
+      if (!publicMeta.ready)
+        return (
+          <div className="h-screen bg-sol-bg">
+            <LoadingSkeleton />
+          </div>
+        );
       return <RepoUnavailable signedIn={signedIn} repository={repository} />;
     }
-    return <RepoTransportProvider mode={mode}><StandaloneRepoShell repository={repository}>{children}</StandaloneRepoShell></RepoTransportProvider>;
+    return (
+      <RepoTransportProvider mode={mode}>
+        <StandaloneRepoShell repository={repository}>
+          {children}
+        </StandaloneRepoShell>
+      </RepoTransportProvider>
+    );
   }
 
   return (
     <AuthGuard>
       <DashboardLayout>
-        <RepoTransportProvider mode="convex"><div className="h-full">
-          {access.allowed === false ? <RepoUnavailable signedIn={signedIn} repository={repository} /> : children}
-        </div></RepoTransportProvider>
+        <RepoTransportProvider mode="convex">
+          <div className="h-full">
+            {access.allowed === false ? (
+              <RepoUnavailable signedIn={signedIn} repository={repository} />
+            ) : (
+              children
+            )}
+          </div>
+        </RepoTransportProvider>
       </DashboardLayout>
     </AuthGuard>
   );
@@ -98,44 +138,67 @@ export function RepoPageShell({ repository, children }: { repository: string; ch
  * repository itself is a click away on GitHub, where the reader's own access
  * decides what they see.
  */
-function RepoUnavailable({ signedIn, repository }: { signedIn: boolean; repository: string }) {
-  return <main className="min-h-full flex flex-col items-center justify-center bg-sol-bg text-sol-text gap-4 px-6 py-16 text-center">
-    <LogoMark size={24} monochrome />
-    <h1 className="font-serif text-2xl">{signedIn ? "Nobody has connected this repository" : "Repository unavailable"}</h1>
-    {signedIn ? (
-      <>
-        <p className="max-w-md text-sm text-sol-text-muted">
-          No GitHub App installation your teams have covers <span className="font-mono text-sol-text">{repository}</span>, and no teammate
-          publishes a checkout of it. A session run in a checkout that is shared with your team publishes it automatically; installing the
-          GitHub App adds pull requests, checks and every file on demand.
-        </p>
-        <div className="flex items-center gap-2">
-          <Link href="/settings/integrations" className={actionClass}>Integrations</Link>
-          <GithubRepoLink repository={repository} />
-        </div>
-      </>
-    ) : (
-      <>
-        <p className="text-sm text-sol-text-muted">Sign in with an account that has access to continue.</p>
-        <div className="flex items-center gap-2">
-          <Link href="/login" className={actionClass}>Sign in</Link>
-          <GithubRepoLink repository={repository} />
-        </div>
-      </>
-    )}
-  </main>;
+function RepoUnavailable({
+  signedIn,
+  repository,
+}: {
+  signedIn: boolean;
+  repository: string;
+}) {
+  return (
+    <main className="min-h-full flex flex-col items-center justify-center bg-sol-bg text-sol-text gap-4 px-6 py-16 text-center">
+      <LogoMark size={24} monochrome />
+      <h1 className="font-serif text-2xl">
+        {signedIn
+          ? "Nobody has connected this repository"
+          : "Repository unavailable"}
+      </h1>
+      {signedIn ? (
+        <>
+          <p className="max-w-md text-sm text-sol-text-muted">
+            No GitHub App installation your teams have covers{" "}
+            <span className="font-mono text-sol-text">{repository}</span>, and
+            no teammate publishes a checkout of it. A session run in a checkout
+            that is shared with your team publishes it automatically; installing
+            the GitHub App adds pull requests, checks and every file on demand.
+          </p>
+          <div className="flex items-center gap-2">
+            <Link href="/settings/integrations" className={actionClass}>
+              Integrations
+            </Link>
+            <GithubRepoLink repository={repository} />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-sol-text-muted">
+            Sign in with an account that has access to continue.
+          </p>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className={actionClass}>
+              Sign in
+            </Link>
+            <GithubRepoLink repository={repository} />
+          </div>
+        </>
+      )}
+    </main>
+  );
 }
 
-const actionClass = "rounded border border-sol-border px-4 py-2 text-sm text-sol-blue";
+const actionClass =
+  "rounded border border-sol-border px-4 py-2 text-sm text-sol-blue";
 
 function GithubRepoLink({ repository }: { repository: string }) {
-  return <a
-    href={`https://github.com/${repository}`}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="flex items-center gap-1.5 rounded border border-sol-border px-4 py-2 text-sm text-sol-text-muted hover:text-sol-text transition-colors"
-  >
-    <ExternalLink className="w-3.5 h-3.5" />
-    Open on GitHub
-  </a>;
+  return (
+    <a
+      href={`https://github.com/${repository}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-1.5 rounded border border-sol-border px-4 py-2 text-sm text-sol-text-muted hover:text-sol-text transition-colors"
+    >
+      <ExternalLink className="w-3.5 h-3.5" />
+      Open on GitHub
+    </a>
+  );
 }

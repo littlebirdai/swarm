@@ -95,7 +95,7 @@ the scope so `cast anchor create` can seat a new one. Only an admin or the host 
 
 - **Channel-link verification checks the bot's membership, not the caller's.** Linking requires
   the bot to already be in the channel, and re-pointing an existing mapping requires controlling
-  it. But the bot token cannot establish the *caller's* Slack identity, so a codecast user could
+  it. But the bot token cannot establish the _caller's_ Slack identity, so a codecast user could
   first-claim an unclaimed channel the bot is in even if they aren't a member of it. Within one
   trusted workspace where the bot is invited only to intended channels this is bounded; full
   per-user Slack-identity verification is a follow-up. Keep the bot out of sensitive channels you
@@ -129,7 +129,7 @@ the scope so `cast anchor create` can seat a new one. Only an admin or the host 
   reply surfaces at the end of the thread. Naming it while it listens promotes the same row to a
   visible turn. Wakes carry the channel topic and recent room lines as well as the thread.
 - **Proactive voice.** `chat.sendAsAnchor` / `cast anchor say --chat <channel|#name>
-  [--thread <root>]` posts as the agent; `--dm <handle>[,<handle>]` opens (or reuses) a DM room
+[--thread <root>]` posts as the agent; `--dm <handle>[,<handle>]` opens (or reuses) a DM room
   whose members are the bot plus those people; `--channel <slack id>` posts in Slack. A 1:1 with
   the agent is answered inline (no thread). Its host may read those rooms
   (`chatAccess.canAccessChannel`). A personal agent DMs in a team named with `--team`.

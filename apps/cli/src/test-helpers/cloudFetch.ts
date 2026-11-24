@@ -21,20 +21,48 @@ export interface FakeCloudFetchOptions {
   missing?: (call: FakeCloudCall) => Response;
 }
 
-export function fakeCloudFetch(routes: Record<string, (call: FakeCloudCall) => Response>, opts: FakeCloudFetchOptions = {}): typeof fetch {
+export function fakeCloudFetch(
+  routes: Record<string, (call: FakeCloudCall) => Response>,
+  opts: FakeCloudFetchOptions = {},
+): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
-    const p = opts.stripPrefix && url.pathname.startsWith(opts.stripPrefix) ? url.pathname.slice(opts.stripPrefix.length) : url.pathname;
-    const call: FakeCloudCall = { method: init?.method ?? "GET", path: p, search: url.search, headers: (init?.headers ?? {}) as Record<string, string>, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) };
+    const p =
+      opts.stripPrefix && url.pathname.startsWith(opts.stripPrefix)
+        ? url.pathname.slice(opts.stripPrefix.length)
+        : url.pathname;
+    const call: FakeCloudCall = {
+      method: init?.method ?? "GET",
+      path: p,
+      search: url.search,
+      headers: (init?.headers ?? {}) as Record<string, string>,
+      ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}),
+    };
     opts.calls?.push(call);
     const hit = routes[`${call.method} ${p}`];
     if (hit) return hit(call);
-    return opts.missing?.(call) ?? new Response(JSON.stringify({ error: { type: "not_found_error", code: "not_found", message: `No route ${call.method} ${p}` } }), { status: 404 });
+    return (
+      opts.missing?.(call) ??
+      new Response(
+        JSON.stringify({
+          error: {
+            type: "not_found_error",
+            code: "not_found",
+            message: `No route ${call.method} ${p}`,
+          },
+        }),
+        { status: 404 },
+      )
+    );
   }) as typeof fetch;
 }
 
 /** A route answering with JSON. */
-export const json = (v: unknown, status = 200) => () => new Response(JSON.stringify(v), { status });
+export const json =
+  (v: unknown, status = 200) =>
+  () =>
+    new Response(JSON.stringify(v), { status });
 
 /** A route answering with Server-Sent Events. */
-export const sseBody = (body: string) => () => new Response(body, { headers: { "content-type": "text/event-stream" } });
+export const sseBody = (body: string) => () =>
+  new Response(body, { headers: { "content-type": "text/event-stream" } });

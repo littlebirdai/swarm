@@ -39,12 +39,18 @@ async function validateBookmarkTarget(
   userId: Id<"users">,
   conversationId: Id<"conversations">,
   messageId: Id<"messages">,
-): Promise<{ ok: true; value: BookmarkTarget } | { ok: false; failure: BookmarkFailure }> {
+): Promise<
+  { ok: true; value: BookmarkTarget } | { ok: false; failure: BookmarkFailure }
+> {
   const conversation = await ctx.db.get(conversationId);
   if (!conversation) {
     return {
       ok: false,
-      failure: { status: "rejected", code: "MISSING", message: "Conversation not found" },
+      failure: {
+        status: "rejected",
+        code: "MISSING",
+        message: "Conversation not found",
+      },
     };
   }
   if (String(conversation.user_id) !== String(userId)) {
@@ -61,7 +67,11 @@ async function validateBookmarkTarget(
   if (!message) {
     return {
       ok: false,
-      failure: { status: "rejected", code: "MISSING", message: "Message not found" },
+      failure: {
+        status: "rejected",
+        code: "MISSING",
+        message: "Message not found",
+      },
     };
   }
   if (String(message.conversation_id) !== String(conversationId)) {
@@ -79,8 +89,10 @@ async function validateBookmarkTarget(
     .query("bookmarks")
     .withIndex("by_message_id", (q) => q.eq("message_id", messageId))
     .collect();
-  const existing = candidates.find((bookmark) =>
-    String(bookmark.user_id) === String(userId)) ?? null;
+  const existing =
+    candidates.find(
+      (bookmark) => String(bookmark.user_id) === String(userId),
+    ) ?? null;
   if (existing && String(existing.conversation_id) !== String(conversationId)) {
     return {
       ok: false,
@@ -99,7 +111,10 @@ async function validateBookmarkTarget(
  * session id there is a dead link: a conversation with no share link opens at
  * its own page, which its owner (the only one who can list it) can read.
  */
-export function bookmarkUrl(conversation: { _id: unknown; share_token?: string }, messageIndex: number): string {
+export function bookmarkUrl(
+  conversation: { _id: unknown; share_token?: string },
+  messageIndex: number,
+): string {
   return conversation.share_token
     ? `https://codecast.sh/share/${conversation.share_token}#msg-${messageIndex}`
     : `https://codecast.sh/conversation/${String(conversation._id)}#msg-${messageIndex}`;
@@ -140,7 +155,9 @@ export const createFromCLI = mutation({
         .withIndex("by_user_id", (q) => q.eq("user_id", result.userId))
         .order("desc")
         .take(200);
-      conversation = userConvs.find((c) => c._id.toString().startsWith(args.session_id)) ?? null;
+      conversation =
+        userConvs.find((c) => c._id.toString().startsWith(args.session_id)) ??
+        null;
     }
 
     if (!conversation) {
@@ -153,34 +170,42 @@ export const createFromCLI = mutation({
 
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+      .withIndex("by_conversation_id", (q) =>
+        q.eq("conversation_id", conversation._id),
+      )
       .collect();
 
     const sortedMessages = messages.sort((a, b) => a.timestamp - b.timestamp);
     const message = sortedMessages[args.message_index - 1];
 
     if (!message) {
-      return { error: `Message ${args.message_index} not found (conversation has ${sortedMessages.length} messages)` };
+      return {
+        error: `Message ${args.message_index} not found (conversation has ${sortedMessages.length} messages)`,
+      };
     }
 
     if (args.name) {
       const existing = await ctx.db
         .query("bookmarks")
-        .withIndex("by_user_name", (q) => q.eq("user_id", result.userId).eq("name", args.name!))
+        .withIndex("by_user_name", (q) =>
+          q.eq("user_id", result.userId).eq("name", args.name!),
+        )
         .first();
       if (existing) {
         return { error: `Bookmark named "${args.name}" already exists` };
       }
     }
 
-    const bookmark = (await insertBookmarkWithRevision(ctx, {
-      user_id: result.userId,
-      conversation_id: conversation._id,
-      message_id: message._id,
-      name: args.name,
-      note: args.note,
-      created_at: Date.now(),
-    })).result;
+    const bookmark = (
+      await insertBookmarkWithRevision(ctx, {
+        user_id: result.userId,
+        conversation_id: conversation._id,
+        message_id: message._id,
+        name: args.name,
+        note: args.note,
+        created_at: Date.now(),
+      })
+    ).result;
 
     // A bookmark URL is a share link, and every /share/* query resolves by
     // share token only — the old session_id fallback minted links that opened
@@ -190,7 +215,14 @@ export const createFromCLI = mutation({
     let shareToken = conversation.share_token;
     if (!shareToken) {
       shareToken = generateShareToken();
-      await claimShareToken(ctx, "conversations", conversation, shareToken, result.userId, args.api_token);
+      await claimShareToken(
+        ctx,
+        "conversations",
+        conversation,
+        shareToken,
+        result.userId,
+        args.api_token,
+      );
     }
     const bookmarkUrl = `https://codecast.sh/share/${shareToken}#msg-${args.message_index}`;
 
@@ -245,16 +277,24 @@ export const listFromCLI = mutation({
       const message = await ctx.db.get(bookmark.message_id);
       if (!conversation || !message) continue;
 
-      if (args.project_path && conversation.project_path !== args.project_path) {
+      if (
+        args.project_path &&
+        conversation.project_path !== args.project_path
+      ) {
         continue;
       }
 
       const messages = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conversation._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conversation._id),
+        )
         .collect();
       const sortedMessages = messages.sort((a, b) => a.timestamp - b.timestamp);
-      const messageIndex = sortedMessages.findIndex((m) => m._id.toString() === message._id.toString()) + 1;
+      const messageIndex =
+        sortedMessages.findIndex(
+          (m) => m._id.toString() === message._id.toString(),
+        ) + 1;
 
       enrichedResults.push({
         id: bookmark._id,
@@ -292,7 +332,9 @@ export const deleteFromCLI = mutation({
     if (args.name) {
       bookmark = await ctx.db
         .query("bookmarks")
-        .withIndex("by_user_name", (q) => q.eq("user_id", result.userId).eq("name", args.name!))
+        .withIndex("by_user_name", (q) =>
+          q.eq("user_id", result.userId).eq("name", args.name!),
+        )
         .first();
     } else if (args.bookmark_id) {
       bookmark = await ctx.db
@@ -356,48 +398,62 @@ export const setBookmarkV2 = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
-    return runLocalCommand(ctx, {
-      principalId: userId,
-      commandId: args.command_id,
-      commandName: "bookmarks.set/v2",
-      arguments: {
-        conversationId: args.conversation_id,
-        messageId: args.message_id,
-        bookmarked: args.bookmarked,
-      },
-    }, async () => {
-      const validated = await validateBookmarkTarget(
-        ctx,
-        userId,
-        args.conversation_id,
-        args.message_id,
-      );
-      if (!validated.ok) return validated.failure;
-
-      let bookmarkId = validated.value.existing?._id;
-      if (args.bookmarked && !validated.value.existing) {
-        bookmarkId = (await insertBookmarkWithRevision(ctx, {
-          user_id: userId,
-          conversation_id: validated.value.conversation._id,
-          message_id: validated.value.message._id,
-          created_at: Date.now(),
-        }, "receipt")).result;
-      } else if (!args.bookmarked && validated.value.existing) {
-        await deleteBookmarkWithRevision(ctx, validated.value.existing, "receipt");
-        bookmarkId = undefined;
-      }
-      return {
-        status: "acknowledged" as const,
-        result: {
-          conversationId: validated.value.conversation._id,
-          messageId: validated.value.message._id,
+    return runLocalCommand(
+      ctx,
+      {
+        principalId: userId,
+        commandId: args.command_id,
+        commandName: "bookmarks.set/v2",
+        arguments: {
+          conversationId: args.conversation_id,
+          messageId: args.message_id,
           bookmarked: args.bookmarked,
-          ...(bookmarkId ? { bookmarkId } : {}),
         },
-        // Positive coverage is required even when desired state already held.
-        coverageViews: [bookmarksCoverageTarget(userId)],
-      };
-    });
+      },
+      async () => {
+        const validated = await validateBookmarkTarget(
+          ctx,
+          userId,
+          args.conversation_id,
+          args.message_id,
+        );
+        if (!validated.ok) return validated.failure;
+
+        let bookmarkId = validated.value.existing?._id;
+        if (args.bookmarked && !validated.value.existing) {
+          bookmarkId = (
+            await insertBookmarkWithRevision(
+              ctx,
+              {
+                user_id: userId,
+                conversation_id: validated.value.conversation._id,
+                message_id: validated.value.message._id,
+                created_at: Date.now(),
+              },
+              "receipt",
+            )
+          ).result;
+        } else if (!args.bookmarked && validated.value.existing) {
+          await deleteBookmarkWithRevision(
+            ctx,
+            validated.value.existing,
+            "receipt",
+          );
+          bookmarkId = undefined;
+        }
+        return {
+          status: "acknowledged" as const,
+          result: {
+            conversationId: validated.value.conversation._id,
+            messageId: validated.value.message._id,
+            bookmarked: args.bookmarked,
+            ...(bookmarkId ? { bookmarkId } : {}),
+          },
+          // Positive coverage is required even when desired state already held.
+          coverageViews: [bookmarksCoverageTarget(userId)],
+        };
+      },
+    );
   },
 });
 
@@ -446,7 +502,7 @@ export const listBookmarks = query({
           message_role: message.role,
           message_timestamp: message.timestamp,
         };
-      })
+      }),
     );
 
     // Newest bookmark first — the aggregate view reads as a recency stack.
@@ -460,7 +516,10 @@ export const listBookmarks = query({
 export const listBookmarksV2 = query({
   args: {},
   handler: async (ctx) => {
-    const identity = { contractId: BOOKMARKS_VIEW_CONTRACT_ID, viewKey: BOOKMARKS_VIEW_KEY };
+    const identity = {
+      contractId: BOOKMARKS_VIEW_CONTRACT_ID,
+      viewKey: BOOKMARKS_VIEW_KEY,
+    };
     const userId = await getAuthUserId(ctx);
     if (!userId) return unauthenticatedView(identity);
 
@@ -473,12 +532,18 @@ export const listBookmarksV2 = query({
     ]);
     const projected = bookmarks
       .map(projectBookmark)
-      .sort((left, right) =>
-        right.created_at - left.created_at
-        || String(left._id).localeCompare(String(right._id)));
-    return grantedView(identity, { grantKeys: [BOOKMARKS_GRANT_KEY], viewRevision }, {
-      bookmarks: projected,
-    });
+      .sort(
+        (left, right) =>
+          right.created_at - left.created_at ||
+          String(left._id).localeCompare(String(right._id)),
+      );
+    return grantedView(
+      identity,
+      { grantKeys: [BOOKMARKS_GRANT_KEY], viewRevision },
+      {
+        bookmarks: projected,
+      },
+    );
   },
 });
 
@@ -515,7 +580,7 @@ export const getConversationBookmarks = query({
     const bookmarks = await ctx.db
       .query("bookmarks")
       .withIndex("by_user_conversation", (q) =>
-        q.eq("user_id", authUserId).eq("conversation_id", args.conversation_id)
+        q.eq("user_id", authUserId).eq("conversation_id", args.conversation_id),
       )
       .collect();
 

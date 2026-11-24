@@ -14,7 +14,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { gitTry } from "../wipSnapshot.js";
 import { levelCheckout, type LevelResult } from "./level.js";
-import { briefRacedStale, clearMerges, pruneStale, type BriefDeps } from "./levelConflicts.js";
+import {
+  briefRacedStale,
+  clearMerges,
+  pruneStale,
+  type BriefDeps,
+} from "./levelConflicts.js";
 import { isAncestor } from "./replay.js";
 import { shipLockHeld, shipSpec, upstreamRef } from "./shipCheckout.js";
 
@@ -26,28 +31,48 @@ const lastFetch = new Map<string, number>();
  * Skips that pass on their own. A stuck episode outlives them (checkoutReport nextLevel): ended by each, a ship every
  * half hour would keep its writers from ever hearing, and each ship would ask them again.
  */
-export const TRANSIENT_SKIPS = { ship: "a ship is running", rebase: "a rebase or merge is in progress", unread: "HEAD or its upstream could not be read" } as const;
-export const isTransientSkip = (reason: string) => (Object.values(TRANSIENT_SKIPS) as string[]).includes(reason);
+export const TRANSIENT_SKIPS = {
+  ship: "a ship is running",
+  rebase: "a rebase or merge is in progress",
+  unread: "HEAD or its upstream could not be read",
+} as const;
+export const isTransientSkip = (reason: string) =>
+  (Object.values(TRANSIENT_SKIPS) as string[]).includes(reason);
 
 export type LevelSweepOutcome =
   | { root: string; skipped: string; gitDir?: string }
   | { root: string; gitDir: string; result: LevelResult };
 
-export async function levelOne(root: string, now = Date.now()): Promise<LevelSweepOutcome> {
+export async function levelOne(
+  root: string,
+  now = Date.now(),
+): Promise<LevelSweepOutcome> {
   if (!shipSpec(root).level) return { root, skipped: "level not enabled" };
   const gitDir = await gitTry(root, ["rev-parse", "--absolute-git-dir"]);
   if (!gitDir) return { root, skipped: "not a git checkout" };
   // A linked worktree's git dir lives under the main one's worktrees/.
-  if (path.basename(path.dirname(gitDir)) === "worktrees") return { root, skipped: "a worktree" };
+  if (path.basename(path.dirname(gitDir)) === "worktrees")
+    return { root, skipped: "a worktree" };
   if (shipLockHeld(gitDir)) return { root, skipped: TRANSIENT_SKIPS.ship };
-  if (fs.existsSync(path.join(gitDir, "rebase-merge")) || fs.existsSync(path.join(gitDir, "rebase-apply")) || fs.existsSync(path.join(gitDir, "MERGE_HEAD"))) {
+  if (
+    fs.existsSync(path.join(gitDir, "rebase-merge")) ||
+    fs.existsSync(path.join(gitDir, "rebase-apply")) ||
+    fs.existsSync(path.join(gitDir, "MERGE_HEAD"))
+  ) {
     return { root, skipped: TRANSIENT_SKIPS.rebase };
   }
   let upstream: string;
-  try { upstream = await upstreamRef(root); } catch { return { root, skipped: "no upstream" }; }
+  try {
+    upstream = await upstreamRef(root);
+  } catch {
+    return { root, skipped: "no upstream" };
+  }
   const [remote, ...rest] = upstream.split("/");
   const branch = rest.join("/");
-  if ((await gitTry(root, ["symbolic-ref", "--short", "-q", "HEAD"])) !== branch) return { root, skipped: `not on ${branch}` };
+  if (
+    (await gitTry(root, ["symbolic-ref", "--short", "-q", "HEAD"])) !== branch
+  )
+    return { root, skipped: `not on ${branch}` };
   if (now - (lastFetch.get(root) ?? 0) >= LEVEL_FETCH_MS) {
     lastFetch.set(root, now);
     await gitTry(root, ["fetch", "--quiet", remote, branch]);
@@ -60,9 +85,16 @@ export async function levelOne(root: string, now = Date.now()): Promise<LevelSwe
     // Commits pushed from elsewhere (a detached worktree, a cherry-pick) leave
     // the checkout diverged but holding nothing upstream lacks: `git cherry`
     // marks each such commit "-". Those level like any other.
-    const cherry = ((await gitTry(root, ["cherry", upstream, head])) ?? "+").split("\n").filter(Boolean);
-    if (cherry.some((l) => !l.startsWith("-"))) return { root, skipped: "holds commits upstream lacks" };
-    return { root, gitDir, result: await levelCheckout(root, upstream, { rewritten: true }) };
+    const cherry = ((await gitTry(root, ["cherry", upstream, head])) ?? "+")
+      .split("\n")
+      .filter(Boolean);
+    if (cherry.some((l) => !l.startsWith("-")))
+      return { root, skipped: "holds commits upstream lacks" };
+    return {
+      root,
+      gitDir,
+      result: await levelCheckout(root, upstream, { rewritten: true }),
+    };
   }
   return { root, gitDir, result: await levelCheckout(root, upstream) };
 }
@@ -74,14 +106,21 @@ export async function levelOne(root: string, now = Date.now()): Promise<LevelSwe
  * is told later, by the checkout report (checkoutReport.ts). Returns the log
  * line, or null when there is none.
  */
-export async function sweepOne(root: string, deps: BriefDeps, outcomes?: LevelSweepOutcome[]): Promise<string | null> {
+export async function sweepOne(
+  root: string,
+  deps: BriefDeps,
+  outcomes?: LevelSweepOutcome[],
+): Promise<string | null> {
   const o = await levelOne(root, deps.now);
   outcomes?.push(o);
   if (o.gitDir) pruneStale(o.gitDir);
-  if (o.gitDir && ("skipped" in o ? o.skipped === "level" : o.result.ok)) clearMerges(o.gitDir);
+  if (o.gitDir && ("skipped" in o ? o.skipped === "level" : o.result.ok))
+    clearMerges(o.gitDir);
   const line = describeLevel(o);
   if (!line || "skipped" in o) return line;
-  const briefs = await briefRacedStale(root, o.gitDir, o.result, deps).catch((e) => `briefing failed: ${(e as Error)?.message ?? e}`);
+  const briefs = await briefRacedStale(root, o.gitDir, o.result, deps).catch(
+    (e) => `briefing failed: ${(e as Error)?.message ?? e}`,
+  );
   return briefs ? `${line}; ${briefs}` : line;
 }
 
@@ -89,6 +128,7 @@ export function describeLevel(o: LevelSweepOutcome): string | null {
   if ("skipped" in o) return null;
   const r = o.result;
   const name = path.basename(o.root);
-  if (!r.ok) return `${name}: not levelled to ${r.to.slice(0, 9)}: ${r.reason}${r.conflicts.length ? ` (${r.conflicts.slice(0, 5).join(", ")})` : ""}`;
+  if (!r.ok)
+    return `${name}: not levelled to ${r.to.slice(0, 9)}: ${r.reason}${r.conflicts.length ? ` (${r.conflicts.slice(0, 5).join(", ")})` : ""}`;
   return `${name}: levelled ${r.from.slice(0, 9)} -> ${r.to.slice(0, 9)} (${r.written.length} written, ${r.deleted.length} deleted, ${r.merged.length} merged, ${r.absorbed.length + r.kept.length} already here)`;
 }

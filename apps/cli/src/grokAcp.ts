@@ -38,7 +38,10 @@ export interface GrokAcpOptions {
    * select; the default picks the first `allow_*` option (bypassPermissions
    * parity, the mode every daemon-managed grok pane already runs in).
    */
-  onPermission?: (sessionId: string, request: GrokPermissionRequest) => Promise<string | null>;
+  onPermission?: (
+    sessionId: string,
+    request: GrokPermissionRequest,
+  ) => Promise<string | null>;
 }
 
 /** grok's session `_meta` options (its docs: agent mode, "Session _meta options"). */
@@ -54,7 +57,12 @@ export interface GrokSessionMeta {
 export interface GrokPermissionOption {
   optionId: string;
   name?: string;
-  kind?: "allow_once" | "allow_always" | "reject_once" | "reject_always" | string;
+  kind?:
+    | "allow_once"
+    | "allow_always"
+    | "reject_once"
+    | "reject_always"
+    | string;
 }
 
 export interface GrokPermissionRequest {
@@ -88,7 +96,10 @@ interface PendingRequest {
 export declare interface GrokAcpClient {
   on(event: "ready", listener: () => void): this;
   on(event: "update", listener: (update: GrokSessionUpdate) => void): this;
-  on(event: "permission", listener: (request: GrokPermissionRequest) => void): this;
+  on(
+    event: "permission",
+    listener: (request: GrokPermissionRequest) => void,
+  ): this;
   on(event: "exit", listener: (code: number | null) => void): this;
   on(event: "error", listener: (err: Error) => void): this;
   on(event: "binaryNotFound", listener: (binary: string) => void): this;
@@ -129,7 +140,12 @@ export class GrokAcpClient extends EventEmitter {
   }
 
   get running(): boolean {
-    return this.initialized && !this.stopped && !!this.process && this.process.exitCode === null;
+    return (
+      this.initialized &&
+      !this.stopped &&
+      !!this.process &&
+      this.process.exitCode === null
+    );
   }
 
   get binaryMissing(): boolean {
@@ -145,13 +161,18 @@ export class GrokAcpClient extends EventEmitter {
     this.log(`[grok-acp] spawning: ${this.grokBinary} ${args.join(" ")}`);
     let child: ChildProcess;
     try {
-      child = this.spawnFn(argv[0], argv.slice(1), { stdio: ["pipe", "pipe", "pipe"], cwd: this.cwd, env: (this.env ?? process.env) as NodeJS.ProcessEnv });
+      child = this.spawnFn(argv[0], argv.slice(1), {
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: this.cwd,
+        env: (this.env ?? process.env) as NodeJS.ProcessEnv,
+      });
     } catch (err) {
       this.markSpawnFailure(err);
       throw err instanceof Error ? err : new Error(String(err));
     }
     this.process = child;
-    if (!child.stdout || !child.stdin) throw new Error("grok agent stdio: no stdio handles");
+    if (!child.stdout || !child.stdin)
+      throw new Error("grok agent stdio: no stdio handles");
     this.rl = readline.createInterface({ input: child.stdout });
     this.rl.on("line", (line) => this.handleLine(line));
     child.stderr?.on("data", (data: Buffer) => {
@@ -178,7 +199,10 @@ export class GrokAcpClient extends EventEmitter {
     const resp = (await this.sendRequest("initialize", {
       protocolVersion: GROK_ACP_PROTOCOL_VERSION,
       clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
-    })) as { agentCapabilities?: Record<string, unknown>; _meta?: Record<string, unknown> };
+    })) as {
+      agentCapabilities?: Record<string, unknown>;
+      _meta?: Record<string, unknown>;
+    };
     this.agentCapabilities = resp?.agentCapabilities ?? {};
     this.agentMeta = resp?._meta ?? {};
     this.initialized = true;
@@ -200,37 +224,79 @@ export class GrokAcpClient extends EventEmitter {
    * `meta` is grok's session `_meta` (rules, yoloMode, autoMode): rules set here
    * stay with the session across every later load.
    */
-  async sessionNew(params: { cwd: string; mcpServers?: unknown[]; meta?: GrokSessionMeta }): Promise<{ sessionId: string }> {
-    return (await this.sendRequest("session/new", { cwd: params.cwd, mcpServers: params.mcpServers ?? [], ...(params.meta ? { _meta: params.meta } : {}) })) as { sessionId: string };
+  async sessionNew(params: {
+    cwd: string;
+    mcpServers?: unknown[];
+    meta?: GrokSessionMeta;
+  }): Promise<{ sessionId: string }> {
+    return (await this.sendRequest("session/new", {
+      cwd: params.cwd,
+      mcpServers: params.mcpServers ?? [],
+      ...(params.meta ? { _meta: params.meta } : {}),
+    })) as { sessionId: string };
   }
 
   /**
    * Load an existing session (any session grok wrote, TUI or ACP). Its history
    * arrives as `update` events with `isReplay: true` before this resolves.
    */
-  async sessionLoad(params: { sessionId: string; cwd: string; mcpServers?: unknown[]; meta?: Pick<GrokSessionMeta, "yoloMode" | "autoMode"> }): Promise<void> {
-    await this.sendRequest("session/load", { sessionId: params.sessionId, cwd: params.cwd, mcpServers: params.mcpServers ?? [], ...(params.meta ? { _meta: params.meta } : {}) }, GROK_ACP_PROMPT_TIMEOUT_MS);
+  async sessionLoad(params: {
+    sessionId: string;
+    cwd: string;
+    mcpServers?: unknown[];
+    meta?: Pick<GrokSessionMeta, "yoloMode" | "autoMode">;
+  }): Promise<void> {
+    await this.sendRequest(
+      "session/load",
+      {
+        sessionId: params.sessionId,
+        cwd: params.cwd,
+        mcpServers: params.mcpServers ?? [],
+        ...(params.meta ? { _meta: params.meta } : {}),
+      },
+      GROK_ACP_PROMPT_TIMEOUT_MS,
+    );
   }
 
   /** Change a live session option (`model`, `reasoning_effort`). */
-  async setConfigOption(sessionId: string, configId: string, value: string): Promise<void> {
-    await this.sendRequest("session/set_config_option", { sessionId, configId, value: { value } });
+  async setConfigOption(
+    sessionId: string,
+    configId: string,
+    value: string,
+  ): Promise<void> {
+    await this.sendRequest("session/set_config_option", {
+      sessionId,
+      configId,
+      value: { value },
+    });
   }
 
   /**
    * One user turn; resolves when grok ends the turn. Streams `update` events
    * meanwhile. A prompt sent while a turn runs waits and runs as the next turn.
    */
-  async prompt(params: { sessionId: string; text: string; images?: Array<{ mediaType: string; data: string }> }): Promise<GrokPromptResult> {
+  async prompt(params: {
+    sessionId: string;
+    text: string;
+    images?: Array<{ mediaType: string; data: string }>;
+  }): Promise<GrokPromptResult> {
     this.turnText.set(params.sessionId, "");
     const blocks = [
-      ...(params.images ?? []).map((img) => ({ type: "image", mimeType: img.mediaType, data: img.data })),
+      ...(params.images ?? []).map((img) => ({
+        type: "image",
+        mimeType: img.mediaType,
+        data: img.data,
+      })),
       ...(params.text ? [{ type: "text", text: params.text }] : []),
     ];
-    const resp = (await this.sendRequest("session/prompt", {
-      sessionId: params.sessionId,
-      prompt: blocks,
-    }, GROK_ACP_PROMPT_TIMEOUT_MS)) as { stopReason?: string };
+    const resp = (await this.sendRequest(
+      "session/prompt",
+      {
+        sessionId: params.sessionId,
+        prompt: blocks,
+      },
+      GROK_ACP_PROMPT_TIMEOUT_MS,
+    )) as { stopReason?: string };
     const text = this.turnText.get(params.sessionId) ?? "";
     this.turnText.delete(params.sessionId);
     return { stopReason: resp?.stopReason ?? "unknown", text };
@@ -238,7 +304,11 @@ export class GrokAcpClient extends EventEmitter {
 
   /** Interrupt the running turn; the pending `prompt` then resolves with `cancelled`. */
   cancel(sessionId: string): void {
-    this.writeMessage({ jsonrpc: "2.0", method: "session/cancel", params: { sessionId } });
+    this.writeMessage({
+      jsonrpc: "2.0",
+      method: "session/cancel",
+      params: { sessionId },
+    });
   }
 
   // ── JSON-RPC plumbing ───────────────────────────────────────────────────────
@@ -253,7 +323,11 @@ export class GrokAcpClient extends EventEmitter {
     }
   }
 
-  private sendRequest(method: string, params: object, timeoutMs = GROK_ACP_REQUEST_TIMEOUT_MS): Promise<unknown> {
+  private sendRequest(
+    method: string,
+    params: object,
+    timeoutMs = GROK_ACP_REQUEST_TIMEOUT_MS,
+  ): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (!this.process?.stdin) {
         reject(new Error("grok agent not running"));
@@ -262,7 +336,9 @@ export class GrokAcpClient extends EventEmitter {
       const id = this.nextId++;
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id);
-        reject(new Error(`grok agent ${method} timed out after ${timeoutMs}ms`));
+        reject(
+          new Error(`grok agent ${method} timed out after ${timeoutMs}ms`),
+        );
       }, timeoutMs);
       this.pendingRequests.set(id, { resolve, reject, timer });
       this.writeMessage({ jsonrpc: "2.0", id, method, params });
@@ -293,68 +369,119 @@ export class GrokAcpClient extends EventEmitter {
       clearTimeout(pending.timer);
       if (msg.error) {
         const err = msg.error as { message?: string; code?: number };
-        pending.reject(new Error(`grok agent error ${err.code ?? ""}: ${err.message ?? "unknown"}`.trim()));
+        pending.reject(
+          new Error(
+            `grok agent error ${err.code ?? ""}: ${err.message ?? "unknown"}`.trim(),
+          ),
+        );
       } else {
         pending.resolve(msg.result);
       }
       return;
     }
     if (method !== undefined && id !== undefined) {
-      void this.handleServerRequest(id, method, (msg.params ?? {}) as Record<string, unknown>);
+      void this.handleServerRequest(
+        id,
+        method,
+        (msg.params ?? {}) as Record<string, unknown>,
+      );
       return;
     }
-    if (method !== undefined) this.handleNotification(method, (msg.params ?? {}) as Record<string, unknown>);
+    if (method !== undefined)
+      this.handleNotification(
+        method,
+        (msg.params ?? {}) as Record<string, unknown>,
+      );
   }
 
-  private handleNotification(method: string, params: Record<string, unknown>): void {
-    if (method !== "session/update" && method !== "_x.ai/session/update") return;
+  private handleNotification(
+    method: string,
+    params: Record<string, unknown>,
+  ): void {
+    if (method !== "session/update" && method !== "_x.ai/session/update")
+      return;
     const sessionId = String(params.sessionId ?? "");
     const update = (params.update ?? {}) as Record<string, unknown>;
     const meta = (params._meta ?? {}) as Record<string, unknown>;
     const sessionUpdate = String(update.sessionUpdate ?? "");
     const isReplay = meta.isReplay === true;
     if (!isReplay && sessionUpdate === "agent_message_chunk") {
-      const content = update.content as { type?: string; text?: string } | undefined;
-      if (content?.type === "text" && typeof content.text === "string" && this.turnText.has(sessionId)) {
-        this.turnText.set(sessionId, (this.turnText.get(sessionId) ?? "") + content.text);
+      const content = update.content as
+        | { type?: string; text?: string }
+        | undefined;
+      if (
+        content?.type === "text" &&
+        typeof content.text === "string" &&
+        this.turnText.has(sessionId)
+      ) {
+        this.turnText.set(
+          sessionId,
+          (this.turnText.get(sessionId) ?? "") + content.text,
+        );
       }
     }
-    this.emit("update", { sessionId, sessionUpdate, isReplay, update } satisfies GrokSessionUpdate);
+    this.emit("update", {
+      sessionId,
+      sessionUpdate,
+      isReplay,
+      update,
+    } satisfies GrokSessionUpdate);
   }
 
-  private async handleServerRequest(id: number | string, method: string, params: Record<string, unknown>): Promise<void> {
+  private async handleServerRequest(
+    id: number | string,
+    method: string,
+    params: Record<string, unknown>,
+  ): Promise<void> {
     if (method === "session/request_permission") {
       const request: GrokPermissionRequest = {
         sessionId: String(params.sessionId ?? ""),
         toolCall: params.toolCall as Record<string, unknown> | undefined,
-        options: Array.isArray(params.options) ? (params.options as GrokPermissionOption[]) : [],
+        options: Array.isArray(params.options)
+          ? (params.options as GrokPermissionOption[])
+          : [],
       };
       this.emit("permission", request);
       let optionId: string | null = null;
       try {
-        optionId = this.onPermission ? await this.onPermission(request.sessionId, request) : null;
+        optionId = this.onPermission
+          ? await this.onPermission(request.sessionId, request)
+          : null;
       } catch (err) {
-        this.log(`[grok-acp] permission handler failed: ${err instanceof Error ? err.message : String(err)}`);
+        this.log(
+          `[grok-acp] permission handler failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
       // A handler that answers nothing (its card was aborted) cancels the call; only no handler at all auto-allows.
-      if (!optionId && !this.onPermission) optionId = defaultPermissionChoice(request.options);
+      if (!optionId && !this.onPermission)
+        optionId = defaultPermissionChoice(request.options);
       this.writeMessage({
         jsonrpc: "2.0",
         id,
-        result: optionId ? { outcome: { outcome: "selected", optionId } } : { outcome: { outcome: "cancelled" } },
+        result: optionId
+          ? { outcome: { outcome: "selected", optionId } }
+          : { outcome: { outcome: "cancelled" } },
       });
       return;
     }
     // fs/* and terminal/* are declined at initialize (no capabilities), so any
     // other request is unexpected — answer with a method-not-found error so
     // grok does not hang waiting.
-    this.writeMessage({ jsonrpc: "2.0", id, error: { code: -32601, message: `unsupported client method ${method}` } });
+    this.writeMessage({
+      jsonrpc: "2.0",
+      id,
+      error: { code: -32601, message: `unsupported client method ${method}` },
+    });
   }
 }
 
 /** bypassPermissions parity: the first allow option, preferring a one-off allow. */
-export function defaultPermissionChoice(options: GrokPermissionOption[]): string | null {
+export function defaultPermissionChoice(
+  options: GrokPermissionOption[],
+): string | null {
   const once = options.find((o) => o.kind === "allow_once");
-  const any = options.find((o) => typeof o.kind === "string" && o.kind.startsWith("allow"));
+  const any = options.find(
+    (o) => typeof o.kind === "string" && o.kind.startsWith("allow"),
+  );
   return (once ?? any ?? options[0])?.optionId ?? null;
 }

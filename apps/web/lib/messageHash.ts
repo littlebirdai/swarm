@@ -9,11 +9,14 @@ export function formatMessageHash(messageId: string, block?: number): string {
 
 /** Parses `#msg-<id>` or `#msg-<id>.p<n>` (also without the leading `#`).
  *  `block` is the zero-based quote unit index. */
-export function parseMessageHash(hash: string): { messageId: string; block?: number } | null {
+export function parseMessageHash(
+  hash: string,
+): { messageId: string; block?: number } | null {
   const h = hash.startsWith("#") ? hash.slice(1) : hash;
   if (!h.startsWith("msg-")) return null;
   const rest = h.slice(4);
   const m = rest.match(/^(.+)\.p(\d+)$/);
-  if (m && Number(m[2]) >= 1) return { messageId: m[1], block: Number(m[2]) - 1 };
+  if (m && Number(m[2]) >= 1)
+    return { messageId: m[1], block: Number(m[2]) - 1 };
   return rest ? { messageId: rest } : null;
 }

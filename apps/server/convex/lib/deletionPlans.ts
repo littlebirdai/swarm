@@ -6,9 +6,15 @@
 // The coverage map (which tables hold a conversation's or a team's content,
 // and which are left out and why) is checked against the schema by
 // regulatedDeletion.test.ts, so a new table that holds content cannot slip past.
-import { CONVERSATION_ROW_TABLES, conversationRowEffects } from "./conversationRows";
+import {
+  CONVERSATION_ROW_TABLES,
+  conversationRowEffects,
+} from "./conversationRows";
 import { addCount, deleteStored, type PurgeNode } from "./purgeTree";
-import { purgeCallRecordings, deleteCallFrameShares } from "./callRecordingRuns";
+import {
+  purgeCallRecordings,
+  deleteCallFrameShares,
+} from "./callRecordingRuns";
 import { purgeThread } from "../threadReads";
 import { killConversation } from "../conversations";
 
@@ -16,7 +22,12 @@ const idOf = (row: any) => row._id;
 const workspaceOf = (team: any) => `team:${team._id}`;
 
 /** A node keyed by the parent's id. */
-function under(table: string, index: string, field: string, more: Partial<PurgeNode> = {}): PurgeNode {
+function under(
+  table: string,
+  index: string,
+  field: string,
+  more: Partial<PurgeNode> = {},
+): PurgeNode {
   return { table, index, field, value: idOf, ...more };
 }
 
@@ -24,8 +35,14 @@ function under(table: string, index: string, field: string, more: Partial<PurgeN
 // page of them is read small and each costs more of a pass's budget.
 const HEAVY = { page: 25, weight: 10 } as const;
 const HEAVY_TABLES = new Set([
-  "messages", "message_thinking", "message_tool_inputs", "file_change_bodies",
-  "conversation_git_diffs", "conversation_context", "tree_snapshots", "transcript_segments",
+  "messages",
+  "message_thinking",
+  "message_tool_inputs",
+  "file_change_bodies",
+  "conversation_git_diffs",
+  "conversation_context",
+  "tree_snapshots",
+  "transcript_segments",
 ]);
 
 let built: {
@@ -49,7 +66,8 @@ function plans() {
     }),
     // Every version's bundle files, the current one's included.
     under("artifact_assets", "by_artifact_version", "artifact_id", {
-      before: async (ctx, row, counts) => deleteStored(ctx, counts, row.storage_id),
+      before: async (ctx, row, counts) =>
+        deleteStored(ctx, counts, row.storage_id),
     }),
     under("artifact_comments", "by_artifact", "artifact_id"),
     under("artifact_stats", "by_artifact", "artifact_id"),
@@ -63,13 +81,23 @@ function plans() {
   const artifactBase = {
     children: artifactRows,
     before: async (ctx: any, row: any, counts: any) => {
-      addCount(counts, "thread_reads", await purgeThread(ctx, "page", String(row._id)));
+      addCount(
+        counts,
+        "thread_reads",
+        await purgeThread(ctx, "page", String(row._id)),
+      );
       await deleteStored(ctx, counts, row.storage_id);
       await deleteStored(ctx, counts, row.source_storage_id);
       await deleteStored(ctx, counts, row.thumb_storage_id);
     },
   };
-  const artifact: PurgeNode = { table: "artifacts", index: "by_slug", field: "slug", value: (p) => p.slug, ...artifactBase };
+  const artifact: PurgeNode = {
+    table: "artifacts",
+    index: "by_slug",
+    field: "slug",
+    value: (p) => p.slug,
+    ...artifactBase,
+  };
 
   // ── A conversation ──────────────────────────────────────────────────────
   const message: Partial<PurgeNode> = {
@@ -80,7 +108,8 @@ function plans() {
       under("user_sends", "by_message", "message_id"),
     ],
     before: async (ctx, row, counts) => {
-      for (const f of [...(row.images ?? []), ...(row.files ?? [])]) await deleteStored(ctx, counts, f.storage_id);
+      for (const f of [...(row.images ?? []), ...(row.files ?? [])])
+        await deleteStored(ctx, counts, f.storage_id);
     },
   };
   const conversationRows: PurgeNode[] = [
@@ -92,7 +121,8 @@ function plans() {
           await conversationRowEffects(ctx, table, row);
           if (table === "messages") await message.before!(ctx, row, counts);
         },
-      })),
+      }),
+    ),
     // Beyond the ordinary session purge: the content a regulated delete
     // must also reach.
     under("tree_snapshots", "by_conversation_taken", "conversation_id", HEAVY),
@@ -111,7 +141,13 @@ function plans() {
     under("chat_session_rooms", "by_conversation_channel", "conversation_id"),
     under("authority_events", "by_conversation_created", "conversation_id"),
     // Pages published from the session carry its content.
-    { ...artifactBase, table: "artifacts", index: "by_session_conversation", field: "session_conversation_id", value: idOf },
+    {
+      ...artifactBase,
+      table: "artifacts",
+      index: "by_session_conversation",
+      field: "session_conversation_id",
+      value: idOf,
+    },
   ];
   // A conversation row itself, when a team's delete reaches it: the agent is
   // torn down and a tombstone keeps the owner's daemon from uploading the
@@ -120,7 +156,12 @@ function plans() {
     children: conversationRows,
     before: async (ctx: any, row: any) => {
       if (row.status === "active") {
-        await killConversation(ctx, row.user_id, { conversation_id: row._id, mark_completed: true }, { cause: "delete" });
+        await killConversation(
+          ctx,
+          row.user_id,
+          { conversation_id: row._id, mark_completed: true },
+          { cause: "delete" },
+        );
       }
       if (row.session_id) {
         await ctx.db.insert("deleted_sessions", {
@@ -148,37 +189,84 @@ function plans() {
       const recordings = await purgeCallRecordings(ctx, row._id);
       if (recordings === null) return "wait" as const;
       addCount(counts, "call_recordings", recordings);
-      addCount(counts, "call_frame_shares", await deleteCallFrameShares(ctx, row._id));
+      addCount(
+        counts,
+        "call_frame_shares",
+        await deleteCallFrameShares(ctx, row._id),
+      );
       await deleteStored(ctx, counts, row.recording_storage_id);
     },
   };
 
   // ── A whole team, in order: sessions, calls, work, then everything keyed
   // by the team's routing id or its workspace, and its sync log last ──────
-  const byTeam = (table: string, index: string, more: Partial<PurgeNode> = {}) => under(table, index, "team_id", more);
-  const byWorkspace = (table: string, index: string, more: Partial<PurgeNode> = {}): PurgeNode =>
-    ({ table, index, field: "workspace", value: workspaceOf, ...more });
-  const byScope = (table: string, index: string): PurgeNode => ({ table, index, field: "scope_key", value: workspaceOf });
+  const byTeam = (
+    table: string,
+    index: string,
+    more: Partial<PurgeNode> = {},
+  ) => under(table, index, "team_id", more);
+  const byWorkspace = (
+    table: string,
+    index: string,
+    more: Partial<PurgeNode> = {},
+  ): PurgeNode => ({
+    table,
+    index,
+    field: "workspace",
+    value: workspaceOf,
+    ...more,
+  });
+  const byScope = (table: string, index: string): PurgeNode => ({
+    table,
+    index,
+    field: "scope_key",
+    value: workspaceOf,
+  });
 
   const taskRows = [
     under("task_comments", "by_task_id", "task_id"),
     under("task_history", "by_task_id", "task_id"),
-    { ...artifactBase, table: "artifacts", index: "by_task", field: "task_id", value: idOf },
+    {
+      ...artifactBase,
+      table: "artifacts",
+      index: "by_task",
+      field: "task_id",
+      value: idOf,
+    },
   ];
   const planRows = [
     under("progress_events", "by_plan_id", "plan_id"),
     under("orchestration_events", "by_plan_id", "plan_id"),
-    { ...artifactBase, table: "artifacts", index: "by_plan", field: "plan_id", value: idOf },
+    {
+      ...artifactBase,
+      table: "artifacts",
+      index: "by_plan",
+      field: "plan_id",
+      value: idOf,
+    },
   ];
   const docRows = [
-    { table: "doc_snapshots", index: "id_version", field: "id", value: (d: any) => String(d._id), ...HEAVY },
-    { table: "doc_deltas", index: "id_version", field: "id", value: (d: any) => String(d._id) },
+    {
+      table: "doc_snapshots",
+      index: "id_version",
+      field: "id",
+      value: (d: any) => String(d._id),
+      ...HEAVY,
+    },
+    {
+      table: "doc_deltas",
+      index: "id_version",
+      field: "id",
+      value: (d: any) => String(d._id),
+    },
     under("doc_presence", "by_doc", "doc_id"),
     under("data_queries", "by_doc_qkey", "doc_id"),
     under("live_search", "by_doc", "doc_id"),
   ];
   const channelRows = [
-    under("chat_messages", "by_channel_created", "channel_id", { children: [under("chat_reactions", "by_message", "message_id")] }),
+    under("chat_messages", "by_channel_created", "channel_id", {
+      children: [under("chat_reactions", "by_message", "message_id")],
+    }),
     under("chat_reactions", "by_channel", "channel_id"),
     under("chat_channel_members", "by_channel", "channel_id"),
     under("chat_typing", "by_channel_updated", "channel_id"),
@@ -212,10 +300,22 @@ function plans() {
     byWorkspace("projects", "by_workspace"),
     byTeam("initiatives", "by_team_id"),
     byWorkspace("initiatives", "by_workspace"),
-    byWorkspace("env_attempts", "by_workspace", { children: [under("env_attempt_cases", "by_attempt", "attempt_id")] }),
+    byWorkspace("env_attempts", "by_workspace", {
+      children: [under("env_attempt_cases", "by_attempt", "attempt_id")],
+    }),
     byWorkspace("env_links", "by_workspace_env"),
-    byTeam("workflows", "by_team_id", { children: [under("workflow_versions", "by_workflow_at", "workflow_id"), under("workflow_version_graphs", "by_workflow_key", "workflow_id")] }),
-    byWorkspace("workflows", "by_workspace", { children: [under("workflow_versions", "by_workflow_at", "workflow_id"), under("workflow_version_graphs", "by_workflow_key", "workflow_id")] }),
+    byTeam("workflows", "by_team_id", {
+      children: [
+        under("workflow_versions", "by_workflow_at", "workflow_id"),
+        under("workflow_version_graphs", "by_workflow_key", "workflow_id"),
+      ],
+    }),
+    byWorkspace("workflows", "by_workspace", {
+      children: [
+        under("workflow_versions", "by_workflow_at", "workflow_id"),
+        under("workflow_version_graphs", "by_workflow_key", "workflow_id"),
+      ],
+    }),
     byWorkspace("workflow_runs", "by_workspace_updated"),
     byTeam("decisions", "by_team_id"),
     byWorkspace("decisions", "by_workspace"),
@@ -223,7 +323,8 @@ function plans() {
     byWorkspace("patterns", "by_workspace"),
     byTeam("session_insights", "by_team_generated_at"),
     byTeam("session_decisions", "by_team_status_created", {
-      before: async (ctx, row) => conversationRowEffects(ctx, "session_decisions", row),
+      before: async (ctx, row) =>
+        conversationRowEffects(ctx, "session_decisions", row),
     }),
     byTeam("decision_stacks", "by_team"),
     byTeam("commits", "by_team_timestamp"),
@@ -249,8 +350,12 @@ function plans() {
     byWorkspace("agent_chains", "by_workspace"),
     byTeam("issue_sync_sources", "by_team_id"),
     byWorkspace("issue_sync_sources", "by_workspace"),
-    byTeam("org_roles", "by_team", { children: [under("org_role_history", "by_role", "role_id")] }),
-    byTeam("org_proposals", "by_team", { children: [under("org_proposal_changes", "by_proposal", "proposal_id")] }),
+    byTeam("org_roles", "by_team", {
+      children: [under("org_role_history", "by_role", "role_id")],
+    }),
+    byTeam("org_proposals", "by_team", {
+      children: [under("org_proposal_changes", "by_proposal", "proposal_id")],
+    }),
     byWorkspace("org_change_batches", "by_workspace"),
     byWorkspace("org_changes", "by_workspace_seq"),
     byWorkspace("org_templates", "by_workspace"),
@@ -271,14 +376,24 @@ function plans() {
     byWorkspace("event_sources", "by_workspace_name"),
     byWorkspace("event_groups", "by_workspace_last_seen"),
     byWorkspace("event_samples", "by_workspace_at"),
-    byWorkspace("replays", "by_workspace_started", { children: [under("replay_timelines", "by_replay", "replay_id")] }),
+    byWorkspace("replays", "by_workspace_started", {
+      children: [under("replay_timelines", "by_replay", "replay_id")],
+    }),
     byWorkspace("replay_tallies", "by_workspace"),
-    byWorkspace("metric_watches", "by_workspace", { children: [under("metric_points", "by_watch_at", "watch_id")] }),
-    byWorkspace("env_attempts", "by_workspace", { children: [under("env_attempt_cases", "by_attempt", "attempt_id")] }),
+    byWorkspace("metric_watches", "by_workspace", {
+      children: [under("metric_points", "by_watch_at", "watch_id")],
+    }),
+    byWorkspace("env_attempts", "by_workspace", {
+      children: [under("env_attempt_cases", "by_attempt", "attempt_id")],
+    }),
     byWorkspace("env_links", "by_workspace_env"),
-    byWorkspace("env_heldout", "by_workspace_env", { children: [under("env_heldout_cases", "by_set", "set_id")] }),
+    byWorkspace("env_heldout", "by_workspace_env", {
+      children: [under("env_heldout_cases", "by_set", "set_id")],
+    }),
     byWorkspace("env_heldout_reads", "by_workspace_env"),
-    byWorkspace("moments", "by_workspace_created", { children: [under("judge_runs", "by_moment", "moment_id")] }),
+    byWorkspace("moments", "by_workspace_created", {
+      children: [under("judge_runs", "by_moment", "moment_id")],
+    }),
     byWorkspace("judge_runs", "by_workspace_at"),
     byWorkspace("problem_merge_checks", "by_workspace"),
     byWorkspace("team_budgets", "by_workspace"),
@@ -294,7 +409,9 @@ function plans() {
     byWorkspace("main_reds", "by_scope_status_created"),
     byWorkspace("trial_cards", "by_workspace_created"),
     byWorkspace("line_labels", "by_workspace_at"),
-    byWorkspace("team_kit_items", "by_workspace_updated", { children: [under("team_kit_versions", "by_item_version", "item_id")] }),
+    byWorkspace("team_kit_items", "by_workspace_updated", {
+      children: [under("team_kit_versions", "by_item_version", "item_id")],
+    }),
     // The team's own configuration and the people and machines tied to it.
     byTeam("team_invites", "by_team_email"),
     byTeam("team_join_requests", "by_team_status"),
@@ -302,7 +419,9 @@ function plans() {
     byTeam("directory_team_mappings", "by_team_id"),
     byTeam("call_members", "by_team"),
     byTeam("device_shares", "by_team"),
-    byTeam("team_hosts", "by_team", { children: [under("team_host_members", "by_host", "host_id")] }),
+    byTeam("team_hosts", "by_team", {
+      children: [under("team_host_members", "by_host", "host_id")],
+    }),
     byTeam("account_shares", "by_team"),
     byTeam("team_enrollment_tokens", "by_team"),
     byTeam("device_enrollments", "by_team"),
@@ -331,7 +450,13 @@ export const conversationRowPlan = () => plans().conversationRows;
 /** The steps of a whole team's delete, run in order against the team row. */
 export const teamDeletionSteps = () => plans().teamSteps;
 /** A call record, with `table` etc. filled by the caller's lookup. */
-export const callPlan = (): PurgeNode => ({ table: "transcripts", index: "by_team_started", field: "team_id", value: (p) => p._id, ...plans().call });
+export const callPlan = (): PurgeNode => ({
+  table: "transcripts",
+  index: "by_team_started",
+  field: "team_id",
+  value: (p) => p._id,
+  ...plans().call,
+});
 
 /**
  * Tables that carry a conversation, team, workspace or call key but that no
@@ -341,36 +466,44 @@ export const callPlan = (): PurgeNode => ({ table: "transcripts", index: "by_tea
 export const LEFT_OUT: Record<string, string> = {
   // Reached through a plan's `before` work rather than a node of their own.
   call_recordings: "deleted by purgeCallRecordings in the call plan",
-  call_frame_shares: "deleted by purgeCallRecordings and deleteCallFrameShares in the call plan",
+  call_frame_shares:
+    "deleted by purgeCallRecordings and deleteCallFrameShares in the call plan",
   // Kept on purpose.
   data_deletions: "the record of each delete; it must outlive the data",
   access_log: "the audit log; it must outlive the data",
-  deleted_sessions: "tombstones that stop a daemon re-uploading a deleted transcript",
-  users: "accounts belong to people, not to the team; retireTeam repoints their team",
+  deleted_sessions:
+    "tombstones that stop a daemon re-uploading a deleted transcript",
+  users:
+    "accounts belong to people, not to the team; retireTeam repoints their team",
   team_subscriptions: "billing records",
   user_send_daily: "per-person counts, no content",
   user_usage_daily: "per-person counts, no content",
   user_activity_daily: "per-person counts, no content",
   project_task_counts: "counts, no content",
-  pending_message_sweep_retries: "retry markers of the stuck-message sweep: ids, a reason and a time, no content; the sweep deletes each once its message is gone",
-  ci_workflows: "which workflow files of a repository are CI, read from GitHub: paths, no content",
+  pending_message_sweep_retries:
+    "retry markers of the stuck-message sweep: ids, a reason and a time, no content; the sweep deletes each once its message is gone",
+  ci_workflows:
+    "which workflow files of a repository are CI, read from GitHub: paths, no content",
   // Per-person pointers, indexed by person first: no index reaches them from the conversation.
   inbox_hides: "per-person pointer, no conversation-leading index",
   bookmarks: "per-person pointer, no conversation-leading index",
   bucket_assignments: "per-person pointer, no conversation-leading index",
   session_reads: "per-person pointer, no conversation-leading index",
   view_states: "per-person pointer, no conversation-leading index",
-  notifications: "indexed by recipient first; may hold a preview line (open follow-up: needs a conversation index)",
+  notifications:
+    "indexed by recipient first; may hold a preview line (open follow-up: needs a conversation index)",
   chat_reads: "per-person read marker",
   decision_grants: "per-person grant",
   // No index leads on the key, so reaching them means a table scan (open follow-up: add an index).
-  public_conversations: "no conversation index; holds a preview of a directory-published session (open follow-up: index it, or gate publishToDirectory for regulated teams)",
+  public_conversations:
+    "no conversation index; holds a preview of a directory-published session (open follow-up: index it, or gate publishToDirectory for regulated teams)",
   project_updates: "no conversation index",
   project_update_comments: "no conversation index",
   wallet_ledger: "no conversation index (hosted assistant spend)",
   move_rehearsals: "no conversation index (short-lived move scratch)",
   app_calls: "no team or workspace index",
-  meeting_bots: "no team or call index; holds the meeting link and bot status, no transcript text (open follow-up: index by transcript_id)",
+  meeting_bots:
+    "no team or call index; holds the meeting link and bot status, no transcript text (open follow-up: index by transcript_id)",
   judges: "no team or workspace index",
   agent_reviews: "no team or workspace index",
   commit_ci: "no team or workspace index",
@@ -389,10 +522,12 @@ export const LEFT_OUT: Record<string, string> = {
   call_invites: "keyed by room, not team",
   call_room_state: "keyed by room, not team",
   call_knocks: "keyed by room, not team",
-  call_stage_pins: "keyed by room, not team; holds refs to docs, not content, and dies with the huddle",
+  call_stage_pins:
+    "keyed by room, not team; holds refs to docs, not content, and dies with the huddle",
   call_guest_links: "keyed by room, not team",
   call_guests: "keyed by room, not team",
-  artifact_identities: "indexed by person first (a page viewer's sign-in token)",
+  artifact_identities:
+    "indexed by person first (a page viewer's sign-in token)",
   // A different scope vocabulary than team:<id>.
   capability_state: "scope_key is a capability scope, not a team",
   tidemark_activities: "scope_key is the hosted assistant's scope",

@@ -21,6 +21,7 @@ sshd, Tailscale SSH, keys, or any setup beyond Tailscale running on both
 machines.
 
 Rejected:
+
 - **ssh/rsync to the peer.** Tailscale SSH is not available in the macOS GUI
   build, and macOS Remote Login is off on most laptops. It would be "direct"
   for almost nobody.
@@ -89,9 +90,9 @@ tracked in git or not (`.env*`, `id_*`, `*.pem`, `*.key`, `*.p12`,
 
 ## Payloads
 
-| Payload | Command | Direct body | Relay fallback |
-|---|---|---|---|
-| Session folder | `export_folder` | streamed `tar.gz` of the include list, up to 2 GB | storage archive (300 MB) |
+| Payload            | Command          | Direct body                                                                                                                                                                                                                                                                    | Relay fallback                                                                                                                                                                                  |
+| ------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Session folder     | `export_folder`  | streamed `tar.gz` of the include list, up to 2 GB                                                                                                                                                                                                                              | storage archive (300 MB)                                                                                                                                                                        |
 | Session transcript | `export_session` | streamed `tar.gz` of the Claude Code `<id>.jsonl` and its `<id>/` folder, named by the server from the conversation's `session_id` (no path in the request; UUID ids only; symlinks refused); a copy missing the conversation's newest synced message uuid is refused as stale | the same archive through storage; regeneration from the Convex export when no machine answers with it within 45 s, the requester does not own the conversation, or the agent is not Claude Code |
 
 The requester files the transcript under the slug of its own resume cwd and

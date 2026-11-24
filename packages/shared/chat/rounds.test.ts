@@ -12,12 +12,28 @@ import {
   type ChatRound,
 } from "./rounds";
 
-const seeds = ["a", "b", "c"].map((k) => ({ key: k, kind: "session" as const, short_id: `jx7${k}`, name: k.toUpperCase() }));
+const seeds = ["a", "b", "c"].map((k) => ({
+  key: k,
+  kind: "session" as const,
+  short_id: `jx7${k}`,
+  name: k.toUpperCase(),
+}));
 
 /** Take the next floor and grant it, as the server does. */
 function take(round: ChatRound): { round: ChatRound; key: string | null } {
   const step = nextCandidate(round, 1);
-  return step.key ? { round: grantFloor(step.round, step.key, `s-${step.key}`, `w-${step.key}`, 1), key: step.key } : step;
+  return step.key
+    ? {
+        round: grantFloor(
+          step.round,
+          step.key,
+          `s-${step.key}`,
+          `w-${step.key}`,
+          1,
+        ),
+        key: step.key,
+      }
+    : step;
 }
 
 describe("rounds", () => {
@@ -40,7 +56,12 @@ describe("rounds", () => {
   });
 
   test("an agent's root leaves the opener out of the first lap", () => {
-    const r = startRound(seeds, { named: [], exclude: ["a"], byPerson: false, now: 0 });
+    const r = startRound(seeds, {
+      named: [],
+      exclude: ["a"],
+      byPerson: false,
+      now: 0,
+    });
     expect(r.queue).toEqual(["b", "c"]);
   });
 
@@ -53,13 +74,25 @@ describe("rounds", () => {
 
   test("a second lap runs only when someone spoke, and the rounds end", () => {
     let r = startRound(seeds, { named: [], byPerson: true, now: 0 });
-    const outcomes: Record<string, "spoke" | "passed"> = { a: "spoke", b: "passed", c: "passed" };
+    const outcomes: Record<string, "spoke" | "passed"> = {
+      a: "spoke",
+      b: "passed",
+      c: "passed",
+    };
     const order: string[] = [];
     for (let i = 0; i < 20; i++) {
       const t = take(r);
-      if (!t.key) { r = t.round; break; }
+      if (!t.key) {
+        r = t.round;
+        break;
+      }
       order.push(t.key);
-      r = recordOutcome(t.round, t.key, t.round.lap === 1 ? outcomes[t.key] : "passed", { now: 3 });
+      r = recordOutcome(
+        t.round,
+        t.key,
+        t.round.lap === 1 ? outcomes[t.key] : "passed",
+        { now: 3 },
+      );
     }
     // Lap 2 skips the last speaker (a) and then the round is done.
     expect(order).toEqual(["a", "b", "c", "b", "c"]);
@@ -72,7 +105,10 @@ describe("rounds", () => {
     let turns = 0;
     for (let i = 0; i < 50; i++) {
       const t = take(r);
-      if (!t.key) { r = t.round; break; }
+      if (!t.key) {
+        r = t.round;
+        break;
+      }
       turns++;
       r = recordOutcome(t.round, t.key, "spoke", { now: 3 });
     }
@@ -107,6 +143,10 @@ describe("rounds", () => {
     let t = take(startRound(seeds, { named: [], byPerson: true, now: 0 }));
     const r = recordOutcome(t.round, "a", "spoke", { now: 2 });
     t = take(r);
-    expect(roundStrip(t.round).map((m) => `${m.key}:${m.state}`)).toEqual(["a:spoke", "b:floor", "c:waiting"]);
+    expect(roundStrip(t.round).map((m) => `${m.key}:${m.state}`)).toEqual([
+      "a:spoke",
+      "b:floor",
+      "c:waiting",
+    ]);
   });
 });

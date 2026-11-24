@@ -11,7 +11,14 @@ export function ClaudeIcon({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 export function CodexIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return <img src="/agents/codex.svg" alt="" aria-hidden="true" className={`${className} shrink-0`} />;
+  return (
+    <img
+      src="/agents/codex.svg"
+      alt=""
+      aria-hidden="true"
+      className={`${className} shrink-0`}
+    />
+  );
 }
 
 export function OpenAIIcon({ className = "w-4 h-4" }: { className?: string }) {
@@ -24,8 +31,14 @@ export function OpenAIIcon({ className = "w-4 h-4" }: { className?: string }) {
 
 export function CursorIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M4 4l16 6-8 2-2 8z"/>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M4 4l16 6-8 2-2 8z" />
     </svg>
   );
 }
@@ -33,7 +46,10 @@ export function CursorIcon({ className = "w-4 h-4" }: { className?: string }) {
 export function GeminiIcon({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 0C12 0 12 6.268 8.134 10.134C4.268 14 0 14 0 14C0 14 6.268 14 10.134 17.866C14 21.732 14 28 14 28C14 28 14 21.732 17.866 17.866C21.732 14 28 14 28 14C28 14 21.732 14 17.866 10.134C14 6.268 14 0 14 0" transform="scale(0.857) translate(1, -2)"/>
+      <path
+        d="M12 0C12 0 12 6.268 8.134 10.134C4.268 14 0 14 0 14C0 14 6.268 14 10.134 17.866C14 21.732 14 28 14 28C14 28 14 21.732 17.866 17.866C21.732 14 28 14 28 14C28 14 21.732 14 17.866 10.134C14 6.268 14 0 14 0"
+        transform="scale(0.857) translate(1, -2)"
+      />
     </svg>
   );
 }

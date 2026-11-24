@@ -9,8 +9,22 @@
 
 import { EventEmitter } from "node:events";
 import * as crypto from "node:crypto";
-import type { CanUseTool, Options, Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
-import type { SdkActivity, SdkHostStatus, SdkImage, SdkInitInfo, SdkPermissionAnswer, SdkPermissionRequest, SdkTurnError } from "./protocol.js";
+import type {
+  CanUseTool,
+  Options,
+  Query,
+  SDKMessage,
+  SDKUserMessage,
+} from "@anthropic-ai/claude-agent-sdk";
+import type {
+  SdkActivity,
+  SdkHostStatus,
+  SdkImage,
+  SdkInitInfo,
+  SdkPermissionAnswer,
+  SdkPermissionRequest,
+  SdkTurnError,
+} from "./protocol.js";
 
 /** Oldest Claude Code whose stream-json protocol has everything this backend uses:
  *  `priority` on streamed user messages, interrupt receipts, the `requestId` and
@@ -19,7 +33,11 @@ export const MINIMUM_CLAUDE_VERSION = "2.1.248";
 
 /** Compares release numbers like 2.1.248; a pre-release or build suffix is ignored. */
 export function versionAtLeast(version: string, minimum: string): boolean {
-  const parse = (value: string) => value.split(/[-+ ]/)[0].split(".").map((n) => Number(n) || 0);
+  const parse = (value: string) =>
+    value
+      .split(/[-+ ]/)[0]
+      .split(".")
+      .map((n) => Number(n) || 0);
   const current = parse(version);
   const required = parse(minimum);
   for (let i = 0; i < required.length; i++) {
@@ -29,7 +47,10 @@ export function versionAtLeast(version: string, minimum: string): boolean {
   return true;
 }
 
-type QueryFn = (params: { prompt: AsyncIterable<SDKUserMessage>; options: Options }) => Query;
+type QueryFn = (params: {
+  prompt: AsyncIterable<SDKUserMessage>;
+  options: Options;
+}) => Query;
 
 /** An async iterable fed by push(); the SDK reads the session's input from it. */
 class InputQueue implements AsyncIterable<SDKUserMessage> {
@@ -60,7 +81,8 @@ class InputQueue implements AsyncIterable<SDKUserMessage> {
       next: () => {
         const item = this.items.shift();
         if (item) return Promise.resolve({ value: item, done: false });
-        if (this.closed) return Promise.resolve({ value: undefined, done: true });
+        if (this.closed)
+          return Promise.resolve({ value: undefined, done: true });
         return new Promise((resolve) => (this.waiter = resolve));
       },
       return: () => {
@@ -79,7 +101,14 @@ export interface ClaudeSdkSessionEvents {
   init: [SdkInitInfo];
   permission: [SdkPermissionRequest];
   permission_settled: [string, "answer" | "abort"];
-  result: [{ subtype: string; isError: boolean; text: string | null; error: SdkTurnError | null }];
+  result: [
+    {
+      subtype: string;
+      isError: boolean;
+      text: string | null;
+      error: SdkTurnError | null;
+    },
+  ];
   message: [SDKMessage];
   exit: [string];
 }
@@ -90,16 +119,29 @@ interface PendingPrompt {
 }
 
 /** The content blocks of one user message: images first, as Claude Code's own paste does. */
-export function userContent(text: string, images: SdkImage[] = []): SDKUserMessage["message"]["content"] {
+export function userContent(
+  text: string,
+  images: SdkImage[] = [],
+): SDKUserMessage["message"]["content"] {
   if (!images.length) return text;
   return [
-    ...images.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.mediaType as "image/png", data: img.data } })),
+    ...images.map((img) => ({
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: img.mediaType as "image/png",
+        data: img.data,
+      },
+    })),
     ...(text ? [{ type: "text" as const, text }] : []),
   ];
 }
 
 /** The status message a PermissionRequest hook posts: the tool and a short preview of what it touches. */
-export function permissionMessage(toolName: string, input: Record<string, unknown>): string {
+export function permissionMessage(
+  toolName: string,
+  input: Record<string, unknown>,
+): string {
   if (toolName === "AskUserQuestion") return toolName;
   for (const key of ["command", "file_path", "pattern", "path", "url"]) {
     const v = input[key];
@@ -109,13 +151,22 @@ export function permissionMessage(toolName: string, input: Record<string, unknow
 }
 
 /** The failure a turn ended on, from an assistant error or an error result. */
-export function turnError(message: SDKMessage, now = Date.now()): SdkTurnError | null {
+export function turnError(
+  message: SDKMessage,
+  now = Date.now(),
+): SdkTurnError | null {
   if (message.type === "assistant" && message.error) {
-    const text = message.message.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim();
+    const text = message.message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
     return { kind: message.error, message: text || message.error, at: now };
   }
   if (message.type === "result" && message.is_error) {
-    const text = message.subtype === "success" ? message.result : message.errors.join("\n");
+    const text =
+      message.subtype === "success"
+        ? message.result
+        : message.errors.join("\n");
     return { kind: message.subtype, message: text || message.subtype, at: now };
   }
   return null;
@@ -155,15 +206,24 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
   readonly ready: Promise<SdkInitInfo>;
   readonly done: Promise<void>;
 
-  constructor(options: Options & { sessionId?: string; resume?: string }, queryFn: QueryFn) {
+  constructor(
+    options: Options & { sessionId?: string; resume?: string },
+    queryFn: QueryFn,
+  ) {
     super();
     this.sessionId = options.resume ?? options.sessionId ?? crypto.randomUUID();
     this._claudeSessionId = this.sessionId;
-    const canUseTool: CanUseTool = (toolName, input, opts) => this.ask(toolName, input, opts);
-    this.query = queryFn({ prompt: this.input, options: { ...options, canUseTool } });
+    const canUseTool: CanUseTool = (toolName, input, opts) =>
+      this.ask(toolName, input, opts);
+    this.query = queryFn({
+      prompt: this.input,
+      options: { ...options, canUseTool },
+    });
     this.ready = this.query.initializationResult().then((init) => {
       const info: SdkInitInfo = {
-        version: (init as { claude_code_version?: string }).claude_code_version ?? null,
+        version:
+          (init as { claude_code_version?: string }).claude_code_version ??
+          null,
         model: null,
         permissionMode: null,
         accountEmail: init.account?.email ?? null,
@@ -218,8 +278,22 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     // other status would read to the daemon as the prompt closing, and close its card.
     if (this.prompts.size && activity.status !== "permission_blocked") return;
     const prev = this._activity;
-    if (prev && prev.status === activity.status && !activity.turnCompletedAt && !activity.dialog && prev.message === activity.message && prev.permissionMode === (this._init?.permissionMode ?? undefined)) return;
-    const next: SdkActivity = { ...activity, ts: Math.floor(Date.now() / 1000), ...(this._init?.permissionMode ? { permissionMode: this._init.permissionMode } : {}) };
+    if (
+      prev &&
+      prev.status === activity.status &&
+      !activity.turnCompletedAt &&
+      !activity.dialog &&
+      prev.message === activity.message &&
+      prev.permissionMode === (this._init?.permissionMode ?? undefined)
+    )
+      return;
+    const next: SdkActivity = {
+      ...activity,
+      ts: Math.floor(Date.now() / 1000),
+      ...(this._init?.permissionMode
+        ? { permissionMode: this._init.permissionMode }
+        : {}),
+    };
     this._activity = next;
     this.emit("activity", next);
   }
@@ -230,7 +304,11 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     this.setStatus(this.active ? "working" : this._init ? "idle" : "starting");
   }
 
-  private async ask(toolName: string, input: Record<string, unknown>, opts: Parameters<CanUseTool>[2]) {
+  private async ask(
+    toolName: string,
+    input: Record<string, unknown>,
+    opts: Parameters<CanUseTool>[2],
+  ) {
     const requestId = opts.requestId || crypto.randomUUID();
     const request: SdkPermissionRequest = {
       requestId,
@@ -244,7 +322,16 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
       suggestions: opts.suggestions,
       agentId: opts.agentID,
       createdAt: Date.now(),
-      ...(toolName === "ExitPlanMode" ? { modeBeforePlan: this.modeBeforePlan ?? (this._init?.permissionMode !== "plan" ? this._init?.permissionMode : null) ?? null } : {}),
+      ...(toolName === "ExitPlanMode"
+        ? {
+            modeBeforePlan:
+              this.modeBeforePlan ??
+              (this._init?.permissionMode !== "plan"
+                ? this._init?.permissionMode
+                : null) ??
+              null,
+          }
+        : {}),
     };
     const answer = await new Promise<SdkPermissionAnswer>((resolve) => {
       this.prompts.set(requestId, { request, resolve });
@@ -257,12 +344,26 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
       if (opts.signal.aborted) return abort();
       opts.signal.addEventListener("abort", abort, { once: true });
       this.emit("permission", request);
-      this.report({ status: "permission_blocked", message: permissionMessage(toolName, input), dialog: true });
+      this.report({
+        status: "permission_blocked",
+        message: permissionMessage(toolName, input),
+        dialog: true,
+      });
       this.settleStatus();
     });
     return answer.behavior === "allow"
-      ? { behavior: "allow" as const, updatedInput: answer.updatedInput ?? input, updatedPermissions: answer.updatedPermissions, toolUseID: opts.toolUseID }
-      : { behavior: "deny" as const, message: answer.message, interrupt: answer.interrupt, toolUseID: opts.toolUseID };
+      ? {
+          behavior: "allow" as const,
+          updatedInput: answer.updatedInput ?? input,
+          updatedPermissions: answer.updatedPermissions,
+          toolUseID: opts.toolUseID,
+        }
+      : {
+          behavior: "deny" as const,
+          message: answer.message,
+          interrupt: answer.interrupt,
+          toolUseID: opts.toolUseID,
+        };
   }
 
   /** Remember the web card opened for a pending prompt. */
@@ -291,8 +392,13 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
    * so Claude reads it at the next tool boundary instead of after the turn,
    * as typing into a busy Claude Code does.
    */
-  send(text: string, images: SdkImage[] = [], uuid: string = crypto.randomUUID()): string {
-    if (this.ended || this.stopping) throw new Error("Claude Code session has stopped");
+  send(
+    text: string,
+    images: SdkImage[] = [],
+    uuid: string = crypto.randomUUID(),
+  ): string {
+    if (this.ended || this.stopping)
+      throw new Error("Claude Code session has stopped");
     const message: SDKUserMessage = {
       type: "user",
       uuid: uuid as SDKUserMessage["uuid"],
@@ -303,7 +409,8 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     } as SDKUserMessage;
     // Our own turn starting (the UserPromptSubmit hook's moment), even right after a turn Claude ran itself.
     // Not while a prompt is open: the move away from permission_blocked would close its card.
-    if (this.outstanding === 0 && !this.prompts.size) this.report({ status: "thinking" });
+    if (this.outstanding === 0 && !this.prompts.size)
+      this.report({ status: "thinking" });
     this.pendingSends.add(uuid);
     this._lastError = null;
     this.input.push(message);
@@ -314,11 +421,17 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
   /** Interrupt the running turn and wait until it has drained (its result written), so the next send starts a fresh turn. A message queued behind it still runs, as Claude Code's receipt says. */
   async interrupt(): Promise<void> {
     if (this.ended || !this.active) return;
-    const drained = new Promise<void>((resolve) => this.drainWaiters.push(resolve));
+    const drained = new Promise<void>((resolve) =>
+      this.drainWaiters.push(resolve),
+    );
     for (const [id, prompt] of this.prompts) {
       this.prompts.delete(id);
       this.emit("permission_settled", id, "abort");
-      prompt.resolve({ behavior: "deny", message: "The user interrupted.", interrupt: true });
+      prompt.resolve({
+        behavior: "deny",
+        message: "The user interrupted.",
+        interrupt: true,
+      });
     }
     await this.query.interrupt();
     await drained;
@@ -332,12 +445,19 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
    *  init or status message, so the session records it here: until then every
    *  activity report, and a backend switch reading the mode, would carry the old one. */
   async setPermissionMode(mode: string): Promise<void> {
-    await this.query.setPermissionMode(mode as Parameters<Query["setPermissionMode"]>[0]);
+    await this.query.setPermissionMode(
+      mode as Parameters<Query["setPermissionMode"]>[0],
+    );
     if (!this._init || this._init.permissionMode === mode) return;
-    if (mode === "plan" && this._init.permissionMode !== "plan") this.modeBeforePlan = this._init.permissionMode;
+    if (mode === "plan" && this._init.permissionMode !== "plan")
+      this.modeBeforePlan = this._init.permissionMode;
     this._init = { ...this._init, permissionMode: mode };
     this.emit("init", this._init);
-    if (this._activity) this.report({ status: this._activity.status, ...(this._activity.message && { message: this._activity.message }) });
+    if (this._activity)
+      this.report({
+        status: this._activity.status,
+        ...(this._activity.message && { message: this._activity.message }),
+      });
   }
 
   private async readAll(): Promise<void> {
@@ -365,15 +485,29 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
 
   private observe(message: SDKMessage): void {
     const sid = (message as { session_id?: unknown }).session_id;
-    if (typeof sid === "string" && sid && sid !== this._claudeSessionId && (message.type === "system" || message.type === "result")) {
+    if (
+      typeof sid === "string" &&
+      sid &&
+      sid !== this._claudeSessionId &&
+      (message.type === "system" || message.type === "result")
+    ) {
       this._claudeSessionId = sid;
       this.switchedThisTurn = true;
       this.emit("session", sid);
     }
     if (message.type === "system" && message.subtype === "init") {
-      if (message.permissionMode === "plan" && this._init?.permissionMode && this._init.permissionMode !== "plan") this.modeBeforePlan = this._init.permissionMode;
+      if (
+        message.permissionMode === "plan" &&
+        this._init?.permissionMode &&
+        this._init.permissionMode !== "plan"
+      )
+        this.modeBeforePlan = this._init.permissionMode;
       const info: SdkInitInfo = {
-        ...(this._init ?? { accountEmail: null, subscriptionType: null, slashCommands: [] }),
+        ...(this._init ?? {
+          accountEmail: null,
+          subscriptionType: null,
+          slashCommands: [],
+        }),
         version: message.claude_code_version ?? this._init?.version ?? null,
         model: message.model,
         permissionMode: message.permissionMode,
@@ -385,16 +519,24 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     }
     // Claude's own running/idle state covers the turns it starts itself (a background task that
     // finished, a hook continuation): they hold none of our sends, yet run, ask, and can be stopped.
-    if (message.type === "system" && message.subtype === "session_state_changed") {
+    if (
+      message.type === "system" &&
+      message.subtype === "session_state_changed"
+    ) {
       if (message.state === "running") {
         const wasActive = this.active;
         this.cliRunning = true;
-        if (!wasActive && !this.prompts.size) this.report({ status: "working" });
+        if (!wasActive && !this.prompts.size)
+          this.report({ status: "working" });
       } else if (message.state === "idle") {
         this.cliRunning = false;
         if (!this.active) {
           for (const w of this.drainWaiters.splice(0)) w();
-          if (this._activity && this._activity.status !== "idle") this.report({ status: "idle", turnCompletedAt: Math.floor(Date.now() / 1000) });
+          if (this._activity && this._activity.status !== "idle")
+            this.report({
+              status: "idle",
+              turnCompletedAt: Math.floor(Date.now() / 1000),
+            });
         }
       }
       this.settleStatus();
@@ -402,47 +544,84 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     }
     // Claude's own record of each send we made: completed or cancelled is final. A send whose
     // turn ends without a result naming it (a local command) would otherwise read as running forever.
-    const lifecycle = message as { type: string; command_uuid?: string; state?: string };
+    const lifecycle = message as {
+      type: string;
+      command_uuid?: string;
+      state?: string;
+    };
     if (lifecycle.type === "command_lifecycle") {
       // Only when no turn runs: a message folded into a running turn completes before that turn ends.
-      if ((lifecycle.state === "completed" || lifecycle.state === "cancelled") && lifecycle.command_uuid && this.pendingSends.delete(lifecycle.command_uuid) && !this.pendingSends.size && !this.cliRunning) {
+      if (
+        (lifecycle.state === "completed" || lifecycle.state === "cancelled") &&
+        lifecycle.command_uuid &&
+        this.pendingSends.delete(lifecycle.command_uuid) &&
+        !this.pendingSends.size &&
+        !this.cliRunning
+      ) {
         for (const w of this.drainWaiters.splice(0)) w();
-        this.report({ status: "idle", turnCompletedAt: Math.floor(Date.now() / 1000) });
+        this.report({
+          status: "idle",
+          turnCompletedAt: Math.floor(Date.now() / 1000),
+        });
         this.settleStatus();
       }
       return;
     }
     if (message.type === "system" && message.subtype === "status") {
-      if (message.permissionMode === "plan" && this._init?.permissionMode && this._init.permissionMode !== "plan") this.modeBeforePlan = this._init.permissionMode;
-      if (message.permissionMode && this._init && message.permissionMode !== this._init.permissionMode) {
+      if (
+        message.permissionMode === "plan" &&
+        this._init?.permissionMode &&
+        this._init.permissionMode !== "plan"
+      )
+        this.modeBeforePlan = this._init.permissionMode;
+      if (
+        message.permissionMode &&
+        this._init &&
+        message.permissionMode !== this._init.permissionMode
+      ) {
         this._init = { ...this._init, permissionMode: message.permissionMode };
         this.emit("init", this._init);
       }
-      if (message.status === "compacting") this.report({ status: "compacting" });
-      else if (this.active && this._activity?.status === "compacting") this.report({ status: "working" });
+      if (message.status === "compacting")
+        this.report({ status: "compacting" });
+      else if (this.active && this._activity?.status === "compacting")
+        this.report({ status: "working" });
       return;
     }
-    if (message.type === "assistant" && message.parent_tool_use_id === null && this.active && !this.prompts.size
-      && message.message.content.some((b) => b.type === "tool_use")) {
+    if (
+      message.type === "assistant" &&
+      message.parent_tool_use_id === null &&
+      this.active &&
+      !this.prompts.size &&
+      message.message.content.some((b) => b.type === "tool_use")
+    ) {
       this.report({ status: "working" });
     }
     // The assistant's error names the cause (rate_limit, billing_error); the result's only says the turn failed.
     const error = turnError(message);
-    if (error && !(message.type === "result" && this._lastError)) this._lastError = error;
+    if (error && !(message.type === "result" && this._lastError))
+      this._lastError = error;
     if (message.type !== "result") return;
     // The result names the sends its turn consumed. A send pushed after the CLI counted its queue is
     // still ours to wait for, so the count is never taken from queued_turn_count alone.
-    const consumed = message.user_message_uuids ?? (message.user_message_uuid ? [message.user_message_uuid] : null);
+    const consumed =
+      message.user_message_uuids ??
+      (message.user_message_uuid ? [message.user_message_uuid] : null);
     // A result that names none of them is a turn Claude started itself (a hook continuation, a
     // task notification): it consumed nothing of ours, beyond what the CLI's own queue count says.
     if (consumed) for (const uuid of consumed) this.pendingSends.delete(uuid);
     else if (message.queued_turn_count !== undefined) {
-      while (this.pendingSends.size > message.queued_turn_count) this.pendingSends.delete(this.pendingSends.values().next().value!);
+      while (this.pendingSends.size > message.queued_turn_count)
+        this.pendingSends.delete(this.pendingSends.values().next().value!);
     }
     // An interrupt waits for this turn's result; messages queued behind it run as the next turn.
     for (const w of this.drainWaiters.splice(0)) w();
     if (this.outstanding === 0) {
-      this.report(this.switchedThisTurn ? { status: "idle", sessionBoundary: true } : { status: "idle", turnCompletedAt: Math.floor(Date.now() / 1000) });
+      this.report(
+        this.switchedThisTurn
+          ? { status: "idle", sessionBoundary: true }
+          : { status: "idle", turnCompletedAt: Math.floor(Date.now() / 1000) },
+      );
       this.switchedThisTurn = false;
     }
     this.emit("result", {
@@ -459,10 +638,17 @@ export class ClaudeSdkSession extends EventEmitter<ClaudeSdkSessionEvents> {
     if (!this.stopping) {
       this.stopping = (async () => {
         try {
-          if (this.active && !this.ended) await Promise.race([this.interrupt(), new Promise((r) => setTimeout(r, 10_000))]);
+          if (this.active && !this.ended)
+            await Promise.race([
+              this.interrupt(),
+              new Promise((r) => setTimeout(r, 10_000)),
+            ]);
         } catch {}
         this.input.close();
-        await Promise.race([this.done, new Promise((r) => setTimeout(r, 10_000))]);
+        await Promise.race([
+          this.done,
+          new Promise((r) => setTimeout(r, 10_000)),
+        ]);
         this.query.close();
       })();
     }

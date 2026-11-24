@@ -52,7 +52,15 @@ export type LongFrameMark = {
   layout: number;
   /** Script time summed over the whole frame, listed or not. */
   script: number;
-  scripts: Array<{ ms: number; forced: number; type: string; by: string; fn: string; src: string; at: number }>;
+  scripts: Array<{
+    ms: number;
+    forced: number;
+    type: string;
+    by: string;
+    fn: string;
+    src: string;
+    at: number;
+  }>;
 };
 
 /**
@@ -75,11 +83,16 @@ function fileOf(url: string | undefined): string {
  */
 function invokerOf(invoker: string | undefined): string {
   if (!invoker) return "";
-  return (/^[a-z][a-z0-9+.-]*:\/\//i.test(invoker) ? fileOf(invoker) : invoker).slice(0, 60);
+  return (
+    /^[a-z][a-z0-9+.-]*:\/\//i.test(invoker) ? fileOf(invoker) : invoker
+  ).slice(0, 60);
 }
 
 /** The mark for one long-animation-frame entry, or null when it is not long. */
-export function summarizeLongFrame(entry: LongFrameEntry, minMs: number = LONG_FRAME_MS): LongFrameMark | null {
+export function summarizeLongFrame(
+  entry: LongFrameEntry,
+  minMs: number = LONG_FRAME_MS,
+): LongFrameMark | null {
   if (!(entry.duration >= minMs)) return null;
   const end = entry.startTime + entry.duration;
   const all = entry.scripts ?? [];
@@ -101,8 +114,12 @@ export function summarizeLongFrame(entry: LongFrameEntry, minMs: number = LONG_F
   return {
     ms: Math.round(entry.duration),
     blocking: Math.round(entry.blockingDuration ?? 0),
-    render: entry.renderStart ? Math.max(0, Math.round(end - entry.renderStart)) : 0,
-    layout: entry.styleAndLayoutStart ? Math.max(0, Math.round(end - entry.styleAndLayoutStart)) : 0,
+    render: entry.renderStart
+      ? Math.max(0, Math.round(end - entry.renderStart))
+      : 0,
+    layout: entry.styleAndLayoutStart
+      ? Math.max(0, Math.round(end - entry.styleAndLayoutStart))
+      : 0,
     script: Math.round(script),
     scripts,
   };
@@ -111,10 +128,17 @@ export function summarizeLongFrame(entry: LongFrameEntry, minMs: number = LONG_F
 const frameListeners = new Set<(entries: LongFrameEntry[]) => void>();
 let frameObserver: PerformanceObserver | undefined;
 
-function observeLongFrames(listener: (entries: LongFrameEntry[]) => void): (() => void) | undefined {
+function observeLongFrames(
+  listener: (entries: LongFrameEntry[]) => void,
+): (() => void) | undefined {
   if (!frameObserver) {
     if (typeof PerformanceObserver === "undefined") return;
-    if (!(PerformanceObserver.supportedEntryTypes ?? []).includes("long-animation-frame")) return;
+    if (
+      !(PerformanceObserver.supportedEntryTypes ?? []).includes(
+        "long-animation-frame",
+      )
+    )
+      return;
     try {
       const observer = new PerformanceObserver((list) => {
         const entries = list.getEntries();
@@ -160,22 +184,30 @@ export function watchLongFrameStats() {
 }
 
 /** Write a rate-limited `long_frame` mark to the replay. */
-export function watchLongFrames(mark: (name: string, data: Record<string, unknown>) => void): () => void {
+export function watchLongFrames(
+  mark: (name: string, data: Record<string, unknown>) => void,
+): () => void {
   let lastAt = -Infinity;
-  return observeLongFrames((entries) => {
-    // The longest frame of the batch speaks for it.
-    let worst: LongFrameEntry | null = null;
-    for (const entry of entries) {
-      if (entry.duration >= LONG_FRAME_MS && (!worst || entry.duration > worst.duration)) worst = entry;
-    }
-    if (!worst || worst.startTime - lastAt < MIN_GAP_MS) return;
-    const summary = summarizeLongFrame(worst);
-    if (!summary) return;
-    lastAt = worst.startTime;
-    try {
-      mark("long_frame", summary);
-    } catch {
-      // The recorder stopped under us; the next frame tries again.
-    }
-  }) ?? (() => {});
+  return (
+    observeLongFrames((entries) => {
+      // The longest frame of the batch speaks for it.
+      let worst: LongFrameEntry | null = null;
+      for (const entry of entries) {
+        if (
+          entry.duration >= LONG_FRAME_MS &&
+          (!worst || entry.duration > worst.duration)
+        )
+          worst = entry;
+      }
+      if (!worst || worst.startTime - lastAt < MIN_GAP_MS) return;
+      const summary = summarizeLongFrame(worst);
+      if (!summary) return;
+      lastAt = worst.startTime;
+      try {
+        mark("long_frame", summary);
+      } catch {
+        // The recorder stopped under us; the next frame tries again.
+      }
+    }) ?? (() => {})
+  );
 }

@@ -32,10 +32,25 @@ import { execFile, execFileSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import { sshControlPath, sshDestination, sshIdentity, type RemoteHost } from "../remote/session-move.js";
+import {
+  sshControlPath,
+  sshDestination,
+  sshIdentity,
+  type RemoteHost,
+} from "../remote/session-move.js";
 import { codecastPath } from "../codecastDir.js";
-import { hostProvider, hostSleeps, isMacHost } from "../hosts/providers/registry.js";
-import { HOST_TAILNET_COMMAND, localTailnet, readHostTailnet, tailnetDialAddress, type TailnetRecord } from "../cloud/tailnet.js";
+import {
+  hostProvider,
+  hostSleeps,
+  isMacHost,
+} from "../hosts/providers/registry.js";
+import {
+  HOST_TAILNET_COMMAND,
+  localTailnet,
+  readHostTailnet,
+  tailnetDialAddress,
+  type TailnetRecord,
+} from "../cloud/tailnet.js";
 import type { WakePhase } from "@codecast/shared/contracts";
 import type { HostLogins } from "../remote/agentAuth.js";
 import type { HostFacts, HostInspection } from "../hosts/providers/types.js";
@@ -130,7 +145,8 @@ export function resolveCloudHost(hostArg?: string): CloudHost {
   const hosts = readHosts();
   if (hostArg) {
     const named = hosts.find((h) => h.id === hostArg);
-    if (!named) throw new Error(`no cloud host ${hostArg} is registered (cast hosts ls)`);
+    if (!named)
+      throw new Error(`no cloud host ${hostArg} is registered (cast hosts ls)`);
     return named;
   }
   return defaultHostOf(hosts);
@@ -139,7 +155,8 @@ export function resolveCloudHost(hostArg?: string): CloudHost {
 /** The default among hosts automatic placement may use: a Linux EC2 host, else the first. */
 function defaultHostOf(hosts: CloudHost[]): CloudHost {
   const open = hosts.filter((h) => !h.reservedFor);
-  const pick = open.find((h) => isEc2Host(h) && h.platform !== "darwin") ?? open[0];
+  const pick =
+    open.find((h) => isEc2Host(h) && h.platform !== "darwin") ?? open[0];
   if (pick) return pick;
   throw new Error(
     hosts.length
@@ -160,8 +177,13 @@ export async function openCloudHosts(): Promise<CloudHost[]> {
     try {
       const { convexClient } = await import("../remote/convexClient.js");
       const cc = await convexClient({ timeoutMs: 5000 });
-      const devices: Array<{ device_id: string; reserved_for?: string }> = await cc.client.query(cc.api.devices.listDevices, { api_token: cc.token });
-      const reserved = new Map(devices.map((d) => [d.device_id, d.reserved_for?.trim() || undefined]));
+      const devices: Array<{ device_id: string; reserved_for?: string }> =
+        await cc.client.query(cc.api.devices.listDevices, {
+          api_token: cc.token,
+        });
+      const reserved = new Map(
+        devices.map((d) => [d.device_id, d.reserved_for?.trim() || undefined]),
+      );
       for (const h of hosts) {
         if (!h.deviceId || !reserved.has(h.deviceId)) continue;
         const now = reserved.get(h.deviceId);
@@ -215,14 +237,20 @@ export function writeHosts(hosts: CloudHost[]): void {
 }
 
 /** What a host registered from now on starts with: cloud and database credentials stay on the laptop until turned on (`cast hosts logins`). */
-export const NEW_HOST_LOGINS: HostLogins = { off: ["aws", "kube", "pgpass", "netrc", "git-credentials"] };
+export const NEW_HOST_LOGINS: HostLogins = {
+  off: ["aws", "kube", "pgpass", "netrc", "git-credentials"],
+};
 
 /** Add or replace one entry. A host new to the registry gets the narrow login default unless the caller set one. */
 export function upsertHost(host: CloudHost): void {
   const all = readHosts();
   const known = all.some((h) => h.id === host.id);
   const hosts = all.filter((h) => h.id !== host.id);
-  hosts.push(known || host.logins ? host : { ...host, logins: structuredClone(NEW_HOST_LOGINS) });
+  hosts.push(
+    known || host.logins
+      ? host
+      : { ...host, logins: structuredClone(NEW_HOST_LOGINS) },
+  );
   writeHosts(hosts);
 }
 
@@ -246,7 +274,10 @@ function sleepSync(ms: number): void {
  * narrowing it. Returns the merged entry, or undefined (and writes nothing)
  * when no entry has that id.
  */
-export function patchHost(id: string, patch: Partial<CloudHost>): CloudHost | undefined {
+export function patchHost(
+  id: string,
+  patch: Partial<CloudHost>,
+): CloudHost | undefined {
   const p = registryPath();
   fs.mkdirSync(path.dirname(p), { recursive: true, mode: 0o700 });
   const lock = registryLockPath();
@@ -258,9 +289,17 @@ export function patchHost(id: string, patch: Partial<CloudHost>): CloudHost | un
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
       try {
-        if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) { fs.unlinkSync(lock); continue; }
-      } catch { continue; /* vanished: retry immediately */ }
-      if (attempt >= LOCK_RETRIES) throw new Error(`host registry is locked (${lock}) — retry in a moment`);
+        if (Date.now() - fs.statSync(lock).mtimeMs > LOCK_STALE_MS) {
+          fs.unlinkSync(lock);
+          continue;
+        }
+      } catch {
+        continue; /* vanished: retry immediately */
+      }
+      if (attempt >= LOCK_RETRIES)
+        throw new Error(
+          `host registry is locked (${lock}) — retry in a moment`,
+        );
       sleepSync(LOCK_RETRY_MS);
     }
   }
@@ -268,15 +307,25 @@ export function patchHost(id: string, patch: Partial<CloudHost>): CloudHost | un
     const hosts = readHosts();
     const i = hosts.findIndex((h) => h.id === id);
     if (i === -1) return undefined;
-    const merged = { ...hosts[i]!, ...patch } as CloudHost & Record<string, unknown>;
+    const merged = { ...hosts[i]!, ...patch } as CloudHost &
+      Record<string, unknown>;
     // An explicit `undefined` in the patch clears the field (gitPubkey when the host lost its key).
-    for (const [k, v] of Object.entries(patch)) if (v === undefined) delete merged[k];
+    for (const [k, v] of Object.entries(patch))
+      if (v === undefined) delete merged[k];
     hosts[i] = merged;
     writeHosts(hosts);
     return merged;
   } finally {
-    try { fs.closeSync(fd); } catch { /* already closed */ }
-    try { fs.unlinkSync(lock); } catch { /* broken by another waiter */ }
+    try {
+      fs.closeSync(fd);
+    } catch {
+      /* already closed */
+    }
+    try {
+      fs.unlinkSync(lock);
+    } catch {
+      /* broken by another waiter */
+    }
   }
 }
 
@@ -338,7 +387,10 @@ export async function ensureUp(
   const provider = hostProvider(host);
   if (!provider.start) return host;
 
-  const { address, wasRunning } = await provider.start(host, { onProgress, onPhase });
+  const { address, wasRunning } = await provider.start(host, {
+    onProgress,
+    onPhase,
+  });
 
   // Running is not the same as accepting SSH: sshd comes up seconds later, and
   // a connection attempted in that window fails in a way that reads as a key
@@ -355,7 +407,8 @@ export async function ensureUp(
   // public address. A tailnet dial that fails once drops to public for the
   // rest of this wait: the tailnet is an optimisation, never the only way in.
   let dial = tailnetDialAddress(host.tailnet) ?? address;
-  const socketFor = (a: string) => sshControlPath({ user: host.user, address: a });
+  const socketFor = (a: string) =>
+    sshControlPath({ user: host.user, address: a });
   let socket = socketFor(dial);
   // Evict a wedged master first. A master whose link died silently (mobile
   // network flap) still owns the socket, and every client that attaches to
@@ -364,28 +417,88 @@ export async function ensureUp(
   // round trip is evicted: `-O exit` ends a HEALTHY master too, and with it
   // every transfer riding it (the daemon's mirror push died with a silent
   // exit 255 each time a spawn woke the same host, 2026-09-29).
-  const masterRunning = spawnSync("ssh", ["-o", `ControlPath=${socket}`, "-O", "check", sshDestination({ ...host, address: dial })], { timeout: 5_000, stdio: "ignore" }).status === 0;
+  const masterRunning =
+    spawnSync(
+      "ssh",
+      [
+        "-o",
+        `ControlPath=${socket}`,
+        "-O",
+        "check",
+        sshDestination({ ...host, address: dial }),
+      ],
+      { timeout: 5_000, stdio: "ignore" },
+    ).status === 0;
   if (masterRunning) {
-    const answered = spawnSync("ssh", ["-o", `ControlPath=${socket}`, "-o", "ControlMaster=no", "-o", "BatchMode=yes", sshDestination({ ...host, address: dial }), "true"], { timeout: 10_000, stdio: "ignore" }).status === 0;
-    if (!answered) spawnSync("ssh", ["-o", `ControlPath=${socket}`, "-O", "exit", sshDestination({ ...host, address: dial })], { timeout: 5_000, stdio: "ignore" });
+    const answered =
+      spawnSync(
+        "ssh",
+        [
+          "-o",
+          `ControlPath=${socket}`,
+          "-o",
+          "ControlMaster=no",
+          "-o",
+          "BatchMode=yes",
+          sshDestination({ ...host, address: dial }),
+          "true",
+        ],
+        { timeout: 10_000, stdio: "ignore" },
+      ).status === 0;
+    if (!answered)
+      spawnSync(
+        "ssh",
+        [
+          "-o",
+          `ControlPath=${socket}`,
+          "-O",
+          "exit",
+          sshDestination({ ...host, address: dial }),
+        ],
+        { timeout: 5_000, stdio: "ignore" },
+      );
   }
   // A host's first boot from a machine image streams its disk in from the
   // snapshot: cloud-init finished at 140s on 2026-09-29, past the old 150s.
   // A host that was already running has booted: if it does not answer within
   // a slow handshake or two its OS is gone (AWS "impaired", 2026-10-24), and a
   // caller with a fallback (cloud-first spawns) should not wait 6 minutes for it.
-  const sshDeadline = Date.now() + (wasRunning ? 90_000 : host.platform === "darwin" ? 25 * 60_000 : 6 * 60_000);
+  const sshDeadline =
+    Date.now() +
+    (wasRunning
+      ? 90_000
+      : host.platform === "darwin"
+        ? 25 * 60_000
+        : 6 * 60_000);
   for (;;) {
     try {
       execFileSync(
         "ssh",
-        [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-         "-o", `ConnectTimeout=${host.proxyCommand ? 30 : 10}`, "-o", "BatchMode=yes",
-         // Keepalives on the MASTER: without them a dead link is never
-         // noticed and the socket stays wedged for ControlPersist's lifetime.
-         "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3",
-         "-o", "ControlMaster=auto", "-o", `ControlPath=${socket}`, "-o", "ControlPersist=120",
-         sshDestination({ ...host, address: dial }), "true"],
+        [
+          ...sshIdentity(host),
+          "-o",
+          "IdentitiesOnly=yes",
+          "-o",
+          "StrictHostKeyChecking=accept-new",
+          "-o",
+          `ConnectTimeout=${host.proxyCommand ? 30 : 10}`,
+          "-o",
+          "BatchMode=yes",
+          // Keepalives on the MASTER: without them a dead link is never
+          // noticed and the socket stays wedged for ControlPersist's lifetime.
+          "-o",
+          "ServerAliveInterval=15",
+          "-o",
+          "ServerAliveCountMax=3",
+          "-o",
+          "ControlMaster=auto",
+          "-o",
+          `ControlPath=${socket}`,
+          "-o",
+          "ControlPersist=120",
+          sshDestination({ ...host, address: dial }),
+          "true",
+        ],
         { timeout: 60_000, stdio: "ignore" },
       );
       break;
@@ -397,7 +510,10 @@ export async function ensureUp(
         socket = socketFor(dial);
         continue;
       }
-      if (Date.now() > sshDeadline) throw new Error(`${host.id} is running but never accepted SSH at ${address}`);
+      if (Date.now() > sshDeadline)
+        throw new Error(
+          `${host.id} is running but never accepted SSH at ${address}`,
+        );
       onProgress("waiting for it to accept connections…");
       onPhase("ssh_wait");
       await new Promise((r) => setTimeout(r, 5000));
@@ -408,7 +524,9 @@ export async function ensureUp(
   // dial can prefer it (or stop preferring it, once the host leaves). A laptop
   // with no tailnet of its own could not use the answer, so it does not ask.
   onPhase("ssh_up");
-  const tailnet = localTailnet() ? learnHostTailnet(host, dial, socket) : host.tailnet;
+  const tailnet = localTailnet()
+    ? learnHostTailnet(host, dial, socket)
+    : host.tailnet;
 
   // Only these fields: a field-level patch under the registry lock, so a
   // toggle or a git-access record written during the boot wait survives.
@@ -421,10 +539,32 @@ export async function ensureUp(
  * opened. An ssh that fails keeps what was recorded: a hiccup is not proof
  * the host left the tailnet.
  */
-function learnHostTailnet(host: CloudHost, dial: string, socket: string): TailnetRecord | undefined {
-  const r = spawnSync("ssh", [...sshIdentity(host), "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
-    "-o", "ControlMaster=auto", "-o", `ControlPath=${socket}`, "-o", "ControlPersist=120",
-    sshDestination({ ...host, address: dial }), HOST_TAILNET_COMMAND], { encoding: "utf-8", timeout: 15_000, stdio: ["ignore", "pipe", "ignore"] });
+function learnHostTailnet(
+  host: CloudHost,
+  dial: string,
+  socket: string,
+): TailnetRecord | undefined {
+  const r = spawnSync(
+    "ssh",
+    [
+      ...sshIdentity(host),
+      "-o",
+      "IdentitiesOnly=yes",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=10",
+      "-o",
+      "ControlMaster=auto",
+      "-o",
+      `ControlPath=${socket}`,
+      "-o",
+      "ControlPersist=120",
+      sshDestination({ ...host, address: dial }),
+      HOST_TAILNET_COMMAND,
+    ],
+    { encoding: "utf-8", timeout: 15_000, stdio: ["ignore", "pipe", "ignore"] },
+  );
   return r.status === 0 ? readHostTailnet(r.stdout) : host.tailnet;
 }
 
@@ -441,9 +581,18 @@ export function stopHost(host: CloudHost): void {
  * stopped instance has released its IP, so the probe is both the liveness
  * check and the staleness filter.
  */
-export async function reachableRemoteHosts(also: RemoteHost[] = [], reach = sshReachable): Promise<RemoteHost[]> {
+export async function reachableRemoteHosts(
+  also: RemoteHost[] = [],
+  reach = sshReachable,
+): Promise<RemoteHost[]> {
   const [cloud, extra] = await Promise.all([
-    Promise.all(readHosts().filter((h) => h.address).map((h) => reachableRemoteHost(h, { toRemoteHost, sshReachable: reach }))),
+    Promise.all(
+      readHosts()
+        .filter((h) => h.address)
+        .map((h) =>
+          reachableRemoteHost(h, { toRemoteHost, sshReachable: reach }),
+        ),
+    ),
     Promise.all(also.map(async (h) => ((await reach(h)) ? h : null))),
   ]);
   return [...cloud, ...extra].filter((h): h is RemoteHost => h !== null);
@@ -457,18 +606,30 @@ export async function reachableRemoteHosts(also: RemoteHost[] = [], reach = sshR
  */
 export async function reachableRemoteHost(
   host: CloudHost,
-  deps: { toRemoteHost: (h: CloudHost) => RemoteHost; sshReachable: (h: RemoteHost) => Promise<boolean> },
+  deps: {
+    toRemoteHost: (h: CloudHost) => RemoteHost;
+    sshReachable: (h: RemoteHost) => Promise<boolean>;
+  },
   now = Date.now(),
 ): Promise<RemoteHost | null> {
   const first = deps.toRemoteHost(host);
-  if (host.proxyCommand) return (await proxyHostUp(host, first, deps.sshReachable, now)) ? first : null;
+  if (host.proxyCommand)
+    return (await proxyHostUp(host, first, deps.sshReachable, now))
+      ? first
+      : null;
   if (await deps.sshReachable(first)) return first;
   if (!host.address || first.address === host.address) return null;
   const pub = deps.toRemoteHost({ ...host, tailnet: undefined });
   return (await deps.sshReachable(pub)) ? pub : null;
 }
 
-const muxCheckArgs = (host: RemoteHost): string[] => ["-o", `ControlPath=${sshControlPath(host)}`, "-O", "check", sshDestination(host)];
+const muxCheckArgs = (host: RemoteHost): string[] => [
+  "-o",
+  `ControlPath=${sshControlPath(host)}`,
+  "-O",
+  "check",
+  sshDestination(host),
+];
 
 const MASTER_LOST_HOLD_OFF_MS = 90_000;
 const NSC_RUNNING_TTL_MS = 10_000;
@@ -488,41 +649,75 @@ function noteMaster(hostId: string, alive: boolean, now: number): void {
 
 function masterLostLately(hostId: string, now: number): boolean {
   const seen = masterSeen.get(hostId);
-  return !!seen && !seen.alive && seen.lostAt !== undefined && now - seen.lostAt < MASTER_LOST_HOLD_OFF_MS;
+  return (
+    !!seen &&
+    !seen.alive &&
+    seen.lostAt !== undefined &&
+    now - seen.lostAt < MASTER_LOST_HOLD_OFF_MS
+  );
 }
 
 function cachedProxyRunning(hostId: string, now: number): boolean | undefined {
   const seen = proxyStateAt.get(hostId);
-  return seen && now - seen.at < (seen.up ? NSC_RUNNING_TTL_MS : NSC_NOT_RUNNING_TTL_MS) ? seen.up : undefined;
+  return seen &&
+    now - seen.at < (seen.up ? NSC_RUNNING_TTL_MS : NSC_NOT_RUNNING_TTL_MS)
+    ? seen.up
+    : undefined;
 }
 
 function readProxyRunning(host: CloudHost, now: number): Promise<boolean> {
   const pending = proxyReads.get(host.id);
   if (pending) return pending;
   const read = (async () => {
-    try { return !!(await hostProvider(host).describeAsync?.(host)); } catch { return false; }
+    try {
+      return !!(await hostProvider(host).describeAsync?.(host));
+    } catch {
+      return false;
+    }
   })()
-    .then((up) => { proxyStateAt.set(host.id, { at: now, up }); return up; })
-    .finally(() => { proxyReads.delete(host.id); });
+    .then((up) => {
+      proxyStateAt.set(host.id, { at: now, up });
+      return up;
+    })
+    .finally(() => {
+      proxyReads.delete(host.id);
+    });
   proxyReads.set(host.id, read);
   return read;
 }
 
-async function controlMasterAlive(host: CloudHost, remote: RemoteHost, reach: (h: RemoteHost) => Promise<boolean>, now = Date.now()): Promise<boolean> {
+async function controlMasterAlive(
+  host: CloudHost,
+  remote: RemoteHost,
+  reach: (h: RemoteHost) => Promise<boolean>,
+  now = Date.now(),
+): Promise<boolean> {
   const alive = await reach(remote);
   noteMaster(host.id, alive, now);
   return alive;
 }
 
-async function proxyHostUp(host: CloudHost, remote: RemoteHost, reach: (h: RemoteHost) => Promise<boolean>, now: number): Promise<boolean> {
+async function proxyHostUp(
+  host: CloudHost,
+  remote: RemoteHost,
+  reach: (h: RemoteHost) => Promise<boolean>,
+  now: number,
+): Promise<boolean> {
   if (await controlMasterAlive(host, remote, reach, now)) return true;
   if (masterLostLately(host.id, now)) return false;
-  return cachedProxyRunning(host.id, now) ?? (await readProxyRunning(host, now));
+  return (
+    cachedProxyRunning(host.id, now) ?? (await readProxyRunning(host, now))
+  );
 }
 
 export function dialsWithoutWaking(host: CloudHost, now = Date.now()): boolean {
   if (!host.proxyCommand) return true;
-  const alive = spawnSync("ssh", muxCheckArgs(toRemoteHost(host)), { timeout: 5_000, stdio: "ignore", env: process.env }).status === 0;
+  const alive =
+    spawnSync("ssh", muxCheckArgs(toRemoteHost(host)), {
+      timeout: 5_000,
+      stdio: "ignore",
+      env: process.env,
+    }).status === 0;
   noteMaster(host.id, alive, now);
   if (alive) return true;
   if (masterLostLately(host.id, now)) return false;
@@ -531,26 +726,46 @@ export function dialsWithoutWaking(host: CloudHost, now = Date.now()): boolean {
   return cached ?? false;
 }
 
-export async function dialsWithoutWakingNow(host: CloudHost, now = Date.now()): Promise<boolean> {
-  return !host.proxyCommand || proxyHostUp(host, toRemoteHost(host), sshReachable, now);
+export async function dialsWithoutWakingNow(
+  host: CloudHost,
+  now = Date.now(),
+): Promise<boolean> {
+  return (
+    !host.proxyCommand ||
+    proxyHostUp(host, toRemoteHost(host), sshReachable, now)
+  );
 }
 
-export async function connectedRemoteHost(host: CloudHost, reach = sshReachable): Promise<RemoteHost | null> {
+export async function connectedRemoteHost(
+  host: CloudHost,
+  reach = sshReachable,
+): Promise<RemoteHost | null> {
   if (!host.proxyCommand) return probedRemoteHost(host, reach);
   const remote = toRemoteHost(host);
   return (await controlMasterAlive(host, remote, reach)) ? remote : null;
 }
 
 /** Does anything answer SSH there right now? Cheap, no AWS API call. */
-export function sshReachable(host: RemoteHost, timeoutMs = 4000): Promise<boolean> {
+export function sshReachable(
+  host: RemoteHost,
+  timeoutMs = 4000,
+): Promise<boolean> {
   if (host.proxyCommand) {
     return new Promise((resolve) => {
-      execFile("ssh", muxCheckArgs(host), { timeout: timeoutMs, env: process.env }, (err) => resolve(!err));
+      execFile(
+        "ssh",
+        muxCheckArgs(host),
+        { timeout: timeoutMs, env: process.env },
+        (err) => resolve(!err),
+      );
     });
   }
   return new Promise((resolve) => {
     const sock = net.connect({ host: host.address, port: 22 });
-    const done = (up: boolean) => { sock.destroy(); resolve(up); };
+    const done = (up: boolean) => {
+      sock.destroy();
+      resolve(up);
+    };
     sock.once("connect", () => done(true));
     sock.once("error", () => done(false));
     sock.setTimeout(timeoutMs, () => done(false));
@@ -563,7 +778,8 @@ export function sshReachable(host: RemoteHost, timeoutMs = 4000): Promise<boolea
  * (cloud/tailnet.ts), else its public address.
  */
 export function toRemoteHost(host: CloudHost): RemoteHost {
-  if (!host.address) throw new Error(`host ${host.id} has no address — start it first`);
+  if (!host.address)
+    throw new Error(`host ${host.id} has no address — start it first`);
   const home = isMacHost(host) ? `/Users/${host.user}` : `/home/${host.user}`;
   return {
     address: tailnetDialAddress(host.tailnet) ?? host.address,
@@ -587,7 +803,9 @@ const tailnetFailedAt = new Map<string, number>();
 export function dialRemoteHost(host: CloudHost, now = Date.now()): RemoteHost {
   const first = toRemoteHost(host);
   const failed = tailnetFailedAt.get(first.address);
-  return failed !== undefined && now - failed < TAILNET_SHUN_MS ? toRemoteHost({ ...host, tailnet: undefined }) : first;
+  return failed !== undefined && now - failed < TAILNET_SHUN_MS
+    ? toRemoteHost({ ...host, tailnet: undefined })
+    : first;
 }
 
 /** A dial through dialRemoteHost failed: when it went over the tailnet, use public for a while. True when the next dial moves. */
@@ -598,17 +816,32 @@ export function noteDialFailure(host: CloudHost, now = Date.now()): boolean {
   return true;
 }
 
-const SSH_CONNECT_FAILURE = /ssh: connect to host|Connection timed out|Operation timed out|No route to host|Network is unreachable/i;
+const SSH_CONNECT_FAILURE =
+  /ssh: connect to host|Connection timed out|Operation timed out|No route to host|Network is unreachable/i;
 
 /** An error from a dial through dialRemoteHost: when ssh never reached the host over the tailnet, shun it. True when a retry would dial elsewhere. */
-export function noteDialError(host: CloudHost | null | undefined, err: unknown, now = Date.now()): boolean {
+export function noteDialError(
+  host: CloudHost | null | undefined,
+  err: unknown,
+  now = Date.now(),
+): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return !!host?.address && SSH_CONNECT_FAILURE.test(msg) && noteDialFailure(host, now);
+  return (
+    !!host?.address &&
+    SSH_CONNECT_FAILURE.test(msg) &&
+    noteDialFailure(host, now)
+  );
 }
 
 /** The address that answers ssh now (tailnet, then public), for a one-shot command; the usual address when neither answers. */
-export async function probedRemoteHost(host: CloudHost, reach = sshReachable): Promise<RemoteHost> {
-  return (await reachableRemoteHost(host, { toRemoteHost, sshReachable: reach })) ?? toRemoteHost(host);
+export async function probedRemoteHost(
+  host: CloudHost,
+  reach = sshReachable,
+): Promise<RemoteHost> {
+  return (
+    (await reachableRemoteHost(host, { toRemoteHost, sshReachable: reach })) ??
+    toRemoteHost(host)
+  );
 }
 
 export function resetDialFailuresForTests(): void {

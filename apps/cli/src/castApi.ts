@@ -24,7 +24,10 @@ export interface PublishDeps {
  * failure. Returns the message to print, or null when the status says nothing
  * about a missing route.
  */
-export function missingRouteError(urlPath: string, status: number): string | null {
+export function missingRouteError(
+  urlPath: string,
+  status: number,
+): string | null {
   return status === 404
     ? `this codecast server has no ${urlPath} route — it needs a newer deployment.`
     : null;
@@ -35,7 +38,12 @@ export function missingRouteError(urlPath: string, status: number): string | nul
  * 5xx here is the gateway in front of the backend speaking (an empty body or
  * an HTML page), which used to print as a bare "API error (502):".
  */
-export function nonJsonError(urlPath: string, status: number, text: string, opts: { read?: boolean } = {}): string {
+export function nonJsonError(
+  urlPath: string,
+  status: number,
+  text: string,
+  opts: { read?: boolean } = {},
+): string {
   const missing = missingRouteError(urlPath, status);
   if (missing) return missing;
   if (status === 502 || status === 503) {
@@ -46,7 +54,11 @@ export function nonJsonError(urlPath: string, status: number, text: string, opts
       ? "The codecast backend took too long to answer (HTTP 504). Retry in a minute."
       : "The codecast backend took too long to answer (HTTP 504). The change may still have landed: read it back before sending it again.";
   }
-  const body = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+  const body = text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
   return `API error (${status})${body ? `: ${body}` : ", with an empty answer"}${status >= 500 ? ". Retry in a minute." : ""}`;
 }
 
@@ -58,8 +70,13 @@ export function nonJsonError(urlPath: string, status: number, text: string, opts
  */
 export function isOlderBackendRefusal(err: unknown, field?: string): boolean {
   const text = String((err as any)?.message ?? err ?? "");
-  if (!/ArgumentValidationError|extra field|validator/i.test(text)) return false;
-  return field === undefined || text.includes(`.${field}`) || text.includes(`\`${field}\``);
+  if (!/ArgumentValidationError|extra field|validator/i.test(text))
+    return false;
+  return (
+    field === undefined ||
+    text.includes(`.${field}`) ||
+    text.includes(`\`${field}\``)
+  );
 }
 
 export async function apiPost(
@@ -68,18 +85,28 @@ export async function apiPost(
   body: Record<string, unknown>,
   /** `describeError` turns a refusal code into words before it is shown.
    *  `retries` re-sends a write that is safe to repeat (setting a value, not creating one) on a timeout or 5xx. */
-  opts: { read?: boolean; exitOnError?: boolean; describeError?: (error: string) => string; retries?: number; timeoutMs?: number } = {},
+  opts: {
+    read?: boolean;
+    exitOnError?: boolean;
+    describeError?: (error: string) => string;
+    retries?: number;
+    timeoutMs?: number;
+  } = {},
 ): Promise<any> {
   const { siteUrl, apiToken } = deps.getCliEndpoint();
   const doFetch = opts.read ? cliFetchRead : cliFetch;
-  const response = await doFetch(`${siteUrl}${urlPath}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_token: apiToken, ...body }),
-  }, {
-    ...(opts.retries !== undefined ? { retries: opts.retries } : {}),
-    ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
-  });
+  const response = await doFetch(
+    `${siteUrl}${urlPath}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_token: apiToken, ...body }),
+    },
+    {
+      ...(opts.retries !== undefined ? { retries: opts.retries } : {}),
+      ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+    },
+  );
   return readApiResult(response, urlPath, opts);
 }
 
@@ -94,18 +121,29 @@ export async function apiUpload(
   opts: { exitOnError?: boolean } = {},
 ): Promise<any> {
   const { siteUrl, apiToken } = deps.getCliEndpoint();
-  const response = await cliFetch(`${siteUrl}${urlPath}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": body.type || "application/octet-stream" },
-    body,
-  }, { timeoutMs: UPLOAD_TIMEOUT_MS });
+  const response = await cliFetch(
+    `${siteUrl}${urlPath}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": body.type || "application/octet-stream",
+      },
+      body,
+    },
+    { timeoutMs: UPLOAD_TIMEOUT_MS },
+  );
   return readApiResult(response, urlPath, opts);
 }
 
 async function readApiResult(
   response: Response,
   urlPath: string,
-  opts: { read?: boolean; exitOnError?: boolean; describeError?: (error: string) => string },
+  opts: {
+    read?: boolean;
+    exitOnError?: boolean;
+    describeError?: (error: string) => string;
+  },
 ): Promise<any> {
   const text = await response.text();
   let result: any;
@@ -119,10 +157,14 @@ async function readApiResult(
   }
   // A failure the backend itself answers (out of memory, a timeout) has no
   // `error` field, only Convex's `code`, so the status decides too.
-  const raw = result?.error ?? (response.ok ? null : result?.code ?? `HTTP ${response.status}`);
+  const raw =
+    result?.error ??
+    (response.ok ? null : (result?.code ?? `HTTP ${response.status}`));
   if (raw) {
     // A function's own refusal arrives wrapped in Convex's "Uncaught ConvexError: <sentence>" and a stack: show the sentence.
-    const said = /Uncaught (?:Error|ConvexError): /.test(String(raw)) ? serverErrorLine(String(raw)) : String(raw);
+    const said = /Uncaught (?:Error|ConvexError): /.test(String(raw))
+      ? serverErrorLine(String(raw))
+      : String(raw);
     const error = opts.describeError ? opts.describeError(said) : said;
     if (opts.exitOnError === false) throw new Error(error);
     console.error(`Error: ${error}`);

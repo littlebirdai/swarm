@@ -20,8 +20,11 @@ import { lineFilmed } from "@codecast/shared/contracts";
  *  Where that seeks is the caller's (lineSeekMs), since it knows what was
  *  filmed. */
 function clickedLine(t: Turn, target: EventTarget | null): ClickedLine {
-  const seq = (target as Element | null)?.closest?.("[data-seq]")?.getAttribute("data-seq");
-  const line = seq == null ? undefined : t.segments.find((s) => String(s.seq) === seq);
+  const seq = (target as Element | null)
+    ?.closest?.("[data-seq]")
+    ?.getAttribute("data-seq");
+  const line =
+    seq == null ? undefined : t.segments.find((s) => String(s.seq) === seq);
   return line ?? t.segments[0] ?? { t0: t.t0 };
 }
 
@@ -33,7 +36,13 @@ export type ClickedLine = { t0: number; t1?: number };
  *  line being said, a dim REC red over the stretches that were filmed, and
  *  clear elsewhere. The other lines of the turn being said step back a
  *  shade, so the eye lands on the one line. */
-function lineClass(s: { seq: number; t0: number; t1?: number }, followed: boolean, inActive: boolean, activeSeq: number | null | undefined, filmed?: ReadonlyArray<{ fromMs: number; toMs: number }>): string {
+function lineClass(
+  s: { seq: number; t0: number; t1?: number },
+  followed: boolean,
+  inActive: boolean,
+  activeSeq: number | null | undefined,
+  filmed?: ReadonlyArray<{ fromMs: number; toMs: number }>,
+): string {
   const base = "text-[13px] leading-relaxed";
   if (!followed) return `${base} text-sol-text`;
   const rail =
@@ -88,7 +97,12 @@ export function TranscriptTurnList({
   const link = (t: Turn) => {
     const anchor = callId ? turnsAnchor([t]) : null;
     return anchor ? (
-      <CallLinkButton callId={callId!} anchor={anchor} title="Copy a link to this turn" className="ml-1 align-middle" />
+      <CallLinkButton
+        callId={callId!}
+        anchor={anchor}
+        title="Copy a link to this turn"
+        className="ml-1 align-middle"
+      />
     ) : null;
   };
   return (
@@ -97,86 +111,118 @@ export function TranscriptTurnList({
         const active = activeIndex === t.index;
         const selected = isSelected?.(t.index);
         return (
-        <div
-          key={t.index}
-          data-turn={t.index}
-          {...(selectable
-            ? {
-                role: "button",
-                tabIndex: 0,
-                "aria-pressed": selected,
-                "aria-label": compact
-                  ? `Line at ${formatCallTime(t.t0)}`
-                  : `Turn by ${speakerShortName(t.speaker_name, t.speaker_id)} at ${formatCallTime(t.t0)}`,
-                onClick: (e: React.MouseEvent) => {
-                  if (hold.takeSpent()) return;
-                  onTurnClick(t.index, e, clickedLine(t, e.target));
-                },
-                ...(holds
-                  ? {
-                      onPointerDown: (e: React.PointerEvent) => {
-                        if (e.pointerType !== "mouse") hold.start(t.index);
-                      },
-                      onPointerUp: hold.cancel,
-                      onPointerLeave: hold.cancel,
-                      onPointerCancel: hold.cancel,
-                      // The phone's own long press (select text, a callout)
-                      // would land on the same finger.
-                      onContextMenu: (e: React.MouseEvent) => {
-                        if ((e.nativeEvent as PointerEvent).pointerType !== "mouse") e.preventDefault();
-                      },
+          <div
+            key={t.index}
+            data-turn={t.index}
+            {...(selectable
+              ? {
+                  role: "button",
+                  tabIndex: 0,
+                  "aria-pressed": selected,
+                  "aria-label": compact
+                    ? `Line at ${formatCallTime(t.t0)}`
+                    : `Turn by ${speakerShortName(t.speaker_name, t.speaker_id)} at ${formatCallTime(t.t0)}`,
+                  onClick: (e: React.MouseEvent) => {
+                    if (hold.takeSpent()) return;
+                    onTurnClick(t.index, e, clickedLine(t, e.target));
+                  },
+                  ...(holds
+                    ? {
+                        onPointerDown: (e: React.PointerEvent) => {
+                          if (e.pointerType !== "mouse") hold.start(t.index);
+                        },
+                        onPointerUp: hold.cancel,
+                        onPointerLeave: hold.cancel,
+                        onPointerCancel: hold.cancel,
+                        // The phone's own long press (select text, a callout)
+                        // would land on the same finger.
+                        onContextMenu: (e: React.MouseEvent) => {
+                          if (
+                            (e.nativeEvent as PointerEvent).pointerType !==
+                            "mouse"
+                          )
+                            e.preventDefault();
+                        },
+                      }
+                    : {}),
+                  onKeyDown: (e: React.KeyboardEvent) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onTurnClick(t.index, e as any, clickedLine(t, e.target));
                     }
-                  : {}),
-                onKeyDown: (e: React.KeyboardEvent) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onTurnClick(t.index, e as any, clickedLine(t, e.target));
-                  }
-                },
-              }
-            : {})}
-          className={`group -mx-2 rounded-md px-2 py-1 ${
-            selectable ? "cursor-pointer transition-colors " : ""
-          }${holds ? "[@media(pointer:coarse)]:select-none [@media(pointer:coarse)]:[-webkit-touch-callout:none] " : ""}${
-            selected
-              ? "bg-sol-violet/10 ring-1 ring-inset ring-sol-violet/40"
-              : active
-                ? "bg-sol-bg-alt/60"
-                : selectable
-                  ? "hover:bg-sol-bg-alt/40"
-                  : ""
-          }`}
-        >
-          {compact ? (
-            <div className="flex gap-3">
-              <span className="w-11 shrink-0 pt-0.5 font-mono text-meta tabular-nums text-sol-text-dim">
-                {formatCallTime(t.t0)}
-              </span>
-              <div className="min-w-0 flex-1">
+                  },
+                }
+              : {})}
+            className={`group -mx-2 rounded-md px-2 py-1 ${
+              selectable ? "cursor-pointer transition-colors " : ""
+            }${holds ? "[@media(pointer:coarse)]:select-none [@media(pointer:coarse)]:[-webkit-touch-callout:none] " : ""}${
+              selected
+                ? "bg-sol-violet/10 ring-1 ring-inset ring-sol-violet/40"
+                : active
+                  ? "bg-sol-bg-alt/60"
+                  : selectable
+                    ? "hover:bg-sol-bg-alt/40"
+                    : ""
+            }`}
+          >
+            {compact ? (
+              <div className="flex gap-3">
+                <span className="w-11 shrink-0 pt-0.5 font-mono text-meta tabular-nums text-sol-text-dim">
+                  {formatCallTime(t.t0)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  {t.segments.map((s) => (
+                    <p
+                      key={s.seq}
+                      data-seq={s.seq}
+                      className={lineClass(
+                        s,
+                        followed,
+                        active,
+                        activeSeq,
+                        filmed,
+                      )}
+                    >
+                      {s.text}
+                    </p>
+                  ))}
+                </div>
+                {link(t)}
+              </div>
+            ) : (
+              <>
+                <div
+                  className={`text-meta font-medium ${speakerColor(t.speaker_id)}`}
+                >
+                  {firstName(t.speaker_name)}
+                  <ParticipantTag
+                    identity={t.speaker_id}
+                    name={t.speaker_name}
+                    className="ml-1.5 align-[1px]"
+                  />
+                  <span className="ml-2 font-normal text-sol-text-dim">
+                    {formatCallTime(t.t0)}
+                  </span>
+                  {link(t)}
+                </div>
                 {t.segments.map((s) => (
-                  <p key={s.seq} data-seq={s.seq} className={lineClass(s, followed, active, activeSeq, filmed)}>
+                  <p
+                    key={s.seq}
+                    data-seq={s.seq}
+                    className={lineClass(
+                      s,
+                      followed,
+                      active,
+                      activeSeq,
+                      filmed,
+                    )}
+                  >
                     {s.text}
                   </p>
                 ))}
-              </div>
-              {link(t)}
-            </div>
-          ) : (
-            <>
-              <div className={`text-meta font-medium ${speakerColor(t.speaker_id)}`}>
-                {firstName(t.speaker_name)}
-                <ParticipantTag identity={t.speaker_id} name={t.speaker_name} className="ml-1.5 align-[1px]" />
-                <span className="ml-2 font-normal text-sol-text-dim">{formatCallTime(t.t0)}</span>
-                {link(t)}
-              </div>
-              {t.segments.map((s) => (
-                <p key={s.seq} data-seq={s.seq} className={lineClass(s, followed, active, activeSeq, filmed)}>
-                  {s.text}
-                </p>
-              ))}
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
         );
       })}
     </>
@@ -209,7 +255,11 @@ export function CallTranscriptDisclosure({
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-text-muted transition-colors"
         >
-          {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          {open ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
           transcript
         </button>
         <a
@@ -223,13 +273,17 @@ export function CallTranscriptDisclosure({
       {open && (
         <div className="mt-1.5 max-h-80 space-y-0.5 overflow-y-auto rounded border border-sol-border/25 bg-sol-bg-alt/30 px-3 py-2">
           {call === undefined ? (
-            <div className="text-[12px] text-sol-text-dim">Loading transcript…</div>
+            <div className="text-[12px] text-sol-text-dim">
+              Loading transcript…
+            </div>
           ) : call === null ? (
             <div className="text-[12px] text-sol-text-dim">
               Transcript not available (not yours to see, or deleted).
             </div>
           ) : turns.length === 0 ? (
-            <div className="text-[12px] text-sol-text-dim">Nothing was transcribed.</div>
+            <div className="text-[12px] text-sol-text-dim">
+              Nothing was transcribed.
+            </div>
           ) : (
             <TranscriptTurnList turns={turns} callId={transcriptId} />
           )}

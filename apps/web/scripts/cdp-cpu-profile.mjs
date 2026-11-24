@@ -9,9 +9,15 @@ const output = readArg("--output", "/tmp/codecast-cpu-profile.json");
 const durationMs = Number(readArg("--duration-ms", "10000"));
 const reload = args.includes("--reload");
 const offline = args.includes("--offline");
-const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((response) => response.json());
-const target = targets.find((candidate) => candidate.type === "page" && candidate.url.includes(targetMatch));
-if (!target?.webSocketDebuggerUrl) throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
+const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then(
+  (response) => response.json(),
+);
+const target = targets.find(
+  (candidate) =>
+    candidate.type === "page" && candidate.url.includes(targetMatch),
+);
+if (!target?.webSocketDebuggerUrl)
+  throw new Error(`No page matching ${targetMatch} on CDP port ${port}`);
 
 const socket = new WebSocket(target.webSocketDebuggerUrl);
 const pending = new Map();
@@ -92,4 +98,10 @@ const top = [...totals]
   .map(([frame, selfMs]) => ({ frame, selfMs: Number(selfMs.toFixed(1)) }))
   .sort((a, b) => b.selfMs - a.selfMs)
   .slice(0, 40);
-console.log(JSON.stringify({ output, durationMs, samples: profile.samples.length, top }, null, 2));
+console.log(
+  JSON.stringify(
+    { output, durationMs, samples: profile.samples.length, top },
+    null,
+    2,
+  ),
+);

@@ -27,7 +27,10 @@ export function useSyncTeams(): any[] | undefined {
   // would read as "no teams": held until the server confirms the caller, and
   // blind while it has lost them (useServerAuthSettled).
   const { settled, identityLost } = useServerAuthState();
-  const liveQuery = useQueryNoThrow(api.teams.getUserTeams, isSyncHost && settled ? {} : "skip").data;
+  const liveQuery = useQueryNoThrow(
+    api.teams.getUserTeams,
+    isSyncHost && settled ? {} : "skip",
+  ).data;
   const teamsQuery = identityLost ? undefined : liveQuery;
   useConvexSync(
     teamsQuery,
@@ -47,7 +50,8 @@ export function useSyncTeams(): any[] | undefined {
     const active = useInboxStore.getState().clientState.ui?.active_team_id;
     // Stub ids (optimistic create) resolve on their own; only a real id can dangle.
     if (!active || !isConvexId(String(active))) return;
-    if (teamsQuery.some((t: any) => t?._id?.toString() === String(active))) return;
+    if (teamsQuery.some((t: any) => t?._id?.toString() === String(active)))
+      return;
     const timer = setTimeout(() => {
       const now = useInboxStore.getState().clientState.ui?.active_team_id;
       if (String(now) !== String(active)) return;

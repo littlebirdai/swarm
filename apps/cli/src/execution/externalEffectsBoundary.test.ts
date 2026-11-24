@@ -10,7 +10,8 @@ function sourceFiles(directory: string): string[] {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name);
     if (entry.isDirectory()) files.push(...sourceFiles(full));
-    else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")) files.push(full);
+    else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts"))
+      files.push(full);
   }
   return files;
 }
@@ -32,7 +33,9 @@ describe("fenced execution external-effect boundary", () => {
       const source = fs.readFileSync(file, "utf8");
       for (const pattern of forbiddenOutsideDrivers) {
         if (pattern.test(source)) {
-          violations.push(`${path.relative(executionRoot, file)} matched ${pattern}`);
+          violations.push(
+            `${path.relative(executionRoot, file)} matched ${pattern}`,
+          );
         }
       }
     }
@@ -40,7 +43,10 @@ describe("fenced execution external-effect boundary", () => {
   });
 
   test("the fenced coordinator reaches external effects only through RuntimeDriver.deliver", () => {
-    const source = fs.readFileSync(path.join(executionRoot, "coordinator.ts"), "utf8");
+    const source = fs.readFileSync(
+      path.join(executionRoot, "coordinator.ts"),
+      "utf8",
+    );
     expect(source).toContain("driver.deliver({ binding, permit, delivery })");
     expect(source).not.toContain(".turnStart(");
     expect(source).not.toContain("injectViaTmux");
@@ -48,8 +54,14 @@ describe("fenced execution external-effect boundary", () => {
   });
 
   test("legacy daemon effects are explicitly outside this dormant rail until migration", () => {
-    const indexSource = fs.readFileSync(path.join(executionRoot, "index.ts"), "utf8");
-    const daemonSource = fs.readFileSync(path.join(executionRoot, "..", "daemon.ts"), "utf8");
+    const indexSource = fs.readFileSync(
+      path.join(executionRoot, "index.ts"),
+      "utf8",
+    );
+    const daemonSource = fs.readFileSync(
+      path.join(executionRoot, "..", "daemon.ts"),
+      "utf8",
+    );
     expect(indexSource).not.toContain("daemon");
     // This assertion makes the migration boundary honest: the guard above covers
     // fenced-v2 today; legacy injection remains and cannot be relabeled as fenced.

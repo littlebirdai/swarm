@@ -17,10 +17,20 @@ import type { ActivityTab } from "./activityView";
 // an 18px title, the boxed segmented toggle, a quiet accent link), named as
 // their sidebar names the page (lib/navRegistry classicLabel: "Feed").
 
-const TABS = [{ key: "activity", label: "Activity" }, { key: "messages", label: "Messages" }];
-const LEGACY_TITLE = navRow("activity").classicLabel ?? navRow("activity").label;
+const TABS = [
+  { key: "activity", label: "Activity" },
+  { key: "messages", label: "Messages" },
+];
+const LEGACY_TITLE =
+  navRow("activity").classicLabel ?? navRow("activity").label;
 
-export function ActivityHeader({ tab, state, hasTeam, count, children }: {
+export function ActivityHeader({
+  tab,
+  state,
+  hasTeam,
+  count,
+  children,
+}: {
   tab: ActivityTab;
   state: ActivityViewState;
   hasTeam: boolean;
@@ -28,19 +38,30 @@ export function ActivityHeader({ tab, state, hasTeam, count, children }: {
   children?: ReactNode;
 }) {
   const router = useRouter();
-  const onTab = (key: string) => { if (key !== tab) router.push(state.tabHref(key as ActivityTab)); };
+  const onTab = (key: string) => {
+    if (key !== tab) router.push(state.tabHref(key as ActivityTab));
+  };
   return (
     <PageHeader
-      legacy={<ActivityLegacyHeader tab={tab} onTab={onTab} hasTeam={hasTeam}>{children}</ActivityLegacyHeader>}
+      legacy={
+        <ActivityLegacyHeader tab={tab} onTab={onTab} hasTeam={hasTeam}>
+          {children}
+        </ActivityLegacyHeader>
+      }
       title="Activity"
       icon={Activity}
       count={count}
       tabs={<SegmentedToggle value={tab} onChange={onTab} items={TABS} />}
-      actions={hasTeam ? (
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/team/charts"><ChartColumn aria-hidden />Charts</Link>
-        </Button>
-      ) : null}
+      actions={
+        hasTeam ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/team/charts">
+              <ChartColumn aria-hidden />
+              Charts
+            </Link>
+          </Button>
+        ) : null
+      }
     >
       {children}
     </PageHeader>
@@ -48,7 +69,12 @@ export function ActivityHeader({ tab, state, hasTeam, count, children }: {
 }
 
 /** Classic and Minimal: the title row, then the filters. */
-function ActivityLegacyHeader({ tab, onTab, hasTeam, children }: {
+function ActivityLegacyHeader({
+  tab,
+  onTab,
+  hasTeam,
+  children,
+}: {
   tab: ActivityTab;
   onTab: (key: string) => void;
   hasTeam: boolean;
@@ -58,7 +84,9 @@ function ActivityLegacyHeader({ tab, onTab, hasTeam, children }: {
     <header data-activity-head className="mb-5">
       <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-2">
         <Activity aria-hidden className="size-4 shrink-0 text-sol-cyan" />
-        <h1 className="text-title font-semibold text-sol-text">{LEGACY_TITLE}</h1>
+        <h1 className="text-title font-semibold text-sol-text">
+          {LEGACY_TITLE}
+        </h1>
         <SegmentedToggle value={tab} onChange={onTab} items={TABS} />
         {hasTeam && (
           <Link

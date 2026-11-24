@@ -56,7 +56,10 @@ export const MENTION_COLOR_MAP: Record<string, string> = {
  *  is named as that person, everything else keeps its own label. */
 function mentionLabel(item: MentionItem): string {
   if (item.type !== "session" || !item.identity) return item.label;
-  return identityLine(item.identity, item.label, identityPrefsNow()).name ?? item.label;
+  return (
+    identityLine(item.identity, item.label, identityPrefsNow()).name ??
+    item.label
+  );
 }
 
 export function createMentionSuggestion(queryFn: MentionQueryFn) {
@@ -139,7 +142,9 @@ const MarkdownLink = Link.extend({
             const bare = state.inAutolink;
             state.inAutolink = undefined;
             if (bare) return "";
-            const title = mark.attrs.title ? ` "${String(mark.attrs.title).replace(/"/g, '\\"')}"` : "";
+            const title = mark.attrs.title
+              ? ` "${String(mark.attrs.title).replace(/"/g, '\\"')}"`
+              : "";
             return `](${String(mark.attrs.href).replace(/[()"]/g, "\\$&")}${title})`;
           },
           mixable: true,
@@ -167,7 +172,11 @@ const MarkdownText = Node.create({
       markdown: {
         serialize(state: any, node: any) {
           splitOnImagePlaceholders(node.text).forEach((part, i) => {
-            if (part) state.text(i % 2 ? part : part.replace(/</g, "&lt;").replace(/>/g, "&gt;"), i % 2 === 0);
+            if (part)
+              state.text(
+                i % 2 ? part : part.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+                i % 2 === 0,
+              );
           });
         },
         parse: {},
@@ -198,13 +207,16 @@ export function createBaseExtensions(opts: {
     ...(opts.titleFirst
       ? [
           TitleFirstDocument,
-          DocTitleExtension.configure({ fallbackTitle: opts.titleFirst.fallbackTitle }),
+          DocTitleExtension.configure({
+            fallbackTitle: opts.titleFirst.fallbackTitle,
+          }),
           // The title block always reads "Untitled" while empty (not only when
           // focused); the body hint sits on the first paragraph below it —
           // editor.css scopes which empty blocks show theirs.
           Placeholder.configure({
             showOnlyCurrent: false,
-            placeholder: ({ pos }) => (pos === 0 ? "Untitled" : bodyPlaceholder),
+            placeholder: ({ pos }) =>
+              pos === 0 ? "Untitled" : bodyPlaceholder,
           }),
         ]
       : [Placeholder.configure({ placeholder: bodyPlaceholder })]),
@@ -283,13 +295,17 @@ export function createMentionExtension(onMentionQuery: MentionQueryFn) {
             status: el.getAttribute("data-status") || null,
             priority: el.getAttribute("data-priority") || null,
             docType: el.getAttribute("data-doc-type") || null,
-            messageCount: el.getAttribute("data-message-count") ? Number(el.getAttribute("data-message-count")) : null,
+            messageCount: el.getAttribute("data-message-count")
+              ? Number(el.getAttribute("data-message-count"))
+              : null,
             projectPath: el.getAttribute("data-project-path") || null,
             image: el.getAttribute("data-image") || null,
             goal: el.getAttribute("data-goal") || null,
             model: el.getAttribute("data-model") || null,
             agentType: el.getAttribute("data-agent-type") || null,
-            updatedAt: el.getAttribute("data-updated-at") ? Number(el.getAttribute("data-updated-at")) : null,
+            updatedAt: el.getAttribute("data-updated-at")
+              ? Number(el.getAttribute("data-updated-at"))
+              : null,
             idleSummary: el.getAttribute("data-idle-summary") || null,
           }),
         },
@@ -349,13 +365,15 @@ export function createMentionExtension(onMentionQuery: MentionQueryFn) {
       if (attrs.status) htmlAttrs["data-status"] = attrs.status;
       if (attrs.priority) htmlAttrs["data-priority"] = attrs.priority;
       if (attrs.docType) htmlAttrs["data-doc-type"] = attrs.docType;
-      if (attrs.messageCount != null) htmlAttrs["data-message-count"] = String(attrs.messageCount);
+      if (attrs.messageCount != null)
+        htmlAttrs["data-message-count"] = String(attrs.messageCount);
       if (attrs.projectPath) htmlAttrs["data-project-path"] = attrs.projectPath;
       if (attrs.image) htmlAttrs["data-image"] = attrs.image;
       if (attrs.goal) htmlAttrs["data-goal"] = attrs.goal;
       if (attrs.model) htmlAttrs["data-model"] = attrs.model;
       if (attrs.agentType) htmlAttrs["data-agent-type"] = attrs.agentType;
-      if (attrs.updatedAt != null) htmlAttrs["data-updated-at"] = String(attrs.updatedAt);
+      if (attrs.updatedAt != null)
+        htmlAttrs["data-updated-at"] = String(attrs.updatedAt);
       if (attrs.idleSummary) htmlAttrs["data-idle-summary"] = attrs.idleSummary;
       return ["a", htmlAttrs, `@${attrs.label || attrs.id}`];
     },

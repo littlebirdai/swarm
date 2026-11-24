@@ -15,9 +15,18 @@ import { sharedResolve } from "./vite.shared";
 
 const here = __dirname;
 const mocked: Record<string, string> = {
-  [path.resolve(here, "store/inboxStore.ts")]: path.resolve(here, "preview/mocks/inboxStore.ts"),
-  [path.resolve(here, "hooks/useQueryNoThrow.ts")]: path.resolve(here, "preview/mocks/useQueryNoThrow.ts"),
-  [path.resolve(here, "hooks/useSyncDevices.ts")]: path.resolve(here, "preview/mocks/useSyncDevices.ts"),
+  [path.resolve(here, "store/inboxStore.ts")]: path.resolve(
+    here,
+    "preview/mocks/inboxStore.ts",
+  ),
+  [path.resolve(here, "hooks/useQueryNoThrow.ts")]: path.resolve(
+    here,
+    "preview/mocks/useQueryNoThrow.ts",
+  ),
+  [path.resolve(here, "hooks/useSyncDevices.ts")]: path.resolve(
+    here,
+    "preview/mocks/useSyncDevices.ts",
+  ),
 };
 
 function previewMocks(): Plugin {
@@ -44,10 +53,21 @@ export default defineConfig({
     alias: {
       ...sharedResolve.alias,
       "convex/react": path.resolve(here, "preview/mocks/convexReact.ts"),
-      "@codecast/convex/convex/_generated/api": path.resolve(here, "preview/mocks/generatedApi.ts"),
+      "@codecast/convex/convex/_generated/api": path.resolve(
+        here,
+        "preview/mocks/generatedApi.ts",
+      ),
     },
   },
   css: { postcss: here },
-  define: { __CODECAST_BUILD__: JSON.stringify({ sha: "preview", builtAt: "", mode: "preview", promptGeneration: 0, promptMessage: "" }) },
+  define: {
+    __CODECAST_BUILD__: JSON.stringify({
+      sha: "preview",
+      builtAt: "",
+      mode: "preview",
+      promptGeneration: 0,
+      promptMessage: "",
+    }),
+  },
   server: { port: 5199, strictPort: true, host: "127.0.0.1" },
 });

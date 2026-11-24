@@ -28,35 +28,54 @@ type Options = {
 
 export class BridgeSocket extends EventEmitter {
   private stopped = false;
-  constructor(private driver: Driver, private owner: TransportState) {
+  constructor(
+    private driver: Driver,
+    private owner: TransportState,
+  ) {
     super();
     owner.sockets.add(this);
   }
 
-  get readyState() { return this.stopped ? WebSocket.CLOSED : this.driver.readyState; }
-  get bufferedAmount() { return this.driver.bufferedAmount; }
+  get readyState() {
+    return this.stopped ? WebSocket.CLOSED : this.driver.readyState;
+  }
+  get bufferedAmount() {
+    return this.driver.bufferedAmount;
+  }
 
   /** Text unless `binary: true`: every CDP and extension frame is text, a Buffer included. */
   send(data: string | Buffer, options?: { binary: boolean }): void {
     if (this.readyState !== WebSocket.OPEN) return;
-    const bytes = typeof data === "string" ? Buffer.byteLength(data) : data.length;
+    const bytes =
+      typeof data === "string" ? Buffer.byteLength(data) : data.length;
     const buffered = this.owner.refresh(this);
     if (buffered + bytes > this.owner.socketBudget) {
-      this.owner.overflow(this, `${buffered} bytes queued, ${bytes} byte frame`);
+      this.owner.overflow(
+        this,
+        `${buffered} bytes queued, ${bytes} byte frame`,
+      );
       return;
     }
     if (!this.owner.makeRoom(this, bytes)) return;
-    const sent = this.driver.send(data, options?.binary === true && typeof data !== "string");
+    const sent = this.driver.send(
+      data,
+      options?.binary === true && typeof data !== "string",
+    );
     if (sent === 0) {
       this.owner.overflow(this, "transport refused a frame");
       return;
     }
     this.owner.sentBytes += bytes;
     this.owner.refresh(this);
-    this.owner.peakBufferedBytes = Math.max(this.owner.peakBufferedBytes, this.owner.queuedBytes);
+    this.owner.peakBufferedBytes = Math.max(
+      this.owner.peakBufferedBytes,
+      this.owner.queuedBytes,
+    );
   }
 
-  close(code?: number, reason?: string): void { this.driver.close(code, reason); }
+  close(code?: number, reason?: string): void {
+    this.driver.close(code, reason);
+  }
   terminate(): void {
     this.stopped = true;
     this.driver.terminate();
@@ -93,7 +112,12 @@ class TransportState {
     return bytes;
   }
 
-  refresh(socket: BridgeSocket): number { return this.record(socket, this.sockets.has(socket) ? socket.bufferedAmount : 0); }
+  refresh(socket: BridgeSocket): number {
+    return this.record(
+      socket,
+      this.sockets.has(socket) ? socket.bufferedAmount : 0,
+    );
+  }
 
   bufferedBytes(): number {
     for (const socket of this.sockets) this.refresh(socket);
@@ -114,10 +138,16 @@ class TransportState {
       let largestBytes = 0;
       for (const socket of this.sockets) {
         const queued = this.queued.get(socket) ?? 0;
-        if (queued > largestBytes) { largest = socket; largestBytes = queued; }
+        if (queued > largestBytes) {
+          largest = socket;
+          largestBytes = queued;
+        }
       }
       const victim = largest ?? sender;
-      this.overflow(victim, `${largestBytes} bytes queued; whole-bridge queue budget reached`);
+      this.overflow(
+        victim,
+        `${largestBytes} bytes queued; whole-bridge queue budget reached`,
+      );
       if (victim === sender) return false;
     }
     return true;
@@ -125,9 +155,13 @@ class TransportState {
 
   stats() {
     return {
-      sockets: this.sockets.size, bufferedBytes: this.bufferedBytes(),
-      peakBufferedBytes: this.peakBufferedBytes, overflows: this.overflows, sentBytes: this.sentBytes,
-      socketBudget: this.socketBudget, serverBudget: this.serverBudget,
+      sockets: this.sockets.size,
+      bufferedBytes: this.bufferedBytes(),
+      peakBufferedBytes: this.peakBufferedBytes,
+      overflows: this.overflows,
+      sentBytes: this.sentBytes,
+      socketBudget: this.socketBudget,
+      serverBudget: this.serverBudget,
     };
   }
 }
@@ -135,33 +169,69 @@ class TransportState {
 export async function serveBridge(opts: Options) {
   const state = new TransportState(opts);
   if (typeof Bun !== "undefined") {
-    type Peer = { accept: (socket: BridgeSocket) => void; socket?: BridgeSocket };
+    type Peer = {
+      accept: (socket: BridgeSocket) => void;
+      socket?: BridgeSocket;
+    };
     const server = Bun.serve<Peer>({
-      hostname: "127.0.0.1", port: opts.port, idleTimeout: 0,
+      hostname: "127.0.0.1",
+      port: opts.port,
+      idleTimeout: 0,
       fetch(request, server) {
-        if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return opts.fetch(request);
+        if (request.headers.get("upgrade")?.toLowerCase() !== "websocket")
+          return opts.fetch(request);
         const decision = opts.upgrade(request);
         if (decision instanceof Response) return decision;
         if (server.upgrade(request, { data: { accept: decision } })) return;
         return new Response("bad upgrade\n", { status: 400 });
       },
       websocket: {
-        maxPayloadLength: opts.maxPayload, backpressureLimit: state.socketBudget,
-        closeOnBackpressureLimit: true, perMessageDeflate: false, idleTimeout: 0, sendPings: false,
+        maxPayloadLength: opts.maxPayload,
+        backpressureLimit: state.socketBudget,
+        closeOnBackpressureLimit: true,
+        perMessageDeflate: false,
+        idleTimeout: 0,
+        sendPings: false,
         open(ws: ServerWebSocket<Peer>) {
-          const socket = new BridgeSocket({
-            get readyState() { return ws.readyState; },
-            get bufferedAmount() { return ws.getBufferedAmount(); },
-            send(data, binary) { return binary ? ws.sendBinary(data as Buffer) : ws.sendText(typeof data === "string" ? data : data.toString("utf8")); },
-            close(code, reason) { ws.close(code, reason); },
-            terminate() { ws.terminate(); },
-          }, state);
+          const socket = new BridgeSocket(
+            {
+              get readyState() {
+                return ws.readyState;
+              },
+              get bufferedAmount() {
+                return ws.getBufferedAmount();
+              },
+              send(data, binary) {
+                return binary
+                  ? ws.sendBinary(data as Buffer)
+                  : ws.sendText(
+                      typeof data === "string" ? data : data.toString("utf8"),
+                    );
+              },
+              close(code, reason) {
+                ws.close(code, reason);
+              },
+              terminate() {
+                ws.terminate();
+              },
+            },
+            state,
+          );
           ws.data.socket = socket;
           ws.data.accept(socket);
         },
-        message(ws, data) { ws.data.socket?.emit("message", typeof data === "string" ? Buffer.from(data) : data); },
-        drain(ws) { if (ws.data.socket) state.refresh(ws.data.socket); },
-        close(ws, code, reason) { ws.data.socket?.closed(code, reason); },
+        message(ws, data) {
+          ws.data.socket?.emit(
+            "message",
+            typeof data === "string" ? Buffer.from(data) : data,
+          );
+        },
+        drain(ws) {
+          if (ws.data.socket) state.refresh(ws.data.socket);
+        },
+        close(ws, code, reason) {
+          ws.data.socket?.closed(code, reason);
+        },
       },
     });
     return {
@@ -173,34 +243,58 @@ export async function serveBridge(opts: Options) {
     };
   }
 
-  const requestFor = (req: http.IncomingMessage) => new Request(`http://127.0.0.1:${opts.port}${req.url ?? "/"}`, {
-    method: req.method,
-    headers: Object.fromEntries(Object.entries(req.headers).filter((entry): entry is [string, string] => typeof entry[1] === "string")),
-  });
+  const requestFor = (req: http.IncomingMessage) =>
+    new Request(`http://127.0.0.1:${opts.port}${req.url ?? "/"}`, {
+      method: req.method,
+      headers: Object.fromEntries(
+        Object.entries(req.headers).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      ),
+    });
   const server = http.createServer((req, res) => {
-    void opts.fetch(requestFor(req)).then(async response => {
+    void opts.fetch(requestFor(req)).then(async (response) => {
       res.writeHead(response.status, Object.fromEntries(response.headers));
       res.end(Buffer.from(await response.arrayBuffer()));
     });
   });
-  const wss = new WebSocketServer({ noServer: true, maxPayload: opts.maxPayload, perMessageDeflate: false });
+  const wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: opts.maxPayload,
+    perMessageDeflate: false,
+  });
   server.on("upgrade", (req, stream, head) => {
     const decision = opts.upgrade(requestFor(req));
     if (decision instanceof Response) {
-      stream.end(`HTTP/1.1 ${decision.status} ${decision.statusText || "Rejected"}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+      stream.end(
+        `HTTP/1.1 ${decision.status} ${decision.statusText || "Rejected"}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+      );
       return;
     }
-    wss.handleUpgrade(req, stream, head, ws => {
-      const socket = new BridgeSocket({
-        get readyState() { return ws.readyState; },
-        get bufferedAmount() { return ws.bufferedAmount; },
-        send(data, binary) { ws.send(data, { binary }, () => state.refresh(socket)); },
-        close(code, reason) { ws.close(code, reason); },
-        terminate() { ws.terminate(); },
-      }, state);
-      ws.on("message", data => socket.emit("message", data));
+    wss.handleUpgrade(req, stream, head, (ws) => {
+      const socket = new BridgeSocket(
+        {
+          get readyState() {
+            return ws.readyState;
+          },
+          get bufferedAmount() {
+            return ws.bufferedAmount;
+          },
+          send(data, binary) {
+            ws.send(data, { binary }, () => state.refresh(socket));
+          },
+          close(code, reason) {
+            ws.close(code, reason);
+          },
+          terminate() {
+            ws.terminate();
+          },
+        },
+        state,
+      );
+      ws.on("message", (data) => socket.emit("message", data));
       ws.on("close", (code, reason) => socket.closed(code, reason));
-      ws.on("error", error => socket.emit("error", error));
+      ws.on("error", (error) => socket.emit("error", error));
       decision(socket);
     });
   });
@@ -214,7 +308,7 @@ export async function serveBridge(opts: Options) {
       for (const socket of state.sockets) socket.terminate();
       wss.close();
       server.closeAllConnections();
-      await new Promise<void>(resolve => server.close(() => resolve()));
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
 }

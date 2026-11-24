@@ -5,11 +5,20 @@ import { mapReviewState, prMetadataFrom } from "./githubWebhooks";
 
 describe("pull request metadata from a payload", () => {
   test("labels keep their colour and assignees are logins", () => {
-    expect(prMetadataFrom({
-      labels: [{ name: "bug", color: "d73a4a" }, { name: "needs review" }, { nope: true }],
-      assignees: [{ login: "ashot" }, { login: "sam" }, {}],
-    })).toEqual({
-      labels: [{ name: "bug", color: "d73a4a" }, { name: "needs review", color: undefined }],
+    expect(
+      prMetadataFrom({
+        labels: [
+          { name: "bug", color: "d73a4a" },
+          { name: "needs review" },
+          { nope: true },
+        ],
+        assignees: [{ login: "ashot" }, { login: "sam" }, {}],
+      }),
+    ).toEqual({
+      labels: [
+        { name: "bug", color: "d73a4a" },
+        { name: "needs review", color: undefined },
+      ],
       assignees: ["ashot", "sam"],
     });
   });

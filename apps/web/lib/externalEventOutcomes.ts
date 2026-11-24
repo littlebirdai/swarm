@@ -21,10 +21,15 @@ export const PR_STATE_OF_KIND: Record<string, PrStateWord> = {
 };
 
 /** A commit a session made: counted by sha on that session's row. */
-export const SESSION_COMMIT_KINDS: ReadonlySet<string> = new Set(["commit", "amend", "cherry_pick"]);
+export const SESSION_COMMIT_KINDS: ReadonlySet<string> = new Set([
+  "commit",
+  "amend",
+  "cherry_pick",
+]);
 
 /** A push a session made: its `meta.commits_count` adds to that session's pushed count. */
 export const SESSION_PUSH_KIND = "push";
 
 /** One pull request across every event about it. */
-export const prThreadKey = (repository: string, number: number) => `${repository}#${number}`;
+export const prThreadKey = (repository: string, number: number) =>
+  `${repository}#${number}`;

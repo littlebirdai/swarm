@@ -28,14 +28,23 @@ export function teamMembersOf(s: any): any[] {
   let perTeam = rosterCache.get(list);
   const hit = perTeam?.get(team);
   if (hit) return hit;
-  const mine = list.every((m) => m?.roster_team === team) ? list : list.filter((m) => m?.roster_team === team);
+  const mine = list.every((m) => m?.roster_team === team)
+    ? list
+    : list.filter((m) => m?.roster_team === team);
   const out = mine.length ? mine : NO_MEMBERS;
-  if (!perTeam) { perTeam = new Map(); rosterCache.set(list, perTeam); }
+  if (!perTeam) {
+    perTeam = new Map();
+    rosterCache.set(list, perTeam);
+  }
   perTeam.set(team, out);
   return out;
 }
 
 /** Stamp a roster push with the team it answers for (see teamMembersOf). */
 export function stampRoster(rows: unknown, team: string): any[] {
-  return Array.isArray(rows) ? rows.map((m) => (m && typeof m === "object" ? { ...m, roster_team: team } : m)) : [];
+  return Array.isArray(rows)
+    ? rows.map((m) =>
+        m && typeof m === "object" ? { ...m, roster_team: team } : m,
+      )
+    : [];
 }

@@ -58,12 +58,33 @@ export function presenceReportPatch(
   existing: (PresenceRow & { focused?: boolean }) | null | undefined,
   report: { focused: boolean; lastInputAt: number },
   now: number,
-): { last_seen?: number; last_input_at?: number; focused?: boolean; updated_at?: number } {
-  if (!existing) return { last_seen: now, last_input_at: report.lastInputAt, focused: report.focused, updated_at: now };
-  const patch: { last_seen?: number; last_input_at?: number; focused?: boolean; updated_at?: number } = {};
-  if (report.lastInputAt - existing.last_input_at >= PRESENCE_INPUT_STEP_MS) patch.last_input_at = report.lastInputAt;
+): {
+  last_seen?: number;
+  last_input_at?: number;
+  focused?: boolean;
+  updated_at?: number;
+} {
+  if (!existing)
+    return {
+      last_seen: now,
+      last_input_at: report.lastInputAt,
+      focused: report.focused,
+      updated_at: now,
+    };
+  const patch: {
+    last_seen?: number;
+    last_input_at?: number;
+    focused?: boolean;
+    updated_at?: number;
+  } = {};
+  if (report.lastInputAt - existing.last_input_at >= PRESENCE_INPUT_STEP_MS)
+    patch.last_input_at = report.lastInputAt;
   if (existing.focused !== report.focused) patch.focused = report.focused;
-  if (now - existing.last_seen >= PRESENCE_SEEN_REFRESH_MS || Object.keys(patch).length > 0) patch.last_seen = now;
+  if (
+    now - existing.last_seen >= PRESENCE_SEEN_REFRESH_MS ||
+    Object.keys(patch).length > 0
+  )
+    patch.last_seen = now;
   if (Object.keys(patch).length > 0) patch.updated_at = now;
   return patch;
 }

@@ -9,13 +9,22 @@ it("does not walk unchanged row contents and still accepts later draft edits", (
   const a = "a".repeat(32);
   const b = "b".repeat(32);
   let walks = 0;
-  const untouched = new Proxy({ _id: b, title: "untouched", message_count: 2 }, {
-    ownKeys(target) { walks++; return Reflect.ownKeys(target); },
-  });
+  const untouched = new Proxy(
+    { _id: b, title: "untouched", message_count: 2 },
+    {
+      ownKeys(target) {
+        walks++;
+        return Reflect.ownKeys(target);
+      },
+    },
+  );
   useInboxStore.setState({
     sessions: { [a]: { _id: a, title: "before" }, [b]: untouched },
     conversations: { [a]: { _id: a }, [b]: { _id: b } },
-    pending: {}, pendingMessages: {}, messages: {}, clientStateInitialized: false,
+    pending: {},
+    pendingMessages: {},
+    messages: {},
+    clientStateInitialized: false,
   } as any);
   useInboxStore.getState().syncTable("sessions", [{ _id: a, title: "after" }]);
   const synced = useInboxStore.getState().sessions;
@@ -41,12 +50,24 @@ it("compares unchanged singleton and list payloads without traversing drafts", (
   const conversations = { row };
   const teams = [row];
   useInboxStore.setState({ conversations, teams } as any);
-  useInboxStore.getState().syncTable("conversations", { row: { _id: "row", title: "same" } }, { kind: "singleton" });
+  useInboxStore
+    .getState()
+    .syncTable(
+      "conversations",
+      { row: { _id: "row", title: "same" } },
+      { kind: "singleton" },
+    );
   useInboxStore.getState().syncTable("teams", [{ _id: "row", title: "same" }]);
   expect(draftReads).toBe(0);
   expect(useInboxStore.getState().conversations).toBe(conversations);
   expect(useInboxStore.getState().teams).toBe(teams);
-  useInboxStore.getState().syncTable("conversations", { row: { _id: "row", title: "changed" } }, { kind: "singleton" });
+  useInboxStore
+    .getState()
+    .syncTable(
+      "conversations",
+      { row: { _id: "row", title: "changed" } },
+      { kind: "singleton" },
+    );
   expect(useInboxStore.getState().conversations.row.title).toBe("changed");
 });
 
@@ -62,9 +83,14 @@ it("merges unchanged singleton fields without traversing drafts", () => {
   };
   const conversations = { row };
   useInboxStore.setState({ conversations } as any);
-  useInboxStore.getState().syncTable("conversations", { row: { _id: "row", title: "same" } }, {
-    kind: "singleton", merge: { row: "deep_merge" },
-  });
+  useInboxStore.getState().syncTable(
+    "conversations",
+    { row: { _id: "row", title: "same" } },
+    {
+      kind: "singleton",
+      merge: { row: "deep_merge" },
+    },
+  );
   expect(draftReads).toBe(0);
   expect(useInboxStore.getState().conversations).toBe(conversations);
 });
@@ -72,24 +98,35 @@ it("merges unchanged singleton fields without traversing drafts", () => {
 it("tracks singleton transforms without mutating the previous snapshot", () => {
   const conversations = { row: { _id: "row", title: "same" } };
   useInboxStore.setState({ conversations } as any);
-  useInboxStore.getState().syncTable("conversations", structuredClone(conversations), {
-    kind: "singleton", merge: { row: "deep_merge" },
-    transform(_draft, result) { result.row.title = "transformed"; },
-  });
+  useInboxStore
+    .getState()
+    .syncTable("conversations", structuredClone(conversations), {
+      kind: "singleton",
+      merge: { row: "deep_merge" },
+      transform(_draft, result) {
+        result.row.title = "transformed";
+      },
+    });
   expect(useInboxStore.getState().conversations.row.title).toBe("transformed");
   expect(conversations.row.title).toBe("same");
 });
 
 it("merges the current singleton after normalization edits the draft", () => {
   const conversations = { row: { _id: "row", title: "same" } };
-  useInboxStore.setState({ conversations, conversationsInitialized: true } as any);
-  useInboxStore.getState().syncTable("conversations", structuredClone(conversations), {
-    kind: "singleton", merge: { row: "local_wins" },
-    normalize(incoming, draft) {
-      draft.conversations.row.title = "normalized";
-      return incoming;
-    },
-  });
+  useInboxStore.setState({
+    conversations,
+    conversationsInitialized: true,
+  } as any);
+  useInboxStore
+    .getState()
+    .syncTable("conversations", structuredClone(conversations), {
+      kind: "singleton",
+      merge: { row: "local_wins" },
+      normalize(incoming, draft) {
+        draft.conversations.row.title = "normalized";
+        return incoming;
+      },
+    });
   expect(useInboxStore.getState().conversations.row.title).toBe("normalized");
   expect(conversations.row.title).toBe("same");
 });

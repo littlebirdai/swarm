@@ -26,7 +26,10 @@ export type DiffOp = { t: "eq" | "add" | "del"; line: string };
 
 const DIFF_MAX_LINES = 3000;
 
-export function lineDiff(aText: string, bText: string): { ops: DiffOp[]; truncated: boolean } {
+export function lineDiff(
+  aText: string,
+  bText: string,
+): { ops: DiffOp[]; truncated: boolean } {
   let a = aText.split("\n");
   let b = bText.split("\n");
   let truncated = false;
@@ -59,7 +62,10 @@ export function lineDiff(aText: string, bText: string): { ops: DiffOp[]; truncat
     for (let i = 0; i <= n; i++) dp.push(new Uint32Array(m + 1));
     for (let i = n - 1; i >= 0; i--) {
       for (let j = m - 1; j >= 0; j--) {
-        dp[i][j] = midA[i] === midB[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+        dp[i][j] =
+          midA[i] === midB[j]
+            ? dp[i + 1][j + 1] + 1
+            : Math.max(dp[i + 1][j], dp[i][j + 1]);
       }
     }
     let i = 0,
@@ -97,7 +103,10 @@ export function accessSummary(a: Doc<"artifacts">) {
 }
 
 /** The refusal for an access change a team-gated page cannot take, else null. */
-export function teamGateRefusal(teamName: string, set: { edit_mode?: string }): string | null {
+export function teamGateRefusal(
+  teamName: string,
+  set: { edit_mode?: string },
+): string | null {
   if (set.edit_mode === "link") {
     return `${teamName} marks this page's data as regulated, so it is for the team's signed-in members only and cannot get a public edit link.`;
   }

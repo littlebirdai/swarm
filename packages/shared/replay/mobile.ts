@@ -38,7 +38,13 @@
 import type { RrwebEvent } from "./rrweb";
 import { REPLAY_LIMITS } from "../contracts/replay";
 
-const EventType = { FullSnapshot: 2, IncrementalSnapshot: 3, Meta: 4, Custom: 5, Plugin: 6 } as const;
+const EventType = {
+  FullSnapshot: 2,
+  IncrementalSnapshot: 3,
+  Meta: 4,
+  Custom: 5,
+  Plugin: 6,
+} as const;
 const Source = { Mutation: 0, MouseInteraction: 2 } as const;
 const Touch = { Start: 7, End: 9 } as const;
 const MouseClick = 2;
@@ -56,7 +62,10 @@ const KEYBOARD_ID = 10;
 const STATUS_BAR_PARENT_ID = 11;
 const FIRST_FREE_ID = 100;
 /** Where each kind of system bar is drawn, above the app. */
-const BAR_SLOTS: Record<string, number> = { status_bar: STATUS_BAR_PARENT_ID, navigation_bar: NAV_BAR_PARENT_ID };
+const BAR_SLOTS: Record<string, number> = {
+  status_bar: STATUS_BAR_PARENT_ID,
+  navigation_bar: NAV_BAR_PARENT_ID,
+};
 
 const PLACEHOLDER_BG = "#f3f4ef";
 const PLACEHOLDER_FG = "#35373e";
@@ -67,12 +76,19 @@ const TAP_MAX_MOVE = 12;
 /** How often a screen that keeps changing is outlined again. */
 const VIEW_MIN_INTERVAL_MS = 5_000;
 
-type Wireframe = Record<string, any> & { id?: unknown; type?: unknown; childWireframes?: unknown };
+type Wireframe = Record<string, any> & {
+  id?: unknown;
+  type?: unknown;
+  childWireframes?: unknown;
+};
 type SNode = Record<string, any> & { id: number; type: number };
 
-const isObj = (x: unknown): x is Record<string, any> => !!x && typeof x === "object" && !Array.isArray(x);
-const num = (x: unknown): number | undefined => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
-const kids = (w: Wireframe): Wireframe[] => (Array.isArray(w.childWireframes) ? w.childWireframes.filter(isObj) : []);
+const isObj = (x: unknown): x is Record<string, any> =>
+  !!x && typeof x === "object" && !Array.isArray(x);
+const num = (x: unknown): number | undefined =>
+  typeof x === "number" && Number.isFinite(x) ? x : undefined;
+const kids = (w: Wireframe): Wireframe[] =>
+  Array.isArray(w.childWireframes) ? w.childWireframes.filter(isObj) : [];
 
 /** Whether a recording is PostHog's mobile wireframe format rather than a DOM capture. */
 export function isMobileCapture(events: readonly RrwebEvent[]): boolean {
@@ -82,8 +98,13 @@ export function isMobileCapture(events: readonly RrwebEvent[]): boolean {
     if (e.type === EventType.FullSnapshot) {
       if (Array.isArray(d.wireframes)) return true;
       if (isObj(d.node)) return false;
-    } else if (e.type === EventType.IncrementalSnapshot && d.source === Source.Mutation) {
-      const first = (Array.isArray(d.adds) && d.adds[0]) || (Array.isArray(d.updates) && d.updates[0]);
+    } else if (
+      e.type === EventType.IncrementalSnapshot &&
+      d.source === Source.Mutation
+    ) {
+      const first =
+        (Array.isArray(d.adds) && d.adds[0]) ||
+        (Array.isArray(d.updates) && d.updates[0]);
       if (isObj(first) && isObj(first.wireframe)) return true;
     }
   }
@@ -98,16 +119,23 @@ const SAFE_FONT = /^[\w\s,'"-]{1,120}$/;
 
 function px(v: unknown): string | undefined {
   if (typeof v === "number" && Number.isFinite(v)) return `${v}px`;
-  if (typeof v === "string" && /^-?\d+(\.\d+)?(px)?$/.test(v.trim())) return `${v.trim().replace(/px$/, "")}px`;
+  if (typeof v === "string" && /^-?\d+(\.\d+)?(px)?$/.test(v.trim()))
+    return `${v.trim().replace(/px$/, "")}px`;
   return undefined;
 }
-const color = (v: unknown) => (typeof v === "string" && SAFE_COLOR.test(v) && !/url\s*\(/i.test(v) ? v : undefined);
+const color = (v: unknown) =>
+  typeof v === "string" && SAFE_COLOR.test(v) && !/url\s*\(/i.test(v)
+    ? v
+    : undefined;
 
 /** A base64 image as a data URI; PNG when the SDK sent bare base64. Anything that is not an image is dropped. */
 export function imageDataUri(src: unknown): string | undefined {
   if (typeof src !== "string" || !src) return undefined;
   const s = src.replace(/\s+/g, "");
-  if (s.startsWith("data:")) return /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+/=]+$/.test(s) ? s : undefined;
+  if (s.startsWith("data:"))
+    return /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+/=]+$/.test(s)
+      ? s
+      : undefined;
   return /^[A-Za-z0-9+/=]+$/.test(s) ? `data:image/png;base64,${s}` : undefined;
 }
 
@@ -132,17 +160,34 @@ function styleOf(w: Wireframe, opts: StyleOpts = {}): string {
     const bg = color(s.backgroundColor) ?? opts.defaults?.backgroundColor;
     if (bg) out.push(`background-color:${bg}`);
     const img = imageDataUri(s.backgroundImage);
-    if (img) out.push(`background-image:url('${img}')`, `background-size:${["contain", "cover", "auto"].includes(s.backgroundSize) ? s.backgroundSize : "contain"}`, "background-repeat:no-repeat");
+    if (img)
+      out.push(
+        `background-image:url('${img}')`,
+        `background-size:${["contain", "cover", "auto"].includes(s.backgroundSize) ? s.backgroundSize : "contain"}`,
+        "background-repeat:no-repeat",
+      );
     const fg = color(s.color) ?? opts.defaults?.color;
     if (fg) out.push(`color:${fg}`);
     // A radius alone rounds the box; only a width or a color draws a border.
     if (px(s.borderRadius)) out.push(`border-radius:${px(s.borderRadius)}`);
-    const bw = px(s.borderWidth), bc = color(s.borderColor);
-    if (bw || bc) out.push(`border-width:${bw ?? "1px"}`, `border-color:${bc ?? "currentColor"}`, "border-style:solid");
+    const bw = px(s.borderWidth),
+      bc = color(s.borderColor);
+    if (bw || bc)
+      out.push(
+        `border-width:${bw ?? "1px"}`,
+        `border-color:${bc ?? "currentColor"}`,
+        "border-style:solid",
+      );
   }
   const v = opts.center ? "center" : s.verticalAlign;
   const h = opts.center ? "center" : s.horizontalAlign;
-  const align: Record<string, string> = { top: "flex-start", left: "flex-start", center: "center", bottom: "flex-end", right: "flex-end" };
+  const align: Record<string, string> = {
+    top: "flex-start",
+    left: "flex-start",
+    center: "center",
+    bottom: "flex-end",
+    right: "flex-end",
+  };
   if (align[v] || align[h]) {
     out.push("display:flex");
     if (align[v]) out.push(`align-items:${align[v]}`);
@@ -154,7 +199,10 @@ function styleOf(w: Wireframe, opts: StyleOpts = {}): string {
   }
   if (px(s.fontSize)) out.push(`font-size:${px(s.fontSize)}`);
   // An app's font is rarely installed where the frame is drawn ("System" is React Native's own name), so it falls back to the platform's sans.
-  if (typeof s.fontFamily === "string" && SAFE_FONT.test(s.fontFamily)) out.push(`font-family:${s.fontFamily},-apple-system,system-ui,Roboto,sans-serif`);
+  if (typeof s.fontFamily === "string" && SAFE_FONT.test(s.fontFamily))
+    out.push(
+      `font-family:${s.fontFamily},-apple-system,system-ui,Roboto,sans-serif`,
+    );
   return `${out.join(";")};`;
 }
 
@@ -197,7 +245,12 @@ class MobileConverter {
 
   // ── wireframes to nodes ──
 
-  private el(id: number, tagName: string, attributes: Record<string, unknown>, childNodes: SNode[] = []): SNode {
+  private el(
+    id: number,
+    tagName: string,
+    attributes: Record<string, unknown>,
+    childNodes: SNode[] = [],
+  ): SNode {
     return { type: NodeType.Element, id, tagName, attributes, childNodes };
   }
 
@@ -205,47 +258,124 @@ class MobileConverter {
     return { type: NodeType.Text, id: this.fresh(), textContent };
   }
 
-  private placeholder(w: Wireframe, id: number, label: string, children: SNode[]): SNode {
-    return this.el(id, "div", { style: `${styleOf(w, { center: true, defaults: { backgroundColor: PLACEHOLDER_BG, color: PLACEHOLDER_FG } })}overflow:hidden;` }, [this.text(label), ...children]);
+  private placeholder(
+    w: Wireframe,
+    id: number,
+    label: string,
+    children: SNode[],
+  ): SNode {
+    return this.el(
+      id,
+      "div",
+      {
+        style: `${styleOf(w, { center: true, defaults: { backgroundColor: PLACEHOLDER_BG, color: PLACEHOLDER_FG } })}overflow:hidden;`,
+      },
+      [this.text(label), ...children],
+    );
   }
 
   private input(w: Wireframe, id: number, children: SNode[]): SNode {
     const kind = typeof w.inputType === "string" ? w.inputType : "text";
-    const value = typeof w.value === "string" ? w.value : typeof w.value === "number" ? String(w.value) : "";
+    const value =
+      typeof w.value === "string"
+        ? w.value
+        : typeof w.value === "number"
+          ? String(w.value)
+          : "";
     const disabled = w.disabled === true ? { disabled: true } : {};
     switch (kind) {
       case "button":
-        return this.el(id, "button", { style: styleOf(w), ...disabled }, [...(value ? [this.text(value)] : []), ...children]);
-      case "select": {
-        const options = Array.isArray(w.options) ? w.options.filter((o: unknown): o is string => typeof o === "string") : [];
-        return this.el(id, "select", { style: styleOf(w), value, ...disabled }, [
-          ...options.map((o: string) => this.el(this.fresh(), "option", o === value ? { selected: true } : {}, [this.text(o)])),
+        return this.el(id, "button", { style: styleOf(w), ...disabled }, [
+          ...(value ? [this.text(value)] : []),
           ...children,
         ]);
+      case "select": {
+        const options = Array.isArray(w.options)
+          ? w.options.filter((o: unknown): o is string => typeof o === "string")
+          : [];
+        return this.el(
+          id,
+          "select",
+          { style: styleOf(w), value, ...disabled },
+          [
+            ...options.map((o: string) =>
+              this.el(
+                this.fresh(),
+                "option",
+                o === value ? { selected: true } : {},
+                [this.text(o)],
+              ),
+            ),
+            ...children,
+          ],
+        );
       }
       case "text_area":
-        return this.el(id, "textarea", { style: styleOf(w), value, ...disabled }, children);
+        return this.el(
+          id,
+          "textarea",
+          { style: styleOf(w), value, ...disabled },
+          children,
+        );
       case "progress": {
         const max = num(w.max);
         const v = num(w.value);
-        return this.el(id, "progress", { style: styleOf(w), ...(v !== undefined ? { value: String(v) } : {}), ...(max !== undefined ? { max: String(max) } : {}) }, children);
+        return this.el(
+          id,
+          "progress",
+          {
+            style: styleOf(w),
+            ...(v !== undefined ? { value: String(v) } : {}),
+            ...(max !== undefined ? { max: String(max) } : {}),
+          },
+          children,
+        );
       }
       case "checkbox":
       case "radio":
       case "toggle": {
         // The wireframe's id always names the outermost node drawn, so a later update or removal takes the label with it.
         const labelled = typeof w.label === "string";
-        const box = this.el(labelled ? this.fresh() : id, "input", { type: kind === "radio" ? "radio" : "checkbox", ...(w.checked === true ? { checked: true } : {}), ...disabled }, children);
+        const box = this.el(
+          labelled ? this.fresh() : id,
+          "input",
+          {
+            type: kind === "radio" ? "radio" : "checkbox",
+            ...(w.checked === true ? { checked: true } : {}),
+            ...disabled,
+          },
+          children,
+        );
         if (!labelled) {
           box.attributes.style = styleOf(w);
           return box;
         }
         const label = this.text(w.label);
-        return this.el(id, "label", { style: `${styleOf(w)}display:flex;align-items:center;gap:4px;` }, kind === "toggle" ? [label, box] : [box, label]);
+        return this.el(
+          id,
+          "label",
+          { style: `${styleOf(w)}display:flex;align-items:center;gap:4px;` },
+          kind === "toggle" ? [label, box] : [box, label],
+        );
       }
       default: {
-        const type = ["text", "password", "email", "number", "search", "tel", "url"].includes(kind) ? kind : "text";
-        return this.el(id, "input", { style: styleOf(w), type, value, ...disabled }, children);
+        const type = [
+          "text",
+          "password",
+          "email",
+          "number",
+          "search",
+          "tel",
+          "url",
+        ].includes(kind)
+          ? kind
+          : "text";
+        return this.el(
+          id,
+          "input",
+          { style: styleOf(w), type, value, ...disabled },
+          children,
+        );
       }
     }
   }
@@ -254,26 +384,55 @@ class MobileConverter {
   node(w: Wireframe): SNode | null {
     if (!isObj(w)) return null;
     const id = this.idFor(w.id);
-    const children = kids(w).map((c) => this.node(c)).filter((n): n is SNode => !!n);
+    const children = kids(w)
+      .map((c) => this.node(c))
+      .filter((n): n is SNode => !!n);
     const type = typeof w.type === "string" ? w.type : "div";
     switch (type) {
       case "text":
-        return this.el(id, "div", { style: `${styleOf(w)}overflow:hidden;white-space:normal;` }, [...(typeof w.text === "string" ? [this.text(w.text)] : []), ...children]);
+        return this.el(
+          id,
+          "div",
+          { style: `${styleOf(w)}overflow:hidden;white-space:normal;` },
+          [
+            ...(typeof w.text === "string" ? [this.text(w.text)] : []),
+            ...children,
+          ],
+        );
       case "image":
       case "screenshot": {
         const src = imageDataUri(w.base64);
         if (!src) return this.placeholder(w, id, type, children);
-        return this.el(id, "img", { src, style: styleOf(w), ...(type === "screenshot" ? { "data-screenshot": "true" } : {}) }, children);
+        return this.el(
+          id,
+          "img",
+          {
+            src,
+            style: styleOf(w),
+            ...(type === "screenshot" ? { "data-screenshot": "true" } : {}),
+          },
+          children,
+        );
       }
       case "input":
         return this.input(w, id, children);
       case "web_view":
         return this.placeholder(w, id, "web view", children);
       case "placeholder":
-        return this.placeholder(w, id, typeof w.label === "string" && w.label ? w.label : "placeholder", children);
+        return this.placeholder(
+          w,
+          id,
+          typeof w.label === "string" && w.label ? w.label : "placeholder",
+          children,
+        );
       default:
         // rectangle, div, radio_group, status_bar, navigation_bar and any type a newer SDK adds.
-        return this.el(id, "div", { style: `${styleOf(w)}overflow:hidden;white-space:nowrap;` }, children);
+        return this.el(
+          id,
+          "div",
+          { style: `${styleOf(w)}overflow:hidden;white-space:nowrap;` },
+          children,
+        );
     }
   }
 
@@ -300,7 +459,8 @@ class MobileConverter {
     if (parent === undefined) this.roots = this.roots.filter((r) => r !== w);
     else {
       const p = this.byId.get(parent);
-      if (p && Array.isArray(p.childWireframes)) p.childWireframes = p.childWireframes.filter((c: Wireframe) => c !== w);
+      if (p && Array.isArray(p.childWireframes))
+        p.childWireframes = p.childWireframes.filter((c: Wireframe) => c !== w);
     }
   }
 
@@ -313,13 +473,18 @@ class MobileConverter {
 
   /** A full snapshot: the whole page, and the screen model starts over. */
   full(e: RrwebEvent): RrwebEvent {
-    const wireframes: Wireframe[] = (e.data.wireframes as unknown[]).filter(isObj);
+    const wireframes: Wireframe[] = (e.data.wireframes as unknown[]).filter(
+      isObj,
+    );
     this.roots = [];
     this.byId.clear();
     this.parentOf.clear();
     this.bars.clear();
     for (const w of wireframes) {
-      const kept = this.liftBars(w, (bar, slot) => void (this.bars.has(slot) || this.bars.set(slot, bar)));
+      const kept = this.liftBars(
+        w,
+        (bar, slot) => void (this.bars.has(slot) || this.bars.set(slot, bar)),
+      );
       if (kept) this.place(kept, undefined);
     }
     this.drawn = true;
@@ -331,16 +496,22 @@ class MobileConverter {
    * slots, so they stack above the app. Returns the wireframe without them
    * (undefined when it is itself a bar) and hands each bar found to onBar.
    */
-  private liftBars(w: Wireframe, onBar: (bar: Wireframe, slot: number) => void): Wireframe | undefined {
+  private liftBars(
+    w: Wireframe,
+    onBar: (bar: Wireframe, slot: number) => void,
+  ): Wireframe | undefined {
     const slot = BAR_SLOTS[String(w.type)];
     if (slot !== undefined) return void onBar(w, slot);
-    const children = kids(w).map((c) => this.liftBars(c, onBar)).filter((c): c is Wireframe => !!c);
+    const children = kids(w)
+      .map((c) => this.liftBars(c, onBar))
+      .filter((c): c is Wireframe => !!c);
     return { ...w, childWireframes: children };
   }
 
   /** The bar slot a drawn wireframe id sits in, if it is a bar. */
   private barSlotOf(id: number): number | undefined {
-    for (const [slot, bar] of this.bars) if (this.known(bar.id) === id) return slot;
+    for (const [slot, bar] of this.bars)
+      if (this.known(bar.id) === id) return slot;
     return undefined;
   }
 
@@ -352,19 +523,47 @@ class MobileConverter {
 
   /** The screen as the model now holds it, as a full rrweb snapshot. */
   snapshot(timestamp: number): RrwebEvent {
-    const bar = (id: number, w: Wireframe | undefined) => this.el(id, "div", {}, w ? [this.node(w)].filter((n): n is SNode => !!n) : []);
+    const bar = (id: number, w: Wireframe | undefined) =>
+      this.el(
+        id,
+        "div",
+        {},
+        w ? [this.node(w)].filter((n): n is SNode => !!n) : [],
+      );
     const body = this.el(MOBILE_BODY_ID, "body", {}, [
       ...this.roots.map((w) => this.node(w)).filter((n): n is SNode => !!n),
-      this.el(KEYBOARD_PARENT_ID, "div", {}, this.keyboardOpen ? [this.keyboardBox(this.keyboardOpen)] : []),
+      this.el(
+        KEYBOARD_PARENT_ID,
+        "div",
+        {},
+        this.keyboardOpen ? [this.keyboardBox(this.keyboardOpen)] : [],
+      ),
       bar(NAV_BAR_PARENT_ID, this.bars.get(NAV_BAR_PARENT_ID)),
       bar(STATUS_BAR_PARENT_ID, this.bars.get(STATUS_BAR_PARENT_ID)),
     ]);
-    const head = this.el(HEAD_ID, "head", {}, [this.el(this.fresh(), "style", { type: "text/css" }, [this.text(RESET_CSS)])]);
+    const head = this.el(HEAD_ID, "head", {}, [
+      this.el(this.fresh(), "style", { type: "text/css" }, [
+        this.text(RESET_CSS),
+      ]),
+    ]);
     return {
       type: EventType.FullSnapshot,
       timestamp,
       data: {
-        node: { type: NodeType.Document, id: DOCUMENT_ID, childNodes: [{ type: NodeType.DocumentType, id: DOCTYPE_ID, name: "html", publicId: "", systemId: "" }, this.el(HTML_ID, "html", {}, [head, body])] },
+        node: {
+          type: NodeType.Document,
+          id: DOCUMENT_ID,
+          childNodes: [
+            {
+              type: NodeType.DocumentType,
+              id: DOCTYPE_ID,
+              name: "html",
+              publicId: "",
+              systemId: "",
+            },
+            this.el(HTML_ID, "html", {}, [head, body]),
+          ],
+        },
         initialOffset: { top: 0, left: 0 },
       },
     };
@@ -374,8 +573,13 @@ class MobileConverter {
   private flatten(node: SNode, parentId: number, out: Map<number, any>) {
     const { childNodes, ...rest } = node;
     out.delete(node.id);
-    out.set(node.id, { parentId, nextId: null, node: Array.isArray(childNodes) ? { ...rest, childNodes: [] } : rest });
-    for (const c of Array.isArray(childNodes) ? childNodes : []) this.flatten(c, node.id, out);
+    out.set(node.id, {
+      parentId,
+      nextId: null,
+      node: Array.isArray(childNodes) ? { ...rest, childNodes: [] } : rest,
+    });
+    for (const c of Array.isArray(childNodes) ? childNodes : [])
+      this.flatten(c, node.id, out);
   }
 
   private parentFor(w: Wireframe, raw: unknown): number {
@@ -396,7 +600,10 @@ class MobileConverter {
       const slot = this.barSlotOf(id);
       if (slot !== undefined) this.bars.delete(slot);
       else if (!this.byId.has(id)) return;
-      removes.push({ parentId: slot ?? this.parentOf.get(id) ?? MOBILE_BODY_ID, id });
+      removes.push({
+        parentId: slot ?? this.parentOf.get(id) ?? MOBILE_BODY_ID,
+        id,
+      });
       this.untrack(id);
     };
     for (const r of Array.isArray(d.removes) ? d.removes : []) {
@@ -428,30 +635,75 @@ class MobileConverter {
     };
     for (const m of Array.isArray(d.adds) ? d.adds : []) apply(m, false);
     for (const m of Array.isArray(d.updates) ? d.updates : []) apply(m, true);
-    return { type: EventType.IncrementalSnapshot, timestamp: e.timestamp, data: { source: Source.Mutation, texts: [], attributes: [], removes, adds: [...adds.values()] } };
+    return {
+      type: EventType.IncrementalSnapshot,
+      timestamp: e.timestamp,
+      data: {
+        source: Source.Mutation,
+        texts: [],
+        attributes: [],
+        removes,
+        adds: [...adds.values()],
+      },
+    };
   }
 
   private keyboardBox(p: Record<string, any>): SNode {
     const positioned = num(p.x) !== undefined || num(p.y) !== undefined;
-    const box = this.placeholder({ x: p.x, y: p.y, width: num(p.width) ?? "100vw", height: num(p.height) ?? 0, style: {} }, KEYBOARD_ID, "keyboard", []);
-    if (!positioned) box.attributes.style = styleOf({ width: num(p.width) ?? "100vw", height: num(p.height) ?? 0 }, { bottom: true, center: true, defaults: { backgroundColor: PLACEHOLDER_BG, color: PLACEHOLDER_FG } });
+    const box = this.placeholder(
+      {
+        x: p.x,
+        y: p.y,
+        width: num(p.width) ?? "100vw",
+        height: num(p.height) ?? 0,
+        style: {},
+      },
+      KEYBOARD_ID,
+      "keyboard",
+      [],
+    );
+    if (!positioned)
+      box.attributes.style = styleOf(
+        { width: num(p.width) ?? "100vw", height: num(p.height) ?? 0 },
+        {
+          bottom: true,
+          center: true,
+          defaults: { backgroundColor: PLACEHOLDER_BG, color: PLACEHOLDER_FG },
+        },
+      );
     return box;
   }
 
   /** The keyboard showing or hiding, as a box at the bottom of the screen. */
   keyboard(e: RrwebEvent): RrwebEvent {
     const p = isObj(e.data?.payload) ? e.data.payload : {};
-    const removes = this.keyboardOpen ? [{ parentId: KEYBOARD_PARENT_ID, id: KEYBOARD_ID }] : [];
+    const removes = this.keyboardOpen
+      ? [{ parentId: KEYBOARD_PARENT_ID, id: KEYBOARD_ID }]
+      : [];
     const adds = new Map<number, any>();
     this.keyboardOpen = p.open ? p : undefined;
-    if (this.keyboardOpen) this.flatten(this.keyboardBox(p), KEYBOARD_PARENT_ID, adds);
-    return { type: EventType.IncrementalSnapshot, timestamp: e.timestamp, data: { source: Source.Mutation, texts: [], attributes: [], removes, adds: [...adds.values()] } };
+    if (this.keyboardOpen)
+      this.flatten(this.keyboardBox(p), KEYBOARD_PARENT_ID, adds);
+    return {
+      type: EventType.IncrementalSnapshot,
+      timestamp: e.timestamp,
+      data: {
+        source: Source.Mutation,
+        texts: [],
+        attributes: [],
+        removes,
+        adds: [...adds.values()],
+      },
+    };
   }
 
   /** The topmost, deepest box under a point, as our id. */
   hit(x: number, y: number): number | undefined {
     const inside = (w: Wireframe) => {
-      const wx = num(w.x) ?? 0, wy = num(w.y) ?? 0, ww = num(w.width) ?? 0, wh = num(w.height) ?? 0;
+      const wx = num(w.x) ?? 0,
+        wy = num(w.y) ?? 0,
+        ww = num(w.width) ?? 0,
+        wh = num(w.height) ?? 0;
       return x >= wx && y >= wy && x <= wx + ww && y <= wy + wh;
     };
     const walk = (list: Wireframe[]): Wireframe | undefined => {
@@ -472,7 +724,12 @@ class MobileConverter {
     let size = 0;
     const push = (line: string) => {
       const l = line.replace(/\s+/g, " ").trim();
-      if (!l || lines[lines.length - 1] === l || size > REPLAY_LIMITS.view_outline_max_chars) return;
+      if (
+        !l ||
+        lines[lines.length - 1] === l ||
+        size > REPLAY_LIMITS.view_outline_max_chars
+      )
+        return;
       lines.push(l);
       size += l.length + 1;
     };
@@ -481,11 +738,18 @@ class MobileConverter {
       if (w.type === "text" && typeof w.text === "string") push(w.text);
       else if (w.type === "input") {
         const label = typeof w.label === "string" ? w.label : "";
-        if (w.inputType === "button" && typeof w.value === "string") push(`[button] ${w.value}`);
-        else if (w.inputType === "checkbox" || w.inputType === "radio" || w.inputType === "toggle") push(`[${w.inputType}${w.checked ? " on" : ""}] ${label}`);
+        if (w.inputType === "button" && typeof w.value === "string")
+          push(`[button] ${w.value}`);
+        else if (
+          w.inputType === "checkbox" ||
+          w.inputType === "radio" ||
+          w.inputType === "toggle"
+        )
+          push(`[${w.inputType}${w.checked ? " on" : ""}] ${label}`);
         else if (w.inputType !== "progress") push(`[field] ${label}`);
       } else if (w.type === "web_view") push("[web view]");
-      else if (w.type === "placeholder" && typeof w.label === "string") push(`[${w.label}]`);
+      else if (w.type === "placeholder" && typeof w.label === "string")
+        push(`[${w.label}]`);
       for (const c of kids(w)) walk(c);
     };
     for (const w of this.roots) walk(w);
@@ -497,8 +761,14 @@ class MobileConverter {
 function nextIsSnapshot(events: readonly RrwebEvent[], at: number): boolean {
   for (let i = at + 1; i < events.length; i++) {
     const e = events[i];
-    if (e.type === EventType.FullSnapshot) return Array.isArray(e.data?.wireframes);
-    if (e.type === EventType.IncrementalSnapshot || e.type === EventType.Meta || (e.type === EventType.Custom && e.data?.tag === "keyboard")) return false;
+    if (e.type === EventType.FullSnapshot)
+      return Array.isArray(e.data?.wireframes);
+    if (
+      e.type === EventType.IncrementalSnapshot ||
+      e.type === EventType.Meta ||
+      (e.type === EventType.Custom && e.data?.tag === "keyboard")
+    )
+      return false;
   }
   return false;
 }
@@ -511,8 +781,17 @@ export interface MobileConversion {
 }
 
 /** Convert a PostHog mobile (wireframe) recording into an rrweb DOM capture. Events the page needs no change for pass through as they are. */
-export function fromMobileWireframes(input: readonly RrwebEvent[]): MobileConversion {
-  const raw = input.filter((e) => e && typeof e === "object" && typeof e.type === "number" && typeof e.timestamp === "number" && Number.isFinite(e.timestamp));
+export function fromMobileWireframes(
+  input: readonly RrwebEvent[],
+): MobileConversion {
+  const raw = input.filter(
+    (e) =>
+      e &&
+      typeof e === "object" &&
+      typeof e.type === "number" &&
+      typeof e.timestamp === "number" &&
+      Number.isFinite(e.timestamp),
+  );
   raw.sort((a, b) => a.timestamp - b.timestamp);
   const c = new MobileConverter();
   const events: RrwebEvent[] = [];
@@ -525,7 +804,12 @@ export function fromMobileWireframes(input: readonly RrwebEvent[]): MobileConver
 
   const view = (timestamp: number, force: boolean) => {
     if (dirtyAt === undefined) return;
-    if (!force && lastView && timestamp - lastView.timestamp < VIEW_MIN_INTERVAL_MS) return;
+    if (
+      !force &&
+      lastView &&
+      timestamp - lastView.timestamp < VIEW_MIN_INTERVAL_MS
+    )
+      return;
     const outline = c.outline();
     dirtyAt = undefined;
     newScreen = false;
@@ -541,23 +825,51 @@ export function fromMobileWireframes(input: readonly RrwebEvent[]): MobileConver
       events.push(c.full(e));
       dirtyAt = e.timestamp;
       view(e.timestamp, true);
-    } else if (e.type === EventType.IncrementalSnapshot && d?.source === Source.Mutation) {
+    } else if (
+      e.type === EventType.IncrementalSnapshot &&
+      d?.source === Source.Mutation
+    ) {
       // Every mutation goes through the converter, removals-only included: its ids are wireframe ids, which would name the wrong node of the drawn page.
       events.push(c.mutation(e));
       dirtyAt = e.timestamp;
       view(e.timestamp, newScreen);
     } else if (e.type === EventType.Custom && d?.tag === "keyboard") {
       events.push(c.keyboard(e));
-    } else if (e.type === EventType.IncrementalSnapshot && d?.source === Source.MouseInteraction) {
-      const x = num(d.x), y = num(d.y);
-      const target = c.known(d.id) ?? (x !== undefined && y !== undefined ? c.hit(x, y) : undefined) ?? MOBILE_BODY_ID;
+    } else if (
+      e.type === EventType.IncrementalSnapshot &&
+      d?.source === Source.MouseInteraction
+    ) {
+      const x = num(d.x),
+        y = num(d.y);
+      const target =
+        c.known(d.id) ??
+        (x !== undefined && y !== undefined ? c.hit(x, y) : undefined) ??
+        MOBILE_BODY_ID;
       events.push({ ...e, data: { ...d, id: target } });
       if (d.type === Touch.Start && x !== undefined && y !== undefined) {
         touch = { x, y, t: e.timestamp };
         view(e.timestamp, true);
-      } else if (d.type === Touch.End && touch && x !== undefined && y !== undefined) {
-        if (e.timestamp - touch.t <= TAP_MAX_MS && Math.hypot(x - touch.x, y - touch.y) <= TAP_MAX_MOVE) {
-          events.push({ type: EventType.IncrementalSnapshot, timestamp: e.timestamp, data: { source: Source.MouseInteraction, type: MouseClick, id: c.hit(touch.x, touch.y) ?? MOBILE_BODY_ID, x: touch.x, y: touch.y } });
+      } else if (
+        d.type === Touch.End &&
+        touch &&
+        x !== undefined &&
+        y !== undefined
+      ) {
+        if (
+          e.timestamp - touch.t <= TAP_MAX_MS &&
+          Math.hypot(x - touch.x, y - touch.y) <= TAP_MAX_MOVE
+        ) {
+          events.push({
+            type: EventType.IncrementalSnapshot,
+            timestamp: e.timestamp,
+            data: {
+              source: Source.MouseInteraction,
+              type: MouseClick,
+              id: c.hit(touch.x, touch.y) ?? MOBILE_BODY_ID,
+              x: touch.x,
+              y: touch.y,
+            },
+          });
         }
         touch = undefined;
       }
@@ -569,9 +881,15 @@ export function fromMobileWireframes(input: readonly RrwebEvent[]): MobileConver
       // everything earlier, because a web recorder always follows a Meta with
       // a full snapshot. A mobile SDK sends a Meta at each screen change with
       // no snapshot after it, so the converter draws the screen again here.
-      if (c.drawn && !nextIsSnapshot(raw, i)) events.push(c.snapshot(e.timestamp));
+      if (c.drawn && !nextIsSnapshot(raw, i))
+        events.push(c.snapshot(e.timestamp));
     } else {
-      if (e.type === EventType.Plugin && d?.plugin === "rrweb/console@1" && /error|assert/.test(String(d.payload?.level))) view(e.timestamp, true);
+      if (
+        e.type === EventType.Plugin &&
+        d?.plugin === "rrweb/console@1" &&
+        /error|assert/.test(String(d.payload?.level))
+      )
+        view(e.timestamp, true);
       events.push(e);
     }
   }

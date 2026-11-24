@@ -40,17 +40,28 @@ export function shouldAdjustScrollForResize(i: ResizeAdjustInput): boolean {
 }
 
 type AdjustVirtualizer = {
-  shouldAdjustScrollPositionOnItemSizeChange?: (item: VirtualItem, delta: number, instance: any) => boolean;
+  shouldAdjustScrollPositionOnItemSizeChange?: (
+    item: VirtualItem,
+    delta: number,
+    instance: any,
+  ) => boolean;
 };
 
 /**
  * Install the rule on a virtualizer. `held` names a row whose resize must
  * leave scrollTop alone right now (an in-row disclosure the reader toggled).
  */
-export function adjustScrollForResizeRule(v: AdjustVirtualizer, held?: (key: VirtualItem["key"]) => boolean) {
+export function adjustScrollForResizeRule(
+  v: AdjustVirtualizer,
+  held?: (key: VirtualItem["key"]) => boolean,
+) {
   v.shouldAdjustScrollPositionOnItemSizeChange = (item, _delta, instance) => {
     // getScrollOffset/scrollAdjustments are not on the public type.
-    const inst = instance as { getScrollOffset: () => number; scrollAdjustments?: number; scrollDirection: "forward" | "backward" | null };
+    const inst = instance as {
+      getScrollOffset: () => number;
+      scrollAdjustments?: number;
+      scrollDirection: "forward" | "backward" | null;
+    };
     return shouldAdjustScrollForResize({
       itemStart: item.start,
       scrollOffset: inst.getScrollOffset() + (inst.scrollAdjustments ?? 0),

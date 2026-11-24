@@ -114,7 +114,7 @@ describe("detectProject — Python", () => {
 
 describe("detectProject — Rust / Go / Ruby", () => {
   test("Rust (Cargo.toml)", () => {
-    touch("Cargo.toml", "[package]\nname = \"x\"\n");
+    touch("Cargo.toml", '[package]\nname = "x"\n');
     const m = detectProject(tmpDir);
     expect(m.detected).toBe("cargo");
     expect(m.setup.install).toEqual(["cargo fetch"]);
@@ -141,7 +141,7 @@ describe("detectProject — polyglot composition", () => {
   test("bun + cargo together", () => {
     touch("package.json", "{}");
     touch("bun.lock");
-    touch("Cargo.toml", "[package]\nname = \"x\"\n");
+    touch("Cargo.toml", '[package]\nname = "x"\n');
     const m = detectProject(tmpDir);
     expect(m.detected).toBe("bun+cargo");
     expect(m.setup.install).toEqual(["bun install", "cargo fetch"]);
@@ -155,11 +155,7 @@ describe("detectProject — polyglot composition", () => {
     touch("go.mod", "module x");
     const m = detectProject(tmpDir);
     expect(m.detected).toBe("npm+uv+go");
-    expect(m.setup.install).toEqual([
-      "npm ci",
-      "uv sync",
-      "go mod download",
-    ]);
+    expect(m.setup.install).toEqual(["npm ci", "uv sync", "go mod download"]);
   });
 });
 
@@ -171,7 +167,10 @@ describe("detectProject — generators", () => {
   test("prisma schema with bun: uses bunx", () => {
     touch("package.json", "{}");
     touch("bun.lock");
-    touch("prisma/schema.prisma", "datasource db { provider = \"postgresql\" url = env(\"DB\") }");
+    touch(
+      "prisma/schema.prisma",
+      'datasource db { provider = "postgresql" url = env("DB") }',
+    );
     const m = detectProject(tmpDir);
     expect(m.setup.generate).toEqual(["bunx prisma generate"]);
   });
@@ -180,30 +179,43 @@ describe("detectProject — generators", () => {
     touch("package.json", "{}");
     touch("pnpm-lock.yaml");
     touch("prisma/schema.prisma", "");
-    expect(detectProject(tmpDir).setup.generate).toEqual(["pnpm exec prisma generate"]);
+    expect(detectProject(tmpDir).setup.generate).toEqual([
+      "pnpm exec prisma generate",
+    ]);
   });
 
   test("prisma schema with npm: uses npx", () => {
     touch("package.json", "{}");
     touch("package-lock.json");
     touch("prisma/schema.prisma", "");
-    expect(detectProject(tmpDir).setup.generate).toEqual(["npx prisma generate"]);
+    expect(detectProject(tmpDir).setup.generate).toEqual([
+      "npx prisma generate",
+    ]);
   });
 
   test("package.json script 'codegen' picked up", () => {
-    touch("package.json", JSON.stringify({ scripts: { codegen: "tsx scripts/gen.ts" } }));
+    touch(
+      "package.json",
+      JSON.stringify({ scripts: { codegen: "tsx scripts/gen.ts" } }),
+    );
     touch("bun.lock");
     expect(detectProject(tmpDir).setup.generate).toEqual(["bun run codegen"]);
   });
 
   test("package.json script 'generate' picked up as fallback", () => {
-    touch("package.json", JSON.stringify({ scripts: { generate: "tsx scripts/gen.ts" } }));
+    touch(
+      "package.json",
+      JSON.stringify({ scripts: { generate: "tsx scripts/gen.ts" } }),
+    );
     touch("pnpm-lock.yaml");
     expect(detectProject(tmpDir).setup.generate).toEqual(["pnpm run generate"]);
   });
 
   test("'codegen' beats 'generate' if both present", () => {
-    touch("package.json", JSON.stringify({ scripts: { codegen: "a", generate: "b" } }));
+    touch(
+      "package.json",
+      JSON.stringify({ scripts: { codegen: "a", generate: "b" } }),
+    );
     touch("bun.lock");
     expect(detectProject(tmpDir).setup.generate).toEqual(["bun run codegen"]);
   });
@@ -226,7 +238,10 @@ describe("detectProject — copy list", () => {
   test(".wt-setup-files honored when present", () => {
     touch("package.json", "{}");
     touch("bun.lock");
-    touch(".wt-setup-files", "# comment\n.env\n.env.local\ncredentials.json\n\n");
+    touch(
+      ".wt-setup-files",
+      "# comment\n.env\n.env.local\ncredentials.json\n\n",
+    );
     const m = detectProject(tmpDir);
     expect(m.setup.copy).toEqual([".env", ".env.local", "credentials.json"]);
   });

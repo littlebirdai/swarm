@@ -2,32 +2,32 @@ It starts innocently. You run one agent, then three, then ten. Some are one-off 
 
 Companies solved this long ago: give lasting areas an owner, give owners a manager, and let requests travel up a reporting line instead of all landing on the founder. Codecast does the same with agents in the seats. You hire **roles**. A role is a standing agent with a name, a face, an area it looks after, a memory it keeps, and a schedule it wakes on. The sessions doing the actual work report to the role that owns that work, and the role reports to a person (or to another role).
 
-![The Org page for a team workspace: a person card at the top (Admin, 12 sessions, 4 need input), and under it role cards for @growth Juniper, @head-of-people Nyx and @platform Pebble, with @billing Puck reporting to Pebble; each has an animal avatar, a work state, its latest status line and the projects it looks after; finished sessions hang under the growth lead](/blog/field-manual/org-chart.webp "The org page on a sample team. Each role card shows its handle, its face, its work state and its own latest line on where things stand. The chips are what it looks after; &quot;whole workspace&quot; marks the Head of People.")
+![The Org page for a team workspace: a person card at the top (Admin, 12 sessions, 4 need input), and under it role cards for @growth Juniper, @head-of-people Nyx and @platform Pebble, with @billing Puck reporting to Pebble; each has an animal avatar, a work state, its latest status line and the projects it looks after; finished sessions hang under the growth lead](/blog/field-manual/org-chart.webp 'The org page on a sample team. Each role card shows its handle, its face, its work state and its own latest line on where things stand. The chips are what it looks after; "whole workspace" marks the Head of People.')
 
 ## The words
 
 The app borrows a company's vocabulary on purpose, and every screen uses the same words:
 
-| Word | What it means |
-|---|---|
-| Executive | A person. Hires roles, answers decisions, owns the goals. |
-| Role (lead) | A standing agent with a handle like `@growth`, a charter, an area, a memory and a schedule. |
-| Hand | An ordinary session doing one piece of work under a role. It ends when the work ends. |
-| Project | A lasting area of work, the unit a role looks after. |
-| Goal | Something the company is trying to reach, with an owner, a health and the numbers it is measured by. |
-| Proposal | A set of org changes an agent suggests and a person approves one change at a time. |
+| Word        | What it means                                                                                        |
+| ----------- | ---------------------------------------------------------------------------------------------------- |
+| Executive   | A person. Hires roles, answers decisions, owns the goals.                                            |
+| Role (lead) | A standing agent with a handle like `@growth`, a charter, an area, a memory and a schedule.          |
+| Hand        | An ordinary session doing one piece of work under a role. It ends when the work ends.                |
+| Project     | A lasting area of work, the unit a role looks after.                                                 |
+| Goal        | Something the company is trying to reach, with an owner, a health and the numbers it is measured by. |
+| Proposal    | A set of org changes an agent suggests and a person approves one change at a time.                   |
 
 ## Your first open: one agent at the root
 
 Open the org page on a fresh workspace and the chart is just you, with a card underneath: right now every session reports to you, and a Head of People can read how the work flows and propose roles to take some of it. Two buttons: **Hire a Head of People** and **Propose an org now**.
 
-The **Head of People** is the one root role every workspace has. Its job is structural: keep the org true to how the work actually runs. Until anyone else is hired it owns everything, answers questions about any area, and routes work. Hiring it seats it in a standing session, schedules its weekly *Company review*, and runs the first review right away. While it runs, the card says it is reviewing the company and that the proposal will appear on the chart when it lands.
+The **Head of People** is the one root role every workspace has. Its job is structural: keep the org true to how the work actually runs. Until anyone else is hired it owns everything, answers questions about any area, and routes work. Hiring it seats it in a standing session, schedules its weekly _Company review_, and runs the first review right away. While it runs, the card says it is reviewing the company and that the proposal will appear on the chart when it lands.
 
 Changes to the org itself wait for you: it proposes them, and you approve each one. Like every role it starts work on its own, so what no lead owns yet it can pick up itself. Your right hand is a separate role, the **Executive Assistant**, which answers anything, routes requests, can span every workspace you belong to, and stays pinned in the app header.
 
 ## The review proposes leads
 
-The Head of People does not stamp out an org from a template. It reads the evidence first: projects, plans, sessions, where the commits land, and the chat and call lines where someone stated a goal. Its rule is blunt: *the work outranks the records*. A plan whose tasks all shipped is done whatever its status says, so a first review often just brings the records in line before it sizes any seats.
+The Head of People does not stamp out an org from a template. It reads the evidence first: projects, plans, sessions, where the commits land, and the chat and call lines where someone stated a goal. Its rule is blunt: _the work outranks the records_. A plan whose tasks all shipped is done whatever its status says, so a first review often just brings the records in line before it sizes any seats.
 
 A few of its rules explain the charts it draws:
 
@@ -38,9 +38,9 @@ A few of its rules explain the charts it draws:
 
 ## A proposal you answer like a message
 
-Every change arrives as a proposal, never as a fait accompli. It shows up as a card in the conversation where the agent posted it and as a panel on the org page. Each numbered card is one *subject* (a role, a goal, a project, a plan) in one plain sentence, with what was there before, the evidence, and what the proposer expects to change if you approve.
+Every change arrives as a proposal, never as a fait accompli. It shows up as a card in the conversation where the agent posted it and as a panel on the org page. Each numbered card is one _subject_ (a role, a goal, a project, a plan) in one plain sentence, with what was there before, the evidence, and what the proposer expects to change if you approve.
 
-![A proposal panel with two numbered cards: 1, Add an agent: Incidents lead, with its evidence (63 failed-delivery alerts in 14 days, 22 answered by a person, the rest expired unread) and 'If you approve: within a week, no alert expires unread'; 2, one smaller change about settings; each card has Approve, Reject and Reply](/blog/field-manual/org-proposal.webp "A proposal: one card per subject, evidence first, then what should change &quot;if you approve&quot;. Approve, Reject and Reply collect into one batch.")
+![A proposal panel with two numbered cards: 1, Add an agent: Incidents lead, with its evidence (63 failed-delivery alerts in 14 days, 22 answered by a person, the rest expired unread) and 'If you approve: within a week, no alert expires unread'; 2, one smaller change about settings; each card has Approve, Reject and Reply](/blog/field-manual/org-proposal.webp 'A proposal: one card per subject, evidence first, then what should change "if you approve". Approve, Reject and Reply collect into one batch.')
 
 It is deliberately not a form. Clicking **Approve** fires nothing yet. Your approvals, rejections and replies collect in the composer as a pending batch, and one **Send** applies the approvals in a sensible order (projects first, then roles from the top down, then moves), records your words on each change, and delivers one message to the agent naming each change. The agent treats approvals as done and your rejection text as an edit: it revises that card in place and tells you in one sentence what it changed.
 
@@ -84,7 +84,7 @@ Requests travel up the line. When a session under a role stalls, asks a question
 
 Click a role anywhere (a chart card, an inbox card, a mention in a message) and you land on the same page: its conversation on the left, and a panel on the right with what it is for, what it is doing, how it wakes, its playbook, its work, sessions, decisions, triggers and settings. Above the composer sits a quiet row of offers. On the Head of People it reads **Open the proposal** (with how many changes wait on you), **Review the org now** and **Plan the goal tree**. Each just runs its Company review now (with a focus, for the goal tree), so the review stays one schedule you control.
 
-![The Head of People's role page: header with its avatar, name Nyx and pinned status, the conversation in the middle including a trigger line 'An area needs your review: @support has read overloaded at two checks in a row' and the role's reply that no change is needed, the composer, and the right panel showing What it is for, What it is doing and How it wakes (every week)](/blog/field-manual/org-role-page.webp "A role page. Note the trigger line in the thread (&quot;An area needs your review&quot;) and the role's answer: it read the area, found it busy but healthy, and said so in one paragraph instead of proposing a change.")
+![The Head of People's role page: header with its avatar, name Nyx and pinned status, the conversation in the middle including a trigger line 'An area needs your review: @support has read overloaded at two checks in a row' and the role's reply that no change is needed, the composer, and the right panel showing What it is for, What it is doing and How it wakes (every week)](/blog/field-manual/org-role-page.webp 'A role page. Note the trigger line in the thread ("An area needs your review") and the role\'s answer: it read the area, found it busy but healthy, and said so in one paragraph instead of proposing a change.')
 
 ### Its memory: the playbook
 
@@ -100,7 +100,7 @@ Settings are deliberately small. A role has one switch, **Starts work on its own
 
 ## Health: is the org working?
 
-**Health** reads every role by what actually reaches it and asks for attention: messages into its session, decisions routed to it, live hands, stalled threads, days at its limit. The open tasks in its area are context, not load, because hands do those tasks, not the role. That distinction matters. On codecast's own workspace, the seat an older task-counting model kept telling us to split had zero hands, zero decisions and zero stalls while its area closed 121 tasks in a week. It was not overloaded; it was *bypassed*, work in its area that never reached it. Bypassed is now its own flag.
+**Health** reads every role by what actually reaches it and asks for attention: messages into its session, decisions routed to it, live hands, stalled threads, days at its limit. The open tasks in its area are context, not load, because hands do those tasks, not the role. That distinction matters. On codecast's own workspace, the seat an older task-counting model kept telling us to split had zero hands, zero decisions and zero stalls while its area closed 121 tasks in a week. It was not overloaded; it was _bypassed_, work in its area that never reached it. Bypassed is now its own flag.
 
 ![The Health view: a header line 'This week 545 in, 81 closed, 1 at their limit, 1 waiting on you', an alert card 'Platform lead, blocked on you' with Reply, and under three people their roles as cards with items in, items closed, a sparkline and a status such as on track or at its limit 3 of 7 days; dashed lines connect roles that message each other](/blog/field-manual/org-health.webp "Health on the same team: per role, items in versus closed this week, a status word (on track, overloaded, stuck, waiting on you) and the flags behind it. Dashed lines are messages between roles.")
 
@@ -117,11 +117,11 @@ Roles answer "who owns this?". The **line** answers "how does this project chang
 - **Watching.** After it ships, the line watches for the problem; if it is reported again, it reopens.
 - **Closed.**
 
-![The /line page titled 'The line: a signal in the world to a shipped, watched change' with 'Nothing waiting on you', and six stations left to right: Sense 4 (two finders), Causes 3 (a ranked list of error causes with their signal counts), In build 0 marked starved, Awaiting you 0, Watching 0 and Closed 0, each empty station explaining what it holds](/blog/field-manual/org-line.webp "The line page shows one project's line as stations, and the pills switch projects or roll them all up. Here three problems wait but &quot;In build&quot; reads *starved*: problems wait and nothing is building them.")
+![The /line page titled 'The line: a signal in the world to a shipped, watched change' with 'Nothing waiting on you', and six stations left to right: Sense 4 (two finders), Causes 3 (a ranked list of error causes with their signal counts), In build 0 marked starved, Awaiting you 0, Watching 0 and Closed 0, each empty station explaining what it holds](/blog/field-manual/org-line.webp (The line page shows one project's line as stations, and the pills switch projects or roll them all up. Here three problems wait but "In build" reads *starved*: problems wait and nothing is building them.))
 
 Each project has one line, defined in its repo next to the code: how to check, prove and ship a change, which finders feed it, how many open cards each person may have waiting, and how long a shipped change is watched. A repo without one gets sensible defaults.
 
-Roles and lines meet at admission. A line runs without any role: you start a run from a problem yourself. A role whose area holds the project adds autonomy: it admits problems in priority order, but only as fast as people answer cards, and your card cap counts across every line you answer for, so a busy week never buries you. Goals rank the problems. A project's *expectations*, a living document of how the system should behave with the quotes it came from, are what the judges compare behavior against.
+Roles and lines meet at admission. A line runs without any role: you start a run from a problem yourself. A role whose area holds the project adds autonomy: it admits problems in priority order, but only as fast as people answer cards, and your card cap counts across every line you answer for, so a busy week never buries you. Goals rank the problems. A project's _expectations_, a living document of how the system should behave with the quotes it came from, are what the judges compare behavior against.
 
 ## Hiring a role ready-made
 

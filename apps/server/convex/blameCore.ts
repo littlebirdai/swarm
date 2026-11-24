@@ -9,7 +9,12 @@
 // zeros) are attributed by content: the newest edit/write whose new_content
 // contains the line verbatim.
 
-import { claimByOverlap, COMMIT_DEADLINE_SLACK_MS, MIN_LINE_MATCH_LEN, overlapLineSet } from "@codecast/shared/blame";
+import {
+  claimByOverlap,
+  COMMIT_DEADLINE_SLACK_MS,
+  MIN_LINE_MATCH_LEN,
+  overlapLineSet,
+} from "@codecast/shared/blame";
 
 export const MIN_SHA_PREFIX = 7;
 export { MIN_LINE_MATCH_LEN };
@@ -42,7 +47,10 @@ export function isValidBlameSha(sha: string): boolean {
 // Newest commit row whose stored short hash is a prefix of the full blame SHA.
 // Candidates come from an index range scan over [sha.slice(0,7), sha], which
 // can include same-prefix non-matches — verify before accepting.
-export function pickRowForSha(fullSha: string, candidates: CommitRowLite[]): CommitRowLite | null {
+export function pickRowForSha(
+  fullSha: string,
+  candidates: CommitRowLite[],
+): CommitRowLite | null {
   let best: CommitRowLite | null = null;
   for (const row of candidates) {
     const hash = row.commit_hash;
@@ -71,7 +79,11 @@ export function rankRowsBySummary(
       if (!firstLine || firstLine !== subject) return false;
       return Math.abs(row.timestamp - authorTimeMs) <= SUMMARY_MATCH_WINDOW_MS;
     })
-    .sort((a, b) => Math.abs(a.timestamp - authorTimeMs) - Math.abs(b.timestamp - authorTimeMs));
+    .sort(
+      (a, b) =>
+        Math.abs(a.timestamp - authorTimeMs) -
+        Math.abs(b.timestamp - authorTimeMs),
+    );
 }
 
 export function pickRowBySummary(
@@ -107,7 +119,8 @@ export function matchLinesToEdits<R extends EditRowLite>(
     // Duplicate text across commits: keep the most permissive deadline.
     const existing = deadlines.get(trimmed);
     const deadline = line.deadline ?? Infinity;
-    if (existing === undefined || deadline > existing) deadlines.set(trimmed, deadline);
+    if (existing === undefined || deadline > existing)
+      deadlines.set(trimmed, deadline);
   }
   if (deadlines.size === 0) return matched;
 
@@ -129,10 +142,17 @@ export function matchUncommittedLines(
   lines: string[],
   rows: EditRowLite[],
 ): Map<string, EditRowLite> {
-  return matchLinesToEdits(lines.map((text) => ({ text })), rows);
+  return matchLinesToEdits(
+    lines.map((text) => ({ text })),
+    rows,
+  );
 }
 
-export type OverlapMatch<R extends EditRowLite> = { row: R; matched: number; total: number };
+export type OverlapMatch<R extends EditRowLite> = {
+  row: R;
+  matched: number;
+  total: number;
+};
 
 // The session that wrote a commit's lines, for a commit nothing else names.
 // Each session's candidate set is every line its edits to the file wrote up
@@ -144,12 +164,18 @@ export function matchCommitByOverlap<R extends EditRowLite>(
   authorTimeMs: number | undefined,
   rows: R[],
 ): OverlapMatch<R> | null {
-  const deadline = authorTimeMs ? authorTimeMs + COMMIT_DEADLINE_SLACK_MS : Infinity;
+  const deadline = authorTimeMs
+    ? authorTimeMs + COMMIT_DEADLINE_SLACK_MS
+    : Infinity;
   const bySession = new Map<string, { texts: string[]; newest: R }>();
   for (const row of rows) {
     if (row.timestamp > deadline) continue;
     const entry = bySession.get(row.conversation_id);
-    if (!entry) bySession.set(row.conversation_id, { texts: [row.new_content], newest: row });
+    if (!entry)
+      bySession.set(row.conversation_id, {
+        texts: [row.new_content],
+        newest: row,
+      });
     else {
       entry.texts.push(row.new_content);
       if (row.timestamp > entry.newest.timestamp) entry.newest = row;
@@ -159,5 +185,11 @@ export function matchCommitByOverlap<R extends EditRowLite>(
     commitLines,
     [...bySession].map(([id, e]) => ({ id, lines: overlapLineSet(e.texts) })),
   );
-  return claim ? { row: bySession.get(claim.id)!.newest, matched: claim.matched, total: claim.total } : null;
+  return claim
+    ? {
+        row: bySession.get(claim.id)!.newest,
+        matched: claim.matched,
+        total: claim.total,
+      }
+    : null;
 }

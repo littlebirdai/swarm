@@ -28,7 +28,10 @@ export function projectColorClass(color?: string): string {
  * shared prefix ("Codecast: …") truncates to the same few characters, so the
  * swatch is doing the telling-apart, not the text.
  */
-export function projectDotClass(project: { color?: string; title?: string }, colorOf: typeof getLabelColor = getLabelColor): string {
+export function projectDotClass(
+  project: { color?: string; title?: string },
+  colorOf: typeof getLabelColor = getLabelColor,
+): string {
   if (project.color) return projectColorClass(project.color);
   return colorOf(project.title || "").dot;
 }
@@ -39,19 +42,35 @@ export function projectDotClass(project: { color?: string; title?: string }, col
  * repository, and a folder under ~/code (src, projects, repos) counts as the
  * repository it sits in. Null when the session has no folder.
  */
-export function workspaceNameOf(row: { git_root?: string | null; project_path?: string | null }): string | null {
+export function workspaceNameOf(row: {
+  git_root?: string | null;
+  project_path?: string | null;
+}): string | null {
   const raw = row.git_root || row.project_path;
   if (!raw) return null;
-  const path = raw.replace(/\/\.conductor\/[^/]+$/, "").replace(/\/\.[^/]+\/worktrees\/[^/]+$/, "");
+  const path = raw
+    .replace(/\/\.conductor\/[^/]+$/, "")
+    .replace(/\/\.[^/]+\/worktrees\/[^/]+$/, "");
   const parts = path.split("/").filter(Boolean);
-  const under = parts.findIndex((p) => p === "src" || p === "projects" || p === "repos" || p === "code");
-  return (under >= 0 && under < parts.length - 1 ? parts[under + 1] : parts[parts.length - 1]) || null;
+  const under = parts.findIndex(
+    (p) => p === "src" || p === "projects" || p === "repos" || p === "code",
+  );
+  return (
+    (under >= 0 && under < parts.length - 1
+      ? parts[under + 1]
+      : parts[parts.length - 1]) || null
+  );
 }
 
 /**
  * A workspace's colour. Session marks and the sidebar's workspace rows read the
  * same swatch, so a colour seen on a row says which workspace it is in.
  */
-export function workspaceColorOf(name: string | null, colorOf: typeof getWorkspaceColor = getWorkspaceColor): { text: string; dot: string } {
-  return name ? colorOf(name) : { text: "text-sol-text-muted", dot: "bg-sol-text-dim" };
+export function workspaceColorOf(
+  name: string | null,
+  colorOf: typeof getWorkspaceColor = getWorkspaceColor,
+): { text: string; dot: string } {
+  return name
+    ? colorOf(name)
+    : { text: "text-sol-text-muted", dot: "bg-sol-text-dim" };
 }

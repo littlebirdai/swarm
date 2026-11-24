@@ -4,9 +4,12 @@
 /** A tab's title for /m/<mod>/<pane>: the pane's title from the mod's manifest, else the mod's. */
 export function modTabLabel(path: string): string {
   const [, , name, pane] = path.split("?")[0].split("/");
-  const mods = ((globalThis as any).__inboxStore?.getState?.().mods ?? {}) as Record<string, any>;
+  const mods = ((globalThis as any).__inboxStore?.getState?.().mods ??
+    {}) as Record<string, any>;
   const row = Object.values(mods).find((r: any) => r?.name === name);
-  const paneTitle = row?.manifest?.panes?.find((p: any) => p.id === (pane || row?.manifest?.panes?.[0]?.id))?.title;
+  const paneTitle = row?.manifest?.panes?.find(
+    (p: any) => p.id === (pane || row?.manifest?.panes?.[0]?.id),
+  )?.title;
   return paneTitle ?? row?.title ?? name ?? "Mod";
 }
 
@@ -19,7 +22,10 @@ export function objectTabLabel(path: string): string {
   for (const row of Object.values((st?.mods ?? {}) as Record<string, any>)) {
     kind ??= row?.manifest?.objects?.find((k: any) => k.prefix === prefix);
   }
-  if (area === "objects") return kind?.plural ?? (kind ? `${kind.title}s` : ref);
-  const obj = Object.values((st?.modObjects ?? {}) as Record<string, any>).find((o: any) => o?.short_id === ref.toLowerCase());
+  if (area === "objects")
+    return kind?.plural ?? (kind ? `${kind.title}s` : ref);
+  const obj = Object.values((st?.modObjects ?? {}) as Record<string, any>).find(
+    (o: any) => o?.short_id === ref.toLowerCase(),
+  );
   return obj?.title ?? ref;
 }

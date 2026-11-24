@@ -3,9 +3,15 @@
  * time: one call holding every task of a large team ran out of the server's
  * memory (Union, Oct 26). `page` posts one request to /cli/work/page.
  */
-export async function wholeBoard(page: (body: Record<string, any>) => Promise<any>, body: Record<string, any>): Promise<any[]> {
+export async function wholeBoard(
+  page: (body: Record<string, any>) => Promise<any>,
+  body: Record<string, any>,
+): Promise<any[]> {
   let tasks: any[] = [];
-  for (let cursor: string | null = null, more = true; more && tasks.length < body.limit;) {
+  for (
+    let cursor: string | null = null, more = true;
+    more && tasks.length < body.limit;
+  ) {
     const got = await page({ ...body, cursor, page_size: 300 });
     tasks = [...tasks, ...(got?.tasks ?? [])];
     cursor = got?.cursor ?? null;
@@ -20,12 +26,21 @@ export async function wholeBoard(page: (body: Record<string, any>) => Promise<an
  * project, an initiative, a plan).
  */
 export function pageable(body: Record<string, any>): boolean {
-  return !body.ready && !body.assignee && !body.chain && !body.project_id && !body.initiative && !body.plan_id;
+  return (
+    !body.ready &&
+    !body.assignee &&
+    !body.chain &&
+    !body.project_id &&
+    !body.initiative &&
+    !body.plan_id
+  );
 }
 
 /** The server gave up on a whole-set read: its memory cap or its time limit. */
 export function isCapacityError(err: unknown): boolean {
-  return /ran out of memory|timed out|Too many (bytes|documents) read/i.test(err instanceof Error ? err.message : String(err));
+  return /ran out of memory|timed out|Too many (bytes|documents) read/i.test(
+    err instanceof Error ? err.message : String(err),
+  );
 }
 
 /**
@@ -38,12 +53,17 @@ export function isCapacityError(err: unknown): boolean {
  * index), the listing walks pages instead, slower but bounded.
  */
 export async function listTasks(
-  post: (path: string, body: Record<string, any>, opts?: { throwOnError?: boolean }) => Promise<any>,
+  post: (
+    path: string,
+    body: Record<string, any>,
+    opts?: { throwOnError?: boolean },
+  ) => Promise<any>,
   body: Record<string, any>,
 ): Promise<any[]> {
   const page = (b: Record<string, any>) => post("/cli/work/page", b);
   if (!pageable(body)) return post("/cli/work/list", body);
-  if (body.include_done && !body.status && !body.query) return wholeBoard(page, body);
+  if (body.include_done && !body.status && !body.query)
+    return wholeBoard(page, body);
   try {
     return await post("/cli/work/list", body, { throwOnError: true });
   } catch (err) {

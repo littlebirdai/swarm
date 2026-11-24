@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { fixtureId, installDom, installMissingBackend, seedViewer, VIEWER_ID } from "../../test-helpers/missingBackend";
+import {
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedViewer,
+  VIEWER_ID,
+} from "../../test-helpers/missingBackend";
 
 const { mountPage } = installDom("https://app.test/triggers/tr-42");
 const trigger = {
@@ -21,10 +27,13 @@ const backend = await installMissingBackend({
   },
 });
 await seedViewer();
-const { default: TriggerDetailPage } = await import("../../app/triggers/[id]/page");
+const { default: TriggerDetailPage } =
+  await import("../../app/triggers/[id]/page");
 
 test("trigger details and run history remain visible when the roster history query is missing", async () => {
-  const page = await mountPage("/triggers/tr-42", { "/triggers/:id": <TriggerDetailPage /> });
+  const page = await mountPage("/triggers/tr-42", {
+    "/triggers/:id": <TriggerDetailPage />,
+  });
   try {
     expect(backend.refused).toContain("agentTasks:webListHistory");
     expect(page.uncaught).toEqual([]);

@@ -11,7 +11,11 @@ export function CommandPaletteList({ children }: { children: ReactNode }) {
   }, [search]);
 
   return (
-    <Command.List ref={ref} className="max-h-[min(60vh,480px)] overflow-y-auto overscroll-contain py-1.5" style={{ overflowAnchor: "none" }}>
+    <Command.List
+      ref={ref}
+      className="max-h-[min(60vh,480px)] overflow-y-auto overscroll-contain py-1.5"
+      style={{ overflowAnchor: "none" }}
+    >
       {children}
     </Command.List>
   );

@@ -6,7 +6,11 @@ import type { SeatOffer } from "@codecast/convex/convex/teamBilling";
 import type { EnforcedSeatState } from "./useSeatState";
 import { useStripeRedirect } from "../components/simple/billing";
 import { SwitchReview } from "../components/consequential/ConsequentialSwitch";
-import { BILLED_OPTIONS, seatUpgradeLedger, type SeatBillingChoice } from "../components/consequential/seatUpgradeLedger";
+import {
+  BILLED_OPTIONS,
+  seatUpgradeLedger,
+  type SeatBillingChoice,
+} from "../components/consequential/seatUpgradeLedger";
 
 /** Starting (or renewing) Pro from anywhere: `open` shows the consequential
  *  review with Stripe's prices, `review` is that dialog to render, and its
@@ -22,14 +26,26 @@ export function useSeatUpgrade(teamId: Id<"teams">, state: EnforcedSeatState) {
   const open = () => {
     setOffer(undefined);
     setReviewing(true);
-    offerAction({ team_id: teamId }).then(setOffer, () => setOffer({ ok: false, error: "Could not read the price." }));
+    offerAction({ team_id: teamId }).then(setOffer, () =>
+      setOffer({ ok: false, error: "Could not read the price." }),
+    );
   };
 
   const review = reviewing ? (
     <SwitchReview
-      ledger={seatUpgradeLedger({ team: state.team_name, seats: state.members, renew: state.lapsed, offer, billing })}
+      ledger={seatUpgradeLedger({
+        team: state.team_name,
+        seats: state.members,
+        renew: state.lapsed,
+        offer,
+        billing,
+      })}
       onClose={() => setReviewing(false)}
-      onPick={(option) => setBilling(BILLED_OPTIONS[option as keyof typeof BILLED_OPTIONS] ?? "monthly")}
+      onPick={(option) =>
+        setBilling(
+          BILLED_OPTIONS[option as keyof typeof BILLED_OPTIONS] ?? "monthly",
+        )
+      }
       onConfirm={() => {
         setReviewing(false);
         void stripe.redirect(() => checkout({ team_id: teamId, billing }));

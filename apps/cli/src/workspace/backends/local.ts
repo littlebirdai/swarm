@@ -21,11 +21,7 @@ import {
   validateWorkspace,
 } from "../lifecycle.js";
 import { readState } from "../contract.js";
-import type {
-  ExecResult,
-  FileContent,
-  SandboxBackend,
-} from "./types.js";
+import type { ExecResult, FileContent, SandboxBackend } from "./types.js";
 
 export const LocalBackend: SandboxBackend = {
   name: "local",
@@ -54,9 +50,7 @@ export const LocalBackend: SandboxBackend = {
   async exec(repoRoot, name, command, opts = {}): Promise<ExecResult> {
     const state = readState(repoRoot, name);
     if (!state) throw new Error(`workspace '${name}' not found`);
-    const cwd = opts.cwd
-      ? path.join(state.path, opts.cwd)
-      : state.path;
+    const cwd = opts.cwd ? path.join(state.path, opts.cwd) : state.path;
     const env = {
       ...process.env,
       ...state.env,
@@ -75,13 +69,21 @@ export const LocalBackend: SandboxBackend = {
 
       if (opts.timeoutMs) {
         timer = setTimeout(() => {
-          try { child.kill("SIGKILL"); } catch {}
+          try {
+            child.kill("SIGKILL");
+          } catch {}
         }, opts.timeoutMs);
       }
-      child.stdout?.on("data", (b: Buffer) => { stdout += b.toString("utf-8"); });
-      child.stderr?.on("data", (b: Buffer) => { stderr += b.toString("utf-8"); });
+      child.stdout?.on("data", (b: Buffer) => {
+        stdout += b.toString("utf-8");
+      });
+      child.stderr?.on("data", (b: Buffer) => {
+        stderr += b.toString("utf-8");
+      });
       if (opts.stdin) {
-        try { child.stdin?.write(opts.stdin); } catch {}
+        try {
+          child.stdin?.write(opts.stdin);
+        } catch {}
       }
       child.stdin?.end();
       child.on("error", reject);
@@ -103,7 +105,12 @@ export const LocalBackend: SandboxBackend = {
     return fs.readFileSync(path.join(state.path, relativePath));
   },
 
-  async writeFile(repoRoot, name, relativePath, content: FileContent): Promise<void> {
+  async writeFile(
+    repoRoot,
+    name,
+    relativePath,
+    content: FileContent,
+  ): Promise<void> {
     const state = readState(repoRoot, name);
     if (!state) throw new Error(`workspace '${name}' not found`);
     const full = path.join(state.path, relativePath);

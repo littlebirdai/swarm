@@ -29,7 +29,7 @@ let lookup: () => { data?: unknown; error?: Error } = () => ({
   data: undefined,
   error: missingFunction,
 });
-const noThrow = { ...await import("../hooks/useQueryNoThrow") };
+const noThrow = { ...(await import("../hooks/useQueryNoThrow")) };
 afterAll(() => mock.module("../hooks/useQueryNoThrow", () => noThrow));
 mock.module("../hooks/useQueryNoThrow", () => ({
   ...noThrow,
@@ -39,7 +39,7 @@ mock.module("../hooks/useQueryNoThrow", () => ({
 // The pill only needs to know whether the split is open. Keep every other
 // export real: mock.module replaces the module process-wide, and a partial stub
 // breaks any later test file that imports a name this one left out.
-const terminal = { ...await import("./terminal/ConversationTerminal") };
+const terminal = { ...(await import("./terminal/ConversationTerminal")) };
 afterAll(() => mock.module("./terminal/ConversationTerminal", () => terminal));
 mock.module("./terminal/ConversationTerminal", () => ({
   ...terminal,
@@ -52,13 +52,19 @@ const { TmuxAttachPill } = await import("./TmuxAttachPill");
 
 const render = () =>
   renderToStaticMarkup(
-    <TmuxAttachPill tmuxSession="cc-resume-7ea05201" isLive conversationKey="jx7fata" />,
+    <TmuxAttachPill
+      tmuxSession="cc-resume-7ea05201"
+      isLive
+      conversationKey="jx7fata"
+    />,
   );
 
 describe("TmuxAttachPill under a backend that lacks the query", () => {
   test("Codex without a pane has a focusable gray explanation and no attach action", () => {
     lookup = () => ({ data: undefined, error: undefined });
-    const html = renderToStaticMarkup(<TmuxAttachPill agentType="codex" isLive conversationKey="cx-server" />);
+    const html = renderToStaticMarkup(
+      <TmuxAttachPill agentType="codex" isLive conversationKey="cx-server" />,
+    );
     expect(html).toContain('aria-label="No tmux terminal attached"');
     expect(html).toContain('aria-disabled="true"');
     expect(html).toContain("text-gray-400");
@@ -69,12 +75,21 @@ describe("TmuxAttachPill under a backend that lacks the query", () => {
 
   test("other agents without a pane still omit the pill", () => {
     lookup = () => ({ data: undefined, error: undefined });
-    expect(renderToStaticMarkup(<TmuxAttachPill agentType="claude" isLive />)).toBe("");
+    expect(
+      renderToStaticMarkup(<TmuxAttachPill agentType="claude" isLive />),
+    ).toBe("");
   });
 
   test("Codex with a pane retains the terminal and copy actions", () => {
     lookup = () => ({ data: undefined, error: undefined });
-    const html = renderToStaticMarkup(<TmuxAttachPill agentType="codex" tmuxSession="cx-resume" isLive conversationKey="cx-tmux" />);
+    const html = renderToStaticMarkup(
+      <TmuxAttachPill
+        agentType="codex"
+        tmuxSession="cx-resume"
+        isLive
+        conversationKey="cx-tmux"
+      />,
+    );
     expect(html).toContain("text-sol-green");
     expect(html).toContain('aria-label="Copy tmux attach command"');
     expect(html).not.toContain('aria-label="No tmux terminal attached"');

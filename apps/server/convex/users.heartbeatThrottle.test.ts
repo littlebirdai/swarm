@@ -31,8 +31,12 @@ describe("sameHeartbeatValue", () => {
   });
 
   test("records match on content (settings, git_plane)", () => {
-    expect(sameHeartbeatValue({ stable: "team" }, { stable: "team" })).toBe(true);
-    expect(sameHeartbeatValue({ stable: "team" }, { stable: "solo" })).toBe(false);
+    expect(sameHeartbeatValue({ stable: "team" }, { stable: "team" })).toBe(
+      true,
+    );
+    expect(sameHeartbeatValue({ stable: "team" }, { stable: "solo" })).toBe(
+      false,
+    );
   });
 
   test("a nested change is still a change (cc_accounts usage)", () => {
@@ -73,23 +77,48 @@ describe("deviceBeatChanged", () => {
   });
 
   test("measurement drift on last_input_at does not count as input", () => {
-    expect(deviceBeatChanged(existing, { last_input_at: NOW - 601_000 })).toBe(false);
-    expect(deviceBeatChanged(existing, { last_input_at: NOW - 599_000 })).toBe(false);
+    expect(deviceBeatChanged(existing, { last_input_at: NOW - 601_000 })).toBe(
+      false,
+    );
+    expect(deviceBeatChanged(existing, { last_input_at: NOW - 599_000 })).toBe(
+      false,
+    );
   });
 
   test("real input writes through on this beat, so presence is not delayed", () => {
-    expect(deviceBeatChanged(existing, { last_input_at: NOW - 2_000 })).toBe(true);
+    expect(deviceBeatChanged(existing, { last_input_at: NOW - 2_000 })).toBe(
+      true,
+    );
   });
 
   test("a device reporting input for the first time writes through", () => {
-    expect(deviceBeatChanged({ ...existing, last_input_at: undefined }, { last_input_at: NOW })).toBe(true);
+    expect(
+      deviceBeatChanged(
+        { ...existing, last_input_at: undefined },
+        { last_input_at: NOW },
+      ),
+    ).toBe(true);
   });
 
   test("any other field the beat carries writes through", () => {
-    expect(deviceBeatChanged(existing, { ...quietBeat, status: "offline" })).toBe(true);
-    expect(deviceBeatChanged(existing, { ...quietBeat, settings: { stable: "solo" } })).toBe(true);
-    expect(deviceBeatChanged(existing, { ...quietBeat, local_project_roots: ["/Users/ashot/src", "/tmp"] })).toBe(true);
-    expect(deviceBeatChanged(existing, { ...quietBeat, loop_freeze_ms: 12_000 })).toBe(true);
+    expect(
+      deviceBeatChanged(existing, { ...quietBeat, status: "offline" }),
+    ).toBe(true);
+    expect(
+      deviceBeatChanged(existing, {
+        ...quietBeat,
+        settings: { stable: "solo" },
+      }),
+    ).toBe(true);
+    expect(
+      deviceBeatChanged(existing, {
+        ...quietBeat,
+        local_project_roots: ["/Users/ashot/src", "/tmp"],
+      }),
+    ).toBe(true);
+    expect(
+      deviceBeatChanged(existing, { ...quietBeat, loop_freeze_ms: 12_000 }),
+    ).toBe(true);
   });
 
   // The hour freeze budget rides every beat, so an unrounded value would make
@@ -109,12 +138,25 @@ describe("deviceBeatChanged", () => {
       loop_freeze_max_ms: 41_000,
       loop_freeze_top: "walk@recursiveWatcher.ts:138 60%",
     };
-    expect(deviceBeatChanged(frozen, { ...quietBeat, ...sameBudget })).toBe(false);
-    expect(deviceBeatChanged(frozen, { ...sameBudget, loop_freeze_1h_ms: 220_000 })).toBe(true);
-    expect(deviceBeatChanged(frozen, { ...sameBudget, loop_freeze_max_ms: 42_000 })).toBe(true);
-    expect(deviceBeatChanged(frozen, { ...sameBudget, loop_freeze_top: "scanDir@daemon.ts:900 80%" })).toBe(true);
+    expect(deviceBeatChanged(frozen, { ...quietBeat, ...sameBudget })).toBe(
+      false,
+    );
+    expect(
+      deviceBeatChanged(frozen, { ...sameBudget, loop_freeze_1h_ms: 220_000 }),
+    ).toBe(true);
+    expect(
+      deviceBeatChanged(frozen, { ...sameBudget, loop_freeze_max_ms: 42_000 }),
+    ).toBe(true);
+    expect(
+      deviceBeatChanged(frozen, {
+        ...sameBudget,
+        loop_freeze_top: "scanDir@daemon.ts:900 80%",
+      }),
+    ).toBe(true);
     // A machine that has never reported the budget writes it through the first
     // time, so an upgraded daemon's first beat is not swallowed.
-    expect(deviceBeatChanged(existing, { ...quietBeat, ...sameBudget })).toBe(true);
+    expect(deviceBeatChanged(existing, { ...quietBeat, ...sameBudget })).toBe(
+      true,
+    );
   });
 });

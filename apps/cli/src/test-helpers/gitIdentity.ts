@@ -19,5 +19,11 @@ if (process.env.GIT_CONFIG_GLOBAL === undefined) {
   const file = join(dir, "config");
   writeFileSync(file, "[user]\n\tname = test\n\temail = test@example.com\n");
   process.env.GIT_CONFIG_GLOBAL = file;
-  process.on("exit", () => { try { rmSync(dir, { recursive: true, force: true }); } catch { /* left for the OS temp sweep */ } });
+  process.on("exit", () => {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* left for the OS temp sweep */
+    }
+  });
 }

@@ -24,7 +24,9 @@ export function createMtimeGatedCache<T>(
     get() {
       const now = Date.now();
       const mtimes = paths().map(mtimeOf);
-      const fresh = opts?.ttlMs === undefined || (cached !== null && now - cached.at < opts.ttlMs);
+      const fresh =
+        opts?.ttlMs === undefined ||
+        (cached !== null && now - cached.at < opts.ttlMs);
       if (cached && fresh && cached.mtimes.every((m, i) => m === mtimes[i])) {
         return cached.value;
       }

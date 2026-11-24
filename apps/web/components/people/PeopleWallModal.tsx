@@ -31,7 +31,10 @@ import { PopOutPeopleButton } from "./PopOutPeopleButton";
 export function PeopleWallModal() {
   const open = useInboxStore((s) => s.peopleWallOpen);
   const callsEnabled = useCallsAvailable();
-  const close = useCallback(() => useInboxStore.getState().closePeopleWall(), []);
+  const close = useCallback(
+    () => useInboxStore.getState().closePeopleWall(),
+    [],
+  );
 
   const backdropRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

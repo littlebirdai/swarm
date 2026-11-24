@@ -17,7 +17,8 @@
  * element for the remote shell to re-parse. Pane names are [A-Za-z0-9_-]
  * (isValidPaneTarget), so neither layer can be broken from inside.
  */
-export const REMOTE_TMUX_PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
+export const REMOTE_TMUX_PATH =
+  "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin";
 
 /**
  * An agent session may run on a tmux server of its own, listening on a socket
@@ -37,10 +38,16 @@ export function localTmuxAttachCommand(tmuxSession: string): string {
  * literally. Pane names are [A-Za-z0-9_-] and the server stores only distro
  * names matching [A-Za-z0-9._-], so neither argument can be broken.
  */
-export function wslTmuxAttachCommand(distro: string, tmuxSession: string): string {
+export function wslTmuxAttachCommand(
+  distro: string,
+  tmuxSession: string,
+): string {
   return `wsl.exe -d ${distro} -e tmux attach -t ${tmuxSession}`;
 }
 
-export function sshTmuxAttachCommand(sshHost: string, tmuxSession: string): string {
+export function sshTmuxAttachCommand(
+  sshHost: string,
+  tmuxSession: string,
+): string {
   return `ssh ${sshHost} -t "PATH=${REMOTE_TMUX_PATH} ${localTmuxAttachCommand(tmuxSession)}"`;
 }

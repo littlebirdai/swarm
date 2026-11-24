@@ -62,7 +62,10 @@ describe("resolveTaskGitContext git_root consistency", () => {
       USER as any,
       task({ project_path: "/Users/ashot/src/conv-other" }),
       [],
-      { project_path: "/Users/ashot/src/conv-other", git_root: "/Users/ashot/src/conv" },
+      {
+        project_path: "/Users/ashot/src/conv-other",
+        git_root: "/Users/ashot/src/conv",
+      },
     );
     expect(r.git_root).toBeUndefined();
   });
@@ -103,40 +106,94 @@ describe("resolveTaskGitContext: a seed from another team never beats the task's
   const UNION = "teams_union";
   const CODECAST = "teams_codecast";
   const mappings = [
-    { team_id: CODECAST, path_prefix: "/Users/ashot/src/codecast", auto_share: true },
-    { team_id: UNION, path_prefix: "/Users/ashot/src/union-mobile", auto_share: true },
+    {
+      team_id: CODECAST,
+      path_prefix: "/Users/ashot/src/codecast",
+      auto_share: true,
+    },
+    {
+      team_id: UNION,
+      path_prefix: "/Users/ashot/src/union-mobile",
+      auto_share: true,
+    },
   ];
-  const ctx = (tables: Record<string, any[]> = {}) => ({ db: makeFakeDb({ conversations: [], projects: [], ...tables }) });
-  const task = (over: any = {}) => ({ _id: "tasks_1", user_id: USER, team_id: UNION, conversation_ids: [], ...over });
-  const viewer = { project_path: "/Users/ashot/src/codecast", git_root: "/Users/ashot/src/codecast" };
+  const ctx = (tables: Record<string, any[]> = {}) => ({
+    db: makeFakeDb({ conversations: [], projects: [], ...tables }),
+  });
+  const task = (over: any = {}) => ({
+    _id: "tasks_1",
+    user_id: USER,
+    team_id: UNION,
+    conversation_ids: [],
+    ...over,
+  });
+  const viewer = {
+    project_path: "/Users/ashot/src/codecast",
+    git_root: "/Users/ashot/src/codecast",
+  };
 
   test("a task that pins nothing launches in its team's mapped directory, not the viewer's repo", async () => {
-    const r = await resolveTaskGitContext(ctx(), USER as any, task(), mappings, viewer);
+    const r = await resolveTaskGitContext(
+      ctx(),
+      USER as any,
+      task(),
+      mappings,
+      viewer,
+    );
     expect(r.project_path).toBe("/Users/ashot/src/union-mobile");
     // The viewer's root describes another repo, and the daemon prefers git_root.
     expect(r.git_root).toBeUndefined();
   });
 
   test("a seed inside the task's team is kept: it is the more specific choice", async () => {
-    const seed = { project_path: "/Users/ashot/src/union-mobile/outreach", git_root: "/Users/ashot/src/union-mobile" };
-    const r = await resolveTaskGitContext(ctx(), USER as any, task(), mappings, seed);
+    const seed = {
+      project_path: "/Users/ashot/src/union-mobile/outreach",
+      git_root: "/Users/ashot/src/union-mobile",
+    };
+    const r = await resolveTaskGitContext(
+      ctx(),
+      USER as any,
+      task(),
+      mappings,
+      seed,
+    );
     expect(r.project_path).toBe("/Users/ashot/src/union-mobile/outreach");
     expect(r.git_root).toBe("/Users/ashot/src/union-mobile");
   });
 
   test("the task's project path beats both the seed and the team mapping", async () => {
-    const projects = [{ _id: "projects_1", project_path: "/Users/ashot/src/outreach" }];
-    const r = await resolveTaskGitContext(ctx({ projects }), USER as any, task({ project_id: "projects_1" }), mappings, viewer);
+    const projects = [
+      { _id: "projects_1", project_path: "/Users/ashot/src/outreach" },
+    ];
+    const r = await resolveTaskGitContext(
+      ctx({ projects }),
+      USER as any,
+      task({ project_id: "projects_1" }),
+      mappings,
+      viewer,
+    );
     expect(r.project_path).toBe("/Users/ashot/src/outreach");
   });
 
   test("with no mapping for the task's team the seed still routes the session", async () => {
-    const r = await resolveTaskGitContext(ctx(), USER as any, task(), [mappings[0]], viewer);
+    const r = await resolveTaskGitContext(
+      ctx(),
+      USER as any,
+      task(),
+      [mappings[0]],
+      viewer,
+    );
     expect(r.project_path).toBe("/Users/ashot/src/codecast");
   });
 
   test("a personal task keeps the seed", async () => {
-    const r = await resolveTaskGitContext(ctx(), USER as any, task({ team_id: undefined }), mappings, viewer);
+    const r = await resolveTaskGitContext(
+      ctx(),
+      USER as any,
+      task({ team_id: undefined }),
+      mappings,
+      viewer,
+    );
     expect(r.project_path).toBe("/Users/ashot/src/codecast");
   });
 });

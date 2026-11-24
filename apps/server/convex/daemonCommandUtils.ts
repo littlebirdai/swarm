@@ -1,6 +1,16 @@
 import type { Doc, Id } from "./_generated/dataModel";
-import { ACTIVE_AGENT_STATUSES, MID_TURN_AGENT_STATUSES, commandsSession, isClosedSession, localAgentTypeOf } from "@codecast/shared/contracts";
-import { enqueuePendingMessage, releaseQueuedForUser, resetConversationPendingMessages } from "./pendingMessages";
+import {
+  ACTIVE_AGENT_STATUSES,
+  MID_TURN_AGENT_STATUSES,
+  commandsSession,
+  isClosedSession,
+  localAgentTypeOf,
+} from "@codecast/shared/contracts";
+import {
+  enqueuePendingMessage,
+  releaseQueuedForUser,
+  resetConversationPendingMessages,
+} from "./pendingMessages";
 import { parkOnCloudHost } from "./cloudPlacement";
 
 /**
@@ -17,17 +27,24 @@ export type PendingDaemonCommand = {
   _creationTime?: number;
 };
 
-export function extractDaemonCommandConversationId(args: string | null | undefined): string | null {
+export function extractDaemonCommandConversationId(
+  args: string | null | undefined,
+): string | null {
   if (!args) return null;
   try {
     const parsed = JSON.parse(args);
-    return typeof parsed?.conversation_id === "string" ? parsed.conversation_id : null;
+    return typeof parsed?.conversation_id === "string"
+      ? parsed.conversation_id
+      : null;
   } catch {
     return null;
   }
 }
 
-function matchesSessionTarget(entry: any, conv: { session_id?: string; owner_device_id?: string }): boolean {
+function matchesSessionTarget(
+  entry: any,
+  conv: { session_id?: string; owner_device_id?: string },
+): boolean {
   if (entry.target_device_id !== conv.owner_device_id) return false;
   try {
     return JSON.parse(entry.args || "null")?.session_id === conv.session_id;
@@ -36,16 +53,33 @@ function matchesSessionTarget(entry: any, conv: { session_id?: string; owner_dev
   }
 }
 
-export function validateSessionCommandRequestId(requestId: unknown): asserts requestId is string {
-  if (typeof requestId !== "string" || requestId.length === 0 || requestId.length > 128 || /[^A-Za-z0-9_-]/.test(requestId)) {
-    throw new Error("Invalid request ID: expected 1-128 letters, digits, underscores or hyphens");
+export function validateSessionCommandRequestId(
+  requestId: unknown,
+): asserts requestId is string {
+  if (
+    typeof requestId !== "string" ||
+    requestId.length === 0 ||
+    requestId.length > 128 ||
+    /[^A-Za-z0-9_-]/.test(requestId)
+  ) {
+    throw new Error(
+      "Invalid request ID: expected 1-128 letters, digits, underscores or hyphens",
+    );
   }
 }
 
-export async function findSessionCommandByRequest(ctx: DbCtx, userId: Id<"users">, requestId: string) {
+export async function findSessionCommandByRequest(
+  ctx: DbCtx,
+  userId: Id<"users">,
+  requestId: string,
+) {
   validateSessionCommandRequestId(requestId);
-  return ctx.db.query("daemon_commands")
-    .withIndex("by_user_request", (q: any) => q.eq("user_id", userId).eq("request_id", requestId)).unique();
+  return ctx.db
+    .query("daemon_commands")
+    .withIndex("by_user_request", (q: any) =>
+      q.eq("user_id", userId).eq("request_id", requestId),
+    )
+    .unique();
 }
 
 /**
@@ -69,7 +103,11 @@ export function sessionCommandRow(command: Doc<"daemon_commands">) {
 }
 
 // The commands that narrate a restart or a device move, newest last.
-const CONVERSATION_PROGRESS_COMMANDS = new Set(["kill_session", "resume_session", "move_to_device"]);
+const CONVERSATION_PROGRESS_COMMANDS = new Set([
+  "kill_session",
+  "resume_session",
+  "move_to_device",
+]);
 
 /**
  * The last few kill/resume/move commands for one conversation: the restart
@@ -80,22 +118,37 @@ const CONVERSATION_PROGRESS_COMMANDS = new Set(["kill_session", "resume_session"
  * anyone else scans their own and sees nothing for a conversation they cannot
  * command.
  */
-export async function recentConversationCommands(ctx: DbCtx, userId: Id<"users">, conversationId: string): Promise<Doc<"daemon_commands">[]> {
+export async function recentConversationCommands(
+  ctx: DbCtx,
+  userId: Id<"users">,
+  conversationId: string,
+): Promise<Doc<"daemon_commands">[]> {
   let scanUserId = userId;
   const convId = ctx.db.normalizeId("conversations", conversationId);
   if (convId) {
     const conv = await ctx.db.get(convId);
-    if (conv && conv.owner_user_id === userId && conv.user_id !== userId) scanUserId = conv.user_id;
+    if (conv && conv.owner_user_id === userId && conv.user_id !== userId)
+      scanUserId = conv.user_id;
   }
-  const pending = await ctx.db.query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", scanUserId).eq("executed_at", undefined))
+  const pending = await ctx.db
+    .query("daemon_commands")
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", scanUserId).eq("executed_at", undefined),
+    )
     .collect();
-  const executed = await ctx.db.query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", scanUserId).gt("executed_at", 0))
+  const executed = await ctx.db
+    .query("daemon_commands")
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", scanUserId).gt("executed_at", 0),
+    )
     .order("desc")
     .take(50);
   return [...pending, ...executed]
-    .filter((c: any) => CONVERSATION_PROGRESS_COMMANDS.has(c.command) && extractDaemonCommandConversationId(c.args) === conversationId)
+    .filter(
+      (c: any) =>
+        CONVERSATION_PROGRESS_COMMANDS.has(c.command) &&
+        extractDaemonCommandConversationId(c.args) === conversationId,
+    )
     .sort((a: any, b: any) => a.created_at - b.created_at)
     .slice(-6);
 }
@@ -119,18 +172,34 @@ export async function recentConversationCommands(ctx: DbCtx, userId: Id<"users">
  */
 export async function enqueueResumeSession(
   ctx: DbCtx,
-  conv: Pick<Doc<"conversations">, "_id" | "user_id" | "session_id" | "project_path" | "git_root" | "agent_type" | "owner_device_id">,
+  conv: Pick<
+    Doc<"conversations">,
+    | "_id"
+    | "user_id"
+    | "session_id"
+    | "project_path"
+    | "git_root"
+    | "agent_type"
+    | "owner_device_id"
+  >,
 ): Promise<{ deduplicated: boolean; command_id?: Id<"daemon_commands"> }> {
   // Throws for a hosted conversation: no daemon resumes it.
   const agentType = localAgentTypeOf(conv.agent_type);
   const pendingCommands = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", conv.user_id).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", conv.user_id).eq("executed_at", undefined),
+    )
     .collect();
 
-  const existing = pendingCommands.find((entry: any) => matchesSessionTarget(entry, conv) && hasRecentPendingDaemonCommand([entry], {
-    conversationId: conv._id.toString(), command: "resume_session",
-  }));
+  const existing = pendingCommands.find(
+    (entry: any) =>
+      matchesSessionTarget(entry, conv) &&
+      hasRecentPendingDaemonCommand([entry], {
+        conversationId: conv._id.toString(),
+        command: "resume_session",
+      }),
+  );
   if (existing) return { deduplicated: true, command_id: existing._id };
 
   const command_id = await ctx.db.insert("daemon_commands", {
@@ -162,30 +231,62 @@ export async function enqueueResumeSession(
  */
 export async function enqueueHibernateSession(
   ctx: DbCtx,
-  conv: Pick<Doc<"conversations">, "_id" | "user_id" | "session_id" | "owner_device_id">,
+  conv: Pick<
+    Doc<"conversations">,
+    "_id" | "user_id" | "session_id" | "owner_device_id"
+  >,
   requestId?: string,
 ): Promise<{ deduplicated: boolean; command_id: Id<"daemon_commands"> }> {
   if (requestId !== undefined) validateSessionCommandRequestId(requestId);
-  if (!conv.session_id || !conv.owner_device_id) throw new Error("Session has no confirmed owning device");
-  const managed = await ctx.db.query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id)).first();
-  if (!managed || managed.session_id !== conv.session_id || managed.user_id !== conv.user_id) {
+  if (!conv.session_id || !conv.owner_device_id)
+    throw new Error("Session has no confirmed owning device");
+  const managed = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
+    .first();
+  if (
+    !managed ||
+    managed.session_id !== conv.session_id ||
+    managed.user_id !== conv.user_id
+  ) {
     throw new Error("Managed session identity changed or is unavailable");
   }
   if (requestId !== undefined) {
-    const existing = await findSessionCommandByRequest(ctx, conv.user_id, requestId);
+    const existing = await findSessionCommandByRequest(
+      ctx,
+      conv.user_id,
+      requestId,
+    );
     if (existing) {
-      if (existing.command !== "hibernate_session" || !matchesSessionTarget(existing, conv) ||
-        extractDaemonCommandConversationId(existing.args) !== conv._id.toString()) {
-        throw new Error("Request ID is already bound to a different command or target");
+      if (
+        existing.command !== "hibernate_session" ||
+        !matchesSessionTarget(existing, conv) ||
+        extractDaemonCommandConversationId(existing.args) !==
+          conv._id.toString()
+      ) {
+        throw new Error(
+          "Request ID is already bound to a different command or target",
+        );
       }
       return { deduplicated: true, command_id: existing._id };
     }
   } else {
-    const pending = await ctx.db.query("daemon_commands")
-      .withIndex("by_user_pending", (q: any) => q.eq("user_id", conv.user_id).eq("executed_at", undefined)).collect();
-    const existing = pending.find((entry: any) => matchesSessionTarget(entry, conv) &&
-      hasRecentPendingDaemonCommand([entry], { conversationId: conv._id.toString(), command: "hibernate_session" }));
+    const pending = await ctx.db
+      .query("daemon_commands")
+      .withIndex("by_user_pending", (q: any) =>
+        q.eq("user_id", conv.user_id).eq("executed_at", undefined),
+      )
+      .collect();
+    const existing = pending.find(
+      (entry: any) =>
+        matchesSessionTarget(entry, conv) &&
+        hasRecentPendingDaemonCommand([entry], {
+          conversationId: conv._id.toString(),
+          command: "hibernate_session",
+        }),
+    );
     if (existing) return { deduplicated: true, command_id: existing._id };
   }
   const command_id = await ctx.db.insert("daemon_commands", {
@@ -193,7 +294,10 @@ export async function enqueueHibernateSession(
     request_id: requestId,
     target_device_id: conv.owner_device_id,
     command: "hibernate_session" as const,
-    args: JSON.stringify({ session_id: conv.session_id, conversation_id: conv._id }),
+    args: JSON.stringify({
+      session_id: conv.session_id,
+      conversation_id: conv._id,
+    }),
     created_at: Date.now(),
   });
   return { deduplicated: false, command_id };
@@ -261,15 +365,32 @@ export async function stopAndSendForUser(
   requestId?: string,
 ): Promise<{ interrupted: boolean }> {
   const conv = await requireSessionCommandTarget(ctx, userId, conversationId);
-  await enqueuePendingMessage(ctx, conv, userId, { content, client_id: clientId, human: true, queue: true });
-  const sessions: Array<{ agent_status?: string }> = await ctx.db.query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conversationId)).collect();
-  const turnRunning = sessions.some((s) => ACTIVE_AGENT_STATUSES.has(s.agent_status ?? "") || MID_TURN_AGENT_STATUSES.has(s.agent_status ?? ""));
+  await enqueuePendingMessage(ctx, conv, userId, {
+    content,
+    client_id: clientId,
+    human: true,
+    queue: true,
+  });
+  const sessions: Array<{ agent_status?: string }> = await ctx.db
+    .query("managed_sessions")
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .collect();
+  const turnRunning = sessions.some(
+    (s) =>
+      ACTIVE_AGENT_STATUSES.has(s.agent_status ?? "") ||
+      MID_TURN_AGENT_STATUSES.has(s.agent_status ?? ""),
+  );
   if (!turnRunning) {
     await releaseQueuedForUser(ctx, userId, conversationId);
     return { interrupted: false };
   }
-  await insertEscapeCommand(ctx, conv, { pressed_at: pressedAt, request_id: requestId, release_queued: true });
+  await insertEscapeCommand(ctx, conv, {
+    pressed_at: pressedAt,
+    request_id: requestId,
+    release_queued: true,
+  });
   return { interrupted: true };
 }
 
@@ -278,9 +399,16 @@ export async function stopAndSendForUser(
  * own, or a session command on the runner's queue for a session they may
  * command (the people requireSessionCommandTarget lets send it).
  */
-export async function canReadSessionCommand(ctx: DbCtx, userId: Id<"users">, row: { user_id: Id<"users">; args?: string | null }): Promise<boolean> {
+export async function canReadSessionCommand(
+  ctx: DbCtx,
+  userId: Id<"users">,
+  row: { user_id: Id<"users">; args?: string | null },
+): Promise<boolean> {
   if (row.user_id === userId) return true;
-  const convId = ctx.db.normalizeId("conversations", extractDaemonCommandConversationId(row.args) ?? "");
+  const convId = ctx.db.normalizeId(
+    "conversations",
+    extractDaemonCommandConversationId(row.args) ?? "",
+  );
   const conv = convId ? await ctx.db.get(convId) : null;
   return !!conv && commandsSession(conv, userId);
 }
@@ -301,13 +429,27 @@ export async function resumeConversationSession(
   | { deduplicated: true }
   | { command_id: Id<"daemon_commands"> }
 > {
-  const conversation = await requireSessionCommandTarget(ctx, userId, conversationId);
+  const conversation = await requireSessionCommandTarget(
+    ctx,
+    userId,
+    conversationId,
+  );
   // A cloud park whose `cast cloud start` failed has no agent to resume: the
   // retry is a fresh park on the same host, carrying what the human chose to
   // leave out of an over-cap context. Before the fresh-session skip, since a
   // row that never started has no messages yet.
-  if (conversation.cloud_placement === "pending" && conversation.cloud_placement_failed_at && conversation.owner_device_id) {
-    await parkOnCloudHost(ctx, conversation.user_id, conversation, conversation.owner_device_id, { force: true, leaveOut: opts.leaveOut });
+  if (
+    conversation.cloud_placement === "pending" &&
+    conversation.cloud_placement_failed_at &&
+    conversation.owner_device_id
+  ) {
+    await parkOnCloudHost(
+      ctx,
+      conversation.user_id,
+      conversation,
+      conversation.owner_device_id,
+      { force: true, leaveOut: opts.leaveOut },
+    );
     return { reparked: true };
   }
 
@@ -330,9 +472,13 @@ export async function resumeConversationSession(
   // A person's resume is a wake: a closed session it runs is not closed any
   // more (every machine reader would otherwise treat the live session as torn
   // down). Ending the dismissal ends the close (shared isClosedSession).
-  if (isClosedSession(conversation)) await ctx.db.patch(conversation._id, { inbox_dismissed_at: undefined });
+  if (isClosedSession(conversation))
+    await ctx.db.patch(conversation._id, { inbox_dismissed_at: undefined });
 
-  const { deduplicated, command_id } = await enqueueResumeSession(ctx, conversation);
+  const { deduplicated, command_id } = await enqueueResumeSession(
+    ctx,
+    conversation,
+  );
 
   // Re-queue any stranded messages so the resume actually delivers them. A message that
   // failed to reach a dead session sits as injected/failed/undeliverable; without this it
@@ -355,11 +501,12 @@ export function hasRecentPendingDaemonCommand(
     command: string;
     now?: number;
     dedupeWindowMs?: number;
-  }
+  },
 ): boolean {
   return commands.some((entry) => {
     if (entry.command !== command) return false;
-    if (extractDaemonCommandConversationId(entry.args) !== conversationId) return false;
+    if (extractDaemonCommandConversationId(entry.args) !== conversationId)
+      return false;
     if (!entry._creationTime) return true;
     return now - entry._creationTime < dedupeWindowMs;
   });

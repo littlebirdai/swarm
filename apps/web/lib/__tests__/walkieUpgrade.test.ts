@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { otherJoinedLive, senderHearing, senderHearingFrom } from "../../hooks/useWalkie";
+import {
+  otherJoinedLive,
+  senderHearing,
+  senderHearingFrom,
+} from "../../hooks/useWalkie";
 import { observeWalkieUpgrade } from "../../hooks/useWalkieSync";
 import { micConstraints } from "../calls/joinPrefs";
-import { getWalkieStatus, refreshWalkie, walkieJoinedRoom } from "../calls/walkie";
+import {
+  getWalkieStatus,
+  refreshWalkie,
+  walkieJoinedRoom,
+} from "../calls/walkie";
 import {
   JOIN_TITLE_MS,
   clearJoinAnnouncement,
@@ -39,7 +47,9 @@ describe("walkie: reading the far side's join off the roster", () => {
   it("says no when the room is full of people who only heard the burst", () => {
     // The ordinary case, and the one that must never read as a call: a burst
     // played to two people seats both of them, unmuted, with nothing stamped.
-    expect(otherJoinedLive([seat(), seat({ user_id: "user_third" })], ME)).toBe(false);
+    expect(otherJoinedLive([seat(), seat({ user_id: "user_third" })], ME)).toBe(
+      false,
+    );
   });
 
   it("says yes the moment one of them steps in on purpose", () => {
@@ -52,9 +62,17 @@ describe("walkie: reading the far side's join off the roster", () => {
     // round trip that the local-first path exists to avoid — and worse, it
     // would keep answering true for the whole call, so the watcher that fires
     // the join cue and the camera would have no edge to fire on.
-    expect(otherJoinedLive([seat({ user_id: ME, walkie_joined_at: 123 })], ME)).toBe(false);
     expect(
-      otherJoinedLive([seat({ user_id: ME, walkie_joined_at: 1 }), seat({ walkie_joined_at: 2 })], ME),
+      otherJoinedLive([seat({ user_id: ME, walkie_joined_at: 123 })], ME),
+    ).toBe(false);
+    expect(
+      otherJoinedLive(
+        [
+          seat({ user_id: ME, walkie_joined_at: 1 }),
+          seat({ walkie_joined_at: 2 }),
+        ],
+        ME,
+      ),
     ).toBe(true);
   });
 
@@ -63,11 +81,15 @@ describe("walkie: reading the far side's join off the roster", () => {
     // stamped row is somebody else's — but it must also not decide the reverse.
     // Nothing is stamped here, so the answer is no either way.
     expect(otherJoinedLive([seat()], undefined)).toBe(false);
-    expect(otherJoinedLive([seat({ walkie_joined_at: 5 })], undefined)).toBe(true);
+    expect(otherJoinedLive([seat({ walkie_joined_at: 5 })], undefined)).toBe(
+      true,
+    );
   });
 
   it("ignores a row an older client wrote without the field", () => {
-    expect(otherJoinedLive([seat({ walkie_joined_at: undefined })], ME)).toBe(false);
+    expect(otherJoinedLive([seat({ walkie_joined_at: undefined })], ME)).toBe(
+      false,
+    );
     expect(otherJoinedLive([seat({ walkie_joined_at: 0 })], ME)).toBe(false);
   });
 
@@ -85,19 +107,36 @@ describe("walkie: reading the far side's join off the roster", () => {
     // rejected every real join instead (see the bucket tests below).
     const minute = 60_000;
     const entered = 100 * minute;
-    expect(otherJoinedLive([seat({ walkie_joined_at: entered - minute })], ME, entered)).toBe(false);
+    expect(
+      otherJoinedLive(
+        [seat({ walkie_joined_at: entered - minute })],
+        ME,
+        entered,
+      ),
+    ).toBe(false);
     // The same room and the same person: the join is real once the stamp lands
     // inside this seat's own lifetime.
-    expect(otherJoinedLive([seat({ walkie_joined_at: entered + minute })], ME, entered)).toBe(true);
+    expect(
+      otherJoinedLive(
+        [seat({ walkie_joined_at: entered + minute })],
+        ME,
+        entered,
+      ),
+    ).toBe(true);
     // A stamp at the very moment of entry counts. A receiver who was already
     // seated when the burst opened presses Join live in the same breath often
     // enough that rounding it out would drop real joins.
-    expect(otherJoinedLive([seat({ walkie_joined_at: entered })], ME, entered)).toBe(true);
+    expect(
+      otherJoinedLive([seat({ walkie_joined_at: entered })], ME, entered),
+    ).toBe(true);
     // And one live stamp among leftovers is still news.
     expect(
       otherJoinedLive(
         [
-          seat({ user_id: "user_ghost", walkie_joined_at: entered - 40 * minute }),
+          seat({
+            user_id: "user_ghost",
+            walkie_joined_at: entered - 40 * minute,
+          }),
           seat({ walkie_joined_at: entered + minute }),
         ],
         ME,
@@ -106,7 +145,6 @@ describe("walkie: reading the far side's join off the roster", () => {
     ).toBe(true);
   });
 });
-
 
 describe("walkie: what the microphone is opened with", () => {
   it("cancels echo, always", () => {
@@ -137,7 +175,11 @@ describe("walkie: what the microphone is opened with", () => {
 describe("walkie: the sender's claim about the other person", () => {
   const ME = "user_me";
   const THEM = "user_them";
-  const them = (over: Record<string, unknown> = {}) => ({ userId: THEM, name: "Jordan", ...over });
+  const them = (over: Record<string, unknown> = {}) => ({
+    userId: THEM,
+    name: "Jordan",
+    ...over,
+  });
   const seat = (id: string) => ({ user_id: id });
 
   it("says they hear you when they are actually in the room", () => {
@@ -165,7 +207,11 @@ describe("walkie: the sender's claim about the other person", () => {
   it("tells busy apart from away, by the same door the receiver applies", () => {
     // Three ways to shut it, one sentence — because from here they are the
     // same fact: the voice will not play, the message will.
-    for (const shut of [{ status: "busy" }, { pref: "off" }, { snoozed: true }]) {
+    for (const shut of [
+      { status: "busy" },
+      { pref: "off" },
+      { snoozed: true },
+    ]) {
       const out = senderHearing([seat(ME)], ME, them(shut));
       expect(out.state).toBe("busy");
       expect(out.text).toBe("Jordan is busy, so they get the message");
@@ -175,7 +221,9 @@ describe("walkie: the sender's claim about the other person", () => {
   it("prefers the room over the door: a seated teammate hears you whatever their status says", () => {
     // They are in the room. However they had their day marked, the audio is
     // playing on their machine, and the strip must say the true thing.
-    expect(senderHearing([seat(THEM)], ME, them({ status: "busy" })).state).toBe("hears");
+    expect(
+      senderHearing([seat(THEM)], ME, them({ status: "busy" })).state,
+    ).toBe("hears");
   });
 
   it("ignores a seat that belongs to somebody else entirely", () => {
@@ -184,14 +232,18 @@ describe("walkie: the sender's claim about the other person", () => {
     expect(senderHearing([seat("user_third")], ME, them()).state).toBe("away");
     // With nobody named — a room the description could not resolve — any seat
     // that is not mine is somebody listening.
-    expect(senderHearing([seat("user_third")], ME, { name: "The room" }).state).toBe("hears");
+    expect(
+      senderHearing([seat("user_third")], ME, { name: "The room" }).state,
+    ).toBe("hears");
   });
 
   it("claims nothing at all when neither identity has resolved", () => {
     // A roster read before currentUser has landed, in a room that named
     // nobody: my own seat is indistinguishable from theirs, and this is the
     // one claim that must never be guessed.
-    expect(senderHearing([seat(ME)], undefined, { name: "Jordan" }).state).toBe("away");
+    expect(senderHearing([seat(ME)], undefined, { name: "Jordan" }).state).toBe(
+      "away",
+    );
   });
 });
 
@@ -216,14 +268,20 @@ describe("walkie: the dock's title when somebody joins", () => {
   });
 
   it("says who joined, for four seconds, and then stops", () => {
-    expect(joinTitle(ann(), ROOM, T0, "Jordan Lee")).toBe("Jordan joined, it's a call now");
+    expect(joinTitle(ann(), ROOM, T0, "Jordan Lee")).toBe(
+      "Jordan joined, it's a call now",
+    );
     expect(joinTitle(ann(), ROOM, T0 + JOIN_TITLE_MS - 1, "Jordan Lee")).toBe(
       "Jordan joined, it's a call now",
     );
     // A title is never allowed to outlive its moment: a tab that slept through
     // the timer must not come back still announcing somebody walking in.
-    expect(joinTitle(ann(), ROOM, T0 + JOIN_TITLE_MS, "Jordan Lee")).toBe("Jordan Lee");
-    expect(joinTitle(ann(), ROOM, T0 + 60_000, "Jordan Lee")).toBe("Jordan Lee");
+    expect(joinTitle(ann(), ROOM, T0 + JOIN_TITLE_MS, "Jordan Lee")).toBe(
+      "Jordan Lee",
+    );
+    expect(joinTitle(ann(), ROOM, T0 + 60_000, "Jordan Lee")).toBe(
+      "Jordan Lee",
+    );
   });
 
   it("belongs to the room it names and to no room after it", () => {
@@ -249,13 +307,17 @@ describe("walkie: the far side's join, applied exactly once", () => {
     // stamp arrives on the roster of a room this client is sitting in. The
     // engine reconciles its live room against the seat, so an upgrade marked
     // from outside one is dropped again before it can be read.
-    useInboxStore.getState().setCallState({ roomKey: ROOM, phase: "connected", muted: false });
+    useInboxStore
+      .getState()
+      .setCallState({ roomKey: ROOM, phase: "connected", muted: false });
   });
 
   afterEach(() => {
     clearJoinAnnouncement();
     // Retire the room the way the app does: the call ending is what clears it.
-    useInboxStore.getState().setCallState({ roomKey: null, phase: "idle", muted: true });
+    useInboxStore
+      .getState()
+      .setCallState({ roomKey: null, phase: "idle", muted: true });
     refreshWalkie();
   });
 
@@ -266,7 +328,9 @@ describe("walkie: the far side's join, applied exactly once", () => {
     // would fire again on each of them, and the person would be told somebody
     // joined for as long as the call lasted.
     const seen: string[] = [];
-    const unsubscribe = subscribeJoinAnnouncement(() => seen.push(getJoinAnnouncement()?.text ?? ""));
+    const unsubscribe = subscribeJoinAnnouncement(() =>
+      seen.push(getJoinAnnouncement()?.text ?? ""),
+    );
     try {
       observeWalkieUpgrade(ROOM, "Jordan");
       observeWalkieUpgrade(ROOM, "Jordan");
@@ -294,7 +358,10 @@ describe("walkie: the sender's claim, derived from the store", () => {
   const ROOM = `dm:${ME}:${THEM}`;
   const NOW = 1_700_000_000_000;
 
-  const store = ({ teamMembers = [{ _id: THEM, name: "Jordan Lee" }], ...over }: Record<string, any> = {}) => ({
+  const store = ({
+    teamMembers = [{ _id: THEM, name: "Jordan Lee" }],
+    ...over
+  }: Record<string, any> = {}) => ({
     currentUser: { _id: ME },
     ...withTeamRoster(teamMembers),
     chatChannels: {},
@@ -306,7 +373,9 @@ describe("walkie: the sender's claim, derived from the store", () => {
   });
 
   it("names the other person off the room key and the live roster", () => {
-    const s = store({ callOccupancy: { [ROOM]: [{ user_id: ME }, { user_id: THEM }] } });
+    const s = store({
+      callOccupancy: { [ROOM]: [{ user_id: ME }, { user_id: THEM }] },
+    });
     const out = senderHearingFrom(s, ROOM, NOW);
     expect(out.otherId).toBe(THEM);
     expect(out.state).toBe("hears");
@@ -322,14 +391,20 @@ describe("walkie: the sender's claim, derived from the store", () => {
     // The same three ways the receiver's client shuts its door, seen from the
     // other end (walkieDoorOpen). A snooze is a clock, so it is compared
     // against the `now` the caller passes rather than one hidden in here.
-    const busy = store({ teamMembers: [{ _id: THEM, name: "Jordan Lee", status: "busy" }] });
+    const busy = store({
+      teamMembers: [{ _id: THEM, name: "Jordan Lee", status: "busy" }],
+    });
     expect(senderHearingFrom(busy, ROOM, NOW).state).toBe("busy");
 
-    const off = store({ teamMembers: [{ _id: THEM, name: "Jordan Lee", walkie_pref: "off" }] });
+    const off = store({
+      teamMembers: [{ _id: THEM, name: "Jordan Lee", walkie_pref: "off" }],
+    });
     expect(senderHearingFrom(off, ROOM, NOW).state).toBe("busy");
 
     const snoozed = store({
-      teamMembers: [{ _id: THEM, name: "Jordan Lee", walkie_snoozed_until: NOW + 60_000 }],
+      teamMembers: [
+        { _id: THEM, name: "Jordan Lee", walkie_snoozed_until: NOW + 60_000 },
+      ],
     });
     expect(senderHearingFrom(snoozed, ROOM, NOW).state).toBe("busy");
     // And the hour running out puts them back to merely away.
@@ -338,7 +413,9 @@ describe("walkie: the sender's claim, derived from the store", () => {
 
   it("renames live: the sentence follows the roster, not the burst", () => {
     const renamed = store({ teamMembers: [{ _id: THEM, name: "Jordan L." }] });
-    expect(senderHearingFrom(renamed, ROOM, NOW).text).toBe("Jordan L. is away, so they get the message");
+    expect(senderHearingFrom(renamed, ROOM, NOW).text).toBe(
+      "Jordan L. is away, so they get the message",
+    );
   });
 });
 
@@ -355,7 +432,9 @@ describe("walkie: the sender's claim, derived from the store", () => {
 // undone by a comparison that looked right.
 describe("walkie: telling a fresh join from a leftover", () => {
   const ME = "user_me";
-  const stamped = (at: number) => [{ user_id: "user_them", walkie_joined_at: at }];
+  const stamped = (at: number) => [
+    { user_id: "user_them", walkie_joined_at: at },
+  ];
   const MINUTE = 60_000;
   const TOP = 1_700_000_040_000 - (1_700_000_040_000 % MINUTE);
 

@@ -4,7 +4,12 @@
 // same thing. REFUSED is an attempted write.
 
 import { useState } from "react";
-import { GUARD_STATUSES, type GuardCounts, type GuardEntry, type GuardStatus } from "@codecast/shared/contracts/evalsApi";
+import {
+  GUARD_STATUSES,
+  type GuardCounts,
+  type GuardEntry,
+  type GuardStatus,
+} from "@codecast/shared/contracts/evalsApi";
 
 const GUARD_WORDS: Record<GuardStatus, string> = {
   SERVED: "answered from the frozen world",
@@ -16,8 +21,13 @@ const GUARD_WORDS: Record<GuardStatus, string> = {
 };
 
 /** Counts per status from the entries, so the strip agrees with the table under it. */
-export function guardCounts(entries: readonly GuardEntry[]): Record<GuardStatus, number> {
-  const out = Object.fromEntries(GUARD_STATUSES.map((s) => [s, 0])) as Record<GuardStatus, number>;
+export function guardCounts(
+  entries: readonly GuardEntry[],
+): Record<GuardStatus, number> {
+  const out = Object.fromEntries(GUARD_STATUSES.map((s) => [s, 0])) as Record<
+    GuardStatus,
+    number
+  >;
   for (const e of entries) if (e.status) out[e.status]++;
   return out;
 }
@@ -26,18 +36,32 @@ const countKey = (s: GuardStatus) => s.toLowerCase() as keyof GuardCounts;
 
 export function GuardChip({ status }: { status: GuardStatus | null }) {
   return (
-    <span className={`ev-gs ev-gs--${status ?? "none"}`} title={status ? GUARD_WORDS[status] : "Logged with no mark after it"} data-ev-guard-status={status ?? "none"}>
+    <span
+      className={`ev-gs ev-gs--${status ?? "none"}`}
+      title={status ? GUARD_WORDS[status] : "Logged with no mark after it"}
+      data-ev-guard-status={status ?? "none"}
+    >
       {status ?? "no mark"}
     </span>
   );
 }
 
-export function GuardLog({ entries, counts }: { entries: readonly GuardEntry[]; counts?: GuardCounts }) {
+export function GuardLog({
+  entries,
+  counts,
+}: {
+  entries: readonly GuardEntry[];
+  counts?: GuardCounts;
+}) {
   const [only, setOnly] = useState<GuardStatus | null>(null);
   const fromLog = guardCounts(entries);
   const shown = only ? entries.filter((e) => e.status === only) : entries;
   if (!entries.length) {
-    return <div className="ev-card ev-empty-note">The guard logged nothing: this rep typed no cast commands.</div>;
+    return (
+      <div className="ev-card ev-empty-note">
+        The guard logged nothing: this rep typed no cast commands.
+      </div>
+    );
   }
   return (
     <div className="flex flex-col gap-3" data-ev-guard>

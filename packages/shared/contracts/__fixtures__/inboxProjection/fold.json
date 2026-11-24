@@ -1,9 +1,7 @@
 {
   "about": "The 12h gap cut: the row at the gap is the cut and never folds; deliberate windows and queued work are exempt and cannot bridge the gap; folded rows keep their bucket and split the tally.",
   "epoch": "E",
-  "asking": [
-    "folded_ask"
-  ],
+  "asking": ["folded_ask"],
   "rows": [
     {
       "_id": "fresh_working",
@@ -195,91 +193,23 @@
     },
     "set_digest": "5a355a8bbb735157",
     "placements": {
-      "ancientpinz100000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "bridgedismissedz1500000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "bridgeownedz11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "bridgepinz9000000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "bridgestashedz130000000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "edgez400000000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "foldedaskz9000000000000000000000": [
-        "questions",
-        "needs_input",
-        true
-      ],
-      "foldedblankz11000000000000000000": [
-        "new",
-        "idle",
-        true
-      ],
-      "foldeddonez100000000000000000000": [
-        "done",
-        "done",
-        true
-      ],
-      "foldedhiddenanchorz1800000000000": [
-        "hidden",
-        "needs_input",
-        true
-      ],
-      "foldedneedsz11000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "foldedstandingz14000000000000000": [
-        "dormant",
-        "dormant",
-        true
-      ],
-      "freshdonez9000000000000000000000": [
-        "done",
-        "done",
-        false
-      ],
-      "freshneedsz100000000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "freshworkingz1200000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "oldpinz6000000000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "oldqueuedz9000000000000000000000": [
-        "working",
-        "working",
-        false
-      ]
+      "ancientpinz100000000000000000000": ["pinned", "needs_input", false],
+      "bridgedismissedz1500000000000000": ["dismissed", "needs_input", false],
+      "bridgeownedz11000000000000000000": ["needs_input", "needs_input", false],
+      "bridgepinz9000000000000000000000": ["pinned", "needs_input", false],
+      "bridgestashedz130000000000000000": ["stashed", "needs_input", false],
+      "edgez400000000000000000000000000": ["needs_input", "needs_input", false],
+      "foldedaskz9000000000000000000000": ["questions", "needs_input", true],
+      "foldedblankz11000000000000000000": ["new", "idle", true],
+      "foldeddonez100000000000000000000": ["done", "done", true],
+      "foldedhiddenanchorz1800000000000": ["hidden", "needs_input", true],
+      "foldedneedsz11000000000000000000": ["needs_input", "needs_input", false],
+      "foldedstandingz14000000000000000": ["dormant", "dormant", true],
+      "freshdonez9000000000000000000000": ["done", "done", false],
+      "freshneedsz100000000000000000000": ["needs_input", "needs_input", false],
+      "freshworkingz1200000000000000000": ["working", "working", false],
+      "oldpinz6000000000000000000000000": ["pinned", "needs_input", false],
+      "oldqueuedz9000000000000000000000": ["working", "working", false]
     },
     "sort_at": {
       "ancientpinz100000000000000000000": -3024000000,

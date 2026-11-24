@@ -20,7 +20,10 @@ export function nativeComposerText(
   input: { _lastNativeText?: unknown } | null | undefined,
   stateValue: string,
 ): string {
-  const native = input && typeof input._lastNativeText === "string" ? input._lastNativeText : null;
+  const native =
+    input && typeof input._lastNativeText === "string"
+      ? input._lastNativeText
+      : null;
   return native ?? stateValue;
 }
 
@@ -30,10 +33,15 @@ export function useComposerField(initialText = "") {
   const inputRef = useRef<TextInput>(null);
   const sendingRef = useRef(false);
   const justSentRef = useRef<string | null>(null);
-  const expireTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => {
-    if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
-  }, []);
+  const expireTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(
+    () => () => {
+      if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
+    },
+    [],
+  );
 
   const onChangeText = useCallback((next: string) => {
     if (sendingRef.current) return;
@@ -55,21 +63,24 @@ export function useComposerField(initialText = "") {
     setValue(next);
   }, []);
 
-  const clearAfterSend = useCallback((sent: string, { keepFocus = true }: { keepFocus?: boolean } = {}) => {
-    sendingRef.current = true;
-    const trimmed = sent.trim();
-    justSentRef.current = trimmed || null;
-    if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
-    if (trimmed) {
-      expireTimerRef.current = setTimeout(() => {
-        if (justSentRef.current === trimmed) justSentRef.current = null;
-      }, RESURRECT_WINDOW_MS);
-    }
-    setValue("");
-    setEpoch((n) => n + 1);
-    sendingRef.current = false;
-    if (keepFocus) requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
+  const clearAfterSend = useCallback(
+    (sent: string, { keepFocus = true }: { keepFocus?: boolean } = {}) => {
+      sendingRef.current = true;
+      const trimmed = sent.trim();
+      justSentRef.current = trimmed || null;
+      if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
+      if (trimmed) {
+        expireTimerRef.current = setTimeout(() => {
+          if (justSentRef.current === trimmed) justSentRef.current = null;
+        }, RESURRECT_WINDOW_MS);
+      }
+      setValue("");
+      setEpoch((n) => n + 1);
+      sendingRef.current = false;
+      if (keepFocus) requestAnimationFrame(() => inputRef.current?.focus());
+    },
+    [],
+  );
 
   return {
     value,

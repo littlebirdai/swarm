@@ -24,12 +24,39 @@ const base = {
 
 const docs: [string, DocItem][] = [
   ["plain", base],
-  ["starred, agent, plan, labels", { ...base, _id: "hero-d2", display_title: "Retry ladder", pinned: true, source: "agent", plan_short_id: "pl-hero1", labels: ["infra", "billing", "launch", "q4"], doc_type: "handoff" } as any],
-  ["unknown type, untitled", { ...base, _id: "hero-d3", title: "", doc_type: "mystery", labels: ["one"] } as any],
+  [
+    "starred, agent, plan, labels",
+    {
+      ...base,
+      _id: "hero-d2",
+      display_title: "Retry ladder",
+      pinned: true,
+      source: "agent",
+      plan_short_id: "pl-hero1",
+      labels: ["infra", "billing", "launch", "q4"],
+      doc_type: "handoff",
+    } as any,
+  ],
+  [
+    "unknown type, untitled",
+    {
+      ...base,
+      _id: "hero-d3",
+      title: "",
+      doc_type: "mystery",
+      labels: ["one"],
+    } as any,
+  ],
 ];
 
 for (const [name, doc] of docs) {
   test(`DocRow: ${name}`, () => {
-    expect(renderToStaticMarkup(<MemoryRouter><DocRow doc={doc} state={undefined as any} /></MemoryRouter>)).toMatchSnapshot();
+    expect(
+      renderToStaticMarkup(
+        <MemoryRouter>
+          <DocRow doc={doc} state={undefined as any} />
+        </MemoryRouter>,
+      ),
+    ).toMatchSnapshot();
   });
 }

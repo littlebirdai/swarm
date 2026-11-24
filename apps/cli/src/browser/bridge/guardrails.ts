@@ -21,7 +21,14 @@
 import { getDomain } from "tldts";
 
 /** URL schemes no client may navigate a tab to: the local disk and the browser's own privileged pages. */
-const BLOCKED_NAV_SCHEMES = new Set(["file", "chrome", "chrome-extension", "chrome-untrusted", "devtools", "view-source"]);
+const BLOCKED_NAV_SCHEMES = new Set([
+  "file",
+  "chrome",
+  "chrome-extension",
+  "chrome-untrusted",
+  "devtools",
+  "view-source",
+]);
 
 /**
  * The scheme Chrome will navigate to for `url`, lowercased, or null when it
@@ -32,26 +39,37 @@ const BLOCKED_NAV_SCHEMES = new Set(["file", "chrome", "chrome-extension", "chro
  * bridge fuzzer, scripts/browser-stress/fuzz.ts).
  */
 export function navScheme(url: string): string | null {
-  const cleaned = url.replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, "").replace(/[\t\n\r]/g, "");
+  const cleaned = url
+    .replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/g, "")
+    .replace(/[\t\n\r]/g, "");
   const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(cleaned);
   return m ? m[1].toLowerCase() : null;
 }
 
 /** Methods refused for every client, with the reason the client reads. */
 const REFUSED: Record<string, string> = {
-  "Network.clearBrowserCookies": "it deletes every cookie in the human's Chrome, signing them out of every site",
+  "Network.clearBrowserCookies":
+    "it deletes every cookie in the human's Chrome, signing them out of every site",
   "Network.clearBrowserCache": "it empties the human's whole browser cache",
-  "Storage.clearCookies": "it deletes every cookie in the human's Chrome, signing them out of every site",
+  "Storage.clearCookies":
+    "it deletes every cookie in the human's Chrome, signing them out of every site",
   "Browser.close": "it closes the human's Chrome",
   "Browser.crash": "it crashes the human's Chrome",
   "Browser.crashGpuProcess": "it crashes the human's Chrome",
-  "Browser.grantPermissions": "site permissions in the human's Chrome are theirs to change",
-  "Browser.resetPermissions": "site permissions in the human's Chrome are theirs to change",
-  "Browser.setPermission": "site permissions in the human's Chrome are theirs to change",
+  "Browser.grantPermissions":
+    "site permissions in the human's Chrome are theirs to change",
+  "Browser.resetPermissions":
+    "site permissions in the human's Chrome are theirs to change",
+  "Browser.setPermission":
+    "site permissions in the human's Chrome are theirs to change",
 };
 
 /** Cookie reads whose reply is narrowed to the client's hosts. */
-export const COOKIE_READS: ReadonlySet<string> = new Set(["Network.getAllCookies", "Network.getCookies", "Storage.getCookies"]);
+export const COOKIE_READS: ReadonlySet<string> = new Set([
+  "Network.getAllCookies",
+  "Network.getCookies",
+  "Storage.getCookies",
+]);
 
 /** Domains whose methods can name an origin's storage. */
 const ORIGIN_DOMAINS = /^(Storage|IndexedDB|CacheStorage|DOMStorage)\./;
@@ -67,12 +85,16 @@ export function methodRefusal(method: string, params: any): string | null {
   // Every storage-type clear (clearDataForOrigin, clearDataForStorageKey,
   // clearSharedStorageEntries, clearTrustTokens, ...) wipes data the human's
   // sites keep; none is needed to drive a page.
-  if (/^Storage\.clear/.test(method)) return refusal(method, "it deletes site data the human's Chrome keeps");
+  if (/^Storage\.clear/.test(method))
+    return refusal(method, "it deletes site data the human's Chrome keeps");
   if (method === "Page.navigate" || method === "Target.createTarget") {
     const url = typeof params?.url === "string" ? params.url : "";
     const scheme = navScheme(url);
     if (scheme && BLOCKED_NAV_SCHEMES.has(scheme)) {
-      return refusal(method, `${scheme}: pages reach the local disk or the browser's own settings, never a site`);
+      return refusal(
+        method,
+        `${scheme}: pages reach the local disk or the browser's own settings, never a site`,
+      );
     }
   }
   return null;
@@ -98,7 +120,9 @@ export function needsScope(method: string, params?: any): boolean {
 export function webHost(url: string): string | null {
   try {
     const u = new URL(url);
-    return u.protocol === "http:" || u.protocol === "https:" ? u.hostname.toLowerCase() : null;
+    return u.protocol === "http:" || u.protocol === "https:"
+      ? u.hostname.toLowerCase()
+      : null;
   } catch {
     return null;
   }
@@ -121,10 +145,18 @@ function ownsSubdomains(host: string): boolean {
  * spanning the site needs). The subdomain direction holds only for a host
  * that is a site: a tab at `http://com/` reaches no `.com` cookie.
  */
-export function cookieInScope(domain: string, hosts: readonly string[]): boolean {
+export function cookieInScope(
+  domain: string,
+  hosts: readonly string[],
+): boolean {
   const d = domain.trim().toLowerCase().replace(/^\./, "");
   if (!d) return false;
-  return hosts.some((h) => h === d || h.endsWith(`.${d}`) || (d.endsWith(`.${h}`) && ownsSubdomains(h)));
+  return hosts.some(
+    (h) =>
+      h === d ||
+      h.endsWith(`.${d}`) ||
+      (d.endsWith(`.${h}`) && ownsSubdomains(h)),
+  );
 }
 
 /** The host of an origin-keyed storage parameter (`https://x.com`, a storage key `https://x.com/^0...`), or null. */
@@ -162,9 +194,16 @@ function cookieTarget(c: any): string | null {
  * tabs, or null. `hosts` are the hostnames of the tabs this client has
  * attached.
  */
-export function scopeRefusal(method: string, params: any, hosts: readonly string[]): string | null {
-  const scope = hosts.length ? hosts.join(", ") : "none: its tabs show no web page";
-  const outside = (what: string) => `the cast bridge refuses ${method} for ${what}: a client reaches only the cookies and storage of the sites its own tabs show (${scope})`;
+export function scopeRefusal(
+  method: string,
+  params: any,
+  hosts: readonly string[],
+): string | null {
+  const scope = hosts.length
+    ? hosts.join(", ")
+    : "none: its tabs show no web page";
+  const outside = (what: string) =>
+    `the cast bridge refuses ${method} for ${what}: a client reaches only the cookies and storage of the sites its own tabs show (${scope})`;
   switch (method) {
     case "Network.getCookies": {
       const urls: unknown[] = Array.isArray(params?.urls) ? params.urls : [];
@@ -182,7 +221,9 @@ export function scopeRefusal(method: string, params: any, hosts: readonly string
     }
     case "Network.setCookies":
     case "Storage.setCookies": {
-      const cookies: unknown[] = Array.isArray(params?.cookies) ? params.cookies : [];
+      const cookies: unknown[] = Array.isArray(params?.cookies)
+        ? params.cookies
+        : [];
       for (const c of cookies) {
         const target = cookieTarget(c);
         if (!target) return outside(`a cookie that names no domain or url`);
@@ -193,7 +234,8 @@ export function scopeRefusal(method: string, params: any, hosts: readonly string
   }
   if (ORIGIN_DOMAINS.test(method)) {
     for (const h of namedOrigins(params)) {
-      if (!h || !hosts.includes(h)) return outside(h || "an origin that is not a web page");
+      if (!h || !hosts.includes(h))
+        return outside(h || "an origin that is not a web page");
     }
   }
   return null;
@@ -202,5 +244,11 @@ export function scopeRefusal(method: string, params: any, hosts: readonly string
 /** A cookie read's reply with every cookie outside the client's hosts removed. */
 export function filterCookieReply(result: any, hosts: readonly string[]): any {
   if (!result || !Array.isArray(result.cookies)) return result;
-  return { ...result, cookies: result.cookies.filter((c: any) => typeof c?.domain === "string" && cookieInScope(c.domain, hosts)) };
+  return {
+    ...result,
+    cookies: result.cookies.filter(
+      (c: any) =>
+        typeof c?.domain === "string" && cookieInScope(c.domain, hosts),
+    ),
+  };
 }

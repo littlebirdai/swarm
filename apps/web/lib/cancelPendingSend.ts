@@ -5,10 +5,15 @@
 // is otherwise gone from the page.
 import { useInboxStore } from "../store/inboxStore";
 
-export async function cancelPendingSend(conversationId: string, ref: { messageId?: string; clientId?: string }, content: string | null | undefined): Promise<string> {
+export async function cancelPendingSend(
+  conversationId: string,
+  ref: { messageId?: string; clientId?: string },
+  content: string | null | undefined,
+): Promise<string> {
   const store = useInboxStore.getState();
   const status = await store.cancelPendingMessage(conversationId, ref);
   // Already in the session: nothing was taken back.
-  if (content?.trim() && status !== "delivered" && status !== "injected") store.setComposerPrefill({ convId: conversationId, text: content });
+  if (content?.trim() && status !== "delivered" && status !== "injected")
+    store.setComposerPrefill({ convId: conversationId, text: content });
   return status;
 }

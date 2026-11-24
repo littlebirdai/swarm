@@ -14,9 +14,15 @@ export function setDecisionQueueCursor(key: string | null): void {
 
 const subscribe = (fn: () => void) => {
   listeners.add(fn);
-  return () => { listeners.delete(fn); };
+  return () => {
+    listeners.delete(fn);
+  };
 };
 
 export function useDecisionQueueCursor(): string | null {
-  return useSyncExternalStore(subscribe, () => current, () => null);
+  return useSyncExternalStore(
+    subscribe,
+    () => current,
+    () => null,
+  );
 }

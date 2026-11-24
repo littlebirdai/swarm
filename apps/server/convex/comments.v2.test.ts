@@ -57,8 +57,18 @@ function sharedConversation(_id = CONVERSATION) {
 
 function memberships() {
   return [
-    { _id: "membership-owner", user_id: OWNER, team_id: TEAM, visibility: "full" },
-    { _id: "membership-member", user_id: MEMBER, team_id: TEAM, visibility: "summary" },
+    {
+      _id: "membership-owner",
+      user_id: OWNER,
+      team_id: TEAM,
+      visibility: "full",
+    },
+    {
+      _id: "membership-member",
+      user_id: MEMBER,
+      team_id: TEAM,
+      visibility: "summary",
+    },
   ];
 }
 
@@ -67,7 +77,11 @@ function context(
   seed: Record<string, any[]> = {},
   options: {
     runMutation?: (reference: unknown, args: unknown) => Promise<unknown>;
-    runAfter?: (delay: number, reference: unknown, args: unknown) => Promise<unknown>;
+    runAfter?: (
+      delay: number,
+      reference: unknown,
+      args: unknown,
+    ) => Promise<unknown>;
   } = {},
 ) {
   // Conversation comments are seeded in the `comments` shape and stored as
@@ -88,22 +102,32 @@ function context(
     ...rest,
   });
   const mutationCalls: Array<{ reference: unknown; args: unknown }> = [];
-  const scheduledCalls: Array<{ delay: number; reference: unknown; args: unknown }> = [];
+  const scheduledCalls: Array<{
+    delay: number;
+    reference: unknown;
+    args: unknown;
+  }> = [];
   return {
     db,
     auth: {
       async getUserIdentity() {
-        return authenticatedUser ? { subject: `${authenticatedUser}|session` } : null;
+        return authenticatedUser
+          ? { subject: `${authenticatedUser}|session` }
+          : null;
       },
     },
     async runMutation(reference: unknown, args: unknown) {
       mutationCalls.push({ reference, args });
-      return options.runMutation ? await options.runMutation(reference, args) : undefined;
+      return options.runMutation
+        ? await options.runMutation(reference, args)
+        : undefined;
     },
     scheduler: {
       async runAfter(delay: number, reference: unknown, args: unknown) {
         scheduledCalls.push({ delay, reference, args });
-        return options.runAfter ? await options.runAfter(delay, reference, args) : undefined;
+        return options.runAfter
+          ? await options.runAfter(delay, reference, args)
+          : undefined;
       },
     },
     _mutationCalls: mutationCalls,
@@ -113,7 +137,8 @@ function context(
 
 function commentsFor(ctx: any, conversationId = CONVERSATION) {
   return storedComments(ctx.db).filter(
-    (comment: any) => String(comment.conversation_id) === String(conversationId),
+    (comment: any) =>
+      String(comment.conversation_id) === String(conversationId),
   );
 }
 
@@ -127,9 +152,12 @@ function receipts(ctx: any) {
 
 describe("comments v2 complete-view envelopes", () => {
   test("unauthenticated, missing, and forbidden are explicit and carry no rows", async () => {
-    const unauthenticated = await (getCommentsV2 as any)._handler(context(null), {
-      conversation_id: CONVERSATION,
-    });
+    const unauthenticated = await (getCommentsV2 as any)._handler(
+      context(null),
+      {
+        conversation_id: CONVERSATION,
+      },
+    );
     expect(unauthenticated).toEqual({
       contractId: CONTRACT,
       viewKey: VIEW_KEY,
@@ -149,9 +177,12 @@ describe("comments v2 complete-view envelopes", () => {
     });
     expect("comments" in missing).toBe(false);
 
-    const forbidden = await (getCommentsV2 as any)._handler(context(MEMBER, {
-      conversations: [conversation()],
-    }), { conversation_id: CONVERSATION });
+    const forbidden = await (getCommentsV2 as any)._handler(
+      context(MEMBER, {
+        conversations: [conversation()],
+      }),
+      { conversation_id: CONVERSATION },
+    );
     expect(forbidden).toEqual({
       contractId: CONTRACT,
       viewKey: VIEW_KEY,
@@ -162,9 +193,12 @@ describe("comments v2 complete-view envelopes", () => {
   });
 
   test("an authenticated empty conversation is a granted complete view at revision zero", async () => {
-    const result = await (getCommentsV2 as any)._handler(context(OWNER, {
-      conversations: [conversation()],
-    }), { conversation_id: CONVERSATION });
+    const result = await (getCommentsV2 as any)._handler(
+      context(OWNER, {
+        conversations: [conversation()],
+      }),
+      { conversation_id: CONVERSATION },
+    );
     expect(result).toEqual({
       contractId: CONTRACT,
       viewKey: VIEW_KEY,
@@ -180,7 +214,12 @@ describe("comments v2 complete-view envelopes", () => {
   // Write-reconciliation echo (design §11.4 proof #3): the envelope lists the
   // CALLER's acknowledged receipts for this view, read in the same snapshot.
   test("the granted envelope echoes only the caller's acknowledged receipts for this view", async () => {
-    const receiptRow = (id: string, principal: string, viewKey: string, status = "acknowledged") => ({
+    const receiptRow = (
+      id: string,
+      principal: string,
+      viewKey: string,
+      status = "acknowledged",
+    ) => ({
       _id: `receipt-${id}`,
       principal_id: principal,
       command_id: id,
@@ -235,21 +274,24 @@ describe("comments v2 complete-view envelopes", () => {
           created_at: 10,
         },
       ],
-      local_view_heads: [{
-        _id: "head-owner",
-        principal_id: OWNER,
-        contract_id: CONTRACT,
-        view_key: VIEW_KEY,
-        revision: 7,
-        updated_at: 1,
-      }, {
-        _id: "head-member",
-        principal_id: MEMBER,
-        contract_id: CONTRACT,
-        view_key: VIEW_KEY,
-        revision: 99,
-        updated_at: 1,
-      }],
+      local_view_heads: [
+        {
+          _id: "head-owner",
+          principal_id: OWNER,
+          contract_id: CONTRACT,
+          view_key: VIEW_KEY,
+          revision: 7,
+          updated_at: 1,
+        },
+        {
+          _id: "head-member",
+          principal_id: MEMBER,
+          contract_id: CONTRACT,
+          view_key: VIEW_KEY,
+          revision: 99,
+          updated_at: 1,
+        },
+      ],
     });
     const result = await (getCommentsV2 as any)._handler(ctx, {
       conversation_id: CONVERSATION,
@@ -266,8 +308,14 @@ describe("comments v2 complete-view envelopes", () => {
       "comment-b",
       "comment-later",
     ]);
-    expect(result.comments[0].user).toMatchObject({ _id: OWNER, name: "Owner" });
-    expect(result.comments[1].user).toMatchObject({ _id: MEMBER, name: "Member" });
+    expect(result.comments[0].user).toMatchObject({
+      _id: OWNER,
+      name: "Owner",
+    });
+    expect(result.comments[1].user).toMatchObject({
+      _id: MEMBER,
+      name: "Member",
+    });
 
     ctx.db._tables.team_memberships = ctx.db._tables.team_memberships.filter(
       (membership: any) => membership.user_id !== MEMBER,
@@ -297,7 +345,8 @@ describe("comments v2 create receipts and containment", () => {
       client_id: "optimistic-comment-1",
     };
     const first = await (addCommentV2 as any)._handler(ctx, args);
-    const sideEffectsAfterFirst = ctx._mutationCalls.length + ctx._scheduledCalls.length;
+    const sideEffectsAfterFirst =
+      ctx._mutationCalls.length + ctx._scheduledCalls.length;
     const replay = await (addCommentV2 as any)._handler(ctx, args);
 
     expect(replay).toEqual(first);
@@ -308,22 +357,33 @@ describe("comments v2 create receipts and containment", () => {
       result: { clientId: "optimistic-comment-1" },
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 1 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
       retryUntil: null,
     });
     expect(commentsFor(ctx)).toHaveLength(1);
     expect(receipts(ctx)).toHaveLength(1);
-    expect(ctx._mutationCalls.length + ctx._scheduledCalls.length).toBe(sideEffectsAfterFirst);
+    expect(ctx._mutationCalls.length + ctx._scheduledCalls.length).toBe(
+      sideEffectsAfterFirst,
+    );
     expect(heads(ctx)).toEqual([
       expect.objectContaining({ principal_id: OWNER, revision: 1 }),
     ]);
-    expect(heads(ctx).some((head: any) => head.principal_id === MEMBER)).toBe(false);
+    expect(heads(ctx).some((head: any) => head.principal_id === MEMBER)).toBe(
+      false,
+    );
 
-    await expect((addCommentV2 as any)._handler(ctx, {
-      ...args,
-      content: "different intent",
-    })).rejects.toThrow("different intent");
+    await expect(
+      (addCommentV2 as any)._handler(ctx, {
+        ...args,
+        content: "different intent",
+      }),
+    ).rejects.toThrow("different intent");
     expect(commentsFor(ctx)).toHaveLength(1);
     expect(receipts(ctx)).toHaveLength(1);
   });
@@ -352,7 +412,12 @@ describe("comments v2 create receipts and containment", () => {
       result: { commentId: "comment-existing", clientId: "stable-client-id" },
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 1 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
     expect(commentsFor(ctx)).toHaveLength(1);
@@ -428,31 +493,38 @@ describe("comments v2 create receipts and containment", () => {
           sharedConversation("conversation-other"),
         ],
         team_memberships: memberships(),
-        messages: [{
-          _id: "message-other",
-          conversation_id: "conversation-other",
-          content: "foreign anchor",
-        }],
-        comments: [{
-          _id: "comment-other",
-          conversation_id: "conversation-other",
-          user_id: MEMBER,
-          content: "foreign parent",
-          created_at: 1,
-        }],
-        pull_requests: [{
-          _id: "pr-unlinked",
-          team_id: TEAM,
-          linked_session_ids: ["conversation-other"],
-          repository: "org/repo",
-          number: 1,
-        }, {
-          _id: "pr-foreign",
-          team_id: "team-foreign",
-          linked_session_ids: [CONVERSATION],
-          repository: "other/repo",
-          number: 2,
-        }],
+        messages: [
+          {
+            _id: "message-other",
+            conversation_id: "conversation-other",
+            content: "foreign anchor",
+          },
+        ],
+        comments: [
+          {
+            _id: "comment-other",
+            conversation_id: "conversation-other",
+            user_id: MEMBER,
+            content: "foreign parent",
+            created_at: 1,
+          },
+        ],
+        pull_requests: [
+          {
+            _id: "pr-unlinked",
+            team_id: TEAM,
+            linked_session_ids: ["conversation-other"],
+            repository: "org/repo",
+            number: 1,
+          },
+          {
+            _id: "pr-foreign",
+            team_id: "team-foreign",
+            linked_session_ids: [CONVERSATION],
+            repository: "other/repo",
+            number: 2,
+          },
+        ],
       });
       const args = {
         command_id: scenario.command_id,
@@ -516,21 +588,24 @@ describe("comments v2 dependent edit and delete", () => {
   test("client_id resolves the authoritative row and every change covers the same view", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-edit",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "before",
-        created_at: 1,
-        client_id: "optimistic-edit",
-      }, {
-        _id: "comment-delete",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "remove me",
-        created_at: 2,
-        client_id: "optimistic-delete",
-      }],
+      comments: [
+        {
+          _id: "comment-edit",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "before",
+          created_at: 1,
+          client_id: "optimistic-edit",
+        },
+        {
+          _id: "comment-delete",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "remove me",
+          created_at: 2,
+          client_id: "optimistic-delete",
+        },
+      ],
     });
     const updated = await (updateCommentV2 as any)._handler(ctx, {
       command_id: "edit-by-client",
@@ -543,11 +618,18 @@ describe("comments v2 dependent edit and delete", () => {
       result: { commentId: "comment-edit", clientId: "optimistic-edit" },
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 1 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
-    expect(storedComments(ctx.db).find((row: any) => row._id === "comment-edit").content)
-      .toBe("after");
+    expect(
+      storedComments(ctx.db).find((row: any) => row._id === "comment-edit")
+        .content,
+    ).toBe("after");
     const updatedReplay = await (updateCommentV2 as any)._handler(ctx, {
       command_id: "edit-by-client",
       conversation_id: CONVERSATION,
@@ -567,11 +649,17 @@ describe("comments v2 dependent edit and delete", () => {
       result: { commentId: "comment-delete", clientId: "optimistic-delete" },
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 2 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
-    expect(storedComments(ctx.db).some((row: any) => row._id === "comment-delete"))
-      .toBe(false);
+    expect(
+      storedComments(ctx.db).some((row: any) => row._id === "comment-delete"),
+    ).toBe(false);
 
     const replay = await (deleteCommentV2 as any)._handler(ctx, {
       command_id: "delete-by-client",
@@ -585,14 +673,16 @@ describe("comments v2 dependent edit and delete", () => {
   test("no-op edits still prove positive coverage without patching the row", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-same",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "unchanged",
-        created_at: 1,
-        client_id: "same-client",
-      }],
+      comments: [
+        {
+          _id: "comment-same",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "unchanged",
+          created_at: 1,
+          client_id: "same-client",
+        },
+      ],
     });
     const receipt = await (updateCommentV2 as any)._handler(ctx, {
       command_id: "edit-no-op",
@@ -604,7 +694,12 @@ describe("comments v2 dependent edit and delete", () => {
       status: "acknowledged",
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 1 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
     expect(heads(ctx)[0]).toMatchObject({ principal_id: OWNER, revision: 1 });
@@ -614,20 +709,23 @@ describe("comments v2 dependent edit and delete", () => {
   test("author and relationship checks fail closed before a write", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation(), conversation("conversation-other")],
-      comments: [{
-        _id: "comment-not-owned",
-        conversation_id: CONVERSATION,
-        user_id: OTHER,
-        content: "protected",
-        created_at: 1,
-        client_id: "protected-client",
-      }, {
-        _id: "comment-wrong-conversation",
-        conversation_id: "conversation-other",
-        user_id: OWNER,
-        content: "elsewhere",
-        created_at: 1,
-      }],
+      comments: [
+        {
+          _id: "comment-not-owned",
+          conversation_id: CONVERSATION,
+          user_id: OTHER,
+          content: "protected",
+          created_at: 1,
+          client_id: "protected-client",
+        },
+        {
+          _id: "comment-wrong-conversation",
+          conversation_id: "conversation-other",
+          user_id: OWNER,
+          content: "elsewhere",
+          created_at: 1,
+        },
+      ],
     });
     const forbidden = await (updateCommentV2 as any)._handler(ctx, {
       command_id: "edit-not-author",
@@ -662,20 +760,25 @@ describe("comments write-choke coverage", () => {
   test("the writer itself rejects a cross-conversation row mutation", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation(), conversation("conversation-other")],
-      comments: [{
-        _id: "comment-other-view",
-        conversation_id: "conversation-other",
-        user_id: OWNER,
-        content: "protected",
-        created_at: 1,
-      }],
+      comments: [
+        {
+          _id: "comment-other-view",
+          conversation_id: "conversation-other",
+          user_id: OWNER,
+          content: "protected",
+          created_at: 1,
+        },
+      ],
     });
-    await expect(runCommentViewTransition(
-      ctx,
-      ctx.db._tables.conversations[0],
-      "advance",
-      async (writer) => writer.patch("comment-other-view" as any, { content: "poisoned" }),
-    )).rejects.toThrow("crossed its bound conversation view");
+    await expect(
+      runCommentViewTransition(
+        ctx,
+        ctx.db._tables.conversations[0],
+        "advance",
+        async (writer) =>
+          writer.patch("comment-other-view" as any, { content: "poisoned" }),
+      ),
+    ).rejects.toThrow("crossed its bound conversation view");
     expect(storedComments(ctx.db)[0].content).toBe("protected");
     expect(heads(ctx)).toHaveLength(0);
   });
@@ -683,27 +786,34 @@ describe("comments write-choke coverage", () => {
   test("legacy edit and delete paths still advance the complete-view head", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-legacy-edit",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "before",
-        created_at: 1,
-      }, {
-        _id: "comment-legacy-delete",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "remove",
-        created_at: 2,
-      }],
+      comments: [
+        {
+          _id: "comment-legacy-edit",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "before",
+          created_at: 1,
+        },
+        {
+          _id: "comment-legacy-delete",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "remove",
+          created_at: 2,
+        },
+      ],
     });
-    expect(await (updateComment as any)._handler(ctx, {
-      comment_id: "comment-legacy-edit",
-      content: "after",
-    })).toBe("comment-legacy-edit");
-    expect(await (deleteComment as any)._handler(ctx, {
-      comment_id: "comment-legacy-delete",
-    })).toBe(true);
+    expect(
+      await (updateComment as any)._handler(ctx, {
+        comment_id: "comment-legacy-edit",
+        content: "after",
+      }),
+    ).toBe("comment-legacy-edit");
+    expect(
+      await (deleteComment as any)._handler(ctx, {
+        comment_id: "comment-legacy-delete",
+      }),
+    ).toBe(true);
     expect(storedComments(ctx.db)).toEqual([
       expect.objectContaining({ _id: "comment-legacy-edit", content: "after" }),
     ]);
@@ -713,14 +823,18 @@ describe("comments write-choke coverage", () => {
   test("ask-agent groups placeholder insert and fork link into one receipt revision", async () => {
     const forkId = "conversation-comment-fork" as any;
     let forkCalls = 0;
-    const ctx = context(OWNER, {
-      conversations: [conversation(), conversation(forkId)],
-    }, {
-      async runMutation() {
-        forkCalls++;
-        return { conversation_id: forkId };
+    const ctx = context(
+      OWNER,
+      {
+        conversations: [conversation(), conversation(forkId)],
       },
-    });
+      {
+        async runMutation() {
+          forkCalls++;
+          return { conversation_id: forkId };
+        },
+      },
+    );
     const args = {
       command_id: "ask-agent-once",
       conversation_id: CONVERSATION,
@@ -737,7 +851,12 @@ describe("comments write-choke coverage", () => {
       },
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 1 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
     expect(forkCalls).toBe(1);
@@ -748,19 +867,28 @@ describe("comments write-choke coverage", () => {
       fork_conversation_id: forkId,
     });
     expect(ctx.db._tables.pending_messages).toHaveLength(1);
-    expect(ctx.db._tables.pending_messages[0].client_id)
-      .toBe(`comment-agent:${commentsFor(ctx)[0]._id}`);
+    expect(ctx.db._tables.pending_messages[0].client_id).toBe(
+      `comment-agent:${commentsFor(ctx)[0]._id}`,
+    );
     expect(heads(ctx)[0]).toMatchObject({ principal_id: OWNER, revision: 1 });
 
-    const duplicateClientReceipt = await (askAgentInThreadV2 as any)._handler(ctx, {
-      ...args,
-      command_id: "ask-agent-same-client-new-command",
-    });
+    const duplicateClientReceipt = await (askAgentInThreadV2 as any)._handler(
+      ctx,
+      {
+        ...args,
+        command_id: "ask-agent-same-client-new-command",
+      },
+    );
     expect(duplicateClientReceipt).toMatchObject({
       status: "acknowledged",
       coverage: [
         { contractId: CONTRACT, viewKey: VIEW_KEY, revision: 2 },
-        { kind: "command-id", contractId: CONTRACT_V3, viewKey: VIEW_KEY, commandId: expect.any(String) },
+        {
+          kind: "command-id",
+          contractId: CONTRACT_V3,
+          viewKey: VIEW_KEY,
+          commandId: expect.any(String),
+        },
       ],
     });
     expect(forkCalls).toBe(1);
@@ -769,11 +897,15 @@ describe("comments write-choke coverage", () => {
   });
 
   test("a fork that fails leaves the placeholder at error, not thinking forever", async () => {
-    const ctx = context(OWNER, { conversations: [conversation()] }, {
-      async runMutation() {
-        throw new Error("fork refused");
+    const ctx = context(
+      OWNER,
+      { conversations: [conversation()] },
+      {
+        async runMutation() {
+          throw new Error("fork refused");
+        },
       },
-    });
+    );
     const receipt = await (askAgentInThreadV2 as any)._handler(ctx, {
       command_id: "ask-agent-fork-fails",
       conversation_id: CONVERSATION,
@@ -781,7 +913,10 @@ describe("comments write-choke coverage", () => {
     });
     expect(receipt).toMatchObject({ status: "acknowledged" });
     expect(commentsFor(ctx)).toHaveLength(1);
-    expect(commentsFor(ctx)[0]).toMatchObject({ author_kind: "agent", agent_status: "error" });
+    expect(commentsFor(ctx)[0]).toMatchObject({
+      author_kind: "agent",
+      agent_status: "error",
+    });
     expect(commentsFor(ctx)[0].content).toContain("fork refused");
     expect(ctx.db._tables.pending_messages ?? []).toHaveLength(0);
   });
@@ -789,38 +924,63 @@ describe("comments write-choke coverage", () => {
   test("an enqueue that fails, or a fork that vanished, also writes error", async () => {
     const forkId = "conversation-comment-fork" as any;
     const realEnqueue = askAgentDelivery.enqueue;
-    askAgentDelivery.enqueue = (async () => { throw new Error("queue closed"); }) as any;
+    askAgentDelivery.enqueue = (async () => {
+      throw new Error("queue closed");
+    }) as any;
     try {
-      const ctx = context(OWNER, { conversations: [conversation(), conversation(forkId)] }, {
-        async runMutation() {
-          return { conversation_id: forkId };
+      const ctx = context(
+        OWNER,
+        { conversations: [conversation(), conversation(forkId)] },
+        {
+          async runMutation() {
+            return { conversation_id: forkId };
+          },
         },
+      );
+      await (askAgentInThreadV2 as any)._handler(ctx, {
+        command_id: "ask-enqueue-fails",
+        conversation_id: CONVERSATION,
+        client_id: "optimistic-enqueue",
       });
-      await (askAgentInThreadV2 as any)._handler(ctx, { command_id: "ask-enqueue-fails", conversation_id: CONVERSATION, client_id: "optimistic-enqueue" });
-      expect(commentsFor(ctx)[0]).toMatchObject({ agent_status: "error", fork_conversation_id: forkId });
+      expect(commentsFor(ctx)[0]).toMatchObject({
+        agent_status: "error",
+        fork_conversation_id: forkId,
+      });
       expect(commentsFor(ctx)[0].content).toContain("queue closed");
     } finally {
       askAgentDelivery.enqueue = realEnqueue;
     }
 
-    const gone = context(OWNER, { conversations: [conversation()] }, {
-      async runMutation() {
-        return { conversation_id: "conversation-never-written" };
+    const gone = context(
+      OWNER,
+      { conversations: [conversation()] },
+      {
+        async runMutation() {
+          return { conversation_id: "conversation-never-written" };
+        },
       },
+    );
+    await (askAgentInThreadV2 as any)._handler(gone, {
+      command_id: "ask-fork-gone",
+      conversation_id: CONVERSATION,
+      client_id: "optimistic-gone",
     });
-    await (askAgentInThreadV2 as any)._handler(gone, { command_id: "ask-fork-gone", conversation_id: CONVERSATION, client_id: "optimistic-gone" });
     expect(commentsFor(gone)[0]).toMatchObject({ agent_status: "error" });
   });
 
   test("a file:line anchor scopes the agent thread and shows up in the prompt", async () => {
     const forkId = "conversation-comment-fork" as any;
-    const ctx = context(OWNER, {
-      conversations: [conversation(), conversation(forkId)],
-    }, {
-      async runMutation() {
-        return { conversation_id: forkId };
+    const ctx = context(
+      OWNER,
+      {
+        conversations: [conversation(), conversation(forkId)],
       },
-    });
+      {
+        async runMutation() {
+          return { conversation_id: forkId };
+        },
+      },
+    );
 
     // One comment in each thread kind: global, and two different code lines.
     await (addCommentV2 as any)._handler(ctx, {
@@ -860,7 +1020,9 @@ describe("comments write-choke coverage", () => {
     expect(receipt).toMatchObject({ status: "acknowledged" });
 
     // The placeholder inherits the anchor so it renders inside the same thread.
-    const placeholder = commentsFor(ctx).find((c: any) => c.author_kind === "agent");
+    const placeholder = commentsFor(ctx).find(
+      (c: any) => c.author_kind === "agent",
+    );
     expect(placeholder).toMatchObject({
       file_path: "codecast/apps/web/foo.ts",
       line_number: 42,
@@ -877,13 +1039,17 @@ describe("comments write-choke coverage", () => {
 
   test("the global agent thread excludes code-anchored comments", async () => {
     const forkId = "conversation-comment-fork" as any;
-    const ctx = context(OWNER, {
-      conversations: [conversation(), conversation(forkId)],
-    }, {
-      async runMutation() {
-        return { conversation_id: forkId };
+    const ctx = context(
+      OWNER,
+      {
+        conversations: [conversation(), conversation(forkId)],
       },
-    });
+      {
+        async runMutation() {
+          return { conversation_id: forkId };
+        },
+      },
+    );
     await (addCommentV2 as any)._handler(ctx, {
       command_id: "create-global",
       conversation_id: CONVERSATION,
@@ -934,7 +1100,9 @@ describe("comments write-choke coverage", () => {
       resolved: true,
     });
     expect(stamped).toBe(1);
-    const line = commentsFor(ctx).find((c: any) => c.file_path === "codecast/foo.ts");
+    const line = commentsFor(ctx).find(
+      (c: any) => c.file_path === "codecast/foo.ts",
+    );
     expect(line.resolved_at).toBeGreaterThan(0);
     expect(String(line.resolved_by)).toBe(String(OWNER));
     // The global thread is untouched; only the code thread left the count.
@@ -990,29 +1158,37 @@ describe("comments write-choke coverage", () => {
           comment_fork_prompt_at: 5,
         }),
       ],
-      comments: [{
-        _id: "comment-agent",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "",
-        created_at: 1,
-        author_kind: "agent",
-        agent_status: "thinking",
-        fork_conversation_id: forkId,
-      }],
-      messages: [{
-        _id: "message-reply",
-        conversation_id: forkId,
-        role: "assistant",
-        content: "The answer from the agent",
-        timestamp: 10,
-      }],
+      comments: [
+        {
+          _id: "comment-agent",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "",
+          created_at: 1,
+          author_kind: "agent",
+          agent_status: "thinking",
+          fork_conversation_id: forkId,
+        },
+      ],
+      messages: [
+        {
+          _id: "message-reply",
+          conversation_id: forkId,
+          role: "assistant",
+          content: "The answer from the agent",
+          timestamp: 10,
+        },
+      ],
     });
-    expect(await (updateGitHubCommentId as any)._handler(ctx, {
-      comment_id: "comment-agent",
-      github_comment_id: 123,
-    })).toBe(true);
-    await (mirrorAgentReply as any)._handler(ctx, { fork_conversation_id: forkId });
+    expect(
+      await (updateGitHubCommentId as any)._handler(ctx, {
+        comment_id: "comment-agent",
+        github_comment_id: 123,
+      }),
+    ).toBe(true);
+    await (mirrorAgentReply as any)._handler(ctx, {
+      fork_conversation_id: forkId,
+    });
 
     expect(storedComments(ctx.db)[0]).toMatchObject({
       github_comment_id: 123,
@@ -1034,25 +1210,31 @@ describe("comments write-choke coverage", () => {
           comment_fork_prompt_at: 5,
         }),
       ],
-      comments: [{
-        _id: "comment-root",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "protected",
-        created_at: 1,
-        author_kind: "agent",
-        agent_status: "thinking",
-        fork_conversation_id: forkId,
-      }],
-      messages: [{
-        _id: "message-poison",
-        conversation_id: forkId,
-        role: "assistant",
-        content: "must not cross the relationship",
-        timestamp: 10,
-      }],
+      comments: [
+        {
+          _id: "comment-root",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "protected",
+          created_at: 1,
+          author_kind: "agent",
+          agent_status: "thinking",
+          fork_conversation_id: forkId,
+        },
+      ],
+      messages: [
+        {
+          _id: "message-poison",
+          conversation_id: forkId,
+          role: "assistant",
+          content: "must not cross the relationship",
+          timestamp: 10,
+        },
+      ],
     });
-    await (mirrorAgentReply as any)._handler(ctx, { fork_conversation_id: forkId });
+    await (mirrorAgentReply as any)._handler(ctx, {
+      fork_conversation_id: forkId,
+    });
     expect(storedComments(ctx.db)[0]).toMatchObject({
       content: "protected",
       agent_status: "thinking",
@@ -1063,17 +1245,19 @@ describe("comments write-choke coverage", () => {
   test("generic dispatch can edit content but not structural comment fields", async () => {
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-dispatch",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "before",
-        created_at: 1,
-        github_comment_id: 10,
-        pr_id: "pr-original",
-        file_path: "safe.ts",
-        line_number: 4,
-      }],
+      comments: [
+        {
+          _id: "comment-dispatch",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "before",
+          created_at: 1,
+          github_comment_id: 10,
+          pr_id: "pr-original",
+          file_path: "safe.ts",
+          line_number: 4,
+        },
+      ],
     });
     await applyPatches(ctx, OWNER, {
       comments: {
@@ -1109,13 +1293,15 @@ describe("comments write-choke coverage", () => {
         user(OWNER, "Conversation owner"),
       ],
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-migrated",
-        conversation_id: CONVERSATION,
-        user_id: OTHER,
-        content: "keep me",
-        created_at: 1,
-      }],
+      comments: [
+        {
+          _id: "comment-migrated",
+          conversation_id: CONVERSATION,
+          user_id: OTHER,
+          content: "keep me",
+          created_at: 1,
+        },
+      ],
     });
     await (mergeDuplicateUser as any)._handler(ctx, {
       from_user_id: OTHER,
@@ -1166,17 +1352,19 @@ describe("comments write-choke coverage", () => {
           updated_at: 1,
         },
       ],
-      local_command_receipts: [{
-        _id: "receipt-from",
-        principal_id: OTHER,
-        command_id: "cmd-1",
-        command_name: "comments.add/v2",
-        receipt_version: 1,
-        argument_fingerprint: "sha256:x",
-        status: "acknowledged",
-        coverage: [],
-        created_at: 1,
-      }],
+      local_command_receipts: [
+        {
+          _id: "receipt-from",
+          principal_id: OTHER,
+          command_id: "cmd-1",
+          command_name: "comments.add/v2",
+          receipt_version: 1,
+          argument_fingerprint: "sha256:x",
+          status: "acknowledged",
+          coverage: [],
+          created_at: 1,
+        },
+      ],
     });
     await (mergeDuplicateUser as any)._handler(ctx, {
       from_user_id: OTHER,
@@ -1187,12 +1375,22 @@ describe("comments write-choke coverage", () => {
     expect(ctx.db._tables.conversations[0].user_id).toBe(surviving);
     // The comments head follows the conversation owner, strictly newer than
     // anything the old domain ever served.
-    const commentsHead = heads(ctx).find((head: any) => head.view_key === VIEW_KEY);
-    expect(commentsHead).toMatchObject({ principal_id: surviving, revision: 6 });
+    const commentsHead = heads(ctx).find(
+      (head: any) => head.view_key === VIEW_KEY,
+    );
+    expect(commentsHead).toMatchObject({
+      principal_id: surviving,
+      revision: 6,
+    });
     // Colliding heads collapse to max(from, to) + 1 with the source removed.
-    const bucketHeads = heads(ctx).filter((head: any) => head.view_key === "buckets:principal");
+    const bucketHeads = heads(ctx).filter(
+      (head: any) => head.view_key === "buckets:principal",
+    );
     expect(bucketHeads).toHaveLength(1);
-    expect(bucketHeads[0]).toMatchObject({ principal_id: surviving, revision: 8 });
+    expect(bucketHeads[0]).toMatchObject({
+      principal_id: surviving,
+      revision: 8,
+    });
     // Receipts follow the principal so replayed command ids stay deduplicated.
     expect(receipts(ctx)[0].principal_id).toBe(surviving);
   });
@@ -1203,21 +1401,26 @@ describe("comments write-choke coverage", () => {
     // among them, go in purgeConversationRows (accountDelete.ts).
     const ctx = context(OWNER, {
       conversations: [conversation()],
-      comments: [{
-        _id: "comment-account-delete",
-        conversation_id: CONVERSATION,
-        user_id: OWNER,
-        content: "remove with account",
-        created_at: 1,
-      }],
+      comments: [
+        {
+          _id: "comment-account-delete",
+          conversation_id: CONVERSATION,
+          user_id: OWNER,
+          content: "remove with account",
+          created_at: 1,
+        },
+      ],
     });
     const result = await (deleteAccount as any)._handler(ctx, {});
     expect(result).toMatchObject({ completed: true });
     while (await purgeAccountPass(ctx, OWNER as any));
     expect(ctx.db._tables.conversations).toHaveLength(0);
-    const purges = ctx._scheduledCalls.map((call: any) => call.args).filter((args: any) => args?.conversation_id);
+    const purges = ctx._scheduledCalls
+      .map((call: any) => call.args)
+      .filter((args: any) => args?.conversation_id);
     expect(purges).toEqual([{ conversation_id: CONVERSATION }]);
-    for (const args of purges) await (purgeConversationRows as any)._handler(ctx, args);
+    for (const args of purges)
+      await (purgeConversationRows as any)._handler(ctx, args);
     expect(storedComments(ctx.db)).toHaveLength(0);
   });
 
@@ -1229,8 +1432,20 @@ describe("comments write-choke coverage", () => {
       conversations: [sharedConversation()],
       team_memberships: memberships(),
       pull_requests: [
-        { _id: "pr-other", team_id: TEAM, linked_session_ids: ["conversation-other"], repository: "org/repo", number: 1 },
-        { _id: "pr-linked", team_id: TEAM, linked_session_ids: [CONVERSATION], repository: "org/repo", number: 2 },
+        {
+          _id: "pr-other",
+          team_id: TEAM,
+          linked_session_ids: ["conversation-other"],
+          repository: "org/repo",
+          number: 1,
+        },
+        {
+          _id: "pr-linked",
+          team_id: TEAM,
+          linked_session_ids: [CONVERSATION],
+          repository: "org/repo",
+          number: 2,
+        },
       ],
       pull_request_sessions: [],
     });
@@ -1249,7 +1464,11 @@ describe("comments write-choke coverage", () => {
       client_id: "client-comment-on-pr-session",
     });
     expect(result).toMatchObject({ status: "acknowledged" });
-    const posted = ctx._scheduledCalls.map((call: any) => call.args).filter((args: any) => args?.pr_number);
-    expect(posted).toEqual([expect.objectContaining({ repository: "org/repo", pr_number: 2 })]);
+    const posted = ctx._scheduledCalls
+      .map((call: any) => call.args)
+      .filter((args: any) => args?.pr_number);
+    expect(posted).toEqual([
+      expect.objectContaining({ repository: "org/repo", pr_number: 2 }),
+    ]);
   });
 });

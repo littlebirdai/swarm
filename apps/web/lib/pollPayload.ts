@@ -36,19 +36,29 @@ export const SYNTHETIC_POLL_OPTION = /^(?:type something\.?|chat about this)$/i;
  * option array — hiding a synthetic row must not shift the digits the TUI
  * expects. A confirmation dialog has no digits: its two rows are Enter/Escape.
  */
-export function pollKeyForOption(index: number, isConfirmation?: boolean): string {
+export function pollKeyForOption(
+  index: number,
+  isConfirmation?: boolean,
+): string {
   if (isConfirmation) return index === 0 ? "Enter" : "Escape";
   return String(index + 1);
 }
 
-export function buildPollPayload(questions: PollQuestion[], sels: PollSelections): string {
+export function buildPollPayload(
+  questions: PollQuestion[],
+  sels: PollSelections,
+): string {
   const isMultiQuestion = questions.length > 1;
   const anyMultiSelect = questions.some((q) => q.multiSelect);
   const needsSubmit = isMultiQuestion || anyMultiSelect;
 
   const sorted = Object.keys(sels).sort((a, b) => Number(a) - Number(b));
-  const hasText = sorted.some((k) => sels[Number(k)].some((s) => s.text !== undefined));
-  const display = sorted.map((k) => sels[Number(k)].map((s) => s.label).join(", ")).join(", ");
+  const hasText = sorted.some((k) =>
+    sels[Number(k)].some((s) => s.text !== undefined),
+  );
+  const display = sorted
+    .map((k) => sels[Number(k)].map((s) => s.label).join(", "))
+    .join(", ");
 
   if (hasText) {
     // Claude Code's AskUserQuestion menu only accepts the listed options — there's no
@@ -82,7 +92,10 @@ export function buildPollPayload(questions: PollQuestion[], sels: PollSelections
   for (const k of sorted) {
     const qSels = sels[Number(k)];
     if (questions[Number(k)]?.multiSelect) {
-      keys.push(...qSels.map((s) => s.key).sort((a, b) => Number(a) - Number(b)), "Right");
+      keys.push(
+        ...qSels.map((s) => s.key).sort((a, b) => Number(a) - Number(b)),
+        "Right",
+      );
     } else {
       keys.push(qSels[0].key);
     }
@@ -110,16 +123,24 @@ export function buildFreeTextPayload(text: string): string {
 /** Single-select, single-question answer — the queue's one-key path. */
 export function buildSingleAnswerPayload(
   question: PollQuestion,
-  optionIndex: number
+  optionIndex: number,
 ): string {
   const key = pollKeyForOption(optionIndex, question.isConfirmation);
-  const label = (question.options[optionIndex]?.label ?? "").replace(" (Recommended)", "");
+  const label = (question.options[optionIndex]?.label ?? "").replace(
+    " (Recommended)",
+    "",
+  );
   return buildPollPayload([question], { 0: [{ key, label }] });
 }
 
 // Text Claude Code may print right after an answer's closing quote: the next
 // answer, the chosen option's preview or the user's notes, or the closing sentence.
-const ANSWER_TERMINATORS = [", \"", " selected preview:", " user notes:", ". You can now"];
+const ANSWER_TERMINATORS = [
+  ', "',
+  " selected preview:",
+  " user notes:",
+  ". You can now",
+];
 
 /**
  * The answers an AskUserQuestion result reports, keyed by question text. Claude Code
@@ -130,7 +151,7 @@ const ANSWER_TERMINATORS = [", \"", " selected preview:", " user notes:", ". You
  */
 export function parsePollAnswers(
   questions: Array<Pick<PollQuestion, "question" | "options">>,
-  content: string | undefined
+  content: string | undefined,
 ): Record<string, string> {
   const answers: Record<string, string> = {};
   if (!content) return answers;
@@ -148,11 +169,13 @@ export function parsePollAnswers(
     const start = at + marker.length;
     const rest = content.slice(start);
     const endsAt = (p: number) =>
-      p === rest.length - 1 || rest.slice(p + 1) === "." || ANSWER_TERMINATORS.some(t => rest.startsWith(t, p + 1));
+      p === rest.length - 1 ||
+      rest.slice(p + 1) === "." ||
+      ANSWER_TERMINATORS.some((t) => rest.startsWith(t, p + 1));
     const label = q.options
-      .map(o => o.label)
+      .map((o) => o.label)
       .sort((a, b) => b.length - a.length)
-      .find(l => rest.startsWith(`${l}"`) && endsAt(l.length));
+      .find((l) => rest.startsWith(`${l}"`) && endsAt(l.length));
     if (label !== undefined) {
       answers[q.question] = label;
       continue;
@@ -169,7 +192,11 @@ export function parsePollAnswers(
 
 /** How a typed multi-question answer names its question ("Shortlist: …"). */
 function typedAnswerId(q: PollQuestion | undefined, index: number): string {
-  return q?.header?.trim() || q?.question?.replace(/\s+/g, " ").trim().slice(0, 60) || `Q${index + 1}`;
+  return (
+    q?.header?.trim() ||
+    q?.question?.replace(/\s+/g, " ").trim().slice(0, 60) ||
+    `Q${index + 1}`
+  );
 }
 
 /**
@@ -177,7 +204,10 @@ function typedAnswerId(q: PollQuestion | undefined, index: number): string {
  * daemon flattens to one line with "  ·  " between answers): a single question
  * takes the whole text, and several are matched back by their `Header: ` prefix.
  */
-export function parseTypedPollAnswers(questions: PollQuestion[], text: string | undefined): Record<string, string> {
+export function parseTypedPollAnswers(
+  questions: PollQuestion[],
+  text: string | undefined,
+): Record<string, string> {
   const answers: Record<string, string> = {};
   const typed = text?.trim();
   if (!typed || questions.length === 0) return answers;
@@ -214,7 +244,9 @@ type PollTranscriptMessage = {
  * typed user message after the rejection, past Claude Code's interrupt notice
  * and before the agent speaks again.
  */
-export function typedPollAnswerTexts(messages: readonly PollTranscriptMessage[]): Record<string, string> {
+export function typedPollAnswerTexts(
+  messages: readonly PollTranscriptMessage[],
+): Record<string, string> {
   const texts: Record<string, string> = {};
   let declined: string[] = [];
   for (const msg of messages) {
@@ -223,13 +255,20 @@ export function typedPollAnswerTexts(messages: readonly PollTranscriptMessage[])
       continue;
     }
     if (msg.role !== "user") continue;
-    const rejections = (msg.tool_results ?? []).filter((r) => r.content?.startsWith(DECLINED_RESULT));
+    const rejections = (msg.tool_results ?? []).filter((r) =>
+      r.content?.startsWith(DECLINED_RESULT),
+    );
     if (rejections.length > 0) {
       declined = rejections.map((r) => r.tool_use_id);
       continue;
     }
     const text = msg.content?.trim();
-    if (!text || declined.length === 0 || /^\[Request (?:interrupted|cancelled)/.test(text)) continue;
+    if (
+      !text ||
+      declined.length === 0 ||
+      /^\[Request (?:interrupted|cancelled)/.test(text)
+    )
+      continue;
     for (const id of declined) texts[id] = text;
     declined = [];
   }
@@ -243,11 +282,13 @@ export function typedPollAnswerTexts(messages: readonly PollTranscriptMessage[])
 export function pollCardAnswers(
   questions: PollQuestion[],
   inputAnswers: Record<string, string> | undefined,
-  result: { content?: string; typed_answer?: string } | undefined
+  result: { content?: string; typed_answer?: string } | undefined,
 ): Record<string, string> {
   if (inputAnswers && typeof inputAnswers === "object") return inputAnswers;
   const reported = parsePollAnswers(questions, result?.content);
-  return Object.keys(reported).length > 0 ? reported : parseTypedPollAnswers(questions, result?.typed_answer);
+  return Object.keys(reported).length > 0
+    ? reported
+    : parseTypedPollAnswers(questions, result?.typed_answer);
 }
 
 /**
@@ -259,11 +300,13 @@ export function pollCardAnswers(
  */
 export function pollClosedLabel(
   result: { content?: string } | undefined,
-  answers: Record<string, string>
+  answers: Record<string, string>,
 ): string | null {
   if (!result || Object.keys(answers).length > 0) return null;
   const text = (result.content ?? "").trim();
-  return text && text.length <= 48 && !text.includes("\n") ? text : "Closed without an answer";
+  return text && text.length <= 48 && !text.includes("\n")
+    ? text
+    : "Closed without an answer";
 }
 
 /**
@@ -271,11 +314,17 @@ export function pollClosedLabel(
  * the daemon off the dialog's own countdown). `left` is the time remaining as
  * M:SS; once it has passed the terminal has denied, whatever the card shows.
  */
-export function pollDeadline(deniesAt: number | undefined, now: number): { expired: boolean; left: string } | null {
+export function pollDeadline(
+  deniesAt: number | undefined,
+  now: number,
+): { expired: boolean; left: string } | null {
   if (typeof deniesAt !== "number") return null;
   const ms = Math.max(0, deniesAt - now);
   const s = Math.ceil(ms / 1000);
-  return { expired: ms === 0, left: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` };
+  return {
+    expired: ms === 0,
+    left: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`,
+  };
 }
 
 export const POLL_TIMED_OUT = "Timed out in the terminal";

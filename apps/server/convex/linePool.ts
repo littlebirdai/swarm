@@ -6,8 +6,12 @@ import { normalizeGitOrigin } from "@codecast/shared/contracts";
 import { lineSlotsValidator } from "./lib/lineSlotsValidator";
 
 async function deviceRow(ctx: any, device_id: string) {
-  const rows = await ctx.db.query("devices").filter((q: any) => q.eq(q.field("device_id"), device_id)).collect();
-  if (rows.length !== 1) throw new Error(`${rows.length} devices have device_id ${device_id}`);
+  const rows = await ctx.db
+    .query("devices")
+    .filter((q: any) => q.eq(q.field("device_id"), device_id))
+    .collect();
+  if (rows.length !== 1)
+    throw new Error(`${rows.length} devices have device_id ${device_id}`);
   return rows[0];
 }
 
@@ -19,9 +23,15 @@ export const holdLine = internalMutation({
   args: { device_id: v.string(), why: v.optional(v.string()) },
   handler: async (ctx, { device_id, why }) => {
     const device = await deviceRow(ctx, device_id);
-    const line_hold = why?.trim() ? { why: why.trim(), at: Date.now() } : undefined;
+    const line_hold = why?.trim()
+      ? { why: why.trim(), at: Date.now() }
+      : undefined;
     await ctx.db.patch(device._id, { line_hold });
-    return { device: device_id, hostname: device.hostname ?? null, line_hold: line_hold ?? null };
+    return {
+      device: device_id,
+      hostname: device.hostname ?? null,
+      line_hold: line_hold ?? null,
+    };
   },
 });
 
@@ -31,7 +41,10 @@ export const setLineSlots = internalMutation({
   args: { device_id: v.string(), line_slots: lineSlotsValidator },
   handler: async (ctx, { device_id, line_slots }) => {
     const device = await deviceRow(ctx, device_id);
-    const slots = line_slots.map((s) => ({ ...s, ...(s.origin ? { origin: normalizeGitOrigin(s.origin) ?? s.origin } : {}) }));
+    const slots = line_slots.map((s) => ({
+      ...s,
+      ...(s.origin ? { origin: normalizeGitOrigin(s.origin) ?? s.origin } : {}),
+    }));
     await ctx.db.patch(device._id, { line_slots: slots });
     return { device: device_id, user_id: device.user_id, line_slots: slots };
   },

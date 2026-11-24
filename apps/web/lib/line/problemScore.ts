@@ -11,16 +11,31 @@ export type ProblemScoreFacts = {
   reason: string;
 };
 
-type Scored = { score: number; reason: string; cluster_key?: string; cluster_name?: string };
+type Scored = {
+  score: number;
+  reason: string;
+  cluster_key?: string;
+  cluster_name?: string;
+};
 /** A task as far as its score is read: any task row, whose cause may carry `scored`. */
 export type ScoredTask = { cause?: object | null };
 
 /** A task's score and family, or null when nothing scored it yet. */
-export function scoreOf(task: ScoredTask | null | undefined): ProblemScoreFacts | null {
-  const s = (task?.cause as { scored?: Scored | null } | null | undefined)?.scored;
+export function scoreOf(
+  task: ScoredTask | null | undefined,
+): ProblemScoreFacts | null {
+  const s = (task?.cause as { scored?: Scored | null } | null | undefined)
+    ?.scored;
   if (!s || typeof s.score !== "number") return null;
-  return { score: s.score, reason: s.reason, family: s.cluster_key ? { key: s.cluster_key, name: s.cluster_name ?? s.cluster_key } : null };
+  return {
+    score: s.score,
+    reason: s.reason,
+    family: s.cluster_key
+      ? { key: s.cluster_key, name: s.cluster_name ?? s.cluster_key }
+      : null,
+  };
 }
 
 /** A score's band, for its color: what is worth fixing next stands out. */
-export const scoreBand = (s: number): "high" | "mid" | "low" => (s >= 70 ? "high" : s >= 40 ? "mid" : "low");
+export const scoreBand = (s: number): "high" | "mid" | "low" =>
+  s >= 70 ? "high" : s >= 40 ? "mid" : "low";

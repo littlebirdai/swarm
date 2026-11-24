@@ -32,14 +32,22 @@ function fakeIo(candidates: ManagedTmuxCandidate[] = []) {
   const events: string[] = [];
   const options: Record<string, string> = {};
   const io: ManagedTmuxIo = {
-    async createSession() { events.push("create"); },
+    async createSession() {
+      events.push("create");
+    },
     async setSessionOption({ name, value }) {
       events.push(`tag:${name}`);
       options[name] = value;
     },
-    async launchLiteral() { events.push("launch"); },
-    async listCandidates() { return candidates; },
-    async injectDelivery() { return { state: "delivered" }; },
+    async launchLiteral() {
+      events.push("launch");
+    },
+    async listCandidates() {
+      return candidates;
+    },
+    async injectDelivery() {
+      return { state: "delivered" };
+    },
     async stopSession() {},
     async quarantineSession() {},
   };
@@ -60,7 +68,9 @@ describe("ManagedTmuxRuntimeDriver", () => {
     expect(result.state).toBe("started");
     expect(events[0]).toBe("create");
     expect(events.at(-1)).toBe("launch");
-    expect(events.slice(1, -1)).toHaveLength(Object.keys(FENCED_TMUX_TAG_NAMES).length);
+    expect(events.slice(1, -1)).toHaveLength(
+      Object.keys(FENCED_TMUX_TAG_NAMES).length,
+    );
     expect(options[FENCED_TMUX_TAG_NAMES.operationId]).toBe("operation-1");
     expect(options[FENCED_TMUX_TAG_NAMES.executionEpoch]).toBe("4");
     expect(options[FENCED_TMUX_TAG_NAMES.agent]).toBe("claude");
@@ -77,7 +87,10 @@ describe("ManagedTmuxRuntimeDriver", () => {
       tags: exactTags,
     };
     const { io } = fakeIo([exact]);
-    const driver = new ManagedTmuxRuntimeDriver({ io, buildLaunch: () => ({ command: "claude" }) });
+    const driver = new ManagedTmuxRuntimeDriver({
+      io,
+      buildLaunch: () => ({ command: "claude" }),
+    });
 
     const result = await driver.adopt(adoption);
     expect(result).toMatchObject({
@@ -101,10 +114,23 @@ describe("ManagedTmuxRuntimeDriver", () => {
       agent: "codex",
     };
     const { io } = fakeIo([
-      { tmuxSession: "old", tmuxTarget: "old:0.0", alive: true, tags: wrongEpoch },
-      { tmuxSession: "wrong", tmuxTarget: "wrong:0.0", alive: true, tags: wrongAgent },
+      {
+        tmuxSession: "old",
+        tmuxTarget: "old:0.0",
+        alive: true,
+        tags: wrongEpoch,
+      },
+      {
+        tmuxSession: "wrong",
+        tmuxTarget: "wrong:0.0",
+        alive: true,
+        tags: wrongAgent,
+      },
     ]);
-    const driver = new ManagedTmuxRuntimeDriver({ io, buildLaunch: () => ({ command: "claude" }) });
+    const driver = new ManagedTmuxRuntimeDriver({
+      io,
+      buildLaunch: () => ({ command: "claude" }),
+    });
 
     const result = await driver.adopt(adoption);
     expect(result.state).toBe("conflict");
@@ -121,14 +147,22 @@ describe("ManagedTmuxRuntimeDriver", () => {
       tags: buildFencedTmuxTags(request(), "runtime-dead"),
     };
     const { io } = fakeIo([dead]);
-    const driver = new ManagedTmuxRuntimeDriver({ io, buildLaunch: () => ({ command: "claude" }) });
+    const driver = new ManagedTmuxRuntimeDriver({
+      io,
+      buildLaunch: () => ({ command: "claude" }),
+    });
     expect(await driver.adopt(request())).toEqual({ state: "missing" });
   });
 
   test("candidate lookup failure is unknown and can never authorize a new start", async () => {
     const { io } = fakeIo();
-    io.listCandidates = async () => { throw new Error("tmux server unavailable"); };
-    const driver = new ManagedTmuxRuntimeDriver({ io, buildLaunch: () => ({ command: "claude" }) });
+    io.listCandidates = async () => {
+      throw new Error("tmux server unavailable");
+    };
+    const driver = new ManagedTmuxRuntimeDriver({
+      io,
+      buildLaunch: () => ({ command: "claude" }),
+    });
     expect(await driver.adopt(request())).toMatchObject({
       state: "unknown",
       failure: { code: "TMUX_INSPECTION_FAILED" },
@@ -148,7 +182,10 @@ describe("ManagedTmuxRuntimeDriver", () => {
       lookup = input;
       return [untagged];
     };
-    const driver = new ManagedTmuxRuntimeDriver({ io, buildLaunch: () => ({ command: "claude" }) });
+    const driver = new ManagedTmuxRuntimeDriver({
+      io,
+      buildLaunch: () => ({ command: "claude" }),
+    });
 
     const result = await driver.adopt(request());
     expect(result.state).toBe("conflict");

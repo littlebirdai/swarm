@@ -29,12 +29,16 @@ describe("formatHuddleDigest", () => {
   });
 
   test("a missing summary says why instead of showing nothing", () => {
-    expect(formatHuddleDigest({ ...digest, summary: null, summaryStatus: "failed" })).toContain(
-      "The summary could not be generated.",
-    );
-    expect(formatHuddleDigest({ ...digest, summary: null, summaryStatus: "skipped" })).toContain(
-      "Too short to summarize.",
-    );
+    expect(
+      formatHuddleDigest({ ...digest, summary: null, summaryStatus: "failed" }),
+    ).toContain("The summary could not be generated.");
+    expect(
+      formatHuddleDigest({
+        ...digest,
+        summary: null,
+        summaryStatus: "skipped",
+      }),
+    ).toContain("Too short to summarize.");
   });
 
   test("round-trips: the chat row's markdown parses back into a header", () => {
@@ -49,17 +53,25 @@ describe("formatHuddleDigest", () => {
 
   test("refuses markdown this formatter did not write", () => {
     expect(parseHuddleDigestContent("just a normal message")).toBeNull();
-    expect(parseHuddleDigestContent("**bold** but no separator line")).toBeNull();
+    expect(
+      parseHuddleDigestContent("**bold** but no separator line"),
+    ).toBeNull();
   });
 
   test("the lead line survives odd rosters", () => {
-    expect(huddleDigestLead({ startedAt: 0, endedAt: 60_000, speakers: ["Alice"] })).toBe(
-      "1 min huddle with Alice",
-    );
-    expect(huddleDigestLead({ startedAt: 0, endedAt: null, speakers: [] })).toBe("Huddle");
-    expect(huddleDigestLead({ startedAt: 0, endedAt: 90_000, speakers: ["A", "B", "C"] })).toBe(
-      "2 min huddle with A, B and C",
-    );
+    expect(
+      huddleDigestLead({ startedAt: 0, endedAt: 60_000, speakers: ["Alice"] }),
+    ).toBe("1 min huddle with Alice");
+    expect(
+      huddleDigestLead({ startedAt: 0, endedAt: null, speakers: [] }),
+    ).toBe("Huddle");
+    expect(
+      huddleDigestLead({
+        startedAt: 0,
+        endedAt: 90_000,
+        speakers: ["A", "B", "C"],
+      }),
+    ).toBe("2 min huddle with A, B and C");
   });
 });
 
@@ -69,7 +81,9 @@ describe("the huddle-summary wire tag", () => {
     expect(isHuddleSummaryTag(wire)).toBe(true);
     expect(wire).toContain("cast call t123 --transcript");
     // Tasks the agent files from the huddle link back to the call.
-    expect(formatHuddleSummaryTag("t123", digest, { callRef: "cl-42" })).toContain("--from-call cl-42");
+    expect(
+      formatHuddleSummaryTag("t123", digest, { callRef: "cl-42" }),
+    ).toContain("--from-call cl-42");
     const parsed = parseHuddleSummaryTag(wire)!;
     expect(parsed.transcriptId).toBe("t123");
     expect(parsed.title).toBe("Auth rollout");
@@ -97,7 +111,13 @@ describe("the huddle-summary wire tag", () => {
 // the stretches back from the same words, so the chat row and the session
 // turn need no field of their own for it.
 describe("a huddle recorded on video", () => {
-  const filmed = { ...digest, video: [{ fromMs: 280_000, toMs: 440_000 }, { fromMs: 600_000, toMs: 615_000 }] };
+  const filmed = {
+    ...digest,
+    video: [
+      { fromMs: 280_000, toMs: 440_000 },
+      { fromMs: 600_000, toMs: 615_000 },
+    ],
+  };
 
   test("the digest says so on its own line, and the card reads it back", () => {
     const out = formatHuddleDigest(filmed);
@@ -105,12 +125,19 @@ describe("a huddle recorded on video", () => {
     const head = parseHuddleDigestContent(out)!;
     expect(head.video).toEqual(filmed.video);
     expect(head.body).toBe(
-      "Alice and Bob agreed to ship the fix behind a flag.\n\n" + "Action items:\n- Bob: ship the fix behind a flag",
+      "Alice and Bob agreed to ship the fix behind a flag.\n\n" +
+        "Action items:\n- Bob: ship the fix behind a flag",
     );
   });
 
   test("filmed in silence: the video is what it left, with no excuse for a summary", () => {
-    const silent = { ...filmed, speakers: [], summary: null, actionItems: [], summaryStatus: "skipped" as const };
+    const silent = {
+      ...filmed,
+      speakers: [],
+      summary: null,
+      actionItems: [],
+      summaryStatus: "skipped" as const,
+    };
     expect(formatHuddleDigest(silent)).toBe(
       "**Auth rollout** · 12 min huddle\n\nRecorded on video: 4:40-7:20, 10:00-10:15.",
     );
@@ -125,18 +152,26 @@ describe("a huddle recorded on video", () => {
     const parsed = parseHuddleSummaryTag(wire)!;
     expect(parsed.video).toEqual(filmed.video);
     expect(parsed.body).toBe(formatHuddleDigest(filmed));
-    expect(formatHuddleSummaryTag("t123", digest)).not.toContain("cast call snap");
-    expect(parseHuddleSummaryTag(formatHuddleSummaryTag("t123", digest))!.video).toBeNull();
+    expect(formatHuddleSummaryTag("t123", digest)).not.toContain(
+      "cast call snap",
+    );
+    expect(
+      parseHuddleSummaryTag(formatHuddleSummaryTag("t123", digest))!.video,
+    ).toBeNull();
   });
 
   test("heard live: the card body is still the digest alone", () => {
-    const parsed = parseHuddleSummaryTag(formatHuddleSummaryTag("t123", filmed, { heardLive: true }))!;
+    const parsed = parseHuddleSummaryTag(
+      formatHuddleSummaryTag("t123", filmed, { heardLive: true }),
+    )!;
     expect(parsed.body).toBe(formatHuddleDigest(filmed));
     expect(parsed.video).toEqual(filmed.video);
   });
 
   test("a line that only looks like the video line is left in the body", () => {
-    const head = parseHuddleDigestContent("**Huddle** · 2 min huddle\n\nRecorded on video: soon.")!;
+    const head = parseHuddleDigestContent(
+      "**Huddle** · 2 min huddle\n\nRecorded on video: soon.",
+    )!;
     expect(head.video).toBeNull();
     expect(head.body).toBe("Recorded on video: soon.");
   });

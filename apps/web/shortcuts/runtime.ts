@@ -1,4 +1,9 @@
-import { createShortcutProvider, type KeydownOptions, type ShortcutCatalog, type ShortcutProviderKit } from "@platform/keys";
+import {
+  createShortcutProvider,
+  type KeydownOptions,
+  type ShortcutCatalog,
+  type ShortcutProviderKit,
+} from "@platform/keys";
 
 export interface ShortcutRuntime<A extends string> {
   catalog: ShortcutCatalog<A>;
@@ -13,7 +18,10 @@ export function createShortcutRuntime<A extends string>(
 ): ShortcutRuntime<A> {
   if (previous) {
     Object.assign(previous.catalog, catalog);
-    for (const key of Object.keys(previous.options) as (keyof KeydownOptions<A>)[]) delete previous.options[key];
+    for (const key of Object.keys(
+      previous.options,
+    ) as (keyof KeydownOptions<A>)[])
+      delete previous.options[key];
     Object.assign(previous.options, options);
     return previous;
   }

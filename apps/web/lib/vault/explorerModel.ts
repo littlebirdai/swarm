@@ -10,7 +10,11 @@ import {
   type VaultFileEntry,
 } from "@codecast/shared/contracts";
 
-export type VaultSortMode = "name-asc" | "name-desc" | "mtime-desc" | "mtime-asc";
+export type VaultSortMode =
+  | "name-asc"
+  | "name-desc"
+  | "mtime-desc"
+  | "mtime-asc";
 
 export const VAULT_SORT_OPTIONS: { id: VaultSortMode; label: string }[] = [
   { id: "name-asc", label: "Name A→Z" },
@@ -33,7 +37,10 @@ export interface TreeNode {
 }
 
 const byName = (a: TreeNode, b: TreeNode) =>
-  a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+  a.name.localeCompare(b.name, undefined, {
+    sensitivity: "base",
+    numeric: true,
+  });
 
 /** Folders always sort before files (Obsidian's rule); the mode orders within
  *  each group, falling back to name so equal mtimes stay stable. */
@@ -41,10 +48,14 @@ function comparator(mode: VaultSortMode): (a: TreeNode, b: TreeNode) => number {
   return (a, b) => {
     if (a.dir !== b.dir) return a.dir ? -1 : 1;
     switch (mode) {
-      case "name-desc": return -byName(a, b);
-      case "mtime-desc": return b.mtime - a.mtime || byName(a, b);
-      case "mtime-asc": return a.mtime - b.mtime || byName(a, b);
-      default: return byName(a, b);
+      case "name-desc":
+        return -byName(a, b);
+      case "mtime-desc":
+        return b.mtime - a.mtime || byName(a, b);
+      case "mtime-asc":
+        return a.mtime - b.mtime || byName(a, b);
+      default:
+        return byName(a, b);
     }
   };
 }
@@ -62,7 +73,8 @@ export function visibleVaultFiles(
   if (showAll) return files;
   const out: Record<string, VaultFileEntry> = {};
   for (const [path, entry] of Object.entries(files)) {
-    if (entry.dir || isVaultMarkdownPath(path) || isVaultAssetPath(path)) out[path] = entry;
+    if (entry.dir || isVaultMarkdownPath(path) || isVaultAssetPath(path))
+      out[path] = entry;
   }
   return out;
 }
@@ -71,7 +83,14 @@ export function buildVaultTree(
   files: Record<string, VaultFileEntry>,
   sortMode: VaultSortMode = "name-asc",
 ): TreeNode {
-  const root: TreeNode = { name: "", path: "", dir: true, children: [], noteCount: 0, mtime: 0 };
+  const root: TreeNode = {
+    name: "",
+    path: "",
+    dir: true,
+    children: [],
+    noteCount: 0,
+    mtime: 0,
+  };
   const dirNodes = new Map<string, TreeNode>([["", root]]);
 
   const ensureDir = (path: string): TreeNode => {
@@ -115,7 +134,11 @@ export function buildVaultTree(
   const finalize = (node: TreeNode): TreeNode => {
     for (const child of node.children) {
       if (child.dir) finalize(child);
-      node.noteCount += child.dir ? child.noteCount : isVaultMarkdownPath(child.path) && !child.ignored ? 1 : 0;
+      node.noteCount += child.dir
+        ? child.noteCount
+        : isVaultMarkdownPath(child.path) && !child.ignored
+          ? 1
+          : 0;
       node.mtime = Math.max(node.mtime, child.mtime);
     }
     node.children.sort(cmp);
@@ -129,7 +152,10 @@ export interface FlatRow {
   depth: number;
 }
 
-export function flattenTree(root: TreeNode, expanded: Record<string, boolean>): FlatRow[] {
+export function flattenTree(
+  root: TreeNode,
+  expanded: Record<string, boolean>,
+): FlatRow[] {
   const rows: FlatRow[] = [];
   const walk = (node: TreeNode, depth: number) => {
     for (const child of node.children) {
@@ -191,7 +217,10 @@ export function siblingNames(paths: Iterable<string>, dir: string): string[] {
  * files hide their extension — an asset or a folder is edited whole, so typing
  * over it can't silently change what the file is.
  */
-export function splitEntryName(path: string, dir: boolean): { stem: string; suffix: string } {
+export function splitEntryName(
+  path: string,
+  dir: boolean,
+): { stem: string; suffix: string } {
   const name = baseName(path);
   if (dir || !isVaultMarkdownPath(name)) return { stem: name, suffix: "" };
   const stem = noteDisplayName(name);
@@ -199,7 +228,11 @@ export function splitEntryName(path: string, dir: boolean): { stem: string; suff
 }
 
 /** First free "Untitled", "Untitled 2", … among `siblings` (full names). */
-export function nextUntitledName(siblings: Iterable<string>, base: string, ext = ""): string {
+export function nextUntitledName(
+  siblings: Iterable<string>,
+  base: string,
+  ext = "",
+): string {
   const taken = new Set<string>();
   for (const s of siblings) taken.add(s.toLowerCase());
   for (let n = 1; ; n++) {
@@ -221,12 +254,14 @@ export function renameError(
 ): string | null {
   const stem = input.trim();
   if (!stem) return "Name can't be empty";
-  if (stem.includes("/") || stem.includes("\\")) return "Name can't contain a slash";
+  if (stem.includes("/") || stem.includes("\\"))
+    return "Name can't contain a slash";
   if (stem === "." || stem === "..") return `"${stem}" isn't a usable name`;
   if (isVaultIgnoredPath(stem)) return `"${stem}" is reserved`;
   const target = `${stem}${suffix}`;
   for (const s of siblings) {
-    if (s !== currentName && s.toLowerCase() === target.toLowerCase()) return `"${target}" already exists here`;
+    if (s !== currentName && s.toLowerCase() === target.toLowerCase())
+      return `"${target}" already exists here`;
   }
   return null;
 }
@@ -234,7 +269,11 @@ export function renameError(
 /** Path→path moves a rename implies: the entry itself, plus every descendant
  *  when it's a folder (the daemon renames the directory in one move; the store
  *  has to rewrite the keys underneath it). */
-export function renameMoves(paths: Iterable<string>, path: string, to: string): [string, string][] {
+export function renameMoves(
+  paths: Iterable<string>,
+  path: string,
+  to: string,
+): [string, string][] {
   const moves: [string, string][] = [[path, to]];
   const prefix = `${path}/`;
   for (const p of paths) {

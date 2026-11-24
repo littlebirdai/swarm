@@ -5,14 +5,22 @@
 // badge (session-characters.md S1, S3). The rule is web's useAgentSpeaker.
 // The mark and the badge come from the caller, so this module draws nothing
 // native of its own.
-import type { ReactNode } from 'react';
-import type { StyleProp, TextStyle } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { useAgentSpeaker } from '@codecast/web/hooks/useLiveIdentityRow';
-import type { IdentityRow } from '@codecast/web/lib/sessionIdentity';
-import { MobileSessionFace } from './MobileSessionFace';
+import type { ReactNode } from "react";
+import type { StyleProp, TextStyle } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { useAgentSpeaker } from "@codecast/web/hooks/useLiveIdentityRow";
+import type { IdentityRow } from "@codecast/web/lib/sessionIdentity";
+import { MobileSessionFace } from "./MobileSessionFace";
 
-export function MobileAgentSpeaker({ row, agentType, size = 16, mark = null, badge, nameStyle, maxFontSizeMultiplier }: {
+export function MobileAgentSpeaker({
+  row,
+  agentType,
+  size = 16,
+  mark = null,
+  badge,
+  nameStyle,
+  maxFontSizeMultiplier,
+}: {
   row: IdentityRow | null;
   agentType?: string | null;
   size?: number;
@@ -26,10 +34,18 @@ export function MobileAgentSpeaker({ row, agentType, size = 16, mark = null, bad
   const speaker = useAgentSpeaker(row, agentType);
   return (
     <>
-      {speaker.row
-        ? <MobileSessionFace row={speaker.row} size={size} badge={badge} />
-        : mark}
-      <RNText style={nameStyle} numberOfLines={1} maxFontSizeMultiplier={maxFontSizeMultiplier}>{speaker.name}</RNText>
+      {speaker.row ? (
+        <MobileSessionFace row={speaker.row} size={size} badge={badge} />
+      ) : (
+        mark
+      )}
+      <RNText
+        style={nameStyle}
+        numberOfLines={1}
+        maxFontSizeMultiplier={maxFontSizeMultiplier}
+      >
+        {speaker.name}
+      </RNText>
     </>
   );
 }

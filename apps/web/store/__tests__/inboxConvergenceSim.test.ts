@@ -1,11 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it, setDefaultTimeout } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  setDefaultTimeout,
+} from "bun:test";
 
 // Real Convex handlers over dozens of rows, hundreds of steps through the
 // multiplayer sim: seconds on an idle machine, minutes on a loaded one.
 setDefaultTimeout(300_000);
 import { _resetChildAuqProbeCacheForTests } from "@codecast/convex/convex/conversations";
-import { INBOX_PROJECTION_VERSION, inboxEpoch } from "@codecast/shared/contracts";
-import { useInboxStore, projectReplicaInbox, type InboxSession } from "../inboxStore";
+import {
+  INBOX_PROJECTION_VERSION,
+  inboxEpoch,
+} from "@codecast/shared/contracts";
+import {
+  useInboxStore,
+  projectReplicaInbox,
+  type InboxSession,
+} from "../inboxStore";
 import {
   INBOX_HEAL_BUDGET,
   INBOX_PROBE_PAYLOAD_AGE_MS,
@@ -64,7 +78,15 @@ describe("two replicas converge", () => {
     const server = new SimServer(seededWorld(11));
     const a = await bootReplica(server, "A", 1);
     const b = await bootReplica(server, "B", 2);
-    const ids = server.conversations.filter((c) => !c.is_subagent && !c.inbox_killed_at && !c.inbox_dismissed_at && !c.inbox_stashed_at).map((c) => c._id);
+    const ids = server.conversations
+      .filter(
+        (c) =>
+          !c.is_subagent &&
+          !c.inbox_killed_at &&
+          !c.inbox_dismissed_at &&
+          !c.inbox_stashed_at,
+      )
+      .map((c) => c._id);
     const [p, q, r, s, t] = ids;
 
     // A pins p and kills q locally; B sees neither yet.
@@ -102,7 +124,9 @@ describe("two replicas converge", () => {
 
   it("randomized interleavings over seeded worlds: any order of payloads, ranges, floors, gestures, reconnects and epoch ticks converges", async () => {
     // Replay one seed with SIM_SEEDS=25 (comma separated).
-    const seeds = process.env.SIM_SEEDS ? process.env.SIM_SEEDS.split(",").map(Number) : [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+    const seeds = process.env.SIM_SEEDS
+      ? process.env.SIM_SEEDS.split(",").map(Number)
+      : [21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
     const healedSeeds: string[] = [];
     for (const seed of seeds) {
       installSim();
@@ -118,7 +142,9 @@ describe("two replicas converge", () => {
         const r = replicas[Math.floor(rng() * replicas.length)];
         const target = pickShown(r, rng);
         if (roll < 0.3) {
-          await SERVER_EVENTS[eventNames[Math.floor(rng() * eventNames.length)]](server, rng, step);
+          await SERVER_EVENTS[
+            eventNames[Math.floor(rng() * eventNames.length)]
+          ](server, rng, step);
         } else if (roll < 0.4 && target) {
           await r.pin(target);
         } else if (roll < 0.45 && target) {
@@ -142,7 +168,9 @@ describe("two replicas converge", () => {
         } else if (roll < 0.96) {
           await r.crawl();
         } else {
-          advance([15_000, GEN_MIN, 5 * GEN_MIN, GEN_HOUR][Math.floor(rng() * 4)]);
+          advance(
+            [15_000, GEN_MIN, 5 * GEN_MIN, GEN_HOUR][Math.floor(rng() * 4)],
+          );
         }
         if (rng() < 0.5) advance(Math.floor(rng() * 20_000));
       }
@@ -153,7 +181,9 @@ describe("two replicas converge", () => {
     // case); the loop closes it. Printed so a reader sees which seeds needed
     // the heal, and pinned loosely so a channel regression that makes EVERY
     // seed depend on the heal is visible.
-    console.log(`[sim] seeds converged through the heal: ${healedSeeds.join(", ") || "none"}`);
+    console.log(
+      `[sim] seeds converged through the heal: ${healedSeeds.join(", ") || "none"}`,
+    );
     expect(healedSeeds.length).toBeLessThan(seeds.length / 2);
   });
 });
@@ -165,8 +195,14 @@ describe("the cold replica", () => {
     const world = seededWorld(31, 30);
     for (let i = 0; i < 6; i++) {
       world.conversations.push({
-        _id: convexIdFor(`tail${i}`), user_id: ME, status: "active", updated_at: now() - 2 * GEN_DAY - i * GEN_HOUR,
-        started_at: now() - 3 * GEN_DAY, message_count: 3, last_message_role: "assistant", title: `Tail ${i}`,
+        _id: convexIdFor(`tail${i}`),
+        user_id: ME,
+        status: "active",
+        updated_at: now() - 2 * GEN_DAY - i * GEN_HOUR,
+        started_at: now() - 3 * GEN_DAY,
+        message_count: 3,
+        last_message_role: "assistant",
+        title: `Tail ${i}`,
       });
     }
     const server = new SimServer(world);
@@ -177,10 +213,16 @@ describe("the cold replica", () => {
     await cold.receiveOverlay();
     await cold.receiveDecisions();
     const { liveness } = await server.overlay();
-    const folded = Object.entries(liveness).filter(([, r]: any) => r.below_fold).map(([id]) => id);
+    const folded = Object.entries(liveness)
+      .filter(([, r]: any) => r.below_fold)
+      .map(([id]) => id);
     expect(folded.length).toBeGreaterThan(0);
-    for (const id of folded) expect((cold.state.sessions as any)[id]).toBeUndefined();
-    expect(await quietTick(cold)).toMatchObject({ kind: "skip", reason: "cold_replica" });
+    for (const id of folded)
+      expect((cold.state.sessions as any)[id]).toBeUndefined();
+    expect(await quietTick(cold)).toMatchObject({
+      kind: "skip",
+      reason: "cold_replica",
+    });
     expect(cold.comparer.counters().skips.cold_replica).toBe(1);
     expect(cold.comparer.counters().checks).toBe(0);
     // The floor completes and stamps the watermark. It is additive and
@@ -198,7 +240,9 @@ describe("the cold replica", () => {
       expect(cold.eventsNamed("inbox_drift").length).toBe(1);
       expect(await cold.drainHeals()).toBe(1);
       expect(cold.comparer.counters().heals).toBe(1);
-      expect(cold.comparer.counters().heals).toBeLessThanOrEqual(INBOX_HEAL_BUDGET);
+      expect(cold.comparer.counters().heals).toBeLessThanOrEqual(
+        INBOX_HEAL_BUDGET,
+      );
     } else {
       expect(first.kind).toBe("clean");
     }
@@ -215,13 +259,20 @@ describe("a dead subscription is detected and healed", () => {
     const id = memberIds(server, () => 0.3)!;
     a.overlayDead = true;
     // The world moves: a fact flips server-side that only the overlay carries.
-    await server.setAgent(id, { agent_status: "working", last_heartbeat: now(), agent_status_updated_at: now() });
+    await server.setAgent(id, {
+      agent_status: "working",
+      last_heartbeat: now(),
+      agent_status_updated_at: now(),
+    });
     await server.mutate(id, { updated_at: now(), message_count: 9 });
     advance(2 * GEN_MIN);
     await a.receiveBase();
     await a.catchUp();
     // Gate 3: the payload is older than the bound — skipped, counted, no heal.
-    expect(await quietTick(a, { overlay: false })).toMatchObject({ kind: "skip", reason: "stale_payload" });
+    expect(await quietTick(a, { overlay: false })).toMatchObject({
+      kind: "skip",
+      reason: "stale_payload",
+    });
     expect(a.comparer.counters().skips.stale_payload).toBe(1);
     // Rendering over frozen facts falls back to the client sweep: the row the
     // server now calls working still reads from the last payload, and a row
@@ -252,14 +303,27 @@ describe("a dead subscription is detected and healed", () => {
     const newId = convexIdFor("new99");
     a.online = true;
     const first = await quietTick(a);
-    expect(first).toMatchObject({ kind: "diff", diff: { missing: [newId], extra: [], bucket_deltas: [], fold_deltas: [] } });
+    expect(first).toMatchObject({
+      kind: "diff",
+      diff: { missing: [newId], extra: [], bucket_deltas: [], fold_deltas: [] },
+    });
     // One tick between the pushes is a race, not drift: nothing counted yet.
     expect(a.comparer.counters().mismatches).toBe(0);
     advance(GEN_MIN);
     expect((await quietTick(a)).kind).toBe("diff");
     expect(a.comparer.counters().mismatches).toBe(1);
     expect(a.eventsNamed("inbox_drift")).toEqual([
-      { event: "inbox_drift", props: expect.objectContaining({ missing: 1, extra: 0, bucket_deltas: 0, fold_deltas: 0, scope: "mine", platform: "sim-A" }) },
+      {
+        event: "inbox_drift",
+        props: expect.objectContaining({
+          missing: 1,
+          extra: 0,
+          bucket_deltas: 0,
+          fold_deltas: 0,
+          scope: "mine",
+          platform: "sim-A",
+        }),
+      },
     ]);
     expect(await a.drainHeals()).toBe(1);
     expect(a.comparer.counters()).toMatchObject({ heals: 1, heals_missing: 1 });
@@ -275,9 +339,20 @@ describe("a dead subscription is detected and healed", () => {
     const a = await bootReplica(server, "A", 1);
     // A ghost only this replica holds (a row the server will never return).
     const ghost = convexIdFor("ghost");
-    await a.withStore(() => useInboxStore.getState().syncTable("sessions", [
-      { _id: ghost, session_id: "sess-ghost", user_id: ME, status: "active", updated_at: now(), message_count: 3, is_idle: true, title: "Ghost" },
-    ] as unknown as InboxSession[]));
+    await a.withStore(() =>
+      useInboxStore.getState().syncTable("sessions", [
+        {
+          _id: ghost,
+          session_id: "sess-ghost",
+          user_id: ME,
+          status: "active",
+          updated_at: now(),
+          message_count: 3,
+          is_idle: true,
+          title: "Ghost",
+        },
+      ] as unknown as InboxSession[]),
+    );
     // Every compare reports the ghost; the persistence rule confirms one
     // drift per two payload epochs, each confirmation spends a heal, and the
     // fourth confirmation latches instead of healing.
@@ -286,7 +361,10 @@ describe("a dead subscription is detected and healed", () => {
     while (!a.comparer.healLatched() && rounds < 2 * (INBOX_HEAL_BUDGET + 2)) {
       advance(GEN_MIN);
       const out = await quietTick(a);
-      expect(out).toMatchObject({ kind: "diff", diff: { missing: [], extra: [ghost] } });
+      expect(out).toMatchObject({
+        kind: "diff",
+        diff: { missing: [], extra: [ghost] },
+      });
       healsRun += await a.drainHeals();
       rounds++;
     }
@@ -308,27 +386,53 @@ describe("the two drills", () => {
     const a = await bootReplica(server, "A", 1);
     // Diverge the replica on purpose so a compare WOULD report drift…
     const ghost = convexIdFor("ghost");
-    await a.withStore(() => useInboxStore.getState().syncTable("sessions", [
-      { _id: ghost, session_id: "sess-ghost", user_id: ME, status: "active", updated_at: now(), message_count: 3, is_idle: true, title: "Ghost" },
-    ] as unknown as InboxSession[]));
+    await a.withStore(() =>
+      useInboxStore.getState().syncTable("sessions", [
+        {
+          _id: ghost,
+          session_id: "sess-ghost",
+          user_id: ME,
+          status: "active",
+          updated_at: now(),
+          message_count: 3,
+          is_idle: true,
+          title: "Ghost",
+        },
+      ] as unknown as InboxSession[]),
+    );
     // …then feed it payloads from a server one version ahead (the deploy skew
     // window: convex shipped v+1 before this bundle reloaded).
     const skewed = async () => {
       const payload = await server.overlay();
-      return { ...payload, projection: { ...payload.projection, v: INBOX_PROJECTION_VERSION + 1 } };
+      return {
+        ...payload,
+        projection: { ...payload.projection, v: INBOX_PROJECTION_VERSION + 1 },
+      };
     };
     for (let round = 0; round < 4; round++) {
       advance(GEN_MIN);
       const payload = await skewed();
-      await a.withStore(() => useInboxStore.getState().applyInboxLivenessPayload("mine", payload));
+      await a.withStore(() =>
+        useInboxStore.getState().applyInboxLivenessPayload("mine", payload),
+      );
       advance(2 * INBOX_COMPARE_TICK_MS + 1_000);
-      expect(a.tick()).toMatchObject({ kind: "skip", reason: "version_skew", payload_v: INBOX_PROJECTION_VERSION + 1 });
+      expect(a.tick()).toMatchObject({
+        kind: "skip",
+        reason: "version_skew",
+        payload_v: INBOX_PROJECTION_VERSION + 1,
+      });
       expect(await a.drainHeals()).toBe(0);
     }
     expect(a.comparer.counters().skips.version_skew).toBe(4);
     expect(a.comparer.counters().checks).toBe(0);
     expect(a.eventsNamed("inbox_digest_version_skew")).toEqual([
-      { event: "inbox_digest_version_skew", props: expect.objectContaining({ payload_v: INBOX_PROJECTION_VERSION + 1, client_v: INBOX_PROJECTION_VERSION }) },
+      {
+        event: "inbox_digest_version_skew",
+        props: expect.objectContaining({
+          payload_v: INBOX_PROJECTION_VERSION + 1,
+          client_v: INBOX_PROJECTION_VERSION,
+        }),
+      },
     ]);
     expect(a.eventsNamed("inbox_drift")).toEqual([]);
     // The rendered inbox is untouched by the skew: the replica still renders
@@ -348,9 +452,20 @@ describe("the two drills", () => {
     expect((a.state.sessionsProjection as any).mine.set_digest).not.toBeNull();
     // Diverge B so the kill switch has something to suppress.
     const ghost = convexIdFor("ghost");
-    await b.withStore(() => useInboxStore.getState().syncTable("sessions", [
-      { _id: ghost, session_id: "sess-ghost", user_id: ME, status: "active", updated_at: now(), message_count: 3, is_idle: true, title: "Ghost" },
-    ] as unknown as InboxSession[]));
+    await b.withStore(() =>
+      useInboxStore.getState().syncTable("sessions", [
+        {
+          _id: ghost,
+          session_id: "sess-ghost",
+          user_id: ME,
+          status: "active",
+          updated_at: now(),
+          message_count: 3,
+          is_idle: true,
+          title: "Ghost",
+        },
+      ] as unknown as InboxSession[]),
+    );
     advance(GEN_MIN);
     const flipAt = now();
     await a.receiveOverlay();
@@ -358,7 +473,9 @@ describe("the two drills", () => {
     expect((a.state.sessionsProjection as any).mine.set_digest).toBeNull();
     expect((b.state.sessionsProjection as any).mine.set_digest).toBeNull();
     // Stamps and facts still ride the payload (rendering freshness is untouched).
-    expect(Object.keys((a.state.sessionsProjection as any).mine.stamps).length).toBeGreaterThan(0);
+    expect(
+      Object.keys((a.state.sessionsProjection as any).mine.stamps).length,
+    ).toBeGreaterThan(0);
     advance(2 * INBOX_COMPARE_TICK_MS + 1_000);
     for (let round = 0; round < 3; round++) {
       expect(a.tick()).toEqual({ kind: "disabled" });
@@ -366,11 +483,18 @@ describe("the two drills", () => {
       expect(await b.drainHeals()).toBe(0);
       advance(INBOX_PROBE_PAYLOAD_AGE_MS + GEN_MIN);
     }
-    expect(b.comparer.counters()).toMatchObject({ disabled: 3, checks: 0, heals: 0, probes: 0 });
+    expect(b.comparer.counters()).toMatchObject({
+      disabled: 3,
+      checks: 0,
+      heals: 0,
+      probes: 0,
+    });
     expect(b.eventsNamed("inbox_drift")).toEqual([]);
     // Propagation time: the first null payload is the first execution after
     // the flip — within one overlay cycle.
-    expect((a.state.sessionsProjection as any).mine.epoch).toBe(inboxEpoch(flipAt));
+    expect((a.state.sessionsProjection as any).mine.epoch).toBe(
+      inboxEpoch(flipAt),
+    );
     // Switching it back off restores the compare on the next payload.
     delete process.env.INBOX_DIGEST_DISABLED;
     advance(GEN_MIN);
@@ -385,9 +509,24 @@ describe("the pure compare on the same replicas", () => {
     await settleAndAssertConverged(server, [a]);
     const state = a.compareState();
     const slot = (state.sessionsProjection as any).mine;
-    const out = evaluateInboxCompare(state, { now: now(), nowMono: mono(), crawlMetaKey: CRAWL_KEY, lastApplyMono: mono() - 10 * GEN_MIN, inflight: 0 });
-    expect(out).toMatchObject({ kind: "clean", short_circuit: true, epoch: slot.epoch });
-    const { proj } = projectReplicaInbox(state, { scope: "mine", focusedId: null, epoch: slot.epoch, now: now() });
+    const out = evaluateInboxCompare(state, {
+      now: now(),
+      nowMono: mono(),
+      crawlMetaKey: CRAWL_KEY,
+      lastApplyMono: mono() - 10 * GEN_MIN,
+      inflight: 0,
+    });
+    expect(out).toMatchObject({
+      kind: "clean",
+      short_circuit: true,
+      epoch: slot.epoch,
+    });
+    const { proj } = projectReplicaInbox(state, {
+      scope: "mine",
+      focusedId: null,
+      epoch: slot.epoch,
+      now: now(),
+    });
     expect(proj.set_digest).toBe(slot.set_digest);
   });
 });

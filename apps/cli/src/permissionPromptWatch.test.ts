@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { watchPromptSettled, type PendingTool } from "./permissionPromptWatch";
 
-const RM: PendingTool = { tool_name: "Bash", arguments_preview: "cd /tmp/x && rm -f page/*" };
+const RM: PendingTool = {
+  tool_name: "Bash",
+  arguments_preview: "cd /tmp/x && rm -f page/*",
+};
 const NEXT: PendingTool = { tool_name: "Bash", arguments_preview: "ls page" };
 
 // Drives the watch through a scripted sequence of transcript reads, one per tick.
@@ -11,7 +14,9 @@ async function run(reads: (PendingTool | null)[], toolName = "Bash") {
   const stop = watchPromptSettled({
     readPending: async () => reads[Math.min(i++, reads.length - 1)],
     toolName,
-    onSettled: () => { settled++; },
+    onSettled: () => {
+      settled++;
+    },
     intervalMs: 1,
   });
   await new Promise((r) => setTimeout(r, 40));

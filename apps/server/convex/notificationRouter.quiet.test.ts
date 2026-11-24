@@ -6,7 +6,9 @@ const ADA = "user-ada";
 
 function ctx() {
   const db = makeFakeDb({
-    users: [{ _id: ADA, name: "Ada", push_token: "tok", notifications_enabled: true }],
+    users: [
+      { _id: ADA, name: "Ada", push_token: "tok", notifications_enabled: true },
+    ],
     notifications: [],
     push_outbox: [],
     user_presence: [],

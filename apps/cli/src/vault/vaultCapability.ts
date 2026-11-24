@@ -53,7 +53,10 @@ export function mintVaultCapability(
 ): VaultCapability {
   const now = opts.now ?? Date.now();
   const expiresAt = now + (opts.ttlMs ?? VAULT_CAP_TTL_MS);
-  return { value: `${VERSION}.${expiresAt}.${mac(secret, vaultId, expiresAt)}`, expires_at: expiresAt };
+  return {
+    value: `${VERSION}.${expiresAt}.${mac(secret, vaultId, expiresAt)}`,
+    expires_at: expiresAt,
+  };
 }
 
 /**
@@ -62,8 +65,14 @@ export function mintVaultCapability(
  * An empty daemon secret authorizes nobody — the token loads from disk early in
  * boot, so "not loaded yet" is a state a caller can reach.
  */
-export function vaultCapabilityAllows(presented: unknown, secret: string, vaultId: string, now = Date.now()): boolean {
-  if (typeof presented !== "string" || !presented || !secret || !vaultId) return false;
+export function vaultCapabilityAllows(
+  presented: unknown,
+  secret: string,
+  vaultId: string,
+  now = Date.now(),
+): boolean {
+  if (typeof presented !== "string" || !presented || !secret || !vaultId)
+    return false;
   const parts = presented.split(".");
   if (parts.length !== 3 || parts[0] !== VERSION) return false;
   const expiresAt = Number(parts[1]);

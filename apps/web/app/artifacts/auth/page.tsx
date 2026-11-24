@@ -44,7 +44,10 @@ export default function ArtifactAuthPage() {
     started.current = true;
     (async () => {
       try {
-        const res = (await mint({ slug })) as { token?: string; error?: string };
+        const res = (await mint({ slug })) as {
+          token?: string;
+          error?: string;
+        };
         if (!res?.token) {
           setError(res?.error || "Could not sign you in to this page.");
           return;
@@ -67,7 +70,9 @@ export default function ArtifactAuthPage() {
         const qs = search.toString();
         const frag = new URLSearchParams(hash.replace(/^#/, ""));
         frag.set("i", res.token);
-        window.location.replace(`${window.location.origin}/a/${slug}${qs ? `?${qs}` : ""}#${frag.toString()}`);
+        window.location.replace(
+          `${window.location.origin}/a/${slug}${qs ? `?${qs}` : ""}#${frag.toString()}`,
+        );
       } catch {
         setError("Could not sign you in to this page.");
       }
@@ -80,7 +85,11 @@ export default function ArtifactAuthPage() {
         {error ? (
           <p className="text-sm text-sol-text text-center">{error}</p>
         ) : (
-          <AppLoader className="min-h-0 bg-transparent" size={32} label="Signing you in to this page..." />
+          <AppLoader
+            className="min-h-0 bg-transparent"
+            size={32}
+            label="Signing you in to this page..."
+          />
         )}
       </div>
     </div>

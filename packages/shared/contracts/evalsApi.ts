@@ -18,7 +18,11 @@
 //
 // PURE isomorphic data: no Node or DOM APIs.
 
-export type { EvalFlip, EvalRunSet, EvalSeparation } from "@platform/evals/contract";
+export type {
+  EvalFlip,
+  EvalRunSet,
+  EvalSeparation,
+} from "@platform/evals/contract";
 
 // The contract lives in parts under evalsApi/, by section; this file is the
 // one import path every party uses.

@@ -31,14 +31,19 @@ function internalIpv4([a, b, c]: number[]): boolean {
 
 /** The eight 16-bit groups of an IPv6 address (brackets and a zone allowed), or null. */
 export function ipv6Groups(raw: string): number[] | null {
-  let h = raw.toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  let h = raw
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/%.*$/, "");
   if (!h.includes(":") || !/^[0-9a-f:.]+$/.test(h)) return null;
   // A dotted IPv4 tail becomes two groups.
   const tail = /(\d+\.\d+\.\d+\.\d+)$/.exec(h);
   if (tail) {
     const p = ipv4Parts(tail[1]);
     if (!p) return null;
-    h = h.slice(0, -tail[1].length) + `${((p[0] << 8) | p[1]).toString(16)}:${((p[2] << 8) | p[3]).toString(16)}`;
+    h =
+      h.slice(0, -tail[1].length) +
+      `${((p[0] << 8) | p[1]).toString(16)}:${((p[2] << 8) | p[3]).toString(16)}`;
   }
   const halves = h.split("::");
   if (halves.length > 2) return null;
@@ -53,10 +58,17 @@ export function ipv6Groups(raw: string): number[] | null {
 }
 
 function internalIpv6(g: number[]): boolean {
-  const v4At = (i: number) => [g[i] >> 8, g[i] & 0xff, g[i + 1] >> 8, g[i + 1] & 0xff];
+  const v4At = (i: number) => [
+    g[i] >> 8,
+    g[i] & 0xff,
+    g[i + 1] >> 8,
+    g[i + 1] & 0xff,
+  ];
   // IPv4 carried inside IPv6: mapped (::ffff:a.b.c.d), NAT64 (64:ff9b::/96) and 6to4 (2002::/16) are judged by the IPv4 address.
-  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff) return internalIpv4(v4At(6));
-  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0)) return internalIpv4(v4At(6));
+  if (g.slice(0, 5).every((x) => x === 0) && g[5] === 0xffff)
+    return internalIpv4(v4At(6));
+  if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0))
+    return internalIpv4(v4At(6));
   if (g[0] === 0x2002) return internalIpv4(v4At(1));
   // Only global unicast (2000::/3) is public. That leaves out ::, ::1, IPv4-compatible forms,
   // unique-local fc00::/7 (AWS metadata at fd00:ec2::254), link-local and site-local fe80::/9 and multicast ff00::/8.
@@ -79,7 +91,8 @@ export function isIpLiteral(host: string): boolean {
   return !!ipv4Parts(host) || !!ipv6Groups(host);
 }
 
-const INTERNAL_SUFFIX_RE = /(^|\.)(localhost|local|internal|localdomain|lan|home|corp|intranet|home\.arpa)$/;
+const INTERNAL_SUFFIX_RE =
+  /(^|\.)(localhost|local|internal|localdomain|lan|home|corp|intranet|home\.arpa)$/;
 
 /**
  * Why a URL's literal host is inside a network, or null when it may be called.
@@ -87,22 +100,31 @@ const INTERNAL_SUFFIX_RE = /(^|\.)(localhost|local|internal|localdomain|lan|home
  * A public name can still resolve to a private address: a server fetch also
  * checks the resolved addresses (convex lib/guardedFetch).
  */
-export function internalHostRefusal(raw: string, ownHosts: readonly string[] = []): string | null {
+export function internalHostRefusal(
+  raw: string,
+  ownHosts: readonly string[] = [],
+): string | null {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     return "not a URL";
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return `${url.protocol} is not http or https`;
-  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (url.protocol !== "https:" && url.protocol !== "http:")
+    return `${url.protocol} is not http or https`;
+  const host = url.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
   if (!host) return "no host";
   if (isIpLiteral(host)) return internalAddressRefusal(host);
   // Bare numeric forms (2130706433, 0x7f.1) that URL parsing did not fold into a dotted quad.
-  if (/^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$/i.test(host)) return `${host} is a numeric address`;
+  if (/^(0x[0-9a-f]+|\d+)(\.(0x[0-9a-f]+|\d+))*$/i.test(host))
+    return `${host} is a numeric address`;
   if (INTERNAL_SUFFIX_RE.test(host)) return `${host} is a local host`;
   // A single-label name (postgres, convex-backend) only an internal resolver answers.
   if (!host.includes(".")) return `${host} is not a public host name`;
-  if (ownHosts.some((own) => host === own || host.endsWith(`.${own}`))) return `${host} is codecast's own host`;
+  if (ownHosts.some((own) => host === own || host.endsWith(`.${own}`)))
+    return `${host} is codecast's own host`;
   return null;
 }

@@ -2,7 +2,10 @@ import { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useLocation } from "react-router";
 import { useInboxStore, isSessionHidden } from "../store/inboxStore";
-import { isInboxSessionView, resolveSessionSelectKind } from "../lib/inboxRouting";
+import {
+  isInboxSessionView,
+  resolveSessionSelectKind,
+} from "../lib/inboxRouting";
 import { requestStagePlacement, sessionPanePath } from "../lib/stage";
 import { isNonTabRoute } from "../lib/tabRoutes";
 
@@ -22,7 +25,9 @@ export function useOpenSession(): (id: string) => void {
   // In place only inside the tab shell: on a route outside it (the simple
   // lane, the standalone /r pages) usePathname still reports the active tab,
   // and writing the store's pointer there opens nothing on screen.
-  const isOnInboxPage = !isNonTabRoute(routerLocation.pathname) && isInboxSessionView(pathname, inboxSource);
+  const isOnInboxPage =
+    !isNonTabRoute(routerLocation.pathname) &&
+    isInboxSessionView(pathname, inboxSource);
   const isOnSettingsPage = routerLocation.pathname.startsWith("/settings");
   const kind = resolveSessionSelectKind({ isOnSettingsPage, isOnInboxPage });
 
@@ -48,20 +53,29 @@ export function useOpenSession(): (id: string) => void {
 
   // Leave the current page and open the session in the inbox. Routes through
   // navigateToSession so forks/dismissed/pending all resolve correctly.
-  const leaveAndOpen = useCallback((id: string) => {
-    const store = useInboxStore.getState();
-    // A SPLIT stage makes "open this session" ambiguous — which pane? Offer
-    // the pane picker with the conversation as the payload; the session opens
-    // as a pane right where the user points. Un-split stages keep the direct
-    // path: the conversation takes the stage.
-    if (requestStagePlacement(sessionPanePath(id), store.sessions[id]?.title ?? undefined)) return;
-    store.navigateToSession(id);
-    // The inbox carrying the session: the tab's own spelling of "this
-    // session, in the inbox" (stampedTabPath), and the mark by which the
-    // recents rail knows this push is the session's visit rather than a
-    // visit to the Inbox page (tabNavigate).
-    router.push(`/inbox?s=${id}`);
-  }, [router]);
+  const leaveAndOpen = useCallback(
+    (id: string) => {
+      const store = useInboxStore.getState();
+      // A SPLIT stage makes "open this session" ambiguous — which pane? Offer
+      // the pane picker with the conversation as the payload; the session opens
+      // as a pane right where the user points. Un-split stages keep the direct
+      // path: the conversation takes the stage.
+      if (
+        requestStagePlacement(
+          sessionPanePath(id),
+          store.sessions[id]?.title ?? undefined,
+        )
+      )
+        return;
+      store.navigateToSession(id);
+      // The inbox carrying the session: the tab's own spelling of "this
+      // session, in the inbox" (stampedTabPath), and the mark by which the
+      // recents rail knows this push is the session's visit rather than a
+      // visit to the Inbox page (tabNavigate).
+      router.push(`/inbox?s=${id}`);
+    },
+    [router],
+  );
 
   return kind === "leave" ? leaveAndOpen : openInPlace;
 }

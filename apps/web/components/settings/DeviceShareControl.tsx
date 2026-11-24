@@ -4,7 +4,12 @@ import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useInboxStore } from "../../store/inboxStore";
 import { teamMachineOfDevice } from "../../lib/teamMachines";
-import { listTeamNames, sharedTeamsOf, useMyTeams, type ShareTeam } from "../../hooks/useDeviceSharing";
+import {
+  listTeamNames,
+  sharedTeamsOf,
+  useMyTeams,
+  type ShareTeam,
+} from "../../hooks/useDeviceSharing";
 import { deviceDisplayName, type Device } from "../DeviceBadge";
 import { TeamSharePills } from "./TeamSharePills";
 
@@ -13,15 +18,29 @@ import { TeamSharePills } from "./TeamSharePills";
  * (TeamSharePills). Opening asks once, because it lets teammates run agents
  * under your account; closing is immediate. Renders nothing for someone on no team.
  */
-export function DeviceShareControl({ d, teamId }: { d: Device; teamId?: string }) {
+export function DeviceShareControl({
+  d,
+  teamId,
+}: {
+  d: Device;
+  teamId?: string;
+}) {
   const allTeams = useMyTeams();
-  const teams = teamId ? allTeams.filter((t) => String(t._id) === teamId) : allTeams;
+  const teams = teamId
+    ? allTeams.filter((t) => String(t._id) === teamId)
+    : allTeams;
   const setDeviceShares = useInboxStore((s) => s.setDeviceShares);
   // A device on a team machine already belongs to its team: teammates join the
   // machine as themselves instead of borrowing this login.
-  const onMachine = useInboxStore((s) => teamMachineOfDevice(s.teamMachines, d.device_id, s.currentUser?._id));
+  const onMachine = useInboxStore((s) =>
+    teamMachineOfDevice(s.teamMachines, d.device_id, s.currentUser?._id),
+  );
   if (onMachine) {
-    return <span className="text-meta text-sol-text-muted" data-device-team-machine>{onMachine.team_name} team machine</span>;
+    return (
+      <span className="text-meta text-sol-text-muted" data-device-team-machine>
+        {onMachine.team_name} team machine
+      </span>
+    );
   }
   if (teams.length === 0) return null;
 
@@ -49,11 +68,19 @@ export function DeviceShareControl({ d, teamId }: { d: Device; teamId?: string }
       onOpen={open}
       onClose={close}
       confirm={{
-        title: (t) => <>Share {name} with {t.name}?</>,
-        description: "Teammates can then pick it as the machine for a new session.",
+        title: (t) => (
+          <>
+            Share {name} with {t.name}?
+          </>
+        ),
+        description:
+          "Teammates can then pick it as the machine for a new session.",
         points: [
           "Sessions they start here run as you: your agent logins, your git credentials, your files.",
-          <>They see this machine&apos;s name, whether it is online, and the folders it has checked out.</>,
+          <>
+            They see this machine&apos;s name, whether it is online, and the
+            folders it has checked out.
+          </>,
           "Stop sharing whenever you like. New launches and their terminal access stop at once.",
         ],
         confirmLabel: (t) => `Share with ${t.name}`,
@@ -83,15 +110,13 @@ export function DeviceShareControl({ d, teamId }: { d: Device; teamId?: string }
           {openTo.length ? null : <Lock className="h-3 w-3" />}
           Team access
         </span>
-        <div className="flex flex-wrap gap-1.5">
-          {pills}
-        </div>
+        <div className="flex flex-wrap gap-1.5">{pills}</div>
       </div>
       <p className="mt-1.5 text-meta leading-snug text-sol-text-dim">
         {openTo.length ? (
           <>
-            {listTeamNames(openTo)} can start sessions here. They run as you, with this machine&apos;s logins and
-            checkouts.
+            {listTeamNames(openTo)} can start sessions here. They run as you,
+            with this machine&apos;s logins and checkouts.
           </>
         ) : (
           <>Private. Only you can run sessions here.</>

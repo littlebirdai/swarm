@@ -8,7 +8,14 @@
 // when nobody can send (the funnel hides its asks while thinking is down).
 import { v } from "convex/values";
 import type { ProviderFault } from "@platform/agent";
-import { internalAction, internalMutation, internalQuery, query, type MutationCtx, type QueryCtx } from "../functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "../functions";
 import { internal } from "../_generated/api";
 import { postMessages } from "../lib/anthropic";
 import { openaiFetch } from "../lib/openai";
@@ -29,15 +36,26 @@ export const incidentDeps: {
 async function pingProvider(provider: string, model: string): Promise<boolean> {
   try {
     if (provider === "anthropic") {
-      const response = await postMessages({ model, max_tokens: 1, prompt: "ping" }, { gate: NO_TEAM_CONTENT_GATE });
+      const response = await postMessages(
+        { model, max_tokens: 1, prompt: "ping" },
+        { gate: NO_TEAM_CONTENT_GATE },
+      );
       return !!response?.ok;
     }
     if (provider === "openai") {
-      const response = await openaiFetch(NO_TEAM_CONTENT_GATE, "/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: model.slice(model.indexOf("/") + 1), max_completion_tokens: 16, messages: [{ role: "user", content: "ping" }] }),
-      });
+      const response = await openaiFetch(
+        NO_TEAM_CONTENT_GATE,
+        "/v1/chat/completions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: model.slice(model.indexOf("/") + 1),
+            max_completion_tokens: 16,
+            messages: [{ role: "user", content: "ping" }],
+          }),
+        },
+      );
       return !!response?.ok;
     }
   } catch {
@@ -62,10 +80,17 @@ export async function noteProviderFault(
   const now = Date.now();
   const open = await ctx.db
     .query("assistant_incidents")
-    .withIndex("by_provider_closed", (q) => q.eq("provider", provider).eq("closed_at", undefined))
+    .withIndex("by_provider_closed", (q) =>
+      q.eq("provider", provider).eq("closed_at", undefined),
+    )
     .first();
   if (open) {
-    await ctx.db.patch(open._id, { last_at: now, count: open.count + 1, fault: failure.fault, error: failure.error.slice(0, 1_000) });
+    await ctx.db.patch(open._id, {
+      last_at: now,
+      count: open.count + 1,
+      fault: failure.fault,
+      error: failure.error.slice(0, 1_000),
+    });
     return;
   }
   await ctx.db.insert("assistant_incidents", {
@@ -77,7 +102,11 @@ export async function noteProviderFault(
     last_at: now,
     count: 1,
   });
-  await ctx.scheduler.runAfter(incidentDeps.probeDelaysMs[0] ?? 120_000, internal.assistant.incidents.probe, { provider, model: failure.model, attempt: 0 });
+  await ctx.scheduler.runAfter(
+    incidentDeps.probeDelaysMs[0] ?? 120_000,
+    internal.assistant.incidents.probe,
+    { provider, model: failure.model, attempt: 0 },
+  );
   await ctx.scheduler.runAfter(0, internal.assistant.incidents.alertOperator, {
     provider,
     fault: failure.fault,
@@ -87,10 +116,15 @@ export async function noteProviderFault(
 }
 
 /** Closes the provider's open incident: a turn on it was just served. */
-export async function closeProviderIncident(ctx: MutationCtx, model: string): Promise<void> {
+export async function closeProviderIncident(
+  ctx: MutationCtx,
+  model: string,
+): Promise<void> {
   const open = await ctx.db
     .query("assistant_incidents")
-    .withIndex("by_provider_closed", (q) => q.eq("provider", providerOf(model)).eq("closed_at", undefined))
+    .withIndex("by_provider_closed", (q) =>
+      q.eq("provider", providerOf(model)).eq("closed_at", undefined),
+    )
     .first();
   if (open) await ctx.db.patch(open._id, { closed_at: Date.now() });
 }
@@ -101,7 +135,9 @@ export const openIncident = internalQuery({
   handler: async (ctx, { provider }) =>
     await ctx.db
       .query("assistant_incidents")
-      .withIndex("by_provider_closed", (q) => q.eq("provider", provider).eq("closed_at", undefined))
+      .withIndex("by_provider_closed", (q) =>
+        q.eq("provider", provider).eq("closed_at", undefined),
+      )
       .first(),
 });
 
@@ -118,15 +154,24 @@ export const closeFromProbe = internalMutation({
 export const probe = internalAction({
   args: { provider: v.string(), model: v.string(), attempt: v.number() },
   handler: async (ctx, { provider, model, attempt }): Promise<null> => {
-    const open = await ctx.runQuery(internal.assistant.incidents.openIncident, { provider });
+    const open = await ctx.runQuery(internal.assistant.incidents.openIncident, {
+      provider,
+    });
     if (!open) return null;
     if (await incidentDeps.ping(provider, open.model)) {
-      await ctx.runMutation(internal.assistant.incidents.closeFromProbe, { model: open.model });
+      await ctx.runMutation(internal.assistant.incidents.closeFromProbe, {
+        model: open.model,
+      });
       return null;
     }
     const delays = incidentDeps.probeDelaysMs;
-    const next = delays[Math.min(attempt + 1, delays.length - 1)] ?? 15 * 60_000;
-    await ctx.scheduler.runAfter(next, internal.assistant.incidents.probe, { provider, model, attempt: attempt + 1 });
+    const next =
+      delays[Math.min(attempt + 1, delays.length - 1)] ?? 15 * 60_000;
+    await ctx.scheduler.runAfter(next, internal.assistant.incidents.probe, {
+      provider,
+      model,
+      attempt: attempt + 1,
+    });
     return null;
   },
 });
@@ -136,7 +181,9 @@ export const probe = internalAction({
 async function providerDown(ctx: QueryCtx, provider: string): Promise<boolean> {
   const open = await ctx.db
     .query("assistant_incidents")
-    .withIndex("by_provider_closed", (q) => q.eq("provider", provider).eq("closed_at", undefined))
+    .withIndex("by_provider_closed", (q) =>
+      q.eq("provider", provider).eq("closed_at", undefined),
+    )
     .first();
   return !!open;
 }
@@ -155,13 +202,18 @@ export const thinkingAvailable = query({
 });
 
 /** A Sentry DSN's envelope endpoint and key, or null for anything else. */
-export function sentryTarget(dsn: string | undefined): { url: string; key: string } | null {
+export function sentryTarget(
+  dsn: string | undefined,
+): { url: string; key: string } | null {
   if (!dsn) return null;
   try {
     const parsed = new URL(dsn);
     const project = parsed.pathname.replace(/^\/+|\/+$/g, "");
     if (!parsed.username || !project) return null;
-    return { url: `${parsed.protocol}//${parsed.host}/api/${project}/envelope/`, key: parsed.username };
+    return {
+      url: `${parsed.protocol}//${parsed.host}/api/${project}/envelope/`,
+      key: parsed.username,
+    };
   } catch {
     return null;
   }
@@ -177,7 +229,9 @@ export async function reportToOperator(alert: {
   extra?: Record<string, unknown>;
   fingerprint: string[];
 }): Promise<void> {
-  console.error(`[${alert.logger}] ${alert.message}${alert.detail ? `: ${alert.detail}` : ""}`);
+  console.error(
+    `[${alert.logger}] ${alert.message}${alert.detail ? `: ${alert.detail}` : ""}`,
+  );
   const target = sentryTarget(process.env.SENTRY_DSN);
   if (!target) return;
   const eventId = crypto.randomUUID().replace(/-/g, "");
@@ -192,7 +246,11 @@ export async function reportToOperator(alert: {
     extra: alert.extra ?? {},
     fingerprint: alert.fingerprint,
   };
-  const body = [JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() }), JSON.stringify({ type: "event" }), JSON.stringify(event)].join("\n");
+  const body = [
+    JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() }),
+    JSON.stringify({ type: "event" }),
+    JSON.stringify(event),
+  ].join("\n");
   try {
     const response = await fetch(target.url, {
       method: "POST",
@@ -202,7 +260,8 @@ export async function reportToOperator(alert: {
       },
       body,
     });
-    if (!response.ok) console.error(`[${alert.logger}] Sentry answered ${response.status}`);
+    if (!response.ok)
+      console.error(`[${alert.logger}] Sentry answered ${response.status}`);
   } catch (error) {
     console.error(`[${alert.logger}] Sentry unreachable`, error);
   }
@@ -210,13 +269,23 @@ export async function reportToOperator(alert: {
 
 /** Tells the operator a provider stopped serving the assistant. */
 export const alertOperator = internalAction({
-  args: { provider: v.string(), fault: v.string(), model: v.string(), error: v.string() },
+  args: {
+    provider: v.string(),
+    fault: v.string(),
+    model: v.string(),
+    error: v.string(),
+  },
   handler: async (_ctx, args): Promise<null> => {
     await reportToOperator({
       message: `Hosted assistant: ${args.provider} cannot serve turns (${args.fault}) on ${args.model}`,
       detail: args.error,
       logger: "assistant.incidents",
-      tags: { surface: "hosted-assistant", provider: args.provider, fault: args.fault, model: args.model },
+      tags: {
+        surface: "hosted-assistant",
+        provider: args.provider,
+        fault: args.fault,
+        model: args.model,
+      },
       extra: { error: args.error },
       fingerprint: ["hosted-assistant-provider", args.provider, args.fault],
     });
@@ -227,7 +296,12 @@ export const alertOperator = internalAction({
 /** Tells the operator the Free plan reached its daily ceiling
  *  (assistant/freeGate.ts): new Free turns pause until the next UTC day. */
 export const alertFreeCeiling = internalAction({
-  args: { day: v.string(), spent_usd: v.number(), ceiling_usd: v.number(), turns: v.number() },
+  args: {
+    day: v.string(),
+    spent_usd: v.number(),
+    ceiling_usd: v.number(),
+    turns: v.number(),
+  },
   handler: async (_ctx, args): Promise<null> => {
     await reportToOperator({
       message: `Hosted assistant: Free turns spent $${args.spent_usd.toFixed(2)} on ${args.day} (ceiling $${args.ceiling_usd}); new Free turns are paused until tomorrow UTC`,

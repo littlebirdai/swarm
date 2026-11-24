@@ -84,7 +84,8 @@ export function isAssistantTask(task: {
   source_agent_type?: string | null;
 }): boolean {
   if (task.project_id || task.plan_id) return false;
-  if (task.created_from_conversation) return isHostedAgentType(task.source_agent_type);
+  if (task.created_from_conversation)
+    return isHostedAgentType(task.source_agent_type);
   return !task.conversation_ids?.length;
 }
 
@@ -94,7 +95,10 @@ export function isOnHumanBoard(task: {
   assignee?: string | null;
   ephemeral?: boolean | null;
 }): boolean {
-  return !task.ephemeral && (isHumanOrigin(task) || !!task.promoted || !!task.assignee);
+  return (
+    !task.ephemeral &&
+    (isHumanOrigin(task) || !!task.promoted || !!task.assignee)
+  );
 }
 
 /**
@@ -108,7 +112,8 @@ export function isActiveTask(t: {
   source?: string | null;
   promoted?: boolean | null;
 }): boolean {
-  if (t.triage_status === "suggested" || t.triage_status === "dismissed") return false;
+  if (t.triage_status === "suggested" || t.triage_status === "dismissed")
+    return false;
   if (t.source === "insight" && !t.promoted) return false;
   return true;
 }
@@ -240,9 +245,12 @@ export function buildTaskTree<T extends TaskTreeInput>(
  *
  * Subtracting the second from the first gives the count the view is hiding.
  */
-export function descendantCounts<T extends TaskTreeInput>(tasks: T[]): Map<string, number> {
+export function descendantCounts<T extends TaskTreeInput>(
+  tasks: T[],
+): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const row of buildTaskTree(tasks)) counts.set(String(row.task._id), row.descendantCount);
+  for (const row of buildTaskTree(tasks))
+    counts.set(String(row.task._id), row.descendantCount);
   return counts;
 }
 
@@ -252,11 +260,17 @@ export function hiddenDescendantCount(
   total: Map<string, number>,
   visible: Map<string, number>,
 ): number {
-  return Math.max(0, (total.get(String(taskId)) ?? 0) - (visible.get(String(taskId)) ?? 0));
+  return Math.max(
+    0,
+    (total.get(String(taskId)) ?? 0) - (visible.get(String(taskId)) ?? 0),
+  );
 }
 
 /** Direct children of one task, in the order given, deduped by _id. Detail views. */
-export function directChildren<T extends TaskTreeInput>(tasks: T[], parentId: string): T[] {
+export function directChildren<T extends TaskTreeInput>(
+  tasks: T[],
+  parentId: string,
+): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const t of tasks) {
@@ -300,7 +314,8 @@ export function subtaskProgressOf(children: ProgressInput[]): SubtaskProgress {
     if (!isActiveTask(c) || c.status === "dropped") continue;
     p.total += 1;
     if (c.status === "done") p.done += 1;
-    else if (c.status === "in_progress" || c.status === "in_review") p.inProgress += 1;
+    else if (c.status === "in_progress" || c.status === "in_review")
+      p.inProgress += 1;
   }
   return p;
 }
@@ -319,7 +334,9 @@ export type TaskFamilyIndex = {
  * View-scope passes (order, indent, on-screen counts) stay separate on
  * purpose — total minus visible is what tells a row how much it is hiding.
  */
-export function taskFamilyIndex<T extends ProgressInput>(tasks: T[]): TaskFamilyIndex {
+export function taskFamilyIndex<T extends ProgressInput>(
+  tasks: T[],
+): TaskFamilyIndex {
   const progress = new Map<string, SubtaskProgress>();
   const byParent = new Map<string, T[]>();
   // Dedupe by _id defensively: a row can transiently appear twice in the store
@@ -336,7 +353,8 @@ export function taskFamilyIndex<T extends ProgressInput>(tasks: T[]): TaskFamily
     if (bucket) bucket.push(t);
     else byParent.set(parentKey, [t]);
   }
-  for (const [parentId, children] of byParent) progress.set(parentId, subtaskProgressOf(children));
+  for (const [parentId, children] of byParent)
+    progress.set(parentId, subtaskProgressOf(children));
 
   const descendants = descendantCounts(tasks.filter(isCountableSubtask));
   return { descendants, progress };
@@ -368,7 +386,11 @@ export function taskDepth(id: string, parentOf: ParentLookup): number {
 }
 
 /** Would setting `childId`'s parent to `parentId` create a cycle? */
-export function wouldCreateTaskCycle(childId: string, parentId: string, parentOf: ParentLookup): boolean {
+export function wouldCreateTaskCycle(
+  childId: string,
+  parentId: string,
+  parentOf: ParentLookup,
+): boolean {
   const child = String(childId);
   let cur: string | null | undefined = String(parentId);
   const seen = new Set<string>();
@@ -396,7 +418,12 @@ export function isOnProjectBoard(t: {
   return isActiveTask(t) && isOnHumanBoard(t) && t.status !== "dropped";
 }
 
-export type ProjectProgress = { total: number; done: number; in_progress: number; open: number };
+export type ProjectProgress = {
+  total: number;
+  done: number;
+  in_progress: number;
+  open: number;
+};
 
 /**
  * Tasks done over tasks, for one or more projects, counting exactly the rows
@@ -407,16 +434,25 @@ export type ProjectProgress = { total: number; done: number; in_progress: number
  * a person is promised is the number the board shows when they click through.
  */
 export function projectTaskCounts(
-  tasks: Iterable<{ status?: string | null; project_id?: unknown; source?: string | null; promoted?: boolean | null; assignee?: string | null; triage_status?: string | null }>,
+  tasks: Iterable<{
+    status?: string | null;
+    project_id?: unknown;
+    source?: string | null;
+    promoted?: boolean | null;
+    assignee?: string | null;
+    triage_status?: string | null;
+  }>,
   projectIds: Iterable<unknown>,
 ): ProjectProgress {
   const ids = new Set(Array.from(projectIds, String));
   const out: ProjectProgress = { total: 0, done: 0, in_progress: 0, open: 0 };
   for (const t of tasks) {
-    if (!t.project_id || !ids.has(String(t.project_id)) || !isOnProjectBoard(t)) continue;
+    if (!t.project_id || !ids.has(String(t.project_id)) || !isOnProjectBoard(t))
+      continue;
     out.total++;
     if (t.status === "done") out.done++;
-    else if (t.status === "in_progress" || t.status === "in_review") out.in_progress++;
+    else if (t.status === "in_progress" || t.status === "in_review")
+      out.in_progress++;
     else out.open++;
   }
   return out;

@@ -7,9 +7,27 @@ import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import type { Root } from "react-dom/client";
 
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost:3200/vault", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "Element", "Node", "MutationObserver", "Event", "sessionStorage", "localStorage"]) {
-  Object.defineProperty(globalThis, key, { value: (dom.window as any)[key], configurable: true, writable: true });
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "http://localhost:3200/vault", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "MutationObserver",
+  "Event",
+  "sessionStorage",
+  "localStorage",
+]) {
+  Object.defineProperty(globalThis, key, {
+    value: (dom.window as any)[key],
+    configurable: true,
+    writable: true,
+  });
 }
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const { act } = await import("react");
@@ -20,18 +38,34 @@ const calls: string[] = [];
 const convex = await import("convex/react");
 mock.module("convex/react", () => ({
   ...convex,
-  useAction: (ref: any) => async () => (calls.push(getFunctionName(ref)), { payload: { value: "zz-real-value" } }),
+  useAction: (ref: any) => async () => (
+    calls.push(getFunctionName(ref)),
+    { payload: { value: "zz-real-value" } }
+  ),
   useMutation: (ref: any) => async () => (calls.push(getFunctionName(ref)), {}),
   useQueries: (queries: Record<string, { query: any }>) => {
-    for (const q of Object.values(queries)) calls.push(getFunctionName(q.query));
+    for (const q of Object.values(queries))
+      calls.push(getFunctionName(q.query));
     return Object.fromEntries(Object.keys(queries).map((k) => [k, undefined]));
   },
 }));
 const authState = await import("../../hooks/useServerAuthSettled");
-mock.module("../../hooks/useServerAuthSettled", () => ({ ...authState, useServerAuthSettled: () => true, useServerIdentityLost: () => false }));
+mock.module("../../hooks/useServerAuthSettled", () => ({
+  ...authState,
+  useServerAuthSettled: () => true,
+  useServerIdentityLost: () => false,
+}));
 
 const { useInboxStore } = await import("../../store/inboxStore");
-const { useSecretHistory, useSecrets, useSecretsLoaded, useSwapValue, useFillRequest, useVaultActions, useVaultScope } = await import("../../hooks/useSyncSecrets");
+const {
+  useSecretHistory,
+  useSecrets,
+  useSecretsLoaded,
+  useSwapValue,
+  useFillRequest,
+  useVaultActions,
+  useVaultScope,
+} = await import("../../hooks/useSyncSecrets");
 const { useReveal } = await import("../../hooks/useReveal");
 const { useCreate } = await import("../../hooks/useCreateSecret");
 const { useSampleVault } = await import("./sampleVault");
@@ -69,10 +103,21 @@ let root: Root;
 const mount = async (stamped: boolean) => {
   if (stamped) sessionStorage.setItem(AGENT_TAB_KEY, "1");
   root = createRoot(document.getElementById("root")!);
-  await act(async () => root.render(<VaultSource><Probe /></VaultSource>));
+  await act(async () =>
+    root.render(
+      <VaultSource>
+        <Probe />
+      </VaultSource>,
+    ),
+  );
 };
 const byName = (name: string) => hook.rows.find((r) => r.name === name)!;
-const storeSnapshot = () => JSON.stringify({ secrets: (useInboxStore.getState() as any).secrets, history: (useInboxStore.getState() as any).secretHistory, pending: useInboxStore.getState().pending });
+const storeSnapshot = () =>
+  JSON.stringify({
+    secrets: (useInboxStore.getState() as any).secrets,
+    history: (useInboxStore.getState() as any).secretHistory,
+    pending: useInboxStore.getState().pending,
+  });
 
 beforeEach(() => {
   calls.length = 0;
@@ -101,10 +146,16 @@ test("an agent's tab shows the sample: every kind, health and scope, answered at
   await mount(true);
   expect(hook.sample).toBe(true);
   expect(hook.loaded).toBe(true);
-  expect(new Set(hook.rows.map((r) => r.kind))).toEqual(new Set(["key", "login", "file", "signin"]));
+  expect(new Set(hook.rows.map((r) => r.kind))).toEqual(
+    new Set(["key", "login", "file", "signin"]),
+  );
   expect(hook.rows.some((r) => r.status === "requested")).toBe(true);
-  expect(hook.rows.some((r) => r.ask_first) && hook.rows.some((r) => !r.ask_first)).toBe(true);
-  expect(new Set(hook.rows.map((r) => r.workspace))).toEqual(new Set(["team:sample", "user:sample"]));
+  expect(
+    hook.rows.some((r) => r.ask_first) && hook.rows.some((r) => !r.ask_first),
+  ).toBe(true);
+  expect(new Set(hook.rows.map((r) => r.workspace))).toEqual(
+    new Set(["team:sample", "user:sample"]),
+  );
   expect(byName("github-bot").has_otp).toBe(true);
   expect(calls).toEqual([]);
 });
@@ -112,7 +163,13 @@ test("an agent's tab shows the sample: every kind, health and scope, answered at
 test("in an agent's tab reveal reads the sample and every write stays in the sample, with no server call and no store write", async () => {
   await mount(true);
   revealId = byName("stripe-test")._id;
-  await act(async () => root.render(<VaultSource><Probe /></VaultSource>));
+  await act(async () =>
+    root.render(
+      <VaultSource>
+        <Probe />
+      </VaultSource>,
+    ),
+  );
   const before = storeSnapshot();
 
   let value: any;
@@ -123,19 +180,37 @@ test("in an agent's tab reveal reads the sample and every write stays in the sam
   expect((hook.events as any[])[0]).toMatchObject({ kind: "revealed" });
 
   await act(async () => {
-    expect(await hook.create("personal", { name: "zz-new", kind: "key", payload: { value: "zz-sample-new-value" } })).toBeNull();
+    expect(
+      await hook.create("personal", {
+        name: "zz-new",
+        kind: "key",
+        payload: { value: "zz-sample-new-value" },
+      }),
+    ).toBeNull();
   });
-  expect(byName("zz-new")).toMatchObject({ workspace: "user:sample", status: "ready" });
+  expect(byName("zz-new")).toMatchObject({
+    workspace: "user:sample",
+    status: "ready",
+  });
 
   const key = byName("stripe-test");
   await act(async () => {
-    expect(await hook.swap(key, { kind: "rotated", payload: { value: "zz-sample-rotated-value" } })).toBeNull();
+    expect(
+      await hook.swap(key, {
+        kind: "rotated",
+        payload: { value: "zz-sample-rotated-value" },
+      }),
+    ).toBeNull();
   });
-  expect(byName("stripe-test").version_count).toBe((key.version_count ?? 0) + 1);
+  expect(byName("stripe-test").version_count).toBe(
+    (key.version_count ?? 0) + 1,
+  );
 
   const request = hook.rows.find((r) => r.status === "requested")!;
   await act(async () => {
-    expect(await hook.fill(request, { value: "zz-sample-filled-value" })).toEqual({ delivered: true });
+    expect(
+      await hook.fill(request, { value: "zz-sample-filled-value" }),
+    ).toEqual({ delivered: true });
   });
   expect(byName(request.name).status).toBe("ready");
 

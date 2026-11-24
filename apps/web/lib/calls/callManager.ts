@@ -1,7 +1,17 @@
 import { visibleInterval } from "../windowVisibleWork";
-import { isMediaDenial, mediaFailureReason, participantTiles, type ParticipantTile } from "./callMedia";
+import {
+  isMediaDenial,
+  mediaFailureReason,
+  participantTiles,
+  type ParticipantTile,
+} from "./callMedia";
 import { teamMembersOf } from "../activeTeam";
-export { mediaFailureReason, listDevices, grantDeviceNames, type ParticipantTile } from "./callMedia";
+export {
+  mediaFailureReason,
+  listDevices,
+  grantDeviceNames,
+  type ParticipantTile,
+} from "./callMedia";
 // The media plane's one owner. Exactly one LiveKit Room lives here (module
 // singleton, never in React state, never in the store); components render
 // from the store's ephemeral `call` slice and call these methods. Convex
@@ -28,15 +38,52 @@ import { toast } from "sonner";
 import { useInboxStore } from "../../store/inboxStore";
 import { mutateOnUnload } from "../keepaliveMutation";
 import { memberDisplayName } from "../liveEntities";
-import { RING_STUB, RING_STUB_MS, isRingStub, ringStubId, settleRingIn, unsettleRingIn, type RingStub } from "./ringStubs";
+import {
+  RING_STUB,
+  RING_STUB_MS,
+  isRingStub,
+  ringStubId,
+  settleRingIn,
+  unsettleRingIn,
+  type RingStub,
+} from "./ringStubs";
 import { getScribeStatus, startScribe, stopScribe } from "./transcription";
 import type { ScribeRoute } from "./scribeEngine";
-import { chosenDevice, readJoinPrefs, rememberCamera, rememberDevice, rememberMic } from "./joinPrefs";
-import { DEVICE_KINDS, knownDevices, onDevicesChanged, refreshDevices, trackOnDevice, type DeviceKind } from "./deviceRank";
+import {
+  chosenDevice,
+  readJoinPrefs,
+  rememberCamera,
+  rememberDevice,
+  rememberMic,
+} from "./joinPrefs";
+import {
+  DEVICE_KINDS,
+  knownDevices,
+  onDevicesChanged,
+  refreshDevices,
+  trackOnDevice,
+  type DeviceKind,
+} from "./deviceRank";
 import { switchRecorderMic } from "./recorder";
-import { huddleRoomOptions, micConstraints, SCREEN_SHARE_CAPTURE, SCREEN_SHARE_PUBLISH } from "./livekitMedia";
-import { bindPrewarmAudio, bindPrewarmConvex, releasePrewarm, takePrewarmedRoom, warmRoomPublishesMic } from "./roomPrewarm";
-import { CALL_HEARTBEAT_MS, humanizeConvexError, localTranscribeLanguages, seatAnswersRing } from "@codecast/shared/contracts";
+import {
+  huddleRoomOptions,
+  micConstraints,
+  SCREEN_SHARE_CAPTURE,
+  SCREEN_SHARE_PUBLISH,
+} from "./livekitMedia";
+import {
+  bindPrewarmAudio,
+  bindPrewarmConvex,
+  releasePrewarm,
+  takePrewarmedRoom,
+  warmRoomPublishesMic,
+} from "./roomPrewarm";
+import {
+  CALL_HEARTBEAT_MS,
+  humanizeConvexError,
+  localTranscribeLanguages,
+  seatAnswersRing,
+} from "@codecast/shared/contracts";
 import {
   hasCallPanel,
   isCallPanelWindow,
@@ -45,16 +92,20 @@ import {
   showCallPanel,
   voiceHostElsewhere,
 } from "../desktop";
-import { shouldRejoinAfterDisconnect, shouldYieldCallOnDisconnect } from "./callHandoff";
+import {
+  shouldRejoinAfterDisconnect,
+  shouldYieldCallOnDisconnect,
+} from "./callHandoff";
 import { track as trackEvent } from "../analytics";
 import { bindCallCursors } from "./callCursors";
 import { focusExistingHuddle, huddleInOtherWindow } from "./huddleWindow";
 import { readMeterLevel } from "./walkieMeter";
-import { peekOsPermissions, permissionHint, refreshOsPermissions } from "../osPermissions";
 import {
-  soundCallJoin,
-  soundCallLeave,
-} from "../sounds";
+  peekOsPermissions,
+  permissionHint,
+  refreshOsPermissions,
+} from "../osPermissions";
+import { soundCallJoin, soundCallLeave } from "../sounds";
 type ConvexHandle = {
   mutation: (fn: any, args: any) => Promise<any>;
   action: (fn: any, args: any) => Promise<any>;
@@ -116,7 +167,11 @@ export function bindWalkieUpgrade(fn: (roomKey: string) => boolean): void {
   walkieUpgrade = fn;
 }
 
-function setCall(patch: Parameters<ReturnType<typeof useInboxStore.getState>["setCallState"]>[0]) {
+function setCall(
+  patch: Parameters<
+    ReturnType<typeof useInboxStore.getState>["setCallState"]
+  >[0],
+) {
   useInboxStore.getState().setCallState(patch);
 }
 
@@ -191,7 +246,9 @@ function stopLevelMeter() {
 
 function startLevelMeter() {
   stopLevelMeter();
-  const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+  const pub = room?.localParticipant.getTrackPublication(
+    Track.Source.Microphone,
+  );
   const track = pub?.track;
   if (!track || track.kind !== Track.Kind.Audio) return;
   try {
@@ -225,19 +282,34 @@ function startLevelMeter() {
 // here for the life of the seat and re-sent with every re-take.
 let walkieJoinedSeat: string | null = null;
 
-async function controlJoin(roomKey: string, opts?: { walkieJoin?: boolean; private?: boolean; intent?: JoinOpts["intent"] }) {
+async function controlJoin(
+  roomKey: string,
+  opts?: {
+    walkieJoin?: boolean;
+    private?: boolean;
+    intent?: JoinOpts["intent"];
+  },
+) {
   if (!convex) throw new Error("calls not bound yet");
   if (opts?.walkieJoin) walkieJoinedSeat = roomKey;
   // Taking the seat answers any ring into this room (calls.answerRingsInto),
   // so the card, the toast and the sound stop now, not a round trip later.
-  if (seatAnswersRing(roomKey, { deliberate: opts?.intent === "deliberate", walkieJoin: opts?.walkieJoin })) stopRingsInto(roomKey);
+  if (
+    seatAnswersRing(roomKey, {
+      deliberate: opts?.intent === "deliberate",
+      walkieJoin: opts?.walkieJoin,
+    })
+  )
+    stopRingsInto(roomKey);
   await convex.mutation(api.calls.joinRoom, {
     room_key: roomKey,
     muted: useInboxStore.getState().call.muted,
     languages: localTranscribeLanguages(),
     // Only ever true, never false: the stamp says a conversation started here
     // and nothing takes that back but leaving.
-    ...(opts?.walkieJoin || walkieJoinedSeat === roomKey ? { walkie_join: true } : {}),
+    ...(opts?.walkieJoin || walkieJoinedSeat === roomKey
+      ? { walkie_join: true }
+      : {}),
     ...(opts?.private ? { private: true } : {}),
     ...(opts?.intent === "deliberate" ? { deliberate: true } : {}),
   });
@@ -271,14 +343,23 @@ export async function heartbeatOnce(roomKey: string): Promise<void> {
   const cur = useInboxStore.getState().call;
   // hungUp: the person pressed End on another device. Leave with them.
   if (res?.hungUp && cur.roomKey === roomKey) return leaveCall(roomKey);
-  if (res?.ok === false && cur.roomKey === roomKey && cur.phase === "connected") {
-    await controlJoin(roomKey).catch(() => void leaveCall(undefined, { hangup: false }));
+  if (
+    res?.ok === false &&
+    cur.roomKey === roomKey &&
+    cur.phase === "connected"
+  ) {
+    await controlJoin(roomKey).catch(
+      () => void leaveCall(undefined, { hangup: false }),
+    );
   }
 }
 
 function startHeartbeat(roomKey: string) {
   stopHeartbeat();
-  heartbeatTimer = setInterval(() => void heartbeatOnce(roomKey), CALL_HEARTBEAT_MS);
+  heartbeatTimer = setInterval(
+    () => void heartbeatOnce(roomKey),
+    CALL_HEARTBEAT_MS,
+  );
 }
 
 function stopHeartbeat() {
@@ -450,7 +531,12 @@ export async function openMicForJoin(
     setCall({
       muted: true,
       micDenied: true,
-      ...(listen ? {} : { error: await mediaFailureReason("microphone", err), errorFix: "microphone" as const }),
+      ...(listen
+        ? {}
+        : {
+            error: await mediaFailureReason("microphone", err),
+            errorFix: "microphone" as const,
+          }),
     });
   }
 }
@@ -465,7 +551,10 @@ export async function openMicForJoin(
  * it, then the seat is stamped, then the camera, which publishes a track and
  * therefore has to come last.
  */
-async function applyDeliberateJoin(roomKey: string, opts: JoinOpts): Promise<void> {
+async function applyDeliberateJoin(
+  roomKey: string,
+  opts: JoinOpts,
+): Promise<void> {
   // The prefs are APPLIED here, not chosen, so they are not re-remembered.
   await setMuted(!readJoinPrefs().micOn, { remember: false });
   await controlJoin(roomKey, opts).catch(() => {});
@@ -473,7 +562,10 @@ async function applyDeliberateJoin(roomKey: string, opts: JoinOpts): Promise<voi
     await setCamera(true);
   }
 }
-export async function joinCall(roomKey: string, opts?: JoinOpts): Promise<void> {
+export async function joinCall(
+  roomKey: string,
+  opts?: JoinOpts,
+): Promise<void> {
   // ONE MICROPHONE. On a desktop with a voice host, no other window ever
   // joins a room: the join is sent there, where the walkie's ear already sits
   // and where the call will live whatever shape it takes. That is what makes
@@ -490,18 +582,30 @@ export async function joinCall(roomKey: string, opts?: JoinOpts): Promise<void> 
 /** Send a join to the voice host. A room this window warmed cannot cross to
  *  the host, and left connected it holds our identity in the very room the
  *  host is about to join, so it is let go first. */
-function seatViaHost(command: "joinCall" | "startHuddle" | "acceptInvite", args: unknown[]): Promise<boolean> {
+function seatViaHost(
+  command: "joinCall" | "startHuddle" | "acceptInvite",
+  args: unknown[],
+): Promise<boolean> {
   releasePrewarm();
   return sendVoiceCommand(command, args);
 }
 
 async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
-  if (opts?.intent === "deliberate" && huddleInOtherWindow() && await focusExistingHuddle()) return;
+  if (
+    opts?.intent === "deliberate" &&
+    huddleInOtherWindow() &&
+    (await focusExistingHuddle())
+  )
+    return;
   if (!convex) return;
   // A person stepping into a room the walkie holds IS the upgrade, whichever
   // button they pressed to do it (bindWalkieUpgrade). Decided before either
   // path below, so the engine's clock is stopped before any await.
-  if (opts?.intent === "deliberate" && !opts.walkieJoin && walkieUpgrade?.(roomKey)) {
+  if (
+    opts?.intent === "deliberate" &&
+    !opts.walkieJoin &&
+    walkieUpgrade?.(roomKey)
+  ) {
     opts = { ...opts, walkieJoin: true };
   }
   const prior = useInboxStore.getState().call;
@@ -551,7 +655,8 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
   setCall({
     ...(rejoin ? {} : { phase: "connecting" as const }),
     roomKey,
-    error: null, errorFix: null,
+    error: null,
+    errorFix: null,
     micDenied: false,
     speaking: [],
     camera: false,
@@ -629,14 +734,20 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
       if (!joinChimePending.delete(p.identity)) soundCallLeave();
       rebuildTiles();
     });
-    r.on(RoomEvent.TrackSubscribed, (track, _pub, participant: RemoteParticipant) => {
-      attachAudio(track, participant.identity);
-      rebuildTiles();
-    });
-    r.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant: RemoteParticipant) => {
-      detachAudio(track, participant.identity);
-      rebuildTiles();
-    });
+    r.on(
+      RoomEvent.TrackSubscribed,
+      (track, _pub, participant: RemoteParticipant) => {
+        attachAudio(track, participant.identity);
+        rebuildTiles();
+      },
+    );
+    r.on(
+      RoomEvent.TrackUnsubscribed,
+      (track, _pub, participant: RemoteParticipant) => {
+        detachAudio(track, participant.identity);
+        rebuildTiles();
+      },
+    );
     // A remote UNPUBLISH (peer stopped sharing / turned camera off) is a
     // different event from unsubscribe and must also clear the tile — without
     // this a stopped share leaves a dead hero on the stage.
@@ -698,7 +809,10 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
       // again with the seat held. Only a removal or our own disconnect ends it
       // here, and those are not a hang-up either: nobody pressed End.
       const rejoin = shouldRejoinAfterDisconnect(reason);
-      trackEvent("call_media_lost", { reason: disconnectReasonName(reason), rejoin });
+      trackEvent("call_media_lost", {
+        reason: disconnectReasonName(reason),
+        rejoin,
+      });
       if (rejoin) void rejoinDroppedCall(roomKey);
       else void leaveCall(undefined, { hangup: false });
     });
@@ -713,9 +827,14 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
     r.on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
       const call = useInboxStore.getState().call;
       if (room !== self || call.roomKey !== roomKey) return;
-      const repairing = state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting;
+      const repairing =
+        state === ConnectionState.Reconnecting ||
+        state === ConnectionState.SignalReconnecting;
       if (repairing && !call.reconnecting) setCall({ reconnecting: true });
-      if (state === ConnectionState.Connected && (call.phase !== "connected" || call.reconnecting)) {
+      if (
+        state === ConnectionState.Connected &&
+        (call.phase !== "connected" || call.reconnecting)
+      ) {
         setCall({ phase: "connected", reconnecting: false });
       }
     });
@@ -741,7 +860,8 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
       // ordinary path only escaped it by 25ms.
       for (const p of r.remoteParticipants.values()) {
         for (const pub of p.trackPublications.values()) {
-          if (pub.isSubscribed && pub.track) attachAudio(pub.track as RemoteTrack, p.identity);
+          if (pub.isSubscribed && pub.track)
+            attachAudio(pub.track as RemoteTrack, p.identity);
         }
       }
     }
@@ -766,7 +886,9 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
       }
       await openMicForJoin(r.localParticipant, { intent: opts?.intent });
     } else if (given && given.readyState === "live") {
-      await r.localParticipant.publishTrack(given, { source: Track.Source.Microphone });
+      await r.localParticipant.publishTrack(given, {
+        source: Track.Source.Microphone,
+      });
       if (superseded(r)) return;
       // The publication now answers to setMicrophoneEnabled like any other, so
       // the mute the user chose applies to it unchanged.
@@ -803,13 +925,14 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
     }
     teardownMedia();
     if (rejoin) throw err;
-    const message =
-      isMediaDenial(err)
-        ? "Microphone permission denied"
-        : humanizeConvexError(err, "Could not join the huddle");
+    const message = isMediaDenial(err)
+      ? "Microphone permission denied"
+      : humanizeConvexError(err, "Could not join the huddle");
     setCall({ phase: "error", error: message });
     // Free the control-plane row so occupancy doesn't show a ghost.
-    convex?.mutation(api.calls.leaveRoom, { room_key: roomKey }).catch(() => {});
+    convex
+      ?.mutation(api.calls.leaveRoom, { room_key: roomKey })
+      .catch(() => {});
   }
 }
 
@@ -823,10 +946,13 @@ async function joinCallHere(roomKey: string, opts?: JoinOpts): Promise<void> {
 // sees a face that went quiet rather than one that left. The attempts stop when
 // the call is over by other means (End, a handoff, another room) or the window
 // runs out, and only then does the seat go.
-const REJOIN_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 15_000, 15_000, 15_000, 15_000, 15_000];
+const REJOIN_DELAYS_MS = [
+  0, 1_000, 2_000, 4_000, 8_000, 15_000, 15_000, 15_000, 15_000, 15_000,
+];
 
 function disconnectReasonName(reason: unknown): string {
-  if (typeof reason === "number") return DisconnectReason[reason] ?? String(reason);
+  if (typeof reason === "number")
+    return DisconnectReason[reason] ?? String(reason);
   return reason == null ? "NONE" : String(reason).slice(0, 32);
 }
 
@@ -843,7 +969,11 @@ async function rejoinDroppedCall(roomKey: string): Promise<void> {
   // Still ours: the room is this one, the call is not over, no newer run took over.
   const stillOurs = () => {
     const call = useInboxStore.getState().call;
-    return run === rejoinRun && call.roomKey === roomKey && call.phase === "connected";
+    return (
+      run === rejoinRun &&
+      call.roomKey === roomKey &&
+      call.phase === "connected"
+    );
   };
   let attempts = 0;
   for (const delay of REJOIN_DELAYS_MS) {
@@ -919,7 +1049,8 @@ async function yieldRoomToOtherWindow(): Promise<void> {
     speaking: [],
     camera: false,
     sharing: false,
-    error: null, errorFix: null,
+    error: null,
+    errorFix: null,
     muted: true,
     reconnecting: false,
   });
@@ -932,7 +1063,10 @@ async function yieldRoomToOtherWindow(): Promise<void> {
  *  the call fell away under them: the server stops a recording the moment
  *  the last teammate hangs up, and gives a fall-away the time to come back
  *  (calls.leaveRoom). */
-export async function leaveCall(roomKey?: string, opts?: { hangup?: boolean }): Promise<void> {
+export async function leaveCall(
+  roomKey?: string,
+  opts?: { hangup?: boolean },
+): Promise<void> {
   const hangup = opts?.hangup !== false;
   if (voiceHostElsewhere() && !currentRoomKey) {
     // The host hangs up; this window lets go of the row at the press too.
@@ -950,7 +1084,8 @@ function noteLeft(roomKey: string | null | undefined): void {
 }
 
 async function leaveCallHere(shown?: string, hangup = true): Promise<void> {
-  const roomKey = currentRoomKey ?? useInboxStore.getState().call.roomKey ?? shown ?? null;
+  const roomKey =
+    currentRoomKey ?? useInboxStore.getState().call.roomKey ?? shown ?? null;
   noteLeft(roomKey);
   callGen++;
   deliberateRoomKey = null;
@@ -969,7 +1104,12 @@ async function leaveCallHere(shown?: string, hangup = true): Promise<void> {
   // tab that never got to say goodbye.
   const left =
     convex && roomKey
-      ? convex.mutation(api.calls.leaveRoom, { room_key: roomKey, ...(hangup ? { hangup: true } : {}) }).catch(() => {})
+      ? convex
+          .mutation(api.calls.leaveRoom, {
+            room_key: roomKey,
+            ...(hangup ? { hangup: true } : {}),
+          })
+          .catch(() => {})
       : null;
   // Idle first, then the scribe flush and media teardown: waiting on the flush left the row live for seconds after End.
   setCall({
@@ -978,7 +1118,8 @@ async function leaveCallHere(shown?: string, hangup = true): Promise<void> {
     speaking: [],
     camera: false,
     sharing: false,
-    error: null, errorFix: null,
+    error: null,
+    errorFix: null,
     muted: true,
     micDenied: false,
     reconnecting: false,
@@ -1019,7 +1160,12 @@ export async function takeOverCall(opts: {
   // words carry straight across the window boundary and the record has no seam
   // where a window happened to change.
   if (opts.scribe && convex && room) {
-    await startScribe({ convex, room, roomKey: opts.roomKey, routes: [] }).catch(() => {});
+    await startScribe({
+      convex,
+      room,
+      roomKey: opts.roomKey,
+      routes: [],
+    }).catch(() => {});
   }
 }
 
@@ -1030,12 +1176,23 @@ export async function takeOverCall(opts: {
  * Mute or Unmute, and the NEXT deliberate join starts the way this one ended,
  * exactly as `setCamera` does for the camera.
  */
-export async function setMuted(muted: boolean, opts?: { remember?: boolean }): Promise<void> {
-  if (voiceHostElsewhere() && !room && (await sendVoiceCommand("setMuted", [muted, opts ?? {}]))) return;
+export async function setMuted(
+  muted: boolean,
+  opts?: { remember?: boolean },
+): Promise<void> {
+  if (
+    voiceHostElsewhere() &&
+    !room &&
+    (await sendVoiceCommand("setMuted", [muted, opts ?? {}]))
+  )
+    return;
   return setMutedHere(muted, opts);
 }
 
-async function setMutedHere(muted: boolean, opts?: { remember?: boolean }): Promise<void> {
+async function setMutedHere(
+  muted: boolean,
+  opts?: { remember?: boolean },
+): Promise<void> {
   setCall({ muted });
   if (opts?.remember !== false) rememberMic(!muted);
   if (room) {
@@ -1047,7 +1204,12 @@ async function setMutedHere(muted: boolean, opts?: { remember?: boolean }): Prom
       // room it is already sitting in (applyDeliberateJoin), so a person who
       // steps into a burst with the microphone refused still gets the call —
       // subscribe-only, and told so.
-      setCall({ muted: true, micDenied: true, error: await mediaFailureReason("microphone", err), errorFix: "microphone" });
+      setCall({
+        muted: true,
+        micDenied: true,
+        error: await mediaFailureReason("microphone", err),
+        errorFix: "microphone",
+      });
       return;
     }
     // Only UNMUTING can clear it. Muting a seat that has no microphone
@@ -1069,12 +1231,23 @@ async function setMutedHere(muted: boolean, opts?: { remember?: boolean }): Prom
  * your next huddle should start. Everything else about the publication is
  * identical, so there is one path that opens a camera and not two.
  */
-export async function setCamera(on: boolean, opts?: { remember?: boolean }): Promise<void> {
-  if (voiceHostElsewhere() && !room && (await sendVoiceCommand("setCamera", [on, opts ?? {}]))) return;
+export async function setCamera(
+  on: boolean,
+  opts?: { remember?: boolean },
+): Promise<void> {
+  if (
+    voiceHostElsewhere() &&
+    !room &&
+    (await sendVoiceCommand("setCamera", [on, opts ?? {}]))
+  )
+    return;
   return setCameraHere(on, opts);
 }
 
-async function setCameraHere(on: boolean, opts?: { remember?: boolean }): Promise<void> {
+async function setCameraHere(
+  on: boolean,
+  opts?: { remember?: boolean },
+): Promise<void> {
   setCall({ camera: on });
   // The next deliberate join starts the way this call ends. Written on the
   // INTENT rather than on the outcome below, because a camera that failed to
@@ -1091,9 +1264,17 @@ async function setCameraHere(on: boolean, opts?: { remember?: boolean }): Promis
       // sit lit over a black tile.
       const live = on ? !!pub?.track && !pub.isMuted : false;
       setCall({ camera: live });
-      if (on && !live) setCall({ error: await mediaFailureReason("camera"), errorFix: "camera" });
+      if (on && !live)
+        setCall({
+          error: await mediaFailureReason("camera"),
+          errorFix: "camera",
+        });
     } catch (err: any) {
-      setCall({ camera: false, error: await mediaFailureReason("camera", err), errorFix: "camera" });
+      setCall({
+        camera: false,
+        error: await mediaFailureReason("camera", err),
+        errorFix: "camera",
+      });
       return;
     }
     rebuildTiles();
@@ -1104,7 +1285,10 @@ async function setCameraHere(on: boolean, opts?: { remember?: boolean }): Promis
 // `sourceId` is a desktop-only pre-selection from the web-owned picker
 // (window.__CODECAST_ELECTRON__.getDisplaySources); the shell honors it for
 // the very next getDisplayMedia. Browsers ignore it and show their own picker.
-export async function setScreenShare(on: boolean, sourceId?: string): Promise<void> {
+export async function setScreenShare(
+  on: boolean,
+  sourceId?: string,
+): Promise<void> {
   // On the desktop a denied Screen Recording permission makes the capture
   // resolve to a black frame rather than fail, so it is checked up front:
   // the notice names the fix instead of publishing nothing.
@@ -1112,7 +1296,11 @@ export async function setScreenShare(on: boolean, sourceId?: string): Promise<vo
     await refreshOsPermissions().catch(() => {});
     const screen = peekOsPermissions().screen;
     if (screen === "off") {
-      setCall({ sharing: false, error: permissionHint("screen", screen), errorFix: "screen" });
+      setCall({
+        sharing: false,
+        error: permissionHint("screen", screen),
+        errorFix: "screen",
+      });
       return;
     }
   }
@@ -1137,7 +1325,10 @@ export async function setScreenShare(on: boolean, sourceId?: string): Promise<vo
       // never an error banner. Electron surfaces its own denial as
       // NotAllowedError when the display-media handler yields no source.
       setCall({ sharing: false });
-      if (err?.name === "NotAllowedError" && !/cancel|abort/i.test(String(err?.message))) {
+      if (
+        err?.name === "NotAllowedError" &&
+        !/cancel|abort/i.test(String(err?.message))
+      ) {
         setCall({ error: "Screen sharing not permitted", errorFix: "screen" });
       }
       return;
@@ -1182,7 +1373,10 @@ export function getAudioElementCount(): number {
 
 /** The attach path itself, for the test that proves it is idempotent — a track
  *  reaching it twice must not play the voice twice. */
-export function __attachAudioForTest(track: RemoteTrack, participantId: string): void {
+export function __attachAudioForTest(
+  track: RemoteTrack,
+  participantId: string,
+): void {
   attachAudio(track, participantId);
 }
 
@@ -1214,18 +1408,31 @@ export async function switchDevice(
  * which calls this again on the unmute: restarting it now would open a fresh
  * capture that livekit does not know to keep silent.
  */
-async function applyDevice(r: Room, kind: DeviceKind, want: string): Promise<void> {
+async function applyDevice(
+  r: Room,
+  kind: DeviceKind,
+  want: string,
+): Promise<void> {
   if (kind !== "audioinput") {
-    if ((r.getActiveDevice(kind) ?? "default") !== want) await r.switchActiveDevice(kind, want);
+    if ((r.getActiveDevice(kind) ?? "default") !== want)
+      await r.switchActiveDevice(kind, want);
     return;
   }
-  const mic = () => r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
+  const mic = () =>
+    r.localParticipant.getTrackPublication(Track.Source.Microphone)?.audioTrack;
   const track = mic();
   if (track && trackOnDevice(track.mediaStreamTrack, kind, want)) return;
   await r.switchActiveDevice(kind, want);
   const after = mic();
-  if (after && !after.isMuted && !trackOnDevice(after.mediaStreamTrack, kind, want)) {
-    await after.restartTrack({ ...micConstraints(), deviceId: { exact: want } });
+  if (
+    after &&
+    !after.isMuted &&
+    !trackOnDevice(after.mediaStreamTrack, kind, want)
+  ) {
+    await after.restartTrack({
+      ...micConstraints(),
+      deviceId: { exact: want },
+    });
   }
 }
 
@@ -1268,28 +1475,43 @@ export type StartHuddleOpts = {
 };
 
 export async function startHuddle(opts: StartHuddleOpts): Promise<void> {
-  if (voiceHostElsewhere() && (await seatViaHost("startHuddle", [opts]))) return;
+  if (voiceHostElsewhere() && (await seatViaHost("startHuddle", [opts])))
+    return;
   return startHuddleHere(opts);
 }
 
 async function startHuddleHere(opts: StartHuddleOpts): Promise<void> {
-  if (huddleInOtherWindow() && await focusExistingHuddle()) return;
+  if (huddleInOtherWindow() && (await focusExistingHuddle())) return;
   if (!convex) return;
-  setCall({ phase: "ringing_out" as const, roomKey: opts.roomKey, error: null, errorFix: null, muted: !readJoinPrefs().micOn });
+  setCall({
+    phase: "ringing_out" as const,
+    roomKey: opts.roomKey,
+    error: null,
+    errorFix: null,
+    muted: !readJoinPrefs().micOn,
+  });
   // The ring is on the row from the press: the join takes a second, and the
   // invite goes out only after it, so the stub rings stand from here until
   // ringInto settles them (or the join fails and they are taken back).
   ringStubs(opts.roomKey, opts.toUserIds, true);
   try {
-    await joinCall(opts.roomKey, { intent: "deliberate", private: opts.private });
+    await joinCall(opts.roomKey, {
+      intent: "deliberate",
+      private: opts.private,
+    });
     if (useInboxStore.getState().call.phase !== "connected") {
       ringStubs(opts.roomKey, opts.toUserIds, false);
       return;
     }
-    await ringInto(opts.roomKey, opts.toUserIds, opts.anchorTitle, { ringChannel: opts.ringChannel });
+    await ringInto(opts.roomKey, opts.toUserIds, opts.anchorTitle, {
+      ringChannel: opts.ringChannel,
+    });
   } catch (err: any) {
     ringStubs(opts.roomKey, opts.toUserIds, false);
-    setCall({ phase: "error", error: humanizeConvexError(err, "Could not start the huddle") });
+    setCall({
+      phase: "error",
+      error: humanizeConvexError(err, "Could not start the huddle"),
+    });
   }
 }
 
@@ -1330,13 +1552,23 @@ export async function ringInto(
       ring_channel: opts?.ringChannel,
     });
     const results: RingOutcome[] = res?.results ?? [];
-    const rung = new Set(results.filter((r) => !(r.in_room || r.cooldown || r.refused)).map((r) => String(r.to_user)));
-    ringStubs(roomKey, toUserIds.filter((id) => !rung.has(id)), false);
+    const rung = new Set(
+      results
+        .filter((r) => !(r.in_room || r.cooldown || r.refused))
+        .map((r) => String(r.to_user)),
+    );
+    ringStubs(
+      roomKey,
+      toUserIds.filter((id) => !rung.has(id)),
+      false,
+    );
     reportRingOutcomes(results);
     return results;
   } catch (err: any) {
     ringStubs(roomKey, toUserIds, false);
-    toast.error(humanizeConvexError(err, opts?.failMessage ?? "Could not ring them"));
+    toast.error(
+      humanizeConvexError(err, opts?.failMessage ?? "Could not ring them"),
+    );
     return [];
   }
 }
@@ -1358,23 +1590,36 @@ function ringStubs(roomKey: string, toUserIds: string[], on: boolean): void {
   if (on) {
     const members = teamMembersOf(st);
     const listed = (id: string) =>
-      outgoing.some((r) => !isRingStub(r) && String(r.to_user) === id && r.room_key === roomKey && (r.status ?? "ringing") === "ringing");
-    const stubs: RingStub[] = toUserIds.filter((id) => !listed(id)).map((id) => ({
-      _id: ringStubId(roomKey, id),
-      room_key: roomKey,
-      to_user: id,
-      to_name: memberDisplayName(members.find((m: any) => String(m._id) === id), "Teammate"),
-      status: "ringing",
-      created_at: now,
-      until: now + RING_STUB_MS,
-    }));
+      outgoing.some(
+        (r) =>
+          !isRingStub(r) &&
+          String(r.to_user) === id &&
+          r.room_key === roomKey &&
+          (r.status ?? "ringing") === "ringing",
+      );
+    const stubs: RingStub[] = toUserIds
+      .filter((id) => !listed(id))
+      .map((id) => ({
+        _id: ringStubId(roomKey, id),
+        room_key: roomKey,
+        to_user: id,
+        to_name: memberDisplayName(
+          members.find((m: any) => String(m._id) === id),
+          "Teammate",
+        ),
+        status: "ringing",
+        created_at: now,
+        until: now + RING_STUB_MS,
+      }));
     if (!stubs.length) return;
     const ids = new Set(stubs.map((s) => s._id));
     next = [...outgoing.filter((r) => !ids.has(String(r._id))), ...stubs];
   } else {
     const ids = new Set(toUserIds.map((id) => ringStubId(roomKey, id)));
     if (!outgoing.some((r) => ids.has(String(r._id)))) return;
-    next = outgoing.map((r) => (ids.has(String(r._id)) ? { ...r, until: 0 } : r));
+    next = outgoing.map((r) =>
+      ids.has(String(r._id)) ? { ...r, until: 0 } : r,
+    );
   }
   st.syncTable("myCalls", { ...cur, outgoing: next });
 }
@@ -1385,10 +1630,19 @@ function ringStubs(roomKey: string, toUserIds: string[], on: boolean): void {
 function reportRingOutcomes(results: RingOutcome[]): void {
   const members = teamMembersOf(useInboxStore.getState());
   const nameOf = (id: string) =>
-    memberDisplayName(members.find((m: any) => String(m._id) === id), "A teammate");
+    memberDisplayName(
+      members.find((m: any) => String(m._id) === id),
+      "A teammate",
+    );
   for (const r of results) {
-    if (r.refused) toast.error(`${nameOf(r.to_user)} can't be rung`, { description: "They aren't on this huddle's team." });
-    else if (r.cooldown) toast(`${nameOf(r.to_user)} declined a moment ago`, { description: "Try again in a minute." });
+    if (r.refused)
+      toast.error(`${nameOf(r.to_user)} can't be rung`, {
+        description: "They aren't on this huddle's team.",
+      });
+    else if (r.cooldown)
+      toast(`${nameOf(r.to_user)} declined a moment ago`, {
+        description: "Try again in a minute.",
+      });
   }
 }
 
@@ -1403,9 +1657,16 @@ async function roomStillLive(roomKey: string): Promise<boolean> {
   return !!(live as any)?.[roomKey]?.length;
 }
 
-export async function acceptInvite(inviteId: string, roomKey: string): Promise<void> {
+export async function acceptInvite(
+  inviteId: string,
+  roomKey: string,
+): Promise<void> {
   stopRinging(inviteId);
-  if (voiceHostElsewhere() && (await seatViaHost("acceptInvite", [inviteId, roomKey]))) return;
+  if (
+    voiceHostElsewhere() &&
+    (await seatViaHost("acceptInvite", [inviteId, roomKey]))
+  )
+    return;
   return acceptInviteHere(inviteId, roomKey);
 }
 
@@ -1415,7 +1676,8 @@ function stopRinging(inviteId: string, ms?: number): void {
   settleRingIn(inviteId, ms);
   const st = useInboxStore.getState();
   const cur = st.myCalls ?? { incoming: [], outgoing: [], membership: null };
-  if (cur.incoming?.some((r: any) => String(r._id) === inviteId)) st.syncTable("myCalls", { ...cur });
+  if (cur.incoming?.some((r: any) => String(r._id) === inviteId))
+    st.syncTable("myCalls", { ...cur });
 }
 
 /** Every ring into a room this window is taking a seat in is answered. */
@@ -1446,11 +1708,17 @@ export function releaseRing(invite: { _id: unknown }): void {
   const st = useInboxStore.getState();
   const cur = st.myCalls ?? { incoming: [], outgoing: [], membership: null };
   if (cur.incoming?.some((r: any) => String(r._id) === id)) return;
-  st.syncTable("myCalls", { ...cur, incoming: [...(cur.incoming ?? []), invite] });
+  st.syncTable("myCalls", {
+    ...cur,
+    incoming: [...(cur.incoming ?? []), invite],
+  });
 }
 
-async function acceptInviteHere(inviteId: string, roomKey: string): Promise<void> {
-  if (huddleInOtherWindow() && await focusExistingHuddle()) return;
+async function acceptInviteHere(
+  inviteId: string,
+  roomKey: string,
+): Promise<void> {
+  if (huddleInOtherWindow() && (await focusExistingHuddle())) return;
   if (!convex) return;
   // Local-first: the dock paints "connecting" the instant Join is clicked;
   // the accept round-trip and the media join settle after. Accepting while in
@@ -1465,7 +1733,14 @@ async function acceptInviteHere(inviteId: string, roomKey: string): Promise<void
   // auto-listening to the caller's burst joins nothing (joinCall treats it as
   // an intent), so a "connecting" painted here would never be painted over.
   const seated = prior.roomKey === roomKey && prior.phase === "connected";
-  if (!seated) setCall({ phase: "connecting", roomKey, error: null, errorFix: null, speaking: [] });
+  if (!seated)
+    setCall({
+      phase: "connecting",
+      roomKey,
+      error: null,
+      errorFix: null,
+      speaking: [],
+    });
   try {
     const res = await convex.mutation(api.calls.respondInvite, {
       invite_id: inviteId,
@@ -1485,7 +1760,9 @@ async function acceptInviteHere(inviteId: string, roomKey: string): Promise<void
     // Release the old seat immediately — joinCall tears down its media, but
     // only leaveRoom frees the lease before the 45s sweep.
     if (switching && prior.roomKey) {
-      convex.mutation(api.calls.leaveRoom, { room_key: prior.roomKey }).catch(() => {});
+      convex
+        .mutation(api.calls.leaveRoom, { room_key: prior.roomKey })
+        .catch(() => {});
     }
     // Join the room the server ACCEPTED: a re-ring can move an invite to a
     // new room after the toast captured the old key. Answering a ring is the
@@ -1494,7 +1771,11 @@ async function acceptInviteHere(inviteId: string, roomKey: string): Promise<void
     await joinCall(res?.room_key ?? roomKey, { intent: "deliberate" });
   } catch (err: any) {
     if (switching) setCall({ ...prior });
-    else setCall({ phase: "error", error: humanizeConvexError(err, "Could not join the huddle") });
+    else
+      setCall({
+        phase: "error",
+        error: humanizeConvexError(err, "Could not join the huddle"),
+      });
   }
 }
 
@@ -1509,7 +1790,9 @@ export async function declineInvite(inviteId: string): Promise<void> {
 export async function cancelOutgoing(inviteId: string): Promise<void> {
   // A stub (the invite still in flight) has nothing to cancel yet.
   if (!convex || inviteId.startsWith(RING_STUB)) return;
-  await convex.mutation(api.calls.cancelInvite, { invite_id: inviteId }).catch(() => {});
+  await convex
+    .mutation(api.calls.cancelInvite, { invite_id: inviteId })
+    .catch(() => {});
 }
 
 // ── The locked door ───────────────────────────────────────────────────────
@@ -1532,8 +1815,15 @@ let autoScribeInFlight: Promise<unknown> | null = null;
  *  the server answers observer/off with no pipes opened, and a refusal is
  *  not this window's news (the huddle works without a transcript). */
 export function autoScribe(roomKey: string): void {
-  if (!convex || !room || currentRoomKey !== roomKey || autoScribeInFlight) return;
-  autoScribeInFlight = startScribe({ convex, room, roomKey, routes: [], auto: true })
+  if (!convex || !room || currentRoomKey !== roomKey || autoScribeInFlight)
+    return;
+  autoScribeInFlight = startScribe({
+    convex,
+    room,
+    roomKey,
+    routes: [],
+    auto: true,
+  })
     .catch(() => false)
     .finally(() => {
       autoScribeInFlight = null;
@@ -1550,7 +1840,8 @@ export async function startTranscribing(
 ): Promise<boolean> {
   if (!convex || !room) return false;
   const store = useInboxStore.getState();
-  if (store.callRooms[roomKey]?.transcribe_off) await store.setRoomTranscribeOff(roomKey, false);
+  if (store.callRooms[roomKey]?.transcribe_off)
+    await store.setRoomTranscribeOff(roomKey, false);
   return await startScribe({ convex, room, roomKey, routes });
 }
 
@@ -1569,7 +1860,7 @@ export async function stopTranscribing(roomKey: string): Promise<void> {
 // inside admits, their ring arrives and useCallRing answers it for us — a
 // door you knocked on does not ask you to answer it.
 export async function knockRoom(roomKey: string): Promise<void> {
-  if (huddleInOtherWindow() && await focusExistingHuddle()) return;
+  if (huddleInOtherWindow() && (await focusExistingHuddle())) return;
   if (!convex) return;
   const store = useInboxStore.getState();
   store.noteKnock(roomKey);
@@ -1588,9 +1879,13 @@ export async function knockRoom(roomKey: string): Promise<void> {
 // The authority to widen a room is MEMBERSHIP, not a seat (calls.invite): a
 // teammate who walked in through the open door can lock the room but cannot
 // admit into it. That refusal gets its own words rather than the ring's.
-export async function admitKnock(roomKey: string, userId: string): Promise<void> {
+export async function admitKnock(
+  roomKey: string,
+  userId: string,
+): Promise<void> {
   await ringInto(roomKey, [userId], undefined, {
-    failMessage: "Could not let them in — only this room's own people can admit",
+    failMessage:
+      "Could not let them in — only this room's own people can admit",
   });
 }
 
@@ -1604,14 +1899,20 @@ export async function admitKnock(roomKey: string, userId: string): Promise<void>
  * in another window: it raises the huddle rather than switching rooms under
  * the person mid-sentence.
  */
-export async function runCallCommand(cmd: string, args: unknown[]): Promise<void> {
+export async function runCallCommand(
+  cmd: string,
+  args: unknown[],
+): Promise<void> {
   const a = args as any[];
   switch (cmd) {
     case "joinCall": {
       const roomKey = String(a[0]);
       const opts = (a[1] && typeof a[1] === "object" ? a[1] : {}) as JoinOpts;
       const call = useInboxStore.getState().call;
-      const busy = call.roomKey && call.roomKey !== roomKey && (call.phase === "connected" || call.phase === "connecting");
+      const busy =
+        call.roomKey &&
+        call.roomKey !== roomKey &&
+        (call.phase === "connected" || call.phase === "connecting");
       if (opts.intent === "deliberate" && busy && !opts.walkieJoin) {
         await showCallPanel();
         return;
@@ -1619,13 +1920,24 @@ export async function runCallCommand(cmd: string, args: unknown[]): Promise<void
       return joinCallHere(roomKey, opts);
     }
     case "leaveCall":
-      return leaveCallHere(typeof a[0] === "string" ? a[0] : undefined, a[1] !== false);
+      return leaveCallHere(
+        typeof a[0] === "string" ? a[0] : undefined,
+        a[1] !== false,
+      );
     case "setMuted":
-      return setMutedHere(!!a[0], a[1] && typeof a[1] === "object" ? a[1] : undefined);
+      return setMutedHere(
+        !!a[0],
+        a[1] && typeof a[1] === "object" ? a[1] : undefined,
+      );
     case "setCamera":
-      return setCameraHere(!!a[0], a[1] && typeof a[1] === "object" ? a[1] : undefined);
+      return setCameraHere(
+        !!a[0],
+        a[1] && typeof a[1] === "object" ? a[1] : undefined,
+      );
     case "startHuddle":
-      return a[0] && typeof a[0] === "object" ? startHuddleHere(a[0]) : undefined;
+      return a[0] && typeof a[0] === "object"
+        ? startHuddleHere(a[0])
+        : undefined;
     case "acceptInvite":
       return acceptInviteHere(String(a[0]), String(a[1]));
     default:

@@ -64,7 +64,12 @@ export function describeSince(since: number, now: number = Date.now()): string {
 /** "Jun 3 to today", "Jun 3 to Sep 22", "today", "Sep 22"; "" without dates.
  *  `openStart` marks a span whose scan stopped before the oldest session:
  *  "before Jun 3 to today". */
-export function formatDateRange(first: number | null, last: number | null, now: number = Date.now(), openStart = false): string {
+export function formatDateRange(
+  first: number | null,
+  last: number | null,
+  now: number = Date.now(),
+  openStart = false,
+): string {
   if (first == null && last == null) return "";
   const a = first ?? last!;
   const b = last ?? first!;
@@ -96,10 +101,16 @@ export function summarizeShareImpact(
   let manuallyShared = 0;
   let truncated = false;
   let allExact = true;
-  const fold = (count: number, a: number | null | undefined, b: number | null | undefined) => {
+  const fold = (
+    count: number,
+    a: number | null | undefined,
+    b: number | null | undefined,
+  ) => {
     sessions += count;
-    if (a != null && Number.isFinite(a)) first = first == null ? a : Math.min(first, a);
-    if (b != null && Number.isFinite(b)) last = last == null ? b : Math.max(last, b);
+    if (a != null && Number.isFinite(a))
+      first = first == null ? a : Math.min(first, a);
+    if (b != null && Number.isFinite(b))
+      last = last == null ? b : Math.max(last, b);
   };
   for (const path of selectedPaths) {
     const e = exact?.[path];
@@ -114,9 +125,25 @@ export function summarizeShareImpact(
     }
     allExact = false;
     const row = byPath.get(path);
-    if (row) fold(row.session_count, row.first_active ?? row.last_active, row.last_active);
+    if (row)
+      fold(
+        row.session_count,
+        row.first_active ?? row.last_active,
+        row.last_active,
+      );
   }
-  return { repos: selectedPaths.length, sessions, first, last, older, olderThanDay, hidden, manuallyShared, truncated, exact: allExact };
+  return {
+    repos: selectedPaths.length,
+    sessions,
+    first,
+    last,
+    older,
+    olderThanDay,
+    hidden,
+    manuallyShared,
+    truncated,
+    exact: allExact,
+  };
 }
 
 function repoWord(n: number): string {
@@ -126,8 +153,13 @@ function repoWord(n: number): string {
 /** Sessions a share with this start would expose: the total less the older
  *  ones. The scan reads newest first, so with a share start the exposed count
  *  is exact even when the scan was cut off; the older count is then a floor. */
-export function exposedCount(impact: ShareImpact, since: number | null): number {
-  return since == null ? impact.sessions : Math.max(0, impact.sessions - impact.older);
+export function exposedCount(
+  impact: ShareImpact,
+  since: number | null,
+): number {
+  return since == null
+    ? impact.sessions
+    : Math.max(0, impact.sessions - impact.older);
 }
 
 /** The older count is only a floor once the scan was cut off. */
@@ -137,7 +169,11 @@ function olderLabel(n: number, truncated: boolean): string {
 
 /** The primary button: what the click does, with the number it exposes.
  *  Null when nothing is selected, so the caller keeps its idle label. */
-export function shareActionLabel(impact: ShareImpact, since: number | null, now: number = Date.now()): string | null {
+export function shareActionLabel(
+  impact: ShareImpact,
+  since: number | null,
+  now: number = Date.now(),
+): string | null {
   if (impact.repos === 0) return null;
   const exposed = exposedCount(impact, since);
   if (since == null) {
@@ -157,16 +193,36 @@ export function describeTeammates(memberCount: number | undefined): string {
 }
 
 /** The count and span line under the summary, worded for the share start. */
-export function describeShareSpan(impact: ShareImpact, since: number | null, now: number = Date.now()): string {
-  if (impact.sessions === 0) return "No sessions there yet. New ones will be visible as they happen.";
+export function describeShareSpan(
+  impact: ShareImpact,
+  since: number | null,
+  now: number = Date.now(),
+): string {
+  if (impact.sessions === 0)
+    return "No sessions there yet. New ones will be visible as they happen.";
   const count = formatSessionCount(impact.sessions, impact.truncated);
-  const range = formatDateRange(impact.first, impact.last, now, impact.truncated);
-  const hiddenNote = impact.hidden > 0 ? ` ${formatSessionCount(impact.hidden)} you hid by hand stay hidden.` : "";
-  if (since == null) return (range ? `${count}, ${range}.` : `${count}.`) + hiddenNote;
+  const range = formatDateRange(
+    impact.first,
+    impact.last,
+    now,
+    impact.truncated,
+  );
+  const hiddenNote =
+    impact.hidden > 0
+      ? ` ${formatSessionCount(impact.hidden)} you hid by hand stay hidden.`
+      : "";
+  if (since == null)
+    return (range ? `${count}, ${range}.` : `${count}.`) + hiddenNote;
   const label = describeSince(since, now);
   const exposed = exposedCount(impact, since);
-  const head = exposed > 0 ? `${formatSessionCount(exposed)} from ${label} on.` : `Nothing yet from ${label} on.`;
-  const tail = impact.older > 0 ? ` The ${olderLabel(impact.older, impact.truncated)} before that stay private.` : " Nothing older there.";
+  const head =
+    exposed > 0
+      ? `${formatSessionCount(exposed)} from ${label} on.`
+      : `Nothing yet from ${label} on.`;
+  const tail =
+    impact.older > 0
+      ? ` The ${olderLabel(impact.older, impact.truncated)} before that stay private.`
+      : " Nothing older there.";
   return head + tail + hiddenNote;
 }
 
@@ -180,9 +236,16 @@ export function listNames(names: string[], max = 3): string {
 }
 
 /** One line for a live mapping's scope on a settings row. */
-export function describeMappingScope(shareSince: number | null | undefined, older: number | undefined, now: number = Date.now(), truncated = false): string {
+export function describeMappingScope(
+  shareSince: number | null | undefined,
+  older: number | undefined,
+  now: number = Date.now(),
+  truncated = false,
+): string {
   if (shareSince == null) return "all sessions";
   const label = describeSince(shareSince, now);
   if (older == null) return `since ${label}`;
-  return older > 0 ? `since ${label} · ${olderLabel(older, truncated)} earlier stay private` : `since ${label}`;
+  return older > 0
+    ? `since ${label} · ${olderLabel(older, truncated)} earlier stay private`
+    : `since ${label}`;
 }

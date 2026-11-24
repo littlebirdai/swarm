@@ -20,13 +20,22 @@ function pendingInputKey(ownerId: string, id: string): string {
   return `${PENDING_INPUT_PREFIX}${ownerId}:${id}`;
 }
 
-export function persistPendingMessageChanges(before: PendingMessages, after: PendingMessages, ownerId?: string): void {
+export function persistPendingMessageChanges(
+  before: PendingMessages,
+  after: PendingMessages,
+  ownerId?: string,
+): void {
   if (!PERSISTENCE_AVAILABLE || before === after) return;
   const writes = pendingMessageWrites(before, after);
   if (!writes.length) return;
-  if (!ownerId) throw new Error("Sign in before sending a message so it can be saved safely.");
+  if (!ownerId)
+    throw new Error(
+      "Sign in before sending a message so it can be saved safely.",
+    );
   writePendingMessageJournal(localStorage, ownerId, writes);
-  void flushPendingMessageJournal().catch(error => captureException(error, { tags: { source: "pending-input-journal" } }));
+  void flushPendingMessageJournal().catch((error) =>
+    captureException(error, { tags: { source: "pending-input-journal" } }),
+  );
 }
 
 export function flushPendingMessageJournal(): Promise<void> {
@@ -51,11 +60,15 @@ export function flushPendingMessageJournal(): Promise<void> {
       for (const { key } of batches) localStorage.removeItem(key);
     }
   };
-  pendingJournalFlush = run().finally(() => { pendingJournalFlush = null; });
+  pendingJournalFlush = run().finally(() => {
+    pendingJournalFlush = null;
+  });
   return pendingJournalFlush;
 }
 
-export async function loadPendingInput(ownerId?: string): Promise<PendingMessages> {
+export async function loadPendingInput(
+  ownerId?: string,
+): Promise<PendingMessages> {
   if (!ownerId) return {};
   await flushPendingMessageJournal();
   return db.transaction("rw", db.meta, async () => {
@@ -65,20 +78,36 @@ export async function loadPendingInput(ownerId?: string): Promise<PendingMessage
       for (const write of pendingMessageWrites({}, legacy.value)) {
         const key = pendingInputKey(ownerId, write.id);
         if (await db.meta.get(key)) continue;
-        await db.meta.put({ key, value: applyPendingMessageWrite(undefined, write) });
+        await db.meta.put({
+          key,
+          value: applyPendingMessageWrite(undefined, write),
+        });
       }
       await db.meta.delete("pendingMessages");
     }
     const queued = await db.meta.get("queuedMessages");
     if (queued?.value && cachedUser?.value?._id === ownerId) {
-      for (const write of pendingMessageWrites({}, importLegacyQueuedMessages(queued.value))) {
-        await db.meta.put({ key: pendingInputKey(ownerId, write.id), value: applyPendingMessageWrite(undefined, write) });
+      for (const write of pendingMessageWrites(
+        {},
+        importLegacyQueuedMessages(queued.value),
+      )) {
+        await db.meta.put({
+          key: pendingInputKey(ownerId, write.id),
+          value: applyPendingMessageWrite(undefined, write),
+        });
       }
       await db.meta.delete("queuedMessages");
     }
-    const rows = await db.meta.where("key").startsWith(`${PENDING_INPUT_PREFIX}${ownerId}:`).toArray();
-    const { kept, retired } = retireStalePendingRecords(rows.map(row => row.value), Date.now());
-    for (const row of retired) await db.meta.put({ key: pendingInputKey(ownerId, row.id), value: row });
+    const rows = await db.meta
+      .where("key")
+      .startsWith(`${PENDING_INPUT_PREFIX}${ownerId}:`)
+      .toArray();
+    const { kept, retired } = retireStalePendingRecords(
+      rows.map((row) => row.value),
+      Date.now(),
+    );
+    for (const row of retired)
+      await db.meta.put({ key: pendingInputKey(ownerId, row.id), value: row });
     return pendingMessagesFromRecords(kept);
   });
 }

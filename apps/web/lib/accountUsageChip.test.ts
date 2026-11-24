@@ -36,12 +36,16 @@ describe("pickAccountChipDevice", () => {
   });
 
   test("never falls back when the local Mac has no account inventory", () => {
-    expect(pickAccountChipDevice([claude({ device_id: "elsewhere" })], "local")).toBeUndefined();
+    expect(
+      pickAccountChipDevice([claude({ device_id: "elsewhere" })], "local"),
+    ).toBeUndefined();
     expect(pickAccountChipDevice(undefined, "local")).toBeUndefined();
   });
 
   test("never picks a cloud device", () => {
-    expect(pickAccountChipDevice([claude({ is_remote: true })], "local")).toBeUndefined();
+    expect(
+      pickAccountChipDevice([claude({ is_remote: true })], "local"),
+    ).toBeUndefined();
   });
 });
 
@@ -84,7 +88,10 @@ describe("resolveAccountChip", () => {
       devices: [
         claude({
           active_email: "joannagerkin@gmail.com",
-          profiles: [profile, { name: "fresh", email: "freshraisin@gmail.com" }],
+          profiles: [
+            profile,
+            { name: "fresh", email: "freshraisin@gmail.com" },
+          ],
         }),
       ],
       currentAgentType: "claude_code",
@@ -126,7 +133,13 @@ describe("resolveAccountChip", () => {
     expect(
       resolveAccountChip({
         localDeviceId: "local",
-        devices: [claude({ profiles: [], active_email: undefined, codex_accounts: undefined })],
+        devices: [
+          claude({
+            profiles: [],
+            active_email: undefined,
+            codex_accounts: undefined,
+          }),
+        ],
         currentAgentType: null,
         lastShown: null,
         now: 0,
@@ -163,17 +176,25 @@ describe("accountChipProvider", () => {
 
 describe("planAgentType", () => {
   test("a Codex Cloud session shows the Codex plan meter; an Agents API session, billed to a key, names no plan", () => {
-    expect(planAgentType({ agent_type: "codex", session_id: "task_e_abc" })).toBe("codex");
-    expect(planAgentType({ agent_type: "codex", session_id: "sess_abc" })).toBeNull();
+    expect(
+      planAgentType({ agent_type: "codex", session_id: "task_e_abc" }),
+    ).toBe("codex");
+    expect(
+      planAgentType({ agent_type: "codex", session_id: "sess_abc" }),
+    ).toBeNull();
     // Launched, before its session id: the launch model names the lane.
     expect(planAgentType({ agent_type: "codex", model: "api" })).toBeNull();
-    expect(planAgentType({ agent_type: "codex", session_id: "019a-local-rollout" })).toBe("codex");
+    expect(
+      planAgentType({ agent_type: "codex", session_id: "019a-local-rollout" }),
+    ).toBe("codex");
     expect(planAgentType({ agent_type: "claude_code" })).toBe("claude_code");
   });
 });
 
 describe("claudeChipLabel", () => {
   test("uses the email local part when the current login is unsaved", () => {
-    expect(claudeChipLabel(undefined, "ashot@x.com", [{ name: "work" }])).toBe("ashot");
+    expect(claudeChipLabel(undefined, "ashot@x.com", [{ name: "work" }])).toBe(
+      "ashot",
+    );
   });
 });

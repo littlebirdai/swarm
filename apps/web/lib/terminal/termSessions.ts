@@ -12,12 +12,29 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { buildTerminalTheme, observeTheme } from "./theme";
 import { PaneStreamFilter } from "./paneStreamFilter";
 import { setLiveScreenReader } from "./liveScreen";
-import { bump, fitInstance, instances, reg, type OpenTerminalOptions, type TermInstance, type TermTabState } from "./termRegistry";
+import {
+  bump,
+  fitInstance,
+  instances,
+  reg,
+  type OpenTerminalOptions,
+  type TermInstance,
+  type TermTabState,
+} from "./termRegistry";
 import { closeTab, connect, getHelloLog } from "./termConnection";
 
-export type { OpenTerminalOptions, TermStatus, TermTabState } from "./termRegistry";
+export type {
+  OpenTerminalOptions,
+  TermStatus,
+  TermTabState,
+} from "./termRegistry";
 export { subscribeTerminals, getTerminalsVersion } from "./termRegistry";
-export { closeTab, logHello, reconnectTab, takeControl } from "./termConnection";
+export {
+  closeTab,
+  logHello,
+  reconnectTab,
+  takeControl,
+} from "./termConnection";
 
 let nextId = 1;
 
@@ -47,7 +64,9 @@ export function setActiveTab(id: string | null): void {
   }
 }
 
-export function getInstance(id: string): { term: Terminal; state: TermTabState } | null {
+export function getInstance(
+  id: string,
+): { term: Terminal; state: TermTabState } | null {
   const inst = instances.get(id);
   return inst ? { term: inst.term, state: inst.state } : null;
 }
@@ -58,14 +77,16 @@ export function getInstance(id: string): { term: Terminal; state: TermTabState }
 function readLiveScreenText(target: string): string | null {
   if (!target) return null;
   for (const inst of instances.values()) {
-    if (inst.state.target !== target && inst.state.sessionName !== target) continue;
+    if (inst.state.target !== target && inst.state.sessionName !== target)
+      continue;
     try {
       const buf = inst.term.buffer.active;
       const rows = inst.term.rows || 0;
       if (rows <= 0) continue;
       const start = buf.baseY;
       const lines: string[] = [];
-      for (let i = 0; i < rows; i++) lines.push(buf.getLine(start + i)?.translateToString(true) ?? "");
+      for (let i = 0; i < rows; i++)
+        lines.push(buf.getLine(start + i)?.translateToString(true) ?? "");
       const text = lines.join("\n").trim();
       if (text) return text;
     } catch {
@@ -81,7 +102,15 @@ export function applyTerminalTheme(theme: ITheme, fontFamily?: string): void {
   for (const inst of instances.values()) {
     inst.term.options.theme = theme;
     if (inst.ws?.readyState === WebSocket.OPEN) {
-      inst.ws.send(JSON.stringify({ type: "colors", colors: { foreground: theme.foreground, background: theme.background } }));
+      inst.ws.send(
+        JSON.stringify({
+          type: "colors",
+          colors: {
+            foreground: theme.foreground,
+            background: theme.background,
+          },
+        }),
+      );
     }
     if (fontFamily) inst.term.options.fontFamily = fontFamily;
   }
@@ -108,12 +137,18 @@ function ensureTheme(): void {
 export function openTerminal(opts: OpenTerminalOptions): string {
   ensureTheme();
   const live = (inst: TermInstance) =>
-    inst.state.status !== "exited" && inst.state.status !== "error" && inst.state.status !== "offline";
+    inst.state.status !== "exited" &&
+    inst.state.status !== "error" &&
+    inst.state.status !== "offline";
   // Dedupe within the same surface only: a panel tab never adopts a detached
   // split's instance (they'd fight over the one DOM element) and vice versa.
   if (opts.name) {
     for (const [id, inst] of instances) {
-      if (inst.detached === !!opts.detached && inst.state.sessionName === opts.name && live(inst)) {
+      if (
+        inst.detached === !!opts.detached &&
+        inst.state.sessionName === opts.name &&
+        live(inst)
+      ) {
         if (!opts.detached) setActiveTab(id);
         return id;
       }
@@ -121,7 +156,11 @@ export function openTerminal(opts: OpenTerminalOptions): string {
   }
   if (opts.kind === "attach" && opts.target) {
     for (const [id, inst] of instances) {
-      if (inst.detached === !!opts.detached && inst.state.target === opts.target && live(inst)) {
+      if (
+        inst.detached === !!opts.detached &&
+        inst.state.target === opts.target &&
+        live(inst)
+      ) {
         if (!opts.detached) setActiveTab(id);
         return id;
       }
@@ -153,10 +192,12 @@ export function openTerminal(opts: OpenTerminalOptions): string {
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
-  term.loadAddon(new WebLinksAddon((event, uri) => {
-    // Plain click opens; keeps text selection unaffected.
-    if (!event.defaultPrevented) window.open(uri, "_blank", "noopener");
-  }));
+  term.loadAddon(
+    new WebLinksAddon((event, uri) => {
+      // Plain click opens; keeps text selection unaffected.
+      if (!event.defaultPrevented) window.open(uri, "_blank", "noopener");
+    }),
+  );
   // Unicode 11 width tables: without these, the glyphs agent TUIs lean on
   // (spinners, emoji, ambiguous-width ornaments) measure one cell narrower
   // than in VS Code's terminal and every divider drifts.
@@ -169,7 +210,9 @@ export function openTerminal(opts: OpenTerminalOptions): string {
       kind: opts.kind,
       target: opts.target,
       sessionName: opts.name,
-      title: opts.title ?? (opts.kind === "attach" ? (opts.target ?? "attach") : "shell"),
+      title:
+        opts.title ??
+        (opts.kind === "attach" ? (opts.target ?? "attach") : "shell"),
       status: "connecting",
       readOnly: opts.kind === "attach" && !opts.interactive && !opts.remote,
       // A relayed pane's size belongs to the machine it lives on: we are
@@ -234,7 +277,11 @@ export function attachToContainer(id: string, el: HTMLElement): void {
   // the live bottom.
   const onWheel = (e: WheelEvent) => {
     if (inst.state.kind !== "attach") return; // fitted shells: xterm default
-    if ((inst.term.modes as { mouseTrackingMode?: string }).mouseTrackingMode !== "none") return;
+    if (
+      (inst.term.modes as { mouseTrackingMode?: string }).mouseTrackingMode !==
+      "none"
+    )
+      return;
     e.preventDefault();
     e.stopPropagation();
     const buf = inst.term.buffer.active;
@@ -288,7 +335,9 @@ export function attachToContainer(id: string, el: HTMLElement): void {
   inst.pinDispose = {
     dispose() {
       el.removeEventListener("scroll", onScroll);
-      el.removeEventListener("wheel", onWheel, { capture: true } as EventListenerOptions);
+      el.removeEventListener("wheel", onWheel, {
+        capture: true,
+      } as EventListenerOptions);
       writeDisposable.dispose();
     },
   };
@@ -300,7 +349,6 @@ export function attachToContainer(id: string, el: HTMLElement): void {
 export function closeAll(): void {
   for (const id of [...reg.order]) closeTab(id);
 }
-
 
 // Dev console access, mirroring window.__inboxStore: inspect tab states and
 // the hello each socket sent when debugging connect issues.
@@ -317,7 +365,8 @@ if (typeof window !== "undefined" && import.meta.env?.DEV) {
       if (!inst) return null;
       const buf = inst.term.buffer.active;
       const lines: string[] = [];
-      for (let i = 0; i < buf.length; i++) lines.push(buf.getLine(i)?.translateToString(true) ?? "");
+      for (let i = 0; i < buf.length; i++)
+        lines.push(buf.getLine(i)?.translateToString(true) ?? "");
       return lines.join("\n");
     },
   };
@@ -342,10 +391,14 @@ if (typeof window !== "undefined") {
   });
 }
 
-
 // Dev console access, like `__inboxStore`: `__terms()` lists live instances
 // (id, state, xterm) so a pane can be diffed against `tmux capture-pane`
 // when hunting rendering divergence.
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-  (window as any).__terms = () => [...instances.values()].map((i) => ({ id: i.state.id, state: i.state, term: i.term }));
+  (window as any).__terms = () =>
+    [...instances.values()].map((i) => ({
+      id: i.state.id,
+      state: i.state,
+      term: i.term,
+    }));
 }

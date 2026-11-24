@@ -16,10 +16,16 @@
 
 import * as fs from "node:fs";
 import { spawnSync } from "../proc.js";
-import { sshBase, sshDestination, sshShell, type RemoteHost } from "../remote/session-move.js";
+import {
+  sshBase,
+  sshDestination,
+  sshShell,
+  type RemoteHost,
+} from "../remote/session-move.js";
 
 export const HOST_XCODE = "/Applications/Xcode.app";
-const PATH_LINE = 'export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"';
+const PATH_LINE =
+  'export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"';
 
 export interface SimHostState {
   macos: string;
@@ -44,47 +50,107 @@ q() { [ -n "$1" ] && printf '"%s"' "$1" || printf null; }
 printf '{"macos":"%s","xcode":%s,"selected":%s,"license":%s,"runtimes":[%s],"axe":%s,"zstd":%s}\n' "$(sw_vers -productVersion)" "$(q "$x")" "$(q "$sel")" "$([ "$lic" = 1 ] && echo true || echo false)" "$(printf '%s' "$rts" | sed 's/[^,][^,]*/"&"/g')" "$(q "$axv")" "$([ "$zs" = 1 ] && echo true || echo false)"`;
 }
 
-function ssh(host: RemoteHost, script: string, timeoutMs: number, input?: string): { ok: boolean; out: string } {
-  const r = spawnSync("ssh", [...sshBase(host), sshDestination(host), input === undefined ? "bash -s" : script], {
-    encoding: "utf-8", input: input === undefined ? script : input, timeout: timeoutMs, maxBuffer: 16 * 1024 * 1024,
-  });
+function ssh(
+  host: RemoteHost,
+  script: string,
+  timeoutMs: number,
+  input?: string,
+): { ok: boolean; out: string } {
+  const r = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      input === undefined ? "bash -s" : script,
+    ],
+    {
+      encoding: "utf-8",
+      input: input === undefined ? script : input,
+      timeout: timeoutMs,
+      maxBuffer: 16 * 1024 * 1024,
+    },
+  );
   return { ok: r.status === 0, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
 export function probeSimHost(host: RemoteHost): SimHostState {
   const r = ssh(host, probeScript(), 60_000);
-  const line = r.out.trim().split("\n").reverse().find((l) => l.startsWith("{"));
-  if (!line) throw new Error(`the host did not answer the simulator probe: ${r.out.slice(-300)}`);
+  const line = r.out
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.startsWith("{"));
+  if (!line)
+    throw new Error(
+      `the host did not answer the simulator probe: ${r.out.slice(-300)}`,
+    );
   const s = JSON.parse(line);
-  return { ...s, xcode: s.xcode ?? undefined, selected: s.selected ?? undefined, axe: s.axe ?? undefined };
+  return {
+    ...s,
+    xcode: s.xcode ?? undefined,
+    selected: s.selected ?? undefined,
+    axe: s.axe ?? undefined,
+  };
 }
 
 /** The laptop Xcode to send: the selected developer dir's app bundle. */
-export function laptopXcode(): { app: string; version: string; minMacos?: string } | undefined {
-  const dev = spawnSync("xcode-select", ["-p"], { encoding: "utf-8" }).stdout?.trim() ?? "";
+export function laptopXcode():
+  | { app: string; version: string; minMacos?: string }
+  | undefined {
+  const dev =
+    spawnSync("xcode-select", ["-p"], { encoding: "utf-8" }).stdout?.trim() ??
+    "";
   const app = dev.replace(/\/Contents\/Developer\/?$/, "");
   if (!app.endsWith(".app") || !fs.existsSync(app)) return undefined;
-  const plist = (key: string) => spawnSync("/usr/libexec/PlistBuddy", ["-c", `Print :${key}`, `${app}/Contents/Info.plist`], { encoding: "utf-8" }).stdout?.trim() || undefined;
+  const plist = (key: string) =>
+    spawnSync(
+      "/usr/libexec/PlistBuddy",
+      ["-c", `Print :${key}`, `${app}/Contents/Info.plist`],
+      { encoding: "utf-8" },
+    ).stdout?.trim() || undefined;
   const version = plist("CFBundleShortVersionString");
-  return version ? { app, version, minMacos: plist("LSMinimumSystemVersion") } : undefined;
+  return version
+    ? { app, version, minMacos: plist("LSMinimumSystemVersion") }
+    : undefined;
 }
 
 const versionAtLeast = (have: string, want: string) => {
-  const a = have.split(".").map(Number), b = want.split(".").map(Number);
-  for (let i = 0; i < Math.max(a.length, b.length); i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  const a = have.split(".").map(Number),
+    b = want.split(".").map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++)
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
   return true;
 };
 
-export function streamXcode(host: RemoteHost, app: string, log: (m: string) => void, dest = HOST_XCODE): void {
-  const zstd = ["/opt/homebrew/bin/zstd", "/usr/local/bin/zstd"].find((p) => fs.existsSync(p));
-  const [pack, unpack] = zstd ? [`${zstd} -1 -T0`, "zstd -d"] : ["gzip -1", "gzip -d"];
+export function streamXcode(
+  host: RemoteHost,
+  app: string,
+  log: (m: string) => void,
+  dest = HOST_XCODE,
+): void {
+  const zstd = ["/opt/homebrew/bin/zstd", "/usr/local/bin/zstd"].find((p) =>
+    fs.existsSync(p),
+  );
+  const [pack, unpack] = zstd
+    ? [`${zstd} -1 -T0`, "zstd -d"]
+    : ["gzip -1", "gzip -d"];
   const dir = app.slice(0, app.lastIndexOf("/"));
   const name = app.slice(app.lastIndexOf("/") + 1);
   const remote = `${PATH_LINE}; set -e; rm -rf /tmp/cast-xcode; mkdir -p /tmp/cast-xcode; cd /tmp/cast-xcode; ${unpack} | tar -xf -; sudo -n rm -rf '${dest}'; sudo -n mv '${name}' '${dest}'; rm -rf /tmp/cast-xcode; ${dest === HOST_XCODE ? `${activateLines()}; ` : ""}echo XCODE-IN-PLACE`;
   log(`streaming ${app} to the host (several GB; this takes a while)…`);
   const sshCmd = sshShell([...sshBase(host), sshDestination(host), remote]);
-  const r = spawnSync("bash", ["-c", `set -o pipefail; tar -C '${dir}' -cf - '${name}' | ${pack} | ${sshCmd}`], { encoding: "utf-8", timeout: 4 * 3600_000, maxBuffer: 16 * 1024 * 1024 });
-  if (r.status !== 0 || !(r.stdout ?? "").includes("XCODE-IN-PLACE")) throw new Error(`Xcode copy failed: ${`${r.stdout ?? ""}${r.stderr ?? ""}`.trim().slice(-400)}`);
+  const r = spawnSync(
+    "bash",
+    [
+      "-c",
+      `set -o pipefail; tar -C '${dir}' -cf - '${name}' | ${pack} | ${sshCmd}`,
+    ],
+    { encoding: "utf-8", timeout: 4 * 3600_000, maxBuffer: 16 * 1024 * 1024 },
+  );
+  if (r.status !== 0 || !(r.stdout ?? "").includes("XCODE-IN-PLACE"))
+    throw new Error(
+      `Xcode copy failed: ${`${r.stdout ?? ""}${r.stderr ?? ""}`.trim().slice(-400)}`,
+    );
 }
 
 /**
@@ -120,14 +186,23 @@ export interface SimProvisionReport {
   steps: string[];
 }
 
-export function provisionSimHost(host: RemoteHost, platforms: string[], log: (m: string) => void): SimProvisionReport {
+export function provisionSimHost(
+  host: RemoteHost,
+  platforms: string[],
+  log: (m: string) => void,
+): SimProvisionReport {
   const before = probeSimHost(host);
   const steps: string[] = [];
   if (!before.xcode) {
     const local = laptopXcode();
-    if (!local) throw new Error("the host has no Xcode and this laptop has none to send: install Xcode here first");
+    if (!local)
+      throw new Error(
+        "the host has no Xcode and this laptop has none to send: install Xcode here first",
+      );
     if (local.minMacos && !versionAtLeast(before.macos, local.minMacos)) {
-      throw new Error(`this laptop's Xcode ${local.version} needs macOS ${local.minMacos}; the host runs ${before.macos}`);
+      throw new Error(
+        `this laptop's Xcode ${local.version} needs macOS ${local.minMacos}; the host runs ${before.macos}`,
+      );
     }
     streamXcode(host, local.app, log);
     steps.push(`copied Xcode ${local.version}`);
@@ -136,22 +211,36 @@ export function provisionSimHost(host: RemoteHost, platforms: string[], log: (m:
   if (!state.license || !state.selected?.startsWith(HOST_XCODE)) {
     log("selecting Xcode, accepting its license, installing its components…");
     const r = ssh(host, activateScript(), 30 * 60_000);
-    if (!r.out.includes("XCODE-ACTIVE")) throw new Error(`Xcode activation failed: ${r.out.trim().slice(-400)}`);
+    if (!r.out.includes("XCODE-ACTIVE"))
+      throw new Error(`Xcode activation failed: ${r.out.trim().slice(-400)}`);
     steps.push("activated Xcode");
   }
   for (const platform of platforms) {
-    if (platform !== "iOS") { log(`simulators for ${platform} are not provisioned yet; skipping`); continue; }
+    if (platform !== "iOS") {
+      log(`simulators for ${platform} are not provisioned yet; skipping`);
+      continue;
+    }
     state = probeSimHost(host);
     if (state.runtimes.length) continue;
-    log(`downloading the ${platform} simulator runtime on the host (several GB)…`);
-    const r = ssh(host, `${PATH_LINE}; xcodebuild -downloadPlatform ${platform} 2>&1 | tail -5`, 3 * 3600_000);
+    log(
+      `downloading the ${platform} simulator runtime on the host (several GB)…`,
+    );
+    const r = ssh(
+      host,
+      `${PATH_LINE}; xcodebuild -downloadPlatform ${platform} 2>&1 | tail -5`,
+      3 * 3600_000,
+    );
     steps.push(`downloaded the ${platform} runtime`);
-    if (!r.ok) throw new Error(`${platform} runtime download failed: ${r.out.trim().slice(-400)}`);
+    if (!r.ok)
+      throw new Error(
+        `${platform} runtime download failed: ${r.out.trim().slice(-400)}`,
+      );
   }
   if (!state.axe) {
     log("installing axe…");
     const r = ssh(host, axeInstallScript(), 20 * 60_000);
-    if (!r.ok) throw new Error(`axe install failed: ${r.out.trim().slice(-400)}`);
+    if (!r.ok)
+      throw new Error(`axe install failed: ${r.out.trim().slice(-400)}`);
     steps.push("installed axe");
   }
   const after = probeSimHost(host);

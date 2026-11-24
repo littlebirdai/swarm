@@ -11,105 +11,329 @@ import { test, expect, afterAll, mock } from "bun:test";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
 const { JSDOM } = await import("jsdom");
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLButtonElement", "HTMLAnchorElement", "HTMLInputElement", "HTMLTextAreaElement", "Element", "Node", "Event", "MouseEvent", "KeyboardEvent", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "localStorage"]) {
+const dom = new JSDOM(
+  "<!doctype html><html><body><div id='root'></div></body></html>",
+  { url: "https://local.codecast.sh", pretendToBeVisual: true },
+);
+for (const key of [
+  "window",
+  "document",
+  "navigator",
+  "HTMLElement",
+  "HTMLButtonElement",
+  "HTMLAnchorElement",
+  "HTMLInputElement",
+  "HTMLTextAreaElement",
+  "Element",
+  "Node",
+  "Event",
+  "MouseEvent",
+  "KeyboardEvent",
+  "getComputedStyle",
+  "requestAnimationFrame",
+  "cancelAnimationFrame",
+  "localStorage",
+]) {
   const v = (dom.window as any)[key];
-  if (v !== undefined) Object.defineProperty(globalThis, key, { value: v, configurable: true, writable: true });
+  if (v !== undefined)
+    Object.defineProperty(globalThis, key, {
+      value: v,
+      configurable: true,
+      writable: true,
+    });
 }
 // Like a browser's, the observer answers once for each element it starts watching (hooks/useOverflows waits on that first answer).
 (globalThis as any).ResizeObserver = class {
   constructor(private cb: (entries: { target: Element }[]) => void) {}
-  observe(target: Element) { queueMicrotask(() => this.cb([{ target }])); }
+  observe(target: Element) {
+    queueMicrotask(() => this.cb([{ target }]));
+  }
   unobserve() {}
   disconnect() {}
 };
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 // A clamp asks scrollHeight; jsdom answers 0. Twenty pixels a line, ninety characters to a line.
-Object.defineProperty(dom.window.Element.prototype, "scrollHeight", { configurable: true, get() { return Math.ceil(((this as Element).textContent?.length ?? 0) / 90) * 20; } });
+Object.defineProperty(dom.window.Element.prototype, "scrollHeight", {
+  configurable: true,
+  get() {
+    return Math.ceil(((this as Element).textContent?.length ?? 0) / 90) * 20;
+  },
+});
 afterAll(() => closeDomWindow(dom));
 
 const React = await import("react");
 const h = React.createElement;
-mock.module("next/link", () => ({ default: ({ href, children, ...rest }: any) => h("a", { href, ...rest }, children) }));
+mock.module("next/link", () => ({
+  default: ({ href, children, ...rest }: any) =>
+    h("a", { href, ...rest }, children),
+}));
 
 const { createRoot } = await import("react-dom/client");
 const { ORG_FIXTURE } = await import("./orgFixture");
-const { ORG_CHARTER_EDIT_FIXTURE_PROPOSAL, ORG_LONG_CHARTER_FIXTURE_PROPOSAL, ORG_RECORDS_FIXTURE_LIVE, ESCALATIONS_CHARTER_SENTENCES } = await import("./orgRecordsFixture");
+const {
+  ORG_CHARTER_EDIT_FIXTURE_PROPOSAL,
+  ORG_LONG_CHARTER_FIXTURE_PROPOSAL,
+  ORG_RECORDS_FIXTURE_LIVE,
+  ESCALATIONS_CHARTER_SENTENCES,
+} = await import("./orgRecordsFixture");
 const { proposalSubjects } = await import("./proposalSubjects");
-const { ProposalSubjectCard, LedgerClosingRow, StateWord } = await import("./ProposalSubjectCard");
+const { ProposalSubjectCard, LedgerClosingRow, StateWord } =
+  await import("./ProposalSubjectCard");
 const { StagedBand } = await import("./StagedBand");
 const { OrgHoverContext } = await import("./proposalContexts");
-const { passageDiff } = await import("@codecast/shared/contracts/orgChangeWords");
+const { passageDiff } =
+  await import("@codecast/shared/contracts/orgChangeWords");
 type OrgProposalChange = import("./orgStaffingTypes").OrgProposalChange;
 type SubjectLive = import("./proposalSubjects").SubjectLive;
 type SubjectCard = import("./proposalSubjects").SubjectCard;
 type Props = import("./ProposalSubjectCard").ProposalSubjectCardProps;
 
-const change = (id: string, seq: number, c: any, status: OrgProposalChange["status"] = "proposed", extra: Partial<OrgProposalChange> = {}): OrgProposalChange =>
-  ({ _id: id, proposal_id: "p1", seq, change: c, rationale: `Because ${id}.`, evidence: [], status, ...extra });
+const change = (
+  id: string,
+  seq: number,
+  c: any,
+  status: OrgProposalChange["status"] = "proposed",
+  extra: Partial<OrgProposalChange> = {},
+): OrgProposalChange => ({
+  _id: id,
+  proposal_id: "p1",
+  seq,
+  change: c,
+  rationale: `Because ${id}.`,
+  evidence: [],
+  status,
+  ...extra,
+});
 
 const PROJECTS: SubjectLive["projects"] = [
-  { _id: "p-infra", short_id: "pr-1", title: "Infrastructure", status: "active" },
-  { _id: "p-funnel", short_id: "pr-2", title: "Matching & Funnel", status: "active" },
-  { _id: "p-deals", short_id: "pr-3", title: "People & Deals", status: "active", owner_role_id: "fixture-role-growth", goal: "Close the first fee" },
-  { _id: "p-network", short_id: "pr-5", title: "Private Network", status: "active", priority: "p2" },
-  { _id: "p-quality", short_id: "pr-6", title: "Agent Quality", status: "active" },
-  { _id: "fixture-project-growth", short_id: "pr-4", title: "Growth", status: "active" },
+  {
+    _id: "p-infra",
+    short_id: "pr-1",
+    title: "Infrastructure",
+    status: "active",
+  },
+  {
+    _id: "p-funnel",
+    short_id: "pr-2",
+    title: "Matching & Funnel",
+    status: "active",
+  },
+  {
+    _id: "p-deals",
+    short_id: "pr-3",
+    title: "People & Deals",
+    status: "active",
+    owner_role_id: "fixture-role-growth",
+    goal: "Close the first fee",
+  },
+  {
+    _id: "p-network",
+    short_id: "pr-5",
+    title: "Private Network",
+    status: "active",
+    priority: "p2",
+  },
+  {
+    _id: "p-quality",
+    short_id: "pr-6",
+    title: "Agent Quality",
+    status: "active",
+  },
+  {
+    _id: "fixture-project-growth",
+    short_id: "pr-4",
+    title: "Growth",
+    status: "active",
+  },
   { _id: "p-platform", short_id: "pr-11", title: "Platform", status: "active" },
 ];
-const goal = (id: string, short: string, title: string, extra: Record<string, unknown> = {}) =>
-  ({ _id: id, short_id: short, title, status: "active", project_ids: [], health: "none", workspace: "team:x", user_id: "fixture-user-me", created_at: 0, updated_at: 0, ...extra }) as any;
+const goal = (
+  id: string,
+  short: string,
+  title: string,
+  extra: Record<string, unknown> = {},
+) =>
+  ({
+    _id: id,
+    short_id: short,
+    title,
+    status: "active",
+    project_ids: [],
+    health: "none",
+    workspace: "team:x",
+    user_id: "fixture-user-me",
+    created_at: 0,
+    updated_at: 0,
+    ...extra,
+  }) as any;
 const LIVE: SubjectLive = {
   tree: ORG_FIXTURE,
-  goals: [goal("g-net", "in-2", "Win the private network"), goal("g-proud", "in-4", "Proud relationships")],
+  goals: [
+    goal("g-net", "in-2", "Win the private network"),
+    goal("g-proud", "in-4", "Proud relationships"),
+  ],
   projects: PROJECTS,
   plans: [],
-  tasks: [{ _id: "t9", short_id: "ct-9", title: "Remove the pilot", status: "in_progress" }],
+  tasks: [
+    {
+      _id: "t9",
+      short_id: "ct-9",
+      title: "Remove the pilot",
+      status: "in_progress",
+    },
+  ],
 };
 
 const PURPOSE = "Broker introductions that close";
-const G1 = change("g1", 1, { kind: "initiative", title: PURPOSE, description: "The business earns its fee when an introduction becomes a transaction.", owner: "Ashot Petrosian", projects: PROJECTS.slice(0, 5).map((p) => p.title) });
-const G2 = change("g2", 2, { kind: "initiative", title: "Improve conversion", description: "", owner: "me", parent: PURPOSE, projects: ["Matching & Funnel"], metrics: [{ name: "Email to intro rate", target: "0.20%" }, { name: "Cold email reply rate", target: "1% higher (Cameron)" }], evidence: ["North star goals, admin home page"] });
-const G9 = change("g9", 9, { kind: "initiative_shape", initiative: "in-4", parent: PURPOSE, title: "Proud relationships", metrics: [{ name: "Trust breaks per day", target: "0" }] });
-const G10 = change("g10", 10, { kind: "initiative_projects", initiative: "in-4", projects: ["Agent Quality"], title: "Proud relationships" });
-const RAISE = change("r4", 4, { kind: "project_meta", project: "Private Network", priority: "p1" });
-const FIRST = change("r1", 1, { kind: "project_meta", project: "Infrastructure", priority: "p0" });
+const G1 = change("g1", 1, {
+  kind: "initiative",
+  title: PURPOSE,
+  description:
+    "The business earns its fee when an introduction becomes a transaction.",
+  owner: "Ashot Petrosian",
+  projects: PROJECTS.slice(0, 5).map((p) => p.title),
+});
+const G2 = change("g2", 2, {
+  kind: "initiative",
+  title: "Improve conversion",
+  description: "",
+  owner: "me",
+  parent: PURPOSE,
+  projects: ["Matching & Funnel"],
+  metrics: [
+    { name: "Email to intro rate", target: "0.20%" },
+    { name: "Cold email reply rate", target: "1% higher (Cameron)" },
+  ],
+  evidence: ["North star goals, admin home page"],
+});
+const G9 = change("g9", 9, {
+  kind: "initiative_shape",
+  initiative: "in-4",
+  parent: PURPOSE,
+  title: "Proud relationships",
+  metrics: [{ name: "Trust breaks per day", target: "0" }],
+});
+const G10 = change("g10", 10, {
+  kind: "initiative_projects",
+  initiative: "in-4",
+  projects: ["Agent Quality"],
+  title: "Proud relationships",
+});
+const RAISE = change("r4", 4, {
+  kind: "project_meta",
+  project: "Private Network",
+  priority: "p1",
+});
+const FIRST = change("r1", 1, {
+  kind: "project_meta",
+  project: "Infrastructure",
+  priority: "p0",
+});
 const ROLE = [
-  change("limit", 1, { kind: "budget", handle: "platform", caps: { tokens_per_day: 800_000, wakes_per_day: 12 } }, "proposed", { rationale: "Platform gets 800k tokens." }),
-  change("routine", 2, { kind: "routine", handle: "platform", title: "Weekly platform review", prompt: "Review", every: "7d" }),
-  change("role", 4, { kind: "role", name: "Head of Platform", handle: "platform", reports_to: "me", scope: { projects: ["Platform"] } }),
+  change(
+    "limit",
+    1,
+    {
+      kind: "budget",
+      handle: "platform",
+      caps: { tokens_per_day: 800_000, wakes_per_day: 12 },
+    },
+    "proposed",
+    { rationale: "Platform gets 800k tokens." },
+  ),
+  change("routine", 2, {
+    kind: "routine",
+    handle: "platform",
+    title: "Weekly platform review",
+    prompt: "Review",
+    every: "7d",
+  }),
+  change("role", 4, {
+    kind: "role",
+    name: "Head of Platform",
+    handle: "platform",
+    reports_to: "me",
+    scope: { projects: ["Platform"] },
+  }),
   change("trust", 5, { kind: "trust", handle: "platform", trust: "direct" }),
 ];
 
-const cardsOf = (changes: readonly OrgProposalChange[], live: SubjectLive | null = LIVE) => proposalSubjects(changes, live);
-const cardOf = (changes: readonly OrgProposalChange[], title: string, live: SubjectLive | null = LIVE): SubjectCard => cardsOf(changes, live).find((c) => c.title === title)!;
+const cardsOf = (
+  changes: readonly OrgProposalChange[],
+  live: SubjectLive | null = LIVE,
+) => proposalSubjects(changes, live);
+const cardOf = (
+  changes: readonly OrgProposalChange[],
+  title: string,
+  live: SubjectLive | null = LIVE,
+): SubjectCard => cardsOf(changes, live).find((c) => c.title === title)!;
 
 // What the card writes into the batch: null withdraws.
 const sent: any[] = [];
-const onAnswer: Props["onAnswer"] = (answer) => { sent.push(answer); };
+const onAnswer: Props["onAnswer"] = (answer) => {
+  sent.push(answer);
+};
 const APPROVE = { verdict: "approve" as const };
 // What reaches the frame around a card: a click there opens or closes it.
 const reached: string[] = [];
-const frame = (child: React.ReactNode) => h("div", { onClick: () => reached.push("click"), onKeyDown: () => reached.push("keydown"), onPointerDown: () => reached.push("pointerdown") }, child);
+const frame = (child: React.ReactNode) =>
+  h(
+    "div",
+    {
+      onClick: () => reached.push("click"),
+      onKeyDown: () => reached.push("keydown"),
+      onPointerDown: () => reached.push("pointerdown"),
+    },
+    child,
+  );
 
-function mount(props: Props, wrap: (node: React.ReactNode) => React.ReactNode = (n) => n) {
+function mount(
+  props: Props,
+  wrap: (node: React.ReactNode) => React.ReactNode = (n) => n,
+) {
   const root = createRoot(document.getElementById("root")!);
   React.act(() => root.render(wrap(frame(h(ProposalSubjectCard, props)))));
-  return { root, update: (next: Props) => React.act(() => root.render(wrap(frame(h(ProposalSubjectCard, next))))), done: () => React.act(() => root.unmount()) };
+  return {
+    root,
+    update: (next: Props) =>
+      React.act(() => root.render(wrap(frame(h(ProposalSubjectCard, next))))),
+    done: () => React.act(() => root.unmount()),
+  };
 }
 const q = (sel: string) => document.querySelector<HTMLElement>(sel)!;
-const qa = (sel: string) => Array.from(document.querySelectorAll<HTMLElement>(sel));
-const fire = (el: HTMLElement, type: string) => React.act(() => { el.dispatchEvent(type === "keydown" ? new KeyboardEvent("keydown", { key: "Enter", bubbles: true }) : new MouseEvent(type, { bubbles: true })); });
+const qa = (sel: string) =>
+  Array.from(document.querySelectorAll<HTMLElement>(sel));
+const fire = (el: HTMLElement, type: string) =>
+  React.act(() => {
+    el.dispatchEvent(
+      type === "keydown"
+        ? new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+        : new MouseEvent(type, { bubbles: true }),
+    );
+  });
 const click = (el: HTMLElement) => fire(el, "click");
-const key = (el: HTMLElement, k: string, init: KeyboardEventInit = {}) => React.act(() => { el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...init })); });
+const key = (el: HTMLElement, k: string, init: KeyboardEventInit = {}) =>
+  React.act(() => {
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", { key: k, bubbles: true, ...init }),
+    );
+  });
 // Typing: the value through the native setter, then the input event React listens for.
-const type = (el: HTMLTextAreaElement, text: string) => React.act(() => {
-  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(el, text);
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-});
-const fieldOf = () => q("[data-subject-reply-field] textarea") as HTMLTextAreaElement | null;
+const type = (el: HTMLTextAreaElement, text: string) =>
+  React.act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )!.set!.call(el, text);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+const fieldOf = () =>
+  q("[data-subject-reply-field] textarea") as HTMLTextAreaElement | null;
 const field = (key: string) => q(`[data-field='${key}']`);
-const struckIn = (el: HTMLElement) => Array.from(el.querySelectorAll<HTMLElement>(".line-through")).map((x) => x.textContent);
+const struckIn = (el: HTMLElement) =>
+  Array.from(el.querySelectorAll<HTMLElement>(".line-through")).map(
+    (x) => x.textContent,
+  );
 const band = () => q("[data-staged]") as HTMLElement | null;
 
 test("a change to a project: the sentence with one bold name, the field from what it was, the reason; Accept stages a band and Undo takes it back", () => {
@@ -122,8 +346,12 @@ test("a change to a project: the sentence with one bold name, the field from wha
   expect(root.getAttribute("data-change-ids")).toBe("r4");
   expect(root.className).toContain("not-prose");
   expect(q("[data-subject-ordinal]").textContent).toBe("2");
-  expect(q("[data-subject-sentence]").textContent).toBe("Raise Private Network to a high priority.");
-  expect(qa("[data-subject-sentence] b").map((b) => b.textContent)).toEqual(["Private Network"]);
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Raise Private Network to a high priority.",
+  );
+  expect(qa("[data-subject-sentence] b").map((b) => b.textContent)).toEqual([
+    "Private Network",
+  ]);
 
   // What it was is struck and plain; what it becomes carries the priority's dot.
   const priority = field("priority");
@@ -135,10 +363,14 @@ test("a change to a project: the sentence with one bold name, the field from wha
   expect(priority.previousElementSibling!.textContent).toBe("Priority");
   // The author's reason reads as the Why row in the field grid.
   expect(q("[data-subject-why]").textContent).toBe("Because r4.");
-  expect(q("[data-subject-why]").previousElementSibling!.textContent).toBe("Why");
+  expect(q("[data-subject-why]").previousElementSibling!.textContent).toBe(
+    "Why",
+  );
 
   // Two answers: Adjust, an outline that opens the field, then Accept, the filled green face.
-  expect(qa("[data-subject-verdicts] button").map((b) => b.textContent)).toEqual(["Adjust", "Accept"]);
+  expect(
+    qa("[data-subject-verdicts] button").map((b) => b.textContent),
+  ).toEqual(["Adjust", "Accept"]);
   const approve = q("[data-subject-approve]");
   expect(approve.textContent).toBe("Accept");
   expect(approve.className).toContain("cc-btn-green");
@@ -155,7 +387,9 @@ test("a change to a project: the sentence with one bold name, the field from wha
   expect(band()).toBeNull();
   // With the answer in hand the controls give way to the band, and the card still reads as undecided.
   m.update({ card, ordinal: 2, onAnswer, answer: APPROVE });
-  expect(q("[data-subject]").getAttribute("data-subject-answer")).toBe("approve");
+  expect(q("[data-subject]").getAttribute("data-subject-answer")).toBe(
+    "approve",
+  );
   expect(q("[data-subject-approve]")).toBeNull();
   expect(q("[data-subject-reject]")).toBeNull();
   expect(band()!.getAttribute("data-staged")).toBe("approve");
@@ -170,7 +404,9 @@ test("a change to a project: the sentence with one bold name, the field from wha
   // Undo withdraws, and the controls come back.
   click(q("[data-staged-undo]"));
   expect(sent.splice(0)).toEqual([null]);
-  expect(q("[data-staged-undo]").getAttribute("aria-label")).toBe("Undo this answer");
+  expect(q("[data-staged-undo]").getAttribute("aria-label")).toBe(
+    "Undo this answer",
+  );
   m.update({ card, ordinal: 2, onAnswer, answer: null });
   expect(band()).toBeNull();
   expect(q("[data-subject-approve]")).not.toBeNull();
@@ -191,7 +427,9 @@ test("Reject inside the Adjust field stages the band with the field inside it, a
   click(q("[data-subject-reply]"));
   expect(sent).toEqual([]);
   // Reject sits on the field's key line.
-  expect(q("[data-subject-reply-field] [data-subject-reject]").textContent).toBe("Reject");
+  expect(
+    q("[data-subject-reply-field] [data-subject-reject]").textContent,
+  ).toBe("Reject");
   expect(q("[data-subject-reject]").getAttribute("aria-pressed")).toBe("false");
   click(q("[data-subject-reject]"));
   expect(sent.splice(0)).toEqual([{ verdict: "reject" }]);
@@ -209,21 +447,43 @@ test("Reject inside the Adjust field stages the band with the field inside it, a
   expect(q("[data-subject-reject]").getAttribute("aria-pressed")).toBe("true");
   // Every keystroke is the batch's: the draft never lives in the card alone.
   type(ta, "P1 is too high");
-  expect(sent.splice(0)).toEqual([{ verdict: "reject", text: "P1 is too high" }]);
+  expect(sent.splice(0)).toEqual([
+    { verdict: "reject", text: "P1 is too high" },
+  ]);
   // Pressed again, Reject turns the words back into a note and keeps them.
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "reject", text: "P1 is too high" } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "reject", text: "P1 is too high" },
+  });
   click(q("[data-subject-reject]"));
   expect(sent.splice(0)).toEqual([{ verdict: "note", text: "P1 is too high" }]);
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "note", text: "P1 is too high" } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "note", text: "P1 is too high" },
+  });
   expect(fieldOf()!.placeholder).toBe("What should change?");
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "reject", text: "P1 is too high" } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "reject", text: "P1 is too high" },
+  });
   // Keys in the field never reach the frame: a space does not fold the card.
   key(ta, " ");
   key(ta, "Enter", { shiftKey: true });
   expect(reached).toEqual([]);
   expect(fieldOf()).not.toBeNull();
   // Enter saves and closes; the words sit in the band as "You".
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "reject", text: "P1 is too high, make it P2." } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "reject", text: "P1 is too high, make it P2." },
+  });
   key(fieldOf()!, "Enter");
   expect(fieldOf()).toBeNull();
   expect(sent).toEqual([]);
@@ -235,7 +495,9 @@ test("Reject inside the Adjust field stages the band with the field inside it, a
   expect(fieldOf()!.value).toBe("P1 is too high, make it P2.");
   key(fieldOf()!, "Escape");
   expect(fieldOf()).toBeNull();
-  expect(q("[data-subject-you]").textContent).toBe("You: P1 is too high, make it P2.");
+  expect(q("[data-subject-you]").textContent).toBe(
+    "You: P1 is too high, make it P2.",
+  );
   expect(reached).toEqual([]);
   // Undo withdraws the answer, words and all.
   click(q("[data-staged-undo]"));
@@ -254,11 +516,20 @@ test("Adjust opens the field with no verdict; the first keystroke mounts the ban
   expect(q("[data-subject-reply]").getAttribute("aria-pressed")).toBe("true");
   expect(band()).toBeNull();
   type(ta, "Cameron owns this");
-  expect(sent.splice(0)).toEqual([{ verdict: "note", text: "Cameron owns this" }]);
+  expect(sent.splice(0)).toEqual([
+    { verdict: "note", text: "Cameron owns this" },
+  ]);
   // The note is an answer now: the band appears, and the textarea under the caret is the same node.
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "note", text: "Cameron owns this" } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "note", text: "Cameron owns this" },
+  });
   expect(band()!.getAttribute("data-staged")).toBe("note");
-  expect(band()!.textContent).toBe("Adjust. Your words go back when you send.Undo");
+  expect(band()!.textContent).toBe(
+    "Adjust. Your words go back when you send.Undo",
+  );
   expect(fieldOf()).toBe(ta);
   expect(document.activeElement).toBe(ta);
   // An empty note is withdrawn by the batch; the field stays open all the same.
@@ -270,26 +541,54 @@ test("Adjust opens the field with no verdict; the first keystroke mounts the ban
   // Blank words mid thought stay in the batch while the field is open; closing it withdraws them.
   type(fieldOf()!, "  ");
   expect(sent.splice(0)).toEqual([{ verdict: "note", text: "  " }]);
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "note", text: "  " } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "note", text: "  " },
+  });
   key(fieldOf()!, "Escape");
   expect(sent.splice(0)).toEqual([null]);
   expect(fieldOf()).toBeNull();
   m.update({ card, ordinal: 2, onAnswer, answer: null });
   expect(band()).toBeNull();
   click(q("[data-subject-reply]"));
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "note", text: " " } });
-  React.act(() => { fieldOf()!.dispatchEvent(new dom.window.FocusEvent("focusout", { bubbles: true })); });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "note", text: " " },
+  });
+  React.act(() => {
+    fieldOf()!.dispatchEvent(
+      new dom.window.FocusEvent("focusout", { bubbles: true }),
+    );
+  });
   expect(sent.splice(0)).toEqual([null]);
   expect(fieldOf()).toBeNull();
   m.update({ card, ordinal: 2, onAnswer, answer: null });
   // With a note in hand, Accept keeps the words under the approval.
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "note", text: "Cameron owns this, not Samvit." } });
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "note", text: "Cameron owns this, not Samvit." },
+  });
   click(q("[data-subject-you]"));
   expect(fieldOf()!.value).toBe("Cameron owns this, not Samvit.");
   key(fieldOf()!, "Escape");
-  m.update({ card, ordinal: 2, onAnswer, answer: { verdict: "approve", text: "Cameron owns this, not Samvit." } });
-  expect(band()!.textContent).toBe("Accepted. Applies when you send.UndoYou: Cameron owns this, not Samvit.");
-  expect(q("[data-subject-you]").getAttribute("data-subject-you")).toBe("approve");
+  m.update({
+    card,
+    ordinal: 2,
+    onAnswer,
+    answer: { verdict: "approve", text: "Cameron owns this, not Samvit." },
+  });
+  expect(band()!.textContent).toBe(
+    "Accepted. Applies when you send.UndoYou: Cameron owns this, not Samvit.",
+  );
+  expect(q("[data-subject-you]").getAttribute("data-subject-you")).toBe(
+    "approve",
+  );
   expect(reached).toEqual([]);
   m.done();
 });
@@ -298,60 +597,146 @@ test("the band's words per verdict, and an approval that leaves the sessions whe
   const root = createRoot(document.getElementById("root")!);
   const bands = [
     h(StagedBand, { key: "a", answer: { verdict: "approve" }, onUndo() {} }),
-    h(StagedBand, { key: "c", answer: { verdict: "approve", leave_sessions: true }, onUndo() {} }),
+    h(StagedBand, {
+      key: "c",
+      answer: { verdict: "approve", leave_sessions: true },
+      onUndo() {},
+    }),
     h(StagedBand, { key: "d", answer: { verdict: "reject" }, onUndo() {} }),
-    h(StagedBand, { key: "e", answer: { verdict: "note", text: "x" }, onUndo() {} }),
+    h(StagedBand, {
+      key: "e",
+      answer: { verdict: "note", text: "x" },
+      onUndo() {},
+    }),
   ];
   React.act(() => root.render(h("div", null, bands)));
-  expect(qa("[data-staged]").map((b) => [b.getAttribute("data-staged"), b.textContent])).toEqual([
+  expect(
+    qa("[data-staged]").map((b) => [
+      b.getAttribute("data-staged"),
+      b.textContent,
+    ]),
+  ).toEqual([
     ["approve", "Accepted. Applies when you send.Undo"],
-    ["approve", "Accepted, and the sessions stay where they are. Applies when you send.Undo"],
+    [
+      "approve",
+      "Accepted, and the sessions stay where they are. Applies when you send.Undo",
+    ],
     ["reject", "Rejected. Sent when you send.Undo"],
     ["note", "Adjust. Your words go back when you send.Undo"],
   ]);
   // The first word carries the verdict's ink; the rest is quiet.
-  expect(qa("[data-staged] b").map((b) => b.textContent)).toEqual(["Accepted.", "Accepted,", "Rejected.", "Adjust."]);
-  expect(qa("[data-staged]")[2].querySelector("b")!.className).toContain("--ink-red");
+  expect(qa("[data-staged] b").map((b) => b.textContent)).toEqual([
+    "Accepted.",
+    "Accepted,",
+    "Rejected.",
+    "Adjust.",
+  ]);
+  expect(qa("[data-staged]")[2].querySelector("b")!.className).toContain(
+    "--ink-red",
+  );
   expect(qa("[data-staged] svg").length).toBe(3);
   React.act(() => root.unmount());
 });
 
 test("a retirement: the role as its one row, struck, with its face and nothing after it", () => {
-  const m = mount({ card: cardOf([change("a", 1, { kind: "retire", handle: "growth" })], "Head of Growth"), ordinal: 1, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Retire Head of Growth. Its sessions go back to their owners.");
-  expect(qa("[data-field]").map((f) => [f.previousElementSibling!.textContent, f.getAttribute("data-field-op"), f.getAttribute("data-field-before"), f.getAttribute("data-field-after")])).toEqual([["Role", "clear", "Head of Growth", null]]);
+  const m = mount({
+    card: cardOf(
+      [change("a", 1, { kind: "retire", handle: "growth" })],
+      "Head of Growth",
+    ),
+    ordinal: 1,
+    onAnswer,
+  });
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Retire Head of Growth. Its sessions go back to their owners.",
+  );
+  expect(
+    qa("[data-field]").map((f) => [
+      f.previousElementSibling!.textContent,
+      f.getAttribute("data-field-op"),
+      f.getAttribute("data-field-before"),
+      f.getAttribute("data-field-after"),
+    ]),
+  ).toEqual([["Role", "clear", "Head of Growth", null]]);
   expect(struckIn(field("role"))).toEqual(["Head of Growth"]);
-  expect(field("role").querySelector("[data-subject-face='role']")).not.toBeNull();
+  expect(
+    field("role").querySelector("[data-subject-face='role']"),
+  ).not.toBeNull();
   expect(document.body.textContent).not.toContain("→");
   m.done();
 });
 
 test("every text field clamps at two lines with show all and show less, except the purpose's Says", async () => {
-  const kid = change("g3", 3, { kind: "initiative", title: "Fundraise", description: "Raise the round that funds the next year.", why: "Runway.", done_when: "The money is in the bank.", owner: "me", parent: PURPOSE, projects: ["Growth"] });
-  const purpose = mount({ card: cardOf([G1, kid], PURPOSE), ordinal: 1, onAnswer });
-  expect(field("says").textContent).toBe("The business earns its fee when an introduction becomes a transaction.");
+  const kid = change("g3", 3, {
+    kind: "initiative",
+    title: "Fundraise",
+    description: "Raise the round that funds the next year.",
+    why: "Runway.",
+    done_when: "The money is in the bank.",
+    owner: "me",
+    parent: PURPOSE,
+    projects: ["Growth"],
+  });
+  const purpose = mount({
+    card: cardOf([G1, kid], PURPOSE),
+    ordinal: 1,
+    onAnswer,
+  });
+  expect(field("says").textContent).toBe(
+    "The business earns its fee when an introduction becomes a transaction.",
+  );
   expect(field("says").querySelector("[data-field-clamp]")).toBeNull();
   purpose.done();
-  const child = mount({ card: cardOf([G1, kid], "Fundraise"), ordinal: 2, onAnswer });
-  expect(["says", "why", "done_when"].map((k) => field(k).querySelector("[data-field-clamp]")?.getAttribute("data-field-clamp"))).toEqual(["closed", "closed", "closed"]);
-  expect(field("says").querySelector("[data-field-clamp] > span")!.className).toContain("line-clamp-2");
+  const child = mount({
+    card: cardOf([G1, kid], "Fundraise"),
+    ordinal: 2,
+    onAnswer,
+  });
+  expect(
+    ["says", "why", "done_when"].map((k) =>
+      field(k)
+        .querySelector("[data-field-clamp]")
+        ?.getAttribute("data-field-clamp"),
+    ),
+  ).toEqual(["closed", "closed", "closed"]);
+  expect(
+    field("says").querySelector("[data-field-clamp] > span")!.className,
+  ).toContain("line-clamp-2");
   // Under two lines, no word.
   expect(field("says").querySelector("[data-field-more]")).toBeNull();
   expect(field("owner").querySelector("[data-field-clamp]")).toBeNull();
   child.done();
   // op-903's charter runs to 1449 characters: the word appears, and opens the whole text.
-  const long = mount({ card: cardOf(ORG_LONG_CHARTER_FIXTURE_PROPOSAL.changes, "Partnerships lead", ORG_RECORDS_FIXTURE_LIVE), ordinal: 2, onAnswer });
+  const long = mount({
+    card: cardOf(
+      ORG_LONG_CHARTER_FIXTURE_PROPOSAL.changes,
+      "Partnerships lead",
+      ORG_RECORDS_FIXTURE_LIVE,
+    ),
+    ordinal: 2,
+    onAnswer,
+  });
   // The clamp measures on the observer's first answer after the commit (hooks/useOverflows).
   await React.act(async () => {});
   const charter = field("charter");
   expect(charter.previousElementSibling!.textContent).toBe("Charter");
   const more = () => charter.querySelector<HTMLElement>("[data-field-more]")!;
   expect(more().textContent).toBe("show all");
-  expect(charter.querySelector("[data-field-clamp]")!.getAttribute("data-field-clamp")).toBe("closed");
+  expect(
+    charter
+      .querySelector("[data-field-clamp]")!
+      .getAttribute("data-field-clamp"),
+  ).toBe("closed");
   click(more());
   expect(more().textContent).toBe("show less");
-  expect(charter.querySelector("[data-field-clamp]")!.getAttribute("data-field-clamp")).toBe("open");
-  expect(charter.querySelector("[data-field-clamp] > span")!.className).not.toContain("line-clamp");
+  expect(
+    charter
+      .querySelector("[data-field-clamp]")!
+      .getAttribute("data-field-clamp"),
+  ).toBe("open");
+  expect(
+    charter.querySelector("[data-field-clamp] > span")!.className,
+  ).not.toContain("line-clamp");
   expect(reached).toEqual([]);
   // No clamp word on the sentence.
   expect(q("[data-subject-sentence] [data-field-more]")).toBeNull();
@@ -359,20 +744,52 @@ test("every text field clamps at two lines with show all and show less, except t
 });
 
 test("a charter edit draws each edit as a passage diff under one Charter label; the untouched sentences stay out of the DOM", () => {
-  const edit = cardOf(ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes, "Escalations lead", ORG_RECORDS_FIXTURE_LIVE);
-  const meta = cardOf(ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes, "Matching Engine & Funnel", ORG_RECORDS_FIXTURE_LIVE);
+  const edit = cardOf(
+    ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes,
+    "Escalations lead",
+    ORG_RECORDS_FIXTURE_LIVE,
+  );
+  const meta = cardOf(
+    ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes,
+    "Matching Engine & Funnel",
+    ORG_RECORDS_FIXTURE_LIVE,
+  );
   const m = mount({ card: edit, ordinal: 1, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Rewrite a passage of Escalations lead's charter, add a line to its charter and cut a passage from its charter.");
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Rewrite a passage of Escalations lead's charter, add a line to its charter and cut a passage from its charter.",
+  );
   // The fields draw three blocks; the revision block under them draws its own.
-  const blocks = Array.from(q("[data-subject-group]").querySelectorAll<HTMLElement>("[data-passage-diff]"));
+  const blocks = Array.from(
+    q("[data-subject-group]").querySelectorAll<HTMLElement>(
+      "[data-passage-diff]",
+    ),
+  );
   expect(blocks.length).toBe(3);
-  expect(blocks.map((b) => Array.from(b.querySelectorAll("[data-diff]")).map((p) => p.getAttribute("data-diff")))).toEqual([["removed", "added"], ["added"], ["removed"]]);
-  expect(blocks.map((b) => b.getAttribute("data-passage-diff"))).toEqual(["2", "1", "1"]);
+  expect(
+    blocks.map((b) =>
+      Array.from(b.querySelectorAll("[data-diff]")).map((p) =>
+        p.getAttribute("data-diff"),
+      ),
+    ),
+  ).toEqual([["removed", "added"], ["added"], ["removed"]]);
+  expect(blocks.map((b) => b.getAttribute("data-passage-diff"))).toEqual([
+    "2",
+    "1",
+    "1",
+  ]);
   // One label for the run of edits; the author's reason closes the grid as its Why row.
-  expect(Array.from(q("[data-subject-group]").querySelectorAll("dt")).map((d) => d.textContent)).toEqual(["Charter", "", "", "Why"]);
-  expect(blocks[0].querySelector("del")!.textContent).toBe(ESCALATIONS_CHARTER_SENTENCES[1]);
+  expect(
+    Array.from(q("[data-subject-group]").querySelectorAll("dt")).map(
+      (d) => d.textContent,
+    ),
+  ).toEqual(["Charter", "", "", "Why"]);
+  expect(blocks[0].querySelector("del")!.textContent).toBe(
+    ESCALATIONS_CHARTER_SENTENCES[1],
+  );
   expect(blocks[0].querySelector("ins")).not.toBeNull();
-  expect(document.body.textContent).not.toContain(ESCALATIONS_CHARTER_SENTENCES[3]);
+  expect(document.body.textContent).not.toContain(
+    ESCALATIONS_CHARTER_SENTENCES[3],
+  );
   // A removed passage is struck on a red wash; an added one has no underline.
   expect(blocks[0].querySelector("del")!.className).toContain("line-through");
   expect(blocks[1].querySelector("ins")!.className).toContain("no-underline");
@@ -387,19 +804,39 @@ test("a charter edit draws each edit as a passage diff under one Charter label; 
   const g = mount({ card: meta, ordinal: 2, onAnswer });
   const goalField = field("goal");
   expect(goalField.getAttribute("data-field-op")).toBe("change");
-  const expected = passageDiff(ORG_RECORDS_FIXTURE_LIVE.projects[0].goal!, (ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes[1].change as { goal: string }).goal).map((p) => p.kind);
-  expect(Array.from(goalField.querySelectorAll("[data-diff]")).map((p) => p.getAttribute("data-diff"))).toEqual(expected);
-  expect(goalField.querySelectorAll("[data-diff='same'], [data-diff='gap']").length).toBe(1);
+  const expected = passageDiff(
+    ORG_RECORDS_FIXTURE_LIVE.projects[0].goal!,
+    (ORG_CHARTER_EDIT_FIXTURE_PROPOSAL.changes[1].change as { goal: string })
+      .goal,
+  ).map((p) => p.kind);
+  expect(
+    Array.from(goalField.querySelectorAll("[data-diff]")).map((p) =>
+      p.getAttribute("data-diff"),
+    ),
+  ).toEqual(expected);
+  expect(
+    goalField.querySelectorAll("[data-diff='same'], [data-diff='gap']").length,
+  ).toBe(1);
   g.done();
 });
 
 test("op-903's revision block: Changed, the note, and the charter as one passage diff", () => {
-  const m = mount({ card: cardOf(ORG_LONG_CHARTER_FIXTURE_PROPOSAL.changes, "Partnerships lead", ORG_RECORDS_FIXTURE_LIVE), ordinal: 2, onAnswer });
+  const m = mount({
+    card: cardOf(
+      ORG_LONG_CHARTER_FIXTURE_PROPOSAL.changes,
+      "Partnerships lead",
+      ORG_RECORDS_FIXTURE_LIVE,
+    ),
+    ordinal: 2,
+    onAnswer,
+  });
   const rev = q("[data-revision]");
   expect(rev.getAttribute("data-revision")).toBe("amended");
   expect(rev.getAttribute("data-revision-fields")).toBe("1");
   expect(rev.querySelector("span")!.textContent).toBe("Changed");
-  expect(rev.textContent).toContain("Wrote the weekly steps out after you asked what the role does on its own.");
+  expect(rev.textContent).toContain(
+    "Wrote the weekly steps out after you asked what the role does on its own.",
+  );
   const moved = rev.querySelector<HTMLElement>("[data-field='charter']")!;
   expect(moved.getAttribute("data-field-op")).toBe("change");
   expect(moved.querySelector("[data-passage-diff]")).not.toBeNull();
@@ -410,14 +847,37 @@ test("op-903's revision block: Changed, the note, and the charter as one passage
 });
 
 test("a field that held nothing reads its placeholder, quiet and never struck; a field that reads the same is not drawn", () => {
-  const m = mount({ card: cardOf([FIRST, RAISE], "Infrastructure"), ordinal: 1, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Make Infrastructure the top priority.");
+  const m = mount({
+    card: cardOf([FIRST, RAISE], "Infrastructure"),
+    ordinal: 1,
+    onAnswer,
+  });
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Make Infrastructure the top priority.",
+  );
   expect(field("priority").getAttribute("data-field-before")).toBe("not set");
   expect(field("priority").getAttribute("data-field-after")).toBe("P0");
   expect(struckIn(field("priority"))).toEqual([]);
   m.done();
-  const meta = mount({ card: cardOf([change("m", 1, { kind: "project_meta", project: "pr-3", owner: "@growth", goal: "Close two fees", non_goals: [] })], "People & Deals"), ordinal: 1, onAnswer });
-  expect(qa("[data-field]").map((f) => f.getAttribute("data-field"))).toEqual(["goal"]);
+  const meta = mount({
+    card: cardOf(
+      [
+        change("m", 1, {
+          kind: "project_meta",
+          project: "pr-3",
+          owner: "@growth",
+          goal: "Close two fees",
+          non_goals: [],
+        }),
+      ],
+      "People & Deals",
+    ),
+    ordinal: 1,
+    onAnswer,
+  });
+  expect(qa("[data-field]").map((f) => f.getAttribute("data-field"))).toEqual([
+    "goal",
+  ]);
   expect(document.body.textContent).not.toContain("no change");
   meta.done();
 });
@@ -425,10 +885,19 @@ test("a field that held nothing reads its placeholder, quiet and never struck; a
 test("a new role with what rides along is one entry whose members are the card's; a limit never shows; alone, Accept is the filled green face", () => {
   const card = cardOf(ROLE, "Head of Platform");
   const m = mount({ card, onAnswer });
-  expect(q("[data-subject]").getAttribute("data-change-ids")).toBe("role limit trust routine");
-  expect(q("[data-subject-sentence]").textContent).toBe("Add the role Head of Platform, reporting to you.");
+  expect(q("[data-subject]").getAttribute("data-change-ids")).toBe(
+    "role limit trust routine",
+  );
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Add the role Head of Platform, reporting to you.",
+  );
   // "you" carries the reader's own face (the initials are its text).
-  expect(qa("[data-field]").map((f) => [f.previousElementSibling!.textContent, f.textContent])).toEqual([
+  expect(
+    qa("[data-field]").map((f) => [
+      f.previousElementSibling!.textContent,
+      f.textContent,
+    ]),
+  ).toEqual([
     ["Reports to", "APyou"],
     ["Looks after", "Platform"],
     ["Runs", "Weekly platform review, every week"],
@@ -437,10 +906,15 @@ test("a new role with what rides along is one entry whose members are the card's
   // A new record has nothing to compare: no arrow, nothing struck. The routine's cadence is a quiet tail.
   expect(qa("[data-field-before]")).toEqual([]);
   expect(document.body.textContent).not.toContain("→");
-  expect(field("routine").querySelector(".text-\\[color\\:var\\(--ink-quiet\\)\\]")!.textContent).toBe(", every week");
+  expect(
+    field("routine").querySelector(".text-\\[color\\:var\\(--ink-quiet\\)\\]")!
+      .textContent,
+  ).toBe(", every week");
   // What creates the subject is one group; its members' reasons read as one Why row.
   expect(qa("[data-subject-group]").length).toBe(1);
-  expect(qa("[data-subject-why]").map((w) => w.textContent)).toEqual(["Because role.\nBecause routine.\nBecause trust."]);
+  expect(qa("[data-subject-why]").map((w) => w.textContent)).toEqual([
+    "Because role.\nBecause routine.\nBecause trust.",
+  ]);
   expect(document.body.textContent).not.toMatch(/800|tokens|wakes|caps|limit/i);
   // No number column on a card that stands alone; its Accept is the filled green face all the same.
   expect(q("[data-subject-ordinal]")).toBeNull();
@@ -451,11 +925,19 @@ test("a new role with what rides along is one entry whose members are the card's
 });
 
 test("a failed entry: the note under the sentence, a red number, and Adjust alone, since as written it fails the same way", () => {
-  const failed = { ...RAISE, status: "failed" as const, applied_note: "The project was renamed while this waited." };
+  const failed = {
+    ...RAISE,
+    status: "failed" as const,
+    applied_note: "The project was renamed while this waited.",
+  };
   const card = cardOf([FIRST, failed], "Private Network");
   const m = mount({ card, ordinal: 4, onAnswer });
-  expect(q("[data-subject]").getAttribute("data-subject-status")).toBe("failed");
-  expect(q("[data-failed-note]").textContent).toBe("Failed: The project was renamed while this waited.");
+  expect(q("[data-subject]").getAttribute("data-subject-status")).toBe(
+    "failed",
+  );
+  expect(q("[data-failed-note]").textContent).toBe(
+    "Failed: The project was renamed while this waited.",
+  );
   expect(q("[data-subject-ordinal]").className).toContain("--ink-red");
   // A failed apply wrote nothing, so the field still reads the live record.
   expect(field("priority").getAttribute("data-field-before")).toBe("P2");
@@ -467,18 +949,41 @@ test("a failed entry: the note under the sentence, a red number, and Adjust alon
   expect(q("[data-subject-reply-field] [data-subject-reject]")).not.toBeNull();
   key(fieldOf()!, "Escape");
   // Amended by its author, it is proposed again and Accept is back.
-  m.update({ card: cardOf([FIRST, { ...RAISE, revision: { kind: "amended", note: "Renamed project.", at: 12 } }], "Private Network"), ordinal: 4, onAnswer });
+  m.update({
+    card: cardOf(
+      [
+        FIRST,
+        {
+          ...RAISE,
+          revision: { kind: "amended", note: "Renamed project.", at: 12 },
+        },
+      ],
+      "Private Network",
+    ),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(q("[data-subject-approve]").textContent).toBe("Accept");
   m.done();
 });
 
 test("after the send an entry keeps its fields and reason; the word says where it stands and the controls are gone", () => {
-  const at = (status: OrgProposalChange["status"], extra: Partial<OrgProposalChange> = {}) => cardOf([FIRST, { ...RAISE, status, ...extra }], "Private Network");
-  const m = mount({ card: at("proposed"), ordinal: 4, onAnswer, answer: APPROVE });
+  const at = (
+    status: OrgProposalChange["status"],
+    extra: Partial<OrgProposalChange> = {},
+  ) => cardOf([FIRST, { ...RAISE, status, ...extra }], "Private Network");
+  const m = mount({
+    card: at("proposed"),
+    ordinal: 4,
+    onAnswer,
+    answer: APPROVE,
+  });
   expect(band()).not.toBeNull();
   // The beat between the send and its apply: the word in cyan, and the band is gone with the answer.
   m.update({ card: at("accepted"), ordinal: 4, onAnswer });
-  expect(q("[data-subject-state]").getAttribute("data-subject-state")).toBe("accepted");
+  expect(q("[data-subject-state]").getAttribute("data-subject-state")).toBe(
+    "accepted",
+  );
   expect(q("[data-subject-state]").textContent).toBe("Accepted, applying");
   expect(q("[data-subject-state]").className).toContain("--ink-cyan");
   expect(q("[data-subject-approve]")).toBeNull();
@@ -486,9 +991,27 @@ test("after the send an entry keeps its fields and reason; the word says where i
   expect(q("[data-subject-reply]")).toBeNull();
   expect(band()).toBeNull();
   // Applied: green, and the field reads the stamp, not the record that has since moved.
-  const stamp = [{ kind: "project_meta" as const, subject: { type: "project" as const, id: "p-network", label: "Private Network" }, before: { priority: "p2" }, after: { priority: "p1" }, labels: {} }];
-  m.update({ card: at("applied", { applied_diff: stamp }), ordinal: 4, onAnswer });
-  expect(q("[data-subject-state]").getAttribute("data-subject-state")).toBe("applied");
+  const stamp = [
+    {
+      kind: "project_meta" as const,
+      subject: {
+        type: "project" as const,
+        id: "p-network",
+        label: "Private Network",
+      },
+      before: { priority: "p2" },
+      after: { priority: "p1" },
+      labels: {},
+    },
+  ];
+  m.update({
+    card: at("applied", { applied_diff: stamp }),
+    ordinal: 4,
+    onAnswer,
+  });
+  expect(q("[data-subject-state]").getAttribute("data-subject-state")).toBe(
+    "applied",
+  );
   expect(q("[data-subject-state]").textContent).toBe("Applied");
   expect(q("[data-subject-state]").className).toContain("--ink-green");
   expect(field("priority").getAttribute("data-field-before")).toBe("P2");
@@ -496,13 +1019,33 @@ test("after the send an entry keeps its fields and reason; the word says where i
   // No way back on the entry: a verdict's undo is the org record's.
   expect(document.body.textContent).not.toMatch(/undo/i);
   // An approval that carried words keeps them under the entry.
-  m.update({ card: at("applied", { applied_diff: stamp, reply: { verdict: "approve", text: "But revisit in a month.", at: 9 } }), ordinal: 4, onAnswer });
-  expect(q("[data-subject-you]").textContent).toBe("You: But revisit in a month.");
+  m.update({
+    card: at("applied", {
+      applied_diff: stamp,
+      reply: { verdict: "approve", text: "But revisit in a month.", at: 9 },
+    }),
+    ordinal: 4,
+    onAnswer,
+  });
+  expect(q("[data-subject-you]").textContent).toBe(
+    "You: But revisit in a month.",
+  );
   m.done();
   // Rejected in view: the entry keeps its diff and its height, so nothing jumps under the pointer; a fresh mount folds it.
-  const r = mount({ card: at("proposed"), ordinal: 4, onAnswer, answer: { verdict: "reject", text: "Too high." } });
+  const r = mount({
+    card: at("proposed"),
+    ordinal: 4,
+    onAnswer,
+    answer: { verdict: "reject", text: "Too high." },
+  });
   expect(field("priority").getAttribute("data-field-before")).toBe("P2");
-  r.update({ card: at("skipped", { reply: { verdict: "reject", text: "Too high.", at: 9 } }), ordinal: 4, onAnswer });
+  r.update({
+    card: at("skipped", {
+      reply: { verdict: "reject", text: "Too high.", at: 9 },
+    }),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(q("[data-subject-state]").textContent).toBe("Rejected");
   expect(field("priority").getAttribute("data-field-after")).toBe("P1");
   expect(q("[data-subject-you]").textContent).toBe("You: Too high.");
@@ -510,7 +1053,26 @@ test("after the send an entry keeps its fields and reason; the word says where i
 });
 
 test("rejected and noted after the send: the stored words under the entry, and a noted card still answerable", () => {
-  const rejected = mount({ card: cardOf([FIRST, { ...RAISE, status: "skipped", reply: { verdict: "reject", text: "P1 is too high, make it P2.", at: 9, by: "u1" } }], "Private Network"), ordinal: 4, onAnswer });
+  const rejected = mount({
+    card: cardOf(
+      [
+        FIRST,
+        {
+          ...RAISE,
+          status: "skipped",
+          reply: {
+            verdict: "reject",
+            text: "P1 is too high, make it P2.",
+            at: 9,
+            by: "u1",
+          },
+        },
+      ],
+      "Private Network",
+    ),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(q("[data-subject-state]").textContent).toBe("Rejected");
   expect(q("[data-subject-state]").className).toContain("--ink-quiet");
   expect(q("[data-subject-sentence]").className).toContain("--ink-quiet");
@@ -522,27 +1084,102 @@ test("rejected and noted after the send: the stored words under the entry, and a
   expect(q("[data-subject-noted]")).toBeNull();
   rejected.done();
 
-  const notedCard = cardOf([FIRST, { ...RAISE, reply: { verdict: "note", text: "Cameron owns this, not Samvit.", at: 9, by: "u1" } }], "Private Network");
+  const notedCard = cardOf(
+    [
+      FIRST,
+      {
+        ...RAISE,
+        reply: {
+          verdict: "note",
+          text: "Cameron owns this, not Samvit.",
+          at: 9,
+          by: "u1",
+        },
+      },
+    ],
+    "Private Network",
+  );
   const noted = mount({ card: notedCard, ordinal: 4, onAnswer });
-  expect(q("[data-subject]").getAttribute("data-subject-status")).toBe("proposed");
-  expect(q("[data-subject-you]").textContent).toBe("You: Cameron owns this, not Samvit.");
-  expect(q("[data-subject-noted]").textContent).toBe("Sent, waiting for a reply");
+  expect(q("[data-subject]").getAttribute("data-subject-status")).toBe(
+    "proposed",
+  );
+  expect(q("[data-subject-you]").textContent).toBe(
+    "You: Cameron owns this, not Samvit.",
+  );
+  expect(q("[data-subject-noted]").textContent).toBe(
+    "Sent, waiting for a reply",
+  );
   expect(q("[data-subject-approve]").textContent).toBe("Accept");
   click(q("[data-subject-you]"));
   expect(fieldOf()).not.toBeNull();
   // The author's answer, once it came, stands under the words in its place.
-  noted.update({ card: cardOf([FIRST, { ...RAISE, reply: { verdict: "note", text: "Cameron owns this, not Samvit.", at: 9, by: "u1" }, answer: { text: "Samvit runs it day to day; Cameron signs off.", at: 11 } }], "Private Network"), ordinal: 4, onAnswer, author: "Head of People" });
+  noted.update({
+    card: cardOf(
+      [
+        FIRST,
+        {
+          ...RAISE,
+          reply: {
+            verdict: "note",
+            text: "Cameron owns this, not Samvit.",
+            at: 9,
+            by: "u1",
+          },
+          answer: {
+            text: "Samvit runs it day to day; Cameron signs off.",
+            at: 11,
+          },
+        },
+      ],
+      "Private Network",
+    ),
+    ordinal: 4,
+    onAnswer,
+    author: "Head of People",
+  });
   expect(q("[data-subject-noted]")).toBeNull();
-  expect(q("[data-subject-answer-text]").textContent).toBe("Head of People: Samvit runs it day to day; Cameron signs off.");
+  expect(q("[data-subject-answer-text]").textContent).toBe(
+    "Head of People: Samvit runs it day to day; Cameron signs off.",
+  );
   // New words after the answer: waiting again, by name.
-  noted.update({ card: cardOf([FIRST, { ...RAISE, reply: { verdict: "note", text: "Then say so.", at: 13 }, answer: { text: "Samvit runs it day to day.", at: 11 } }], "Private Network"), ordinal: 4, onAnswer, author: "Head of People" });
+  noted.update({
+    card: cardOf(
+      [
+        FIRST,
+        {
+          ...RAISE,
+          reply: { verdict: "note", text: "Then say so.", at: 13 },
+          answer: { text: "Samvit runs it day to day.", at: 11 },
+        },
+      ],
+      "Private Network",
+    ),
+    ordinal: 4,
+    onAnswer,
+    author: "Head of People",
+  });
   expect(q("[data-subject-answer-text]")).toBeNull();
-  expect(q("[data-subject-noted]").textContent).toBe("Sent to Head of People, waiting for a reply");
+  expect(q("[data-subject-noted]").textContent).toBe(
+    "Sent to Head of People, waiting for a reply",
+  );
   // Read only, the gutter says Noted.
   noted.update({ card: notedCard, ordinal: 4 });
   expect(q("[data-subject-verdicts]").textContent).toBe("Noted");
   // Amended since: the note retires and the card is plainly to decide.
-  noted.update({ card: cardOf([FIRST, { ...RAISE, reply: { verdict: "note", text: "Old words.", at: 9 }, revision: { kind: "amended", note: "Moved.", at: 12 } }], "Private Network"), ordinal: 4 });
+  noted.update({
+    card: cardOf(
+      [
+        FIRST,
+        {
+          ...RAISE,
+          reply: { verdict: "note", text: "Old words.", at: 9 },
+          revision: { kind: "amended", note: "Moved.", at: 12 },
+        },
+      ],
+      "Private Network",
+    ),
+    ordinal: 4,
+  });
   expect(q("[data-subject-you]")).toBeNull();
   expect(q("[data-subject-noted]")).toBeNull();
   expect(q("[data-subject-verdicts]").textContent).toBe("To decide");
@@ -550,36 +1187,118 @@ test("rejected and noted after the send: the stored words under the entry, and a
 });
 
 test("mounted already decided an entry is settled: an approved one keeps its fields, a rejected one is its sentence", () => {
-  const stamp = [{ kind: "project_meta" as const, subject: { type: "project" as const, id: "p-network", label: "Private Network" }, before: { priority: "p2" }, after: { priority: "p1" }, labels: {} }];
-  const applied = mount({ card: cardOf([FIRST, { ...RAISE, status: "applied", applied_diff: stamp }], "Private Network"), ordinal: 4, onAnswer });
+  const stamp = [
+    {
+      kind: "project_meta" as const,
+      subject: {
+        type: "project" as const,
+        id: "p-network",
+        label: "Private Network",
+      },
+      before: { priority: "p2" },
+      after: { priority: "p1" },
+      labels: {},
+    },
+  ];
+  const applied = mount({
+    card: cardOf(
+      [FIRST, { ...RAISE, status: "applied", applied_diff: stamp }],
+      "Private Network",
+    ),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(q("[data-settled]")).not.toBeNull();
   expect(field("priority").textContent).toContain("P2");
   expect(q("[data-subject-reasons]")).toBeNull();
   applied.done();
-  const skipped = mount({ card: cardOf([FIRST, { ...RAISE, status: "skipped" }], "Private Network"), ordinal: 4, onAnswer });
+  const skipped = mount({
+    card: cardOf([FIRST, { ...RAISE, status: "skipped" }], "Private Network"),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(q("[data-subject-state]").textContent).toBe("Rejected");
   expect(qa("[data-field]")).toEqual([]);
   expect(q("[data-subject-approve]")).toBeNull();
   skipped.done();
   // The state word on its own, per status.
   const root = createRoot(document.getElementById("root")!);
-  React.act(() => root.render(h("div", null, h(StateWord, { key: 1, status: "accepted" }), h(StateWord, { key: 2, status: "applied" }), h(StateWord, { key: 3, status: "skipped" }), h(StateWord, { key: 4, status: "mixed", words: "12 applied, 2 failed" }), h(StateWord, { key: 5, status: "proposed" }))));
-  expect(qa("[data-subject-state]").map((s) => [s.getAttribute("data-subject-state"), s.textContent])).toEqual([["accepted", "Accepted, applying"], ["applied", "Applied"], ["skipped", "Rejected"], ["mixed", "12 applied, 2 failed"]]);
+  React.act(() =>
+    root.render(
+      h(
+        "div",
+        null,
+        h(StateWord, { key: 1, status: "accepted" }),
+        h(StateWord, { key: 2, status: "applied" }),
+        h(StateWord, { key: 3, status: "skipped" }),
+        h(StateWord, {
+          key: 4,
+          status: "mixed",
+          words: "12 applied, 2 failed",
+        }),
+        h(StateWord, { key: 5, status: "proposed" }),
+      ),
+    ),
+  );
+  expect(
+    qa("[data-subject-state]").map((s) => [
+      s.getAttribute("data-subject-state"),
+      s.textContent,
+    ]),
+  ).toEqual([
+    ["accepted", "Accepted, applying"],
+    ["applied", "Applied"],
+    ["skipped", "Rejected"],
+    ["mixed", "12 applied, 2 failed"],
+  ]);
   React.act(() => root.unmount());
 });
 
 test("changes that ended differently: each group carries its own word or its own Adjust, and its own words", () => {
-  const card = cardOf([G1, { ...G9, status: "applied", reply: { verdict: "approve", text: "Good.", at: 3 } }, { ...G10, status: "failed", applied_note: "Agent Quality was archived while this waited." }], "Proud relationships");
+  const card = cardOf(
+    [
+      G1,
+      {
+        ...G9,
+        status: "applied",
+        reply: { verdict: "approve", text: "Good.", at: 3 },
+      },
+      {
+        ...G10,
+        status: "failed",
+        applied_note: "Agent Quality was archived while this waited.",
+      },
+    ],
+    "Proud relationships",
+  );
   const m = mount({ card, ordinal: 9, onAnswer });
-  expect(q("[data-subject-verdicts]").textContent).toBe("1 of 2 accepted, 1 failed");
-  expect(qa("[data-subject-group]").map((g) => g.getAttribute("data-subject-group"))).toEqual(["9", "10"]);
-  expect(qa("[data-subject-group-state]").map((g) => [g.getAttribute("data-subject-group-state"), g.textContent])).toEqual([["applied", "Applied"], ["failed", "Adjust"]]);
-  expect(qa("[data-subject-you]").map((y) => y.textContent)).toEqual(["You: Good."]);
+  expect(q("[data-subject-verdicts]").textContent).toBe(
+    "1 of 2 accepted, 1 failed",
+  );
+  expect(
+    qa("[data-subject-group]").map((g) => g.getAttribute("data-subject-group")),
+  ).toEqual(["9", "10"]);
+  expect(
+    qa("[data-subject-group-state]").map((g) => [
+      g.getAttribute("data-subject-group-state"),
+      g.textContent,
+    ]),
+  ).toEqual([
+    ["applied", "Applied"],
+    ["failed", "Adjust"],
+  ]);
+  expect(qa("[data-subject-you]").map((y) => y.textContent)).toEqual([
+    "You: Good.",
+  ]);
   const [first, second] = qa("[data-subject-group]");
   expect(first.querySelector("[data-failed-note]")).toBeNull();
-  expect(second.querySelector("[data-failed-note]")!.textContent).toBe("Failed: Agent Quality was archived while this waited.");
+  expect(second.querySelector("[data-failed-note]")!.textContent).toBe(
+    "Failed: Agent Quality was archived while this waited.",
+  );
   // The answer is the card's: one answer per card, whichever group's control was pressed; staged, the band stands for all of it.
-  expect(q("[data-subject-group-state='failed'] [data-subject-approve]")).toBeNull();
+  expect(
+    q("[data-subject-group-state='failed'] [data-subject-approve]"),
+  ).toBeNull();
   const NOTE = { verdict: "note" as const, text: "why archived?" };
   m.update({ card, ordinal: 9, onAnswer, answer: NOTE });
   expect(qa("[data-staged]").length).toBe(1);
@@ -588,15 +1307,29 @@ test("changes that ended differently: each group carries its own word or its own
 });
 
 test("several changes to a goal that exists read change by change under one sentence and one answer", () => {
-  const m = mount({ card: cardOf([G1, G9, G10], "Proud relationships"), ordinal: 9, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Move Proud relationships under the mission, measure it by Trust breaks per day and have Agent Quality carry it.");
+  const m = mount({
+    card: cardOf([G1, G9, G10], "Proud relationships"),
+    ordinal: 9,
+    onAnswer,
+  });
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Move Proud relationships under the mission, measure it by Trust breaks per day and have Agent Quality carry it.",
+  );
   expect(qa("[data-subject-group]").length).toBe(2);
-  expect(field("parent").getAttribute("data-field-before")).toBe("at the top level");
+  expect(field("parent").getAttribute("data-field-before")).toBe(
+    "at the top level",
+  );
   expect(field("parent").getAttribute("data-field-after")).toBe("the mission");
-  expect(field("projects").getAttribute("data-field-before")).toBe("no project");
+  expect(field("projects").getAttribute("data-field-before")).toBe(
+    "no project",
+  );
   // A list that gains an entry: the new name as a green chip behind its plus.
   expect(field("projects").textContent).toBe("+Agent Quality");
-  expect(Array.from(field("projects").querySelectorAll("ins[data-diff='added']")).map((x) => x.textContent)).toEqual(["+Agent Quality"]);
+  expect(
+    Array.from(
+      field("projects").querySelectorAll("ins[data-diff='added']"),
+    ).map((x) => x.textContent),
+  ).toEqual(["+Agent Quality"]);
   expect(qa("[data-subject-approve]").length).toBe(1);
   expect(q("[data-subject]").getAttribute("data-change-ids")).toBe("g10 g9");
   click(q("[data-subject-approve]"));
@@ -605,26 +1338,58 @@ test("several changes to a goal that exists read change by change under one sent
 });
 
 test("a goal's projects read as one run of names, measures as written, the owner as a face; its sources read in place", () => {
-  const purpose = mount({ card: cardOf([G1, G2], PURPOSE), ordinal: 1, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe(`Set ${PURPOSE} as the purpose.`);
-  expect(field("projects").textContent).toBe("Infrastructure, Matching & Funnel, People & Deals, Private Network, Agent Quality");
-  expect(field("owner").querySelector("[data-subject-face]")!.getAttribute("data-subject-face")).toBe("person");
+  const purpose = mount({
+    card: cardOf([G1, G2], PURPOSE),
+    ordinal: 1,
+    onAnswer,
+  });
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    `Set ${PURPOSE} as the purpose.`,
+  );
+  expect(field("projects").textContent).toBe(
+    "Infrastructure, Matching & Funnel, People & Deals, Private Network, Agent Quality",
+  );
+  expect(
+    field("owner")
+      .querySelector("[data-subject-face]")!
+      .getAttribute("data-subject-face"),
+  ).toBe("person");
   expect(field("owner").textContent).toBe("APAshot Petrosian");
   purpose.done();
 
-  const child = mount({ card: cardOf([G1, G2], "Improve conversion"), ordinal: 2, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Add the goal Improve conversion under the mission.");
-  expect(field("metrics").textContent).toBe("Email to intro rate, target 0.20%Cold email reply rate, target 1% higher (Cameron)");
+  const child = mount({
+    card: cardOf([G1, G2], "Improve conversion"),
+    ordinal: 2,
+    onAnswer,
+  });
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Add the goal Improve conversion under the mission.",
+  );
+  expect(field("metrics").textContent).toBe(
+    "Email to intro rate, target 0.20%Cold email reply rate, target 1% higher (Cameron)",
+  );
   expect(field("metrics").children[0].children.length).toBe(2);
   expect(field("projects").textContent).toBe("Matching & Funnel");
-  expect(document.body.textContent).not.toContain("North star goals, admin home page");
+  expect(document.body.textContent).not.toContain(
+    "North star goals, admin home page",
+  );
   expect(reached).toEqual([]);
   child.done();
 });
 
 test("a change's evidence stays in the author's conversation; there is no Edit", () => {
-  const linked = { ...RAISE, evidence: [{ label: "3 decisions waiting", href: "/decisions" }, { label: "The ranking doc", href: "https://example.com/doc" }] };
-  const m = mount({ card: cardOf([FIRST, linked], "Private Network"), ordinal: 4, onAnswer });
+  const linked = {
+    ...RAISE,
+    evidence: [
+      { label: "3 decisions waiting", href: "/decisions" },
+      { label: "The ranking doc", href: "https://example.com/doc" },
+    ],
+  };
+  const m = mount({
+    card: cardOf([FIRST, linked], "Private Network"),
+    ordinal: 4,
+    onAnswer,
+  });
   expect(document.body.textContent).not.toContain("3 decisions waiting");
   expect(q("[data-subject-edit]")).toBeNull();
   expect(document.body.textContent).not.toMatch(/\bEdit\b/);
@@ -636,22 +1401,34 @@ test("what approving would take over: the card shows the phrase and the leave bo
   const card = cardOf(ROLE, "Head of Platform");
   const takeover = { phrase: "12 sessions now report to @platform" };
   const m = mount({ card, onAnswer, takeover });
-  expect(q("[data-takeover-phrase]").textContent).toContain("12 sessions now report to @platform");
+  expect(q("[data-takeover-phrase]").textContent).toContain(
+    "12 sessions now report to @platform",
+  );
   click(q("[data-takeover-leave-input]"));
   expect(reached).toEqual([]);
   // The tick rides on the approval, and only on an approval.
   click(q("[data-subject-approve]"));
-  expect(sent.splice(0)).toEqual([{ verdict: "approve", leave_sessions: true }]);
+  expect(sent.splice(0)).toEqual([
+    { verdict: "approve", leave_sessions: true },
+  ]);
   const ticked = { verdict: "approve" as const, leave_sessions: true };
   m.update({ card, onAnswer, answer: ticked, takeover });
-  expect(band()!.textContent).toContain("Accepted, and the sessions stay where they are.");
-  expect((q("[data-staged] [data-takeover-leave-input]") as HTMLInputElement).checked).toBe(true);
+  expect(band()!.textContent).toContain(
+    "Accepted, and the sessions stay where they are.",
+  );
+  expect(
+    (q("[data-staged] [data-takeover-leave-input]") as HTMLInputElement)
+      .checked,
+  ).toBe(true);
   // Unticking rewrites the pending approval without it; ticking again puts it back.
   click(q("[data-takeover-leave-input]"));
   expect(sent.splice(0)).toEqual([APPROVE]);
   m.update({ card, onAnswer, answer: APPROVE, takeover });
   expect(band()!.textContent).toContain("Accepted. Applies when you send.Undo");
-  expect((q("[data-staged] [data-takeover-leave-input]") as HTMLInputElement).checked).toBe(false);
+  expect(
+    (q("[data-staged] [data-takeover-leave-input]") as HTMLInputElement)
+      .checked,
+  ).toBe(false);
   click(q("[data-takeover-leave-input]"));
   expect(sent.splice(0)).toEqual([ticked]);
   // Read only, or decided, the box is gone.
@@ -662,18 +1439,43 @@ test("what approving would take over: the card shows the phrase and the leave bo
 
 test("hover and focus light the lead change on the map, and leave puts the light out", () => {
   const lit: (string | null)[] = [];
-  const m = mount({ card: cardOf([FIRST, RAISE], "Private Network"), ordinal: 2, onAnswer }, (node) => h(OrgHoverContext.Provider, { value: (id: string | null) => lit.push(id) }, node));
+  const m = mount(
+    { card: cardOf([FIRST, RAISE], "Private Network"), ordinal: 2, onAnswer },
+    (node) =>
+      h(
+        OrgHoverContext.Provider,
+        { value: (id: string | null) => lit.push(id) },
+        node,
+      ),
+  );
   const root = q("[data-subject]");
-  React.act(() => { root.dispatchEvent(new dom.window.MouseEvent("mouseover", { bubbles: true })); });
+  React.act(() => {
+    root.dispatchEvent(
+      new dom.window.MouseEvent("mouseover", { bubbles: true }),
+    );
+  });
   expect(lit.splice(0)).toEqual(["r4"]);
-  React.act(() => { root.dispatchEvent(new dom.window.MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })); });
+  React.act(() => {
+    root.dispatchEvent(
+      new dom.window.MouseEvent("mouseout", {
+        bubbles: true,
+        relatedTarget: document.body,
+      }),
+    );
+  });
   expect(lit.splice(0)).toEqual([null]);
   m.done();
 });
 
 test("the narrow form puts the controls under the entry at the right and the band under it at full width; focused, the entry says so", () => {
   const card = cardOf([FIRST, RAISE], "Private Network");
-  const m = mount({ card, ordinal: 2, onAnswer, layout: "narrow", focused: true });
+  const m = mount({
+    card,
+    ordinal: 2,
+    onAnswer,
+    layout: "narrow",
+    focused: true,
+  });
   expect(q("[data-subject]").getAttribute("data-layout")).toBe("narrow");
   expect(q("[data-subject]").hasAttribute("data-focused")).toBe(true);
   expect(q("[data-subject]").className).not.toContain("container-type");
@@ -695,9 +1497,23 @@ test("the narrow form puts the controls under the entry at the right and the ban
 });
 
 test("a limit alone is one plain sentence with its answers and nothing else", () => {
-  const card = cardsOf([change("limit", 1, { kind: "budget", handle: "growth", caps: { wakes_per_day: 12, tokens_per_day: 800_000 } }, "proposed", { rationale: "Growth wakes 30 times a day." })])[0];
+  const card = cardsOf([
+    change(
+      "limit",
+      1,
+      {
+        kind: "budget",
+        handle: "growth",
+        caps: { wakes_per_day: 12, tokens_per_day: 800_000 },
+      },
+      "proposed",
+      { rationale: "Growth wakes 30 times a day." },
+    ),
+  ])[0];
   const m = mount({ card, onAnswer });
-  expect(q("[data-subject-sentence]").textContent).toBe("Head of Growth keeps a safety net on its daily work.");
+  expect(q("[data-subject-sentence]").textContent).toBe(
+    "Head of Growth keeps a safety net on its daily work.",
+  );
   expect(qa("[data-field]")).toEqual([]);
   expect(document.body.textContent).not.toMatch(/wakes|tokens|caps|limit|\d/i);
   click(q("[data-subject-approve]"));
@@ -708,33 +1524,99 @@ test("a limit alone is one plain sentence with its answers and nothing else", ()
 test("the closing row shell: words at the left, the controls at the right, a line above, or what happened; nothing reaches the frame", () => {
   const root = createRoot(document.getElementById("root")!);
   const pressed: string[] = [];
-  React.act(() => root.render(frame(h(LedgerClosingRow, { left: h("button", { "data-map": true, onClick: () => pressed.push("map") }, "Map"), right: h("button", { "data-rest": true, onClick: () => pressed.push("rest") }, "Accept the rest"), above: h("p", { "data-above": true }, "Leave them") }))));
+  React.act(() =>
+    root.render(
+      frame(
+        h(LedgerClosingRow, {
+          left: h(
+            "button",
+            { "data-map": true, onClick: () => pressed.push("map") },
+            "Map",
+          ),
+          right: h(
+            "button",
+            { "data-rest": true, onClick: () => pressed.push("rest") },
+            "Accept the rest",
+          ),
+          above: h("p", { "data-above": true }, "Leave them"),
+        }),
+      ),
+    ),
+  );
   expect(q("[data-ledger-close]")).not.toBeNull();
   expect(q("[data-above]").textContent).toBe("Leave them");
   click(q("[data-rest]"));
   click(q("[data-map]"));
   expect(pressed).toEqual(["rest", "map"]);
   expect(reached).toEqual([]);
-  React.act(() => root.render(frame(h(LedgerClosingRow, { outcome: "7 accepted, 2 rejected" }))));
+  React.act(() =>
+    root.render(
+      frame(h(LedgerClosingRow, { outcome: "7 accepted, 2 rejected" })),
+    ),
+  );
   expect(q("[data-rest]")).toBeNull();
   expect(q("[data-above]")).toBeNull();
-  expect(q("[data-proposal-outcome]").textContent).toBe("7 accepted, 2 rejected");
+  expect(q("[data-proposal-outcome]").textContent).toBe(
+    "7 accepted, 2 rejected",
+  );
   React.act(() => root.unmount());
 });
 
 test("no entry draws a dashed line, a hatch, an upper case label, a long dash, or a word the person was told is gone", () => {
-  const cards = [...cardsOf([G1, G2, { ...G9, status: "applied" }, { ...G10, status: "failed", applied_note: "x" }]), ...cardsOf(ROLE), ...cardsOf([FIRST, RAISE])];
+  const cards = [
+    ...cardsOf([
+      G1,
+      G2,
+      { ...G9, status: "applied" },
+      { ...G10, status: "failed", applied_note: "x" },
+    ]),
+    ...cardsOf(ROLE),
+    ...cardsOf([FIRST, RAISE]),
+  ];
   const root = createRoot(document.getElementById("root")!);
-  React.act(() => root.render(h("div", null, cards.map((card, i) => h(ProposalSubjectCard, { key: card.key, card, ordinal: i + 1, onAnswer, answer: i % 2 ? { verdict: "reject", text: "No." } : APPROVE })))));
+  React.act(() =>
+    root.render(
+      h(
+        "div",
+        null,
+        cards.map((card, i) =>
+          h(ProposalSubjectCard, {
+            key: card.key,
+            card,
+            ordinal: i + 1,
+            onAnswer,
+            answer: i % 2 ? { verdict: "reject", text: "No." } : APPROVE,
+          }),
+        ),
+      ),
+    ),
+  );
   const html = document.getElementById("root")!.innerHTML;
-  expect(html).not.toMatch(/dashed|dotted|repeating-linear-gradient|uppercase|tracking-\[/);
+  expect(html).not.toMatch(
+    /dashed|dotted|repeating-linear-gradient|uppercase|tracking-\[/,
+  );
   expect(html).not.toContain(String.fromCharCode(8212));
-  expect(document.body.textContent).not.toMatch(/skip|on your next message|no change|Accept with edits/i);
+  expect(document.body.textContent).not.toMatch(
+    /skip|on your next message|no change|Accept with edits/i,
+  );
   React.act(() => root.unmount());
 });
 
 test("an entry its author applied on its own carries no You line: no person answered it", () => {
-  const card = cardOf([{ ...RAISE, status: "applied", reply: { verdict: "approve", text: "Filed by @hop, which starts work on its own", at: 3 } }], "Private Network");
+  const card = cardOf(
+    [
+      {
+        ...RAISE,
+        status: "applied",
+        reply: {
+          verdict: "approve",
+          text: "Filed by @hop, which starts work on its own",
+          at: 3,
+        },
+      },
+    ],
+    "Private Network",
+  );
   const person = mount({ card, ordinal: 1, onAnswer });
   expect(q("[data-subject-you]")).not.toBeNull();
   person.done();

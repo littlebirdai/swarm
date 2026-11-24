@@ -16,12 +16,21 @@
 // a skip, an edge across rows) until a step they touch is hovered, selected
 // or lit by a run; All steps draws
 // every script as a mono box and every end as a chip.
-import type { EdgeKind, LineGraphModel, LineHalf, ModelNode, StepKind } from "../../../../../lib/line/lineModel";
+import type {
+  EdgeKind,
+  LineGraphModel,
+  LineHalf,
+  ModelNode,
+  StepKind,
+} from "../../../../../lib/line/lineModel";
 import type { GraphEnd } from "../../../../../lib/line/lineGraphs";
 import { backOfWords } from "../../../../../lib/line/lineActions";
 
 export type GraphMode = "essence" | "all";
-export type LayoutOpts = { mode: GraphMode; /** Widest a row may grow before it folds, in canvas units. */ wrap?: number };
+export type LayoutOpts = {
+  mode: GraphMode;
+  /** Widest a row may grow before it folds, in canvas units. */ wrap?: number;
+};
 
 export type GNode = {
   id: string;
@@ -45,7 +54,14 @@ export type GNode = {
   end: GraphEnd | null;
 };
 
-export type GEdgeShape = "next" | "skip" | "back" | "side" | "wrap" | "cross" | "end";
+export type GEdgeShape =
+  | "next"
+  | "skip"
+  | "back"
+  | "side"
+  | "wrap"
+  | "cross"
+  | "end";
 export type GLabel = { x: number; y: number; w: number; text: string };
 export type GEdge = {
   id: string;
@@ -67,28 +83,45 @@ export type GEdge = {
 };
 
 /** An edge's words as drawn: an edge two outcomes share reads each with its count ("red 8 · infeasible 2"), never the two joined by "or". */
-export const edgeText = (e: { words: string | null; split?: ReadonlyArray<{ words: string; n: number }>; owed?: number }): string | null => {
-  const w = e.split?.length ? e.split.map((x) => `${x.words} ${x.n}`).join(" · ") : e.words;
+export const edgeText = (e: {
+  words: string | null;
+  split?: ReadonlyArray<{ words: string; n: number }>;
+  owed?: number;
+}): string | null => {
+  const w = e.split?.length
+    ? e.split.map((x) => `${x.words} ${x.n}`).join(" · ")
+    : e.words;
   // Evals the runs on this edge owed and never ran are said on the edge itself, in red (the canvas's data-owed).
   return e.owed ? `${w ? `${w} · ` : ""}evals owed ${e.owed}` : w;
 };
 
 /** One end a step can send a run to: how many runs it sent there, and how many of those closed a problem that came back. */
-export type GExit = { label: string; end: GraphEnd; count: number; back: number };
+export type GExit = {
+  label: string;
+  end: GraphEnd;
+  count: number;
+  back: number;
+};
 
 /** What came back of an end's closes (lineActions backOfWords). */
-export const exitBackWords = (x: Pick<GExit, "count" | "back">) => backOfWords(x.count, x.back);
+export const exitBackWords = (x: Pick<GExit, "count" | "back">) =>
+  backOfWords(x.count, x.back);
 /** One end in words: "dissolved 6, 3 came back", "dissolved 6, all came back". */
-export const exitWord = (x: GExit) => `${x.label}${x.count ? ` ${x.count}` : ""}${exitBackWords(x)}`;
+export const exitWord = (x: GExit) =>
+  `${x.label}${x.count ? ` ${x.count}` : ""}${exitBackWords(x)}`;
 /** What leads a step's ends: an exit arrow, the ends after it in their tones. */
 export const EXIT_LEAD = "⤷ ";
 
 /** A step's ends as GraphCanvas draws them after EXIT_LEAD, so the layout gives them room. */
-export const exitWords = (list: ReadonlyArray<GExit>) => list.map(exitWord).join(" · ");
+export const exitWords = (list: ReadonlyArray<GExit>) =>
+  list.map(exitWord).join(" · ");
 
 /** Essence's exits: each drawn step's ends in words, read off the model's edges. The layout reads it for room and the canvas
  *  reads it again per model, since a layout is shared by every model of the same shape and its counts would be the first one's. */
-export function essenceExits(g: Pick<LineGraphModel, "nodes" | "edges">, drawn: (id: string) => boolean): Map<string, GExit[]> {
+export function essenceExits(
+  g: Pick<LineGraphModel, "nodes" | "edges">,
+  drawn: (id: string) => boolean,
+): Map<string, GExit[]> {
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
   const exits = new Map<string, GExit[]>();
   for (const e of g.edges) {
@@ -96,11 +129,22 @@ export function essenceExits(g: Pick<LineGraphModel, "nodes" | "edges">, drawn: 
     if (!to || to.kind !== "end" || !drawn(e.from)) continue;
     const list = exits.get(e.from) ?? [];
     // The step's own words for the way out ("not reproduced") when they are a short phrase, else the end's name: each step's ends read in its own vocabulary.
-    const own = e.words && e.words.length <= 16 && !/\b(or|and)\b/.test(e.words) ? e.words : null;
+    const own =
+      e.words && e.words.length <= 16 && !/\b(or|and)\b/.test(e.words)
+        ? e.words
+        : null;
     const label = (own ?? to.label).toLowerCase();
     const had = list.find((x) => x.label === label);
-    if (had) { had.count += e.count; had.back += e.back; }
-    else list.push({ label, end: to.end ?? "stopped", count: e.count, back: e.back });
+    if (had) {
+      had.count += e.count;
+      had.back += e.back;
+    } else
+      list.push({
+        label,
+        end: to.end ?? "stopped",
+        count: e.count,
+        back: e.back,
+      });
     exits.set(e.from, list);
   }
   // A step's failures as its tally counts them (decided failed, or cut off before deciding): a session killed takes no
@@ -115,21 +159,45 @@ export function essenceExits(g: Pick<LineGraphModel, "nodes" | "edges">, drawn: 
 }
 /** A step's ends with its "failed" end counted as the Steps table counts it (stepFailures): the Map and the table read one
  *  number. A step the table counts no failure for draws no failed end; one it counts failures for draws one. */
-export function withFailures(exits: Map<string, GExit[]>, failed: ReadonlyMap<string, number> | undefined): Map<string, GExit[]> {
+export function withFailures(
+  exits: Map<string, GExit[]>,
+  failed: ReadonlyMap<string, number> | undefined,
+): Map<string, GExit[]> {
   if (!failed) return exits;
   const out = new Map<string, GExit[]>();
   for (const [id, list] of exits) {
     const n = failed.get(id);
-    if (n == null) { out.set(id, list); continue; }
+    if (n == null) {
+      out.set(id, list);
+      continue;
+    }
     const rest = list.filter((e) => e.label !== "failed");
     const had = list.find((e) => e.label === "failed");
-    out.set(id, n > 0 ? [...rest, had ? { ...had, count: n } : { label: "failed", end: "stopped", count: n, back: 0 }] : rest);
+    out.set(
+      id,
+      n > 0
+        ? [
+            ...rest,
+            had
+              ? { ...had, count: n }
+              : { label: "failed", end: "stopped", count: n, back: 0 },
+          ]
+        : rest,
+    );
   }
   return out;
 }
 
 const EXIT_PX = 14;
-export type GLane = { half: LineHalf; label: string; sub: string; x: number; y: number; w: number; h: number };
+export type GLane = {
+  half: LineHalf;
+  label: string;
+  sub: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
 export type GStage = { label: string; x: number; y: number };
 export type GTerminus = { x: number; y: number; label: string };
 
@@ -167,7 +235,8 @@ const SCRIPT_GLYPH = 26;
 const CHIP_H = 26;
 export const CHIP_PX = 14;
 /** Text widths, by the UI font's average advance at each size. */
-export const textW = (s: string, px: number, mono = false) => Math.ceil(s.length * px * (mono ? 0.62 : 0.6));
+export const textW = (s: string, px: number, mono = false) =>
+  Math.ceil(s.length * px * (mono ? 0.62 : 0.6));
 export const LABEL_PX = 13;
 export const labelW = (s: string) => textW(s, LABEL_PX) + 12;
 export const DOT_PX = 14;
@@ -190,16 +259,25 @@ const EXIT_ROOM = 28;
 const WRAP: Record<GraphMode, number> = { essence: 1950, all: 2900 };
 const R = 14;
 
-const HALF_LABEL: Record<LineHalf, string> = { diagnose: "Diagnose", fix: "Fix" };
+const HALF_LABEL: Record<LineHalf, string> = {
+  diagnose: "Diagnose",
+  fix: "Fix",
+};
 
-const KIND_WORDS: ReadonlyArray<[StepKind, string, string]> = [["agent", "agent", "agents"], ["script", "script", "scripts"], ["person", "person", "people"]];
+const KIND_WORDS: ReadonlyArray<[StepKind, string, string]> = [
+  ["agent", "agent", "agents"],
+  ["script", "script", "scripts"],
+  ["person", "person", "people"],
+];
 
 /** A lane's steps counted by who does them: "3 agents · 4 scripts · 1 person". */
 export function laneCounts(kinds: ReadonlyArray<StepKind>): string {
   return KIND_WORDS.map(([k, one, many]) => {
     const n = kinds.filter((x) => x === k).length;
     return n ? `${n} ${n === 1 ? one : many}` : null;
-  }).filter(Boolean).join(" · ");
+  })
+    .filter(Boolean)
+    .join(" · ");
 }
 
 /** A dot's name on at most two lines of about fourteen characters. */
@@ -210,37 +288,80 @@ function foldName(s: string, max = 15): string[] {
   for (const w of words) {
     const cur = lines[lines.length - 1];
     if (!cur) lines[lines.length - 1] = w;
-    else if (`${cur} ${w}`.length <= max) lines[lines.length - 1] = `${cur} ${w}`;
+    else if (`${cur} ${w}`.length <= max)
+      lines[lines.length - 1] = `${cur} ${w}`;
     else if (lines.length < 2) lines.push(w);
-    else { lines[1] = `${lines[1]} ${w}`; }
+    else {
+      lines[1] = `${lines[1]} ${w}`;
+    }
   }
-  if (lines[1] && lines[1].length > max) lines[1] = `${lines[1].slice(0, max - 1)}…`;
+  if (lines[1] && lines[1].length > max)
+    lines[1] = `${lines[1].slice(0, max - 1)}…`;
   return lines;
 }
 
 /** A script's run count in words, under its name. */
 export const ranWords = (n: number) => `ran ${n}×`;
 
-function sizeOf(n: ModelNode, mode: GraphMode): { w: number; h: number; dot: boolean; lines: string[] } {
-  if (n.kind === "agent" || n.kind === "person") { const [w, h] = SIZE[mode][n.kind]; return { w, h, dot: false, lines: [] }; }
-  if (n.kind === "end") return { w: Math.max(64, textW(n.label.toLowerCase(), CHIP_PX) + 24), h: CHIP_H, dot: false, lines: [] };
-  if (mode === "essence") return { w: DOT, h: DOT, dot: true, lines: foldName(n.label) };
-  return { w: Math.max(96, SCRIPT_GLYPH + Math.max(textW(n.label, SCRIPT_PX, true), textW(ranWords(n.visits), SCRIPT_PX)) + 24), h: SCRIPT_H, dot: false, lines: [] };
+function sizeOf(
+  n: ModelNode,
+  mode: GraphMode,
+): { w: number; h: number; dot: boolean; lines: string[] } {
+  if (n.kind === "agent" || n.kind === "person") {
+    const [w, h] = SIZE[mode][n.kind];
+    return { w, h, dot: false, lines: [] };
+  }
+  if (n.kind === "end")
+    return {
+      w: Math.max(64, textW(n.label.toLowerCase(), CHIP_PX) + 24),
+      h: CHIP_H,
+      dot: false,
+      lines: [],
+    };
+  if (mode === "essence")
+    return { w: DOT, h: DOT, dot: true, lines: foldName(n.label) };
+  return {
+    w: Math.max(
+      96,
+      SCRIPT_GLYPH +
+        Math.max(
+          textW(n.label, SCRIPT_PX, true),
+          textW(ranWords(n.visits), SCRIPT_PX),
+        ) +
+        24,
+    ),
+    h: SCRIPT_H,
+    dot: false,
+    lines: [],
+  };
 }
 
 /** The widest count a dot says under its name ("failed 999", else "ran 999×"): reserved so neighbours never collide. */
 const DOT_COUNT_W = textW("failed 999", DOT_PX) + 8;
 /** The room a node takes across its column: a dot's name, its count and its way back are all wider than the dot. */
-const colWidthOf = (n: GNode) => (n.dot ? Math.max(28, ...n.lines.map((l) => textW(l, DOT_PX) + 8), n.ran > 0 ? DOT_COUNT_W : 0, n.back ? textW(`↩ ${n.back}`, DOT_PX) + 8 : 0) : n.w);
+const colWidthOf = (n: GNode) =>
+  n.dot
+    ? Math.max(
+        28,
+        ...n.lines.map((l) => textW(l, DOT_PX) + 8),
+        n.ran > 0 ? DOT_COUNT_W : 0,
+        n.back ? textW(`↩ ${n.back}`, DOT_PX) + 8 : 0,
+      )
+    : n.w;
 /** How far under a node's center its own marks reach (a dot's name). */
-const footOf = (n: GNode) => (n.dot ? n.h / 2 + 8 + (n.lines.length + (n.ran ? 1 : 0)) * DOT_LINE : n.h / 2);
+const footOf = (n: GNode) =>
+  n.dot ? n.h / 2 + 8 + (n.lines.length + (n.ran ? 1 : 0)) * DOT_LINE : n.h / 2;
 
 // ── geometry helpers ─────────────────────────────────────────────────────────
 
 type Pt = { x: number; y: number };
-const cubicMid = (p0: Pt, p1: Pt, p2: Pt, p3: Pt): Pt => ({ x: (p0.x + 3 * p1.x + 3 * p2.x + p3.x) / 8, y: (p0.y + 3 * p1.y + 3 * p2.y + p3.y) / 8 });
+const cubicMid = (p0: Pt, p1: Pt, p2: Pt, p3: Pt): Pt => ({
+  x: (p0.x + 3 * p1.x + 3 * p2.x + p3.x) / 8,
+  y: (p0.y + 3 * p1.y + 3 * p2.y + p3.y) / 8,
+});
 const r1 = (v: number) => Math.round(v * 10) / 10;
-const cubic = (p0: Pt, p1: Pt, p2: Pt, p3: Pt) => `M${r1(p0.x)},${r1(p0.y)} C${r1(p1.x)},${r1(p1.y)} ${r1(p2.x)},${r1(p2.y)} ${r1(p3.x)},${r1(p3.y)}`;
+const cubic = (p0: Pt, p1: Pt, p2: Pt, p3: Pt) =>
+  `M${r1(p0.x)},${r1(p0.y)} C${r1(p1.x)},${r1(p1.y)} ${r1(p2.x)},${r1(p2.y)} ${r1(p3.x)},${r1(p3.y)}`;
 const right = (n: GNode): Pt => ({ x: n.x + n.w / 2, y: n.y });
 const left = (n: GNode): Pt => ({ x: n.x - n.w / 2, y: n.y });
 const top = (n: GNode): Pt => ({ x: n.x, y: n.y - n.h / 2 });
@@ -272,7 +393,8 @@ export function graphLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout {
   if (!laid) {
     laid = computeLayout(g, opts);
     byShape.set(sig, laid);
-    if (byShape.size > SHAPE_CACHE) byShape.delete(byShape.keys().next().value!);
+    if (byShape.size > SHAPE_CACHE)
+      byShape.delete(byShape.keys().next().value!);
   }
   const per = byGraph.get(g) ?? new Map<string, GraphLayout>();
   per.set(optKey, laid);
@@ -282,15 +404,26 @@ export function graphLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout {
 
 // ── the layout ───────────────────────────────────────────────────────────────
 
-type ColSlot = { col: number; nodes: GNode[]; width: number; stage: string | null };
+type ColSlot = {
+  col: number;
+  nodes: GNode[];
+  width: number;
+  stage: string | null;
+};
 
 /** Fold a lane's columns onto rows: the fewest rows no wider than `wrap`,
  *  then rows of even width, then folds at a stage boundary. */
-function foldRows(slots: ColSlot[], wrap: number, gapAfter: (a: ColSlot, b: ColSlot | undefined) => number): ColSlot[][] {
+function foldRows(
+  slots: ColSlot[],
+  wrap: number,
+  gapAfter: (a: ColSlot, b: ColSlot | undefined) => number,
+): ColSlot[][] {
   const n = slots.length;
   const start = [0];
-  for (let i = 0; i < n; i++) start.push(start[i] + slots[i].width + gapAfter(slots[i], slots[i + 1]));
-  const width = (j: number, i: number) => start[i] - start[j] - gapAfter(slots[i - 1], slots[i]);
+  for (let i = 0; i < n; i++)
+    start.push(start[i] + slots[i].width + gapAfter(slots[i], slots[i + 1]));
+  const width = (j: number, i: number) =>
+    start[i] - start[j] - gapAfter(slots[i - 1], slots[i]);
   const best: number[] = [0];
   const from: number[] = [0];
   for (let i = 1; i <= n; i++) {
@@ -298,9 +431,17 @@ function foldRows(slots: ColSlot[], wrap: number, gapAfter: (a: ColSlot, b: ColS
     for (let j = 0; j < i; j++) {
       const w = width(j, i);
       if (w > wrap && i - j > 1) continue;
-      const boundary = i === n || (slots[i].stage != null && slots[i - 1].stage != null && slots[i].stage !== slots[i - 1].stage);
-      const cost = best[j] + 1e6 + (w / wrap) ** 2 * 1e5 + (boundary ? 0 : 2.5e4);
-      if (cost < best[i]) { best[i] = cost; from[i] = j; }
+      const boundary =
+        i === n ||
+        (slots[i].stage != null &&
+          slots[i - 1].stage != null &&
+          slots[i].stage !== slots[i - 1].stage);
+      const cost =
+        best[j] + 1e6 + (w / wrap) ** 2 * 1e5 + (boundary ? 0 : 2.5e4);
+      if (cost < best[i]) {
+        best[i] = cost;
+        from[i] = j;
+      }
     }
   }
   const out: ColSlot[][] = [];
@@ -308,7 +449,10 @@ function foldRows(slots: ColSlot[], wrap: number, gapAfter: (a: ColSlot, b: ColS
   return out;
 }
 
-export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout {
+export function computeLayout(
+  g: LineGraphModel,
+  opts: LayoutOpts,
+): GraphLayout {
   const mode = opts.mode;
   const wrap = opts.wrap ?? WRAP[mode];
   const byId = new Map(g.nodes.map((n) => [n.id, n]));
@@ -317,9 +461,13 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
   const orderIdx = new Map(g.nodes.map((n, i) => [n.id, i]));
 
   // ── the spine: from the first step, the successor with the longest way on ──
-  const fwd = new Map<string, Array<{ to: string; count: number; flow: boolean }>>();
+  const fwd = new Map<
+    string,
+    Array<{ to: string; count: number; flow: boolean }>
+  >();
   for (const e of g.edges) {
-    if (e.kind === "loop" || !coreIds.has(e.from) || !coreIds.has(e.to)) continue;
+    if (e.kind === "loop" || !coreIds.has(e.from) || !coreIds.has(e.to))
+      continue;
     const list = fwd.get(e.from) ?? [];
     list.push({ to: e.to, count: e.count, flow: e.kind === "flow" });
     fwd.set(e.from, list);
@@ -332,36 +480,69 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
     if (visiting.has(id)) return 0;
     visiting.add(id);
     let best = 0;
-    for (const s of fwd.get(id) ?? []) best = Math.max(best, 1 + heightOf(s.to));
+    for (const s of fwd.get(id) ?? [])
+      best = Math.max(best, 1 + heightOf(s.to));
     visiting.delete(id);
     height.set(id, best);
     return best;
   };
-  const firstCore = [...core].sort((a, b) => a.col - b.col || orderIdx.get(a.id)! - orderIdx.get(b.id)!)[0];
+  const firstCore = [...core].sort(
+    (a, b) => a.col - b.col || orderIdx.get(a.id)! - orderIdx.get(b.id)!,
+  )[0];
   const spine: string[] = [];
   const onSpine = new Set<string>();
   for (let cur = firstCore?.id; cur && !onSpine.has(cur);) {
     spine.push(cur);
     onSpine.add(cur);
-    const next = [...(fwd.get(cur) ?? [])].filter((s) => !onSpine.has(s.to))
-      .sort((a, b) => heightOf(b.to) - heightOf(a.to) || b.count - a.count || Number(b.flow) - Number(a.flow))[0];
+    const next = [...(fwd.get(cur) ?? [])]
+      .filter((s) => !onSpine.has(s.to))
+      .sort(
+        (a, b) =>
+          heightOf(b.to) - heightOf(a.to) ||
+          b.count - a.count ||
+          Number(b.flow) - Number(a.flow),
+      )[0];
     cur = next?.to;
   }
-  const spineNext = new Set(spine.slice(1).map((id, i) => `${spine[i]}->${id}`));
+  const spineNext = new Set(
+    spine.slice(1).map((id, i) => `${spine[i]}->${id}`),
+  );
 
   // ── nodes, sized ──
   const nodes = new Map<string, GNode>();
   for (const n of g.nodes) {
     if (n.kind === "end" && mode === "essence") continue;
     const s = sizeOf(n, mode);
-    const loop = s.dot ? g.edges.find((e) => e.from === n.id && e.kind === "loop") : undefined;
-    nodes.set(n.id, { id: n.id, kind: n.kind, label: n.label, x: 0, y: 0, w: s.w, h: s.h, dot: s.dot, lines: s.lines, ran: n.visits, back: loop ? byId.get(loop.to)?.label ?? loop.to : null, row: 0, lane: 0, spine: onSpine.has(n.id), end: n.end });
+    const loop = s.dot
+      ? g.edges.find((e) => e.from === n.id && e.kind === "loop")
+      : undefined;
+    nodes.set(n.id, {
+      id: n.id,
+      kind: n.kind,
+      label: n.label,
+      x: 0,
+      y: 0,
+      w: s.w,
+      h: s.h,
+      dot: s.dot,
+      lines: s.lines,
+      ran: n.visits,
+      back: loop ? (byId.get(loop.to)?.label ?? loop.to) : null,
+      row: 0,
+      lane: 0,
+      spine: onSpine.has(n.id),
+      end: n.end,
+    });
   }
 
   // ── Essence's exits: a step's ends in words ──
-  const exits = mode === "essence" ? essenceExits(g, (id) => nodes.has(id)) : new Map<string, GExit[]>();
+  const exits =
+    mode === "essence"
+      ? essenceExits(g, (id) => nodes.has(id))
+      : new Map<string, GExit[]>();
   // A dot's "can end:" sits over its ends on a line of their own; a card's is one line.
-  const exitRoom = (n: GNode) => (exits.has(n.id) ? EXIT_ROOM + (n.dot ? DOT_LINE : 0) : 0);
+  const exitRoom = (n: GNode) =>
+    exits.has(n.id) ? EXIT_ROOM + (n.dot ? DOT_LINE : 0) : 0;
 
   // ── words drawn on an edge, and which ──
   const outDeg = new Map<string, number>();
@@ -393,22 +574,46 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
   for (const half of halves) {
     const inHalf = core.filter((n) => n.half === half);
     const cols = [...new Set(inHalf.map((n) => n.col))].sort((a, b) => a - b);
-    halfCols.set(half, cols.map((c) => {
-      const ns = inHalf.filter((n) => n.col === c).sort((a, b) => Number(onSpine.has(b.id)) - Number(onSpine.has(a.id)) || orderIdx.get(a.id)! - orderIdx.get(b.id)!).map((n) => nodes.get(n.id)!);
-      const sp = ns.find((n) => n.spine);
-      // A dot's "can end:" words sit centered under it and take room across its
-      // column, so two never run together; a card's start at its left edge and
-      // may run into the gap after it, never past it into the next column's.
-      const widthOf = (n: GNode) => {
-        const ends = exits.get(n.id);
-        if (!ends) return colWidthOf(n);
-        if (n.dot) return Math.max(colWidthOf(n), textW(exitWords(ends), EXIT_PX) + 8);
-        // The card sits centered in its column, so its words, from 4 past its left edge, end inside the gap with 18 to spare
-        // when the column is at least this wide.
-        return Math.max(colWidthOf(n), 2 * (textW(`${EXIT_LEAD}${exitWords(ends)}`, EXIT_PX) + 4 + 18 - COL_GAP) - n.w);
-      };
-      return { col: c, nodes: ns, width: Math.max(...ns.map(widthOf)), stage: sp ? byId.get(sp.id)!.stage : null };
-    }));
+    halfCols.set(
+      half,
+      cols.map((c) => {
+        const ns = inHalf
+          .filter((n) => n.col === c)
+          .sort(
+            (a, b) =>
+              Number(onSpine.has(b.id)) - Number(onSpine.has(a.id)) ||
+              orderIdx.get(a.id)! - orderIdx.get(b.id)!,
+          )
+          .map((n) => nodes.get(n.id)!);
+        const sp = ns.find((n) => n.spine);
+        // A dot's "can end:" words sit centered under it and take room across its
+        // column, so two never run together; a card's start at its left edge and
+        // may run into the gap after it, never past it into the next column's.
+        const widthOf = (n: GNode) => {
+          const ends = exits.get(n.id);
+          if (!ends) return colWidthOf(n);
+          if (n.dot)
+            return Math.max(colWidthOf(n), textW(exitWords(ends), EXIT_PX) + 8);
+          // The card sits centered in its column, so its words, from 4 past its left edge, end inside the gap with 18 to spare
+          // when the column is at least this wide.
+          return Math.max(
+            colWidthOf(n),
+            2 *
+              (textW(`${EXIT_LEAD}${exitWords(ends)}`, EXIT_PX) +
+                4 +
+                18 -
+                COL_GAP) -
+              n.w,
+          );
+        };
+        return {
+          col: c,
+          nodes: ns,
+          width: Math.max(...ns.map(widthOf)),
+          stage: sp ? byId.get(sp.id)!.stage : null,
+        };
+      }),
+    );
   }
   /** The gap after a column: room for the words of a spine edge drawn in it. */
   const gapAfter = (slot: ColSlot, next: ColSlot | undefined) => {
@@ -416,7 +621,11 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
     let need = COL_GAP;
     for (const e of g.edges) {
       if (!spineNext.has(e.id) || !labeled(e)) continue;
-      if (slot.nodes.some((n) => n.id === e.from) && next.nodes.some((n) => n.id === e.to)) need = Math.max(need, labelW(edgeText(e) ?? "") + 30);
+      if (
+        slot.nodes.some((n) => n.id === e.from) &&
+        next.nodes.some((n) => n.id === e.to)
+      )
+        need = Math.max(need, labelW(edgeText(e) ?? "") + 30);
     }
     return need;
   };
@@ -426,7 +635,8 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
   for (const half of halves) {
     const slots = halfCols.get(half)!;
     if (!slots.length) continue;
-    for (const [k, part] of foldRows(slots, wrap, gapAfter).entries()) rows.push({ half, slots: part, first: k === 0 });
+    for (const [k, part] of foldRows(slots, wrap, gapAfter).entries())
+      rows.push({ half, slots: part, first: k === 0 });
   }
 
   // ── x by column, lanes under the spine ──
@@ -444,16 +654,33 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
       x += slot.width + gapAfter(slot, row.slots[j + 1]);
     });
   });
-  const rowWidth = rows.map((row) => row.slots.reduce((sum, s, j) => sum + s.width + gapAfter(s, row.slots[j + 1]), 0));
+  const rowWidth = rows.map((row) =>
+    row.slots.reduce(
+      (sum, s, j) => sum + s.width + gapAfter(s, row.slots[j + 1]),
+      0,
+    ),
+  );
 
   // ── arcs over each row: room for the tallest ──
-  const liftOf = (dx: number) => (mode === "essence" ? Math.min(ESSENCE_LIFT, arcLift(dx)) : arcLift(dx));
+  const liftOf = (dx: number) =>
+    mode === "essence" ? Math.min(ESSENCE_LIFT, arcLift(dx)) : arcLift(dx);
   const arcRoom = rows.map(() => 0);
   for (const e of g.edges) {
     const a = nodes.get(e.from);
     const b = nodes.get(e.to);
-    if (!a || !b || a.row !== b.row || a.lane !== 0 || b.lane !== 0 || spineNext.has(e.id)) continue;
-    arcRoom[a.row] = Math.max(arcRoom[a.row], liftOf(b.x - a.x) * 0.75 + (labeled(e) ? 12 : 4));
+    if (
+      !a ||
+      !b ||
+      a.row !== b.row ||
+      a.lane !== 0 ||
+      b.lane !== 0 ||
+      spineNext.has(e.id)
+    )
+      continue;
+    arcRoom[a.row] = Math.max(
+      arcRoom[a.row],
+      liftOf(b.x - a.x) * 0.75 + (labeled(e) ? 12 : 4),
+    );
   }
 
   // ── y: rows stacked, a half's rows inside its lane ──
@@ -466,10 +693,16 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
   const maxRowW = Math.max(0, ...rowWidth);
   rows.forEach((row, ri) => {
     if (row.first && ri > 0) y += HALF_GAP;
-    if (row.first) { laneStart = y; laneKinds = []; }
+    if (row.first) {
+      laneStart = y;
+      laneKinds = [];
+    }
     const members = row.slots.flatMap((s) => s.nodes);
     for (const n of members) laneKinds.push(n.kind);
-    const spineH = Math.max(0, ...members.filter((n) => n.lane === 0).map((n) => n.h));
+    const spineH = Math.max(
+      0,
+      ...members.filter((n) => n.lane === 0).map((n) => n.h),
+    );
     const head = (row.first ? TITLE_ROOM : ROW_TOP) + (mode === "all" ? 14 : 0);
     const baseline = y + head + Math.max(arcRoom[ri], 18) + spineH / 2;
     let bottomY = baseline;
@@ -484,28 +717,59 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
         if (!s.stage || s.stage === last) continue;
         last = s.stage;
         const sp = s.nodes.find((n) => n.spine)!;
-        const label = g.stages.find((st) => st.key === s.stage)?.label ?? s.stage;
-        stages.push({ label, x: sp.x - sp.w / 2, y: baseline - spineH / 2 - Math.max(arcRoom[ri], 18) - 6 });
+        const label =
+          g.stages.find((st) => st.key === s.stage)?.label ?? s.stage;
+        stages.push({
+          label,
+          x: sp.x - sp.w / 2,
+          y: baseline - spineH / 2 - Math.max(arcRoom[ri], 18) - 6,
+        });
       }
     }
     // Ends: chips under the step that ends the run, spread side by side.
     if (mode === "all") {
-      const placedRects: Array<{ x: number; y: number; w: number; h: number }> = members.map((n) => ({ x: n.x - colWidthOf(n) / 2, y: n.y - n.h / 2, w: colWidthOf(n), h: footOf(n) + n.h / 2 }));
+      const placedRects: Array<{ x: number; y: number; w: number; h: number }> =
+        members.map((n) => ({
+          x: n.x - colWidthOf(n) / 2,
+          y: n.y - n.h / 2,
+          w: colWidthOf(n),
+          h: footOf(n) + n.h / 2,
+        }));
       for (const p of members) {
-        const ends = g.edges.filter((e) => e.from === p.id && byId.get(e.to)?.kind === "end" && !nodes.get(e.to)!.y).map((e) => nodes.get(e.to)!);
+        const ends = g.edges
+          .filter(
+            (e) =>
+              e.from === p.id &&
+              byId.get(e.to)?.kind === "end" &&
+              !nodes.get(e.to)!.y,
+          )
+          .map((e) => nodes.get(e.to)!);
         if (!ends.length) continue;
         const total = ends.reduce((s, n) => s + n.w, 0) + (ends.length - 1) * 8;
         let ey = p.y + footOf(p) + 30 + CHIP_H / 2;
-        const clash = (yy: number, x0: number) => placedRects.some((r) => x0 < r.x + r.w + 4 && x0 + total > r.x - 4 && yy - CHIP_H / 2 < r.y + r.h + 4 && yy + CHIP_H / 2 > r.y - 4);
+        const clash = (yy: number, x0: number) =>
+          placedRects.some(
+            (r) =>
+              x0 < r.x + r.w + 4 &&
+              x0 + total > r.x - 4 &&
+              yy - CHIP_H / 2 < r.y + r.h + 4 &&
+              yy + CHIP_H / 2 > r.y - 4,
+          );
         let x0 = p.x - total / 2;
-        for (let tries = 0; tries < 4 && clash(ey, x0); tries++) ey += pitch * 0.62;
+        for (let tries = 0; tries < 4 && clash(ey, x0); tries++)
+          ey += pitch * 0.62;
         for (const n of ends) {
           n.x = x0 + n.w / 2;
           n.y = ey;
           n.row = ri;
           n.lane = p.lane + 1;
           x0 += n.w + 8;
-          placedRects.push({ x: n.x - n.w / 2, y: n.y - n.h / 2, w: n.w, h: n.h });
+          placedRects.push({
+            x: n.x - n.w / 2,
+            y: n.y - n.h / 2,
+            w: n.w,
+            h: n.h,
+          });
           bottomY = Math.max(bottomY, n.y + n.h / 2);
         }
       }
@@ -513,12 +777,24 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
     y = bottomY + ROW_FOOT;
     const lastOfHalf = !rows[ri + 1] || rows[ri + 1].half !== row.half;
     if (lastOfHalf) {
-      lanes.push({ half: row.half, label: HALF_LABEL[row.half], sub: laneCounts(laneKinds), x: 0, y: laneStart, w: ROW_X + maxRowW + 70 + LANE_PAD_X, h: y - laneStart });
+      lanes.push({
+        half: row.half,
+        label: HALF_LABEL[row.half],
+        sub: laneCounts(laneKinds),
+        x: 0,
+        y: laneStart,
+        w: ROW_X + maxRowW + 70 + LANE_PAD_X,
+        h: y - laneStart,
+      });
     } else y += mode === "essence" ? ESSENCE_ROW_GAP : ROW_GAP;
   });
   // Ends no step in a row reached (an orphan end): under the last row.
   for (const n of nodes.values()) {
-    if (n.kind === "end" && !n.y) { n.x = ROW_X + 40; n.y = y + 20; y += CHIP_H + 10; }
+    if (n.kind === "end" && !n.y) {
+      n.x = ROW_X + 40;
+      n.y = y + 20;
+      y += CHIP_H + 10;
+    }
   }
 
   // ── edges ──
@@ -527,8 +803,15 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
   /** Between two rows, the y the spine's wrap runs along. */
   const gapBelow = (ri: number) => {
     const membersBelow = rows[ri + 1]?.slots.flatMap((s) => s.nodes) ?? [];
-    const lowest = Math.max(...[...nodes.values()].filter((n) => n.row === ri).map((n) => n.y + footOf(n) + exitRoom(n)));
-    const nextTop = Math.min(...membersBelow.map((n) => n.y - n.h / 2), lowest + 120);
+    const lowest = Math.max(
+      ...[...nodes.values()]
+        .filter((n) => n.row === ri)
+        .map((n) => n.y + footOf(n) + exitRoom(n)),
+    );
+    const nextTop = Math.min(
+      ...membersBelow.map((n) => n.y - n.h / 2),
+      lowest + 120,
+    );
     return (lowest + nextTop) / 2 - (rows[ri + 1]?.first ? 18 : 6);
   };
   for (const e of g.edges) {
@@ -539,7 +822,8 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
     const words = edgeText(e);
     const wantLabel = labeled(e);
     const fromKind = byId.get(e.from)?.kind;
-    let quiet = mode === "essence" && e.kind === "loop" && fromKind === "script";
+    let quiet =
+      mode === "essence" && e.kind === "loop" && fromKind === "script";
     let d: string;
     let shape: GEdgeShape;
     let at: Pt | null = null;
@@ -581,8 +865,12 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
         const roomy = left(b).x > right(a).x + 24;
         const p0 = roomy ? right(a) : b.y > a.y ? bottom(a) : top(a);
         const p3 = left(b);
-        const p1 = roomy ? { x: (p0.x + p3.x) / 2, y: p0.y } : { x: p0.x, y: p3.y };
-        const p2 = roomy ? { x: (p0.x + p3.x) / 2, y: p3.y } : { x: p0.x + 10, y: p3.y };
+        const p1 = roomy
+          ? { x: (p0.x + p3.x) / 2, y: p0.y }
+          : { x: p0.x, y: p3.y };
+        const p2 = roomy
+          ? { x: (p0.x + p3.x) / 2, y: p3.y }
+          : { x: p0.x + 10, y: p3.y };
         d = cubic(p0, p1, p2, p3);
         shape = "side";
         at = cubicMid(p0, p1, p2, p3);
@@ -614,7 +902,12 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
       const p3 = top(b);
       d = cubic(p0, { x: p0.x, y: p0.y + 130 }, { x: p3.x, y: p3.y - 130 }, p3);
       shape = "cross";
-      at = cubicMid(p0, { x: p0.x, y: p0.y + 130 }, { x: p3.x, y: p3.y - 130 }, p3);
+      at = cubicMid(
+        p0,
+        { x: p0.x, y: p0.y + 130 },
+        { x: p3.x, y: p3.y - 130 },
+        p3,
+      );
     } else {
       // Back up to an earlier row: out of the top, into the target's underside.
       const p0 = top(a);
@@ -626,33 +919,106 @@ export function computeLayout(g: LineGraphModel, opts: LayoutOpts): GraphLayout 
       at = cubicMid(p0, p1, p2, p3);
     }
     // Essence keeps the long ways round (back, skip, across rows) out of sight until a step they touch is hovered or selected.
-    if (mode === "essence" && (shape === "back" || shape === "skip" || shape === "cross")) quiet = true;
-    const label = labelOk && words && at ? { x: r1(at.x), y: r1(at.y), w: labelW(words), text: words } : null;
-    edges.push({ id: e.id, from: e.from, to: e.to, d, shape, kind: e.kind, gate: e.gate, words, count: e.count, split, ...(e.owed ? { owed: e.owed } : {}), quiet, label });
+    if (
+      mode === "essence" &&
+      (shape === "back" || shape === "skip" || shape === "cross")
+    )
+      quiet = true;
+    const label =
+      labelOk && words && at
+        ? { x: r1(at.x), y: r1(at.y), w: labelW(words), text: words }
+        : null;
+    edges.push({
+      id: e.id,
+      from: e.from,
+      to: e.to,
+      d,
+      shape,
+      kind: e.kind,
+      gate: e.gate,
+      words,
+      count: e.count,
+      split,
+      ...(e.owed ? { owed: e.owed } : {}),
+      quiet,
+      label,
+    });
   }
 
   spreadLabels(edges);
 
   // ── where a problem comes in, and where a fixed one leaves ──
   const firstNode = spine[0] ? nodes.get(spine[0]) : undefined;
-  const lastNode = spine.length ? nodes.get(spine[spine.length - 1]) : undefined;
-  const entry = firstNode ? { x: firstNode.x - colWidthOf(firstNode) / 2 - 44, y: firstNode.y, label: "a problem" } : null;
-  const finish = lastNode && lastNode.id !== firstNode?.id ? (() => {
-    const p0 = right(lastNode);
-    // Clear of the step's own name under a dot, so the two labels never run together.
-    const x = Math.max(p0.x + 62, lastNode.x + colWidthOf(lastNode) / 2 + 44);
-    return { x, y: lastNode.y, label: "fixed", from: lastNode.id, d: `M${r1(p0.x + (lastNode.dot ? 4 : 0))},${r1(p0.y)} L${r1(x - 14)},${r1(p0.y)}` };
-  })() : null;
+  const lastNode = spine.length
+    ? nodes.get(spine[spine.length - 1])
+    : undefined;
+  const entry = firstNode
+    ? {
+        x: firstNode.x - colWidthOf(firstNode) / 2 - 44,
+        y: firstNode.y,
+        label: "a problem",
+      }
+    : null;
+  const finish =
+    lastNode && lastNode.id !== firstNode?.id
+      ? (() => {
+          const p0 = right(lastNode);
+          // Clear of the step's own name under a dot, so the two labels never run together.
+          const x = Math.max(
+            p0.x + 62,
+            lastNode.x + colWidthOf(lastNode) / 2 + 44,
+          );
+          return {
+            x,
+            y: lastNode.y,
+            label: "fixed",
+            from: lastNode.id,
+            d: `M${r1(p0.x + (lastNode.dot ? 4 : 0))},${r1(p0.y)} L${r1(x - 14)},${r1(p0.y)}`,
+          };
+        })()
+      : null;
 
-  const list = [...nodes.values()].sort((p, q) => orderIdx.get(p.id)! - orderIdx.get(q.id)!);
-  const xs = list.flatMap((n) => [n.x - colWidthOf(n) / 2, n.x + colWidthOf(n) / 2]);
-  const maxX = Math.max(...lanes.map((l) => l.x + l.w), ...xs, finish ? finish.x + 30 : 0);
-  const bounds = { x: OUTER_CHANNEL_X - 10, y: -10, w: maxX - OUTER_CHANNEL_X + 20, h: y + 10 };
-  const walk = list.filter((n) => n.kind !== "end" || mode === "all").map((n) => n.id);
+  const list = [...nodes.values()].sort(
+    (p, q) => orderIdx.get(p.id)! - orderIdx.get(q.id)!,
+  );
+  const xs = list.flatMap((n) => [
+    n.x - colWidthOf(n) / 2,
+    n.x + colWidthOf(n) / 2,
+  ]);
+  const maxX = Math.max(
+    ...lanes.map((l) => l.x + l.w),
+    ...xs,
+    finish ? finish.x + 30 : 0,
+  );
+  const bounds = {
+    x: OUTER_CHANNEL_X - 10,
+    y: -10,
+    w: maxX - OUTER_CHANNEL_X + 20,
+    h: y + 10,
+  };
+  const walk = list
+    .filter((n) => n.kind !== "end" || mode === "all")
+    .map((n) => n.id);
   return {
-    mode, nodes, list, edges, exits, lanes, stages, entry, finish,
-    entryEdge: firstNode && entry ? `M${r1(entry.x + 8)},${r1(entry.y)} L${r1(firstNode.x - firstNode.w / 2)},${r1(entry.y)}` : null,
-    bounds, walk, actors: walk.filter((id) => { const k = nodes.get(id)!.kind; return k === "agent" || k === "person"; }),
+    mode,
+    nodes,
+    list,
+    edges,
+    exits,
+    lanes,
+    stages,
+    entry,
+    finish,
+    entryEdge:
+      firstNode && entry
+        ? `M${r1(entry.x + 8)},${r1(entry.y)} L${r1(firstNode.x - firstNode.w / 2)},${r1(entry.y)}`
+        : null,
+    bounds,
+    walk,
+    actors: walk.filter((id) => {
+      const k = nodes.get(id)!.kind;
+      return k === "agent" || k === "person";
+    }),
   };
 }
 
@@ -666,22 +1032,45 @@ const LABEL_H = 17;
  */
 export function spreadLabels(edges: GEdge[]): void {
   const placed: GLabel[] = [];
-  const hits = (l: GLabel, y: number) => placed.some((p) => Math.abs(p.x - l.x) < (p.w + l.w) / 2 + 4 && Math.abs(p.y - y) < LABEL_H + 1);
-  const labels = edges.map((e) => e.label).filter((l): l is GLabel => !!l).sort((a, b) => a.y - b.y || a.x - b.x);
+  const hits = (l: GLabel, y: number) =>
+    placed.some(
+      (p) =>
+        Math.abs(p.x - l.x) < (p.w + l.w) / 2 + 4 &&
+        Math.abs(p.y - y) < LABEL_H + 1,
+    );
+  const labels = edges
+    .map((e) => e.label)
+    .filter((l): l is GLabel => !!l)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
   for (const l of labels) {
     let y = l.y;
-    for (let k = 1; hits(l, y) && k <= 12; k++) y = l.y + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (LABEL_H + 2);
+    for (let k = 1; hits(l, y) && k <= 12; k++)
+      y = l.y + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (LABEL_H + 2);
     l.y = r1(y);
     placed.push(l);
   }
 }
 
 /** Do two drawn steps overlap (for tests and the fit check)? */
-export function overlaps(a: Pick<GNode, "x" | "y" | "w" | "h">, b: Pick<GNode, "x" | "y" | "w" | "h">, pad = 0): boolean {
-  return Math.abs(a.x - b.x) * 2 < a.w + b.w + pad * 2 && Math.abs(a.y - b.y) * 2 < a.h + b.h + pad * 2;
+export function overlaps(
+  a: Pick<GNode, "x" | "y" | "w" | "h">,
+  b: Pick<GNode, "x" | "y" | "w" | "h">,
+  pad = 0,
+): boolean {
+  return (
+    Math.abs(a.x - b.x) * 2 < a.w + b.w + pad * 2 &&
+    Math.abs(a.y - b.y) * 2 < a.h + b.h + pad * 2
+  );
 }
 
 /** The ends' colors and their words: dissolved settles, a stop is a warning, a ship is the line's own warmth. */
-export const END_TONE: Record<GraphEnd, "ok" | "warn" | "agent" | "plain" | "person"> = {
-  dissolved: "ok", stopped: "warn", shipped: "agent", dropped: "plain", parked: "person",
+export const END_TONE: Record<
+  GraphEnd,
+  "ok" | "warn" | "agent" | "plain" | "person"
+> = {
+  dissolved: "ok",
+  stopped: "warn",
+  shipped: "agent",
+  dropped: "plain",
+  parked: "person",
 };

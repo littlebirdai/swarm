@@ -13,7 +13,8 @@ import {
 const ME = "user000000000000000000000000meme";
 const NOW = 1_750_000_000_000;
 
-const convexId = (tag: string) => tag.padEnd(32, "0").slice(0, 32).toLowerCase();
+const convexId = (tag: string) =>
+  tag.padEnd(32, "0").slice(0, 32).toLowerCase();
 
 function blank(id: string, ageMs: number, extra: Record<string, unknown> = {}) {
   return {
@@ -43,11 +44,15 @@ describe("collectGhostSweepCandidates", () => {
     const current = blank(convexId("currentsess"), age);
     const pinned = blank(convexId("pinnedblank"), age, { is_pinned: true });
     const pending = blank(convexId("pendingsend"), age, { has_pending: true });
-    const teammate = blank(convexId("teammates"), age, { user_id: "user0000000000000000000000other0" });
+    const teammate = blank(convexId("teammates"), age, {
+      user_id: "user0000000000000000000000other0",
+    });
     const nonEmpty = blank(convexId("hasmessages"), age, { message_count: 3 });
     const plain = blank(convexId("plainblank"), age);
     const { stubs, strandedStubs } = collectGhostSweepCandidates(
-      storeWith([current, pinned, pending, teammate, nonEmpty, plain], { currentSessionId: current._id }),
+      storeWith([current, pinned, pending, teammate, nonEmpty, plain], {
+        currentSessionId: current._id,
+      }),
       NOW,
     );
     expect(stubs).toEqual([]);
@@ -60,25 +65,44 @@ describe("collectGhostSweepCandidates", () => {
   // that resurrected from IDB on every launch. Pinned stubs must sweep; the
   // pin exemption is only meaningful for real (Convex-id) rows.
   it("never sweeps a kept draft (compose 'save draft' stub outlives every janitor)", () => {
-    const draftStub = blank("draftstub12345678901xx", STUB_SWEEP_MIN_AGE_MS + 60_000, { _hasDraft: true });
-    const draftBlank = blank(convexId("draftblank"), STUB_SWEEP_MIN_AGE_MS + 60_000, { _hasDraft: true });
-    const { stubs } = collectGhostSweepCandidates(storeWith([draftStub, draftBlank]), NOW);
+    const draftStub = blank(
+      "draftstub12345678901xx",
+      STUB_SWEEP_MIN_AGE_MS + 60_000,
+      { _hasDraft: true },
+    );
+    const draftBlank = blank(
+      convexId("draftblank"),
+      STUB_SWEEP_MIN_AGE_MS + 60_000,
+      { _hasDraft: true },
+    );
+    const { stubs } = collectGhostSweepCandidates(
+      storeWith([draftStub, draftBlank]),
+      NOW,
+    );
     expect(stubs).toEqual([]);
   });
 
   it("sweeps a pinned orphaned stub (pin can't protect a row the server never had)", () => {
-    const pinnedStub = blank("local-stub-pinned", STUB_SWEEP_MIN_AGE_MS + 60_000, {
-      is_pinned: true,
-      inbox_pinned_at: NOW - STUB_SWEEP_MIN_AGE_MS,
-    });
+    const pinnedStub = blank(
+      "local-stub-pinned",
+      STUB_SWEEP_MIN_AGE_MS + 60_000,
+      {
+        is_pinned: true,
+        inbox_pinned_at: NOW - STUB_SWEEP_MIN_AGE_MS,
+      },
+    );
     const { stubs } = collectGhostSweepCandidates(storeWith([pinnedStub]), NOW);
     expect(stubs).toEqual([pinnedStub._id]);
   });
 
   it("still exempts a pinned stub whose create is in flight (a legitimate pin mid-create rekeys and flushes)", () => {
-    const pinnedInFlight = blank("local-stub-pinned-creating", STUB_SWEEP_MIN_AGE_MS + 60_000, {
-      is_pinned: true,
-    });
+    const pinnedInFlight = blank(
+      "local-stub-pinned-creating",
+      STUB_SWEEP_MIN_AGE_MS + 60_000,
+      {
+        is_pinned: true,
+      },
+    );
     const { stubs } = collectGhostSweepCandidates(
       storeWith([pinnedInFlight], {
         pendingSessionCreates: { [pinnedInFlight._id]: Promise.resolve("x") },
@@ -91,7 +115,10 @@ describe("collectGhostSweepCandidates", () => {
   it("prunes old local stubs directly but leaves young ones for the create handoff", () => {
     const oldStub = blank("local-stub-old", STUB_SWEEP_MIN_AGE_MS + 60_000);
     const youngStub = blank("local-stub-young", STUB_SWEEP_MIN_AGE_MS - 60_000);
-    const inFlight = blank("local-stub-creating", STUB_SWEEP_MIN_AGE_MS + 60_000);
+    const inFlight = blank(
+      "local-stub-creating",
+      STUB_SWEEP_MIN_AGE_MS + 60_000,
+    );
     const { stubs } = collectGhostSweepCandidates(
       storeWith([oldStub, youngStub, inFlight], {
         pendingSessionCreates: { [inFlight._id]: Promise.resolve("x") },
@@ -107,13 +134,18 @@ describe("collectGhostSweepCandidates", () => {
   // conversation (so the message can never deliver) — a permanent stuck ghost.
   // The heal sweep must re-collect exactly these so they get re-created + re-sent.
   // A stub that gets healed must carry a path — the heal re-creates from it.
-  const typed = (id: string, ageMs: number, extra: Record<string, unknown> = {}) =>
-    blank(id, ageMs, { project_path: "/Users/me/proj", ...extra });
+  const typed = (
+    id: string,
+    ageMs: number,
+    extra: Record<string, unknown> = {},
+  ) => blank(id, ageMs, { project_path: "/Users/me/proj", ...extra });
 
   it("flags a stranded stub the user typed into (pending message, create given up)", () => {
     const stranded = typed("stub-stranded", STUB_HEAL_MIN_AGE_MS + 1_000);
     const { strandedStubs, stubs } = collectGhostSweepCandidates(
-      storeWith([stranded], { pendingMessages: { [stranded._id]: [{ content: "hi" }] } }),
+      storeWith([stranded], {
+        pendingMessages: { [stranded._id]: [{ content: "hi" }] },
+      }),
       NOW,
     );
     expect(strandedStubs).toEqual([stranded._id]);
@@ -136,7 +168,9 @@ describe("collectGhostSweepCandidates", () => {
   it("waits out the heal floor (a normal create / outbox replay gets to settle first)", () => {
     const young = typed("stub-young-typed", STUB_HEAL_MIN_AGE_MS - 1_000);
     const { strandedStubs } = collectGhostSweepCandidates(
-      storeWith([young], { pendingMessages: { [young._id]: [{ content: "hi" }] } }),
+      storeWith([young], {
+        pendingMessages: { [young._id]: [{ content: "hi" }] },
+      }),
       NOW,
     );
     expect(strandedStubs).toEqual([]);
@@ -145,18 +179,25 @@ describe("collectGhostSweepCandidates", () => {
   it("skips a typed-into stub with no project/git path (pathless re-create can't spawn)", () => {
     const pathless = blank("stub-pathless", STUB_HEAL_MIN_AGE_MS + 1_000); // no project_path/git_root
     const { strandedStubs } = collectGhostSweepCandidates(
-      storeWith([pathless], { pendingMessages: { [pathless._id]: [{ content: "hi" }] } }),
+      storeWith([pathless], {
+        pendingMessages: { [pathless._id]: [{ content: "hi" }] },
+      }),
       NOW,
     );
     expect(strandedStubs).toEqual([]);
   });
 
   it("ignores foreign stranded stubs and real (convex-id) conversations", () => {
-    const foreign = typed("stub-foreign", STUB_HEAL_MIN_AGE_MS + 1_000, { user_id: "user0000000000000000000000other0" });
+    const foreign = typed("stub-foreign", STUB_HEAL_MIN_AGE_MS + 1_000, {
+      user_id: "user0000000000000000000000other0",
+    });
     const real = typed(convexId("realconvmsg"), STUB_HEAL_MIN_AGE_MS + 1_000);
     const { strandedStubs } = collectGhostSweepCandidates(
       storeWith([foreign, real], {
-        pendingMessages: { [foreign._id]: [{ content: "hi" }], [real._id]: [{ content: "hi" }] },
+        pendingMessages: {
+          [foreign._id]: [{ content: "hi" }],
+          [real._id]: [{ content: "hi" }],
+        },
       }),
       NOW,
     );
@@ -173,4 +214,3 @@ describe("collectGhostSweepCandidates", () => {
     expect(stubs).toEqual([blankStub._id]);
   });
 });
-

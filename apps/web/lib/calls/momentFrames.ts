@@ -30,7 +30,8 @@ const frames = new Map<string, Entry>();
 
 /** A frame's key: the file and the second into it, to the hundredth (the
  *  precision a moment's video is seeked to). */
-export const momentFrameKey = (recordingId: string, seconds: number) => `${recordingId}@${seconds.toFixed(2)}`;
+export const momentFrameKey = (recordingId: string, seconds: number) =>
+  `${recordingId}@${seconds.toFixed(2)}`;
 
 /** The kept picture of a moment, or null. Reading it makes it the newest. */
 export function momentFrame(key: string): string | null {
@@ -56,7 +57,11 @@ function put(key: string, entry: Entry): void {
 /** Keep what a video is showing now as this moment's picture. Quietly does
  *  nothing where it cannot: no canvas (a test DOM), no picture yet, or a
  *  canvas the browser will not read back (a video loaded without CORS). */
-export async function keepMomentFrame(key: string, ids: { call: string; recording: string }, video: HTMLVideoElement): Promise<void> {
+export async function keepMomentFrame(
+  key: string,
+  ids: { call: string; recording: string },
+  video: HTMLVideoElement,
+): Promise<void> {
   if (frames.has(key) || !video.videoWidth || !video.videoHeight) return;
   const width = Math.min(MAX_FRAME_WIDTH, video.videoWidth);
   const height = Math.round((video.videoHeight * width) / video.videoWidth);
@@ -67,7 +72,9 @@ export async function keepMomentFrame(key: string, ids: { call: string; recordin
     const ctx = canvas.getContext("2d");
     if (!ctx || typeof canvas.toBlob !== "function") return;
     ctx.drawImage(video, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.88),
+    );
     if (!blob) return;
     put(key, { ...ids, url: URL.createObjectURL(blob) });
   } catch {

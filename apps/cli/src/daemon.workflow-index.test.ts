@@ -2,7 +2,13 @@ import { afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ageSessionFileIndexForTests, findSessionFile, refreshSessionFileIndex, resetSessionFileIndexForTests, workflowAgentTranscriptPathFor } from "./daemon.js";
+import {
+  ageSessionFileIndexForTests,
+  findSessionFile,
+  refreshSessionFileIndex,
+  resetSessionFileIndexForTests,
+  workflowAgentTranscriptPathFor,
+} from "./daemon.js";
 
 let home: string;
 let priorHome: string | undefined;
@@ -28,7 +34,14 @@ afterEach(async () => {
 });
 
 function writeWorkflow(sessionId = id): string {
-  const file = path.join(project, "parent", "subagents", "workflows", "run", `${sessionId}.jsonl`);
+  const file = path.join(
+    project,
+    "parent",
+    "subagents",
+    "workflows",
+    "run",
+    `${sessionId}.jsonl`,
+  );
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, "{}\n");
   return file;
@@ -42,8 +55,17 @@ test("cold and concurrent recovery checks share asynchronous enumeration", async
   const reads = spyOn(fs.promises, "readdir");
   spies.push(exists, readdir, reads);
   let timerRan = false;
-  const timer = new Promise<void>(resolve => setImmediate(() => { timerRan = true; resolve(); }));
-  const results = await Promise.all(Array.from({ length: 50 }, (_, i) => workflowAgentTranscriptPathFor(i % 2 ? "absent" : id)));
+  const timer = new Promise<void>((resolve) =>
+    setImmediate(() => {
+      timerRan = true;
+      resolve();
+    }),
+  );
+  const results = await Promise.all(
+    Array.from({ length: 50 }, (_, i) =>
+      workflowAgentTranscriptPathFor(i % 2 ? "absent" : id),
+    ),
+  );
   expect(results.filter(Boolean)).toEqual(Array(25).fill(file));
   expect(timerRan).toBe(true);
   expect(exists).not.toHaveBeenCalled();
@@ -69,7 +91,7 @@ test("refresh discovers new workflow origins and removes deleted ones", async ()
 test("an ordinary session older than the walk is answered without another walk", async () => {
   const ordinary = "0f6c2f0e-ordinary";
   fs.writeFileSync(path.join(project, `${ordinary}.jsonl`), "{}\n");
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await new Promise((resolve) => setTimeout(resolve, 20));
   await refreshSessionFileIndex();
   expect(await workflowAgentTranscriptPathFor(ordinary)).toBeNull();
   const reads = spyOn(fs.promises, "readdir");
@@ -84,8 +106,14 @@ test("an ordinary session older than the walk is answered without another walk",
 
 test("an incomplete scan defers recovery instead of granting absence", async () => {
   const original = fs.promises.readdir;
-  const reads = spyOn(fs.promises, "readdir").mockImplementation(((dir: unknown, ...args: unknown[]) => {
-    if (String(dir) === project) return Promise.reject(Object.assign(new Error("denied"), { code: "EACCES" }));
+  const reads = spyOn(fs.promises, "readdir").mockImplementation(((
+    dir: unknown,
+    ...args: unknown[]
+  ) => {
+    if (String(dir) === project)
+      return Promise.reject(
+        Object.assign(new Error("denied"), { code: "EACCES" }),
+      );
     return (original as any)(dir, ...args);
   }) as any);
   spies.push(reads);
@@ -109,10 +137,15 @@ test("recovery checks never enumerate unrelated client stores", async () => {
   const original = fs.promises.readdir;
   const root = path.join(home, ".claude", "projects");
   const unrelated: string[] = [];
-  const reads = spyOn(fs.promises, "readdir").mockImplementation(((dir: unknown, ...args: unknown[]) => {
+  const reads = spyOn(fs.promises, "readdir").mockImplementation(((
+    dir: unknown,
+    ...args: unknown[]
+  ) => {
     if (String(dir) !== root && !String(dir).startsWith(root + path.sep)) {
       unrelated.push(String(dir));
-      return Promise.reject(Object.assign(new Error("unrelated store denied"), { code: "EACCES" }));
+      return Promise.reject(
+        Object.assign(new Error("unrelated store denied"), { code: "EACCES" }),
+      );
     }
     return (original as any)(dir, ...args);
   }) as any);

@@ -8,14 +8,33 @@
 // does is the fix already tried. Each case is an agent replay on a machine,
 // so the press opens the shared review first (components/consequential).
 import { useMemo, useState } from "react";
-import { SwitchReview, type SwitchLedger } from "../../../consequential/ConsequentialSwitch";
+import {
+  SwitchReview,
+  type SwitchLedger,
+} from "../../../consequential/ConsequentialSwitch";
 import type { LineStep } from "../../../../lib/line/lineModel";
-import { cameBackTryResult, cameBackTryWords, caseChanged, decisionAnswer, defaultTryPick, drawnWorkflowId, oncePerCase, triedCameBack, triesOf, tryCandidates, tryCaseWords, type LineTry } from "../../../../lib/line/lineActions";
+import {
+  cameBackTryResult,
+  cameBackTryWords,
+  caseChanged,
+  decisionAnswer,
+  defaultTryPick,
+  drawnWorkflowId,
+  oncePerCase,
+  triedCameBack,
+  triesOf,
+  tryCandidates,
+  tryCaseWords,
+  type LineTry,
+} from "../../../../lib/line/lineActions";
 import { closeBackWords, decisionKey } from "../../../../lib/line/lineModel";
 import { promptDiff } from "../../../../lib/line/promptText";
 import { useInboxStore } from "../../../../store/inboxStore";
 import { useCoarseNow } from "../../../../hooks/useCoarseNow";
-import { useGraphEditability, useLineTries } from "../../../../hooks/useLineActions";
+import {
+  useGraphEditability,
+  useLineTries,
+} from "../../../../hooks/useLineActions";
 import { BeforeAfterTable, type BeforeAfterRow } from "../BeforeAfterTable";
 import { DecisionSaid } from "../DecisionCard";
 import { DecisionTag, dayWords, useLineNav } from "../parts";
@@ -24,8 +43,12 @@ import "./actions.css";
 
 const DEFAULT_PICK = 3;
 
-const newTryId = () => `try_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-const money = (usd: number) => (usd >= 0.995 ? `$${usd.toFixed(2)}` : `${Math.max(1, Math.round(usd * 100))}¢`);
+const newTryId = () =>
+  `try_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+const money = (usd: number) =>
+  usd >= 0.995
+    ? `$${usd.toFixed(2)}`
+    : `${Math.max(1, Math.round(usd * 100))}¢`;
 
 export function TryPanel({ model, step, draft, runs }: TrySlotProps) {
   const nav = useLineNav();
@@ -34,27 +57,55 @@ export function TryPanel({ model, step, draft, runs }: TrySlotProps) {
   const can = useGraphEditability(workflowId);
   const rows = useLineTries(projectId);
   const now = useCoarseNow(30_000);
-  const tries = useMemo(() => triesOf(rows, step.id, now), [rows, step.id, now]);
+  const tries = useMemo(
+    () => triesOf(rows, step.id, now),
+    [rows, step.id, now],
+  );
   // One row per case: a case run several times is tried once, on its newest run (or the run asked for).
-  const candidates = useMemo(() => (runs?.length ? oncePerCase(step.decisions.filter((d) => runs.includes(d.runId))) : tryCandidates(step)), [step, runs]);
+  const candidates = useMemo(
+    () =>
+      runs?.length
+        ? oncePerCase(step.decisions.filter((d) => runs.includes(d.runId)))
+        : tryCandidates(step),
+    [step, runs],
+  );
   const [picked, setPicked] = useState<string[] | null>(null);
-  const chosen = useMemo(() => picked ?? defaultTryPick(candidates, DEFAULT_PICK), [picked, candidates]);
+  const chosen = useMemo(
+    () => picked ?? defaultTryPick(candidates, DEFAULT_PICK),
+    [picked, candidates],
+  );
   const text = draft ?? step.prompt?.text ?? "";
-  const diff = useMemo(() => (draft && step.prompt ? promptDiff(step.prompt.text, draft) : null), [draft, step.prompt]);
+  const diff = useMemo(
+    () => (draft && step.prompt ? promptDiff(step.prompt.text, draft) : null),
+    [draft, step.prompt],
+  );
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState(false);
 
-  const toggle = (runId: string) => setPicked((p) => {
-    const cur = p ?? chosen;
-    return cur.includes(runId) ? cur.filter((r) => r !== runId) : [...cur, runId];
-  });
+  const toggle = (runId: string) =>
+    setPicked((p) => {
+      const cur = p ?? chosen;
+      return cur.includes(runId)
+        ? cur.filter((r) => r !== runId)
+        : [...cur, runId];
+    });
 
   const start = async () => {
     if (!workflowId || !chosen.length) return;
     setError(null);
-    const base = can && can.editable ? can.nodes.find((n) => n.id === step.id)?.h ?? null : null;
+    const base =
+      can && can.editable
+        ? (can.nodes.find((n) => n.id === step.id)?.h ?? null)
+        : null;
     try {
-      await useInboxStore.getState().tryLineStep(newTryId(), workflowId, { node: step.id, text, runs: chosen, base_hash: base, base_text: step.prompt?.text ?? null, project_id: projectId });
+      await useInboxStore.getState().tryLineStep(newTryId(), workflowId, {
+        node: step.id,
+        text,
+        runs: chosen,
+        base_hash: base,
+        base_text: step.prompt?.text ?? null,
+        project_id: projectId,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -62,8 +113,13 @@ export function TryPanel({ model, step, draft, runs }: TrySlotProps) {
 
   // A price from this step's own past tests (what they cost per case), else none: a full line run's price would overstate one replay.
   const perCase = (() => {
-    let usd = 0, n = 0;
-    for (const t of tries) if (t.cost > 0 && t.cases.length) { usd += t.cost; n += t.cases.length; }
+    let usd = 0,
+      n = 0;
+    for (const t of tries)
+      if (t.cost > 0 && t.cases.length) {
+        usd += t.cost;
+        n += t.cases.length;
+      }
     return n ? usd / n : null;
   })();
   const ledger: SwitchLedger = {
@@ -71,13 +127,37 @@ export function TryPanel({ model, step, draft, runs }: TrySlotProps) {
     subject: step.label,
     shift: null,
     figures: [
-      { value: String(chosen.length), label: chosen.length === 1 ? "agent replay starts" : "agent replays start", tone: "warn" },
-      perCase != null ? { value: `~${money(perCase * chosen.length)}`, label: "billed, from past tests", tone: "warn" } : { value: "$?", label: "not priced", tone: "warn" },
+      {
+        value: String(chosen.length),
+        label:
+          chosen.length === 1 ? "agent replay starts" : "agent replays start",
+        tone: "warn",
+      },
+      perCase != null
+        ? {
+            value: `~${money(perCase * chosen.length)}`,
+            label: "billed, from past tests",
+            tone: "warn",
+          }
+        : { value: "$?", label: "not priced", tone: "warn" },
     ],
     rows: [
-      { k: "Runs on", v: (can && can.editable ? can.home?.machine : null) ?? "The machine the steps were pushed from" },
+      {
+        k: "Runs on",
+        v:
+          (can && can.editable ? can.home?.machine : null) ??
+          "The machine the steps were pushed from",
+      },
       { k: "Instructions", v: draft ? "Your edit, unsaved" : "As they stand" },
-      { k: "Cases", v: `${chosen.length}`, list: candidates.filter((d) => chosen.includes(d.runId)).map((d) => d.caseRef ? `${d.caseRef} ${d.caseTitle}` : d.caseTitle) },
+      {
+        k: "Cases",
+        v: `${chosen.length}`,
+        list: candidates
+          .filter((d) => chosen.includes(d.runId))
+          .map((d) =>
+            d.caseRef ? `${d.caseRef} ${d.caseTitle}` : d.caseTitle,
+          ),
+      },
       { k: "Writes", v: "Every one refused", tone: "ok" },
       { k: "Ships", v: "Nothing", tone: "ok" },
     ],
@@ -85,93 +165,228 @@ export function TryPanel({ model, step, draft, runs }: TrySlotProps) {
     keep: "Not now",
   };
 
-  if (!step.prompt) return <div className="lw-empty"><b>Nothing to test</b>The flow names this step without its instructions.</div>;
+  if (!step.prompt)
+    return (
+      <div className="lw-empty">
+        <b>Nothing to test</b>The flow names this step without its instructions.
+      </div>
+    );
   // Why the run button cannot be pressed, said beside it: a disabled button never stands alone.
-  const blocked = !workflowId ? "These steps have no saved copy to run from, so nothing can be tested here. Ask an agent to change it instead."
-    : can === undefined ? "Checking where these steps are saved"
-    : !chosen.length ? "Tick at least one case to run it on."
-    : null;
+  const blocked = !workflowId
+    ? "These steps have no saved copy to run from, so nothing can be tested here. Ask an agent to change it instead."
+    : can === undefined
+      ? "Checking where these steps are saved"
+      : !chosen.length
+        ? "Tick at least one case to run it on."
+        : null;
 
   return (
     <div className="lw-try" data-line-try={step.id}>
       <div className="lw-try-what">
         {diff ? (
-          <span>Your edit <span className="lw-plus-n">+{diff.added}</span> <span className="lw-minus-n">−{diff.removed}</span></span>
+          <span>
+            Your edit <span className="lw-plus-n">+{diff.added}</span>{" "}
+            <span className="lw-minus-n">−{diff.removed}</span>
+          </span>
         ) : (
-          <span>The instructions as they stand: a run shows whether the step concludes the same twice</span>
+          <span>
+            The instructions as they stand: a run shows whether the step
+            concludes the same twice
+          </span>
         )}
       </div>
 
       {can && !can.editable ? (
-        <div className="lw-empty"><b>These steps are saved on another machine</b>{can.reason} Test it there, or ask an agent to change it: that works from any machine.</div>
+        <div className="lw-empty">
+          <b>These steps are saved on another machine</b>
+          {can.reason} Test it there, or ask an agent to change it: that works
+          from any machine.
+        </div>
       ) : candidates.length === 0 ? (
-        <div className="lw-empty"><b>No finished run of this step yet</b>A test replays problems the step already handled. Saving does not need one.</div>
+        <div className="lw-empty">
+          <b>No finished run of this step yet</b>A test replays problems the
+          step already handled. Saving does not need one.
+        </div>
       ) : (
         <>
-          <div className="lw-try-cases" role="group" aria-label="Cases to try it on">
+          <div
+            className="lw-try-cases"
+            role="group"
+            aria-label="Cases to try it on"
+          >
             {candidates.map((d) => {
               const on = chosen.includes(d.runId);
               const back = cameBackTryWords(d);
               return (
-                <label key={d.id} className="lw-try-case" data-on={on ? "" : undefined} data-came-back={back ? "" : undefined}>
-                  <input type="checkbox" checked={on} onChange={() => toggle(d.runId)} />
+                <label
+                  key={d.id}
+                  className="lw-try-case"
+                  data-on={on ? "" : undefined}
+                  data-came-back={back ? "" : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggle(d.runId)}
+                  />
                   <span className="lw-try-case-t">
                     <b>{d.caseTitle}</b>
-                    {back && <span className="lw-try-back" title={d.closed?.words ?? undefined}>{back}</span>}
+                    {back && (
+                      <span
+                        className="lw-try-back"
+                        title={d.closed?.words ?? undefined}
+                      >
+                        {back}
+                      </span>
+                    )}
                     <small>
                       {d.caseRef && <>{d.caseRef} · </>}
                       {/* The came-back line above already says it came back: the tag here is only what it decided. */}
-                      <DecisionTag d={d} backTag={!back} /><span className="lw-try-case-said"><DecisionSaid d={d} /></span>
+                      <DecisionTag d={d} backTag={!back} />
+                      <span className="lw-try-case-said">
+                        <DecisionSaid d={d} />
+                      </span>
                     </small>
                   </span>
-                  {d.label && <span className="lw-labelmark" data-verdict={d.label.verdict}>{d.label.verdict === "right" ? "Right" : "Wrong"}</span>}
+                  {d.label && (
+                    <span
+                      className="lw-labelmark"
+                      data-verdict={d.label.verdict}
+                    >
+                      {d.label.verdict === "right" ? "Right" : "Wrong"}
+                    </span>
+                  )}
                 </label>
               );
             })}
           </div>
           <div className="lw-try-go">
-            <button type="button" className="lw-act" data-hot="" aria-haspopup="dialog" onClick={() => setReview(true)} disabled={!!blocked} aria-busy={can === undefined || undefined} data-line-try-run>
-              {can === undefined && workflowId ? <span className="lw-spin" aria-hidden /> : null}{draft ? "Test this edit" : "Run again"} on {chosen.length} {chosen.length === 1 ? "case" : "cases"}
+            <button
+              type="button"
+              className="lw-act"
+              data-hot=""
+              aria-haspopup="dialog"
+              onClick={() => setReview(true)}
+              disabled={!!blocked}
+              aria-busy={can === undefined || undefined}
+              data-line-try-run
+            >
+              {can === undefined && workflowId ? (
+                <span className="lw-spin" aria-hidden />
+              ) : null}
+              {draft ? "Test this edit" : "Run again"} on {chosen.length}{" "}
+              {chosen.length === 1 ? "case" : "cases"}
             </button>
-            {review && <SwitchReview ledger={ledger} onClose={() => setReview(false)} onConfirm={() => { setReview(false); void start(); }} />}
-            <span className="lw-try-fine" data-line-try-blocked={blocked ? "" : undefined}>{blocked ?? "Each case runs as the step would, where the steps are saved. Every write it attempts is refused; nothing ships."}</span>
+            {review && (
+              <SwitchReview
+                ledger={ledger}
+                onClose={() => setReview(false)}
+                onConfirm={() => {
+                  setReview(false);
+                  void start();
+                }}
+              />
+            )}
+            <span
+              className="lw-try-fine"
+              data-line-try-blocked={blocked ? "" : undefined}
+            >
+              {blocked ??
+                "Each case runs as the step would, where the steps are saved. Every write it attempts is refused; nothing ships."}
+            </span>
           </div>
-          {error && <div className="lw-save-note" data-tone="bad">{error}</div>}
+          {error && (
+            <div className="lw-save-note" data-tone="bad">
+              {error}
+            </div>
+          )}
         </>
       )}
 
-      {tries.map((t, i) => <TryResult key={t.id} t={t} step={step} open={i === 0} />)}
+      {tries.map((t, i) => (
+        <TryResult key={t.id} t={t} step={step} open={i === 0} />
+      ))}
     </div>
   );
 }
 
-function TryResult({ t, step, open: initiallyOpen }: { t: LineTry; step: LineStep; open: boolean }) {
+function TryResult({
+  t,
+  step,
+  open: initiallyOpen,
+}: {
+  t: LineTry;
+  step: LineStep;
+  open: boolean;
+}) {
   const [open, setOpen] = useState(initiallyOpen);
-  const byRun = useMemo(() => new Map(step.decisions.map((d) => [d.runId, d])), [step.decisions]);
-  const rows: BeforeAfterRow[] = useMemo(() => t.cases.map((c) => {
-    const d = byRun.get(c.run_id);
-    const settledNoAnswer = c.status === "not_tryable" || c.status === "failed" || (c.status === "done" && !c.new);
-    const changed = caseChanged(c);
-    // A close the problem came back after was wrong, as surely as a label saying so: closing it the same way again is worse.
-    const back = d ? triedCameBack(d) : 0;
-    const wrong = d?.label ? d.label.verdict === "wrong" : back > 0;
-    const verdict = (d?.label || back) && changed !== null
-      ? (wrong ? (changed ? "better" : "worse") : changed ? "worse" : null)
-      : null;
-    const backWords = back && d ? `${closeBackWords(d.closed!)}, ${cameBackTryResult(decisionKey(d), changed) ?? "waiting for its answer"}` : null;
-    const note = [backWords, d?.label ? `marked ${d.label.verdict}` : null, c.via === "checkpoint" ? "from its checkpoint" : null, c.older_text ? "ran an older text" : null, c.refused?.length ? `${c.refused.length} ${c.refused.length === 1 ? "write" : "writes"} refused` : null].filter(Boolean).join(" · ");
-    return {
-      id: c._id,
-      caseTitle: d?.caseTitle ?? c.run_id,
-      caseRef: d?.caseRef ?? null,
-      note: note || null,
-      before: c.old && (c.old.result || c.old.words) ? decisionAnswer(c.old) : { outcome: d?.decided.outcome ?? null, words: d?.decided.words ?? "" },
-      after: c.status === "done" && c.new ? decisionAnswer(c.new) : null,
-      afterNote: settledNoAnswer ? tryCaseWords(c) : c.status === "queued" && t.stalled ? "Not picked up" : null,
-      verdict,
-    };
-  }), [t, byRun]);
-  const meta = [dayWords(t.at), t.cost > 0 ? money(t.cost) : null].filter(Boolean).join(" · ");
+  const byRun = useMemo(
+    () => new Map(step.decisions.map((d) => [d.runId, d])),
+    [step.decisions],
+  );
+  const rows: BeforeAfterRow[] = useMemo(
+    () =>
+      t.cases.map((c) => {
+        const d = byRun.get(c.run_id);
+        const settledNoAnswer =
+          c.status === "not_tryable" ||
+          c.status === "failed" ||
+          (c.status === "done" && !c.new);
+        const changed = caseChanged(c);
+        // A close the problem came back after was wrong, as surely as a label saying so: closing it the same way again is worse.
+        const back = d ? triedCameBack(d) : 0;
+        const wrong = d?.label ? d.label.verdict === "wrong" : back > 0;
+        const verdict =
+          (d?.label || back) && changed !== null
+            ? wrong
+              ? changed
+                ? "better"
+                : "worse"
+              : changed
+                ? "worse"
+                : null
+            : null;
+        const backWords =
+          back && d
+            ? `${closeBackWords(d.closed!)}, ${cameBackTryResult(decisionKey(d), changed) ?? "waiting for its answer"}`
+            : null;
+        const note = [
+          backWords,
+          d?.label ? `marked ${d.label.verdict}` : null,
+          c.via === "checkpoint" ? "from its checkpoint" : null,
+          c.older_text ? "ran an older text" : null,
+          c.refused?.length
+            ? `${c.refused.length} ${c.refused.length === 1 ? "write" : "writes"} refused`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return {
+          id: c._id,
+          caseTitle: d?.caseTitle ?? c.run_id,
+          caseRef: d?.caseRef ?? null,
+          note: note || null,
+          before:
+            c.old && (c.old.result || c.old.words)
+              ? decisionAnswer(c.old)
+              : {
+                  outcome: d?.decided.outcome ?? null,
+                  words: d?.decided.words ?? "",
+                },
+          after: c.status === "done" && c.new ? decisionAnswer(c.new) : null,
+          afterNote: settledNoAnswer
+            ? tryCaseWords(c)
+            : c.status === "queued" && t.stalled
+              ? "Not picked up"
+              : null,
+          verdict,
+        };
+      }),
+    [t, byRun],
+  );
+  const meta = [dayWords(t.at), t.cost > 0 ? money(t.cost) : null]
+    .filter(Boolean)
+    .join(" · ");
   // The came-back cases, said first: whether the edit still closes them the way that did not hold.
   const backRows = t.cases.flatMap((c) => {
     const d = byRun.get(c.run_id);
@@ -179,24 +394,66 @@ function TryResult({ t, step, open: initiallyOpen }: { t: LineTry; step: LineSte
   });
   const stillSame = backRows.filter((r) => r.changed === false).length;
   const answered = backRows.filter((r) => r.changed !== null).length;
-  const verb = backRows.length ? cameBackTryResult(decisionKey(backRows[0].d), false)?.replace(/^still /, "") : null;
-  const backLine = !backRows.length ? null
-    : answered < backRows.length ? `${answered} of ${backRows.length} came-back ${backRows.length === 1 ? "case" : "cases"} answered`
-    : stillSame === 0 ? `None of the ${backRows.length === 1 ? "came-back case" : `${backRows.length} came-back cases`} ${verb ? verb.replace(/s it$/, "") : "closes the same way"} it again`
-    : `${stillSame} of ${backRows.length} came-back ${backRows.length === 1 ? "case" : "cases"} still ${verb ?? "closes it the same way"}: the edit repeats the fix that did not hold`;
+  const verb = backRows.length
+    ? cameBackTryResult(decisionKey(backRows[0].d), false)?.replace(
+        /^still /,
+        "",
+      )
+    : null;
+  const backLine = !backRows.length
+    ? null
+    : answered < backRows.length
+      ? `${answered} of ${backRows.length} came-back ${backRows.length === 1 ? "case" : "cases"} answered`
+      : stillSame === 0
+        ? `None of the ${backRows.length === 1 ? "came-back case" : `${backRows.length} came-back cases`} ${verb ? verb.replace(/s it$/, "") : "closes the same way"} it again`
+        : `${stillSame} of ${backRows.length} came-back ${backRows.length === 1 ? "case" : "cases"} still ${verb ?? "closes it the same way"}: the edit repeats the fix that did not hold`;
   if (!open) {
     return (
-      <button type="button" className="lw-try-past" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="lw-try-past"
+        onClick={() => setOpen(true)}
+      >
         <span>Try {meta}</span>
-        <span>{t.done ? `${t.changed} decided differently, ${t.same} the same` : `${t.settled} of ${t.cases.length} answered`}{backLine ? `; ${backLine.charAt(0).toLowerCase()}${backLine.slice(1)}` : ""}</span>
+        <span>
+          {t.done
+            ? `${t.changed} decided differently, ${t.same} the same`
+            : `${t.settled} of ${t.cases.length} answered`}
+          {backLine
+            ? `; ${backLine.charAt(0).toLowerCase()}${backLine.slice(1)}`
+            : ""}
+        </span>
       </button>
     );
   }
   return (
     <div className="lw-try-result">
-      {t.stalled && <div className="lw-save-note" data-tone="warn">{t.stalled}</div>}
-      {backLine && <div className="lw-try-backline" data-tone={answered === backRows.length ? (stillSame ? "bad" : "ok") : undefined} data-try-came-back>{backLine}.</div>}
-      <BeforeAfterTable rows={rows} title={`Tried ${meta}`} beforeLabel="It decided" afterLabel="With the edit" />
+      {t.stalled && (
+        <div className="lw-save-note" data-tone="warn">
+          {t.stalled}
+        </div>
+      )}
+      {backLine && (
+        <div
+          className="lw-try-backline"
+          data-tone={
+            answered === backRows.length
+              ? stillSame
+                ? "bad"
+                : "ok"
+              : undefined
+          }
+          data-try-came-back
+        >
+          {backLine}.
+        </div>
+      )}
+      <BeforeAfterTable
+        rows={rows}
+        title={`Tried ${meta}`}
+        beforeLabel="It decided"
+        afterLabel="With the edit"
+      />
     </div>
   );
 }

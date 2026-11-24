@@ -30,7 +30,13 @@ function Probe({ enabled }: { enabled: boolean }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  zoom = useShareZoom(boxRef, scrollRef, { width: 2560, height: 1440 }, enabled, videoRef);
+  zoom = useShareZoom(
+    boxRef,
+    scrollRef,
+    { width: 2560, height: 1440 },
+    enabled,
+    videoRef,
+  );
   return (
     <div ref={boxRef}>
       <div ref={scrollRef} data-scroller {...zoom.panHandlers}>
@@ -52,12 +58,19 @@ test("1:1 sizes the share to its own pixels over devicePixelRatio, and drag pans
     await act(() => zoom.toggleActual());
     expect(zoom.actualSize).toEqual({ width: 1280, height: 720 });
 
-    const el = container.querySelector("[data-scroller]") as HTMLElement & { setPointerCapture: (id: number) => void };
+    const el = container.querySelector("[data-scroller]") as HTMLElement & {
+      setPointerCapture: (id: number) => void;
+    };
     el.setPointerCapture = () => {};
     el.scrollLeft = 100;
     el.scrollTop = 50;
     const h = zoom.panHandlers as Required<typeof zoom.panHandlers>;
-    h.onPointerDown!({ button: 0, clientX: 300, clientY: 300, pointerId: 1 } as any);
+    h.onPointerDown!({
+      button: 0,
+      clientX: 300,
+      clientY: 300,
+      pointerId: 1,
+    } as any);
     h.onPointerMove!({ clientX: 260, clientY: 280 } as any);
     expect(el.scrollLeft).toBe(140);
     expect(el.scrollTop).toBe(70);
@@ -119,11 +132,19 @@ test("on an iPhone (no element fullscreen) the video's own fullscreen stands in,
     expect(zoom.fullscreen).toBe(false);
 
     // At 1:1 a touch is the browser's to pan: the drag handler leaves it alone.
-    const el = container.querySelector("[data-scroller]") as HTMLElement & { setPointerCapture: (id: number) => void };
+    const el = container.querySelector("[data-scroller]") as HTMLElement & {
+      setPointerCapture: (id: number) => void;
+    };
     el.setPointerCapture = () => {};
     el.scrollLeft = 100;
     const h = zoom.panHandlers as Required<typeof zoom.panHandlers>;
-    h.onPointerDown!({ button: 0, pointerType: "touch", clientX: 300, clientY: 300, pointerId: 2 } as any);
+    h.onPointerDown!({
+      button: 0,
+      pointerType: "touch",
+      clientX: 300,
+      clientY: 300,
+      pointerId: 2,
+    } as any);
     h.onPointerMove!({ clientX: 200, clientY: 300 } as any);
     expect(el.scrollLeft).toBe(100);
   } finally {

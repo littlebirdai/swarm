@@ -15,16 +15,31 @@ export function decisionTeamOf(
 }
 
 /** The stamp a stored row should carry now, read from its conversation and task. */
-export async function decisionTeamFor(ctx: Ctx, row: Pick<Doc<"session_decisions">, "conversation_id" | "task_id">): Promise<Id<"teams"> | undefined> {
-  const task: Doc<"tasks"> | null = row.task_id ? await ctx.db.get(row.task_id) : null;
+export async function decisionTeamFor(
+  ctx: Ctx,
+  row: Pick<Doc<"session_decisions">, "conversation_id" | "task_id">,
+): Promise<Id<"teams"> | undefined> {
+  const task: Doc<"tasks"> | null = row.task_id
+    ? await ctx.db.get(row.task_id)
+    : null;
   if (task?.team_id) return task.team_id;
-  const conversation: Doc<"conversations"> | null = await ctx.db.get(row.conversation_id);
+  const conversation: Doc<"conversations"> | null = await ctx.db.get(
+    row.conversation_id,
+  );
   return decisionTeamOf(conversation, task);
 }
 
 /** After a conversation moves team (patchConversationVisibility), its decisions move with it. */
-export async function restampDecisionTeams(ctx: Ctx, conversationId: Id<"conversations">): Promise<number> {
-  const rows: Doc<"session_decisions">[] = await ctx.db.query("session_decisions").withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conversationId)).take(500);
+export async function restampDecisionTeams(
+  ctx: Ctx,
+  conversationId: Id<"conversations">,
+): Promise<number> {
+  const rows: Doc<"session_decisions">[] = await ctx.db
+    .query("session_decisions")
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conversationId),
+    )
+    .take(500);
   let moved = 0;
   for (const r of rows) {
     const team = await decisionTeamFor(ctx, r);

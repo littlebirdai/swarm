@@ -52,8 +52,10 @@ const NO_RUN = {
  *  leaves the detail unsaid rather than saying "nothing runs". */
 export function roomRecordingFields(room: any): RoomRecordingFields {
   const fields: RoomRecordingFields = { recording: !!room?.recording };
-  if (room && "recording_configured" in room) fields.recording_configured = !!room.recording_configured;
-  if (room && "recording_unavailable" in room) fields.recording_unavailable = room.recording_unavailable ?? null;
+  if (room && "recording_configured" in room)
+    fields.recording_configured = !!room.recording_configured;
+  if (room && "recording_unavailable" in room)
+    fields.recording_unavailable = room.recording_unavailable ?? null;
   if (!room || !("recording_run" in room)) return fields;
   const run = room.recording_run;
   if (!run) return { ...fields, ...NO_RUN };
@@ -72,13 +74,18 @@ export function roomRecordingFields(room: any): RoomRecordingFields {
 
 /** The run a row describes: null when nothing runs, undefined when the row
  *  (or the server behind it) does not say. */
-export function roomRecordingLive(row: RoomRecordingFields | null | undefined): RoomRecordingLive | null | undefined {
+export function roomRecordingLive(
+  row: RoomRecordingFields | null | undefined,
+): RoomRecordingLive | null | undefined {
   if (!row || row.recording_status === undefined) return undefined;
   if (!row.recording_status || !row.recording_run_id) return null;
   return {
     status: row.recording_status,
     run_id: row.recording_run_id,
-    started_by: { id: row.recording_by_id ?? "", name: row.recording_by_name ?? "" },
+    started_by: {
+      id: row.recording_by_id ?? "",
+      name: row.recording_by_name ?? "",
+    },
     requested_at: row.recording_requested_at ?? 0,
     started_at: row.recording_started_at ?? null,
     stop_requested_at: row.recording_stop_requested_at ?? null,
@@ -89,6 +96,9 @@ export function roomRecordingLive(row: RoomRecordingFields | null | undefined): 
 /** Is the room being recorded right now (a run starting or filming), read
  *  off the store's callRooms row: the one rule every platform's mark and
  *  notice reads, web and mobile alike. */
-export function roomRecordingOn(state: { callRooms?: Record<string, RoomRecordingFields | undefined> }, roomKey: string | null | undefined): boolean {
+export function roomRecordingOn(
+  state: { callRooms?: Record<string, RoomRecordingFields | undefined> },
+  roomKey: string | null | undefined,
+): boolean {
   return !!roomKey && !!state.callRooms?.[roomKey]?.recording;
 }

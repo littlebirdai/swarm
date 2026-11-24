@@ -1,7 +1,14 @@
 // Apps: create (with its starter and, from the home page, the first
 // request), read by slug, and the home gallery, busiest first.
 import { v } from "convex/values";
-import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { GALLERY_MAX } from "./lib/limits";
 import { seedFiles } from "./lib/seed";
@@ -15,7 +22,12 @@ import { versionSaid } from "./lib/versions";
 import { stillUrl } from "./stills";
 import { takeRate } from "./limits";
 import { startDataCopy } from "./runtime";
-import { appendCopiedVersion, appendVersion, shownVersion, versionByNumber } from "./versions";
+import {
+  appendCopiedVersion,
+  appendVersion,
+  shownVersion,
+  versionByNumber,
+} from "./versions";
 import { enqueueBuild, shownRefusal } from "./builder/queue";
 import { publicVisitors, requireVisitor, type PublicVisitor } from "./visitors";
 import { visitorArgs } from "./validators";
@@ -31,10 +43,16 @@ async function freshSlug(ctx: QueryCtx, name: string): Promise<string> {
   throw new Error("could not find a free slug");
 }
 
-type NewApp = Pick<Doc<"apps">, "name" | "created_by" | "forked_from" | "ideas" | "unlisted">;
+type NewApp = Pick<
+  Doc<"apps">,
+  "name" | "created_by" | "forked_from" | "ideas" | "unlisted"
+>;
 
 /** Insert an app row with no versions yet, at a fresh slug. */
-async function insertApp(ctx: MutationCtx, fields: NewApp): Promise<Doc<"apps">> {
+async function insertApp(
+  ctx: MutationCtx,
+  fields: NewApp,
+): Promise<Doc<"apps">> {
   const now = Date.now();
   const appId = await ctx.db.insert("apps", {
     slug: await freshSlug(ctx, fields.name),
@@ -54,18 +72,50 @@ async function insertApp(ctx: MutationCtx, fields: NewApp): Promise<Doc<"apps">>
  *  scaffolding nobody sees, so the maker's first build is v1. Without one the
  *  starter is the app's v1. */
 export const create = mutation({
-  args: { ...visitorArgs, prompt: v.optional(v.string()), name: v.optional(v.string()), unlisted: v.optional(v.literal(true)) },
+  args: {
+    ...visitorArgs,
+    prompt: v.optional(v.string()),
+    name: v.optional(v.string()),
+    unlisted: v.optional(v.literal(true)),
+  },
   handler: async (ctx, args) => {
     const visitor = await requireVisitor(ctx, args);
     await takeRate(ctx, "createApp", visitor._id);
-    const prompt = args.prompt === undefined ? null : cleanMessageBody(args.prompt);
-    const name = cleanAppName(args.name) ?? (prompt ? nameFromPrompt(prompt) : "Untitled");
-    const app = await insertApp(ctx, { name, created_by: visitor._id, unlisted: args.unlisted });
-    await appendVersion(ctx, app, { kind: "seed", summary: SEED_SUMMARY, author_id: visitor._id, scaffold: prompt !== null }, seedFiles(name));
+    const prompt =
+      args.prompt === undefined ? null : cleanMessageBody(args.prompt);
+    const name =
+      cleanAppName(args.name) ?? (prompt ? nameFromPrompt(prompt) : "Untitled");
+    const app = await insertApp(ctx, {
+      name,
+      created_by: visitor._id,
+      unlisted: args.unlisted,
+    });
+    await appendVersion(
+      ctx,
+      app,
+      {
+        kind: "seed",
+        summary: SEED_SUMMARY,
+        author_id: visitor._id,
+        scaffold: prompt !== null,
+      },
+      seedFiles(name),
+    );
     const request_message_id = prompt
-      ? await ctx.db.insert("messages", { app_id: app._id, kind: "request", visitor_id: visitor._id, body: prompt })
+      ? await ctx.db.insert("messages", {
+          app_id: app._id,
+          kind: "request",
+          visitor_id: visitor._id,
+          body: prompt,
+        })
       : null;
-    if (request_message_id) await enqueueBuild(ctx, (await ctx.db.get(app._id))!, (await ctx.db.get(request_message_id))!, visitor._id);
+    if (request_message_id)
+      await enqueueBuild(
+        ctx,
+        (await ctx.db.get(app._id))!,
+        (await ctx.db.get(request_message_id))!,
+        visitor._id,
+      );
     return { app_id: app._id, slug: app.slug, request_message_id };
   },
 });
@@ -74,21 +124,50 @@ export const create = mutation({
  *  a copy of the source's data, its own room and link. The source room hears
  *  about it, and each app links to the other. */
 export const fork = mutation({
-  args: { ...visitorArgs, app_id: v.id("apps"), number: v.number(), name: v.string() },
+  args: {
+    ...visitorArgs,
+    app_id: v.id("apps"),
+    number: v.number(),
+    name: v.string(),
+  },
   handler: async (ctx, args): Promise<{ app_id: Id<"apps">; slug: string }> => {
     const visitor = await requireVisitor(ctx, args);
     const source = await requireApp(ctx, args.app_id);
-    const from = (await shownVersion(ctx, source._id, args.number)) ?? fail("not_found", `v${args.number} does not exist.`);
-    const name = cleanAppName(args.name) ?? fail("invalid", "Give it a name first.");
+    const from =
+      (await shownVersion(ctx, source._id, args.number)) ??
+      fail("not_found", `v${args.number} does not exist.`);
+    const name =
+      cleanAppName(args.name) ?? fail("invalid", "Give it a name first.");
     await takeRate(ctx, "createApp", visitor._id);
     const forked_from = { app_id: source._id, version: from.number };
-    const app = await insertApp(ctx, { name, created_by: visitor._id, forked_from, ideas: source.ideas, unlisted: source.unlisted });
-    await appendCopiedVersion(ctx, app, { kind: "fork", summary: from.summary, author_id: visitor._id, source: forked_from }, from);
+    const app = await insertApp(ctx, {
+      name,
+      created_by: visitor._id,
+      forked_from,
+      ideas: source.ideas,
+      unlisted: source.unlisted,
+    });
+    await appendCopiedVersion(
+      ctx,
+      app,
+      {
+        kind: "fork",
+        summary: from.summary,
+        author_id: visitor._id,
+        source: forked_from,
+      },
+      from,
+    );
     await startDataCopy(ctx, source._id, app._id, visitor._id);
     await postSystemNote(
       ctx,
       source._id,
-      { type: "fork", visitor_id: visitor._id, version: from.number, fork_app_id: app._id },
+      {
+        type: "fork",
+        visitor_id: visitor._id,
+        version: from.number,
+        fork_app_id: app._id,
+      },
       `v${from.number} forked into ${name}`,
     );
     await touchApp(ctx, source);
@@ -96,12 +175,24 @@ export const fork = mutation({
   },
 });
 
-export type Lineage = { app_id: Id<"apps">; slug: string; name: string; version: number } | null;
+export type Lineage = {
+  app_id: Id<"apps">;
+  slug: string;
+  name: string;
+  version: number;
+} | null;
 
 async function lineage(ctx: QueryCtx, app: Doc<"apps">): Promise<Lineage> {
   if (!app.forked_from) return null;
   const source = await ctx.db.get(app.forked_from.app_id);
-  return source ? { app_id: source._id, slug: source.slug, name: source.name, version: app.forked_from.version } : null;
+  return source
+    ? {
+        app_id: source._id,
+        slug: source.slug,
+        name: source.name,
+        version: app.forked_from.version,
+      }
+    : null;
 }
 
 export type AppView = {
@@ -115,7 +206,13 @@ export type AppView = {
   forked_from: Lineage;
   /** The live version's line for the clean link's toast and link unfurls,
    *  and whether the gallery has its picture yet. */
-  live: { number: number; summary: string; created_at: number; author_id: Id<"visitors">; has_still: boolean } | null;
+  live: {
+    number: number;
+    summary: string;
+    created_at: number;
+    author_id: Id<"visitors">;
+    has_still: boolean;
+  } | null;
   /** Changes Clay suggests next, for the empty room. */
   ideas: string[];
 };
@@ -129,7 +226,10 @@ export const get = query({
   handler: async (ctx, args): Promise<AppView | null> => {
     const app = isSlug(args.slug) ? await appBySlug(ctx, args.slug) : null;
     if (!app) return null;
-    const [creator, live] = await Promise.all([publicVisitors(ctx, [app.created_by]), shownVersion(ctx, app._id, app.live_version)]);
+    const [creator, live] = await Promise.all([
+      publicVisitors(ctx, [app.created_by]),
+      shownVersion(ctx, app._id, app.live_version),
+    ]);
     return {
       id: app._id,
       slug: app.slug,
@@ -139,7 +239,13 @@ export const get = query({
       created_by: creator.get(app.created_by) ?? null,
       created_at: app.created_at,
       forked_from: await lineage(ctx, app),
-      live: live && { number: live.number, summary: live.summary, created_at: live.created_at, author_id: live.author_id, has_still: !!live.still },
+      live: live && {
+        number: live.number,
+        summary: live.summary,
+        created_at: live.created_at,
+        author_id: live.author_id,
+        has_still: !!live.still,
+      },
       ideas: app.ideas ?? [],
     };
   },
@@ -206,9 +312,15 @@ export const gallery = query({
       .withIndex("by_listed_activity", (q) => q.eq("unlisted", undefined))
       .order("desc")
       .take(limit * RECENT_PER_TILE);
-    const busy = await ctx.db.query("crowds").withIndex("by_count", (q) => q.gt("count", 0)).order("desc").take(BUSY_SCAN);
+    const busy = await ctx.db
+      .query("crowds")
+      .withIndex("by_count", (q) => q.gt("count", 0))
+      .order("desc")
+      .take(BUSY_SCAN);
     const known = new Set(recent.map((a) => a._id));
-    const more = await Promise.all(busy.filter((c) => !known.has(c.app_id)).map((c) => ctx.db.get(c.app_id)));
+    const more = await Promise.all(
+      busy.filter((c) => !known.has(c.app_id)).map((c) => ctx.db.get(c.app_id)),
+    );
     const apps = [...recent, ...more.flatMap((a) => (a ? [a] : []))];
     const crowdOf = new Map(busy.map((c) => [c.app_id, c]));
     // A scan that came back short holds every crowd with anyone in it, so an
@@ -216,16 +328,30 @@ export const gallery = query({
     // already wakes this query when someone arrives there). Only a full scan
     // can have cut off a busy app.
     if (busy.length === BUSY_SCAN) {
-      const missing = await Promise.all(apps.filter((a) => !crowdOf.has(a._id)).map((a) => crowdRow(ctx, a._id)));
+      const missing = await Promise.all(
+        apps
+          .filter((a) => !crowdOf.has(a._id))
+          .map((a) => crowdRow(ctx, a._id)),
+      );
       for (const c of missing) if (c) crowdOf.set(c.app_id, c);
     }
     const count = (a: Doc<"apps">) => crowdOf.get(a._id)?.count ?? 0;
     const ranked = oneOfEach(
       apps
-        .filter((a) => !a.unlisted && a.live_version > 0 && (count(a) > 0 || !(a.forked_from && a.version_count === 1)))
-        .sort((a, b) => count(b) - count(a) || b.last_activity_at - a.last_activity_at),
+        .filter(
+          (a) =>
+            !a.unlisted &&
+            a.live_version > 0 &&
+            (count(a) > 0 || !(a.forked_from && a.version_count === 1)),
+        )
+        .sort(
+          (a, b) =>
+            count(b) - count(a) || b.last_activity_at - a.last_activity_at,
+        ),
     ).slice(0, limit);
-    const live = await Promise.all(ranked.map((a) => shownVersion(ctx, a._id, a.live_version)));
+    const live = await Promise.all(
+      ranked.map((a) => shownVersion(ctx, a._id, a.live_version)),
+    );
     const people = await publicVisitors(ctx, [
       ...ranked.flatMap((a) => crowdOf.get(a._id)?.faces ?? []),
       ...live.flatMap((l) => (l ? [l.author_id] : [])),
@@ -241,9 +367,15 @@ export const gallery = query({
           live_version: app.live_version,
           last_activity_at: app.last_activity_at,
           still_url: await stillUrl(ctx, l),
-          latest: l && { by: people.get(l.author_id) ?? null, at: l.created_at, said: versionSaid(l, source?.name ?? null) },
+          latest: l && {
+            by: people.get(l.author_id) ?? null,
+            at: l.created_at,
+            said: versionSaid(l, source?.name ?? null),
+          },
           here_count: count(app),
-          here: (crowdOf.get(app._id)?.faces ?? []).flatMap((id) => people.get(id) ?? []),
+          here: (crowdOf.get(app._id)?.faces ?? []).flatMap(
+            (id) => people.get(id) ?? [],
+          ),
         };
       }),
     );
@@ -275,6 +407,12 @@ export const unfurl = internalQuery({
     const app = isSlug(args.slug) ? await appBySlug(ctx, args.slug) : null;
     if (!app) return null;
     const live = await shownVersion(ctx, app._id, app.live_version);
-    return { name: app.name, summary: live?.summary ?? null, version: app.live_version, contributors: app.contributor_count, image: await stillUrl(ctx, live) };
+    return {
+      name: app.name,
+      summary: live?.summary ?? null,
+      version: app.live_version,
+      contributors: app.contributor_count,
+      image: await stillUrl(ctx, live),
+    };
   },
 });

@@ -13,7 +13,10 @@
 // { info, messages: [{ info, parts }] } — which parseOpencodeSessionFile consumes.
 // The daemon reads read-only; opencode owns the file. Modeled on cursorWatcher.ts
 // (bun:sqlite, readonly open, poll + watermark, per-poll open/close, circuit breaker).
-import { assembleOpencodeRows, type SessionRow } from "./opencodeTranscriptAssembly.js";
+import {
+  assembleOpencodeRows,
+  type SessionRow,
+} from "./opencodeTranscriptAssembly.js";
 import { EventEmitter } from "events";
 import * as fs from "fs";
 import * as path from "path";
@@ -27,7 +30,11 @@ import { OPENCODE_SESSION_ID_RE } from "./resumeCommand.js";
 import { AGENT_CLIENTS } from "@codecast/shared/contracts";
 import { rebindingStore } from "./cachedJsonStore.js";
 import { codecastPath } from "./codecastDir.js";
-import { openOpencodeDb, queryOpencodeDelta, type OpencodeDelta } from "./opencodeStorageQuery.js";
+import {
+  openOpencodeDb,
+  queryOpencodeDelta,
+  type OpencodeDelta,
+} from "./opencodeStorageQuery.js";
 
 export type { OpencodeDelta };
 export { queryOpencodeDelta };
@@ -36,29 +43,41 @@ export { queryOpencodeDelta };
 // so an unchanged multi-gigabyte file is never opened just to rediscover that
 // nothing moved — that open is what pinned the loop for 7-23s on every boot
 // today (poll@opencodeStorage.ts, 2026-09-15). Pruned when the db is gone.
-const pollMtimes = rebindingStore<number>(() => codecastPath("opencode-poll-mtimes.json"), {
-  keepOnLoadAsync: (dbPath) => fs.promises.access(dbPath).then(
-    () => true,
-    (error: NodeJS.ErrnoException) => error.code !== "ENOENT" && error.code !== "ENOTDIR",
-  ),
-});
+const pollMtimes = rebindingStore<number>(
+  () => codecastPath("opencode-poll-mtimes.json"),
+  {
+    keepOnLoadAsync: (dbPath) =>
+      fs.promises.access(dbPath).then(
+        () => true,
+        (error: NodeJS.ErrnoException) =>
+          error.code !== "ENOENT" && error.code !== "ENOTDIR",
+      ),
+  },
+);
 
 /** Absolute path to opencode's SQLite store, from the registry descriptor. */
 export function opencodeDbPath(): string {
   const root = AGENT_CLIENTS.opencode.transcriptRoots[0];
-  return root.startsWith("~/") ? path.join(process.env.HOME || "", root.slice(2)) : root;
+  return root.startsWith("~/")
+    ? path.join(process.env.HOME || "", root.slice(2))
+    : root;
 }
 
 const openDb = openOpencodeDb;
 
-
 /** True when a session exists in the opencode DB — the existence check
  *  findSessionFile uses to claim a `ses_*` id as opencode's. */
-export function sessionExistsInOpencodeDb(sessionId: string, dbPath: string = opencodeDbPath()): boolean {
+export function sessionExistsInOpencodeDb(
+  sessionId: string,
+  dbPath: string = opencodeDbPath(),
+): boolean {
   const db = openDb(dbPath);
   if (!db) return false;
   try {
-    return db.query("SELECT 1 FROM session WHERE id = ? LIMIT 1").get(sessionId) != null;
+    return (
+      db.query("SELECT 1 FROM session WHERE id = ? LIMIT 1").get(sessionId) !=
+      null
+    );
   } catch {
     return false;
   } finally {
@@ -69,13 +88,18 @@ export function sessionExistsInOpencodeDb(sessionId: string, dbPath: string = op
 /** The cwd an opencode session ran in — used to bind a freshly launched session to
  *  its pending started-tmux conversation (matchStartedConversation's cwd fallback).
  *  The DB's session.directory is the authoritative, NOT-NULL cwd. */
-export function resolveOpencodeSessionCwd(sessionId: string, dbPath: string = opencodeDbPath()): string | undefined {
+export function resolveOpencodeSessionCwd(
+  sessionId: string,
+  dbPath: string = opencodeDbPath(),
+): string | undefined {
   const db = openDb(dbPath);
   if (!db) return undefined;
   try {
-    const row = db.query<{ directory: string | null }, [string]>(
-      "SELECT directory FROM session WHERE id = ?",
-    ).get(sessionId);
+    const row = db
+      .query<{ directory: string | null }, [string]>(
+        "SELECT directory FROM session WHERE id = ?",
+      )
+      .get(sessionId);
     return row?.directory ?? undefined;
   } catch {
     return undefined;
@@ -92,23 +116,32 @@ export function resolveOpencodeSessionCwd(sessionId: string, dbPath: string = op
  * string→ParsedMessage[] function. The row id (primary key) is injected back into
  * each message/part object, since opencode stores it as the column, not inside `data`.
  */
-export function assembleOpencodeSession(sessionId: string, dbPath: string = opencodeDbPath()): string | null {
+export function assembleOpencodeSession(
+  sessionId: string,
+  dbPath: string = opencodeDbPath(),
+): string | null {
   const db = openDb(dbPath);
   if (!db) return null;
   try {
-    const session = db.query<SessionRow, [string]>(
-      "SELECT id, directory, title, version, project_id, slug, time_created, time_updated FROM session WHERE id = ?",
-    ).get(sessionId);
+    const session = db
+      .query<SessionRow, [string]>(
+        "SELECT id, directory, title, version, project_id, slug, time_created, time_updated FROM session WHERE id = ?",
+      )
+      .get(sessionId);
     if (!session) return null;
 
-    const messageRows = db.query<{ id: string; data: string }, [string]>(
-      "SELECT id, data FROM message WHERE session_id = ? ORDER BY time_created, id",
-    ).all(sessionId);
+    const messageRows = db
+      .query<{ id: string; data: string }, [string]>(
+        "SELECT id, data FROM message WHERE session_id = ? ORDER BY time_created, id",
+      )
+      .all(sessionId);
     if (messageRows.length === 0) return null;
 
-    const partRows = db.query<{ message_id: string; id: string; data: string }, [string]>(
-      "SELECT message_id, id, data FROM part WHERE session_id = ? ORDER BY message_id, id",
-    ).all(sessionId);
+    const partRows = db
+      .query<{ message_id: string; id: string; data: string }, [string]>(
+        "SELECT message_id, id, data FROM part WHERE session_id = ? ORDER BY message_id, id",
+      )
+      .all(sessionId);
     return assembleOpencodeRows(session, messageRows, partRows);
   } catch {
     return null;
@@ -118,8 +151,14 @@ export function assembleOpencodeSession(sessionId: string, dbPath: string = open
 }
 
 export declare interface OpencodeStorageWatcher {
-  on<K extends keyof TranscriptDirWatcherEvents>(event: K, listener: TranscriptDirWatcherEvents[K]): this;
-  emit<K extends keyof TranscriptDirWatcherEvents>(event: K, ...args: Parameters<TranscriptDirWatcherEvents[K]>): boolean;
+  on<K extends keyof TranscriptDirWatcherEvents>(
+    event: K,
+    listener: TranscriptDirWatcherEvents[K],
+  ): this;
+  emit<K extends keyof TranscriptDirWatcherEvents>(
+    event: K,
+    ...args: Parameters<TranscriptDirWatcherEvents[K]>
+  ): boolean;
 }
 
 /**
@@ -154,7 +193,10 @@ export declare interface OpencodeStorageWatcher {
  * Session reads only event.sessionId and re-assembles the whole session each pass, so
  * a session missed at the exact watermark ms self-heals on its next write.
  */
-export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatcher {
+export class OpencodeStorageWatcher
+  extends EventEmitter
+  implements DirEventWatcher
+{
   private pollTimer: NodeJS.Timeout | null = null;
   private dbPath: string;
   private pollMs: number;
@@ -164,13 +206,21 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
   private pollInFlight = false;
   private worker: Worker | null = null;
   private workerSeq = 0;
-  private readonly injectedQuery?: (dbPath: string, watermark: number) => OpencodeDelta | Promise<OpencodeDelta>;
+  private readonly injectedQuery?: (
+    dbPath: string,
+    watermark: number,
+  ) => OpencodeDelta | Promise<OpencodeDelta>;
   private static readonly ERROR_SUPPRESS_THRESHOLD = 3;
 
   constructor(
     dbPath: string = opencodeDbPath(),
     pollMs = 2000,
-    opts?: { queryDelta?: (dbPath: string, watermark: number) => OpencodeDelta | Promise<OpencodeDelta> },
+    opts?: {
+      queryDelta?: (
+        dbPath: string,
+        watermark: number,
+      ) => OpencodeDelta | Promise<OpencodeDelta>;
+    },
   ) {
     super();
     this.dbPath = dbPath;
@@ -189,8 +239,12 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
     // and does not open the file.
     this.lastMtime = pollMtimes().get(this.dbPath) || 0;
     this.emit("ready");
-    this.pollTimer = setInterval(() => { void this.poll(); }, this.pollMs);
-    setImmediate(() => { void this.poll(); });
+    this.pollTimer = setInterval(() => {
+      void this.poll();
+    }, this.pollMs);
+    setImmediate(() => {
+      void this.poll();
+    });
   }
 
   stop(): void {
@@ -207,7 +261,9 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
   private storeMtime(): number {
     let m = 0;
     for (const p of [this.dbPath, this.dbPath + "-wal"]) {
-      try { m = Math.max(m, fs.statSync(p).mtimeMs); } catch {}
+      try {
+        m = Math.max(m, fs.statSync(p).mtimeMs);
+      } catch {}
     }
     return m;
   }
@@ -240,7 +296,9 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
         // else rather than emit it.
         if (typeof sid !== "string") continue;
         if (!OPENCODE_SESSION_ID_RE.test(sid)) {
-          console.warn(`[SECURITY] skipping opencode session with a malformed id: ${sid.slice(0, 40)}`);
+          console.warn(
+            `[SECURITY] skipping opencode session with a malformed id: ${sid.slice(0, 40)}`,
+          );
           continue;
         }
         this.emitSession(sid);
@@ -248,8 +306,16 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
     } catch (err) {
       this.errorCount++;
       if (this.errorCount <= OpencodeStorageWatcher.ERROR_SUPPRESS_THRESHOLD) {
-        const suffix = this.errorCount === OpencodeStorageWatcher.ERROR_SUPPRESS_THRESHOLD ? " (suppressing further errors)" : "";
-        this.emit("error", new Error(`opencode DB poll failed: ${err instanceof Error ? err.message : String(err)}${suffix}`));
+        const suffix =
+          this.errorCount === OpencodeStorageWatcher.ERROR_SUPPRESS_THRESHOLD
+            ? " (suppressing further errors)"
+            : "";
+        this.emit(
+          "error",
+          new Error(
+            `opencode DB poll failed: ${err instanceof Error ? err.message : String(err)}${suffix}`,
+          ),
+        );
       }
       // Leave lastMtime un-persisted on failure so the next tick retries.
       this.lastMtime = 0;
@@ -259,7 +325,8 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
   }
 
   private queryDelta(watermark: number): Promise<OpencodeDelta> {
-    if (this.injectedQuery) return Promise.resolve(this.injectedQuery(this.dbPath, watermark));
+    if (this.injectedQuery)
+      return Promise.resolve(this.injectedQuery(this.dbPath, watermark));
     return this.queryDeltaInWorker(watermark);
   }
 
@@ -272,14 +339,19 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
         if (!msg || msg.id !== id) return;
         worker.removeEventListener("message", onMessage);
         worker.removeEventListener("error", onError);
-        if (msg.ok) resolve({ globalMax: msg.globalMax, sessionIds: msg.sessionIds });
+        if (msg.ok)
+          resolve({ globalMax: msg.globalMax, sessionIds: msg.sessionIds });
         else reject(new Error(msg.error || "opencode poll worker failed"));
       };
       const onError = (err: ErrorEvent) => {
         worker.removeEventListener("message", onMessage);
         worker.removeEventListener("error", onError);
         this.worker = null;
-        reject(err.error instanceof Error ? err.error : new Error(String(err.message)));
+        reject(
+          err.error instanceof Error
+            ? err.error
+            : new Error(String(err.message)),
+        );
       };
       worker.addEventListener("message", onMessage);
       worker.addEventListener("error", onError);
@@ -291,12 +363,18 @@ export class OpencodeStorageWatcher extends EventEmitter implements DirEventWatc
     if (this.worker) return this.worker;
     // The built name: a compiled binary holds the worker only as `.js` (see
     // WORKER_ENTRIES in scripts/build-with-native.ts), and source resolves it too.
-    this.worker = new Worker(new URL("./opencodeStorage.worker.js", import.meta.url).href);
+    this.worker = new Worker(
+      new URL("./opencodeStorage.worker.js", import.meta.url).href,
+    );
     return this.worker;
   }
 
   private emitSession(sessionId: string): void {
-    const event: TranscriptDirEvent = { sessionId, filePath: sessionId, eventType: "change" };
+    const event: TranscriptDirEvent = {
+      sessionId,
+      filePath: sessionId,
+      eventType: "change",
+    };
     this.emit("session", event);
   }
 }

@@ -27,15 +27,20 @@ function clean(text: string | undefined, max: number): string | undefined {
 /** Attributes of one tag, names lowercased. */
 function attributes(tag: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const re = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+  const re =
+    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(tag))) out[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? "";
+  while ((m = re.exec(tag)))
+    out[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? "";
   return out;
 }
 
 /** An absolute https URL, resolved against the page; anything else is dropped
  *  (an http image on an https app is mixed content, data: is not a preview). */
-function absoluteHttps(value: string | undefined, base: string): string | undefined {
+function absoluteHttps(
+  value: string | undefined,
+  base: string,
+): string | undefined {
   if (!value) return undefined;
   try {
     const u = new URL(decodeEntities(value.trim()), base);
@@ -45,7 +50,10 @@ function absoluteHttps(value: string | undefined, base: string): string | undefi
   }
 }
 
-export function parseLinkPreviewMeta(html: string, pageUrl: string): LinkPreviewMeta {
+export function parseLinkPreviewMeta(
+  html: string,
+  pageUrl: string,
+): LinkPreviewMeta {
   // Only the head carries these tags; a body can quote markup that looks like them.
   const headEnd = html.search(/<\/head\s*>|<body[\s>]/i);
   const head = headEnd === -1 ? html : html.slice(0, headEnd);
@@ -67,8 +75,20 @@ export function parseLinkPreviewMeta(html: string, pageUrl: string): LinkPreview
   const titleTag = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(head)?.[1];
   return {
     title: clean(meta["og:title"] ?? meta["twitter:title"] ?? titleTag, 200),
-    description: clean(meta["og:description"] ?? meta["twitter:description"] ?? meta["description"], 400),
-    image: absoluteHttps(meta["og:image:secure_url"] ?? meta["og:image"] ?? meta["og:image:url"] ?? meta["twitter:image"] ?? meta["twitter:image:src"], pageUrl),
+    description: clean(
+      meta["og:description"] ??
+        meta["twitter:description"] ??
+        meta["description"],
+      400,
+    ),
+    image: absoluteHttps(
+      meta["og:image:secure_url"] ??
+        meta["og:image"] ??
+        meta["og:image:url"] ??
+        meta["twitter:image"] ??
+        meta["twitter:image:src"],
+      pageUrl,
+    ),
     site_name: clean(meta["og:site_name"] ?? meta["application-name"], 80),
     favicon: favicon ?? absoluteHttps("/favicon.ico", pageUrl),
   };
@@ -82,7 +102,10 @@ const PENDING_RETRY_MS = 60 * 1000;
  *  calls `linkPreviews.request`, so a fresh row costs no mutation; the
  *  mutation asks again, so a racing second viewer schedules nothing. */
 export function linkPreviewStale(
-  row: { status: string; requested_at: number; fetched_at?: number } | null | undefined,
+  row:
+    | { status: string; requested_at: number; fetched_at?: number }
+    | null
+    | undefined,
   now: number,
 ): boolean {
   if (!row) return true;

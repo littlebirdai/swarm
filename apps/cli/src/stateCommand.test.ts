@@ -1,5 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import { parseStateArgs, formatAge, describeProvenance, staleStateNotice, statusTag } from "./stateCommand.js";
+import {
+  parseStateArgs,
+  formatAge,
+  describeProvenance,
+  staleStateNotice,
+  statusTag,
+} from "./stateCommand.js";
 
 describe("statusTag", () => {
   test("labels each declared status, colored", () => {
@@ -34,8 +40,12 @@ describe("parseStateArgs", () => {
     }
   });
 
-  test("a bare \"done\" is state text, not a clear — the agent may mean it", () => {
-    expect(parseStateArgs(["done"])).toEqual({ mode: "set", text: "done", session: undefined });
+  test('a bare "done" is state text, not a clear — the agent may mean it', () => {
+    expect(parseStateArgs(["done"])).toEqual({
+      mode: "set",
+      text: "done",
+      session: undefined,
+    });
   });
 
   test("a clear word followed by more text is text, not a clear", () => {
@@ -63,7 +73,10 @@ describe("parseStateArgs", () => {
       mode: "show",
       session: "jx7c6zk",
     });
-    expect(parseStateArgs(["show"], "jx7other")).toEqual({ mode: "show", session: "jx7other" });
+    expect(parseStateArgs(["show"], "jx7other")).toEqual({
+      mode: "show",
+      session: "jx7other",
+    });
   });
 
   test("--for targets a write at another session", () => {
@@ -114,7 +127,10 @@ describe("describeProvenance", () => {
   });
 
   test("a row with no stored count omits the gap rather than claiming zero", () => {
-    const line = describeProvenance({ at: now - 60_000, message_count: 500 }, now);
+    const line = describeProvenance(
+      { at: now - 60_000, message_count: 500 },
+      now,
+    );
     expect(line).toBe("set 1 min ago");
   });
 });
@@ -127,13 +143,20 @@ describe("staleStateNotice", () => {
 
   test("no pinned state means no reminder", () => {
     expect(staleStateNotice(null, now)).toBeNull();
-    expect(staleStateNotice({ state: null, message_count: 900 }, now)).toBeNull();
+    expect(
+      staleStateNotice({ state: null, message_count: 900 }, now),
+    ).toBeNull();
   });
 
   test("a fresh state is not worth a reminder", () => {
     expect(
       staleStateNotice(
-        { state: "Waiting on CI", at: now - 60_000, msg_count_at_write: 100, message_count: 105 },
+        {
+          state: "Waiting on CI",
+          at: now - 60_000,
+          msg_count_at_write: 100,
+          message_count: 105,
+        },
         now,
       ),
     ).toBeNull();
@@ -141,7 +164,12 @@ describe("staleStateNotice", () => {
 
   test("a thread that ran past the state earns one line with the real gap", () => {
     const notice = staleStateNotice(
-      { state: "Waiting on CI", at: now - 60_000, msg_count_at_write: 100, message_count: 400 },
+      {
+        state: "Waiting on CI",
+        at: now - 60_000,
+        msg_count_at_write: 100,
+        message_count: 400,
+      },
       now,
     );
     expect(notice).toContain("300 messages old");

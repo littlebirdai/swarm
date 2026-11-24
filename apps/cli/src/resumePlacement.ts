@@ -5,7 +5,10 @@
 
 import * as path from "node:path";
 import { isResumableCwd } from "./projectPathResolver.js";
-import { folderOnThisMachine, folderUnderHome } from "@codecast/shared/team/folderLists";
+import {
+  folderOnThisMachine,
+  folderUnderHome,
+} from "@codecast/shared/team/folderLists";
 
 export const UNSAFE_PATH_RE = /[;|&`$(){}<>"\r\n\0]/;
 
@@ -21,8 +24,14 @@ export type ConversationProjectInfo = {
 // Does the conversation name a project at all? A blank quick-create records
 // nothing; anything else — a path, a repo root, a remote — is a repo the
 // session must run in, and $HOME is never a substitute for it.
-export function conversationNamesRepo(conv: ConversationProjectInfo | null | undefined): boolean {
-  return isResumableCwd(conv?.project_path) || !!conv?.git_root?.trim() || !!conv?.git_remote_url?.trim();
+export function conversationNamesRepo(
+  conv: ConversationProjectInfo | null | undefined,
+): boolean {
+  return (
+    isResumableCwd(conv?.project_path) ||
+    !!conv?.git_root?.trim() ||
+    !!conv?.git_remote_url?.trim()
+  );
 }
 
 export type FreshDeliveryPlacement =
@@ -43,7 +52,8 @@ export function placeFreshDeliverySession(args: {
   home: string;
 }): FreshDeliveryPlacement {
   if (args.resolvedCwd) return { kind: "run", cwd: args.resolvedCwd };
-  if (conversationNamesRepo(args.conversation)) return { kind: "refuse", reason: "no_local_checkout" };
+  if (conversationNamesRepo(args.conversation))
+    return { kind: "refuse", reason: "no_local_checkout" };
   if (args.isRemote) return { kind: "refuse", reason: "remote_no_project" };
   return { kind: "run", cwd: args.home };
 }
@@ -64,7 +74,10 @@ export function noLocalCheckoutBannerActionable(args: {
 }
 
 // The banner itself, shared by start_session and every resume/delivery refusal.
-export function noLocalCheckoutError(remote: string | null | undefined, recordedPath: string | null | undefined): string {
+export function noLocalCheckoutError(
+  remote: string | null | undefined,
+  recordedPath: string | null | undefined,
+): string {
   return `No local checkout for ${remote ?? "<unknown remote>"} (recorded path ${recordedPath ?? "unknown"} doesn't exist here). Clone it first.`;
 }
 
@@ -83,15 +96,30 @@ export function cloneDestination(
   recorded: { git_root: string | null; git_remote_url: string | null } | null,
   home: string | undefined,
 ): { root: string; cwd: string } | null {
-  if (!home || !recorded?.git_remote_url || !rawPath || !path.isAbsolute(rawPath)) return null;
+  if (
+    !home ||
+    !recorded?.git_remote_url ||
+    !rawPath ||
+    !path.isAbsolute(rawPath)
+  )
+    return null;
   const raw = path.resolve(rawPath);
-  const recordedRoot = recorded.git_root && (raw === path.resolve(recorded.git_root) || raw.startsWith(path.resolve(recorded.git_root) + path.sep))
-    ? path.resolve(recorded.git_root)
-    : raw;
-  const root = folderUnderHome(recordedRoot) === null
-    ? path.join(home, path.basename(recordedRoot))
-    : folderOnThisMachine(recordedRoot, home);
-  if (UNSAFE_PATH_RE.test(root) || path.resolve(root) === path.resolve(home) || !root.startsWith(path.resolve(home) + path.sep)) return null;
+  const recordedRoot =
+    recorded.git_root &&
+    (raw === path.resolve(recorded.git_root) ||
+      raw.startsWith(path.resolve(recorded.git_root) + path.sep))
+      ? path.resolve(recorded.git_root)
+      : raw;
+  const root =
+    folderUnderHome(recordedRoot) === null
+      ? path.join(home, path.basename(recordedRoot))
+      : folderOnThisMachine(recordedRoot, home);
+  if (
+    UNSAFE_PATH_RE.test(root) ||
+    path.resolve(root) === path.resolve(home) ||
+    !root.startsWith(path.resolve(home) + path.sep)
+  )
+    return null;
   return { root, cwd: root + raw.slice(recordedRoot.length) };
 }
 
@@ -100,15 +128,22 @@ export function cloneDestination(
 // `onThisMachine`: the exclusion is this machine's own (excluded_paths or an
 // organization's policy), which the synced-folders list cannot lift.
 export const EXCLUDED_FOLDER_START = "is excluded from sync";
-export function excludedFolderStartError(folder: string, onThisMachine: boolean): string {
+export function excludedFolderStartError(
+  folder: string,
+  onThisMachine: boolean,
+): string {
   return onThisMachine
     ? `${folder} ${EXCLUDED_FOLDER_START} on this machine, so this session's replies would never reach codecast.`
     : `${folder} ${EXCLUDED_FOLDER_START}, so this session's replies would never reach codecast. Sync the folder, then restart the session.`;
 }
 
 // The same refusal for a session that already ran somewhere else.
-export function missingResumeFolderError(recordedPath: string, peerFailure?: string): string {
-  if (peerFailure) return `${recordedPath} isn't on this machine and couldn't be fetched from your other machines: ${peerFailure}`;
+export function missingResumeFolderError(
+  recordedPath: string,
+  peerFailure?: string,
+): string {
+  if (peerFailure)
+    return `${recordedPath} isn't on this machine and couldn't be fetched from your other machines: ${peerFailure}`;
   return `${recordedPath} isn't on this machine and no repository is recorded to clone. Move the session to a machine that has it.`;
 }
 
@@ -123,9 +158,16 @@ export function creatableStartFolder(
   home: string | undefined,
   recorded: { git_root: string | null; git_remote_url: string | null } | null,
 ): string | null {
-  if (!home || !rawPath || !path.isAbsolute(rawPath) || UNSAFE_PATH_RE.test(rawPath)) return null;
+  if (
+    !home ||
+    !rawPath ||
+    !path.isAbsolute(rawPath) ||
+    UNSAFE_PATH_RE.test(rawPath)
+  )
+    return null;
   if (recorded?.git_remote_url) return null;
   const resolved = path.resolve(rawPath);
-  if (recorded?.git_root && path.resolve(recorded.git_root) !== resolved) return null;
+  if (recorded?.git_root && path.resolve(recorded.git_root) !== resolved)
+    return null;
   return resolved.startsWith(path.resolve(home) + path.sep) ? resolved : null;
 }

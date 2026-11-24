@@ -18,11 +18,19 @@ let uploaded = false;
 export function useSyncQuoteDrafts(conversationId: string | undefined): void {
   const on = useInboxStore(quoteDraftsOn);
   // Each answer is every record of this conversation: one it lacks was removed.
-  const dropAbsent = useCallback((row: { conversation_id?: string | null }) => row.conversation_id === conversationId, [conversationId]);
+  const dropAbsent = useCallback(
+    (row: { conversation_id?: string | null }) =>
+      row.conversation_id === conversationId,
+    [conversationId],
+  );
   useSyncCollection(
     "quoteDrafts",
     api.quoteDrafts.listForConversation,
-    on ? (entityIdArgs("conversation_id", conversationId) as { conversation_id: any } | "skip") : "skip",
+    on
+      ? (entityIdArgs("conversation_id", conversationId) as
+          | { conversation_id: any }
+          | "skip")
+      : "skip",
     { dropAbsent },
   );
   useWatchEffect(() => {

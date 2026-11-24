@@ -47,7 +47,12 @@ export const accountPoolTables = {
     share_id: v.id("account_shares"),
     user_id: v.id("users"),
     device_id: v.string(),
-    sealed: v.object({ provider: v.string(), epk: v.string(), iv: v.string(), ct: v.string() }),
+    sealed: v.object({
+      provider: v.string(),
+      epk: v.string(),
+      iv: v.string(),
+      ct: v.string(),
+    }),
     // When the holder stored the token: the copy's one-year lifetime runs from here.
     token_stored_at: v.number(),
     // The machine key the copy was sealed to. A machine that regenerates its

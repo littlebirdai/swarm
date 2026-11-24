@@ -9,5 +9,7 @@ import type { HeroChapter } from "./contract";
 
 export const chapter: HeroChapter = {
   id: "team",
-  parts: [{ key: "scene", region: "team.main", order: 0, Component: TeamScene }],
+  parts: [
+    { key: "scene", region: "team.main", order: 0, Component: TeamScene },
+  ],
 };

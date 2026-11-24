@@ -2,7 +2,11 @@
 // stage mounts for it (it takes the request once) or is already up (the
 // desktop's call window, shrunk and expanded again: it hears the request).
 import { expect, test } from "bun:test";
-import { onCallThreadRequest, requestCallThread, takeCallThreadRequest } from "./callStage";
+import {
+  onCallThreadRequest,
+  requestCallThread,
+  takeCallThreadRequest,
+} from "./callStage";
 
 test("a stage mounting takes the thread request once", () => {
   requestCallThread();

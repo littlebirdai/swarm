@@ -34,7 +34,10 @@ export function readSharePreloadNow(): number | undefined {
  * A `null` is a real answer ("no such share") and renders the not-found state
  * without waiting on the network.
  */
-export function readSharePreload<T>(kind: SharePreloadKind, token: string): T | null | undefined {
+export function readSharePreload<T>(
+  kind: SharePreloadKind,
+  token: string,
+): T | null | undefined {
   const p = envelope();
   if (!p || p.kind !== kind || p.token !== token) return undefined;
   return p.data as T | null;

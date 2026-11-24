@@ -10,25 +10,51 @@
 // images, quotes, mention expansion and the pending row all work as for any
 // send. Whoever armed it learns what went out (onJointSent) and writes the
 // claims that clear each named author's composer.
-import { formatJointMessage, type JointPart } from "@codecast/shared/contracts/jointMessage";
+import {
+  formatJointMessage,
+  type JointPart,
+} from "@codecast/shared/contracts/jointMessage";
 import type { PresenceRow } from "../hooks/useDocPresence";
 import { typingRows } from "./composerPresence";
 
 export type JointCandidate = { user_id: string; from: string; text: string };
-type Entry = { me: string; candidates: JointCandidate[]; armed: boolean; onSent?: (sent: JointCandidate[]) => void };
+type Entry = {
+  me: string;
+  candidates: JointCandidate[];
+  armed: boolean;
+  onSent?: (sent: JointCandidate[]) => void;
+};
 
 const entries = new Map<string, Entry>();
 
 /** Others' live drafts in this session's composer, as the presence strip sees them (typingRows). */
-export function jointCandidatesOf(rows: readonly PresenceRow[]): JointCandidate[] {
-  return typingRows(rows)
-    .map((r) => ({ user_id: r.user_id, from: r.user_name, text: r.draft_text!.trim() }));
+export function jointCandidatesOf(
+  rows: readonly PresenceRow[],
+): JointCandidate[] {
+  return typingRows(rows).map((r) => ({
+    user_id: r.user_id,
+    from: r.user_name,
+    text: r.draft_text!.trim(),
+  }));
 }
 
-export function setJointCandidates(conversationId: string, me: string, candidates: JointCandidate[], onSent: (sent: JointCandidate[]) => void): void {
-  if (candidates.length === 0) { entries.delete(conversationId); return; }
+export function setJointCandidates(
+  conversationId: string,
+  me: string,
+  candidates: JointCandidate[],
+  onSent: (sent: JointCandidate[]) => void,
+): void {
+  if (candidates.length === 0) {
+    entries.delete(conversationId);
+    return;
+  }
   const prev = entries.get(conversationId);
-  entries.set(conversationId, { me, candidates, armed: prev?.armed ?? false, onSent });
+  entries.set(conversationId, {
+    me,
+    candidates,
+    armed: prev?.armed ?? false,
+    onSent,
+  });
 }
 
 export function jointSendReady(conversationId: string): boolean {
@@ -44,8 +70,15 @@ export function armJointSend(conversationId: string): boolean {
 }
 
 /** The pure fold: my words first, then each other person's draft, each under its author. */
-export function composeJointTurn(me: string, mine: string, candidates: readonly JointCandidate[]): string {
-  const parts: JointPart[] = [{ from: me, body: mine }, ...candidates.map((c) => ({ from: c.from, body: c.text }))];
+export function composeJointTurn(
+  me: string,
+  mine: string,
+  candidates: readonly JointCandidate[],
+): string {
+  const parts: JointPart[] = [
+    { from: me, body: mine },
+    ...candidates.map((c) => ({ from: c.from, body: c.text })),
+  ];
   return formatJointMessage(parts);
 }
 

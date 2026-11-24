@@ -42,7 +42,10 @@ export class CachedJsonStore<V> {
   private readonly filePath: string;
   private readonly flushDelayMs: number;
   private readonly keepOnLoad?: (key: string, value: V) => boolean;
-  private readonly keepOnLoadAsync?: (key: string, value: V) => Promise<boolean>;
+  private readonly keepOnLoadAsync?: (
+    key: string,
+    value: V,
+  ) => Promise<boolean>;
 
   constructor(opts: {
     filePath: string;
@@ -62,7 +65,8 @@ export class CachedJsonStore<V> {
     try {
       if (fs.existsSync(this.filePath)) {
         const parsed = JSON.parse(fs.readFileSync(this.filePath, "utf-8"));
-        if (parsed && typeof parsed === "object") return parsed as Record<string, V>;
+        if (parsed && typeof parsed === "object")
+          return parsed as Record<string, V>;
       }
     } catch {
       /* corrupt/partial file — start fresh rather than crash the daemon */
@@ -97,11 +101,15 @@ export class CachedJsonStore<V> {
     await new Promise<void>((resolve) => setImmediate(resolve));
     const keys = Object.keys(data);
     for (let i = 0; i < keys.length; i += 16) {
-      await Promise.all(keys.slice(i, i + 16).map(async (key) => {
-        if (this.pruneTouched.has(key)) return;
-        const keep = await this.keepOnLoadAsync!(key, data[key]).catch(() => true);
-        if (!keep && !this.pruneTouched.has(key)) this.delete(key);
-      }));
+      await Promise.all(
+        keys.slice(i, i + 16).map(async (key) => {
+          if (this.pruneTouched.has(key)) return;
+          const keep = await this.keepOnLoadAsync!(key, data[key]).catch(
+            () => true,
+          );
+          if (!keep && !this.pruneTouched.has(key)) this.delete(key);
+        }),
+      );
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
     this.prunePromise = null;
@@ -169,10 +177,7 @@ export class CachedJsonStore<V> {
    * the journaled changes on top, then serialize. Mirrors the old read-modify-write
    * semantics so a concurrent writer's untouched keys survive.
    */
-  private buildMerged(
-    writes: Array<[string, V]>,
-    deletes: string[],
-  ): string {
+  private buildMerged(writes: Array<[string, V]>, deletes: string[]): string {
     const disk = this.readFromDisk();
     for (const [k, v] of writes) disk[k] = v;
     for (const k of deletes) delete disk[k];
@@ -204,8 +209,11 @@ export class CachedJsonStore<V> {
         await fs.promises.rename(tmp, this.filePath);
       } catch {
         // Re-journal so the next flush retries. Don't clobber a newer pending value.
-        for (const [k, v] of writes) if (!this.pendingWrites.has(k) && !this.pendingDeletes.has(k)) this.pendingWrites.set(k, v);
-        for (const k of deletes) if (!this.pendingWrites.has(k)) this.pendingDeletes.add(k);
+        for (const [k, v] of writes)
+          if (!this.pendingWrites.has(k) && !this.pendingDeletes.has(k))
+            this.pendingWrites.set(k, v);
+        for (const k of deletes)
+          if (!this.pendingWrites.has(k)) this.pendingDeletes.add(k);
         this.scheduleFlush();
       }
     })();
@@ -231,8 +239,10 @@ export class CachedJsonStore<V> {
       this.ensureDir();
       atomicWriteFile(this.filePath, data);
     } catch {
-      for (const [k, v] of writes) if (!this.pendingWrites.has(k)) this.pendingWrites.set(k, v);
-      for (const k of deletes) if (!this.pendingWrites.has(k)) this.pendingDeletes.add(k);
+      for (const [k, v] of writes)
+        if (!this.pendingWrites.has(k)) this.pendingWrites.set(k, v);
+      for (const k of deletes)
+        if (!this.pendingWrites.has(k)) this.pendingDeletes.add(k);
     }
   }
 
@@ -257,13 +267,20 @@ export class CachedJsonStore<V> {
  */
 export function rebindingStore<V>(
   resolvePath: () => string,
-  opts: { flushDelayMs?: number; keepOnLoad?: (key: string, value: V) => boolean; keepOnLoadAsync?: (key: string, value: V) => Promise<boolean> } = {},
+  opts: {
+    flushDelayMs?: number;
+    keepOnLoad?: (key: string, value: V) => boolean;
+    keepOnLoadAsync?: (key: string, value: V) => Promise<boolean>;
+  } = {},
 ): () => CachedJsonStore<V> {
   let current: { filePath: string; store: CachedJsonStore<V> } | null = null;
   return () => {
     const filePath = resolvePath();
     if (current?.filePath !== filePath) {
-      current = { filePath, store: new CachedJsonStore<V>({ filePath, ...opts }) };
+      current = {
+        filePath,
+        store: new CachedJsonStore<V>({ filePath, ...opts }),
+      };
     }
     return current.store;
   };

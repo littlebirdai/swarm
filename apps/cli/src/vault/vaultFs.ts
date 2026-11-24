@@ -18,9 +18,15 @@ import { realVaultRoot } from "./vaultScope.js";
  * Write a file into the vault, creating its parent folders. Write-then-rename,
  * so a reader (or a crash) never sees a half-written note.
  */
-export async function writeVaultFile(abs: string, data: Buffer | string): Promise<fs.Stats> {
+export async function writeVaultFile(
+  abs: string,
+  data: Buffer | string,
+): Promise<fs.Stats> {
   await fsp.mkdir(path.dirname(abs), { recursive: true });
-  const tmp = path.join(path.dirname(abs), `.${path.basename(abs)}.${process.pid}.tmp`);
+  const tmp = path.join(
+    path.dirname(abs),
+    `.${path.basename(abs)}.${process.pid}.tmp`,
+  );
   await fsp.writeFile(tmp, data);
   await fsp.rename(tmp, abs);
   return fsp.stat(abs);
@@ -51,7 +57,10 @@ export function moveToTrash(vaultRoot: string, abs: string): string {
       let dest = path.join(dir, base);
       for (let n = 2; fs.existsSync(dest); n++) {
         const ext = path.extname(base);
-        dest = path.join(dir, `${base.slice(0, base.length - ext.length)} ${n}${ext}`);
+        dest = path.join(
+          dir,
+          `${base.slice(0, base.length - ext.length)} ${n}${ext}`,
+        );
       }
       fs.renameSync(abs, dest);
       return dest;

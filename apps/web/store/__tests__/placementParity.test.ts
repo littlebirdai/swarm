@@ -36,9 +36,21 @@ describe("placement parity check", () => {
   afterEach(() => spy.mockRestore());
 
   it("does not report teammates riding a lead whose answer is in flight", () => {
-    const lead = row("lead1", { agent_status: "permission_blocked", is_idle: false });
-    const mate1 = row("mate1", { spawned_by_conversation_id: "lead1", agent_team_name: "team", agent_status: "working", is_idle: false });
-    const mate2 = row("mate2", { spawned_by_conversation_id: "lead1", agent_team_name: "team", agent_status: "stopped" });
+    const lead = row("lead1", {
+      agent_status: "permission_blocked",
+      is_idle: false,
+    });
+    const mate1 = row("mate1", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+      agent_status: "working",
+      is_idle: false,
+    });
+    const mate2 = row("mate2", {
+      spawned_by_conversation_id: "lead1",
+      agent_team_name: "team",
+      agent_status: "stopped",
+    });
     const placed = placeSections(
       Object.fromEntries([lead, mate1, mate2].map((s) => [s._id, s])),
       new Set(["lead1"]),

@@ -23,7 +23,10 @@ import {
   THREAD_STATE_STATUS_LABEL,
   type ThreadStateStatus,
 } from "@codecast/shared/contracts";
-import { clearThreadStatePulse, writeThreadStatePulse } from "./threadStateStamp.js";
+import {
+  clearThreadStatePulse,
+  writeThreadStatePulse,
+} from "./threadStateStamp.js";
 import { commandGroup } from "./commandGroups.js";
 
 /** Words that mean "remove the pinned state" when they are the whole argument.
@@ -43,14 +46,18 @@ export type StateInvocation =
  * clear words are recognized only when they are the FIRST argument, so a state
  * that happens to begin with "done deploying" is still text.
  */
-export function parseStateArgs(args: string[], forSession?: string): StateInvocation {
+export function parseStateArgs(
+  args: string[],
+  forSession?: string,
+): StateInvocation {
   const [head, ...rest] = args;
   const session = forSession;
 
   if (head === undefined) return { mode: "show", session };
 
   const verb = head.toLowerCase();
-  if (CLEAR_WORDS.has(verb) && rest.length === 0) return { mode: "clear", session };
+  if (CLEAR_WORDS.has(verb) && rest.length === 0)
+    return { mode: "clear", session };
   if (verb === "show" || verb === "get") {
     return { mode: "show", session: rest[0] ?? session };
   }
@@ -78,7 +85,11 @@ export function formatAge(ms: number): string {
  * for something true.
  */
 export function describeProvenance(
-  row: { at?: number | null; msg_count_at_write?: number | null; message_count?: number | null },
+  row: {
+    at?: number | null;
+    msg_count_at_write?: number | null;
+    message_count?: number | null;
+  },
   now: number,
 ): string {
   const bits: string[] = [];
@@ -89,7 +100,11 @@ export function describeProvenance(
     now,
   );
   if (messagesSince != null) {
-    bits.push(messagesSince === 1 ? "1 message since" : `${messagesSince} messages since`);
+    bits.push(
+      messagesSince === 1
+        ? "1 message since"
+        : `${messagesSince} messages since`,
+    );
   }
   if (freshness === "stale") bits.push("likely stale: rewrite or clear it");
   return bits.join(", ");
@@ -97,19 +112,29 @@ export function describeProvenance(
 
 /** The reminder line, or null when the state is still fresh (or absent). */
 export function staleStateNotice(
-  row: { state?: string | null; at?: number | null; msg_count_at_write?: number | null; message_count?: number | null } | null,
+  row: {
+    state?: string | null;
+    at?: number | null;
+    msg_count_at_write?: number | null;
+    message_count?: number | null;
+  } | null,
   now: number,
 ): string | null {
   if (!row?.state) return null;
   const { freshness, messagesSince } = threadStateFreshness(
-    { thread_state: row.state, thread_state_at: row.at, thread_state_msg_count: row.msg_count_at_write },
+    {
+      thread_state: row.state,
+      thread_state_at: row.at,
+      thread_state_msg_count: row.msg_count_at_write,
+    },
     row.message_count ?? 0,
     now,
   );
   if (freshness === "fresh") return null;
-  const gap = messagesSince != null
-    ? `${messagesSince} messages old`
-    : `set ${formatAge(Math.max(0, now - (row.at ?? now)))}`;
+  const gap =
+    messagesSince != null
+      ? `${messagesSince} messages old`
+      : `set ${formatAge(Math.max(0, now - (row.at ?? now)))}`;
   return `pinned state is ${gap}: \`cast state "<text>"\` to refresh it, or \`cast state clear\``;
 }
 
@@ -126,7 +151,12 @@ export async function warnIfThreadStateStale(deps: PublishDeps): Promise<void> {
   try {
     const session = deps.detectCurrentSessionId();
     if (!session) return;
-    const row = await apiPost(deps, "/cli/sessions/state/get", { session, if_exists: true }, { read: true, exitOnError: false });
+    const row = await apiPost(
+      deps,
+      "/cli/sessions/state/get",
+      { session, if_exists: true },
+      { read: true, exitOnError: false },
+    );
     const notice = staleStateNotice(row, Date.now());
     if (notice) console.log(fmt.muted(`  ${notice}`));
   } catch {}
@@ -153,111 +183,158 @@ function printState(text: string, provenance: string): void {
   if (provenance) console.log(`  ${fmt.muted(provenance)}`);
 }
 
-export function registerStateCommand(program: Command, deps: PublishDeps): void {
+export function registerStateCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   program
     .command("state")
-    .argument("[args...]", stdinText(`clear | show <session> | the text to pin (prose past ${THREAD_STATE_MAX_CHARS} chars is cut; a fenced json block is kept whole)`))
+    .argument(
+      "[args...]",
+      stdinText(
+        `clear | show <session> | the text to pin (prose past ${THREAD_STATE_MAX_CHARS} chars is cut; a fenced json block is kept whole)`,
+      ),
+    )
     .description(commandGroup("state").description)
     .option(
       "--status <status>",
       "Who acts next: working (default) | blocked | done | dormant; files the session under Needs You / Done / Dormant when the turn ends",
     )
-    .option("--for <session>", "Target another session (default: the current one)")
+    .option(
+      "--for <session>",
+      "Target another session (default: the current one)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (rawArgs: string[], options: { for?: string; json?: boolean; status?: string }) => {
-      const args = rawArgs ?? [];
+    .action(
+      async (
+        rawArgs: string[],
+        options: { for?: string; json?: boolean; status?: string },
+      ) => {
+        const args = rawArgs ?? [];
 
-      const intent = parseStateArgs(args, options.for);
-      // Argument checks first: a wrong --status is answered the same way
-      // whether or not a session is detected.
-      const status = intent.mode === "set" ? parseThreadStateStatus(options.status ?? "working") : null;
-      if (intent.mode === "set" && !status) {
-        console.error(`Unknown --status "${options.status}": use working, blocked, done, or dormant`);
-        process.exit(1);
-      }
-      if (intent.mode !== "set" && options.status !== undefined) {
-        console.error(`--status goes with a state to pin: cast state --status ${options.status} "<text>"`);
-        process.exit(1);
-      }
-      const session = intent.session || deps.detectCurrentSessionId();
-      if (!session) {
-        console.error(
-          "No session given and none detected: pass one with --for (cast state --for jx7c6zk \"<text>\")",
+        const intent = parseStateArgs(args, options.for);
+        // Argument checks first: a wrong --status is answered the same way
+        // whether or not a session is detected.
+        const status =
+          intent.mode === "set"
+            ? parseThreadStateStatus(options.status ?? "working")
+            : null;
+        if (intent.mode === "set" && !status) {
+          console.error(
+            `Unknown --status "${options.status}": use working, blocked, done, or dormant`,
+          );
+          process.exit(1);
+        }
+        if (intent.mode !== "set" && options.status !== undefined) {
+          console.error(
+            `--status goes with a state to pin: cast state --status ${options.status} "<text>"`,
+          );
+          process.exit(1);
+        }
+        const session = intent.session || deps.detectCurrentSessionId();
+        if (!session) {
+          console.error(
+            'No session given and none detected: pass one with --for (cast state --for jx7c6zk "<text>")',
+          );
+          process.exit(1);
+        }
+
+        if (intent.mode === "show") {
+          const row = await apiPost(
+            deps,
+            "/cli/sessions/state/get",
+            { session },
+            { read: true },
+          );
+          if (options.json) {
+            console.log(JSON.stringify(row, null, 2));
+            return;
+          }
+          if (!row.state) {
+            console.log(`${fmt.muted(`${row.short_id} has no pinned state`)}`);
+            return;
+          }
+          const tag = statusTag(row.status);
+          console.log(
+            `${c.cyan}${row.short_id}${c.reset}${tag ? ` ${tag}` : ""} ${fmt.muted(row.title ?? "")}`,
+          );
+          printState(row.state, describeProvenance(row, Date.now()));
+          return;
+        }
+
+        const text =
+          intent.mode === "set" ? normalizeThreadState(intent.text) : "";
+        if (intent.mode === "set" && !text) {
+          console.error(
+            "Empty state: pass text to pin, or `cast state clear` to remove it",
+          );
+          process.exit(1);
+        }
+
+        // The json block rides whole beside the capped text: a workflow
+        // station's edges route on it.
+        const stationResult =
+          intent.mode === "set" ? threadStateResult(intent.text) : null;
+        // Setting the pin is safe to repeat, so a gateway 5xx or a timeout is retried before it is reported.
+        const result = await apiPost(
+          deps,
+          "/cli/sessions/state/set",
+          {
+            session,
+            text,
+            status: status ?? undefined,
+            result: stationResult ?? undefined,
+          },
+          { retries: 2 },
         );
-        process.exit(1);
-      }
-
-      if (intent.mode === "show") {
-        const row = await apiPost(deps, "/cli/sessions/state/get", { session }, { read: true });
+        // Keep the reminder hook's local stamp in step with the write — but only
+        // for THIS session. `--for` writes to somebody else's thread, and their
+        // agent's reminder is keyed to their own machine's stamp, not ours.
+        const own = !intent.session ? session : null;
+        if (own) {
+          if (result.cleared) clearThreadStatePulse(own);
+          else writeThreadStatePulse(own, status ?? undefined);
+        }
         if (options.json) {
-          console.log(JSON.stringify(row, null, 2));
+          console.log(JSON.stringify(result, null, 2));
           return;
         }
-        if (!row.state) {
-          console.log(`${fmt.muted(`${row.short_id} has no pinned state`)}`);
+
+        if (result.cleared) {
+          console.log(
+            result.previous_state
+              ? `${c.green}ok${c.reset} cleared the pinned state on ${c.cyan}${result.short_id}${c.reset}`
+              : fmt.muted(`${result.short_id} had no pinned state`),
+          );
           return;
         }
-        const tag = statusTag(row.status);
-        console.log(`${c.cyan}${row.short_id}${c.reset}${tag ? ` ${tag}` : ""} ${fmt.muted(row.title ?? "")}`);
-        printState(row.state, describeProvenance(row, Date.now()));
-        return;
-      }
 
-      const text = intent.mode === "set" ? normalizeThreadState(intent.text) : "";
-      if (intent.mode === "set" && !text) {
-        console.error("Empty state: pass text to pin, or `cast state clear` to remove it");
-        process.exit(1);
-      }
-
-      // The json block rides whole beside the capped text: a workflow
-      // station's edges route on it.
-      const stationResult = intent.mode === "set" ? threadStateResult(intent.text) : null;
-      // Setting the pin is safe to repeat, so a gateway 5xx or a timeout is retried before it is reported.
-      const result = await apiPost(deps, "/cli/sessions/state/set", { session, text, status: status ?? undefined, result: stationResult ?? undefined }, { retries: 2 });
-      // Keep the reminder hook's local stamp in step with the write — but only
-      // for THIS session. `--for` writes to somebody else's thread, and their
-      // agent's reminder is keyed to their own machine's stamp, not ours.
-      const own = !intent.session ? session : null;
-      if (own) {
-        if (result.cleared) clearThreadStatePulse(own);
-        else writeThreadStatePulse(own, status ?? undefined);
-      }
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
-
-      if (result.cleared) {
+        // Confirmation only — never echo the state back. The caller just wrote
+        // it; reprinting it doubles the tokens an agent spends on every update.
+        // The trailing hint also heads off a common failure: agents narrating
+        // "I've updated the state" into the chat after every write. The pin is
+        // already on the human's screen — the update needs no announcement.
+        // Only prose counts toward the cap: the pin renders without its json
+        // report, and the report rides whole in the result.
+        const truncated =
+          intent.mode === "set" && threadStateProseCut(intent.text);
+        const tag = statusTag(result.status ?? status);
         console.log(
-          result.previous_state
-            ? `${c.green}ok${c.reset} cleared the pinned state on ${c.cyan}${result.short_id}${c.reset}`
-            : fmt.muted(`${result.short_id} had no pinned state`),
+          `${c.green}ok${c.reset} pinned the state of ${c.cyan}${result.short_id}${c.reset}` +
+            (tag ? ` ${tag}` : "") +
+            (truncated
+              ? ` ${fmt.muted(`(text past ${THREAD_STATE_MAX_CHARS} chars was cut${stationResult ? "; the json block is kept whole" : ""})`)}`
+              : "") +
+            ` ${fmt.muted("(the human already sees the pin: do not mention this update in your reply. Rewrite it when this changes; `cast state clear` when it no longer holds)")}`,
         );
-        return;
-      }
-
-      // Confirmation only — never echo the state back. The caller just wrote
-      // it; reprinting it doubles the tokens an agent spends on every update.
-      // The trailing hint also heads off a common failure: agents narrating
-      // "I've updated the state" into the chat after every write. The pin is
-      // already on the human's screen — the update needs no announcement.
-      // Only prose counts toward the cap: the pin renders without its json
-      // report, and the report rides whole in the result.
-      const truncated = intent.mode === "set" && threadStateProseCut(intent.text);
-      const tag = statusTag(result.status ?? status);
-      console.log(
-        `${c.green}ok${c.reset} pinned the state of ${c.cyan}${result.short_id}${c.reset}` +
-        (tag ? ` ${tag}` : "") +
-        (truncated
-          ? ` ${fmt.muted(`(text past ${THREAD_STATE_MAX_CHARS} chars was cut${stationResult ? "; the json block is kept whole" : ""})`)}`
-          : "") +
-        ` ${fmt.muted("(the human already sees the pin: do not mention this update in your reply. Rewrite it when this changes; `cast state clear` when it no longer holds)")}`,
-      );
-      // A blocked declaration from a hidden session is a claim on the human's
-      // eyes — the server just honored it; say so, since the agent may believe
-      // it is still out of sight.
-      if ((result as { resurfaced?: boolean }).resurfaced) {
-        console.log(`${c.yellow}!${c.reset} this session was hidden (stashed); declaring blocked returned it to the user's inbox`);
-      }
-    });
+        // A blocked declaration from a hidden session is a claim on the human's
+        // eyes — the server just honored it; say so, since the agent may believe
+        // it is still out of sight.
+        if ((result as { resurfaced?: boolean }).resurfaced) {
+          console.log(
+            `${c.yellow}!${c.reset} this session was hidden (stashed); declaring blocked returned it to the user's inbox`,
+          );
+        }
+      },
+    );
 }

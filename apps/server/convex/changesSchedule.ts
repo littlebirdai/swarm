@@ -5,7 +5,12 @@
 // paged continuation of a member's visibility change.
 
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, type ActionCtx } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  type ActionCtx,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { retriesProse, runBuildDay, type BuildDayResult } from "./changes";
@@ -26,7 +31,11 @@ import {
 import { addDays, dayBounds, localDate } from "./lib/teamDay";
 import { isHarnessScratch, normalizeRepository } from "./lib/gitRefs";
 
-const dayArgs = { team_id: v.id("teams"), repository: v.string(), date: v.string() };
+const dayArgs = {
+  team_id: v.id("teams"),
+  repository: v.string(),
+  date: v.string(),
+};
 const dayKey = v.object({ repository: v.string(), date: v.string() });
 
 /** Commits per page when finding which days a team has work on. */
@@ -58,12 +67,25 @@ export const finishDay = internalMutation({
  */
 export const rebuildDay = internalAction({
   args: dayArgs,
-  handler: async (ctx, args): Promise<{ built: BuildDayResult[] } | { skipped: string }> => {
-    const claim: { dates: string[] } | null = await ctx.runMutation(internal.changesSchedule.claimDay, args);
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ built: BuildDayResult[] } | { skipped: string }> => {
+    const claim: { dates: string[] } | null = await ctx.runMutation(
+      internal.changesSchedule.claimDay,
+      args,
+    );
     if (!claim) return { skipped: "Changes is off for this team" };
     const built: BuildDayResult[] = [];
-    for (const date of claim.dates) built.push(await runBuildDay(ctx, { ...args, date }));
-    for (const day of built) await runProse(ctx, { team_id: args.team_id, repository: day.repository, date: day.date, pending: day.pending });
+    for (const date of claim.dates)
+      built.push(await runBuildDay(ctx, { ...args, date }));
+    for (const day of built)
+      await runProse(ctx, {
+        team_id: args.team_id,
+        repository: day.repository,
+        date: day.date,
+        pending: day.pending,
+      });
     await ctx.runMutation(internal.changesSchedule.finishDay, args);
     return { built };
   },
@@ -74,7 +96,9 @@ export const rebuildDay = internalAction({
 /** Teams with Changes on, each with the zone its day is cut in. */
 export const changesTeams = internalQuery({
   args: {},
-  handler: async (ctx): Promise<Array<{ team_id: Id<"teams">; timezone: string }>> => {
+  handler: async (
+    ctx,
+  ): Promise<Array<{ team_id: Id<"teams">; timezone: string }>> => {
     const out: Array<{ team_id: Id<"teams">; timezone: string }> = [];
     for (const team of await ctx.db.query("teams").collect()) {
       if (!team.features?.changes) continue;
@@ -87,32 +111,67 @@ export const changesTeams = internalQuery({
 
 export const teamZone = internalQuery({
   args: { team_id: v.id("teams") },
-  handler: async (ctx, args): Promise<string | null> => changesZone(ctx, args.team_id),
+  handler: async (ctx, args): Promise<string | null> =>
+    changesZone(ctx, args.team_id),
 });
 
 /** One page of the (repository, team-local date) pairs the team's commits since `start` fall on. */
 export const commitDaysPage = internalQuery({
-  args: { team_id: v.id("teams"), timezone: v.string(), start: v.number(), cursor: v.union(v.string(), v.null()) },
-  handler: async (ctx, args): Promise<{ days: Array<{ repository: string; date: string }>; cursor: string; done: boolean }> => {
+  args: {
+    team_id: v.id("teams"),
+    timezone: v.string(),
+    start: v.number(),
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    days: Array<{ repository: string; date: string }>;
+    cursor: string;
+    done: boolean;
+  }> => {
     const page = await ctx.db
       .query("commits")
-      .withIndex("by_team_timestamp", (q) => q.eq("team_id", args.team_id).gte("timestamp", args.start))
-      .paginate({ numItems: DAYS_PAGE, cursor: args.cursor, maximumBytesRead: DAYS_PAGE_BYTES });
+      .withIndex("by_team_timestamp", (q) =>
+        q.eq("team_id", args.team_id).gte("timestamp", args.start),
+      )
+      .paginate({
+        numItems: DAYS_PAGE,
+        cursor: args.cursor,
+        maximumBytesRead: DAYS_PAGE_BYTES,
+      });
     const days = new Map<string, { repository: string; date: string }>();
     for (const c of page.page) {
       if (!c.repository || isHarnessScratch({ branch: c.branch })) continue;
-      const day = { repository: normalizeRepository(c.repository), date: localDate(c.timestamp, args.timezone) };
+      const day = {
+        repository: normalizeRepository(c.repository),
+        date: localDate(c.timestamp, args.timezone),
+      };
       days.set(`${day.repository}\n${day.date}`, day);
     }
-    return { days: [...days.values()], cursor: page.continueCursor, done: page.isDone };
+    return {
+      days: [...days.values()],
+      cursor: page.continueCursor,
+      done: page.isDone,
+    };
   },
 });
 
 /** Whether a day holds a story whose failed prose call has attempts left. */
-async function hasRetryableStory(ctx: { db: any }, teamId: Id<"teams">, day: { repository: string; date: string }): Promise<boolean> {
+async function hasRetryableStory(
+  ctx: { db: any },
+  teamId: Id<"teams">,
+  day: { repository: string; date: string },
+): Promise<boolean> {
   const failed: Doc<"change_stories">[] = await ctx.db
     .query("change_stories")
-    .withIndex("by_team_repo_date", (q: any) => q.eq("team_id", teamId).eq("repository", day.repository).eq("date", day.date))
+    .withIndex("by_team_repo_date", (q: any) =>
+      q
+        .eq("team_id", teamId)
+        .eq("repository", day.repository)
+        .eq("date", day.date),
+    )
     .filter((q: any) => q.eq(q.field("prose_status"), "failed"))
     .collect();
   return failed.some(retriesProse);
@@ -120,7 +179,12 @@ async function hasRetryableStory(ctx: { db: any }, teamId: Id<"teams">, day: { r
 
 /** Mark days dirty, spaced apart, newest first as given. `skip_final` passes over days whose edition is final and whose stories need no retry. */
 export const markDays = internalMutation({
-  args: { team_id: v.id("teams"), days: v.array(dayKey), spacing_ms: v.number(), skip_final: v.boolean() },
+  args: {
+    team_id: v.id("teams"),
+    days: v.array(dayKey),
+    spacing_ms: v.number(),
+    skip_final: v.boolean(),
+  },
   handler: async (ctx, args): Promise<number> => {
     if (!(await changesZone(ctx, args.team_id))) return 0;
     let marked = 0;
@@ -129,11 +193,24 @@ export const markDays = internalMutation({
         const edition = await ctx.db
           .query("digests")
           .withIndex("by_team_repo_scope_date", (q) =>
-            q.eq("team_id", args.team_id).eq("repository", day.repository).eq("scope", "day").eq("date", day.date))
+            q
+              .eq("team_id", args.team_id)
+              .eq("repository", day.repository)
+              .eq("scope", "day")
+              .eq("date", day.date),
+          )
           .first();
-        if (edition?.status === "final" && !(await hasRetryableStory(ctx, args.team_id, day))) continue;
+        if (
+          edition?.status === "final" &&
+          !(await hasRetryableStory(ctx, args.team_id, day))
+        )
+          continue;
       }
-      await markDayDirty(ctx, { team_id: args.team_id, ...day }, args.spacing_ms * marked);
+      await markDayDirty(
+        ctx,
+        { team_id: args.team_id, ...day },
+        args.spacing_ms * marked,
+      );
       marked += 1;
     }
     return marked;
@@ -141,20 +218,45 @@ export const markDays = internalMutation({
 });
 
 /** Mark every day of the last `days` (today included) on which the team has commits. */
-async function markRecentDays(ctx: ActionCtx, teamId: Id<"teams">, timezone: string, days: number, skipFinal: boolean): Promise<number> {
-  const start = dayBounds(addDays(localDate(Date.now(), timezone), -(days - 1)), timezone).start;
+async function markRecentDays(
+  ctx: ActionCtx,
+  teamId: Id<"teams">,
+  timezone: string,
+  days: number,
+  skipFinal: boolean,
+): Promise<number> {
+  const start = dayBounds(
+    addDays(localDate(Date.now(), timezone), -(days - 1)),
+    timezone,
+  ).start;
   const found = new Map<string, { repository: string; date: string }>();
   let cursor: string | null = null;
   for (;;) {
-    const page: { days: Array<{ repository: string; date: string }>; cursor: string; done: boolean } =
-      await ctx.runQuery(internal.changesSchedule.commitDaysPage, { team_id: teamId, timezone, start, cursor });
+    const page: {
+      days: Array<{ repository: string; date: string }>;
+      cursor: string;
+      done: boolean;
+    } = await ctx.runQuery(internal.changesSchedule.commitDaysPage, {
+      team_id: teamId,
+      timezone,
+      start,
+      cursor,
+    });
     for (const d of page.days) found.set(`${d.repository}\n${d.date}`, d);
     if (page.done) break;
     cursor = page.cursor;
   }
-  const list = [...found.values()].sort((a, b) => b.date.localeCompare(a.date) || a.repository.localeCompare(b.repository));
+  const list = [...found.values()].sort(
+    (a, b) =>
+      b.date.localeCompare(a.date) || a.repository.localeCompare(b.repository),
+  );
   if (!list.length) return 0;
-  return await ctx.runMutation(internal.changesSchedule.markDays, { team_id: teamId, days: list, spacing_ms: BACKFILL_SPACING_MS, skip_final: skipFinal });
+  return await ctx.runMutation(internal.changesSchedule.markDays, {
+    team_id: teamId,
+    days: list,
+    spacing_ms: BACKFILL_SPACING_MS,
+    skip_final: skipFinal,
+  });
 }
 
 // ── Cron, backfill, member continuation ──────────────────────────────────
@@ -167,15 +269,34 @@ export const rescheduleStrandedDays = internalMutation({
 /** Every 6 hours (crons.ts): days of the last three with commits and no final edition, weeks that ended unfinished, and rebuilds that died. */
 export const reconcile = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ teams: number; marked: number; weeks: number; rescheduled: number }> => {
-    const teams: Array<{ team_id: Id<"teams">; timezone: string }> = await ctx.runQuery(internal.changesSchedule.changesTeams, {});
+  handler: async (
+    ctx,
+  ): Promise<{
+    teams: number;
+    marked: number;
+    weeks: number;
+    rescheduled: number;
+  }> => {
+    const teams: Array<{ team_id: Id<"teams">; timezone: string }> =
+      await ctx.runQuery(internal.changesSchedule.changesTeams, {});
     let marked = 0;
     let weeks = 0;
     for (const team of teams) {
-      marked += await markRecentDays(ctx, team.team_id, team.timezone, RECONCILE_DAYS, true);
-      weeks += await ctx.runMutation(internal.changesWeek.reconcileWeeks, { team_id: team.team_id });
+      marked += await markRecentDays(
+        ctx,
+        team.team_id,
+        team.timezone,
+        RECONCILE_DAYS,
+        true,
+      );
+      weeks += await ctx.runMutation(internal.changesWeek.reconcileWeeks, {
+        team_id: team.team_id,
+      });
     }
-    const rescheduled: number = await ctx.runMutation(internal.changesSchedule.rescheduleStrandedDays, {});
+    const rescheduled: number = await ctx.runMutation(
+      internal.changesSchedule.rescheduleStrandedDays,
+      {},
+    );
     return { teams: teams.length, marked, weeks, rescheduled };
   },
 });
@@ -184,23 +305,44 @@ export const reconcile = internalAction({
 export const backfill = internalAction({
   args: { team_id: v.id("teams") },
   handler: async (ctx, args): Promise<{ marked: number }> => {
-    const timezone: string | null = await ctx.runQuery(internal.changesSchedule.teamZone, args);
+    const timezone: string | null = await ctx.runQuery(
+      internal.changesSchedule.teamZone,
+      args,
+    );
     if (!timezone) return { marked: 0 };
-    return { marked: await markRecentDays(ctx, args.team_id, timezone, BACKFILL_DAYS, false) };
+    return {
+      marked: await markRecentDays(
+        ctx,
+        args.team_id,
+        timezone,
+        BACKFILL_DAYS,
+        false,
+      ),
+    };
   },
 });
 
 /** The rest of a member's story inputs after a visibility change, a page at a time. */
 export const invalidateForMember = internalMutation({
-  args: { owner_id: v.id("users"), team_id: v.id("teams"), cursor: v.union(v.string(), v.null()) },
+  args: {
+    owner_id: v.id("users"),
+    team_id: v.id("teams"),
+    cursor: v.union(v.string(), v.null()),
+  },
   handler: async (ctx, args): Promise<void> => {
     const page = await ctx.db
       .query("change_story_inputs")
-      .withIndex("by_owner", (q) => q.eq("owner_id", args.owner_id).eq("team_id", args.team_id))
+      .withIndex("by_owner", (q) =>
+        q.eq("owner_id", args.owner_id).eq("team_id", args.team_id),
+      )
       .paginate({ numItems: MEMBER_PAGE, cursor: args.cursor });
     await withdrawAndMark(ctx, page.page);
     if (!page.isDone) {
-      await ctx.scheduler.runAfter(0, internal.changesSchedule.invalidateForMember, { ...args, cursor: page.continueCursor });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.changesSchedule.invalidateForMember,
+        { ...args, cursor: page.continueCursor },
+      );
     }
   },
 });

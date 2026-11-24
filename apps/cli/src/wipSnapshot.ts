@@ -77,7 +77,12 @@ export function wipRef(conversationId: string): string {
  * loop is how the daemon once froze past the watchdog's 180s stale-heartbeat
  * threshold and got force-restarted mid-move.
  */
-export async function git(cwd: string, args: string[], env?: NodeJS.ProcessEnv, stdin?: string): Promise<string> {
+export async function git(
+  cwd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  stdin?: string,
+): Promise<string> {
   if (stdin === undefined) {
     const { stdout } = await execFileAsync("git", ["-C", cwd, ...args], {
       encoding: "utf-8",
@@ -87,16 +92,30 @@ export async function git(cwd: string, args: string[], env?: NodeJS.ProcessEnv, 
     return stdout.trim();
   }
   return new Promise((resolve, reject) => {
-    const child = execFile("git", ["-C", cwd, ...args], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, ...(env ? { env } : {}) }, (err, stdout) => {
-      // check-ignore exits 1 when nothing matched: an answer, not a failure.
-      if (err && (err as { code?: number }).code !== 1) reject(err);
-      else resolve(String(stdout).trim());
-    });
+    const child = execFile(
+      "git",
+      ["-C", cwd, ...args],
+      {
+        encoding: "utf-8",
+        maxBuffer: 64 * 1024 * 1024,
+        ...(env ? { env } : {}),
+      },
+      (err, stdout) => {
+        // check-ignore exits 1 when nothing matched: an answer, not a failure.
+        if (err && (err as { code?: number }).code !== 1) reject(err);
+        else resolve(String(stdout).trim());
+      },
+    );
     child.stdin?.end(stdin);
   });
 }
 
-export async function gitTry(cwd: string, args: string[], env?: NodeJS.ProcessEnv, stdin?: string): Promise<string | null> {
+export async function gitTry(
+  cwd: string,
+  args: string[],
+  env?: NodeJS.ProcessEnv,
+  stdin?: string,
+): Promise<string | null> {
   try {
     return await git(cwd, args, env, stdin);
   } catch {
@@ -114,7 +133,9 @@ export function buildSnapshotMessage(opts: { branch: string }): string {
   // the IDENTICAL commit object, so git uploads it once and the siblings are
   // free ref updates. A per-session trailer made every sibling's commit unique
   // and forced one full push per session.
-  return [WIP_SNAPSHOT_SUBJECT, ``, `${BRANCH_TRAILER}: ${opts.branch}`].join("\n");
+  return [WIP_SNAPSHOT_SUBJECT, ``, `${BRANCH_TRAILER}: ${opts.branch}`].join(
+    "\n",
+  );
 }
 
 /** The subject line of every snapshot commit: how a seeded worktree tells a snapshot start point from a plain commit. */
@@ -122,7 +143,10 @@ export const WIP_SNAPSHOT_SUBJECT = "codecast wip snapshot";
 
 /** Read a trailer back out of a snapshot message. Returns undefined when absent
  * (an unrecognized/foreign ref must degrade, never throw). */
-export function parseSnapshotTrailer(message: string, key: string): string | undefined {
+export function parseSnapshotTrailer(
+  message: string,
+  key: string,
+): string | undefined {
   const m = message.match(new RegExp(`^${key}:[ \\t]*(.+)$`, "m"));
   return m ? m[1].trim() : undefined;
 }
@@ -139,7 +163,11 @@ export function parseSnapshotTrailer(message: string, key: string): string | und
  * takes on either side: a checkout's own worktrees sit inside it on both
  * machines and travel on their own.
  */
-export const CLOUD_SEED_EXCLUDES = [".codecast/workspaces", ".codecast/worktrees", ".codecast/logs"];
+export const CLOUD_SEED_EXCLUDES = [
+  ".codecast/workspaces",
+  ".codecast/worktrees",
+  ".codecast/logs",
+];
 
 /** The author a snapshot object carries, so it never needs the machine's. */
 export const SNAPSHOT_IDENTITY = {
@@ -164,11 +192,15 @@ export const SNAPSHOT_IDENTITY = {
  * conditional at the restore end. A clean snapshot is cheap — it reuses HEAD's
  * existing tree object.
  */
-export async function createWipSnapshotStrict(cwd: string, opts: { exclude?: string[] } = {}): Promise<WipSnapshot | null> {
+export async function createWipSnapshotStrict(
+  cwd: string,
+  opts: { exclude?: string[] } = {},
+): Promise<WipSnapshot | null> {
   const head = await gitTry(cwd, ["rev-parse", "--verify", "HEAD"]);
   if (!head) return null; // not a repo, or no commits yet
 
-  const branch = (await gitTry(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])) ?? "HEAD";
+  const branch =
+    (await gitTry(cwd, ["rev-parse", "--abbrev-ref", "HEAD"])) ?? "HEAD";
   const tree = await snapshotTree(cwd, opts.exclude);
   // Dirty is what the SNAPSHOT carries beyond HEAD, not what `git status`
   // lists: untracked content under an excluded dir never reaches the
@@ -180,26 +212,25 @@ export async function createWipSnapshotStrict(cwd: string, opts: { exclude?: str
   // current second, which broke that whenever two snapshots straddled a second
   // boundary — the shas diverged and every sibling pushed its own copy. Pinning
   // both dates to HEAD's makes the snapshot a pure function of tree + parent.
-  const snapshotDate = (await gitTry(cwd, ["log", "-1", "--format=%cI", head])) || "1970-01-01T00:00:00Z";
+  const snapshotDate =
+    (await gitTry(cwd, ["log", "-1", "--format=%cI", head])) ||
+    "1970-01-01T00:00:00Z";
 
   // commit-tree writes a dangling object: no ref moves, no branch advances.
-  const sha = await git(cwd, [
-    "commit-tree",
-    tree,
-    "-p",
-    head,
-    "-m",
-    buildSnapshotMessage({ branch }),
-  ], {
-    ...process.env,
-    GIT_AUTHOR_DATE: snapshotDate,
-    GIT_COMMITTER_DATE: snapshotDate,
-    // A dangling snapshot is machinery, not authorship, so it carries a fixed
-    // identity: git refuses to write a commit on a machine that configured
-    // none ("Author identity unknown"), and a constant also keeps the sha the
-    // same for the same tree wherever it is taken.
-    ...SNAPSHOT_IDENTITY,
-  });
+  const sha = await git(
+    cwd,
+    ["commit-tree", tree, "-p", head, "-m", buildSnapshotMessage({ branch })],
+    {
+      ...process.env,
+      GIT_AUTHOR_DATE: snapshotDate,
+      GIT_COMMITTER_DATE: snapshotDate,
+      // A dangling snapshot is machinery, not authorship, so it carries a fixed
+      // identity: git refuses to write a commit on a machine that configured
+      // none ("Author identity unknown"), and a constant also keeps the sha the
+      // same for the same tree wherever it is taken.
+      ...SNAPSHOT_IDENTITY,
+    },
+  );
   return { sha, base: head, branch, dirty, tree };
 }
 
@@ -210,23 +241,56 @@ export async function createWipSnapshotStrict(cwd: string, opts: { exclude?: str
  * change in it — is untouched. Writes only the tree (and its blobs), never a
  * commit: the worktree GC compares trees and needs nothing more.
  */
-export async function snapshotTree(cwd: string, exclude: string[] = []): Promise<string> {
+export async function snapshotTree(
+  cwd: string,
+  exclude: string[] = [],
+): Promise<string> {
   const indexDir = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-wip-"));
   try {
-    const env = { ...process.env, GIT_INDEX_FILE: path.join(indexDir, "index") };
+    const env = {
+      ...process.env,
+      GIT_INDEX_FILE: path.join(indexDir, "index"),
+    };
     await git(cwd, ["read-tree", "HEAD"], env);
     const pathspecs = [".", ...exclude.map((p) => `:(exclude)${p}`)];
     await git(cwd, ["add", "-u", "--", ...pathspecs], env);
-    const { stdout: others } = await execFileAsync("git", ["-C", cwd, "ls-files", "--others", "--exclude-standard", "-z", "--", ...pathspecs], { env, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    const { stdout: others } = await execFileAsync(
+      "git",
+      [
+        "-C",
+        cwd,
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "-z",
+        "--",
+        ...pathspecs,
+      ],
+      { env, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    );
     // Without --directory the only entries ending in "/" are directories
     // holding a .git (a worktree or clone nested under an untracked dir).
     // Added, each becomes a gitlink: not content, and a restore can only
     // make an empty dir of it.
-    const paths = others.split("\0").filter((p) => p && !p.endsWith("/")).map((p) => `${p}\0`).join("");
+    const paths = others
+      .split("\0")
+      .filter((p) => p && !p.endsWith("/"))
+      .map((p) => `${p}\0`)
+      .join("");
     if (paths) {
       const pathspec = path.join(indexDir, "paths");
       fs.writeFileSync(pathspec, paths, { mode: 0o600 });
-      await git(cwd, ["--literal-pathspecs", "add", "-A", `--pathspec-from-file=${pathspec}`, "--pathspec-file-nul"], env);
+      await git(
+        cwd,
+        [
+          "--literal-pathspecs",
+          "add",
+          "-A",
+          `--pathspec-from-file=${pathspec}`,
+          "--pathspec-file-nul",
+        ],
+        env,
+      );
     }
     return await git(cwd, ["write-tree"], env);
   } finally {
@@ -241,7 +305,10 @@ export async function snapshotTree(cwd: string, exclude: string[] = []): Promise
  * null (the caller keeps the plain clone). See createWipSnapshotStrict for
  * the recipe and its properties.
  */
-export async function createWipSnapshot(cwd: string, opts: { exclude?: string[] } = {}): Promise<WipSnapshot | null> {
+export async function createWipSnapshot(
+  cwd: string,
+  opts: { exclude?: string[] } = {},
+): Promise<WipSnapshot | null> {
   try {
     return await createWipSnapshotStrict(cwd, opts);
   } catch {
@@ -272,16 +339,23 @@ export async function pushWipSnapshot(
     // trailer), so this is a single object upload plus N cheap ref updates —
     // one network round trip instead of N. On this machine that is ~50 sessions
     // collapsing to 6 repos.
-    await git(cwd, [
-      "push",
-      "--force",
-      opts.remote,
-      ...opts.conversationIds.map((id) => `${opts.sha}:${wipRef(id)}`),
-    ], opts.env);
+    await git(
+      cwd,
+      [
+        "push",
+        "--force",
+        opts.remote,
+        ...opts.conversationIds.map((id) => `${opts.sha}:${wipRef(id)}`),
+      ],
+      opts.env,
+    );
     return { ok: true };
   } catch (e) {
     const err = e as { stderr?: string | Buffer; message?: string };
-    const error = (err.stderr?.toString() || err.message || String(e)).slice(0, 300);
+    const error = (err.stderr?.toString() || err.message || String(e)).slice(
+      0,
+      300,
+    );
     return { ok: false, error, permanent: isPermanentPushFailure(error) };
   }
 }
@@ -306,14 +380,31 @@ export async function knownValuesInPush(
   find: (text: string) => string[],
 ): Promise<Array<{ path: string; names: string[] }>> {
   const pathOf = new Map<string, string>();
-  for (const line of (await git(cwd, ["rev-list", "--objects", "--ignore-missing", sha, "--not", ...exclude])).split("\n")) {
+  for (const line of (
+    await git(cwd, [
+      "rev-list",
+      "--objects",
+      "--ignore-missing",
+      sha,
+      "--not",
+      ...exclude,
+    ])
+  ).split("\n")) {
     const space = line.indexOf(" ");
-    if (space > 0 && line.length > space + 1) pathOf.set(line.slice(0, space), line.slice(space + 1));
+    if (space > 0 && line.length > space + 1)
+      pathOf.set(line.slice(0, space), line.slice(space + 1));
   }
   if (!pathOf.size) return [];
   const batches: string[][] = [[]];
   let batchBytes = 0;
-  for (const row of (await git(cwd, ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"], undefined, [...pathOf.keys()].join("\n") + "\n")).split("\n")) {
+  for (const row of (
+    await git(
+      cwd,
+      ["cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
+      undefined,
+      [...pathOf.keys()].join("\n") + "\n",
+    )
+  ).split("\n")) {
     const [id, type, size] = row.split(" ");
     if (type !== "blob" || !(Number(size) <= SCAN_MAX_BYTES)) continue;
     if (batchBytes + Number(size) > SCAN_BATCH_BYTES) {
@@ -327,7 +418,12 @@ export async function knownValuesInPush(
   for (const ids of batches) {
     if (!ids.length) continue;
     const out = await new Promise<Buffer>((resolve, reject) => {
-      const child = execFile("git", ["-C", cwd, "cat-file", "--batch"], { encoding: "buffer", maxBuffer: SCAN_BATCH_BYTES * 2 }, (err, stdout) => (err ? reject(err) : resolve(stdout as Buffer)));
+      const child = execFile(
+        "git",
+        ["-C", cwd, "cat-file", "--batch"],
+        { encoding: "buffer", maxBuffer: SCAN_BATCH_BYTES * 2 },
+        (err, stdout) => (err ? reject(err) : resolve(stdout as Buffer)),
+      );
       child.stdin?.end(ids.join("\n") + "\n");
     });
     // Each object: "<id> blob <size>\n", its bytes, "\n".
@@ -408,7 +504,11 @@ export async function restoreWipSnapshot(
 ): Promise<RestoreResult | null> {
   const ref = wipRef(opts.conversationId);
   // Fetch into the same ref name locally so the object is reachable and named.
-  if ((await gitTry(cwd, ["fetch", "--force", opts.remote, `${ref}:${ref}`])) === null) return null;
+  if (
+    (await gitTry(cwd, ["fetch", "--force", opts.remote, `${ref}:${ref}`])) ===
+    null
+  )
+    return null;
 
   const sha = await gitTry(cwd, ["rev-parse", ref]);
   if (!sha) return null;
@@ -420,13 +520,15 @@ export async function restoreWipSnapshot(
 
   // -B: create or reset the branch to the source's HEAD. Safe because this is a
   // fresh reparent checkout, not a tree anyone is working in.
-  if ((await gitTry(cwd, ["checkout", "-B", branch, base])) === null) return null;
+  if ((await gitTry(cwd, ["checkout", "-B", branch, base])) === null)
+    return null;
 
   // Same tree as base = the source was clean. Nothing to reproduce, and skipping
   // the rewrite keeps a clean checkout untouched.
   const snapTree = await gitTry(cwd, ["rev-parse", `${sha}^{tree}`]);
   const baseTree = await gitTry(cwd, ["rev-parse", `${base}^{tree}`]);
-  if (!snapTree || snapTree === baseTree) return { branch, base, appliedWork: false };
+  if (!snapTree || snapTree === baseTree)
+    return { branch, base, appliedWork: false };
 
   try {
     await git(cwd, ["read-tree", "-u", "--reset", sha]); // adds, edits AND deletes
@@ -443,7 +545,10 @@ export async function restoreWipSnapshot(
       branch,
       base,
       appliedWork: false,
-      applyError: (err.stderr?.toString() || err.message || String(e)).slice(0, 300),
+      applyError: (err.stderr?.toString() || err.message || String(e)).slice(
+        0,
+        300,
+      ),
     };
   }
 }
@@ -453,7 +558,6 @@ export async function defaultRemote(cwd: string): Promise<string | null> {
   const out = await gitTry(cwd, ["remote"]);
   return out?.split("\n")[0]?.trim() || null;
 }
-
 
 /**
  * createWipSnapshot as a POSIX shell one-liner, for a machine reachable only over
@@ -474,16 +578,25 @@ export async function defaultRemote(cwd: string): Promise<string | null> {
  * there: `git add -A` with an exclude pathspec that names an ignored folder
  * refuses with "paths are ignored" (git 2.43).
  */
-export function snapshotTreeShell(index: string, exclude: readonly string[] = []): string {
+export function snapshotTreeShell(
+  index: string,
+  exclude: readonly string[] = [],
+): string {
   const q = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
   const spec = [":/", ...exclude.map((p) => q(`:(top,exclude)${p}`))].join(" ");
   const env = `GIT_INDEX_FILE="${index}"`;
   // An empty list must add nothing: `git add --pathspec-from-file` given no paths adds everything.
-  return `${env} git read-tree HEAD && ${env} git add -u -- ${spec} && L=$(mktemp) && ${env} git ls-files -z --others --exclude-standard -- ${spec} > "$L"` +
-    ` && { [ ! -s "$L" ] || ${env} git --literal-pathspecs add --pathspec-from-file="$L" --pathspec-file-nul; } && rm -f "$L" && ${env} git write-tree`;
+  return (
+    `${env} git read-tree HEAD && ${env} git add -u -- ${spec} && L=$(mktemp) && ${env} git ls-files -z --others --exclude-standard -- ${spec} > "$L"` +
+    ` && { [ ! -s "$L" ] || ${env} git --literal-pathspecs add --pathspec-from-file="$L" --pathspec-file-nul; } && rm -f "$L" && ${env} git write-tree`
+  );
 }
 
-export function remoteSnapshotScript(opts: { cwd: string; ref: string; exclude?: string[] }): string {
+export function remoteSnapshotScript(opts: {
+  cwd: string;
+  ref: string;
+  exclude?: string[];
+}): string {
   const q = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
   return [
     `cd ${q(opts.cwd)}`,
@@ -503,10 +616,18 @@ export function remoteSnapshotScript(opts: { cwd: string; ref: string; exclude?:
 }
 
 export type ApplyResult =
-  | { ok: true; base: string; branch?: string; appliedWork: boolean; conflicts: string[] }
+  | {
+      ok: true;
+      base: string;
+      branch?: string;
+      appliedWork: boolean;
+      conflicts: string[];
+    }
   | { ok: false; reason: string };
 
-export const isWipSnapshotMessage = (message: string) => message.startsWith(WIP_SNAPSHOT_SUBJECT) && parseSnapshotTrailer(message, BRANCH_TRAILER) !== null;
+export const isWipSnapshotMessage = (message: string) =>
+  message.startsWith(WIP_SNAPSHOT_SUBJECT) &&
+  parseSnapshotTrailer(message, BRANCH_TRAILER) !== null;
 
 /**
  * Bring a session's work home from an already-fetched snapshot of the host
@@ -534,25 +655,60 @@ export async function applySnapshotFastForward(
 ): Promise<ApplyResult> {
   const snap = await gitTry(cwd, ["rev-parse", snapRef]);
   const hostHead = await gitTry(cwd, ["rev-parse", `${snapRef}^`]);
-  if (!snap || !hostHead) return { ok: false, reason: `no usable snapshot at ${snapRef}` };
+  if (!snap || !hostHead)
+    return { ok: false, reason: `no usable snapshot at ${snapRef}` };
   const head = await gitTry(cwd, ["rev-parse", "HEAD"]);
   if (!head) return { ok: false, reason: "local worktree has no HEAD" };
-  const branch = parseSnapshotTrailer((await gitTry(cwd, ["show", "-s", "--format=%B", snap])) ?? "", BRANCH_TRAILER);
+  const branch = parseSnapshotTrailer(
+    (await gitTry(cwd, ["show", "-s", "--format=%B", snap])) ?? "",
+    BRANCH_TRAILER,
+  );
 
-  let start = opts.start && (await gitTry(cwd, ["cat-file", "-e", `${opts.start}^{commit}`])) !== null ? opts.start : undefined;
+  let start =
+    opts.start &&
+    (await gitTry(cwd, ["cat-file", "-e", `${opts.start}^{commit}`])) !== null
+      ? opts.start
+      : undefined;
   if (!start) {
-    for (const c of ((await gitTry(cwd, ["rev-list", "--first-parent", "--max-count=200", hostHead])) ?? "").split("\n").filter(Boolean)) {
-      const message = (await gitTry(cwd, ["show", "-s", "--format=%B", c])) ?? "";
-      if (isWipSnapshotMessage(message) || (await gitTry(cwd, ["merge-base", "--is-ancestor", c, head])) !== null) { start = c; break; }
+    for (const c of (
+      (await gitTry(cwd, [
+        "rev-list",
+        "--first-parent",
+        "--max-count=200",
+        hostHead,
+      ])) ?? ""
+    )
+      .split("\n")
+      .filter(Boolean)) {
+      const message =
+        (await gitTry(cwd, ["show", "-s", "--format=%B", c])) ?? "";
+      if (
+        isWipSnapshotMessage(message) ||
+        (await gitTry(cwd, ["merge-base", "--is-ancestor", c, head])) !== null
+      ) {
+        start = c;
+        break;
+      }
     }
   }
-  if (!start) return { ok: false, reason: "cannot tell where the host's work began; nothing was changed here" };
+  if (!start)
+    return {
+      ok: false,
+      reason:
+        "cannot tell where the host's work began; nothing was changed here",
+    };
 
   // Real host commits on a real local tip: keep them as commits when that is a clean fast-forward.
   let from = start;
-  const startIsWip = isWipSnapshotMessage((await gitTry(cwd, ["show", "-s", "--format=%B", start])) ?? "");
-  if (!startIsWip && hostHead !== start && head === start
-    && (await gitTry(cwd, ["merge", "--ff-only", "-q", hostHead])) !== null) {
+  const startIsWip = isWipSnapshotMessage(
+    (await gitTry(cwd, ["show", "-s", "--format=%B", start])) ?? "",
+  );
+  if (
+    !startIsWip &&
+    hostHead !== start &&
+    head === start &&
+    (await gitTry(cwd, ["merge", "--ff-only", "-q", hostHead])) !== null
+  ) {
     from = hostHead;
   }
 
@@ -563,48 +719,141 @@ export async function applySnapshotFastForward(
   // mirror's copies of its instruction files); they never come back.
   const settled: string[] = [...(opts.skip ?? [])];
   const differing: string[] = [];
-  for (const rel of ((await gitTry(cwd, ["diff", "--name-only", "--diff-filter=A", from, snap])) ?? "").split("\n").filter(Boolean)) {
+  for (const rel of (
+    (await gitTry(cwd, [
+      "diff",
+      "--name-only",
+      "--diff-filter=A",
+      from,
+      snap,
+    ])) ?? ""
+  )
+    .split("\n")
+    .filter(Boolean)) {
     if (settled.includes(rel)) continue;
     if (!fs.existsSync(path.join(cwd, rel))) continue;
     settled.push(rel);
-    if ((await gitTry(cwd, ["hash-object", "--", rel])) !== (await gitTry(cwd, ["rev-parse", `${snap}:${rel}`]))) differing.push(rel);
+    if (
+      (await gitTry(cwd, ["hash-object", "--", rel])) !==
+      (await gitTry(cwd, ["rev-parse", `${snap}:${rel}`]))
+    )
+      differing.push(rel);
   }
   // Run only once the rest has landed, so a refusal still changes nothing.
   const mergeDiffering = async (): Promise<string[]> => {
     for (const rel of differing) {
-      const theirs = path.join(os.tmpdir(), `codecast-back-${process.pid}-${Date.now()}-theirs`);
+      const theirs = path.join(
+        os.tmpdir(),
+        `codecast-back-${process.pid}-${Date.now()}-theirs`,
+      );
       const empty = `${theirs}-base`;
-      fs.writeFileSync(theirs, (await execFileAsync("git", ["-C", cwd, "show", `${snap}:${rel}`], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 })).stdout as Buffer);
+      fs.writeFileSync(
+        theirs,
+        (
+          await execFileAsync("git", ["-C", cwd, "show", `${snap}:${rel}`], {
+            encoding: "buffer",
+            maxBuffer: 64 * 1024 * 1024,
+          })
+        ).stdout as Buffer,
+      );
       fs.writeFileSync(empty, "");
-      try { await execFileAsync("git", ["merge-file", "-L", "here", "-L", "empty", "-L", "host", path.join(cwd, rel), empty, theirs]); } catch { /* exit >0: conflicts written */ }
+      try {
+        await execFileAsync("git", [
+          "merge-file",
+          "-L",
+          "here",
+          "-L",
+          "empty",
+          "-L",
+          "host",
+          path.join(cwd, rel),
+          empty,
+          theirs,
+        ]);
+      } catch {
+        /* exit >0: conflicts written */
+      }
       fs.rmSync(theirs, { force: true });
       fs.rmSync(empty, { force: true });
     }
     return differing;
   };
-  const patch = await gitTry(cwd, ["diff", "--binary", "--full-index", from, snap, "--", ".", ...settled.map((rel) => `:(exclude,top,literal)${rel}`)]);
-  if (!patch) return { ok: true, base: from, branch, appliedWork: differing.length > 0, conflicts: await mergeDiffering() };
-  const file = path.join(os.tmpdir(), `codecast-back-${process.pid}-${Date.now()}.patch`);
+  const patch = await gitTry(cwd, [
+    "diff",
+    "--binary",
+    "--full-index",
+    from,
+    snap,
+    "--",
+    ".",
+    ...settled.map((rel) => `:(exclude,top,literal)${rel}`),
+  ]);
+  if (!patch)
+    return {
+      ok: true,
+      base: from,
+      branch,
+      appliedWork: differing.length > 0,
+      conflicts: await mergeDiffering(),
+    };
+  const file = path.join(
+    os.tmpdir(),
+    `codecast-back-${process.pid}-${Date.now()}.patch`,
+  );
   fs.writeFileSync(file, patch + "\n");
   try {
     if ((await gitTry(cwd, ["apply", "--whitespace=nowarn", file])) !== null) {
-      return { ok: true, base: from, branch, appliedWork: true, conflicts: await mergeDiffering() };
+      return {
+        ok: true,
+        base: from,
+        branch,
+        appliedWork: true,
+        conflicts: await mergeDiffering(),
+      };
     }
     // Overlaps with what changed here meanwhile: merge them. --3way works through
     // the index, so the touched paths are unstaged again afterwards.
-    const touched = ((await gitTry(cwd, ["diff", "--name-only", from, snap])) ?? "").split("\n").filter((rel) => rel && !settled.includes(rel));
+    const touched = (
+      (await gitTry(cwd, ["diff", "--name-only", from, snap])) ?? ""
+    )
+      .split("\n")
+      .filter((rel) => rel && !settled.includes(rel));
     // The index must hold what is on disk now for those paths, or --3way refuses them.
-    const tracked = new Set(((await gitTry(cwd, ["ls-files", "--", ...touched])) ?? "").split("\n").filter(Boolean));
-    const present = touched.filter((p) => tracked.has(p) || fs.existsSync(path.join(cwd, p)));
+    const tracked = new Set(
+      ((await gitTry(cwd, ["ls-files", "--", ...touched])) ?? "")
+        .split("\n")
+        .filter(Boolean),
+    );
+    const present = touched.filter(
+      (p) => tracked.has(p) || fs.existsSync(path.join(cwd, p)),
+    );
     if (present.length) await gitTry(cwd, ["add", "-A", "--", ...present]);
     let threeWay = true;
-    try { await git(cwd, ["apply", "--3way", "--whitespace=nowarn", file]); } catch { threeWay = false; }
-    const conflicts = ((await gitTry(cwd, ["diff", "--name-only", "--diff-filter=U"])) ?? "").split("\n").filter(Boolean);
+    try {
+      await git(cwd, ["apply", "--3way", "--whitespace=nowarn", file]);
+    } catch {
+      threeWay = false;
+    }
+    const conflicts = (
+      (await gitTry(cwd, ["diff", "--name-only", "--diff-filter=U"])) ?? ""
+    )
+      .split("\n")
+      .filter(Boolean);
     if (touched.length) await gitTry(cwd, ["reset", "-q", "--", ...touched]);
     if (!threeWay && conflicts.length === 0) {
-      return { ok: false, reason: "the host's changes do not apply to this folder as it is now; nothing was changed here" };
+      return {
+        ok: false,
+        reason:
+          "the host's changes do not apply to this folder as it is now; nothing was changed here",
+      };
     }
-    return { ok: true, base: from, branch, appliedWork: true, conflicts: [...(await mergeDiffering()), ...conflicts] };
+    return {
+      ok: true,
+      base: from,
+      branch,
+      appliedWork: true,
+      conflicts: [...(await mergeDiffering()), ...conflicts],
+    };
   } finally {
     fs.rmSync(file, { force: true });
   }

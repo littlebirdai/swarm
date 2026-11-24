@@ -2,7 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { clockOf, gapOf, stampOf, waitingOn } from "../StoryParts";
 import { localDay } from "../../../lib/changesDay";
 
-const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo - 1, d, h, mi).getTime();
+const at = (y: number, mo: number, d: number, h: number, mi: number) =>
+  new Date(y, mo - 1, d, h, mi).getTime();
 
 describe("gapOf", () => {
   it("reads minutes, hours and days", () => {
@@ -30,10 +31,25 @@ describe("waitingOn", () => {
     { surface: "release", at: 5000 },
   ] as any[];
   it("names the surfaces whose last ship came before the story landed", () => {
-    expect(waitingOn({ area: "convex", last_at: 2000, on_default_branch: true }, live).map((l) => l.surface)).toEqual(["backend"]);
-    expect(waitingOn({ area: "convex", last_at: 9000, on_default_branch: true }, live).map((l) => l.surface)).toEqual(["backend", "release"]);
+    expect(
+      waitingOn(
+        { area: "convex", last_at: 2000, on_default_branch: true },
+        live,
+      ).map((l) => l.surface),
+    ).toEqual(["backend"]);
+    expect(
+      waitingOn(
+        { area: "convex", last_at: 9000, on_default_branch: true },
+        live,
+      ).map((l) => l.surface),
+    ).toEqual(["backend", "release"]);
   });
   it("never holds a branch story against a deploy", () => {
-    expect(waitingOn({ area: "convex", last_at: 9000, on_default_branch: false }, live)).toEqual([]);
+    expect(
+      waitingOn(
+        { area: "convex", last_at: 9000, on_default_branch: false },
+        live,
+      ),
+    ).toEqual([]);
   });
 });

@@ -7,7 +7,12 @@
  * derived from film time changes.
  */
 
-import { createContext, useContext, useSyncExternalStore, type CSSProperties } from "react";
+import {
+  createContext,
+  useContext,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import { frame } from "./timeline";
 import { POSTER_T } from "./world";
 
@@ -17,7 +22,12 @@ import { POSTER_T } from "./world";
  * page reaches past the box), so a view asking whether its window is on
  * screen gets the visitor's answer, not the default desktop's.
  */
-export type FilmClock = { get(): number; set(t: number): void; subscribe(fn: () => void): () => void; view: { mobile: boolean; side?: number } };
+export type FilmClock = {
+  get(): number;
+  set(t: number): void;
+  subscribe(fn: () => void): () => void;
+  view: { mobile: boolean; side?: number };
+};
 
 export function createFilmClock(t0 = POSTER_T): FilmClock {
   let t = t0;

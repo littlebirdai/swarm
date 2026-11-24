@@ -68,7 +68,11 @@ export const ChatComposer = memo(function ChatComposer({
   /** Names the "Also send to #channel" checkbox — offered only in a thread
    *  (Slack's broadcast). Absent = no checkbox. */
   channelName?: string;
-  onSend: (content: string, attachments?: ChatAttachment[], opts?: { broadcast?: boolean; syncLocalOnly?: boolean }) => string | void;
+  onSend: (
+    content: string,
+    attachments?: ChatAttachment[],
+    opts?: { broadcast?: boolean; syncLocalOnly?: boolean },
+  ) => string | void;
   autoFocus?: boolean;
   /** The thread panel is narrower and sits under its own scroll region. */
   compact?: boolean;
@@ -100,27 +104,56 @@ export const ChatComposer = memo(function ChatComposer({
   // one person deciding that ONE line stays home. Resets after the send.
   const [localOnly, setLocalOnly] = useState(false);
   const [handTo, setHandTo] = useState(false);
-  const [handing, setHanding] = useState<{ clientId: string; message: Promise<string>; content: string } | null>(null);
+  const [handing, setHanding] = useState<{
+    clientId: string;
+    message: Promise<string>;
+    content: string;
+  } | null>(null);
   const threadHeld = useInboxStore((st) => {
-    const root = threadRootId ? (st.chatMessages[threadRootId] as { bound_session_id?: string; origin?: string; origin_session_id?: string } | undefined) : undefined;
+    const root = threadRootId
+      ? (st.chatMessages[threadRootId] as
+          | {
+              bound_session_id?: string;
+              origin?: string;
+              origin_session_id?: string;
+            }
+          | undefined)
+      : undefined;
     const bound = root?.bound_session_id;
-    return !!root && ((!!bound && (isConvexId(bound) || !!(st.sessions as Record<string, unknown>)[bound])) || (root.origin === "agent" && !!root.origin_session_id));
+    return (
+      !!root &&
+      ((!!bound &&
+        (isConvexId(bound) ||
+          !!(st.sessions as Record<string, unknown>)[bound])) ||
+        (root.origin === "agent" && !!root.origin_session_id))
+    );
   });
   const offerHand = !threadHeld;
   const slackLink = useChannelSlackLink(channelId);
   const s = useTrackedStore([(state) => state.currentUser?._id]);
-  const slack = slackComposerDelivery(slackLink, s.currentUser?._id, !!threadRootId);
+  const slack = slackComposerDelivery(
+    slackLink,
+    s.currentUser?._id,
+    !!threadRootId,
+  );
   const offerSlack = !!slack;
   const canSendSlack = slack?.auth === "ready";
   const onlyHere = localOnly || (offerSlack && !canSendSlack);
-  const slackConnect = useSlackConnect(slackLink?.team_id, `/chat/${channelId}${threadRootId ? `?m=${threadRootId}` : ""}`);
+  const slackConnect = useSlackConnect(
+    slackLink?.team_id,
+    `/chat/${channelId}${threadRootId ? `?m=${threadRootId}` : ""}`,
+  );
   // A DM Slack will not take replies in (Slackbot's) has nobody on this side
   // to talk to either, so the room only reads.
   if (slackLink?.kind === "dm" && slackLink.slack_read_only) {
     return (
-      <div className={`ch-guest-post${compact ? " ch-guest-post-compact" : ""}`}>
+      <div
+        className={`ch-guest-post${compact ? " ch-guest-post-compact" : ""}`}
+      >
         <SlackLogo className="w-3.5 h-3.5" muted />
-        <span className="ch-guest-post-text">Read only: Slack does not accept replies here</span>
+        <span className="ch-guest-post-text">
+          Read only: Slack does not accept replies here
+        </span>
       </div>
     );
   }
@@ -130,7 +163,15 @@ export const ChatComposer = memo(function ChatComposer({
       style={compact ? { margin: "0 12px 12px" } : undefined}
       onInput={typing.onTyping}
     >
-      {slack && <SlackConnectPrompt auth={slack.auth} busy={slackConnect.busy} started={slackConnect.started} error={slackConnect.error} onConnect={slackConnect.connect} />}
+      {slack && (
+        <SlackConnectPrompt
+          auth={slack.auth}
+          busy={slackConnect.busy}
+          started={slackConnect.started}
+          error={slackConnect.error}
+          onConnect={slackConnect.connect}
+        />
+      )}
       <MessageInput
         // Remount on a channel or thread switch so the box never carries the
         // previous room's draft into the new one.
@@ -169,63 +210,134 @@ export const ChatComposer = memo(function ChatComposer({
           setLocalOnly(false);
           setHandTo(false);
         }}
-        composerFoot={<>
-          <ComposerAttachButton dropRef={dropRef} />
-          {offerWalkie && (
-            <span className="walkie-seat">
-              <WalkiePttButton
-                roomKey={walkieRoomKey}
-                resolveChannelId={resolveChannelId}
-                size="sm"
-                icon={Headphones}
-                title="Talk to them — click again to stop"
-                ring={walkieRing ? { toUserIds: walkieRing } : undefined}
-              />
-            </span>
-          )}
-          <TypingIndicator members={typists} />
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" className="ch-composer-options" aria-label="Message options" title="Message options">
-                {offerSlack && <SlackLogo className="w-3 h-3" muted={!canSendSlack || localOnly} />}
-                {onlyHere && <span>Only in Codecast</span>}
-                {broadcast && <span>Also in #{channelName}</span>}
-                {handTo && offerHand && <span className="ch-composer-hand"><Bot className="w-3 h-3" />Agent</span>}
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="end" sideOffset={8} className="ch-composer-menu" aria-label="Message options">
-              {(offerHand || offerSlack || offerBroadcast) && <div className="ch-composer-delivery">
-                <span className="ch-composer-menu-heading">This message</span>
-                {offerSlack && (
-                  <label className="ch-composer-choice">
-                    <input type="checkbox" checked={canSendSlack && !localOnly} disabled={!canSendSlack} onChange={(e) => setLocalOnly(!e.target.checked)} />
-                    <SlackLogo className="w-3.5 h-3.5" muted={!canSendSlack || localOnly} />
-                    <span>Also send to {slack?.destination}</span>
-                  </label>
+        composerFoot={
+          <>
+            <ComposerAttachButton dropRef={dropRef} />
+            {offerWalkie && (
+              <span className="walkie-seat">
+                <WalkiePttButton
+                  roomKey={walkieRoomKey}
+                  resolveChannelId={resolveChannelId}
+                  size="sm"
+                  icon={Headphones}
+                  title="Talk to them — click again to stop"
+                  ring={walkieRing ? { toUserIds: walkieRing } : undefined}
+                />
+              </span>
+            )}
+            <TypingIndicator members={typists} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="ch-composer-options"
+                  aria-label="Message options"
+                  title="Message options"
+                >
+                  {offerSlack && (
+                    <SlackLogo
+                      className="w-3 h-3"
+                      muted={!canSendSlack || localOnly}
+                    />
+                  )}
+                  {onlyHere && <span>Only in Codecast</span>}
+                  {broadcast && <span>Also in #{channelName}</span>}
+                  {handTo && offerHand && (
+                    <span className="ch-composer-hand">
+                      <Bot className="w-3 h-3" />
+                      Agent
+                    </span>
+                  )}
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="end"
+                sideOffset={8}
+                className="ch-composer-menu"
+                aria-label="Message options"
+              >
+                {(offerHand || offerSlack || offerBroadcast) && (
+                  <div className="ch-composer-delivery">
+                    <span className="ch-composer-menu-heading">
+                      This message
+                    </span>
+                    {offerSlack && (
+                      <label className="ch-composer-choice">
+                        <input
+                          type="checkbox"
+                          checked={canSendSlack && !localOnly}
+                          disabled={!canSendSlack}
+                          onChange={(e) => setLocalOnly(!e.target.checked)}
+                        />
+                        <SlackLogo
+                          className="w-3.5 h-3.5"
+                          muted={!canSendSlack || localOnly}
+                        />
+                        <span>Also send to {slack?.destination}</span>
+                      </label>
+                    )}
+                    {offerBroadcast && (
+                      <label className="ch-composer-choice">
+                        <input
+                          type="checkbox"
+                          checked={broadcast}
+                          onChange={(e) => setBroadcast(e.target.checked)}
+                        />
+                        <span>Also send to #{channelName}</span>
+                      </label>
+                    )}
+                    {offerHand && (
+                      <label className="ch-composer-choice" data-hand-choice>
+                        <input
+                          type="checkbox"
+                          checked={handTo}
+                          onChange={(e) => setHandTo(e.target.checked)}
+                        />
+                        <Bot className="w-3.5 h-3.5" />
+                        <span>Hand to agent</span>
+                      </label>
+                    )}
+                  </div>
                 )}
-                {offerBroadcast && (
-                  <label className="ch-composer-choice">
-                    <input type="checkbox" checked={broadcast} onChange={(e) => setBroadcast(e.target.checked)} />
-                    <span>Also send to #{channelName}</span>
-                  </label>
-                )}
-                {offerHand && <label className="ch-composer-choice" data-hand-choice>
-                  <input type="checkbox" checked={handTo} onChange={(e) => setHandTo(e.target.checked)} />
-                  <Bot className="w-3.5 h-3.5" />
-                  <span>Hand to agent</span>
-                </label>}
-              </div>}
-              <div className="ch-composer-shortcuts">
-                <span className="ch-composer-menu-heading">Keyboard shortcuts</span>
-                <div><span>Send message</span><span><KeyCap size="xs">Enter</KeyCap></span></div>
-                <div><span>New line</span><span><KeyCap size="xs">Shift</KeyCap><KeyCap size="xs">Enter</KeyCap></span></div>
-                <div><span>Mention someone</span><span><KeyCap size="xs">@</KeyCap></span></div>
-                {offerWalkie && <div><span>Toggle voice</span><MenuKeyCaps action="chat.pushToTalk" className="inline-flex items-center gap-[2px]" /></div>}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </>}
+                <div className="ch-composer-shortcuts">
+                  <span className="ch-composer-menu-heading">
+                    Keyboard shortcuts
+                  </span>
+                  <div>
+                    <span>Send message</span>
+                    <span>
+                      <KeyCap size="xs">Enter</KeyCap>
+                    </span>
+                  </div>
+                  <div>
+                    <span>New line</span>
+                    <span>
+                      <KeyCap size="xs">Shift</KeyCap>
+                      <KeyCap size="xs">Enter</KeyCap>
+                    </span>
+                  </div>
+                  <div>
+                    <span>Mention someone</span>
+                    <span>
+                      <KeyCap size="xs">@</KeyCap>
+                    </span>
+                  </div>
+                  {offerWalkie && (
+                    <div>
+                      <span>Toggle voice</span>
+                      <MenuKeyCaps
+                        action="chat.pushToTalk"
+                        className="inline-flex items-center gap-[2px]"
+                      />
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </>
+        }
       />
       {handing && (
         <HandToAgentReview

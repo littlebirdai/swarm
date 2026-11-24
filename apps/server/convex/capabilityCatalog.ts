@@ -19,7 +19,14 @@ import {
   MAX_PATH_CHARS,
   capDb,
 } from "./capabilitiesSchema";
-import { sanitizeReported, canonicalHash, text, identityText, isRecord, SWEEP_BATCH } from "./capabilityState";
+import {
+  sanitizeReported,
+  canonicalHash,
+  text,
+  identityText,
+  isRecord,
+  SWEEP_BATCH,
+} from "./capabilityState";
 
 /**
  * Which slug prefix each source owns — the shared contract's own table.
@@ -108,8 +115,16 @@ export const upsertCatalogEntries = internalMutation({
       // same card writes nothing. Without it a refresh cron rewrites the whole
       // catalog on every run and invalidates every browse subscription with it.
       row.entry_hash = canonicalHash([
-        row.slug, row.source, row.origin, row.kind, row.name,
-        row.description, row.publisher, row.repo, row.homepage, row.entry_json,
+        row.slug,
+        row.source,
+        row.origin,
+        row.kind,
+        row.name,
+        row.description,
+        row.publisher,
+        row.repo,
+        row.homepage,
+        row.entry_json,
       ]);
 
       const existing = await db
@@ -198,7 +213,9 @@ export const webCatalogList = query({
     // Kind filters after the page, not inside the index: the catalogs in play are
     // hundreds of rows, and an index per filter combination costs a write on
     // every ingest to save nothing measurable.
-    const rows = args.kind ? result.page.filter((r) => r.kind === args.kind) : result.page;
+    const rows = args.kind
+      ? result.page.filter((r) => r.kind === args.kind)
+      : result.page;
 
     return {
       page: rows.map((row) => {
@@ -305,7 +322,9 @@ const MAX_REGISTRY_PAGES = 10;
  */
 export const refreshMcpRegistry = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ upserted: number; pages: number; error?: string }> => {
+  handler: async (
+    ctx,
+  ): Promise<{ upserted: number; pages: number; error?: string }> => {
     let cursor: string | undefined;
     let pages = 0;
     let upserted = 0;
@@ -319,11 +338,18 @@ export const refreshMcpRegistry = internalAction({
 
       let raw: unknown;
       try {
-        const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15_000) });
-        if (!res.ok) return { upserted, pages, error: `registry answered ${res.status}` };
+        const res = await fetch(url.toString(), {
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok)
+          return { upserted, pages, error: `registry answered ${res.status}` };
         raw = await res.json();
       } catch (err) {
-        return { upserted, pages, error: `registry unreachable: ${String(err).slice(0, 120)}` };
+        return {
+          upserted,
+          pages,
+          error: `registry unreachable: ${String(err).slice(0, 120)}`,
+        };
       }
 
       const page = parseRegistryPage(raw);
@@ -333,7 +359,11 @@ export const refreshMcpRegistry = internalAction({
           seen.add(s.name);
           const surface = describeServerSurface(s);
           return {
-            slug: formatCapabilitySlug({ source: "mcp_registry", segments: s.name.split("/") }) ?? `mcp/${s.name}`,
+            slug:
+              formatCapabilitySlug({
+                source: "mcp_registry",
+                segments: s.name.split("/"),
+              }) ?? `mcp/${s.name}`,
             kind: "mcp",
             name: s.name,
             description: s.description,
@@ -344,7 +374,10 @@ export const refreshMcpRegistry = internalAction({
               version: s.version,
               status: s.status,
               surface,
-              packages: (s.packages ?? []).map((p) => ({ registry: p.registryType, id: p.identifier })),
+              packages: (s.packages ?? []).map((p) => ({
+                registry: p.registryType,
+                id: p.identifier,
+              })),
               remotes: s.remotes.map((r) => ({ type: r.type, url: r.url })),
             },
           };

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { adoptConversationForResume, describeResumeOwnership } from "./resumeOwnership.js";
+import {
+  adoptConversationForResume,
+  describeResumeOwnership,
+} from "./resumeOwnership.js";
 
 const HERE = "c5900012aaaaaaaa";
 const LAPTOP = "4e2cfe0d258fb56c";
@@ -28,7 +31,9 @@ describe("adoptConversationForResume", () => {
     const result = await adoptConversationForResume(d.deps, "/Users/a/.claude");
     expect(result).toEqual({ kind: "adopted", from: LAPTOP });
     expect(d.moves).toEqual(["/Users/a/.claude"]);
-    expect(describeResumeOwnership(result, "jx7a66w")).toContain("messages sent from codecast now come here");
+    expect(describeResumeOwnership(result, "jx7a66w")).toContain(
+      "messages sent from codecast now come here",
+    );
   });
 
   it("leaves a session this machine already owns alone", async () => {
@@ -48,7 +53,12 @@ describe("adoptConversationForResume", () => {
   });
 
   it("reports a refused move with the server's reason and the way to move it by hand", async () => {
-    const d = deps(LAPTOP, new Error("[Request ID: abc] Server Error\nUncaught Error: not your conversation\n    at handler (devices.ts:1:1)"));
+    const d = deps(
+      LAPTOP,
+      new Error(
+        "[Request ID: abc] Server Error\nUncaught Error: not your conversation\n    at handler (devices.ts:1:1)",
+      ),
+    );
     const result = await adoptConversationForResume(d.deps, "/p");
     expect(result).toEqual({ kind: "failed", error: "not your conversation" });
     const line = describeResumeOwnership(result, "jx7a66w")!;

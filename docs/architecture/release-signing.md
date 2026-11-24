@@ -38,7 +38,11 @@ The publisher signs the exact bytes of `latest.json` with an Ed25519 key and
 uploads the detached signature as `latest.json.sig`:
 
 ```json
-{ "signatures": [ { "keyId": "cli-release-2026", "alg": "ed25519", "sig": "<base64>" } ] }
+{
+  "signatures": [
+    { "keyId": "cli-release-2026", "alg": "ed25519", "sig": "<base64>" }
+  ]
+}
 ```
 
 The client pins public keys by key id in `RELEASE_MANIFEST_SIGNING`
@@ -48,11 +52,11 @@ The client pins public keys by key id in `RELEASE_MANIFEST_SIGNING`
 
 Policy, per client build:
 
-| policy | no `.sig` | signed by a pinned key | pinned key, bad signature | signed only by unknown keys |
-|---|---|---|---|---|
-| no keys pinned | accept, no request made | n/a | n/a | n/a |
-| keys pinned, `required: false` | accept | accept, verified | refuse | accept |
-| keys pinned, `required: true` (current) | refuse | accept, verified | refuse | refuse |
+| policy                                  | no `.sig`               | signed by a pinned key | pinned key, bad signature | signed only by unknown keys |
+| --------------------------------------- | ----------------------- | ---------------------- | ------------------------- | --------------------------- |
+| no keys pinned                          | accept, no request made | n/a                    | n/a                       | n/a                         |
+| keys pinned, `required: false`          | accept                  | accept, verified       | refuse                    | accept                      |
+| keys pinned, `required: true` (current) | refuse                  | accept, verified       | refuse                    | refuse                      |
 
 A bad signature by a pinned key is refused under every policy: it is evidence
 the manifest changed after signing, never "unsigned".

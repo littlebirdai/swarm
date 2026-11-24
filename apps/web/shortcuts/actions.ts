@@ -1,7 +1,7 @@
 "use client";
 
 import { toggleAppAddressBar } from "../lib/appAddress";
-import { startTour } from '../tours/engine';
+import { startTour } from "../tours/engine";
 import { toast } from "sonner";
 import { isForeignSession } from "../lib/liveEntities";
 import { resolvePaletteTarget } from "../lib/paletteTarget";
@@ -11,7 +11,12 @@ import { useOpenSession } from "../hooks/useOpenSession";
 import { goBackInTrail } from "../hooks/useNavTrail";
 import { isModernStyle } from "../lib/visualStyle";
 import { usePathname, useRouter } from "next/navigation";
-import { useInboxStore, selectCommentRailOpen, selectNavCollapsed, type InboxWalk } from "../store/inboxStore";
+import {
+  useInboxStore,
+  selectCommentRailOpen,
+  selectNavCollapsed,
+  type InboxWalk,
+} from "../store/inboxStore";
 import { useInboxSelection } from "../lib/inboxSelection";
 import { isInboxRoute, isInboxSessionView } from "../lib/inboxRouting";
 import { overlayConversationId } from "../store/workspace";
@@ -45,14 +50,20 @@ import { switchToWorkbench, sortedWorkbenches } from "../lib/workbenchSwitch";
 export function focusedActionSessionId(
   store: Pick<
     ReturnType<typeof useInboxStore.getState>,
-    "currentSessionId" | "viewingDismissedId" | "heldViewId" | "sidePanelSessionId" | "workspace"
+    | "currentSessionId"
+    | "viewingDismissedId"
+    | "heldViewId"
+    | "sidePanelSessionId"
+    | "workspace"
   >,
   isOnInboxPage: boolean,
 ): string | null | undefined {
-  return overlayConversationId(store.workspace)
-    ?? (isOnInboxPage
+  return (
+    overlayConversationId(store.workspace) ??
+    (isOnInboxPage
       ? (store.heldViewId ?? store.viewingDismissedId ?? store.currentSessionId)
-      : store.sidePanelSessionId);
+      : store.sidePanelSessionId)
+  );
 }
 
 export function useGlobalShortcutActions() {
@@ -62,271 +73,468 @@ export function useGlobalShortcutActions() {
   const isOnInboxPage = isInboxSessionView(pathname, inboxSource);
   const openSession = useOpenSession();
 
-  useShortcutAction('palette.toggle', useCallback(() => {
-    const state = useInboxStore.getState();
-    if (state.palette.open) {
-      state.closePalette();
-      return;
-    }
-    // A ticked multi-selection (lib/inboxSelection) is the target when there
-    // is one, ahead of the conversation open beside it: the bar says "N
-    // selected", so every verb acts on all of it.
-    const picked = useInboxSelection.getState().ids
-      .map((id) => state.sessions[id] ?? state.conversations[id])
-      .filter(Boolean);
-    if (picked.length > 1) {
-      state.openPalette({ targets: picked, targetType: 'session' });
-      return;
-    }
-    const target = resolvePaletteTarget(state, pathname);
-    if (target) { state.openPalette(target); return; }
-    if (isInboxRoute(pathname)) {
-      const focusedId = focusedActionSessionId(state, true);
-      const session = focusedId ? state.sessions[focusedId] ?? state.conversations[focusedId] : null;
-      if (session) {
-        state.openPalette({ targets: [session], targetType: 'session' });
+  useShortcutAction(
+    "palette.toggle",
+    useCallback(() => {
+      const state = useInboxStore.getState();
+      if (state.palette.open) {
+        state.closePalette();
         return;
       }
-    }
-    if (pathname === '/tasks' || pathname === '/docs') return false;
-    state.togglePalette();
-  }, [pathname]));
+      // A ticked multi-selection (lib/inboxSelection) is the target when there
+      // is one, ahead of the conversation open beside it: the bar says "N
+      // selected", so every verb acts on all of it.
+      const picked = useInboxSelection
+        .getState()
+        .ids.map((id) => state.sessions[id] ?? state.conversations[id])
+        .filter(Boolean);
+      if (picked.length > 1) {
+        state.openPalette({ targets: picked, targetType: "session" });
+        return;
+      }
+      const target = resolvePaletteTarget(state, pathname);
+      if (target) {
+        state.openPalette(target);
+        return;
+      }
+      if (isInboxRoute(pathname)) {
+        const focusedId = focusedActionSessionId(state, true);
+        const session = focusedId
+          ? (state.sessions[focusedId] ?? state.conversations[focusedId])
+          : null;
+        if (session) {
+          state.openPalette({ targets: [session], targetType: "session" });
+          return;
+        }
+      }
+      if (pathname === "/tasks" || pathname === "/docs") return false;
+      state.togglePalette();
+    }, [pathname]),
+  );
 
-  useShortcutAction('session.next', useCallback(() => {
-    const store = useInboxStore.getState();
-    if (isOnInboxPage) {
-      store.navigateDown();
-    } else {
-      const ordered = store.visualOrder();
-      if (ordered.length === 0) return;
-      const idx = ordered.findIndex(s => s._id === store.sidePanelSessionId);
-      const newIdx = Math.min(idx + 1, ordered.length - 1);
-      if (newIdx === idx) return;
-      store.selectPanelSession(ordered[newIdx]._id);
-    }
-  }, [isOnInboxPage]));
+  useShortcutAction(
+    "session.next",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      if (isOnInboxPage) {
+        store.navigateDown();
+      } else {
+        const ordered = store.visualOrder();
+        if (ordered.length === 0) return;
+        const idx = ordered.findIndex(
+          (s) => s._id === store.sidePanelSessionId,
+        );
+        const newIdx = Math.min(idx + 1, ordered.length - 1);
+        if (newIdx === idx) return;
+        store.selectPanelSession(ordered[newIdx]._id);
+      }
+    }, [isOnInboxPage]),
+  );
 
-  useShortcutAction('session.prev', useCallback(() => {
-    const store = useInboxStore.getState();
-    if (isOnInboxPage) {
-      store.navigateUp();
-    } else {
-      const ordered = store.visualOrder();
-      if (ordered.length === 0) return;
-      const idx = ordered.findIndex(s => s._id === store.sidePanelSessionId);
-      const newIdx = Math.max(idx - 1, 0);
-      if (newIdx === idx) return;
-      store.selectPanelSession(ordered[newIdx]._id);
-    }
-  }, [isOnInboxPage]));
+  useShortcutAction(
+    "session.prev",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      if (isOnInboxPage) {
+        store.navigateUp();
+      } else {
+        const ordered = store.visualOrder();
+        if (ordered.length === 0) return;
+        const idx = ordered.findIndex(
+          (s) => s._id === store.sidePanelSessionId,
+        );
+        const newIdx = Math.max(idx - 1, 0);
+        if (newIdx === idx) return;
+        store.selectPanelSession(ordered[newIdx]._id);
+      }
+    }, [isOnInboxPage]),
+  );
 
   // Jump to the first visible card of one inbox section, in render order
   // (walkOrder): the store hands back exactly the cards the panel files there,
   // whatever view mode or old-session toggle is up. Ctrl+I is NEEDS YOU, then
   // DONE when nothing needs you; it never lands on a decision, which has its
   // own key.
-  const jumpTo = useCallback((...walks: InboxWalk[]) => {
-    const store = useInboxStore.getState();
-    for (const walk of walks) {
-      const first = store.walkOrder(walk)[0];
-      if (first) return openSession(first._id);
-    }
-  }, [openSession]);
-  useShortcutAction('session.jumpIdle', useCallback(() => jumpTo("needsYou", "done"), [jumpTo]));
-  useShortcutAction('session.jumpDecision', useCallback(() => jumpTo("decisions"), [jumpTo]));
-  useShortcutAction('session.jumpDone', useCallback(() => jumpTo("done"), [jumpTo]));
+  const jumpTo = useCallback(
+    (...walks: InboxWalk[]) => {
+      const store = useInboxStore.getState();
+      for (const walk of walks) {
+        const first = store.walkOrder(walk)[0];
+        if (first) return openSession(first._id);
+      }
+    },
+    [openSession],
+  );
+  useShortcutAction(
+    "session.jumpIdle",
+    useCallback(() => jumpTo("needsYou", "done"), [jumpTo]),
+  );
+  useShortcutAction(
+    "session.jumpDecision",
+    useCallback(() => jumpTo("decisions"), [jumpTo]),
+  );
+  useShortcutAction(
+    "session.jumpDone",
+    useCallback(() => jumpTo("done"), [jumpTo]),
+  );
 
   // The session whose prompt has waited longest, among the cards the panel
   // shows as waiting on you.
-  useShortcutAction('permission.jumpOldest', useCallback(() => {
-    const store = useInboxStore.getState();
-    const oldest = oldestBlocked(store.walkOrder("yourMove"));
-    if (oldest) openSession(oldest._id);
-  }, [openSession]));
+  useShortcutAction(
+    "permission.jumpOldest",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      const oldest = oldestBlocked(store.walkOrder("yourMove"));
+      if (oldest) openSession(oldest._id);
+    }, [openSession]),
+  );
 
-  useShortcutAction('session.jumpPinned', useCallback(() => {
-    const store = useInboxStore.getState();
-    const first = store.visualOrder().find(s => s.is_pinned);
-    if (first) openSession(first._id);
-  }, [openSession]));
+  useShortcutAction(
+    "session.jumpPinned",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      const first = store.visualOrder().find((s) => s.is_pinned);
+      if (first) openSession(first._id);
+    }, [openSession]),
+  );
 
   // The people wall, over whatever you were doing. Never in the people window
   // itself: the wall is already that window's whole view, and a modal wall over
   // it would be the same faces twice.
-  useShortcutAction('people.wall', useCallback(() => {
-    if (isPeopleWindow()) return;
-    useInboxStore.getState().togglePeopleWall();
-  }, []));
+  useShortcutAction(
+    "people.wall",
+    useCallback(() => {
+      if (isPeopleWindow()) return;
+      useInboxStore.getState().togglePeopleWall();
+    }, []),
+  );
 
   // The verb bodies live in components/triage/useTriageActions — ONE
   // implementation shared with the triage bar's buttons, so a chord and its
   // button can never diverge (advance order, drill-in close, milestones).
   const triage = useTriageActions(isOnInboxPage);
-  const focusedId = useCallback(() =>
-    focusedActionSessionId(useInboxStore.getState(), isOnInboxPage), [isOnInboxPage]);
+  const focusedId = useCallback(
+    () => focusedActionSessionId(useInboxStore.getState(), isOnInboxPage),
+    [isOnInboxPage],
+  );
 
-  useShortcutAction('session.pin', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.pin(currentId);
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.pin",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.pin(currentId);
+    }, [focusedId, triage]),
+  );
 
   // Leave the focused row lit. Deliberately NOT a triage verb: it moves
   // nothing and advances nothing — the session stays where it is, wearing the
   // dot, until the next visit acknowledges it.
-  useShortcutAction('session.markUnread', useCallback(() => {
-    const currentId = focusedId();
-    if (!currentId) return;
-    useInboxStore.getState().markSessionUnread(currentId);
-    toast.success("Marked unread");
-  }, [focusedId]));
+  useShortcutAction(
+    "session.markUnread",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (!currentId) return;
+      useInboxStore.getState().markSessionUnread(currentId);
+      toast.success("Marked unread");
+    }, [focusedId]),
+  );
 
-  useShortcutAction('session.stash', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.hide(currentId, "stash", "key");
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.stash",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.hide(currentId, "stash", "key");
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('session.stashHide', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.hide(currentId, "stash", "key", { hidden: true });
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.stashHide",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.hide(currentId, "stash", "key", { hidden: true });
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('session.close', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.hide(currentId, "close", "key");
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.close",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.hide(currentId, "close", "key");
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('session.deferAdvance', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.park(currentId, "defer", "key");
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.deferAdvance",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.park(currentId, "defer", "key");
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('session.dormantAdvance', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.park(currentId, "dormant", "key");
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.dormantAdvance",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.park(currentId, "dormant", "key");
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('session.snooze', useCallback(() => {
-    const state = useInboxStore.getState();
-    const target = resolvePaletteTarget(state, pathname);
-    const id = focusedId();
-    const session = target?.targetType === 'session' ? target.targets[0] : id ? state.sessions[id] ?? state.conversations[id] : null;
-    if (session && !session.inbox_killed_at && state.currentUser && !isForeignSession(session, session, state.currentUser._id.toString())) {
-      state.openPalette({ targets: [session], targetType: 'session', mode: 'snooze' });
-    }
-  }, [focusedId, pathname]));
+  useShortcutAction(
+    "session.snooze",
+    useCallback(() => {
+      const state = useInboxStore.getState();
+      const target = resolvePaletteTarget(state, pathname);
+      const id = focusedId();
+      const session =
+        target?.targetType === "session"
+          ? target.targets[0]
+          : id
+            ? (state.sessions[id] ?? state.conversations[id])
+            : null;
+      if (
+        session &&
+        !session.inbox_killed_at &&
+        state.currentUser &&
+        !isForeignSession(session, session, state.currentUser._id.toString())
+      ) {
+        state.openPalette({
+          targets: [session],
+          targetType: "session",
+          mode: "snooze",
+        });
+      }
+    }, [focusedId, pathname]),
+  );
 
-  useShortcutAction('session.rename', useCallback(() => {
-    const store = useInboxStore.getState();
-    const currentId = focusedActionSessionId(store, isOnInboxPage);
-    const session = currentId ? store.sessions[currentId] ?? store.conversations[currentId] : null;
-    if (session) store.openSessionRename(session);
-  }, [isOnInboxPage]));
+  useShortcutAction(
+    "session.rename",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      const currentId = focusedActionSessionId(store, isOnInboxPage);
+      const session = currentId
+        ? (store.sessions[currentId] ?? store.conversations[currentId])
+        : null;
+      if (session) store.openSessionRename(session);
+    }, [isOnInboxPage]),
+  );
 
-  useShortcutAction('session.moveToBucket', useCallback(() => {
-    const currentId = focusedId();
-    if (currentId) triage.label(currentId);
-  }, [focusedId, triage]));
+  useShortcutAction(
+    "session.moveToBucket",
+    useCallback(() => {
+      const currentId = focusedId();
+      if (currentId) triage.label(currentId);
+    }, [focusedId, triage]),
+  );
 
-  useShortcutAction('view.switch', useCallback(() => {
-    // Straight into the palette's label/project view submenu (no targets —
-    // the filter is global panel state, not a per-session action).
-    useInboxStore.getState().openPalette({ mode: 'view' });
-  }, []));
+  useShortcutAction(
+    "view.switch",
+    useCallback(() => {
+      // Straight into the palette's label/project view submenu (no targets —
+      // the filter is global panel state, not a per-session action).
+      useInboxStore.getState().openPalette({ mode: "view" });
+    }, []),
+  );
 
-  useShortcutAction('ui.toggleShortcutsHelp', useCallback(() => {
-    useInboxStore.getState().toggleShortcutsPanel();
-  }, []));
+  useShortcutAction(
+    "ui.toggleShortcutsHelp",
+    useCallback(() => {
+      useInboxStore.getState().toggleShortcutsPanel();
+    }, []),
+  );
 
-  useShortcutAction('ui.openTours', useCallback(() => {
-    const s = useInboxStore.getState();
-    s.setToursPanelOpen(!s.toursPanelOpen);
-  }, []));
+  useShortcutAction(
+    "ui.openTours",
+    useCallback(() => {
+      const s = useInboxStore.getState();
+      s.setToursPanelOpen(!s.toursPanelOpen);
+    }, []),
+  );
 
   // The feature guides (tours/guides), on or off: they are how a team decides.
-  useShortcutAction('ui.guideOrg', useCallback(() => { startTour('org-guide', { replay: true }); }, []));
-  useShortcutAction('ui.guideFlows', useCallback(() => { startTour('flows-guide', { replay: true }); }, []));
+  useShortcutAction(
+    "ui.guideOrg",
+    useCallback(() => {
+      startTour("org-guide", { replay: true });
+    }, []),
+  );
+  useShortcutAction(
+    "ui.guideFlows",
+    useCallback(() => {
+      startTour("flows-guide", { replay: true });
+    }, []),
+  );
 
-  useShortcutAction('ui.openSettings', useCallback(() => {
-    const s = useInboxStore.getState();
-    if (s.settingsModalSection) s.closeSettingsModal();
-    else s.openSettingsModal();
-  }, []));
+  useShortcutAction(
+    "ui.openSettings",
+    useCallback(() => {
+      const s = useInboxStore.getState();
+      if (s.settingsModalSection) s.closeSettingsModal();
+      else s.openSettingsModal();
+    }, []),
+  );
 
-  useShortcutAction('ui.zenToggle', useCallback(() => {
-    const store = useInboxStore.getState();
-    const zen = store.clientState.ui?.zen_mode ?? false;
-    if (!zen) checkMilestone('m-first-zen');
-    store.setZenNavOpen(false);
-    store.updateClientUI({ zen_mode: !zen });
-  }, []));
+  useShortcutAction(
+    "ui.zenToggle",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      const zen = store.clientState.ui?.zen_mode ?? false;
+      if (!zen) checkMilestone("m-first-zen");
+      store.setZenNavOpen(false);
+      store.updateClientUI({ zen_mode: !zen });
+    }, []),
+  );
 
-  useShortcutAction('inbox.toggleFlatView', useCallback(() => {
-    useInboxStore.getState().cycleInboxViewMode();
-  }, []));
+  useShortcutAction(
+    "inbox.toggleFlatView",
+    useCallback(() => {
+      useInboxStore.getState().cycleInboxViewMode();
+    }, []),
+  );
 
   // No chord: the bar hides from its own menu, and the palette is the way
   // back — a hidden bar is not something to toggle by reflex.
-  useShortcutAction('inbox.toggleTriageBar', useCallback(() => {
-    toggleTriageBarCompact();
-  }, []));
+  useShortcutAction(
+    "inbox.toggleTriageBar",
+    useCallback(() => {
+      toggleTriageBarCompact();
+    }, []),
+  );
 
-  useShortcutAction('nav.inbox', useCallback(() => {
-    router.push("/inbox");
-  }, [router]));
+  useShortcutAction(
+    "nav.inbox",
+    useCallback(() => {
+      router.push("/inbox");
+    }, [router]),
+  );
 
-  useShortcutAction('nav.ops', useCallback(() => { router.push("/ops"); }, [router]));
-  useShortcutAction('ui.addressBar', useCallback(() => { toggleAppAddressBar(); }, []));
+  useShortcutAction(
+    "nav.ops",
+    useCallback(() => {
+      router.push("/ops");
+    }, [router]),
+  );
+  useShortcutAction(
+    "ui.addressBar",
+    useCallback(() => {
+      toggleAppAddressBar();
+    }, []),
+  );
   // Modern's Back walks the tab's trail, as the back control in every header does.
-  useShortcutAction('nav.back', useCallback(() => { if (isModernStyle()) goBackInTrail((p) => router.push(p)); else window.history.back(); }, [router]));
-  useShortcutAction('nav.forward', useCallback(() => { window.history.forward(); }, []));
+  useShortcutAction(
+    "nav.back",
+    useCallback(() => {
+      if (isModernStyle()) goBackInTrail((p) => router.push(p));
+      else window.history.back();
+    }, [router]),
+  );
+  useShortcutAction(
+    "nav.forward",
+    useCallback(() => {
+      window.history.forward();
+    }, []),
+  );
 
-  useShortcutAction('compose.focus', useCallback(() => { focusComposer(); }, []));
-  useShortcutAction('task.create', useCallback(() => { useInboxStore.getState().openCreateModal("task"); }, []));
+  useShortcutAction(
+    "compose.focus",
+    useCallback(() => {
+      focusComposer();
+    }, []),
+  );
+  useShortcutAction(
+    "task.create",
+    useCallback(() => {
+      useInboxStore.getState().openCreateModal("task");
+    }, []),
+  );
 
-  useShortcutAction('sidebar.toggleLeft', useCallback(() => {
-    const store = useInboxStore.getState();
-    if (store.clientState.ui?.zen_mode) store.setZenNavOpen(!store.zenNavOpen);
-    else store.setNavCollapsed(!selectNavCollapsed(store));
-  }, []));
+  useShortcutAction(
+    "sidebar.toggleLeft",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      if (store.clientState.ui?.zen_mode)
+        store.setZenNavOpen(!store.zenNavOpen);
+      else store.setNavCollapsed(!selectNavCollapsed(store));
+    }, []),
+  );
 
-  useShortcutAction('sidebar.toggleRight', useCallback(() => {
-    useInboxStore.getState().toggleSidePanel();
-  }, []));
+  useShortcutAction(
+    "sidebar.toggleRight",
+    useCallback(() => {
+      useInboxStore.getState().toggleSidePanel();
+    }, []),
+  );
 
+  useShortcutAction(
+    "sidebar.toggleComments",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      store.setCommentRailOpen(!selectCommentRailOpen(store));
+    }, []),
+  );
 
-  useShortcutAction('sidebar.toggleComments', useCallback(() => {
-    const store = useInboxStore.getState();
-    store.setCommentRailOpen(!selectCommentRailOpen(store));
-  }, []));
+  useShortcutAction(
+    "terminal.toggle",
+    useCallback(() => {
+      const store = useInboxStore.getState();
+      store.setDockOpen(store.workspace.dock.pane == null);
+    }, []),
+  );
 
-  useShortcutAction('terminal.toggle', useCallback(() => {
-    const store = useInboxStore.getState();
-    store.setDockOpen(store.workspace.dock.pane == null);
-  }, []));
-
-  useShortcutAction('anchor.toggle', useCallback(() => {
-    useInboxStore.getState().toggleAnchorPanel();
-  }, []));
+  useShortcutAction(
+    "anchor.toggle",
+    useCallback(() => {
+      useInboxStore.getState().toggleAnchorPanel();
+    }, []),
+  );
 
   // ⌥1–⌥9: the first nine saved workbenches, in the rail's own order — the
   // hint printed on a row is the key that switches to it. No saved layouts,
   // no keys: the chords cost nothing until you save one.
-  const switchWorkbench = useCallback((i: number) => {
-    const store = useInboxStore.getState();
-    const v = sortedWorkbenches(store)[i];
-    if (v) switchToWorkbench(v.prefs as any, router, pathname, v._id);
-  }, [router, pathname]);
-  useShortcutAction('workbench.1', useCallback(() => switchWorkbench(0), [switchWorkbench]));
-  useShortcutAction('workbench.2', useCallback(() => switchWorkbench(1), [switchWorkbench]));
-  useShortcutAction('workbench.3', useCallback(() => switchWorkbench(2), [switchWorkbench]));
-  useShortcutAction('workbench.4', useCallback(() => switchWorkbench(3), [switchWorkbench]));
-  useShortcutAction('workbench.5', useCallback(() => switchWorkbench(4), [switchWorkbench]));
-  useShortcutAction('workbench.6', useCallback(() => switchWorkbench(5), [switchWorkbench]));
-  useShortcutAction('workbench.7', useCallback(() => switchWorkbench(6), [switchWorkbench]));
-  useShortcutAction('workbench.8', useCallback(() => switchWorkbench(7), [switchWorkbench]));
-  useShortcutAction('workbench.9', useCallback(() => switchWorkbench(8), [switchWorkbench]));
+  const switchWorkbench = useCallback(
+    (i: number) => {
+      const store = useInboxStore.getState();
+      const v = sortedWorkbenches(store)[i];
+      if (v) switchToWorkbench(v.prefs as any, router, pathname, v._id);
+    },
+    [router, pathname],
+  );
+  useShortcutAction(
+    "workbench.1",
+    useCallback(() => switchWorkbench(0), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.2",
+    useCallback(() => switchWorkbench(1), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.3",
+    useCallback(() => switchWorkbench(2), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.4",
+    useCallback(() => switchWorkbench(3), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.5",
+    useCallback(() => switchWorkbench(4), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.6",
+    useCallback(() => switchWorkbench(5), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.7",
+    useCallback(() => switchWorkbench(6), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.8",
+    useCallback(() => switchWorkbench(7), [switchWorkbench]),
+  );
+  useShortcutAction(
+    "workbench.9",
+    useCallback(() => switchWorkbench(8), [switchWorkbench]),
+  );
 
   // ui.undo, ui.redo and ui.undoHistory, plus the held-modifier peek of the timeline.
   useUndoWalk();
-
 }

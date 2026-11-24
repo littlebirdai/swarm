@@ -54,7 +54,10 @@ const HOST_FED: readonly SettingsDataName[] = [
 ];
 const HOST_FED_SET = new Set<SettingsDataName>(HOST_FED);
 
-function useSettingsFeed(name: SettingsDataName, requestedTeamId?: string | null) {
+function useSettingsFeed(
+  name: SettingsDataName,
+  requestedTeamId?: string | null,
+) {
   const userId = useInboxStore((s) => s.currentUser?._id);
   const activeTeamId = useInboxStore((s) => s.clientState.ui?.active_team_id);
   const teamId = requestedTeamId === undefined ? activeTeamId : requestedTeamId;
@@ -62,20 +65,31 @@ function useSettingsFeed(name: SettingsDataName, requestedTeamId?: string | null
   const key = settingsDataKey(name, userId, teamId);
   const teamQuery = TEAM_SCOPED_SETTINGS.has(name);
   const hostFeedsIt = HOST_FED_SET.has(name) && requestedTeamId === undefined;
-  const args = !key || (!isHost && hostFeedsIt) || (teamQuery && !isConvexId(String(teamId)))
-    ? "skip"
-    : teamQuery ? { team_id: teamId }
-      : name === "syncProjects" ? { limit: 100 } : {};
+  const args =
+    !key ||
+    (!isHost && hostFeedsIt) ||
+    (teamQuery && !isConvexId(String(teamId)))
+      ? "skip"
+      : teamQuery
+        ? { team_id: teamId }
+        : name === "syncProjects"
+          ? { limit: 100 }
+          : {};
   const select = useCallback((value: unknown) => [{ _id: key, value }], [key]);
-  const result = useSyncCollection("settingsData", queries[name], args as any, { select });
+  const result = useSyncCollection("settingsData", queries[name], args as any, {
+    select,
+  });
   return { key, error: result.error };
 }
 
-export function useSettingsData<Name extends SettingsDataName>(name: Name, teamId?: string | null) {
+export function useSettingsData<Name extends SettingsDataName>(
+  name: Name,
+  teamId?: string | null,
+) {
   const { key, error } = useSettingsFeed(name, teamId);
-  const data = useInboxStore((s) => key ? s.settingsData[key]?.value : undefined) as
-    | FunctionReturnType<(typeof queries)[Name]>
-    | undefined;
+  const data = useInboxStore((s) =>
+    key ? s.settingsData[key]?.value : undefined,
+  ) as FunctionReturnType<(typeof queries)[Name]> | undefined;
   return { data, error };
 }
 

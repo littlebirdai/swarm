@@ -7,25 +7,49 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // opened the conversation instead of selecting. A modified click on a live
 // inbox session's card must select, never open.
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node, navigator: dom.window.navigator });
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  HTMLElement: dom.window.HTMLElement,
+  Element: dom.window.Element,
+  Node: dom.window.Node,
+  navigator: dom.window.navigator,
+});
 const { useInboxStore } = await import("../../store/inboxStore");
 const { useInboxSelection } = await import("../inboxSelection");
-const { FEED_CARD_ATTR, feedCardOpened, feedCardSelect } = await import("../feedCardSelection");
+const { FEED_CARD_ATTR, feedCardOpened, feedCardSelect } =
+  await import("../feedCardSelection");
 
 afterAll(() => {
   closeDomWindow(dom);
   restoreGlobals();
 });
 
-const click = (o: Partial<{ metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }> = {}) =>
-  ({ metaKey: false, ctrlKey: false, shiftKey: false, preventDefault() {}, ...o }) as any;
+const click = (
+  o: Partial<{ metaKey: boolean; ctrlKey: boolean; shiftKey: boolean }> = {},
+) =>
+  ({
+    metaKey: false,
+    ctrlKey: false,
+    shiftKey: false,
+    preventDefault() {},
+    ...o,
+  }) as any;
 
 beforeEach(() => {
   useInboxSelection.getState().clear();
   useInboxStore.setState((s: any) => ({
-    sessions: { ...s.sessions, a: { _id: "a" }, b: { _id: "b" }, c: { _id: "c" }, gone: { _id: "gone", inbox_killed_at: 1 } },
+    sessions: {
+      ...s.sessions,
+      a: { _id: "a" },
+      b: { _id: "b" },
+      c: { _id: "c" },
+      gone: { _id: "gone", inbox_killed_at: 1 },
+    },
   }));
-  document.body.innerHTML = ["a", "x", "b", "c"].map((id) => `<div ${FEED_CARD_ATTR}="${id}"></div>`).join("");
+  document.body.innerHTML = ["a", "x", "b", "c"]
+    .map((id) => `<div ${FEED_CARD_ATTR}="${id}"></div>`)
+    .join("");
 });
 
 test("a plain click is not a selection: the card opens", () => {

@@ -59,14 +59,18 @@ function fakeConvex() {
 }
 
 beforeEach(() => {
-  useInboxStore.getState().setCallState({ roomKey: null, phase: "idle", muted: true });
+  useInboxStore
+    .getState()
+    .setCallState({ roomKey: null, phase: "idle", muted: true });
 });
 
 afterEach(() => {
   // Module state outlives this file under `bun test`: hand back an app with
   // no control plane, no burst and no call.
   observeWalkie({ bursts: [], doorOpen: false });
-  useInboxStore.getState().setCallState({ roomKey: null, phase: "idle", muted: true });
+  useInboxStore
+    .getState()
+    .setCallState({ roomKey: null, phase: "idle", muted: true });
   refreshWalkie();
   bindConvex(null as any);
 });
@@ -93,7 +97,12 @@ describe("walkie: a deliberate join into a room the engine holds", () => {
     // ...so the clock that used to hang the call up is off, even once Cam's
     // key comes up and nothing else is happening in the room.
     expect(
-      seatDeadline({ live: getWalkieStatus().liveRoom, bursting: false, incoming: null, lastAudioAt: T0 }),
+      seatDeadline({
+        live: getWalkieStatus().liveRoom,
+        bursting: false,
+        incoming: null,
+        lastAudioAt: T0,
+      }),
     ).toBeNull();
   });
 
@@ -121,21 +130,33 @@ describe("walkie: what counts as a call of one's own", () => {
 
   it("is not a seat the walkie holds to hear a burst", () => {
     const listen = status({ key: ROOM, mode: "listen", since: T0 });
-    expect(inOwnCall(listen, { phase: "connected", roomKey: ROOM })).toBe(false);
+    expect(inOwnCall(listen, { phase: "connected", roomKey: ROOM })).toBe(
+      false,
+    );
     const talking = status({ key: ROOM, mode: "burst", since: T0 });
-    expect(inOwnCall(talking, { phase: "connected", roomKey: ROOM })).toBe(false);
+    expect(inOwnCall(talking, { phase: "connected", roomKey: ROOM })).toBe(
+      false,
+    );
   });
 
   it("is a huddle, however it started", () => {
-    expect(inOwnCall(status(null), { phase: "connected", roomKey: "huddle:1" })).toBe(true);
+    expect(
+      inOwnCall(status(null), { phase: "connected", roomKey: "huddle:1" }),
+    ).toBe(true);
     const upgraded = status({ key: ROOM, mode: "call", since: T0 });
-    expect(inOwnCall(upgraded, { phase: "connected", roomKey: ROOM })).toBe(true);
+    expect(inOwnCall(upgraded, { phase: "connected", roomKey: ROOM })).toBe(
+      true,
+    );
     // A huddle in another room while the walkie holds this one is still a call.
     const listen = status({ key: ROOM, mode: "listen", since: T0 });
-    expect(inOwnCall(listen, { phase: "connecting", roomKey: "huddle:1" })).toBe(true);
+    expect(
+      inOwnCall(listen, { phase: "connecting", roomKey: "huddle:1" }),
+    ).toBe(true);
   });
 
   it("is nothing when there is no call", () => {
-    expect(inOwnCall(status(null), { phase: "idle", roomKey: null })).toBe(false);
+    expect(inOwnCall(status(null), { phase: "idle", roomKey: null })).toBe(
+      false,
+    );
   });
 });

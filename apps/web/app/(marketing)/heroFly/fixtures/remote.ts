@@ -20,17 +20,33 @@ export const BROWSE: { tool: ToolCall; result: ToolResult } = {
     name: "Bash",
     input: JSON.stringify({ command: `cast browser open ${ADDRESS}` }),
   },
-  result: { tool_use_id: "hero-tool-browse", content: `${ADDRESS}\n  tab 4A2C9E01 (Chrome on ${OBJECTS.hosts.cloud})` },
+  result: {
+    tool_use_id: "hero-tool-browse",
+    content: `${ADDRESS}\n  tab 4A2C9E01 (Chrome on ${OBJECTS.hosts.cloud})`,
+  },
 };
 
 /** The worker's test run on the cloud host, just before. */
 export const TESTS: { tool: ToolCall; result: ToolResult } = {
-  tool: { id: "hero-tool-api-test", name: "Bash", input: JSON.stringify({ command: "bun test packages/api", description: "Run the API tests" }) },
-  result: { tool_use_id: "hero-tool-api-test", content: "packages/api/retry.test.ts:\n✓ retries a 502 with backoff\n✓ is idempotent per event id\n\n 214 pass\n 0 fail" },
+  tool: {
+    id: "hero-tool-api-test",
+    name: "Bash",
+    input: JSON.stringify({
+      command: "bun test packages/api",
+      description: "Run the API tests",
+    }),
+  },
+  result: {
+    tool_use_id: "hero-tool-api-test",
+    content:
+      "packages/api/retry.test.ts:\n✓ retries a 502 with backoff\n✓ is idempotent per event id\n\n 214 pass\n 0 fail",
+  },
 };
 
 /** What the worker says around the call: why it looks, and what it saw. */
-export const BEFORE = "The retry endpoint is merged. I'll watch a replayed event land on staging.";
-export const AFTER = "The replayed event moved from failed to delivered on its second attempt. The retry endpoint is green on staging.";
+export const BEFORE =
+  "The retry endpoint is merged. I'll watch a replayed event land on staging.";
+export const AFTER =
+  "The replayed event moved from failed to delivered on its second attempt. The retry endpoint is green on staging.";
 
 export const entities: Record<string, EntityFixture> = {};

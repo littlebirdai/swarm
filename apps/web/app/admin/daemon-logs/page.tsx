@@ -36,11 +36,18 @@ function formatDate(ts: number): string {
   });
 }
 
-const LEVEL_STYLES: Record<LogLevel, { bg: string; text: string; dot: string }> = {
+const LEVEL_STYLES: Record<
+  LogLevel,
+  { bg: string; text: string; dot: string }
+> = {
   error: { bg: "bg-sol-red/10", text: "text-sol-red", dot: "bg-sol-red" },
   warn: { bg: "bg-sol-amber/10", text: "text-sol-amber", dot: "bg-sol-amber" },
   info: { bg: "bg-sol-blue/10", text: "text-sol-blue", dot: "bg-sol-blue" },
-  debug: { bg: "bg-sol-bg-highlight", text: "text-sol-text-muted", dot: "bg-sol-text-dim" },
+  debug: {
+    bg: "bg-sol-bg-highlight",
+    text: "text-sol-text-muted",
+    dot: "bg-sol-text-dim",
+  },
 };
 
 function LogLevelDot({ level }: { level: LogLevel }) {
@@ -74,12 +81,14 @@ function CommandPanel({
       try {
         await sendCommand({ user_id: userId, command });
       } catch (e) {
-        toast.error(`${command} did not go out: ${e instanceof Error ? e.message : String(e)}`);
+        toast.error(
+          `${command} did not go out: ${e instanceof Error ? e.message : String(e)}`,
+        );
       } finally {
         setTimeout(() => setSending(null), 500);
       }
     },
-    [sendCommand, userId]
+    [sendCommand, userId],
   );
 
   const recentCommands = useMemo(() => {
@@ -87,11 +96,26 @@ function CommandPanel({
     return commands.slice(0, 20);
   }, [commands]);
 
-  const commandButtons: { cmd: Command; label: string; desc: string; destructive?: boolean }[] = [
+  const commandButtons: {
+    cmd: Command;
+    label: string;
+    desc: string;
+    destructive?: boolean;
+  }[] = [
     { cmd: "status", label: "Status", desc: "Health check" },
     { cmd: "version", label: "Version", desc: "Get version" },
-    { cmd: "restart", label: "Restart", desc: "Restart daemon", destructive: true },
-    { cmd: "force_update", label: "Force Update", desc: "Update + restart", destructive: true },
+    {
+      cmd: "restart",
+      label: "Restart",
+      desc: "Restart daemon",
+      destructive: true,
+    },
+    {
+      cmd: "force_update",
+      label: "Force Update",
+      desc: "Update + restart",
+      destructive: true,
+    },
   ];
 
   return (
@@ -117,12 +141,37 @@ function CommandPanel({
 
       <div className="p-4">
         {arming && (
-          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-sol-red/30 bg-sol-red/10 px-3 py-2 text-xs" role="group" aria-label={`${arming} ${userName}'s daemon?`}>
-            <span className="min-w-0 flex-1 truncate text-sol-text" title={userName}>
-              {arming === "restart" ? "Restart" : "Force update"} {userName}&apos;s daemon?
+          <div
+            className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-sol-red/30 bg-sol-red/10 px-3 py-2 text-xs"
+            role="group"
+            aria-label={`${arming} ${userName}'s daemon?`}
+          >
+            <span
+              className="min-w-0 flex-1 truncate text-sol-text"
+              title={userName}
+            >
+              {arming === "restart" ? "Restart" : "Force update"} {userName}
+              &apos;s daemon?
             </span>
-            <Button type="button" variant="ghost" size="xs" onClick={() => setArming(null)} autoFocus>Keep it running</Button>
-            <Button type="button" variant="red" size="xs" onClick={() => { const cmd = arming; setArming(null); void handleSend(cmd); }}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setArming(null)}
+              autoFocus
+            >
+              Keep it running
+            </Button>
+            <Button
+              type="button"
+              variant="red"
+              size="xs"
+              onClick={() => {
+                const cmd = arming;
+                setArming(null);
+                void handleSend(cmd);
+              }}
+            >
               {arming === "restart" ? "Restart" : "Force update"}
             </Button>
           </div>
@@ -142,7 +191,9 @@ function CommandPanel({
             >
               <div
                 className={`text-sm font-medium ${
-                  destructive ? "text-sol-text-secondary group-hover:text-sol-red" : "text-sol-text-secondary"
+                  destructive
+                    ? "text-sol-text-secondary group-hover:text-sol-red"
+                    : "text-sol-text-secondary"
                 }`}
               >
                 {sending === cmd ? "..." : label}
@@ -159,7 +210,9 @@ function CommandPanel({
             <span className="text-mark font-mono uppercase tracking-wider text-sol-text-dim">
               Command History
             </span>
-            <span className="text-meta text-sol-text-dim">{recentCommands.length} recent</span>
+            <span className="text-meta text-sol-text-dim">
+              {recentCommands.length} recent
+            </span>
           </div>
           <div className="max-h-[280px] overflow-y-auto">
             {recentCommands.map((cmd) => {
@@ -171,7 +224,9 @@ function CommandPanel({
                 <div
                   key={cmd._id}
                   className={`px-4 py-2 border-t border-sol-border cursor-pointer transition-colors ${
-                    isExpanded ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight"
+                    isExpanded
+                      ? "bg-sol-bg-highlight"
+                      : "hover:bg-sol-bg-highlight"
                   }`}
                   onClick={() => setExpandedCmd(isExpanded ? null : cmd._id)}
                 >
@@ -192,7 +247,9 @@ function CommandPanel({
                       {formatRelativeTime(cmd.created_at)}
                     </span>
                     {isPending && (
-                      <span className="text-meta text-sol-amber">waiting...</span>
+                      <span className="text-meta text-sol-amber">
+                        waiting...
+                      </span>
                     )}
                     {cmd.executed_at && !hasError && (
                       <span className="text-meta text-sol-text-dim">
@@ -228,17 +285,27 @@ function CommandPanel({
 const PRESENCE_MS = 10 * 60 * 1000;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
-type AdminUser = NonNullable<FunctionReturnType<typeof api.daemonLogs.adminGetUsers>[number]>;
+type AdminUser = NonNullable<
+  FunctionReturnType<typeof api.daemonLogs.adminGetUsers>[number]
+>;
 
-function lastSeenOf(user: { last_heartbeat?: number; lastLog?: number }): number {
+function lastSeenOf(user: {
+  last_heartbeat?: number;
+  lastLog?: number;
+}): number {
   return Math.max(user.last_heartbeat ?? 0, user.lastLog ?? 0);
 }
 
-function isOnline(user: { last_heartbeat?: number; lastLog?: number }): boolean {
+function isOnline(user: {
+  last_heartbeat?: number;
+  lastLog?: number;
+}): boolean {
   return Date.now() - lastSeenOf(user) < PRESENCE_MS;
 }
 
-function labelOf(user: { email?: string; name?: string } | null | undefined): string {
+function labelOf(
+  user: { email?: string; name?: string } | null | undefined,
+): string {
   return user?.email || user?.name || "Unknown";
 }
 
@@ -251,9 +318,20 @@ function useHeld<T>(value: T | undefined): T | undefined {
 }
 
 // An email whose local part truncates while the domain stays readable.
-function EmailLabel({ text, className = "" }: { text: string; className?: string }) {
+function EmailLabel({
+  text,
+  className = "",
+}: {
+  text: string;
+  className?: string;
+}) {
   const at = text.lastIndexOf("@");
-  if (at <= 0) return <span className={`truncate ${className}`} title={text}>{text}</span>;
+  if (at <= 0)
+    return (
+      <span className={`truncate ${className}`} title={text}>
+        {text}
+      </span>
+    );
   return (
     <span className={`flex min-w-0 ${className}`} title={text}>
       <span className="truncate">{text.slice(0, at)}</span>
@@ -264,10 +342,17 @@ function EmailLabel({ text, className = "" }: { text: string; className?: string
 
 function CountBadge({ n, tone }: { n: number; tone: "error" | "warn" }) {
   if (n <= 0) return null;
-  const cls = tone === "error"
-    ? "bg-sol-red/10 text-sol-red border-sol-red/30"
-    : "bg-sol-amber/10 text-sol-amber border-sol-amber/30";
-  return <span className={`px-1.5 rounded text-meta leading-4 font-mono border tabular-nums ${cls}`}>{n}</span>;
+  const cls =
+    tone === "error"
+      ? "bg-sol-red/10 text-sol-red border-sol-red/30"
+      : "bg-sol-amber/10 text-sol-amber border-sol-amber/30";
+  return (
+    <span
+      className={`px-1.5 rounded text-meta leading-4 font-mono border tabular-nums ${cls}`}
+    >
+      {n}
+    </span>
+  );
 }
 
 function UserListItem({
@@ -295,16 +380,26 @@ function UserListItem({
       <div className="flex items-center gap-2 text-[13px]">
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-            online ? "bg-sol-green" : stale ? "bg-sol-text-dim/40" : "bg-sol-text-muted"
+            online
+              ? "bg-sol-green"
+              : stale
+                ? "bg-sol-text-dim/40"
+                : "bg-sol-text-muted"
           }`}
         />
         <EmailLabel text={labelOf(user)} className="flex-1" />
       </div>
       <div className="ml-3.5 mt-0.5 flex items-center gap-1.5 text-meta text-sol-text-dim">
-        <span className={`tabular-nums ${online ? "text-sol-text-muted" : stale ? "text-sol-text-dim" : "text-sol-amber"}`}>
+        <span
+          className={`tabular-nums ${online ? "text-sol-text-muted" : stale ? "text-sol-text-dim" : "text-sol-amber"}`}
+        >
           {lastSeen ? formatRelativeTime(lastSeen) : "never"}
         </span>
-        {user.cli_version && <span>· <span className="modern:font-mono">v{user.cli_version}</span></span>}
+        {user.cli_version && (
+          <span>
+            · <span className="modern:font-mono">v{user.cli_version}</span>
+          </span>
+        )}
         {user.cli_platform && <span>· {user.cli_platform}</span>}
         <span className="ml-auto flex gap-1">
           <CountBadge n={user.errorCount} tone="error" />
@@ -326,9 +421,12 @@ interface HealthMetric {
   cpu_system_ms: number;
 }
 
-const HEALTH_RE = /rss=(\d+)MB heap=(\d+)\/(\d+)MB fds=(\d+) cpu=(\d+)\+(\d+)ms uptime=(\d+)min/;
+const HEALTH_RE =
+  /rss=(\d+)MB heap=(\d+)\/(\d+)MB fds=(\d+) cpu=(\d+)\+(\d+)ms uptime=(\d+)min/;
 
-function parseHealthMetrics(logs: { message: string; timestamp: number }[]): HealthMetric[] {
+function parseHealthMetrics(
+  logs: { message: string; timestamp: number }[],
+): HealthMetric[] {
   const metrics: HealthMetric[] = [];
   for (const log of logs) {
     const m = HEALTH_RE.exec(log.message);
@@ -351,13 +449,19 @@ function parseHealthMetrics(logs: { message: string; timestamp: number }[]): Hea
 const FD_WARN = 5000;
 const RSS_WARN = 1500;
 
-function MetricsChart({ logs }: { logs: { message: string; timestamp: number }[] }) {
+function MetricsChart({
+  logs,
+}: {
+  logs: { message: string; timestamp: number }[];
+}) {
   const metrics = useMemo(() => parseHealthMetrics(logs), [logs]);
 
   if (metrics.length < 2) {
     return (
       <div className="bg-sol-bg-alt rounded-lg border border-sol-border px-4 py-6 text-center">
-        <span className="text-meta font-mono text-sol-text-dim">Collecting metrics...</span>
+        <span className="text-meta font-mono text-sol-text-dim">
+          Collecting metrics...
+        </span>
       </div>
     );
   }
@@ -382,9 +486,13 @@ function MetricsChart({ logs }: { logs: { message: string; timestamp: number }[]
   const yRss = (v: number) => PAD.top + ch - (v / (rssMax * 1.15)) * ch;
   const yFd = (v: number) => PAD.top + ch - (v / (fdMax * 1.15)) * ch;
 
-  const rssPoints = metrics.map((m) => `${x(m.timestamp)},${yRss(m.rss_mb)}`).join(" ");
+  const rssPoints = metrics
+    .map((m) => `${x(m.timestamp)},${yRss(m.rss_mb)}`)
+    .join(" ");
   const rssAreaPoints = `${x(tMin)},${PAD.top + ch} ${rssPoints} ${x(tMax)},${PAD.top + ch}`;
-  const fdPoints = metrics.map((m) => `${x(m.timestamp)},${yFd(m.fds)}`).join(" ");
+  const fdPoints = metrics
+    .map((m) => `${x(m.timestamp)},${yFd(m.fds)}`)
+    .join(" ");
 
   return (
     <div className="bg-sol-bg-alt rounded-lg border border-sol-border overflow-hidden">
@@ -404,50 +512,111 @@ function MetricsChart({ logs }: { logs: { message: string; timestamp: number }[]
         </div>
       </div>
       <div className="px-4 py-3">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 120 }} preserveAspectRatio="none">
-          <polygon points={rssAreaPoints} fill="var(--sol-blue)" fillOpacity={0.12} />
-          <polyline points={rssPoints} fill="none" stroke="var(--sol-blue)" strokeOpacity={0.5} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-          <polyline points={fdPoints} fill="none" stroke="var(--sol-amber)" strokeOpacity={0.7} strokeWidth="1.5" strokeDasharray="4 2" vectorEffect="non-scaling-stroke" />
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full"
+          style={{ height: 120 }}
+          preserveAspectRatio="none"
+        >
+          <polygon
+            points={rssAreaPoints}
+            fill="var(--sol-blue)"
+            fillOpacity={0.12}
+          />
+          <polyline
+            points={rssPoints}
+            fill="none"
+            stroke="var(--sol-blue)"
+            strokeOpacity={0.5}
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+          <polyline
+            points={fdPoints}
+            fill="none"
+            stroke="var(--sol-amber)"
+            strokeOpacity={0.7}
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+            vectorEffect="non-scaling-stroke"
+          />
           {showRssWarn && (
             <line
-              x1={PAD.left} y1={yRss(RSS_WARN)}
-              x2={PAD.left + cw} y2={yRss(RSS_WARN)}
-              stroke="var(--sol-red)" strokeOpacity={0.4} strokeWidth="1" strokeDasharray="6 3"
+              x1={PAD.left}
+              y1={yRss(RSS_WARN)}
+              x2={PAD.left + cw}
+              y2={yRss(RSS_WARN)}
+              stroke="var(--sol-red)"
+              strokeOpacity={0.4}
+              strokeWidth="1"
+              strokeDasharray="6 3"
               vectorEffect="non-scaling-stroke"
             />
           )}
           {showFdWarn && (
             <line
-              x1={PAD.left} y1={yFd(FD_WARN)}
-              x2={PAD.left + cw} y2={yFd(FD_WARN)}
-              stroke="var(--sol-red)" strokeOpacity={0.3} strokeWidth="1" strokeDasharray="6 3"
+              x1={PAD.left}
+              y1={yFd(FD_WARN)}
+              x2={PAD.left + cw}
+              y2={yFd(FD_WARN)}
+              stroke="var(--sol-red)"
+              strokeOpacity={0.3}
+              strokeWidth="1"
+              strokeDasharray="6 3"
               vectorEffect="non-scaling-stroke"
             />
           )}
           {metrics.map((m, i) => (
-            <circle key={i} cx={x(m.timestamp)} cy={yRss(m.rss_mb)} r="2" fill="var(--sol-blue)" fillOpacity={0.7} />
+            <circle
+              key={i}
+              cx={x(m.timestamp)}
+              cy={yRss(m.rss_mb)}
+              r="2"
+              fill="var(--sol-blue)"
+              fillOpacity={0.7}
+            />
           ))}
         </svg>
       </div>
       <div className="px-4 py-2.5 border-t border-sol-border flex items-center gap-6 text-meta font-mono">
         <span className="text-sol-text-muted">
-          RSS <span className={`${latest.rss_mb >= RSS_WARN ? "text-sol-red" : "text-sol-blue"}`}>{latest.rss_mb}MB</span>
+          RSS{" "}
+          <span
+            className={`${latest.rss_mb >= RSS_WARN ? "text-sol-red" : "text-sol-blue"}`}
+          >
+            {latest.rss_mb}MB
+          </span>
         </span>
         <span className="text-sol-text-muted">
-          Heap <span className="text-sol-text-secondary">{latest.heap_mb}/{latest.heap_max_mb}MB</span>
+          Heap{" "}
+          <span className="text-sol-text-secondary">
+            {latest.heap_mb}/{latest.heap_max_mb}MB
+          </span>
         </span>
         <span className="text-sol-text-muted">
-          FDs <span className={`${latest.fds >= FD_WARN ? "text-sol-red" : "text-sol-amber"}`}>{latest.fds}</span>
+          FDs{" "}
+          <span
+            className={`${latest.fds >= FD_WARN ? "text-sol-red" : "text-sol-amber"}`}
+          >
+            {latest.fds}
+          </span>
         </span>
         <span className="text-sol-text-muted">
-          Uptime <span className="text-sol-text-secondary">{latest.uptime_min >= 60 ? `${Math.round(latest.uptime_min / 60)}h` : `${latest.uptime_min}m`}</span>
+          Uptime{" "}
+          <span className="text-sol-text-secondary">
+            {latest.uptime_min >= 60
+              ? `${Math.round(latest.uptime_min / 60)}h`
+              : `${latest.uptime_min}m`}
+          </span>
         </span>
       </div>
     </div>
   );
 }
 
-type LogRow = FunctionReturnType<typeof api.daemonLogs.adminList>["logs"][number];
+type LogRow = FunctionReturnType<
+  typeof api.daemonLogs.adminList
+>["logs"][number];
 type LogGroup = { log: LogRow; count: number; oldest: number };
 
 // Daemons repeat themselves (reconciliation, health lines). Fold a run of the
@@ -456,7 +625,12 @@ function foldRepeats(logs: LogRow[]): LogGroup[] {
   const groups: LogGroup[] = [];
   for (const log of logs) {
     const last = groups[groups.length - 1];
-    if (last && last.log.user_id === log.user_id && last.log.level === log.level && last.log.message === log.message) {
+    if (
+      last &&
+      last.log.user_id === log.user_id &&
+      last.log.level === log.level &&
+      last.log.message === log.message
+    ) {
       last.count++;
       last.oldest = log.timestamp;
     } else {
@@ -466,7 +640,11 @@ function foldRepeats(logs: LogRow[]): LogGroup[] {
   return groups;
 }
 
-const TIME_WINDOWS = { "1h": 60 * 60 * 1000, "24h": 24 * 60 * 60 * 1000, "7d": 7 * 24 * 60 * 60 * 1000 } as const;
+const TIME_WINDOWS = {
+  "1h": 60 * 60 * 1000,
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+} as const;
 type TimeFilter = keyof typeof TIME_WINDOWS | "all";
 
 const LEVEL_BUTTONS = [
@@ -507,7 +685,7 @@ function SegmentedButtons<T extends string>({
           onClick={() => onChange(o.value)}
           className={`px-2.5 py-1.5 text-meta font-mono transition-colors ${
             value === o.value
-              ? activeClass?.(o.value) ?? "bg-sol-bg-highlight text-sol-text"
+              ? (activeClass?.(o.value) ?? "bg-sol-bg-highlight text-sol-text")
               : "bg-sol-bg-alt text-sol-text-muted hover:text-sol-text"
           }`}
         >
@@ -520,12 +698,16 @@ function SegmentedButtons<T extends string>({
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-2.5 pt-3 pb-1 text-mark font-mono uppercase tracking-wider text-sol-text-dim">{children}</div>
+    <div className="px-2.5 pt-3 pb-1 text-mark font-mono uppercase tracking-wider text-sol-text-dim">
+      {children}
+    </div>
   );
 }
 
 function AdminDaemonLogs() {
-  const [selectedUserId, setSelectedUserId] = useState<Id<"users"> | undefined>();
+  const [selectedUserId, setSelectedUserId] = useState<
+    Id<"users"> | undefined
+  >();
   const [levelFilter, setLevelFilter] = useState<LogLevel | "all">("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("24h");
   const [searchQuery, setSearchQuery] = useState("");
@@ -535,17 +717,20 @@ function AdminDaemonLogs() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sinceTimestamp = useMemo(
-    () => (timeFilter === "all" ? undefined : Date.now() - TIME_WINDOWS[timeFilter]),
+    () =>
+      timeFilter === "all" ? undefined : Date.now() - TIME_WINDOWS[timeFilter],
     [timeFilter],
   );
 
   const users = useHeld(useQuery(api.daemonLogs.adminGetUsers));
-  const logsResult = useHeld(useQuery(api.daemonLogs.adminList, {
-    limit: 500,
-    level: levelFilter === "all" ? undefined : levelFilter,
-    userId: selectedUserId,
-    since: sinceTimestamp,
-  }));
+  const logsResult = useHeld(
+    useQuery(api.daemonLogs.adminList, {
+      limit: 500,
+      level: levelFilter === "all" ? undefined : levelFilter,
+      userId: selectedUserId,
+      since: sinceTimestamp,
+    }),
+  );
   const stats = useHeld(useQuery(api.daemonLogs.adminGetStats));
 
   // A new view of the logs starts at the newest line.
@@ -553,7 +738,10 @@ function AdminDaemonLogs() {
     scrollRef.current?.scrollTo({ top: 0 });
     setPausedAt(null);
   }, []);
-  const selectUser = (id: Id<"users"> | undefined) => { setSelectedUserId(id); toTop(); };
+  const selectUser = (id: Id<"users"> | undefined) => {
+    setSelectedUserId(id);
+    toTop();
+  };
 
   const filteredLogs = useMemo(() => {
     if (!logsResult?.logs) return [];
@@ -563,12 +751,15 @@ function AdminDaemonLogs() {
       (log) =>
         log.message.toLowerCase().includes(q) ||
         log.metadata?.error_code?.toLowerCase().includes(q) ||
-        log.metadata?.session_id?.toLowerCase().includes(q)
+        log.metadata?.session_id?.toLowerCase().includes(q),
     );
   }, [logsResult?.logs, searchQuery]);
 
   const visibleLogs = useMemo(
-    () => (pausedAt === null ? filteredLogs : filteredLogs.filter((l) => l._creationTime <= pausedAt)),
+    () =>
+      pausedAt === null
+        ? filteredLogs
+        : filteredLogs.filter((l) => l._creationTime <= pausedAt),
     [filteredLogs, pausedAt],
   );
   const groups = useMemo(() => foldRepeats(visibleLogs), [visibleLogs]);
@@ -579,7 +770,9 @@ function AdminDaemonLogs() {
     if (!el) return;
     const away = el.scrollTop > PAUSE_SCROLL_PX;
     if (away && pausedAt === null) {
-      setPausedAt(visibleLogs.reduce((m, l) => Math.max(m, l._creationTime), 0));
+      setPausedAt(
+        visibleLogs.reduce((m, l) => Math.max(m, l._creationTime), 0),
+      );
     } else if (!away && pausedAt !== null) {
       setPausedAt(null);
     }
@@ -592,7 +785,10 @@ function AdminDaemonLogs() {
   }, [logsResult?.users]);
 
   const selectedUser = useMemo(
-    () => (selectedUserId ? users?.find((u) => u?._id === selectedUserId) ?? null : null),
+    () =>
+      selectedUserId
+        ? (users?.find((u) => u?._id === selectedUserId) ?? null)
+        : null,
     [selectedUserId, users],
   );
 
@@ -600,10 +796,17 @@ function AdminDaemonLogs() {
   // Neither order moves on a heartbeat, so the list holds still under you.
   const { online, offline } = useMemo(() => {
     const q = userQuery.trim().toLowerCase();
-    const all = (users ?? []).filter((u): u is AdminUser => !!u && (!q || labelOf(u).toLowerCase().includes(q)));
+    const all = (users ?? []).filter(
+      (u): u is AdminUser =>
+        !!u && (!q || labelOf(u).toLowerCase().includes(q)),
+    );
     return {
-      online: all.filter(isOnline).sort((a, b) => labelOf(a).localeCompare(labelOf(b))),
-      offline: all.filter((u) => !isOnline(u)).sort((a, b) => lastSeenOf(b) - lastSeenOf(a)),
+      online: all
+        .filter(isOnline)
+        .sort((a, b) => labelOf(a).localeCompare(labelOf(b))),
+      offline: all
+        .filter((u) => !isOnline(u))
+        .sort((a, b) => lastSeenOf(b) - lastSeenOf(a)),
     };
   }, [users, userQuery]);
   const totalUsers = (users ?? []).filter(Boolean).length;
@@ -621,8 +824,12 @@ function AdminDaemonLogs() {
     return (
       <div className="h-screen bg-sol-bg text-sol-text flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-xl font-medium text-sol-red mb-2">Access Denied</h1>
-          <p className="text-sol-text-muted text-sm">This page is for Codecast staff.</p>
+          <h1 className="text-xl font-medium text-sol-red mb-2">
+            Access Denied
+          </h1>
+          <p className="text-sol-text-muted text-sm">
+            This page is for Codecast staff.
+          </p>
         </div>
       </div>
     );
@@ -636,7 +843,8 @@ function AdminDaemonLogs() {
           <h1 className="text-lg font-medium tracking-tight">Daemon Admin</h1>
           <div className="flex items-center gap-3 text-xs text-sol-text-muted tabular-nums">
             <span>
-              <span className="text-sol-green">{onlineTotal}</span>/{totalUsers} online
+              <span className="text-sol-green">{onlineTotal}</span>/{totalUsers}{" "}
+              online
             </span>
             <span className="text-sol-text-dim">|</span>
             <span>{filteredLogs.length} logs</span>
@@ -646,16 +854,23 @@ function AdminDaemonLogs() {
         {/* Stats row: a window card applies that window */}
         {stats && (
           <div className="grid grid-cols-[1fr_1fr_1fr_1.6fr] gap-3">
-            {([
-              { label: "1h", data: stats.lastHour },
-              { label: "24h", data: stats.lastDay },
-              { label: "7d", data: stats.lastWeek },
-            ] as const).map(({ label, data }) => {
-              const floor = stats.sampledSince !== null && Date.now() - TIME_WINDOWS[label] < stats.sampledSince;
+            {(
+              [
+                { label: "1h", data: stats.lastHour },
+                { label: "24h", data: stats.lastDay },
+                { label: "7d", data: stats.lastWeek },
+              ] as const
+            ).map(({ label, data }) => {
+              const floor =
+                stats.sampledSince !== null &&
+                Date.now() - TIME_WINDOWS[label] < stats.sampledSince;
               return (
                 <button
                   key={label}
-                  onClick={() => { setTimeFilter(label); toTop(); }}
+                  onClick={() => {
+                    setTimeFilter(label);
+                    toTop();
+                  }}
                   className={`text-left rounded-lg px-4 py-3 border transition-colors ${
                     timeFilter === label
                       ? "bg-sol-bg-highlight border-sol-border"
@@ -663,37 +878,67 @@ function AdminDaemonLogs() {
                   }`}
                 >
                   <div className="flex items-baseline justify-between">
-                    <span className="text-mark font-mono uppercase tracking-wider text-sol-text-dim">{label}</span>
-                    <span className="text-meta text-sol-text-dim">{data.uniqueUsers} users</span>
+                    <span className="text-mark font-mono uppercase tracking-wider text-sol-text-dim">
+                      {label}
+                    </span>
+                    <span className="text-meta text-sol-text-dim">
+                      {data.uniqueUsers} users
+                    </span>
                   </div>
                   <div
                     className="text-2xl font-light text-sol-text mt-1 tabular-nums"
-                    title={floor ? `At least this many: the count reads the newest ${data.total.toLocaleString()} rows` : undefined}
+                    title={
+                      floor
+                        ? `At least this many: the count reads the newest ${data.total.toLocaleString()} rows`
+                        : undefined
+                    }
                   >
-                    {data.total.toLocaleString()}{floor && <span className="text-sol-text-dim">+</span>}
+                    {data.total.toLocaleString()}
+                    {floor && <span className="text-sol-text-dim">+</span>}
                   </div>
                   <div className="flex gap-3 mt-1 text-meta tabular-nums">
-                    {data.error > 0 && <span className="text-sol-red">{data.error.toLocaleString()} err</span>}
-                    {data.warn > 0 && <span className="text-sol-amber">{data.warn.toLocaleString()} warn</span>}
-                    {data.error === 0 && data.warn === 0 && <span className="text-sol-text-dim">clean</span>}
+                    {data.error > 0 && (
+                      <span className="text-sol-red">
+                        {data.error.toLocaleString()} err
+                      </span>
+                    )}
+                    {data.warn > 0 && (
+                      <span className="text-sol-amber">
+                        {data.warn.toLocaleString()} warn
+                      </span>
+                    )}
+                    {data.error === 0 && data.warn === 0 && (
+                      <span className="text-sol-text-dim">clean</span>
+                    )}
                   </div>
                 </button>
               );
             })}
             <div className="bg-sol-bg-alt rounded-lg px-4 py-3 border border-sol-border min-w-0">
-              <span className="text-mark font-mono uppercase tracking-wider text-sol-text-dim">Top Errors</span>
+              <span className="text-mark font-mono uppercase tracking-wider text-sol-text-dim">
+                Top Errors
+              </span>
               {stats.topErrors.length === 0 ? (
-                <div className="text-meta text-sol-text-dim mt-2">No errors</div>
+                <div className="text-meta text-sol-text-dim mt-2">
+                  No errors
+                </div>
               ) : (
                 <div className="mt-1.5">
                   {stats.topErrors.slice(0, 3).map((err) => (
                     <button
                       key={err.message}
-                      onClick={() => { setSearchQuery(err.message.split(/<path>|<id>|\bN\b/)[0].trim()); toTop(); }}
+                      onClick={() => {
+                        setSearchQuery(
+                          err.message.split(/<path>|<id>|\bN\b/)[0].trim(),
+                        );
+                        toTop();
+                      }}
                       className="w-full flex gap-1.5 text-left text-meta text-sol-text-muted hover:text-sol-text py-0.5"
                       title={err.message}
                     >
-                      <span className="text-sol-red font-mono tabular-nums shrink-0">{err.count}x</span>
+                      <span className="text-sol-red font-mono tabular-nums shrink-0">
+                        {err.count}x
+                      </span>
                       <span className="truncate">{err.message}</span>
                     </button>
                   ))}
@@ -728,16 +973,32 @@ function AdminDaemonLogs() {
             >
               All users
             </button>
-            {online.length > 0 && <SectionLabel>Online · {online.length}</SectionLabel>}
+            {online.length > 0 && (
+              <SectionLabel>Online · {online.length}</SectionLabel>
+            )}
             {online.map((user) => (
-              <UserListItem key={user._id} user={user} isSelected={selectedUserId === user._id} onClick={() => selectUser(user._id as Id<"users">)} />
+              <UserListItem
+                key={user._id}
+                user={user}
+                isSelected={selectedUserId === user._id}
+                onClick={() => selectUser(user._id as Id<"users">)}
+              />
             ))}
-            {offline.length > 0 && <SectionLabel>Offline · {offline.length}</SectionLabel>}
+            {offline.length > 0 && (
+              <SectionLabel>Offline · {offline.length}</SectionLabel>
+            )}
             {offline.map((user) => (
-              <UserListItem key={user._id} user={user} isSelected={selectedUserId === user._id} onClick={() => selectUser(user._id as Id<"users">)} />
+              <UserListItem
+                key={user._id}
+                user={user}
+                isSelected={selectedUserId === user._id}
+                onClick={() => selectUser(user._id as Id<"users">)}
+              />
             ))}
             {online.length + offline.length === 0 && (
-              <div className="px-3 py-6 text-center text-[12px] text-sol-text-dim">No users match</div>
+              <div className="px-3 py-6 text-center text-[12px] text-sol-text-dim">
+                No users match
+              </div>
             )}
           </div>
         </div>
@@ -745,7 +1006,9 @@ function AdminDaemonLogs() {
         {/* Logs */}
         <div className="flex flex-col min-h-0 gap-3">
           {selectedUser && (
-            <div className={`grid gap-3 shrink-0 ${showCommands ? "grid-cols-2" : "grid-cols-1"}`}>
+            <div
+              className={`grid gap-3 shrink-0 ${showCommands ? "grid-cols-2" : "grid-cols-1"}`}
+            >
               {showCommands && (
                 <CommandPanel
                   userId={selectedUserId!}
@@ -763,16 +1026,34 @@ function AdminDaemonLogs() {
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Escape") setSearchQuery(""); }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setSearchQuery("");
+              }}
               className="flex-1 min-w-0 px-3 py-1.5 bg-sol-bg-alt border border-sol-border rounded-md text-[13px] text-sol-text placeholder:text-sol-text-dim focus:outline-none focus:border-sol-cyan font-mono"
             />
             <SegmentedButtons
               options={LEVEL_BUTTONS}
               value={levelFilter}
-              onChange={(v) => { setLevelFilter(v); toTop(); }}
-              activeClass={(v) => v === "error" ? "bg-sol-red/10 text-sol-red" : v === "warn" ? "bg-sol-amber/10 text-sol-amber" : undefined}
+              onChange={(v) => {
+                setLevelFilter(v);
+                toTop();
+              }}
+              activeClass={(v) =>
+                v === "error"
+                  ? "bg-sol-red/10 text-sol-red"
+                  : v === "warn"
+                    ? "bg-sol-amber/10 text-sol-amber"
+                    : undefined
+              }
             />
-            <SegmentedButtons options={TIME_BUTTONS} value={timeFilter} onChange={(v) => { setTimeFilter(v); toTop(); }} />
+            <SegmentedButtons
+              options={TIME_BUTTONS}
+              value={timeFilter}
+              onChange={(v) => {
+                setTimeFilter(v);
+                toTop();
+              }}
+            />
             {selectedUserId && (
               <button
                 onClick={() => setShowCommands(!showCommands)}
@@ -790,7 +1071,12 @@ function AdminDaemonLogs() {
 
           <div className="relative flex-1 min-h-0 bg-sol-bg-alt rounded-lg border border-sol-border overflow-hidden">
             {newCount > 0 && (
-              <Button variant="blue" size="xs" onClick={toTop} className="absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full font-mono">
+              <Button
+                variant="blue"
+                size="xs"
+                onClick={toTop}
+                className="absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full font-mono"
+              >
                 {newCount} new · jump to latest
               </Button>
             )}
@@ -800,13 +1086,19 @@ function AdminDaemonLogs() {
               className="h-full overflow-y-auto divide-y divide-sol-border/60 [overflow-anchor:none]"
             >
               {groups.length === 0 ? (
-                <div className="p-12 text-center text-sol-text-dim text-sm">No logs matching filters</div>
+                <div className="p-12 text-center text-sol-text-dim text-sm">
+                  No logs matching filters
+                </div>
               ) : (
                 groups.map(({ log, count, oldest }) => {
                   const user = userMap.get(log.user_id);
-                  const style = LEVEL_STYLES[log.level as LogLevel] || LEVEL_STYLES.debug;
-                  const isToday = new Date(log.timestamp).toDateString() === new Date().toDateString();
-                  const when = (ts: number) => `${isToday ? "" : `${formatDate(ts)} `}${formatTimestamp(ts)}`;
+                  const style =
+                    LEVEL_STYLES[log.level as LogLevel] || LEVEL_STYLES.debug;
+                  const isToday =
+                    new Date(log.timestamp).toDateString() ===
+                    new Date().toDateString();
+                  const when = (ts: number) =>
+                    `${isToday ? "" : `${formatDate(ts)} `}${formatTimestamp(ts)}`;
 
                   return (
                     <div
@@ -826,18 +1118,28 @@ function AdminDaemonLogs() {
                               </button>
                             )}
                             <span className="text-sol-text-dim tabular-nums shrink-0">
-                              {count > 1 ? `${when(oldest)} – ${formatTimestamp(log.timestamp)}` : when(log.timestamp)}
+                              {count > 1
+                                ? `${when(oldest)} – ${formatTimestamp(log.timestamp)}`
+                                : when(log.timestamp)}
                             </span>
-                            {log.daemon_version && <span className="text-sol-text-dim shrink-0">v{log.daemon_version}</span>}
+                            {log.daemon_version && (
+                              <span className="text-sol-text-dim shrink-0">
+                                v{log.daemon_version}
+                              </span>
+                            )}
                             {count > 1 && (
-                              <span className="px-1.5 rounded bg-sol-bg-highlight text-sol-text-muted font-mono tabular-nums shrink-0">×{count}</span>
+                              <span className="px-1.5 rounded bg-sol-bg-highlight text-sol-text-muted font-mono tabular-nums shrink-0">
+                                ×{count}
+                              </span>
                             )}
                           </div>
                           <pre className="text-[13px] text-sol-text-secondary whitespace-pre-wrap break-words font-mono leading-relaxed">
                             {log.message}
                           </pre>
                           {log.metadata?.error_code && (
-                            <span className={`inline-block mt-1 text-meta font-mono px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
+                            <span
+                              className={`inline-block mt-1 text-meta font-mono px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}
+                            >
                               {log.metadata.error_code}
                             </span>
                           )}

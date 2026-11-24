@@ -4,7 +4,12 @@
 // note; `short` is the header pill's text, which drops the word "daemon" and
 // the machine name because the pill's tooltip carries both and the header has
 // no room for either; `command` is what the user can run (click to copy).
-import { formatDuration, OVERLOADED_FREEZE_MS, OVERLOADED_HOUR_MS, type DaemonHealth } from "../hooks/useDaemonHealth";
+import {
+  formatDuration,
+  OVERLOADED_FREEZE_MS,
+  OVERLOADED_HOUR_MS,
+  type DaemonHealth,
+} from "../hooks/useDaemonHealth";
 
 export interface DaemonHealthCopy {
   colorVar: string;
@@ -16,7 +21,9 @@ export interface DaemonHealthCopy {
 
 const secs = (ms: number) => `${Math.max(1, Math.round(ms / 1000))}s`;
 
-export function describeDaemonHealth(health: DaemonHealth): DaemonHealthCopy | null {
+export function describeDaemonHealth(
+  health: DaemonHealth,
+): DaemonHealthCopy | null {
   switch (health.kind) {
     case "offline": {
       const stale = formatDuration(health.offlineMs);
@@ -71,11 +78,11 @@ export function describeDaemonHealth(health: DaemonHealth): DaemonHealthCopy | n
           : "";
       const detail = live
         ? `The CLI daemon was frozen for ${secs(health.freezeMs)} of the last minute (the machine is busy). Deliveries and echoes are delayed, not lost.${hour}`
-        // The hour on its own is a record, not a live symptom, so it does not
-        // promise that anything is late right now. blocksDelivery draws the
-        // same line: this tier colours the header chip, it does not tell a
-        // message waiting to send to blame the daemon.
-        : `The CLI daemon's event loop was frozen ${secs(health.hourMs ?? 0)} in the last hour${worst}.${cause} Deliveries and echoes on this machine run late whenever it blocks.`;
+        : // The hour on its own is a record, not a live symptom, so it does not
+          // promise that anything is late right now. blocksDelivery draws the
+          // same line: this tier colours the header chip, it does not tell a
+          // message waiting to send to blame the daemon.
+          `The CLI daemon's event loop was frozen ${secs(health.hourMs ?? 0)} in the last hour${worst}.${cause} Deliveries and echoes on this machine run late whenever it blocks.`;
       return {
         colorVar: "--sol-orange",
         label: `daemon under load`,
@@ -88,8 +95,18 @@ export function describeDaemonHealth(health: DaemonHealth): DaemonHealthCopy | n
     case "syncing": {
       // Prefer the honest message count; fall back to logical ops for older
       // daemons that don't report it yet.
-      const count = health.messages > 0 ? health.messages : health.conversations > 0 ? health.conversations : health.pending;
-      const unit = health.messages > 0 ? "message" : health.conversations > 0 ? "conversation" : "operation";
+      const count =
+        health.messages > 0
+          ? health.messages
+          : health.conversations > 0
+            ? health.conversations
+            : health.pending;
+      const unit =
+        health.messages > 0
+          ? "message"
+          : health.conversations > 0
+            ? "conversation"
+            : "operation";
       const plural = count === 1 ? "" : "s";
       const convoNote =
         health.messages > 0 && health.conversations > 0
@@ -139,7 +156,9 @@ export function describeDeviceFreeze(row: {
   if (!row.online) return null;
   const hourMs = row.loop_freeze_1h_ms ?? 0;
   if (hourMs <= 0) return null;
-  const worst = row.loop_freeze_max_ms ? `, worst ${secs(row.loop_freeze_max_ms)}` : "";
+  const worst = row.loop_freeze_max_ms
+    ? `, worst ${secs(row.loop_freeze_max_ms)}`
+    : "";
   const cause = row.loop_freeze_top ? ` · ${row.loop_freeze_top}` : "";
   return {
     text: `frozen ${secs(hourMs)}/h${worst}${cause}`,

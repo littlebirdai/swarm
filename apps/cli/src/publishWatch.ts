@@ -12,7 +12,11 @@ import { apiPost, type PublishDeps } from "./castApi.js";
 import { fmt } from "./colors.js";
 
 /** What a woken session reads before the changes: the page's purpose is in its own history, so the brief says only how to answer. */
-export function watchBrief(page: { title: string; slug: string; url: string }): string {
+export function watchBrief(page: {
+  title: string;
+  slug: string;
+  url: string;
+}): string {
   return [
     `People changed the data on the published page "${page.title}" (${page.url}), which this session watches. The changes that woke you are listed below.`,
     "",
@@ -24,8 +28,12 @@ export function watchBrief(page: { title: string; slug: string; url: string }): 
 }
 
 /** The calling agent's session, as the server's write stamp wants it: exact evidence only, never a guess. */
-export function callerSession(env: NodeJS.ProcessEnv = process.env): { conversation_id?: string } {
-  return env.CODECAST_CONVERSATION_ID ? { conversation_id: env.CODECAST_CONVERSATION_ID } : {};
+export function callerSession(env: NodeJS.ProcessEnv = process.env): {
+  conversation_id?: string;
+} {
+  return env.CODECAST_CONVERSATION_ID
+    ? { conversation_id: env.CODECAST_CONVERSATION_ID }
+    : {};
 }
 
 export async function runPublishWatch(
@@ -37,22 +45,65 @@ export async function runPublishWatch(
 ): Promise<void> {
   // Read the page first: it proves the page and its collections exist and are
   // readable, and gives the brief its title and address.
-  const page = await apiPost(deps, "/cli/artifacts/state", { target, ...(collections.length === 1 ? { collection: collections[0] } : {}) }, { read: true });
-  const args = ["trigger", "add", opts.prompt ?? watchBrief(page), "--on", "page_state", "--page", page.slug, "--title", `Watch page ${page.title}`];
+  const page = await apiPost(
+    deps,
+    "/cli/artifacts/state",
+    {
+      target,
+      ...(collections.length === 1 ? { collection: collections[0] } : {}),
+    },
+    { read: true },
+  );
+  const args = [
+    "trigger",
+    "add",
+    opts.prompt ?? watchBrief(page),
+    "--on",
+    "page_state",
+    "--page",
+    page.slug,
+    "--title",
+    `Watch page ${page.title}`,
+  ];
   if (collections.length) args.push("--collection", collections.join(","));
   if (opts.spawn) args.push("--spawn");
   await program.parseAsync(args, { from: "user" });
-  console.log(fmt.muted(`  Each change to ${page.slug}${collections.length ? ` (${collections.join(", ")})` : ""} wakes ${opts.spawn ? "a fresh session" : "this session"}, a burst as one run. Stop with: cast publish unwatch ${page.slug}`));
+  console.log(
+    fmt.muted(
+      `  Each change to ${page.slug}${collections.length ? ` (${collections.join(", ")})` : ""} wakes ${opts.spawn ? "a fresh session" : "this session"}, a burst as one run. Stop with: cast publish unwatch ${page.slug}`,
+    ),
+  );
 }
 
-export async function runPublishUnwatch(program: Command, deps: PublishDeps, target: string, opts: { all?: boolean }): Promise<void> {
-  const page = await apiPost(deps, "/cli/artifacts/state", { target }, { read: true });
+export async function runPublishUnwatch(
+  program: Command,
+  deps: PublishDeps,
+  target: string,
+  opts: { all?: boolean },
+): Promise<void> {
+  const page = await apiPost(
+    deps,
+    "/cli/artifacts/state",
+    { target },
+    { read: true },
+  );
   const here = process.env.CODECAST_CONVERSATION_ID?.slice(0, 7);
-  const watches: Array<{ trigger: string; session: string | null }> = page.watches ?? [];
-  const mine = opts.all || !here ? watches : watches.filter((w) => w.session === here);
+  const watches: Array<{ trigger: string; session: string | null }> =
+    page.watches ?? [];
+  const mine =
+    opts.all || !here ? watches : watches.filter((w) => w.session === here);
   if (!mine.length) {
-    console.log(fmt.muted(watches.length ? `This session does not watch ${page.slug}; --all stops your other ${watches.length} watch${watches.length === 1 ? "" : "es"} of it.` : `Nothing of yours watches ${page.slug}.`));
+    console.log(
+      fmt.muted(
+        watches.length
+          ? `This session does not watch ${page.slug}; --all stops your other ${watches.length} watch${watches.length === 1 ? "" : "es"} of it.`
+          : `Nothing of yours watches ${page.slug}.`,
+      ),
+    );
     return;
   }
-  for (const w of mine) await program.parseAsync(["trigger", "cancel", w.trigger], { from: "user" });
+  for (const w of mine)
+    await program.parseAsync(["trigger", "cancel", w.trigger], {
+      from: "user",
+    });
 }

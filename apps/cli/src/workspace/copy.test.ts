@@ -35,8 +35,12 @@ function manifest(copy: string[]): WorkspaceManifest {
     services: {},
     env: {},
     teardown: { run: [] },
-    browser: { enabled: false, headless: true, cdpPort: { base: 9222, range: 100 } },
-  backend: "local",
+    browser: {
+      enabled: false,
+      headless: true,
+      cdpPort: { base: 9222, range: 100 },
+    },
+    backend: "local",
   };
 }
 
@@ -64,12 +68,9 @@ describe("copyFiles", () => {
   test("missing source file is skipped, not an error", () => {
     writeMain(".env", "FOO=1");
     const logs: string[] = [];
-    const r = copyFiles(
-      manifest([".env", ".env.local"]),
-      mainDir,
-      wtDir,
-      { log: (m) => logs.push(m) },
-    );
+    const r = copyFiles(manifest([".env", ".env.local"]), mainDir, wtDir, {
+      log: (m) => logs.push(m),
+    });
     expect(r.copied).toEqual([".env"]);
     expect(r.skippedMissing).toEqual([".env.local"]);
     expect(logs.some((l) => l.includes(".env.local"))).toBe(true);
@@ -164,7 +165,10 @@ describe("copy-on-write clones", () => {
     writeMain(".env", "FOO=1");
     const modes = recordCopyModes();
     try {
-      copyFiles(manifest([".env"]), mainDir, wtDir, { log: silent, platform: "darwin" });
+      copyFiles(manifest([".env"]), mainDir, wtDir, {
+        log: silent,
+        platform: "darwin",
+      });
     } finally {
       modes.restore();
     }
@@ -176,7 +180,10 @@ describe("copy-on-write clones", () => {
     writeMain(".env", "FOO=1");
     const modes = recordCopyModes();
     try {
-      copyFiles(manifest([".env"]), mainDir, wtDir, { log: silent, platform: "linux" });
+      copyFiles(manifest([".env"]), mainDir, wtDir, {
+        log: silent,
+        platform: "linux",
+      });
     } finally {
       modes.restore();
     }

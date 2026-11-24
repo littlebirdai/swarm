@@ -19,7 +19,10 @@ export default {
       url.hostname = env.CANONICAL_HOST;
       return Response.redirect(url.toString(), 301);
     }
-    const slug = request.method === "GET" ? unfurlSlug(url.pathname, request.headers.get("user-agent")) : null;
+    const slug =
+      request.method === "GET"
+        ? unfurlSlug(url.pathname, request.headers.get("user-agent"))
+        : null;
     if (slug) return fetch(`${env.RUN_ORIGIN}/og/${slug}`);
     return env.ASSETS.fetch(request);
   },

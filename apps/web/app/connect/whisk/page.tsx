@@ -35,7 +35,11 @@ export const WHISK_SIGN_IN_URL = `/login?reason=whisk&return_to=${encodeURICompo
 function takeReturn(): StashedReturn | null {
   const query = new URLSearchParams(window.location.search);
   if (query.has("whisk_code") || (query.has("error") && query.has("state"))) {
-    const ret = { code: query.get("whisk_code"), state: query.get("state"), error: query.get("error") };
+    const ret = {
+      code: query.get("whisk_code"),
+      state: query.get("state"),
+      error: query.get("error"),
+    };
     window.history.replaceState(null, "", window.location.pathname);
     stash.put(ret);
     return ret;
@@ -48,7 +52,11 @@ const FALLBACK_LANDING = settingsPathFor("integrations");
 
 /** The page with the outcome on it. */
 function landing(returnTo: string, ok: boolean, reason?: string): string {
-  const query = new URLSearchParams(ok ? { [WHISK_RETURN_KEY]: "connected" } : { [WHISK_RETURN_KEY]: "error", ...(reason ? { reason } : {}) });
+  const query = new URLSearchParams(
+    ok
+      ? { [WHISK_RETURN_KEY]: "connected" }
+      : { [WHISK_RETURN_KEY]: "error", ...(reason ? { reason } : {}) },
+  );
   return `${returnTo}?${query.toString()}`;
 }
 
@@ -64,7 +72,9 @@ export default function WhiskReturn() {
     if (started.current) return;
     if (!pending) {
       started.current = true;
-      navigate(landing(FALLBACK_LANDING, false, "bad_state"), { replace: true });
+      navigate(landing(FALLBACK_LANDING, false, "bad_state"), {
+        replace: true,
+      });
       return;
     }
     if (isLoading) return;
@@ -72,25 +82,41 @@ export default function WhiskReturn() {
     if (!isAuthenticated) {
       // Held for after sign-in when the tab can keep it; otherwise the person
       // signs in here and starts the connect again.
-      if (stash.canResume(pending)) navigate(WHISK_SIGN_IN_URL, { replace: true });
+      if (stash.canResume(pending))
+        navigate(WHISK_SIGN_IN_URL, { replace: true });
       else {
         stash.clear(pending);
         setSignedOut(true);
       }
       return;
     }
-    void finish({ code: pending.code ?? undefined, state: pending.state ?? undefined, error: pending.error ?? undefined })
-      .then((res) => navigate(landing(res.return_to, res.ok, res.reason), { replace: true }))
-      .catch(() => navigate(landing(FALLBACK_LANDING, false), { replace: true }))
+    void finish({
+      code: pending.code ?? undefined,
+      state: pending.state ?? undefined,
+      error: pending.error ?? undefined,
+    })
+      .then((res) =>
+        navigate(landing(res.return_to, res.ok, res.reason), { replace: true }),
+      )
+      .catch(() =>
+        navigate(landing(FALLBACK_LANDING, false), { replace: true }),
+      )
       .finally(() => stash.clear(pending));
   }, [pending, isLoading, isAuthenticated]);
 
-  if (!signedOut) return <AppLoader label="Connecting your mail and calendar" />;
+  if (!signedOut)
+    return <AppLoader label="Connecting your mail and calendar" />;
   return (
     <main className="min-h-screen bg-sol-bg flex items-center justify-center p-8">
       <div className="w-full max-w-sm text-center">
-        <p className="text-sm leading-relaxed text-sol-text-muted">Sign in to codecast in this browser, then connect your mail and calendar again.</p>
-        <Link to="/login" className="mt-5 inline-block text-xs px-3 py-1.5 rounded-md border border-sol-border text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-highlight/60">
+        <p className="text-sm leading-relaxed text-sol-text-muted">
+          Sign in to codecast in this browser, then connect your mail and
+          calendar again.
+        </p>
+        <Link
+          to="/login"
+          className="mt-5 inline-block text-xs px-3 py-1.5 rounded-md border border-sol-border text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-highlight/60"
+        >
           Sign in
         </Link>
       </div>

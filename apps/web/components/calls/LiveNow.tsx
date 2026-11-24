@@ -5,7 +5,12 @@ import { guestDisplayName } from "@codecast/shared/contracts";
 import { Facepile } from "./OccupancyChip";
 import { LiveRoomLabel } from "./LiveRoomLabel";
 import { joinCall, knockRoom } from "../../lib/calls/actions";
-import { useGuestsWaiting, useLiveRooms, type GuestsWaitingRow, type LiveRoomRow } from "../../hooks/useLiveRooms";
+import {
+  useGuestsWaiting,
+  useLiveRooms,
+  type GuestsWaitingRow,
+  type LiveRoomRow,
+} from "../../hooks/useLiveRooms";
 import { modernButton } from "../ui/modernLook";
 
 export { LiveRoomLabel };
@@ -37,10 +42,16 @@ export function LiveRoomAction({
 }) {
   if (row.mine) {
     return (
-      <button type="button" className={`shrink-0 text-meta text-sol-violet ${className}`}
+      <button
+        type="button"
+        className={`shrink-0 text-meta text-sol-violet ${className}`}
         title="Show the huddle window"
         aria-label={`Show ${row.label}`}
-        onClick={(e) => { e.stopPropagation(); void joinCall(row.roomKey, { intent: "deliberate" }); }}>
+        onClick={(e) => {
+          e.stopPropagation();
+          void joinCall(row.roomKey, { intent: "deliberate" });
+        }}
+      >
         open huddle
       </button>
     );
@@ -138,7 +149,10 @@ export function LiveNowRail({
             title={`${waitingLine(row)}. Join to let them in`}
           >
             <DoorOpen className="h-4 w-4" />
-            <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-sol-yellow motion-reduce:animate-none" aria-hidden />
+            <span
+              className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 animate-pulse rounded-full bg-sol-yellow motion-reduce:animate-none"
+              aria-hidden
+            />
           </button>
         ))}
         {rooms.map((row) => {
@@ -158,16 +172,25 @@ export function LiveNowRail({
               key={row.roomKey}
               type="button"
               onClick={() => {
-                if (row.mine || row.canJoin) void joinCall(row.roomKey, { intent: "deliberate" });
+                if (row.mine || row.canJoin)
+                  void joinCall(row.roomKey, { intent: "deliberate" });
                 else void knockRoom(row.roomKey);
                 onNavigate?.();
               }}
               className="relative rounded-full p-0.5 transition-colors hover:bg-sol-bg-highlight focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sol-violet"
-              aria-label={row.mine ? `Show ${row.label}` : row.canJoin ? `Join ${row.label}` : `Knock at ${row.label}`}
+              aria-label={
+                row.mine
+                  ? `Show ${row.label}`
+                  : row.canJoin
+                    ? `Join ${row.label}`
+                    : `Knock at ${row.label}`
+              }
               title={
-                row.mine ? `${row.label} — show huddle` : row.canJoin
-                  ? `${row.label} — join`
-                  : `${row.label} — locked, knock to ask in`
+                row.mine
+                  ? `${row.label} — show huddle`
+                  : row.canJoin
+                    ? `${row.label} — join`
+                    : `${row.label} — locked, knock to ask in`
               }
             >
               {glyph}
@@ -204,7 +227,8 @@ export function LiveNowRail({
             <DoorOpen className="h-3 w-3" />
           </span>
           <span className="min-w-0 flex-1 truncate">
-            <span className="text-sol-text">{waitingNames(row)}</span> waiting{row.title ? ` · ${row.title}` : ""}
+            <span className="text-sol-text">{waitingNames(row)}</span> waiting
+            {row.title ? ` · ${row.title}` : ""}
           </span>
           <button
             type="button"
@@ -229,7 +253,9 @@ export function LiveNowRail({
             onNavigate?.();
           }}
           className={`group/room flex items-center gap-2 px-4 py-1 text-[12px] text-sol-text-muted ${
-            !row.mine && !row.canJoin ? "" : "cursor-pointer hover:bg-sol-bg-highlight/60 hover:text-sol-text"
+            !row.mine && !row.canJoin
+              ? ""
+              : "cursor-pointer hover:bg-sol-bg-highlight/60 hover:text-sol-text"
           }`}
         >
           <Facepile members={row.members} max={3} size={18} />

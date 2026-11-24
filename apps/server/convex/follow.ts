@@ -4,7 +4,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
 import { canAccessConversation } from "./lib/access";
 import { heldKeysFor } from "./lib/accessKeys";
-import { FOLLOW_LEASE_MS, clampFollowView } from "@codecast/shared/contracts/follow";
+import {
+  FOLLOW_LEASE_MS,
+  clampFollowView,
+} from "@codecast/shared/contracts/follow";
 import { followViewValidator } from "./lib/followView";
 
 // Follow mode: one person mirrors another's view until they stop.
@@ -27,22 +30,41 @@ async function requireAuth(ctx: any): Promise<Id<"users">> {
 async function liveFollowers(ctx: any, leaderId: Id<"users">, now: number) {
   const rows = await ctx.db
     .query("view_follows")
-    .withIndex("by_leader", (q: any) => q.eq("leader_id", leaderId).gt("updated_at", now - FOLLOW_LEASE_MS))
+    .withIndex("by_leader", (q: any) =>
+      q.eq("leader_id", leaderId).gt("updated_at", now - FOLLOW_LEASE_MS),
+    )
     .collect();
-  return (rows as Array<{ _id: Id<"view_follows">; follower_id: Id<"users">; leader_id: Id<"users">; updated_at: number; dropped_at?: number }>).filter((r) => !r.dropped_at);
+  return (
+    rows as Array<{
+      _id: Id<"view_follows">;
+      follower_id: Id<"users">;
+      leader_id: Id<"users">;
+      updated_at: number;
+      dropped_at?: number;
+    }>
+  ).filter((r) => !r.dropped_at);
 }
 
 async function myFollowRow(ctx: any, followerId: Id<"users">) {
   return (await ctx.db
     .query("view_follows")
     .withIndex("by_follower", (q: any) => q.eq("follower_id", followerId))
-    .first()) as { _id: Id<"view_follows">; leader_id: Id<"users">; updated_at: number; dropped_at?: number } | null;
+    .first()) as {
+    _id: Id<"view_follows">;
+    leader_id: Id<"users">;
+    updated_at: number;
+    dropped_at?: number;
+  } | null;
 }
 
 /** Following is between teammates: the two must share a team membership.
  *  Without this any signed-in user could lease any user id and read where
  *  that person is in the app. */
-async function sharesTeam(ctx: any, a: Id<"users">, b: Id<"users">): Promise<boolean> {
+async function sharesTeam(
+  ctx: any,
+  a: Id<"users">,
+  b: Id<"users">,
+): Promise<boolean> {
   const mine = await heldKeysFor(ctx, a);
   const theirs = await heldKeysFor(ctx, b);
   for (const key of mine) {
@@ -60,14 +82,28 @@ export const follow = mutation({
   handler: async (ctx, args) => {
     const me = await requireAuth(ctx);
     if (args.leader_id === me) return;
-    if (!(await sharesTeam(ctx, me, args.leader_id))) throw new Error("Not found");
+    if (!(await sharesTeam(ctx, me, args.leader_id)))
+      throw new Error("Not found");
     const now = Date.now();
     const existing = await myFollowRow(ctx, me);
     if (existing) {
-      if (existing.dropped_at && existing.leader_id === args.leader_id && !args.fresh) return;
-      await ctx.db.patch(existing._id, { leader_id: args.leader_id, updated_at: now, dropped_at: undefined });
+      if (
+        existing.dropped_at &&
+        existing.leader_id === args.leader_id &&
+        !args.fresh
+      )
+        return;
+      await ctx.db.patch(existing._id, {
+        leader_id: args.leader_id,
+        updated_at: now,
+        dropped_at: undefined,
+      });
     } else {
-      await ctx.db.insert("view_follows", { follower_id: me, leader_id: args.leader_id, updated_at: now });
+      await ctx.db.insert("view_follows", {
+        follower_id: me,
+        leader_id: args.leader_id,
+        updated_at: now,
+      });
     }
   },
 });
@@ -100,7 +136,9 @@ export const reportView = mutation({
   args: {
     path: v.string(),
     conversation_id: v.optional(v.id("conversations")),
-    anchor: v.optional(v.object({ message_id: v.string(), offset: v.number() })),
+    anchor: v.optional(
+      v.object({ message_id: v.string(), offset: v.number() }),
+    ),
     view: v.optional(followViewValidator),
   },
   handler: async (ctx, args) => {
@@ -111,11 +149,19 @@ export const reportView = mutation({
     const row = {
       path: args.path.slice(0, 512),
       conversation_id: args.conversation_id,
-      anchor: args.anchor ? { message_id: args.anchor.message_id.slice(0, 128), offset: Math.min(1, Math.max(0, args.anchor.offset)) } : undefined,
+      anchor: args.anchor
+        ? {
+            message_id: args.anchor.message_id.slice(0, 128),
+            offset: Math.min(1, Math.max(0, args.anchor.offset)),
+          }
+        : undefined,
       view: clampFollowView(args.view),
       updated_at: now,
     };
-    const existing = await ctx.db.query("view_states").withIndex("by_user", (q: any) => q.eq("user_id", me)).first();
+    const existing = await ctx.db
+      .query("view_states")
+      .withIndex("by_user", (q: any) => q.eq("user_id", me))
+      .first();
     if (existing) await ctx.db.patch(existing._id, row);
     else await ctx.db.insert("view_states", { user_id: me, ...row });
     return { written: true };
@@ -125,15 +171,26 @@ export const reportView = mutation({
 /** Who holds a live lease on me, with names for the pill. */
 export const followersOf = query({
   args: {},
-  returns: v.array(v.object({ user_id: v.id("users"), name: v.string(), image: v.optional(v.string()) })),
+  returns: v.array(
+    v.object({
+      user_id: v.id("users"),
+      name: v.string(),
+      image: v.optional(v.string()),
+    }),
+  ),
   handler: async (ctx) => {
     const me = await requireAuth(ctx);
     const rows = await liveFollowers(ctx, me, Date.now());
-    const out: Array<{ user_id: Id<"users">; name: string; image?: string }> = [];
+    const out: Array<{ user_id: Id<"users">; name: string; image?: string }> =
+      [];
     for (const r of rows) {
       const u = await ctx.db.get(r.follower_id);
       if (!u) continue;
-      out.push({ user_id: r.follower_id, name: u.name || u.email || "Someone", image: u.image || u.github_avatar_url || undefined });
+      out.push({
+        user_id: r.follower_id,
+        name: u.name || u.email || "Someone",
+        image: u.image || u.github_avatar_url || undefined,
+      });
     }
     return out;
   },
@@ -146,7 +203,12 @@ export const following = query({
   handler: async (ctx) => {
     const me = await requireAuth(ctx);
     const row = await myFollowRow(ctx, me);
-    if (!row || row.dropped_at || row.updated_at <= Date.now() - FOLLOW_LEASE_MS) return null;
+    if (
+      !row ||
+      row.dropped_at ||
+      row.updated_at <= Date.now() - FOLLOW_LEASE_MS
+    )
+      return null;
     return { leader_id: row.leader_id };
   },
 });
@@ -164,7 +226,9 @@ export const viewOf = query({
     v.object({
       path: v.string(),
       conversation_id: v.optional(v.id("conversations")),
-      anchor: v.optional(v.object({ message_id: v.string(), offset: v.number() })),
+      anchor: v.optional(
+        v.object({ message_id: v.string(), offset: v.number() }),
+      ),
       view: v.optional(followViewValidator),
       updated_at: v.number(),
       withheld: v.boolean(),
@@ -175,18 +239,42 @@ export const viewOf = query({
   handler: async (ctx, args) => {
     const me = await requireAuth(ctx);
     const lease = await myFollowRow(ctx, me);
-    if (!lease || lease.leader_id !== args.leader_id || lease.updated_at <= Date.now() - FOLLOW_LEASE_MS) return null;
+    if (
+      !lease ||
+      lease.leader_id !== args.leader_id ||
+      lease.updated_at <= Date.now() - FOLLOW_LEASE_MS
+    )
+      return null;
     // A lease written before the teammate rule, or one outlived by a
     // membership, reads as no lease.
     if (!(await sharesTeam(ctx, me, args.leader_id))) return null;
-    if (lease.dropped_at) return { path: "", updated_at: lease.dropped_at, withheld: false, ended: true };
-    const state = await ctx.db.query("view_states").withIndex("by_user", (q: any) => q.eq("user_id", args.leader_id)).first();
+    if (lease.dropped_at)
+      return {
+        path: "",
+        updated_at: lease.dropped_at,
+        withheld: false,
+        ended: true,
+      };
+    const state = await ctx.db
+      .query("view_states")
+      .withIndex("by_user", (q: any) => q.eq("user_id", args.leader_id))
+      .first();
     if (!state) return null;
     if (state.conversation_id) {
       const conversation = await ctx.db.get(state.conversation_id);
-      const ok = !!conversation && (await canAccessConversation(ctx, me, conversation as any));
-      if (!ok) return { path: "", updated_at: state.updated_at, withheld: true };
+      const ok =
+        !!conversation &&
+        (await canAccessConversation(ctx, me, conversation as any));
+      if (!ok)
+        return { path: "", updated_at: state.updated_at, withheld: true };
     }
-    return { path: state.path, conversation_id: state.conversation_id, anchor: state.anchor, view: state.view, updated_at: state.updated_at, withheld: false };
+    return {
+      path: state.path,
+      conversation_id: state.conversation_id,
+      anchor: state.anchor,
+      view: state.view,
+      updated_at: state.updated_at,
+      withheld: false,
+    };
   },
 });

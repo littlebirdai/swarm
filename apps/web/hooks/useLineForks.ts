@@ -7,7 +7,11 @@ import { useMemo } from "react";
 import { useWorkspaceCollection } from "./useWorkspaceCollection";
 import { lineForkIndex } from "../lib/line/lineStations";
 
-export type LineForkProject = { _id: string; short_id?: string | null; title?: string | null };
+export type LineForkProject = {
+  _id: string;
+  short_id?: string | null;
+  title?: string | null;
+};
 
 const sig = (p: LineForkProject) => `${p.short_id ?? ""}|${p.title ?? ""}`;
 

@@ -38,7 +38,10 @@ describe("interactivePromptMessageUuid", () => {
   });
 
   test("different option set changes the id", () => {
-    const other = { ...prompt, options: [...prompt.options, { label: "Other" }] };
+    const other = {
+      ...prompt,
+      options: [...prompt.options, { label: "Other" }],
+    };
     expect(interactivePromptMessageUuid(sid, prompt)).not.toBe(
       interactivePromptMessageUuid(sid, other),
     );
@@ -47,7 +50,9 @@ describe("interactivePromptMessageUuid", () => {
   test("option descriptions are part of the identity", () => {
     const withDesc = {
       ...prompt,
-      options: prompt.options.map((o, i) => (i === 0 ? { ...o, description: "fastest" } : o)),
+      options: prompt.options.map((o, i) =>
+        i === 0 ? { ...o, description: "fastest" } : o,
+      ),
     };
     expect(interactivePromptMessageUuid(sid, prompt)).not.toBe(
       interactivePromptMessageUuid(sid, withDesc),
@@ -63,7 +68,10 @@ describe("interactivePromptMessageUuid", () => {
 
   test("different session changes the id", () => {
     expect(interactivePromptMessageUuid(sid, prompt)).not.toBe(
-      interactivePromptMessageUuid("e5e5410e-f381-4c95-acde-2f08ddbb1b26", prompt),
+      interactivePromptMessageUuid(
+        "e5e5410e-f381-4c95-acde-2f08ddbb1b26",
+        prompt,
+      ),
     );
   });
 });
@@ -74,12 +82,19 @@ describe("interactivePromptMessageUuid", () => {
 // upserted onto the answered row and rendered pre-answered. The session sat 9 hours.
 describe("prompt anchor", () => {
   const sid = "22d4c672-cc74-4751-a86a-51c30d8f587a";
-  const proceed = { question: "Do you want to proceed?", options: [{ label: "Yes" }, { label: "No" }] };
+  const proceed = {
+    question: "Do you want to proceed?",
+    options: [{ label: "Yes" }, { label: "No" }],
+  };
   const line = (o: Record<string, unknown>) => JSON.stringify(o);
 
   test("the same words under a later transcript message get a new id", () => {
-    expect(interactivePromptMessageUuid(sid, proceed, "msg-a")).not.toBe(interactivePromptMessageUuid(sid, proceed, "msg-b"));
-    expect(interactivePromptMessageUuid(sid, proceed, "msg-a")).toBe(interactivePromptMessageUuid(sid, proceed, "msg-a"));
+    expect(interactivePromptMessageUuid(sid, proceed, "msg-a")).not.toBe(
+      interactivePromptMessageUuid(sid, proceed, "msg-b"),
+    );
+    expect(interactivePromptMessageUuid(sid, proceed, "msg-a")).toBe(
+      interactivePromptMessageUuid(sid, proceed, "msg-a"),
+    );
   });
 
   test("anchors on the newest user or assistant entry, past bookkeeping lines", () => {
@@ -90,7 +105,7 @@ describe("prompt anchor", () => {
       line({ type: "queue-operation", operation: "enqueue" }),
       line({ type: "attachment", uuid: "att-1" }),
       line({ type: "system", uuid: "sys-1" }),
-      "{\"truncated",
+      '{"truncated',
     ].join("\n");
     expect(jsonlPromptAnchor(tail)).toBe("second-call");
   });

@@ -24,28 +24,41 @@ const MIN = 60_000;
 // these assertions depend on the machine's timezone.
 const NOW = new Date("2026-08-12T15:00:00").getTime();
 
-const msg = (id: string, authorId: string, createdAt: number, extra: Partial<TimelineMessage> = {}): TimelineMessage => ({
+const msg = (
+  id: string,
+  authorId: string,
+  createdAt: number,
+  extra: Partial<TimelineMessage> = {},
+): TimelineMessage => ({
   id,
   authorId,
   createdAt,
   ...extra,
 });
 
-const kinds = (rows: ReturnType<typeof buildChatTimeline>) => rows.map((r) => r.kind);
+const kinds = (rows: ReturnType<typeof buildChatTimeline>) =>
+  rows.map((r) => r.kind);
 const groupedFlags = (rows: ReturnType<typeof buildChatTimeline>) =>
   rows.filter((r) => r.kind === "message").map((r) => (r as any).grouped);
 
 describe("buildChatTimeline — grouping", () => {
   it("groups consecutive messages by one author inside the window", () => {
     const rows = buildChatTimeline(
-      [msg("a", "u1", NOW - 3 * MIN), msg("b", "u1", NOW - 2 * MIN), msg("c", "u1", NOW - MIN)],
+      [
+        msg("a", "u1", NOW - 3 * MIN),
+        msg("b", "u1", NOW - 2 * MIN),
+        msg("c", "u1", NOW - MIN),
+      ],
       { now: NOW },
     );
     expect(groupedFlags(rows)).toEqual([false, true, true]);
   });
 
   it("breaks the group when the author changes", () => {
-    const rows = buildChatTimeline([msg("a", "u1", NOW - 2 * MIN), msg("b", "u2", NOW - MIN)], { now: NOW });
+    const rows = buildChatTimeline(
+      [msg("a", "u1", NOW - 2 * MIN), msg("b", "u2", NOW - MIN)],
+      { now: NOW },
+    );
     expect(groupedFlags(rows)).toEqual([false, false]);
   });
 
@@ -65,25 +78,62 @@ describe("buildChatTimeline — grouping", () => {
 
   it("derives the group key from the Slack person behind a bridge-authored line", () => {
     expect(authorGroupKey({ id: "u1", name: "Ashot" })).toBe("u1");
-    expect(authorGroupKey({ id: "bridge", name: "Samvit", slack: { userId: "U1" } })).toBe("slack:U1");
+    expect(
+      authorGroupKey({ id: "bridge", name: "Samvit", slack: { userId: "U1" } }),
+    ).toBe("slack:U1");
     // A Slack app carries no user id; its name still keeps it apart from a person.
-    expect(authorGroupKey({ id: "bridge", name: "Aivery", slack: {} })).toBe("slack:Aivery");
+    expect(authorGroupKey({ id: "bridge", name: "Aivery", slack: {} })).toBe(
+      "slack:Aivery",
+    );
     // The row-level reading agrees with the author-level one.
-    expect(threadFaceKey({ user_id: "bridge", external: { user: "U1" }, external_author: { name: "Samvit" } })).toBe("slack:U1");
-    expect(threadFaceKey({ user_id: "bridge", external_author: { name: "Aivery" } })).toBe("slack:Aivery");
+    expect(
+      threadFaceKey({
+        user_id: "bridge",
+        external: { user: "U1" },
+        external_author: { name: "Samvit" },
+      }),
+    ).toBe("slack:U1");
+    expect(
+      threadFaceKey({ user_id: "bridge", external_author: { name: "Aivery" } }),
+    ).toBe("slack:Aivery");
     expect(threadFaceKey({ user_id: "u1" })).toBe("u1");
   });
 
   it("keeps a session's answer apart from its human's own line", () => {
     // Both rows are stored under the human's user id; the session is who spoke.
-    expect(authorGroupKey({ id: "u1", name: "Build", session: { id: "conv-1" } })).toBe("session:conv-1");
-    expect(threadFaceKey({ user_id: "u1", origin: "agent", origin_session_id: "conv-1" })).toBe("session:conv-1");
+    expect(
+      authorGroupKey({ id: "u1", name: "Build", session: { id: "conv-1" } }),
+    ).toBe("session:conv-1");
+    expect(
+      threadFaceKey({
+        user_id: "u1",
+        origin: "agent",
+        origin_session_id: "conv-1",
+      }),
+    ).toBe("session:conv-1");
     // An anchor reply has its own identity already, keyed by its bot user.
-    expect(threadFaceKey({ user_id: "bot", origin: "agent", origin_session_id: "conv-2", author_kind: "agent" })).toBe("bot");
+    expect(
+      threadFaceKey({
+        user_id: "bot",
+        origin: "agent",
+        origin_session_id: "conv-2",
+        author_kind: "agent",
+      }),
+    ).toBe("bot");
     const rows = buildChatTimeline(
       [
-        { ...msg("q", "u1", NOW - 1000), groupKey: authorGroupKey({ id: "u1", name: "Ashot" }) },
-        { ...msg("a", "u1", NOW), groupKey: authorGroupKey({ id: "u1", name: "Build", session: { id: "conv-1" } }) },
+        {
+          ...msg("q", "u1", NOW - 1000),
+          groupKey: authorGroupKey({ id: "u1", name: "Ashot" }),
+        },
+        {
+          ...msg("a", "u1", NOW),
+          groupKey: authorGroupKey({
+            id: "u1",
+            name: "Build",
+            session: { id: "conv-1" },
+          }),
+        },
       ],
       { now: NOW },
     );
@@ -149,19 +199,32 @@ describe("buildChatTimeline — grouping", () => {
 describe("buildChatTimeline — day separators", () => {
   it("emits one separator per day and breaks the group across midnight", () => {
     const rows = buildChatTimeline(
-      [msg("a", "u1", NOW - DAY), msg("b", "u1", NOW - DAY + MIN), msg("c", "u1", NOW)],
+      [
+        msg("a", "u1", NOW - DAY),
+        msg("b", "u1", NOW - DAY + MIN),
+        msg("c", "u1", NOW),
+      ],
       { now: NOW },
     );
-    expect(kinds(rows)).toEqual(["day", "message", "message", "day", "message"]);
+    expect(kinds(rows)).toEqual([
+      "day",
+      "message",
+      "message",
+      "day",
+      "message",
+    ]);
     // Same author, but a day boundary intervened, so the run restarts.
     expect(groupedFlags(rows)).toEqual([false, true, false]);
   });
 
   it("omits separators when asked, for the thread panel", () => {
-    const rows = buildChatTimeline([msg("a", "u1", NOW - DAY), msg("b", "u1", NOW)], {
-      now: NOW,
-      withoutDays: true,
-    });
+    const rows = buildChatTimeline(
+      [msg("a", "u1", NOW - DAY), msg("b", "u1", NOW)],
+      {
+        now: NOW,
+        withoutDays: true,
+      },
+    );
     expect(kinds(rows)).toEqual(["message", "message"]);
   });
 
@@ -186,7 +249,13 @@ describe("buildChatTimeline — the unread rule", () => {
       ],
       { now: NOW, lastReadAt: NOW - 5 * MIN, viewerId: "me" },
     );
-    expect(kinds(rows)).toEqual(["day", "message", "new", "message", "message"]);
+    expect(kinds(rows)).toEqual([
+      "day",
+      "message",
+      "new",
+      "message",
+      "message",
+    ]);
   });
 
   it("breaks the group at the rule, so the first unread carries a header", () => {
@@ -204,7 +273,9 @@ describe("buildChatTimeline — the unread rule", () => {
       { now: NOW, lastReadAt: NOW - 3 * MIN, viewerId: "me" },
     );
     const newIndex = rows.findIndex((r) => r.kind === "new");
-    const firstOther = rows.findIndex((r) => r.kind === "message" && (r as any).message.authorId === "u2");
+    const firstOther = rows.findIndex(
+      (r) => r.kind === "message" && (r as any).message.authorId === "u2",
+    );
     expect(newIndex).toBeGreaterThan(-1);
     expect(newIndex).toBe(firstOther - 1);
   });
@@ -219,13 +290,20 @@ describe("buildChatTimeline — the unread rule", () => {
   });
 
   it("draws no rule when read state is unknown, rather than marking everything unread", () => {
-    const rows = buildChatTimeline([msg("a", "u2", NOW - 10 * MIN)], { now: NOW, viewerId: "me" });
+    const rows = buildChatTimeline([msg("a", "u2", NOW - 10 * MIN)], {
+      now: NOW,
+      viewerId: "me",
+    });
     expect(kinds(rows)).not.toContain("new");
   });
 });
 
 describe("tallyUnread", () => {
-  const m = (createdAt: number, authorId: string, extra: Record<string, unknown> = {}) => ({ created_at: createdAt, user_id: authorId, ...extra });
+  const m = (
+    createdAt: number,
+    authorId: string,
+    extra: Record<string, unknown> = {},
+  ) => ({ created_at: createdAt, user_id: authorId, ...extra });
   const mention = { mentions: ["me"] };
 
   it("counts only other people's messages after the read mark", () => {
@@ -238,18 +316,29 @@ describe("tallyUnread", () => {
   });
 
   it("counts mentions as a subset of unread", () => {
-    const t = tallyUnread([m(NOW - MIN, "u2", mention), m(NOW - MIN, "u2")], NOW - 5 * MIN, "me");
+    const t = tallyUnread(
+      [m(NOW - MIN, "u2", mention), m(NOW - MIN, "u2")],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(t).toEqual({ unread: 2, mentions: 1 });
   });
 
   it("counts every line in a DM as a mention", () => {
-    const t = tallyUnread([m(NOW - MIN, "u2")], NOW - 5 * MIN, "me", { isDm: true });
+    const t = tallyUnread([m(NOW - MIN, "u2")], NOW - 5 * MIN, "me", {
+      isDm: true,
+    });
     expect(t).toEqual({ unread: 1, mentions: 1 });
   });
 
   it("treats the viewer's own newest line as read, even when the read mark lags", () => {
     const t = tallyUnread(
-      [m(NOW - 10 * MIN, "u2"), m(NOW - 9 * MIN, "u2"), m(NOW - 5 * MIN, "me"), m(NOW - MIN, "u2")],
+      [
+        m(NOW - 10 * MIN, "u2"),
+        m(NOW - 9 * MIN, "u2"),
+        m(NOW - 5 * MIN, "me"),
+        m(NOW - MIN, "u2"),
+      ],
       NOW - 60 * MIN,
       "me",
     );
@@ -258,7 +347,10 @@ describe("tallyUnread", () => {
 
   it("does not let an agent posting under the viewer's id read for them", () => {
     const t = tallyUnread(
-      [m(NOW - 10 * MIN, "u2"), m(NOW - 5 * MIN, "me", { author_kind: "agent" })],
+      [
+        m(NOW - 10 * MIN, "u2"),
+        m(NOW - 5 * MIN, "me", { author_kind: "agent" }),
+      ],
       NOW - 60 * MIN,
       "me",
     );
@@ -266,36 +358,77 @@ describe("tallyUnread", () => {
   });
 
   it("ignores tombstones, so deleting a message clears its badge", () => {
-    const t = tallyUnread([m(NOW - MIN, "u2", { deleted_at: NOW })], NOW - 5 * MIN, "me");
+    const t = tallyUnread(
+      [m(NOW - MIN, "u2", { deleted_at: NOW })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(t).toEqual({ unread: 0, mentions: 0 });
   });
 
   it("ignores a burst still being spoken: the badge waits for the release", () => {
-    const talking = tallyUnread([m(NOW - MIN, "u2", { voice: { status: "live" }, ...mention })], NOW - 5 * MIN, "me");
+    const talking = tallyUnread(
+      [m(NOW - MIN, "u2", { voice: { status: "live" }, ...mention })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(talking).toEqual({ unread: 0, mentions: 0 });
-    const released = tallyUnread([m(NOW - MIN, "u2", { voice: { status: "done" }, ...mention })], NOW - 5 * MIN, "me");
+    const released = tallyUnread(
+      [m(NOW - MIN, "u2", { voice: { status: "done" }, ...mention })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(released).toEqual({ unread: 1, mentions: 1 });
   });
 
   it("counts a thread reply's mention but not the reply, unless it was also sent to the channel", () => {
-    const reply = tallyUnread([m(NOW - MIN, "u2", { thread_root_id: "r", ...mention })], NOW - 5 * MIN, "me");
+    const reply = tallyUnread(
+      [m(NOW - MIN, "u2", { thread_root_id: "r", ...mention })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(reply).toEqual({ unread: 0, mentions: 1 });
-    const broadcast = tallyUnread([m(NOW - MIN, "u2", { thread_root_id: "r", broadcast: true })], NOW - 5 * MIN, "me");
+    const broadcast = tallyUnread(
+      [m(NOW - MIN, "u2", { thread_root_id: "r", broadcast: true })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(broadcast).toEqual({ unread: 1, mentions: 0 });
   });
 
   it("ignores agent rows nobody sees and answers still being written", () => {
-    const rows = ["listening", "passed", "thinking", "streaming"].map(status =>
-      m(NOW - MIN, "bot", { author_kind: "agent", agent_status: status, ...mention }));
-    expect(tallyUnread(rows, NOW - 5 * MIN, "me")).toEqual({ unread: 0, mentions: 0 });
-    const answered = tallyUnread([m(NOW - MIN, "bot", { author_kind: "agent", agent_status: "done" })], NOW - 5 * MIN, "me");
+    const rows = ["listening", "passed", "thinking", "streaming"].map(
+      (status) =>
+        m(NOW - MIN, "bot", {
+          author_kind: "agent",
+          agent_status: status,
+          ...mention,
+        }),
+    );
+    expect(tallyUnread(rows, NOW - 5 * MIN, "me")).toEqual({
+      unread: 0,
+      mentions: 0,
+    });
+    const answered = tallyUnread(
+      [m(NOW - MIN, "bot", { author_kind: "agent", agent_status: "done" })],
+      NOW - 5 * MIN,
+      "me",
+    );
     expect(answered).toEqual({ unread: 1, mentions: 0 });
   });
 
   it("ignores Slack history landing late", () => {
-    const imported = m(NOW - DAY, "bridge", { external: { synced_at: NOW }, ...mention });
-    const live = m(NOW - MIN, "bridge", { external: { synced_at: NOW - MIN + 1000 } });
-    expect(tallyUnread([imported, live], NOW - 2 * DAY, "me")).toEqual({ unread: 1, mentions: 0 });
+    const imported = m(NOW - DAY, "bridge", {
+      external: { synced_at: NOW },
+      ...mention,
+    });
+    const live = m(NOW - MIN, "bridge", {
+      external: { synced_at: NOW - MIN + 1000 },
+    });
+    expect(tallyUnread([imported, live], NOW - 2 * DAY, "me")).toEqual({
+      unread: 1,
+      mentions: 0,
+    });
   });
 
   it("treats a never-read channel as entirely unread", () => {
@@ -332,7 +465,9 @@ describe("chatToastTier", () => {
     });
 
     it("a reply on a thread you are part of", () => {
-      expect(chatToastTier({ ...base, threadRootId: "m1", viewerInThread: true })).toBe("loud");
+      expect(
+        chatToastTier({ ...base, threadRootId: "m1", viewerInThread: true }),
+      ).toBe("loud");
     });
 
     it("but not a reply on a thread you are not part of", () => {
@@ -342,19 +477,35 @@ describe("chatToastTier", () => {
     it("every line of a direct message", () => {
       expect(chatToastTier({ ...base, isDm: true })).toBe("loud");
       // Even at the "mentions" default a DM line is addressed to you.
-      expect(chatToastTier({ ...base, isDm: true, notifyLevel: "mentions" })).toBe("loud");
+      expect(
+        chatToastTier({ ...base, isDm: true, notifyLevel: "mentions" }),
+      ).toBe("loud");
     });
   });
 
   describe("direct messages and the mute", () => {
     it("a muted DM is actually silent — a mention cannot ride through", () => {
-      expect(chatToastTier({ ...base, isDm: true, notifyLevel: "none" })).toBe("silent");
-      expect(chatToastTier({ ...base, isDm: true, channelMuted: true, mentionsViewer: true })).toBe("silent");
+      expect(chatToastTier({ ...base, isDm: true, notifyLevel: "none" })).toBe(
+        "silent",
+      );
+      expect(
+        chatToastTier({
+          ...base,
+          isDm: true,
+          channelMuted: true,
+          mentionsViewer: true,
+        }),
+      ).toBe("silent");
     });
 
     it("a DM you are looking at stays quiet on screen", () => {
       expect(
-        chatToastTier({ ...base, isDm: true, activeChannelId: "c1", windowFocused: true }),
+        chatToastTier({
+          ...base,
+          isDm: true,
+          activeChannelId: "c1",
+          windowFocused: true,
+        }),
       ).toBe("silent");
     });
   });
@@ -365,20 +516,31 @@ describe("chatToastTier", () => {
     });
 
     it("outranks a mention, because you are looking straight at it", () => {
-      expect(chatToastTier({ ...base, activeChannelId: "c1", mentionsViewer: true })).toBe("silent");
+      expect(
+        chatToastTier({ ...base, activeChannelId: "c1", mentionsViewer: true }),
+      ).toBe("silent");
     });
 
     it("still toasts when the window is not focused", () => {
-      expect(chatToastTier({ ...base, activeChannelId: "c1", windowFocused: false })).toBe("quiet");
+      expect(
+        chatToastTier({ ...base, activeChannelId: "c1", windowFocused: false }),
+      ).toBe("quiet");
     });
 
     it("toasts a thread reply while the thread panel is closed", () => {
-      expect(chatToastTier({ ...base, activeChannelId: "c1", threadRootId: "m1" })).toBe("quiet");
+      expect(
+        chatToastTier({ ...base, activeChannelId: "c1", threadRootId: "m1" }),
+      ).toBe("quiet");
     });
 
     it("stays silent about the thread the viewer has open", () => {
       expect(
-        chatToastTier({ ...base, activeChannelId: "c1", activeThreadRootId: "m1", threadRootId: "m1" }),
+        chatToastTier({
+          ...base,
+          activeChannelId: "c1",
+          activeThreadRootId: "m1",
+          threadRootId: "m1",
+        }),
       ).toBe("silent");
     });
   });
@@ -390,53 +552,97 @@ describe("chatToastTier", () => {
 
     it("lets a direct mention pierce a muted channel", () => {
       // Muting a room is not asking not to be spoken to.
-      expect(chatToastTier({ ...base, channelMuted: true, mentionsViewer: true })).toBe("loud");
+      expect(
+        chatToastTier({ ...base, channelMuted: true, mentionsViewer: true }),
+      ).toBe("loud");
     });
 
     it("honours the mentions-only level in both directions", () => {
-      expect(chatToastTier({ ...base, notifyLevel: "mentions" })).toBe("silent");
-      expect(chatToastTier({ ...base, notifyLevel: "mentions", mentionsViewer: true })).toBe("loud");
+      expect(chatToastTier({ ...base, notifyLevel: "mentions" })).toBe(
+        "silent",
+      );
+      expect(
+        chatToastTier({
+          ...base,
+          notifyLevel: "mentions",
+          mentionsViewer: true,
+        }),
+      ).toBe("loud");
     });
 
     it("honours the none level even for a mention", () => {
-      expect(chatToastTier({ ...base, notifyLevel: "none", mentionsViewer: true })).toBe("silent");
+      expect(
+        chatToastTier({ ...base, notifyLevel: "none", mentionsViewer: true }),
+      ).toBe("silent");
     });
 
     it("lets do-not-disturb outrank a mention", () => {
-      expect(chatToastTier({ ...base, doNotDisturb: true, mentionsViewer: true })).toBe("silent");
+      expect(
+        chatToastTier({ ...base, doNotDisturb: true, mentionsViewer: true }),
+      ).toBe("silent");
     });
   });
 
   describe("the burst gate", () => {
     it("drops a busy channel to a badge once it passes the cap", () => {
-      expect(chatToastTier({ ...base, recentToastsFromChannel: QUIET_TOAST_BURST_CAP - 1 })).toBe("quiet");
-      expect(chatToastTier({ ...base, recentToastsFromChannel: QUIET_TOAST_BURST_CAP })).toBe("silent");
+      expect(
+        chatToastTier({
+          ...base,
+          recentToastsFromChannel: QUIET_TOAST_BURST_CAP - 1,
+        }),
+      ).toBe("quiet");
+      expect(
+        chatToastTier({
+          ...base,
+          recentToastsFromChannel: QUIET_TOAST_BURST_CAP,
+        }),
+      ).toBe("silent");
     });
 
     it("never rate limits being named — that is not chatter", () => {
       expect(
-        chatToastTier({ ...base, recentToastsFromChannel: 99, mentionsViewer: true }),
+        chatToastTier({
+          ...base,
+          recentToastsFromChannel: 99,
+          mentionsViewer: true,
+        }),
       ).toBe("loud");
     });
   });
 
   it("shouldToastChatMessage agrees with the tier", () => {
-    expect(shouldToastChatMessage({ ...base, mentionsViewer: true })).toBe(true);
+    expect(shouldToastChatMessage({ ...base, mentionsViewer: true })).toBe(
+      true,
+    );
     expect(shouldToastChatMessage(base)).toBe(true);
     expect(shouldToastChatMessage({ ...base, doNotDisturb: true })).toBe(false);
   });
 });
 
 describe("chatToastTier — imported history", () => {
-  const base = { authorId: "u2", viewerId: "u1", channelId: "c", windowFocused: false } as const;
+  const base = {
+    authorId: "u2",
+    viewerId: "u1",
+    channelId: "c",
+    windowFocused: false,
+  } as const;
   it("stays silent for a line that is history, even one that names the viewer", () => {
-    expect(chatToastTier({ ...base, mentionsViewer: true, history: true })).toBe("silent");
+    expect(
+      chatToastTier({ ...base, mentionsViewer: true, history: true }),
+    ).toBe("silent");
     expect(chatToastTier({ ...base, mentionsViewer: true })).toBe("loud");
   });
   it("tells a late import from a live mirrored line by the lag behind its stamp", () => {
     const at = 1_000_000_000;
-    expect(isHistoryLine({ created_at: at, external: { synced_at: at + 4_000 } })).toBe(false);
-    expect(isHistoryLine({ created_at: at, external: { synced_at: at + HISTORY_LAG_MS + 1 } })).toBe(true);
+    expect(
+      isHistoryLine({ created_at: at, external: { synced_at: at + 4_000 } }),
+    ).toBe(false);
+    expect(
+      isHistoryLine({
+        created_at: at,
+        external: { synced_at: at + HISTORY_LAG_MS + 1 },
+      }),
+    ).toBe(true);
     expect(isHistoryLine({ created_at: at })).toBe(false);
   });
 });

@@ -16,7 +16,8 @@ type UploadHandle = { mutation: (fn: any, args: any) => Promise<any> };
 // the same bytes would be refused again.
 const UPLOAD_ATTEMPTS = 3;
 const UPLOAD_BACKOFF_MS = 1000;
-const retryable = (status: number) => status >= 500 || status === 408 || status === 429;
+const retryable = (status: number) =>
+  status >= 500 || status === 408 || status === 429;
 
 /**
  * Upload a blob and return its storage id, or null if the upload failed.
@@ -34,7 +35,10 @@ export async function uploadBlobToStorage(
       const uploadUrl = await convex.mutation(api.images.generateUploadUrl, {});
       const res = await fetch(uploadUrl, {
         method: "POST",
-        headers: { "Content-Type": contentType || blob.type || "application/octet-stream" },
+        headers: {
+          "Content-Type":
+            contentType || blob.type || "application/octet-stream",
+        },
         body: blob,
       });
       if (res.ok) {

@@ -22,7 +22,14 @@
 // against its merge base with origin's default branch, less any leading
 // commits the tree already holds, and prints the one line that goes on the task.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { majorityOf, repPassed } from "../apps/evals/src/adapters/replay";
@@ -47,11 +54,23 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-const ids = (file: string): string[] => (existsSync(file) ? readFileSync(file, "utf8").split("\n").map((l) => l.trim()).filter(Boolean) : []);
+const ids = (file: string): string[] =>
+  existsSync(file)
+    ? readFileSync(file, "utf8")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+    : [];
 
 /** The JSON array `--json` prints after a replay's progress lines. */
-export function replayRuns(stdout: string): Array<Parameters<typeof repPassed>[0]> | null {
-  for (let at = stdout.lastIndexOf("["); at !== -1; at = at === 0 ? -1 : stdout.lastIndexOf("[", at - 1)) {
+export function replayRuns(
+  stdout: string,
+): Array<Parameters<typeof repPassed>[0]> | null {
+  for (
+    let at = stdout.lastIndexOf("[");
+    at !== -1;
+    at = at === 0 ? -1 : stdout.lastIndexOf("[", at - 1)
+  ) {
     if (at > 0 && stdout[at - 1] !== "\n") continue;
     try {
       const parsed = JSON.parse(stdout.slice(at));
@@ -72,12 +91,43 @@ export interface ProvenEntry {
 }
 
 /** One freeze's entry: a miss is shown when it fails by majority, a guard holds when it passes by majority. */
-export function provenEntry(freeze: string, kind: ProvenEntry["kind"], runs: Array<Parameters<typeof repPassed>[0]>): ProvenEntry {
-  const reps = runs.filter((r) => r.status !== "crash" && r.status !== "unscored" && r.status !== "running").map((r) => ({ passed: repPassed(r), score: null, reply: "", judge_note: "", cost_usd: 0 }));
+export function provenEntry(
+  freeze: string,
+  kind: ProvenEntry["kind"],
+  runs: Array<Parameters<typeof repPassed>[0]>,
+): ProvenEntry {
+  const reps = runs
+    .filter(
+      (r) =>
+        r.status !== "crash" &&
+        r.status !== "unscored" &&
+        r.status !== "running",
+    )
+    .map((r) => ({
+      passed: repPassed(r),
+      score: null,
+      reply: "",
+      judge_note: "",
+      cost_usd: 0,
+    }));
   const verdict = majorityOf(reps);
   const passed = reps.filter((r) => r.passed).length;
-  if (verdict === undefined) return { freeze, kind, passed, scored: 0, ok: false, error: "no rep scored" };
-  return { freeze, kind, passed, scored: reps.length, ok: kind === "miss" ? !verdict : verdict };
+  if (verdict === undefined)
+    return {
+      freeze,
+      kind,
+      passed,
+      scored: 0,
+      ok: false,
+      error: "no rep scored",
+    };
+  return {
+    freeze,
+    kind,
+    passed,
+    scored: reps.length,
+    ok: kind === "miss" ? !verdict : verdict,
+  };
 }
 
 function prove(): void {
@@ -87,24 +137,60 @@ function prove(): void {
   const misses = ids(path.join(dir, "freezes.txt"));
   const guards = ids(path.join(dir, "guards.txt"));
   if (!misses.length) {
-    fail(`no miss freezes in ${dir}/freezes.txt. Make each with ./evals freeze create <surface>@<session>:<line> --judge "what a correct reply does", then list the miss freeze ids there, one per line, and two or three guards (moments the prompt already gets right) in ${dir}/guards.txt`);
+    fail(
+      `no miss freezes in ${dir}/freezes.txt. Make each with ./evals freeze create <surface>@<session>:<line> --judge "what a correct reply does", then list the miss freeze ids there, one per line, and two or three guards (moments the prompt already gets right) in ${dir}/guards.txt`,
+    );
   }
   const entries: ProvenEntry[] = [];
-  for (const [kind, list] of [["miss", misses], ["guard", guards]] as const) {
+  for (const [kind, list] of [
+    ["miss", misses],
+    ["guard", guards],
+  ] as const) {
     for (const freeze of list) {
       console.error(`prove: ${kind} ${freeze}, ${reps} reps`);
-      const r = spawnSync(EVALS, ["freeze", "replay", freeze, "--reps", String(reps), "--json"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+      const r = spawnSync(
+        EVALS,
+        ["freeze", "replay", freeze, "--reps", String(reps), "--json"],
+        { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+      );
       const runs = r.status === 0 ? replayRuns(r.stdout ?? "") : null;
-      entries.push(runs ? provenEntry(freeze, kind, runs) : { freeze, kind, passed: 0, scored: 0, ok: false, error: `./evals freeze replay exited ${r.status}: ${(r.stderr || r.stdout || "").trim().split("\n").pop() ?? ""}` });
+      entries.push(
+        runs
+          ? provenEntry(freeze, kind, runs)
+          : {
+              freeze,
+              kind,
+              passed: 0,
+              scored: 0,
+              ok: false,
+              error: `./evals freeze replay exited ${r.status}: ${(r.stderr || r.stdout || "").trim().split("\n").pop() ?? ""}`,
+            },
+      );
     }
   }
-  const reasons = entries.filter((e) => !e.ok).map((e) =>
-    e.error ? `${e.kind} ${e.freeze}: ${e.error}`
-      : e.kind === "miss" ? `miss ${e.freeze} passes on the base (${e.passed}/${e.scored}), so it shows no miss`
-        : `guard ${e.freeze} fails on the base (${e.passed}/${e.scored})`);
+  const reasons = entries
+    .filter((e) => !e.ok)
+    .map((e) =>
+      e.error
+        ? `${e.kind} ${e.freeze}: ${e.error}`
+        : e.kind === "miss"
+          ? `miss ${e.freeze} passes on the base (${e.passed}/${e.scored}), so it shows no miss`
+          : `guard ${e.freeze} fails on the base (${e.passed}/${e.scored})`,
+    );
   const ok = reasons.length === 0;
-  writeFileSync(path.join(dir, "proven.json"), `${JSON.stringify({ ok, reps, entries, reasons }, null, 2)}\n`);
-  console.log(JSON.stringify({ ok, proven: path.join(dir, "proven.json"), misses: misses.length, guards: guards.length, reasons }));
+  writeFileSync(
+    path.join(dir, "proven.json"),
+    `${JSON.stringify({ ok, reps, entries, reasons }, null, 2)}\n`,
+  );
+  console.log(
+    JSON.stringify({
+      ok,
+      proven: path.join(dir, "proven.json"),
+      misses: misses.length,
+      guards: guards.length,
+      reasons,
+    }),
+  );
   if (!ok) process.exit(1);
 }
 
@@ -113,19 +199,42 @@ function evalBranch(): void {
   mkdirSync(dir, { recursive: true });
   const freezes = ids(path.join(dir, "freezes.txt"));
   const reps = arg("reps");
-  const r = spawnSync(EVALS, [
-    "line", "--base", need("base"),
-    "--out", path.join(dir, "eval-result.json"),
-    "--reps-out", path.join(dir, "reps.json"),
-    ...freezes.flatMap((f) => ["--freeze", f]),
-    ...(reps ? ["--reps", reps] : []),
-  ], { stdio: "inherit" });
+  const r = spawnSync(
+    EVALS,
+    [
+      "line",
+      "--base",
+      need("base"),
+      "--out",
+      path.join(dir, "eval-result.json"),
+      "--reps-out",
+      path.join(dir, "reps.json"),
+      ...freezes.flatMap((f) => ["--freeze", f]),
+      ...(reps ? ["--reps", reps] : []),
+    ],
+    { stdio: "inherit" },
+  );
   process.exit(r.status ?? 1);
 }
 
-function git(cwd: string, args: string[], input?: string, env?: Record<string, string>): { ok: boolean; out: string; err: string } {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8", input, maxBuffer: 64 * 1024 * 1024, env: env && { ...process.env, ...env } });
-  return { ok: r.status === 0, out: r.stdout ?? "", err: (r.stderr ?? "").trim() };
+function git(
+  cwd: string,
+  args: string[],
+  input?: string,
+  env?: Record<string, string>,
+): { ok: boolean; out: string; err: string } {
+  const r = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    input,
+    maxBuffer: 64 * 1024 * 1024,
+    env: env && { ...process.env, ...env },
+  });
+  return {
+    ok: r.status === 0,
+    out: r.stdout ?? "",
+    err: (r.stderr ?? "").trim(),
+  };
 }
 
 /**
@@ -136,7 +245,14 @@ function git(cwd: string, args: string[], input?: string, env?: Record<string, s
  */
 export function shipRange(cwd: string, base: string): string {
   const remote = `origin/${base}`;
-  const from = git(cwd, ["rev-parse", "--verify", "-q", `refs/remotes/${remote}`]).ok ? remote : base;
+  const from = git(cwd, [
+    "rev-parse",
+    "--verify",
+    "-q",
+    `refs/remotes/${remote}`,
+  ]).ok
+    ? remote
+    : base;
   const mergeBase = git(cwd, ["merge-base", from, "HEAD"]);
   if (!mergeBase.ok) fail(`no merge base with ${from}: ${mergeBase.err}`);
   return `${mergeBase.out.trim()}..HEAD`;
@@ -147,9 +263,14 @@ function ship(): void {
   const cwd = process.cwd();
   const range = shipRange(cwd, need("base"));
   const patch = git(cwd, ["diff", "--binary", range]).out;
-  if (!patch.trim()) { console.log("nothing to land: the branch has no change against its base"); return; }
+  if (!patch.trim()) {
+    console.log("nothing to land: the branch has no change against its base");
+    return;
+  }
   const stat = git(cwd, ["diff", "--shortstat", range]).out.trim();
-  const files = git(cwd, ["diff", "--name-only", "--no-renames", range]).out.split("\n").filter(Boolean);
+  const files = git(cwd, ["diff", "--name-only", "--no-renames", range])
+    .out.split("\n")
+    .filter(Boolean);
   const base = range.split("..")[0];
   // A change made from a session's own edits was committed from this tree,
   // and flowChange.ts leaves the edits there: the tree already holds it.
@@ -162,21 +283,31 @@ function ship(): void {
   if (check.ok) {
     refuseUnreviewed(cwd, tree, files, base, base);
     const applied = git(tree, ["apply", "-"], patch);
-    if (!applied.ok) fail(`applying to ${tree} failed: ${applied.err.split("\n")[0]}`);
+    if (!applied.ok)
+      fail(`applying to ${tree} failed: ${applied.err.split("\n")[0]}`);
     console.log(`applied to the working tree at ${tree}: ${stat}`);
     return;
   }
   // Review rounds commit on top of those edits, so the tree can hold the
   // branch's first commits and not the rest: land only the rest.
   const held = heldPrefix(cwd, tree, range);
-  if (!held) fail(`the change does not apply to ${tree} as it stands: ${check.err.split("\n")[0]}`);
+  if (!held)
+    fail(
+      `the change does not apply to ${tree} as it stands: ${check.err.split("\n")[0]}`,
+    );
   refuseUnreviewed(cwd, tree, files, base, held.commit);
   const rest = git(cwd, ["diff", "--binary", `${held.commit}..HEAD`]).out;
   const restCheck = git(tree, ["apply", "--check", "-"], rest);
-  if (!restCheck.ok) fail(`the tree holds the first ${held.count} of ${held.total} commits, and the rest does not apply to ${tree}: ${restCheck.err.split("\n")[0]}`);
+  if (!restCheck.ok)
+    fail(
+      `the tree holds the first ${held.count} of ${held.total} commits, and the rest does not apply to ${tree}: ${restCheck.err.split("\n")[0]}`,
+    );
   const applied = git(tree, ["apply", "-"], rest);
-  if (!applied.ok) fail(`applying to ${tree} failed: ${applied.err.split("\n")[0]}`);
-  console.log(`applied to the working tree at ${tree}: the last ${held.total - held.count} of ${held.total} commits (${git(cwd, ["diff", "--shortstat", `${held.commit}..HEAD`]).out.trim()}); the first ${held.count} were already there`);
+  if (!applied.ok)
+    fail(`applying to ${tree} failed: ${applied.err.split("\n")[0]}`);
+  console.log(
+    `applied to the working tree at ${tree}: the last ${held.total - held.count} of ${held.total} commits (${git(cwd, ["diff", "--shortstat", `${held.commit}..HEAD`]).out.trim()}); the first ${held.count} were already there`,
+  );
 }
 
 /**
@@ -190,47 +321,86 @@ function ship(): void {
  * file is held against the tree's HEAD with that change applied, never
  * against `rev` itself, which carries upstream commits the tree lacks.
  */
-export function unreviewedEdits(cwd: string, tree: string, files: string[], base: string, rev: string): string[] {
+export function unreviewedEdits(
+  cwd: string,
+  tree: string,
+  files: string[],
+  base: string,
+  rev: string,
+): string[] {
   const dir = mkdtempSync(path.join(tmpdir(), "line-reviewed-"));
   try {
     // A scratch index of the tree's HEAD with the reviewed change applied.
     const env = { GIT_INDEX_FILE: path.join(dir, "index") };
     const patch = git(cwd, ["diff", "--binary", base, rev]).out;
-    const built = git(tree, ["read-tree", "HEAD"], undefined, env).ok
-      && (!patch.trim() || git(tree, ["apply", "--cached", "-"], patch, env).ok);
+    const built =
+      git(tree, ["read-tree", "HEAD"], undefined, env).ok &&
+      (!patch.trim() || git(tree, ["apply", "--cached", "-"], patch, env).ok);
     return files.filter((file) => {
       // When the change does not apply to the tree's HEAD, only `rev`'s own copy counts as reviewed.
-      const want = built ? git(tree, ["rev-parse", "-q", "--verify", `:${file}`], undefined, env) : git(cwd, ["rev-parse", "-q", "--verify", `${rev}:${file}`]);
+      const want = built
+        ? git(tree, ["rev-parse", "-q", "--verify", `:${file}`], undefined, env)
+        : git(cwd, ["rev-parse", "-q", "--verify", `${rev}:${file}`]);
       const onDisk = existsSync(path.join(tree, file));
       if (!want.ok || !onDisk) return want.ok !== onDisk;
-      return git(tree, ["hash-object", "--", file]).out.trim() !== want.out.trim();
+      return (
+        git(tree, ["hash-object", "--", file]).out.trim() !== want.out.trim()
+      );
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function refuseUnreviewed(cwd: string, tree: string, files: string[], base: string, rev: string): void {
+function refuseUnreviewed(
+  cwd: string,
+  tree: string,
+  files: string[],
+  base: string,
+  rev: string,
+): void {
   const edited = unreviewedEdits(cwd, tree, files, base, rev);
   if (!edited.length) return;
   const short = (r: string) => git(cwd, ["rev-parse", "--short", r]).out.trim();
-  fail(`the working tree at ${tree} holds edits the reviewed branch does not, in ${edited.join(", ")}; landing there would ship them unreviewed, so nothing was written (\`git diff HEAD -- ${edited.join(" ")}\` in the tree shows what it would commit, \`git diff ${short(base)} ${short(rev)} -- ${edited.join(" ")}\` what review saw)`);
+  fail(
+    `the working tree at ${tree} holds edits the reviewed branch does not, in ${edited.join(", ")}; landing there would ship them unreviewed, so nothing was written (\`git diff HEAD -- ${edited.join(" ")}\` in the tree shows what it would commit, \`git diff ${short(base)} ${short(rev)} -- ${edited.join(" ")}\` what review saw)`,
+  );
 }
 
 /** The longest run of the branch's leading commits the tree already holds, short of all of them; null when it holds none. */
-export function heldPrefix(cwd: string, tree: string, range: string): { commit: string; count: number; total: number } | null {
+export function heldPrefix(
+  cwd: string,
+  tree: string,
+  range: string,
+): { commit: string; count: number; total: number } | null {
   const base = range.split("..")[0];
-  const commits = git(cwd, ["rev-list", "--reverse", range]).out.split("\n").filter(Boolean);
+  const commits = git(cwd, ["rev-list", "--reverse", range])
+    .out.split("\n")
+    .filter(Boolean);
   for (let count = commits.length - 1; count >= 1; count--) {
     const commit = commits[count - 1];
-    if (git(tree, ["apply", "--check", "-R", "-"], git(cwd, ["diff", "--binary", `${base}..${commit}`]).out).ok) return { commit, count, total: commits.length };
+    if (
+      git(
+        tree,
+        ["apply", "--check", "-R", "-"],
+        git(cwd, ["diff", "--binary", `${base}..${commit}`]).out,
+      ).ok
+    )
+      return { commit, count, total: commits.length };
   }
   return null;
 }
 
 if (import.meta.main) {
-  const commands: Record<string, () => void> = { prove, eval: evalBranch, ship };
+  const commands: Record<string, () => void> = {
+    prove,
+    eval: evalBranch,
+    ship,
+  };
   const run = commands[process.argv[2] ?? ""];
-  if (!run) fail(`usage: bun scripts/line.ts ${Object.keys(commands).join("|")} [options]`);
+  if (!run)
+    fail(
+      `usage: bun scripts/line.ts ${Object.keys(commands).join("|")} [options]`,
+    );
   run();
 }

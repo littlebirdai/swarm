@@ -1,6 +1,10 @@
 import { toast } from "sonner";
 import { copyToClipboard } from "./utils";
-import { useInboxStore, defaultNewSessionPath, findProjectPathByName } from "../store/inboxStore";
+import {
+  useInboxStore,
+  defaultNewSessionPath,
+  findProjectPathByName,
+} from "../store/inboxStore";
 import { spawnSessionWithPrompt } from "./spawnSession";
 
 // The one error toast. Every surface that reports a caught error to the user
@@ -18,7 +22,9 @@ export function showErrorToast(title: string, fullTrace: string) {
     cancel: {
       label: "Copy stack",
       onClick: () => {
-        void copyToClipboard(fullTrace).then(() => toast.success("Stack trace copied"));
+        void copyToClipboard(fullTrace).then(() =>
+          toast.success("Stack trace copied"),
+        );
       },
     },
   });

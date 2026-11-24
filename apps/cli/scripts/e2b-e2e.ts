@@ -17,14 +17,18 @@ const started = Date.now();
 function budgetCheck(label: string) {
   const elapsed = Date.now() - started;
   if (elapsed > BUDGET_WALL_MS) {
-    throw new Error(`BUDGET EXCEEDED at ${label}: ${elapsed}ms > ${BUDGET_WALL_MS}ms`);
+    throw new Error(
+      `BUDGET EXCEEDED at ${label}: ${elapsed}ms > ${BUDGET_WALL_MS}ms`,
+    );
   }
 }
 
 function makeRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "e2b-e2e-"));
   execSync("git init -q -b main", { cwd: dir });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: dir });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: dir,
+  });
   fs.writeFileSync(path.join(dir, "README.md"), "e2b-e2e fixture\n");
   fs.writeFileSync(path.join(dir, "marker.txt"), "tarball-push-worked\n");
   // Manifest with a trivial install command to prove setup runs in-sandbox.
@@ -46,17 +50,27 @@ async function main() {
     console.log("\n=== acquire (tarball push + in-sandbox setup) ===");
     const t0 = Date.now();
     const ws = await E2bBackend.acquire(repoRoot, name);
-    console.log(`acquired in ${Date.now() - t0}ms, path=${ws.path}, state=${ws.state}`);
+    console.log(
+      `acquired in ${Date.now() - t0}ms, path=${ws.path}, state=${ws.state}`,
+    );
     budgetCheck("post-acquire");
 
-    console.log("\n=== exec: prove we're in a Linux sandbox + repo contents present ===");
-    const u = await E2bBackend.exec(repoRoot, name, "uname -s && cat marker.txt && cat install-proof.txt");
+    console.log(
+      "\n=== exec: prove we're in a Linux sandbox + repo contents present ===",
+    );
+    const u = await E2bBackend.exec(
+      repoRoot,
+      name,
+      "uname -s && cat marker.txt && cat install-proof.txt",
+    );
     console.log(`exit=${u.exitCode} durationMs=${u.durationMs}`);
     console.log("stdout:", JSON.stringify(u.stdout));
     if (u.exitCode !== 0) throw new Error("exec failed");
     if (!u.stdout.includes("Linux")) throw new Error("expected Linux uname");
-    if (!u.stdout.includes("tarball-push-worked")) throw new Error("repo contents missing in sandbox");
-    if (!u.stdout.includes("INSTALL_RAN")) throw new Error("setup install command did not run in sandbox");
+    if (!u.stdout.includes("tarball-push-worked"))
+      throw new Error("repo contents missing in sandbox");
+    if (!u.stdout.includes("INSTALL_RAN"))
+      throw new Error("setup install command did not run in sandbox");
     budgetCheck("post-exec");
 
     console.log("\n=== exec: non-zero exit returns code without throwing ===");
@@ -65,10 +79,16 @@ async function main() {
     if (fail.exitCode !== 23) throw new Error("expected exit 23");
 
     console.log("\n=== writeFile + readFile roundtrip ===");
-    await E2bBackend.writeFile(repoRoot, name, "sub/dir/hello.txt", "hello-from-host\n");
+    await E2bBackend.writeFile(
+      repoRoot,
+      name,
+      "sub/dir/hello.txt",
+      "hello-from-host\n",
+    );
     const back = await E2bBackend.readFile(repoRoot, name, "sub/dir/hello.txt");
     console.log("read back:", JSON.stringify(back.toString("utf-8")));
-    if (back.toString("utf-8") !== "hello-from-host\n") throw new Error("file roundtrip mismatch");
+    if (back.toString("utf-8") !== "hello-from-host\n")
+      throw new Error("file roundtrip mismatch");
     budgetCheck("post-fileio");
 
     console.log("\n=== validate ===");
@@ -78,8 +98,12 @@ async function main() {
 
     console.log("\n=== list ===");
     const list = await E2bBackend.list(repoRoot);
-    console.log("workspaces:", list.map((w) => w.name));
-    if (!list.find((w) => w.name === name)) throw new Error("list missing workspace");
+    console.log(
+      "workspaces:",
+      list.map((w) => w.name),
+    );
+    if (!list.find((w) => w.name === name))
+      throw new Error("list missing workspace");
 
     console.log("\n=== release (kills sandbox) ===");
     await E2bBackend.release(repoRoot, name);
@@ -87,11 +111,18 @@ async function main() {
 
     const elapsed = Date.now() - started;
     const estCost = (elapsed / 1000) * 0.000014; // rough base-sandbox rate
-    console.log(`\n✓ D3 PASS — E2B live e2e. wall=${elapsed}ms est-cost≈$${estCost.toFixed(5)}`);
+    console.log(
+      `\n✓ D3 PASS — E2B live e2e. wall=${elapsed}ms est-cost≈$${estCost.toFixed(5)}`,
+    );
   } catch (e) {
     // Best-effort cleanup so we never leak a billing sandbox.
-    try { await E2bBackend.release(repoRoot, name); } catch {}
-    const err = e as Error & { stderr?: Buffer | string; stdout?: Buffer | string };
+    try {
+      await E2bBackend.release(repoRoot, name);
+    } catch {}
+    const err = e as Error & {
+      stderr?: Buffer | string;
+      stdout?: Buffer | string;
+    };
     console.error(`✗ D3 FAIL: ${err.message}`);
     if (err.stderr) console.error("stderr:", err.stderr.toString());
     if (err.stdout) console.error("stdout:", err.stdout.toString());

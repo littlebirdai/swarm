@@ -43,32 +43,45 @@ function download(url, dest, redirects = 0) {
   return new Promise((resolve, reject) => {
     if (redirects > 5) return reject(new Error("too many redirects"));
     https
-      .get(url, { headers: { "user-agent": `codecast-npm/${pkg.version}` } }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          res.resume();
-          return resolve(download(res.headers.location, dest, redirects + 1));
-        }
-        if (res.statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-        }
-        const out = fs.createWriteStream(dest);
-        res.pipe(out);
-        out.on("finish", () => out.close(resolve));
-        out.on("error", reject);
-      })
+      .get(
+        url,
+        { headers: { "user-agent": `codecast-npm/${pkg.version}` } },
+        (res) => {
+          if (
+            res.statusCode >= 300 &&
+            res.statusCode < 400 &&
+            res.headers.location
+          ) {
+            res.resume();
+            return resolve(download(res.headers.location, dest, redirects + 1));
+          }
+          if (res.statusCode !== 200) {
+            res.resume();
+            return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+          }
+          const out = fs.createWriteStream(dest);
+          res.pipe(out);
+          out.on("finish", () => out.close(resolve));
+          out.on("error", reject);
+        },
+      )
       .on("error", reject);
   });
 }
 
 function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(fs.readFileSync(file))
+    .digest("hex");
 }
 
 async function install() {
   const key = platformKey();
   if (!key) {
-    console.error(`codecast: unsupported platform ${process.platform}-${process.arch}`);
+    console.error(
+      `codecast: unsupported platform ${process.platform}-${process.arch}`,
+    );
     process.exit(1);
   }
   const expected = checksums[key];

@@ -57,7 +57,14 @@ export function normalizeChannelName(raw: string): string {
 // The vocabulary itself lives in @codecast/shared/chat/handles so the clients'
 // completion strips and this server resolve the SAME handles. Re-exported here
 // so convex-side callers keep one import path.
-export { MAX_MENTIONS, extractMentionHandles, mentionsHere, botHandle, emailLocalHandle, memberHandle } from "@codecast/shared/chat";
+export {
+  MAX_MENTIONS,
+  extractMentionHandles,
+  mentionsHere,
+  botHandle,
+  emailLocalHandle,
+  memberHandle,
+} from "@codecast/shared/chat";
 
 // The preview sanitizer (oneLine, plainPreview) lives in @codecast/shared/chat
 // so a client renders a room's preview from the stored row with the same rules
@@ -66,7 +73,9 @@ export { INVISIBLE_RE, oneLine, plainPreview } from "@codecast/shared/chat";
 
 /** The session title a chat line is stamped with: paste markers out, one
  *  line, 80 characters. Undefined when the session has no title to show. */
-export function sessionLineTitle(title: string | null | undefined): string | undefined {
+export function sessionLineTitle(
+  title: string | null | undefined,
+): string | undefined {
   const t = titleLine(title);
   return t ? oneLine(t, 80) : undefined;
 }
@@ -77,7 +86,9 @@ export function sessionLineTitle(title: string | null | undefined): string | und
 export function holdsQueryPhrases(content: string, query: string): boolean {
   const { phrases } = parseQueryTerms(query);
   if (phrases.length === 0) return true;
-  const plain = plainPreview(content, MAX_CHAT_CONTENT).toLowerCase().replace(/\s+/g, " ");
+  const plain = plainPreview(content, MAX_CHAT_CONTENT)
+    .toLowerCase()
+    .replace(/\s+/g, " ");
   return phrases.every((p) => plain.includes(p.replace(/\s+/g, " ")));
 }
 
@@ -86,7 +97,11 @@ export function holdsQueryPhrases(content: string, query: string): boolean {
  *  slice would render such a hit with nothing highlighted, which reads as a
  *  false positive. Falls back to the head when no term is found in the plain
  *  text (the index may have matched a stemmed form). */
-export function searchSnippet(content: string, query: string, max = 200): string {
+export function searchSnippet(
+  content: string,
+  query: string,
+  max = 200,
+): string {
   const plain = plainPreview(content, MAX_CHAT_CONTENT);
   if (plain.length <= max) return plain;
   const lower = plain.toLowerCase();
@@ -96,7 +111,8 @@ export function searchSnippet(content: string, query: string, max = 200): string
     const i = lower.indexOf(t);
     if (i >= 0 && (first < 0 || i < first)) first = i;
   }
-  if (first < 0 || first < max * 0.6) return plain.slice(0, max - 1).trimEnd() + "…";
+  if (first < 0 || first < max * 0.6)
+    return plain.slice(0, max - 1).trimEnd() + "…";
   // Lead with a little context, land the hit inside the window, cut on a space.
   let start = Math.max(0, first - Math.floor(max * 0.3));
   const spaceBefore = plain.lastIndexOf(" ", start);
@@ -154,7 +170,13 @@ export function fenceSafe(text: string, max = MAX_CHAT_CONTENT): string {
 //   none     — nothing
 export function notifyLevelAllows(
   level: "all" | "mentions" | "none" | undefined,
-  eventType: "chat_mention" | "chat_reply" | "chat_here" | "chat_dm" | "chat_added" | "chat_post",
+  eventType:
+    | "chat_mention"
+    | "chat_reply"
+    | "chat_here"
+    | "chat_dm"
+    | "chat_added"
+    | "chat_post",
 ): boolean {
   if (eventType === "chat_post") return level === "all";
   return level !== "none";

@@ -33,6 +33,7 @@ The app is fundamentally a client-side SPA. Convex handles all data, auth is cli
 5. Set up path aliases (`@/` -> `src/`) to match existing `tsconfig.json` paths
 
 **Font loading**: Replace `next/font/google` with CSS `@font-face` declarations or Google Fonts `<link>` tags in `index.html`:
+
 - JetBrains Mono (`--font-mono`)
 - Fraunces (`--font-serif`)
 
@@ -43,6 +44,7 @@ The app is fundamentally a client-side SPA. Convex handles all data, auth is cli
 Convert Next.js file-based routes to explicit React Router route config.
 
 **Layout mapping**:
+
 ```
 Root layout        -> <App> wrapper (providers, html/body)
 (marketing)/layout -> <MarketingLayout> (ForceLightMode + solarized bg)
@@ -52,58 +54,59 @@ palette/layout     -> <PaletteLayout>
 
 **Route groups** (~55 routes):
 
-| Next.js Path | React Router Path | Notes |
-|---|---|---|
-| `(marketing)/page.tsx` | `/` | Landing |
-| `(marketing)/about/page.tsx` | `/about` | Static |
-| `(marketing)/features/page.tsx` | `/features` | Static |
-| `(marketing)/documentation/page.tsx` | `/documentation` | Static |
-| `(marketing)/privacy/page.tsx` | `/privacy` | Static |
-| `(marketing)/security/page.tsx` | `/security` | Static |
-| `(marketing)/support/page.tsx` | `/support` | Static |
-| `(marketing)/terms/page.tsx` | `/terms` | Static |
-| `login/page.tsx` | `/login` | |
-| `signup/page.tsx` | `/signup` | |
-| `forgot-password/page.tsx` | `/forgot-password` | |
-| `reset-password/page.tsx` | `/reset-password` | |
-| `auth/cli/page.tsx` | `/auth/cli` | |
-| `join/[code]/page.tsx` | `/join/:code` | |
-| `dashboard/page.tsx` | `/dashboard` | |
-| `inbox/page.tsx` | `/inbox` | |
-| `feed/page.tsx` | `/feed` | |
-| `search/page.tsx` | `/search` | |
-| `explore/page.tsx` | `/explore` | |
-| `timeline/page.tsx` | `/timeline` | |
-| `notifications/page.tsx` | `/notifications` | |
-| `conversation/[id]/page.tsx` | `/conversation/:id` | OG meta needed |
-| `conversation/[id]/diff/page.tsx` | `/conversation/:id/diff` | |
-| `share/[token]/page.tsx` | `/share/:token` | OG meta needed |
-| `share/message/[token]/page.tsx` | `/share/message/:token` | OG meta needed |
-| `commit/[owner]/[repo]/[sha]/page.tsx` | `/commit/:owner/:repo/:sha` | |
-| `pr/[owner]/[repo]/[number]/page.tsx` | `/pr/:owner/:repo/:number` | |
-| `review/[id]/page.tsx` | `/review/:id` | |
-| `review/batch/page.tsx` | `/review/batch` | |
-| `docs/page.tsx` | `/docs` | |
-| `docs/[id]/page.tsx` | `/docs/:id` | |
-| `plans/page.tsx` | `/plans` | |
-| `plans/[id]/page.tsx` | `/plans/:id` | |
-| `tasks/page.tsx` | `/tasks` | |
-| `tasks/[id]/page.tsx` | `/tasks/:id` | |
-| `team/page.tsx` | `/team` | |
-| `team/activity/page.tsx` | `/team/activity` | |
-| `team/[username]/page.tsx` | `/team/:username` | |
-| `orchestration/page.tsx` | `/orchestration` | |
-| `roadmap/page.tsx` | `/roadmap` | |
-| `cli/page.tsx` | `/cli` | |
-| `palette/page.tsx` | `/palette` | Separate layout |
-| `admin/daemon-logs/page.tsx` | `/admin/daemon-logs` | |
-| `settings/*` (8 pages) | `/settings/*` | Nested layout |
+| Next.js Path                           | React Router Path           | Notes           |
+| -------------------------------------- | --------------------------- | --------------- |
+| `(marketing)/page.tsx`                 | `/`                         | Landing         |
+| `(marketing)/about/page.tsx`           | `/about`                    | Static          |
+| `(marketing)/features/page.tsx`        | `/features`                 | Static          |
+| `(marketing)/documentation/page.tsx`   | `/documentation`            | Static          |
+| `(marketing)/privacy/page.tsx`         | `/privacy`                  | Static          |
+| `(marketing)/security/page.tsx`        | `/security`                 | Static          |
+| `(marketing)/support/page.tsx`         | `/support`                  | Static          |
+| `(marketing)/terms/page.tsx`           | `/terms`                    | Static          |
+| `login/page.tsx`                       | `/login`                    |                 |
+| `signup/page.tsx`                      | `/signup`                   |                 |
+| `forgot-password/page.tsx`             | `/forgot-password`          |                 |
+| `reset-password/page.tsx`              | `/reset-password`           |                 |
+| `auth/cli/page.tsx`                    | `/auth/cli`                 |                 |
+| `join/[code]/page.tsx`                 | `/join/:code`               |                 |
+| `dashboard/page.tsx`                   | `/dashboard`                |                 |
+| `inbox/page.tsx`                       | `/inbox`                    |                 |
+| `feed/page.tsx`                        | `/feed`                     |                 |
+| `search/page.tsx`                      | `/search`                   |                 |
+| `explore/page.tsx`                     | `/explore`                  |                 |
+| `timeline/page.tsx`                    | `/timeline`                 |                 |
+| `notifications/page.tsx`               | `/notifications`            |                 |
+| `conversation/[id]/page.tsx`           | `/conversation/:id`         | OG meta needed  |
+| `conversation/[id]/diff/page.tsx`      | `/conversation/:id/diff`    |                 |
+| `share/[token]/page.tsx`               | `/share/:token`             | OG meta needed  |
+| `share/message/[token]/page.tsx`       | `/share/message/:token`     | OG meta needed  |
+| `commit/[owner]/[repo]/[sha]/page.tsx` | `/commit/:owner/:repo/:sha` |                 |
+| `pr/[owner]/[repo]/[number]/page.tsx`  | `/pr/:owner/:repo/:number`  |                 |
+| `review/[id]/page.tsx`                 | `/review/:id`               |                 |
+| `review/batch/page.tsx`                | `/review/batch`             |                 |
+| `docs/page.tsx`                        | `/docs`                     |                 |
+| `docs/[id]/page.tsx`                   | `/docs/:id`                 |                 |
+| `plans/page.tsx`                       | `/plans`                    |                 |
+| `plans/[id]/page.tsx`                  | `/plans/:id`                |                 |
+| `tasks/page.tsx`                       | `/tasks`                    |                 |
+| `tasks/[id]/page.tsx`                  | `/tasks/:id`                |                 |
+| `team/page.tsx`                        | `/team`                     |                 |
+| `team/activity/page.tsx`               | `/team/activity`            |                 |
+| `team/[username]/page.tsx`             | `/team/:username`           |                 |
+| `orchestration/page.tsx`               | `/orchestration`            |                 |
+| `roadmap/page.tsx`                     | `/roadmap`                  |                 |
+| `cli/page.tsx`                         | `/cli`                      |                 |
+| `palette/page.tsx`                     | `/palette`                  | Separate layout |
+| `admin/daemon-logs/page.tsx`           | `/admin/daemon-logs`        |                 |
+| `settings/*` (8 pages)                 | `/settings/*`               | Nested layout   |
 
 All routes should use `React.lazy()` for code splitting.
 
 ### Phase 3: Next.js Import Replacements
 
 **`next/link` (41 files)**:
+
 ```
 // Before
 import Link from "next/link"
@@ -113,10 +116,12 @@ import Link from "next/link"
 import { Link } from "react-router"
 <Link to="/dashboard">
 ```
+
 - `href` -> `to`
 - That's the only API difference for basic usage
 
 **`next/navigation` (50 files)**:
+
 ```
 // Before
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
@@ -138,6 +143,7 @@ const [searchParams] = useSearchParams()
 ```
 
 **`redirect` / `notFound` from next/navigation**:
+
 - `redirect("/path")` -> `navigate("/path")` or `<Navigate to="/path" />`
 - `notFound()` -> `throw new Response("Not Found", { status: 404 })` or navigate to a catch-all
 
@@ -179,34 +185,34 @@ For the 3 routes needing OG metadata (`/conversation/:id`, `/share/:token`, `/sh
 
 ```ts
 // middleware/botMeta.ts
-import { isbot } from 'isbot'
-import { ConvexHttpClient } from 'convex/browser'
+import { isbot } from "isbot";
+import { ConvexHttpClient } from "convex/browser";
 
-const convex = new ConvexHttpClient(process.env.CONVEX_URL)
+const convex = new ConvexHttpClient(process.env.CONVEX_URL);
 
 const META_ROUTES = [
   { pattern: /^\/conversation\/([a-z0-9]{32})$/, handler: getConversationMeta },
   { pattern: /^\/share\/(.+)$/, handler: getShareMeta },
   { pattern: /^\/share\/message\/(.+)$/, handler: getShareMessageMeta },
-]
+];
 
 export async function botMetaMiddleware(c, next) {
-  if (!isbot(c.req.header('user-agent'))) return next()
+  if (!isbot(c.req.header("user-agent"))) return next();
 
-  const match = META_ROUTES.find(r => r.pattern.test(c.req.path))
-  if (!match) return next()
+  const match = META_ROUTES.find((r) => r.pattern.test(c.req.path));
+  if (!match) return next();
 
-  const meta = await match.handler(c.req.path)
-  if (!meta) return next()
+  const meta = await match.handler(c.req.path);
+  if (!meta) return next();
 
   return c.html(`<!DOCTYPE html>
     <html><head>
       <meta property="og:title" content="${meta.title}" />
       <meta property="og:description" content="${meta.description}" />
-      <meta property="og:image" content="${meta.image || '/logo-final.png'}" />
+      <meta property="og:image" content="${meta.image || "/logo-final.png"}" />
       <meta property="og:url" content="https://codecast.sh${c.req.path}" />
       <meta name="twitter:card" content="summary" />
-    </head><body></body></html>`)
+    </head><body></body></html>`);
 }
 ```
 
@@ -224,29 +230,39 @@ Tauri already works well with Vite -- it's the recommended setup. Changes:
 ### Phase 7: Build & Deploy
 
 **Vite build config**:
+
 ```ts
 // vite.config.ts
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') }
+    alias: { "@": path.resolve(__dirname, "./src") },
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
-          convex: ['convex', '@convex-dev/auth'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', /* etc */],
-          markdown: ['react-markdown', 'rehype-highlight', 'remark-gfm', 'prismjs'],
-        }
-      }
-    }
-  }
-})
+          vendor: ["react", "react-dom"],
+          convex: ["convex", "@convex-dev/auth"],
+          ui: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu" /* etc */,
+          ],
+          markdown: [
+            "react-markdown",
+            "rehype-highlight",
+            "remark-gfm",
+            "prismjs",
+          ],
+        },
+      },
+    },
+  },
+});
 ```
 
 **Railway deployment**:
+
 - Dockerfile runs `vite build` then starts the Hono server
 - Server serves static `dist/` + API routes + bot meta middleware
 - Simpler than current Next.js standalone server
@@ -266,25 +282,25 @@ export default defineConfig({
 
 ## Risk Assessment
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| Broken share link previews | Medium | Test with Twitter Card Validator, Facebook debugger, Slack preview before shipping |
-| Missing route / broken navigation | Low | Automated test: crawl all routes, verify 200 status |
-| Tauri build breaks | Low | Vite is Tauri's recommended bundler -- should improve |
-| SEO regression on marketing pages | Low | Bot meta middleware covers this; verify with Google Search Console |
-| Convex client initialization changes | Very Low | ConvexReactClient is framework-agnostic, no changes needed |
+| Risk                                 | Likelihood | Mitigation                                                                         |
+| ------------------------------------ | ---------- | ---------------------------------------------------------------------------------- |
+| Broken share link previews           | Medium     | Test with Twitter Card Validator, Facebook debugger, Slack preview before shipping |
+| Missing route / broken navigation    | Low        | Automated test: crawl all routes, verify 200 status                                |
+| Tauri build breaks                   | Low        | Vite is Tauri's recommended bundler -- should improve                              |
+| SEO regression on marketing pages    | Low        | Bot meta middleware covers this; verify with Google Search Console                 |
+| Convex client initialization changes | Very Low   | ConvexReactClient is framework-agnostic, no changes needed                         |
 
 ## Effort Breakdown
 
-| Phase | Effort | Can Parallelize |
-|---|---|---|
-| 1. Scaffolding | Small | - |
-| 2. Route tree | Medium | - |
-| 3. Import replacements | Medium (mechanical) | Yes, per-file |
-| 4. API routes server | Small | Yes, with Phase 2-3 |
-| 5. Bot meta middleware | Small | Yes, with Phase 2-3 |
-| 6. Tauri integration | Small | After Phase 1 |
-| 7. Build & deploy | Medium | After Phase 1-5 |
-| 8. Cleanup | Small | After everything |
+| Phase                  | Effort              | Can Parallelize     |
+| ---------------------- | ------------------- | ------------------- |
+| 1. Scaffolding         | Small               | -                   |
+| 2. Route tree          | Medium              | -                   |
+| 3. Import replacements | Medium (mechanical) | Yes, per-file       |
+| 4. API routes server   | Small               | Yes, with Phase 2-3 |
+| 5. Bot meta middleware | Small               | Yes, with Phase 2-3 |
+| 6. Tauri integration   | Small               | After Phase 1       |
+| 7. Build & deploy      | Medium              | After Phase 1-5     |
+| 8. Cleanup             | Small               | After everything    |
 
 Total: 3-5 focused sessions. The bulk is Phase 2-3 (route tree + import replacements) which is mechanical but touches many files.

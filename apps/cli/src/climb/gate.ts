@@ -20,43 +20,79 @@ export const GATE_LIMIT_DEFAULT_S = 2 * 60 * 60;
  * as committed at the base, else twice the longest gate run this climb has
  * finished, else GATE_LIMIT_DEFAULT_S.
  */
-export function gateLimitS(root: string, base: string, recentMs: readonly number[]): { s: number; from: "declared" | "recent" | "default" } {
+export function gateLimitS(
+  root: string,
+  base: string,
+  recentMs: readonly number[],
+): { s: number; from: "declared" | "recent" | "default" } {
   const text = tryGit(root, ["show", `${base}:.codecast/climb.toml`]);
   if (text) {
     try {
       const declared = (Bun.TOML.parse(text) as any)?.guard?.timeout_s;
-      if (typeof declared === "number" && declared > 0) return { s: declared, from: "declared" };
+      if (typeof declared === "number" && declared > 0)
+        return { s: declared, from: "declared" };
     } catch {}
   }
-  if (recentMs.length) return { s: Math.ceil((2 * Math.max(...recentMs)) / 1000), from: "recent" };
+  if (recentMs.length)
+    return { s: Math.ceil((2 * Math.max(...recentMs)) / 1000), from: "recent" };
   return { s: GATE_LIMIT_DEFAULT_S, from: "default" };
 }
 
-export type GateRun = { code: number | null; timedOut: boolean; ms: number; tail: string };
+export type GateRun = {
+  code: number | null;
+  timedOut: boolean;
+  ms: number;
+  tail: string;
+};
 
 /**
  * Run the gate's command in its own process group, its output kept in `log` (and passed through); past `limitS`
  * everything it started is ended (`graceMs` between TERM and KILL), and the run returns once it has been.
  */
-export function runGate(command: string, opts: { cwd: string; env: NodeJS.ProcessEnv; limitS: number; log: string; graceMs?: number }): Promise<GateRun> {
+export function runGate(
+  command: string,
+  opts: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+    limitS: number;
+    log: string;
+    graceMs?: number;
+  },
+): Promise<GateRun> {
   const started = Date.now();
   const out = fs.openSync(opts.log, "a");
   return new Promise((resolve) => {
-    const child = spawn("bash", ["-c", command], { cwd: opts.cwd, env: opts.env, detached: true, stdio: ["ignore", out, out] });
+    const child = spawn("bash", ["-c", command], {
+      cwd: opts.cwd,
+      env: opts.env,
+      detached: true,
+      stdio: ["ignore", out, out],
+    });
     let timedOut = false;
     let ending: Promise<void> = Promise.resolve();
     const timer = setTimeout(() => {
       timedOut = true;
-      ending = child.pid ? endStation(child.pid, opts.graceMs) : Promise.resolve();
+      ending = child.pid
+        ? endStation(child.pid, opts.graceMs)
+        : Promise.resolve();
     }, opts.limitS * 1000);
     const done = async (code: number | null) => {
       clearTimeout(timer);
       await ending;
-      try { fs.closeSync(out); } catch {}
+      try {
+        fs.closeSync(out);
+      } catch {}
       let text = "";
-      try { text = fs.readFileSync(opts.log, "utf8"); } catch {}
+      try {
+        text = fs.readFileSync(opts.log, "utf8");
+      } catch {}
       process.stdout.write(text.slice(-20_000));
-      resolve({ code, timedOut, ms: Date.now() - started, tail: tailLines(text) });
+      resolve({
+        code,
+        timedOut,
+        ms: Date.now() - started,
+        tail: tailLines(text),
+      });
     };
     child.on("close", (code) => done(code));
     child.on("error", () => done(null));

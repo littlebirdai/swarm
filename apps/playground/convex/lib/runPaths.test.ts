@@ -6,30 +6,62 @@ import { SDK_PATH, sdkPathFor } from "./runtime";
 describe("runRoute", () => {
   test("the SDK", () => {
     expect(runRoute(SDK_PATH)).toEqual({ kind: "sdk" });
-    expect(runRoute(sdkPathFor("d57766a48f"))).toEqual({ kind: "sdk", hash: "d57766a48f" });
+    expect(runRoute(sdkPathFor("d57766a48f"))).toEqual({
+      kind: "sdk",
+      hash: "d57766a48f",
+    });
     expect(runRoute(`${SDK_PATH}/../x`)).toBeNull();
   });
 
   test("a version folder serves its index.html", () => {
-    expect(runRoute("/run/frog-choir-k3x9/v/12/")).toEqual({ kind: "file", slug: "frog-choir-k3x9", number: 12, path: ENTRY_PATH });
+    expect(runRoute("/run/frog-choir-k3x9/v/12/")).toEqual({
+      kind: "file",
+      slug: "frog-choir-k3x9",
+      number: 12,
+      path: ENTRY_PATH,
+    });
   });
 
   test("v0, a new app's starter, is served while its first build runs", () => {
-    expect(runRoute("/run/a-b2c3/v/0/")).toEqual({ kind: "file", slug: "a-b2c3", number: 0, path: ENTRY_PATH });
+    expect(runRoute("/run/a-b2c3/v/0/")).toEqual({
+      kind: "file",
+      slug: "a-b2c3",
+      number: 0,
+      path: ENTRY_PATH,
+    });
   });
 
   test("a folder without its slash redirects to it, so relative paths resolve", () => {
-    expect(runRoute("/run/frog-choir-k3x9/v/12")).toEqual({ kind: "folder", location: "/run/frog-choir-k3x9/v/12/" });
+    expect(runRoute("/run/frog-choir-k3x9/v/12")).toEqual({
+      kind: "folder",
+      location: "/run/frog-choir-k3x9/v/12/",
+    });
   });
 
   test("files, nested and percent-encoded", () => {
-    expect(runRoute("/run/a-b2c3/v/1/src/App.jsx")).toEqual({ kind: "file", slug: "a-b2c3", number: 1, path: "src/App.jsx" });
-    expect(runRoute("/run/a-b2c3/v/1/src%2FApp.jsx")).toEqual({ kind: "file", slug: "a-b2c3", number: 1, path: "src/App.jsx" });
+    expect(runRoute("/run/a-b2c3/v/1/src/App.jsx")).toEqual({
+      kind: "file",
+      slug: "a-b2c3",
+      number: 1,
+      path: "src/App.jsx",
+    });
+    expect(runRoute("/run/a-b2c3/v/1/src%2FApp.jsx")).toEqual({
+      kind: "file",
+      slug: "a-b2c3",
+      number: 1,
+      path: "src/App.jsx",
+    });
   });
 
   test("live, with or without the slash", () => {
-    expect(runRoute("/run/a-b2c3/live")).toEqual({ kind: "live", slug: "a-b2c3" });
-    expect(runRoute("/run/a-b2c3/live/")).toEqual({ kind: "live", slug: "a-b2c3" });
+    expect(runRoute("/run/a-b2c3/live")).toEqual({
+      kind: "live",
+      slug: "a-b2c3",
+    });
+    expect(runRoute("/run/a-b2c3/live/")).toEqual({
+      kind: "live",
+      slug: "a-b2c3",
+    });
     expect(runRoute("/run/a-b2c3/live/src/App.jsx")).toBeNull();
   });
 
@@ -56,8 +88,21 @@ describe("runRoute", () => {
   });
 
   test("the URL builders round-trip through the parser", () => {
-    expect(runRoute(versionPath("frog-k3x9", 3, "src/styles.css"))).toEqual({ kind: "file", slug: "frog-k3x9", number: 3, path: "src/styles.css" });
-    expect(runRoute(versionPath("frog-k3x9", 3))).toEqual({ kind: "file", slug: "frog-k3x9", number: 3, path: ENTRY_PATH });
-    expect(runRoute(livePath("frog-k3x9"))).toEqual({ kind: "live", slug: "frog-k3x9" });
+    expect(runRoute(versionPath("frog-k3x9", 3, "src/styles.css"))).toEqual({
+      kind: "file",
+      slug: "frog-k3x9",
+      number: 3,
+      path: "src/styles.css",
+    });
+    expect(runRoute(versionPath("frog-k3x9", 3))).toEqual({
+      kind: "file",
+      slug: "frog-k3x9",
+      number: 3,
+      path: ENTRY_PATH,
+    });
+    expect(runRoute(livePath("frog-k3x9"))).toEqual({
+      kind: "live",
+      slug: "frog-k3x9",
+    });
   });
 });

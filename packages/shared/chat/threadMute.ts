@@ -20,6 +20,9 @@ export function withThreadMuted(
   return [...rest, rootId].slice(-MUTED_THREADS_CAP);
 }
 
-export function isThreadMuted(list: readonly string[] | undefined, rootId: string | undefined): boolean {
+export function isThreadMuted(
+  list: readonly string[] | undefined,
+  rootId: string | undefined,
+): boolean {
   return !!rootId && !!list?.includes(rootId);
 }

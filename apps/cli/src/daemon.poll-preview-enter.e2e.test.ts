@@ -89,9 +89,10 @@ function killSessionQuiet(session: string): void {
   tmuxRun(["kill-session", "-t", session]);
 }
 function capture(target: string): string {
-  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"]).stdout;
+  return tmuxRun(["capture-pane", "-p", "-J", "-t", target, "-S", "-80"])
+    .stdout;
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
@@ -102,48 +103,62 @@ async function waitFor(fn: () => boolean, timeoutMs: number): Promise<boolean> {
   return fn();
 }
 
-describe.skipIf(!CAN_RUN)("injectViaTmux poll: digit then Enter confirms a preview menu", () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-poll-test-"));
-  const pyPath = path.join(tmpDir, "fakemenu.py");
-  fs.writeFileSync(pyPath, FAKE_MENU);
+describe.skipIf(!CAN_RUN)(
+  "injectViaTmux poll: digit then Enter confirms a preview menu",
+  () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-poll-test-"));
+    const pyPath = path.join(tmpDir, "fakemenu.py");
+    fs.writeFileSync(pyPath, FAKE_MENU);
 
-  async function runMode(mode: "preview" | "plain"): Promise<string> {
-    const session = `cc-poll-${mode}-${process.pid}`;
-    const target = `${session}:0.0`;
-    killSessionQuiet(session);
-    // Keep the pane alive after python exits so we can read RESULT off the main screen.
-    tmux(["new-session", "-d", "-s", session, "-x", "120", "-y", "40", `python3 ${pyPath} ${mode}; echo __DONE__; sleep 60`]);
-    try {
-      const menuUp = await waitFor(() => capture(target).includes("Which option?"), 10_000);
-      expect(menuUp).toBe(true);
-      expect(capture(target)).not.toContain("RESULT=");
-
-      // This is the exact payload the web card sends when the user clicks option 2.
-      await injectViaTmux(target, JSON.stringify({ __cc_poll: true, keys: ["2"], display: "Bravo" }));
-
-      const landed = await waitFor(() => capture(target).includes("RESULT="), 10_000);
-      expect(landed).toBe(true);
-      return capture(target);
-    } finally {
+    async function runMode(mode: "preview" | "plain"): Promise<string> {
+      const session = `cc-poll-${mode}-${process.pid}`;
+      const target = `${session}:0.0`;
       killSessionQuiet(session);
-    }
-  }
+      // Keep the pane alive after python exits so we can read RESULT off the main screen.
+      tmux([
+        "new-session",
+        "-d",
+        "-s",
+        session,
+        "-x",
+        "120",
+        "-y",
+        "40",
+        `python3 ${pyPath} ${mode}; echo __DONE__; sleep 60`,
+      ]);
+      try {
+        const menuUp = await waitFor(
+          () => capture(target).includes("Which option?"),
+          10_000,
+        );
+        expect(menuUp).toBe(true);
+        expect(capture(target)).not.toContain("RESULT=");
 
-  test(
-    "preview menu (digit only highlights): the follow-up Enter confirms option 2",
-    async () => {
+        // This is the exact payload the web card sends when the user clicks option 2.
+        await injectViaTmux(
+          target,
+          JSON.stringify({ __cc_poll: true, keys: ["2"], display: "Bravo" }),
+        );
+
+        const landed = await waitFor(
+          () => capture(target).includes("RESULT="),
+          10_000,
+        );
+        expect(landed).toBe(true);
+        return capture(target);
+      } finally {
+        killSessionQuiet(session);
+      }
+    }
+
+    test("preview menu (digit only highlights): the follow-up Enter confirms option 2", async () => {
       const out = await runMode("preview");
       expect(out).toContain("RESULT=2");
-    },
-    30_000,
-  );
+    }, 30_000);
 
-  test(
-    "plain menu (digit auto-submits): selection still lands, no regression",
-    async () => {
+    test("plain menu (digit auto-submits): selection still lands, no regression", async () => {
       const out = await runMode("plain");
       expect(out).toContain("RESULT=2");
-    },
-    30_000,
-  );
-});
+    }, 30_000);
+  },
+);

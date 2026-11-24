@@ -10,18 +10,34 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/", pretendToBeVisual: true });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/",
+  pretendToBeVisual: true,
+});
 const restore = replaceGlobals({
-  window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
-  HTMLElement: dom.window.HTMLElement, Element: dom.window.Element, Node: dom.window.Node,
-  KeyboardEvent: dom.window.KeyboardEvent, Event: dom.window.Event,
+  window: dom.window,
+  document: dom.window.document,
+  navigator: dom.window.navigator,
+  HTMLElement: dom.window.HTMLElement,
+  Element: dom.window.Element,
+  Node: dom.window.Node,
+  KeyboardEvent: dom.window.KeyboardEvent,
+  Event: dom.window.Event,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-afterAll(() => { restore(); closeDomWindow(dom); });
+afterAll(() => {
+  restore();
+  closeDomWindow(dom);
+});
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { ShortcutProvider, useShortcutAction, useShortcutContext, useShortcuts } = await import("../../../shortcuts/ShortcutProvider");
+const {
+  ShortcutProvider,
+  useShortcutAction,
+  useShortcutContext,
+  useShortcuts,
+} = await import("../../../shortcuts/ShortcutProvider");
 const { useUndoWalk } = await import("../../useUndoWalk");
 const { pushUndo, _resetUndoStacks } = await import("@platform/engine");
 const undoTimeline = await import("../../../lib/undoTimelineOpen");
@@ -34,8 +50,12 @@ let dispatch: (action: "ui.undo" | "ui.redo") => boolean;
 // A conversation page: its H toggles thinking blocks and its D the diff panel.
 function Page() {
   useShortcutContext("conversation");
-  useShortcutAction("conv.toggleThinking", () => { thinking += 1; });
-  useShortcutAction("conv.toggleDiff", () => { diffs += 1; });
+  useShortcutAction("conv.toggleThinking", () => {
+    thinking += 1;
+  });
+  useShortcutAction("conv.toggleDiff", () => {
+    diffs += 1;
+  });
   useUndoWalk();
   dispatch = useShortcuts().dispatchAction;
   return null;
@@ -49,22 +69,48 @@ beforeEach(async () => {
   const host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => root.render(<ShortcutProvider><Page /></ShortcutProvider>));
+  await act(async () =>
+    root.render(
+      <ShortcutProvider>
+        <Page />
+      </ShortcutProvider>,
+    ),
+  );
 });
 afterEach(async () => {
-  await act(async () => { undoTimeline.close(); });
+  await act(async () => {
+    undoTimeline.close();
+  });
   await act(async () => root.unmount());
   document.body.innerHTML = "";
 });
 
-function key(type: "keydown" | "keyup", k: string, mods: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {}) {
+function key(
+  type: "keydown" | "keyup",
+  k: string,
+  mods: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {},
+) {
   const code = /^[a-z]$/.test(k) ? `Key${k.toUpperCase()}` : k;
-  act(() => { document.body.dispatchEvent(new KeyboardEvent(type, { key: k, code, bubbles: true, cancelable: true, ...mods })); });
+  act(() => {
+    document.body.dispatchEvent(
+      new KeyboardEvent(type, {
+        key: k,
+        code,
+        bubbles: true,
+        cancelable: true,
+        ...mods,
+      }),
+    );
+  });
 }
-const press = (k: string, mods: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {}) => key("keydown", k, mods);
+const press = (
+  k: string,
+  mods: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean } = {},
+) => key("keydown", k, mods);
 const holdControl = () => key("keydown", "Control", { ctrlKey: true });
 const releaseControl = () => key("keyup", "Control");
-const undoable = (label: string) => pushUndo({ label, undo: () => {}, redo: () => {} });
+const undoable = (label: string) =>
+  pushUndo({ label, undo: () => {}, redo: () => {} });
 const card = () => (undoTimeline.isOpen() ? undoTimeline.getMode() : "closed");
 
 /** Two held undos: the second inside the delay opens the peek at once. */
@@ -114,10 +160,22 @@ test("Ctrl+H pins the card while the modifier is held", () => {
 function inEmptyComposer() {
   const field = document.body.appendChild(document.createElement("textarea"));
   field.focus();
-  const send = (type: "keydown" | "keyup", k: string, mods: { ctrlKey?: boolean; shiftKey?: boolean } = {}) => {
+  const send = (
+    type: "keydown" | "keyup",
+    k: string,
+    mods: { ctrlKey?: boolean; shiftKey?: boolean } = {},
+  ) => {
     const code = /^[a-z]$/.test(k) ? `Key${k.toUpperCase()}` : k;
-    const event = new KeyboardEvent(type, { key: k, code, bubbles: true, cancelable: true, ...mods });
-    act(() => { field.dispatchEvent(event); });
+    const event = new KeyboardEvent(type, {
+      key: k,
+      code,
+      bubbles: true,
+      cancelable: true,
+      ...mods,
+    });
+    act(() => {
+      field.dispatchEvent(event);
+    });
     return event;
   };
   undoable("first");
@@ -157,7 +215,9 @@ test("in the hovered peek, H from a focused field is typing, not a pin", () => {
   const cardEl = document.body.appendChild(document.createElement("div"));
   cardEl.setAttribute("data-undo-timeline", "");
   send("keyup", "Control");
-  act(() => { cardEl.dispatchEvent(new Event("pointerover", { bubbles: true })); });
+  act(() => {
+    cardEl.dispatchEvent(new Event("pointerover", { bubbles: true }));
+  });
   expect(card()).toBe("peek");
   const typed = send("keydown", "h");
   expect(typed.defaultPrevented).toBe(false);
@@ -168,7 +228,9 @@ test("with no walk, H is the page's again", () => {
   walkIntoPeek();
   releaseControl();
   press("h");
-  act(() => { undoTimeline.close(); });
+  act(() => {
+    undoTimeline.close();
+  });
   press("h");
   expect(thinking).toBe(1);
 });
@@ -190,11 +252,20 @@ test("a key no shortcut handles ends the walk", () => {
 
 test("a press that moved nothing does not arm the peek", async () => {
   // A conflict: the entry is dropped and a notice shows, but nothing came back.
-  pushUndo({ label: "taken back elsewhere", undo: () => ({ ok: false, reason: "conflict" }), redo: () => {} });
+  pushUndo({
+    label: "taken back elsewhere",
+    undo: () => ({ ok: false, reason: "conflict" }),
+    redo: () => {},
+  });
   holdControl();
   press("z", { ctrlKey: true });
   // A confirm entry: the press only names it.
-  pushUndo({ label: "big change", confirm: true, undo: () => {}, redo: () => {} });
+  pushUndo({
+    label: "big change",
+    confirm: true,
+    undo: () => {},
+    redo: () => {},
+  });
   press("z", { ctrlKey: true });
   await act(() => new Promise((r) => setTimeout(r, PEEK_DELAY_MS + 50)));
   expect(card()).toBe("closed");
@@ -215,13 +286,30 @@ test("a press that took something back arms the peek after the delay", async () 
 // onAppEditCommand. It must decline wherever the dispatcher declines the key.
 test("the desktop Edit menu's undo passes the dispatcher's focus guards", async () => {
   let edit: ((dir: "undo" | "redo") => void) | undefined;
-  (window as any).__CODECAST_ELECTRON__ = { onAppEditCommand: (cb: typeof edit) => { edit = cb; return () => {}; } };
+  (window as any).__CODECAST_ELECTRON__ = {
+    onAppEditCommand: (cb: typeof edit) => {
+      edit = cb;
+      return () => {};
+    },
+  };
   try {
     await act(async () => root.unmount());
     root = createRoot(document.body.appendChild(document.createElement("div")));
-    await act(async () => root.render(<ShortcutProvider><Page /></ShortcutProvider>));
+    await act(async () =>
+      root.render(
+        <ShortcutProvider>
+          <Page />
+        </ShortcutProvider>,
+      ),
+    );
     let undone = 0;
-    pushUndo({ label: "a", undo: () => { undone += 1; }, redo: () => {} });
+    pushUndo({
+      label: "a",
+      undo: () => {
+        undone += 1;
+      },
+      redo: () => {},
+    });
 
     const region = document.body.appendChild(document.createElement("div"));
     region.setAttribute("data-owns-keys", "");
@@ -242,7 +330,13 @@ test("the desktop Edit menu's undo passes the dispatcher's focus guards", async 
 
     // The interactive card's root owns its keys, but the menu's undo is the
     // card's own chord: it steps.
-    pushUndo({ label: "b", undo: () => { undone += 1; }, redo: () => {} });
+    pushUndo({
+      label: "b",
+      undo: () => {
+        undone += 1;
+      },
+      redo: () => {},
+    });
     const cardEl = document.body.appendChild(document.createElement("div"));
     cardEl.setAttribute("data-undo-timeline", "interactive");
     const cardRoot = cardEl.appendChild(document.createElement("div"));
@@ -264,20 +358,45 @@ test("the desktop Edit menu's undo passes the dispatcher's focus guards", async 
 test("a named undo or redo from a just-edited field steps; the chord there defers to the field", async () => {
   let undone = 0;
   let redone = 0;
-  pushUndo({ label: "a", undo: () => { undone += 1; }, redo: () => { redone += 1; } });
+  pushUndo({
+    label: "a",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {
+      redone += 1;
+    },
+  });
   await act(() => new Promise((r) => setTimeout(r, 5)));
   const input = document.body.appendChild(document.createElement("input"));
   input.focus();
-  const typed = () => act(() => { input.dispatchEvent(new Event("input", { bubbles: true })); });
+  const typed = () =>
+    act(() => {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
   typed();
-  act(() => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "z", code: "KeyZ", ctrlKey: true, bubbles: true, cancelable: true })); });
+  act(() => {
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "z",
+        code: "KeyZ",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
   expect(undone).toBe(0);
   expect(document.activeElement).toBe(input);
-  act(() => { dispatch("ui.undo"); });
+  act(() => {
+    dispatch("ui.undo");
+  });
   expect(undone).toBe(1);
   await act(() => new Promise((r) => setTimeout(r, 5)));
   typed();
-  act(() => { dispatch("ui.redo"); });
+  act(() => {
+    dispatch("ui.redo");
+  });
   expect(redone).toBe(1);
 });
 
@@ -288,14 +407,32 @@ test("a named undo or redo from a just-edited field steps; the chord there defer
 test("the chord from a focused checkbox or date undoes the recorded change", async () => {
   for (const type of ["checkbox", "date", "range"]) {
     let undone = 0;
-    pushUndo({ label: type, undo: () => { undone += 1; }, redo: () => {} });
+    pushUndo({
+      label: type,
+      undo: () => {
+        undone += 1;
+      },
+      redo: () => {},
+    });
     await act(() => new Promise((r) => setTimeout(r, 5)));
     const control = document.body.appendChild(document.createElement("input"));
     control.type = type;
     if (type === "date") control.value = "2026-10-10";
     control.focus();
-    act(() => { control.dispatchEvent(new Event("input", { bubbles: true })); });
-    act(() => { control.dispatchEvent(new KeyboardEvent("keydown", { key: "z", code: "KeyZ", ctrlKey: true, bubbles: true, cancelable: true })); });
+    act(() => {
+      control.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => {
+      control.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "z",
+          code: "KeyZ",
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
     expect([type, undone]).toEqual([type, 1]);
     control.remove();
   }
@@ -306,13 +443,39 @@ test("the chord from a focused checkbox or date undoes the recorded change", asy
 // press reaches the app, and so does every later one.
 test("a chord the field declines reaches the app once the field's history is spent", async () => {
   let undone = 0;
-  pushUndo({ label: "a", undo: () => { undone += 1; }, redo: () => {} });
-  pushUndo({ label: "b", undo: () => { undone += 1; }, redo: () => {} });
+  pushUndo({
+    label: "a",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {},
+  });
+  pushUndo({
+    label: "b",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {},
+  });
   await act(() => new Promise((r) => setTimeout(r, 5)));
   const input = document.body.appendChild(document.createElement("textarea"));
   input.focus();
-  const typed = () => act(() => { input.dispatchEvent(new Event("input", { bubbles: true })); });
-  const chord = () => act(() => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "z", code: "KeyZ", ctrlKey: true, bubbles: true, cancelable: true })); });
+  const typed = () =>
+    act(() => {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  const chord = () =>
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "z",
+          code: "KeyZ",
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
   const tick = () => act(() => new Promise((r) => setTimeout(r, 5)));
   typed();
   typed();
@@ -341,7 +504,10 @@ function richEditor(opts: { undoable: boolean }) {
   const updates = new Set<() => void>();
   const done: string[] = [];
   const editor = {
-    on: (ev: string, fn: () => void) => { if (ev === "update") updates.add(fn); return editor; },
+    on: (ev: string, fn: () => void) => {
+      if (ev === "update") updates.add(fn);
+      return editor;
+    },
     can: () => ({ undo: () => done.length > 0, redo: () => false }),
   };
   (el as any).editor = editor;
@@ -360,16 +526,31 @@ function richEditor(opts: { undoable: boolean }) {
       queued = null;
       return;
     }
-    if (e.key !== "z" || !e.ctrlKey || e.defaultPrevented || !done.length) return;
+    if (e.key !== "z" || !e.ctrlKey || e.defaultPrevented || !done.length)
+      return;
     e.preventDefault();
     change(done.pop()!, false);
   });
   el.focus();
-  const keydown = (key: string, ctrlKey = false) => act(() => { el.dispatchEvent(new KeyboardEvent("keydown", { key, code: /^[a-z]$/.test(key) ? `Key${key.toUpperCase()}` : key, ctrlKey, bubbles: true, cancelable: true })); });
+  const keydown = (key: string, ctrlKey = false) =>
+    act(() => {
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key,
+          code: /^[a-z]$/.test(key) ? `Key${key.toUpperCase()}` : key,
+          ctrlKey,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
   return {
     el,
     /** The user edits, through a key the editor's keymap handles. */
-    type: (text: string) => { queued = text; keydown("Backspace"); },
+    type: (text: string) => {
+      queued = text;
+      keydown("Backspace");
+    },
     /** A change no key made: a draft seeded from the store, a collaborator's edit. */
     remote: (text: string) => change(text, opts.undoable),
     chord: () => keydown("z", true),
@@ -378,7 +559,13 @@ function richEditor(opts: { undoable: boolean }) {
 
 test("a rich editor cleared after the app's entry gets its draft back on the first chord", async () => {
   let undone = 0;
-  pushUndo({ label: "app", undo: () => { undone += 1; }, redo: () => {} });
+  pushUndo({
+    label: "app",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {},
+  });
   await act(() => new Promise((r) => setTimeout(r, 5)));
   const ed = richEditor({ undoable: true });
   ed.type("abc");
@@ -391,7 +578,13 @@ test("a rich editor cleared after the app's entry gets its draft back on the fir
 
 test("a rich editor with nothing of its own to take back hands the chord to the app", async () => {
   let undone = 0;
-  pushUndo({ label: "app", undo: () => { undone += 1; }, redo: () => {} });
+  pushUndo({
+    label: "app",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {},
+  });
   await act(() => new Promise((r) => setTimeout(r, 5)));
   const ed = richEditor({ undoable: false });
   ed.type("");
@@ -402,7 +595,13 @@ test("a rich editor with nothing of its own to take back hands the chord to the 
 
 test("a change no key made in a rich editor is not the user's edit: the chord stays the app's", async () => {
   let undone = 0;
-  pushUndo({ label: "app", undo: () => { undone += 1; }, redo: () => {} });
+  pushUndo({
+    label: "app",
+    undo: () => {
+      undone += 1;
+    },
+    redo: () => {},
+  });
   await act(() => new Promise((r) => setTimeout(r, 5)));
   const ed = richEditor({ undoable: true });
   ed.remote("seeded");

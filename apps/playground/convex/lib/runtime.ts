@@ -3,7 +3,12 @@
 // shared by the app and the SDK, and the SDK at /run/sdk imported as
 // "playground". The seed, the builder's prompt and the SDK implementation all
 // read this file, so the contract has one home.
-import { DATA_LIST_MAX, DATA_WHERE_FIELDS_MAX, MAX_DATA_DOCS_PER_APP, RATE } from "./limits";
+import {
+  DATA_LIST_MAX,
+  DATA_WHERE_FIELDS_MAX,
+  MAX_DATA_DOCS_PER_APP,
+  RATE,
+} from "./limits";
 
 export const REACT_VERSION = "19.1.0";
 export const SDK_SPECIFIER = "playground";
@@ -14,7 +19,8 @@ export const SDK_PATH = "/run/sdk";
 
 /** Every runtime response's CSP: a sandbox without allow-same-origin, so an
  *  app is an opaque origin even when opened on its own. */
-export const RUNTIME_CSP = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads";
+export const RUNTIME_CSP =
+  "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads";
 
 /** The served SDK names its deployment here; the router fills it in. */
 export const CONVEX_URL_PLACEHOLDER = "__PLAYGROUND_CONVEX_URL__";
@@ -46,15 +52,27 @@ const ESM_BUILT = {
  *  and what that file imports in turn. The import map an app is served with
  *  points straight at these, skipping the hop through each entry, and the
  *  page preloads the whole chain at once. */
-export const ESM_RESOLVED: Record<string, { url: string; imports: string[] }> = {
-  [IMPORT_MAP.imports.react]: { url: ESM_BUILT.react, imports: [] },
-  [IMPORT_MAP.imports["react/jsx-runtime"]]: { url: ESM_BUILT.jsxRuntime, imports: [] },
-  [IMPORT_MAP.imports["react-dom"]]: { url: ESM_BUILT.reactDom, imports: [ESM_BUILT.react] },
-  [IMPORT_MAP.imports["react-dom/client"]]: {
-    url: ESM_BUILT.client,
-    imports: [ESM_BUILT.react, ESM_BUILT.reactDom, "https://esm.sh/scheduler@^0.26.0?target=es2022", "https://esm.sh/scheduler@0.26.0/es2022/scheduler.mjs"],
-  },
-};
+export const ESM_RESOLVED: Record<string, { url: string; imports: string[] }> =
+  {
+    [IMPORT_MAP.imports.react]: { url: ESM_BUILT.react, imports: [] },
+    [IMPORT_MAP.imports["react/jsx-runtime"]]: {
+      url: ESM_BUILT.jsxRuntime,
+      imports: [],
+    },
+    [IMPORT_MAP.imports["react-dom"]]: {
+      url: ESM_BUILT.reactDom,
+      imports: [ESM_BUILT.react],
+    },
+    [IMPORT_MAP.imports["react-dom/client"]]: {
+      url: ESM_BUILT.client,
+      imports: [
+        ESM_BUILT.react,
+        ESM_BUILT.reactDom,
+        "https://esm.sh/scheduler@^0.26.0?target=es2022",
+        "https://esm.sh/scheduler@0.26.0/es2022/scheduler.mjs",
+      ],
+    },
+  };
 
 /** The SDK at a URL that names its build, so it caches forever. */
 export const sdkPathFor = (hash: string) => `${SDK_PATH}/${hash}`;

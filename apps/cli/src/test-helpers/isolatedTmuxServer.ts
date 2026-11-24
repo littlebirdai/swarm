@@ -53,9 +53,12 @@ function begin(): { dir: string; socket: string } {
   const run = `run-${process.pid}`;
   const tail = path.join(run, `tmux-${process.getuid?.() ?? 0}`, "default");
   const codecastDir = defaultConfigDir();
-  const base = [path.join(codecastDir, "test-tmux"), "/tmp/codecast-test-tmux"]
-    .find((candidate) => path.join(candidate, tail).length < 100);
-  if (!base) throw new Error("no directory short enough to hold a private tmux socket");
+  const base = [
+    path.join(codecastDir, "test-tmux"),
+    "/tmp/codecast-test-tmux",
+  ].find((candidate) => path.join(candidate, tail).length < 100);
+  if (!base)
+    throw new Error("no directory short enough to hold a private tmux socket");
 
   const dir = path.join(base, run);
   // tmux puts its socket at <TMUX_TMPDIR>/tmux-<uid>/default and creates that
@@ -73,8 +76,11 @@ function begin(): { dir: string; socket: string } {
   const socket = path.join(socketDir, "default");
   const owner = path.join(dir, "owner");
   let previous: string | undefined;
-  try { previous = fs.readFileSync(owner, "utf8"); } catch {}
-  if (previous !== undefined && previous !== String(process.ppid)) tmuxOnSocket(socket, ["kill-server"]);
+  try {
+    previous = fs.readFileSync(owner, "utf8");
+  } catch {}
+  if (previous !== undefined && previous !== String(process.ppid))
+    tmuxOnSocket(socket, ["kill-server"]);
   fs.writeFileSync(owner, String(process.ppid));
   process.env.TMUX_TMPDIR = dir;
   // This process may itself be running inside one of the human's tmux panes, and
@@ -109,7 +115,14 @@ function tmuxOnSocket(socket: string, args: string[]): void {
 // exit-empty still at its default exits before a second invocation can turn the
 // option off, so `start-server` alone leaves nothing running.
 function armServer(socket: string): void {
-  tmuxOnSocket(socket, ["start-server", ";", "set-option", "-s", "exit-empty", "off"]);
+  tmuxOnSocket(socket, [
+    "start-server",
+    ";",
+    "set-option",
+    "-s",
+    "exit-empty",
+    "off",
+  ]);
 }
 
 /**
@@ -120,7 +133,11 @@ function armServer(socket: string): void {
  */
 function sweepDeadServers(base: string): void {
   let entries: string[];
-  try { entries = fs.readdirSync(base); } catch { return; }
+  try {
+    entries = fs.readdirSync(base);
+  } catch {
+    return;
+  }
   for (const name of entries) {
     const pid = Number(name.match(/^run-(\d+)(?:-|$)/)?.[1]);
     if (!pid || pid === process.pid) continue;
@@ -128,8 +145,13 @@ function sweepDeadServers(base: string): void {
       process.kill(pid, 0);
       continue; // still running: its server is its own business
     } catch {}
-    tmuxOnSocket(path.join(base, name, `tmux-${process.getuid?.() ?? 0}`, "default"), ["kill-server"]);
-    try { fs.rmSync(path.join(base, name), { recursive: true, force: true }); } catch {}
+    tmuxOnSocket(
+      path.join(base, name, `tmux-${process.getuid?.() ?? 0}`, "default"),
+      ["kill-server"],
+    );
+    try {
+      fs.rmSync(path.join(base, name), { recursive: true, force: true });
+    } catch {}
   }
 }
 
@@ -155,7 +177,7 @@ export function assertIsolatedTmux(): void {
   if (process.env.TMUX_TMPDIR !== server.dir) {
     throw new Error(
       `refusing to spawn a tmux pane outside the test server: TMUX_TMPDIR is ` +
-      `${process.env.TMUX_TMPDIR ?? "(unset)"}, expected ${server.dir}`,
+        `${process.env.TMUX_TMPDIR ?? "(unset)"}, expected ${server.dir}`,
     );
   }
 }
@@ -166,5 +188,7 @@ export function assertIsolatedTmux(): void {
 // put its server.
 process.once("exit", () => {
   tmuxOnSocket(server.socket, ["kill-server"]);
-  try { fs.rmSync(server.dir, { recursive: true, force: true }); } catch {}
+  try {
+    fs.rmSync(server.dir, { recursive: true, force: true });
+  } catch {}
 });

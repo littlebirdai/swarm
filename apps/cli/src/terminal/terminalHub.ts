@@ -26,12 +26,28 @@
 
 import crypto from "crypto";
 import { WebSocket } from "ws";
-import { TmuxControlClient, type ControlClientEvents, type ControlClientMode, type PaneCapture } from "./controlClient.js";
+import {
+  TmuxControlClient,
+  type ControlClientEvents,
+  type ControlClientMode,
+  type PaneCapture,
+} from "./controlClient.js";
 
 /** What a hub needs from its control client. */
 export type HubClient = Pick<
   TmuxControlClient,
-  "start" | "capture" | "setSizing" | "sendInput" | "resize" | "setColors" | "pauseOutput" | "resumeOutput" | "killSession" | "close" | "closeSync" | "restoresTo"
+  | "start"
+  | "capture"
+  | "setSizing"
+  | "sendInput"
+  | "resize"
+  | "setColors"
+  | "pauseOutput"
+  | "resumeOutput"
+  | "killSession"
+  | "close"
+  | "closeSync"
+  | "restoresTo"
 >;
 
 /** Bytes of output a hub keeps for viewers to resume from. */
@@ -74,7 +90,11 @@ export class OutputRing {
 
   appendOutput(data: Buffer): void {
     if (data.length === 0) return;
-    this.push({ kind: "output", start: this.end, data }, data.length, data.length);
+    this.push(
+      { kind: "output", start: this.end, data },
+      data.length,
+      data.length,
+    );
   }
 
   /**
@@ -104,7 +124,8 @@ export class OutputRing {
    * held (or was never reached): the viewer needs a fresh screen.
    */
   since(from: number): RingRecord[] | null {
-    if (!Number.isInteger(from) || from < this.start || from > this.end) return null;
+    if (!Number.isInteger(from) || from < this.start || from > this.end)
+      return null;
     const out: RingRecord[] = [];
     for (const rec of this.records) {
       if (rec.kind === "reseed") {
@@ -113,7 +134,15 @@ export class OutputRing {
       }
       const recEnd = rec.start + rec.data.length;
       if (recEnd <= from) continue;
-      out.push(rec.start >= from ? rec : { kind: "output", start: from, data: rec.data.subarray(from - rec.start) });
+      out.push(
+        rec.start >= from
+          ? rec
+          : {
+              kind: "output",
+              start: from,
+              data: rec.data.subarray(from - rec.start),
+            },
+      );
     }
     return out;
   }
@@ -151,7 +180,10 @@ export interface HubOptions {
   /** The hub is gone; drop it from the registry. */
   onDispose: () => void;
   /** Overrides for tests. */
-  makeClient?: (mode: ControlClientMode, events: ControlClientEvents) => HubClient;
+  makeClient?: (
+    mode: ControlClientMode,
+    events: ControlClientEvents,
+  ) => HubClient;
   lingerMs?: number;
   controlHoldMs?: number;
   ringBytes?: number;
@@ -203,14 +235,17 @@ export class TerminalHub {
     private readonly opts: HubOptions,
   ) {
     this.ring = new OutputRing(opts.ringBytes ?? RING_BYTES);
-    this.client = (opts.makeClient ?? ((m, e) => new TmuxControlClient(m, e)))(mode, {
-      onOutput: (data) => this.onOutput(data),
-      onExit: (reason) => {
-        this.broadcast({ type: "exit", reason });
-        this.dispose("exited");
+    this.client = (opts.makeClient ?? ((m, e) => new TmuxControlClient(m, e)))(
+      mode,
+      {
+        onOutput: (data) => this.onOutput(data),
+        onExit: (reason) => {
+          this.broadcast({ type: "exit", reason });
+          this.dispose("exited");
+        },
+        onLayoutChange: () => this.onLayoutChange(),
       },
-      onLayoutChange: () => this.onLayoutChange(),
-    });
+    );
   }
 
   /** Start the control client once; every joiner waits on the same start. */
@@ -239,7 +274,14 @@ export class TerminalHub {
   async join(ws: WebSocket, req: JoinRequest): Promise<void> {
     if (this.lingerTimer) clearTimeout(this.lingerTimer);
     this.lingerTimer = null;
-    const viewer: Viewer = { ws, viewId: req.viewId, canControl: req.canControl, live: false, sent: 0, lagging: false };
+    const viewer: Viewer = {
+      ws,
+      viewId: req.viewId,
+      canControl: req.canControl,
+      live: false,
+      sent: 0,
+      lagging: false,
+    };
     // The same view reconnecting while its old socket still looks open (a
     // half-dead TCP connection the server has not noticed): the new socket
     // replaces it, and inherits its seat.
@@ -249,39 +291,55 @@ export class TerminalHub {
         if (v.viewId !== req.viewId) continue;
         if (v === this.controller) inherit = true;
         this.removeViewer(v, { keepSeat: true, hold: false });
-        try { v.ws.close(4001, "replaced"); } catch {}
+        try {
+          v.ws.close(4001, "replaced");
+        } catch {}
       }
     }
     this.viewers.add(viewer);
     // A clean close (1000/1001) is the view leaving on purpose: a closed tab, a
     // reload, a navigation. Its seat is not held. Anything else is a drop.
     // 1001 is a page going away (a closed window or browser).
-    ws.on("close", (code: number) => this.leave(viewer, code === 1000 || code === 1001));
+    ws.on("close", (code: number) =>
+      this.leave(viewer, code === 1000 || code === 1001),
+    );
     ws.on("error", () => this.leave(viewer, false));
 
-    if (req.canControl && (inherit || (!this.controller && (!this.held || this.held.viewId === req.viewId)))) {
+    if (
+      req.canControl &&
+      (inherit ||
+        (!this.controller && (!this.held || this.held.viewId === req.viewId)))
+    ) {
       this.seat(viewer);
     }
-    if (this.controller === viewer && this.mode.kind === "attach") await this.client.setSizing(true);
+    if (this.controller === viewer && this.mode.kind === "attach")
+      await this.client.setSizing(true);
     // A replaced controller whose replacement may not hold the seat.
     else if (!this.controller) await this.fillSeat();
     if (!this.viewers.has(viewer) || this.disposed) return;
 
-    const fresh = this.mode.kind === "create" && !!this.mode.fresh && !this.everLive;
+    const fresh =
+      this.mode.kind === "create" && !!this.mode.fresh && !this.everLive;
     const resume = req.resume?.stream === this.stream ? req.resume : null;
     const resuming = !!resume;
-    const resumeFrom =
-      resume
-        ? resume.offset
-        // A brand-new shell's first viewer: its whole life is still in the
+    const resumeFrom = resume
+      ? resume.offset
+      : // A brand-new shell's first viewer: its whole life is still in the
         // ring, and replaying it from the first byte is exact, where a capture
         // could drop the prompt the shell is printing right now.
-        : fresh && this.ring.start === 0 ? 0 : null;
+        fresh && this.ring.start === 0
+        ? 0
+        : null;
     const backlog = resumeFrom === null ? null : this.ring.since(resumeFrom);
     if (backlog) {
       // A view that asked to resume some other stream (a shell that died and
       // was started again under its name) must clear its old screen.
-      this.sendReady(viewer, { offset: resumeFrom!, resumed: resuming, ...(req.resume && !resuming ? { truncated: true } : {}), seedBytes: 0 });
+      this.sendReady(viewer, {
+        offset: resumeFrom!,
+        resumed: resuming,
+        ...(req.resume && !resuming ? { truncated: true } : {}),
+        seedBytes: 0,
+      });
       this.sendRecords(viewer, backlog);
       this.goLive(viewer);
       return;
@@ -293,14 +351,22 @@ export class TerminalHub {
       if (!this.viewers.has(viewer)) return;
       this.cols = cap.cols;
       this.rows = cap.rows;
-      this.sendReady(viewer, { offset: this.ring.offset, truncated, seedBytes: cap.seed.length });
+      this.sendReady(viewer, {
+        offset: this.ring.offset,
+        truncated,
+        seedBytes: cap.seed.length,
+      });
       if (cap.seed.length) viewer.ws.send(cap.seed);
       this.goLive(viewer);
     });
     if (!ok && this.viewers.has(viewer) && !viewer.live) {
       // The capture failed (pane mid-respawn, a slow server): an empty screen
       // that streams beats a socket that never opens.
-      this.sendReady(viewer, { offset: this.ring.offset, truncated, seedBytes: 0 });
+      this.sendReady(viewer, {
+        offset: this.ring.offset,
+        truncated,
+        seedBytes: 0,
+      });
       this.goLive(viewer);
     }
   }
@@ -310,7 +376,8 @@ export class TerminalHub {
     const v = this.viewerFor(ws);
     if (!v || v !== this.controller) return;
     this.client.sendInput(data);
-    if (this.mode.kind === "attach") this.opts.onInput?.(this.mode.target, data);
+    if (this.mode.kind === "attach")
+      this.opts.onInput?.(this.mode.target, data);
   }
 
   /** A resize from a socket: only the controller's shapes the pane. */
@@ -338,7 +405,9 @@ export class TerminalHub {
     const previous = this.controller;
     if (!previous && this.held) this.takenFrom = this.held.viewId;
     this.seat(v);
-    this.opts.log(`[TERM] takeover ${this.sessionName}${previous ? " (previous controller demoted)" : ""}`);
+    this.opts.log(
+      `[TERM] takeover ${this.sessionName}${previous ? " (previous controller demoted)" : ""}`,
+    );
     if (this.mode.kind === "attach") await this.client.setSizing(true);
     this.broadcastRoles(previous ?? undefined);
   }
@@ -382,13 +451,16 @@ export class TerminalHub {
       role: v === this.controller ? "controller" : "observer",
       canControl: v.canControl,
       // Someone else holds the keyboard (or is about to reconnect to it).
-      controlledElsewhere: (!!this.controller && this.controller !== v) || (!this.controller && !!this.held),
+      controlledElsewhere:
+        (!!this.controller && this.controller !== v) ||
+        (!this.controller && !!this.held),
       viewers: this.viewers.size,
     };
   }
 
   private sendReady(v: Viewer, extra: Record<string, unknown>): void {
-    const taken = !!v.viewId && v.viewId === this.takenFrom && v !== this.controller;
+    const taken =
+      !!v.viewId && v.viewId === this.takenFrom && v !== this.controller;
     if (taken) this.takenFrom = null;
     this.sendJson(v, {
       type: "ready",
@@ -417,7 +489,11 @@ export class TerminalHub {
   private broadcastRoles(demoted?: Viewer): void {
     for (const v of this.viewers) {
       if (!v.live) continue;
-      this.sendJson(v, { type: "role", ...this.roleOf(v), ...(v === demoted ? { reason: "taken" } : {}) });
+      this.sendJson(v, {
+        type: "role",
+        ...this.roleOf(v),
+        ...(v === demoted ? { reason: "taken" } : {}),
+      });
     }
   }
 
@@ -429,7 +505,8 @@ export class TerminalHub {
   private sendRecords(v: Viewer, recs: RingRecord[]): void {
     let run: Buffer[] = [];
     const flush = () => {
-      if (run.length) v.ws.send(run.length === 1 ? run[0]! : Buffer.concat(run));
+      if (run.length)
+        v.ws.send(run.length === 1 ? run[0]! : Buffer.concat(run));
       run = [];
     };
     for (const rec of recs) {
@@ -447,8 +524,15 @@ export class TerminalHub {
   private sendReseed(v: Viewer, cap: PaneCapture, offset: number): void {
     // JSON first so the client resets + resizes before the seed bytes land;
     // the offset is where the viewer stands once it has them.
-    this.sendJson(v, { type: "reseed", cols: cap.cols, rows: cap.rows, offset, seedBytes: cap.seed.length });
-    if (cap.seed.length && v.ws.readyState === WebSocket.OPEN) v.ws.send(cap.seed);
+    this.sendJson(v, {
+      type: "reseed",
+      cols: cap.cols,
+      rows: cap.rows,
+      offset,
+      seedBytes: cap.seed.length,
+    });
+    if (cap.seed.length && v.ws.readyState === WebSocket.OPEN)
+      v.ws.send(cap.seed);
   }
 
   private onOutput(data: Buffer): void {
@@ -462,7 +546,10 @@ export class TerminalHub {
     // An attach view is sized to the pane, so every viewer needs the new
     // geometry. A created shell's controller sized the pane itself; only
     // observers need repainting at its size.
-    if (this.mode.kind === "create" && ![...this.viewers].some((v) => v !== this.controller)) {
+    if (
+      this.mode.kind === "create" &&
+      ![...this.viewers].some((v) => v !== this.controller)
+    ) {
       // Nobody else needs a repaint now, but output on either side of the
       // resize was drawn for different sizes: a view resuming from before
       // it gets a fresh screen instead of a replay across the two.
@@ -477,7 +564,8 @@ export class TerminalHub {
         // A shell's controller already has this geometry: repainting it on
         // its own resize would flicker every drag. It just steps past the
         // record, so a later resume does not replay it either.
-        if (this.mode.kind === "create" && v === this.controller) this.sendJson(v, { type: "offset", offset: rec.start + 1 });
+        if (this.mode.kind === "create" && v === this.controller)
+          this.sendJson(v, { type: "offset", offset: rec.start + 1 });
         else this.sendReseed(v, cap, rec.start + 1);
       });
     });
@@ -561,7 +649,10 @@ export class TerminalHub {
     }
   }
 
-  private removeViewer(v: Viewer, { keepSeat, hold }: { keepSeat: boolean; hold: boolean }): void {
+  private removeViewer(
+    v: Viewer,
+    { keepSeat, hold }: { keepSeat: boolean; hold: boolean },
+  ): void {
     this.viewers.delete(v);
     if (v !== this.controller) {
       this.balance();
@@ -610,7 +701,9 @@ export class TerminalHub {
     if (this.drainTimer) clearInterval(this.drainTimer);
     if (this.held) clearTimeout(this.held.timer);
     const back = this.client.restoresTo;
-    this.opts.log(`[TERM] close ${this.sessionName} (${why}${back ? `, window back to ${back}` : ""})`);
+    this.opts.log(
+      `[TERM] close ${this.sessionName} (${why}${back ? `, window back to ${back}` : ""})`,
+    );
     if (sync) this.client.closeSync();
     else this.client.close();
     for (const v of this.viewers) {

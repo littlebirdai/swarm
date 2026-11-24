@@ -1,4 +1,9 @@
-import { cleanMetrics, metricArgValidator, requireSeries, type MetricArg } from "./lib/metricSeries";
+import {
+  cleanMetrics,
+  metricArgValidator,
+  requireSeries,
+  type MetricArg,
+} from "./lib/metricSeries";
 import { v } from "convex/values";
 import { charterPatch, projectCharterArgs } from "./lib/orgCharter";
 import type { Id } from "./_generated/dataModel";
@@ -9,7 +14,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { createDataContext, scopedFetch, explicitWorkspace } from "./data";
 import { isTeamMember } from "./privacy";
 import { projectCountsFor } from "./lib/projectTaskCounts";
-import { PROJECT_INSTRUCTIONS_MAX, utf8Bytes } from "@codecast/shared/contracts/projectContext";
+import {
+  PROJECT_INSTRUCTIONS_MAX,
+  utf8Bytes,
+} from "@codecast/shared/contracts/projectContext";
 import { syncProjectTriggers } from "./lib/agentTaskRows";
 import {
   canAccessProject,
@@ -30,7 +38,10 @@ export const create = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
 
-    const db = await createDataContext(ctx, { userId: auth.userId, project_path: args.project_path });
+    const db = await createDataContext(ctx, {
+      userId: auth.userId,
+      project_path: args.project_path,
+    });
 
     const id = await db.insert("projects", {
       short_id: await mintProjectShortId(ctx, Date.now()),
@@ -65,7 +76,9 @@ export const list = query({
     const named = explicitWorkspace(args, {});
     const { records } = await scopedFetch(ctx, "projects", {
       userId: auth.userId,
-      ...(named.workspace ? { workspace: named.workspace, teamId: named.team_id } : { workspace: "all" }),
+      ...(named.workspace
+        ? { workspace: named.workspace, teamId: named.team_id }
+        : { workspace: "all" }),
     });
     let projects = records;
     if (args.status) {
@@ -74,13 +87,27 @@ export const list = query({
 
     // Board counts from project_task_counts: reading the tasks themselves
     // timed out on projects with thousands of them.
-    const counts = await projectCountsFor(ctx, auth.userId, projects.map((p) => p._id));
-    return projects.map((p) => ({ ...p, task_counts: counts.get(String(p._id))! }));
+    const counts = await projectCountsFor(
+      ctx,
+      auth.userId,
+      projects.map((p) => p._id),
+    );
+    return projects.map((p) => ({
+      ...p,
+      task_counts: counts.get(String(p._id))!,
+    }));
   },
 });
 
 const PROJECT_TASK_LIMIT = 200;
-const PROJECT_TASK_ORDER = ["in_progress", "in_review", "open", "backlog", "done", "dropped"] as const;
+const PROJECT_TASK_ORDER = [
+  "in_progress",
+  "in_review",
+  "open",
+  "backlog",
+  "done",
+  "dropped",
+] as const;
 
 export const get = query({
   args: {
@@ -104,17 +131,31 @@ export const get = query({
     let truncated = false;
     for (const status of PROJECT_TASK_ORDER) {
       const room = PROJECT_TASK_LIMIT - tasks.length;
-      if (room <= 0) { truncated = true; break; }
+      if (room <= 0) {
+        truncated = true;
+        break;
+      }
       const rows = await ctx.db
         .query("tasks")
-        .withIndex("by_project_status", (q) => q.eq("project_id", project._id).eq("status", status))
+        .withIndex("by_project_status", (q) =>
+          q.eq("project_id", project._id).eq("status", status),
+        )
         .order("desc")
         .take(room + 1);
       if (rows.length > room) truncated = true;
       for (const task of rows.slice(0, room)) {
         if (!(await canAccessTask(ctx, auth.userId, task))) continue;
         const { _id, short_id, title, status, priority, external } = task;
-        tasks.push({ _id, short_id, title, status, priority, external: external?.identifier ? { identifier: external.identifier } : undefined });
+        tasks.push({
+          _id,
+          short_id,
+          title,
+          status,
+          priority,
+          external: external?.identifier
+            ? { identifier: external.identifier }
+            : undefined,
+        });
       }
     }
 
@@ -128,7 +169,11 @@ export const get = query({
  * be a watch in the project's own workspace. A project has no reported
  * scoreboard: its numbers read from their series.
  */
-async function projectMetricsPatch(ctx: { db: any }, project: { workspace?: string }, metrics: MetricArg[] | undefined) {
+async function projectMetricsPatch(
+  ctx: { db: any },
+  project: { workspace?: string },
+  metrics: MetricArg[] | undefined,
+) {
   if (metrics === undefined) return {};
   const cleaned = cleanMetrics(metrics);
   await requireSeries(ctx, project.workspace ?? "", cleaned);
@@ -136,11 +181,16 @@ async function projectMetricsPatch(ctx: { db: any }, project: { workspace?: stri
 }
 
 /** The instructions every session in the project starts with (SP6); "" clears them. */
-function instructionsPatch(text: string | undefined): { instructions?: string | undefined } {
+function instructionsPatch(text: string | undefined): {
+  instructions?: string | undefined;
+} {
   if (text === undefined) return {};
   const trimmed = text.trim();
   const bytes = utf8Bytes(trimmed);
-  if (bytes > PROJECT_INSTRUCTIONS_MAX) throw new Error(`Instructions are ${bytes} bytes; a project holds at most ${PROJECT_INSTRUCTIONS_MAX}`);
+  if (bytes > PROJECT_INSTRUCTIONS_MAX)
+    throw new Error(
+      `Instructions are ${bytes} bytes; a project holds at most ${PROJECT_INSTRUCTIONS_MAX}`,
+    );
   return { instructions: trimmed || undefined };
 }
 
@@ -156,7 +206,9 @@ export const update = mutation({
     target_date: v.optional(v.union(v.number(), v.null())),
     labels: v.optional(v.array(v.string())),
     // Ongoing or bounded (org-staffing.md S10); "none" from the CLI clears it.
-    horizon: v.optional(v.union(v.literal("ongoing"), v.literal("bounded"), v.null())),
+    horizon: v.optional(
+      v.union(v.literal("ongoing"), v.literal("bounded"), v.null()),
+    ),
     // The project's folder (org-staffing.md S35): where the work lives. It
     // names the team of a new session there and groups evidence for the
     // review; it holds no session, so changing it moves nothing. null clears.
@@ -171,20 +223,33 @@ export const update = mutation({
     if (!auth) throw new Error("Unauthorized");
 
     const project = await ctx.db.get(args.id);
-    if (!project || !(await canAccessProject(ctx, auth.userId, project))) throw new Error("Project not found");
+    if (!project || !(await canAccessProject(ctx, auth.userId, project)))
+      throw new Error("Project not found");
 
-    const updates: any = { updated_at: Date.now(), ...(await charterPatch(ctx, project, args, "projects")), ...(await projectMetricsPatch(ctx, project, args.metrics)), ...instructionsPatch(args.instructions) };
+    const updates: any = {
+      updated_at: Date.now(),
+      ...(await charterPatch(ctx, project, args, "projects")),
+      ...(await projectMetricsPatch(ctx, project, args.metrics)),
+      ...instructionsPatch(args.instructions),
+    };
     if (args.title) updates.title = args.title;
     if (args.description !== undefined) updates.description = args.description;
     if (args.status) updates.status = args.status;
-    if (args.target_date !== undefined) updates.target_date = args.target_date ?? undefined;
+    if (args.target_date !== undefined)
+      updates.target_date = args.target_date ?? undefined;
     if (args.labels) updates.labels = args.labels;
     if (args.horizon !== undefined) updates.horizon = args.horizon ?? undefined;
-    if (args.project_path !== undefined) updates.project_path = args.project_path?.trim() || undefined;
+    if (args.project_path !== undefined)
+      updates.project_path = args.project_path?.trim() || undefined;
 
     await ctx.db.patch(args.id, updates);
     // Pausing a project quiets everything it watches; resuming wakes what the pause quieted.
-    await syncProjectTriggers(ctx, project._id, project.status, updates.status ?? project.status);
+    await syncProjectTriggers(
+      ctx,
+      project._id,
+      project.status,
+      updates.status ?? project.status,
+    );
     return { success: true };
   },
 });
@@ -215,26 +280,28 @@ export const webList = query({
         .query("projects")
         .withIndex("by_team_id", (q) => q.eq("team_id", args.team_id!))
         .collect();
-      const access = await Promise.all(routed.map((p) => canAccessProject(ctx, userId, p)));
+      const access = await Promise.all(
+        routed.map((p) => canAccessProject(ctx, userId, p)),
+      );
       projects = routed.filter((_, i) => access[i]);
       if (args.status) {
-        projects = projects.filter(p => p.status === args.status);
+        projects = projects.filter((p) => p.status === args.status);
       }
     } else if (args.workspace === "personal") {
       projects = await ctx.db
         .query("projects")
         .withIndex("by_user_id", (q) => q.eq("user_id", userId))
         .collect();
-      projects = projects.filter(p => !p.team_id);
+      projects = projects.filter((p) => !p.team_id);
       if (args.status) {
-        projects = projects.filter(p => p.status === args.status);
+        projects = projects.filter((p) => p.status === args.status);
       }
     } else {
       if (args.status) {
         projects = await ctx.db
           .query("projects")
           .withIndex("by_user_status", (q) =>
-            q.eq("user_id", userId).eq("status", args.status as any)
+            q.eq("user_id", userId).eq("status", args.status as any),
           )
           .collect();
       } else {
@@ -291,7 +358,18 @@ export const webGetByIds = query({
 export async function insertProject(
   ctx: { db: any },
   userId: Id<"users">,
-  fields: { title: string; description?: string; status?: string; color?: string; icon?: string; target_date?: number; labels?: string[]; team_id?: Id<"teams">; client_key?: string; title_from_session?: boolean },
+  fields: {
+    title: string;
+    description?: string;
+    status?: string;
+    color?: string;
+    icon?: string;
+    target_date?: number;
+    labels?: string[];
+    team_id?: Id<"teams">;
+    client_key?: string;
+    title_from_session?: boolean;
+  },
 ): Promise<Id<"projects">> {
   const now = Date.now();
   const doc: any = {
@@ -336,7 +414,8 @@ export const webCreate = mutation({
 
     let team_id: Id<"teams"> | undefined;
     if (args.workspace === "team") {
-      if (!args.team_id) throw new Error("team_id is required for the team workspace");
+      if (!args.team_id)
+        throw new Error("team_id is required for the team workspace");
       team_id = args.team_id;
     } else if (args.workspace !== "personal") {
       // Legacy client: infer from the server copy of the active-team pointer.
@@ -349,7 +428,10 @@ export const webCreate = mutation({
     if (team_id) await requireTeamMembership(ctx, userId, team_id);
 
     const { workspace: _w, team_id: _t, ...fields } = args;
-    const id = await insertProject(ctx, userId, { ...fields, ...(team_id ? { team_id } : {}) });
+    const id = await insertProject(ctx, userId, {
+      ...fields,
+      ...(team_id ? { team_id } : {}),
+    });
 
     // Row rides back with the receipt: the client seeds its store before navigating.
     const row = await ctx.db.get(id);
@@ -369,7 +451,9 @@ export const webUpdate = mutation({
     // null clears the deadline; a Convex patch drops fields set to undefined.
     target_date: v.optional(v.union(v.number(), v.null())),
     labels: v.optional(v.array(v.string())),
-    horizon: v.optional(v.union(v.literal("ongoing"), v.literal("bounded"), v.null())),
+    horizon: v.optional(
+      v.union(v.literal("ongoing"), v.literal("bounded"), v.null()),
+    ),
     // The folder (S35): editable on the page; null clears it.
     project_path: v.optional(v.union(v.string(), v.null())),
     ...projectCharterArgs,
@@ -380,19 +464,48 @@ export const webUpdate = mutation({
     if (!userId) throw new Error("Unauthorized");
 
     const project = await ctx.db.get(args.id);
-    if (!project || !(await canAccessProject(ctx, userId, project))) throw new Error("Project not found");
+    if (!project || !(await canAccessProject(ctx, userId, project)))
+      throw new Error("Project not found");
 
     // The charter fields ride the same patch; `owner` is a ref, never stored.
-    const { id, goal, success_metrics, priority, owner, non_goals, risks, budget, metrics, instructions, ...fields } = args;
-    const updates: any = { updated_at: Date.now(), ...(await charterPatch(ctx, project, { goal, success_metrics, priority, owner, non_goals, risks, budget }, "projects")), ...(await projectMetricsPatch(ctx, project, metrics)), ...instructionsPatch(instructions) };
+    const {
+      id,
+      goal,
+      success_metrics,
+      priority,
+      owner,
+      non_goals,
+      risks,
+      budget,
+      metrics,
+      instructions,
+      ...fields
+    } = args;
+    const updates: any = {
+      updated_at: Date.now(),
+      ...(await charterPatch(
+        ctx,
+        project,
+        { goal, success_metrics, priority, owner, non_goals, risks, budget },
+        "projects",
+      )),
+      ...(await projectMetricsPatch(ctx, project, metrics)),
+      ...instructionsPatch(instructions),
+    };
     for (const [k, val] of Object.entries(fields)) {
       if (val !== undefined) updates[k] = val === null ? undefined : val;
     }
     // A person's rename ends naming after the main session.
-    if (fields.title !== undefined && project.title_from_session) updates.title_from_session = undefined;
+    if (fields.title !== undefined && project.title_from_session)
+      updates.title_from_session = undefined;
 
     await ctx.db.patch(args.id, updates);
-    await syncProjectTriggers(ctx, project._id, project.status, updates.status ?? project.status);
+    await syncProjectTriggers(
+      ctx,
+      project._id,
+      project.status,
+      updates.status ?? project.status,
+    );
     return { success: true };
   },
 });
@@ -405,13 +518,24 @@ export const webUpdate = mutation({
  * `apps/server/run.sh projects:backfillShortIds '{}'` until `done`.
  */
 export const backfillShortIds = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), limit: v.optional(v.number()) },
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    limit: v.optional(v.number()),
+  },
   handler: async (ctx, { cursor, limit }) => {
-    const page = await ctx.db.query("projects").paginate({ cursor: cursor ?? null, numItems: Math.min(limit ?? 200, 500) });
+    const page = await ctx.db.query("projects").paginate({
+      cursor: cursor ?? null,
+      numItems: Math.min(limit ?? 200, 500),
+    });
     let minted = 0;
     for (const p of page.page as any[]) {
       if (p.short_id) continue;
-      await ctx.db.patch(p._id, { short_id: await mintProjectShortId(ctx, p.created_at ?? p._creationTime) });
+      await ctx.db.patch(p._id, {
+        short_id: await mintProjectShortId(
+          ctx,
+          p.created_at ?? p._creationTime,
+        ),
+      });
       minted++;
     }
     return { minted, cursor: page.continueCursor, done: page.isDone };

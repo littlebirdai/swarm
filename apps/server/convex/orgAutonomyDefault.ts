@@ -3,7 +3,10 @@ import { internalMutation, internalQuery } from "./functions";
 import type { Id } from "./_generated/dataModel";
 import { roleStartsOnItsOwn } from "./lib/orgCaps";
 import { trustForSwitch } from "@codecast/shared/contracts/roleAutonomy";
-import { DAILY_CAP_KEYS, type RoleDailyCaps } from "@codecast/shared/contracts/orgCapacity";
+import {
+  DAILY_CAP_KEYS,
+  type RoleDailyCaps,
+} from "@codecast/shared/contracts/orgCapacity";
 
 // One switch instead of trust stages (docs/architecture/org-staffing.md
 // S23.1). A role a person hires from now on starts with the switch on; the
@@ -24,9 +27,9 @@ import { DAILY_CAP_KEYS, type RoleDailyCaps } from "@codecast/shared/contracts/o
 // as it is: the word is never written again, and never needs to be.
 
 export type AutonomyDefaultAction =
-  | "turn_on"       // an active or paused role whose switch is off: turn it on
-  | "already_on"    // direct or decide: nothing to write
-  | "retired";      // a retired role: left alone
+  | "turn_on" // an active or paused role whose switch is off: turn it on
+  | "already_on" // direct or decide: nothing to write
+  | "retired"; // a retired role: left alone
 
 export type AutonomyDefaultRow = {
   role_id: Id<"org_roles">;
@@ -43,30 +46,60 @@ export type AutonomyDefaultRow = {
 };
 
 async function workspaceOf(ctx: { db: any }, role: any): Promise<string> {
-  if (role.team_id) return (await ctx.db.get(role.team_id))?.name ?? String(role.team_id);
+  if (role.team_id)
+    return (await ctx.db.get(role.team_id))?.name ?? String(role.team_id);
   const u = role.scope_user_id ? await ctx.db.get(role.scope_user_id) : null;
   return `${u?.name || u?.github_username || u?.email || String(role.scope_user_id ?? "?")} (personal)`;
 }
 
 function dailyLimitsOf(role: any): RoleDailyCaps | undefined {
   const set = DAILY_CAP_KEYS.filter((k) => role.caps?.[k] != null);
-  return set.length ? Object.fromEntries(set.map((k) => [k, role.caps[k]])) : undefined;
+  return set.length
+    ? Object.fromEntries(set.map((k) => [k, role.caps[k]]))
+    : undefined;
 }
 
-export async function planAutonomyDefault(ctx: { db: any }): Promise<AutonomyDefaultRow[]> {
+export async function planAutonomyDefault(ctx: {
+  db: any;
+}): Promise<AutonomyDefaultRow[]> {
   const roles: any[] = await ctx.db.query("org_roles").collect();
   const out: AutonomyDefaultRow[] = [];
   for (const role of roles) {
-    const action: AutonomyDefaultAction = role.status === "retired" ? "retired"
-      : roleStartsOnItsOwn(role) ? "already_on"
-      : "turn_on";
+    const action: AutonomyDefaultAction =
+      role.status === "retired"
+        ? "retired"
+        : roleStartsOnItsOwn(role)
+          ? "already_on"
+          : "turn_on";
     const limits = action === "retired" ? undefined : dailyLimitsOf(role);
-    out.push({ role_id: role._id, short_id: role.short_id, handle: role.handle, workspace: await workspaceOf(ctx, role), status: role.status, stored: role.trust ?? null, action, ...(limits ? { limits } : {}) });
+    out.push({
+      role_id: role._id,
+      short_id: role.short_id,
+      handle: role.handle,
+      workspace: await workspaceOf(ctx, role),
+      status: role.status,
+      stored: role.trust ?? null,
+      action,
+      ...(limits ? { limits } : {}),
+    });
   }
-  return out.sort((a, b) => a.workspace.localeCompare(b.workspace) || a.handle.localeCompare(b.handle));
+  return out.sort(
+    (a, b) =>
+      a.workspace.localeCompare(b.workspace) ||
+      a.handle.localeCompare(b.handle),
+  );
 }
 
-export async function performTurnOnExistingRoles(ctx: { db: any }, dryRun: boolean, only?: ReadonlySet<string>): Promise<{ dry_run: boolean; rows: AutonomyDefaultRow[]; turned_on: number; limits_cleared: number }> {
+export async function performTurnOnExistingRoles(
+  ctx: { db: any },
+  dryRun: boolean,
+  only?: ReadonlySet<string>,
+): Promise<{
+  dry_run: boolean;
+  rows: AutonomyDefaultRow[];
+  turned_on: number;
+  limits_cleared: number;
+}> {
   const rows = await planAutonomyDefault(ctx);
   let turned_on = 0;
   let limits_cleared = 0;
@@ -74,7 +107,10 @@ export async function performTurnOnExistingRoles(ctx: { db: any }, dryRun: boole
   for (const row of rows) {
     const turnOn = row.action === "turn_on";
     if (!turnOn && !row.limits) continue;
-    if (only && !only.has(String(row.role_id))) { row.held = true; continue; }
+    if (only && !only.has(String(row.role_id))) {
+      row.held = true;
+      continue;
+    }
     if (dryRun) continue;
     const patch: Record<string, unknown> = { updated_at: now };
     if (turnOn) patch.trust = trustForSwitch(true);
@@ -84,8 +120,15 @@ export async function performTurnOnExistingRoles(ctx: { db: any }, dryRun: boole
       patch.caps = caps;
     }
     await ctx.db.patch(row.role_id, patch);
-    if (turnOn) { row.action = "already_on"; row.stored = trustForSwitch(true); turned_on++; }
-    if (row.limits) { delete row.limits; limits_cleared++; }
+    if (turnOn) {
+      row.action = "already_on";
+      row.stored = trustForSwitch(true);
+      turned_on++;
+    }
+    if (row.limits) {
+      delete row.limits;
+      limits_cleared++;
+    }
   }
   return { dry_run: dryRun, rows, turned_on, limits_cleared };
 }
@@ -99,6 +142,14 @@ export const autonomyDefaultPlan = internalQuery({
 // Run once, after the plan is read: `dry_run` writes nothing; `role_ids`
 // flips only those rows (from the plan's `role_id`) and reports the rest held.
 export const turnOnExistingRoles = internalMutation({
-  args: { dry_run: v.optional(v.boolean()), role_ids: v.optional(v.array(v.string())) },
-  handler: async (ctx, args) => performTurnOnExistingRoles(ctx, !!args.dry_run, args.role_ids ? new Set(args.role_ids) : undefined),
+  args: {
+    dry_run: v.optional(v.boolean()),
+    role_ids: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) =>
+    performTurnOnExistingRoles(
+      ctx,
+      !!args.dry_run,
+      args.role_ids ? new Set(args.role_ids) : undefined,
+    ),
 });

@@ -5,7 +5,13 @@
 // The edge strip itself is ZenTopEdge (components/ZenBarPeek.tsx).
 
 import { visibleInterval } from "../lib/windowVisibleWork";
-import { useCallback, useRef, useState, type MouseEvent, type RefObject } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import { useWatchEffect } from "./useWatchEffect";
 
 // Same dwell as the side peeks (EdgePeek): a pointer passing over the top edge
@@ -20,7 +26,10 @@ function barHoldsMenu(bar: HTMLElement | null): boolean {
   return !!bar?.querySelector('[aria-expanded="true"], [data-state="open"]');
 }
 
-export function useZenBarPeek(enabled: boolean, barRef: RefObject<HTMLElement | null>) {
+export function useZenBarPeek(
+  enabled: boolean,
+  barRef: RefObject<HTMLElement | null>,
+) {
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopMenuPoll = useRef<(() => void) | null>(null);
@@ -63,7 +72,19 @@ export function useZenBarPeek(enabled: boolean, barRef: RefObject<HTMLElement | 
   const shown = enabled && open;
   // What the bar itself carries while zen hides it (globals.css styles these).
   const barProps = enabled
-    ? { "data-zen-bar": shown ? "open" : "closed", "data-flyout": "", onMouseEnter: onBarEnter, onMouseLeave: onBarLeave }
+    ? {
+        "data-zen-bar": shown ? "open" : "closed",
+        "data-flyout": "",
+        onMouseEnter: onBarEnter,
+        onMouseLeave: onBarLeave,
+      }
     : {};
-  return { open: shown, barProps, onEdgeEnter, onEdgeLeave, onBarEnter, onBarLeave };
+  return {
+    open: shown,
+    barProps,
+    onEdgeEnter,
+    onEdgeLeave,
+    onBarEnter,
+    onBarLeave,
+  };
 }

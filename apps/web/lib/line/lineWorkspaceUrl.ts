@@ -48,7 +48,17 @@
 // write, as the view that holds their job now. Pure, so a test reads and
 // writes addresses.
 
-export const LINE_VIEWS = ["signals", "flows", "foryou", "timeline", "problems", "line", "deploys", "shipped", "volume"] as const;
+export const LINE_VIEWS = [
+  "signals",
+  "flows",
+  "foryou",
+  "timeline",
+  "problems",
+  "line",
+  "deploys",
+  "shipped",
+  "volume",
+] as const;
 export type LineView = (typeof LINE_VIEWS)[number];
 /** The view an address with no view reads as: Steps. The address itself is the landing page (the team's pipelines);
  *  Steps on its map, LANDING_MODE, names `view=line&mode=map`. */
@@ -66,47 +76,285 @@ export const LANDING_MODE: LineMode = "map";
 /** The stages before the line's own stations, in the order work flows through them (learning-loop.md LL1): what the
  *  product sends, what it should do, who grades it, how findings become problems, and what starts a run. Each opens
  *  as a drawer over the Map. */
-export const LINE_STAGES = ["moments", "expectations", "judges", "grouping", "dispatch"] as const;
+export const LINE_STAGES = [
+  "moments",
+  "expectations",
+  "judges",
+  "grouping",
+  "dispatch",
+] as const;
 export type LineStage = (typeof LINE_STAGES)[number];
-const stageOf = (v: string | null | undefined): LineStage | null => ((LINE_STAGES as readonly string[]).includes(v ?? "") ? (v as LineStage) : null);
+const stageOf = (v: string | null | undefined): LineStage | null =>
+  (LINE_STAGES as readonly string[]).includes(v ?? "")
+    ? (v as LineStage)
+    : null;
 
 /** The views' earlier names, each the view and mode that hold its job now (LJ4): the Inbox is For you; a run is read
  *  under its problem; a source is a finder on Line; the graph is Line's map, the notebook its table; Chat is a step's
  *  instructions. */
 const LEGACY_VIEWS = {
-  inbox: ["foryou", null], runs: ["problems", null], replay: ["problems", null],
-  sources: ["line", null], process: ["line", "map"], graph: ["line", "map"], notebook: ["line", "table"], chat: ["line", null],
+  inbox: ["foryou", null],
+  runs: ["problems", null],
+  replay: ["problems", null],
+  sources: ["line", null],
+  process: ["line", "map"],
+  graph: ["line", "map"],
+  notebook: ["line", "table"],
+  chat: ["line", null],
 } as const;
 /** The modes' earlier names. */
-const LEGACY_MODES: Record<string, LineMode> = { graph: "map", notebook: "table" };
+const LEGACY_MODES: Record<string, LineMode> = {
+  graph: "map",
+  notebook: "table",
+};
 type LegacyView = keyof typeof LEGACY_VIEWS;
 /** A view as a link may name it: its own name, or an earlier one. */
 export type LineViewName = LineView | LegacyView;
 
-export type LineSelection = { view: LineView; mode: LineMode; /** The address names no view: the landing page. */ landing: boolean; project: string | null; flow: string | null; graph: string | null; step: string | null; tab: string | null; run: string | null; case: string | null; source: string | null; finding: string | null; row: string | null; ask: boolean; card: string | null; decision: string | null; need: string | null; status: string | null; process: string | null; quiet: boolean; found: string | null; q: string | null; sort: string | null; win: string | null; show: string | null; stage: LineStage | null; item: string | null; who: string | null; kind: string | null; area: string | null; order: string | null; group: string | null; deploy: string | null; sig: string | null; app: string | null; t: string | null };
-export type LineSelectionPatch = Partial<{ view: LineViewName | null; mode: LineMode | "graph" | "notebook" | null; project: string | null; flow: string | null; graph: string | null; step: string | null; tab: string | null; run: string | null; case: string | null; source: string | null; finding: string | null; row: string | null; ask: string | null; card: string | null; decision: string | null; need: string | null; status: string | null; process: string | null; quiet: string | null; found: string | null; q: string | null; sort: string | null; win: string | null; show: string | null; stage: LineStage | null; item: string | null; who: string | null; kind: string | null; area: string | null; order: string | null; group: string | null; deploy: string | null; sig: string | null; app: string | null; t: string | null }>;
+export type LineSelection = {
+  view: LineView;
+  mode: LineMode;
+  /** The address names no view: the landing page. */ landing: boolean;
+  project: string | null;
+  flow: string | null;
+  graph: string | null;
+  step: string | null;
+  tab: string | null;
+  run: string | null;
+  case: string | null;
+  source: string | null;
+  finding: string | null;
+  row: string | null;
+  ask: boolean;
+  card: string | null;
+  decision: string | null;
+  need: string | null;
+  status: string | null;
+  process: string | null;
+  quiet: boolean;
+  found: string | null;
+  q: string | null;
+  sort: string | null;
+  win: string | null;
+  show: string | null;
+  stage: LineStage | null;
+  item: string | null;
+  who: string | null;
+  kind: string | null;
+  area: string | null;
+  order: string | null;
+  group: string | null;
+  deploy: string | null;
+  sig: string | null;
+  app: string | null;
+  t: string | null;
+};
+export type LineSelectionPatch = Partial<{
+  view: LineViewName | null;
+  mode: LineMode | "graph" | "notebook" | null;
+  project: string | null;
+  flow: string | null;
+  graph: string | null;
+  step: string | null;
+  tab: string | null;
+  run: string | null;
+  case: string | null;
+  source: string | null;
+  finding: string | null;
+  row: string | null;
+  ask: string | null;
+  card: string | null;
+  decision: string | null;
+  need: string | null;
+  status: string | null;
+  process: string | null;
+  quiet: string | null;
+  found: string | null;
+  q: string | null;
+  sort: string | null;
+  win: string | null;
+  show: string | null;
+  stage: LineStage | null;
+  item: string | null;
+  who: string | null;
+  kind: string | null;
+  area: string | null;
+  order: string | null;
+  group: string | null;
+  deploy: string | null;
+  sig: string | null;
+  app: string | null;
+  t: string | null;
+}>;
 
 type Search = { get(key: string): string | null } | null | undefined;
 
-const KEYS = ["project", "flow", "view", "mode", "graph", "step", "tab", "run", "case", "source", "finding", "row", "ask", "card", "decision", "need", "status", "process", "quiet", "found", "q", "sort", "win", "show", "stage", "item", "who", "kind", "area", "order", "group", "deploy", "sig", "app", "t"] as const;
+const KEYS = [
+  "project",
+  "flow",
+  "view",
+  "mode",
+  "graph",
+  "step",
+  "tab",
+  "run",
+  "case",
+  "source",
+  "finding",
+  "row",
+  "ask",
+  "card",
+  "decision",
+  "need",
+  "status",
+  "process",
+  "quiet",
+  "found",
+  "q",
+  "sort",
+  "win",
+  "show",
+  "stage",
+  "item",
+  "who",
+  "kind",
+  "area",
+  "order",
+  "group",
+  "deploy",
+  "sig",
+  "app",
+  "t",
+] as const;
 type Key = (typeof KEYS)[number];
 /** Where a key lives in the address: the drawer's tab has its own name, `tab` belongs to the page hosting the app. */
-const PARAM: Record<Key, string> = { project: "project", flow: "flow", view: "view", mode: "mode", graph: "graph", step: "step", tab: "steptab", run: "run", case: "case", source: "source", finding: "finding", row: "row", ask: "ask", card: "card", decision: "decision", need: "need", status: "status", process: "process", quiet: "quiet", found: "found", q: "q", sort: "sort", win: "win", show: "show", stage: "stage", item: "item", who: "who", kind: "kind", area: "area", order: "order", group: "group", deploy: "deploy", sig: "sig", app: "app", t: "t" };
+const PARAM: Record<Key, string> = {
+  project: "project",
+  flow: "flow",
+  view: "view",
+  mode: "mode",
+  graph: "graph",
+  step: "step",
+  tab: "steptab",
+  run: "run",
+  case: "case",
+  source: "source",
+  finding: "finding",
+  row: "row",
+  ask: "ask",
+  card: "card",
+  decision: "decision",
+  need: "need",
+  status: "status",
+  process: "process",
+  quiet: "quiet",
+  found: "found",
+  q: "q",
+  sort: "sort",
+  win: "win",
+  show: "show",
+  stage: "stage",
+  item: "item",
+  who: "who",
+  kind: "kind",
+  area: "area",
+  order: "order",
+  group: "group",
+  deploy: "deploy",
+  sig: "sig",
+  app: "app",
+  t: "t",
+};
 /** The drawer's tabs, which an older link named as `tab`. */
 const DRAWER_TABS = new Set(["prompt", "decisions", "try", "ask"]);
-const legacyTab = (search: Search) => { const t = search?.get("tab"); return t && DRAWER_TABS.has(t) ? t : null; };
-const isView = (v: string | null | undefined): v is LineView => !!v && (LINE_VIEWS as readonly string[]).includes(v);
-const isLegacy = (v: string | null | undefined): v is LegacyView => !!v && v in LEGACY_VIEWS;
-const modeOf = (v: string | null | undefined): LineMode | null => (!v ? null : (LINE_MODES as readonly string[]).includes(v) ? (v as LineMode) : LEGACY_MODES[v] ?? null);
+const legacyTab = (search: Search) => {
+  const t = search?.get("tab");
+  return t && DRAWER_TABS.has(t) ? t : null;
+};
+const isView = (v: string | null | undefined): v is LineView =>
+  !!v && (LINE_VIEWS as readonly string[]).includes(v);
+const isLegacy = (v: string | null | undefined): v is LegacyView =>
+  !!v && v in LEGACY_VIEWS;
+const modeOf = (v: string | null | undefined): LineMode | null =>
+  !v
+    ? null
+    : (LINE_MODES as readonly string[]).includes(v)
+      ? (v as LineMode)
+      : (LEGACY_MODES[v] ?? null);
 /** The selection each view reads; moving to a view drops the rest, unless the move names it. */
 // The Problems list's own keys (LJ5): its status chip, its process, the quiet narrowing and a figure's or bar's narrowing
 // (`found`: "more", or a picked bar's start) are places; search, sort and window are not.
-const SELECTION_KEYS = ["flow", "step", "tab", "run", "case", "source", "finding", "row", "ask", "card", "decision", "need", "status", "process", "quiet", "found", "q", "sort", "win", "show", "stage", "item", "who", "kind", "area", "order", "group", "deploy", "sig", "app", "t"] as const;
-const VIEW_KEEPS: Record<LineView, ReadonlyArray<(typeof SELECTION_KEYS)[number]>> = {
+const SELECTION_KEYS = [
+  "flow",
+  "step",
+  "tab",
+  "run",
+  "case",
+  "source",
+  "finding",
+  "row",
+  "ask",
+  "card",
+  "decision",
+  "need",
+  "status",
+  "process",
+  "quiet",
+  "found",
+  "q",
+  "sort",
+  "win",
+  "show",
+  "stage",
+  "item",
+  "who",
+  "kind",
+  "area",
+  "order",
+  "group",
+  "deploy",
+  "sig",
+  "app",
+  "t",
+] as const;
+const VIEW_KEEPS: Record<
+  LineView,
+  ReadonlyArray<(typeof SELECTION_KEYS)[number]>
+> = {
   // A decision rides into Problems only when the move names it: For you's reader settles one on its need, and a
   // problem's band shows its own without it, so a decision kept from another view would follow every later link.
   // For you's list keeps how it is filtered, ordered and grouped.
-  foryou: ["flow", "need", "card", "decision", "who", "kind", "area", "order", "group"], problems: ["case", "ask", "run", "step", "source", "finding", "row", "status", "process", "quiet", "found", "q", "sort", "win"], line: ["source", "finding"], flows: ["item", "run"], deploys: ["deploy"], shipped: [],
+  foryou: [
+    "flow",
+    "need",
+    "card",
+    "decision",
+    "who",
+    "kind",
+    "area",
+    "order",
+    "group",
+  ],
+  problems: [
+    "case",
+    "ask",
+    "run",
+    "step",
+    "source",
+    "finding",
+    "row",
+    "status",
+    "process",
+    "quiet",
+    "found",
+    "q",
+    "sort",
+    "win",
+  ],
+  line: ["source", "finding"],
+  flows: ["item", "run"],
+  deploys: ["deploy"],
+  shipped: [],
   // Volume keeps its window (win: 7 or 30 days) and the count open under it (show).
   volume: ["win", "show"],
   // Signals keeps the review stage open over it (stage, item) and the source view open in it (sig: its tab, the source,
@@ -123,7 +371,9 @@ const RUN_VIEWS = new Set<LineView>(["problems"]);
 const ALL = new Set(["all", ""]);
 
 /** A view name, its own or an earlier one, as the view and the mode it opens (null: the mode stays). */
-function resolveView(v: string | null | undefined): [LineView, LineMode | null] | null {
+function resolveView(
+  v: string | null | undefined,
+): [LineView, LineMode | null] | null {
   if (isView(v)) return [v, null];
   if (isLegacy(v)) return [LEGACY_VIEWS[v][0], LEGACY_VIEWS[v][1]];
   return null;
@@ -135,24 +385,39 @@ const MAP_PLACES = ["step", "source", "graph", "finding"] as const;
 
 export function readLineSelection(search: Search): LineSelection {
   // An older link named a problem's own chart `view=timeline&case=…`: that is the problem's page.
-  const asked = search?.get("view") === "timeline" && search?.get("case") ? (["problems", null] as const)
-    : !search?.get("view") && FORYOU_ONLY.some((k) => search?.get(k)) ? (["foryou", null] as const)
-    : resolveView(search?.get("view"));
+  const asked =
+    search?.get("view") === "timeline" && search?.get("case")
+      ? (["problems", null] as const)
+      : !search?.get("view") && FORYOU_ONLY.some((k) => search?.get(k))
+        ? (["foryou", null] as const)
+        : resolveView(search?.get("view"));
   // The review stages open over Signals: a link from when they opened over the map lands there.
-  const view = stageOf(search?.get("stage")) && (!asked || asked[0] === "line") ? "signals" : asked?.[0] ?? DEFAULT_LINE_VIEW;
+  const view =
+    stageOf(search?.get("stage")) && (!asked || asked[0] === "line")
+      ? "signals"
+      : (asked?.[0] ?? DEFAULT_LINE_VIEW);
   const mode = search?.get("mode");
   const project = search?.get("project")?.trim() ?? "";
   return {
     view,
     // A mode the address names wins over the one an earlier view name implies (view=process&mode=notebook is the table).
-    mode: modeOf(mode) ?? asked?.[1] ?? (asked ? DEFAULT_LINE_MODE : LANDING_MODE),
+    mode:
+      modeOf(mode) ?? asked?.[1] ?? (asked ? DEFAULT_LINE_MODE : LANDING_MODE),
     // A place on the map (a step, a source, a process) with no view is the map, as every link to one was written.
-    landing: !asked && view === DEFAULT_LINE_VIEW && !MAP_PLACES.some((k) => search?.get(PARAM[k])),
+    landing:
+      !asked &&
+      view === DEFAULT_LINE_VIEW &&
+      !MAP_PLACES.some((k) => search?.get(PARAM[k])),
     project: ALL.has(project) ? null : project,
     flow: search?.get("flow") || null,
     graph: search?.get("graph") || null,
     step: search?.get("step") || null,
-    tab: search?.get(PARAM.tab) || legacyTab(search) || (search?.get("view") === "chat" && search.get("step") ? "instructions" : null),
+    tab:
+      search?.get(PARAM.tab) ||
+      legacyTab(search) ||
+      (search?.get("view") === "chat" && search.get("step")
+        ? "instructions"
+        : null),
     run: search?.get("run") || null,
     case: search?.get("case") || null,
     source: search?.get("source") || null,
@@ -189,14 +454,19 @@ export function readLineSelection(search: Search): LineSelection {
  * default view and mode are left out. `runCase` names the case of the run
  * being selected, so selecting a run moves the case with it.
  */
-export function lineSelectionSearch(current: (Search & { toString(): string }) | null | undefined, patch: LineSelectionPatch, runCase?: string | null): string {
+export function lineSelectionSearch(
+  current: (Search & { toString(): string }) | null | undefined,
+  patch: LineSelectionPatch,
+  runCase?: string | null,
+): string {
   const q = new URLSearchParams(current?.toString() ?? "");
   const before = readLineSelection(q);
   // An earlier view name in the address settles on the view that holds it now.
   const legacy = resolveView(q.get("view"));
   if (legacy && isLegacy(q.get("view"))) {
     // Chat's job is a step's instructions now: a link that opened Chat on a step opens that tab.
-    if (q.get("view") === "chat" && q.get("step") && !q.get(PARAM.tab)) q.set(PARAM.tab, "instructions");
+    if (q.get("view") === "chat" && q.get("step") && !q.get(PARAM.tab))
+      q.set(PARAM.tab, "instructions");
     q.set("view", legacy[0]);
     if (legacy[1] && !q.get("mode")) q.set("mode", legacy[1]);
   }
@@ -204,22 +474,38 @@ export function lineSelectionSearch(current: (Search & { toString(): string }) |
   if (oldMode && LEGACY_MODES[oldMode]) q.set("mode", LEGACY_MODES[oldMode]);
   const p: LineSelectionPatch = { ...patch };
   // A step names a place on the Line page: picked from a view that has no step of its own, it opens there.
-  if (p.step && p.view === undefined && !STEP_VIEWS.has(before.view) && !(RUN_VIEWS.has(before.view) && (p.run ?? before.run))) p.view = "line";
+  if (
+    p.step &&
+    p.view === undefined &&
+    !STEP_VIEWS.has(before.view) &&
+    !(RUN_VIEWS.has(before.view) && (p.run ?? before.run))
+  )
+    p.view = "line";
   // A need, card or decision opens For you from the flow list or the steps, which read none of them.
-  if (p.view === undefined && (before.view === "flows" || before.view === "line") && FORYOU_ONLY.some((k) => p[k])) p.view = "foryou";
+  if (
+    p.view === undefined &&
+    (before.view === "flows" || before.view === "line") &&
+    FORYOU_ONLY.some((k) => p[k])
+  )
+    p.view = "foryou";
   if (p.view) {
     const named = p.view;
     const [view, mode] = resolveView(named) ?? [DEFAULT_LINE_VIEW, null];
     p.view = view;
     if (mode && p.mode === undefined) p.mode = mode;
     // Steps opens on its map when another view moves to it; the table is its switch away.
-    if (view === "line" && before.view !== "line" && p.mode === undefined) p.mode = LANDING_MODE;
-    if (named === "chat" && (p.step ?? before.step) && p.tab === undefined) p.tab = "instructions";
+    if (view === "line" && before.view !== "line" && p.mode === undefined)
+      p.mode = LANDING_MODE;
+    if (named === "chat" && (p.step ?? before.step) && p.tab === undefined)
+      p.tab = "instructions";
   }
   if (p.mode) p.mode = modeOf(p.mode);
   // An older link's drawer tab settles on the drawer's own key.
   const old = legacyTab(q);
-  if (old) { q.delete("tab"); if (!q.get(PARAM.tab)) q.set(PARAM.tab, old); }
+  if (old) {
+    q.delete("tab");
+    if (!q.get(PARAM.tab)) q.set(PARAM.tab, old);
+  }
   const del = (k: Key) => q.delete(PARAM[k]);
   const set = (k: Key, v: string | null | undefined) => {
     if (v == null || v === "" || (k === "project" && ALL.has(v))) del(k);
@@ -228,24 +514,46 @@ export function lineSelectionSearch(current: (Search & { toString(): string }) |
   for (const k of KEYS) if (p[k] !== undefined) set(k, p[k]);
   // The mode is the Steps page's alone: the landing page (no view) is its map, a named view=line its table unless the
   // mode says map. The mode stays as the move left it until the view is settled.
-  if (!q.get("mode") && !q.get("view") && before.view === DEFAULT_LINE_VIEW && p.view === undefined) q.set("mode", before.mode);
+  if (
+    !q.get("mode") &&
+    !q.get("view") &&
+    before.view === DEFAULT_LINE_VIEW &&
+    p.view === undefined
+  )
+    q.set("mode", before.mode);
   if (p.project !== undefined && (p.project || null) !== before.project) {
-    for (const k of ["graph", "step", "tab", "run", "case", "finding", "row", "ask"] as const) if (p[k] === undefined) del(k);
+    for (const k of [
+      "graph",
+      "step",
+      "tab",
+      "run",
+      "case",
+      "finding",
+      "row",
+      "ask",
+    ] as const)
+      if (p[k] === undefined) del(k);
   }
   if (p.graph !== undefined && p.graph !== before.graph) {
-    for (const k of ["step", "tab", "run", "case", "ask"] as const) if (p[k] === undefined) del(k);
+    for (const k of ["step", "tab", "run", "case", "ask"] as const)
+      if (p[k] === undefined) del(k);
   }
   // Another view keeps only the selection that belongs to it.
   const view = resolveView(q.get("view"))?.[0] ?? DEFAULT_LINE_VIEW;
   if (p.view !== undefined && view !== before.view) {
-    for (const k of SELECTION_KEYS) if (p[k] === undefined && !VIEW_KEEPS[view].includes(k)) del(k);
+    for (const k of SELECTION_KEYS)
+      if (p[k] === undefined && !VIEW_KEEPS[view].includes(k)) del(k);
     // Problems reads a step only as an open run's playhead: its list and a problem's page have no step of their own.
-    if (RUN_VIEWS.has(view) && p.step === undefined && !q.get(PARAM.run)) del("step");
+    if (RUN_VIEWS.has(view) && p.step === undefined && !q.get(PARAM.run))
+      del("step");
   }
-  if (p.step !== undefined && p.step !== before.step && p.tab === undefined) del("tab");
+  if (p.step !== undefined && p.step !== before.step && p.tab === undefined)
+    del("tab");
   // A step page's filter (LJ8.6 `show`) belongs to that step.
-  if (p.step !== undefined && p.step !== before.step && p.show === undefined) del("show");
-  if (p.run && runCase !== undefined && p.case === undefined) set("case", runCase);
+  if (p.step !== undefined && p.step !== before.step && p.show === undefined)
+    del("show");
+  if (p.run && runCase !== undefined && p.case === undefined)
+    set("case", runCase);
   if (p.case !== undefined && p.case !== before.case) {
     if (p.run === undefined) del("run");
     if (p.ask === undefined) del("ask");
@@ -255,24 +563,51 @@ export function lineSelectionSearch(current: (Search & { toString(): string }) |
     // A decision belongs to its problem: another problem never inherits it.
     if (p.decision === undefined) del("decision");
   }
-  if (p.source !== undefined && p.source !== before.source && p.finding === undefined) del("finding");
+  if (
+    p.source !== undefined &&
+    p.source !== before.source &&
+    p.finding === undefined
+  )
+    del("finding");
   // What was open inside one stage's drawer is not open in another's.
-  if (p.stage !== undefined && p.stage !== before.stage && p.item === undefined) del("item");
+  if (p.stage !== undefined && p.stage !== before.stage && p.item === undefined)
+    del("item");
   // One drawer at a time: a stage opened closes the step, a step opened closes the stage.
-  if (p.stage && p.step === undefined) { del("step"); del("tab"); del("show"); }
-  if (p.step && p.stage === undefined) { del("stage"); del("item"); }
+  if (p.stage && p.step === undefined) {
+    del("step");
+    del("tab");
+    del("show");
+  }
+  if (p.step && p.stage === undefined) {
+    del("stage");
+    del("item");
+  }
   // A review stage opens over Signals, whichever view it was opened from.
-  if (q.get("stage") && (!q.get("view") || q.get("view") === "line")) q.set("view", "signals");
+  if (q.get("stage") && (!q.get("view") || q.get("view") === "line"))
+    q.set("view", "signals");
   // A mode names Steps: picked on the landing page, it opens Steps in that mode.
-  if (p.mode && !q.get("view") && before.landing) q.set("view", DEFAULT_LINE_VIEW);
+  if (p.mode && !q.get("view") && before.landing)
+    q.set("view", DEFAULT_LINE_VIEW);
   // An address naming no view is the landing page, the team's pipelines (pipeline.md PL6), and says nothing of a mode.
   // Steps names its view, its table leaving the mode out and its map saying so.
   const settled = readLineSelection(q);
-  if (settled.view !== DEFAULT_LINE_VIEW || settled.landing || settled.mode === DEFAULT_LINE_MODE) q.delete("mode");
-  else if (MAP_PLACES.some((k) => q.get(PARAM[k]))) { q.delete("view"); q.delete("mode"); }
-  else { q.delete("mode"); q.set("view", DEFAULT_LINE_VIEW); q.set("mode", LANDING_MODE); }
+  if (
+    settled.view !== DEFAULT_LINE_VIEW ||
+    settled.landing ||
+    settled.mode === DEFAULT_LINE_MODE
+  )
+    q.delete("mode");
+  else if (MAP_PLACES.some((k) => q.get(PARAM[k]))) {
+    q.delete("view");
+    q.delete("mode");
+  } else {
+    q.delete("mode");
+    q.set("view", DEFAULT_LINE_VIEW);
+    q.set("mode", LANDING_MODE);
+  }
   // An address naming what only For you reads opens For you without saying so (readLineSelection).
-  if (q.get("view") === "foryou" && FORYOU_ONLY.some((k) => q.get(PARAM[k]))) q.delete("view");
+  if (q.get("view") === "foryou" && FORYOU_ONLY.some((k) => q.get(PARAM[k])))
+    q.delete("view");
   const s = q.toString();
   return s ? `?${s}` : "";
 }
@@ -280,7 +615,27 @@ export function lineSelectionSearch(current: (Search & { toString(): string }) |
 /** The keys that name a place: a change to any of them is a move Back and Forward walk. The drawer's tab, a finding
  *  opened in a list, a problem page's expanded run row and the answer box's focus change what a place shows, not the
  *  place: they replace, so reload and Back return to the place as it was left. */
-const PLACE_KEYS = ["project", "flow", "view", "graph", "step", "run", "case", "source", "card", "decision", "need", "status", "process", "quiet", "found", "stage", "item", "deploy", "sig"] as const;
+const PLACE_KEYS = [
+  "project",
+  "flow",
+  "view",
+  "graph",
+  "step",
+  "run",
+  "case",
+  "source",
+  "card",
+  "decision",
+  "need",
+  "status",
+  "process",
+  "quiet",
+  "found",
+  "stage",
+  "item",
+  "deploy",
+  "sig",
+] as const;
 
 /** Whether moving from one address to the next is a new history entry (push) rather than a correction of the
  *  current one (replace): true when any place key differs, the default view and mode read as named. */
@@ -291,19 +646,33 @@ export function lineSelectionPushes(from: Search, to: Search): boolean {
 }
 
 /** A project's name as a URL slug: lowercase words joined by dashes. */
-export const projectSlug = (name: string): string => name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+export const projectSlug = (name: string): string =>
+  name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 /** Slugs the app's own paths hold (/flows/settings, /flows/trace, and /line/all from before): a project so named goes by its short id. */
 const RESERVED_SLUG = /^(all|settings|trace)$/;
 
-type ProjectRef = { _id: string; short_id?: string | null; title?: string | null };
+type ProjectRef = {
+  _id: string;
+  short_id?: string | null;
+  title?: string | null;
+};
 
 /** How the line's filter names a project in its address: by its name's slug, the form /line/<slug> redirects to,
  *  when no other project in `all` (the workspace the line reads) shares it; else by its short id. resolveLineProject reads either back. */
-export function lineFilterParam(project: ProjectRef, all: Iterable<ProjectRef>): string {
+export function lineFilterParam(
+  project: ProjectRef,
+  all: Iterable<ProjectRef>,
+): string {
   const slug = projectSlug(project.title ?? "");
   if (!slug || RESERVED_SLUG.test(slug)) return project.short_id || project._id;
-  for (const p of all) if (p._id !== project._id && projectSlug(p.title ?? "") === slug) return project.short_id || project._id;
+  for (const p of all)
+    if (p._id !== project._id && projectSlug(p.title ?? "") === slug)
+      return project.short_id || project._id;
   return slug;
 }
 
@@ -313,10 +682,15 @@ export function lineFilterParam(project: ProjectRef, all: Iterable<ProjectRef>):
  * personal and a team project of the same name never cancel each other out. Undefined when nothing, or more than
  * one in the workspace, matches.
  */
-export function resolveLineProject(param: string | null | undefined, projects: Iterable<ProjectRef & { workspace?: string | null }>, inWorkspace?: (p: ProjectRef & { workspace?: string | null }) => boolean): string | undefined {
+export function resolveLineProject(
+  param: string | null | undefined,
+  projects: Iterable<ProjectRef & { workspace?: string | null }>,
+  inWorkspace?: (p: ProjectRef & { workspace?: string | null }) => boolean,
+): string | undefined {
   if (!param) return undefined;
   const list = [...projects];
-  const byId = list.find((p) => p._id === param) ?? list.find((p) => p.short_id === param);
+  const byId =
+    list.find((p) => p._id === param) ?? list.find((p) => p.short_id === param);
   if (byId) return byId._id;
   const slug = projectSlug(param);
   if (!slug || RESERVED_SLUG.test(slug)) return undefined;
@@ -332,25 +706,55 @@ export function resolveLineProject(param: string | null | undefined, projects: I
  * only a link that names a thing (a row, a count, "the run") opens it.
  */
 export function lineViewHome(view: LineView): LineSelectionPatch {
-  return { view, step: null, tab: null, run: null, case: null, source: null, finding: null, row: null, ask: null, card: null, decision: null, need: null, stage: null, item: null, deploy: null, sig: null, app: null, t: null };
+  return {
+    view,
+    step: null,
+    tab: null,
+    run: null,
+    case: null,
+    source: null,
+    finding: null,
+    row: null,
+    ask: null,
+    card: null,
+    decision: null,
+    need: null,
+    stage: null,
+    item: null,
+    deploy: null,
+    sig: null,
+    app: null,
+    t: null,
+  };
 }
 
-export const LINE_MODE_LABELS: Record<LineMode, string> = { table: "Table", map: "Map" };
+export const LINE_MODE_LABELS: Record<LineMode, string> = {
+  table: "Table",
+  map: "Map",
+};
 
 /** The flows app, `/flows`, filtered to `project` (null: every project) with the selection `patch` names.
  *  `project` is how the flow pages name a project (lineStations lineProjectParam). */
-export function lineWorkspaceHref(project: string | null, patch: LineSelectionPatch = {}): string {
+export function lineWorkspaceHref(
+  project: string | null,
+  patch: LineSelectionPatch = {},
+): string {
   return `/flows${lineSelectionSearch(null, { ...patch, project })}`;
 }
 
 /** One flow's page, `/flows/<owner handle>`, with the selection `patch` names. */
-export function flowHref(owner: string, patch: LineSelectionPatch = {}): string {
+export function flowHref(
+  owner: string,
+  patch: LineSelectionPatch = {},
+): string {
   return `/flows/${encodeURIComponent(owner)}${lineSelectionSearch(null, patch)}`;
 }
 
 /** The view and keys an address from before /flows (`/line?...`) meant, at its place under /flows: the old landing
  *  page was Decisions, so an old address that names no view and names anything at all opens Decisions. */
-export function flowsAddressOf(search: (Search & { toString(): string }) | null | undefined): string {
+export function flowsAddressOf(
+  search: (Search & { toString(): string }) | null | undefined,
+): string {
   const q = new URLSearchParams(search?.toString() ?? "");
   if (!q.get("view") && [...q.keys()].length > 0) q.set("view", "foryou");
   const s = q.toString();
@@ -369,19 +773,32 @@ const QUEUE_NODE = "causes";
  * queue the Problems view, the line's settings panel the settings page, a
  * trace the ref's own place.
  */
-export function lineWorkspaceRedirect(search: Search & { toString(): string } | null | undefined, path?: string | null): string | null {
+export function lineWorkspaceRedirect(
+  search: (Search & { toString(): string }) | null | undefined,
+  path?: string | null,
+): string | null {
   const project = (path ?? search?.get("project") ?? "").trim();
   const node = search?.get("node") || null;
   const section = search?.get("section") || null;
   const trace = search?.get("trace");
   const edge = search?.get("edge");
   if (!path && !node && !trace && !edge) return null;
-  if (node === SETTINGS_NODE) return `/flows/settings?${new URLSearchParams({ ...(project && !ALL.has(project) ? { project } : {}), ...(section ? { section } : {}) }).toString()}`;
+  if (node === SETTINGS_NODE)
+    return `/flows/settings?${new URLSearchParams({ ...(project && !ALL.has(project) ? { project } : {}), ...(section ? { section } : {}) }).toString()}`;
   if (trace) return `/flows/trace/${encodeURIComponent(trace)}`;
-  const step = node && node !== QUEUE_NODE ? node : edge ? edge.split("->")[0] || null : search?.get("step") || null;
+  const step =
+    node && node !== QUEUE_NODE
+      ? node
+      : edge
+        ? edge.split("->")[0] || null
+        : search?.get("step") || null;
   // The project leads the address, and what the old one named stays named.
-  const kept = new URLSearchParams(project && !ALL.has(project) ? { project } : {});
-  for (const [k, v] of new URLSearchParams(search?.toString() ?? "")) if (!["project", "node", "edge", "section", "window", "trace"].includes(k)) kept.append(k, v);
+  const kept = new URLSearchParams(
+    project && !ALL.has(project) ? { project } : {},
+  );
+  for (const [k, v] of new URLSearchParams(search?.toString() ?? ""))
+    if (!["project", "node", "edge", "section", "window", "trace"].includes(k))
+      kept.append(k, v);
   // An old address with no view meant Decisions, the landing page before the flow list.
   return `/flows${lineSelectionSearch(new URLSearchParams(flowsAddressOf(kept).slice(1)), { ...(step ? { step } : {}), ...(node === QUEUE_NODE ? { view: "problems" as const } : {}) })}`;
 }
@@ -389,20 +806,30 @@ export function lineWorkspaceRedirect(search: Search & { toString(): string } | 
 /** Any ref a flow knows (a problem, a finding, a fingerprint, a run, a card)
  *  at its place in the flows app: `/flows/trace/<ref>` resolves it
  *  (LineRefRedirect); `/line/trace/<ref>` from before redirects there. */
-export const lineRefHref = (ref: string) => `/flows/trace/${encodeURIComponent(ref)}`;
+export const lineRefHref = (ref: string) =>
+  `/flows/trace/${encodeURIComponent(ref)}`;
 
 /** The ref a /flows/trace/<ref> segment names. The router may have decoded it
  *  already, so a ref holding a bare "%" stays as it is rather than throwing. */
 export function lineRefOf(segment: string): string {
-  try { return decodeURIComponent(segment).trim(); } catch { return segment.trim(); }
+  try {
+    return decodeURIComponent(segment).trim();
+  } catch {
+    return segment.trim();
+  }
 }
 
 /** A problem named both ways: the address carries its ref (ct-N) so a link someone copies reads, and every view
  *  reads its row id. `id` turns either into the row id, `ref` either into the ref; a value no problem in view
  *  holds stays as it is. */
-export type CaseRefs = { id: (v: string) => string; ref: (v: string) => string };
+export type CaseRefs = {
+  id: (v: string) => string;
+  ref: (v: string) => string;
+};
 
-export function caseRefs(tasks: ReadonlyArray<{ _id: string; short_id?: string | null }>): CaseRefs {
+export function caseRefs(
+  tasks: ReadonlyArray<{ _id: string; short_id?: string | null }>,
+): CaseRefs {
   const toId = new Map<string, string>();
   const toRef = new Map<string, string>();
   for (const t of tasks) {

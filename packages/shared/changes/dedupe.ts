@@ -6,7 +6,10 @@
 import type { ChangeCommit } from "./types";
 
 /** The repo's default branch: the one recorded on the repo, else `main` or `master` when seen, else `main`. */
-export function resolveDefaultBranch(recorded: string | null | undefined, branchesSeen: Iterable<string | null | undefined>): string {
+export function resolveDefaultBranch(
+  recorded: string | null | undefined,
+  branchesSeen: Iterable<string | null | undefined>,
+): string {
   if (recorded) return recorded;
   const seen = new Set(branchesSeen);
   if (seen.has("main")) return "main";
@@ -15,11 +18,16 @@ export function resolveDefaultBranch(recorded: string | null | undefined, branch
 }
 
 /** A commit with no recorded branch came from a transcript and is read as landing on the default branch. */
-export function onDefaultBranch(commit: Pick<ChangeCommit, "branch">, defaultBranch: string): boolean {
+export function onDefaultBranch(
+  commit: Pick<ChangeCommit, "branch">,
+  defaultBranch: string,
+): boolean {
   return !commit.branch || commit.branch === defaultBranch;
 }
 
-export function twinKey(c: Pick<ChangeCommit, "author_email" | "timestamp" | "subject">): string {
+export function twinKey(
+  c: Pick<ChangeCommit, "author_email" | "timestamp" | "subject">,
+): string {
   return `${c.author_email.toLowerCase()}\u0000${c.timestamp}\u0000${c.subject.trim()}`;
 }
 
@@ -37,13 +45,21 @@ export const CONTENT_TWIN_MIN_LINES = 40;
  * A change under `CONTENT_TWIN_MIN_LINES` keys on its area map as well. Null
  * for a commit that changed no lines, which has nothing to compare.
  */
-export function contentKey(c: Pick<ChangeCommit, "author_email" | "subject" | "insertions" | "deletions" | "areas">): string | null {
+export function contentKey(
+  c: Pick<
+    ChangeCommit,
+    "author_email" | "subject" | "insertions" | "deletions" | "areas"
+  >,
+): string | null {
   const lines = c.insertions + c.deletions;
   if (lines === 0) return null;
   const subject = c.subject.replace(/\s+/g, " ").trim().toLowerCase();
   const key = `${c.author_email.toLowerCase()}\u0000${subject}\u0000${c.insertions}\u0000${c.deletions}`;
   if (lines >= CONTENT_TWIN_MIN_LINES) return key;
-  return `${key}\u0000${Object.entries(c.areas).map(([a, t]) => `${a}:${t.touches}`).sort().join(",")}`;
+  return `${key}\u0000${Object.entries(c.areas)
+    .map(([a, t]) => `${a}:${t.touches}`)
+    .sort()
+    .join(",")}`;
 }
 
 export type DedupeResult<C> = {
@@ -58,15 +74,27 @@ export type DedupeResult<C> = {
  * that landed on the default branch with an explicit branch wins, then any
  * copy read as default, then the newest row. Order of the input is kept.
  */
-export function dedupeCommits<C extends ChangeCommit>(commits: readonly C[], defaultBranch: string): DedupeResult<C> {
-  const rank = (c: C) => (c.branch === defaultBranch ? 2 : onDefaultBranch(c, defaultBranch) ? 1 : 0);
+export function dedupeCommits<C extends ChangeCommit>(
+  commits: readonly C[],
+  defaultBranch: string,
+): DedupeResult<C> {
+  const rank = (c: C) =>
+    c.branch === defaultBranch ? 2 : onDefaultBranch(c, defaultBranch) ? 1 : 0;
   const better = (c: C, prev: C) => {
     const d = rank(c) - rank(prev);
-    return d > 0 || (d === 0 && (c.created_at ?? c.timestamp) > (prev.created_at ?? prev.timestamp));
+    return (
+      d > 0 ||
+      (d === 0 &&
+        (c.created_at ?? c.timestamp) > (prev.created_at ?? prev.timestamp))
+    );
   };
   const twins: Record<string, string[]> = {};
   /** One pass: commits sharing a key within `within` ms of the group's keeper collapse onto the better copy. */
-  const collapse = (input: readonly C[], key: (c: C) => string | null, within: number): C[] => {
+  const collapse = (
+    input: readonly C[],
+    key: (c: C) => string | null,
+    within: number,
+  ): C[] => {
     const groups = new Map<string, { keeper: C; members: C[] }[]>();
     const dropped = new Set<C>();
     for (const c of input) {
@@ -74,7 +102,9 @@ export function dedupeCommits<C extends ChangeCommit>(commits: readonly C[], def
       if (k === null) continue;
       const list = groups.get(k) ?? [];
       groups.set(k, list);
-      const g = list.find((x) => Math.abs(c.timestamp - x.keeper.timestamp) <= within);
+      const g = list.find(
+        (x) => Math.abs(c.timestamp - x.keeper.timestamp) <= within,
+      );
       if (!g) {
         list.push({ keeper: c, members: [c] });
         continue;

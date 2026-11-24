@@ -43,12 +43,28 @@ function toISO(d: Date): string {
 }
 
 const SHORT_MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 const DAYS_OF_WEEK = [
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 function formatShort(d: Date): string {
@@ -68,7 +84,11 @@ function tryParseDate(q: string): Date | null {
   if (slashMatch) {
     const m = +slashMatch[1] - 1;
     const day = +slashMatch[2];
-    const year = slashMatch[3] ? (+slashMatch[3] < 100 ? 2000 + +slashMatch[3] : +slashMatch[3]) : now.getFullYear();
+    const year = slashMatch[3]
+      ? +slashMatch[3] < 100
+        ? 2000 + +slashMatch[3]
+        : +slashMatch[3]
+      : now.getFullYear();
     const d = new Date(year, m, day);
     if (!isNaN(d.getTime())) return d;
   }
@@ -76,7 +96,7 @@ function tryParseDate(q: string): Date | null {
   const monthDayMatch = q.match(/^([a-z]+)\s+(\d{1,2})(?:,?\s*(\d{4}))?$/i);
   if (monthDayMatch) {
     const mi = SHORT_MONTHS.findIndex(
-      (m) => m.toLowerCase() === monthDayMatch[1].slice(0, 3).toLowerCase()
+      (m) => m.toLowerCase() === monthDayMatch[1].slice(0, 3).toLowerCase(),
     );
     if (mi >= 0) {
       const year = monthDayMatch[3] ? +monthDayMatch[3] : now.getFullYear();
@@ -115,7 +135,7 @@ function getDateSuggestions(query: string): MentionItem[] {
         s.label.toLowerCase().includes(q) ||
         formatShort(s.date).toLowerCase().includes(q) ||
         toISO(s.date).includes(q) ||
-        DAYS_OF_WEEK[s.date.getDay()].toLowerCase().includes(q)
+        DAYS_OF_WEEK[s.date.getDay()].toLowerCase().includes(q),
     );
   }
 
@@ -203,7 +223,10 @@ export const DateMentionExtension = Mention.extend({
         tag: "span.editor-date-pill",
         getAttrs: (el: HTMLElement) => ({
           id: el.getAttribute("data-date") || "",
-          label: el.getAttribute("data-label") || el.textContent?.replace(/^#/, "") || "",
+          label:
+            el.getAttribute("data-label") ||
+            el.textContent?.replace(/^#/, "") ||
+            "",
           type: "date",
           dateValue: el.getAttribute("data-date") || "",
         }),

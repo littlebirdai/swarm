@@ -4,11 +4,11 @@
 **backends**. Pick one with the `backend` field in `.codecast/workspace.toml`
 or the `--backend` CLI flag. Default is `local`.
 
-| Backend | Substrate | When to use | Cost |
-|---|---|---|---|
-| `local` | git worktree on this machine | Default. Fast, free, full local power. | free |
-| `e2b` | E2B Firecracker microVM (Linux) | Ephemeral isolated runs; parallel agents; CI-like work. | ~$0.07/CPU-hour, per-second |
-| `mac` | Scaleway Apple Silicon Mac (tart VM) | Persistent macOS dev env; real macOS Chrome for claude-in-chrome; Xcode/iOS. | M1-M ~€0.11/h, **24h min lease (~€2.64)** |
+| Backend | Substrate                            | When to use                                                                  | Cost                                        |
+| ------- | ------------------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------- |
+| `local` | git worktree on this machine         | Default. Fast, free, full local power.                                       | free                                        |
+| `e2b`   | E2B Firecracker microVM (Linux)      | Ephemeral isolated runs; parallel agents; CI-like work.                      | ~$0.07/CPU-hour, per-second                 |
+| `mac`   | Scaleway Apple Silicon Mac (tart VM) | Persistent macOS dev env; real macOS Chrome for claude-in-chrome; Xcode/iOS. | M1-M ~~€0.11/h, **24h min lease (~~€2.64)** |
 
 All backends satisfy the same contract — `acquire / release / exec / readFile
 / writeFile / validate / list` — so the rest of codecast treats them
@@ -52,6 +52,7 @@ cast workspace acquire feat-x --backend e2b
 ```
 
 **How it works:**
+
 - `acquire` creates a sandbox, clones your repo from its `origin` remote (or
   uploads a tarball if there's no remote), and runs your manifest's
   install/generate/migrate commands inside the sandbox.
@@ -105,14 +106,30 @@ import type { SandboxBackend } from "@codecast/cli/workspace";
 
 const MyBackend: SandboxBackend = {
   name: "my-backend",
-  async acquire(repoRoot, name, opts) { /* ... */ },
-  async release(repoRoot, name) { /* ... */ },
-  async exec(repoRoot, name, command, opts) { /* ... */ },
-  async readFile(repoRoot, name, relativePath) { /* ... */ },
-  async writeFile(repoRoot, name, relativePath, content) { /* ... */ },
-  async heal(repoRoot, name) { /* ... */ },
-  async validate(repoRoot, name) { /* ... */ },
-  async list(repoRoot) { /* ... */ },
+  async acquire(repoRoot, name, opts) {
+    /* ... */
+  },
+  async release(repoRoot, name) {
+    /* ... */
+  },
+  async exec(repoRoot, name, command, opts) {
+    /* ... */
+  },
+  async readFile(repoRoot, name, relativePath) {
+    /* ... */
+  },
+  async writeFile(repoRoot, name, relativePath, content) {
+    /* ... */
+  },
+  async heal(repoRoot, name) {
+    /* ... */
+  },
+  async validate(repoRoot, name) {
+    /* ... */
+  },
+  async list(repoRoot) {
+    /* ... */
+  },
 };
 
 defaultRegistry.register(MyBackend);

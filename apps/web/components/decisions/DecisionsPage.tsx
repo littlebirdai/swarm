@@ -21,7 +21,10 @@ import { TeamAreaControls } from "./DecisionAreas";
 import { LineDecision } from "../line/widgets/LineDecision";
 import { useDecisionView } from "../../hooks/useDecisionView";
 import { useDecisionRows } from "../../hooks/useDecisionRows";
-import { useSyncTeamDecisions, useSyncTeamLineDecisions } from "../../hooks/useSyncSessionDecisions";
+import {
+  useSyncTeamDecisions,
+  useSyncTeamLineDecisions,
+} from "../../hooks/useSyncSessionDecisions";
 import { isFlowDecision } from "../../lib/decisions/decisionRows";
 import type { SessionDecisionItem } from "../../store/inboxStore";
 import { modernButton } from "../ui/modernLook";
@@ -32,11 +35,24 @@ const routeOf = (d: SessionDecisionItem) => `/decisions/${d.short_id ?? d._id}`;
 const GUIDE_URL = "https://codecast.sh/a/uwp726v59XIX";
 
 /** A decision whole, beside the list: a flow's in the flows' reader, any other as its document. */
-export function DecisionPeek({ d, onClose }: { d: SessionDecisionItem; onClose: () => void }) {
+export function DecisionPeek({
+  d,
+  onClose,
+}: {
+  d: SessionDecisionItem;
+  onClose: () => void;
+}) {
   return (
-    <div className="w-[560px] min-w-0 flex-shrink h-full border-l border-sol-border/40 overflow-y-auto bg-sol-bg" data-decision-peek={d.short_id ?? d._id}>
+    <div
+      className="w-[560px] min-w-0 flex-shrink h-full border-l border-sol-border/40 overflow-y-auto bg-sol-bg"
+      data-decision-peek={d.short_id ?? d._id}
+    >
       <ErrorBoundary name="DecisionPeek" level="panel">
-        {isFlowDecision(d) ? <LineDecision id={d._id} quiet inline onClose={onClose} /> : <DecisionDocument id={d.short_id ?? d._id} pager={false} />}
+        {isFlowDecision(d) ? (
+          <LineDecision id={d._id} quiet inline onClose={onClose} />
+        ) : (
+          <DecisionDocument id={d.short_id ?? d._id} pager={false} />
+        )}
       </ErrorBoundary>
     </div>
   );
@@ -55,25 +71,45 @@ export function DecisionsList({ activeId }: { activeId?: string }) {
   const rows = useDecisionRows();
   useDecisionFeeds(rows.workspaceKey);
   const cards = state.view.tab === "mine" && params?.get("mode") === "cards";
-  const setCards = useCallback((on: boolean) => {
-    const q = new URLSearchParams(params?.toString() ?? "");
-    if (on) q.set("mode", "cards"); else q.delete("mode");
-    router.replace(`/decisions${q.toString() ? `?${q}` : ""}`);
-  }, [params, router]);
+  const setCards = useCallback(
+    (on: boolean) => {
+      const q = new URLSearchParams(params?.toString() ?? "");
+      if (on) q.set("mode", "cards");
+      else q.delete("mode");
+      router.replace(`/decisions${q.toString() ? `?${q}` : ""}`);
+    },
+    [params, router],
+  );
 
-  const mineControls: ReactNode = state.view.tab === "mine" ? (
-    <div>
-      <div className="text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1">View</div>
-      <SegmentedToggle fullWidth value={cards ? "cards" : "list"} onChange={(v) => setCards(v === "cards")}
-        items={[{ key: "list", label: "List", icon: LayoutList }, { key: "cards", label: "Cards", icon: Rows3 }]} />
-    </div>
-  ) : undefined;
-  const step = state.view.tab === "mine" ? (
-    <button type="button" onClick={() => router.push("/decisions?mode=step")} data-decision-step
-      className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-sol-border/40 text-xs text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors ${modernButton({ variant: "outline", size: "sm" })}`}>
-      <StepForward className="w-3 h-3" /><span className="cq-header-collapse">One at a time</span>
-    </button>
-  ) : undefined;
+  const mineControls: ReactNode =
+    state.view.tab === "mine" ? (
+      <div>
+        <div className="text-mark uppercase tracking-wider text-sol-text-dim px-1 mb-1">
+          View
+        </div>
+        <SegmentedToggle
+          fullWidth
+          value={cards ? "cards" : "list"}
+          onChange={(v) => setCards(v === "cards")}
+          items={[
+            { key: "list", label: "List", icon: LayoutList },
+            { key: "cards", label: "Cards", icon: Rows3 },
+          ]}
+        />
+      </div>
+    ) : undefined;
+  const step =
+    state.view.tab === "mine" ? (
+      <button
+        type="button"
+        onClick={() => router.push("/decisions?mode=step")}
+        data-decision-step
+        className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-sol-border/40 text-xs text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors ${modernButton({ variant: "outline", size: "sm" })}`}
+      >
+        <StepForward className="w-3 h-3" />
+        <span className="cq-header-collapse">One at a time</span>
+      </button>
+    ) : undefined;
 
   return (
     <DecisionList
@@ -82,18 +118,44 @@ export function DecisionsList({ activeId }: { activeId?: string }) {
       rows={rows}
       routeOf={routeOf}
       renderPreview={(d, onClose) => <DecisionPeek d={d} onClose={onClose} />}
-      activeItemId={activeId ? rows.mine.find((d) => d.short_id === activeId || d._id === activeId)?._id : undefined}
+      activeItemId={
+        activeId
+          ? rows.mine.find((d) => d.short_id === activeId || d._id === activeId)
+              ?._id
+          : undefined
+      }
       savedViews
       publishOrder
-      headerExtra={<>
-        {state.view.tab === "team" ? <TeamAreaControls workspace={rows.workspaceKey} /> : step}
-        <a href={GUIDE_URL} target="_blank" rel="noreferrer" aria-label="Decisions guide" data-decisions-guide
-          className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-sol-border/40 text-xs text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors no-underline ${modernButton({ variant: "outline", size: "sm" })}`}>
-          <BookOpen className="w-3 h-3" /><span className="cq-header-collapse">Guide</span>
-        </a>
-      </>}
+      headerExtra={
+        <>
+          {state.view.tab === "team" ? (
+            <TeamAreaControls workspace={rows.workspaceKey} />
+          ) : (
+            step
+          )}
+          <a
+            href={GUIDE_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Decisions guide"
+            data-decisions-guide
+            className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-sol-border/40 text-xs text-sol-text-dim hover:text-sol-text hover:border-sol-border transition-colors no-underline ${modernButton({ variant: "outline", size: "sm" })}`}
+          >
+            <BookOpen className="w-3 h-3" />
+            <span className="cq-header-collapse">Guide</span>
+          </a>
+        </>
+      }
       displayExtra={mineControls}
-      customContent={cards ? () => <div className="flex-1 overflow-y-auto"><DecisionQueueList /></div> : undefined}
+      customContent={
+        cards
+          ? () => (
+              <div className="flex-1 overflow-y-auto">
+                <DecisionQueueList />
+              </div>
+            )
+          : undefined
+      }
     />
   );
 }
@@ -105,10 +167,22 @@ export function DecisionsPage({ id }: { id?: string }) {
   const exit = useCallback(() => router.push("/decisions"), [router]);
   // The stepper owns its whole canvas: one decision at a time, on the asking session's pane.
   if (!id && (anchor || params?.get("mode") === "step")) {
-    return <div className="h-full bg-sol-bg"><DecisionQueue key={`${anchor ?? "all"}:${params?.get("d") ?? ""}`} onExit={exit} initialConversationId={anchor} initialKey={params?.get("d")} /></div>;
+    return (
+      <div className="h-full bg-sol-bg">
+        <DecisionQueue
+          key={`${anchor ?? "all"}:${params?.get("d") ?? ""}`}
+          onExit={exit}
+          initialConversationId={anchor}
+          initialKey={params?.get("d")}
+        />
+      </div>
+    );
   }
   return (
-    <DetailSplitLayout list={<DecisionsList activeId={id} />} closeHref="/decisions">
+    <DetailSplitLayout
+      list={<DecisionsList activeId={id} />}
+      closeHref="/decisions"
+    >
       {id ? (
         <ErrorBoundary name="Decision" level="panel">
           <DecisionDocument id={id} />

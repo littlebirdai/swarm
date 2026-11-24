@@ -17,7 +17,7 @@ export const recordTouch = internalMutation({
       v.literal("write"),
       v.literal("delete"),
       v.literal("glob"),
-      v.literal("grep")
+      v.literal("grep"),
     ),
     line_range: v.optional(v.string()),
     message_index: v.number(),
@@ -45,17 +45,17 @@ export const findByFile = mutation({
     const touches = await ctx.db
       .query("file_touches")
       .withIndex("by_user_file", (q) =>
-        q.eq("user_id", result.userId).eq("file_path", args.file_path)
+        q.eq("user_id", result.userId).eq("file_path", args.file_path),
       )
       .order("desc")
       .take(limit);
 
     const conversationIds = [...new Set(touches.map((t) => t.conversation_id))];
     const conversations = await Promise.all(
-      conversationIds.map((id) => ctx.db.get(id))
+      conversationIds.map((id) => ctx.db.get(id)),
     );
     const convMap = new Map(
-      conversations.filter(Boolean).map((c) => [c!._id.toString(), c])
+      conversations.filter(Boolean).map((c) => [c!._id.toString(), c]),
     );
 
     const results = touches.map((t) => {
@@ -99,15 +99,20 @@ export const findSimilar = mutation({
       const touches = await ctx.db
         .query("file_touches")
         .withIndex("by_user_file", (q) =>
-          q.eq("user_id", result.userId).eq("file_path", args.file_path!)
+          q.eq("user_id", result.userId).eq("file_path", args.file_path!),
         )
         .order("desc")
         .take(100);
 
-      const conversationIds = [...new Set(touches.map((t) => t.conversation_id))];
+      const conversationIds = [
+        ...new Set(touches.map((t) => t.conversation_id)),
+      ];
       const selfId = args.include_self
         ? null
-        : await resolveSearchSelf(ctx, result.userId, { conversation_id: args.self_conversation_id, session_id: args.self_session_id });
+        : await resolveSearchSelf(ctx, result.userId, {
+            conversation_id: args.self_conversation_id,
+            session_id: args.self_session_id,
+          });
       const inSelfFamily = selfId ? selfFamilyTest(ctx, selfId) : null;
       const conversations: Doc<"conversations">[] = [];
       let excludedSelf = 0;
@@ -115,34 +120,46 @@ export const findSimilar = mutation({
         if (conversations.length >= limit) break;
         const conv = await ctx.db.get(id);
         if (!conv) continue;
-        if (inSelfFamily && (await inSelfFamily(conv))) { excludedSelf++; continue; }
+        if (inSelfFamily && (await inSelfFamily(conv))) {
+          excludedSelf++;
+          continue;
+        }
         conversations.push(conv);
       }
 
       // Same liveness fields as a feed or search row, so `cast context` can
       // show whether a file match is live, done, or long gone.
       const classifier = cliSessionClassifier(ctx, Date.now());
-      const results = await Promise.all(conversations.map(async (c) => ({
-        conversation_id: c!._id,
-        // The id `cast read` and search rows use, so a session found both by
-        // text and by file is one row.
-        short_id: c!.short_id || c!._id.toString().slice(0, 7),
-        session_id: c!.session_id,
-        title: c!.title || "Untitled",
-        project_path: c!.project_path,
-        updated_at: new Date(c!.updated_at).toISOString(),
-        message_count: c!.message_count,
-        ...(await classifier.rowFields(c!)),
-        match_type: "file",
-        match_detail: args.file_path,
-      })));
+      const results = await Promise.all(
+        conversations.map(async (c) => ({
+          conversation_id: c!._id,
+          // The id `cast read` and search rows use, so a session found both by
+          // text and by file is one row.
+          short_id: c!.short_id || c!._id.toString().slice(0, 7),
+          session_id: c!.session_id,
+          title: c!.title || "Untitled",
+          project_path: c!.project_path,
+          updated_at: new Date(c!.updated_at).toISOString(),
+          message_count: c!.message_count,
+          ...(await classifier.rowFields(c!)),
+          match_type: "file",
+          match_detail: args.file_path,
+        })),
+      );
 
       const self = excludedSelf && selfId ? await ctx.db.get(selfId) : null;
       return {
         sessions: results,
         count: results.length,
         // Same shape as searchForCLI's.
-        ...(excludedSelf ? { excluded_self: { id: self?.short_id || String(selfId).slice(0, 7), sessions: excludedSelf } } : {}),
+        ...(excludedSelf
+          ? {
+              excluded_self: {
+                id: self?.short_id || String(selfId).slice(0, 7),
+                sessions: excludedSelf,
+              },
+            }
+          : {}),
       };
     }
 
@@ -155,19 +172,29 @@ export const findSimilar = mutation({
 
       // A short id older than the 500 newest goes through the shared resolver;
       // only the caller's own sessions are compared, as before.
-      const resolved = allConvs.find(
-        (c) => c._id.toString().startsWith(args.session_id!) ||
-               c.session_id?.startsWith(args.session_id!)
-      ) ?? await resolveConversationRef(ctx, args.session_id, result.userId);
-      const sourceConv = resolved && resolved.user_id.toString() === result.userId.toString() ? resolved : null;
+      const resolved =
+        allConvs.find(
+          (c) =>
+            c._id.toString().startsWith(args.session_id!) ||
+            c.session_id?.startsWith(args.session_id!),
+        ) ??
+        (await resolveConversationRef(ctx, args.session_id, result.userId));
+      const sourceConv =
+        resolved && resolved.user_id.toString() === result.userId.toString()
+          ? resolved
+          : null;
 
       if (!sourceConv) {
-        return { error: `No session ${args.session_id} of yours. Find ids with \`cast sessions\` or \`cast search <words>\`.` };
+        return {
+          error: `No session ${args.session_id} of yours. Find ids with \`cast sessions\` or \`cast search <words>\`.`,
+        };
       }
 
       const sourceTouches = await ctx.db
         .query("file_touches")
-        .withIndex("by_conversation", (q) => q.eq("conversation_id", sourceConv._id))
+        .withIndex("by_conversation", (q) =>
+          q.eq("conversation_id", sourceConv._id),
+        )
         .collect();
 
       const sourceFiles = [...new Set(sourceTouches.map((t) => t.file_path))];
@@ -176,7 +203,9 @@ export const findSimilar = mutation({
         const sameProject = await ctx.db
           .query("conversations")
           .withIndex("by_user_id", (q) => q.eq("user_id", result.userId))
-          .filter((q) => q.eq(q.field("project_path"), sourceConv!.project_path))
+          .filter((q) =>
+            q.eq(q.field("project_path"), sourceConv!.project_path),
+          )
           .order("desc")
           .take(limit + 1);
 
@@ -197,12 +226,15 @@ export const findSimilar = mutation({
         return { sessions: results, count: results.length };
       }
 
-      const relatedConvIds = new Map<string, { count: number; files: string[] }>();
+      const relatedConvIds = new Map<
+        string,
+        { count: number; files: string[] }
+      >();
       for (const filePath of sourceFiles.slice(0, 20)) {
         const touches = await ctx.db
           .query("file_touches")
           .withIndex("by_user_file", (q) =>
-            q.eq("user_id", result.userId).eq("file_path", filePath)
+            q.eq("user_id", result.userId).eq("file_path", filePath),
           )
           .take(50);
 
@@ -210,7 +242,10 @@ export const findSimilar = mutation({
           const convId = t.conversation_id.toString();
           if (convId === sourceConv._id.toString()) continue;
 
-          const existing = relatedConvIds.get(convId) || { count: 0, files: [] };
+          const existing = relatedConvIds.get(convId) || {
+            count: 0,
+            files: [],
+          };
           existing.count++;
           if (!existing.files.includes(filePath)) {
             existing.files.push(filePath);
@@ -223,9 +258,10 @@ export const findSimilar = mutation({
         .sort((a, b) => b[1].count - a[1].count)
         .slice(0, limit);
 
-      const conversations: Array<Doc<"conversations"> | null> = await Promise.all(
-        sortedConvIds.map(([id]) => ctx.db.get(id as Id<"conversations">))
-      );
+      const conversations: Array<Doc<"conversations"> | null> =
+        await Promise.all(
+          sortedConvIds.map(([id]) => ctx.db.get(id as Id<"conversations">)),
+        );
 
       const results = conversations.filter(Boolean).map((c, i) => ({
         conversation_id: c!._id,
@@ -241,7 +277,11 @@ export const findSimilar = mutation({
       return { sessions: results, count: results.length };
     }
 
-    return { sessions: [], count: 0, error: "Must specify file_path or session_id" };
+    return {
+      sessions: [],
+      count: 0,
+      error: "Must specify file_path or session_id",
+    };
   },
 });
 
@@ -272,8 +312,9 @@ export const getConversationTouches = mutation({
         .take(1000);
 
       const match = allConvs.find(
-        (c) => c._id.toString().includes(args.conversation_id) ||
-               c.session_id?.includes(args.conversation_id)
+        (c) =>
+          c._id.toString().includes(args.conversation_id) ||
+          c.session_id?.includes(args.conversation_id),
       );
 
       if (!match) {
@@ -285,9 +326,16 @@ export const getConversationTouches = mutation({
         .withIndex("by_conversation", (q) => q.eq("conversation_id", match._id))
         .collect();
 
-      const fileStats = new Map<string, { reads: number; edits: number; writes: number }>();
+      const fileStats = new Map<
+        string,
+        { reads: number; edits: number; writes: number }
+      >();
       for (const t of touches) {
-        const stats = fileStats.get(t.file_path) || { reads: 0, edits: 0, writes: 0 };
+        const stats = fileStats.get(t.file_path) || {
+          reads: 0,
+          edits: 0,
+          writes: 0,
+        };
         if (t.operation === "read") stats.reads++;
         else if (t.operation === "edit") stats.edits++;
         else if (t.operation === "write") stats.writes++;
@@ -311,9 +359,16 @@ export const getConversationTouches = mutation({
       .withIndex("by_conversation", (q) => q.eq("conversation_id", conv._id))
       .collect();
 
-    const fileStats = new Map<string, { reads: number; edits: number; writes: number }>();
+    const fileStats = new Map<
+      string,
+      { reads: number; edits: number; writes: number }
+    >();
     for (const t of touches) {
-      const stats = fileStats.get(t.file_path) || { reads: 0, edits: 0, writes: 0 };
+      const stats = fileStats.get(t.file_path) || {
+        reads: 0,
+        edits: 0,
+        writes: 0,
+      };
       if (t.operation === "read") stats.reads++;
       else if (t.operation === "edit") stats.edits++;
       else if (t.operation === "write") stats.writes++;

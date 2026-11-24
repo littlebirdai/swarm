@@ -7,7 +7,8 @@ const STORAGE_URL = "https://convex.codecast.sh/api/storage/abc-123";
 const real = await import("../../hooks/useStorageImageUrl");
 mock.module("../../hooks/useStorageImageUrl", () => ({
   ...real,
-  useStorageImageUrl: (storageId?: string | null) => (storageId ? STORAGE_URL : undefined),
+  useStorageImageUrl: (storageId?: string | null) =>
+    storageId ? STORAGE_URL : undefined,
   useStorageImageSrc: () => STORAGE_URL,
 }));
 
@@ -24,7 +25,11 @@ test("a video attachment renders a player, never an image tile", () => {
       ]}
     />,
   );
-  expect(html).toMatch(new RegExp(`<video[^>]*class="ch-att ch-att-video"[^>]*src="${STORAGE_URL}"[^>]*controls`));
+  expect(html).toMatch(
+    new RegExp(
+      `<video[^>]*class="ch-att ch-att-video"[^>]*src="${STORAGE_URL}"[^>]*controls`,
+    ),
+  );
   expect(html.match(/<img /g)).toHaveLength(1);
   expect(html).not.toContain('alt="IMG_3071.MOV"');
 });

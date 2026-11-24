@@ -1,18 +1,48 @@
 import { expect, test } from "bun:test";
 import { hibernate, results, rewindFiles } from "./sessionCommands";
-import { enqueueHibernateSession, enqueueResumeSession } from "./daemonCommandUtils";
+import {
+  enqueueHibernateSession,
+  enqueueResumeSession,
+} from "./daemonCommandUtils";
 import { makeFakeDb } from "./testDb";
 import { normalizeWorkStateFilter } from "./inboxFilters";
-import { tallyInboxRows, computeInboxSessions, computeSessionsLiveness, sendEscapeToSession } from "./conversations";
+import {
+  tallyInboxRows,
+  computeInboxSessions,
+  computeSessionsLiveness,
+  sendEscapeToSession,
+} from "./conversations";
 
 function fixture() {
   const db = makeFakeDb({
-    conversations: [{ _id: "conv", user_id: "owner", session_id: "session", owner_device_id: "device" }],
-    managed_sessions: [{ _id: "managed", user_id: "owner", conversation_id: "conv", session_id: "session" }],
+    conversations: [
+      {
+        _id: "conv",
+        user_id: "owner",
+        session_id: "session",
+        owner_device_id: "device",
+      },
+    ],
+    managed_sessions: [
+      {
+        _id: "managed",
+        user_id: "owner",
+        conversation_id: "conv",
+        session_id: "session",
+      },
+    ],
     daemon_commands: [],
   });
-  const ctx = { db, auth: { getUserIdentity: async () => ({ subject: "owner|login" }) } };
-  const args = { request_id: "request", conversation_id: "conv", session_id: "session", owner_device_id: "device" };
+  const ctx = {
+    db,
+    auth: { getUserIdentity: async () => ({ subject: "owner|login" }) },
+  };
+  const args = {
+    request_id: "request",
+    conversation_id: "conv",
+    session_id: "session",
+    owner_device_id: "device",
+  };
   return { db, ctx, args };
 }
 
@@ -22,55 +52,126 @@ test("hibernate is authorized, exact identity addressed, device routed and idemp
   const again = await (hibernate as any)._handler(f.ctx, f.args);
   expect(again).toEqual({ command_id: first.command_id, deduplicated: true });
   expect(f.db._tables.daemon_commands).toHaveLength(1);
-  expect(f.db._tables.daemon_commands[0]).toMatchObject({ user_id: "owner", target_device_id: "device", request_id: "request", command: "hibernate_session" });
-  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toEqual({ session_id: "session", conversation_id: "conv" });
-  for (const changed of [{ session_id: "new-session" }, { owner_device_id: "new-device" }]) {
-    await expect((hibernate as any)._handler(f.ctx, { ...f.args, ...changed })).rejects.toThrow("changed");
+  expect(f.db._tables.daemon_commands[0]).toMatchObject({
+    user_id: "owner",
+    target_device_id: "device",
+    request_id: "request",
+    command: "hibernate_session",
+  });
+  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toEqual({
+    session_id: "session",
+    conversation_id: "conv",
+  });
+  for (const changed of [
+    { session_id: "new-session" },
+    { owner_device_id: "new-device" },
+  ]) {
+    await expect(
+      (hibernate as any)._handler(f.ctx, { ...f.args, ...changed }),
+    ).rejects.toThrow("changed");
   }
   f.db._tables.managed_sessions[0].session_id = "foreign";
-  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow("identity");
+  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow(
+    "identity",
+  );
 });
 
 test("a foreign viewer cannot park or read a command", async () => {
   const f = fixture();
   const queued = await (hibernate as any)._handler(f.ctx, f.args);
   f.ctx.auth.getUserIdentity = async () => ({ subject: "stranger|login" });
-  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow("Not authorized");
-  expect(await (results as any)._handler(f.ctx, { command_ids: [queued.command_id] })).toEqual([]);
+  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow(
+    "Not authorized",
+  );
+  expect(
+    await (results as any)._handler(f.ctx, {
+      command_ids: [queued.command_id],
+    }),
+  ).toEqual([]);
 });
 
 test("result feed reports actual request, skipped outcome and missing identity without fabricating success", async () => {
   const f = fixture();
   await (hibernate as any)._handler(f.ctx, f.args);
-  const read = () => (results as any)._handler(f.ctx, { request_ids: ["request", "missing"] });
-  expect((await read())[0]).toMatchObject({ _id: "request", executed_at: null, result: null });
-  Object.assign(f.db._tables.daemon_commands[0], { executed_at: 100, result: "skipped_attached", error: "not parked: attached" });
-  expect((await read())[0]).toMatchObject({ executed_at: 100, result: "skipped_attached", error: "not parked: attached" });
+  const read = () =>
+    (results as any)._handler(f.ctx, { request_ids: ["request", "missing"] });
+  expect((await read())[0]).toMatchObject({
+    _id: "request",
+    executed_at: null,
+    result: null,
+  });
+  Object.assign(f.db._tables.daemon_commands[0], {
+    executed_at: 100,
+    result: "skipped_attached",
+    error: "not parked: attached",
+  });
+  expect((await read())[0]).toMatchObject({
+    executed_at: 100,
+    result: "skipped_attached",
+    error: "not parked: attached",
+  });
   expect(await read()).toHaveLength(1);
 });
 
 test("a stop is routed to the owning device and its outcome reaches the result feed by request id", async () => {
   const f = fixture();
-  await (sendEscapeToSession as any)._handler(f.ctx, { conversation_id: "conv", pressed_at: 50, request_id: "stop-1" });
-  expect(f.db._tables.daemon_commands[0]).toMatchObject({ command: "escape", request_id: "stop-1", target_device_id: "device", user_id: "owner" });
-  const read = () => (results as any)._handler(f.ctx, { request_ids: ["stop-1"] });
-  expect((await read())[0]).toMatchObject({ _id: "stop-1", conversation_id: "conv", executed_at: null });
-  Object.assign(f.db._tables.daemon_commands[0], { executed_at: 100, error: "No running process for session" });
-  expect((await read())[0]).toMatchObject({ executed_at: 100, error: "No running process for session" });
-  await expect((sendEscapeToSession as any)._handler(f.ctx, { conversation_id: "conv", request_id: "bad id!" })).rejects.toThrow("Invalid request ID");
+  await (sendEscapeToSession as any)._handler(f.ctx, {
+    conversation_id: "conv",
+    pressed_at: 50,
+    request_id: "stop-1",
+  });
+  expect(f.db._tables.daemon_commands[0]).toMatchObject({
+    command: "escape",
+    request_id: "stop-1",
+    target_device_id: "device",
+    user_id: "owner",
+  });
+  const read = () =>
+    (results as any)._handler(f.ctx, { request_ids: ["stop-1"] });
+  expect((await read())[0]).toMatchObject({
+    _id: "stop-1",
+    conversation_id: "conv",
+    executed_at: null,
+  });
+  Object.assign(f.db._tables.daemon_commands[0], {
+    executed_at: 100,
+    error: "No running process for session",
+  });
+  expect((await read())[0]).toMatchObject({
+    executed_at: 100,
+    error: "No running process for session",
+  });
+  await expect(
+    (sendEscapeToSession as any)._handler(f.ctx, {
+      conversation_id: "conv",
+      request_id: "bad id!",
+    }),
+  ).rejects.toThrow("Invalid request ID");
 });
 
 test("wake uses exact runner session and owner device; dedup returns completion ID", async () => {
   const f = fixture();
-  const first = await enqueueResumeSession(f.ctx, f.db._tables.conversations[0]);
+  const first = await enqueueResumeSession(
+    f.ctx,
+    f.db._tables.conversations[0],
+  );
   const next = await enqueueResumeSession(f.ctx, f.db._tables.conversations[0]);
   expect(next.command_id).toBe(first.command_id);
   expect(next.deduplicated).toBe(true);
   const command = f.db._tables.daemon_commands[0];
   expect(command.target_device_id).toBe("device");
-  expect(JSON.parse(command.args)).toMatchObject({ session_id: "session", conversation_id: "conv" });
-  for (const changed of [{ session_id: "new-session" }, { owner_device_id: "new-device" }]) {
-    const fresh = await enqueueResumeSession(f.ctx, { ...f.db._tables.conversations[0], ...changed });
+  expect(JSON.parse(command.args)).toMatchObject({
+    session_id: "session",
+    conversation_id: "conv",
+  });
+  for (const changed of [
+    { session_id: "new-session" },
+    { owner_device_id: "new-device" },
+  ]) {
+    const fresh = await enqueueResumeSession(f.ctx, {
+      ...f.db._tables.conversations[0],
+      ...changed,
+    });
     expect(fresh.deduplicated).toBe(false);
     expect(fresh.command_id).not.toBe(first.command_id);
   }
@@ -79,60 +180,159 @@ test("wake uses exact runner session and owner device; dedup returns completion 
 test("CLI hibernated filter uses actual status, retains dormant alphabet and excludes stale stamps on active rows", () => {
   expect(normalizeWorkStateFilter("hibernated")).toBe("hibernated");
   expect(normalizeWorkStateFilter("parked")).toBe("dormant");
-  const make = (id: string, status: string) => ({ _id: id, session_id: id, title: id, updated_at: Date.now(), message_count: 5, agent_status: status, hibernated_at: 1, work_state: status === "hibernated" ? "dormant" : "working", bucket: status === "hibernated" ? "dormant" : "working", is_connected: true });
-  const output = tallyInboxRows([make("parked", "hibernated"), make("awake", "working")], { showAll: true, stateFilter: "hibernated", labelByConv: new Map() });
-  expect(output.rows.map(r => r.id)).toEqual(["parked"]);
+  const make = (id: string, status: string) => ({
+    _id: id,
+    session_id: id,
+    title: id,
+    updated_at: Date.now(),
+    message_count: 5,
+    agent_status: status,
+    hibernated_at: 1,
+    work_state: status === "hibernated" ? "dormant" : "working",
+    bucket: status === "hibernated" ? "dormant" : "working",
+    is_connected: true,
+  });
+  const output = tallyInboxRows(
+    [make("parked", "hibernated"), make("awake", "working")],
+    { showAll: true, stateFilter: "hibernated", labelByConv: new Map() },
+  );
+  expect(output.rows.map((r) => r.id)).toEqual(["parked"]);
   expect(output.rows[0].is_live).toBe(false);
 });
 
-for (const blocked of ["question", "session_error"] as const) test(`parked ${blocked} remains actionable in real inbox and overlay projections`, async () => {
-  const now = Date.now();
-  const db = makeFakeDb({
-    users: [{ _id: "owner", name: "Owner" }],
-    conversations: [{ _id: "conv", user_id: "owner", session_id: "session", title: "Parked", status: "active", updated_at: now - 2 * 3600_000, message_count: 4, last_message_role: "assistant", ...(blocked === "session_error" ? { session_error: "Wake failed" } : {}) }],
-    managed_sessions: [{ _id: "managed", user_id: "owner", conversation_id: "conv", session_id: "session", agent_status: "hibernated", hibernated_at: now - 3 * 86400_000, last_heartbeat: now - 3 * 86400_000 }],
-    messages: blocked === "question" ? [{ _id: "poll", conversation_id: "conv", timestamp: now - 2 * 3600_000, role: "assistant", tool_calls: [{ name: "AskUserQuestion" }] }] : [],
+for (const blocked of ["question", "session_error"] as const)
+  test(`parked ${blocked} remains actionable in real inbox and overlay projections`, async () => {
+    const now = Date.now();
+    const db = makeFakeDb({
+      users: [{ _id: "owner", name: "Owner" }],
+      conversations: [
+        {
+          _id: "conv",
+          user_id: "owner",
+          session_id: "session",
+          title: "Parked",
+          status: "active",
+          updated_at: now - 2 * 3600_000,
+          message_count: 4,
+          last_message_role: "assistant",
+          ...(blocked === "session_error"
+            ? { session_error: "Wake failed" }
+            : {}),
+        },
+      ],
+      managed_sessions: [
+        {
+          _id: "managed",
+          user_id: "owner",
+          conversation_id: "conv",
+          session_id: "session",
+          agent_status: "hibernated",
+          hibernated_at: now - 3 * 86400_000,
+          last_heartbeat: now - 3 * 86400_000,
+        },
+      ],
+      messages:
+        blocked === "question"
+          ? [
+              {
+                _id: "poll",
+                conversation_id: "conv",
+                timestamp: now - 2 * 3600_000,
+                role: "assistant",
+                tool_calls: [{ name: "AskUserQuestion" }],
+              },
+            ]
+          : [],
+    });
+    const { sessions } = await computeInboxSessions({ db }, "owner" as any, {
+      includeLiveness: true,
+      projection: true,
+    });
+    expect(sessions[0]?.work_state).toBe("needs_input");
+    const { liveness } = await computeSessionsLiveness({ db }, "owner" as any);
+    expect(liveness.conv?.work_state).toBe("needs_input");
+    if (blocked === "question")
+      expect(liveness.conv?.awaiting_input).toBe(true);
+    expect(liveness.conv?.agent_status).toBe("hibernated");
   });
-  const { sessions } = await computeInboxSessions({ db }, "owner" as any, { includeLiveness: true, projection: true });
-  expect(sessions[0]?.work_state).toBe("needs_input");
-  const { liveness } = await computeSessionsLiveness({ db }, "owner" as any);
-  expect(liveness.conv?.work_state).toBe("needs_input");
-  if (blocked === "question") expect(liveness.conv?.awaiting_input).toBe(true);
-  expect(liveness.conv?.agent_status).toBe("hibernated");
-});
 
-for (const axis of ["owner_device_id", "session_id", "conversation_id"] as const) {
+for (const axis of [
+  "owner_device_id",
+  "session_id",
+  "conversation_id",
+] as const) {
   test(`request ID remains bound after ${axis} changes, including completed commands`, async () => {
     const f = fixture();
     const first = await (hibernate as any)._handler(f.ctx, f.args);
-    await f.db.patch(first.command_id, { executed_at: 100, result: "hibernated", _creationTime: 1 });
+    await f.db.patch(first.command_id, {
+      executed_at: 100,
+      result: "hibernated",
+      _creationTime: 1,
+    });
     const changed = { ...f.args, [axis]: "new-target" };
     if (axis === "conversation_id") {
-      await f.db.insert("conversations", { ...f.db._tables.conversations[0], _id: changed.conversation_id });
-      await f.db.insert("managed_sessions", { ...f.db._tables.managed_sessions[0], _id: "new-managed", conversation_id: changed.conversation_id });
+      await f.db.insert("conversations", {
+        ...f.db._tables.conversations[0],
+        _id: changed.conversation_id,
+      });
+      await f.db.insert("managed_sessions", {
+        ...f.db._tables.managed_sessions[0],
+        _id: "new-managed",
+        conversation_id: changed.conversation_id,
+      });
     } else {
       await f.db.patch("conv", { [axis]: changed[axis] });
-      if (axis === "session_id") await f.db.patch("managed", { session_id: changed.session_id });
+      if (axis === "session_id")
+        await f.db.patch("managed", { session_id: changed.session_id });
     }
     for (let attempt = 0; attempt < 3; attempt++) {
-      await expect((hibernate as any)._handler(f.ctx, changed)).rejects.toThrow("already bound");
+      await expect((hibernate as any)._handler(f.ctx, changed)).rejects.toThrow(
+        "already bound",
+      );
       expect(f.db._tables.daemon_commands).toHaveLength(1);
     }
-    expect((await (results as any)._handler(f.ctx, { request_ids: [f.args.request_id] }))[0])
-      .toMatchObject({ command_id: first.command_id, executed_at: 100, result: "hibernated" });
+    expect(
+      (
+        await (results as any)._handler(f.ctx, {
+          request_ids: [f.args.request_id],
+        })
+      )[0],
+    ).toMatchObject({
+      command_id: first.command_id,
+      executed_at: 100,
+      result: "hibernated",
+    });
   });
 }
 
 test("same-target retries preserve the original completed result without an age limit", async () => {
   const f = fixture();
   const first = await (hibernate as any)._handler(f.ctx, f.args);
-  await f.db.patch(first.command_id, { executed_at: 100, result: "skipped_attached", error: "not parked: attached", _creationTime: 1 });
+  await f.db.patch(first.command_id, {
+    executed_at: 100,
+    result: "skipped_attached",
+    error: "not parked: attached",
+    _creationTime: 1,
+  });
   for (let attempt = 0; attempt < 5; attempt++) {
-    expect(await (hibernate as any)._handler(f.ctx, f.args)).toEqual({ ...first, deduplicated: true });
+    expect(await (hibernate as any)._handler(f.ctx, f.args)).toEqual({
+      ...first,
+      deduplicated: true,
+    });
   }
   expect(f.db._tables.daemon_commands).toHaveLength(1);
-  expect((await (results as any)._handler(f.ctx, { request_ids: [f.args.request_id] }))[0])
-    .toMatchObject({ command_id: first.command_id, executed_at: 100, result: "skipped_attached", error: "not parked: attached" });
+  expect(
+    (
+      await (results as any)._handler(f.ctx, {
+        request_ids: [f.args.request_id],
+      })
+    )[0],
+  ).toMatchObject({
+    command_id: first.command_id,
+    executed_at: 100,
+    result: "skipped_attached",
+    error: "not parked: attached",
+  });
 });
 
 test("concurrent same-target handler calls converge when conflicting transactions retry", async () => {
@@ -143,8 +343,14 @@ test("concurrent same-target handler calls converge when conflicting transaction
     for (let attempt = 0; attempt < 10; attempt++) {
       const started = revision;
       const db = makeFakeDb(structuredClone(f.db._tables));
-      const result = await (hibernate as any)._handler({ ...f.ctx, db }, f.args);
-      if (started !== revision) { conflicts++; continue; }
+      const result = await (hibernate as any)._handler(
+        { ...f.ctx, db },
+        f.args,
+      );
+      if (started !== revision) {
+        conflicts++;
+        continue;
+      }
       Object.assign(f.db._tables, db._tables);
       revision++;
       return result;
@@ -153,8 +359,8 @@ test("concurrent same-target handler calls converge when conflicting transaction
   };
   const returned = await Promise.all(Array.from({ length: 6 }, mutate));
   expect(conflicts).toBeGreaterThan(0);
-  expect(returned.filter(r => !r.deduplicated)).toHaveLength(1);
-  expect(new Set(returned.map(r => r.command_id)).size).toBe(1);
+  expect(returned.filter((r) => !r.deduplicated)).toHaveLength(1);
+  expect(new Set(returned.map((r) => r.command_id)).size).toBe(1);
   expect(f.db._tables.daemon_commands).toHaveLength(1);
 });
 
@@ -162,47 +368,100 @@ test("request IDs are scoped to the runner and cannot be rebound to another comm
   const f = fixture();
   const first = await (hibernate as any)._handler(f.ctx, f.args);
   await f.db.patch(first.command_id, { command: "resume_session" });
-  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow("already bound");
+  await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow(
+    "already bound",
+  );
   expect(f.db._tables.daemon_commands).toHaveLength(1);
   await f.db.patch("conv", { user_id: "other" });
   await f.db.patch("managed", { user_id: "other" });
   f.ctx.auth.getUserIdentity = async () => ({ subject: "other|login" });
   const next = await (hibernate as any)._handler(f.ctx, f.args);
   expect(next.command_id).not.toBe(first.command_id);
-  expect((await (results as any)._handler(f.ctx, { request_ids: [f.args.request_id] }))[0].command_id).toBe(next.command_id);
+  expect(
+    (
+      await (results as any)._handler(f.ctx, {
+        request_ids: [f.args.request_id],
+      })
+    )[0].command_id,
+  ).toBe(next.command_id);
 });
 
-for (const duplicateKind of ["hibernate_session", "resume_session", "kill_session"]) {
+for (const duplicateKind of [
+  "hibernate_session",
+  "resume_session",
+  "kill_session",
+]) {
   test(`ambiguous legacy request rows fail closed even with a ${duplicateKind} duplicate`, async () => {
     const f = fixture();
     const first = await (hibernate as any)._handler(f.ctx, f.args);
-    await f.db.patch(first.command_id, { executed_at: 100, result: "hibernated" });
-    await f.db.insert("daemon_commands", { ...f.db._tables.daemon_commands[0], _id: "duplicate", command: duplicateKind, executed_at: undefined });
-    await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow("more than one");
-    await expect((results as any)._handler(f.ctx, { request_ids: [f.args.request_id] })).rejects.toThrow("more than one");
-    await expect((results as any)._handler(f.ctx, { command_ids: [first.command_id] })).rejects.toThrow("more than one");
+    await f.db.patch(first.command_id, {
+      executed_at: 100,
+      result: "hibernated",
+    });
+    await f.db.insert("daemon_commands", {
+      ...f.db._tables.daemon_commands[0],
+      _id: "duplicate",
+      command: duplicateKind,
+      executed_at: undefined,
+    });
+    await expect((hibernate as any)._handler(f.ctx, f.args)).rejects.toThrow(
+      "more than one",
+    );
+    await expect(
+      (results as any)._handler(f.ctx, { request_ids: [f.args.request_id] }),
+    ).rejects.toThrow("more than one");
+    await expect(
+      (results as any)._handler(f.ctx, { command_ids: [first.command_id] }),
+    ).rejects.toThrow("more than one");
     expect(f.db._tables.daemon_commands).toHaveLength(2);
   });
 }
 
-for (const requestId of ["", " ", "request ", " request", "request\n", "a,b", "é", "x".repeat(129), null, 123, {}]) {
+for (const requestId of [
+  "",
+  " ",
+  "request ",
+  " request",
+  "request\n",
+  "a,b",
+  "é",
+  "x".repeat(129),
+  null,
+  123,
+  {},
+]) {
   test(`invalid request ID ${JSON.stringify(requestId)} cannot create or alias a command`, async () => {
     const f = fixture();
     await (hibernate as any)._handler(f.ctx, f.args);
-    await expect((hibernate as any)._handler(f.ctx, { ...f.args, request_id: requestId })).rejects.toThrow("Invalid request ID");
-    await expect(enqueueHibernateSession(f.ctx, f.db._tables.conversations[0], requestId as any)).rejects.toThrow("Invalid request ID");
-    await expect((results as any)._handler(f.ctx, { request_ids: [requestId] })).rejects.toThrow("Invalid request ID");
+    await expect(
+      (hibernate as any)._handler(f.ctx, { ...f.args, request_id: requestId }),
+    ).rejects.toThrow("Invalid request ID");
+    await expect(
+      enqueueHibernateSession(
+        f.ctx,
+        f.db._tables.conversations[0],
+        requestId as any,
+      ),
+    ).rejects.toThrow("Invalid request ID");
+    await expect(
+      (results as any)._handler(f.ctx, { request_ids: [requestId] }),
+    ).rejects.toThrow("Invalid request ID");
     expect(f.db._tables.daemon_commands).toHaveLength(1);
   });
 }
 
 test("public hibernate requires an ID while valid boundary tokens retain exact identity", async () => {
   const f = fixture();
-  await expect((hibernate as any)._handler(f.ctx, { ...f.args, request_id: undefined })).rejects.toThrow("Invalid request ID");
+  await expect(
+    (hibernate as any)._handler(f.ctx, { ...f.args, request_id: undefined }),
+  ).rejects.toThrow("Invalid request ID");
   for (const requestId of ["x", "X_-0123456789".padEnd(128, "x")]) {
     const args = { ...f.args, request_id: requestId };
     const first = await (hibernate as any)._handler(f.ctx, args);
-    expect(await (hibernate as any)._handler(f.ctx, args)).toEqual({ ...first, deduplicated: true });
+    expect(await (hibernate as any)._handler(f.ctx, args)).toEqual({
+      ...first,
+      deduplicated: true,
+    });
   }
   expect(f.db._tables.daemon_commands).toHaveLength(2);
 });
@@ -210,31 +469,76 @@ test("public hibernate requires an ID while valid boundary tokens retain exact i
 test("an invalid legacy request ID fails closed even when read by command ID", async () => {
   const f = fixture();
   const first = await (hibernate as any)._handler(f.ctx, f.args);
-  await f.db.patch(first.command_id, { request_id: "", executed_at: 100, result: "hibernated" });
-  await expect((results as any)._handler(f.ctx, { command_ids: [first.command_id] })).rejects.toThrow("Invalid request ID");
+  await f.db.patch(first.command_id, {
+    request_id: "",
+    executed_at: 100,
+    result: "hibernated",
+  });
+  await expect(
+    (results as any)._handler(f.ctx, { command_ids: [first.command_id] }),
+  ).rejects.toThrow("Invalid request ID");
 });
 
 test("a backend switch is queued for the owning device, bound to its request, and a newer click replaces one no daemon took", async () => {
   const { switchBackend } = await import("./sessionCommands");
   const f = fixture();
-  const sw = (request_id: string, backend: "sdk" | "tmux", interrupt?: boolean) => (switchBackend as any)._handler(f.ctx, { conversation_id: "conv", backend, request_id, ...(interrupt !== undefined ? { interrupt } : {}) });
+  const sw = (
+    request_id: string,
+    backend: "sdk" | "tmux",
+    interrupt?: boolean,
+  ) =>
+    (switchBackend as any)._handler(f.ctx, {
+      conversation_id: "conv",
+      backend,
+      request_id,
+      ...(interrupt !== undefined ? { interrupt } : {}),
+    });
   await sw("switch-1", "sdk");
   expect(f.db._tables.daemon_commands).toHaveLength(1);
-  expect(f.db._tables.daemon_commands[0]).toMatchObject({ command: "switch_claude_backend", request_id: "switch-1", target_device_id: "device", user_id: "owner" });
-  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toMatchObject({ conversation_id: "conv", session_id: "session", backend: "sdk", interrupt: false });
+  expect(f.db._tables.daemon_commands[0]).toMatchObject({
+    command: "switch_claude_backend",
+    request_id: "switch-1",
+    target_device_id: "device",
+    user_id: "owner",
+  });
+  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toMatchObject({
+    conversation_id: "conv",
+    session_id: "session",
+    backend: "sdk",
+    interrupt: false,
+  });
   expect(await sw("switch-1", "sdk")).toMatchObject({ deduplicated: true });
   await sw("switch-2", "tmux", true);
-  expect(f.db._tables.daemon_commands.map((c: any) => c.request_id)).toEqual(["switch-2"]);
-  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toMatchObject({ backend: "tmux", interrupt: true });
+  expect(f.db._tables.daemon_commands.map((c: any) => c.request_id)).toEqual([
+    "switch-2",
+  ]);
+  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toMatchObject({
+    backend: "tmux",
+    interrupt: true,
+  });
   // Its outcome reaches the control that asked.
-  Object.assign(f.db._tables.daemon_commands[0], { executed_at: 100, error: "A turn is running (working); switching would interrupt it" });
-  expect((await (results as any)._handler(f.ctx, { request_ids: ["switch-2"] }))[0]).toMatchObject({ _id: "switch-2", executed_at: 100, error: expect.stringContaining("turn is running") });
+  Object.assign(f.db._tables.daemon_commands[0], {
+    executed_at: 100,
+    error: "A turn is running (working); switching would interrupt it",
+  });
+  expect(
+    (await (results as any)._handler(f.ctx, { request_ids: ["switch-2"] }))[0],
+  ).toMatchObject({
+    _id: "switch-2",
+    executed_at: 100,
+    error: expect.stringContaining("turn is running"),
+  });
 });
 
 test("a backend switch is refused for another agent, a session that never started, and a stranger", async () => {
   const { switchBackend } = await import("./sessionCommands");
   const f = fixture();
-  const sw = () => (switchBackend as any)._handler(f.ctx, { conversation_id: "conv", backend: "sdk", request_id: "r" });
+  const sw = () =>
+    (switchBackend as any)._handler(f.ctx, {
+      conversation_id: "conv",
+      backend: "sdk",
+      request_id: "r",
+    });
   f.db._tables.conversations[0].agent_type = "codex";
   await expect(sw()).rejects.toThrow("Only Claude");
   f.db._tables.conversations[0].agent_type = "claude_code";
@@ -248,20 +552,49 @@ test("a backend switch is refused for another agent, a session that never starte
 
 test("a rewind step goes to the owning device, binds to its request id, and only the runner may ask", async () => {
   const f = fixture();
-  const ask = { conversation_id: "conv", request_id: "rw-1", op: "plan", message_ts: 1500 };
+  const ask = {
+    conversation_id: "conv",
+    request_id: "rw-1",
+    op: "plan",
+    message_ts: 1500,
+  };
   const first = await (rewindFiles as any)._handler(f.ctx, ask);
   const again = await (rewindFiles as any)._handler(f.ctx, ask);
   expect(again.command_id).toBe(first.command_id);
   expect(f.db._tables.daemon_commands).toHaveLength(1);
-  expect(f.db._tables.daemon_commands[0]).toMatchObject({ command: "rewind_files", request_id: "rw-1", target_device_id: "device", user_id: "owner" });
-  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toEqual({ conversation_id: "conv", op: "plan", message_ts: 1500 });
-  Object.assign(f.db._tables.daemon_commands[0], { executed_at: 100, result: JSON.stringify({ op: "plan", counts: { total: 2 } }) });
-  expect((await (results as any)._handler(f.ctx, { request_ids: ["rw-1"] }))[0]).toMatchObject({ _id: "rw-1", conversation_id: "conv", executed_at: 100 });
+  expect(f.db._tables.daemon_commands[0]).toMatchObject({
+    command: "rewind_files",
+    request_id: "rw-1",
+    target_device_id: "device",
+    user_id: "owner",
+  });
+  expect(JSON.parse(f.db._tables.daemon_commands[0].args)).toEqual({
+    conversation_id: "conv",
+    op: "plan",
+    message_ts: 1500,
+  });
+  Object.assign(f.db._tables.daemon_commands[0], {
+    executed_at: 100,
+    result: JSON.stringify({ op: "plan", counts: { total: 2 } }),
+  });
+  expect(
+    (await (results as any)._handler(f.ctx, { request_ids: ["rw-1"] }))[0],
+  ).toMatchObject({ _id: "rw-1", conversation_id: "conv", executed_at: 100 });
 
-  await expect((rewindFiles as any)._handler(f.ctx, { conversation_id: "conv", request_id: "rw-2", op: "stage" })).rejects.toThrow("names the message");
+  await expect(
+    (rewindFiles as any)._handler(f.ctx, {
+      conversation_id: "conv",
+      request_id: "rw-2",
+      op: "stage",
+    }),
+  ).rejects.toThrow("names the message");
   f.db._tables.conversations[0].owner_user_id = "second";
   f.ctx.auth.getUserIdentity = async () => ({ subject: "second|login" });
-  await expect((rewindFiles as any)._handler(f.ctx, { ...ask, request_id: "rw-3" })).rejects.toThrow("whose machine runs");
+  await expect(
+    (rewindFiles as any)._handler(f.ctx, { ...ask, request_id: "rw-3" }),
+  ).rejects.toThrow("whose machine runs");
   f.ctx.auth.getUserIdentity = async () => ({ subject: "stranger|login" });
-  await expect((rewindFiles as any)._handler(f.ctx, { ...ask, request_id: "rw-4" })).rejects.toThrow("Not authorized");
+  await expect(
+    (rewindFiles as any)._handler(f.ctx, { ...ask, request_id: "rw-4" }),
+  ).rejects.toThrow("Not authorized");
 });

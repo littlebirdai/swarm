@@ -14,7 +14,9 @@ import { fmt } from "../colors.js";
 
 export function isStallFailure(output: string): boolean {
   if (!/did not answer within \d+m?s/.test(output)) return false;
-  return /tabs\.list|tabs\.create|Target\.setDiscoverTargets|Target\.attachToTarget|Target\.createTarget|debugger\.attach|domain enable|storage\.session|Chrome tabs\.query|overlay install|\/grant|\battach\b/.test(output);
+  return /tabs\.list|tabs\.create|Target\.setDiscoverTargets|Target\.attachToTarget|Target\.createTarget|debugger\.attach|domain enable|storage\.session|Chrome tabs\.query|overlay install|\/grant|\battach\b/.test(
+    output,
+  );
 }
 
 /**
@@ -26,29 +28,55 @@ export function isDaemonBusyFailure(output: string): boolean {
   return /daemon may be busy or unresponsive/.test(output);
 }
 
-export const READ_ONLY_VERBS = new Set(["open", "snapshot", "read", "get", "text", "find", "wait", "shot", "tabs", "tab", "url", "title", "diff", "status"]);
+export const READ_ONLY_VERBS = new Set([
+  "open",
+  "snapshot",
+  "read",
+  "get",
+  "text",
+  "find",
+  "wait",
+  "shot",
+  "tabs",
+  "tab",
+  "url",
+  "title",
+  "diff",
+  "status",
+]);
 
 /** Whether a failed engine run of `verb` is safe and worth running once more. */
 export function shouldRetryAfterStall(verb: string, output: string): boolean {
-  return isStallFailure(output) || (isDaemonBusyFailure(output) && READ_ONLY_VERBS.has(verb));
+  return (
+    isStallFailure(output) ||
+    (isDaemonBusyFailure(output) && READ_ONLY_VERBS.has(verb))
+  );
 }
 
 /** How long to let the worker's process get scheduled before the one retry. */
 export const STALL_RETRY_DELAY_MS = 3_000;
 
-export const STALL_NOTE = "the Chrome extension did not answer in time (its process was not scheduled); trying once more…";
+export const STALL_NOTE =
+  "the Chrome extension did not answer in time (its process was not scheduled); trying once more…";
 
 /**
  * Run `fn`; when it throws a stall failure, say so, wait, and run it once
  * more. Any other failure, and a second stall, propagate.
  */
-export async function retryOnStall<T>(fn: () => Promise<T>, opts: { delayMs?: number; note?: (line: string) => void } = {}): Promise<T> {
+export async function retryOnStall<T>(
+  fn: () => Promise<T>,
+  opts: { delayMs?: number; note?: (line: string) => void } = {},
+): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     if (!isStallFailure(String((err as Error)?.message ?? err))) throw err;
-    (opts.note ?? ((line) => console.error(fmt.muted(`  ${line}`))))(STALL_NOTE);
-    await new Promise((r) => setTimeout(r, opts.delayMs ?? STALL_RETRY_DELAY_MS));
+    (opts.note ?? ((line) => console.error(fmt.muted(`  ${line}`))))(
+      STALL_NOTE,
+    );
+    await new Promise((r) =>
+      setTimeout(r, opts.delayMs ?? STALL_RETRY_DELAY_MS),
+    );
     return await fn();
   }
 }

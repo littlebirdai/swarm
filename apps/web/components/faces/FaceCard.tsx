@@ -11,14 +11,26 @@ import { teamMembersOf } from "../../lib/activeTeam";
 //
 // Reads by member id and subscribes only while mounted: the row itself never
 // subscribes to session churn for the sake of a card nobody is looking at.
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ArrowRight, ChevronRight, X } from "lucide-react";
 import { useInboxStore } from "../../store/inboxStore";
 import { useCoarseNow } from "../../hooks/useCoarseNow";
 import { useOpenSession } from "../../hooks/useOpenSession";
 import { useMissingSessionRow } from "../../hooks/useMissingSessionRow";
 import { cleanTitle } from "../../lib/conversationProcessor";
-import { PRESENCE_META, localTimeLine, memberDisplayName, presenceLine, teammateWhereabouts } from "../presence/memberPresence";
+import {
+  PRESENCE_META,
+  localTimeLine,
+  memberDisplayName,
+  presenceLine,
+  teammateWhereabouts,
+} from "../presence/memberPresence";
 import { useMemberActivity } from "../presence/useMemberActivity";
 import { useMemberHuddle } from "../presence/useMemberHuddle";
 import { FaceActions } from "../presence/FaceActions";
@@ -60,11 +72,22 @@ export function FaceCard({
   onOpenProfile?: (member: any) => void;
   onClose: () => void;
 }) {
-  const rosterMember = useInboxStore((s) => teamMembersOf(s).find((m: any) => String(m?._id) === memberId) ?? null);
+  const rosterMember = useInboxStore(
+    (s) =>
+      teamMembersOf(s).find((m: any) => String(m?._id) === memberId) ?? null,
+  );
   // Before the roster loads (or when it lacks them) the row already knows
   // their name and face: draw the card from that, never an empty space.
   const fallback = useMemo(
-    () => (entry && entry.id === memberId ? { _id: memberId, name: entry.name, image: entry.image, is_bot: entry.bot } : null),
+    () =>
+      entry && entry.id === memberId
+        ? {
+            _id: memberId,
+            name: entry.name,
+            image: entry.image,
+            is_bot: entry.bot,
+          }
+        : null,
     [entry, memberId],
   );
   const member = rosterMember ?? fallback;
@@ -117,18 +140,28 @@ function FaceCardBody({
   const presence = presenceLine(member, now);
   const presenceEchoesLine = presence.toLowerCase() === line.toLowerCase();
   const quote =
-    fleet?.topStatus && fleet.topStatus.trim().split(/\s+/).length >= 3 ? fleet.topStatus.trim() : null;
+    fleet?.topStatus && fleet.topStatus.trim().split(/\s+/).length >= 3
+      ? fleet.topStatus.trim()
+      : null;
   const cap = (n: number) => (n > 20 ? "20+" : String(n));
 
   const huddle = useMemberHuddle(member, viewerId, liveRoom, displayName);
   const readFocus = useFaceChatFocus(memberId);
   // Where they are: the session they have open, by the palette's own rule
   // (teammateWhereabouts). Only the title is subscribed, never the row.
-  const where = useMemo(() => teammateWhereabouts([member], viewerId, "")[0]?.conversationId ?? null, [member, viewerId]);
+  const where = useMemo(
+    () =>
+      teammateWhereabouts([member], viewerId, "")[0]?.conversationId ?? null,
+    [member, viewerId],
+  );
   const openSession = useOpenSession();
-  const storedWhereTitle = useInboxStore((s) => (where ? s.sessions[where]?.title : undefined));
+  const storedWhereTitle = useInboxStore((s) =>
+    where ? s.sessions[where]?.title : undefined,
+  );
   const whereInStore = useInboxStore((s) => !!(where && s.sessions[where]));
-  const fetchedWhere = useMissingSessionRow(where && !whereInStore ? where : null);
+  const fetchedWhere = useMissingSessionRow(
+    where && !whereInStore ? where : null,
+  );
   const whereTitle = storedWhereTitle ?? fetchedWhere?.title;
   const followingThem = useInboxStore((s) => s.followLeaderId === memberId);
 
@@ -148,7 +181,10 @@ function FaceCardBody({
       role="dialog"
       aria-label={displayName}
       data-density={density}
-      style={{ ["--anchor" as string]: `${anchor}px`, ["--shift" as string]: `${shift}px` }}
+      style={{
+        ["--anchor" as string]: `${anchor}px`,
+        ["--shift" as string]: `${shift}px`,
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.stopPropagation();
@@ -159,7 +195,13 @@ function FaceCardBody({
       {/* The way out, always in the same corner. In the float the card stays
           while the pointer is in the window, so without it the only close on
           screen closed the whole float. */}
-      <button type="button" className="face-card-close" aria-label="Close" title="Close" onClick={onClose}>
+      <button
+        type="button"
+        className="face-card-close"
+        aria-label="Close"
+        title="Close"
+        onClick={onClose}
+      >
         <X className="h-3.5 w-3.5" />
       </button>
       {/* The identity block is the door to the profile: one large target. */}
@@ -179,7 +221,9 @@ function FaceCardBody({
         <span className={`face-card-line ${meta.text}`}>{line}</span>
         {(!presenceEchoesLine || time) && (
           <span className="face-card-sub">
-            {!presenceEchoesLine && <span className="face-card-presence">{presence}</span>}
+            {!presenceEchoesLine && (
+              <span className="face-card-presence">{presence}</span>
+            )}
             {time && <span>{presenceEchoesLine ? time : `· ${time}`}</span>}
           </span>
         )}
@@ -188,7 +232,12 @@ function FaceCardBody({
       {/* The conversation with them and a reply box, above the ways to
           reach them. Your own card and an agent's have neither. */}
       {!isSelf && !member.is_bot && (
-        <FaceMessages memberId={memberId} name={displayName} focus={readFocus} onLeave={onClose} />
+        <FaceMessages
+          memberId={memberId}
+          name={displayName}
+          focus={readFocus}
+          onLeave={onClose}
+        />
       )}
 
       {/* Where they are, and the one gesture that goes there with them. */}
@@ -210,9 +259,17 @@ function FaceCardBody({
         >
           <ArrowRight className="face-card-where-arrow" />
           <span className="min-w-0 flex-1">
-            <span className="face-card-where-verb">{followingThem ? "Stop following" : "Follow"}</span>
+            <span className="face-card-where-verb">
+              {followingThem ? "Stop following" : "Follow"}
+            </span>
             <span className="face-card-where-title">
-              {where ? (whereTitle ? cleanTitle(whereTitle) : fetchedWhere === null ? "a session that no longer opens" : "a session") : "around, not in a session"}
+              {where
+                ? whereTitle
+                  ? cleanTitle(whereTitle)
+                  : fetchedWhere === null
+                    ? "a session that no longer opens"
+                    : "a session"
+                : "around, not in a session"}
             </span>
           </span>
         </button>
@@ -230,7 +287,8 @@ function FaceCardBody({
             {fleet.needsYou > 0 && (
               <span className="face-card-fleet-item text-sol-yellow">
                 <span className="face-card-fleet-dot bg-sol-yellow" />
-                {cap(fleet.needsYou)} need{fleet.needsYou === 1 ? "s" : ""} input
+                {cap(fleet.needsYou)} need{fleet.needsYou === 1 ? "s" : ""}{" "}
+                input
               </span>
             )}
           </span>
@@ -241,44 +299,64 @@ function FaceCardBody({
       {member.is_bot ? (
         // An agent: nothing here calls or messages it (the server refuses a
         // DM to a bot). Its profile is the door above.
-        <div className="face-card-agent">Agent: talk to it in its session or a channel</div>
+        <div className="face-card-agent">
+          Agent: talk to it in its session or a channel
+        </div>
       ) : !isSelf && !callsEnabled ? null : (
-      <div className="face-card-actions" data-switch={isSelf ? "1" : undefined}>
-        {isSelf ? (
-          // Your own card is the status switch: the one action that makes
-          // sense on yourself.
-          (["available", "busy", "away"] as const).map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatus(st)}
-              className="face-card-status"
-              data-on={(member.status ?? "available") === st ? st : undefined}
-            >
-              <span className="face-card-status-dot" data-status={st} aria-hidden="true" />
-              {st}
-            </button>
-          ))
-        ) : (
-          <FaceActions
-            ptt={faceKey?.ptt ?? IDLE_PTT}
-            blocked={faceKey?.blocked ?? (callsEnabled ? null : "Calls are off for this team")}
-            roomKey={faceKey?.roomKey ?? ""}
-            ringIds={[memberId]}
-            huddle={callsEnabled ? huddle : undefined}
-            show={["talk", "ring"]}
-            size="sm"
-            className="face-actions-fill"
-          />
-        )}
-      </div>
+        <div
+          className="face-card-actions"
+          data-switch={isSelf ? "1" : undefined}
+        >
+          {isSelf ? (
+            // Your own card is the status switch: the one action that makes
+            // sense on yourself.
+            (["available", "busy", "away"] as const).map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setStatus(st)}
+                className="face-card-status"
+                data-on={(member.status ?? "available") === st ? st : undefined}
+              >
+                <span
+                  className="face-card-status-dot"
+                  data-status={st}
+                  aria-hidden="true"
+                />
+                {st}
+              </button>
+            ))
+          ) : (
+            <FaceActions
+              ptt={faceKey?.ptt ?? IDLE_PTT}
+              blocked={
+                faceKey?.blocked ??
+                (callsEnabled ? null : "Calls are off for this team")
+              }
+              roomKey={faceKey?.roomKey ?? ""}
+              ringIds={[memberId]}
+              huddle={callsEnabled ? huddle : undefined}
+              show={["talk", "ring"]}
+              size="sm"
+              className="face-actions-fill"
+            />
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 /** The identity block: a button when there is a profile to open, else words. */
-function Who({ door, onClick, children }: { door: boolean; onClick: () => void; children: ReactNode }) {
+function Who({
+  door,
+  onClick,
+  children,
+}: {
+  door: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return door ? (
     <button type="button" className="face-card-who" data-door onClick={onClick}>
       {children}
@@ -313,7 +391,8 @@ function useCardShift(anchor: number, density: "bar" | "float") {
     if (r.width === 0) return;
     let next = 0;
     if (r.left < EDGE) next = EDGE - r.left;
-    else if (r.right > window.innerWidth - EDGE) next = window.innerWidth - EDGE - r.right;
+    else if (r.right > window.innerWidth - EDGE)
+      next = window.innerWidth - EDGE - r.right;
     if (next !== shift) setShift(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- measured once per anchor
   }, [anchor, density]);
@@ -353,7 +432,10 @@ export function GuestFaceCard({
       role="dialog"
       aria-label={`${name}, a guest`}
       data-density={density}
-      style={{ ["--anchor" as string]: `${anchor}px`, ["--shift" as string]: `${shift}px` }}
+      style={{
+        ["--anchor" as string]: `${anchor}px`,
+        ["--shift" as string]: `${shift}px`,
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.stopPropagation();
@@ -361,7 +443,13 @@ export function GuestFaceCard({
         }
       }}
     >
-      <button type="button" className="face-card-close" aria-label="Close" title="Close" onClick={onClose}>
+      <button
+        type="button"
+        className="face-card-close"
+        aria-label="Close"
+        title="Close"
+        onClick={onClose}
+      >
         <X className="h-3.5 w-3.5" />
       </button>
       <div className="face-card-name pr-6">
@@ -373,9 +461,18 @@ export function GuestFaceCard({
         {mins === null ? "" : mins < 1 ? " · just joined" : ` · ${mins} min`}
       </span>
       <div className="face-card-agent flex items-center gap-2">
-        <span className="min-w-0 flex-1">They see and hear the call. They cannot see the team, its sessions or the thread.</span>
+        <span className="min-w-0 flex-1">
+          They see and hear the call. They cannot see the team, its sessions or
+          the thread.
+        </span>
         <span className="shrink-0">
-          <GuestRemoveButton roomKey={roomKey} identity={identity} name={name} variant="row" always />
+          <GuestRemoveButton
+            roomKey={roomKey}
+            identity={identity}
+            name={name}
+            variant="row"
+            always
+          />
         </span>
       </div>
     </div>

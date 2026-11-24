@@ -12,7 +12,11 @@
 //
 // Pure helpers plus one file write: the daemon owns the start and the delivery.
 
-import { isPollResponsePayload, parseFileTags, stampDeliveryId } from "@codecast/shared/contracts";
+import {
+  isPollResponsePayload,
+  parseFileTags,
+  stampDeliveryId,
+} from "@codecast/shared/contracts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { PendingDeliveryHeldError } from "./pendingDeliveryAdmission.js";
@@ -24,10 +28,16 @@ const PROMPT_PATH_RE = /^[A-Za-z0-9_./-]+$/;
  *  so text of any shape rides a command line typed into a shell: nothing in it
  *  is parsed by the shell, and it never shows in the typed line. `once` has the
  *  shell remove the file as it reads it, for text only one launch will want. */
-export function promptFileShellWord(dir: string, key: string, text: string, opts: { once?: boolean } = {}): string {
+export function promptFileShellWord(
+  dir: string,
+  key: string,
+  text: string,
+  opts: { once?: boolean } = {},
+): string {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const file = path.join(dir, `${key.replace(/[^A-Za-z0-9_-]/g, "_")}.md`);
-  if (!PROMPT_PATH_RE.test(file)) throw new Error(`prompt path is not shell-safe: ${file}`);
+  if (!PROMPT_PATH_RE.test(file))
+    throw new Error(`prompt path is not shell-safe: ${file}`);
   fs.writeFileSync(file, text, { mode: 0o600 });
   return opts.once ? `"$(cat ${file}; rm -f ${file})"` : `"$(cat ${file})"`;
 }
@@ -52,20 +62,31 @@ export interface LaunchPromptRow {
 /** The message a starting session takes as its launch argument: the oldest one
  *  waiting for the conversation, since that is the one delivery would paste
  *  first. Null when it has to go through the composer after all. */
-export function pickLaunchPrompt<T extends LaunchPromptRow>(rows: readonly T[], conversationId: string): { row: T; text: string } | null {
+export function pickLaunchPrompt<T extends LaunchPromptRow>(
+  rows: readonly T[],
+  conversationId: string,
+): { row: T; text: string } | null {
   const first = rows
     .filter((r) => r.conversation_id === conversationId)
     .sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0))[0];
   if (!first) return null;
   const text = launchPromptText(first);
   const stamped = text === null ? null : stampDeliveryId(text, first._id);
-  return stamped === null || Buffer.byteLength(stamped, "utf8") > LAUNCH_PROMPT_MAX_BYTES ? null : { row: first, text: stamped };
+  return stamped === null ||
+    Buffer.byteLength(stamped, "utf8") > LAUNCH_PROMPT_MAX_BYTES
+    ? null
+    : { row: first, text: stamped };
 }
 
 /** The text to launch with, or null for a message only the composer can take:
  *  an image or attached file rides a downloaded file path, a poll answer is keystrokes, and a
  *  leading `/` or `!` is a composer mode rather than a prompt. */
-export function launchPromptText(row: Pick<LaunchPromptRow, "content" | "image_storage_ids" | "image_storage_id">): string | null {
+export function launchPromptText(
+  row: Pick<
+    LaunchPromptRow,
+    "content" | "image_storage_ids" | "image_storage_id"
+  >,
+): string | null {
   if (row.image_storage_ids?.length || row.image_storage_id) return null;
   if (parseFileTags(row.content ?? "").length) return null;
   const text = prepareInjectedContent(row.content ?? "", { bracketed: true });
@@ -79,7 +100,11 @@ export function launchPromptText(row: Pick<LaunchPromptRow, "content" | "image_s
 /** The launch command's tail. `--` ends the options, so a variadic flag before
  *  it (a definition's --disallowedTools) cannot swallow the prompt and a prompt
  *  starting with `-` is never read as a flag. */
-export function launchPromptFragment(dir: string, key: string, text: string): string {
+export function launchPromptFragment(
+  dir: string,
+  key: string,
+  text: string,
+): string {
   return ` -- ${promptFileShellWord(dir, key, text, { once: true })}`;
 }
 
@@ -94,7 +119,13 @@ export function transcriptHasUserPrompt(jsonl: string): boolean {
       const row = JSON.parse(line);
       if (row?.type !== "user" || row.isMeta) continue;
       const content = row.message?.content;
-      if (typeof content === "string" ? content.trim() : Array.isArray(content) && content.some((b: any) => b?.type === "text")) return true;
+      if (
+        typeof content === "string"
+          ? content.trim()
+          : Array.isArray(content) &&
+            content.some((b: any) => b?.type === "text")
+      )
+        return true;
     } catch {}
   }
   return false;

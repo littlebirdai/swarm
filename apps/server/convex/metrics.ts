@@ -12,7 +12,14 @@
 // Every public function authenticates itself through ingest.scopeOf and holds
 // the watch to the caller's stored workspace key, never to team_id.
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, mutation, query, type ActionCtx } from "./functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+  type ActionCtx,
+} from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { invalidScope, notFound, requireUserOrToken } from "./lib/auth";
@@ -23,24 +30,71 @@ import { patchSourceStats } from "./lib/sourceStats";
 import { rowByRef } from "./lib/rowByRef";
 import { workspaceGrantsAccess } from "./lib/access";
 import { planMetric } from "./lib/ingestGroups";
-import { appendMetricPoint, mergeMetricHistory, mergeReaderSeries } from "./lib/watchSeries";
-import { connFor, fetchMetricHistory, fetchMetricValue } from "./sources/posthog";
+import {
+  appendMetricPoint,
+  mergeMetricHistory,
+  mergeReaderSeries,
+} from "./lib/watchSeries";
+import {
+  connFor,
+  fetchMetricHistory,
+  fetchMetricValue,
+} from "./sources/posthog";
 import { readAppMetric } from "./sources/appMetrics";
 import { isTokenRefusal } from "./lib/sourceHealth";
-import { GROUP_RULES, INGEST_LIMITS, INGEST_SHORT_ID_PREFIX, METRIC_WATCH_LIMITS, READER_LIVE_SLACK_MS, WATCH_KINDS_BY_PROVIDER, watchProblem } from "@codecast/shared/contracts/ingest";
-import { watchDirectionValidator as directionValidator, watchKindValidator } from "./ingestSchema";
-import { METRIC_SERIES, holdsPoints, oldestHeld, purgePoints, readSeries, recountRollupPage, removePointsBetween, writePoints } from "./lib/metricPoints";
+import {
+  GROUP_RULES,
+  INGEST_LIMITS,
+  INGEST_SHORT_ID_PREFIX,
+  METRIC_WATCH_LIMITS,
+  READER_LIVE_SLACK_MS,
+  WATCH_KINDS_BY_PROVIDER,
+  watchProblem,
+} from "@codecast/shared/contracts/ingest";
+import {
+  watchDirectionValidator as directionValidator,
+  watchKindValidator,
+} from "./ingestSchema";
+import {
+  METRIC_SERIES,
+  holdsPoints,
+  oldestHeld,
+  purgePoints,
+  readSeries,
+  recountRollupPage,
+  removePointsBetween,
+  writePoints,
+} from "./lib/metricPoints";
 import { isTeamAdmin } from "./privacy";
-import { definitionOf, notRemoved, ofVersion } from "@codecast/shared/contracts/metricStanding";
-import { MONITOR_LIMITS, isMuted, monitorProblem, nextMonitorState, normalizeNotify, notifyProblem, promoteFor, renotifyDue } from "@codecast/shared/contracts/metricMonitor";
+import {
+  definitionOf,
+  notRemoved,
+  ofVersion,
+} from "@codecast/shared/contracts/metricStanding";
+import {
+  MONITOR_LIMITS,
+  isMuted,
+  monitorProblem,
+  nextMonitorState,
+  normalizeNotify,
+  notifyProblem,
+  promoteFor,
+  renotifyDue,
+} from "@codecast/shared/contracts/metricMonitor";
 import { deliverWatchAlert } from "./metricAlerts";
-import { parseVolumeQuery, volumeHistory, volumeValue, type VolumeInput } from "@codecast/shared/contracts/volumeWatch";
+import {
+  parseVolumeQuery,
+  volumeHistory,
+  volumeValue,
+  type VolumeInput,
+} from "@codecast/shared/contracts/volumeWatch";
 
 // The watch check is the contract's, shared with the web form.
 export { WATCH_KINDS_BY_PROVIDER, watchProblem };
 
 const UNIT_CHARS = 12;
-const cleanUnit = (unit: string | null | undefined): string | undefined => unit?.trim().slice(0, UNIT_CHARS) || undefined;
+const cleanUnit = (unit: string | null | undefined): string | undefined =>
+  unit?.trim().slice(0, UNIT_CHARS) || undefined;
 
 /** How many due watches one claim takes; a full page claims the next at once. */
 const POLL_CLAIM_MAX = 50;
@@ -48,18 +102,35 @@ const LIST_MAX = 200;
 
 export function clampInterval(ms: number | undefined): number {
   if (ms === undefined) return METRIC_WATCH_LIMITS.interval_default_ms;
-  if (!Number.isFinite(ms)) invalidScope("The interval must be a number of milliseconds");
-  return Math.min(Math.max(Math.round(ms), METRIC_WATCH_LIMITS.interval_min_ms), METRIC_WATCH_LIMITS.interval_max_ms);
+  if (!Number.isFinite(ms))
+    invalidScope("The interval must be a number of milliseconds");
+  return Math.min(
+    Math.max(Math.round(ms), METRIC_WATCH_LIMITS.interval_min_ms),
+    METRIC_WATCH_LIMITS.interval_max_ms,
+  );
 }
 
-async function watchByRef(ctx: any, userId: Id<"users">, ref: string): Promise<Doc<"metric_watches">> {
+async function watchByRef(
+  ctx: any,
+  userId: Id<"users">,
+  ref: string,
+): Promise<Doc<"metric_watches">> {
   return await rowByRef(ctx, "metric_watches", userId, ref, "Metric watch");
 }
 
 /** A watch as readers see it, with its latest value and source named. */
-function watchView(row: Doc<"metric_watches">, source: Pick<Doc<"event_sources">, "short_id" | "name"> | null) {
+function watchView(
+  row: Doc<"metric_watches">,
+  source: Pick<Doc<"event_sources">, "short_id" | "name"> | null,
+) {
   const last = row.points[row.points.length - 1];
-  return { ...row, last_value: last?.value ?? null, last_at: last?.at ?? null, source_name: source?.name ?? null, source_short_id: source?.short_id ?? null };
+  return {
+    ...row,
+    last_value: last?.value ?? null,
+    last_at: last?.at ?? null,
+    source_name: source?.name ?? null,
+    source_short_id: source?.short_id ?? null,
+  };
 }
 
 // ── CRUD ──
@@ -85,15 +156,32 @@ export const createWatch = mutation({
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     const source = await sourceByRef(ctx, userId, workspaceKey, args.source);
     const name = args.name.trim();
-    if (!name || name.length > INGEST_LIMITS.name_chars) invalidScope("A watch needs a name");
-    const problem = watchProblem(source.provider, args.query_kind, args.query, args.threshold)
-      ?? monitorProblem({ threshold: args.threshold, direction: args.direction ?? "below", eval_reads: args.eval_reads, warn: args.warn, no_data_after: args.no_data_after });
+    if (!name || name.length > INGEST_LIMITS.name_chars)
+      invalidScope("A watch needs a name");
+    const problem =
+      watchProblem(
+        source.provider,
+        args.query_kind,
+        args.query,
+        args.threshold,
+      ) ??
+      monitorProblem({
+        threshold: args.threshold,
+        direction: args.direction ?? "below",
+        eval_reads: args.eval_reads,
+        warn: args.warn,
+        no_data_after: args.no_data_after,
+      });
     if (problem) invalidScope(problem);
     const now = Date.now();
     const id = await ctx.db.insert("metric_watches", {
-      ...(args.eval_reads !== undefined && args.eval_reads > 1 ? { eval_reads: args.eval_reads } : {}),
+      ...(args.eval_reads !== undefined && args.eval_reads > 1
+        ? { eval_reads: args.eval_reads }
+        : {}),
       ...(args.warn !== undefined ? { warn: args.warn } : {}),
-      ...(args.no_data_after !== undefined ? { no_data_after: args.no_data_after } : {}),
+      ...(args.no_data_after !== undefined
+        ? { no_data_after: args.no_data_after }
+        : {}),
       workspace: source.workspace,
       team_id: source.team_id,
       source_id: source._id,
@@ -116,7 +204,9 @@ export const createWatch = mutation({
       updated_at: now,
     });
     // The past the source already holds comes over now, not one poll at a time.
-    await ctx.scheduler.runAfter(0, internal.metrics.readHistory, { watch_id: id });
+    await ctx.scheduler.runAfter(0, internal.metrics.readHistory, {
+      watch_id: id,
+    });
     return { watch: watchView((await ctx.db.get(id))!, source) };
   },
 });
@@ -140,16 +230,23 @@ export const updateWatch = mutation({
     /** Until when transitions are held back; null unmutes. */
     muted_until: v.optional(v.union(v.number(), v.null())),
     /** What its alert does: a problem task, or the timeline only; null goes back to the source's rule. */
-    on_alert: v.optional(v.union(v.literal("task"), v.literal("timeline"), v.null())),
+    on_alert: v.optional(
+      v.union(v.literal("task"), v.literal("timeline"), v.null()),
+    ),
     /** Who else the alert reaches and what more it does (contracts/metricMonitor AlertNotify); null clears it. The caller becomes its `by`. */
-    notify: v.optional(v.union(v.null(), v.object({
-      users: v.optional(v.array(v.id("users"))),
-      roles: v.optional(v.array(v.id("org_roles"))),
-      channel: v.optional(v.id("chat_channels")),
-      fix: v.optional(v.boolean()),
-      renotify_ms: v.optional(v.number()),
-      recovery: v.optional(v.boolean()),
-    }))),
+    notify: v.optional(
+      v.union(
+        v.null(),
+        v.object({
+          users: v.optional(v.array(v.id("users"))),
+          roles: v.optional(v.array(v.id("org_roles"))),
+          channel: v.optional(v.id("chat_channels")),
+          fix: v.optional(v.boolean()),
+          renotify_ms: v.optional(v.number()),
+          recovery: v.optional(v.boolean()),
+        }),
+      ),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
@@ -158,15 +255,23 @@ export const updateWatch = mutation({
       const problem = notifyProblem(args.notify);
       if (problem) invalidScope(problem);
       for (const uid of args.notify?.users ?? []) {
-        if (!(await workspaceGrantsAccess(ctx, uid, row.workspace))) invalidScope("Someone named is not in this workspace");
+        if (!(await workspaceGrantsAccess(ctx, uid, row.workspace)))
+          invalidScope("Someone named is not in this workspace");
       }
       for (const rid of args.notify?.roles ?? []) {
         const role = await ctx.db.get(rid);
-        if (!role || (role.team_id ? `team:${role.team_id}` : `user:${role.scope_user_id}`) !== row.workspace) invalidScope("A role named is not in this workspace");
+        if (
+          !role ||
+          (role.team_id
+            ? `team:${role.team_id}`
+            : `user:${role.scope_user_id}`) !== row.workspace
+        )
+          invalidScope("A role named is not in this workspace");
       }
       if (args.notify?.channel) {
         const channel = await ctx.db.get(args.notify.channel);
-        if (!channel || `team:${channel.team_id}` !== row.workspace) invalidScope("The channel is not in this workspace");
+        if (!channel || `team:${channel.team_id}` !== row.workspace)
+          invalidScope("The channel is not in this workspace");
       }
     }
     const source = await ctx.db.get(row.source_id);
@@ -175,30 +280,55 @@ export const updateWatch = mutation({
     const patch: Partial<Doc<"metric_watches">> = { updated_at: now };
     if (args.name !== undefined) {
       const name = args.name.trim();
-      if (!name || name.length > INGEST_LIMITS.name_chars) invalidScope("A watch needs a name");
+      if (!name || name.length > INGEST_LIMITS.name_chars)
+        invalidScope("A watch needs a name");
       patch.name = name;
     }
     if (args.query !== undefined) patch.query = args.query.trim();
-    if (args.threshold !== undefined) patch.threshold = args.threshold ?? undefined;
+    if (args.threshold !== undefined)
+      patch.threshold = args.threshold ?? undefined;
     if (args.direction) patch.direction = args.direction;
     if (args.unit !== undefined) patch.unit = cleanUnit(args.unit);
-    if (args.interval_ms !== undefined) patch.interval_ms = clampInterval(args.interval_ms);
-    if (args.eval_reads !== undefined) patch.eval_reads = args.eval_reads === null || args.eval_reads <= 1 ? undefined : args.eval_reads;
+    if (args.interval_ms !== undefined)
+      patch.interval_ms = clampInterval(args.interval_ms);
+    if (args.eval_reads !== undefined)
+      patch.eval_reads =
+        args.eval_reads === null || args.eval_reads <= 1
+          ? undefined
+          : args.eval_reads;
     if (args.warn !== undefined) patch.warn = args.warn ?? undefined;
-    if (args.no_data_after !== undefined) patch.no_data_after = args.no_data_after ?? undefined;
-    if (args.on_alert !== undefined) patch.on_alert = args.on_alert ?? undefined;
-    if (args.notify !== undefined) patch.notify = normalizeNotify(args.notify as any, String(userId)) as Doc<"metric_watches">["notify"];
-    if (args.muted_until !== undefined) patch.muted_until = args.muted_until === null || args.muted_until <= now ? undefined : Math.min(args.muted_until, now + MONITOR_LIMITS.mute_max_ms);
+    if (args.no_data_after !== undefined)
+      patch.no_data_after = args.no_data_after ?? undefined;
+    if (args.on_alert !== undefined)
+      patch.on_alert = args.on_alert ?? undefined;
+    if (args.notify !== undefined)
+      patch.notify = normalizeNotify(
+        args.notify as any,
+        String(userId),
+      ) as Doc<"metric_watches">["notify"];
+    if (args.muted_until !== undefined)
+      patch.muted_until =
+        args.muted_until === null || args.muted_until <= now
+          ? undefined
+          : Math.min(args.muted_until, now + MONITOR_LIMITS.mute_max_ms);
     // A warning level needs a line: taking the line off takes it too.
-    if ("threshold" in patch && patch.threshold === undefined) patch.warn = undefined;
+    if ("threshold" in patch && patch.threshold === undefined)
+      patch.warn = undefined;
     const threshold = "threshold" in patch ? patch.threshold : row.threshold;
-    const problem = watchProblem(source!.provider, row.query_kind, patch.query ?? row.query, threshold)
-      ?? monitorProblem({
+    const problem =
+      watchProblem(
+        source!.provider,
+        row.query_kind,
+        patch.query ?? row.query,
+        threshold,
+      ) ??
+      monitorProblem({
         threshold,
         direction: patch.direction ?? row.direction,
         eval_reads: "eval_reads" in patch ? patch.eval_reads : row.eval_reads,
         warn: "warn" in patch ? patch.warn : row.warn,
-        no_data_after: "no_data_after" in patch ? patch.no_data_after : row.no_data_after,
+        no_data_after:
+          "no_data_after" in patch ? patch.no_data_after : row.no_data_after,
       });
     if (problem) invalidScope(problem);
     if (args.status) {
@@ -206,12 +336,19 @@ export const updateWatch = mutation({
       // A paused watch leaves the poll index; resuming makes it due at once.
       patch.next_check_at = args.status === "active" ? now : undefined;
       if (args.status === "active") patch.last_error = undefined;
-    } else if (row.status === "active" && (patch.query !== undefined || patch.interval_ms !== undefined || "threshold" in patch || patch.direction !== undefined)) {
+    } else if (
+      row.status === "active" &&
+      (patch.query !== undefined ||
+        patch.interval_ms !== undefined ||
+        "threshold" in patch ||
+        patch.direction !== undefined)
+    ) {
       // A moved line or side is judged on a fresh read within the minute, not a full interval later.
       patch.next_check_at = now;
     }
     // A watch with no line is a plain series, which never alerts.
-    if ("threshold" in patch && patch.threshold === undefined) patch.state = "ok";
+    if ("threshold" in patch && patch.threshold === undefined)
+      patch.state = "ok";
     await ctx.db.patch(row._id, patch);
     return { watch: watchView((await ctx.db.get(row._id))!, source) };
   },
@@ -224,7 +361,9 @@ export const removeWatch = mutation({
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await watchByRef(ctx, userId, args.watch);
     await ctx.db.delete(row._id);
-    await ctx.scheduler.runAfter(0, internal.metrics.purgeWatchPoints, { watch_id: row._id });
+    await ctx.scheduler.runAfter(0, internal.metrics.purgeWatchPoints, {
+      watch_id: row._id,
+    });
     return { removed: row.short_id };
   },
 });
@@ -235,8 +374,17 @@ export const recountRollups = internalMutation({
   handler: async (ctx, args) => {
     const watch = await ctx.db.get(args.watch_id);
     if (!watch) return;
-    const next = await recountRollupPage(ctx, watch._id, definitionOf(watch), args.after_hour);
-    if (next !== null) await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, { watch_id: watch._id, after_hour: next });
+    const next = await recountRollupPage(
+      ctx,
+      watch._id,
+      definitionOf(watch),
+      args.after_hour,
+    );
+    if (next !== null)
+      await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, {
+        watch_id: watch._id,
+        after_hour: next,
+      });
   },
 });
 
@@ -248,24 +396,51 @@ export const recountRollups = internalMutation({
  * The watch's creator or a team admin only.
  */
 export const redefine = mutation({
-  args: { ...scopeArgs, watch: v.string(), since: v.number(), name: v.optional(v.string()), reason: v.optional(v.string()) },
+  args: {
+    ...scopeArgs,
+    watch: v.string(),
+    since: v.number(),
+    name: v.optional(v.string()),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await watchByRef(ctx, userId, args.watch);
-    const admin = row.team_id ? await isTeamAdmin(ctx, userId, row.team_id) : false;
-    if (String(row.created_by) !== String(userId) && !admin) invalidScope(`Only ${row.short_id}'s creator or a team admin redefines it`);
+    const admin = row.team_id
+      ? await isTeamAdmin(ctx, userId, row.team_id)
+      : false;
+    if (String(row.created_by) !== String(userId) && !admin)
+      invalidScope(
+        `Only ${row.short_id}'s creator or a team admin redefines it`,
+      );
     const now = Date.now();
-    if (!Number.isFinite(args.since) || args.since > now) invalidScope("--since is a time that has passed");
-    const version = args.name?.trim().slice(0, 64) || `since ${new Date(args.since).toISOString().slice(0, 16)}Z`;
-    if (version === row.version) invalidScope(`${row.short_id} already reads ${version}`);
+    if (!Number.isFinite(args.since) || args.since > now)
+      invalidScope("--since is a time that has passed");
+    const version =
+      args.name?.trim().slice(0, 64) ||
+      `since ${new Date(args.since).toISOString().slice(0, 16)}Z`;
+    if (version === row.version)
+      invalidScope(`${row.short_id} already reads ${version}`);
     const reason = args.reason?.trim().slice(0, 200) || undefined;
     await ctx.db.patch(row._id, {
-      version, version_at: now, version_since: args.since, version_by: userId, version_note: reason,
+      version,
+      version_at: now,
+      version_since: args.since,
+      version_by: userId,
+      version_note: reason,
       points: row.points.filter((p) => p.at >= args.since),
       updated_at: now,
     });
-    await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, { watch_id: row._id, after_hour: -1 });
-    return { watch: row.short_id, version, since: args.since, left_out: row.points.filter((p) => p.at < args.since).length };
+    await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, {
+      watch_id: row._id,
+      after_hour: -1,
+    });
+    return {
+      watch: row.short_id,
+      version,
+      since: args.since,
+      left_out: row.points.filter((p) => p.at < args.since).length,
+    };
   },
 });
 
@@ -278,26 +453,61 @@ const REMOVALS_KEPT = 50;
  * the reader says which definition each point was read under.
  */
 export const removePoints = mutation({
-  args: { ...scopeArgs, watch: v.string(), at: v.number(), to: v.optional(v.number()), reason: v.optional(v.string()) },
+  args: {
+    ...scopeArgs,
+    watch: v.string(),
+    at: v.number(),
+    to: v.optional(v.number()),
+    reason: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
     const row = await watchByRef(ctx, userId, args.watch);
-    const admin = row.team_id ? await isTeamAdmin(ctx, userId, row.team_id) : false;
-    if (String(row.created_by) !== String(userId) && !admin) invalidScope(`Only ${row.short_id}'s creator or a team admin removes its points`);
+    const admin = row.team_id
+      ? await isTeamAdmin(ctx, userId, row.team_id)
+      : false;
+    if (String(row.created_by) !== String(userId) && !admin)
+      invalidScope(
+        `Only ${row.short_id}'s creator or a team admin removes its points`,
+      );
     const to = args.to ?? args.at;
-    if (!(to >= args.at) || to - args.at > 3_600_000) invalidScope("Remove points at one time, or within one hour at most");
+    if (!(to >= args.at) || to - args.at > 3_600_000)
+      invalidScope("Remove points at one time, or within one hour at most");
     const inside = (p: { at: number }) => p.at >= args.at && p.at <= to;
-    const removed = await removePointsBetween(ctx, row._id, args.at, to, definitionOf(row));
-    const fromRow = [...row.points, ...(row.source_points ?? [])].filter(inside);
-    const gone = [...new Map([...removed, ...fromRow].map((p) => [p.at, p])).values()].sort((a, b) => a.at - b.at);
-    if (!gone.length) invalidScope(`${row.short_id} holds no value between ${new Date(args.at).toISOString()} and ${new Date(to).toISOString()}`);
+    const removed = await removePointsBetween(
+      ctx,
+      row._id,
+      args.at,
+      to,
+      definitionOf(row),
+    );
+    const fromRow = [...row.points, ...(row.source_points ?? [])].filter(
+      inside,
+    );
+    const gone = [
+      ...new Map([...removed, ...fromRow].map((p) => [p.at, p])).values(),
+    ].sort((a, b) => a.at - b.at);
+    if (!gone.length)
+      invalidScope(
+        `${row.short_id} holds no value between ${new Date(args.at).toISOString()} and ${new Date(to).toISOString()}`,
+      );
     const now = Date.now();
     const reason = args.reason?.trim().slice(0, 200) || undefined;
-    const log = gone.map((p) => ({ at: p.at, value: p.value, ...(reason ? { reason } : {}), by: userId, removed_at: now }));
+    const log = gone.map((p) => ({
+      at: p.at,
+      value: p.value,
+      ...(reason ? { reason } : {}),
+      by: userId,
+      removed_at: now,
+    }));
     await ctx.db.patch(row._id, {
       points: row.points.filter((p) => !inside(p)),
-      ...(row.source_points ? { source_points: row.source_points.filter((p) => !inside(p)) } : {}),
-      point_removals: [...(row.point_removals ?? []), ...log].slice(-REMOVALS_KEPT),
+      ...(row.source_points
+        ? { source_points: row.source_points.filter((p) => !inside(p)) }
+        : {}),
+      point_removals: [...(row.point_removals ?? []), ...log].slice(
+        -REMOVALS_KEPT,
+      ),
       updated_at: now,
     });
     return { watch: row.short_id, removed: gone };
@@ -308,7 +518,8 @@ export const removePoints = mutation({
 export const purgeWatchPoints = internalMutation({
   args: { watch_id: v.id("metric_watches") },
   handler: async (ctx, args) => {
-    if (await purgePoints(ctx, args.watch_id)) await ctx.scheduler.runAfter(0, internal.metrics.purgeWatchPoints, args);
+    if (await purgePoints(ctx, args.watch_id))
+      await ctx.scheduler.runAfter(0, internal.metrics.purgeWatchPoints, args);
   },
 });
 
@@ -320,7 +531,12 @@ export const purgeWatchPoints = internalMutation({
  */
 export const series = query({
   args: {
-    ...scopeArgs, watch: v.string(), from: v.optional(v.number()), to: v.optional(v.number()), span_ms: v.optional(v.number()), buckets: v.optional(v.number()),
+    ...scopeArgs,
+    watch: v.string(),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    span_ms: v.optional(v.number()),
+    buckets: v.optional(v.number()),
     /** With span_ms: the window ends this long before now (the previous period beside a "last 7d" view). */
     offset_ms: v.optional(v.number()),
   },
@@ -329,14 +545,26 @@ export const series = query({
     const row = await watchByRef(ctx, userId, args.watch);
     const to = args.to ?? Date.now() - Math.max(0, args.offset_ms ?? 0);
     const from = args.from ?? (args.span_ms ? to - args.span_ms : null);
-    return { watch_id: row._id, ...(await readSeries(ctx, row, from, to, args.buckets ?? METRIC_SERIES.buckets_default)) };
+    return {
+      watch_id: row._id,
+      ...(await readSeries(
+        ctx,
+        row,
+        from,
+        to,
+        args.buckets ?? METRIC_SERIES.buckets_default,
+      )),
+    };
   },
 });
 
 /** Several watches' values over the same window ending now, for the overview's cards; a ref the caller cannot read is left out. */
 export const seriesMany = query({
   args: {
-    ...scopeArgs, watches: v.array(v.string()), span_ms: v.optional(v.number()), buckets: v.optional(v.number()),
+    ...scopeArgs,
+    watches: v.array(v.string()),
+    span_ms: v.optional(v.number()),
+    buckets: v.optional(v.number()),
     /** The window ends this long before now: the period before a range (the overview's change against it). */
     offset_ms: v.optional(v.number()),
   },
@@ -351,7 +579,17 @@ export const seriesMany = query({
       } catch {
         continue;
       }
-      out.push({ watch_id: row._id, ...(await readSeries(ctx, row, args.span_ms ? to - args.span_ms : null, to, args.buckets ?? 80, METRIC_SERIES.many_rollup_max)) });
+      out.push({
+        watch_id: row._id,
+        ...(await readSeries(
+          ctx,
+          row,
+          args.span_ms ? to - args.span_ms : null,
+          to,
+          args.buckets ?? 80,
+          METRIC_SERIES.many_rollup_max,
+        )),
+      });
     }
     return out;
   },
@@ -361,10 +599,17 @@ export const listWatches = query({
   args: { ...scopeArgs, source: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
-    const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
-    const rows: Doc<"metric_watches">[] = await (source
-      ? ctx.db.query("metric_watches").withIndex("by_source", (q) => q.eq("source_id", source._id))
-      : ctx.db.query("metric_watches").withIndex("by_workspace", (q) => q.eq("workspace", workspaceKey))
+    const source = args.source
+      ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+      : null;
+    const rows: Doc<"metric_watches">[] = await (
+      source
+        ? ctx.db
+            .query("metric_watches")
+            .withIndex("by_source", (q) => q.eq("source_id", source._id))
+        : ctx.db
+            .query("metric_watches")
+            .withIndex("by_workspace", (q) => q.eq("workspace", workspaceKey))
     ).take(LIST_MAX);
     const sources = new Map<string, Doc<"event_sources"> | null>();
     const out = [];
@@ -386,7 +631,17 @@ export const getWatch = query({
     const group = row.group_id ? await ctx.db.get(row.group_id) : null;
     return {
       watch: watchView(row, await ctx.db.get(row.source_id)),
-      group: group ? { _id: group._id, short_id: group.short_id, status: group.status, title: group.title, count: group.count, last_transition: group.last_transition ?? null, last_transition_at: group.last_transition_at ?? null } : null,
+      group: group
+        ? {
+            _id: group._id,
+            short_id: group.short_id,
+            status: group.status,
+            title: group.title,
+            count: group.count,
+            last_transition: group.last_transition ?? null,
+            last_transition_at: group.last_transition_at ?? null,
+          }
+        : null,
     };
   },
 });
@@ -407,22 +662,32 @@ export const pollDue = internalMutation({
     // before every number, and would otherwise fill the claim forever.
     const due = await ctx.db
       .query("metric_watches")
-      .withIndex("by_next_check", (q) => q.gte("next_check_at", 0).lte("next_check_at", now))
+      .withIndex("by_next_check", (q) =>
+        q.gte("next_check_at", 0).lte("next_check_at", now),
+      )
       .take(POLL_CLAIM_MAX);
     let claimed = 0;
     for (const row of due) {
-      if (row.status !== "active" || row.next_check_at === undefined || row.next_check_at > now) continue;
+      if (
+        row.status !== "active" ||
+        row.next_check_at === undefined ||
+        row.next_check_at > now
+      )
+        continue;
       await ctx.db.patch(row._id, { next_check_at: now + row.interval_ms });
       claimed++;
       // A source stopped on a lost connection (lib/sourceHealth) or paused is
       // not polled: the claim moves on, no action runs, nothing is fetched.
       const source = await ctx.db.get(row.source_id);
       if (source?.status !== "active") continue;
-      await ctx.scheduler.runAfter(0, internal.metrics.pollWatch, { watch_id: row._id });
+      await ctx.scheduler.runAfter(0, internal.metrics.pollWatch, {
+        watch_id: row._id,
+      });
     }
     // A full page means more are due: claim the next page now rather than
     // letting every watch past the first page slip a minute per tick.
-    if (claimed === POLL_CLAIM_MAX) await ctx.scheduler.runAfter(0, internal.metrics.pollDue, {});
+    if (claimed === POLL_CLAIM_MAX)
+      await ctx.scheduler.runAfter(0, internal.metrics.pollDue, {});
     return claimed;
   },
 });
@@ -432,7 +697,14 @@ export const pollInputs = internalQuery({
   handler: async (ctx, args) => {
     const watch = await ctx.db.get(args.watch_id);
     const source = watch ? await ctx.db.get(watch.source_id) : null;
-    return watch && watch.status === "active" && source ? { query_kind: watch.query_kind, query: watch.query, source_id: watch.source_id, provider: source.provider } : null;
+    return watch && watch.status === "active" && source
+      ? {
+          query_kind: watch.query_kind,
+          query: watch.query,
+          source_id: watch.source_id,
+          provider: source.provider,
+        }
+      : null;
   },
 });
 
@@ -447,58 +719,130 @@ const VOLUME_DAYS = 30;
  */
 export const volumeRead = internalQuery({
   args: { watch_id: v.id("metric_watches"), history: v.optional(v.boolean()) },
-  handler: async (ctx, args): Promise<{ value?: number; points?: Array<{ at: number; value: number }>; error?: string } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    value?: number;
+    points?: Array<{ at: number; value: number }>;
+    error?: string;
+  } | null> => {
     const watch = await ctx.db.get(args.watch_id);
     if (!watch || watch.query_kind !== "volume") return null;
     const q = parseVolumeQuery(watch.query);
     if ("error" in q) return { error: q.error };
     const now = Date.now();
-    const stats = await ctx.db.query("event_source_stats").withIndex("by_source", (x) => x.eq("source_id", watch.source_id)).first();
-    const input: VolumeInput = { now, hours: stats?.hours, event_names: stats?.event_names, groups_open: stats?.groups_open, ci_runs: stats?.ci_runs };
+    const stats = await ctx.db
+      .query("event_source_stats")
+      .withIndex("by_source", (x) => x.eq("source_id", watch.source_id))
+      .first();
+    const input: VolumeInput = {
+      now,
+      hours: stats?.hours,
+      event_names: stats?.event_names,
+      groups_open: stats?.groups_open,
+      ci_runs: stats?.ci_runs,
+    };
     if (q.series === "new_issues" || q.series === "open_issues") {
       // first_seen inside the window means last_seen is too, so the last_seen index reads a superset.
-      const groups = await ctx.db.query("event_groups").withIndex("by_source_last_seen", (x) => x.eq("source_id", watch.source_id).gte("last_seen", now - VOLUME_DAYS * 86_400_000)).take(VOLUME_GROUPS_MAX);
+      const groups = await ctx.db
+        .query("event_groups")
+        .withIndex("by_source_last_seen", (x) =>
+          x
+            .eq("source_id", watch.source_id)
+            .gte("last_seen", now - VOLUME_DAYS * 86_400_000),
+        )
+        .take(VOLUME_GROUPS_MAX);
       // A watch's own alerts are not the source's issues.
-      input.groups = groups.filter((g) => g.kind !== "metric").map((g) => ({ first_seen: g.first_seen, status: g.status }));
+      input.groups = groups
+        .filter((g) => g.kind !== "metric")
+        .map((g) => ({ first_seen: g.first_seen, status: g.status }));
     }
-    return { value: volumeValue(q, input), ...(args.history ? { points: volumeHistory(q, input, VOLUME_DAYS) } : {}) };
+    return {
+      value: volumeValue(q, input),
+      ...(args.history ? { points: volumeHistory(q, input, VOLUME_DAYS) } : {}),
+    };
   },
 });
 
 /** Read one watch's value from its source and record it. */
 export const pollWatch = internalAction({
   args: { watch_id: v.id("metric_watches") },
-  handler: async (ctx, args): Promise<{ value?: number; error?: string } | null> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ value?: number; error?: string } | null> => {
     const watch = await ctx.runQuery(internal.metrics.pollInputs, args);
     if (!watch) return null;
     if (watch.query_kind === "volume") {
       const at = Date.now();
-      const read = await ctx.runQuery(internal.metrics.volumeRead, { watch_id: args.watch_id });
+      const read = await ctx.runQuery(internal.metrics.volumeRead, {
+        watch_id: args.watch_id,
+      });
       if (!read) return null;
-      const result = read.value === undefined ? { error: read.error ?? "No value" } : { value: read.value };
-      await ctx.runMutation(internal.metrics.recordPoint, { watch_id: args.watch_id, at, ...result });
+      const result =
+        read.value === undefined
+          ? { error: read.error ?? "No value" }
+          : { value: read.value };
+      await ctx.runMutation(internal.metrics.recordPoint, {
+        watch_id: args.watch_id,
+        at,
+        ...result,
+      });
       return result;
     }
     if (watch.query_kind === "reader") {
       const at = Date.now();
-      const read = await readAppMetric(ctx, watch.source_id, watch.query, fetch);
+      const read = await readAppMetric(
+        ctx,
+        watch.source_id,
+        watch.query,
+        fetch,
+      );
       const result = read.ok
-        ? read.value === null ? { error: "The reader has no value yet" } : { value: read.value, ...(read.unit ? { unit: read.unit } : {}), ...(read.points.length ? { series: read.points } : {}), ...(read.version ? { version: read.version } : {}) }
+        ? read.value === null
+          ? { error: "The reader has no value yet" }
+          : {
+              value: read.value,
+              ...(read.unit ? { unit: read.unit } : {}),
+              ...(read.points.length ? { series: read.points } : {}),
+              ...(read.version ? { version: read.version } : {}),
+            }
         : { error: read.error };
-      await ctx.runMutation(internal.metrics.recordPoint, { watch_id: args.watch_id, at, ...result });
-      if (!read.ok && read.lost) await ctx.runMutation(internal.ingest.sourceConnectionLost, { source_id: watch.source_id, error: read.error });
+      await ctx.runMutation(internal.metrics.recordPoint, {
+        watch_id: args.watch_id,
+        at,
+        ...result,
+      });
+      if (!read.ok && read.lost)
+        await ctx.runMutation(internal.ingest.sourceConnectionLost, {
+          source_id: watch.source_id,
+          error: read.error,
+        });
       return result;
     }
-    const source = await ctx.runQuery(internal.sources.posthog.sourceForPoll, { source_id: watch.source_id });
+    const source = await ctx.runQuery(internal.sources.posthog.sourceForPoll, {
+      source_id: watch.source_id,
+    });
     if (!source || source.status !== "active") return null;
     const at = Date.now();
     const conn = await connFor(ctx, source);
-    const read = "error" in conn ? { ok: false as const, error: conn.error, lost: true } : await fetchMetricValue(conn, watch);
+    const read =
+      "error" in conn
+        ? { ok: false as const, error: conn.error, lost: true }
+        : await fetchMetricValue(conn, watch);
     const result = read.ok ? { value: read.value } : { error: read.error };
-    await ctx.runMutation(internal.metrics.recordPoint, { watch_id: args.watch_id, at, ...result });
+    await ctx.runMutation(internal.metrics.recordPoint, {
+      watch_id: args.watch_id,
+      at,
+      ...result,
+    });
     // No connection, or one PostHog refuses: the source stops polling (lib/sourceHealth).
     if (!read.ok && ("lost" in read || isTokenRefusal(read.status))) {
-      await ctx.runMutation(internal.ingest.sourceConnectionLost, { source_id: source.source_id, error: read.error });
+      await ctx.runMutation(internal.ingest.sourceConnectionLost, {
+        source_id: source.source_id,
+        error: read.error,
+      });
     }
     return result;
   },
@@ -510,9 +854,15 @@ export const pollWatch = internalAction({
  */
 export const recordPoint = internalMutation({
   args: {
-    watch_id: v.id("metric_watches"), at: v.number(), value: v.optional(v.number()), error: v.optional(v.string()), unit: v.optional(v.string()),
+    watch_id: v.id("metric_watches"),
+    at: v.number(),
+    value: v.optional(v.number()),
+    error: v.optional(v.string()),
+    unit: v.optional(v.string()),
     /** A metric reader's own dated series (mergeReaderSeries): kept as it answers it, in place of one point for this read. */
-    series: v.optional(v.array(v.object({ at: v.number(), value: v.number() }))),
+    series: v.optional(
+      v.array(v.object({ at: v.number(), value: v.number() })),
+    ),
     /** The definition version the reader answered (contracts/ingest MetricReaderAnswer). */
     version: v.optional(v.string()),
   },
@@ -524,26 +874,84 @@ export const recordPoint = internalMutation({
     const now = Date.now();
     const muted = isMuted(watch, now);
     // The group upsert files a problem task by the source's promote rule; a watch that chose its own route reads it here.
-    const routed = watch.on_alert ? { ...source, promote: promoteFor(watch.on_alert, source.promote) } : source;
-    const planFor = (threshold: number, value: number, opts: { ok?: boolean; message?: string }) =>
-      planMetric({ short_id: watch.short_id, name: watch.name, threshold, direction: watch.direction, id: String(watch._id) }, value, args.at, opts);
+    const routed = watch.on_alert
+      ? { ...source, promote: promoteFor(watch.on_alert, source.promote) }
+      : source;
+    const planFor = (
+      threshold: number,
+      value: number,
+      opts: { ok?: boolean; message?: string },
+    ) =>
+      planMetric(
+        {
+          short_id: watch.short_id,
+          name: watch.name,
+          threshold,
+          direction: watch.direction,
+          id: String(watch._id),
+        },
+        value,
+        args.at,
+        opts,
+      );
     if (args.value === undefined || !Number.isFinite(args.value)) {
-      const error = (args.error ?? "No value").slice(0, INGEST_LIMITS.message_chars);
+      const error = (args.error ?? "No value").slice(
+        0,
+        INGEST_LIMITS.message_chars,
+      );
       const missed = (watch.missed ?? 0) + 1;
       // Missing data alerts once it has run no_data_after reads, through the
       // same group a crossing opens. Short of that, a failed read is not a
       // value: the state and the group stay where they were.
-      if (watch.threshold === undefined || watch.no_data_after === undefined || missed < watch.no_data_after || muted) {
-        await ctx.db.patch(watch._id, { last_error: error, missed, updated_at: now });
+      if (
+        watch.threshold === undefined ||
+        watch.no_data_after === undefined ||
+        missed < watch.no_data_after ||
+        muted
+      ) {
+        await ctx.db.patch(watch._id, {
+          last_error: error,
+          missed,
+          updated_at: now,
+        });
         await patchSourceStats(ctx, source, () => ({ last_poll_at: now }), now);
         return null;
       }
-      const last = watch.points[watch.points.length - 1]?.value ?? watch.threshold;
-      const plan = planFor(watch.threshold, last, { ok: false, message: `${watch.name}: no value for ${missed} reads (${error})` });
+      const last =
+        watch.points[watch.points.length - 1]?.value ?? watch.threshold;
+      const plan = planFor(watch.threshold, last, {
+        ok: false,
+        message: `${watch.name}: no value for ${missed} reads (${error})`,
+      });
       const upserted = await upsertGroup(ctx, routed, [plan], {}, now);
-      await ctx.db.patch(watch._id, { last_error: error, missed, state: "alert", group_id: upserted.group_id, updated_at: now });
-      await patchSourceStats(ctx, source, (st) => ({ groups_open: Math.max(0, (st.groups_open ?? 0) + upserted.open_delta), last_poll_at: now }), now);
-      await tellAlert(ctx, watch, source, watch.state, "alert", null, args.at, upserted.group_id, now, true);
+      await ctx.db.patch(watch._id, {
+        last_error: error,
+        missed,
+        state: "alert",
+        group_id: upserted.group_id,
+        updated_at: now,
+      });
+      await patchSourceStats(
+        ctx,
+        source,
+        (st) => ({
+          groups_open: Math.max(0, (st.groups_open ?? 0) + upserted.open_delta),
+          last_poll_at: now,
+        }),
+        now,
+      );
+      await tellAlert(
+        ctx,
+        watch,
+        source,
+        watch.state,
+        "alert",
+        null,
+        args.at,
+        upserted.group_id,
+        now,
+        true,
+      );
       return { group_id: upserted.group_id, transitions: upserted.transitions };
     }
     const value = args.value;
@@ -551,30 +959,71 @@ export const recordPoint = internalMutation({
     const unit = watch.unit ?? cleanUnit(args.unit);
     // Every value goes into the watch's history; a watch made before the
     // table carries its row's values over with its first write.
-    if (!(await holdsPoints(ctx, watch._id))) await writePoints(ctx, watch._id, watch.points);
+    if (!(await holdsPoints(ctx, watch._id)))
+      await writePoints(ctx, watch._id, watch.points);
     // A new definition: the row's points and the reader's series start over, and every rollup is recounted under it.
     const changed = !!args.version && args.version !== watch.version;
-    const def = changed ? { version: args.version, since: now } : definitionOf(watch);
+    const def = changed
+      ? { version: args.version, since: now }
+      : definitionOf(watch);
     // A value a person removed stays removed, however often the reader sends it again.
     const series = args.series?.filter(notRemoved(watch.point_removals));
     const held = changed ? [] : watch.points;
-    await writePoints(ctx, watch._id, series?.length ? series : [{ at: args.at, value }], args.version, def);
-    const points = series?.length ? mergeReaderSeries(held, series) : appendMetricPoint(held, { at: args.at, value });
+    await writePoints(
+      ctx,
+      watch._id,
+      series?.length ? series : [{ at: args.at, value }],
+      args.version,
+      def,
+    );
+    const points = series?.length
+      ? mergeReaderSeries(held, series)
+      : appendMetricPoint(held, { at: args.at, value });
     // The reader's dated periods (a cohort week, a day), apart from its live value dated at the read.
-    const dated = (series ?? []).filter((p) => p.at < args.at - READER_LIVE_SLACK_MS).slice(-GROUP_RULES.metric_points);
+    const dated = (series ?? [])
+      .filter((p) => p.at < args.at - READER_LIVE_SLACK_MS)
+      .slice(-GROUP_RULES.metric_points);
     const read = {
-      points, last_error: undefined, missed: undefined, ...(unit ? { unit } : {}), updated_at: now,
-      ...(dated.length ? { source_points: dated } : changed ? { source_points: undefined } : {}),
-      ...(changed ? { version: args.version, version_at: now, version_since: now, version_note: undefined, version_by: undefined } : {}),
+      points,
+      last_error: undefined,
+      missed: undefined,
+      ...(unit ? { unit } : {}),
+      updated_at: now,
+      ...(dated.length
+        ? { source_points: dated }
+        : changed
+          ? { source_points: undefined }
+          : {}),
+      ...(changed
+        ? {
+            version: args.version,
+            version_at: now,
+            version_since: now,
+            version_note: undefined,
+            version_by: undefined,
+          }
+        : {}),
     };
-    if (changed) await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, { watch_id: watch._id, after_hour: -1 });
+    if (changed)
+      await ctx.scheduler.runAfter(0, internal.metrics.recountRollups, {
+        watch_id: watch._id,
+        after_hour: -1,
+      });
     if (watch.threshold === undefined) {
       // A plain series: the point is kept, and nothing is announced.
       await ctx.db.patch(watch._id, { ...read, state: "ok" });
       await patchSourceStats(ctx, source, () => ({ last_poll_at: now }), now);
       return { group_id: null, transitions: [] };
     }
-    const state = nextMonitorState(watch.state, points.map((p) => p.value), { threshold: watch.threshold, direction: watch.direction, eval_reads: watch.eval_reads });
+    const state = nextMonitorState(
+      watch.state,
+      points.map((p) => p.value),
+      {
+        threshold: watch.threshold,
+        direction: watch.direction,
+        eval_reads: watch.eval_reads,
+      },
+    );
     if (muted) {
       // Muted: the state follows the values, and nothing is announced until the mute ends.
       await ctx.db.patch(watch._id, { ...read, state });
@@ -589,8 +1038,26 @@ export const recordPoint = internalMutation({
       group_id: upserted.group_id,
     });
     // A poll is not an ingested event, so the *_today counters stay the door's.
-    await patchSourceStats(ctx, source, (st) => ({ groups_open: Math.max(0, (st.groups_open ?? 0) + upserted.open_delta), last_poll_at: now }), now);
-    await tellAlert(ctx, watch, source, watch.state, state, value, args.at, upserted.group_id, now);
+    await patchSourceStats(
+      ctx,
+      source,
+      (st) => ({
+        groups_open: Math.max(0, (st.groups_open ?? 0) + upserted.open_delta),
+        last_poll_at: now,
+      }),
+      now,
+    );
+    await tellAlert(
+      ctx,
+      watch,
+      source,
+      watch.state,
+      state,
+      value,
+      args.at,
+      upserted.group_id,
+      now,
+    );
     return { group_id: upserted.group_id, transitions: upserted.transitions };
   },
 });
@@ -600,10 +1067,36 @@ export const recordPoint = internalMutation({
  * what this read did: it crossed, it recovered, or it is still past the line
  * and its renotify interval has passed. Muted reads never reach here.
  */
-async function tellAlert(ctx: any, watch: Doc<"metric_watches">, source: Doc<"event_sources">, prev: "ok" | "alert", next: "ok" | "alert", value: number | null, at: number, groupId: Id<"event_groups"> | null, now: number, noData = false) {
+async function tellAlert(
+  ctx: any,
+  watch: Doc<"metric_watches">,
+  source: Doc<"event_sources">,
+  prev: "ok" | "alert",
+  next: "ok" | "alert",
+  value: number | null,
+  at: number,
+  groupId: Id<"event_groups"> | null,
+  now: number,
+  noData = false,
+) {
   if (!watch.notify && !watch.alert_episode) return;
-  const kind = prev !== "alert" && next === "alert" ? "crossed" : prev === "alert" && next === "ok" ? "recovered" : next === "alert" && renotifyDue(watch.notify, watch.alert_episode?.notified_at, now) ? "still" : null;
-  if (kind) await deliverWatchAlert(ctx, watch, source, { kind, value, at, group_id: groupId, noData });
+  const kind =
+    prev !== "alert" && next === "alert"
+      ? "crossed"
+      : prev === "alert" && next === "ok"
+        ? "recovered"
+        : next === "alert" &&
+            renotifyDue(watch.notify, watch.alert_episode?.notified_at, now)
+          ? "still"
+          : null;
+  if (kind)
+    await deliverWatchAlert(ctx, watch, source, {
+      kind,
+      value,
+      at,
+      group_id: groupId,
+      noData,
+    });
 }
 
 // ── Read now (the Metrics views' Read now on a failing watch) ──
@@ -634,7 +1127,9 @@ export const readNow = mutation({
       const source = await ctx.db.get(row.source_id);
       if (source?.status !== "active") continue;
       await ctx.db.patch(row._id, { next_check_at: now + row.interval_ms });
-      await ctx.scheduler.runAfter(0, internal.metrics.pollWatch, { watch_id: row._id });
+      await ctx.scheduler.runAfter(0, internal.metrics.pollWatch, {
+        watch_id: row._id,
+      });
       scheduled.push(row.short_id);
     }
     return { scheduled };
@@ -645,7 +1140,8 @@ export const readNow = mutation({
 
 export function backfillDays(days: number | undefined): number {
   if (days === undefined) return METRIC_WATCH_LIMITS.backfill_days_default;
-  if (!Number.isFinite(days) || days <= 0) invalidScope("--days must be a positive number");
+  if (!Number.isFinite(days) || days <= 0)
+    invalidScope("--days must be a positive number");
   return Math.min(days, METRIC_WATCH_LIMITS.backfill_days_max);
 }
 
@@ -656,16 +1152,28 @@ export function backfillDays(days: number | undefined): number {
  * its own.
  */
 export const loadHistory = mutation({
-  args: { ...scopeArgs, source: v.optional(v.string()), watch: v.optional(v.string()), days: v.optional(v.number()) },
+  args: {
+    ...scopeArgs,
+    source: v.optional(v.string()),
+    watch: v.optional(v.string()),
+    days: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const { userId, workspaceKey } = await scopeOf(ctx, args);
     let rows: Doc<"metric_watches">[];
     if (args.watch) rows = [await watchByRef(ctx, userId, args.watch)];
     else {
-      const source = args.source ? await sourceByRef(ctx, userId, workspaceKey, args.source) : null;
-      rows = await (source
-        ? ctx.db.query("metric_watches").withIndex("by_source", (q) => q.eq("source_id", source._id))
-        : ctx.db.query("metric_watches").withIndex("by_workspace", (q) => q.eq("workspace", workspaceKey))
+      const source = args.source
+        ? await sourceByRef(ctx, userId, workspaceKey, args.source)
+        : null;
+      rows = await (
+        source
+          ? ctx.db
+              .query("metric_watches")
+              .withIndex("by_source", (q) => q.eq("source_id", source._id))
+          : ctx.db
+              .query("metric_watches")
+              .withIndex("by_workspace", (q) => q.eq("workspace", workspaceKey))
       ).take(LIST_MAX);
       rows = rows.filter((r) => r.workspace === workspaceKey);
     }
@@ -679,16 +1187,25 @@ export const loadHistory = mutation({
     for (const row of rows) {
       const source = await ctx.db.get(row.source_id);
       if (source?.status !== "active") {
-        skipped.push({ watch: row.short_id, reason: `${source?.name ?? "its source"} is ${source?.status ?? "removed"}` });
+        skipped.push({
+          watch: row.short_id,
+          reason: `${source?.name ?? "its source"} is ${source?.status ?? "removed"}`,
+        });
         continue;
       }
       const queue = queues.get(String(row.source_id)) ?? [];
       queues.set(String(row.source_id), [...queue, row._id]);
-      await ctx.db.patch(row._id, { history: { at: now, added: 0, reading: true } });
+      await ctx.db.patch(row._id, {
+        history: { at: now, added: 0, reading: true },
+      });
       scheduled.push(row.short_id);
     }
     for (const [first, ...then] of queues.values()) {
-      await ctx.scheduler.runAfter(0, internal.metrics.readHistory, { watch_id: first, days, ...(then.length ? { then } : {}) });
+      await ctx.scheduler.runAfter(0, internal.metrics.readHistory, {
+        watch_id: first,
+        days,
+        ...(then.length ? { then } : {}),
+      });
     }
     return { scheduled, skipped };
   },
@@ -698,7 +1215,15 @@ export const historyInputs = internalQuery({
   args: { watch_id: v.id("metric_watches") },
   handler: async (ctx, args) => {
     const watch = await ctx.db.get(args.watch_id);
-    return watch ? { query_kind: watch.query_kind, query: watch.query, source_id: watch.source_id, interval_ms: watch.interval_ms, oldest: await oldestHeld(ctx, watch) } : null;
+    return watch
+      ? {
+          query_kind: watch.query_kind,
+          query: watch.query,
+          source_id: watch.source_id,
+          interval_ms: watch.interval_ms,
+          oldest: await oldestHeld(ctx, watch),
+        }
+      : null;
   },
 });
 
@@ -710,90 +1235,204 @@ export const historyInputs = internalQuery({
  * live polls alone.
  */
 export const readHistory = internalAction({
-  args: { watch_id: v.id("metric_watches"), days: v.optional(v.number()), then: v.optional(v.array(v.id("metric_watches"))) },
-  handler: async (ctx, args): Promise<{ added?: number; note?: string } | null> => {
+  args: {
+    watch_id: v.id("metric_watches"),
+    days: v.optional(v.number()),
+    then: v.optional(v.array(v.id("metric_watches"))),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ added?: number; note?: string } | null> => {
     try {
       return await readOneHistory(ctx, args);
     } finally {
       const [next, ...rest] = args.then ?? [];
-      if (next) await ctx.scheduler.runAfter(0, internal.metrics.readHistory, { watch_id: next, days: args.days, ...(rest.length ? { then: rest } : {}) });
+      if (next)
+        await ctx.scheduler.runAfter(0, internal.metrics.readHistory, {
+          watch_id: next,
+          days: args.days,
+          ...(rest.length ? { then: rest } : {}),
+        });
     }
   },
 });
 
 /** One watch's history read (readHistory without the queue). */
-async function readOneHistory(ctx: ActionCtx, args: { watch_id: Id<"metric_watches">; days?: number }): Promise<{ added?: number; note?: string } | null> {
-  const watch = await ctx.runQuery(internal.metrics.historyInputs, { watch_id: args.watch_id });
+async function readOneHistory(
+  ctx: ActionCtx,
+  args: { watch_id: Id<"metric_watches">; days?: number },
+): Promise<{ added?: number; note?: string } | null> {
+  const watch = await ctx.runQuery(internal.metrics.historyInputs, {
+    watch_id: args.watch_id,
+  });
   if (!watch) return null;
   if (watch.query_kind === "volume") {
     // The counters reach back as far as they keep (48 hours of events, 30 days of issues); open issues has no past.
-    const read = await ctx.runQuery(internal.metrics.volumeRead, { watch_id: args.watch_id, history: true });
+    const read = await ctx.runQuery(internal.metrics.volumeRead, {
+      watch_id: args.watch_id,
+      history: true,
+    });
     if (!read?.points?.length) {
-      const note = read?.error ?? "Its source keeps no past for this series; the history is its polls";
-      await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, note });
+      const note =
+        read?.error ??
+        "Its source keeps no past for this series; the history is its polls";
+      await ctx.runMutation(internal.metrics.recordHistory, {
+        watch_id: args.watch_id,
+        note,
+      });
       return { note };
     }
-    return await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, points: read.points });
+    return await ctx.runMutation(internal.metrics.recordHistory, {
+      watch_id: args.watch_id,
+      points: read.points,
+    });
   }
   if (watch.query_kind === "reader") {
     // The reader answers its own series with every read; `days` asks for more when it takes one.
-    const read = await readAppMetric(ctx, watch.source_id, watch.query, fetch, { days: args.days ?? METRIC_WATCH_LIMITS.backfill_days_default });
+    const read = await readAppMetric(ctx, watch.source_id, watch.query, fetch, {
+      days: args.days ?? METRIC_WATCH_LIMITS.backfill_days_default,
+    });
     if (!read.ok) {
-      await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, note: read.error });
+      await ctx.runMutation(internal.metrics.recordHistory, {
+        watch_id: args.watch_id,
+        note: read.error,
+      });
       return { note: read.error };
     }
     if (!read.points.length) {
-      const note = "The reader answers no dated points; the history is its polls";
-      await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, note });
+      const note =
+        "The reader answers no dated points; the history is its polls";
+      await ctx.runMutation(internal.metrics.recordHistory, {
+        watch_id: args.watch_id,
+        note,
+      });
       return { note };
     }
-    return await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, points: read.points, ...(read.version ? { version: read.version } : {}) });
+    return await ctx.runMutation(internal.metrics.recordHistory, {
+      watch_id: args.watch_id,
+      points: read.points,
+      ...(read.version ? { version: read.version } : {}),
+    });
   }
-  const source = await ctx.runQuery(internal.sources.posthog.sourceForPoll, { source_id: watch.source_id });
+  const source = await ctx.runQuery(internal.sources.posthog.sourceForPoll, {
+    source_id: watch.source_id,
+  });
   if (!source || source.status !== "active") {
-    const note = source ? `The source is ${source.status}` : "The source was removed";
-    await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, note });
+    const note = source
+      ? `The source is ${source.status}`
+      : "The source was removed";
+    await ctx.runMutation(internal.metrics.recordHistory, {
+      watch_id: args.watch_id,
+      note,
+    });
     return { note };
   }
   const conn = await connFor(ctx, source);
-  const span = { now: Date.now(), oldest: watch.oldest, interval_ms: watch.interval_ms, days: args.days ?? METRIC_WATCH_LIMITS.backfill_days_default };
-  const read = "error" in conn ? { ok: false as const, error: conn.error, lost: true } : await fetchMetricHistory(conn, watch, span);
+  const span = {
+    now: Date.now(),
+    oldest: watch.oldest,
+    interval_ms: watch.interval_ms,
+    days: args.days ?? METRIC_WATCH_LIMITS.backfill_days_default,
+  };
+  const read =
+    "error" in conn
+      ? { ok: false as const, error: conn.error, lost: true }
+      : await fetchMetricHistory(conn, watch, span);
   if (read.ok) {
-    const added = await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, points: read.points, ...(read.note ? { note: read.note } : {}) });
+    const added = await ctx.runMutation(internal.metrics.recordHistory, {
+      watch_id: args.watch_id,
+      points: read.points,
+      ...(read.note ? { note: read.note } : {}),
+    });
     return { ...added, ...(read.note ? { note: read.note } : {}) };
   }
-  await ctx.runMutation(internal.metrics.recordHistory, { watch_id: args.watch_id, note: read.error });
+  await ctx.runMutation(internal.metrics.recordHistory, {
+    watch_id: args.watch_id,
+    note: read.error,
+  });
   if ("lost" in read || isTokenRefusal(read.status)) {
-    await ctx.runMutation(internal.ingest.sourceConnectionLost, { source_id: source.source_id, error: read.error });
+    await ctx.runMutation(internal.ingest.sourceConnectionLost, {
+      source_id: source.source_id,
+      error: read.error,
+    });
   }
   return { note: read.error };
 }
 
 export const recordHistory = internalMutation({
-  args: { watch_id: v.id("metric_watches"), points: v.optional(v.array(v.object({ at: v.number(), value: v.number() }))), note: v.optional(v.string()), version: v.optional(v.string()) },
+  args: {
+    watch_id: v.id("metric_watches"),
+    points: v.optional(
+      v.array(v.object({ at: v.number(), value: v.number() })),
+    ),
+    note: v.optional(v.string()),
+    version: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const watch = await ctx.db.get(args.watch_id);
     if (!watch) return null;
     const now = Date.now();
     // A reader's history under another definition than the watch reads now is not its history.
-    if (args.points && args.version && watch.version && args.version !== watch.version) {
-      await ctx.db.patch(watch._id, { history: { at: now, added: 0, note: `The reader answered version ${args.version}; the watch reads ${watch.version}` }, updated_at: now });
+    if (
+      args.points &&
+      args.version &&
+      watch.version &&
+      args.version !== watch.version
+    ) {
+      await ctx.db.patch(watch._id, {
+        history: {
+          at: now,
+          added: 0,
+          note: `The reader answered version ${args.version}; the watch reads ${watch.version}`,
+        },
+        updated_at: now,
+      });
       return { added: 0 };
     }
     if (!args.points) {
-      await ctx.db.patch(watch._id, { history: { at: now, added: 0, note: (args.note ?? "No history").slice(0, INGEST_LIMITS.message_chars) }, updated_at: now });
+      await ctx.db.patch(watch._id, {
+        history: {
+          at: now,
+          added: 0,
+          note: (args.note ?? "No history").slice(
+            0,
+            INGEST_LIMITS.message_chars,
+          ),
+        },
+        updated_at: now,
+      });
       return { added: 0 };
     }
     // History goes under what the watch holds, never over a value it read itself.
-    if (!(await holdsPoints(ctx, watch._id))) await writePoints(ctx, watch._id, watch.points);
+    if (!(await holdsPoints(ctx, watch._id)))
+      await writePoints(ctx, watch._id, watch.points);
     const oldest = await oldestHeld(ctx, watch);
     // A backfill tags only what a reader tagged, never brings back a removed value, and counts under the watch's definition.
     const kept = args.points.filter(notRemoved(watch.point_removals));
-    const added = await writePoints(ctx, watch._id, kept.filter((p) => oldest === null || p.at < oldest), args.version, definitionOf(watch));
+    const added = await writePoints(
+      ctx,
+      watch._id,
+      kept.filter((p) => oldest === null || p.at < oldest),
+      args.version,
+      definitionOf(watch),
+    );
     const current = ofVersion(definitionOf(watch));
-    const merged = mergeMetricHistory(watch.points, kept.filter((p) => current({ at: p.at, ...(args.version ? { version: args.version } : {}) })));
+    const merged = mergeMetricHistory(
+      watch.points,
+      kept.filter((p) =>
+        current({
+          at: p.at,
+          ...(args.version ? { version: args.version } : {}),
+        }),
+      ),
+    );
     const note = args.note?.slice(0, INGEST_LIMITS.message_chars);
-    await ctx.db.patch(watch._id, { points: merged.points, history: { at: now, added, ...(note ? { note } : {}) }, updated_at: now });
+    await ctx.db.patch(watch._id, {
+      points: merged.points,
+      history: { at: now, added, ...(note ? { note } : {}) },
+      updated_at: now,
+    });
     return { added };
   },
 });

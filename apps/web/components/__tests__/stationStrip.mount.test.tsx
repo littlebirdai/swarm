@@ -10,7 +10,11 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // hand and the elapsed time under that station.
 
 mock.module("next/link", () => ({
-  default: ({ href, children, ...props }: any) => <a href={String(href)} {...props}>{children}</a>,
+  default: ({ href, children, ...props }: any) => (
+    <a href={String(href)} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 const { useInboxStore } = await import("../../store/inboxStore");
@@ -21,13 +25,22 @@ const { useInboxStore } = await import("../../store/inboxStore");
 const realWorkflows = { ...(await import("../../hooks/useSyncWorkflows")) };
 mock.module("../../hooks/useSyncWorkflows", () => ({
   ...realWorkflows,
-  useWorkflowRun: (id: string | null | undefined) => useInboxStore((s: any) => (id ? s.workflowRuns[id] ?? null : undefined)),
-  useRunWorkflow: (run: any) => useInboxStore((s: any) => (run?.workflow_id ? s.workflows[run.workflow_id] ?? null : undefined)),
+  useWorkflowRun: (id: string | null | undefined) =>
+    useInboxStore((s: any) => (id ? (s.workflowRuns[id] ?? null) : undefined)),
+  useRunWorkflow: (run: any) =>
+    useInboxStore((s: any) =>
+      run?.workflow_id ? (s.workflows[run.workflow_id] ?? null) : undefined,
+    ),
 }));
-afterAll(() => { mock.module("../../hooks/useSyncWorkflows", () => realWorkflows); });
+afterAll(() => {
+  mock.module("../../hooks/useSyncWorkflows", () => realWorkflows);
+});
 const { StationStrip, TaskLineChip } = await import("../tasks/StationStrip");
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/tasks" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/tasks",
+});
 const restoreGlobals = replaceGlobals({
   window: Object.assign(dom.window, { innerWidth: 390 }),
   document: dom.window.document,
@@ -37,9 +50,12 @@ const restoreGlobals = replaceGlobals({
 });
 // react-dom/client decides at load whether a DOM exists, so it is loaded
 // here — after the globals above — not as a static import.
-const {createRoot} = await import("react-dom/client");
+const { createRoot } = await import("react-dom/client");
 
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const TASK_ID = "k97abcdefabcdefabcdefabcdefabcde";
 const RUN_ID = "kw1abcdefabcdefabcdefabcdefabcde";
@@ -48,25 +64,65 @@ const CONV_ID = "kc1abcdefabcdefabcdefabcdefabcde";
 const WF_ID = "kf1abcdefabcdefabcdefabcdefabcde";
 
 const task = (over: Record<string, unknown> = {}) => ({
-  _id: TASK_ID, short_id: "ct-1", title: "Ship the strip", task_type: "task", status: "in_review", priority: "medium",
-  source: "agent", created_at: 1, updated_at: 1, ...over,
+  _id: TASK_ID,
+  short_id: "ct-1",
+  title: "Ship the strip",
+  task_type: "task",
+  status: "in_review",
+  priority: "medium",
+  source: "agent",
+  created_at: 1,
+  updated_at: 1,
+  ...over,
 });
 
 const decision = {
-  _id: DEC_ID, short_id: "sd-211", conversation_id: CONV_ID, session_id: "s1", question: "Merge as is?",
-  options: [{ label: "Yes" }, { label: "No" }], blocking: true, status: "pending", task_id: TASK_ID, station: "in_review", created_at: 5,
+  _id: DEC_ID,
+  short_id: "sd-211",
+  conversation_id: CONV_ID,
+  session_id: "s1",
+  question: "Merge as is?",
+  options: [{ label: "Yes" }, { label: "No" }],
+  blocking: true,
+  status: "pending",
+  task_id: TASK_ID,
+  station: "in_review",
+  created_at: 5,
 };
 
 const run = {
-  _id: RUN_ID, status: "running", task_id: TASK_ID, current_node_id: "review", workflow_name: "line", updated_at: 50,
+  _id: RUN_ID,
+  status: "running",
+  task_id: TASK_ID,
+  current_node_id: "review",
+  workflow_name: "line",
+  updated_at: 50,
   node_statuses: [
-    { node_id: "implement", status: "completed", started_at: 1, completed_at: 10 },
-    { node_id: "review", status: "running", started_at: 20, label: "Review", session_id: "sess-r", session: { _id: CONV_ID, title: "Review ct-1", is_active: true } },
+    {
+      node_id: "implement",
+      status: "completed",
+      started_at: 1,
+      completed_at: 10,
+    },
+    {
+      node_id: "review",
+      status: "running",
+      started_at: 20,
+      label: "Review",
+      session_id: "sess-r",
+      session: { _id: CONV_ID, title: "Review ct-1", is_active: true },
+    },
   ],
 };
 
 beforeEach(() => {
-  useInboxStore.setState({ sessionDecisions: {}, workflowRuns: {}, workflows: {}, sessions: {}, teams: [] } as any);
+  useInboxStore.setState({
+    sessionDecisions: {},
+    workflowRuns: {},
+    workflows: {},
+    sessions: {},
+    teams: [],
+  } as any);
 });
 
 async function mount(el: React.ReactElement) {
@@ -79,11 +135,28 @@ async function mount(el: React.ReactElement) {
 
 describe("StationStrip", () => {
   test("draws the default stations in order and highlights the current one", async () => {
-    const { container, root } = await mount(<StationStrip task={task() as any} />);
-    const ids = [...container.querySelectorAll("[data-station]")].map((el) => el.getAttribute("data-station"));
-    expect(ids).toEqual(["backlog", "open", "in_progress", "in_review", "done", "dropped"]);
-    expect(container.querySelector("[data-current]")?.getAttribute("data-station")).toBe("in_review");
-    expect(container.querySelector("[data-station-strip]")?.getAttribute("data-station-strip")).toBe("in_review");
+    const { container, root } = await mount(
+      <StationStrip task={task() as any} />,
+    );
+    const ids = [...container.querySelectorAll("[data-station]")].map((el) =>
+      el.getAttribute("data-station"),
+    );
+    expect(ids).toEqual([
+      "backlog",
+      "open",
+      "in_progress",
+      "in_review",
+      "done",
+      "dropped",
+    ]);
+    expect(
+      container.querySelector("[data-current]")?.getAttribute("data-station"),
+    ).toBe("in_review");
+    expect(
+      container
+        .querySelector("[data-station-strip]")
+        ?.getAttribute("data-station-strip"),
+    ).toBe("in_review");
     // Nothing runs and nothing holds: no detail row, no marker.
     expect(container.querySelector("[data-held-by]")).toBeNull();
     expect(container.querySelector("[data-station-detail]")).toBeNull();
@@ -92,28 +165,44 @@ describe("StationStrip", () => {
 
   test("a held task carries the marker on its current station, linking the decision", async () => {
     useInboxStore.setState({ sessionDecisions: { [DEC_ID]: decision } } as any);
-    const { container, root } = await mount(<StationStrip task={task() as any} />);
-    const marker = container.querySelector("[data-held-by]") as HTMLAnchorElement;
+    const { container, root } = await mount(
+      <StationStrip task={task() as any} />,
+    );
+    const marker = container.querySelector(
+      "[data-held-by]",
+    ) as HTMLAnchorElement;
     expect(marker).not.toBeNull();
     expect(marker.getAttribute("data-held-by")).toBe("sd-211");
     expect(marker.getAttribute("href")).toBe("/decisions/sd-211");
-    expect(marker.closest("[data-station]")?.getAttribute("data-station")).toBe("in_review");
+    expect(marker.closest("[data-station]")?.getAttribute("data-station")).toBe(
+      "in_review",
+    );
     await act(() => root.unmount());
   });
 
   test("a decision bound at another station does not hold", async () => {
-    useInboxStore.setState({ sessionDecisions: { [DEC_ID]: { ...decision, station: "in_progress" } } } as any);
-    const { container, root } = await mount(<StationStrip task={task() as any} />);
+    useInboxStore.setState({
+      sessionDecisions: { [DEC_ID]: { ...decision, station: "in_progress" } },
+    } as any);
+    const { container, root } = await mount(
+      <StationStrip task={task() as any} />,
+    );
     expect(container.querySelector("[data-held-by]")).toBeNull();
     await act(() => root.unmount());
   });
 
   test("a live run shows its node, the hand and the elapsed time under the current station", async () => {
     useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
-    const { container, root } = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />);
-    const detail = container.querySelector("[data-station-detail]") as HTMLElement;
+    const { container, root } = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
+    const detail = container.querySelector(
+      "[data-station-detail]",
+    ) as HTMLElement;
     expect(detail).not.toBeNull();
-    expect(detail.querySelector("[data-live-node]")?.getAttribute("data-live-node")).toBe("review");
+    expect(
+      detail.querySelector("[data-live-node]")?.getAttribute("data-live-node"),
+    ).toBe("review");
     expect(detail.textContent).toContain("Review");
     const hand = detail.querySelector("[data-hand-state]") as HTMLAnchorElement;
     expect(hand.getAttribute("href")).toBe(`/conversation/${CONV_ID}`);
@@ -129,12 +218,29 @@ describe("StationStrip", () => {
     // workflow_runs.get returns the raw row: no current_node_label, no label
     // on node_statuses. The label comes from the workflow in the store.
     const rawRun = {
-      _id: RUN_ID, status: "running", task_id: TASK_ID, workflow_id: WF_ID, current_node_id: "review", updated_at: 50,
+      _id: RUN_ID,
+      status: "running",
+      task_id: TASK_ID,
+      workflow_id: WF_ID,
+      current_node_id: "review",
+      updated_at: 50,
       node_statuses: [{ node_id: "review", status: "running", started_at: 20 }],
     };
-    const workflow = { _id: WF_ID, name: "line", nodes: [{ id: "implement", label: "Implement" }, { id: "review", label: "Review the change" }] };
-    useInboxStore.setState({ workflowRuns: { [RUN_ID]: rawRun }, workflows: { [WF_ID]: workflow } } as any);
-    const { container, root } = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />);
+    const workflow = {
+      _id: WF_ID,
+      name: "line",
+      nodes: [
+        { id: "implement", label: "Implement" },
+        { id: "review", label: "Review the change" },
+      ],
+    };
+    useInboxStore.setState({
+      workflowRuns: { [RUN_ID]: rawRun },
+      workflows: { [WF_ID]: workflow },
+    } as any);
+    const { container, root } = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
     const node = container.querySelector("[data-live-node]") as HTMLElement;
     expect(node.getAttribute("data-live-node")).toBe("review");
     expect(node.textContent).toContain("Review the change");
@@ -145,46 +251,104 @@ describe("StationStrip", () => {
   test("a line run's node links to that station in line settings; a customized line says so", async () => {
     // Shipped line: the node names the task's project.
     useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
-    let m = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID, project_id: "p1" }) as any} />);
-    let link = m.container.querySelector("a[data-station-settings]") as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("/flows/settings?project=p1&section=stations&station=review");
+    let m = await mount(
+      <StationStrip
+        task={task({ workflow_run_id: RUN_ID, project_id: "p1" }) as any}
+      />,
+    );
+    let link = m.container.querySelector(
+      "a[data-station-settings]",
+    ) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(
+      "/flows/settings?project=p1&section=stations&station=review",
+    );
     expect(m.container.querySelector("[data-line-customized]")).toBeNull();
     await act(() => m.root.unmount());
 
     // The project's customized copy: the link names the project it forks for, with the chip.
-    const forkRun = { ...run, workflow_id: WF_ID, workflow_name: "Steps for Codecast" };
+    const forkRun = {
+      ...run,
+      workflow_id: WF_ID,
+      workflow_name: "Steps for Codecast",
+    };
     useInboxStore.setState({
       workflowRuns: { [RUN_ID]: forkRun },
-      workflows: { [WF_ID]: { _id: WF_ID, slug: "line-pr-1", name: "Steps for Codecast", nodes: [{ id: "review", label: "Review" }] } },
-      projects: { p1: { _id: "p1", short_id: "pr-1", title: "Codecast", workspace: "user:u1" } },
+      workflows: {
+        [WF_ID]: {
+          _id: WF_ID,
+          slug: "line-pr-1",
+          name: "Steps for Codecast",
+          nodes: [{ id: "review", label: "Review" }],
+        },
+      },
+      projects: {
+        p1: {
+          _id: "p1",
+          short_id: "pr-1",
+          title: "Codecast",
+          workspace: "user:u1",
+        },
+      },
       currentUser: { _id: "u1" },
     } as any);
-    m = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />);
-    link = m.container.querySelector("a[data-station-settings]") as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("/flows/settings?project=pr-1&section=stations&station=review");
-    expect(m.container.querySelector("[data-line-customized]")?.textContent).toBe("customized");
+    m = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
+    link = m.container.querySelector(
+      "a[data-station-settings]",
+    ) as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(
+      "/flows/settings?project=pr-1&section=stations&station=review",
+    );
+    expect(
+      m.container.querySelector("[data-line-customized]")?.textContent,
+    ).toBe("customized");
     await act(() => m.root.unmount());
 
     // Any other workflow: the node stays plain text.
-    useInboxStore.setState({ workflowRuns: { [RUN_ID]: { ...run, workflow_name: "release" } }, workflows: {} } as any);
-    m = await mount(<StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />);
+    useInboxStore.setState({
+      workflowRuns: { [RUN_ID]: { ...run, workflow_name: "release" } },
+      workflows: {},
+    } as any);
+    m = await mount(
+      <StationStrip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
     expect(m.container.querySelector("[data-live-node]")).not.toBeNull();
     expect(m.container.querySelector("a[data-station-settings]")).toBeNull();
     await act(() => m.root.unmount());
   });
 
   test("a review verdict renders as a chip even with no run", async () => {
-    const { container, root } = await mount(<StationStrip task={task({ review_verdict: { verdict: "changes", at: 1, note: "tests" } }) as any} />);
-    expect(container.querySelector("[data-review-verdict]")?.getAttribute("data-review-verdict")).toBe("changes");
+    const { container, root } = await mount(
+      <StationStrip
+        task={
+          task({
+            review_verdict: { verdict: "changes", at: 1, note: "tests" },
+          }) as any
+        }
+      />,
+    );
+    expect(
+      container
+        .querySelector("[data-review-verdict]")
+        ?.getAttribute("data-review-verdict"),
+    ).toBe("changes");
     await act(() => root.unmount());
   });
 });
 
 describe("TaskLineChip", () => {
   test("says held at the station when a blocking decision holds the task", async () => {
-    useInboxStore.setState({ sessionDecisions: { [DEC_ID]: decision }, workflowRuns: { [RUN_ID]: run } } as any);
-    const { container, root } = await mount(<TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />);
-    const chip = container.querySelector("[data-task-line-chip]") as HTMLElement;
+    useInboxStore.setState({
+      sessionDecisions: { [DEC_ID]: decision },
+      workflowRuns: { [RUN_ID]: run },
+    } as any);
+    const { container, root } = await mount(
+      <TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
+    const chip = container.querySelector(
+      "[data-task-line-chip]",
+    ) as HTMLElement;
     expect(chip.getAttribute("data-task-line-chip")).toBe("held");
     expect(chip.textContent).toContain("held at In Review");
     await act(() => root.unmount());
@@ -192,8 +356,12 @@ describe("TaskLineChip", () => {
 
   test("names the station and the node for a live run, and nothing otherwise", async () => {
     useInboxStore.setState({ workflowRuns: { [RUN_ID]: run } } as any);
-    const live = await mount(<TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />);
-    expect(live.container.querySelector("[data-task-line-chip]")?.textContent).toContain("at In Review · Review");
+    const live = await mount(
+      <TaskLineChip task={task({ workflow_run_id: RUN_ID }) as any} />,
+    );
+    expect(
+      live.container.querySelector("[data-task-line-chip]")?.textContent,
+    ).toContain("at In Review · Review");
     await act(() => live.root.unmount());
     // A live run bound to the task by task_id counts even when the task does
     // not name it, so the idle case needs an empty runs collection.

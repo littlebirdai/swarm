@@ -2,10 +2,19 @@
 // (DashboardSyncEffects); every surface reads store.agentTasks through the
 // readers below.
 import { useCallback, useMemo } from "react";
-import { useConvex, usePaginatedQuery, type ConvexReactClient } from "convex/react";
+import {
+  useConvex,
+  usePaginatedQuery,
+  type ConvexReactClient,
+} from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
 import { useInboxStore, isConvexId } from "../store/inboxStore";
-import { ARMED_STATUSES, foreignTriggerConvIds, mergeTriggerRosters, type TaskRow } from "../components/triggerTasks";
+import {
+  ARMED_STATUSES,
+  foreignTriggerConvIds,
+  mergeTriggerRosters,
+  type TaskRow,
+} from "../components/triggerTasks";
 import { makeCollectionSig } from "../store/wakeSig";
 import { useSyncCollection, keyRowsBy } from "./useSyncCollection";
 import { useCollectionRows } from "./useCollectionRows";
@@ -26,7 +35,10 @@ const api = _api as any;
 // history (setTriggerFeedArgs), so its answer is a plain snapshot. Every
 // caller shares these args, so a platform still holds one subscription.
 const RECENT_FINISHED = 50;
-let feed: { args: { recent_finished?: number }; keepHistory: boolean } = { args: { recent_finished: RECENT_FINISHED }, keepHistory: true };
+let feed: { args: { recent_finished?: number }; keepHistory: boolean } = {
+  args: { recent_finished: RECENT_FINISHED },
+  keepHistory: true,
+};
 export function setTriggerFeedArgs(args: { recent_finished?: number }): void {
   feed = { args, keepHistory: false };
 }
@@ -35,13 +47,26 @@ export function setTriggerFeedArgs(args: { recent_finished?: number }): void {
 // tail (the tail is newest by creation, not by finish) or is gone. One fetch
 // says which: a finished row is kept as history, a gone one leaves the store.
 const verifying = new Set<string>();
-export function verifyMissingArmed(convex: ConvexReactClient, rows: any[]): void {
+export function verifyMissingArmed(
+  convex: ConvexReactClient,
+  rows: any[],
+): void {
   const sent = new Set(rows.map((r) => String(r._id)));
-  const cached = (useInboxStore.getState() as any).agentTasks as Record<string, any>;
+  const cached = (useInboxStore.getState() as any).agentTasks as Record<
+    string,
+    any
+  >;
   for (const id in cached) {
-    if (sent.has(id) || verifying.has(id) || !isConvexId(id) || !ARMED_STATUSES.has(cached[id]?.status)) continue;
+    if (
+      sent.has(id) ||
+      verifying.has(id) ||
+      !isConvexId(id) ||
+      !ARMED_STATUSES.has(cached[id]?.status)
+    )
+      continue;
     verifying.add(id);
-    convex.query(api.agentTasks.webGet, { id })
+    convex
+      .query(api.agentTasks.webGet, { id })
       .then((row: any) => {
         const store = useInboxStore.getState();
         if (row) store.syncRecord("agentTasks", id, row);
@@ -55,14 +80,22 @@ export function verifyMissingArmed(convex: ConvexReactClient, rows: any[]): void
 /** Feeder: the viewer's armed triggers and recent finished ones (see above). */
 export function useSyncTriggers(enabled = true) {
   const convex = useConvex();
-  const keepHistory = useMemo(() => ({
-    syncOpts: { isDelta: true },
-    select: (rows: any[]) => {
-      if (Array.isArray(rows)) verifyMissingArmed(convex, rows);
-      return rows;
-    },
-  }), [convex]);
-  return useSyncCollection("agentTasks", api.agentTasks.webList, enabled ? feed.args : "skip", feed.keepHistory ? keepHistory : undefined);
+  const keepHistory = useMemo(
+    () => ({
+      syncOpts: { isDelta: true },
+      select: (rows: any[]) => {
+        if (Array.isArray(rows)) verifyMissingArmed(convex, rows);
+        return rows;
+      },
+    }),
+    [convex],
+  );
+  return useSyncCollection(
+    "agentTasks",
+    api.agentTasks.webList,
+    enabled ? feed.args : "skip",
+    feed.keepHistory ? keepHistory : undefined,
+  );
 }
 
 /** Feeder: the viewer's complete trigger set, finished history included, as a
@@ -81,7 +114,10 @@ export function useSyncTriggerHistory() {
   // Only a complete snapshot can remove rows from the store.
   useConvexSync(
     status === "Exhausted" ? results : undefined,
-    useCallback((rows) => useInboxStore.getState().syncTable("agentTasks", rows), []),
+    useCallback(
+      (rows) => useInboxStore.getState().syncTable("agentTasks", rows),
+      [],
+    ),
   );
 }
 
@@ -89,24 +125,30 @@ export function useSyncTriggerHistory() {
 // (lease stamps, retry counters) doesn't wake them.
 export const triggerSig = (t: any) =>
   `${t.status}|${t.run_at ?? 0}|${t.last_run_at ?? 0}|${t.run_count ?? 0}|${t.display_title ?? t.title}|${t.display_summary ?? ""}|${t.last_run_needs_attention ? 1 : 0}|${t.last_run_failed ? 1 : 0}|${t.last_run_summary ?? ""}|${t.last_run_conversation_id ?? ""}|${t.schedule_type}|${t.interval_ms ?? 0}|${t.mode}|${t.prompt}|${t.precheck ?? ""}|${t.last_precheck_skip_at ?? 0}|${t.last_precheck_skip_reason ?? ""}|${t.last_run_source ?? ""}|${t.requested_run_source ?? ""}|${t.requested_run_focus ?? ""}`;
-const newestFirst = (a: any, b: any) => (b.created_at ?? 0) - (a.created_at ?? 0);
+const newestFirst = (a: any, b: any) =>
+  (b.created_at ?? 0) - (a.created_at ?? 0);
 
 // Which conversations the viewer sees carry an armed trigger their own roster
 // cannot explain — the ONLY session field this reads, so heartbeat churn on the
 // rest of the row never re-runs the candidate scan.
-const armedStampSig = makeCollectionSig<any>((s) => `${s?._id ?? ""}:${s?.armed_trigger_kind ?? ""}`);
+const armedStampSig = makeCollectionSig<any>(
+  (s) => `${s?._id ?? ""}:${s?.armed_trigger_kind ?? ""}`,
+);
 
 // The query answers with EVERY trigger anchored to those conversations; the
 // roster wants only the armed ones. Dropping the rest here keeps this
 // collection to the handful of rows the roster is missing, instead of
 // accumulating one conversation's whole trigger history.
-const keepArmed = (rows: any[]) => (rows ?? []).filter((t) => ARMED_STATUSES.has(t.status));
+const keepArmed = (rows: any[]) =>
+  (rows ?? []).filter((t) => ARMED_STATUSES.has(t.status));
 
 /** Feeder: the anchored foreign triggers (see components/triggerTasks.ts,
  *  foreignTriggerConvIds). Skips entirely when the roster explains every
  *  armed stamp — the common case, and then this costs no subscription. */
 export function useSyncForeignTriggers(own: TaskRow[], enabled = true) {
-  const stampSig = useInboxStore(useCallback((s: any) => armedStampSig(s.sessions), []));
+  const stampSig = useInboxStore(
+    useCallback((s: any) => armedStampSig(s.sessions), []),
+  );
   // A comma-joined key, not the array: the array IS the subscription args, so
   // a fresh-but-equal one would resubscribe on every render.
   const key = useMemo(
@@ -118,12 +160,18 @@ export function useSyncForeignTriggers(own: TaskRow[], enabled = true) {
     [stampSig, own],
   );
   const args = useMemo(
-    () => (enabled && key ? { conversation_ids: key.split(",") } : ("skip" as const)),
+    () =>
+      enabled && key ? { conversation_ids: key.split(",") } : ("skip" as const),
     [enabled, key],
   );
-  return useSyncCollection("foreignTriggers", api.agentTasks.webListForConversations, args, {
-    select: keepArmed,
-  });
+  return useSyncCollection(
+    "foreignTriggers",
+    api.agentTasks.webListForConversations,
+    args,
+    {
+      select: keepArmed,
+    },
+  );
 }
 
 /**
@@ -137,13 +185,22 @@ export function useSyncForeignTriggers(own: TaskRow[], enabled = true) {
  */
 export function useTriggers(): { tasks: any[]; ready: boolean } {
   const { ready } = useSyncTriggers();
-  const own = useCollectionRows<any>("agentTasks", { sig: triggerSig, sort: newestFirst });
+  const own = useCollectionRows<any>("agentTasks", {
+    sig: triggerSig,
+    sort: newestFirst,
+  });
   // Gated on the own roster having landed: before it does, every armed stamp
   // looks unexplained, and the feeder would ask for the whole set and then
   // immediately narrow.
   useSyncForeignTriggers(own, ready || own.length > 0);
-  const foreign = useCollectionRows<any>("foreignTriggers", { sig: triggerSig, sort: newestFirst });
-  const tasks = useMemo(() => mergeTriggerRosters(own, foreign, newestFirst), [own, foreign]);
+  const foreign = useCollectionRows<any>("foreignTriggers", {
+    sig: triggerSig,
+    sort: newestFirst,
+  });
+  const tasks = useMemo(
+    () => mergeTriggerRosters(own, foreign, newestFirst),
+    [own, foreign],
+  );
   return { tasks, ready };
 }
 
@@ -154,20 +211,34 @@ export function useTriggers(): { tasks: any[]; ready: boolean } {
  * conversation query fills in what the roster lacks, as the header strip
  * does. Empty without a conversation.
  */
-export function useSeatTriggers(conversationId: string | null | undefined): TaskRow[] {
+export function useSeatTriggers(
+  conversationId: string | null | undefined,
+): TaskRow[] {
   const { tasks: own } = useTriggers();
-  const { data: foreign } = useQueryNoThrow(api.agentTasks.webListForConversation, conversationId && isConvexId(conversationId) ? { conversation_id: conversationId } : "skip");
+  const { data: foreign } = useQueryNoThrow(
+    api.agentTasks.webListForConversation,
+    conversationId && isConvexId(conversationId)
+      ? { conversation_id: conversationId }
+      : "skip",
+  );
   return useMemo<TaskRow[]>(() => {
     if (!conversationId) return [];
     const seen = new Set<string>();
     const all: TaskRow[] = [];
-    for (const t of [...(own as TaskRow[]), ...((foreign ?? []) as TaskRow[])]) {
-      if (t.originating_conversation_id !== conversationId || seen.has(t._id)) continue;
+    for (const t of [
+      ...(own as TaskRow[]),
+      ...((foreign ?? []) as TaskRow[]),
+    ]) {
+      if (t.originating_conversation_id !== conversationId || seen.has(t._id))
+        continue;
       seen.add(t._id);
       all.push(t);
     }
     const armed = (t: TaskRow) => (ARMED_STATUSES.has(t.status) ? 0 : 1);
-    all.sort((a, b) => armed(a) - armed(b) || (a.run_at ?? Infinity) - (b.run_at ?? Infinity));
+    all.sort(
+      (a, b) =>
+        armed(a) - armed(b) || (a.run_at ?? Infinity) - (b.run_at ?? Infinity),
+    );
     return all;
   }, [own, foreign, conversationId]);
 }
@@ -179,7 +250,8 @@ export function useSeatTriggers(conversationId: string | null | undefined): Task
  */
 export function useSyncTriggerRuns(taskId: string | null | undefined) {
   const select = useCallback(
-    (rows: any[]) => keyRowsBy(rows, "run_key").map((r) => ({ ...r, task_id: taskId })),
+    (rows: any[]) =>
+      keyRowsBy(rows, "run_key").map((r) => ({ ...r, task_id: taskId })),
     [taskId],
   );
   return useSyncCollection(
@@ -190,15 +262,25 @@ export function useSyncTriggerRuns(taskId: string | null | undefined) {
   );
 }
 
-const runSig = (r: any) => `${r.status}|${r.title}|${r.idle_summary ?? ""}|${r.kind}|${r.source ?? ""}|${r.precheck_command ?? ""}|${r.precheck_output ?? ""}`;
+const runSig = (r: any) =>
+  `${r.status}|${r.title}|${r.idle_summary ?? ""}|${r.kind}|${r.source ?? ""}|${r.precheck_command ?? ""}|${r.precheck_output ?? ""}`;
 
 /** Reader: one trigger's runs, newest first, from the store. Pass null to
  *  skip (a collapsed row costs no query). Returns undefined only while the
  *  cache is empty AND the first answer is in flight. */
-export function useTriggerRuns(taskId: string | null | undefined): any[] | undefined {
+export function useTriggerRuns(
+  taskId: string | null | undefined,
+): any[] | undefined {
   const { ready } = useSyncTriggerRuns(taskId);
-  const where = useMemo(() => (taskId ? (r: any) => r.task_id === taskId : () => false), [taskId]);
-  const runs = useCollectionRows<any>("agentTaskRuns", { where, sig: runSig, sort: newestFirst });
+  const where = useMemo(
+    () => (taskId ? (r: any) => r.task_id === taskId : () => false),
+    [taskId],
+  );
+  const runs = useCollectionRows<any>("agentTaskRuns", {
+    where,
+    sig: runSig,
+    sort: newestFirst,
+  });
   if (!taskId) return undefined;
   if (runs.length > 0) return runs;
   return ready ? runs : undefined;
@@ -210,13 +292,23 @@ export function useTriggerRuns(taskId: string | null | undefined): any[] | undef
  * when it has any; otherwise queries and lands the page in the store so the
  * next click (and the run rail) read it for free.
  */
-export async function fetchTriggerRuns(convex: { query: (q: any, args: any) => Promise<any> }, taskId: string): Promise<any[]> {
-  const cached = (Object.values(useInboxStore.getState().agentTaskRuns) as any[])
+export async function fetchTriggerRuns(
+  convex: { query: (q: any, args: any) => Promise<any> },
+  taskId: string,
+): Promise<any[]> {
+  const cached = (
+    Object.values(useInboxStore.getState().agentTaskRuns) as any[]
+  )
     .filter((r) => r?.task_id === taskId)
     .sort(newestFirst);
   if (cached.length > 0) return cached;
-  const rows = await convex.query(api.agentTasks.webListRuns, { task_id: taskId });
-  const keyed = keyRowsBy(rows as any[], "run_key").map((r) => ({ ...r, task_id: taskId }));
+  const rows = await convex.query(api.agentTasks.webListRuns, {
+    task_id: taskId,
+  });
+  const keyed = keyRowsBy(rows as any[], "run_key").map((r) => ({
+    ...r,
+    task_id: taskId,
+  }));
   useInboxStore.getState().syncTable("agentTaskRuns", keyed);
   return keyed.sort(newestFirst);
 }

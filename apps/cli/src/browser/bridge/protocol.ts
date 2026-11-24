@@ -29,8 +29,16 @@
  * `castGroup` or a group leak back to a client.
  */
 
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { BROWSER_EXTENSION_ID, BROWSER_EXTENSION_STORE_URL } from "@codecast/shared/contracts";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
+import {
+  BROWSER_EXTENSION_ID,
+  BROWSER_EXTENSION_STORE_URL,
+} from "@codecast/shared/contracts";
 
 /**
  * Bumped when a message shape changes incompatibly. Both ends report theirs.
@@ -65,8 +73,13 @@ export const BRIDGE_STORE_URL = BROWSER_EXTENSION_STORE_URL;
 
 /** Chrome's rule for the ID of an extension whose manifest carries `key` (base64 DER). */
 export function extensionIdOfKey(keyBase64: string): string {
-  const hex = createHash("sha256").update(Buffer.from(keyBase64, "base64")).digest("hex").slice(0, 32);
-  return hex.replace(/[0-9a-f]/g, (c) => String.fromCharCode(97 + parseInt(c, 16)));
+  const hex = createHash("sha256")
+    .update(Buffer.from(keyBase64, "base64"))
+    .digest("hex")
+    .slice(0, 32);
+  return hex.replace(/[0-9a-f]/g, (c) =>
+    String.fromCharCode(97 + parseInt(c, 16)),
+  );
 }
 
 /**
@@ -76,10 +89,18 @@ export function extensionIdOfKey(keyBase64: string): string {
  * arrival; and the code works once and expires in ten minutes, so the copy
  * Chrome keeps in its history opens nothing.
  */
-export function bridgePairingUrl(pairing: { code: string; port: number; legacyToken?: string }): string {
+export function bridgePairingUrl(pairing: {
+  code: string;
+  port: number;
+  legacyToken?: string;
+}): string {
   // `legacyToken` is for the Chrome Web Store's 0.1.5, which reads only token+port here; a build that reads codes pairs with the code and never reads it.
   // Remove once no connecting extension is below the version that reads codes.
-  const frag = new URLSearchParams({ code: pairing.code, ...(pairing.legacyToken ? { token: pairing.legacyToken } : {}), port: String(pairing.port) });
+  const frag = new URLSearchParams({
+    code: pairing.code,
+    ...(pairing.legacyToken ? { token: pairing.legacyToken } : {}),
+    port: String(pairing.port),
+  });
   return `chrome-extension://${BRIDGE_EXTENSION_ID}/options.html#${frag}`;
 }
 
@@ -104,8 +125,11 @@ export function bridgePairingPage(pairingUrl: string): string {
   // `<` cannot appear in a URL built by URLSearchParams, but a script body
   // must never be able to close itself, so the escape is unconditional.
   const js = JSON.stringify(pairingUrl).replace(/</g, "\\u003c");
-  return PAIRING_PAGE_HEAD + `<script>location.replace(${js})</script>` +
-    `<p>Opening the Codecast extension. ${PAIRING_FALLBACK}</p>\n`;
+  return (
+    PAIRING_PAGE_HEAD +
+    `<script>location.replace(${js})</script>` +
+    `<p>Opening the Codecast extension. ${PAIRING_FALLBACK}</p>\n`
+  );
 }
 
 const PAIRING_PAGE_HEAD = `<!doctype html><meta charset="utf-8"><title>Pairing with cast</title>`;
@@ -118,9 +142,12 @@ const PAIRING_FALLBACK = `If this page stays, <a href="${BRIDGE_STORE_URL}" targ
  * tab, and a deleted file then loads as "file not found".
  */
 export function bridgeSettledPage(connected: boolean): string {
-  return PAIRING_PAGE_HEAD + (connected
-    ? `<p>Codecast is connected to cast. You can close this tab.</p>\n`
-    : `<p>The Codecast extension did not connect. ${PAIRING_FALLBACK}</p>\n`);
+  return (
+    PAIRING_PAGE_HEAD +
+    (connected
+      ? `<p>Codecast is connected to cast. You can close this tab.</p>\n`
+      : `<p>The Codecast extension did not connect. ${PAIRING_FALLBACK}</p>\n`)
+  );
 }
 
 /** WS close code the host uses for a bad or missing token. */
@@ -177,13 +204,20 @@ export function isNonce(value: unknown): value is string {
 }
 
 /** The HMAC-SHA256 proof one side sends the other. Mirrored in background.js. */
-export function bridgeProof(token: string, purpose: ProofPurpose, nonce: string): string {
+export function bridgeProof(
+  token: string,
+  purpose: ProofPurpose,
+  nonce: string,
+): string {
   const message = purpose === "host" ? nonce : `${purpose}:${nonce}`;
   return createHmac("sha256", token).update(message).digest("hex");
 }
 
 /** Constant-time comparison for tokens and proofs. */
-export function secretMatches(expected: string, got: string | null | undefined): boolean {
+export function secretMatches(
+  expected: string,
+  got: string | null | undefined,
+): boolean {
   if (typeof got !== "string") return false;
   const a = Buffer.from(expected);
   const b = Buffer.from(got);
@@ -205,7 +239,16 @@ export type BridgeOp =
   | "reload";
 
 /** The colours Chrome accepts for a tab group (chrome.tabGroups.Color). */
-export type BridgeGroupColor = "grey" | "blue" | "red" | "yellow" | "green" | "pink" | "purple" | "cyan" | "orange";
+export type BridgeGroupColor =
+  | "grey"
+  | "blue"
+  | "red"
+  | "yellow"
+  | "green"
+  | "pink"
+  | "purple"
+  | "cyan"
+  | "orange";
 
 /** A Chrome tab group as the bridge names it: by title within a window. */
 export interface BridgeGroup {
@@ -265,7 +308,13 @@ export type BridgeEventMsg =
   /** The worker's own keepalive; the host answers pong. */
   | { op: "ping" }
   /** A chrome.debugger event on an attached tab; `session` names the child session (cross-origin iframe) it came from. */
-  | { op: "event"; tabId: number; session?: string; method: string; params: Record<string, unknown> }
+  | {
+      op: "event";
+      tabId: number;
+      session?: string;
+      method: string;
+      params: Record<string, unknown>;
+    }
   /** Chrome's tab list changed (any tab, driven or not). */
   | { op: "tab"; kind: "created" | "removed" | "updated"; tab: BridgeTab }
   /** The debugger left a tab without us asking: the user hit Cancel on the banner,
@@ -308,7 +357,13 @@ export interface BridgeHandoff {
  * or dragged out of the Cast group, a tab playing sound, and an agent tab the
  * human brought to the front themselves.
  */
-export type BridgeKeepReason = "handoff" | "lent" | "pinned" | "claimed" | "audible" | "used";
+export type BridgeKeepReason =
+  | "handoff"
+  | "lent"
+  | "pinned"
+  | "claimed"
+  | "audible"
+  | "used";
 
 /**
  * Methods the extension answers itself on a tab's CDP session, never passed
@@ -342,7 +397,8 @@ export function isWebAuthnMethod(method: string): boolean {
   return /^WebAuthn\.\w+$/i.test(method);
 }
 
-export const WEBAUTHN_REFUSAL = "refusing CDP's WebAuthn domain: agents cannot create or use passkeys";
+export const WEBAUTHN_REFUSAL =
+  "refusing CDP's WebAuthn domain: agents cannot create or use passkeys";
 
 export function tabIdOfTarget(targetId: string): number | null {
   if (!/^[0-9A-Fa-f]{1,8}$/.test(targetId)) return null;

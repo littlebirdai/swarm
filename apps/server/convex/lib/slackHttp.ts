@@ -13,25 +13,43 @@ export const slackWebhook = httpAction(async (ctx, request) => {
   const secret = process.env.SLACK_SIGNING_SECRET;
 
   if (!secret) {
-    console.error("[slack webhook] SLACK_SIGNING_SECRET not configured; refusing");
-    return new Response(JSON.stringify({ error: "Webhook not configured" }), { status: 500 });
+    console.error(
+      "[slack webhook] SLACK_SIGNING_SECRET not configured; refusing",
+    );
+    return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+      status: 500,
+    });
   }
   if (!signature || !timestamp) {
-    return new Response(JSON.stringify({ error: "Missing signature" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Missing signature" }), {
+      status: 401,
+    });
   }
   // Replay protection: reject stale timestamps (Slack recommends 5 minutes).
   const ts = parseInt(timestamp, 10);
   if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) {
-    return new Response(JSON.stringify({ error: "Stale timestamp" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Stale timestamp" }), {
+      status: 401,
+    });
   }
-  if (!timingSafeEqualHex(signature, "v0=" + (await hmacSha256Hex(secret, `v0:${timestamp}:${body}`)))) {
-    return new Response(JSON.stringify({ error: "Invalid signature" }), { status: 401 });
+  if (
+    !timingSafeEqualHex(
+      signature,
+      "v0=" + (await hmacSha256Hex(secret, `v0:${timestamp}:${body}`)),
+    )
+  ) {
+    return new Response(JSON.stringify({ error: "Invalid signature" }), {
+      status: 401,
+    });
   }
 
   const payload = JSON.parse(body);
   // Slack's one-time endpoint verification handshake.
   if (payload.type === "url_verification") {
-    return new Response(payload.challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
+    return new Response(payload.challenge, {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 
   if (payload.type === "event_callback") {
@@ -51,7 +69,9 @@ export const slackWebhook = httpAction(async (ctx, request) => {
         event,
         // A user event (a person's DM) names whose behalf it came on.
         authed_users: Array.isArray(payload.authorizations)
-          ? payload.authorizations.map((a: any) => String(a?.user_id ?? "")).filter(Boolean)
+          ? payload.authorizations
+              .map((a: any) => String(a?.user_id ?? ""))
+              .filter(Boolean)
           : undefined,
       });
       mirrored = routed.status !== "no_link";
@@ -59,7 +79,10 @@ export const slackWebhook = httpAction(async (ctx, request) => {
     const isMention =
       event.type === "app_mention" && !event.bot_id && !event.subtype;
     const isDM =
-      event.type === "message" && event.channel_type === "im" && !event.bot_id && !event.subtype;
+      event.type === "message" &&
+      event.channel_type === "im" &&
+      !event.bot_id &&
+      !event.subtype;
     if (!mirrored && (isMention || isDM) && eventId && event.channel) {
       // One atomic mutation: dedup + resolve channel→anchor + wake. If the wake
       // throws it returns 500 and Slack retries — the dedup row rolls back with

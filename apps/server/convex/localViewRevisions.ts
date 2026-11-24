@@ -19,7 +19,10 @@ export type CommandIdCoverage = CommandIdCoverageTarget & {
 
 export type CommandReceiptCoverage = ViewCoverage | CommandIdCoverage;
 
-export type ViewCoverageTarget = Pick<ViewCoverage, "contractId" | "viewKey"> & {
+export type ViewCoverageTarget = Pick<
+  ViewCoverage,
+  "contractId" | "viewKey"
+> & {
   /**
    * Revision-domain owner when the caller is one authorized viewer of a shared
    * view. This identity is server-derived and never appears in public receipts.
@@ -41,7 +44,8 @@ export async function readLocalViewRevision(
       q
         .eq("principal_id", principalId)
         .eq("contract_id", contractId)
-        .eq("view_key", viewKey))
+        .eq("view_key", viewKey),
+    )
     .unique();
   return head?.revision ?? 0;
 }
@@ -59,7 +63,8 @@ export async function advanceLocalViewRevision(
       q
         .eq("principal_id", principalId)
         .eq("contract_id", contractId)
-        .eq("view_key", viewKey))
+        .eq("view_key", viewKey),
+    )
     .unique();
   const revision = (current?.revision ?? 0) + 1;
   const updatedAt = Date.now();

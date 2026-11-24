@@ -29,7 +29,20 @@ export function isKnownTimeZone(timeZone: string): boolean {
 /** Short English day and month names, spelled out rather than asked of Intl,
  *  which an engine may print its own way. */
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 // One formatter per option set. Each toLocaleDateString(locale, options) and
 // each new Intl.DateTimeFormat builds a formatter, and these run for every
@@ -37,7 +50,10 @@ export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "
 // a server) may change TZ while running, and a formatter keeps the zone it was
 // built in; a browser cannot change its zone mid-session.
 const formatters = new Map<string, Intl.DateTimeFormat>();
-function formatterFor(key: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+function formatterFor(
+  key: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
   const k = `${(globalThis as { process?: { env?: { TZ?: string } } }).process?.env?.TZ ?? ""}\u0000${key}`;
   let f = formatters.get(k);
   if (!f) formatters.set(k, (f = new Intl.DateTimeFormat("en-US", options)));
@@ -50,14 +66,37 @@ function formatterFor(key: string, options: Intl.DateTimeFormatOptions): Intl.Da
 export function wallClock(ts: number, timeZone: string | undefined) {
   if (!timeZone) {
     const d = new Date(ts);
-    return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), hour: d.getHours(), minute: d.getMinutes(), second: d.getSeconds() };
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+      hour: d.getHours(),
+      minute: d.getMinutes(),
+      second: d.getSeconds(),
+    };
   }
   const p = Object.fromEntries(
-    formatterFor(`wall:${timeZone}`, { timeZone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" })
+    formatterFor(`wall:${timeZone}`, {
+      timeZone,
+      hourCycle: "h23",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    })
       .formatToParts(ts)
       .map((x) => [x.type, Number(x.value)]),
   );
-  return { year: p.year, month: p.month, day: p.day, hour: p.hour % 24, minute: p.minute, second: p.second };
+  return {
+    year: p.year,
+    month: p.month,
+    day: p.day,
+    hour: p.hour % 24,
+    minute: p.minute,
+    second: p.second,
+  };
 }
 
 /** The instant the wall time `wall` (its fields read as UTC) names in
@@ -66,7 +105,10 @@ export function wallClock(ts: number, timeZone: string | undefined) {
 export function wallTimeIn(wall: number, timeZone: string | undefined): number {
   const offset = (ts: number) => {
     const p = wallClock(ts, timeZone);
-    return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - (ts - (ts % 1000));
+    return (
+      Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) -
+      (ts - (ts % 1000))
+    );
   };
   return wall - offset(wall - offset(wall));
 }
@@ -85,7 +127,11 @@ export function targetDayStamp(day: string): number | null {
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const ts = Date.UTC(y, mo - 1, d, 23, 59, 59, 999);
   const back = new Date(ts);
-  return back.getUTCFullYear() === y && back.getUTCMonth() === mo - 1 && back.getUTCDate() === d ? ts : null;
+  return back.getUTCFullYear() === y &&
+    back.getUTCMonth() === mo - 1 &&
+    back.getUTCDate() === d
+    ? ts
+    : null;
 }
 
 /** A stored target stamp → "YYYY-MM-DD"; undefined when there is none. */
@@ -133,16 +179,26 @@ export function formatRelative(ts: number, now: number = Date.now()): string {
 export function formatShortDate(ts: number, now: number = Date.now()): string {
   const d = new Date(ts);
   const sameYear = d.getFullYear() === new Date(now).getFullYear();
-  return (sameYear
-    ? formatterFor("short", { month: "short", day: "numeric" })
-    : formatterFor("shortYear", { month: "short", day: "numeric", year: "numeric" })).format(d);
+  return (
+    sameYear
+      ? formatterFor("short", { month: "short", day: "numeric" })
+      : formatterFor("shortYear", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+  ).format(d);
 }
 
 /** The long form a relative stamp's tooltip shows. */
 export function formatDateFull(ts: number): string {
   return formatterFor("full", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(ts);
 }
 
@@ -150,7 +206,9 @@ export function formatDateFull(ts: number): string {
  *  ("3h ago"), a calendar date once it is older than a week ("Aug 2",
  *  "Aug 2, 2025"). */
 export function formatDateSmart(ts: number, now: number = Date.now()): string {
-  return now - ts < RELATIVE_WINDOW_MS ? formatRelative(ts, now) : formatShortDate(ts, now);
+  return now - ts < RELATIVE_WINDOW_MS
+    ? formatRelative(ts, now)
+    : formatShortDate(ts, now);
 }
 
 export type DatedRow = { created_at: number; updated_at?: number | null };
@@ -185,13 +243,18 @@ export function describeDatesFull(row: DatedRow): string {
 // "24h", or anything Date.parse reads ("2026-09-01"). One reader for the CLI's
 // -s/-e flags and the after:/before: operators of a session query, so both
 // spellings of a window mean the same instant. null when it cannot be read.
-export function parseRelativeDate(input: string, now: number = Date.now()): number | null {
+export function parseRelativeDate(
+  input: string,
+  now: number = Date.now(),
+): number | null {
   const lowered = input.toLowerCase().trim();
 
   if (lowered === "today") return new Date(now).setHours(0, 0, 0, 0);
   if (lowered === "yesterday") return now - DAY;
 
-  const relMatch = lowered.match(/^(\d+)\s*(d|day|days|h|hour|hours|w|week|weeks)(\s*ago)?$/);
+  const relMatch = lowered.match(
+    /^(\d+)\s*(d|day|days|h|hour|hours|w|week|weeks)(\s*ago)?$/,
+  );
   if (relMatch) {
     const num = parseInt(relMatch[1]);
     const unit = relMatch[2][0];
@@ -205,7 +268,10 @@ export function parseRelativeDate(input: string, now: number = Date.now()): numb
 // End bounds read a date-only input as the END of that day, so a start and end
 // of 2026-06-05 mean the whole day instead of an empty window (a bare date
 // otherwise parses to the midnight that starts it).
-export function parseEndDate(input: string, now: number = Date.now()): number | null {
+export function parseEndDate(
+  input: string,
+  now: number = Date.now(),
+): number | null {
   const parsed = parseRelativeDate(input, now);
   if (parsed === null) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) return parsed + DAY - 1;
@@ -218,7 +284,8 @@ export function parseEndDate(input: string, now: number = Date.now()): number | 
 // time a person or a manifest writes: `cast trigger --in/--every`, `cast stack
 // --policy`, `cast connector grant --until`, an app connector watch's `every`.
 // Throws with a message that names the input.
-const DURATION_PART = /(\d+(?:\.\d+)?)\s*(ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|wks?|w)(?![a-z])\s*/giy;
+const DURATION_PART =
+  /(\d+(?:\.\d+)?)\s*(ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|wks?|w)(?![a-z])\s*/giy;
 
 export function parseDuration(raw: string): number {
   const text = raw.trim();
@@ -227,11 +294,23 @@ export function parseDuration(raw: string): number {
   DURATION_PART.lastIndex = 0;
   for (let m = DURATION_PART.exec(text); m; m = DURATION_PART.exec(text)) {
     const unit = m[2].toLowerCase();
-    const ms = unit === "ms" ? 1 : unit[0] === "s" ? 1000 : unit[0] === "m" ? MINUTE : unit[0] === "h" ? HOUR : unit[0] === "w" ? 7 * DAY : DAY;
+    const ms =
+      unit === "ms"
+        ? 1
+        : unit[0] === "s"
+          ? 1000
+          : unit[0] === "m"
+            ? MINUTE
+            : unit[0] === "h"
+              ? HOUR
+              : unit[0] === "w"
+                ? 7 * DAY
+                : DAY;
     total += parseFloat(m[1]) * ms;
     at = DURATION_PART.lastIndex;
   }
-  if (!text || at !== text.length) throw new Error(`"${raw}" is not a duration (use 30m, 2h30m, 1d, 1w)`);
+  if (!text || at !== text.length)
+    throw new Error(`"${raw}" is not a duration (use 30m, 2h30m, 1d, 1w)`);
   const out = Math.round(total);
   if (out <= 0) throw new Error("A duration must be positive");
   return out;
@@ -244,9 +323,14 @@ export function parseDuration(raw: string): number {
 // or offset is read in `timeZone`, else this runtime's zone. Null when the
 // text is neither, or names a zone the runtime does not know.
 const CLOCK_TIME = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i;
-const ISO_MOMENT = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/i;
+const ISO_MOMENT =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/i;
 
-export function parseClockTime(raw: string, now: number = Date.now(), timeZone?: string): number | null {
+export function parseClockTime(
+  raw: string,
+  now: number = Date.now(),
+  timeZone?: string,
+): number | null {
   let text = raw.trim();
   let zone = timeZone;
   const lastSpace = text.lastIndexOf(" ");
@@ -270,7 +354,10 @@ export function parseClockTime(raw: string, now: number = Date.now(), timeZone?:
     if (hour > 23 || minute > 59) return null;
     const today = wallClock(now, zone);
     for (let day = 0; day < 3; day++) {
-      const at = wallTimeIn(Date.UTC(today.year, today.month - 1, today.day + day, hour, minute), zone);
+      const at = wallTimeIn(
+        Date.UTC(today.year, today.month - 1, today.day + day, hour, minute),
+        zone,
+      );
       if (at > now) return at;
     }
     return null;
@@ -280,7 +367,13 @@ export function parseClockTime(raw: string, now: number = Date.now(), timeZone?:
   const [y, mo, d, h, mi, sec] = iso.slice(1, 7).map((x) => Number(x ?? 0));
   const wall = Date.UTC(y, mo - 1, d, h, mi, sec);
   const back = new Date(wall);
-  if (back.getUTCDate() !== d || back.getUTCMonth() !== mo - 1 || back.getUTCHours() !== h || back.getUTCMinutes() !== mi) return null;
+  if (
+    back.getUTCDate() !== d ||
+    back.getUTCMonth() !== mo - 1 ||
+    back.getUTCHours() !== h ||
+    back.getUTCMinutes() !== mi
+  )
+    return null;
   const offset = iso[7];
   if (!offset) return wallTimeIn(wall, zone);
   if (offset.toUpperCase() === "Z") return wall;

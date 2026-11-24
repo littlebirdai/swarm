@@ -6,5 +6,8 @@ import { useSettingsData } from "./useSyncSettings";
 export function useSessionMachines() {
   const { devices } = useDevices();
   const { data: boxes } = useSettingsData("agentBoxes");
-  return useMemo(() => sessionMachineChoices(devices, boxes ?? []), [devices, boxes]);
+  return useMemo(
+    () => sessionMachineChoices(devices, boxes ?? []),
+    [devices, boxes],
+  );
 }

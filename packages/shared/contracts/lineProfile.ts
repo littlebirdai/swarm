@@ -33,7 +33,12 @@ export interface LineFinder {
 }
 
 /** The sections a source list is grouped into: what people say, what people do, how the product runs, and the line's own machinery. */
-export const LINE_FINDER_GROUPS = ["conversations", "people", "product", "pipeline"] as const;
+export const LINE_FINDER_GROUPS = [
+  "conversations",
+  "people",
+  "product",
+  "pipeline",
+] as const;
 export type LineFinderGroup = (typeof LINE_FINDER_GROUPS)[number];
 
 export interface LineProfile {
@@ -43,7 +48,12 @@ export interface LineProfile {
   prompting: string;
   size_budget: number;
   watch_days: number;
-  commands: { check: string; prove: string | null; eval: string | null; ship: string | null };
+  commands: {
+    check: string;
+    prove: string | null;
+    eval: string | null;
+    ship: string | null;
+  };
   caps: {
     cards: number;
     /**
@@ -76,7 +86,10 @@ export interface LineProfile {
  * the expectation it breaks or its filer says otherwise (the-line-model.md
  * LM1); without it the row is only the profile's default.
  */
-export type LineFinderDecl = Omit<LineFinder, "project" | "kind"> & { kind: "any" | string[]; single_purpose?: boolean };
+export type LineFinderDecl = Omit<LineFinder, "project" | "kind"> & {
+  kind: "any" | string[];
+  single_purpose?: boolean;
+};
 
 /**
  * The resolved profile apart from its finders (which are published per
@@ -107,24 +120,28 @@ export type PublishedLineProfile = {
   root?: string;
   default?: boolean;
   changed_at: number;
-} & Partial<LineProfileFacts & {
-  /** The device whose daemon published it: where an edit of the file is routed. */
-  device_id: string;
-  /** Who published it from that device: the only viewer an edit is routed for. */
-  publisher_user_id: string;
-  published_at: number;
-}>;
+} & Partial<
+  LineProfileFacts & {
+    /** The device whose daemon published it: where an edit of the file is routed. */
+    device_id: string;
+    /** Who published it from that device: the only viewer an edit is routed for. */
+    publisher_user_id: string;
+    published_at: number;
+  }
+>;
 
 /** Where a repo's profile lives, from its root. */
 export const LINE_PROFILE_REL_PATH = ".codecast/line.toml";
 /** codecast's prompting standard, for a repo that names none (LP2). The repo is public. */
-export const CODECAST_PROMPTING = "https://github.com/codecast-sh/codecast/blob/main/docs/prompting.md";
+export const CODECAST_PROMPTING =
+  "https://github.com/codecast-sh/codecast/blob/main/docs/prompting.md";
 /**
  * The shared principles every project's line reads in addition to the
  * profile's own files (LP5). A link, because the review node runs in the
  * project's worktree, where codecast's docs/ is not on disk.
  */
-export const CODECAST_PRINCIPLES = "https://github.com/codecast-sh/codecast/blob/main/docs/principles.md";
+export const CODECAST_PRINCIPLES =
+  "https://github.com/codecast-sh/codecast/blob/main/docs/principles.md";
 
 /** What a repo without a profile gets, and what a key the file leaves out takes. */
 export const LINE_PROFILE_DEFAULTS: LineProfile = {
@@ -155,14 +172,16 @@ export const MERGE_METHODS = ["squash", "merge", "rebase"] as const;
 // ── Value rules: the loader, the daemon's editor and the settings page judge a value the same way ──
 
 /** A count the profile takes (size_budget, watch_days, caps): a whole number, 1 or more. */
-export const isLineCount = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v > 0;
+export const isLineCount = (v: unknown): v is number =>
+  typeof v === "number" && Number.isInteger(v) && v > 0;
 
 /**
  * Whether a string carries a control character the file cannot hold. Tabs go
  * in raw and newlines as escapes; Bun.TOML (the loader) reads `\t` as a form
  * feed and fails on `\u0001`, so the rest are refused.
  */
-export const hasLineControlChars = (s: string) => /[\u0000-\u0008\u000b-\u001f\u007f]/.test(s);
+export const hasLineControlChars = (s: string) =>
+  /[\u0000-\u0008\u000b-\u001f\u007f]/.test(s);
 
 /**
  * A finder's kind as a person writes it: "any", or the kinds it names, split
@@ -172,7 +191,10 @@ export const hasLineControlChars = (s: string) => /[\u0000-\u0008\u000b-\u001f\u
 export function splitFinderKind(raw: string): "any" | string[] {
   const t = raw.trim();
   if (t.toLowerCase() === "any") return "any";
-  return t.split(/\s+or\s+|[\s,]+/i).map((x) => x.trim()).filter(Boolean);
+  return t
+    .split(/\s+or\s+|[\s,]+/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 /** How each editable key's value is written: a line of text, a whole number, or a list of strings. */
@@ -195,26 +217,51 @@ export const LINE_VALUE_KINDS: Readonly<Record<string, LineValueKind>> = {
  * a list splits on commas and newlines, text is trimmed and holds no control
  * character. The settings page and `cast line set` both read values here.
  */
-export function parseLineValue(key: string, text: string): { value: LineValue } | { error: string } {
+export function parseLineValue(
+  key: string,
+  text: string,
+): { value: LineValue } | { error: string } {
   const kind = LINE_VALUE_KINDS[key];
-  if (!kind) return { error: `unknown key "${key}" (known: ${Object.keys(LINE_VALUE_KINDS).join(", ")})` };
+  if (!kind)
+    return {
+      error: `unknown key "${key}" (known: ${Object.keys(LINE_VALUE_KINDS).join(", ")})`,
+    };
   const trimmed = text.trim();
   if (kind === "int") {
     const n = /^\d+$/.test(trimmed) ? Number(trimmed) : NaN;
-    return isLineCount(n) ? { value: n } : { error: "A whole number, 1 or more" };
+    return isLineCount(n)
+      ? { value: n }
+      : { error: "A whole number, 1 or more" };
   }
-  if (kind === "list") return { value: trimmed.split(/[\n,]+/).map((x) => x.trim()).filter(Boolean) };
-  if (hasLineControlChars(trimmed)) return { error: "Control characters cannot go in the file" };
+  if (kind === "list")
+    return {
+      value: trimmed
+        .split(/[\n,]+/)
+        .map((x) => x.trim())
+        .filter(Boolean),
+    };
+  if (hasLineControlChars(trimmed))
+    return { error: "Control characters cannot go in the file" };
   return { value: trimmed };
 }
 
 /** What a default means for the line, one line each (a station that passes with a note). */
-export function lineProfileNotes(profile: Pick<LineProfile, "commands" | "project">): string[] {
+export function lineProfileNotes(
+  profile: Pick<LineProfile, "commands" | "project">,
+): string[] {
   const notes: string[] = [];
-  if (!profile.commands.prove) notes.push("no prove command: the prove station passes with a note");
-  if (!profile.commands.eval) notes.push("no eval command: the eval station passes with a note");
-  if (!profile.commands.ship) notes.push("no ship command: the ship station runs Ship, which opens a pull request and merges only under [line.merge] auto or the flow's owner's merge grant");
-  if (!profile.project) notes.push("no project: findings filed here go to the workspace, not a project, unless --project names one");
+  if (!profile.commands.prove)
+    notes.push("no prove command: the prove station passes with a note");
+  if (!profile.commands.eval)
+    notes.push("no eval command: the eval station passes with a note");
+  if (!profile.commands.ship)
+    notes.push(
+      "no ship command: the ship station runs Ship, which opens a pull request and merges only under [line.merge] auto or the flow's owner's merge grant",
+    );
+  if (!profile.project)
+    notes.push(
+      "no project: findings filed here go to the workspace, not a project, unless --project names one",
+    );
   return notes;
 }
 
@@ -264,18 +311,32 @@ export const REPO_LINE_SLUG = "line-repo";
  *  lines are two rows and an edit can never land in the other repo. `repo`
  *  is the checkout's origin remote (or its folder name when it has none). */
 export function repoLineSlug(repo: string): string {
-  const key = repo.trim().replace(/\.git$/, "").split(/[/:]/).filter(Boolean).slice(-2).join("-")
-    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const key = repo
+    .trim()
+    .replace(/\.git$/, "")
+    .split(/[/:]/)
+    .filter(Boolean)
+    .slice(-2)
+    .join("-")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return key ? `${REPO_LINE_SLUG}-${key}` : REPO_LINE_SLUG;
 }
 
 /** Whether a workflow slug names a repository's own line (any repo). */
-export const isRepoLineSlug = (slug: string): boolean => slug === REPO_LINE_SLUG || slug.startsWith(`${REPO_LINE_SLUG}-`);
+export const isRepoLineSlug = (slug: string): boolean =>
+  slug === REPO_LINE_SLUG || slug.startsWith(`${REPO_LINE_SLUG}-`);
 /** A file the repo's line may hold: a plain name in REPO_LINE_REL_DIR, never a path. */
-export const REPO_LINE_FILE_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*\.(cast|md|sh|txt)$/;
+export const REPO_LINE_FILE_RE =
+  /^[A-Za-z0-9][A-Za-z0-9_.-]*\.(cast|md|sh|txt)$/;
 
 /** A station's editable values. null, empty text or a timeout of 0 or less removes the value. */
-export type LineStationPatch = { prompt?: string | null; script?: string | null; timeout?: number | null };
+export type LineStationPatch = {
+  prompt?: string | null;
+  script?: string | null;
+  timeout?: number | null;
+};
 
 /**
  * set_station changes one station's prompt, script or timeout (seconds) in
@@ -286,11 +347,26 @@ export type LineStationEdit =
   | ({ op: "set_station"; station: string } & LineStationPatch)
   | { op: "reset_station"; station: string };
 
-export const isLineStationEdit = (e: LineProfileEdit): e is LineStationEdit => e.op === "set_station" || e.op === "reset_station";
+export const isLineStationEdit = (e: LineProfileEdit): e is LineStationEdit =>
+  e.op === "set_station" || e.op === "reset_station";
 
 /** A station as the published line carries it: the runner's push shape (prompt and script as text). */
-export type RepoLineNode = { id: string; label: string; shape: string; type: string; prompt?: string; script?: string; timeout?: number; [attr: string]: unknown };
-export type RepoLineEdge = { from: string; to: string; label?: string; condition?: string };
+export type RepoLineNode = {
+  id: string;
+  label: string;
+  shape: string;
+  type: string;
+  prompt?: string;
+  script?: string;
+  timeout?: number;
+  [attr: string]: unknown;
+};
+export type RepoLineEdge = {
+  from: string;
+  to: string;
+  label?: string;
+  condition?: string;
+};
 
 /**
  * projects.line_profile.line: the repo's line as the runner parses it. `files`
@@ -309,21 +385,46 @@ export type PublishedRepoLine = {
   files: Record<string, { prompt?: string; script?: string }>;
 };
 
-const FACT_KEYS = ["team", "project", "principles", "prompting", "size_budget", "watch_days", "commands", "caps", "merge", "deploy", "sources", "notes", "warnings", "line"] as const;
+const FACT_KEYS = [
+  "team",
+  "project",
+  "principles",
+  "prompting",
+  "size_budget",
+  "watch_days",
+  "commands",
+  "caps",
+  "merge",
+  "deploy",
+  "sources",
+  "notes",
+  "warnings",
+  "line",
+] as const;
 
 /** The content changed_at tracks: every fact but where it lives and who published it. */
-export function lineProfileContentKey(p: Omit<PublishedLineProfile, "changed_at"> | null | undefined): string {
+export function lineProfileContentKey(
+  p: Omit<PublishedLineProfile, "changed_at"> | null | undefined,
+): string {
   if (!p) return "";
-  const facts: Record<string, unknown> = { default: !!p.default, finders: p.finders };
+  const facts: Record<string, unknown> = {
+    default: !!p.default,
+    finders: p.finders,
+  };
   for (const k of FACT_KEYS) facts[k] = p[k];
   return canonicalJson(facts);
 }
 
 /** Whether a publish would write anything: content, or where the file lives and which device holds it. */
-export function lineProfileUnchanged(prev: PublishedLineProfile | null | undefined, next: Omit<PublishedLineProfile, "changed_at" | "published_at">): boolean {
-  return !!prev
-    && lineProfileContentKey(prev) === lineProfileContentKey(next)
-    && prev.root === next.root
-    && (prev.file ?? null) === (next.file ?? null)
-    && prev.device_id === next.device_id;
+export function lineProfileUnchanged(
+  prev: PublishedLineProfile | null | undefined,
+  next: Omit<PublishedLineProfile, "changed_at" | "published_at">,
+): boolean {
+  return (
+    !!prev &&
+    lineProfileContentKey(prev) === lineProfileContentKey(next) &&
+    prev.root === next.root &&
+    (prev.file ?? null) === (next.file ?? null) &&
+    prev.device_id === next.device_id
+  );
 }

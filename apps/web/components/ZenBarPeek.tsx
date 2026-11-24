@@ -20,11 +20,23 @@ import { guardZenCorner, zenCornerWidth } from "../lib/desktop";
 /** The strip along the window's top edge that brings the bar down, and the
  *  guard that keeps page content out from under the traffic lights. Mount it
  *  LAST in the shell (see the file comment). */
-export function ZenTopEdge({ onEnter, onLeave }: { onEnter: (e: MouseEvent) => void; onLeave: () => void }) {
+export function ZenTopEdge({
+  onEnter,
+  onLeave,
+}: {
+  onEnter: (e: MouseEvent) => void;
+  onLeave: () => void;
+}) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   // Whatever lands under the lights without having claimed the titlebar is
   // cleared (guardZenCorner); on the web there is no corner to keep.
-  useWatchEffect(() => (el && zenCornerWidth() > 0 ? guardZenCorner(zenCornerWidth(), el) : undefined), [el]);
+  useWatchEffect(
+    () =>
+      el && zenCornerWidth() > 0
+        ? guardZenCorner(zenCornerWidth(), el)
+        : undefined,
+    [el],
+  );
   return (
     <div
       ref={setEl}

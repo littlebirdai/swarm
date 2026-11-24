@@ -4,7 +4,11 @@
 // Migration and the resource monitor's offload runs.
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
-import { ROW_STATUS_LABEL, isRowActive, type MigrationRowStatus } from "../lib/migrationPlan";
+import {
+  ROW_STATUS_LABEL,
+  isRowActive,
+  type MigrationRowStatus,
+} from "../lib/migrationPlan";
 
 const STATUS_TONE: Record<MigrationRowStatus, string> = {
   queued: "bg-sol-bg-highlight/60 text-sol-text-muted",
@@ -18,9 +22,18 @@ const STATUS_TONE: Record<MigrationRowStatus, string> = {
   cancelled: "bg-sol-bg-highlight/60 text-sol-text-dim",
 };
 
-export function MigrationStatusPill({ status }: { status: MigrationRowStatus }) {
+export function MigrationStatusPill({
+  status,
+}: {
+  status: MigrationRowStatus;
+}) {
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded px-1.5 py-px text-meta font-medium whitespace-nowrap", STATUS_TONE[status])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-px text-meta font-medium whitespace-nowrap",
+        STATUS_TONE[status],
+      )}
+    >
       {isRowActive(status) && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
       {status === "done" && <Check className="h-2.5 w-2.5" />}
       {status === "failed" && <AlertTriangle className="h-2.5 w-2.5" />}

@@ -27,16 +27,32 @@
 // and callGuests all reach it without an import cycle.
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import { CALL_MEMBER_STALE_MS, GUEST_ADMISSION_LAPSE_MS, MAX_ROOM_GUESTS, guestDisplayName, guestIdentity } from "@codecast/shared/contracts";
+import {
+  CALL_MEMBER_STALE_MS,
+  GUEST_ADMISSION_LAPSE_MS,
+  MAX_ROOM_GUESTS,
+  guestDisplayName,
+  guestIdentity,
+} from "@codecast/shared/contracts";
 
 /** After an admission ends, the roster is checked now and then again at each
  *  of these delays: past a reconnect's backoff, and past the life of the last
  *  token the guest was handed. */
-export const GUEST_ROSTER_TAIL_MS = [5_000, 30_000, 2 * 60_000, 5 * 60_000, 10 * 60_000] as const;
+export const GUEST_ROSTER_TAIL_MS = [
+  5_000,
+  30_000,
+  2 * 60_000,
+  5 * 60_000,
+  10 * 60_000,
+] as const;
 
 /** Check the room's media roster now, then down the tail. `tail` is where in
  *  GUEST_ROSTER_TAIL_MS the check starts; the length means one look, no tail. */
-export async function checkGuestRoster(ctx: any, roomKey: string, opts: { once?: boolean } = {}): Promise<void> {
+export async function checkGuestRoster(
+  ctx: any,
+  roomKey: string,
+  opts: { once?: boolean } = {},
+): Promise<void> {
   await ctx.scheduler.runAfter(0, internal.callGuests.enforceGuestRoster, {
     room_key: roomKey,
     tail: opts.once ? GUEST_ROSTER_TAIL_MS.length : 0,
@@ -61,7 +77,8 @@ export async function roomGuestRows(
   now: number,
   opts: { all?: boolean } = {},
 ): Promise<Doc<"call_guests">[]> {
-  const since = status === "waiting" ? CALL_MEMBER_STALE_MS : GUEST_ADMISSION_LAPSE_MS;
+  const since =
+    status === "waiting" ? CALL_MEMBER_STALE_MS : GUEST_ADMISSION_LAPSE_MS;
   const rows: Doc<"call_guests">[] = await ctx.db
     .query("call_guests")
     .withIndex("by_room_status_seen", (q: any) => {
@@ -78,8 +95,15 @@ export async function roomGuestRows(
  *  The cap itself is what bounds this read. Every way into the call (the
  *  door's admit, a guest resuming after a blink) asks here, and says "full"
  *  in its own audience's words. */
-export async function roomGuestsFull(ctx: any, roomKey: string, now: number): Promise<boolean> {
-  return (await roomGuestRows(ctx, roomKey, "admitted", now, { all: true })).length >= MAX_ROOM_GUESTS;
+export async function roomGuestsFull(
+  ctx: any,
+  roomKey: string,
+  now: number,
+): Promise<boolean> {
+  return (
+    (await roomGuestRows(ctx, roomKey, "admitted", now, { all: true }))
+      .length >= MAX_ROOM_GUESTS
+  );
 }
 
 /** Write new states for some of a room's guests and, for those it puts out
@@ -96,15 +120,26 @@ export async function settleGuests(
   ctx: any,
   roomKey: string,
   rows: ReadonlyArray<Doc<"call_guests">>,
-  patch: Partial<Pick<Doc<"call_guests">, "status" | "left_reason" | "decided_by" | "decided_at">>,
+  patch: Partial<
+    Pick<
+      Doc<"call_guests">,
+      "status" | "left_reason" | "decided_by" | "decided_at"
+    >
+  >,
 ): Promise<void> {
   if (rows.length === 0) return;
   const now = Date.now();
   let out = false;
   for (const g of rows) {
     const status = patch.status ?? g.status;
-    const putOut = status !== "admitted" && status !== "waiting" && (g.status !== "waiting" || status === "removed");
-    await ctx.db.patch(g._id, { ...patch, ...(putOut ? { settled_at: now } : {}) });
+    const putOut =
+      status !== "admitted" &&
+      status !== "waiting" &&
+      (g.status !== "waiting" || status === "removed");
+    await ctx.db.patch(g._id, {
+      ...patch,
+      ...(putOut ? { settled_at: now } : {}),
+    });
     out ||= putOut;
   }
   if (out) await checkGuestRoster(ctx, roomKey);
@@ -120,7 +155,10 @@ export async function settleGuest(
 
 /** Does anybody hold a way into this room from outside? One index read; a
  *  room nobody ever made a guest link for has no guest to look for. */
-export async function roomHasGuestLinks(ctx: any, roomKey: string): Promise<boolean> {
+export async function roomHasGuestLinks(
+  ctx: any,
+  roomKey: string,
+): Promise<boolean> {
   return !!(await ctx.db
     .query("call_guest_links")
     .withIndex("by_room", (q: any) => q.eq("room_key", roomKey))
@@ -131,9 +169,17 @@ export async function roomHasGuestLinks(ctx: any, roomKey: string): Promise<bool
  *  ends ("huddle_ended") and the media room is cleared of guests. Guests still
  *  WAITING stay: somebody who opened a link ahead of the next meeting is
  *  exactly who that meeting should find at its door. */
-export async function endGuestAdmissions(ctx: any, roomKey: string): Promise<number> {
-  const admitted = await roomGuestRows(ctx, roomKey, "admitted", Date.now(), { all: true });
-  await settleGuests(ctx, roomKey, admitted, { status: "left", left_reason: "huddle_ended" });
+export async function endGuestAdmissions(
+  ctx: any,
+  roomKey: string,
+): Promise<number> {
+  const admitted = await roomGuestRows(ctx, roomKey, "admitted", Date.now(), {
+    all: true,
+  });
+  await settleGuests(ctx, roomKey, admitted, {
+    status: "left",
+    left_reason: "huddle_ended",
+  });
   return admitted.length;
 }
 
@@ -149,7 +195,9 @@ export async function noteGuestAttendance(
 ): Promise<void> {
   const seen = await ctx.db
     .query("call_guest_attendance")
-    .withIndex("by_guest_transcript", (q: any) => q.eq("guest_id", guest._id).eq("transcript_id", transcriptId))
+    .withIndex("by_guest_transcript", (q: any) =>
+      q.eq("guest_id", guest._id).eq("transcript_id", transcriptId),
+    )
     .first();
   if (seen) return;
   await ctx.db.insert("call_guest_attendance", {
@@ -186,7 +234,9 @@ export async function callGuestsOnRecord(
   const seen = new Set<string>();
   return rows
     .sort((a, b) => a.joined_at - b.joined_at)
-    .filter((r) => !seen.has(String(r.guest_id)) && !!seen.add(String(r.guest_id)))
+    .filter(
+      (r) => !seen.has(String(r.guest_id)) && !!seen.add(String(r.guest_id)),
+    )
     .map((r) => ({
       name: guestDisplayName(r.name),
       joined_at: r.joined_at,

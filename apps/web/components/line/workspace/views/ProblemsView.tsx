@@ -15,7 +15,12 @@ export function ProblemsView(props: LineViewProps) {
   const { model, workspace, selection, select, href, drawerOpen } = props;
   const list = useProblemList(model, workspace, selection);
 
-  if (!workspace.problems.length) return <div className="lw-empty" data-line-problems="empty"><b>No problems</b></div>;
+  if (!workspace.problems.length)
+    return (
+      <div className="lw-empty" data-line-problems="empty">
+        <b>No problems</b>
+      </div>
+    );
 
   return (
     <div className="lwp-host" data-line-problems={list.all.length}>
@@ -25,7 +30,14 @@ export function ProblemsView(props: LineViewProps) {
             <ProblemPage {...props} order={list.order} />
           </div>
         ) : (
-          <ProblemsHome list={list} workspace={workspace} selection={selection} select={select} href={href} drawerOpen={drawerOpen} />
+          <ProblemsHome
+            list={list}
+            workspace={workspace}
+            selection={selection}
+            select={select}
+            href={href}
+            drawerOpen={drawerOpen}
+          />
         )}
       </div>
     </div>

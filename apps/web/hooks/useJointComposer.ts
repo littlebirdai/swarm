@@ -8,7 +8,12 @@ import { useWatchEffect } from "./useWatchEffect";
 import type { PresenceRow } from "./useDocPresence";
 import { composeDocId } from "../lib/composerPresence";
 import { formatJointMessage } from "@codecast/shared/contracts/jointMessage";
-import { draftAfterClaim, jointCandidatesOf, setJointCandidates, type JointCandidate } from "../lib/jointSend";
+import {
+  draftAfterClaim,
+  jointCandidatesOf,
+  setJointCandidates,
+  type JointCandidate,
+} from "../lib/jointSend";
 
 /**
  * Both halves of "send together" for one composer in a session.
@@ -27,16 +32,28 @@ export function useJointComposer(opts: {
   me: string;
   draft: string;
   applyDraft: (rest: string) => void;
-}): { candidates: JointCandidate[]; claimSent: (sent: JointCandidate[]) => void } {
+}): {
+  candidates: JointCandidate[];
+  claimSent: (sent: JointCandidate[]) => void;
+} {
   const { conversationId, present, me, draft, applyDraft } = opts;
   const claim = useMutation(api.docSync.claimDrafts);
-  const myId = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
+  const myId = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
   const docId = composeDocId(conversationId);
 
   const candidates = jointCandidatesOf(present);
   const sig = candidates.map((c) => `${c.user_id}:${c.text}`).join("\u0001");
   const claimSent = (sent: JointCandidate[]) => {
-    claim({ doc_id: docId, claims: sent.map((c) => ({ user_id: c.user_id as Id<"users">, text: c.text, how: "joint" })) }).catch(() => {});
+    claim({
+      doc_id: docId,
+      claims: sent.map((c) => ({
+        user_id: c.user_id as Id<"users">,
+        text: c.text,
+        how: "joint",
+      })),
+    }).catch(() => {});
   };
   useWatchEffect(() => {
     setJointCandidates(conversationId, me, candidates, claimSent);
@@ -46,7 +63,9 @@ export function useJointComposer(opts: {
   const handledRef = useRef(new Set<string>());
   const draftRef = useRef(draft);
   draftRef.current = draft;
-  const claimSig = present.map((p) => (p.claims ?? []).map((c) => `${c.user_id}@${c.at}`).join(",")).join("|");
+  const claimSig = present
+    .map((p) => (p.claims ?? []).map((c) => `${c.user_id}@${c.at}`).join(","))
+    .join("|");
   useWatchEffect(() => {
     if (!myId) return;
     for (const row of present) {
@@ -57,7 +76,11 @@ export function useJointComposer(opts: {
         const rest = draftAfterClaim(draftRef.current, c.text);
         if (rest === null) continue;
         applyDraft(rest);
-        toast(claimNotice(row.user_name, c.how), { description: rest ? "What you typed after it is still here." : undefined });
+        toast(claimNotice(row.user_name, c.how), {
+          description: rest
+            ? "What you typed after it is still here."
+            : undefined,
+        });
       }
     }
   }, [claimSig, myId]);
@@ -72,7 +95,10 @@ export function useJointComposer(opts: {
  * behind the agent's turn like any send. Either way their composer clears
  * through the same claim a joint send writes.
  */
-export function useAcceptSuggestion(conversationId: string, populate: (text: string, opts?: { append?: boolean }) => void) {
+export function useAcceptSuggestion(
+  conversationId: string,
+  populate: (text: string, opts?: { append?: boolean }) => void,
+) {
   const claim = useMutation(api.docSync.claimDrafts);
   return (row: PresenceRow, into: "composer" | "session") => {
     const text = row.draft_text?.trim();
@@ -84,7 +110,10 @@ export function useAcceptSuggestion(conversationId: string, populate: (text: str
       const clientId = st.addOptimisticMessage(conversationId, content);
       st.sendMessageWhenReady(conversationId, content, undefined, clientId);
     }
-    claim({ doc_id: composeDocId(conversationId), claims: [{ user_id: row.user_id as Id<"users">, text, how: into }] }).catch(() => {});
+    claim({
+      doc_id: composeDocId(conversationId),
+      claims: [{ user_id: row.user_id as Id<"users">, text, how: into }],
+    }).catch(() => {});
   };
 }
 

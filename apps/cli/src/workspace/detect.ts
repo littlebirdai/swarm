@@ -33,9 +33,12 @@ export function detectJsPackageManager(
   repoRoot: string,
 ): { name: JsPackageManager; install: string } | null {
   const has = (rel: string) => fs.existsSync(path.join(repoRoot, rel));
-  if (has("bun.lock") || has("bun.lockb")) return { name: "bun", install: "bun install" };
-  if (has("pnpm-lock.yaml")) return { name: "pnpm", install: "pnpm install --frozen-lockfile" };
-  if (has("yarn.lock")) return { name: "yarn", install: "yarn install --immutable" };
+  if (has("bun.lock") || has("bun.lockb"))
+    return { name: "bun", install: "bun install" };
+  if (has("pnpm-lock.yaml"))
+    return { name: "pnpm", install: "pnpm install --frozen-lockfile" };
+  if (has("yarn.lock"))
+    return { name: "yarn", install: "yarn install --immutable" };
   if (has("package-lock.json")) return { name: "npm", install: "npm ci" };
   // No lockfile — fall back to plain `npm install`.
   if (has("package.json")) return { name: "npm", install: "npm install" };
@@ -156,7 +159,8 @@ export function detectProject(repoRoot: string): WorkspaceManifest {
   const wtSetupFile = path.join(repoRoot, ".wt-setup-files");
   if (fs.existsSync(wtSetupFile)) {
     // Existing convention from codecast: one pattern per line, # comments allowed.
-    const lines = fs.readFileSync(wtSetupFile, "utf-8")
+    const lines = fs
+      .readFileSync(wtSetupFile, "utf-8")
       .split("\n")
       .map((l) => l.trim())
       .filter((l) => l.length > 0 && !l.startsWith("#"));
@@ -183,7 +187,8 @@ export function detectProject(repoRoot: string): WorkspaceManifest {
   // (fifteen on one box, ~15 GB, Nov 21: ct-98941). A project that wants one
   // says so in its manifest.
   const webApp = detectWebApp(repoRoot);
-  const devService = webApp !== null && js ? detectDevService(repoRoot, webApp, js.name) : null;
+  const devService =
+    webApp !== null && js ? detectDevService(repoRoot, webApp, js.name) : null;
 
   return {
     setup: { copy, share, install, generate, migrate: [] },
@@ -204,28 +209,49 @@ export function detectProject(repoRoot: string): WorkspaceManifest {
  */
 function detectWebApp(repoRoot: string): string | null {
   const probes = [
-    "next.config.js", "next.config.ts", "next.config.mjs",
-    "vite.config.js", "vite.config.ts", "vite.config.mjs",
-    "remix.config.js", "remix.config.ts",
-    "astro.config.mjs", "astro.config.ts",
+    "next.config.js",
+    "next.config.ts",
+    "next.config.mjs",
+    "vite.config.js",
+    "vite.config.ts",
+    "vite.config.mjs",
+    "remix.config.js",
+    "remix.config.ts",
+    "astro.config.mjs",
+    "astro.config.ts",
     "svelte.config.js",
-    "nuxt.config.js", "nuxt.config.ts",
+    "nuxt.config.js",
+    "nuxt.config.ts",
     "angular.json",
     "vue.config.js",
   ];
-  const isApp = (dir: string) => probes.some((p) => fs.existsSync(path.join(repoRoot, dir, p)));
+  const isApp = (dir: string) =>
+    probes.some((p) => fs.existsSync(path.join(repoRoot, dir, p)));
   if (isApp("")) return "";
   // Workspaces: check sub-packages too (codecast itself has apps/web/vite.config.ts).
   for (const parent of ["packages", "apps"]) {
     const dir = path.join(repoRoot, parent);
     let subs: string[];
-    try { subs = fs.readdirSync(dir).sort(); } catch { continue; }
+    try {
+      subs = fs.readdirSync(dir).sort();
+    } catch {
+      continue;
+    }
     // A package named web/app/site/frontend is the likelier dev server when several qualify.
-    const ranked = [...subs.filter((s) => /^(web|app|site|frontend|www|client)$/.test(s)), ...subs];
+    const ranked = [
+      ...subs.filter((s) => /^(web|app|site|frontend|www|client)$/.test(s)),
+      ...subs,
+    ];
     for (const sub of ranked) {
       try {
-        if (fs.statSync(path.join(dir, sub)).isDirectory() && isApp(path.join(parent, sub))) return path.join(parent, sub);
-      } catch { /* ignore */ }
+        if (
+          fs.statSync(path.join(dir, sub)).isDirectory() &&
+          isApp(path.join(parent, sub))
+        )
+          return path.join(parent, sub);
+      } catch {
+        /* ignore */
+      }
     }
   }
   return null;
@@ -237,14 +263,29 @@ function detectWebApp(repoRoot: string): string | null {
  * knows accepts `--port`, and each package manager below forwards trailing
  * arguments to the script (npm needs the `--`).
  */
-function detectDevService(repoRoot: string, appDir: string, pm: JsPackageManager): ServiceSpec | null {
+function detectDevService(
+  repoRoot: string,
+  appDir: string,
+  pm: JsPackageManager,
+): ServiceSpec | null {
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, appDir, "package.json"), "utf-8")) as { scripts?: Record<string, string> };
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, appDir, "package.json"), "utf-8"),
+    ) as { scripts?: Record<string, string> };
     if (!pkg.scripts?.["dev"]) return null;
   } catch {
     return null;
   }
-  const run = pm === "npm" ? "npm run dev --" : pm === "yarn" ? "yarn dev" : `${pm} run dev`;
+  const run =
+    pm === "npm"
+      ? "npm run dev --"
+      : pm === "yarn"
+        ? "yarn dev"
+        : `${pm} run dev`;
   const cd = appDir ? `cd ${appDir} && ` : "";
-  return { mode: "isolated", start: `${cd}${run} --port "$PORT_WEB"`, port: "web" };
+  return {
+    mode: "isolated",
+    start: `${cd}${run} --port "$PORT_WEB"`,
+    port: "web",
+  };
 }

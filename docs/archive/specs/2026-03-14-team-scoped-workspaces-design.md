@@ -28,15 +28,15 @@ The existing `useEffect` in `TeamSwitcher` that auto-selects a team when none is
 
 ### Scoping Rules
 
-| Area | Scoped by workspace? | Behavior |
-|---|---|---|
-| Plans | Yes | Filtered by selected workspace's `team_id` |
-| Tasks | Yes | Filtered by selected workspace's `team_id` |
-| Docs | Yes | Filtered by selected workspace's `team_id` |
-| Projects | Yes | Filtered by selected workspace's `team_id` |
-| Decisions | Yes | Filtered by selected workspace's `team_id` |
-| Conversation archive | Yes | Filtered by selected workspace's `team_id` |
-| Inbox / activity feed | No | Always shows all active sessions globally |
+| Area                  | Scoped by workspace? | Behavior                                   |
+| --------------------- | -------------------- | ------------------------------------------ |
+| Plans                 | Yes                  | Filtered by selected workspace's `team_id` |
+| Tasks                 | Yes                  | Filtered by selected workspace's `team_id` |
+| Docs                  | Yes                  | Filtered by selected workspace's `team_id` |
+| Projects              | Yes                  | Filtered by selected workspace's `team_id` |
+| Decisions             | Yes                  | Filtered by selected workspace's `team_id` |
+| Conversation archive  | Yes                  | Filtered by selected workspace's `team_id` |
+| Inbox / activity feed | No                   | Always shows all active sessions globally  |
 
 **Personal workspace** = items where `team_id` is `null`/`undefined`.
 **Team workspace** = items where `team_id` matches the selected team.

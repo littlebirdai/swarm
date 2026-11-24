@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { sessionAccountLabel, sessionAccountLine } from "../sessionAccountLabel";
+import {
+  sessionAccountLabel,
+  sessionAccountLine,
+} from "../sessionAccountLabel";
 
 const claude = {
   activeEmail: "ada@x.com",
@@ -11,7 +14,11 @@ const claude = {
 
 describe("sessionAccountLabel", () => {
   test("a pinned Claude session shows that profile's email", () => {
-    const account = sessionAccountLabel({ agentType: "claude_code", ccAccount: "grace", claude });
+    const account = sessionAccountLabel({
+      agentType: "claude_code",
+      ccAccount: "grace",
+      claude,
+    });
     expect(account).toEqual({
       provider: "claude",
       label: "grace@y.com",
@@ -21,7 +28,11 @@ describe("sessionAccountLabel", () => {
   });
 
   test("a Claude session with no pin shows the machine's login", () => {
-    const account = sessionAccountLabel({ agentType: "claude_code", ccAccount: null, claude });
+    const account = sessionAccountLabel({
+      agentType: "claude_code",
+      ccAccount: null,
+      claude,
+    });
     expect(account?.label).toBe("ada@x.com");
     expect(account?.title).toContain("machine's Claude login");
   });
@@ -35,14 +46,20 @@ describe("sessionAccountLabel", () => {
   });
 
   test("a pin the profile list has not loaded yet shows the pin name", () => {
-    expect(sessionAccountLabel({ agentType: "claude_code", ccAccount: "grace" })?.label).toBe("grace");
+    expect(
+      sessionAccountLabel({ agentType: "claude_code", ccAccount: "grace" })
+        ?.label,
+    ).toBe("grace");
   });
 
   test("a recorded Codex account is the process login", () => {
     const account = sessionAccountLabel({
       agentType: "codex",
       codexAccount: "work",
-      codex: { activeEmail: "other@z.com", profiles: [{ name: "work", email: "work@z.com" }] },
+      codex: {
+        activeEmail: "other@z.com",
+        profiles: [{ name: "work", email: "work@z.com" }],
+      },
     });
     expect(account).toMatchObject({ provider: "codex", label: "work@z.com" });
     expect(account?.title).toContain("Codex process is signed in as");
@@ -51,14 +68,23 @@ describe("sessionAccountLabel", () => {
   test("a Codex session that recorded nothing shows the machine login and says so", () => {
     const account = sessionAccountLabel({
       agentType: "codex_cli",
-      codex: { activeEmail: "other@z.com", profiles: [{ name: "other", email: "other@z.com" }] },
+      codex: {
+        activeEmail: "other@z.com",
+        profiles: [{ name: "other", email: "other@z.com" }],
+      },
     });
     expect(account?.label).toBe("other@z.com");
     expect(account?.title).toContain("did not record");
   });
 
   test("an API-billed cloud session and a session with no login name nothing", () => {
-    expect(sessionAccountLabel({ agentType: "codex", sessionId: "sess_abc", codexAccount: "work" })).toBeNull();
+    expect(
+      sessionAccountLabel({
+        agentType: "codex",
+        sessionId: "sess_abc",
+        codexAccount: "work",
+      }),
+    ).toBeNull();
     expect(sessionAccountLabel({ agentType: "claude_code" })).toBeNull();
     expect(sessionAccountLabel({ agentType: "grok" })).toBeNull();
   });

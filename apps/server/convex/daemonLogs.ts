@@ -35,7 +35,7 @@ export const insertBatch = mutation({
           v.literal("debug"),
           v.literal("info"),
           v.literal("warn"),
-          v.literal("error")
+          v.literal("error"),
         ),
         message: v.string(),
         metadata: v.optional(
@@ -46,12 +46,12 @@ export const insertBatch = mutation({
             command: v.optional(v.string()),
             args: v.optional(v.string()),
             error: v.optional(v.string()),
-          })
+          }),
         ),
         daemon_version: v.optional(v.string()),
         platform: v.optional(v.string()),
         timestamp: v.number(),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -90,8 +90,8 @@ export const list = query({
         v.literal("debug"),
         v.literal("info"),
         v.literal("warn"),
-        v.literal("error")
-      )
+        v.literal("error"),
+      ),
     ),
     since: v.optional(v.number()),
   },
@@ -137,7 +137,7 @@ export const clear = mutation({
     const logsToDelete = await ctx.db
       .query("daemon_logs")
       .withIndex("by_user_timestamp", (q) =>
-        q.eq("user_id", userId).lt("timestamp", before)
+        q.eq("user_id", userId).lt("timestamp", before),
       )
       .take(500);
 
@@ -157,8 +157,8 @@ export const adminList = query({
         v.literal("debug"),
         v.literal("info"),
         v.literal("warn"),
-        v.literal("error")
-      )
+        v.literal("error"),
+      ),
     ),
     userId: v.optional(v.id("users")),
     since: v.optional(v.number()),
@@ -200,7 +200,7 @@ export const adminList = query({
       userIds.map(async (id) => {
         const user = await ctx.db.get(id);
         return user ? { _id: id, email: user.email, name: user.name } : null;
-      })
+      }),
     );
 
     return {
@@ -248,9 +248,10 @@ export const adminGetUsers = query({
         const userLogs = logs.filter((l) => l.user_id === id);
         const errorCount = userLogs.filter((l) => l.level === "error").length;
         const warnCount = userLogs.filter((l) => l.level === "warn").length;
-        const lastLog = userLogs.length > 0
-          ? Math.max(...userLogs.map((l) => l.timestamp))
-          : 0;
+        const lastLog =
+          userLogs.length > 0
+            ? Math.max(...userLogs.map((l) => l.timestamp))
+            : 0;
         return {
           _id: id,
           email: user.email,
@@ -265,12 +266,16 @@ export const adminGetUsers = query({
           autostart_enabled: user.autostart_enabled,
           last_heartbeat: user.last_heartbeat,
         };
-      })
+      }),
     );
 
     return users
       .filter(Boolean)
-      .sort((a, b) => (b?.last_heartbeat ?? b?.lastLog ?? 0) - (a?.last_heartbeat ?? a?.lastLog ?? 0));
+      .sort(
+        (a, b) =>
+          (b?.last_heartbeat ?? b?.lastLog ?? 0) -
+          (a?.last_heartbeat ?? a?.lastLog ?? 0),
+      );
   },
 });
 
@@ -305,7 +310,10 @@ export const adminGetStats = query({
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    const logs = await ctx.db.query("daemon_logs").order("desc").take(STATS_SAMPLE);
+    const logs = await ctx.db
+      .query("daemon_logs")
+      .order("desc")
+      .take(STATS_SAMPLE);
 
     const logsLastHour = logs.filter((l) => l.timestamp >= oneHourAgo);
     const logsLastDay = logs.filter((l) => l.timestamp >= oneDayAgo);
@@ -323,11 +331,14 @@ export const adminGetStats = query({
 
     const topErrors = logs
       .filter((l) => l.level === "error")
-      .reduce((acc, log) => {
-        const key = errorShape(log.message);
-        acc[key] = (acc[key] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      .reduce(
+        (acc, log) => {
+          const key = errorShape(log.message);
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
     const topErrorsList = Object.entries(topErrors)
       .sort(([, a], [, b]) => b - a)
@@ -352,7 +363,8 @@ export const adminGetStats = query({
       },
       topErrors: topErrorsList,
       // A window that reaches past the oldest sampled row is a floor, not a count.
-      sampledSince: logs.length === STATS_SAMPLE ? logs[logs.length - 1].timestamp : null,
+      sampledSince:
+        logs.length === STATS_SAMPLE ? logs[logs.length - 1].timestamp : null,
     };
   },
 });
@@ -371,7 +383,9 @@ async function recentlyActiveDaemonUsers(
 ) {
   return await ctx.db
     .query("users")
-    .withIndex("by_last_heartbeat", (q) => q.gte("last_heartbeat", now - windowMs))
+    .withIndex("by_last_heartbeat", (q) =>
+      q.gte("last_heartbeat", now - windowMs),
+    )
     .collect();
 }
 
@@ -398,8 +412,9 @@ export const checkDaemonHealth = internalMutation({
         .take(3);
 
       const alreadyAlerted = lastLogs.some(
-        (l) => l.metadata?.error_code === "server_offline_detected"
-          && now - l.timestamp < silenceDuration
+        (l) =>
+          l.metadata?.error_code === "server_offline_detected" &&
+          now - l.timestamp < silenceDuration,
       );
       if (alreadyAlerted) continue;
 
@@ -465,7 +480,8 @@ export function shouldNotifyDeviceFreeze(input: {
   if (!state) return true;
   if (input.hourMs === state.last_hour_ms) return false;
   const sinceLast = input.now - state.last_notified_at;
-  if (input.hourMs > state.last_hour_ms) return sinceLast >= FREEZE_NOTIFY_COOLDOWN_MS;
+  if (input.hourMs > state.last_hour_ms)
+    return sinceLast >= FREEZE_NOTIFY_COOLDOWN_MS;
   return sinceLast >= FREEZE_RENOTIFY_MS;
 }
 
@@ -478,8 +494,13 @@ export const checkDeviceLoopFreeze = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const configured = Number(await getSystemConfig(ctx, "loop_freeze_alert_ms"));
-    const thresholdMs = Number.isFinite(configured) && configured > 0 ? configured : LOOP_FREEZE_ALERT_MS;
+    const configured = Number(
+      await getSystemConfig(ctx, "loop_freeze_alert_ms"),
+    );
+    const thresholdMs =
+      Number.isFinite(configured) && configured > 0
+        ? configured
+        : LOOP_FREEZE_ALERT_MS;
 
     // Only a machine that is beating right now can alert, so read the ten
     // minute window rather than the whole day. The user doc's last_heartbeat
@@ -512,19 +533,35 @@ export const checkDeviceLoopFreeze = internalMutation({
         // tick a clean slate and alert again five minutes later, forever.
         if ((hourMs ?? 0) < thresholdMs) {
           const stamp = device.freeze_notify_state;
-          if (stamp && now - stamp.last_notified_at >= FREEZE_NOTIFY_COOLDOWN_MS) {
+          if (
+            stamp &&
+            now - stamp.last_notified_at >= FREEZE_NOTIFY_COOLDOWN_MS
+          ) {
             await ctx.db.patch(device._id, { freeze_notify_state: undefined });
           }
           continue;
         }
 
-        if (!shouldNotifyDeviceFreeze({ hourMs, thresholdMs, online, state: device.freeze_notify_state, now })) {
+        if (
+          !shouldNotifyDeviceFreeze({
+            hourMs,
+            thresholdMs,
+            online,
+            state: device.freeze_notify_state,
+            now,
+          })
+        ) {
           continue;
         }
 
-        const machine = device.label || device.hostname || device.platform || "This machine";
-        const worst = device.loop_freeze_max_ms ? ` Worst single freeze ${secs(device.loop_freeze_max_ms)}.` : "";
-        const cause = device.loop_freeze_top ? ` Top cause: ${device.loop_freeze_top}.` : "";
+        const machine =
+          device.label || device.hostname || device.platform || "This machine";
+        const worst = device.loop_freeze_max_ms
+          ? ` Worst single freeze ${secs(device.loop_freeze_max_ms)}.`
+          : "";
+        const cause = device.loop_freeze_top
+          ? ` Top cause: ${device.loop_freeze_top}.`
+          : "";
         const message =
           `The daemon's event loop was frozen ${secs(hourMs!)} in the last hour.${worst}${cause}` +
           ` Deliveries and echoes on this machine are delayed, not lost.`;
@@ -589,7 +626,11 @@ const PRUNE_PER_TICK = 300;
 // retention slack, not a leak. Concurrent cron+drain ticks OCC-conflict on the
 // state row; the loser retries against the advanced cursor and continues
 // cleanly.
-async function advanceLogPrune(ctx: MutationCtx, batchArg?: number, seedCursor?: number) {
+async function advanceLogPrune(
+  ctx: MutationCtx,
+  batchArg?: number,
+  seedCursor?: number,
+) {
   const cutoff = Date.now() - RETENTION_MS;
   const batch = Math.min(batchArg ?? PRUNE_PER_TICK, 2000);
   let state = await ctx.db.query("log_prune_state").first();
@@ -664,11 +705,19 @@ export const drainLogBacklog = internalMutation({
     const result = await advanceLogPrune(ctx, batch, args.cursor);
 
     if (!result.caughtUp) {
-      await ctx.scheduler.runAfter(pauseMs, internal.daemonLogs.drainLogBacklog, {
-        batch,
+      await ctx.scheduler.runAfter(
         pauseMs,
-      });
+        internal.daemonLogs.drainLogBacklog,
+        {
+          batch,
+          pauseMs,
+        },
+      );
     }
-    return { deleted: result.deleted, caughtUp: result.caughtUp, cursor: result.cursor };
+    return {
+      deleted: result.deleted,
+      caughtUp: result.caughtUp,
+      cursor: result.cursor,
+    };
   },
 });

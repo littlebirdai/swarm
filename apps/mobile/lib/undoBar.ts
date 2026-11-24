@@ -1,7 +1,12 @@
-import { create } from 'zustand';
-import { onUndoReset, setUndoNotifier, undoEntry, withoutUndo } from '@platform/engine';
-import { sessionTitle, splitLabelNote } from '@codecast/web/store/undo/labels';
-import { useInboxStore } from '@codecast/web/store/inboxStore';
+import { create } from "zustand";
+import {
+  onUndoReset,
+  setUndoNotifier,
+  undoEntry,
+  withoutUndo,
+} from "@platform/engine";
+import { sessionTitle, splitLabelNote } from "@codecast/web/store/undo/labels";
+import { useInboxStore } from "@codecast/web/store/inboxStore";
 
 // The app's one undo bar (components/UndoBar, mounted at the root). It is the
 // mobile notifier for the shared undo engine: every gesture the engine records
@@ -24,18 +29,25 @@ export type UndoBarItem = {
   title: string;
   note?: string;
   durationMs: number;
-  tone: 'quiet' | 'kill';
+  tone: "quiet" | "kill";
   onUndo?: () => void;
 };
 
 type UndoBarState = { item: UndoBarItem | null; heldKillId: string | null };
 
-export const useUndoBar = create<UndoBarState>(() => ({ item: null, heldKillId: null }));
+export const useUndoBar = create<UndoBarState>(() => ({
+  item: null,
+  heldKillId: null,
+}));
 
 let shown = 0;
-let held: { id: string; key: number; timer: ReturnType<typeof setTimeout> } | null = null;
+let held: {
+  id: string;
+  key: number;
+  timer: ReturnType<typeof setTimeout>;
+} | null = null;
 
-function show(item: Omit<UndoBarItem, 'key'>): number {
+function show(item: Omit<UndoBarItem, "key">): number {
   // Whatever the bar was holding runs before something else takes its place.
   runHeldKill();
   shown += 1;
@@ -45,13 +57,14 @@ function show(item: Omit<UndoBarItem, 'key'>): number {
 
 /** A plain notice on the bar, with nothing to undo ("Copied", "Bookmarked"). */
 export function showNotice(title: string) {
-  show({ title, durationMs: NOTICE_MS, tone: 'quiet' });
+  show({ title, durationMs: NOTICE_MS, tone: "quiet" });
 }
 
 /** Take the bar down if it still shows `key` (the bar's own timer and swipe). */
 export function dismissUndoBar(key: number) {
   if (held?.key === key) runHeldKill();
-  if (useUndoBar.getState().item?.key === key) useUndoBar.setState({ item: null });
+  if (useUndoBar.getState().item?.key === key)
+    useUndoBar.setState({ item: null });
 }
 
 function endHold(): string | null {
@@ -59,7 +72,10 @@ function endHold(): string | null {
   const { id, key, timer } = held;
   held = null;
   clearTimeout(timer);
-  useUndoBar.setState((s) => ({ heldKillId: null, item: s.item?.key === key ? null : s.item }));
+  useUndoBar.setState((s) => ({
+    heldKillId: null,
+    item: s.item?.key === key ? null : s.item,
+  }));
   return id;
 }
 
@@ -75,7 +91,14 @@ export function runHeldKill() {
 /** Kill `id` once the bar drains, unless Undo is pressed first. */
 export function holdKill(id: string) {
   const title = `Killing ${sessionTitle(useInboxStore.getState(), id)}`;
-  const key = show({ title, durationMs: UNDO_BAR_MS, tone: 'kill', onUndo: () => { endHold(); } });
+  const key = show({
+    title,
+    durationMs: UNDO_BAR_MS,
+    tone: "kill",
+    onUndo: () => {
+      endHold();
+    },
+  });
   held = { id, key, timer: setTimeout(runHeldKill, UNDO_BAR_MS) };
   useUndoBar.setState({ heldKillId: id });
 }
@@ -84,7 +107,15 @@ setUndoNotifier({
   notify: showNotice,
   notifyWithUndo: (label, entryId) => {
     const [title, note] = splitLabelNote(label);
-    show({ title, note, durationMs: UNDO_BAR_MS, tone: 'quiet', onUndo: () => { undoEntry(entryId); } });
+    show({
+      title,
+      note,
+      durationMs: UNDO_BAR_MS,
+      tone: "quiet",
+      onUndo: () => {
+        undoEntry(entryId);
+      },
+    });
   },
 });
 

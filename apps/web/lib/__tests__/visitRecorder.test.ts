@@ -7,14 +7,27 @@ import { startVisitRecorder } from "../visitRecorder";
 
 const SID = "k7abcdefghijklmnopqrstuvwxyz0123";
 const keys = () => useInboxStore.getState().recentVisits.map((v) => v.key);
-const tab = (id: string, path: string, extra: object = {}) => ({ id, title: "", path, createdAt: 1, ...extra });
-const setTabs = (tabs: any[], activeTabId: string) => useInboxStore.setState({ tabs, activeTabId } as any);
+const tab = (id: string, path: string, extra: object = {}) => ({
+  id,
+  title: "",
+  path,
+  createdAt: 1,
+  ...extra,
+});
+const setTabs = (tabs: any[], activeTabId: string) =>
+  useInboxStore.setState({ tabs, activeTabId } as any);
 
 describe("visit recorder", () => {
   let stop: () => void;
 
   beforeEach(() => {
-    useInboxStore.setState({ recentVisits: [], tabs: [tab("t1", "/tasks")], activeTabId: "t1", sessions: {}, conversations: {} } as any);
+    useInboxStore.setState({
+      recentVisits: [],
+      tabs: [tab("t1", "/tasks")],
+      activeTabId: "t1",
+      sessions: {},
+      conversations: {},
+    } as any);
     stop = startVisitRecorder();
   });
   afterEach(() => stop());
@@ -23,7 +36,12 @@ describe("visit recorder", () => {
     setTabs([tab("t1", "/plans/pl-1")], "t1");
     setTabs([tab("t1", `/inbox?s=${SID}`)], "t1");
     setTabs([tab("t1", "/inbox")], "t1");
-    expect(keys()).toEqual(["page:/inbox", SID, "page:/plans/pl-1", "page:/tasks"]);
+    expect(keys()).toEqual([
+      "page:/inbox",
+      SID,
+      "page:/plans/pl-1",
+      "page:/tasks",
+    ]);
   });
 
   it("records a switch to another tab", () => {
@@ -35,7 +53,9 @@ describe("visit recorder", () => {
 
   it("records a pane opened beside, focused or not, and a session pane as the session", () => {
     const layout = {
-      type: "split", id: "root", dir: "row",
+      type: "split",
+      id: "root",
+      dir: "row",
       children: [
         { type: "leaf", id: "a", path: "/tasks" },
         { type: "leaf", id: "b", path: `/conversation/${SID}` },

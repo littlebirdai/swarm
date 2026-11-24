@@ -5,7 +5,9 @@ import type { ArtifactElement } from "@codecast/shared/artifacts";
 
 export type LiveThread = { root: ArtifactElement; replies: ArtifactElement[] };
 
-export function groupThreads(comments: readonly ArtifactElement[]): LiveThread[] {
+export function groupThreads(
+  comments: readonly ArtifactElement[],
+): LiveThread[] {
   const replies = new Map<string, ArtifactElement[]>();
   for (const c of comments) {
     if (typeof c.parent !== "string") continue;

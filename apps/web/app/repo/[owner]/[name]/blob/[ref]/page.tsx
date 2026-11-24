@@ -38,8 +38,23 @@ export default function RepoBlobPage() {
           tab="code"
           refName={refName}
           family={family}
-          middle={<RepoRefPicker repository={repository} refName={refName} path={path} family={family} blob />}
-          below={<Breadcrumb repository={repository} refName={refName} path={path} family={family} />}
+          middle={
+            <RepoRefPicker
+              repository={repository}
+              refName={refName}
+              path={path}
+              family={family}
+              blob
+            />
+          }
+          below={
+            <Breadcrumb
+              repository={repository}
+              refName={refName}
+              path={path}
+              family={family}
+            />
+          }
         />
         {path ? (
           <BlobContent repository={repository} refName={refName} path={path} />

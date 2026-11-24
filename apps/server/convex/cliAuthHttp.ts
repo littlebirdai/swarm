@@ -8,10 +8,19 @@ import { clientIp, ipRateLimited } from "./lib/httpRateLimit";
 // page (cliAuth.requestInfo). Called by the CLI only, so no CORS. Routed at
 // POST /cli/auth-request (http.ts).
 export const cliAuthRequest = httpAction(async (ctx, request) => {
-  const limited = await ipRateLimited(ctx, request, "cli_auth_request", 30, 10 * 60 * 1000);
+  const limited = await ipRateLimited(
+    ctx,
+    request,
+    "cli_auth_request",
+    30,
+    10 * 60 * 1000,
+  );
   if (limited) return limited;
   const json = (status: number, body: unknown) =>
-    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   let body: any;
   try {
     body = await request.json();
@@ -21,7 +30,8 @@ export const cliAuthRequest = httpAction(async (ctx, request) => {
   const str = (x: unknown) => (typeof x === "string" ? x : undefined);
   const nonce = str(body?.nonce);
   const verifierHash = str(body?.verifier_hash);
-  if (!nonce || !verifierHash) return json(400, { error: "Missing nonce or verifier_hash" });
+  if (!nonce || !verifierHash)
+    return json(400, { error: "Missing nonce or verifier_hash" });
   const country = request.headers.get("cf-ipcountry") ?? undefined;
   const userAgent = request.headers.get("user-agent") ?? undefined;
   const deviceId = str(body.device_id);
@@ -34,5 +44,7 @@ export const cliAuthRequest = httpAction(async (ctx, request) => {
     ...(country ? { country } : {}),
     ...(userAgent ? { user_agent: userAgent } : {}),
   });
-  return ok ? json(200, { ok: true }) : json(400, { error: "Invalid or duplicate request" });
+  return ok
+    ? json(200, { ok: true })
+    : json(400, { error: "Invalid or duplicate request" });
 });

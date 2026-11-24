@@ -3,9 +3,13 @@
 // the phone has no browser flag, so the socket is the whole verdict, held for
 // the web's grace (DISCONNECT_GRACE_MS) so the reconnect after every network
 // change does not flash a warning.
-import { useEffect, useState } from 'react';
-import { DISCONNECT_GRACE_MS, connectionChipCopy, type ConnectionChipCopy } from '@codecast/web/hooks/useAppOffline';
-import { useWsConnected } from '@codecast/web/hooks/useWsConnected';
+import { useEffect, useState } from "react";
+import {
+  DISCONNECT_GRACE_MS,
+  connectionChipCopy,
+  type ConnectionChipCopy,
+} from "@codecast/web/hooks/useAppOffline";
+import { useWsConnected } from "@codecast/web/hooks/useWsConnected";
 
 /** The link's copy while it has been down past the grace, else null. */
 export function useLinkDown(): ConnectionChipCopy | null {

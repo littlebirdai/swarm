@@ -100,7 +100,12 @@ export type SessionCardViewProps = {
   viewerId: string | null;
   /** The session's author, shown only when it is not the viewer. `face` is a
    *  role's avatar key: a role's standing session is shown as its role. */
-  author: { name: string; avatar?: string | null; face?: AvatarKey; role?: SessionRoleSnapshot } | null;
+  author: {
+    name: string;
+    avatar?: string | null;
+    face?: AvatarKey;
+    role?: SessionRoleSnapshot;
+  } | null;
   /** Who the row is (lib/sessionIdentity) with its role read live; defaults
    *  to the session row itself. */
   identity?: IdentityRow;
@@ -128,7 +133,11 @@ export type SessionCardViewProps = {
   /** The implementation session's link. */
   onNavigateToSession?: (id: string) => void;
   /** Right-click: the panel owns ONE cursor-anchored menu for all cards. */
-  onCardContextMenu?: (e: React.MouseEvent, session: InboxSession, isForeign: boolean) => void;
+  onCardContextMenu?: (
+    e: React.MouseEvent,
+    session: InboxSession,
+    isForeign: boolean,
+  ) => void;
   /** Clicking the face: the panel owns ONE picker for all cards, the same way. */
   onPickCharacter?: (session: InboxSession, e: React.MouseEvent) => void;
   onToggleFavorite?: (id: string) => void;
@@ -150,4 +159,5 @@ export type SessionCardViewProps = {
  *  paints the open card from `[data-mc][data-active]` (modernSessionCard.css),
  *  and simple view keys its wash off the ring class. Any row the rail lists
  *  as a card (a session, the decision queue's groups) uses this when open. */
-export const ACTIVE_CARD_CLASS = "bg-sol-cyan/[0.12] border-l-[3px] border-l-sol-cyan ring-1 ring-inset ring-sol-cyan/45 shadow-[0_1px_10px_-2px_rgba(42,161,152,0.35)]";
+export const ACTIVE_CARD_CLASS =
+  "bg-sol-cyan/[0.12] border-l-[3px] border-l-sol-cyan ring-1 ring-inset ring-sol-cyan/45 shadow-[0_1px_10px_-2px_rgba(42,161,152,0.35)]";

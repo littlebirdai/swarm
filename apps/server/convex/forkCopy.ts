@@ -89,7 +89,10 @@ export function estimateMsgBytes(m: {
   );
 }
 
-async function emitForkDaemonCommand(ctx: ForkCopyCtx, fork: ForkConvRow): Promise<void> {
+async function emitForkDaemonCommand(
+  ctx: ForkCopyCtx,
+  fork: ForkConvRow,
+): Promise<void> {
   if (!fork.fork_daemon_args) return;
   let parsed: Record<string, unknown>;
   try {
@@ -99,14 +102,21 @@ async function emitForkDaemonCommand(ctx: ForkCopyCtx, fork: ForkConvRow): Promi
   }
   // Routing hint stashed in the args by forkFromMessage (this emit runs in the
   // copy-chain ctx, which can't query devices) — lift it onto the command row.
-  const targetDeviceId = typeof parsed._target_device_id === "string" ? parsed._target_device_id : undefined;
+  const targetDeviceId =
+    typeof parsed._target_device_id === "string"
+      ? parsed._target_device_id
+      : undefined;
   delete parsed._target_device_id;
   const now = Date.now();
   if (parsed.switch_agent === true) {
     await ctx.db.insertDaemonCommand({
       user_id: fork.user_id,
       command: "kill_session",
-      args: JSON.stringify({ conversation_id: fork._id, session_id: parsed.session_id, cause: "switch_agent" }),
+      args: JSON.stringify({
+        conversation_id: fork._id,
+        session_id: parsed.session_id,
+        cause: "switch_agent",
+      }),
       created_at: now,
       target_device_id: targetDeviceId,
     });
@@ -197,7 +207,8 @@ export async function advanceForkCopy(
     message_count: (fork.message_count ?? 0) + copied,
   });
 
-  const moreExpected = copied < batch.length || batch.length === FORK_BATCH_DOCS;
+  const moreExpected =
+    copied < batch.length || batch.length === FORK_BATCH_DOCS;
   if (moreExpected) {
     await ctx.scheduleContinue(forkId);
     return { done: false, copied };

@@ -13,10 +13,21 @@ const api = _api as any;
  * it is answered, the reason once every checkout (and GitHub after them)
  * could not answer it. `args === null` watches nothing.
  */
-export function useLocalReadStatus(args: Record<string, unknown> | null): { error: Error | undefined } {
-  const status = useQueryNoThrow(api.repos.readRequestStatus, (args ?? "skip") as never);
-  const failed = status.data?.status === "failed" ? status.data.error ?? "No checkout could answer this read" : undefined;
-  return useMemo(() => ({ error: failed ? new Error(failed) : undefined }), [failed]);
+export function useLocalReadStatus(args: Record<string, unknown> | null): {
+  error: Error | undefined;
+} {
+  const status = useQueryNoThrow(
+    api.repos.readRequestStatus,
+    (args ?? "skip") as never,
+  );
+  const failed =
+    status.data?.status === "failed"
+      ? (status.data.error ?? "No checkout could answer this read")
+      : undefined;
+  return useMemo(
+    () => ({ error: failed ? new Error(failed) : undefined }),
+    [failed],
+  );
 }
 
 /**
@@ -33,7 +44,12 @@ export function useEnsureCommitFiles(
   enabled: boolean,
 ): { pending: boolean; reason: string | undefined; error: Error | undefined } {
   const ensure = useAction(api.repos.ensureCommitFiles);
-  const [state, setState] = useState<{ key: string; pending: boolean; reason?: string; error?: Error }>({
+  const [state, setState] = useState<{
+    key: string;
+    pending: boolean;
+    reason?: string;
+    error?: Error;
+  }>({
     key: "",
     pending: false,
   });
@@ -45,11 +61,16 @@ export function useEnsureCommitFiles(
     setState({ key, pending: true });
     void ensure({ repository, sha })
       .then((result: any) => {
-        if (!cancelled) setState({ key, pending: false, reason: result?.reason });
+        if (!cancelled)
+          setState({ key, pending: false, reason: result?.reason });
       })
       .catch((e: unknown) => {
         if (!cancelled) {
-          setState({ key, pending: false, error: e instanceof Error ? e : new Error(String(e)) });
+          setState({
+            key,
+            pending: false,
+            error: e instanceof Error ? e : new Error(String(e)),
+          });
         }
       });
     return () => {
@@ -57,7 +78,18 @@ export function useEnsureCommitFiles(
     };
   }, [key, ensure]);
 
-  const current = state.key === key ? state : { pending: !!key, reason: undefined, error: undefined };
-  const requested = useLocalReadStatus(current.reason === "requested" ? { repository, kind: "commit", ref: sha } : null);
-  return { pending: current.pending, reason: requested.error ? undefined : current.reason, error: current.error ?? requested.error };
+  const current =
+    state.key === key
+      ? state
+      : { pending: !!key, reason: undefined, error: undefined };
+  const requested = useLocalReadStatus(
+    current.reason === "requested"
+      ? { repository, kind: "commit", ref: sha }
+      : null,
+  );
+  return {
+    pending: current.pending,
+    reason: requested.error ? undefined : current.reason,
+    error: current.error ?? requested.error,
+  };
 }

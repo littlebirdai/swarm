@@ -10,9 +10,14 @@ import { join } from "node:path";
 const here = import.meta.dir;
 const mobile = join(here, "../..");
 const appCopy = readFileSync(join(here, "ios/PushPrefetchStore.swift"), "utf8");
-const extensionCopy = readFileSync(join(mobile, "targets/notification-service/PushPrefetchStore.swift"), "utf8");
+const extensionCopy = readFileSync(
+  join(mobile, "targets/notification-service/PushPrefetchStore.swift"),
+  "utf8",
+);
 const app = JSON.parse(readFileSync(join(mobile, "app.json"), "utf8")).expo.ios;
-const target = require(join(mobile, "targets/notification-service/expo-target.config.js"));
+const target = require(
+  join(mobile, "targets/notification-service/expo-target.config.js"),
+);
 
 describe("PushPrefetchStore", () => {
   test("the extension's copy is byte-identical to the app module's", () => {
@@ -21,8 +26,12 @@ describe("PushPrefetchStore", () => {
 
   test("the app group is one both sides are entitled to", () => {
     const group = /appGroup = "([^"]+)"/.exec(appCopy)?.[1];
-    expect(app.entitlements["com.apple.security.application-groups"]).toContain(group);
-    expect(target.entitlements["com.apple.security.application-groups"]).toContain(group);
+    expect(app.entitlements["com.apple.security.application-groups"]).toContain(
+      group,
+    );
+    expect(
+      target.entitlements["com.apple.security.application-groups"],
+    ).toContain(group);
   });
 
   test("the keychain group is one both sides are entitled to", () => {
@@ -35,6 +44,8 @@ describe("PushPrefetchStore", () => {
   });
 
   test("the app keeps its own keychain group first, so existing items keep their default group", () => {
-    expect(app.entitlements["keychain-access-groups"][0]).toBe(`$(AppIdentifierPrefix)${app.bundleIdentifier}`);
+    expect(app.entitlements["keychain-access-groups"][0]).toBe(
+      `$(AppIdentifierPrefix)${app.bundleIdentifier}`,
+    );
   });
 });

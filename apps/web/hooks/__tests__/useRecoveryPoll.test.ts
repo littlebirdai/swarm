@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  shouldRecover,
-  createRecoveryController,
-} from "../useRecoveryPoll";
+import { shouldRecover, createRecoveryController } from "../useRecoveryPoll";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -182,18 +179,34 @@ describe("createRecoveryController", () => {
       },
     });
 
-    nowMs = 100; await c.tick(); expect(calls).toBe(1);   // base cadence
-    nowMs = 200; await c.tick(); expect(calls).toBe(2);   // first miss only known now
-    nowMs = 300; await c.tick(); expect(calls).toBe(2);   // one miss → needs 200ms
-    nowMs = 400; await c.tick(); expect(calls).toBe(3);
-    nowMs = 700; await c.tick(); expect(calls).toBe(3);   // two misses → 400ms
-    nowMs = 800; await c.tick(); expect(calls).toBe(4);
-    nowMs = 1200; await c.tick(); expect(calls).toBe(5);  // capped at maxStaleMs
+    nowMs = 100;
+    await c.tick();
+    expect(calls).toBe(1); // base cadence
+    nowMs = 200;
+    await c.tick();
+    expect(calls).toBe(2); // first miss only known now
+    nowMs = 300;
+    await c.tick();
+    expect(calls).toBe(2); // one miss → needs 200ms
+    nowMs = 400;
+    await c.tick();
+    expect(calls).toBe(3);
+    nowMs = 700;
+    await c.tick();
+    expect(calls).toBe(3); // two misses → 400ms
+    nowMs = 800;
+    await c.tick();
+    expect(calls).toBe(4);
+    nowMs = 1200;
+    await c.tick();
+    expect(calls).toBe(5); // capped at maxStaleMs
     expect(c.requiredStaleMs()).toBe(400);
 
     // A live push moves the watermark without a probe → back to base cadence.
     lastSync = 1250;
-    nowMs = 1360; await c.tick(); expect(calls).toBe(6);
+    nowMs = 1360;
+    await c.tick();
+    expect(calls).toBe(6);
     expect(c.requiredStaleMs()).toBe(100);
   });
 

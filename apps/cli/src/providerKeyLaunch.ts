@@ -22,7 +22,9 @@ import { atomicWriteFile } from "./atomicWrite.js";
 // Clients whose model auth comes from provider env vars, so a managed key helps.
 // Claude/Codex use subscription OAuth and are deliberately excluded; cursor has its
 // own auth. gemini could be added (it reads GEMINI_API_KEY) once verified.
-const PROVIDER_KEY_CLIENTS: ReadonlySet<AgentClientId> = new Set<AgentClientId>(["opencode", "pi"]);
+const PROVIDER_KEY_CLIENTS: ReadonlySet<AgentClientId> = new Set<AgentClientId>(
+  ["opencode", "pi"],
+);
 
 export function clientUsesProviderKeys(agentType: AgentClientId): boolean {
   return PROVIDER_KEY_CLIENTS.has(agentType);
@@ -38,10 +40,12 @@ function envFilePath(configDir: string): string {
  *  key with shell metacharacters can't break out (an embedded single quote becomes
  *  the standard `'\''`). Deterministic order for stable file content. */
 export function renderProviderEnvFile(env: Record<string, string>): string {
-  return Object.keys(env)
-    .sort()
-    .map((k) => `export ${k}='${env[k].replace(/'/g, "'\\''")}'`)
-    .join("\n") + "\n";
+  return (
+    Object.keys(env)
+      .sort()
+      .map((k) => `export ${k}='${env[k].replace(/'/g, "'\\''")}'`)
+      .join("\n") + "\n"
+  );
 }
 
 /** Write (or, when there are no keys, remove) the 0600 provider-env file from the
@@ -52,7 +56,9 @@ export function syncProviderKeyEnvFile(configDir: string): string | null {
   const env = providerKeyEnv(readProviderKeyStore(configDir));
   const file = envFilePath(configDir);
   if (Object.keys(env).length === 0) {
-    try { fs.rmSync(file, { force: true }); } catch {}
+    try {
+      fs.rmSync(file, { force: true });
+    } catch {}
     return null;
   }
   try {

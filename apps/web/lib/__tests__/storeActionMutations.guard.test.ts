@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkRatchet, codeOnly } from "@codecast/shared/ratchet";
 import { UNDO_POLICY } from "../../store/undo/policy";
-import { CLIENT_SYNC_REGISTRY, SYNCED_WRITER_MODULES } from "../../store/clientSyncRegistry";
+import {
+  CLIENT_SYNC_REGISTRY,
+  SYNCED_WRITER_MODULES,
+} from "../../store/clientSyncRegistry";
 
 // A gesture that writes synced data through a Convex mutation of its own, past
 // the store action that owns the same write, is invisible to undo (nothing is
@@ -31,7 +34,11 @@ const API_REF = /(?:^|[^\w$.])_?api(?:\s+as\s+any\))?\.((?:\w+\.)*\w+)/g;
 const withoutComments = (src: string) =>
   src
     .split("\n")
-    .map((line) => (/^\s*(\*|\/\*)/.test(line) ? "" : line.replace(/\s\/\/.*$/, "").replace(/^\s*\/\/.*$/, "")))
+    .map((line) =>
+      /^\s*(\*|\/\*)/.test(line)
+        ? ""
+        : line.replace(/\s\/\/.*$/, "").replace(/^\s*\/\/.*$/, ""),
+    )
     .join("\n");
 
 /** Each dispatch handler's body, by the action name it serves. */
@@ -54,9 +61,12 @@ function dispatchHandlers(): Map<string, string> {
 // A server helper a handler runs as its write: `await helper(ctx, ...)` or
 // `return helper(ctx, ...)`. Auth and read helpers are not the write.
 const WRITE_HELPER = /\b(?:await|return)\s+([a-z]\w*)\(\s*ctx\b/g;
-const NOT_A_WRITE = /^(require|get|is|assert|load|resolve|find|can|check|ensure|read|lookup|list|fetch|verify|authorize)/;
+const NOT_A_WRITE =
+  /^(require|get|is|assert|load|resolve|find|can|check|ensure|read|lookup|list|fetch|verify|authorize)/;
 const writeHelpersOf = (body: string) =>
-  [...body.matchAll(WRITE_HELPER)].map((m) => m[1]!).filter((name) => !NOT_A_WRITE.test(name));
+  [...body.matchAll(WRITE_HELPER)]
+    .map((m) => m[1]!)
+    .filter((name) => !NOT_A_WRITE.test(name));
 
 /** Each public mutation's handler body in the Convex tree, by its api path. */
 function publicMutations(): Map<string, string> {
@@ -69,7 +79,10 @@ function publicMutations(): Map<string, string> {
     const starts = [...src.matchAll(/^export const (\w+) = mutation\(/gm)];
     for (const m of starts) {
       const end = src.slice(m.index! + 1).search(/^export /m);
-      const body = end === -1 ? src.slice(m.index!) : src.slice(m.index!, m.index! + 1 + end);
+      const body =
+        end === -1
+          ? src.slice(m.index!)
+          : src.slice(m.index!, m.index! + 1 + end);
       out.set(`${mod}.${m[1]}`, body);
     }
   }
@@ -81,16 +94,19 @@ function publicMutations(): Map<string, string> {
 function ownedMutations(): Map<string, string[]> {
   const owned = new Map<string, string[]>();
   const own = (path: string, action: string) => {
-    if (!(owned.get(path) ?? []).includes(action)) owned.set(path, [...(owned.get(path) ?? []), action]);
+    if (!(owned.get(path) ?? []).includes(action))
+      owned.set(path, [...(owned.get(path) ?? []), action]);
   };
   const helperActions = new Map<string, string[]>();
   for (const [action, body] of dispatchHandlers()) {
     if (!(action in UNDO_POLICY)) continue;
     for (const m of body.matchAll(API_REF)) own(m[1]!, action);
-    for (const helper of writeHelpersOf(body)) helperActions.set(helper, [...(helperActions.get(helper) ?? []), action]);
+    for (const helper of writeHelpersOf(body))
+      helperActions.set(helper, [...(helperActions.get(helper) ?? []), action]);
   }
   for (const [path, body] of publicMutations()) {
-    for (const helper of writeHelpersOf(body)) for (const action of helperActions.get(helper) ?? []) own(path, action);
+    for (const helper of writeHelpersOf(body))
+      for (const action of helperActions.get(helper) ?? []) own(path, action);
   }
   return owned;
 }
@@ -115,7 +131,9 @@ describe("surfaces write through the store action that owns the write", () => {
     expect(owned.get("agentTasks.webUpdate")).toContain("setTriggerInterval");
     expect(owned.get("agentTasks.webReactivate")).toContain("triggerAction");
     // A public mutation running the same server helper as a handler is owned too.
-    expect(owned.get("teams.setTeamVisibility")).toContain("setTeamMembershipVisibility");
+    expect(owned.get("teams.setTeamVisibility")).toContain(
+      "setTeamMembershipVisibility",
+    );
     expect(owned.size).toBeGreaterThan(30);
   });
 
@@ -123,23 +141,35 @@ describe("surfaces write through the store action that owns the write", () => {
     const hits: string[] = [];
     const seenAllowed = new Set<string>();
     for (const dir of ["app", "components", "hooks", "lib"]) {
-      for (const f of new Bun.Glob("**/*.{ts,tsx}").scanSync({ cwd: join(WEB, dir) })) {
-        if (/(^|\/)__tests__\/|\.test\.tsx?$|(^|\/)__fixtures__\//.test(f)) continue;
+      for (const f of new Bun.Glob("**/*.{ts,tsx}").scanSync({
+        cwd: join(WEB, dir),
+      })) {
+        if (/(^|\/)__tests__\/|\.test\.tsx?$|(^|\/)__fixtures__\//.test(f))
+          continue;
         const rel = `${dir}/${f}`;
-        withoutComments(readFileSync(join(WEB, rel), "utf8")).split("\n").forEach((line, i) => {
-          for (const m of line.matchAll(API_REF)) {
-            const actions = owned.get(m[1]!);
-            if (!actions) continue;
-            const key = `${rel} ${m[1]}`;
-            if (key in NOT_THE_ACTIONS_WRITE) { seenAllowed.add(key); continue; }
-            hits.push(`${rel}:${i + 1} calls ${m[1]}; use the store action ${actions.join(" or ")}`);
-          }
-        });
+        withoutComments(readFileSync(join(WEB, rel), "utf8"))
+          .split("\n")
+          .forEach((line, i) => {
+            for (const m of line.matchAll(API_REF)) {
+              const actions = owned.get(m[1]!);
+              if (!actions) continue;
+              const key = `${rel} ${m[1]}`;
+              if (key in NOT_THE_ACTIONS_WRITE) {
+                seenAllowed.add(key);
+                continue;
+              }
+              hits.push(
+                `${rel}:${i + 1} calls ${m[1]}; use the store action ${actions.join(" or ")}`,
+              );
+            }
+          });
       }
     }
     expect(hits).toEqual([]);
     // An exception whose call is gone is stale.
-    expect(Object.keys(NOT_THE_ACTIONS_WRITE).filter((k) => !seenAllowed.has(k))).toEqual([]);
+    expect(
+      Object.keys(NOT_THE_ACTIONS_WRITE).filter((k) => !seenAllowed.has(k)),
+    ).toEqual([]);
   }, 60_000);
 });
 
@@ -166,18 +196,28 @@ const DB_WRITE = /\bctx\.db\.(insert|patch|replace|delete)\(\s*(?:"(\w+)")?/g;
 const AUDIT_HELPERS = new Set(["recordAuthorityEvent"]);
 function queuesOnlyACommand(body: string): boolean {
   const writes = [...body.matchAll(DB_WRITE)];
-  return writes.length > 0
-    && writes.every((w) => w[1] === "insert" && w[2] === "daemon_commands")
-    && writeHelpersOf(body).every((helper) => AUDIT_HELPERS.has(helper))
-    && !/\bctx\.(scheduler|runMutation|runAction)\b/.test(body);
+  return (
+    writes.length > 0 &&
+    writes.every((w) => w[1] === "insert" && w[2] === "daemon_commands") &&
+    writeHelpersOf(body).every((helper) => AUDIT_HELPERS.has(helper)) &&
+    !/\bctx\.(scheduler|runMutation|runAction)\b/.test(body)
+  );
 }
-const COMMAND_ONLY = new Set([...publicMutations()].filter(([, body]) => queuesOnlyACommand(body)).map(([path]) => path));
+const COMMAND_ONLY = new Set(
+  [...publicMutations()]
+    .filter(([, body]) => queuesOnlyACommand(body))
+    .map(([path]) => path),
+);
 // A hook (`useMutation(api.x.y)`) or a Convex client call (`convex.mutation(api.x.y, ...)`).
-const MUTATION_REF = /(?:useMutation|\.mutation)\(\s*\(?_?api(?:\s+as\s+any\))?\.((?:\w+\.)*\w+)/g;
+const MUTATION_REF =
+  /(?:useMutation|\.mutation)\(\s*\(?_?api(?:\s+as\s+any\))?\.((?:\w+\.)*\w+)/g;
 // A cast anywhere along the api path hides nothing: `(api.x as any).y`,
 // `(api as any).x.y` and `(api.x as unknown as T).y` all read as `api.x.y`.
 const API_CAST = /\(\s*(_?api(?:\.\w+)*)\s+as\s+[^()]*?\)/g;
-const mutationRefs = (src: string) => [...codeOnly(src).replace(API_CAST, "$1").matchAll(MUTATION_REF)].map((m) => m[1]!);
+const mutationRefs = (src: string) =>
+  [...codeOnly(src).replace(API_CAST, "$1").matchAll(MUTATION_REF)].map(
+    (m) => m[1]!,
+  );
 const ownedByAction = ownedMutations();
 
 const directSyncedWrites = checkRatchet({
@@ -190,13 +230,17 @@ const directSyncedWrites = checkRatchet({
   // guest's own row by its secret. The store rule has nothing to route it to.
   exempt: (rel) => /\.test\.tsx?$/.test(rel) || rel.startsWith("app/meet/"),
   count: (src) =>
-    mutationRefs(src).filter((path) =>
-      SYNCED_MODULES.has(path.split(".").slice(0, -1).join(".")) && !ownedByAction.has(path) && !COMMAND_ONLY.has(path),
+    mutationRefs(src).filter(
+      (path) =>
+        SYNCED_MODULES.has(path.split(".").slice(0, -1).join(".")) &&
+        !ownedByAction.has(path) &&
+        !COMMAND_ONLY.has(path),
     ).length,
   allowlist: join(import.meta.dir, "storeActionMutations.allowlist.txt"),
   pin: PIN_DIRECT_SYNCED_WRITES,
   fix: "Add a store action for the gesture (draft write + named dispatch side effect in convex/dispatch.ts), classify it in store/undo/policy.ts, and call it.",
-  pruneCommand: "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/storeActionMutations.guard.test.ts",
+  pruneCommand:
+    "cd apps/web && RATCHET_WRITE=prune bun test lib/__tests__/storeActionMutations.guard.test.ts",
   minScanned: 400,
 });
 
@@ -205,41 +249,93 @@ describe("gestures on synced collections go through a store action", () => {
   // feed's own can write its rows: every server mirror says who writes it.
   test("every localFirst key names the modules that write its rows", () => {
     const silent = Object.entries(CLIENT_SYNC_REGISTRY)
-      .filter(([, e]: [string, any]) => e.localFirst && !e.feeds?.length && !e.writtenBy?.length)
+      .filter(
+        ([, e]: [string, any]) =>
+          e.localFirst && !e.feeds?.length && !e.writtenBy?.length,
+      )
       .map(([k]) => k);
     expect(silent).toEqual([]);
   });
 
   test("the registry names synced modules, and the code review thread verbs are owned", () => {
     expect(SYNCED_MODULES.has("codeComments")).toBe(true);
-    for (const m of ["teams", "tasks", "docs", "orgSplit", "orgHandoff", "orgLineMerge", "orgRoles", "orgTemplates", "prShepherd"]) {
+    for (const m of [
+      "teams",
+      "tasks",
+      "docs",
+      "orgSplit",
+      "orgHandoff",
+      "orgLineMerge",
+      "orgRoles",
+      "orgTemplates",
+      "prShepherd",
+    ]) {
       expect(SYNCED_MODULES.has(m)).toBe(true);
     }
-    for (const m of ["codeComments.resolve", "codeComments.unresolve", "codeComments.update", "codeComments.remove"]) {
+    for (const m of [
+      "codeComments.resolve",
+      "codeComments.unresolve",
+      "codeComments.update",
+      "codeComments.remove",
+    ]) {
       expect(ownedByAction.has(m)).toBe(true);
     }
   });
 
   test("a cast on the api path never hides the mutation it reaches", () => {
-    expect(mutationRefs(`useMutation((api.devices as any).enqueueX)`)).toEqual(["devices.enqueueX"]);
-    expect(mutationRefs(`useMutation((api as any).devices.enqueueX)`)).toEqual(["devices.enqueueX"]);
-    expect(mutationRefs(`useMutation((api.devices as unknown as Api).enqueueX)`)).toEqual(["devices.enqueueX"]);
-    expect(mutationRefs(`convex.mutation((api.tasks as any).update, {})`)).toEqual(["tasks.update"]);
-    expect(mutationRefs(`useMutation(api.devices.enqueueX)`)).toEqual(["devices.enqueueX"]);
+    expect(mutationRefs(`useMutation((api.devices as any).enqueueX)`)).toEqual([
+      "devices.enqueueX",
+    ]);
+    expect(mutationRefs(`useMutation((api as any).devices.enqueueX)`)).toEqual([
+      "devices.enqueueX",
+    ]);
+    expect(
+      mutationRefs(`useMutation((api.devices as unknown as Api).enqueueX)`),
+    ).toEqual(["devices.enqueueX"]);
+    expect(
+      mutationRefs(`convex.mutation((api.tasks as any).update, {})`),
+    ).toEqual(["tasks.update"]);
+    expect(mutationRefs(`useMutation(api.devices.enqueueX)`)).toEqual([
+      "devices.enqueueX",
+    ]);
   });
 
   test("a mutation counts as queueing only a command by what it writes", () => {
-    for (const path of ["devices.enqueueAgentToolSetupCommand", "devices.enqueueCloudAgentLoginCommand", "devices.enqueueCloudAgentActionCommand", "users.sendDaemonCommand"]) {
+    for (const path of [
+      "devices.enqueueAgentToolSetupCommand",
+      "devices.enqueueCloudAgentLoginCommand",
+      "devices.enqueueCloudAgentActionCommand",
+      "users.sendDaemonCommand",
+    ]) {
       expect(COMMAND_ONLY.has(path), path).toBe(true);
     }
     // These also patch the device row the roster paints, so they stay writes.
-    for (const path of ["devices.enqueueProviderKeyCommand", "devices.setDeviceSnippet"]) {
+    for (const path of [
+      "devices.enqueueProviderKeyCommand",
+      "devices.setDeviceSnippet",
+    ]) {
       expect(COMMAND_ONLY.has(path), path).toBe(false);
     }
-    expect(queuesOnlyACommand(`await ctx.db.insert("daemon_commands", {}); await ctx.db.patch(id, {});`)).toBe(false);
-    expect(queuesOnlyACommand(`await ctx.db.insert("daemon_commands", {}); await ctx.scheduler.runAfter(0, x, {});`)).toBe(false);
-    expect(queuesOnlyACommand(`await ctx.db.insert("daemon_commands", {}); await recordAuthorityEvent(ctx, {});`)).toBe(true);
-    expect(queuesOnlyACommand(`await ctx.db.insert("daemon_commands", {}); await patchConversationVisibility(ctx, {});`)).toBe(false);
+    expect(
+      queuesOnlyACommand(
+        `await ctx.db.insert("daemon_commands", {}); await ctx.db.patch(id, {});`,
+      ),
+    ).toBe(false);
+    expect(
+      queuesOnlyACommand(
+        `await ctx.db.insert("daemon_commands", {}); await ctx.scheduler.runAfter(0, x, {});`,
+      ),
+    ).toBe(false);
+    expect(
+      queuesOnlyACommand(
+        `await ctx.db.insert("daemon_commands", {}); await recordAuthorityEvent(ctx, {});`,
+      ),
+    ).toBe(true);
+    expect(
+      queuesOnlyACommand(
+        `await ctx.db.insert("daemon_commands", {}); await patchConversationVisibility(ctx, {});`,
+      ),
+    ).toBe(false);
     expect(queuesOnlyACommand(`await ctx.db.insert("tasks", {});`)).toBe(false);
     expect(queuesOnlyACommand(`return null;`)).toBe(false);
   });

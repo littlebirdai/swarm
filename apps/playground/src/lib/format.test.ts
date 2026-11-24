@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { ago, chatTime, clock, forkName, ordinal, plural, since } from "./format";
+import {
+  ago,
+  chatTime,
+  clock,
+  forkName,
+  ordinal,
+  plural,
+  since,
+} from "./format";
 import { clipLine, clipText } from "../../convex/lib/text";
 
 const NOW = new Date("2026-10-06T16:00:00").getTime();
@@ -7,7 +15,19 @@ const MIN = 60_000;
 
 describe("format", () => {
   test("ordinals read the way people say them", () => {
-    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 111].map(ordinal)).toEqual(["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "101st", "111th"]);
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 101, 111].map(ordinal)).toEqual([
+      "1st",
+      "2nd",
+      "3rd",
+      "4th",
+      "11th",
+      "12th",
+      "13th",
+      "21st",
+      "22nd",
+      "101st",
+      "111th",
+    ]);
   });
 
   test("a running build's clock", () => {
@@ -24,8 +44,12 @@ describe("format", () => {
 
   test("since names the start time today, the weekday this week, the date before", () => {
     expect(since(NOW - (10 * 60 + 11) * MIN, NOW)).toBe("since 5:49");
-    expect(since(new Date("2026-10-04T12:00:00").getTime(), NOW)).toBe("since Sunday");
-    expect(since(new Date("2026-09-20T12:00:00").getTime(), NOW)).toBe("since Sep 20");
+    expect(since(new Date("2026-10-04T12:00:00").getTime(), NOW)).toBe(
+      "since Sunday",
+    );
+    expect(since(new Date("2026-09-20T12:00:00").getTime(), NOW)).toBe(
+      "since Sep 20",
+    );
   });
 
   test("history ages", () => {
@@ -46,9 +70,17 @@ describe("format", () => {
   });
 
   test("a fork's suggested name", () => {
-    expect(forkName("Guestbook", "Flicker", 40)).toBe("Guestbook, Flicker's take");
-    expect(forkName("Guestbook, Flicker's take", "Flicker", 40)).toBe("Guestbook, Flicker's take");
-    expect(forkName("Guestbook, Reed's take", "Flicker", 40)).toBe("Guestbook, Flicker's take");
-    expect(forkName("A very long app name about tiny planets", "Juniper", 40)).toBe("A very long app name, Juniper's take");
+    expect(forkName("Guestbook", "Flicker", 40)).toBe(
+      "Guestbook, Flicker's take",
+    );
+    expect(forkName("Guestbook, Flicker's take", "Flicker", 40)).toBe(
+      "Guestbook, Flicker's take",
+    );
+    expect(forkName("Guestbook, Reed's take", "Flicker", 40)).toBe(
+      "Guestbook, Flicker's take",
+    );
+    expect(
+      forkName("A very long app name about tiny planets", "Juniper", 40),
+    ).toBe("A very long app name, Juniper's take");
   });
 });

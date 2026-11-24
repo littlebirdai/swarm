@@ -4,14 +4,27 @@
 // these, so a commit is classified one way everywhere.
 
 /** What a story is about, in the vocabulary the prose call also answers in. */
-export type ChangeKind = "feature" | "fix" | "perf" | "infra" | "docs" | "test" | "release" | "revert";
+export type ChangeKind =
+  | "feature"
+  | "fix"
+  | "perf"
+  | "infra"
+  | "docs"
+  | "test"
+  | "release"
+  | "revert";
 
 /**
  * One area's share of a commit: files touched and lines changed, and how many
  * of those lines sit in generated files (isGeneratedPath). Commits projected
  * before `generated` existed read as all source.
  */
-export type AreaTouch = { touches: number; insertions: number; deletions: number; generated?: number };
+export type AreaTouch = {
+  touches: number;
+  insertions: number;
+  deletions: number;
+  generated?: number;
+};
 
 /** A commit's files collapsed to what layer 0 reads (spec 7.1 step 1). */
 export type FileSummary = {
@@ -24,7 +37,11 @@ export type FileSummary = {
   schema_paths: string[];
 };
 
-export type CommitFile = { filename: string; additions: number; deletions: number };
+export type CommitFile = {
+  filename: string;
+  additions: number;
+  deletions: number;
+};
 
 /** Directories whose child names the area: `apps/web/x.ts` is `web`. */
 const CONTAINER_DIRS = new Set(["packages", "apps", "backend"]);
@@ -49,14 +66,21 @@ export function pathInArea(path: string, area: string): boolean {
 
 /** The area and, when the path goes deeper, the folder under it: `outreach/backend/x.ts` is `outreach` then `backend`. */
 function areaParts(path: string): { area: string; sub: string | null } {
-  const parts = path.replace(/^\.?\/+/, "").split("/").filter(Boolean);
+  const parts = path
+    .replace(/^\.?\/+/, "")
+    .split("/")
+    .filter(Boolean);
   if (parts.length <= 1) return { area: ROOT_AREA, sub: null };
   const contained = CONTAINER_DIRS.has(parts[0]) && parts.length > 2;
   const rest = parts.slice(contained ? 2 : 1);
-  return { area: (contained ? parts[1] : parts[0]).replace(/^\.+/, "") || ROOT_AREA, sub: rest.length > 1 ? rest[0] : null };
+  return {
+    area: (contained ? parts[1] : parts[0]).replace(/^\.+/, "") || ROOT_AREA,
+    sub: rest.length > 1 ? rest[0] : null,
+  };
 }
 
-const SCHEMA_PATH = /(^|\/)schema\.ts$|(^|\/)migrations\/|\.sql$|(^|\/)prisma\//;
+const SCHEMA_PATH =
+  /(^|\/)schema\.ts$|(^|\/)migrations\/|\.sql$|(^|\/)prisma\//;
 
 /**
  * Files no one wrote by hand: lockfiles, drizzle snapshots, generated code,
@@ -64,14 +88,18 @@ const SCHEMA_PATH = /(^|\/)schema\.ts$|(^|\/)migrations\/|\.sql$|(^|\/)prisma\//
  * but not work to review, so size judgments (the bulk risk, the order of a
  * story's files) read past them.
  */
-const GENERATED_PATH = new RegExp([
-  /(^|\/)(bun\.lockb?|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|Gemfile\.lock|poetry\.lock|uv\.lock|composer\.lock|Podfile\.lock|go\.sum|flake\.lock)$/.source,
-  /(^|\/)meta\/[^/]*_snapshot\.json$/.source,
-  /(^|\/)(_generated|__generated__|__fixtures__|__snapshots__)\//.source,
-  /\.snap$/.source,
-  /\.(woff2?|ttf|otf|eot)$/.source,
-  /\.(png|jpe?g|gif|webp|avif|ico|icns|bmp|tiff?|svg)$/.source,
-].join("|"), "i");
+const GENERATED_PATH = new RegExp(
+  [
+    /(^|\/)(bun\.lockb?|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|Gemfile\.lock|poetry\.lock|uv\.lock|composer\.lock|Podfile\.lock|go\.sum|flake\.lock)$/
+      .source,
+    /(^|\/)meta\/[^/]*_snapshot\.json$/.source,
+    /(^|\/)(_generated|__generated__|__fixtures__|__snapshots__)\//.source,
+    /\.snap$/.source,
+    /\.(woff2?|ttf|otf|eot)$/.source,
+    /\.(png|jpe?g|gif|webp|avif|ico|icns|bmp|tiff?|svg)$/.source,
+  ].join("|"),
+  "i",
+);
 
 export function isGeneratedPath(path: string): boolean {
   return GENERATED_PATH.test(path);
@@ -88,7 +116,12 @@ export function summarizeFiles(files: readonly CommitFile[]): FileSummary {
   const areas: Record<string, AreaTouch> = {};
   const subareas: Record<string, AreaTouch> = {};
   const add = (bag: Record<string, AreaTouch>, key: string, f: CommitFile) => {
-    const a = (bag[key] ??= { touches: 0, insertions: 0, deletions: 0, generated: 0 });
+    const a = (bag[key] ??= {
+      touches: 0,
+      insertions: 0,
+      deletions: 0,
+      generated: 0,
+    });
     a.touches += 1;
     a.insertions += f.additions;
     a.deletions += f.deletions;
@@ -100,7 +133,11 @@ export function summarizeFiles(files: readonly CommitFile[]): FileSummary {
     add(subareas, sub ? `${area}/${sub}` : area, f);
   }
   const top_paths = [...files]
-    .sort((x, y) => y.additions + y.deletions - (x.additions + x.deletions) || x.filename.localeCompare(y.filename))
+    .sort(
+      (x, y) =>
+        y.additions + y.deletions - (x.additions + x.deletions) ||
+        x.filename.localeCompare(y.filename),
+    )
     .slice(0, TOP_PATHS)
     .map((f) => f.filename);
   const schema_paths = files.map((f) => f.filename).filter(isSchemaPath);
@@ -117,26 +154,49 @@ export const NARROW_SHARE = 0.8;
  * folder under it, so the day reads as backend, web, mobile. Commits without
  * subareas (rows projected before they existed) keep their areas.
  */
-export function narrowAreas<C extends { areas: Record<string, AreaTouch>; subareas?: Record<string, AreaTouch> }>(commits: readonly C[]): C[] {
+export function narrowAreas<
+  C extends {
+    areas: Record<string, AreaTouch>;
+    subareas?: Record<string, AreaTouch>;
+  },
+>(commits: readonly C[]): C[] {
   const totals: Record<string, number> = {};
   let all = 0;
-  for (const c of commits) for (const [a, t] of Object.entries(c.areas)) { totals[a] = (totals[a] ?? 0) + t.touches; all += t.touches; }
+  for (const c of commits)
+    for (const [a, t] of Object.entries(c.areas)) {
+      totals[a] = (totals[a] ?? 0) + t.touches;
+      all += t.touches;
+    }
   const [top] = Object.entries(totals).sort((x, y) => y[1] - x[1]);
   if (!top || top[1] < all * NARROW_SHARE) return [...commits];
-  const subs = new Set(commits.flatMap((c) => Object.keys(c.subareas ?? {}).filter((k) => k.startsWith(`${top[0]}/`))));
+  const subs = new Set(
+    commits.flatMap((c) =>
+      Object.keys(c.subareas ?? {}).filter((k) => k.startsWith(`${top[0]}/`)),
+    ),
+  );
   if (subs.size < 2) return [...commits];
   return commits.map((c) => splitArea(c, top[0]));
 }
 
 /** One commit with `top` replaced by its subareas, named without the prefix, as narrowAreas splits a day's dominant area. */
-export function splitArea<C extends { areas: Record<string, AreaTouch>; subareas?: Record<string, AreaTouch> }>(c: C, top: string): C {
+export function splitArea<
+  C extends {
+    areas: Record<string, AreaTouch>;
+    subareas?: Record<string, AreaTouch>;
+  },
+>(c: C, top: string): C {
   if (!c.subareas || !c.areas[top]) return c;
   const areas: Record<string, AreaTouch> = {};
   for (const [a, t] of Object.entries(c.areas)) if (a !== top) areas[a] = t;
   for (const [k, t] of Object.entries(c.subareas)) {
     if (k !== top && !k.startsWith(`${top}/`)) continue;
     const label = k === top ? top : k.slice(top.length + 1);
-    const into = (areas[label] ??= { touches: 0, insertions: 0, deletions: 0, generated: 0 });
+    const into = (areas[label] ??= {
+      touches: 0,
+      insertions: 0,
+      deletions: 0,
+      generated: 0,
+    });
     into.touches += t.touches;
     into.insertions += t.insertions;
     into.deletions += t.deletions;
@@ -150,11 +210,20 @@ export function rankAreas(areas: Record<string, AreaTouch>): string[] {
   return Object.keys(areas).sort((x, y) => {
     const a = areas[x];
     const b = areas[y];
-    return b.touches - a.touches || b.insertions + b.deletions - (a.insertions + a.deletions) || x.localeCompare(y);
+    return (
+      b.touches - a.touches ||
+      b.insertions + b.deletions - (a.insertions + a.deletions) ||
+      x.localeCompare(y)
+    );
   });
 }
 
-export type Conventional = { type: string; scope: string | null; breaking: boolean; description: string };
+export type Conventional = {
+  type: string;
+  scope: string | null;
+  breaking: boolean;
+  description: string;
+};
 
 const CONVENTIONAL = /^(\w+)(?:\(([^)]*)\))?(!)?:\s+(.+)$/;
 
@@ -162,7 +231,12 @@ const CONVENTIONAL = /^(\w+)(?:\(([^)]*)\))?(!)?:\s+(.+)$/;
 export function parseConventional(subject: string): Conventional | null {
   const m = CONVENTIONAL.exec(subject.trim());
   if (!m) return null;
-  return { type: m[1].toLowerCase(), scope: m[2]?.trim().toLowerCase() || null, breaking: !!m[3], description: m[4].trim() };
+  return {
+    type: m[1].toLowerCase(),
+    scope: m[2]?.trim().toLowerCase() || null,
+    breaking: !!m[3],
+    description: m[4].trim(),
+  };
 }
 
 /**
@@ -188,7 +262,10 @@ export function scopeNamesArea(scope: string, area: string): boolean {
  * it, else the area with the most touches. A commit with no file data falls
  * back to its scope, then `root`.
  */
-export function commitArea(areas: Record<string, AreaTouch>, scope: string | null): string {
+export function commitArea(
+  areas: Record<string, AreaTouch>,
+  scope: string | null,
+): string {
   const ranked = rankAreas(areas);
   if (scope) {
     const named = ranked.find((a) => scopeNamesArea(scope, a));
@@ -197,12 +274,24 @@ export function commitArea(areas: Record<string, AreaTouch>, scope: string | nul
   return ranked[0] ?? scope ?? ROOT_AREA;
 }
 
-export type ReleaseMatch = { surface: string; version: string; scope: string | null };
+export type ReleaseMatch = {
+  surface: string;
+  version: string;
+  scope: string | null;
+};
 
-const RELEASE = /^(?:chore|release)(?:\(([^)]+)\))?: (?:bump|release)\b(.*?)v?(\d+\.\d+\.\d+)/i;
+const RELEASE =
+  /^(?:chore|release)(?:\(([^)]+)\))?: (?:bump|release)\b(.*?)v?(\d+\.\d+\.\d+)/i;
 
 /** Surfaces a release subject may name (`release desktop 1.1.123`). */
-const SURFACE_WORDS = ["cli", "desktop", "extension", "backend", "web", "mobile"] as const;
+const SURFACE_WORDS = [
+  "cli",
+  "desktop",
+  "extension",
+  "backend",
+  "web",
+  "mobile",
+] as const;
 
 /** A scope that names a package rather than the surface it ships as. */
 const SCOPE_SURFACE: Record<string, string> = {
@@ -213,7 +302,20 @@ const SCOPE_SURFACE: Record<string, string> = {
 };
 
 /** Scopes that bump a dependency, never the product's own version. */
-const DEPENDENCY_SCOPES = new Set(["deps", "dep", "deps-dev", "dev-deps", "dependencies", "dependency", "npm", "pip", "cargo", "gomod", "bundler", "lockfile"]);
+const DEPENDENCY_SCOPES = new Set([
+  "deps",
+  "dep",
+  "deps-dev",
+  "dev-deps",
+  "dependencies",
+  "dependency",
+  "npm",
+  "pip",
+  "cargo",
+  "gomod",
+  "bundler",
+  "lockfile",
+]);
 
 /**
  * A version-bump commit (spec 7.1 step 3): `chore(cli): bump version to
@@ -240,7 +342,7 @@ export function parseRelease(subject: string): ReleaseMatch | null {
 /** The surface a release names: a surface word it says, else its scope mapped to its surface, else `release`. */
 function surfaceNamed(words: readonly string[], scope: string | null): string {
   const named = SURFACE_WORDS.find((w) => words.includes(w));
-  return named ?? (scope ? SCOPE_SURFACE[scope] ?? scope : "release");
+  return named ?? (scope ? (SCOPE_SURFACE[scope] ?? scope) : "release");
 }
 
 const TAG = /^(.*?)[-_/@]?v?(\d+(?:\.\d+){1,3}(?:[-+][0-9a-z.+-]+)?)$/i;
@@ -251,7 +353,9 @@ const TAG = /^(.*?)[-_/@]?v?(\d+(?:\.\d+){1,3}(?:[-+][0-9a-z.+-]+)?)$/i;
  * the surface the way a release commit's scope does. A tag with no version
  * (`latest`, `nightly`) is a moving pointer, not a release, and reads as null.
  */
-export function parseReleaseTag(tag: string): { surface: string; version: string } | null {
+export function parseReleaseTag(
+  tag: string,
+): { surface: string; version: string } | null {
   const m = TAG.exec(tag.trim().replace(/^refs\/tags\//, ""));
   if (!m) return null;
   const name = m[1].toLowerCase().replace(/[-_/@]+$/, "");
@@ -289,7 +393,10 @@ const TYPE_KIND: Record<string, ChangeKind> = {
 /** Leading verbs of a subject that is not conventional. */
 const VERB_KIND: [RegExp, ChangeKind][] = [
   [/^(fix|fixes|fixed|repair|resolve|stop|prevent)\b/i, "fix"],
-  [/^(add|adds|added|implement|introduce|support|new|build|create)\b/i, "feature"],
+  [
+    /^(add|adds|added|implement|introduce|support|new|build|create)\b/i,
+    "feature",
+  ],
   [/^(speed up|faster|optimi[sz]e|cache)\b/i, "perf"],
   [/^(document|docs?)\b/i, "docs"],
   [/^tests?\b/i, "test"],
@@ -306,7 +413,10 @@ export function subjectKind(subject: string): ChangeKind {
 }
 
 /** The first line of a commit message, and the rest with trailers stripped. */
-export function splitMessage(message: string): { subject: string; body: string } {
+export function splitMessage(message: string): {
+  subject: string;
+  body: string;
+} {
   const nl = message.indexOf("\n");
   const subject = (nl < 0 ? message : message.slice(0, nl)).trim();
   const body = nl < 0 ? "" : stripTrailers(message.slice(nl + 1)).trim();
@@ -318,7 +428,9 @@ const TRAILER_LINE = /^[A-Za-z][A-Za-z0-9-]*: \S/;
 /** Drop the final paragraph when every line in it is a git trailer (`Codecast-Session: ...`). */
 export function stripTrailers(body: string): string {
   const paras = body.trimEnd().split(/\n\s*\n/);
-  const last = paras[paras.length - 1]?.split("\n").filter((l) => l.trim()) ?? [];
-  if (last.length && last.every((l) => TRAILER_LINE.test(l.trim()))) paras.pop();
+  const last =
+    paras[paras.length - 1]?.split("\n").filter((l) => l.trim()) ?? [];
+  if (last.length && last.every((l) => TRAILER_LINE.test(l.trim())))
+    paras.pop();
   return paras.join("\n\n");
 }

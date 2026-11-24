@@ -19,7 +19,10 @@ import {
   snapshotTree,
   wipRef,
 } from "./wipSnapshot.js";
-import { knownValueNames, setKnownValuesForTest } from "./knownValueRedaction.js";
+import {
+  knownValueNames,
+  setKnownValuesForTest,
+} from "./knownValueRedaction.js";
 import { createTurnSnapshot } from "./treeSnapshot.js";
 
 // Real git per test, several commands each: 3 to 4s on a loaded machine, so
@@ -39,7 +42,9 @@ function tmpdir(name: string): string {
 }
 afterEach(() => {
   while (tmps.length) {
-    try { fs.rmSync(tmps.pop()!, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(tmps.pop()!, { recursive: true, force: true });
+    } catch {}
   }
 });
 
@@ -106,7 +111,9 @@ describe("createWipSnapshot", () => {
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "edited\n");
     fs.writeFileSync(path.join(cwd, "new.txt"), "brand new\n");
     const snap = (await createWipSnapshot(cwd))!;
-    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split("\n");
+    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split(
+      "\n",
+    );
     expect(files).toContain("tracked.txt");
     expect(files).toContain("new.txt");
     expect(git(cwd, ["show", `${snap.sha}:tracked.txt`])).toBe("edited");
@@ -117,7 +124,9 @@ describe("createWipSnapshot", () => {
     const { cwd } = repo();
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "dirty\n");
     const snap = (await createWipSnapshot(cwd))!;
-    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split("\n");
+    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split(
+      "\n",
+    );
     expect(files).not.toContain(".env");
     // The file is really there on disk — it's git that refuses it, not a filter.
     expect(fs.existsSync(path.join(cwd, ".env"))).toBe(true);
@@ -158,11 +167,15 @@ describe("snapshot message trailers", () => {
   test("carries NO per-session id — that is what lets siblings share one commit", () => {
     // A session id would make every sibling's commit a distinct object, defeating
     // git's dedup and forcing one full push per session.
-    expect(buildSnapshotMessage({ branch: "main" })).not.toContain("codecast-session");
+    expect(buildSnapshotMessage({ branch: "main" })).not.toContain(
+      "codecast-session",
+    );
   });
 
   test("a missing trailer is undefined, not a throw", async () => {
-    expect(parseSnapshotTrailer("just a commit message", "codecast-branch")).toBeUndefined();
+    expect(
+      parseSnapshotTrailer("just a commit message", "codecast-branch"),
+    ).toBeUndefined();
   });
 });
 
@@ -179,28 +192,50 @@ describe("push + restore round-trip", () => {
     fs.writeFileSync(path.join(cwd, "new.txt"), "untracked\n");
 
     const snap = (await createWipSnapshot(cwd))!;
-    expect((await pushWipSnapshot(cwd, { remote, conversationIds: ["conv1"], sha: snap.sha })).ok).toBe(true);
+    expect(
+      (
+        await pushWipSnapshot(cwd, {
+          remote,
+          conversationIds: ["conv1"],
+          sha: snap.sha,
+        })
+      ).ok,
+    ).toBe(true);
 
     // The destination: a plain clone, exactly as the daemon does it.
     const dest = tmpdir("dest") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
     // A plain clone gives the DEFAULT branch and none of the work — the bug.
     expect(fs.existsSync(path.join(dest, "new.txt"))).toBe(false);
 
-    const res = (await restoreWipSnapshot(dest, { remote: "origin", conversationId: "conv1" }))!;
+    const res = (await restoreWipSnapshot(dest, {
+      remote: "origin",
+      conversationId: "conv1",
+    }))!;
     expect(res).not.toBeNull();
     expect(res.branch).toBe("feature/work");
     expect(res.appliedWork).toBe(true);
     expect(res.applyError).toBeUndefined();
 
     // Right branch, right commit.
-    expect(git(dest, ["rev-parse", "--abbrev-ref", "HEAD"])).toBe("feature/work");
+    expect(git(dest, ["rev-parse", "--abbrev-ref", "HEAD"])).toBe(
+      "feature/work",
+    );
     expect(git(dest, ["rev-parse", "HEAD"])).toBe(snap.base);
     // The unpushed commit travelled as an ancestor.
     expect(git(dest, ["log", "--oneline"])).toContain("unpushed");
     // Work is present AND still uncommitted — not silently committed.
-    expect(fs.readFileSync(path.join(dest, "tracked.txt"), "utf-8")).toBe("uncommitted\n");
-    expect(fs.readFileSync(path.join(dest, "new.txt"), "utf-8")).toBe("untracked\n");
+    expect(fs.readFileSync(path.join(dest, "tracked.txt"), "utf-8")).toBe(
+      "uncommitted\n",
+    );
+    expect(fs.readFileSync(path.join(dest, "new.txt"), "utf-8")).toBe(
+      "untracked\n",
+    );
     expect(git(dest, ["status", "--porcelain"])).toContain("tracked.txt");
     expect(git(dest, ["status", "--porcelain"])).toContain("new.txt");
     // And the secret did not cross.
@@ -212,14 +247,25 @@ describe("push + restore round-trip", () => {
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "x\n");
     fs.writeFileSync(path.join(cwd, "new.txt"), "y\n");
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["c2"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["c2"],
+      sha: snap.sha,
+    });
 
     const dest = tmpdir("dest2") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
     await restoreWipSnapshot(dest, { remote: "origin", conversationId: "c2" });
 
     const norm = (s: string) => s.split("\n").sort().join("\n");
-    expect(norm(git(dest, ["status", "--porcelain"]))).toBe(norm(git(cwd, ["status", "--porcelain"])));
+    expect(norm(git(dest, ["status", "--porcelain"]))).toBe(
+      norm(git(cwd, ["status", "--porcelain"])),
+    );
   });
 
   test("a clean source restores the branch with nothing to apply", async () => {
@@ -227,11 +273,23 @@ describe("push + restore round-trip", () => {
     git(cwd, ["checkout", "-q", "-b", "clean-branch"]);
     git(cwd, ["commit", "-q", "--allow-empty", "-m", "unpushed-empty"]);
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["c3"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["c3"],
+      sha: snap.sha,
+    });
 
     const dest = tmpdir("dest3") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
-    const res = (await restoreWipSnapshot(dest, { remote: "origin", conversationId: "c3" }))!;
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
+    const res = (await restoreWipSnapshot(dest, {
+      remote: "origin",
+      conversationId: "c3",
+    }))!;
     expect(res.branch).toBe("clean-branch");
     expect(res.appliedWork).toBe(false);
     expect(git(dest, ["status", "--porcelain"])).toBe("");
@@ -244,10 +302,19 @@ describe("push + restore round-trip", () => {
     const bin = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0x00, 0x42]);
     fs.writeFileSync(path.join(cwd, "blob.bin"), bin);
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["c4"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["c4"],
+      sha: snap.sha,
+    });
 
     const dest = tmpdir("dest4") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
     await restoreWipSnapshot(dest, { remote: "origin", conversationId: "c4" });
     expect(fs.readFileSync(path.join(dest, "blob.bin"))).toEqual(bin);
   });
@@ -263,12 +330,24 @@ describe("push + restore round-trip", () => {
     fs.rmSync(path.join(cwd, "doomed.txt"));
 
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["cdel"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["cdel"],
+      sha: snap.sha,
+    });
 
     const dest = tmpdir("destdel") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
     expect(fs.existsSync(path.join(dest, "doomed.txt"))).toBe(true); // clone has it
-    const res = (await restoreWipSnapshot(dest, { remote: "origin", conversationId: "cdel" }))!;
+    const res = (await restoreWipSnapshot(dest, {
+      remote: "origin",
+      conversationId: "cdel",
+    }))!;
     expect(res.appliedWork).toBe(true);
     expect(fs.existsSync(path.join(dest, "doomed.txt"))).toBe(false); // deletion travelled
     expect(git(dest, ["status", "--porcelain"])).toContain("D doomed.txt");
@@ -277,33 +356,65 @@ describe("push + restore round-trip", () => {
   test("no snapshot for the session: returns null so the caller keeps the plain clone", async () => {
     const { cwd, remote } = repo();
     const dest = tmpdir("dest5") + "/clone";
-    execFileSync("git", ["clone", "-q", git(cwd, ["remote", "get-url", remote]), dest]);
-    expect(await restoreWipSnapshot(dest, { remote: "origin", conversationId: "nope" })).toBeNull();
+    execFileSync("git", [
+      "clone",
+      "-q",
+      git(cwd, ["remote", "get-url", remote]),
+      dest,
+    ]);
+    expect(
+      await restoreWipSnapshot(dest, {
+        remote: "origin",
+        conversationId: "nope",
+      }),
+    ).toBeNull();
   });
 
   test("the wip ref is hidden from branch listings", async () => {
     const { cwd, remote } = repo();
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["c6"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["c6"],
+      sha: snap.sha,
+    });
     const url = git(cwd, ["remote", "get-url", remote]);
     // Present as a ref...
-    expect(execFileSync("git", ["ls-remote", url, wipRef("c6")], { encoding: "utf-8" })).toContain(snap.sha);
+    expect(
+      execFileSync("git", ["ls-remote", url, wipRef("c6")], {
+        encoding: "utf-8",
+      }),
+    ).toContain(snap.sha);
     // ...but not as a branch, so it can't trigger CI or clutter branch lists.
-    expect(execFileSync("git", ["ls-remote", "--heads", url], { encoding: "utf-8" })).not.toContain("codecast");
+    expect(
+      execFileSync("git", ["ls-remote", "--heads", url], { encoding: "utf-8" }),
+    ).not.toContain("codecast");
   });
 
   test("pushing the snapshot NEVER moves the real branch on the remote", async () => {
     const { cwd, remote } = repo();
     const url = git(cwd, ["remote", "get-url", remote]);
-    const mainBefore = execFileSync("git", ["ls-remote", url, "refs/heads/main"], { encoding: "utf-8" });
+    const mainBefore = execFileSync(
+      "git",
+      ["ls-remote", url, "refs/heads/main"],
+      { encoding: "utf-8" },
+    );
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "local-only\n");
     git(cwd, ["add", "-A"]);
     git(cwd, ["commit", "-qm", "unpushed local commit"]);
     const snap = (await createWipSnapshot(cwd))!;
-    await pushWipSnapshot(cwd, { remote, conversationIds: ["c7"], sha: snap.sha });
+    await pushWipSnapshot(cwd, {
+      remote,
+      conversationIds: ["c7"],
+      sha: snap.sha,
+    });
     // The unpushed commit is now ON the remote (as an ancestor of the wip ref),
     // but main is untouched — we never rewrite a shared branch.
-    expect(execFileSync("git", ["ls-remote", url, "refs/heads/main"], { encoding: "utf-8" })).toBe(mainBefore);
+    expect(
+      execFileSync("git", ["ls-remote", url, "refs/heads/main"], {
+        encoding: "utf-8",
+      }),
+    ).toBe(mainBefore);
   });
 });
 
@@ -355,9 +466,18 @@ describe("isPermanentPushFailure", () => {
     fs.writeFileSync(path.join(cwd, "f.txt"), "x\n");
     git(cwd, ["add", "-A"]);
     git(cwd, ["commit", "-qm", "c"]);
-    git(cwd, ["remote", "add", "origin", "/nonexistent/definitely-not-a-repo.git"]);
+    git(cwd, [
+      "remote",
+      "add",
+      "origin",
+      "/nonexistent/definitely-not-a-repo.git",
+    ]);
     const snap = (await createWipSnapshot(cwd))!;
-    const res = await pushWipSnapshot(cwd, { remote: "origin", conversationIds: ["c"], sha: snap.sha });
+    const res = await pushWipSnapshot(cwd, {
+      remote: "origin",
+      conversationIds: ["c"],
+      sha: snap.sha,
+    });
     expect(res.ok).toBe(false);
     expect(res.permanent).toBe(true);
   });
@@ -392,7 +512,9 @@ describe("the SSH move no longer pollutes the source branch (ct-39054)", () => {
     // ...while the remote still receives the exact same tree it did before:
     // the uncommitted edit and the untracked file, parented on the branch tip.
     expect(git(cwd, ["show", `${snap.sha}:tracked.txt`])).toBe("uncommitted");
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", snap.sha])).toContain("untracked.txt");
+    expect(git(cwd, ["ls-tree", "-r", "--name-only", snap.sha])).toContain(
+      "untracked.txt",
+    );
     expect(git(cwd, ["rev-parse", `${snap.sha}^`])).toBe(before.head);
   });
 });
@@ -404,7 +526,11 @@ describe("the SSH move no longer pollutes the source branch (ct-39054)", () => {
 // the same recipe in shell) and we replay it here as uncommitted work.
 describe("applySnapshotFastForward (cast remote back)", () => {
   /** Stand in for the Mac: a clone with its own commits + uncommitted work. */
-  async function remoteWithWork(): Promise<{ local: string; remoteRepo: string; ref: string }> {
+  async function remoteWithWork(): Promise<{
+    local: string;
+    remoteRepo: string;
+    ref: string;
+  }> {
     const { cwd: local } = repo();
     const remoteRepo = tmpdir("mac") + "/checkout";
     execFileSync("git", ["clone", "-q", local, remoteRepo]);
@@ -415,7 +541,9 @@ describe("applySnapshotFastForward (cast remote back)", () => {
 
   /** Run the real shell recipe, as gitPullWorktree does over ssh. */
   const runRemoteScript = (cwd: string, ref: string) =>
-    execFileSync("sh", ["-c", remoteSnapshotScript({ cwd, ref })], { encoding: "utf-8" }).trim();
+    execFileSync("sh", ["-c", remoteSnapshotScript({ cwd, ref })], {
+      encoding: "utf-8",
+    }).trim();
 
   test("the remote's shell recipe produces the same shape as createWipSnapshot", async () => {
     const { remoteRepo, ref } = await remoteWithWork();
@@ -431,17 +559,25 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     const msg = git(remoteRepo, ["show", "-s", "--format=%B", sha]);
     expect(parseSnapshotTrailer(msg, "codecast-branch")).toBe("main");
     // ...and .gitignore is still respected by the shell path.
-    expect(git(remoteRepo, ["ls-tree", "-r", "--name-only", sha])).not.toContain(".env");
+    expect(
+      git(remoteRepo, ["ls-tree", "-r", "--name-only", sha]),
+    ).not.toContain(".env");
   });
 
   test("the Mac's uncommitted work lands here as UNCOMMITTED, with no junk commit", async () => {
     const { local, remoteRepo, ref } = await remoteWithWork();
     // The Mac commits something AND leaves work uncommitted.
-    fs.writeFileSync(path.join(remoteRepo, "tracked.txt"), "committed on mac\n");
+    fs.writeFileSync(
+      path.join(remoteRepo, "tracked.txt"),
+      "committed on mac\n",
+    );
     git(remoteRepo, ["add", "-A"]);
     git(remoteRepo, ["commit", "-qm", "real work on the mac"]);
     fs.writeFileSync(path.join(remoteRepo, "tracked.txt"), "still editing\n");
-    fs.writeFileSync(path.join(remoteRepo, "mac-new.txt"), "untracked on mac\n");
+    fs.writeFileSync(
+      path.join(remoteRepo, "mac-new.txt"),
+      "untracked on mac\n",
+    );
     runRemoteScript(remoteRepo, ref);
 
     // Fetch it home exactly as gitPullWorktree does.
@@ -455,8 +591,12 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     // ...with NO junk commit (the old bug).
     expect(git(local, ["log", "--oneline"])).not.toContain("wip snapshot");
     // ...and its uncommitted work is uncommitted here.
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("still editing\n");
-    expect(fs.readFileSync(path.join(local, "mac-new.txt"), "utf-8")).toBe("untracked on mac\n");
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "still editing\n",
+    );
+    expect(fs.readFileSync(path.join(local, "mac-new.txt"), "utf-8")).toBe(
+      "untracked on mac\n",
+    );
     expect(git(local, ["status", "--porcelain"])).toContain("tracked.txt");
     expect(res.appliedWork).toBe(true);
   });
@@ -474,7 +614,9 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     const res = await applySnapshotFastForward(local, ref);
     expect(res.ok && res.conflicts).toEqual([]);
     expect(git(local, ["rev-parse", "HEAD"])).toBe(head);
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("mac\n");
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "mac\n",
+    );
     expect(fs.existsSync(path.join(local, "local-only.txt"))).toBe(true);
   });
 
@@ -483,12 +625,19 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     fs.writeFileSync(path.join(remoteRepo, "tracked.txt"), "from the mac\n");
     runRemoteScript(remoteRepo, ref);
     git(local, ["fetch", "--force", remoteRepo, `${ref}:${ref}`]);
-    fs.writeFileSync(path.join(local, "other-session.txt"), "someone else's work in progress\n");
+    fs.writeFileSync(
+      path.join(local, "other-session.txt"),
+      "someone else's work in progress\n",
+    );
 
     const res = await applySnapshotFastForward(local, ref);
     expect(res.ok && res.appliedWork).toBe(true);
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("from the mac\n");
-    expect(fs.readFileSync(path.join(local, "other-session.txt"), "utf-8")).toBe("someone else's work in progress\n");
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "from the mac\n",
+    );
+    expect(
+      fs.readFileSync(path.join(local, "other-session.txt"), "utf-8"),
+    ).toBe("someone else's work in progress\n");
     expect(git(local, ["log", "--oneline"])).not.toContain("wip snapshot");
   });
 
@@ -509,7 +658,10 @@ describe("applySnapshotFastForward (cast remote back)", () => {
   test("a move that pushed a wip snapshot: the branch never lands on it, and only the host's own edits come home", async () => {
     const { local, remoteRepo, ref } = await remoteWithWork();
     // The move: the laptop's uncommitted work travels as a snapshot the host checks out.
-    fs.writeFileSync(path.join(local, "tracked.txt"), "laptop work before the move\n");
+    fs.writeFileSync(
+      path.join(local, "tracked.txt"),
+      "laptop work before the move\n",
+    );
     const pushed = (await createWipSnapshot(local))!;
     git(remoteRepo, ["fetch", "-q", local, pushed.sha]);
     git(remoteRepo, ["reset", "-q", "--hard", pushed.sha]);
@@ -526,9 +678,15 @@ describe("applySnapshotFastForward (cast remote back)", () => {
       expect(res.ok && res.conflicts).toEqual([]);
       expect(git(local, ["rev-parse", "HEAD"])).toBe(head);
       expect(git(local, ["log", "--oneline"])).not.toContain("wip snapshot");
-      expect(fs.readFileSync(path.join(local, "made-on-host.txt"), "utf-8")).toBe("host work\n");
-      expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("laptop work before the move\n");
-      expect(fs.readFileSync(path.join(local, "sibling.txt"), "utf-8")).toBe("sibling work\n");
+      expect(
+        fs.readFileSync(path.join(local, "made-on-host.txt"), "utf-8"),
+      ).toBe("host work\n");
+      expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+        "laptop work before the move\n",
+      );
+      expect(fs.readFileSync(path.join(local, "sibling.txt"), "utf-8")).toBe(
+        "sibling work\n",
+      );
     }
   });
 
@@ -541,7 +699,9 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     fs.writeFileSync(path.join(local, "tracked.txt"), "laptop line\n");
     const res = await applySnapshotFastForward(local, ref);
     expect(res.ok && res.conflicts).toEqual(["tracked.txt"]);
-    expect(fs.readFileSync(path.join(local, "host-only.txt"), "utf-8")).toBe("new on host\n");
+    expect(fs.readFileSync(path.join(local, "host-only.txt"), "utf-8")).toBe(
+      "new on host\n",
+    );
     expect(git(local, ["diff", "--cached", "--name-only"])).toBe("");
   });
 
@@ -557,8 +717,12 @@ describe("applySnapshotFastForward (cast remote back)", () => {
 
     const res = await applySnapshotFastForward(local, ref);
     expect(res.ok && res.conflicts).toEqual(["notes.md"]);
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("host edit\n");
-    expect(fs.readFileSync(path.join(local, "same.txt"), "utf-8")).toBe("same\n");
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "host edit\n",
+    );
+    expect(fs.readFileSync(path.join(local, "same.txt"), "utf-8")).toBe(
+      "same\n",
+    );
     const notes = fs.readFileSync(path.join(local, "notes.md"), "utf-8");
     expect(notes).toContain("laptop notes");
     expect(notes).toContain("host notes");
@@ -566,15 +730,24 @@ describe("applySnapshotFastForward (cast remote back)", () => {
 
   test("files the config mirror wrote on the host stay this folder's: a newer copy here is kept, the rest still lands", async () => {
     const { local, remoteRepo, ref } = await remoteWithWork();
-    fs.writeFileSync(path.join(remoteRepo, "AGENTS.md"), "mirror copy from earlier\n");
+    fs.writeFileSync(
+      path.join(remoteRepo, "AGENTS.md"),
+      "mirror copy from earlier\n",
+    );
     fs.writeFileSync(path.join(remoteRepo, "tracked.txt"), "host edit\n");
     runRemoteScript(remoteRepo, ref);
     git(local, ["fetch", "--force", remoteRepo, `${ref}:${ref}`]);
     fs.writeFileSync(path.join(local, "AGENTS.md"), "edited here since\n");
-    const res = await applySnapshotFastForward(local, ref, { skip: ["AGENTS.md"] });
+    const res = await applySnapshotFastForward(local, ref, {
+      skip: ["AGENTS.md"],
+    });
     expect(res.ok && res.conflicts).toEqual([]);
-    expect(fs.readFileSync(path.join(local, "AGENTS.md"), "utf-8")).toBe("edited here since\n");
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("host edit\n");
+    expect(fs.readFileSync(path.join(local, "AGENTS.md"), "utf-8")).toBe(
+      "edited here since\n",
+    );
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "host edit\n",
+    );
   });
 
   test("a host that changed nothing changes nothing here", async () => {
@@ -584,7 +757,9 @@ describe("applySnapshotFastForward (cast remote back)", () => {
     fs.writeFileSync(path.join(local, "tracked.txt"), "local edit\n");
     const res = await applySnapshotFastForward(local, ref);
     expect(res.ok && res.appliedWork).toBe(false);
-    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe("local edit\n");
+    expect(fs.readFileSync(path.join(local, "tracked.txt"), "utf-8")).toBe(
+      "local edit\n",
+    );
   });
 
   test("a missing/garbage ref reports rather than throws", async () => {
@@ -615,11 +790,21 @@ describe("sessions sharing a checkout share one snapshot", () => {
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "shared\n");
     const snap = (await createWipSnapshot(cwd))!;
     const ids = ["convA", "convB", "convC"];
-    expect((await pushWipSnapshot(cwd, { remote, conversationIds: ids, sha: snap.sha })).ok).toBe(true);
+    expect(
+      (
+        await pushWipSnapshot(cwd, {
+          remote,
+          conversationIds: ids,
+          sha: snap.sha,
+        })
+      ).ok,
+    ).toBe(true);
 
     const url = git(cwd, ["remote", "get-url", remote]);
     for (const id of ids) {
-      const out = execFileSync("git", ["ls-remote", url, wipRef(id)], { encoding: "utf-8" });
+      const out = execFileSync("git", ["ls-remote", url, wipRef(id)], {
+        encoding: "utf-8",
+      });
       expect(out).toContain(snap.sha);
     }
   });
@@ -627,7 +812,15 @@ describe("sessions sharing a checkout share one snapshot", () => {
   test("an empty session list is a no-op, not a malformed push", async () => {
     const { cwd, remote } = repo();
     const snap = (await createWipSnapshot(cwd))!;
-    expect((await pushWipSnapshot(cwd, { remote, conversationIds: [], sha: snap.sha })).ok).toBe(true);
+    expect(
+      (
+        await pushWipSnapshot(cwd, {
+          remote,
+          conversationIds: [],
+          sha: snap.sha,
+        })
+      ).ok,
+    ).toBe(true);
   });
 });
 
@@ -640,56 +833,111 @@ describe("createWipSnapshotStrict (the cloud seed, ct-49433)", () => {
     git(cwd, ["add", "-f", ".codecast/tracked.txt"]);
     git(cwd, ["commit", "-qm", "tracked ignored fixture"]);
     fs.writeFileSync(path.join(cwd, ".codecast/tracked.txt"), "new");
-    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/private"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/workspaces/private/Cookies"), "private cookie");
+    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/private"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/workspaces/private/Cookies"),
+      "private cookie",
+    );
     fs.writeFileSync(path.join(cwd, " literal[1].txt"), "literal path\n");
     fs.unlinkSync(path.join(cwd, "tracked.txt"));
     const index = fs.readFileSync(path.join(cwd, ".git/index"));
-    const snap = (await createWipSnapshotStrict(cwd, { exclude: CLOUD_SEED_EXCLUDES }))!;
-    expect(git(cwd, ["show", `${snap.sha}: literal[1].txt`])).toBe("literal path");
+    const snap = (await createWipSnapshotStrict(cwd, {
+      exclude: CLOUD_SEED_EXCLUDES,
+    }))!;
+    expect(git(cwd, ["show", `${snap.sha}: literal[1].txt`])).toBe(
+      "literal path",
+    );
     const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]);
     expect(files).not.toContain(".env");
     expect(files).not.toContain("Cookies");
     expect(files.split("\n")).not.toContain("tracked.txt");
     expect(git(cwd, ["show", `${snap.sha}:.codecast/tracked.txt`])).toBe("new");
-    expect(fs.readFileSync(path.join(cwd, ".git/index")).equals(index)).toBe(true);
+    expect(fs.readFileSync(path.join(cwd, ".git/index")).equals(index)).toBe(
+      true,
+    );
   });
 
   test("excludes the workspace state dirs even when .gitignore does not, and keeps a tracked .codecast file as HEAD has it", async () => {
     const { cwd } = repo();
     // A tracked file under .codecast stays as committed; the excluded dirs never enter.
     fs.mkdirSync(path.join(cwd, ".codecast"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast", "workspace.toml"), "[setup]\n");
+    fs.writeFileSync(
+      path.join(cwd, ".codecast", "workspace.toml"),
+      "[setup]\n",
+    );
     git(cwd, ["add", ".codecast/workspace.toml"]);
     git(cwd, ["commit", "-qm", "manifest"]);
-    fs.writeFileSync(path.join(cwd, ".codecast", "workspace.toml"), "[setup]\ninstall = ['x']\n"); // modified, must travel
-    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile/Cookies"), "COOKIE_JAR");
+    fs.writeFileSync(
+      path.join(cwd, ".codecast", "workspace.toml"),
+      "[setup]\ninstall = ['x']\n",
+    ); // modified, must travel
+    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/workspaces/w1/chrome-profile/Cookies"),
+      "COOKIE_JAR",
+    );
     fs.mkdirSync(path.join(cwd, ".codecast/worktrees/w2"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/worktrees/w2/f"), "another session's tree");
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/worktrees/w2/f"),
+      "another session's tree",
+    );
     fs.mkdirSync(path.join(cwd, ".codecast/logs"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/logs/setup.log"), "install output");
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/logs/setup.log"),
+      "install output",
+    );
     fs.writeFileSync(path.join(cwd, "work.txt"), "untracked work");
-    expect(git(cwd, ["status", "--porcelain"])).toContain(".codecast/workspaces/"); // not ignored on the laptop
-    const snap = (await createWipSnapshotStrict(cwd, { exclude: CLOUD_SEED_EXCLUDES }))!;
-    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split("\n");
+    expect(git(cwd, ["status", "--porcelain"])).toContain(
+      ".codecast/workspaces/",
+    ); // not ignored on the laptop
+    const snap = (await createWipSnapshotStrict(cwd, {
+      exclude: CLOUD_SEED_EXCLUDES,
+    }))!;
+    const files = git(cwd, ["ls-tree", "-r", "--name-only", snap.sha]).split(
+      "\n",
+    );
     expect(files).toContain("work.txt");
     expect(files).toContain(".codecast/workspace.toml");
-    expect(git(cwd, ["show", `${snap.sha}:.codecast/workspace.toml`])).toBe("[setup]\ninstall = ['x']");
-    expect(files.some((f) => f.includes("Cookies") || f.startsWith(".codecast/worktrees/") || f.startsWith(".codecast/logs/"))).toBe(false);
+    expect(git(cwd, ["show", `${snap.sha}:.codecast/workspace.toml`])).toBe(
+      "[setup]\ninstall = ['x']",
+    );
+    expect(
+      files.some(
+        (f) =>
+          f.includes("Cookies") ||
+          f.startsWith(".codecast/worktrees/") ||
+          f.startsWith(".codecast/logs/"),
+      ),
+    ).toBe(false);
     expect(files).not.toContain(".env");
     expect(snap.dirty).toBe(true);
-    expect(git(cwd, ["status", "--porcelain"])).toContain(".codecast/workspaces/"); // the laptop is untouched
+    expect(git(cwd, ["status", "--porcelain"])).toContain(
+      ".codecast/workspaces/",
+    ); // the laptop is untouched
   });
 
   test("dirty is what the snapshot carries: untracked content under an excluded dir alone is clean", async () => {
     const { cwd } = repo();
-    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile/Cookies"), "COOKIE_JAR");
+    fs.mkdirSync(path.join(cwd, ".codecast/workspaces/w1/chrome-profile"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/workspaces/w1/chrome-profile/Cookies"),
+      "COOKIE_JAR",
+    );
     fs.mkdirSync(path.join(cwd, ".codecast/logs"), { recursive: true });
-    fs.writeFileSync(path.join(cwd, ".codecast/logs/setup.log"), "install output");
+    fs.writeFileSync(
+      path.join(cwd, ".codecast/logs/setup.log"),
+      "install output",
+    );
     expect(git(cwd, ["status", "--porcelain"])).toContain(".codecast/");
-    const snap = (await createWipSnapshotStrict(cwd, { exclude: CLOUD_SEED_EXCLUDES }))!;
+    const snap = (await createWipSnapshotStrict(cwd, {
+      exclude: CLOUD_SEED_EXCLUDES,
+    }))!;
     expect(snap.tree).toBe(git(cwd, ["rev-parse", "HEAD^{tree}"]));
     expect(snap.dirty).toBe(false);
     expect(await snapshotTree(cwd, CLOUD_SEED_EXCLUDES)).toBe(snap.tree);
@@ -697,17 +945,33 @@ describe("createWipSnapshotStrict (the cloud seed, ct-49433)", () => {
     expect((await createWipSnapshotStrict(cwd))!.dirty).toBe(true);
     fs.writeFileSync(path.join(cwd, "tracked.txt"), "staged\n");
     git(cwd, ["add", "tracked.txt"]);
-    expect((await createWipSnapshotStrict(cwd, { exclude: CLOUD_SEED_EXCLUDES }))!.dirty).toBe(true);
+    expect(
+      (await createWipSnapshotStrict(cwd, { exclude: CLOUD_SEED_EXCLUDES }))!
+        .dirty,
+    ).toBe(true);
   });
 
   test("a worktree nested under an untracked dir is not recorded as a gitlink; files beside it are", async () => {
     const { cwd } = repo();
     fs.mkdirSync(path.join(cwd, "worktrees"));
-    git(cwd, ["worktree", "add", "-q", "-b", "w1", path.join(cwd, "worktrees", "w1")]);
+    git(cwd, [
+      "worktree",
+      "add",
+      "-q",
+      "-b",
+      "w1",
+      path.join(cwd, "worktrees", "w1"),
+    ]);
     fs.writeFileSync(path.join(cwd, "worktrees", "notes.txt"), "real\n");
     const snap = (await createWipSnapshotStrict(cwd))!;
-    expect(git(cwd, ["ls-tree", "-r", snap.tree]).split("\n").filter((l) => l.startsWith("160000 "))).toEqual([]);
-    expect(git(cwd, ["ls-tree", "-r", "--name-only", snap.tree]).split("\n")).toContain("worktrees/notes.txt");
+    expect(
+      git(cwd, ["ls-tree", "-r", snap.tree])
+        .split("\n")
+        .filter((l) => l.startsWith("160000 ")),
+    ).toEqual([]);
+    expect(
+      git(cwd, ["ls-tree", "-r", "--name-only", snap.tree]).split("\n"),
+    ).toContain("worktrees/notes.txt");
   });
 
   test("returns null only for no HEAD; a clean tree snapshots to HEAD's own tree", async () => {
@@ -728,9 +992,15 @@ describe("createWipSnapshotStrict (the cloud seed, ct-49433)", () => {
     fs.chmodSync(path.join(cwd, "locked.txt"), 0o000);
     try {
       let error: any;
-      try { await createWipSnapshotStrict(cwd); } catch (e) { error = e; }
+      try {
+        await createWipSnapshotStrict(cwd);
+      } catch (e) {
+        error = e;
+      }
       expect(error).toBeDefined();
-      expect(String(error.stderr ?? error.message)).toMatch(/locked\.txt|Permission denied/);
+      expect(String(error.stderr ?? error.message)).toMatch(
+        /locked\.txt|Permission denied/,
+      );
       expect(await createWipSnapshot(cwd)).toBeNull();
     } finally {
       fs.chmodSync(path.join(cwd, "locked.txt"), 0o644);
@@ -751,21 +1021,45 @@ describe("knownValuesInPush", () => {
     fs.writeFileSync(path.join(cwd, "notes.txt"), "nothing secret\n");
     const tip = (await createTurnSnapshot(cwd))!;
     expect(tip.prev).toBe(first.sha);
-    const found = await knownValuesInPush(cwd, tip.sha, [tip.base], knownValueNames);
+    const found = await knownValuesInPush(
+      cwd,
+      tip.sha,
+      [tip.base],
+      knownValueNames,
+    );
     expect(found).toEqual([{ path: "creds.json", names: ["zz-key"] }]);
     expect(JSON.stringify(found)).not.toContain(VALUE);
     // Pushed already: only what is new since then is read.
-    expect(await knownValuesInPush(cwd, tip.sha, [tip.base, first.sha], knownValueNames)).toEqual([]);
+    expect(
+      await knownValuesInPush(
+        cwd,
+        tip.sha,
+        [tip.base, first.sha],
+        knownValueNames,
+      ),
+    ).toEqual([]);
     // A last pushed snapshot git has since dropped is ignored, not an error.
-    expect(await knownValuesInPush(cwd, tip.sha, [tip.base, "0".repeat(40)], knownValueNames)).toHaveLength(1);
+    expect(
+      await knownValuesInPush(
+        cwd,
+        tip.sha,
+        [tip.base, "0".repeat(40)],
+        knownValueNames,
+      ),
+    ).toHaveLength(1);
   });
 
   test("a binary file holding the value and a plain text file are not reported", async () => {
     const { cwd } = repo();
     setKnownValuesForTest([{ value: VALUE, name: "zz-key", vault: true }]);
-    fs.writeFileSync(path.join(cwd, "blob.bin"), Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from(VALUE)]));
+    fs.writeFileSync(
+      path.join(cwd, "blob.bin"),
+      Buffer.concat([Buffer.from([0, 1, 2]), Buffer.from(VALUE)]),
+    );
     fs.writeFileSync(path.join(cwd, "plain.txt"), "hello\n");
     const snap = (await createTurnSnapshot(cwd))!;
-    expect(await knownValuesInPush(cwd, snap.sha, [snap.base], knownValueNames)).toEqual([]);
+    expect(
+      await knownValuesInPush(cwd, snap.sha, [snap.base], knownValueNames),
+    ).toEqual([]);
   });
 });

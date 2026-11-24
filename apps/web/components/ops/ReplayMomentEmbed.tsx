@@ -22,10 +22,17 @@ import { useMountEffect } from "../../hooks/useMountEffect";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import Link from "next/link";
 import { ArrowUpRight, Film, Play } from "lucide-react";
-import { formatCallTime, parseReplayRef, replayRefStart } from "@codecast/shared/entities";
+import {
+  formatCallTime,
+  parseReplayRef,
+  replayRefStart,
+} from "@codecast/shared/entities";
 import { useNearViewport } from "../../hooks/useNearViewport";
 import { ReplayPlayerIframe } from "./ReplayPlayerFrame";
-import { useReplayPlayerChannel, useReplayPlayerLink } from "../../hooks/useReplayPlayer";
+import {
+  useReplayPlayerChannel,
+  useReplayPlayerLink,
+} from "../../hooks/useReplayPlayer";
 import { replayTitle } from "./opsModel";
 import { importedUntil } from "./replayModel";
 import { ReplayMiniBar } from "./ReplayMiniBar";
@@ -41,7 +48,10 @@ export const LIVE_PLAYERS_MAX = 3;
 const live = new Set<symbol>();
 const liveListeners = new Set<() => void>();
 const liveChanged = () => liveListeners.forEach((l) => l());
-const subscribeLive = (l: () => void) => (liveListeners.add(l), () => void liveListeners.delete(l));
+const subscribeLive = (l: () => void) => (
+  liveListeners.add(l),
+  () => void liveListeners.delete(l)
+);
 
 /**
  * Whether this embed may open its player without a click: it asked (`want`)
@@ -51,7 +61,11 @@ const subscribeLive = (l: () => void) => (liveListeners.add(l), () => void liveL
 export function useLivePlayerSlot(want: boolean, release = false): boolean {
   const [id] = useState(() => Symbol("replay-embed"));
   const [held, setHeld] = useState(false);
-  const size = useSyncExternalStore(subscribeLive, () => live.size, () => live.size);
+  const size = useSyncExternalStore(
+    subscribeLive,
+    () => live.size,
+    () => live.size,
+  );
   useMountEffect(() => () => {
     if (live.delete(id)) liveChanged();
   });
@@ -98,41 +112,84 @@ export function ReplayMomentEmbed({
   const [clicked, setClicked] = useState(false);
   const open = playable && (slot || clicked);
   // The page's own bar (ReplayMiniBar) drives the player, whose bar is hidden: the clock lives here.
-  const [clock, setClock] = useState({ t: atMs, playing: false, speed: 1, length: 0 });
+  const [clock, setClock] = useState({
+    t: atMs,
+    playing: false,
+    speed: 1,
+    length: 0,
+  });
   const here = useRef(clock);
   here.current = clock;
   // A long capture plays a stretch at a time: leaving it opens the player again where the clock stands.
   const [hop, setHop] = useState(0);
-  const link = useReplayPlayerLink(entity?._id ?? null, open, { t_ms: hop > 0 ? clock.t : atMs, controls: false }, hop);
+  const link = useReplayPlayerLink(
+    entity?._id ?? null,
+    open,
+    { t_ms: hop > 0 ? clock.t : atMs, controls: false },
+    hop,
+  );
   const win = link.state === "ready" ? link.window : null;
-  const [size, setSize] = useState<{ width: number; height: number; below: number } | null>(null);
+  const [size, setSize] = useState<{
+    width: number;
+    height: number;
+    below: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const channel = useReplayPlayerChannel(link.state === "ready" ? link.origin : null, (msg) => {
-    if (msg.type === "ready") {
-      setSize({ width: msg.width, height: msg.height, below: msg.below_px ?? 0 });
-      setError(null);
-      setClock((c) => ({ ...c, length: msg.duration_ms }));
-      const cur = here.current;
-      if (cur.speed !== 1) channel.send({ type: "speed", speed: cur.speed });
-      if (hop > 0) channel.send({ type: "seek", t_ms: cur.t, ...(cur.playing ? { play: true } : {}) });
-    } else if (msg.type === "size") setSize((prev) => (prev ? { ...prev, width: msg.width, height: msg.height } : prev));
-    else if (msg.type === "time") {
-      setClock((c) => ({ ...c, t: msg.t_ms, playing: msg.playing }));
-      if (win && win.end_ms !== null && msg.playing && msg.t_ms >= win.end_ms - 400) setHop((n) => n + 1);
-    } else if (msg.type === "state") setClock((c) => ({ ...c, playing: msg.playing, speed: msg.speed }));
-    else if (msg.type === "error") setError(msg.message);
-  });
+  const channel = useReplayPlayerChannel(
+    link.state === "ready" ? link.origin : null,
+    (msg) => {
+      if (msg.type === "ready") {
+        setSize({
+          width: msg.width,
+          height: msg.height,
+          below: msg.below_px ?? 0,
+        });
+        setError(null);
+        setClock((c) => ({ ...c, length: msg.duration_ms }));
+        const cur = here.current;
+        if (cur.speed !== 1) channel.send({ type: "speed", speed: cur.speed });
+        if (hop > 0)
+          channel.send({
+            type: "seek",
+            t_ms: cur.t,
+            ...(cur.playing ? { play: true } : {}),
+          });
+      } else if (msg.type === "size")
+        setSize((prev) =>
+          prev ? { ...prev, width: msg.width, height: msg.height } : prev,
+        );
+      else if (msg.type === "time") {
+        setClock((c) => ({ ...c, t: msg.t_ms, playing: msg.playing }));
+        if (
+          win &&
+          win.end_ms !== null &&
+          msg.playing &&
+          msg.t_ms >= win.end_ms - 400
+        )
+          setHop((n) => n + 1);
+      } else if (msg.type === "state")
+        setClock((c) => ({ ...c, playing: msg.playing, speed: msg.speed }));
+      else if (msg.type === "error") setError(msg.message);
+    },
+  );
   const seek = (to: number) => {
     setClock((c) => ({ ...c, t: to }));
     if (!replayWindowHolds(win, to)) return setHop((n) => n + 1);
-    channel.send({ type: "seek", t_ms: to, ...(here.current.playing ? { play: true } : {}) });
+    channel.send({
+      type: "seek",
+      t_ms: to,
+      ...(here.current.playing ? { play: true } : {}),
+    });
   };
-  const toggle = () => channel.send({ type: here.current.playing ? "pause" : "play" });
+  const toggle = () =>
+    channel.send({ type: here.current.playing ? "pause" : "play" });
   const pickSpeed = (s: number) => {
     setClock((c) => ({ ...c, speed: s }));
     channel.send({ type: "speed", speed: s });
   };
-  const cut = entity ? importedUntil(entity.captured_ms, entity.duration_ms) : null;
+  const cut = entity
+    ? importedUntil(entity.captured_ms, entity.duration_ms)
+    : null;
 
   if (served && !entity) {
     return (
@@ -158,7 +215,8 @@ export function ReplayMomentEmbed({
         <div className="flex flex-col items-center justify-center gap-1.5 px-6 py-6 text-center">
           <Film className="h-4 w-4 text-sol-text-dim" />
           <span className="text-meta leading-snug text-sol-text-muted">
-            {problem ?? `This replay kept no page capture. Its events at ${time} are on the replay page.`}
+            {problem ??
+              `This replay kept no page capture. Its events at ${time} are on the replay page.`}
           </span>
         </div>
       ) : (
@@ -166,7 +224,10 @@ export function ReplayMomentEmbed({
           className="relative bg-sol-bg"
           // The player scales a recording down to fit, never up: a page
           // narrower than the embed is drawn at its own width.
-          style={{ height: `calc(min(100cqw, ${box.width}px) * ${box.height / box.width} + ${box.below}px)`, maxHeight: "70vh" }}
+          style={{
+            height: `calc(min(100cqw, ${box.width}px) * ${box.height / box.width} + ${box.below}px)`,
+            maxHeight: "70vh",
+          }}
         >
           {link.state === "ready" && (
             <ReplayPlayerIframe
@@ -188,7 +249,9 @@ export function ReplayMomentEmbed({
             </button>
           ) : !size ? (
             <div className="absolute inset-0 flex items-center justify-center text-meta text-sol-text-dim">
-              {served || entity ? "Loading the page capture…" : "Opening the replay…"}
+              {served || entity
+                ? "Loading the page capture…"
+                : "Opening the replay…"}
             </div>
           ) : null}
         </div>
@@ -206,11 +269,21 @@ export function ReplayMomentEmbed({
           onSpeed={pickSpeed}
         />
       )}
-      <Link href={href} className="group flex items-center gap-2 px-2.5 py-1.5 hover:bg-sol-bg-highlight/40" title={`Open ${title} at ${time}`}>
+      <Link
+        href={href}
+        className="group flex items-center gap-2 px-2.5 py-1.5 hover:bg-sol-bg-highlight/40"
+        title={`Open ${title} at ${time}`}
+      >
         <Film className="h-3.5 w-3.5 shrink-0 text-sol-magenta" />
-        <span className="min-w-0 flex-1 truncate text-[12px] text-sol-text">{title}</span>
-        <span className="shrink-0 font-mono text-meta tabular-nums text-sol-text-dim">{time}</span>
-        <span className="shrink-0 font-mono text-meta text-sol-text-dim">{ref?.replay ?? rawId}</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-sol-text">
+          {title}
+        </span>
+        <span className="shrink-0 font-mono text-meta tabular-nums text-sol-text-dim">
+          {time}
+        </span>
+        <span className="shrink-0 font-mono text-meta text-sol-text-dim">
+          {ref?.replay ?? rawId}
+        </span>
         <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-sol-text-dim transition-colors group-hover:text-sol-text" />
       </Link>
     </div>

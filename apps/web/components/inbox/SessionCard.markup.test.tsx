@@ -24,33 +24,79 @@ const NOW = Date.UTC(2026, 8, 30, 18, 0);
 Date.now = () => NOW;
 const MIN = 60_000;
 
-let LOCAL: { viewer: string; deviceId: string } | null = { viewer: "me", deviceId: "laptop-here" };
-const UI = { show_model_badge: true, show_agent_icon: true, show_branch_pill: true, personify_sessions: false, show_characters: true, inbox_image_thumbs: false } as Record<string, unknown>;
+let LOCAL: { viewer: string; deviceId: string } | null = {
+  viewer: "me",
+  deviceId: "laptop-here",
+};
+const UI = {
+  show_model_badge: true,
+  show_agent_icon: true,
+  show_branch_pill: true,
+  personify_sessions: false,
+  show_characters: true,
+  inbox_image_thumbs: false,
+} as Record<string, unknown>;
 
-const readState = mockInboxStore(() => ({
-  machineRoster: [
-    { device_id: "cloud-linux", is_remote: true, platform: "linux", online: false, last_seen: 1, label: "Cloud Linux" },
-    { device_id: "laptop-here", is_remote: false, platform: "darwin", online: true, last_seen: 1, label: "This laptop" },
-    { device_id: "laptop-other", is_remote: false, platform: "darwin", online: true, last_seen: 1, label: "Desk Mac" },
-  ],
-  machineRosterLive: true,
-  localDevice: LOCAL,
-  currentUser: { _id: "me" },
-  ...withTeamRoster([
-    { _id: "me", name: "Ashot Petrosian", email: "a@x.org" },
-    { _id: "u-ann", name: "Ann Lee", email: "ann@x.org", avatar_url: null, presence_state: "active", viewing_conversation_id: "c-viewed" },
-  ], { clientState: { ui: UI } }),
-  drafts: { "c-draft": { draft_message: "try the retry budget again" } },
-  pendingMessages: { "c-pending": [{ _id: "pm1", status: "pending", content: "go" }] },
-  sessionCommands: {},
-  blockedReviveRequestedAt: {},
-  conversations: {},
-  sessions: {
-    "c-lead": { _id: "c-lead", title: "Webhook retry rewrite" },
+const readState = mockInboxStore(
+  () => ({
+    machineRoster: [
+      {
+        device_id: "cloud-linux",
+        is_remote: true,
+        platform: "linux",
+        online: false,
+        last_seen: 1,
+        label: "Cloud Linux",
+      },
+      {
+        device_id: "laptop-here",
+        is_remote: false,
+        platform: "darwin",
+        online: true,
+        last_seen: 1,
+        label: "This laptop",
+      },
+      {
+        device_id: "laptop-other",
+        is_remote: false,
+        platform: "darwin",
+        online: true,
+        last_seen: 1,
+        label: "Desk Mac",
+      },
+    ],
+    machineRosterLive: true,
+    localDevice: LOCAL,
+    currentUser: { _id: "me" },
+    ...withTeamRoster(
+      [
+        { _id: "me", name: "Ashot Petrosian", email: "a@x.org" },
+        {
+          _id: "u-ann",
+          name: "Ann Lee",
+          email: "ann@x.org",
+          avatar_url: null,
+          presence_state: "active",
+          viewing_conversation_id: "c-viewed",
+        },
+      ],
+      { clientState: { ui: UI } },
+    ),
+    drafts: { "c-draft": { draft_message: "try the retry budget again" } },
+    pendingMessages: {
+      "c-pending": [{ _id: "pm1", status: "pending", content: "go" }],
+    },
+    sessionCommands: {},
+    blockedReviveRequestedAt: {},
+    conversations: {},
+    sessions: {
+      "c-lead": { _id: "c-lead", title: "Webhook retry rewrite" },
+    },
+  }),
+  {
+    useTrackedStore: () => readState(),
   },
-}), {
-  useTrackedStore: () => readState(),
-});
+);
 
 const { SessionCard } = await import("./SessionCard");
 
@@ -74,86 +120,206 @@ const base: InboxSession = {
 } as InboxSession;
 
 type Props = Record<string, unknown>;
-const ROLE = { _id: "r1", short_id: "rl-7", name: "Infra lead", handle: "infra", avatar: "otter", status: "active", tenure_kind: "standing" as const };
+const ROLE = {
+  _id: "r1",
+  short_id: "rl-7",
+  name: "Infra lead",
+  handle: "infra",
+  avatar: "otter",
+  status: "active",
+  tenure_kind: "standing" as const,
+};
 const noop = () => {};
 
 // The markup must read the same on every machine. Bun resolves an imported
 // image to its absolute path in the checkout, and ICU builds disagree on the
 // date and time joiner ("Jan 2 at 3:00 PM" on macOS, "Jan 2, 3:00 PM" on Linux).
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..", "..");
-const portable = (html: string) => html.replaceAll(REPO_ROOT, "<repo>").replace(/(\d) at (\d)/g, "$1, $2");
+const portable = (html: string) =>
+  html.replaceAll(REPO_ROOT, "<repo>").replace(/(\d) at (\d)/g, "$1, $2");
 
 function render(overrides: Partial<InboxSession>, props: Props = {}) {
-  return portable(renderToStaticMarkup(
-    <MemoryRouter>
-    <ConvexProvider client={convex}>
-    <IdentityPrefsOverride.Provider value={identityPrefsOf(UI)}>
-      <SessionCard
-        session={{ ...base, ...overrides } as InboxSession}
-        isActive={false}
-        globalIndex={0}
-        onSelect={noop}
-        onClose={noop}
-        onPin={noop}
-        sessionLabel={null}
-        isFavorite={false}
-        {...props}
-      />
-    </IdentityPrefsOverride.Provider>
-    </ConvexProvider>
-    </MemoryRouter>,
-  ));
+  return portable(
+    renderToStaticMarkup(
+      <MemoryRouter>
+        <ConvexProvider client={convex}>
+          <IdentityPrefsOverride.Provider value={identityPrefsOf(UI)}>
+            <SessionCard
+              session={{ ...base, ...overrides } as InboxSession}
+              isActive={false}
+              globalIndex={0}
+              onSelect={noop}
+              onClose={noop}
+              onPin={noop}
+              sessionLabel={null}
+              isFavorite={false}
+              {...props}
+            />
+          </IdentityPrefsOverride.Provider>
+        </ConvexProvider>
+      </MemoryRouter>,
+    ),
+  );
 }
 
 const CASES: Array<[string, Partial<InboxSession>, Props?]> = [
-  ["working", { _id: "c-working", is_idle: false, updated_at: NOW - 0.5 * MIN }, { variant: "working" }],
-  ["needs input", {
-    _id: "c-blocked",
-    thread_state: "Migrating the sync layer\nBlocked: needs a prod key",
-    thread_state_status: "blocked",
-    thread_state_at: NOW - 3.5 * MIN,
-    thread_state_msg_count: 12,
-  } as Partial<InboxSession>],
-  ["done", {
-    _id: "c-done",
-    thread_state: "Shipped the retry fix, all four checks green",
-    thread_state_status: "done",
-    thread_state_at: NOW - 20.5 * MIN,
-    thread_state_msg_count: 12,
-  } as Partial<InboxSession>],
-  ["idle, unread, favorite, labelled", { _id: "c-unread", agent_type: "codex" }, { isUnread: true, isFavorite: true, sessionLabel: "Payments" }],
+  [
+    "working",
+    { _id: "c-working", is_idle: false, updated_at: NOW - 0.5 * MIN },
+    { variant: "working" },
+  ],
+  [
+    "needs input",
+    {
+      _id: "c-blocked",
+      thread_state: "Migrating the sync layer\nBlocked: needs a prod key",
+      thread_state_status: "blocked",
+      thread_state_at: NOW - 3.5 * MIN,
+      thread_state_msg_count: 12,
+    } as Partial<InboxSession>,
+  ],
+  [
+    "done",
+    {
+      _id: "c-done",
+      thread_state: "Shipped the retry fix, all four checks green",
+      thread_state_status: "done",
+      thread_state_at: NOW - 20.5 * MIN,
+      thread_state_msg_count: 12,
+    } as Partial<InboxSession>,
+  ],
+  [
+    "idle, unread, favorite, labelled",
+    { _id: "c-unread", agent_type: "codex" },
+    { isUnread: true, isFavorite: true, sessionLabel: "Payments" },
+  ],
   ["active", { _id: "c-active" }, { isActive: true }],
   ["pinned", { _id: "c-pinned", is_pinned: true }],
-  ["subagent", { _id: "c-sub", is_subagent: true, parent_conversation_id: "c-lead", agent_type: "cursor" } as Partial<InboxSession>],
-  ["subagent, active, working", { _id: "c-sub2", is_subagent: true, parent_conversation_id: "c-lead", is_idle: false, updated_at: NOW - 0.5 * MIN } as Partial<InboxSession>, { isActive: true, variant: "working" }],
+  [
+    "subagent",
+    {
+      _id: "c-sub",
+      is_subagent: true,
+      parent_conversation_id: "c-lead",
+      agent_type: "cursor",
+    } as Partial<InboxSession>,
+  ],
+  [
+    "subagent, active, working",
+    {
+      _id: "c-sub2",
+      is_subagent: true,
+      parent_conversation_id: "c-lead",
+      is_idle: false,
+      updated_at: NOW - 0.5 * MIN,
+    } as Partial<InboxSession>,
+    { isActive: true, variant: "working" },
+  ],
   ["trigger sub row", { _id: "c-trig" }, { subRow: "trigger" }],
-  ["stashed", { _id: "c-stashed" }, { variant: "stashed", onRestore: noop, onKill: noop, onClose: undefined, onPin: undefined }],
-  ["dismissed", { _id: "c-dismissed" }, { variant: "dismissed", onRestore: noop, onKill: noop, onClose: undefined, onPin: undefined }],
-  ["snoozed", { _id: "c-snoozed", inbox_snoozed_until: Date.UTC(2031, 0, 2, 15, 0) } as Partial<InboxSession>, { variant: "snoozed", onRestore: noop }],
-  ["cloud worktree", { _id: "c-cloud", worktree_name: "cloud-d03aaa", worktree_branch: "codecast/cloud-d03aaa", owner_device_id: "cloud-linux", agent_type: "gemini" } as Partial<InboxSession>],
-  ["draft", { _id: "c-draft", _hasDraft: true, message_count: 0, last_user_message: undefined }],
+  [
+    "stashed",
+    { _id: "c-stashed" },
+    {
+      variant: "stashed",
+      onRestore: noop,
+      onKill: noop,
+      onClose: undefined,
+      onPin: undefined,
+    },
+  ],
+  [
+    "dismissed",
+    { _id: "c-dismissed" },
+    {
+      variant: "dismissed",
+      onRestore: noop,
+      onKill: noop,
+      onClose: undefined,
+      onPin: undefined,
+    },
+  ],
+  [
+    "snoozed",
+    {
+      _id: "c-snoozed",
+      inbox_snoozed_until: Date.UTC(2031, 0, 2, 15, 0),
+    } as Partial<InboxSession>,
+    { variant: "snoozed", onRestore: noop },
+  ],
+  [
+    "cloud worktree",
+    {
+      _id: "c-cloud",
+      worktree_name: "cloud-d03aaa",
+      worktree_branch: "codecast/cloud-d03aaa",
+      owner_device_id: "cloud-linux",
+      agent_type: "gemini",
+    } as Partial<InboxSession>,
+  ],
+  [
+    "draft",
+    {
+      _id: "c-draft",
+      _hasDraft: true,
+      message_count: 0,
+      last_user_message: undefined,
+    },
+  ],
   ["pending send", { _id: "c-pending", has_pending: true }],
-  ["assigned ping", { _id: "c-ping", assigned_ping: { by_name: "Ann Lee", note: "Can you take the webhook half?", at: NOW - 7.5 * MIN } }],
-  ["spawned by, fork, plan, task, comments", {
-    _id: "c-spawned",
-    spawned_by_conversation_id: "c-lead",
-    forked_from: "c-lead",
-    active_plan: { _id: "p1", title: "Webhook retry", short_id: "pl-88" },
-    active_task: { _id: "t1", title: "Dashboard retry UI", short_id: "ct-4102" },
-    open_comment_threads: 2,
-    last_comment_author_id: "u-ann",
-    last_comment_author: "Ann Lee",
-    last_comment_excerpt: "Is this idempotent?",
-    agent_type: "pi",
-  } as Partial<InboxSession>, { forkColorKey: "c-lead" }],
-  ["teammate's session, viewed", { _id: "c-viewed", user_id: "u-ann", author_name: "Ann Lee" } as Partial<InboxSession>],
+  [
+    "assigned ping",
+    {
+      _id: "c-ping",
+      assigned_ping: {
+        by_name: "Ann Lee",
+        note: "Can you take the webhook half?",
+        at: NOW - 7.5 * MIN,
+      },
+    },
+  ],
+  [
+    "spawned by, fork, plan, task, comments",
+    {
+      _id: "c-spawned",
+      spawned_by_conversation_id: "c-lead",
+      forked_from: "c-lead",
+      active_plan: { _id: "p1", title: "Webhook retry", short_id: "pl-88" },
+      active_task: {
+        _id: "t1",
+        title: "Dashboard retry UI",
+        short_id: "ct-4102",
+      },
+      open_comment_threads: 2,
+      last_comment_author_id: "u-ann",
+      last_comment_author: "Ann Lee",
+      last_comment_excerpt: "Is this idempotent?",
+      agent_type: "pi",
+    } as Partial<InboxSession>,
+    { forkColorKey: "c-lead" },
+  ],
+  [
+    "teammate's session, viewed",
+    {
+      _id: "c-viewed",
+      user_id: "u-ann",
+      author_name: "Ann Lee",
+    } as Partial<InboxSession>,
+  ],
   ["session error", { _id: "c-err", session_error: "Agent crashed" }],
-  ["role's standing session", {
-    _id: "c-role",
-    standing_role_id: "r1",
-    role: ROLE,
-  } as Partial<InboxSession>, { roleSessions: 3 }],
-  ["role sub row", { _id: "c-hand", org_role_id: "r1", role: ROLE } as Partial<InboxSession>, { subRow: "role" }],
+  [
+    "role's standing session",
+    {
+      _id: "c-role",
+      standing_role_id: "r1",
+      role: ROLE,
+    } as Partial<InboxSession>,
+    { roleSessions: 3 },
+  ],
+  [
+    "role sub row",
+    { _id: "c-hand", org_role_id: "r1", role: ROLE } as Partial<InboxSession>,
+    { subRow: "role" },
+  ],
   ["selected", { _id: "c-sel" }, { isSelected: true }],
   ["selected, active", { _id: "c-sel2" }, { isSelected: true, isActive: true }],
   ["user rest", { _id: "c-rest", user_rest: "done" } as Partial<InboxSession>],
@@ -168,7 +334,10 @@ describe("SessionCard markup is stable across the view split", () => {
 });
 
 describe("machine icon beside the title", () => {
-  const mark = (owner: string) => render({ _id: `c-on-${owner}`, owner_device_id: owner }).match(/data-sv-device="(\w+)"/)?.[1] ?? null;
+  const mark = (owner: string) =>
+    render({ _id: `c-on-${owner}`, owner_device_id: owner }).match(
+      /data-sv-device="(\w+)"/,
+    )?.[1] ?? null;
 
   test("cloud machine gets the cloud mark, another machine the small one, this machine none", () => {
     expect(mark("cloud-linux")).toBe("cloud");
@@ -202,12 +371,32 @@ describe("the live card's toolbar", () => {
   test("Pin, Label, then Close last; no Stash or Kill", () => {
     const html = render({ _id: "c-tools" });
     const tools = html.slice(html.lastIndexOf("data-sv-fade"));
-    expect(tools.match(/aria-label="(Pin|Unpin|Label session|Close|Stash|Kill Session)"/g)).toEqual(['aria-label="Pin"', 'aria-label="Label session"', 'aria-label="Close"']);
+    expect(
+      tools.match(
+        /aria-label="(Pin|Unpin|Label session|Close|Stash|Kill Session)"/g,
+      ),
+    ).toEqual([
+      'aria-label="Pin"',
+      'aria-label="Label session"',
+      'aria-label="Close"',
+    ]);
   });
 
   test("a set-aside card keeps its remove and Restore, and offers no Close", () => {
-    const html = render({ _id: "c-aside" }, { variant: "stashed", onRestore: noop, onKill: noop, onClose: undefined, onPin: undefined });
+    const html = render(
+      { _id: "c-aside" },
+      {
+        variant: "stashed",
+        onRestore: noop,
+        onKill: noop,
+        onClose: undefined,
+        onPin: undefined,
+      },
+    );
     expect(html).not.toContain('aria-label="Close"');
-    expect(html.match(/aria-label="(Restore|Kill)"/g)).toEqual(['aria-label="Kill"', 'aria-label="Restore"']);
+    expect(html.match(/aria-label="(Restore|Kill)"/g)).toEqual([
+      'aria-label="Kill"',
+      'aria-label="Restore"',
+    ]);
   });
 });

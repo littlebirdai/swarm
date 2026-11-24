@@ -10,13 +10,25 @@ const store = new Map<string, string>();
   removeItem: (k: string) => void store.delete(k),
 };
 
-const { teamsHoldRegulatedData: regulatedDataOf } = await import("@codecast/shared/contracts");
+const { teamsHoldRegulatedData: regulatedDataOf } =
+  await import("@codecast/shared/contracts");
 const analytics = await import("../analytics");
 
 describe("regulated health data", () => {
   test("any team with regulated_data marks the viewer; an unanswered feed decides nothing", () => {
-    expect(regulatedDataOf([{ policy: { public_sharing_disabled: true } }, { policy: { regulated_data: true } }])).toBe(true);
-    expect(regulatedDataOf([{ policy: {} }, { policy: { regulated_data: false } }, null])).toBe(false);
+    expect(
+      regulatedDataOf([
+        { policy: { public_sharing_disabled: true } },
+        { policy: { regulated_data: true } },
+      ]),
+    ).toBe(true);
+    expect(
+      regulatedDataOf([
+        { policy: {} },
+        { policy: { regulated_data: false } },
+        null,
+      ]),
+    ).toBe(false);
     expect(regulatedDataOf([])).toBeNull();
     expect(regulatedDataOf(undefined)).toBeNull();
   });

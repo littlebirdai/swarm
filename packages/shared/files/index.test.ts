@@ -1,11 +1,19 @@
 import { describe, expect, it } from "bun:test";
-import { fileKind, fileTypeLabel, formatFileSize, isPreviewableKind, mediaTypeForFile } from "./index";
+import {
+  fileKind,
+  fileTypeLabel,
+  formatFileSize,
+  isPreviewableKind,
+  mediaTypeForFile,
+} from "./index";
 
 describe("mediaTypeForFile", () => {
   it("reads the type off the name, case and path insensitive", () => {
     expect(mediaTypeForFile("/tmp/a/Report.PDF")).toBe("application/pdf");
     expect(mediaTypeForFile("notes.md")).toBe("text/markdown");
-    expect(mediaTypeForFile("deck.pptx")).toBe("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    expect(mediaTypeForFile("deck.pptx")).toBe(
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    );
   });
 
   it("treats an unknown extension as opaque bytes", () => {
@@ -19,7 +27,11 @@ describe("fileKind", () => {
     expect(fileKind("image/png")).toBe("image");
     expect(fileKind("application/pdf")).toBe("pdf");
     expect(fileKind("text/csv")).toBe("text");
-    expect(fileKind("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")).toBe("sheet");
+    expect(
+      fileKind(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ),
+    ).toBe("sheet");
     expect(fileKind("application/zip")).toBe("archive");
     expect(fileKind("application/json")).toBe("text");
   });

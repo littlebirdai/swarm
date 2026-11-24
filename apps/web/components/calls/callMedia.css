@@ -57,7 +57,8 @@
   .call-media-body[data-side] > .call-media-thread {
     min-width: 0;
     min-height: 0;
-    border-left: 1px solid color-mix(in srgb, var(--sol-border) 20%, transparent);
+    border-left: 1px solid
+      color-mix(in srgb, var(--sol-border) 20%, transparent);
   }
   /* Beside the thread the picture may take the page's height, not a share
      of it: only the header and the toolbar sit above and below it. */

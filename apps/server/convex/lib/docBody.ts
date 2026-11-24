@@ -22,19 +22,37 @@ import { resolveActor } from "./actor";
 
 /** The collab history's newest version, and its newest delta when that delta
  *  is not in `content` yet. */
-export async function docLiveState(ctx: QueryCtx, docId: string): Promise<{ version: number; unsaved: any | null }> {
-  const delta = await ctx.db.query("doc_deltas").withIndex("id_version", (q: any) => q.eq("id", docId)).order("desc").first();
-  const snapshot = await ctx.db.query("doc_snapshots").withIndex("id_version", (q: any) => q.eq("id", docId)).order("desc").first();
+export async function docLiveState(
+  ctx: QueryCtx,
+  docId: string,
+): Promise<{ version: number; unsaved: any | null }> {
+  const delta = await ctx.db
+    .query("doc_deltas")
+    .withIndex("id_version", (q: any) => q.eq("id", docId))
+    .order("desc")
+    .first();
+  const snapshot = await ctx.db
+    .query("doc_snapshots")
+    .withIndex("id_version", (q: any) => q.eq("id", docId))
+    .order("desc")
+    .first();
   const saved = snapshot?.version ?? 0;
-  return { version: Math.max(delta?.version ?? 0, saved), unsaved: delta && delta.version > saved ? delta : null };
+  return {
+    version: Math.max(delta?.version ?? 0, saved),
+    unsaved: delta && delta.version > saved ? delta : null,
+  };
 }
 
 /** What a read saw: the collab version and a hash of `content`. A person's
  *  steps move the version; any other write changes the hash. */
-export function docRevision(content: string | undefined | null, version: number): string {
+export function docRevision(
+  content: string | undefined | null,
+  version: number,
+): string {
   const text = content ?? "";
   let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  for (let i = 0; i < text.length; i++)
+    h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
   return `${version}.${(h >>> 0).toString(36)}.${text.length.toString(36)}`;
 }
 
@@ -48,7 +66,10 @@ function ago(at: number, now: number): string {
   return `${Math.round(s / 86400)} d ago`;
 }
 
-async function personName(ctx: QueryCtx, userId: Id<"users"> | undefined): Promise<string> {
+async function personName(
+  ctx: QueryCtx,
+  userId: Id<"users"> | undefined,
+): Promise<string> {
   const user = userId ? await ctx.db.get(userId) : null;
   return user?.name || (user as any)?.github_username || "Someone";
 }
@@ -68,18 +89,27 @@ export async function refuseUnsavedEdits(
     // Steps a person typed a moment ago may still be on their way: the editor
     // sends its cursor with every keystroke (CollabDocEditor's presence), so a
     // cursor that just moved means typing the server may not have yet.
-    const typing = await ctx.db.query("doc_presence").withIndex("by_doc", (q: any) => q.eq("doc_id", String(doc._id)))
-      .filter((q: any) => q.gt(q.field("updated_at"), now - CURSOR_MOVED_MS)).first();
+    const typing = await ctx.db
+      .query("doc_presence")
+      .withIndex("by_doc", (q: any) => q.eq("doc_id", String(doc._id)))
+      .filter((q: any) => q.gt(q.field("updated_at"), now - CURSOR_MOVED_MS))
+      .first();
     if (typing && typing.cursor_pos !== undefined) {
-      throw docConflict("live_edit", `${typing.user_name} is editing it in the editor right now. Nothing was written. Wait a few seconds, ${reread}, and write again.`);
+      throw docConflict(
+        "live_edit",
+        `${typing.user_name} is editing it in the editor right now. Nothing was written. Wait a few seconds, ${reread}, and write again.`,
+      );
     }
     return;
   }
   const who = await personName(ctx, unsaved.user_id);
   const at = unsaved._creationTime;
-  throw docConflict("live_edit", now - at < LIVE_EDIT_FRESH_MS
-    ? `${who} is editing it in the editor right now and their last change is not saved to the doc yet. Nothing was written. Wait a few seconds, ${reread}, and write again.`
-    : `${who}'s editor left changes unsaved ${ago(at, now)}. Opening the doc in the browser saves them; \`--force\` writes over them.`);
+  throw docConflict(
+    "live_edit",
+    now - at < LIVE_EDIT_FRESH_MS
+      ? `${who} is editing it in the editor right now and their last change is not saved to the doc yet. Nothing was written. Wait a few seconds, ${reread}, and write again.`
+      : `${who}'s editor left changes unsaved ${ago(at, now)}. Opening the doc in the browser saves them; \`--force\` writes over them.`,
+  );
 }
 
 /** A person's editor has sent steps more recently than this: they are typing,
@@ -90,17 +120,29 @@ const LIVE_EDIT_FRESH_MS = 30_000;
 /** A cursor that moved this recently in the editor counts as typing in flight. */
 const CURSOR_MOVED_MS = 3_000;
 
-function docConflict(reason: "stale" | "live_edit" | "no_base", message: string): ConvexError<any> {
+function docConflict(
+  reason: "stale" | "live_edit" | "no_base",
+  message: string,
+): ConvexError<any> {
   return new ConvexError({ code: "CONFLICT", reason, message });
 }
 
 export type DocWriter = { name: string; session?: string };
 
 /** The writer a CLI call acts as: the token's person, and the session it runs in. */
-export async function cliDocWriter(ctx: MutationCtx, userId: Id<"users">, sessionRef: string | undefined): Promise<DocWriter> {
-  const conv = sessionRef ? await resolveSessionConversation(ctx, userId, sessionRef) : null;
+export async function cliDocWriter(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  sessionRef: string | undefined,
+): Promise<DocWriter> {
+  const conv = sessionRef
+    ? await resolveSessionConversation(ctx, userId, sessionRef)
+    : null;
   const actor = await resolveActor(ctx, userId, conv);
-  return { name: actor.name ?? "Someone", session: (conv as any)?.short_id ?? undefined };
+  return {
+    name: actor.name ?? "Someone",
+    session: (conv as any)?.short_id ?? undefined,
+  };
 }
 
 /**
@@ -115,28 +157,55 @@ export async function writeDocBody(
   ctx: MutationCtx,
   doc: Doc<"docs">,
   fields: { content: string; title: string },
-  opts: { writer: DocWriter; base?: string; requireBase?: boolean; force?: boolean; reread?: string; extra?: Record<string, unknown> },
+  opts: {
+    writer: DocWriter;
+    base?: string;
+    requireBase?: boolean;
+    force?: boolean;
+    reread?: string;
+    extra?: Record<string, unknown>;
+  },
 ): Promise<{ revision: string }> {
   const now = Date.now();
   // How this caller reads the doc again; each writer names its own read.
-  const reread = opts.reread ?? `re-read it with \`cast doc show ${doc._id} --full\``;
+  const reread =
+    opts.reread ?? `re-read it with \`cast doc show ${doc._id} --full\``;
   const live = await docLiveState(ctx, doc._id);
   if (!opts.force) await refuseUnsavedEdits(ctx, doc, live, reread);
   if (!opts.force && opts.requireBase && opts.base === undefined) {
-    throw docConflict("no_base", `This write does not say which version of "${doc.title}" it was computed from, so it could undo edits made since. Nothing was written. ${reread[0].toUpperCase()}${reread.slice(1)} and write again (an older cast needs \`cast update\` first).`);
+    throw docConflict(
+      "no_base",
+      `This write does not say which version of "${doc.title}" it was computed from, so it could undo edits made since. Nothing was written. ${reread[0].toUpperCase()}${reread.slice(1)} and write again (an older cast needs \`cast update\` first).`,
+    );
   }
-  if (!opts.force && opts.base !== undefined && opts.base !== docRevision(doc.content, live.version)) {
+  if (
+    !opts.force &&
+    opts.base !== undefined &&
+    opts.base !== docRevision(doc.content, live.version)
+  ) {
     const baseVersion = Number(opts.base.split(".")[0]);
-    const step = Number.isFinite(baseVersion) && live.version > baseVersion
-      ? await ctx.db.query("doc_deltas").withIndex("id_version", (q: any) => q.eq("id", doc._id).gt("version", baseVersion)).order("desc").first()
-      : null;
-    const writer = (doc as any).content_writer as { name: string; session?: string; at: number } | undefined;
+    const step =
+      Number.isFinite(baseVersion) && live.version > baseVersion
+        ? await ctx.db
+            .query("doc_deltas")
+            .withIndex("id_version", (q: any) =>
+              q.eq("id", doc._id).gt("version", baseVersion),
+            )
+            .order("desc")
+            .first()
+        : null;
+    const writer = (doc as any).content_writer as
+      | { name: string; session?: string; at: number }
+      | undefined;
     const newer = step
       ? `${await personName(ctx, step.user_id)} edited it in the editor ${ago(step._creationTime, now)}`
       : writer
         ? `${writer.name}${writer.session ? ` (session ${writer.session})` : ""} wrote it ${ago(writer.at, now)}`
         : `it was edited ${ago(doc.updated_at, now)}`;
-    throw docConflict("stale", `"${doc.title}" changed since you read it: ${newer}. Nothing was written. ${reread[0].toUpperCase()}${reread.slice(1)}, redo your change on that text, and write again.`);
+    throw docConflict(
+      "stale",
+      `"${doc.title}" changed since you read it: ${newer}. Nothing was written. ${reread[0].toUpperCase()}${reread.slice(1)}, redo your change on that text, and write again.`,
+    );
   }
   const version = live.version + 1;
   await ctx.db.patch(doc._id, {
@@ -144,7 +213,11 @@ export async function writeDocBody(
     title: fields.title,
     updated_at: now,
     cli_edited_at: now,
-    content_writer: { name: opts.writer.name, ...(opts.writer.session ? { session: opts.writer.session } : {}), at: now },
+    content_writer: {
+      name: opts.writer.name,
+      ...(opts.writer.session ? { session: opts.writer.session } : {}),
+      at: now,
+    },
     ...opts.extra,
   } as any);
   await rewriteCollab(ctx, doc._id, fields.content, version);
@@ -157,22 +230,42 @@ export async function writeDocBody(
  *  below one a tab already reached would let that tab keep syncing steps
  *  written against the old content on top of the new (docSync's stepsAfter
  *  refuses only clients behind the rewrite). */
-export async function rewriteCollab(ctx: MutationCtx, docId: string, content: string, version: number): Promise<void> {
-  const snapshots = await ctx.db.query("doc_snapshots").withIndex("id_version", (q: any) => q.eq("id", docId)).collect();
-  const deltas = await ctx.db.query("doc_deltas").withIndex("id_version", (q: any) => q.eq("id", docId)).collect();
+export async function rewriteCollab(
+  ctx: MutationCtx,
+  docId: string,
+  content: string,
+  version: number,
+): Promise<void> {
+  const snapshots = await ctx.db
+    .query("doc_snapshots")
+    .withIndex("id_version", (q: any) => q.eq("id", docId))
+    .collect();
+  const deltas = await ctx.db
+    .query("doc_deltas")
+    .withIndex("id_version", (q: any) => q.eq("id", docId))
+    .collect();
   for (const d of deltas) await ctx.db.delete(d._id);
-  const content_gz = packSnapshotContent(JSON.stringify(markdownToDoc(content)));
-  const [keep, ...rest] = snapshots.sort((a: any, b: any) => b.version - a.version);
+  const content_gz = packSnapshotContent(
+    JSON.stringify(markdownToDoc(content)),
+  );
+  const [keep, ...rest] = snapshots.sort(
+    (a: any, b: any) => b.version - a.version,
+  );
   // Write the compressed form and drop any legacy uncompressed content so the
   // row carries exactly one representation (see doc_snapshots in schema.ts).
-  if (keep) await ctx.db.patch(keep._id, { content_gz, content: undefined, version });
+  if (keep)
+    await ctx.db.patch(keep._id, { content_gz, content: undefined, version });
   else await ctx.db.insert("doc_snapshots", { id: docId, version, content_gz });
   for (const s of rest) await ctx.db.delete(s._id);
 }
 
-
 // The markdown a CLI or API write stores, as the collab editor's document.
-type DocNode = { type: string; attrs?: Record<string, any>; content?: DocNode[]; text?: string };
+type DocNode = {
+  type: string;
+  attrs?: Record<string, any>;
+  content?: DocNode[];
+  text?: string;
+};
 
 export function markdownToDoc(text: string): DocNode {
   const lines = text.split("\n");
@@ -193,50 +286,83 @@ export function markdownToDoc(text: string): DocNode {
       i++;
       const node: DocNode = { type: "codeBlock" };
       if (lang) node.attrs = { language: lang };
-      if (codeLines.length > 0) node.content = [{ type: "text", text: codeLines.join("\n") }];
+      if (codeLines.length > 0)
+        node.content = [{ type: "text", text: codeLines.join("\n") }];
       content.push(node);
       continue;
     }
 
-    if (/^---+$/.test(line.trim())) { content.push({ type: "horizontalRule" }); i++; continue; }
+    if (/^---+$/.test(line.trim())) {
+      content.push({ type: "horizontalRule" });
+      i++;
+      continue;
+    }
 
     // The editor has headings 1 to 3 (web editorExtensions); a deeper one
     // stays its literal text in a paragraph rather than showing as an H1.
     const hm = line.match(/^(#{1,3})\s+(.+)/);
     if (hm) {
-      content.push({ type: "heading", attrs: { level: hm[1].length }, content: draftTextNodes(hm[2]) });
+      content.push({
+        type: "heading",
+        attrs: { level: hm[1].length },
+        content: draftTextNodes(hm[2]),
+      });
       i++;
       continue;
     }
 
     if (line.startsWith("> ")) {
       const ql: string[] = [];
-      while (i < lines.length && lines[i].startsWith("> ")) { ql.push(lines[i].slice(2)); i++; }
-      content.push({ type: "blockquote", content: [{ type: "paragraph", content: draftTextNodes(ql.join("\n")) }] });
+      while (i < lines.length && lines[i].startsWith("> ")) {
+        ql.push(lines[i].slice(2));
+        i++;
+      }
+      content.push({
+        type: "blockquote",
+        content: [
+          { type: "paragraph", content: draftTextNodes(ql.join("\n")) },
+        ],
+      });
       continue;
     }
 
     if (/^[-*]\s/.test(line)) {
       const items: DocNode[] = [];
       while (i < lines.length && /^[-*]\s/.test(lines[i])) {
-        items.push({ type: "listItem", content: [{ type: "paragraph", content: draftTextNodes(lines[i].replace(/^[-*]\s/, "")) }] });
+        items.push({
+          type: "listItem",
+          content: [
+            {
+              type: "paragraph",
+              content: draftTextNodes(lines[i].replace(/^[-*]\s/, "")),
+            },
+          ],
+        });
         i++;
       }
       content.push({ type: "bulletList", content: items });
       continue;
     }
 
-    if (line.trim() === "") { i++; continue; }
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
 
     // A paragraph runs until a line another block claims. Its first line is
     // always its own: a line no block above took ("#tag", "#### Deep") would
     // otherwise stop the loop without consuming anything.
     const paraLines: string[] = [line];
     i++;
-    while (i < lines.length && lines[i].trim() !== "" &&
-           !/^#{1,3}\s+\S/.test(lines[i]) && !lines[i].startsWith("```") &&
-           !lines[i].startsWith("> ") && !/^[-*]\s/.test(lines[i]) &&
-           !/^---+$/.test(lines[i].trim())) {
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !/^#{1,3}\s+\S/.test(lines[i]) &&
+      !lines[i].startsWith("```") &&
+      !lines[i].startsWith("> ") &&
+      !/^[-*]\s/.test(lines[i]) &&
+      !/^---+$/.test(lines[i].trim())
+    ) {
       paraLines.push(lines[i]);
       i++;
     }
@@ -258,9 +384,16 @@ export function markdownToDoc(text: string): DocNode {
 // its last step reaches the server, which on a live rig measured about five
 // seconds after the last keystroke, so wait that out before answering.
 // wait_ms bounds the wait.
-export async function waitingOutLiveEdits<T>(body: any, run: (args: any) => Promise<T>): Promise<T> {
+export async function waitingOutLiveEdits<T>(
+  body: any,
+  run: (args: any) => Promise<T>,
+): Promise<T> {
   const { wait_ms, ...args } = body;
-  const deadline = Date.now() + (typeof wait_ms === "number" ? Math.min(Math.max(wait_ms, 0), 15_000) : 10_000);
+  const deadline =
+    Date.now() +
+    (typeof wait_ms === "number"
+      ? Math.min(Math.max(wait_ms, 0), 15_000)
+      : 10_000);
   for (;;) {
     try {
       return await run(args);

@@ -31,7 +31,14 @@ export function engineCtx(tables: Record<string, any[]>) {
   if (!db.normalizeId) db.normalizeId = () => null;
   const scheduled: Array<{ fn: any; args: any }> = [];
   return {
-    ctx: { db, scheduler: { runAfter: async (_ms: number, fn: any, args: any) => { scheduled.push({ fn, args }); } } },
+    ctx: {
+      db,
+      scheduler: {
+        runAfter: async (_ms: number, fn: any, args: any) => {
+          scheduled.push({ fn, args });
+        },
+      },
+    },
     db,
     scheduled,
     tables,
@@ -82,14 +89,20 @@ export const TASK = {
   },
 };
 
-export const ADA = { _id: "user_ada", email: "ada@acme.dev", name: "Ada Lovelace" };
+export const ADA = {
+  _id: "user_ada",
+  email: "ada@acme.dev",
+  name: "Ada Lovelace",
+};
 
-export const sameIssue = (over: Record<string, any> = {}) => normalizeLinearIssue({
-  ...LINEAR_ISSUE_CREATE.data,
-  state: { id: "s_todo", name: "Todo", type: "unstarted" },
-  assignee: { id: "u1", name: "Ada Lovelace", email: "ada@acme.dev" },
-  updatedAt: "2026-09-01T11:00:00.000Z",
-  ...over,
-});
+export const sameIssue = (over: Record<string, any> = {}) =>
+  normalizeLinearIssue({
+    ...LINEAR_ISSUE_CREATE.data,
+    state: { id: "s_todo", name: "Todo", type: "unstarted" },
+    assignee: { id: "u1", name: "Ada Lovelace", email: "ada@acme.dev" },
+    updatedAt: "2026-09-01T11:00:00.000Z",
+    ...over,
+  });
 
-export const apply = (ctx: any, args: Record<string, any>) => (applyRemote as any)._handler(ctx, args);
+export const apply = (ctx: any, args: Record<string, any>) =>
+  (applyRemote as any)._handler(ctx, args);

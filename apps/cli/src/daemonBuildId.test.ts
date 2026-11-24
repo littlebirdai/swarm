@@ -13,11 +13,15 @@ test("the stamped build id has the generated shape", () => {
 // The explicit timeout is the point of the third argument: a loaded machine has
 // taken this past bun's 5s default, and the cli suite runs with --bail, so one
 // slow read would fail the whole job on code nobody touched.
-test.skipIf(!process.env.DAEMON_BUILD_ID_CHECK)("the stamp matches the current daemon closure", () => {
-  const { id, files } = computeDaemonBuildId();
-  expect(
-    id,
-    `The daemon build id is stale: the stamp says ${DAEMON_BUILD_ID}, the closure (${files.length} files) ` +
-      `hashes to ${id}. Run: cd apps/cli && bun scripts/stamp-daemon-build-id.ts, then commit src/daemonBuildId.ts.`,
-  ).toBe(DAEMON_BUILD_ID);
-}, 60_000);
+test.skipIf(!process.env.DAEMON_BUILD_ID_CHECK)(
+  "the stamp matches the current daemon closure",
+  () => {
+    const { id, files } = computeDaemonBuildId();
+    expect(
+      id,
+      `The daemon build id is stale: the stamp says ${DAEMON_BUILD_ID}, the closure (${files.length} files) ` +
+        `hashes to ${id}. Run: cd apps/cli && bun scripts/stamp-daemon-build-id.ts, then commit src/daemonBuildId.ts.`,
+    ).toBe(DAEMON_BUILD_ID);
+  },
+  60_000,
+);

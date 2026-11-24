@@ -31,9 +31,11 @@ describe("injectedImageStorageIds", () => {
   // extension downloadImage can write, or those echoes never ack.
   test("extracts ids from webp/jpg/jpeg/gif echo paths", () => {
     for (const ext of ["webp", "jpg", "jpeg", "gif"]) {
-      expect(injectedImageStorageIds(`[Image /tmp/codecast/images/${STORAGE_ID}.${ext}]`)).toEqual([
-        STORAGE_ID,
-      ]);
+      expect(
+        injectedImageStorageIds(
+          `[Image /tmp/codecast/images/${STORAGE_ID}.${ext}]`,
+        ),
+      ).toEqual([STORAGE_ID]);
     }
   });
 });

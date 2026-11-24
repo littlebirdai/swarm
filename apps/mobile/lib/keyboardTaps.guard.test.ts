@@ -24,7 +24,11 @@ import { join, relative } from "node:path";
 const root = `${import.meta.dir}/..`;
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
-const TRANSCRIPTS = ["app/session/[id].tsx", "app/chat/[id].tsx", "app/chat/thread/[id].tsx"];
+const TRANSCRIPTS = [
+  "app/session/[id].tsx",
+  "app/chat/[id].tsx",
+  "app/chat/thread/[id].tsx",
+];
 
 // Horizontal strips that sit above the keyboard, in the composer.
 const COMPOSER_STRIPS = [
@@ -61,7 +65,8 @@ const persistValues = (source: string) =>
 /** The opening tag of every Pressable / Touchable, line comments dropped. */
 function pressableTags(source: string): { line: number; tag: string }[] {
   const out: { line: number; tag: string }[] = [];
-  const re = /<(Pressable|TouchableOpacity|TouchableHighlight|TouchableWithoutFeedback)\b/g;
+  const re =
+    /<(Pressable|TouchableOpacity|TouchableHighlight|TouchableWithoutFeedback)\b/g;
   for (const m of source.matchAll(re)) {
     let i = m.index! + m[0].length;
     let depth = 0;
@@ -92,12 +97,17 @@ function walk(dir: string): string[] {
 }
 
 describe("a tap outside the composer puts the keyboard away", () => {
-  test.each(TRANSCRIPTS)("%s: the transcript dismisses on a tap nothing takes, and on a drag", (path) => {
-    const source = read(path);
-    expect(persistValues(source)).toEqual(["handled"]);
-    // 'interactive' alone degrades to 'none' on Android.
-    expect(source).toContain("keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}");
-  });
+  test.each(TRANSCRIPTS)(
+    "%s: the transcript dismisses on a tap nothing takes, and on a drag",
+    (path) => {
+      const source = read(path);
+      expect(persistValues(source)).toEqual(["handled"]);
+      // 'interactive' alone degrades to 'none' on Android.
+      expect(source).toContain(
+        "keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}",
+      );
+    },
+  );
 
   test("a session bubble dismisses on a plain tap and keeps its long-press menu", () => {
     const tags = pressableTags(read("app/session/[id].tsx")).filter((t) =>
@@ -105,24 +115,33 @@ describe("a tap outside the composer puts the keyboard away", () => {
     );
     expect(tags.length).toBe(1);
     // Tap-to-expand on a collapsed turn stays; every other plain tap dismisses.
-    expect(tags[0].tag).toMatch(/onPress=\{[^}]*\? handleTapToExpand : Keyboard\.dismiss\}/);
+    expect(tags[0].tag).toMatch(
+      /onPress=\{[^}]*\? handleTapToExpand : Keyboard\.dismiss\}/,
+    );
   });
 
   test("a chat row dismisses on a plain tap and keeps its long-press menu", () => {
-    const tags = pressableTags(read("components/chat/MessageRow.tsx")).filter((t) =>
-      t.tag.includes("onLongPress={openMenu}"),
+    const tags = pressableTags(read("components/chat/MessageRow.tsx")).filter(
+      (t) => t.tag.includes("onLongPress={openMenu}"),
     );
     expect(tags.length).toBe(1);
     expect(tags[0].tag).toContain("onPress={Keyboard.dismiss}");
   });
 
-  test.each(ROW_RENDERERS)("%s: no pressable takes a tap it does nothing with", (path) => {
-    const bad = pressableTags(read(path))
-      .filter(({ tag }) => !/\bdisabled\b/.test(tag))
-      .filter(({ tag }) => !tag.includes("onPress=") || /onPress=\{[^}]*: undefined\}/.test(tag))
-      .map(({ line, tag }) => `${path}:${line} ${tag.slice(0, 120)}`);
-    expect(bad).toEqual([]);
-  });
+  test.each(ROW_RENDERERS)(
+    "%s: no pressable takes a tap it does nothing with",
+    (path) => {
+      const bad = pressableTags(read(path))
+        .filter(({ tag }) => !/\bdisabled\b/.test(tag))
+        .filter(
+          ({ tag }) =>
+            !tag.includes("onPress=") ||
+            /onPress=\{[^}]*: undefined\}/.test(tag),
+        )
+        .map(({ line, tag }) => `${path}:${line} ${tag.slice(0, 120)}`);
+      expect(bad).toEqual([]);
+    },
+  );
 });
 
 describe("a tap in the composer never puts the keyboard away", () => {
@@ -136,11 +155,16 @@ describe("a tap in the composer never puts the keyboard away", () => {
     // 'always' on a list or a page keeps the keyboard up wherever the person
     // taps; anywhere but a strip above the keyboard that is the bug this file
     // guards.
-    const files = [...walk(join(root, "app")), ...walk(join(root, "components"))];
+    const files = [
+      ...walk(join(root, "app")),
+      ...walk(join(root, "components")),
+    ];
     const offenders = files
       .map((f) => relative(root, f))
       .filter((f) => !COMPOSER_STRIPS.includes(f))
-      .filter((f) => persistValues(readFileSync(join(root, f), "utf8")).includes("always"));
+      .filter((f) =>
+        persistValues(readFileSync(join(root, f), "utf8")).includes("always"),
+      );
     expect(offenders).toEqual([]);
   });
 });

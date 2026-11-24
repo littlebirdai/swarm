@@ -11,12 +11,24 @@ import {
 // A workspace secret shaped like Recall's: "whsec_" + base64 key bytes.
 const SECRET = "whsec_" + btoa("test-key-0123456789abcdef-0123456789");
 
-async function signed(body: string, opts: { id?: string; ts?: number; secret?: string; prefix?: "webhook" | "svix" } = {}) {
+async function signed(
+  body: string,
+  opts: {
+    id?: string;
+    ts?: number;
+    secret?: string;
+    prefix?: "webhook" | "svix";
+  } = {},
+) {
   const id = opts.id ?? "msg_1";
   const ts = String(opts.ts ?? Math.floor(Date.now() / 1000));
   const sig = await recallSignature(opts.secret ?? SECRET, id, ts, body);
   const p = opts.prefix ?? "webhook";
-  return new Headers({ [`${p}-id`]: id, [`${p}-timestamp`]: ts, [`${p}-signature`]: `v1,${sig}` });
+  return new Headers({
+    [`${p}-id`]: id,
+    [`${p}-timestamp`]: ts,
+    [`${p}-signature`]: `v1,${sig}`,
+  });
 }
 
 describe("parseMeetingUrl", () => {
@@ -24,7 +36,10 @@ describe("parseMeetingUrl", () => {
     const cases: Array<[string, string]> = [
       ["https://us02web.zoom.us/j/8123456789?pwd=abc", "zoom"],
       ["meet.google.com/abc-defg-hij", "google_meet"],
-      ["https://teams.microsoft.com/l/meetup-join/19%3ameeting_x", "microsoft_teams"],
+      [
+        "https://teams.microsoft.com/l/meetup-join/19%3ameeting_x",
+        "microsoft_teams",
+      ],
       ["https://teams.live.com/meet/9381234", "microsoft_teams"],
       ["https://acme.webex.com/meet/ann", "webex"],
       ["https://meet.goto.com/123456789", "goto_meeting"],
@@ -53,22 +68,60 @@ describe("verifyRecallRequest", () => {
   const body = JSON.stringify({ event: "bot.done" });
 
   test("accepts Recall's signature under either header set", async () => {
-    expect(await verifyRecallRequest({ secret: SECRET, headers: await signed(body), body })).toEqual({ ok: true, id: "msg_1" });
-    expect((await verifyRecallRequest({ secret: SECRET, headers: await signed(body, { prefix: "svix" }), body })).ok).toBe(true);
+    expect(
+      await verifyRecallRequest({
+        secret: SECRET,
+        headers: await signed(body),
+        body,
+      }),
+    ).toEqual({ ok: true, id: "msg_1" });
+    expect(
+      (
+        await verifyRecallRequest({
+          secret: SECRET,
+          headers: await signed(body, { prefix: "svix" }),
+          body,
+        })
+      ).ok,
+    ).toBe(true);
   });
 
   test("refuses a changed body, another secret, no signature and no secret", async () => {
     const headers = await signed(body);
-    expect(await verifyRecallRequest({ secret: SECRET, headers, body: body + " " })).toEqual({ ok: false, reason: "bad signature" });
+    expect(
+      await verifyRecallRequest({ secret: SECRET, headers, body: body + " " }),
+    ).toEqual({ ok: false, reason: "bad signature" });
     const other = "whsec_" + btoa("another-key-entirely-0123456789");
-    expect((await verifyRecallRequest({ secret: SECRET, headers: await signed(body, { secret: other }), body })).ok).toBe(false);
-    expect(await verifyRecallRequest({ secret: SECRET, headers: new Headers(), body })).toEqual({ ok: false, reason: "unsigned request" });
-    expect((await verifyRecallRequest({ secret: undefined, headers, body })).ok).toBe(false);
+    expect(
+      (
+        await verifyRecallRequest({
+          secret: SECRET,
+          headers: await signed(body, { secret: other }),
+          body,
+        })
+      ).ok,
+    ).toBe(false);
+    expect(
+      await verifyRecallRequest({
+        secret: SECRET,
+        headers: new Headers(),
+        body,
+      }),
+    ).toEqual({ ok: false, reason: "unsigned request" });
+    expect(
+      (await verifyRecallRequest({ secret: undefined, headers, body })).ok,
+    ).toBe(false);
   });
 
   test("refuses a signature replayed outside the window", async () => {
     const old = Math.floor(Date.now() / 1000) - 10 * 60;
-    expect(await verifyRecallRequest({ secret: SECRET, headers: await signed(body, { ts: old }), body })).toEqual({
+    expect(
+      await verifyRecallRequest({
+        secret: SECRET,
+        headers: await signed(body, { ts: old }),
+        body,
+      }),
+    ).toEqual({
       ok: false,
       reason: "stale signature",
     });
@@ -77,7 +130,9 @@ describe("verifyRecallRequest", () => {
   test("any one of several space-separated signatures may match", async () => {
     const h = await signed(body);
     h.set("webhook-signature", `v1,AAAA ${h.get("webhook-signature")}`);
-    expect((await verifyRecallRequest({ secret: SECRET, headers: h, body })).ok).toBe(true);
+    expect(
+      (await verifyRecallRequest({ secret: SECRET, headers: h, body })).ok,
+    ).toBe(true);
   });
 });
 
@@ -94,9 +149,21 @@ describe("Recall events", () => {
     const line = lineFromTranscriptData(
       {
         words: [
-          { text: "Ship", start_timestamp: { relative: 12.5 }, end_timestamp: { relative: 12.8 } },
-          { text: "it", start_timestamp: { relative: 12.9 }, end_timestamp: { relative: 13.0 } },
-          { text: ".", start_timestamp: { relative: 13.0 }, end_timestamp: null },
+          {
+            text: "Ship",
+            start_timestamp: { relative: 12.5 },
+            end_timestamp: { relative: 12.8 },
+          },
+          {
+            text: "it",
+            start_timestamp: { relative: 12.9 },
+            end_timestamp: { relative: 13.0 },
+          },
+          {
+            text: ".",
+            start_timestamp: { relative: 13.0 },
+            end_timestamp: null,
+          },
         ],
       },
       0,
@@ -106,10 +173,18 @@ describe("Recall events", () => {
   });
 
   test("the bot is asked for fast lines on our real-time endpoint, tagged with our id", () => {
-    const body: any = recallBotBody({ meetId: "m-123456789", meetingUrl: "https://meet.google.com/abc-defg-hij", siteUrl: "https://x.convex.site/" });
+    const body: any = recallBotBody({
+      meetId: "m-123456789",
+      meetingUrl: "https://meet.google.com/abc-defg-hij",
+      siteUrl: "https://x.convex.site/",
+    });
     expect(body.metadata).toEqual({ meet_id: "m-123456789" });
-    expect(body.recording_config.transcript.provider.recallai_streaming.mode).toBe("prioritize_low_latency");
-    expect(body.recording_config.realtime_endpoints[0].url).toBe("https://x.convex.site/api/webhooks/recall/realtime");
+    expect(
+      body.recording_config.transcript.provider.recallai_streaming.mode,
+    ).toBe("prioritize_low_latency");
+    expect(body.recording_config.realtime_endpoints[0].url).toBe(
+      "https://x.convex.site/api/webhooks/recall/realtime",
+    );
     expect(body.join_at).toBeUndefined();
   });
 });
@@ -119,26 +194,77 @@ describe("meetingChatText", () => {
     const { meetingChatText } = await import("./recall");
     expect(meetingChatText("hi", "webex")).toBeNull();
     expect(meetingChatText("hi", "goto_meeting")).toBeNull();
-    expect(meetingChatText("```ts\nconst a = 1\n```\n## Plan\n`x` done", "zoom")).toBe("const a = 1\n\nPlan\nx done");
+    expect(
+      meetingChatText("```ts\nconst a = 1\n```\n## Plan\n`x` done", "zoom"),
+    ).toBe("const a = 1\n\nPlan\nx done");
     expect(meetingChatText("   ", "zoom")).toBeNull();
   });
 });
 
 describe("meetingOfEvent", () => {
-  const base = { id: "e1", summary: "Standup", start: { dateTime: "2026-11-15T17:00:00Z" }, end: { dateTime: "2026-11-15T17:30:00Z" } };
+  const base = {
+    id: "e1",
+    summary: "Standup",
+    start: { dateTime: "2026-11-15T17:00:00Z" },
+    end: { dateTime: "2026-11-15T17:30:00Z" },
+  };
   test("finds the link wherever the invite put it", async () => {
     const { meetingOfEvent } = await import("./recall");
-    expect(meetingOfEvent({ ...base, hangoutLink: "https://meet.google.com/abc-defg-hij" })?.platform).toBe("google_meet");
-    expect(meetingOfEvent({ ...base, conferenceData: { entryPoints: [{ entryPointType: "phone", uri: "tel:+1" }, { entryPointType: "video", uri: "https://us02web.zoom.us/j/81234" }] } })?.platform).toBe("zoom");
-    expect(meetingOfEvent({ ...base, description: '<a href="https://teams.microsoft.com/l/meetup-join/19%3a">Join</a>' })?.platform).toBe("microsoft_teams");
-    expect(meetingOfEvent({ ...base, hangoutLink: "https://meet.google.com/abc-defg-hij" })).toMatchObject({ starts_at: Date.parse("2026-11-15T17:00:00Z"), title: "Standup" });
+    expect(
+      meetingOfEvent({
+        ...base,
+        hangoutLink: "https://meet.google.com/abc-defg-hij",
+      })?.platform,
+    ).toBe("google_meet");
+    expect(
+      meetingOfEvent({
+        ...base,
+        conferenceData: {
+          entryPoints: [
+            { entryPointType: "phone", uri: "tel:+1" },
+            { entryPointType: "video", uri: "https://us02web.zoom.us/j/81234" },
+          ],
+        },
+      })?.platform,
+    ).toBe("zoom");
+    expect(
+      meetingOfEvent({
+        ...base,
+        description:
+          '<a href="https://teams.microsoft.com/l/meetup-join/19%3a">Join</a>',
+      })?.platform,
+    ).toBe("microsoft_teams");
+    expect(
+      meetingOfEvent({
+        ...base,
+        hangoutLink: "https://meet.google.com/abc-defg-hij",
+      }),
+    ).toMatchObject({
+      starts_at: Date.parse("2026-11-15T17:00:00Z"),
+      title: "Standup",
+    });
   });
   test("no bot for all-day, cancelled, declined or linkless events", async () => {
     const { meetingOfEvent } = await import("./recall");
     const link = { hangoutLink: "https://meet.google.com/abc-defg-hij" };
-    expect(meetingOfEvent({ ...base, ...link, start: { date: "2026-11-15" }, end: { date: "2026-11-16" } })).toBeNull();
-    expect(meetingOfEvent({ ...base, ...link, status: "cancelled" })).toBeNull();
-    expect(meetingOfEvent({ ...base, ...link, attendees: [{ self: true, responseStatus: "declined" }] })).toBeNull();
+    expect(
+      meetingOfEvent({
+        ...base,
+        ...link,
+        start: { date: "2026-11-15" },
+        end: { date: "2026-11-16" },
+      }),
+    ).toBeNull();
+    expect(
+      meetingOfEvent({ ...base, ...link, status: "cancelled" }),
+    ).toBeNull();
+    expect(
+      meetingOfEvent({
+        ...base,
+        ...link,
+        attendees: [{ self: true, responseStatus: "declined" }],
+      }),
+    ).toBeNull();
     expect(meetingOfEvent({ ...base, location: "Room 4" })).toBeNull();
   });
 });

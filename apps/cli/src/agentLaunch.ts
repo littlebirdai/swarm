@@ -11,7 +11,12 @@
 // thing on every surface.
 
 import { promptFileShellWord } from "./launchPrompt.js";
-import { resolveAgentLaunch, type AgentClientId, type AgentDefinitionSpec, type ResolvedAgentLaunch } from "@codecast/shared/contracts";
+import {
+  resolveAgentLaunch,
+  type AgentClientId,
+  type AgentDefinitionSpec,
+  type ResolvedAgentLaunch,
+} from "@codecast/shared/contracts";
 
 // Schedules run permissive by default (`mode: "apply"`); safe mode
 // (`cast trigger add --safe`, stored as mode: "propose", or a definition with
@@ -32,16 +37,33 @@ export const SAFE_MODE_MANDATE =
 // mandate — not this list — is what covers those.
 export const SAFE_MODE_DENY_RULES = [
   // Repository state and history
-  "Bash(git push:*)", "Bash(git commit:*)", "Bash(git merge:*)", "Bash(git rebase:*)",
-  "Bash(git reset:*)", "Bash(git checkout:*)", "Bash(git restore:*)", "Bash(git clean:*)",
-  "Bash(git stash:*)", "Bash(git apply:*)", "Bash(git tag:*)",
+  "Bash(git push:*)",
+  "Bash(git commit:*)",
+  "Bash(git merge:*)",
+  "Bash(git rebase:*)",
+  "Bash(git reset:*)",
+  "Bash(git checkout:*)",
+  "Bash(git restore:*)",
+  "Bash(git clean:*)",
+  "Bash(git stash:*)",
+  "Bash(git apply:*)",
+  "Bash(git tag:*)",
   // Destructive filesystem
-  "Bash(rm:*)", "Bash(mv:*)", "Bash(dd:*)", "Bash(truncate:*)", "Bash(tee:*)",
-  "Bash(chmod:*)", "Bash(chown:*)",
+  "Bash(rm:*)",
+  "Bash(mv:*)",
+  "Bash(dd:*)",
+  "Bash(truncate:*)",
+  "Bash(tee:*)",
+  "Bash(chmod:*)",
+  "Bash(chown:*)",
   // Deploy and publish
-  "Bash(npm publish:*)", "Bash(convex deploy:*)", "Bash(npx convex deploy:*)",
+  "Bash(npm publish:*)",
+  "Bash(convex deploy:*)",
+  "Bash(npx convex deploy:*)",
   // Remote repo writes
-  "Bash(gh pr merge:*)", "Bash(gh pr create:*)", "Bash(gh release:*)",
+  "Bash(gh pr merge:*)",
+  "Bash(gh pr create:*)",
+  "Bash(gh release:*)",
 ];
 
 export const SAFE_MODE_DISALLOWED_TOOLS = ["Edit", "Write", "NotebookEdit"];
@@ -60,36 +82,59 @@ export interface DefinitionLaunchFlags {
 /** The argv and prompt fragments a resolved definition adds to a launch on
  *  `agent`. Read only mode is enforced by tool denial where the client can,
  *  and by the mandate everywhere. */
-export function definitionLaunchFlags(resolved: ResolvedAgentLaunch, agent: AgentClientId = resolved.agent): DefinitionLaunchFlags {
+export function definitionLaunchFlags(
+  resolved: ResolvedAgentLaunch,
+  agent: AgentClientId = resolved.agent,
+): DefinitionLaunchFlags {
   const args: string[] = [];
   const dropped = [...resolved.dropped];
   const readOnly = resolved.mode === "propose";
   const disallowed = [...(resolved.disallowedTools ?? [])];
   if (readOnly) {
-    for (const t of SAFE_MODE_DISALLOWED_TOOLS) if (!disallowed.includes(t)) disallowed.push(t);
-    for (const r of SAFE_MODE_DENY_RULES) if (!disallowed.includes(r)) disallowed.push(r);
+    for (const t of SAFE_MODE_DISALLOWED_TOOLS)
+      if (!disallowed.includes(t)) disallowed.push(t);
+    for (const r of SAFE_MODE_DENY_RULES)
+      if (!disallowed.includes(r)) disallowed.push(r);
   }
 
   if (agent === "claude") {
-    if (resolved.tools?.length) args.push("--allowedTools", resolved.tools.join(","));
+    if (resolved.tools?.length)
+      args.push("--allowedTools", resolved.tools.join(","));
     if (disallowed.length) args.push("--disallowedTools", ...disallowed);
   } else if (agent === "pi") {
     if (resolved.tools?.length) args.push("--tools", resolved.tools.join(","));
-    if (disallowed.length) dropped.push(`disallowed tools (${agent} has an allowlist only)`);
+    if (disallowed.length)
+      dropped.push(`disallowed tools (${agent} has an allowlist only)`);
   } else {
-    if (resolved.tools?.length) dropped.push(`tools (${agent} has no tool allowlist flag)`);
-    if (resolved.disallowedTools?.length) dropped.push(`disallowed tools (${agent} has no tool denylist flag)`);
-    if (readOnly) dropped.push(`read only tool fence (${agent}; the mandate still applies)`);
+    if (resolved.tools?.length)
+      dropped.push(`tools (${agent} has no tool allowlist flag)`);
+    if (resolved.disallowedTools?.length)
+      dropped.push(`disallowed tools (${agent} has no tool denylist flag)`);
+    if (readOnly)
+      dropped.push(
+        `read only tool fence (${agent}; the mandate still applies)`,
+      );
   }
 
   let appendSystemPrompt = resolved.appendSystemPrompt;
-  if (readOnly) appendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${SAFE_MODE_MANDATE}` : SAFE_MODE_MANDATE;
+  if (readOnly)
+    appendSystemPrompt = appendSystemPrompt
+      ? `${appendSystemPrompt}\n\n${SAFE_MODE_MANDATE}`
+      : SAFE_MODE_MANDATE;
 
-  return { args, appendSystemPrompt, systemPrompt: resolved.systemPrompt, dropped };
+  return {
+    args,
+    appendSystemPrompt,
+    systemPrompt: resolved.systemPrompt,
+    dropped,
+  };
 }
 
 /** A one line warning for what a launch dropped, or null when nothing was. */
-export function describeDropped(name: string, dropped: string[]): string | null {
+export function describeDropped(
+  name: string,
+  dropped: string[],
+): string | null {
   if (!dropped.length) return null;
   return `definition ${name}: ignoring ${dropped.join("; ")}`;
 }
@@ -113,9 +158,13 @@ export function definitionLaunchFragment(
   const dropped = [...flags.dropped];
   if (prompt) {
     if (agent === "claude" || agent === "pi") {
-      parts.push(`${flags.systemPrompt ? "--system-prompt" : "--append-system-prompt"} ${promptFileShellWord(io.dir, io.key, prompt)}`);
+      parts.push(
+        `${flags.systemPrompt ? "--system-prompt" : "--append-system-prompt"} ${promptFileShellWord(io.dir, io.key, prompt)}`,
+      );
     } else {
-      dropped.push(`system prompt (${agent} has no system prompt flag; the spawn seeds it into the first turn)`);
+      dropped.push(
+        `system prompt (${agent} has no system prompt flag; the spawn seeds it into the first turn)`,
+      );
     }
   }
   const warning = describeDropped(def.name, dropped) ?? undefined;

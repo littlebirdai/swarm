@@ -35,8 +35,12 @@ export const DECLARED_INBOX_OVERLAYS = [
 
 export type DeclaredInboxOverlay = (typeof DECLARED_INBOX_OVERLAYS)[number];
 
-export function isInterruptControlMessage(raw: string | null | undefined): boolean {
-  return /^(?:\[Request (?:interrupted|cancelled)|<turn_aborted>)/.test(raw?.trimStart() ?? "");
+export function isInterruptControlMessage(
+  raw: string | null | undefined,
+): boolean {
+  return /^(?:\[Request (?:interrupted|cancelled)|<turn_aborted>)/.test(
+    raw?.trimStart() ?? "",
+  );
 }
 
 // How long a blocked-banner revive request keeps its sessions rendered as
@@ -61,7 +65,8 @@ export const HIDDEN_OVERRIDE_SETTLE_MS = 5 * 60 * 1000;
 // exactly the coupled set the hide/pin gestures stamp (hideSessionInDraft and
 // the gesture bridge), plus the park/defer twins that move a row between rest
 // buckets.
-export const TRIAGE_PENDING_FIELDS: readonly string[] = TRIAGE_CONVERSATION_FIELDS;
+export const TRIAGE_PENDING_FIELDS: readonly string[] =
+  TRIAGE_CONVERSATION_FIELDS;
 
 // How long an unconfirmed send keeps its session placed as WORKING. A send's
 // receipt lands within seconds, but only in the window that dispatched it:
@@ -74,7 +79,13 @@ export const TRIAGE_PENDING_FIELDS: readonly string[] = TRIAGE_CONVERSATION_FIEL
 // overlay's bound.
 export const PENDING_SEND_WORKING_TTL_MS = 10 * 60 * 1000;
 
-type PendingSendRow = { _isFailed?: boolean; _isSettled?: boolean; _isLocalQueue?: boolean; content?: string; timestamp?: number };
+type PendingSendRow = {
+  _isFailed?: boolean;
+  _isSettled?: boolean;
+  _isLocalQueue?: boolean;
+  content?: string;
+  timestamp?: number;
+};
 
 // A queued/optimistic outbound message is a "pending send" until the server
 // echoes it back (which prunes it) or it fails. This is the durable,
@@ -82,27 +93,45 @@ type PendingSendRow = { _isFailed?: boolean; _isSettled?: boolean; _isLocalQueue
 // confirm delivery — independent of whether ConversationView is mounted.
 // With `now`, only sends inside PENDING_SEND_WORKING_TTL_MS count: the
 // question placement asks ("is my send still landing?").
-export function convHasPendingSend(pending?: PendingSendRow[], now?: number): boolean {
-  return !!pending?.some((m) =>
-    !m._isFailed && !m._isSettled && !m._isLocalQueue && !isInterruptControlMessage(m.content) &&
-    (now == null || m.timestamp == null || now - m.timestamp < PENDING_SEND_WORKING_TTL_MS));
+export function convHasPendingSend(
+  pending?: PendingSendRow[],
+  now?: number,
+): boolean {
+  return !!pending?.some(
+    (m) =>
+      !m._isFailed &&
+      !m._isSettled &&
+      !m._isLocalQueue &&
+      !isInterruptControlMessage(m.content) &&
+      (now == null ||
+        m.timestamp == null ||
+        now - m.timestamp < PENDING_SEND_WORKING_TTL_MS),
+  );
 }
 
 // Whether a conversation still holds a row this window alone knows about: an
 // unsent, in-flight or failed send. A settled row is on the server already,
 // so dropping the conversation's cache loses nothing. The prunes that skip a
 // conversation with pending input gate on this, not on the map's length.
-export function pendingRowsUnsettled(pending?: Array<{ _isSettled?: boolean }>): boolean {
+export function pendingRowsUnsettled(
+  pending?: Array<{ _isSettled?: boolean }>,
+): boolean {
   return !!pending?.some((m) => !m._isSettled);
 }
 
 // Every conversation the person already sent into and is waiting to confirm:
 // a queued (Ctrl+Enter) send or an optimistic outbox entry.
-export function pendingSendIdsOf(state: {
-  sessionsWithQueuedMessages: ReadonlySet<string>;
-  pendingMessages?: Record<string, PendingSendRow[]>;
-}, now: number): Set<string> {
-  return new Set([...state.sessionsWithQueuedMessages, ...sessionsWithPendingSend(state.pendingMessages ?? {}, now)]);
+export function pendingSendIdsOf(
+  state: {
+    sessionsWithQueuedMessages: ReadonlySet<string>;
+    pendingMessages?: Record<string, PendingSendRow[]>;
+  },
+  now: number,
+): Set<string> {
+  return new Set([
+    ...state.sessionsWithQueuedMessages,
+    ...sessionsWithPendingSend(state.pendingMessages ?? {}, now),
+  ]);
 }
 
 // Conversation ids with an outbound message sent inside the placement bound
@@ -138,7 +167,10 @@ export function freshReviveRequestIds(
 // The store state the overlay predicates read. Structural (never the store
 // type itself) so the compare module and tests can hand in plain objects.
 export type InboxOverlayState = {
-  sessions: Record<string, { _id: string; _hasDraft?: boolean } & Record<string, any>>;
+  sessions: Record<
+    string,
+    { _id: string; _hasDraft?: boolean } & Record<string, any>
+  >;
   pending: Record<string, { type: string; ts?: number } & Record<string, any>>;
   pendingMessages?: Record<string, Array<{ _isFailed?: boolean }>>;
   pendingSessionCreates: Record<string, unknown>;
@@ -182,7 +214,8 @@ export function collectTriagePendingIds(
     if (!(TRIAGE_PENDING_FIELDS as readonly string[]).includes(field)) continue;
     // An undated entry cannot be aged — keep protecting it (same rule as the
     // reconcile's lockedLocal).
-    if (entry.ts != null && now - entry.ts >= HIDDEN_OVERRIDE_SETTLE_MS) continue;
+    if (entry.ts != null && now - entry.ts >= HIDDEN_OVERRIDE_SETTLE_MS)
+      continue;
     ids.add(id);
   }
   return ids;
@@ -215,7 +248,10 @@ export function collectInboxOverlayDeps(
 // THE predicate list: the compare's carve-out and the chokepoint's keep /
 // in-flight rules all derive from this one function, so an overlay cannot be
 // honored by the renderer and missed by the compare (or the reverse).
-export function overlaysAffecting(id: string, deps: InboxOverlayDeps): DeclaredInboxOverlay[] {
+export function overlaysAffecting(
+  id: string,
+  deps: InboxOverlayDeps,
+): DeclaredInboxOverlay[] {
   const out: DeclaredInboxOverlay[] = [];
   if (!isConvexId(id) || deps.pendingCreateIds.has(id)) out.push("create_stub");
   if (deps.triagePendingIds.has(id)) out.push("triage_gesture");

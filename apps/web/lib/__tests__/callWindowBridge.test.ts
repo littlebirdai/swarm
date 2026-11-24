@@ -15,7 +15,11 @@ import {
   voiceShapeForCallSize,
   type VoiceWindowShape,
 } from "../desktop";
-import { SMALL_CALL_WINDOW_SIZES, faceTierForSize, facesModeForSize } from "../desktop";
+import {
+  SMALL_CALL_WINDOW_SIZES,
+  faceTierForSize,
+  facesModeForSize,
+} from "../desktop";
 
 // The founder's desktop is on a build that has the call panel and none of the
 // sizes. Web ships on every push and the shell ships on its own clock, so a
@@ -26,7 +30,8 @@ import { SMALL_CALL_WINDOW_SIZES, faceTierForSize, facesModeForSize } from "../d
 const original = (globalThis as any).window;
 
 function shell(bridge: Record<string, unknown> | null) {
-  (globalThis as any).window = bridge === null ? {} : { __CODECAST_ELECTRON__: bridge };
+  (globalThis as any).window =
+    bridge === null ? {} : { __CODECAST_ELECTRON__: bridge };
 }
 
 afterEach(() => {
@@ -65,7 +70,9 @@ describe("setCallWindowSize", () => {
     // Null is what the panel turns into "the desktop app needs an update". A
     // silent no-op here would read as the feature being broken.
     shell({ isCallPanelWindow: true });
-    return setCallWindowSize("float").then((landed) => expect(landed).toBeNull());
+    return setCallWindowSize("float").then((landed) =>
+      expect(landed).toBeNull(),
+    );
   });
 
   it("reports the shape the SHELL landed on, not the one asked for", () => {
@@ -135,7 +142,8 @@ describe("the legacy call sizes", () => {
     // float. The stage's shrink menu and an opener still name the old three,
     // and each is the float now.
     expect(voiceShapeForCallSize("panel")).toBe("panel");
-    for (const size of SMALL_CALL_WINDOW_SIZES) expect(voiceShapeForCallSize(size)).toBe("float");
+    for (const size of SMALL_CALL_WINDOW_SIZES)
+      expect(voiceShapeForCallSize(size)).toBe("float");
   });
 
   it("keeps how MANY circles apart from how BIG they are", () => {
@@ -156,8 +164,14 @@ describe("the stage's size controls", () => {
     // A size the shell knows about with no button is a shape nobody can reach.
     // The stage maps over this list and looks each icon and hint up by key, so
     // a missing button is a type error; this pins the list itself.
-    expect([...SMALL_CALL_WINDOW_SIZES]).toEqual(["circles", "speaker", "tiny"]);
-    expect(SMALL_CALL_WINDOW_SIZES.some((s) => (s as string) === "panel")).toBe(false);
+    expect([...SMALL_CALL_WINDOW_SIZES]).toEqual([
+      "circles",
+      "speaker",
+      "tiny",
+    ]);
+    expect(SMALL_CALL_WINDOW_SIZES.some((s) => (s as string) === "panel")).toBe(
+      false,
+    );
   });
 
   it("a voice host shrinks the stage with one button; the three size menu is the older shell's", () => {
@@ -166,10 +180,16 @@ describe("the stage's size controls", () => {
     // stage `onShrink` and never `onSetSize`; the older per call window
     // keeps the menu, where the three sizes still differ.
     const web = join(import.meta.dir, "..", "..");
-    const host = readFileSync(join(web, "components/calls/VoiceHostPanel.tsx"), "utf8");
+    const host = readFileSync(
+      join(web, "components/calls/VoiceHostPanel.tsx"),
+      "utf8",
+    );
     expect(host).toMatch(/<CallStage panel onShrink=/);
     expect(host).not.toMatch(/<CallStage[^>]*onSetSize=/);
-    const legacy = readFileSync(join(web, "components/calls/CallPanel.tsx"), "utf8");
+    const legacy = readFileSync(
+      join(web, "components/calls/CallPanel.tsx"),
+      "utf8",
+    );
     expect(legacy).toMatch(/<CallStage panel onSetSize=/);
   });
 });
@@ -181,11 +201,17 @@ describe("one place decides what an older build is told", () => {
     // calling the bridge directly would change the window's size on new builds
     // and do nothing at all on the founder's.
     const web = join(import.meta.dir, "..", "..");
-    for (const file of ["components/calls/CallStage.tsx", "components/calls/CallFaces.tsx"]) {
+    for (const file of [
+      "components/calls/CallStage.tsx",
+      "components/calls/CallFaces.tsx",
+    ]) {
       const src = readFileSync(join(web, file), "utf8");
       expect(src.includes("setCallWindowSize")).toBe(false);
     }
-    const panel = readFileSync(join(web, "components/calls/CallPanel.tsx"), "utf8");
+    const panel = readFileSync(
+      join(web, "components/calls/CallPanel.tsx"),
+      "utf8",
+    );
     expect(panel.includes("setCallWindowSize")).toBe(true);
   });
 });

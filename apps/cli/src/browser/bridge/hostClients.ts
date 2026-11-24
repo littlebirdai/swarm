@@ -31,20 +31,37 @@ export interface HostClientRecord {
 /** host id (the cloud registry id) → its current token's record. */
 export type HostClients = Record<string, HostClientRecord>;
 
-export const hashHostToken = (token: string): string => crypto.createHash("sha256").update(token).digest("hex");
+export const hashHostToken = (token: string): string =>
+  crypto.createHash("sha256").update(token).digest("hex");
 
 /** A fresh token and the record to store for it. */
-export function newHostClient(label: string, now = Date.now(), holder?: number): { token: string; record: HostClientRecord } {
+export function newHostClient(
+  label: string,
+  now = Date.now(),
+  holder?: number,
+): { token: string; record: HostClientRecord } {
   const token = crypto.randomBytes(32).toString("hex");
-  return { token, record: { hash: hashHostToken(token), label, mintedAt: now, ...(holder ? { holder } : {}) } };
+  return {
+    token,
+    record: {
+      hash: hashHostToken(token),
+      label,
+      mintedAt: now,
+      ...(holder ? { holder } : {}),
+    },
+  };
 }
 
 /** The host id a presented token belongs to, or null. Compares every record in constant time. */
-export function matchHostClient(clients: HostClients | undefined, presented: string | null | undefined): string | null {
+export function matchHostClient(
+  clients: HostClients | undefined,
+  presented: string | null | undefined,
+): string | null {
   if (!clients || typeof presented !== "string" || !presented) return null;
   const hash = hashHostToken(presented);
   let found: string | null = null;
-  for (const [id, rec] of Object.entries(clients)) if (secretMatches(rec.hash, hash)) found = id;
+  for (const [id, rec] of Object.entries(clients))
+    if (secretMatches(rec.hash, hash)) found = id;
   return found;
 }
 
@@ -54,15 +71,22 @@ export function matchHostClient(clients: HostClients | undefined, presented: str
  * laptop session. A host socket that names none sees its own namespace
  * (every session of that host), where a laptop one sees every agent tab.
  */
-export function scopedSession(caller: { host: string | null }, raw: string | null | undefined): string | null {
+export function scopedSession(
+  caller: { host: string | null },
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   return caller.host ? `host:${caller.host}:${raw}` : raw;
 }
 
 /** The sessions a caller may be shown: all of them to this laptop, only its own (unprefixed) to a host. */
-export function visibleSessions(caller: { host: string | null }, sessions: string[]): string[] {
+export function visibleSessions(
+  caller: { host: string | null },
+  sessions: string[],
+): string[] {
   if (!caller.host) return sessions;
   const prefix = `host:${caller.host}:`;
-  return sessions.filter((s) => s.startsWith(prefix)).map((s) => s.slice(prefix.length));
+  return sessions
+    .filter((s) => s.startsWith(prefix))
+    .map((s) => s.slice(prefix.length));
 }
-

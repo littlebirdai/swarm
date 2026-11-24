@@ -31,52 +31,101 @@ export function usePanZoom(resetKey: unknown) {
   // transform-origin at the centre, the transformed box's centre is the layout
   // centre plus the translation, so the shift is the pointer's offset from that
   // centre times the fraction of growth.
-  const zoomAt = useCallback((next: (s: number) => number, px: number, py: number) => {
-    const rect = imgRef.current?.getBoundingClientRect();
-    setView((v) => {
-      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next(v.scale)));
-      if (scale === MIN_SCALE) return IDENTITY;
-      if (!rect) return { ...v, scale };
-      const k = 1 - scale / v.scale;
-      return { scale, x: v.x + (px - (rect.left + rect.width / 2)) * k, y: v.y + (py - (rect.top + rect.height / 2)) * k };
-    });
-  }, []);
+  const zoomAt = useCallback(
+    (next: (s: number) => number, px: number, py: number) => {
+      const rect = imgRef.current?.getBoundingClientRect();
+      setView((v) => {
+        const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next(v.scale)));
+        if (scale === MIN_SCALE) return IDENTITY;
+        if (!rect) return { ...v, scale };
+        const k = 1 - scale / v.scale;
+        return {
+          scale,
+          x: v.x + (px - (rect.left + rect.width / 2)) * k,
+          y: v.y + (py - (rect.top + rect.height / 2)) * k,
+        };
+      });
+    },
+    [],
+  );
 
-  useEventListener("wheel", useCallback((e: WheelEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const delta = Math.max(-50, Math.min(50, e.deltaY));
-      zoomAt((s) => s * Math.exp(-delta * 0.01), e.clientX, e.clientY);
-    } else if (view.scale > 1) {
-      e.preventDefault();
-      setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
-    }
-  }, [zoomAt, view.scale]), surface, WHEEL_OPTS);
+  useEventListener(
+    "wheel",
+    useCallback(
+      (e: WheelEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const delta = Math.max(-50, Math.min(50, e.deltaY));
+          zoomAt((s) => s * Math.exp(-delta * 0.01), e.clientX, e.clientY);
+        } else if (view.scale > 1) {
+          e.preventDefault();
+          setView((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
+        }
+      },
+      [zoomAt, view.scale],
+    ),
+    surface,
+    WHEEL_OPTS,
+  );
 
   const gestureStart = useRef(1);
-  useEventListener("gesturestart" as "wheel", useCallback((e: Event) => {
-    e.preventDefault();
-    gestureStart.current = view.scale;
-  }, [view.scale]), surface, WHEEL_OPTS);
-  useEventListener("gesturechange" as "wheel", useCallback((e: Event) => {
-    e.preventDefault();
-    const g = e as GestureEvent;
-    zoomAt(() => gestureStart.current * g.scale, g.clientX, g.clientY);
-  }, [zoomAt]), surface, WHEEL_OPTS);
+  useEventListener(
+    "gesturestart" as "wheel",
+    useCallback(
+      (e: Event) => {
+        e.preventDefault();
+        gestureStart.current = view.scale;
+      },
+      [view.scale],
+    ),
+    surface,
+    WHEEL_OPTS,
+  );
+  useEventListener(
+    "gesturechange" as "wheel",
+    useCallback(
+      (e: Event) => {
+        e.preventDefault();
+        const g = e as GestureEvent;
+        zoomAt(() => gestureStart.current * g.scale, g.clientX, g.clientY);
+      },
+      [zoomAt],
+    ),
+    surface,
+    WHEEL_OPTS,
+  );
 
   // Drag to pan while zoomed. A drag that moved must not also count as a click
   // on the image (the gallery pins a note on click).
-  const drag = useRef<{ id: number; sx: number; sy: number; x: number; y: number; moved: boolean } | null>(null);
+  const drag = useRef<{
+    id: number;
+    sx: number;
+    sy: number;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
   const suppressClick = useRef(false);
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (view.scale <= 1 || e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: view.x, y: view.y, moved: false };
-  }, [view]);
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (view.scale <= 1 || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      drag.current = {
+        id: e.pointerId,
+        sx: e.clientX,
+        sy: e.clientY,
+        x: view.x,
+        y: view.y,
+        moved: false,
+      };
+    },
+    [view],
+  );
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
-    const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+    const dx = e.clientX - d.sx,
+      dy = e.clientY - d.sy;
     if (!d.moved && Math.hypot(dx, dy) < 3) return;
     d.moved = true;
     setView((v) => ({ ...v, x: d.x + dx, y: d.y + dy }));
@@ -96,7 +145,9 @@ export function usePanZoom(resetKey: unknown) {
 
   const zoomed = view.scale > 1;
   // A callback ref fits both an <img> and a box around one.
-  const setImg = useCallback((el: HTMLElement | null) => { imgRef.current = el; }, []);
+  const setImg = useCallback((el: HTMLElement | null) => {
+    imgRef.current = el;
+  }, []);
   const imageProps = {
     ref: setImg,
     draggable: false,
@@ -112,5 +163,11 @@ export function usePanZoom(resetKey: unknown) {
     } as React.CSSProperties,
   };
 
-  return { surfaceRef: setSurface, imageProps, scale: view.scale, zoomed, reset };
+  return {
+    surfaceRef: setSurface,
+    imageProps,
+    scale: view.scale,
+    zoomed,
+    reset,
+  };
 }

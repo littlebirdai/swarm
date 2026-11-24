@@ -1,9 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { mdDocumentHtml, renderMarkdownBody, renderMarkdownDocument, restyleMarkdownDocument, slugify } from "./artifactMarkdown";
+import {
+  mdDocumentHtml,
+  renderMarkdownBody,
+  renderMarkdownDocument,
+  restyleMarkdownDocument,
+  slugify,
+} from "./artifactMarkdown";
 
 describe("artifactMarkdown", () => {
   test("headings get stable GitHub-style ids with a self link", async () => {
-    const html = await renderMarkdownBody("# Hello, World!\n\n## Hello, World!\n\n### Ünïcode & <tags>");
+    const html = await renderMarkdownBody(
+      "# Hello, World!\n\n## Hello, World!\n\n### Ünïcode & <tags>",
+    );
     expect(html).toContain('<h1 id="hello-world">');
     expect(html).toContain('<h2 id="hello-world-1">');
     expect(html).toContain('<h3 id="ünïcode">');
@@ -23,7 +31,9 @@ describe("artifactMarkdown", () => {
   });
 
   test("unknown languages fall back to escaped text, and html in code never leaks", async () => {
-    const html = await renderMarkdownBody("```nope-lang\n<script>alert(1)</script>\n```");
+    const html = await renderMarkdownBody(
+      "```nope-lang\n<script>alert(1)</script>\n```",
+    );
     expect(html).toContain('<pre data-lang="nope-lang">');
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).not.toContain("<script>alert");
@@ -37,7 +47,9 @@ describe("artifactMarkdown", () => {
   });
 
   test("a column holding sentences is marked so it keeps a readable width", async () => {
-    const html = await renderMarkdownBody("| arm | what it is | p |\n|--|--|--|\n| c | reference: agent review with tools and more | 0.88 |\n| b | short | 0.82 |");
+    const html = await renderMarkdownBody(
+      "| arm | what it is | p |\n|--|--|--|\n| c | reference: agent review with tools and more | 0.88 |\n| b | short | 0.82 |",
+    );
     expect(html).toContain('<th class="prose">what it is</th>');
     expect(html).toContain('<td class="prose">short</td>');
     expect(html).toContain("<td>0.88</td>");
@@ -55,7 +67,9 @@ describe("artifactMarkdown", () => {
 
   test("the theme is chosen in <head>, before the first paint, and the page carries its toggle", async () => {
     const html = await renderMarkdownDocument("# T", "t");
-    expect(html.indexOf('setAttribute("data-theme"')).toBeLessThan(html.indexOf("</head>"));
+    expect(html.indexOf('setAttribute("data-theme"')).toBeLessThan(
+      html.indexOf("</head>"),
+    );
     expect(html).toContain(":root[data-theme=dark]");
     expect(html).toContain('class="md-theme"');
     expect(html).toContain('"codecast:theme"');
@@ -65,7 +79,9 @@ describe("artifactMarkdown", () => {
     const body = '<h1 id="x">Old</h1>\n<p>kept</p>\n';
     const old = `<!doctype html><html><head><style>:root{--md-bg:#fbfaf8}</style></head><body>\n<main class="md">\n${body}\n</main>\n<script>old</script></body></html>`;
     const restyled = restyleMarkdownDocument(old, "New title");
-    expect(restyled).toBe(mdDocumentHtml({ title: "New title", bodyHtml: body }));
+    expect(restyled).toBe(
+      mdDocumentHtml({ title: "New title", bodyHtml: body }),
+    );
     expect(restyled).not.toContain("#fbfaf8");
   });
 

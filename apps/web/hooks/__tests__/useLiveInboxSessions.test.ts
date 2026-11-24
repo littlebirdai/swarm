@@ -19,7 +19,8 @@ const row = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
   has_pending: false,
   ...extra,
 });
-const owned = (id: string) => row(id, { user_id: BOT, owned_by_me: true, owner_user_id: ME });
+const owned = (id: string) =>
+  row(id, { user_id: BOT, owned_by_me: true, owner_user_id: ME });
 
 // A fake client whose getInboxSessionsByIds returns the rows `serves` holds,
 // recording every id it was asked about.
@@ -29,7 +30,9 @@ function byIdsClient(serves: Record<string, InboxSession>) {
     asked,
     query: async (_fn: unknown, args: { ids: string[] }) => {
       asked.push(...args.ids);
-      return { sessions: args.ids.filter((id) => serves[id]).map((id) => serves[id]) };
+      return {
+        sessions: args.ids.filter((id) => serves[id]).map((id) => serves[id]),
+      };
     },
   };
 }
@@ -39,7 +42,12 @@ describe("applyLiveInboxIds: a foreign row I own that leaves the live list is se
   beforeEach(() => {
     useInboxStore.setState({
       currentUser: { _id: ME } as any,
-      sessions: { [DISOWNED]: owned(DISOWNED), [KILLED]: owned(KILLED), [OLD]: owned(OLD), [LIVE]: row(LIVE, { user_id: ME }) },
+      sessions: {
+        [DISOWNED]: owned(DISOWNED),
+        [KILLED]: owned(KILLED),
+        [OLD]: owned(OLD),
+        [LIVE]: row(LIVE, { user_id: ME }),
+      },
       liveInboxIds: new Set([LIVE, DISOWNED, KILLED]),
       liveInboxIdList: [LIVE, DISOWNED, KILLED],
     });
@@ -47,7 +55,9 @@ describe("applyLiveInboxIds: a foreign row I own that leaves the live list is se
 
   it("an id byIds omits loses only its claim; one byIds returns keeps the server's stamps", async () => {
     // KILLED left the list's scan but I still own it, so byIds returns it.
-    const client = byIdsClient({ [KILLED]: { ...owned(KILLED), inbox_killed_at: 5 } as InboxSession });
+    const client = byIdsClient({
+      [KILLED]: { ...owned(KILLED), inbox_killed_at: 5 } as InboxSession,
+    });
     applyLiveInboxIds([{ _id: LIVE }], client);
     await settled();
     const s = useInboxStore.getState();
@@ -62,14 +72,20 @@ describe("applyLiveInboxIds: a foreign row I own that leaves the live list is se
 
   it("asks nothing when no claiming row left: rows the list never held, and an unchanged set", async () => {
     const client = byIdsClient({});
-    applyLiveInboxIds([{ _id: LIVE }, { _id: DISOWNED }, { _id: KILLED }], client);
+    applyLiveInboxIds(
+      [{ _id: LIVE }, { _id: DISOWNED }, { _id: KILLED }],
+      client,
+    );
     await settled();
     expect(client.asked).toEqual([]);
     expect(useInboxStore.getState().sessions[OLD].owned_by_me).toBe(true);
   });
 
   it("never asks about my own runs", async () => {
-    useInboxStore.setState({ liveInboxIds: new Set([LIVE]), liveInboxIdList: [LIVE] });
+    useInboxStore.setState({
+      liveInboxIds: new Set([LIVE]),
+      liveInboxIdList: [LIVE],
+    });
     const client = byIdsClient({});
     applyLiveInboxIds([], client);
     await settled();

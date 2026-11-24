@@ -18,7 +18,10 @@ const api = _api as any;
 // for, and `in_queue` says which rows are the viewer's own (inViewerQueue).
 
 /** The queue feed answers for every row in the viewer's queue. */
-const QUEUE_SYNC = { isDelta: true, pruneAbsentScope: (r: SessionDecisionItem) => r.in_queue !== false };
+const QUEUE_SYNC = {
+  isDelta: true,
+  pruneAbsentScope: (r: SessionDecisionItem) => r.in_queue !== false,
+};
 
 // useQueryNoThrow because the queue only enriches the inbox — the app must
 // keep rendering if the function is missing (deploy gap) or errors.
@@ -27,28 +30,55 @@ export function useSyncSessionDecisions() {
   // wrongly left out open line cards (superseded by a presenter prompt change, 2026-10-20) hid them from the Line's
   // decision inbox for good. Only this table's prunes tombstone it, and a cleared one brings a row back only when a
   // feed sends it again, so clearing them is safe; afterwards each prune's exclude carries `pruned` and needs none.
-  useWatchEffect(() => { useInboxStore.getState().clearTombstones("sessionDecisions"); }, []);
-  const { data: result } = useQueryNoThrow(api.sessionDecisions.listForUser, {});
+  useWatchEffect(() => {
+    useInboxStore.getState().clearTombstones("sessionDecisions");
+  }, []);
+  const { data: result } = useQueryNoThrow(
+    api.sessionDecisions.listForUser,
+    {},
+  );
   // The viewer's decision threads with their unread (decisionThread.myThreads), so a decision's row shows its news.
   useSyncCollection("threadInbox", api.decisionThread.myThreads, {});
   const syncTable = useInboxStore((s) => s.syncTable);
 
-  useConvexSync(result, useCallback((data: any) => {
-    if (!data) return;
-    syncTable("sessionDecisions", data, QUEUE_SYNC);
-  }, [syncTable]));
+  useConvexSync(
+    result,
+    useCallback(
+      (data: any) => {
+        if (!data) return;
+        syncTable("sessionDecisions", data, QUEUE_SYNC);
+      },
+      [syncTable],
+    ),
+  );
 }
 
 /** Feeder: the open line decisions of these workspaces (team or personal keys), every one the viewer can read, whoever
  *  it was asked of. The feed answers for the rows it brought that are not in the viewer's queue. */
 export function useSyncTeamLineDecisions(workspaces: ReadonlyArray<string>) {
   const key = [...workspaces].sort().join(",");
-  const args = useMemo(() => (key ? { workspaces: key.split(",") } : "skip"), [key]);
+  const args = useMemo(
+    () => (key ? { workspaces: key.split(",") } : "skip"),
+    [key],
+  );
   const opts = useMemo(() => {
     const read = new Set(key.split(","));
-    return { syncOpts: { isDelta: true, pruneAbsentScope: (r: SessionDecisionItem) => r.in_queue === false && !!r.line_workspace && read.has(r.line_workspace) } };
+    return {
+      syncOpts: {
+        isDelta: true,
+        pruneAbsentScope: (r: SessionDecisionItem) =>
+          r.in_queue === false &&
+          !!r.line_workspace &&
+          read.has(r.line_workspace),
+      },
+    };
   }, [key]);
-  return useSyncCollection("sessionDecisions", api.sessionDecisions.listOpenForLines, args as any, opts);
+  return useSyncCollection(
+    "sessionDecisions",
+    api.sessionDecisions.listOpenForLines,
+    args as any,
+    opts,
+  );
 }
 
 /** Feeder: every decision of one workspace (a team's or the viewer's own) the viewer may read, the Decisions page's
@@ -57,10 +87,21 @@ export function useSyncTeamLineDecisions(workspaces: ReadonlyArray<string>) {
 export function useSyncTeamDecisions(workspace: string | null) {
   const args = useMemo(() => (workspace ? { workspace } : "skip"), [workspace]);
   const opts = useMemo(
-    () => ({ syncOpts: { isDelta: true, pruneAbsentScope: (r: SessionDecisionItem) => r.in_queue === false && r.team_workspace === workspace } }),
+    () => ({
+      syncOpts: {
+        isDelta: true,
+        pruneAbsentScope: (r: SessionDecisionItem) =>
+          r.in_queue === false && r.team_workspace === workspace,
+      },
+    }),
     [workspace],
   );
-  return useSyncCollection("sessionDecisions", api.decisionTeamList.listForTeam, args as any, opts);
+  return useSyncCollection(
+    "sessionDecisions",
+    api.decisionTeamList.listForTeam,
+    args as any,
+    opts,
+  );
 }
 
 /** Feeder (the sync host's): the open line decisions of every workspace the line reads, and the active one, so the
@@ -68,6 +109,9 @@ export function useSyncTeamDecisions(workspace: string | null) {
 export function useSyncLineDecisionsEverywhere() {
   const spaces = useLineSpaceKeys();
   const active = useActiveWorkspaceKey();
-  const keys = useMemo(() => [...new Set([...spaces, ...(active ? [active] : [])])], [spaces, active]);
+  const keys = useMemo(
+    () => [...new Set([...spaces, ...(active ? [active] : [])])],
+    [spaces, active],
+  );
   useSyncTeamLineDecisions(keys);
 }

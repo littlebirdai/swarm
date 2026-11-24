@@ -16,7 +16,8 @@ import type { OutputBundle } from "rollup";
  * Build only: the file's name carries its content hash, which only the
  * bundle knows. The dev server paints the fallback for a moment instead.
  */
-export const UI_FONT_FILE = /(?:^|\/)instrument-sans-latin-wght-normal-[\w-]+\.woff2$/;
+export const UI_FONT_FILE =
+  /(?:^|\/)instrument-sans-latin-wght-normal-[\w-]+\.woff2$/;
 
 export function uiFontPreloadPlugin(): Plugin {
   let base = "/";
@@ -32,7 +33,10 @@ export function uiFontPreloadPlugin(): Plugin {
       handler(_html, ctx) {
         if (!ctx.bundle) return [];
         const tag = uiFontPreloadTag(ctx.bundle, base);
-        if (!tag) console.warn("[codecast-ui-font-preload] the interface face is not in the bundle; no preload hint.");
+        if (!tag)
+          console.warn(
+            "[codecast-ui-font-preload] the interface face is not in the bundle; no preload hint.",
+          );
         return tag ? [tag] : [];
       },
     },
@@ -41,13 +45,18 @@ export function uiFontPreloadPlugin(): Plugin {
 
 /** The face's latin file under the build's base, or null when the bundle has none. */
 export function uiFontHref(bundle: OutputBundle, base: string): string | null {
-  const file = Object.values(bundle).find((f) => f.type === "asset" && UI_FONT_FILE.test(f.fileName));
+  const file = Object.values(bundle).find(
+    (f) => f.type === "asset" && UI_FONT_FILE.test(f.fileName),
+  );
   if (!file) return null;
   return `${base.endsWith("/") ? base : `${base}/`}${file.fileName}`;
 }
 
 /** The script that preloads the face when <html> carries modern-style, or null. */
-export function uiFontPreloadTag(bundle: OutputBundle, base: string): HtmlTagDescriptor | null {
+export function uiFontPreloadTag(
+  bundle: OutputBundle,
+  base: string,
+): HtmlTagDescriptor | null {
   const href = uiFontHref(bundle, base);
   if (!href) return null;
   return {

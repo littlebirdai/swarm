@@ -31,9 +31,31 @@ export const expectationValidator = v.object({
 });
 
 export const expectationOpValidator = v.union(
-  v.object({ op: v.literal("add"), text: v.string(), part: v.string(), note: v.optional(v.string()), since: v.optional(v.string()), citations: v.array(citation), status: v.optional(v.union(v.literal("active"), v.literal("retired"))), reason: v.optional(v.string()) }),
-  v.object({ op: v.literal("edit"), id: v.string(), text: v.optional(v.string()), part: v.optional(v.string()), note: v.optional(v.string()), since: v.optional(v.string()), citations: v.array(citation) }),
-  v.object({ op: v.literal("retire"), id: v.string(), reason: v.string(), citations: v.array(citation) }),
+  v.object({
+    op: v.literal("add"),
+    text: v.string(),
+    part: v.string(),
+    note: v.optional(v.string()),
+    since: v.optional(v.string()),
+    citations: v.array(citation),
+    status: v.optional(v.union(v.literal("active"), v.literal("retired"))),
+    reason: v.optional(v.string()),
+  }),
+  v.object({
+    op: v.literal("edit"),
+    id: v.string(),
+    text: v.optional(v.string()),
+    part: v.optional(v.string()),
+    note: v.optional(v.string()),
+    since: v.optional(v.string()),
+    citations: v.array(citation),
+  }),
+  v.object({
+    op: v.literal("retire"),
+    id: v.string(),
+    reason: v.string(),
+    citations: v.array(citation),
+  }),
 );
 
 export const expectationTables = {
@@ -80,7 +102,13 @@ export const expectationTables = {
     // retracted: a proposal that should never have been made (a run outside
     // the routine), withdrawn by an operator with the reason; it moves no
     // cursor, so the next pass reads its window again.
-    status: v.union(v.literal("open"), v.literal("applied"), v.literal("dropped"), v.literal("empty"), v.literal("retracted")),
+    status: v.union(
+      v.literal("open"),
+      v.literal("applied"),
+      v.literal("dropped"),
+      v.literal("empty"),
+      v.literal("retracted"),
+    ),
     retracted_reason: v.optional(v.string()),
     decision_id: v.optional(v.id("session_decisions")),
     applied_version: v.optional(v.number()),

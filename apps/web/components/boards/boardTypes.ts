@@ -1,7 +1,11 @@
 // What the board view uses from the live-artifact foundation (ct-91883). The
 // foundation's handle and LiveViewProps satisfy these structurally; the board
 // names only the parts it calls so its own code reads clearly.
-import type { ArtifactElement, ArtifactOp, ArtifactPosition } from "@codecast/shared/artifacts";
+import type {
+  ArtifactElement,
+  ArtifactOp,
+  ArtifactPosition,
+} from "@codecast/shared/artifacts";
 
 export type BoardEl = ArtifactElement;
 
@@ -13,7 +17,11 @@ export type BoardLive = {
   redo(): void;
   canUndo: boolean;
   canRedo: boolean;
-  setPresence(p: { position?: ArtifactPosition; selection?: string[]; status?: string }): void;
+  setPresence(p: {
+    position?: ArtifactPosition;
+    selection?: string[];
+    status?: string;
+  }): void;
 };
 
 export type BoardTool =

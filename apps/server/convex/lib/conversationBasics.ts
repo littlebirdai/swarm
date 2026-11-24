@@ -7,9 +7,9 @@ export function generateShareToken(): string {
 
 export function formatSlugAsTitle(slug: string): string {
   return slug
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 type MessageLike = {

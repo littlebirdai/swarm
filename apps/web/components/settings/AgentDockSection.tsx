@@ -2,14 +2,23 @@
 import { useState } from "react";
 import { PanelRight } from "lucide-react";
 import { useMountEffect } from "../../hooks/useMountEffect";
-import { AGENT_DOCK_RELEASED, getAgentDock, setAgentDock, type AgentDockConfig } from "../../lib/desktopAgentDock";
+import {
+  AGENT_DOCK_RELEASED,
+  getAgentDock,
+  setAgentDock,
+  type AgentDockConfig,
+} from "../../lib/desktopAgentDock";
 import { SettingsOptionGroup, SettingsSection } from "./ui";
 
 export function AgentDockSection() {
   const [cfg, setCfg] = useState<AgentDockConfig | null>(null);
-  useMountEffect(() => { void getAgentDock().then(setCfg); });
+  useMountEffect(() => {
+    void getAgentDock().then(setCfg);
+  });
 
-  const patch = async (next: Partial<Pick<AgentDockConfig, "enabled" | "edge">>) => {
+  const patch = async (
+    next: Partial<Pick<AgentDockConfig, "enabled" | "edge">>,
+  ) => {
     const saved = await setAgentDock(next);
     if (saved) setCfg((prev) => (prev ? { ...prev, ...saved } : prev));
   };
@@ -29,7 +38,13 @@ export function AgentDockSection() {
           label="Dock"
           variant="pill"
           value={cfg.enabled ? cfg.edge : "off"}
-          onChange={(v) => patch(v === "off" ? { enabled: false } : { enabled: true, edge: v as AgentDockConfig["edge"] })}
+          onChange={(v) =>
+            patch(
+              v === "off"
+                ? { enabled: false }
+                : { enabled: true, edge: v as AgentDockConfig["edge"] },
+            )
+          }
           options={[
             { value: "off", label: "Off" },
             { value: "right", label: "Right edge" },
@@ -37,7 +52,8 @@ export function AgentDockSection() {
           ]}
         />
         <p className="text-xs text-sol-text-dim">
-          Answers, discards and kills from the dock wait two seconds before they happen. Press Esc in that time to take one back.
+          Answers, discards and kills from the dock wait two seconds before they
+          happen. Press Esc in that time to take one back.
         </p>
       </div>
     </SettingsSection>

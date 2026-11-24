@@ -1,5 +1,10 @@
 import { test, expect, describe } from "bun:test";
-import { SHORTCUTS, matchShortcut, altChordDirection, type ShortcutAction } from "./registry";
+import {
+  SHORTCUTS,
+  matchShortcut,
+  altChordDirection,
+  type ShortcutAction,
+} from "./registry";
 
 // Ctrl+N (and Ctrl+Shift+N, the desktop's system-wide chord) opens the
 // new-session popup; Ctrl+Alt+N opens the same surface as a page in the main
@@ -10,45 +15,73 @@ import { SHORTCUTS, matchShortcut, altChordDirection, type ShortcutAction } from
 // real loop (ShortcutProvider) also filters by context/input, but every binding
 // here is global + skipInputCheck, so key matching alone decides the action.
 function resolveAction(e: Partial<KeyboardEvent>): ShortcutAction | null {
-  const ev = { shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...e } as KeyboardEvent;
+  const ev = {
+    shiftKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    ...e,
+  } as KeyboardEvent;
   return SHORTCUTS.find((def) => matchShortcut(ev, def))?.action ?? null;
 }
 
 describe("new-session key bindings", () => {
   test("Ctrl+N opens the popup, not the page", () => {
-    expect(resolveAction({ key: "n", code: "KeyN", ctrlKey: true })).toBe("session.compose");
+    expect(resolveAction({ key: "n", code: "KeyN", ctrlKey: true })).toBe(
+      "session.compose",
+    );
   });
 
   test("tooltips name Ctrl+N for the popup and Ctrl+Alt+N for the page (the first binding of each action)", () => {
-    expect(SHORTCUTS.find((d) => d.action === "session.compose")?.key).toBe("ctrl+n");
-    expect(SHORTCUTS.find((d) => d.action === "session.create")?.key).toBe("ctrl+alt+n");
+    expect(SHORTCUTS.find((d) => d.action === "session.compose")?.key).toBe(
+      "ctrl+n",
+    );
+    expect(SHORTCUTS.find((d) => d.action === "session.create")?.key).toBe(
+      "ctrl+alt+n",
+    );
   });
 
   test("Ctrl+Shift+N stays the palette compose; Ctrl+Shift+M is the docked composer and fires over the open modal", () => {
-    expect(resolveAction({ key: "N", code: "KeyN", ctrlKey: true, shiftKey: true })).toBe("session.compose");
-    expect(resolveAction({ key: "M", code: "KeyM", ctrlKey: true, shiftKey: true })).toBe("session.composeDock");
-    expect(SHORTCUTS.find((d) => d.action === "session.composeDock")?.worksInModal).toBe(true);
+    expect(
+      resolveAction({ key: "N", code: "KeyN", ctrlKey: true, shiftKey: true }),
+    ).toBe("session.compose");
+    expect(
+      resolveAction({ key: "M", code: "KeyM", ctrlKey: true, shiftKey: true }),
+    ).toBe("session.composeDock");
+    expect(
+      SHORTCUTS.find((d) => d.action === "session.composeDock")?.worksInModal,
+    ).toBe(true);
   });
 
   test("Ctrl+Alt+N opens the full session page", () => {
-    expect(resolveAction({ key: "n", code: "KeyN", ctrlKey: true, altKey: true })).toBe("session.create");
+    expect(
+      resolveAction({ key: "n", code: "KeyN", ctrlKey: true, altKey: true }),
+    ).toBe("session.create");
   });
 
   test("Ctrl+Alt+N matches on macOS where ⌥N is the tilde dead key", () => {
     // What Chrome on macOS actually delivers for ⌃⌥N: the composed/dead glyph in
     // e.key, the physical key only in e.code.
-    expect(resolveAction({ key: "Dead", code: "KeyN", ctrlKey: true, altKey: true })).toBe("session.create");
-    expect(resolveAction({ key: "˜", code: "KeyN", ctrlKey: true, altKey: true })).toBe("session.create");
+    expect(
+      resolveAction({ key: "Dead", code: "KeyN", ctrlKey: true, altKey: true }),
+    ).toBe("session.create");
+    expect(
+      resolveAction({ key: "˜", code: "KeyN", ctrlKey: true, altKey: true }),
+    ).toBe("session.create");
   });
 
   test("the e.code fallback never fires for a plain (no-Alt) chord", () => {
     // Ctrl+N with a mismatched e.key must NOT borrow the physical key — only Alt
     // chords get the fallback, so a layout that maps KeyN elsewhere still wins.
-    expect(resolveAction({ key: "j", code: "KeyN", ctrlKey: true })).not.toBe("session.compose");
+    expect(resolveAction({ key: "j", code: "KeyN", ctrlKey: true })).not.toBe(
+      "session.compose",
+    );
   });
 
   test("Ctrl+N (no Alt) never resolves to the page", () => {
-    expect(resolveAction({ key: "n", code: "KeyN", ctrlKey: true })).not.toBe("session.create");
+    expect(resolveAction({ key: "n", code: "KeyN", ctrlKey: true })).not.toBe(
+      "session.create",
+    );
   });
 });
 
@@ -60,8 +93,20 @@ describe("new-session key bindings", () => {
 describe("new-session ⌥-chord router (altChordDirection)", () => {
   const textarea = { tagName: "TEXTAREA" } as unknown as EventTarget;
   const body = { tagName: "BODY" } as unknown as EventTarget;
-  const chord = (code: string, target: EventTarget, mods: Partial<KeyboardEvent> = {}) =>
-    altChordDirection({ altKey: true, metaKey: false, ctrlKey: false, shiftKey: false, code, target, ...mods });
+  const chord = (
+    code: string,
+    target: EventTarget,
+    mods: Partial<KeyboardEvent> = {},
+  ) =>
+    altChordDirection({
+      altKey: true,
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      code,
+      target,
+      ...mods,
+    });
 
   test("⌥←/⌥→ from a text caret is released (word jump), not routed", () => {
     expect(chord("ArrowLeft", textarea)).toBeNull();

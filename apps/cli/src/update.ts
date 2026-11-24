@@ -18,7 +18,11 @@ import {
   type UpdaterConfig,
 } from "@platform/cli-kit/update";
 import { execFileSync, spawnSync } from "./proc.js";
-import { DARWIN_SIGNING_TEAM, RELEASE_BASE_URL, RELEASE_MANIFEST_SIGNING } from "./releaseTrust.js";
+import {
+  DARWIN_SIGNING_TEAM,
+  RELEASE_BASE_URL,
+  RELEASE_MANIFEST_SIGNING,
+} from "./releaseTrust.js";
 import { getVersion } from "./cliVersion.js";
 import { defaultConfigDir } from "./config/configDir.js";
 import { isManagedInstall } from "./managedInstall.js";
@@ -41,7 +45,11 @@ type SpawnSync = typeof spawnSync;
  * byte bound, and the URL it finally read from must be the release origin.
  */
 export function makeCurlDownload(exec: ExecFileSync = execFileSync) {
-  return async (url: string, dest: string, { maxBytes, origin }: DownloadOptions): Promise<void> => {
+  return async (
+    url: string,
+    dest: string,
+    { maxBytes, origin }: DownloadOptions,
+  ): Promise<void> => {
     if (!url.startsWith("https://")) throw new Error("download_not_https");
     let effective: string;
     try {
@@ -50,15 +58,25 @@ export function makeCurlDownload(exec: ExecFileSync = execFileSync) {
           "curl",
           [
             "-fsSL",
-            "--proto", "=https",
-            "--proto-redir", "=https",
-            "--max-redirs", "3",
-            "--max-filesize", String(maxBytes),
-            "-o", dest,
-            "-w", "%{url_effective}",
+            "--proto",
+            "=https",
+            "--proto-redir",
+            "=https",
+            "--max-redirs",
+            "3",
+            "--max-filesize",
+            String(maxBytes),
+            "-o",
+            dest,
+            "-w",
+            "%{url_effective}",
             url,
           ],
-          { timeout: 180000, stdio: ["ignore", "pipe", "ignore"], encoding: "utf8" },
+          {
+            timeout: 180000,
+            stdio: ["ignore", "pipe", "ignore"],
+            encoding: "utf8",
+          },
         ),
       ).trim();
     } catch (err) {
@@ -66,9 +84,13 @@ export function makeCurlDownload(exec: ExecFileSync = execFileSync) {
       throw new Error(`download_curl_${status ?? "failed"}`);
     }
     let landed: URL | null = null;
-    try { landed = new URL(effective); } catch {}
+    try {
+      landed = new URL(effective);
+    } catch {}
     if (!landed || landed.protocol !== "https:" || landed.origin !== origin) {
-      try { fs.unlinkSync(dest); } catch {}
+      try {
+        fs.unlinkSync(dest);
+      } catch {}
       throw new Error("download_redirect_refused");
     }
   };
@@ -82,29 +104,46 @@ export function makeCurlDownload(exec: ExecFileSync = execFileSync) {
  * Once a client is signed, an unsigned or foreign-signed release is refused;
  * a release built with CODECAST_SKIP_SIGN=1 no longer reaches those clients.
  */
-export function makeDarwinSignatureCheck(opts: { spawn?: SpawnSync; platform?: string; execPath?: string } = {}) {
+export function makeDarwinSignatureCheck(
+  opts: { spawn?: SpawnSync; platform?: string; execPath?: string } = {},
+) {
   const spawn = opts.spawn ?? spawnSync;
   const platform = opts.platform ?? process.platform;
   const execPath = opts.execPath ?? process.execPath;
   const teamOf = (binary: string): string | null | undefined => {
-    const r = spawn("/usr/bin/codesign", ["-dv", "--", binary], { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", timeout: 30000 });
+    const r = spawn("/usr/bin/codesign", ["-dv", "--", binary], {
+      stdio: ["ignore", "pipe", "pipe"],
+      encoding: "utf8",
+      timeout: 30000,
+    });
     if (r.status !== 0) return undefined;
-    return /^TeamIdentifier=(\S+)$/m.exec(`${r.stdout ?? ""}\n${r.stderr ?? ""}`)?.[1] ?? null;
+    return (
+      /^TeamIdentifier=(\S+)$/m.exec(
+        `${r.stdout ?? ""}\n${r.stderr ?? ""}`,
+      )?.[1] ?? null
+    );
   };
   return async (binary: string): Promise<{ ok: boolean; reason?: string }> => {
     if (platform !== "darwin") return { ok: true };
     if (teamOf(execPath) !== DARWIN_SIGNING_TEAM) return { ok: true };
-    const verify = spawn("/usr/bin/codesign", ["--verify", "--strict", "--", binary], { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", timeout: 60000 });
+    const verify = spawn(
+      "/usr/bin/codesign",
+      ["--verify", "--strict", "--", binary],
+      { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", timeout: 60000 },
+    );
     if (verify.status !== 0) return { ok: false, reason: "invalid" };
     const team = teamOf(binary);
     if (team === undefined) return { ok: false, reason: "unreadable" };
-    if (team !== DARWIN_SIGNING_TEAM) return { ok: false, reason: "wrong_team" };
+    if (team !== DARWIN_SIGNING_TEAM)
+      return { ok: false, reason: "wrong_team" };
     return { ok: true };
   };
 }
 
 /** The production updater, with any field overridable for a test. */
-export function createCodecastUpdater(overrides: Partial<UpdaterConfig> = {}): Updater {
+export function createCodecastUpdater(
+  overrides: Partial<UpdaterConfig> = {},
+): Updater {
   return createUpdater({
     // Shown as "Downloading cast v1.2.3..." — the name a human types, which is
     // what they are waiting on.
@@ -141,11 +180,22 @@ export type Distribution = "installer" | "brew" | "npm" | "source";
 export function installChannel(
   execPath = process.execPath,
   devMode = isDevMode(),
-  writable = (dir: string) => { try { fs.accessSync(dir, fs.constants.W_OK); return true; } catch { return false; } },
+  writable = (dir: string) => {
+    try {
+      fs.accessSync(dir, fs.constants.W_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  },
   managed: (execPath: string) => boolean = isManagedInstall,
 ): { distribution: Distribution; can_self_update: boolean } {
   if (devMode) return { distribution: "source", can_self_update: false };
-  const distribution: Distribution = /\/Cellar\/|\/homebrew\//i.test(execPath) ? "brew" : /\/node_modules\//.test(execPath) ? "npm" : "installer";
+  const distribution: Distribution = /\/Cellar\/|\/homebrew\//i.test(execPath)
+    ? "brew"
+    : /\/node_modules\//.test(execPath)
+      ? "npm"
+      : "installer";
   const dir = execPath.slice(0, Math.max(execPath.lastIndexOf("/"), 1));
   return { distribution, can_self_update: writable(dir) && !managed(execPath) };
 }
@@ -161,7 +211,10 @@ export function recordUpdateFailure(version: string): void {
 /** Printed where an update was asked for on a managed install. */
 export const MANAGED_UPDATE_NOTE = `cast was installed by your organization (${process.execPath}); it updates when your MDM installs a newer Codecast.pkg.`;
 
-export async function performUpdate(): Promise<{ success: boolean; error?: string }> {
+export async function performUpdate(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   // A root-owned binary (Codecast.pkg from an MDM) is not this user's to
   // replace; the organization ships the next version (managedInstall.ts).
   if (!isDevMode() && isManagedInstall()) {
@@ -182,7 +235,10 @@ export function ensureCastAlias(): void {
 }
 
 /** The "Run 'cast update'" notice, for a person at a terminal only: an agent's shell has no terminal, the daemon updates on its own, and an agent would only pass the command on to its person. */
-export function showUpdateNotice(availableVersion: string, terminal = !!process.stderr.isTTY): void {
+export function showUpdateNotice(
+  availableVersion: string,
+  terminal = !!process.stderr.isTTY,
+): void {
   if (!terminal) return;
   updater.showUpdateNotice(availableVersion);
 }

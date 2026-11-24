@@ -16,7 +16,9 @@ describe("machineSwitchBlock", () => {
   const base = { isActive: false, thisProfile: "petrosianasho" };
 
   test("active account cannot switch to itself", () => {
-    expect(machineSwitchBlock({ ...base, isActive: true })?.block).toBe("active");
+    expect(machineSwitchBlock({ ...base, isActive: true })?.block).toBe(
+      "active",
+    );
   });
 
   test("expired login must sign in before a machine switch", () => {
@@ -26,8 +28,12 @@ describe("machineSwitchBlock", () => {
   });
 
   test("offline and remote machines cannot switch", () => {
-    expect(machineSwitchBlock({ ...base, online: false })?.block).toBe("offline");
-    expect(machineSwitchBlock({ ...base, isRemote: true })?.block).toBe("remote");
+    expect(machineSwitchBlock({ ...base, online: false })?.block).toBe(
+      "offline",
+    );
+    expect(machineSwitchBlock({ ...base, isRemote: true })?.block).toBe(
+      "remote",
+    );
   });
 
   test("a live saved account on an online primary can switch", () => {
@@ -37,18 +43,30 @@ describe("machineSwitchBlock", () => {
 
 describe("profileIsCurrentLogin", () => {
   test("matches the saved profile by email", () => {
-    expect(profileIsCurrentLogin({ name: "jo", email: "jo@x.com" }, "jo@x.com")).toBe(true);
-    expect(profileIsCurrentLogin({ name: "jo", email: "other@x.com" }, "jo@x.com")).toBe(false);
+    expect(
+      profileIsCurrentLogin({ name: "jo", email: "jo@x.com" }, "jo@x.com"),
+    ).toBe(true);
+    expect(
+      profileIsCurrentLogin({ name: "jo", email: "other@x.com" }, "jo@x.com"),
+    ).toBe(false);
   });
 
   test("an email-less snapshot matches the current login's local part", () => {
-    expect(profileIsCurrentLogin({ name: "joannagerkin" }, "joannagerkin@gmail.com")).toBe(true);
-    expect(profileIsCurrentLogin({ name: "fresh" }, "joannagerkin@gmail.com")).toBe(false);
+    expect(
+      profileIsCurrentLogin({ name: "joannagerkin" }, "joannagerkin@gmail.com"),
+    ).toBe(true);
+    expect(
+      profileIsCurrentLogin({ name: "fresh" }, "joannagerkin@gmail.com"),
+    ).toBe(false);
   });
 });
 
 describe("resolveMachineSwitch", () => {
-  const pending = { profile: "petrosianasho", email: "petrosianasho@gmail.com", startedAt: 1_000 };
+  const pending = {
+    profile: "petrosianasho",
+    email: "petrosianasho@gmail.com",
+    startedAt: 1_000,
+  };
   const waiting = { pending, activeEmail: "ashotp@gmail.com", now: 1_000 };
 
   test("no pending switch is idle", () => {
@@ -57,7 +75,10 @@ describe("resolveMachineSwitch", () => {
 
   test("queued command is waiting until the daemon answers", () => {
     expect(resolveMachineSwitch(waiting).phase).toBe("waiting");
-    expect(resolveMachineSwitch({ ...waiting, now: 1_000 + MACHINE_SWITCH_SLOW_MS }).phase).toBe("slow");
+    expect(
+      resolveMachineSwitch({ ...waiting, now: 1_000 + MACHINE_SWITCH_SLOW_MS })
+        .phase,
+    ).toBe("slow");
   });
 
   test("heartbeat moving to the target is success even before the command row", () => {
@@ -82,10 +103,16 @@ describe("resolveMachineSwitch", () => {
   test("daemon error is the failure the UI must show", () => {
     const res = resolveMachineSwitch({
       ...waiting,
-      command: { executed_at: 2_000, error: 'Account switch failed: Profile "petrosianasho" holds an unusable credential (logged-out)' },
+      command: {
+        executed_at: 2_000,
+        error:
+          'Account switch failed: Profile "petrosianasho" holds an unusable credential (logged-out)',
+      },
     });
     expect(res.phase).toBe("failed");
-    expect(res.error).toBe("This saved login no longer works. Sign in again on this account, then switch.");
+    expect(res.error).toBe(
+      "This saved login no longer works. Sign in again on this account, then switch.",
+    );
   });
 
   test("executed command waits for the active account inventory", () => {
@@ -95,19 +122,26 @@ describe("resolveMachineSwitch", () => {
         command: { executed_at: 2_000, error: null },
       }).phase,
     ).toBe("confirming");
-    expect(resolveMachineSwitch({
-      ...waiting,
-      command: { executed_at: 2_000 },
-      activeEmail: pending.email,
-    }).phase).toBe("succeeded");
+    expect(
+      resolveMachineSwitch({
+        ...waiting,
+        command: { executed_at: 2_000 },
+        activeEmail: pending.email,
+      }).phase,
+    ).toBe("succeeded");
   });
 
   test("command errors take precedence over a matching account snapshot", () => {
-    expect(resolveMachineSwitch({
-      ...waiting,
-      activeEmail: pending.email,
-      command: { executed_at: 2_000, error: "Account switch failed: access denied" },
-    })).toEqual({ phase: "failed", error: "access denied" });
+    expect(
+      resolveMachineSwitch({
+        ...waiting,
+        activeEmail: pending.email,
+        command: {
+          executed_at: 2_000,
+          error: "Account switch failed: access denied",
+        },
+      }),
+    ).toEqual({ phase: "failed", error: "access denied" });
   });
 
   test("missing confirmation times out without claiming the swap failed", () => {
@@ -132,38 +166,94 @@ describe("resolveMachineSwitch", () => {
 });
 
 test("stripSwitchPrefix leaves unrelated errors intact", () => {
-  expect(stripSwitchPrefix("That device's daemon is offline")).toBe("That device's daemon is offline");
+  expect(stripSwitchPrefix("That device's daemon is offline")).toBe(
+    "That device's daemon is offline",
+  );
 });
 
 test("humanizeSwitchError keeps a missing-profile error", () => {
-  expect(humanizeSwitchError('Account switch failed: No saved profile "x" on this machine')).toContain("No saved profile");
+  expect(
+    humanizeSwitchError(
+      'Account switch failed: No saved profile "x" on this machine',
+    ),
+  ).toContain("No saved profile");
 });
 
 test("pending copy distinguishes a slow wait", () => {
-  expect(machineSwitchPendingCopy("waiting", "a@x.com")).toBe("Switching to a@x.com…");
-  expect(machineSwitchPendingCopy("slow", "a@x.com", "ashot-mbp")).toBe("Still switching on ashot-mbp to a@x.com…");
+  expect(machineSwitchPendingCopy("waiting", "a@x.com")).toBe(
+    "Switching to a@x.com…",
+  );
+  expect(machineSwitchPendingCopy("slow", "a@x.com", "ashot-mbp")).toBe(
+    "Still switching on ashot-mbp to a@x.com…",
+  );
 });
 
 describe("token switch", () => {
   test("a live minted token lifts the expired-login block", () => {
-    expect(machineSwitchBlock({ isActive: false, thisProfile: "tok", loginExpired: true, tokenLive: true })).toBeNull();
-    expect(machineSwitchBlock({ isActive: false, thisProfile: "tok", loginExpired: true, tokenLive: false })?.block).toBe("login_expired");
-    expect(machineSwitchBlock({ isActive: false, thisProfile: "tok", loginExpired: true, tokenLive: true, online: false })?.block).toBe("offline");
+    expect(
+      machineSwitchBlock({
+        isActive: false,
+        thisProfile: "tok",
+        loginExpired: true,
+        tokenLive: true,
+      }),
+    ).toBeNull();
+    expect(
+      machineSwitchBlock({
+        isActive: false,
+        thisProfile: "tok",
+        loginExpired: true,
+        tokenLive: false,
+      })?.block,
+    ).toBe("login_expired");
+    expect(
+      machineSwitchBlock({
+        isActive: false,
+        thisProfile: "tok",
+        loginExpired: true,
+        tokenLive: true,
+        online: false,
+      })?.block,
+    ).toBe("offline");
   });
 
   test("the fleet account is the launch profile when one is set, else the keychain login", () => {
     const tok = { name: "tok", email: "tok@x.com" };
     const key = { name: "key", email: "key@x.com" };
-    expect(profileIsFleetAccount(tok, { activeEmail: "key@x.com", launchProfile: "tok" })).toBe(true);
-    expect(profileIsFleetAccount(key, { activeEmail: "key@x.com", launchProfile: "tok" })).toBe(false);
+    expect(
+      profileIsFleetAccount(tok, {
+        activeEmail: "key@x.com",
+        launchProfile: "tok",
+      }),
+    ).toBe(true);
+    expect(
+      profileIsFleetAccount(key, {
+        activeEmail: "key@x.com",
+        launchProfile: "tok",
+      }),
+    ).toBe(false);
     expect(profileIsFleetAccount(key, { activeEmail: "key@x.com" })).toBe(true);
-    expect(profileIsFleetAccount(tok, { activeEmail: "key@x.com" })).toBe(false);
+    expect(profileIsFleetAccount(tok, { activeEmail: "key@x.com" })).toBe(
+      false,
+    );
   });
 
   test("a token switch succeeds when the machine reports the launch profile, though the login never moves", () => {
     const pending = { profile: "tok", email: "tok@x.com", startedAt: 0 };
-    expect(resolveMachineSwitch({ pending, activeEmail: "key@x.com", now: 1_000 }).phase).toBe("waiting");
-    expect(resolveMachineSwitch({ pending, activeEmail: "key@x.com", launchProfile: "tok", now: 1_000 }).phase).toBe("succeeded");
-    expect(machineSwitchSuccessCopy("tok@x.com").title).toBe("Now on tok@x.com");
+    expect(
+      resolveMachineSwitch({ pending, activeEmail: "key@x.com", now: 1_000 })
+        .phase,
+    ).toBe("waiting");
+    expect(
+      resolveMachineSwitch({
+        pending,
+        activeEmail: "key@x.com",
+        launchProfile: "tok",
+        now: 1_000,
+      }).phase,
+    ).toBe("succeeded");
+    expect(machineSwitchSuccessCopy("tok@x.com").title).toBe(
+      "Now on tok@x.com",
+    );
   });
 });

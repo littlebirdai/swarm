@@ -5,11 +5,21 @@ import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@codecast/convex/convex/_generated/api";
 import type { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { CommentAvatar } from "../comments/CommentAvatar";
 import { useInboxStore } from "../../store/inboxStore";
 import { memberAvatarUrl } from "../../lib/liveEntities";
-import { followersLabel, followersSig, type FollowerRow } from "../../lib/follow";
+import {
+  followersLabel,
+  followersSig,
+  type FollowerRow,
+} from "../../lib/follow";
 import { memberDisplayName } from "./memberPresence";
 import { firstName } from "../calls/speakers";
 import { objectHref, personRefOf } from "../../lib/entityLinks";
@@ -30,12 +40,24 @@ export function FollowPill() {
   const blocked = useInboxStore((s) => s.followBlocked);
   const followersKey = useInboxStore((s) => followersSig(s.followedBy));
   const leaderName = useInboxStore((s) =>
-    s.followLeaderId ? memberDisplayName(teamMembersOf(s).find((m: any) => String(m?._id) === s.followLeaderId)) : "",
+    s.followLeaderId
+      ? memberDisplayName(
+          teamMembersOf(s).find(
+            (m: any) => String(m?._id) === s.followLeaderId,
+          ),
+        )
+      : "",
   );
-  const st = { setFollowLeader: useInboxStore.getState().setFollowLeader, followBlocked: blocked, followedBy: useInboxStore.getState().followedBy };
+  const st = {
+    setFollowLeader: useInboxStore.getState().setFollowLeader,
+    followBlocked: blocked,
+    followedBy: useInboxStore.getState().followedBy,
+  };
   void followersKey;
   if (leaderId) {
-    const leader = teamMembersOf(useInboxStore.getState()).find((m: any) => String(m?._id) === leaderId);
+    const leader = teamMembersOf(useInboxStore.getState()).find(
+      (m: any) => String(m?._id) === leaderId,
+    );
     const name = leaderName || memberDisplayName(leader);
     const first = name.split(/\s+/)[0] || name;
     return (
@@ -46,7 +68,9 @@ export function FollowPill() {
       >
         <CommentAvatar name={name} image={memberAvatarUrl(leader)} size={20} />
         <span className="truncate max-w-[220px]">
-          {st.followBlocked ? `${first} is somewhere you can't open` : `Following ${first}`}
+          {st.followBlocked
+            ? `${first} is somewhere you can't open`
+            : `Following ${first}`}
         </span>
         <button
           type="button"
@@ -86,7 +110,10 @@ function FollowersPill({ followers }: { followers: FollowerRow[] }) {
               <span
                 key={f.user_id}
                 className="relative rounded-full ring-2 ring-sol-cyan/70 ring-offset-1 ring-offset-sol-bg transition-[margin] duration-150 group-hover:ml-0.5 first:ml-0"
-                style={{ marginLeft: i === 0 ? 0 : -6, zIndex: shown.length - i }}
+                style={{
+                  marginLeft: i === 0 ? 0 : -6,
+                  zIndex: shown.length - i,
+                }}
               >
                 <CommentAvatar name={f.name} image={f.image} size={20} />
               </span>
@@ -98,7 +125,10 @@ function FollowersPill({ followers }: { followers: FollowerRow[] }) {
             )}
           </span>
           {/* Live: your view is going out right now. */}
-          <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-2 w-2" aria-hidden>
+          <span
+            className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-2 w-2"
+            aria-hidden
+          >
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sol-cyan/60 motion-reduce:hidden" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-sol-cyan ring-2 ring-sol-bg" />
           </span>
@@ -118,7 +148,8 @@ function FollowersMenu({ followers }: { followers: FollowerRow[] }) {
   const stopSharing = (ids: string[]) => {
     const st = useInboxStore.getState();
     st.setFollowedBy(st.followedBy.filter((f) => !ids.includes(f.user_id)));
-    for (const id of ids) drop({ follower_id: id as Id<"users"> }).catch(() => {});
+    for (const id of ids)
+      drop({ follower_id: id as Id<"users"> }).catch(() => {});
   };
   return (
     <div data-sv-follow-menu>
@@ -128,13 +159,17 @@ function FollowersMenu({ followers }: { followers: FollowerRow[] }) {
       </div>
       {followers.map((f, i) => {
         const first = firstName(f.name);
-        const member = teamMembersOf(useInboxStore.getState()).find((m: any) => String(m?._id) === f.user_id) as any;
+        const member = teamMembersOf(useInboxStore.getState()).find(
+          (m: any) => String(m?._id) === f.user_id,
+        ) as any;
         return (
           <div key={f.user_id}>
             {i > 0 && <DropdownMenuSeparator />}
             <div className="flex items-center gap-2 px-2 py-1.5">
               <CommentAvatar name={f.name} image={f.image} size={22} />
-              <span className="truncate text-xs font-medium text-sol-text">{f.name}</span>
+              <span className="truncate text-xs font-medium text-sol-text">
+                {f.name}
+              </span>
             </div>
             <DropdownMenuItem
               data-sv-follow-action="stop"
@@ -146,7 +181,9 @@ function FollowersMenu({ followers }: { followers: FollowerRow[] }) {
             </DropdownMenuItem>
             <DropdownMenuItem
               data-sv-follow-action="follow-back"
-              onSelect={() => useInboxStore.getState().setFollowLeader(f.user_id)}
+              onSelect={() =>
+                useInboxStore.getState().setFollowLeader(f.user_id)
+              }
               className="gap-2 text-xs"
             >
               <Eye className="h-3.5 w-3.5 text-sol-text-muted" />
@@ -154,7 +191,17 @@ function FollowersMenu({ followers }: { followers: FollowerRow[] }) {
             </DropdownMenuItem>
             <DropdownMenuItem
               data-sv-follow-action="profile"
-              onSelect={() => router.push(objectHref("person", personRefOf({ _id: f.user_id, github_username: member?.github_username })))}
+              onSelect={() =>
+                router.push(
+                  objectHref(
+                    "person",
+                    personRefOf({
+                      _id: f.user_id,
+                      github_username: member?.github_username,
+                    }),
+                  ),
+                )
+              }
               className="gap-2 text-xs"
             >
               <UserRound className="h-3.5 w-3.5 text-sol-text-muted" />
@@ -166,7 +213,10 @@ function FollowersMenu({ followers }: { followers: FollowerRow[] }) {
       {followers.length > 1 && (
         <>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => stopSharing(followers.map((f) => f.user_id))} className="gap-2 text-xs text-sol-text-muted">
+          <DropdownMenuItem
+            onSelect={() => stopSharing(followers.map((f) => f.user_id))}
+            className="gap-2 text-xs text-sol-text-muted"
+          >
             <EyeOff className="h-3.5 w-3.5" />
             Stop sharing with everyone
           </DropdownMenuItem>

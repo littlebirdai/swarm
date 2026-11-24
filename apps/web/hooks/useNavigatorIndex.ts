@@ -1,10 +1,24 @@
 import { useMemo } from "react";
-import { stickyEligibleIds, stickyPromptContent, mergeNavigatorSources, buildNavigatorRows } from "../lib/messageNavigator";
+import {
+  stickyEligibleIds,
+  stickyPromptContent,
+  mergeNavigatorSources,
+  buildNavigatorRows,
+} from "../lib/messageNavigator";
 import { isStickyWorthy } from "../components/conversation/classify";
-import type { Message, TimelineItem, UserMessageKind } from "../components/conversation/types";
+import type {
+  Message,
+  TimelineItem,
+  UserMessageKind,
+} from "../components/conversation/types";
 import type { UserMessage } from "../store/inboxStore";
 
-export function useNavigatorIndex({ cachedUserMessages, messages, timeline, userMsgKindMap }: {
+export function useNavigatorIndex({
+  cachedUserMessages,
+  messages,
+  timeline,
+  userMsgKindMap,
+}: {
   cachedUserMessages: UserMessage[] | undefined;
   messages: Message[];
   timeline: TimelineItem[];
@@ -21,7 +35,10 @@ export function useNavigatorIndex({ cachedUserMessages, messages, timeline, user
     [serverUserMessages, messages],
   );
 
-  const processedServerMsgIds = useMemo(() => stickyEligibleIds(navigatorSources), [navigatorSources]);
+  const processedServerMsgIds = useMemo(
+    () => stickyEligibleIds(navigatorSources),
+    [navigatorSources],
+  );
 
   const navigatorIdSet = useMemo(() => {
     const ids = new Set<string>();
@@ -34,14 +51,19 @@ export function useNavigatorIndex({ cachedUserMessages, messages, timeline, user
     const indices: number[] = [];
     for (let i = 0; i < timeline.length; i++) {
       const item = timeline[i];
-      if (item.type !== 'message') continue;
+      if (item.type !== "message") continue;
       const msg = item.data as Message;
-      if (msg.role !== 'user') continue;
+      if (msg.role !== "user") continue;
       if (useServer) {
         if (processedServerMsgIds.has(msg._id)) indices.push(i);
       } else {
         const kind = userMsgKindMap.get(msg._id);
-        if (kind && isStickyWorthy(kind) && stickyPromptContent(msg.content) !== null) indices.push(i);
+        if (
+          kind &&
+          isStickyWorthy(kind) &&
+          stickyPromptContent(msg.content) !== null
+        )
+          indices.push(i);
       }
     }
     return indices;
@@ -51,14 +73,17 @@ export function useNavigatorIndex({ cachedUserMessages, messages, timeline, user
     const indices: number[] = [];
     for (let i = 0; i < timeline.length; i++) {
       const item = timeline[i];
-      if (item.type !== 'message') continue;
+      if (item.type !== "message") continue;
       if (navigatorIdSet.has((item.data as Message)._id)) indices.push(i);
     }
     return indices;
   }, [timeline, navigatorIdSet]);
 
   const timelineMessageIds = useMemo(
-    () => timeline.map((item) => (item.type === "message" ? (item.data as Message)._id : null)),
+    () =>
+      timeline.map((item) =>
+        item.type === "message" ? (item.data as Message)._id : null,
+      ),
     [timeline],
   );
 
@@ -70,5 +95,12 @@ export function useNavigatorIndex({ cachedUserMessages, messages, timeline, user
     return ids;
   }, [timelineMessageIds]);
 
-  return { serverUserMessages, stickyEligibleServerIds: processedServerMsgIds, stickyUserMsgIndices, navigatorTimelineIndices, timelineMessageIds, loadedMessageIds };
+  return {
+    serverUserMessages,
+    stickyEligibleServerIds: processedServerMsgIds,
+    stickyUserMsgIndices,
+    navigatorTimelineIndices,
+    timelineMessageIds,
+    loadedMessageIds,
+  };
 }

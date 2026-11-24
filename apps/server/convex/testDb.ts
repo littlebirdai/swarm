@@ -22,16 +22,30 @@ function evalFilter(expr: FilterExpr, row: any): any {
   if (expr.kind === "literal") return expr.value;
   const a = expr.args.map((arg) => evalFilter(arg, row));
   switch (expr.op) {
-    case "eq": return a[0] === a[1];
-    case "neq": return a[0] !== a[1];
-    case "lt": return a[0] === undefined ? a[1] !== undefined : a[1] !== undefined && a[0] < a[1];
-    case "lte": return a[0] === undefined || (a[1] !== undefined && a[0] <= a[1]);
-    case "gt": return a[1] === undefined ? a[0] !== undefined : a[0] !== undefined && a[0] > a[1];
-    case "gte": return a[1] === undefined || (a[0] !== undefined && a[0] >= a[1]);
-    case "and": return a.every(Boolean);
-    case "or": return a.some(Boolean);
-    case "not": return !a[0];
-    default: throw new Error(`fake db: unsupported filter op ${expr.op}`);
+    case "eq":
+      return a[0] === a[1];
+    case "neq":
+      return a[0] !== a[1];
+    case "lt":
+      return a[0] === undefined
+        ? a[1] !== undefined
+        : a[1] !== undefined && a[0] < a[1];
+    case "lte":
+      return a[0] === undefined || (a[1] !== undefined && a[0] <= a[1]);
+    case "gt":
+      return a[1] === undefined
+        ? a[0] !== undefined
+        : a[0] !== undefined && a[0] > a[1];
+    case "gte":
+      return a[1] === undefined || (a[0] !== undefined && a[0] >= a[1]);
+    case "and":
+      return a.every(Boolean);
+    case "or":
+      return a.some(Boolean);
+    case "not":
+      return !a[0];
+    default:
+      throw new Error(`fake db: unsupported filter op ${expr.op}`);
   }
 }
 
@@ -55,14 +69,17 @@ function op(name: string, ...args: any[]): FilterExpr {
     args: args.map((arg) =>
       arg && typeof arg === "object" && "kind" in arg
         ? (arg as FilterExpr)
-        : ({ kind: "literal", value: arg } as FilterExpr)),
+        : ({ kind: "literal", value: arg } as FilterExpr),
+    ),
   };
 }
 
 // An index field may name a nested path ("external.ts"), as convex allows.
 function fieldValue(row: any, field: string): any {
   if (!field.includes(".")) return row[field];
-  return field.split(".").reduce((acc, key) => (acc == null ? undefined : acc[key]), row);
+  return field
+    .split(".")
+    .reduce((acc, key) => (acc == null ? undefined : acc[key]), row);
 }
 
 // Opt-in fidelity for the multiplayer sim (convex/simBackend.testing.ts).
@@ -91,11 +108,16 @@ export interface FakeDbOptions {
 }
 
 /** Every table's index fields, from a defineSchema() result. */
-export function schemaIndexes(schema: { tables: Record<string, any> }): Record<string, Record<string, string[]>> {
+export function schemaIndexes(schema: {
+  tables: Record<string, any>;
+}): Record<string, Record<string, string[]>> {
   const out: Record<string, Record<string, string[]>> = {};
   for (const [table, def] of Object.entries(schema.tables)) {
     out[table] = {};
-    for (const index of def[" indexes"]() as Array<{ indexDescriptor: string; fields: string[] }>) {
+    for (const index of def[" indexes"]() as Array<{
+      indexDescriptor: string;
+      fields: string[];
+    }>) {
       out[table][index.indexDescriptor] = index.fields;
     }
   }
@@ -136,13 +158,20 @@ export function compareConvexValues(a: any, b: any): number {
 }
 
 // The built-in indexes every table has.
-const SYSTEM_INDEXES: Record<string, string[]> = { by_creation_time: ["_creationTime"], by_id: ["_id"] };
+const SYSTEM_INDEXES: Record<string, string[]> = {
+  by_creation_time: ["_creationTime"],
+  by_id: ["_id"],
+};
 
 // A key tuple survives JSON with undefined kept apart from null.
 const UNDEFINED_KEY = { $undefined: true };
-const encodeKey = (key: any[]) => "key:" + JSON.stringify(key.map((v) => (v === undefined ? UNDEFINED_KEY : v)));
+const encodeKey = (key: any[]) =>
+  "key:" +
+  JSON.stringify(key.map((v) => (v === undefined ? UNDEFINED_KEY : v)));
 const decodeKey = (cursor: string): any[] =>
-  (JSON.parse(cursor.slice(4)) as any[]).map((v) => (v && typeof v === "object" && v.$undefined === true ? undefined : v));
+  (JSON.parse(cursor.slice(4)) as any[]).map((v) =>
+    v && typeof v === "object" && v.$undefined === true ? undefined : v,
+  );
 
 type JournalEntry =
   | { kind: "insert"; table: string; id: string }
@@ -150,7 +179,10 @@ type JournalEntry =
   | { kind: "replace"; table: string; index: number; before: any }
   | { kind: "delete"; table: string; index: number; row: any };
 
-export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = {}) {
+export function makeFakeDb(
+  tables: Record<string, any[]>,
+  opts: FakeDbOptions = {},
+) {
   const idTables = new Map<string, string>();
   for (const [table, rows] of Object.entries(tables)) {
     for (const row of rows) idTables.set(String(row._id), table);
@@ -161,13 +193,22 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
   const deleted: any[] = [];
   // Id index, kept only when ids are minted (see FakeDbOptions.mintId).
   const byId = opts.mintId ? new Map<string, any>() : null;
-  if (byId) for (const rows of Object.values(tables)) for (const row of rows) byId.set(String(row._id), row);
+  if (byId)
+    for (const rows of Object.values(tables))
+      for (const row of rows) byId.set(String(row._id), row);
   const mintCounts = new Map<string, number>();
   let lastCreationTime = -Infinity;
   let writeCount = 0;
   // Undo log of the open journal, null when none is open.
   let journal: JournalEntry[] | null = null;
-  let journalStart = { writes: 0, inserted: 0, patched: 0, replaced: 0, deleted: 0, tables: new Set<string>() };
+  let journalStart = {
+    writes: 0,
+    inserted: 0,
+    patched: 0,
+    replaced: 0,
+    deleted: 0,
+    tables: new Set<string>(),
+  };
   // The table row with this id: a map hit when ids are indexed, else a scan.
   const rowFor = (id: any): any | null => {
     const hit = byId?.get(String(id));
@@ -179,13 +220,16 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
     return null;
   };
   // The row with its table and position, for writes that move it.
-  const locate = (id: any): { table: string; rows: any[]; index: number } | null => {
+  const locate = (
+    id: any,
+  ): { table: string; rows: any[]; index: number } | null => {
     const row = rowFor(id);
     if (!row) return null;
     const known = idTables.get(String(id));
-    const table = known && tables[known]?.includes(row)
-      ? known
-      : Object.keys(tables).find((name) => tables[name]!.includes(row));
+    const table =
+      known && tables[known]?.includes(row)
+        ? known
+        : Object.keys(tables).find((name) => tables[name]!.includes(row));
     if (!table) return null;
     const rows = tables[table]!;
     const index = rows.indexOf(row);
@@ -198,7 +242,9 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
     _replaced: replaced,
     _deleted: deleted,
     // Inserts, patches, replaces and deletes so far. A rollback restores it.
-    get __writeCount() { return writeCount; },
+    get __writeCount() {
+      return writeCount;
+    },
     // Start recording undo entries for every write, until commit or rollback.
     __beginJournal() {
       if (journal) throw new Error("fake db: a journal is already open");
@@ -212,7 +258,9 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         tables: new Set(Object.keys(tables)),
       };
     },
-    __commit() { journal = null; },
+    __commit() {
+      journal = null;
+    },
     // Undo every write since __beginJournal, newest first, and close it.
     __rollback() {
       const entries = journal ?? [];
@@ -237,7 +285,8 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
       }
       // A table the journal's first insert created goes too.
       for (const name of Object.keys(tables)) {
-        if (!journalStart.tables.has(name) && tables[name]!.length === 0) delete tables[name];
+        if (!journalStart.tables.has(name) && tables[name]!.length === 0)
+          delete tables[name];
       }
       writeCount = journalStart.writes;
       inserted.length = journalStart.inserted;
@@ -268,8 +317,14 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
       let rangeKey: string | null = null;
       // The named index's fields, when the db reads the schema's indexes. A
       // query that names none reads by_creation_time, as convex does.
-      let indexFields: string[] | null = opts.indexes ? SYSTEM_INDEXES.by_creation_time! : null;
-      const indexKey = (row: any) => [...indexFields!.map((f) => fieldValue(row, f)), row._creationTime, row._id];
+      let indexFields: string[] | null = opts.indexes
+        ? SYSTEM_INDEXES.by_creation_time!
+        : null;
+      const indexKey = (row: any) => [
+        ...indexFields!.map((f) => fieldValue(row, f)),
+        row._creationTime,
+        row._id,
+      ];
       const compareKeys = (a: any[], b: any[]) => {
         for (let i = 0; i < a.length; i++) {
           const c = compareConvexValues(a[i], b[i]);
@@ -278,14 +333,25 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         return 0;
       };
       const timeKey = (row: any) =>
-        rangeKey ? (row[rangeKey] ?? null)
-          : row.last_activity_at ?? row.created_at ?? row.timestamp ?? row.updated_at ?? row.at ?? null;
+        rangeKey
+          ? (row[rangeKey] ?? null)
+          : (row.last_activity_at ??
+            row.created_at ??
+            row.timestamp ??
+            row.updated_at ??
+            row.at ??
+            null);
       const apply = () => {
         const rows = (tables[table] ?? [])
           .filter((r) => filters.every(([f, v]) => fieldValue(r, f) === v))
           .filter((r) => predicates.every((p) => !!evalFilter(p, r)))
-          .filter((r) => !search
-            || String(r[search[0]] ?? "").toLowerCase().includes(search[1].toLowerCase()));
+          .filter(
+            (r) =>
+              !search ||
+              String(r[search[0]] ?? "")
+                .toLowerCase()
+                .includes(search[1].toLowerCase()),
+          );
         if (indexFields && !search) {
           const sign = direction === "desc" ? -1 : 1;
           return rows
@@ -303,7 +369,8 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         indexed.sort(([a, ia], [b, ib]) => {
           const ka = timeKey(a);
           const kb = timeKey(b);
-          if (ka !== null && kb !== null && ka !== kb) return ka < kb ? -sign : sign;
+          if (ka !== null && kb !== null && ka !== kb)
+            return ka < kb ? -sign : sign;
           return (ia - ib) * sign;
         });
         return indexed.map(([row]) => row);
@@ -322,8 +389,10 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
           // bounds on the next field.
           let fields: string[] | null = null;
           if (opts.indexes) {
-            fields = SYSTEM_INDEXES[name] ?? opts.indexes[table]?.[name] ?? null;
-            if (!fields) throw new Error(`fake db: table ${table} has no index ${name}`);
+            fields =
+              SYSTEM_INDEXES[name] ?? opts.indexes[table]?.[name] ?? null;
+            if (!fields)
+              throw new Error(`fake db: table ${table} has no index ${name}`);
             indexFields = fields;
           }
           let eqs = 0;
@@ -331,14 +400,18 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
           const checkEq = (field: string) => {
             if (!fields) return;
             if (rangeField || fields[eqs] !== field) {
-              throw new Error(`fake db: ${table}.${name} cannot take eq("${field}") here; its fields are ${fields.join(", ")}`);
+              throw new Error(
+                `fake db: ${table}.${name} cannot take eq("${field}") here; its fields are ${fields.join(", ")}`,
+              );
             }
             eqs++;
           };
           const checkRange = (field: string) => {
             if (!fields) return;
             if (rangeField ? rangeField !== field : fields[eqs] !== field) {
-              throw new Error(`fake db: ${table}.${name} cannot take a range on "${field}" here; its fields are ${fields.join(", ")}`);
+              throw new Error(
+                `fake db: ${table}.${name} cannot take a range on "${field}" here; its fields are ${fields.join(", ")}`,
+              );
             }
             rangeField = field;
           };
@@ -354,7 +427,11 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
               return q;
             };
             const q: any = {
-              eq(field: string, val: any) { checkEq(field); filters.push([field, val]); return q; },
+              eq(field: string, val: any) {
+                checkEq(field);
+                filters.push([field, val]);
+                return q;
+              },
               gte: range("gte"),
               gt: range("gt"),
               lte: range("lte"),
@@ -367,8 +444,14 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         withSearchIndex(_name: string, fn?: (q: any) => any) {
           if (fn) {
             const q: any = {
-              search(field: string, text: string) { search = [field, text]; return q; },
-              eq(field: string, val: any) { filters.push([field, val]); return q; },
+              search(field: string, text: string) {
+                search = [field, text];
+                return q;
+              },
+              eq(field: string, val: any) {
+                filters.push([field, val]);
+                return q;
+              },
             };
             fn(q);
           }
@@ -382,14 +465,21 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
           direction = dir === "desc" ? "desc" : "asc";
           return builder;
         },
-        async first() { return snapshot()[0] ?? null; },
+        async first() {
+          return snapshot()[0] ?? null;
+        },
         async unique() {
           const rows = snapshot();
-          if (rows.length > 1) throw new Error("Query returned more than one result");
+          if (rows.length > 1)
+            throw new Error("Query returned more than one result");
           return rows[0] ?? null;
         },
-        async collect() { return snapshot(); },
-        async take(n: number) { return snapshot().slice(0, n); },
+        async collect() {
+          return snapshot();
+        },
+        async take(n: number) {
+          return snapshot().slice(0, n);
+        },
         // Position cursors, as offsets into the matched rows. Real enough to test
         // that a page respects its size, that `isDone` is honest, and that the
         // next cursor reaches the rows the first page did not. With the
@@ -401,7 +491,11 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
             const sign = direction === "desc" ? -1 : 1;
             const cursor = String(opts?.cursor ?? "");
             const after = cursor.startsWith("key:") ? decodeKey(cursor) : null;
-            const rest = after ? rows.filter((row) => compareKeys(indexKey(row), after) * sign > 0) : rows;
+            const rest = after
+              ? rows.filter(
+                  (row) => compareKeys(indexKey(row), after) * sign > 0,
+                )
+              : rows;
             const page = rest.slice(0, opts?.numItems ?? rest.length);
             const last = page.at(-1);
             return {
@@ -413,7 +507,9 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
             };
           }
           const numItems = opts?.numItems ?? rows.length;
-          const start = opts?.cursor ? parseInt(String(opts.cursor), 10) || 0 : 0;
+          const start = opts?.cursor
+            ? parseInt(String(opts.cursor), 10) || 0
+            : 0;
           const end = start + numItems;
           return {
             page: rows.slice(start, end),
@@ -433,7 +529,10 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         const r = rowFor(id);
         return r ? { ...r } : null;
       }
-      for (const rows of Object.values(tables)) { const r = rows.find((x: any) => x._id === id); if (r) return { ...r }; }
+      for (const rows of Object.values(tables)) {
+        const r = rows.find((x: any) => x._id === id);
+        if (r) return { ...r };
+      }
       return null;
     },
     normalizeId(table: string, id: string) {
@@ -459,14 +558,19 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         // "chat_channels_1" would make db.get() answer with the wrong row.
         let n = inserted.length + 1;
         const taken = (id: string) =>
-          Object.values(tables).some((rows) => rows.some((r: any) => r._id === id));
+          Object.values(tables).some((rows) =>
+            rows.some((r: any) => r._id === id),
+          );
         _id = `${table}_${n}`;
         while (taken(_id)) _id = `${table}_${++n}`;
       }
       idTables.set(_id, table);
       let row: any = { _id, ...doc };
       if (opts.creationTime && doc?._creationTime === undefined) {
-        lastCreationTime = Math.max(opts.creationTime(), lastCreationTime + 0.001);
+        lastCreationTime = Math.max(
+          opts.creationTime(),
+          lastCreationTime + 0.001,
+        );
         row = { _id, _creationTime: lastCreationTime, ...doc };
       }
       (tables[table] ??= []).push(row);
@@ -484,13 +588,17 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         journal?.push({ kind: "patch", row: r, before: { ...r } });
         Object.assign(r, patch);
         if (opts.strictPatch) {
-          for (const [key, value] of Object.entries(patch ?? {})) if (value === undefined) delete r[key];
+          for (const [key, value] of Object.entries(patch ?? {}))
+            if (value === undefined) delete r[key];
         }
         return;
       }
       for (const rows of Object.values(tables)) {
         const r = rows.find((x: any) => x._id === id);
-        if (r) { Object.assign(r, patch); return; }
+        if (r) {
+          Object.assign(r, patch);
+          return;
+        }
       }
     },
     async replace(id: any, doc: any) {
@@ -500,11 +608,17 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         const found = locate(id);
         if (!found) return;
         const before = found.rows[found.index];
-        journal?.push({ kind: "replace", table: found.table, index: found.index, before });
+        journal?.push({
+          kind: "replace",
+          table: found.table,
+          index: found.index,
+          before,
+        });
         // A replace keeps the system fields, as convex does.
-        const next = before._creationTime === undefined
-          ? { _id: id, ...doc }
-          : { _id: id, _creationTime: before._creationTime, ...doc };
+        const next =
+          before._creationTime === undefined
+            ? { _id: id, ...doc }
+            : { _id: id, _creationTime: before._creationTime, ...doc };
         found.rows[found.index] = next;
         byId?.set(String(id), next);
         return;
@@ -525,10 +639,18 @@ export function makeFakeDb(tables: Record<string, any[]>, opts: FakeDbOptions = 
         if (!found) return;
         const [row] = found.rows.splice(found.index, 1);
         byId?.delete(String(id));
-        journal?.push({ kind: "delete", table: found.table, index: found.index, row });
+        journal?.push({
+          kind: "delete",
+          table: found.table,
+          index: found.index,
+          row,
+        });
         return;
       }
-      for (const rows of Object.values(tables)) { const i = rows.findIndex((x: any) => x._id === id); if (i >= 0) rows.splice(i, 1); }
+      for (const rows of Object.values(tables)) {
+        const i = rows.findIndex((x: any) => x._id === id);
+        if (i >= 0) rows.splice(i, 1);
+      }
     },
   };
   return db;

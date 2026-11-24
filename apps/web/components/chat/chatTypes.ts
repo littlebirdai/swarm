@@ -23,14 +23,27 @@ export type ChatAuthor = {
    *  (row origin "agent"): the message personifies the session — its agent's
    *  logo as the face, its title as the name — with the human as a dim "via"
    *  credit. `id` is the session id, for opening it where the client can. */
-  session?: { id: string; agentType: string; via?: string; /** The session wears a character: its face replaces the agent logo. */ identity?: IdentityRow };
+  session?: {
+    id: string;
+    agentType: string;
+    via?: string;
+    /** The session wears a character: its face replaces the agent logo. */ identity?: IdentityRow;
+  };
   /** A Slack person (or Slack app) with no codecast account: the row's author
    *  is the workspace's bridge identity and this is the snapshot of who really
    *  wrote it. Renders their face, never the bridge's, plus the Slack mark. */
-  slack?: { isBot?: boolean; /** Their Slack user id — the grouping identity (shared authorGroupKey). */ userId?: string };
+  slack?: {
+    isBot?: boolean;
+    /** Their Slack user id — the grouping identity (shared authorGroupKey). */ userId?: string;
+  };
   /** Present when the author is a role's standing agent: `name` is the role's
    *  person like name, and this is its face, its title and its page. */
-  role?: { shortId: string; handle: string; avatar?: string | null; title: string };
+  role?: {
+    shortId: string;
+    handle: string;
+    avatar?: string | null;
+    title: string;
+  };
 };
 
 export type ChatReaction = {
@@ -47,7 +60,13 @@ export type ChatReaction = {
 // "listening" / "passed" exist server-side (a silent wake in a followed thread
 // and the anchor's choice to stay quiet); the server never returns those rows,
 // so a client only ever renders the four visible states.
-export type ChatAgentStatus = "thinking" | "streaming" | "done" | "error" | "listening" | "passed";
+export type ChatAgentStatus =
+  | "thinking"
+  | "streaming"
+  | "done"
+  | "error"
+  | "listening"
+  | "passed";
 
 export type ChatAttachmentView = {
   /** Empty while the image is still uploading; `preview_url` paints meanwhile. */
@@ -104,7 +123,15 @@ export type ChatMessageView = {
   /** Thread rollup, present only on a root message that has replies. */
   replyCount?: number;
   lastReplyAt?: number;
-  replyFaces?: { id: string; name: string; avatarUrl?: string; isAgent?: boolean; agentType?: string; role?: ChatAuthor["role"]; identity?: IdentityRow }[];
+  replyFaces?: {
+    id: string;
+    name: string;
+    avatarUrl?: string;
+    isAgent?: boolean;
+    agentType?: string;
+    role?: ChatAuthor["role"];
+    identity?: IdentityRow;
+  }[];
   /** An agent turn in flight (or failed) inside this root's thread, so the
    *  affordance can say "thinking…" without the panel open. */
   threadAgentStatus?: "thinking" | "streaming" | "error";
@@ -144,7 +171,10 @@ export type ChatMessageView = {
 /** The thread a message opens: its root when it is itself a reply (a broadcast
  *  in the channel timeline), else the message. Threads are flat, so the server
  *  refuses a reply whose root is a reply. */
-export function threadRootOf(message: { id: string; threadRootId?: string }): string {
+export function threadRootOf(message: {
+  id: string;
+  threadRootId?: string;
+}): string {
   return message.threadRootId ?? message.id;
 }
 

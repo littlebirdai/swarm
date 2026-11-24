@@ -27,7 +27,8 @@ import { PLACEMENT_LIVENESS_FIELDS } from "./conversations";
 // refactor that introduced the manifest changed behaviour. The expected values
 // below are those literals, kept verbatim.
 
-const source = (file: string) => readFileSync(join(import.meta.dir, file), "utf8");
+const source = (file: string) =>
+  readFileSync(join(import.meta.dir, file), "utf8");
 
 /** A top-level function, from its declaration to the closing brace in column
  *  zero, with comments stripped so a mention in prose never counts as a field.
@@ -43,7 +44,8 @@ function functionBody(src: string, declaration: string): string {
   return src.slice(at, end).replace(/\/\/[^\n]*/g, "");
 }
 
-const carries = (body: string, field: string) => new RegExp(`\\b${field}\\s*:`).test(body);
+const carries = (body: string, field: string) =>
+  new RegExp(`\\b${field}\\s*:`).test(body);
 
 describe("conversation field manifest", () => {
   // Both ROW projections, not the liveness bundle: deriveLivenessAt carries the
@@ -53,10 +55,25 @@ describe("conversation field manifest", () => {
   // Both projections spread identityFieldsOf into their row (the character and
   // role identity, session-characters.md S6), so its body counts as part of
   // each: a field it emits is a field the row carries.
-  const identity = functionBody(source("lib/sessionIdentityFields.ts"), "async function identityFieldsOf");
+  const identity = functionBody(
+    source("lib/sessionIdentityFields.ts"),
+    "async function identityFieldsOf",
+  );
   const rowProjections = [
-    ["enrichInboxSessionRow", functionBody(source("conversations.ts"), "async function enrichInboxSessionRow") + identity],
-    ["buildSubagentChildRow", functionBody(source("conversations.ts"), "async function buildSubagentChildRow") + identity],
+    [
+      "enrichInboxSessionRow",
+      functionBody(
+        source("conversations.ts"),
+        "async function enrichInboxSessionRow",
+      ) + identity,
+    ],
+    [
+      "buildSubagentChildRow",
+      functionBody(
+        source("conversations.ts"),
+        "async function buildSubagentChildRow",
+      ) + identity,
+    ],
   ] as const;
 
   // Favorite membership belongs to the conversation's runner principal, not to
@@ -65,8 +82,11 @@ describe("conversation field manifest", () => {
 
   for (const [name, body] of rowProjections) {
     test(`${name} carries every sendable field`, () => {
-      const exempt = name === "buildSubagentChildRow" ? CHILD_ROW_EXEMPT : new Set<string>();
-      const missing = SENDABLE_CONVERSATION_FIELDS.filter((f) => !exempt.has(f) && !carries(body, f));
+      const exempt =
+        name === "buildSubagentChildRow" ? CHILD_ROW_EXEMPT : new Set<string>();
+      const missing = SENDABLE_CONVERSATION_FIELDS.filter(
+        (f) => !exempt.has(f) && !carries(body, f),
+      );
       expect(missing).toEqual([]);
     });
   }
@@ -76,8 +96,13 @@ describe("conversation field manifest", () => {
 
   for (const [name, body] of rowProjections) {
     test(`${name} carries every liveness fact placement reads`, () => {
-      const exempt = name === "buildSubagentChildRow" ? CHILD_ROW_PLACEMENT_EXEMPT : new Set<string>();
-      const missing = PLACEMENT_LIVENESS_FIELDS.filter((f) => !exempt.has(f) && !carries(body, f));
+      const exempt =
+        name === "buildSubagentChildRow"
+          ? CHILD_ROW_PLACEMENT_EXEMPT
+          : new Set<string>();
+      const missing = PLACEMENT_LIVENESS_FIELDS.filter(
+        (f) => !exempt.has(f) && !carries(body, f),
+      );
       expect(missing).toEqual([]);
     });
   }
@@ -85,28 +110,68 @@ describe("conversation field manifest", () => {
   test("a stamp's derived twin travels with it", () => {
     const [, main] = rowProjections[0];
     for (const twin of Object.values(CONVERSATION_FIELD_TWINS)) {
-      expect(carries(main, twin), `${twin} missing from enrichInboxSessionRow`).toBe(true);
+      expect(
+        carries(main, twin),
+        `${twin} missing from enrichInboxSessionRow`,
+      ).toBe(true);
     }
   });
 
   test("inboxVisibilityFields covers exactly the visibility bundle", () => {
-    const body = functionBody(source("inboxProjection.ts"), "export function inboxVisibilityFields");
+    const body = functionBody(
+      source("inboxProjection.ts"),
+      "export function inboxVisibilityFields",
+    );
     const emitted = [...body.matchAll(/^\s{4}([a-z_]+):/gm)].map((m) => m[1]);
     expect(emitted.sort()).toEqual([...VISIBILITY_CONVERSATION_FIELDS].sort());
   });
 
   test("the derived allowlists still equal the literals they replaced", () => {
     expect([...PATCHABLE_CONVERSATION_FIELDS].sort()).toEqual([
-      "agent_type", "character_avatar", "character_name", "draft_message", "git_root", "inbox_adopted_at", "inbox_deferred_at",
-      "inbox_dismissed_at", "inbox_pinned_at", "inbox_rest", "inbox_rest_at", "inbox_snoozed_until", "project_path",
+      "agent_type",
+      "character_avatar",
+      "character_name",
+      "draft_message",
+      "git_root",
+      "inbox_adopted_at",
+      "inbox_deferred_at",
+      "inbox_dismissed_at",
+      "inbox_pinned_at",
+      "inbox_rest",
+      "inbox_rest_at",
+      "inbox_snoozed_until",
+      "project_path",
     ]);
     expect([...DISPATCHABLE_CONVERSATION_FIELDS].sort()).toEqual([
-      "character_avatar", "character_name", "inbox_adopted_at", "inbox_closed_at", "inbox_deferred_at", "inbox_dismissed_at", "inbox_pinned_at",
-      "inbox_rest", "inbox_rest_at", "inbox_snoozed_until", "inbox_stash_hidden", "inbox_stashed_at", "is_favorite", "title",
+      "character_avatar",
+      "character_name",
+      "inbox_adopted_at",
+      "inbox_closed_at",
+      "inbox_deferred_at",
+      "inbox_dismissed_at",
+      "inbox_pinned_at",
+      "inbox_rest",
+      "inbox_rest_at",
+      "inbox_snoozed_until",
+      "inbox_stash_hidden",
+      "inbox_stashed_at",
+      "is_favorite",
+      "title",
     ]);
     expect([...TRIAGE_CONVERSATION_FIELDS].sort()).toEqual([
-      "inbox_adopted_at", "inbox_closed_at", "inbox_deferred_at", "inbox_dismissed_at", "inbox_killed_at", "inbox_pinned_at", "inbox_rest",
-      "inbox_rest_at", "inbox_snoozed_until", "inbox_stashed_at", "is_deferred", "is_pinned", "user_rest",
+      "inbox_adopted_at",
+      "inbox_closed_at",
+      "inbox_deferred_at",
+      "inbox_dismissed_at",
+      "inbox_killed_at",
+      "inbox_pinned_at",
+      "inbox_rest",
+      "inbox_rest_at",
+      "inbox_snoozed_until",
+      "inbox_stashed_at",
+      "is_deferred",
+      "is_pinned",
+      "user_rest",
     ]);
     expect(CONVERSATION_FIELD_TWINS).toEqual({
       inbox_pinned_at: "is_pinned",

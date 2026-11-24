@@ -7,13 +7,16 @@
 // page anybody can open is a gift to whoever harvests them. A leaf module, so
 // any function module can use it without pulling another's graph.
 
-type PersonRow = {
-  name?: string | null;
-  email?: string | null;
-  github_username?: string | null;
-  image?: string | null;
-  github_avatar_url?: string | null;
-} | null | undefined;
+type PersonRow =
+  | {
+      name?: string | null;
+      email?: string | null;
+      github_username?: string | null;
+      image?: string | null;
+      github_avatar_url?: string | null;
+    }
+  | null
+  | undefined;
 
 /** A teammate as other teammates see them. */
 export function teammateLabel(u: PersonRow): string {

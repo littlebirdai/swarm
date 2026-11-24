@@ -34,14 +34,26 @@ export type ReadSecret = {
 
 // ── Reading a value in ──────────────────────────────────────────────────────
 
-export type ValueOptions = { username?: string; totp?: boolean; totpFromEnv?: string; file?: string; fromEnv?: string; clear?: string[] };
+export type ValueOptions = {
+  username?: string;
+  totp?: boolean;
+  totpFromEnv?: string;
+  file?: string;
+  fromEnv?: string;
+  clear?: string[];
+};
 
 /** The login fields `rotate --clear` empties, by the name the flag takes. */
-export const CLEARABLE = { password: "password", username: "username", totp: "totp_seed" } as const satisfies Record<string, keyof LoginPayload>;
+export const CLEARABLE = {
+  password: "password",
+  username: "username",
+  totp: "totp_seed",
+} as const satisfies Record<string, keyof LoginPayload>;
 type Clearable = keyof typeof CLEARABLE;
 
 /** The pipe that gives a stored login only a 2FA seed: rotate keeps a field left blank, so a blank first line keeps the password. */
-export const seedOnlyRotate = (name: string) => `printf '\\n%s\\n' "$SEED" | cast vault rotate ${name} --totp`;
+export const seedOnlyRotate = (name: string) =>
+  `printf '\\n%s\\n' "$SEED" | cast vault rotate ${name} --totp`;
 
 /** Where values come from, injectable so tests never touch a terminal. */
 export interface ValueIO {
@@ -57,10 +69,17 @@ export interface ValueIO {
 }
 
 /** A flag that belongs to another kind: `add` names the --kind that takes it; a rotate cannot change a secret's kind, so it names the way round. */
-function otherKind(flag: string, kind: SecretKind, wants: SecretKind, rotate?: boolean): Error {
-  return new Error(rotate
-    ? `A ${kind} cannot take ${flag}, and rotate keeps a secret's kind: cast vault rm it, then add it again with --kind ${wants}`
-    : `${flag} belongs to a ${wants}: add it with --kind ${wants}`);
+function otherKind(
+  flag: string,
+  kind: SecretKind,
+  wants: SecretKind,
+  rotate?: boolean,
+): Error {
+  return new Error(
+    rotate
+      ? `A ${kind} cannot take ${flag}, and rotate keeps a secret's kind: cast vault rm it, then add it again with --kind ${wants}`
+      : `${flag} belongs to a ${wants}: add it with --kind ${wants}`,
+  );
 }
 
 /**
@@ -69,10 +88,17 @@ function otherKind(flag: string, kind: SecretKind, wants: SecretKind, rotate?: b
  * is refused toward the file kind, which keeps every line.
  */
 function keyLine(stdin: string, rotate?: boolean): string {
-  const lines = stdin.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = stdin
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length > 1) {
-    const where = rotate ? "a key cannot hold it, and rotate keeps a secret's kind: cast vault rm it, then add it again with --kind file" : "store it with --kind file";
-    throw new Error(`this looks like a multi-line value (${lines.length} lines): ${where}, which keeps every line`);
+    const where = rotate
+      ? "a key cannot hold it, and rotate keeps a secret's kind: cast vault rm it, then add it again with --kind file"
+      : "store it with --kind file";
+    throw new Error(
+      `this looks like a multi-line value (${lines.length} lines): ${where}, which keeps every line`,
+    );
   }
   return lines[0] ?? "";
 }
@@ -83,20 +109,38 @@ function keyLine(stdin: string, rotate?: boolean): string {
  * answer keeps the stored field (the server merges, mergeLogin) and each
  * `--clear` field goes as "", which empties it.
  */
-export async function readPayload(kind: SecretKind, o: ValueOptions, io: ValueIO, opts: { rotate?: boolean; name?: string } = {}): Promise<SecretPayload> {
-  if (kind === "signin") throw new Error("A sign-in is captured from a browser, not typed: use Save sign-in on the Vault page");
-  if (o.username !== undefined && kind !== "login") throw otherKind("--username", kind, "login", opts.rotate);
-  if ((o.totp || o.totpFromEnv) && kind !== "login") throw otherKind("--totp", kind, "login", opts.rotate);
+export async function readPayload(
+  kind: SecretKind,
+  o: ValueOptions,
+  io: ValueIO,
+  opts: { rotate?: boolean; name?: string } = {},
+): Promise<SecretPayload> {
+  if (kind === "signin")
+    throw new Error(
+      "A sign-in is captured from a browser, not typed: use Save sign-in on the Vault page",
+    );
+  if (o.username !== undefined && kind !== "login")
+    throw otherKind("--username", kind, "login", opts.rotate);
+  if ((o.totp || o.totpFromEnv) && kind !== "login")
+    throw otherKind("--totp", kind, "login", opts.rotate);
   const clear = new Set<Clearable>();
   for (const c of o.clear ?? []) {
-    if (kind !== "login") throw new Error("--clear empties a login's field; a key or file is replaced whole");
-    if (!(c in CLEARABLE)) throw new Error(`--clear takes ${Object.keys(CLEARABLE).join(", ")}`);
+    if (kind !== "login")
+      throw new Error(
+        "--clear empties a login's field; a key or file is replaced whole",
+      );
+    if (!(c in CLEARABLE))
+      throw new Error(`--clear takes ${Object.keys(CLEARABLE).join(", ")}`);
     clear.add(c as Clearable);
   }
-  if (clear.has("username") && o.username !== undefined) throw new Error("--clear username and --username contradict: pass one");
-  if (clear.has("password") && o.fromEnv) throw new Error("--clear password and --from-env contradict: pass one");
-  if (clear.has("totp") && (o.totp || o.totpFromEnv)) throw new Error("--clear totp and --totp contradict: pass one");
-  if (o.file && kind !== "file") throw otherKind("--file", kind, "file", opts.rotate);
+  if (clear.has("username") && o.username !== undefined)
+    throw new Error("--clear username and --username contradict: pass one");
+  if (clear.has("password") && o.fromEnv)
+    throw new Error("--clear password and --from-env contradict: pass one");
+  if (clear.has("totp") && (o.totp || o.totpFromEnv))
+    throw new Error("--clear totp and --totp contradict: pass one");
+  if (o.file && kind !== "file")
+    throw otherKind("--file", kind, "file", opts.rotate);
   const envVar = (name: string | undefined): string | undefined => {
     if (!name) return undefined;
     const v = io.env[name];
@@ -108,37 +152,65 @@ export async function readPayload(kind: SecretKind, o: ValueOptions, io: ValueIO
   if (kind === "file") {
     if (o.file) {
       try {
-        return { content: io.readFile(o.file), filename: path.basename(o.file) } satisfies FilePayload;
+        return {
+          content: io.readFile(o.file),
+          filename: path.basename(o.file),
+        } satisfies FilePayload;
       } catch {
-        throw new Error(`Cannot read ${o.file}: pass the path of a readable file`);
+        throw new Error(
+          `Cannot read ${o.file}: pass the path of a readable file`,
+        );
       }
     }
     const env = fromEnv();
     if (env !== undefined) return { content: env } satisfies FilePayload;
-    if (io.tty) throw new Error("A file secret takes --file <path>, or its content piped on stdin");
+    if (io.tty)
+      throw new Error(
+        "A file secret takes --file <path>, or its content piped on stdin",
+      );
     return { content: io.stdin() } satisfies FilePayload;
   }
 
   if (kind === "key") {
-    const value = fromEnv() ?? (io.tty ? (await io.hidden(["Value (hidden): "]))[0] : keyLine(io.stdin(), opts.rotate));
+    const value =
+      fromEnv() ??
+      (io.tty
+        ? (await io.hidden(["Value (hidden): "]))[0]
+        : keyLine(io.stdin(), opts.rotate));
     return { value } satisfies KeyPayload;
   }
 
   const login: LoginPayload = {};
   const blank = opts.rotate ? "blank keeps the current one" : "blank for none";
-  const username = o.username ?? (io.tty && !clear.has("username") ? await io.ask(`Username (${blank}): `) : "");
+  const username =
+    o.username ??
+    (io.tty && !clear.has("username")
+      ? await io.ask(`Username (${blank}): `)
+      : "");
   if (username.trim()) login.username = username.trim();
   const seedFromEnv = envVar(o.totpFromEnv);
   const askSeed = !!o.totp && seedFromEnv === undefined;
-  const prompts = [...(o.fromEnv || clear.has("password") ? [] : [`Password (hidden, ${blank}): `]), ...(askSeed ? ["2FA setup key or otpauth:// link (hidden): "] : [])];
+  const prompts = [
+    ...(o.fromEnv || clear.has("password")
+      ? []
+      : [`Password (hidden, ${blank}): `]),
+    ...(askSeed ? ["2FA setup key or otpauth:// link (hidden): "] : []),
+  ];
   const answers = prompts.length ? await io.hidden(prompts) : [];
   const password = fromEnv() ?? answers.shift();
   if (password) login.password = password;
   const seed = seedFromEnv ?? (askSeed ? answers.shift() : undefined);
   if (askSeed && !seed) {
-    const how = io.tty ? "paste it at the prompt" : `pipe it as the ${o.fromEnv ? "first" : "second"} stdin line${o.fromEnv ? "" : ", after the password"}`;
-    const keep = opts.rotate && !io.tty && !o.fromEnv ? `. To keep the current password, make the first stdin line blank: ${seedOnlyRotate(opts.name ?? "<name>")}` : "";
-    throw new Error(`--totp got no 2FA setup key (the site shows it under "can't scan the code" when you turn 2FA on): ${how}, or pass --totp-from-env VAR${keep}`);
+    const how = io.tty
+      ? "paste it at the prompt"
+      : `pipe it as the ${o.fromEnv ? "first" : "second"} stdin line${o.fromEnv ? "" : ", after the password"}`;
+    const keep =
+      opts.rotate && !io.tty && !o.fromEnv
+        ? `. To keep the current password, make the first stdin line blank: ${seedOnlyRotate(opts.name ?? "<name>")}`
+        : "";
+    throw new Error(
+      `--totp got no 2FA setup key (the site shows it under "can't scan the code" when you turn 2FA on): ${how}, or pass --totp-from-env VAR${keep}`,
+    );
   }
   if (seed) login.totp_seed = seed;
   for (const c of clear) login[CLEARABLE[c]] = "";
@@ -150,50 +222,100 @@ export async function readPayload(kind: SecretKind, o: ValueOptions, io: ValueIO
  * that it need not be whole: the fields it leaves out keep their stored
  * values on the server, and the cleared ones ("") are sent as "".
  */
-export function validateLoginChange(raw: LoginPayload): { payload: LoginPayload } | { error: string } {
-  const typed = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== ""));
-  const cleared = Object.fromEntries(Object.entries(raw).filter(([, v]) => v === ""));
+export function validateLoginChange(
+  raw: LoginPayload,
+): { payload: LoginPayload } | { error: string } {
+  const typed = Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => v !== ""),
+  );
+  const cleared = Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => v === ""),
+  );
   if (!Object.keys(typed).length) {
-    return Object.keys(cleared).length ? { payload: cleared } : { error: `Nothing to change: give a new value, or empty a field with --clear ${Object.keys(CLEARABLE).join("|")}` };
+    return Object.keys(cleared).length
+      ? { payload: cleared }
+      : {
+          error: `Nothing to change: give a new value, or empty a field with --clear ${Object.keys(CLEARABLE).join("|")}`,
+        };
   }
   const checked = validatePayload("login", typed);
-  return "error" in checked ? checked : { payload: { ...checked.payload, ...cleared } };
+  return "error" in checked
+    ? checked
+    : { payload: { ...checked.payload, ...cleared } };
 }
 
 // ── Giving values out ───────────────────────────────────────────────────────
 
 /** Every field `get --field` takes. */
-export const GET_FIELDS = ["value", "username", "password", "totp", "content"] as const;
+export const GET_FIELDS = [
+  "value",
+  "username",
+  "password",
+  "totp",
+  "content",
+] as const;
 export type GetField = (typeof GET_FIELDS)[number];
 
 /** The fields each kind has, the default first; a sign-in has none. A login's 2FA code (totp) is computed, so only `get` adds it. */
-export const KIND_FIELDS: Record<SecretKind, readonly Exclude<GetField, "totp">[]> = { key: ["value"], login: ["password", "username"], file: ["content"], signin: [] };
+export const KIND_FIELDS: Record<
+  SecretKind,
+  readonly Exclude<GetField, "totp">[]
+> = {
+  key: ["value"],
+  login: ["password", "username"],
+  file: ["content"],
+  signin: [],
+};
 
 /** The field `get` prints by default: the one value a kind is about. Every default (an env var a secret fills, a bare vault:// reference) starts here. */
-export function defaultField(kind: SecretKind): Exclude<GetField, "totp"> | null {
+export function defaultField(
+  kind: SecretKind,
+): Exclude<GetField, "totp"> | null {
   return KIND_FIELDS[kind][0] ?? null;
 }
 
-const signinHasNoValue = (name: string) => `${name} is a saved sign-in: cast browser open <site> loads it, it has no value to print`;
+const signinHasNoValue = (name: string) =>
+  `${name} is a saved sign-in: cast browser open <site> loads it, it has no value to print`;
 
 /** Why `get --field` cannot give `field` from this secret's kind, naming the fields it has; null when the kind has it. */
-export function getFieldRefusal(s: Pick<ReadSecret, "name" | "kind">, field: GetField): string | null {
-  const fields: readonly GetField[] = s.kind === "login" ? [...KIND_FIELDS.login, "totp"] : KIND_FIELDS[s.kind];
+export function getFieldRefusal(
+  s: Pick<ReadSecret, "name" | "kind">,
+  field: GetField,
+): string | null {
+  const fields: readonly GetField[] =
+    s.kind === "login" ? [...KIND_FIELDS.login, "totp"] : KIND_FIELDS[s.kind];
   if (fields.includes(field)) return null;
   if (!fields.length) return signinHasNoValue(s.name);
-  const list = fields.length === 1 ? fields[0] : `${fields.slice(0, -1).join(", ")} or ${fields.at(-1)}`;
+  const list =
+    fields.length === 1
+      ? fields[0]
+      : `${fields.slice(0, -1).join(", ")} or ${fields.at(-1)}`;
   return `${s.name} is a ${s.kind}: use --field ${list} (or omit --field)`;
 }
 
 /** One field of a read secret, or the sentence saying why it has none. TOTP is computed by the caller. */
-export function fieldValue(s: ReadSecret, field: Exclude<GetField, "totp">): { value: string } | { error: string } {
+export function fieldValue(
+  s: ReadSecret,
+  field: Exclude<GetField, "totp">,
+): { value: string } | { error: string } {
   const p = s.payload as KeyPayload & LoginPayload & FilePayload;
-  const v = field === "value" ? (s.kind === "key" ? p.value : undefined)
-    : field === "content" ? (s.kind === "file" ? p.content : undefined)
-    : s.kind === "login" ? p[field] : undefined;
+  const v =
+    field === "value"
+      ? s.kind === "key"
+        ? p.value
+        : undefined
+      : field === "content"
+        ? s.kind === "file"
+          ? p.content
+          : undefined
+        : s.kind === "login"
+          ? p[field]
+          : undefined;
   if (typeof v === "string") return { value: v };
   if (s.kind === "signin") return { error: signinHasNoValue(s.name) };
-  return { error: `${s.name} is a ${s.kind} with no ${field}${s.kind === "login" ? `: store one with cast vault rotate ${s.name}` : ""}` };
+  return {
+    error: `${s.name} is a ${s.kind} with no ${field}${s.kind === "login" ? `: store one with cast vault rotate ${s.name}` : ""}`,
+  };
 }
 
 /** A code with fewer seconds left than this would expire before an agent types it, so the next one is given instead. */
@@ -203,7 +325,8 @@ export const OTP_MIN_SECONDS = 4;
 export async function freshTotp(
   seed: string,
   now: () => number = Date.now,
-  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+  sleep: (ms: number) => Promise<void> = (ms) =>
+    new Promise((r) => setTimeout(r, ms)),
 ): Promise<{ code: string; remaining: number }> {
   const current = await totp(seed, now());
   if (current.remaining >= OTP_MIN_SECONDS) return current;
@@ -213,7 +336,9 @@ export async function freshTotp(
 
 /** `export NAME='value'` lines for eval. */
 export function exportLines(env: Record<string, string>): string {
-  return Object.entries(env).map(([k, v]) => `export ${k}=${shellQuote(v)}`).join("\n");
+  return Object.entries(env)
+    .map(([k, v]) => `export ${k}=${shellQuote(v)}`)
+    .join("\n");
 }
 
 /**
@@ -221,8 +346,14 @@ export function exportLines(env: Record<string, string>): string {
  * field, except that a file secret gives the path of its temp file
  * (`filePath`) rather than its content. Or the sentence saying why it has none.
  */
-export function primaryValue(s: ReadSecret, filePath?: string): { value: string } | { error: string } {
-  if (s.kind === "file") return filePath !== undefined ? { value: filePath } : { error: `${s.name} is a file secret with no temp file` };
+export function primaryValue(
+  s: ReadSecret,
+  filePath?: string,
+): { value: string } | { error: string } {
+  if (s.kind === "file")
+    return filePath !== undefined
+      ? { value: filePath }
+      : { error: `${s.name} is a file secret with no temp file` };
   return fieldValue(s, defaultField(s.kind) ?? "value");
 }
 
@@ -251,7 +382,11 @@ export const LEGACY_TEMP_MS = 60 * 60_000;
  * LEGACY_TEMP_MS. A directory whose run is still alive stays, however long
  * that run lasts.
  */
-export function sweepStaleTemp(root: string, now = Date.now(), alive: (pid: number) => boolean = isPidAlive): void {
+export function sweepStaleTemp(
+  root: string,
+  now = Date.now(),
+  alive: (pid: number) => boolean = isPidAlive,
+): void {
   let names: string[];
   try {
     names = fs.readdirSync(root);
@@ -263,9 +398,11 @@ export function sweepStaleTemp(root: string, now = Date.now(), alive: (pid: numb
     const dir = path.join(root, name);
     try {
       const st = fs.lstatSync(dir);
-      if (!st.isDirectory() || (process.getuid && st.uid !== process.getuid())) continue;
+      if (!st.isDirectory() || (process.getuid && st.uid !== process.getuid()))
+        continue;
       const pid = Number(/^cast-vault-(\d+)-/.exec(name)?.[1] ?? 0);
-      if (pid ? !alive(pid) : now - st.mtimeMs > LEGACY_TEMP_MS) fs.rmSync(dir, { recursive: true, force: true });
+      if (pid ? !alive(pid) : now - st.mtimeMs > LEGACY_TEMP_MS)
+        fs.rmSync(dir, { recursive: true, force: true });
     } catch {
       // Gone already, or not ours to remove.
     }
@@ -287,7 +424,12 @@ export function sweepStaleTemp(root: string, now = Date.now(), alive: (pid: numb
  */
 export function materialize(
   secrets: ReadSecret[],
-  opts: { map?: Record<string, string> | null; named?: readonly string[]; writeFiles?: boolean; tmpRoot?: string } = {},
+  opts: {
+    map?: Record<string, string> | null;
+    named?: readonly string[];
+    writeFiles?: boolean;
+    tmpRoot?: string;
+  } = {},
 ): Materialized {
   const writeFiles = opts.writeFiles ?? true;
   const root = opts.tmpRoot ?? os.tmpdir();
@@ -313,8 +455,13 @@ export function materialize(
       }
       const own = path.join(dir, s.short_id);
       fs.mkdirSync(own, { mode: 0o700 });
-      const file = path.join(own, fileBasename((s.payload as FilePayload).filename) ?? s.name);
-      fs.writeFileSync(file, (s.payload as FilePayload).content, { mode: 0o600 });
+      const file = path.join(
+        own,
+        fileBasename((s.payload as FilePayload).filename) ?? s.name,
+      );
+      fs.writeFileSync(file, (s.payload as FilePayload).content, {
+        mode: 0o600,
+      });
       paths.set(s.short_id, file);
     }
     const byName = new Map(secrets.map((s) => [s.name, s]));
@@ -322,7 +469,10 @@ export function materialize(
       const s = byName.get(name);
       if (!s) continue;
       // A sign-in has no value, and a file not written (env) is left out: both are named in `skipped`.
-      if (s.kind === "signin" || (s.kind === "file" && !paths.has(s.short_id))) {
+      if (
+        s.kind === "signin" ||
+        (s.kind === "file" && !paths.has(s.short_id))
+      ) {
         skipped.add(name);
         continue;
       }
@@ -330,14 +480,21 @@ export function materialize(
       if ("value" in got) env[v] = got.value;
       else unfilled.push({ envVar: v, secret: name, error: got.error });
     }
-    const named = (s: ReadSecret) => !opts.map || !!opts.named?.some((r) => r === s.name || r === s.short_id || r === s.id);
+    const named = (s: ReadSecret) =>
+      !opts.map ||
+      !!opts.named?.some((r) => r === s.name || r === s.short_id || r === s.id);
     const setBy = new Map<string, ReadSecret>();
     for (const s of secrets.filter(named)) {
       if (s.kind === "signin") skipped.add(s.name);
       else if (s.kind !== "file" || paths.has(s.short_id)) {
-        for (const [v, value] of Object.entries(envValues(s, s.payload, paths.get(s.short_id)))) {
+        for (const [v, value] of Object.entries(
+          envValues(s, s.payload, paths.get(s.short_id)),
+        )) {
           const other = setBy.get(v);
-          if (other) throw new Error(`${v} would be filled by both ${other.short_id} (${other.name}) and ${s.short_id} (${s.name}): name one of them`);
+          if (other)
+            throw new Error(
+              `${v} would be filled by both ${other.short_id} (${other.name}) and ${s.short_id} (${s.name}): name one of them`,
+            );
           setBy.set(v, s);
           env[v] = value;
         }
@@ -362,9 +519,17 @@ const FROM_TERMINAL = new Set<NodeJS.Signals>(["SIGINT", "SIGQUIT"]);
  * terminal, so they are only held here while the child decides; forwarding
  * them too would deliver each twice.
  */
-export function runWith(command: string[], env: Record<string, string>, cleanup: () => void, tty: boolean = !!process.stdin.isTTY): Promise<number> {
+export function runWith(
+  command: string[],
+  env: Record<string, string>,
+  cleanup: () => void,
+  tty: boolean = !!process.stdin.isTTY,
+): Promise<number> {
   return new Promise((resolve) => {
-    const child = spawn(command[0]!, command.slice(1), { stdio: "inherit", env: { ...process.env, ...env } });
+    const child = spawn(command[0]!, command.slice(1), {
+      stdio: "inherit",
+      env: { ...process.env, ...env },
+    });
     const forward = (sig: NodeJS.Signals) => () => {
       if (!(tty && FROM_TERMINAL.has(sig))) child.kill(sig);
     };
@@ -379,9 +544,15 @@ export function runWith(command: string[], env: Record<string, string>, cleanup:
       resolve(code);
     };
     child.on("error", (err: NodeJS.ErrnoException) => {
-      console.error(err.code === "ENOENT" ? `${command[0]}: command not found` : `${command[0]}: ${err.message}`);
+      console.error(
+        err.code === "ENOENT"
+          ? `${command[0]}: command not found`
+          : `${command[0]}: ${err.message}`,
+      );
       done(127);
     });
-    child.on("exit", (code, signal) => done(signal ? 128 + (os.constants.signals[signal] ?? 0) : (code ?? 1)));
+    child.on("exit", (code, signal) =>
+      done(signal ? 128 + (os.constants.signals[signal] ?? 0) : (code ?? 1)),
+    );
   });
 }

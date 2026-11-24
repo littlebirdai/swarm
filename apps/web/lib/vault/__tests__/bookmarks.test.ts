@@ -25,8 +25,17 @@ const note = (path: string, title?: string): BookmarkItem => ({
   createdAt: seq,
   ...(title ? { title } : {}),
 });
-const folder = (path: string): BookmarkItem => ({ kind: "folder", path, id: `f${seq++}`, createdAt: seq });
-const heading = (path: string, headingText: string, slug: string): BookmarkItem => ({
+const folder = (path: string): BookmarkItem => ({
+  kind: "folder",
+  path,
+  id: `f${seq++}`,
+  createdAt: seq,
+});
+const heading = (
+  path: string,
+  headingText: string,
+  slug: string,
+): BookmarkItem => ({
   kind: "heading",
   path,
   headingText,
@@ -34,11 +43,19 @@ const heading = (path: string, headingText: string, slug: string): BookmarkItem 
   id: `h${seq++}`,
   createdAt: seq,
 });
-const search = (query: string): BookmarkItem => ({ kind: "search", query, id: `s${seq++}`, createdAt: seq });
+const search = (query: string): BookmarkItem => ({
+  kind: "search",
+  query,
+  id: `s${seq++}`,
+  createdAt: seq,
+});
 
 describe("identity", () => {
   test("a target is bookmarked once, however many times it is added", () => {
-    const list = addBookmark(addBookmark([], note("a/One.md")), note("a/One.md"));
+    const list = addBookmark(
+      addBookmark([], note("a/One.md")),
+      note("a/One.md"),
+    );
     expect(list).toHaveLength(1);
   });
 
@@ -48,24 +65,35 @@ describe("identity", () => {
   });
 
   test("kinds never collide, and a heading is keyed by its deduped slug", () => {
-    expect(bookmarkKey(note("Notes/A.md"))).not.toBe(bookmarkKey(folder("Notes/A.md")));
+    expect(bookmarkKey(note("Notes/A.md"))).not.toBe(
+      bookmarkKey(folder("Notes/A.md")),
+    );
     expect(bookmarkKey(heading("A.md", "Plan", "plan"))).not.toBe(
       bookmarkKey(heading("A.md", "Plan", "plan-2")),
     );
     // Two headings with the same text in one note are two bookmarks.
-    const list = addBookmark(addBookmark([], heading("A.md", "Plan", "plan")), heading("A.md", "Plan", "plan-2"));
+    const list = addBookmark(
+      addBookmark([], heading("A.md", "Plan", "plan")),
+      heading("A.md", "Plan", "plan-2"),
+    );
     expect(list).toHaveLength(2);
   });
 
   test("a saved search is keyed by its trimmed query", () => {
     const list = addBookmark([], search("tag:draft"));
-    expect(isBookmarked(list, { kind: "search", query: "  tag:draft  " })).toBe(true);
-    expect(isBookmarked(list, { kind: "search", query: "tag:done" })).toBe(false);
+    expect(isBookmarked(list, { kind: "search", query: "  tag:draft  " })).toBe(
+      true,
+    );
+    expect(isBookmarked(list, { kind: "search", query: "tag:done" })).toBe(
+      false,
+    );
   });
 
   test("findBookmark returns the row so a toggle can remove it", () => {
     const row = note("a/One.md");
-    expect(findBookmark([row], { kind: "note", path: "a/One.md" })?.id).toBe(row.id);
+    expect(findBookmark([row], { kind: "note", path: "a/One.md" })?.id).toBe(
+      row.id,
+    );
     expect(findBookmark([row], { kind: "note", path: "other.md" })).toBeNull();
   });
 });
@@ -73,7 +101,9 @@ describe("identity", () => {
 describe("labels", () => {
   test("a note shows its name without the extension or folders", () => {
     expect(bookmarkLabel(note("Projects/Q3 Plan.md"))).toBe("Q3 Plan");
-    expect(bookmarkSubtitle(note("Projects/Q3 Plan.md"))).toBe("Projects/Q3 Plan.md");
+    expect(bookmarkSubtitle(note("Projects/Q3 Plan.md"))).toBe(
+      "Projects/Q3 Plan.md",
+    );
   });
 
   test("a folder shows its own name, and the vault root says so", () => {
@@ -83,7 +113,9 @@ describe("labels", () => {
 
   test("a saved search says what it searches for", () => {
     expect(bookmarkLabel(search("tag:draft"))).toBe("tag:draft");
-    expect(bookmarkSubtitle(search("tag:draft"))).toBe("Saved search: tag:draft");
+    expect(bookmarkSubtitle(search("tag:draft"))).toBe(
+      "Saved search: tag:draft",
+    );
   });
 
   test("a heading shows its text over the note it lives in", () => {
@@ -128,16 +160,27 @@ describe("following the vault", () => {
       "tag:draft",
     ]);
     // The heading keeps its slug: it still points at the same section.
-    expect(moved[2]).toMatchObject({ kind: "heading", slug: "risks", headingText: "Risks" });
+    expect(moved[2]).toMatchObject({
+      kind: "heading",
+      slug: "risks",
+      headingText: "Risks",
+    });
   });
 
   test("a folder rename retargets the folder bookmark", () => {
-    const moved = retargetBookmarks(list, (p) => (p === "Projects" ? "Archive/Projects" : undefined));
-    expect(moved[1]).toMatchObject({ kind: "folder", path: "Archive/Projects" });
+    const moved = retargetBookmarks(list, (p) =>
+      p === "Projects" ? "Archive/Projects" : undefined,
+    );
+    expect(moved[1]).toMatchObject({
+      kind: "folder",
+      path: "Archive/Projects",
+    });
   });
 
   test("a delete drops the bookmarks that pointed there", () => {
-    const after = retargetBookmarks(list, (p) => (p === "Projects/Q3 Plan.md" ? null : undefined));
+    const after = retargetBookmarks(list, (p) =>
+      p === "Projects/Q3 Plan.md" ? null : undefined,
+    );
     expect(after).toHaveLength(2);
     expect(after.map((b) => b.kind)).toEqual(["folder", "search"]);
   });
@@ -151,15 +194,34 @@ describe("following the vault", () => {
 
 describe("order", () => {
   test("oldest first, so a new bookmark lands at the bottom", () => {
-    const a: BookmarkItem = { kind: "note", path: "a.md", id: "a", createdAt: 30 };
-    const b: BookmarkItem = { kind: "note", path: "b.md", id: "b", createdAt: 10 };
-    const c: BookmarkItem = { kind: "note", path: "c.md", id: "c", createdAt: 20 };
+    const a: BookmarkItem = {
+      kind: "note",
+      path: "a.md",
+      id: "a",
+      createdAt: 30,
+    };
+    const b: BookmarkItem = {
+      kind: "note",
+      path: "b.md",
+      id: "b",
+      createdAt: 10,
+    };
+    const c: BookmarkItem = {
+      kind: "note",
+      path: "c.md",
+      id: "c",
+      createdAt: 20,
+    };
     expect(sortBookmarks([a, b, c]).map((x) => x.id)).toEqual(["b", "c", "a"]);
   });
 
   test("removing a row leaves the rest in place, and a miss changes nothing", () => {
     const list = [note("a.md"), note("b.md")];
-    expect(removeBookmark(list, list[0].id).map((b) => (b.kind === "note" ? b.path : ""))).toEqual(["b.md"]);
+    expect(
+      removeBookmark(list, list[0].id).map((b) =>
+        b.kind === "note" ? b.path : "",
+      ),
+    ).toEqual(["b.md"]);
     expect(removeBookmark(list, "nope")).toBe(list);
   });
 });

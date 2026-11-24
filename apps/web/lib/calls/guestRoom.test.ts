@@ -8,7 +8,11 @@ let dom: any;
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
   dom = new JSDOM("<!doctype html><html><body></body></html>");
-  Object.defineProperty(globalThis, "document", { value: dom.window.document, configurable: true, writable: true });
+  Object.defineProperty(globalThis, "document", {
+    value: dom.window.document,
+    configurable: true,
+    writable: true,
+  });
 });
 afterAll(() => closeDomWindow(dom));
 
@@ -30,7 +34,12 @@ test("muting in the call is remembered as the guest's choice, before the media a
 
 test("a call starts from the intent it was handed, not from what is published", () => {
   const call = new GuestCall({}, { mic: false, camera: true });
-  expect(call.getSnapshot()).toMatchObject({ mic: false, camera: false, wants: { mic: false, camera: true }, ended: null });
+  expect(call.getSnapshot()).toMatchObject({
+    mic: false,
+    camera: false,
+    wants: { mic: false, camera: true },
+    ended: null,
+  });
   void call.leave();
 });
 
@@ -45,7 +54,7 @@ const fakeTrack = (kind: Track.Kind): FakeTrack => {
   const t: FakeTrack = { kind, stopped: 0, stop: () => void t.stopped++ };
   return t;
 };
-const deferred = <T,>() => {
+const deferred = <T>() => {
   let resolve!: (v: T) => void;
   let reject!: (e: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -54,7 +63,8 @@ const deferred = <T,>() => {
   });
   return { promise, resolve, reject };
 };
-const denied = () => Object.assign(new Error("denied"), { name: "NotAllowedError" });
+const denied = () =>
+  Object.assign(new Error("denied"), { name: "NotAllowedError" });
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 test("a switch pressed while the permission prompt is up never leaves a second camera open", async () => {
@@ -97,7 +107,13 @@ test("a prompt answered no is not asked again, one device at a time", async () =
   await preview.start({ mic: true, camera: true });
   const snap = preview.getSnapshot();
   expect(singles).toBe(0);
-  expect(snap).toMatchObject({ micDenied: true, cameraDenied: true, asking: false, video: null, audio: null });
+  expect(snap).toMatchObject({
+    micDenied: true,
+    cameraDenied: true,
+    asking: false,
+    video: null,
+    audio: null,
+  });
   expect(snap.micError).toBeTruthy();
   expect(snap.cameraError).toBeTruthy();
   preview.dispose();
@@ -116,14 +132,21 @@ test("a missing camera still gets the microphone, and is not called a refusal", 
   await preview.start({ mic: true, camera: true });
   const snap = preview.getSnapshot();
   expect(snap.audio).toBeTruthy();
-  expect(snap).toMatchObject({ cameraError: "No camera found", cameraDenied: false, micError: null });
+  expect(snap).toMatchObject({
+    cameraError: "No camera found",
+    cameraDenied: false,
+    micError: null,
+  });
   preview.dispose();
 });
 
 test("a call left before its token arrives stops the lobby's tracks and never connects", async () => {
   const video = fakeTrack(Track.Kind.Video);
   const audio = fakeTrack(Track.Kind.Audio);
-  const call = new GuestCall({}, { mic: true, camera: true }, { video, audio } as any);
+  const call = new GuestCall({}, { mic: true, camera: true }, {
+    video,
+    audio,
+  } as any);
   let connects = 0;
   (call.room as any).connect = async () => void connects++;
   await call.leave();
@@ -135,13 +158,17 @@ test("a call left before its token arrives stops the lobby's tracks and never co
 
 test("a call left while it is connecting hangs up the connection it just made", async () => {
   const video = fakeTrack(Track.Kind.Video);
-  const call = new GuestCall({}, { mic: false, camera: true }, { video, audio: null } as any);
+  const call = new GuestCall({}, { mic: false, camera: true }, {
+    video,
+    audio: null,
+  } as any);
   const gate = deferred<void>();
   let disconnects = 0;
   let published = 0;
   (call.room as any).connect = () => gate.promise;
   (call.room as any).disconnect = async () => void disconnects++;
-  (call.room.localParticipant as any).publishTrack = async () => void published++;
+  (call.room.localParticipant as any).publishTrack = async () =>
+    void published++;
   const connecting = call.connect({ url: "wss://x", token: "t" });
   await call.leave();
   expect(disconnects).toBe(1);
@@ -172,5 +199,6 @@ test("a room LiveKit closed while the server still has the guest admitted is a d
   expect(guestMediaEnding("room_closed", "ended")).toBe("room_closed");
   expect(guestMediaEnding("room_closed", null)).toBe("room_closed");
   // Every other reason is the media's own and is never rewritten.
-  for (const r of ["removed", "lost", "elsewhere", null] as const) expect(guestMediaEnding(r, "admitted")).toBe(r);
+  for (const r of ["removed", "lost", "elsewhere", null] as const)
+    expect(guestMediaEnding(r, "admitted")).toBe(r);
 });

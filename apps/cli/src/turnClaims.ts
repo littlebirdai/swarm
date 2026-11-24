@@ -17,9 +17,20 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { MID_TURN_AGENT_STATUSES, authorizesTeardown, type LivenessVerdict } from "@codecast/shared/contracts";
+import {
+  MID_TURN_AGENT_STATUSES,
+  authorizesTeardown,
+  type LivenessVerdict,
+} from "@codecast/shared/contracts";
 import type { PendingMessageOutcome } from "./tmuxDeliveryJournal.js";
-import { REVIVE_BUDGET, REVIVE_BUDGET_WINDOW_MS, retiredByPerson, reviveRefusal, turnEndedRefusal, type ReviveLifecycle } from "./midWorkRevive.js";
+import {
+  REVIVE_BUDGET,
+  REVIVE_BUDGET_WINDOW_MS,
+  retiredByPerson,
+  reviveRefusal,
+  turnEndedRefusal,
+  type ReviveLifecycle,
+} from "./midWorkRevive.js";
 import { writeFileAtomic } from "./fsAtomic.js";
 
 /** Resumes of one turn before codecast gives up on it. Codex app-server recovery shares it. */
@@ -66,10 +77,19 @@ export type TurnClaim = {
  * prompt for the continue) end nothing. Every other status is the turn's end:
  * the Stop's settle (idle, waiting, a verdict), stamped `turnEnded`.
  */
-export function claimTransition(status: string, opts: { sessionBoundary?: boolean; turnEnded?: boolean } = {}): "open" | "release" | "none" {
+export function claimTransition(
+  status: string,
+  opts: { sessionBoundary?: boolean; turnEnded?: boolean } = {},
+): "open" | "release" | "none" {
   if (status === "compacting") return "none";
   if (MID_TURN_AGENT_STATUSES.has(status)) return "open";
-  if (opts.sessionBoundary || status === "connected" || status === "starting" || status === "resuming") return "none";
+  if (
+    opts.sessionBoundary ||
+    status === "connected" ||
+    status === "starting" ||
+    status === "resuming"
+  )
+    return "none";
   if (status === "idle" && !opts.turnEnded) return "none";
   return "release";
 }
@@ -99,15 +119,31 @@ export class TurnClaimLedger {
    * restart notice in a session with nothing to continue. Cancelling one
    * already delivered changes nothing.
    */
-  constructor(private readonly file: string, private readonly clock: () => number = Date.now, private readonly withdraw: (continueId: string) => void = () => {}) {
+  constructor(
+    private readonly file: string,
+    private readonly clock: () => number = Date.now,
+    private readonly withdraw: (continueId: string) => void = () => {},
+  ) {
     try {
-      const saved = JSON.parse(fs.readFileSync(file, "utf8")) as { claims?: Record<string, TurnClaim>; released?: Record<string, number> };
+      const saved = JSON.parse(fs.readFileSync(file, "utf8")) as {
+        claims?: Record<string, TurnClaim>;
+        released?: Record<string, number>;
+      };
       for (const [id, c] of Object.entries(saved?.claims ?? {})) {
-        if (c && typeof c.conversationId === "string" && typeof c.claimedAt === "number") {
-          this.claims.set(id, { ...c, sessionId: id, attempts: Number(c.attempts) || 0 });
+        if (
+          c &&
+          typeof c.conversationId === "string" &&
+          typeof c.claimedAt === "number"
+        ) {
+          this.claims.set(id, {
+            ...c,
+            sessionId: id,
+            attempts: Number(c.attempts) || 0,
+          });
         }
       }
-      for (const [id, at] of Object.entries(saved?.released ?? {})) if (typeof at === "number") this.released.set(id, at);
+      for (const [id, at] of Object.entries(saved?.released ?? {}))
+        if (typeof at === "number") this.released.set(id, at);
     } catch {}
   }
 
@@ -128,14 +164,24 @@ export class TurnClaimLedger {
    * Apply one status, timed `at` (ms). Writes only when a claim opens, is
    * released, or first hears from a resumed process, so a tool call costs no disk.
    */
-  apply(sessionId: string, conversationId: string, status: string, opts: { sessionBoundary?: boolean; turnEnded?: boolean; at: number }): void {
+  apply(
+    sessionId: string,
+    conversationId: string,
+    status: string,
+    opts: { sessionBoundary?: boolean; turnEnded?: boolean; at: number },
+  ): void {
     this.touched.set(sessionId, ++this.seq);
     // A conversation runs one session at a time: a status from another one (a
     // /clear, an SDK session that moved on) means the old session's turn is not running in it.
     let changed = false;
     // Only a newer status: a file replayed at boot from before the switch is not news.
     for (const [id, c] of this.claims) {
-      if (c.conversationId !== conversationId || id === sessionId || opts.at < c.claimedAt) continue;
+      if (
+        c.conversationId !== conversationId ||
+        id === sessionId ||
+        opts.at < c.claimedAt
+      )
+        continue;
       // A resume in flight that came up under a new session id (an SDK
       // session that moved on, a delivery restart) is the same turn: its
       // attempts go with it, or a process that dies on every resume would
@@ -154,18 +200,26 @@ export class TurnClaimLedger {
     // and is marked like a release one second on (status times are whole
     // seconds), so the status file it leaves behind opens nothing either when
     // a restarted daemon replays it or the watchdog finds it.
-    const endsIdleCompaction = status === "working" && this.compactingOutsideTurn.has(sessionId) && !this.claims.has(sessionId);
-    if (status === "compacting" && !this.claims.has(sessionId)) this.compactingOutsideTurn.add(sessionId);
+    const endsIdleCompaction =
+      status === "working" &&
+      this.compactingOutsideTurn.has(sessionId) &&
+      !this.claims.has(sessionId);
+    if (status === "compacting" && !this.claims.has(sessionId))
+      this.compactingOutsideTurn.add(sessionId);
     else this.compactingOutsideTurn.delete(sessionId);
     if (endsIdleCompaction) {
-      this.released.set(sessionId, Math.max(opts.at + 1000, this.released.get(sessionId) ?? 0));
+      this.released.set(
+        sessionId,
+        Math.max(opts.at + 1000, this.released.get(sessionId) ?? 0),
+      );
       this.save();
       return;
     }
     const c = this.claims.get(sessionId);
     // The first status after a resume: the resumed process is up. Statuses a
     // second early still count, since status times are whole seconds.
-    const resumeLanded = !!c?.lastAttemptAt && !heardSince(c) && opts.at >= c.lastAttemptAt - 1000;
+    const resumeLanded =
+      !!c?.lastAttemptAt && !heardSince(c) && opts.at >= c.lastAttemptAt - 1000;
     if (resumeLanded) {
       this.claims.set(sessionId, { ...c!, heardAt: opts.at });
       changed = true;
@@ -178,9 +232,18 @@ export class TurnClaimLedger {
       if (cur?.lastAttemptAt && heardSince(cur) && !cur.continuedAt) {
         this.claims.set(sessionId, { ...cur, continuedAt: opts.at });
         changed = true;
-      } else if (cur && cur.conversationId === conversationId && !awaitingResume(cur)) {
+      } else if (
+        cur &&
+        cur.conversationId === conversationId &&
+        !awaitingResume(cur)
+      ) {
         if (cur.continueId) this.withdraw(cur.continueId);
-        this.claims.set(sessionId, { sessionId, conversationId, claimedAt: opts.at, attempts: 0 });
+        this.claims.set(sessionId, {
+          sessionId,
+          conversationId,
+          claimedAt: opts.at,
+          attempts: 0,
+        });
         changed = true;
       }
     }
@@ -188,8 +251,13 @@ export class TurnClaimLedger {
     // A boundary is the resume landing at its prompt only when it is that first
     // status; any other boundary idle ends what was claimed (an SDK turn whose
     // session id changed, a person's own resume at the prompt).
-    if (t === "open") changed = this.put(sessionId, conversationId, opts.at) || changed;
-    else if (t === "release" || (opts.sessionBoundary && status === "idle" && !resumeLanded)) changed = this.drop(sessionId, opts.at) || changed;
+    if (t === "open")
+      changed = this.put(sessionId, conversationId, opts.at) || changed;
+    else if (
+      t === "release" ||
+      (opts.sessionBoundary && status === "idle" && !resumeLanded)
+    )
+      changed = this.drop(sessionId, opts.at) || changed;
     if (changed) this.save();
   }
 
@@ -205,25 +273,46 @@ export class TurnClaimLedger {
     return this.claims.has(sessionId);
   }
 
-  private put(sessionId: string, conversationId: string, at: number, opts: { stale?: boolean } = {}): boolean {
+  private put(
+    sessionId: string,
+    conversationId: string,
+    at: number,
+    opts: { stale?: boolean } = {},
+  ): boolean {
     const existing = this.claims.get(sessionId);
     if (existing && existing.conversationId === conversationId) return false;
     const releasedAt = this.released.get(sessionId);
     // A live status in the same second as a release is the next turn starting;
     // a status file from that second is the dying process's last word.
-    if (releasedAt !== undefined && (opts.stale ? at <= releasedAt : at < releasedAt)) return false;
+    if (
+      releasedAt !== undefined &&
+      (opts.stale ? at <= releasedAt : at < releasedAt)
+    )
+      return false;
     // A status older than the age bound (a status file left from days ago)
     // could only open a claim that is already too old to continue.
     if (this.clock() - at > CLAIM_MAX_AGE_MS) return false;
-    this.claims.set(sessionId, { sessionId, conversationId, claimedAt: at, attempts: 0 });
+    this.claims.set(sessionId, {
+      sessionId,
+      conversationId,
+      claimedAt: at,
+      attempts: 0,
+    });
     return true;
   }
 
-  private drop(sessionId: string, at: number, opts: { carried?: boolean } = {}): boolean {
+  private drop(
+    sessionId: string,
+    at: number,
+    opts: { carried?: boolean } = {},
+  ): boolean {
     const c = this.claims.get(sessionId);
     if (!c || !this.claims.delete(sessionId)) return false;
     if (c.continueId && !opts.carried) this.withdraw(c.continueId);
-    this.released.set(sessionId, Math.max(at, this.released.get(sessionId) ?? 0));
+    this.released.set(
+      sessionId,
+      Math.max(at, this.released.get(sessionId) ?? 0),
+    );
     return true;
   }
 
@@ -243,7 +332,9 @@ export class TurnClaimLedger {
   releaseConversation(conversationId: string): void {
     let changed = false;
     const now = this.nowMark();
-    for (const [id, c] of this.claims) if (c.conversationId === conversationId) changed = this.drop(id, now) || changed;
+    for (const [id, c] of this.claims)
+      if (c.conversationId === conversationId)
+        changed = this.drop(id, now) || changed;
     if (changed) this.save();
   }
 
@@ -255,7 +346,14 @@ export class TurnClaimLedger {
     const c = this.claims.get(sessionId);
     if (!c) return undefined;
     if (c.continueId) this.withdraw(c.continueId);
-    const next: TurnClaim = { ...c, attempts: c.attempts + 1, lastAttemptAt: at, heardAt: undefined, continueId: undefined, continuedAt: undefined };
+    const next: TurnClaim = {
+      ...c,
+      attempts: c.attempts + 1,
+      lastAttemptAt: at,
+      heardAt: undefined,
+      continueId: undefined,
+      continuedAt: undefined,
+    };
     this.claims.set(sessionId, next);
     // The one write the cap rests on, so it reaches the disk before the continue is queued.
     this.save({ sync: true });
@@ -277,9 +375,17 @@ export class TurnClaimLedger {
    */
   private save(opts: { sync?: boolean } = {}): void {
     const now = this.clock();
-    for (const [id, at] of this.released) if (now - at > RELEASE_MARK_TTL_MS) this.released.delete(id);
+    for (const [id, at] of this.released)
+      if (now - at > RELEASE_MARK_TTL_MS) this.released.delete(id);
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    writeFileAtomic(this.file, JSON.stringify({ claims: Object.fromEntries(this.claims), released: Object.fromEntries(this.released) }), opts);
+    writeFileAtomic(
+      this.file,
+      JSON.stringify({
+        claims: Object.fromEntries(this.claims),
+        released: Object.fromEntries(this.released),
+      }),
+      opts,
+    );
   }
 }
 
@@ -335,50 +441,89 @@ export function awaitingResume(claim: TurnClaim): boolean {
  * when nobody can say, the process gets RESUME_START_MS to report; silence
  * past that means the resume died before its first hook, and the attempt is spent.
  */
-export function continueInFlight(claim: TurnClaim, now: number, continueState: ClaimFacts["continueState"] = "unknown"): boolean {
+export function continueInFlight(
+  claim: TurnClaim,
+  now: number,
+  continueState: ClaimFacts["continueState"] = "unknown",
+): boolean {
   if (!awaitingResume(claim) || continueState === "cancelled") return false;
-  return continueState === "open" || now - claim.lastAttemptAt! < RESUME_START_MS;
+  return (
+    continueState === "open" || now - claim.lastAttemptAt! < RESUME_START_MS
+  );
 }
 
-export function claimDecision(claim: TurnClaim, f: ClaimFacts, now: number): ClaimDecision {
+export function claimDecision(
+  claim: TurnClaim,
+  f: ClaimFacts,
+  now: number,
+): ClaimDecision {
   // Moved first: the destination continues it, and the ledger withdraws this machine's continue.
   if (f.ownedElsewhere) return { action: "release", reason: "moved" };
-  if (continueInFlight(claim, now, f.continueState) && now - claim.lastAttemptAt! < CLAIM_MAX_AGE_MS) return { action: "keep", reason: "resume-in-flight" };
+  if (
+    continueInFlight(claim, now, f.continueState) &&
+    now - claim.lastAttemptAt! < CLAIM_MAX_AGE_MS
+  )
+    return { action: "keep", reason: "resume-in-flight" };
   // Alive, or we could not tell: never start a second process beside one that
   // may be running, and never end its claim (a pane idle at its prompt after
   // an Escape, a permission prompt left open over a weekend).
-  if (!authorizesTeardown(f.liveness)) return { action: "keep", reason: f.liveness };
+  if (!authorizesTeardown(f.liveness))
+    return { action: "keep", reason: f.liveness };
   // The transcript says the turn already ended (an Escape, an API error): no
   // turn to continue, at any age. Read locally, so it comes before the age check.
-  const ended = turnEndedRefusal(f) ?? (f.turnFinished ? "turn-finished" : null);
+  const ended =
+    turnEndedRefusal(f) ?? (f.turnFinished ? "turn-finished" : null);
   if (ended) return { action: "release", reason: ended };
   // A lookup that did answer settles it quietly at any age: the conversation
   // is gone, or a person killed or dismissed it.
-  if (f.lifecycle === null) return { action: "release", reason: "conversation-gone" };
-  if (retiredByPerson(f.lifecycle)) return { action: "release", reason: "retired" };
+  if (f.lifecycle === null)
+    return { action: "release", reason: "conversation-gone" };
+  if (retiredByPerson(f.lifecycle))
+    return { action: "release", reason: "retired" };
   // Gone, and old: nobody expects it to resume now. Ahead of the remaining
   // lookups, so a claim whose lookups keep failing still ends, and visibly:
   // the turn did not finish and nothing will continue it.
-  if (now - Math.max(f.lastLifeAt, claim.claimedAt, claim.lastAttemptAt ?? 0) > CLAIM_MAX_AGE_MS) return { action: "fail", reason: claim.attempts >= MAX_TURN_RESUME_ATTEMPTS || claim.continuedAt ? "attempts-spent" : "too-old" };
+  if (
+    now - Math.max(f.lastLifeAt, claim.claimedAt, claim.lastAttemptAt ?? 0) >
+    CLAIM_MAX_AGE_MS
+  )
+    return {
+      action: "fail",
+      reason:
+        claim.attempts >= MAX_TURN_RESUME_ATTEMPTS || claim.continuedAt
+          ? "attempts-spent"
+          : "too-old",
+    };
   // A message already waiting brings the session back through delivery:
   // another continue would stack behind it. After the age bound, so a message
   // stuck in the queue cannot hold the claim forever.
   if (f.messagePending) return { action: "keep", reason: "message-pending" };
   // A person cancelled the continue: they do not want the turn back.
-  if (f.continueState === "cancelled") return { action: "release", reason: "continue-cancelled" };
+  if (f.continueState === "cancelled")
+    return { action: "release", reason: "continue-cancelled" };
   // A blip is not a decision: the legacy fallback answers without hide state.
-  if (f.ownedElsewhere === null || f.lifecycle === undefined || !f.lifecycle.hideStateKnown) return { action: "keep", reason: "lookup-failed" };
+  if (
+    f.ownedElsewhere === null ||
+    f.lifecycle === undefined ||
+    !f.lifecycle.hideStateKnown
+  )
+    return { action: "keep", reason: "lookup-failed" };
   const refusal = reviveRefusal(f);
   if (refusal) return { action: "release", reason: refusal };
   // Per turn, and across turns: a session whose resumed turns end and whose next
   // turn kills it again resets the turn's count every time.
-  if (claim.attempts >= MAX_TURN_RESUME_ATTEMPTS) return { action: "fail", reason: "attempts-spent" };
-  if (f.recentRevives >= REVIVE_BUDGET) return { action: "fail", reason: "budget-spent" };
+  if (claim.attempts >= MAX_TURN_RESUME_ATTEMPTS)
+    return { action: "fail", reason: "attempts-spent" };
+  if (f.recentRevives >= REVIVE_BUDGET)
+    return { action: "fail", reason: "budget-spent" };
   return { action: "resume" };
 }
 
 /** The session error when the conversation's resumes in the budget window ran out, across turns. */
-export function resumeBudgetSpentMessage(revives: number, windowHours: number): string {
+export function resumeBudgetSpentMessage(
+  revives: number,
+  windowHours: number,
+): string {
   return `Codecast restarted this session's agent ${revives} times in the last ${windowHours} hours after it died, so it did not restart it again. The conversation is intact; send a message to continue.`;
 }
 
@@ -425,9 +570,15 @@ export class TurnClaimRecovery {
     this.running = (async () => {
       do {
         this.again = false;
-        await this.pass().catch((err) => this.deps.log(`[turn-claims] pass failed: ${err instanceof Error ? err.message : String(err)}`));
+        await this.pass().catch((err) =>
+          this.deps.log(
+            `[turn-claims] pass failed: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
       } while (this.again);
-    })().finally(() => { this.running = null; });
+    })().finally(() => {
+      this.running = null;
+    });
     return this.running;
   }
 
@@ -437,7 +588,9 @@ export class TurnClaimRecovery {
     // only a few, so the order decides who waits: the sessions working when the
     // machine went down are the ones a person is waiting on.
     const newestFirst = ledger.list().sort((a, b) => b.claimedAt - a.claimedAt);
-    const claims = this.deps.order ? await this.deps.order(newestFirst) : newestFirst;
+    const claims = this.deps.order
+      ? await this.deps.order(newestFirst)
+      : newestFirst;
     let resumed = 0;
     for (const claim of claims) {
       const tag = `${claim.sessionId.slice(0, 8)} conv=${claim.conversationId.slice(0, 12)}`;
@@ -447,7 +600,12 @@ export class TurnClaimRecovery {
         const facts = await this.deps.inspect(claim);
         // A status that landed while we looked (the session is alive and spoke), or a release.
         const current = ledger.get(claim.sessionId);
-        if (!current || current.claimedAt !== claim.claimedAt || current.attempts !== claim.attempts) continue;
+        if (
+          !current ||
+          current.claimedAt !== claim.claimedAt ||
+          current.attempts !== claim.attempts
+        )
+          continue;
         if (ledger.touchMark(claim.sessionId) !== mark) continue;
         const now = this.deps.now();
         const d = claimDecision(current, facts, now);
@@ -460,10 +618,20 @@ export class TurnClaimRecovery {
         }
         if (d.action === "fail") {
           ledger.release(claim.sessionId);
-          log(`[turn-claims] ${tag} died mid-turn; giving up (${d.reason}, ${current.attempts} resumes this turn, ${facts.recentRevives} in the window)`);
-          this.deps.fail(current, d.reason === "too-old" ? resumeTooOldMessage()
-            : d.reason === "budget-spent" ? resumeBudgetSpentMessage(facts.recentRevives, REVIVE_BUDGET_WINDOW_MS / 3_600_000)
-            : resumeExhaustedMessage(current.attempts));
+          log(
+            `[turn-claims] ${tag} died mid-turn; giving up (${d.reason}, ${current.attempts} resumes this turn, ${facts.recentRevives} in the window)`,
+          );
+          this.deps.fail(
+            current,
+            d.reason === "too-old"
+              ? resumeTooOldMessage()
+              : d.reason === "budget-spent"
+                ? resumeBudgetSpentMessage(
+                    facts.recentRevives,
+                    REVIVE_BUDGET_WINDOW_MS / 3_600_000,
+                  )
+                : resumeExhaustedMessage(current.attempts),
+          );
           continue;
         }
         if (resumed >= (this.deps.perPass ?? CLAIM_RESUMES_PER_PASS)) {
@@ -478,20 +646,28 @@ export class TurnClaimRecovery {
         } catch (err) {
           // The server may have stored it before the call failed: the attempt
           // stays spent and in flight rather than risk a second continue.
-          log(`[turn-claims] resume of ${tag} may not have queued (${err instanceof Error ? err.message : String(err)}); counted, retried after ${RESUME_START_MS / 60_000} min if nothing comes up`);
+          log(
+            `[turn-claims] resume of ${tag} may not have queued (${err instanceof Error ? err.message : String(err)}); counted, retried after ${RESUME_START_MS / 60_000} min if nothing comes up`,
+          );
           continue;
         }
         if (!queued) {
           ledger.release(claim.sessionId);
-          log(`[turn-claims] released ${tag} without a resume: recovery is off on this machine`);
+          log(
+            `[turn-claims] released ${tag} without a resume: recovery is off on this machine`,
+          );
           this.deps.settle(current, "recovery-off");
           continue;
         }
         ledger.setContinue(claim.sessionId, queued);
         resumed++;
-        log(`[turn-claims] ${tag} died mid-turn; resumed (attempt ${attempt.attempts} of ${MAX_TURN_RESUME_ATTEMPTS})`);
+        log(
+          `[turn-claims] ${tag} died mid-turn; resumed (attempt ${attempt.attempts} of ${MAX_TURN_RESUME_ATTEMPTS})`,
+        );
       } catch (err) {
-        log(`[turn-claims] ${tag}: ${err instanceof Error ? err.message : String(err)}`);
+        log(
+          `[turn-claims] ${tag}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
   }

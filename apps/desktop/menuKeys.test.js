@@ -10,7 +10,13 @@ test("defaults stand until the person rebinds", () => {
 
 test("a rebound item takes its new chord, or none", () => {
   const keys = createMenuKeys({ isMac: true });
-  assert.equal(keys.set({ keys: { "nav.back": ["Command+Shift+B"], "nav.forward": [] }, claimed: [] }), true);
+  assert.equal(
+    keys.set({
+      keys: { "nav.back": ["Command+Shift+B"], "nav.forward": [] },
+      claimed: [],
+    }),
+    true,
+  );
   assert.equal(keys.accelerator("nav.back", "Command+["), "Command+Shift+B");
   assert.equal(keys.accelerator("nav.forward", "Command+]"), undefined);
 });
@@ -18,7 +24,10 @@ test("a rebound item takes its new chord, or none", () => {
 test("a chord given to another action leaves the menu", () => {
   const keys = createMenuKeys({ isMac: true });
   keys.set({ keys: {}, claimed: ["Command+,"] });
-  assert.equal(keys.accelerator("ui.openSettings", "CommandOrControl+,"), undefined);
+  assert.equal(
+    keys.accelerator("ui.openSettings", "CommandOrControl+,"),
+    undefined,
+  );
   assert.equal(keys.accelerator("nav.back", "Command+["), "Command+[");
 });
 
@@ -34,7 +43,10 @@ test("undo's chord stops running app undo once moved", () => {
 
 test("junk from the page is dropped", () => {
   const keys = createMenuKeys({ isMac: true });
-  keys.set({ keys: { "nav.back": ["Command+[", "<script>"], "app.quit": ["Command+Q"] }, claimed: [42] });
+  keys.set({
+    keys: { "nav.back": ["Command+[", "<script>"], "app.quit": ["Command+Q"] },
+    claimed: [42],
+  });
   assert.equal(keys.accelerator("nav.back", "x"), "Command+[");
   assert.equal(keys.accelerator("app.quit", "Command+Q"), "Command+Q");
 });

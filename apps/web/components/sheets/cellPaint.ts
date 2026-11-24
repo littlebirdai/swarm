@@ -77,21 +77,50 @@ export type PaintContext = {
   /** Evaluate a rule's formula as if it sat in a cell (custom formula rules). */
   evalAt?: (formula: string, col: number, row: number) => Scalar;
   /** The tab's merged ranges. */
-  merges?: readonly { rect: { c0: number; r0: number; c1: number; r1: number } }[];
+  merges?: readonly {
+    rect: { c0: number; r0: number; c1: number; r1: number };
+  }[];
 };
 
-export function paintCell(el: CellEl | undefined, value: Scalar, implied: ImpliedFormat | undefined, col: number, row: number, ctx: PaintContext): Paint {
+export function paintCell(
+  el: CellEl | undefined,
+  value: Scalar,
+  implied: ImpliedFormat | undefined,
+  col: number,
+  row: number,
+  ctx: PaintContext,
+): Paint {
   const s = styleOf(el);
-  if (!s.nf && typeof value === "number" && (!el || (typeof el.input === "string" && el.input.startsWith("=")))) implied = ctx.inherited?.(col, row) ?? implied;
+  if (
+    !s.nf &&
+    typeof value === "number" &&
+    (!el || (typeof el.input === "string" && el.input.startsWith("=")))
+  )
+    implied = ctx.inherited?.(col, row) ?? implied;
   // A table's header row is labels: a number there reads as typed ("2025", not "2,025"),
   // whatever number format the column carries.
-  const inHeader = ctx.tables.some((t) => row === t.rect.r0 && rectContains(t.rect, col, row));
-  const text = inHeader && typeof value === "number" ? formatValue(value, undefined, implied?.nf === "date" ? implied : undefined) : formatValue(value, s, implied);
+  const inHeader = ctx.tables.some(
+    (t) => row === t.rect.r0 && rectContains(t.rect, col, row),
+  );
+  const text =
+    inHeader && typeof value === "number"
+      ? formatValue(
+          value,
+          undefined,
+          implied?.nf === "date" ? implied : undefined,
+        )
+      : formatValue(value, s, implied);
   const numeric = typeof value === "number";
   const err = isError(value);
   const p: Paint = {
     text,
-    align: s.al ?? (err || typeof value === "boolean" ? "center" : numeric ? "right" : "left"),
+    align:
+      s.al ??
+      (err || typeof value === "boolean"
+        ? "center"
+        : numeric
+          ? "right"
+          : "left"),
     bold: s.b,
     italic: s.i,
     underline: s.u,
@@ -122,16 +151,28 @@ export function paintCell(el: CellEl | undefined, value: Scalar, implied: Implie
     const color = c.color;
     switch (c.rule) {
       case "sign":
-        if (numeric && value !== 0) p.color = solVar(value > 0 ? "green" : "red");
+        if (numeric && value !== 0)
+          p.color = solVar(value > 0 ? "green" : "red");
         break;
       case "scale": {
         const r = ctx.scaleRange(c.key);
-        if (numeric && r && r.max > r.min) p.fill = tint(color ?? "green", Math.round(6 + 34 * ((value - r.min) / (r.max - r.min))));
+        if (numeric && r && r.max > r.min)
+          p.fill = tint(
+            color ?? "green",
+            Math.round(6 + 34 * ((value - r.min) / (r.max - r.min))),
+          );
         break;
       }
       case "formula": {
         const f = typeof c.value === "string" ? c.value : "";
-        const r = f && ctx.evalAt ? ctx.evalAt(shiftFormula(f, col - c.rect.c0, row - c.rect.r0), col, row) : null;
+        const r =
+          f && ctx.evalAt
+            ? ctx.evalAt(
+                shiftFormula(f, col - c.rect.c0, row - c.rect.r0),
+                col,
+                row,
+              )
+            : null;
         if (r === true || (typeof r === "number" && r !== 0)) {
           p.fill = tint(color ?? "yellow", 22);
           p.color = ruleText(color ?? "yellow");
@@ -141,7 +182,9 @@ export function paintCell(el: CellEl | undefined, value: Scalar, implied: Implie
       default:
         // Rules on the value alone: comparisons, between, blanks, text, dates (one check shared with the filter).
         if (valueMeetsRule(c.rule, c.value, value)) {
-          const tone = color ?? (c.rule === "before" || c.rule === "after" ? "orange" : "yellow");
+          const tone =
+            color ??
+            (c.rule === "before" || c.rule === "after" ? "orange" : "yellow");
           p.fill = tint(tone, 22);
           p.color = ruleText(tone);
         }
@@ -149,8 +192,12 @@ export function paintCell(el: CellEl | undefined, value: Scalar, implied: Implie
     }
   }
   // A custom code may name a color for its section ("#,##0;[Red](#,##0)").
-  const codeTint = s.nf === "custom" && s.code && numeric ? codeColor(value, s.code) : undefined;
-  if (codeTint && (PALETTE as readonly string[]).includes(codeTint)) p.color = solVar(codeTint as PaletteColor);
+  const codeTint =
+    s.nf === "custom" && s.code && numeric
+      ? codeColor(value, s.code)
+      : undefined;
+  if (codeTint && (PALETTE as readonly string[]).includes(codeTint))
+    p.color = solVar(codeTint as PaletteColor);
   // The cell's own colors win over table and rule colors.
   if (s.fill) p.fill = tint(s.fill, 20);
   if (s.color) p.color = solVar(s.color);
@@ -169,7 +216,18 @@ export function paintCell(el: CellEl | undefined, value: Scalar, implied: Implie
       const opt = dv.options.find((o) => o.v.toLowerCase() === want);
       if (opt) p.chip = chipStyle(opt.color);
       else p.invalid = true;
-    } else if (dv.rule === "date" && value !== null && value !== "" && !(numeric && (s.nf === "date" || s.nf === "datetime" || implied?.nf === "date" || implied?.nf === "datetime"))) {
+    } else if (
+      dv.rule === "date" &&
+      value !== null &&
+      value !== "" &&
+      !(
+        numeric &&
+        (s.nf === "date" ||
+          s.nf === "datetime" ||
+          implied?.nf === "date" ||
+          implied?.nf === "datetime")
+      )
+    ) {
       p.invalid = true;
     }
   }
@@ -177,7 +235,10 @@ export function paintCell(el: CellEl | undefined, value: Scalar, implied: Implie
 }
 
 /** A dropdown value's chip: a tint of its color, with text that reads on it in both themes. */
-export function chipStyle(color: PaletteColor | undefined): { fill: string; color: string } {
+export function chipStyle(color: PaletteColor | undefined): {
+  fill: string;
+  color: string;
+} {
   const c = color ?? "gray";
   return { fill: tint(c, 22), color: ruleText(c) };
 }
@@ -202,15 +263,24 @@ const PAD_PX = 14;
  * decimals until it fits (0.70875908 -> 0.7087591), then scientific, the way
  * Sheets and Excel round to the column instead of cutting the digits off.
  */
-export function fitNumber(text: string, value: number, widthPx: number, sizePx = 13): string {
+export function fitNumber(
+  text: string,
+  value: number,
+  widthPx: number,
+  sizePx = 13,
+): string {
   const room = Math.floor((widthPx - PAD_PX) / (CHAR_PX * (sizePx / 13)));
   if (text.length <= room || room < 1) return text;
-  const intLen = String(Math.trunc(Math.abs(value))).length + (value < 0 ? 1 : 0);
+  const intLen =
+    String(Math.trunc(Math.abs(value))).length + (value < 0 ? 1 : 0);
   const dp = room - intLen - 1;
   if (dp >= 0 && intLen <= room) return String(Number(value.toFixed(dp)));
   if (intLen <= room) return String(Math.round(value));
   for (let digits = Math.max(0, room - 6); digits >= 0; digits--) {
-    const sci = value.toExponential(digits).replace("e+", "E+").replace("e-", "E-");
+    const sci = value
+      .toExponential(digits)
+      .replace("e+", "E+")
+      .replace("e-", "E-");
     if (sci.length <= room) return sci;
   }
   return "#".repeat(Math.max(1, room));

@@ -8,7 +8,11 @@ mock.module("./asrPipe", () => ({
   openAsrPipe: (opts: { track: unknown }) => {
     const rec = { track: opts.track, closed: false };
     opened.push(rec);
-    return { speaking: false, finish: async () => {}, close: () => void (rec.closed = true) };
+    return {
+      speaking: false,
+      finish: async () => {},
+      close: () => void (rec.closed = true),
+    };
   },
 }));
 const { createScribeEngine } = await import("./scribeEngine");

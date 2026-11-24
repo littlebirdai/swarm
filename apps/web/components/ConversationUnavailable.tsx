@@ -9,12 +9,26 @@ import { useInboxStore } from "../store/inboxStore";
  *  `failed` is the other case: the server never answered (a backend without
  *  the function, a server error), so nothing is known about the row and the
  *  note says only that. */
-export function ConversationUnavailable({ actionLabel, onAction, failed }: { actionLabel?: string; onAction?: () => void; failed?: boolean }) {
-  const email = useInboxStore((s) => s.currentUser?.email as string | undefined);
+export function ConversationUnavailable({
+  actionLabel,
+  onAction,
+  failed,
+}: {
+  actionLabel?: string;
+  onAction?: () => void;
+  failed?: boolean;
+}) {
+  const email = useInboxStore(
+    (s) => s.currentUser?.email as string | undefined,
+  );
   return (
     <div className="h-full flex-1 flex items-center justify-center">
       <div className="text-center max-w-sm px-4">
-        <div className="text-sm text-sol-text">{failed ? "This conversation couldn't be loaded" : "This conversation isn't available"}</div>
+        <div className="text-sm text-sol-text">
+          {failed
+            ? "This conversation couldn't be loaded"
+            : "This conversation isn't available"}
+        </div>
         <p className="mt-1 text-xs text-sol-text-dim">
           {failed
             ? "The server didn't answer. Nothing is known about it yet, so try again in a moment."

@@ -25,23 +25,45 @@ const UNDO_ACTION = {
   onClick: () => void undoTriage(),
 };
 
-const VERB: Partial<Record<GroupStatus, string>> = { resolved: "resolved", ignored: "ignored", open: "reopened", muted: "muted" };
+const VERB: Partial<Record<GroupStatus, string>> = {
+  resolved: "resolved",
+  ignored: "ignored",
+  open: "reopened",
+  muted: "muted",
+};
 
 /** The step a triage makes: the rows it changes with what they held, and the words for it. Null when it changes nothing. */
-export function triageStep(rows: Pick<OpsGroup, "_id" | "short_id" | "status" | "resolved_at" | "resolved_in" | "resolved_via" | "resolved_by">[], status: GroupStatus): TriageStep | null {
+export function triageStep(
+  rows: Pick<
+    OpsGroup,
+    | "_id"
+    | "short_id"
+    | "status"
+    | "resolved_at"
+    | "resolved_in"
+    | "resolved_via"
+    | "resolved_by"
+  >[],
+  status: GroupStatus,
+): TriageStep | null {
   const changed = rows.filter((g) => g.status !== status);
   if (!changed.length) return null;
   const verb = VERB[status] ?? status;
   return {
     status,
-    label: changed.length === 1 ? `${changed[0].short_id} ${verb}` : `${changed.length.toLocaleString()} issues ${verb}`,
+    label:
+      changed.length === 1
+        ? `${changed[0].short_id} ${verb}`
+        : `${changed.length.toLocaleString()} issues ${verb}`,
     // Who resolved it rides only on a row that carried it: a server that never stamped it would refuse the field.
     rows: changed.map((g) => ({
       id: g._id,
       status: g.status,
       resolved_at: g.resolved_at ?? null,
       resolved_in: g.resolved_in ?? null,
-      ...(g.resolved_via ? { resolved_via: g.resolved_via, resolved_by: g.resolved_by ?? null } : {}),
+      ...(g.resolved_via
+        ? { resolved_via: g.resolved_via, resolved_by: g.resolved_by ?? null }
+        : {}),
     })),
   };
 }
@@ -53,8 +75,10 @@ let last: TriageStep | null = null;
 /** A problem task's status change from the Fix card, taken back by the same z. */
 let lastTask: { label: string; undo: () => void } | null = null;
 
-
-export function triage(rows: OpsGroup[], status: GroupStatus): TriageStep | null {
+export function triage(
+  rows: OpsGroup[],
+  status: GroupStatus,
+): TriageStep | null {
   const step = triageStep(rows, status);
   if (!step) return null;
   last = step;
@@ -82,22 +106,37 @@ export function undoTriage(): boolean {
   if (!step) return false;
   last = null;
   const st = useInboxStore.getState();
-  for (const { id, status, ...stamps } of step.rows) st.setOpsGroupStatus(id, status, stamps);
+  for (const { id, status, ...stamps } of step.rows)
+    st.setOpsGroupStatus(id, status, stamps);
   toast(`Undone: ${step.label}`, { id: "ops-triage", duration: 3000 });
   return true;
 }
 
-const TASK_VERB: Record<string, string> = { open: "reopened", done: "closed", dropped: "dropped", in_progress: "started" };
+const TASK_VERB: Record<string, string> = {
+  open: "reopened",
+  done: "closed",
+  dropped: "dropped",
+  in_progress: "started",
+};
 
 /** Moves a problem task's status from the Fix card, with the same toast and Undo (z) as triage: it puts back the status it held. */
-export function setTaskStatusUndoable(task: { short_id: string; status?: string }, status: string): void {
+export function setTaskStatusUndoable(
+  task: { short_id: string; status?: string },
+  status: string,
+): void {
   const before = task.status ?? "open";
   if (before === status) return;
   const st = useInboxStore.getState();
   void st.updateTask(task.short_id, { status });
   const label = `${task.short_id} ${TASK_VERB[status] ?? status.replace("_", " ")}`;
   last = null;
-  lastTask = { label, undo: () => void useInboxStore.getState().updateTask(task.short_id, { status: before }) };
+  lastTask = {
+    label,
+    undo: () =>
+      void useInboxStore
+        .getState()
+        .updateTask(task.short_id, { status: before }),
+  };
   toast(label, {
     id: "ops-triage",
     duration: 8000,
@@ -106,11 +145,20 @@ export function setTaskStatusUndoable(task: { short_id: string; status?: string 
 }
 
 /** Leave a part out of a metric: the watch's own query with that part compared away, and an Undo that puts the query back. False when the query cannot say it. */
-export function leaveOutOfWatch(watch: Pick<OpsWatch, "_id" | "short_id" | "query">, key: string): boolean {
+export function leaveOutOfWatch(
+  watch: Pick<OpsWatch, "_id" | "short_id" | "query">,
+  key: string,
+): boolean {
   const next = hogqlExclude(watch.query, key);
   if (!next) return false;
   const before = watch.query;
   useInboxStore.getState().updateOpsWatch(watch._id, { query: next });
-  toast(`${watch.short_id} no longer counts it`, { action: { label: "Undo", onClick: () => useInboxStore.getState().updateOpsWatch(watch._id, { query: before }) } });
+  toast(`${watch.short_id} no longer counts it`, {
+    action: {
+      label: "Undo",
+      onClick: () =>
+        useInboxStore.getState().updateOpsWatch(watch._id, { query: before }),
+    },
+  });
   return true;
 }

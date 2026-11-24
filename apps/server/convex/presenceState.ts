@@ -48,14 +48,19 @@ export function bucketTs(ts: number | undefined): number | undefined {
 // The freshest human-input timestamp across the surfaces we may look at.
 // Mirrors isMachineActivePresence's device filter: remote boxes and devices
 // that report no input contribute nothing (uncertainty degrades toward away).
-function latestInputAt(input: PresenceStateInput, now: number): number | undefined {
+function latestInputAt(
+  input: PresenceStateInput,
+  now: number,
+): number | undefined {
   const candidates: number[] = [];
   const p = input.presence;
-  if (p && now - p.last_seen < PRESENCE_FRESH_MS) candidates.push(p.last_input_at);
+  if (p && now - p.last_seen < PRESENCE_FRESH_MS)
+    candidates.push(p.last_input_at);
   if (input.machineWide ?? true) {
     for (const d of input.devices ?? []) {
       if (d.is_remote || d.last_input_at === undefined) continue;
-      if (now - d.last_seen < PRESENCE_FRESH_MS) candidates.push(d.last_input_at);
+      if (now - d.last_seen < PRESENCE_FRESH_MS)
+        candidates.push(d.last_input_at);
     }
   }
   if (candidates.length === 0) return undefined;
@@ -82,7 +87,8 @@ export function derivePresenceState(
     const inputAt = latestInputAt(input, now);
     // A future timestamp (clock skew that slipped past the duration-based
     // write path) clamps to "just now" rather than poisoning the math.
-    const inputAge = inputAt === undefined ? Infinity : Math.max(0, now - inputAt);
+    const inputAge =
+      inputAt === undefined ? Infinity : Math.max(0, now - inputAt);
     if (inputAge < INPUT_ACTIVE_MS) return "active";
     if (inputAge < PRESENCE_IDLE_MAX_MS) return "idle";
     return "away";

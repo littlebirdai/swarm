@@ -4,43 +4,180 @@
 import { describe, expect, test } from "bun:test";
 import type { CauseHistory, HistoryAttempt } from "../causeHistory";
 import {
-  DAY, HOUR, alignDown, cameBackCount, homeExpectation, offTopicComebacks, withoutOffTopic, attemptTone, bucketCounts, bucketStep, closeWords, defaultRange, lowerBound, problemLine, problemRowSig, problemState, rangeDomain, regressionAt, timeTicks,
+  DAY,
+  HOUR,
+  alignDown,
+  cameBackCount,
+  homeExpectation,
+  offTopicComebacks,
+  withoutOffTopic,
+  attemptTone,
+  bucketCounts,
+  bucketStep,
+  closeWords,
+  defaultRange,
+  lowerBound,
+  problemLine,
+  problemRowSig,
+  problemState,
+  rangeDomain,
+  regressionAt,
+  timeTicks,
 } from "../timeline";
 import type { LineIssue } from "../lineModel";
 
 const NOW = new Date(2026, 9, 9, 15, 30).getTime();
 
-const attempt = (over: Partial<HistoryAttempt>): HistoryAttempt => ({
-  runId: "r1", n: 1, start: NOW - 5 * DAY, end: NOW - 4 * DAY, live: false, outcome: { tone: "calm", end: null, text: "" }, ended: null, superseded: false,
-  endStep: null, unapproved: false, found: null, proposed: null, built: null, card: null, diff: null, merge: null, ...over,
-} as HistoryAttempt);
+const attempt = (over: Partial<HistoryAttempt>): HistoryAttempt =>
+  ({
+    runId: "r1",
+    n: 1,
+    start: NOW - 5 * DAY,
+    end: NOW - 4 * DAY,
+    live: false,
+    outcome: { tone: "calm", end: null, text: "" },
+    ended: null,
+    superseded: false,
+    endStep: null,
+    unapproved: false,
+    found: null,
+    proposed: null,
+    built: null,
+    card: null,
+    diff: null,
+    merge: null,
+    ...over,
+  }) as HistoryAttempt;
 
-const history = (over: Partial<CauseHistory>): CauseHistory => ({
-  occurrences: [], occurrencesFrom: "history", since: null, capped: false, attempts: [], ships: [], deploys: [],
-  coverage: { state: "none", targets: [], words: "" }, watches: [], regressions: [], closes: [], recurrences: [], regressed: false, cameBack: false, firstAt: null, lastActivity: 0, ...over,
-} as CauseHistory);
+const history = (over: Partial<CauseHistory>): CauseHistory =>
+  ({
+    occurrences: [],
+    occurrencesFrom: "history",
+    since: null,
+    capped: false,
+    attempts: [],
+    ships: [],
+    deploys: [],
+    coverage: { state: "none", targets: [], words: "" },
+    watches: [],
+    regressions: [],
+    closes: [],
+    recurrences: [],
+    regressed: false,
+    cameBack: false,
+    firstAt: null,
+    lastActivity: 0,
+    ...over,
+  }) as CauseHistory;
 
-const ship = { runId: "r1", at: NOW - 4 * DAY, merge: null, deploys: [], liveAt: NOW - 4 * DAY, basis: "ship" as const, words: "" };
+const ship = {
+  runId: "r1",
+  at: NOW - 4 * DAY,
+  merge: null,
+  deploys: [],
+  liveAt: NOW - 4 * DAY,
+  basis: "ship" as const,
+  words: "",
+};
 
 describe("problemState", () => {
   test("regressed beats everything, a live attempt is being fixed", () => {
-    expect(problemState(history({ regressed: true, attempts: [attempt({ live: true })] }), "open")).toBe("regressed");
-    expect(problemState(history({ attempts: [attempt({ live: true, end: null })] }), "open")).toBe("fixing");
+    expect(
+      problemState(
+        history({ regressed: true, attempts: [attempt({ live: true })] }),
+        "open",
+      ),
+    ).toBe("regressed");
+    expect(
+      problemState(
+        history({ attempts: [attempt({ live: true, end: null })] }),
+        "open",
+      ),
+    ).toBe("fixing");
   });
   test("after a ship: watching while the watch runs, held once it ended quiet or the cause closed", () => {
-    const shipped = { attempts: [attempt({ ended: "shipped" })], ships: [ship], closes: [{ runId: "r1", n: 1, kind: "shipped" as const, at: ship.liveAt, step: "watch" }] };
-    expect(problemState(history({ ...shipped, watches: [{ runId: "r1", start: NOW - 4 * DAY, end: NOW + DAY, state: "watching", reopenedAt: null }] }), "done")).toBe("watching");
-    expect(problemState(history({ ...shipped, watches: [{ runId: "r1", start: NOW - 4 * DAY, end: NOW - DAY, state: "quiet", reopenedAt: null }] }), "done")).toBe("held");
+    const shipped = {
+      attempts: [attempt({ ended: "shipped" })],
+      ships: [ship],
+      closes: [
+        {
+          runId: "r1",
+          n: 1,
+          kind: "shipped" as const,
+          at: ship.liveAt,
+          step: "watch",
+        },
+      ],
+    };
+    expect(
+      problemState(
+        history({
+          ...shipped,
+          watches: [
+            {
+              runId: "r1",
+              start: NOW - 4 * DAY,
+              end: NOW + DAY,
+              state: "watching",
+              reopenedAt: null,
+            },
+          ],
+        }),
+        "done",
+      ),
+    ).toBe("watching");
+    expect(
+      problemState(
+        history({
+          ...shipped,
+          watches: [
+            {
+              runId: "r1",
+              start: NOW - 4 * DAY,
+              end: NOW - DAY,
+              state: "quiet",
+              reopenedAt: null,
+            },
+          ],
+        }),
+        "done",
+      ),
+    ).toBe("held");
     expect(problemState(history(shipped), "done")).toBe("held");
     expect(problemState(history(shipped), "open")).toBe("watching");
   });
   test("no ship: closed when closed or dissolved and quiet, came back when it kept happening after the close", () => {
     expect(problemState(history({}), "dropped")).toBe("closed");
-    const dissolved = { attempts: [attempt({ ended: "dissolved" })], closes: [{ runId: "r1", n: 1, kind: "dissolved" as const, at: NOW - 4 * DAY, step: "investigate" }] };
+    const dissolved = {
+      attempts: [attempt({ ended: "dissolved" })],
+      closes: [
+        {
+          runId: "r1",
+          n: 1,
+          kind: "dissolved" as const,
+          at: NOW - 4 * DAY,
+          step: "investigate",
+        },
+      ],
+    };
     expect(problemState(history(dissolved), "open")).toBe("closed");
-    expect(problemState(history({ ...dissolved, cameBack: true }), "in_review")).toBe("cameback");
+    expect(
+      problemState(history({ ...dissolved, cameBack: true }), "in_review"),
+    ).toBe("cameback");
     // A run working it again outranks the comeback.
-    expect(problemState(history({ ...dissolved, cameBack: true, attempts: [...dissolved.attempts, attempt({ runId: "r2", live: true, end: null })] }), "open")).toBe("fixing");
+    expect(
+      problemState(
+        history({
+          ...dissolved,
+          cameBack: true,
+          attempts: [
+            ...dissolved.attempts,
+            attempt({ runId: "r2", live: true, end: null }),
+          ],
+        }),
+        "open",
+      ),
+    ).toBe("fixing");
     expect(problemState(history({}), "open")).toBe("open");
   });
 });
@@ -49,32 +186,91 @@ describe("problemLine", () => {
   test("after a close it says what the newest close did and how often it came back", () => {
     const h = history({
       attempts: [attempt({ ended: "dissolved", endStep: "investigate" })],
-      closes: [{ runId: "r1", n: 1, kind: "dissolved", at: new Date(2026, 9, 7, 12).getTime(), step: "investigate" }],
-      recurrences: [{ afterRunId: "r1", n: 1, kind: "dissolved", closedAt: 0, at: 1, count: 5, until: null, words: "" }],
+      closes: [
+        {
+          runId: "r1",
+          n: 1,
+          kind: "dissolved",
+          at: new Date(2026, 9, 7, 12).getTime(),
+          step: "investigate",
+        },
+      ],
+      recurrences: [
+        {
+          afterRunId: "r1",
+          n: 1,
+          kind: "dissolved",
+          closedAt: 0,
+          at: 1,
+          count: 5,
+          until: null,
+          words: "",
+        },
+      ],
       cameBack: true,
     });
-    const issue = { where: { text: "Closed without a change at Investigate." }, history: h } as unknown as LineIssue;
-    expect(problemLine(issue)).toBe("Dissolved at Investigate Oct 7, came back 5x since");
-    expect(problemLine(issue, (id) => (id === "investigate" ? "Find why" : undefined))).toBe("Dissolved at Find why Oct 7, came back 5x since");
-    const quiet = { ...issue, history: { ...h, recurrences: [], cameBack: false } } as LineIssue;
-    expect(problemLine(quiet)).toBe("Dissolved at Investigate Oct 7, quiet since");
+    const issue = {
+      where: { text: "Closed without a change at Investigate." },
+      history: h,
+    } as unknown as LineIssue;
+    expect(problemLine(issue)).toBe(
+      "Dissolved at Investigate Oct 7, came back 5x since",
+    );
+    expect(
+      problemLine(issue, (id) =>
+        id === "investigate" ? "Find why" : undefined,
+      ),
+    ).toBe("Dissolved at Find why Oct 7, came back 5x since");
+    const quiet = {
+      ...issue,
+      history: { ...h, recurrences: [], cameBack: false },
+    } as LineIssue;
+    expect(problemLine(quiet)).toBe(
+      "Dissolved at Investigate Oct 7, quiet since",
+    );
     expect(closeWords(h.closes[0])).toBe("Dissolved at Investigate Oct 7");
   });
 });
 
-
 test("attemptTone follows how an attempt ended", () => {
   expect(attemptTone(attempt({ live: true }))).toBe("live");
   expect(attemptTone(attempt({ ended: "shipped" }))).toBe("ok");
-  expect(attemptTone(attempt({ outcome: { tone: "failed", end: null, text: "" } }))).toBe("bad");
-  expect(attemptTone(attempt({ outcome: { tone: "closed", end: "dissolved", text: "" }, ended: "dissolved" }))).toBe("closed");
-  expect(attemptTone(attempt({ outcome: { tone: "calm", end: null, text: "" } }))).toBe("none");
+  expect(
+    attemptTone(attempt({ outcome: { tone: "failed", end: null, text: "" } })),
+  ).toBe("bad");
+  expect(
+    attemptTone(
+      attempt({
+        outcome: { tone: "closed", end: "dissolved", text: "" },
+        ended: "dissolved",
+      }),
+    ),
+  ).toBe("closed");
+  expect(
+    attemptTone(attempt({ outcome: { tone: "calm", end: null, text: "" } })),
+  ).toBe("none");
 });
 
 test("regressionAt: after a fix went live and before the next one did", () => {
   const regs = [
-    { afterRunId: "r1", at: 15, count: 1, basis: "deploy" as const, liveAt: 10, until: 20, words: "" },
-    { afterRunId: "r2", at: 25, count: 1, basis: "merge" as const, liveAt: 20, until: null, words: "" },
+    {
+      afterRunId: "r1",
+      at: 15,
+      count: 1,
+      basis: "deploy" as const,
+      liveAt: 10,
+      until: 20,
+      words: "",
+    },
+    {
+      afterRunId: "r2",
+      at: 25,
+      count: 1,
+      basis: "merge" as const,
+      liveAt: 20,
+      until: null,
+      words: "",
+    },
   ];
   expect(regressionAt(10, regs)).toBeNull();
   expect(regressionAt(12, regs)?.afterRunId).toBe("r1");
@@ -85,14 +281,45 @@ test("regressionAt: after a fix went live and before the next one did", () => {
 describe("a cluster that drifted did not come back (ct-57368)", () => {
   const closedAt = NOW - 3 * DAY;
   const h = history({
-    occurrences: [{ at: NOW - 4 * DAY, reopened: false }, { at: NOW - 2 * DAY, reopened: false }, { at: NOW - DAY, reopened: false }],
-    closes: [{ runId: "r1", n: 1, kind: "dissolved", at: closedAt, step: "investigate" }],
-    recurrences: [{ afterRunId: "r1", n: 1, kind: "dissolved", closedAt, at: NOW - 2 * DAY, count: 2, until: null, words: "Came back 2x after attempt 1" }],
+    occurrences: [
+      { at: NOW - 4 * DAY, reopened: false },
+      { at: NOW - 2 * DAY, reopened: false },
+      { at: NOW - DAY, reopened: false },
+    ],
+    closes: [
+      {
+        runId: "r1",
+        n: 1,
+        kind: "dissolved",
+        at: closedAt,
+        step: "investigate",
+      },
+    ],
+    recurrences: [
+      {
+        afterRunId: "r1",
+        n: 1,
+        kind: "dissolved",
+        closedAt,
+        at: NOW - 2 * DAY,
+        count: 2,
+        until: null,
+        words: "Came back 2x after attempt 1",
+      },
+    ],
     cameBack: true,
   });
-  const sig = (at: number, subject: string) => ({ observed_at: at, created_at: at, subject });
+  const sig = (at: number, subject: string) => ({
+    observed_at: at,
+    created_at: at,
+    subject,
+  });
   test("a finding citing another expectation is off topic; the rest still came back", () => {
-    const signals = [sig(NOW - 4 * DAY, "ex-intro"), sig(NOW - 2 * DAY, "ex-cold"), sig(NOW - DAY, "ex-intro")];
+    const signals = [
+      sig(NOW - 4 * DAY, "ex-intro"),
+      sig(NOW - 2 * DAY, "ex-cold"),
+      sig(NOW - DAY, "ex-intro"),
+    ];
     expect(homeExpectation(h, signals)).toBe("ex-intro");
     const off = offTopicComebacks(h, signals);
     expect([...off]).toEqual([NOW - 2 * DAY]);
@@ -101,7 +328,11 @@ describe("a cluster that drifted did not come back (ct-57368)", () => {
     expect(cameBackCount(adj, off)).toBe(1);
   });
   test("every comeback off topic: it did not come back at all", () => {
-    const signals = [sig(NOW - 4 * DAY, "ex-intro"), sig(NOW - 2 * DAY, "ex-cold"), sig(NOW - DAY, "ex-cold")];
+    const signals = [
+      sig(NOW - 4 * DAY, "ex-intro"),
+      sig(NOW - 2 * DAY, "ex-cold"),
+      sig(NOW - DAY, "ex-cold"),
+    ];
     const adj = withoutOffTopic(h, offTopicComebacks(h, signals));
     expect(adj.recurrences).toEqual([]);
     expect(adj.cameBack).toBe(false);
@@ -143,35 +374,119 @@ describe("the axis", () => {
     expect(hours.some((t) => !t.major)).toBe(true);
   });
   test("a preset ends now; all frames the whole history", () => {
-    const h = history({ occurrences: [{ at: NOW - 60 * DAY, reopened: false }, { at: NOW - DAY, reopened: false }], attempts: [attempt({ start: NOW - 50 * DAY, end: NOW - 49 * DAY })] });
+    const h = history({
+      occurrences: [
+        { at: NOW - 60 * DAY, reopened: false },
+        { at: NOW - DAY, reopened: false },
+      ],
+      attempts: [attempt({ start: NOW - 50 * DAY, end: NOW - 49 * DAY })],
+    });
     expect(rangeDomain("7d", h, NOW)).toEqual([NOW - 7 * DAY, NOW]);
     const [a, b] = rangeDomain("all", h, NOW);
     expect(a).toBeLessThan(NOW - 60 * DAY);
     expect(b).toBeGreaterThanOrEqual(NOW);
     expect(defaultRange(h, NOW)).toBe("all");
-    expect(defaultRange(history({ occurrences: [{ at: NOW - 3 * DAY, reopened: false }] }), NOW)).toBe("7d");
-    expect(defaultRange(history({ occurrences: [{ at: NOW - 20 * DAY, reopened: false }] }), NOW)).toBe("30d");
+    expect(
+      defaultRange(
+        history({ occurrences: [{ at: NOW - 3 * DAY, reopened: false }] }),
+        NOW,
+      ),
+    ).toBe("7d");
+    expect(
+      defaultRange(
+        history({ occurrences: [{ at: NOW - 20 * DAY, reopened: false }] }),
+        NOW,
+      ),
+    ).toBe("30d");
     // Runs from today on findings from two weeks back: the window holds the findings, never an empty day.
-    const today = history({ occurrences: [{ at: NOW - 14 * DAY, reopened: false }, { at: NOW - 3 * DAY, reopened: false }], attempts: [attempt({ start: NOW - 20 * HOUR, end: NOW - 19 * HOUR }), attempt({ start: NOW - 14 * HOUR })] });
+    const today = history({
+      occurrences: [
+        { at: NOW - 14 * DAY, reopened: false },
+        { at: NOW - 3 * DAY, reopened: false },
+      ],
+      attempts: [
+        attempt({ start: NOW - 20 * HOUR, end: NOW - 19 * HOUR }),
+        attempt({ start: NOW - 14 * HOUR }),
+      ],
+    });
     expect(defaultRange(today, NOW)).toBe("30d");
     // Runs from today on findings from today read on the day.
-    expect(defaultRange(history({ occurrences: [{ at: NOW - 5 * HOUR, reopened: false }], attempts: [attempt({ start: NOW - 2 * HOUR })] }), NOW)).toBe("24h");
+    expect(
+      defaultRange(
+        history({
+          occurrences: [{ at: NOW - 5 * HOUR, reopened: false }],
+          attempts: [attempt({ start: NOW - 2 * HOUR })],
+        }),
+        NOW,
+      ),
+    ).toBe("24h");
   });
 });
 
 describe("the list keeps what did not move", () => {
   const issue = (h: Partial<CauseHistory>, over: Partial<LineIssue> = {}) =>
-    ({ id: "t1", title: "Intro sent twice", ref: "ct-1", where: { text: "Open" }, findings: 2, status: "open", runs: [], history: history(h), ...over }) as unknown as LineIssue;
-  const occ = [{ at: NOW - 2 * DAY, reopened: false }, { at: NOW - DAY, reopened: false }];
+    ({
+      id: "t1",
+      title: "Intro sent twice",
+      ref: "ct-1",
+      where: { text: "Open" },
+      findings: 2,
+      status: "open",
+      runs: [],
+      history: history(h),
+      ...over,
+    }) as unknown as LineIssue;
+  const occ = [
+    { at: NOW - 2 * DAY, reopened: false },
+    { at: NOW - DAY, reopened: false },
+  ];
   test("a row's signature holds across a rebuild and moves with anything the row draws", () => {
     const base = problemRowSig(issue({ occurrences: occ }), "open");
-    expect(problemRowSig(issue({ occurrences: occ.map((o) => ({ ...o })) }), "open")).toBe(base);
-    expect(problemRowSig(issue({ occurrences: [...occ, { at: NOW, reopened: false }] }), "open")).not.toBe(base);
-    expect(problemRowSig(issue({ occurrences: occ }), "regressed")).not.toBe(base);
-    expect(problemRowSig(issue({ occurrences: occ }, { where: { text: "Being fixed" } } as Partial<LineIssue>), "open")).not.toBe(base);
-    expect(problemRowSig(issue({ occurrences: occ, attempts: [attempt({ live: true })] }), "open")).not.toBe(problemRowSig(issue({ occurrences: occ, attempts: [attempt({})] }), "open"));
+    expect(
+      problemRowSig(issue({ occurrences: occ.map((o) => ({ ...o })) }), "open"),
+    ).toBe(base);
+    expect(
+      problemRowSig(
+        issue({ occurrences: [...occ, { at: NOW, reopened: false }] }),
+        "open",
+      ),
+    ).not.toBe(base);
+    expect(problemRowSig(issue({ occurrences: occ }), "regressed")).not.toBe(
+      base,
+    );
+    expect(
+      problemRowSig(
+        issue({ occurrences: occ }, {
+          where: { text: "Being fixed" },
+        } as Partial<LineIssue>),
+        "open",
+      ),
+    ).not.toBe(base);
+    expect(
+      problemRowSig(
+        issue({ occurrences: occ, attempts: [attempt({ live: true })] }),
+        "open",
+      ),
+    ).not.toBe(
+      problemRowSig(
+        issue({ occurrences: occ, attempts: [attempt({})] }),
+        "open",
+      ),
+    );
     // An occurrence that came back after a fix draws red: the same times, another signature.
-    const regs = [{ afterRunId: "r1", at: NOW - DAY, count: 1, basis: "ship" as const, liveAt: NOW - 1.5 * DAY, until: null, words: "" }];
-    expect(problemRowSig(issue({ occurrences: occ, regressions: regs }), "open")).not.toBe(base);
+    const regs = [
+      {
+        afterRunId: "r1",
+        at: NOW - DAY,
+        count: 1,
+        basis: "ship" as const,
+        liveAt: NOW - 1.5 * DAY,
+        until: null,
+        words: "",
+      },
+    ];
+    expect(
+      problemRowSig(issue({ occurrences: occ, regressions: regs }), "open"),
+    ).not.toBe(base);
   });
 });

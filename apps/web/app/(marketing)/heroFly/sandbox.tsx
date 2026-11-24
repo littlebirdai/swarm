@@ -50,7 +50,12 @@
  * render in here; sandbox.guard.test.tsx proves the isolation.
  */
 
-import { useRef, type FocusEvent, type ReactNode, type SyntheticEvent } from "react";
+import {
+  useRef,
+  type FocusEvent,
+  type ReactNode,
+  type SyntheticEvent,
+} from "react";
 import { ConvexProvider } from "convex/react";
 import { MemoryRouter, UNSAFE_LocationContext } from "react-router";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -73,10 +78,16 @@ import { heroConvexStub } from "./convexStub";
 import { HERO_ENTITIES } from "./fixtures";
 
 const noop = () => {};
-const HERO_THEME = { theme: "light" as const, toggleTheme: noop, visualStyle: "classic" as const, setVisualStyle: noop };
+const HERO_THEME = {
+  theme: "light" as const,
+  toggleTheme: noop,
+  visualStyle: "classic" as const,
+  setVisualStyle: noop,
+};
 
 /** A message's corner toolbar: its actions write the clipboard, raise toasts and open the store's palette. */
-const INERT = "[data-cc-assistant-message-toolbar],[data-cc-user-message-toolbar]";
+const INERT =
+  "[data-cc-assistant-message-toolbar],[data-cc-user-message-toolbar]";
 
 /**
  * Links never navigate, and their own handlers never run, live or not: a
@@ -84,14 +95,16 @@ const INERT = "[data-cc-assistant-message-toolbar],[data-cc-user-message-toolbar
  * their stage, lib/stage). Anything else outside a `data-hero-live` element
  * never reaches the real handler under it.
  */
-const linkOf = (target: EventTarget | null) => (target instanceof Element ? target.closest("a[href]") : null);
+const linkOf = (target: EventTarget | null) =>
+  target instanceof Element ? target.closest("a[href]") : null;
 
 function cancelNav(e: SyntheticEvent) {
   const target = e.target;
   if (!(target instanceof Element)) return;
   const link = linkOf(target);
   if (link) e.preventDefault();
-  if (link || !target.closest("[data-hero-live]") || target.closest(INERT)) e.stopPropagation();
+  if (link || !target.closest("[data-hero-live]") || target.closest(INERT))
+    e.stopPropagation();
 }
 
 /** Whatever a live view did with the event, it goes no further than the hero. */
@@ -106,16 +119,21 @@ const cancel = (e: SyntheticEvent) => {
 const prevent = (e: SyntheticEvent) => e.preventDefault();
 
 /** Everything a Tab key could land on. */
-const FOCUSABLE = "a[href],button,input,textarea,select,iframe,summary,[tabindex],[contenteditable=''],[contenteditable=true]";
+const FOCUSABLE =
+  "a[href],button,input,textarea,select,iframe,summary,[tabindex],[contenteditable=''],[contenteditable=true]";
 
 /** Out of the tab order: the element and every focusable under it. */
 function untab(root: Element) {
-  const all = root.matches(FOCUSABLE) ? [root, ...root.querySelectorAll(FOCUSABLE)] : root.querySelectorAll(FOCUSABLE);
-  for (const el of all) if (el.getAttribute("tabindex") !== "-1") el.setAttribute("tabindex", "-1");
+  const all = root.matches(FOCUSABLE)
+    ? [root, ...root.querySelectorAll(FOCUSABLE)]
+    : root.querySelectorAll(FOCUSABLE);
+  for (const el of all)
+    if (el.getAttribute("tabindex") !== "-1") el.setAttribute("tabindex", "-1");
 }
 
 /** What keeps focus inside a live element: somewhere to type. */
-const TEXT_FIELD = "textarea,[contenteditable=''],[contenteditable=true],input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=image])";
+const TEXT_FIELD =
+  "textarea,[contenteditable=''],[contenteditable=true],input:not([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range],[type=color],[type=file],[type=image])";
 
 /**
  * Focus is let go at once unless it lands in a live text field: a pressed
@@ -125,7 +143,11 @@ const TEXT_FIELD = "textarea,[contenteditable=''],[contenteditable=true],input:n
  */
 function releaseFocus(e: FocusEvent) {
   const target = e.target;
-  if (target instanceof HTMLElement && !(target.closest("[data-hero-live]") && target.matches(TEXT_FIELD))) target.blur();
+  if (
+    target instanceof HTMLElement &&
+    !(target.closest("[data-hero-live]") && target.matches(TEXT_FIELD))
+  )
+    target.blur();
 }
 
 const NO_FEATURES = {};
@@ -143,7 +165,17 @@ function HeroRouter({ children }: { children: ReactNode }) {
   );
 }
 
-export function HeroSandbox({ children, fallback = null, className, now = null }: { children: ReactNode; fallback?: ReactNode; className?: string; now?: number | null }) {
+export function HeroSandbox({
+  children,
+  fallback = null,
+  className,
+  now = null,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+  className?: string;
+  now?: number | null;
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
   // Views mount and re-render as the film moves, so every element that arrives (or gets a tabindex back) leaves the tab order as it does.
   useWatchEffect(() => {
@@ -157,7 +189,12 @@ export function HeroSandbox({ children, fallback = null, className, now = null }
         } else for (const n of r.addedNodes) if (n instanceof Element) untab(n);
       }
     });
-    mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["tabindex", "href"] });
+    mo.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["tabindex", "href"],
+    });
     // Under React's own handlers, a native one: a link React no longer owns, or one rendered by code outside React, still never navigates.
     const keepLinks = (e: Event) => {
       if (linkOf(e.target)) e.preventDefault();
@@ -175,61 +212,63 @@ export function HeroSandbox({ children, fallback = null, className, now = null }
       <ConvexProvider client={heroConvexStub}>
         <ThemeContext.Provider value={HERO_THEME}>
           <IdentityPrefsOverride.Provider value={DEFAULT_IDENTITY_PREFS}>
-          <RoleRowsOverride.Provider value={null}>
-          <AgentTabOverride.Provider value={false}>
-          <CommentToolsOverride.Provider value={false}>
-          <TeamFeatureOverride.Provider value={NO_FEATURES}>
-            <EntityFixtureContext.Provider value={HERO_ENTITIES}>
-              <RevealInBandCtx.Provider value={true}>
-              <HoverCardsOff.Provider value={true}>
-              <LabelColorsReadOnly.Provider value={true}>
-              <RelativeTimeNow.Provider value={now}>
-              <TaskActiveSessionsOverride.Provider value={NO_ACTIVE_SESSIONS}>
-              <FeedTriageOff.Provider value={true}>
-                <HeroRouter>
-                  <div
-                    ref={rootRef}
-                    className={`hero-sandbox${className ? ` ${className}` : ""}`}
-                    data-hero-sandbox=""
-                    onFocusCapture={releaseFocus}
-                    onClickCapture={cancelNav}
-                    onAuxClickCapture={cancelNav}
-                    onDoubleClickCapture={cancelNav}
-                    onPointerDownCapture={cancelNav}
-                    onMouseDownCapture={cancelNav}
-                    onPointerUpCapture={cancelNav}
-                    onMouseUpCapture={cancelNav}
-                    onKeyDownCapture={cancelNav}
-                    onKeyUpCapture={cancelNav}
-                    onClick={contain}
-                    onAuxClick={contain}
-                    onDoubleClick={contain}
-                    onPointerDown={contain}
-                    onMouseDown={contain}
-                    onPointerUp={contain}
-                    onMouseUp={contain}
-                    onKeyDown={contain}
-                    onKeyUp={contain}
-                    onSubmitCapture={prevent}
-                    onDragStartCapture={prevent}
-                    onDropCapture={prevent}
-                    onContextMenuCapture={cancel}
-                  >
-                    <style>{HERO_CSS}</style>
-                    {children}
-                  </div>
-                </HeroRouter>
-              </FeedTriageOff.Provider>
-              </TaskActiveSessionsOverride.Provider>
-              </RelativeTimeNow.Provider>
-              </LabelColorsReadOnly.Provider>
-              </HoverCardsOff.Provider>
-              </RevealInBandCtx.Provider>
-            </EntityFixtureContext.Provider>
-          </TeamFeatureOverride.Provider>
-          </CommentToolsOverride.Provider>
-          </AgentTabOverride.Provider>
-          </RoleRowsOverride.Provider>
+            <RoleRowsOverride.Provider value={null}>
+              <AgentTabOverride.Provider value={false}>
+                <CommentToolsOverride.Provider value={false}>
+                  <TeamFeatureOverride.Provider value={NO_FEATURES}>
+                    <EntityFixtureContext.Provider value={HERO_ENTITIES}>
+                      <RevealInBandCtx.Provider value={true}>
+                        <HoverCardsOff.Provider value={true}>
+                          <LabelColorsReadOnly.Provider value={true}>
+                            <RelativeTimeNow.Provider value={now}>
+                              <TaskActiveSessionsOverride.Provider
+                                value={NO_ACTIVE_SESSIONS}
+                              >
+                                <FeedTriageOff.Provider value={true}>
+                                  <HeroRouter>
+                                    <div
+                                      ref={rootRef}
+                                      className={`hero-sandbox${className ? ` ${className}` : ""}`}
+                                      data-hero-sandbox=""
+                                      onFocusCapture={releaseFocus}
+                                      onClickCapture={cancelNav}
+                                      onAuxClickCapture={cancelNav}
+                                      onDoubleClickCapture={cancelNav}
+                                      onPointerDownCapture={cancelNav}
+                                      onMouseDownCapture={cancelNav}
+                                      onPointerUpCapture={cancelNav}
+                                      onMouseUpCapture={cancelNav}
+                                      onKeyDownCapture={cancelNav}
+                                      onKeyUpCapture={cancelNav}
+                                      onClick={contain}
+                                      onAuxClick={contain}
+                                      onDoubleClick={contain}
+                                      onPointerDown={contain}
+                                      onMouseDown={contain}
+                                      onPointerUp={contain}
+                                      onMouseUp={contain}
+                                      onKeyDown={contain}
+                                      onKeyUp={contain}
+                                      onSubmitCapture={prevent}
+                                      onDragStartCapture={prevent}
+                                      onDropCapture={prevent}
+                                      onContextMenuCapture={cancel}
+                                    >
+                                      <style>{HERO_CSS}</style>
+                                      {children}
+                                    </div>
+                                  </HeroRouter>
+                                </FeedTriageOff.Provider>
+                              </TaskActiveSessionsOverride.Provider>
+                            </RelativeTimeNow.Provider>
+                          </LabelColorsReadOnly.Provider>
+                        </HoverCardsOff.Provider>
+                      </RevealInBandCtx.Provider>
+                    </EntityFixtureContext.Provider>
+                  </TeamFeatureOverride.Provider>
+                </CommentToolsOverride.Provider>
+              </AgentTabOverride.Provider>
+            </RoleRowsOverride.Provider>
           </IdentityPrefsOverride.Provider>
         </ThemeContext.Provider>
       </ConvexProvider>
@@ -238,7 +277,13 @@ export function HeroSandbox({ children, fallback = null, className, now = null }
 }
 
 /** Around each part: a broken or still-loading part leaves its region empty instead of taking the film down. */
-export function HeroPartBoundary({ name, children }: { name: string; children: ReactNode }) {
+export function HeroPartBoundary({
+  name,
+  children,
+}: {
+  name: string;
+  children: ReactNode;
+}) {
   return (
     <ErrorBoundary name={`HeroFlythrough:${name}`} fallback={null} silent>
       {children}

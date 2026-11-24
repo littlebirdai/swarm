@@ -13,7 +13,11 @@
 
 import { useState, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
-import { CLOUD_AGENT_PROVIDERS, getProviderKeySpec, type CloudAgentProviderId } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_PROVIDERS,
+  getProviderKeySpec,
+  type CloudAgentProviderId,
+} from "@codecast/shared/contracts";
 import { useVerifiedKeySubmit } from "../../lib/useProviderKeyCommand";
 import { Spinner, Step } from "../MintTokenDialog";
 import { Button } from "../ui/button";
@@ -37,32 +41,83 @@ interface KeySetupCopy {
 const em = (t: string) => <span className="text-sol-text">{t}</span>;
 
 /** A provider whose credential is a Provider Keys entry (its spec names a keyProvider); its copy is in KEY_SETUP. */
-export type KeyProviderId = { [K in CloudAgentProviderId]: (typeof CLOUD_AGENT_PROVIDERS)[K] extends { keyProvider: string } ? K : never }[CloudAgentProviderId];
+export type KeyProviderId = {
+  [K in CloudAgentProviderId]: (typeof CLOUD_AGENT_PROVIDERS)[K] extends {
+    keyProvider: string;
+  }
+    ? K
+    : never;
+}[CloudAgentProviderId];
 
 const KEY_SETUP: Record<KeyProviderId, KeySetupCopy> = {
   cursor: {
-    description: (machine) => <>Cursor Cloud sessions run on Cursor's machines against your GitHub repos. Codecast drives them from {machine} with a Cursor API key.</>,
+    description: (machine) => (
+      <>
+        Cursor Cloud sessions run on Cursor's machines against your GitHub
+        repos. Codecast drives them from {machine} with a Cursor API key.
+      </>
+    ),
     open: "Open Cursor's API keys page, signed in to the Cursor account the agents should run on.",
-    create: <>Under {em("User API Keys")} press {em("Add")}, name it {em("codecast")}, press {em("Save")}, and copy the key. Cursor shows it once.</>,
-    footer: "Agents only reach repos Cursor's GitHub app can see. Connect it under",
+    create: (
+      <>
+        Under {em("User API Keys")} press {em("Add")}, name it {em("codecast")},
+        press {em("Save")}, and copy the key. Cursor shows it once.
+      </>
+    ),
+    footer:
+      "Agents only reach repos Cursor's GitHub app can see. Connect it under",
   },
   codex_api: {
-    description: (machine) => <>Codex sessions on the OpenAI Agents API run on OpenAI's machines. Codecast drives them from {machine} with an OpenAI API key, which other tools on that machine that use one (opencode, pi) use too.</>,
+    description: (machine) => (
+      <>
+        Codex sessions on the OpenAI Agents API run on OpenAI's machines.
+        Codecast drives them from {machine} with an OpenAI API key, which other
+        tools on that machine that use one (opencode, pi) use too.
+      </>
+    ),
     open: "Open OpenAI's API keys page, in the organization and project the sessions should bill to.",
-    create: <>Press {em("Create new secret key")}, name it {em("codecast")}, and give it {em("All")} permissions (or, restricted: {em("Agents")} read and write, and {em("Responses")} write). Copy the key; OpenAI shows it once.</>,
+    create: (
+      <>
+        Press {em("Create new secret key")}, name it {em("codecast")}, and give
+        it {em("All")} permissions (or, restricted: {em("Agents")} read and
+        write, and {em("Responses")} write). Copy the key; OpenAI shows it once.
+      </>
+    ),
     footer: `${CLOUD_AGENT_PROVIDERS.codex_api.lane.detail} See`,
   },
 };
 
 /** The guided key dialog for one such provider. */
-export function ConnectKeyDialog({ provider, onClose, deviceId }: { provider: KeyProviderId; onClose: () => void; deviceId?: string | null }) {
+export function ConnectKeyDialog({
+  provider,
+  onClose,
+  deviceId,
+}: {
+  provider: KeyProviderId;
+  onClose: () => void;
+  deviceId?: string | null;
+}) {
   const spec = CLOUD_AGENT_PROVIDERS[provider];
   const copy = KEY_SETUP[provider];
   const keySpec = getProviderKeySpec(spec.keyProvider)!;
   const vendor = spec.vendor;
   const aKey = `${/^[aeiou]/i.test(vendor) ? "an" : "a"} ${vendor} key`;
-  const { device, connected, machine, pubkey } = usePinnedCloudAgentMachine(deviceId, useCloudAgentConnected(spec));
-  const { key, setKey, looksRight, submit, sent, checking, done, account, detail, failed } = useVerifiedKeySubmit(keySpec.id, device, pubkey);
+  const { device, connected, machine, pubkey } = usePinnedCloudAgentMachine(
+    deviceId,
+    useCloudAgentConnected(spec),
+  );
+  const {
+    key,
+    setKey,
+    looksRight,
+    submit,
+    sent,
+    checking,
+    done,
+    account,
+    detail,
+    failed,
+  } = useVerifiedKeySubmit(keySpec.id, device, pubkey);
   const [opened, setOpened] = useState(false);
   const trimmed = key.trim();
   const page = new URL(keySpec.consoleUrl);
@@ -73,7 +128,8 @@ export function ConnectKeyDialog({ provider, onClose, deviceId }: { provider: Ke
   };
 
   const step1 = opened || trimmed || sent ? "done" : "active";
-  const step2 = sent && !failed ? "done" : opened || trimmed ? "active" : "todo";
+  const step2 =
+    sent && !failed ? "done" : opened || trimmed ? "active" : "todo";
   const step3 = done ? "done" : checking || failed ? "active" : "todo";
 
   return (
@@ -95,14 +151,31 @@ export function ConnectKeyDialog({ provider, onClose, deviceId }: { provider: Ke
         <Step n={1} state={step1}>
           {copy.open}
           <span className="mt-1.5 block">
-            <Button type="button" size="sm" variant="outline" onClick={openConsole} className="h-7 gap-1.5 px-2.5 text-meta">
-              Open <span className="modern:font-mono">{page.host}{page.pathname}</span> <ExternalLink className="h-3 w-3" aria-hidden />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={openConsole}
+              className="h-7 gap-1.5 px-2.5 text-meta"
+            >
+              Open{" "}
+              <span className="modern:font-mono">
+                {page.host}
+                {page.pathname}
+              </span>{" "}
+              <ExternalLink className="h-3 w-3" aria-hidden />
             </Button>
           </span>
         </Step>
         <Step n={2} state={step2}>
           {copy.create}
-          <form className="mt-1.5 flex gap-2" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+          <form
+            className="mt-1.5 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
             <Input
               aria-label={`${keySpec.label} API key`}
               type="password"
@@ -113,33 +186,53 @@ export function ConnectKeyDialog({ provider, onClose, deviceId }: { provider: Ke
               placeholder={`${keySpec.keyPrefix ?? ""}…`}
               className="h-8 font-mono"
             />
-            <Button type="submit" size="sm" disabled={!looksRight || checking} className="h-8">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!looksRight || checking}
+              className="h-8"
+            >
               {checking ? "Checking…" : "Connect"}
             </Button>
           </form>
           {trimmed && !looksRight && keySpec.keyPrefix && (
-            <span className="mt-1 block text-meta text-amber-500">{aKey[0].toUpperCase()}{aKey.slice(1)} starts with {keySpec.keyPrefix}.</span>
+            <span className="mt-1 block text-meta text-amber-500">
+              {aKey[0].toUpperCase()}
+              {aKey.slice(1)} starts with {keySpec.keyPrefix}.
+            </span>
           )}
         </Step>
         <Step n={3} state={step3}>
-          Codecast checks the key with {vendor} on {machine} and keeps it there. It crosses codecast's servers only sealed to that machine.
-          {checking && <Spinner label={`checking with ${vendor}`} className="mt-1" />}
+          Codecast checks the key with {vendor} on {machine} and keeps it there.
+          It crosses codecast's servers only sealed to that machine.
+          {checking && (
+            <Spinner label={`checking with ${vendor}`} className="mt-1" />
+          )}
         </Step>
       </ol>
 
       {failed && (
-        <p className="rounded-md border border-sol-red/30 bg-sol-red/10 p-2.5 text-sol-red">{failed}</p>
+        <p className="rounded-md border border-sol-red/30 bg-sol-red/10 p-2.5 text-sol-red">
+          {failed}
+        </p>
       )}
       {done && (
         <p className="rounded-md border border-sol-green/30 bg-sol-green/10 p-2.5 text-sol-green">
-          Connected{account ? ` as ${account}` : ""}. Sessions you start on {spec.label} now run from {machine}.
+          Connected{account ? ` as ${account}` : ""}. Sessions you start on{" "}
+          {spec.label} now run from {machine}.
         </p>
       )}
       {done && <CloudAgentConnectedSync spec={spec} onNavigate={onClose} />}
       {done && detail && (
-        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-amber-500">{detail}</p>
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-amber-500">
+          {detail}
+        </p>
       )}
-      <p className="text-meta text-sol-text-dim">{copy.footer} <CloudAgentRepoAccessLink spec={spec} className="hover:text-sol-text" />.</p>
+      <p className="text-meta text-sol-text-dim">
+        {copy.footer}{" "}
+        <CloudAgentRepoAccessLink spec={spec} className="hover:text-sol-text" />
+        .
+      </p>
     </CloudConnectDialog>
   );
 }

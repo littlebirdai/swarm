@@ -14,4 +14,5 @@ export function shortUrl(url: string | undefined): string | null {
   }
 }
 
-export const sampleWho = (x: Pick<OpsSample, "user">) => x.user?.email ?? x.user?.name ?? x.user?.id ?? null;
+export const sampleWho = (x: Pick<OpsSample, "user">) =>
+  x.user?.email ?? x.user?.name ?? x.user?.id ?? null;

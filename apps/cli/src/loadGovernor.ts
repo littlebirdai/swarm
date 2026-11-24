@@ -114,20 +114,34 @@ export class LoadGovernor {
     // Stepping down waits out a quiet spell, and "over" lasts while anything is confined; stepping up to busy is immediate.
     const rank = { calm: 0, busy: 1, over: 2 } as const;
     if (rank[target] < rank[this.level]) {
-      if (high || (this.level === "over" && this.caged.size > 0)) { this.quietSince = null; return this.level; }
+      if (high || (this.level === "over" && this.caged.size > 0)) {
+        this.quietSince = null;
+        return this.level;
+      }
       this.quietSince ??= s.at;
-      if (s.at - this.quietSince >= RELEASE_HOLD_MS) return this.set(target, s.at);
+      if (s.at - this.quietSince >= RELEASE_HOLD_MS)
+        return this.set(target, s.at);
       return this.level;
     }
     this.quietSince = null;
-    return rank[target] > rank[this.level] ? this.set(target, s.at) : this.level;
+    return rank[target] > rank[this.level]
+      ? this.set(target, s.at)
+      : this.level;
   }
 
   /** Confines the heaviest sessions while the CPUs are pinned, and lets the lightest out while they have room. */
-  private steer(s: LoadSample, candidates: readonly CageCandidate[], deep: boolean, held: boolean): void {
+  private steer(
+    s: LoadSample,
+    candidates: readonly CageCandidate[],
+    deep: boolean,
+    held: boolean,
+  ): void {
     const unattended = new Set(candidates.map((c) => c.id));
-    for (const id of this.caged.keys()) if (!unattended.has(id)) this.caged.delete(id);
-    const free = candidates.filter((c) => !this.caged.has(c.id)).sort((a, b) => b.cpu - a.cpu);
+    for (const id of this.caged.keys())
+      if (!unattended.has(id)) this.caged.delete(id);
+    const free = candidates
+      .filter((c) => !this.caged.has(c.id))
+      .sort((a, b) => b.cpu - a.cpu);
     this.roomSince = s.busy < TARGET_BUSY ? (this.roomSince ?? s.at) : null;
     if (deep) {
       for (const c of free) this.caged.set(c.id, c.cpu);
@@ -145,7 +159,12 @@ export class LoadGovernor {
       this.highSince = s.at;
       return;
     }
-    if (this.roomSince === null || this.caged.size === 0 || s.at - this.roomSince < RELEASE_STEP_MS) return;
+    if (
+      this.roomSince === null ||
+      this.caged.size === 0 ||
+      s.at - this.roomSince < RELEASE_STEP_MS
+    )
+      return;
     // Lightest first while they fit the room, by the CPU they used before they were confined.
     const room = (TARGET_BUSY - s.busy) * this.cores * 100;
     let used = 0;
@@ -208,14 +227,20 @@ export const governor = new LoadGovernor();
 let prev: CpuTimes | null = null;
 
 /** Takes one sample and feeds it in; returns the level before and after. */
-export function sampleLoad(candidates: readonly CageCandidate[], now = Date.now()): { before: LoadLevel; after: LoadLevel } {
+export function sampleLoad(
+  candidates: readonly CageCandidate[],
+  now = Date.now(),
+): { before: LoadLevel; after: LoadLevel } {
   const before = governor.level;
   const cur = readCpuTimes();
   const busy = prev ? busyBetween(prev, cur) : undefined;
   prev = cur;
   if (busy === undefined) return { before, after: before };
   const cpus = os.cpus().length || 1;
-  const after = governor.observe({ at: now, busy, loadPerCore: os.loadavg()[0] / cpus }, candidates);
+  const after = governor.observe(
+    { at: now, busy, loadPerCore: os.loadavg()[0] / cpus },
+    candidates,
+  );
   return { before, after };
 }
 
@@ -247,13 +272,27 @@ export const governorStateFile = () => codecastPath("load-governor.json");
 
 let lastWritten = "";
 let lastWrittenAt = 0;
-export function writeGovernorState(unattended: readonly string[], now = Date.now()): void {
-  const body = JSON.stringify({ level: governor.level, unattended: [...unattended].sort() });
+export function writeGovernorState(
+  unattended: readonly string[],
+  now = Date.now(),
+): void {
+  const body = JSON.stringify({
+    level: governor.level,
+    unattended: [...unattended].sort(),
+  });
   // Rewritten on a change, and every half of the stale window so readers can trust it.
-  if (body === lastWritten && now - lastWrittenAt < GOVERNOR_STATE_STALE_MS / 2) return;
+  if (body === lastWritten && now - lastWrittenAt < GOVERNOR_STATE_STALE_MS / 2)
+    return;
   const tmp = `${governorStateFile()}.${process.pid}.tmp`;
   try {
-    fs.writeFileSync(tmp, JSON.stringify({ at: now, level: governor.level, unattended: [...unattended].sort() } satisfies GovernorState));
+    fs.writeFileSync(
+      tmp,
+      JSON.stringify({
+        at: now,
+        level: governor.level,
+        unattended: [...unattended].sort(),
+      } satisfies GovernorState),
+    );
     fs.renameSync(tmp, governorStateFile());
     lastWritten = body;
     lastWrittenAt = now;
@@ -262,7 +301,9 @@ export function writeGovernorState(unattended: readonly string[], now = Date.now
 
 export function readGovernorState(): GovernorState | null {
   try {
-    return JSON.parse(fs.readFileSync(governorStateFile(), "utf8")) as GovernorState;
+    return JSON.parse(
+      fs.readFileSync(governorStateFile(), "utf8"),
+    ) as GovernorState;
   } catch {
     return null;
   }
@@ -285,12 +326,18 @@ export function cloudFirstReason(input: {
   state: GovernorState | null;
   now?: number;
 }): string | null {
-  if (input.machineChosen || input.sharesSpawnerCheckout || input.mergesBack) return null;
+  if (input.machineChosen || input.sharesSpawnerCheckout || input.mergesBack)
+    return null;
   const state = input.state;
-  const spawnerUnattended = !!input.spawnerSession && !!state?.unattended.includes(input.spawnerSession);
+  const spawnerUnattended =
+    !!input.spawnerSession &&
+    !!state?.unattended.includes(input.spawnerSession);
   if (!input.unattendedFlag && !spawnerUnattended) return null;
-  const fresh = !!state && (input.now ?? Date.now()) - state.at < GOVERNOR_STATE_STALE_MS;
+  const fresh =
+    !!state && (input.now ?? Date.now()) - state.at < GOVERNOR_STATE_STALE_MS;
   if (fresh && state!.level === "calm") return null;
-  const who = input.unattendedFlag ? "an unattended run" : "started by an unattended session";
+  const who = input.unattendedFlag
+    ? "an unattended run"
+    : "started by an unattended session";
   return `${who}, and this machine is ${fresh ? state!.level : "of unknown load"}`;
 }

@@ -1,7 +1,10 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
-import { MID_WORK_REVIVE_MESSAGE, MOVE_INTERRUPT_MESSAGE } from "@codecast/shared/contracts";
+import {
+  MID_WORK_REVIVE_MESSAGE,
+  MOVE_INTERRUPT_MESSAGE,
+} from "@codecast/shared/contracts";
 
 const convexReact = await import("convex/react");
 mock.module("convex/react", () => ({
@@ -19,7 +22,14 @@ const { ReviveDivider } = await import("../conversation/blocks/systemBlocks");
 // the account-recovery pill or the whole paragraph.
 describe("revive divider", () => {
   test("a one-line rule with the note collapsed", () => {
-    const html = renderToStaticMarkup(<MemoryRouter><ReviveDivider content={MID_WORK_REVIVE_MESSAGE} timestamp={1_790_000_000_000} /></MemoryRouter>);
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ReviveDivider
+          content={MID_WORK_REVIVE_MESSAGE}
+          timestamp={1_790_000_000_000}
+        />
+      </MemoryRouter>,
+    );
     expect(html).toContain('data-switch-divider="mid-work-revive"');
     expect(html).toContain("restarted after the agent process exited");
     expect(html).not.toContain("Pick up where you left off");
@@ -27,7 +37,15 @@ describe("revive divider", () => {
   });
 
   test("a move that cut a turn names the move, not account recovery", () => {
-    const html = renderToStaticMarkup(<MemoryRouter><ReviveDivider content={MOVE_INTERRUPT_MESSAGE} timestamp={1_790_000_000_000} cause="move" /></MemoryRouter>);
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <ReviveDivider
+          content={MOVE_INTERRUPT_MESSAGE}
+          timestamp={1_790_000_000_000}
+          cause="move"
+        />
+      </MemoryRouter>,
+    );
     expect(html).toContain('data-switch-divider="move-interrupt"');
     expect(html).toContain("machine move");
     expect(html).not.toContain("Pick up where you left off");

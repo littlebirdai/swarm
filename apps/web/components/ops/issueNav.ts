@@ -31,7 +31,11 @@ export function issueListFocus(): string | null {
 }
 
 /** The issue `step` places from `id` in the remembered order (or the fallback), or null at either end. */
-export function issueStep(id: string, step: 1 | -1, fallback: string[]): string | null {
+export function issueStep(
+  id: string,
+  step: 1 | -1,
+  fallback: string[],
+): string | null {
   const list = order.includes(id) ? order : fallback;
   const i = list.indexOf(id);
   if (i < 0) return list[0] ?? null;
@@ -41,14 +45,20 @@ export function issueStep(id: string, step: 1 | -1, fallback: string[]): string 
 /** Where an issue was opened from: the home's list (when it holds this issue) or the Issues tab, with its filters. */
 export function issueOrigin(id?: string): { label: string; href: string } {
   const back = issueListBack();
-  const fromHome = !!back && (back === OPS_HOME || back.startsWith(`${OPS_HOME}?`));
-  if (fromHome && (!id || issueListOrder().includes(id))) return { label: "Overview", href: back! };
+  const fromHome =
+    !!back && (back === OPS_HOME || back.startsWith(`${OPS_HOME}?`));
+  if (fromHome && (!id || issueListOrder().includes(id)))
+    return { label: "Overview", href: back! };
   if (fromHome) return { label: "Issues", href: opsHref.tab("issues") };
   return { label: "Issues", href: back ?? opsHref.tab("issues") };
 }
 
 /** The Issues list searched for a metric part's message (its type prefix dropped), over every status: where an unnamed cause is looked up. */
 export function causeSearchHref(key: string): string {
-  const message = key.replace(/^[^:]{1,60}:\s*/, "").trim().slice(0, 80) || key.slice(0, 80);
+  const message =
+    key
+      .replace(/^[^:]{1,60}:\s*/, "")
+      .trim()
+      .slice(0, 80) || key.slice(0, 80);
   return `${opsHref.tab("issues")}?${new URLSearchParams({ status: "all", lane: "all", q: message }).toString()}`;
 }

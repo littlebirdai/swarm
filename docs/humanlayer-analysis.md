@@ -10,16 +10,16 @@ That is codecast's product description too. The overlap is close enough that mos
 
 The codebase is about 650k lines of TypeScript in a Bun and Turborepo monorepo:
 
-| Part | What it is | Size |
-|---|---|---|
-| `riptide-ui` | The app: React, TanStack Router, TanStack DB | 187k lines |
-| `riptide-api` | oRPC + Hono API on Postgres via Drizzle | 141k lines |
-| `riptide-daemon` | Runs agent sessions on a host, Effect v4 | 85k lines |
-| `packages/ui` | Shared components, artifact viewer, diff review | 68k lines |
-| `riptide-cloud` | Org admin, billing, metrics dashboards | 28k lines |
-| `riptide-electric-proxy` | Auth proxy in front of Electric SQL | 14k lines |
-| `riptide-electron`, `riptide-native` | Desktop shells (moving from Tauri to Electron) | 19k lines |
-| Plugins | Mirror Claude Code, OpenCode and Pi sessions; RPI skills | 18k lines |
+| Part                                 | What it is                                               | Size       |
+| ------------------------------------ | -------------------------------------------------------- | ---------- |
+| `riptide-ui`                         | The app: React, TanStack Router, TanStack DB             | 187k lines |
+| `riptide-api`                        | oRPC + Hono API on Postgres via Drizzle                  | 141k lines |
+| `riptide-daemon`                     | Runs agent sessions on a host, Effect v4                 | 85k lines  |
+| `packages/ui`                        | Shared components, artifact viewer, diff review          | 68k lines  |
+| `riptide-cloud`                      | Org admin, billing, metrics dashboards                   | 28k lines  |
+| `riptide-electric-proxy`             | Auth proxy in front of Electric SQL                      | 14k lines  |
+| `riptide-electron`, `riptide-native` | Desktop shells (moving from Tauri to Electron)           | 19k lines  |
+| Plugins                              | Mirror Claude Code, OpenCode and Pi sessions; RPI skills | 18k lines  |
 
 ## The choice that explains most differences
 
@@ -38,20 +38,20 @@ Neither is wrong. The useful question is which of HumanLayer's typed control poi
 
 ## Side by side
 
-| | HumanLayer | codecast |
-|---|---|---|
-| Source of truth | Postgres | Convex |
-| Client sync | Electric SQL shapes into in-memory TanStack DB | Convex queries feeding a local-first store persisted in IndexedDB, plus a per-scope sync log |
-| Write confirmation | Mutation returns a Postgres txid; client awaits it in the collection, 10 s, then rolls back | Durable outbox, field locks retired by value echo or sync-log position |
-| Daemon commands | The session `status` column (`resuming`, `interrupt_requested`) | `daemon_commands` rows with device targeting, TTL and a per-process lease |
-| Privacy | Browser shapes are org-wide; every member's client receives every session row and the UI filters | Per-row access stamps evaluated at read time; a row can be routed to a team and readable only by its owner |
-| Agents launched | Claude (SDK), two in-house loops | Eight real CLIs |
-| Usage limits | Session waits for the window to reset | Multiple accounts, switch to the one with most headroom, switch ahead at 95%, resume at reset |
-| Workflow | Research, Plan, Implement as phases; kanban columns from session labels | Tasks, plans, DOT workflows, flows (Check, Review, Decide, Ship), decisions queue |
-| Review | One polished loop: comment on documents and diffs, send to the agent as one message | Several separate models (quote batch, conversation comments, code line threads, review notes, page comments) |
-| Phone | Responsive web | Native Expo app |
-| Desktop daemon | Bundled in the app, exits when the app quits | Independent under launchd/systemd with a watchdog; survives the app |
-| Billing | Free to 3 members, then per seat (Stripe, WorkOS seat sync) | Hosted assistant wallet only; team product free |
+|                    | HumanLayer                                                                                       | codecast                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Source of truth    | Postgres                                                                                         | Convex                                                                                                       |
+| Client sync        | Electric SQL shapes into in-memory TanStack DB                                                   | Convex queries feeding a local-first store persisted in IndexedDB, plus a per-scope sync log                 |
+| Write confirmation | Mutation returns a Postgres txid; client awaits it in the collection, 10 s, then rolls back      | Durable outbox, field locks retired by value echo or sync-log position                                       |
+| Daemon commands    | The session `status` column (`resuming`, `interrupt_requested`)                                  | `daemon_commands` rows with device targeting, TTL and a per-process lease                                    |
+| Privacy            | Browser shapes are org-wide; every member's client receives every session row and the UI filters | Per-row access stamps evaluated at read time; a row can be routed to a team and readable only by its owner   |
+| Agents launched    | Claude (SDK), two in-house loops                                                                 | Eight real CLIs                                                                                              |
+| Usage limits       | Session waits for the window to reset                                                            | Multiple accounts, switch to the one with most headroom, switch ahead at 95%, resume at reset                |
+| Workflow           | Research, Plan, Implement as phases; kanban columns from session labels                          | Tasks, plans, DOT workflows, flows (Check, Review, Decide, Ship), decisions queue                            |
+| Review             | One polished loop: comment on documents and diffs, send to the agent as one message              | Several separate models (quote batch, conversation comments, code line threads, review notes, page comments) |
+| Phone              | Responsive web                                                                                   | Native Expo app                                                                                              |
+| Desktop daemon     | Bundled in the app, exits when the app quits                                                     | Independent under launchd/systemd with a watchdog; survives the app                                          |
+| Billing            | Free to 3 members, then per seat (Stripe, WorkOS seat sync)                                      | Hosted assistant wallet only; team product free                                                              |
 
 ## Where HumanLayer is ahead
 

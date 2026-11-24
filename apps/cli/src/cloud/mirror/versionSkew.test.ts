@@ -3,9 +3,22 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { applyMirrorBundle, readStamp, verifyMirrorStamp, withMirrorLock, type ApplyResult } from "./apply";
+import {
+  applyMirrorBundle,
+  readStamp,
+  verifyMirrorStamp,
+  withMirrorLock,
+  type ApplyResult,
+} from "./apply";
 import { parseMirrorBundle, sha256 } from "./bundle";
-import { buildHomeMirror, mirrorHomeToHost, resetBuildCache, runMirrorTick, type LocalMirrorStamps, type MirrorDeps } from "./push";
+import {
+  buildHomeMirror,
+  mirrorHomeToHost,
+  resetBuildCache,
+  runMirrorTick,
+  type LocalMirrorStamps,
+  type MirrorDeps,
+} from "./push";
 
 // Version skew between the laptop's mirror and a host's receiver (red-list #11,
 // ct-55711). The laptop runs the mirror from source, so a narrower discovery
@@ -23,12 +36,44 @@ type Receiver = "N" | "N+1";
 type Laptop = "N" | "N+1";
 
 const scratch: string[] = [];
-afterEach(() => { for (const p of scratch.splice(0)) fs.rmSync(p, { force: true, recursive: true }); resetBuildCache(); });
+afterEach(() => {
+  for (const p of scratch.splice(0))
+    fs.rmSync(p, { force: true, recursive: true });
+  resetBuildCache();
+});
 
-const temp = () => { const p = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mirror-skew-"))); scratch.push(p); return p; };
-const write = (root: string, rel: string, text: string) => { const file = path.join(root, rel); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
-const read = (root: string, rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
-const git = (root: string, ...args: string[]) => execFileSync("git", ["-C", root, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], { encoding: "utf8" });
+const temp = () => {
+  const p = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "mirror-skew-")),
+  );
+  scratch.push(p);
+  return p;
+};
+const write = (root: string, rel: string, text: string) => {
+  const file = path.join(root, rel);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, text);
+};
+const read = (root: string, rel: string) =>
+  fs.readFileSync(path.join(root, rel), "utf8");
+const git = (root: string, ...args: string[]) =>
+  execFileSync(
+    "git",
+    [
+      "-C",
+      root,
+      "-c",
+      "user.name=Test",
+      "-c",
+      "user.email=test@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "-c",
+      "core.hooksPath=/dev/null",
+      ...args,
+    ],
+    { encoding: "utf8" },
+  );
 const lines = (out: string) => out.split("\n").filter(Boolean);
 
 const TRACKED: Record<string, string> = {
@@ -45,7 +90,8 @@ function world() {
   const remote = temp();
   const sourceRoot = path.join(local, "src", "app");
   const targetRoot = path.join(remote, "work", "app");
-  for (const [rel, text] of Object.entries(TRACKED)) write(sourceRoot, rel, text);
+  for (const [rel, text] of Object.entries(TRACKED))
+    write(sourceRoot, rel, text);
   execFileSync("git", ["init", "-q", sourceRoot]);
   git(sourceRoot, "add", ".");
   git(sourceRoot, "commit", "-qm", "initial");
@@ -55,7 +101,13 @@ function world() {
   write(sourceRoot, "docs/guide.md", "guide, edited on the laptop\n");
   write(sourceRoot, "docs/plan.md", "a plan in progress\n");
   write(sourceRoot, "docs/notes.local.md", "gitignored notes\n");
-  const host = { address: "skew.invalid", user: "u", keyPath: "/unused", homeDir: remote, remoteBaseDir: path.join(remote, "work") };
+  const host = {
+    address: "skew.invalid",
+    user: "u",
+    keyPath: "/unused",
+    homeDir: remote,
+    remoteBaseDir: path.join(remote, "work"),
+  };
   const projects = [{ host: "u@skew.invalid", sourceRoot, targetRoot }];
   return { local, remote, sourceRoot, targetRoot, host, projects };
 }
@@ -66,17 +118,36 @@ function harness(w: ReturnType<typeof world>) {
   /** Tracked project files a receiver deleted, by its own rule. */
   const deleted: string[] = [];
   /** The project paths each push carried, in order. */
-  const carried: Array<{ laptop: Laptop; receiver: Receiver; paths: string[] }> = [];
+  const carried: Array<{
+    laptop: Laptop;
+    receiver: Receiver;
+    paths: string[];
+  }> = [];
   const projectPrefix = path.posix.relative(w.remote, w.targetRoot) + "/";
-  const tracked = () => new Set(lines(git(w.targetRoot, "ls-files")).map((rel) => projectPrefix + rel));
+  const tracked = () =>
+    new Set(
+      lines(git(w.targetRoot, "ls-files")).map((rel) => projectPrefix + rel),
+    );
   const deps: Partial<MirrorDeps> = {
     listHosts: async () => [w.host],
     readConfig: () => ({ user_id: "u" }),
     readProjects: () => w.projects,
     readLocalStamps: () => structuredClone(stamps),
-    writeLocalStamps: (next) => { stamps = next; },
+    writeLocalStamps: (next) => {
+      stamps = next;
+    },
     // Laptop N has no narrow rule: it carries the wide set whatever the host says.
-    build: (opts) => buildHomeMirror({ ...opts, ...(state.laptop === "N" ? { narrowProjects: false } : {}), home: w.local, deviceId: "d", gitEnv: { GIT_CONFIG_GLOBAL: path.join(w.local, ".gitconfig"), GIT_CONFIG_NOSYSTEM: "1" } }),
+    build: (opts) =>
+      buildHomeMirror({
+        ...opts,
+        ...(state.laptop === "N" ? { narrowProjects: false } : {}),
+        home: w.local,
+        deviceId: "d",
+        gitEnv: {
+          GIT_CONFIG_GLOBAL: path.join(w.local, ".gitconfig"),
+          GIT_CONFIG_NOSYSTEM: "1",
+        },
+      }),
     readStamp: async () => {
       const stamp = verifyMirrorStamp(w.remote);
       if (!stamp || state.receiver === "N+1") return stamp;
@@ -85,19 +156,42 @@ function harness(w: ReturnType<typeof world>) {
     },
     push: async (_host, bytes) => {
       const parsed = await parseMirrorBundle(bytes);
-      carried.push({ laptop: state.laptop, receiver: state.receiver, paths: parsed.files.map((f) => f.path).filter((p) => p.startsWith(projectPrefix)).sort() });
+      carried.push({
+        laptop: state.laptop,
+        receiver: state.receiver,
+        paths: parsed.files
+          .map((f) => f.path)
+          .filter((p) => p.startsWith(projectPrefix))
+          .sort(),
+      });
       const before = readStamp(w.remote);
       const trackedBefore = tracked();
-      const result = await withMirrorLock(w.remote, () => applyMirrorBundle(parsed, { home: w.remote, configUserId: "u", previousStamp: before, refresh: () => {} }));
-      for (const rel of result.pruned) if (trackedBefore.has(rel)) deleted.push(rel);
-      if (state.receiver === "N+1") return { pushed: true, hash: result.hash, result };
+      const result = await withMirrorLock(w.remote, () =>
+        applyMirrorBundle(parsed, {
+          home: w.remote,
+          configUserId: "u",
+          previousStamp: before,
+          refresh: () => {},
+        }),
+      );
+      for (const rel of result.pruned)
+        if (trackedBefore.has(rel)) deleted.push(rel);
+      if (state.receiver === "N+1")
+        return { pushed: true, hash: result.hash, result };
       const { capabilities: _, released = [], ...older } = result;
-      const old: ApplyResult = { ...older, pruned: [...older.pruned], host_edited: [...older.host_edited] };
+      const old: ApplyResult = {
+        ...older,
+        pruned: [...older.pruned],
+        host_edited: [...older.host_edited],
+      };
       for (const rel of released) {
         const info = before?.files[rel];
         const abs = path.join(w.remote, rel);
         if (!info || info.removed || !fs.existsSync(abs)) continue;
-        if (sha256(fs.readFileSync(abs)) !== info.written) { old.host_edited.push(rel); continue; }
+        if (sha256(fs.readFileSync(abs)) !== info.written) {
+          old.host_edited.push(rel);
+          continue;
+        }
         fs.unlinkSync(abs);
         old.pruned.push(rel);
         deleted.push(rel);
@@ -114,20 +208,35 @@ function harness(w: ReturnType<typeof world>) {
     return outcome;
   };
   const inStep = async () => {
-    const tick = await runMirrorTick({ reason: "test", verifyRemote: true }, deps);
+    const tick = await runMirrorTick(
+      { reason: "test", verifyRemote: true },
+      deps,
+    );
     expect(tick.failed).toEqual([]);
     expect(tick.pushed).toEqual([]);
     const stamp = verifyMirrorStamp(w.remote);
     expect(stamp?.complete).toBe(true);
     expect(stamp?.hash).toBe(stamps[`${w.host.user}@${w.host.address}`]!.hash);
     // Only the wide set carries a tracked file; a narrowing host keeps git's copy.
-    if (!stamps[`${w.host.user}@${w.host.address}`]?.keeps_tracked) expect(read(w.targetRoot, "AGENTS.md")).toBe(read(w.sourceRoot, "AGENTS.md"));
+    if (!stamps[`${w.host.user}@${w.host.address}`]?.keeps_tracked)
+      expect(read(w.targetRoot, "AGENTS.md")).toBe(
+        read(w.sourceRoot, "AGENTS.md"),
+      );
   };
   const noTrackedLost = () => {
     expect(deleted).toEqual([]);
     expect(lines(git(w.targetRoot, "ls-files", "--deleted"))).toEqual([]);
   };
-  return { state, carried, deleted, push, inStep, noTrackedLost, keepsTracked: () => !!stamps[`${w.host.user}@${w.host.address}`]?.keeps_tracked };
+  return {
+    state,
+    carried,
+    deleted,
+    push,
+    inStep,
+    noTrackedLost,
+    keepsTracked: () =>
+      !!stamps[`${w.host.user}@${w.host.address}`]?.keeps_tracked,
+  };
 }
 
 test("laptop N+1 and host N: the laptop keeps the wide set, nothing tracked is deleted, and the two converge", async () => {
@@ -140,7 +249,9 @@ test("laptop N+1 and host N: the laptop keeps the wide set, nothing tracked is d
   expect(h.keepsTracked()).toBe(false);
   expect(h.carried[1]!.paths).toEqual(h.carried[0]!.paths);
   h.noTrackedLost();
-  expect(read(w.targetRoot, "docs/guide.md")).toBe("guide, edited on the laptop\n");
+  expect(read(w.targetRoot, "docs/guide.md")).toBe(
+    "guide, edited on the laptop\n",
+  );
   await h.inStep();
 }, 60_000);
 
@@ -152,7 +263,9 @@ test("laptop N and host N+1: the wide set lands, nothing tracked is deleted, and
   await h.push();
   write(w.sourceRoot, "AGENTS.md", "project rules, revised\n");
   await h.push();
-  expect(h.carried.every((c) => c.paths.includes("work/app/docs/guide.md"))).toBe(true);
+  expect(
+    h.carried.every((c) => c.paths.includes("work/app/docs/guide.md")),
+  ).toBe(true);
   h.noTrackedLost();
   await h.inStep();
 }, 60_000);
@@ -173,10 +286,14 @@ test("host upgraded N to N+1 under laptop N+1: the laptop narrows only after the
   write(w.sourceRoot, "AGENTS.md", "project rules, third revision\n");
   // An edit to a tracked file changes nothing the narrow bundle carries.
   await h.inStep();
-  expect(read(w.targetRoot, "AGENTS.md")).not.toBe(read(w.sourceRoot, "AGENTS.md"));
+  expect(read(w.targetRoot, "AGENTS.md")).not.toBe(
+    read(w.sourceRoot, "AGENTS.md"),
+  );
   h.noTrackedLost();
   // Released, not deleted: the laptop's edit stays on the host until the folder sync or a commit moves it.
-  expect(read(w.targetRoot, "docs/guide.md")).toBe("guide, edited on the laptop\n");
+  expect(read(w.targetRoot, "docs/guide.md")).toBe(
+    "guide, edited on the laptop\n",
+  );
   expect(read(w.targetRoot, "README.md")).toBe("readme\n");
   await h.inStep();
   // Laptop rolled back to N: the wide set comes back to a receiver that keeps tracked files; still nothing deleted.

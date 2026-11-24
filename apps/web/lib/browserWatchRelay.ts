@@ -15,7 +15,13 @@ import {
   BROWSER_RELAY_START_TIMEOUT_MS,
   SIM_RELAY_KEY_PREFIX,
 } from "@codecast/shared/contracts";
-import { parseWatchAction, type WatchConnection, type WatchHandlers, type WatchInputEvent, type WatchSource } from "./browserWatch";
+import {
+  parseWatchAction,
+  type WatchConnection,
+  type WatchHandlers,
+  type WatchInputEvent,
+  type WatchSource,
+} from "./browserWatch";
 
 export interface BrowserRelaySource {
   convex: ConvexReactClient;
@@ -51,12 +57,20 @@ const INPUT_COALESCE_MS = 50;
  *  session. A simulator stream is its own row, keyed by the prefix and the
  *  uuid (the simulator lock names the session by uuid alone). Null when there
  *  is nothing to watch. */
-export function browserRelayKey(s: { sessionUuid?: string | null; tmuxSession?: string | null; source?: WatchSource }): string | null {
-  if (s.source === "sim") return s.sessionUuid ? `${SIM_RELAY_KEY_PREFIX}${s.sessionUuid}` : null;
+export function browserRelayKey(s: {
+  sessionUuid?: string | null;
+  tmuxSession?: string | null;
+  source?: WatchSource;
+}): string | null {
+  if (s.source === "sim")
+    return s.sessionUuid ? `${SIM_RELAY_KEY_PREFIX}${s.sessionUuid}` : null;
   return s.sessionUuid || s.tmuxSession || null;
 }
 
-export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: WatchHandlers): WatchConnection {
+export function connectBrowserWatchRelay(
+  src: BrowserRelaySource,
+  handlers: WatchHandlers,
+): WatchConnection {
   const key = browserRelayKey(src)!;
   const base = { device_id: src.deviceId, key };
   let done = false;
@@ -84,10 +98,20 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
         interactive: Date.now() - lastInputAt < DRIVING_WINDOW_MS,
       });
       if (res && res.ok === false) {
-        finish(() => handlers.onError("unknown-device", "that machine isn't registered to your account"));
+        finish(() =>
+          handlers.onError(
+            "unknown-device",
+            "that machine isn't registered to your account",
+          ),
+        );
       }
     } catch (err) {
-      finish(() => handlers.onError("relay", err instanceof Error ? err.message : "could not reach the relay"));
+      finish(() =>
+        handlers.onError(
+          "relay",
+          err instanceof Error ? err.message : "could not reach the relay",
+        ),
+      );
     }
   };
 
@@ -97,14 +121,21 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
         readyTab = row.tab.id;
         lastTab = { title: row.tab.title, url: row.tab.url };
         handlers.onReady(row.tab, row.control);
-      } else if (lastTab && (lastTab.title !== row.tab.title || lastTab.url !== row.tab.url)) {
+      } else if (
+        lastTab &&
+        (lastTab.title !== row.tab.title || lastTab.url !== row.tab.url)
+      ) {
         lastTab = { title: row.tab.title, url: row.tab.url };
         handlers.onTab(row.tab);
       }
     }
     if (readyTab && row.frame && row.seq !== lastSeq) {
       lastSeq = row.seq;
-      handlers.onFrame(`data:image/jpeg;base64,${row.frame}`, row.frame_w, row.frame_h);
+      handlers.onFrame(
+        `data:image/jpeg;base64,${row.frame}`,
+        row.frame_w,
+        row.frame_h,
+      );
     }
     if (readyTab && handlers.onAction) {
       for (const raw of row.actions) {
@@ -117,7 +148,9 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
     if (row.end) {
       const end = row.end;
       finish(() =>
-        end.kind === "error" ? handlers.onError(end.code, end.message ?? "") : handlers.onExit(end.code),
+        end.kind === "error"
+          ? handlers.onError(end.code, end.message ?? "")
+          : handlers.onExit(end.code),
       );
     }
   };
@@ -126,7 +159,10 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
     if (readyTab) return;
     const where = src.machineName ?? "the agent's machine";
     finish(() =>
-      handlers.onError("no-answer", `${where} didn't answer. It may be asleep or offline, or its cast may need an update.`),
+      handlers.onError(
+        "no-answer",
+        `${where} didn't answer. It may be asleep or offline, or its cast may need an update.`,
+      ),
     );
   }, BROWSER_RELAY_START_TIMEOUT_MS);
   const renewTimer = setInterval(() => void renew(), BROWSER_RELAY_RENEW_MS);
@@ -145,7 +181,12 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
       } catch (err) {
         // A web build ahead of its convex deploy: say so, don't throw into
         // React.
-        finish(() => handlers.onError("relay", err instanceof Error ? err.message : "relay unavailable"));
+        finish(() =>
+          handlers.onError(
+            "relay",
+            err instanceof Error ? err.message : "relay unavailable",
+          ),
+        );
         return;
       }
       if (row) apply(row);
@@ -161,11 +202,17 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
     flushTimer = null;
     if (done || outbox.length === 0) return;
     const batches: WatchInputEvent[][] = [];
-    for (let i = 0; i < outbox.length; i += 64) batches.push(outbox.slice(i, i + 64));
+    for (let i = 0; i < outbox.length; i += 64)
+      batches.push(outbox.slice(i, i + 64));
     outbox = [];
     for (const events of batches) {
       chain = chain
-        .then(() => src.convex.mutation(api.browserStream.sendBrowserInput, { ...base, events }))
+        .then(() =>
+          src.convex.mutation(api.browserStream.sendBrowserInput, {
+            ...base,
+            events,
+          }),
+        )
         .catch(() => {});
     }
   };
@@ -193,7 +240,12 @@ export function connectBrowserWatchRelay(src: BrowserRelaySource, handlers: Watc
       for (const ev of events) {
         // A run of pointer moves only matters where it ends.
         const prev = outbox[outbox.length - 1];
-        if (ev.kind === "mouse" && ev.type === "mouseMoved" && prev?.kind === "mouse" && prev.type === "mouseMoved") {
+        if (
+          ev.kind === "mouse" &&
+          ev.type === "mouseMoved" &&
+          prev?.kind === "mouse" &&
+          prev.type === "mouseMoved"
+        ) {
           outbox[outbox.length - 1] = ev;
         } else {
           outbox.push(ev);

@@ -1,7 +1,11 @@
 "use client";
 import Link from "next/link";
 import { ArrowUp, CornerDownRight } from "lucide-react";
-import { useTrackedStore, getProjectName, type SessionDecisionItem } from "../../store/inboxStore";
+import {
+  useTrackedStore,
+  getProjectName,
+  type SessionDecisionItem,
+} from "../../store/inboxStore";
 import { resolveAssigneeInfo } from "../../lib/liveEntities";
 import { Avatar } from "../tasks/TaskCommentStream";
 import { useJumpToDecisionAsk } from "../../hooks/useJumpToDecisionAsk";
@@ -19,9 +23,18 @@ import { teamMembersOf } from "../../lib/activeTeam";
 // page, so the same question never introduces its parties two ways.
 
 /** The asking session's store row, as far as the line draws it. */
-export type AskingSessionRow = { _id?: string; title?: string; project_path?: string; status?: string; [key: string]: unknown };
+export type AskingSessionRow = {
+  _id?: string;
+  title?: string;
+  project_path?: string;
+  status?: string;
+  [key: string]: unknown;
+};
 
-type AskingDecision = Pick<SessionDecisionItem, "conversation_id" | "_id" | "question" | "session_title" | "project_path">;
+type AskingDecision = Pick<
+  SessionDecisionItem,
+  "conversation_id" | "_id" | "question" | "session_title" | "project_path"
+>;
 
 /** The asking session as one line: a live dot, its name, its project. The
  *  name comes from the store row when the session is cached, else the row's
@@ -37,8 +50,20 @@ export function AskingSession({
   className?: string;
 }) {
   const s = useTrackedStore(askingSessionDeps(decision.conversation_id));
-  const jumpToAsk = useJumpToDecisionAsk(decision.conversation_id, decision._id, decision.question);
-  return <AskingSessionView decision={decision} session={s.sessions[decision.conversation_id]} onJumpToAsk={jumpToAsk} wrap={wrap} className={className} />;
+  const jumpToAsk = useJumpToDecisionAsk(
+    decision.conversation_id,
+    decision._id,
+    decision.question,
+  );
+  return (
+    <AskingSessionView
+      decision={decision}
+      session={s.sessions[decision.conversation_id]}
+      onJumpToAsk={jumpToAsk}
+      wrap={wrap}
+      className={className}
+    />
+  );
 }
 
 /** The asking-session line drawn from props: the session's row (absent when
@@ -71,23 +96,57 @@ export function AskingSessionView({
   const project = session?.project_path || decision.project_path;
   const live = session?.status === "running" || session?.status === "working";
   return (
-    <span className={`${wrap ? "[&>*+*]:ml-1.5" : "inline-flex items-center gap-1.5 min-w-0"} ${className}`} data-asking-session={decision.conversation_id}>
+    <span
+      className={`${wrap ? "[&>*+*]:ml-1.5" : "inline-flex items-center gap-1.5 min-w-0"} ${className}`}
+      data-asking-session={decision.conversation_id}
+    >
       {/* Who is asking (session-characters.md S3), then whether it is live. */}
-      {!label && <SessionGlyph row={session ? identityRowOf(session as any) : null} size={14} className={wrap ? "inline-flex align-[-2px]" : "shrink-0"} />}
-      {!label && <span className={`${wrap ? "inline-block align-middle " : ""}w-1.5 h-1.5 shrink-0 rounded-full ${live ? "bg-sol-green" : "bg-sol-text-dim"}`} title={live ? "The asking session is running" : "The asking session is idle"} aria-label={live ? "running" : "idle"} />}
+      {!label && (
+        <SessionGlyph
+          row={session ? identityRowOf(session as any) : null}
+          size={14}
+          className={wrap ? "inline-flex align-[-2px]" : "shrink-0"}
+        />
+      )}
+      {!label && (
+        <span
+          className={`${wrap ? "inline-block align-middle " : ""}w-1.5 h-1.5 shrink-0 rounded-full ${live ? "bg-sol-green" : "bg-sol-text-dim"}`}
+          title={
+            live
+              ? "The asking session is running"
+              : "The asking session is idle"
+          }
+          aria-label={live ? "running" : "idle"}
+        />
+      )}
       <Link
         href={`/conversation/${decision.conversation_id}`}
         className={`${wrap ? "[overflow-wrap:anywhere]" : "truncate"} text-sol-text-muted hover:text-sol-blue transition-colors`}
-        title={fullTitle && !label ? `${fullTitle}: go to the ask in the conversation` : "Go to the ask in the conversation"}
+        title={
+          fullTitle && !label
+            ? `${fullTitle}: go to the ask in the conversation`
+            : "Go to the ask in the conversation"
+        }
         onClick={(e) => {
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          if (
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            e.button !== 0
+          )
+            return;
           e.preventDefault();
           void onJumpToAsk();
         }}
       >
         {label || title || "a session with no name yet"}
       </Link>
-      {project && !label && <span className={`${wrap ? "" : "truncate "}text-sol-text-dim`}>in {getProjectName(project)}</span>}
+      {project && !label && (
+        <span className={`${wrap ? "" : "truncate "}text-sol-text-dim`}>
+          in {getProjectName(project)}
+        </span>
+      )}
     </span>
   );
 }
@@ -106,7 +165,10 @@ export function PersonChip({
   fallbackImage?: string;
   className?: string;
 }) {
-  const s = useTrackedStore([(st) => teamMembersOf(st)?.length, (st) => (st as any).currentUser?._id]);
+  const s = useTrackedStore([
+    (st) => teamMembersOf(st)?.length,
+    (st) => (st as any).currentUser?._id,
+  ]);
   const info = resolveAssigneeInfo(
     userId,
     fallbackName ? { name: fallbackName, image: fallbackImage } : null,
@@ -117,12 +179,20 @@ export function PersonChip({
   if (!name) return null;
   const handle = (info as any)?.github_username as string | undefined;
   const body = (
-    <span className={`inline-flex items-center gap-1.5 min-w-0 ${handle ? "hover:opacity-80" : ""} ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 min-w-0 ${handle ? "hover:opacity-80" : ""} ${className}`}
+    >
       <Avatar name={name} image={info?.image ?? fallbackImage} />
       <span className="truncate text-sol-text">{name}</span>
     </span>
   );
-  return handle ? <Link href={objectHref("person", handle)} title={`${name}'s profile`}>{body}</Link> : body;
+  return handle ? (
+    <Link href={objectHref("person", handle)} title={`${name}'s profile`}>
+      {body}
+    </Link>
+  ) : (
+    body
+  );
 }
 
 /** Everyone holding the decision right now: the people it was asked of, or
@@ -136,11 +206,25 @@ export function HolderLine({
   roleName?: string;
   className?: string;
 }) {
-  if (roleName) return <span className={className}>{roleName} <span className="text-sol-text-dim">holds it under a grant</span></span>;
-  if (people.length === 0) return <span className={`text-sol-text-dim ${className}`}>its people</span>;
+  if (roleName)
+    return (
+      <span className={className}>
+        {roleName}{" "}
+        <span className="text-sol-text-dim">holds it under a grant</span>
+      </span>
+    );
+  if (people.length === 0)
+    return <span className={`text-sol-text-dim ${className}`}>its people</span>;
   return (
     <span className={`inline-flex items-center gap-3 flex-wrap ${className}`}>
-      {people.map((u) => <PersonChip key={u._id} userId={u._id} fallbackName={u.name} fallbackImage={u.avatar_url} />)}
+      {people.map((u) => (
+        <PersonChip
+          key={u._id}
+          userId={u._id}
+          fallbackName={u.name}
+          fallbackImage={u.avatar_url}
+        />
+      ))}
     </span>
   );
 }
@@ -160,9 +244,14 @@ export function CategoryNote({
   // card is only tightened, and a gate sets the card it adopts.
   const overridden = !!proposed && !!category && proposed !== category;
   return (
-    <span className={`inline-flex items-center gap-1.5 flex-wrap ${className}`} data-decision-category={category ?? "unknown"}>
+    <span
+      className={`inline-flex items-center gap-1.5 flex-wrap ${className}`}
+      data-decision-category={category ?? "unknown"}
+    >
       {!unset && (
-        <span className={`px-1.5 py-0.5 rounded border ${isHumanOnlyCategory(category) ? "border-sol-red/30 text-sol-red" : "border-sol-green/30 text-sol-green"}`}>
+        <span
+          className={`px-1.5 py-0.5 rounded border ${isHumanOnlyCategory(category) ? "border-sol-red/30 text-sol-red" : "border-sol-green/30 text-sol-green"}`}
+        >
           {category}
         </span>
       )}
@@ -174,10 +263,15 @@ export function CategoryNote({
   );
 }
 
-
 /** Why it reached its owner, in the sender's words: a pass with a note, or an
  *  escalation (always with one). Only while it is open; a settled card says its verdict. */
-export function HandoffNote({ decision, className = "" }: { decision: Pick<SessionDecisionItem, "status" | "passed_to" | "escalated">; className?: string }) {
+export function HandoffNote({
+  decision,
+  className = "",
+}: {
+  decision: Pick<SessionDecisionItem, "status" | "passed_to" | "escalated">;
+  className?: string;
+}) {
   if (decision.status !== "pending") return null;
   const up = decision.escalated;
   const note = up?.note ?? decision.passed_to?.note;
@@ -185,12 +279,20 @@ export function HandoffNote({ decision, className = "" }: { decision: Pick<Sessi
   const by = up?.by ?? decision.passed_to?.by;
   const Icon = up ? ArrowUp : CornerDownRight;
   return (
-    <div className={`flex items-start gap-2 text-[12px] ${className}`} data-decision-handoff={up ? "escalated" : "passed"}>
-      <span className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-meta ${up ? "border-sol-orange/40 text-sol-orange" : "border-sol-border text-sol-text-muted"}`}>
-        <Icon className="w-3 h-3" aria-hidden />{up ? "escalated" : "passed"}
+    <div
+      className={`flex items-start gap-2 text-[12px] ${className}`}
+      data-decision-handoff={up ? "escalated" : "passed"}
+    >
+      <span
+        className={`shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-meta ${up ? "border-sol-orange/40 text-sol-orange" : "border-sol-border text-sol-text-muted"}`}
+      >
+        <Icon className="w-3 h-3" aria-hidden />
+        {up ? "escalated" : "passed"}
       </span>
       {by && <PersonChip userId={by} className="shrink-0 text-meta" />}
-      <span className="min-w-0 text-sol-text [overflow-wrap:anywhere] whitespace-pre-wrap">{note}</span>
+      <span className="min-w-0 text-sol-text [overflow-wrap:anywhere] whitespace-pre-wrap">
+        {note}
+      </span>
     </div>
   );
 }

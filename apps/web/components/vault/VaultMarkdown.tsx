@@ -8,7 +8,11 @@
 
 import { createContext, memo, useContext } from "react";
 import Link from "next/link";
-import ReactMarkdown, { defaultUrlTransform, type Components, type Options } from "react-markdown";
+import ReactMarkdown, {
+  defaultUrlTransform,
+  type Components,
+  type Options,
+} from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -26,12 +30,18 @@ import {
   TAG_SCHEME,
   type WikiLinkParts,
 } from "../../lib/vault/remarkWikiLink";
-import { parseEntityRefHref, type VaultEntityRef } from "@codecast/shared/vault";
+import {
+  parseEntityRefHref,
+  type VaultEntityRef,
+} from "@codecast/shared/vault";
 import { EntityIdPill } from "../EntityIdPill";
 import { useInboxStore } from "../../store/inboxStore";
 import { slugifyHeading } from "../../lib/vault/parseNote";
 import { filesHref } from "../../lib/vault/vaultHref";
-import { VAULT_HTML_SCHEMA, isAuthorityRelativeUrl } from "../../lib/vault/htmlPolicy";
+import {
+  VAULT_HTML_SCHEMA,
+  isAuthorityRelativeUrl,
+} from "../../lib/vault/htmlPolicy";
 import { teamMembersOf } from "../../lib/activeTeam";
 // Render-time-only cycle with VaultHoverPreview (it renders VaultMarkdown
 // inside the card); safe because neither module touches the other at eval.
@@ -45,21 +55,30 @@ export interface VaultLinkResolution {
 
 export interface VaultLinkContextValue {
   resolve: (target: string, parts?: WikiLinkParts) => VaultLinkResolution;
-  navigate: (path: string, subpath?: string, subpathType?: "heading" | "block") => void;
+  navigate: (
+    path: string,
+    subpath?: string,
+    subpathType?: "heading" | "block",
+  ) => void;
   createNote?: (target: string) => void;
   /** Absolute URL for a vault-relative asset path (img src), null offline. */
   assetUrl: (path: string) => string | null;
   /** Open the tag pane focused on a tag (inline #tag pill click). */
   openTag?: (tag: string) => void;
   /** Render an embedded note body (depth-limited by the provider). */
-  renderEmbed?: (parts: WikiLinkParts, resolvedPath: string | null) => React.ReactNode;
+  renderEmbed?: (
+    parts: WikiLinkParts,
+    resolvedPath: string | null,
+  ) => React.ReactNode;
   /** Toggle the `- [ ]` / `- [x]` on a source line of THIS note. `line` is
    *  1-based in the rendered body, which starts below the frontmatter — the
    *  provider owns the offset back to the file. */
   toggleTask?: (line: number, checked: boolean) => void;
 }
 
-export const VaultLinkContext = createContext<VaultLinkContextValue | null>(null);
+export const VaultLinkContext = createContext<VaultLinkContextValue | null>(
+  null,
+);
 
 /** False inside a transclusion: the body rendered there belongs to a DIFFERENT
  *  note than the link context, so its line numbers would write to the wrong
@@ -71,7 +90,13 @@ export const TaskEditContext = createContext(true);
  *  none), so the item hands its line down to the checkbox. */
 const TaskSourceLine = createContext<number | null>(null);
 
-function WikiLinkAnchor({ href, children }: { href: string; children: React.ReactNode }) {
+function WikiLinkAnchor({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   const ctx = useContext(VaultLinkContext);
   const hover = useHoverPreview();
   const raw = wikiRawFromHref(href);
@@ -95,7 +120,11 @@ function WikiLinkAnchor({ href, children }: { href: string; children: React.Reac
         // Real href so middle-click and "copy link" behave, but the click is
         // handled here and moves the view through the store.
         className={`wiki-link ${res.ambiguous ? "wiki-link-ambiguous" : ""}`}
-        title={res.ambiguous ? `${res.path} (ambiguous — multiple matches)` : res.path}
+        title={
+          res.ambiguous
+            ? `${res.path} (ambiguous — multiple matches)`
+            : res.path
+        }
         onClick={(e) => {
           if (e.metaKey || e.ctrlKey || e.button === 1) return; // browser/tab handling
           e.preventDefault();
@@ -115,7 +144,11 @@ function WikiLinkAnchor({ href, children }: { href: string; children: React.Reac
     <a
       href="#"
       className="wiki-link wiki-link-unresolved"
-      title={ctx.createNote ? `"${parts.target}" does not exist yet — click to create` : `"${parts.target}" does not exist`}
+      title={
+        ctx.createNote
+          ? `"${parts.target}" does not exist yet — click to create`
+          : `"${parts.target}" does not exist`
+      }
       onClick={(e) => {
         e.preventDefault();
         ctx.createNote?.(parts.target);
@@ -134,7 +167,8 @@ function WikiLinkAnchor({ href, children }: { href: string; children: React.Reac
 function PersonPill({ username }: { username: string }) {
   const member = useInboxStore((s) =>
     teamMembersOf(s).find(
-      (m: any) => (m.github_username || "").toLowerCase() === username.toLowerCase(),
+      (m: any) =>
+        (m.github_username || "").toLowerCase() === username.toLowerCase(),
     ),
   );
   return (
@@ -160,7 +194,13 @@ export function EntityRefPill({
   children?: React.ReactNode;
 }) {
   if (refr.type === "person") return <PersonPill username={refr.id} />;
-  return <EntityIdPill type={refr.type} id={refr.id} fallback={<span>{children ?? refr.id}</span>} />;
+  return (
+    <EntityIdPill
+      type={refr.type}
+      id={refr.id}
+      fallback={<span>{children ?? refr.id}</span>}
+    />
+  );
 }
 
 function VaultLink({ href, children, node: _node, ...props }: any) {
@@ -192,7 +232,12 @@ function VaultLink({ href, children, node: _node, ...props }: any) {
   }
   if (/^https?:\/\//i.test(url)) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sol-blue hover:underline">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sol-blue hover:underline"
+      >
         {children}
         <ExternalLink className="inline w-3 h-3 ml-0.5 -mt-0.5 opacity-60" />
       </a>
@@ -221,17 +266,33 @@ function VaultLink({ href, children, node: _node, ...props }: any) {
   );
 }
 
-function VaultImage({ src, alt, title }: { src?: string | Blob; alt?: string; title?: string }) {
+function VaultImage({
+  src,
+  alt,
+  title,
+}: {
+  src?: string | Blob;
+  alt?: string;
+  title?: string;
+}) {
   const ctx = useContext(VaultLinkContext);
   const raw = typeof src === "string" ? src : undefined;
   // Vault-relative asset → daemon-served URL; anything else takes the shared
   // remote-image click-to-load path.
-  if (ctx && raw && !/^[a-z][a-z0-9+.-]*:/i.test(raw) && !raw.startsWith("//")) {
+  if (
+    ctx &&
+    raw &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(raw) &&
+    !raw.startsWith("//")
+  ) {
     const clean = decodeURIComponent(raw);
     const resolved = ctx.assetUrl(clean);
     // A path the vault itself resolved: the bytes come from this machine's own
     // daemon, so it is not the third party the click gate is defending against.
-    if (resolved) return <CollapsibleImage src={resolved} alt={alt} title={title} trusted />;
+    if (resolved)
+      return (
+        <CollapsibleImage src={resolved} alt={alt} title={title} trusted />
+      );
   }
   return <CollapsibleImage src={src} alt={alt} title={title} />;
 }
@@ -243,31 +304,51 @@ function VaultListItem({ node, children }: any) {
   const ctx = useContext(VaultLinkContext);
   const editable = useContext(TaskEditContext);
   const className: unknown = node?.properties?.className;
-  const isTask = Array.isArray(className) && className.includes("task-list-item");
+  const isTask =
+    Array.isArray(className) && className.includes("task-list-item");
   const line: unknown = node?.position?.start?.line;
   if (isTask && typeof line === "number") {
-    const checked = !!node.children?.find((c: any) => c.tagName === "input")?.properties?.checked;
+    const checked = !!node.children?.find((c: any) => c.tagName === "input")
+      ?.properties?.checked;
     return (
       <li
         className={`list-none -ml-4 ${checked ? "text-sol-text-muted" : "text-sol-text-secondary"}`}
         data-vault-task-line={line}
       >
-        <TaskSourceLine.Provider value={editable && ctx?.toggleTask ? line : null}>
+        <TaskSourceLine.Provider
+          value={editable && ctx?.toggleTask ? line : null}
+        >
           {children}
         </TaskSourceLine.Provider>
       </li>
     );
   }
-  const Base = MD_COMPONENTS.li as React.ComponentType<{ children?: React.ReactNode }> | undefined;
+  const Base = MD_COMPONENTS.li as
+    | React.ComponentType<{ children?: React.ReactNode }>
+    | undefined;
   return Base ? <Base>{children}</Base> : <li>{children}</li>;
 }
 
-function VaultCheckbox({ type, checked }: { type?: string; checked?: boolean }) {
+function VaultCheckbox({
+  type,
+  checked,
+}: {
+  type?: string;
+  checked?: boolean;
+}) {
   const ctx = useContext(VaultLinkContext);
   const line = useContext(TaskSourceLine);
   if (type !== "checkbox") return null;
   if (line === null || !ctx?.toggleTask) {
-    return <input type="checkbox" checked={!!checked} disabled readOnly className="mr-1.5 align-middle" />;
+    return (
+      <input
+        type="checkbox"
+        checked={!!checked}
+        disabled
+        readOnly
+        className="mr-1.5 align-middle"
+      />
+    );
   }
   return (
     <input
@@ -279,33 +360,112 @@ function VaultCheckbox({ type, checked }: { type?: string; checked?: boolean }) 
   );
 }
 
-const CALLOUT_STYLES: Record<string, { border: string; accent: string; label: string }> = {
+const CALLOUT_STYLES: Record<
+  string,
+  { border: string; accent: string; label: string }
+> = {
   note: { border: "var(--sol-blue)", accent: "var(--sol-blue)", label: "Note" },
   info: { border: "var(--sol-blue)", accent: "var(--sol-blue)", label: "Info" },
   tip: { border: "var(--sol-cyan)", accent: "var(--sol-cyan)", label: "Tip" },
   hint: { border: "var(--sol-cyan)", accent: "var(--sol-cyan)", label: "Hint" },
-  important: { border: "var(--sol-cyan)", accent: "var(--sol-cyan)", label: "Important" },
-  summary: { border: "var(--sol-cyan)", accent: "var(--sol-cyan)", label: "Summary" },
-  abstract: { border: "var(--sol-cyan)", accent: "var(--sol-cyan)", label: "Abstract" },
+  important: {
+    border: "var(--sol-cyan)",
+    accent: "var(--sol-cyan)",
+    label: "Important",
+  },
+  summary: {
+    border: "var(--sol-cyan)",
+    accent: "var(--sol-cyan)",
+    label: "Summary",
+  },
+  abstract: {
+    border: "var(--sol-cyan)",
+    accent: "var(--sol-cyan)",
+    label: "Abstract",
+  },
   todo: { border: "var(--sol-blue)", accent: "var(--sol-blue)", label: "Todo" },
-  success: { border: "var(--sol-green)", accent: "var(--sol-green)", label: "Success" },
-  check: { border: "var(--sol-green)", accent: "var(--sol-green)", label: "Check" },
-  done: { border: "var(--sol-green)", accent: "var(--sol-green)", label: "Done" },
-  question: { border: "var(--sol-yellow)", accent: "var(--sol-yellow)", label: "Question" },
-  help: { border: "var(--sol-yellow)", accent: "var(--sol-yellow)", label: "Help" },
-  faq: { border: "var(--sol-yellow)", accent: "var(--sol-yellow)", label: "FAQ" },
-  warning: { border: "var(--sol-orange)", accent: "var(--sol-orange)", label: "Warning" },
-  caution: { border: "var(--sol-orange)", accent: "var(--sol-orange)", label: "Caution" },
-  attention: { border: "var(--sol-orange)", accent: "var(--sol-orange)", label: "Attention" },
-  failure: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Failure" },
-  fail: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Failure" },
-  missing: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Missing" },
-  danger: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Danger" },
+  success: {
+    border: "var(--sol-green)",
+    accent: "var(--sol-green)",
+    label: "Success",
+  },
+  check: {
+    border: "var(--sol-green)",
+    accent: "var(--sol-green)",
+    label: "Check",
+  },
+  done: {
+    border: "var(--sol-green)",
+    accent: "var(--sol-green)",
+    label: "Done",
+  },
+  question: {
+    border: "var(--sol-yellow)",
+    accent: "var(--sol-yellow)",
+    label: "Question",
+  },
+  help: {
+    border: "var(--sol-yellow)",
+    accent: "var(--sol-yellow)",
+    label: "Help",
+  },
+  faq: {
+    border: "var(--sol-yellow)",
+    accent: "var(--sol-yellow)",
+    label: "FAQ",
+  },
+  warning: {
+    border: "var(--sol-orange)",
+    accent: "var(--sol-orange)",
+    label: "Warning",
+  },
+  caution: {
+    border: "var(--sol-orange)",
+    accent: "var(--sol-orange)",
+    label: "Caution",
+  },
+  attention: {
+    border: "var(--sol-orange)",
+    accent: "var(--sol-orange)",
+    label: "Attention",
+  },
+  failure: {
+    border: "var(--sol-red)",
+    accent: "var(--sol-red)",
+    label: "Failure",
+  },
+  fail: {
+    border: "var(--sol-red)",
+    accent: "var(--sol-red)",
+    label: "Failure",
+  },
+  missing: {
+    border: "var(--sol-red)",
+    accent: "var(--sol-red)",
+    label: "Missing",
+  },
+  danger: {
+    border: "var(--sol-red)",
+    accent: "var(--sol-red)",
+    label: "Danger",
+  },
   error: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Error" },
   bug: { border: "var(--sol-red)", accent: "var(--sol-red)", label: "Bug" },
-  example: { border: "var(--sol-violet)", accent: "var(--sol-violet)", label: "Example" },
-  quote: { border: "var(--sol-text-dim)", accent: "var(--sol-text-dim)", label: "Quote" },
-  cite: { border: "var(--sol-text-dim)", accent: "var(--sol-text-dim)", label: "Quote" },
+  example: {
+    border: "var(--sol-violet)",
+    accent: "var(--sol-violet)",
+    label: "Example",
+  },
+  quote: {
+    border: "var(--sol-text-dim)",
+    accent: "var(--sol-text-dim)",
+    label: "Quote",
+  },
+  cite: {
+    border: "var(--sol-text-dim)",
+    accent: "var(--sol-text-dim)",
+    label: "Quote",
+  },
 };
 
 // Matches ONLY the marker line: `[!type]`, `[!type]+`/`-` (fold markers),
@@ -317,7 +477,9 @@ const CALLOUT_RE = /^\[!(\w+)\][+-]?[ \t]*(.*)$/;
 
 /** The first paragraph's leading text node, split into its first line and the
  *  remainder of that same text node. */
-function firstLineOf(children: any): { firstLine: string; restOfNode: string } | null {
+function firstLineOf(
+  children: any,
+): { firstLine: string; restOfNode: string } | null {
   const arr = Array.isArray(children) ? children : [children];
   for (const child of arr) {
     // react-markdown interleaves whitespace-only text children ("\n") between
@@ -336,7 +498,10 @@ function firstLineOf(children: any): { firstLine: string; restOfNode: string } |
       const nl = pArr[0].indexOf("\n");
       return nl === -1
         ? { firstLine: pArr[0], restOfNode: "" }
-        : { firstLine: pArr[0].slice(0, nl), restOfNode: pArr[0].slice(nl + 1) };
+        : {
+            firstLine: pArr[0].slice(0, nl),
+            restOfNode: pArr[0].slice(nl + 1),
+          };
     }
     // Any other element before a paragraph means no marker line.
     return null;
@@ -353,7 +518,9 @@ function VaultBlockquote({ children }: { children?: React.ReactNode }) {
     const style = CALLOUT_STYLES[kind] ?? CALLOUT_STYLES.note;
     const title = match[2] || style.label;
     const arr = Array.isArray(children) ? children : [children];
-    const firstParaIdx = arr.findIndex((c: any) => c?.props?.node?.tagName === "p" || c?.type === "p");
+    const firstParaIdx = arr.findIndex(
+      (c: any) => c?.props?.node?.tagName === "p" || c?.type === "p",
+    );
     // Rebuild the first paragraph with only the marker LINE removed; every
     // following line and inline element stays.
     const body = arr.map((child: any, i: number) => {
@@ -374,7 +541,10 @@ function VaultBlockquote({ children }: { children?: React.ReactNode }) {
           background: `color-mix(in srgb, ${style.accent} 7%, transparent)`,
         }}
       >
-        <div className="text-xs font-semibold mb-1" style={{ color: style.accent }}>
+        <div
+          className="text-xs font-semibold mb-1"
+          style={{ color: style.accent }}
+        >
           {title}
         </div>
         <div className="text-sm text-sol-text-secondary [&>p]:my-1">{body}</div>
@@ -393,7 +563,12 @@ function VaultBlockquote({ children }: { children?: React.ReactNode }) {
 // rule against authority-relative references (`//evil.com`), which look
 // relative to a scheme allowlist and so slip past every one of them.
 function vaultUrlTransform(url: string): string {
-  if (url.startsWith(WIKI_SCHEME) || url.startsWith(WIKI_EMBED_SCHEME) || url.startsWith(TAG_SCHEME)) return url;
+  if (
+    url.startsWith(WIKI_SCHEME) ||
+    url.startsWith(WIKI_EMBED_SCHEME) ||
+    url.startsWith(TAG_SCHEME)
+  )
+    return url;
   if (isAuthorityRelativeUrl(url)) return "";
   return defaultUrlTransform(url);
 }
@@ -419,7 +594,10 @@ function rehypeVaultHeadingIds() {
         const base = slugifyHeading(hastText(node));
         const n = (seen.get(base) ?? 0) + 1;
         seen.set(base, n);
-        node.properties = { ...node.properties, id: `vh-${n === 1 ? base : `${base}-${n}`}` };
+        node.properties = {
+          ...node.properties,
+          id: `vh-${n === 1 ? base : `${base}-${n}`}`,
+        };
       }
       if (Array.isArray(node?.children)) node.children.forEach(walk);
     };
@@ -455,18 +633,33 @@ function applyFold(h: HTMLElement, level: number, folded: boolean) {
   }
 }
 
-function anchoredHeading(Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6", className: string) {
+function anchoredHeading(
+  Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
+  className: string,
+) {
   const level = Number(Tag.slice(1));
-  return function VaultHeading({ id, children }: { id?: string; children?: React.ReactNode }) {
+  return function VaultHeading({
+    id,
+    children,
+  }: {
+    id?: string;
+    children?: React.ReactNode;
+  }) {
     const scope = useContext(FoldScopeContext);
     const key = `${scope}::${id ?? ""}`;
     // Re-apply a remembered fold once this heading's siblings exist in the DOM.
     const ref = (node: HTMLElement | null) => {
       if (!node) return;
-      if (foldedSections.has(key)) requestAnimationFrame(() => applyFold(node, level, true));
+      if (foldedSections.has(key))
+        requestAnimationFrame(() => applyFold(node, level, true));
     };
     return (
-      <Tag ref={ref as never} id={id} className={`vault-heading ${className}`} data-vault-level={level}>
+      <Tag
+        ref={ref as never}
+        id={id}
+        className={`vault-heading ${className}`}
+        data-vault-level={level}
+      >
         <button
           type="button"
           className="vault-fold-toggle"
@@ -517,19 +710,37 @@ const VAULT_COMPONENTS: Components = {
   input: VaultCheckbox,
   h1: anchoredHeading("h1", "text-lg font-bold mt-0 mb-3 text-sol-text"),
   h2: anchoredHeading("h2", "text-base font-semibold mt-4 mb-2 text-sol-text"),
-  h3: anchoredHeading("h3", "text-sm font-semibold mt-3 mb-1 text-sol-text-muted"),
-  h4: anchoredHeading("h4", "text-sm font-semibold mt-3 mb-1 text-sol-text-muted"),
-  h5: anchoredHeading("h5", "text-[13px] font-semibold mt-2 mb-1 text-sol-text-muted"),
-  h6: anchoredHeading("h6", "text-[13px] font-semibold mt-2 mb-1 text-sol-text-dim"),
+  h3: anchoredHeading(
+    "h3",
+    "text-sm font-semibold mt-3 mb-1 text-sol-text-muted",
+  ),
+  h4: anchoredHeading(
+    "h4",
+    "text-sm font-semibold mt-3 mb-1 text-sol-text-muted",
+  ),
+  h5: anchoredHeading(
+    "h5",
+    "text-[13px] font-semibold mt-2 mb-1 text-sol-text-muted",
+  ),
+  h6: anchoredHeading(
+    "h6",
+    "text-[13px] font-semibold mt-2 mb-1 text-sol-text-dim",
+  ),
   // Obsidian tables size to their content, not the container.
   table: ({ children }: { children?: React.ReactNode }) => (
     <div className="overflow-x-auto my-3">
-      <table className="w-auto text-xs border-collapse border border-sol-border/50">{children}</table>
+      <table className="w-auto text-xs border-collapse border border-sol-border/50">
+        {children}
+      </table>
     </div>
   ),
 };
 
-export const VaultMarkdown = memo(function VaultMarkdown({ content }: { content: string }) {
+export const VaultMarkdown = memo(function VaultMarkdown({
+  content,
+}: {
+  content: string;
+}) {
   return (
     <ReactMarkdown
       remarkPlugins={vaultRemarkPlugins}

@@ -13,7 +13,15 @@
 // lights its node, and a marked node focuses its card. With nothing named the
 // drawer is the Head of People, or the offer to hire one.
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, LayoutGrid, Maximize2, Minimize2, Search, UserPlus } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  Maximize2,
+  Minimize2,
+  Search,
+  UserPlus,
+} from "lucide-react";
 import { workspaceKeyOf } from "./orgPlacement";
 import { ORG_STATE_META } from "./orgMeta";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -59,18 +67,31 @@ const VIEWS: { id: OrgChartView; label: string }[] = [
   { id: "goals", label: "Goals" },
 ];
 /** A saved value this build does not draw (an older screen's) reads as the default. */
-export const orgChartViewOf = (v: unknown): OrgChartView => (v === "everything" || v === "goals" ? v : "people");
+export const orgChartViewOf = (v: unknown): OrgChartView =>
+  v === "everything" || v === "goals" ? v : "people";
 
 /** Opens every card on the chart in place, or closes them all; the person's own choice, kept across visits. */
-function ExpandAllToggle({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+function ExpandAllToggle({
+  on,
+  onChange,
+}: {
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
   const Icon = on ? Minimize2 : Maximize2;
   return (
     <button
       type="button"
       onClick={() => onChange(!on)}
       aria-pressed={on}
-      className={cn("inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors", on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/50")}
-      style={{ borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)", color: on ? "var(--sol-text)" : "var(--sol-text-muted)" }}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors",
+        on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/50",
+      )}
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)",
+        color: on ? "var(--sol-text)" : "var(--sol-text-muted)",
+      }}
       data-org-expand-all={on ? "on" : "off"}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -79,9 +100,23 @@ function ExpandAllToggle({ on, onChange }: { on: boolean; onChange: (on: boolean
   );
 }
 
-function ViewSwitch({ value, onChange }: { value: OrgChartView; onChange: (v: OrgChartView) => void }) {
+function ViewSwitch({
+  value,
+  onChange,
+}: {
+  value: OrgChartView;
+  onChange: (v: OrgChartView) => void;
+}) {
   return (
-    <div role="radiogroup" aria-label="What the chart shows" className="inline-flex h-7 items-center rounded-lg border p-[2px]" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)" }} data-org-view-switch>
+    <div
+      role="radiogroup"
+      aria-label="What the chart shows"
+      className="inline-flex h-7 items-center rounded-lg border p-[2px]"
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)",
+      }}
+      data-org-view-switch
+    >
       {VIEWS.map((v) => {
         const on = v.id === value;
         return (
@@ -90,8 +125,13 @@ function ViewSwitch({ value, onChange }: { value: OrgChartView; onChange: (v: Or
             type="button"
             role="radio"
             aria-checked={on}
-            onClick={() => { if (!on) onChange(v.id); }}
-            className={cn("h-[22px] rounded-md px-2.5 text-[12px] font-medium transition-colors", on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/50")}
+            onClick={() => {
+              if (!on) onChange(v.id);
+            }}
+            className={cn(
+              "h-[22px] rounded-md px-2.5 text-[12px] font-medium transition-colors",
+              on ? "bg-sol-bg-highlight" : "hover:bg-sol-bg-highlight/50",
+            )}
             style={{ color: on ? "var(--sol-text)" : "var(--sol-text-muted)" }}
             data-org-view={v.id}
           >
@@ -104,29 +144,57 @@ function ViewSwitch({ value, onChange }: { value: OrgChartView; onChange: (v: Or
 }
 
 /** The page a chart card opens, or null when the store cannot name one yet. */
-export function chartCardHref(o: OrgGraphObject, st: ReturnType<typeof useInboxStore.getState>): string | null {
+export function chartCardHref(
+  o: OrgGraphObject,
+  st: ReturnType<typeof useInboxStore.getState>,
+): string | null {
   if (o.kind === "role") {
-    const role = windowOrgTree(st)?.roles.find((r) => r._id === o.id || r.short_id === o.id);
+    const role = windowOrgTree(st)?.roles.find(
+      (r) => r._id === o.id || r.short_id === o.id,
+    );
     const conv = role?.standing?.conversation_id;
     return conv ? `/conversation/${conv}` : null;
   }
   if (o.kind === "person") {
-    const member = (teamMembersOf(st) as Array<{ _id: string; github_username?: string }> | undefined)?.find((m) => String(m._id) === o.id);
+    const member = (
+      teamMembersOf(st) as
+        | Array<{ _id: string; github_username?: string }>
+        | undefined
+    )?.find((m) => String(m._id) === o.id);
     return `/team/${encodeURIComponent(member?.github_username || o.id)}`;
   }
   if (o.kind === "initiative") {
-    const goal = (st.initiatives as Record<string, { short_id?: string }> | undefined)?.[o.id];
+    const goal = (
+      st.initiatives as Record<string, { short_id?: string }> | undefined
+    )?.[o.id];
     return objectHref("initiative", goal?.short_id || o.id);
   }
-  const project = (st.projects as Record<string, { short_id?: string }> | undefined)?.[o.id];
+  const project = (
+    st.projects as Record<string, { short_id?: string }> | undefined
+  )?.[o.id];
   return objectHref("project", project?.short_id || o.id);
 }
 
 /** The drawer, closed: the Head of People's face to bring it back, or the offer to hire one. */
-function PanelToggle({ tree, onOpen }: { tree: OrgTree | null; onOpen: () => void }) {
+function PanelToggle({
+  tree,
+  onOpen,
+}: {
+  tree: OrgTree | null;
+  onOpen: () => void;
+}) {
   const head = tree?.roles.find((r) => isHeadOfPeopleRole(r)) ?? null;
   return (
-    <button type="button" onClick={onOpen} className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium hover:bg-sol-bg-highlight/50" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)", color: "var(--sol-text)" }} data-org-panel-open>
+    <button
+      type="button"
+      onClick={onOpen}
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium hover:bg-sol-bg-highlight/50"
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)",
+        color: "var(--sol-text)",
+      }}
+      data-org-panel-open
+    >
       {head && <RoleFace role={head} size={16} />}
       {head ? head.name : "Hire the Head of People"}
     </button>
@@ -136,14 +204,37 @@ function PanelToggle({ tree, onOpen }: { tree: OrgTree | null; onOpen: () => voi
 /** Hire a role: the gallery of templates this workspace can hire, and a role written by hand behind it. */
 function HireButton({ tree }: { tree: OrgTree | null }) {
   const [open, setOpen] = useState(false);
-  const meId = useInboxStore((s) => (s.currentUser as { _id?: string } | null)?._id) ?? "";
+  const meId =
+    useInboxStore((s) => (s.currentUser as { _id?: string } | null)?._id) ?? "";
   if (!tree) return null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium hover:bg-sol-bg-highlight/50" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)", color: "var(--sol-text)" }} data-org-hire>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium hover:bg-sol-bg-highlight/50"
+        style={{
+          borderColor: "color-mix(in srgb, var(--sol-border) 35%, transparent)",
+          color: "var(--sol-text)",
+        }}
+        data-org-hire
+      >
         <UserPlus className="h-3.5 w-3.5" /> Hire
       </button>
-      {open && <HireRoleDialog open onClose={() => setOpen(false)} tree={tree} meId={meId} title="Hire" initialMode="template" onCreate={(input) => { useInboxStore.getState().createOrgRole(input); setOpen(false); }} />}
+      {open && (
+        <HireRoleDialog
+          open
+          onClose={() => setOpen(false)}
+          tree={tree}
+          meId={meId}
+          title="Hire"
+          initialMode="template"
+          onCreate={(input) => {
+            useInboxStore.getState().createOrgRole(input);
+            setOpen(false);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -153,29 +244,54 @@ function HireButton({ tree }: { tree: OrgTree | null }) {
  *  the Head of People. */
 function panelTargetOf(params: URLSearchParams): OrgPanelTarget {
   const proposal = params.get("proposal");
-  if (proposal) return { kind: "proposal", ref: proposal, ...(params.get("focus") ? { focus: params.get("focus")! } : {}) };
+  if (proposal)
+    return {
+      kind: "proposal",
+      ref: proposal,
+      ...(params.get("focus") ? { focus: params.get("focus")! } : {}),
+    };
   const session = params.get("session");
   if (session) return { kind: "session", id: session };
   return { kind: "home" };
 }
 
 const panelHref = (t: OrgPanelTarget): string =>
-  t.kind === "proposal" ? `/org?proposal=${encodeURIComponent(t.ref)}${t.focus ? `&focus=${encodeURIComponent(t.focus)}` : ""}` : t.kind === "session" ? `/org?session=${encodeURIComponent(t.id)}` : "/org";
+  t.kind === "proposal"
+    ? `/org?proposal=${encodeURIComponent(t.ref)}${t.focus ? `&focus=${encodeURIComponent(t.focus)}` : ""}`
+    : t.kind === "session"
+      ? `/org?session=${encodeURIComponent(t.id)}`
+      : "/org";
 
 /** The drawer's width is the reader's, dragged from its left edge and kept per device. The
  *  default fits a proposal's fields without truncating; the chart always keeps `ORG_CHART_MIN`. */
-const ORG_PANEL = { key: "codecast.org-panel-w", min: 420, fallback: 620 } as const;
+const ORG_PANEL = {
+  key: "codecast.org-panel-w",
+  min: 420,
+  fallback: 620,
+} as const;
 const ORG_CHART_MIN = 280;
-const orgPanelWidth = (containerWidth: number, chosen: number) => Math.max(Math.min(ORG_PANEL.min, containerWidth), Math.min(chosen, containerWidth - ORG_CHART_MIN));
+const orgPanelWidth = (containerWidth: number, chosen: number) =>
+  Math.max(
+    Math.min(ORG_PANEL.min, containerWidth),
+    Math.min(chosen, containerWidth - ORG_CHART_MIN),
+  );
 
 /** The container's size: the drawer takes a share of its width, and the proposal it pins a share of its height. */
-function useSize(): [(el: HTMLDivElement | null) => void, { w: number; h: number }] {
+function useSize(): [
+  (el: HTMLDivElement | null) => void,
+  { w: number; h: number },
+] {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const ro = useRef<ResizeObserver | null>(null);
   const ref = useCallback((el: HTMLDivElement | null) => {
     ro.current?.disconnect();
     if (!el) return;
-    const read = () => setSize((prev) => (prev.w === el.clientWidth && prev.h === el.clientHeight ? prev : { w: el.clientWidth, h: el.clientHeight }));
+    const read = () =>
+      setSize((prev) =>
+        prev.w === el.clientWidth && prev.h === el.clientHeight
+          ? prev
+          : { w: el.clientWidth, h: el.clientHeight },
+      );
     read();
     if (typeof ResizeObserver === "undefined") return;
     ro.current = new ResizeObserver(read);
@@ -193,27 +309,40 @@ export function OrgChart() {
   const { tree } = useSyncOrgTree();
   useSyncProjects();
   const target = panelTargetOf(params);
-  const headConversation = tree?.roles.find((r) => isHeadOfPeopleRole(r))?.standing?.conversation_id ?? null;
+  const headConversation =
+    tree?.roles.find((r) => isHeadOfPeopleRole(r))?.standing?.conversation_id ??
+    null;
 
   // A message for the Head of People (`?compose=…`) waits in its composer, in the drawer.
   const draft = params.get("compose");
   useWatchEffect(() => {
     if (!draft || !headConversation) return;
     const st = useInboxStore.getState();
-    st.setDraft(headConversation, { ...(st.getDraft(headConversation) ?? {}), draft_message: draft });
+    st.setDraft(headConversation, {
+      ...(st.getDraft(headConversation) ?? {}),
+      draft_message: draft,
+    });
     router.replace("/org");
   }, [draft, headConversation]);
 
   // The drawer is open unless the person closed it; a proposal or a session named in the address always opens it.
-  const closed = useInboxStore((st) => st.clientState.ui?.org_panel === "closed");
-  const panelOpen = target.kind !== "home" || !closed || params.get("panel") === "open";
+  const closed = useInboxStore(
+    (st) => st.clientState.ui?.org_panel === "closed",
+  );
+  const panelOpen =
+    target.kind !== "home" || !closed || params.get("panel") === "open";
   useWatchEffect(() => {
-    if (params.get("panel") === "open" && closed) useInboxStore.getState().updateClientUI({ org_panel: undefined });
+    if (params.get("panel") === "open" && closed)
+      useInboxStore.getState().updateClientUI({ org_panel: undefined });
   }, [params.get("panel")]);
-  const goPanel = useCallback((t: OrgPanelTarget) => {
-    if (useInboxStore.getState().clientState.ui?.org_panel === "closed") useInboxStore.getState().updateClientUI({ org_panel: undefined });
-    router.push(panelHref(t));
-  }, [router]);
+  const goPanel = useCallback(
+    (t: OrgPanelTarget) => {
+      if (useInboxStore.getState().clientState.ui?.org_panel === "closed")
+        useInboxStore.getState().updateClientUI({ org_panel: undefined });
+      router.push(panelHref(t));
+    },
+    [router],
+  );
   // Closing a proposal or a session returns to where the person came from (a
   // conversation whose chip opened it), else to the chart with the Head of
   // People; only closing that home drawer itself keeps it closed.
@@ -226,17 +355,31 @@ export function OrgChart() {
   // The proposal open in the drawer: its changes drawn on the chart when it belongs to the workspace on screen.
   const proposalRef = target.kind === "proposal" ? target.ref : null;
   useSyncOrgProposal(proposalRef);
-  const proposalRow = useInboxStore((st) => (proposalRef ? Object.values((st.orgProposals ?? {}) as Record<string, OrgProposalListRow>).find((p) => p.short_id === proposalRef) ?? null : null));
+  const proposalRow = useInboxStore((st) =>
+    proposalRef
+      ? (Object.values(
+          (st.orgProposals ?? {}) as Record<string, OrgProposalListRow>,
+        ).find((p) => p.short_id === proposalRef) ?? null)
+      : null,
+  );
   const changes = useProposalChanges(proposalRow?._id);
   const activeTeam = tree?.workspace.kind === "team" ? tree.workspace.id : null;
-  const proposalHere = !!proposalRow && !!tree && (proposalRow.team_id ?? null) === activeTeam;
+  const proposalHere =
+    !!proposalRow && !!tree && (proposalRow.team_id ?? null) === activeTeam;
   // Only what still waits is drawn on the chart; a decided or withdrawn proposal says its outcome in the drawer.
   const drawn = proposalHere && proposalRow.status === "open";
   // Arriving at a proposal by address lands in its workspace; inside a reveal band the drawer names it and offers the switch.
   const switchWorkspace = useSwitchWorkspace();
   const switchedFor = useRef<string | null>(null);
   useWatchEffect(() => {
-    if (inBand || !proposalRow || !tree || proposalHere || switchedFor.current === proposalRow._id) return;
+    if (
+      inBand ||
+      !proposalRow ||
+      !tree ||
+      proposalHere ||
+      switchedFor.current === proposalRow._id
+    )
+      return;
     switchedFor.current = proposalRow._id;
     void switchWorkspace(proposalRow.team_id ?? null);
   }, [proposalRow?._id, proposalHere, !!tree]);
@@ -250,108 +393,206 @@ export function OrgChart() {
   }, []);
   const focusSeqParam = params.get("focus");
   useWatchEffect(() => {
-    const id = focusSeqParam ? changes.find((c) => String(c.seq) === focusSeqParam)?._id : undefined;
+    const id = focusSeqParam
+      ? changes.find((c) => String(c.seq) === focusSeqParam)?._id
+      : undefined;
     if (id) focusChange(id);
   }, [focusSeqParam, changes.length]);
   // A marked node on the chart opens its change in the drawer.
-  const openChange = useCallback((changeId: string) => {
-    if (proposalRef) focusChange(changeId);
-  }, [proposalRef, focusChange]);
+  const openChange = useCallback(
+    (changeId: string) => {
+      if (proposalRef) focusChange(changeId);
+    },
+    [proposalRef, focusChange],
+  );
 
-  const open = useCallback((o: OrgGraphObject | null) => {
-    if (!o) return false;
-    // A role is its session: it opens in the drawer beside the chart.
-    if (o.kind === "role") {
-      const conv = windowOrgTree(useInboxStore.getState())?.roles.find((r) => r._id === o.id || r.short_id === o.id)?.standing?.conversation_id;
-      if (conv) { goPanel({ kind: "session", id: conv }); return true; }
-    }
-    const href = chartCardHref(o, useInboxStore.getState());
-    if (!href) return false;
-    router.push(href);
-    return true;
-  }, [router, goPanel]);
-  const openSession = useCallback((conversationId: string) => goPanel({ kind: "session", id: conversationId }), [goPanel]);
+  const open = useCallback(
+    (o: OrgGraphObject | null) => {
+      if (!o) return false;
+      // A role is its session: it opens in the drawer beside the chart.
+      if (o.kind === "role") {
+        const conv = windowOrgTree(useInboxStore.getState())?.roles.find(
+          (r) => r._id === o.id || r.short_id === o.id,
+        )?.standing?.conversation_id;
+        if (conv) {
+          goPanel({ kind: "session", id: conv });
+          return true;
+        }
+      }
+      const href = chartCardHref(o, useInboxStore.getState());
+      if (!href) return false;
+      router.push(href);
+      return true;
+    },
+    [router, goPanel],
+  );
+  const openSession = useCallback(
+    (conversationId: string) =>
+      goPanel({ kind: "session", id: conversationId }),
+    [goPanel],
+  );
   // The card of what the drawer shows wears the ring and is brought to the
   // middle of the free canvas at a readable zoom: a session, or the role whose
   // seat it is (clicking a role opens its seat's session).
   const sessionOpen = target.kind === "session" ? target.id : null;
   const ring = useMemo<OrgRing | null>(() => {
     if (!sessionOpen || !tree) return null;
-    const seat = tree.roles.find((r) => r.standing?.conversation_id === sessionOpen);
-    return seat ? { kind: "role", id: seat._id } : { kind: "session", id: sessionOpen };
+    const seat = tree.roles.find(
+      (r) => r.standing?.conversation_id === sessionOpen,
+    );
+    return seat
+      ? { kind: "role", id: seat._id }
+      : { kind: "session", id: sessionOpen };
   }, [sessionOpen, tree]);
   const [measure, size] = useSize();
   const sizeW = useRef(0);
   sizeW.current = size.w;
-  const resize = useEdgeResize({ storageKey: ORG_PANEL.key, min: ORG_PANEL.min, fallback: ORG_PANEL.fallback, max: () => sizeW.current - ORG_CHART_MIN });
-  const panelWidth = panelOpen && size.w ? orgPanelWidth(size.w, resize.width) : 0;
+  const resize = useEdgeResize({
+    storageKey: ORG_PANEL.key,
+    min: ORG_PANEL.min,
+    fallback: ORG_PANEL.fallback,
+    max: () => sizeW.current - ORG_CHART_MIN,
+  });
+  const panelWidth =
+    panelOpen && size.w ? orgPanelWidth(size.w, resize.width) : 0;
 
   useEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key !== "Escape" || inBand || !panelOpen || hasOpenModal() || isEditableTarget(e.target)) return;
+    if (
+      e.key !== "Escape" ||
+      inBand ||
+      !panelOpen ||
+      hasOpenModal() ||
+      isEditableTarget(e.target)
+    )
+      return;
     if (target.kind !== "home") goPanel({ kind: "home" });
     else closePanel();
   });
-  const view = orgChartViewOf(useInboxStore((st) => st.clientState.ui?.org_view));
-  const setView = useCallback((v: OrgChartView) => useInboxStore.getState().updateClientUI({ org_view: v }), []);
+  const view = orgChartViewOf(
+    useInboxStore((st) => st.clientState.ui?.org_view),
+  );
+  const setView = useCallback(
+    (v: OrgChartView) =>
+      useInboxStore.getState().updateClientUI({ org_view: v }),
+    [],
+  );
 
   const people = useOrgPeopleView(tree);
   // Find on the chart: the matches stay lit, Enter walks them.
   const [findQ, setFindQ] = useState("");
   const [findStep, setFindStep] = useState(0);
   const [findWaiting, setFindWaiting] = useState(false);
-  const [findCount, setFindCount] = useState<{ n: number; at: number }>({ n: 0, at: 0 });
-  const onFindCount = useCallback((n: number, at: number) => setFindCount({ n, at }), []);
+  const [findCount, setFindCount] = useState<{ n: number; at: number }>({
+    n: 0,
+    at: 0,
+  });
+  const onFindCount = useCallback(
+    (n: number, at: number) => setFindCount({ n, at }),
+    [],
+  );
   const moves = useOrgMoves(tree, people);
   const menu = useContextMenu<OrgLayoutNode>();
-  const onNodeContextMenu = useCallback((e: React.MouseEvent, n: OrgLayoutNode) => menu.open(e, n, { force: true }), [menu]);
+  const onNodeContextMenu = useCallback(
+    (e: React.MouseEvent, n: OrgLayoutNode) => menu.open(e, n, { force: true }),
+    [menu],
+  );
   const filter: MapFilter = view;
   // The chart's controls, drawn by whichever header is up.
   const headTabs = (
     <>
-        <ViewSwitch value={view} onChange={setView} />
-        {view !== "goals" && <ExpandAllToggle on={people.expandAll} onChange={people.setExpandAll} />}
-        {view !== "goals" && <FindBox q={findQ} onQ={(q) => { setFindQ(q); setFindStep(0); }} onStep={(d) => setFindStep((x) => x + d)} count={findCount} showCount={!!findQ || findWaiting} />}
-        {view !== "goals" && (
-          <button
-            type="button"
-            aria-pressed={findWaiting}
-            onClick={() => { setFindWaiting((w) => !w); setFindStep(0); }}
-            className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors"
-            style={findWaiting
-              ? { borderColor: ORG_STATE_META.needs_input.color, color: ORG_STATE_META.needs_input.color, background: `color-mix(in srgb, ${ORG_STATE_META.needs_input.color} 12%, transparent)` }
-              : { borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)", color: "var(--sol-text-muted)" }}
-            data-org-waiting={findWaiting ? "on" : "off"}
-          >
-            <span className="h-[7px] w-[7px] rounded-full" style={{ background: ORG_STATE_META.needs_input.color }} aria-hidden />
-            Needs you
-          </button>
-        )}
+      <ViewSwitch value={view} onChange={setView} />
+      {view !== "goals" && (
+        <ExpandAllToggle on={people.expandAll} onChange={people.setExpandAll} />
+      )}
+      {view !== "goals" && (
+        <FindBox
+          q={findQ}
+          onQ={(q) => {
+            setFindQ(q);
+            setFindStep(0);
+          }}
+          onStep={(d) => setFindStep((x) => x + d)}
+          count={findCount}
+          showCount={!!findQ || findWaiting}
+        />
+      )}
+      {view !== "goals" && (
+        <button
+          type="button"
+          aria-pressed={findWaiting}
+          onClick={() => {
+            setFindWaiting((w) => !w);
+            setFindStep(0);
+          }}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-medium transition-colors"
+          style={
+            findWaiting
+              ? {
+                  borderColor: ORG_STATE_META.needs_input.color,
+                  color: ORG_STATE_META.needs_input.color,
+                  background: `color-mix(in srgb, ${ORG_STATE_META.needs_input.color} 12%, transparent)`,
+                }
+              : {
+                  borderColor:
+                    "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+                  color: "var(--sol-text-muted)",
+                }
+          }
+          data-org-waiting={findWaiting ? "on" : "off"}
+        >
+          <span
+            className="h-[7px] w-[7px] rounded-full"
+            style={{ background: ORG_STATE_META.needs_input.color }}
+            aria-hidden
+          />
+          Needs you
+        </button>
+      )}
     </>
   );
   const headActions = (
     <>
-          {view !== "goals" && tree && <TidyButton wsKey={workspaceKeyOf(tree)} />}
-          <HireButton tree={tree} />
-          {!panelOpen && <PanelToggle tree={tree} onOpen={() => goPanel({ kind: "home" })} />}
+      {view !== "goals" && tree && <TidyButton wsKey={workspaceKeyOf(tree)} />}
+      <HireButton tree={tree} />
+      {!panelOpen && (
+        <PanelToggle tree={tree} onOpen={() => goPanel({ kind: "home" })} />
+      )}
     </>
   );
   return (
-    <div className="flex h-full min-h-0 flex-col" style={{ background: "var(--sol-bg)" }} data-org-chart={view}>
+    <div
+      className="flex h-full min-h-0 flex-col"
+      style={{ background: "var(--sol-bg)" }}
+      data-org-chart={view}
+    >
       {/* In a reveal band the band's own title names what opened; the chart's controls give the room to it. */}
-      {!inBand && <PageHeader
-        legacy={
-          <header className="flex h-12 shrink-0 items-center gap-4 border-b px-5" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 30%, transparent)" }}>
-            <h1 className="text-[15px] font-medium" style={{ color: "var(--sol-text)" }}>Org</h1>
-            {headTabs}
-            <div className="ml-auto flex items-center gap-2">
-              {headActions}
-            </div>
-          </header>
-        }
-        title="Org"
-        tabs={headTabs}
-        actions={headActions}
-      />}
+      {!inBand && (
+        <PageHeader
+          legacy={
+            <header
+              className="flex h-12 shrink-0 items-center gap-4 border-b px-5"
+              style={{
+                borderColor:
+                  "color-mix(in srgb, var(--sol-border) 30%, transparent)",
+              }}
+            >
+              <h1
+                className="text-[15px] font-medium"
+                style={{ color: "var(--sol-text)" }}
+              >
+                Org
+              </h1>
+              {headTabs}
+              <div className="ml-auto flex items-center gap-2">
+                {headActions}
+              </div>
+            </header>
+          }
+          title="Org"
+          tabs={headTabs}
+          actions={headActions}
+        />
+      )}
       <div ref={measure} className="relative min-h-0 flex-1">
         <OrgMap
           tree={tree}
@@ -388,40 +629,124 @@ export function OrgChart() {
         />
         {panelOpen && (
           <OrgHoverContext.Provider value={setHoverChange}>
-            <OrgPanel tree={tree} target={target} onTarget={goPanel} onClose={closePanel} onFocusChange={focusChange} onResizeDown={resize.onResizeDown} style={{ ["--lw-drawer-w" as string]: `${panelWidth}px`, ["--org-panel-h" as string]: `${size.h}px` }} />
+            <OrgPanel
+              tree={tree}
+              target={target}
+              onTarget={goPanel}
+              onClose={closePanel}
+              onFocusChange={focusChange}
+              onResizeDown={resize.onResizeDown}
+              style={{
+                ["--lw-drawer-w" as string]: `${panelWidth}px`,
+                ["--org-panel-h" as string]: `${size.h}px`,
+              }}
+            />
           </OrgHoverContext.Provider>
         )}
       </div>
       {people.pagers}
       {moves.ui}
       <ContextMenu state={menu}>
-        {(n) => <OrgNodeMenu node={n} moves={moves} currentParentOf={people.currentParentOf} onToggleCollapse={people.toggleCollapse} onOpenSession={openSession} onOpenObject={open} />}
+        {(n) => (
+          <OrgNodeMenu
+            node={n}
+            moves={moves}
+            currentParentOf={people.currentParentOf}
+            onToggleCollapse={people.toggleCollapse}
+            onOpenSession={openSession}
+            onOpenObject={open}
+          />
+        )}
       </ContextMenu>
     </div>
   );
 }
 
 /** Find a card on the chart: what is typed lights its matches; Enter goes to the next, Shift+Enter the previous, Esc clears. */
-function FindBox({ q, onQ, onStep, count, showCount }: { q: string; onQ: (q: string) => void; onStep: (delta: number) => void; count: { n: number; at: number }; showCount: boolean }) {
+function FindBox({
+  q,
+  onQ,
+  onStep,
+  count,
+  showCount,
+}: {
+  q: string;
+  onQ: (q: string) => void;
+  onStep: (delta: number) => void;
+  count: { n: number; at: number };
+  showCount: boolean;
+}) {
   return (
-    <label className="flex h-8 w-[280px] items-center gap-2 rounded-lg border px-2.5" style={{ borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)", background: "var(--sol-bg-alt)" }} data-org-find>
-      <Search className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--sol-text-dim)" }} />
+    <label
+      className="flex h-8 w-[280px] items-center gap-2 rounded-lg border px-2.5"
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+        background: "var(--sol-bg-alt)",
+      }}
+      data-org-find
+    >
+      <Search
+        className="h-3.5 w-3.5 shrink-0"
+        style={{ color: "var(--sol-text-dim)" }}
+      />
       <input
         value={q}
         onChange={(e) => onQ(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); onStep(e.shiftKey ? -1 : 1); }
-          if (e.key === "Escape" && q) { e.stopPropagation(); onQ(""); }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onStep(e.shiftKey ? -1 : 1);
+          }
+          if (e.key === "Escape" && q) {
+            e.stopPropagation();
+            onQ("");
+          }
         }}
         placeholder="Find on the chart"
         className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
         style={{ color: "var(--sol-text)" }}
       />
-      {showCount && <span className="shrink-0 text-meta tabular-nums" style={{ color: count.n ? "var(--sol-text-dim)" : "var(--sol-red)" }} data-org-find-count>{count.n ? `${count.at + 1}/${count.n}` : "0"}</span>}
+      {showCount && (
+        <span
+          className="shrink-0 text-meta tabular-nums"
+          style={{ color: count.n ? "var(--sol-text-dim)" : "var(--sol-red)" }}
+          data-org-find-count
+        >
+          {count.n ? `${count.at + 1}/${count.n}` : "0"}
+        </span>
+      )}
       {showCount && count.n > 1 && (
         <span className="-mr-1 flex shrink-0 items-center">
-          <button type="button" onClick={(e) => { e.preventDefault(); onStep(-1); }} className="rounded p-0.5 hover:bg-sol-bg-highlight" aria-label="Previous match" data-org-find-prev><ChevronUp className="h-3.5 w-3.5" style={{ color: "var(--sol-text-muted)" }} /></button>
-          <button type="button" onClick={(e) => { e.preventDefault(); onStep(1); }} className="rounded p-0.5 hover:bg-sol-bg-highlight" aria-label="Next match" data-org-find-next><ChevronDown className="h-3.5 w-3.5" style={{ color: "var(--sol-text-muted)" }} /></button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onStep(-1);
+            }}
+            className="rounded p-0.5 hover:bg-sol-bg-highlight"
+            aria-label="Previous match"
+            data-org-find-prev
+          >
+            <ChevronUp
+              className="h-3.5 w-3.5"
+              style={{ color: "var(--sol-text-muted)" }}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onStep(1);
+            }}
+            className="rounded p-0.5 hover:bg-sol-bg-highlight"
+            aria-label="Next match"
+            data-org-find-next
+          >
+            <ChevronDown
+              className="h-3.5 w-3.5"
+              style={{ color: "var(--sol-text-muted)" }}
+            />
+          </button>
         </span>
       )}
     </label>
@@ -430,7 +755,9 @@ function FindBox({ q, onQ, onStep, count, showCount }: { q: string; onQ: (q: str
 
 /** Shown once the person has placed cards: puts every one back in the tree. */
 function TidyButton({ wsKey }: { wsKey: string }) {
-  const moved = useInboxStore((st) => Object.keys(st.clientState.ui?.org_placed?.[wsKey] ?? {}).length);
+  const moved = useInboxStore(
+    (st) => Object.keys(st.clientState.ui?.org_placed?.[wsKey] ?? {}).length,
+  );
   if (!moved) return null;
   return (
     <OrgButton

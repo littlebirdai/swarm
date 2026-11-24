@@ -12,20 +12,34 @@ import { BookMarked, Loader2 } from "lucide-react";
 import type { AppConnectionScope } from "@codecast/shared/contracts";
 import { LedgerLine } from "./parts";
 
-export function GithubInstallDetail({ scope, teamId }: { scope: AppConnectionScope; teamId: string | undefined }) {
+export function GithubInstallDetail({
+  scope,
+  teamId,
+}: {
+  scope: AppConnectionScope;
+  teamId: string | undefined;
+}) {
   // One query either way (githubApp.listInstallations): named a team it lists
   // the team's installs, with none it lists the caller's own.
   const team = scope === "team";
   const { data: installations, error } = useSettingsData(
     team ? "githubInstallations" : "personalGithubInstallations",
-    team ? teamId ?? null : undefined,
+    team ? (teamId ?? null) : undefined,
   ) as { data: any[] | undefined; error: Error | null | undefined };
 
   if (team && !teamId) {
-    return <p className="mt-2 text-xs text-sol-text-muted">A team install binds to a team; this account has none.</p>;
+    return (
+      <p className="mt-2 text-xs text-sol-text-muted">
+        A team install binds to a team; this account has none.
+      </p>
+    );
   }
   if (error && installations === undefined) {
-    return <p className="mt-2 text-xs text-sol-red">Couldn&apos;t load the installations: {error.message}</p>;
+    return (
+      <p className="mt-2 text-xs text-sol-red">
+        Couldn&apos;t load the installations: {error.message}
+      </p>
+    );
   }
   if (installations === undefined) {
     return (
@@ -56,7 +70,9 @@ export function GithubInstallDetail({ scope, teamId }: { scope: AppConnectionSco
                 <div className="flex items-center justify-between gap-3">
                   <span className="truncate text-xs font-medium text-sol-text">
                     {install.account_login}
-                    <span className="ml-1.5 font-mono text-meta text-sol-text-dim">{install.account_type}</span>
+                    <span className="ml-1.5 font-mono text-meta text-sol-text-dim">
+                      {install.account_type}
+                    </span>
                   </span>
                   <a
                     href={githubInstallSettingsUrl(install)}
@@ -80,7 +96,9 @@ export function GithubInstallDetail({ scope, teamId }: { scope: AppConnectionSco
                     {repos.map((repo: any) => (
                       <li key={repo.id} className="flex items-center gap-1.5">
                         <BookMarked className="h-3 w-3 shrink-0 text-sol-text-dim" />
-                        <span className="truncate font-mono text-meta text-sol-text-muted">{repo.full_name}</span>
+                        <span className="truncate font-mono text-meta text-sol-text-muted">
+                          {repo.full_name}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -91,9 +109,10 @@ export function GithubInstallDetail({ scope, teamId }: { scope: AppConnectionSco
         </div>
       )}
       <p className="mt-2 text-meta leading-relaxed text-sol-text-dim">
-        A repository owned by an account that is not listed here is invisible to codecast until the App
-        is installed on that account. Which repositories an install covers is chosen on GitHub; codecast
-        follows the change as soon as GitHub reports it and brings in the pull requests already there.
+        A repository owned by an account that is not listed here is invisible to
+        codecast until the App is installed on that account. Which repositories
+        an install covers is chosen on GitHub; codecast follows the change as
+        soon as GitHub reports it and brings in the pull requests already there.
       </p>
     </div>
   );
@@ -104,7 +123,11 @@ export function GithubInstallDetail({ scope, teamId }: { scope: AppConnectionSco
  * and a person's under their own. The user-settings form 404s for an org
  * install unless GitHub happens to redirect, so the link names the right one.
  */
-function githubInstallSettingsUrl(install: { account_type: string; account_login: string; installation_id: number }) {
+function githubInstallSettingsUrl(install: {
+  account_type: string;
+  account_login: string;
+  installation_id: number;
+}) {
   return install.account_type === "Organization"
     ? `https://github.com/organizations/${install.account_login}/settings/installations/${install.installation_id}`
     : `https://github.com/settings/installations/${install.installation_id}`;

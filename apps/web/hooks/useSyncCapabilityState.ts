@@ -37,7 +37,9 @@ export function useSyncCapabilityStateWithArgs(wsArgs: WorkspaceArgs) {
 
   const result = useQueryNoThrow(
     api.capabilityState.webList,
-    wsArgs === "skip" ? "skip" : { ...(cursor !== undefined ? { since: cursor } : {}) },
+    wsArgs === "skip"
+      ? "skip"
+      : { ...(cursor !== undefined ? { since: cursor } : {}) },
   ).data;
 
   const data = useMemo(() => {
@@ -64,8 +66,14 @@ export function useSyncCapabilityStateWithArgs(wsArgs: WorkspaceArgs) {
 
   // The header chip: loading only while the FIRST answer is pending.
   useWatchEffect(() => {
-    useInboxStore.getState().setLiveLoading("capabilityState", wsArgs !== "skip" && result === undefined);
-    return () => useInboxStore.getState().setLiveLoading("capabilityState", false);
+    useInboxStore
+      .getState()
+      .setLiveLoading(
+        "capabilityState",
+        wsArgs !== "skip" && result === undefined,
+      );
+    return () =>
+      useInboxStore.getState().setLiveLoading("capabilityState", false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mirrors useSyncTasks: re-run on resolution flips only
   }, [result === undefined, wsArgs === "skip"]);
 
@@ -86,7 +94,6 @@ export function useSyncCapabilityStateWithArgs(wsArgs: WorkspaceArgs) {
 export function useSyncCapabilityState() {
   return useSyncCapabilityStateWithArgs(useWorkspaceArgs());
 }
-
 
 /* ==========================================================================
  * Bindings — the user's wishes, synced beside the mirror
@@ -111,9 +118,14 @@ export function useSyncCapabilityBindingsWithArgs(wsArgs: WorkspaceArgs) {
 
   const result = useQueryNoThrow(
     api.capabilityBindings.webListBindings,
-    wsArgs === "skip" ? "skip" : { ...(cursor !== undefined ? { since: cursor } : {}) },
+    wsArgs === "skip"
+      ? "skip"
+      : { ...(cursor !== undefined ? { since: cursor } : {}) },
   ).data;
-  const data = useMemo(() => (result === undefined ? undefined : { items: result.items ?? [] }), [result]);
+  const data = useMemo(
+    () => (result === undefined ? undefined : { items: result.items ?? [] }),
+    [result],
+  );
 
   useConvexSync(
     data,
@@ -132,7 +144,8 @@ export function useSyncCapabilityBindingsWithArgs(wsArgs: WorkspaceArgs) {
 
   useWatchEffect(() => {
     const timer = setInterval(() => {
-      if (lastSeen.current !== undefined && lastSeen.current !== cursor) setCursor(lastSeen.current);
+      if (lastSeen.current !== undefined && lastSeen.current !== cursor)
+        setCursor(lastSeen.current);
     }, CURSOR_REFRESH_MS);
     return () => clearInterval(timer);
   }, [cursor]);

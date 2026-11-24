@@ -16,26 +16,51 @@ import { daemonDeviceFor } from "../world";
 // One managed_sessions row per conversation, and one conversation per session uuid.
 async function expectNoDuplicateSessions(w: ScenarioWorld): Promise<void> {
   await w.settleAs("expect no duplicate sessions");
-  for (const [table, key] of [["managed_sessions", "conversation_id"], ["conversations", "session_id"]] as const) {
+  for (const [table, key] of [
+    ["managed_sessions", "conversation_id"],
+    ["conversations", "session_id"],
+  ] as const) {
     const seen = new Map<unknown, Record<string, unknown>>();
-    for (const row of (w.backend.db._tables[table] ?? []) as Record<string, unknown>[]) {
+    for (const row of (w.backend.db._tables[table] ?? []) as Record<
+      string,
+      unknown
+    >[]) {
       const first = seen.get(row[key]);
-      if (!first) { seen.set(row[key], row); continue; }
-      w.fail({ ...w.reportBase("expect no duplicate sessions"), invariant: { id: "expect.noDuplicateSessions", meaning: `one ${table} row per ${key}` }, message: `two ${table} rows share ${key} ${w.labels.relabel(String(row[key]))}`, row: { table, id: String(row._id), server: row, replica: first } });
+      if (!first) {
+        seen.set(row[key], row);
+        continue;
+      }
+      w.fail({
+        ...w.reportBase("expect no duplicate sessions"),
+        invariant: {
+          id: "expect.noDuplicateSessions",
+          meaning: `one ${table} row per ${key}`,
+        },
+        message: `two ${table} rows share ${key} ${w.labels.relabel(String(row[key]))}`,
+        row: { table, id: String(row._id), server: row, replica: first },
+      });
     }
   }
 }
 
 export async function daemonRestartParked(w: ScenarioWorld): Promise<void> {
   w.team("acme").user("ada", ["acme"]);
-  const parked = ["p1", "p2", "p3"].map((n) => w.session("ada", n, { agentStatus: "hibernated", row: { thread_state_status: "done" } }));
+  const parked = ["p1", "p2", "p3"].map((n) =>
+    w.session("ada", n, {
+      agentStatus: "hibernated",
+      row: { thread_state_status: "done" },
+    }),
+  );
   const live = w.session("ada", "live", { agentStatus: "working" });
   const trigger = w.trigger("nightly", { owner: "ada", session: parked[0] });
   const ada = await w.device("ada", { followers: 1 });
   const daemon = w.daemon("ada");
   // A parked row reads by its own verdict whether its daemon is alive, dead or back.
   const stillParked = async () => {
-    for (const s of parked) await w.expect(ada.host).shows(s, { bucket: s === parked[0] ? "dormant" : "done" });
+    for (const s of parked)
+      await w
+        .expect(ada.host)
+        .shows(s, { bucket: s === parked[0] ? "dormant" : "done" });
   };
 
   await w.advance(HEARTBEAT_ALIVE_MS + 60_000);
@@ -44,7 +69,9 @@ export async function daemonRestartParked(w: ScenarioWorld): Promise<void> {
   await daemon.restart([live]);
   await daemon.heartbeat(live, "working");
   await daemon.claimTask(trigger);
-  await w.expect.server.row(trigger).has({ status: "running", lease_holder: daemonDeviceFor("ada") });
+  await w.expect.server
+    .row(trigger)
+    .has({ status: "running", lease_holder: daemonDeviceFor("ada") });
   await w.expect(ada.host).shows(live, { bucket: "working" });
   await stillParked();
   await expectNoDuplicateSessions(w);

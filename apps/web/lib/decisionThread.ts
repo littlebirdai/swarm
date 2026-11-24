@@ -8,15 +8,23 @@ import type { Comment } from "./commentThread";
 import { settleEchoedSend } from "./decisionDiscussion";
 
 /** "passed to Samvit" / "escalated to Armen and Ashot". */
-export function handoffWords(entry: Pick<DecisionCommentRow, "decision_event" | "event_to_names">): string {
+export function handoffWords(
+  entry: Pick<DecisionCommentRow, "decision_event" | "event_to_names">,
+): string {
   const names = entry.event_to_names ?? [];
-  const who = names.length <= 1 ? names[0] ?? "someone" : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const who =
+    names.length <= 1
+      ? (names[0] ?? "someone")
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   return `${entry.decision_event === "escalated" ? "escalated" : "passed"} to ${who}`;
 }
 
 /** The thread's rows as the shared comment components draw them (lib/commentThread
  *  Comment): `sessionId` is the session the thread's agent rows speak for. */
-export function decisionThreadComments(rows: readonly DecisionCommentRow[], sessionId: string): Comment[] {
+export function decisionThreadComments(
+  rows: readonly DecisionCommentRow[],
+  sessionId: string,
+): Comment[] {
   return [...rows]
     .sort((a, b) => a.created_at - b.created_at || a._id.localeCompare(b._id))
     .map((r) => ({
@@ -37,24 +45,38 @@ export function decisionThreadComments(rows: readonly DecisionCommentRow[], sess
 }
 
 /** The Threads row id of a decision's thread (threadInbox `${kind}:${root_key}`). */
-export const decisionThreadRowId = (decisionId: string) => `decision:decision:${decisionId}`;
-export const decisionThreadRootKey = (decisionId: string) => `decision:${decisionId}`;
+export const decisionThreadRowId = (decisionId: string) =>
+  `decision:decision:${decisionId}`;
+export const decisionThreadRootKey = (decisionId: string) =>
+  `decision:${decisionId}`;
 
 export function newDecisionCommentId(): string {
-  const id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `decision-thread:${id}`;
 }
 
 /** Send a comment: it paints at once, and a refusal takes the stub back and resolves with the reason. */
-export async function sendDecisionComment(decisionId: string, text: string, clientId: string, parentId?: string): Promise<string | null> {
+export async function sendDecisionComment(
+  decisionId: string,
+  text: string,
+  clientId: string,
+  parentId?: string,
+): Promise<string | null> {
   return settleEchoedSend(
-    useInboxStore.getState().commentOnDecision(decisionId, text, clientId, parentId),
+    useInboxStore
+      .getState()
+      .commentOnDecision(decisionId, text, clientId, parentId),
     () => useInboxStore.getState().dropDecisionComment(clientId),
   );
 }
 
 /** Ask the decision's session about the thread: its answer fills a placeholder. */
-export async function askDecisionSession(decisionId: string): Promise<string | null> {
+export async function askDecisionSession(
+  decisionId: string,
+): Promise<string | null> {
   const clientId = newDecisionCommentId();
   return settleEchoedSend(
     useInboxStore.getState().askDecisionSession(decisionId, clientId),
@@ -64,5 +86,7 @@ export async function askDecisionSession(decisionId: string): Promise<string | n
 
 /** Mark the viewer's thread read, when it has news. */
 export function markDecisionThreadRead(decisionId: string): void {
-  useInboxStore.getState().markThreadRead("decision", decisionThreadRootKey(decisionId));
+  useInboxStore
+    .getState()
+    .markThreadRead("decision", decisionThreadRootKey(decisionId));
 }

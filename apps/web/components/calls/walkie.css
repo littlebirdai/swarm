@@ -18,7 +18,9 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 
 .walkie-ptt:disabled {
@@ -49,12 +51,25 @@
   border: 1px solid color-mix(in srgb, var(--sol-border) 90%, transparent);
   background: color-mix(in srgb, var(--sol-text) 4%, transparent);
   color: var(--sol-text-muted);
-  transition: color 120ms, background 120ms, border-color 120ms, transform 90ms;
+  transition:
+    color 120ms,
+    background 120ms,
+    border-color 120ms,
+    transform 90ms;
 }
 
-.walkie-key-sm { width: 24px; height: 24px; }
-.walkie-key-md { width: 40px; height: 40px; }
-.walkie-key-lg { width: 52px; height: 52px; }
+.walkie-key-sm {
+  width: 24px;
+  height: 24px;
+}
+.walkie-key-md {
+  width: 40px;
+  height: 40px;
+}
+.walkie-key-lg {
+  width: 52px;
+  height: 52px;
+}
 
 /* With a word beside it the key stops being round and becomes a key with a
    label on it — same colours, same states, a shape that can hold text. */
@@ -85,7 +100,10 @@
 }
 
 .walkie-key-sm .walkie-key-glyph,
-.walkie-key-wide .walkie-key-glyph { width: 14px; height: 14px; }
+.walkie-key-wide .walkie-key-glyph {
+  width: 14px;
+  height: 14px;
+}
 
 /* THE LEVEL RING. A circle around the key that fills clockwise with how loudly
  * the person is actually talking — the single most important thing this design
@@ -110,8 +128,16 @@
     transparent calc(var(--level) * 360deg)
   );
   /* Hollow it out: the fill is a ring, not a pie. */
-  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  mask: radial-gradient(closest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  -webkit-mask: radial-gradient(
+    closest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    closest-side,
+    transparent calc(100% - 3px),
+    #000 calc(100% - 3px)
+  );
   transition: opacity 140ms;
   pointer-events: none;
 }
@@ -153,7 +179,8 @@
   transform: scale(0.94);
   box-shadow:
     inset 0 2px 5px color-mix(in srgb, #000 35%, transparent),
-    0 0 calc(3px + var(--level) * 16px) color-mix(in srgb, var(--walkie-tx) 55%, transparent);
+    0 0 calc(3px + var(--level) * 16px)
+      color-mix(in srgb, var(--walkie-tx) 55%, transparent);
 }
 
 .walkie-ptt-on .walkie-key-ring {
@@ -169,15 +196,28 @@
  * lands nowhere. So it takes the accent at a fraction of its weight and pulses,
  * the way a thing that is still arriving looks, rather than reading as "go". */
 .walkie-ptt-opening {
-  color: color-mix(in srgb, var(--walkie-tx) 60%, var(--sol-text-dim)) !important;
+  color: color-mix(
+    in srgb,
+    var(--walkie-tx) 60%,
+    var(--sol-text-dim)
+  ) !important;
   background: color-mix(in srgb, var(--walkie-tx) 8%, transparent) !important;
-  border-color: color-mix(in srgb, var(--walkie-tx) 35%, transparent) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--walkie-tx) 35%,
+    transparent
+  ) !important;
   animation: walkie-opening 1.1s ease-in-out infinite;
 }
 
 @keyframes walkie-opening {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* LOCKED: the closed arc, kept. The key comes back up — nothing is being held
@@ -191,12 +231,18 @@
 .walkie-ptt-locked .walkie-key-ring {
   opacity: 1;
   background: none;
-  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--walkie-tx) 85%, transparent);
+  box-shadow: inset 0 0 0 3px
+    color-mix(in srgb, var(--walkie-tx) 85%, transparent);
 }
 
 @keyframes walkie-locked-breathe {
-  0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--walkie-tx) 55%, transparent); }
-  50%      { box-shadow: 0 0 3px color-mix(in srgb, var(--walkie-tx) 30%, transparent); }
+  0%,
+  100% {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--walkie-tx) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 3px color-mix(in srgb, var(--walkie-tx) 30%, transparent);
+  }
 }
 
 /* The room went away under an open mic. It keeps the warm accent — this IS the
@@ -230,11 +276,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walkie-ptt-on { animation: none; }
+  .walkie-ptt-on {
+    animation: none;
+  }
   /* Rest fully visible: the word beside it already carries the state, and the
      blanket rule in globals.css would otherwise leave it parked at 0.55. */
-  .walkie-ptt-opening { animation: none; opacity: 1; }
-  .walkie-ptt-locked { animation: none; }
+  .walkie-ptt-opening {
+    animation: none;
+    opacity: 1;
+  }
+  .walkie-ptt-locked {
+    animation: none;
+  }
   /* The ring stops sweeping and becomes brightness alone. The level is still
      shown, because it is information and not decoration — somebody who has
      asked for less motion still has to be able to tell a live microphone from a
@@ -242,7 +295,9 @@
   .walkie-key-ring {
     background: var(--walkie-tx);
   }
-  .walkie-ptt-on .walkie-key-ring { opacity: calc(0.2 + var(--level) * 0.5); }
+  .walkie-ptt-on .walkie-key-ring {
+    opacity: calc(0.2 + var(--level) * 0.5);
+  }
 }
 
 /* ── The engagement card ────────────────────────────────────────────────────
@@ -337,8 +392,12 @@
   transition: transform 60ms linear;
 }
 
-.walkie-level-tx i { background: var(--walkie-tx); }
-.walkie-level-rx i { background: var(--walkie-rx); }
+.walkie-level-tx i {
+  background: var(--walkie-tx);
+}
+.walkie-level-rx i {
+  background: var(--walkie-rx);
+}
 
 @media (prefers-reduced-motion: reduce) {
   /* Still the level, still no motion: brightness carries it instead of height. */
@@ -395,8 +454,14 @@
  * steps into the room on purpose (faceRow.css, data-state="joining").
  */
 @keyframes walkie-face-pop {
-  from { transform: scale(0.2); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* ── The locked controls ────────────────────────────────────────────────────
@@ -417,7 +482,9 @@
   color: var(--sol-bg);
   background: var(--sol-red);
   border: 1px solid var(--sol-red);
-  transition: filter 120ms, transform 90ms;
+  transition:
+    filter 120ms,
+    transform 90ms;
 }
 .walkie-strip-end:hover {
   filter: brightness(1.12);
@@ -462,7 +529,9 @@
   color: var(--sol-bg);
   background: var(--walkie-tx);
   border: 1px solid var(--walkie-tx);
-  transition: filter 120ms, transform 90ms;
+  transition:
+    filter 120ms,
+    transform 90ms;
 }
 
 .walkie-strip-join:hover {
@@ -490,7 +559,10 @@
   color: var(--sol-text-muted);
   background: var(--sol-bg-highlight);
   border: 1px solid transparent;
-  transition: color 120ms, background 120ms, border-color 120ms;
+  transition:
+    color 120ms,
+    background 120ms,
+    border-color 120ms;
 }
 
 .walkie-strip-snooze:hover {
@@ -575,7 +647,8 @@
   margin-top: -5px;
   transform: rotate(45deg);
   border-right: 1px solid color-mix(in srgb, var(--sol-orange) 45%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--sol-orange) 45%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sol-orange) 45%, transparent);
   background: var(--sol-bg-alt);
 }
 
@@ -587,7 +660,9 @@
   height: 20px;
   border-radius: 6px;
   color: var(--sol-text-dim);
-  transition: color 120ms, background 120ms;
+  transition:
+    color 120ms,
+    background 120ms;
 }
 
 .walkie-coach-x:hover {
@@ -596,8 +671,14 @@
 }
 
 @keyframes walkie-coach-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -644,28 +725,51 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.walkie-stage-opening   { --stage-tone: color-mix(in srgb, var(--walkie-tx) 60%, var(--sol-text-dim)); }
+.walkie-stage-opening {
+  --stage-tone: color-mix(in srgb, var(--walkie-tx) 60%, var(--sol-text-dim));
+}
 .walkie-stage-recording,
 .walkie-stage-live,
-.walkie-stage-both      { --stage-tone: var(--walkie-tx); }
+.walkie-stage-both {
+  --stage-tone: var(--walkie-tx);
+}
 /* ON THE LINE is a call, and a call is violet: the seats on the row above
    the card wear it, so the word under them does too. Warm here said "your
    voice is going out" on a line where nothing may be said for minutes. */
-.walkie-stage-locked    { --stage-tone: var(--sol-violet); }
+.walkie-stage-locked {
+  --stage-tone: var(--sol-violet);
+}
 /* The same call on its way in: violet, still blinking until the room is up. */
-.walkie-stage-joining   { --stage-tone: var(--sol-violet); }
-.walkie-stage-incoming  { --stage-tone: var(--walkie-rx); }
+.walkie-stage-joining {
+  --stage-tone: var(--sol-violet);
+}
+.walkie-stage-incoming {
+  --stage-tone: var(--walkie-rx);
+}
 .walkie-stage-dropped,
-.walkie-stage-mic-off   { --stage-tone: var(--sol-red); }
-.walkie-stage-open      { --stage-tone: var(--sol-text-dim); }
+.walkie-stage-mic-off {
+  --stage-tone: var(--sol-red);
+}
+.walkie-stage-open {
+  --stage-tone: var(--sol-text-dim);
+}
 .walkie-stage-open .walkie-stage-dot,
-.walkie-stage-locked .walkie-stage-dot { animation: none; }
+.walkie-stage-locked .walkie-stage-dot {
+  animation: none;
+}
 @keyframes walkie-stage-blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .walkie-stage-dot { animation: none; }
+  .walkie-stage-dot {
+    animation: none;
+  }
 }
 
 /* WHAT YOUR HANDS DO NEXT: the instruction under the words, plain and always
@@ -687,4 +791,6 @@
 }
 
 /* Modern (.modern-style): the stage line is words, in the interface sans. */
-.modern-style .walkie-stage { font-family: var(--font-ui); }
+.modern-style .walkie-stage {
+  font-family: var(--font-ui);
+}

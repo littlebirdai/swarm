@@ -1,9 +1,18 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalQuery, internalMutation } from "./functions";
+import {
+  mutation,
+  query,
+  action,
+  internalQuery,
+  internalMutation,
+} from "./functions";
 import { api, internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { requireUser, requireUserOrToken } from "./lib/auth";
-import { canAccessPullRequest, requireAccessiblePullRequest } from "./lib/access";
+import {
+  canAccessPullRequest,
+  requireAccessiblePullRequest,
+} from "./lib/access";
 import type { Doc } from "./_generated/dataModel";
 import { githubSentence } from "./prCli";
 import { pendingRowsFor, withoutOthersPending } from "./codeComments";
@@ -18,7 +27,11 @@ async function requireReviewAccess(ctx: any, userId: any, reviewId: any) {
   return review;
 }
 
-async function requireReviewCommentAccess(ctx: any, userId: any, commentId: any) {
+async function requireReviewCommentAccess(
+  ctx: any,
+  userId: any,
+  commentId: any,
+) {
   const comment = await ctx.db.get(commentId);
   if (!comment) throw new Error("Review comment not found");
   await requireAccessiblePullRequest(ctx, userId, comment.pull_request_id);
@@ -33,7 +46,7 @@ export const createReview = mutation({
       v.literal("pending"),
       v.literal("approved"),
       v.literal("changes_requested"),
-      v.literal("commented")
+      v.literal("commented"),
     ),
     body: v.optional(v.string()),
   },
@@ -99,7 +112,7 @@ export const updateReviewState = mutation({
       v.literal("pending"),
       v.literal("approved"),
       v.literal("changes_requested"),
-      v.literal("commented")
+      v.literal("commented"),
     ),
   },
   handler: async (ctx, args) => {
@@ -125,7 +138,7 @@ export const getReviewsForPR = query({
     const reviews = await ctx.db
       .query("reviews")
       .withIndex("by_pull_request", (q) =>
-        q.eq("pull_request_id", args.pull_request_id)
+        q.eq("pull_request_id", args.pull_request_id),
       )
       .collect();
     return reviews;
@@ -141,9 +154,7 @@ export const getReviewComments = query({
     await requireReviewAccess(ctx, userId, args.review_id);
     const comments = await ctx.db
       .query("review_comments")
-      .withIndex("by_review", (q) =>
-        q.eq("review_id", args.review_id)
-      )
+      .withIndex("by_review", (q) => q.eq("review_id", args.review_id))
       .collect();
     return withoutOthersPending(comments, userId);
   },
@@ -158,9 +169,7 @@ export const getPendingReviews = query({
     if (String(args.user_id) !== String(userId)) return [];
     const reviews = await ctx.db
       .query("reviews")
-      .withIndex("by_reviewer", (q) =>
-        q.eq("reviewer_user_id", args.user_id)
-      )
+      .withIndex("by_reviewer", (q) => q.eq("reviewer_user_id", args.user_id))
       .filter((q) => q.eq(q.field("state"), "pending"))
       .collect();
     return reviews;
@@ -177,10 +186,12 @@ export const getCommentsForPR = query({
     const comments = await ctx.db
       .query("review_comments")
       .withIndex("by_pull_request", (q) =>
-        q.eq("pull_request_id", args.pull_request_id)
+        q.eq("pull_request_id", args.pull_request_id),
       )
       .collect();
-    return withoutOthersPending(comments, userId).sort((a, b) => a.created_at - b.created_at);
+    return withoutOthersPending(comments, userId).sort(
+      (a, b) => a.created_at - b.created_at,
+    );
   },
 });
 
@@ -195,7 +206,9 @@ export const addCommentToPR = mutation({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     if (String(args.author_user_id) !== String(userId)) {
-      throw new Error("Forbidden: comment author must be the authenticated user");
+      throw new Error(
+        "Forbidden: comment author must be the authenticated user",
+      );
     }
     await requireAccessiblePullRequest(ctx, userId, args.pull_request_id);
 
@@ -234,12 +247,15 @@ export const getCommentsForFile = query({
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
     await requireAccessiblePullRequest(ctx, userId, args.pull_request_id);
-    const allComments = withoutOthersPending(await ctx.db
-      .query("review_comments")
-      .withIndex("by_pull_request", (q) =>
-        q.eq("pull_request_id", args.pull_request_id)
-      )
-      .collect(), userId);
+    const allComments = withoutOthersPending(
+      await ctx.db
+        .query("review_comments")
+        .withIndex("by_pull_request", (q) =>
+          q.eq("pull_request_id", args.pull_request_id),
+        )
+        .collect(),
+      userId,
+    );
 
     return allComments
       .filter((c) => c.file_path === args.file_path)
@@ -254,12 +270,15 @@ export const submitReview = action({
     event: v.union(
       v.literal("APPROVE"),
       v.literal("REQUEST_CHANGES"),
-      v.literal("COMMENT")
+      v.literal("COMMENT"),
     ),
     body: v.optional(v.string()),
     github_access_token: v.string(),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     review_id: string;
     github_review_id: number;
@@ -278,18 +297,23 @@ export const submitReview = action({
       throw new Error(`Pull request with id ${args.pull_request_id} not found`);
     }
 
-    const githubResult = await ctx.runAction(internal.githubApi.submitPRReview, {
-      repository: pr.repository,
-      pr_number: pr.number,
-      event: args.event,
-      body: args.body,
-      github_access_token: args.github_access_token,
-    });
+    const githubResult = await ctx.runAction(
+      internal.githubApi.submitPRReview,
+      {
+        repository: pr.repository,
+        pr_number: pr.number,
+        event: args.event,
+        body: args.body,
+        github_access_token: args.github_access_token,
+      },
+    );
 
     const state =
-      args.event === "APPROVE" ? "approved" :
-      args.event === "REQUEST_CHANGES" ? "changes_requested" :
-      "commented";
+      args.event === "APPROVE"
+        ? "approved"
+        : args.event === "REQUEST_CHANGES"
+          ? "changes_requested"
+          : "commented";
 
     const reviewId = await ctx.runMutation(api.reviews.createReview, {
       pull_request_id: args.pull_request_id,
@@ -306,7 +330,6 @@ export const submitReview = action({
     };
   },
 });
-
 
 // ── The batched review ──
 //
@@ -334,7 +357,9 @@ export const reviewerFor = internalQuery({
         state: pr.state,
         // The session that owns the pull request, when one is bound: the
         // review reaches it as a message the moment GitHub accepts it.
-        owner_conversation_id: pr.shepherd_conversation_id ? String(pr.shepherd_conversation_id) : null,
+        owner_conversation_id: pr.shepherd_conversation_id
+          ? String(pr.shepherd_conversation_id)
+          : null,
       },
     };
   },
@@ -350,13 +375,25 @@ export const submitPending = action({
   args: {
     api_token: v.optional(v.string()),
     pull_request_id: v.id("pull_requests"),
-    event: v.union(v.literal("APPROVE"), v.literal("REQUEST_CHANGES"), v.literal("COMMENT")),
+    event: v.union(
+      v.literal("APPROVE"),
+      v.literal("REQUEST_CHANGES"),
+      v.literal("COMMENT"),
+    ),
     body: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
-    const userId = await ctx.runQuery(internal.reviews.callerId, { api_token: args.api_token });
+    const userId = await ctx.runQuery(internal.reviews.callerId, {
+      api_token: args.api_token,
+    });
     if (!userId) return { error: "Unauthorized" };
-    return await submitReviewWithNotes(ctx, userId, args.pull_request_id, args.event, args.body);
+    return await submitReviewWithNotes(
+      ctx,
+      userId,
+      args.pull_request_id,
+      args.event,
+      args.body,
+    );
   },
 });
 
@@ -374,14 +411,26 @@ export async function submitReviewWithNotes(
 ): Promise<any> {
   {
     const args = { pull_request_id: pullRequestId, event, body };
-    const reviewer: any = await ctx.runQuery(internal.reviews.reviewerFor, { user_id: userId, pull_request_id: args.pull_request_id });
+    const reviewer: any = await ctx.runQuery(internal.reviews.reviewerFor, {
+      user_id: userId,
+      pull_request_id: args.pull_request_id,
+    });
     if (!reviewer) return { error: "Pull request not found" };
     if (!reviewer.github_token) {
-      return { error: "A review goes out under your own GitHub account, and this one has no GitHub token. Connect GitHub in codecast, or review on github.com." };
+      return {
+        error:
+          "A review goes out under your own GitHub account, and this one has no GitHub token. Connect GitHub in codecast, or review on github.com.",
+      };
     }
-    if (reviewer.pr.state !== "open") return { error: `${reviewer.pr.repository}#${reviewer.pr.number} is ${reviewer.pr.state}.` };
+    if (reviewer.pr.state !== "open")
+      return {
+        error: `${reviewer.pr.repository}#${reviewer.pr.number} is ${reviewer.pr.state}.`,
+      };
 
-    const notes: any[] = await ctx.runQuery(internal.codeComments.pendingRowsInternal, { user_id: userId, pull_request_id: args.pull_request_id });
+    const notes: any[] = await ctx.runQuery(
+      internal.codeComments.pendingRowsInternal,
+      { user_id: userId, pull_request_id: args.pull_request_id },
+    );
     if (args.event === "COMMENT" && !args.body?.trim() && notes.length === 0) {
       return { error: "Nothing to submit: write a note or a summary first." };
     }
@@ -401,15 +450,18 @@ export async function submitReviewWithNotes(
       });
 
     try {
-      const result: any = await ctx.runAction(internal.githubApi.submitPRReview, {
-        repository: reviewer.pr.repository,
-        pr_number: reviewer.pr.number,
-        event: args.event,
-        body: args.body,
-        commit_id: reviewer.pr.head_sha ?? undefined,
-        comments,
-        github_access_token: reviewer.github_token,
-      });
+      const result: any = await ctx.runAction(
+        internal.githubApi.submitPRReview,
+        {
+          repository: reviewer.pr.repository,
+          pr_number: reviewer.pr.number,
+          event: args.event,
+          body: args.body,
+          commit_id: reviewer.pr.head_sha ?? undefined,
+          comments,
+          github_access_token: reviewer.github_token,
+        },
+      );
       const posted: any[] = comments.length
         ? await ctx.runAction(internal.githubApi.listReviewComments, {
             repository: reviewer.pr.repository,
@@ -418,16 +470,19 @@ export async function submitReviewWithNotes(
             github_access_token: reviewer.github_token,
           })
         : [];
-      const stamped = await ctx.runMutation(internal.codeComments.recordSubmittedReview, {
-        user_id: userId,
-        pull_request_id: args.pull_request_id,
-        github_review_id: result.review_id,
-        review_url: result.review_url,
-        state: EVENT_STATE[args.event],
-        body: args.body,
-        commit_sha: reviewer.pr.head_sha ?? undefined,
-        comments: posted,
-      });
+      const stamped = await ctx.runMutation(
+        internal.codeComments.recordSubmittedReview,
+        {
+          user_id: userId,
+          pull_request_id: args.pull_request_id,
+          github_review_id: result.review_id,
+          review_url: result.review_url,
+          state: EVENT_STATE[args.event],
+          body: args.body,
+          commit_sha: reviewer.pr.head_sha ?? undefined,
+          comments: posted,
+        },
+      );
       // The owning session hears the whole review as one message: verdict,
       // summary and every note. The webhook echo of this review changes no
       // row we have not already written, so it does not wake the session a
@@ -473,7 +528,11 @@ export const deliverSubmittedReview = internalMutation({
     conversation_ref: v.string(),
     note_ids: v.array(v.id("review_comments")),
     github_review_id: v.optional(v.number()),
-    state: v.union(v.literal("approved"), v.literal("changes_requested"), v.literal("commented")),
+    state: v.union(
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("commented"),
+    ),
     body: v.optional(v.string()),
     review_url: v.optional(v.string()),
   },
@@ -486,27 +545,47 @@ export const deliverSubmittedReview = internalMutation({
       if (row) rows.push(row);
     }
     try {
-      const sent = await sendNotesToSession(ctx, args.user_id, args.conversation_ref, rows, {
-        repository: pr.repository,
-        ref: pr.head_sha ?? undefined,
-        pullRequest: { number: pr.number, url: args.review_url ?? codecastPrUrl(pr.repository, pr.number) },
-        verdict: args.state,
-        summary: args.body,
-      });
+      const sent = await sendNotesToSession(
+        ctx,
+        args.user_id,
+        args.conversation_ref,
+        rows,
+        {
+          repository: pr.repository,
+          ref: pr.head_sha ?? undefined,
+          pullRequest: {
+            number: pr.number,
+            url: args.review_url ?? codecastPrUrl(pr.repository, pr.number),
+          },
+          verdict: args.state,
+          summary: args.body,
+        },
+      );
       // GitHub's webhook for this same review may still be on its way, or may
       // have landed before our row was written. Either way the stamp tells its
       // delayed wake that the session has already heard the review.
       if (args.github_review_id != null) {
         const row = await ctx.db
           .query("reviews")
-          .withIndex("by_github_review_id", (q) => q.eq("github_review_id", args.github_review_id))
+          .withIndex("by_github_review_id", (q) =>
+            q.eq("github_review_id", args.github_review_id),
+          )
           .first();
-        if (row) await ctx.db.patch(row._id, { session_delivered_at: Date.now() });
+        if (row)
+          await ctx.db.patch(row._id, { session_delivered_at: Date.now() });
       }
-      return { conversation_id: String(sent.conversation_id), short_id: sent.short_id ?? null, notes: sent.sent, outcome: sent.outcome };
+      return {
+        conversation_id: String(sent.conversation_id),
+        short_id: sent.short_id ?? null,
+        notes: sent.sent,
+        outcome: sent.outcome,
+      };
     } catch (error) {
       const outcome = failedOutcome(error);
-      return { error: outcome.kind === "failed" ? outcome.reason : String(error), outcome };
+      return {
+        error: outcome.kind === "failed" ? outcome.reason : String(error),
+        outcome,
+      };
     }
   },
 });
@@ -539,15 +618,30 @@ export const handPendingToSession = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserOrToken(ctx, args.api_token);
-    const pr = await requireAccessiblePullRequest(ctx, userId, args.pull_request_id);
-    const ref = args.conversation_ref ?? (pr.shepherd_conversation_id ? String(pr.shepherd_conversation_id) : undefined);
-    if (!ref) throw new Error("No session to hand the review to: bind a shepherd or name a session.");
+    const pr = await requireAccessiblePullRequest(
+      ctx,
+      userId,
+      args.pull_request_id,
+    );
+    const ref =
+      args.conversation_ref ??
+      (pr.shepherd_conversation_id
+        ? String(pr.shepherd_conversation_id)
+        : undefined);
+    if (!ref)
+      throw new Error(
+        "No session to hand the review to: bind a shepherd or name a session.",
+      );
     const rows = await pendingRowsFor(ctx, userId, args.pull_request_id);
-    if (rows.length === 0) throw new Error("No pending notes on this pull request");
+    if (rows.length === 0)
+      throw new Error("No pending notes on this pull request");
     return await sendNotesToSession(ctx, userId, ref, rows, {
       repository: pr.repository,
       ref: pr.head_sha ?? undefined,
-      pullRequest: { number: pr.number, url: codecastPrUrl(pr.repository, pr.number) },
+      pullRequest: {
+        number: pr.number,
+        url: codecastPrUrl(pr.repository, pr.number),
+      },
       resolve: args.resolve,
     });
   },

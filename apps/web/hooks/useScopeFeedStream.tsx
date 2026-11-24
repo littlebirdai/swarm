@@ -12,10 +12,30 @@ import type { FeedKind, FeedRow } from "../components/org/scope/scopeTypes";
 const PAGE = 40;
 
 /** One page of the feed: fires the query for its cursor, reports once, stays mounted so the row stays live. */
-function FeedPageLoader({ scope, cursor, kinds, onPage, onProblem }: { scope: ScopeRef; cursor?: string; kinds: FeedKind[]; onPage: (cursor: string | undefined, rows: FeedRow[], next?: string) => void; onProblem: (message: string) => void }) {
-  const { data, error, missing } = useScopeFeedPage({ ...scope, ...(cursor ? { cursor } : {}), limit: PAGE, ...(kinds.length ? { kinds } : {}) });
+function FeedPageLoader({
+  scope,
+  cursor,
+  kinds,
+  onPage,
+  onProblem,
+}: {
+  scope: ScopeRef;
+  cursor?: string;
+  kinds: FeedKind[];
+  onPage: (cursor: string | undefined, rows: FeedRow[], next?: string) => void;
+  onProblem: (message: string) => void;
+}) {
+  const { data, error, missing } = useScopeFeedPage({
+    ...scope,
+    ...(cursor ? { cursor } : {}),
+    limit: PAGE,
+    ...(kinds.length ? { kinds } : {}),
+  });
   useWatchEffect(() => {
-    if (data) { onPage(cursor, data.rows ?? [], data.next_cursor ?? undefined); return; }
+    if (data) {
+      onPage(cursor, data.rows ?? [], data.next_cursor ?? undefined);
+      return;
+    }
     const problem = queryProblem(error, missing, "The feed");
     if (problem) onProblem(problem);
   }, [data, error, missing, cursor, onPage, onProblem]);
@@ -39,7 +59,10 @@ export type ScopeFeedStream = {
   loaders: ReactNode;
 };
 
-export function useScopeFeedStream(scope: ScopeRef, lockKinds?: FeedKind[]): ScopeFeedStream {
+export function useScopeFeedStream(
+  scope: ScopeRef,
+  lockKinds?: FeedKind[],
+): ScopeFeedStream {
   const [pickedKinds, setKinds] = useState<FeedKind[]>([]);
   const kinds = lockKinds ?? pickedKinds;
   const scopeKey = JSON.stringify(scope);
@@ -48,8 +71,18 @@ export function useScopeFeedStream(scope: ScopeRef, lockKinds?: FeedKind[]): Sco
   // key, so a scope or kind change starts over in the same render: the old
   // cursors are never fired against the new filter, not even for one commit.
   const streamKey = `${scopeKey}|${kinds.join(",")}`;
-  type Stream = { key: string; pages: Record<string, { rows: FeedRow[]; next?: string }>; requested: string[]; problem: string | null };
-  const fresh = (key: string): Stream => ({ key, pages: {}, requested: [""], problem: null });
+  type Stream = {
+    key: string;
+    pages: Record<string, { rows: FeedRow[]; next?: string }>;
+    requested: string[];
+    problem: string | null;
+  };
+  const fresh = (key: string): Stream => ({
+    key,
+    pages: {},
+    requested: [""],
+    problem: null,
+  });
   const [streamState, setStream] = useState<Stream>(() => fresh(streamKey));
   const stream = streamState.key === streamKey ? streamState : fresh(streamKey);
   const { pages, requested, problem } = stream;
@@ -58,17 +91,38 @@ export function useScopeFeedStream(scope: ScopeRef, lockKinds?: FeedKind[]): Sco
     setStream((prev) => fn(prev.key === key ? prev : fresh(key)));
   }, []);
 
-  const onPage = useCallback((cursor: string | undefined, rows: FeedRow[], next?: string) => {
-    patchStream(streamKey, (prev) => {
-      const key = cursor ?? "";
-      const cur = prev.pages[key];
-      if (cur && cur.next === next && cur.rows.length === rows.length && cur.rows.every((r, i) => r.id === rows[i].id && r.updated_at === rows[i].updated_at)) return prev;
-      return { ...prev, pages: { ...prev.pages, [key]: { rows, next } }, problem: null };
-    });
-  }, [patchStream, streamKey]);
-  const onProblem = useCallback((message: string) => {
-    patchStream(streamKey, (prev) => (prev.problem === message ? prev : { ...prev, problem: message }));
-  }, [patchStream, streamKey]);
+  const onPage = useCallback(
+    (cursor: string | undefined, rows: FeedRow[], next?: string) => {
+      patchStream(streamKey, (prev) => {
+        const key = cursor ?? "";
+        const cur = prev.pages[key];
+        if (
+          cur &&
+          cur.next === next &&
+          cur.rows.length === rows.length &&
+          cur.rows.every(
+            (r, i) =>
+              r.id === rows[i].id && r.updated_at === rows[i].updated_at,
+          )
+        )
+          return prev;
+        return {
+          ...prev,
+          pages: { ...prev.pages, [key]: { rows, next } },
+          problem: null,
+        };
+      });
+    },
+    [patchStream, streamKey],
+  );
+  const onProblem = useCallback(
+    (message: string) => {
+      patchStream(streamKey, (prev) =>
+        prev.problem === message ? prev : { ...prev, problem: message },
+      );
+    },
+    [patchStream, streamKey],
+  );
 
   const ordered = useMemo(() => {
     // Walk the chain from the first page so a page that re-fired stays in place.
@@ -79,7 +133,11 @@ export function useScopeFeedStream(scope: ScopeRef, lockKinds?: FeedKind[]): Sco
     for (let guard = 0; guard < 200; guard++) {
       const page = pages[key];
       if (!page) break;
-      for (const r of page.rows) if (!seen.has(`${r.kind}:${r.id}`)) { seen.add(`${r.kind}:${r.id}`); out.push(r); }
+      for (const r of page.rows)
+        if (!seen.has(`${r.kind}:${r.id}`)) {
+          seen.add(`${r.kind}:${r.id}`);
+          out.push(r);
+        }
       last = page;
       if (!page.next) break;
       key = page.next;
@@ -91,13 +149,43 @@ export function useScopeFeedStream(scope: ScopeRef, lockKinds?: FeedKind[]): Sco
   const loadMore = useCallback(() => {
     const next = ordered.next;
     if (!next || pending) return;
-    patchStream(streamKey, (prev) => (prev.requested.includes(next) ? prev : { ...prev, requested: [...prev.requested, next] }));
+    patchStream(streamKey, (prev) =>
+      prev.requested.includes(next)
+        ? prev
+        : { ...prev, requested: [...prev.requested, next] },
+    );
   }, [ordered.next, pending, patchStream, streamKey]);
 
-  const toggleKind = useCallback((k: FeedKind) => setKinds((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k])), []);
+  const toggleKind = useCallback(
+    (k: FeedKind) =>
+      setKinds((cur) =>
+        cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k],
+      ),
+    [],
+  );
   const clearKinds = useCallback(() => setKinds([]), []);
 
-  const loaders = requested.map((c) => <FeedPageLoader key={`${streamKey}|${c}`} scope={scope} cursor={c || undefined} kinds={kinds} onPage={onPage} onProblem={onProblem} />);
+  const loaders = requested.map((c) => (
+    <FeedPageLoader
+      key={`${streamKey}|${c}`}
+      scope={scope}
+      cursor={c || undefined}
+      kinds={kinds}
+      onPage={onPage}
+      onProblem={onProblem}
+    />
+  ));
 
-  return { kinds, toggleKind, clearKinds, rows: ordered.rows, loaded: ordered.loaded, pending, hasMore: !!ordered.next, problem, loadMore, loaders };
+  return {
+    kinds,
+    toggleKind,
+    clearKinds,
+    rows: ordered.rows,
+    loaded: ordered.loaded,
+    pending,
+    hasMore: !!ordered.next,
+    problem,
+    loadMore,
+    loaders,
+  };
 }

@@ -6,11 +6,19 @@
 // flashes another palette; with nothing cached it paints the default theme
 // (plugins/colorThemeBoot.ts).
 
-import { themeKey, type ModTheme, type ThemeMode } from "@codecast/shared/contracts/theme";
+import {
+  themeKey,
+  type ModTheme,
+  type ThemeMode,
+} from "@codecast/shared/contracts/theme";
 import type { ModRow } from "../mods/host";
 import { modIsActive } from "../mods/active";
 export { themeVarsByMode } from "./themeVars";
-import { BUILTIN_THEMES, BUILTIN_THEME_SOURCE, DEFAULT_THEME } from "./builtinThemes";
+import {
+  BUILTIN_THEMES,
+  BUILTIN_THEME_SOURCE,
+  DEFAULT_THEME,
+} from "./builtinThemes";
 
 /** localStorage: `{ light: vars, dark: vars }` of the chosen theme, read by index.html. */
 export const COLOR_THEME_CACHE_KEY = "codecast-color-theme";
@@ -20,29 +28,49 @@ const APPLIED_ATTR = "data-theme-vars";
 /** `modTitle` is the mod that declares the theme; codecast's own have none. */
 export type ThemeChoice = { key: string; modTitle?: string; theme: ModTheme };
 
-export const DEFAULT_COLOR_THEME = themeKey(BUILTIN_THEME_SOURCE, DEFAULT_THEME.id);
+export const DEFAULT_COLOR_THEME = themeKey(
+  BUILTIN_THEME_SOURCE,
+  DEFAULT_THEME.id,
+);
 export const ORIGINAL_COLOR_THEME = themeKey(BUILTIN_THEME_SOURCE, "original");
 
 /** Themes codecast no longer ships, and the one closest to each. */
 const RETIRED_THEMES: Record<string, string> = {
-  [themeKey(BUILTIN_THEME_SOURCE, "kiln")]: themeKey(BUILTIN_THEME_SOURCE, "vellum"),
+  [themeKey(BUILTIN_THEME_SOURCE, "kiln")]: themeKey(
+    BUILTIN_THEME_SOURCE,
+    "vellum",
+  ),
 };
 
 /** The stored choice (clientState.ui.color_theme), or the default when there is none. */
-export function resolveColorThemeKey(stored: string | null | undefined): string {
+export function resolveColorThemeKey(
+  stored: string | null | undefined,
+): string {
   const key = stored || DEFAULT_COLOR_THEME;
   return RETIRED_THEMES[key] ?? key;
 }
 
-const BUILTIN_CHOICES: ThemeChoice[] = BUILTIN_THEMES.map((theme) => ({ key: themeKey(BUILTIN_THEME_SOURCE, theme.id), theme }));
+const BUILTIN_CHOICES: ThemeChoice[] = BUILTIN_THEMES.map((theme) => ({
+  key: themeKey(BUILTIN_THEME_SOURCE, theme.id),
+  theme,
+}));
 
 /** Codecast's themes, then every theme the viewer's active mods declare, in mod order. */
-export function availableThemes(rows: readonly ModRow[], installed: readonly string[]): ThemeChoice[] {
+export function availableThemes(
+  rows: readonly ModRow[],
+  installed: readonly string[],
+): ThemeChoice[] {
   return [
     ...BUILTIN_CHOICES,
     ...rows
       .filter((r) => modIsActive(r, installed))
-      .flatMap((r) => (r.manifest.themes ?? []).map((theme) => ({ key: themeKey(r.name, theme.id), modTitle: r.title || r.name, theme }))),
+      .flatMap((r) =>
+        (r.manifest.themes ?? []).map((theme) => ({
+          key: themeKey(r.name, theme.id),
+          modTitle: r.title || r.name,
+          theme,
+        })),
+      ),
   ];
 }
 
@@ -52,13 +80,16 @@ export function applyThemeVars(vars: Record<string, string>): void {
   for (const name of (root.getAttribute(APPLIED_ATTR) ?? "").split(" ")) {
     if (name && !(name in vars)) root.style.removeProperty(name);
   }
-  for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
+  for (const [name, value] of Object.entries(vars))
+    root.style.setProperty(name, value);
   const names = Object.keys(vars);
   if (names.length) root.setAttribute(APPLIED_ATTR, names.join(" "));
   else root.removeAttribute(APPLIED_ATTR);
 }
 
-export function cacheThemeVars(byMode: Record<ThemeMode, Record<string, string>>): void {
+export function cacheThemeVars(
+  byMode: Record<ThemeMode, Record<string, string>>,
+): void {
   try {
     localStorage.setItem(COLOR_THEME_CACHE_KEY, JSON.stringify(byMode));
   } catch {}

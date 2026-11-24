@@ -2,13 +2,32 @@
 // /share/project/<token>: a project's charter and the work filed under it.
 import type { FunctionReturnType } from "convex/server";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { fmtDay, Bullets, Callout, Pill, Prose, Row, Rows, Section, ShareHead, SharedObjectPage, StatusPill, statusTone } from "../../SharedObjectPage";
+import {
+  fmtDay,
+  Bullets,
+  Callout,
+  Pill,
+  Prose,
+  Row,
+  Rows,
+  Section,
+  ShareHead,
+  SharedObjectPage,
+  StatusPill,
+  statusTone,
+} from "../../SharedObjectPage";
 
-type SharedProject = NonNullable<FunctionReturnType<typeof api.publicShare.getSharedProject>>;
+type SharedProject = NonNullable<
+  FunctionReturnType<typeof api.publicShare.getSharedProject>
+>;
 
 export default function SharedProjectPage() {
   return (
-    <SharedObjectPage<SharedProject> kind="project" query={api.publicShare.getSharedProject} noun="project">
+    <SharedObjectPage<SharedProject>
+      kind="project"
+      query={api.publicShare.getSharedProject}
+      noun="project"
+    >
       {(p) => {
         const done = p.tasks.filter((t) => t.status === "done").length;
         return (
@@ -17,7 +36,9 @@ export default function SharedProjectPage() {
               badges={
                 <>
                   <StatusPill status={p.status} />
-                  {p.priority && <Pill tone="orange">{p.priority.toUpperCase()}</Pill>}
+                  {p.priority && (
+                    <Pill tone="orange">{p.priority.toUpperCase()}</Pill>
+                  )}
                   {p.short_id && <Pill quiet>{p.short_id}</Pill>}
                   {p.labels.map((l) => (
                     <Pill key={l} quiet>
@@ -31,7 +52,11 @@ export default function SharedProjectPage() {
               at={p.created_at}
               meta={
                 <>
-                  {p.tasks.length > 0 && <span>{done} of {p.tasks.length} tasks done</span>}
+                  {p.tasks.length > 0 && (
+                    <span>
+                      {done} of {p.tasks.length} tasks done
+                    </span>
+                  )}
                   {p.target_date && <span>due {fmtDay(p.target_date)}</span>}
                 </>
               }
@@ -61,7 +86,12 @@ export default function SharedProjectPage() {
               <Section title="Plans" count={p.plans.length}>
                 <Rows>
                   {p.plans.map((pl) => (
-                    <Row key={pl.short_id} lead="◆" tone={statusTone(pl.status)} trail={pl.short_id}>
+                    <Row
+                      key={pl.short_id}
+                      lead="◆"
+                      tone={statusTone(pl.status)}
+                      trail={pl.short_id}
+                    >
                       {pl.title}
                     </Row>
                   ))}
@@ -72,7 +102,12 @@ export default function SharedProjectPage() {
               <Section title="Tasks" count={p.tasks.length}>
                 <Rows>
                   {p.tasks.map((t) => (
-                    <Row key={t.short_id} lead="●" tone={statusTone(t.status)} trail={t.short_id}>
+                    <Row
+                      key={t.short_id}
+                      lead="●"
+                      tone={statusTone(t.status)}
+                      trail={t.short_id}
+                    >
                       {t.title}
                     </Row>
                   ))}

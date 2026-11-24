@@ -9,15 +9,32 @@ const OWNER = "u_owner";
 const MATE = "u_mate";
 const TEAM = "t_1";
 
-const seed = (workspace: string) => makeFakeDb({
-  users: [{ _id: OWNER }, { _id: MATE }],
-  team_memberships: [{ _id: "m1", user_id: MATE, team_id: TEAM, role: "member" }],
-  docs: [{ _id: "docs_1", user_id: OWNER, team_id: TEAM, workspace, content: "hello world", title: "d" }],
-});
-const patch = (db: any, user: string) => (webPatch as any)._handler(
-  { db, auth: { getUserIdentity: async () => ({ subject: `${user}|session` }) }, scheduler: { runAfter: async () => null } },
-  { id: "docs_1", old_string: "world", new_string: "there" },
-);
+const seed = (workspace: string) =>
+  makeFakeDb({
+    users: [{ _id: OWNER }, { _id: MATE }],
+    team_memberships: [
+      { _id: "m1", user_id: MATE, team_id: TEAM, role: "member" },
+    ],
+    docs: [
+      {
+        _id: "docs_1",
+        user_id: OWNER,
+        team_id: TEAM,
+        workspace,
+        content: "hello world",
+        title: "d",
+      },
+    ],
+  });
+const patch = (db: any, user: string) =>
+  (webPatch as any)._handler(
+    {
+      db,
+      auth: { getUserIdentity: async () => ({ subject: `${user}|session` }) },
+      scheduler: { runAfter: async () => null },
+    },
+    { id: "docs_1", old_string: "world", new_string: "there" },
+  );
 
 describe("docs.webPatch access", () => {
   test("a teammate patches a doc in the team workspace", async () => {

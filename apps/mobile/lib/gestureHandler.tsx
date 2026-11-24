@@ -1,5 +1,10 @@
-import { View, TouchableOpacity, StyleSheet, type TouchableOpacityProps } from 'react-native';
-import { optionalNative } from './optionalNative';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  type TouchableOpacityProps,
+} from "react-native";
+import { optionalNative } from "./optionalNative";
 
 // react-native-gesture-handler's native module is ABSENT on the Feb 1.0.2 App
 // Store binary: the dependency was first installed 2026-03-05, AFTER that build
@@ -15,12 +20,15 @@ import { optionalNative } from './optionalNative';
 // The whole module namespace, or null when the native module is missing.
 // Consumers must handle null with a degraded (or PanResponder) path.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const gh: any = optionalNative('RNGestureHandlerModule', () => require('react-native-gesture-handler'));
+const gh: any = optionalNative("RNGestureHandlerModule", () =>
+  require("react-native-gesture-handler"),
+);
 
 export const gestureHandler: any = gh;
 
 export const GestureHandlerRootView: any =
-  gh?.GestureHandlerRootView ?? (({ style, children }: any) => <View style={style}>{children}</View>);
+  gh?.GestureHandlerRootView ??
+  (({ style, children }: any) => <View style={style}>{children}</View>);
 
 // Native touch handling so a tap is captured even when the JS thread is busy
 // (new-session send: create, cache write, keyboard). Gesture-handler's

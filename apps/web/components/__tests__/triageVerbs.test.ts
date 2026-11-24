@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { PARK_VERBS, FILE_VERBS, TRIAGE_VERBS, PRIMARY_VERBS, SECONDARY_VERBS } from "../triage/verbs";
+import {
+  PARK_VERBS,
+  FILE_VERBS,
+  TRIAGE_VERBS,
+  PRIMARY_VERBS,
+  SECONDARY_VERBS,
+} from "../triage/verbs";
 import { isTriageBarCompact } from "../triage/graduation";
 import { SHORTCUTS } from "../../shortcuts/registry";
 
@@ -41,7 +47,9 @@ describe("triage verb catalog", () => {
 
   test("the bar's top level is defer, stash, close; the rest sits behind more", () => {
     expect(PRIMARY_VERBS.map((v) => v.id)).toEqual(["defer", "stash", "close"]);
-    expect([...PRIMARY_VERBS, ...SECONDARY_VERBS].length).toBe(TRIAGE_VERBS.length);
+    expect([...PRIMARY_VERBS, ...SECONDARY_VERBS].length).toBe(
+      TRIAGE_VERBS.length,
+    );
     for (const v of SECONDARY_VERBS) expect(PRIMARY_VERBS).not.toContain(v);
   });
 
@@ -68,7 +76,12 @@ describe("isTriageBarCompact", () => {
 
   test("the compact toggle wins outright", () => {
     expect(isTriageBarCompact({ triage_bar_compact: true })).toBe(true);
-    expect(isTriageBarCompact({ triage_bar_compact: false, inbox_shortcuts_hidden: true })).toBe(false);
+    expect(
+      isTriageBarCompact({
+        triage_bar_compact: false,
+        inbox_shortcuts_hidden: true,
+      }),
+    ).toBe(false);
   });
 
   test("legacy hint dismissal maps to compact until the toggle is touched", () => {

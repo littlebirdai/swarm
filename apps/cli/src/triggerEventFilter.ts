@@ -46,7 +46,8 @@ export async function buildEventFilter(
   eventName: string,
   opts: EventFilterFlags,
   checkoutRepository: () => Promise<string | undefined> = async () =>
-    (await import("./prCommand.js")).readLocalGitContext().repository ?? undefined,
+    (await import("./prCommand.js")).readLocalGitContext().repository ??
+    undefined,
 ): Promise<TriggerScopeFilter> {
   const shorthand = TRIGGER_EVENT_SHORTHANDS[eventName];
   if (!shorthand) refuse(unknownEventMessage(eventName));
@@ -56,41 +57,74 @@ export async function buildEventFilter(
   // A product event comes from one of the workspace's sources; --source
   // narrows it the way --repo narrows a pull request event.
   if (opts.source !== undefined) {
-    if (!isIngestTriggerEvent(eventName)) refuse(`--source only narrows an event a source reports, and ${eventName} is not one.`);
+    if (!isIngestTriggerEvent(eventName))
+      refuse(
+        `--source only narrows an event a source reports, and ${eventName} is not one.`,
+      );
     if (opts.source.trim()) filter.source = opts.source.trim();
   }
 
   // A chat event is about one channel, and must name it; the server resolves
   // "#name" or an id and refuses a channel the caller cannot read.
-  if (opts.channel !== undefined && !isChatTriggerEvent(eventName)) refuse(`--channel only narrows a chat event, and ${eventName} is not one.`);
+  if (opts.channel !== undefined && !isChatTriggerEvent(eventName))
+    refuse(`--channel only narrows a chat event, and ${eventName} is not one.`);
   if (isChatTriggerEvent(eventName)) {
-    if (!opts.channel?.trim()) refuse(`${eventName} watches one channel: name it with --channel <#name|id> (cast chat channels lists them).`);
+    if (!opts.channel?.trim())
+      refuse(
+        `${eventName} watches one channel: name it with --channel <#name|id> (cast chat channels lists them).`,
+      );
     filter.channel_id = opts.channel.trim();
   }
 
   // A page event is about one published page, and must name it; the server
   // resolves a slug, URL or path and refuses a page or collection the caller
   // cannot read. --collection narrows it to some of the page's collections.
-  if ((opts.page !== undefined || opts.collection !== undefined) && !isPageTriggerEvent(eventName)) refuse(`--page and --collection only narrow a page event, and ${eventName} is not one.`);
+  if (
+    (opts.page !== undefined || opts.collection !== undefined) &&
+    !isPageTriggerEvent(eventName)
+  )
+    refuse(
+      `--page and --collection only narrow a page event, and ${eventName} is not one.`,
+    );
   if (isPageTriggerEvent(eventName)) {
-    if (!opts.page?.trim()) refuse(`${eventName} watches one page: name it with --page <slug|url|path> (cast publish ls lists yours).`);
+    if (!opts.page?.trim())
+      refuse(
+        `${eventName} watches one page: name it with --page <slug|url|path> (cast publish ls lists yours).`,
+      );
     filter.page_id = opts.page.trim();
-    const collections = (opts.collection ?? "").split(",").map((c) => c.trim()).filter(Boolean);
+    const collections = (opts.collection ?? "")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
     if (collections.length) filter.collections = collections;
   }
 
   if (opts.pr !== undefined) {
-    if (!isPrTriggerEvent(eventName)) refuse(`--pr only narrows a pull request event, and ${eventName} is not one.`);
+    if (!isPrTriggerEvent(eventName))
+      refuse(
+        `--pr only narrows a pull request event, and ${eventName} is not one.`,
+      );
     const number = Number(opts.pr);
-    if (!Number.isInteger(number) || number <= 0) refuse(`--pr wants a pull request number, got "${opts.pr}".`);
+    if (!Number.isInteger(number) || number <= 0)
+      refuse(`--pr wants a pull request number, got "${opts.pr}".`);
     filter.pr_number = number;
   }
 
-  if (opts.repo && isChatTriggerEvent(eventName)) refuse(`--repo does not narrow ${eventName}: --channel does.`);
-  if (opts.repo && isPageTriggerEvent(eventName)) refuse(`--repo does not narrow ${eventName}: --page does.`);
-  if (opts.repo && isCallTriggerEvent(eventName)) refuse(`--repo does not narrow ${eventName}: it fires for every call you can read.`);
+  if (opts.repo && isChatTriggerEvent(eventName))
+    refuse(`--repo does not narrow ${eventName}: --channel does.`);
+  if (opts.repo && isPageTriggerEvent(eventName))
+    refuse(`--repo does not narrow ${eventName}: --page does.`);
+  if (opts.repo && isCallTriggerEvent(eventName))
+    refuse(
+      `--repo does not narrow ${eventName}: it fires for every call you can read.`,
+    );
 
-  const repository = opts.repo !== undefined ? opts.repo : isPrTriggerEvent(eventName) ? await checkoutRepository() : undefined;
+  const repository =
+    opts.repo !== undefined
+      ? opts.repo
+      : isPrTriggerEvent(eventName)
+        ? await checkoutRepository()
+        : undefined;
   if (repository) filter.repository = repository;
 
   return filter;
@@ -103,7 +137,21 @@ export function unknownEventMessage(eventName: string): string {
 }
 
 /** The narrowing flag passed without --on, if any: it would be dropped. */
-export function narrowingWithoutOn(opts: EventFilterFlags & { on?: string }): string | undefined {
+export function narrowingWithoutOn(
+  opts: EventFilterFlags & { on?: string },
+): string | undefined {
   if (opts.on) return undefined;
-  return opts.repo !== undefined ? "--repo" : opts.pr !== undefined ? "--pr" : opts.source !== undefined ? "--source" : opts.channel !== undefined ? "--channel" : opts.page !== undefined ? "--page" : opts.collection !== undefined ? "--collection" : undefined;
+  return opts.repo !== undefined
+    ? "--repo"
+    : opts.pr !== undefined
+      ? "--pr"
+      : opts.source !== undefined
+        ? "--source"
+        : opts.channel !== undefined
+          ? "--channel"
+          : opts.page !== undefined
+            ? "--page"
+            : opts.collection !== undefined
+              ? "--collection"
+              : undefined;
 }

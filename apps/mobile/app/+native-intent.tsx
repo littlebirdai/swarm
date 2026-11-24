@@ -1,4 +1,4 @@
-import { mobileRouteForUrl } from '@/lib/linkRoutes';
+import { mobileRouteForUrl } from "@/lib/linkRoutes";
 
 /**
  * expo-router consults this for every externally delivered URL — universal
@@ -12,13 +12,18 @@ import { mobileRouteForUrl } from '@/lib/linkRoutes';
  * left a "This screen doesn't exist" page under any route it translated
  * (e.g. /conversation/<id> → /session/<id>).
  */
-export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
+export function redirectSystemPath({
+  path,
+}: {
+  path: string;
+  initial: boolean;
+}): string {
   try {
     // The app scheme carries the same path vocabulary as codecast.sh URLs
     // (codecast://conversation/<id>, codecast://share/doc/<token>). Strip just
     // that scheme to a plain path so one table answers for both; every other
     // scheme (exp:// in dev, https://) already speaks for itself.
-    const normalized = path.replace(/^codecast:\/\//i, '/');
+    const normalized = path.replace(/^codecast:\/\//i, "/");
     return mobileRouteForUrl(normalized) ?? path;
   } catch {
     return path;

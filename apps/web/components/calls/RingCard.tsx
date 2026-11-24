@@ -30,17 +30,29 @@ export type RingInvite = {
  */
 export const RingCard = forwardRef<
   HTMLDivElement,
-  { invite: RingInvite; onAnswer: () => void; onDecline: () => void; children?: ReactNode }
+  {
+    invite: RingInvite;
+    onAnswer: () => void;
+    onDecline: () => void;
+    children?: ReactNode;
+  }
 >(function RingCard({ invite, onAnswer, onDecline, children }, ref) {
   const name = invite.from_name || "Someone";
   return (
     <div ref={ref} className="ring-card-glow">
-      <div className="ring-card" role="alertdialog" aria-label={`${name} wants to huddle`}>
+      <div
+        className="ring-card"
+        role="alertdialog"
+        aria-label={`${name} wants to huddle`}
+      >
         <div className="ring-card-head">
           {invite.from_image ? (
             <img src={invite.from_image} alt="" className="ring-card-face" />
           ) : (
-            <span className="ring-card-face ring-card-face-initial" aria-hidden="true">
+            <span
+              className="ring-card-face ring-card-face-initial"
+              aria-hidden="true"
+            >
               {name.charAt(0).toUpperCase()}
             </span>
           )}
@@ -49,16 +61,30 @@ export const RingCard = forwardRef<
             <div className="ring-card-line">
               <span className="ring-card-dot" aria-hidden="true" />
               Incoming huddle
-              {invite.anchor_title && <span className="ring-card-anchor"> · {invite.anchor_title}</span>}
+              {invite.anchor_title && (
+                <span className="ring-card-anchor">
+                  {" "}
+                  · {invite.anchor_title}
+                </span>
+              )}
             </div>
           </div>
         </div>
         {children}
         <div className="ring-card-actions">
-          <button type="button" className="ring-card-decline" onClick={onDecline}>
+          <button
+            type="button"
+            className="ring-card-decline"
+            onClick={onDecline}
+          >
             Decline
           </button>
-          <button type="button" className="ring-card-join" onClick={onAnswer} autoFocus={false}>
+          <button
+            type="button"
+            className="ring-card-join"
+            onClick={onAnswer}
+            autoFocus={false}
+          >
             Join
           </button>
         </div>

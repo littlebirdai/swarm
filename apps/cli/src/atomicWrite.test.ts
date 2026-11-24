@@ -19,7 +19,8 @@ afterEach(() => {
 
 const modeOf = (p: string): string => (fs.statSync(p).mode & 0o777).toString(8);
 const inodeOf = (p: string): number => fs.statSync(p).ino;
-const tmpLeftovers = (d: string): string[] => fs.readdirSync(d).filter((n) => n.endsWith(".tmp"));
+const tmpLeftovers = (d: string): string[] =>
+  fs.readdirSync(d).filter((n) => n.endsWith(".tmp"));
 
 /** Backdate a path past the sweep's staleness floor. */
 const backdate = (p: string): void => {
@@ -122,24 +123,34 @@ function script(name: string, body: string): string {
 
 function run(scriptPath: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [scriptPath, ...args], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [scriptPath, ...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
     child.on("error", reject);
-    child.on("close", (code) => (code === 0 ? resolve(out) : reject(new Error(`exit ${code}: ${err}`))));
+    child.on("close", (code) =>
+      code === 0 ? resolve(out) : reject(new Error(`exit ${code}: ${err}`)),
+    );
   });
 }
 
-async function observe(writerScript: string, chars: string[], ms: number): Promise<ReaderReport> {
+async function observe(
+  writerScript: string,
+  chars: string[],
+  ms: number,
+): Promise<ReaderReport> {
   const readerPath = script("reader.mjs", READER);
   const writerPath = script("writer.mjs", writerScript);
   // Pre-create the file so an ENOENT read can only mean the publish step
   // unlinked the path — which rename never does.
   fs.writeFileSync(file, chars[0].repeat(SIZE));
   const reader = run(readerPath, [file, String(SIZE), String(ms + 300)]);
-  const writers = chars.map((c) => run(writerPath, [file, c, String(SIZE), String(ms)]));
+  const writers = chars.map((c) =>
+    run(writerPath, [file, c, String(SIZE), String(ms)]),
+  );
   const [out] = await Promise.all([reader, ...writers]);
   return JSON.parse(out) as ReaderReport;
 }
@@ -152,8 +163,12 @@ async function observe(writerScript: string, chars: string[], ms: number): Promi
 async function strandTempsByKilling(target: string): Promise<string[]> {
   const writerPath = script("endless.mjs", ENDLESS_WRITER);
   for (let attempt = 0; attempt < 10; attempt++) {
-    const child = spawn(process.execPath, [writerPath, target], { stdio: ["ignore", "pipe", "ignore"] });
-    await new Promise<void>((resolve) => child.stdout.once("data", () => resolve()));
+    const child = spawn(process.execPath, [writerPath, target], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    await new Promise<void>((resolve) =>
+      child.stdout.once("data", () => resolve()),
+    );
     await new Promise((r) => setTimeout(r, 120 + attempt * 40));
     child.kill("SIGKILL");
     await new Promise<void>((resolve) => child.once("exit", () => resolve()));
@@ -173,7 +188,10 @@ describe("atomicWriteFile — concurrency", () => {
 
   it("interleaved writers never let a reader observe a partial file", async () => {
     const report = await observe(WRITER, ["a", "b", "c"], 1500);
-    console.log("atomic writers:", JSON.stringify({ ...report, sampleLengths: report.sampleLengths }));
+    console.log(
+      "atomic writers:",
+      JSON.stringify({ ...report, sampleLengths: report.sampleLengths }),
+    );
     expect(report.partial).toBe(0);
     // The reader has to have sampled during the churn for the zero to mean
     // anything: many reads, and payloads from more than one writer.
@@ -205,7 +223,10 @@ describe("atomicWriteFile — publish step", () => {
     fs.mkdirSync(blocked);
     fs.writeFileSync(path.join(blocked, "child"), "keeps the dir non-empty");
     expect(() => atomicWriteFile(blocked, "payload")).toThrow(
-      new RegExp(`cannot publish ${blocked}.*not a directory, and that ${dir} is writable`, "s"),
+      new RegExp(
+        `cannot publish ${blocked}.*not a directory, and that ${dir} is writable`,
+        "s",
+      ),
     );
   });
 });
@@ -284,7 +305,9 @@ describe("atomicWriteFile — symlinked config files", () => {
     const b = path.join(dir, "b.json");
     fs.symlinkSync(b, a);
     fs.symlinkSync(a, b);
-    expect(() => atomicWriteFile(a, "x")).toThrow(/symlink loop.*repoint or delete/s);
+    expect(() => atomicWriteFile(a, "x")).toThrow(
+      /symlink loop.*repoint or delete/s,
+    );
     expect(tmpLeftovers(dir)).toEqual([]);
   });
 
@@ -369,7 +392,9 @@ describe("atomicWriteFile — directories and cleanup", () => {
   });
 
   it("leaves no .tmp behind when the content itself is unwritable", () => {
-    expect(() => atomicWriteFile(file, { not: "bytes" } as unknown as string)).toThrow();
+    expect(() =>
+      atomicWriteFile(file, { not: "bytes" } as unknown as string),
+    ).toThrow();
     expect(tmpLeftovers(dir)).toEqual([]);
     expect(fs.existsSync(file)).toBe(false);
   });
@@ -410,7 +435,10 @@ describe("atomicWriteFile — sweeping temps stranded by a kill", () => {
       fs.writeFileSync(path.join(dir, n), "not ours");
       backdate(path.join(dir, n));
     }
-    const ours = path.join(dir, ".settings.json.99.6d1f0c0a-0000-4000-8000-000000000000.tmp");
+    const ours = path.join(
+      dir,
+      ".settings.json.99.6d1f0c0a-0000-4000-8000-000000000000.tmp",
+    );
     fs.writeFileSync(ours, "ours");
     backdate(ours);
 
@@ -426,7 +454,10 @@ describe("atomicWriteFile — sweeping temps stranded by a kill", () => {
     const real = path.join(repo, "settings.json");
     fs.writeFileSync(real, "old");
     fs.symlinkSync(real, file);
-    const corpse = path.join(repo, ".settings.json.99.6d1f0c0a-0000-4000-8000-000000000000.tmp");
+    const corpse = path.join(
+      repo,
+      ".settings.json.99.6d1f0c0a-0000-4000-8000-000000000000.tmp",
+    );
     fs.writeFileSync(corpse, "stranded");
     backdate(corpse);
 
@@ -437,18 +468,21 @@ describe("atomicWriteFile — sweeping temps stranded by a kill", () => {
   // Root ignores permission bits, so the unreadable directory below would not
   // actually break the sweep and the test would prove nothing.
   const asRoot = typeof process.getuid === "function" && process.getuid() === 0;
-  it.skipIf(asRoot)("a sweep failure never costs a write that already succeeded", () => {
-    // The published bytes are the contract; a directory the sweep cannot read is
-    // not a reason to fail the caller.
-    atomicWriteFile(file, "first");
-    fs.chmodSync(dir, 0o300); // write+execute, but not readable: readdir fails
-    try {
-      expect(() => atomicWriteFile(file, "second")).not.toThrow();
-      expect(fs.readFileSync(file, "utf8")).toBe("second");
-    } finally {
-      fs.chmodSync(dir, 0o700);
-    }
-  });
+  it.skipIf(asRoot)(
+    "a sweep failure never costs a write that already succeeded",
+    () => {
+      // The published bytes are the contract; a directory the sweep cannot read is
+      // not a reason to fail the caller.
+      atomicWriteFile(file, "first");
+      fs.chmodSync(dir, 0o300); // write+execute, but not readable: readdir fails
+      try {
+        expect(() => atomicWriteFile(file, "second")).not.toThrow();
+        expect(fs.readFileSync(file, "utf8")).toBe("second");
+      } finally {
+        fs.chmodSync(dir, 0o700);
+      }
+    },
+  );
 });
 
 describe("atomicWriteFile — payloads", () => {

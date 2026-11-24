@@ -11,7 +11,14 @@
 //   - re-rolling a day is idempotent and corrects it;
 //   - attended and unattended sessions roll into separate rows, so a chart can
 //     count a person's own sessions apart from the agents under their account.
-import { afterAll, beforeAll, describe, expect, setSystemTime, test } from "bun:test";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  setSystemTime,
+  test,
+} from "bun:test";
 import schema from "./schema";
 import { makeFakeDb, schemaIndexes } from "./testDb";
 import { rollupActivityDay } from "./lib/activityDaily";
@@ -33,7 +40,10 @@ const TODAY = dayStart(NOW);
 const YESTERDAY = TODAY - DAY;
 const OLD = TODAY - 40 * DAY;
 
-function tables(convos: any[], extra: Record<string, any[]> = {}): Record<string, any[]> {
+function tables(
+  convos: any[],
+  extra: Record<string, any[]> = {},
+): Record<string, any[]> {
   return {
     users: [
       { _id: OWNER, _creationTime: 1, name: "Owner" },
@@ -42,8 +52,20 @@ function tables(convos: any[], extra: Record<string, any[]> = {}): Record<string
     ],
     teams: [{ _id: TEAM, _creationTime: 4, name: "Team" }],
     team_memberships: [
-      { _id: "m_owner", _creationTime: 5, user_id: OWNER, team_id: TEAM, role: "admin" },
-      { _id: "m_member", _creationTime: 6, user_id: MEMBER, team_id: TEAM, role: "member" },
+      {
+        _id: "m_owner",
+        _creationTime: 5,
+        user_id: OWNER,
+        team_id: TEAM,
+        role: "admin",
+      },
+      {
+        _id: "m_member",
+        _creationTime: 6,
+        user_id: MEMBER,
+        team_id: TEAM,
+        role: "member",
+      },
     ],
     conversations: convos,
     team_activity_events: [],
@@ -83,8 +105,17 @@ function ctx(userId: string | null, t: Record<string, any[]>) {
   } as any;
 }
 
-const heatmap = (uid: string | null, t: Record<string, any[]>, args: any = {}) =>
-  (getUserActivityHeatmap as any)._handler(ctx(uid, t), { user_id: OWNER, team_id: TEAM, days: 371, ...args });
+const heatmap = (
+  uid: string | null,
+  t: Record<string, any[]>,
+  args: any = {},
+) =>
+  (getUserActivityHeatmap as any)._handler(ctx(uid, t), {
+    user_id: OWNER,
+    team_id: TEAM,
+    days: 371,
+    ...args,
+  });
 
 describe("rolled-up activity days", () => {
   // The queries read the real clock; hold it at NOW so a run just after UTC
@@ -101,7 +132,10 @@ describe("rolled-up activity days", () => {
     expect(row.day_start).toBe(OLD);
     expect(row.team_id).toBe(TEAM);
     expect(row.day_sessions).toBe(1);
-    expect(row.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(2, 3);
+    expect(row.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(
+      2,
+      3,
+    );
 
     // The query answers from the row alone: drop the session and the day holds.
     t.conversations = [];
@@ -121,7 +155,11 @@ describe("rolled-up activity days", () => {
     await rollupActivityDay({ db: db(t) }, OWNER, YESTERDAY);
 
     const days = await heatmap(OWNER, t);
-    expect(days.find((d: any) => d.date === utcDate(TODAY))).toEqual({ date: utcDate(TODAY), hours: 1, sessions: 1 });
+    expect(days.find((d: any) => d.date === utcDate(TODAY))).toEqual({
+      date: utcDate(TODAY),
+      hours: 1,
+      sessions: 1,
+    });
     expect(days.find((d: any) => d.date === utcDate(YESTERDAY))).toEqual({
       date: utcDate(YESTERDAY),
       hours: 1,
@@ -132,7 +170,9 @@ describe("rolled-up activity days", () => {
   test("a teammate sees shared days only; the owner sees every day", async () => {
     const t = tables([
       session("c_shared", OLD + 9 * HOUR, OLD + 10 * HOUR),
-      session("c_private", OLD + 12 * HOUR, OLD + 14 * HOUR, { is_private: true }),
+      session("c_private", OLD + 12 * HOUR, OLD + 14 * HOUR, {
+        is_private: true,
+      }),
     ]);
     await rollupActivityDay({ db: db(t) }, OWNER, OLD);
 
@@ -140,10 +180,14 @@ describe("rolled-up activity days", () => {
     expect(row.day_sessions).toBe(2);
     expect(row.shared_day_sessions).toBe(1);
 
-    const own = (await heatmap(OWNER, t)).find((d: any) => d.date === utcDate(OLD));
+    const own = (await heatmap(OWNER, t)).find(
+      (d: any) => d.date === utcDate(OLD),
+    );
     expect(own).toEqual({ date: utcDate(OLD), hours: 3, sessions: 2 });
 
-    const theirs = (await heatmap(MEMBER, t)).find((d: any) => d.date === utcDate(OLD));
+    const theirs = (await heatmap(MEMBER, t)).find(
+      (d: any) => d.date === utcDate(OLD),
+    );
     expect(theirs).toEqual({ date: utcDate(OLD), hours: 1, sessions: 1 });
 
     expect(await heatmap(STRANGER, t)).toEqual([]);
@@ -152,11 +196,17 @@ describe("rolled-up activity days", () => {
   test("the live window keeps the same privacy gate as the rolled-up days", async () => {
     const t = tables([
       session("c_live_shared", TODAY + 9 * HOUR, TODAY + 10 * HOUR),
-      session("c_live_private", TODAY + 11 * HOUR, TODAY + 12 * HOUR, { is_private: true }),
+      session("c_live_private", TODAY + 11 * HOUR, TODAY + 12 * HOUR, {
+        is_private: true,
+      }),
     ]);
-    const own = (await heatmap(OWNER, t)).find((d: any) => d.date === utcDate(TODAY));
+    const own = (await heatmap(OWNER, t)).find(
+      (d: any) => d.date === utcDate(TODAY),
+    );
     expect(own!.sessions).toBe(2);
-    const theirs = (await heatmap(MEMBER, t)).find((d: any) => d.date === utcDate(TODAY));
+    const theirs = (await heatmap(MEMBER, t)).find(
+      (d: any) => d.date === utcDate(TODAY),
+    );
     expect(theirs!.sessions).toBe(1);
   });
 
@@ -170,7 +220,9 @@ describe("rolled-up activity days", () => {
 
     expect(t.user_activity_daily).toHaveLength(1);
     expect(t.user_activity_daily[0].day_sessions).toBe(2);
-    expect(t.user_activity_daily[0].hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(4, 3);
+    expect(
+      t.user_activity_daily[0].hours.reduce((a: number, b: number) => a + b, 0),
+    ).toBeCloseTo(4, 3);
 
     // The day emptying out removes its row rather than leaving a stale one.
     t.conversations = [];
@@ -196,7 +248,10 @@ describe("rolled-up activity days", () => {
     await rollupActivityDay({ db: db(t) }, OWNER, OLD);
     const row = t.user_activity_daily[0];
     expect(row.day_sessions).toBe(1);
-    expect(row.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(2, 3);
+    expect(row.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(
+      2,
+      3,
+    );
     // No privacy facts to judge: it counts for the team, as it did before.
     expect(row.shared_day_sessions).toBe(1);
   });
@@ -224,15 +279,24 @@ describe("rolled-up activity days", () => {
     // Its credit belongs to its last activity day; spreading it backwards
     // would land on days the rolled-up rows already count.
     const t = tables([session("c_long", TODAY - 10 * DAY, TODAY + 10 * HOUR)]);
-    const rows = await (getUserActivityPunchcard as any)._handler(ctx(OWNER, t), {
-      user_id: OWNER,
-      team_id: TEAM,
-      days: 371,
-      tz_offset_minutes: 0,
-    });
-    const dates = rows.filter((r: any) => r.day_sessions > 0).map((r: any) => r.date);
+    const rows = await (getUserActivityPunchcard as any)._handler(
+      ctx(OWNER, t),
+      {
+        user_id: OWNER,
+        team_id: TEAM,
+        days: 371,
+        tz_offset_minutes: 0,
+      },
+    );
+    const dates = rows
+      .filter((r: any) => r.day_sessions > 0)
+      .map((r: any) => r.date);
     expect(dates).toEqual([utcDate(YESTERDAY), utcDate(TODAY)]);
-    const total = rows.reduce((sum: number, r: any) => sum + r.hours.reduce((a: number, b: number) => a + b, 0), 0);
+    const total = rows.reduce(
+      (sum: number, r: any) =>
+        sum + r.hours.reduce((a: number, b: number) => a + b, 0),
+      0,
+    );
     // The 8h day cap, counted once (each hour cell is rounded to 2 decimals).
     expect(total).toBeCloseTo(8, 0);
   });
@@ -242,48 +306,85 @@ describe("rolled-up activity days", () => {
     await rollupActivityDay({ db: db(t) }, OWNER, OLD);
     t.conversations = [];
 
-    const rows = await (getUserActivityPunchcard as any)._handler(ctx(OWNER, t), {
-      user_id: OWNER,
-      team_id: TEAM,
-      days: 371,
-      tz_offset_minutes: 0,
-    });
+    const rows = await (getUserActivityPunchcard as any)._handler(
+      ctx(OWNER, t),
+      {
+        user_id: OWNER,
+        team_id: TEAM,
+        days: 371,
+        tz_offset_minutes: 0,
+      },
+    );
     const day = rows.find((r: any) => r.date === utcDate(OLD));
     expect(day.day_sessions).toBe(1);
     expect(day.hours[9]).toBeCloseTo(1, 2);
-    expect(day.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(1, 2);
+    expect(day.hours.reduce((a: number, b: number) => a + b, 0)).toBeCloseTo(
+      1,
+      2,
+    );
   });
 
   test("attended and unattended sessions are counted apart, rolled up and live", async () => {
     const t = tables(
       [
         session("c_mine", OLD + 9 * HOUR, OLD + 10 * HOUR),
-        session("c_station", OLD + 9 * HOUR, OLD + 12 * HOUR, { is_workflow_sub: true }),
-        session("c_role", TODAY + 9 * HOUR, TODAY + 13 * HOUR, { unattended: true }),
+        session("c_station", OLD + 9 * HOUR, OLD + 12 * HOUR, {
+          is_workflow_sub: true,
+        }),
+        session("c_role", TODAY + 9 * HOUR, TODAY + 13 * HOUR, {
+          unattended: true,
+        }),
         session("c_today", TODAY + 9 * HOUR, TODAY + 11 * HOUR),
       ],
       {
         user_usage_daily: [
-          { _id: "uu_a", _creationTime: 1, user_id: OWNER, team_id: TEAM, day_start: OLD, token_hours: [5], spend_hours: [1], updated_at: 1 },
-          { _id: "uu_u", _creationTime: 2, user_id: OWNER, team_id: TEAM, day_start: OLD, unattended: true, token_hours: [70], spend_hours: [9], updated_at: 2 },
+          {
+            _id: "uu_a",
+            _creationTime: 1,
+            user_id: OWNER,
+            team_id: TEAM,
+            day_start: OLD,
+            token_hours: [5],
+            spend_hours: [1],
+            updated_at: 1,
+          },
+          {
+            _id: "uu_u",
+            _creationTime: 2,
+            user_id: OWNER,
+            team_id: TEAM,
+            day_start: OLD,
+            unattended: true,
+            token_hours: [70],
+            spend_hours: [9],
+            updated_at: 2,
+          },
         ],
       },
     );
     await rollupActivityDay({ db: db(t) }, OWNER, OLD);
     // One row per attendance, and a re-roll keeps them apart.
     await rollupActivityDay({ db: db(t) }, OWNER, OLD);
-    expect(t.user_activity_daily.map((r: any) => !!r.unattended).sort()).toEqual([false, true]);
+    expect(
+      t.user_activity_daily.map((r: any) => !!r.unattended).sort(),
+    ).toEqual([false, true]);
 
     const read = async (who?: string) => {
-      const rows = await (getUserActivityPunchcard as any)._handler(ctx(OWNER, t), {
-        user_id: OWNER,
-        team_id: TEAM,
-        days: 371,
-        tz_offset_minutes: 0,
-        ...(who ? { who } : {}),
-      });
+      const rows = await (getUserActivityPunchcard as any)._handler(
+        ctx(OWNER, t),
+        {
+          user_id: OWNER,
+          team_id: TEAM,
+          days: 371,
+          tz_offset_minutes: 0,
+          ...(who ? { who } : {}),
+        },
+      );
       const total = (date: string, f: string) =>
-        (rows.find((r: any) => r.date === date)?.[f] ?? []).reduce((a: number, b: number) => a + b, 0);
+        (rows.find((r: any) => r.date === date)?.[f] ?? []).reduce(
+          (a: number, b: number) => a + b,
+          0,
+        );
       return {
         old: total(utcDate(OLD), "hours"),
         today: total(utcDate(TODAY), "hours"),

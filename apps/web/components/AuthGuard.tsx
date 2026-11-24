@@ -41,7 +41,9 @@ function RedirectUnsignedIn({ to }: { to: string }) {
       }
       // Where the person was, so the landing page can send them back if
       // auth returns (lib/authReturn).
-      noteAuthLeave(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+      noteAuthLeave(
+        `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      );
       router.push(to);
     };
     timer = window.setTimeout(settle, SIGNED_OUT_SETTLE_MS);

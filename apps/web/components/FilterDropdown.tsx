@@ -2,12 +2,20 @@ import { useState, useRef, useMemo, Fragment, type ReactNode } from "react";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 import { ChevronDown, Check, X } from "lucide-react";
 import { cn } from "../lib/utils";
-import { modernChip, modernField, modernLook, modernMenuLabel, modernMenuRow, modernPopover } from "./ui/modernLook";
+import {
+  modernChip,
+  modernField,
+  modernLook,
+  modernMenuLabel,
+  modernMenuRow,
+  modernPopover,
+} from "./ui/modernLook";
 
 // The Modern looks (ui/modernLook.ts): a set filter is the chip in its on
 // state, its two halves sharing one face; the options are a menu.
 const M_CHIP_ON = cn(modernChip({ active: true }), "modern:gap-0 modern:px-0");
-const M_CHIP_HALF = "modern:h-full modern:rounded-control modern:hover:bg-sol-cyan/10";
+const M_CHIP_HALF =
+  "modern:h-full modern:rounded-control modern:hover:bg-sol-cyan/10";
 
 export type FilterOption = {
   key: string;
@@ -29,10 +37,16 @@ export type FilterOption = {
  *  lists (a label on no loaded task, a value from a shared URL) still gets a
  *  row, named by its key, so the menu and the chip can always say what is
  *  filtered and the pick can be undone. */
-function pickedFirst(options: FilterOption[], picked: Set<string>): FilterOption[] {
+function pickedFirst(
+  options: FilterOption[],
+  picked: Set<string>,
+): FilterOption[] {
   if (picked.size === 0) return options;
   const byKey = new Map(options.map((o) => [o.key, o]));
-  const top = [...picked].map((k) => ({ ...(byKey.get(k) ?? { key: k, label: k }), section: undefined }));
+  const top = [...picked].map((k) => ({
+    ...(byKey.get(k) ?? { key: k, label: k }),
+    section: undefined,
+  }));
   return [
     ...options.filter((o) => o.key === ""),
     ...top,
@@ -72,24 +86,35 @@ export function FilterOptionList({
     if (!multi) return options;
     const picked = new Set(openedWith ? openedWith.split(",") : []);
     // Keys picked since opening that the source does not list still need a row.
-    for (const k of selected!) if (!options.some((o) => o.key === k)) picked.add(k);
+    for (const k of selected!)
+      if (!options.some((o) => o.key === k)) picked.add(k);
     return pickedFirst(options, picked);
   }, [options, multi, openedWith, value]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!showSearch || !q) return ordered;
     // The empty option is the "clear" action, so it always stays reachable.
-    return ordered.filter((o) => o.key === "" || o.label.toLowerCase().includes(q));
+    return ordered.filter(
+      (o) => o.key === "" || o.label.toLowerCase().includes(q),
+    );
   }, [ordered, query, showSearch]);
   const hasValue = multi ? selected!.size > 0 : !!value;
   const isSelected = (key: string) =>
     key === "" ? !hasValue : multi ? selected!.has(key) : key === value;
 
   const handleClick = (key: string) => {
-    if (!multi) { onChange(key); onPicked?.(); return; }
-    if (key === "") { onChange(""); return; }
+    if (!multi) {
+      onChange(key);
+      onPicked?.();
+      return;
+    }
+    if (key === "") {
+      onChange("");
+      return;
+    }
     const next = new Set(selected);
-    if (next.has(key)) next.delete(key); else next.add(key);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
     onChange([...next].join(","));
   };
 
@@ -118,26 +143,42 @@ export function FilterOptionList({
       {shown.map((opt, i) => {
         const OptIcon = opt.icon;
         const sel = isSelected(opt.key);
-        const heading = opt.section && opt.section !== shown[i - 1]?.section ? opt.section : null;
+        const heading =
+          opt.section && opt.section !== shown[i - 1]?.section
+            ? opt.section
+            : null;
         return (
           <Fragment key={opt.key}>
-          {heading && (
-            <div className={`px-3 pt-2 pb-1 text-mark font-semibold uppercase tracking-widest text-sol-text-dim/70 ${modernMenuLabel}`}>{heading}</div>
-          )}
-          <button
-            onClick={() => handleClick(opt.key)}
-            title={opt.label}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
-              sel ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt"
-            } ${modernMenuRow({ selected: sel })}`}
-          >
-            {opt.face ?? (OptIcon && <OptIcon className={`w-3.5 h-3.5 flex-shrink-0 ${opt.color || ""}`} />)}
-            <span className="flex-1 text-left truncate">{opt.label}</span>
-            {opt.count != null && opt.count > 0 && (
-              <span className="text-meta tabular-nums text-sol-text-dim flex-shrink-0">{opt.count}</span>
+            {heading && (
+              <div
+                className={`px-3 pt-2 pb-1 text-mark font-semibold uppercase tracking-widest text-sol-text-dim/70 ${modernMenuLabel}`}
+              >
+                {heading}
+              </div>
             )}
-            {sel && <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />}
-          </button>
+            <button
+              onClick={() => handleClick(opt.key)}
+              title={opt.label}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors ${
+                sel
+                  ? "bg-sol-bg-highlight text-sol-text"
+                  : "text-sol-text-muted hover:bg-sol-bg-alt"
+              } ${modernMenuRow({ selected: sel })}`}
+            >
+              {opt.face ??
+                (OptIcon && (
+                  <OptIcon
+                    className={`w-3.5 h-3.5 flex-shrink-0 ${opt.color || ""}`}
+                  />
+                ))}
+              <span className="flex-1 text-left truncate">{opt.label}</span>
+              {opt.count != null && opt.count > 0 && (
+                <span className="text-meta tabular-nums text-sol-text-dim flex-shrink-0">
+                  {opt.count}
+                </span>
+              )}
+              {sel && <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />}
+            </button>
           </Fragment>
         );
       })}
@@ -176,7 +217,8 @@ export function FilterDropdown({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -191,27 +233,54 @@ export function FilterDropdown({
   const pickedLabels = multi
     ? [...selected!].map((k) => options.find((o) => o.key === k)?.label ?? k)
     : [];
-  const buttonLabel = multi && selected!.size > 0
-    ? pickedLabels.length <= 2
-      ? pickedLabels.join(", ")
-      : `${pickedLabels.slice(0, 2).join(", ")} +${pickedLabels.length - 2}`
-    : active && value ? active.label : label;
+  const buttonLabel =
+    multi && selected!.size > 0
+      ? pickedLabels.length <= 2
+        ? pickedLabels.join(", ")
+        : `${pickedLabels.slice(0, 2).join(", ")} +${pickedLabels.length - 2}`
+      : active && value
+        ? active.label
+        : label;
 
   const optionsPopover = open && (
-    <div className={`absolute top-full left-0 mt-1 w-max min-w-[11rem] max-w-[20rem] bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 max-h-64 overflow-y-auto ${modernLook(modernPopover, "modern:p-1")}`}>
-      <FilterOptionList options={options} value={value} multi={multi} onChange={onChange} onPicked={() => setOpen(false)} />
+    <div
+      className={`absolute top-full left-0 mt-1 w-max min-w-[11rem] max-w-[20rem] bg-sol-bg border border-sol-border rounded-lg shadow-xl z-[250] py-1 max-h-64 overflow-y-auto ${modernLook(modernPopover, "modern:p-1")}`}
+    >
+      <FilterOptionList
+        options={options}
+        value={value}
+        multi={multi}
+        onChange={onChange}
+        onPicked={() => setOpen(false)}
+      />
     </div>
   );
 
   if (chip) {
     return (
       <div ref={ref} className="relative">
-        <div className={`flex items-center h-7 rounded-md border border-sol-cyan/30 bg-sol-cyan/5 text-sol-cyan text-xs ${M_CHIP_ON}`}>
-          <button onClick={() => setOpen((o) => !o)} className={`flex items-center gap-1 pl-1.5 pr-1 h-full ${modernLook(M_CHIP_HALF, "modern:pl-2")}`} title={`Edit ${label}`}>
+        <div
+          className={`flex items-center h-7 rounded-md border border-sol-cyan/30 bg-sol-cyan/5 text-sol-cyan text-xs ${M_CHIP_ON}`}
+        >
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className={`flex items-center gap-1 pl-1.5 pr-1 h-full ${modernLook(M_CHIP_HALF, "modern:pl-2")}`}
+            title={`Edit ${label}`}
+          >
             {icon}
-            <span className="whitespace-nowrap truncate max-w-[12rem]" title={buttonLabel}>{buttonLabel}</span>
+            <span
+              className="whitespace-nowrap truncate max-w-[12rem]"
+              title={buttonLabel}
+            >
+              {buttonLabel}
+            </span>
           </button>
-          <button onClick={() => onChange("")} className={`flex items-center pr-1.5 pl-0.5 h-full hover:text-sol-text transition-colors ${modernLook(M_CHIP_HALF, "modern:px-1.5")}`} title={`Remove ${label} filter`} aria-label={`Remove ${label} filter`}>
+          <button
+            onClick={() => onChange("")}
+            className={`flex items-center pr-1.5 pl-0.5 h-full hover:text-sol-text transition-colors ${modernLook(M_CHIP_HALF, "modern:px-1.5")}`}
+            title={`Remove ${label} filter`}
+            aria-label={`Remove ${label} filter`}
+          >
             <X className="w-3 h-3 opacity-70" />
           </button>
         </div>
@@ -231,7 +300,12 @@ export function FilterDropdown({
         } ${modernChip({ active: hasValue })}`}
       >
         {icon}
-        <span className="whitespace-nowrap truncate max-w-[12rem]" title={buttonLabel}>{buttonLabel}</span>
+        <span
+          className="whitespace-nowrap truncate max-w-[12rem]"
+          title={buttonLabel}
+        >
+          {buttonLabel}
+        </span>
         <ChevronDown className="w-3 h-3 opacity-60 -ml-0.5 flex-shrink-0" />
       </button>
       {optionsPopover}

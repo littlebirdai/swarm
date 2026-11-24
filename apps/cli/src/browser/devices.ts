@@ -19,16 +19,28 @@ export const DEVICES: Record<string, DeviceProfile> = {
   laptop: { width: 1280, height: 800, scale: 2, mobile: false },
   wide: { width: 1920, height: 1080, scale: 1, mobile: false },
   tablet: {
-    width: 820, height: 1180, scale: 2, mobile: true,
-    userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    width: 820,
+    height: 1180,
+    scale: 2,
+    mobile: true,
+    userAgent:
+      "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   },
   mobile: {
-    width: 390, height: 844, scale: 3, mobile: true,
-    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    width: 390,
+    height: 844,
+    scale: 3,
+    mobile: true,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   },
   "mobile-small": {
-    width: 320, height: 568, scale: 2, mobile: true,
-    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+    width: 320,
+    height: 568,
+    scale: 2,
+    mobile: true,
+    userAgent:
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   },
 };
 
@@ -42,7 +54,10 @@ export const DEVICES: Record<string, DeviceProfile> = {
  * checking a layout at a breakpoint: media queries, `innerWidth` and
  * `devicePixelRatio` all report the emulated values.
  */
-export async function setViewport(page: PageSession, d: DeviceProfile): Promise<void> {
+export async function setViewport(
+  page: PageSession,
+  d: DeviceProfile,
+): Promise<void> {
   const { conn, sessionId } = page;
 
   // The window's CONTENT area must be at least as wide as the viewport we are
@@ -75,14 +90,22 @@ export async function setViewport(page: PageSession, d: DeviceProfile): Promise<
     for (let attempt = 0; attempt < 3; attempt++) {
       const have = await realWidth();
       if (have >= d.width) break;
-      const { windowId, bounds } = await conn.send<any>("Browser.getWindowForTarget", { targetId: page.targetId });
+      const { windowId, bounds } = await conn.send<any>(
+        "Browser.getWindowForTarget",
+        { targetId: page.targetId },
+      );
       if (!windowId || bounds?.windowState === "minimized") break;
       // Scale the window by the shortfall rather than setting an absolute size,
       // which is the only way to be right without knowing the display scaling.
-      const grown = Math.ceil((bounds.width || d.width) * (d.width / Math.max(have, 1)) * 1.05);
+      const grown = Math.ceil(
+        (bounds.width || d.width) * (d.width / Math.max(have, 1)) * 1.05,
+      );
       await conn.send("Browser.setWindowBounds", {
         windowId,
-        bounds: { width: Math.min(grown, 4000), height: Math.max(bounds.height || 0, 900) },
+        bounds: {
+          width: Math.min(grown, 4000),
+          height: Math.max(bounds.height || 0, 900),
+        },
       });
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -105,17 +128,33 @@ export async function setViewport(page: PageSession, d: DeviceProfile): Promise<
   // Touch changes real behaviour: hover-only menus never open, and libraries
   // branch on it. Emulating the size without it gives a misleading picture.
   await conn
-    .send("Emulation.setTouchEmulationEnabled", { enabled: d.mobile, maxTouchPoints: d.mobile ? 5 : 0 }, sessionId)
+    .send(
+      "Emulation.setTouchEmulationEnabled",
+      { enabled: d.mobile, maxTouchPoints: d.mobile ? 5 : 0 },
+      sessionId,
+    )
     .catch(() => {});
   if (d.userAgent) {
-    await conn.send("Emulation.setUserAgentOverride", { userAgent: d.userAgent }, sessionId).catch(() => {});
+    await conn
+      .send(
+        "Emulation.setUserAgentOverride",
+        { userAgent: d.userAgent },
+        sessionId,
+      )
+      .catch(() => {});
   }
 }
 
 /** Drop every emulation override, back to the real window. */
 export async function clearViewport(page: PageSession): Promise<void> {
   const { conn, sessionId } = page;
-  await conn.send("Emulation.clearDeviceMetricsOverride", {}, sessionId).catch(() => {});
-  await conn.send("Emulation.setTouchEmulationEnabled", { enabled: false }, sessionId).catch(() => {});
-  await conn.send("Emulation.setUserAgentOverride", { userAgent: "" }, sessionId).catch(() => {});
+  await conn
+    .send("Emulation.clearDeviceMetricsOverride", {}, sessionId)
+    .catch(() => {});
+  await conn
+    .send("Emulation.setTouchEmulationEnabled", { enabled: false }, sessionId)
+    .catch(() => {});
+  await conn
+    .send("Emulation.setUserAgentOverride", { userAgent: "" }, sessionId)
+    .catch(() => {});
 }

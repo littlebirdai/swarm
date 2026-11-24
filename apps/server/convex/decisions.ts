@@ -5,7 +5,11 @@ import { teamVisibleConvTeam } from "./privacy";
 import { computeWorkspaceKey, resolveSessionConversation } from "./lib/access";
 import { heldKeysFor } from "./lib/accessKeys";
 import { getRepoKeyFromRemote } from "./projectPaths";
-import { decisionTouches, normalizeDecisionFiles, type DecisionTouch } from "./lib/decisionMatch";
+import {
+  decisionTouches,
+  normalizeDecisionFiles,
+  type DecisionTouch,
+} from "./lib/decisionMatch";
 import type { Doc, Id } from "./_generated/dataModel";
 
 export const create = mutation({
@@ -32,29 +36,49 @@ export const create = mutation({
 
     let reversed: Doc<"decisions"> | null = null;
     if (args.supersedes) {
-      reversed = await findReadableDecision(ctx, result.userId, args.supersedes);
-      if (!reversed) return { error: `No decision ${args.supersedes} you can read` };
+      reversed = await findReadableDecision(
+        ctx,
+        result.userId,
+        args.supersedes,
+      );
+      if (!reversed)
+        return { error: `No decision ${args.supersedes} you can read` };
     }
 
     let sourceConv = null;
     if (args.session_id) {
       // Only a session the caller can read places the decision: another
       // person's session must never donate its team (and so its workspace).
-      sourceConv = await resolveSessionConversation(ctx, result.userId, args.session_id);
+      sourceConv = await resolveSessionConversation(
+        ctx,
+        result.userId,
+        args.session_id,
+      );
     }
-    const id = await insertDecision(ctx, result.userId, {
-      title: args.title,
-      rationale: args.rationale,
-      alternatives: args.alternatives,
-      message_index: args.message_index,
-      tags: args.tags,
-      project_path: args.project_path,
-      session_id: args.session_id,
-      repo: getRepoKeyFromRemote(args.git_remote) ?? reversed?.repo,
-      files: args.files?.length ? normalizeDecisionFiles(args.files) : reversed?.files,
-    }, sourceConv);
+    const id = await insertDecision(
+      ctx,
+      result.userId,
+      {
+        title: args.title,
+        rationale: args.rationale,
+        alternatives: args.alternatives,
+        message_index: args.message_index,
+        tags: args.tags,
+        project_path: args.project_path,
+        session_id: args.session_id,
+        repo: getRepoKeyFromRemote(args.git_remote) ?? reversed?.repo,
+        files: args.files?.length
+          ? normalizeDecisionFiles(args.files)
+          : reversed?.files,
+      },
+      sourceConv,
+    );
     if (!id) return { error: "User not found" };
-    if (reversed) await ctx.db.patch(reversed._id, { superseded_by: id, updated_at: Date.now() });
+    if (reversed)
+      await ctx.db.patch(reversed._id, {
+        superseded_by: id,
+        updated_at: Date.now(),
+      });
 
     return { id, success: true };
   },
@@ -94,7 +118,10 @@ export async function insertDecision(
     team_id: teamId,
     // Stored access key, computed from the same rule at write time: a private
     // source session makes this decision personal to its owner.
-    workspace: computeWorkspaceKey({ user_id: userId, team_id: teamId }, sourceConv),
+    workspace: computeWorkspaceKey(
+      { user_id: userId, team_id: teamId },
+      sourceConv,
+    ),
     project_path: fields.project_path,
     title: fields.title,
     rationale: fields.rationale,
@@ -121,7 +148,12 @@ export async function insertDecision(
 export async function listDecisionsForViewer(
   ctx: { db: any },
   userId: Id<"users">,
-  opts: { project_path?: string; search?: string; limit: number; offset: number },
+  opts: {
+    project_path?: string;
+    search?: string;
+    limit: number;
+    offset: number;
+  },
 ): Promise<Doc<"decisions">[]> {
   const held = await heldKeysFor(ctx, userId);
   const want = opts.limit + opts.offset;
@@ -130,18 +162,23 @@ export async function listDecisionsForViewer(
     const found: Doc<"decisions">[] = await ctx.db
       .query("decisions")
       .withSearchIndex("search_decisions_v2", (q: any) =>
-        opts.project_path ? q.search("title", opts.search!).eq("project_path", opts.project_path) : q.search("title", opts.search!),
+        opts.project_path
+          ? q
+              .search("title", opts.search!)
+              .eq("project_path", opts.project_path)
+          : q.search("title", opts.search!),
       )
       .take(Math.min(want * 4, 200));
     rows = found.filter((d) => d.workspace && held.has(d.workspace));
   } else {
     const perKey = await Promise.all(
-      [...held].map((key) =>
-        ctx.db
-          .query("decisions")
-          .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
-          .order("desc")
-          .take(want) as Promise<Doc<"decisions">[]>,
+      [...held].map(
+        (key) =>
+          ctx.db
+            .query("decisions")
+            .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+            .order("desc")
+            .take(want) as Promise<Doc<"decisions">[]>,
       ),
     );
     rows = perKey
@@ -153,23 +190,39 @@ export async function listDecisionsForViewer(
 }
 
 /** Every decision the viewer can read, newest first: the touching scan's input. */
-async function allReadableDecisions(ctx: { db: any }, userId: Id<"users">): Promise<Doc<"decisions">[]> {
+async function allReadableDecisions(
+  ctx: { db: any },
+  userId: Id<"users">,
+): Promise<Doc<"decisions">[]> {
   const held = await heldKeysFor(ctx, userId);
   const perKey = await Promise.all(
     [...held].map((key) =>
-      ctx.db.query("decisions").withIndex("by_workspace", (q: any) => q.eq("workspace", key)).order("desc").take(2000),
+      ctx.db
+        .query("decisions")
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+        .order("desc")
+        .take(2000),
     ),
   );
-  return (perKey.flat() as Doc<"decisions">[]).sort((a, b) => b.created_at - a.created_at);
+  return (perKey.flat() as Doc<"decisions">[]).sort(
+    (a, b) => b.created_at - a.created_at,
+  );
 }
 
 /** A decision by full id or the 7-character prefix the list prints, only when the viewer can read it. */
-async function findReadableDecision(ctx: { db: any }, userId: Id<"users">, ref: string): Promise<Doc<"decisions"> | null> {
+async function findReadableDecision(
+  ctx: { db: any },
+  userId: Id<"users">,
+  ref: string,
+): Promise<Doc<"decisions"> | null> {
   const held = await heldKeysFor(ctx, userId);
-  const readable = (d: Doc<"decisions"> | null) => (d && d.workspace && held.has(d.workspace) ? d : null);
+  const readable = (d: Doc<"decisions"> | null) =>
+    d && d.workspace && held.has(d.workspace) ? d : null;
   const exact = ctx.db.normalizeId("decisions", ref);
   if (exact) return readable(await ctx.db.get(exact));
-  const hits = (await allReadableDecisions(ctx, userId)).filter((d) => String(d._id).startsWith(ref));
+  const hits = (await allReadableDecisions(ctx, userId)).filter((d) =>
+    String(d._id).startsWith(ref),
+  );
   return hits.length === 1 ? hits[0] : null;
 }
 
@@ -199,11 +252,13 @@ export const list = mutation({
     // Touching mode: the decisions that bear on a change, given the paths it
     // changes (repo-relative, in the repo `git_remote` names) and the
     // conversations that wrote the lines it changes. Superseded ones are left out.
-    touching: v.optional(v.object({
-      git_remote: v.optional(v.string()),
-      files: v.array(v.string()),
-      conversation_ids: v.array(v.string()),
-    })),
+    touching: v.optional(
+      v.object({
+        git_remote: v.optional(v.string()),
+        files: v.array(v.string()),
+        conversation_ids: v.array(v.string()),
+      }),
+    ),
     project_path: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     search: v.optional(v.string()),
@@ -225,15 +280,26 @@ export const list = mutation({
         files: normalizeDecisionFiles(args.touching.files),
         conversationIds: new Set(args.touching.conversation_ids),
       };
-      const hits = (await allReadableDecisions(ctx, result.userId)).flatMap((d) => {
-        const touch = decisionTouches(d, change);
-        return touch ? [{ touch, row: formatDecision(d, touch) }] : [];
-      });
+      const hits = (await allReadableDecisions(ctx, result.userId)).flatMap(
+        (d) => {
+          const touch = decisionTouches(d, change);
+          return touch ? [{ touch, row: formatDecision(d, touch) }] : [];
+        },
+      );
       // Every decision governing a changed path, then up to `limit` of the
       // ones matched only by the session that wrote the changed lines.
-      const governing = hits.filter((h) => h.touch.files.length).map((h) => h.row);
-      const bySession = hits.filter((h) => !h.touch.files.length).slice(0, limit).map((h) => h.row);
-      return { decisions: [...governing, ...bySession], count: governing.length + bySession.length, repo: change.repo };
+      const governing = hits
+        .filter((h) => h.touch.files.length)
+        .map((h) => h.row);
+      const bySession = hits
+        .filter((h) => !h.touch.files.length)
+        .slice(0, limit)
+        .map((h) => h.row);
+      return {
+        decisions: [...governing, ...bySession],
+        count: governing.length + bySession.length,
+        repo: change.repo,
+      };
     }
 
     let decisions = await listDecisionsForViewer(ctx, result.userId, {
@@ -245,7 +311,7 @@ export const list = mutation({
 
     if (args.tags && args.tags.length > 0) {
       decisions = decisions.filter((d) =>
-        args.tags!.some((tag) => d.tags?.includes(tag))
+        args.tags!.some((tag) => d.tags?.includes(tag)),
       );
     }
 

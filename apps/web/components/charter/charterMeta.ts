@@ -7,7 +7,10 @@
 // org scope panel share.
 import type { OrgRole } from "../org/orgTypes";
 import { isHeadOfPeopleRole } from "../org/orgStaffingTypes";
-import { cleanBudget, type CharterBudget } from "@codecast/convex/convex/lib/charterBudget";
+import {
+  cleanBudget,
+  type CharterBudget,
+} from "@codecast/convex/convex/lib/charterBudget";
 
 export { cleanBudget, type CharterBudget };
 
@@ -19,11 +22,30 @@ export const CHARTER_PRIORITIES: CharterPriority[] = ["p0", "p1", "p2", "p3"];
  *  Task priority (urgent/high/medium/low, lib/entityDisplay.ts) is a different
  *  vocabulary on a different object and keeps its own palette. `color` is a
  *  CSS token so the pill follows the theme. */
-export const PRIORITY_META: Record<CharterPriority, { label: string; color: string; hint: string }> = {
-  p0: { label: "P0", color: "var(--sol-red)", hint: "Drop everything: a promise to a customer or the company's survival" },
-  p1: { label: "P1", color: "var(--sol-orange)", hint: "This quarter's bet: staffed first, reviewed every week" },
-  p2: { label: "P2", color: "var(--sol-blue)", hint: "Important, scheduled after the P1 work" },
-  p3: { label: "P3", color: "var(--sol-text-dim)", hint: "Nice to have: picked up when a hand is free" },
+export const PRIORITY_META: Record<
+  CharterPriority,
+  { label: string; color: string; hint: string }
+> = {
+  p0: {
+    label: "P0",
+    color: "var(--sol-red)",
+    hint: "Drop everything: a promise to a customer or the company's survival",
+  },
+  p1: {
+    label: "P1",
+    color: "var(--sol-orange)",
+    hint: "This quarter's bet: staffed first, reviewed every week",
+  },
+  p2: {
+    label: "P2",
+    color: "var(--sol-blue)",
+    hint: "Important, scheduled after the P1 work",
+  },
+  p3: {
+    label: "P3",
+    color: "var(--sol-text-dim)",
+    hint: "Nice to have: picked up when a hand is free",
+  },
 };
 
 export function isCharterPriority(v: unknown): v is CharterPriority {
@@ -56,12 +78,23 @@ export type CharterPatch = {
 export type CharterKind = "project" | "plan";
 
 export const CHARTER_KEYS: Record<CharterKind, (keyof CharterFields)[]> = {
-  project: ["goal", "success_metrics", "priority", "owner_role_id", "non_goals", "risks", "budget"],
+  project: [
+    "goal",
+    "success_metrics",
+    "priority",
+    "owner_role_id",
+    "non_goals",
+    "risks",
+    "budget",
+  ],
   plan: ["goal", "success_metrics", "priority", "owner_role_id", "non_goals"],
 };
 
 /** Pick the charter off a row, the plan subset for plans. */
-export function charterOf(row: Record<string, unknown> | null | undefined, kind: CharterKind): CharterFields {
+export function charterOf(
+  row: Record<string, unknown> | null | undefined,
+  kind: CharterKind,
+): CharterFields {
   const out: CharterFields = {};
   if (!row) return out;
   for (const key of CHARTER_KEYS[kind]) {
@@ -76,8 +109,10 @@ export function hasCharter(c: CharterFields): boolean {
   if (c.goal?.trim()) return true;
   if (c.priority) return true;
   if (c.owner_role_id) return true;
-  for (const list of [c.success_metrics, c.non_goals, c.risks]) if (list && list.length > 0) return true;
-  if (c.budget && (c.budget.tokens_per_day || c.budget.hands_per_day)) return true;
+  for (const list of [c.success_metrics, c.non_goals, c.risks])
+    if (list && list.length > 0) return true;
+  if (c.budget && (c.budget.tokens_per_day || c.budget.hands_per_day))
+    return true;
   return false;
 }
 
@@ -95,14 +130,19 @@ export function composeCharterHref(title: string): string {
 export type OrgRoles = OrgRole[] | null | undefined;
 
 export function headOfPeopleOf(roles: OrgRoles): OrgRole | null {
-  return roles?.find((r) => isHeadOfPeopleRole(r) && r.status !== "retired") ?? null;
+  return (
+    roles?.find((r) => isHeadOfPeopleRole(r) && r.status !== "retired") ?? null
+  );
 }
 
 /** The live role that owns the row. A retired seat is no owner: the server
  *  refuses to set one (resolveOwnerRole) and the chip falls to "No owner" so
  *  the person is nudged to reassign, instead of linking to a seat that no
  *  longer exists. */
-export function ownerRoleOf(roles: OrgRoles, ownerRoleId: string | null | undefined): OrgRole | null {
+export function ownerRoleOf(
+  roles: OrgRoles,
+  ownerRoleId: string | null | undefined,
+): OrgRole | null {
   if (!roles || !ownerRoleId) return null;
   const role = roles.find((r) => r._id === ownerRoleId);
   return role && role.status !== "retired" ? role : null;
@@ -111,7 +151,9 @@ export function ownerRoleOf(roles: OrgRoles, ownerRoleId: string | null | undefi
 /** The roles a project or plan can be owned by: live ones, the head of people
  *  excluded (it proposes, it never owns a line). */
 export function ownerCandidates(roles: OrgRoles): OrgRole[] {
-  return (roles ?? []).filter((r) => r.status !== "retired" && !isHeadOfPeopleRole(r));
+  return (roles ?? []).filter(
+    (r) => r.status !== "retired" && !isHeadOfPeopleRole(r),
+  );
 }
 
 /** "400k", "1.2M": the budget line reads at a glance. */
@@ -123,9 +165,14 @@ export function formatTokens(n: number): string {
 
 /** The inverse for the inline edit: "400k", "1.2M", "400000", "400,000". */
 export function parseTokens(s: string): number | null {
-  const m = s.trim().toLowerCase().replace(/,/g, "").match(/^(\d+(?:\.\d+)?)\s*([km])?$/);
+  const m = s
+    .trim()
+    .toLowerCase()
+    .replace(/,/g, "")
+    .match(/^(\d+(?:\.\d+)?)\s*([km])?$/);
   if (!m) return null;
-  const n = Number(m[1]) * (m[2] === "m" ? 1_000_000 : m[2] === "k" ? 1_000 : 1);
+  const n =
+    Number(m[1]) * (m[2] === "m" ? 1_000_000 : m[2] === "k" ? 1_000 : 1);
   return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
 }
 

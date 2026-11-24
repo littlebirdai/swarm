@@ -9,10 +9,13 @@ export function folderFetchGate(retryMs: number, now: () => number = Date.now) {
       return f && now() - f.at < retryMs ? f.reason : undefined;
     },
     reason: (key: string) => failures.get(key)?.reason,
-    fail: (key: string, reason: string) => { failures.set(key, { at: now(), reason }); },
+    fail: (key: string, reason: string) => {
+      failures.set(key, { at: now(), reason });
+    },
     clear: (key: string) => failures.delete(key),
     forgetConversation: (conversationId: string) => {
-      for (const key of failures.keys()) if (key.startsWith(`${conversationId}\0`)) failures.delete(key);
+      for (const key of failures.keys())
+        if (key.startsWith(`${conversationId}\0`)) failures.delete(key);
     },
   };
 }

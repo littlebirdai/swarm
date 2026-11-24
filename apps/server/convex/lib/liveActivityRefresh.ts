@@ -31,11 +31,17 @@ export async function scheduleLiveActivityRefresh(
   userId: Id<"users">,
   opts: { urgent?: boolean; delayMs?: number } = {},
 ): Promise<void> {
-  if (refreshDueAt(await liveActivityRow(ctx, userId), opts, Date.now()) === null) return;
+  if (
+    refreshDueAt(await liveActivityRow(ctx, userId), opts, Date.now()) === null
+  )
+    return;
   const requested = requestedIn.get(ctx.db) ?? new Set<string>();
   if (requested.has(String(userId))) return;
   requestedIn.set(ctx.db, requested.add(String(userId)));
-  await ctx.scheduler.runAfter(0, internal.liveActivity.requestRefresh, { user_id: userId, ...opts });
+  await ctx.scheduler.runAfter(0, internal.liveActivity.requestRefresh, {
+    user_id: userId,
+    ...opts,
+  });
 }
 
 export async function coalesceLiveActivityRefresh(
@@ -48,7 +54,10 @@ export async function coalesceLiveActivityRefresh(
   const due = refreshDueAt(row, opts, now);
   if (due === null) return false;
   await ctx.db.patch(row._id, { refresh_due_at: due });
-  await ctx.scheduler.runAfter(due - now, internal.liveActivity.refresh, { user_id: userId, due });
+  await ctx.scheduler.runAfter(due - now, internal.liveActivity.refresh, {
+    user_id: userId,
+    due,
+  });
   return true;
 }
 
@@ -60,11 +69,19 @@ function liveActivityRow(ctx: { db: any }, userId: Id<"users">) {
 }
 
 /** When a new refresh should fire, or null when none is needed. */
-function refreshDueAt(row: any, opts: { urgent?: boolean; delayMs?: number }, now: number): number | null {
+function refreshDueAt(
+  row: any,
+  opts: { urgent?: boolean; delayMs?: number },
+  now: number,
+): number | null {
   // No phone has ever registered: nothing to address, and nothing to schedule.
   if (!row) return null;
   if (!row.push_to_start_token && !row.activity_id) return null;
-  const due = now + (opts.urgent ? 0 : Math.max(0, opts.delayMs ?? LIVE_ACTIVITY_PUSH_INTERVAL_MS));
+  const due =
+    now +
+    (opts.urgent
+      ? 0
+      : Math.max(0, opts.delayMs ?? LIVE_ACTIVITY_PUSH_INTERVAL_MS));
   const pending = row.refresh_due_at;
   if (pending !== undefined && pending <= due) return null;
   return due;

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface ForkNavigationState {
   selectedIndex: number | null;
@@ -14,6 +14,7 @@ export const useForkNavigationStore = create<ForkNavigationState>()((set) => ({
   treePanelOpen: false,
 
   setSelectedIndex: (index) => set({ selectedIndex: index }),
-  toggleTreePanel: () => set((state) => ({ treePanelOpen: !state.treePanelOpen })),
+  toggleTreePanel: () =>
+    set((state) => ({ treePanelOpen: !state.treePanelOpen })),
   reset: () => set({ selectedIndex: null, treePanelOpen: false }),
 }));

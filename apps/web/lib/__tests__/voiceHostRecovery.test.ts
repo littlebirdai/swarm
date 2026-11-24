@@ -21,7 +21,14 @@ describe("voiceHostReloadPlan", () => {
       delays.push(plan.delayMs);
       prev = plan.next;
     }
-    expect(delays).toEqual([6_000, 12_000, 24_000, 48_000, VOICE_HOST_RELOAD_MAX_MS, VOICE_HOST_RELOAD_MAX_MS]);
+    expect(delays).toEqual([
+      6_000,
+      12_000,
+      24_000,
+      48_000,
+      VOICE_HOST_RELOAD_MAX_MS,
+      VOICE_HOST_RELOAD_MAX_MS,
+    ]);
   });
 
   it("starts over once the host has run quietly", () => {

@@ -5,7 +5,11 @@
 import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { ScreenMap } from "../../lib/liveScreenMap";
-import { textOnColor, type ArtifactPosition, type ArtifactPresence } from "@codecast/shared/artifacts";
+import {
+  textOnColor,
+  type ArtifactPosition,
+  type ArtifactPresence,
+} from "@codecast/shared/artifacts";
 import { CursorArrow } from "../presence/CursorArrow";
 import type { ScreenPoint } from "./registry";
 
@@ -14,7 +18,13 @@ function presenceLabel(p: ArtifactPresence): string {
 }
 
 /** A name tag in a participant's color, for products that outline selections (a sheet range, a board selection). */
-export function CursorTag({ p, className = "" }: { p: ArtifactPresence; className?: string }) {
+export function CursorTag({
+  p,
+  className = "",
+}: {
+  p: ArtifactPresence;
+  className?: string;
+}) {
   const tag = (
     <span
       data-live-tag={p.kind}
@@ -25,20 +35,39 @@ export function CursorTag({ p, className = "" }: { p: ArtifactPresence; classNam
       {presenceLabel(p)}
     </span>
   );
-  return p.kind === "agent" && p.session_id ? <Link href={`/conversation/${p.session_id}`} className="pointer-events-auto">{tag}</Link> : tag;
+  return p.kind === "agent" && p.session_id ? (
+    <Link
+      href={`/conversation/${p.session_id}`}
+      className="pointer-events-auto"
+    >
+      {tag}
+    </Link>
+  ) : (
+    tag
+  );
 }
 
 function anchorOf(p: ArtifactPresence): ArtifactPosition | null {
   const pos = p.position;
-  if (pos && (pos.point || pos.cell || pos.range || pos.block || pos.key)) return pos;
+  if (pos && (pos.point || pos.cell || pos.range || pos.block || pos.key))
+    return pos;
   const last = p.selection?.[p.selection.length - 1];
   return last ? { key: last } : null;
 }
 
-export function LiveCursors({ others, toScreen }: { others: ArtifactPresence[]; toScreen: ((pos: ArtifactPosition) => ScreenPoint | null) | null }) {
+export function LiveCursors({
+  others,
+  toScreen,
+}: {
+  others: ArtifactPresence[];
+  toScreen: ((pos: ArtifactPosition) => ScreenPoint | null) | null;
+}) {
   if (!toScreen) return null;
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden z-30" data-live-cursors>
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden z-30"
+      data-live-cursors
+    >
       {others.map((p) => {
         const pos = anchorOf(p);
         const pt = pos ? toScreen(pos) : null;
@@ -53,12 +82,20 @@ export function LiveCursors({ others, toScreen }: { others: ArtifactPresence[]; 
             className="absolute left-0 top-0 transition-transform duration-100 ease-out"
             style={{ transform: `translate(${x}px, ${y}px)` }}
           >
-            {pt.w !== undefined && pt.h !== undefined && (pt.w > 0 || pt.h > 0) && (
-              <div
-                className="absolute rounded-sm"
-                style={{ left: -(pt.w ?? 0), top: -(pt.h ?? 0), width: pt.w, height: pt.h, boxShadow: `0 0 0 2px ${p.color}` }}
-              />
-            )}
+            {pt.w !== undefined &&
+              pt.h !== undefined &&
+              (pt.w > 0 || pt.h > 0) && (
+                <div
+                  className="absolute rounded-sm"
+                  style={{
+                    left: -(pt.w ?? 0),
+                    top: -(pt.h ?? 0),
+                    width: pt.w,
+                    height: pt.h,
+                    boxShadow: `0 0 0 2px ${p.color}`,
+                  }}
+                />
+              )}
             <CursorArrow color={p.color} />
             <span className="absolute left-5 top-7">
               <CursorTag p={p} />
@@ -71,7 +108,17 @@ export function LiveCursors({ others, toScreen }: { others: ArtifactPresence[]; 
 }
 
 /** Everyone else's cursor over a live artifact, placed through its view's mapping. */
-export function CursorLayer({ others, screenMap }: { others: readonly ArtifactPresence[]; screenMap: ScreenMap }) {
-  const map = useSyncExternalStore(screenMap.subscribe, screenMap.get, () => null);
+export function CursorLayer({
+  others,
+  screenMap,
+}: {
+  others: readonly ArtifactPresence[];
+  screenMap: ScreenMap;
+}) {
+  const map = useSyncExternalStore(
+    screenMap.subscribe,
+    screenMap.get,
+    () => null,
+  );
   return <LiveCursors others={others as ArtifactPresence[]} toScreen={map} />;
 }

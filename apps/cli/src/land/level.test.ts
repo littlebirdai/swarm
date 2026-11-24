@@ -7,12 +7,31 @@ import { levelCheckout } from "./level.js";
 import { replayOnto } from "./replay.js";
 
 const dirs: string[] = [];
-afterEach(() => { for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const d of dirs.splice(0))
+    fs.rmSync(d, { recursive: true, force: true });
+});
 
-const ENV = { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t", GIT_CONFIG_NOSYSTEM: "1", HOME: os.tmpdir() };
-const sh = (cwd: string, ...args: string[]) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf-8", env: ENV }).trim();
-const write = (dir: string, file: string, text: string) => { fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true }); fs.writeFileSync(path.join(dir, file), text); };
-const read = (dir: string, file: string) => fs.readFileSync(path.join(dir, file), "utf-8");
+const ENV = {
+  ...process.env,
+  GIT_AUTHOR_NAME: "t",
+  GIT_AUTHOR_EMAIL: "t@t",
+  GIT_COMMITTER_NAME: "t",
+  GIT_COMMITTER_EMAIL: "t@t",
+  GIT_CONFIG_NOSYSTEM: "1",
+  HOME: os.tmpdir(),
+};
+const sh = (cwd: string, ...args: string[]) =>
+  execFileSync("git", ["-C", cwd, ...args], {
+    encoding: "utf-8",
+    env: ENV,
+  }).trim();
+const write = (dir: string, file: string, text: string) => {
+  fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+  fs.writeFileSync(path.join(dir, file), text);
+};
+const read = (dir: string, file: string) =>
+  fs.readFileSync(path.join(dir, file), "utf-8");
 
 /** A bare origin, a shared checkout of it, and a second clone that pushes upstream work. */
 function setup(files: Record<string, string>) {
@@ -24,13 +43,29 @@ function setup(files: Record<string, string>) {
   for (const [f, t] of Object.entries(files)) write(seed, f, t);
   sh(seed, "add", "-A");
   sh(seed, "commit", "-qm", "base");
-  execFileSync("git", ["clone", "-q", "--bare", seed, path.join(root, "origin.git")], { env: ENV });
-  execFileSync("git", ["clone", "-q", path.join(root, "origin.git"), path.join(root, "shared")], { env: ENV });
-  execFileSync("git", ["clone", "-q", path.join(root, "origin.git"), path.join(root, "other")], { env: ENV });
+  execFileSync(
+    "git",
+    ["clone", "-q", "--bare", seed, path.join(root, "origin.git")],
+    { env: ENV },
+  );
+  execFileSync(
+    "git",
+    ["clone", "-q", path.join(root, "origin.git"), path.join(root, "shared")],
+    { env: ENV },
+  );
+  execFileSync(
+    "git",
+    ["clone", "-q", path.join(root, "origin.git"), path.join(root, "other")],
+    { env: ENV },
+  );
   const shared = path.join(root, "shared");
   const other = path.join(root, "other");
-  const upstream = (changes: Record<string, string | null>, msg = "upstream") => {
-    for (const [f, t] of Object.entries(changes)) t === null ? fs.rmSync(path.join(other, f)) : write(other, f, t);
+  const upstream = (
+    changes: Record<string, string | null>,
+    msg = "upstream",
+  ) => {
+    for (const [f, t] of Object.entries(changes))
+      t === null ? fs.rmSync(path.join(other, f)) : write(other, f, t);
     sh(other, "add", "-A");
     sh(other, "commit", "-qm", msg);
     sh(other, "push", "-q", "origin", "main");
@@ -39,21 +74,34 @@ function setup(files: Record<string, string>) {
   return { shared, other, upstream };
 }
 
-const status = (dir: string) => execFileSync("git", ["-C", dir, "status", "--porcelain"], { encoding: "utf-8", env: ENV }).replace(/\n$/, "");
+const status = (dir: string) =>
+  execFileSync("git", ["-C", dir, "status", "--porcelain"], {
+    encoding: "utf-8",
+    env: ENV,
+  }).replace(/\n$/, "");
 
 describe("levelCheckout", () => {
   test("moves a dirty checkout onto upstream and keeps every local edit", async () => {
-    const { shared, upstream } = setup({ "a.ts": "a\n", "b.ts": "b\n", "c.ts": "c\n" });
+    const { shared, upstream } = setup({
+      "a.ts": "a\n",
+      "b.ts": "b\n",
+      "c.ts": "c\n",
+    });
     upstream({ "b.ts": "b2\n", "new.ts": "new\n" });
     write(shared, "c.ts", "c-midturn\n");
     write(shared, "scratch.ts", "untracked\n");
     const r = await levelCheckout(shared, "origin/main");
     expect(r.ok).toBe(true);
     expect(r.written.sort()).toEqual(["b.ts", "new.ts"]);
-    expect(sh(shared, "rev-parse", "HEAD")).toBe(sh(shared, "rev-parse", "origin/main"));
+    expect(sh(shared, "rev-parse", "HEAD")).toBe(
+      sh(shared, "rev-parse", "origin/main"),
+    );
     expect(read(shared, "b.ts")).toBe("b2\n");
     expect(read(shared, "c.ts")).toBe("c-midturn\n");
-    expect(status(shared).split("\n").sort()).toEqual([" M c.ts", "?? scratch.ts"]);
+    expect(status(shared).split("\n").sort()).toEqual([
+      " M c.ts",
+      "?? scratch.ts",
+    ]);
   });
 
   test("an edit that already landed upstream is absorbed, not reported dirty", async () => {
@@ -68,7 +116,9 @@ describe("levelCheckout", () => {
   });
 
   test("a local edit and an upstream change to different lines merge three-way", async () => {
-    const { shared, upstream } = setup({ "m.ts": "one\ntwo\nthree\nfour\nfive\n" });
+    const { shared, upstream } = setup({
+      "m.ts": "one\ntwo\nthree\nfour\nfive\n",
+    });
     upstream({ "m.ts": "ONE\ntwo\nthree\nfour\nfive\n" });
     write(shared, "m.ts", "one\ntwo\nthree\nfour\nFIVE\n");
     const r = await levelCheckout(shared, "origin/main");
@@ -95,9 +145,16 @@ describe("levelCheckout", () => {
   // Union's main turned two repro scripts from 755 to 644 (Nov 6). The blob was unchanged, so the level absorbed it
   // and every levelled line checkout read the files as changed.
   test("a mode-only change upstream moves the file's mode, and a local mode change stands", async () => {
-    const { shared, other, upstream } = setup({ "run.sh": "echo hi\n", "own.sh": "echo own\n" });
-    const exec = (dir: string, f: string) => (fs.statSync(path.join(dir, f)).mode & 0o111) !== 0;
-    const chmodUpstream = (f: string, mode: number) => { fs.chmodSync(path.join(other, f), mode); upstream({}, `chmod ${f}`); };
+    const { shared, other, upstream } = setup({
+      "run.sh": "echo hi\n",
+      "own.sh": "echo own\n",
+    });
+    const exec = (dir: string, f: string) =>
+      (fs.statSync(path.join(dir, f)).mode & 0o111) !== 0;
+    const chmodUpstream = (f: string, mode: number) => {
+      fs.chmodSync(path.join(other, f), mode);
+      upstream({}, `chmod ${f}`);
+    };
     chmodUpstream("run.sh", 0o755);
     let r = await levelCheckout(shared, "origin/main");
     expect(r.ok).toBe(true);
@@ -116,7 +173,10 @@ describe("levelCheckout", () => {
   });
 
   test("deletions upstream remove the file and its emptied directory", async () => {
-    const { shared, upstream } = setup({ "keep.ts": "k\n", "gone/only.ts": "g\n" });
+    const { shared, upstream } = setup({
+      "keep.ts": "k\n",
+      "gone/only.ts": "g\n",
+    });
     upstream({ "gone/only.ts": null });
     const r = await levelCheckout(shared, "origin/main");
     expect(r.deleted).toEqual(["gone/only.ts"]);
@@ -138,7 +198,11 @@ describe("levelCheckout", () => {
 
 describe("replayOnto + level: the commit-in-place flow", () => {
   test("local commits replay onto upstream in memory, push, and level the dirty checkout", async () => {
-    const { shared, upstream } = setup({ "a.ts": "a\n", "b.ts": "b\n", "c.ts": "c\n" });
+    const { shared, upstream } = setup({
+      "a.ts": "a\n",
+      "b.ts": "b\n",
+      "c.ts": "c\n",
+    });
     upstream({ "b.ts": "b2\n" });
     write(shared, "a.ts", "a-mine\n");
     sh(shared, "commit", "-qam", "local work");
@@ -178,7 +242,8 @@ describe("replayOnto + level: the commit-in-place flow", () => {
 });
 
 describe("levelOne (the daemon's sweep)", () => {
-  const enable = (dir: string, on: boolean) => write(dir, ".codecast/workspace.toml", `[ship]\nlevel = ${on}\n`);
+  const enable = (dir: string, on: boolean) =>
+    write(dir, ".codecast/workspace.toml", `[ship]\nlevel = ${on}\n`);
 
   test("levels an opted-in checkout behind its upstream and leaves local edits alone", async () => {
     const { levelOne } = await import("./levelSweep.js");
@@ -198,19 +263,32 @@ describe("levelOne (the daemon's sweep)", () => {
     const { shared, upstream } = setup({ "a.ts": "a\n" });
     sh(shared, "remote", "set-head", "origin", "main");
     upstream({ "b.ts": "b\n" });
-    expect(await levelOne(shared)).toEqual({ root: shared, skipped: "level not enabled" });
+    expect(await levelOne(shared)).toEqual({
+      root: shared,
+      skipped: "level not enabled",
+    });
 
     enable(shared, true);
-    const lock = path.join(sh(shared, "rev-parse", "--absolute-git-dir"), "codecast", "ship.lock");
+    const lock = path.join(
+      sh(shared, "rev-parse", "--absolute-git-dir"),
+      "codecast",
+      "ship.lock",
+    );
     fs.mkdirSync(path.dirname(lock), { recursive: true });
     fs.writeFileSync(lock, String(process.pid));
-    expect(await levelOne(shared)).toEqual({ root: shared, skipped: "a ship is running" });
+    expect(await levelOne(shared)).toEqual({
+      root: shared,
+      skipped: "a ship is running",
+    });
     fs.rmSync(lock);
 
     write(shared, "mine.ts", "m\n");
     sh(shared, "add", "mine.ts");
     sh(shared, "commit", "-qm", "local");
-    expect(await levelOne(shared)).toEqual({ root: shared, skipped: "holds commits upstream lacks" });
+    expect(await levelOne(shared)).toEqual({
+      root: shared,
+      skipped: "holds commits upstream lacks",
+    });
   });
 });
 
@@ -239,7 +317,9 @@ describe("a checkout diverged only by commits upstream already holds", () => {
 
     const o = await levelOne(shared);
     expect("result" in o && o.result.ok).toBe(true);
-    expect(sh(shared, "rev-parse", "HEAD")).toBe(sh(shared, "rev-parse", "origin/main"));
+    expect(sh(shared, "rev-parse", "HEAD")).toBe(
+      sh(shared, "rev-parse", "origin/main"),
+    );
     expect(read(shared, "later.ts")).toBe("l\n");
   });
 });

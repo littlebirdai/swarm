@@ -22,45 +22,66 @@
 // PURE isomorphic data — no Node or DOM APIs — so the Convex runtime, the Node
 // daemon, and the browser can all import it.
 
-import { CHECK_REFERENCE, CHECK_SNIPPET, CHECK_SNIPPET_END, WORKFLOW_REFERENCE, WORKFLOW_SNIPPET, WORKFLOW_SNIPPET_END } from "./snippetsWorkflow";
+import {
+  CHECK_REFERENCE,
+  CHECK_SNIPPET,
+  CHECK_SNIPPET_END,
+  WORKFLOW_REFERENCE,
+  WORKFLOW_SNIPPET,
+  WORKFLOW_SNIPPET_END,
+} from "./snippetsWorkflow";
 import { manifestHash } from "./capabilities";
 import { ASSIGNEE_MEANS } from "./orgAssignee";
 import { agentSetupPageUrl } from "./agentToolSetup";
 import { BROWSER_EXTENSION_STORE_URL } from "./browserExtension";
 import { MESSAGING_POLICIES } from "./messagingPolicy";
 
-export type SnippetCategory = "context" | "together" | "work" | "show" | "hands";
+export type SnippetCategory =
+  | "context"
+  | "together"
+  | "work"
+  | "show"
+  | "hands";
 
 /**
  * The groups agent features are listed under, in reading order. Each names
  * what a person gets, not how it is built, so the page reads as a menu of
  * abilities rather than a list of config keys.
  */
-export const SNIPPET_CATEGORIES: { id: SnippetCategory; name: string; blurb: string }[] = [
+export const SNIPPET_CATEGORIES: {
+  id: SnippetCategory;
+  name: string;
+  blurb: string;
+}[] = [
   {
     id: "context",
     name: "Context",
-    blurb: "What an agent knows before it starts: past sessions, and where each thread stands.",
+    blurb:
+      "What an agent knows before it starts: past sessions, and where each thread stands.",
   },
   {
     id: "together",
     name: "Working together",
-    blurb: "Sessions that delegate, message each other, and bring you a decision instead of an interruption.",
+    blurb:
+      "Sessions that delegate, message each other, and bring you a decision instead of an interruption.",
   },
   {
     id: "work",
     name: "Tracking & automation",
-    blurb: "Tasks and plans on your board, runs that fire later or on events, and pull requests seen through to merge.",
+    blurb:
+      "Tasks and plans on your board, runs that fire later or on events, and pull requests seen through to merge.",
   },
   {
     id: "show",
     name: "Showing the work",
-    blurb: "Visuals in the conversation, pages you can share, and mods that extend this app.",
+    blurb:
+      "Visuals in the conversation, pages you can share, and mods that extend this app.",
   },
   {
     id: "hands",
     name: "Hands on the machine",
-    blurb: "Your browser, native apps and simulators, plus the shared typecheck and limit recovery that keep a fleet running.",
+    blurb:
+      "Your browser, native apps and simulators, plus the shared typecheck and limit recovery that keep a fleet running.",
   },
 ];
 
@@ -384,7 +405,14 @@ cast doc delete <id> --yes                  # permanent; only docs you created
 A task can be backed by a Linear or GitHub issue: \`cast task show\` prints its identifier (\`LIN-123\`, \`owner/repo#482\`) and link, \`cast task ls\` shows the identifier beside the title, and the sync runs both ways (\`cast task comment\` posts to the issue, \`cast task done\` closes it).
 `;
 
-export { CHECK_REFERENCE, CHECK_SNIPPET, CHECK_SNIPPET_END, WORKFLOW_REFERENCE, WORKFLOW_SNIPPET, WORKFLOW_SNIPPET_END } from "./snippetsWorkflow";
+export {
+  CHECK_REFERENCE,
+  CHECK_SNIPPET,
+  CHECK_SNIPPET_END,
+  WORKFLOW_REFERENCE,
+  WORKFLOW_SNIPPET,
+  WORKFLOW_SNIPPET_END,
+} from "./snippetsWorkflow";
 
 export const VISUAL_SNIPPET_END = "<!-- /codecast-visual -->";
 export const VISUAL_SNIPPET = `
@@ -1003,7 +1031,11 @@ export const REFERENCES_SECTION: SectionSpec = {
 };
 
 export const PUBLISH_SECTION: SectionSpec = {
-  headings: ["## Publishing pages", "## Publishing artifacts", "## Publishing HTML artifacts"],
+  headings: [
+    "## Publishing pages",
+    "## Publishing artifacts",
+    "## Publishing HTML artifacts",
+  ],
   endMarker: PUBLISH_SNIPPET_END,
 };
 
@@ -1230,7 +1262,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
         endMarker: MEMORY_SNIPPET_END,
         contentProbes: ["codecast search", "cast search"],
       },
-      body: MEMORY_SNIPPET, reference: MEMORY_REFERENCE,
+      body: MEMORY_SNIPPET,
+      reference: MEMORY_REFERENCE,
       references: true,
     },
   },
@@ -1241,7 +1274,7 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     category: "together",
     desc: "Session-to-session messages (cast send)",
     detail:
-      "Use `cast send <session> \"…\"` when it changes the recipient's next action, answers a question, " +
+      'Use `cast send <session> "…"` when it changes the recipient\'s next action, answers a question, ' +
       "prevents a conflict, or delivers finished work. Each send starts a new turn. Keep routine " +
       "progress in your own session or task; report one verified result, with earlier messages " +
       "for blockers or material changes. Incoming messages need no acknowledgment. " +
@@ -1250,7 +1283,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-06-18",
     enabledKey: "messaging_enabled",
     versionKey: "messaging_version",
-    section: { spec: MESSAGING_SECTION, body: MESSAGING_SNIPPET, reference: MESSAGING_REFERENCE },
+    section: {
+      spec: MESSAGING_SECTION,
+      body: MESSAGING_SNIPPET,
+      reference: MESSAGING_REFERENCE,
+    },
   },
   {
     slug: "pr",
@@ -1266,7 +1303,12 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-09-16",
     enabledKey: "pr_enabled",
     versionKey: "pr_version",
-    section: { spec: PR_SECTION, body: PR_SNIPPET, reference: PR_REFERENCE, references: true },
+    section: {
+      spec: PR_SECTION,
+      body: PR_SNIPPET,
+      reference: PR_REFERENCE,
+      references: true,
+    },
   },
   {
     slug: "mods",
@@ -1295,7 +1337,7 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     desc: "Delegate nested workers, hand off independent inbox threads, or run a prompt",
     detail:
       "For delegated implementers, reviewers and audits that report back to you, use " +
-      "`cast spawn --subagent -- \"<task>\"`: workers nest under this session on any agent backend. " +
+      '`cast spawn --subagent -- "<task>"`: workers nest under this session on any agent backend. ' +
       "Each settling worker wakes you; `cast sessions <id> --until` waits for them. Plain `cast spawn` and " +
       "`cast fork` create independent inbox threads: use them only when the human asks for " +
       "threads they will steer separately. A label or plan binding does not nest a worker. " +
@@ -1307,7 +1349,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     versionKey: "forks_version",
     section: {
       spec: { headings: ["## Forks & Sessions"], endMarker: FORKS_SNIPPET_END },
-      body: FORKS_SNIPPET, reference: FORKS_REFERENCE,
+      body: FORKS_SNIPPET,
+      reference: FORKS_REFERENCE,
       references: true,
     },
   },
@@ -1322,7 +1365,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
       "create tasks, log progress, and mark work done, and you see it on the dashboard. " +
       "Use it for substantial work, coordination, handoffs, or follow-up beyond the session. " +
       "Simple work you can and intend to finish in this session does not need filing.",
-    writesTo: "CLAUDE.md — a ## Tasks & Plans section with guidelines and commands",
+    writesTo:
+      "CLAUDE.md — a ## Tasks & Plans section with guidelines and commands",
     shipped: "2026-06-18",
     enabledKey: "work_enabled",
     versionKey: "work_version",
@@ -1336,7 +1380,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
         ],
         endMarker: WORK_SNIPPET_END,
       },
-      body: WORK_SNIPPET, reference: WORK_REFERENCE,
+      body: WORK_SNIPPET,
+      reference: WORK_REFERENCE,
       references: true,
     },
   },
@@ -1348,7 +1393,7 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     desc: "Delayed, recurring, and event-driven agent runs (cast trigger)",
     detail:
       "Adds `cast trigger` so agents can queue follow-up work. For example, an agent " +
-      "finishes a PR and sets a trigger to \"check CI in 30m\", and the follow-up runs " +
+      'finishes a PR and sets a trigger to "check CI in 30m", and the follow-up runs ' +
       "later in the same session, or in a fresh linked session with --spawn. Agents " +
       "only set triggers when they have a reason to.",
     writesTo: "CLAUDE.md — a ## Triggers section with trigger commands",
@@ -1360,9 +1405,15 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
       spec: {
         headings: [TRIGGER_SNIPPET_HEADING, LEGACY_TASK_SNIPPET_HEADING],
         endMarker: TASK_SNIPPET_END,
-        contentProbes: ["cast trigger", "cast schedule", "codecast task", "cast task"],
+        contentProbes: [
+          "cast trigger",
+          "cast schedule",
+          "codecast task",
+          "cast task",
+        ],
       },
-      body: TASK_SNIPPET, reference: TASK_REFERENCE,
+      body: TASK_SNIPPET,
+      reference: TASK_REFERENCE,
       references: true,
     },
   },
@@ -1382,7 +1433,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     versionKey: "workflow_version",
     section: {
       spec: { headings: ["## Workflows"], endMarker: WORKFLOW_SNIPPET_END },
-      body: WORKFLOW_SNIPPET, reference: WORKFLOW_REFERENCE,
+      body: WORKFLOW_SNIPPET,
+      reference: WORKFLOW_REFERENCE,
       references: true,
     },
   },
@@ -1404,7 +1456,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     versionKey: "visual_version",
     section: {
       spec: { headings: ["## Visual Canvas"], endMarker: VISUAL_SNIPPET_END },
-      body: VISUAL_SNIPPET, reference: VISUAL_REFERENCE,
+      body: VISUAL_SNIPPET,
+      reference: VISUAL_REFERENCE,
     },
   },
   {
@@ -1423,7 +1476,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-07-31",
     enabledKey: "publish_enabled",
     versionKey: "publish_version",
-    section: { spec: PUBLISH_SECTION, body: PUBLISH_SNIPPET, reference: PUBLISH_REFERENCE },
+    section: {
+      spec: PUBLISH_SECTION,
+      body: PUBLISH_SNIPPET,
+      reference: PUBLISH_REFERENCE,
+    },
   },
   {
     slug: "state",
@@ -1432,7 +1489,7 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     category: "context",
     desc: "A pinned, agent-maintained status per thread (cast state)",
     detail:
-      "Adds `cast state \"…\"` so an agent keeps a short pinned state on its session: what it " +
+      'Adds `cast state "…"` so an agent keeps a short pinned state on its session: what it ' +
       "is working on, whether that work is in progress, blocked on you, or done, and the detail " +
       "behind it. It shows above the composer and on the inbox card, and the status colors the row, " +
       "so blocked and finished sessions stand out in the list. The agent rewrites it as the work " +
@@ -1444,7 +1501,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     versionKey: "state_version",
     section: {
       spec: { headings: ["## Thread state"], endMarker: STATE_SNIPPET_END },
-      body: STATE_SNIPPET, reference: STATE_REFERENCE,
+      body: STATE_SNIPPET,
+      reference: STATE_REFERENCE,
       references: true,
     },
   },
@@ -1463,7 +1521,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-08-14",
     enabledKey: "chat_enabled",
     versionKey: "chat_version",
-    section: { spec: CHAT_SECTION, body: CHAT_SNIPPET, reference: CHAT_REFERENCE },
+    section: {
+      spec: CHAT_SECTION,
+      body: CHAT_SNIPPET,
+      reference: CHAT_REFERENCE,
+    },
   },
   {
     slug: "calls",
@@ -1476,12 +1538,16 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
       "speaker-attributed transcript, the auto-generated summary and the action items, " +
       "and `cast call snap` for a frame of a recorded call at any line or time. " +
       "Nothing joins a call: this is read access to what was said and shown, so a task that says " +
-      "\"as discussed on the call\" can be traced to the exact line and the screen behind it.",
+      '"as discussed on the call" can be traced to the exact line and the screen behind it.',
     writesTo: "CLAUDE.md — a ## Calls section with the command reference",
     shipped: "2026-08-16",
     enabledKey: "calls_enabled",
     versionKey: "calls_version",
-    section: { spec: CALLS_SECTION, body: CALLS_SNIPPET, reference: CALLS_REFERENCE },
+    section: {
+      spec: CALLS_SECTION,
+      body: CALLS_SNIPPET,
+      reference: CALLS_REFERENCE,
+    },
   },
   {
     slug: "browser",
@@ -1507,7 +1573,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-08-13",
     enabledKey: "browser_enabled",
     versionKey: "browser_version",
-    section: { spec: BROWSER_SECTION, body: BROWSER_SNIPPET, reference: BROWSER_REFERENCE },
+    section: {
+      spec: BROWSER_SECTION,
+      body: BROWSER_SNIPPET,
+      reference: BROWSER_REFERENCE,
+    },
   },
   {
     slug: "vault",
@@ -1526,7 +1596,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-10-22",
     enabledKey: "vault_enabled",
     versionKey: "vault_version",
-    section: { spec: VAULT_SECTION, body: VAULT_SNIPPET, reference: VAULT_REFERENCE },
+    section: {
+      spec: VAULT_SECTION,
+      body: VAULT_SNIPPET,
+      reference: VAULT_REFERENCE,
+    },
   },
   {
     slug: "computer",
@@ -1546,7 +1620,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-09-07",
     enabledKey: "computer_enabled",
     versionKey: "computer_version",
-    section: { spec: COMPUTER_SECTION, body: COMPUTER_SNIPPET, reference: COMPUTER_REFERENCE },
+    section: {
+      spec: COMPUTER_SECTION,
+      body: COMPUTER_SNIPPET,
+      reference: COMPUTER_REFERENCE,
+    },
   },
   {
     slug: "sim",
@@ -1560,7 +1638,8 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
       "reads the accessibility tree and taps, types and swipes by label or point. The lock ends with the " +
       "session and idle simulators are shut down for you, and the same commands work on a cloud Mac, so " +
       "simulator work can move off the laptop.",
-    writesTo: "CLAUDE.md — an ## iOS Simulator section with the command reference",
+    writesTo:
+      "CLAUDE.md — an ## iOS Simulator section with the command reference",
     shipped: "2026-10-05",
     enabledKey: "sim_enabled",
     versionKey: "sim_version",
@@ -1583,7 +1662,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-09-17",
     enabledKey: "check_enabled",
     versionKey: "check_version",
-    section: { spec: CHECK_SECTION, body: CHECK_SNIPPET, reference: CHECK_REFERENCE },
+    section: {
+      spec: CHECK_SECTION,
+      body: CHECK_SNIPPET,
+      reference: CHECK_REFERENCE,
+    },
   },
   {
     slug: "decide",
@@ -1601,7 +1684,11 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     shipped: "2026-08-14",
     enabledKey: "decide_enabled",
     versionKey: "decide_version",
-    section: { spec: DECIDE_SECTION, body: DECIDE_SNIPPET, reference: DECIDE_REFERENCE },
+    section: {
+      spec: DECIDE_SECTION,
+      body: DECIDE_SNIPPET,
+      reference: DECIDE_REFERENCE,
+    },
   },
   {
     slug: "limits",
@@ -1630,11 +1717,12 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
     desc: "Multi-agent plan execution (/orchestrate)",
     detail:
       "Installs an /orchestrate skill and three agent types (implementer, reviewer, critic). " +
-      "It only activates when you say \"orchestrate this plan\". Your agent then acts as a " +
+      'It only activates when you say "orchestrate this plan". Your agent then acts as a ' +
       "conductor: decomposing the plan into tasks, spawning implementers in isolated git " +
       "worktrees, spawning reviewers to check each one, and running critics for a final " +
       "integration sweep. Also installs two lifecycle hooks that fire only during orchestration.",
-    writesTo: "~/.claude/skills/, ~/.claude/agents/, and ~/.claude/settings.json (hooks)",
+    writesTo:
+      "~/.claude/skills/, ~/.claude/agents/, and ~/.claude/settings.json (hooks)",
     shipped: "2026-06-18",
     enabledKey: "orch_enabled",
     versionKey: "orch_version",
@@ -1667,11 +1755,20 @@ export const SNIPPET_CATALOG: SnippetDescriptor[] = [
  */
 export type StableMode = "solo" | "team" | "off";
 
-export const STABLE_MODES: { value: StableMode; name: string; desc: string }[] = [
-  { value: "solo", name: "Solo", desc: "Your recent 10 sessions (last 7 days)" },
-  { value: "team", name: "Team", desc: "The team's recent 15 sessions (last 14 days)" },
-  { value: "off", name: "Off", desc: "Don't inject any session history" },
-];
+export const STABLE_MODES: { value: StableMode; name: string; desc: string }[] =
+  [
+    {
+      value: "solo",
+      name: "Solo",
+      desc: "Your recent 10 sessions (last 7 days)",
+    },
+    {
+      value: "team",
+      name: "Team",
+      desc: "The team's recent 15 sessions (last 14 days)",
+    },
+    { value: "off", name: "Off", desc: "Don't inject any session history" },
+  ];
 
 /** Resolve a user-typed name (slug OR alias, case-insensitive) to its descriptor. */
 export function snippetBySlug(input: string): SnippetDescriptor | undefined {
@@ -1780,7 +1877,11 @@ export function stripSnippetStamp(text: string): string {
  * function already produced reproduces them and an update settles on its
  * second run.
  */
-export function stampSectionBody(body: string, endMarker: string, version: string): string {
+export function stampSectionBody(
+  body: string,
+  endMarker: string,
+  version: string,
+): string {
   const clean = stripSnippetStamp(body);
   const at = clean.lastIndexOf(endMarker);
   if (at === -1) return clean; // no marker to anchor to; leave the bytes alone
@@ -1799,7 +1900,8 @@ export function stampSectionBody(body: string, endMarker: string, version: strin
  */
 export function stubSectionBody(descriptor: SnippetDescriptor): string {
   const section = descriptor.section;
-  if (!section) throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
+  if (!section)
+    throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
   return (
     `\n${section.spec.headings[0]}\n\n` +
     `${descriptor.desc}. ${descriptor.detail}\n\n` +
@@ -1827,7 +1929,8 @@ export function renderSectionBody(
   version: string,
 ): string {
   const section = descriptor.section;
-  if (!section) throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
+  if (!section)
+    throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
   const stub = mode === "stub" ? stubSectionBody(descriptor) : null;
   const worthIt = stub !== null && stub.length * 3 < section.body.length * 2;
   const body = worthIt ? stub! : section.body;
@@ -1837,7 +1940,9 @@ export function renderSectionBody(
 /** The catalog entry that owns an end marker. The installer is handed specs,
  *  not slugs, and the shared "Referencing objects" section belongs to no
  *  snippet at all — it answers undefined for that one. */
-export function snippetByEndMarker(endMarker: string): SnippetDescriptor | undefined {
+export function snippetByEndMarker(
+  endMarker: string,
+): SnippetDescriptor | undefined {
   return SNIPPET_CATALOG.find((s) => s.section?.spec.endMarker === endMarker);
 }
 
@@ -1846,8 +1951,12 @@ export function snippetByEndMarker(endMarker: string): SnippetDescriptor | undef
  *  section's reference, the detail an install leaves out of CLAUDE.md. */
 export function guideText(descriptor: SnippetDescriptor): string {
   const section = descriptor.section;
-  if (!section) throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
-  const body = stripSnippetStamp(section.body).split(section.spec.endMarker).join("").trim();
+  if (!section)
+    throw new Error(`snippet "${descriptor.slug}" has no markdown section`);
+  const body = stripSnippetStamp(section.body)
+    .split(section.spec.endMarker)
+    .join("")
+    .trim();
   return section.reference ? `${body}\n\n${section.reference.trim()}` : body;
 }
 
@@ -1876,14 +1985,19 @@ export const GUIDANCE_MAX_CHARS = 37_100;
 /** Each section body's budget, so detail stays in the reference `cast guide` serves. */
 export const GUIDANCE_SECTION_MAX_CHARS = 4_000;
 
-export function renderGuidanceFile(mode: GuidanceMode, version: string): string {
+export function renderGuidanceFile(
+  mode: GuidanceMode,
+  version: string,
+): string {
   const parts: string[] = [];
   let references = false;
   for (const descriptor of guideTopics()) {
     parts.push(renderSectionBody(descriptor, mode, version));
     if (descriptor.section!.references && !references) {
       references = true;
-      parts.push(stampSectionBody(REFERENCES_SNIPPET, REFERENCES_SNIPPET_END, version));
+      parts.push(
+        stampSectionBody(REFERENCES_SNIPPET, REFERENCES_SNIPPET_END, version),
+      );
     }
   }
   return parts.join("");

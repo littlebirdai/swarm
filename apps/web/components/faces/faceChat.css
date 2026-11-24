@@ -70,7 +70,9 @@
   --fc-edge: color-mix(in srgb, var(--fc-hue) 70%, var(--sol-border));
 }
 .fc-bubble:hover {
-  box-shadow: var(--fc-shadow), 0 0 0 3px color-mix(in srgb, var(--fc-hue) 20%, transparent);
+  box-shadow:
+    var(--fc-shadow),
+    0 0 0 3px color-mix(in srgb, var(--fc-hue) 20%, transparent);
 }
 
 .fc-head {
@@ -316,7 +318,8 @@
   background: var(--fc-hue);
 }
 .fc-msg[data-failed] .fc-text {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sol-red) 55%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--sol-red) 55%, transparent);
 }
 .fc-msg[data-failed] .fc-at-time {
   color: var(--sol-red);
@@ -345,7 +348,9 @@
   font: inherit;
   font-size: 12px;
   outline: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 .fc-reply-thread {
   flex: 1;
@@ -358,7 +363,9 @@
   border-radius: 9px;
   color: var(--sol-text-muted);
   font-size: 12px;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 .fc-reply-thread:hover {
   background: color-mix(in srgb, var(--sol-text) 6%, transparent);
@@ -381,4 +388,7 @@
 }
 
 /* Modern (.modern-style): messages read in the interface sans. */
-.fc-bubble:is(.modern-style *), .fc-card-msgs:is(.modern-style *) { font-family: var(--font-ui); }
+.fc-bubble:is(.modern-style *),
+.fc-card-msgs:is(.modern-style *) {
+  font-family: var(--font-ui);
+}

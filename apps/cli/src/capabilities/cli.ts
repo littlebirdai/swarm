@@ -19,7 +19,10 @@ import { registerCapPublish, registerCapUnpublish } from "./publish.js";
 import { registerCapPromote } from "./promote.js";
 import { commandGroup } from "../commandGroups.js";
 
-export function registerCapabilityCommand(program: Command, deps: PublishDeps): void {
+export function registerCapabilityCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
   const cap = program
     .command("cap")
     .description(commandGroup("cap").description);

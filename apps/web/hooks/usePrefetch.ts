@@ -15,8 +15,12 @@ import { useWorkspaceArgs } from "./useWorkspaceArgs";
 export function usePrefetch() {
   const pathname = usePathname();
   const workspaceArgs = useWorkspaceArgs();
-  const isOnTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
-  const isOnProjectsPage = pathname === "/projects" || pathname?.startsWith("/projects/");
+  const isOnTasksPage =
+    pathname === "/tasks" || pathname?.startsWith("/tasks/");
+  const isOnProjectsPage =
+    pathname === "/projects" || pathname?.startsWith("/projects/");
 
-  useSyncTasksWithArgs(isOnTasksPage || isOnProjectsPage ? "skip" : workspaceArgs);
+  useSyncTasksWithArgs(
+    isOnTasksPage || isOnProjectsPage ? "skip" : workspaceArgs,
+  );
 }

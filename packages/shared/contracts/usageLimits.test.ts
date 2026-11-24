@@ -23,19 +23,40 @@ import {
 
 const now = 1_000_000_000_000;
 
-function usage(partial: Partial<CcUsage> & { session?: CcUsage["session"]; weekly?: CcUsage["weekly"] }): CcUsage {
+function usage(
+  partial: Partial<CcUsage> & {
+    session?: CcUsage["session"];
+    weekly?: CcUsage["weekly"];
+  },
+): CcUsage {
   return { fetched_at: now - 60_000, ...partial };
 }
 
 describe("peggedWindow — the used-up window that keeps an account shut longest", () => {
   test("names the latest reset among the pegged windows, scoped ones too, by the meters' label", () => {
-    const u = usage({ session: { percent: 100, resets_at: now + 3_600_000 }, weekly: { percent: 40, resets_at: now + 86_400_000 }, scoped: [{ label: "Fable", percent: 100, resets_at: now + 2 * 86_400_000 }] });
-    expect(peggedWindow(u, now)).toEqual({ label: "Fable", resets_at: now + 2 * 86_400_000 });
+    const u = usage({
+      session: { percent: 100, resets_at: now + 3_600_000 },
+      weekly: { percent: 40, resets_at: now + 86_400_000 },
+      scoped: [
+        { label: "Fable", percent: 100, resets_at: now + 2 * 86_400_000 },
+      ],
+    });
+    expect(peggedWindow(u, now)).toEqual({
+      label: "Fable",
+      resets_at: now + 2 * 86_400_000,
+    });
     expect(peggedWindowLabel(u, now)).toBe("Fable");
   });
   test("a window whose reset has passed has rolled, and none pegged is undefined", () => {
-    expect(peggedWindow(usage({ weekly: { percent: 100, resets_at: now - 1 } }), now)).toBeUndefined();
-    expect(peggedWindow(usage({ weekly: { percent: 100 } }), now)).toEqual({ label: "Week (7d)" });
+    expect(
+      peggedWindow(
+        usage({ weekly: { percent: 100, resets_at: now - 1 } }),
+        now,
+      ),
+    ).toBeUndefined();
+    expect(peggedWindow(usage({ weekly: { percent: 100 } }), now)).toEqual({
+      label: "Week (7d)",
+    });
   });
 });
 
@@ -65,7 +86,11 @@ describe("switchUsagePercent", () => {
       fetched_at: now - 6 * 3600_000,
       session: { percent: 2, resets_at: now + 3600_000 },
       weekly: { percent: 54, resets_at: now - 3 * 3600_000 },
-      weekly_scoped: { percent: 100, resets_at: now - 3 * 3600_000, label: "Fable" },
+      weekly_scoped: {
+        percent: 100,
+        resets_at: now - 3 * 3600_000,
+        label: "Fable",
+      },
     };
     expect(worstUsagePercent(snap, now)).toBe(2);
     expect(switchUsagePercent(snap, now)).toBeNull();
@@ -82,7 +107,11 @@ describe("rankByHeadroom", () => {
         fetched_at: now - 6 * 3600_000,
         session: { percent: 2, resets_at: now + 3600_000 },
         weekly: { percent: 54, resets_at: now - 3 * 3600_000 },
-        weekly_scoped: { percent: 100, resets_at: now - 3 * 3600_000, label: "Fable" },
+        weekly_scoped: {
+          percent: 100,
+          resets_at: now - 3 * 3600_000,
+          label: "Fable",
+        },
       } satisfies CcUsage,
     };
     const known = {
@@ -92,12 +121,20 @@ describe("rankByHeadroom", () => {
         fetched_at: now - 60_000,
         session: { percent: 0, resets_at: now + 3600_000 },
         weekly: { percent: 37, resets_at: now + 86_400_000 },
-        weekly_scoped: { percent: 69, resets_at: now + 86_400_000, label: "Fable" },
+        weekly_scoped: {
+          percent: 69,
+          resets_at: now + 86_400_000,
+          label: "Fable",
+        },
       } satisfies CcUsage,
     };
     const ranked = rankByHeadroom([staleRolled, known], now);
     expect(ranked.map((p) => p.name)).toEqual(["known", "stale"]);
-    const fallbacks = fallbackProfiles([staleRolled, known, { name: "active", email: "a@x.com" }], "a@x.com", now);
+    const fallbacks = fallbackProfiles(
+      [staleRolled, known, { name: "active", email: "a@x.com" }],
+      "a@x.com",
+      now,
+    );
     expect(fallbacks.map((p) => p.name)).toEqual(["known", "stale"]);
   });
 });
@@ -121,19 +158,35 @@ describe("model-scoped windows cap their model, not the account", () => {
     usage: usage({
       session: { percent: 0 },
       weekly: { percent: 97, resets_at: now + 2 * 86_400_000 },
-      weekly_scoped: { percent: 29, resets_at: now + 2 * 86_400_000, label: "Fable" },
+      weekly_scoped: {
+        percent: 29,
+        resets_at: now + 2 * 86_400_000,
+        label: "Fable",
+      },
     }),
   };
 
   test("a pegged Fable week does not make the account exhausted", () => {
     expect(isUsageExhausted(fablePegged.usage, now)).toBe(false);
-    expect(isUsageExhausted(fablePegged.usage, now, ["claude-opus-5-5"])).toBe(false);
-    expect(isUsageExhausted(fablePegged.usage, now, ["claude-fable-5-1"])).toBe(true);
-    expect(usageStanding(fablePegged.usage, now)).toEqual({ percent: 1, pegged: false, stale: false });
+    expect(isUsageExhausted(fablePegged.usage, now, ["claude-opus-5-5"])).toBe(
+      false,
+    );
+    expect(isUsageExhausted(fablePegged.usage, now, ["claude-fable-5-1"])).toBe(
+      true,
+    );
+    expect(usageStanding(fablePegged.usage, now)).toEqual({
+      percent: 1,
+      pegged: false,
+      stale: false,
+    });
   });
 
   test("the switch picks the account with the most room in its own week", () => {
-    const picks = fallbackProfiles([nearlySpent, fablePegged, { name: "active", email: "a@x.com" }], "a@x.com", now);
+    const picks = fallbackProfiles(
+      [nearlySpent, fablePegged, { name: "active", email: "a@x.com" }],
+      "a@x.com",
+      now,
+    );
     expect(picks.map((p) => p.name)).toEqual(["claude2", "joannagerkin"]);
   });
 
@@ -143,13 +196,21 @@ describe("model-scoped windows cap their model, not the account", () => {
 });
 
 describe("fleetModels — the models a whole-fleet decision weighs", () => {
-  const opus = (n: number) => Array.from({ length: n }, () => "claude-opus-5-5");
+  const opus = (n: number) =>
+    Array.from({ length: n }, () => "claude-opus-5-5");
   test("a few sessions on another model do not count", () => {
-    expect(fleetModels([...opus(29), "claude-fable-5-2", "claude-fable-5-2"])).toEqual(["claude-opus-5-5"]);
+    expect(
+      fleetModels([...opus(29), "claude-fable-5-2", "claude-fable-5-2"]),
+    ).toEqual(["claude-opus-5-5"]);
   });
   test("versions of one model count together, and a model needs a strict majority", () => {
-    expect(fleetModels(["claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5"])).toEqual(["claude-fable-5-2", "claude-fable-5-1"]);
-    expect(fleetModels(["claude-opus-5-5[1m]", "claude-opus-5-5"])).toEqual(["claude-opus-5-5[1m]", "claude-opus-5-5"]);
+    expect(
+      fleetModels(["claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5"]),
+    ).toEqual(["claude-fable-5-2", "claude-fable-5-1"]);
+    expect(fleetModels(["claude-opus-5-5[1m]", "claude-opus-5-5"])).toEqual([
+      "claude-opus-5-5[1m]",
+      "claude-opus-5-5",
+    ]);
     expect(fleetModels(["claude-fable-5-2", "claude-opus-5-5"])).toEqual([]);
     expect(fleetModels([])).toEqual([]);
   });
@@ -161,7 +222,11 @@ describe("usageStanding — the one standing the bars and the switcher share", (
       session: { percent: 16, resets_at: now + 3600_000 },
       weekly: { percent: 77, resets_at: now + 86_400_000 },
     });
-    expect(usageStanding(snap, now)).toEqual({ percent: 77, pegged: false, stale: false });
+    expect(usageStanding(snap, now)).toEqual({
+      percent: 77,
+      pegged: false,
+      stale: false,
+    });
     expect(standingLabel(snap, now)).toBe("77% used");
   });
 
@@ -190,10 +255,14 @@ describe("usageStanding — the one standing the bars and the switcher share", (
   });
 
   test("no usage data at all is 'no data', distinct from stale", () => {
-    expect(usageStanding(undefined, now)).toEqual({ percent: null, pegged: false, stale: false });
+    expect(usageStanding(undefined, now)).toEqual({
+      percent: null,
+      pegged: false,
+      stale: false,
+    });
     expect(standingLabel(undefined, now)).toBe("no data");
   });
-})
+});
 
 describe("describeDecision — why the account changed", () => {
   test("a switch names the pegged window, the session count and where it moved", () => {
@@ -207,7 +276,9 @@ describe("describeDecision — why the account changed", () => {
         target_name: "fresh",
         target_percent: 47,
       }),
-    ).toBe("Fable (7d) hit its limit on claude6@x.com, parking 3 sessions — switched to fresh (47% used) and continued them.");
+    ).toBe(
+      "Fable (7d) hit its limit on claude6@x.com, parking 3 sessions — switched to fresh (47% used) and continued them.",
+    );
   });
 
   test("a proposal says it is waiting, not that it acted", () => {
@@ -226,20 +297,31 @@ describe("describeDecision — why the account changed", () => {
   });
 
   test("with no pegged window it never invents a cause", () => {
-    const s = describeDecision({ kind: "switch", at: now, from_email: "a@x.com", parked_count: 2, target_name: "b" })!;
+    const s = describeDecision({
+      kind: "switch",
+      at: now,
+      from_email: "a@x.com",
+      parked_count: 2,
+      target_name: "b",
+    })!;
     expect(s).toContain("a@x.com could not continue");
     expect(s).not.toContain("undefined");
   });
 
   test("a stale target percent is simply omitted, never shown as a number", () => {
-    const s = describeDecision({ kind: "switch", at: now, parked_count: 1, target_name: "b" })!;
+    const s = describeDecision({
+      kind: "switch",
+      at: now,
+      parked_count: 1,
+      target_name: "b",
+    })!;
     expect(s).not.toContain("%");
   });
 
   test("no decision recorded yet explains nothing", () => {
     expect(describeDecision(undefined)).toBeNull();
   });
-})
+});
 
 describe("recoveryModeOf — off is the default", () => {
   test("a machine that never chose recovers nothing", () => {
@@ -253,22 +335,30 @@ describe("recoveryModeOf — off is the default", () => {
 
   test("an explicit resume opt-in is kept", () => {
     expect(recoveryModeOf({ cc_auto_continue: true })).toBe("resume");
-    expect(recoveryModeOf({ cc_recovery_ask: false, cc_auto_continue: true })).toBe("resume");
+    expect(
+      recoveryModeOf({ cc_recovery_ask: false, cc_auto_continue: true }),
+    ).toBe("resume");
   });
 
   test("an explicit ask opt-in is kept", () => {
-    expect(recoveryModeOf({ cc_recovery_ask: true, cc_auto_continue: true })).toBe("ask");
+    expect(
+      recoveryModeOf({ cc_recovery_ask: true, cc_auto_continue: true }),
+    ).toBe("ask");
   });
 
   test("opting out of resume entirely is off, whatever the ask flag says", () => {
     expect(recoveryModeOf({ cc_auto_continue: false })).toBe("off");
-    expect(recoveryModeOf({ cc_auto_continue: false, cc_recovery_ask: false })).toBe("off");
+    expect(
+      recoveryModeOf({ cc_auto_continue: false, cc_recovery_ask: false }),
+    ).toBe("off");
   });
 
   test("ask-first wins over a legacy row carrying both flags", () => {
-    expect(recoveryModeOf({ cc_recovery_ask: true, cc_auto_switch: true })).toBe("ask");
+    expect(
+      recoveryModeOf({ cc_recovery_ask: true, cc_auto_switch: true }),
+    ).toBe("ask");
   });
-})
+});
 
 describe("resume pacing — one rate for every revive path", () => {
   test("the burst spacing keeps a mass revive under a few full-context requests a minute", () => {
@@ -280,10 +370,14 @@ describe("resume pacing — one rate for every revive path", () => {
     // Eight sessions must now take over two minutes, not 48 seconds.
     expect(7 * RESUME_BURST_SPACING_MS).toBeGreaterThan(120_000);
   });
-})
+});
 
 describe("pendingProposal — the ask the banner and the card surface", () => {
-  const propose = (at: number) => ({ kind: "propose" as const, at, target_name: `t${at}` });
+  const propose = (at: number) => ({
+    kind: "propose" as const,
+    at,
+    target_name: `t${at}`,
+  });
   test("finds the newest proposal on an online primary machine", () => {
     expect(
       pendingProposal([
@@ -296,8 +390,15 @@ describe("pendingProposal — the ask the banner and the card surface", () => {
     expect(
       pendingProposal([
         { online: false, auto_switch_state: { last_decision: propose(9) } },
-        { online: true, is_remote: true, auto_switch_state: { last_decision: propose(8) } },
-        { online: true, auto_switch_state: { last_decision: { kind: "continue", at: 7 } } },
+        {
+          online: true,
+          is_remote: true,
+          auto_switch_state: { last_decision: propose(8) },
+        },
+        {
+          online: true,
+          auto_switch_state: { last_decision: { kind: "continue", at: 7 } },
+        },
       ]),
     ).toBeNull();
   });
@@ -321,13 +422,38 @@ describe("pendingProposal — the ask the banner and the card surface", () => {
           ask_first: true,
           active_email: "spent@x.com",
           profiles: [
-            { name: "spent", email: "spent@x.com", usage: usage({ session: { percent: 100, resets_at: now + 1000 } }) },
-            { name: "dead", email: "dead@x.com", login_expired_at: now - 1, usage: usage({ weekly: { percent: 5, resets_at: now + 1000 } }) },
-            { name: "old", email: "old@x.com", usage: usage({ weekly: { percent: 56, resets_at: now + 1000 } }) },
-            { name: "room", email: "room@x.com", usage: usage({ weekly: { percent: 20, resets_at: now + 1000 } }) },
+            {
+              name: "spent",
+              email: "spent@x.com",
+              usage: usage({
+                session: { percent: 100, resets_at: now + 1000 },
+              }),
+            },
+            {
+              name: "dead",
+              email: "dead@x.com",
+              login_expired_at: now - 1,
+              usage: usage({ weekly: { percent: 5, resets_at: now + 1000 } }),
+            },
+            {
+              name: "old",
+              email: "old@x.com",
+              usage: usage({ weekly: { percent: 56, resets_at: now + 1000 } }),
+            },
+            {
+              name: "room",
+              email: "room@x.com",
+              usage: usage({ weekly: { percent: 20, resets_at: now + 1000 } }),
+            },
           ],
           auto_switch_state: {
-            last_decision: { kind: "propose", at: 5, target_name: "old", target_email: "old@x.com", target_percent: 56 },
+            last_decision: {
+              kind: "propose",
+              at: 5,
+              target_name: "old",
+              target_email: "old@x.com",
+              target_percent: 56,
+            },
           },
         },
       ],
@@ -348,11 +474,28 @@ describe("pendingProposal — the ask the banner and the card surface", () => {
             ask_first: true,
             active_email: "spent@x.com",
             profiles: [
-              { name: "spent", email: "spent@x.com", usage: usage({ session: { percent: 100, resets_at: now + 1000 } }) },
-              { name: "old", email: "old@x.com", usage: usage({ weekly: { percent: 100, resets_at: now + 1000 } }) },
+              {
+                name: "spent",
+                email: "spent@x.com",
+                usage: usage({
+                  session: { percent: 100, resets_at: now + 1000 },
+                }),
+              },
+              {
+                name: "old",
+                email: "old@x.com",
+                usage: usage({
+                  weekly: { percent: 100, resets_at: now + 1000 },
+                }),
+              },
             ],
             auto_switch_state: {
-              last_decision: { kind: "propose", at: 5, target_email: "old@x.com", target_percent: 56 },
+              last_decision: {
+                kind: "propose",
+                at: 5,
+                target_email: "old@x.com",
+                target_percent: 56,
+              },
             },
           },
         ],
@@ -360,19 +503,37 @@ describe("pendingProposal — the ask the banner and the card surface", () => {
       ),
     ).toBeNull();
   });
-})
+});
 
 describe("fallbackProfiles with minted tokens", () => {
   const now = 1_000_000;
-  const room = { fetched_at: now, session: { percent: 10 }, weekly: { percent: 20 } };
+  const room = {
+    fetched_at: now,
+    session: { percent: 10 },
+    weekly: { percent: 20 },
+  };
   test("a dead saved login is a target again while its setup-token is live", () => {
     const profiles = [
       { name: "active", email: "a@x.com", usage: room },
       { name: "dead", email: "d@x.com", usage: room, login_expired_at: 5 },
-      { name: "minted", email: "m@x.com", usage: room, login_expired_at: 5, setup_token: { expires_at: now + 1 } },
-      { name: "lapsed", email: "l@x.com", usage: room, login_expired_at: 5, setup_token: { expires_at: now } },
+      {
+        name: "minted",
+        email: "m@x.com",
+        usage: room,
+        login_expired_at: 5,
+        setup_token: { expires_at: now + 1 },
+      },
+      {
+        name: "lapsed",
+        email: "l@x.com",
+        usage: room,
+        login_expired_at: 5,
+        setup_token: { expires_at: now },
+      },
     ];
-    expect(fallbackProfiles(profiles, "a@x.com", now).map((p) => p.name)).toEqual(["minted"]);
+    expect(
+      fallbackProfiles(profiles, "a@x.com", now).map((p) => p.name),
+    ).toEqual(["minted"]);
   });
 });
 
@@ -387,18 +548,40 @@ describe("planTypeLabel", () => {
 describe("fallbackProfiles and reserved accounts", () => {
   test("an account kept for a job is never a fallback, however fresh", () => {
     const now = Date.now();
-    const fresh = (percent: number): CcUsage => ({ fetched_at: now - 60_000, session: { percent, resets_at: now + 3600_000 }, weekly: { percent, resets_at: now + 86_400_000 } });
-    const review = { name: "review", email: "r@x.com", usage: fresh(5), reserved_for: "reviews" };
+    const fresh = (percent: number): CcUsage => ({
+      fetched_at: now - 60_000,
+      session: { percent, resets_at: now + 3600_000 },
+      weekly: { percent, resets_at: now + 86_400_000 },
+    });
+    const review = {
+      name: "review",
+      email: "r@x.com",
+      usage: fresh(5),
+      reserved_for: "reviews",
+    };
     const spare = { name: "spare", email: "s@x.com", usage: fresh(60) };
-    const picks = fallbackProfiles([review, spare, { name: "active", email: "a@x.com" }], "a@x.com", now);
+    const picks = fallbackProfiles(
+      [review, spare, { name: "active", email: "a@x.com" }],
+      "a@x.com",
+      now,
+    );
     expect(picks.map((p) => p.name)).toEqual(["spare"]);
-    expect(fallbackProfiles([{ ...review, reserved_for: null }, spare], "a@x.com", now).map((p) => p.name)).toEqual(["review", "spare"]);
+    expect(
+      fallbackProfiles(
+        [{ ...review, reserved_for: null }, spare],
+        "a@x.com",
+        now,
+      ).map((p) => p.name),
+    ).toEqual(["review", "spare"]);
   });
 });
 
 describe("a spend-limit block", () => {
   test("a blocked account is exhausted whatever its meters say, until the block lifts", () => {
-    const u = usage({ weekly: { percent: 29, resets_at: now + 86_400_000 }, blocked_until: now + 86_400_000 });
+    const u = usage({
+      weekly: { percent: 29, resets_at: now + 86_400_000 },
+      blocked_until: now + 86_400_000,
+    });
     expect(isUsageExhausted(u, now)).toBe(true);
     expect(standingLabel(u, now)).toBe("spend limit reached");
     expect(exhaustedLabel(u, now)).toBe("spend limit reached");
@@ -408,13 +591,29 @@ describe("a spend-limit block", () => {
 
 describe("modelLimitFamily", () => {
   test("names the model whose week alone is spent", () => {
-    expect(modelLimitFamily("You've hit your Fable limit · resets Nov 24 at 2am (America/Los_Angeles). /model to switch models.")).toBe("fable");
-    expect(modelLimitFamily("You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.")).toBe("fable");
+    expect(
+      modelLimitFamily(
+        "You've hit your Fable limit · resets Nov 24 at 2am (America/Los_Angeles). /model to switch models.",
+      ),
+    ).toBe("fable");
+    expect(
+      modelLimitFamily(
+        "You've reached your Fable limit. Run /usage-credits to continue or switch models with /model.",
+      ),
+    ).toBe("fable");
   });
   test("an account-wide limit names no model", () => {
-    expect(modelLimitFamily("You've hit your weekly limit · resets Nov 19, 7pm (UTC)")).toBeUndefined();
-    expect(modelLimitFamily("You've hit your session limit · resets 7am (UTC)")).toBeUndefined();
-    expect(modelLimitFamily("You've hit your org's monthly spend limit")).toBeUndefined();
+    expect(
+      modelLimitFamily(
+        "You've hit your weekly limit · resets Nov 19, 7pm (UTC)",
+      ),
+    ).toBeUndefined();
+    expect(
+      modelLimitFamily("You've hit your session limit · resets 7am (UTC)"),
+    ).toBeUndefined();
+    expect(
+      modelLimitFamily("You've hit your org's monthly spend limit"),
+    ).toBeUndefined();
     expect(modelLimitFamily(undefined)).toBeUndefined();
   });
   test("fleetRunsFamily matches versions of the family", () => {

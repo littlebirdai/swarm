@@ -177,81 +177,21 @@
     },
     "set_digest": "6f40b1ed064c90f7",
     "placements": {
-      "dismissedleadz130000000000000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "edgez400000000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        true
-      ],
-      "handoffnotariderz160000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "leadz400000000000000000000000000": [
-        "working",
-        "working",
-        false
-      ],
-      "matedonez80000000000000000000000": [
-        "working",
-        "needs_input",
-        false
-      ],
-      "matefreshunderoldleadz2100000000": [
-        "needs_input",
-        "needs_input",
-        true
-      ],
-      "mateleadabsentz14000000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ],
-      "mateneedsz9000000000000000000000": [
-        "working",
-        "needs_input",
-        false
-      ],
-      "mateofmatez100000000000000000000": [
-        "working",
-        "needs_input",
-        false
-      ],
-      "mateoldunderfreshleadz2100000000": [
-        "working",
-        "needs_input",
-        false
-      ],
-      "matepinnedz100000000000000000000": [
-        "pinned",
-        "needs_input",
-        false
-      ],
-      "matestashedz11000000000000000000": [
-        "stashed",
-        "needs_input",
-        false
-      ],
-      "mateunderdismissedleadz220000000": [
-        "dismissed",
-        "needs_input",
-        false
-      ],
-      "oldleadz700000000000000000000000": [
-        "needs_input",
-        "needs_input",
-        true
-      ],
-      "spawnedteamleadz1500000000000000": [
-        "needs_input",
-        "needs_input",
-        false
-      ]
+      "dismissedleadz130000000000000000": ["dismissed", "needs_input", false],
+      "edgez400000000000000000000000000": ["needs_input", "needs_input", true],
+      "handoffnotariderz160000000000000": ["needs_input", "needs_input", false],
+      "leadz400000000000000000000000000": ["working", "working", false],
+      "matedonez80000000000000000000000": ["working", "needs_input", false],
+      "matefreshunderoldleadz2100000000": ["needs_input", "needs_input", true],
+      "mateleadabsentz14000000000000000": ["needs_input", "needs_input", false],
+      "mateneedsz9000000000000000000000": ["working", "needs_input", false],
+      "mateofmatez100000000000000000000": ["working", "needs_input", false],
+      "mateoldunderfreshleadz2100000000": ["working", "needs_input", false],
+      "matepinnedz100000000000000000000": ["pinned", "needs_input", false],
+      "matestashedz11000000000000000000": ["stashed", "needs_input", false],
+      "mateunderdismissedleadz220000000": ["dismissed", "needs_input", false],
+      "oldleadz700000000000000000000000": ["needs_input", "needs_input", true],
+      "spawnedteamleadz1500000000000000": ["needs_input", "needs_input", false]
     },
     "sort_at": {
       "dismissedleadz130000000000000000": -600000,

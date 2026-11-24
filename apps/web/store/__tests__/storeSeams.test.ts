@@ -1,8 +1,22 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { __createInboxStoreForTests, __inboxStoreWindowBindings, useInboxStore } from "../inboxStore";
+import {
+  __createInboxStoreForTests,
+  __inboxStoreWindowBindings,
+  useInboxStore,
+} from "../inboxStore";
 import { __gestureBridgeSimSlots, gestureSourceToken } from "../gestureBridge";
-import { __syncTransactionIdleForTests, resetSyncTransactionForTests, syncTransaction } from "../syncTransaction";
-import { __viewNavSimSlots, _resetViewNavForTests, consumeViewNav, declareViewNav, freshHomeLaunchPending } from "../viewNav";
+import {
+  __syncTransactionIdleForTests,
+  resetSyncTransactionForTests,
+  syncTransaction,
+} from "../syncTransaction";
+import {
+  __viewNavSimSlots,
+  _resetViewNavForTests,
+  consumeViewNav,
+  declareViewNav,
+  freshHomeLaunchPending,
+} from "../viewNav";
 import { freshSlots, restoreSlots, saveSlots } from "./sim/windowSlots";
 
 // The seams the multiplayer sim stands on (docs/architecture/multiplayer-sim-harness.md,
@@ -11,7 +25,9 @@ import { freshSlots, restoreSlots, saveSlots } from "./sim/windowSlots";
 // really separate them.
 
 function dataOf(state: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(state).filter(([, v]) => typeof v !== "function"));
+  return Object.fromEntries(
+    Object.entries(state).filter(([, v]) => typeof v !== "function"),
+  );
 }
 
 describe("store instances", () => {
@@ -68,7 +84,9 @@ describe("window slots", () => {
     // Neither side aliases the live bindings.
     expect(live._heldOverlayFacts).not.toBe(inbox._heldOverlayFacts);
     expect(got._heldOverlayFacts.mine).not.toBe(live._heldOverlayFacts.mine);
-    expect(got.recentlyRequestedPendingMessages).not.toBe(live.recentlyRequestedPendingMessages);
+    expect(got.recentlyRequestedPendingMessages).not.toBe(
+      live.recentlyRequestedPendingMessages,
+    );
     got.recentlyRequestedPendingMessages.set("c2", 9);
     expect(live.recentlyRequestedPendingMessages.has("c2")).toBe(false);
     restoreSlots(base);
@@ -88,7 +106,11 @@ describe("window slots", () => {
   it("swap the view-nav intent token, counter and fresh-home launch", () => {
     declareViewNav("gesture");
     const saved = nav.get();
-    expect(saved).toEqual({ pendingSource: "gesture", appliedNavCount: 0, freshHomeLaunch: false });
+    expect(saved).toEqual({
+      pendingSource: "gesture",
+      appliedNavCount: 0,
+      freshHomeLaunch: false,
+    });
     nav.set({ pendingSource: null, appliedNavCount: 3, freshHomeLaunch: true });
     expect(consumeViewNav()).toBeNull();
     expect(nav.get().appliedNavCount).toBe(3);

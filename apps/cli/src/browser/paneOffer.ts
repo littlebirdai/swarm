@@ -41,7 +41,12 @@ function looksLikeAWord(raw: string): boolean {
   const s = raw.trim();
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(s)) return false;
   const host = s.split("/")[0]!;
-  return !host.includes(".") && !host.includes(":") && !host.startsWith("[") && host.toLowerCase() !== "localhost";
+  return (
+    !host.includes(".") &&
+    !host.includes(":") &&
+    !host.startsWith("[") &&
+    host.toLowerCase() !== "localhost"
+  );
 }
 
 /**
@@ -67,7 +72,8 @@ export function planPaneOffer(
   if (!session) {
     return {
       ok: false,
-      message: "this shell is not a codecast session, so the offer has nowhere to land",
+      message:
+        "this shell is not a codecast session, so the offer has nowhere to land",
       hint: "run it from an agent session, or name one: cast browser pane <url> --for <session>",
     };
   }
@@ -80,7 +86,9 @@ export function paneOfferLines(url: string, res: PaneOfferResponse): string[] {
   const where = res.short_id ? `${res.short_id}` : "the viewer";
   return [
     `${fmt.success(icons.check)} Offered ${fmt.highlight(url)} as a pane in ${where}`,
-    fmt.muted("  the reader opens it beside the conversation from the chip on the session header"),
+    fmt.muted(
+      "  the reader opens it beside the conversation from the chip on the session header",
+    ),
   ];
 }
 
@@ -100,7 +108,10 @@ export function registerPaneOfferCommand(
     .command(name + " <url>")
     .description(description)
     .option("--title <text>", "What to call the page in the chip")
-    .option("--for <session>", "Offer it in another session (default: the current one)")
+    .option(
+      "--for <session>",
+      "Offer it in another session (default: the current one)",
+    )
     .action(async (url: string, o: { title?: string; for?: string }) => {
       const plan = planPaneOffer(url, o, deps.detectCurrentSessionId());
       if (!plan.ok) {
@@ -108,17 +119,29 @@ export function registerPaneOfferCommand(
         if (plan.hint) console.error(`  ${fmt.muted(plan.hint)}`);
         process.exit(1);
       }
-      const res: PaneOfferResponse = await apiPost(deps, "/cli/browser/pane-offer", {
-        session: plan.session,
-        url: plan.url,
-        ...(plan.title ? { title: plan.title } : {}),
-      });
+      const res: PaneOfferResponse = await apiPost(
+        deps,
+        "/cli/browser/pane-offer",
+        {
+          session: plan.session,
+          url: plan.url,
+          ...(plan.title ? { title: plan.title } : {}),
+        },
+      );
       for (const line of paneOfferLines(plan.url, res)) console.log(line);
     });
 }
 
 /** The top-level alias. `cast preview localhost:3000` is the whole gesture, and
  *  it loads none of the browser engine to make it. */
-export function registerPreviewCommand(program: Command, deps: PublishDeps): void {
-  registerPaneOfferCommand(program, deps, "preview", commandGroup("preview").description);
+export function registerPreviewCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
+  registerPaneOfferCommand(
+    program,
+    deps,
+    "preview",
+    commandGroup("preview").description,
+  );
 }

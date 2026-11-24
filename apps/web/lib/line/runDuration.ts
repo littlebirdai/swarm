@@ -9,14 +9,29 @@ import { useMemo } from "react";
 import { CARD_GATE_NODE_ID } from "@codecast/shared/contracts/changeCard";
 import { useInboxStore } from "../../store/inboxStore";
 
-type DurationStep = { node_id: string; status?: string; started_at?: number; completed_at?: number };
-type DurationRun = { status?: string; created_at?: number; updated_at?: number; task_id?: string | null; node_statuses?: ReadonlyArray<DurationStep> };
+type DurationStep = {
+  node_id: string;
+  status?: string;
+  started_at?: number;
+  completed_at?: number;
+};
+type DurationRun = {
+  status?: string;
+  created_at?: number;
+  updated_at?: number;
+  task_id?: string | null;
+  node_statuses?: ReadonlyArray<DurationStep>;
+};
 
 /** The fewest finished runs that make a duration. */
 export const MIN_RUNS = 3;
 /** The steps that build a fix, by their ids in any line. */
 const BUILDS = /^(?:build|implement)/;
-const finished = (r: DurationRun) => (r.status === "completed" || r.status === "done") && !!r.node_statuses?.some((n) => BUILDS.test(n.node_id) && n.status === "completed");
+const finished = (r: DurationRun) =>
+  (r.status === "completed" || r.status === "done") &&
+  !!r.node_statuses?.some(
+    (n) => BUILDS.test(n.node_id) && n.status === "completed",
+  );
 
 /** The steps that wait on a person, by their ids in any line: the card, a builder's question, an approval, any gate. */
 const WAITS = new RegExp(`^(?:${CARD_GATE_NODE_ID}|ask|approve)$|(?:^|_)gate$`);
@@ -26,9 +41,16 @@ const WAITS = new RegExp(`^(?:${CARD_GATE_NODE_ID}|ask|approve)$|(?:^|_)gate$`);
 export function workMs(run: Pick<DurationRun, "node_statuses">): number | null {
   const steps = run.node_statuses ?? [];
   const card = steps.find((n) => n.node_id === CARD_GATE_NODE_ID)?.started_at;
-  let ms = 0, timed = 0;
+  let ms = 0,
+    timed = 0;
   for (const n of steps) {
-    if (WAITS.test(n.node_id) || n.started_at == null || n.completed_at == null || (card != null && n.started_at > card)) continue;
+    if (
+      WAITS.test(n.node_id) ||
+      n.started_at == null ||
+      n.completed_at == null ||
+      (card != null && n.started_at > card)
+    )
+      continue;
     ms += Math.max(0, n.completed_at - n.started_at);
     timed++;
   }
@@ -37,7 +59,12 @@ export function workMs(run: Pick<DurationRun, "node_statuses">): number | null {
 
 /** The median working time of the given runs that finished having built a fix, in ms; null under MIN_RUNS of them. */
 export function medianRunMs(runs: ReadonlyArray<DurationRun>): number | null {
-  return medianOf(runs.filter(finished).map(workMs).filter((m): m is number => m != null && m > 0));
+  return medianOf(
+    runs
+      .filter(finished)
+      .map(workMs)
+      .filter((m): m is number => m != null && m > 0),
+  );
 }
 
 /** The median of working times, in ms; null under MIN_RUNS of them. */
@@ -53,27 +80,45 @@ export function aboutWords(ms: number): string {
   const min = Math.max(1, Math.round(ms / 60_000));
   if (min < 60) return `${min}m`;
   const h = Math.round(min / 60);
-  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d${h % 24 ? ` ${h % 24}h` : ""}`;
+  return h < 24
+    ? `${h}h`
+    : `${Math.floor(h / 24)}d${h % 24 ? ` ${h % 24}h` : ""}`;
 }
 
 /** How long a run on one of the projects' problems takes, from their finished runs in the store; null with too few.
  *  A batch across projects passes them all, so one project with no finished runs does not leave the batch unpriced in time. */
-export function useRunDuration(projectIds: string | ReadonlyArray<string> | null | undefined): number | null {
-  const key = typeof projectIds === "string" ? projectIds : (projectIds ?? []).join(",");
+export function useRunDuration(
+  projectIds: string | ReadonlyArray<string> | null | undefined,
+): number | null {
+  const key =
+    typeof projectIds === "string" ? projectIds : (projectIds ?? []).join(",");
   const sig = useInboxStore((s) => {
     if (!key) return "";
-    const by = workTimesByProject((s as unknown as { workflowRuns?: Record<string, DurationRun> }).workflowRuns, s.tasks as Record<string, { project_id?: string | null }>);
-    return String(medianOf([...new Set(key.split(","))].flatMap((p) => by.get(p) ?? [])) ?? "");
+    const by = workTimesByProject(
+      (s as unknown as { workflowRuns?: Record<string, DurationRun> })
+        .workflowRuns,
+      s.tasks as Record<string, { project_id?: string | null }>,
+    );
+    return String(
+      medianOf([...new Set(key.split(","))].flatMap((p) => by.get(p) ?? [])) ??
+        "",
+    );
   });
   return useMemo(() => (sig ? Number(sig) : null), [sig]);
 }
 
 /** Each project's finished runs' working times, read once per change of the runs or the tasks: every control that
  *  says a duration reads the same index, so a list of them costs one pass over the runs, not one each. */
-const workTimes = new WeakMap<object, { tasks: object; by: Map<string, number[]> }>();
+const workTimes = new WeakMap<
+  object,
+  { tasks: object; by: Map<string, number[]> }
+>();
 const NO_RUNS: Record<string, DurationRun> = {};
 
-function workTimesByProject(runs: Record<string, DurationRun> | undefined, tasks: Record<string, { project_id?: string | null }>): Map<string, number[]> {
+function workTimesByProject(
+  runs: Record<string, DurationRun> | undefined,
+  tasks: Record<string, { project_id?: string | null }>,
+): Map<string, number[]> {
   const rows = runs ?? NO_RUNS;
   const hit = workTimes.get(rows);
   if (hit && hit.tasks === tasks) return hit.by;
@@ -84,7 +129,8 @@ function workTimesByProject(runs: Record<string, DurationRun> | undefined, tasks
     const ms = workMs(r);
     if (ms == null || ms <= 0) continue;
     const at = by.get(p);
-    if (at) at.push(ms); else by.set(p, [ms]);
+    if (at) at.push(ms);
+    else by.set(p, [ms]);
   }
   workTimes.set(rows, { tasks, by });
   return by;

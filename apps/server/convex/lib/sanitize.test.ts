@@ -22,7 +22,9 @@ describe("sanitizeForeignText", () => {
   });
 
   test("newlines and tabs are prose and survive", () => {
-    expect(sanitizeForeignText("line one\n\tline two")).toBe("line one\n\tline two");
+    expect(sanitizeForeignText("line one\n\tline two")).toBe(
+      "line one\n\tline two",
+    );
   });
 
   test("non-text rejects rather than coercing", () => {

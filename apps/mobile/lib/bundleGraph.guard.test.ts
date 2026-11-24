@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { buildBootGraph, importChain, type GraphOptions } from "../../../apps/cli/src/bench/bootGraph";
+import {
+  buildBootGraph,
+  importChain,
+  type GraphOptions,
+} from "../../../apps/cli/src/bench/bootGraph";
 
 // The native bundle's import graph, walked the way Metro walks it, in seconds
 // and without Metro. It exists because a production OTA export failed after a
@@ -26,7 +30,8 @@ function metroOptions(platform: "ios" | "android"): GraphOptions {
     calls: true,
     platforms: [platform, "native"],
     alias: (spec) => {
-      for (const [prefix, dir] of ALIASES) if (spec.startsWith(prefix)) return dir + spec.slice(prefix.length);
+      for (const [prefix, dir] of ALIASES)
+        if (spec.startsWith(prefix)) return dir + spec.slice(prefix.length);
       return null;
     },
   };
@@ -39,7 +44,8 @@ function entries(): string[] {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
       if (e.isDirectory()) walk(p);
-      else if (/\.(ts|tsx)$/.test(e.name) && !/\.test\./.test(e.name)) out.push(p);
+      else if (/\.(ts|tsx)$/.test(e.name) && !/\.test\./.test(e.name))
+        out.push(p);
     }
   })(path.join(mobileRoot, "app"));
   return out;
@@ -50,13 +56,19 @@ const rel = (f: string) => path.relative(repoRoot, f);
 for (const platform of ["ios", "android"] as const) {
   describe(`${platform} bundle graph`, () => {
     const graph = buildBootGraph(entries(), repoRoot, metroOptions(platform));
-    const chainTo = (file: string) => (importChain(graph, file) ?? []).slice(1).map(rel).join(" -> ");
+    const chainTo = (file: string) =>
+      (importChain(graph, file) ?? []).slice(1).map(rel).join(" -> ");
 
     test("every aliased import resolves to a file Metro can read", () => {
       // A specifier with only a .d.ts behind it is types; Babel erases the import.
-      const typesOnly = (spec: string) => fs.existsSync(metroOptions(platform).alias!(spec, "", repoRoot) + ".d.ts");
+      const typesOnly = (spec: string) =>
+        fs.existsSync(
+          metroOptions(platform).alias!(spec, "", repoRoot) + ".d.ts",
+        );
       const broken = [...graph.externals].filter(
-        (spec) => ALIASES.some(([prefix]) => spec.startsWith(prefix)) && !typesOnly(spec),
+        (spec) =>
+          ALIASES.some(([prefix]) => spec.startsWith(prefix)) &&
+          !typesOnly(spec),
       );
       expect(broken).toEqual([]);
     });
@@ -74,8 +86,18 @@ for (const platform of ["ios", "android"] as const) {
     // router is web only too: its build reads `import.meta`, which Hermes
     // refuses, so one router hook in a shared lane module fails the bundle.
     test("no web only SDK reaches the native bundle", () => {
-      const WEB_ONLY = ["@sentry/react", "@sentry/browser", "posthog-js", "dexie", "next", "react-router", "react-router-dom"];
-      const hit = [...graph.externals].filter((spec) => WEB_ONLY.some((pkg) => spec === pkg || spec.startsWith(pkg + "/")));
+      const WEB_ONLY = [
+        "@sentry/react",
+        "@sentry/browser",
+        "posthog-js",
+        "dexie",
+        "next",
+        "react-router",
+        "react-router-dom",
+      ];
+      const hit = [...graph.externals].filter((spec) =>
+        WEB_ONLY.some((pkg) => spec === pkg || spec.startsWith(pkg + "/")),
+      );
       expect(hit).toEqual([]);
     });
 
@@ -84,11 +106,16 @@ for (const platform of ["ios", "android"] as const) {
     // as web/lib/convexUrl.ts did through the commit screen's repo hook.
     test("no file in the native bundle reads import.meta", () => {
       const offenders = [...graph.nodes.keys()].filter((file) => {
-        if (file.includes("/node_modules/") || !fs.existsSync(file)) return false;
+        if (file.includes("/node_modules/") || !fs.existsSync(file))
+          return false;
         // Comments and string contents are text, not code (a template of example code may name it).
-        const code = fs.readFileSync(file, "utf8")
+        const code = fs
+          .readFileSync(file, "utf8")
           .replace(/\/\*[\s\S]*?\*\/|^\s*\/\/.*$/gm, "")
-          .replace(/`(?:\\[\s\S]|[^`\\])*`|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'/g, "\"\"");
+          .replace(
+            /`(?:\\[\s\S]|[^`\\])*`|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'/g,
+            '""',
+          );
         return /\bimport\.meta\b/.test(code);
       });
       expect(offenders.map(chainTo)).toEqual([]);
@@ -98,7 +125,12 @@ for (const platform of ["ios", "android"] as const) {
       const offenders: string[] = [];
       for (const file of graph.nodes.keys()) {
         if (!file.includes("/apps/web/")) continue;
-        if (/from\s*["']@\/|(?:import|require)\(\s*["']@\//.test(fs.readFileSync(file, "utf8"))) offenders.push(rel(file));
+        if (
+          /from\s*["']@\/|(?:import|require)\(\s*["']@\//.test(
+            fs.readFileSync(file, "utf8"),
+          )
+        )
+          offenders.push(rel(file));
       }
       expect(offenders).toEqual([]);
     });

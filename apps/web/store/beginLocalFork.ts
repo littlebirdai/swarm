@@ -11,27 +11,39 @@
 // server message sync while fork_status === "copying" so the half-copied
 // server window can never clobber the seeded one.
 import { agentSupportsFork } from "@codecast/shared/contracts";
-import { useInboxStore, convBucketMap, type BucketItem, type InboxSession } from "./inboxStore";
+import {
+  useInboxStore,
+  convBucketMap,
+  type BucketItem,
+  type InboxSession,
+} from "./inboxStore";
 import { DispatchNotWiredError } from "./mutativeMiddleware";
 import { withoutUndo } from "@platform/engine";
 
 // Loose view of the conversation a fork starts from: the fields the stub copies.
-export type ForkSource = {
-  _id?: { toString(): string } | string | null;
-  title?: string | null;
-  agent_type?: string;
-  project_path?: string | null;
-  git_root?: string | null;
-  loaded_start_index?: number | null;
-  messages?: any[] | null;
-  user?: { name?: string | null; email?: string | null } | null;
-} | null | undefined;
+export type ForkSource =
+  | {
+      _id?: { toString(): string } | string | null;
+      title?: string | null;
+      agent_type?: string;
+      project_path?: string | null;
+      git_root?: string | null;
+      loaded_start_index?: number | null;
+      messages?: any[] | null;
+      user?: { name?: string | null; email?: string | null } | null;
+    }
+  | null
+  | undefined;
 
-export type LocalFork = { forkSessionId: string; conversationId: string; ready: Promise<string> };
+export type LocalFork = {
+  forkSessionId: string;
+  conversationId: string;
+  ready: Promise<string>;
+};
 
 /** A fork's session id: a real UUID, so the daemon resumes it without remapping. */
 export function newForkSessionId(): string {
-  return (typeof crypto !== "undefined" && crypto.randomUUID)
+  return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
     : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
         const r = (Math.random() * 16) | 0;
@@ -43,7 +55,11 @@ export function newForkSessionId(): string {
 // (injectSession), so the fork renders instantly from local state. Server
 // derived fields (title prefix, exact message_count) are approximate here and
 // the meta subscription corrects them within a tick.
-export function seedForkSessionRow(conversation: ForkSource, convId: string, fields: Partial<InboxSession>) {
+export function seedForkSessionRow(
+  conversation: ForkSource,
+  convId: string,
+  fields: Partial<InboxSession>,
+) {
   useInboxStore.getState().injectSession({
     _id: convId,
     session_id: convId,
@@ -62,7 +78,15 @@ export function seedForkSessionRow(conversation: ForkSource, convId: string, fie
 export function beginLocalFork(
   conversation: ForkSource,
   messageUuid: string,
-  { currentUser, hasMoreAbove, onError }: { currentUser: any; hasMoreAbove: boolean | undefined; onError?: (message: string) => void },
+  {
+    currentUser,
+    hasMoreAbove,
+    onError,
+  }: {
+    currentUser: any;
+    hasMoreAbove: boolean | undefined;
+    onError?: (message: string) => void;
+  },
 ): LocalFork | null {
   if (!conversation?._id) return null;
   // Honest degradation: a client with no fork mechanism (cursor/gemini/pi) would
@@ -78,12 +102,18 @@ export function beginLocalFork(
   // Parent's server rows up to and including the fork point. Optimistic/queued
   // rows are excluded — they aren't in the messages table yet, so the server
   // copy won't include them either.
-  const parentMsgs = (conversation.messages || []).filter((m: any) => !m._isOptimistic && !m._isQueued);
-  const forkIdx = parentMsgs.findIndex((m: any) => m.message_uuid === messageUuid);
-  const seededMsgs = forkIdx >= 0 ? parentMsgs.slice(0, forkIdx + 1) : parentMsgs;
+  const parentMsgs = (conversation.messages || []).filter(
+    (m: any) => !m._isOptimistic && !m._isQueued,
+  );
+  const forkIdx = parentMsgs.findIndex(
+    (m: any) => m.message_uuid === messageUuid,
+  );
+  const seededMsgs =
+    forkIdx >= 0 ? parentMsgs.slice(0, forkIdx + 1) : parentMsgs;
   // Count as the user saw it on the parent: messages above the loaded window
   // plus the seeded slice. Keeps the "N older messages" indicator stable.
-  const seededCount = (conversation.loaded_start_index ?? 0) + seededMsgs.length;
+  const seededCount =
+    (conversation.loaded_start_index ?? 0) + seededMsgs.length;
   // A fresh fork owns nothing yet: everything it holds is inherited, so the
   // stub declares its whole count as copied history. Without that the chip
   // reads the parent's prefix as "N messages in this branch since the fork".
@@ -92,7 +122,8 @@ export function beginLocalFork(
     user_id: currentUser?._id?.toString(),
     title: forkTitle,
     started_at: now,
-    username: conversation.user?.name || conversation.user?.email?.split("@")[0],
+    username:
+      conversation.user?.name || conversation.user?.email?.split("@")[0],
     parent_message_uuid: messageUuid,
     message_count: seededCount,
     fork_copied: seededCount,
@@ -119,7 +150,10 @@ export function beginLocalFork(
     parent_message_uuid: messageUuid,
     fork_status: "copying",
   });
-  store.setMessages(forkSessionId, seededMsgs, { hasMoreAbove: !!hasMoreAbove || (conversation.loaded_start_index ?? 0) > 0, initialized: true });
+  store.setMessages(forkSessionId, seededMsgs, {
+    hasMoreAbove: !!hasMoreAbove || (conversation.loaded_start_index ?? 0) > 0,
+    initialized: true,
+  });
   // Seeds sessions[stub] and navigates in one action — instant switch.
   seedForkSessionRow(conversation, forkSessionId, {
     session_id: forkSessionId,
@@ -136,18 +170,26 @@ export function beginLocalFork(
   // no-ops server-side on the stub id; rekeyId carries the local row to the
   // real id, where the server row supersedes it via altKey.
   const parentBucketId = convBucketMap(store.bucketAssignments)[parentId];
-  const parentBucket = parentBucketId ? (store.buckets as Record<string, BucketItem>)[parentBucketId] : undefined;
+  const parentBucket = parentBucketId
+    ? (store.buckets as Record<string, BucketItem>)[parentBucketId]
+    : undefined;
   // The fork inherits its parent's label; nobody filed it, so no undo.
   if (parentBucket && !parentBucket.archived_at) {
-    withoutUndo(() => store.assignSessionToBucket(forkSessionId, parentBucket._id));
+    withoutUndo(() =>
+      store.assignSessionToBucket(forkSessionId, parentBucket._id),
+    );
   }
-  const ready = store.convCommand(parentId, "forkFromMessage", {
-    message_uuid: messageUuid,
-    session_id: forkSessionId,
-  }).then((result) => {
-    useInboxStore.getState().resolveForkSessionId(forkSessionId, result.conversation_id);
-    return result.conversation_id as string;
-  });
+  const ready = store
+    .convCommand(parentId, "forkFromMessage", {
+      message_uuid: messageUuid,
+      session_id: forkSessionId,
+    })
+    .then((result) => {
+      useInboxStore
+        .getState()
+        .resolveForkSessionId(forkSessionId, result.conversation_id);
+      return result.conversation_id as string;
+    });
   // Same contract as beginOptimisticSession: a message sent against the stub
   // resolves through awaitConvexId → pendingSessionCreates and waits here.
   store.trackSessionCreate(forkSessionId, ready);

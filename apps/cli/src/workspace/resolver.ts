@@ -22,10 +22,17 @@
  */
 
 import * as path from "node:path";
-import { AGENT_CONTEXT_ROOTS, collectProjectContext } from "../cloud/mirror/discovery.js";
+import {
+  AGENT_CONTEXT_ROOTS,
+  collectProjectContext,
+} from "../cloud/mirror/discovery.js";
 import { readLocalConfig } from "../config/readLocalConfig.js";
 import { detectProject } from "./detect.js";
-import { DEFAULT_BROWSER, MANIFEST_REL_PATH, parseManifest } from "./manifest.js";
+import {
+  DEFAULT_BROWSER,
+  MANIFEST_REL_PATH,
+  parseManifest,
+} from "./manifest.js";
 import type { BrowserSpec, WorkspaceManifest } from "./types.js";
 
 export { MANIFEST_REL_PATH };
@@ -37,7 +44,10 @@ export { MANIFEST_REL_PATH };
  * untracked skill, .claude/settings.local.json, …) appended to setup.copy at
  * file granularity so a worktree — local or cloud — starts with them.
  */
-export function resolveManifest(repoRoot: string, inputRoot = repoRoot): WorkspaceManifest {
+export function resolveManifest(
+  repoRoot: string,
+  inputRoot = repoRoot,
+): WorkspaceManifest {
   const detected = detectProject(repoRoot);
   if (inputRoot !== repoRoot) {
     // The input root is the checkout files are taken from, so its copy and
@@ -47,11 +57,21 @@ export function resolveManifest(repoRoot: string, inputRoot = repoRoot): Workspa
     detected.setup.share = fromInput.setup.share;
   }
   const file = parseManifest(path.join(inputRoot, MANIFEST_REL_PATH));
-  return withAgentConfigCopies(mergeManifests(detected, file), inputRoot ?? repoRoot, { isInputRoot: inputRoot !== repoRoot });
+  return withAgentConfigCopies(
+    mergeManifests(detected, file),
+    inputRoot ?? repoRoot,
+    { isInputRoot: inputRoot !== repoRoot },
+  );
 }
 
 export const AGENT_CONFIG_COPY_CANDIDATES: readonly string[] = [
-  ...AGENT_CONTEXT_ROOTS, "CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", "AGENTS.override.md", "GEMINI.md", ".mcp.json",
+  ...AGENT_CONTEXT_ROOTS,
+  "CLAUDE.md",
+  "CLAUDE.local.md",
+  "AGENTS.md",
+  "AGENTS.override.md",
+  "GEMINI.md",
+  ".mcp.json",
 ];
 
 export function withAgentConfigCopies(
@@ -59,13 +79,32 @@ export function withAgentConfigCopies(
   root: string,
   opts: { isInputRoot: boolean; warn?: (m: string) => void },
 ): WorkspaceManifest {
-  const context = collectProjectContext({ root, includeTracked: opts.isInputRoot, includeAncestors: false, tolerateMissing: true, config: readLocalConfig() });
-  for (const skipped of context.skipped) opts.warn?.(`agent config ${skipped.path} skipped: ${skipped.reason}`);
+  const context = collectProjectContext({
+    root,
+    includeTracked: opts.isInputRoot,
+    includeAncestors: false,
+    tolerateMissing: true,
+    config: readLocalConfig(),
+  });
+  for (const skipped of context.skipped)
+    opts.warn?.(`agent config ${skipped.path} skipped: ${skipped.reason}`);
   const existing = manifest.setup.copy;
-  const additions = context.files.filter((f) => f.scope === "project")
+  const additions = context.files
+    .filter((f) => f.scope === "project")
     .map((f) => f.relativePath)
-    .filter((rel) => !existing.some((entry) => entry === rel || rel.startsWith(`${entry.replace(/\/+$/, "")}/`)));
-  return additions.length ? { ...manifest, setup: { ...manifest.setup, copy: [...existing, ...additions] } } : manifest;
+    .filter(
+      (rel) =>
+        !existing.some(
+          (entry) =>
+            entry === rel || rel.startsWith(`${entry.replace(/\/+$/, "")}/`),
+        ),
+    );
+  return additions.length
+    ? {
+        ...manifest,
+        setup: { ...manifest.setup, copy: [...existing, ...additions] },
+      }
+    : manifest;
 }
 
 /** Pure merge of two manifests (used by resolveManifest and by tests). */
@@ -103,9 +142,18 @@ export function mergeManifests(
     setup: {
       copy: replaceArrayIfNonEmpty(override.setup.copy, base.setup.copy),
       share: replaceArrayIfNonEmpty(override.setup.share, base.setup.share),
-      install: replaceArrayIfNonEmpty(override.setup.install, base.setup.install),
-      generate: replaceArrayIfNonEmpty(override.setup.generate, base.setup.generate),
-      migrate: replaceArrayIfNonEmpty(override.setup.migrate, base.setup.migrate),
+      install: replaceArrayIfNonEmpty(
+        override.setup.install,
+        base.setup.install,
+      ),
+      generate: replaceArrayIfNonEmpty(
+        override.setup.generate,
+        base.setup.generate,
+      ),
+      migrate: replaceArrayIfNonEmpty(
+        override.setup.migrate,
+        base.setup.migrate,
+      ),
     },
     ports: { ...base.ports, ...override.ports },
     services: { ...base.services, ...override.services },
@@ -113,7 +161,11 @@ export function mergeManifests(
     teardown: {
       run: replaceArrayIfNonEmpty(override.teardown.run, base.teardown.run),
     },
-    ...(override.verify?.command ? { verify: override.verify } : base.verify ? { verify: base.verify } : {}),
+    ...(override.verify?.command
+      ? { verify: override.verify }
+      : base.verify
+        ? { verify: base.verify }
+        : {}),
     browser: mergeBrowser(base.browser, override.browser),
     backend: override.backend !== "local" ? override.backend : base.backend,
     detected: override.detected ?? base.detected,

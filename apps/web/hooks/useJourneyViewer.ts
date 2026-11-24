@@ -6,18 +6,45 @@
 import { useMemo } from "react";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncDecisionDetail } from "./useSyncDecisionDetail";
-import { gateOpen, type GateDecision, type JourneyRun, type JourneyViewer } from "../lib/ship/journey";
+import {
+  gateOpen,
+  type GateDecision,
+  type JourneyRun,
+  type JourneyViewer,
+} from "../lib/ship/journey";
 
 /** The fields of a decision row that say who may answer it, as one string, so the subscription wakes only when they change. */
-const answerSig = (d: GateDecision | undefined) => (d ? JSON.stringify([d.user_id ?? null, d.holder ?? null, d.passed_to ?? null, d.asked_user_ids ?? null]) : "");
+const answerSig = (d: GateDecision | undefined) =>
+  d
+    ? JSON.stringify([
+        d.user_id ?? null,
+        d.holder ?? null,
+        d.passed_to ?? null,
+        d.asked_user_ids ?? null,
+      ])
+    : "";
 
-export function useJourneyViewer(run: (Pick<JourneyRun, "status" | "gate_decision_id" | "gate_prompt" | "gate_decision_status">) | null | undefined): JourneyViewer {
-  const id = useInboxStore((s) => (s.currentUser?._id ? String(s.currentUser._id) : null));
-  const decisionId = run && gateOpen(run) ? run.gate_decision_id ?? null : null;
+export function useJourneyViewer(
+  run:
+    | Pick<
+        JourneyRun,
+        "status" | "gate_decision_id" | "gate_prompt" | "gate_decision_status"
+      >
+    | null
+    | undefined,
+): JourneyViewer {
+  const id = useInboxStore((s) =>
+    s.currentUser?._id ? String(s.currentUser._id) : null,
+  );
+  const decisionId =
+    run && gateOpen(run) ? (run.gate_decision_id ?? null) : null;
   useSyncDecisionDetail(decisionId ?? undefined);
   const sig = useInboxStore((s) => {
     if (!decisionId) return "";
-    return answerSig((s.sessionDecisions as Record<string, GateDecision>)[decisionId] ?? (s as any).decisionDetails?.[decisionId]?.decision);
+    return answerSig(
+      (s.sessionDecisions as Record<string, GateDecision>)[decisionId] ??
+        (s as any).decisionDetails?.[decisionId]?.decision,
+    );
   });
   return useMemo(() => {
     if (!sig) return { id, decision: null };

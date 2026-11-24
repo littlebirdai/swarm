@@ -38,7 +38,14 @@ import { remoteAssetHosts, remoteAssetsLabel } from "./remoteAssets";
 
 type FrameState =
   | { state: "loading" }
-  | { state: "ready"; t_ms: number; url: string | null; width: number; height: number; outline: string }
+  | {
+      state: "ready";
+      t_ms: number;
+      url: string | null;
+      width: number;
+      height: number;
+      outline: string;
+    }
   | { state: "error"; message: string };
 
 declare global {
@@ -53,21 +60,30 @@ const CONTROLS_H = 44;
 const STRIP_H = 28;
 
 /** A player message without its tag, one variant at a time. */
-type Outgoing = ReplayPlayerMessage extends infer M ? (M extends ReplayPlayerMessage ? Omit<M, "source"> : never) : never;
+type Outgoing = ReplayPlayerMessage extends infer M
+  ? M extends ReplayPlayerMessage
+    ? Omit<M, "source">
+    : never
+  : never;
 
 // The page embedding the player. Commands are obeyed only from that window,
 // and messages go only to its origin: from location.ancestorOrigins where the
 // browser has it, else from the first command the parent sends. Until then
 // (Firefox) every message is held, and the only thing posted to "*" is a bare
 // `hello`, which says nothing; a host answers it with a `hello` of its own.
-let hostOrigin: string | null = (location as Location & { ancestorOrigins?: DOMStringList }).ancestorOrigins?.[0] ?? null;
+let hostOrigin: string | null =
+  (location as Location & { ancestorOrigins?: DOMStringList })
+    .ancestorOrigins?.[0] ?? null;
 const held: Outgoing[] = [];
 let helloAt = 0;
 
 function post(msg: Outgoing) {
   if (window.parent === window) return;
   if (hostOrigin) {
-    window.parent.postMessage({ source: REPLAY_PLAYER_SOURCE, ...msg }, hostOrigin);
+    window.parent.postMessage(
+      { source: REPLAY_PLAYER_SOURCE, ...msg },
+      hostOrigin,
+    );
     return;
   }
   // A held clock or state is superseded by the newer one.
@@ -78,13 +94,22 @@ function post(msg: Outgoing) {
   held.push(msg);
   if (Date.now() - helloAt > 250) {
     helloAt = Date.now();
-    window.parent.postMessage({ source: REPLAY_PLAYER_SOURCE, type: "hello" }, "*");
+    window.parent.postMessage(
+      { source: REPLAY_PLAYER_SOURCE, type: "hello" },
+      "*",
+    );
   }
 }
 
 // Learns the host's origin from its first command, then sends what was held.
 window.addEventListener("message", (e) => {
-  if (hostOrigin || window.parent === window || e.source !== window.parent || !parseReplayHostMessage(e.data)) return;
+  if (
+    hostOrigin ||
+    window.parent === window ||
+    e.source !== window.parent ||
+    !parseReplayHostMessage(e.data)
+  )
+    return;
   hostOrigin = e.origin;
   for (const m of held.splice(0)) post(m);
 });
@@ -105,11 +130,15 @@ function fail(message: string) {
  * anyone holding a source's public ingest key, so a few MB of gzip that
  * inflate to gigabytes must stop here, in a viewer's tab or the renderer.
  */
-const CAPTURE_MAX_INFLATED_BYTES = 4 * REPLAY_DOM_LIMITS.chunk_max_inflated_bytes;
+const CAPTURE_MAX_INFLATED_BYTES =
+  4 * REPLAY_DOM_LIMITS.chunk_max_inflated_bytes;
 let inflatedTotal = 0;
 
 /** A stream's bytes, refusing past `max` (and past the capture's total) as they arrive. */
-async function readCapped(stream: ReadableStream<Uint8Array>, max: number): Promise<Uint8Array<ArrayBuffer>> {
+async function readCapped(
+  stream: ReadableStream<Uint8Array>,
+  max: number,
+): Promise<Uint8Array<ArrayBuffer>> {
   const parts: Uint8Array[] = [];
   let n = 0;
   const reader = stream.getReader();
@@ -134,34 +163,60 @@ async function readCapped(stream: ReadableStream<Uint8Array>, max: number): Prom
 }
 
 async function readChunk(url: string): Promise<unknown[]> {
-  const res = await fetch(url, { referrerPolicy: "no-referrer", credentials: "omit" });
-  if (!res.ok || !res.body) throw new Error(`a recording chunk answered ${res.status}`);
+  const res = await fetch(url, {
+    referrerPolicy: "no-referrer",
+    credentials: "omit",
+  });
+  if (!res.ok || !res.body)
+    throw new Error(`a recording chunk answered ${res.status}`);
   // R2 serves a chunk stored with Content-Encoding: gzip already inflated (the
   // browser inflates it into this stream, so it is counted as it arrives); a
   // chunk uploaded without that header arrives as the gzip bytes themselves.
-  let bytes = await readCapped(res.body, REPLAY_DOM_LIMITS.chunk_max_inflated_bytes);
+  let bytes = await readCapped(
+    res.body,
+    REPLAY_DOM_LIMITS.chunk_max_inflated_bytes,
+  );
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-    bytes = await readCapped(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")), REPLAY_DOM_LIMITS.chunk_max_inflated_bytes);
+    bytes = await readCapped(
+      new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")),
+      REPLAY_DOM_LIMITS.chunk_max_inflated_bytes,
+    );
   }
   const parsed = JSON.parse(new TextDecoder().decode(bytes));
   return Array.isArray(parsed) ? parsed : [];
 }
 
 /** Each stored stylesheet's text by the href the capture names. One that cannot be read is left out: its link stays as recorded. */
-async function readStyles(styles: ReplayPlayerManifest["styles"]): Promise<Map<string, string>> {
+async function readStyles(
+  styles: ReplayPlayerManifest["styles"],
+): Promise<Map<string, string>> {
   const css = new Map<string, string>();
   await Promise.all(
-    (styles ?? []).slice(0, REPLAY_STYLE_LIMITS.max_per_replay).map(async (s) => {
-      try {
-        const res = await fetch(s.url, { referrerPolicy: "no-referrer", credentials: "omit" });
-        if (!res.ok || !res.body) return;
-        let bytes = await readCapped(res.body, REPLAY_STYLE_LIMITS.max_inflated_bytes);
-        if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = await readCapped(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")), REPLAY_STYLE_LIMITS.max_inflated_bytes);
-        css.set(s.href, new TextDecoder().decode(bytes));
-      } catch {
-        // drawn without that sheet
-      }
-    }),
+    (styles ?? [])
+      .slice(0, REPLAY_STYLE_LIMITS.max_per_replay)
+      .map(async (s) => {
+        try {
+          const res = await fetch(s.url, {
+            referrerPolicy: "no-referrer",
+            credentials: "omit",
+          });
+          if (!res.ok || !res.body) return;
+          let bytes = await readCapped(
+            res.body,
+            REPLAY_STYLE_LIMITS.max_inflated_bytes,
+          );
+          if (bytes[0] === 0x1f && bytes[1] === 0x8b)
+            bytes = await readCapped(
+              new Blob([bytes])
+                .stream()
+                .pipeThrough(new DecompressionStream("gzip")),
+              REPLAY_STYLE_LIMITS.max_inflated_bytes,
+            );
+          css.set(s.href, new TextDecoder().decode(bytes));
+        } catch {
+          // drawn without that sheet
+        }
+      }),
   );
   return css;
 }
@@ -176,18 +231,26 @@ async function readChunks(urls: string[], parallel = 4): Promise<unknown[]> {
       out[i] = await readChunk(urls[i]);
     }
   };
-  await Promise.all(Array.from({ length: Math.min(parallel, urls.length) }, lane));
+  await Promise.all(
+    Array.from({ length: Math.min(parallel, urls.length) }, lane),
+  );
   return out.flat();
 }
 
 const fmt = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = String(s % 60).padStart(2, "0");
+  const h = Math.floor(s / 3600),
+    m = Math.floor((s % 3600) / 60),
+    sec = String(s % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 };
 
 /** The page's address at an rrweb offset: the newest Meta event at or before it. */
-function urlAt(events: any[], startTime: number, offset: number): string | null {
+function urlAt(
+  events: any[],
+  startTime: number,
+  offset: number,
+): string | null {
   let href: string | null = null;
   for (const e of events) {
     if (e.timestamp - startTime > offset) break;
@@ -199,7 +262,10 @@ function urlAt(events: any[], startTime: number, offset: number): string | null 
 /** Wait until the replayed document's images and fonts have loaded, or the settle bound passes. */
 async function settle(doc: Document | null | undefined): Promise<void> {
   const deadline = Date.now() + REPLAY_FRAME_LIMITS.settle_ms;
-  const frames = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  const frames = () =>
+    new Promise<void>((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => r())),
+    );
   await frames();
   if (!doc) return;
   const fonts = (doc as any).fonts?.ready?.catch(() => {});
@@ -208,7 +274,10 @@ async function settle(doc: Document | null | undefined): Promise<void> {
     if (!pending) break;
     await new Promise((r) => setTimeout(r, 100));
   }
-  await Promise.race([fonts, new Promise((r) => setTimeout(r, Math.max(0, deadline - Date.now())))]);
+  await Promise.race([
+    fonts,
+    new Promise((r) => setTimeout(r, Math.max(0, deadline - Date.now()))),
+  ]);
   await frames();
 }
 
@@ -223,23 +292,43 @@ async function main() {
 
   let manifest: ReplayPlayerManifest;
   try {
-    const res = await fetch(`${manifestOrigin}${manifestPath}?cap=${encodeURIComponent(params.cap)}`, { credentials: "omit", referrerPolicy: "no-referrer" });
-    if (!res.ok) return fail(res.status === 404 ? "This replay link has expired. Open the replay again for a fresh one." : `The replay could not be opened (${res.status}).`);
+    const res = await fetch(
+      `${manifestOrigin}${manifestPath}?cap=${encodeURIComponent(params.cap)}`,
+      { credentials: "omit", referrerPolicy: "no-referrer" },
+    );
+    if (!res.ok)
+      return fail(
+        res.status === 404
+          ? "This replay link has expired. Open the replay again for a fresh one."
+          : `The replay could not be opened (${res.status}).`,
+      );
     manifest = await res.json();
   } catch (err) {
-    return fail(`The replay could not be opened: ${err instanceof Error ? err.message : String(err)}`);
+    return fail(
+      `The replay could not be opened: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
-  if (!manifest.dom_urls.length) return fail("This replay keeps no page capture to play.");
+  if (!manifest.dom_urls.length)
+    return fail("This replay keeps no page capture to play.");
 
   let events: any[] = [];
   try {
-    const [read, css] = await Promise.all([readChunks(manifest.dom_urls), readStyles(manifest.styles)]);
+    const [read, css] = await Promise.all([
+      readChunks(manifest.dom_urls),
+      readStyles(manifest.styles),
+    ]);
     events = read;
     applyReplayStyles(events, css);
   } catch (err) {
-    return fail(`The recording could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    return fail(
+      `The recording could not be read: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
-  events = events.filter((e) => e && typeof e.type === "number" && typeof e.timestamp === "number").sort((a, b) => a.timestamp - b.timestamp);
+  events = events
+    .filter(
+      (e) => e && typeof e.type === "number" && typeof e.timestamp === "number",
+    )
+    .sort((a, b) => a.timestamp - b.timestamp);
   const problem = replayCaptureProblem(events);
   if (problem) return fail(problem);
 
@@ -268,7 +357,10 @@ async function main() {
     ],
   });
   const meta = replayer.getMetaData();
-  const { duration, toOffset, toClock, endOffset, captureEnd } = replayClock(manifest, meta);
+  const { duration, toOffset, toClock, endOffset, captureEnd } = replayClock(
+    manifest,
+    meta,
+  );
   // rrweb draws the events strictly before the offset it is given; a moment
   // includes what happened at it, so it is drawn a millisecond past.
   const drawAt = (offset: number) => offset + 1;
@@ -276,20 +368,31 @@ async function main() {
   // Remote assets load only on this view's say-so (worker.ts header). Their
   // button lives in the control bar, or in a strip under the page when there
   // is no bar: never over the recorded page.
-  const remoteHosts = mode === "interactive" && !params.remote_assets ? remoteAssetHosts(events) : [];
+  const remoteHosts =
+    mode === "interactive" && !params.remote_assets
+      ? remoteAssetHosts(events)
+      : [];
   const showStrip = remoteHosts.length > 0 && !showControls;
   /** What the player draws below the recorded page. */
   const belowH = (showControls ? CONTROLS_H : 0) + (showStrip ? STRIP_H : 0);
 
   let size = { width: 1024, height: 768 };
-  const firstMeta = events.find((e) => e.type === 4 && e.data?.width && e.data?.height);
-  if (firstMeta) size = { width: firstMeta.data.width, height: firstMeta.data.height };
+  const firstMeta = events.find(
+    (e) => e.type === 4 && e.data?.width && e.data?.height,
+  );
+  if (firstMeta)
+    size = { width: firstMeta.data.width, height: firstMeta.data.height };
 
   const layout = () => {
-    const availW = mode === "frame" ? REPLAY_FRAME_LIMITS.max_width : window.innerWidth;
-    const availH = mode === "frame" ? REPLAY_FRAME_LIMITS.max_height : window.innerHeight - belowH;
+    const availW =
+      mode === "frame" ? REPLAY_FRAME_LIMITS.max_width : window.innerWidth;
+    const availH =
+      mode === "frame"
+        ? REPLAY_FRAME_LIMITS.max_height
+        : window.innerHeight - belowH;
     const scale = Math.min(1, availW / size.width, availH / size.height);
-    const w = Math.round(size.width * scale), h = Math.round(size.height * scale);
+    const w = Math.round(size.width * scale),
+      h = Math.round(size.height * scale);
     stage.style.width = `${w}px`;
     stage.style.height = `${h}px`;
     if (mode === "interactive") {
@@ -305,9 +408,14 @@ async function main() {
   // window (a viewport resize, a new page) is posted so the host refits its stage.
   let announced = false;
   replayer.on("resize", (d: any) => {
-    if (d?.width && d?.height && (d.width !== size.width || d.height !== size.height)) {
+    if (
+      d?.width &&
+      d?.height &&
+      (d.width !== size.width || d.height !== size.height)
+    ) {
       size = { width: d.width, height: d.height };
-      if (announced) post({ type: "size", width: size.width, height: size.height });
+      if (announced)
+        post({ type: "size", width: size.width, height: size.height });
     }
     layout();
   });
@@ -320,7 +428,9 @@ async function main() {
       replayer.pause(drawAt(offset));
       layout();
       await settle(replayer.iframe.contentDocument);
-      const text = (replayer.iframe.contentDocument?.body?.innerText ?? "").replace(/\n{3,}/g, "\n\n").trim();
+      const text = (replayer.iframe.contentDocument?.body?.innerText ?? "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
       const state: FrameState = {
         state: "ready",
         t_ms: toClock(offset),
@@ -330,7 +440,13 @@ async function main() {
         outline: text.slice(0, REPLAY_FRAME_LIMITS.outline_max_chars),
       };
       window.__codecastReplay = state;
-      post({ type: "frame", t_ms: state.t_ms, url: state.url, width: state.width, height: state.height });
+      post({
+        type: "frame",
+        t_ms: state.t_ms,
+        url: state.url,
+        width: state.width,
+        height: state.height,
+      });
       return state;
     };
     window.__codecastReplaySeek = draw;
@@ -348,7 +464,8 @@ async function main() {
   const speedSel = document.querySelector<HTMLSelectElement>("#speed")!;
   bar.hidden = !showControls;
   scrub.max = String(duration);
-  for (const s of REPLAY_PLAYER_SPEEDS) speedSel.add(new Option(`${s}x`, String(s), s === 1, s === 1));
+  for (const s of REPLAY_PLAYER_SPEEDS)
+    speedSel.add(new Option(`${s}x`, String(s), s === 1, s === 1));
 
   const now = () => toClock(replayer.getCurrentTime());
   const paint = () => {
@@ -392,7 +509,12 @@ async function main() {
   window.addEventListener("message", (e) => {
     // Only the embedding page drives playback, never another window that found
     // this one. The listener above has learned its origin by now.
-    if (e.source !== window.parent || window.parent === window || e.origin !== hostOrigin) return;
+    if (
+      e.source !== window.parent ||
+      window.parent === window ||
+      e.origin !== hostOrigin
+    )
+      return;
     const msg = parseReplayHostMessage(e.data);
     if (!msg) return;
     if (msg.type === "seek") seek(msg.t_ms, msg.play ?? playing);
@@ -413,7 +535,12 @@ async function main() {
     remoteBtn.title = `This recording's images and fonts are on other sites, which would see that you opened it: ${remoteHosts.join(", ")}`;
     remoteBtn.hidden = false;
     remoteBtn.addEventListener("click", () => {
-      location.replace(replayPlayerUrl({ ...params, t_ms: now(), autoplay: playing, remote_assets: true }, location.origin));
+      location.replace(
+        replayPlayerUrl(
+          { ...params, t_ms: now(), autoplay: playing, remote_assets: true },
+          location.origin,
+        ),
+      );
     });
     if (showStrip) {
       const strip = document.getElementById("strip")!;
@@ -436,10 +563,29 @@ async function main() {
   const start = params.t_ms ?? 0;
   replayer.pause(drawAt(toOffset(start)));
   paint();
-  window.__codecastReplay = { state: "ready", t_ms: now(), url: urlAt(events, meta.startTime, toOffset(start)), width: size.width, height: size.height, outline: "" };
-  post({ type: "ready", duration_ms: duration, width: size.width, height: size.height, t_ms: now(), below_px: belowH, capture_end_ms: Math.min(duration, captureEnd) });
+  window.__codecastReplay = {
+    state: "ready",
+    t_ms: now(),
+    url: urlAt(events, meta.startTime, toOffset(start)),
+    width: size.width,
+    height: size.height,
+    outline: "",
+  };
+  post({
+    type: "ready",
+    duration_ms: duration,
+    width: size.width,
+    height: size.height,
+    t_ms: now(),
+    below_px: belowH,
+    capture_end_ms: Math.min(duration, captureEnd),
+  });
   announced = true;
   if (params.autoplay) setPlaying(true);
 }
 
-main().catch((err) => fail(`The player stopped: ${err instanceof Error ? err.message : String(err)}`));
+main().catch((err) =>
+  fail(
+    `The player stopped: ${err instanceof Error ? err.message : String(err)}`,
+  ),
+);

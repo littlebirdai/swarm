@@ -14,7 +14,10 @@ describe("localAuth storage key contract", () => {
     // The package's exports map only exposes the entry point — resolve it and
     // read its sibling client.js, where the storage constants live.
     const entry = require.resolve("@convex-dev/auth/react");
-    const source = readFileSync(path.join(path.dirname(entry), "client.js"), "utf8");
+    const source = readFileSync(
+      path.join(path.dirname(entry), "client.js"),
+      "utf8",
+    );
     expect(source).toContain('const JWT_STORAGE_KEY = "__convexAuthJWT"');
     // useNamespacedStorage: namespace.replace(/[^a-zA-Z0-9]/g, "")
     expect(source).toContain('namespace.replace(/[^a-zA-Z0-9]/g, "")');

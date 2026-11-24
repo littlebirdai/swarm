@@ -16,13 +16,20 @@ export type TaskChangeBy = {
 };
 
 /** A person's own edit, when no session made it (the web, a test). */
-export const byUser = (userId: Id<"users">): TaskChangeBy => ({ user_id: userId, actor_type: "user" });
+export const byUser = (userId: Id<"users">): TaskChangeBy => ({
+  user_id: userId,
+  actor_type: "user",
+});
 
 /** A change codecast made on its own: a wait settling, an edge cut. */
 export const bySystem: TaskChangeBy = { actor_type: "system" };
 
 /** One field change: [field, old, new]. */
-export type TaskFieldChange = readonly [field: string, oldValue: unknown, newValue: unknown];
+export type TaskFieldChange = readonly [
+  field: string,
+  oldValue: unknown,
+  newValue: unknown,
+];
 
 /** How a value is stored: a list by storeList, nothing as "". */
 function stored(value: unknown): string {

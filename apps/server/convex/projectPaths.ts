@@ -2,7 +2,10 @@
 // shown by the recent-projects picker. Pure (shared contracts only) so it can be unit
 // tested with `bun test` (see projectPaths.test.ts).
 
-import { isHomeDirectoryPath, worktreeOfPath } from "@codecast/shared/contracts";
+import {
+  isHomeDirectoryPath,
+  worktreeOfPath,
+} from "@codecast/shared/contracts";
 
 /** Temp dirs and bare home directories or shallower: never a real project. */
 function isPhantomProjectPath(p: string): boolean {
@@ -10,10 +13,10 @@ function isPhantomProjectPath(p: string): boolean {
   // A cwd that fell back to $HOME (or shallower) is not a real project — drop it
   // here rather than relying on the recent-projects local-root filter, which
   // only runs when the daemon heartbeat is fresh and so lets phantoms flicker in.
-  const segs = p.split('/').filter(Boolean);
+  const segs = p.split("/").filter(Boolean);
   if (segs.length === 0) return true; // "/" or ""
   if (isHomeDirectoryPath(p)) return true; // /root, /Users/<name>, /home/<name>
-  return (segs[0] === 'Users' || segs[0] === 'home') && segs.length === 1; // /Users, /home
+  return (segs[0] === "Users" || segs[0] === "home") && segs.length === 1; // /Users, /home
 }
 
 /**
@@ -26,9 +29,9 @@ function isPhantomProjectPath(p: string): boolean {
  * .codecast/worktrees/<x>).
  */
 export function normalizeProjectPath(raw: string): string | null {
-  let p = raw.replace(/\/+$/, '');
-  p = p.replace(/\/\.conductor\/[^/]+$/, '');
-  p = p.replace(/\/\.codecast\/worktrees\/[^/]+$/, '');
+  let p = raw.replace(/\/+$/, "");
+  p = p.replace(/\/\.conductor\/[^/]+$/, "");
+  p = p.replace(/\/\.codecast\/worktrees\/[^/]+$/, "");
   return isPhantomProjectPath(p) ? null : p;
 }
 
@@ -48,20 +51,31 @@ export function conversationProjectRoot(
   knownRoots: Iterable<string> = [],
 ): string | null {
   if (!conv.git_root) {
-    const cwd = conv.project_path ? normalizeProjectPath(conv.project_path) : null;
+    const cwd = conv.project_path
+      ? normalizeProjectPath(conv.project_path)
+      : null;
     if (!cwd) return null;
     let best: string | null = null;
     for (const root of knownRoots) {
-      if ((cwd === root || cwd.startsWith(root + '/')) && root.length > (best?.length ?? 0)) best = root;
+      if (
+        (cwd === root || cwd.startsWith(root + "/")) &&
+        root.length > (best?.length ?? 0)
+      )
+        best = root;
     }
     return best ?? cwd;
   }
-  const root = (worktreeOfPath(conv.git_root)?.root || conv.git_root).replace(/\/+$/, '');
+  const root = (worktreeOfPath(conv.git_root)?.root || conv.git_root).replace(
+    /\/+$/,
+    "",
+  );
   return isPhantomProjectPath(root) ? null : root;
 }
 
 /** The checkouts named by the git_roots of these sessions, for conversationProjectRoot. */
-export function knownCheckoutRoots(convs: Iterable<{ git_root?: string | null }>): Set<string> {
+export function knownCheckoutRoots(
+  convs: Iterable<{ git_root?: string | null }>,
+): Set<string> {
   const roots = new Set<string>();
   for (const conv of convs) {
     const root = conv.git_root ? conversationProjectRoot(conv) : null;
@@ -90,7 +104,9 @@ export type ProjectTally = {
  * kept under a dot folder (~/.codex/worktrees/<id>/<repo>) borrow the repo's name
  * without being its main checkout, so they don't count as named after it.
  */
-export function foldCheckoutsByRepository(tallies: ProjectTally[]): ProjectTally[] {
+export function foldCheckoutsByRepository(
+  tallies: ProjectTally[],
+): ProjectTally[] {
   const groups = new Map<string, ProjectTally[]>();
   for (const tally of tallies) {
     const key = tally.repository
@@ -103,9 +119,13 @@ export function foldCheckoutsByRepository(tallies: ProjectTally[]): ProjectTally
   return Array.from(groups.values(), (group) => {
     const repoName = group[0].repository?.split("/").pop()?.toLowerCase();
     const named = (p: ProjectTally) =>
-      p.path.split("/").pop()?.toLowerCase() === repoName && !/\/\.[^/]+\//.test(p.path) ? 1 : 0;
+      p.path.split("/").pop()?.toLowerCase() === repoName &&
+      !/\/\.[^/]+\//.test(p.path)
+        ? 1
+        : 0;
     const [chosen] = [...group].sort(
-      (a, b) => named(b) - named(a) || b.count - a.count || b.lastActive - a.lastActive,
+      (a, b) =>
+        named(b) - named(a) || b.count - a.count || b.lastActive - a.lastActive,
     );
     return {
       ...chosen,
@@ -121,7 +141,10 @@ export function foldCheckoutsByRepository(tallies: ProjectTally[]): ProjectTally
  * inside a repo still claims the repo's sessions and vice versa. Used by the
  * CLI label views to scope "the current project" from the caller's cwd.
  */
-export function projectOverlaps(boundRaw: string, raw: string | null | undefined): boolean {
+export function projectOverlaps(
+  boundRaw: string,
+  raw: string | null | undefined,
+): boolean {
   if (!raw) return false;
   const bound = boundRaw.replace(/\/+$/, "");
   const p = raw.replace(/\/+$/, "");
@@ -129,7 +152,10 @@ export function projectOverlaps(boundRaw: string, raw: string | null | undefined
 }
 
 /** Whether a project is equal to, or nested beneath, a root reported by a device. */
-export function pathWithinLocalRoots(pathRaw: string, roots: string[]): boolean {
+export function pathWithinLocalRoots(
+  pathRaw: string,
+  roots: string[],
+): boolean {
   const projectPath = pathRaw.replace(/\/+$/, "");
   return roots.some((rootRaw) => {
     const root = rootRaw.replace(/\/+$/, "");
@@ -144,13 +170,14 @@ export function pathWithinLocalRoots(pathRaw: string, roots: string[]): boolean 
  * (projects.line_profile.default); still more than one is no answer, because
  * guessing files a signal into a line nobody there is watching.
  */
-export function projectContainingPath<P extends { project_path?: string; line_profile?: { default?: boolean } }>(
-  projects: P[],
-  dirRaw: string | null | undefined,
-): P | null {
+export function projectContainingPath<
+  P extends { project_path?: string; line_profile?: { default?: boolean } },
+>(projects: P[], dirRaw: string | null | undefined): P | null {
   if (!dirRaw) return null;
   const depth = (p: P) => p.project_path!.replace(/\/+$/, "").length;
-  const holding = projects.filter((p) => p.project_path && pathWithinLocalRoots(dirRaw, [p.project_path]));
+  const holding = projects.filter(
+    (p) => p.project_path && pathWithinLocalRoots(dirRaw, [p.project_path]),
+  );
   if (holding.length === 0) return null;
   const deepest = Math.max(...holding.map(depth));
   let best = holding.filter((p) => depth(p) === deepest);
@@ -180,15 +207,19 @@ export interface GitMetaSource {
  * Pick the most-recently-active source that carries a `git_remote_url`; return
  * its repo root too so the caller can preserve the in-repo subpath on remap.
  */
-export function pickInheritedGitMeta(
-  sources: GitMetaSource[],
-): { git_remote_url: string | null; git_root: string | null } {
+export function pickInheritedGitMeta(sources: GitMetaSource[]): {
+  git_remote_url: string | null;
+  git_root: string | null;
+} {
   let best: GitMetaSource | null = null;
   let bestT = -Infinity;
   for (const s of sources) {
     if (!s?.git_remote_url) continue;
     const t = s.updated_at ?? s.started_at ?? 0;
-    if (t > bestT) { bestT = t; best = s; }
+    if (t > bestT) {
+      bestT = t;
+      best = s;
+    }
   }
   return {
     git_remote_url: best?.git_remote_url ?? null,
@@ -196,14 +227,20 @@ export function pickInheritedGitMeta(
   };
 }
 
-export function matchesPathPrefix(projectPath: string | null | undefined, pathPrefix: string) {
-  return !!projectPath && (
-    projectPath === pathPrefix ||
-    projectPath.startsWith(pathPrefix + "/")
+export function matchesPathPrefix(
+  projectPath: string | null | undefined,
+  pathPrefix: string,
+) {
+  return (
+    !!projectPath &&
+    (projectPath === pathPrefix || projectPath.startsWith(pathPrefix + "/"))
   );
 }
 
-export function getConversationProjectPath(conv: { git_root?: string | null; project_path?: string | null }) {
+export function getConversationProjectPath(conv: {
+  git_root?: string | null;
+  project_path?: string | null;
+}) {
   return conv.git_root || conv.project_path || null;
 }
 

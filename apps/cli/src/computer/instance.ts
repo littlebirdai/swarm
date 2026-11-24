@@ -22,7 +22,10 @@ import { acquireFileLock } from "../lockFile.js";
 import { execFileSync } from "../proc.js";
 import { isPidAlive } from "../workspace/chrome.js";
 import { computerHome } from "./helperApp.js";
-import { COMPUTER_PROTOCOL_VERSION, type ComputerProviderCapabilities } from "./types.js";
+import {
+  COMPUTER_PROTOCOL_VERSION,
+  type ComputerProviderCapabilities,
+} from "./types.js";
 
 export interface ComputerInstanceState {
   pid: number;
@@ -44,19 +47,32 @@ export function instancePath(): string {
 export function readInstance(): ComputerInstanceState | null {
   let parsed: Partial<ComputerInstanceState>;
   try {
-    parsed = JSON.parse(fs.readFileSync(instancePath(), "utf-8")) as Partial<ComputerInstanceState>;
+    parsed = JSON.parse(
+      fs.readFileSync(instancePath(), "utf-8"),
+    ) as Partial<ComputerInstanceState>;
   } catch {
     return null;
   }
-  if (typeof parsed.pid !== "number" || typeof parsed.socketPath !== "string" || typeof parsed.token !== "string") return null;
+  if (
+    typeof parsed.pid !== "number" ||
+    typeof parsed.socketPath !== "string" ||
+    typeof parsed.token !== "string"
+  )
+    return null;
   if (!parsed.pid || !parsed.socketPath || !parsed.token) return null;
   return {
     pid: parsed.pid,
     socketPath: parsed.socketPath,
-    socketDir: typeof parsed.socketDir === "string" ? parsed.socketDir : path.dirname(parsed.socketPath),
+    socketDir:
+      typeof parsed.socketDir === "string"
+        ? parsed.socketDir
+        : path.dirname(parsed.socketPath),
     token: parsed.token,
     helperPath: typeof parsed.helperPath === "string" ? parsed.helperPath : "",
-    protocolVersion: typeof parsed.protocolVersion === "number" ? parsed.protocolVersion : COMPUTER_PROTOCOL_VERSION,
+    protocolVersion:
+      typeof parsed.protocolVersion === "number"
+        ? parsed.protocolVersion
+        : COMPUTER_PROTOCOL_VERSION,
     startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : 0,
   };
 }
@@ -66,7 +82,9 @@ export function readInstance(): ComputerInstanceState | null {
  *  launch a second one over the live one. */
 export function writeInstance(state: ComputerInstanceState): void {
   fs.mkdirSync(computerHome(), { recursive: true, mode: 0o700 });
-  atomicWriteFile(instancePath(), JSON.stringify(state, null, 2), { mode: 0o600 });
+  atomicWriteFile(instancePath(), JSON.stringify(state, null, 2), {
+    mode: 0o600,
+  });
 }
 
 export function clearInstance(): void {
@@ -91,16 +109,23 @@ function capsPath(state: ComputerInstanceState): string {
   return path.join(state.socketDir, "caps.json");
 }
 
-export function readHelperCaps(state: ComputerInstanceState): ComputerProviderCapabilities | null {
+export function readHelperCaps(
+  state: ComputerInstanceState,
+): ComputerProviderCapabilities | null {
   try {
-    const caps = JSON.parse(fs.readFileSync(capsPath(state), "utf-8")) as ComputerProviderCapabilities;
+    const caps = JSON.parse(
+      fs.readFileSync(capsPath(state), "utf-8"),
+    ) as ComputerProviderCapabilities;
     return typeof caps?.protocolVersion === "number" ? caps : null;
   } catch {
     return null;
   }
 }
 
-export function writeHelperCaps(state: ComputerInstanceState, caps: ComputerProviderCapabilities): void {
+export function writeHelperCaps(
+  state: ComputerInstanceState,
+  caps: ComputerProviderCapabilities,
+): void {
   try {
     atomicWriteFile(capsPath(state), JSON.stringify(caps), { mode: 0o600 });
   } catch {
@@ -170,8 +195,15 @@ export async function stampComputerRaise(): Promise<void> {
 /** Serialize launches across processes, so two invocations that both read
  *  "dead" do not start two helpers. The loser re-reads the file and finds the
  *  winner's helper. */
-export function acquireStartLock(waitMs = 30_000, onWait?: (holderPid: number) => void): Promise<() => void> {
-  return acquireFileLock(path.join(computerHome(), "start.lock"), { waitMs, onWait, describe: "cast computer" });
+export function acquireStartLock(
+  waitMs = 30_000,
+  onWait?: (holderPid: number) => void,
+): Promise<() => void> {
+  return acquireFileLock(path.join(computerHome(), "start.lock"), {
+    waitMs,
+    onWait,
+    describe: "cast computer",
+  });
 }
 
 /**

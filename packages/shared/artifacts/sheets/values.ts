@@ -26,8 +26,25 @@ export function isGrid(v: unknown): v is Grid {
 
 /** Format hints implied by typed input ("10%" reads as a percent, "$5" as currency). */
 /** The format a value reads in without one of its own; cur and code carry a currency symbol or custom code inherited from what a formula reads. */
-export type ImpliedFormat = { nf: NumberFormatKind; dp?: number; cur?: string; code?: string };
-export type NumberFormatKind = "number" | "percent" | "currency" | "accounting" | "scientific" | "custom" | "date" | "datetime" | "time" | "text" | "plain" | "check";
+export type ImpliedFormat = {
+  nf: NumberFormatKind;
+  dp?: number;
+  cur?: string;
+  code?: string;
+};
+export type NumberFormatKind =
+  | "number"
+  | "percent"
+  | "currency"
+  | "accounting"
+  | "scientific"
+  | "custom"
+  | "date"
+  | "datetime"
+  | "time"
+  | "text"
+  | "plain"
+  | "check";
 
 const DAY_MS = 86_400_000;
 const EPOCH_UTC = Date.UTC(1899, 11, 30);
@@ -36,7 +53,15 @@ export function dateToSerial(y: number, m: number, d: number): number {
   return (Date.UTC(y, m - 1, d) - EPOCH_UTC) / DAY_MS;
 }
 
-export function serialToDate(serial: number): { y: number; m: number; d: number; dow: number; h: number; min: number; s: number } {
+export function serialToDate(serial: number): {
+  y: number;
+  m: number;
+  d: number;
+  dow: number;
+  h: number;
+  min: number;
+  s: number;
+} {
   const ms = EPOCH_UTC + Math.round(serial * DAY_MS);
   const dt = new Date(ms);
   return {
@@ -56,16 +81,47 @@ export function todaySerial(now = new Date()): number {
 }
 
 export function nowSerial(now = new Date()): number {
-  return todaySerial(now) + (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+  return (
+    todaySerial(now) +
+    (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400
+  );
 }
 
-const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTH_NAMES = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+];
+const MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
 
 /** Parse a date written as text: 2026-11-10, 11/10/2026, Nov 10 2026, 10 Nov 2026. */
 export function parseDateText(text: string): number | null {
   const t = text.trim();
-  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  let m = t.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
   if (m) return withTime(validDate(+m[1], +m[2], +m[3]), m[4], m[5], m[6]);
   m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (m) return validDate(fullYear(+m[3]), +m[1], +m[2]);
@@ -90,11 +146,16 @@ export function parseDateText(text: string): number | null {
 export function completeDateInput(text: string, now = new Date()): string {
   const t = text.trim();
   // A month written as its name or any start of it at least three letters long ("Sep", "Sept", "September").
-  const month = (w: string) => (w.length >= 3 ? MONTH_NAMES.findIndex((n) => n.startsWith(w.toLowerCase())) + 1 : 0);
-  let mo = 0, d = 0;
+  const month = (w: string) =>
+    w.length >= 3
+      ? MONTH_NAMES.findIndex((n) => n.startsWith(w.toLowerCase())) + 1
+      : 0;
+  let mo = 0,
+    d = 0;
   let m = t.match(/^([A-Za-z]+)\.? (\d{1,2})$/);
   if (m) [mo, d] = [month(m[1]), +m[2]];
-  else if ((m = t.match(/^(\d{1,2}) ([A-Za-z]+)\.?$/))) [mo, d] = [month(m[2]), +m[1]];
+  else if ((m = t.match(/^(\d{1,2}) ([A-Za-z]+)\.?$/)))
+    [mo, d] = [month(m[2]), +m[1]];
   else if ((m = t.match(/^(\d{1,2})\/(\d{1,2})$/))) [mo, d] = [+m[1], +m[2]];
   if (!mo || validDate(now.getFullYear(), mo, d) === null) return text;
   return `${now.getFullYear()}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -111,9 +172,16 @@ function validDate(y: number, mo: number, d: number): number | null {
   return back.m === mo && back.d === d ? s : null;
 }
 
-function withTime(serial: number | null, h?: string, min?: string, s?: string): number | null {
+function withTime(
+  serial: number | null,
+  h?: string,
+  min?: string,
+  s?: string,
+): number | null {
   if (serial === null || h === undefined) return serial;
-  return serial + (Number(h) * 3600 + Number(min) * 60 + Number(s ?? 0)) / 86400;
+  return (
+    serial + (Number(h) * 3600 + Number(min) * 60 + Number(s ?? 0)) / 86400
+  );
 }
 
 /**
@@ -123,7 +191,9 @@ function withTime(serial: number | null, h?: string, min?: string, s?: string): 
  */
 /** "10:30", "9:15 PM", "14:05:30", "25:30" (a duration): the fraction of a day, or null. */
 export function parseTimeText(text: string): number | null {
-  const m = text.trim().match(/^(\d{1,3}):([0-5]\d)(?::([0-5]\d))?\s*([ap]\.?m\.?)?$/i);
+  const m = text
+    .trim()
+    .match(/^(\d{1,3}):([0-5]\d)(?::([0-5]\d))?\s*([ap]\.?m\.?)?$/i);
   if (!m) return null;
   let h = Number(m[1]);
   const ampm = m[4]?.toLowerCase().replace(/\./g, "");
@@ -134,7 +204,10 @@ export function parseTimeText(text: string): number | null {
   return (h * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0)) / 86400;
 }
 
-export function parseLiteral(input: string): { value: Scalar; implied?: ImpliedFormat } {
+export function parseLiteral(input: string): {
+  value: Scalar;
+  implied?: ImpliedFormat;
+} {
   if (input === "") return { value: null };
   if (input[0] === "'") return { value: input.slice(1) };
   const t = input.trim();
@@ -143,25 +216,43 @@ export function parseLiteral(input: string): { value: Scalar; implied?: ImpliedF
   const code = ERROR_LITERALS.find((c) => c === upper);
   if (code) return { value: err(code) };
   if (upper === "FALSE") return { value: false };
-  const num = t.match(/^([+-]?)(\$|€|£)?([+-]?)(\d{1,3}(,\d{3})+|\d*)(\.\d+)?(%?)$/);
+  const num = t.match(
+    /^([+-]?)(\$|€|£)?([+-]?)(\d{1,3}(,\d{3})+|\d*)(\.\d+)?(%?)$/,
+  );
   if (num && (num[4] || num[6])) {
     const sign = num[1] === "-" || num[3] === "-" ? -1 : 1;
     const digits = (num[4] || "0").replace(/,/g, "") + (num[6] ?? "");
     let v = sign * Number(digits);
     const dp = num[6] ? num[6].length - 1 : 0;
     if (num[7]) return { value: v / 100, implied: { nf: "percent", dp } };
-    if (num[2]) return { value: v, implied: { nf: "currency", dp: dp || (num[6] ? dp : 0), ...(num[2] !== "$" ? { cur: num[2] } : {}) } };
-    if (num[4]?.includes(",")) return { value: v, implied: { nf: "number", dp } };
+    if (num[2])
+      return {
+        value: v,
+        implied: {
+          nf: "currency",
+          dp: dp || (num[6] ? dp : 0),
+          ...(num[2] !== "$" ? { cur: num[2] } : {}),
+        },
+      };
+    if (num[4]?.includes(","))
+      return { value: v, implied: { nf: "number", dp } };
     return { value: v };
   }
   if (/^[+-]?\d+(\.\d+)?[eE][+-]?\d+$/.test(t)) return { value: Number(t) };
   if (/^\(\$?\d[\d,]*(\.\d+)?\)$/.test(t)) {
-    return { value: -Number(t.replace(/[()$,]/g, "")), implied: t.includes("$") ? { nf: "currency" } : undefined };
+    return {
+      value: -Number(t.replace(/[()$,]/g, "")),
+      implied: t.includes("$") ? { nf: "currency" } : undefined,
+    };
   }
   const time = parseTimeText(t);
   if (time !== null) return { value: time, implied: { nf: "time" } };
   const date = parseDateText(t);
-  if (date !== null) return { value: date, implied: { nf: Number.isInteger(date) ? "date" : "datetime" } };
+  if (date !== null)
+    return {
+      value: date,
+      implied: { nf: Number.isInteger(date) ? "date" : "datetime" },
+    };
   return { value: input };
 }
 
@@ -174,7 +265,9 @@ export function toNumber(v: Scalar): number | SheetError {
   if (typeof v === "string") {
     if (v.trim() === "") return 0;
     const lit = parseLiteral(v).value;
-    return typeof lit === "number" ? lit : err("#VALUE!", `"${v}" is not a number`);
+    return typeof lit === "number"
+      ? lit
+      : err("#VALUE!", `"${v}" is not a number`);
   }
   return v;
 }
@@ -207,23 +300,39 @@ export function toBool(v: Scalar): boolean | SheetError {
 }
 
 /** One collator for every text comparison: building one per call (localeCompare with options) is what made big sorts slow. */
-const TEXT_ORDER = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+const TEXT_ORDER = new Intl.Collator(undefined, {
+  sensitivity: "base",
+  numeric: true,
+});
 
 /** Sheets' ordering for comparisons and sort: numbers < text < booleans; empty sorts last in sort. */
 export function compareScalars(a: Scalar, b: Scalar): number {
-  const rank = (v: Scalar) => (typeof v === "number" ? 0 : typeof v === "string" ? 1 : typeof v === "boolean" ? 2 : 3);
-  const ra = rank(a), rb = rank(b);
+  const rank = (v: Scalar) =>
+    typeof v === "number"
+      ? 0
+      : typeof v === "string"
+        ? 1
+        : typeof v === "boolean"
+          ? 2
+          : 3;
+  const ra = rank(a),
+    rb = rank(b);
   if (ra !== rb) return ra - rb;
   if (typeof a === "number" && typeof b === "number") return a - b;
-  if (typeof a === "string" && typeof b === "string") return TEXT_ORDER.compare(a, b);
-  if (typeof a === "boolean" && typeof b === "boolean") return Number(a) - Number(b);
+  if (typeof a === "string" && typeof b === "string")
+    return TEXT_ORDER.compare(a, b);
+  if (typeof a === "boolean" && typeof b === "boolean")
+    return Number(a) - Number(b);
   return 0;
 }
 
 /** Equality the way = compares: case-insensitive text, empty equals "" and 0. */
 export function scalarsEqual(a: Scalar, b: Scalar): boolean {
-  if (a === null) a = typeof b === "string" ? "" : typeof b === "boolean" ? false : 0;
-  if (b === null) b = typeof a === "string" ? "" : typeof a === "boolean" ? false : 0;
-  if (typeof a === "string" && typeof b === "string") return a.toLowerCase() === b.toLowerCase();
+  if (a === null)
+    a = typeof b === "string" ? "" : typeof b === "boolean" ? false : 0;
+  if (b === null)
+    b = typeof a === "string" ? "" : typeof a === "boolean" ? false : 0;
+  if (typeof a === "string" && typeof b === "string")
+    return a.toLowerCase() === b.toLowerCase();
   return a === b;
 }

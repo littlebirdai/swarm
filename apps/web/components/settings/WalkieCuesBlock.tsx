@@ -15,13 +15,18 @@ export function WalkieCuesBlock() {
     <div className="px-4 py-3.5 sm:px-5">
       <div className="text-sm text-sol-text">The six cues</div>
       <p className="mt-0.5 max-w-prose text-xs leading-relaxed text-sol-text-muted">
-        Live and Roger are your own key going down and coming up, Incoming and Ended are a
-        teammate&apos;s burst, Joined is someone stepping into yours, Away means nobody was live
-        and it went as a message.
+        Live and Roger are your own key going down and coming up, Incoming and
+        Ended are a teammate&apos;s burst, Joined is someone stepping into
+        yours, Away means nobody was live and it went as a message.
       </p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {WALKIE_PREVIEWS.map((cue) => (
-          <Button key={cue.id} variant="outline" size="sm" onClick={() => previewWalkieCue(cue.spec)}>
+          <Button
+            key={cue.id}
+            variant="outline"
+            size="sm"
+            onClick={() => previewWalkieCue(cue.spec)}
+          >
             {cue.label}
           </Button>
         ))}

@@ -61,10 +61,10 @@ describe("resolveContextProjectPath", () => {
     store.tasks["t1"] = { _id: "t1", project_path: "~/src/cli" };
     store.projects["p1"] = { _id: "p1", project_path: "~/src/mail" };
     expect(
-      resolveContextProjectPath(store, resolveContextRow(store, "plan", "pl1"))
+      resolveContextProjectPath(store, resolveContextRow(store, "plan", "pl1")),
     ).toBe("~/src/mail");
     expect(
-      resolveContextProjectPath(store, resolveContextRow(store, "task", "t1"))
+      resolveContextProjectPath(store, resolveContextRow(store, "task", "t1")),
     ).toBe("~/src/cli");
   });
 
@@ -72,7 +72,7 @@ describe("resolveContextProjectPath", () => {
     const store = emptyStore();
     store.docs["d1"] = { _id: "d1" };
     expect(
-      resolveContextProjectPath(store, resolveContextRow(store, "doc", "d1"))
+      resolveContextProjectPath(store, resolveContextRow(store, "doc", "d1")),
     ).toBeUndefined();
     // Unknown context types (workflow page) resolve no row at all.
     expect(resolveContextRow(store, "workflow", "w1")).toBeUndefined();

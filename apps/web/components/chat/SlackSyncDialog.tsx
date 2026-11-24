@@ -35,7 +35,12 @@ import {
   Users,
 } from "lucide-react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { BACKFILL_WINDOWS, DIRECTION_ARROW, LINK_DEFAULTS, type BackfillWindow } from "@codecast/convex/convex/lib/slackMirror";
+import {
+  BACKFILL_WINDOWS,
+  DIRECTION_ARROW,
+  LINK_DEFAULTS,
+  type BackfillWindow,
+} from "@codecast/convex/convex/lib/slackMirror";
 import { SlackLogo } from "../SlackLogo";
 import { SlackWorkspacePicker } from "./SlackWorkspacePicker";
 import { SlackPeopleDialog } from "./SlackPeopleDialog";
@@ -52,37 +57,112 @@ import { useChannelSlackLink } from "../../hooks/useChannelSlackLink";
 type Direction = ChatSlackLinkRow["direction"];
 type Options = ChatSlackLinkRow["options"];
 
-const DIRECTIONS: { key: Direction; label: string; hint: string; icon: any }[] = [
-  { key: "both", label: "Both ways", hint: "Lines here appear in Slack; Slack lines appear here.", icon: ArrowLeftRight },
-  { key: "slack_to_codecast", label: "From Slack", hint: "Slack lines appear here. Nothing here goes to Slack.", icon: ArrowLeft },
-  { key: "codecast_to_slack", label: "To Slack", hint: "Lines here appear in Slack. Nothing from Slack comes here.", icon: ArrowRight },
-];
+const DIRECTIONS: { key: Direction; label: string; hint: string; icon: any }[] =
+  [
+    {
+      key: "both",
+      label: "Both ways",
+      hint: "Lines here appear in Slack; Slack lines appear here.",
+      icon: ArrowLeftRight,
+    },
+    {
+      key: "slack_to_codecast",
+      label: "From Slack",
+      hint: "Slack lines appear here. Nothing here goes to Slack.",
+      icon: ArrowLeft,
+    },
+    {
+      key: "codecast_to_slack",
+      label: "To Slack",
+      hint: "Lines here appear in Slack. Nothing from Slack comes here.",
+      icon: ArrowRight,
+    },
+  ];
 
-type OptionRow = { key: keyof Options; label: string; hint: string; scope: "both" | "in" | "out" };
+type OptionRow = {
+  key: keyof Options;
+  label: string;
+  hint: string;
+  scope: "both" | "in" | "out";
+};
 // The four that decide whether it feels like one conversation stay in view;
 // the four policy choices most teams never touch sit behind "More".
 const OPTION_ROWS: OptionRow[] = [
-  { key: "threads", label: "Thread replies", hint: "Off: only top level lines cross over.", scope: "both" },
-  { key: "reactions", label: "Reactions", hint: "Emoji reactions cross in both directions. Slack shows ours as the app's.", scope: "both" },
-  { key: "edits", label: "Edits and deletes", hint: "An edit or delete on one side is applied on the other.", scope: "both" },
-  { key: "files", label: "Images and files", hint: "Images are copied across; other files arrive as links.", scope: "both" },
+  {
+    key: "threads",
+    label: "Thread replies",
+    hint: "Off: only top level lines cross over.",
+    scope: "both",
+  },
+  {
+    key: "reactions",
+    label: "Reactions",
+    hint: "Emoji reactions cross in both directions. Slack shows ours as the app's.",
+    scope: "both",
+  },
+  {
+    key: "edits",
+    label: "Edits and deletes",
+    hint: "An edit or delete on one side is applied on the other.",
+    scope: "both",
+  },
+  {
+    key: "files",
+    label: "Images and files",
+    hint: "Images are copied across; other files arrive as links.",
+    scope: "both",
+  },
 ];
 const ADVANCED_ROWS: OptionRow[] = [
-  { key: "agent_lines", label: "Agent lines to Slack", hint: "What the workspace's agent, roles and sessions post here goes to Slack, marked as an agent.", scope: "out" },
-  { key: "bot_messages", label: "Slack app messages", hint: "Lines Slack apps and bots post (an assistant, GitHub, alerts). Turning this on after the import runs it again for the missing lines.", scope: "in" },
-  { key: "system_messages", label: "Join and topic notices", hint: "Who joined or left the Slack channel, topic changes, pins.", scope: "in" },
-  { key: "match_people_by_email", label: "Match people by email", hint: "A Slack person with a teammate's email appears here as that teammate. Off: everyone from Slack shows under their Slack name.", scope: "in" },
+  {
+    key: "agent_lines",
+    label: "Agent lines to Slack",
+    hint: "What the workspace's agent, roles and sessions post here goes to Slack, marked as an agent.",
+    scope: "out",
+  },
+  {
+    key: "bot_messages",
+    label: "Slack app messages",
+    hint: "Lines Slack apps and bots post (an assistant, GitHub, alerts). Turning this on after the import runs it again for the missing lines.",
+    scope: "in",
+  },
+  {
+    key: "system_messages",
+    label: "Join and topic notices",
+    hint: "Who joined or left the Slack channel, topic changes, pins.",
+    scope: "in",
+  },
+  {
+    key: "match_people_by_email",
+    label: "Match people by email",
+    hint: "A Slack person with a teammate's email appears here as that teammate. Off: everyone from Slack shows under their Slack name.",
+    scope: "in",
+  },
 ];
 
-export function SlackSyncDialog({ channelId, onClose }: { channelId: string; onClose: () => void }) {
+export function SlackSyncDialog({
+  channelId,
+  onClose,
+}: {
+  channelId: string;
+  onClose: () => void;
+}) {
   const link = useChannelSlackLink(channelId);
-  const s = useTrackedStore([(st) => st.chatChannels[channelId]?.name, (st) => st.chatChannels[channelId]?.team_id]);
+  const s = useTrackedStore([
+    (st) => st.chatChannels[channelId]?.name,
+    (st) => st.chatChannels[channelId]?.team_id,
+  ]);
   const channel = s.chatChannels[channelId];
   const teamId = channel?.team_id as string | undefined;
-  const team = useQueryNoThrow(api.slackSync.getTeamSlack, teamId ? ({ team_id: teamId } as any) : "skip").data;
+  const team = useQueryNoThrow(
+    api.slackSync.getTeamSlack,
+    teamId ? ({ team_id: teamId } as any) : "skip",
+  ).data;
   // The mirror's own workspace: a team may connect several.
   const linkWorkspace = link
-    ? (team?.installations ?? []).find((i: { workspace_id: string }) => i.workspace_id === link.workspace_id)?.workspace_name ?? null
+    ? ((team?.installations ?? []).find(
+        (i: { workspace_id: string }) => i.workspace_id === link.workspace_id,
+      )?.workspace_name ?? null)
     : null;
 
   useWatchEffect(() => {
@@ -99,7 +179,9 @@ export function SlackSyncDialog({ channelId, onClose }: { channelId: string; onC
   const dialogRef = useRef<HTMLDivElement | null>(null);
   useWatchEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
-    const focusable = dialogRef.current?.querySelector<HTMLElement>("input, button:not(.ch-slack-close), [tabindex]:not([tabindex='-1'])");
+    const focusable = dialogRef.current?.querySelector<HTMLElement>(
+      "input, button:not(.ch-slack-close), [tabindex]:not([tabindex='-1'])",
+    );
     (focusable ?? dialogRef.current)?.focus();
     return () => opener?.focus?.();
   }, []);
@@ -125,34 +207,65 @@ export function SlackSyncDialog({ channelId, onClose }: { channelId: string; onC
               {channel?.name ?? "channel"}
               {link && (
                 <>
-                  <span className="ch-slack-arrow" aria-hidden="true">{DIRECTION_ARROW[link.direction]}</span>
+                  <span className="ch-slack-arrow" aria-hidden="true">
+                    {DIRECTION_ARROW[link.direction]}
+                  </span>
                   {/* The channel wears the Slack name, so the other side is
                       just "Slack"; only a name kept apart (taken on our side)
                       is spelled out. */}
-                  {(link.slack_channel_name ?? link.slack_channel_id) === channel?.name ? (
+                  {(link.slack_channel_name ?? link.slack_channel_id) ===
+                  channel?.name ? (
                     "Slack"
                   ) : (
                     <>
-                      {link.slack_channel_private ? <Lock className="w-3 h-3 inline-block -mt-px" /> : <Hash className="w-3 h-3 inline-block -mt-px" />}
+                      {link.slack_channel_private ? (
+                        <Lock className="w-3 h-3 inline-block -mt-px" />
+                      ) : (
+                        <Hash className="w-3 h-3 inline-block -mt-px" />
+                      )}
                       {link.slack_channel_name ?? link.slack_channel_id}
                     </>
                   )}
-                  {linkWorkspace && <span className="ch-slack-ws"> · {linkWorkspace}</span>}
+                  {linkWorkspace && (
+                    <span className="ch-slack-ws"> · {linkWorkspace}</span>
+                  )}
                 </>
               )}
             </div>
           </div>
-          <button type="button" className="ch-slack-close" onClick={onClose} aria-label="Close">×</button>
+          <button
+            type="button"
+            className="ch-slack-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
         </header>
 
         {team === undefined && !link ? (
-          <div className="ch-slack-body ch-slack-quiet">Checking the team's Slack connection.</div>
+          <div className="ch-slack-body ch-slack-quiet">
+            Checking the team's Slack connection.
+          </div>
         ) : link ? (
-          <LinkedBody link={link} workspaceName={linkWorkspace} onClose={onClose} />
+          <LinkedBody
+            link={link}
+            workspaceName={linkWorkspace}
+            onClose={onClose}
+          />
         ) : team?.installation ? (
-          <SetupBody channelId={channelId} teamId={teamId!} installations={team.installations ?? [team.installation]} canManage={true} />
+          <SetupBody
+            channelId={channelId}
+            teamId={teamId!}
+            installations={team.installations ?? [team.installation]}
+            canManage={true}
+          />
         ) : (
-          <ConnectBody teamId={teamId} isAdmin={!!team?.is_admin} channelId={channelId} />
+          <ConnectBody
+            teamId={teamId}
+            isAdmin={!!team?.is_admin}
+            channelId={channelId}
+          />
         )}
       </div>
     </div>,
@@ -167,7 +280,15 @@ function ago(now: number, at: number): string {
 
 // ── No workspace yet ─────────────────────────────────────────────────────────
 
-function ConnectBody({ teamId, isAdmin, channelId }: { teamId?: string; isAdmin: boolean; channelId: string }) {
+function ConnectBody({
+  teamId,
+  isAdmin,
+  channelId,
+}: {
+  teamId?: string;
+  isAdmin: boolean;
+  channelId: string;
+}) {
   const getInstallUrl = useAction(api.slack.getInstallUrl);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -176,7 +297,12 @@ function ConnectBody({ teamId, isAdmin, channelId }: { teamId?: string; isAdmin:
     setBusy(true);
     setErr(null);
     try {
-      const res: any = await getInstallUrl({ scope_type: "team", team_id: teamId, return_to: `/chat/${channelId}?slack=setup`, origin: window.location.origin } as any);
+      const res: any = await getInstallUrl({
+        scope_type: "team",
+        team_id: teamId,
+        return_to: `/chat/${channelId}?slack=setup`,
+        origin: window.location.origin,
+      } as any);
       if (res?.ok && res.url) window.location.href = res.url;
       else {
         setErr(res?.error ?? "Couldn't start the Slack connection");
@@ -190,23 +316,30 @@ function ConnectBody({ teamId, isAdmin, channelId }: { teamId?: string; isAdmin:
   return (
     <div className="ch-slack-body">
       <p className="ch-slack-lede">
-        Mirror this channel with a Slack channel. People who live in Slack keep talking there; the
-        conversation shows up here, and what your team and its agents say here shows up there.
+        Mirror this channel with a Slack channel. People who live in Slack keep
+        talking there; the conversation shows up here, and what your team and
+        its agents say here shows up there.
       </p>
       {isAdmin ? (
         <>
-          <button type="button" onClick={connect} disabled={busy} className="ch-slack-add">
+          <button
+            type="button"
+            onClick={connect}
+            disabled={busy}
+            className="ch-slack-add"
+          >
             <SlackLogo className="w-4 h-4" />
             {busy ? "Opening Slack…" : "Add to Slack"}
           </button>
           <p className="ch-slack-fine">
-            Connects the team's workspace once. Every channel then chooses its own mirror.
+            Connects the team's workspace once. Every channel then chooses its
+            own mirror.
           </p>
         </>
       ) : (
         <p className="ch-slack-fine">
-          A team admin connects the Slack workspace first (one click, from this same dialog). Then any
-          channel manager can set up a mirror.
+          A team admin connects the Slack workspace first (one click, from this
+          same dialog). Then any channel manager can set up a mirror.
         </p>
       )}
       {err && <div className="ch-slack-err">{err}</div>}
@@ -243,7 +376,9 @@ function SetupBody({
   canManage: boolean;
 }) {
   const [workspaceId, setWorkspaceId] = useState(installations[0].workspace_id);
-  const installation = installations.find((i) => i.workspace_id === workspaceId) ?? installations[0];
+  const installation =
+    installations.find((i) => i.workspace_id === workspaceId) ??
+    installations[0];
   const listChannels = useAction(api.slackSync.listSlackChannels);
   const linkChannel = useAction(api.slackSync.linkChannel);
   const [channels, setChannels] = useState<SlackChannelOption[] | null>(null);
@@ -267,7 +402,9 @@ function SetupBody({
         if (res?.ok) setChannels(res.channels ?? []);
         else setLoadErr(res?.error ?? "Couldn't list Slack channels");
       })
-      .catch((e: any) => alive && setLoadErr(e?.message ?? "Couldn't reach Slack"));
+      .catch(
+        (e: any) => alive && setLoadErr(e?.message ?? "Couldn't reach Slack"),
+      );
     return () => {
       alive = false;
     };
@@ -277,7 +414,9 @@ function SetupBody({
   const filtered = useMemo(() => {
     if (!channels) return [];
     const needle = q.trim().toLowerCase();
-    const rows = needle ? channels.filter((c) => c.name.toLowerCase().includes(needle)) : channels;
+    const rows = needle
+      ? channels.filter((c) => c.name.toLowerCase().includes(needle))
+      : channels;
     // The same name first: the obvious pairing is nearly always the right one.
     return [...rows].sort((a, b) => {
       const am = a.name === chatName ? 0 : 1;
@@ -320,8 +459,12 @@ function SetupBody({
     return (
       <div className="ch-slack-body">
         <p className="ch-slack-lede">
-          This team's Slack{installation.workspace_name ? ` (${installation.workspace_name})` : ""} is connected.
-          The channel's creator or a team admin can set up its mirror.
+          This team's Slack
+          {installation.workspace_name
+            ? ` (${installation.workspace_name})`
+            : ""}{" "}
+          is connected. The channel's creator or a team admin can set up its
+          mirror.
         </p>
       </div>
     );
@@ -338,7 +481,9 @@ function SetupBody({
               current={workspaceId}
               onPick={setWorkspaceId}
               disabled={busy}
-              fallback={installation.workspace_name ?? installation.workspace_id}
+              fallback={
+                installation.workspace_name ?? installation.workspace_id
+              }
             />
           </span>
         </div>
@@ -352,11 +497,17 @@ function SetupBody({
             aria-label="Find a Slack channel"
           />
         </label>
-        <div className="ch-slack-list" role="listbox" aria-label="Slack channels">
+        <div
+          className="ch-slack-list"
+          role="listbox"
+          aria-label="Slack channels"
+        >
           {loadErr ? (
             <div className="ch-slack-err">{loadErr}</div>
           ) : channels === null ? (
-            <div className="ch-slack-quiet">Asking Slack for the channel list…</div>
+            <div className="ch-slack-quiet">
+              Asking Slack for the channel list…
+            </div>
           ) : filtered.length === 0 ? (
             <div className="ch-slack-quiet">
               {channels.length === 0
@@ -378,17 +529,34 @@ function SetupBody({
                   onClick={() => setPicked(c)}
                   title={c.topic || c.purpose || undefined}
                 >
-                  {c.is_private ? <Lock className="w-3 h-3 shrink-0" /> : <Hash className="w-3 h-3 shrink-0" />}
+                  {c.is_private ? (
+                    <Lock className="w-3 h-3 shrink-0" />
+                  ) : (
+                    <Hash className="w-3 h-3 shrink-0" />
+                  )}
                   <span className="ch-slack-row-name">{c.name}</span>
-                  {c.name === chatName && !taken && <span className="ch-slack-tag">same name</span>}
+                  {c.name === chatName && !taken && (
+                    <span className="ch-slack-tag">same name</span>
+                  )}
                   {taken ? (
-                    <span className="ch-slack-row-meta">mirrors #{c.linked_chat_channel_name}</span>
+                    <span className="ch-slack-row-meta">
+                      mirrors #{c.linked_chat_channel_name}
+                    </span>
                   ) : (
                     <span className="ch-slack-row-meta">
-                      {c.is_private && !c.is_member ? "invite the app first" : c.num_members !== null ? <><Users className="w-3 h-3 inline-block -mt-px" /> {c.num_members}</> : null}
+                      {c.is_private && !c.is_member ? (
+                        "invite the app first"
+                      ) : c.num_members !== null ? (
+                        <>
+                          <Users className="w-3 h-3 inline-block -mt-px" />{" "}
+                          {c.num_members}
+                        </>
+                      ) : null}
                     </span>
                   )}
-                  {selected && <Check className="w-3.5 h-3.5 shrink-0 ch-slack-check" />}
+                  {selected && (
+                    <Check className="w-3.5 h-3.5 shrink-0 ch-slack-check" />
+                  )}
                 </button>
               );
             })
@@ -403,7 +571,11 @@ function SetupBody({
 
       <section className="ch-slack-section">
         <div className="ch-slack-label">What crosses over</div>
-        <OptionRows options={options} direction={direction} onChange={(k, val) => setOptions((o) => ({ ...o, [k]: val }))} />
+        <OptionRows
+          options={options}
+          direction={direction}
+          onChange={(k, val) => setOptions((o) => ({ ...o, [k]: val }))}
+        />
       </section>
 
       {direction !== "codecast_to_slack" && (
@@ -423,21 +595,28 @@ function SetupBody({
               </button>
             ))}
           </div>
-          <p className="ch-slack-fine">Backfilled lines keep their Slack time and wake nobody. Up to 25,000 lines per channel.</p>
+          <p className="ch-slack-fine">
+            Backfilled lines keep their Slack time and wake nobody. Up to 25,000
+            lines per channel.
+          </p>
         </section>
       )}
 
       {err && <div className="ch-slack-err">{err}</div>}
       <p className="ch-slack-fine ch-slack-summary">
-        This channel takes the Slack channel's name and follows it when Slack renames it. Nothing
-        already posted moves, either way, unless you pick history above. Slack gets one notice when
-        this starts. You can unlink any time; copies on both sides stay.
+        This channel takes the Slack channel's name and follows it when Slack
+        renames it. Nothing already posted moves, either way, unless you pick
+        history above. Slack gets one notice when this starts. You can unlink
+        any time; copies on both sides stay.
       </p>
       <footer className="ch-slack-foot">
-        <span className="ch-slack-fine">
-          {pickSummary(picked, chatName)}
-        </span>
-        <button type="button" className="ch-slack-primary" disabled={!picked || busy} onClick={start}>
+        <span className="ch-slack-fine">{pickSummary(picked, chatName)}</span>
+        <button
+          type="button"
+          className="ch-slack-primary"
+          disabled={!picked || busy}
+          onClick={start}
+        >
           {busy ? "Setting up…" : "Start mirroring"}
         </button>
       </footer>
@@ -447,10 +626,20 @@ function SetupBody({
 
 // ── Mirrored ─────────────────────────────────────────────────────────────────
 
-function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; workspaceName: string | null; onClose: () => void }) {
+function LinkedBody({
+  link,
+  workspaceName,
+  onClose,
+}: {
+  link: ChatSlackLinkRow;
+  workspaceName: string | null;
+  onClose: () => void;
+}) {
   const update = useInboxStore((st) => st.updateChatSlackLink);
   const unlink = useInboxStore((st) => st.unlinkChatSlack);
-  const activity = useQueryNoThrow(api.slackSync.linkActivity, { link_id: link._id } as any).data;
+  const activity = useQueryNoThrow(api.slackSync.linkActivity, {
+    link_id: link._id,
+  } as any).data;
   const now = useCoarseNow(30_000);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [people, setPeople] = useState(false);
@@ -458,14 +647,25 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
 
   return (
     <div className="ch-slack-body">
-      <section className={`ch-slack-status ${paused ? "ch-slack-status-paused" : ""}`}>
+      <section
+        className={`ch-slack-status ${paused ? "ch-slack-status-paused" : ""}`}
+      >
         <div className="ch-slack-status-row">
-          <span className={`ch-slack-dot ${paused ? "ch-slack-dot-paused" : link.last_error ? "ch-slack-dot-err" : ""}`} />
+          <span
+            className={`ch-slack-dot ${paused ? "ch-slack-dot-paused" : link.last_error ? "ch-slack-dot-err" : ""}`}
+          />
           <span className="ch-slack-status-text">
             {paused ? "Paused" : "Mirroring"}
-            {workspaceName && <span className="ch-slack-ws"> · {workspaceName}</span>}
+            {workspaceName && (
+              <span className="ch-slack-ws"> · {workspaceName}</span>
+            )}
           </span>
-          <button type="button" className="ch-slack-open" onClick={() => setPeople(true)} title="Who each Slack person is in codecast">
+          <button
+            type="button"
+            className="ch-slack-open"
+            onClick={() => setPeople(true)}
+            title="Who each Slack person is in codecast"
+          >
             <UserRound className="w-3 h-3" /> People
           </button>
           <a
@@ -478,17 +678,76 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
             Open in Slack <ExternalLink className="w-3 h-3" />
           </a>
         </div>
-        {people && <SlackPeopleDialog teamId={String(link.team_id)} onClose={() => setPeople(false)} />}
+        {people && (
+          <SlackPeopleDialog
+            teamId={String(link.team_id)}
+            onClose={() => setPeople(false)}
+          />
+        )}
         <dl className="ch-slack-facts">
-          <div><dt>From Slack</dt><dd>{link.inbound_count ?? 0}{link.last_inbound_at ? ` · ${ago(now, link.last_inbound_at)}` : ""}</dd></div>
-          <div><dt>To Slack</dt><dd>{link.outbound_count ?? 0}{link.last_outbound_at ? ` · ${ago(now, link.last_outbound_at)}` : ""}</dd></div>
-          <div><dt>Since</dt><dd>{Number(link.since_ts) > 0 ? new Date(Number(link.since_ts) * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "all history"}</dd></div>
+          <div>
+            <dt>From Slack</dt>
+            <dd>
+              {link.inbound_count ?? 0}
+              {link.last_inbound_at
+                ? ` · ${ago(now, link.last_inbound_at)}`
+                : ""}
+            </dd>
+          </div>
+          <div>
+            <dt>To Slack</dt>
+            <dd>
+              {link.outbound_count ?? 0}
+              {link.last_outbound_at
+                ? ` · ${ago(now, link.last_outbound_at)}`
+                : ""}
+            </dd>
+          </div>
+          <div>
+            <dt>Since</dt>
+            <dd>
+              {Number(link.since_ts) > 0
+                ? new Date(Number(link.since_ts) * 1000).toLocaleDateString(
+                    undefined,
+                    { month: "short", day: "numeric" },
+                  )
+                : "all history"}
+            </dd>
+          </div>
         </dl>
         {link.backfill && (
-          <p className={`ch-slack-fine ch-slack-import ${link.backfill.status === "failed" ? "ch-slack-import-failed" : ""}`}>
-            {link.backfill.status === "running" && <><Loader2 className="w-3 h-3 animate-spin inline-block -mt-px mr-1" />Bringing in history · {link.backfill.fetched.toLocaleString()} lines so far</>}
-            {link.backfill.status === "done" && <>History brought in · {link.backfill.fetched.toLocaleString()} lines{link.backfill.capped ? " (stopped at the 25,000 line ceiling)" : ""}{link.backfill.skipped ? ` · ${link.backfill.skipped} could not be converted` : ""}</>}
-            {link.backfill.status === "failed" && <>History import stopped after {link.backfill.fetched.toLocaleString()} lines{link.backfill.error ? ` (${humanizeError(link.backfill.error)})` : ""}.</>}
+          <p
+            className={`ch-slack-fine ch-slack-import ${link.backfill.status === "failed" ? "ch-slack-import-failed" : ""}`}
+          >
+            {link.backfill.status === "running" && (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin inline-block -mt-px mr-1" />
+                Bringing in history · {link.backfill.fetched.toLocaleString()}{" "}
+                lines so far
+              </>
+            )}
+            {link.backfill.status === "done" && (
+              <>
+                History brought in · {link.backfill.fetched.toLocaleString()}{" "}
+                lines
+                {link.backfill.capped
+                  ? " (stopped at the 25,000 line ceiling)"
+                  : ""}
+                {link.backfill.skipped
+                  ? ` · ${link.backfill.skipped} could not be converted`
+                  : ""}
+              </>
+            )}
+            {link.backfill.status === "failed" && (
+              <>
+                History import stopped after{" "}
+                {link.backfill.fetched.toLocaleString()} lines
+                {link.backfill.error
+                  ? ` (${humanizeError(link.backfill.error)})`
+                  : ""}
+                .
+              </>
+            )}
             {link.backfill.status !== "running" && (
               <button
                 type="button"
@@ -511,7 +770,10 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
 
       <section className="ch-slack-section">
         <div className="ch-slack-label">Direction</div>
-        <DirectionPicker value={link.direction} onChange={(d) => update(link._id, { direction: d })} />
+        <DirectionPicker
+          value={link.direction}
+          onChange={(d) => update(link._id, { direction: d })}
+        />
       </section>
 
       <section className="ch-slack-section">
@@ -528,14 +790,25 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
         {activity === undefined ? (
           <div className="ch-slack-quiet">Loading…</div>
         ) : !activity || activity.length === 0 ? (
-          <div className="ch-slack-quiet">Nothing from Slack yet. Say something there.</div>
+          <div className="ch-slack-quiet">
+            Nothing from Slack yet. Say something there.
+          </div>
         ) : (
           <ul className="ch-slack-ledger">
             {activity.map((j: any) => (
-              <li key={j._id} className={`ch-slack-ledger-row ch-slack-ledger-${j.status}`}>
-                <span className="ch-slack-ledger-kind">{describeKind(j.kind)}</span>
-                <span className="ch-slack-ledger-status">{describeJobStatus(j.status, j.error)}</span>
-                <span className="ch-slack-ledger-time">{compactAge(now - j.created_at)}</span>
+              <li
+                key={j._id}
+                className={`ch-slack-ledger-row ch-slack-ledger-${j.status}`}
+              >
+                <span className="ch-slack-ledger-kind">
+                  {describeKind(j.kind)}
+                </span>
+                <span className="ch-slack-ledger-status">
+                  {describeJobStatus(j.status, j.error)}
+                </span>
+                <span className="ch-slack-ledger-time">
+                  {compactAge(now - j.created_at)}
+                </span>
               </li>
             ))}
           </ul>
@@ -547,21 +820,48 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
           type="button"
           className="ch-slack-secondary"
           onClick={() => update(link._id, { paused: !paused })}
-          title={paused ? "Resume mirroring" : "Pause mirroring both ways; nothing is lost on either side"}
+          title={
+            paused
+              ? "Resume mirroring"
+              : "Pause mirroring both ways; nothing is lost on either side"
+          }
         >
-          {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+          {paused ? (
+            <Play className="w-3.5 h-3.5" />
+          ) : (
+            <Pause className="w-3.5 h-3.5" />
+          )}
           {paused ? "Resume" : "Pause"}
         </button>
         {confirmUnlink ? (
           <span className="ch-slack-confirm">
-            <span>Stop mirroring? Lines already copied stay on both sides.</span>
-            <button type="button" className="ch-slack-danger" onClick={() => { unlink(link._id); onClose(); }}>
+            <span>
+              Stop mirroring? Lines already copied stay on both sides.
+            </span>
+            <button
+              type="button"
+              className="ch-slack-danger"
+              onClick={() => {
+                unlink(link._id);
+                onClose();
+              }}
+            >
               Unlink
             </button>
-            <button type="button" className="ch-slack-secondary" onClick={() => setConfirmUnlink(false)}>Keep</button>
+            <button
+              type="button"
+              className="ch-slack-secondary"
+              onClick={() => setConfirmUnlink(false)}
+            >
+              Keep
+            </button>
           </span>
         ) : (
-          <button type="button" className="ch-slack-secondary ch-slack-secondary-danger" onClick={() => setConfirmUnlink(true)}>
+          <button
+            type="button"
+            className="ch-slack-secondary ch-slack-secondary-danger"
+            onClick={() => setConfirmUnlink(true)}
+          >
             <Unlink className="w-3.5 h-3.5" />
             Unlink
           </button>
@@ -572,7 +872,10 @@ function LinkedBody({ link, workspaceName, onClose }: { link: ChatSlackLinkRow; 
 }
 
 /** The footer's one sentence about the choice so far. */
-function pickSummary(picked: SlackChannelOption | null, chatName: string | undefined): string {
+function pickSummary(
+  picked: SlackChannelOption | null,
+  chatName: string | undefined,
+): string {
   if (!picked) return "Pick the Slack channel to mirror.";
   if (picked.is_private && !picked.is_member) {
     return "Private: run /invite @Codecast in that Slack channel first.";
@@ -582,7 +885,13 @@ function pickSummary(picked: SlackChannelOption | null, chatName: string | undef
     : `Mirroring #${picked.name} with Slack.`;
 }
 
-export function DirectionPicker({ value, onChange }: { value: Direction; onChange: (d: Direction) => void }) {
+export function DirectionPicker({
+  value,
+  onChange,
+}: {
+  value: Direction;
+  onChange: (d: Direction) => void;
+}) {
   return (
     <div className="ch-slack-dirs" role="radiogroup" aria-label="Direction">
       {DIRECTIONS.map((d) => {
@@ -618,31 +927,46 @@ function OptionRows({
 }) {
   const inbound = direction !== "codecast_to_slack";
   const outbound = direction !== "slack_to_codecast";
-  const render = (rows: OptionRow[]) => rows.map((row) => {
-    const relevant = row.scope === "both" || (row.scope === "in" && inbound) || (row.scope === "out" && outbound);
-    return (
-      <li key={row.key} className={`ch-slack-opt ${relevant ? "" : "ch-slack-opt-dim"}`}>
-        <div className="ch-slack-opt-text">
-          <span className="ch-slack-opt-label">{row.label}</span>
-          <span className="ch-slack-opt-hint">{relevant ? row.hint : "Not used with this direction."}</span>
-        </div>
-        <Switch
-          checked={!!options[row.key]}
-          onCheckedChange={(v) => onChange(row.key, v)}
-          disabled={!relevant}
-          aria-label={row.label}
-        />
-      </li>
-    );
-  });
-  const changedAdvanced = ADVANCED_ROWS.filter((r) => options[r.key] !== LINK_DEFAULTS[r.key]).length;
+  const render = (rows: OptionRow[]) =>
+    rows.map((row) => {
+      const relevant =
+        row.scope === "both" ||
+        (row.scope === "in" && inbound) ||
+        (row.scope === "out" && outbound);
+      return (
+        <li
+          key={row.key}
+          className={`ch-slack-opt ${relevant ? "" : "ch-slack-opt-dim"}`}
+        >
+          <div className="ch-slack-opt-text">
+            <span className="ch-slack-opt-label">{row.label}</span>
+            <span className="ch-slack-opt-hint">
+              {relevant ? row.hint : "Not used with this direction."}
+            </span>
+          </div>
+          <Switch
+            checked={!!options[row.key]}
+            onCheckedChange={(v) => onChange(row.key, v)}
+            disabled={!relevant}
+            aria-label={row.label}
+          />
+        </li>
+      );
+    });
+  const changedAdvanced = ADVANCED_ROWS.filter(
+    (r) => options[r.key] !== LINK_DEFAULTS[r.key],
+  ).length;
   return (
     <>
       <ul className="ch-slack-opts">{render(OPTION_ROWS)}</ul>
       <details className="ch-slack-more">
         <summary>
           More
-          {changedAdvanced > 0 && <span className="ch-slack-more-count">{changedAdvanced} changed</span>}
+          {changedAdvanced > 0 && (
+            <span className="ch-slack-more-count">
+              {changedAdvanced} changed
+            </span>
+          )}
         </summary>
         <ul className="ch-slack-opts">{render(ADVANCED_ROWS)}</ul>
       </details>
@@ -652,17 +976,28 @@ function OptionRows({
 
 function describeKind(kind: string): string {
   switch (kind) {
-    case "message": return "message";
-    case "message.file_share": return "file";
-    case "message.thread_broadcast": return "thread reply (broadcast)";
-    case "message.bot_message": return "app message";
-    case "message.message_changed": return "edit";
-    case "message.message_deleted": return "delete";
-    case "reaction_added": return "reaction";
-    case "reaction_removed": return "reaction removed";
-    case "member_joined_channel": return "joined";
-    case "member_left_channel": return "left";
-    default: return kind.replace(/^message\./, "").replace(/_/g, " ");
+    case "message":
+      return "message";
+    case "message.file_share":
+      return "file";
+    case "message.thread_broadcast":
+      return "thread reply (broadcast)";
+    case "message.bot_message":
+      return "app message";
+    case "message.message_changed":
+      return "edit";
+    case "message.message_deleted":
+      return "delete";
+    case "reaction_added":
+      return "reaction";
+    case "reaction_removed":
+      return "reaction removed";
+    case "member_joined_channel":
+      return "joined";
+    case "member_left_channel":
+      return "left";
+    default:
+      return kind.replace(/^message\./, "").replace(/_/g, " ");
   }
 }
 
@@ -670,10 +1005,14 @@ function describeKind(kind: string): string {
  *  answer is not obvious. */
 function describeJobStatus(status: string, error: string | null): string {
   switch (status) {
-    case "done": return "mirrored";
-    case "skipped": return error ? `skipped · ${describeSkip(error)}` : "skipped";
-    case "failed": return error ? `failed · ${error}` : "failed";
-    default: return "queued";
+    case "done":
+      return "mirrored";
+    case "skipped":
+      return error ? `skipped · ${describeSkip(error)}` : "skipped";
+    case "failed":
+      return error ? `failed · ${error}` : "failed";
+    default:
+      return "queued";
   }
 }
 
@@ -692,16 +1031,26 @@ function describeSkip(reason: string): string {
     unchanged: "no change",
     empty: "nothing to show",
   };
-  if (reason.startsWith("unknown_emoji:")) return `no match for :${reason.slice("unknown_emoji:".length)}:`;
+  if (reason.startsWith("unknown_emoji:"))
+    return `no match for :${reason.slice("unknown_emoji:".length)}:`;
   return table[reason] ?? `Slack said "${reason}"`;
 }
 
 function humanizeError(err: string): string {
-  if (err.includes("not_in_channel")) return "The app is not in the Slack channel. In Slack, run /invite @Codecast there, then resume.";
-  if (err.includes("channel_not_found")) return "Slack can't find that channel any more.";
+  if (err.includes("not_in_channel"))
+    return "The app is not in the Slack channel. In Slack, run /invite @Codecast there, then resume.";
+  if (err.includes("channel_not_found"))
+    return "Slack can't find that channel any more.";
   if (err.includes("is_archived")) return "The Slack channel is archived.";
-  if (err.includes("missing_scope")) return "The Slack app needs newer permissions. Reconnect Slack from the workspace agent's Settings.";
-  if (err.includes("invalid_auth") || err.includes("token_revoked") || err.includes("account_inactive")) return "Slack revoked the app's access. Reconnect Slack.";
-  if (err.includes("ratelimited")) return "Slack is rate limiting the app. It retries on its own; nothing to do.";
+  if (err.includes("missing_scope"))
+    return "The Slack app needs newer permissions. Reconnect Slack from the workspace agent's Settings.";
+  if (
+    err.includes("invalid_auth") ||
+    err.includes("token_revoked") ||
+    err.includes("account_inactive")
+  )
+    return "Slack revoked the app's access. Reconnect Slack.";
+  if (err.includes("ratelimited"))
+    return "Slack is rate limiting the app. It retries on its own; nothing to do.";
   return `Slack reported a problem (${err}). Reconnect Slack if this keeps happening.`;
 }

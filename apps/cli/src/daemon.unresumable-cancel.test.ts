@@ -19,16 +19,22 @@ describe("delivery into a session that can never resume", () => {
     const repair = functionBlock(source, "repairAndResumeSession").text;
     const abort = repair.indexOf("conversation has no resumable messages");
     expect(abort).toBeGreaterThan(-1);
-    expect(repair.slice(abort, abort + 400)).toContain("unresumableConversations.add(convId)");
+    expect(repair.slice(abort, abort + 400)).toContain(
+      "unresumableConversations.add(convId)",
+    );
   });
 
   test("the exhausted path cancels when the resume is fatal and the conversation is unresumable", () => {
     const deliver = functionBlock(source, "deliverMessageIntoSession").text;
     const exhausted = deliver.indexOf("DELIVERY FAILED: all methods exhausted");
-    const guard = deliver.indexOf("fatal && unresumableConversations.has(conversationId)");
+    const guard = deliver.indexOf(
+      "fatal && unresumableConversations.has(conversationId)",
+    );
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(exhausted);
-    expect(deliver.slice(guard, guard + 300)).toContain("throw new UndeliverableMessageError(");
+    expect(deliver.slice(guard, guard + 300)).toContain(
+      "throw new UndeliverableMessageError(",
+    );
   });
 
   // jx79axm (2026-10-16): the machine rebooted while a fresh session's first
@@ -38,17 +44,25 @@ describe("delivery into a session that can never resume", () => {
     const resume = functionBlock(source, "autoResumeSessionInner").text;
     const skip = resume.indexOf("Reconstitution skipped for");
     expect(skip).toBeGreaterThan(-1);
-    expect(resume.slice(skip, skip + 300)).toContain("unresumableConversations.add(conversationId)");
+    expect(resume.slice(skip, skip + 300)).toContain(
+      "unresumableConversations.add(conversationId)",
+    );
   });
 
   test("a session that never started is started fresh instead of failing every retry", () => {
     const deliver = functionBlock(source, "deliverMessageIntoSession").text;
-    const cancel = deliver.indexOf("fatal && unresumableConversations.has(conversationId)");
-    const fresh = deliver.indexOf("unresumableConversations.has(conversationId) && !findSessionFile(sessionId)");
+    const cancel = deliver.indexOf(
+      "fatal && unresumableConversations.has(conversationId)",
+    );
+    const fresh = deliver.indexOf(
+      "unresumableConversations.has(conversationId) && !findSessionFile(sessionId)",
+    );
     const exhausted = deliver.indexOf("DELIVERY FAILED: all methods exhausted");
     expect(fresh).toBeGreaterThan(cancel);
     expect(fresh).toBeLessThan(exhausted);
-    expect(deliver.slice(fresh, fresh + 400)).toContain("await deliverViaFreshStart()");
+    expect(deliver.slice(fresh, fresh + 400)).toContain(
+      "await deliverViaFreshStart()",
+    );
   });
 
   test("the delivery loop cancels an UndeliverableMessageError rather than retrying it", () => {

@@ -49,34 +49,112 @@ export const CHEAP_MODEL = "claude-haiku-5-5";
  * and a subscription call (cli subscriptionCall.ts) does the same; every other
  * model thinks as the API's default has it, on both.
  */
-export const sendsThinkingOff = (model: string): boolean => model === CHEAP_MODEL;
+export const sendsThinkingOff = (model: string): boolean =>
+  model === CHEAP_MODEL;
 
 export const CLAUDE_MODEL_OPTIONS: ModelOption[] = [
   { key: "default", label: "Default", hint: "Your saved default model" },
-  { key: "fable", label: "Fable", hint: "Most capable, ~2× limit burn", cliAlias: "fable", contextWindow: 1_000_000 },
-  { key: "opus", label: "Opus", hint: "Best for everyday, complex tasks", cliAlias: "opus", contextWindow: 1_000_000 },
-  { key: "sonnet", label: "Sonnet", hint: "Efficient for routine tasks", cliAlias: "sonnet", contextWindow: 1_000_000 },
-  { key: "haiku", label: "Haiku", hint: "Fastest for quick answers", cliAlias: "haiku", contextWindow: 200_000 },
+  {
+    key: "fable",
+    label: "Fable",
+    hint: "Most capable, ~2× limit burn",
+    cliAlias: "fable",
+    contextWindow: 1_000_000,
+  },
+  {
+    key: "opus",
+    label: "Opus",
+    hint: "Best for everyday, complex tasks",
+    cliAlias: "opus",
+    contextWindow: 1_000_000,
+  },
+  {
+    key: "sonnet",
+    label: "Sonnet",
+    hint: "Efficient for routine tasks",
+    cliAlias: "sonnet",
+    contextWindow: 1_000_000,
+  },
+  {
+    key: "haiku",
+    label: "Haiku",
+    hint: "Fastest for quick answers",
+    cliAlias: "haiku",
+    contextWindow: 200_000,
+  },
 ];
 
 // The stops Claude Code's `--effort` flag and `/effort <x>` one-shot accept
 // (session-only: "Set effort level to max (this session only)", no
 // settings.json write).
-export const CLAUDE_EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
+export const CLAUDE_EFFORT_LEVELS = [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
 
 export const CODEX_MODEL_OPTIONS: ModelOption[] = [
   { key: "default", label: "Default", hint: "Your config.toml model" },
-  { key: "gpt-6-astra", label: "GPT-6 Astra", hint: "Most capable for complex, demanding work", cliAlias: "gpt-6-astra" },
-  { key: "gpt-5.6-sol", label: "GPT-5.6 Sol", hint: "Reliable agentic workhorse for everyday tasks", cliAlias: "gpt-5.6-sol" },
-  { key: "gpt-5.6-terra", label: "GPT-5.6 Terra", hint: "Balanced agentic coding for everyday work", cliAlias: "gpt-5.6-terra" },
-  { key: "gpt-5.6-luna", label: "GPT-5.6 Luna", hint: "Fast and affordable agentic coding", cliAlias: "gpt-5.6-luna" },
-  { key: "gpt-5.5", label: "GPT-5.5", hint: "Proven previous-generation coding and general work", cliAlias: "gpt-5.5" },
-  { key: "gpt-5.4", label: "GPT-5.4", hint: "Strong model for everyday coding", cliAlias: "gpt-5.4" },
-  { key: "gpt-5.4-mini", label: "GPT-5.4 Mini", hint: "Small, fast, cost-efficient", cliAlias: "gpt-5.4-mini" },
-  { key: "gpt-5.3-codex-spark", label: "Codex Spark", hint: "Ultra-fast coding model", cliAlias: "gpt-5.3-codex-spark" },
+  {
+    key: "gpt-6-astra",
+    label: "GPT-6 Astra",
+    hint: "Most capable for complex, demanding work",
+    cliAlias: "gpt-6-astra",
+  },
+  {
+    key: "gpt-5.6-sol",
+    label: "GPT-5.6 Sol",
+    hint: "Reliable agentic workhorse for everyday tasks",
+    cliAlias: "gpt-5.6-sol",
+  },
+  {
+    key: "gpt-5.6-terra",
+    label: "GPT-5.6 Terra",
+    hint: "Balanced agentic coding for everyday work",
+    cliAlias: "gpt-5.6-terra",
+  },
+  {
+    key: "gpt-5.6-luna",
+    label: "GPT-5.6 Luna",
+    hint: "Fast and affordable agentic coding",
+    cliAlias: "gpt-5.6-luna",
+  },
+  {
+    key: "gpt-5.5",
+    label: "GPT-5.5",
+    hint: "Proven previous-generation coding and general work",
+    cliAlias: "gpt-5.5",
+  },
+  {
+    key: "gpt-5.4",
+    label: "GPT-5.4",
+    hint: "Strong model for everyday coding",
+    cliAlias: "gpt-5.4",
+  },
+  {
+    key: "gpt-5.4-mini",
+    label: "GPT-5.4 Mini",
+    hint: "Small, fast, cost-efficient",
+    cliAlias: "gpt-5.4-mini",
+  },
+  {
+    key: "gpt-5.3-codex-spark",
+    label: "Codex Spark",
+    hint: "Ultra-fast coding model",
+    cliAlias: "gpt-5.3-codex-spark",
+  },
 ];
 
-export const CODEX_EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max", "ultra"] as const;
+export const CODEX_EFFORT_LEVELS = [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra",
+] as const;
 
 // OpenCode addresses models as `provider/model` (its `-m` launch flag and the
 // `providerID`/`modelID` pair every message stores). The picker offers "Default"
@@ -87,10 +165,30 @@ export const CODEX_EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max", "ul
 // is false — the model is chosen at launch and tracked from the transcript after.
 export const OPENCODE_MODEL_OPTIONS: ModelOption[] = [
   { key: "default", label: "Default", hint: "Your opencode configured model" },
-  { key: "opus", label: "Claude Opus", hint: "Anthropic's most capable model", cliAlias: "anthropic/claude-opus-4-8" },
-  { key: "sonnet", label: "Claude Sonnet", hint: "Efficient for routine tasks", cliAlias: "anthropic/claude-sonnet-5" },
-  { key: "gpt-5", label: "GPT-5", hint: "OpenAI frontier model", cliAlias: "openai/gpt-5" },
-  { key: "gemini", label: "Gemini 2.5 Pro", hint: "Google frontier model", cliAlias: "google/gemini-2.5-pro" },
+  {
+    key: "opus",
+    label: "Claude Opus",
+    hint: "Anthropic's most capable model",
+    cliAlias: "anthropic/claude-opus-4-8",
+  },
+  {
+    key: "sonnet",
+    label: "Claude Sonnet",
+    hint: "Efficient for routine tasks",
+    cliAlias: "anthropic/claude-sonnet-5",
+  },
+  {
+    key: "gpt-5",
+    label: "GPT-5",
+    hint: "OpenAI frontier model",
+    cliAlias: "openai/gpt-5",
+  },
+  {
+    key: "gemini",
+    label: "Gemini 2.5 Pro",
+    hint: "Google frontier model",
+    cliAlias: "google/gemini-2.5-pro",
+  },
 ];
 
 // OpenCode has no codex-style reasoning-effort launch flag, so the effort list is
@@ -107,7 +205,14 @@ export const PI_MODEL_OPTIONS: ModelOption[] = [
 // pi's `--thinking` levels map onto the effort slot (same launch-flag shape as
 // codex's reasoning effort). "off" is a real stop, distinct from "default"
 // (= omit the flag, pi decides).
-export const PI_EFFORT_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+export const PI_EFFORT_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
 
 // Grok Build's baked-in catalog (default_models.json; `grok models` logged out
 // prints exactly these two). Keys are the exact `-m` values — bare model ids,
@@ -116,8 +221,19 @@ export const PI_EFFORT_LEVELS = ["off", "minimal", "low", "medium", "high", "xhi
 // a slash-command parse test upstream) — deliberately absent.
 export const GROK_MODEL_OPTIONS: ModelOption[] = [
   { key: "default", label: "Default", hint: "Your grok configured model" },
-  { key: "grok-4.6", label: "Grok 4.6", hint: "Default frontier model, 500k context", cliAlias: "grok-4.6", contextWindow: 500_000 },
-  { key: "grok-4.5", label: "Grok 4.5", hint: "Previous generation", cliAlias: "grok-4.5" },
+  {
+    key: "grok-4.6",
+    label: "Grok 4.6",
+    hint: "Default frontier model, 500k context",
+    cliAlias: "grok-4.6",
+    contextWindow: 500_000,
+  },
+  {
+    key: "grok-4.5",
+    label: "Grok 4.5",
+    hint: "Previous generation",
+    cliAlias: "grok-4.5",
+  },
 ];
 
 // cursor-agent's `--model` ids (`cursor-agent --list-models`, v2026.09.28) for a
@@ -126,14 +242,53 @@ export const GROK_MODEL_OPTIONS: ModelOption[] = [
 // Cloud Agents API's GET /v1/models; the two catalogs differ, so a cloud
 // option never reaches the local `--model` flag (cloudAgentModel in cloudAgents.ts).
 export const CURSOR_MODEL_OPTIONS: ModelOption[] = [
-  { key: "default", label: "Auto", hint: "Cursor picks the model, on this machine" },
-  { key: "composer-2.5", label: "Composer 2.5", hint: "Cursor's own coding model", cliAlias: "composer-2.5" },
-  { key: "claude-opus-5-thinking-high", label: "Opus 5", hint: "Claude Opus 5, thinking", cliAlias: "claude-opus-5-thinking-high" },
-  { key: "gpt-5.6-sol-high", label: "GPT-5.6 Sol", hint: "GPT-5.6 Sol, high effort", cliAlias: "gpt-5.6-sol-high" },
-  { key: "cloud", label: "Cloud · Auto", hint: "Cursor Cloud Agent on this repo's GitHub branch", cliAlias: "cloud" },
-  { key: "cloud:composer-2.5", label: "Cloud · Composer 2.5", hint: "Cursor Cloud Agent", cliAlias: "cloud:composer-2.5" },
-  { key: "cloud:claude-opus-5-5", label: "Cloud · Opus 5.5", hint: "Cursor Cloud Agent", cliAlias: "cloud:claude-opus-5-5" },
-  { key: "cloud:gpt-5.6-sol", label: "Cloud · GPT-5.6 Sol", hint: "Cursor Cloud Agent", cliAlias: "cloud:gpt-5.6-sol" },
+  {
+    key: "default",
+    label: "Auto",
+    hint: "Cursor picks the model, on this machine",
+  },
+  {
+    key: "composer-2.5",
+    label: "Composer 2.5",
+    hint: "Cursor's own coding model",
+    cliAlias: "composer-2.5",
+  },
+  {
+    key: "claude-opus-5-thinking-high",
+    label: "Opus 5",
+    hint: "Claude Opus 5, thinking",
+    cliAlias: "claude-opus-5-thinking-high",
+  },
+  {
+    key: "gpt-5.6-sol-high",
+    label: "GPT-5.6 Sol",
+    hint: "GPT-5.6 Sol, high effort",
+    cliAlias: "gpt-5.6-sol-high",
+  },
+  {
+    key: "cloud",
+    label: "Cloud · Auto",
+    hint: "Cursor Cloud Agent on this repo's GitHub branch",
+    cliAlias: "cloud",
+  },
+  {
+    key: "cloud:composer-2.5",
+    label: "Cloud · Composer 2.5",
+    hint: "Cursor Cloud Agent",
+    cliAlias: "cloud:composer-2.5",
+  },
+  {
+    key: "cloud:claude-opus-5-5",
+    label: "Cloud · Opus 5.5",
+    hint: "Cursor Cloud Agent",
+    cliAlias: "cloud:claude-opus-5-5",
+  },
+  {
+    key: "cloud:gpt-5.6-sol",
+    label: "Cloud · GPT-5.6 Sol",
+    hint: "Cursor Cloud Agent",
+    cliAlias: "cloud:gpt-5.6-sol",
+  },
 ];
 
 // `--reasoning-effort` (alias `--effort`) accepts none|minimal|low|medium|high|
@@ -154,14 +309,28 @@ export const GROK_EFFORT_LEVELS = ["low", "medium", "high", "xhigh"] as const;
 // (isDynamicModelKey can never accept its keys) — same shape as grok.
 export const MUSE_MODEL_OPTIONS: ModelOption[] = [
   { key: "default", label: "Default", hint: "Your muse configured model" },
-  { key: "muse-spark-1.3-contributor", label: "Muse Spark 1.3", hint: "Meta frontier model", cliAlias: "muse-spark-1.3-contributor" },
+  {
+    key: "muse-spark-1.3-contributor",
+    label: "Muse Spark 1.3",
+    hint: "Meta frontier model",
+    cliAlias: "muse-spark-1.3-contributor",
+  },
 ];
 
 // `--reasoning-effort` accepts none|minimal|low|medium|high|xhigh|max|ultra
 // (`muse --help`, default high). "default" (= omit the flag) comes from
 // launchRailOptions. The TUI's model/effort menus are interactive-only, so
 // both are launch-time flags tracked from the transcript after (run_model).
-export const MUSE_EFFORT_LEVELS = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"] as const;
+export const MUSE_EFFORT_LEVELS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra",
+] as const;
 
 // Antigravity CLI's `--model` takes the base model id and `--effort` the
 // level, and the transcript records the pair joined (`--model gemini-4-neon
@@ -171,18 +340,52 @@ export const MUSE_EFFORT_LEVELS = ["none", "minimal", "low", "medium", "high", "
 // left out here because only the Gemini family was launched through the flag.
 // Keys are bare ids, not `provider/model`, so antigravity is a STATIC client.
 export const ANTIGRAVITY_MODEL_OPTIONS: ModelOption[] = [
-  { key: "default", label: "Default", hint: "Your Antigravity configured model" },
-  { key: "gemini-4-neon", label: "Gemini 4 Neon", hint: "Balance of intelligence, cost and latency", cliAlias: "gemini-4-neon" },
-  { key: "gemini-4-argon", label: "Gemini 4 Argon", hint: "Gemini 4 Argon", cliAlias: "gemini-4-argon" },
-  { key: "gemini-4-carbon", label: "Gemini 4 Carbon", hint: "Gemini 4 Carbon", cliAlias: "gemini-4-carbon" },
-  { key: "gemini-4-hydrogen", label: "Gemini 4 Hydrogen", hint: "Gemini 4 Hydrogen, the smaller model", cliAlias: "gemini-4-hydrogen" },
-  { key: "gemini-3.8-flash", label: "Gemini 3.8 Flash", hint: "Fast, previous generation", cliAlias: "gemini-3.8-flash" },
+  {
+    key: "default",
+    label: "Default",
+    hint: "Your Antigravity configured model",
+  },
+  {
+    key: "gemini-4-neon",
+    label: "Gemini 4 Neon",
+    hint: "Balance of intelligence, cost and latency",
+    cliAlias: "gemini-4-neon",
+  },
+  {
+    key: "gemini-4-argon",
+    label: "Gemini 4 Argon",
+    hint: "Gemini 4 Argon",
+    cliAlias: "gemini-4-argon",
+  },
+  {
+    key: "gemini-4-carbon",
+    label: "Gemini 4 Carbon",
+    hint: "Gemini 4 Carbon",
+    cliAlias: "gemini-4-carbon",
+  },
+  {
+    key: "gemini-4-hydrogen",
+    label: "Gemini 4 Hydrogen",
+    hint: "Gemini 4 Hydrogen, the smaller model",
+    cliAlias: "gemini-4-hydrogen",
+  },
+  {
+    key: "gemini-3.8-flash",
+    label: "Gemini 3.8 Flash",
+    hint: "Fast, previous generation",
+    cliAlias: "gemini-3.8-flash",
+  },
 ];
 
 // `--effort` (agy --help: low|medium|high|xhigh|max). The models' own menus
 // run low..high, and Neon and Hydrogen add xhigh; no listed model offers max,
 // so the picker carries the union of what the models list.
-export const ANTIGRAVITY_EFFORT_LEVELS = ["low", "medium", "high", "xhigh"] as const;
+export const ANTIGRAVITY_EFFORT_LEVELS = [
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Dynamic model inventory (opencode / pi)
@@ -223,8 +426,15 @@ export function isDynamicModelKey(key: string): boolean {
 }
 
 const MODEL_WORD_CASING: Record<string, string> = {
-  gpt: "GPT", glm: "GLM", ai: "AI", llm: "LLM", deepseek: "DeepSeek",
-  qwen: "Qwen", oss: "OSS", tts: "TTS", vl: "VL",
+  gpt: "GPT",
+  glm: "GLM",
+  ai: "AI",
+  llm: "LLM",
+  deepseek: "DeepSeek",
+  qwen: "Qwen",
+  oss: "OSS",
+  tts: "TTS",
+  vl: "VL",
 };
 
 /** "claude-sonnet-5" → "Claude Sonnet 5", "gpt-5.2" → "GPT 5.2",
@@ -234,14 +444,21 @@ export function prettifyModelId(id: string): string {
   const words = id.split(/[-\s]+/).filter((w) => !/^\d{8}$/.test(w));
   const merged: string[] = [];
   for (const w of words) {
-    if (/^\d+$/.test(w) && /^\d+(\.\d+)*$/.test(merged[merged.length - 1] ?? "")) {
+    if (
+      /^\d+$/.test(w) &&
+      /^\d+(\.\d+)*$/.test(merged[merged.length - 1] ?? "")
+    ) {
       merged[merged.length - 1] += `.${w}`;
     } else {
       merged.push(w);
     }
   }
   return merged
-    .map((w) => MODEL_WORD_CASING[w.toLowerCase()] ?? (/^[a-z]/.test(w) ? w[0].toUpperCase() + w.slice(1) : w))
+    .map(
+      (w) =>
+        MODEL_WORD_CASING[w.toLowerCase()] ??
+        (/^[a-z]/.test(w) ? w[0].toUpperCase() + w.slice(1) : w),
+    )
     .join(" ");
 }
 
@@ -288,7 +505,9 @@ function compareVersionDesc(a: number[], b: number[]): number {
 
 /** The curated head of a dynamic picker: best available id per featured family. */
 export function featuredModelOptions(inventory: string[]): ModelOption[] {
-  const clean = inventory.filter((id) => isDynamicModelKey(id) && !/[@:]|-fast$|-latest$/.test(id));
+  const clean = inventory.filter(
+    (id) => isDynamicModelKey(id) && !/[@:]|-fast$|-latest$/.test(id),
+  );
   const out: ModelOption[] = [];
   for (const family of FEATURED_MODEL_FAMILIES) {
     const best = clean
@@ -302,7 +521,8 @@ export function featuredModelOptions(inventory: string[]): ModelOption[] {
         // "google/…" over "google-vertex/…").
         return a.length - b.length || a.localeCompare(b);
       })[0];
-    if (best && !out.some((o) => o.key === best)) out.push(dynamicModelOption(best));
+    if (best && !out.some((o) => o.key === best))
+      out.push(dynamicModelOption(best));
   }
   return out;
 }

@@ -5,15 +5,24 @@ import { ParkedClock } from "./parkedClock.js";
 // while the machine sleeps) and wall (Date.now, which runs through a sleep).
 function clocks(startWall = 1_000_000, awakeAt = 5_000) {
   const t = { wall: startWall, awake: awakeAt };
-  const run = (ms: number) => { t.wall += ms; t.awake += ms; };
-  const sleep = (ms: number) => { t.wall += ms; };
+  const run = (ms: number) => {
+    t.wall += ms;
+    t.awake += ms;
+  };
+  const sleep = (ms: number) => {
+    t.wall += ms;
+  };
   return { t, run, sleep };
 }
 
 describe("ParkedClock", () => {
   test("counts ordinary awake time", () => {
     const { t, run } = clocks();
-    const clock = new ParkedClock(t.wall, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      t.wall,
+      () => t.awake,
+      () => t.wall,
+    );
     expect(clock.elapsed()).toBe(0);
     run(60_000);
     clock.beginPoll();
@@ -22,7 +31,11 @@ describe("ParkedClock", () => {
 
   test("leaves out a machine sleep", () => {
     const { t, run, sleep } = clocks();
-    const clock = new ParkedClock(t.wall, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      t.wall,
+      () => t.awake,
+      () => t.wall,
+    );
     run(10 * 60_000);
     sleep(5 * 3_600_000);
     clock.beginPoll();
@@ -35,7 +48,11 @@ describe("ParkedClock", () => {
     const { t, run } = clocks();
     const startMs = t.wall;
     run(2_000);
-    const clock = new ParkedClock(startMs, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      startMs,
+      () => t.awake,
+      () => t.wall,
+    );
     expect(clock.elapsed()).toBe(2_000);
     run(3_000);
     expect(clock.elapsed()).toBe(5_000);
@@ -44,7 +61,11 @@ describe("ParkedClock", () => {
   // A poll that does not call park() ends the park at the next beginPoll().
   test("leaves out a park until the poll after the first one that does not find it", () => {
     const { t, run } = clocks();
-    const clock = new ParkedClock(t.wall, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      t.wall,
+      () => t.awake,
+      () => t.wall,
+    );
     run(1_000);
     clock.beginPoll();
     expect(clock.park()).toBe(true);
@@ -63,7 +84,11 @@ describe("ParkedClock", () => {
 
   test("a park from the clock's first instant still counts as a park", () => {
     const { t, run } = clocks(1_000_000, 0);
-    const clock = new ParkedClock(t.wall, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      t.wall,
+      () => t.awake,
+      () => t.wall,
+    );
     expect(clock.park()).toBe(true);
     run(10_000);
     expect(clock.elapsed()).toBe(0);
@@ -71,7 +96,11 @@ describe("ParkedClock", () => {
 
   test("a sleep inside a park and one outside it are both left out", () => {
     const { t, run, sleep } = clocks();
-    const clock = new ParkedClock(t.wall, () => t.awake, () => t.wall);
+    const clock = new ParkedClock(
+      t.wall,
+      () => t.awake,
+      () => t.wall,
+    );
     run(1_000);
     clock.beginPoll();
     clock.park();

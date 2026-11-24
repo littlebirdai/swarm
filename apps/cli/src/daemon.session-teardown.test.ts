@@ -27,18 +27,35 @@ import {
   trackSessionPaneForTests,
 } from "./daemon.js";
 import { HIBERNATE_RESUME_GRACE_MS } from "./hibernation.js";
-import { SyncService, isMissingFunctionError, resetLifecycleQueryLatch, shouldProbeLifecycleQuery } from "./syncService.js";
+import {
+  SyncService,
+  isMissingFunctionError,
+  resetLifecycleQueryLatch,
+  shouldProbeLifecycleQuery,
+} from "./syncService.js";
 import type { ConversationLifecycle } from "./syncService.js";
 
 // Shorthands for the two provenances getConversationLifecycle can return. The
 // distinction is load-bearing: "status-fallback" resolves by session id via
 // `.first()` (the OLDEST twin, ct-36973) and carries no hide state at all.
-const authoritative = (over: Partial<ConversationLifecycle> = {}): ConversationLifecycle =>
-  ({ status: "active", hideStateKnown: true, source: "lifecycle", ...over });
-const degraded = (over: Partial<ConversationLifecycle> = {}): ConversationLifecycle =>
-  ({ status: "active", hideStateKnown: false, source: "status-fallback", ...over });
-const TRUSTING = { trustStatusFallback: true };   // heartbeat reconstitution only
-const STRICT = { trustStatusFallback: false };    // every other resurrection path
+const authoritative = (
+  over: Partial<ConversationLifecycle> = {},
+): ConversationLifecycle => ({
+  status: "active",
+  hideStateKnown: true,
+  source: "lifecycle",
+  ...over,
+});
+const degraded = (
+  over: Partial<ConversationLifecycle> = {},
+): ConversationLifecycle => ({
+  status: "active",
+  hideStateKnown: false,
+  source: "status-fallback",
+  ...over,
+});
+const TRUSTING = { trustStatusFallback: true }; // heartbeat reconstitution only
+const STRICT = { trustStatusFallback: false }; // every other resurrection path
 
 // The three lifecycle defects confirmed on 2026-08-03, each reduced to the pure
 // decision the daemon now makes before it acts:
@@ -50,23 +67,42 @@ const STRICT = { trustStatusFallback: false };    // every other resurrection pa
 describe("isConversationRetired", () => {
   test("a killed conversation must never be reconstituted", () => {
     // The exact incident shape: status=completed with inbox_killed_at stamped.
-    expect(isConversationRetired(authoritative({ status: "completed", inboxKilledAt: 1_700_000_000_000 }), STRICT)).toBe(true);
+    expect(
+      isConversationRetired(
+        authoritative({
+          status: "completed",
+          inboxKilledAt: 1_700_000_000_000,
+        }),
+        STRICT,
+      ),
+    ).toBe(true);
   });
 
   test("either signal alone is enough", () => {
     // killSession only sets status=completed when mark_completed is passed, so
     // inbox_killed_at can stand alone — and a conversation completed by any other
     // path is equally finished.
-    expect(isConversationRetired(authoritative({ inboxKilledAt: 1 }), STRICT)).toBe(true);
-    expect(isConversationRetired(authoritative({ status: "completed" }), STRICT)).toBe(true);
+    expect(
+      isConversationRetired(authoritative({ inboxKilledAt: 1 }), STRICT),
+    ).toBe(true);
+    expect(
+      isConversationRetired(authoritative({ status: "completed" }), STRICT),
+    ).toBe(true);
   });
 
   test("a live conversation still reconstitutes (the crash-recovery case)", () => {
     expect(isConversationRetired(authoritative(), STRICT)).toBe(false);
-    expect(isConversationRetired(authoritative({ inboxKilledAt: null }), STRICT)).toBe(false);
+    expect(
+      isConversationRetired(authoritative({ inboxKilledAt: null }), STRICT),
+    ).toBe(false);
     // Hidden from the inbox is NOT retired: a stashed or otherwise dismissed
     // agent (bulk tidy, a linked child) keeps running and reconstitutes.
-    expect(isConversationRetired(authoritative({ inboxStashedAt: 1, inboxDismissedAt: 1 }), STRICT)).toBe(false);
+    expect(
+      isConversationRetired(
+        authoritative({ inboxStashedAt: 1, inboxDismissedAt: 1 }),
+        STRICT,
+      ),
+    ).toBe(false);
   });
 
   test("unknown lifecycle fails OPEN — a Convex blip can't strand a live session", () => {
@@ -80,12 +116,14 @@ describe("isConversationRetired", () => {
   // only the caller that can absorb a wrong refusal is allowed to act on it.
   test("the status-only fallback is ignored by every path but heartbeat reconstitution", () => {
     const killedLooking = degraded({ status: "completed" });
-    expect(isConversationRetired(killedLooking, STRICT)).toBe(false);   // delivery / warm pool / repair
-    expect(isConversationRetired(killedLooking, TRUSTING)).toBe(true);  // handleDeadSession
+    expect(isConversationRetired(killedLooking, STRICT)).toBe(false); // delivery / warm pool / repair
+    expect(isConversationRetired(killedLooking, TRUSTING)).toBe(true); // handleDeadSession
   });
 
   test("trust does not invent a verdict — a live-looking fallback still allows resume", () => {
-    expect(isConversationRetired(degraded({ status: "active" }), TRUSTING)).toBe(false);
+    expect(
+      isConversationRetired(degraded({ status: "active" }), TRUSTING),
+    ).toBe(false);
   });
 });
 
@@ -95,24 +133,73 @@ describe("isConversationRetired", () => {
 describe("conversationForbidsResurrection (wired)", () => {
   test("fails OPEN when the lifecycle lookup throws", async () => {
     const boom = () => Promise.reject(new Error("connect ECONNREFUSED"));
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", STRICT, boom)).toBe(false);
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", TRUSTING, boom)).toBe(false);
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        STRICT,
+        boom,
+      ),
+    ).toBe(false);
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        TRUSTING,
+        boom,
+      ),
+    ).toBe(false);
   });
 
   test("fails OPEN when the lookup resolves null (unknown row)", async () => {
     const none = () => Promise.resolve(null);
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", STRICT, none)).toBe(false);
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        STRICT,
+        none,
+      ),
+    ).toBe(false);
   });
 
   test("blocks on an authoritative killed verdict", async () => {
-    const killed = () => Promise.resolve(authoritative({ status: "completed", inboxKilledAt: 5 }));
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", STRICT, killed)).toBe(true);
+    const killed = () =>
+      Promise.resolve(authoritative({ status: "completed", inboxKilledAt: 5 }));
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        STRICT,
+        killed,
+      ),
+    ).toBe(true);
   });
 
   test("a degraded killed verdict blocks ONLY the trusting caller", async () => {
     const killed = () => Promise.resolve(degraded({ status: "completed" }));
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", STRICT, killed)).toBe(false);
-    expect(await conversationForbidsResurrection("conv1", "sess1", "TEST", TRUSTING, killed)).toBe(true);
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        STRICT,
+        killed,
+      ),
+    ).toBe(false);
+    expect(
+      await conversationForbidsResurrection(
+        "conv1",
+        "sess1",
+        "TEST",
+        TRUSTING,
+        killed,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -121,64 +208,113 @@ const PEER = "device-peer-bbbbbbbb";
 
 describe("resumeOwnerVerdict", () => {
   test("a conversation owned by a LIVE peer is never resumed here (the D3 hole)", () => {
-    expect(resumeOwnerVerdict({
-      conversationId: "conv1",
-      localDeviceId: LOCAL,
-      isRemote: false,
-      owner: { ownerDeviceId: PEER, ownerIsRemote: false, ownerOnline: true },
-    })).toBe("owned_by_other_device");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: "conv1",
+        localDeviceId: LOCAL,
+        isRemote: false,
+        owner: { ownerDeviceId: PEER, ownerIsRemote: false, ownerOnline: true },
+      }),
+    ).toBe("owned_by_other_device");
   });
 
   test("a conversation owned by an OFFLINE peer is never resumed here either (sd-213)", () => {
     // A person reclaims it with the header chip, which restamps the owner first;
     // the daemon never adopts another device's conversation on its own.
-    expect(resumeOwnerVerdict({
-      conversationId: "conv1",
-      localDeviceId: LOCAL,
-      isRemote: false,
-      owner: { ownerDeviceId: PEER, ownerIsRemote: false, ownerOnline: false },
-    })).toBe("owned_by_other_device");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: "conv1",
+        localDeviceId: LOCAL,
+        isRemote: false,
+        owner: {
+          ownerDeviceId: PEER,
+          ownerIsRemote: false,
+          ownerOnline: false,
+        },
+      }),
+    ).toBe("owned_by_other_device");
   });
 
   test("an unowned conversation is adopted by a local daemon", () => {
-    expect(resumeOwnerVerdict({ conversationId: "conv1", localDeviceId: LOCAL, isRemote: false, owner: null })).toBe("proceed");
-    expect(resumeOwnerVerdict({ conversationId: undefined, localDeviceId: LOCAL, isRemote: false, owner: null })).toBe("proceed");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: "conv1",
+        localDeviceId: LOCAL,
+        isRemote: false,
+        owner: null,
+      }),
+    ).toBe("proceed");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: undefined,
+        localDeviceId: LOCAL,
+        isRemote: false,
+        owner: null,
+      }),
+    ).toBe("proceed");
   });
 
   test("this device owning it always proceeds, live or not", () => {
     for (const online of [true, false]) {
-      expect(resumeOwnerVerdict({
-        conversationId: "conv1",
-        localDeviceId: LOCAL,
-        isRemote: false,
-        owner: { ownerDeviceId: LOCAL, ownerIsRemote: false, ownerOnline: online },
-      })).toBe("proceed");
+      expect(
+        resumeOwnerVerdict({
+          conversationId: "conv1",
+          localDeviceId: LOCAL,
+          isRemote: false,
+          owner: {
+            ownerDeviceId: LOCAL,
+            ownerIsRemote: false,
+            ownerOnline: online,
+          },
+        }),
+      ).toBe("proceed");
     }
   });
 
   test("a remote daemon manages ONLY what it owns (unchanged)", () => {
-    expect(resumeOwnerVerdict({ conversationId: "conv1", localDeviceId: LOCAL, isRemote: true, owner: null })).toBe("remote_unowned");
-    expect(resumeOwnerVerdict({
-      conversationId: "conv1",
-      localDeviceId: LOCAL,
-      isRemote: true,
-      owner: { ownerDeviceId: LOCAL, ownerIsRemote: true, ownerOnline: true },
-    })).toBe("proceed");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: "conv1",
+        localDeviceId: LOCAL,
+        isRemote: true,
+        owner: null,
+      }),
+    ).toBe("remote_unowned");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: "conv1",
+        localDeviceId: LOCAL,
+        isRemote: true,
+        owner: { ownerDeviceId: LOCAL, ownerIsRemote: true, ownerOnline: true },
+      }),
+    ).toBe("proceed");
   });
 
   test("a remote daemon with no conversation id can't verify ownership → refuse", () => {
-    expect(resumeOwnerVerdict({ conversationId: undefined, localDeviceId: LOCAL, isRemote: true, owner: null }))
-      .toBe("remote_no_conversation");
+    expect(
+      resumeOwnerVerdict({
+        conversationId: undefined,
+        localDeviceId: LOCAL,
+        isRemote: true,
+        owner: null,
+      }),
+    ).toBe("remote_no_conversation");
   });
 
   test("the other-owner rule outranks the remote rule (same skip, clearer log)", () => {
     for (const online of [true, false]) {
-      expect(resumeOwnerVerdict({
-        conversationId: "conv1",
-        localDeviceId: LOCAL,
-        isRemote: true,
-        owner: { ownerDeviceId: PEER, ownerIsRemote: false, ownerOnline: online },
-      })).toBe("owned_by_other_device");
+      expect(
+        resumeOwnerVerdict({
+          conversationId: "conv1",
+          localDeviceId: LOCAL,
+          isRemote: true,
+          owner: {
+            ownerDeviceId: PEER,
+            ownerIsRemote: false,
+            ownerOnline: online,
+          },
+        }),
+      ).toBe("owned_by_other_device");
     }
   });
 });
@@ -190,26 +326,46 @@ describe("parseReapCandidateRow", () => {
   // Pane facts sit between the stamps and the name: attached, window_activity
   // (epoch s), windows, panes, pane_pid, pane_dead, pane_current_command.
   const PANE = ["0", "1789600000", "1", "1", "4242", "0", "claude"];
-  const row = (name: string, session = "", conv = "") => [session, conv, ...PANE, name].join("|");
+  const row = (name: string, session = "", conv = "") =>
+    [session, conv, ...PANE, name].join("|");
 
   test("resume shells are candidates with or without stamps", () => {
-    expect(parseReapCandidateRow(row("cc-resume-7206623b", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31")))
-      .toMatchObject({ tmux: "cc-resume-7206623b", sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", convId: null, kind: "resume" });
-    expect(parseReapCandidateRow(row("cx-resume-019fc268"))?.kind).toBe("resume");
+    expect(
+      parseReapCandidateRow(
+        row("cc-resume-7206623b", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31"),
+      ),
+    ).toMatchObject({
+      tmux: "cc-resume-7206623b",
+      sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31",
+      convId: null,
+      kind: "resume",
+    });
+    expect(parseReapCandidateRow(row("cx-resume-019fc268"))?.kind).toBe(
+      "resume",
+    );
   });
 
   test("a codecast-stamped primary terminal is now a candidate (the D4 gap)", () => {
     // cc-<agent>-<convSuffix> panes were invisible to the reaper, so a stashed or
     // killed session's own terminal leaked forever.
-    expect(parseReapCandidateRow(row("cc-claude-6f68a98bqm7z", "2a466fef-c989-4285-b754-ece01f6cdc92", "jx78rf6911tyzst2n8ks6f68a98bqm7z")))
-      .toMatchObject({
-        tmux: "cc-claude-6f68a98bqm7z",
-        sessionId: "2a466fef-c989-4285-b754-ece01f6cdc92",
-        convId: "jx78rf6911tyzst2n8ks6f68a98bqm7z",
-        kind: "stamped",
-      });
+    expect(
+      parseReapCandidateRow(
+        row(
+          "cc-claude-6f68a98bqm7z",
+          "2a466fef-c989-4285-b754-ece01f6cdc92",
+          "jx78rf6911tyzst2n8ks6f68a98bqm7z",
+        ),
+      ),
+    ).toMatchObject({
+      tmux: "cc-claude-6f68a98bqm7z",
+      sessionId: "2a466fef-c989-4285-b754-ece01f6cdc92",
+      convId: "jx78rf6911tyzst2n8ks6f68a98bqm7z",
+      kind: "stamped",
+    });
     // Either stamp alone identifies it.
-    expect(parseReapCandidateRow(row("cc-codex-abc", "", "jx7conv"))?.kind).toBe("stamped");
+    expect(
+      parseReapCandidateRow(row("cc-codex-abc", "", "jx7conv"))?.kind,
+    ).toBe("stamped");
   });
 
   test("an unstamped foreign pane is never a candidate", () => {
@@ -223,15 +379,31 @@ describe("parseReapCandidateRow", () => {
     // REAP_LIST_FORMAT always emits two separators; tmux expands an unset user
     // option to the empty string. Verified against live tmux:
     //   "7206623b-…||cc-resume-7206623b"   (no conversation stamp)
-    expect(parseReapCandidateRow(row("cc-resume-7206623b", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", "")))
-      .toMatchObject({ tmux: "cc-resume-7206623b", sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", convId: null, kind: "resume" });
+    expect(
+      parseReapCandidateRow(
+        row("cc-resume-7206623b", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", ""),
+      ),
+    ).toMatchObject({
+      tmux: "cc-resume-7206623b",
+      sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31",
+      convId: null,
+      kind: "resume",
+    });
     // A foreign pane: both stamps empty, separators still present.
     expect(parseReapCandidateRow(row("my-editor", "", ""))).toBeNull();
   });
 
   test("a separator inside a session name is part of the name", () => {
-    expect(parseReapCandidateRow(row("my|odd|pane", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31")))
-      .toMatchObject({ tmux: "my|odd|pane", sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", convId: null, kind: "stamped" });
+    expect(
+      parseReapCandidateRow(
+        row("my|odd|pane", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31"),
+      ),
+    ).toMatchObject({
+      tmux: "my|odd|pane",
+      sessionId: "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31",
+      convId: null,
+      kind: "stamped",
+    });
   });
 
   test("a tmux too old to expand #{@opt} is read as unstamped, never as a session id", () => {
@@ -240,8 +412,16 @@ describe("parseReapCandidateRow", () => {
     // "no stamps" — the pane is uncollected unless its NAME identifies it, the
     // conservative outcome. Reading a literal "#{@codecast_session_id}" as a
     // session id would hand the reaper a pane it cannot resolve.
-    expect(parseReapCandidateRow("#{@codecast_session_id}|#{@codecast_conversation_id}|my-editor")).toBeNull();
-    expect(parseReapCandidateRow("#{@codecast_session_id}|#{@codecast_conversation_id}|cc-claude-6f68a98bqm7z")).toBeNull();
+    expect(
+      parseReapCandidateRow(
+        "#{@codecast_session_id}|#{@codecast_conversation_id}|my-editor",
+      ),
+    ).toBeNull();
+    expect(
+      parseReapCandidateRow(
+        "#{@codecast_session_id}|#{@codecast_conversation_id}|cc-claude-6f68a98bqm7z",
+      ),
+    ).toBeNull();
     expect(parseReapCandidateRow("my-editor")).toBeNull();
     expect(parseReapCandidateRow("cc-resume-7206623b")?.kind).toBe("resume");
     expect(parseReapCandidateRow("cc-claude-6f68a98bqm7z")).toBeNull(); // unidentifiable without stamps
@@ -252,31 +432,56 @@ describe("parseReapCandidateRow", () => {
     // "cc-resume-abc_<sessionid>_<convid>" as ONE field. It still looked like a
     // resume candidate (right prefix), so the reaper spent every pass trying to
     // kill panes under names no tmux session has ever had.
-    const parsed = parseReapCandidateRow(row("cc-resume-7206623b", "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31", "jx7conv"));
+    const parsed = parseReapCandidateRow(
+      row(
+        "cc-resume-7206623b",
+        "7206623b-5ba0-4e7c-b91e-f1f1ddeb9b31",
+        "jx7conv",
+      ),
+    );
     expect(parsed?.tmux).toBe("cc-resume-7206623b");
   });
 });
 
 describe("reapPaneEligibility", () => {
   test("hidden from the inbox → eligible", () => {
-    for (const field of ["inboxKilledAt", "inboxStashedAt", "inboxDismissedAt"] as const) {
-      expect(reapPaneEligibility("stamped", authoritative({ [field]: 1_700_000_000_000 })).eligible).toBe(true);
+    for (const field of [
+      "inboxKilledAt",
+      "inboxStashedAt",
+      "inboxDismissedAt",
+    ] as const) {
+      expect(
+        reapPaneEligibility(
+          "stamped",
+          authoritative({ [field]: 1_700_000_000_000 }),
+        ).eligible,
+      ).toBe(true);
     }
   });
 
   test("visible in the inbox → NEVER reaped, however idle", () => {
-    expect(reapPaneEligibility("stamped", authoritative())).toEqual({ eligible: false, reason: "inbox-visible" });
+    expect(reapPaneEligibility("stamped", authoritative())).toEqual({
+      eligible: false,
+      reason: "inbox-visible",
+    });
   });
 
   test("a pinned card stays visible even when killed → never reaped", () => {
     // Mirrors shouldShowInInbox: `inbox_killed_at && !inbox_pinned_at` hides it,
     // so a pin keeps the card (and its agent) around.
-    expect(reapPaneEligibility("stamped", authoritative({ inboxKilledAt: 1, inboxPinnedAt: 2 })))
-      .toEqual({ eligible: false, reason: "pinned" });
+    expect(
+      reapPaneEligibility(
+        "stamped",
+        authoritative({ inboxKilledAt: 1, inboxPinnedAt: 2 }),
+      ),
+    ).toEqual({ eligible: false, reason: "pinned" });
   });
 
   test("unknown hide state fails CLOSED (opposite of the resurrection gate)", () => {
-    expect(reapPaneEligibility("stamped", null)).toEqual({ eligible: false, reason: "hide-state-unknown" });
+    expect(reapPaneEligibility("stamped", null)).toEqual({
+      eligible: false,
+      reason: "hide-state-unknown",
+    });
     expect(reapPaneEligibility("stamped", undefined).eligible).toBe(false);
   });
 
@@ -285,10 +490,13 @@ describe("reapPaneEligibility", () => {
   // visible-and-skipped in the audit log while the stamped reaper quietly no-oped
   // against an undeployed backend. Absence must report as absence.
   test("a degraded lifecycle reports hide-state-unknown, NOT inbox-visible", () => {
-    expect(reapPaneEligibility("stamped", degraded({ status: "active" })))
-      .toEqual({ eligible: false, reason: "hide-state-unknown" });
+    expect(
+      reapPaneEligibility("stamped", degraded({ status: "active" })),
+    ).toEqual({ eligible: false, reason: "hide-state-unknown" });
     // Even when the degraded row happens to look killed, hide state is still unknown.
-    expect(reapPaneEligibility("stamped", degraded({ status: "completed" })).reason).toBe("hide-state-unknown");
+    expect(
+      reapPaneEligibility("stamped", degraded({ status: "completed" })).reason,
+    ).toBe("hide-state-unknown");
   });
 });
 
@@ -305,31 +513,79 @@ describe("reapPaneEligibility: a hidden session that is waiting on something kee
   });
 
   test("nothing pending → eligible", () => {
-    expect(reapPaneEligibility("stamped", hidden(), clear())).toEqual({ eligible: true, reason: null });
+    expect(reapPaneEligibility("stamped", hidden(), clear())).toEqual({
+      eligible: true,
+      reason: null,
+    });
   });
 
   test("open background work lives inside the agent and dies with it", () => {
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), agentStatus: "waiting" }).reason).toBe("open-background-work");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        agentStatus: "waiting",
+      }).reason,
+    ).toBe("open-background-work");
   });
 
   test("a declared machine wake is a wait", () => {
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), agentStatus: "dormant" }).reason).toBe("dormant");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        agentStatus: "dormant",
+      }).reason,
+    ).toBe("dormant");
   });
 
   test("queued, landing or locked deliveries and live subagents all block", () => {
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), pendingMessages: true }).reason).toBe("pending-messages");
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), deliveryActive: true }).reason).toBe("delivery-active");
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), subagentsLive: true }).reason).toBe("live-subagents");
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), targetLocked: true }).reason).toBe("in-flight-messages");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        pendingMessages: true,
+      }).reason,
+    ).toBe("pending-messages");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        deliveryActive: true,
+      }).reason,
+    ).toBe("delivery-active");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        subagentsLive: true,
+      }).reason,
+    ).toBe("live-subagents");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        targetLocked: true,
+      }).reason,
+    ).toBe("in-flight-messages");
   });
 
   test("a resume still settling is not judged yet", () => {
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), resumedAgoMs: HIBERNATE_RESUME_GRACE_MS - 1 }).reason).toBe("recently-resumed");
-    expect(reapPaneEligibility("stamped", hidden(), { ...clear(), resumedAgoMs: HIBERNATE_RESUME_GRACE_MS }).eligible).toBe(true);
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        resumedAgoMs: HIBERNATE_RESUME_GRACE_MS - 1,
+      }).reason,
+    ).toBe("recently-resumed");
+    expect(
+      reapPaneEligibility("stamped", hidden(), {
+        ...clear(),
+        resumedAgoMs: HIBERNATE_RESUME_GRACE_MS,
+      }).eligible,
+    ).toBe(true);
   });
 
   test("the hide gates still come first", () => {
-    expect(reapPaneEligibility("stamped", authoritative(), { ...clear(), agentStatus: "waiting" }).reason).toBe("inbox-visible");
+    expect(
+      reapPaneEligibility("stamped", authoritative(), {
+        ...clear(),
+        agentStatus: "waiting",
+      }).reason,
+    ).toBe("inbox-visible");
   });
 
   // 2026-09-29: a resumed session waited 4.7h on a background build with the
@@ -337,14 +593,39 @@ describe("reapPaneEligibility: a hidden session that is waiting on something kee
   // cc-resume-* pane on idle alone, twice. A resume pane has no inbox gate, but
   // the wait lives inside its process just the same.
   test("a resume pane keeps its process while it waits, with no hide state at all", () => {
-    expect(reapPaneEligibility("resume", null, { ...clear(), agentStatus: "waiting" }).reason).toBe("open-background-work");
-    expect(reapPaneEligibility("resume", null, { ...clear(), agentStatus: "dormant" }).reason).toBe("dormant");
-    expect(reapPaneEligibility("resume", null, { ...clear(), subagentsLive: true }).reason).toBe("live-subagents");
-    expect(reapPaneEligibility("resume", null, { ...clear(), pendingMessages: true }).reason).toBe("pending-messages");
+    expect(
+      reapPaneEligibility("resume", null, {
+        ...clear(),
+        agentStatus: "waiting",
+      }).reason,
+    ).toBe("open-background-work");
+    expect(
+      reapPaneEligibility("resume", null, {
+        ...clear(),
+        agentStatus: "dormant",
+      }).reason,
+    ).toBe("dormant");
+    expect(
+      reapPaneEligibility("resume", null, { ...clear(), subagentsLive: true })
+        .reason,
+    ).toBe("live-subagents");
+    expect(
+      reapPaneEligibility("resume", null, { ...clear(), pendingMessages: true })
+        .reason,
+    ).toBe("pending-messages");
     // A declared "done" or "dormant" outranks "waiting" in the status, so the
     // running tasks are read on their own.
-    expect(reapPaneEligibility("resume", null, { ...clear(), agentStatus: "done", openBackgroundWork: true }).reason).toBe("open-background-work");
-    expect(reapPaneEligibility("resume", authoritative(), clear())).toEqual({ eligible: true, reason: null });
+    expect(
+      reapPaneEligibility("resume", null, {
+        ...clear(),
+        agentStatus: "done",
+        openBackgroundWork: true,
+      }).reason,
+    ).toBe("open-background-work");
+    expect(reapPaneEligibility("resume", authoritative(), clear())).toEqual({
+      eligible: true,
+      reason: null,
+    });
   });
 });
 
@@ -358,15 +639,33 @@ describe("transcriptIdleMs", () => {
   const now = 1_800_000_000_000;
 
   test("a young mtime over an old newest message is idle by the message", () => {
-    expect(transcriptIdleMs({ mtimeMs: now - 5 * 60_000, lastRealTimestampMs: now - 20 * H, now })).toBe(20 * H);
+    expect(
+      transcriptIdleMs({
+        mtimeMs: now - 5 * 60_000,
+        lastRealTimestampMs: now - 20 * H,
+        now,
+      }),
+    ).toBe(20 * H);
   });
 
   test("a young newest message is active whatever the file says", () => {
-    expect(transcriptIdleMs({ mtimeMs: now - 20 * H, lastRealTimestampMs: now - 60_000, now })).toBe(60_000);
+    expect(
+      transcriptIdleMs({
+        mtimeMs: now - 20 * H,
+        lastRealTimestampMs: now - 60_000,
+        now,
+      }),
+    ).toBe(60_000);
   });
 
   test("no timestamped message → mtime is all there is", () => {
-    expect(transcriptIdleMs({ mtimeMs: now - 3 * H, lastRealTimestampMs: null, now })).toBe(3 * H);
+    expect(
+      transcriptIdleMs({
+        mtimeMs: now - 3 * H,
+        lastRealTimestampMs: null,
+        now,
+      }),
+    ).toBe(3 * H);
   });
 });
 
@@ -380,8 +679,8 @@ describe("tmuxSessionIsSinglePane", () => {
   });
 
   test("a split or a second window → not safe", () => {
-    expect(tmuxSessionIsSinglePane("0.0\n0.1\n")).toBe(false);   // split
-    expect(tmuxSessionIsSinglePane("0.0\n1.0\n")).toBe(false);   // second window
+    expect(tmuxSessionIsSinglePane("0.0\n0.1\n")).toBe(false); // split
+    expect(tmuxSessionIsSinglePane("0.0\n1.0\n")).toBe(false); // second window
   });
 
   test("empty/garbled output → not single (fail closed)", () => {
@@ -391,12 +690,21 @@ describe("tmuxSessionIsSinglePane", () => {
 });
 
 describe("derivedPaneNamesForConversation", () => {
-  const names = derivedPaneNamesForConversation("jx78rf6911tyzst2n8ks6f68a98bqm7z");
+  const names = derivedPaneNamesForConversation(
+    "jx78rf6911tyzst2n8ks6f68a98bqm7z",
+  );
 
   test("covers EVERY launchable agent, not the old hardcoded four", () => {
     // opencode and pi mint cc-<agent>-* names too, and this sweep is the only
     // teardown on the owner-defer path — a missing id is an unkillable pane.
-    for (const agent of ["claude", "codex", "cursor", "gemini", "opencode", "pi"]) {
+    for (const agent of [
+      "claude",
+      "codex",
+      "cursor",
+      "gemini",
+      "opencode",
+      "pi",
+    ]) {
       expect(names).toContain(`cc-${agent}-6f68a98bqm7z`);
     }
   });
@@ -413,12 +721,20 @@ describe("clearSessionTrackingForKill", () => {
   test("clears every per-session map the kill path owns", () => {
     const sid = "22222222-3333-4444-8555-666666666666";
     try {
-      registerManagedStartedSession("jx7trackedconv0000000000000000000", sid, "cc-claude-trackingtest");
+      registerManagedStartedSession(
+        "jx7trackedconv0000000000000000000",
+        sid,
+        "cc-claude-trackingtest",
+      );
       expect(sessionKillTrackingSnapshot(sid).pane).toBe(true);
 
       clearSessionTrackingForKill(sid);
       expect(sessionKillTrackingSnapshot(sid)).toEqual({
-        pane: false, resumeInFlight: false, resumeInFlightStarted: false, restarting: false, process: false,
+        pane: false,
+        resumeInFlight: false,
+        resumeInFlightStarted: false,
+        restarting: false,
+        process: false,
       });
     } finally {
       trackSessionPaneForTests(sid, null);
@@ -461,9 +777,13 @@ describe("lifecycle query latch", () => {
   // A latch that trips on ANY error silently disables the resurrection gate for
   // the daemon's whole life on one DNS blip. Only a missing function is permanent.
   test("only a missing-function error latches", () => {
-    expect(isMissingFunctionError(new Error(
-      "Could not find public function for 'conversations:getConversationLifecycle'. Did you forget to run `npx convex deploy`?",
-    ))).toBe(true);
+    expect(
+      isMissingFunctionError(
+        new Error(
+          "Could not find public function for 'conversations:getConversationLifecycle'. Did you forget to run `npx convex deploy`?",
+        ),
+      ),
+    ).toBe(true);
     expect(isMissingFunctionError(new Error("function not found"))).toBe(true);
   });
 
@@ -483,9 +803,9 @@ describe("lifecycle query latch", () => {
 
   test("a latched-off query re-probes so a deploy (or a wrong latch) heals", () => {
     const SIX_H = 6 * 60 * 60 * 1000;
-    expect(shouldProbeLifecycleQuery(0, 1_000)).toBe(true);              // never latched
+    expect(shouldProbeLifecycleQuery(0, 1_000)).toBe(true); // never latched
     expect(shouldProbeLifecycleQuery(1_000, 1_000 + SIX_H - 1)).toBe(false);
-    expect(shouldProbeLifecycleQuery(1_000, 1_000 + SIX_H)).toBe(true);  // re-probe due
+    expect(shouldProbeLifecycleQuery(1_000, 1_000 + SIX_H)).toBe(true); // re-probe due
   });
 });
 
@@ -497,7 +817,10 @@ const HOUR = 60 * 60 * 1000;
 const NOW = 1_800_000_000_000;
 
 describe("danglingUserTurnIsReapable", () => {
-  const dangling = (ageHours: number, over: Partial<Parameters<typeof danglingUserTurnIsReapable>[0]> = {}) =>
+  const dangling = (
+    ageHours: number,
+    over: Partial<Parameters<typeof danglingUserTurnIsReapable>[0]> = {},
+  ) =>
     danglingUserTurnIsReapable({
       turn: "active",
       lastRealRole: "user",
@@ -511,7 +834,7 @@ describe("danglingUserTurnIsReapable", () => {
   test("dangling user turn + >24h + idle pane → reapable", () => {
     expect(dangling(25)).toBe(true);
     expect(dangling(325)).toBe(true); // the real fc9eed88 shape
-    expect(dangling(24)).toBe(true);  // exactly at the bar
+    expect(dangling(24)).toBe(true); // exactly at the bar
   });
 
   test("dangling user turn under 24h → still blocked", () => {
@@ -548,22 +871,32 @@ describe("danglingUserTurnIsReapable", () => {
   // shape and let the hatch through with only a footer regex protecting it.
   test("a pending question (user tail + newer sidecar) is NEVER reaped", () => {
     const lastMsg = NOW - 300 * HOUR;
-    expect(danglingUserTurnIsReapable({
-      turn: "active", lastRealRole: "user", lastRealTimestampMs: lastMsg,
-      askSidecarMtimeMs: lastMsg + 90_000, // question asked after the last message
-      paneIdle: true, now: NOW,
-    })).toBe(false);
+    expect(
+      danglingUserTurnIsReapable({
+        turn: "active",
+        lastRealRole: "user",
+        lastRealTimestampMs: lastMsg,
+        askSidecarMtimeMs: lastMsg + 90_000, // question asked after the last message
+        paneIdle: true,
+        now: NOW,
+      }),
+    ).toBe(false);
   });
 
   test("an ANSWERED question (sidecar older than the last message) still reaps", () => {
     // The sidecar is never deleted, so this is the common case — 3 of the 5 stuck
     // panes carrying a sidecar here had answered their questions weeks earlier.
     const lastMsg = NOW - 300 * HOUR;
-    expect(danglingUserTurnIsReapable({
-      turn: "active", lastRealRole: "user", lastRealTimestampMs: lastMsg,
-      askSidecarMtimeMs: lastMsg - 60_000,
-      paneIdle: true, now: NOW,
-    })).toBe(true);
+    expect(
+      danglingUserTurnIsReapable({
+        turn: "active",
+        lastRealRole: "user",
+        lastRealTimestampMs: lastMsg,
+        askSidecarMtimeMs: lastMsg - 60_000,
+        paneIdle: true,
+        now: NOW,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -593,30 +926,42 @@ describe("askUserQuestionStillPending", () => {
 
 describe("transcriptTailLastRealTimestamp", () => {
   const msg = (role: string, timestamp?: string) =>
-    JSON.stringify({ type: role, timestamp, message: { role, content: [{ type: "text", text: "hi" }] } });
-  const meta = () => JSON.stringify({ type: "mode", mode: "default", sessionId: "x" });
+    JSON.stringify({
+      type: role,
+      timestamp,
+      message: { role, content: [{ type: "text", text: "hi" }] },
+    });
+  const meta = () =>
+    JSON.stringify({ type: "mode", mode: "default", sessionId: "x" });
 
   test("reads the last real turn's timestamp, skipping meta lines", () => {
     // Real shape: Claude writes `mode` / `permission-mode` lines after the turn,
     // and those carry no timestamp — reading them would yield null every time.
-    expect(transcriptTailLastRealTimestamp([
-      msg("user", "2026-07-20T10:00:00.000Z"),
-      meta(),
-      meta(),
-    ].join("\n"))).toBe(Date.parse("2026-07-20T10:00:00.000Z"));
+    expect(
+      transcriptTailLastRealTimestamp(
+        [msg("user", "2026-07-20T10:00:00.000Z"), meta(), meta()].join("\n"),
+      ),
+    ).toBe(Date.parse("2026-07-20T10:00:00.000Z"));
   });
 
   test("skips a partial/corrupt final line (mid-write tail)", () => {
-    expect(transcriptTailLastRealTimestamp([
-      msg("assistant", "2026-07-20T10:00:00.000Z"),
-      '{"type":"assist',
-    ].join("\n"))).toBe(Date.parse("2026-07-20T10:00:00.000Z"));
+    expect(
+      transcriptTailLastRealTimestamp(
+        [msg("assistant", "2026-07-20T10:00:00.000Z"), '{"type":"assist'].join(
+          "\n",
+        ),
+      ),
+    ).toBe(Date.parse("2026-07-20T10:00:00.000Z"));
   });
 
   test("a real turn with no/unparseable timestamp → null, never a guess", () => {
     expect(transcriptTailLastRealTimestamp(msg("user"))).toBeNull();
-    expect(transcriptTailLastRealTimestamp(msg("user", "not a date"))).toBeNull();
-    expect(transcriptTailLastRealTimestamp([meta(), meta()].join("\n"))).toBeNull();
+    expect(
+      transcriptTailLastRealTimestamp(msg("user", "not a date")),
+    ).toBeNull();
+    expect(
+      transcriptTailLastRealTimestamp([meta(), meta()].join("\n")),
+    ).toBeNull();
     expect(transcriptTailLastRealTimestamp("")).toBeNull();
   });
 });
@@ -630,18 +975,34 @@ describe("reaper pass summary", () => {
   });
 
   test("commonest reason first — the line answers 'why did nothing get reaped'", () => {
-    expect(summarizeReapSkips([
-      "no-transcript", "pane=busy", "no-transcript", "active-12min",
-      "no-transcript", "pane=busy", "active-300min", "inbox-visible",
-    ])).toBe("no-transcript×3, active×2, pane=busy×2, inbox-visible×1");
+    expect(
+      summarizeReapSkips([
+        "no-transcript",
+        "pane=busy",
+        "no-transcript",
+        "active-12min",
+        "no-transcript",
+        "pane=busy",
+        "active-300min",
+        "inbox-visible",
+      ]),
+    ).toBe("no-transcript×3, active×2, pane=busy×2, inbox-visible×1");
   });
 
   test("the new skip reasons are distinguishable in the tally", () => {
     // Each names a different root cause, and conflating them is what made the
     // reaper look inert: an undeployed query, an attached split, and a live
     // question are three very different reasons to do nothing.
-    expect(summarizeReapSkips(["hide-state-unknown", "multi-pane", "pending-question", "transcript=active"]))
-      .toBe("hide-state-unknown×1, multi-pane×1, pending-question×1, transcript=active×1");
+    expect(
+      summarizeReapSkips([
+        "hide-state-unknown",
+        "multi-pane",
+        "pending-question",
+        "transcript=active",
+      ]),
+    ).toBe(
+      "hide-state-unknown×1, multi-pane×1, pending-question×1, transcript=active×1",
+    );
   });
 
   test("a clean pass says so", () => {
@@ -658,20 +1019,28 @@ describe("getConversationLifecycle routing", () => {
   const LIFECYCLE = "conversations:getConversationLifecycle";
   const DEVICES = "devices:resolveConversationBySession";
   const liveRow = {
-    status: "active", inbox_killed_at: null, inbox_stashed_at: 1_700_000_000_000,
-    inbox_dismissed_at: null, inbox_pinned_at: null,
+    status: "active",
+    inbox_killed_at: null,
+    inbox_stashed_at: 1_700_000_000_000,
+    inbox_dismissed_at: null,
+    inbox_pinned_at: null,
   };
 
   // Stubs the Convex client and records which (name, selector) pairs were called.
   function serviceWith(handler: (name: string, args: any) => unknown) {
     resetLifecycleQueryLatch();
     const calls: Array<{ name: string; selector: string }> = [];
-    const svc = new SyncService(
-      { convexUrl: "http://localhost:0", userId: "u", authToken: "t" },
-    );
+    const svc = new SyncService({
+      convexUrl: "http://localhost:0",
+      userId: "u",
+      authToken: "t",
+    });
     (svc as any).client = {
       query: async (name: string, args: any) => {
-        calls.push({ name, selector: args.conversation_id ? "conversation_id" : "session_id" });
+        calls.push({
+          name,
+          selector: args.conversation_id ? "conversation_id" : "session_id",
+        });
         return handler(name, args);
       },
     };
@@ -679,18 +1048,29 @@ describe("getConversationLifecycle routing", () => {
   }
 
   test("an existing row resolves by conversation id and stops there", async () => {
-    const { svc, calls } = serviceWith((name) => (name === LIFECYCLE ? liveRow : null));
+    const { svc, calls } = serviceWith((name) =>
+      name === LIFECYCLE ? liveRow : null,
+    );
     const got = await svc.getConversationLifecycle("conv-live", "sess-1");
-    expect(got).toMatchObject({ hideStateKnown: true, source: "lifecycle", inboxStashedAt: 1_700_000_000_000 });
+    expect(got).toMatchObject({
+      hideStateKnown: true,
+      source: "lifecycle",
+      inboxStashedAt: 1_700_000_000_000,
+    });
     expect(calls).toEqual([{ name: LIFECYCLE, selector: "conversation_id" }]);
   });
 
   test("a GHOST id falls through to the session route and keeps full hide state", async () => {
     // Route A misses (deleted/remapped row); route B finds the live twin.
     const { svc, calls } = serviceWith((name, args) =>
-      name === LIFECYCLE && args.session_id ? liveRow : null);
+      name === LIFECYCLE && args.session_id ? liveRow : null,
+    );
     const got = await svc.getConversationLifecycle("conv-ghost", "sess-1");
-    expect(got).toMatchObject({ hideStateKnown: true, source: "lifecycle", inboxStashedAt: 1_700_000_000_000 });
+    expect(got).toMatchObject({
+      hideStateKnown: true,
+      source: "lifecycle",
+      inboxStashedAt: 1_700_000_000_000,
+    });
     expect(calls).toEqual([
       { name: LIFECYCLE, selector: "conversation_id" },
       { name: LIFECYCLE, selector: "session_id" },
@@ -701,26 +1081,39 @@ describe("getConversationLifecycle routing", () => {
 
   test("both routes answering 'no such conversation' returns null, not a devices miss", async () => {
     const { svc, calls } = serviceWith(() => null);
-    expect(await svc.getConversationLifecycle("conv-gone", "sess-1")).toBeNull();
+    expect(
+      await svc.getConversationLifecycle("conv-gone", "sess-1"),
+    ).toBeNull();
     expect(calls.map((c) => c.name)).toEqual([LIFECYCLE, LIFECYCLE]); // no devices call
   });
 
   test("an UNDEPLOYED query (both routes missing) still uses the devices fallback", async () => {
     const { svc, calls } = serviceWith((name) => {
-      if (name === LIFECYCLE) throw new Error("Could not find public function for 'conversations:getConversationLifecycle'");
+      if (name === LIFECYCLE)
+        throw new Error(
+          "Could not find public function for 'conversations:getConversationLifecycle'",
+        );
       return { status: "completed" };
     });
     const got = await svc.getConversationLifecycle("conv-1", "sess-1");
-    expect(got).toEqual({ status: "completed", closed: false, hideStateKnown: false, source: "status-fallback" });
+    expect(got).toEqual({
+      status: "completed",
+      closed: false,
+      hideStateKnown: false,
+      source: "status-fallback",
+    });
     expect(calls[calls.length - 1].name).toBe(DEVICES);
   });
 
   test("a transient error does not latch, and still degrades to devices for this call", async () => {
     const { svc } = serviceWith((name) => {
-      if (name === LIFECYCLE) throw new Error("connect ECONNREFUSED 127.0.0.1:443");
+      if (name === LIFECYCLE)
+        throw new Error("connect ECONNREFUSED 127.0.0.1:443");
       return { status: "active" };
     });
-    expect(await svc.getConversationLifecycle("conv-1", "sess-1")).toMatchObject({ source: "status-fallback" });
+    expect(
+      await svc.getConversationLifecycle("conv-1", "sess-1"),
+    ).toMatchObject({ source: "status-fallback" });
     // Latch untouched: the next call probes the real query again.
     expect(shouldProbeLifecycleQuery(0, Date.now())).toBe(true);
   });
@@ -734,18 +1127,63 @@ describe("getConversationLifecycle routing", () => {
 
 describe("reaping panes whose agent exited", () => {
   const now = 1_789_700_000_000;
-  const facts = (over: Partial<Parameters<typeof deadPaneReapBlock>[0]> = {}) => ({
-    attached: 0, activityMs: now - 2 * 60 * 60 * 1000, windows: 1, panes: 1, pid: 4242, dead: false, command: "bash", ...over,
+  const facts = (
+    over: Partial<Parameters<typeof deadPaneReapBlock>[0]> = {},
+  ) => ({
+    attached: 0,
+    activityMs: now - 2 * 60 * 60 * 1000,
+    windows: 1,
+    panes: 1,
+    pid: 4242,
+    dead: false,
+    command: "bash",
+    ...over,
   });
   const quiet = { now, children: 0, deliveryActive: false };
 
   test("tmux's own row carries the pane facts the verdict reads", () => {
-    const cand = parseReapCandidateRow(["sid-1", "", "0", "1789692800", "1", "1", "4242", "0", "-bash", "cc-resume-sid1"].join("|"));
-    expect(cand?.pane).toEqual({ attached: 0, activityMs: 1_789_692_800_000, windows: 1, panes: 1, pid: 4242, dead: false, command: "-bash" });
+    const cand = parseReapCandidateRow(
+      [
+        "sid-1",
+        "",
+        "0",
+        "1789692800",
+        "1",
+        "1",
+        "4242",
+        "0",
+        "-bash",
+        "cc-resume-sid1",
+      ].join("|"),
+    );
+    expect(cand?.pane).toEqual({
+      attached: 0,
+      activityMs: 1_789_692_800_000,
+      windows: 1,
+      panes: 1,
+      pid: 4242,
+      dead: false,
+      command: "-bash",
+    });
     expect(paneAgentExited(cand!.pane!)).toBe(true);
     // A field tmux could not expand yields no facts, so the pane falls to the
     // ordinary live-agent path and its much stricter gates.
-    expect(parseReapCandidateRow(["sid-1", "", "#{session_attached}", "1", "1", "1", "1", "0", "bash", "cc-resume-sid1"].join("|"))?.pane).toBeNull();
+    expect(
+      parseReapCandidateRow(
+        [
+          "sid-1",
+          "",
+          "#{session_attached}",
+          "1",
+          "1",
+          "1",
+          "1",
+          "0",
+          "bash",
+          "cc-resume-sid1",
+        ].join("|"),
+      )?.pane,
+    ).toBeNull();
   });
 
   test("a live agent idle at its prompt is not an exited pane, however old its transcript", () => {
@@ -755,7 +1193,9 @@ describe("reaping panes whose agent exited", () => {
     expect(paneAgentExited(facts({ command: "claude" }))).toBe(false);
     expect(paneAgentExited(facts({ command: "grok-1.0.34" }))).toBe(false);
     expect(paneAgentExited(facts({ command: "node" }))).toBe(false);
-    expect(paneAgentExited(facts({ command: "claude", dead: true }))).toBe(true);
+    expect(paneAgentExited(facts({ command: "claude", dead: true }))).toBe(
+      true,
+    );
   });
 
   test("a quiet, lone, unattached shell running nothing goes", () => {
@@ -766,10 +1206,21 @@ describe("reaping panes whose agent exited", () => {
     expect(deadPaneReapBlock(facts({ attached: 1 }), quiet)).toBe("attached");
     expect(deadPaneReapBlock(facts({ windows: 2 }), quiet)).toBe("multi-pane");
     expect(deadPaneReapBlock(facts({ panes: 2 }), quiet)).toBe("multi-pane");
-    expect(deadPaneReapBlock(facts(), { ...quiet, children: 2 })).toBe("shell-busy");
-    expect(deadPaneReapBlock(facts(), { ...quiet, children: null })).toBe("children-unknown");
-    expect(deadPaneReapBlock(facts(), { ...quiet, deliveryActive: true })).toBe("delivery-active");
-    expect(deadPaneReapBlock(facts({ activityMs: now - DEAD_PANE_QUIET_MS + 1000 }), quiet)).toBe("dead-recent");
+    expect(deadPaneReapBlock(facts(), { ...quiet, children: 2 })).toBe(
+      "shell-busy",
+    );
+    expect(deadPaneReapBlock(facts(), { ...quiet, children: null })).toBe(
+      "children-unknown",
+    );
+    expect(deadPaneReapBlock(facts(), { ...quiet, deliveryActive: true })).toBe(
+      "delivery-active",
+    );
+    expect(
+      deadPaneReapBlock(
+        facts({ activityMs: now - DEAD_PANE_QUIET_MS + 1000 }),
+        quiet,
+      ),
+    ).toBe("dead-recent");
   });
 });
 
@@ -780,13 +1231,22 @@ describe("reaping panes whose agent exited", () => {
 describe("agentStatusOnDisk", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-status-"));
   test("reads the status the hook last wrote", () => {
-    fs.writeFileSync(path.join(dir, "fdf643a3-48e8.json"), JSON.stringify({ status: "waiting", ts: 1 }));
+    fs.writeFileSync(
+      path.join(dir, "fdf643a3-48e8.json"),
+      JSON.stringify({ status: "waiting", ts: 1 }),
+    );
     expect(agentStatusOnDisk("fdf643a3-48e8", dir)).toBe("waiting");
-    expect(reapPaneEligibility("resume", null, {
-      agentStatus: agentStatusOnDisk("fdf643a3-48e8", dir),
-      openBackgroundWork: false, pendingMessages: false, deliveryActive: false,
-      subagentsLive: false, targetLocked: false, resumedAgoMs: Infinity,
-    }).reason).toBe("open-background-work");
+    expect(
+      reapPaneEligibility("resume", null, {
+        agentStatus: agentStatusOnDisk("fdf643a3-48e8", dir),
+        openBackgroundWork: false,
+        pendingMessages: false,
+        deliveryActive: false,
+        subagentsLive: false,
+        targetLocked: false,
+        resumedAgoMs: Infinity,
+      }).reason,
+    ).toBe("open-background-work");
   });
   test("missing, corrupt or unsafe ids read as unknown", () => {
     expect(agentStatusOnDisk("nope", dir)).toBeUndefined();

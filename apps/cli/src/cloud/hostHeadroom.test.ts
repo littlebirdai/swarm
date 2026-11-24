@@ -3,30 +3,67 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { FAKE_BOX, installFakeNamespace } from "../test-helpers/fakeNamespace";
-import { chooseCloudHost, headroomFromProbe, sizeFor, tooSmallFor, type Headroom, type HostChoiceDeps } from "./hostHeadroom";
+import {
+  chooseCloudHost,
+  headroomFromProbe,
+  sizeFor,
+  tooSmallFor,
+  type Headroom,
+  type HostChoiceDeps,
+} from "./hostHeadroom";
 import { writeHosts, type CloudHost } from "../browser/cloudHost";
 
-const linux = (avail: number, swapTotal: number, swapFree: number, fullAvg60 = 0.5) =>
+const linux = (
+  avail: number,
+  swapTotal: number,
+  swapFree: number,
+  fullAvg60 = 0.5,
+) =>
   `Linux\n---\nMemTotal: 3924688 kB\nMemAvailable: ${avail} kB\nSwapTotal: ${swapTotal} kB\nSwapFree: ${swapFree} kB\n---\nsome avg10=1.68 avg60=1.41 avg300=2.45 total=1\nfull avg10=1.23 avg60=${fullAvg60} avg300=1.82 total=1\n`;
 const mac = (level: number) =>
   `Darwin\n---\nMach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 2000000.\nPages inactive: 400000.\nPages speculative: 1000.\nPages occupied by compressor: 0.\n---\nvm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)\nkern.memorystatus_vm_pressure_level: ${level}\nhw.memsize: 51539607552\n`;
 
 test("a t3.medium with its swap full has no room, though 2 GB reads as available", () => {
   // The ubuntu host on 2026-10-14, minutes after five OOM kills.
-  expect(headroomFromProbe(linux(2014028, 2097148, 123712))).toEqual({ fit: false, why: "swap 1.9 of 2.0 GB used", memoryAvailable: 2014028 * 1024, memoryTotal: 3924688 * 1024 });
+  expect(headroomFromProbe(linux(2014028, 2097148, 123712))).toEqual({
+    fit: false,
+    why: "swap 1.9 of 2.0 GB used",
+    memoryAvailable: 2014028 * 1024,
+    memoryTotal: 3924688 * 1024,
+  });
 });
 
 test("memory stalls and low free memory each refuse; a calm host has room", () => {
-  expect(headroomFromProbe(linux(3_000_000, 2097148, 2_000_000, 12)).why).toBe("memory pressure critical");
-  expect(headroomFromProbe(linux(500_000, 0, 0)).why).toBe("0.5 GB of memory free");
-  expect(headroomFromProbe(linux(3_000_000, 2097148, 2_000_000)).fit).toBe(true);
+  expect(headroomFromProbe(linux(3_000_000, 2097148, 2_000_000, 12)).why).toBe(
+    "memory pressure critical",
+  );
+  expect(headroomFromProbe(linux(500_000, 0, 0)).why).toBe(
+    "0.5 GB of memory free",
+  );
+  expect(headroomFromProbe(linux(3_000_000, 2097148, 2_000_000)).fit).toBe(
+    true,
+  );
   expect(headroomFromProbe(mac(1)).fit).toBe(true);
   expect(headroomFromProbe(mac(4)).why).toBe("memory pressure critical");
 });
 
-const host = (id: string, extra: Partial<CloudHost> = {}): CloudHost => ({ id, provider: "aws", region: "r", user: "u", keyPath: "k", address: "1.2.3.4", deviceId: `dev-${id}`, ...extra });
+const host = (id: string, extra: Partial<CloudHost> = {}): CloudHost => ({
+  id,
+  provider: "aws",
+  region: "r",
+  user: "u",
+  keyPath: "k",
+  address: "1.2.3.4",
+  deviceId: `dev-${id}`,
+  ...extra,
+});
 
-function deps(hosts: CloudHost[], rooms: Record<string, Headroom>, asleep: string[] = [], runLeft: Record<string, number> = {}): HostChoiceDeps & { probed: string[] } {
+function deps(
+  hosts: CloudHost[],
+  rooms: Record<string, Headroom>,
+  asleep: string[] = [],
+  runLeft: Record<string, number> = {},
+): HostChoiceDeps & { probed: string[] } {
   const probed: string[] = [];
   return {
     probed,
@@ -34,55 +71,113 @@ function deps(hosts: CloudHost[], rooms: Record<string, Headroom>, asleep: strin
     hosts: () => hosts,
     state: (h) => (asleep.includes(h.id) ? "stopped" : "running"),
     runLeft: (h) => runLeft[h.id],
-    probe: (h) => { probed.push(h.id); return rooms[h.id]; },
+    probe: (h) => {
+      probed.push(h.id);
+      return rooms[h.id];
+    },
   };
 }
 
 test("an isolated placement moves to the awake host with the most room", () => {
-  const d = deps([host("small"), host("asleep"), host("mid"), host("big")], {
-    small: { fit: false, why: "swap 1.9 of 2.0 GB used" },
-    mid: { fit: true, memoryAvailable: 8 * 1024 ** 3 },
-    big: { fit: true, memoryAvailable: 30 * 1024 ** 3 },
-  }, ["asleep"]);
+  const d = deps(
+    [host("small"), host("asleep"), host("mid"), host("big")],
+    {
+      small: { fit: false, why: "swap 1.9 of 2.0 GB used" },
+      mid: { fit: true, memoryAvailable: 8 * 1024 ** 3 },
+      big: { fit: true, memoryAvailable: 30 * 1024 ** 3 },
+    },
+    ["asleep"],
+  );
   const said: string[] = [];
-  const r = chooseCloudHost("small", (m) => said.push(m), { fallback: true }, d);
-  expect(r).toEqual({ host: host("big"), moved: true, from: host("small"), why: "swap 1.9 of 2.0 GB used" });
+  const r = chooseCloudHost(
+    "small",
+    (m) => said.push(m),
+    { fallback: true },
+    d,
+  );
+  expect(r).toEqual({
+    host: host("big"),
+    moved: true,
+    from: host("small"),
+    why: "swap 1.9 of 2.0 GB used",
+  });
   expect(d.probed).not.toContain("asleep");
-  expect(said[0]).toContain("small has no room for another session (swap 1.9 of 2.0 GB used): placing on big instead");
+  expect(said[0]).toContain(
+    "small has no room for another session (swap 1.9 of 2.0 GB used): placing on big instead",
+  );
 });
 
 test("the asked host keeps the session when it has room or is asleep", () => {
-  expect(chooseCloudHost("a", () => {}, { fallback: true }, deps([host("a"), host("b")], { a: { fit: true, memoryAvailable: 6 * 1024 ** 3 } })).moved).toBe(false);
+  expect(
+    chooseCloudHost(
+      "a",
+      () => {},
+      { fallback: true },
+      deps([host("a"), host("b")], {
+        a: { fit: true, memoryAvailable: 6 * 1024 ** 3 },
+      }),
+    ).moved,
+  ).toBe(false);
   const d = deps([host("a"), host("b")], {}, ["a"]);
-  expect(chooseCloudHost("a", () => {}, { fallback: true }, d)).toEqual({ host: host("a"), moved: false });
+  expect(chooseCloudHost("a", () => {}, { fallback: true }, d)).toEqual({
+    host: host("a"),
+    moved: false,
+  });
   expect(d.probed).toEqual([]);
 });
 
 test("no room anywhere, or a shared checkout, fails at once with what is full", () => {
   const full = { fit: false, why: "memory pressure critical" };
-  expect(() => chooseCloudHost("a", () => {}, { fallback: true }, deps([host("a"), host("b")], { a: full, b: full }))).toThrow("a has no room for another session (memory pressure critical), and no other awake cloud host has room");
+  expect(() =>
+    chooseCloudHost(
+      "a",
+      () => {},
+      { fallback: true },
+      deps([host("a"), host("b")], { a: full, b: full }),
+    ),
+  ).toThrow(
+    "a has no room for another session (memory pressure critical), and no other awake cloud host has room",
+  );
   const d = deps([host("a"), host("b")], { a: full, b: { fit: true } });
-  expect(() => chooseCloudHost("a", () => {}, { fallback: false }, d)).toThrow("a has no room for another session (memory pressure critical): free memory there");
+  expect(() => chooseCloudHost("a", () => {}, { fallback: false }, d)).toThrow(
+    "a has no room for another session (memory pressure critical): free memory there",
+  );
   expect(d.probed).toEqual(["a"]);
 });
 
 const GB = 1024 ** 3;
 
 test("a tight host hands new sessions to a roomier one, same platform first", () => {
-  const linux2 = host("linux2"), mac = host("mac", { platform: "darwin" });
+  const linux2 = host("linux2"),
+    mac = host("mac", { platform: "darwin" });
   const d = deps([host("tight"), linux2, mac], {
     tight: { fit: true, memoryAvailable: 2 * GB },
     linux2: { fit: true, memoryAvailable: 5 * GB },
     mac: { fit: true, memoryAvailable: 30 * GB },
   });
   const said: string[] = [];
-  expect(chooseCloudHost("tight", (m) => said.push(m), { fallback: true }, d)).toEqual({ host: linux2, moved: true, from: host("tight"), why: "only 2.0 GB free" });
-  expect(said[0]).toBe("tight is tight (only 2.0 GB free): placing on linux2 instead (5.0 GB free)");
+  expect(
+    chooseCloudHost("tight", (m) => said.push(m), { fallback: true }, d),
+  ).toEqual({
+    host: linux2,
+    moved: true,
+    from: host("tight"),
+    why: "only 2.0 GB free",
+  });
+  expect(said[0]).toBe(
+    "tight is tight (only 2.0 GB free): placing on linux2 instead (5.0 GB free)",
+  );
 });
 
 test("a tight host keeps the session when nothing roomier is awake", () => {
-  const d = deps([host("tight"), host("other")], { tight: { fit: true, memoryAvailable: 2 * GB }, other: { fit: true, memoryAvailable: 3 * GB } });
-  expect(chooseCloudHost("tight", () => {}, { fallback: true }, d)).toEqual({ host: host("tight"), moved: false });
+  const d = deps([host("tight"), host("other")], {
+    tight: { fit: true, memoryAvailable: 2 * GB },
+    other: { fit: true, memoryAvailable: 3 * GB },
+  });
+  expect(chooseCloudHost("tight", () => {}, { fallback: true }, d)).toEqual({
+    host: host("tight"),
+    moved: false,
+  });
 });
 
 const full: Headroom = { fit: false, why: "swap 1.9 of 2.0 GB used" };
@@ -91,25 +186,59 @@ test("autoscale wakes a sleeping host before it launches one", () => {
   const nap = host("nap", { autoscaled: true });
   const d = deps([host("a"), nap], { a: full }, ["nap"]);
   const said: string[] = [];
-  const r = chooseCloudHost("a", (m) => said.push(m), { fallback: true, autoscale: { template: host("a"), maxExtra: 2, size: "t3.xlarge" } }, d);
-  expect(r).toEqual({ host: nap, moved: true, from: host("a"), why: "swap 1.9 of 2.0 GB used" });
-  expect(said[0]).toBe("a has no room for another session (swap 1.9 of 2.0 GB used): waking nap (autoscale)");
+  const r = chooseCloudHost(
+    "a",
+    (m) => said.push(m),
+    {
+      fallback: true,
+      autoscale: { template: host("a"), maxExtra: 2, size: "t3.xlarge" },
+    },
+    d,
+  );
+  expect(r).toEqual({
+    host: nap,
+    moved: true,
+    from: host("a"),
+    why: "swap 1.9 of 2.0 GB used",
+  });
+  expect(said[0]).toBe(
+    "a has no room for another session (swap 1.9 of 2.0 GB used): waking nap (autoscale)",
+  );
   // Without autoscale the sleeping host is left asleep.
-  expect(() => chooseCloudHost("a", () => {}, { fallback: true }, d)).toThrow("no other awake cloud host has room");
+  expect(() => chooseCloudHost("a", () => {}, { fallback: true }, d)).toThrow(
+    "no other awake cloud host has room",
+  );
 });
 
 test("autoscale launches like the template under its cap, and says when the cap is reached", () => {
   const plan = { template: host("a"), maxExtra: 1, size: "t3.xlarge" };
-  const r = chooseCloudHost("a", () => {}, { fallback: true, autoscale: plan }, deps([host("a")], { a: full }));
+  const r = chooseCloudHost(
+    "a",
+    () => {},
+    { fallback: true, autoscale: plan },
+    deps([host("a")], { a: full }),
+  );
   expect(r.launch).toEqual({ like: host("a"), size: "t3.xlarge" });
   const added = host("auto1", { autoscaled: true });
   const busy = deps([host("a"), added], { a: full, auto1: full });
-  expect(() => chooseCloudHost("a", () => {}, { fallback: true, autoscale: plan }, busy)).toThrow("autoscale already added 1 of 1 hosts");
+  expect(() =>
+    chooseCloudHost("a", () => {}, { fallback: true, autoscale: plan }, busy),
+  ).toThrow("autoscale already added 1 of 1 hosts");
 });
 
 test("a tight host that still fits keeps the session rather than waiting on a launch", () => {
   const d = deps([host("a")], { a: { fit: true, memoryAvailable: 2 * GB } });
-  expect(chooseCloudHost("a", () => {}, { fallback: true, autoscale: { template: host("a"), maxExtra: 3, size: "t3.xlarge" } }, d)).toEqual({ host: host("a"), moved: false });
+  expect(
+    chooseCloudHost(
+      "a",
+      () => {},
+      {
+        fallback: true,
+        autoscale: { template: host("a"), maxExtra: 3, size: "t3.xlarge" },
+      },
+      d,
+    ),
+  ).toEqual({ host: host("a"), moved: false });
 });
 
 const GiB = 1024 ** 3;
@@ -118,7 +247,9 @@ const need = { memoryBytes: 12 * GiB };
 test("a host is measured against the memory the repo declares", () => {
   expect(headroomFromProbe(mac(1)).memoryTotal).toBe(48 * GiB);
   // The t3.medium of jx72f3a against codecast's need.
-  expect(tooSmallFor({ memoryTotal: 3924688 * 1024 }, need)).toStartWith("it has 3.7 GB of memory and this repo needs 12.0 GB");
+  expect(tooSmallFor({ memoryTotal: 3924688 * 1024 }, need)).toStartWith(
+    "it has 3.7 GB of memory and this repo needs 12.0 GB",
+  );
   // A 16 GB instance reports 15.3 GiB to the kernel and fits.
   expect(tooSmallFor({ memoryTotal: 15.3 * GiB }, need)).toBeUndefined();
   expect(tooSmallFor({ memoryTotal: 2 * GiB }, undefined)).toBeUndefined();
@@ -147,72 +278,178 @@ test("a host too small for the repo yields to one that fits, even with room of i
     other: { fit: true, memoryAvailable: 5 * GiB, memoryTotal: 7.6 * GiB },
   });
   const said: string[] = [];
-  const r2 = chooseCloudHost("small", (m) => said.push(m), { fallback: true, need }, d2);
+  const r2 = chooseCloudHost(
+    "small",
+    (m) => said.push(m),
+    { fallback: true, need },
+    d2,
+  );
   expect(r2).toMatchObject({ host: host("small"), moved: false });
   expect(r2.small).toStartWith("it has 3.7 GB");
   expect(said.at(-1)).toContain("placing there anyway");
 });
 
 test("autoscale launches a host big enough for the repo; a shared checkout lands with the reason", () => {
-  const rooms = { small: { fit: true, memoryAvailable: 2 * GiB, memoryTotal: 3.7 * GiB } };
-  const r = chooseCloudHost("small", () => {}, { fallback: true, need, autoscale: { template: host("small"), maxExtra: 1, size: "t3.large" } }, deps([host("small")], rooms));
+  const rooms = {
+    small: { fit: true, memoryAvailable: 2 * GiB, memoryTotal: 3.7 * GiB },
+  };
+  const r = chooseCloudHost(
+    "small",
+    () => {},
+    {
+      fallback: true,
+      need,
+      autoscale: { template: host("small"), maxExtra: 1, size: "t3.large" },
+    },
+    deps([host("small")], rooms),
+  );
   expect(r.launch?.size).toBe("t3.xlarge");
-  const shared = chooseCloudHost("small", () => {}, { fallback: false, need }, deps([host("small")], rooms));
+  const shared = chooseCloudHost(
+    "small",
+    () => {},
+    { fallback: false, need },
+    deps([host("small")], rooms),
+  );
   expect(shared).toMatchObject({ host: host("small"), moved: false });
   expect(shared.small).toContain("needs 12.0 GB");
 });
 
 test("a host reserved for one job is never the fallback, awake or asleep", () => {
   const roomy = { fit: true, memoryAvailable: 30 * 1024 ** 3 };
-  const d = deps([host("full"), host("line", { reservedFor: "Union line" }), host("line-asleep", { reservedFor: "Union line" })], {
-    full: { fit: false, why: "memory pressure critical" },
-    line: roomy,
-  }, ["line-asleep"]);
-  expect(() => chooseCloudHost("full", () => {}, { fallback: true, autoscale: { maxExtra: 0, size: "small", template: host("full") } as any }, d)).toThrow("no other awake cloud host has room");
+  const d = deps(
+    [
+      host("full"),
+      host("line", { reservedFor: "Union line" }),
+      host("line-asleep", { reservedFor: "Union line" }),
+    ],
+    {
+      full: { fit: false, why: "memory pressure critical" },
+      line: roomy,
+    },
+    ["line-asleep"],
+  );
+  expect(() =>
+    chooseCloudHost(
+      "full",
+      () => {},
+      {
+        fallback: true,
+        autoscale: {
+          maxExtra: 0,
+          size: "small",
+          template: host("full"),
+        } as any,
+      },
+      d,
+    ),
+  ).toThrow("no other awake cloud host has room");
   expect(d.probed).toEqual(["full"]);
 });
 
 test("a host under 10 minutes from its run limit is treated as full, and never picked to move to", () => {
   const roomy: Headroom = { fit: true, memoryAvailable: 30 * GB };
-  const ending = deps([host("a"), host("b")], { a: roomy, b: roomy }, [], { a: 9 });
+  const ending = deps([host("a"), host("b")], { a: roomy, b: roomy }, [], {
+    a: 9,
+  });
   const said: string[] = [];
-  expect(chooseCloudHost("a", (m) => said.push(m), { fallback: true }, ending)).toEqual({ host: host("b"), moved: true, from: host("a"), why: "reaches its run limit in 9 min" });
+  expect(
+    chooseCloudHost("a", (m) => said.push(m), { fallback: true }, ending),
+  ).toEqual({
+    host: host("b"),
+    moved: true,
+    from: host("a"),
+    why: "reaches its run limit in 9 min",
+  });
   expect(ending.probed).toEqual(["b"]);
-  expect(said[0]).toContain("a has no room for another session (reaches its run limit in 9 min): placing on b instead");
+  expect(said[0]).toContain(
+    "a has no room for another session (reaches its run limit in 9 min): placing on b instead",
+  );
 
-  const roomier = deps([host("a"), host("limited"), host("plain")], { a: { fit: false, why: "full" }, limited: { fit: true, memoryAvailable: 30 * GB }, plain: { fit: true, memoryAvailable: 5 * GB } }, [], { limited: 3 });
-  expect(chooseCloudHost("a", () => {}, { fallback: true }, roomier).host.id).toBe("plain");
+  const roomier = deps(
+    [host("a"), host("limited"), host("plain")],
+    {
+      a: { fit: false, why: "full" },
+      limited: { fit: true, memoryAvailable: 30 * GB },
+      plain: { fit: true, memoryAvailable: 5 * GB },
+    },
+    [],
+    { limited: 3 },
+  );
+  expect(
+    chooseCloudHost("a", () => {}, { fallback: true }, roomier).host.id,
+  ).toBe("plain");
   expect(roomier.probed).not.toContain("limited");
 });
 
 test("10 minutes left or more, no limit, or an unreadable start keeps the host", () => {
   const roomy: Headroom = { fit: true, memoryAvailable: 30 * GB };
   for (const left of [10, 240, undefined]) {
-    const d = deps([host("a"), host("b")], { a: roomy, b: roomy }, [], left === undefined ? {} : { a: left });
-    expect(chooseCloudHost("a", () => {}, { fallback: true }, d)).toEqual({ host: host("a"), moved: false });
+    const d = deps(
+      [host("a"), host("b")],
+      { a: roomy, b: roomy },
+      [],
+      left === undefined ? {} : { a: left },
+    );
+    expect(chooseCloudHost("a", () => {}, { fallback: true }, d)).toEqual({
+      host: host("a"),
+      moved: false,
+    });
   }
 });
 
 test("an ending host with nowhere to move is refused, and one with fallback off is refused too", () => {
   const d = deps([host("a")], { a: { fit: true } }, [], { a: 2 });
-  expect(() => chooseCloudHost("a", () => {}, { fallback: true }, d)).toThrow("a has no room for another session (reaches its run limit in 2 min), and no other awake cloud host has room");
-  expect(() => chooseCloudHost("a", () => {}, { fallback: false }, d)).toThrow("a has no room for another session (reaches its run limit in 2 min)");
+  expect(() => chooseCloudHost("a", () => {}, { fallback: true }, d)).toThrow(
+    "a has no room for another session (reaches its run limit in 2 min), and no other awake cloud host has room",
+  );
+  expect(() => chooseCloudHost("a", () => {}, { fallback: false }, d)).toThrow(
+    "a has no room for another session (reaches its run limit in 2 min)",
+  );
 });
 
 test("a placement reads each host's state once, whether it asks for the state or the time left", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "cast-headroom-"));
   const fake = installFakeNamespace(root);
-  const saved = { HOME: process.env.HOME, FAKE_NS: process.env.FAKE_NS, CODECAST_DIR: process.env.CODECAST_DIR };
-  Object.assign(process.env, { HOME: fake.home, FAKE_NS: fake.state, CODECAST_DIR: root });
+  const saved = {
+    HOME: process.env.HOME,
+    FAKE_NS: process.env.FAKE_NS,
+    CODECAST_DIR: process.env.CODECAST_DIR,
+  };
+  Object.assign(process.env, {
+    HOME: fake.home,
+    FAKE_NS: fake.state,
+    CODECAST_DIR: root,
+  });
   try {
-    writeHosts([{ id: "box123", provider: "namespace", region: "iad", platform: "linux", user: "devbox", keyPath: "/k", address: "cast-box", proxyCommand: "/b/devbox ssh-proxy cast-box", maxRunMinutes: 240 }]);
+    writeHosts([
+      {
+        id: "box123",
+        provider: "namespace",
+        region: "iad",
+        platform: "linux",
+        user: "devbox",
+        keyPath: "/k",
+        address: "cast-box",
+        proxyCommand: "/b/devbox ssh-proxy cast-box",
+        maxRunMinutes: 240,
+      },
+    ]);
     fake.set("devbox-list", JSON.stringify([FAKE_BOX]));
-    fake.set("nsc-list", JSON.stringify([{ created_at: new Date(Date.now() - 235 * 60_000).toISOString() }]));
-    expect(() => chooseCloudHost("box123", () => {}, { fallback: false })).toThrow("reaches its run limit in 4 min");
+    fake.set(
+      "nsc-list",
+      JSON.stringify([
+        { created_at: new Date(Date.now() - 235 * 60_000).toISOString() },
+      ]),
+    );
+    expect(() =>
+      chooseCloudHost("box123", () => {}, { fallback: false }),
+    ).toThrow("reaches its run limit in 4 min");
     expect(fake.calls().filter((c) => c[0] === "devbox")).toHaveLength(1);
     expect(fake.calls().filter((c) => c[0] === "nsc")).toHaveLength(1);
   } finally {
-    for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    for (const [k, v] of Object.entries(saved))
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

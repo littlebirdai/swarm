@@ -5,7 +5,16 @@
 // summary and as a summary after one, with read_history opening the summary
 // down to the original message; one conversation's history unreadable from
 // another's turn; and the summary pass held by its caps and its breaker.
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  setDefaultTimeout,
+  test,
+} from "bun:test";
 import { convexTest } from "convex-test";
 import { storeContract } from "@platform/tidemark/stores/contract";
 import schema from "../schema";
@@ -15,8 +24,18 @@ import { enqueuePendingMessage } from "../pendingMessages";
 import { allModules as modules, loadPiAi } from "../testModules.testkit";
 import { actionStore } from "../tidemark";
 import { HISTORY_MAX_ROWS } from "./history";
-import { cheapModelCost, estimatedUsage, type ModelReply } from "../lib/anthropic";
-import { earlierHistory, historyDeps, LINE_CHARS, partitionOf, scopeOf } from "./longHistory";
+import {
+  cheapModelCost,
+  estimatedUsage,
+  type ModelReply,
+} from "../lib/anthropic";
+import {
+  earlierHistory,
+  historyDeps,
+  LINE_CHARS,
+  partitionOf,
+  scopeOf,
+} from "./longHistory";
 import { leaseTurn, turnDeps } from "./turns";
 
 setDefaultTimeout(240_000);
@@ -27,7 +46,10 @@ const savedTurn = { ...turnDeps };
 const savedHistory = { ...historyDeps };
 
 beforeAll(() => {
-  faux = pi.registerFauxProvider({ models: [{ id: "claude-haiku-5-5" }, { id: "claude-sonnet-5-5" }], tokenSize: { min: 3, max: 6 } });
+  faux = pi.registerFauxProvider({
+    models: [{ id: "claude-haiku-5-5" }, { id: "claude-sonnet-5-5" }],
+    tokenSize: { min: 3, max: 6 },
+  });
 });
 afterAll(() => faux.unregister());
 
@@ -48,8 +70,14 @@ beforeEach(() => {
   // can follow the first message through leaves and merges.
   historyDeps.call = async (args: { prompt: string }) => {
     summaryCalls.push(args.prompt);
-    const keep = /BLUEHERON/.test(args.prompt) ? " It began with the codename BLUEHERON." : "";
-    return answered({ text: `A stretch of the conversation.${keep}`, usage: { input_tokens: 400, output_tokens: 60 }, stop_reason: "end_turn" });
+    const keep = /BLUEHERON/.test(args.prompt)
+      ? " It began with the codename BLUEHERON."
+      : "";
+    return answered({
+      text: `A stretch of the conversation.${keep}`,
+      usage: { input_tokens: 400, output_tokens: 60 },
+      stop_reason: "end_turn",
+    });
   };
 });
 afterEach(() => {
@@ -58,7 +86,10 @@ afterEach(() => {
 });
 
 const reply = (text: string) => pi.fauxAssistantMessage(text);
-const callTool = (name: string, args: Record<string, unknown>, id: string) => pi.fauxAssistantMessage([pi.fauxToolCall(name, args, { id })], { stopReason: "toolUse" });
+const callTool = (name: string, args: Record<string, unknown>, id: string) =>
+  pi.fauxAssistantMessage([pi.fauxToolCall(name, args, { id })], {
+    stopReason: "toolUse",
+  });
 
 const FIRST = `The project codename is BLUEHERON. ${"Some context about the plan. ".repeat(14)}TAIL-OK`;
 
@@ -68,10 +99,13 @@ async function settle(t: any, forMs = 30_000) {
   const until = Date.now() + forMs;
   while (Date.now() < until) {
     await t.finishInProgressScheduledFunctions();
-    const due = await t.run(async (ctx: any) =>
-      (await ctx.db.system.query("_scheduled_functions").collect()).filter(
-        (job: any) => (job.state.kind === "pending" || job.state.kind === "inProgress") && job.scheduledTime <= Date.now() + 3_000,
-      ).length,
+    const due = await t.run(
+      async (ctx: any) =>
+        (await ctx.db.system.query("_scheduled_functions").collect()).filter(
+          (job: any) =>
+            (job.state.kind === "pending" || job.state.kind === "inProgress") &&
+            job.scheduledTime <= Date.now() + 3_000,
+        ).length,
     );
     if (due === 0) return;
     await pause(20);
@@ -80,23 +114,46 @@ async function settle(t: any, forMs = 30_000) {
 }
 
 /** A person with a hosted conversation already `count` messages long, a minute apart, the first carrying FIRST. */
-async function longConversation(t: any, count: number, opts: { line?: (i: number) => string } = {}) {
-  const user = (await t.run((ctx: any) => ctx.db.insert("users", { name: "Dana", emailVerificationTime: 1 }))) as Id<"users">;
-  const conversationId = (await t.withIdentity({ subject: user }).mutation(api.assistant.entry.startConversation, {})).conversation_id as Id<"conversations">;
+async function longConversation(
+  t: any,
+  count: number,
+  opts: { line?: (i: number) => string } = {},
+) {
+  const user = (await t.run((ctx: any) =>
+    ctx.db.insert("users", { name: "Dana", emailVerificationTime: 1 }),
+  )) as Id<"users">;
+  const conversationId = (
+    await t
+      .withIdentity({ subject: user })
+      .mutation(api.assistant.entry.startConversation, {})
+  ).conversation_id as Id<"conversations">;
   const start = Date.now() - (count + 10) * 60_000;
   await t.run(async (ctx: any) => {
     for (let i = 0; i < count; i++) {
       const content = i === 0 ? FIRST : (opts.line?.(i) ?? `message ${i}`);
-      await ctx.db.insert("messages", { conversation_id: conversationId, role: i % 2 === 0 ? "user" : "assistant", content, timestamp: start + i * 60_000 });
+      await ctx.db.insert("messages", {
+        conversation_id: conversationId,
+        role: i % 2 === 0 ? "user" : "assistant",
+        content,
+        timestamp: start + i * 60_000,
+      });
     }
   });
   return { user, conversationId };
 }
 
-async function say(t: any, conversationId: Id<"conversations">, user: Id<"users">, content: string) {
+async function say(
+  t: any,
+  conversationId: Id<"conversations">,
+  user: Id<"users">,
+  content: string,
+) {
   await t.run(async (ctx: any) => {
     const conversation = await ctx.db.get(conversationId);
-    await enqueuePendingMessage(ctx, conversation, user, { content, human: true });
+    await enqueuePendingMessage(ctx, conversation, user, {
+      content,
+      human: true,
+    });
     await leaseTurn(ctx, conversationId);
   });
 }
@@ -104,7 +161,12 @@ async function say(t: any, conversationId: Id<"conversations">, user: Id<"users"
 let asked = 0;
 
 /** One turn whose model answers with `steps`, each seeing the context it was called with. */
-async function turn(t: any, conversationId: Id<"conversations">, user: Id<"users">, steps: Array<(context: any) => any>) {
+async function turn(
+  t: any,
+  conversationId: Id<"conversations">,
+  user: Id<"users">,
+  steps: Array<(context: any) => any>,
+) {
   faux.setResponses(steps.map((step) => (context: any) => step(context)));
   await say(t, conversationId, user, `Where were we? (${++asked})`);
   await settle(t);
@@ -115,13 +177,21 @@ const lastToolResult = (context: any): string => {
   const last = results[results.length - 1];
   return (last?.content ?? []).map((c: any) => c.text ?? "").join("");
 };
-const firstBlockHandle = (text: string): string | null => text.match(/\[block:(\S+) \|/)?.[1] ?? null;
+const firstBlockHandle = (text: string): string | null =>
+  text.match(/\[block:(\S+) \|/)?.[1] ?? null;
 
 describe("tidemark store contract on this deployment", () => {
   for (const c of storeContract(async () => {
     const t = convexTest(schema, modules);
-    const store = actionStore({ runQuery: (ref, args) => t.query(ref, args), runMutation: (ref, args) => t.mutation(ref, args) });
-    return { store, addLegacyLeaf: async (...a: Parameters<typeof store.addLegacyLeaf>) => void (await store.addLegacyLeaf(...a)) };
+    const store = actionStore({
+      runQuery: (ref, args) => t.query(ref, args),
+      runMutation: (ref, args) => t.mutation(ref, args),
+    });
+    return {
+      store,
+      addLegacyLeaf: async (...a: Parameters<typeof store.addLegacyLeaf>) =>
+        void (await store.addLegacyLeaf(...a)),
+    };
   })) {
     test(c.name, c.run);
   }
@@ -130,7 +200,10 @@ describe("tidemark store contract on this deployment", () => {
 describe("a conversation longer than the replayed window", () => {
   test("keeps its beginning in context, raw and then summarized, and read_history opens it down to the first message", async () => {
     const t = convexTest(schema, modules);
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 200);
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 200,
+    );
 
     // Turn 1: nothing summarized yet. The 200 rows before the window are logged
     // and the first one reaches the model raw.
@@ -146,7 +219,9 @@ describe("a conversation longer than the replayed window", () => {
     expect(system).toContain("## Earlier in this conversation");
     expect(system).toContain("The project codename is BLUEHERON");
     expect(tools).toContain("read_history");
-    const state = await t.run((ctx: any) => ctx.db.query("assistant_history").collect());
+    const state = await t.run((ctx: any) =>
+      ctx.db.query("assistant_history").collect(),
+    );
     expect(state).toHaveLength(1);
     expect(state[0].logged).toBeGreaterThanOrEqual(200);
 
@@ -170,8 +245,13 @@ describe("a conversation longer than the replayed window", () => {
       ...[1, 2, 3, 4].map((n) => (context: any) => {
         const result = lastToolResult(context);
         opened.push(result);
-        if (/opened: its \d+ raw entries/.test(result)) return reply("Found it.");
-        return callTool("read_history", { item: firstBlockHandle(result) }, `zoom_${n}`);
+        if (/opened: its \d+ raw entries/.test(result))
+          return reply("Found it.");
+        return callTool(
+          "read_history",
+          { item: firstBlockHandle(result) },
+          `zoom_${n}`,
+        );
       }),
       () => reply("Found it."),
     ]);
@@ -180,7 +260,8 @@ describe("a conversation longer than the replayed window", () => {
     expect(opened[0]).toMatch(/\[block:b:2\.0@/);
     expect(opened[1]).toMatch(/\[block:b:1\.0@/);
     expect(opened[2]).toMatch(/\[block:b:0\.0@/);
-    for (const step of opened.slice(0, 3)) expect(step).toContain("codename BLUEHERON");
+    for (const step of opened.slice(0, 3))
+      expect(step).toContain("codename BLUEHERON");
     expect(system).toContain("codename BLUEHERON");
     expect(system).toMatch(/\[block:/);
     expect(system).not.toContain("TAIL-OK");
@@ -203,23 +284,53 @@ describe("a conversation longer than the replayed window", () => {
     });
     await t.run(async (ctx: any) => {
       const start = Date.now() - 400 * 60_000;
-      for (let i = 0; i < HISTORY_MAX_ROWS + 120; i++) await ctx.db.insert("messages", { conversation_id: c, role: i % 2 === 0 ? "user" : "assistant", content: `other ${i}`, timestamp: start + i * 60_000 });
+      for (let i = 0; i < HISTORY_MAX_ROWS + 120; i++)
+        await ctx.db.insert("messages", {
+          conversation_id: c,
+          role: i % 2 === 0 ? "user" : "assistant",
+          content: `other ${i}`,
+          timestamp: start + i * 60_000,
+        });
     });
 
     let systemA = "";
-    await turn(t, a.conversationId, a.user, [(context) => ((systemA = context.systemPrompt), reply("ok"))]);
+    await turn(t, a.conversationId, a.user, [
+      (context) => ((systemA = context.systemPrompt), reply("ok")),
+    ]);
     await t.action(internal.assistant.longHistory.compress, {});
-    await turn(t, a.conversationId, a.user, [(context) => ((systemA = context.systemPrompt), reply("ok"))]);
+    await turn(t, a.conversationId, a.user, [
+      (context) => ((systemA = context.systemPrompt), reply("ok")),
+    ]);
     const handle = firstBlockHandle(systemA)!;
     expect(handle).toBeTruthy();
 
-    for (const [other, owner] of [[b.conversationId, b.user], [c as Id<"conversations">, a.user]] as const) {
+    for (const [other, owner] of [
+      [b.conversationId, b.user],
+      [c as Id<"conversations">, a.user],
+    ] as const) {
       const results: string[] = [];
       let otherSystem = "";
       await turn(t, other, owner, [
-        (context) => ((otherSystem = context.systemPrompt), callTool("read_history", { item: handle }, "leak_1")),
-        (context) => (results.push(lastToolResult(context)), callTool("read_history", { scope: `conversation:${a.conversationId}` }, "leak_2")),
-        (context) => (results.push(lastToolResult(context)), callTool("read_history", { query: "BLUEHERON", scope: `conversation:${a.conversationId}` }, "leak_3")),
+        (context) => (
+          (otherSystem = context.systemPrompt),
+          callTool("read_history", { item: handle }, "leak_1")
+        ),
+        (context) => (
+          results.push(lastToolResult(context)),
+          callTool(
+            "read_history",
+            { scope: `conversation:${a.conversationId}` },
+            "leak_2",
+          )
+        ),
+        (context) => (
+          results.push(lastToolResult(context)),
+          callTool(
+            "read_history",
+            { query: "BLUEHERON", scope: `conversation:${a.conversationId}` },
+            "leak_3",
+          )
+        ),
         (context) => (results.push(lastToolResult(context)), reply("nothing")),
       ]);
       // Every conversation in this test opens with BLUEHERON except c, so
@@ -234,20 +345,37 @@ describe("a conversation longer than the replayed window", () => {
 
   test("a conversation whose earlier rows read outside content keeps counting as tainted after they leave the window", async () => {
     const t = convexTest(schema, modules);
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 60);
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 60,
+    );
     await t.run(async (ctx: any) => {
-      const second = (await ctx.db.query("messages").withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conversationId)).take(2))[1];
-      await ctx.db.patch(second._id, { tool_calls: [{ id: "c1", name: "fetch_page", input: "{}" }] });
+      const second = (
+        await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_timestamp", (q: any) =>
+            q.eq("conversation_id", conversationId),
+          )
+          .take(2)
+      )[1];
+      await ctx.db.patch(second._id, {
+        tool_calls: [{ id: "c1", name: "fetch_page", input: "{}" }],
+      });
     });
     await turn(t, conversationId, user, [() => reply("ok")]);
-    const state = await t.run((ctx: any) => ctx.db.query("assistant_history").collect());
+    const state = await t.run((ctx: any) =>
+      ctx.db.query("assistant_history").collect(),
+    );
     expect(state[0].outside).toBe(true);
   });
 });
 
 describe("the summary pass", () => {
   async function backlog(t: any) {
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 200);
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 200,
+    );
     await turn(t, conversationId, user, [() => reply("ok")]);
     return { user, conversationId };
   }
@@ -264,7 +392,11 @@ describe("the summary pass", () => {
     const t = convexTest(schema, modules);
     await backlog(t);
     const day = new Date().toISOString().slice(0, 10);
-    await t.mutation(internal.assistant.longHistory.recordSpend, { day, usd: historyDeps.dayCapUsd, failed: false });
+    await t.mutation(internal.assistant.longHistory.recordSpend, {
+      day,
+      usd: historyDeps.dayCapUsd,
+      failed: false,
+    });
     const report = await t.action(internal.assistant.longHistory.compress, {});
     expect(summaryCalls).toHaveLength(0);
     expect(report.budgetHit).toBe(true);
@@ -297,8 +429,12 @@ describe("the summary pass", () => {
     // A failing scope stops at its first failure; past the breaker no call
     // starts, so at most the calls already in flight finish.
     expect(summaryCalls.length).toBeLessThan(8);
-    expect(summaryCalls.length).toBeLessThanOrEqual(historyDeps.failuresToStop + 4);
-    const spend = await t.run((ctx: any) => ctx.db.query("assistant_history_spend").collect());
+    expect(summaryCalls.length).toBeLessThanOrEqual(
+      historyDeps.failuresToStop + 4,
+    );
+    const spend = await t.run((ctx: any) =>
+      ctx.db.query("assistant_history_spend").collect(),
+    );
     const everyone = spend.find((row: any) => row.who === "all");
     expect(everyone.failures).toBe(summaryCalls.length);
     // No usage came back, so each call is billed at the estimate for its prompt.
@@ -306,11 +442,16 @@ describe("the summary pass", () => {
 
     // The turn still shows the beginning, raw.
     let system = "";
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), reply("ok"))]);
+    await turn(t, conversationId, user, [
+      (context) => ((system = context.systemPrompt), reply("ok")),
+    ]);
     expect(system).toContain("BLUEHERON");
 
     historyDeps.call = working;
-    const recovered = await t.action(internal.assistant.longHistory.compress, {});
+    const recovered = await t.action(
+      internal.assistant.longHistory.compress,
+      {},
+    );
     expect(recovered.leaves).toBe(4 + 7);
   });
 
@@ -320,7 +461,12 @@ describe("the summary pass", () => {
     const light = await longConversation(t, HISTORY_MAX_ROWS + 60);
     await turn(t, light.conversationId, light.user, [() => reply("ok")]);
     const day = new Date().toISOString().slice(0, 10);
-    await t.mutation(internal.assistant.longHistory.recordSpend, { day, who: String(heavy.user), usd: historyDeps.userDayCapUsd, failed: false });
+    await t.mutation(internal.assistant.longHistory.recordSpend, {
+      day,
+      who: String(heavy.user),
+      usd: historyDeps.userDayCapUsd,
+      failed: false,
+    });
     const report = await t.action(internal.assistant.longHistory.compress, {});
     expect(report.leaves).toBe(1);
     expect(summaryCalls).toHaveLength(1);
@@ -332,12 +478,20 @@ describe("the summary pass", () => {
     await backlog(t);
     historyDeps.call = async (args: { prompt: string }) => {
       summaryCalls.push(args.prompt);
-      return answered({ text: "I can't summarize this conversation.", usage: { input_tokens: 400, output_tokens: 10 }, stop_reason: "end_turn" });
+      return answered({
+        text: "I can't summarize this conversation.",
+        usage: { input_tokens: 400, output_tokens: 10 },
+        stop_reason: "end_turn",
+      });
     };
     const report = await t.action(internal.assistant.longHistory.compress, {});
     expect(report.leaves).toBe(0);
     expect(report.failures).toBeGreaterThan(0);
-    const everyone = (await t.run((ctx: any) => ctx.db.query("assistant_history_spend").collect())).find((row: any) => row.who === "all");
+    const everyone = (
+      await t.run((ctx: any) =>
+        ctx.db.query("assistant_history_spend").collect(),
+      )
+    ).find((row: any) => row.who === "all");
     expect(everyone.failures).toBe(summaryCalls.length);
     expect(everyone.usd).toBeGreaterThan(0);
   });
@@ -349,19 +503,41 @@ describe("the summary pass", () => {
     const working = historyDeps.call;
     historyDeps.call = async (args: { prompt: string }) => {
       summaryCalls.push(args.prompt);
-      return answered({ text: "The conversation began with a long plan about", usage: { input_tokens: 400, output_tokens: historyDeps.summaryMaxTokens }, stop_reason: "max_tokens" });
+      return answered({
+        text: "The conversation began with a long plan about",
+        usage: {
+          input_tokens: 400,
+          output_tokens: historyDeps.summaryMaxTokens,
+        },
+        stop_reason: "max_tokens",
+      });
     };
     const cut = await t.action(internal.assistant.longHistory.compress, {});
     expect(cut.leaves).toBe(0);
     expect(cut.stoppedForFailures).toBe(true);
-    const everyone = (await t.run((ctx: any) => ctx.db.query("assistant_history_spend").collect())).find((row: any) => row.who === "all");
+    const everyone = (
+      await t.run((ctx: any) =>
+        ctx.db.query("assistant_history_spend").collect(),
+      )
+    ).find((row: any) => row.who === "all");
     expect(everyone.failures).toBe(summaryCalls.length);
-    expect(everyone.usd).toBeCloseTo(summaryCalls.length * cheapModelCost({ input_tokens: 400, output_tokens: historyDeps.summaryMaxTokens }), 10);
+    expect(everyone.usd).toBeCloseTo(
+      summaryCalls.length *
+        cheapModelCost({
+          input_tokens: 400,
+          output_tokens: historyDeps.summaryMaxTokens,
+        }),
+      10,
+    );
     let system = "";
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), reply("ok"))]);
+    await turn(t, conversationId, user, [
+      (context) => ((system = context.systemPrompt), reply("ok")),
+    ]);
     expect(system).not.toContain("began with a long plan about");
     historyDeps.call = working;
-    expect((await t.action(internal.assistant.longHistory.compress, {})).leaves).toBe(4 + 4);
+    expect(
+      (await t.action(internal.assistant.longHistory.compress, {})).leaves,
+    ).toBe(4 + 4);
   });
 
   test("a failed call bills the usage the API reported, else an estimate from its prompt, and the caps see it", async () => {
@@ -381,7 +557,10 @@ describe("the summary pass", () => {
     const capped = await t.action(internal.assistant.longHistory.compress, {});
     // The pass cap stops it although every call failed: failures are spent money.
     expect(capped.budgetHit).toBe(true);
-    expect(capped.spentUsd).toBeCloseTo(summaryCalls.length * cheapModelCost(reported), 10);
+    expect(capped.spentUsd).toBeCloseTo(
+      summaryCalls.length * cheapModelCost(reported),
+      10,
+    );
     expect(capped.spentUsd).toBeGreaterThanOrEqual(historyDeps.passCapUsd);
 
     reportUsage = false;
@@ -389,46 +568,95 @@ describe("the summary pass", () => {
     systems.length = 0;
     historyDeps.passCapUsd = 1000;
     const day = new Date().toISOString().slice(0, 10);
-    const before = (await t.run((ctx: any) => ctx.db.query("assistant_history_spend").collect())).find((row: any) => row.who === "all").usd;
-    const estimated = await t.action(internal.assistant.longHistory.compress, {});
-    const expected = summaryCalls.reduce((sum, prompt, i) => sum + cheapModelCost(estimatedUsage(systems[i], prompt)), 0);
+    const before = (
+      await t.run((ctx: any) =>
+        ctx.db.query("assistant_history_spend").collect(),
+      )
+    ).find((row: any) => row.who === "all").usd;
+    const estimated = await t.action(
+      internal.assistant.longHistory.compress,
+      {},
+    );
+    const expected = summaryCalls.reduce(
+      (sum, prompt, i) =>
+        sum + cheapModelCost(estimatedUsage(systems[i], prompt)),
+      0,
+    );
     expect(summaryCalls.length).toBeGreaterThan(0);
     expect(estimated.spentUsd).toBeCloseTo(expected, 10);
     // The person's own row is charged too, so their day's cap sees it.
-    const rows = await t.run((ctx: any) => ctx.db.query("assistant_history_spend").collect());
-    expect(rows.find((row: any) => row.who === "all").usd).toBeCloseTo(before + expected, 10);
-    expect(rows.filter((row: any) => row.who !== "all" && row.day === day).reduce((sum: number, row: any) => sum + row.usd, 0)).toBeCloseTo(before + expected, 10);
+    const rows = await t.run((ctx: any) =>
+      ctx.db.query("assistant_history_spend").collect(),
+    );
+    expect(rows.find((row: any) => row.who === "all").usd).toBeCloseTo(
+      before + expected,
+      10,
+    );
+    expect(
+      rows
+        .filter((row: any) => row.who !== "all" && row.day === day)
+        .reduce((sum: number, row: any) => sum + row.usd, 0),
+    ).toBeCloseTo(before + expected, 10);
   });
 
   test("with summaries at their longest, the cover still holds the conversation's first block", async () => {
     const t = convexTest(schema, modules);
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 800);
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 800,
+    );
     await turn(t, conversationId, user, [() => reply("ok")]);
     // Every summary as long as summaryMaxTokens allows.
     historyDeps.call = async (args: { prompt: string }) => {
       summaryCalls.push(args.prompt);
-      const keep = /BLUEHERON/.test(args.prompt) ? "It began with the codename BLUEHERON. " : "";
-      return answered({ text: (keep + "A stretch of the conversation went by. ".repeat(40)).slice(0, historyDeps.summaryMaxTokens * 4), usage: { input_tokens: 400, output_tokens: 300 }, stop_reason: "end_turn" });
+      const keep = /BLUEHERON/.test(args.prompt)
+        ? "It began with the codename BLUEHERON. "
+        : "";
+      return answered({
+        text: (
+          keep + "A stretch of the conversation went by. ".repeat(40)
+        ).slice(0, historyDeps.summaryMaxTokens * 4),
+        usage: { input_tokens: 400, output_tokens: 300 },
+        stop_reason: "end_turn",
+      });
     };
     const report = await t.action(internal.assistant.longHistory.compress, {});
     expect(report.leaves).toBe(16);
     expect(report.merged).toBe(15);
     let system = "";
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), reply("ok"))]);
+    await turn(t, conversationId, user, [
+      (context) => ((system = context.systemPrompt), reply("ok")),
+    ]);
     expect(system).toContain("codename BLUEHERON");
     expect(system).not.toContain("did not fit here");
   });
 
   test("once outside content reached the conversation, the earlier part is fenced as outside text", async () => {
     const t = convexTest(schema, modules);
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 60);
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 60,
+    );
     await t.run(async (ctx: any) => {
-      const second = (await ctx.db.query("messages").withIndex("by_conversation_timestamp", (q: any) => q.eq("conversation_id", conversationId)).take(2))[1];
-      await ctx.db.patch(second._id, { tool_calls: [{ id: "c1", name: "fetch_page", input: "{}" }] });
+      const second = (
+        await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_timestamp", (q: any) =>
+            q.eq("conversation_id", conversationId),
+          )
+          .take(2)
+      )[1];
+      await ctx.db.patch(second._id, {
+        tool_calls: [{ id: "c1", name: "fetch_page", input: "{}" }],
+      });
     });
     let system = "";
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), reply("ok"))]);
-    const section = system.slice(system.indexOf("## Earlier in this conversation"));
+    await turn(t, conversationId, user, [
+      (context) => ((system = context.systemPrompt), reply("ok")),
+    ]);
+    const section = system.slice(
+      system.indexOf("## Earlier in this conversation"),
+    );
     expect(section).toMatch(/<untrusted-[A-Za-z0-9]+/);
     expect(section).toContain("BLUEHERON");
   });
@@ -441,35 +669,56 @@ describe("the summary pass", () => {
     };
     let system = "";
     let tools: string[] = [];
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), (tools = (context.tools ?? []).map((x: any) => x.name)), reply("Still here."))]);
+    await turn(t, conversationId, user, [
+      (context) => (
+        (system = context.systemPrompt),
+        (tools = (context.tools ?? []).map((x: any) => x.name)),
+        reply("Still here.")
+      ),
+    ]);
     expect(system).not.toContain("## Earlier in this conversation");
     expect(tools).not.toContain("read_history");
-    const turns = await t.run((ctx: any) => ctx.db.query("assistant_turns").collect());
+    const turns = await t.run((ctx: any) =>
+      ctx.db.query("assistant_turns").collect(),
+    );
     expect(turns.every((x: any) => x.status === "done")).toBe(true);
   });
 
   test("a failure to log what left the window keeps the turn going on what was logged before", async () => {
     const t = convexTest(schema, modules);
     const { conversationId } = await backlog(t);
-    const state = (await t.run((ctx: any) => ctx.db.query("assistant_history").collect()))[0];
+    const state = (
+      await t.run((ctx: any) => ctx.db.query("assistant_history").collect())
+    )[0];
     const ctx = {
       runQuery: (ref: any, args: any) => t.query(ref, args),
       runMutation: async () => {
         throw new Error("Too many bytes read in a single function execution");
       },
     };
-    const earlier = await earlierHistory(ctx, { conversationId, start: { timestamp: Date.now(), creationTime: Date.now() }, long: { partition: partitionOf(state.user_id), outside: false }, turnId: "t1" });
+    const earlier = await earlierHistory(ctx, {
+      conversationId,
+      start: { timestamp: Date.now(), creationTime: Date.now() },
+      long: { partition: partitionOf(state.user_id), outside: false },
+      turnId: "t1",
+    });
     expect(earlier.section).toContain("BLUEHERON");
     expect(earlier.tools.map((tool) => tool.name)).toEqual(["read_history"]);
   });
 
   test("when raw lines overflow the cover's budget, the cover says so and points at read_history", async () => {
     const t = convexTest(schema, modules);
-    const { user, conversationId } = await longConversation(t, HISTORY_MAX_ROWS + 200, { line: (i) => `message ${i} ${"words ".repeat(120)}` });
+    const { user, conversationId } = await longConversation(
+      t,
+      HISTORY_MAX_ROWS + 200,
+      { line: (i) => `message ${i} ${"words ".repeat(120)}` },
+    );
     // The first turn logs a batch and the rest follows; the second reads all of it.
     await turn(t, conversationId, user, [() => reply("ok")]);
     let system = "";
-    await turn(t, conversationId, user, [(context) => ((system = context.systemPrompt), reply("ok"))]);
+    await turn(t, conversationId, user, [
+      (context) => ((system = context.systemPrompt), reply("ok")),
+    ]);
     expect(system).toContain("did not fit here");
   });
 
@@ -484,11 +733,27 @@ describe("the summary pass", () => {
     // Only the kept conversation was summarized.
     expect(report.leaves).toBe(1);
     expect(summaryCalls).toHaveLength(1);
-    const store = actionStore({ runQuery: (ref, args) => t.query(ref, args), runMutation: (ref, args) => t.mutation(ref, args) });
-    expect(await store.activities({ select: { scope: scopeOf(conversationId) }, partition: partitionOf(user), order: "asc", limit: 5 })).toEqual([]);
-    expect(await store.treeIndex(scopeOf(conversationId), partitionOf(user), {})).toEqual([]);
-    const rows = await t.run((ctx: any) => ctx.db.query("assistant_history").collect());
-    expect(rows.map((r: any) => r.conversation_id)).toEqual([kept.conversationId]);
+    const store = actionStore({
+      runQuery: (ref, args) => t.query(ref, args),
+      runMutation: (ref, args) => t.mutation(ref, args),
+    });
+    expect(
+      await store.activities({
+        select: { scope: scopeOf(conversationId) },
+        partition: partitionOf(user),
+        order: "asc",
+        limit: 5,
+      }),
+    ).toEqual([]);
+    expect(
+      await store.treeIndex(scopeOf(conversationId), partitionOf(user), {}),
+    ).toEqual([]);
+    const rows = await t.run((ctx: any) =>
+      ctx.db.query("assistant_history").collect(),
+    );
+    expect(rows.map((r: any) => r.conversation_id)).toEqual([
+      kept.conversationId,
+    ]);
   });
 
   test("a deleted conversation with nothing left to summarize is found by the sweep", async () => {
@@ -501,17 +766,39 @@ describe("the summary pass", () => {
     await t.action(internal.assistant.longHistory.compress, {});
     await settle(t);
     expect(summaryCalls.length).toBe(calls);
-    const store = actionStore({ runQuery: (ref, args) => t.query(ref, args), runMutation: (ref, args) => t.mutation(ref, args) });
-    expect(await store.treeIndex(scopeOf(conversationId), partitionOf(user), {})).toEqual([]);
-    expect(await t.run((ctx: any) => ctx.db.query("assistant_history").collect())).toEqual([]);
+    const store = actionStore({
+      runQuery: (ref, args) => t.query(ref, args),
+      runMutation: (ref, args) => t.mutation(ref, args),
+    });
+    expect(
+      await store.treeIndex(scopeOf(conversationId), partitionOf(user), {}),
+    ).toEqual([]);
+    expect(
+      await t.run((ctx: any) => ctx.db.query("assistant_history").collect()),
+    ).toEqual([]);
   });
 
   test("the log is partitioned by person", async () => {
     const t = convexTest(schema, modules);
     const { user, conversationId } = await backlog(t);
-    const store = actionStore({ runQuery: (ref, args) => t.query(ref, args), runMutation: (ref, args) => t.mutation(ref, args) });
-    const mine = await store.activities({ select: { scope: scopeOf(conversationId) }, partition: partitionOf(user), order: "asc", limit: 5 });
+    const store = actionStore({
+      runQuery: (ref, args) => t.query(ref, args),
+      runMutation: (ref, args) => t.mutation(ref, args),
+    });
+    const mine = await store.activities({
+      select: { scope: scopeOf(conversationId) },
+      partition: partitionOf(user),
+      order: "asc",
+      limit: 5,
+    });
     expect(mine[0].summary).toContain("BLUEHERON");
-    expect(await store.activities({ select: { scope: scopeOf(conversationId) }, partition: "default", order: "asc", limit: 5 })).toEqual([]);
+    expect(
+      await store.activities({
+        select: { scope: scopeOf(conversationId) },
+        partition: "default",
+        order: "asc",
+        limit: 5,
+      }),
+    ).toEqual([]);
   });
 });

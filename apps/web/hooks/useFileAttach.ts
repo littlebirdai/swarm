@@ -8,7 +8,11 @@ import { toast } from "sonner";
 import { appendFileTags } from "@codecast/shared/contracts";
 import { uploadBlobToStorage } from "../lib/uploadBlob";
 
-export type AttachedFile = { key: string; file: File; storageId: string | null };
+export type AttachedFile = {
+  key: string;
+  file: File;
+  storageId: string | null;
+};
 
 let nextKey = 0;
 
@@ -18,19 +22,30 @@ export function useFileAttach() {
   const current = useRef<AttachedFile[]>([]);
   current.current = files;
 
-  const attach = useCallback((file: File) => {
-    const key = `f${nextKey++}`;
-    setFiles((prev) => [...prev, { key, file, storageId: null }]);
-    void (async () => {
-      const storageId = await uploadBlobToStorage(convex, file, file.type || "application/octet-stream");
-      if (storageId) {
-        setFiles((prev) => prev.map((f) => (f.key === key ? { ...f, storageId: storageId as string } : f)));
-      } else {
-        toast.error(`Could not upload ${file.name}`);
-        setFiles((prev) => prev.filter((f) => f.key !== key));
-      }
-    })();
-  }, [convex]);
+  const attach = useCallback(
+    (file: File) => {
+      const key = `f${nextKey++}`;
+      setFiles((prev) => [...prev, { key, file, storageId: null }]);
+      void (async () => {
+        const storageId = await uploadBlobToStorage(
+          convex,
+          file,
+          file.type || "application/octet-stream",
+        );
+        if (storageId) {
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.key === key ? { ...f, storageId: storageId as string } : f,
+            ),
+          );
+        } else {
+          toast.error(`Could not upload ${file.name}`);
+          setFiles((prev) => prev.filter((f) => f.key !== key));
+        }
+      })();
+    },
+    [convex],
+  );
 
   const remove = useCallback((key: string) => {
     setFiles((prev) => prev.filter((f) => f.key !== key));
@@ -43,8 +58,17 @@ export function useFileAttach() {
     if (ready.length === 0) return text;
     setFiles([]);
     current.current = [];
-    return appendFileTags(text, ready.map((f) => ({ storageId: f.storageId!, name: f.file.name })));
+    return appendFileTags(
+      text,
+      ready.map((f) => ({ storageId: f.storageId!, name: f.file.name })),
+    );
   }, []);
 
-  return { files, attach, remove, take, uploading: files.some((f) => !f.storageId) };
+  return {
+    files,
+    attach,
+    remove,
+    take,
+    uploading: files.some((f) => !f.storageId),
+  };
 }

@@ -40,10 +40,10 @@ Union side (`union-mobile/outreach/backend`):
 
 Codecast side, on the Union team (set up by a person):
 
-| Source | Provider | Holds | Fingerprint prefix |
-|---|---|---|---|
-| `union` | app | a signed connection to base url `https://<api host>/api`, no secret | `union` |
-| `union-errors` | sdk | the ingest key recorded in Union's codecast.json | `union` |
+| Source         | Provider | Holds                                                               | Fingerprint prefix |
+| -------------- | -------- | ------------------------------------------------------------------- | ------------------ |
+| `union`        | app      | a signed connection to base url `https://<api host>/api`, no secret | `union`            |
+| `union-errors` | sdk      | the ingest key recorded in Union's codecast.json                    | `union`            |
 
 Groups keep the bare fingerprint (`invariant:<id>`); the prefix is applied
 only to the signal a promoted transition files. A source promotes `new` and
@@ -66,14 +66,14 @@ too, for parity with Aivery's `rerun_job`, and confirmed per call with
 
 ## Triggers it is armed on
 
-| Trigger | Source | Why |
-|---|---|---|
-| `error_new` | `union-errors` | A production error nobody has seen before |
-| `error_regressed` | `union-errors` | A resolved error is back, or back in a newer release |
-| `job_failed` | `union-errors` | A job logged a failure (logError with category job) |
-| `job_failed` | `union` | pg-boss recorded a failed job (the `jobs.failed` watch) |
-| `check_failed` | `union` | An invariant turned red (the `invariants.list` watch) |
-| the role's routine, at 3h | | The standing check-in Aivery runs every 3 hours |
+| Trigger                   | Source         | Why                                                     |
+| ------------------------- | -------------- | ------------------------------------------------------- |
+| `error_new`               | `union-errors` | A production error nobody has seen before               |
+| `error_regressed`         | `union-errors` | A resolved error is back, or back in a newer release    |
+| `job_failed`              | `union-errors` | A job logged a failure (logError with category job)     |
+| `job_failed`              | `union`        | pg-boss recorded a failed job (the `jobs.failed` watch) |
+| `check_failed`            | `union`        | An invariant turned red (the `invariants.list` watch)   |
+| the role's routine, at 3h |                | The standing check-in Aivery runs every 3 hours         |
 
 Every role is created with a recurring routine trigger (24h,
 `ROLE_CHECK_EVERY_MS` in `convex/lib/orgRoutine.ts`). Set that one to 3h with

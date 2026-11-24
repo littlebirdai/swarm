@@ -16,7 +16,12 @@ import { whenInputQuiet } from "../lib/inputQuiet";
 // data freshness then scale independently: the list wakes only on structural
 // change, the clock ticks every interval regardless.
 
-type Clock = { now: number; listeners: Set<() => void>; timer: ReturnType<typeof setInterval> | null; deferred: (() => void) | null };
+type Clock = {
+  now: number;
+  listeners: Set<() => void>;
+  timer: ReturnType<typeof setInterval> | null;
+  deferred: (() => void) | null;
+};
 
 // A clock this coarse re-places whole lists on its tick (the inbox's TTLs, the
 // digest compare), so while the person is typing its tick waits for a pause,
@@ -39,7 +44,10 @@ function clockFor(intervalMs: number): Clock {
 // fan-out useCoarseNow rides, usable outside React (a store-level loop such as
 // the digest compare ticks here instead of owning a private interval). The
 // timer starts with the first listener and stops with the last.
-export function subscribeCoarseTick(intervalMs: number, listener: () => void): () => void {
+export function subscribeCoarseTick(
+  intervalMs: number,
+  listener: () => void,
+): () => void {
   const c = clockFor(intervalMs);
   c.listeners.add(listener);
   if (c.timer === null) {
@@ -52,7 +60,10 @@ export function subscribeCoarseTick(intervalMs: number, listener: () => void): (
       if (intervalMs < DEFER_MIN_INTERVAL_MS) tick();
       else if (!c.deferred) {
         let ran = false;
-        const cancel = whenInputQuiet(() => { ran = true; tick(); }, TICK_MAX_DEFER_MS);
+        const cancel = whenInputQuiet(() => {
+          ran = true;
+          tick();
+        }, TICK_MAX_DEFER_MS);
         if (!ran) c.deferred = cancel;
       }
     }, intervalMs);
@@ -104,7 +115,10 @@ export function useCoarseNow(intervalMs: number): number {
  * The returned `now` is the clock at the last (re)render, so it is at most one
  * threshold crossing stale — exactly what the caller's decisions can tolerate.
  */
-export function useNowWhen(sig: (now: number) => string, intervalMs: number): number {
+export function useNowWhen(
+  sig: (now: number) => string,
+  intervalMs: number,
+): number {
   const [now, setNow] = useState(() => Date.now());
   const sigRef = useRef(sig);
   sigRef.current = sig;
@@ -112,9 +126,13 @@ export function useNowWhen(sig: (now: number) => string, intervalMs: number): nu
   renderedSigRef.current = sig(now);
   // Rides the shared clock for intervalMs, so a list of N rows checks its
   // signatures on one timer in one task instead of N unaligned intervals.
-  useWatchEffect(() => subscribeCoarseTick(intervalMs, () => {
-    const t = Date.now();
-    if (sigRef.current(t) !== renderedSigRef.current) setNow(t);
-  }), [intervalMs]);
+  useWatchEffect(
+    () =>
+      subscribeCoarseTick(intervalMs, () => {
+        const t = Date.now();
+        if (sigRef.current(t) !== renderedSigRef.current) setNow(t);
+      }),
+    [intervalMs],
+  );
   return now;
 }

@@ -20,14 +20,24 @@ const MAX_LOAD_STRETCH = 4;
  * that replays evals under load needs more than one that writes criteria, else
  * four hours.
  */
-export function handTimeouts(node: { timeout?: number }, options: { agentTimeout?: number }): HandTimeouts {
-  return { idleMs: options.agentTimeout || HAND_IDLE_MS, capMs: node.timeout ? node.timeout * 1000 : HAND_CAP_MS };
+export function handTimeouts(
+  node: { timeout?: number },
+  options: { agentTimeout?: number },
+): HandTimeouts {
+  return {
+    idleMs: options.agentTimeout || HAND_IDLE_MS,
+    capMs: node.timeout ? node.timeout * 1000 : HAND_CAP_MS,
+  };
 }
 
 /** The clock of one hand's wait: how long it has run (parked time left out, ParkedClock) and when it last showed work. */
 export class HandWatch {
   private activeAt: number;
-  constructor(private readonly clock: ParkedClock, private readonly limits: HandTimeouts, private readonly loadFactor: () => number = () => machineLoadFactor()) {
+  constructor(
+    private readonly clock: ParkedClock,
+    private readonly limits: HandTimeouts,
+    private readonly loadFactor: () => number = () => machineLoadFactor(),
+  ) {
     this.activeAt = clock.elapsed();
   }
 
@@ -38,15 +48,21 @@ export class HandWatch {
 
   /** The quiet window now: stretched for the machine's load. */
   idleWindowMs(): number {
-    return loadScaledMs(this.limits.idleMs, MAX_LOAD_STRETCH, this.loadFactor());
+    return loadScaledMs(
+      this.limits.idleMs,
+      MAX_LOAD_STRETCH,
+      this.loadFactor(),
+    );
   }
 
   /** Null while the hand may go on; else why its wait is over, in words. */
   over(): string | null {
     const elapsed = this.clock.elapsed();
-    if (elapsed >= this.limits.capMs) return `ran ${Math.round(this.limits.capMs / 60_000)}m, its station's limit`;
+    if (elapsed >= this.limits.capMs)
+      return `ran ${Math.round(this.limits.capMs / 60_000)}m, its station's limit`;
     const idle = this.idleWindowMs();
-    if (elapsed - this.activeAt >= idle) return `showed no work for ${Math.round(idle / 60_000)}m`;
+    if (elapsed - this.activeAt >= idle)
+      return `showed no work for ${Math.round(idle / 60_000)}m`;
     return null;
   }
 }
@@ -55,5 +71,12 @@ export class HandWatch {
  *  when the agent is hung ("✻ Thinking… (12m 3s · ↓ 1.2k tokens · esc to interrupt)"), so of that line only its token
  *  count, which moves only when the agent does, is kept. */
 export function steadyTail(text: string): string {
-  return text.split("\n").map((line) => /esc to interrupt/i.test(line) ? (line.match(/[\d.,]+k?\s*tokens/gi) ?? []).join(" ") : line).join("\n");
+  return text
+    .split("\n")
+    .map((line) =>
+      /esc to interrupt/i.test(line)
+        ? (line.match(/[\d.,]+k?\s*tokens/gi) ?? []).join(" ")
+        : line,
+    )
+    .join("\n");
 }

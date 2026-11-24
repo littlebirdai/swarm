@@ -1,5 +1,8 @@
 import { parseApplyPatchSections } from "./applyPatchParser";
-import { parseFileChangeSummary, parseUnifiedDiffSections } from "./unifiedDiffParser";
+import {
+  parseFileChangeSummary,
+  parseUnifiedDiffSections,
+} from "./unifiedDiffParser";
 import { getToolPatchInputs, SHELL_TOOL_NAMES } from "./embeddedPatch";
 
 export interface FileChange {
@@ -50,7 +53,11 @@ export interface ExtractableMessage {
   _id: string;
   timestamp: number;
   tool_calls?: Array<{ id: string; name: string; input: string }> | null;
-  tool_results?: Array<{ tool_use_id: string; content: string; is_error?: boolean }> | null;
+  tool_results?: Array<{
+    tool_use_id: string;
+    content: string;
+    is_error?: boolean;
+  }> | null;
 }
 
 const EDIT_TOOL_NAMES = new Set([
@@ -83,26 +90,40 @@ function toolName(name: string): string {
  * a file change. Shared with the conversation's inline diff so both render an
  * edit from the same rule.
  */
-export function editStringsFromInput(edit: Record<string, unknown>): { oldStr: string; newStr: string } | undefined {
+export function editStringsFromInput(
+  edit: Record<string, unknown>,
+): { oldStr: string; newStr: string } | undefined {
   const oldStr = edit.old_string ?? edit.oldString ?? edit.oldText ?? edit.find;
-  const newStr = edit.new_string ?? edit.newString ?? edit.newText ?? edit.replace;
-  if (typeof oldStr !== "string" || typeof newStr !== "string") return undefined;
+  const newStr =
+    edit.new_string ?? edit.newString ?? edit.newText ?? edit.replace;
+  if (typeof oldStr !== "string" || typeof newStr !== "string")
+    return undefined;
   return { oldStr, newStr };
 }
 
 /** Cheap pre-filter: does this message carry any tool call that could produce a file change? */
 export function hasFileChangeToolCall(message: ExtractableMessage): boolean {
-  return !!message.tool_calls?.some((tc) => EDIT_TOOL_NAMES.has(toolName(tc.name)));
+  return !!message.tool_calls?.some((tc) =>
+    EDIT_TOOL_NAMES.has(toolName(tc.name)),
+  );
 }
 
-export function extractFileChanges(messages: ExtractableMessage[]): FileChange[] {
+export function extractFileChanges(
+  messages: ExtractableMessage[],
+): FileChange[] {
   const changes: FileChange[] = [];
   let sequenceIndex = 0;
 
-  const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
-  const results = new Map(sortedMessages.flatMap((message) =>
-    (message.tool_results ?? []).map((result) => [result.tool_use_id, result] as const),
-  ));
+  const sortedMessages = [...messages].sort(
+    (a, b) => a.timestamp - b.timestamp,
+  );
+  const results = new Map(
+    sortedMessages.flatMap((message) =>
+      (message.tool_results ?? []).map(
+        (result) => [result.tool_use_id, result] as const,
+      ),
+    ),
+  );
 
   for (const message of sortedMessages) {
     if (!message.tool_calls || message.tool_calls.length === 0) {
@@ -112,12 +133,21 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
     for (const toolCall of message.tool_calls) {
       const name = toolName(toolCall.name);
       const result = results.get(toolCall.id);
-      if (!EDIT_TOOL_NAMES.has(name) || (result?.is_error && !SHELL_TOOL_NAMES.has(name))) {
+      if (
+        !EDIT_TOOL_NAMES.has(name) ||
+        (result?.is_error && !SHELL_TOOL_NAMES.has(name))
+      ) {
         continue;
       }
 
-      if (name === "apply_patch" || name === "exec" || SHELL_TOOL_NAMES.has(name)) {
-        const sections = result?.is_error ? [] : getToolPatchInputs(toolCall).flatMap(parseApplyPatchSections);
+      if (
+        name === "apply_patch" ||
+        name === "exec" ||
+        SHELL_TOOL_NAMES.has(name)
+      ) {
+        const sections = result?.is_error
+          ? []
+          : getToolPatchInputs(toolCall).flatMap(parseApplyPatchSections);
 
         sections.forEach((section, sectionIndex) => {
           const isAdd = section.operation === "Add";
@@ -145,7 +175,10 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
           continue;
         }
 
-        const sections = parseUnifiedDiffSections(result?.content || "", parseFileChangeSummary(summary));
+        const sections = parseUnifiedDiffSections(
+          result?.content || "",
+          parseFileChangeSummary(summary),
+        );
         if (sections.length === 0) {
           continue;
         }
@@ -169,9 +202,23 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
       try {
         const params = JSON.parse(toolCall.input);
         if (!params || typeof params !== "object") continue;
-        const filePath = params.file_path ?? params.filePath ?? params.path ?? params.target_file;
+        const filePath =
+          params.file_path ??
+          params.filePath ??
+          params.path ??
+          params.target_file;
 
-        if (["edit", "file_edit", "edit_file", "replace", "str_replace", "search_replace", "multiedit"].includes(name)) {
+        if (
+          [
+            "edit",
+            "file_edit",
+            "edit_file",
+            "replace",
+            "str_replace",
+            "search_replace",
+            "multiedit",
+          ].includes(name)
+        ) {
           if (typeof filePath !== "string" || !filePath) {
             continue;
           }
@@ -183,7 +230,8 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
             if (!strings) continue;
             const { oldStr: oldContent, newStr: newContent } = strings;
             changes.push({
-              id: name === "multiedit" ? `${toolCall.id}:${index}` : toolCall.id,
+              id:
+                name === "multiedit" ? `${toolCall.id}:${index}` : toolCall.id,
               toolCallId: toolCall.id,
               sequenceIndex: sequenceIndex++,
               messageId: message._id,
@@ -194,8 +242,14 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
               timestamp: message.timestamp,
             });
           }
-        } else if (["write", "file_write", "write_file", "create_file"].includes(name)) {
-          if (typeof filePath !== "string" || !filePath || typeof params.content !== "string") {
+        } else if (
+          ["write", "file_write", "write_file", "create_file"].includes(name)
+        ) {
+          if (
+            typeof filePath !== "string" ||
+            !filePath ||
+            typeof params.content !== "string"
+          ) {
             continue;
           }
 
@@ -221,8 +275,14 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
             continue;
           }
 
-          const commitHash = result && !result.is_error ? extractCommitHashFromContent(result.content) : undefined;
-          const commitBranch = result && !result.is_error ? extractCommitBranchFromContent(result.content) : undefined;
+          const commitHash =
+            result && !result.is_error
+              ? extractCommitHashFromContent(result.content)
+              : undefined;
+          const commitBranch =
+            result && !result.is_error
+              ? extractCommitBranchFromContent(result.content)
+              : undefined;
 
           changes.push({
             id: toolCall.id,
@@ -255,10 +315,12 @@ export function extractFileChanges(messages: ExtractableMessage[]): FileChange[]
  * (timestamp, in-message sequence), then renumber sequenceIndex to the merged
  * position so cumulative-diff ordering stays correct across both sources.
  */
-export function mergeFileChanges<T extends Pick<FileChange, "id" | "timestamp" | "sequenceIndex" | "commitHash" | "commitBranch">>(
-  serverChanges: T[],
-  clientChanges: T[],
-): T[] {
+export function mergeFileChanges<
+  T extends Pick<
+    FileChange,
+    "id" | "timestamp" | "sequenceIndex" | "commitHash" | "commitBranch"
+  >,
+>(serverChanges: T[], clientChanges: T[]): T[] {
   const byId = new Map<string, T>();
   // Client first so server wins on conflict — except a git-commit hash and
   // branch, which are parsed from the tool result and may land on a later
@@ -267,17 +329,27 @@ export function mergeFileChanges<T extends Pick<FileChange, "id" | "timestamp" |
   for (const c of clientChanges) byId.set(c.id, c);
   for (const c of serverChanges) {
     const prev = byId.get(c.id);
-    if (!prev) { byId.set(c.id, c); continue; }
+    if (!prev) {
+      byId.set(c.id, c);
+      continue;
+    }
     const commitHash = c.commitHash ?? prev.commitHash;
     const commitBranch = c.commitBranch ?? prev.commitBranch;
-    byId.set(c.id, commitHash === c.commitHash && commitBranch === c.commitBranch ? c : { ...c, commitHash, commitBranch });
+    byId.set(
+      c.id,
+      commitHash === c.commitHash && commitBranch === c.commitBranch
+        ? c
+        : { ...c, commitHash, commitBranch },
+    );
   }
 
   const merged = Array.from(byId.values()).sort(
     (a, b) => a.timestamp - b.timestamp || a.sequenceIndex - b.sequenceIndex,
   );
 
-  return merged.map((c, i) => (c.sequenceIndex === i ? c : { ...c, sequenceIndex: i }));
+  return merged.map((c, i) =>
+    c.sequenceIndex === i ? c : { ...c, sequenceIndex: i },
+  );
 }
 
 function extractCommitMessage(command: string): string | undefined {
@@ -285,7 +357,9 @@ function extractCommitMessage(command: string): string | undefined {
   // most agents emit). It must win over the -m regex below — the heredoc body
   // contains quotes (e.g. `<<'EOF'`), so a naive `-m "…"` match stops at the
   // first inner quote and captures the literal `$(cat <<` instead of the message.
-  const heredocMatch = command.match(/<<-?\s*'?(?:EOF|MSG|COMMIT_MSG)'?\s*\n([\s\S]+?)\n\s*(?:EOF|MSG|COMMIT_MSG)\b/);
+  const heredocMatch = command.match(
+    /<<-?\s*'?(?:EOF|MSG|COMMIT_MSG)'?\s*\n([\s\S]+?)\n\s*(?:EOF|MSG|COMMIT_MSG)\b/,
+  );
   if (heredocMatch) {
     return heredocMatch[1].trim();
   }
@@ -306,7 +380,9 @@ function extractCommitMessage(command: string): string | undefined {
  * the next (user) message, after the commit row was inserted hash-less — the
  * ingest path runs this against late-arriving tool_results to patch it in.
  */
-export function extractCommitHashFromContent(content: string): string | undefined {
+export function extractCommitHashFromContent(
+  content: string,
+): string | undefined {
   // git commit prints `[<branch> <short-hash>] <subject>` (with an optional
   // `(root-commit)` marker), so the hash is the last hex token before the `]`,
   // preceded by the `[` itself, whitespace, or the marker's closing paren.
@@ -316,7 +392,11 @@ export function extractCommitHashFromContent(content: string): string | undefine
 
 /** The branch out of the same `[<branch> <short-hash>]` line; none for a
  *  detached HEAD, which names no branch. */
-export function extractCommitBranchFromContent(content: string): string | undefined {
-  const match = content.match(/\[([^\s\]]+)(?: \(root-commit\))? [a-f0-9]{7,40}\]/);
+export function extractCommitBranchFromContent(
+  content: string,
+): string | undefined {
+  const match = content.match(
+    /\[([^\s\]]+)(?: \(root-commit\))? [a-f0-9]{7,40}\]/,
+  );
   return match && match[1] !== "detached" ? match[1] : undefined;
 }

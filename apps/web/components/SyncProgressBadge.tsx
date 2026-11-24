@@ -21,7 +21,8 @@ export function SyncProgressBadge({ scope }: { scope: string }) {
           page title); the spinner alone carries the "still streaming" cue so the
           badge never crowds — or overflows — a narrow toolbar row. */}
       <span className="cq-header-collapse">
-        syncing{progress.loaded > 0 ? ` ${progress.loaded.toLocaleString()}` : ""}
+        syncing
+        {progress.loaded > 0 ? ` ${progress.loaded.toLocaleString()}` : ""}
       </span>
     </span>
   );

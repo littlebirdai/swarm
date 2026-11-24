@@ -2,11 +2,33 @@ import { createContext, useContext, useMemo } from "react";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { useRepoObject } from "../hooks/useRepoObject";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { entityRoute, personRefOf, isConvexId, entityTypeFromId, entityReferenceLabel, entityShortLabel, parseRepoObjectId, parseCallRef, callRefId, callRefLabelSuffix, parseProposalChangeRef, proposalChangeRefId, proposalChangeLabelSuffix, parseReplayRef, replayRefLabelSuffix, flowSlugOf, type EntityType } from "./entityLinks";
+import {
+  entityRoute,
+  personRefOf,
+  isConvexId,
+  entityTypeFromId,
+  entityReferenceLabel,
+  entityShortLabel,
+  parseRepoObjectId,
+  parseCallRef,
+  callRefId,
+  callRefLabelSuffix,
+  parseProposalChangeRef,
+  proposalChangeRefId,
+  proposalChangeLabelSuffix,
+  parseReplayRef,
+  replayRefLabelSuffix,
+  flowSlugOf,
+  type EntityType,
+} from "./entityLinks";
 import { replayTitle } from "../components/ops/opsModel";
 import { deployTitle } from "./line/deployWords";
 import { repoObjectRefOf, repoObjectTitle } from "./repoObjects";
-import { findEntityInStore, entityTypeInStore, resolveAssigneeInfo } from "./liveEntities";
+import {
+  findEntityInStore,
+  entityTypeInStore,
+  resolveAssigneeInfo,
+} from "./liveEntities";
 import { useInboxStore } from "../store/inboxStore";
 import { useSyncOrgProposal } from "../hooks/useSyncOrgProposals";
 import { useCallPlaces } from "../hooks/useSyncCalls";
@@ -14,7 +36,6 @@ import { callTitle } from "./calls/roomLabels";
 import { useNamedFlow } from "../hooks/useFlowObject";
 import { teamMembersOf } from "./activeTeam";
 const api = _api as any;
-
 
 // The shared vocabulary of inline object references: status and type maps,
 // the small display atoms (avatars, summaries, relative time), and the
@@ -34,7 +55,6 @@ export const STATUS_COLOR: Record<string, string> = {
   abandoned: "text-gray-500",
 };
 
-
 export const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   done: "Done",
@@ -43,7 +63,6 @@ export const STATUS_LABEL: Record<string, string> = {
   paused: "Paused",
   abandoned: "Abandoned",
 };
-
 
 export const TYPE_LABEL: Record<EntityType, string> = {
   task: "Task",
@@ -67,7 +86,6 @@ export const TYPE_LABEL: Record<EntityType, string> = {
   flow: "Flow",
 };
 
-
 /**
  * Pick the right `webGet` argument for an id: a full Convex id resolves by
  * `{ id }`, a short id by `{ short_id }`. Sessions store a 7-char short id, so
@@ -76,23 +94,31 @@ export const TYPE_LABEL: Record<EntityType, string> = {
 export function entityQueryArgs(
   type: EntityType,
   id: string,
-): { short_id?: string; id?: string; repository?: string; number?: number; sha?: string } {
+): {
+  short_id?: string;
+  id?: string;
+  repository?: string;
+  number?: number;
+  sha?: string;
+} {
   // Only a genuine 32-char Convex id may be resolved by `{ id }` (db.get). A
   // longer-than-short-id but non-Convex string (e.g. a garbled /plans/<id> URL)
   // would otherwise be sent to db.get and throw "Invalid ID length"; routing it
   // through the by_short_id index instead just resolves to null.
   if (isConvexId(id)) return { id };
   if (type === "session") return { short_id: id.slice(0, 7).toLowerCase() };
-  if (type === "task" || type === "plan" || type === "trigger") return { short_id: id.toLowerCase() };
+  if (type === "task" || type === "plan" || type === "trigger")
+    return { short_id: id.toLowerCase() };
   if (type === "pr" || type === "commit") {
     // `owner/repo#482` → { repository, number }; `owner/repo@sha` → { repository, sha }.
     const ref = parseRepoObjectId(id);
-    if (ref?.type === "pr") return { repository: ref.repository, number: ref.number };
-    if (ref?.type === "commit") return { repository: ref.repository, sha: ref.sha };
+    if (ref?.type === "pr")
+      return { repository: ref.repository, number: ref.number };
+    if (ref?.type === "commit")
+      return { repository: ref.repository, sha: ref.sha };
   }
   return { id };
 }
-
 
 // Creator and assignee for task reference surfaces. Both are always reported
 // when the row carries them — a card that hides the creator because it is the
@@ -105,9 +131,13 @@ export function taskPeople(task: any) {
   const me = s.currentUser;
   const members = teamMembersOf(s);
   const creatorId = task.user_id?.toString?.();
-  const creator = creatorId ? resolveAssigneeInfo(creatorId, task.creator, members, me) : null;
+  const creator = creatorId
+    ? resolveAssigneeInfo(creatorId, task.creator, members, me)
+    : null;
   const assigneeId = task.assignee?.toString?.();
-  const assignee = assigneeId ? resolveAssigneeInfo(assigneeId, task.assignee_info, members, me) : null;
+  const assignee = assigneeId
+    ? resolveAssigneeInfo(assigneeId, task.assignee_info, members, me)
+    : null;
   // One person filed the task for themselves: surfaces name them once.
   const samePerson = !!creatorId && creatorId === assigneeId;
   return { creator, assignee, samePerson };
@@ -122,7 +152,6 @@ export function taskProject(task: any): { _id: string; title: string } | null {
   return row?.title ? { _id: id, title: row.title } : null;
 }
 
-
 export function abbrevModel(model?: string | null): string | null {
   if (!model) return null;
   if (model.includes("fable")) return "Fable";
@@ -131,7 +160,6 @@ export function abbrevModel(model?: string | null): string | null {
   if (model.includes("haiku")) return "Haiku";
   return null;
 }
-
 
 export function relativeTime(ts?: number | null): string | null {
   if (!ts) return null;
@@ -144,7 +172,6 @@ export function relativeTime(ts?: number | null): string | null {
   if (mins > 5) return `${mins}m ago`;
   return "just now";
 }
-
 
 export type EntityResolution = {
   /** The id with any `doc:` prefix stripped — what queries and routes take. */
@@ -170,7 +197,6 @@ export type EntityResolution = {
   changeSeq?: number;
 };
 
-
 /** A fixed answer for a reference: what the resolver returns in place of a query. */
 export type EntityFixture = { type: EntityType; entity: any };
 
@@ -180,7 +206,10 @@ export type EntityFixture = { type: EntityType; entity: any };
  * listed id resolves to its fixture and any other id to "no access". The
  * homepage hero sets it so its pills never show a signed-in visitor's rows.
  */
-export const EntityFixtureContext = createContext<Record<string, EntityFixture> | null>(null);
+export const EntityFixtureContext = createContext<Record<
+  string,
+  EntityFixture
+> | null>(null);
 
 /**
  * The shared conversation a reference is drawn in, for a viewer who reads it
@@ -189,11 +218,18 @@ export const EntityFixtureContext = createContext<Record<string, EntityFixture> 
  * and open through their own link (conversations.webGet, isSharedChildOf).
  * Null for owner and team viewers, who resolve every session directly.
  */
-export const ReferenceScopeContext = createContext<{ conversationId: string; shareToken?: string } | null>(null);
+export const ReferenceScopeContext = createContext<{
+  conversationId: string;
+  shareToken?: string;
+} | null>(null);
 
 /** Where a session the viewer reads through a share link opens: its page, presenting the link. */
-export function sharedSessionHref(entity: { _id?: unknown; share_token?: string | null } | null | undefined): string | null {
-  return entity?._id && entity.share_token ? `/conversation/${String(entity._id)}?share=${encodeURIComponent(entity.share_token)}` : null;
+export function sharedSessionHref(
+  entity: { _id?: unknown; share_token?: string | null } | null | undefined,
+): string | null {
+  return entity?._id && entity.share_token
+    ? `/conversation/${String(entity._id)}?share=${encodeURIComponent(entity.share_token)}`
+    : null;
 }
 
 /**
@@ -202,7 +238,10 @@ export function sharedSessionHref(entity: { _id?: unknown; share_token?: string 
  * the live webGet subscription is what keeps the row fresh), so a reference to
  * a row this client already holds paints its title on the first frame.
  */
-export function useEntityResolution(rawRef: string, typeProp?: EntityType): EntityResolution {
+export function useEntityResolution(
+  rawRef: string,
+  typeProp?: EntityType,
+): EntityResolution {
   // `id` keeps its original case (Convex ids are case-sensitive); short-id and
   // prefix matching lowercase internally.
   const trimmed = rawRef.trim();
@@ -210,7 +249,9 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   const isDocRef = !typeProp && /^doc:/i.test(trimmed);
   const rawId = isDocRef ? trimmed.slice(4) : trimmed;
   const fixtures = useContext(EntityFixtureContext);
-  const fixture = fixtures ? fixtures[trimmed] ?? fixtures[rawId] ?? null : undefined;
+  const fixture = fixtures
+    ? (fixtures[trimmed] ?? fixtures[rawId] ?? null)
+    : undefined;
   // Under fixtures every query below is skipped by clearing `live`.
   const live = !fixtures;
   const looksConvex = live && isConvexId(rawId);
@@ -222,12 +263,26 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // the function yet (client/deploy skew).
   // A row the store already holds names its type on the first frame.
   const storeType = useMemo(
-    () => (!typeProp && !isDocRef && looksConvex ? entityTypeInStore(useInboxStore.getState(), rawId) : undefined),
+    () =>
+      !typeProp && !isDocRef && looksConvex
+        ? entityTypeInStore(useInboxStore.getState(), rawId)
+        : undefined,
     [typeProp, isDocRef, looksConvex, rawId],
   );
-  const { data: resolvedType } = useQueryNoThrow(api.entities.resolveIdType, !typeProp && !isDocRef && looksConvex && !storeType ? { id: rawId } : "skip");
+  const { data: resolvedType } = useQueryNoThrow(
+    api.entities.resolveIdType,
+    !typeProp && !isDocRef && looksConvex && !storeType
+      ? { id: rawId }
+      : "skip",
+  );
   const type: EntityType | null =
-    fixture?.type ?? typeProp ?? (isDocRef ? "doc" : looksConvex ? storeType ?? resolvedType ?? null : entityTypeFromId(rawId));
+    fixture?.type ??
+    typeProp ??
+    (isDocRef
+      ? "doc"
+      : looksConvex
+        ? (storeType ?? resolvedType ?? null)
+        : entityTypeFromId(rawId));
   const isTask = type === "task";
   const isPlan = type === "plan";
   const isSession = type === "session";
@@ -235,24 +290,52 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   const isRepoObject = type === "pr" || type === "commit";
 
   const queryArgs = live && type ? entityQueryArgs(type, rawId) : null;
-  const task = useQueryNoThrow(api.tasks.webGet, isTask && queryArgs ? queryArgs : "skip").data;
-  const plan = useQueryNoThrow(api.plans.webGet, isPlan && queryArgs ? queryArgs : "skip").data;
+  const task = useQueryNoThrow(
+    api.tasks.webGet,
+    isTask && queryArgs ? queryArgs : "skip",
+  ).data;
+  const plan = useQueryNoThrow(
+    api.plans.webGet,
+    isPlan && queryArgs ? queryArgs : "skip",
+  ).data;
   const scope = useContext(ReferenceScopeContext);
-  const sessionArgs = isSession && queryArgs
-    ? scope ? { ...queryArgs, in_conversation: scope.conversationId, ...(scope.shareToken ? { share_token: scope.shareToken } : {}) } : queryArgs
-    : null;
-  const session = useQueryNoThrow(api.conversations.webGet, sessionArgs ?? "skip").data;
+  const sessionArgs =
+    isSession && queryArgs
+      ? scope
+        ? {
+            ...queryArgs,
+            in_conversation: scope.conversationId,
+            ...(scope.shareToken ? { share_token: scope.shareToken } : {}),
+          }
+        : queryArgs
+      : null;
+  const session = useQueryNoThrow(
+    api.conversations.webGet,
+    sessionArgs ?? "skip",
+  ).data;
   // No-throw: agentTasks.webGet is newer than some deployed clients, and a
   // conversation must not crash on a trigger reference just because the backend
   // hasn't caught up — the reference degrades to its short id, then fills in.
-  const { data: trigger } = useQueryNoThrow(api.agentTasks.webGet, isTrigger && queryArgs ? queryArgs : "skip");
+  const { data: trigger } = useQueryNoThrow(
+    api.agentTasks.webGet,
+    isTrigger && queryArgs ? queryArgs : "skip",
+  );
   // docs/projects are only ever addressed by a full Convex id.
-  const doc = useQueryNoThrow(api.docs.webGet, type === "doc" && looksConvex ? { id: rawId } : "skip").data;
-  const project = useQueryNoThrow(api.projects.webGet, type === "project" && looksConvex ? { id: rawId } : "skip").data;
+  const doc = useQueryNoThrow(
+    api.docs.webGet,
+    type === "doc" && looksConvex ? { id: rawId } : "skip",
+  ).data;
+  const project = useQueryNoThrow(
+    api.projects.webGet,
+    type === "project" && looksConvex ? { id: rawId } : "skip",
+  ).data;
   // An initiative is named by `in-N` or a Convex id; the store's snapshot
   // usually seeds it below, and this keeps the label live. No-throw for the
   // same client and deploy skew reason as triggers.
-  const { data: initiative } = useQueryNoThrow(api.initiatives.webGet, live && type === "initiative" ? { ref: rawId } : "skip");
+  const { data: initiative } = useQueryNoThrow(
+    api.initiatives.webGet,
+    live && type === "initiative" ? { ref: rawId } : "skip",
+  );
   // A staffing proposal (`op-N`) is store-fed: the feeder syncs
   // orgProposals.get into the orgProposals and orgProposalChanges collections
   // and the row is read back from the store, so the card's verdicts (store
@@ -261,17 +344,38 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // only says which change the reader is pointed at, so it is split off
   // before the feeder (the server knows no proposal called `op-55#3`).
   const changeRef = type === "proposal" ? parseProposalChangeRef(rawId) : null;
-  const proposalFeed = useSyncOrgProposal(live && type === "proposal" ? changeRef?.proposal ?? rawId : null);
-  const proposalRow = useInboxStore((s) => (live && type === "proposal" ? findEntityInStore(s, "proposal", rawId) : undefined));
-  const proposal = type === "proposal" ? (proposalFeed.ready ? proposalRow ?? null : undefined) : undefined;
+  const proposalFeed = useSyncOrgProposal(
+    live && type === "proposal" ? (changeRef?.proposal ?? rawId) : null,
+  );
+  const proposalRow = useInboxStore((s) =>
+    live && type === "proposal"
+      ? findEntityInStore(s, "proposal", rawId)
+      : undefined,
+  );
+  const proposal =
+    type === "proposal"
+      ? proposalFeed.ready
+        ? (proposalRow ?? null)
+        : undefined
+      : undefined;
   // A decision (`sd-N` or Convex id) seeds from the viewer's queue in the
   // store; the query keeps it live and covers rows the queue has dropped.
-  const { data: decision } = useQueryNoThrow(api.sessionDecisions.get, live && type === "decision" ? { decision_id: rawId } : "skip");
+  const { data: decision } = useQueryNoThrow(
+    api.sessionDecisions.get,
+    live && type === "decision" ? { decision_id: rawId } : "skip",
+  );
   // A pull request or commit reference resolves by repository and number/sha,
   // or by Convex id. No-throw for the same client/deploy-skew reason as
   // triggers: a `owner/repo#482` in prose must read as text, not crash.
-  const repoObjectArgs = isRepoObject && queryArgs && (queryArgs.id || queryArgs.repository) ? queryArgs : null;
-  const repoObject = useRepoObject(live && isRepoObject ? type : null, rawId, repoObjectArgs);
+  const repoObjectArgs =
+    isRepoObject && queryArgs && (queryArgs.id || queryArgs.repository)
+      ? queryArgs
+      : null;
+  const repoObject = useRepoObject(
+    live && isRepoObject ? type : null,
+    rawId,
+    repoObjectArgs,
+  );
   // A call (`cl-42`), a stretch of it (`cl-42:15-25`) or a moment of it
   // (`cl-42@12:34`): one query answers all three, the turns riding along only
   // when the reference names some, and the line said then when it names a
@@ -279,32 +383,98 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   const callRef = type === "call" ? parseCallRef(rawId) : null;
   const { data: call } = useQueryNoThrow(
     api.transcripts.webGetCallRef,
-    live && callRef ? { ref: callRef.call, ...(callRef.turns ?? {}), ...(callRef.at_ms != null ? { at_ms: callRef.at_ms } : {}) } : "skip",
+    live && callRef
+      ? {
+          ref: callRef.call,
+          ...(callRef.turns ?? {}),
+          ...(callRef.at_ms != null ? { at_ms: callRef.at_ms } : {}),
+        }
+      : "skip",
   );
   // A product source (`src-N`) seeds from the Ops sources in the store; the
   // query keeps it live and covers a source the viewer never opened Ops for.
-  const { data: source } = useQueryNoThrow(api.ingest.webGetSource, live && type === "source" ? { ref: rawId } : "skip");
+  const { data: source } = useQueryNoThrow(
+    api.ingest.webGetSource,
+    live && type === "source" ? { ref: rawId } : "skip",
+  );
   // A product recording (`rp-N`), or a moment or stretch of it (`rp-N@1:23`):
   // the replay is the row; the time only says where it opens. Seeded from the
   // Ops replays in the store, kept live by the query.
   const replayRef = type === "replay" ? parseReplayRef(rawId) : null;
-  const { data: replay } = useQueryNoThrow(api.replays.webGetReplay, live && type === "replay" ? { ref: replayRef?.replay ?? rawId } : "skip");
+  const { data: replay } = useQueryNoThrow(
+    api.replays.webGetReplay,
+    live && type === "replay" ? { ref: replayRef?.replay ?? rawId } : "skip",
+  );
   // A deploy (`dp-N`, or the url of the Actions run carrying it) seeds from the deploys in the store; the query covers
   // one the viewer's line and Deploys page never fed.
-  const { data: deploy } = useQueryNoThrow(api.deploys.get, live && type === "deploy" ? { ref: rawId } : "skip");
+  const { data: deploy } = useQueryNoThrow(
+    api.deploys.get,
+    live && type === "deploy" ? { ref: rawId } : "skip",
+  );
   // A flow (`flow:change`) is the pool's flow of that slug, shipped or the team's, else the viewer's own of that name.
-  const { flow: namedFlow } = useNamedFlow(live && type === "flow" ? flowSlugOf(rawId) : null);
-  const flow = useMemo(() => (namedFlow ? { ...namedFlow, _id: namedFlow.workflowId ?? rawId, short_id: `flow:${namedFlow.slug}`, title: namedFlow.label } : namedFlow), [namedFlow, rawId]);
+  const { flow: namedFlow } = useNamedFlow(
+    live && type === "flow" ? flowSlugOf(rawId) : null,
+  );
+  const flow = useMemo(
+    () =>
+      namedFlow
+        ? {
+            ...namedFlow,
+            _id: namedFlow.workflowId ?? rawId,
+            short_id: `flow:${namedFlow.slug}`,
+            title: namedFlow.label,
+          }
+        : namedFlow,
+    [namedFlow, rawId],
+  );
   // A role (`or-N`) seeds from the org tree in the store, which every
   // workspace screen feeds. The role card answers only for a role the tree
   // does not hold (another workspace's, or a page that never fed the tree):
   // a pill on every line must not open a query apiece.
   const roleInTree = useMemo(
-    () => (live && type === "role" ? findEntityInStore(useInboxStore.getState(), "role", rawId) : undefined),
+    () =>
+      live && type === "role"
+        ? findEntityInStore(useInboxStore.getState(), "role", rawId)
+        : undefined,
     [live, type, rawId],
   );
-  const { data: roleCard } = useQueryNoThrow(api.org.roleCard, live && type === "role" && !roleInTree ? { role_id: rawId } : "skip");
-  const served = fixtures ? fixture?.entity ?? null : type === "role" ? roleCard : isTask ? task : isPlan ? plan : isSession ? session : isTrigger ? trigger : type === "doc" ? doc : type === "project" ? project : type === "initiative" ? initiative : type === "proposal" ? proposal : type === "decision" ? decision : type === "call" ? call : type === "source" ? source : type === "replay" ? replay : type === "deploy" ? deploy : type === "flow" ? flow : undefined;
+  const { data: roleCard } = useQueryNoThrow(
+    api.org.roleCard,
+    live && type === "role" && !roleInTree ? { role_id: rawId } : "skip",
+  );
+  const served = fixtures
+    ? (fixture?.entity ?? null)
+    : type === "role"
+      ? roleCard
+      : isTask
+        ? task
+        : isPlan
+          ? plan
+          : isSession
+            ? session
+            : isTrigger
+              ? trigger
+              : type === "doc"
+                ? doc
+                : type === "project"
+                  ? project
+                  : type === "initiative"
+                    ? initiative
+                    : type === "proposal"
+                      ? proposal
+                      : type === "decision"
+                        ? decision
+                        : type === "call"
+                          ? call
+                          : type === "source"
+                            ? source
+                            : type === "replay"
+                              ? replay
+                              : type === "deploy"
+                                ? deploy
+                                : type === "flow"
+                                  ? flow
+                                  : undefined;
 
   // Local-first: the client usually already holds this row, so paint the title
   // on the FIRST frame instead of flashing the raw id until the query answers.
@@ -312,17 +482,33 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // must not re-render on the churn of a collection with thousands of rows; the
   // live query above is what keeps the label fresh.
   const seed = useMemo(
-    () => (live && type ? findEntityInStore(useInboxStore.getState(), type, replayRef?.replay ?? rawId) : undefined),
+    () =>
+      live && type
+        ? findEntityInStore(
+            useInboxStore.getState(),
+            type,
+            replayRef?.replay ?? rawId,
+          )
+        : undefined,
     [live, type, rawId, replayRef?.replay],
   );
-  const entity: any = fixtures ? served : isRepoObject ? repoObject.entity ?? seed : served ?? seed;
+  const entity: any = fixtures
+    ? served
+    : isRepoObject
+      ? (repoObject.entity ?? seed)
+      : (served ?? seed);
   // An untitled call is named by where it happened ("Huddle in <session>"),
   // by the same rule the Calls list and its page use (callTitle).
   const callRow = type === "call" && entity?.room_key ? entity : null;
   const callRows = useMemo(() => (callRow ? [callRow] : []), [callRow]);
   const callPlaces = useCallPlaces(callRows);
   const callName = useInboxStore((s) =>
-    callRow ? callTitle({ ...callRow, place: callPlaces[String(callRow._id)] }, s as any) : undefined,
+    callRow
+      ? callTitle(
+          { ...callRow, place: callPlaces[String(callRow._id)] },
+          s as any,
+        )
+      : undefined,
   );
 
   // One label rule for every type, shared with mobile: the reference reads as
@@ -330,7 +516,15 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // prefers its display_title — the generated short name, not the whole
   // prompt's first line.
   const resolvedTitle: string | undefined =
-    (isTrigger ? entity?.display_title : undefined) || (type === "decision" ? entity?.question : undefined) || callName || (type === "replay" ? replayTitle(entity) : undefined) || (type === "deploy" && entity ? deployTitle(entity) : undefined) || (isRepoObject && type ? repoObjectTitle(type, entity) : undefined) || entity?.title || entity?.display_title || entity?.name;
+    (isTrigger ? entity?.display_title : undefined) ||
+    (type === "decision" ? entity?.question : undefined) ||
+    callName ||
+    (type === "replay" ? replayTitle(entity) : undefined) ||
+    (type === "deploy" && entity ? deployTitle(entity) : undefined) ||
+    (isRepoObject && type ? repoObjectTitle(type, entity) : undefined) ||
+    entity?.title ||
+    entity?.display_title ||
+    entity?.name;
   const labelArgs = {
     title: resolvedTitle,
     shortId: entity?.short_id,
@@ -345,14 +539,24 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // `fullLabel` (the link's tooltip, the reveal band's strip) and in the hover
   // card. Until the row is in hand the reference reads as written, which
   // already carries the number.
-  const partSuffix = callRefLabelSuffix(callRef) + (entity ? replayRefLabelSuffix(replayRef) : "") + proposalChangeLabelSuffix(entity ? changeRef : null);
+  const partSuffix =
+    callRefLabelSuffix(callRef) +
+    (entity ? replayRefLabelSuffix(replayRef) : "") +
+    proposalChangeLabelSuffix(entity ? changeRef : null);
   const changeOnly = entity && changeRef ? partSuffix.trim() : null;
   const label = changeOnly ?? entityReferenceLabel(labelArgs) + partSuffix;
-  const fullLabel = resolvedTitle?.trim() ? resolvedTitle.trim() + partSuffix : label;
+  const fullLabel = resolvedTitle?.trim()
+    ? resolvedTitle.trim() + partSuffix
+    : label;
   // Sessions carry a generated short name (title generation writes
   // `short_title`); a deploy's is its target, the sha left to its first
   // mention; everything else derives one from its title.
-  const shortLabel = changeOnly ?? (type === "deploy" && entity?.target ? entity.target : entityShortLabel({ ...labelArgs, shortTitle: entity?.short_title }) + partSuffix);
+  const shortLabel =
+    changeOnly ??
+    (type === "deploy" && entity?.target
+      ? entity.target
+      : entityShortLabel({ ...labelArgs, shortTitle: entity?.short_title }) +
+        partSuffix);
 
   // Route that opens this entity. Prefer the resolved Convex id; fall back to
   // the raw id so the link still works in the brief window before the query
@@ -367,8 +571,52 @@ export function useEntityResolution(rawRef: string, typeProp?: EntityType): Enti
   // of a proposal keeps its number, so the page opens with it in focus.
   // A project and a role open by their `pj-…` and `or-N` too, and a person
   // by handle (personRefOf), so one object never opens as two tabs.
-  const routeId = isRepoObject && type ? repoObjectRefOf(type, entity, 40) ?? rawId : callRef ? callRefId(entity?._id ?? callRef.call, callRef.turns, callRef.at_ms) : changeRef ? proposalChangeRefId(entity?.short_id ?? changeRef.proposal, changeRef.seq) : replayRef ? rawId.toLowerCase() : type === "person" ? (entity?._id ? personRefOf(entity) : rawId) : ((type === "initiative" || type === "project" || type === "role" || type === "proposal" || type === "decision" || type === "source" || type === "replay" || type === "deploy" || type === "flow") && entity?.short_id) || (entity?._id ?? rawId);
-  const href = (isSession ? sharedSessionHref(entity) : null) ?? entityRoute(type ?? "session", routeId) ?? "#";
+  const routeId =
+    isRepoObject && type
+      ? (repoObjectRefOf(type, entity, 40) ?? rawId)
+      : callRef
+        ? callRefId(entity?._id ?? callRef.call, callRef.turns, callRef.at_ms)
+        : changeRef
+          ? proposalChangeRefId(
+              entity?.short_id ?? changeRef.proposal,
+              changeRef.seq,
+            )
+          : replayRef
+            ? rawId.toLowerCase()
+            : type === "person"
+              ? entity?._id
+                ? personRefOf(entity)
+                : rawId
+              : ((type === "initiative" ||
+                  type === "project" ||
+                  type === "role" ||
+                  type === "proposal" ||
+                  type === "decision" ||
+                  type === "source" ||
+                  type === "replay" ||
+                  type === "deploy" ||
+                  type === "flow") &&
+                  entity?.short_id) ||
+                (entity?._id ?? rawId);
+  const href =
+    (isSession ? sharedSessionHref(entity) : null) ??
+    entityRoute(type ?? "session", routeId) ??
+    "#";
 
-  return { rawId, type, entity, served: fixtures ? true : isRepoObject ? repoObject.ready : served !== undefined, status: entity?.status, label, fullLabel, shortLabel, href, changeSeq: changeRef?.seq };
+  return {
+    rawId,
+    type,
+    entity,
+    served: fixtures
+      ? true
+      : isRepoObject
+        ? repoObject.ready
+        : served !== undefined,
+    status: entity?.status,
+    label,
+    fullLabel,
+    shortLabel,
+    href,
+    changeSeq: changeRef?.seq,
+  };
 }

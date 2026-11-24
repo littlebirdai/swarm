@@ -1,11 +1,19 @@
-import { clsx, type ClassValue } from "clsx"
+import { clsx, type ClassValue } from "clsx";
 import { CODECAST_BASE_URL, publicUrl } from "@codecast/shared/entities";
-import { extendTailwindMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge";
 
 // The type scale's names (tailwind.config.ts fontSize). Unregistered,
 // tailwind-merge reads any unknown `text-*` as a text colour, so
 // cn("text-meta", "text-sol-text-dim") would silently drop the size.
-export const TYPE_SCALE = ["mark", "meta", "ui", "body", "read", "title", "display"] as const;
+export const TYPE_SCALE = [
+  "mark",
+  "meta",
+  "ui",
+  "body",
+  "read",
+  "title",
+  "display",
+] as const;
 
 // The primitive system's names (tailwind.config.ts, app/globals.css). Each
 // is unknown to tailwind-merge until registered, and an unknown name is kept
@@ -28,7 +36,7 @@ const twMerge = extendTailwindMerge({
 });
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // The DOM event the desktop shell (Electron tray / dock / app menu, via
@@ -40,7 +48,13 @@ export const NEW_SESSION_EVENT = "codecast-new-session";
 // Relative/calendar stamp formatting lives in @codecast/shared/time so web,
 // mobile and the CLI age a timestamp by the same rules. Re-exported here for
 // the many existing web callers.
-export { relTimeShort, formatRelative, formatShortDate, formatDateFull, formatDateSmart } from "@codecast/shared/time";
+export {
+  relTimeShort,
+  formatRelative,
+  formatShortDate,
+  formatDateFull,
+  formatDateSmart,
+} from "@codecast/shared/time";
 
 export function shareOrigin(): string {
   return CODECAST_BASE_URL;
@@ -50,7 +64,6 @@ export function shareOrigin(): string {
 export function sharePageUrl(path: string): string {
   return publicUrl(path);
 }
-
 
 // Shared match rule for the project pickers (chip picker + new-session modal).
 // Queries match the project NAME (last path segment) anchored at the start of
@@ -63,14 +76,18 @@ export function matchesProjectQuery(path: string, query: string): boolean {
   if (!q) return true;
   if (q.includes("/")) return path.toLowerCase().includes(q);
   const name = path.split("/").filter(Boolean).pop()?.toLowerCase() ?? "";
-  return name.startsWith(q) || name.split(/[-_.]/).some((seg) => seg.startsWith(q));
+  return (
+    name.startsWith(q) || name.split(/[-_.]/).some((seg) => seg.startsWith(q))
+  );
 }
 
 // --- project-path helpers (shared by the new-session directory picker) -------
 
 // The home directory, inferred from the shape of real local roots so "~/…"
 // resolves to the same place the daemon would cd to.
-export function inferHomeDir(paths: Array<string | undefined>): string | undefined {
+export function inferHomeDir(
+  paths: Array<string | undefined>,
+): string | undefined {
   for (const p of paths) {
     const m = p?.match(/^(\/Users\/[^/]+|\/home\/[^/]+|\/root)(?:\/|$)/);
     if (m) return m[1];
@@ -88,7 +105,9 @@ export function parentDir(abs: string): string {
 // → "/Users/a/src"). Returns undefined when the only thing in common is root,
 // so callers can fall back to something more useful than "/".
 export function commonParentDir(paths: string[]): string | undefined {
-  const segs = paths.filter(Boolean).map((p) => p.replace(/\/$/, "").split("/"));
+  const segs = paths
+    .filter(Boolean)
+    .map((p) => p.replace(/\/$/, "").split("/"));
   if (segs.length === 0) return undefined;
   const [first] = segs;
   let n = first.length;
@@ -150,7 +169,8 @@ export function isExplicitPath(raw: string): boolean {
 
 // Re-collapse the home prefix to "~" for a compact, readable chip label.
 export function displayPath(abs: string, home: string | undefined): string {
-  if (home && (abs === home || abs.startsWith(home + "/"))) return "~" + abs.slice(home.length);
+  if (home && (abs === home || abs.startsWith(home + "/")))
+    return "~" + abs.slice(home.length);
   return abs;
 }
 
@@ -160,7 +180,12 @@ export type DiskDir = { name: string; path: string; repo: boolean };
 // What the picker knows about one directory on the machine's disk: the folders
 // directly inside it, or that it doesn't exist. `home` is the daemon's real
 // home, which replaces the inferred one the moment it's known.
-export type DiskListing = { home: string; path: string; exists: boolean; dirs: DiskDir[] };
+export type DiskListing = {
+  home: string;
+  path: string;
+  exists: boolean;
+  dirs: DiskDir[];
+};
 
 // Split a picker query into the directory to LIST and the name prefix to match
 // inside it, shell-completion style: "~/src/co" lists ~/src and matches "co";
@@ -180,13 +205,16 @@ export function splitDirQuery(
   let dir: string | undefined;
   let prefix: string;
   if (browsing) {
-    dir = tildeNoHome ? s.replace(/\/+$/, "") || "~" : resolveCustomPath(s, home, base);
+    dir = tildeNoHome
+      ? s.replace(/\/+$/, "") || "~"
+      : resolveCustomPath(s, home, base);
     prefix = "";
   } else {
     const cut = s.lastIndexOf("/");
     prefix = cut >= 0 ? s.slice(cut + 1) : s;
     if (tildeNoHome) dir = cut > 0 ? s.slice(0, cut) : "~";
-    else if (cut >= 0) dir = resolveCustomPath(s.slice(0, cut) || "/", home, base);
+    else if (cut >= 0)
+      dir = resolveCustomPath(s.slice(0, cut) || "/", home, base);
     else dir = base;
   }
   if (!dir) return undefined;
@@ -224,8 +252,18 @@ export function buildProjectPathOptions(opts: {
   listing?: DiskListing | null;
   diskLimit?: number;
 }): ProjectPathOption[] {
-  const { query, recentPaths, home, base, currentPath, defaultLimit = 8, listing, diskLimit = 12 } = opts;
-  if (!query.trim()) return recentPaths.slice(0, defaultLimit).map((path) => ({ path }));
+  const {
+    query,
+    recentPaths,
+    home,
+    base,
+    currentPath,
+    defaultLimit = 8,
+    listing,
+    diskLimit = 12,
+  } = opts;
+  if (!query.trim())
+    return recentPaths.slice(0, defaultLimit).map((path) => ({ path }));
   const explicit = isExplicitPath(query);
   const custom = resolveCustomPath(query, home, base);
   // Explicit paths match recents by their resolved absolute form (so "~/…"
@@ -244,14 +282,22 @@ export function buildProjectPathOptions(opts: {
   if (currentPath) shown.add(currentPath);
   const disk: ProjectPathOption[] = listed
     ? listing!.dirs
-        .filter((d) => !shown.has(d.path) && (!split!.prefix || matchesProjectQuery(d.path, split!.prefix)))
+        .filter(
+          (d) =>
+            !shown.has(d.path) &&
+            (!split!.prefix || matchesProjectQuery(d.path, split!.prefix)),
+        )
         // A name that STARTS with the prefix outranks a segment match
         // ("codex" before "claude-code" for "co"); repos outrank plain folders.
         .sort((a, b) => {
           const pre = split!.prefix.toLowerCase();
           const ap = Number(a.name.toLowerCase().startsWith(pre));
           const bp = Number(b.name.toLowerCase().startsWith(pre));
-          return bp - ap || Number(b.repo) - Number(a.repo) || a.name.localeCompare(b.name);
+          return (
+            bp - ap ||
+            Number(b.repo) - Number(a.repo) ||
+            a.name.localeCompare(b.name)
+          );
         })
         .slice(0, diskLimit)
         .map((d) => ({ path: d.path, disk: true, repo: d.repo }))
@@ -267,8 +313,14 @@ export function buildProjectPathOptions(opts: {
   // Absent from a directory we listed (or under a directory that doesn't
   // exist) → the folder isn't there; picking it creates it.
   const absent =
-    listed && !!split!.prefix && (!listing!.exists || !listing!.dirs.some((d) => d.path === custom));
-  return [...matches, ...disk, { path: custom!, custom: true, ...(absent ? { create: true } : {}) }];
+    listed &&
+    !!split!.prefix &&
+    (!listing!.exists || !listing!.dirs.some((d) => d.path === custom));
+  return [
+    ...matches,
+    ...disk,
+    { path: custom!, custom: true, ...(absent ? { create: true } : {}) },
+  ];
 }
 
 /**
@@ -280,7 +332,9 @@ export function buildProjectPathOptions(opts: {
  * text is copied the ordinary way once it lands. Resolves false when there
  * was nothing to copy (the promise gave null) and throws when the copy failed.
  */
-export async function copyToClipboardWhenReady(text: Promise<string | null>): Promise<boolean> {
+export async function copyToClipboardWhenReady(
+  text: Promise<string | null>,
+): Promise<boolean> {
   if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     let got: string | null = null;
     const blob = text.then((t) => {
@@ -289,7 +343,9 @@ export async function copyToClipboardWhenReady(text: Promise<string | null>): Pr
       return new Blob([t], { type: "text/plain" });
     });
     try {
-      await navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+      await navigator.clipboard.write([
+        new ClipboardItem({ "text/plain": blob }),
+      ]);
       return true;
     } catch {
       // Nothing to copy, or a browser that refused the deferred item: the
@@ -321,8 +377,9 @@ export async function copyToClipboard(text: string): Promise<void> {
   // execCommand fallback. Park the textarea inside the open dialog (when one
   // is up) so a focus trap can't steal focus from it mid-copy.
   const host =
-    (document.activeElement?.closest?.('[role="dialog"]') as HTMLElement | null) ??
-    document.body;
+    (document.activeElement?.closest?.(
+      '[role="dialog"]',
+    ) as HTMLElement | null) ?? document.body;
   const textArea = document.createElement("textarea");
   textArea.value = text;
   textArea.style.cssText = "position:fixed;left:-9999px;top:-9999px;opacity:0";

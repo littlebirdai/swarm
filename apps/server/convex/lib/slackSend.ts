@@ -17,10 +17,15 @@ import { slackApi, type SlackResp } from "./slackApi";
 export type SlackContentMethod = "chat.postMessage" | "chat.update";
 
 /** Whose data a post carries, and where in Codecast a reader finds it. */
-export type SlackSendScope = { team_id: Id<"teams"> | null | undefined; open_url: string };
+export type SlackSendScope = {
+  team_id: Id<"teams"> | null | undefined;
+  open_url: string;
+};
 
 /** Whether a team's Slack posts may carry transcript content. No team (a personal workspace) may. */
-export function slackMayCarryContent(policy: TeamPolicy | null | undefined): boolean {
+export function slackMayCarryContent(
+  policy: TeamPolicy | null | undefined,
+): boolean {
   return policy?.regulated_data !== true || policy.slack_baa_confirmed === true;
 }
 
@@ -33,7 +38,11 @@ export function linkOnlyText(openUrl: string): string {
 // survives; everything that could carry content is dropped.
 const PLACEMENT = ["channel", "ts", "thread_ts", "reply_broadcast"] as const;
 
-export function linkOnlyParams(method: SlackContentMethod, params: Record<string, unknown>, openUrl: string): Record<string, unknown> {
+export function linkOnlyParams(
+  method: SlackContentMethod,
+  params: Record<string, unknown>,
+  openUrl: string,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const k of PLACEMENT) if (params[k] !== undefined) out[k] = params[k];
   out.text = linkOnlyText(openUrl);
@@ -51,7 +60,13 @@ export async function slackSend(
   params: Record<string, unknown>,
 ): Promise<SlackResp> {
   const full = scope.team_id
-    ? await ctx.runQuery(internal.slack.slackMayCarryContentFor, { team_id: scope.team_id })
+    ? await ctx.runQuery(internal.slack.slackMayCarryContentFor, {
+        team_id: scope.team_id,
+      })
     : true;
-  return slackApi(token, method, full ? params : linkOnlyParams(method, params, scope.open_url));
+  return slackApi(
+    token,
+    method,
+    full ? params : linkOnlyParams(method, params, scope.open_url),
+  );
 }

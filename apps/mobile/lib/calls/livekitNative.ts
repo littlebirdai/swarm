@@ -15,11 +15,14 @@ import { nativeModulePresent, optionalNative } from "../optionalNative";
 
 let nativeName: string | null = null;
 const livekitNativeName = () =>
-  (nativeName ??= nativeModulePresent("LivekitReactNativeModule") ? "LivekitReactNativeModule" : "WebRTCModule");
+  (nativeName ??= nativeModulePresent("LivekitReactNativeModule")
+    ? "LivekitReactNativeModule"
+    : "WebRTCModule");
 
 let nativeAvailable: boolean | null = null;
 /** True when the binary has LiveKit's native module. */
-export const callsNativeAvailable = () => (nativeAvailable ??= nativeModulePresent(livekitNativeName()));
+export const callsNativeAvailable = () =>
+  (nativeAvailable ??= nativeModulePresent(livekitNativeName()));
 
 type Livekit = typeof import("@livekit/react-native");
 
@@ -29,7 +32,11 @@ let loaded: { lk: Livekit | null } | null = null;
 /** @livekit/react-native, or null on a binary without it. */
 export function getLivekit(): Livekit | null {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  loaded ??= { lk: optionalNative(livekitNativeName(), () => require("@livekit/react-native")) };
+  loaded ??= {
+    lk: optionalNative(livekitNativeName(), () =>
+      require("@livekit/react-native"),
+    ),
+  };
   return loaded.lk;
 }
 

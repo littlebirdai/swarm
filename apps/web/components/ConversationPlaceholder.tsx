@@ -11,7 +11,11 @@
  * leaves a quiet bar in the title slot rather than printing the handle.
  */
 import { AlignJustify, Link2, MoreVertical, Search } from "lucide-react";
-import { useInboxStore, isConvexId, type InboxSession } from "../store/inboxStore";
+import {
+  useInboxStore,
+  isConvexId,
+  type InboxSession,
+} from "../store/inboxStore";
 import { cleanTitle } from "../lib/conversationProcessor";
 import { AppLoader } from "./AppLoader";
 
@@ -35,7 +39,9 @@ function knownTitle(
 const ACTION_CLASS = "p-1 rounded text-sol-text-dim";
 
 export function ConversationPlaceholder({ id }: { id?: string }) {
-  const rawTitle = useInboxStore((s) => knownTitle(s.sessions, s.conversations, id));
+  const rawTitle = useInboxStore((s) =>
+    knownTitle(s.sessions, s.conversations, id),
+  );
   const title = rawTitle ? cleanTitle(rawTitle) : "";
 
   return (
@@ -48,14 +54,28 @@ export function ConversationPlaceholder({ id }: { id?: string }) {
                 {title.length > 60 ? title.slice(0, 57) + "..." : title}
               </h1>
             ) : (
-              <span aria-hidden className="h-2.5 w-40 rounded bg-sol-text-dim/15 animate-pulse" />
+              <span
+                aria-hidden
+                className="h-2.5 w-40 rounded bg-sol-text-dim/15 animate-pulse"
+              />
             )}
-            <div className="flex items-center gap-1 flex-shrink-0 ml-auto opacity-40" aria-hidden>
+            <div
+              className="flex items-center gap-1 flex-shrink-0 ml-auto opacity-40"
+              aria-hidden
+            >
               <span className="w-px h-3.5 bg-sol-border/60 mx-0.5 flex-shrink-0" />
-              <button disabled className={ACTION_CLASS}><Search className="w-3.5 h-3.5" /></button>
-              <button disabled className={ACTION_CLASS}><AlignJustify className="w-3.5 h-3.5" /></button>
-              <button disabled className={ACTION_CLASS}><Link2 className="w-3.5 h-3.5" /></button>
-              <button disabled className={ACTION_CLASS}><MoreVertical className="w-3.5 h-3.5" /></button>
+              <button disabled className={ACTION_CLASS}>
+                <Search className="w-3.5 h-3.5" />
+              </button>
+              <button disabled className={ACTION_CLASS}>
+                <AlignJustify className="w-3.5 h-3.5" />
+              </button>
+              <button disabled className={ACTION_CLASS}>
+                <Link2 className="w-3.5 h-3.5" />
+              </button>
+              <button disabled className={ACTION_CLASS}>
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>

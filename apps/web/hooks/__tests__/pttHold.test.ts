@@ -26,7 +26,10 @@ const click = () => {
   let prevented = false;
   let stopped = false;
   return {
-    ev: { preventDefault: () => (prevented = true), stopPropagation: () => (stopped = true) } as any,
+    ev: {
+      preventDefault: () => (prevented = true),
+      stopPropagation: () => (stopped = true),
+    } as any,
     prevented: () => prevented,
     stopped: () => stopped,
   };
@@ -59,7 +62,13 @@ describe("the talk toggle", () => {
 
   test("there is no release on leaving, blurring or lifting a key", () => {
     const props = spy(true).props as Record<string, unknown>;
-    for (const gone of ["onPointerUp", "onPointerLeave", "onPointerCancel", "onKeyUp", "onKeyDown"]) {
+    for (const gone of [
+      "onPointerUp",
+      "onPointerLeave",
+      "onPointerCancel",
+      "onKeyUp",
+      "onKeyDown",
+    ]) {
       expect(props[gone]).toBeUndefined();
     }
   });

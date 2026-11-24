@@ -40,11 +40,14 @@ const SPECIFIER_POSITION_RE = /(?:^|[^\w$.])(from|import)\s*\(?\s*$/;
 
 /** A `/` opens a regex literal, not a division, after an operator, an opening
  *  bracket, or a keyword that takes an expression. */
-const REGEX_POSITION_RE = /(?:^|[(,=:[!&|?{};+\-*%~^]|(?:^|[^\w$.])(?:return|typeof|case|in|of|void|yield|await|delete|throw|else|do))\s*$/;
+const REGEX_POSITION_RE =
+  /(?:^|[(,=:[!&|?{};+\-*%~^]|(?:^|[^\w$.])(?:return|typeof|case|in|of|void|yield|await|delete|throw|else|do))\s*$/;
 
 const opensRegex = (code: string): boolean => {
   const tail = code.trimEnd();
-  return REGEX_POSITION_RE.test(tail.length > 32 ? " " + tail.slice(-32) : tail);
+  return REGEX_POSITION_RE.test(
+    tail.length > 32 ? " " + tail.slice(-32) : tail,
+  );
 };
 
 /** The index just past a regex literal opening at `start`, or -1 when the line
@@ -55,8 +58,8 @@ function regexLiteralEnd(src: string, start: number): number {
   while (i < src.length && src[i] !== "\n") {
     const c = src[i];
     if (c === "\\") i += 2;
-    else if (c === "[") (inClass = true), i++;
-    else if (c === "]") (inClass = false), i++;
+    else if (c === "[") ((inClass = true), i++);
+    else if (c === "]") ((inClass = false), i++);
     else if (c === "/" && !inClass) {
       i++;
       while (i < src.length && /[a-z]/.test(src[i])) i++;
@@ -133,8 +136,10 @@ export function scanSpecifiers(src: string): string[] {
   const code = codeForSpecifiers(src);
   const found = new Set<string>();
   for (const m of code.matchAll(/\bfrom\s*["']([^"']+)["']/g)) found.add(m[1]);
-  for (const m of code.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g)) found.add(m[1]);
-  for (const m of code.matchAll(/\bimport\s+["']([^"']+)["']/g)) found.add(m[1]);
+  for (const m of code.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g))
+    found.add(m[1]);
+  for (const m of code.matchAll(/\bimport\s+["']([^"']+)["']/g))
+    found.add(m[1]);
   return [...found];
 }
 
@@ -162,7 +167,12 @@ function resolveRelative(fromFile: string, spec: string): string | null {
     candidates.push(stem + ".ts", stem + ".tsx");
   }
   if (/\.tsx?$/.test(base)) candidates.push(base);
-  candidates.push(base + ".ts", base + ".tsx", path.join(base, "index.ts"), path.join(base, "index.tsx"));
+  candidates.push(
+    base + ".ts",
+    base + ".tsx",
+    path.join(base, "index.ts"),
+    path.join(base, "index.tsx"),
+  );
   for (const c of candidates) if (isFile(c)) return c;
   return null;
 }
@@ -255,7 +265,9 @@ export function computeDaemonBuildId(repoRoot = findRepoRoot()): BuildIdResult {
       if (spec === "@codecast/shared" || spec.startsWith("@codecast/shared/")) {
         const sub = spec.slice("@codecast/shared".length).replace(/^\//, "");
         const base = sub ? path.join(sharedRoot, sub) : sharedRoot;
-        const resolved = [base + ".ts", path.join(base, "index.ts")].find(isFile);
+        const resolved = [base + ".ts", path.join(base, "index.ts")].find(
+          isFile,
+        );
         if (resolved) queue.push(resolved);
         else external.add(spec);
         continue;
@@ -280,20 +292,28 @@ export function computeDaemonBuildId(repoRoot = findRepoRoot()): BuildIdResult {
   const hash = crypto.createHash("sha256");
   for (const rel of files) {
     const bytes = fs.readFileSync(path.join(repoRoot, rel));
-    hash.update(`${rel}\n${crypto.createHash("sha256").update(bytes).digest("hex")}\n`);
+    hash.update(
+      `${rel}\n${crypto.createHash("sha256").update(bytes).digest("hex")}\n`,
+    );
   }
   for (const spec of [...external].sort()) hash.update(`external:${spec}\n`);
 
   // The dependency ranges, never the version. The version changes on every
   // release and hashing it would make every release a code change.
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "apps/cli/package.json"), "utf-8"));
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, "apps/cli/package.json"), "utf-8"),
+    );
     for (const name of Object.keys(pkg.dependencies ?? {}).sort()) {
       hash.update(`dep:${name}@${pkg.dependencies[name]}\n`);
     }
   } catch {}
 
-  return { id: hash.digest("hex").slice(0, ID_CHARS), files, external: [...external].sort() };
+  return {
+    id: hash.digest("hex").slice(0, ID_CHARS),
+    files,
+    external: [...external].sort(),
+  };
 }
 
 export function renderBuildIdFile(id: string): string {

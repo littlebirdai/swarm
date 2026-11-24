@@ -32,8 +32,10 @@ const guard = createFeatureGuard<TeamFeatureKey, TeamScope>({
   loadFlags: async ({ ctx, teamId }) => (await ctx.db.get(teamId))?.features,
 });
 
-const scopeFor = (ctx: DbCtx, teamId: Id<"teams"> | null | undefined): TeamScope | null =>
-  teamId ? { ctx, teamId } : null;
+const scopeFor = (
+  ctx: DbCtx,
+  teamId: Id<"teams"> | null | undefined,
+): TeamScope | null => (teamId ? { ctx, teamId } : null);
 
 /** Is `key` on for team `teamId`? Missing team = off. */
 export async function teamHasFeature(
@@ -61,7 +63,9 @@ export async function workspaceHasFeature(
     .query("team_memberships")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", scope.user_id))
     .collect();
-  const teams = await Promise.all(memberships.map((m: any) => ctx.db.get(m.team_id)));
+  const teams = await Promise.all(
+    memberships.map((m: any) => ctx.db.get(m.team_id)),
+  );
   return workspaceFeatureEnabled(teams, null, key);
 }
 
@@ -80,7 +84,9 @@ export async function requireTeamFeature(
   ctx: DbCtx,
   teamId: Id<"teams"> | null | undefined,
   key: TeamFeatureKey,
-  fail: (message: string) => never = (m) => { throw new Error(m); },
+  fail: (message: string) => never = (m) => {
+    throw new Error(m);
+  },
 ): Promise<void> {
   return guard.require(scopeFor(ctx, teamId), key, fail);
 }
@@ -93,9 +99,12 @@ export async function requireWorkspaceFeature(
   ctx: DbCtx,
   scope: { team_id?: Id<"teams"> | null; user_id?: Id<"users"> | null },
   key: TeamFeatureKey,
-  fail: (message: string) => never = (m) => { throw new Error(m); },
+  fail: (message: string) => never = (m) => {
+    throw new Error(m);
+  },
 ): Promise<void> {
-  if (!(await workspaceHasFeature(ctx, scope, key))) fail(guard.offMessage(key));
+  if (!(await workspaceHasFeature(ctx, scope, key)))
+    fail(guard.offMessage(key));
 }
 
 /**
@@ -114,7 +123,8 @@ export async function gatedSnippetAvailability(
     .query("team_memberships")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", userId))
     .collect();
-  const teams = await Promise.all(memberships.map((m: any) => ctx.db.get(m.team_id)));
+  const teams = await Promise.all(
+    memberships.map((m: any) => ctx.db.get(m.team_id)),
+  );
   return attachedAvailability(TEAM_FEATURE_CATALOG, teams, (f) => f.snippets);
 }
-

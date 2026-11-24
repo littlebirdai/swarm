@@ -16,12 +16,31 @@ export const RAIL_MORE_EVENT = "codecast:rail-more";
 
 /** One crumb. A crumb with no `href` is a place with no page of its own:
  *  `more` opens the rail's More level instead. */
-export type PlaceCrumb = { label: string; href?: string; more?: true; mono?: boolean };
+export type PlaceCrumb = {
+  label: string;
+  href?: string;
+  more?: true;
+  mono?: boolean;
+};
 
 /** What the page is about, for its name (lib/placeTitle reads the store by it). */
 export type PlaceObject =
   | { type: "session"; id: string }
-  | { type: "task" | "doc" | "plan" | "project" | "trigger" | "call" | "run" | "decision" | "goal" | "member" | "channel"; id: string }
+  | {
+      type:
+        | "task"
+        | "doc"
+        | "plan"
+        | "project"
+        | "trigger"
+        | "call"
+        | "run"
+        | "decision"
+        | "goal"
+        | "member"
+        | "channel";
+      id: string;
+    }
   | { type: "pr"; repo: string; number: string }
   | { type: "commit"; repo: string; sha: string };
 
@@ -38,13 +57,21 @@ export type Place = {
 /** What a crumb needs from the store: a container's name, and the container a
  *  task is filed under. Anything unknown falls back to the kind's word. */
 export type PlaceNames = {
-  title?: (type: "project" | "plan" | "doc" | "task", id: string) => string | undefined;
+  title?: (
+    type: "project" | "plan" | "doc" | "task",
+    id: string,
+  ) => string | undefined;
   /** The plan a task belongs to, when it has one. */
-  taskPlan?: (taskId: string) => { id: string; title?: string; short_id?: string } | undefined;
+  taskPlan?: (
+    taskId: string,
+  ) => { id: string; title?: string; short_id?: string } | undefined;
 };
 
 const label = (id: NavId) => navRow(id).label;
-const section = (id: NavId): PlaceCrumb => ({ label: label(id), href: navRow(id).path });
+const section = (id: NavId): PlaceCrumb => ({
+  label: label(id),
+  href: navRow(id).path,
+});
 
 function under(path: string, base: string) {
   return path === base || path.startsWith(`${base}/`);
@@ -54,7 +81,9 @@ function under(path: string, base: string) {
  *  (navActiveId); an object page reached by link lights the section that
  *  holds it: a session lights Inbox, a teammate's page Org, a mod's object
  *  Mods (behind More), a community room Chat, a flow's review pages Flows. */
-export function placeSection(pathname: string | null | undefined): NavId | null {
+export function placeSection(
+  pathname: string | null | undefined,
+): NavId | null {
   const p = (pathname ?? "").split("?")[0].split("#")[0];
   const hit = navActiveId(p);
   if (hit) return hit;
@@ -63,7 +92,8 @@ export function placeSection(pathname: string | null | undefined): NavId | null 
   if (under(p, "/anchor")) return "org";
   if (under(p, "/m") || under(p, "/o") || under(p, "/objects")) return "mods";
   if (under(p, "/community")) return "chat";
-  if (under(p, "/trial") || under(p, "/expectations") || under(p, "/view")) return "flows";
+  if (under(p, "/trial") || under(p, "/expectations") || under(p, "/view"))
+    return "flows";
   return null;
 }
 
@@ -80,7 +110,12 @@ export function placeSessionId(path: string): string | null {
   }
 }
 
-function crumbName(names: PlaceNames | undefined, type: "project" | "plan" | "doc" | "task", id: string, fallback: string): string {
+function crumbName(
+  names: PlaceNames | undefined,
+  type: "project" | "plan" | "doc" | "task",
+  id: string,
+  fallback: string,
+): string {
   const t = names?.title?.(type, id);
   return t && t.trim() ? t.replace(/\s+/g, " ").trim() : fallback;
 }
@@ -104,15 +139,25 @@ export function canonicalPlacePath(path: string): string {
 export function placeOf(rawPath: string, names?: PlaceNames): Place {
   const path = canonicalPlacePath(rawPath);
   const pathname = path.split("#")[0].split("?")[0].replace(/\/+$/, "") || "/";
-  const seg = pathname.split("/").filter(Boolean).map((s) => {
-    try { return decodeURIComponent(s); } catch { return s; }
-  });
+  const seg = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((s) => {
+      try {
+        return decodeURIComponent(s);
+      } catch {
+        return s;
+      }
+    });
   const sec = placeSection(pathname);
   const done = (crumbs: PlaceCrumb[], object?: PlaceObject): Place => {
     let parent: Place["parent"] = null;
     for (let i = crumbs.length - 1; i >= 0; i--) {
       const c = crumbs[i];
-      if (c.href) { parent = { label: c.label, href: c.href }; break; }
+      if (c.href) {
+        parent = { label: c.label, href: c.href };
+        break;
+      }
     }
     return { section: sec, crumbs, parent, object };
   };
@@ -126,12 +171,26 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
       if (!a) break;
       const plan = names?.taskPlan?.(a);
       const crumbs = [section("tasks")];
-      if (plan) crumbs.push({ label: plan.title?.trim() || plan.short_id || "Plan", href: `/plans/${plan.short_id ?? plan.id}` });
+      if (plan)
+        crumbs.push({
+          label: plan.title?.trim() || plan.short_id || "Plan",
+          href: `/plans/${plan.short_id ?? plan.id}`,
+        });
       return done(crumbs, { type: "task", id: a });
     }
     case "projects": {
       if (!a) break;
-      if (b) return done([section("projects"), { label: crumbName(names, "project", a, "Project"), href: `/projects/${a}` }], { type: "task", id: b });
+      if (b)
+        return done(
+          [
+            section("projects"),
+            {
+              label: crumbName(names, "project", a, "Project"),
+              href: `/projects/${a}`,
+            },
+          ],
+          { type: "task", id: b },
+        );
       return done([section("projects")], { type: "project", id: a });
     }
     case "docs":
@@ -139,7 +198,14 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
       break;
     case "plans":
       // Plans live under Docs in the rail.
-      if (a) return done([section("docs"), { label: navLabelOfPath("/plans") ?? "Plans", href: "/plans" }], { type: "plan", id: a });
+      if (a)
+        return done(
+          [
+            section("docs"),
+            { label: navLabelOfPath("/plans") ?? "Plans", href: "/plans" },
+          ],
+          { type: "plan", id: a },
+        );
       return done([section("docs")]);
     case "triggers":
     case "schedules":
@@ -149,7 +215,15 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
       if (a) return done([section("calls")], { type: "call", id: a });
       break;
     case "decisions":
-      if (a === "stacks") return done(b ? [section("decisions"), { label: "Stacks", href: "/decisions/stacks" }] : [section("decisions")]);
+      if (a === "stacks")
+        return done(
+          b
+            ? [
+                section("decisions"),
+                { label: "Stacks", href: "/decisions/stacks" },
+              ]
+            : [section("decisions")],
+        );
       if (a) return done([section("decisions")], { type: "decision", id: a });
       break;
     case "goals":
@@ -163,16 +237,29 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
     case "team":
       // /team/activity and /team/charts are pages of their own; any other
       // segment is a teammate, whose page sits under Org.
-      if (a && a !== "activity" && a !== "charts" && !b) return done([section("org")], { type: "member", id: a });
+      if (a && a !== "activity" && a !== "charts" && !b)
+        return done([section("org")], { type: "member", id: a });
       break;
     case "chat":
-      if (a && a !== "threads") return done([section("chat")], { type: "channel", id: a });
+      if (a && a !== "threads")
+        return done([section("chat")], { type: "channel", id: a });
       break;
     case "community":
-      if (a) return done([section("chat"), { label: navLabelOfPath("/community") ?? "Community", href: "/community" }], { type: "channel", id: a });
+      if (a)
+        return done(
+          [
+            section("chat"),
+            {
+              label: navLabelOfPath("/community") ?? "Community",
+              href: "/community",
+            },
+          ],
+          { type: "channel", id: a },
+        );
       return done([section("chat")]);
     case "workflows":
-      if (a === "runs" && b) return done([section("workflows")], { type: "run", id: b });
+      if (a === "runs" && b)
+        return done([section("workflows")], { type: "run", id: b });
       break;
     case "routines":
       return done([section("workflows")]);
@@ -187,13 +274,24 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
     case "repo": {
       if (!a || !b) break;
       const repo = `${a}/${b}`;
-      return done(c ? [section("code"), { label: repo, href: `/repo/${repo}`, mono: true }] : [section("code")]);
+      return done(
+        c
+          ? [
+              section("code"),
+              { label: repo, href: `/repo/${repo}`, mono: true },
+            ]
+          : [section("code")],
+      );
     }
     case "pr":
       if (a && b && c) {
         const repo = `${a}/${b}`;
         return done(
-          [section("code"), { label: repo, href: `/repo/${repo}`, mono: true }, { label: "Pull requests", href: `/repo/${repo}/pulls` }],
+          [
+            section("code"),
+            { label: repo, href: `/repo/${repo}`, mono: true },
+            { label: "Pull requests", href: `/repo/${repo}/pulls` },
+          ],
           { type: "pr", repo, number: c },
         );
       }
@@ -201,23 +299,43 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
     case "commit":
       if (a && b && c) {
         const repo = `${a}/${b}`;
-        return done([section("code"), { label: repo, href: `/repo/${repo}`, mono: true }], { type: "commit", repo, sha: c });
+        return done(
+          [section("code"), { label: repo, href: `/repo/${repo}`, mono: true }],
+          { type: "commit", repo, sha: c },
+        );
       }
       break;
     case "ops": {
       if (!a) break;
       // Ops draws its own trail in its header (components/ops/OpsShell); the
       // place still knows the way back: a detail to its tab, a tab to Ops.
-      return done(b ? [section("ops"), { label: a[0].toUpperCase() + a.slice(1), href: `/ops/${a}` }] : [section("ops")]);
+      return done(
+        b
+          ? [
+              section("ops"),
+              { label: a[0].toUpperCase() + a.slice(1), href: `/ops/${a}` },
+            ]
+          : [section("ops")],
+      );
     }
     case "m":
     case "o":
     case "objects":
       return done([{ label: "More", more: true }, section("mods")]);
     case "evals":
-      return done(a ? [{ label: "More", more: true }, section("evals")] : [{ label: "More", more: true }]);
+      return done(
+        a
+          ? [{ label: "More", more: true }, section("evals")]
+          : [{ label: "More", more: true }],
+      );
     case "settings":
-      if (a) return done([{ label: navLabelOfPath("/settings") ?? "Settings", href: "/settings" }]);
+      if (a)
+        return done([
+          {
+            label: navLabelOfPath("/settings") ?? "Settings",
+            href: "/settings",
+          },
+        ]);
       break;
   }
 
@@ -225,7 +343,8 @@ export function placeOf(rawPath: string, names?: PlaceNames): Place {
   // section holds reads that section first.
   if (sec) {
     const row = navRow(sec);
-    if (row.group === "more" && pathname === row.path) return done([{ label: "More", more: true }]);
+    if (row.group === "more" && pathname === row.path)
+      return done([{ label: "More", more: true }]);
   }
   return done([]);
 }
@@ -238,7 +357,8 @@ export function placeKey(rawPath: string): string {
   if (sid) return `/inbox?s=${sid}`;
   const pathname = path.split("#")[0].split("?")[0].replace(/\/+$/, "") || "/";
   // An old alias is the same place as its page.
-  if (pathname.startsWith("/schedules")) return `/triggers${pathname.slice("/schedules".length)}`;
+  if (pathname.startsWith("/schedules"))
+    return `/triggers${pathname.slice("/schedules".length)}`;
   if (pathname === "/artifacts") return "/pages";
   return pathname;
 }
@@ -246,6 +366,9 @@ export function placeKey(rawPath: string): string {
 /** Whether the crumbs above a page add anything to its title: none when the
  *  title is one of them (a page whose header already names its section, the
  *  way Ops does, draws its own trail). */
-export function crumbsForTitle(crumbs: PlaceCrumb[], title: string): PlaceCrumb[] {
+export function crumbsForTitle(
+  crumbs: PlaceCrumb[],
+  title: string,
+): PlaceCrumb[] {
   return crumbs.some((c) => c.label === title) ? [] : crumbs;
 }

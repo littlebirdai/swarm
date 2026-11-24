@@ -75,7 +75,10 @@ export function codecastAuthConfig() {
       // First time this person exists — greet them. Scheduled so a Resend
       // hiccup can never fail the sign-up transaction.
       if (email) {
-        await ctx.scheduler.runAfter(0, internal.emails.send.sendWelcome, { email, name });
+        await ctx.scheduler.runAfter(0, internal.emails.send.sendWelcome, {
+          email,
+          name,
+        });
       }
     },
     async onUserUpdated(ctx, { userId }) {
@@ -84,11 +87,14 @@ export function codecastAuthConfig() {
   });
 }
 
-export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth(codecastAuthConfig());
+export const { auth, signIn, signOut, store, isAuthenticated } =
+  convexAuth(codecastAuthConfig());
 
 /** The optional sign-in providers this deployment offers, for the sign-in
  *  buttons. Public and unauthenticated: it names configuration, not users. */
 export const signInProviders = query({
   args: {},
-  handler: async (): Promise<{ google: boolean }> => ({ google: googleSignInConfigured() }),
+  handler: async (): Promise<{ google: boolean }> => ({
+    google: googleSignInConfigured(),
+  }),
 });

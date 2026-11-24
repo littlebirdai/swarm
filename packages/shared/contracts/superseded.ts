@@ -38,7 +38,6 @@ export const SUPERSEDED_WORDS: Record<SupersededWhy, string> = {
   judge_unpublished: "judge retired",
 };
 
-
 export interface ProblemFacts {
   status: string;
   /** The problem it was folded into (`cause.merged_into`, followed to the one that stands). */
@@ -54,9 +53,20 @@ export interface ProblemFacts {
  * finding reaches the task, `signal_count` is its live findings, and a
  * `last_seen` means one once stood on it.
  */
-export function problemFactsOf(task: { status: string; cause?: { signal_count: number; last_seen: number } | null }, mergedInto?: string | null): ProblemFacts {
+export function problemFactsOf(
+  task: {
+    status: string;
+    cause?: { signal_count: number; last_seen: number } | null;
+  },
+  mergedInto?: string | null,
+): ProblemFacts {
   const live = task.cause?.signal_count ?? 0;
-  return { status: task.status, merged_into: mergedInto ?? null, live_findings: live, gone_findings: task.cause && task.cause.last_seen > 0 && live === 0 ? 1 : 0 };
+  return {
+    status: task.status,
+    merged_into: mergedInto ?? null,
+    live_findings: live,
+    gone_findings: task.cause && task.cause.last_seen > 0 && live === 0 ? 1 : 0,
+  };
 }
 
 /**
@@ -66,7 +76,12 @@ export function problemFactsOf(task: { status: string; cause?: { signal_count: n
  */
 export function supersededProblem(p: ProblemFacts): Superseded {
   if (p.merged_into) return { why: "merged", by: p.merged_into };
-  if (!isTerminalTaskStatus(p.status) && p.live_findings === 0 && p.gone_findings > 0) return { why: "emptied" };
+  if (
+    !isTerminalTaskStatus(p.status) &&
+    p.live_findings === 0 &&
+    p.gone_findings > 0
+  )
+    return { why: "emptied" };
   return null;
 }
 
@@ -95,9 +110,14 @@ export function supersededRun(r: RunFacts): Superseded {
   if (!LIVE_RUN.has(r.status)) return null;
   if (r.newer_run) return { why: "newer_run", by: r.newer_run };
   if (r.problem) return r.problem;
-  if (r.problem_status && isTerminalTaskStatus(r.problem_status)) return { why: "problem_closed" };
+  if (r.problem_status && isTerminalTaskStatus(r.problem_status))
+    return { why: "problem_closed" };
   if (r.station_gone) return { why: "station_gone" };
-  if (r.line_changed != null) return { why: "line_changed", ...(r.line_changed ? { by: r.line_changed } : {}) };
+  if (r.line_changed != null)
+    return {
+      why: "line_changed",
+      ...(r.line_changed ? { by: r.line_changed } : {}),
+    };
   return null;
 }
 
@@ -110,7 +130,10 @@ export interface GateVersionFacts {
   /** The station hashes the run was made with (its graph_nodes, else the version published when it started); null when unknown. */
   ran: readonly StationHash[] | null;
   /** The line's published graph: every station's hash, and each of a person's gates with the station that presents it (asker). */
-  current: { nodes: readonly StationHash[]; gates: Readonly<Record<string, { asker?: string }>> } | null;
+  current: {
+    nodes: readonly StationHash[];
+    gates: Readonly<Record<string, { asker?: string }>>;
+  } | null;
 }
 
 /**
@@ -152,7 +175,8 @@ export function supersededCard(c: CardFacts): Superseded {
   if (c.run) return c.run;
   if (c.problem) return c.problem;
   if (!c.run_at_gate) return { why: "run_moved_on" };
-  if (c.covered != null && c.covered === 0 && c.live_findings > 0) return { why: "evidence_moved" };
+  if (c.covered != null && c.covered === 0 && c.live_findings > 0)
+    return { why: "evidence_moved" };
   return null;
 }
 
@@ -179,6 +203,9 @@ export function supersededFinding(f: FindingFacts): Superseded {
 }
 
 /** Keep the current rows, or every row when the reader asked for history too. */
-export function currentOnly<T extends { superseded?: Superseded }>(rows: readonly T[], all = false): T[] {
+export function currentOnly<T extends { superseded?: Superseded }>(
+  rows: readonly T[],
+  all = false,
+): T[] {
   return all ? [...rows] : rows.filter((r) => !r.superseded);
 }

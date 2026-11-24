@@ -25,7 +25,11 @@ export type LimitRecoveryAction = {
 
 export type LimitRecoveryPhase =
   | { phase: "parked" }
-  | { phase: "recovering"; action: LimitRecoveryAction; step: "moving" | "resuming" }
+  | {
+      phase: "recovering";
+      action: LimitRecoveryAction;
+      step: "moving" | "resuming";
+    }
   | { phase: "resumed"; action: LimitRecoveryAction }
   | { phase: "moved_on" };
 
@@ -40,20 +44,38 @@ export function limitRecoveryAction(input: {
 }): LimitRecoveryAction | null {
   const { parkedAt, lastAction, lastActionAt, decision } = input;
   if (parkedAt == null) return null;
-  if (lastActionAt != null && lastAction && lastActionAt >= parkedAt - SKEW_MS) {
-    const recorded = decision && decision.at === lastActionAt && (decision.kind === "switch" || decision.kind === "continue")
-      ? decision
-      : null;
-    const switchedTo = lastAction.startsWith("switch:") ? lastAction.slice("switch:".length) : undefined;
+  if (
+    lastActionAt != null &&
+    lastAction &&
+    lastActionAt >= parkedAt - SKEW_MS
+  ) {
+    const recorded =
+      decision &&
+      decision.at === lastActionAt &&
+      (decision.kind === "switch" || decision.kind === "continue")
+        ? decision
+        : null;
+    const switchedTo = lastAction.startsWith("switch:")
+      ? lastAction.slice("switch:".length)
+      : undefined;
     return {
-      kind: recorded ? (recorded.kind as "switch" | "continue") : switchedTo ? "switch" : "continue",
+      kind: recorded
+        ? (recorded.kind as "switch" | "continue")
+        : switchedTo
+          ? "switch"
+          : "continue",
       target: recorded?.target_email ?? recorded?.target_name ?? switchedTo,
       by: lastAction === "manual" ? "you" : "auto",
       at: lastActionAt,
     };
   }
   if (input.localRequestAt != null && input.localRequestAt >= parkedAt) {
-    return { kind: input.localTarget ? "switch" : "continue", target: input.localTarget, by: "you", at: input.localRequestAt };
+    return {
+      kind: input.localTarget ? "switch" : "continue",
+      target: input.localTarget,
+      by: "you",
+      at: input.localRequestAt,
+    };
   }
   return null;
 }
@@ -68,12 +90,18 @@ export function limitRecoveryPhase(input: {
 }): LimitRecoveryPhase {
   const { live, parkedAt, action } = input;
   if (!live) {
-    return action && parkedAt != null && action.at - parkedAt <= RESUMED_MATCH_MS
+    return action &&
+      parkedAt != null &&
+      action.at - parkedAt <= RESUMED_MATCH_MS
       ? { phase: "resumed", action }
       : { phase: "moved_on" };
   }
   if (!action) return { phase: "parked" };
-  return { phase: "recovering", action, step: input.continueDelivered ? "resuming" : "moving" };
+  return {
+    phase: "recovering",
+    action,
+    step: input.continueDelivered ? "resuming" : "moving",
+  };
 }
 
 // The server stamps a conversation's block with the timestamp of the banner
@@ -81,6 +109,9 @@ export function limitRecoveryPhase(input: {
 // Without this every park card in a thread read as in force and each claimed
 // the machine's latest switch, so three switches to three accounts all read
 // "moving this session to" the last one.
-export function isSupersededBanner(bannerAt: number | undefined, stampedAt: number | null | undefined): boolean {
+export function isSupersededBanner(
+  bannerAt: number | undefined,
+  stampedAt: number | null | undefined,
+): boolean {
   return bannerAt != null && stampedAt != null && bannerAt < stampedAt - 1_000;
 }

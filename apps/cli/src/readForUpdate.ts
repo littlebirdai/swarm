@@ -51,7 +51,10 @@ export function readJsonForUpdate<T>(
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code === "ENOENT") return undefined;
-    refuse(`cannot be read (${code})`, "Fix the file's permissions, then re-run the command.");
+    refuse(
+      `cannot be read (${code})`,
+      "Fix the file's permissions, then re-run the command.",
+    );
   }
 
   if (raw!.trim() === "") return undefined;
@@ -68,7 +71,10 @@ export function readJsonForUpdate<T>(
   }
 
   if (!isValid(parsed)) {
-    refuse(`is not ${expected}`, "Repair or move the file, then re-run the command.");
+    refuse(
+      `is not ${expected}`,
+      "Repair or move the file, then re-run the command.",
+    );
   }
   return parsed as T;
 }

@@ -8,9 +8,11 @@ import { modernFocusRing } from "./ui/styles";
 // chosen option raised in white on a hairline (the look Tabs has there), every
 // segment at least 24px tall, and the one focus ring; the collapsed dropdown
 // takes the menu's surface and rows. Classic and Minimal are unchanged.
-const MODERN_TRAY = "modern:gap-0.5 modern:rounded-control modern:border-0 modern:bg-sol-text/[0.06] modern:overflow-visible";
+const MODERN_TRAY =
+  "modern:gap-0.5 modern:rounded-control modern:border-0 modern:bg-sol-text/[0.06] modern:overflow-visible";
 const MODERN_SEGMENT = `modern:rounded-[4px] modern:border-l-0 modern:text-meta modern:duration-press modern:ease-ui ${modernFocusRing}`;
-const MODERN_CHOSEN = "modern:bg-sol-card modern:font-medium modern:text-sol-text modern:shadow-[0_0_0_1px_var(--sol-border),0_1px_2px_rgb(0_0_0/0.06)]";
+const MODERN_CHOSEN =
+  "modern:bg-sol-card modern:font-medium modern:text-sol-text modern:shadow-[0_0_0_1px_var(--sol-border),0_1px_2px_rgb(0_0_0/0.06)]";
 
 /** A compact segmented pill group — the bordered "All / 👤 / 🤖" style control
  *  shared across list headers (source filters, the List/Board view switch, etc.).
@@ -57,7 +59,9 @@ export function SegmentedToggle({
   const segments = (
     <div
       className={`flex items-center ${sm ? "h-6" : "h-7"} ${
-        bare ? "gap-3" : `rounded-md border border-sol-border/40 overflow-hidden ${MODERN_TRAY} ${sm ? "modern:h-[26px] modern:p-px" : "modern:p-0.5"}`
+        bare
+          ? "gap-3"
+          : `rounded-md border border-sol-border/40 overflow-hidden ${MODERN_TRAY} ${sm ? "modern:h-[26px] modern:p-px" : "modern:p-0.5"}`
       } ${collapse ? "cq-seg-full" : ""} ${fullWidth ? "w-full" : ""}`}
     >
       {items.map((it, i) => {
@@ -66,7 +70,9 @@ export function SegmentedToggle({
         const btn = (
           <button
             key={it.key}
-            onClick={() => { if (!it.disabled) onChange(it.key); }}
+            onClick={() => {
+              if (!it.disabled) onChange(it.key);
+            }}
             aria-pressed={selected}
             aria-disabled={it.disabled || undefined}
             className={`h-full flex items-center justify-center gap-1.5 ${sm ? "text-meta" : "text-xs"} transition-colors ${it.disabled ? "opacity-40 cursor-default" : ""} ${
@@ -77,22 +83,30 @@ export function SegmentedToggle({
                   ? "text-sol-cyan font-medium"
                   : "text-sol-text-dim hover:text-sol-text"
                 : `${sm ? "px-2" : "px-2.5"} ${i > 0 ? "border-l border-sol-border/40" : ""} ${
-                    selected ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-dim hover:text-sol-text"
+                    selected
+                      ? "bg-sol-bg-highlight text-sol-text"
+                      : "text-sol-text-dim hover:text-sol-text"
                   } ${MODERN_SEGMENT} ${selected ? MODERN_CHOSEN : "modern:text-sol-text-muted"}`
             }`}
           >
             {Icon && <Icon className="w-3.5 h-3.5" />}
             {it.label && <span>{it.label}</span>}
             {it.count != null && it.count > 0 && (
-              <span className="text-meta tabular-nums text-sol-cyan">{it.count}</span>
+              <span className="text-meta tabular-nums text-sol-cyan">
+                {it.count}
+              </span>
             )}
           </button>
         );
         // JS tooltip instead of a native title attr (matches the app's other
         // icon buttons; native titles are slow and unstyled).
         return it.title ? (
-          <ShortcutTooltip key={it.key} label={it.title}>{btn}</ShortcutTooltip>
-        ) : btn;
+          <ShortcutTooltip key={it.key} label={it.title}>
+            {btn}
+          </ShortcutTooltip>
+        ) : (
+          btn
+        );
       })}
     </div>
   );
@@ -127,7 +141,8 @@ function SegmentedDropdown({
   useWatchEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -141,8 +156,12 @@ function SegmentedDropdown({
         className={`flex items-center gap-1.5 h-7 px-2 rounded-md border border-sol-border/40 text-xs text-sol-text hover:border-sol-border transition-colors modern:rounded-control modern:border-sol-border modern:bg-sol-card modern:hover:border-sol-text-dim/50 ${modernFocusRing}`}
         title={active?.title || active?.label}
       >
-        {ActiveIcon && <ActiveIcon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-muted" />}
-        {active?.label && <span className="font-medium whitespace-nowrap">{active.label}</span>}
+        {ActiveIcon && (
+          <ActiveIcon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-muted" />
+        )}
+        {active?.label && (
+          <span className="font-medium whitespace-nowrap">{active.label}</span>
+        )}
         <ChevronDown className="w-3 h-3 opacity-60 flex-shrink-0 cq-caret" />
       </button>
       {open && (
@@ -152,18 +171,29 @@ function SegmentedDropdown({
             return (
               <button
                 key={it.key}
-                onClick={() => { onChange(it.key); setOpen(false); }}
+                onClick={() => {
+                  onChange(it.key);
+                  setOpen(false);
+                }}
                 aria-pressed={it.key === value}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors ${
-                  it.key === value ? "bg-sol-bg-highlight text-sol-text" : "text-sol-text-muted hover:bg-sol-bg-alt"
+                  it.key === value
+                    ? "bg-sol-bg-highlight text-sol-text"
+                    : "text-sol-text-muted hover:bg-sol-bg-alt"
                 } modern:min-h-control-sm modern:rounded-control modern:px-2 modern:py-1 modern:text-ui modern:hover:bg-sol-cyan/10 ${it.key === value ? "modern:bg-transparent" : ""}`}
               >
-                {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim" />}
+                {Icon && (
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0 text-sol-text-dim" />
+                )}
                 <span className="flex-1">{it.label || it.title}</span>
                 {it.count != null && it.count > 0 && (
-                  <span className="text-meta tabular-nums text-sol-cyan">{it.count}</span>
+                  <span className="text-meta tabular-nums text-sol-cyan">
+                    {it.count}
+                  </span>
                 )}
-                {it.key === value && <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />}
+                {it.key === value && (
+                  <Check className="w-3 h-3 text-sol-cyan flex-shrink-0" />
+                )}
               </button>
             );
           })}

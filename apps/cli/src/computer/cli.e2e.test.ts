@@ -29,7 +29,8 @@ import { spawnSync } from "../proc.js";
 
 const ENTRY = path.join(import.meta.dir, "..", "index.ts");
 const HELPER_APP = process.env.CODECAST_COMPUTER_HELPER_APP;
-const withHelper = process.platform === "darwin" && !!HELPER_APP && fs.existsSync(HELPER_APP);
+const withHelper =
+  process.platform === "darwin" && !!HELPER_APP && fs.existsSync(HELPER_APP);
 
 /**
  * Every test here spawns the CLI from source, and a cold module graph for
@@ -40,8 +41,11 @@ const withHelper = process.platform === "darwin" && !!HELPER_APP && fs.existsSyn
  */
 const CLI_SPAWN_TIMEOUT_MS = 120_000;
 type TestBody = () => void | Promise<void>;
-const cliTest = (name: string, body: TestBody) => test(name, body, CLI_SPAWN_TIMEOUT_MS);
-const granted = withHelper ? cliTest : (name: string, body: TestBody) => test.skip(name, body);
+const cliTest = (name: string, body: TestBody) =>
+  test(name, body, CLI_SPAWN_TIMEOUT_MS);
+const granted = withHelper
+  ? cliTest
+  : (name: string, body: TestBody) => test.skip(name, body);
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
@@ -72,11 +76,18 @@ function runCli(args: string[]): CliRun {
   const codecastDir = path.join(home, ".codecast");
   fs.mkdirSync(codecastDir, { recursive: true, mode: 0o700 });
   if (withHelper) {
-    fs.mkdirSync(path.join(codecastDir, "computer"), { recursive: true, mode: 0o700 });
-    fs.cpSync(HELPER_APP!, path.join(codecastDir, "computer", "codecast computer.app"), {
+    fs.mkdirSync(path.join(codecastDir, "computer"), {
       recursive: true,
-      verbatimSymlinks: true,
+      mode: 0o700,
     });
+    fs.cpSync(
+      HELPER_APP!,
+      path.join(codecastDir, "computer", "codecast computer.app"),
+      {
+        recursive: true,
+        verbatimSymlinks: true,
+      },
+    );
   }
   // The run's own TMPDIR, so its sockets and screenshots land inside the home
   // this test cleans up. It has to exist before the spawn: mkdtemp does not
@@ -86,7 +97,13 @@ function runCli(args: string[]): CliRun {
   const result = spawnSync("bun", [ENTRY, ...args], {
     encoding: "utf8",
     timeout: 120_000,
-    env: { ...process.env, HOME: home, CODECAST_DIR: codecastDir, TMPDIR: tmpdir, NO_COLOR: "1" },
+    env: {
+      ...process.env,
+      HOME: home,
+      CODECAST_DIR: codecastDir,
+      TMPDIR: tmpdir,
+      NO_COLOR: "1",
+    },
   });
   const stdout = result.stdout ?? "";
   return {
@@ -99,7 +116,9 @@ function runCli(args: string[]): CliRun {
 
 beforeAll(() => {
   if (!withHelper) {
-    console.log("computer cli e2e: helper half skipped — set CODECAST_COMPUTER_HELPER_APP to a built `codecast computer.app`");
+    console.log(
+      "computer cli e2e: helper half skipped — set CODECAST_COMPUTER_HELPER_APP to a built `codecast computer.app`",
+    );
   }
 });
 
@@ -109,8 +128,19 @@ describe("the verb group is registered and answers without a helper", () => {
     expect(run.status).toBe(0);
     const help = `${run.stdout}${run.stderr}`;
     for (const verb of [
-      "capabilities", "permissions", "list-apps", "list-windows", "get-app-state", "click",
-      "perform-secondary-action", "scroll", "type-text", "press-key", "hotkey", "paste-text", "set-value",
+      "capabilities",
+      "permissions",
+      "list-apps",
+      "list-windows",
+      "get-app-state",
+      "click",
+      "perform-secondary-action",
+      "scroll",
+      "type-text",
+      "press-key",
+      "hotkey",
+      "paste-text",
+      "set-value",
       "drag",
     ]) {
       expect(help).toContain(verb);
@@ -124,67 +154,115 @@ describe("the verb group is registered and answers without a helper", () => {
     expect(run.stderr).toContain("unknown command 'computer bogus'");
   });
 
-  cliTest("a flag error is refused in-process, with the code and the recovery", () => {
-    const run = runCli(["computer", "press-key", "--app", "com.apple.Finder", "--key", "Cmd+A", "--json"]);
-    expect(run.status).toBe(1);
-    expect(run.json()).toMatchObject({ ok: false, code: "invalid_argument" });
-    expect(String(run.json().message)).toContain("press-key accepts one key only");
-  });
+  cliTest(
+    "a flag error is refused in-process, with the code and the recovery",
+    () => {
+      const run = runCli([
+        "computer",
+        "press-key",
+        "--app",
+        "com.apple.Finder",
+        "--key",
+        "Cmd+A",
+        "--json",
+      ]);
+      expect(run.status).toBe(1);
+      expect(run.json()).toMatchObject({ ok: false, code: "invalid_argument" });
+      expect(String(run.json().message)).toContain(
+        "press-key accepts one key only",
+      );
+    },
+  );
 
-  cliTest("a build with no embedded helper says so rather than hanging or crashing", () => {
-    // From source, `helper.tar` is empty, which is exactly the state of every
-    // Linux and Windows build. The verb must report the feature unavailable.
-    //
-    // WHICH unavailability is the platform's answer, not the test's. On macOS
-    // the machine could run a helper and this build carries none, so the
-    // obstacle is the missing helper. Off macOS there is no such feature to
-    // carry, and `unsupported_capability` is the honest code — asserting the
-    // macOS one there tests the runner, not the CLI (ct-49945).
-    if (withHelper) return;
-    const run = runCli(["computer", "get-app-state", "--app", "com.apple.Finder", "--json"]);
-    expect(run.status).toBe(1);
-    const envelope = run.json();
-    expect(Object.keys(envelope)[0]).toBe("ok");
-    expect(envelope.ok).toBe(false);
-    if (process.platform === "darwin") {
-      expect(envelope.code).toBe("accessibility_error");
-      expect(String(envelope.message)).toContain("not built into this CLI");
-    } else {
-      expect(envelope.code).toBe("unsupported_capability");
-      expect(String(envelope.message)).toContain("macOS");
-    }
-    expect((envelope.recovery as string[]).length).toBeGreaterThan(0);
-  });
+  cliTest(
+    "a build with no embedded helper says so rather than hanging or crashing",
+    () => {
+      // From source, `helper.tar` is empty, which is exactly the state of every
+      // Linux and Windows build. The verb must report the feature unavailable.
+      //
+      // WHICH unavailability is the platform's answer, not the test's. On macOS
+      // the machine could run a helper and this build carries none, so the
+      // obstacle is the missing helper. Off macOS there is no such feature to
+      // carry, and `unsupported_capability` is the honest code — asserting the
+      // macOS one there tests the runner, not the CLI (ct-49945).
+      if (withHelper) return;
+      const run = runCli([
+        "computer",
+        "get-app-state",
+        "--app",
+        "com.apple.Finder",
+        "--json",
+      ]);
+      expect(run.status).toBe(1);
+      const envelope = run.json();
+      expect(Object.keys(envelope)[0]).toBe("ok");
+      expect(envelope.ok).toBe(false);
+      if (process.platform === "darwin") {
+        expect(envelope.code).toBe("accessibility_error");
+        expect(String(envelope.message)).toContain("not built into this CLI");
+      } else {
+        expect(envelope.code).toBe("unsupported_capability");
+        expect(String(envelope.message)).toContain("macOS");
+      }
+      expect((envelope.recovery as string[]).length).toBeGreaterThan(0);
+    },
+  );
 
-  cliTest("permissions reports the missing helper instead of claiming a grant", () => {
-    if (withHelper) return;
-    const run = runCli(["computer", "permissions", "--json"]);
-    if (process.platform !== "darwin") {
-      // Off macOS the feature is unsupported, and saying so is the whole answer.
-      expect(run.json()).toMatchObject({ ok: true });
-      return;
-    }
-    // A status read reports; it does not fail and it does not raise (ct-49667).
-    // The report has to name the helper as the obstacle rather than send the
-    // agent to grant Accessibility to an app that is not on the machine.
-    expect(run.status).toBe(0);
-    const report = run.json() as any;
-    expect(report.launchedHelper).toBe(false);
-    expect(String(report.helperUnavailableReason)).toMatch(/not built into this CLI|was not found/);
-    expect(String(report.nextStep)).toContain("No grant can be read yet");
-    expect((report.permissions as { status: string }[]).every((p) => p.status === "not-granted")).toBe(true);
-  });
+  cliTest(
+    "permissions reports the missing helper instead of claiming a grant",
+    () => {
+      if (withHelper) return;
+      const run = runCli(["computer", "permissions", "--json"]);
+      if (process.platform !== "darwin") {
+        // Off macOS the feature is unsupported, and saying so is the whole answer.
+        expect(run.json()).toMatchObject({ ok: true });
+        return;
+      }
+      // A status read reports; it does not fail and it does not raise (ct-49667).
+      // The report has to name the helper as the obstacle rather than send the
+      // agent to grant Accessibility to an app that is not on the machine.
+      expect(run.status).toBe(0);
+      const report = run.json() as any;
+      expect(report.launchedHelper).toBe(false);
+      expect(String(report.helperUnavailableReason)).toMatch(
+        /not built into this CLI|was not found/,
+      );
+      expect(String(report.nextStep)).toContain("No grant can be read yet");
+      expect(
+        (report.permissions as { status: string }[]).every(
+          (p) => p.status === "not-granted",
+        ),
+      ).toBe(true);
+    },
+  );
 
-  cliTest("--open-settings on a build with no helper fails loudly instead of half-raising", () => {
-    if (withHelper) return;
-    if (process.platform !== "darwin") return;
-    const run = runCli(["computer", "permissions", "--open-settings", "--json"]);
-    expect(run.status).toBe(1);
-    expect(run.json()).toMatchObject({ ok: false, code: "accessibility_error" });
-  });
+  cliTest(
+    "--open-settings on a build with no helper fails loudly instead of half-raising",
+    () => {
+      if (withHelper) return;
+      if (process.platform !== "darwin") return;
+      const run = runCli([
+        "computer",
+        "permissions",
+        "--open-settings",
+        "--json",
+      ]);
+      expect(run.status).toBe(1);
+      expect(run.json()).toMatchObject({
+        ok: false,
+        code: "accessibility_error",
+      });
+    },
+  );
 
   cliTest("--id only accepts the two grants that exist", () => {
-    const run = runCli(["computer", "permissions", "--id", "everything", "--json"]);
+    const run = runCli([
+      "computer",
+      "permissions",
+      "--id",
+      "everything",
+      "--json",
+    ]);
     expect(run.status).toBe(1);
     expect(run.json()).toMatchObject({ ok: false, code: "invalid_argument" });
   });
@@ -204,26 +282,50 @@ describe("against the built helper", () => {
   granted("list-apps names real apps with bundle ids", () => {
     const run = runCli(["computer", "list-apps", "--json"]);
     expect(run.status).toBe(0);
-    const apps = (run.json() as any).apps as { bundleId: string | null; pid: number }[];
+    const apps = (run.json() as any).apps as {
+      bundleId: string | null;
+      pid: number;
+    }[];
     expect(apps.length).toBeGreaterThan(0);
-    expect(apps.some((app) => typeof app.bundleId === "string" && app.pid > 0)).toBe(true);
+    expect(
+      apps.some((app) => typeof app.bundleId === "string" && app.pid > 0),
+    ).toBe(true);
   });
 
-  granted("a snapshot writes its screenshot to a 0600 path and never inlines base64", () => {
-    const permissions = runCli(["computer", "permissions", "--json"]).json() as any;
-    const accessibility = (permissions.permissions ?? []).find((p: { id: string }) => p.id === "accessibility");
-    if (accessibility?.status !== "granted") {
-      console.log("computer cli e2e: Accessibility not granted to the helper — grant it and rerun for the tree half");
-      return;
-    }
-    const run = runCli(["computer", "get-app-state", "--app", "com.apple.Finder", "--json"]);
-    expect(run.status).toBe(0);
-    const result = run.json() as any;
-    expect(result.snapshot.treeText.length).toBeGreaterThan(0);
-    expect(result.screenshot?.data).toBeUndefined();
-    if (result.screenshot?.path) {
-      expect(fs.statSync(result.screenshot.path).mode & 0o777).toBe(0o600);
-      expect(fs.statSync(path.dirname(result.screenshot.path)).mode & 0o777).toBe(0o700);
-    }
-  });
+  granted(
+    "a snapshot writes its screenshot to a 0600 path and never inlines base64",
+    () => {
+      const permissions = runCli([
+        "computer",
+        "permissions",
+        "--json",
+      ]).json() as any;
+      const accessibility = (permissions.permissions ?? []).find(
+        (p: { id: string }) => p.id === "accessibility",
+      );
+      if (accessibility?.status !== "granted") {
+        console.log(
+          "computer cli e2e: Accessibility not granted to the helper — grant it and rerun for the tree half",
+        );
+        return;
+      }
+      const run = runCli([
+        "computer",
+        "get-app-state",
+        "--app",
+        "com.apple.Finder",
+        "--json",
+      ]);
+      expect(run.status).toBe(0);
+      const result = run.json() as any;
+      expect(result.snapshot.treeText.length).toBeGreaterThan(0);
+      expect(result.screenshot?.data).toBeUndefined();
+      if (result.screenshot?.path) {
+        expect(fs.statSync(result.screenshot.path).mode & 0o777).toBe(0o600);
+        expect(
+          fs.statSync(path.dirname(result.screenshot.path)).mode & 0o777,
+        ).toBe(0o700);
+      }
+    },
+  );
 });

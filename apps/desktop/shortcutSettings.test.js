@@ -1,7 +1,11 @@
 // Run: node --test apps/desktop/shortcutSettings.test.js
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { DEFAULT_SHORTCUTS, mergeShortcuts, diffOverrides } = require("./shortcutSettings");
+const {
+  DEFAULT_SHORTCUTS,
+  mergeShortcuts,
+  diffOverrides,
+} = require("./shortcutSettings");
 
 test("no persisted settings → pure defaults", () => {
   assert.deepEqual(mergeShortcuts(undefined), DEFAULT_SHORTCUTS);
@@ -35,7 +39,10 @@ test("explicit newSession wins over legacy toggleCompose", () => {
 });
 
 test('removed binding ("") survives the merge and the legacy migration', () => {
-  const merged = mergeShortcuts({ newSession: "", toggleCompose: "CommandOrControl+Shift+K" });
+  const merged = mergeShortcuts({
+    newSession: "",
+    toggleCompose: "CommandOrControl+Shift+K",
+  });
   assert.equal(merged.newSession, "");
 });
 
@@ -45,11 +52,17 @@ test("diffOverrides persists only non-default values, including removals", () =>
     newSession: "",
     toggleEnv: "CommandOrControl+Alt+E",
   });
-  assert.deepEqual(overrides, { newSession: "", toggleEnv: "CommandOrControl+Alt+E" });
+  assert.deepEqual(overrides, {
+    newSession: "",
+    toggleEnv: "CommandOrControl+Alt+E",
+  });
 });
 
 test("diffOverrides drops retired keys so toggleCompose can't resurface", () => {
-  const overrides = diffOverrides({ ...DEFAULT_SHORTCUTS, toggleCompose: "CommandOrControl+Alt+N" });
+  const overrides = diffOverrides({
+    ...DEFAULT_SHORTCUTS,
+    toggleCompose: "CommandOrControl+Alt+N",
+  });
   assert.deepEqual(overrides, {});
 });
 

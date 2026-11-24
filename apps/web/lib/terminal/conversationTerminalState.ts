@@ -37,7 +37,10 @@ export function isConversationTerminalOpen(convKey: string): boolean {
   return conversationTerminalSplits.has(convKey);
 }
 
-export function toggleConversationTerminal(convKey: string, target: string): void {
+export function toggleConversationTerminal(
+  convKey: string,
+  target: string,
+): void {
   const existing = conversationTerminalSplits.get(convKey);
   if (existing) {
     if (existing.termId) {
@@ -46,7 +49,11 @@ export function toggleConversationTerminal(convKey: string, target: string): voi
     }
     conversationTerminalSplits.delete(convKey);
   } else {
-    conversationTerminalSplits.set(convKey, { termId: null, target, height: conversationTerminalDefaultHeight() });
+    conversationTerminalSplits.set(convKey, {
+      termId: null,
+      target,
+      height: conversationTerminalDefaultHeight(),
+    });
   }
   bumpConversationTerminals();
 }

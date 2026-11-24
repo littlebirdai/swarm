@@ -2,7 +2,13 @@ import { describe, it, expect } from "bun:test";
 import { mergeFileChanges } from "../fileChangeExtractor";
 import type { FileChange } from "../../store/diffViewerStore";
 
-function fc(partial: Partial<FileChange> & { id: string; timestamp: number; sequenceIndex: number }): FileChange {
+function fc(
+  partial: Partial<FileChange> & {
+    id: string;
+    timestamp: number;
+    sequenceIndex: number;
+  },
+): FileChange {
   return {
     messageId: "m",
     filePath: "a.ts",
@@ -28,8 +34,12 @@ describe("mergeFileChanges", () => {
   });
 
   it("dedupes by id, preferring the server copy", () => {
-    const client = [fc({ id: "1", timestamp: 10, sequenceIndex: 0, newContent: "client" })];
-    const server = [fc({ id: "1", timestamp: 10, sequenceIndex: 0, newContent: "server" })];
+    const client = [
+      fc({ id: "1", timestamp: 10, sequenceIndex: 0, newContent: "client" }),
+    ];
+    const server = [
+      fc({ id: "1", timestamp: 10, sequenceIndex: 0, newContent: "server" }),
+    ];
     const merged = mergeFileChanges(server, client);
     expect(merged).toHaveLength(1);
     expect(merged[0].newContent).toBe("server");
@@ -60,16 +70,35 @@ describe("mergeFileChanges", () => {
 
   it("backfills a missing commit hash from the client copy", () => {
     // Server row materialized before the tool result (hash) arrived; client extracted it later.
-    const server = [fc({ id: "k", timestamp: 10, sequenceIndex: 0, changeType: "commit", filePath: "git commit" })];
+    const server = [
+      fc({
+        id: "k",
+        timestamp: 10,
+        sequenceIndex: 0,
+        changeType: "commit",
+        filePath: "git commit",
+      }),
+    ];
     const client = [
-      fc({ id: "k", timestamp: 10, sequenceIndex: 0, changeType: "commit", filePath: "git commit", commitHash: "abc1234" }),
+      fc({
+        id: "k",
+        timestamp: 10,
+        sequenceIndex: 0,
+        changeType: "commit",
+        filePath: "git commit",
+        commitHash: "abc1234",
+      }),
     ];
     expect(mergeFileChanges(server, client)[0].commitHash).toBe("abc1234");
   });
 
   it("keeps the server commit hash when it has one", () => {
-    const server = [fc({ id: "k", timestamp: 10, sequenceIndex: 0, commitHash: "server7" })];
-    const client = [fc({ id: "k", timestamp: 10, sequenceIndex: 0, commitHash: "client7" })];
+    const server = [
+      fc({ id: "k", timestamp: 10, sequenceIndex: 0, commitHash: "server7" }),
+    ];
+    const client = [
+      fc({ id: "k", timestamp: 10, sequenceIndex: 0, commitHash: "client7" }),
+    ];
     expect(mergeFileChanges(server, client)[0].commitHash).toBe("server7");
   });
 });

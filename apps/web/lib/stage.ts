@@ -28,7 +28,12 @@ import { inboxTabSessionId, pathLabel, tabNeedsUrlRestore } from "./pathLabel";
 import { borrowsTabShell } from "./desktop";
 import { directConversationId } from "./desktopHandoff";
 import { routeElsewhere, routeOwner } from "./desktopApps";
-import { browserRoutePath, hasPaneHost, postToPaneHost, type BrowserSource } from "./browserPane";
+import {
+  browserRoutePath,
+  hasPaneHost,
+  postToPaneHost,
+  type BrowserSource,
+} from "./browserPane";
 import { registerSplitOpener } from "./openIntent";
 import { rememberBrowserPaneUrl } from "./browserPaneRecents";
 
@@ -36,7 +41,9 @@ import { rememberBrowserPaneUrl } from "./browserPaneRecents";
 // that touches it, and this module sits under TabContent (every tab pays for
 // its imports). A milestone is fire-and-forget; async is fine.
 function firstSplitMilestone() {
-  void import("../tips/useTips").then((m) => m.checkMilestone("m-first-split")).catch(() => {});
+  void import("../tips/useTips")
+    .then((m) => m.checkMilestone("m-first-split"))
+    .catch(() => {});
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +72,10 @@ export type PaneDragPayload = {
 // on dragend; a drag from another window simply has no module copy.
 let liveDrag: PaneDragPayload | null = null;
 
-export function startPaneDrag(e: React.DragEvent | DragEvent, payload: PaneDragPayload) {
+export function startPaneDrag(
+  e: React.DragEvent | DragEvent,
+  payload: PaneDragPayload,
+) {
   const dt = "dataTransfer" in e ? e.dataTransfer : null;
   if (!dt) return;
   dt.setData(PANE_DRAG_TYPE, JSON.stringify(payload));
@@ -92,7 +102,9 @@ export function activePaneDrag(): PaneDragPayload | null {
  *  it works during dragover when data is sealed. */
 export function dragCarriesPane(dt: DataTransfer | null): boolean {
   if (!dt) return false;
-  return dt.types.includes(PANE_DRAG_TYPE) || dt.types.includes(SESSION_DRAG_TYPE);
+  return (
+    dt.types.includes(PANE_DRAG_TYPE) || dt.types.includes(SESSION_DRAG_TYPE)
+  );
 }
 
 /** Decode a drop. A bare session drag becomes its conversation route. */
@@ -154,7 +166,8 @@ function activeTab(): AppTab | null {
  *  Stands down when the live URL is the tab's content in the other spelling
  *  (the inbox's /conversation canonicalization; see tabNeedsUrlRestore). */
 function syncUrl() {
-  if (typeof window === "undefined" || !window.location || borrowsTabShell()) return;
+  if (typeof window === "undefined" || !window.location || borrowsTabShell())
+    return;
   const tab = activeTab();
   if (!tab) return;
   const live = window.location.pathname + window.location.search;
@@ -190,15 +203,23 @@ export function yieldOwnedRoutes(): void {
         touched = true;
       }
       if (!touched) continue;
-      const focused = tab.focusedLeafId ? findLeaf(layout, tab.focusedLeafId) : null;
-      const path = owned(tab.path) ? (focused?.path ?? DEFAULT_TAB_PATH) : tab.path;
+      const focused = tab.focusedLeafId
+        ? findLeaf(layout, tab.focusedLeafId)
+        : null;
+      const path = owned(tab.path)
+        ? (focused?.path ?? DEFAULT_TAB_PATH)
+        : tab.path;
       st.updateTab(tab.id, { layout, path, title: pathLabel(path) });
       continue;
     }
     if (!owned(tab.path)) continue;
     if (active) routeElsewhere(tab.path);
     if (useInboxStore.getState().tabs.length > 1) st.closeTab(tab.id);
-    else st.updateTab(tab.id, { path: DEFAULT_TAB_PATH, title: pathLabel(DEFAULT_TAB_PATH) });
+    else
+      st.updateTab(tab.id, {
+        path: DEFAULT_TAB_PATH,
+        title: pathLabel(DEFAULT_TAB_PATH),
+      });
   }
   syncUrl();
 }
@@ -234,7 +255,11 @@ export function stageExpand(leafId: string) {
 
 /** Pane-local navigation: the focused pane navigates like the tab (history,
  *  recents); an unfocused pane just re-points its own leaf. */
-export function stageNavigateLeaf(leafId: string, path: string, mode: "push" | "replace") {
+export function stageNavigateLeaf(
+  leafId: string,
+  path: string,
+  mode: "push" | "replace",
+) {
   const tab = activeTab();
   if (!tab) return;
   const from = mode === "push" ? findLeaf(tab.layout, leafId)?.path : null;
@@ -262,7 +287,11 @@ export function stageMoveLeafToTab(leafId: string) {
   // path — stamping that stale URL would write the popped content back over
   // the surviving pane. (openTab itself converts the /conversation spelling.)
   syncUrl();
-  st.openTab({ path: leaf.path, title: pathLabel(leaf.path), makeActive: true });
+  st.openTab({
+    path: leaf.path,
+    title: pathLabel(leaf.path),
+    makeActive: true,
+  });
   syncUrl();
 }
 
@@ -274,7 +303,10 @@ export function stageMoveLeafToTab(leafId: string) {
  *    view, which is the honest reading of that gesture.
  * A path already on stage is focused instead of duplicated.
  */
-export function performStageDrop(zone: DropZone, payload: PaneDragPayload): boolean {
+export function performStageDrop(
+  zone: DropZone,
+  payload: PaneDragPayload,
+): boolean {
   const st = useInboxStore.getState();
   const tab = activeTab();
   if (!tab || isNonTabRoute(payload.path)) return false;
@@ -292,11 +324,13 @@ export function performStageDrop(zone: DropZone, payload: PaneDragPayload): bool
       st.stageSetLeafPath(zone.leafId, payload.path);
       leafVisits.delete(zone.leafId); // opens afresh: its old trail is not this one's
       if (from?.kind === "leaf") st.stageCloseLeaf(from.leafId);
-      if (from?.kind === "tab" && from.tabId !== st.activeTabId) st.closeTab(from.tabId);
+      if (from?.kind === "tab" && from.tabId !== st.activeTabId)
+        st.closeTab(from.tabId);
       syncUrl();
     } else {
       // A plain tab's center drop is ordinary navigation.
-      if (from?.kind === "tab" && from.tabId !== st.activeTabId) st.closeTab(from.tabId);
+      if (from?.kind === "tab" && from.tabId !== st.activeTabId)
+        st.closeTab(from.tabId);
       tabNavigate(payload.path, "push");
     }
     return true;
@@ -308,7 +342,8 @@ export function performStageDrop(zone: DropZone, payload: PaneDragPayload): bool
     const existing = leavesOf(tab.layout).find((l) => l.path === payload.path);
     if (existing) {
       st.stageFocusLeaf(existing.id);
-      if (from?.kind === "tab" && from.tabId !== st.activeTabId) st.closeTab(from.tabId);
+      if (from?.kind === "tab" && from.tabId !== st.activeTabId)
+        st.closeTab(from.tabId);
       syncUrl();
       return true;
     }
@@ -319,7 +354,11 @@ export function performStageDrop(zone: DropZone, payload: PaneDragPayload): bool
     // re-inserting passed a 2-pane split through the plain-tab collapse,
     // which respelled the stationary pane's path and remounted everything.
     if (zone.kind === "edge" && zone.leafId === from.leafId) return false;
-    st.stageMoveLeaf(from.leafId, zone.kind === "root" ? "root" : { leafId: zone.leafId }, zone.edge);
+    st.stageMoveLeaf(
+      from.leafId,
+      zone.kind === "root" ? "root" : { leafId: zone.leafId },
+      zone.edge,
+    );
     syncUrl();
     return true;
   }
@@ -329,7 +368,8 @@ export function performStageDrop(zone: DropZone, payload: PaneDragPayload): bool
     payload.path,
   );
   if (!leafId) return false;
-  if (from?.kind === "tab" && from.tabId !== st.activeTabId) st.closeTab(from.tabId);
+  if (from?.kind === "tab" && from.tabId !== st.activeTabId)
+    st.closeTab(from.tabId);
   syncUrl();
   firstSplitMilestone();
   return true;
@@ -344,7 +384,12 @@ export function performStageDrop(zone: DropZone, payload: PaneDragPayload): bool
  * narrow screen, bad path) — the caller navigates normally.
  */
 export function requestStagePlacement(path: string, title?: string): boolean {
-  if (typeof window === "undefined" || window.innerWidth < 900 || borrowsTabShell()) return false;
+  if (
+    typeof window === "undefined" ||
+    window.innerWidth < 900 ||
+    borrowsTabShell()
+  )
+    return false;
   // A path another desktop window owns (a channel while the Chat window is
   // up) is never a pane here: it has already been handed to that window, and
   // there is nothing left to place. True, so the caller does not navigate.
@@ -363,14 +408,20 @@ export function placeStagePick(target: { leafId: string } | "newTab") {
   if (!pick) return;
   if (target === "newTab") {
     st.saveCurrentTabState();
-    st.openTab({ path: pick.path, title: pick.title ?? pathLabel(pick.path), makeActive: true });
+    st.openTab({
+      path: pick.path,
+      title: pick.title ?? pathLabel(pick.path),
+      makeActive: true,
+    });
     return;
   }
   // Same rule as a drop: a pane already showing this path is focused rather
   // than doubled — unless that pane is the one the user pointed at.
   const tab = activeTab();
   const existing = tab?.layout
-    ? leavesOf(tab.layout).find((l) => l.path === pick.path && l.id !== target.leafId)
+    ? leavesOf(tab.layout).find(
+        (l) => l.path === pick.path && l.id !== target.leafId,
+      )
     : null;
   st.stageFocusLeaf(existing ? existing.id : target.leafId);
   // The focused pane's navigation is the tab's navigation (history, recents).
@@ -385,7 +436,11 @@ export function placeStagePick(target: { leafId: string } | "newTab") {
  * instead.
  */
 export function openBeside(path: string, opts?: { reuse?: boolean }): boolean {
-  if (!isNonTabRoute(path) && postToPaneHost({ type: "codecast:open-beside", path })) return true;
+  if (
+    !isNonTabRoute(path) &&
+    postToPaneHost({ type: "codecast:open-beside", path })
+  )
+    return true;
   if (!canOpenBeside()) return false;
   const st = useInboxStore.getState();
   const tab = activeTab();
@@ -430,7 +485,10 @@ function openBesideReused(tab: AppTab, path: string): boolean {
     return true;
   }
   if (leavesOf(tab.layout).some((l) => l.path === path)) return true;
-  const leafId = st.stageInsertLeaf("root", "right", path, { id: targetId, focus: false });
+  const leafId = st.stageInsertLeaf("root", "right", path, {
+    id: targetId,
+    focus: false,
+  });
   if (!leafId) return false;
   firstSplitMilestone();
   return true;
@@ -461,7 +519,11 @@ export function openBrowserPane(
   if (opts?.beside === "only" && hasPaneHost()) return false;
   // `native` rides the path, so that gesture goes up as the path below rather
   // than as a source the message would strip it from.
-  if (opts?.beside !== false && !opts?.native && postToPaneHost({ type: "codecast:open-pane", source })) {
+  if (
+    opts?.beside !== false &&
+    !opts?.native &&
+    postToPaneHost({ type: "codecast:open-pane", source })
+  ) {
     return true;
   }
   const path = browserRoutePath(source, { native: opts?.native });
@@ -484,7 +546,11 @@ export function openBrowserPane(
  *  and the route's eligibility are openBeside's own answer. */
 export function canOpenBeside(): boolean {
   if (hasPaneHost()) return true;
-  return typeof window !== "undefined" && window.innerWidth >= 900 && !borrowsTabShell();
+  return (
+    typeof window !== "undefined" &&
+    window.innerWidth >= 900 &&
+    !borrowsTabShell()
+  );
 }
 
 /**
@@ -515,11 +581,16 @@ export function tabStageLayout(tab: Pick<AppTab, "layout">): StageNode | null {
  * remounted, never reloaded, and keeps its scroll. A narrow stage renders the
  * focused leaf alone, under its own id, so widening again keeps that cell too.
  */
-export function stageRenderLayout(tab: Pick<AppTab, "id" | "path" | "layout" | "focusedLeafId">, narrow: boolean): StageNode {
+export function stageRenderLayout(
+  tab: Pick<AppTab, "id" | "path" | "layout" | "focusedLeafId">,
+  narrow: boolean,
+): StageNode {
   const split = tabStageLayout(tab);
   if (!split) return { type: "leaf", id: seedLeafId(tab.id), path: tab.path };
   if (!narrow) return split;
-  const focused = (tab.focusedLeafId && findLeaf(split, tab.focusedLeafId)) || leavesOf(split)[0];
+  const focused =
+    (tab.focusedLeafId && findLeaf(split, tab.focusedLeafId)) ||
+    leavesOf(split)[0];
   return focused;
 }
 

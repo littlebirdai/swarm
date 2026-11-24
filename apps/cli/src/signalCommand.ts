@@ -32,7 +32,11 @@ import { stdinText } from "./sendBody.js";
 import { slugifyHeading } from "@codecast/shared/vault";
 import { scopeFor, signalDefaultProject } from "./lineScope.js";
 import { SIGNAL_KINDS } from "@codecast/shared/contracts/signalFingerprint";
-import { DIAGNOSIS_ANSWERS, judgeReviewLine, type JudgeReviewView } from "@codecast/shared/contracts/judgeReview";
+import {
+  DIAGNOSIS_ANSWERS,
+  judgeReviewLine,
+  type JudgeReviewView,
+} from "@codecast/shared/contracts/judgeReview";
 
 export { judgeReviewLine };
 
@@ -77,7 +81,14 @@ export interface SignalRow {
   case_of?: string;
   observed_at: number;
   created_at: number;
-  attach: "fingerprint" | "message" | "judge" | "similar" | "new" | "person" | "held";
+  attach:
+    | "fingerprint"
+    | "message"
+    | "judge"
+    | "similar"
+    | "new"
+    | "person"
+    | "held";
   reopened: boolean;
   task_short_id?: string;
   task_title?: string;
@@ -87,35 +98,52 @@ export interface SignalRow {
 /** The wire body for `cast signal add`, or the one line that says what is missing.
  *  A finder passes its own fingerprint; a person filing by hand gets one from
  *  the source and title, so the same report filed twice joins one cause. */
-export function signalAddBody(options: SignalAddOptions): Record<string, string | number | boolean> {
-  if (options.issue?.trim() && options.fingerprint?.trim()) throw new Error("Give --issue or --fingerprint, not both: an issue's key is what groups its findings");
-  const missing = (["source", "kind", "title"] as const).filter((k) => !options[k]?.trim());
+export function signalAddBody(
+  options: SignalAddOptions,
+): Record<string, string | number | boolean> {
+  if (options.issue?.trim() && options.fingerprint?.trim())
+    throw new Error(
+      "Give --issue or --fingerprint, not both: an issue's key is what groups its findings",
+    );
+  const missing = (["source", "kind", "title"] as const).filter(
+    (k) => !options[k]?.trim(),
+  );
   if (missing.length) {
-    throw new Error(`cast signal add needs ${missing.map((k) => `--${k}`).join(", ")}${missing.includes("kind") ? ` (kinds: ${SIGNAL_KINDS.join(", ")})` : ""}. Example: cast signal add --source person --kind bug --title "Login button overlaps the footer on Safari"`);
+    throw new Error(
+      `cast signal add needs ${missing.map((k) => `--${k}`).join(", ")}${missing.includes("kind") ? ` (kinds: ${SIGNAL_KINDS.join(", ")})` : ""}. Example: cast signal add --source person --kind bug --title "Login button overlaps the footer on Safari"`,
+    );
   }
   const kind = options.kind!.trim().toLowerCase();
   if (!(SIGNAL_KINDS as readonly string[]).includes(kind)) {
-    throw new Error(`Unknown kind "${options.kind}". Kinds: ${SIGNAL_KINDS.join(", ")}`);
+    throw new Error(
+      `Unknown kind "${options.kind}". Kinds: ${SIGNAL_KINDS.join(", ")}`,
+    );
   }
   const body: Record<string, string | number | boolean> = {
     source: options.source!.trim(),
     kind,
-    fingerprint: options.issue?.trim() || options.fingerprint?.trim() || `${options.source!.trim()}:${slugifyHeading(options.title!)}`,
+    fingerprint:
+      options.issue?.trim() ||
+      options.fingerprint?.trim() ||
+      `${options.source!.trim()}:${slugifyHeading(options.title!)}`,
     title: options.title!.trim(),
   };
   if (options.issue?.trim()) body.issue = true;
   if (options.judge?.trim()) body.judge = options.judge.trim();
-  if (options.judgeVersion?.trim()) body.judge_version = options.judgeVersion.trim();
+  if (options.judgeVersion?.trim())
+    body.judge_version = options.judgeVersion.trim();
   if (options.severity?.trim()) {
     const severity = Number(options.severity);
-    if (!Number.isFinite(severity)) throw new Error(`--severity takes a number, not "${options.severity}"`);
+    if (!Number.isFinite(severity))
+      throw new Error(`--severity takes a number, not "${options.severity}"`);
     body.severity = severity;
   }
   if (options.detail?.trim()) body.detail_md = options.detail.trim();
   if (options.url?.trim()) body.evidence_url = options.url.trim();
   if (options.subject?.trim()) body.subject = options.subject.trim();
   if (options.goalHint?.trim()) body.goal_hint = options.goalHint.trim();
-  if (options.role?.trim()) body.role_handle = options.role.trim().replace(/^@/, "");
+  if (options.role?.trim())
+    body.role_handle = options.role.trim().replace(/^@/, "");
   return body;
 }
 
@@ -129,20 +157,35 @@ const ATTACH_WORDS: Record<SignalRow["attach"], string> = {
   held: "held: no problem holds its key and no finder opens one",
 };
 
-export function formatSignalList(rows: SignalRow[], now: number = Date.now()): string {
-  if (rows.length === 0) return "No findings. File one: cast signal add --source person --kind bug --title \"...\"";
+export function formatSignalList(
+  rows: SignalRow[],
+  now: number = Date.now(),
+): string {
+  if (rows.length === 0)
+    return 'No findings. File one: cast signal add --source person --kind bug --title "..."';
   return rows
-    .map((s) => `${s.short_id}  ${s.source}/${s.kind}  ${s.title}  → ${s.task_short_id ?? "no problem"} (${ATTACH_WORDS[s.attach]}${s.reopened ? ", reopened it" : ""}; ${formatAge(now - s.created_at)})  key ${s.fingerprint}`)
+    .map(
+      (s) =>
+        `${s.short_id}  ${s.source}/${s.kind}  ${s.title}  → ${s.task_short_id ?? "no problem"} (${ATTACH_WORDS[s.attach]}${s.reopened ? ", reopened it" : ""}; ${formatAge(now - s.created_at)})  key ${s.fingerprint}`,
+    )
     .join("\n");
 }
 
 /** The line under a list the limit cut, or null when it is whole. A backend
  * from before `total`/`more` says neither, so a list exactly the size asked
  * for is taken as cut. */
-export function signalListCutNote(shown: number, asked: number | undefined, result: { total?: number; more?: boolean }): string | null {
-  if (typeof result.total === "number") return result.total > shown ? `${shown} of ${result.total} shown: -n ${result.total} for all` : null;
+export function signalListCutNote(
+  shown: number,
+  asked: number | undefined,
+  result: { total?: number; more?: boolean },
+): string | null {
+  if (typeof result.total === "number")
+    return result.total > shown
+      ? `${shown} of ${result.total} shown: -n ${result.total} for all`
+      : null;
   if (result.more) return `the newest ${shown} shown; -n 500 for more`;
-  if (result.more === undefined && shown > 0 && shown === (asked ?? 50)) return `${shown} shown, the limit; there may be more (-n 500 for up to 500)`;
+  if (result.more === undefined && shown > 0 && shown === (asked ?? 50))
+    return `${shown} shown, the limit; there may be more (-n 500 for up to 500)`;
   return null;
 }
 
@@ -151,133 +194,310 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-export function registerSignalCommand(program: Command, deps: PublishDeps): void {
-  const signal = program.command("signal").description(commandGroup("signal").description);
+export function registerSignalCommand(
+  program: Command,
+  deps: PublishDeps,
+): void {
+  const signal = program
+    .command("signal")
+    .description(commandGroup("signal").description);
 
   signal
     .command("add")
-    .description("File one finding; it joins a problem by its key, by judgment, or opens a new problem")
-    .option("--source <name>", "The finder: sentry, posthog, evals, agentwatch, insight, lesson, org_health, issue, person, ...")
+    .description(
+      "File one finding; it joins a problem by its key, by judgment, or opens a new problem",
+    )
+    .option(
+      "--source <name>",
+      "The finder: sentry, posthog, evals, agentwatch, insight, lesson, org_health, issue, person, ...",
+    )
     .option("--kind <kind>", `What it saw: ${SIGNAL_KINDS.join(", ")}`)
-    .option("--fingerprint <key>", "The stable key the finder computes (error group, eval surface+check, the product's group id); findings with one key join one problem. Default: <source>:<title slug>")
-    .option("--title <text>", "One line saying what went wrong, in the product's terms; ids, hashes, threads and refs go in --detail")
+    .option(
+      "--fingerprint <key>",
+      "The stable key the finder computes (error group, eval surface+check, the product's group id); findings with one key join one problem. Default: <source>:<title slug>",
+    )
+    .option(
+      "--title <text>",
+      "One line saying what went wrong, in the product's terms; ids, hashes, threads and refs go in --detail",
+    )
     .option("--detail <markdown>", stdinText("The observation"))
     .option("--url <url>", "Where a person can see it")
-    .option("--subject <ref>", "The file, surface, prompt id or route it concerns; from a finder that judges behavior, the expectation it breaks (ex-<project>-<n>)")
-    .option("--goal-hint <key>", "The initiative metric the finder believes it threatens")
-    .option("--role <handle>", "The role whose run introduced what it saw (the fix-loop finder); counted on the health board")
-    .option("--issue <key>", "The product's own issue this finding belongs to (instead of --fingerprint): it joins exactly that issue's problem, never another by judgment")
+    .option(
+      "--subject <ref>",
+      "The file, surface, prompt id or route it concerns; from a finder that judges behavior, the expectation it breaks (ex-<project>-<n>)",
+    )
+    .option(
+      "--goal-hint <key>",
+      "The initiative metric the finder believes it threatens",
+    )
+    .option(
+      "--role <handle>",
+      "The role whose run introduced what it saw (the fix-loop finder); counted on the health board",
+    )
+    .option(
+      "--issue <key>",
+      "The product's own issue this finding belongs to (instead of --fingerprint): it joins exactly that issue's problem, never another by judgment",
+    )
     .option("--judge <name>", "The product's judge that made this finding")
     .option("--judge-version <v>", "That judge's version")
-    .option("--severity <n>", "How bad the judge rated it, on the product's scale")
-    .option("--project <ref>", "Project it is about: id, short id or title (default: the expectation it breaks, else its source's own project, else the line's ground step places it)")
-    .option("--team <name|id|personal>", "Workspace to file it in (default: the repo profile's [line] team, else the session's team, else the directory's mapping)")
+    .option(
+      "--severity <n>",
+      "How bad the judge rated it, on the product's scale",
+    )
+    .option(
+      "--project <ref>",
+      "Project it is about: id, short id or title (default: the expectation it breaks, else its source's own project, else the line's ground step places it)",
+    )
+    .option(
+      "--team <name|id|personal>",
+      "Workspace to file it in (default: the repo profile's [line] team, else the session's team, else the directory's mapping)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (options: SignalAddOptions & { team?: string; project?: string; json?: boolean }) => {
-      let body: Record<string, string | number | boolean>;
-      try {
-        body = signalAddBody(options);
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-      }
-      const result = await apiPost(deps, "/cli/signal/add", { ...body, ...(await scopeFor(deps, options.team, true, options.project)), ...signalDefaultProject(options.team, options.project) });
-      if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
-        return;
-      }
-      const how = ATTACH_WORDS[result.attach as SignalRow["attach"]] ?? result.attach;
-      console.log(result.task_short_id
-        ? `${fmt.success(result.short_id)} → ${result.task_short_id} (${how}; ${result.signal_count} finding${result.signal_count === 1 ? "" : "s"})`
-        : `${fmt.success(result.short_id)} (${how})`);
-      if (result.reopened) console.log(fmt.muted(`  ${result.task_short_id} was in watch and is open again`));
-    });
+    .action(
+      async (
+        options: SignalAddOptions & {
+          team?: string;
+          project?: string;
+          json?: boolean;
+        },
+      ) => {
+        let body: Record<string, string | number | boolean>;
+        try {
+          body = signalAddBody(options);
+        } catch (err) {
+          fail(err instanceof Error ? err.message : String(err));
+        }
+        const result = await apiPost(deps, "/cli/signal/add", {
+          ...body,
+          ...(await scopeFor(deps, options.team, true, options.project)),
+          ...signalDefaultProject(options.team, options.project),
+        });
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+        const how =
+          ATTACH_WORDS[result.attach as SignalRow["attach"]] ?? result.attach;
+        console.log(
+          result.task_short_id
+            ? `${fmt.success(result.short_id)} → ${result.task_short_id} (${how}; ${result.signal_count} finding${result.signal_count === 1 ? "" : "s"})`
+            : `${fmt.success(result.short_id)} (${how})`,
+        );
+        if (result.reopened)
+          console.log(
+            fmt.muted(
+              `  ${result.task_short_id} was in watch and is open again`,
+            ),
+          );
+      },
+    );
 
   signal
     .command("ls")
     .alias("list")
-    .description("List findings: one problem's, or the newest of the workspace or one project")
+    .description(
+      "List findings: one problem's, or the newest of the workspace or one project",
+    )
     .option("--task <ct>", "Only the findings on this problem")
-    .option("--fingerprint <key>", "Only the findings filed under this key in the workspace, however old")
-    .option("--project <ref>", "Only this project's findings: id, short id or title")
+    .option(
+      "--fingerprint <key>",
+      "Only the findings filed under this key in the workspace, however old",
+    )
+    .option(
+      "--project <ref>",
+      "Only this project's findings: id, short id or title",
+    )
     .option("--source <name>", "Only findings from this finder")
     .option("-n, --limit <n>", "How many", (v: string) => parseInt(v, 10))
-    .option("--team <name|id|personal>", "Workspace to read (default: the active one)")
-    .option("--json", "Machine-readable output: {signals: [{short_id, ...}], total?, more?}")
-    .action(async (options: { task?: string; fingerprint?: string; project?: string; source?: string; limit?: number; team?: string; json?: boolean }) => {
-      const result = await apiPost(deps, "/cli/signal/ls", {
-        task: options.task,
-        fingerprint: options.fingerprint,
-        source: options.source,
-        limit: options.limit,
-        ...(options.task ? {} : await scopeFor(deps, options.team, false, options.project)),
-      }, { read: true });
-      const rows: SignalRow[] = result.signals ?? [];
-      // The server's envelope as it came, so whether the list was cut (total, more) is in the JSON too.
-      if (options.json) return void console.log(JSON.stringify({ signals: rows, ...(result.total !== undefined ? { total: result.total } : {}), ...(result.more !== undefined ? { more: result.more } : {}) }, null, 2));
-      console.log(formatSignalList(rows));
-      const cut = signalListCutNote(rows.length, options.limit, result);
-      if (cut) console.log(fmt.muted(cut));
-    });
+    .option(
+      "--team <name|id|personal>",
+      "Workspace to read (default: the active one)",
+    )
+    .option(
+      "--json",
+      "Machine-readable output: {signals: [{short_id, ...}], total?, more?}",
+    )
+    .action(
+      async (options: {
+        task?: string;
+        fingerprint?: string;
+        project?: string;
+        source?: string;
+        limit?: number;
+        team?: string;
+        json?: boolean;
+      }) => {
+        const result = await apiPost(
+          deps,
+          "/cli/signal/ls",
+          {
+            task: options.task,
+            fingerprint: options.fingerprint,
+            source: options.source,
+            limit: options.limit,
+            ...(options.task
+              ? {}
+              : await scopeFor(deps, options.team, false, options.project)),
+          },
+          { read: true },
+        );
+        const rows: SignalRow[] = result.signals ?? [];
+        // The server's envelope as it came, so whether the list was cut (total, more) is in the JSON too.
+        if (options.json)
+          return void console.log(
+            JSON.stringify(
+              {
+                signals: rows,
+                ...(result.total !== undefined ? { total: result.total } : {}),
+                ...(result.more !== undefined ? { more: result.more } : {}),
+              },
+              null,
+              2,
+            ),
+          );
+        console.log(formatSignalList(rows));
+        const cut = signalListCutNote(rows.length, options.limit, result);
+        if (cut) console.log(fmt.muted(cut));
+      },
+    );
 
   signal
     .command("move")
-    .description("Move findings off a problem, to another problem or to a new problem of their own. A finding moves with every finding under its key on that problem")
-    .argument("[signals...]", "The findings to move, sg-N (each one's key and problem are looked up); or name a key with --fingerprint and --from")
-    .option("--fingerprint <key>", "The key whose findings move (instead of sg-N)")
+    .description(
+      "Move findings off a problem, to another problem or to a new problem of their own. A finding moves with every finding under its key on that problem",
+    )
+    .argument(
+      "[signals...]",
+      "The findings to move, sg-N (each one's key and problem are looked up); or name a key with --fingerprint and --from",
+    )
+    .option(
+      "--fingerprint <key>",
+      "The key whose findings move (instead of sg-N)",
+    )
     .option("--from <ct>", "The problem they are on now (with --fingerprint)")
-    .option("--to <ct>", "The open problem they move to (default, or when it is closed: a new problem)")
-    .option("--title <text>", "A new problem's title (default: the newest finding's)")
+    .option(
+      "--to <ct>",
+      "The open problem they move to (default, or when it is closed: a new problem)",
+    )
+    .option(
+      "--title <text>",
+      "A new problem's title (default: the newest finding's)",
+    )
     .option("--project <ref>", "A new problem's project: id, short id or title")
     .option("--team <name|id|personal>", "Workspace (default: the active one)")
     .option("--json", "Machine-readable output")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   cast signal move sg-12 sg-15 --to ct-9      # those findings, with their keys, onto ct-9
   cast signal move sg-12 --title "Held cards dial outside hours"   # a new problem of their own
-  cast signal move --fingerprint union:cluster:c1 --from ct-7 --to ct-9`)
-    .action(async (refs: string[], options: { fingerprint?: string; from?: string; to?: string; title?: string; project?: string; team?: string; json?: boolean }) => {
-      if (refs.length && options.fingerprint) fail("Name the findings (sg-N) or a key (--fingerprint), not both");
-      if (!refs.length && !options.fingerprint) fail("Name the findings to move: cast signal move sg-12 [sg-15 ...] --to ct-9 (or --fingerprint <key> --from <ct>)");
-      if (options.fingerprint && !options.from) fail("--fingerprint needs --from <ct>, the problem the key is on");
-      const groups = refs.length ? await moveGroups(deps, refs) : [{ fingerprint: options.fingerprint!, from: options.from! }];
-      const scope = await scopeFor(deps, options.team, true, options.project);
-      // Without --to the first move opens the new problem, and the rest join it.
-      let to = options.to;
-      const results: Array<Record<string, any>> = [];
-      for (const g of groups) {
-        const result = await apiPost(deps, "/cli/signal/move", { fingerprint: g.fingerprint, from: g.from, to, title: to ? undefined : options.title, ...scope });
-        results.push(result);
-        if (!to && result.created) to = result.to;
-      }
-      if (options.json) {
-        console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
-        return;
-      }
-      for (const result of results) {
-        console.log(`${fmt.success(String(result.moved))} finding${result.moved === 1 ? "" : "s"} moved ${result.from} → ${result.to}${result.created ? " (new problem)" : ""}${result.refused ? `: ${result.refused.task} is ${result.refused.status} and takes no reports` : ""}`);
-      }
-    });
+  cast signal move --fingerprint union:cluster:c1 --from ct-7 --to ct-9`,
+    )
+    .action(
+      async (
+        refs: string[],
+        options: {
+          fingerprint?: string;
+          from?: string;
+          to?: string;
+          title?: string;
+          project?: string;
+          team?: string;
+          json?: boolean;
+        },
+      ) => {
+        if (refs.length && options.fingerprint)
+          fail("Name the findings (sg-N) or a key (--fingerprint), not both");
+        if (!refs.length && !options.fingerprint)
+          fail(
+            "Name the findings to move: cast signal move sg-12 [sg-15 ...] --to ct-9 (or --fingerprint <key> --from <ct>)",
+          );
+        if (options.fingerprint && !options.from)
+          fail("--fingerprint needs --from <ct>, the problem the key is on");
+        const groups = refs.length
+          ? await moveGroups(deps, refs)
+          : [{ fingerprint: options.fingerprint!, from: options.from! }];
+        const scope = await scopeFor(deps, options.team, true, options.project);
+        // Without --to the first move opens the new problem, and the rest join it.
+        let to = options.to;
+        const results: Array<Record<string, any>> = [];
+        for (const g of groups) {
+          const result = await apiPost(deps, "/cli/signal/move", {
+            fingerprint: g.fingerprint,
+            from: g.from,
+            to,
+            title: to ? undefined : options.title,
+            ...scope,
+          });
+          results.push(result);
+          if (!to && result.created) to = result.to;
+        }
+        if (options.json) {
+          console.log(
+            JSON.stringify(
+              results.length === 1 ? results[0] : results,
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+        for (const result of results) {
+          console.log(
+            `${fmt.success(String(result.moved))} finding${result.moved === 1 ? "" : "s"} moved ${result.from} → ${result.to}${result.created ? " (new problem)" : ""}${result.refused ? `: ${result.refused.task} is ${result.refused.status} and takes no reports` : ""}`,
+          );
+        }
+      },
+    );
 
   signal
     .command("merge")
-    .description("Follow a product's merge of two issues: the merged issue's problem folds into the survivor's, and its key resolves there from now on")
+    .description(
+      "Follow a product's merge of two issues: the merged issue's problem folds into the survivor's, and its key resolves there from now on",
+    )
     .requiredOption("--issue <key>", "The issue that was merged away")
     .requiredOption("--into <key>", "The issue it was merged into")
-    .option("--team <name|id|personal>", "Workspace (default: the repo profile's [line] team, else the active one)")
+    .option(
+      "--team <name|id|personal>",
+      "Workspace (default: the repo profile's [line] team, else the active one)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (options: { issue: string; into: string; team?: string; json?: boolean }) => {
-      const result = await apiPost(deps, "/cli/signal/merge", { issue: options.issue, into: options.into, ...(await scopeFor(deps, options.team, true)) });
-      if (options.json) console.log(JSON.stringify(result, null, 2));
-      else if (result.already) console.log(fmt.muted(`${result.issue} was already merged into ${result.into}`));
-      else console.log(`${fmt.success(result.issue)} → ${result.into}${result.problem ? ` (${result.problem}${result.folded ? `; ${result.folded} folded into it with ${result.moved} finding${result.moved === 1 ? "" : "s"}` : ""})` : " (no problem open yet)"}`);
-    });
+    .action(
+      async (options: {
+        issue: string;
+        into: string;
+        team?: string;
+        json?: boolean;
+      }) => {
+        const result = await apiPost(deps, "/cli/signal/merge", {
+          issue: options.issue,
+          into: options.into,
+          ...(await scopeFor(deps, options.team, true)),
+        });
+        if (options.json) console.log(JSON.stringify(result, null, 2));
+        else if (result.already)
+          console.log(
+            fmt.muted(`${result.issue} was already merged into ${result.into}`),
+          );
+        else
+          console.log(
+            `${fmt.success(result.issue)} → ${result.into}${result.problem ? ` (${result.problem}${result.folded ? `; ${result.folded} folded into it with ${result.moved} finding${result.moved === 1 ? "" : "s"}` : ""})` : " (no problem open yet)"}`,
+          );
+      },
+    );
 
   signal
     .command("split")
-    .description("Follow a product's split of an issue: the new issue opens its own problem, filed with this finding, and takes the findings named")
+    .description(
+      "Follow a product's split of an issue: the new issue opens its own problem, filed with this finding, and takes the findings named",
+    )
     .requiredOption("--issue <key>", "The new issue's key")
     .requiredOption("--from <key>", "The issue it was split off")
-    .option("--move <signals>", "Findings (sg-N, comma separated) that now belong to the new issue")
+    .option(
+      "--move <signals>",
+      "Findings (sg-N, comma separated) that now belong to the new issue",
+    )
     .option("--source <name>", "The finder")
     .option("--kind <kind>", `What it saw: ${SIGNAL_KINDS.join(", ")}`)
     .option("--title <text>", "The new issue's title")
@@ -288,20 +508,45 @@ Examples:
     .option("--judge-version <v>", "That judge's version")
     .option("--severity <n>", "How bad the judge rated it")
     .option("--project <ref>", "Project to file it in: id, short id or title")
-    .option("--team <name|id|personal>", "Workspace (default: the repo profile's [line] team, else the active one)")
+    .option(
+      "--team <name|id|personal>",
+      "Workspace (default: the repo profile's [line] team, else the active one)",
+    )
     .option("--json", "Machine-readable output")
-    .action(async (options: SignalAddOptions & { from: string; move?: string; team?: string; project?: string; json?: boolean }) => {
-      let body: Record<string, string | number | boolean>;
-      try {
-        body = signalAddBody({ ...options, fingerprint: undefined });
-      } catch (err) {
-        fail(err instanceof Error ? err.message : String(err));
-      }
-      const move = (options.move ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-      const result = await apiPost(deps, "/cli/signal/split", { ...body, from: options.from, ...(move.length ? { move } : {}), ...(await scopeFor(deps, options.team, true, options.project)), ...signalDefaultProject(options.team, options.project) });
-      if (options.json) console.log(JSON.stringify(result, null, 2));
-      else console.log(`${fmt.success(result.short_id)} → ${result.task_short_id} (split off ${result.split_from}${result.moved ? `; ${result.moved} finding${result.moved === 1 ? "" : "s"} moved` : ""})`);
-    });
+    .action(
+      async (
+        options: SignalAddOptions & {
+          from: string;
+          move?: string;
+          team?: string;
+          project?: string;
+          json?: boolean;
+        },
+      ) => {
+        let body: Record<string, string | number | boolean>;
+        try {
+          body = signalAddBody({ ...options, fingerprint: undefined });
+        } catch (err) {
+          fail(err instanceof Error ? err.message : String(err));
+        }
+        const move = (options.move ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const result = await apiPost(deps, "/cli/signal/split", {
+          ...body,
+          from: options.from,
+          ...(move.length ? { move } : {}),
+          ...(await scopeFor(deps, options.team, true, options.project)),
+          ...signalDefaultProject(options.team, options.project),
+        });
+        if (options.json) console.log(JSON.stringify(result, null, 2));
+        else
+          console.log(
+            `${fmt.success(result.short_id)} → ${result.task_short_id} (split off ${result.split_from}${result.moved ? `; ${result.moved} finding${result.moved === 1 ? "" : "s"} moved` : ""})`,
+          );
+      },
+    );
 
   signal
     .command("show")
@@ -309,24 +554,51 @@ Examples:
     .argument("<signal>", "sg-N")
     .option("--json", "Machine-readable output")
     .action(async (ref: string, options: { json?: boolean }) => {
-      const result = await apiPost(deps, "/cli/signal/show", { signal: ref }, { read: true });
+      const result = await apiPost(
+        deps,
+        "/cli/signal/show",
+        { signal: ref },
+        { read: true },
+      );
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
       const s: SignalRow = result.signal;
       console.log(formatSignalList([s]));
-      console.log(fmt.muted(`  key ${s.fingerprint}${s.subject ? ` · subject ${s.subject}` : ""}${s.goal_hint ? ` · goal ${s.goal_hint}` : ""}`));
-      const judged = [s.judge ? `judge ${s.judge}${s.judge_version ? ` ${s.judge_version}` : ""}` : null, typeof s.severity === "number" ? `severity ${s.severity}` : null, s.merged_into ? `merged into ${s.merged_into}` : null, s.split_from ? `split from ${s.split_from}` : null].filter(Boolean);
+      console.log(
+        fmt.muted(
+          `  key ${s.fingerprint}${s.subject ? ` · subject ${s.subject}` : ""}${s.goal_hint ? ` · goal ${s.goal_hint}` : ""}`,
+        ),
+      );
+      const judged = [
+        s.judge
+          ? `judge ${s.judge}${s.judge_version ? ` ${s.judge_version}` : ""}`
+          : null,
+        typeof s.severity === "number" ? `severity ${s.severity}` : null,
+        s.merged_into ? `merged into ${s.merged_into}` : null,
+        s.split_from ? `split from ${s.split_from}` : null,
+      ].filter(Boolean);
       if (judged.length) console.log(fmt.muted(`  ${judged.join(" · ")}`));
       if (s.evidence_url) console.log(fmt.muted(`  ${s.evidence_url}`));
       if (s.moment) console.log(fmt.muted(`  moment ${s.moment}`));
       if (s.judge_review) {
         console.log(fmt.muted(`  ${judgeReviewLine(s.judge_review)}`));
-        if (s.judge_review.note) console.log(fmt.muted(`  why it is wrong: ${s.judge_review.note}`));
-        if (s.judge_review.sentence) console.log(fmt.muted(`  a correct judgment of this moment: ${s.judge_review.sentence}`));
+        if (s.judge_review.note)
+          console.log(fmt.muted(`  why it is wrong: ${s.judge_review.note}`));
+        if (s.judge_review.sentence)
+          console.log(
+            fmt.muted(
+              `  a correct judgment of this moment: ${s.judge_review.sentence}`,
+            ),
+          );
       }
-      if (result.cause) console.log(fmt.muted(`  ${s.task_short_id} ${s.task_status}: ${result.cause.signal_count} finding${result.cause.signal_count === 1 ? "" : "s"}${result.cause.issue_key ? ` · issue ${result.cause.issue_key}${result.cause.merged_keys?.length ? ` (also ${result.cause.merged_keys.join(", ")})` : ""}` : ""}`));
+      if (result.cause)
+        console.log(
+          fmt.muted(
+            `  ${s.task_short_id} ${s.task_status}: ${result.cause.signal_count} finding${result.cause.signal_count === 1 ? "" : "s"}${result.cause.issue_key ? ` · issue ${result.cause.issue_key}${result.cause.merged_keys?.length ? ` (also ${result.cause.merged_keys.join(", ")})` : ""}` : ""}`,
+          ),
+        );
       if (s.detail_md) console.log(`\n${s.detail_md}`);
     });
 
@@ -335,11 +607,18 @@ Examples:
   // graph records what diagnosing one found.
   signal
     .command("judge-defects")
-    .description("Mark wrong the judge's findings a line run's proof found were the judge's own mistake; each is diagnosed when its line may")
-    .argument("<file>", "The run's judge-defects.json: a list of {judge, finding, sentence, name}")
+    .description(
+      "Mark wrong the judge's findings a line run's proof found were the judge's own mistake; each is diagnosed when its line may",
+    )
+    .argument(
+      "<file>",
+      "The run's judge-defects.json: a list of {judge, finding, sentence, name}",
+    )
     .option("--run <id>", "The line run whose proof found them")
     .option("--json", "Machine-readable output")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Example judge-defects.json (finding: sg-N or the product's own finding id; sentence: what a correct
 judgment of the moment does; name: a short name for the moment):
 
@@ -348,64 +627,125 @@ judgment of the moment does; name: a short name for the moment):
     "name": "waited as the contact asked"}]
 
   cast signal judge-defects judge-defects.json --run <run id>
-Then record each one's diagnosis: cast signal diagnosis sg-4312 --answer misread --fact "..." --why "..."`)
+Then record each one's diagnosis: cast signal diagnosis sg-4312 --answer misread --fact "..." --why "..."`,
+    )
     .action(async (file: string, options: { run?: string; json?: boolean }) => {
       let defects: unknown;
       try {
         defects = JSON.parse(readFileSync(file, "utf8"));
       } catch (err) {
-        fail(`Could not read ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        fail(
+          `Could not read ${file}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
       const rows = judgeDefectsBody(defects);
       if (typeof rows === "string") fail(rows);
-      const result = await apiPost(deps, "/cli/signal/judge-defects", { defects: rows, ...(options.run?.trim() ? { run_id: options.run.trim() } : {}) });
+      const result = await apiPost(deps, "/cli/signal/judge-defects", {
+        defects: rows,
+        ...(options.run?.trim() ? { run_id: options.run.trim() } : {}),
+      });
       if (options.json) {
         console.log(JSON.stringify(result, null, 2));
         return;
       }
-      for (const r of result as Array<{ finding: string; short_id?: string; state?: string; waiting_on?: string; skipped?: string }>) {
-        console.log(r.skipped
-          ? fmt.muted(`${r.short_id ?? r.finding}: skipped, ${r.skipped}`)
-          : `${fmt.success(r.short_id ?? r.finding)} marked wrong; ${r.state === "diagnosing" ? "diagnosis started" : `waiting${r.waiting_on ? `: ${r.waiting_on}` : ""}`}`);
+      for (const r of result as Array<{
+        finding: string;
+        short_id?: string;
+        state?: string;
+        waiting_on?: string;
+        skipped?: string;
+      }>) {
+        console.log(
+          r.skipped
+            ? fmt.muted(`${r.short_id ?? r.finding}: skipped, ${r.skipped}`)
+            : `${fmt.success(r.short_id ?? r.finding)} marked wrong; ${r.state === "diagnosing" ? "diagnosis started" : `waiting${r.waiting_on ? `: ${r.waiting_on}` : ""}`}`,
+        );
       }
     });
 
   signal
     .command("diagnosis")
-    .description("Record what diagnosing a wrong finding found, and file it as a case against the part of the judge at fault")
+    .description(
+      "Record what diagnosing a wrong finding found, and file it as a case against the part of the judge at fault",
+    )
     .argument("<signal>", "The finding, sg-N")
-    .option("--answer <missing|misread|upheld>", "missing: the fact needed to judge correctly was not in what the judge saw; misread: it was, and the judge got it wrong; upheld: the records show the finding was right")
+    .option(
+      "--answer <missing|misread|upheld>",
+      "missing: the fact needed to judge correctly was not in what the judge saw; misread: it was, and the judge got it wrong; upheld: the records show the finding was right",
+    )
     .option("--fact <text>", "The fact a correct judgment turns on")
     .option("--why <text>", "One or two sentences of evidence")
-    .option("--result <json>", "The diagnosis as {answer, fact, why}, instead of the three flags")
+    .option(
+      "--result <json>",
+      "The diagnosis as {answer, fact, why}, instead of the three flags",
+    )
     .option("--json", "Machine-readable output")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Example:
   cast signal diagnosis sg-4312 --answer misread \\
     --fact "The contact asked to be contacted after the 15th" \\
-    --why "The moment shows the ask on the 9th; the judge counted the quiet week as a missed follow-up."`)
-    .action(async (ref: string, options: { answer?: string; fact?: string; why?: string; result?: string; json?: boolean }) => {
-      const body = diagnosisBody(options);
-      if (typeof body === "string") fail(body);
-      const result = await apiPost(deps, "/cli/signal/diagnosis", { signal: ref, ...body });
-      if (options.json) console.log(JSON.stringify(result, null, 2));
-      else console.log(`${fmt.success(ref)} ${judgeReviewLine(result.review)}${result.case_short_id ? ` → ${result.case_short_id}${result.task_short_id ? ` on ${result.task_short_id}` : ""}` : ""}`);
-    });
+    --why "The moment shows the ask on the 9th; the judge counted the quiet week as a missed follow-up."`,
+    )
+    .action(
+      async (
+        ref: string,
+        options: {
+          answer?: string;
+          fact?: string;
+          why?: string;
+          result?: string;
+          json?: boolean;
+        },
+      ) => {
+        const body = diagnosisBody(options);
+        if (typeof body === "string") fail(body);
+        const result = await apiPost(deps, "/cli/signal/diagnosis", {
+          signal: ref,
+          ...body,
+        });
+        if (options.json) console.log(JSON.stringify(result, null, 2));
+        else
+          console.log(
+            `${fmt.success(ref)} ${judgeReviewLine(result.review)}${result.case_short_id ? ` → ${result.case_short_id}${result.task_short_id ? ` on ${result.task_short_id}` : ""}` : ""}`,
+          );
+      },
+    );
 }
 
 /** Each named finding's key and problem, one move per distinct pair. */
-async function moveGroups(deps: PublishDeps, refs: string[]): Promise<Array<{ fingerprint: string; from: string }>> {
+async function moveGroups(
+  deps: PublishDeps,
+  refs: string[],
+): Promise<Array<{ fingerprint: string; from: string }>> {
   const groups = new Map<string, { fingerprint: string; from: string }>();
   for (const ref of refs) {
-    const { signal: s } = (await apiPost(deps, "/cli/signal/show", { signal: ref }, { read: true })) as { signal: SignalRow };
-    if (!s.task_short_id) fail(`${s.short_id ?? ref} is on no problem, so it has nothing to move off`);
-    groups.set(`${s.task_short_id}\u0000${s.fingerprint}`, { fingerprint: s.fingerprint, from: s.task_short_id });
+    const { signal: s } = (await apiPost(
+      deps,
+      "/cli/signal/show",
+      { signal: ref },
+      { read: true },
+    )) as { signal: SignalRow };
+    if (!s.task_short_id)
+      fail(
+        `${s.short_id ?? ref} is on no problem, so it has nothing to move off`,
+      );
+    groups.set(`${s.task_short_id}\u0000${s.fingerprint}`, {
+      fingerprint: s.fingerprint,
+      from: s.task_short_id,
+    });
   }
   return [...groups.values()];
 }
 
 /** A diagnosis from flags or a JSON result, or the one line that says what is wrong with it. */
-export function diagnosisBody(o: { answer?: string; fact?: string; why?: string; result?: string }): { answer: string; fact?: string; why?: string } | string {
+export function diagnosisBody(o: {
+  answer?: string;
+  fact?: string;
+  why?: string;
+  result?: string;
+}): { answer: string; fact?: string; why?: string } | string {
   let fields: { answer?: unknown; fact?: unknown; why?: unknown } = o;
   if (o.result !== undefined) {
     try {
@@ -413,25 +753,44 @@ export function diagnosisBody(o: { answer?: string; fact?: string; why?: string;
     } catch {
       return "--result is a JSON object {answer, fact, why}";
     }
-    if (!fields || typeof fields !== "object") return "--result is a JSON object {answer, fact, why}";
+    if (!fields || typeof fields !== "object")
+      return "--result is a JSON object {answer, fact, why}";
   }
-  const text = (x: unknown) => (typeof x === "string" && x.trim() ? x.trim() : undefined);
+  const text = (x: unknown) =>
+    typeof x === "string" && x.trim() ? x.trim() : undefined;
   const answer = text(fields.answer)?.toLowerCase();
-  if (!answer || !(DIAGNOSIS_ANSWERS as readonly string[]).includes(answer)) return `The answer is one of ${DIAGNOSIS_ANSWERS.join(", ")}`;
+  if (!answer || !(DIAGNOSIS_ANSWERS as readonly string[]).includes(answer))
+    return `The answer is one of ${DIAGNOSIS_ANSWERS.join(", ")}`;
   const fact = text(fields.fact);
   const why = text(fields.why);
   return { answer, ...(fact ? { fact } : {}), ...(why ? { why } : {}) };
 }
 
 /** judge-defects.json as the server takes it, or the one line that says what is wrong with it. */
-export function judgeDefectsBody(raw: unknown): Array<{ finding: string; judge?: string; sentence?: string; name?: string }> | string {
-  if (!Array.isArray(raw)) return "judge-defects.json is a JSON list of {judge, finding, sentence, name}";
-  const out: Array<{ finding: string; judge?: string; sentence?: string; name?: string }> = [];
+export function judgeDefectsBody(
+  raw: unknown,
+):
+  | Array<{ finding: string; judge?: string; sentence?: string; name?: string }>
+  | string {
+  if (!Array.isArray(raw))
+    return "judge-defects.json is a JSON list of {judge, finding, sentence, name}";
+  const out: Array<{
+    finding: string;
+    judge?: string;
+    sentence?: string;
+    name?: string;
+  }> = [];
   for (const d of raw) {
     const finding = typeof d?.finding === "string" ? d.finding.trim() : "";
     if (!finding) return "every entry names its finding";
-    const text = (k: string) => (typeof d[k] === "string" && d[k].trim() ? { [k]: d[k].trim() } : {});
-    out.push({ finding, ...text("judge"), ...text("sentence"), ...text("name") });
+    const text = (k: string) =>
+      typeof d[k] === "string" && d[k].trim() ? { [k]: d[k].trim() } : {};
+    out.push({
+      finding,
+      ...text("judge"),
+      ...text("sentence"),
+      ...text("name"),
+    });
   }
   return out;
 }

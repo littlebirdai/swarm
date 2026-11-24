@@ -47,7 +47,13 @@ export type WorkEvent = {
   detail?: string;
   into?: string;
   by?: string;
-  task: { short_id?: string; title: string; status: string; project?: string; source?: string };
+  task: {
+    short_id?: string;
+    title: string;
+    status: string;
+    project?: string;
+    source?: string;
+  };
   repository?: string;
 };
 
@@ -56,7 +62,8 @@ export type WorkDigest = {
   problems_opened: number;
 };
 
-const visible = (t: Doc<"tasks">) => !t.ephemeral && (!t.triage_status || t.triage_status === "active");
+const visible = (t: Doc<"tasks">) =>
+  !t.ephemeral && (!t.triage_status || t.triage_status === "active");
 
 export const since = query({
   args: {
@@ -69,12 +76,26 @@ export const since = query({
     /** With a time: also the in-progress digest, counting the problems opened since then. */
     digest_since: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<{ events: WorkEvent[]; cursor: number; landed_cursor: number; digest?: WorkDigest }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    events: WorkEvent[];
+    cursor: number;
+    landed_cursor: number;
+    digest?: WorkDigest;
+  }> => {
     const { workspaceKey: ws } = await scopeOf(ctx, args);
-    const limit = Math.max(1, Math.min(PAGE_MAX, Math.floor(args.limit ?? PAGE_DEFAULT)));
+    const limit = Math.max(
+      1,
+      Math.min(PAGE_MAX, Math.floor(args.limit ?? PAGE_DEFAULT)),
+    );
 
     const names = new Map<string, string | undefined>();
-    const nameOf = async (table: "projects" | "users", id: Id<"projects"> | Id<"users"> | undefined) => {
+    const nameOf = async (
+      table: "projects" | "users",
+      id: Id<"projects"> | Id<"users"> | undefined,
+    ) => {
       if (!id) return undefined;
       const k = String(id);
       if (!names.has(k)) {
@@ -87,7 +108,9 @@ export const since = query({
       ...(t.short_id ? { short_id: t.short_id } : {}),
       title: t.title,
       status: t.status,
-      ...(t.project_id ? { project: await nameOf("projects", t.project_id) } : {}),
+      ...(t.project_id
+        ? { project: await nameOf("projects", t.project_id) }
+        : {}),
       ...(t.source ? { source: t.source } : {}),
     });
     const refOf = async (id: Id<"tasks">) => {
@@ -96,7 +119,12 @@ export const since = query({
     };
 
     /** `limit` rows of one index after `after`, read through the last row's millisecond; the cursor is that millisecond. */
-    const pageOf = async (index: "by_workspace_updated" | "by_workspace_landed", field: "updated_at" | "landed.at", at: (t: Doc<"tasks">) => number, after: number) => {
+    const pageOf = async (
+      index: "by_workspace_updated" | "by_workspace_landed",
+      field: "updated_at" | "landed.at",
+      at: (t: Doc<"tasks">) => number,
+      after: number,
+    ) => {
       const rows: Doc<"tasks">[] = await ctx.db
         .query("tasks")
         .withIndex(index, (q: any) => q.eq("workspace", ws).gt(field, after))
@@ -112,7 +140,12 @@ export const since = query({
       }
       return { rows, cursor: rows.length ? at(rows[rows.length - 1]) : after };
     };
-    const { rows, cursor } = await pageOf("by_workspace_updated", "updated_at", (t) => t.updated_at, args.after);
+    const { rows, cursor } = await pageOf(
+      "by_workspace_updated",
+      "updated_at",
+      (t) => t.updated_at,
+      args.after,
+    );
 
     const events: WorkEvent[] = [];
     for (const t of rows) {
@@ -124,12 +157,18 @@ export const since = query({
         if (e.at <= args.floor) continue;
         const opened = e.kind === "problem_opened";
         // The line's problems: only a fix is an event; their openings and drops are the digest's count.
-        if (t.source === "signal" && !(e.kind === "problem_closed" && e.detail === "fixed")) continue;
+        if (
+          t.source === "signal" &&
+          !(e.kind === "problem_closed" && e.detail === "fixed")
+        )
+          continue;
         events.push({
           id: e._id,
           at: e.at,
           kind: opened ? "task_opened" : "task_closed",
-          ...(opened ? {} : { detail: e.kind === "problem_merged" ? "merged" : e.detail }),
+          ...(opened
+            ? {}
+            : { detail: e.kind === "problem_merged" ? "merged" : e.detail }),
           ...(e.into_ref ? { into: e.into_ref } : {}),
           ...(opened ? { by: await nameOf("users", t.user_id) } : {}),
           task: await taskOf(t),
@@ -137,7 +176,12 @@ export const since = query({
       }
     }
 
-    const landedPage = await pageOf("by_workspace_landed", "landed.at", (t) => t.landed?.at ?? 0, Math.max(args.floor, args.landed_after ?? args.floor));
+    const landedPage = await pageOf(
+      "by_workspace_landed",
+      "landed.at",
+      (t) => t.landed?.at ?? 0,
+      Math.max(args.floor, args.landed_after ?? args.floor),
+    );
     for (const t of landedPage.rows) {
       if (!t.landed || !visible(t)) continue;
       events.push({
@@ -152,30 +196,55 @@ export const since = query({
     events.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 
     const landed_cursor = landedPage.cursor;
-    if (args.digest_since === undefined) return { events, cursor, landed_cursor };
+    if (args.digest_since === undefined)
+      return { events, cursor, landed_cursor };
     const open: Doc<"tasks">[] = await ctx.db
       .query("tasks")
-      .withIndex("by_workspace_status", (q: any) => q.eq("workspace", ws).eq("status", "in_progress"))
+      .withIndex("by_workspace_status", (q: any) =>
+        q.eq("workspace", ws).eq("status", "in_progress"),
+      )
       .take(OPEN_SCAN);
-    const byProject = new Map<string, { project: string; count: number; titles: string[] }>();
+    const byProject = new Map<
+      string,
+      { project: string; count: number; titles: string[] }
+    >();
     for (const t of open) {
       if (!visible(t)) continue;
-      const project = (t.project_id ? await nameOf("projects", t.project_id) : undefined) ?? "No project";
+      const project =
+        (t.project_id ? await nameOf("projects", t.project_id) : undefined) ??
+        "No project";
       const g = byProject.get(project) ?? { project, count: 0, titles: [] };
       g.count += 1;
-      if (g.titles.length < TITLES_PER_PROJECT && t.source !== "signal") g.titles.push(t.title);
+      if (g.titles.length < TITLES_PER_PROJECT && t.source !== "signal")
+        g.titles.push(t.title);
       byProject.set(project, g);
     }
     const recent: Doc<"tasks">[] = await ctx.db
       .query("tasks")
-      .withIndex("by_workspace_updated", (q: any) => q.eq("workspace", ws).gt("updated_at", args.digest_since!))
+      .withIndex("by_workspace_updated", (q: any) =>
+        q.eq("workspace", ws).gt("updated_at", args.digest_since!),
+      )
       .take(PROBLEM_SCAN);
-    const problemsOpened = recent.filter((t) => t.source === "signal" && t.created_at > args.digest_since!).length;
+    const problemsOpened = recent.filter(
+      (t) => t.source === "signal" && t.created_at > args.digest_since!,
+    ).length;
     const groups = [...byProject.values()].sort((a, b) => b.count - a.count);
     const rest = groups.slice(DIGEST_PROJECTS);
     const in_progress = rest.length
-      ? [...groups.slice(0, DIGEST_PROJECTS), { project: `${rest.length} other projects`, count: rest.reduce((n, g) => n + g.count, 0), titles: [] }]
+      ? [
+          ...groups.slice(0, DIGEST_PROJECTS),
+          {
+            project: `${rest.length} other projects`,
+            count: rest.reduce((n, g) => n + g.count, 0),
+            titles: [],
+          },
+        ]
       : groups;
-    return { events, cursor, landed_cursor, digest: { in_progress, problems_opened: problemsOpened } };
+    return {
+      events,
+      cursor,
+      landed_cursor,
+      digest: { in_progress, problems_opened: problemsOpened },
+    };
   },
 });

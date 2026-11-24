@@ -26,7 +26,13 @@ export async function bumpWindow(
   max: number,
   windowMs: number,
 ): Promise<{ ok: boolean; retry_after_ms?: number }> {
-  const { granted, retry_after_ms } = await takeFromWindow(db, key, max, windowMs, 1);
+  const { granted, retry_after_ms } = await takeFromWindow(
+    db,
+    key,
+    max,
+    windowMs,
+    1,
+  );
   return granted ? { ok: true } : { ok: false, retry_after_ms };
 }
 
@@ -56,14 +62,21 @@ export async function takeFromWindow(
     if (existing) {
       await db.patch(existing._id, { count: granted, window_start: now });
     } else {
-      await db.insert("ip_rate_limits", { key, count: granted, window_start: now });
+      await db.insert("ip_rate_limits", {
+        key,
+        count: granted,
+        window_start: now,
+      });
     }
     return granted < n ? { granted, retry_after_ms: windowMs } : { granted };
   }
 
   const granted = Math.max(0, Math.min(n, max - existing.count));
-  if (granted) await db.patch(existing._id, { count: existing.count + granted });
-  return granted < n ? { granted, retry_after_ms: windowMs - (now - existing.window_start) } : { granted };
+  if (granted)
+    await db.patch(existing._id, { count: existing.count + granted });
+  return granted < n
+    ? { granted, retry_after_ms: windowMs - (now - existing.window_start) }
+    : { granted };
 }
 
 /**
@@ -71,19 +84,32 @@ export async function takeFromWindow(
  * it has room, or null while it does. For a read that must refuse a caller
  * before doing the work the window counts (a query cannot write the counter).
  */
-export async function windowSpent(db: any, key: string, max: number, windowMs: number): Promise<number | null> {
+export async function windowSpent(
+  db: any,
+  key: string,
+  max: number,
+  windowMs: number,
+): Promise<number | null> {
   const now = Date.now();
   const existing = await db
     .query("ip_rate_limits")
     .withIndex("by_key", (q: any) => q.eq("key", key))
     .first();
-  if (!existing || now - existing.window_start >= windowMs || existing.count < max) return null;
+  if (
+    !existing ||
+    now - existing.window_start >= windowMs ||
+    existing.count < max
+  )
+    return null;
   return windowMs - (now - existing.window_start);
 }
 
 export const bump = internalMutation({
   args: { key: v.string(), max: v.number(), window_ms: v.number() },
-  handler: async (ctx, args): Promise<{ ok: boolean; retry_after_ms?: number }> =>
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: boolean; retry_after_ms?: number }> =>
     bumpWindow(ctx.db, args.key, args.max, args.window_ms),
 });
 

@@ -29,18 +29,39 @@ const js = flag("--js");
 const pad = Number(flag("--pad") ?? 0);
 const viewport = flag("--viewport")?.split("x").map(Number);
 const [urlPart, selector, out] = argv;
-if (!urlPart || !selector || !out) throw new Error("usage: app-element-shot.ts <url-part> <selector> <out.png> [--js <expr>] [--pad n] [--viewport WxH]");
+if (!urlPart || !selector || !out)
+  throw new Error(
+    "usage: app-element-shot.ts <url-part> <selector> <out.png> [--js <expr>] [--pad n] [--viewport WxH]",
+  );
 
-const { send, evaluate, close } = await attachCastTab(urlPart, `URL containing "${urlPart}"`);
+const { send, evaluate, close } = await attachCastTab(
+  urlPart,
+  `URL containing "${urlPart}"`,
+);
 try {
   if (viewport) {
-    await send("Emulation.setDeviceMetricsOverride", { width: viewport[0], height: viewport[1], deviceScaleFactor: 2, mobile: false });
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: viewport[0],
+      height: viewport[1],
+      deviceScaleFactor: 2,
+      mobile: false,
+    });
     // Layout follows the new size on the next frame, which a background tab may delay.
-    for (let i = 0; i < 20 && (await evaluate<number>("innerHeight")) !== viewport[1]; i++) await Bun.sleep(250);
+    for (
+      let i = 0;
+      i < 20 && (await evaluate<number>("innerHeight")) !== viewport[1];
+      i++
+    )
+      await Bun.sleep(250);
     await Bun.sleep(500);
   }
   if (js) await evaluate(js);
-  const box = await evaluate<{ x: number; y: number; width: number; height: number } | null>(`(async () => {
+  const box = await evaluate<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(`(async () => {
     const el = document.querySelector(${JSON.stringify(selector)});
     if (!el) return null;
     // A fixed element is already in view; scrolling it in can shift the visual viewport.
@@ -57,10 +78,21 @@ try {
     return JSON.parse(last);
   })()`);
   if (!box) throw new Error(`no element matches ${selector}`);
-  const clip = { x: box.x - pad, y: box.y - pad, width: box.width + 2 * pad, height: box.height + 2 * pad, scale: 2 };
-  const { data } = await send<{ data: string }>("Page.captureScreenshot", { format: "png", clip });
+  const clip = {
+    x: box.x - pad,
+    y: box.y - pad,
+    width: box.width + 2 * pad,
+    height: box.height + 2 * pad,
+    scale: 2,
+  };
+  const { data } = await send<{ data: string }>("Page.captureScreenshot", {
+    format: "png",
+    clip,
+  });
   writeFileSync(out, Buffer.from(data, "base64"));
-  console.log(`${out}  ${Math.round(box.width)}x${Math.round(box.height)} css px`);
+  console.log(
+    `${out}  ${Math.round(box.width)}x${Math.round(box.height)} css px`,
+  );
   if (viewport) await send("Emulation.clearDeviceMetricsOverride");
 } finally {
   close();

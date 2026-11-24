@@ -9,7 +9,17 @@
 import type { ArtifactElement, ArtifactOp, Json } from "./core";
 import type { ArtifactSpec, ArtifactView, VerbResult } from "./spec";
 import { newElementKey } from "./spec";
-import { CHART_TYPES, DATA_SOURCES, KPI_AGGS, SOURCE_PARAMS, isDataSource, whereProblem, writtenTextProblem, type DataQuery, type DataSourceId } from "./dashboardData";
+import {
+  CHART_TYPES,
+  DATA_SOURCES,
+  KPI_AGGS,
+  SOURCE_PARAMS,
+  isDataSource,
+  whereProblem,
+  writtenTextProblem,
+  type DataQuery,
+  type DataSourceId,
+} from "./dashboardData";
 import { readAlert, readSchedule, type Schedule } from "./dashboardWatch";
 
 export * from "./dashboardData";
@@ -17,13 +27,29 @@ export * from "./dashboardWatch";
 export * from "./dashboardStory";
 export * from "./dashboardTemplates";
 
-export const BLOCK_KINDS = ["kpi", "chart", "table", "text", "section"] as const;
+export const BLOCK_KINDS = [
+  "kpi",
+  "chart",
+  "table",
+  "text",
+  "section",
+] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 export const LAYOUT_KEY = "layout";
 
 /** The write that sets a dashboard's refresh schedule (null: read only while open), creating its layout element if it has none. */
-export function scheduleOps(hasLayout: boolean, s: Schedule | null): ArtifactOp[] {
-  return [hasLayout ? { k: LAYOUT_KEY, set: { refresh: s } } : { k: LAYOUT_KEY, put: { kind: "layout", ...(s ? { refresh: s } : {}) } }];
+export function scheduleOps(
+  hasLayout: boolean,
+  s: Schedule | null,
+): ArtifactOp[] {
+  return [
+    hasLayout
+      ? { k: LAYOUT_KEY, set: { refresh: s } }
+      : {
+          k: LAYOUT_KEY,
+          put: { kind: "layout", ...(s ? { refresh: s } : {}) },
+        },
+  ];
 }
 
 export const STORY_FORMATS = ["dashboard", "scrolly", "short"] as const;
@@ -31,10 +57,18 @@ export type StoryFormat = (typeof STORY_FORMATS)[number];
 
 /** Grid widths a block can take, in twelfths. */
 export const SPANS = [3, 4, 6, 8, 12] as const;
-export const DEFAULT_SPAN: Record<BlockKind, number> = { kpi: 3, chart: 6, table: 12, text: 12, section: 12 };
+export const DEFAULT_SPAN: Record<BlockKind, number> = {
+  kpi: 3,
+  chart: 6,
+  table: 12,
+  text: 12,
+  section: 12,
+};
 
 export function isBlockKind(k: unknown): k is BlockKind {
-  return typeof k === "string" && (BLOCK_KINDS as readonly string[]).includes(k);
+  return (
+    typeof k === "string" && (BLOCK_KINDS as readonly string[]).includes(k)
+  );
 }
 
 export function blockSpan(b: { kind: string; span?: unknown }): number {
@@ -55,8 +89,22 @@ export type GridWidth = "wide" | "medium" | "narrow";
  * numbers shares its leftover evenly up to that, and a lone one keeps the rest
  * as space.
  */
-export function packSpans(spans: readonly number[], width: GridWidth, small: readonly boolean[] = []): number[] {
-  const fit = spans.map((s) => (width === "narrow" ? 12 : width === "medium" ? (s === 3 ? 4 : s === 4 ? 6 : 12) : s));
+export function packSpans(
+  spans: readonly number[],
+  width: GridWidth,
+  small: readonly boolean[] = [],
+): number[] {
+  const fit = spans.map((s) =>
+    width === "narrow"
+      ? 12
+      : width === "medium"
+        ? s === 3
+          ? 4
+          : s === 4
+            ? 6
+            : 12
+        : s,
+  );
   const out = [...fit];
   let row: number[] = [];
   let used = 0;
@@ -87,45 +135,77 @@ export function packSpans(spans: readonly number[], width: GridWidth, small: rea
 }
 
 /** The blocks in reading order: by `order`, then key, so two writers that pick the same order still agree. */
-export function orderedBlocks<T extends { key: string; kind: string; order?: Json | undefined }>(elements: readonly T[]): T[] {
+export function orderedBlocks<
+  T extends { key: string; kind: string; order?: Json | undefined },
+>(elements: readonly T[]): T[] {
   return elements
     .filter((e) => isBlockKind(e.kind))
-    .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    .sort(
+      (a, b) =>
+        Number(a.order ?? 0) - Number(b.order ?? 0) ||
+        (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+    );
 }
 
 /** An order that lands right after `afterKey` (or first when null, last when undefined), without renumbering anyone. */
-export function orderAfter(blocks: readonly { key: string; order?: Json | undefined }[], afterKey: string | null | undefined): number {
-  const sorted = [...blocks].sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0));
+export function orderAfter(
+  blocks: readonly { key: string; order?: Json | undefined }[],
+  afterKey: string | null | undefined,
+): number {
+  const sorted = [...blocks].sort(
+    (a, b) => Number(a.order ?? 0) - Number(b.order ?? 0),
+  );
   if (!sorted.length) return 1;
-  if (afterKey === undefined) return Math.floor(Number(sorted[sorted.length - 1].order ?? 0)) + 1;
+  if (afterKey === undefined)
+    return Math.floor(Number(sorted[sorted.length - 1].order ?? 0)) + 1;
   if (afterKey === null) return Number(sorted[0].order ?? 0) - 1;
   const i = sorted.findIndex((b) => b.key === afterKey);
-  if (i < 0) return Math.floor(Number(sorted[sorted.length - 1].order ?? 0)) + 1;
+  if (i < 0)
+    return Math.floor(Number(sorted[sorted.length - 1].order ?? 0)) + 1;
   const here = Number(sorted[i].order ?? 0);
   const next = sorted[i + 1];
   return next ? (here + Number(next.order ?? 0)) / 2 : here + 1;
 }
 
 /** Ops that move one block to `toIndex` in reading order. */
-export function moveBlockOps(elements: readonly ArtifactElement[], key: string, toIndex: number): ArtifactOp[] {
+export function moveBlockOps(
+  elements: readonly ArtifactElement[],
+  key: string,
+  toIndex: number,
+): ArtifactOp[] {
   const blocks = orderedBlocks(elements);
   const from = blocks.findIndex((b) => b.key === key);
   if (from < 0) return [];
   const rest = blocks.filter((b) => b.key !== key);
   const at = Math.max(0, Math.min(toIndex, rest.length));
   if (at === from) return [];
-  const order = at === 0 ? orderAfter(rest, null) : orderAfter(rest, rest[at - 1].key);
+  const order =
+    at === 0 ? orderAfter(rest, null) : orderAfter(rest, rest[at - 1].key);
   return [{ k: key, set: { order } }];
 }
 
 // ── the layout element and stories ──
 
-export type DashboardLayout = { format: StoryFormat; headline?: string; summary?: string };
+export type DashboardLayout = {
+  format: StoryFormat;
+  headline?: string;
+  summary?: string;
+};
 
-export function readLayout(view: { get(key: string): ArtifactElement | undefined }): DashboardLayout {
+export function readLayout(view: {
+  get(key: string): ArtifactElement | undefined;
+}): DashboardLayout {
   const el = view.get(LAYOUT_KEY);
-  const format = (STORY_FORMATS as readonly string[]).includes(String(el?.format)) ? (el!.format as StoryFormat) : "dashboard";
-  return { format, ...(el?.headline ? { headline: String(el.headline) } : {}), ...(el?.summary ? { summary: String(el.summary) } : {}) };
+  const format = (STORY_FORMATS as readonly string[]).includes(
+    String(el?.format),
+  )
+    ? (el!.format as StoryFormat)
+    : "dashboard";
+  return {
+    format,
+    ...(el?.headline ? { headline: String(el.headline) } : {}),
+    ...(el?.summary ? { summary: String(el.summary) } : {}),
+  };
 }
 
 /**
@@ -139,9 +219,20 @@ export type StoryStep =
   | { kind: "block"; keys: [string]; title?: string; say?: string }
   | { kind: "chapter"; keys: [string]; title: string; say?: string };
 
-export function storySteps(title: string, layout: DashboardLayout, elements: readonly ArtifactElement[]): StoryStep[] {
+export function storySteps(
+  title: string,
+  layout: DashboardLayout,
+  elements: readonly ArtifactElement[],
+): StoryStep[] {
   const blocks = orderedBlocks(elements).filter((b) => b.in_story !== false);
-  const steps: StoryStep[] = [{ kind: "hero", headline: layout.headline || title, ...(layout.summary ? { summary: layout.summary } : {}), keys: [] }];
+  const steps: StoryStep[] = [
+    {
+      kind: "hero",
+      headline: layout.headline || title,
+      ...(layout.summary ? { summary: layout.summary } : {}),
+      keys: [],
+    },
+  ];
   for (const b of blocks) {
     const sayTitle = str(b.say_title);
     const say = str(b.say);
@@ -149,26 +240,46 @@ export function storySteps(title: string, layout: DashboardLayout, elements: rea
       const prev = steps[steps.length - 1];
       // A KPI with no words of its own joins the numbers before it; one with a title or a line is its own step.
       if (prev.kind === "numbers" && !sayTitle && !say) prev.keys.push(b.key);
-      else steps.push({ kind: "numbers", keys: [b.key], ...(sayTitle ? { title: sayTitle } : {}), ...(say ? { say } : {}) });
+      else
+        steps.push({
+          kind: "numbers",
+          keys: [b.key],
+          ...(sayTitle ? { title: sayTitle } : {}),
+          ...(say ? { say } : {}),
+        });
       continue;
     }
     if (b.kind === "section") {
-      steps.push({ kind: "chapter", keys: [b.key], title: sayTitle || str(b.title) || "", ...(say || str(b.caption) ? { say: say || str(b.caption) } : {}) });
+      steps.push({
+        kind: "chapter",
+        keys: [b.key],
+        title: sayTitle || str(b.title) || "",
+        ...(say || str(b.caption) ? { say: say || str(b.caption) } : {}),
+      });
       continue;
     }
-    steps.push({ kind: "block", keys: [b.key], ...(sayTitle || str(b.title) ? { title: sayTitle || str(b.title) } : {}), ...(say || str(b.caption) ? { say: say || str(b.caption) } : {}) });
+    steps.push({
+      kind: "block",
+      keys: [b.key],
+      ...(sayTitle || str(b.title) ? { title: sayTitle || str(b.title) } : {}),
+      ...(say || str(b.caption) ? { say: say || str(b.caption) } : {}),
+    });
   }
   return steps;
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v : undefined);
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.trim() ? v : undefined;
 
 // ── describe ──
 
 export function describeQuery(q: unknown): string {
   const query = q as DataQuery | undefined;
   if (!query || !isDataSource(query.source)) return "unbound";
-  const args = query.args && Object.keys(query.args).length ? JSON.stringify(query.args) : "{}";
+  const args =
+    query.args && Object.keys(query.args).length
+      ? JSON.stringify(query.args)
+      : "{}";
   return `${query.source}${args}`;
 }
 
@@ -176,21 +287,36 @@ function describeBlock(b: ArtifactElement): string {
   const head = `${b.key} ${b.kind} span=${blockSpan(b)}${b.title ? ` "${b.title}"` : ""}`;
   const extra: string[] = [];
   if (b.kind === "kpi") {
-    if (b.query) extra.push(`= ${b.agg ?? (b.field ? "sum" : "count")}(${b.field ?? ""}) of ${describeQuery(b.query)}`);
-    else if (b.value !== undefined) extra.push(`= typed ${JSON.stringify(b.value)} (no source)`);
-    for (const f of ["label", "format", "compare", "good"]) if (b[f] !== undefined) extra.push(`${f}=${b[f]}`);
+    if (b.query)
+      extra.push(
+        `= ${b.agg ?? (b.field ? "sum" : "count")}(${b.field ?? ""}) of ${describeQuery(b.query)}`,
+      );
+    else if (b.value !== undefined)
+      extra.push(`= typed ${JSON.stringify(b.value)} (no source)`);
+    for (const f of ["label", "format", "compare", "good"])
+      if (b[f] !== undefined) extra.push(`${f}=${b[f]}`);
     const alert = readAlert(b);
-    if (alert) extra.push(`alert=${[alert.above !== undefined ? `above ${alert.above}` : null, alert.below !== undefined ? `below ${alert.below}` : null].filter(Boolean).join(" or ")}`);
+    if (alert)
+      extra.push(
+        `alert=${[alert.above !== undefined ? `above ${alert.above}` : null, alert.below !== undefined ? `below ${alert.below}` : null].filter(Boolean).join(" or ")}`,
+      );
   } else if (b.kind === "chart") {
-    extra.push(`${b.chart ?? "line"} of ${describeQuery(b.query)} x=${b.x ?? "?"} y=${b.y ?? "?"}`);
-    for (const f of ["series", "cumulative", "limit", "format"]) if (b[f] !== undefined) extra.push(`${f}=${b[f]}`);
+    extra.push(
+      `${b.chart ?? "line"} of ${describeQuery(b.query)} x=${b.x ?? "?"} y=${b.y ?? "?"}`,
+    );
+    for (const f of ["series", "cumulative", "limit", "format"])
+      if (b[f] !== undefined) extra.push(`${f}=${b[f]}`);
   } else if (b.kind === "table") {
     extra.push(`of ${describeQuery(b.query)}`);
-    for (const f of ["group", "columns", "sort", "limit"]) if (b[f] !== undefined && b[f] !== null) extra.push(`${f}=${b[f]}`);
+    for (const f of ["group", "columns", "sort", "limit"])
+      if (b[f] !== undefined && b[f] !== null) extra.push(`${f}=${b[f]}`);
   } else if (b.kind === "text") extra.push(JSON.stringify(b.text ?? ""));
   if (b.where) extra.push(`where=${JSON.stringify(b.where)}`);
   if (b.caption) extra.push(`caption=${JSON.stringify(b.caption)}`);
-  if (b.say_title || b.say) extra.push(`story: ${JSON.stringify(b.say_title ?? "")} ${JSON.stringify(b.say ?? "")}`);
+  if (b.say_title || b.say)
+    extra.push(
+      `story: ${JSON.stringify(b.say_title ?? "")} ${JSON.stringify(b.say ?? "")}`,
+    );
   if (b.in_story === false) extra.push("hidden in story");
   return [head, ...extra].join("  ");
 }
@@ -200,7 +326,10 @@ function describeBlock(b: ArtifactElement): string {
 type Flags = { pos: string[]; flags: Record<string, string | true> };
 
 /** `--name value`, `--name=value` and bare `--flag`; everything else positional. */
-export function parseFlags(args: readonly string[], booleans: readonly string[] = []): Flags {
+export function parseFlags(
+  args: readonly string[],
+  booleans: readonly string[] = [],
+): Flags {
   const pos: string[] = [];
   const flags: Record<string, string | true> = {};
   for (let i = 0; i < args.length; i++) {
@@ -212,7 +341,12 @@ export function parseFlags(args: readonly string[], booleans: readonly string[] 
     const eq = a.indexOf("=");
     const name = a.slice(2, eq > 0 ? eq : undefined);
     if (eq > 0) flags[name] = a.slice(eq + 1);
-    else if (booleans.includes(name) || i + 1 >= args.length || args[i + 1].startsWith("--")) flags[name] = true;
+    else if (
+      booleans.includes(name) ||
+      i + 1 >= args.length ||
+      args[i + 1].startsWith("--")
+    )
+      flags[name] = true;
     else flags[name] = args[++i];
   }
   return { pos, flags };
@@ -232,7 +366,8 @@ function flagJson(f: Flags, name: string): { [k: string]: Json } | undefined {
   } catch {
     throw new Error(`--${name} must be a JSON object, like '{"days":30}'`);
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`--${name} must be a JSON object`);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error(`--${name} must be a JSON object`);
   return parsed as { [k: string]: Json };
 }
 
@@ -244,10 +379,15 @@ function flagNumber(f: Flags, name: string): number | undefined {
   return n;
 }
 
-function oneOf<T extends string>(f: Flags, name: string, options: readonly T[]): T | undefined {
+function oneOf<T extends string>(
+  f: Flags,
+  name: string,
+  options: readonly T[],
+): T | undefined {
   const v = flagText(f, name);
   if (v === undefined) return undefined;
-  if (!(options as readonly string[]).includes(v)) throw new Error(`--${name} must be one of ${options.join(", ")}`);
+  if (!(options as readonly string[]).includes(v))
+    throw new Error(`--${name} must be one of ${options.join(", ")}`);
   return v as T;
 }
 
@@ -256,12 +396,23 @@ function queryFromFlags(f: Flags, current: unknown): DataQuery | undefined {
   const source = flagText(f, "source");
   const args = flagJson(f, "args");
   const refresh = flagText(f, "refresh");
-  if (source === undefined && args === undefined && refresh === undefined) return undefined;
+  if (source === undefined && args === undefined && refresh === undefined)
+    return undefined;
   const prev = current as DataQuery | undefined;
   const src = source ?? prev?.source;
-  if (!src) throw new Error("--source is required: one of " + DATA_SOURCES.map((s) => s.id).join(", "));
-  if (!isDataSource(src)) throw new Error(`unknown source "${src}" (sources: ${DATA_SOURCES.map((s) => s.id).join(", ")})`);
-  const q: DataQuery = { source: src, args: args ?? (source && source !== prev?.source ? {} : prev?.args ?? {}) };
+  if (!src)
+    throw new Error(
+      "--source is required: one of " +
+        DATA_SOURCES.map((s) => s.id).join(", "),
+    );
+  if (!isDataSource(src))
+    throw new Error(
+      `unknown source "${src}" (sources: ${DATA_SOURCES.map((s) => s.id).join(", ")})`,
+    );
+  const q: DataQuery = {
+    source: src,
+    args: args ?? (source && source !== prev?.source ? {} : (prev?.args ?? {})),
+  };
   const bad = argsProblem(src, q.args as Record<string, unknown>);
   if (bad) throw new Error(`--args: ${bad}`);
   const r = refresh ?? prev?.refresh;
@@ -270,7 +421,10 @@ function queryFromFlags(f: Flags, current: unknown): DataQuery | undefined {
 }
 
 /** Args a source's reader would refuse, caught on write the way `check` would catch them later: an unknown name, a window out of range, a value off a fixed list. */
-function argsProblem(source: DataSourceId, args: Record<string, unknown>): string | null {
+function argsProblem(
+  source: DataSourceId,
+  args: Record<string, unknown>,
+): string | null {
   const params = SOURCE_PARAMS[source];
   for (const [name, v] of Object.entries(args ?? {})) {
     const p = params.find((x) => x.name === name);
@@ -279,8 +433,16 @@ function argsProblem(source: DataSourceId, args: Record<string, unknown>): strin
       if (source === "connector" || source === "hogql") continue;
       return `${source} takes no "${name}" (it takes ${params.map((x) => x.name).join(", ")})`;
     }
-    if (p.kind === "days" && (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > (p.max ?? 365))) return `"days" must be a whole number from 1 to ${p.max ?? 365}`;
-    if (p.kind === "enum" && p.options && !p.options.includes(String(v))) return `"${name}" must be one of ${p.options.join(", ")}`;
+    if (
+      p.kind === "days" &&
+      (typeof v !== "number" ||
+        !Number.isInteger(v) ||
+        v < 1 ||
+        v > (p.max ?? 365))
+    )
+      return `"days" must be a whole number from 1 to ${p.max ?? 365}`;
+    if (p.kind === "enum" && p.options && !p.options.includes(String(v)))
+      return `"${name}" must be one of ${p.options.join(", ")}`;
   }
   return null;
 }
@@ -294,7 +456,10 @@ function commonFields(f: Flags): Record<string, Json> {
   }
   const span = flagNumber(f, "span");
   if (span !== undefined) {
-    if (!(SPANS as readonly number[]).includes(span)) throw new Error(`--span must be one of ${SPANS.join(", ")} (twelfths of the row)`);
+    if (!(SPANS as readonly number[]).includes(span))
+      throw new Error(
+        `--span must be one of ${SPANS.join(", ")} (twelfths of the row)`,
+      );
     out.span = span;
   }
   const where = flagJson(f, "where");
@@ -309,12 +474,16 @@ function commonFields(f: Flags): Record<string, Json> {
 /** Words a reader takes as fact: refused when they type a number or state a direction the data does not carry. */
 /** Every {...} in words must name a KPI on this dashboard with a part the page can draw; anything else would print raw to readers. */
 function tokenProblem(view: ArtifactView, text: string): string | null {
-  const kpis = orderedBlocks(view.elements).filter((b) => b.kind === "kpi").map((b) => b.key);
+  const kpis = orderedBlocks(view.elements)
+    .filter((b) => b.kind === "kpi")
+    .map((b) => b.key);
   for (const m of text.matchAll(/\{([^{}]*)\}/g)) {
     const t = m[1];
     const ok = t.match(/^(b_[A-Za-z0-9_]+)(?:\.(value|delta|trend|vs))?$/);
-    if (!ok) return `{${t}} is not a live value: write {b_key}, {b_key.delta}, {b_key.trend} or {b_key.vs}`;
-    if (!kpis.includes(ok[1])) return `{${t}} names no KPI on this dashboard (${kpis.length ? `KPIs: ${kpis.join(", ")}` : "it has none yet"})`;
+    if (!ok)
+      return `{${t}} is not a live value: write {b_key}, {b_key.delta}, {b_key.trend} or {b_key.vs}`;
+    if (!kpis.includes(ok[1]))
+      return `{${t}} names no KPI on this dashboard (${kpis.length ? `KPIs: ${kpis.join(", ")}` : "it has none yet"})`;
   }
   return null;
 }
@@ -328,24 +497,48 @@ function checkedWords(what: string, text: string, view: ArtifactView): string {
 /** The columns a source's rows carry, when the source fixes them ("day, [person], tokens, spend"); null when they depend on the view or the data. */
 function sourceColumns(q: DataQuery | undefined): string[] | null {
   const spec = q && DATA_SOURCES.find((s) => s.id === q.source);
-  if (!spec || !/^[\w\s,[\]|]+$/.test(spec.columns) || /per view|as returned|header row/.test(spec.columns)) return null;
-  const out = spec.columns.split(",").flatMap((c) => c.trim().replace(/[[\]]/g, "").split("|"));
+  if (
+    !spec ||
+    !/^[\w\s,[\]|]+$/.test(spec.columns) ||
+    /per view|as returned|header row/.test(spec.columns)
+  )
+    return null;
+  const out = spec.columns
+    .split(",")
+    .flatMap((c) => c.trim().replace(/[[\]]/g, "").split("|"));
   const by = (q!.args as Record<string, unknown> | undefined)?.group_by;
   if (typeof by === "string" && by !== "none") out.push(by);
   return out;
 }
 
 /** A field naming a column the source never returns: refused on write, with the columns it has, rather than found by a later check. */
-function unknownColumn(q: DataQuery | undefined, fields: Record<string, Json>): string | null {
+function unknownColumn(
+  q: DataQuery | undefined,
+  fields: Record<string, Json>,
+): string | null {
   const cols = sourceColumns(q);
   if (!cols) return null;
   const known = [...cols, "rows"];
-  for (const name of ["field", "label", "x", "y", "series", "group", "sort", "columns", "compare"]) {
+  for (const name of [
+    "field",
+    "label",
+    "x",
+    "y",
+    "series",
+    "group",
+    "sort",
+    "columns",
+    "compare",
+  ]) {
     const v = fields[name];
     if (typeof v !== "string" || !v) continue;
     if (name === "compare" && (v === "halves" || v === "prev")) continue;
-    for (const c of v.split(",").map((x) => x.trim().replace(/^[-+]/, "")).filter(Boolean)) {
-      if (!known.includes(c)) return `--${name}: ${q!.source} has no column "${c}" (it has ${cols.join(", ")})`;
+    for (const c of v
+      .split(",")
+      .map((x) => x.trim().replace(/^[-+]/, ""))
+      .filter(Boolean)) {
+      if (!known.includes(c))
+        return `--${name}: ${q!.source} has no column "${c}" (it has ${cols.join(", ")})`;
     }
   }
   return null;
@@ -356,51 +549,114 @@ function unknownColumn(q: DataQuery | undefined, fields: Record<string, Json>): 
  * key and lands after --after (default: the end); an update writes only the
  * fields given, as one `set`.
  */
-function writeBlock(view: ArtifactView, kind: BlockKind, f: Flags, fields: Record<string, Json>): VerbResult {
+function writeBlock(
+  view: ArtifactView,
+  kind: BlockKind,
+  f: Flags,
+  fields: Record<string, Json>,
+): VerbResult {
   // A flag this verb doesn't take is named, never silently dropped ("--feild" used to read as nothing to change).
-  const takes = new Set([...BLOCK_FLAGS.matchAll(/--([a-z][a-z-]*)/g), ...verbs![kind].usage.matchAll(/--([a-z][a-z-]*)/g)].map((m) => m[1]));
+  const takes = new Set(
+    [
+      ...BLOCK_FLAGS.matchAll(/--([a-z][a-z-]*)/g),
+      ...verbs![kind].usage.matchAll(/--([a-z][a-z-]*)/g),
+    ].map((m) => m[1]),
+  );
   for (const n of ["refresh", "no-cumulative"]) takes.add(n);
   const stray = Object.keys(f.flags).find((n) => !takes.has(n) && n !== "json");
   if (stray) {
     // A misspelling, or a flag named after the field it sets (--chart is set with --type).
-    const ALIAS: Record<string, string> = { chart: "type", kind: "type", value: "field", metric: "field", column: "field" };
-    if (stray === "text" && kind === "text") throw new Error(`text takes the words as its argument: text <doc> "Spend is {b_spend}."`);
-    const near = ALIAS[stray] && takes.has(ALIAS[stray]) ? ALIAS[stray] : [...takes].find((t) => t.length > 2 && [...t].sort().join("") === [...stray].sort().join(""));
-    throw new Error(`${kind} takes no --${stray}${near ? ` (did you mean --${near}?)` : ""}`);
+    const ALIAS: Record<string, string> = {
+      chart: "type",
+      kind: "type",
+      value: "field",
+      metric: "field",
+      column: "field",
+    };
+    if (stray === "text" && kind === "text")
+      throw new Error(
+        `text takes the words as its argument: text <doc> "Spend is {b_spend}."`,
+      );
+    const near =
+      ALIAS[stray] && takes.has(ALIAS[stray])
+        ? ALIAS[stray]
+        : [...takes].find(
+            (t) =>
+              t.length > 2 &&
+              [...t].sort().join("") === [...stray].sort().join(""),
+          );
+    throw new Error(
+      `${kind} takes no --${stray}${near ? ` (did you mean --${near}?)` : ""}`,
+    );
   }
   const key = flagText(f, "key");
   const existing = key ? view.get(key) : undefined;
-  if (existing && existing.kind !== kind) throw new Error(`${key} is a ${existing.kind}, not a ${kind}`);
+  if (existing && existing.kind !== kind)
+    throw new Error(`${key} is a ${existing.kind}, not a ${kind}`);
   const query = queryFromFlags(f, existing?.query);
   if (query) fields.query = query as unknown as Json;
-  const bad = unknownColumn(query ?? (existing?.query as DataQuery | undefined), fields);
+  const bad = unknownColumn(
+    query ?? (existing?.query as DataQuery | undefined),
+    fields,
+  );
   if (bad) throw new Error(bad);
   const blocks = orderedBlocks(view.elements);
   const after = flagText(f, "after");
-  if (after && !view.get(after)) throw new Error(`no block ${after} (cast data read <doc> lists them)`);
+  if (after && !view.get(after))
+    throw new Error(`no block ${after} (cast data read <doc> lists them)`);
   if (existing) {
-    if (after) fields.order = orderAfter(blocks.filter((b) => b.key !== key), after);
-    if (!Object.keys(fields).length) throw new Error("nothing to change: pass the flags to update");
-    return { ops: [{ k: key!, set: fields }], position: { block: key! }, status: `updated ${key}`, ...judgeFirst(view, kind, key!, fields) };
+    if (after)
+      fields.order = orderAfter(
+        blocks.filter((b) => b.key !== key),
+        after,
+      );
+    if (!Object.keys(fields).length)
+      throw new Error("nothing to change: pass the flags to update");
+    return {
+      ops: [{ k: key!, set: fields }],
+      position: { block: key! },
+      status: `updated ${key}`,
+      ...judgeFirst(view, kind, key!, fields),
+    };
   }
   const k = key ?? newElementKey("b");
-  if (!/^b_[A-Za-z0-9_]+$/.test(k)) throw new Error("block keys look like b_<id>");
+  if (!/^b_[A-Za-z0-9_]+$/.test(k))
+    throw new Error("block keys look like b_<id>");
   const judged = judgeFirst(view, kind, k, fields);
-  const order = f.flags.first ? orderAfter(blocks, null) : orderAfter(blocks, after);
-  return { ops: [{ k, put: { kind, order, ...fields } }], position: { block: k }, status: `added ${kind} ${k}`, ...judged };
+  const order = f.flags.first
+    ? orderAfter(blocks, null)
+    : orderAfter(blocks, after);
+  return {
+    ops: [{ k, put: { kind, order, ...fields } }],
+    position: { block: k },
+    status: `added ${kind} ${k}`,
+    ...judged,
+  };
 }
 
 /**
  * A block whose source or alert changes is judged on the server's data before it is written: a source this dashboard's workspace can't
  * read, or an alert line the value already crosses (or can't be read against), stops the write with the reason.
  */
-function judgeFirst(view: ArtifactView, kind: BlockKind, key: string, fields: Record<string, Json>): Pick<VerbResult, "before"> {
-  if ((kind !== "kpi" && kind !== "chart" && kind !== "table") || (!fields.query && !fields.alert)) return {};
+function judgeFirst(
+  view: ArtifactView,
+  kind: BlockKind,
+  key: string,
+  fields: Record<string, Json>,
+): Pick<VerbResult, "before"> {
+  if (
+    (kind !== "kpi" && kind !== "chart" && kind !== "table") ||
+    (!fields.query && !fields.alert)
+  )
+    return {};
   const block = { ...(view.get(key) ?? {}), ...fields, key, kind };
-  return { before: [{ verb: "check", args: ["--judge-block", JSON.stringify(block)] }] };
+  return {
+    before: [{ verb: "check", args: ["--judge-block", JSON.stringify(block)] }],
+  };
 }
 
-const BLOCK_FLAGS = "[--key b_x] [--after b_y|--first] [--title T] [--caption C] [--span 3|4|6|8|12] [--source S --args '{json}'] [--where '{\"col\":\"value\"}']";
+const BLOCK_FLAGS =
+  "[--key b_x] [--after b_y|--first] [--title T] [--caption C] [--span 3|4|6|8|12] [--source S --args '{json}'] [--where '{\"col\":\"value\"}']";
 
 const verbs: ArtifactSpec["verbs"] = {
   kpi: {
@@ -413,7 +669,13 @@ const verbs: ArtifactSpec["verbs"] = {
       if (field !== undefined) fields.field = field;
       const agg = oneOf(f, "agg", KPI_AGGS);
       if (agg) fields.agg = agg;
-      const format = oneOf(f, "format", ["number", "compact", "usd", "percent", "text"] as const);
+      const format = oneOf(f, "format", [
+        "number",
+        "compact",
+        "usd",
+        "percent",
+        "text",
+      ] as const);
       if (format) fields.format = format;
       const compare = flagText(f, "compare");
       if (compare !== undefined) fields.compare = compare;
@@ -422,19 +684,28 @@ const verbs: ArtifactSpec["verbs"] = {
       const label = flagText(f, "label");
       if (label !== undefined) fields.label = label;
       const value = flagText(f, "value");
-      if (value !== undefined) fields.value = Number.isFinite(Number(value)) ? Number(value) : value;
+      if (value !== undefined)
+        fields.value = Number.isFinite(Number(value)) ? Number(value) : value;
       const above = flagNumber(f, "alert-above");
       const below = flagNumber(f, "alert-below");
       if (f.flags["no-alert"]) fields.alert = null;
-      else if (above !== undefined || below !== undefined) fields.alert = { ...(above !== undefined ? { above } : {}), ...(below !== undefined ? { below } : {}) };
+      else if (above !== undefined || below !== undefined)
+        fields.alert = {
+          ...(above !== undefined ? { above } : {}),
+          ...(below !== undefined ? { below } : {}),
+        };
       const r = writeBlock(view, "kpi", f, fields);
       // Without a schedule the number is read only while the page is open, and the alert is checked only then.
       if (!fields.alert || readSchedule(view.get(LAYOUT_KEY))) return r;
-      return { ...r, status: `${r.status}\nnote: this dashboard reads only while someone has it open, so the alert is checked only then; \`schedule <doc> hourly\` checks it while it's closed` };
+      return {
+        ...r,
+        status: `${r.status}\nnote: this dashboard reads only while someone has it open, so the alert is checked only then; \`schedule <doc> hourly\` checks it while it's closed`,
+      };
     },
   },
   chart: {
-    summary: "Add or update a chart: line, area, bar, stacked or hbar over a source's rows",
+    summary:
+      "Add or update a chart: line, area, bar, stacked or hbar over a source's rows",
     usage: `chart <doc> --type line|area|bar|stacked|hbar --source usage --args '{"days":30,"group_by":"person"}' --x day --y spend [--series person] [--cumulative] [--limit n] [--format usd] ${BLOCK_FLAGS}`,
     run(view, args) {
       const f = parseFlags(args, ["first", "cumulative"]);
@@ -449,7 +720,12 @@ const verbs: ArtifactSpec["verbs"] = {
       if (f.flags["no-cumulative"]) fields.cumulative = null;
       const limit = flagNumber(f, "limit");
       if (limit !== undefined) fields.limit = limit;
-      const format = oneOf(f, "format", ["number", "compact", "usd", "percent"] as const);
+      const format = oneOf(f, "format", [
+        "number",
+        "compact",
+        "usd",
+        "percent",
+      ] as const);
       if (format) fields.format = format;
       return writeBlock(view, "chart", f, fields);
     },
@@ -470,12 +746,14 @@ const verbs: ArtifactSpec["verbs"] = {
     },
   },
   text: {
-    summary: "Add or update a text block; {b_key} shows a KPI's live value, {b_key.delta} its signed change, {b_key.trend} its direction in words, {b_key.vs} what the change compares with",
+    summary:
+      "Add or update a text block; {b_key} shows a KPI's live value, {b_key.delta} its signed change, {b_key.trend} its direction in words, {b_key.vs} what the change compares with",
     usage: `text <doc> "Spend is {b_spend}, {b_spend.delta} on the prior fortnight." [--key b_x] [--after b_y]`,
     run(view, args) {
       const f = parseFlags(args, ["first"]);
       const fields = commonFields(f);
-      if (f.pos.length) fields.text = checkedWords("text", f.pos.join(" "), view);
+      if (f.pos.length)
+        fields.text = checkedWords("text", f.pos.join(" "), view);
       return writeBlock(view, "text", f, fields);
     },
   },
@@ -495,55 +773,95 @@ const verbs: ArtifactSpec["verbs"] = {
     run(view, args) {
       const f = parseFlags(args, ["first"]);
       const key = f.pos[0];
-      if (!key || !view.get(key)) throw new Error("usage: move <doc> <key> --after <key> | --first");
+      if (!key || !view.get(key))
+        throw new Error("usage: move <doc> <key> --after <key> | --first");
       const blocks = orderedBlocks(view.elements).filter((b) => b.key !== key);
       const after = flagText(f, "after");
-      if (!after && !f.flags.first) throw new Error("say where: --after <key> or --first");
+      if (!after && !f.flags.first)
+        throw new Error("say where: --after <key> or --first");
       if (after && !view.get(after)) throw new Error(`no block ${after}`);
-      return { ops: [{ k: key, set: { order: orderAfter(blocks, f.flags.first ? null : after) } }], position: { block: key }, status: `moved ${key}` };
+      return {
+        ops: [
+          {
+            k: key,
+            set: { order: orderAfter(blocks, f.flags.first ? null : after) },
+          },
+        ],
+        position: { block: key },
+        status: `moved ${key}`,
+      };
     },
   },
   story: {
-    summary: "Set the format the dashboard reads as (dashboard, scrolly, short) and its headline and summary",
+    summary:
+      "Set the format the dashboard reads as (dashboard, scrolly, short) and its headline and summary",
     usage: `story <doc> scrolly|short|dashboard [--headline "Spend is {b_spend.trend}"] [--summary "{b_spend} so far, {b_spend.delta} on the prior fortnight"]`,
     run(view, args) {
       const f = parseFlags(args);
       const format = f.pos[0];
-      if (!(STORY_FORMATS as readonly string[]).includes(format)) throw new Error(`usage: story <doc> ${STORY_FORMATS.join("|")} [--headline ..] [--summary ..]`);
+      if (!(STORY_FORMATS as readonly string[]).includes(format))
+        throw new Error(
+          `usage: story <doc> ${STORY_FORMATS.join("|")} [--headline ..] [--summary ..]`,
+        );
       const fields: Record<string, Json> = { format };
       const headline = flagText(f, "headline");
-      if (headline !== undefined) fields.headline = checkedWords("--headline", headline, view);
+      if (headline !== undefined)
+        fields.headline = checkedWords("--headline", headline, view);
       const summary = flagText(f, "summary");
-      if (summary !== undefined) fields.summary = checkedWords("--summary", summary, view);
-      const op: ArtifactOp = view.get(LAYOUT_KEY) ? { k: LAYOUT_KEY, set: fields } : { k: LAYOUT_KEY, put: { kind: "layout", ...fields } };
+      if (summary !== undefined)
+        fields.summary = checkedWords("--summary", summary, view);
+      const op: ArtifactOp = view.get(LAYOUT_KEY)
+        ? { k: LAYOUT_KEY, set: fields }
+        : { k: LAYOUT_KEY, put: { kind: "layout", ...fields } };
       return { ops: [op], status: `format ${format}` };
     },
   },
   schedule: {
-    summary: "Keep the dashboard's numbers fresh while nobody has it open (needed for KPI alerts to fire): hourly, daily, or off",
+    summary:
+      "Keep the dashboard's numbers fresh while nobody has it open (needed for KPI alerts to fire): hourly, daily, or off",
     usage: "schedule <doc> hourly|daily|off",
     run(view, args) {
       const want = args[0];
-      if (want !== "hourly" && want !== "daily" && want !== "off") throw new Error("usage: schedule <doc> hourly|daily|off");
+      if (want !== "hourly" && want !== "daily" && want !== "off")
+        throw new Error("usage: schedule <doc> hourly|daily|off");
       const refresh = want === "off" ? null : want;
-      const op: ArtifactOp = view.get(LAYOUT_KEY) ? { k: LAYOUT_KEY, set: { refresh } } : { k: LAYOUT_KEY, put: { kind: "layout", ...(refresh ? { refresh } : {}) } };
-      return { ops: [op], status: want === "off" ? "reads only while open" : `refreshes ${want}` };
+      const op: ArtifactOp = view.get(LAYOUT_KEY)
+        ? { k: LAYOUT_KEY, set: { refresh } }
+        : {
+            k: LAYOUT_KEY,
+            put: { kind: "layout", ...(refresh ? { refresh } : {}) },
+          };
+      return {
+        ops: [op],
+        status: want === "off" ? "reads only while open" : `refreshes ${want}`,
+      };
     },
   },
   say: {
-    summary: "Set the story line a block shows in a Scrollyteller or Visual short, or leave it out of the story",
+    summary:
+      "Set the story line a block shows in a Scrollyteller or Visual short, or leave it out of the story",
     usage: `say <doc> <key> "Pre-orders are {b_orders.trend}" ["{b_orders} so far, {b_last} last year"] | say <doc> <key> --skip | --show`,
     run(view, args) {
       const f = parseFlags(args, ["skip", "show"]);
       const [key, title, ...line] = f.pos;
-      if (!key || !view.get(key)) throw new Error("usage: say <doc> <key> \"<title>\" [\"<line>\"]");
+      if (!key || !view.get(key))
+        throw new Error('usage: say <doc> <key> "<title>" ["<line>"]');
       const fields: Record<string, Json> = {};
       if (f.flags.skip) fields.in_story = false;
       if (f.flags.show) fields.in_story = null;
-      if (title !== undefined) fields.say_title = checkedWords("the story title", title, view);
-      if (line.length) fields.say = checkedWords("the story line", line.join(" "), view);
-      if (!Object.keys(fields).length) throw new Error("nothing to say: pass a title, a line, --skip or --show");
-      return { ops: [{ k: key, set: fields }], position: { block: key }, status: `story line on ${key}` };
+      if (title !== undefined)
+        fields.say_title = checkedWords("the story title", title, view);
+      if (line.length)
+        fields.say = checkedWords("the story line", line.join(" "), view);
+      if (!Object.keys(fields).length)
+        throw new Error(
+          "nothing to say: pass a title, a line, --skip or --show",
+        );
+      return {
+        ops: [{ k: key, set: fields }],
+        position: { block: key },
+        status: `story line on ${key}`,
+      };
     },
   },
 };
@@ -559,29 +877,51 @@ export const dashboardSpec: ArtifactSpec = {
     const schedule = readSchedule(view.get(LAYOUT_KEY));
     const head = `dashboard "${view.title}" as ${layout.format}${schedule ? ` refreshes ${schedule}` : " reads while open"}${layout.headline ? ` headline=${JSON.stringify(layout.headline)}` : ""}${layout.summary ? ` summary=${JSON.stringify(layout.summary)}` : ""}`;
     if (!blocks.length) return `${head}: no blocks yet`;
-    return [`${head}: ${blocks.length} blocks in reading order`, ...blocks.map(describeBlock)].join("\n");
+    return [
+      `${head}: ${blocks.length} blocks in reading order`,
+      ...blocks.map(describeBlock),
+    ].join("\n");
   },
   presenceFor: (_view, keys) => {
     // A story's headline lives on the layout element; its cursor sits on the heading.
-    const k = [...keys].reverse().find((x) => x !== LAYOUT_KEY) ?? keys[keys.length - 1];
+    const k =
+      [...keys].reverse().find((x) => x !== LAYOUT_KEY) ??
+      keys[keys.length - 1];
     return k ? { block: k } : undefined;
   },
   seed: () => [],
   verbs,
   remote: {
-    sources: { summary: "List the data sources a block can bind to: readers, metric watches, connectors, sheets", usage: "sources <doc>", needsDoc: true, action: "dataQueries:cliSources" },
-    query: { summary: "Run a query and print its rows, before binding a block to it", usage: `query <doc> <source> [--args '{"days":30}']`, needsDoc: true, action: "dataQueries:cliQuery" },
-    check: { summary: "Every block's current value and whether its source still reproduces it", usage: "check <doc> [--rerun]", needsDoc: true, action: "dataQueries:cliCheck" },
+    sources: {
+      summary:
+        "List the data sources a block can bind to: readers, metric watches, connectors, sheets",
+      usage: "sources <doc>",
+      needsDoc: true,
+      action: "dataQueries:cliSources",
+    },
+    query: {
+      summary: "Run a query and print its rows, before binding a block to it",
+      usage: `query <doc> <source> [--args '{"days":30}']`,
+      needsDoc: true,
+      action: "dataQueries:cliQuery",
+    },
+    check: {
+      summary:
+        "Every block's current value and whether its source still reproduces it",
+      usage: "check <doc> [--rerun]",
+      needsDoc: true,
+      action: "dataQueries:cliCheck",
+    },
   },
   agentGuide: [
     "A dashboard is blocks in reading order in a 12-column grid: kpi (span 3), chart (6), table (12), text (12), section (12).",
     "Every number must come from a source, so a person can open the check behind it. Never type a number into a block or a text.",
     "1. `cast data sources <doc>` lists sources; `cast data query <doc> <source> --args '<json>'` shows a query's columns and rows. Look before you bind.",
     "2. Bind blocks with the verbs: `kpi`, `chart`, `table` take --source and --args plus how to shape the rows (KPI: --field --agg sum|last|avg|min|max|count|top --compare halves|prev|<column> --good up|down; chart: --type --x --y --series --cumulative).",
-    "3. Write prose with `text`, referencing live values as {b_key} (the value), {b_key.delta} (the signed change, \"+12%\") and {b_key.trend} (the direction in words, \"up 12%\", \"down 4%\", \"flat\") and {b_key.vs} (what the change compares with, \"the prior 7 days\"; it follows the dashboard's date filter), so the words update with the data and stay verified. The verbs refuse a typed number or a direction stated in words (rose, fell, up 12%): those go wrong the day the data turns.",
+    '3. Write prose with `text`, referencing live values as {b_key} (the value), {b_key.delta} (the signed change, "+12%") and {b_key.trend} (the direction in words, "up 12%", "down 4%", "flat") and {b_key.vs} (what the change compares with, "the prior 7 days"; it follows the dashboard\'s date filter), so the words update with the data and stay verified. The verbs refuse a typed number or a direction stated in words (rose, fell, up 12%): those go wrong the day the data turns.',
     "4. `cast data check <doc>` prints each block's value and check state; fix anything it reports as broken before you hand the dashboard back.",
     "Alerts: `kpi <doc> --key b_x --alert-above N` (or --alert-below) notifies when the KPI crosses the line, and again when it recovers. A line the value already crosses is refused, as is a source the dashboard's workspace can't read. Numbers refresh only while someone has the dashboard open unless it has a schedule: `schedule <doc> hourly|daily`.",
-    "Stories: `story <doc> scrolly|short --headline .. --summary ..` (in a draft: `cast data draft <doc> start`, --draft on `story` and each `say`, then `draft <doc> save`), then `say <doc> <key> \"<title>\" \"<line>\"` per block, KPIs first, one idea per step. Keep headlines short and concrete. Headline, summary and story lines take the same tokens and follow the same rule: \"Spend is {b_spend.trend} this fortnight\", never \"Spend rose 12%\".",
+    'Stories: `story <doc> scrolly|short --headline .. --summary ..` (in a draft: `cast data draft <doc> start`, --draft on `story` and each `say`, then `draft <doc> save`), then `say <doc> <key> "<title>" "<line>"` per block, KPIs first, one idea per step. Keep headlines short and concrete. Headline, summary and story lines take the same tokens and follow the same rule: "Spend is {b_spend.trend} this fortnight", never "Spend rose 12%".',
     `Sources: ${DATA_SOURCES.map((s) => `${s.id} (${s.args})`).join("; ")}.`,
   ].join("\n"),
 };
@@ -589,23 +929,37 @@ export const dashboardSpec: ArtifactSpec = {
 // ── the Visual short's timeline ──
 
 /** One beat of a Visual short: a story step held on screen from `start` for `duration` ms. */
-export type ShortBeat = { step: StoryStep; start: number; duration: number; title: string };
+export type ShortBeat = {
+  step: StoryStep;
+  start: number;
+  duration: number;
+  title: string;
+};
 
 /**
  * The story steps laid end to end as a film: the hook (the headline) is on
  * screen at once, numbers hold long enough to count up and read, and charts
  * (the evidence) get the most time. An end card closes it.
  */
-export function shortTimeline(steps: readonly StoryStep[]): { beats: ShortBeat[]; duration: number } {
+export function shortTimeline(steps: readonly StoryStep[]): {
+  beats: ShortBeat[];
+  duration: number;
+} {
   const beats: ShortBeat[] = [];
   let at = 0;
   for (const step of steps) {
     const duration =
-      step.kind === "hero" ? 3200
-      : step.kind === "numbers" ? 1800 + 900 * step.keys.length
-      : step.kind === "chapter" ? 2200
-      : 5200;
-    const title = step.kind === "hero" ? step.headline : step.title ?? (step.kind === "numbers" ? "Numbers" : "");
+      step.kind === "hero"
+        ? 3200
+        : step.kind === "numbers"
+          ? 1800 + 900 * step.keys.length
+          : step.kind === "chapter"
+            ? 2200
+            : 5200;
+    const title =
+      step.kind === "hero"
+        ? step.headline
+        : (step.title ?? (step.kind === "numbers" ? "Numbers" : ""));
     beats.push({ step, start: at, duration, title });
     at += duration;
   }
@@ -637,23 +991,41 @@ export const DEFAULT_ARGS: Record<string, Record<string, Json>> = {
  * column as x, the first numeric column as the value, a text column between
  * them as the series. A person or agent adjusts from there.
  */
-export function suggestFields(kind: "kpi" | "chart" | "table", columns: readonly string[], sample: readonly unknown[] | undefined): Record<string, Json> {
+export function suggestFields(
+  kind: "kpi" | "chart" | "table",
+  columns: readonly string[],
+  sample: readonly unknown[] | undefined,
+): Record<string, Json> {
   const numeric = columns.filter((_, i) => typeof sample?.[i] === "number");
   const text = columns.filter((_, i) => typeof sample?.[i] === "string");
-  const timeCol = columns.find((c) => /^(day|date|week|month|hour|at|time)$/.test(c));
+  const timeCol = columns.find((c) =>
+    /^(day|date|week|month|hour|at|time)$/.test(c),
+  );
   const x = timeCol ?? text[0] ?? columns[0];
   // The last number column is the one a source is named for (Token spend → spend, Pull requests → merged); earlier ones feed it.
-  const value = [...numeric].reverse().find((c) => c !== x && c !== "at") ?? numeric[0];
+  const value =
+    [...numeric].reverse().find((c) => c !== x && c !== "at") ?? numeric[0];
   const series = text.find((c) => c !== x);
   if (kind === "kpi") {
     if (!value) return { agg: "count" };
     // Counts add up across rows (days, statuses, people); only a gauge read over time (a metric's readings at "at") shows its latest value.
     const gauge = timeCol === "at";
-    return { field: value, agg: gauge ? "last" : "sum", ...(value === "spend" ? { format: "usd" } : {}), ...(timeCol && !gauge ? { compare: "halves" } : {}) };
+    return {
+      field: value,
+      agg: gauge ? "last" : "sum",
+      ...(value === "spend" ? { format: "usd" } : {}),
+      ...(timeCol && !gauge ? { compare: "halves" } : {}),
+    };
   }
   if (kind === "chart") {
     if (!x || !value) return {};
-    return { chart: timeCol ? (series ? "stacked" : "area") : "hbar", x, y: value, ...(series && timeCol ? { series } : {}), ...(value === "spend" ? { format: "usd" } : {}) };
+    return {
+      chart: timeCol ? (series ? "stacked" : "area") : "hbar",
+      x,
+      y: value,
+      ...(series && timeCol ? { series } : {}),
+      ...(value === "spend" ? { format: "usd" } : {}),
+    };
   }
   return value ? { sort: `-${value}`, limit: 20 } : { limit: 20 };
 }

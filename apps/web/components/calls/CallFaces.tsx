@@ -1,5 +1,11 @@
 import { visibleInterval } from "../../lib/windowVisibleWork";
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { useTrackedStore } from "../../store/inboxStore";
 import {
@@ -107,18 +113,29 @@ export function CallFaces({
     (st: any) => st.currentUser?._id,
   ]);
   const call = s.call;
-  const tiles = useSyncExternalStore(subscribeCallTiles, getCallTiles, emptyTiles);
-  const cameras = useMemo(() => tiles.filter((t) => t.kind === "camera"), [tiles]);
+  const tiles = useSyncExternalStore(
+    subscribeCallTiles,
+    getCallTiles,
+    emptyTiles,
+  );
+  const cameras = useMemo(
+    () => tiles.filter((t) => t.kind === "camera"),
+    [tiles],
+  );
   const selfId = s.currentUser?._id ? String(s.currentUser._id) : null;
   // The stage's roster, guests folded in (useStageRoster): a guest has no
   // seat, so the seats alone left a guest with their camera off out of the
   // circles while the room could hear them.
   const { roster } = useStageRoster(call.roomKey, call.phase === "connected");
-  const { status: recording, live: recordingRun } = useRoomRecordingMark(call.roomKey);
+  const { status: recording, live: recordingRun } = useRoomRecordingMark(
+    call.roomKey,
+  );
 
   const faces = useMemo(
-    () => facesToShow(facePeople(roster, cameras, selfId), mode)
-      .map((p) => p.isLocal ? { ...p, muted: call.muted } : p),
+    () =>
+      facesToShow(facePeople(roster, cameras, selfId), mode).map((p) =>
+        p.isLocal ? { ...p, muted: call.muted } : p,
+      ),
     [roster, cameras, selfId, mode, call.muted],
   );
   const cameraOf = useCallback(
@@ -135,9 +152,14 @@ export function CallFaces({
   // changes, so a poll that changes nothing re-renders nothing.
   const [pick, setPick] = useState<SpeakerPick>({ id: null, since: 0 });
   const speakingRef = useRef<string[]>([]);
-  speakingRef.current = (call.speaking ?? []).filter((id: string) => faces.some((f) => f.id === id));
+  speakingRef.current = (call.speaking ?? []).filter((id: string) =>
+    faces.some((f) => f.id === id),
+  );
   useMountEffect(() => {
-    return visibleInterval(() => setPick((p) => pickSpeaker(p, speakingRef.current, Date.now())), 250);
+    return visibleInterval(
+      () => setPick((p) => pickSpeaker(p, speakingRef.current, Date.now())),
+      250,
+    );
   });
   const shownId = useMemo(() => {
     if (pick.id && faces.some((f) => f.id === pick.id)) return pick.id;
@@ -149,7 +171,8 @@ export function CallFaces({
   // speaker tier four buttons are wider than one face, and a window that
   // clipped its own controls is a call you cannot leave.
   const { rootRef, hovered, startDrag, endDrag } = useFloatingCircles({
-    sizeFor: (hover) => facesWindowSize(mode, faces.length, { tier, hovered: hover }),
+    sizeFor: (hover) =>
+      facesWindowSize(mode, faces.length, { tier, hovered: hover }),
     shapeSig: `${mode}|${faces.length}|${tier}`,
     bridge: CALL_WINDOW_BRIDGE,
   });
@@ -177,25 +200,52 @@ export function CallFaces({
   }, [held, onHide]);
 
   const diameter = TIER_DIAMETER[tier];
-  const speaking = useMemo(() => new Set<string>(call.speaking ?? []), [call.speaking]);
+  const speaking = useMemo(
+    () => new Set<string>(call.speaking ?? []),
+    [call.speaking],
+  );
 
   return (
-    <div ref={rootRef} className={`dark faces-window${hovered ? " faces-window--hover" : ""}`}>
-      <div data-face-tier={tier} data-reconnecting={call.reconnecting || undefined} className={`faces-row faces-row--${mode}`} style={mode === "speaker" ? { width: diameter, height: diameter } : undefined}>
+    <div
+      ref={rootRef}
+      className={`dark faces-window${hovered ? " faces-window--hover" : ""}`}
+    >
+      <div
+        data-face-tier={tier}
+        data-reconnecting={call.reconnecting || undefined}
+        className={`faces-row faces-row--${mode}`}
+        style={
+          mode === "speaker" ? { width: diameter, height: diameter } : undefined
+        }
+      >
         {faces.length === 0 && (
-          <div className="face" data-face-hit style={{ width: diameter, height: diameter }} onPointerDown={startDrag} onPointerUp={endDrag} onPointerCancel={endDrag}>
+          <div
+            className="face"
+            data-face-hit
+            style={{ width: diameter, height: diameter }}
+            onPointerDown={startDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+          >
             <span className="face-waiting">joining</span>
           </div>
         )}
         {call.reconnecting && (
-          <span className="faces-reconnecting" title="Lost the connection; rejoining">
+          <span
+            className="faces-reconnecting"
+            title="Lost the connection; rejoining"
+          >
             <span className="faces-reconnecting-dot" />
             <span>reconnecting</span>
           </span>
         )}
         {recording && (
           <span className="faces-rec">
-            <RecordingMark size="dot" status={recording} shared={!!recordingRun?.video_shared} />
+            <RecordingMark
+              size="dot"
+              status={recording}
+              shared={!!recordingRun?.video_shared}
+            />
           </span>
         )}
         {faces.map((person) => (

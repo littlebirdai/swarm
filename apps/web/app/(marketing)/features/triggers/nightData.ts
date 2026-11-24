@@ -36,41 +36,118 @@ const hours = (from: number, to: number, step = 1) => {
 
 export const LANES: Lane[] = [
   {
-    id: "tr-41", title: "Check if CI is green on main", schedule: "in 30m", where: "here", color: SOL.blue,
-    firings: [{ t: 18 * 60 + 40, kind: "run", note: "CI green on main. The answer lands in the thread that asked.", log: true }],
+    id: "tr-41",
+    title: "Check if CI is green on main",
+    schedule: "in 30m",
+    where: "here",
+    color: SOL.blue,
+    firings: [
+      {
+        t: 18 * 60 + 40,
+        kind: "run",
+        note: "CI green on main. The answer lands in the thread that asked.",
+        log: true,
+      },
+    ],
   },
   {
-    id: "tr-43", title: "Review open PRs and summarize findings", schedule: "every 4h · fresh session", where: "spawn", color: SOL.cyan,
+    id: "tr-43",
+    title: "Review open PRs and summarize findings",
+    schedule: "every 4h · fresh session",
+    where: "spawn",
+    color: SOL.cyan,
     firings: hours(20, 32, 4).map((t, i) => ({
-      t, kind: "run" as const,
-      note: ["Reviewed 3 open PRs. Summary filed under the trigger.", "No new PRs. Clean run, nothing posted.", "No change since the last run.", "Two PRs went green overnight. Summary filed."][i],
+      t,
+      kind: "run" as const,
+      note: [
+        "Reviewed 3 open PRs. Summary filed under the trigger.",
+        "No new PRs. Clean run, nothing posted.",
+        "No change since the last run.",
+        "Two PRs went green overnight. Summary filed.",
+      ][i],
       log: i === 0 || i === 3,
     })),
   },
   {
-    id: "tr-44", title: "Rebuild the docs index if main moved", schedule: "every 1h · fresh session · precheck", where: "spawn", color: SOL.green,
+    id: "tr-44",
+    title: "Rebuild the docs index if main moved",
+    schedule: "every 1h · fresh session · precheck",
+    where: "spawn",
+    color: SOL.green,
     firings: hours(19, 32).map((t) => {
       const ran = t === 21 * 60 || t === 31 * 60;
       return ran
-        ? { t, kind: "run" as const, note: "Precheck exited 0: main moved. Index rebuilt.", log: true }
-        : { t, kind: "skip" as const, note: "Precheck exited 1. Skipped run recorded, no session spent.", log: t === 19 * 60 };
+        ? {
+            t,
+            kind: "run" as const,
+            note: "Precheck exited 0: main moved. Index rebuilt.",
+            log: true,
+          }
+        : {
+            t,
+            kind: "skip" as const,
+            note: "Precheck exited 1. Skipped run recorded, no session spent.",
+            log: t === 19 * 60,
+          };
     }),
   },
   {
-    id: "tr-45", title: "Respond to new PR review comments", schedule: "on a PR comment", where: "here", color: SOL.magenta,
+    id: "tr-45",
+    title: "Respond to new PR review comments",
+    schedule: "on a PR comment",
+    where: "here",
+    color: SOL.magenta,
     firings: [
-      { t: 22 * 60 + 47, kind: "run", note: "A reviewer asked for a null check on #482. Fixed, pushed, replied.", log: true },
-      { t: 23 * 60 + 12, kind: "run", note: "Follow-up question on the same thread. Answered.", log: false },
-      { t: 30 * 60 + 58, kind: "run", note: "Early reviewer approved #482. Thread resolved.", log: true },
+      {
+        t: 22 * 60 + 47,
+        kind: "run",
+        note: "A reviewer asked for a null check on #482. Fixed, pushed, replied.",
+        log: true,
+      },
+      {
+        t: 23 * 60 + 12,
+        kind: "run",
+        note: "Follow-up question on the same thread. Answered.",
+        log: false,
+      },
+      {
+        t: 30 * 60 + 58,
+        kind: "run",
+        note: "Early reviewer approved #482. Thread resolved.",
+        log: true,
+      },
     ],
   },
   {
-    id: "tr-46", title: "Audit dependencies for advisories", schedule: "every 1d · fresh session · read-only", where: "spawn", color: SOL.violet,
-    firings: [{ t: 26 * 60, kind: "park", until: 27 * 60 + 14, note: "Hit a usage limit. Parked until the window reset, then resumed the same session. No advisories.", log: true }],
+    id: "tr-46",
+    title: "Audit dependencies for advisories",
+    schedule: "every 1d · fresh session · read-only",
+    where: "spawn",
+    color: SOL.violet,
+    firings: [
+      {
+        t: 26 * 60,
+        kind: "park",
+        until: 27 * 60 + 14,
+        note: "Hit a usage limit. Parked until the window reset, then resumed the same session. No advisories.",
+        log: true,
+      },
+    ],
   },
   {
-    id: "tr-47", title: "Investigate new production errors", schedule: "on a new Sentry error · fresh session", where: "spawn", color: SOL.red,
-    firings: [{ t: 29 * 60 + 20, kind: "attention", note: "New TypeError in checkout, traced to last night's migration. Flagged for attention.", log: true }],
+    id: "tr-47",
+    title: "Investigate new production errors",
+    schedule: "on a new Sentry error · fresh session",
+    where: "spawn",
+    color: SOL.red,
+    firings: [
+      {
+        t: 29 * 60 + 20,
+        kind: "attention",
+        note: "New TypeError in checkout, traced to last night's migration. Flagged for attention.",
+        log: true,
+      },
+    ],
   },
 ];
 
@@ -92,13 +169,37 @@ export const NIGHT_COUNTS = {
   attention: all.filter((f) => f.kind === "attention").length,
 };
 
-export type LogLine = { t: number; id: string; color: string; kind: Firing["kind"]; text: string };
+export type LogLine = {
+  t: number;
+  id: string;
+  color: string;
+  kind: Firing["kind"];
+  text: string;
+};
 
 export const NIGHT_LOG: LogLine[] = LANES.flatMap((l) =>
   l.firings.flatMap((f) => {
     if (!f.log) return [];
-    const lines: LogLine[] = [{ t: f.t, id: l.id, color: l.color, kind: f.kind, text: f.kind === "park" ? `Hit a usage limit and parked. Resumes ${clock(f.until!)}.` : f.note }];
-    if (f.kind === "park") lines.push({ t: f.until!, id: l.id, color: l.color, kind: "run", text: "Resumed the same session. No advisories." });
+    const lines: LogLine[] = [
+      {
+        t: f.t,
+        id: l.id,
+        color: l.color,
+        kind: f.kind,
+        text:
+          f.kind === "park"
+            ? `Hit a usage limit and parked. Resumes ${clock(f.until!)}.`
+            : f.note,
+      },
+    ];
+    if (f.kind === "park")
+      lines.push({
+        t: f.until!,
+        id: l.id,
+        color: l.color,
+        kind: "run",
+        text: "Resumed the same session. No advisories.",
+      });
     return lines;
   }),
 ).sort((a, b) => a.t - b.t);

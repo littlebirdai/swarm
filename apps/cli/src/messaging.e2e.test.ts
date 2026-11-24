@@ -26,7 +26,15 @@
 // the daemon reads the environment that selects it at module load. See
 // isolatedTmuxServer.ts.
 import { killIsolatedTmuxServer } from "./test-helpers/isolatedTmuxServer.js";
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from "bun:test";
 import * as fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { injectViaTmux } from "./daemon.js";
@@ -101,11 +109,13 @@ beforeEach(() => {
 
 afterEach(async () => {
   for (const h of activeHarnesses) {
-    try { h.tearDown(); } catch {}
+    try {
+      h.tearDown();
+    } catch {}
   }
   // Brief settle so the next test's setup sees a clean tmux state.
   // Without this, fast back-to-back runs can race the kill-session syscall.
-  await new Promise(r => setTimeout(r, 200));
+  await new Promise((r) => setTimeout(r, 200));
 });
 
 describe("messaging e2e — fresh session", () => {
@@ -142,12 +152,17 @@ describe("messaging e2e — fresh session", () => {
 
     // Step 3: shim writes the user message to JSONL.
     try {
-      await waitFor(() => {
-        const msgs = readJsonlMessages(h.jsonlPath);
-        return msgs.some(m => m.type === "user" && m.text === content);
-      }, { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "user msg in JSONL" });
+      await waitFor(
+        () => {
+          const msgs = readJsonlMessages(h.jsonlPath);
+          return msgs.some((m) => m.type === "user" && m.text === content);
+        },
+        { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "user msg in JSONL" },
+      );
     } catch (err) {
-      const raw = fs.existsSync(h.jsonlPath) ? fs.readFileSync(h.jsonlPath, "utf-8") : "(no jsonl)";
+      const raw = fs.existsSync(h.jsonlPath)
+        ? fs.readFileSync(h.jsonlPath, "utf-8")
+        : "(no jsonl)";
       const dbg = [
         `[s1 jsonl wait] ${err instanceof Error ? err.message : String(err)}`,
         `pane: ${JSON.stringify(h.capturePane())}`,
@@ -158,10 +173,15 @@ describe("messaging e2e — fresh session", () => {
     }
 
     // Step 4: shim emits an assistant reply (proves bidirectional flow).
-    await waitFor(() => {
-      const msgs = readJsonlMessages(h.jsonlPath);
-      return msgs.some(m => m.type === "assistant" && m.text?.includes("got it"));
-    }, { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "assistant reply in JSONL" });
+    await waitFor(
+      () => {
+        const msgs = readJsonlMessages(h.jsonlPath);
+        return msgs.some(
+          (m) => m.type === "assistant" && m.text?.includes("got it"),
+        );
+      },
+      { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "assistant reply in JSONL" },
+    );
 
     // Step 5: pane content shows the injected message landed.
     const pane = h.capturePane();
@@ -170,7 +190,9 @@ describe("messaging e2e — fresh session", () => {
 
   test("Scenario 2: fast startup (200ms) — inject latency is dominated by injectViaTmux", async () => {
     const h = track(spawnHarness({ startupMs: 200 }));
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     const target = `${h.tmuxSession}:0.0`;
     const start = Date.now();
@@ -207,7 +229,9 @@ describe("messaging e2e — content edge cases", () => {
     // not affected. Goal here: prove injectViaTmux delivers the full
     // payload through paste-buffer + send-keys without truncation.
     const h = track(spawnHarness());
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     const target = `${h.tmuxSession}:0.0`;
     const startMarker = "long-marker-START";
@@ -216,7 +240,7 @@ describe("messaging e2e — content edge cases", () => {
     await injectViaTmux(target, content);
 
     // Allow the pane to settle, then verify both bookends survived the paste.
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
     const pane = h.capturePane();
     expect(pane).toContain(startMarker);
     expect(pane).toContain(endMarker);
@@ -230,19 +254,27 @@ describe("messaging e2e — content edge cases", () => {
     // requests bracketed paste exactly like a real agent TUI and reassembles a
     // bracketed burst into a single message.
     const h = track(spawnHarness());
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     const target = `${h.tmuxSession}:0.0`;
-    const content = "multiline-marker: first line\nsecond line\n\nfourth after blank";
+    const content =
+      "multiline-marker: first line\nsecond line\n\nfourth after blank";
     await injectViaTmux(target, content);
 
-    await waitFor(() => {
-      const msgs = readJsonlMessages(h.jsonlPath);
-      return msgs.some(m => m.type === "user" && m.text?.startsWith("multiline-marker:"));
-    }, { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "multi-line content in JSONL" });
+    await waitFor(
+      () => {
+        const msgs = readJsonlMessages(h.jsonlPath);
+        return msgs.some(
+          (m) => m.type === "user" && m.text?.startsWith("multiline-marker:"),
+        );
+      },
+      { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "multi-line content in JSONL" },
+    );
 
     const userMsgs = readJsonlMessages(h.jsonlPath).filter(
-      m => m.type === "user" && m.text?.includes("marker"),
+      (m) => m.type === "user" && m.text?.includes("marker"),
     );
     // One message, not four: a per-line submit would leave "second line" and
     // "fourth after blank" as separate user turns.
@@ -252,23 +284,35 @@ describe("messaging e2e — content edge cases", () => {
 
   test("Scenario 5: message with shell-special characters does not break paste", async () => {
     const h = track(spawnHarness());
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     const target = `${h.tmuxSession}:0.0`;
     const content = `marker-special: $HOME ${"`whoami`"} && echo 'hi' | grep "x" \\n end`;
     await injectViaTmux(target, content);
 
-    await waitFor(() => {
-      const msgs = readJsonlMessages(h.jsonlPath);
-      return msgs.some(m => m.type === "user" && m.text?.includes("marker-special:"));
-    }, { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "special-char content in JSONL" });
+    await waitFor(
+      () => {
+        const msgs = readJsonlMessages(h.jsonlPath);
+        return msgs.some(
+          (m) => m.type === "user" && m.text?.includes("marker-special:"),
+        );
+      },
+      {
+        timeoutMs: BUDGET_JSONL_SYNC_MS,
+        label: "special-char content in JSONL",
+      },
+    );
   }, 30_000);
 });
 
 describe("messaging e2e — concurrent / sequential injects", () => {
   test("Scenario 6: 3 sequential messages to same session — order preserved in JSONL", async () => {
     const h = track(spawnHarness());
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     const target = `${h.tmuxSession}:0.0`;
     const messages = ["seq-msg-1", "seq-msg-2", "seq-msg-3"];
@@ -278,14 +322,20 @@ describe("messaging e2e — concurrent / sequential injects", () => {
       // Wait for the shim to print its prompt again before the next inject.
       // Mimics the daemon's natural backpressure (waiting for the assistant
       // to finish before delivering the next pending message).
-      await waitFor(() => {
-        const msgs = readJsonlMessages(h.jsonlPath);
-        return msgs.filter(m => m.type === "user").length >= messages.indexOf(msg) + 1;
-      }, { timeoutMs: BUDGET_JSONL_SYNC_MS, label: `${msg} in JSONL` });
+      await waitFor(
+        () => {
+          const msgs = readJsonlMessages(h.jsonlPath);
+          return (
+            msgs.filter((m) => m.type === "user").length >=
+            messages.indexOf(msg) + 1
+          );
+        },
+        { timeoutMs: BUDGET_JSONL_SYNC_MS, label: `${msg} in JSONL` },
+      );
     }
 
     const msgs = readJsonlMessages(h.jsonlPath);
-    const userMsgs = msgs.filter(m => m.type === "user").map(m => m.text);
+    const userMsgs = msgs.filter((m) => m.type === "user").map((m) => m.text);
     expect(userMsgs).toEqual(messages);
   }, 60_000);
 
@@ -294,8 +344,14 @@ describe("messaging e2e — concurrent / sequential injects", () => {
     const b = track(spawnHarness({ tmuxPrefix: "cc-claude-test-B" }));
 
     await Promise.all([
-      waitFor(() => a.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS, label: "A prompt" }),
-      waitFor(() => b.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS, label: "B prompt" }),
+      waitFor(() => a.paneHasPrompt(), {
+        timeoutMs: BUDGET_PROMPT_READY_MS,
+        label: "A prompt",
+      }),
+      waitFor(() => b.paneHasPrompt(), {
+        timeoutMs: BUDGET_PROMPT_READY_MS,
+        label: "B prompt",
+      }),
     ]);
 
     await Promise.all([
@@ -304,13 +360,29 @@ describe("messaging e2e — concurrent / sequential injects", () => {
     ]);
 
     await Promise.all([
-      waitFor(() => readJsonlMessages(a.jsonlPath).some(m => m.text === "alpha-message"), { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "A jsonl" }),
-      waitFor(() => readJsonlMessages(b.jsonlPath).some(m => m.text === "bravo-message"), { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "B jsonl" }),
+      waitFor(
+        () =>
+          readJsonlMessages(a.jsonlPath).some(
+            (m) => m.text === "alpha-message",
+          ),
+        { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "A jsonl" },
+      ),
+      waitFor(
+        () =>
+          readJsonlMessages(b.jsonlPath).some(
+            (m) => m.text === "bravo-message",
+          ),
+        { timeoutMs: BUDGET_JSONL_SYNC_MS, label: "B jsonl" },
+      ),
     ]);
 
     // Critical: B's JSONL must NOT contain alpha-message and vice versa.
-    const aMsgs = readJsonlMessages(a.jsonlPath).filter(m => m.type === "user").map(m => m.text);
-    const bMsgs = readJsonlMessages(b.jsonlPath).filter(m => m.type === "user").map(m => m.text);
+    const aMsgs = readJsonlMessages(a.jsonlPath)
+      .filter((m) => m.type === "user")
+      .map((m) => m.text);
+    const bMsgs = readJsonlMessages(b.jsonlPath)
+      .filter((m) => m.type === "user")
+      .map((m) => m.text);
     expect(aMsgs).toContain("alpha-message");
     expect(aMsgs).not.toContain("bravo-message");
     expect(bMsgs).toContain("bravo-message");
@@ -353,13 +425,24 @@ describe("messaging e2e — failure modes", () => {
       timeoutMs: 5_000,
       label: "fatal shim exit",
     }).catch((error) => {
-      const state = tmuxRun(["list-panes", "-t", h.tmuxSession, "-F", "#{pane_id}:#{pane_index}:#{pane_dead}:#{pane_dead_status}"]);
-      throw new Error(`${error.message}; pane: ${JSON.stringify(h.capturePane())}; state: ${JSON.stringify(state)}`);
+      const state = tmuxRun([
+        "list-panes",
+        "-t",
+        h.tmuxSession,
+        "-F",
+        "#{pane_id}:#{pane_index}:#{pane_dead}:#{pane_dead_status}",
+      ]);
+      throw new Error(
+        `${error.message}; pane: ${JSON.stringify(h.capturePane())}; state: ${JSON.stringify(state)}`,
+      );
     });
     // The retained dead pane proves the intended shim ran. An unrelated
     // tmux/bash startup failure cannot satisfy these negative assertions.
     expect(h.paneExitCode()).toBe(1);
-    expect(tmuxRun(["move-window", "-s", h.tmuxSession, "-t", `${h.tmuxSession}:7`]).status).toBe(0);
+    expect(
+      tmuxRun(["move-window", "-s", h.tmuxSession, "-t", `${h.tmuxSession}:7`])
+        .status,
+    ).toBe(0);
     expect(h.paneExitCode()).toBe(1);
     expect(h.capturePane()).toContain(fatalMessage);
     expect(h.paneHasPrompt()).toBe(false);
@@ -374,18 +457,22 @@ describe("messaging e2e — resume / large JSONL", () => {
     // JSONL discovery would link it. (We don't run discovery here, but
     // we assert the file is parseable + grows correctly when we inject.)
     const h = track(spawnHarness());
-    await waitFor(() => h.paneHasPrompt(), { timeoutMs: BUDGET_PROMPT_READY_MS });
+    await waitFor(() => h.paneHasPrompt(), {
+      timeoutMs: BUDGET_PROMPT_READY_MS,
+    });
 
     // Append 5,000 dummy rows to simulate a long resume.
     const dummyLines: string[] = [];
     for (let i = 0; i < 5_000; i++) {
-      dummyLines.push(JSON.stringify({
-        type: "user",
-        sessionId: h.sessionId,
-        uuid: `dummy-${i}`,
-        timestamp: new Date().toISOString(),
-        message: { role: "user", content: `historical message ${i}` },
-      }));
+      dummyLines.push(
+        JSON.stringify({
+          type: "user",
+          sessionId: h.sessionId,
+          uuid: `dummy-${i}`,
+          timestamp: new Date().toISOString(),
+          message: { role: "user", content: `historical message ${i}` },
+        }),
+      );
     }
     fs.appendFileSync(h.jsonlPath, dummyLines.join("\n") + "\n");
 
@@ -398,10 +485,15 @@ describe("messaging e2e — resume / large JSONL", () => {
     // similar to fresh — the shim doesn't actually load the history.
     expect(elapsed).toBeLessThan(BUDGET_INJECT_FRESH_MS);
 
-    await waitFor(() => {
-      const msgs = readJsonlMessages(h.jsonlPath);
-      return msgs.some(m => m.type === "user" && m.text === "post-resume-marker");
-    }, { timeoutMs: 5_000, label: "post-resume msg in JSONL" });
+    await waitFor(
+      () => {
+        const msgs = readJsonlMessages(h.jsonlPath);
+        return msgs.some(
+          (m) => m.type === "user" && m.text === "post-resume-marker",
+        );
+      },
+      { timeoutMs: 5_000, label: "post-resume msg in JSONL" },
+    );
 
     const all = readJsonlMessages(h.jsonlPath);
     // 5000 historical + 1 new + 1 assistant reply.
@@ -473,14 +565,18 @@ describe("cold-boot injection matrix (real clients)", () => {
       // beforeEach/afterEach hook timed out for this test". 60s is an order of
       // magnitude over the median removal and 2.4x the worst one measured.
       afterEach(() => {
-        try { pane?.tearDown(); } catch {}
+        try {
+          pane?.tearDown();
+        } catch {}
         pane = null;
         endpoint.close();
       }, 60_000);
 
       test("cold boot: a multi-line message starts a turn and lands verbatim", async () => {
         pane = spawnClientPane(client, { endpointUrl: endpoint.url });
-        const payload = multilinePayload(`matrix-cold-${randomUUID().slice(0, 8)}`);
+        const payload = multilinePayload(
+          `matrix-cold-${randomUUID().slice(0, 8)}`,
+        );
 
         const delivery = await deliverToPane(pane, payload);
         const landedMs = await waitForRecorded(pane, payload);
@@ -493,7 +589,9 @@ describe("cold-boot injection matrix (real clients)", () => {
 
         // One message, not four: an unbracketed multi-line payload submits per
         // line, so the blank line and the tail would be separate turns.
-        expect(recorded(pane).filter((m) => m.startsWith(payload.split("\n")[0]))).toEqual([payload]);
+        expect(
+          recorded(pane).filter((m) => m.startsWith(payload.split("\n")[0])),
+        ).toEqual([payload]);
         // The turn actually started — the client called the model. Clients take
         // their time getting there (opencode fires ~10s after the submit), so
         // this waits rather than sampling once.
@@ -503,7 +601,8 @@ describe("cold-boot injection matrix (real clients)", () => {
         });
         // No clearing-key residue: the pre-paste C-a/C-k bytes must never be
         // recorded as message text (cold_boot_clearing_keys_land_as_text).
-        for (const message of recorded(pane)) expect(CONTROL_BYTE.test(message)).toBe(false);
+        for (const message of recorded(pane))
+          expect(CONTROL_BYTE.test(message)).toBe(false);
       }, 180_000);
 
       test("mid-turn: a type-ahead message queues and lands when the turn ends", async () => {
@@ -518,10 +617,16 @@ describe("cold-boot injection matrix (real clients)", () => {
           timeoutMs: 60_000,
           label: `${client} turn is in flight against the stalling endpoint`,
         });
-        logMatrix(client, "mid_turn", { pane_state_while_busy: pane.liveState() });
+        logMatrix(client, "mid_turn", {
+          pane_state_while_busy: pane.liveState(),
+        });
 
-        const second = multilinePayload(`matrix-typeahead-${randomUUID().slice(0, 8)}`);
-        const delivery = await deliverToPane(pane, second, { budgetMs: 45_000 });
+        const second = multilinePayload(
+          `matrix-typeahead-${randomUUID().slice(0, 8)}`,
+        );
+        const delivery = await deliverToPane(pane, second, {
+          budgetMs: 45_000,
+        });
         // The running turn survived. An interrupt aborts the model request, so
         // a still-held request proves the injection rode the type-ahead queue
         // instead of sending the Escape that cancels the turn.
@@ -529,7 +634,9 @@ describe("cold-boot injection matrix (real clients)", () => {
 
         // Ending the turn flushes the client's own queue.
         endpoint.reject();
-        const landedMs = await waitForRecorded(pane, second, { timeoutMs: 90_000 });
+        const landedMs = await waitForRecorded(pane, second, {
+          timeoutMs: 90_000,
+        });
         logMatrix(client, "mid_turn", {
           delivered_ms: delivery.elapsedMs,
           attempts: delivery.attempts,
@@ -540,7 +647,7 @@ describe("cold-boot injection matrix (real clients)", () => {
         if (!messages.includes(first)) {
           throw new Error(
             `${client} lost the message the turn was started with\n` +
-            `recorded: ${JSON.stringify(messages)}\npane:\n${pane.capture()}`,
+              `recorded: ${JSON.stringify(messages)}\npane:\n${pane.capture()}`,
           );
         }
         expect(messages.indexOf(first)).toBeLessThan(messages.indexOf(second));
@@ -555,7 +662,9 @@ describe("cold-boot injection matrix (real clients)", () => {
         endpoint.reject();
 
         pane.resume();
-        const after = multilinePayload(`matrix-postresume-${randomUUID().slice(0, 8)}`);
+        const after = multilinePayload(
+          `matrix-postresume-${randomUUID().slice(0, 8)}`,
+        );
         const delivery = await deliverToPane(pane, after, { budgetMs: 90_000 });
         const landedMs = await waitForRecorded(pane, after);
         logMatrix(client, "resume", {
@@ -567,7 +676,8 @@ describe("cold-boot injection matrix (real clients)", () => {
 
         const messages = recorded(pane);
         expect(messages).toContain(before);
-        for (const message of messages) expect(CONTROL_BYTE.test(message)).toBe(false);
+        for (const message of messages)
+          expect(CONTROL_BYTE.test(message)).toBe(false);
       }, 240_000);
     });
   }

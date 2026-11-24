@@ -69,9 +69,16 @@ export interface ImportAuthorityHold {
   line?: number;
 }
 
-export type ImportAuthorityResult = { ok: true; authority: ImportReplayAuthority } | ImportAuthorityHold;
+export type ImportAuthorityResult =
+  | { ok: true; authority: ImportReplayAuthority }
+  | ImportAuthorityHold;
 
-const ROLLOUT_LINE_TYPES = new Set(["session_meta", "response_item", "event_msg", "turn_context"]);
+const ROLLOUT_LINE_TYPES = new Set([
+  "session_meta",
+  "response_item",
+  "event_msg",
+  "turn_context",
+]);
 
 export type ReplayCursorState = "replaying" | "complete" | "mismatch";
 
@@ -93,7 +100,9 @@ type JsonRecord = Record<string, unknown>;
 function parseLine(line: string): JsonRecord | null {
   try {
     const parsed = JSON.parse(line) as unknown;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as JsonRecord) : null;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as JsonRecord)
+      : null;
   } catch {
     return null;
   }
@@ -103,7 +112,10 @@ function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
     const record = value as JsonRecord;
-    return `{${Object.keys(record).sort().map((k) => `${JSON.stringify(k)}:${stableJson(record[k])}`).join(",")}}`;
+    return `{${Object.keys(record)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(record[k])}`)
+      .join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
 }
@@ -119,8 +131,13 @@ export function responseItemFingerprint(payload: JsonRecord): string {
 /** `forked_from_id` from a rollout's first line, when it is a session_meta. */
 export function rolloutForkParentId(firstLine: string): string | undefined {
   const parsed = parseLine(firstLine);
-  const payload = parsed?.type === "session_meta" ? (parsed.payload as JsonRecord | undefined) : undefined;
-  return typeof payload?.forked_from_id === "string" ? payload.forked_from_id : undefined;
+  const payload =
+    parsed?.type === "session_meta"
+      ? (parsed.payload as JsonRecord | undefined)
+      : undefined;
+  return typeof payload?.forked_from_id === "string"
+    ? payload.forked_from_id
+    : undefined;
 }
 
 /** Read the WHOLE import file as the replay authority, or reject it whole.
@@ -129,9 +146,14 @@ export function rolloutForkParentId(firstLine: string): string | undefined {
  *  not a known rollout line type; a final line without its newline (the file
  *  was truncated mid-write). A shortened authority would let the replay's
  *  tail through as new messages, so there is no partial acceptance. */
-export function readImportReplayAuthority(importJsonl: string, importSessionId: string): ImportAuthorityResult {
-  if (importJsonl.length === 0) return { ok: false, disposition: "hold", reason: "empty" };
-  if (!importJsonl.endsWith("\n")) return { ok: false, disposition: "hold", reason: "truncated_tail" };
+export function readImportReplayAuthority(
+  importJsonl: string,
+  importSessionId: string,
+): ImportAuthorityResult {
+  if (importJsonl.length === 0)
+    return { ok: false, disposition: "hold", reason: "empty" };
+  if (!importJsonl.endsWith("\n"))
+    return { ok: false, disposition: "hold", reason: "truncated_tail" };
   const lines = importJsonl.split("\n");
   lines.pop(); // the empty string after the final newline
   const fingerprints: string[] = [];
@@ -140,19 +162,51 @@ export function readImportReplayAuthority(importJsonl: string, importSessionId: 
     const line = lines[i];
     if (line.trim().length === 0) continue;
     const parsed = parseLine(line);
-    if (!parsed || typeof parsed.type !== "string") return { ok: false, disposition: "hold", reason: "malformed_line", line: i + 1 };
+    if (!parsed || typeof parsed.type !== "string")
+      return {
+        ok: false,
+        disposition: "hold",
+        reason: "malformed_line",
+        line: i + 1,
+      };
     if (!sawHead) {
-      const headPayload = parsed.type === "session_meta" ? (parsed.payload as JsonRecord | undefined) : undefined;
-      if (!headPayload) return { ok: false, disposition: "hold", reason: "no_session_meta", line: i + 1 };
-      if (headPayload.id !== importSessionId) return { ok: false, disposition: "hold", reason: "wrong_session", line: i + 1 };
+      const headPayload =
+        parsed.type === "session_meta"
+          ? (parsed.payload as JsonRecord | undefined)
+          : undefined;
+      if (!headPayload)
+        return {
+          ok: false,
+          disposition: "hold",
+          reason: "no_session_meta",
+          line: i + 1,
+        };
+      if (headPayload.id !== importSessionId)
+        return {
+          ok: false,
+          disposition: "hold",
+          reason: "wrong_session",
+          line: i + 1,
+        };
       sawHead = true;
       continue;
     }
-    if (!ROLLOUT_LINE_TYPES.has(parsed.type)) return { ok: false, disposition: "hold", reason: "unknown_line_type", line: i + 1 };
+    if (!ROLLOUT_LINE_TYPES.has(parsed.type))
+      return {
+        ok: false,
+        disposition: "hold",
+        reason: "unknown_line_type",
+        line: i + 1,
+      };
     if (parsed.type !== "response_item") continue;
     const payload = parsed.payload;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      return { ok: false, disposition: "hold", reason: "malformed_line", line: i + 1 };
+      return {
+        ok: false,
+        disposition: "hold",
+        reason: "malformed_line",
+        line: i + 1,
+      };
     }
     fingerprints.push(responseItemFingerprint(payload as JsonRecord));
   }
@@ -161,13 +215,20 @@ export function readImportReplayAuthority(importJsonl: string, importSessionId: 
 }
 
 export function createReplayCursor(fingerprintCount: number): ReplayCursor {
-  return { matched: 0, state: fingerprintCount === 0 ? "complete" : "replaying" };
+  return {
+    matched: 0,
+    state: fingerprintCount === 0 ? "complete" : "replaying",
+  };
 }
 
 /** Verdict for one COMPLETE rollout line. Mutates the cursor.
  *  `skip` only for a response_item proven equal to the import's next item.
  *  Anything malformed while matching ends matching for good. */
-export function classifyRolloutLine(authority: ImportReplayAuthority, cursor: ReplayCursor, line: string): ReplayVerdict {
+export function classifyRolloutLine(
+  authority: ImportReplayAuthority,
+  cursor: ReplayCursor,
+  line: string,
+): ReplayVerdict {
   if (cursor.state !== "replaying") return "emit";
   const parsed = parseLine(line);
   if (!parsed || typeof parsed.type !== "string") {
@@ -180,12 +241,16 @@ export function classifyRolloutLine(authority: ImportReplayAuthority, cursor: Re
     cursor.state = "mismatch";
     return "emit";
   }
-  if (responseItemFingerprint(payload as JsonRecord) !== authority.fingerprints[cursor.matched]) {
+  if (
+    responseItemFingerprint(payload as JsonRecord) !==
+    authority.fingerprints[cursor.matched]
+  ) {
     cursor.state = "mismatch";
     return "emit";
   }
   cursor.matched += 1;
-  if (cursor.matched === authority.fingerprints.length) cursor.state = "complete";
+  if (cursor.matched === authority.fingerprints.length)
+    cursor.state = "complete";
   return "skip";
 }
 
@@ -203,7 +268,10 @@ export function advanceReplayCursor(
   const emitted: string[] = [];
   for (const line of complete.split("\n")) {
     if (line.trim().length === 0) continue;
-    (classifyRolloutLine(authority, cursor, line) === "skip" ? skipped : emitted).push(line);
+    (classifyRolloutLine(authority, cursor, line) === "skip"
+      ? skipped
+      : emitted
+    ).push(line);
   }
   return { skipped, emitted, carry };
 }
@@ -211,9 +279,15 @@ export function advanceReplayCursor(
 /** Rebuild the cursor for a rollout whose first `consumedBytes` were already
  *  ingested before a restart: the rollout's own bytes are the record of what
  *  was matched, so nothing but the import needs to persist. */
-export function reconstructReplayCursor(authority: ImportReplayAuthority, rolloutText: string, consumedBytes: number): ReplayCursor {
+export function reconstructReplayCursor(
+  authority: ImportReplayAuthority,
+  rolloutText: string,
+  consumedBytes: number,
+): ReplayCursor {
   const cursor = createReplayCursor(authority.fingerprints.length);
-  const consumed = Buffer.from(rolloutText, "utf8").subarray(0, consumedBytes).toString("utf8");
+  const consumed = Buffer.from(rolloutText, "utf8")
+    .subarray(0, consumedBytes)
+    .toString("utf8");
   advanceReplayCursor(authority, cursor, consumed);
   return cursor;
 }

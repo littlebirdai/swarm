@@ -10,7 +10,11 @@
 // The builder is a fresh Ubuntu 24.04 amd64 instance tagged
 // codecast-role=cast-image-builder; this script leaves it stopped after imaging.
 import { execFileSync } from "node:child_process";
-import { baseProvisionScript, daemonUnitScript, runScript } from "../src/browser/provisionLinux.js";
+import {
+  baseProvisionScript,
+  daemonUnitScript,
+  runScript,
+} from "../src/browser/provisionLinux.js";
 import { agentCliInstallScript } from "../src/browser/provisionAgents.js";
 import { installHostRelease } from "../src/hosts/installRelease.js";
 import type { RemoteHost } from "../src/remote/session-move.js";
@@ -22,31 +26,69 @@ const flag = (name: string, fallback: string) => {
 };
 const profile = flag("--profile", "default");
 const region = flag("--region", "us-west-2");
-if (!address || !keyPath) throw new Error("usage: cast-machine-image.ts <builder-ip> <ssh-key>");
+if (!address || !keyPath)
+  throw new Error("usage: cast-machine-image.ts <builder-ip> <ssh-key>");
 
-const host: RemoteHost = { address, user: "ubuntu", keyPath, remoteBaseDir: "/home/ubuntu/work", homeDir: "/home/ubuntu" };
+const host: RemoteHost = {
+  address,
+  user: "ubuntu",
+  keyPath,
+  remoteBaseDir: "/home/ubuntu/work",
+  homeDir: "/home/ubuntu",
+};
 const log = (m: string) => console.log(`  ${m}`);
-const step = (name: string, script: string, ok: string, timeoutMs = 1_200_000) => {
+const step = (
+  name: string,
+  script: string,
+  ok: string,
+  timeoutMs = 1_200_000,
+) => {
   console.log(name);
   const out = runScript(host, script, timeoutMs);
-  if (!out.includes(ok)) throw new Error(`${name} did not finish:\n${out.slice(-1500)}`);
+  if (!out.includes(ok))
+    throw new Error(`${name} did not finish:\n${out.slice(-1500)}`);
 };
-const aws = (args: string[]) => JSON.parse(execFileSync("aws", [...args, "--profile", profile, "--region", region, "--output", "json"], { encoding: "utf8" }) || "null");
+const aws = (args: string[]) =>
+  JSON.parse(
+    execFileSync(
+      "aws",
+      [...args, "--profile", profile, "--region", region, "--output", "json"],
+      { encoding: "utf8" },
+    ) || "null",
+  );
 
 // 20 idle minutes, then the box powers itself off (a stop: only its disk bills).
-step("base packages, display and idle watchdog", baseProvisionScript(20), "PROVISION-BASE-OK");
+step(
+  "base packages, display and idle watchdog",
+  baseProvisionScript(20),
+  "PROVISION-BASE-OK",
+);
 console.log("bun runtime");
-runScript(host, "command -v ~/.bun/bin/bun >/dev/null 2>&1 || (sudo apt-get install -y -qq unzip >/dev/null 2>&1; curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1); sudo ln -sf ~/.bun/bin/bun /usr/local/bin/bun; ~/.bun/bin/bun --version", 300_000);
+runScript(
+  host,
+  "command -v ~/.bun/bin/bun >/dev/null 2>&1 || (sudo apt-get install -y -qq unzip >/dev/null 2>&1; curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1); sudo ln -sf ~/.bun/bin/bun /usr/local/bin/bun; ~/.bun/bin/bun --version",
+  300_000,
+);
 console.log("cast release");
 installHostRelease(host, "linux", log);
-step("agent CLIs (pi among them) and node", agentCliInstallScript({}), "AGENT-CLIS-OK");
+step(
+  "agent CLIs (pi among them) and node",
+  agentCliInstallScript({}),
+  "AGENT-CLIS-OK",
+);
 // Writes the unit and the remote-device marker; with no login it cannot stay
 // up, so its own is-active check is not the gate here.
 console.log("daemon unit");
-try { runScript(host, daemonUnitScript(), 120_000); } catch { /* no config yet */ }
+try {
+  runScript(host, daemonUnitScript(), 120_000);
+} catch {
+  /* no config yet */
+}
 
 console.log("scrub");
-runScript(host, `set -euo pipefail
+runScript(
+  host,
+  `set -euo pipefail
 sudo systemctl disable --now codecast-daemon.service
 pkill -u ubuntu -f "cast _daemon" || true
 tmux kill-server 2>/dev/null || true
@@ -57,15 +99,42 @@ rm -rf /home/ubuntu/.pi /home/ubuntu/.bash_history /home/ubuntu/.cache/codecast
 sudo truncate -s 0 /etc/machine-id
 sudo rm -f /var/lib/dbus/machine-id
 sudo cloud-init clean --logs
-echo SCRUB-OK`, 120_000);
+echo SCRUB-OK`,
+  120_000,
+);
 
-const id = aws(["ec2", "describe-instances", "--filters", `Name=ip-address,Values=${address}`]).Reservations[0].Instances[0].InstanceId as string;
+const id = aws([
+  "ec2",
+  "describe-instances",
+  "--filters",
+  `Name=ip-address,Values=${address}`,
+]).Reservations[0].Instances[0].InstanceId as string;
 const name = `cast-user-machine-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
 console.log(`imaging ${id} as ${name}`);
-const image = aws(["ec2", "create-image", "--instance-id", id, "--name", name, "--description", "Cast user machine (codecast)",
-  "--tag-specifications", JSON.stringify([{ ResourceType: "image", Tags: [{ Key: "codecast-role", Value: "cast-user-machine" }] }])]).ImageId;
+const image = aws([
+  "ec2",
+  "create-image",
+  "--instance-id",
+  id,
+  "--name",
+  name,
+  "--description",
+  "Cast user machine (codecast)",
+  "--tag-specifications",
+  JSON.stringify([
+    {
+      ResourceType: "image",
+      Tags: [{ Key: "codecast-role", Value: "cast-user-machine" }],
+    },
+  ]),
+]).ImageId;
 // A 30 GiB encrypted image can take longer than one waiter's 10 minutes.
-for (let i = 0; aws(["ec2", "describe-images", "--image-ids", image]).Images[0].State !== "available"; i++) {
+for (
+  let i = 0;
+  aws(["ec2", "describe-images", "--image-ids", image]).Images[0].State !==
+  "available";
+  i++
+) {
   if (i > 120) throw new Error(`${image} is still not available after an hour`);
   execFileSync("sleep", ["30"]);
 }

@@ -9,11 +9,26 @@ import {
   type ChatNotifyLevel,
   type ChatRailRow,
 } from "../store/inboxStore";
-import { chatToastTier, isHistoryLine, type ChatToastTier } from "../lib/chatTimeline";
-import { ChatToast, toastPreview, type ChatToastData } from "../components/chat/ChatToast";
+import {
+  chatToastTier,
+  isHistoryLine,
+  type ChatToastTier,
+} from "../lib/chatTimeline";
+import {
+  ChatToast,
+  toastPreview,
+  type ChatToastData,
+} from "../components/chat/ChatToast";
 import { isChatContextOnScreen } from "../lib/chatFocus";
 import { isChatRailLive, subscribeChatRailLive } from "../lib/chatLive";
-import { knownAgentMember, memberName, sessionAuthorFor, slackAuthorFor, mentionsViewer as rowMentionsViewer, type ChatMember } from "../lib/chatViews";
+import {
+  knownAgentMember,
+  memberName,
+  sessionAuthorFor,
+  slackAuthorFor,
+  mentionsViewer as rowMentionsViewer,
+  type ChatMember,
+} from "../lib/chatViews";
 import { soundChatMessage } from "../lib/sounds";
 import { channelDisplayName } from "../lib/chatViews";
 import { dmOtherIds, isAgentTurnInFlight } from "@codecast/shared/chat";
@@ -86,8 +101,9 @@ export function useChatToasts(): void {
     // "the toast went away" and leaves the channel dead for weeks before anyone
     // connects the missing notifications to that click.
     const prior: ChatNotifyLevel =
-      (state.chatRail ?? []).find((r: ChatRailRow) => String(r.channel_id) === channelId)
-        ?.notify_level ?? "all";
+      (state.chatRail ?? []).find(
+        (r: ChatRailRow) => String(r.channel_id) === channelId,
+      )?.notify_level ?? "all";
     const name = state.chatChannels?.[channelId]?.name ?? "channel";
     state.setChannelNotifyLevel(channelId, "none");
     toast.dismiss(`chat:${channelId}`);
@@ -96,13 +112,16 @@ export function useChatToasts(): void {
       description: "No more notifications from this channel.",
       action: {
         label: "Undo",
-        onClick: () => useInboxStore.getState().setChannelNotifyLevel(channelId, prior),
+        onClick: () =>
+          useInboxStore.getState().setChannelNotifyLevel(channelId, prior),
       },
     });
   }, []);
 
   const snooze = useCallback((minutes: number) => {
-    useInboxStore.getState().updateClientUI({ chat_snooze_until: Date.now() + minutes * 60_000 });
+    useInboxStore
+      .getState()
+      .updateClientUI({ chat_snooze_until: Date.now() + minutes * 60_000 });
     toast.dismiss();
   }, []);
 
@@ -113,7 +132,16 @@ export function useChatToasts(): void {
 
   /** Sound it, then hand it to its author's face in the header, else a toast. */
   const present = useCallback(
-    (data: ChatToastData, authorId: string, opts: { faceable: boolean; threadRootId?: string; broadcast?: boolean; at: number }) => {
+    (
+      data: ChatToastData,
+      authorId: string,
+      opts: {
+        faceable: boolean;
+        threadRootId?: string;
+        broadcast?: boolean;
+        at: number;
+      },
+    ) => {
       shownRef.current.add(data.messageId);
       // Every arrival gets the sound (Slack's rule: a banner is never silent).
       soundChatMessage(data.messageId);
@@ -133,7 +161,8 @@ export function useChatToasts(): void {
             // must not silently replace the first). Quiet cards from one channel
             // collapse onto one id, which is what makes a busy room one card.
             id: toastIdFor(data),
-            duration: data.tier === "loud" ? LOUD_DURATION_MS : QUIET_DURATION_MS,
+            duration:
+              data.tier === "loud" ? LOUD_DURATION_MS : QUIET_DURATION_MS,
           },
         );
       // A teammate's line drops from their face in the header instead of
@@ -188,7 +217,8 @@ export function useChatToasts(): void {
     const byId = new Map<string, ChatMember>();
     for (const m of members) if (m?._id) byId.set(String(m._id), m);
     const snoozedUntil: number = state.clientState?.ui?.chat_snooze_until ?? 0;
-    const windowFocused = typeof document === "undefined" ? true : document.hasFocus();
+    const windowFocused =
+      typeof document === "undefined" ? true : document.hasFocus();
 
     for (const row of rail) {
       const channelId = String(row.channel_id);
@@ -196,7 +226,14 @@ export function useChatToasts(): void {
       const prev = seen.get(channelId);
       // A new line from someone else waits for its row: the channel stays at
       // the line it was at, and the next pass (its row landing) toasts it.
-      if (last && prev && String(last._id) !== prev.messageId && last.user_id !== viewerId && !landedRow(messages[String(last._id)])) continue;
+      if (
+        last &&
+        prev &&
+        String(last._id) !== prev.messageId &&
+        last.user_id !== viewerId &&
+        !landedRow(messages[String(last._id)])
+      )
+        continue;
       seen.set(channelId, {
         messageId: String(last?._id ?? ""),
         unread: row.unread ?? 0,
@@ -213,7 +250,9 @@ export function useChatToasts(): void {
       // objects), plus a rise in the server's mention count. The two together:
       // `mentions.includes(viewerId)` alone missed a DM with no @ (no mention
       // list), and then notify_level "mentions" swallowed the toast.
-      const mentionsViewer = rowMentionsViewer(full, viewerId) || (row.unread_mentions ?? 0) > prev.mentions;
+      const mentionsViewer =
+        rowMentionsViewer(full, viewerId) ||
+        (row.unread_mentions ?? 0) > prev.mentions;
       const threadRootId = full.thread_root_id;
       const viewerInThread =
         !!threadRootId &&
@@ -231,7 +270,10 @@ export function useChatToasts(): void {
       // Any registered surface showing this exact channel+thread context
       // counts as "already on screen" — the tier's compare stays byte-for-byte
       // the same, it just answers against every hold instead of one slot.
-      const onScreen = isChatContextOnScreen(channelId, threadRootId ?? undefined);
+      const onScreen = isChatContextOnScreen(
+        channelId,
+        threadRootId ?? undefined,
+      );
       const tier: ChatToastTier = chatToastTier({
         authorId: String(last.user_id),
         viewerId,
@@ -239,7 +281,7 @@ export function useChatToasts(): void {
         isDm,
         channelId,
         activeChannelId: onScreen ? channelId : undefined,
-        activeThreadRootId: onScreen ? threadRootId ?? undefined : undefined,
+        activeThreadRootId: onScreen ? (threadRootId ?? undefined) : undefined,
         threadRootId,
         viewerInThread,
         answersViewer: last.author_kind === "agent" && !!viewerInThread,
@@ -258,23 +300,41 @@ export function useChatToasts(): void {
       burstRef.current.set(channelId, recent);
 
       const isCall = !!full.call;
-      const author = byId.get(String(last.user_id)) ?? knownAgentMember(String(last.user_id));
+      const author =
+        byId.get(String(last.user_id)) ??
+        knownAgentMember(String(last.user_id));
       const slackAuthor = slackAuthorFor(full);
       // A line a session typed is stored under its human: name the session.
-      const sessionAuthor = slackAuthor ? null : sessionAuthorFor(full, { members: byId, ...chatAuthorLookupsNow() });
-      const isAgent = !slackAuthor && (!!sessionAuthor || last.author_kind === "agent" || !!author?.is_bot);
+      const sessionAuthor = slackAuthor
+        ? null
+        : sessionAuthorFor(full, { members: byId, ...chatAuthorLookupsNow() });
+      const isAgent =
+        !slackAuthor &&
+        (!!sessionAuthor || last.author_kind === "agent" || !!author?.is_bot);
       const data: ChatToastData = {
         messageId,
         channelId,
         channelName: isDm
           ? channelDisplayName(
-              { name: "", kind: "dm", dmMemberIds: dmOtherIds(channelRow?.dm_key, viewerId) },
+              {
+                name: "",
+                kind: "dm",
+                dmMemberIds: dmOtherIds(channelRow?.dm_key, viewerId),
+              },
               members,
             )
-          : channelRow?.name ?? "channel",
+          : (channelRow?.name ?? "channel"),
         isDm,
-        authorName: isCall ? "Huddle" : slackAuthor?.name ?? sessionAuthor?.name ?? memberName(author),
-        authorAvatarUrl: isCall ? undefined : slackAuthor ? slackAuthor.avatarUrl : isAgent ? undefined : author?.image || author?.github_avatar_url,
+        authorName: isCall
+          ? "Huddle"
+          : (slackAuthor?.name ?? sessionAuthor?.name ?? memberName(author)),
+        authorAvatarUrl: isCall
+          ? undefined
+          : slackAuthor
+            ? slackAuthor.avatarUrl
+            : isAgent
+              ? undefined
+              : author?.image || author?.github_avatar_url,
         authorIsAgent: isAgent,
         authorAgentType: sessionAuthor?.session?.agentType,
         preview: toastPreview(full.content),
@@ -301,7 +361,9 @@ export function useChatToasts(): void {
   // while the bell already rang and the sound already played (DesktopProvider).
   // A chat notification is the server saying this line is yours, so one the
   // rail has not shown arrives here, addressed.
-  const notifSig = useInboxStore((st: any) => chatNotifSig(st.notifications, st.chatMessages));
+  const notifSig = useInboxStore((st: any) =>
+    chatNotifSig(st.notifications, st.chatMessages),
+  );
   const notifSeenRef = useRef<Set<string>>(new Set());
   const mountedAtRef = useRef(Date.now());
   useWatchEffect(() => {
@@ -314,48 +376,92 @@ export function useChatToasts(): void {
       if (notifSeenRef.current.has(id)) continue;
       // Wait for the line's row, as the rail does: the card and the room it
       // opens show the same message.
-      if (!n.read && n.chat_message_id && !landedRow(st.chatMessages?.[String(n.chat_message_id)])) continue;
+      if (
+        !n.read &&
+        n.chat_message_id &&
+        !landedRow(st.chatMessages?.[String(n.chat_message_id)])
+      )
+        continue;
       notifSeenRef.current.add(id);
       // Only what lands while this window is up, and only while it is news.
-      if (n.read || n.created_at < mountedAtRef.current || Date.now() - n.created_at > NOTIF_FRESH_MS) continue;
+      if (
+        n.read ||
+        n.created_at < mountedAtRef.current ||
+        Date.now() - n.created_at > NOTIF_FRESH_MS
+      )
+        continue;
       const messageId = n.chat_message_id ? String(n.chat_message_id) : "";
       if (!messageId || shownRef.current.has(messageId)) continue;
       if ((st.clientState?.ui?.chat_snooze_until ?? 0) > Date.now()) continue;
       if (!ownsChatToasts()) continue;
       const channelId = String(n.entity_id ?? "");
       const full = landedRow(st.chatMessages?.[messageId]);
-      const railLast = (st.chatRail ?? []).find((r: ChatRailRow) => String(r.channel_id) === channelId)?.last_message;
-      const fromRail = railLast && String(railLast._id) === messageId ? railLast : undefined;
-      const threadRootId = full?.thread_root_id ?? fromRail?.thread_root_id ?? undefined;
-      const focused = typeof document === "undefined" ? true : document.hasFocus();
+      const railLast = (st.chatRail ?? []).find(
+        (r: ChatRailRow) => String(r.channel_id) === channelId,
+      )?.last_message;
+      const fromRail =
+        railLast && String(railLast._id) === messageId ? railLast : undefined;
+      const threadRootId =
+        full?.thread_root_id ?? fromRail?.thread_root_id ?? undefined;
+      const focused =
+        typeof document === "undefined" ? true : document.hasFocus();
       if (focused && isChatContextOnScreen(channelId, threadRootId)) continue;
-      const authorId = String(n.actor_user_id ?? full?.user_id ?? fromRail?.user_id ?? "");
+      const authorId = String(
+        n.actor_user_id ?? full?.user_id ?? fromRail?.user_id ?? "",
+      );
       if (!authorId || authorId === viewerId) continue;
-      const author = members.find((m) => String(m?._id) === authorId) ?? knownAgentMember(authorId);
+      const author =
+        members.find((m) => String(m?._id) === authorId) ??
+        knownAgentMember(authorId);
       // A Slack line authors as the workspace bridge ("Union (Slack)"): the
       // row's snapshot, else the notification's, names who actually spoke.
-      const slackAuthor = full?.external_author ? slackAuthorFor(full) : fromRail?.external_author ? slackAuthorFor(fromRail) : null;
+      const slackAuthor = full?.external_author
+        ? slackAuthorFor(full)
+        : fromRail?.external_author
+          ? slackAuthorFor(fromRail)
+          : null;
       const face = notificationActor(n);
       const viaSlack = !!slackAuthor || memberKind(author) === "slack";
-      const isAgent = !viaSlack && (!!face.session || !!author?.is_bot || full?.author_kind === "agent" || fromRail?.author_kind === "agent");
-      const isDm = n.type === "chat_dm" || st.chatChannels?.[channelId]?.kind === "dm";
-      const name = slackAuthor?.name || n.actor_name || face.name || memberName(author);
+      const isAgent =
+        !viaSlack &&
+        (!!face.session ||
+          !!author?.is_bot ||
+          full?.author_kind === "agent" ||
+          fromRail?.author_kind === "agent");
+      const isDm =
+        n.type === "chat_dm" || st.chatChannels?.[channelId]?.kind === "dm";
+      const name =
+        slackAuthor?.name || n.actor_name || face.name || memberName(author);
       present(
         {
           messageId,
           channelId,
-          channelName: isDm ? name : st.chatChannels?.[channelId]?.name ?? "channel",
+          channelName: isDm
+            ? name
+            : (st.chatChannels?.[channelId]?.name ?? "channel"),
           isDm,
           authorName: name,
-          authorAvatarUrl: isAgent ? undefined : slackAuthor?.avatarUrl || face.avatar || author?.image || author?.github_avatar_url,
+          authorAvatarUrl: isAgent
+            ? undefined
+            : slackAuthor?.avatarUrl ||
+              face.avatar ||
+              author?.image ||
+              author?.github_avatar_url,
           authorIsAgent: isAgent,
           authorAgentType: face.session?.agent_type,
-          preview: toastPreview(full?.content ?? fromRail?.preview ?? notifBody(n.message ?? "")),
+          preview: toastPreview(
+            full?.content ?? fromRail?.preview ?? notifBody(n.message ?? ""),
+          ),
           tier: "loud",
           inThread: n.type === "chat_reply" || !!threadRootId,
         },
         authorId,
-        { faceable: !isAgent && !viaSlack, threadRootId, broadcast: !!full?.broadcast, at: n.created_at },
+        {
+          faceable: !isAgent && !viaSlack,
+          threadRootId,
+          broadcast: !!full?.broadcast,
+          at: n.created_at,
+        },
       );
     }
   }, [notifSig, viewerId, present]);
@@ -365,7 +471,9 @@ export function useChatToasts(): void {
  *  placeholder. The answer fills that row in place, and the rail and the
  *  notification carry its text before the store's copy catches up, so a
  *  placeholder here would print an empty toast. */
-function landedRow(row: ChatMessageRow | undefined): ChatMessageRow | undefined {
+function landedRow(
+  row: ChatMessageRow | undefined,
+): ChatMessageRow | undefined {
   return row && !isAgentTurnInFlight(row.agent_status) ? row : undefined;
 }
 
@@ -378,7 +486,10 @@ function isChatNotif(n: any): boolean {
 }
 
 /** Wake only when the set of unread chat notifications moves, or one's row lands. */
-function chatNotifSig(notifications: Record<string, any> | undefined, messages: Record<string, ChatMessageRow> | undefined): string {
+function chatNotifSig(
+  notifications: Record<string, any> | undefined,
+  messages: Record<string, ChatMessageRow> | undefined,
+): string {
   let out = "";
   for (const n of Object.values(notifications ?? {})) {
     if (!isChatNotif(n) || n.read) continue;
@@ -394,12 +505,17 @@ function notifBody(message: string): string {
 }
 
 function toastIdFor(data: ChatToastData): string {
-  return data.tier === "loud" ? `chat-loud:${data.messageId}` : `chat:${data.channelId}`;
+  return data.tier === "loud"
+    ? `chat-loud:${data.messageId}`
+    : `chat:${data.channelId}`;
 }
 
 /** Wake only on a real rail change: a new newest-message, its row landing,
  *  or a moved count. */
-function railKey(rail: ChatRailRow[] | undefined, messages: Record<string, ChatMessageRow> | undefined): string {
+function railKey(
+  rail: ChatRailRow[] | undefined,
+  messages: Record<string, ChatMessageRow> | undefined,
+): string {
   let out = "";
   for (const r of rail ?? []) {
     const tip = r.last_message?._id ?? "";

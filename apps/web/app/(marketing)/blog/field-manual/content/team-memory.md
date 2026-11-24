@@ -1,8 +1,8 @@
 A coding agent starts every task cold. It reads the code, guesses at intent, and rediscovers what a teammate's agent settled last week: why the retry cap is 5 and not 3, why signatures are checked before parsing, which approach was tried and failed. The reasoning existed. It lived in a transcript on someone else's laptop, and when the session ended it was gone.
 
-Codecast keeps every session your team runs, from any agent on any machine, and makes that history something people and agents can query. Three things do the work: search by what a session *touched*, ask one session a question and get cited lines back, and see which session wrote each line of a file.
+Codecast keeps every session your team runs, from any agent on any machine, and makes that history something people and agents can query. Three things do the work: search by what a session _touched_, ask one session a question and get cited lines back, and see which session wrote each line of a file.
 
-![The codecast command palette with the query 'webhook retry': three session results by Alex Rivera (Retry failed webhooks, 6 matches; Try fixed backoff, 3 matches; Webhook API half, 2 matches), each with a one-line summary, and below them a Done task, ct-4182 Retry queue for failed webhooks](/blog/field-manual/memory-palette.webp "Three weeks later, a teammate searches the palette for &quot;webhook retry&quot;. The sessions come back with what they concluded, and the task they closed sits beneath them.")
+![The codecast command palette with the query 'webhook retry': three session results by Alex Rivera (Retry failed webhooks, 6 matches; Try fixed backoff, 3 matches; Webhook API half, 2 matches), each with a one-line summary, and below them a Done task, ct-4182 Retry queue for failed webhooks](/blog/field-manual/memory-palette.webp 'Three weeks later, a teammate searches the palette for "webhook retry". The sessions come back with what they concluded, and the task they closed sits beneath them.')
 
 ## Search the work, not just the words
 
@@ -18,7 +18,7 @@ A result is still findable after the session that produced it is long gone. A se
 
 A 300 message session is a lot to page through for one fact. In any conversation, press `A` (or pick **Ask this session** from its menu) and a panel opens beside the transcript: "What did this session decide about…". The answer leads with the direct reply and backs each point with the messages it rests on. Each citation is a chip; click it and the transcript jumps to that message. Ask a follow-up in the same panel.
 
-The clever part is that it reads *past* the first relevant passage. People change their minds and agents try things that fail, so the first answer in a transcript is often wrong by the end. When a later message revised the answer, you get the later one, with the earlier one named as history. A session too long to read whole is read end first, then start, and the answer says which stretch it skipped, since that stretch could change the answer. If the session does not hold the answer, it says so and points at the closest lines instead of guessing.
+The clever part is that it reads _past_ the first relevant passage. People change their minds and agents try things that fail, so the first answer in a transcript is often wrong by the end. When a later message revised the answer, you get the later one, with the earlier one named as history. A session too long to read whole is read end first, then start, and the answer says which stretch it skipped, since that stretch could change the answer. If the session does not hold the answer, it says so and points at the closest lines instead of guessing.
 
 Agents use the same thing on themselves. An agent whose context was summarized can ask its own session what the user wanted in turn one, past every compaction.
 
@@ -26,7 +26,7 @@ Agents use the same thing on themselves. An agent whose context was summarized c
 
 ## Blame, with the session in the author column
 
-When agents write the code, `git blame` names whoever committed it, which tells you nothing about why. Open a file in codecast's repo view, switch Blame to **Sessions** (`B` cycles off, git, sessions), and the gutter names the *session* behind each line instead: a colour that runs the height of each range, and on its first line the person, the session and how long ago. A strip above the file lists the sessions that shaped it, most lines first, with a header like "94% by 2 sessions". Hover a session and its lines light up wherever they fall; click it to jump to its first line, or open the conversation that wrote them.
+When agents write the code, `git blame` names whoever committed it, which tells you nothing about why. Open a file in codecast's repo view, switch Blame to **Sessions** (`B` cycles off, git, sessions), and the gutter names the _session_ behind each line instead: a colour that runs the height of each range, and on its first line the person, the session and how long ago. A strip above the file lists the sessions that shaped it, most lines first, with a header like "94% by 2 sessions". Hover a session and its lines light up wherever they fall; click it to jump to its first line, or open the conversation that wrote them.
 
 Attribution is per line, not per commit. A commit that mixes an agent's edits with a hand edit credits only the lines the session actually wrote; the rest keep their git author.
 

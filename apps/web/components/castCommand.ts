@@ -4,7 +4,11 @@
 // (the "Message to" / "read" blocks and the cast task/plan/doc renderers).
 
 import { extractBrowserTabId } from "../lib/browserFocus";
-import { scanShellWord, tokenizeShellArgs, type ShellToken } from "./shellWords";
+import {
+  scanShellWord,
+  tokenizeShellArgs,
+  type ShellToken,
+} from "./shellWords";
 
 // Agents routinely prefix a command with `cd <dir>;` or `cd <dir> &&` to run it
 // from the repo root (e.g. `cd /repo; cast send jx7abcd "hi"`). Strip that leading
@@ -144,7 +148,10 @@ export interface ChatSendArgs {
 
 const FLAG_RE = /^-{1,2}[A-Za-z]/;
 
-export function extractChatSendArgs(subcommand: string, args: string): ChatSendArgs | null {
+export function extractChatSendArgs(
+  subcommand: string,
+  args: string,
+): ChatSendArgs | null {
   if (subcommand !== "reply" && subcommand !== "send") return null;
   const tokens = tokenizeShellArgs(args);
   const positional: ShellToken[] = [];
@@ -154,12 +161,18 @@ export function extractChatSendArgs(subcommand: string, args: string): ChatSendA
       // Every chat flag takes a value (--channel/--thread/--status); --json is the
       // one boolean, and its "value" would be the next flag or nothing.
       const next = tokens[i + 1];
-      if (t.value !== "--json" && next && !(!next.quoted && FLAG_RE.test(next.value))) i += 1;
+      if (
+        t.value !== "--json" &&
+        next &&
+        !(!next.quoted && FLAG_RE.test(next.value))
+      )
+        i += 1;
       continue;
     }
     positional.push(t);
   }
-  const messageId = subcommand === "reply" ? positional.shift()?.value : undefined;
+  const messageId =
+    subcommand === "reply" ? positional.shift()?.value : undefined;
 
   // The body: a heredoc/stdin `-` anywhere in the args, else the first remaining
   // positional word. extractSendBody already knows every shape a body takes,
@@ -169,7 +182,10 @@ export function extractChatSendArgs(subcommand: string, args: string): ChatSendA
   if (dash && dash.index !== undefined) {
     body = extractSendBody(args.slice(dash.index + dash[0].indexOf("-")));
   } else if (positional[0]) {
-    body = { body: positional[0].value, kind: positional[0].dynamic ? "dynamic" : "literal" };
+    body = {
+      body: positional[0].value,
+      kind: positional[0].dynamic ? "dynamic" : "literal",
+    };
   } else {
     body = { body: "", kind: "dynamic" };
   }
@@ -216,11 +232,17 @@ export function extractStateArgs(args: string): StateArgs {
       break;
     }
     body = positional
-      ? { body: positional.value, kind: positional.dynamic ? "dynamic" : "literal" }
+      ? {
+          body: positional.value,
+          kind: positional.dynamic ? "dynamic" : "literal",
+        }
       : { body: "", kind: "dynamic" };
   }
   if (body.kind === "dynamic") return { status, headline: null };
-  const headline = body.body.split("\n").find((l) => l.trim())?.trim();
+  const headline = body.body
+    .split("\n")
+    .find((l) => l.trim())
+    ?.trim();
   return { status, headline: headline || null };
 }
 
@@ -255,13 +277,31 @@ export interface DecideArgs {
 }
 
 const DECIDE_VERBS: Record<string, DecideArgs["verb"]> = {
-  edit: "edit", cancel: "cancel", rm: "cancel", withdraw: "cancel", ls: "ls", list: "ls",
-  show: "show", answer: "answer", recommend: "recommend",
+  edit: "edit",
+  cancel: "cancel",
+  rm: "cancel",
+  withdraw: "cancel",
+  ls: "ls",
+  list: "ls",
+  show: "show",
+  answer: "answer",
+  recommend: "recommend",
 };
-const DECIDE_VALUE_FLAGS = new Set(["-o", "--option", "--context", "--report", "--default", "--session", "--question"]);
+const DECIDE_VALUE_FLAGS = new Set([
+  "-o",
+  "--option",
+  "--context",
+  "--report",
+  "--default",
+  "--session",
+  "--question",
+]);
 
 // Mirrors the CLI's "Label :: what happens if chosen" split (decideCommand.ts).
-export function splitDecideOption(raw: string): { label: string; description?: string } {
+export function splitDecideOption(raw: string): {
+  label: string;
+  description?: string;
+} {
   const idx = raw.indexOf("::");
   if (idx === -1) return { label: raw.trim() };
   const label = raw.slice(0, idx).trim();
@@ -269,19 +309,35 @@ export function splitDecideOption(raw: string): { label: string; description?: s
   return description ? { label, description } : { label };
 }
 
-export function extractDecideArgs(subcommand: string, args: string): DecideArgs {
+export function extractDecideArgs(
+  subcommand: string,
+  args: string,
+): DecideArgs {
   // The parser puts a bare first word in the subcommand slot; a quoted
   // question lands in args. Fold a non-verb word back so both shapes parse.
   const verb = DECIDE_VERBS[subcommand];
   const rest = verb ? args : subcommand ? `${subcommand} ${args}`.trim() : args;
-  const out: DecideArgs = { verb: verb ?? "ask", question: null, options: [], context: null, advisory: false, blocking: false };
+  const out: DecideArgs = {
+    verb: verb ?? "ask",
+    question: null,
+    options: [],
+    context: null,
+    advisory: false,
+    blocking: false,
+  };
   if (out.verb === "ls") return out;
 
   const tokens = tokenizeShellArgs(rest);
-  if (out.verb === "show" || out.verb === "answer" || out.verb === "recommend") {
+  if (
+    out.verb === "show" ||
+    out.verb === "answer" ||
+    out.verb === "recommend"
+  ) {
     const words = tokens.filter((t) => t.quoted || !FLAG_RE.test(t.value));
     out.ref = words[0]?.value;
-    out.choice = tokens.some((t) => !t.quoted && t.value === "--form") ? "form" : words[1]?.value;
+    out.choice = tokens.some((t) => !t.quoted && t.value === "--form")
+      ? "form"
+      : words[1]?.value;
     return out;
   }
   const positional: ShellToken[] = [];
@@ -290,13 +346,20 @@ export function extractDecideArgs(subcommand: string, args: string): DecideArgs 
   for (let i = 0; i < tokens.length; i += 1) {
     const t = tokens[i];
     if (!t.quoted && FLAG_RE.test(t.value)) {
-      if (t.value === "--advisory") { out.advisory = true; continue; }
-      if (t.value === "--blocking") { out.blocking = true; continue; }
+      if (t.value === "--advisory") {
+        out.advisory = true;
+        continue;
+      }
+      if (t.value === "--blocking") {
+        out.blocking = true;
+        continue;
+      }
       if (!DECIDE_VALUE_FLAGS.has(t.value)) continue;
       const next = tokens[i + 1];
       if (!next) continue;
       i += 1;
-      if (t.value === "-o" || t.value === "--option") out.options.push(splitDecideOption(next.value));
+      if (t.value === "-o" || t.value === "--option")
+        out.options.push(splitDecideOption(next.value));
       else if (t.value === "--context") contextToken = next;
       else if (t.value === "--report") out.report = next.value;
       else if (t.value === "--question") questionFlag = next;
@@ -314,15 +377,20 @@ export function extractDecideArgs(subcommand: string, args: string): DecideArgs 
     out.question = q && !q.dynamic ? q.value : null;
   } else {
     const id = positional[0];
-    if (id && /^(?:sd-\d+|[a-z0-9]{20,})$/i.test(id.value)) out.decisionId = id.value;
-    out.question = questionFlag && !questionFlag.dynamic ? questionFlag.value : null;
+    if (id && /^(?:sd-\d+|[a-z0-9]{20,})$/i.test(id.value))
+      out.decisionId = id.value;
+    out.question =
+      questionFlag && !questionFlag.dynamic ? questionFlag.value : null;
   }
 
   if (contextToken) {
     if (contextToken.value === "-" && !contextToken.quoted) {
       // `--context -  <<'EOF' …`: the body is the heredoc after the marker.
       const dash = rest.match(/--context\s+(-)(?=\s|$)/);
-      const body = dash && dash.index !== undefined ? extractSendBody(rest.slice(dash.index + dash[0].lastIndexOf("-"))) : null;
+      const body =
+        dash && dash.index !== undefined
+          ? extractSendBody(rest.slice(dash.index + dash[0].lastIndexOf("-")))
+          : null;
       out.context = body && body.kind === "heredoc" ? body.body : null;
     } else {
       out.context = contextToken.dynamic ? null : contextToken.value;
@@ -357,18 +425,34 @@ export function normalizeCastCategory(category: string): string {
  * session wrote on stdin and read back (`validate -`, `show -`), an edit to a project's flow, or a repo's pipeline.
  * Reading a library flow by name stays a receipt.
  */
-export function isFlowObjectCastCommand(cast: ParsedCastCommand | null | undefined): boolean {
+export function isFlowObjectCastCommand(
+  cast: ParsedCastCommand | null | undefined,
+): boolean {
   if (!cast || normalizeCastCategory(cast.category) !== "flow") return false;
   // An edit draws what it changed and a pipeline draws the repo's (pipeline.md PL5, PL6): the object is the point of the row.
-  return cast.subcommand === "run" || cast.subcommand === "edit" || cast.subcommand === "pipeline" || ((cast.subcommand === "validate" || cast.subcommand === "show") && /(^|\s)-(\s|$)/.test(cast.args));
+  return (
+    cast.subcommand === "run" ||
+    cast.subcommand === "edit" ||
+    cast.subcommand === "pipeline" ||
+    ((cast.subcommand === "validate" || cast.subcommand === "show") &&
+      /(^|\s)-(\s|$)/.test(cast.args))
+  );
 }
 
 /** `cast vault request`: the card is a field the person fills, so it stays out of a folded receipt like a decision. */
-export function isVaultRequestCastCommand(cast: ParsedCastCommand | null | undefined): boolean {
-  return !!cast && normalizeCastCategory(cast.category) === "vault" && cast.subcommand === "request";
+export function isVaultRequestCastCommand(
+  cast: ParsedCastCommand | null | undefined,
+): boolean {
+  return (
+    !!cast &&
+    normalizeCastCategory(cast.category) === "vault" &&
+    cast.subcommand === "request"
+  );
 }
 
-export function isDecideCastCommand(cast: ParsedCastCommand | null | undefined): boolean {
+export function isDecideCastCommand(
+  cast: ParsedCastCommand | null | undefined,
+): boolean {
   if (!cast) return false;
   if (normalizeCastCategory(cast.category) !== "decide") return false;
   const verb = extractDecideArgs(cast.subcommand, cast.args).verb;
@@ -382,7 +466,18 @@ export function isDecideCastCommand(cast: ParsedCastCommand | null | undefined):
 const VAULT_VALUE_VERBS = new Set(["get", "env", "otp"]);
 
 // `cast vault` flags that take the word after them (cli secrets/command.ts).
-const VAULT_VALUE_FLAGS = new Set(["--field", "--kind", "--why", "--env", "--site", "--team", "--note", "--username", "--file", "--from-env"]);
+const VAULT_VALUE_FLAGS = new Set([
+  "--field",
+  "--kind",
+  "--why",
+  "--env",
+  "--site",
+  "--team",
+  "--note",
+  "--username",
+  "--file",
+  "--from-env",
+]);
 
 export interface VaultArgs {
   /** The secret names the command addresses, in order. */
@@ -399,7 +494,10 @@ export function extractVaultArgs(subcommand: string, args: string): VaultArgs {
   // Everything after a bare `--` is the inner command of `run`.
   const split = subcommand === "run" ? args.match(/(?:^|\s)--(?=\s|$)/) : null;
   const own = split?.index !== undefined ? args.slice(0, split.index) : args;
-  const command = split?.index !== undefined ? args.slice(split.index + split[0].length).trim() || undefined : undefined;
+  const command =
+    split?.index !== undefined
+      ? args.slice(split.index + split[0].length).trim() || undefined
+      : undefined;
   const tokens = tokenizeShellArgs(own);
   const names: string[] = [];
   for (let i = 0; i < tokens.length; i += 1) {
@@ -446,15 +544,41 @@ const CAST_BODY_FLAGS: Array<{ flags: string[]; label?: string }> = [
 // Only mutations carry prose. Reading flags off queries would quote a filter
 // back as content (`cast feed -m samvit` names a teammate, not a message).
 const CAST_BODY_SUBCOMMANDS = new Set([
-  "comment", "create", "add", "done", "drop", "complete",
-  "edit", "update", "decide", "discover", "note",
+  "comment",
+  "create",
+  "add",
+  "done",
+  "drop",
+  "complete",
+  "edit",
+  "update",
+  "decide",
+  "discover",
+  "note",
 ]);
 
 // `cast spawn` and `cast fork` flags that take a value (the optional ones,
 // `--subagent [parent]` and `--cloud [host]`, take the word after them too).
 const SPAWN_VALUE_FLAGS = new Set([
-  "-C", "--dir", "--agent", "--as", "--subagent", "--model", "--effort", "--account", "--worktree", "--device",
-  "--cloud", "--from", "--label", "-s", "--session", "--at", "--start-from", "--claude-args", "--claude-tail",
+  "-C",
+  "--dir",
+  "--agent",
+  "--as",
+  "--subagent",
+  "--model",
+  "--effort",
+  "--account",
+  "--worktree",
+  "--device",
+  "--cloud",
+  "--from",
+  "--label",
+  "-s",
+  "--session",
+  "--at",
+  "--start-from",
+  "--claude-args",
+  "--claude-tail",
 ]);
 
 // The prose a cast mutation carried: a comment body, a done note, a plan's goal,
@@ -470,7 +594,8 @@ export function extractCastBodyParts(
   const parts: CastBodyPart[] = [];
   const push = (text: string | null, label?: string) => {
     const trimmed = text?.trim();
-    if (trimmed && !parts.some((p) => p.text === trimmed)) parts.push({ text: trimmed, label });
+    if (trimmed && !parts.some((p) => p.text === trimmed))
+      parts.push({ text: trimmed, label });
   };
 
   // Commands whose prose is the first positional argument.
@@ -480,10 +605,12 @@ export function extractCastBodyParts(
   };
 
   if (subcommand === "comment") push(extractCommentBody(args));
-  else if (cat === "trigger" && subcommand === "add") push(positional(), "prompt");
+  else if (cat === "trigger" && subcommand === "add")
+    push(positional(), "prompt");
 
   if (CAST_BODY_SUBCOMMANDS.has(subcommand)) {
-    for (const { flags, label } of CAST_BODY_FLAGS) push(extractFlagValue(args, flags), label);
+    for (const { flags, label } of CAST_BODY_FLAGS)
+      push(extractFlagValue(args, flags), label);
   }
 
   // What a spawn or fork was asked to do: each quoted prompt on the line
@@ -494,7 +621,8 @@ export function extractCastBodyParts(
     const tokens = tokenizeShellArgs(args);
     tokens.forEach((t, i) => {
       const prev = tokens[i - 1];
-      const flagValue = !!prev && !prev.quoted && SPAWN_VALUE_FLAGS.has(prev.value);
+      const flagValue =
+        !!prev && !prev.quoted && SPAWN_VALUE_FLAGS.has(prev.value);
       if (t.quoted && !t.dynamic && !flagValue) push(t.value, "prompt");
     });
   }
@@ -516,7 +644,9 @@ export function extractCastBodyParts(
 export function stripEnvPrefix(cmd: string): string {
   const assignment = String.raw`[A-Za-z_][A-Za-z0-9_]*=(?:'[^']*'|"[^"]*"|[^\s'"])*`;
   const env = cmd.match(
-    new RegExp(String.raw`^env(?:\s+-u\s+[A-Za-z_][A-Za-z0-9_]*|\s+--?[A-Za-z-]+|\s+${assignment})*\s+`),
+    new RegExp(
+      String.raw`^env(?:\s+-u\s+[A-Za-z_][A-Za-z0-9_]*|\s+--?[A-Za-z-]+|\s+${assignment})*\s+`,
+    ),
   );
   const rest = env ? cmd.slice(env[0].length) : cmd;
   const bare = rest.match(new RegExp(String.raw`^(?:${assignment}\s+)+`));
@@ -569,8 +699,13 @@ function skipSubstitution(source: string, start: number): number {
 // A heredoc's body is the command's payload, not a following command, so the
 // whole thing — marker, body and terminator — stays with the segment that
 // opened it. Returns null when `<<` is not actually a heredoc redirect.
-function scanHeredoc(source: string, start: number): { text: string; end: number } | null {
-  const m = source.slice(start).match(/^<<-?\s*(?:'([^']*)'|"([^"]*)"|([A-Za-z_][\w.-]*))/);
+function scanHeredoc(
+  source: string,
+  start: number,
+): { text: string; end: number } | null {
+  const m = source
+    .slice(start)
+    .match(/^<<-?\s*(?:'([^']*)'|"([^"]*)"|([A-Za-z_][\w.-]*))/);
   if (!m) return null;
   const delimiter = m[1] ?? m[2] ?? m[3];
   const newline = source.indexOf("\n", start + m[0].length);
@@ -616,7 +751,8 @@ export function splitShellSegments(source: string): string[] {
     }
     if (ch === '"') {
       let j = i + 1;
-      while (j < source.length && source[j] !== '"') j += source[j] === "\\" ? 2 : 1;
+      while (j < source.length && source[j] !== '"')
+        j += source[j] === "\\" ? 2 : 1;
       const stop = Math.min(j + 1, source.length);
       cur += source.slice(i, stop);
       i = stop;
@@ -653,7 +789,14 @@ export function splitShellSegments(source: string): string[] {
       while (i < source.length && !/[\s;|&<>()]/.test(source[i])) i += 1;
       continue;
     }
-    if (ch === "|" || ch === ";" || ch === "&" || ch === "\n" || ch === "(" || ch === ")") {
+    if (
+      ch === "|" ||
+      ch === ";" ||
+      ch === "&" ||
+      ch === "\n" ||
+      ch === "(" ||
+      ch === ")"
+    ) {
       push();
       while (i < source.length && /[|;&\n()\s]/.test(source[i])) i += 1;
       continue;
@@ -672,7 +815,9 @@ export function splitShellSegments(source: string): string[] {
 // redirects and extra commands an agent runs alongside it. The first cast
 // command in the line wins — it is the action the row led with. Returns null
 // when the line runs no cast command at all.
-export function parseCastCommandString(rawCommand: string): ParsedCastCommand | null {
+export function parseCastCommandString(
+  rawCommand: string,
+): ParsedCastCommand | null {
   const raw = rawCommand.trim();
   const line = unwrapShellCommand(raw);
   for (const segment of splitShellSegments(line)) {
@@ -681,7 +826,9 @@ export function parseCastCommandString(rawCommand: string): ParsedCastCommand | 
     // (`cast browser --clone do …`); it belongs to the args, not the verb.
     // Only those two, so a flag that IS the command (`cast state --status …`)
     // still reads as one.
-    const match = cmd.match(/^cast\s+(\w[\w-]*)((?:\s+--(?:real|clone))*)(?:\s+(\w[\w-]*))?(?:\s+([\s\S]*))?$/);
+    const match = cmd.match(
+      /^cast\s+(\w[\w-]*)((?:\s+--(?:real|clone))*)(?:\s+(\w[\w-]*))?(?:\s+([\s\S]*))?$/,
+    );
     if (!match) continue;
     const leadingFlags = match[2].trim();
     const rest = (match[4] || "").trim();
@@ -707,7 +854,9 @@ export function sayTextOf(cmd: ParsedCastCommand | null): string | null {
   const rest = cmd.fullCmd.replace(/^cast\s+say\b\s*/, "");
   const text = /^-(?:\s|$)/.test(rest)
     ? extractSendBody(rest).body
-    : tokenizeShellArgs(rest).map((t) => t.value).join(" ");
+    : tokenizeShellArgs(rest)
+        .map((t) => t.value)
+        .join(" ");
   return text.trim() && text.trim() !== "-" ? text.trim() : null;
 }
 
@@ -724,7 +873,16 @@ const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 // Browser flags that swallow the word after them, so a scan for the verb's
 // first real argument doesn't mistake a flag's value for the page.
-const BROWSER_VALUE_FLAGS = new Set(["--tab", "--profile", "--out", "--viewports", "--alt", "--ref", "-s", "--selector"]);
+const BROWSER_VALUE_FLAGS = new Set([
+  "--tab",
+  "--profile",
+  "--out",
+  "--viewports",
+  "--alt",
+  "--ref",
+  "-s",
+  "--selector",
+]);
 
 /** The first positional argument of a browser verb, past its flags. */
 function firstBrowserArg(args: string): string | null {
@@ -749,8 +907,14 @@ function asPageUrl(arg: string | null): string | null {
 }
 
 /** URL stated by this row itself, or null. Mirrors the CLI's output shapes. */
-export function extractBrowserPageUrl(subcommand: string, args: string, output: string): string | null {
-  const lines = [...output.replace(ANSI_RE, "").matchAll(/^\s*(https?:\/\/\S+)\s*$/gm)];
+export function extractBrowserPageUrl(
+  subcommand: string,
+  args: string,
+  output: string,
+): string | null {
+  const lines = [
+    ...output.replace(ANSI_RE, "").matchAll(/^\s*(https?:\/\/\S+)\s*$/gm),
+  ];
   if (lines.length > 0) return lines[lines.length - 1][1];
   if (subcommand === "open") return asPageUrl(firstBrowserArg(args));
   // A batch navigates through its steps; the page it ended on is the last one
@@ -795,14 +959,17 @@ const SESSION_TAB_CLOSED_RE = /closed this session's (?:tab|browser)/;
  * `open`/`click` before it. An `open` row's own URL wins over the carried one —
  * it IS the navigation.
  */
-export function buildBrowserRowMap(rows: BrowserRowInput[]): Record<string, BrowserRowState> {
+export function buildBrowserRowMap(
+  rows: BrowserRowInput[],
+): Record<string, BrowserRowState> {
   const map: Record<string, BrowserRowState> = {};
   let url: string | null = null;
   let tabId: string | null = null;
   for (const row of rows) {
     url = extractBrowserPageUrl(row.subcommand, row.args, row.output) ?? url;
     tabId = extractBrowserTabId(row.output) ?? tabId;
-    if (url || tabId) map[row.toolCallId] = { ...(url && { url }), ...(tabId && { tabId }) };
+    if (url || tabId)
+      map[row.toolCallId] = { ...(url && { url }), ...(tabId && { tabId }) };
   }
   // Backwards, so each row knows whether a stop came after it. A row that
   // named a tab is gone when a stop closed that tab; a row that named none
@@ -815,7 +982,8 @@ export function buildBrowserRowMap(rows: BrowserRowInput[]): Record<string, Brow
       stopLater = true;
       if (state?.tabId) closed.add(state.tabId);
     }
-    if (state && (state.tabId ? closed.has(state.tabId) : stopLater)) state.gone = true;
+    if (state && (state.tabId ? closed.has(state.tabId) : stopLater))
+      state.gone = true;
   }
   return map;
 }
@@ -841,7 +1009,11 @@ export function browserTabOf(
 ): BrowserTabRef | null {
   if (tool.name.startsWith("mcp__claude-in-chrome__")) {
     let tabId: unknown;
-    try { tabId = JSON.parse(tool.input)?.tabId; } catch { tabId = undefined; }
+    try {
+      tabId = JSON.parse(tool.input)?.tabId;
+    } catch {
+      tabId = undefined;
+    }
     if (tabId != null) return { kind: "extension", tabId: String(tabId) };
     const m = resultContent?.match(/Executed on tabId:\s*(\d+)/);
     return m ? { kind: "extension", tabId: m[1] } : null;
@@ -851,13 +1023,33 @@ export function browserTabOf(
   // A row whose output lost the tab footer (piped through grep or tail) still
   // drove the session's tab: tabId null asks the daemon for that one.
   const tabId = extractBrowserTabId(output) ?? carried[tool.id]?.tabId ?? null;
-  const url = extractBrowserPageUrl(cast.subcommand, cast.args, output) ?? carried[tool.id]?.url ?? null;
-  return { kind: "cast", tabId, url, ...(carried[tool.id]?.gone && { gone: true }) };
+  const url =
+    extractBrowserPageUrl(cast.subcommand, cast.args, output) ??
+    carried[tool.id]?.url ??
+    null;
+  return {
+    kind: "cast",
+    tabId,
+    url,
+    ...(carried[tool.id]?.gone && { gone: true }),
+  };
 }
 
-export function sameBrowserRowMap(a: Record<string, BrowserRowState>, b: Record<string, BrowserRowState>): boolean {
+export function sameBrowserRowMap(
+  a: Record<string, BrowserRowState>,
+  b: Record<string, BrowserRowState>,
+): boolean {
   const keys = Object.keys(a);
-  return keys.length === Object.keys(b).length && keys.every((k) => b[k] && a[k].url === b[k].url && a[k].tabId === b[k].tabId && a[k].gone === b[k].gone);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every(
+      (k) =>
+        b[k] &&
+        a[k].url === b[k].url &&
+        a[k].tabId === b[k].tabId &&
+        a[k].gone === b[k].gone,
+    )
+  );
 }
 
 // ── cast browser do — the CLI's batch ───────────────────────────────────────
@@ -920,15 +1112,26 @@ export function extractBrowserDoSteps(args: string): BrowserDoStep[] {
  */
 const DO_OK_GLYPH = /^[●*✓✔]\s?(.*)$/;
 const DO_BAD_GLYPH = /^[○x✗✘×]\s(.*)$/;
-const DO_FOOTER_LINE = /^\s*(?:\d+\/?\d* steps? in .*|tab [0-9A-Za-z:_-]+|https?:\/\/\S+|! .*)$/;
+const DO_FOOTER_LINE =
+  /^\s*(?:\d+\/?\d* steps? in .*|tab [0-9A-Za-z:_-]+|https?:\/\/\S+|! .*)$/;
 
-export function splitBrowserDoOutput(output: string, stepCount: number): Array<{ output: string; ok?: boolean }> {
-  const outcomes: Array<{ output: string; ok?: boolean }> = Array.from({ length: stepCount }, () => ({ output: "" }));
+export function splitBrowserDoOutput(
+  output: string,
+  stepCount: number,
+): Array<{ output: string; ok?: boolean }> {
+  const outcomes: Array<{ output: string; ok?: boolean }> = Array.from(
+    { length: stepCount },
+    () => ({ output: "" }),
+  );
   const lines = output.replace(ANSI_RE, "").replace(/\r/g, "").split("\n");
   // Drop the trailing footer: everything after the last step's own lines that
   // is a URL, tab id, warning, or the timing line.
   let end = lines.length;
-  while (end > 0 && (!lines[end - 1].trim() || DO_FOOTER_LINE.test(lines[end - 1]))) end--;
+  while (
+    end > 0 &&
+    (!lines[end - 1].trim() || DO_FOOTER_LINE.test(lines[end - 1]))
+  )
+    end--;
   const body = lines.slice(0, end);
   const engine = body.some((l) => /^›\s/.test(l));
   const append = (i: number, text: string) => {
@@ -950,8 +1153,10 @@ export function splitBrowserDoOutput(output: string, stepCount: number): Array<{
       if (current < 0 || current >= stepCount) continue;
       const bad = line.match(DO_BAD_GLYPH);
       const good = bad ? null : line.match(DO_OK_GLYPH);
-      if (bad) { outcomes[current].ok = false; append(current, bad[1]); }
-      else if (good) append(current, good[1]);
+      if (bad) {
+        outcomes[current].ok = false;
+        append(current, bad[1]);
+      } else if (good) append(current, good[1]);
       else append(current, line);
       continue;
     }

@@ -22,7 +22,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawnSync } from "../proc.js";
-import { sshBase, sshDestination, type RemoteHost } from "../remote/session-move.js";
+import {
+  sshBase,
+  sshDestination,
+  type RemoteHost,
+} from "../remote/session-move.js";
 import { parseManifest, parseManifestText } from "../workspace/manifest.js";
 import type { HostSpec } from "../workspace/types.js";
 
@@ -36,29 +40,70 @@ export interface ResolvedHostSpec extends HostSpec {
 }
 
 /** The repo's [host] and the person's own, merged: packages and services unioned, personal commands first. */
-export function resolveHostSpec(opts: { repoRoot?: string; home?: string; shell?: string }): ResolvedHostSpec {
+export function resolveHostSpec(opts: {
+  repoRoot?: string;
+  home?: string;
+  shell?: string;
+}): ResolvedHostSpec {
   const home = opts.home ?? (process.env.HOME || os.homedir());
-  const repo = opts.repoRoot ? parseManifest(path.join(opts.repoRoot, ".codecast", "workspace.toml"))?.host : undefined;
+  const repo = opts.repoRoot
+    ? parseManifest(path.join(opts.repoRoot, ".codecast", "workspace.toml"))
+        ?.host
+    : undefined;
   const personalFile = path.join(home, PERSONAL_HOST_SPEC);
-  const personal = fs.existsSync(personalFile) ? parseManifestText(fs.readFileSync(personalFile, "utf-8"), personalFile).host : undefined;
+  const personal = fs.existsSync(personalFile)
+    ? parseManifestText(fs.readFileSync(personalFile, "utf-8"), personalFile)
+        .host
+    : undefined;
   const shellName = path.basename(opts.shell ?? process.env.SHELL ?? "bash");
-  const shell = shellName === "zsh" || shellName === "fish" ? shellName : undefined;
+  const shell =
+    shellName === "zsh" || shellName === "fish" ? shellName : undefined;
   const uniq = (a: string[]) => [...new Set(a)];
   return {
-    packages: uniq([...(personal?.packages ?? []), ...(repo?.packages ?? []), ...(shell ? [shell] : [])]),
+    packages: uniq([
+      ...(personal?.packages ?? []),
+      ...(repo?.packages ?? []),
+      ...(shell ? [shell] : []),
+    ]),
     services: uniq([...(personal?.services ?? []), ...(repo?.services ?? [])]),
     run: [...(personal?.run ?? []), ...(repo?.run ?? [])],
     ...(shell ? { shell } : {}),
-    ...(personal?.simulators?.length || repo?.simulators?.length ? { simulators: uniq([...(personal?.simulators ?? []), ...(repo?.simulators ?? [])]) } : {}),
+    ...(personal?.simulators?.length || repo?.simulators?.length
+      ? {
+          simulators: uniq([
+            ...(personal?.simulators ?? []),
+            ...(repo?.simulators ?? []),
+          ]),
+        }
+      : {}),
   };
 }
 
-export function hostSpecHash(spec: ResolvedHostSpec, repoPath: string | undefined): string {
-  return createHash("sha256").update(JSON.stringify({ v: HOST_SETUP_VERSION, spec, repoPath: repoPath ?? null })).digest("hex").slice(0, 16);
+export function hostSpecHash(
+  spec: ResolvedHostSpec,
+  repoPath: string | undefined,
+): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        v: HOST_SETUP_VERSION,
+        spec,
+        repoPath: repoPath ?? null,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 16);
 }
 
 /** The host tool directories every login shell gets; the tools step and installers put commands there. */
-export const HOST_PATH_DIRS = [".local/bin", ".bun/bin", ".grok/bin", ".opencode/bin", ".fly/bin", ".cargo/bin"];
+export const HOST_PATH_DIRS = [
+  ".local/bin",
+  ".bun/bin",
+  ".grok/bin",
+  ".opencode/bin",
+  ".fly/bin",
+  ".cargo/bin",
+];
 
 export function hostProfileScript(): string {
   return `# Written by codecast (cloud/hostSetup.ts) on every wake: every login shell on a cloud host.
@@ -76,8 +121,16 @@ const b64 = (s: string) => Buffer.from(s, "utf-8").toString("base64");
  * The host-side script. Prints one JSON line: `{ ok, skipped? , applied?, step?, error? }`.
  * `force` re-applies a spec already in step.
  */
-export function hostSetupScript(spec: ResolvedHostSpec, opts: { hash: string; repoPath?: string; force?: boolean }): string {
-  const runs = spec.run.map((cmd, i) => `step "run[${i}]: ${cmd.replace(/[^A-Za-z0-9 ._/:=-]/g, "").slice(0, 60)}" bash -lc "$(printf '%s' ${b64(cmd)} | base64 -d)"`).join("\n");
+export function hostSetupScript(
+  spec: ResolvedHostSpec,
+  opts: { hash: string; repoPath?: string; force?: boolean },
+): string {
+  const runs = spec.run
+    .map(
+      (cmd, i) =>
+        `step "run[${i}]: ${cmd.replace(/[^A-Za-z0-9 ._/:=-]/g, "").slice(0, 60)}" bash -lc "$(printf '%s' ${b64(cmd)} | base64 -d)"`,
+    )
+    .join("\n");
   return `set -u
 exec </dev/null
 # One JSON line to stdout, and the same outcome (with what was declared) kept for the app (host readiness).
@@ -124,28 +177,76 @@ export interface HostSetupReport {
 }
 
 export function parseHostSetupOutput(out: string): HostSetupReport | null {
-  const line = out.trim().split("\n").reverse().find((l) => l.startsWith("{"));
+  const line = out
+    .trim()
+    .split("\n")
+    .reverse()
+    .find((l) => l.startsWith("{"));
   if (!line) return null;
-  try { return JSON.parse(line) as HostSetupReport; } catch { return null; }
+  try {
+    return JSON.parse(line) as HostSetupReport;
+  } catch {
+    return null;
+  }
 }
 
 /** Apply the declared setup on a host. Throws on transport failure; a failed step is a report. */
-export function runHostSetup(host: RemoteHost, opts: { repoRoot?: string; repoPath?: string; force?: boolean; spec?: ResolvedHostSpec; timeoutMs?: number } = {}): { report: HostSetupReport; spec: ResolvedHostSpec } {
+export function runHostSetup(
+  host: RemoteHost,
+  opts: {
+    repoRoot?: string;
+    repoPath?: string;
+    force?: boolean;
+    spec?: ResolvedHostSpec;
+    timeoutMs?: number;
+  } = {},
+): { report: HostSetupReport; spec: ResolvedHostSpec } {
   const spec = opts.spec ?? resolveHostSpec({ repoRoot: opts.repoRoot });
   const repoPath = opts.repoPath;
-  const script = hostSetupScript(spec, { hash: hostSpecHash(spec, repoPath), repoPath, force: opts.force });
-  const r = spawnSync("ssh", [...sshBase(host), sshDestination(host), 'bash -c "$(cat)" cast-host-setup'], {
-    encoding: "utf-8", input: script, timeout: opts.timeoutMs ?? 30 * 60_000, maxBuffer: 16 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"],
+  const script = hostSetupScript(spec, {
+    hash: hostSpecHash(spec, repoPath),
+    repoPath,
+    force: opts.force,
   });
-  if (r.error) throw new Error(`host setup on ${host.user}@${host.address} failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})`);
+  const r = spawnSync(
+    "ssh",
+    [
+      ...sshBase(host),
+      sshDestination(host),
+      'bash -c "$(cat)" cast-host-setup',
+    ],
+    {
+      encoding: "utf-8",
+      input: script,
+      timeout: opts.timeoutMs ?? 30 * 60_000,
+      maxBuffer: 16 * 1024 * 1024,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  if (r.error)
+    throw new Error(
+      `host setup on ${host.user}@${host.address} failed (${(r.error as NodeJS.ErrnoException).code ?? r.error.message})`,
+    );
   const report = parseHostSetupOutput(r.stdout ?? "");
-  if (!report) throw new Error(`host setup on ${host.user}@${host.address} returned no report (exit ${r.status}): ${(r.stderr ?? "").trim().split("\n").pop() ?? ""}`);
+  if (!report)
+    throw new Error(
+      `host setup on ${host.user}@${host.address} returned no report (exit ${r.status}): ${(r.stderr ?? "").trim().split("\n").pop() ?? ""}`,
+    );
   return { report, spec };
 }
 
-export function describeHostSetup(report: HostSetupReport, spec: ResolvedHostSpec): string {
-  if (!report.ok) return `host setup failed at ${report.step}: ${(report.error ?? "").trim().split("\n").slice(-2).join(" | ")}`;
+export function describeHostSetup(
+  report: HostSetupReport,
+  spec: ResolvedHostSpec,
+): string {
+  if (!report.ok)
+    return `host setup failed at ${report.step}: ${(report.error ?? "").trim().split("\n").slice(-2).join(" | ")}`;
   if (report.skipped) return `host setup in step`;
-  const parts = [spec.packages.length && `${spec.packages.length} package(s)`, spec.services.length && `${spec.services.length} service(s)`, spec.run.length && `${spec.run.length} command(s)`, spec.shell && `${spec.shell} login shell`].filter(Boolean);
+  const parts = [
+    spec.packages.length && `${spec.packages.length} package(s)`,
+    spec.services.length && `${spec.services.length} service(s)`,
+    spec.run.length && `${spec.run.length} command(s)`,
+    spec.shell && `${spec.shell} login shell`,
+  ].filter(Boolean);
   return `host setup applied${parts.length ? ` (${parts.join(", ")})` : ""}`;
 }

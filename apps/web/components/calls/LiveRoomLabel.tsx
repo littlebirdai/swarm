@@ -7,11 +7,24 @@ import { RecordingMark } from "./RecordingMark";
  *  locked room this viewer may still walk into; the mark tells whoever is
  *  about to walk in that they would be filmed. Shared by the rail and the
  *  /calls rows so the two read alike. */
-export function LiveRoomLabel({ row, className = "" }: { row: LiveRoomRow; className?: string }) {
+export function LiveRoomLabel({
+  row,
+  className = "",
+}: {
+  row: LiveRoomRow;
+  className?: string;
+}) {
   return (
     <span className={`flex min-w-0 items-center gap-1 ${className}`}>
-      {row.locked && <Lock className="h-3 w-3 shrink-0 text-sol-text-dim" aria-label="Locked" />}
-      <span className={`min-w-0 truncate ${row.redacted ? "italic text-sol-text-muted" : ""}`}>
+      {row.locked && (
+        <Lock
+          className="h-3 w-3 shrink-0 text-sol-text-dim"
+          aria-label="Locked"
+        />
+      )}
+      <span
+        className={`min-w-0 truncate ${row.redacted ? "italic text-sol-text-muted" : ""}`}
+      >
         {row.label}
       </span>
       {row.recording && <RecordingMark size="dot" className="ml-0.5" />}

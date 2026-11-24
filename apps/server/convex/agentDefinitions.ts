@@ -24,9 +24,13 @@ import {
 
 type Table = "agent_definitions" | "agent_chains";
 
-async function requireCaller(ctx: any, apiToken?: string): Promise<Id<"users">> {
+async function requireCaller(
+  ctx: any,
+  apiToken?: string,
+): Promise<Id<"users">> {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
-  if (!userId) throw new Error("Authentication failed: invalid token or session");
+  if (!userId)
+    throw new Error("Authentication failed: invalid token or session");
   return userId;
 }
 
@@ -34,10 +38,15 @@ async function requireCaller(ctx: any, apiToken?: string): Promise<Id<"users">> 
  *  or after it lapses) answers [] like the other workspace feeds. A token that
  *  fails to resolve still throws, so the CLI reports a bad token instead of an
  *  empty list. */
-async function listForCaller(ctx: any, apiToken: string | undefined, table: Table) {
+async function listForCaller(
+  ctx: any,
+  apiToken: string | undefined,
+  table: Table,
+) {
   const userId = await getAuthenticatedUserId(ctx, apiToken);
   if (!userId) {
-    if (apiToken) throw new Error("Authentication failed: invalid token or session");
+    if (apiToken)
+      throw new Error("Authentication failed: invalid token or session");
     return [];
   }
   return listFor(ctx, userId, table);
@@ -48,26 +57,44 @@ async function listFor(ctx: any, userId: Id<"users">, table: Table) {
   const keys = await heldKeysFor(ctx, userId);
   const rows: any[] = [];
   for (const key of keys) {
-    rows.push(...(await ctx.db.query(table).withIndex("by_workspace", (q: any) => q.eq("workspace", key)).collect()));
+    rows.push(
+      ...(await ctx.db
+        .query(table)
+        .withIndex("by_workspace", (q: any) => q.eq("workspace", key))
+        .collect()),
+    );
   }
   return rows.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-async function requireRow(ctx: any, userId: Id<"users">, table: Table, id: string) {
+async function requireRow(
+  ctx: any,
+  userId: Id<"users">,
+  table: Table,
+  id: string,
+) {
   const row = await ctx.db.get(id as Id<Table>);
   if (!row) throw new Error("Not found");
   if (String(row.user_id) === String(userId)) return row;
   const keys = await heldKeysFor(ctx, userId);
-  if (!keys.has(row.workspace)) throw new Error("Forbidden: row is in another workspace");
+  if (!keys.has(row.workspace))
+    throw new Error("Forbidden: row is in another workspace");
   return row;
 }
 
 /** The workspace key a write lands in: the named team (membership checked)
  *  or the caller's personal workspace. */
-async function writeKey(ctx: any, userId: Id<"users">, teamId?: Id<"teams">): Promise<{ workspace: string; team_id?: Id<"teams"> }> {
+async function writeKey(
+  ctx: any,
+  userId: Id<"users">,
+  teamId?: Id<"teams">,
+): Promise<{ workspace: string; team_id?: Id<"teams"> }> {
   if (teamId) {
     await requireTeamMembership(ctx, userId, teamId);
-    return { workspace: workspaceKey({ type: "team", teamId }), team_id: teamId };
+    return {
+      workspace: workspaceKey({ type: "team", teamId }),
+      team_id: teamId,
+    };
   }
   return { workspace: workspaceKey({ type: "personal", userId }) };
 }
@@ -75,17 +102,28 @@ async function writeKey(ctx: any, userId: Id<"users">, teamId?: Id<"teams">): Pr
 /** Find a row by name inside the viewer's held keys. The personal workspace
  *  wins over a team when both define the name, so a person can shadow a
  *  shared definition without editing it. */
-async function findByName(ctx: any, userId: Id<"users">, table: Table, name: string, preferKey?: string) {
+async function findByName(
+  ctx: any,
+  userId: Id<"users">,
+  table: Table,
+  name: string,
+  preferKey?: string,
+) {
   const keys = await heldKeysFor(ctx, userId);
   const ordered = [
     ...(preferKey && keys.has(preferKey) ? [preferKey] : []),
     workspaceKey({ type: "personal", userId }),
-    ...[...keys].filter((k) => k !== workspaceKey({ type: "personal", userId }) && k !== preferKey),
+    ...[...keys].filter(
+      (k) =>
+        k !== workspaceKey({ type: "personal", userId }) && k !== preferKey,
+    ),
   ];
   for (const key of ordered) {
     const row = await ctx.db
       .query(table)
-      .withIndex("by_workspace_name", (q: any) => q.eq("workspace", key).eq("name", name))
+      .withIndex("by_workspace_name", (q: any) =>
+        q.eq("workspace", key).eq("name", name),
+      )
       .first();
     if (row) return row;
   }
@@ -93,16 +131,41 @@ async function findByName(ctx: any, userId: Id<"users">, table: Table, name: str
 }
 
 function definitionSpec(row: any): AgentDefinitionSpec {
-  const spec: AgentDefinitionSpec = { name: row.name, description: row.description };
-  for (const k of ["agent", "model", "effort", "tools", "disallowed_tools", "system_prompt", "prompt_mode", "mode", "isolated", "merge_back"] as const) {
+  const spec: AgentDefinitionSpec = {
+    name: row.name,
+    description: row.description,
+  };
+  for (const k of [
+    "agent",
+    "model",
+    "effort",
+    "tools",
+    "disallowed_tools",
+    "system_prompt",
+    "prompt_mode",
+    "mode",
+    "isolated",
+    "merge_back",
+  ] as const) {
     if (row[k] !== undefined && row[k] !== null) (spec as any)[k] = row[k];
   }
   return spec;
 }
 
 /** Launch surfaces call this with a user id they already hold. */
-export async function resolveDefinitionFor(ctx: any, userId: Id<"users">, name: string, preferKey?: string): Promise<AgentDefinitionSpec | null> {
-  const row = await findByName(ctx, userId, "agent_definitions", name, preferKey);
+export async function resolveDefinitionFor(
+  ctx: any,
+  userId: Id<"users">,
+  name: string,
+  preferKey?: string,
+): Promise<AgentDefinitionSpec | null> {
+  const row = await findByName(
+    ctx,
+    userId,
+    "agent_definitions",
+    name,
+    preferKey,
+  );
   return row ? definitionSpec(row) : null;
 }
 
@@ -120,30 +183,51 @@ async function upsertRow(
   userId: Id<"users">,
   table: Table,
   prefix: string,
-  args: { id?: string; client_key?: string; team_id?: Id<"teams">; name: string; description: string },
+  args: {
+    id?: string;
+    client_key?: string;
+    team_id?: Id<"teams">;
+    name: string;
+    description: string;
+  },
   fields: Record<string, unknown>,
 ) {
   const now = Date.now();
-  const clean: Record<string, unknown> = { name: args.name.trim(), description: args.description.trim(), updated_at: now };
+  const clean: Record<string, unknown> = {
+    name: args.name.trim(),
+    description: args.description.trim(),
+    updated_at: now,
+  };
   for (const [k, val] of Object.entries(fields)) {
     if (val === undefined) continue;
-    if (val === null || (Array.isArray(val) && val.length === 0) || val === "") clean[k] = undefined;
+    if (val === null || (Array.isArray(val) && val.length === 0) || val === "")
+      clean[k] = undefined;
     else clean[k] = val;
   }
 
   let existing: any = null;
   if (args.id) existing = await requireRow(ctx, userId, table, args.id);
   else if (args.client_key) {
-    const byKey = await ctx.db.query(table).withIndex("by_client_key", (q: any) => q.eq("client_key", args.client_key)).first();
+    const byKey = await ctx.db
+      .query(table)
+      .withIndex("by_client_key", (q: any) =>
+        q.eq("client_key", args.client_key),
+      )
+      .first();
     if (byKey && String(byKey.user_id) === String(userId)) existing = byKey;
   }
 
   if (existing) {
     const twin = await ctx.db
       .query(table)
-      .withIndex("by_workspace_name", (q: any) => q.eq("workspace", existing.workspace).eq("name", clean.name))
+      .withIndex("by_workspace_name", (q: any) =>
+        q.eq("workspace", existing.workspace).eq("name", clean.name),
+      )
       .first();
-    if (twin && String(twin._id) !== String(existing._id)) throw new Error(`A ${table === "agent_chains" ? "chain" : "definition"} named "${clean.name}" already exists here`);
+    if (twin && String(twin._id) !== String(existing._id))
+      throw new Error(
+        `A ${table === "agent_chains" ? "chain" : "definition"} named "${clean.name}" already exists here`,
+      );
     await ctx.db.patch(existing._id, clean);
     return await ctx.db.get(existing._id);
   }
@@ -151,7 +235,9 @@ async function upsertRow(
   const { workspace, team_id } = await writeKey(ctx, userId, args.team_id);
   const twin = await ctx.db
     .query(table)
-    .withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace).eq("name", clean.name))
+    .withIndex("by_workspace_name", (q: any) =>
+      q.eq("workspace", workspace).eq("name", clean.name),
+    )
     .first();
   if (twin) {
     // Same name in the same workspace: an import or a retried create means
@@ -175,36 +261,72 @@ async function upsertRow(
 
 export const list = query({
   args: { api_token: v.optional(v.string()) },
-  handler: async (ctx, args) => listForCaller(ctx, args.api_token, "agent_definitions"),
+  handler: async (ctx, args) =>
+    listForCaller(ctx, args.api_token, "agent_definitions"),
 });
 
 export const get = query({
   args: { api_token: v.optional(v.string()), name: v.string() },
-  handler: async (ctx, args) => findByName(ctx, await requireCaller(ctx, args.api_token), "agent_definitions", args.name),
+  handler: async (ctx, args) =>
+    findByName(
+      ctx,
+      await requireCaller(ctx, args.api_token),
+      "agent_definitions",
+      args.name,
+    ),
 });
 
 /** The launch view: the spec for `--as <name>`, or null. */
 export const resolve = query({
-  args: { api_token: v.optional(v.string()), name: v.string(), team_id: v.optional(v.id("teams")) },
+  args: {
+    api_token: v.optional(v.string()),
+    name: v.string(),
+    team_id: v.optional(v.id("teams")),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
-    return resolveDefinitionFor(ctx, userId, args.name, args.team_id ? workspaceKey({ type: "team", teamId: args.team_id }) : undefined);
+    return resolveDefinitionFor(
+      ctx,
+      userId,
+      args.name,
+      args.team_id
+        ? workspaceKey({ type: "team", teamId: args.team_id })
+        : undefined,
+    );
   },
 });
 
 export const upsert = mutation({
   args: { ...upsertShared, ...agentDefinitionFields },
-  handler: async (ctx, { api_token, id, client_key, team_id, name, description, ...fields }) => {
+  handler: async (
+    ctx,
+    { api_token, id, client_key, team_id, name, description, ...fields },
+  ) => {
     const userId = await requireCaller(ctx, api_token);
-    const spec: AgentDefinitionSpec = { name: name.trim(), description: description.trim(), ...(fields as any) };
+    const spec: AgentDefinitionSpec = {
+      name: name.trim(),
+      description: description.trim(),
+      ...(fields as any),
+    };
     const problems = validateAgentDefinition(spec);
     if (problems.length) throw new Error(problems.join("; "));
-    return upsertRow(ctx, userId, "agent_definitions", "ad", { id, client_key, team_id, name, description }, fields);
+    return upsertRow(
+      ctx,
+      userId,
+      "agent_definitions",
+      "ad",
+      { id, client_key, team_id, name, description },
+      fields,
+    );
   },
 });
 
 export const remove = mutation({
-  args: { api_token: v.optional(v.string()), id: v.optional(v.string()), name: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    id: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const row = args.id
@@ -222,12 +344,19 @@ export const remove = mutation({
 
 export const listChains = query({
   args: { api_token: v.optional(v.string()) },
-  handler: async (ctx, args) => listForCaller(ctx, args.api_token, "agent_chains"),
+  handler: async (ctx, args) =>
+    listForCaller(ctx, args.api_token, "agent_chains"),
 });
 
 export const getChain = query({
   args: { api_token: v.optional(v.string()), name: v.string() },
-  handler: async (ctx, args) => findByName(ctx, await requireCaller(ctx, args.api_token), "agent_chains", args.name),
+  handler: async (ctx, args) =>
+    findByName(
+      ctx,
+      await requireCaller(ctx, args.api_token),
+      "agent_chains",
+      args.name,
+    ),
 });
 
 /** A chain plus every definition its steps name, resolved in one read so a
@@ -242,28 +371,55 @@ export const resolveChain = query({
     const missing: string[] = [];
     for (const step of chain.steps as Array<{ agent: string }>) {
       if (definitions[step.agent]) continue;
-      const def = await resolveDefinitionFor(ctx, userId, step.agent, chain.workspace);
+      const def = await resolveDefinitionFor(
+        ctx,
+        userId,
+        step.agent,
+        chain.workspace,
+      );
       if (def) definitions[step.agent] = def;
       else missing.push(step.agent);
     }
-    const spec: AgentChainSpec = { name: chain.name, description: chain.description, steps: chain.steps };
+    const spec: AgentChainSpec = {
+      name: chain.name,
+      description: chain.description,
+      steps: chain.steps,
+    };
     return { chain: spec, definitions, missing };
   },
 });
 
 export const upsertChain = mutation({
   args: { ...upsertShared, steps: v.array(agentChainStepValidator) },
-  handler: async (ctx, { api_token, id, client_key, team_id, name, description, steps }) => {
+  handler: async (
+    ctx,
+    { api_token, id, client_key, team_id, name, description, steps },
+  ) => {
     const userId = await requireCaller(ctx, api_token);
-    const spec: AgentChainSpec = { name: name.trim(), description: description.trim(), steps };
+    const spec: AgentChainSpec = {
+      name: name.trim(),
+      description: description.trim(),
+      steps,
+    };
     const problems = validateAgentChain(spec);
     if (problems.length) throw new Error(problems.join("; "));
-    return upsertRow(ctx, userId, "agent_chains", "ac", { id, client_key, team_id, name, description }, { steps });
+    return upsertRow(
+      ctx,
+      userId,
+      "agent_chains",
+      "ac",
+      { id, client_key, team_id, name, description },
+      { steps },
+    );
   },
 });
 
 export const removeChain = mutation({
-  args: { api_token: v.optional(v.string()), id: v.optional(v.string()), name: v.optional(v.string()) },
+  args: {
+    api_token: v.optional(v.string()),
+    id: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await requireCaller(ctx, args.api_token);
     const row = args.id

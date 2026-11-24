@@ -20,7 +20,10 @@ export function stripMachineText(text: string): string {
     .replace(ANSI_RE, "");
 }
 
-export function stripMarkdown(text: string, opts?: { keepNewlines?: boolean }): string {
+export function stripMarkdown(
+  text: string,
+  opts?: { keepNewlines?: boolean },
+): string {
   const stripped = text
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
@@ -32,7 +35,11 @@ export function stripMarkdown(text: string, opts?: { keepNewlines?: boolean }): 
     .replace(/^[-*]\s+/gm, "");
   // Notification strings flatten to one line; multi-line previews (doc hover)
   // keep paragraph shape, collapsing runs of blank lines to one break.
-  return (opts?.keepNewlines ? stripped.replace(/\n{3,}/g, "\n\n") : stripped.replace(/\n+/g, " ")).trim();
+  return (
+    opts?.keepNewlines
+      ? stripped.replace(/\n{3,}/g, "\n\n")
+      : stripped.replace(/\n+/g, " ")
+  ).trim();
 }
 
 /** One plain line of an agent's words. */
@@ -44,7 +51,10 @@ export function plainAgentLine(text: string): string {
 /** An agent's words as its voice says them: a link is something to look at
  *  in the chat, never something to read out. */
 export function spokenAgentLine(text: string): string {
-  return plainAgentLine(text.replace(/<?https?:\/\/[^\s>)]+>?/g, "")).replace(/\s+([,.;:!?])/g, "$1");
+  return plainAgentLine(text.replace(/<?https?:\/\/[^\s>)]+>?/g, "")).replace(
+    /\s+([,.;:!?])/g,
+    "$1",
+  );
 }
 
 export function cleanNotificationBody(text: string, maxLen = 180): string {

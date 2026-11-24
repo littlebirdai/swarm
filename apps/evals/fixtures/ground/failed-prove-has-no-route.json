@@ -14,7 +14,14 @@
       "first_seen": 1791370000000,
       "last_seen": 1791370000000,
       "signals": [
-        { "source": "line", "kind": "line", "title": "Run stopped: the line had no next step after prove", "subject": "line:station:prove", "detail_md": "When Prove fails outright (it could not write a test, so there is no prove.json), the run stops with 'the line had no next step'. Give a failed Prove a route, such as parking the cause with what Prove tried.", "observed_at": 1791370000000 }
+        {
+          "source": "line",
+          "kind": "line",
+          "title": "Run stopped: the line had no next step after prove",
+          "subject": "line:station:prove",
+          "detail_md": "When Prove fails outright (it could not write a test, so there is no prove.json), the run stops with 'the line had no next step'. Give a failed Prove a route, such as parking the cause with what Prove tried.",
+          "observed_at": 1791370000000
+        }
       ],
       "comments": []
     },
@@ -24,7 +31,20 @@
       "project_title": "Fernway app",
       "initiatives": [],
       "projects": [
-        { "short_id": "pj-30", "title": "Fernway app", "status": "active", "priority": "p1", "owner_role": "@product", "goal": "Make Fernway the place a small team plans, tracks and ships its weekly work: one board, one inbox, one place to decide.", "success_metrics": ["Weekly active teams up 20% this quarter", "Median time from a request to its owner under 10 minutes"], "non_goals": ["A general purpose chat client"], "risks": ["Sync load on large boards"] }
+        {
+          "short_id": "pj-30",
+          "title": "Fernway app",
+          "status": "active",
+          "priority": "p1",
+          "owner_role": "@product",
+          "goal": "Make Fernway the place a small team plans, tracks and ships its weekly work: one board, one inbox, one place to decide.",
+          "success_metrics": [
+            "Weekly active teams up 20% this quarter",
+            "Median time from a request to its owner under 10 minutes"
+          ],
+          "non_goals": ["A general purpose chat client"],
+          "risks": ["Sync load on large boards"]
+        }
       ]
     }
   }

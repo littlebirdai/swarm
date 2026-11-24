@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { focusFirst, focusables, trapTab, useReturnFocus } from "../lib/focus";
 import s from "./Popover.module.css";
@@ -11,7 +17,18 @@ import s from "./Popover.module.css";
  *  on its anchor's focus waits for Tab from the anchor instead), Tab cycles
  *  inside it, ↑/↓ move through a menu, and focus goes back to the anchor
  *  when it closes. The anchor says `aria-haspopup` and `aria-expanded`. */
-export function Popover({ anchor, onClose, label, role = "dialog", takeFocus = true, place = "below", align = "end", width, className = "", children }: {
+export function Popover({
+  anchor,
+  onClose,
+  label,
+  role = "dialog",
+  takeFocus = true,
+  place = "below",
+  align = "end",
+  width,
+  className = "",
+  children,
+}: {
   anchor: HTMLElement;
   onClose?: () => void;
   label: string;
@@ -24,7 +41,12 @@ export function Popover({ anchor, onClose, label, role = "dialog", takeFocus = t
   children: ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number; arrow: number; side: "above" | "below" } | null>(null);
+  const [pos, setPos] = useState<{
+    left: number;
+    top: number;
+    arrow: number;
+    side: "above" | "below";
+  } | null>(null);
   useReturnFocus(box, { take: false, to: () => anchor });
   // Focus waits until it is placed: a hidden element can't take it.
   const placed = pos !== null;
@@ -49,11 +71,26 @@ export function Popover({ anchor, onClose, label, role = "dialog", takeFocus = t
       const gap = 10;
       let side = place;
       if (side === "above" && a.top - h - gap < 8) side = "below";
-      else if (side === "below" && a.bottom + h + gap > innerHeight - 8 && a.top - h - gap >= 8) side = "above";
+      else if (
+        side === "below" &&
+        a.bottom + h + gap > innerHeight - 8 &&
+        a.top - h - gap >= 8
+      )
+        side = "above";
       const cx = a.left + a.width / 2;
-      const want = align === "center" ? cx - width / 2 : align === "start" ? a.left : a.right - width;
+      const want =
+        align === "center"
+          ? cx - width / 2
+          : align === "start"
+            ? a.left
+            : a.right - width;
       const left = Math.min(Math.max(8, want), innerWidth - width - 8);
-      setPos({ left, top: side === "above" ? a.top - h - gap : a.bottom + gap, arrow: Math.min(Math.max(18, cx - left), width - 18), side });
+      setPos({
+        left,
+        top: side === "above" ? a.top - h - gap : a.bottom + gap,
+        arrow: Math.min(Math.max(18, cx - left), width - 18),
+        side,
+      });
     };
     place_();
     const ro = new ResizeObserver(place_);
@@ -96,14 +133,26 @@ export function Popover({ anchor, onClose, label, role = "dialog", takeFocus = t
       onKeyDown={(e) => {
         const el = box.current!;
         if (e.key === "Tab") return trapTab(e, el);
-        const step = role === "menu" ? { ArrowDown: 1, ArrowUp: -1 }[e.key] : undefined;
+        const step =
+          role === "menu" ? { ArrowDown: 1, ArrowUp: -1 }[e.key] : undefined;
         if (!step) return;
         e.preventDefault();
         const items = focusables(el);
-        items[(items.indexOf(document.activeElement as HTMLElement) + step + items.length) % items.length]?.focus();
+        items[
+          (items.indexOf(document.activeElement as HTMLElement) +
+            step +
+            items.length) %
+            items.length
+        ]?.focus();
       }}
       className={`${s.pop} ${pos?.side === "above" ? s.above : s.below} ${className}`}
-      style={{ width, left: pos?.left ?? -9999, top: pos?.top ?? -9999, ["--arrow" as string]: `${pos?.arrow ?? 0}px`, visibility: pos ? "visible" : "hidden" }}
+      style={{
+        width,
+        left: pos?.left ?? -9999,
+        top: pos?.top ?? -9999,
+        ["--arrow" as string]: `${pos?.arrow ?? 0}px`,
+        visibility: pos ? "visible" : "hidden",
+      }}
     >
       {children}
     </div>,

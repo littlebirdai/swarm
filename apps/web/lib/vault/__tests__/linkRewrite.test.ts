@@ -12,7 +12,8 @@ import {
 } from "../linkRewrite";
 import { CORPUS } from "./corpus";
 
-const build = (files: Record<string, string>) => VaultIndex.build(Object.entries(files));
+const build = (files: Record<string, string>) =>
+  VaultIndex.build(Object.entries(files));
 
 const linkAt = (markdown: string, n = 0): NoteLink => {
   const links = parseNote(markdown).links;
@@ -82,7 +83,12 @@ describe("applySpanEdits", () => {
     const links = parseNote(md).links;
     const res = applySpanEdits(
       md,
-      links.map((l) => ({ line: l.line, col: l.col, raw: l.raw, newRaw: `[[${l.target}-x]]` })),
+      links.map((l) => ({
+        line: l.line,
+        col: l.col,
+        raw: l.raw,
+        newRaw: `[[${l.target}-x]]`,
+      })),
     );
     expect(res.content).toBe("[[A-x]] and [[Bee-x]] and [[C-x]]");
     expect(res.applied).toBe(3);
@@ -93,7 +99,12 @@ describe("applySpanEdits", () => {
     const md = "[[A]] mid [[B]]";
     const links = parseNote(md).links;
     const res = applySpanEdits(md, [
-      { line: 1, col: links[0].col, raw: "[[A]]", newRaw: "[[A very long new name]]" },
+      {
+        line: 1,
+        col: links[0].col,
+        raw: "[[A]]",
+        newRaw: "[[A very long new name]]",
+      },
       { line: 1, col: links[1].col, raw: "[[B]]", newRaw: "[[b]]" },
     ]);
     expect(res.content).toBe("[[A very long new name]] mid [[b]]");
@@ -142,7 +153,11 @@ describe("applySpanEdits", () => {
   });
 
   test("no edits is a no-op", () => {
-    expect(applySpanEdits("body", [])).toEqual({ content: "body", applied: 0, skipped: 0 });
+    expect(applySpanEdits("body", [])).toEqual({
+      content: "body",
+      applied: 0,
+      skipped: 0,
+    });
   });
 });
 
@@ -181,13 +196,17 @@ describe("newLinkRaw", () => {
   });
 
   test("the author's spacing inside the brackets survives", () => {
-    expect(newLinkRaw(linkAt("[[  Note  |  alias  ]]"), "New")).toBe("[[  New  |  alias  ]]");
+    expect(newLinkRaw(linkAt("[[  Note  |  alias  ]]"), "New")).toBe(
+      "[[  New  |  alias  ]]",
+    );
   });
 
   test("unicode targets round-trip and rewrite", () => {
     const link = linkAt("[[Café Réunion — planning|le café]]");
     expect(newLinkRaw(link, link.target)).toBe(link.raw);
-    expect(newLinkRaw(link, "Café Réunion 2")).toBe("[[Café Réunion 2|le café]]");
+    expect(newLinkRaw(link, "Café Réunion 2")).toBe(
+      "[[Café Réunion 2|le café]]",
+    );
   });
 });
 
@@ -200,8 +219,13 @@ describe("renameTargetFor", () => {
     simulateMoves(build(Object.fromEntries(files.map((f) => [f, ""]))), moves);
 
   test("a bare name that stays unique stays a bare name", () => {
-    const idx = after(["Notes/Sleep.md", "Journal.md"], [{ from: "Notes/Sleep.md", to: "Notes/Rest.md" }]);
-    expect(renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Notes/Rest.md", idx)).toBe("Rest");
+    const idx = after(
+      ["Notes/Sleep.md", "Journal.md"],
+      [{ from: "Notes/Sleep.md", to: "Notes/Rest.md" }],
+    );
+    expect(
+      renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Notes/Rest.md", idx),
+    ).toBe("Rest");
   });
 
   test("a bare name that would become ambiguous falls back to the full path", () => {
@@ -209,32 +233,72 @@ describe("renameTargetFor", () => {
       ["Notes/Sleep.md", "Archive/Rest.md", "Journal.md"],
       [{ from: "Notes/Sleep.md", to: "Notes/Rest.md" }],
     );
-    expect(renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Notes/Rest.md", idx)).toBe("Notes/Rest");
+    expect(
+      renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Notes/Rest.md", idx),
+    ).toBe("Notes/Rest");
   });
 
   test("a path-form link stays a path-form link", () => {
-    const idx = after(["Notes/Sleep.md", "Journal.md"], [{ from: "Notes/Sleep.md", to: "Rest.md" }]);
-    expect(renameTargetFor(linkAt("[[Notes/Sleep]]"), "Journal.md", "Rest.md", idx)).toBe("Rest");
+    const idx = after(
+      ["Notes/Sleep.md", "Journal.md"],
+      [{ from: "Notes/Sleep.md", to: "Rest.md" }],
+    );
+    expect(
+      renameTargetFor(linkAt("[[Notes/Sleep]]"), "Journal.md", "Rest.md", idx),
+    ).toBe("Rest");
   });
 
   test("extension style is preserved in both directions", () => {
-    const idx = after(["Sleep.md", "Journal.md"], [{ from: "Sleep.md", to: "Rest.md" }]);
-    expect(renameTargetFor(linkAt("[[Sleep.md]]"), "Journal.md", "Rest.md", idx)).toBe("Rest.md");
-    expect(renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Rest.md", idx)).toBe("Rest");
-    const deep = after(["Sleep.md", "Journal.md"], [{ from: "Sleep.md", to: "A/Rest.md" }]);
-    expect(renameTargetFor(linkAt("[[Notes/Sleep.md]]"), "Journal.md", "A/Rest.md", deep)).toBe("A/Rest.md");
-    expect(renameTargetFor(linkAt("[[Notes/Sleep]]"), "Journal.md", "A/Rest.md", deep)).toBe("A/Rest");
+    const idx = after(
+      ["Sleep.md", "Journal.md"],
+      [{ from: "Sleep.md", to: "Rest.md" }],
+    );
+    expect(
+      renameTargetFor(linkAt("[[Sleep.md]]"), "Journal.md", "Rest.md", idx),
+    ).toBe("Rest.md");
+    expect(
+      renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Rest.md", idx),
+    ).toBe("Rest");
+    const deep = after(
+      ["Sleep.md", "Journal.md"],
+      [{ from: "Sleep.md", to: "A/Rest.md" }],
+    );
+    expect(
+      renameTargetFor(
+        linkAt("[[Notes/Sleep.md]]"),
+        "Journal.md",
+        "A/Rest.md",
+        deep,
+      ),
+    ).toBe("A/Rest.md");
+    expect(
+      renameTargetFor(
+        linkAt("[[Notes/Sleep]]"),
+        "Journal.md",
+        "A/Rest.md",
+        deep,
+      ),
+    ).toBe("A/Rest");
   });
 
   test("a same-file anchor is never rewritten", () => {
     const idx = after(["Sleep.md"], [{ from: "Sleep.md", to: "Rest.md" }]);
-    expect(renameTargetFor(linkAt("[[#Heading]]"), "Rest.md", "Rest.md", idx)).toBeNull();
-    expect(renameTargetFor(linkAt("[[#^block]]"), "Rest.md", "Rest.md", idx)).toBeNull();
+    expect(
+      renameTargetFor(linkAt("[[#Heading]]"), "Rest.md", "Rest.md", idx),
+    ).toBeNull();
+    expect(
+      renameTargetFor(linkAt("[[#^block]]"), "Rest.md", "Rest.md", idx),
+    ).toBeNull();
   });
 
   test("a name that would re-parse as something else is refused outright", () => {
-    const idx = after(["Sleep.md", "Journal.md"], [{ from: "Sleep.md", to: "Re[st]|x#y.md" }]);
-    expect(renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Re[st]|x#y.md", idx)).toBeNull();
+    const idx = after(
+      ["Sleep.md", "Journal.md"],
+      [{ from: "Sleep.md", to: "Re[st]|x#y.md" }],
+    );
+    expect(
+      renameTargetFor(linkAt("[[Sleep]]"), "Journal.md", "Re[st]|x#y.md", idx),
+    ).toBeNull();
   });
 
   test("no change needed when the written target already says the right thing", () => {
@@ -242,7 +306,9 @@ describe("renameTargetFor", () => {
       ["A/Note.md", "Journal.md"],
       [{ from: "A/Note.md", to: "B/Note.md" }],
     );
-    expect(renameTargetFor(linkAt("[[Note]]"), "Journal.md", "B/Note.md", idx)).toBeNull();
+    expect(
+      renameTargetFor(linkAt("[[Note]]"), "Journal.md", "B/Note.md", idx),
+    ).toBeNull();
   });
 });
 
@@ -292,13 +358,20 @@ describe("planLinkRewrites", () => {
     };
     const plan = planLinkRewrites(build(files), "A/Note.md", "A/Renamed.md");
     expect(plan[0].edits).toHaveLength(1);
-    expect(applyPlan(files, plan).files["Journal.md"]).toBe("[[A/Renamed]] and [[B/Note]]");
+    expect(applyPlan(files, plan).files["Journal.md"]).toBe(
+      "[[A/Renamed]] and [[B/Note]]",
+    );
   });
 
   test("an unresolved look-alike target is not touched", () => {
-    const files = { "Sleep.md": "", "Journal.md": "[[Sleeping]] is not [[Sleep]]" };
+    const files = {
+      "Sleep.md": "",
+      "Journal.md": "[[Sleeping]] is not [[Sleep]]",
+    };
     const plan = planLinkRewrites(build(files), "Sleep.md", "Rest.md");
-    expect(applyPlan(files, plan).files["Journal.md"]).toBe("[[Sleeping]] is not [[Rest]]");
+    expect(applyPlan(files, plan).files["Journal.md"]).toBe(
+      "[[Sleeping]] is not [[Rest]]",
+    );
   });
 
   test("a bare name colliding after the rename is rewritten as a path", () => {
@@ -307,20 +380,29 @@ describe("planLinkRewrites", () => {
       "Archive/Rest.md": "",
       "Journal.md": "[[Sleep]] tonight",
     };
-    const plan = planLinkRewrites(build(files), "Notes/Sleep.md", "Notes/Rest.md");
-    expect(applyPlan(files, plan).files["Journal.md"]).toBe("[[Notes/Rest]] tonight");
+    const plan = planLinkRewrites(
+      build(files),
+      "Notes/Sleep.md",
+      "Notes/Rest.md",
+    );
+    expect(applyPlan(files, plan).files["Journal.md"]).toBe(
+      "[[Notes/Rest]] tonight",
+    );
   });
 
   test("the renamed note's own self-reference is rewritten; its anchor links are not", () => {
     const files = {
-      "Sleep.md": "# Sleep\nSee [[Sleep]] and [[#Naps]] and [[Sleep#Naps]].\n## Naps\n",
+      "Sleep.md":
+        "# Sleep\nSee [[Sleep]] and [[#Naps]] and [[Sleep#Naps]].\n## Naps\n",
       "Other.md": "",
     };
     const plan = planLinkRewrites(build(files), "Sleep.md", "Rest.md");
     expect(plan).toHaveLength(1);
     expect(plan[0].source).toBe("Rest.md"); // written at its POST-move path
     const applied = applySpanEdits(files["Sleep.md"], plan[0].edits);
-    expect(applied.content).toBe("# Sleep\nSee [[Rest]] and [[#Naps]] and [[Rest#Naps]].\n## Naps\n");
+    expect(applied.content).toBe(
+      "# Sleep\nSee [[Rest]] and [[#Naps]] and [[Rest#Naps]].\n## Naps\n",
+    );
     expect(applied.skipped).toBe(0);
   });
 
@@ -329,7 +411,11 @@ describe("planLinkRewrites", () => {
       "Café Réunion.md": "",
       "Journal.md": "[[Café Réunion|le café]] et ![[Café Réunion]]",
     };
-    const plan = planLinkRewrites(build(files), "Café Réunion.md", "Café Münich.md");
+    const plan = planLinkRewrites(
+      build(files),
+      "Café Réunion.md",
+      "Café Münich.md",
+    );
     expect(applyPlan(files, plan).files["Journal.md"]).toBe(
       "[[Café Münich|le café]] et ![[Café Münich]]",
     );
@@ -338,7 +424,8 @@ describe("planLinkRewrites", () => {
   test("links inside code are never planned (the parser hides them, and so must we)", () => {
     const files = {
       "Sleep.md": "",
-      "Journal.md": "Real [[Sleep]]\n\n```\n[[Sleep]]\n```\n\nInline `[[Sleep]]` too",
+      "Journal.md":
+        "Real [[Sleep]]\n\n```\n[[Sleep]]\n```\n\nInline `[[Sleep]]` too",
     };
     const plan = planLinkRewrites(build(files), "Sleep.md", "Rest.md");
     expect(plan[0].edits).toHaveLength(1);
@@ -352,7 +439,11 @@ describe("planLinkRewrites", () => {
       "assets/diagram.png": "",
       "Journal.md": "![[diagram.png|400]] and ![[assets/diagram.png]]",
     };
-    const plan = planLinkRewrites(build(files), "assets/diagram.png", "img/flow.png");
+    const plan = planLinkRewrites(
+      build(files),
+      "assets/diagram.png",
+      "img/flow.png",
+    );
     expect(applyPlan(files, plan).files["Journal.md"]).toBe(
       "![[flow.png|400]] and ![[img/flow.png]]",
     );
@@ -365,7 +456,10 @@ describe("planLinkRewrites", () => {
   });
 
   test("a plan built before the file changed skips exactly the stale span", () => {
-    const files = { "Sleep.md": "", "Journal.md": "[[Sleep]] and [[Sleep|later]]" };
+    const files = {
+      "Sleep.md": "",
+      "Journal.md": "[[Sleep]] and [[Sleep|later]]",
+    };
     const plan = planLinkRewrites(build(files), "Sleep.md", "Rest.md");
     // Someone edited the first link on disk between plan and write. The edit
     // is the same length, so the second link's span is still exactly where the
@@ -444,8 +538,10 @@ describe("planFolderRewrites", () => {
 describe("index round trip", () => {
   test("after plan → apply → re-index, every backlink survives and nothing became unresolved", () => {
     const files: Record<string, string> = {
-      "Notes/Sleep.md": "# Sleep\n## Naps\ntext ^b1\nSelf [[Sleep]] and [[#Naps]]\n",
-      "Journal.md": "[[Sleep]], [[Notes/Sleep]], [[Sleep|rest]], [[Sleep#Naps]], ![[Sleep#^b1]]",
+      "Notes/Sleep.md":
+        "# Sleep\n## Naps\ntext ^b1\nSelf [[Sleep]] and [[#Naps]]\n",
+      "Journal.md":
+        "[[Sleep]], [[Notes/Sleep]], [[Sleep|rest]], [[Sleep#Naps]], ![[Sleep#^b1]]",
       "Inbox.md": "morning [[Sleep.md]] note",
       "Unrelated.md": "[[Journal]] only",
     };
@@ -491,9 +587,14 @@ describe("index round trip", () => {
     index.rename("Work/Note.md", "Work/Renamed.md");
     for (const { source } of plan) index.upsert(source, next[source]);
 
-    const scratch = build({ "Work/Renamed.md": "", "Journal.md": next["Journal.md"] });
+    const scratch = build({
+      "Work/Renamed.md": "",
+      "Journal.md": next["Journal.md"],
+    });
     const dump = (i: VaultIndex) =>
-      i.paths().map((p) => [p, i.outgoing(p).map((o) => [o.link.raw, o.resolved])]);
+      i
+        .paths()
+        .map((p) => [p, i.outgoing(p).map((o) => [o.link.raw, o.resolved])]);
     expect(dump(index)).toEqual(dump(scratch));
   });
 });
@@ -516,7 +617,8 @@ describe("aliases", () => {
 
     // And they still resolve, because the aliases moved with the file.
     index.rename("Sleep.md", "Rest.md");
-    for (const { source } of plan) index.upsert(source, applyPlan(files, plan).files[source]);
+    for (const { source } of plan)
+      index.upsert(source, applyPlan(files, plan).files[source]);
     expect(index.backlinks("Rest.md")).toHaveLength(3);
   });
 });

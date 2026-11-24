@@ -27,15 +27,25 @@ export const move = internalMutation({
   args: { ...args, session_ids: v.array(v.id("conversations")) },
   handler: async (ctx, a) => {
     const role = await ctx.db.get(a.role_id);
-    if (!role || role.status === "retired" || isScopeless(role.scope)) return null;
-    const resolved = await resolveScope(ctx as any, a.user_id, { role_id: String(role._id) });
+    if (!role || role.status === "retired" || isScopeless(role.scope))
+      return null;
+    const resolved = await resolveScope(ctx as any, a.user_id, {
+      role_id: String(role._id),
+    });
     if (!resolved) return null;
     const roles = await rolesInBoundary(ctx as any, role);
     // The rule is read again on each session as it stands now: one filed,
     // killed or moved since the search stays where it is.
-    const rows = (await Promise.all(a.session_ids.map((id) => ctx.db.get(id)))).filter((c: any) => c && !c.inbox_killed_at).map((raw) => ({ raw }));
+    const rows = (await Promise.all(a.session_ids.map((id) => ctx.db.get(id))))
+      .filter((c: any) => c && !c.inbox_killed_at)
+      .map((raw) => ({ raw }));
     const candidates = await sessionsOwnedBy(ctx as any, role, roles, rows);
-    return moveTakenOver(ctx as any, a.user_id, { role, roles, resolved, candidates });
+    return moveTakenOver(ctx as any, a.user_id, {
+      role,
+      roles,
+      resolved,
+      candidates,
+    });
   },
 });
 

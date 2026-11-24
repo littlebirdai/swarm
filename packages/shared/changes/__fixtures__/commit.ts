@@ -6,9 +6,15 @@ import type { ChangeCommit } from "../types";
 export const T0 = Date.UTC(2026, 9, 2, 14, 0, 0);
 export const MIN = 60_000;
 
-export function commit(over: Partial<ChangeCommit> & { sha: string; paths?: Record<string, number> }): ChangeCommit {
+export function commit(
+  over: Partial<ChangeCommit> & { sha: string; paths?: Record<string, number> },
+): ChangeCommit {
   const { paths = {}, ...rest } = over;
-  const files = Object.entries(paths).map(([filename, lines]) => ({ filename, additions: lines, deletions: 0 }));
+  const files = Object.entries(paths).map(([filename, lines]) => ({
+    filename,
+    additions: lines,
+    deletions: 0,
+  }));
   const summary = summarizeFiles(files);
   return {
     subject: "feat: change",

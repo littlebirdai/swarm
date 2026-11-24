@@ -11,8 +11,18 @@ type TaskPlace = (ref: string) => string | null;
 
 const TaskHrefContext = createContext<TaskPlace | null>(null);
 
-export function TaskHrefProvider({ place, children }: { place: TaskPlace; children: ReactNode }) {
-  return <TaskHrefContext.Provider value={place}>{children}</TaskHrefContext.Provider>;
+export function TaskHrefProvider({
+  place,
+  children,
+}: {
+  place: TaskPlace;
+  children: ReactNode;
+}) {
+  return (
+    <TaskHrefContext.Provider value={place}>
+      {children}
+    </TaskHrefContext.Provider>
+  );
 }
 
 /** Where a task's reference opens on this surface: its place here, else `/tasks/<ref>`. */

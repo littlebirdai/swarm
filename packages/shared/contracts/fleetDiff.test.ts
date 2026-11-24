@@ -18,9 +18,16 @@ import {
 // time, so this suite and the real reader cannot drift apart in silence.
 
 /** A marketplace as a machine reports it (`MarketplaceRef`, inventory.ts:60). */
-type ReportedMarketplace = { name: string; repo?: string; scope: ObservedScope };
+type ReportedMarketplace = {
+  name: string;
+  repo?: string;
+  scope: ObservedScope;
+};
 
-function inv(items: Partial<InstalledEntry>[], marketplaces: ReportedMarketplace[] = []): ReportedInventory {
+function inv(
+  items: Partial<InstalledEntry>[],
+  marketplaces: ReportedMarketplace[] = [],
+): ReportedInventory {
   return {
     items: items.map((i) => ({
       kind: "skill",
@@ -37,36 +44,64 @@ function inv(items: Partial<InstalledEntry>[], marketplaces: ReportedMarketplace
   };
 }
 
-const skill = (name: string, extra: Partial<InstalledEntry> = {}): Partial<InstalledEntry> => ({
+const skill = (
+  name: string,
+  extra: Partial<InstalledEntry> = {},
+): Partial<InstalledEntry> => ({
   kind: "skill",
   name,
   ...extra,
 });
 
-const plugin = (id: string, sha?: string, extra: Partial<InstalledEntry> = {}): Partial<InstalledEntry> => ({
+const plugin = (
+  id: string,
+  sha?: string,
+  extra: Partial<InstalledEntry> = {},
+): Partial<InstalledEntry> => ({
   kind: "plugin",
   name: id,
   installed: true,
   ...extra,
-  meta: { plugin: id.split("@")[0], marketplace: id.split("@")[1] ?? "", ...(sha ? { sha } : {}), ...extra.meta },
+  meta: {
+    plugin: id.split("@")[0],
+    marketplace: id.split("@")[1] ?? "",
+    ...(sha ? { sha } : {}),
+    ...extra.meta,
+  },
 });
 
 /** A plugin as `claude plugin list --json` reports it: a version, never a sha. */
-const versioned = (id: string, version: string, extra: Partial<InstalledEntry> = {}): Partial<InstalledEntry> => ({
+const versioned = (
+  id: string,
+  version: string,
+  extra: Partial<InstalledEntry> = {},
+): Partial<InstalledEntry> => ({
   kind: "plugin",
   name: id,
   installed: true,
   ...extra,
-  meta: { plugin: id.split("@")[0], marketplace: id.split("@")[1] ?? "", version, ...extra.meta },
+  meta: {
+    plugin: id.split("@")[0],
+    marketplace: id.split("@")[1] ?? "",
+    version,
+    ...extra.meta,
+  },
 });
 
-function device(deviceId: string, items: Partial<InstalledEntry>[], label?: string): DeviceReport {
+function device(
+  deviceId: string,
+  items: Partial<InstalledEntry>[],
+  label?: string,
+): DeviceReport {
   return { deviceId, deviceLabel: label, inventory: inv(items) };
 }
 
 function rowFor(diff: FleetDiff, key: string): FleetDiffRow {
   const row = diff.rows.find((r) => r.key === key);
-  if (!row) throw new Error(`no row ${key}; the diff has: ${diff.rows.map((r) => r.key).join(", ") || "(none)"}`);
+  if (!row)
+    throw new Error(
+      `no row ${key}; the diff has: ${diff.rows.map((r) => r.key).join(", ") || "(none)"}`,
+    );
   return row;
 }
 
@@ -82,29 +117,46 @@ function cellOn(diff: FleetDiff, row: FleetDiffRow, deviceId: string) {
 
 describe("the five cell classes", () => {
   const diff = buildFleetDiff([
-    device("laptop", [
-      skill("deep-research"),
-      skill("only-here"),
-      plugin("frontend-design@official", "aaa1"),
-      plugin("code-simplifier@official", "bbb1"),
-    ], "MacBook"),
-    device("desktop", [
-      skill("deep-research"),
-      plugin("frontend-design@official", "aaa1"),
-      plugin("code-simplifier@official", "bbb1", { enabled: false }),
-    ], "Studio"),
-    device("m1", [
-      skill("deep-research"),
-      plugin("frontend-design@official", "zzz9"),
-      plugin("code-simplifier@official", "bbb1"),
-    ], "m1"),
+    device(
+      "laptop",
+      [
+        skill("deep-research"),
+        skill("only-here"),
+        plugin("frontend-design@official", "aaa1"),
+        plugin("code-simplifier@official", "bbb1"),
+      ],
+      "MacBook",
+    ),
+    device(
+      "desktop",
+      [
+        skill("deep-research"),
+        plugin("frontend-design@official", "aaa1"),
+        plugin("code-simplifier@official", "bbb1", { enabled: false }),
+      ],
+      "Studio",
+    ),
+    device(
+      "m1",
+      [
+        skill("deep-research"),
+        plugin("frontend-design@official", "zzz9"),
+        plugin("code-simplifier@official", "bbb1"),
+      ],
+      "m1",
+    ),
     { deviceId: "server", deviceLabel: "build box" }, // never reported
   ]);
 
   test("present and identical everywhere is in sync", () => {
     const row = rowFor(diff, "skill:deep-research");
     expect(row.status).toBe("in_sync");
-    expect(row.cells.map((c) => c.status)).toEqual(["same", "same", "same", "unknown"]);
+    expect(row.cells.map((c) => c.status)).toEqual([
+      "same",
+      "same",
+      "same",
+      "unknown",
+    ]);
   });
 
   test("a different sha is pin drift on the minority machine only", () => {
@@ -116,7 +168,11 @@ describe("the five cell classes", () => {
     expect(row.baselinePin).toBe("aaa1"); // two machines agree, one does not
     expect(row.pins).toEqual(["aaa1", "zzz9"]);
     expect(cellOn(diff, row, "laptop").status).toBe("same");
-    expect(cellOn(diff, row, "m1")).toMatchObject({ status: "pin_differs", pin: "zzz9", pinKind: "sha" });
+    expect(cellOn(diff, row, "m1")).toMatchObject({
+      status: "pin_differs",
+      pin: "zzz9",
+      pinKind: "sha",
+    });
   });
 
   test("switched off on one machine is drift, and the cell says so", () => {
@@ -125,7 +181,11 @@ describe("the five cell classes", () => {
     expect(row.stateDrift).toBe(true);
     expect(row.disabledCount).toBe(1);
     expect(row.activeCount).toBe(2);
-    expect(cellOn(diff, row, "desktop")).toMatchObject({ status: "disabled", present: true, enabled: false });
+    expect(cellOn(diff, row, "desktop")).toMatchObject({
+      status: "disabled",
+      present: true,
+      enabled: false,
+    });
   });
 
   test("absent on a machine that reported, unknown on one that never did", () => {
@@ -169,8 +229,16 @@ describe("the five cell classes", () => {
 describe("the grid and the header never disagree", () => {
   test("an in-sync row carries no absent or pin_differs cell", () => {
     const diff = buildFleetDiff([
-      device("a", [skill("s"), plugin("p@m", "sha"), { kind: "mcp", name: "gh", meta: { transport: "stdio" } }]),
-      device("b", [skill("s"), plugin("p@m", "sha"), { kind: "mcp", name: "gh", meta: { transport: "stdio" } }]),
+      device("a", [
+        skill("s"),
+        plugin("p@m", "sha"),
+        { kind: "mcp", name: "gh", meta: { transport: "stdio" } },
+      ]),
+      device("b", [
+        skill("s"),
+        plugin("p@m", "sha"),
+        { kind: "mcp", name: "gh", meta: { transport: "stdio" } },
+      ]),
     ]);
     for (const row of diff.rows) {
       expect(row.status).toBe("in_sync");
@@ -186,8 +254,17 @@ describe("the grid and the header never disagree", () => {
     // must show an `absent` or `disabled` one. Accepting any non-`same` cell
     // would pass a pin-drifted row whose cells all read `disabled`.
     const diff = buildFleetDiff([
-      device("a", [skill("here"), plugin("p@m", "one"), plugin("off@m", "x"), plugin("both@m", "s1")]),
-      device("b", [plugin("p@m", "two"), plugin("off@m", "x", { enabled: false }), plugin("both@m", "s2", { enabled: false })]),
+      device("a", [
+        skill("here"),
+        plugin("p@m", "one"),
+        plugin("off@m", "x"),
+        plugin("both@m", "s1"),
+      ]),
+      device("b", [
+        plugin("p@m", "two"),
+        plugin("off@m", "x", { enabled: false }),
+        plugin("both@m", "s2", { enabled: false }),
+      ]),
     ]);
     const drifted = diff.rows.filter((r) => r.status !== "in_sync");
     expect(drifted.map((r) => r.key).sort()).toEqual([
@@ -197,9 +274,14 @@ describe("the grid and the header never disagree", () => {
       "skill:here",
     ]);
     for (const row of drifted) {
-      if (row.pinDrift) expect(row.cells.some((c) => c.status === "pin_differs")).toBe(true);
+      if (row.pinDrift)
+        expect(row.cells.some((c) => c.status === "pin_differs")).toBe(true);
       if (row.stateDrift) {
-        expect(row.cells.some((c) => c.status === "absent" || c.status === "disabled")).toBe(true);
+        expect(
+          row.cells.some(
+            (c) => c.status === "absent" || c.status === "disabled",
+          ),
+        ).toBe(true);
       }
       expect(row.pinDrift || row.stateDrift).toBe(true);
     }
@@ -253,7 +335,10 @@ describe("the grid and the header never disagree", () => {
     expect(row.stateDrift).toBe(true); // switched off on one machine is real
     expect(row.status).toBe("drift");
     expect(row.pins).toEqual(["live", "old"]);
-    expect(cellOn(diff, row, "c")).toMatchObject({ status: "disabled", pin: "old" });
+    expect(cellOn(diff, row, "c")).toMatchObject({
+      status: "disabled",
+      pin: "old",
+    });
   });
 });
 
@@ -261,7 +346,9 @@ describe("the grid and the header never disagree", () => {
 
 describe("one machine is not a fleet", () => {
   test("a single report renders as nothing to compare, never as all unique", () => {
-    const diff = buildFleetDiff([device("laptop", [skill("a"), skill("b"), plugin("p@m", "sha")])]);
+    const diff = buildFleetDiff([
+      device("laptop", [skill("a"), skill("b"), plugin("p@m", "sha")]),
+    ]);
     expect(diff.summary.comparable).toBe(false);
     expect(diff.summary.reporting).toBe(1);
     expect(diff.summary.total).toBe(3);
@@ -270,7 +357,11 @@ describe("one machine is not a fleet", () => {
     expect(diff.summary.inSync).toBe(0);
     expect(diff.rows.every((r) => r.status === "not_comparable")).toBe(true);
     // The one machine's own inventory is still readable, listed by kind.
-    expect(diff.rows.map((r) => r.key)).toEqual(["plugin:p@m", "skill:a", "skill:b"]);
+    expect(diff.rows.map((r) => r.key)).toEqual([
+      "plugin:p@m",
+      "skill:a",
+      "skill:b",
+    ]);
   });
 
   test("one report plus silent machines is still nothing to compare", () => {
@@ -281,14 +372,24 @@ describe("one machine is not a fleet", () => {
     ]);
     expect(diff.summary.comparable).toBe(false);
     expect(diff.summary.uniqueToOne).toBe(0);
-    expect(rowFor(diff, "skill:a").cells.map((c) => c.status)).toEqual(["same", "unknown", "unknown"]);
+    expect(rowFor(diff, "skill:a").cells.map((c) => c.status)).toEqual([
+      "same",
+      "unknown",
+      "unknown",
+    ]);
   });
 
   test("an empty report is a report — a machine with nothing installed", () => {
-    const diff = buildFleetDiff([device("laptop", [skill("a")]), device("blank", [])]);
+    const diff = buildFleetDiff([
+      device("laptop", [skill("a")]),
+      device("blank", []),
+    ]);
     expect(diff.summary.comparable).toBe(true);
     expect(rowFor(diff, "skill:a").status).toBe("unique");
-    expect(rowFor(diff, "skill:a").cells.map((c) => c.status)).toEqual(["same", "absent"]);
+    expect(rowFor(diff, "skill:a").cells.map((c) => c.status)).toEqual([
+      "same",
+      "absent",
+    ]);
   });
 
   test("no devices at all", () => {
@@ -296,7 +397,15 @@ describe("one machine is not a fleet", () => {
     expect(diff).toEqual({
       devices: [],
       rows: [],
-      summary: { devices: 0, reporting: 0, comparable: false, total: 0, inSync: 0, drifted: 0, uniqueToOne: 0 },
+      summary: {
+        devices: 0,
+        reporting: 0,
+        comparable: false,
+        total: 0,
+        inSync: 0,
+        drifted: 0,
+        uniqueToOne: 0,
+      },
     });
   });
 });
@@ -306,8 +415,26 @@ describe("one machine is not a fleet", () => {
 describe("identity is stable across machines", () => {
   test("absolute paths never reach the key", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([{ kind: "skill", name: "s", source: "/Users/ashot/.claude/skills/s/SKILL.md" }]) },
-      { deviceId: "b", inventory: inv([{ kind: "skill", name: "s", source: "/home/ci/.claude/skills/s/SKILL.md" }]) },
+      {
+        deviceId: "a",
+        inventory: inv([
+          {
+            kind: "skill",
+            name: "s",
+            source: "/Users/ashot/.claude/skills/s/SKILL.md",
+          },
+        ]),
+      },
+      {
+        deviceId: "b",
+        inventory: inv([
+          {
+            kind: "skill",
+            name: "s",
+            source: "/home/ci/.claude/skills/s/SKILL.md",
+          },
+        ]),
+      },
     ]);
     expect(diff.rows.length).toBe(1);
     expect(diff.rows[0].status).toBe("in_sync");
@@ -324,7 +451,10 @@ describe("identity is stable across machines", () => {
   });
 
   test("case differences are one row, and the first spelling is displayed", () => {
-    const diff = buildFleetDiff([device("a", [skill("Domain-Search")]), device("b", [skill("domain-search")])]);
+    const diff = buildFleetDiff([
+      device("a", [skill("Domain-Search")]),
+      device("b", [skill("domain-search")]),
+    ]);
     expect(diff.rows.length).toBe(1);
     expect(diff.rows[0].key).toBe("skill:domain-search");
     expect(diff.rows[0].identity).toBe("Domain-Search");
@@ -337,8 +467,13 @@ describe("identity is stable across machines", () => {
     // the DISPLAYED identity — which keeps a machine's own casing — is what
     // goes in, on rows chosen to differ in case, kind and marketplace.
     const diff = buildFleetDiff([
-      device("a", [skill("Domain-Search"), plugin("frontend-design@official", "aaa1")]),
-      device("b", [{ kind: "command", name: "Ship-It", scope: "user", enabled: true }]),
+      device("a", [
+        skill("Domain-Search"),
+        plugin("frontend-design@official", "aaa1"),
+      ]),
+      device("b", [
+        { kind: "command", name: "Ship-It", scope: "user", enabled: true },
+      ]),
     ]);
     expect(diff.rows.length).toBe(3);
     for (const row of diff.rows) {
@@ -347,18 +482,36 @@ describe("identity is stable across machines", () => {
   });
 
   test("a plugin is name@marketplace, composed when the report gives them apart", () => {
-    expect(capabilityIdentity("plugin", "frontend-design", { marketplace: "official" })).toBe(
-      "frontend-design@official",
-    );
-    expect(capabilityIdentity("plugin", "frontend-design@official", { marketplace: "official" })).toBe(
-      "frontend-design@official",
-    );
+    expect(
+      capabilityIdentity("plugin", "frontend-design", {
+        marketplace: "official",
+      }),
+    ).toBe("frontend-design@official");
+    expect(
+      capabilityIdentity("plugin", "frontend-design@official", {
+        marketplace: "official",
+      }),
+    ).toBe("frontend-design@official");
     expect(capabilityIdentity("skill", "  spaced  ")).toBe("spaced");
     expect(capabilityIdentity("skill", "   ")).toBeUndefined();
 
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([{ kind: "plugin", name: "fd@official", meta: { marketplace: "official" } }]) },
-      { deviceId: "b", inventory: inv([{ kind: "plugin", name: "fd", meta: { marketplace: "official" } }]) },
+      {
+        deviceId: "a",
+        inventory: inv([
+          {
+            kind: "plugin",
+            name: "fd@official",
+            meta: { marketplace: "official" },
+          },
+        ]),
+      },
+      {
+        deviceId: "b",
+        inventory: inv([
+          { kind: "plugin", name: "fd", meta: { marketplace: "official" } },
+        ]),
+      },
     ]);
     expect(diff.rows.length).toBe(1);
     expect(diff.rows[0].key).toBe("plugin:fd@official");
@@ -369,7 +522,10 @@ describe("identity is stable across machines", () => {
       device("a", [skill("commit"), { kind: "command", name: "commit" }]),
       device("b", [skill("commit"), { kind: "command", name: "commit" }]),
     ]);
-    expect(diff.rows.map((r) => r.key).sort()).toEqual(["command:commit", "skill:commit"]);
+    expect(diff.rows.map((r) => r.key).sort()).toEqual([
+      "command:commit",
+      "skill:commit",
+    ]);
   });
 });
 
@@ -383,8 +539,20 @@ describe("scopes stack rather than override", () => {
       {
         deviceId: "a",
         inventory: inv([
-          { kind: "plugin", name: "p@m", scope: "project", enabled: false, meta: { sha: "s1" } },
-          { kind: "plugin", name: "p@m", scope: "user", enabled: true, meta: { sha: "s1" } },
+          {
+            kind: "plugin",
+            name: "p@m",
+            scope: "project",
+            enabled: false,
+            meta: { sha: "s1" },
+          },
+          {
+            kind: "plugin",
+            name: "p@m",
+            scope: "user",
+            enabled: true,
+            meta: { sha: "s1" },
+          },
         ]),
       },
       device("b", [plugin("p@m", "s1")]),
@@ -392,7 +560,11 @@ describe("scopes stack rather than override", () => {
     const row = rowFor(diff, "plugin:p@m");
     expect(row.status).toBe("in_sync");
     const cell = cellOn(diff, row, "a");
-    expect(cell).toMatchObject({ present: true, enabled: true, status: "same" });
+    expect(cell).toMatchObject({
+      present: true,
+      enabled: true,
+      status: "same",
+    });
     expect(cell.scopes).toEqual(["project", "user"]);
   });
 
@@ -403,19 +575,42 @@ describe("scopes stack rather than override", () => {
     // Reading the user-scope row first and keeping it would mark the machine
     // behind for a config it is not using.
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([{ kind: "mcp", name: "gh", scope: "project", meta: { url: "https://new/mcp" } }]) },
+      {
+        deviceId: "a",
+        inventory: inv([
+          {
+            kind: "mcp",
+            name: "gh",
+            scope: "project",
+            meta: { url: "https://new/mcp" },
+          },
+        ]),
+      },
       {
         deviceId: "b",
         inventory: inv([
-          { kind: "mcp", name: "gh", scope: "user", meta: { url: "https://old/mcp" } },
-          { kind: "mcp", name: "gh", scope: "project", meta: { url: "https://new/mcp" } },
+          {
+            kind: "mcp",
+            name: "gh",
+            scope: "user",
+            meta: { url: "https://old/mcp" },
+          },
+          {
+            kind: "mcp",
+            name: "gh",
+            scope: "project",
+            meta: { url: "https://new/mcp" },
+          },
         ]),
       },
     ]);
     const row = rowFor(diff, "mcp:gh");
     expect(row.status).toBe("in_sync");
     expect(row.pins).toEqual(["https://new/mcp"]);
-    expect(cellOn(diff, row, "b")).toMatchObject({ status: "same", pin: "https://new/mcp" });
+    expect(cellOn(diff, row, "b")).toMatchObject({
+      status: "same",
+      pin: "https://new/mcp",
+    });
     expect(cellOn(diff, row, "b").scopes).toEqual(["project", "user"]);
   });
 
@@ -424,11 +619,19 @@ describe("scopes stack rather than override", () => {
     // caller passing raw rows hands us the same device more than once.
     const diff = buildFleetDiff([
       { deviceId: "a", inventory: inv([skill("from-user-scope")]) },
-      { deviceId: "a", deviceLabel: "MacBook", inventory: inv([skill("from-project-scope")]) },
+      {
+        deviceId: "a",
+        deviceLabel: "MacBook",
+        inventory: inv([skill("from-project-scope")]),
+      },
       device("b", [skill("from-user-scope")]),
     ]);
     expect(diff.devices.length).toBe(2);
-    expect(diff.devices[0]).toMatchObject({ deviceId: "a", label: "MacBook", reported: true });
+    expect(diff.devices[0]).toMatchObject({
+      deviceId: "a",
+      label: "MacBook",
+      reported: true,
+    });
     expect(rowFor(diff, "skill:from-user-scope").status).toBe("in_sync");
     expect(rowFor(diff, "skill:from-project-scope").status).toBe("unique");
   });
@@ -437,8 +640,14 @@ describe("scopes stack rather than override", () => {
     // The settings reader knows a sha; `claude plugin list --json` only ever
     // knows a version. Both describe the same install at user scope, so the
     // column must not depend on which report the caller passed first.
-    const bySha: DeviceReport = { deviceId: "a", inventory: inv([plugin("p@m", "abc123")]) };
-    const byVersion: DeviceReport = { deviceId: "a", inventory: inv([versioned("p@m", "1.0.0")]) };
+    const bySha: DeviceReport = {
+      deviceId: "a",
+      inventory: inv([plugin("p@m", "abc123")]),
+    };
+    const byVersion: DeviceReport = {
+      deviceId: "a",
+      inventory: inv([versioned("p@m", "1.0.0")]),
+    };
     const other = device("b", [plugin("p@m", "abc123")]);
 
     const shaFirst = buildFleetDiff([bySha, byVersion, other]);
@@ -453,8 +662,20 @@ describe("scopes stack rather than override", () => {
       {
         deviceId: "a",
         inventory: inv([
-          { kind: "plugin", name: "p@m", scope: "user", installed: false, meta: { sha: "s" } },
-          { kind: "plugin", name: "p@m", scope: "project", installed: true, meta: { sha: "s" } },
+          {
+            kind: "plugin",
+            name: "p@m",
+            scope: "user",
+            installed: false,
+            meta: { sha: "s" },
+          },
+          {
+            kind: "plugin",
+            name: "p@m",
+            scope: "project",
+            installed: true,
+            meta: { sha: "s" },
+          },
         ]),
       },
       device("b", [plugin("p@m", "s")]),
@@ -479,8 +700,26 @@ describe("what counts as a different pin", () => {
 
   test("sha wins over version, so one machine cannot look behind on a spelling", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([{ kind: "plugin", name: "p@m", meta: { sha: "abc", version: "1.0.0" } }]) },
-      { deviceId: "b", inventory: inv([{ kind: "plugin", name: "p@m", meta: { sha: "abc", version: "1.0.1" } }]) },
+      {
+        deviceId: "a",
+        inventory: inv([
+          {
+            kind: "plugin",
+            name: "p@m",
+            meta: { sha: "abc", version: "1.0.0" },
+          },
+        ]),
+      },
+      {
+        deviceId: "b",
+        inventory: inv([
+          {
+            kind: "plugin",
+            name: "p@m",
+            meta: { sha: "abc", version: "1.0.1" },
+          },
+        ]),
+      },
     ]);
     expect(rowFor(diff, "plugin:p@m").status).toBe("in_sync");
     expect(rowFor(diff, "plugin:p@m").pins).toEqual(["abc"]);
@@ -502,7 +741,11 @@ describe("what counts as a different pin", () => {
     expect(row.baselinePin).toBe("abc123");
     expect(row.pins).toEqual(["abc123"]); // the version did not answer this question
     // The version is still on its cell, labelled, so the UI can show it.
-    expect(cellOn(diff, row, "native")).toMatchObject({ status: "same", pin: "1.0.0", pinKind: "version" });
+    expect(cellOn(diff, row, "native")).toMatchObject({
+      status: "same",
+      pin: "1.0.0",
+      pinKind: "version",
+    });
   });
 
   test("two machines on shas still drift when a third only knows a version", () => {
@@ -524,12 +767,19 @@ describe("what counts as a different pin", () => {
     // drift would report a difference we cannot actually see.
     const diff = buildFleetDiff([
       device("a", [plugin("p@m", "sha1")]),
-      { deviceId: "b", inventory: inv([{ kind: "plugin", name: "p@m", installed: false }]) },
+      {
+        deviceId: "b",
+        inventory: inv([{ kind: "plugin", name: "p@m", installed: false }]),
+      },
     ]);
     const row = rowFor(diff, "plugin:p@m");
     expect(row.status).toBe("in_sync");
     expect(row.pins).toEqual(["sha1"]);
-    expect(cellOn(diff, row, "b")).toMatchObject({ status: "same", pin: undefined, installed: false });
+    expect(cellOn(diff, row, "b")).toMatchObject({
+      status: "same",
+      pin: undefined,
+      installed: false,
+    });
   });
 
   test("an mcp command line is never a pin — its paths differ by machine", () => {
@@ -537,12 +787,25 @@ describe("what counts as a different pin", () => {
       {
         deviceId: "a",
         inventory: inv([
-          { kind: "mcp", name: "pg", meta: { transport: "stdio", command: "node /Users/ashot/mcp/pg.js" } },
+          {
+            kind: "mcp",
+            name: "pg",
+            meta: {
+              transport: "stdio",
+              command: "node /Users/ashot/mcp/pg.js",
+            },
+          },
         ]),
       },
       {
         deviceId: "b",
-        inventory: inv([{ kind: "mcp", name: "pg", meta: { transport: "stdio", command: "node /home/ci/mcp/pg.js" } }]),
+        inventory: inv([
+          {
+            kind: "mcp",
+            name: "pg",
+            meta: { transport: "stdio", command: "node /home/ci/mcp/pg.js" },
+          },
+        ]),
       },
     ]);
     expect(rowFor(diff, "mcp:pg").status).toBe("in_sync");
@@ -552,9 +815,36 @@ describe("what counts as a different pin", () => {
 
   test("an mcp url is a pin, and a trailing slash is not a difference", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([{ kind: "mcp", name: "gh", meta: { transport: "http", url: "https://x/mcp/" } }]) },
-      { deviceId: "b", inventory: inv([{ kind: "mcp", name: "gh", meta: { transport: "http", url: "https://x/mcp" } }]) },
-      { deviceId: "c", inventory: inv([{ kind: "mcp", name: "gh", meta: { transport: "http", url: "https://old/mcp" } }]) },
+      {
+        deviceId: "a",
+        inventory: inv([
+          {
+            kind: "mcp",
+            name: "gh",
+            meta: { transport: "http", url: "https://x/mcp/" },
+          },
+        ]),
+      },
+      {
+        deviceId: "b",
+        inventory: inv([
+          {
+            kind: "mcp",
+            name: "gh",
+            meta: { transport: "http", url: "https://x/mcp" },
+          },
+        ]),
+      },
+      {
+        deviceId: "c",
+        inventory: inv([
+          {
+            kind: "mcp",
+            name: "gh",
+            meta: { transport: "http", url: "https://old/mcp" },
+          },
+        ]),
+      },
     ]);
     const row = rowFor(diff, "mcp:gh");
     expect(row.pinKind).toBe("url");
@@ -563,8 +853,14 @@ describe("what counts as a different pin", () => {
   });
 
   test("a two-way pin split picks a baseline the same way every run", () => {
-    const forward = buildFleetDiff([device("a", [plugin("p@m", "zzz")]), device("b", [plugin("p@m", "aaa")])]);
-    const reversed = buildFleetDiff([device("b", [plugin("p@m", "aaa")]), device("a", [plugin("p@m", "zzz")])]);
+    const forward = buildFleetDiff([
+      device("a", [plugin("p@m", "zzz")]),
+      device("b", [plugin("p@m", "aaa")]),
+    ]);
+    const reversed = buildFleetDiff([
+      device("b", [plugin("p@m", "aaa")]),
+      device("a", [plugin("p@m", "zzz")]),
+    ]);
     expect(forward.rows[0].baselinePin).toBe("aaa");
     expect(reversed.rows[0].baselinePin).toBe("aaa");
   });
@@ -575,7 +871,19 @@ describe("what counts as a different pin", () => {
 describe("marketplaces sit in the same grid", () => {
   test("a marketplace one machine never registered is drift", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([], [{ name: "official", repo: "anthropics/claude-plugins-official", scope: "user" }]) },
+      {
+        deviceId: "a",
+        inventory: inv(
+          [],
+          [
+            {
+              name: "official",
+              repo: "anthropics/claude-plugins-official",
+              scope: "user",
+            },
+          ],
+        ),
+      },
       { deviceId: "b", inventory: inv([], []) },
     ]);
     const row = rowFor(diff, "marketplace:official");
@@ -587,8 +895,20 @@ describe("marketplaces sit in the same grid", () => {
 
   test("the same marketplace name pointed at two repos is pin drift", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([], [{ name: "team", repo: "acme/plugins", scope: "user" }]) },
-      { deviceId: "b", inventory: inv([], [{ name: "team", repo: "acme/plugins-old", scope: "user" }]) },
+      {
+        deviceId: "a",
+        inventory: inv(
+          [],
+          [{ name: "team", repo: "acme/plugins", scope: "user" }],
+        ),
+      },
+      {
+        deviceId: "b",
+        inventory: inv(
+          [],
+          [{ name: "team", repo: "acme/plugins-old", scope: "user" }],
+        ),
+      },
     ]);
     const row = rowFor(diff, "marketplace:team");
     expect(row.pinDrift).toBe(true);
@@ -610,8 +930,17 @@ describe("drift sorts before agreement", () => {
       skill("mine-only"), //        three machines lack it → rank 2
       skill("everywhere"), //       agreed               → rank 3
     ]),
-    device("b", [skill("missing-on-one"), skill("missing-on-two"), plugin("behind@m", "new"), skill("everywhere")]),
-    device("c", [skill("missing-on-one"), plugin("behind@m", "old"), skill("everywhere")]),
+    device("b", [
+      skill("missing-on-one"),
+      skill("missing-on-two"),
+      plugin("behind@m", "new"),
+      skill("everywhere"),
+    ]),
+    device("c", [
+      skill("missing-on-one"),
+      plugin("behind@m", "old"),
+      skill("everywhere"),
+    ]),
     device("d", [plugin("behind@m", "new"), skill("everywhere")]),
   ]);
 
@@ -650,8 +979,18 @@ describe("drift sorts before agreement", () => {
 
   test("kind breaks a tie before the name does, and the name always finishes it", () => {
     const tied = buildFleetDiff([
-      device("a", [skill("b-skill"), skill("a-skill"), { kind: "mcp", name: "z-mcp" }, plugin("z-plugin@m")]),
-      device("b", [skill("b-skill"), skill("a-skill"), { kind: "mcp", name: "z-mcp" }, plugin("z-plugin@m")]),
+      device("a", [
+        skill("b-skill"),
+        skill("a-skill"),
+        { kind: "mcp", name: "z-mcp" },
+        plugin("z-plugin@m"),
+      ]),
+      device("b", [
+        skill("b-skill"),
+        skill("a-skill"),
+        { kind: "mcp", name: "z-mcp" },
+        plugin("z-plugin@m"),
+      ]),
     ]);
     expect(tied.rows.map((r) => r.key)).toEqual([
       "plugin:z-plugin@m",
@@ -674,8 +1013,19 @@ describe("drift sorts before agreement", () => {
 describe("column metadata is folded, not left to each caller", () => {
   test("newest report wins for the time and the error; entry counts add up", () => {
     const diff = buildFleetDiff([
-      { deviceId: "a", inventory: inv([skill("s")]), reportedAt: 100, lastError: "scan failed", entryCount: 3 },
-      { deviceId: "a", inventory: inv([skill("t")]), reportedAt: 200, entryCount: 4 },
+      {
+        deviceId: "a",
+        inventory: inv([skill("s")]),
+        reportedAt: 100,
+        lastError: "scan failed",
+        entryCount: 3,
+      },
+      {
+        deviceId: "a",
+        inventory: inv([skill("t")]),
+        reportedAt: 200,
+        entryCount: 4,
+      },
       { deviceId: "b", inventory: inv([skill("s")]), lastError: "  " },
     ]);
     expect(diff.devices[0]).toEqual({
@@ -694,7 +1044,10 @@ describe("column metadata is folded, not left to each caller", () => {
       device("a", [skill("s")]),
       { deviceId: "b", lastError: "ENOENT ~/.claude", reportedAt: 5 },
     ]);
-    expect(diff.devices[1]).toMatchObject({ reported: false, lastError: "ENOENT ~/.claude" });
+    expect(diff.devices[1]).toMatchObject({
+      reported: false,
+      lastError: "ENOENT ~/.claude",
+    });
     expect(cellOn(diff, rowFor(diff, "skill:s"), "b").status).toBe("unknown");
   });
 });
@@ -717,19 +1070,36 @@ describe("pure, and total", () => {
 
   test("the verdicts do not depend on the order the machines reported in", () => {
     const fleet: DeviceReport[] = [
-      device("a", [skill("s"), plugin("p@m", "one"), versioned("v@m", "2.0.0"), skill("mine")]),
-      device("b", [skill("s"), plugin("p@m", "two"), versioned("v@m", "2.0.0")]),
-      device("c", [skill("s"), plugin("p@m", "one", { enabled: false }), versioned("v@m", "1.0.0")]),
+      device("a", [
+        skill("s"),
+        plugin("p@m", "one"),
+        versioned("v@m", "2.0.0"),
+        skill("mine"),
+      ]),
+      device("b", [
+        skill("s"),
+        plugin("p@m", "two"),
+        versioned("v@m", "2.0.0"),
+      ]),
+      device("c", [
+        skill("s"),
+        plugin("p@m", "one", { enabled: false }),
+        versioned("v@m", "1.0.0"),
+      ]),
     ];
     const forward = buildFleetDiff(fleet);
     const reversed = buildFleetDiff([...fleet].reverse());
 
     // Row order is a property of the rows, not of the column order.
-    expect(reversed.rows.map((r) => r.key)).toEqual(forward.rows.map((r) => r.key));
+    expect(reversed.rows.map((r) => r.key)).toEqual(
+      forward.rows.map((r) => r.key),
+    );
     const byKey = (diff: FleetDiff) =>
       diff.rows.map((row) => ({
         ...row,
-        cells: [...row.cells].sort((x, y) => (x.deviceId < y.deviceId ? -1 : 1)),
+        cells: [...row.cells].sort((x, y) =>
+          x.deviceId < y.deviceId ? -1 : 1,
+        ),
       }));
     expect(byKey(reversed)).toEqual(byKey(forward));
     expect(reversed.summary).toEqual(forward.summary);
@@ -739,11 +1109,21 @@ describe("pure, and total", () => {
     const diff = buildFleetDiff([
       device("good", [skill("s")]),
       // Everything a JSON-parsed report can go wrong as.
-      { deviceId: "bad", inventory: { items: "not an array", marketplaces: undefined } },
+      {
+        deviceId: "bad",
+        inventory: { items: "not an array", marketplaces: undefined },
+      },
       {
         deviceId: "junk",
         inventory: {
-          items: [null, 42, {}, { kind: "skill" }, { kind: "nope", name: "x" }, { kind: "skill", name: "   " }],
+          items: [
+            null,
+            42,
+            {},
+            { kind: "skill" },
+            { kind: "nope", name: "x" },
+            { kind: "skill", name: "   " },
+          ],
         },
       },
       { deviceId: " ", inventory: inv([skill("ghost")]) }, // no id: cannot be a column
@@ -754,7 +1134,11 @@ describe("pure, and total", () => {
       ["junk", true], // a real list; every entry in it was junk
     ]);
     expect(diff.rows.map((r) => r.key)).toEqual(["skill:s"]);
-    expect(rowFor(diff, "skill:s").cells.map((c) => c.status)).toEqual(["same", "unknown", "absent"]);
+    expect(rowFor(diff, "skill:s").cells.map((c) => c.status)).toEqual([
+      "same",
+      "unknown",
+      "absent",
+    ]);
   });
 
   test("an unreadable payload is a machine we have not heard from", () => {
@@ -771,11 +1155,15 @@ describe("pure, and total", () => {
   });
 
   test("a device with no label is labelled by its id", () => {
-    const diff = buildFleetDiff([{ deviceId: "abc123", deviceLabel: "  ", inventory: inv([]) }]);
+    const diff = buildFleetDiff([
+      { deviceId: "abc123", deviceLabel: "  ", inventory: inv([]) },
+    ]);
     expect(diff.devices[0].label).toBe("abc123");
   });
 
   test("non-array input", () => {
-    expect(buildFleetDiff(undefined as unknown as DeviceReport[]).summary.total).toBe(0);
+    expect(
+      buildFleetDiff(undefined as unknown as DeviceReport[]).summary.total,
+    ).toBe(0);
   });
 });

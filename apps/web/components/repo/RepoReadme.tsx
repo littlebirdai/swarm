@@ -17,9 +17,16 @@ import rehypeSanitize from "rehype-sanitize";
 import { MD_COMPONENTS } from "../../lib/markdownComponents";
 import { MD_REMARK_PLUGINS } from "../../lib/markdownPlugins";
 import { VAULT_HTML_SCHEMA } from "../../lib/vault/htmlPolicy";
-import { githubHeadingSlugger, resolveRepoMarkdownUrl } from "../../lib/repoContent";
+import {
+  githubHeadingSlugger,
+  resolveRepoMarkdownUrl,
+} from "../../lib/repoContent";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
-import { useRepoBlob, useRepoMeta, useRepoReadme } from "../../hooks/useRepoBrowse";
+import {
+  useRepoBlob,
+  useRepoMeta,
+  useRepoReadme,
+} from "../../hooks/useRepoBrowse";
 import { useRepoTransport } from "../../lib/repoTransport";
 import { repoBlobHref, type RepoRouteFamily } from "../../lib/repoView";
 
@@ -27,7 +34,9 @@ const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
 function hastText(node: any): string {
   if (node?.type === "text") return node.value ?? "";
-  return Array.isArray(node?.children) ? node.children.map(hastText).join("") : "";
+  return Array.isArray(node?.children)
+    ? node.children.map(hastText).join("")
+    : "";
 }
 
 /** Stamps every heading with its GitHub anchor id. It runs after the sanitizer,
@@ -36,7 +45,8 @@ function rehypeReadmeHeadingIds() {
   return (tree: any) => {
     const slug = githubHeadingSlugger();
     const walk = (node: any) => {
-      if (node?.type === "element" && HEADING_TAGS.has(node.tagName)) node.properties = { ...node.properties, id: slug(hastText(node)) };
+      if (node?.type === "element" && HEADING_TAGS.has(node.tagName))
+        node.properties = { ...node.properties, id: slug(hastText(node)) };
       if (Array.isArray(node?.children)) node.children.forEach(walk);
     };
     walk(tree);
@@ -53,7 +63,12 @@ const README_REHYPE_PLUGINS: NonNullable<Options["rehypePlugins"]> = [
   rehypeHighlight,
 ];
 
-type ImageProps = { src?: string; alt?: string; width?: string | number; height?: string | number };
+type ImageProps = {
+  src?: string;
+  alt?: string;
+  width?: string | number;
+  height?: string | number;
+};
 
 /**
  * An image that lives in the repository. A public repository serves it straight
@@ -61,7 +76,17 @@ type ImageProps = { src?: string; alt?: string; width?: string | number; height?
  * cache, which the signed in read fills and which stops at a megabyte, so a
  * large screenshot in a private README shows its alt text.
  */
-function RepoImage({ repository, refName, path, alt, width, height }: { repository: string; refName: string; path: string } & Omit<ImageProps, "src">) {
+function RepoImage({
+  repository,
+  refName,
+  path,
+  alt,
+  width,
+  height,
+}: { repository: string; refName: string; path: string } & Omit<
+  ImageProps,
+  "src"
+>) {
   const mode = useRepoTransport();
   const meta = useRepoMeta(mode === "public" ? undefined : repository);
   const direct = mode === "public" || meta.data?.private === false;
@@ -69,23 +94,68 @@ function RepoImage({ repository, refName, path, alt, width, height }: { reposito
   const size = { width, height };
   if (direct) {
     const raw = `https://raw.githubusercontent.com/${repository}/${encodeURIComponent(refName)}/${path.split("/").map(encodeURIComponent).join("/")}`;
-    return <img src={raw} alt={alt ?? ""} {...size} className="inline-block max-w-full h-auto" loading="lazy" />;
+    return (
+      <img
+        src={raw}
+        alt={alt ?? ""}
+        {...size}
+        className="inline-block max-w-full h-auto"
+        loading="lazy"
+      />
+    );
   }
   const content = blob.data;
-  if (!content || content.truncated) return <span className="text-sol-text-dim">{alt || path}</span>;
-  const mime = path.endsWith(".svg") ? "image/svg+xml" : path.match(/\.jpe?g$/i) ? "image/jpeg" : `image/${path.split(".").pop()}`;
-  const src = content.base64 ? `data:${mime};base64,${content.base64}` : `data:${mime};charset=utf-8,${encodeURIComponent(content.content)}`;
-  return <img src={src} alt={alt ?? ""} {...size} className="inline-block max-w-full h-auto" loading="lazy" />;
+  if (!content || content.truncated)
+    return <span className="text-sol-text-dim">{alt || path}</span>;
+  const mime = path.endsWith(".svg")
+    ? "image/svg+xml"
+    : path.match(/\.jpe?g$/i)
+      ? "image/jpeg"
+      : `image/${path.split(".").pop()}`;
+  const src = content.base64
+    ? `data:${mime};base64,${content.base64}`
+    : `data:${mime};charset=utf-8,${encodeURIComponent(content.content)}`;
+  return (
+    <img
+      src={src}
+      alt={alt ?? ""}
+      {...size}
+      className="inline-block max-w-full h-auto"
+      loading="lazy"
+    />
+  );
 }
 
 /** `<h1 align="center">` is how a README centers its name; the shared heading drops the attribute.
  *  Each heading carries its anchor, and a `#` on hover links to it. */
 function readmeHeading(Tag: "h1" | "h2" | "h3" | "h4", className: string) {
-  return function ReadmeHeading({ children, align, id }: { children?: ReactNode; align?: string; id?: string }) {
-    return <Tag id={id} className={`${className} readme-heading scroll-mt-4`} style={align ? { textAlign: align as "center" } : undefined}>
-      {children}
-      {id && <a href={`#${id}`} aria-label="Link to this section" className="readme-anchor">#</a>}
-    </Tag>;
+  return function ReadmeHeading({
+    children,
+    align,
+    id,
+  }: {
+    children?: ReactNode;
+    align?: string;
+    id?: string;
+  }) {
+    return (
+      <Tag
+        id={id}
+        className={`${className} readme-heading scroll-mt-4`}
+        style={align ? { textAlign: align as "center" } : undefined}
+      >
+        {children}
+        {id && (
+          <a
+            href={`#${id}`}
+            aria-label="Link to this section"
+            className="readme-anchor"
+          >
+            #
+          </a>
+        )}
+      </Tag>
+    );
   };
 }
 
@@ -94,41 +164,113 @@ function useScrollToHash(ready: boolean) {
   useWatchEffect(() => {
     if (!ready || !window.location.hash) return;
     let id: string;
-    try { id = decodeURIComponent(window.location.hash.slice(1)); } catch { return; }
+    try {
+      id = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return;
+    }
     document.getElementById(id)?.scrollIntoView();
   }, [ready]);
 }
 
-export function RepoReadme({ repository, refName, family }: { repository: string; refName: string; family: RepoRouteFamily }) {
+export function RepoReadme({
+  repository,
+  refName,
+  family,
+}: {
+  repository: string;
+  refName: string;
+  family: RepoRouteFamily;
+}) {
   const readme = useRepoReadme(repository, refName);
   const path = readme.data?.path ?? "README.md";
-  const components = useMemo<Components>(() => ({
-    ...MD_COMPONENTS,
-    a: ({ href, children }: any) => {
-      const url = resolveRepoMarkdownUrl(href ?? "", repository, refName, path, family);
-      return url ? <Link href={url} className="text-sol-blue hover:underline">{children}</Link> : <span>{children}</span>;
-    },
-    img: ({ src, alt, width, height }: ImageProps) => {
-      const url = resolveRepoMarkdownUrl(src ?? "", repository, refName, path, family, true);
-      if (!url) return <span>{alt}</span>;
-      return /^https?:/i.test(url) ? <img src={url} alt={alt ?? ""} width={width} height={height} loading="lazy" className="inline-block max-w-full h-auto" />
-        : <RepoImage repository={repository} refName={refName} path={url} alt={alt} width={width} height={height} />;
-    },
-    code: ({ children, ...props }: any) => <code {...props}>{children}</code>,
-    h1: readmeHeading("h1", "text-2xl font-serif mt-0 mb-3 text-sol-text"),
-    h2: readmeHeading("h2", "text-lg font-semibold mt-6 mb-2 text-sol-text"),
-    h3: readmeHeading("h3", "text-sm font-semibold mt-4 mb-1 text-sol-text-muted"),
-    h4: readmeHeading("h4", "text-sm font-medium mt-3 mb-1 text-sol-text-muted"),
-  }), [repository, refName, path, family]);
+  const components = useMemo<Components>(
+    () => ({
+      ...MD_COMPONENTS,
+      a: ({ href, children }: any) => {
+        const url = resolveRepoMarkdownUrl(
+          href ?? "",
+          repository,
+          refName,
+          path,
+          family,
+        );
+        return url ? (
+          <Link href={url} className="text-sol-blue hover:underline">
+            {children}
+          </Link>
+        ) : (
+          <span>{children}</span>
+        );
+      },
+      img: ({ src, alt, width, height }: ImageProps) => {
+        const url = resolveRepoMarkdownUrl(
+          src ?? "",
+          repository,
+          refName,
+          path,
+          family,
+          true,
+        );
+        if (!url) return <span>{alt}</span>;
+        return /^https?:/i.test(url) ? (
+          <img
+            src={url}
+            alt={alt ?? ""}
+            width={width}
+            height={height}
+            loading="lazy"
+            className="inline-block max-w-full h-auto"
+          />
+        ) : (
+          <RepoImage
+            repository={repository}
+            refName={refName}
+            path={url}
+            alt={alt}
+            width={width}
+            height={height}
+          />
+        );
+      },
+      code: ({ children, ...props }: any) => <code {...props}>{children}</code>,
+      h1: readmeHeading("h1", "text-2xl font-serif mt-0 mb-3 text-sol-text"),
+      h2: readmeHeading("h2", "text-lg font-semibold mt-6 mb-2 text-sol-text"),
+      h3: readmeHeading(
+        "h3",
+        "text-sm font-semibold mt-4 mb-1 text-sol-text-muted",
+      ),
+      h4: readmeHeading(
+        "h4",
+        "text-sm font-medium mt-3 mb-1 text-sol-text-muted",
+      ),
+    }),
+    [repository, refName, path, family],
+  );
   useScrollToHash(!!readme.data?.content);
-  if (readme.error) return <p className="p-4 text-sol-text-muted text-xs">README could not be loaded.</p>;
+  if (readme.error)
+    return (
+      <p className="p-4 text-sol-text-muted text-xs">
+        README could not be loaded.
+      </p>
+    );
   if (!readme.data?.found) return null;
-  return <section className="border border-sol-border/60 rounded-lg overflow-hidden">
-    <div className="border-b border-sol-border/50 px-4 py-3 modern:font-mono text-xs"><Link href={repoBlobHref(repository, refName, path, family)}>{path}</Link></div>
-    <div className="prose prose-sm max-w-none p-6 text-sol-text repo-readme">
-      <ReactMarkdown remarkPlugins={MD_REMARK_PLUGINS} rehypePlugins={README_REHYPE_PLUGINS} components={components}>
-        {readme.data.content ?? ""}
-      </ReactMarkdown>
-    </div>
-  </section>;
+  return (
+    <section className="border border-sol-border/60 rounded-lg overflow-hidden">
+      <div className="border-b border-sol-border/50 px-4 py-3 modern:font-mono text-xs">
+        <Link href={repoBlobHref(repository, refName, path, family)}>
+          {path}
+        </Link>
+      </div>
+      <div className="prose prose-sm max-w-none p-6 text-sol-text repo-readme">
+        <ReactMarkdown
+          remarkPlugins={MD_REMARK_PLUGINS}
+          rehypePlugins={README_REHYPE_PLUGINS}
+          components={components}
+        >
+          {readme.data.content ?? ""}
+        </ReactMarkdown>
+      </div>
+    </section>
+  );
 }

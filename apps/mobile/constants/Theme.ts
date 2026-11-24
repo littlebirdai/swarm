@@ -1,137 +1,143 @@
-import { StyleSheet } from 'react-native';
-import { useSyncExternalStore } from 'react';
-import { MOBILE_TAB_BAR_STYLE } from '@codecast/shared/render/mobileTabsStyle';
-import { MOBILE_CHIP_HEIGHT, MOBILE_CHIP_STYLE } from '@codecast/shared/render/mobileSessionStyle';
-import { ModernPalettes } from './modernPalette';
+import { StyleSheet } from "react-native";
+import { useSyncExternalStore } from "react";
+import { MOBILE_TAB_BAR_STYLE } from "@codecast/shared/render/mobileTabsStyle";
+import {
+  MOBILE_CHIP_HEIGHT,
+  MOBILE_CHIP_STYLE,
+} from "@codecast/shared/render/mobileSessionStyle";
+import { ModernPalettes } from "./modernPalette";
 
 export const SolarizedLight = {
-  bg: '#FBF5E2',
-  bgAlt: '#eee8d5',
+  bg: "#FBF5E2",
+  bgAlt: "#eee8d5",
   // Inset panel surface (tool output, code blocks) — web --sol-bg-inset,
   // the color-mix(bg 40%, bg-alt) result baked to a hex.
-  bgInset: '#f3edda',
-  bgHighlight: '#e4ddc8',
+  bgInset: "#f3edda",
+  bgHighlight: "#e4ddc8",
   // Elevated card surface — web --sol-card: pure white lifts pills/cards off
   // the cream page background.
-  card: '#ffffff',
-  cardHover: '#fffdf6',
-  border: '#93a1a1',
-  borderLight: '#c5c8c6',
+  card: "#ffffff",
+  cardHover: "#fffdf6",
+  border: "#93a1a1",
+  borderLight: "#c5c8c6",
 
-  text: '#002b36',
-  textSecondary: '#073642',
-  textMuted: '#586e75',
-  textDim: '#657b83',
-  textMuted0: '#839496',
+  text: "#002b36",
+  textSecondary: "#073642",
+  textMuted: "#586e75",
+  textDim: "#657b83",
+  textMuted0: "#839496",
 
-  accent: '#b58900',
-  accentAmber: '#d97706',
+  accent: "#b58900",
+  accentAmber: "#d97706",
 
-  userBubble: '#268bd2',
-  userBubbleText: '#ffffff',
+  userBubble: "#268bd2",
+  userBubbleText: "#ffffff",
 
-  assistantBubble: '#073642',
-  assistantBubbleText: '#fdf6e3',
+  assistantBubble: "#073642",
+  assistantBubbleText: "#fdf6e3",
 
-  green: '#859900',
-  greenBright: '#10b981',
-  yellow: '#b58900',
-  cyan: '#2aa198',
-  magenta: '#d33682',
-  violet: '#6c71c4',
-  orange: '#cb4b16',
-  red: '#dc322f',
-  blue: '#268bd2',
+  green: "#859900",
+  greenBright: "#10b981",
+  yellow: "#b58900",
+  cyan: "#2aa198",
+  magenta: "#d33682",
+  violet: "#6c71c4",
+  orange: "#cb4b16",
+  red: "#dc322f",
+  blue: "#268bd2",
 
-  activeBadge: '#10b981',
-  activeBadgeText: '#ffffff',
+  activeBadge: "#10b981",
+  activeBadgeText: "#ffffff",
 
-  tabActive: '#002b36',
-  tabInactive: '#839496',
+  tabActive: "#002b36",
+  tabInactive: "#839496",
 
-  cardBg: '#eee8d5',
-  cardBorder: '#c5c8c6',
+  cardBg: "#eee8d5",
+  cardBorder: "#c5c8c6",
 
-  inputBg: '#FBF5E2',
-  inputBorder: '#93a1a1',
-  inputPlaceholder: '#839496',
+  inputBg: "#FBF5E2",
+  inputBorder: "#93a1a1",
+  inputPlaceholder: "#839496",
 
-  headerBg: '#eee8d5',
-  footerBg: '#eee8d5',
+  headerBg: "#eee8d5",
+  footerBg: "#eee8d5",
 };
 
 export const SolarizedDark = {
-  bg: '#002b36',
-  bgAlt: '#073642',
-  bgInset: '#04323d',
-  bgHighlight: '#094959',
-  card: '#08404e',
-  cardHover: '#0a4c5d',
-  border: '#586e75',
-  borderLight: '#094959',
+  bg: "#002b36",
+  bgAlt: "#073642",
+  bgInset: "#04323d",
+  bgHighlight: "#094959",
+  card: "#08404e",
+  cardHover: "#0a4c5d",
+  border: "#586e75",
+  borderLight: "#094959",
 
-  text: '#fdf6e3',
-  textSecondary: '#eee8d5',
-  textMuted: '#93a1a1',
-  textDim: '#657b83',
-  textMuted0: '#839496',
+  text: "#fdf6e3",
+  textSecondary: "#eee8d5",
+  textMuted: "#93a1a1",
+  textDim: "#657b83",
+  textMuted0: "#839496",
 
-  accent: '#b58900',
-  accentAmber: '#d97706',
+  accent: "#b58900",
+  accentAmber: "#d97706",
 
-  userBubble: '#268bd2',
-  userBubbleText: '#fdf6e3',
+  userBubble: "#268bd2",
+  userBubbleText: "#fdf6e3",
 
-  assistantBubble: '#073642',
-  assistantBubbleText: '#fdf6e3',
+  assistantBubble: "#073642",
+  assistantBubbleText: "#fdf6e3",
 
-  green: '#859900',
-  greenBright: '#10b981',
-  yellow: '#b58900',
-  cyan: '#2aa198',
-  magenta: '#d33682',
-  violet: '#6c71c4',
-  orange: '#cb4b16',
-  red: '#dc322f',
-  blue: '#268bd2',
+  green: "#859900",
+  greenBright: "#10b981",
+  yellow: "#b58900",
+  cyan: "#2aa198",
+  magenta: "#d33682",
+  violet: "#6c71c4",
+  orange: "#cb4b16",
+  red: "#dc322f",
+  blue: "#268bd2",
 
-  activeBadge: '#10b981',
-  activeBadgeText: '#fdf6e3',
+  activeBadge: "#10b981",
+  activeBadgeText: "#fdf6e3",
 
-  tabActive: '#fdf6e3',
-  tabInactive: '#657b83',
+  tabActive: "#fdf6e3",
+  tabInactive: "#657b83",
 
-  cardBg: '#073642',
-  cardBorder: '#586e75',
+  cardBg: "#073642",
+  cardBorder: "#586e75",
 
-  inputBg: '#073642',
-  inputBorder: '#586e75',
-  inputPlaceholder: '#657b83',
+  inputBg: "#073642",
+  inputBorder: "#586e75",
+  inputPlaceholder: "#657b83",
 
-  headerBg: '#073642',
-  footerBg: '#073642',
+  headerBg: "#073642",
+  footerBg: "#073642",
 };
 
 export type Palette = typeof SolarizedLight;
-export type ColorScheme = 'light' | 'dark';
+export type ColorScheme = "light" | "dark";
 
 export const Palettes: Record<ColorScheme, Palette> = {
   light: SolarizedLight,
   dark: SolarizedDark,
 };
 
-export { mixHex } from './colorMix';
+export { mixHex } from "./colorMix";
 
 /** Which palette and faces the app wears. `classic` is codecast's Solarized
  *  and JetBrains Mono (shown as Mono); `modern` is the web's default Modern style: the
  *  default theme's palette (constants/modernPalette.ts) and Instrument Sans for the
  *  interface, with code-like text kept mono (constants/fonts.ts). Which one a
  *  device wears is lib/mobileLook.ts's decision. */
-export type Look = 'classic' | 'modern';
+export type Look = "classic" | "modern";
 
 /** The palette a scheme and a look resolve to. */
-export function paletteFor(scheme: ColorScheme, look: Look = 'classic'): Palette {
-  return look === 'modern' ? ModernPalettes[scheme] : Palettes[scheme];
+export function paletteFor(
+  scheme: ColorScheme,
+  look: Look = "classic",
+): Palette {
+  return look === "modern" ? ModernPalettes[scheme] : Palettes[scheme];
 }
 
 // The active scheme is a tiny external store. The root layout publishes the
@@ -139,8 +145,8 @@ export function paletteFor(scheme: ColorScheme, look: Look = 'classic'): Palette
 // every screen subscribes through useTheme() so a flip re-renders the tree.
 // The look rides the same store: the root publishes it (lib/mobileLook), and
 // a flip repaints the tree the way a scheme flip does.
-let activeScheme: ColorScheme = 'light';
-let activeLook: Look = 'classic';
+let activeScheme: ColorScheme = "light";
+let activeLook: Look = "classic";
 const listeners = new Set<() => void>();
 
 export function getActiveScheme(): ColorScheme {
@@ -204,10 +210,16 @@ export const Theme: Palette = liveView(
 // row style. Name the factory parameter `Theme` to keep the body unchanged.
 // The builder also gets the look, for a style whose shape (not only its
 // colour) differs under Modern. One sheet per look and scheme.
-export function themedStyles<T extends StyleSheet.NamedStyles<T>>(build: (theme: Palette, look: Look) => T): T {
+export function themedStyles<T extends StyleSheet.NamedStyles<T>>(
+  build: (theme: Palette, look: Look) => T,
+): T {
   const sheets: Record<string, T> = {};
-  const sheetFor = (scheme: ColorScheme, look: Look): T => (sheets[`${look}:${scheme}`] ??= build(paletteFor(scheme, look), look));
-  return liveView(() => sheetFor(activeScheme, activeLook), Object.keys(sheetFor('light', 'classic')) as (keyof T)[]);
+  const sheetFor = (scheme: ColorScheme, look: Look): T =>
+    (sheets[`${look}:${scheme}`] ??= build(paletteFor(scheme, look), look));
+  return liveView(
+    () => sheetFor(activeScheme, activeLook),
+    Object.keys(sheetFor("light", "classic")) as (keyof T)[],
+  );
 }
 
 // Re-renders on a look flip too: every themed read (Theme, themedStyles)
@@ -285,6 +297,12 @@ export const chipShell = {
   borderWidth: StyleSheet.hairlineWidth,
 } as const;
 export const chipText = MOBILE_CHIP_STYLE.text;
-export const chipTint = (color: string) => ({ borderColor: color + '40', backgroundColor: color + '14' });
+export const chipTint = (color: string) => ({
+  borderColor: color + "40",
+  backgroundColor: color + "14",
+});
 // A chip that sits in a row of peers: neutral outline, color left to its icon.
-export const chipQuiet = (theme: Palette) => ({ borderColor: theme.border, backgroundColor: 'transparent' });
+export const chipQuiet = (theme: Palette) => ({
+  borderColor: theme.border,
+  backgroundColor: "transparent",
+});

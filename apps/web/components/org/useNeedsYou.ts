@@ -12,7 +12,14 @@ import { canAnswerInPlace, orgDecisions } from "./orgDecisions";
 export function useOrgAsks(tree: OrgTree | null): NeedsYouItem[] {
   const queue = useDecisionQueue();
   return useMemo(
-    () => orgDecisions(tree, queue).map(({ item, role }) => ({ kind: "decision" as const, key: item.key, role, item, canAnswerInPlace: canAnswerInPlace(item) })),
+    () =>
+      orgDecisions(tree, queue).map(({ item, role }) => ({
+        kind: "decision" as const,
+        key: item.key,
+        role,
+        item,
+        canAnswerInPlace: canAnswerInPlace(item),
+      })),
     [tree, queue],
   );
 }
@@ -20,7 +27,14 @@ export function useOrgAsks(tree: OrgTree | null): NeedsYouItem[] {
 /** Whether the store holds a goal (`in-N`) or project (`pj-…`) by short id,
  *  for nowModel.asksFor. Read at click time. */
 export function storeHoldsObject(ref: string): boolean {
-  const st = useInboxStore.getState() as { initiatives?: Record<string, { short_id?: string }>; projects?: Record<string, { short_id?: string }> };
-  const rows = ref.startsWith("in-") ? st.initiatives : ref.startsWith("pj-") ? st.projects : undefined;
+  const st = useInboxStore.getState() as {
+    initiatives?: Record<string, { short_id?: string }>;
+    projects?: Record<string, { short_id?: string }>;
+  };
+  const rows = ref.startsWith("in-")
+    ? st.initiatives
+    : ref.startsWith("pj-")
+      ? st.projects
+      : undefined;
   return !!rows && Object.values(rows).some((r) => r?.short_id === ref);
 }

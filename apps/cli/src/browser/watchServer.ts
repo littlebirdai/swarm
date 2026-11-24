@@ -37,7 +37,13 @@ import {
   type TerminalServerOptions,
 } from "../terminal/terminalServer.js";
 import { tmuxRunAsync } from "../tmux.js";
-import { cdpWatchEngine, WatchOpenError, type FrameSource, type WatchEngine, type WatchResolveError } from "./watchSource.js";
+import {
+  cdpWatchEngine,
+  WatchOpenError,
+  type FrameSource,
+  type WatchEngine,
+  type WatchResolveError,
+} from "./watchSource.js";
 import { RecentActions, WATCH_PROTOCOL_VERSION } from "./watchActions.js";
 import { paneOwnerId } from "../tmuxRoute.js";
 import * as path from "node:path";
@@ -110,10 +116,19 @@ export async function ownerCandidates(
 // The hello runs on the daemon's loop, so the pane lookup is the async tmux
 // twin: a sync display-message held the loop for the whole spawn.
 export async function tmuxPaneId(tmuxSession: string): Promise<string | null> {
-  const r = await tmuxRunAsync(["display-message", "-p", "-t", tmuxSession, "-F", "#{pane_id}|#{socket_path}"]);
+  const r = await tmuxRunAsync([
+    "display-message",
+    "-p",
+    "-t",
+    tmuxSession,
+    "-F",
+    "#{pane_id}|#{socket_path}",
+  ]);
   if (r.status !== 0) return null;
   const [pane, socket] = r.stdout.trim().split("|");
-  return /^%\d+$/.test(pane ?? "") ? paneOwnerId(pane, path.basename(socket ?? "") || "default") : null;
+  return /^%\d+$/.test(pane ?? "")
+    ? paneOwnerId(pane, path.basename(socket ?? "") || "default")
+    : null;
 }
 
 export type WatchSourceKind = "browser" | "sim";
@@ -145,12 +160,18 @@ export interface WatchServerDeps {
 let realDeps: WatchServerDeps | null = null;
 /** The real engine and pane lookup, shared by the socket and the relay. */
 export function defaultWatchDeps(): WatchServerDeps {
-  return (realDeps ??= { engine: cdpWatchEngine(), loadSimEngine: loadRealSimEngine, paneIdFor: tmuxPaneId });
+  return (realDeps ??= {
+    engine: cdpWatchEngine(),
+    loadSimEngine: loadRealSimEngine,
+    paneIdFor: tmuxPaneId,
+  });
 }
 
 let simEngine: Promise<WatchEngine> | null = null;
 function loadRealSimEngine(): Promise<WatchEngine> {
-  return (simEngine ??= import("../sim/watch.js").then((m) => m.simWatchEngine()));
+  return (simEngine ??= import("../sim/watch.js").then((m) =>
+    m.simWatchEngine(),
+  ));
 }
 
 export function attachWatchServer(
@@ -162,12 +183,16 @@ export function attachWatchServer(
 
   const detach = onWsUpgrade(server, WS_PATH, (req, socket, head) => {
     if (!originAllowed(req.headers.origin, opts)) {
-      opts.log(`[WATCH] Rejected WS from origin ${req.headers.origin ?? "(none)"}`);
+      opts.log(
+        `[WATCH] Rejected WS from origin ${req.headers.origin ?? "(none)"}`,
+      );
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
       return;
     }
-    wss.handleUpgrade(req, socket, head, (ws) => handleConnection(ws, opts, deps));
+    wss.handleUpgrade(req, socket, head, (ws) =>
+      handleConnection(ws, opts, deps),
+    );
   });
 
   return {
@@ -184,7 +209,11 @@ export interface WatchSink {
   /** ready, frame, tab and action messages, in order. */
   send(msg: Record<string, unknown>): void;
   /** The stream is over: `msg` is its final error or exit message. */
-  finish(msg: { type: "error"; code: string; message: string } | { type: "exit"; reason: string }): void;
+  finish(
+    msg:
+      | { type: "error"; code: string; message: string }
+      | { type: "exit"; reason: string },
+  ): void;
   /** True while the transport is not draining; frames are held meanwhile. */
   backlogged(): boolean;
 }
@@ -257,20 +286,25 @@ export function runWatchSession(
   };
 
   const loadEngine: Promise<WatchEngine | null> =
-    opts.source === "sim" ? (deps.loadSimEngine?.() ?? Promise.resolve(null)) : Promise.resolve(deps.engine);
+    opts.source === "sim"
+      ? (deps.loadSimEngine?.() ?? Promise.resolve(null))
+      : Promise.resolve(deps.engine);
 
-  void Promise.all([loadEngine, ownerCandidates(opts, deps.paneIdFor)]).then(([loaded, keys]) => {
-    if (closed) return; // the viewer left during the lookups
-    if (!loaded) return fail("no-simulators", RESOLVE_MESSAGES["no-simulators"]);
-    engine = loaded;
-    candidates = keys;
-    const resolved = engine.resolveTab(candidates);
-    if ("error" in resolved) {
-      fail(resolved.error, RESOLVE_MESSAGES[resolved.error]);
-      return;
-    }
-    void open(resolved.tabId, true);
-  });
+  void Promise.all([loadEngine, ownerCandidates(opts, deps.paneIdFor)]).then(
+    ([loaded, keys]) => {
+      if (closed) return; // the viewer left during the lookups
+      if (!loaded)
+        return fail("no-simulators", RESOLVE_MESSAGES["no-simulators"]);
+      engine = loaded;
+      candidates = keys;
+      const resolved = engine.resolveTab(candidates);
+      if ("error" in resolved) {
+        fail(resolved.error, RESOLVE_MESSAGES[resolved.error]);
+        return;
+      }
+      void open(resolved.tabId, true);
+    },
+  );
 
   async function open(tabId: string, first: boolean): Promise<void> {
     if (opening) return;
@@ -288,8 +322,10 @@ export function runWatchSession(
           signal: aborter.signal,
         },
         {
-          onFrame: (f) => send({ type: "frame", data: f.data, w: f.width, h: f.height }),
-          onTab: (t) => send({ type: "tab", title: t.title, url: t.url, targetId: t.id }),
+          onFrame: (f) =>
+            send({ type: "frame", data: f.data, w: f.width, h: f.height }),
+          onTab: (t) =>
+            send({ type: "tab", title: t.title, url: t.url, targetId: t.id }),
           onGone: () => {
             // The tab died. The owner poll decides whether the session has a
             // new one; drop our handle so it knows to reopen.
@@ -306,7 +342,8 @@ export function runWatchSession(
       opening = false;
       if (closed) return;
       const msg = err instanceof Error ? err.message : "";
-      if (err instanceof WatchOpenError) return first ? fail(err.code, err.message) : exit(err.code);
+      if (err instanceof WatchOpenError)
+        return first ? fail(err.code, err.message) : exit(err.code);
       if (first) {
         return fail(
           msg === "no-browser" ? "no-browser" : "no-tab",
@@ -333,13 +370,16 @@ export function runWatchSession(
       control: opts.control && typeof next.input === "function",
     });
     readySent = true;
-    for (const a of recentActions.recall(tabId)) send(a as unknown as Record<string, unknown>);
+    for (const a of recentActions.recall(tabId))
+      send(a as unknown as Record<string, unknown>);
     if (first) {
       lifeTimer = setTimeout(() => exit("timeout"), MAX_WATCH_MS);
       lifeTimer.unref?.();
       ownerTimer = setInterval(followOwner, OWNER_POLL_MS);
       ownerTimer.unref?.();
-      opts.log(`[WATCH] streaming tab ${next.tab.id.slice(0, 8)} (${opts.minIntervalMs}ms/frame)`);
+      opts.log(
+        `[WATCH] streaming tab ${next.tab.id.slice(0, 8)} (${opts.minIntervalMs}ms/frame)`,
+      );
     }
   }
 
@@ -358,19 +398,25 @@ export function runWatchSession(
 
   return {
     input(ev) {
-      if (!closed && opts.control && ev && typeof ev === "object") void source?.input?.(ev as any);
+      if (!closed && opts.control && ev && typeof ev === "object")
+        void source?.input?.(ev as any);
     },
     stop: cleanup,
   };
 }
 
-function handleConnection(ws: WebSocket, opts: TerminalServerOptions, deps: WatchServerDeps): void {
+function handleConnection(
+  ws: WebSocket,
+  opts: TerminalServerOptions,
+  deps: WatchServerDeps,
+): void {
   let session: WatchSessionHandle | null = null;
   let done = false;
   const fail = (code: string, message: string) => {
     if (done) return;
     done = true;
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "error", code, message }));
+    if (ws.readyState === WebSocket.OPEN)
+      ws.send(JSON.stringify({ type: "error", code, message }));
     ws.close(4000, code);
   };
   const stop = () => {
@@ -380,7 +426,10 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, deps: Watc
   ws.on("close", stop);
   ws.on("error", stop);
 
-  const helloTimeout = setTimeout(() => fail("timeout", "hello timeout"), 10_000);
+  const helloTimeout = setTimeout(
+    () => fail("timeout", "hello timeout"),
+    10_000,
+  );
   helloTimeout.unref?.();
 
   ws.once("message", (raw, isBinary) => {
@@ -395,7 +444,8 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, deps: Watc
     if (hello.type !== "hello") return fail("bad-hello", "bad hello");
     if (!tokenMatches(hello.token, opts)) return fail("forbidden", "forbidden");
     const source: WatchSourceKind = hello.source === "sim" ? "sim" : "browser";
-    let minInterval = source === "sim" ? MIN_SIM_FRAME_INTERVAL_MS : MIN_FRAME_INTERVAL_MS;
+    let minInterval =
+      source === "sim" ? MIN_SIM_FRAME_INTERVAL_MS : MIN_FRAME_INTERVAL_MS;
     if (typeof hello.fps === "number" && hello.fps > 0) {
       minInterval = Math.max(minInterval, Math.floor(1000 / hello.fps));
     }
@@ -411,7 +461,12 @@ function handleConnection(ws: WebSocket, opts: TerminalServerOptions, deps: Watc
         } catch {
           return;
         }
-        if (m?.type !== "input" || !Array.isArray(m.events) || m.events.length > 64) return;
+        if (
+          m?.type !== "input" ||
+          !Array.isArray(m.events) ||
+          m.events.length > 64
+        )
+          return;
         for (const ev of m.events) session?.input(ev);
       });
     }

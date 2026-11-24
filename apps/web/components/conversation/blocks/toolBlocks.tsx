@@ -1,6 +1,9 @@
 import { sessionRepository } from "../../../lib/repoNavigation";
 import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
-import { commandLeavesCheckout, gitToolOutcome } from "../../../lib/gitToolOutcome";
+import {
+  commandLeavesCheckout,
+  gitToolOutcome,
+} from "../../../lib/gitToolOutcome";
 import Link from "next/link";
 import { canOpenBeside, openBeside, openBrowserPane } from "../../../lib/stage";
 import { useRef, useState, useMemo, type ReactNode } from "react";
@@ -9,33 +12,78 @@ import { createPortal } from "react-dom";
 import { BrowserTabPill } from "../../browser/BrowserTabPill";
 import { BROWSER_ROW_PILL } from "../../../hooks/useBrowserTabActions";
 import { formatModel } from "../../../lib/conversationProcessor";
-import { extractNestedActions, formatToolName, isAskTool, isEditTool, isGlobTool, isGrepTool, isReadTool, isShellTool, isTodoTool, isWriteTool, shortenUrl, splitBrowserBatchResult, stripLineNumbers, summarizeNestedActions, toolPathFromInput, toolSummary as sharedToolSummary, BROWSER_BATCH_TOOL, truncateStr, getRelativePath } from "@codecast/shared/render";
+import {
+  extractNestedActions,
+  formatToolName,
+  isAskTool,
+  isEditTool,
+  isGlobTool,
+  isGrepTool,
+  isReadTool,
+  isShellTool,
+  isTodoTool,
+  isWriteTool,
+  shortenUrl,
+  splitBrowserBatchResult,
+  stripLineNumbers,
+  summarizeNestedActions,
+  toolPathFromInput,
+  toolSummary as sharedToolSummary,
+  BROWSER_BATCH_TOOL,
+  truncateStr,
+  getRelativePath,
+} from "@codecast/shared/render";
 import { useFullWidthExpand } from "../../../hooks/useFullWidthExpand";
 import { useDiffViewerStore } from "../../../store/diffViewerStore";
 import { editStringsFromInput } from "../../../lib/fileChangeExtractor";
-import { parseWorkflowScriptMeta, parseWorkflowLaunch } from "../../../lib/workflowLaunch";
+import {
+  parseWorkflowScriptMeta,
+  parseWorkflowLaunch,
+} from "../../../lib/workflowLaunch";
 import { DiffView } from "../../DiffView";
 import { api as _typedApi } from "@codecast/convex/convex/_generated/api";
 import { WorkflowRunNodes } from "../../WorkflowRunNodes";
 import { wfStatusMeta, wfFmtTokens } from "../../../lib/workflowRun";
 import { Id } from "@codecast/convex/convex/_generated/dataModel";
-import { toggleBrowserWatch, useBrowserWatchOpen } from "../../browser/BrowserWatchSplit";
+import {
+  toggleBrowserWatch,
+  useBrowserWatchOpen,
+} from "../../browser/BrowserWatchSplit";
 import { MarkdownRenderer } from "../../tools/MarkdownRenderer";
 import { isMarkdownFile, isPlanFile } from "../../../lib/markdownFiles";
 import { EntityObjectCard } from "../../EntityObjectCard";
 import { callFrameSeenRef } from "@codecast/shared/contracts";
 import { replayFrameSeenRef } from "@codecast/shared/contracts/replayPlayer";
 import { entityRemarkPlugins } from "../../../lib/remarkEntityIds";
-import { MESSAGE_MD_COMPONENTS, MESSAGE_MD_REHYPE } from "../../messageMarkdown";
+import {
+  MESSAGE_MD_COMPONENTS,
+  MESSAGE_MD_REHYPE,
+} from "../../messageMarkdown";
 import { FilePathLink } from "../../FilePathLink";
 import { ObservedChanges } from "./ObservedChanges";
 import { GitOutcomeRow } from "./GitOutcomeRow";
-import { unwrapShellCommand, browserTabOf, type BrowserRowState } from "../../castCommand";
+import {
+  unwrapShellCommand,
+  browserTabOf,
+  type BrowserRowState,
+} from "../../castCommand";
 import { useInboxStore } from "../../../store/inboxStore";
 import { addToFlowsMessage } from "../../../lib/line/flowMessages";
-import { getToolPatchInputs, parseApplyPatchSections } from "../../../lib/applyPatchParser";
-import { parseFileChangeSummary, parseUnifiedDiffSections } from "../../../lib/unifiedDiffParser";
-import { ChevronDown, ChevronUp, Workflow, MoveHorizontal, Smartphone } from "lucide-react";
+import {
+  getToolPatchInputs,
+  parseApplyPatchSections,
+} from "../../../lib/applyPatchParser";
+import {
+  parseFileChangeSummary,
+  parseUnifiedDiffSections,
+} from "../../../lib/unifiedDiffParser";
+import {
+  ChevronDown,
+  ChevronUp,
+  Workflow,
+  MoveHorizontal,
+  Smartphone,
+} from "lucide-react";
 import { simulatorPanePath } from "../../../lib/simulatorPane";
 import { tabNavigate } from "../../../src/compat/tabRouting";
 import { ImageBlock } from "./interactiveBlocks";
@@ -46,15 +94,41 @@ import { PlanBlock } from "./planBlock";
 import { FooterIconButton, FullscreenIcon, NestedStepList } from "./shared";
 import { pressable } from "../../ops/parts";
 import { toolColorClass } from "../../../lib/conversationBlockStyles";
-import { findMatchingChild, getFileExtension, parseSpawnResult, summarizeBashCommand } from "../classify";
+import {
+  findMatchingChild,
+  getFileExtension,
+  parseSpawnResult,
+  summarizeBashCommand,
+} from "../classify";
 import { renderAnsi, safeString } from "../../../lib/conversationFormat";
 import { MD_COMPONENTS_NO_PRE } from "../../../lib/conversationMarkdown";
 import { ReactMarkdown } from "../markdown";
-import type { ImageData, TaskRecordMaps, ToolCall, ToolChangeRange, ToolResult } from "../types";
+import type {
+  ImageData,
+  TaskRecordMaps,
+  ToolCall,
+  ToolChangeRange,
+  ToolResult,
+} from "../types";
 
 const api = _typedApi as any;
 
-export function TaskToolBlock({ tool, result, childConversationId, childConversations }: { tool: ToolCall; result?: ToolResult; childConversationId?: string; childConversations?: Array<{ _id: string; title: string; is_subagent?: boolean; first_message_preview?: string }> }) {
+export function TaskToolBlock({
+  tool,
+  result,
+  childConversationId,
+  childConversations,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  childConversationId?: string;
+  childConversations?: Array<{
+    _id: string;
+    title: string;
+    is_subagent?: boolean;
+    first_message_preview?: string;
+  }>;
+}) {
   const isCompleted = !!result;
   const [expanded, setExpanded] = useState(false);
 
@@ -68,29 +142,78 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
   const prompt = String(parsedInput.prompt || "");
   const model = parsedInput.model ? String(parsedInput.model) : null;
   const name = parsedInput.name ? String(parsedInput.name) : null;
-  const runInBackground = Boolean(parsedInput.run_in_background || parsedInput.background);
+  const runInBackground = Boolean(
+    parsedInput.run_in_background || parsedInput.background,
+  );
 
-  const resolvedChildId = childConversationId || findMatchingChild(prompt, childConversations);
+  const resolvedChildId =
+    childConversationId || findMatchingChild(prompt, childConversations);
 
-  const subagentColors: Record<string, { bg: string; border: string; text: string }> = {
-    Explore: { bg: "bg-sol-green/20", border: "border-sol-green/50", text: "text-sol-green" },
-    Plan: { bg: "bg-sol-cyan/20", border: "border-sol-cyan/50", text: "text-sol-cyan" },
-    implementor: { bg: "bg-sol-yellow/20", border: "border-sol-yellow/50", text: "text-sol-yellow" },
-    "general-purpose": { bg: "bg-sol-bg-alt/60", border: "border-sol-border/50", text: "text-sol-text-secondary" },
-    "claude-code-guide": { bg: "bg-sol-violet/20", border: "border-sol-violet/50", text: "text-sol-violet" },
-    "code-reviewer": { bg: "bg-sol-red/20", border: "border-sol-red/50", text: "text-sol-red" },
-    "code-explorer": { bg: "bg-sol-cyan/20", border: "border-sol-cyan/50", text: "text-sol-cyan" },
-    "code-architect": { bg: "bg-sol-magenta/20", border: "border-sol-magenta/50", text: "text-sol-magenta" },
-    "code-simplifier": { bg: "bg-sol-cyan/20", border: "border-sol-cyan/50", text: "text-sol-cyan" },
+  const subagentColors: Record<
+    string,
+    { bg: string; border: string; text: string }
+  > = {
+    Explore: {
+      bg: "bg-sol-green/20",
+      border: "border-sol-green/50",
+      text: "text-sol-green",
+    },
+    Plan: {
+      bg: "bg-sol-cyan/20",
+      border: "border-sol-cyan/50",
+      text: "text-sol-cyan",
+    },
+    implementor: {
+      bg: "bg-sol-yellow/20",
+      border: "border-sol-yellow/50",
+      text: "text-sol-yellow",
+    },
+    "general-purpose": {
+      bg: "bg-sol-bg-alt/60",
+      border: "border-sol-border/50",
+      text: "text-sol-text-secondary",
+    },
+    "claude-code-guide": {
+      bg: "bg-sol-violet/20",
+      border: "border-sol-violet/50",
+      text: "text-sol-violet",
+    },
+    "code-reviewer": {
+      bg: "bg-sol-red/20",
+      border: "border-sol-red/50",
+      text: "text-sol-red",
+    },
+    "code-explorer": {
+      bg: "bg-sol-cyan/20",
+      border: "border-sol-cyan/50",
+      text: "text-sol-cyan",
+    },
+    "code-architect": {
+      bg: "bg-sol-magenta/20",
+      border: "border-sol-magenta/50",
+      text: "text-sol-magenta",
+    },
+    "code-simplifier": {
+      bg: "bg-sol-cyan/20",
+      border: "border-sol-cyan/50",
+      text: "text-sol-cyan",
+    },
   };
 
-  const colors = subagentColors[subagentType] || { bg: "bg-sol-bg-alt/60", border: "border-sol-border/50", text: "text-sol-text-muted" };
+  const colors = subagentColors[subagentType] || {
+    bg: "bg-sol-bg-alt/60",
+    border: "border-sol-border/50",
+    text: "text-sol-text-muted",
+  };
 
   const spawnInfo = result?.content ? parseSpawnResult(result.content) : null;
 
-  const resultSummary = result?.content && !spawnInfo
-    ? result.content.length > 200 ? result.content.slice(0, 200) + "..." : result.content
-    : null;
+  const resultSummary =
+    result?.content && !spawnInfo
+      ? result.content.length > 200
+        ? result.content.slice(0, 200) + "..."
+        : result.content
+      : null;
 
   if (isCompleted && spawnInfo) {
     return (
@@ -98,26 +221,52 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
         {(() => {
           const body = (
             <>
-              <span data-cc-row-icon className="text-emerald-400 text-meta">{"\u2713"}</span>
-              <span data-cc-row-verb className={`font-mono text-xs ${colors.text}`}>Task</span>
-              <span data-cc-row-tag className={`px-1 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}>
+              <span data-cc-row-icon className="text-emerald-400 text-meta">
+                {"\u2713"}
+              </span>
+              <span
+                data-cc-row-verb
+                className={`font-mono text-xs ${colors.text}`}
+              >
+                Task
+              </span>
+              <span
+                data-cc-row-tag
+                className={`px-1 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}
+              >
                 {subagentType}
               </span>
               {(spawnInfo.agentName || name) && (
-                <span data-cc-row-tag className="text-meta px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-mono">
+                <span
+                  data-cc-row-tag
+                  className="text-meta px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-mono"
+                >
                   @{spawnInfo.agentName || name}
                 </span>
               )}
-              {description && <span data-cc-row-text className="text-sol-text-dim truncate flex-1">{description}</span>}
+              {description && (
+                <span
+                  data-cc-row-text
+                  className="text-sol-text-dim truncate flex-1"
+                >
+                  {description}
+                </span>
+              )}
             </>
           );
           // A real link, so it is reachable by Tab and opens in a new tab on a modified click.
           return resolvedChildId ? (
-            <Link href={`/conversation/${resolvedChildId}`} data-cc-row-head className="flex items-center gap-1.5 text-xs cursor-pointer rounded px-1.5 py-1 -mx-1 hover:bg-sol-bg-highlight/50 transition-colors">
+            <Link
+              href={`/conversation/${resolvedChildId}`}
+              data-cc-row-head
+              className="flex items-center gap-1.5 text-xs cursor-pointer rounded px-1.5 py-1 -mx-1 hover:bg-sol-bg-highlight/50 transition-colors"
+            >
               {body}
             </Link>
           ) : (
-            <div data-cc-row-head className="flex items-center gap-1.5 text-xs">{body}</div>
+            <div data-cc-row-head className="flex items-center gap-1.5 text-xs">
+              {body}
+            </div>
           );
         })()}
       </div>
@@ -126,28 +275,47 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
 
   if (isCompleted) {
     return (
-      <div data-cc-row="task" data-cc-row-tone={result?.is_error ? "error" : undefined} className={`my-3 rounded-lg ${result?.is_error ? "bg-sol-red/10 border-sol-red/30" : `${colors.bg} ${colors.border}`} border`}>
+      <div
+        data-cc-row="task"
+        data-cc-row-tone={result?.is_error ? "error" : undefined}
+        className={`my-3 rounded-lg ${result?.is_error ? "bg-sol-red/10 border-sol-red/30" : `${colors.bg} ${colors.border}`} border`}
+      >
         <div
           data-cc-row-head
           className="px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer hover:bg-sol-bg-highlight/50 transition-colors"
           {...pressable(() => setExpanded(!expanded))}
           aria-expanded={expanded}
         >
-          <span data-cc-row-icon className={`text-meta ${result?.is_error ? "text-sol-red" : "text-emerald-400"}`}>
+          <span
+            data-cc-row-icon
+            className={`text-meta ${result?.is_error ? "text-sol-red" : "text-emerald-400"}`}
+          >
             {result?.is_error ? "\u2717" : "\u2713"}
           </span>
-          <span data-cc-row-verb className={`font-mono text-xs font-medium ${result?.is_error ? "text-sol-red" : colors.text}`}>
+          <span
+            data-cc-row-verb
+            className={`font-mono text-xs font-medium ${result?.is_error ? "text-sol-red" : colors.text}`}
+          >
             Task
           </span>
-          <span data-cc-row-tag className={`px-1.5 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}>
+          <span
+            data-cc-row-tag
+            className={`px-1.5 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}
+          >
             {subagentType}
           </span>
           {description && (
-            <span data-cc-row-text className="text-sol-text-muted text-xs truncate flex-1">
+            <span
+              data-cc-row-text
+              className="text-sol-text-muted text-xs truncate flex-1"
+            >
               {description}
             </span>
           )}
-          <span data-cc-row-hint className="text-sol-text-dim text-meta ml-auto">
+          <span
+            data-cc-row-hint
+            className="text-sol-text-dim text-meta ml-auto"
+          >
             {expanded ? "collapse" : "expand"}
           </span>
         </div>
@@ -165,11 +333,21 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
             {result && (
               <div className="border-t border-sol-border/30 px-3 py-2">
                 <div className="text-meta text-sol-text-dim mb-1">Result</div>
-                <div className={`text-xs max-h-96 overflow-y-auto ${
-                  result.is_error ? "text-sol-red font-mono whitespace-pre-wrap" : "text-sol-text-secondary prose prose-sm prose-invert max-w-none [&_pre]:bg-sol-bg/50 [&_pre]:border [&_pre]:border-sol-border/30 [&_pre]:rounded [&_pre]:text-meta [&_code]:text-meta [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:mt-2 [&_h2]:mt-2 [&_h3]:mt-1"
-                }`}>
-                  {result.is_error ? safeString(result.content) : (
-                    <ReactMarkdown remarkPlugins={entityRemarkPlugins} rehypePlugins={MESSAGE_MD_REHYPE} components={MESSAGE_MD_COMPONENTS}>
+                <div
+                  className={`text-xs max-h-96 overflow-y-auto ${
+                    result.is_error
+                      ? "text-sol-red font-mono whitespace-pre-wrap"
+                      : "text-sol-text-secondary prose prose-sm prose-invert max-w-none [&_pre]:bg-sol-bg/50 [&_pre]:border [&_pre]:border-sol-border/30 [&_pre]:rounded [&_pre]:text-meta [&_code]:text-meta [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_h1]:mt-2 [&_h2]:mt-2 [&_h3]:mt-1"
+                  }`}
+                >
+                  {result.is_error ? (
+                    safeString(result.content)
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={entityRemarkPlugins}
+                      rehypePlugins={MESSAGE_MD_REHYPE}
+                      components={MESSAGE_MD_COMPONENTS}
+                    >
                       {safeString(result.content)}
                     </ReactMarkdown>
                   )}
@@ -180,15 +358,28 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
         )}
 
         {resolvedChildId && (
-          <div data-cc-row-foot className="border-t border-sol-border/30 px-2 py-1.5 flex justify-end">
+          <div
+            data-cc-row-foot
+            className="border-t border-sol-border/30 px-2 py-1.5 flex justify-end"
+          >
             <Link
               href={`/conversation/${resolvedChildId}`}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer hover:brightness-125 transition ${colors.text} ${colors.bg} border ${colors.border}`}
               onClick={(e) => e.stopPropagation()}
             >
               open
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </Link>
           </div>
@@ -197,40 +388,64 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
     );
   }
 
-  const truncatedPrompt = prompt.length > 300 && !expanded ? prompt.slice(0, 300) + "..." : prompt;
+  const truncatedPrompt =
+    prompt.length > 300 && !expanded ? prompt.slice(0, 300) + "..." : prompt;
 
   return (
-    <div data-cc-row="task" className={`my-3 rounded-lg ${colors.bg} border ${colors.border}`}>
+    <div
+      data-cc-row="task"
+      className={`my-3 rounded-lg ${colors.bg} border ${colors.border}`}
+    >
       <div
         data-cc-row-head
         className="px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer hover:bg-sol-bg-highlight/50 transition-colors"
         {...pressable(() => setExpanded(!expanded))}
         aria-expanded={expanded}
       >
-        <span data-cc-row-icon className={`w-2.5 h-2.5 rounded-full border border-current border-t-transparent ${colors.text} opacity-60`} />
-        <span data-cc-row-verb className={`font-mono text-xs font-semibold ${colors.text}`}>
+        <span
+          data-cc-row-icon
+          className={`w-2.5 h-2.5 rounded-full border border-current border-t-transparent ${colors.text} opacity-60`}
+        />
+        <span
+          data-cc-row-verb
+          className={`font-mono text-xs font-semibold ${colors.text}`}
+        >
           Task
         </span>
-        <span data-cc-row-tag className={`px-1.5 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}>
+        <span
+          data-cc-row-tag
+          className={`px-1.5 py-0.5 rounded text-meta font-medium ${colors.bg} border ${colors.border} ${colors.text}`}
+        >
           {subagentType}
         </span>
         {description && (
-          <span data-cc-row-text className="text-sol-text-muted text-xs truncate flex-1">
+          <span
+            data-cc-row-text
+            className="text-sol-text-muted text-xs truncate flex-1"
+          >
             {description}
           </span>
         )}
         {model && (
-          <span data-cc-row-tag className="text-sol-text-dim text-meta font-mono">
+          <span
+            data-cc-row-tag
+            className="text-sol-text-dim text-meta font-mono"
+          >
             {formatModel(model)}
           </span>
         )}
         {name && (
-          <span data-cc-row-tag className="text-sol-text-dim text-meta font-mono">
+          <span
+            data-cc-row-tag
+            className="text-sol-text-dim text-meta font-mono"
+          >
             {name}
           </span>
         )}
         {runInBackground && (
-          <span data-cc-row-tag className="text-sol-text-dim text-meta">background</span>
+          <span data-cc-row-tag className="text-sol-text-dim text-meta">
+            background
+          </span>
         )}
         <span data-cc-row-hint className="text-sol-text-dim text-meta ml-auto">
           {expanded ? "collapse" : "expand"}
@@ -252,15 +467,28 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
       </div>
 
       {resolvedChildId && (
-        <div data-cc-row-foot className="border-t border-sol-border/30 px-2 py-1.5 flex justify-end">
+        <div
+          data-cc-row-foot
+          className="border-t border-sol-border/30 px-2 py-1.5 flex justify-end"
+        >
           <Link
             href={`/conversation/${resolvedChildId}`}
             className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium cursor-pointer hover:brightness-125 transition ${colors.text} ${colors.bg} border ${colors.border}`}
             onClick={(e) => e.stopPropagation()}
           >
             open
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </Link>
         </div>
@@ -275,7 +503,15 @@ export function TaskToolBlock({ tool, result, childConversationId, childConversa
 // the same card language as DynamicRunCard, and resolve the live run by its wf_ id so
 // the card shows real status/progress instead of the raw blob.
 
-export function WorkflowToolBlock({ tool, result, conversationId }: { tool: ToolCall; result?: ToolResult; conversationId?: string | null }) {
+export function WorkflowToolBlock({
+  tool,
+  result,
+  conversationId,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  conversationId?: string | null;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   let parsedInput: Record<string, unknown> = {};
@@ -283,26 +519,43 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
     parsedInput = JSON.parse(tool.input);
   } catch {}
 
-  const script = typeof parsedInput.script === "string" ? parsedInput.script : "";
-  const scriptPath = typeof parsedInput.scriptPath === "string" ? parsedInput.scriptPath : "";
-  const resumeFromRunId = typeof parsedInput.resumeFromRunId === "string" ? parsedInput.resumeFromRunId : "";
-  const namedWorkflow = typeof parsedInput.name === "string" ? parsedInput.name : "";
+  const script =
+    typeof parsedInput.script === "string" ? parsedInput.script : "";
+  const scriptPath =
+    typeof parsedInput.scriptPath === "string" ? parsedInput.scriptPath : "";
+  const resumeFromRunId =
+    typeof parsedInput.resumeFromRunId === "string"
+      ? parsedInput.resumeFromRunId
+      : "";
+  const namedWorkflow =
+    typeof parsedInput.name === "string" ? parsedInput.name : "";
 
   const meta = script ? parseWorkflowScriptMeta(script) : {};
   // A relaunch refused because the run is still going is not a failure: the
   // card follows that live run instead of wearing red.
-  const stillRunningId = result?.is_error ? safeString(result.content).match(/Workflow (wf_[\w-]+) is still running/)?.[1] : undefined;
+  const stillRunningId = result?.is_error
+    ? safeString(result.content).match(
+        /Workflow (wf_[\w-]+) is still running/,
+      )?.[1]
+    : undefined;
   const isError = !!result?.is_error && !stillRunningId;
-  const launch = result && !result.is_error ? parseWorkflowLaunch(safeString(result.content)) : {};
+  const launch =
+    result && !result.is_error
+      ? parseWorkflowLaunch(safeString(result.content))
+      : {};
 
   const scriptBase = (launch.scriptFile || scriptPath).split("/").pop() || "";
-  const name = meta.name || namedWorkflow || scriptBase.replace(/(-wf_[\w-]+)?\.[cm]?js$/, "") || "workflow";
+  const name =
+    meta.name ||
+    namedWorkflow ||
+    scriptBase.replace(/(-wf_[\w-]+)?\.[cm]?js$/, "") ||
+    "workflow";
   const summary = meta.description || launch.summary || "";
   const externalRunId = launch.runId || stillRunningId || resumeFromRunId;
 
   const run = useQueryNoThrow(
     api.workflow_runs.getByExternalRunForUser,
-    externalRunId ? { external_run_id: externalRunId } : "skip"
+    externalRunId ? { external_run_id: externalRunId } : "skip",
   ).data;
   // A stop (TaskStop, Esc, the host exiting) lands as failed + "Stopped";
   // it reads as a stop, not a crash.
@@ -310,35 +563,89 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
   const sm = wfStatusMeta(stopped ? "stopped" : run?.status);
 
   const frame = isError
-    ? { border: "border-sol-red/30", bg: "bg-sol-red/10", divider: "border-sol-red/20" }
-    : { border: "border-sol-cyan/25", bg: "bg-sol-cyan/[0.06]", divider: "border-sol-cyan/15" };
+    ? {
+        border: "border-sol-red/30",
+        bg: "bg-sol-red/10",
+        divider: "border-sol-red/20",
+      }
+    : {
+        border: "border-sol-cyan/25",
+        bg: "bg-sol-cyan/[0.06]",
+        divider: "border-sol-cyan/15",
+      };
 
   return (
-    <div data-cc-feed-card data-cc-row="workflow" data-cc-row-tone={isError ? "error" : undefined} className={`my-2 rounded-lg border ${frame.border} ${frame.bg} overflow-hidden`}>
+    <div
+      data-cc-feed-card
+      data-cc-row="workflow"
+      data-cc-row-tone={isError ? "error" : undefined}
+      className={`my-2 rounded-lg border ${frame.border} ${frame.bg} overflow-hidden`}
+    >
       <div
         className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-sol-bg-highlight/40 transition-colors"
         {...pressable(() => setExpanded(!expanded))}
-        aria-expanded={expanded} data-cc-row-head
+        aria-expanded={expanded}
+        data-cc-row-head
       >
-        <Workflow data-cc-row-icon className={`w-3.5 h-3.5 flex-shrink-0 ${isError ? "text-sol-red" : "text-sol-cyan"}`} />
-        <span data-cc-tech data-cc-row-verb className={`text-mark uppercase tracking-wider font-semibold ${isError ? "text-sol-red" : "text-sol-cyan"}`}>
+        <Workflow
+          data-cc-row-icon
+          className={`w-3.5 h-3.5 flex-shrink-0 ${isError ? "text-sol-red" : "text-sol-cyan"}`}
+        />
+        <span
+          data-cc-tech
+          data-cc-row-verb
+          className={`text-mark uppercase tracking-wider font-semibold ${isError ? "text-sol-red" : "text-sol-cyan"}`}
+        >
           Workflow
         </span>
-        <span data-cc-row-object className="text-xs text-sol-text-muted truncate">{name}</span>
+        <span
+          data-cc-row-object
+          className="text-xs text-sol-text-muted truncate"
+        >
+          {name}
+        </span>
         {resumeFromRunId && (
-          <span data-cc-tech data-cc-row-tag className="px-1 py-0.5 rounded text-meta font-medium bg-sol-cyan/15 border border-sol-cyan/25 text-sol-cyan flex-shrink-0">
+          <span
+            data-cc-tech
+            data-cc-row-tag
+            className="px-1 py-0.5 rounded text-meta font-medium bg-sol-cyan/15 border border-sol-cyan/25 text-sol-cyan flex-shrink-0"
+          >
             resume
           </span>
         )}
-        <div data-cc-row-meta className="ml-auto flex items-center gap-2 flex-shrink-0">
-          {run?.agent_count != null && <span data-cc-tech className="text-meta text-sol-text-dim">{run.agent_count} agents</span>}
-          {run?.total_tokens ? <span data-cc-tech className="text-meta text-sol-text-dim/70">{wfFmtTokens(run.total_tokens)} tok</span> : null}
-          {launch.taskId && <span data-cc-tech className="text-meta text-sol-text-dim/70 font-mono">{launch.taskId}</span>}
+        <div
+          data-cc-row-meta
+          className="ml-auto flex items-center gap-2 flex-shrink-0"
+        >
+          {run?.agent_count != null && (
+            <span data-cc-tech className="text-meta text-sol-text-dim">
+              {run.agent_count} agents
+            </span>
+          )}
+          {run?.total_tokens ? (
+            <span data-cc-tech className="text-meta text-sol-text-dim/70">
+              {wfFmtTokens(run.total_tokens)} tok
+            </span>
+          ) : null}
+          {launch.taskId && (
+            <span
+              data-cc-tech
+              className="text-meta text-sol-text-dim/70 font-mono"
+            >
+              {launch.taskId}
+            </span>
+          )}
           {isError ? (
-            <span className="text-meta flex items-center gap-1 text-sol-red">{"✗"} failed</span>
+            <span className="text-meta flex items-center gap-1 text-sol-red">
+              {"✗"} failed
+            </span>
           ) : run ? (
             <span className={`text-meta flex items-center gap-1 ${sm.cls}`}>
-              {sm.dot ? <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} /> : sm.icon}
+              {sm.dot ? (
+                <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
+              ) : (
+                sm.icon
+              )}
               {stopped ? "stopped" : run.status}
             </span>
           ) : result ? (
@@ -352,20 +659,33 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
               launching
             </span>
           )}
-          <span data-cc-tech data-cc-row-hint className="text-sol-text-dim text-meta">{expanded ? "collapse" : "expand"}</span>
+          <span
+            data-cc-tech
+            data-cc-row-hint
+            className="text-sol-text-dim text-meta"
+          >
+            {expanded ? "collapse" : "expand"}
+          </span>
         </div>
       </div>
 
       {summary && (
         <div data-cc-wf-summary data-cc-row-sub className="px-3 pb-2 -mt-0.5">
-          <div className={`text-xs text-sol-text-dim ${expanded ? "" : "line-clamp-2"}`}>{summary}</div>
+          <div
+            className={`text-xs text-sol-text-dim ${expanded ? "" : "line-clamp-2"}`}
+          >
+            {summary}
+          </div>
         </div>
       )}
 
       {/* Live agent tree only on expand — the daemon's anchor message (DynamicRunCard)
           already carries it inline, so the default state stays a compact receipt. */}
       {run && expanded && (
-        <div data-cc-row-detail className={`border-t ${frame.divider} px-3 py-2`}>
+        <div
+          data-cc-row-detail
+          className={`border-t ${frame.divider} px-3 py-2`}
+        >
           <WorkflowRunNodes run={run} />
         </div>
       )}
@@ -382,8 +702,12 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
           )}
           {(launch.scriptFile || scriptPath) && (
             <div className={`border-t ${frame.divider} px-3 py-2`}>
-              <div className="text-meta text-sol-text-dim mb-1">Script file</div>
-              <div className="text-sol-text-dim text-meta font-mono break-all">{launch.scriptFile || scriptPath}</div>
+              <div className="text-meta text-sol-text-dim mb-1">
+                Script file
+              </div>
+              <div className="text-sol-text-dim text-meta font-mono break-all">
+                {launch.scriptFile || scriptPath}
+              </div>
             </div>
           )}
           {parsedInput.args !== undefined && (
@@ -396,19 +720,33 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
           )}
           {result && (
             <div className={`border-t ${frame.divider} px-3 py-2`}>
-              <div className="text-meta text-sol-text-dim mb-1">{isError ? "Error" : "Result"}</div>
-              <div className={`text-meta font-mono whitespace-pre-wrap break-words leading-relaxed max-h-60 overflow-y-auto ${isError ? "text-sol-red" : "text-sol-text-dim"}`}>
+              <div className="text-meta text-sol-text-dim mb-1">
+                {isError ? "Error" : "Result"}
+              </div>
+              <div
+                className={`text-meta font-mono whitespace-pre-wrap break-words leading-relaxed max-h-60 overflow-y-auto ${isError ? "text-sol-red" : "text-sol-text-dim"}`}
+              >
                 {safeString(result.content)}
               </div>
             </div>
           )}
-          <div className={`border-t ${frame.divider} px-3 py-1.5 flex justify-end items-center gap-3`}>
+          <div
+            className={`border-t ${frame.divider} px-3 py-1.5 flex justify-end items-center gap-3`}
+          >
             {/* A finished run's shape can join the pool of flows (flows.md FL5): the session that ran it imports it,
                 since it knows which of its prompts' words were this task's. */}
             {conversationId && externalRunId && run?.status === "completed" && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); useInboxStore.getState().sendMessage(String(conversationId), addToFlowsMessage(name, externalRunId)); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  useInboxStore
+                    .getState()
+                    .sendMessage(
+                      String(conversationId),
+                      addToFlowsMessage(name, externalRunId),
+                    );
+                }}
                 className="text-meta text-sol-blue hover:underline underline-offset-2"
                 data-add-to-flows={externalRunId}
               >
@@ -429,16 +767,51 @@ export function WorkflowToolBlock({ tool, result, conversationId }: { tool: Tool
   );
 }
 
-export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelectionMode, messageId, conversationId, onStartShareSelection, onOpenComments, collapsed, timestamp, images, globalImageMap }: { tool: ToolCall; result?: ToolResult; changeIndex?: number; changeRange?: ToolChangeRange; shareSelectionMode?: boolean; messageId?: string; conversationId?: Id<"conversations">; onStartShareSelection?: (messageId: string) => void; onOpenComments?: () => void; collapsed?: boolean; timestamp?: number; images?: ImageData[]; globalImageMap?: Record<string, ImageData[]> }) {
+export function ToolBlock({
+  tool,
+  result,
+  changeIndex,
+  changeRange,
+  shareSelectionMode,
+  messageId,
+  conversationId,
+  onStartShareSelection,
+  onOpenComments,
+  collapsed,
+  timestamp,
+  images,
+  globalImageMap,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  changeIndex?: number;
+  changeRange?: ToolChangeRange;
+  shareSelectionMode?: boolean;
+  messageId?: string;
+  conversationId?: Id<"conversations">;
+  onStartShareSelection?: (messageId: string) => void;
+  onOpenComments?: () => void;
+  collapsed?: boolean;
+  timestamp?: number;
+  images?: ImageData[];
+  globalImageMap?: Record<string, ImageData[]>;
+}) {
   // opencode + pi name their built-in tools in lowercase (`edit`/`read`/`bash`/…);
   // gemini's glob matches too. Included alongside Claude's capitalized names and
   // codex's synonyms so every client's file/shell/search tools hit the same
   // specialized cards (DiffView, syntax read, bash styling) instead of the generic
   // fallback. Lowercase ids don't collide with claude/codex spellings.
   const rawToolInput = tool.input || "";
-  const patchInputs = useMemo(() => getToolPatchInputs({ name: tool.name, input: rawToolInput }), [tool.name, rawToolInput]);
-  const applyPatchDiffs = useMemo(() => patchInputs.flatMap(parseApplyPatchSections), [patchInputs]);
-  const isEmbeddedPatch = tool.name !== "apply_patch" && applyPatchDiffs.length > 0;
+  const patchInputs = useMemo(
+    () => getToolPatchInputs({ name: tool.name, input: rawToolInput }),
+    [tool.name, rawToolInput],
+  );
+  const applyPatchDiffs = useMemo(
+    () => patchInputs.flatMap(parseApplyPatchSections),
+    [patchInputs],
+  );
+  const isEmbeddedPatch =
+    tool.name !== "apply_patch" && applyPatchDiffs.length > 0;
   const isApplyPatch = tool.name === "apply_patch" || isEmbeddedPatch;
   const isStandardEdit = isEditTool(tool.name) || isWriteTool(tool.name);
   const isFileChange = tool.name === "fileChange";
@@ -449,7 +822,8 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   const isBash = isShellTool(tool.name);
   const isGlob = isGlobTool(tool.name);
   const isGrep = isGrepTool(tool.name);
-  const isCodeSearch = tool.name === "code_search" || tool.name === "code_analysis";
+  const isCodeSearch =
+    tool.name === "code_search" || tool.name === "code_analysis";
 
   const targetStart = changeRange?.start ?? changeIndex;
   const targetEnd = changeRange?.end ?? changeIndex;
@@ -458,14 +832,17 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   // One boolean off the diff viewer, not the whole store: its change list and
   // bodies fill in progressively, and every visible edit row redrew its diff
   // on each of those writes.
-  const isSelected = useDiffViewerStore((s) => isClickable && (
-    (s.selectedChangeIndex !== null &&
-      s.selectedChangeIndex >= targetStart! &&
-      s.selectedChangeIndex <= targetEnd!) ||
-    (s.rangeStart !== null &&
-      s.rangeEnd !== null &&
-      Math.max(s.rangeStart, targetStart!) <= Math.min(s.rangeEnd, targetEnd!))
-  ));
+  const isSelected = useDiffViewerStore(
+    (s) =>
+      isClickable &&
+      ((s.selectedChangeIndex !== null &&
+        s.selectedChangeIndex >= targetStart! &&
+        s.selectedChangeIndex <= targetEnd!) ||
+        (s.rangeStart !== null &&
+          s.rangeEnd !== null &&
+          Math.max(s.rangeStart, targetStart!) <=
+            Math.min(s.rangeEnd, targetEnd!))),
+  );
 
   const parsedInput = useMemo<Record<string, unknown>>(() => {
     try {
@@ -498,12 +875,19 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   // multi-file patch keeps each file's comments separate.
   // One object per path for the row's life, so memo(DiffView) can bail out.
   const lineCommentCtx = useMemo(() => {
-    const byPath = new Map<string, { conversationId: string; anchorKey: string; filePath: string }>();
+    const byPath = new Map<
+      string,
+      { conversationId: string; anchorKey: string; filePath: string }
+    >();
     return (path: string) => {
       if (!conversationId) return undefined;
       let ctx = byPath.get(path);
       if (!ctx) {
-        ctx = { conversationId: String(conversationId), anchorKey: `diff:${tool.id}:${path}`, filePath: getRelativePath(path) };
+        ctx = {
+          conversationId: String(conversationId),
+          anchorKey: `diff:${tool.id}:${path}`,
+          filePath: getRelativePath(path),
+        };
         byPath.set(path, ctx);
       }
       return ctx;
@@ -512,20 +896,31 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   const language = getFileExtension(filePath);
   const applyPatchInput = patchInputs.join("\n");
   const fileChangePaths = useMemo(
-    () => (tool.name === "fileChange" ? parseFileChangeSummary(String(parsedInput.changes || "")) : []),
+    () =>
+      tool.name === "fileChange"
+        ? parseFileChangeSummary(String(parsedInput.changes || ""))
+        : [],
     [tool.name, parsedInput.changes],
   );
   const fileChangeDiffs = useMemo(
-    () => (tool.name === "fileChange" ? parseUnifiedDiffSections(result?.content || "", fileChangePaths) : []),
+    () =>
+      tool.name === "fileChange"
+        ? parseUnifiedDiffSections(result?.content || "", fileChangePaths)
+        : [],
     [tool.name, result?.content, fileChangePaths],
   );
 
   // Markdown file detection
   const isMarkdown = isMarkdownFile(filePath);
-  const content = isRead ? (result?.content || "") : String(parsedInput.content || "");
+  const content = isRead
+    ? result?.content || ""
+    : String(parsedInput.content || "");
   const isPlan = isMarkdown && isPlanFile(filePath, content);
-  const isPlanWrite = isWriteTool(tool.name) && filePath.includes('.claude/plans/');
-  const [viewMode, setViewMode] = useState<'raw' | 'rendered'>(isMarkdown ? 'rendered' : 'raw');
+  const isPlanWrite =
+    isWriteTool(tool.name) && filePath.includes(".claude/plans/");
+  const [viewMode, setViewMode] = useState<"raw" | "rendered">(
+    isMarkdown ? "rendered" : "raw",
+  );
   const [mdExpanded, setMdExpanded] = useState(false);
   const [mdFullscreen, setMdFullscreen] = useState(false);
   const [codeFullscreen, setCodeFullscreen] = useState(false);
@@ -535,13 +930,16 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   const MD_COLLAPSED_HEIGHT = 600;
 
   useWatchEffect(() => {
-    if (!mdContainerRef.current || mdExpanded || viewMode !== 'rendered') return;
+    if (!mdContainerRef.current || mdExpanded || viewMode !== "rendered")
+      return;
     // Measure synchronously (layout is committed by effect time) — rAF never
     // fires in occluded/background tabs, which left the clamp + footer missing.
     // The rAF pass re-checks after fonts/images settle.
     const measure = () => {
       if (mdContainerRef.current) {
-        setMdOverflowing(mdContainerRef.current.scrollHeight > MD_COLLAPSED_HEIGHT);
+        setMdOverflowing(
+          mdContainerRef.current.scrollHeight > MD_COLLAPSED_HEIGHT,
+        );
       }
     };
     measure();
@@ -550,27 +948,41 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
 
   useWatchEffect(() => {
     if (!mdFullscreen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMdFullscreen(false); };
-    document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = ''; };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMdFullscreen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
   }, [mdFullscreen]);
 
   useWatchEffect(() => {
     if (!codeFullscreen) return;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setCodeFullscreen(false); };
-    document.addEventListener('keydown', handleKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = ''; };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCodeFullscreen(false);
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
   }, [codeFullscreen]);
 
   const getToolSummary = () => {
     if (isApplyPatch) {
       if (applyPatchDiffs.length > 0) {
         const firstPath = getRelativePath(applyPatchDiffs[0].filePath);
-        return applyPatchDiffs.length > 1 ? `${firstPath} (+${applyPatchDiffs.length - 1})` : firstPath;
+        return applyPatchDiffs.length > 1
+          ? `${firstPath} (+${applyPatchDiffs.length - 1})`
+          : firstPath;
       }
-      const fileMatch = applyPatchInput.match(/\*\*\* (?:Update|Add|Delete) File:\s+(.+)/);
+      const fileMatch = applyPatchInput.match(
+        /\*\*\* (?:Update|Add|Delete) File:\s+(.+)/,
+      );
       if (fileMatch) return getRelativePath(fileMatch[1].trim());
       return "Apply patch";
     }
@@ -579,8 +991,12 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
         const inner = nestedActions[0];
         if (isShellTool(inner.name)) {
           let innerInput: Record<string, unknown> = {};
-          try { innerInput = JSON.parse(inner.input); } catch {}
-          const cmd = unwrapShellCommand(String(innerInput.command || innerInput.cmd || ""));
+          try {
+            innerInput = JSON.parse(inner.input);
+          } catch {}
+          const cmd = unwrapShellCommand(
+            String(innerInput.command || innerInput.cmd || ""),
+          );
           if (cmd) return summarizeBashCommand(cmd);
         }
         return sharedToolSummary(inner);
@@ -589,24 +1005,38 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
     }
     if (isStandardEdit || isRead) return relativePath;
     if (isBash) {
-      const cmd = unwrapShellCommand(String(parsedInput.command || parsedInput.cmd || ""));
+      const cmd = unwrapShellCommand(
+        String(parsedInput.command || parsedInput.cmd || ""),
+      );
       if (cmd) return summarizeBashCommand(cmd);
     }
-    if (isGlob) return parsedInput.pattern ? String(parsedInput.pattern) : relativePath;
+    if (isGlob)
+      return parsedInput.pattern ? String(parsedInput.pattern) : relativePath;
     if (isGrep && parsedInput.pattern) return String(parsedInput.pattern);
-    if (isCodeSearch && parsedInput.query) return truncateStr(String(parsedInput.query), 40);
+    if (isCodeSearch && parsedInput.query)
+      return truncateStr(String(parsedInput.query), 40);
 
-    if (tool.name === "file_read" || tool.name === "file_write" || tool.name === "file_edit") {
-      return getRelativePath(String(parsedInput.file_path || parsedInput.path || ""));
+    if (
+      tool.name === "file_read" ||
+      tool.name === "file_write" ||
+      tool.name === "file_edit"
+    ) {
+      return getRelativePath(
+        String(parsedInput.file_path || parsedInput.path || ""),
+      );
     }
     if (tool.name === "fileChange") {
       if (fileChangeDiffs.length > 0) {
         const firstPath = getRelativePath(fileChangeDiffs[0].filePath);
-        return fileChangeDiffs.length > 1 ? `${firstPath} (+${fileChangeDiffs.length - 1})` : firstPath;
+        return fileChangeDiffs.length > 1
+          ? `${firstPath} (+${fileChangeDiffs.length - 1})`
+          : firstPath;
       }
       if (fileChangePaths.length > 0) {
         const rel = getRelativePath(fileChangePaths[0]);
-        return fileChangePaths.length > 1 ? `${rel} (+${fileChangePaths.length - 1})` : rel;
+        return fileChangePaths.length > 1
+          ? `${rel} (+${fileChangePaths.length - 1})`
+          : rel;
       }
       return "File changes";
     }
@@ -618,10 +1048,13 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
         const coord = parsedInput.coordinate as number[] | undefined;
         return coord ? `Click (${coord[0]}, ${coord[1]})` : "Click";
       }
-      if (action === "type") return `Type "${truncateStr(String(parsedInput.text || ""), 20)}"`;
+      if (action === "type")
+        return `Type "${truncateStr(String(parsedInput.text || ""), 20)}"`;
       if (action === "key") return `Key: ${String(parsedInput.text || "")}`;
-      if (action === "scroll") return `Scroll ${String(parsedInput.scroll_direction || "")}`;
-      if (action === "wait") return `Wait ${String(parsedInput.duration || "")}s`;
+      if (action === "scroll")
+        return `Scroll ${String(parsedInput.scroll_direction || "")}`;
+      if (action === "wait")
+        return `Wait ${String(parsedInput.duration || "")}s`;
       return action || "Browser";
     }
     if (tool.name === "mcp__claude-in-chrome__navigate") {
@@ -636,40 +1069,66 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
       return "Page content";
     }
     if (tool.name === "mcp__claude-in-chrome__find") {
-      return parsedInput.query ? `"${truncateStr(String(parsedInput.query), 30)}"` : "Find";
+      return parsedInput.query
+        ? `"${truncateStr(String(parsedInput.query), 30)}"`
+        : "Find";
     }
     if (tool.name === "mcp__claude-in-chrome__form_input") {
       const ref = parsedInput.ref ? String(parsedInput.ref) : "";
       const val = parsedInput.value;
-      if (ref && val !== undefined) return `${ref} = "${truncateStr(String(val), 20)}"`;
+      if (ref && val !== undefined)
+        return `${ref} = "${truncateStr(String(val), 20)}"`;
       return "Set form";
     }
     if (tool.name === "mcp__claude-in-chrome__javascript_tool") {
-      return parsedInput.text ? truncateStr(String(parsedInput.text), 40) : "Execute JS";
+      return parsedInput.text
+        ? truncateStr(String(parsedInput.text), 40)
+        : "Execute JS";
     }
-    if (tool.name === "mcp__claude-in-chrome__tabs_context_mcp") return "Get tabs";
-    if (tool.name === "mcp__claude-in-chrome__tabs_create_mcp") return "Create tab";
+    if (tool.name === "mcp__claude-in-chrome__tabs_context_mcp")
+      return "Get tabs";
+    if (tool.name === "mcp__claude-in-chrome__tabs_create_mcp")
+      return "Create tab";
     if (tool.name === "mcp__claude-in-chrome__update_plan") {
       const domains = parsedInput.domains as string[] | undefined;
       if (Array.isArray(domains) && domains.length) {
-        return domains.slice(0, 2).join(", ") + (domains.length > 2 ? "..." : "");
+        return (
+          domains.slice(0, 2).join(", ") + (domains.length > 2 ? "..." : "")
+        );
       }
       return "Plan";
     }
-    if (tool.name === "mcp__claude-in-chrome__gif_creator") return String(parsedInput.action || "Record");
+    if (tool.name === "mcp__claude-in-chrome__gif_creator")
+      return String(parsedInput.action || "Record");
     if (tool.name === "mcp__claude-in-chrome__read_console_messages") {
-      return parsedInput.pattern ? `Filter: ${String(parsedInput.pattern)}` : "Console";
+      return parsedInput.pattern
+        ? `Filter: ${String(parsedInput.pattern)}`
+        : "Console";
     }
     if (tool.name === "mcp__claude-in-chrome__read_network_requests") {
-      return parsedInput.urlPattern ? `Filter: ${String(parsedInput.urlPattern)}` : "Network";
+      return parsedInput.urlPattern
+        ? `Filter: ${String(parsedInput.urlPattern)}`
+        : "Network";
     }
-    if (tool.name === "mcp__claude-in-chrome__get_page_text") return "Extract text";
-    if (tool.name === "mcp__claude-in-chrome__upload_image") return parsedInput.filename ? String(parsedInput.filename) : "Upload";
-    if (tool.name === "mcp__claude-in-chrome__resize_window") return parsedInput.width && parsedInput.height ? `${parsedInput.width}x${parsedInput.height}` : "Resize";
-    if (tool.name === "mcp__claude-in-chrome__shortcuts_list") return "List shortcuts";
-    if (tool.name === "mcp__claude-in-chrome__shortcuts_execute") return parsedInput.command ? `/${String(parsedInput.command)}` : "Shortcut";
+    if (tool.name === "mcp__claude-in-chrome__get_page_text")
+      return "Extract text";
+    if (tool.name === "mcp__claude-in-chrome__upload_image")
+      return parsedInput.filename ? String(parsedInput.filename) : "Upload";
+    if (tool.name === "mcp__claude-in-chrome__resize_window")
+      return parsedInput.width && parsedInput.height
+        ? `${parsedInput.width}x${parsedInput.height}`
+        : "Resize";
+    if (tool.name === "mcp__claude-in-chrome__shortcuts_list")
+      return "List shortcuts";
+    if (tool.name === "mcp__claude-in-chrome__shortcuts_execute")
+      return parsedInput.command
+        ? `/${String(parsedInput.command)}`
+        : "Shortcut";
 
-    if (tool.name === "TaskCreate") return parsedInput.subject ? truncateStr(String(parsedInput.subject), 50) : "New task";
+    if (tool.name === "TaskCreate")
+      return parsedInput.subject
+        ? truncateStr(String(parsedInput.subject), 50)
+        : "New task";
     if (tool.name === "TaskUpdate") {
       const id = parsedInput.taskId ? `#${parsedInput.taskId}` : "";
       const status = parsedInput.status ? String(parsedInput.status) : "";
@@ -678,36 +1137,59 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
     }
     if (tool.name === "TaskList") {
       if (result) {
-        const lines = result.content.split("\n").filter((l: string) => l.match(/#\d+\s+\[/));
+        const lines = result.content
+          .split("\n")
+          .filter((l: string) => l.match(/#\d+\s+\[/));
         if (lines.length > 0) return `${lines.length} tasks`;
       }
       return "Tasks";
     }
-    if (tool.name === "TaskGet") return parsedInput.taskId ? `#${parsedInput.taskId}` : "Get task";
-    if (tool.name === "TeamCreate") return parsedInput.team_name ? String(parsedInput.team_name) : "New team";
+    if (tool.name === "TaskGet")
+      return parsedInput.taskId ? `#${parsedInput.taskId}` : "Get task";
+    if (tool.name === "TeamCreate")
+      return parsedInput.team_name ? String(parsedInput.team_name) : "New team";
     if (tool.name === "TeamDelete") return "Cleanup";
     if (tool.name === "SendMessage") {
-      if (parsedInput.summary) return truncateStr(String(parsedInput.summary), 40);
+      if (parsedInput.summary)
+        return truncateStr(String(parsedInput.summary), 40);
       if (parsedInput.recipient) return `to ${String(parsedInput.recipient)}`;
       if (parsedInput.type === "broadcast") return "broadcast";
       return "Message";
     }
 
-    if (tool.name === "WebSearch" || tool.name === "web_search") return parsedInput.query ? truncateStr(String(parsedInput.query), 40) : "Search";
-    if (tool.name === "WebFetch" || tool.name === "web_fetch") return parsedInput.url ? shortenUrl(String(parsedInput.url)) : "Fetch";
-    if (tool.name === "NotebookEdit") return parsedInput.notebook_path ? getRelativePath(String(parsedInput.notebook_path)) : "Notebook";
-    if (tool.name === "Skill") return parsedInput.skill ? `/${String(parsedInput.skill)}` : "Skill";
-    if (tool.name === "EnterPlanMode" || tool.name === "enter_plan_mode") return "Plan mode";
-    if (tool.name === "ExitPlanMode" || tool.name === "exit_plan_mode") return "Exit plan";
-    if (tool.name === "TaskOutput") return parsedInput.task_id ? `task ${String(parsedInput.task_id).slice(0, 8)}` : "Output";
-    if (tool.name === "TaskStop") return parsedInput.task_id ? `stop ${String(parsedInput.task_id).slice(0, 8)}` : "Stop";
+    if (tool.name === "WebSearch" || tool.name === "web_search")
+      return parsedInput.query
+        ? truncateStr(String(parsedInput.query), 40)
+        : "Search";
+    if (tool.name === "WebFetch" || tool.name === "web_fetch")
+      return parsedInput.url ? shortenUrl(String(parsedInput.url)) : "Fetch";
+    if (tool.name === "NotebookEdit")
+      return parsedInput.notebook_path
+        ? getRelativePath(String(parsedInput.notebook_path))
+        : "Notebook";
+    if (tool.name === "Skill")
+      return parsedInput.skill ? `/${String(parsedInput.skill)}` : "Skill";
+    if (tool.name === "EnterPlanMode" || tool.name === "enter_plan_mode")
+      return "Plan mode";
+    if (tool.name === "ExitPlanMode" || tool.name === "exit_plan_mode")
+      return "Exit plan";
+    if (tool.name === "TaskOutput")
+      return parsedInput.task_id
+        ? `task ${String(parsedInput.task_id).slice(0, 8)}`
+        : "Output";
+    if (tool.name === "TaskStop")
+      return parsedInput.task_id
+        ? `stop ${String(parsedInput.task_id).slice(0, 8)}`
+        : "Stop";
     if (isTodoTool(tool.name)) {
       const todos = parsedInput.todos as any[];
       return `${todos?.length || 0} tasks`;
     }
     if (isAskTool(tool.name)) {
       const questions = parsedInput.questions as any[];
-      return questions?.[0]?.question ? truncateStr(String(questions[0].question), 50) : "Question";
+      return questions?.[0]?.question
+        ? truncateStr(String(questions[0].question), 50)
+        : "Question";
     }
 
     if (tool.name.startsWith("mcp__")) {
@@ -727,12 +1209,15 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   // under the call's own access rule, where an image would have been. A frame
   // of a replay (`cast replay snap`) does the same: the recorded page plays
   // from that moment, under the replay's workspace rule.
-  const seenFrame = callFrameSeenRef(result?.content) ?? replayFrameSeenRef(result?.content);
+  const seenFrame =
+    callFrameSeenRef(result?.content) ?? replayFrameSeenRef(result?.content);
   const getResultSummary = () => {
     if (!result) return null;
     if (result.is_error) return "(error)";
     if (isEdit) {
-      const match = result.content.match(/with (\d+) additions? and (\d+) removals?/);
+      const match = result.content.match(
+        /with (\d+) additions? and (\d+) removals?/,
+      );
       if (match) return `(+${match[1]} -${match[2]})`;
       return result.content.includes("has been updated") ? "(ok)" : "";
     }
@@ -743,7 +1228,10 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
       return `(${lines} lines)`;
     }
     if (isGlob || isGrep || isCodeSearch) {
-      const lines = result.content.trim().split("\n").filter(l => l.trim()).length;
+      const lines = result.content
+        .trim()
+        .split("\n")
+        .filter((l) => l.trim()).length;
       return `(${lines} matches)`;
     }
     if (isBash && result.content) {
@@ -751,7 +1239,9 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
       if (lines > 1) return `(${lines} lines)`;
     }
     if (tool.name === "TaskList") {
-      const taskLines = result.content.split("\n").filter((l: string) => l.match(/#\d+\s+\[/));
+      const taskLines = result.content
+        .split("\n")
+        .filter((l: string) => l.match(/#\d+\s+\[/));
       if (taskLines.length > 0) return `(${taskLines.length} tasks)`;
     }
     return null;
@@ -759,19 +1249,44 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
 
   const summary = getToolSummary();
   const resultSummary = getResultSummary();
-  const displayToolName = isApplyPatch ? formatToolName("apply_patch") : isNested && nestedActions.length === 1
-    ? formatToolName(nestedActions[0].name)
-    : formatToolName(tool.name);
+  const displayToolName = isApplyPatch
+    ? formatToolName("apply_patch")
+    : isNested && nestedActions.length === 1
+      ? formatToolName(nestedActions[0].name)
+      : formatToolName(tool.name);
   // Modern reads the row as a verb, its object and the result (lib/modernRow).
-  const mh = useIsModernStyle() ? modernToolHead({ name: isApplyPatch ? "apply_patch" : isNested && nestedActions.length === 1 ? nestedActions[0].name : tool.name, displayName: displayToolName, result, resultSummary }) : null;
+  const mh = useIsModernStyle()
+    ? modernToolHead({
+        name: isApplyPatch
+          ? "apply_patch"
+          : isNested && nestedActions.length === 1
+            ? nestedActions[0].name
+            : tool.name,
+        displayName: displayToolName,
+        result,
+        resultSummary,
+      })
+    : null;
 
-  const browserTab = useMemo(() => browserTabOf(tool, null, result?.content, EMPTY_BROWSER_ROWS), [tool, result?.content]);
+  const browserTab = useMemo(
+    () => browserTabOf(tool, null, result?.content, EMPTY_BROWSER_ROWS),
+    [tool, result?.content],
+  );
 
   // A shell call that made a commit or opened a pull request shows that object
   // on the call itself — exact attribution, no second row in the transcript.
-  const shellCommand = isBash ? String(parsedInput.command || parsedInput.cmd || "") : "";
+  const shellCommand = isBash
+    ? String(parsedInput.command || parsedInput.cmd || "")
+    : "";
   const gitOutcome = useMemo(
-    () => (shellCommand && result ? gitToolOutcome(shellCommand, safeString(result.content), result.is_error) : null),
+    () =>
+      shellCommand && result
+        ? gitToolOutcome(
+            shellCommand,
+            safeString(result.content),
+            result.is_error,
+          )
+        : null,
     [shellCommand, result],
   );
   // The session's repository names the commit only when the command stayed in
@@ -779,24 +1294,39 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   // anywhere, so its pill stays unlinked rather than pointing at the wrong repo.
   const outcomeRepository = useInboxStore((s) =>
     gitOutcome && conversationId && !commandLeavesCheckout(shellCommand)
-      ? sessionRepository((s.conversations[conversationId as string] ?? s.sessions?.[conversationId as string] ?? {}) as any)
+      ? sessionRepository(
+          (s.conversations[conversationId as string] ??
+            s.sessions?.[conversationId as string] ??
+            {}) as any,
+        )
       : null,
   );
 
   // Process result content - strip line numbers for Read tool, strip Tab Context from MCP chrome results
   const rawResultContent = result ? safeString(result.content) : "";
-  const processedContent = result ? (isRead ? stripLineNumbers(rawResultContent) : tool.name.startsWith("mcp__claude-in-chrome__") ? rawResultContent.replace(/\n?\n?Tab Context:[\s\S]*$/, "").trim() : rawResultContent) : "";
+  const processedContent = result
+    ? isRead
+      ? stripLineNumbers(rawResultContent)
+      : tool.name.startsWith("mcp__claude-in-chrome__")
+        ? rawResultContent.replace(/\n?\n?Tab Context:[\s\S]*$/, "").trim()
+        : rawResultContent
+    : "";
 
-  const isCodeTool = isBash || isEdit || isRead || isGlob || isGrep || isCodeSearch;
-  const isMarkdownResult = result && !isCodeTool && typeof processedContent === 'string' && (
-    processedContent.includes('###') || processedContent.includes('**') || processedContent.includes('```')
-  );
+  const isCodeTool =
+    isBash || isEdit || isRead || isGlob || isGrep || isCodeSearch;
+  const isMarkdownResult =
+    result &&
+    !isCodeTool &&
+    typeof processedContent === "string" &&
+    (processedContent.includes("###") ||
+      processedContent.includes("**") ||
+      processedContent.includes("```"));
 
   // Extract starting line number from Edit result (format: "   42→content")
   const getStartLine = () => {
     if (isRead) {
       const offset = parsedInput.offset;
-      if (offset && typeof offset === 'number') return offset;
+      if (offset && typeof offset === "number") return offset;
       if (result?.content) {
         const match = result.content.match(/^\s*(\d+)\t/m);
         if (match) return parseInt(match[1], 10);
@@ -817,7 +1347,8 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
     }
     if (isClickable && targetStart !== undefined && targetEnd !== undefined) {
       e.stopPropagation();
-      const { selectedChangeIndex, selectChange, selectRange } = useDiffViewerStore.getState();
+      const { selectedChangeIndex, selectChange, selectRange } =
+        useDiffViewerStore.getState();
       if (e.metaKey || e.ctrlKey) {
         if (selectedChangeIndex !== null) {
           selectRange(selectedChangeIndex, targetEnd);
@@ -837,16 +1368,40 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   };
 
   if (isPlanWrite && content) {
-    return <PlanBlock content={content} timestamp={timestamp || Date.now()} collapsed={collapsed} messageId={messageId} conversationId={conversationId} onOpenComments={onOpenComments} onStartShareSelection={onStartShareSelection} />;
+    return (
+      <PlanBlock
+        content={content}
+        timestamp={timestamp || Date.now()}
+        collapsed={collapsed}
+        messageId={messageId}
+        conversationId={conversationId}
+        onOpenComments={onOpenComments}
+        onStartShareSelection={onStartShareSelection}
+      />
+    );
   }
 
   const isCodecastImageRead = isRead && /codecast\/images\//.test(filePath);
   if (isCodecastImageRead) {
     return (
       <div className="my-0.5 flex items-center gap-1.5 text-xs">
-        <svg className="w-3.5 h-3.5 text-sol-blue/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.577-3.007-9.963-7.178z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          className="w-3.5 h-3.5 text-sol-blue/60"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.64 0-8.577-3.007-9.963-7.178z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
         <span className="text-sol-text-dim italic">Viewing your image</span>
       </div>
@@ -854,16 +1409,20 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
   }
 
   return (
-    <div className="my-0.5" data-cc-row="tool" data-cc-row-tone={result?.is_error ? "error" : undefined}>
+    <div
+      className="my-0.5"
+      data-cc-row="tool"
+      data-cc-row-tone={result?.is_error ? "error" : undefined}
+    >
       <div
         className={`flex items-center gap-1.5 group text-xs ${
           isClickable
-            ? 'cursor-pointer hover:bg-sol-bg-highlight/30 rounded px-1 -mx-1 transition-colors'
-            : 'cursor-pointer'
+            ? "cursor-pointer hover:bg-sol-bg-highlight/30 rounded px-1 -mx-1 transition-colors"
+            : "cursor-pointer"
         } ${
           isSelected
-            ? 'bg-sol-blue/10 border border-sol-blue/30 rounded px-1 -mx-1'
-            : ''
+            ? "bg-sol-blue/10 border border-sol-blue/30 rounded px-1 -mx-1"
+            : ""
         }`}
         role="button"
         data-cc-row-head
@@ -873,29 +1432,58 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
         onClick={handleClick}
         onKeyDown={(e) => {
           // A key on the file link inside stays the link's.
-          if (e.target !== e.currentTarget || (e.key !== "Enter" && e.key !== " ")) return;
+          if (
+            e.target !== e.currentTarget ||
+            (e.key !== "Enter" && e.key !== " ")
+          )
+            return;
           e.preventDefault();
           e.stopPropagation();
           handleClick(e);
         }}
       >
-        {mh && <RowIcon kind={mh.kind} />}<span data-cc-row-verb className={`font-mono flex-shrink-0 group-hover:underline ${toolColor}`}>{mh?.verb ?? displayToolName}</span>
+        {mh && <RowIcon kind={mh.kind} />}
+        <span
+          data-cc-row-verb
+          className={`font-mono flex-shrink-0 group-hover:underline ${toolColor}`}
+        >
+          {mh?.verb ?? displayToolName}
+        </span>
         {summary && (
-          <span data-cc-row-object className="text-sol-text-muted font-mono truncate min-w-0">
+          <span
+            data-cc-row-object
+            className="text-sol-text-muted font-mono truncate min-w-0"
+          >
             {(isStandardEdit || isRead) && filePath ? (
               // The file a Read/Edit touched, linked into Files, cut in the
               // middle so the file name stays (PathText). Stop the click so it
               // opens the file rather than toggling the row. A link's dotted
               // underline does not reach into the path's inline-flex box, so
               // Classic and Minimal hand it on (Modern draws the path bare).
-              <FilePathLink path={filePath} onClick={(e) => e.stopPropagation()}><PathText path={summary} className={mh ? undefined : "[text-decoration:inherit]"} /></FilePathLink>
-            ) : summary}
+              <FilePathLink
+                path={filePath}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PathText
+                  path={summary}
+                  className={mh ? undefined : "[text-decoration:inherit]"}
+                />
+              </FilePathLink>
+            ) : (
+              summary
+            )}
           </span>
         )}
         {browserTab && <BrowserTabPill tab={browserTab} />}
-        {gitOutcome && <GitOutcomeRow outcome={gitOutcome} repository={outcomeRepository} />}
+        {gitOutcome && (
+          <GitOutcomeRow outcome={gitOutcome} repository={outcomeRepository} />
+        )}
         {(mh ? mh.meta : resultSummary) && (
-          <span data-cc-row-meta className={`font-mono flex-shrink-0 whitespace-nowrap ${result?.is_error ? "text-sol-red/80" : "text-sol-text-dim"}`} title={mh?.failed ? mh.meta! : undefined}>
+          <span
+            data-cc-row-meta
+            className={`font-mono flex-shrink-0 whitespace-nowrap ${result?.is_error ? "text-sol-red/80" : "text-sol-text-dim"}`}
+            title={mh?.failed ? mh.meta! : undefined}
+          >
             {mh ? mh.meta : resultSummary}
           </span>
         )}
@@ -905,10 +1493,15 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
         // A command can hand back several images at once (`cast browser shot
         // --viewports`); side by side they read as the comparison they are,
         // stacked they read as a sequence. Each keeps its own lightbox click.
-        let toolImages = images?.filter(img => img.tool_use_id === tool.id) ?? [];
+        let toolImages =
+          images?.filter((img) => img.tool_use_id === tool.id) ?? [];
         if (!toolImages.length) toolImages = globalImageMap?.[tool.id] ?? [];
-        if (!toolImages.length) return seenFrame ? <EntityObjectCard refId={seenFrame} count={1} /> : null;
-        if (toolImages.length === 1) return <ImageBlock image={toolImages[0]} />;
+        if (!toolImages.length)
+          return seenFrame ? (
+            <EntityObjectCard refId={seenFrame} count={1} />
+          ) : null;
+        if (toolImages.length === 1)
+          return <ImageBlock image={toolImages[0]} />;
         return (
           <div className="flex gap-2 items-start">
             {toolImages.map((img, i) => (
@@ -928,59 +1521,88 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
           className="mt-1 rounded border border-sol-border/30 bg-sol-bg-inset transition-all duration-200"
         >
           {/* Markdown toggle header */}
-          {isMarkdown && (isRead || (isWriteTool(tool.name) && Boolean(parsedInput.content))) && (
-            <div className="flex items-center justify-between px-2 py-1 border-b border-sol-border/20 bg-sol-bg-highlight/30">
-              <div className="flex items-center gap-2">
-                <span className="text-meta text-sol-text-dim">{language}</span>
-                {isPlan && (
-                  <span className="text-meta px-1.5 py-0.5 rounded bg-sol-bg-highlight text-sol-text-muted font-medium">
-                    PLAN
+          {isMarkdown &&
+            (isRead ||
+              (isWriteTool(tool.name) && Boolean(parsedInput.content))) && (
+              <div className="flex items-center justify-between px-2 py-1 border-b border-sol-border/20 bg-sol-bg-highlight/30">
+                <div className="flex items-center gap-2">
+                  <span className="text-meta text-sol-text-dim">
+                    {language}
                   </span>
-                )}
+                  {isPlan && (
+                    <span className="text-meta px-1.5 py-0.5 rounded bg-sol-bg-highlight text-sol-text-muted font-medium">
+                      PLAN
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 text-meta">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewMode("raw");
+                    }}
+                    className={`px-1.5 py-0.5 rounded transition-colors ${
+                      viewMode === "raw"
+                        ? "bg-sol-bg-highlight text-sol-text"
+                        : "text-sol-text-dim hover:text-sol-text-muted"
+                    }`}
+                  >
+                    Raw
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewMode("rendered");
+                    }}
+                    className={`px-1.5 py-0.5 rounded transition-colors ${
+                      viewMode === "rendered"
+                        ? "bg-sol-bg-highlight text-sol-text"
+                        : "text-sol-text-dim hover:text-sol-text-muted"
+                    }`}
+                  >
+                    Rendered
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 text-meta">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setViewMode('raw'); }}
-                  className={`px-1.5 py-0.5 rounded transition-colors ${
-                    viewMode === 'raw'
-                      ? 'bg-sol-bg-highlight text-sol-text'
-                      : 'text-sol-text-dim hover:text-sol-text-muted'
-                  }`}
-                >
-                  Raw
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setViewMode('rendered'); }}
-                  className={`px-1.5 py-0.5 rounded transition-colors ${
-                    viewMode === 'rendered'
-                      ? 'bg-sol-bg-highlight text-sol-text'
-                      : 'text-sol-text-dim hover:text-sol-text-muted'
-                  }`}
-                >
-                  Rendered
-                </button>
-              </div>
-            </div>
-          )}
+            )}
           {isNested ? (
             <div className="max-h-80 overflow-auto">
               {nestedActions.length > 0 ? (
                 <NestedStepList
-                  steps={nestedActions.map((action) => ({ label: formatToolName(action.name), summary: sharedToolSummary(action) }))}
-                  outcomes={isBrowserBatch ? splitBrowserBatchResult(rawResultContent, nestedActions.length) : undefined}
+                  steps={nestedActions.map((action) => ({
+                    label: formatToolName(action.name),
+                    summary: sharedToolSummary(action),
+                  }))}
+                  outcomes={
+                    isBrowserBatch
+                      ? splitBrowserBatchResult(
+                          rawResultContent,
+                          nestedActions.length,
+                        )
+                      : undefined
+                  }
                   labelClass="text-sol-cyan/80"
                 />
               ) : (
                 <pre className="border-b border-sol-border/20 bg-sol-bg-highlight/20 p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap text-sol-text-muted">
-                  {String(parsedInput.input || parsedInput.code || parsedInput.script || "Codex action")}
+                  {String(
+                    parsedInput.input ||
+                      parsedInput.code ||
+                      parsedInput.script ||
+                      "Codex action",
+                  )}
                 </pre>
               )}
               {/* A batch's result is already spread across its steps; only the
                   Codex program keeps its result as one block underneath. */}
               {isBrowserBatch && nestedActions.length > 0 ? (
-                !result && <div className="p-2 text-xs text-sol-text-dim">Running</div>
+                !result && (
+                  <div className="p-2 text-xs text-sol-text-dim">Running</div>
+                )
               ) : processedContent && processedContent.trim() ? (
-                <pre className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}>
+                <pre
+                  className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}
+                >
                   {renderAnsi(processedContent)}
                 </pre>
               ) : (
@@ -996,14 +1618,21 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
               commentContext={lineCommentCtx(filePath)}
             />
           ) : isWriteTool(tool.name) && !!parsedInput.content ? (
-            isMarkdown && viewMode === 'rendered' ? (
+            isMarkdown && viewMode === "rendered" ? (
               <>
                 <div
                   ref={mdContainerRef}
                   className="relative p-3"
-                  style={!mdExpanded && mdOverflowing ? { maxHeight: MD_COLLAPSED_HEIGHT, overflowY: 'hidden' } : undefined}
+                  style={
+                    !mdExpanded && mdOverflowing
+                      ? { maxHeight: MD_COLLAPSED_HEIGHT, overflowY: "hidden" }
+                      : undefined
+                  }
                 >
-                  <MarkdownRenderer content={String(parsedInput.content)} filePath={filePath} />
+                  <MarkdownRenderer
+                    content={String(parsedInput.content)}
+                    filePath={filePath}
+                  />
                   {!mdExpanded && mdOverflowing && (
                     <div className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none bg-gradient-to-b from-transparent to-[var(--sol-bg-inset)]" />
                   )}
@@ -1011,39 +1640,71 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
                 {(mdOverflowing || mdExpanded) && (
                   <div className="flex items-center gap-1 px-2 py-1 border-t border-sol-border/20">
                     <FooterIconButton
-                      onClick={(e) => { e.stopPropagation(); setMdFullscreen(true); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMdFullscreen(true);
+                      }}
                       title="Fullscreen"
                     >
                       <FullscreenIcon />
                     </FooterIconButton>
                     <FooterIconButton
-                      onClick={(e) => { e.stopPropagation(); setMdExpanded(v => !v); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMdExpanded((v) => !v);
+                      }}
                       title={mdExpanded ? "Collapse" : "Expand"}
                     >
-                      {mdExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {mdExpanded ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
                     </FooterIconButton>
                   </div>
                 )}
-                {mdFullscreen && createPortal(
-                  <div className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto" onClick={() => setMdFullscreen(false)}>
-                    <div className="conv-col mx-auto px-8 py-12" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center justify-between mb-6">
-                        <span className="text-sol-text-secondary text-sm modern:font-mono font-medium">{filePath.split('/').pop()}</span>
-                        <button
-                          onClick={() => setMdFullscreen(false)}
-                          className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
-                          title="Close (Esc)"
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
+                {mdFullscreen &&
+                  createPortal(
+                    <div
+                      className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto"
+                      onClick={() => setMdFullscreen(false)}
+                    >
+                      <div
+                        className="conv-col mx-auto px-8 py-12"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-6">
+                          <span className="text-sol-text-secondary text-sm modern:font-mono font-medium">
+                            {filePath.split("/").pop()}
+                          </span>
+                          <button
+                            onClick={() => setMdFullscreen(false)}
+                            className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
+                            title="Close (Esc)"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                        <MarkdownRenderer
+                          content={String(parsedInput.content)}
+                          filePath={filePath}
+                        />
                       </div>
-                      <MarkdownRenderer content={String(parsedInput.content)} filePath={filePath} />
-                    </div>
-                  </div>,
-                  document.body
-                )}
+                    </div>,
+                    document.body,
+                  )}
               </>
             ) : (
               <DiffView
@@ -1057,24 +1718,37 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
           ) : isApplyPatch || isFileChange ? (
             (isApplyPatch ? applyPatchDiffs : fileChangeDiffs).length > 0 ? (
               <div>
-                {(isApplyPatch ? applyPatchDiffs : fileChangeDiffs).map((diff, idx) => {
-                  const diffLanguage = getFileExtension(diff.filePath);
-                  const diffStartLine = diff.hunks[0]?.oldStart || diff.hunks[0]?.newStart || 1;
-                  return (
-                    <div key={`${diff.filePath}-${idx}`} className={idx > 0 ? "border-t border-sol-border/20" : ""}>
-                      <div className="px-2 py-1 border-b border-sol-border/20 bg-sol-bg-highlight/20">
-                        <span className="block text-xs font-mono text-sol-text-dim truncate" title={getRelativePath(diff.filePath)}>{getRelativePath(diff.filePath)}</span>
+                {(isApplyPatch ? applyPatchDiffs : fileChangeDiffs).map(
+                  (diff, idx) => {
+                    const diffLanguage = getFileExtension(diff.filePath);
+                    const diffStartLine =
+                      diff.hunks[0]?.oldStart || diff.hunks[0]?.newStart || 1;
+                    return (
+                      <div
+                        key={`${diff.filePath}-${idx}`}
+                        className={
+                          idx > 0 ? "border-t border-sol-border/20" : ""
+                        }
+                      >
+                        <div className="px-2 py-1 border-b border-sol-border/20 bg-sol-bg-highlight/20">
+                          <span
+                            className="block text-xs font-mono text-sol-text-dim truncate"
+                            title={getRelativePath(diff.filePath)}
+                          >
+                            {getRelativePath(diff.filePath)}
+                          </span>
+                        </div>
+                        <DiffView
+                          oldStr={diff.oldContent}
+                          newStr={diff.newContent}
+                          startLine={diffStartLine}
+                          language={diffLanguage}
+                          commentContext={lineCommentCtx(diff.filePath)}
+                        />
                       </div>
-                      <DiffView
-                        oldStr={diff.oldContent}
-                        newStr={diff.newContent}
-                        startLine={diffStartLine}
-                        language={diffLanguage}
-                        commentContext={lineCommentCtx(diff.filePath)}
-                      />
-                    </div>
-                  );
-                })}
+                    );
+                  },
+                )}
               </div>
             ) : isApplyPatch && applyPatchInput.trim() ? (
               <div className="max-h-80 overflow-auto">
@@ -1082,7 +1756,9 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
                   {applyPatchInput}
                 </pre>
               </div>
-            ) : tool.name === "fileChange" && processedContent && processedContent.trim() ? (
+            ) : tool.name === "fileChange" &&
+              processedContent &&
+              processedContent.trim() ? (
               <div className="max-h-80 overflow-auto">
                 <pre className="p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap text-sol-text-secondary">
                   {processedContent}
@@ -1090,18 +1766,25 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
               </div>
             ) : (
               <div className="p-2 text-xs text-sol-text-dim">
-                {tool.name === "fileChange" ? "Patch diff unavailable" : "Patch input unavailable"}
+                {tool.name === "fileChange"
+                  ? "Patch diff unavailable"
+                  : "Patch input unavailable"}
               </div>
             )
           ) : isBash && (parsedInput.command || parsedInput.cmd) ? (
             <div className="max-h-80 overflow-auto">
               <div className="px-1.5 sm:px-2 py-1 sm:py-1.5 border-b border-sol-border/20 bg-sol-bg-highlight/30">
                 <pre className="text-meta sm:text-xs font-mono text-sol-green whitespace-pre-wrap break-all">
-                  $ {unwrapShellCommand(String(parsedInput.command || parsedInput.cmd || ""))}
+                  ${" "}
+                  {unwrapShellCommand(
+                    String(parsedInput.command || parsedInput.cmd || ""),
+                  )}
                 </pre>
               </div>
               {processedContent && processedContent.trim() ? (
-                <pre className={`p-1.5 sm:p-2 text-meta sm:text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}>
+                <pre
+                  className={`p-1.5 sm:p-2 text-meta sm:text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}
+                >
                   {renderAnsi(processedContent)}
                 </pre>
               ) : (
@@ -1109,7 +1792,10 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
               )}
               <ObservedChanges toolId={tool.id} />
             </div>
-          ) : isRead && language && processedContent && processedContent.trim() ? (
+          ) : isRead &&
+            language &&
+            processedContent &&
+            processedContent.trim() ? (
             <>
               <DiffView
                 oldStr={processedContent}
@@ -1121,64 +1807,100 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
               />
               <div className="flex items-center gap-1 px-2 py-1 border-t border-sol-border/20">
                 <FooterIconButton
-                  onClick={(e) => { e.stopPropagation(); setCodeFullscreen(true); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCodeFullscreen(true);
+                  }}
                   title="Fullscreen"
                 >
                   <FullscreenIcon />
                 </FooterIconButton>
                 <FooterIconButton
-                  onClick={(e) => { e.stopPropagation(); fullWidth.toggle(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fullWidth.toggle();
+                  }}
                   title={fullWidth.expanded ? "Normal width" : "Full width"}
                   label={fullWidth.expanded ? "Normal Width" : "Full Width"}
                 >
                   <MoveHorizontal className="w-4 h-4" />
                 </FooterIconButton>
                 <FooterIconButton
-                  onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(false);
+                  }}
                   title="Collapse"
                 >
                   <ChevronUp className="w-4 h-4" />
                 </FooterIconButton>
               </div>
-              {codeFullscreen && createPortal(
-                <div className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto" onClick={() => setCodeFullscreen(false)}>
-                  <div className="max-w-6xl mx-auto px-8 py-12" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-sol-text-secondary text-sm font-mono">{relativePath}</span>
-                      <button
-                        onClick={() => setCodeFullscreen(false)}
-                        className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
-                        title="Close (Esc)"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+              {codeFullscreen &&
+                createPortal(
+                  <div
+                    className="fixed inset-0 z-[10001] bg-sol-bg overflow-auto"
+                    onClick={() => setCodeFullscreen(false)}
+                  >
+                    <div
+                      className="max-w-6xl mx-auto px-8 py-12"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-sol-text-secondary text-sm font-mono">
+                          {relativePath}
+                        </span>
+                        <button
+                          onClick={() => setCodeFullscreen(false)}
+                          className="text-sol-text-dim hover:text-sol-text-muted transition-colors p-1"
+                          title="Close (Esc)"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="rounded border border-sol-border/30 bg-sol-bg-inset">
+                        <DiffView
+                          oldStr={processedContent}
+                          newStr={processedContent}
+                          startLine={startLine}
+                          maxLines={99999}
+                          language={language}
+                          showLineNumbers
+                        />
+                      </div>
                     </div>
-                    <div className="rounded border border-sol-border/30 bg-sol-bg-inset">
-                      <DiffView
-                        oldStr={processedContent}
-                        newStr={processedContent}
-                        startLine={startLine}
-                        maxLines={99999}
-                        language={language}
-                        showLineNumbers
-                      />
-                    </div>
-                  </div>
-                </div>,
-                document.body
-              )}
+                  </div>,
+                  document.body,
+                )}
             </>
           ) : processedContent && processedContent.trim() ? (
             <div className="max-h-80 overflow-auto">
-              {isMarkdown && viewMode === 'rendered' ? (
+              {isMarkdown && viewMode === "rendered" ? (
                 <div className="p-3">
-                  <MarkdownRenderer content={processedContent} filePath={filePath} />
+                  <MarkdownRenderer
+                    content={processedContent}
+                    filePath={filePath}
+                  />
                 </div>
               ) : isMarkdownResult ? (
                 <div className="p-2 prose prose-invert prose-sm max-w-none text-xs">
-                  <ReactMarkdown remarkPlugins={entityRemarkPlugins} components={MD_COMPONENTS_NO_PRE}>{processedContent}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={entityRemarkPlugins}
+                    components={MD_COMPONENTS_NO_PRE}
+                  >
+                    {processedContent}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <>
@@ -1187,7 +1909,9 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
                       {language}
                     </div>
                   )}
-                  <pre className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}>
+                  <pre
+                    className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}
+                  >
                     {renderAnsi(processedContent)}
                   </pre>
                 </>
@@ -1197,21 +1921,39 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
             <div className="p-2 text-xs text-sol-text-dim">No output</div>
           )}
           {(isEmbeddedPatch || (isApplyPatch && result?.is_error)) && (
-            <details open={result?.is_error || undefined} className="border-t border-sol-border/20">
-              <summary className="cursor-pointer px-2 py-1 text-xs text-sol-text-dim">Execution details</summary>
+            <details
+              open={result?.is_error || undefined}
+              className="border-t border-sol-border/20"
+            >
+              <summary className="cursor-pointer px-2 py-1 text-xs text-sol-text-dim">
+                Execution details
+              </summary>
               <div className="max-h-80 overflow-auto">
                 {nestedActions.length > 1 && (
                   <NestedStepList
-                    steps={nestedActions.map((action) => ({ label: formatToolName(action.name), summary: sharedToolSummary(action) }))}
+                    steps={nestedActions.map((action) => ({
+                      label: formatToolName(action.name),
+                      summary: sharedToolSummary(action),
+                    }))}
                     labelClass="text-sol-cyan/80"
                   />
                 )}
-                {shellCommand && <pre className="p-2 text-xs font-mono whitespace-pre-wrap text-sol-text-muted">{shellCommand}</pre>}
+                {shellCommand && (
+                  <pre className="p-2 text-xs font-mono whitespace-pre-wrap text-sol-text-muted">
+                    {shellCommand}
+                  </pre>
+                )}
                 {processedContent.trim() ? (
-                  <pre className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}>
+                  <pre
+                    className={`p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap ${result?.is_error ? "text-sol-red" : "text-sol-text-secondary"}`}
+                  >
                     {renderAnsi(processedContent)}
                   </pre>
-                ) : <div className="p-2 text-xs text-sol-text-dim">{result ? "No output" : "Running"}</div>}
+                ) : (
+                  <div className="p-2 text-xs text-sol-text-dim">
+                    {result ? "No output" : "Running"}
+                  </div>
+                )}
               </div>
             </details>
           )}
@@ -1222,7 +1964,9 @@ export function ToolBlock({ tool, result, changeIndex, changeRange, shareSelecti
 }
 
 export function TodoWriteBlock({ tool }: { tool: ToolCall }) {
-  let parsedInput: { todos?: Array<{ content: string; status: string; activeForm?: string }> } = {};
+  let parsedInput: {
+    todos?: Array<{ content: string; status: string; activeForm?: string }>;
+  } = {};
   try {
     parsedInput = JSON.parse(tool.input);
   } catch {}
@@ -1230,14 +1974,20 @@ export function TodoWriteBlock({ tool }: { tool: ToolCall }) {
   const todos = parsedInput.todos || [];
   if (todos.length === 0) return null;
 
-  const completed = todos.filter(t => t.status === 'completed').length;
-  const inProgress = todos.filter(t => t.status === 'in_progress').length;
+  const completed = todos.filter((t) => t.status === "completed").length;
+  const inProgress = todos.filter((t) => t.status === "in_progress").length;
 
   return (
     <div className="my-2" data-cc-row="todo">
       <div className="flex items-center gap-2 py-0.5" data-cc-row-head>
-        <span data-cc-row-icon className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0" />
-        <span data-cc-row-verb className="font-mono text-sm font-medium text-pink-600 dark:text-sol-magenta">
+        <span
+          data-cc-row-icon
+          className="w-1.5 h-1.5 rounded-full bg-pink-500 flex-shrink-0"
+        />
+        <span
+          data-cc-row-verb
+          className="font-mono text-sm font-medium text-pink-600 dark:text-sol-magenta"
+        >
           {formatToolName(tool.name)}
         </span>
         <span data-cc-row-meta className="text-sol-text-dim text-sm font-mono">
@@ -1248,25 +1998,56 @@ export function TodoWriteBlock({ tool }: { tool: ToolCall }) {
       <div className="ml-3.5 mt-1 space-y-0.5" data-cc-row-list>
         {todos.map((todo, i) => (
           <div key={i} className="flex items-start gap-2 text-sm">
-            {todo.status === 'completed' ? (
-              <svg className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            {todo.status === "completed" ? (
+              <svg
+                className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
-            ) : todo.status === 'in_progress' ? (
-              <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            ) : todo.status === "in_progress" ? (
+              <svg
+                className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             ) : (
-              <svg className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <circle cx="12" cy="12" r="9" strokeWidth={2} />
               </svg>
             )}
-            <span className={`${
-              todo.status === 'completed' ? 'text-sol-text-dim line-through' :
-              todo.status === 'in_progress' ? 'text-sol-text-secondary' :
-              'text-sol-text-muted'
-            }`}>
-              {todo.status === 'in_progress' ? (todo.activeForm || todo.content) : todo.content}
+            <span
+              className={`${
+                todo.status === "completed"
+                  ? "text-sol-text-dim line-through"
+                  : todo.status === "in_progress"
+                    ? "text-sol-text-secondary"
+                    : "text-sol-text-muted"
+              }`}
+            >
+              {todo.status === "in_progress"
+                ? todo.activeForm || todo.content
+                : todo.content}
             </span>
           </div>
         ))}
@@ -1275,65 +2056,135 @@ export function TodoWriteBlock({ tool }: { tool: ToolCall }) {
   );
 }
 
-export function TaskListBlock({ tool, result, taskRecordMap }: { tool: ToolCall; result?: ToolResult; taskRecordMap?: TaskRecordMaps }) {
+export function TaskListBlock({
+  tool,
+  result,
+  taskRecordMap,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  taskRecordMap?: TaskRecordMaps;
+}) {
   if (!result) return null;
   const lines = result.content.split("\n");
-  const items: Array<{ id: string; status: string; subject: string; owner?: string; blockedBy?: string[] }> = [];
+  const items: Array<{
+    id: string;
+    status: string;
+    subject: string;
+    owner?: string;
+    blockedBy?: string[];
+  }> = [];
   for (const line of lines) {
-    const match = line.match(/#(\d+)\s+\[(\w+)]\s+(.+?)(?:\s+\(([^)]+)\))?(?:\s+\[blocked by ([^\]]+)])?$/);
+    const match = line.match(
+      /#(\d+)\s+\[(\w+)]\s+(.+?)(?:\s+\(([^)]+)\))?(?:\s+\[blocked by ([^\]]+)])?$/,
+    );
     if (match) {
       items.push({
-        id: match[1], status: match[2], subject: match[3].trim(),
+        id: match[1],
+        status: match[2],
+        subject: match[3].trim(),
         owner: match[4]?.trim(),
-        blockedBy: match[5]?.split(",").map(s => s.trim().replace("#", "")),
+        blockedBy: match[5]?.split(",").map((s) => s.trim().replace("#", "")),
       });
     }
   }
   if (items.length === 0) return null;
 
-  const completed = items.filter(t => t.status === "completed").length;
-  const inProgress = items.filter(t => t.status === "in_progress").length;
+  const completed = items.filter((t) => t.status === "completed").length;
+  const inProgress = items.filter((t) => t.status === "in_progress").length;
 
   return (
     <div className="my-2" data-cc-row="todo">
       <div className="flex items-center gap-2 py-0.5" data-cc-row-head>
-        <span data-cc-row-icon className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-        <span data-cc-row-verb className="font-mono text-sm font-medium text-emerald-600 dark:text-emerald-400">TaskList</span>
+        <span
+          data-cc-row-icon
+          className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"
+        />
+        <span
+          data-cc-row-verb
+          className="font-mono text-sm font-medium text-emerald-600 dark:text-emerald-400"
+        >
+          TaskList
+        </span>
         <span data-cc-row-meta className="text-sol-text-dim text-sm font-mono">
-          {completed}/{items.length} done{inProgress > 0 && `, ${inProgress} active`}
+          {completed}/{items.length} done
+          {inProgress > 0 && `, ${inProgress} active`}
         </span>
       </div>
       <div className="ml-3.5 mt-1 space-y-0.5" data-cc-row-list>
-        {items.map(task => {
+        {items.map((task) => {
           const isBlocked = task.blockedBy && task.blockedBy.length > 0;
-          const matched = taskRecordMap?.byTitle[task.subject] || taskRecordMap?.byLocalId[task.id];
+          const matched =
+            taskRecordMap?.byTitle[task.subject] ||
+            taskRecordMap?.byLocalId[task.id];
           const clickable = !!matched;
           const rowClass = `flex items-start gap-2 text-sm ${isBlocked ? "opacity-50" : ""}${clickable ? " cursor-pointer rounded px-1.5 py-0.5 -mx-1 hover:bg-sol-bg-highlight/50 transition-colors" : ""}`;
           const body = (
             <>
               {task.status === "completed" ? (
-                <svg className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               ) : task.status === "in_progress" ? (
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               ) : isBlocked ? (
-                <svg className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                <svg
+                  className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="w-4 h-4 text-sol-text-dim flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <circle cx="12" cy="12" r="9" strokeWidth={2} />
                 </svg>
               )}
-              <span className="text-sol-text-dim text-xs font-mono mt-0.5">#{task.id}</span>
-              <span className={
-                task.status === "completed" ? "text-sol-text-dim line-through" :
-                task.status === "in_progress" ? "text-sol-text-secondary" :
-                "text-sol-text-muted"
-              }>
+              <span className="text-sol-text-dim text-xs font-mono mt-0.5">
+                #{task.id}
+              </span>
+              <span
+                className={
+                  task.status === "completed"
+                    ? "text-sol-text-dim line-through"
+                    : task.status === "in_progress"
+                      ? "text-sol-text-secondary"
+                      : "text-sol-text-muted"
+                }
+              >
                 {task.subject}
               </span>
               {task.owner && (
@@ -1343,16 +2194,24 @@ export function TaskListBlock({ tool, result, taskRecordMap }: { tool: ToolCall;
               )}
               {isBlocked && (
                 <span className="text-meta text-sol-text-dim mt-0.5">
-                  blocked by {task.blockedBy!.map(id => `#${id}`).join(", ")}
+                  blocked by {task.blockedBy!.map((id) => `#${id}`).join(", ")}
                 </span>
               )}
             </>
           );
           // A real link: reachable by Tab, and a modified click opens a new tab.
           return clickable ? (
-            <Link key={task.id} href={`/tasks/${matched._id}`} className={rowClass}>{body}</Link>
+            <Link
+              key={task.id}
+              href={`/tasks/${matched._id}`}
+              className={rowClass}
+            >
+              {body}
+            </Link>
           ) : (
-            <div key={task.id} className={rowClass}>{body}</div>
+            <div key={task.id} className={rowClass}>
+              {body}
+            </div>
           );
         })}
       </div>
@@ -1360,9 +2219,21 @@ export function TaskListBlock({ tool, result, taskRecordMap }: { tool: ToolCall;
   );
 }
 
-export function TaskCreateUpdateBlock({ tool, result, taskSubjectMap, taskRecordMap }: { tool: ToolCall; result?: ToolResult; taskSubjectMap?: Record<string, string>; taskRecordMap?: TaskRecordMaps }) {
+export function TaskCreateUpdateBlock({
+  tool,
+  result,
+  taskSubjectMap,
+  taskRecordMap,
+}: {
+  tool: ToolCall;
+  result?: ToolResult;
+  taskSubjectMap?: Record<string, string>;
+  taskRecordMap?: TaskRecordMaps;
+}) {
   let parsedInput: Record<string, any> = {};
-  try { parsedInput = JSON.parse(tool.input); } catch {}
+  try {
+    parsedInput = JSON.parse(tool.input);
+  } catch {}
 
   const isCreate = tool.name === "TaskCreate";
   const subject = parsedInput.subject;
@@ -1381,65 +2252,132 @@ export function TaskCreateUpdateBlock({ tool, result, taskSubjectMap, taskRecord
   const matchedTask = resolvedSubject
     ? taskRecordMap?.byTitle[String(resolvedSubject)]
     : taskId
-    ? taskRecordMap?.byLocalId[String(taskId)]
-    : undefined;
+      ? taskRecordMap?.byLocalId[String(taskId)]
+      : undefined;
   const isClickable = !!matchedTask;
   const rowClass = `flex items-center gap-1.5 text-xs${isClickable ? " cursor-pointer rounded px-1.5 py-0.5 -mx-1 hover:bg-sol-bg-highlight/50 transition-colors" : ""}`;
   // A matched task's row is a real link: reachable by Tab, and a modified click opens a new tab.
-  const row = (body: ReactNode) => matchedTask
-    ? <Link href={`/tasks/${matchedTask._id}`} className={rowClass} data-cc-row-head>{body}</Link>
-    : <div className={rowClass} data-cc-row-head>{body}</div>;
+  const row = (body: ReactNode) =>
+    matchedTask ? (
+      <Link
+        href={`/tasks/${matchedTask._id}`}
+        className={rowClass}
+        data-cc-row-head
+      >
+        {body}
+      </Link>
+    ) : (
+      <div className={rowClass} data-cc-row-head>
+        {body}
+      </div>
+    );
 
   const displaySubject = resolvedSubject || matchedTask?.title;
 
   if (!isCreate && displaySubject) {
     return (
       <div className="my-0.5" data-cc-row="task">
-        {row(<>
-          <span data-cc-row-text className="text-sol-text-muted">{String(displaySubject).slice(0, 60)}</span>
-          {status && (
-            <span data-cc-row-meta className={`px-1 py-0.5 rounded text-meta font-mono ${
-              status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
-              status === "in_progress" ? "bg-amber-500/15 text-amber-400" :
-              status === "deleted" ? "bg-red-500/15 text-red-400" :
-              "bg-gray-500/15 text-gray-400"
-            }`}>
-              {status}
+        {row(
+          <>
+            <span data-cc-row-text className="text-sol-text-muted">
+              {String(displaySubject).slice(0, 60)}
             </span>
-          )}
-          {owner && <span data-cc-row-tag className="text-meta px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20 font-mono">@{owner}</span>}
-        </>)}
+            {status && (
+              <span
+                data-cc-row-meta
+                className={`px-1 py-0.5 rounded text-meta font-mono ${
+                  status === "completed"
+                    ? "bg-emerald-500/15 text-emerald-400"
+                    : status === "in_progress"
+                      ? "bg-amber-500/15 text-amber-400"
+                      : status === "deleted"
+                        ? "bg-red-500/15 text-red-400"
+                        : "bg-gray-500/15 text-gray-400"
+                }`}
+              >
+                {status}
+              </span>
+            )}
+            {owner && (
+              <span
+                data-cc-row-tag
+                className="text-meta px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20 font-mono"
+              >
+                @{owner}
+              </span>
+            )}
+          </>,
+        )}
       </div>
     );
   }
 
   return (
     <div className="my-0.5" data-cc-row="task">
-      {row(<>
-        <span data-cc-row-verb className="font-mono text-emerald-500/80">{tool.name}</span>
-        {isCreate ? (
-          <>
-            {resultId && <span data-cc-row-object className="text-sol-text-dim font-mono">#{resultId}</span>}
-            {subject && <span data-cc-row-text className="text-sol-text-muted">{String(subject).slice(0, 60)}</span>}
-            {activeForm && <span data-cc-row-tag className="text-sol-text-dim italic">({activeForm})</span>}
-          </>
-        ) : (
-          <>
-            {taskId && <span data-cc-row-object className="text-sol-text-dim font-mono">#{taskId}</span>}
-            {status && (
-              <span data-cc-row-meta className={`px-1 py-0.5 rounded text-meta font-mono ${
-                status === "completed" ? "bg-emerald-500/15 text-emerald-400" :
-                status === "in_progress" ? "bg-amber-500/15 text-amber-400" :
-                status === "deleted" ? "bg-red-500/15 text-red-400" :
-                "bg-gray-500/15 text-gray-400"
-              }`}>
-                {status}
-              </span>
-            )}
-            {owner && <span data-cc-row-tag className="text-meta px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20 font-mono">@{owner}</span>}
-          </>
-        )}
-      </>)}
+      {row(
+        <>
+          <span data-cc-row-verb className="font-mono text-emerald-500/80">
+            {tool.name}
+          </span>
+          {isCreate ? (
+            <>
+              {resultId && (
+                <span
+                  data-cc-row-object
+                  className="text-sol-text-dim font-mono"
+                >
+                  #{resultId}
+                </span>
+              )}
+              {subject && (
+                <span data-cc-row-text className="text-sol-text-muted">
+                  {String(subject).slice(0, 60)}
+                </span>
+              )}
+              {activeForm && (
+                <span data-cc-row-tag className="text-sol-text-dim italic">
+                  ({activeForm})
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              {taskId && (
+                <span
+                  data-cc-row-object
+                  className="text-sol-text-dim font-mono"
+                >
+                  #{taskId}
+                </span>
+              )}
+              {status && (
+                <span
+                  data-cc-row-meta
+                  className={`px-1 py-0.5 rounded text-meta font-mono ${
+                    status === "completed"
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : status === "in_progress"
+                        ? "bg-amber-500/15 text-amber-400"
+                        : status === "deleted"
+                          ? "bg-red-500/15 text-red-400"
+                          : "bg-gray-500/15 text-gray-400"
+                  }`}
+                >
+                  {status}
+                </span>
+              )}
+              {owner && (
+                <span
+                  data-cc-row-tag
+                  className="text-meta px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/20 font-mono"
+                >
+                  @{owner}
+                </span>
+              )}
+            </>
+          )}
+        </>,
+      )}
     </div>
   );
 }
@@ -1459,12 +2397,18 @@ const EMPTY_BROWSER_ROWS: Record<string, BrowserRowState> = {};
  * for a window too narrow to hold two panes, and stays available on the
  * chevron for anyone who prefers it there.
  */
-export function BrowserWatchButton({ conversationId }: { conversationId: Id<"conversations"> }) {
+export function BrowserWatchButton({
+  conversationId,
+}: {
+  conversationId: Id<"conversations">;
+}) {
   const convKey = conversationId.toString();
   const open = useBrowserWatchOpen(convKey);
   // The pane is addressed by the agent's own session uuid, not the
   // conversation id — the daemon follows the SESSION's tab.
-  const sessionUuid = useInboxStore((s) => s.sessions[convKey]?.session_id ?? null);
+  const sessionUuid = useInboxStore(
+    (s) => s.sessions[convKey]?.session_id ?? null,
+  );
   const dock = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleBrowserWatch(convKey);
@@ -1490,9 +2434,23 @@ export function BrowserWatchButton({ conversationId }: { conversationId: Id<"con
             : "Watch what this agent's browser shows, live, in a pane beside this thread — take control to sign in for it"
         }
       >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          className="w-3 h-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
         <span>{open ? "watching" : "watch live"}</span>
       </button>
@@ -1514,8 +2472,14 @@ export function BrowserWatchButton({ conversationId }: { conversationId: Id<"con
 /** On a `cast sim` row: the session's simulator, live and touchable, in a
  *  pane beside the thread. Addressed by the agent's session uuid, the name
  *  the simulator's lock records. */
-export function SimulatorWatchButton({ conversationId }: { conversationId: Id<"conversations"> }) {
-  const sessionUuid = useInboxStore((s) => s.sessions[conversationId.toString()]?.session_id ?? null);
+export function SimulatorWatchButton({
+  conversationId,
+}: {
+  conversationId: Id<"conversations">;
+}) {
+  const sessionUuid = useInboxStore(
+    (s) => s.sessions[conversationId.toString()]?.session_id ?? null,
+  );
   if (!sessionUuid) return null;
   return (
     <button
@@ -1536,9 +2500,17 @@ export function SimulatorWatchButton({ conversationId }: { conversationId: Id<"c
   );
 }
 
-export function SendMessageBlock({ tool, agentNameToChildMap }: { tool: ToolCall; agentNameToChildMap?: Record<string, string> }) {
+export function SendMessageBlock({
+  tool,
+  agentNameToChildMap,
+}: {
+  tool: ToolCall;
+  agentNameToChildMap?: Record<string, string>;
+}) {
   let parsedInput: Record<string, any> = {};
-  try { parsedInput = JSON.parse(tool.input); } catch {}
+  try {
+    parsedInput = JSON.parse(tool.input);
+  } catch {}
 
   const type = parsedInput.type || "message";
   const recipient = parsedInput.recipient;
@@ -1550,33 +2522,120 @@ export function SendMessageBlock({ tool, agentNameToChildMap }: { tool: ToolCall
   const isBroadcast = type === "broadcast";
 
   const typeConfig = isShutdown
-    ? { icon: <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" /></svg>, color: "text-red-400/80", bg: "bg-red-500/8 border-red-500/15", label: "shutdown" }
+    ? {
+        icon: (
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5.636 5.636a9 9 0 1012.728 0M12 3v9"
+            />
+          </svg>
+        ),
+        color: "text-red-400/80",
+        bg: "bg-red-500/8 border-red-500/15",
+        label: "shutdown",
+      }
     : isBroadcast
-    ? { icon: <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>, color: "text-orange-400/80", bg: "bg-orange-500/8 border-orange-500/15", label: "broadcast" }
-    : { icon: <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>, color: "text-amber-400/80", bg: "bg-amber-500/8 border-amber-500/15", label: "message" };
+      ? {
+          icon: (
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"
+              />
+            </svg>
+          ),
+          color: "text-orange-400/80",
+          bg: "bg-orange-500/8 border-orange-500/15",
+          label: "broadcast",
+        }
+      : {
+          icon: (
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+          ),
+          color: "text-amber-400/80",
+          bg: "bg-amber-500/8 border-amber-500/15",
+          label: "message",
+        };
 
-  const displayText = summary || (content && String(content).slice(0, 80)) || "";
+  const displayText =
+    summary || (content && String(content).slice(0, 80)) || "";
 
   return (
     <div className="my-0.5" data-cc-row="message">
-      <div data-cc-row-head className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-md border ${typeConfig.bg}`}>
-        <span data-cc-row-icon className={typeConfig.color}>{typeConfig.icon}</span>
+      <div
+        data-cc-row-head
+        className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-md border ${typeConfig.bg}`}
+      >
+        <span data-cc-row-icon className={typeConfig.color}>
+          {typeConfig.icon}
+        </span>
         {isShutdown ? (
           <>
-            {recipient && <span className="text-meta px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/20 font-mono">@{recipient}</span>}
-            <span className="text-red-400/80 font-medium text-xs">shutdown request</span>
+            {recipient && (
+              <span className="text-meta px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/20 font-mono">
+                @{recipient}
+              </span>
+            )}
+            <span className="text-red-400/80 font-medium text-xs">
+              shutdown request
+            </span>
           </>
         ) : (
           <>
-            {recipient && (
-              childId ? (
-                <Link href={`/conversation/${childId}`} className="text-meta px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono hover:bg-amber-500/25 hover:text-amber-300 transition-colors" onClick={e => e.stopPropagation()}>@{recipient}</Link>
+            {recipient &&
+              (childId ? (
+                <Link
+                  href={`/conversation/${childId}`}
+                  className="text-meta px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono hover:bg-amber-500/25 hover:text-amber-300 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  @{recipient}
+                </Link>
               ) : (
-                <span className="text-meta px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono">@{recipient}</span>
-              )
+                <span className="text-meta px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-mono">
+                  @{recipient}
+                </span>
+              ))}
+            {isBroadcast && (
+              <span
+                data-cc-row-tag
+                className="text-meta px-1 py-0.5 rounded bg-orange-500/15 text-orange-400 font-mono"
+              >
+                all
+              </span>
             )}
-            {isBroadcast && <span data-cc-row-tag className="text-meta px-1 py-0.5 rounded bg-orange-500/15 text-orange-400 font-mono">all</span>}
-            {displayText && <span data-cc-row-text className="text-sol-text-muted truncate">{displayText}</span>}
+            {displayText && (
+              <span data-cc-row-text className="text-sol-text-muted truncate">
+                {displayText}
+              </span>
+            )}
           </>
         )}
       </div>
@@ -1586,25 +2645,51 @@ export function SendMessageBlock({ tool, agentNameToChildMap }: { tool: ToolCall
 
 export function TeamCreateBlock({ tool }: { tool: ToolCall }) {
   let parsedInput: Record<string, any> = {};
-  try { parsedInput = JSON.parse(tool.input); } catch {}
+  try {
+    parsedInput = JSON.parse(tool.input);
+  } catch {}
 
   const isDelete = tool.name === "TeamDelete";
 
   return (
     <div className="my-0.5" data-cc-row="team">
-      <div data-cc-row-head className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-md border ${isDelete ? "bg-red-500/5 border-red-500/15" : "bg-cyan-500/8 border-cyan-500/15"}`}>
-        <svg data-cc-row-icon className={`w-3 h-3 shrink-0 ${isDelete ? "text-red-400/70" : "text-cyan-400/70"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+      <div
+        data-cc-row-head
+        className={`flex items-center gap-1.5 text-xs py-1.5 px-2.5 rounded-md border ${isDelete ? "bg-red-500/5 border-red-500/15" : "bg-cyan-500/8 border-cyan-500/15"}`}
+      >
+        <svg
+          data-cc-row-icon
+          className={`w-3 h-3 shrink-0 ${isDelete ? "text-red-400/70" : "text-cyan-400/70"}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          />
         </svg>
-        <span data-cc-row-verb className={`font-mono text-xs font-medium ${isDelete ? "text-red-400/80" : "text-cyan-400/80"}`}>
+        <span
+          data-cc-row-verb
+          className={`font-mono text-xs font-medium ${isDelete ? "text-red-400/80" : "text-cyan-400/80"}`}
+        >
           {isDelete ? "Team dissolved" : "Team created"}
         </span>
         {parsedInput.team_name && (
-          <span data-cc-row-object className="px-1.5 py-0.5 rounded text-meta font-mono bg-cyan-500/15 text-cyan-400 border border-cyan-500/20">
+          <span
+            data-cc-row-object
+            className="px-1.5 py-0.5 rounded text-meta font-mono bg-cyan-500/15 text-cyan-400 border border-cyan-500/20"
+          >
             {parsedInput.team_name}
           </span>
         )}
-        {parsedInput.description && <span data-cc-row-text className="text-sol-text-dim truncate">{String(parsedInput.description).slice(0, 60)}</span>}
+        {parsedInput.description && (
+          <span data-cc-row-text className="text-sol-text-dim truncate">
+            {String(parsedInput.description).slice(0, 60)}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1612,13 +2697,27 @@ export function TeamCreateBlock({ tool }: { tool: ToolCall }) {
 
 export function SkillBlock({ tool }: { tool: ToolCall }) {
   let parsedInput: { skill?: string; args?: string } = {};
-  try { parsedInput = JSON.parse(tool.input); } catch {}
+  try {
+    parsedInput = JSON.parse(tool.input);
+  } catch {}
   const skillName = parsedInput.skill || "skill";
   return (
     <div className="my-0.5" data-cc-row="skill">
       <div className="flex items-center gap-1.5 text-xs" data-cc-row-head>
-        <span data-cc-row-verb className="hidden modern:inline">Used skill</span><span data-cc-row-object className="font-mono text-sol-cyan/80">/{skillName}</span>
-        {parsedInput.args && <span data-cc-row-text className="text-sol-text-dim min-w-0 break-words">{parsedInput.args}</span>}
+        <span data-cc-row-verb className="hidden modern:inline">
+          Used skill
+        </span>
+        <span data-cc-row-object className="font-mono text-sol-cyan/80">
+          /{skillName}
+        </span>
+        {parsedInput.args && (
+          <span
+            data-cc-row-text
+            className="text-sol-text-dim min-w-0 break-words"
+          >
+            {parsedInput.args}
+          </span>
+        )}
       </div>
     </div>
   );

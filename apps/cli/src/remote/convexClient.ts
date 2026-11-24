@@ -13,16 +13,31 @@ import * as path from "node:path";
 import { defaultConfigDir } from "../config/configDir.js";
 import { bearerFromStored } from "../bearerToken.js";
 
-export async function convexClient(opts: { timeoutMs?: number } = {}): Promise<{ client: any; token: string; api: any }> {
+export async function convexClient(
+  opts: { timeoutMs?: number } = {},
+): Promise<{ client: any; token: string; api: any }> {
   const cfgPath = path.join(defaultConfigDir(), "config.json");
   const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf-8"));
-  const token = cfg.auth_token ? bearerFromStored(cfg.auth_token) : cfg.auth_token;
+  const token = cfg.auth_token
+    ? bearerFromStored(cfg.auth_token)
+    : cfg.auth_token;
   const { ConvexHttpClient } = await import("convex/browser");
-  const apiMod: any = await import("../../../../apps/server/convex/_generated/api.js" as any);
+  const apiMod: any = await import(
+    "../../../../apps/server/convex/_generated/api.js" as any
+  );
   const { timeoutMs } = opts;
-  const client = new ConvexHttpClient(cfg.convex_url, timeoutMs
-    ? { fetch: ((url: any, init?: RequestInit) => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })) as typeof fetch }
-    : undefined);
+  const client = new ConvexHttpClient(
+    cfg.convex_url,
+    timeoutMs
+      ? {
+          fetch: ((url: any, init?: RequestInit) =>
+            fetch(url, {
+              ...init,
+              signal: AbortSignal.timeout(timeoutMs),
+            })) as typeof fetch,
+        }
+      : undefined,
+  );
   return { client, token, api: apiMod.api };
 }
 
@@ -38,8 +53,14 @@ export async function mintTokenForDevice(
   label: string,
   opts: { apiToken?: string; timeoutMs?: number } = {},
 ): Promise<string> {
-  const { client, token, api } = await convexClient({ timeoutMs: opts.timeoutMs });
+  const { client, token, api } = await convexClient({
+    timeoutMs: opts.timeoutMs,
+  });
   const apiToken = opts.apiToken;
-  const minted = await client.mutation(api.apiTokens.mintForDevice, { api_token: apiToken ?? token, device_id: deviceId, label });
+  const minted = await client.mutation(api.apiTokens.mintForDevice, {
+    api_token: apiToken ?? token,
+    device_id: deviceId,
+    label,
+  });
   return minted.token as string;
 }

@@ -11,7 +11,11 @@ import type { Scheduler } from "convex/server";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { findConversationBySessionReference } from "../conversationSessionLookup";
-import { canOwnerOrTeamAccess, isTeamMember, teamVisibleConvTeam } from "../privacy";
+import {
+  canOwnerOrTeamAccess,
+  isTeamMember,
+  teamVisibleConvTeam,
+} from "../privacy";
 import { forbidden, notFound } from "./auth";
 import {
   accessStampFor,
@@ -49,7 +53,11 @@ type AccessCtx = { db: any; scheduler?: Scheduler };
 // Ctx-bound evaluator with the same rule as authorizedFor, short-circuiting on
 // owner/grant before touching memberships. A property test pins the two
 // evaluators to each other (syncLog.test.ts).
-async function authorizedForCtx(ctx: AccessCtx, stamp: AccessStamp | null, userId: Id<"users">): Promise<boolean> {
+async function authorizedForCtx(
+  ctx: AccessCtx,
+  stamp: AccessStamp | null,
+  userId: Id<"users">,
+): Promise<boolean> {
   if (!stamp?.access_owner) return false;
   const uid = String(userId);
   if (stamp.access_owner === uid) return true;
@@ -62,7 +70,11 @@ export async function canAccessTask(
   userId: Id<"users">,
   task: any,
 ): Promise<boolean> {
-  return authorizedForCtx(ctx, await accessStampFor(ctx, "tasks", task), userId);
+  return authorizedForCtx(
+    ctx,
+    await accessStampFor(ctx, "tasks", task),
+    userId,
+  );
 }
 
 export async function canAccessProject(
@@ -70,7 +82,11 @@ export async function canAccessProject(
   userId: Id<"users">,
   project: { user_id: Id<"users">; team_id?: Id<"teams">; workspace?: string },
 ): Promise<boolean> {
-  return authorizedForCtx(ctx, await accessStampFor(ctx, "projects", project), userId);
+  return authorizedForCtx(
+    ctx,
+    await accessStampFor(ctx, "projects", project),
+    userId,
+  );
 }
 
 // An initiative's update has no rule of its own: callers pass the PARENT
@@ -78,9 +94,17 @@ export async function canAccessProject(
 export async function canAccessInitiative(
   ctx: AccessCtx,
   userId: Id<"users">,
-  initiative: { user_id: Id<"users">; team_id?: Id<"teams">; workspace?: string },
+  initiative: {
+    user_id: Id<"users">;
+    team_id?: Id<"teams">;
+    workspace?: string;
+  },
 ): Promise<boolean> {
-  return authorizedForCtx(ctx, await accessStampFor(ctx, "initiatives", initiative), userId);
+  return authorizedForCtx(
+    ctx,
+    await accessStampFor(ctx, "initiatives", initiative),
+    userId,
+  );
 }
 
 /**
@@ -100,11 +124,14 @@ export async function visibleInTeamList(
 ): Promise<boolean> {
   const stamp = accessStampFromDoc(table, row);
   if (stamp?.access_key) {
-    return authorizedFor(stamp, String(userId), new Set([`user:${String(userId)}`, `team:${String(teamId)}`]));
+    return authorizedFor(
+      stamp,
+      String(userId),
+      new Set([`user:${String(userId)}`, `team:${String(teamId)}`]),
+    );
   }
   return authorizedForCtx(ctx, await accessStampFor(ctx, table, row), userId);
 }
-
 
 export async function canAccessPullRequest(
   ctx: AccessCtx,
@@ -130,9 +157,15 @@ export async function canAccessCommit(
 ): Promise<boolean> {
   if (commit.conversation_id) {
     const conversation = await ctx.db.get(commit.conversation_id);
-    if (conversation && (await canAccessConversation(ctx, userId, conversation))) return true;
+    if (
+      conversation &&
+      (await canAccessConversation(ctx, userId, conversation))
+    )
+      return true;
   }
-  return commit.team_id ? await isTeamMember(ctx, userId, commit.team_id) : false;
+  return commit.team_id
+    ? await isTeamMember(ctx, userId, commit.team_id)
+    : false;
 }
 
 /** Resolve the membership row or fail closed for an explicitly requested team. */
@@ -143,7 +176,9 @@ export async function requireTeamMembership(
 ): Promise<any> {
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .first();
   if (!membership) forbidden("Forbidden: team membership required");
   return membership;
@@ -181,11 +216,15 @@ export async function activeTeamMembershipFor(
   userId: Id<"users">,
 ): Promise<{ teamId: Id<"teams">; membership: any } | null> {
   const user = await ctx.db.get(userId);
-  const teamId = (user?.active_team_id ?? user?.team_id) as Id<"teams"> | undefined;
+  const teamId = (user?.active_team_id ?? user?.team_id) as
+    | Id<"teams">
+    | undefined;
   if (!teamId) return null;
   const membership = await ctx.db
     .query("team_memberships")
-    .withIndex("by_user_team", (q: any) => q.eq("user_id", userId).eq("team_id", teamId))
+    .withIndex("by_user_team", (q: any) =>
+      q.eq("user_id", userId).eq("team_id", teamId),
+    )
     .first();
   return membership ? { teamId, membership } : null;
 }
@@ -228,25 +267,53 @@ export async function recomputeWorkspaceForConversation(
   const gather = (batch: any[]) => {
     for (const row of batch) {
       const id = String(row._id);
-      if (!seen.has(id)) { seen.add(id); rows.push(row); }
+      if (!seen.has(id)) {
+        seen.add(id);
+        rows.push(row);
+      }
     }
   };
 
-  gather(await ctx.db.query("tasks")
-    .withIndex("by_created_from_conversation", (q: any) => q.eq("created_from_conversation", conv._id))
-    .collect());
-  gather(await ctx.db.query("plans")
-    .withIndex("by_created_from_conversation_id", (q: any) => q.eq("created_from_conversation_id", conv._id))
-    .collect());
-  gather(await ctx.db.query("docs")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
-    .collect());
-  gather(await ctx.db.query("tasks")
-    .withIndex("by_first_linked_conversation", (q: any) => q.eq("first_linked_conversation", conv._id))
-    .collect());
-  gather(await ctx.db.query("docs")
-    .withIndex("by_first_linked_conversation", (q: any) => q.eq("first_linked_conversation", conv._id))
-    .collect());
+  gather(
+    await ctx.db
+      .query("tasks")
+      .withIndex("by_created_from_conversation", (q: any) =>
+        q.eq("created_from_conversation", conv._id),
+      )
+      .collect(),
+  );
+  gather(
+    await ctx.db
+      .query("plans")
+      .withIndex("by_created_from_conversation_id", (q: any) =>
+        q.eq("created_from_conversation_id", conv._id),
+      )
+      .collect(),
+  );
+  gather(
+    await ctx.db
+      .query("docs")
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
+      .collect(),
+  );
+  gather(
+    await ctx.db
+      .query("tasks")
+      .withIndex("by_first_linked_conversation", (q: any) =>
+        q.eq("first_linked_conversation", conv._id),
+      )
+      .collect(),
+  );
+  gather(
+    await ctx.db
+      .query("docs")
+      .withIndex("by_first_linked_conversation", (q: any) =>
+        q.eq("first_linked_conversation", conv._id),
+      )
+      .collect(),
+  );
 
   let updated = 0;
   const movedTasks: Id<"tasks">[] = [];
@@ -262,7 +329,9 @@ export async function recomputeWorkspaceForConversation(
   // A task that moved may sit on a dependency edge into its old workspace,
   // which readiness cannot read across: the job cuts it and tells the dependent.
   if (movedTasks.length && ctx.scheduler) {
-    await ctx.scheduler.runAfter(0, internal.taskLinks.cutCrossedEdges, { task_ids: movedTasks });
+    await ctx.scheduler.runAfter(0, internal.taskLinks.cutCrossedEdges, {
+      task_ids: movedTasks,
+    });
   }
   return updated;
 }
@@ -285,9 +354,11 @@ export async function effectiveTeamForResource(
  * project/task joins). Stored access key when present; for legacy rows the
  * raw tag, which the backfill makes identical for unlinked rows.
  */
-export function workspaceForResource(
-  resource: { user_id: Id<"users">; team_id?: Id<"teams">; workspace?: string },
-): AuthorizedWorkspace {
+export function workspaceForResource(resource: {
+  user_id: Id<"users">;
+  team_id?: Id<"teams">;
+  workspace?: string;
+}): AuthorizedWorkspace {
   const stored = parseWorkspaceKey(resource.workspace);
   if (stored) return stored;
   return resource.team_id
@@ -296,15 +367,13 @@ export function workspaceForResource(
 }
 
 /** Conversation team_id is routing; only a team-visible conversation is team-scoped. */
-export function workspaceForConversation(
-  conversation: {
-    user_id: Id<"users">;
-    team_id?: Id<"teams">;
-    is_private?: boolean;
-    auto_shared?: boolean;
-    team_visibility?: string;
-  },
-): AuthorizedWorkspace {
+export function workspaceForConversation(conversation: {
+  user_id: Id<"users">;
+  team_id?: Id<"teams">;
+  is_private?: boolean;
+  auto_shared?: boolean;
+  team_visibility?: string;
+}): AuthorizedWorkspace {
   const teamId = teamVisibleConvTeam(conversation);
   return teamId
     ? { type: "team", teamId }
@@ -356,7 +425,8 @@ export async function requireAccessibleTask(
   taskId: Id<"tasks">,
 ): Promise<any> {
   const task = await ctx.db.get(taskId);
-  if (!task || !(await canAccessTask(ctx, userId, task))) notFound("Task not found");
+  if (!task || !(await canAccessTask(ctx, userId, task)))
+    notFound("Task not found");
   return task;
 }
 
@@ -366,7 +436,8 @@ export async function requireAccessiblePlan(
   planId: Id<"plans">,
 ): Promise<any> {
   const plan = await ctx.db.get(planId);
-  if (!plan || !(await canAccessPlan(ctx, userId, plan))) notFound("Plan not found");
+  if (!plan || !(await canAccessPlan(ctx, userId, plan)))
+    notFound("Plan not found");
   return plan;
 }
 
@@ -376,7 +447,8 @@ export async function requireAccessibleProject(
   projectId: Id<"projects">,
 ): Promise<any> {
   const project = await ctx.db.get(projectId);
-  if (!project || !(await canAccessProject(ctx, userId, project))) notFound("Project not found");
+  if (!project || !(await canAccessProject(ctx, userId, project)))
+    notFound("Project not found");
   return project;
 }
 
@@ -386,7 +458,8 @@ export async function requireAccessibleInitiative(
   initiativeId: Id<"initiatives">,
 ): Promise<any> {
   const initiative = await ctx.db.get(initiativeId);
-  if (!initiative || !(await canAccessInitiative(ctx, userId, initiative))) notFound("Initiative not found");
+  if (!initiative || !(await canAccessInitiative(ctx, userId, initiative)))
+    notFound("Initiative not found");
   return initiative;
 }
 
@@ -396,7 +469,8 @@ export async function requireAccessibleDoc(
   docId: Id<"docs">,
 ): Promise<any> {
   const doc = await ctx.db.get(docId);
-  if (!doc || !(await canAccessDoc(ctx, userId, doc))) notFound("Doc not found");
+  if (!doc || !(await canAccessDoc(ctx, userId, doc)))
+    notFound("Doc not found");
   return doc;
 }
 
@@ -406,7 +480,10 @@ export async function requireAccessibleConversation(
   conversationId: Id<"conversations">,
 ): Promise<any> {
   const conversation = await ctx.db.get(conversationId);
-  if (!conversation || !(await canAccessConversation(ctx, userId, conversation))) {
+  if (
+    !conversation ||
+    !(await canAccessConversation(ctx, userId, conversation))
+  ) {
     notFound("Conversation not found");
   }
   return conversation;
@@ -437,7 +514,11 @@ export async function canAccessPlan(
   userId: Id<"users">,
   plan: any,
 ): Promise<boolean> {
-  return authorizedForCtx(ctx, await accessStampFor(ctx, "plans", plan), userId);
+  return authorizedForCtx(
+    ctx,
+    await accessStampFor(ctx, "plans", plan),
+    userId,
+  );
 }
 
 // A signal is born with its stored key (signals.ingest), so the pure stamp is
@@ -494,7 +575,8 @@ export async function resolveSessionConversation(
     .query("conversations")
     .withIndex("by_session_id", (q: any) => q.eq("session_id", sessionRef))
     .first();
-  if (direct && (await canAccessConversation(ctx, userId, direct))) return direct;
+  if (direct && (await canAccessConversation(ctx, userId, direct)))
+    return direct;
   // A conversation's own id: a run's runner holds its primary session that way, with no agent session behind it.
   const byId = ctx.db.normalizeId("conversations", sessionRef);
   const row = byId ? await ctx.db.get(byId) : null;

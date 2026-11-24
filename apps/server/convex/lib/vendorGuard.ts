@@ -14,10 +14,20 @@
 // NO_TEAM_CONTENT, which reads as a claim a reviewer can check.
 import { makeFunctionReference } from "convex/server";
 import { accessError } from "@platform/auth/convex";
-import { BAA_COVERED_VENDORS, FEATURE_VENDORS, vendorCovered, vendorUncoveredMessage, type ContentVendor } from "@codecast/shared/contracts/vendorCoverage";
+import {
+  BAA_COVERED_VENDORS,
+  FEATURE_VENDORS,
+  vendorCovered,
+  vendorUncoveredMessage,
+  type ContentVendor,
+} from "@codecast/shared/contracts/vendorCoverage";
 import type { TeamFeatureKey } from "@codecast/shared/contracts";
 import type { Id } from "../_generated/dataModel";
-import { policyWorkspaceOf, regulatedTeamFor, type PolicyScope } from "./teamPolicyGuard";
+import {
+  policyWorkspaceOf,
+  regulatedTeamFor,
+  type PolicyScope,
+} from "./teamPolicyGuard";
 
 /**
  * A conversation's content answers to the team it is visible to (policyTeamOf) and to the team it is filed
@@ -29,7 +39,8 @@ export type VendorScope = PolicyScope & {
   row?: { table: string; id: string } | null;
 };
 
-const scoped = (scope: VendorScope) => !!(scope.workspace || scope.apiToken || scope.conversationId || scope.row);
+const scoped = (scope: VendorScope) =>
+  !!(scope.workspace || scope.apiToken || scope.conversationId || scope.row);
 
 /** The scope of work that sends no team's content (a ping, a prompt built only from Codecast's own text). */
 export const NO_TEAM_CONTENT: VendorScope = Object.freeze({});
@@ -42,15 +53,22 @@ export type VendorCtx = DbCtx | QueryRunner;
 export type VendorGate = { ctx: VendorCtx; scope: VendorScope };
 
 /** The gate for work that sends no team's content: it never reads anything. */
-export const NO_TEAM_CONTENT_GATE: VendorGate = Object.freeze({ ctx: { runQuery: async () => null }, scope: NO_TEAM_CONTENT });
+export const NO_TEAM_CONTENT_GATE: VendorGate = Object.freeze({
+  ctx: { runQuery: async () => null },
+  scope: NO_TEAM_CONTENT,
+});
 
 const refusalForRef = makeFunctionReference<
   "query",
-  { workspace?: string | null; api_token?: string | null; conversation_id?: string | null; row?: { table: string; id: string } | null; vendor: ContentVendor },
+  {
+    workspace?: string | null;
+    api_token?: string | null;
+    conversation_id?: string | null;
+    row?: { table: string; id: string } | null;
+    vendor: ContentVendor;
+  },
   string | null
->(
-  "vendorCoverage:refusalFor",
-);
+>("vendorCoverage:refusalFor");
 
 /** The refusal for sending this scope's content to `vendor` from a db context; null when it may go. */
 export async function vendorRefusalFromDb(
@@ -60,7 +78,9 @@ export async function vendorRefusalFromDb(
   covered: readonly ContentVendor[] = BAA_COVERED_VENDORS,
 ): Promise<string | null> {
   if (vendorCovered(vendor, covered) || !scoped(scope)) return null;
-  const conversationId = scope.conversationId ? ctx.db.normalizeId("conversations", String(scope.conversationId)) : null;
+  const conversationId = scope.conversationId
+    ? ctx.db.normalizeId("conversations", String(scope.conversationId))
+    : null;
   const conversation = conversationId ? await ctx.db.get(conversationId) : null;
   const workspaces = new Set<string | null>([scope.workspace ?? null]);
   if (conversation) {
@@ -68,18 +88,27 @@ export async function vendorRefusalFromDb(
     // Data classification, not access: the team a private session is filed under owns its data.
     if (conversation.team_id) workspaces.add(`team:${conversation.team_id}`);
   }
-  const rowId = scope.row ? ctx.db.normalizeId(scope.row.table, scope.row.id) : null;
+  const rowId = scope.row
+    ? ctx.db.normalizeId(scope.row.table, scope.row.id)
+    : null;
   const row = rowId ? await ctx.db.get(rowId) : null;
   if (row) workspaces.add(policyWorkspaceOf(scope.row!.table, row));
   for (const workspace of workspaces) {
-    const team = await regulatedTeamFor(ctx, { workspace, apiToken: scope.apiToken });
+    const team = await regulatedTeamFor(ctx, {
+      workspace,
+      apiToken: scope.apiToken,
+    });
     if (team) return vendorUncoveredMessage(vendor, team.team_name);
   }
   return null;
 }
 
 /** The refusal for sending this scope's content to `vendor`; null when it may go. */
-export async function vendorRefusalFor(ctx: VendorCtx, scope: VendorScope, vendor: ContentVendor): Promise<string | null> {
+export async function vendorRefusalFor(
+  ctx: VendorCtx,
+  scope: VendorScope,
+  vendor: ContentVendor,
+): Promise<string | null> {
   if (vendorCovered(vendor) || !scoped(scope)) return null;
   if ("db" in ctx && ctx.db) return vendorRefusalFromDb(ctx, scope, vendor);
   return (ctx as QueryRunner).runQuery(refusalForRef, {
@@ -92,21 +121,37 @@ export async function vendorRefusalFor(ctx: VendorCtx, scope: VendorScope, vendo
 }
 
 /** Whether this scope's content may be sent to `vendor`. */
-export async function vendorAllowedFor(ctx: VendorCtx, scope: VendorScope, vendor: ContentVendor): Promise<boolean> {
+export async function vendorAllowedFor(
+  ctx: VendorCtx,
+  scope: VendorScope,
+  vendor: ContentVendor,
+): Promise<boolean> {
   return (await vendorRefusalFor(ctx, scope, vendor)) === null;
 }
 
 /** Throws the vendor's one-line refusal (a FORBIDDEN ConvexError, so the web shows the words) when the content may not go. */
-export async function requireVendorAllowed(ctx: VendorCtx, scope: VendorScope, vendor: ContentVendor): Promise<void> {
+export async function requireVendorAllowed(
+  ctx: VendorCtx,
+  scope: VendorScope,
+  vendor: ContentVendor,
+): Promise<void> {
   const refusal = await vendorRefusalFor(ctx, scope, vendor);
   if (refusal) throw accessError("FORBIDDEN", refusal);
 }
 
 /** Why a team feature that sends content to a vendor (FEATURE_VENDORS) is off for this team, or null. */
-export async function featureVendorRefusal(ctx: DbCtx, teamId: Id<"teams"> | null | undefined, key: TeamFeatureKey): Promise<string | null> {
+export async function featureVendorRefusal(
+  ctx: DbCtx,
+  teamId: Id<"teams"> | null | undefined,
+  key: TeamFeatureKey,
+): Promise<string | null> {
   if (!teamId) return null;
   for (const vendor of FEATURE_VENDORS[key] ?? []) {
-    const refusal = await vendorRefusalFromDb(ctx, { workspace: `team:${teamId}` }, vendor);
+    const refusal = await vendorRefusalFromDb(
+      ctx,
+      { workspace: `team:${teamId}` },
+      vendor,
+    );
     if (refusal) return refusal;
   }
   return null;

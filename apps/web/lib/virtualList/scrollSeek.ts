@@ -26,7 +26,10 @@ export type ScrollSeekOptions = {
   inputWindowMs?: number;
 };
 
-export function createScrollSeekTracker(onChange: (seeking: boolean) => void, o: ScrollSeekOptions = {}) {
+export function createScrollSeekTracker(
+  onChange: (seeking: boolean) => void,
+  o: ScrollSeekOptions = {},
+) {
   const enter = o.enterPxPerMs ?? 4;
   const exit = o.exitPxPerMs ?? 1.5;
   const idleMs = o.idleMs ?? 140;
@@ -48,9 +51,14 @@ export function createScrollSeekTracker(onChange: (seeking: boolean) => void, o:
 
   return {
     /** The reader touched an input that scrolls: wheel, touch, a scroll key. */
-    input(now: number) { inputAt = now; },
+    input(now: number) {
+      inputAt = now;
+    },
     /** A press on the scrollbar holds reader intent until it is released. */
-    drag(held: boolean, now: number) { dragging = held; inputAt = now; },
+    drag(held: boolean, now: number) {
+      dragging = held;
+      inputAt = now;
+    },
     scroll(top: number, now: number) {
       if (lastTop !== null && now > lastAt) {
         const v = Math.abs(top - lastTop) / (now - lastAt);
@@ -63,26 +71,53 @@ export function createScrollSeekTracker(onChange: (seeking: boolean) => void, o:
       if (!seeking && reader && speed > enter) set(true);
       else if (seeking && speed < exit) set(false);
       if (idle) clearTimeout(idle);
-      idle = setTimeout(() => { speed = 0; lastTop = null; set(false); }, idleMs);
+      idle = setTimeout(() => {
+        speed = 0;
+        lastTop = null;
+        set(false);
+      }, idleMs);
     },
     /** Whether a scroll at `now` can move the state: only the reader's scrolls
      *  enter a seek, and only a seek has anything to leave. */
-    wants(now: number) { return seeking || dragging || now - inputAt <= inputWindow; },
+    wants(now: number) {
+      return seeking || dragging || now - inputAt <= inputWindow;
+    },
     /** A scroll nobody made (the list re-anchoring itself): forget the last
      *  position so the next reader scroll measures from its own start. */
-    skip() { lastTop = null; },
-    get seeking() { return seeking; },
-    dispose() { if (idle) clearTimeout(idle); },
+    skip() {
+      lastTop = null;
+    },
+    get seeking() {
+      return seeking;
+    },
+    dispose() {
+      if (idle) clearTimeout(idle);
+    },
   };
 }
 
 /** Wire the tracker to a scroller's own events. Returns the detach. */
-export function attachScrollSeek(sc: HTMLElement, onChange: (seeking: boolean) => void, o?: ScrollSeekOptions) {
+export function attachScrollSeek(
+  sc: HTMLElement,
+  onChange: (seeking: boolean) => void,
+  o?: ScrollSeekOptions,
+) {
   const t = createScrollSeekTracker(onChange, o);
   const now = () => performance.now();
   const onInput = () => t.input(now());
   const onKey = (e: KeyboardEvent) => {
-    if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) t.input(now());
+    if (
+      [
+        "ArrowUp",
+        "ArrowDown",
+        "PageUp",
+        "PageDown",
+        "Home",
+        "End",
+        " ",
+      ].includes(e.key)
+    )
+      t.input(now());
   };
   const onDown = (e: PointerEvent) => {
     if (e.target !== sc || e.offsetX <= sc.clientWidth) return;
@@ -124,8 +159,14 @@ export function attachScrollSeek(sc: HTMLElement, onChange: (seeking: boolean) =
 export function makeSeekKeep() {
   let keep: Set<string> | null = null;
   return {
-    begin(keys: Iterable<VirtualKey>) { keep = new Set(Array.from(keys, String)); },
-    end() { keep = null; },
-    placeholder(key: VirtualKey) { return keep !== null && !keep.has(String(key)); },
+    begin(keys: Iterable<VirtualKey>) {
+      keep = new Set(Array.from(keys, String));
+    },
+    end() {
+      keep = null;
+    },
+    placeholder(key: VirtualKey) {
+      return keep !== null && !keep.has(String(key));
+    },
   };
 }

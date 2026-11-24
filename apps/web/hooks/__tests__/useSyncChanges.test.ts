@@ -13,13 +13,24 @@ import {
 } from "../../store/clientSyncRegistry";
 import { useInboxStore } from "../../store/inboxStore";
 import { applyCollectionFeed } from "../useSyncCollection";
-import { timelineChunk, liveScope, selectStories, storySessionsScope, storySyncOpts, worksScope } from "../useSyncChanges";
+import {
+  timelineChunk,
+  liveScope,
+  selectStories,
+  storySessionsScope,
+  storySyncOpts,
+  worksScope,
+} from "../useSyncChanges";
 
 const TEAM = "team_a";
 const OTHER = "team_b";
 const REPO = "codecast-sh/codecast";
 
-const story = (id: string, date: string, extra: Record<string, unknown> = {}) => ({
+const story = (
+  id: string,
+  date: string,
+  extra: Record<string, unknown> = {},
+) => ({
   _id: id,
   team_id: TEAM,
   repository: REPO,
@@ -29,19 +40,29 @@ const story = (id: string, date: string, extra: Record<string, unknown> = {}) =>
   ...extra,
 });
 
-const stories = () => useInboxStore.getState().changeStories as Record<string, any>;
+const stories = () =>
+  useInboxStore.getState().changeStories as Record<string, any>;
 const pending = () => useInboxStore.getState().pending as Record<string, any>;
 
 describe("registration", () => {
   it("registers the four collections with their feeds, deferred and shared", () => {
-    for (const key of ["changeStories", "changeEditions", "changeLive", "changeWorks"] as const) {
+    for (const key of [
+      "changeStories",
+      "changeEditions",
+      "changeLive",
+      "changeWorks",
+    ] as const) {
       expect(COLLECTION_STORE_KEYS).toContain(key);
       expect(HYDRATION_DEFERRED_KEYS).toContain(key);
       expect(REPLICATION_CLASSIFICATION[key]).toBe("shared");
       expect(WORKSPACE_SCOPED_KEYS).not.toContain(key);
     }
-    expect(REGISTERED_FEEDS["changesQueries.listStories"]).toBe("changeStories");
-    expect(REGISTERED_FEEDS["changesQueries.listEditions"]).toBe("changeEditions");
+    expect(REGISTERED_FEEDS["changesQueries.listStories"]).toBe(
+      "changeStories",
+    );
+    expect(REGISTERED_FEEDS["changesQueries.listEditions"]).toBe(
+      "changeEditions",
+    );
     expect(REGISTERED_FEEDS["changesQueries.liveStatus"]).toBe("changeLive");
     expect(REGISTERED_FEEDS["changesQueries.inTheWorks"]).toBe("changeWorks");
     expect(REGISTERED_FEEDS["changesQueries.storyEvidence"]).toBe("commits");
@@ -57,42 +78,79 @@ describe("registration", () => {
 
 describe("timelineChunk", () => {
   it("chunk 0 is the seven days ending today; each older chunk the seven before it, across a month end", () => {
-    expect(timelineChunk("2026-10-05", 0)).toEqual({ from_date: "2026-09-29", to_date: "2026-10-05" });
-    expect(timelineChunk("2026-10-05", 1)).toEqual({ from_date: "2026-09-22", to_date: "2026-09-28" });
+    expect(timelineChunk("2026-10-05", 0)).toEqual({
+      from_date: "2026-09-29",
+      to_date: "2026-10-05",
+    });
+    expect(timelineChunk("2026-10-05", 1)).toEqual({
+      from_date: "2026-09-22",
+      to_date: "2026-09-28",
+    });
   });
 });
 
 describe("story feed", () => {
   const scope = { teamId: TEAM, repository: REPO };
   const window = timelineChunk("2026-10-05", 0);
-  const feed = (data: any) => applyCollectionFeed("changeStories", data, selectStories, storySyncOpts(scope, window));
+  const feed = (data: any) =>
+    applyCollectionFeed(
+      "changeStories",
+      data,
+      selectStories,
+      storySyncOpts(scope, window),
+    );
 
   beforeEach(() => {
     useInboxStore.setState({ changeStories: {}, pending: {} } as any);
-    useInboxStore.getState().syncTable("changeStories", [
-      story("kept", "2026-10-02"),
-      story("merged_away", "2026-10-02"),
-      story("old_day", "2026-09-29"),
-      story("outside", "2026-09-20"),
-      story("other_repo", "2026-10-02", { repository: "acme/web" }),
-      story("other_team", "2026-10-02", { team_id: OTHER }),
-    ]);
+    useInboxStore
+      .getState()
+      .syncTable("changeStories", [
+        story("kept", "2026-10-02"),
+        story("merged_away", "2026-10-02"),
+        story("old_day", "2026-09-29"),
+        story("outside", "2026-09-20"),
+        story("other_repo", "2026-10-02", { repository: "acme/web" }),
+        story("other_team", "2026-10-02", { team_id: OTHER }),
+      ]);
   });
 
   it("prunes a story a rebuild deleted from a day the answer covered whole", () => {
-    feed({ stories: [story("kept", "2026-10-02"), story("old_day", "2026-09-29"), story("new", "2026-10-02")], covered_from: "2026-09-29", complete: true });
-    expect(Object.keys(stories()).sort()).toEqual(["kept", "new", "old_day", "other_repo", "other_team", "outside"]);
+    feed({
+      stories: [
+        story("kept", "2026-10-02"),
+        story("old_day", "2026-09-29"),
+        story("new", "2026-10-02"),
+      ],
+      covered_from: "2026-09-29",
+      complete: true,
+    });
+    expect(Object.keys(stories()).sort()).toEqual([
+      "kept",
+      "new",
+      "old_day",
+      "other_repo",
+      "other_team",
+      "outside",
+    ]);
     expect(pending()["changeStories:merged_away"]?.type).toBe("exclude");
   });
 
   it("keeps days before covered_from when the read stopped short", () => {
-    feed({ stories: [story("kept", "2026-10-02")], covered_from: "2026-10-02", complete: false });
+    feed({
+      stories: [story("kept", "2026-10-02")],
+      covered_from: "2026-10-02",
+      complete: false,
+    });
     expect(stories().old_day).toBeDefined();
     expect(stories().merged_away).toBeUndefined();
   });
 
   it("prunes nothing when no whole day was read", () => {
-    feed({ stories: [story("kept", "2026-10-02")], covered_from: null, complete: false });
+    feed({
+      stories: [story("kept", "2026-10-02")],
+      covered_from: null,
+      complete: false,
+    });
     expect(stories().merged_away).toBeDefined();
     expect(stories().old_day).toBeDefined();
   });
@@ -104,71 +162,166 @@ describe("story feed", () => {
   });
 
   it("a story pruned once stays out when a slower window still names it", () => {
-    feed({ stories: [story("kept", "2026-10-02")], covered_from: "2026-10-02", complete: true });
-    useInboxStore.getState().syncTable("changeStories", [story("merged_away", "2026-10-02")]);
+    feed({
+      stories: [story("kept", "2026-10-02")],
+      covered_from: "2026-10-02",
+      complete: true,
+    });
+    useInboxStore
+      .getState()
+      .syncTable("changeStories", [story("merged_away", "2026-10-02")]);
     expect(stories().merged_away).toBeUndefined();
   });
 
   it("the window feed leaves the viewed day to the day feed", () => {
     const viewed = "2026-10-02";
-    applyCollectionFeed("changeStories", { stories: [], covered_from: window.from_date, complete: true }, selectStories, storySyncOpts(scope, window, viewed));
+    applyCollectionFeed(
+      "changeStories",
+      { stories: [], covered_from: window.from_date, complete: true },
+      selectStories,
+      storySyncOpts(scope, window, viewed),
+    );
     expect(stories().kept).toBeDefined();
     expect(stories().merged_away).toBeDefined();
     expect(stories().old_day).toBeUndefined();
   });
 
   it("an all-repositories answer prunes across the team's repositories only", () => {
-    applyCollectionFeed("changeStories", { stories: [story("kept", "2026-10-02")], covered_from: "2026-10-02", complete: true }, selectStories, storySyncOpts({ teamId: TEAM }, window));
+    applyCollectionFeed(
+      "changeStories",
+      {
+        stories: [story("kept", "2026-10-02")],
+        covered_from: "2026-10-02",
+        complete: true,
+      },
+      selectStories,
+      storySyncOpts({ teamId: TEAM }, window),
+    );
     expect(stories().other_repo).toBeUndefined();
     expect(stories().other_team).toBeDefined();
   });
 });
 
 describe("edition feed", () => {
-  const edition = (id: string, date: string, extra: Record<string, unknown> = {}) => ({
-    _id: id, team_id: TEAM, repository: REPO, scope: "day", date, narrative: "", generated_at: 1, ...extra,
+  const edition = (
+    id: string,
+    date: string,
+    extra: Record<string, unknown> = {},
+  ) => ({
+    _id: id,
+    team_id: TEAM,
+    repository: REPO,
+    scope: "day",
+    date,
+    narrative: "",
+    generated_at: 1,
+    ...extra,
   });
 
   beforeEach(() => {
     useInboxStore.setState({ changeEditions: {}, pending: {} } as any);
-    useInboxStore.getState().syncTable("changeEditions", [
-      edition("d1", "2026-10-01"),
-      edition("gone", "2026-10-02"),
-      edition("week", "2026-09-28", { scope: "week" }),
-      edition("before", "2026-09-01"),
-    ]);
+    useInboxStore
+      .getState()
+      .syncTable("changeEditions", [
+        edition("d1", "2026-10-01"),
+        edition("gone", "2026-10-02"),
+        edition("week", "2026-09-28", { scope: "week" }),
+        edition("before", "2026-09-01"),
+      ]);
   });
 
   it("an answer that lacks an edition removes nothing", () => {
-    applyCollectionFeed("changeEditions", [edition("d1", "2026-10-01", { narrative: "new" })], undefined);
+    applyCollectionFeed(
+      "changeEditions",
+      [edition("d1", "2026-10-01", { narrative: "new" })],
+      undefined,
+    );
     const rows = useInboxStore.getState().changeEditions as Record<string, any>;
     expect(Object.keys(rows).sort()).toEqual(["before", "d1", "gone", "week"]);
     expect(rows.d1.narrative).toBe("new");
-    expect(Object.keys(useInboxStore.getState().pending as Record<string, any>)).toHaveLength(0);
+    expect(
+      Object.keys(useInboxStore.getState().pending as Record<string, any>),
+    ).toHaveLength(0);
   });
 });
 
 describe("live strip feed", () => {
   it("a surface missing from its repository's answer leaves; another repository's surfaces stay cached", () => {
     useInboxStore.setState({ changeLive: {}, pending: {} } as any);
-    const tile = (surface: string, repository = REPO) => ({ _id: `${TEAM}|${repository}|${surface}`, team_id: TEAM, repository, surface, sha: "abc", at: 1, kind: "release", waiting: 0, waiting_exact: true });
-    const feed = (repository: string, rows: any[]) => applyCollectionFeed("changeLive", rows, undefined, undefined, liveScope({ teamId: TEAM, repository }));
+    const tile = (surface: string, repository = REPO) => ({
+      _id: `${TEAM}|${repository}|${surface}`,
+      team_id: TEAM,
+      repository,
+      surface,
+      sha: "abc",
+      at: 1,
+      kind: "release",
+      waiting: 0,
+      waiting_exact: true,
+    });
+    const feed = (repository: string, rows: any[]) =>
+      applyCollectionFeed(
+        "changeLive",
+        rows,
+        undefined,
+        undefined,
+        liveScope({ teamId: TEAM, repository }),
+      );
     feed(REPO, [tile("cli"), tile("desktop")]);
     feed("acme/web", [tile("web", "acme/web")]);
     feed(REPO, [tile("cli")]);
-    expect(Object.keys(useInboxStore.getState().changeLive as Record<string, any>).sort()).toEqual([`${TEAM}|acme/web|web`, `${TEAM}|${REPO}|cli`]);
+    expect(
+      Object.keys(
+        useInboxStore.getState().changeLive as Record<string, any>,
+      ).sort(),
+    ).toEqual([`${TEAM}|acme/web|web`, `${TEAM}|${REPO}|cli`]);
     // The drop leaves no tombstone, so the surface comes back when it ships again.
     feed(REPO, [tile("cli"), tile("desktop")]);
-    expect(Object.keys(useInboxStore.getState().changeLive as Record<string, any>)).toHaveLength(3);
+    expect(
+      Object.keys(useInboxStore.getState().changeLive as Record<string, any>),
+    ).toHaveLength(3);
   });
 });
 
 describe("in the works feed", () => {
-  const stuck = (conv: string, repository?: string) => ({ _id: `stuck:${conv}`, team_id: TEAM, kind: "stuck", conversation_id: conv, headline: conv, outcome_type: "blocked", at: 1, ...(repository ? { repository } : {}) });
-  const review = (n: number, repository: string) => ({ _id: `review:pr${n}`, team_id: TEAM, kind: "review", pr_id: `pr${n}`, repository, number: n, title: `PR ${n}`, url: "", draft: false, checks_state: null, review_decision: null, head_ref: null, author_github_username: "a", updated_at: 1 });
+  const stuck = (conv: string, repository?: string) => ({
+    _id: `stuck:${conv}`,
+    team_id: TEAM,
+    kind: "stuck",
+    conversation_id: conv,
+    headline: conv,
+    outcome_type: "blocked",
+    at: 1,
+    ...(repository ? { repository } : {}),
+  });
+  const review = (n: number, repository: string) => ({
+    _id: `review:pr${n}`,
+    team_id: TEAM,
+    kind: "review",
+    pr_id: `pr${n}`,
+    repository,
+    number: n,
+    title: `PR ${n}`,
+    url: "",
+    draft: false,
+    checks_state: null,
+    review_decision: null,
+    head_ref: null,
+    author_github_username: "a",
+    updated_at: 1,
+  });
   const feed = (repository: string | undefined, rows: any[]) =>
-    applyCollectionFeed("changeWorks", rows, undefined, undefined, worksScope({ teamId: TEAM, repository }));
-  const ids = () => Object.keys(useInboxStore.getState().changeWorks as Record<string, any>).sort();
+    applyCollectionFeed(
+      "changeWorks",
+      rows,
+      undefined,
+      undefined,
+      worksScope({ teamId: TEAM, repository }),
+    );
+  const ids = () =>
+    Object.keys(
+      useInboxStore.getState().changeWorks as Record<string, any>,
+    ).sort();
 
   it("a repository's answer replaces only its own rows, so returning to another repository paints from cache", () => {
     useInboxStore.setState({ changeWorks: {}, pending: {} } as any);
@@ -185,23 +338,43 @@ describe("in the works feed", () => {
 });
 
 describe("story sessions feed", () => {
-  const row = (storyId: string, conv: string, extra: Record<string, unknown> = {}) => ({
-    _id: `${storyId}|${conv}`, team_id: TEAM, story_id: storyId, conversation_id: conv, headline: conv, summary: null, turns: [], ...extra,
+  const row = (
+    storyId: string,
+    conv: string,
+    extra: Record<string, unknown> = {},
+  ) => ({
+    _id: `${storyId}|${conv}`,
+    team_id: TEAM,
+    story_id: storyId,
+    conversation_id: conv,
+    headline: conv,
+    summary: null,
+    turns: [],
+    ...extra,
   });
-  const rows = () => useInboxStore.getState().changeStorySessions as Record<string, any>;
+  const rows = () =>
+    useInboxStore.getState().changeStorySessions as Record<string, any>;
 
   it("is registered as a shared delta feed", () => {
     expect(COLLECTION_STORE_KEYS).toContain("changeStorySessions");
     expect(HYDRATION_DEFERRED_KEYS).toContain("changeStorySessions");
     expect(REPLICATION_CLASSIFICATION.changeStorySessions).toBe("shared");
     expect(REGISTRY_SYNC_OPTS.changeStorySessions?.isDelta).toBe(true);
-    expect(REGISTERED_FEEDS["changesQueries.storySessions"]).toBe("changeStorySessions");
+    expect(REGISTERED_FEEDS["changesQueries.storySessions"]).toBe(
+      "changeStorySessions",
+    );
   });
 
   it("two open drawers keep each other's rows; a story's answer replaces its own rows without a tombstone", () => {
     useInboxStore.setState({ changeStorySessions: {}, pending: {} } as any);
     const feed = (storyId: string, data: any[]) =>
-      applyCollectionFeed("changeStorySessions", data, undefined, undefined, storySessionsScope(storyId));
+      applyCollectionFeed(
+        "changeStorySessions",
+        data,
+        undefined,
+        undefined,
+        storySessionsScope(storyId),
+      );
     const turns = [{ ask: "fix it", did: ["fixed it"] }];
     feed("s1", [row("s1", "c1", { turns }), row("s1", "c2")]);
     feed("s2", [row("s2", "c3")]);

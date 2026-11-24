@@ -9,9 +9,14 @@ import { replaceGlobals } from "../../../test-helpers/globals";
 import { closeDomWindow } from "../../../test-helpers/domGlobals";
 
 const realNav = { ...(await import("next/navigation")) };
-mock.module("next/navigation", () => ({ ...realNav, useRouter: () => ({ push() {}, replace() {} }) }));
+mock.module("next/navigation", () => ({
+  ...realNav,
+  useRouter: () => ({ push() {}, replace() {} }),
+}));
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://local.codecast.sh" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://local.codecast.sh",
+});
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -55,7 +60,12 @@ const session = (i: number, over: Partial<any> = {}) => ({
 
 test("a call with many sessions shows three chips and a +N menu", async () => {
   useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(<CallSessionChips callId="t1" sessions={[1, 2, 3, 4, 5, 6].map((i) => session(i))} />);
+  const c = await render(
+    <CallSessionChips
+      callId="t1"
+      sessions={[1, 2, 3, 4, 5, 6].map((i) => session(i))}
+    />,
+  );
   const chips = [...c.querySelectorAll("button")].map((b) => b.textContent);
   expect(chips.slice(0, 3)).toEqual(["Agent 1", "Agent 2", "Agent 3"]);
   expect(chips[3]).toBe("+3");
@@ -64,8 +74,13 @@ test("a call with many sessions shows three chips and a +N menu", async () => {
 
 test("a few sessions with no excerpts need no menu", async () => {
   useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(<CallSessionChips callId="t1" sessions={[session(1), session(2)]} />);
-  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Agent 1", "Agent 2"]);
+  const c = await render(
+    <CallSessionChips callId="t1" sessions={[session(1), session(2)]} />,
+  );
+  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+    "Agent 1",
+    "Agent 2",
+  ]);
 });
 
 test("an excerpt makes the menu reachable even when every session fits", async () => {
@@ -73,17 +88,39 @@ test("an excerpt makes the menu reachable even when every session fits", async (
   const c = await render(
     <CallSessionChips
       callId="t1"
-      sessions={[session(1, { live: false, excerpts: [{ from_seq: 2, to_seq: 6, at: 1 }] })]}
+      sessions={[
+        session(1, {
+          live: false,
+          excerpts: [{ from_seq: 2, to_seq: 6, at: 1 }],
+        }),
+      ]}
     />,
   );
-  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Agent 1", "excerpts"]);
+  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+    "Agent 1",
+    "excerpts",
+  ]);
 });
 
 test("a session the thread's head already shows is not a chip again, and the rest read as where the call was sent", async () => {
   useInboxStore.setState({ sessions: {} } as any);
-  const c = await render(<CallSessionChips callId="t1" sessions={[session(1), session(2)]} inThread={new Set([session(1).conversation_id])} />);
-  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Agent 2"]);
+  const c = await render(
+    <CallSessionChips
+      callId="t1"
+      sessions={[session(1), session(2)]}
+      inThread={new Set([session(1).conversation_id])}
+    />,
+  );
+  expect([...c.querySelectorAll("button")].map((b) => b.textContent)).toEqual([
+    "Agent 2",
+  ]);
   expect(c.textContent).toContain("sent to");
-  const none = await render(<CallSessionChips callId="t1" sessions={[session(1)]} inThread={new Set([session(1).conversation_id])} />);
+  const none = await render(
+    <CallSessionChips
+      callId="t1"
+      sessions={[session(1)]}
+      inThread={new Set([session(1).conversation_id])}
+    />,
+  );
   expect(none.querySelectorAll("button")).toHaveLength(0);
 });

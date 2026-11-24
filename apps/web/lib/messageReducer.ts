@@ -12,7 +12,7 @@
  * 5. Extracting usage data from assistant messages
  */
 
-export type ToolState = 'pending' | 'running' | 'completed' | 'error';
+export type ToolState = "pending" | "running" | "completed" | "error";
 
 export type ToolCall = {
   id: string;
@@ -27,7 +27,7 @@ export type ToolCall = {
 
 export type ProcessedMessage = {
   id: string;
-  role: 'user' | 'assistant' | 'tool';
+  role: "user" | "assistant" | "tool";
   content?: string;
   tool?: ToolCall;
   thinking?: string;
@@ -49,7 +49,10 @@ export type ReducerState = {
   messages: Map<string, ProcessedMessage>;
   latestTodos?: { todos: any[]; timestamp: number };
   latestUsage?: UsageData;
-  orphanToolResults: Map<string, Array<{ content: any; isError: boolean; timestamp: number }>>
+  orphanToolResults: Map<
+    string,
+    Array<{ content: any; isError: boolean; timestamp: number }>
+  >;
 };
 
 type RawMessage = {
@@ -95,10 +98,12 @@ function allocateId() {
 // whole reducer: ConversationView needs only this field per message push, and
 // the full reduce (JSON-parsing every tool input) cost ~1s per switch on a
 // 1.4k-message conversation.
-export function latestUsageOf(rawMessages: RawMessage[]): UsageData | undefined {
+export function latestUsageOf(
+  rawMessages: RawMessage[],
+): UsageData | undefined {
   let best: UsageData | undefined;
   for (const msg of rawMessages) {
-    if (msg.role !== 'assistant' || !msg.usage) continue;
+    if (msg.role !== "assistant" || !msg.usage) continue;
     if (best && msg.timestamp <= best.timestamp) continue;
     const cacheCreation = msg.usage.cache_creation_input_tokens || 0;
     const cacheRead = msg.usage.cache_read_input_tokens || 0;
@@ -114,7 +119,10 @@ export function latestUsageOf(rawMessages: RawMessage[]): UsageData | undefined 
   return best;
 }
 
-export function reducer(state: ReducerState, rawMessages: RawMessage[]): ProcessedMessage[] {
+export function reducer(
+  state: ReducerState,
+  rawMessages: RawMessage[],
+): ProcessedMessage[] {
   const newMessages: ProcessedMessage[] = [];
   const changed: Set<string> = new Set();
 
@@ -128,11 +136,11 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
     }
 
     // User messages
-    if (msg.role === 'user' && msg.content && !msg.tool_results) {
+    if (msg.role === "user" && msg.content && !msg.tool_results) {
       const mid = allocateId();
       const processedMsg: ProcessedMessage = {
         id: mid,
-        role: 'user',
+        role: "user",
         content: msg.content,
         timestamp: msg.timestamp,
       };
@@ -145,7 +153,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
     }
 
     // Assistant text messages
-    if (msg.role === 'assistant') {
+    if (msg.role === "assistant") {
       // Mark as seen
       if (msg.message_uuid) {
         state.messageUuids.add(msg.message_uuid);
@@ -175,7 +183,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
         const mid = allocateId();
         const processedMsg: ProcessedMessage = {
           id: mid,
-          role: 'assistant',
+          role: "assistant",
           content: msg.content,
           thinking: msg.thinking,
           timestamp: msg.timestamp,
@@ -203,8 +211,11 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
           }
 
           // Track TodoWrite todos
-          if (toolCall.name === 'TodoWrite' && parsedInput?.todos) {
-            if (!state.latestTodos || msg.timestamp > state.latestTodos.timestamp) {
+          if (toolCall.name === "TodoWrite" && parsedInput?.todos) {
+            if (
+              !state.latestTodos ||
+              msg.timestamp > state.latestTodos.timestamp
+            ) {
               state.latestTodos = {
                 todos: parsedInput.todos,
                 timestamp: msg.timestamp,
@@ -216,7 +227,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
           const tool: ToolCall = {
             id: toolCall.id,
             name: toolCall.name,
-            state: 'running',
+            state: "running",
             input: parsedInput,
             createdAt: msg.timestamp,
             startedAt: msg.timestamp,
@@ -225,7 +236,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
 
           const processedMsg: ProcessedMessage = {
             id: mid,
-            role: 'assistant',
+            role: "assistant",
             tool,
             timestamp: msg.timestamp,
           };
@@ -237,7 +248,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
           const orphans = state.orphanToolResults.get(toolCall.id);
           if (orphans && orphans.length > 0) {
             const orphan = orphans[0];
-            tool.state = orphan.isError ? 'error' : 'completed';
+            tool.state = orphan.isError ? "error" : "completed";
             tool.result = orphan.content;
             tool.completedAt = orphan.timestamp;
             state.orphanToolResults.delete(toolCall.id);
@@ -278,7 +289,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
         }
 
         // Only update if still running
-        if (message.tool.state !== 'running') {
+        if (message.tool.state !== "running") {
           continue;
         }
 
@@ -290,7 +301,7 @@ export function reducer(state: ReducerState, rawMessages: RawMessage[]): Process
           parsedResult = result.content;
         }
 
-        message.tool.state = result.is_error ? 'error' : 'completed';
+        message.tool.state = result.is_error ? "error" : "completed";
         message.tool.result = parsedResult;
         message.tool.completedAt = msg.timestamp;
 

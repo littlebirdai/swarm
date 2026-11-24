@@ -30,19 +30,21 @@ const LAZY_ONLY = [path.join(SRC, "computer"), path.join(SRC, "guide.ts")];
 
 function sourceFiles(target: string): string[] {
   if (!fs.statSync(target).isDirectory()) return [target];
-  return fs
-    .readdirSync(target, { withFileTypes: true })
-    .flatMap((entry) => {
-      const full = path.join(target, entry.name);
-      if (entry.isDirectory()) return sourceFiles(full);
-      return entry.name.endsWith(".ts") && !entry.name.includes(".test.") ? [full] : [];
-    });
+  return fs.readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(target, entry.name);
+    if (entry.isDirectory()) return sourceFiles(full);
+    return entry.name.endsWith(".ts") && !entry.name.includes(".test.")
+      ? [full]
+      : [];
+  });
 }
 
 /** `export function registerFooCommand(` — the shape index.ts used to call. */
 function exportedRegisterFunctions(file: string): string[] {
   const source = fs.readFileSync(file, "utf-8");
-  return [...source.matchAll(/^export function (register\w+)\s*\(/gm)].map((m) => m[1]);
+  return [...source.matchAll(/^export function (register\w+)\s*\(/gm)].map(
+    (m) => m[1],
+  );
 }
 
 /** The module specifier each group's `load()` names, e.g. "./computer/cli.js". */
@@ -62,15 +64,24 @@ describe("cast computer and cast guide are reachable only through the manifest",
   test("the sweep finds the register functions it exists to protect", () => {
     // A rename that this test stopped seeing would make every case below pass
     // vacuously, which is the failure mode a guard like this dies of.
-    expect(REGISTRARS.map((r) => r.fn).sort()).toEqual(["registerComputerCommand", "registerGuideCommand"]);
+    expect(REGISTRARS.map((r) => r.fn).sort()).toEqual([
+      "registerComputerCommand",
+      "registerGuideCommand",
+    ]);
   });
 
   test("every exported register function is named by a COMMAND_GROUPS entry", () => {
     for (const { file, fn } of REGISTRARS) {
       const spec = "./" + rel(file).replace(/\.ts$/, ".js");
       const group = LOADED_SPECS.find((g) => g.spec === spec);
-      expect(group, `${fn} (${rel(file)}) needs a COMMAND_GROUPS entry whose load() imports "${spec}"`).toBeTruthy();
-      expect(group!.body, `the entry for "${group!.token}" must reach ${fn}`).toContain(fn);
+      expect(
+        group,
+        `${fn} (${rel(file)}) needs a COMMAND_GROUPS entry whose load() imports "${spec}"`,
+      ).toBeTruthy();
+      expect(
+        group!.body,
+        `the entry for "${group!.token}" must reach ${fn}`,
+      ).toContain(fn);
     }
   });
 
@@ -85,8 +96,14 @@ describe("cast computer and cast guide are reachable only through the manifest",
     const statics = staticImportSpecifiers(index);
     for (const { file, fn } of REGISTRARS) {
       const spec = "./" + rel(file).replace(/\.ts$/, ".js");
-      expect(statics, `index.ts static-imports ${spec}; it belongs in COMMAND_GROUPS instead`).not.toContain(spec);
-      expect(index, `index.ts calls ${fn} directly; activateGroup must be the only caller`).not.toContain(`${fn}(`);
+      expect(
+        statics,
+        `index.ts static-imports ${spec}; it belongs in COMMAND_GROUPS instead`,
+      ).not.toContain(spec);
+      expect(
+        index,
+        `index.ts calls ${fn} directly; activateGroup must be the only caller`,
+      ).not.toContain(`${fn}(`);
     }
   });
 });

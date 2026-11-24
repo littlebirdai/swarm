@@ -19,16 +19,25 @@ const IMPORT_DEPTH = 2;
 const MAX_FACES = 12;
 
 type Screenshot = {
-  createContext(node: Node, options: Record<string, unknown>): Promise<{ sandbox?: unknown }>;
+  createContext(
+    node: Node,
+    options: Record<string, unknown>,
+  ): Promise<{ sandbox?: unknown }>;
   domToBlob(context: unknown): Promise<Blob>;
 };
 
 /** The page's top `width` x `height`, or null when it cannot be drawn. */
-export async function capture(width: number, height: number): Promise<Blob | null> {
+export async function capture(
+  width: number,
+  height: number,
+): Promise<Blob | null> {
   await document.fonts.ready;
   const defaults = defaultStyles();
   try {
-    const [{ createContext, domToBlob }, fonts] = await Promise.all([import(/* @vite-ignore */ LIBRARY) as Promise<Screenshot>, fontFaces()]);
+    const [{ createContext, domToBlob }, fonts] = await Promise.all([
+      import(/* @vite-ignore */ LIBRARY) as Promise<Screenshot>,
+      fontFaces(),
+    ]);
     const context = await createContext(document.body, {
       width,
       height,
@@ -56,16 +65,22 @@ export async function capture(width: number, height: number): Promise<Blob | nul
  *  page's do not. */
 function defaultStyles() {
   const host = document.createElement("div");
-  host.style.cssText = "all: initial; position: fixed; width: 0; height: 0; overflow: hidden; visibility: hidden";
+  host.style.cssText =
+    "all: initial; position: fixed; width: 0; height: 0; overflow: hidden; visibility: hidden";
   const body = document.createElement("div");
   host.attachShadow({ mode: "open" }).appendChild(body);
   document.body.appendChild(host);
   const sandboxDocument = {
     body,
     createElement: (tag: string) => document.createElement(tag),
-    createElementNS: (ns: string, tag: string) => document.createElementNS(ns, tag),
+    createElementNS: (ns: string, tag: string) =>
+      document.createElementNS(ns, tag),
   };
-  const contentWindow = { document: sandboxDocument, getComputedStyle: (el: Element, pseudo?: string) => getComputedStyle(el, pseudo) };
+  const contentWindow = {
+    document: sandboxDocument,
+    getComputedStyle: (el: Element, pseudo?: string) =>
+      getComputedStyle(el, pseudo),
+  };
   return { host, sandbox: { contentWindow, remove: () => host.remove() } };
 }
 
@@ -77,11 +92,22 @@ function defaultStyles() {
 async function fontFaces(): Promise<string> {
   const faces: string[] = [];
   const seen = new Set<string>();
-  const read = async (css: string, base: string, depth: number): Promise<void> => {
-    const absolute = css.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (_, q, url) => `url(${q}${new URL(url, base).href}${q})`);
-    faces.push(...(absolute.match(/@font-face\s*{[^}]*}/g) ?? []).filter(coversLatin));
+  const read = async (
+    css: string,
+    base: string,
+    depth: number,
+  ): Promise<void> => {
+    const absolute = css.replace(
+      /url\(\s*(['"]?)([^'")]+)\1\s*\)/g,
+      (_, q, url) => `url(${q}${new URL(url, base).href}${q})`,
+    );
+    faces.push(
+      ...(absolute.match(/@font-face\s*{[^}]*}/g) ?? []).filter(coversLatin),
+    );
     if (depth >= IMPORT_DEPTH) return;
-    const imports = [...absolute.matchAll(/@import\s+(?:url\()?\s*['"]?([^'")\s;]+)/g)].map((m) => m[1]);
+    const imports = [
+      ...absolute.matchAll(/@import\s+(?:url\()?\s*['"]?([^'")\s;]+)/g),
+    ].map((m) => m[1]);
     await Promise.all(imports.map((url) => sheet(url, depth + 1)));
   };
   const sheet = async (url: string, depth: number) => {
@@ -90,21 +116,34 @@ async function fontFaces(): Promise<string> {
     await read(await fetchText(url), url, depth);
   };
   await Promise.all([
-    ...[...document.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]')].map((l) => sheet(l.href, 0)),
-    ...[...document.querySelectorAll("style")].map((el) => read(el.textContent ?? "", location.href, 0)),
+    ...[
+      ...document.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]'),
+    ].map((l) => sheet(l.href, 0)),
+    ...[...document.querySelectorAll("style")].map((el) =>
+      read(el.textContent ?? "", location.href, 0),
+    ),
   ]);
-  return (await Promise.all(faces.slice(0, MAX_FACES).map(inlineFace))).join("\n");
+  return (await Promise.all(faces.slice(0, MAX_FACES).map(inlineFace))).join(
+    "\n",
+  );
 }
 
-const fetchText = (url: string) => fetch(url).then((r) => (r.ok ? r.text() : ""), () => "");
+const fetchText = (url: string) =>
+  fetch(url).then(
+    (r) => (r.ok ? r.text() : ""),
+    () => "",
+  );
 
 /** No unicode-range, or one that starts at the basic Latin block. */
-const coversLatin = (face: string) => !/unicode-range/.test(face) || /unicode-range:\s*U\+0000-00FF/i.test(face);
+const coversLatin = (face: string) =>
+  !/unicode-range/.test(face) || /unicode-range:\s*U\+0000-00FF/i.test(face);
 
 /** A face whose first source is a data: URL, or the face as it was when
  *  its file cannot be read. */
 async function inlineFace(face: string): Promise<string> {
-  const src = /src:\s*url\((['"]?)([^'")]+)\1\)(\s*format\([^)]*\))?/.exec(face);
+  const src = /src:\s*url\((['"]?)([^'")]+)\1\)(\s*format\([^)]*\))?/.exec(
+    face,
+  );
   if (!src || src[2].startsWith("data:")) return face;
   try {
     const res = await fetch(src[2]);

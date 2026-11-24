@@ -28,9 +28,16 @@ export type ActivityEvent = {
 export const recent = query({
   args: {},
   handler: async (ctx): Promise<ActivityEvent[]> => {
-    const scanned = await ctx.db.query("versions").order("desc").take(FEED_SCAN);
+    const scanned = await ctx.db
+      .query("versions")
+      .order("desc")
+      .take(FEED_SCAN);
     const apps = new Map(
-      await Promise.all([...new Set(scanned.map((r) => r.app_id))].map(async (id) => [id, await ctx.db.get(id)] as const)),
+      await Promise.all(
+        [...new Set(scanned.map((r) => r.app_id))].map(
+          async (id) => [id, await ctx.db.get(id)] as const,
+        ),
+      ),
     );
     // v0 is a starter nobody sees; the first build says "made it".
     const seen = new Set<string>();
@@ -38,16 +45,23 @@ export const recent = query({
       .filter((r) => {
         const key = `${r.app_id}:${r.author_id}`;
         const app = apps.get(r.app_id);
-        if (r.number === 0 || !app || app.unlisted || seen.has(key)) return false;
+        if (r.number === 0 || !app || app.unlisted || seen.has(key))
+          return false;
         seen.add(key);
         return true;
       })
       .slice(0, FEED_MAX);
-    const people = await publicVisitors(ctx, shown.map((r) => r.author_id));
+    const people = await publicVisitors(
+      ctx,
+      shown.map((r) => r.author_id),
+    );
     const events = await Promise.all(
       shown.map(async (row): Promise<ActivityEvent> => {
         const app = apps.get(row.app_id)!;
-        const source = row.kind === "fork" && row.source ? await ctx.db.get(row.source.app_id) : null;
+        const source =
+          row.kind === "fork" && row.source
+            ? await ctx.db.get(row.source.app_id)
+            : null;
         return {
           id: row._id,
           at: row.created_at,

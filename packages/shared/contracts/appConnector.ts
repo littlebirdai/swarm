@@ -34,7 +34,14 @@ export const APP_LIMITS = {
 
 // ── JSON Schema subset ──
 
-export type JsonSchemaType = "object" | "string" | "number" | "integer" | "boolean" | "array" | "null";
+export type JsonSchemaType =
+  | "object"
+  | "string"
+  | "number"
+  | "integer"
+  | "boolean"
+  | "array"
+  | "null";
 
 /**
  * The keywords the connector understands. Anything else in a declared schema
@@ -64,8 +71,14 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 function typeOf(value: unknown): JsonSchemaType | "undefined" {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
-  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "number";
-  if (typeof value === "string" || typeof value === "boolean" || typeof value === "object") return typeof value as JsonSchemaType;
+  if (typeof value === "number")
+    return Number.isInteger(value) ? "integer" : "number";
+  if (
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    typeof value === "object"
+  )
+    return typeof value as JsonSchemaType;
   return "undefined";
 }
 
@@ -75,26 +88,46 @@ function typeMatches(want: JsonSchemaType, value: unknown): boolean {
 }
 
 /** Every way `value` breaks `schema`, as "path: problem" lines. Empty means valid. */
-export function validateJson(schema: JsonSchema | undefined, value: unknown, path = "args"): string[] {
+export function validateJson(
+  schema: JsonSchema | undefined,
+  value: unknown,
+  path = "args",
+): string[] {
   if (!schema || typeof schema !== "object" || Array.isArray(schema)) return [];
   const errors: string[] = [];
-  const types = schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type];
+  const types =
+    schema.type === undefined
+      ? []
+      : Array.isArray(schema.type)
+        ? schema.type
+        : [schema.type];
   if (types.length && !types.some((t) => typeMatches(t, value))) {
     return [`${path}: expected ${types.join(" or ")}, got ${typeOf(value)}`];
   }
-  if (schema.enum && !schema.enum.some((e) => JSON.stringify(e) === JSON.stringify(value))) {
-    errors.push(`${path}: must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(", ")}`);
+  if (
+    schema.enum &&
+    !schema.enum.some((e) => JSON.stringify(e) === JSON.stringify(value))
+  ) {
+    errors.push(
+      `${path}: must be one of ${schema.enum.map((e) => JSON.stringify(e)).join(", ")}`,
+    );
   }
   if (typeof value === "number") {
-    if (schema.minimum !== undefined && value < schema.minimum) errors.push(`${path}: must be at least ${schema.minimum}`);
-    if (schema.maximum !== undefined && value > schema.maximum) errors.push(`${path}: must be at most ${schema.maximum}`);
+    if (schema.minimum !== undefined && value < schema.minimum)
+      errors.push(`${path}: must be at least ${schema.minimum}`);
+    if (schema.maximum !== undefined && value > schema.maximum)
+      errors.push(`${path}: must be at most ${schema.maximum}`);
   }
   if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) errors.push(`${path}: must be at least ${schema.minLength} characters`);
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) errors.push(`${path}: must be at most ${schema.maxLength} characters`);
+    if (schema.minLength !== undefined && value.length < schema.minLength)
+      errors.push(`${path}: must be at least ${schema.minLength} characters`);
+    if (schema.maxLength !== undefined && value.length > schema.maxLength)
+      errors.push(`${path}: must be at most ${schema.maxLength} characters`);
   }
   if (Array.isArray(value) && schema.items) {
-    value.forEach((item, i) => errors.push(...validateJson(schema.items, item, `${path}[${i}]`)));
+    value.forEach((item, i) =>
+      errors.push(...validateJson(schema.items, item, `${path}[${i}]`)),
+    );
   }
   if (isPlainObject(value)) {
     const props = schema.properties ?? {};
@@ -102,8 +135,10 @@ export function validateJson(schema: JsonSchema | undefined, value: unknown, pat
       if (value[key] === undefined) errors.push(`${path}.${key}: required`);
     }
     for (const [key, v] of Object.entries(value)) {
-      if (props[key]) errors.push(...validateJson(props[key], v, `${path}.${key}`));
-      else if (schema.additionalProperties === false) errors.push(`${path}.${key}: not an argument this accepts`);
+      if (props[key])
+        errors.push(...validateJson(props[key], v, `${path}.${key}`));
+      else if (schema.additionalProperties === false)
+        errors.push(`${path}.${key}: not an argument this accepts`);
     }
   }
   return errors;
@@ -116,15 +151,28 @@ export function validateJson(schema: JsonSchema | undefined, value: unknown, pat
  * not name stays a string, and validateJson decides whether it is allowed.
  * Throws on a value its property cannot read.
  */
-export function coerceArgs(schema: JsonSchema | undefined, pairs: Array<[string, string]>): Record<string, unknown> {
+export function coerceArgs(
+  schema: JsonSchema | undefined,
+  pairs: Array<[string, string]>,
+): Record<string, unknown> {
   const props = schema?.properties ?? {};
   const out: Record<string, unknown> = {};
-  const read = (prop: JsonSchema | undefined, key: string, raw: string): unknown => {
-    const types = prop?.type === undefined ? [] : Array.isArray(prop.type) ? prop.type : [prop.type];
+  const read = (
+    prop: JsonSchema | undefined,
+    key: string,
+    raw: string,
+  ): unknown => {
+    const types =
+      prop?.type === undefined
+        ? []
+        : Array.isArray(prop.type)
+          ? prop.type
+          : [prop.type];
     const t = types.find((x) => x !== "null");
     if (t === "number" || t === "integer") {
       const n = Number(raw);
-      if (raw.trim() === "" || !Number.isFinite(n)) throw new Error(`--arg ${key}: "${raw}" is not a number`);
+      if (raw.trim() === "" || !Number.isFinite(n))
+        throw new Error(`--arg ${key}: "${raw}" is not a number`);
       return n;
     }
     if (t === "boolean") {
@@ -143,7 +191,9 @@ export function coerceArgs(schema: JsonSchema | undefined, pairs: Array<[string,
   };
   for (const [key, raw] of pairs) {
     const prop = props[key];
-    const isArray = prop?.type === "array" || (Array.isArray(prop?.type) && prop!.type.includes("array"));
+    const isArray =
+      prop?.type === "array" ||
+      (Array.isArray(prop?.type) && prop!.type.includes("array"));
     if (isArray) {
       const parts = raw.split(",").map((p) => read(prop!.items, key, p.trim()));
       out[key] = [...((out[key] as unknown[]) ?? []), ...parts];
@@ -158,7 +208,12 @@ export function coerceArgs(schema: JsonSchema | undefined, pairs: Array<[string,
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 const READER_METHODS: readonly HttpMethod[] = ["GET", "POST"];
-const ACTION_METHODS: readonly HttpMethod[] = ["POST", "PUT", "PATCH", "DELETE"];
+const ACTION_METHODS: readonly HttpMethod[] = [
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+];
 
 export interface AppReader {
   name: string;
@@ -217,33 +272,60 @@ const FIELD_RE = /^[A-Za-z0-9_$][A-Za-z0-9_.$-]{0,99}$/;
  * of the base path. `{name}` segments are filled from the args.
  */
 export function isSafeAppPath(path: unknown): path is string {
-  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//") || path.length > 300) return false;
+  if (
+    typeof path !== "string" ||
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.length > 300
+  )
+    return false;
   if (/[?#\\\s]/.test(path) || path.includes("://")) return false;
-  return !path.split("/").some((seg) => seg === "." || seg === ".." || /%2e/i.test(seg) || /%2f/i.test(seg));
+  return !path
+    .split("/")
+    .some(
+      (seg) =>
+        seg === "." || seg === ".." || /%2e/i.test(seg) || /%2f/i.test(seg),
+    );
 }
 
 /** Raw SQL is never a reader (X8): refused by name, path and argument. */
-export function looksLikeRawSql(def: { name: string; path: string; input?: JsonSchema }): boolean {
+export function looksLikeRawSql(def: {
+  name: string;
+  path: string;
+  input?: JsonSchema;
+}): boolean {
   const word = /(^|[^a-z])sql([^a-z]|$)/i;
   if (word.test(def.name) || word.test(def.path)) return true;
   return Object.keys(def.input?.properties ?? {}).some((k) => word.test(k));
 }
 
 function text(value: unknown, max: number): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+  return typeof value === "string" && value.trim()
+    ? value.trim().slice(0, max)
+    : undefined;
 }
 
 function inputSchema(raw: unknown, where: string): JsonSchema | string {
   if (raw === undefined) return { type: "object" };
-  if (!isPlainObject(raw)) return `${where}: input must be a JSON Schema object`;
-  if (raw.type !== undefined && raw.type !== "object") return `${where}: input must describe an object`;
+  if (!isPlainObject(raw))
+    return `${where}: input must be a JSON Schema object`;
+  if (raw.type !== undefined && raw.type !== "object")
+    return `${where}: input must describe an object`;
   return raw as JsonSchema;
 }
 
-function method(raw: unknown, allowed: readonly HttpMethod[], fallback: HttpMethod, where: string): HttpMethod | string {
+function method(
+  raw: unknown,
+  allowed: readonly HttpMethod[],
+  fallback: HttpMethod,
+  where: string,
+): HttpMethod | string {
   if (raw === undefined) return fallback;
-  const m = typeof raw === "string" ? (raw.toUpperCase() as HttpMethod) : undefined;
-  return m && allowed.includes(m) ? m : `${where}: method must be ${allowed.join(" or ")}`;
+  const m =
+    typeof raw === "string" ? (raw.toUpperCase() as HttpMethod) : undefined;
+  return m && allowed.includes(m)
+    ? m
+    : `${where}: method must be ${allowed.join(" or ")}`;
 }
 
 /**
@@ -252,8 +334,11 @@ function method(raw: unknown, allowed: readonly HttpMethod[], fallback: HttpMeth
  * paths, methods, risk); lenient on prose. A missing `risk` is high and a
  * missing `idempotent` is false: the side that asks a person.
  */
-export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifest } | { ok: false; errors: string[] } {
-  if (!isPlainObject(raw)) return { ok: false, errors: ["manifest is not a JSON object"] };
+export function parseAppManifest(
+  raw: unknown,
+): { ok: true; manifest: AppManifest } | { ok: false; errors: string[] } {
+  if (!isPlainObject(raw))
+    return { ok: false, errors: ["manifest is not a JSON object"] };
   const errors: string[] = [];
   const name = text(raw.name, 100);
   if (!name) errors.push("manifest needs a name");
@@ -269,7 +354,13 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
   };
 
   const seen = new Set<string>();
-  const common = (r: unknown, kind: "reader" | "action", i: number, methods: readonly HttpMethod[], fallback: HttpMethod) => {
+  const common = (
+    r: unknown,
+    kind: "reader" | "action",
+    i: number,
+    methods: readonly HttpMethod[],
+    fallback: HttpMethod,
+  ) => {
     const where = `${kind}s[${i}]`;
     if (!isPlainObject(r)) {
       errors.push(`${where} is not an object`);
@@ -277,13 +368,18 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
     }
     const n = typeof r.name === "string" ? r.name.trim() : "";
     if (!NAME_RE.test(n)) {
-      errors.push(`${where}: name "${String(r.name ?? "")}" must be letters, digits, dots, dashes or underscores`);
+      errors.push(
+        `${where}: name "${String(r.name ?? "")}" must be letters, digits, dots, dashes or underscores`,
+      );
       return null;
     }
     const at = `${kind} ${n}`;
     if (seen.has(`${kind}:${n}`)) errors.push(`${at}: declared twice`);
     seen.add(`${kind}:${n}`);
-    if (!isSafeAppPath(r.path)) errors.push(`${at}: path must be an absolute path under the base url, got ${JSON.stringify(r.path)}`);
+    if (!isSafeAppPath(r.path))
+      errors.push(
+        `${at}: path must be an absolute path under the base url, got ${JSON.stringify(r.path)}`,
+      );
     const m = method(r.method, methods, fallback, at);
     if (!methods.includes(m as HttpMethod)) errors.push(m);
     const input = inputSchema(r.input, at);
@@ -303,7 +399,10 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
   list("readers", APP_LIMITS.max_readers).forEach((r, i) => {
     const c = common(r, "reader", i, READER_METHODS, "GET");
     if (!c) return;
-    if (looksLikeRawSql(c)) errors.push(`reader ${c.name}: raw SQL is never a reader; declare a named reader instead`);
+    if (looksLikeRawSql(c))
+      errors.push(
+        `reader ${c.name}: raw SQL is never a reader; declare a named reader instead`,
+      );
     readers.push({
       name: c.name,
       title: c.title,
@@ -311,7 +410,9 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
       path: c.path,
       input: c.input,
       ...(c.description ? { description: c.description } : {}),
-      ...(text(c.raw.output_hint, 2000) ? { output_hint: text(c.raw.output_hint, 2000) } : {}),
+      ...(text(c.raw.output_hint, 2000)
+        ? { output_hint: text(c.raw.output_hint, 2000) }
+        : {}),
     });
   });
 
@@ -320,8 +421,10 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
     const c = common(r, "action", i, ACTION_METHODS, "POST");
     if (!c) return;
     const risk = c.raw.risk === undefined ? "high" : c.raw.risk;
-    if (risk !== "low" && risk !== "high") errors.push(`action ${c.name}: risk must be "low" or "high"`);
-    if (c.raw.idempotent !== undefined && typeof c.raw.idempotent !== "boolean") errors.push(`action ${c.name}: idempotent must be true or false`);
+    if (risk !== "low" && risk !== "high")
+      errors.push(`action ${c.name}: risk must be "low" or "high"`);
+    if (c.raw.idempotent !== undefined && typeof c.raw.idempotent !== "boolean")
+      errors.push(`action ${c.name}: idempotent must be true or false`);
     actions.push({
       name: c.name,
       title: c.title,
@@ -340,15 +443,20 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
     const where = `watches[${i}]`;
     if (!isPlainObject(w)) return void errors.push(`${where} is not an object`);
     const reader = typeof w.reader === "string" ? w.reader.trim() : "";
-    if (!readerNames.has(reader)) return void errors.push(`${where}: no reader named "${reader}"`);
-    if (w.kind !== "check" && w.kind !== "job") return void errors.push(`${where}: kind must be "check" or "job"`);
+    if (!readerNames.has(reader))
+      return void errors.push(`${where}: no reader named "${reader}"`);
+    if (w.kind !== "check" && w.kind !== "job")
+      return void errors.push(`${where}: kind must be "check" or "job"`);
     let everyMs: number;
     try {
       everyMs = parseDuration(String(w.every ?? ""));
     } catch (e: any) {
       return void errors.push(`${where}: every: ${e?.message ?? e}`);
     }
-    if (everyMs < APP_LIMITS.min_watch_ms || everyMs > APP_LIMITS.max_watch_ms) {
+    if (
+      everyMs < APP_LIMITS.min_watch_ms ||
+      everyMs > APP_LIMITS.max_watch_ms
+    ) {
       return void errors.push(`${where}: every must be between 5m and 24h`);
     }
     const map = isPlainObject(w.map) ? w.map : {};
@@ -372,7 +480,13 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
       every: String(w.every).trim(),
       every_ms: everyMs,
       kind: w.kind,
-      map: { id, ok, ...(title ? { title } : {}), ...(detail ? { detail } : {}), ...(at ? { at } : {}) },
+      map: {
+        id,
+        ok,
+        ...(title ? { title } : {}),
+        ...(detail ? { detail } : {}),
+        ...(at ? { at } : {}),
+      },
     });
   });
 
@@ -382,20 +496,47 @@ export function parseAppManifest(raw: unknown): { ok: true; manifest: AppManifes
     const where = `views[${i}]`;
     if (!isPlainObject(v)) return void errors.push(`${where} is not an object`);
     const n = typeof v.name === "string" ? v.name.trim() : "";
-    if (!NAME_RE.test(n)) return void errors.push(`${where}: name "${String(v.name ?? "")}" must be letters, digits, dots, dashes or underscores`);
+    if (!NAME_RE.test(n))
+      return void errors.push(
+        `${where}: name "${String(v.name ?? "")}" must be letters, digits, dots, dashes or underscores`,
+      );
     if (viewNames.has(n)) return void errors.push(`view ${n}: declared twice`);
     viewNames.add(n);
-    if (!isSafeAppPath(v.path)) return void errors.push(`view ${n}: path must be an absolute path, got ${JSON.stringify(v.path)}`);
+    if (!isSafeAppPath(v.path))
+      return void errors.push(
+        `view ${n}: path must be an absolute path, got ${JSON.stringify(v.path)}`,
+      );
     const params = v.params === undefined ? [] : v.params;
-    if (!Array.isArray(params) || !params.every((p) => typeof p === "string" && FIELD_RE.test(p))) {
-      return void errors.push(`view ${n}: params must be a list of query param names`);
+    if (
+      !Array.isArray(params) ||
+      !params.every((p) => typeof p === "string" && FIELD_RE.test(p))
+    ) {
+      return void errors.push(
+        `view ${n}: params must be a list of query param names`,
+      );
     }
     const description = text(v.description, 2000);
-    views.push({ name: n, title: text(v.title, 200) ?? n, path: v.path, params: params as string[], ...(description ? { description } : {}) });
+    views.push({
+      name: n,
+      title: text(v.title, 200) ?? n,
+      path: v.path,
+      params: params as string[],
+      ...(description ? { description } : {}),
+    });
   });
 
   if (errors.length) return { ok: false, errors };
-  return { ok: true, manifest: { name: name!, version: text(raw.version, 100) ?? "0", readers, actions, watches, views } };
+  return {
+    ok: true,
+    manifest: {
+      name: name!,
+      version: text(raw.version, 100) ?? "0",
+      readers,
+      actions,
+      watches,
+      views,
+    },
+  };
 }
 
 /** One watch's identity in the source's watch state: a reader may feed a check watch and a job watch. */
@@ -428,14 +569,21 @@ export function buildAppRequest(
   baseUrl: string,
   def: Pick<AppReader, "method" | "path">,
   args: Record<string, unknown>,
-): { ok: true; url: string; method: HttpMethod; body?: string } | { ok: false; error: string } {
+):
+  | { ok: true; url: string; method: HttpMethod; body?: string }
+  | { ok: false; error: string } {
   const rest: Record<string, unknown> = { ...args };
   let missing: string | null = null;
   let unsafe: string | null = null;
   const path = def.path.replace(/\{([A-Za-z0-9_]+)\}/g, (_m, key: string) => {
     const v = rest[key];
     delete rest[key];
-    if (v === undefined || v === null || typeof v === "object" || !String(v).trim()) {
+    if (
+      v === undefined ||
+      v === null ||
+      typeof v === "object" ||
+      !String(v).trim()
+    ) {
       missing ??= key;
       return "";
     }
@@ -450,17 +598,31 @@ export function buildAppRequest(
   if (missing) return { ok: false, error: `the path needs ${missing}` };
   if (unsafe) return { ok: false, error: `${unsafe} cannot be . or ..` };
   const base = baseUrl.replace(/\/+$/, "");
-  if (!landsOnTemplate(base, path)) return { ok: false, error: "the filled path leaves the declared route" };
+  if (!landsOnTemplate(base, path))
+    return { ok: false, error: "the filled path leaves the declared route" };
   if (def.method === "GET" || def.method === "DELETE") {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(rest)) {
       if (v === undefined || v === null) continue;
-      for (const item of Array.isArray(v) ? v : [v]) qs.append(k, typeof item === "object" ? JSON.stringify(item) : String(item));
+      for (const item of Array.isArray(v) ? v : [v])
+        qs.append(
+          k,
+          typeof item === "object" ? JSON.stringify(item) : String(item),
+        );
     }
     const q = qs.toString();
-    return { ok: true, url: `${base}${path}${q ? `?${q}` : ""}`, method: def.method };
+    return {
+      ok: true,
+      url: `${base}${path}${q ? `?${q}` : ""}`,
+      method: def.method,
+    };
   }
-  return { ok: true, url: `${base}${path}`, method: def.method, body: JSON.stringify(rest) };
+  return {
+    ok: true,
+    url: `${base}${path}`,
+    method: def.method,
+    body: JSON.stringify(rest),
+  };
 }
 
 /** The parsed url still sits under the base path with the template's segment count, so nothing collapsed. */
@@ -468,7 +630,10 @@ function landsOnTemplate(base: string, path: string): boolean {
   try {
     const basePath = new URL(base).pathname.replace(/\/+$/, "");
     const got = new URL(`${base}${path}`).pathname;
-    return got.startsWith(`${basePath}/`) && got.split("/").length === `${basePath}${path}`.split("/").length;
+    return (
+      got.startsWith(`${basePath}/`) &&
+      got.split("/").length === `${basePath}${path}`.split("/").length
+    );
   } catch {
     return false;
   }
@@ -476,14 +641,22 @@ function landsOnTemplate(base: string, path: string): boolean {
 
 /** Header-safe text: printable ASCII without the separators the header uses. */
 function headerPart(value: string): string {
-  return value.replace(/[^\x20-\x7e]/g, "").replace(/[;=,]/g, "").trim().slice(0, 200);
+  return value
+    .replace(/[^\x20-\x7e]/g, "")
+    .replace(/[;=,]/g, "")
+    .trim()
+    .slice(0, 200);
 }
 
 /**
  * X-Codecast-Actor: who a call runs for, so the product's own audit names a
  * person and the session acting for them. "person=<email>; session=<id>".
  */
-export function formatActorHeader(actor: { person?: string; session?: string; watch?: string }): string {
+export function formatActorHeader(actor: {
+  person?: string;
+  session?: string;
+  watch?: string;
+}): string {
   const parts: string[] = [];
   if (actor.person) parts.push(`person=${headerPart(actor.person)}`);
   if (actor.session) parts.push(`session=${headerPart(actor.session)}`);
@@ -503,35 +676,69 @@ export interface AppGrant {
 }
 
 /** The grant that lets `action` run now, if any. An expired grant, or one an api token made, is no grant. */
-export function activeGrant<G extends AppGrant>(grants: readonly G[] | undefined, action: string, now: number): G | undefined {
-  return (grants ?? []).find((g) => g.action === action && g.via !== "api_token" && (g.until === undefined || g.until > now));
+export function activeGrant<G extends AppGrant>(
+  grants: readonly G[] | undefined,
+  action: string,
+  now: number,
+): G | undefined {
+  return (grants ?? []).find(
+    (g) =>
+      g.action === action &&
+      g.via !== "api_token" &&
+      (g.until === undefined || g.until > now),
+  );
 }
 
 /** What a grant covers and the rules its calls follow. */
-export type GrantableAction = Pick<AppAction, "name" | "title" | "risk" | "idempotent"> & { description?: string };
+export type GrantableAction = Pick<
+  AppAction,
+  "name" | "title" | "risk" | "idempotent"
+> & { description?: string };
 
 /**
  * The writes a vendor source makes in the vendor's own product, granted the
  * same way a manifest's actions are. Sentry's: `cast events resolve` (and
  * reopening) is issue.resolve, `cast events ignore` is issue.ignore.
  */
-export const VENDOR_ACTIONS: Readonly<Record<string, readonly GrantableAction[]>> = {
+export const VENDOR_ACTIONS: Readonly<
+  Record<string, readonly GrantableAction[]>
+> = {
   sentry: [
-    { name: "issue.resolve", title: "Resolve or reopen an issue in Sentry", description: "cast events resolve on a Sentry group", risk: "low", idempotent: true },
-    { name: "issue.ignore", title: "Ignore an issue in Sentry", description: "cast events ignore on a Sentry group", risk: "low", idempotent: true },
+    {
+      name: "issue.resolve",
+      title: "Resolve or reopen an issue in Sentry",
+      description: "cast events resolve on a Sentry group",
+      risk: "low",
+      idempotent: true,
+    },
+    {
+      name: "issue.ignore",
+      title: "Ignore an issue in Sentry",
+      description: "cast events ignore on a Sentry group",
+      risk: "low",
+      idempotent: true,
+    },
   ],
 };
 
 /** The actions a source can be granted: its manifest's for an app connector, the vendor's fixed writes otherwise. */
-export function grantableActions(provider: string, manifest: Pick<AppManifest, "actions"> | null | undefined): readonly GrantableAction[] {
-  return provider === "app" ? manifest?.actions ?? [] : VENDOR_ACTIONS[provider] ?? [];
+export function grantableActions(
+  provider: string,
+  manifest: Pick<AppManifest, "actions"> | null | undefined,
+): readonly GrantableAction[] {
+  return provider === "app"
+    ? (manifest?.actions ?? [])
+    : (VENDOR_ACTIONS[provider] ?? []);
 }
 
 /** Whether a source has anything to grant at all (an app connector, or a vendor with writes). */
-export const sourceHasGrants = (provider: string): boolean => provider === "app" || provider in VENDOR_ACTIONS;
+export const sourceHasGrants = (provider: string): boolean =>
+  provider === "app" || provider in VENDOR_ACTIONS;
 
 /** The grant a Sentry status write needs. Reopening is the resolve grant's other half. */
-export function sentryStatusAction(status: "resolved" | "ignored" | "unresolved"): string {
+export function sentryStatusAction(
+  status: "resolved" | "ignored" | "unresolved",
+): string {
   return status === "ignored" ? "issue.ignore" : "issue.resolve";
 }
 
@@ -553,13 +760,24 @@ export function writeRefusal(
   now: number,
 ): string | null {
   const def = actions.find((a) => a.name === name);
-  if (!def) return `no action ${name} to grant (there are: ${actions.map((a) => a.name).join(", ") || "none"})`;
+  if (!def)
+    return `no action ${name} to grant (there are: ${actions.map((a) => a.name).join(", ") || "none"})`;
   return doRefusal(def, grants, opts, now);
 }
 
 /** The grants with `grant` in place of any earlier grant of the same action, expired ones dropped. */
-export function withGrant<G extends AppGrant>(grants: readonly G[] | undefined, grant: G, now: number): G[] {
-  return [...(grants ?? []).filter((g) => g.action !== grant.action && (g.until === undefined || g.until > now)), grant];
+export function withGrant<G extends AppGrant>(
+  grants: readonly G[] | undefined,
+  grant: G,
+  now: number,
+): G[] {
+  return [
+    ...(grants ?? []).filter(
+      (g) =>
+        g.action !== grant.action && (g.until === undefined || g.until > now),
+    ),
+    grant,
+  ];
 }
 
 /**
@@ -577,7 +795,8 @@ export function doRefusal(
   if (!activeGrant(grants, action.name, now)) {
     return `${action.name} is not granted: a person grants it in the browser, under Ops, Apps${opts.grantUrl ? ` (${opts.grantUrl})` : ""}. An agent cannot grant it.`;
   }
-  if (action.risk === "high" && !opts.yes) return `${action.name} is high risk: confirm this call with --yes`;
+  if (action.risk === "high" && !opts.yes)
+    return `${action.name} is high risk: confirm this call with --yes`;
   if (!action.idempotent && !opts.idempotency_key?.trim()) {
     return `${action.name} is not idempotent: pass an idempotency key so a retry cannot run it twice`;
   }
@@ -595,8 +814,26 @@ function field(row: Record<string, unknown>, path: string): unknown {
   return cur;
 }
 
-const TRUE_WORDS = new Set(["true", "ok", "pass", "passed", "green", "healthy", "success", "succeeded"]);
-const FALSE_WORDS = new Set(["false", "fail", "failed", "failing", "red", "error", "unhealthy", "failure"]);
+const TRUE_WORDS = new Set([
+  "true",
+  "ok",
+  "pass",
+  "passed",
+  "green",
+  "healthy",
+  "success",
+  "succeeded",
+]);
+const FALSE_WORDS = new Set([
+  "false",
+  "fail",
+  "failed",
+  "failing",
+  "red",
+  "error",
+  "unhealthy",
+  "failure",
+]);
 
 function truth(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
@@ -610,7 +847,12 @@ function truth(value: unknown): boolean | undefined {
 }
 
 function stampOf(value: unknown): number | undefined {
-  const ms = typeof value === "string" ? Date.parse(value) : typeof value === "number" ? value : NaN;
+  const ms =
+    typeof value === "string"
+      ? Date.parse(value)
+      : typeof value === "number"
+        ? value
+        : NaN;
   return Number.isFinite(ms) && ms > 0 ? ms : undefined;
 }
 
@@ -618,7 +860,8 @@ function stampOf(value: unknown): number | undefined {
 export function responseRows(body: unknown): unknown[] | null {
   if (Array.isArray(body)) return body;
   if (isPlainObject(body)) {
-    for (const k of ["rows", "items", "data", "results"]) if (Array.isArray(body[k])) return body[k] as unknown[];
+    for (const k of ["rows", "items", "data", "results"])
+      if (Array.isArray(body[k])) return body[k] as unknown[];
   }
   return null;
 }
@@ -636,9 +879,20 @@ export function mapWatchRows(
   watch: AppWatch,
   body: unknown,
   opts: { now: number; since?: number },
-): { ok: true; items: Record<string, unknown>[]; skipped: number; cursor?: number } | { ok: false; error: string } {
+):
+  | {
+      ok: true;
+      items: Record<string, unknown>[];
+      skipped: number;
+      cursor?: number;
+    }
+  | { ok: false; error: string } {
   const rows = responseRows(body);
-  if (!rows) return { ok: false, error: `reader ${watch.reader} did not answer with a list of rows` };
+  if (!rows)
+    return {
+      ok: false,
+      error: `reader ${watch.reader} did not answer with a list of rows`,
+    };
   const since = opts.since ?? opts.now - watch.every_ms;
   const items: Record<string, unknown>[] = [];
   let skipped = 0;
@@ -649,19 +903,39 @@ export function mapWatchRows(
       continue;
     }
     const idRaw = field(row, watch.map.id);
-    const id = typeof idRaw === "string" || typeof idRaw === "number" ? String(idRaw) : "";
+    const id =
+      typeof idRaw === "string" || typeof idRaw === "number"
+        ? String(idRaw)
+        : "";
     const ok = truth(field(row, watch.map.ok));
     if (!id || ok === undefined) {
       skipped++;
       continue;
     }
     const titleRaw = watch.map.title ? field(row, watch.map.title) : undefined;
-    const detailRaw = watch.map.detail ? field(row, watch.map.detail) : undefined;
-    const title = typeof titleRaw === "string" || typeof titleRaw === "number" ? String(titleRaw) : undefined;
-    const detail = detailRaw === undefined || detailRaw === null ? undefined : typeof detailRaw === "string" ? detailRaw : JSON.stringify(detailRaw);
+    const detailRaw = watch.map.detail
+      ? field(row, watch.map.detail)
+      : undefined;
+    const title =
+      typeof titleRaw === "string" || typeof titleRaw === "number"
+        ? String(titleRaw)
+        : undefined;
+    const detail =
+      detailRaw === undefined || detailRaw === null
+        ? undefined
+        : typeof detailRaw === "string"
+          ? detailRaw
+          : JSON.stringify(detailRaw);
     const at = watch.map.at ? stampOf(field(row, watch.map.at)) : undefined;
     if (watch.kind === "check") {
-      items.push({ type: "check", id, ok, ...(title ? { title } : {}), ...(detail ? { detail } : {}), at: at ?? opts.now });
+      items.push({
+        type: "check",
+        id,
+        ok,
+        ...(title ? { title } : {}),
+        ...(detail ? { detail } : {}),
+        at: at ?? opts.now,
+      });
       continue;
     }
     if (at === undefined) {
@@ -670,8 +944,19 @@ export function mapWatchRows(
     }
     cursor = Math.max(cursor ?? 0, at);
     if (ok || at <= since) continue;
-    items.push({ type: "job_failed", job: title ?? id, error: detail ?? "failed", job_id: id, at });
+    items.push({
+      type: "job_failed",
+      job: title ?? id,
+      error: detail ?? "failed",
+      job_id: id,
+      at,
+    });
   }
   skipped += Math.max(0, rows.length - APP_LIMITS.watch_rows);
-  return { ok: true, items, skipped, ...(cursor !== undefined ? { cursor } : {}) };
+  return {
+    ok: true,
+    items,
+    skipped,
+    ...(cursor !== undefined ? { cursor } : {}),
+  };
 }

@@ -22,7 +22,9 @@ import {
 
 describe("extractHtmlTitle", () => {
   it("reads a simple title", () => {
-    expect(extractHtmlTitle("<html><head><title>Q3 Report</title></head></html>")).toBe("Q3 Report");
+    expect(
+      extractHtmlTitle("<html><head><title>Q3 Report</title></head></html>"),
+    ).toBe("Q3 Report");
   });
 
   it("is case-insensitive and tolerates attributes", () => {
@@ -30,11 +32,15 @@ describe("extractHtmlTitle", () => {
   });
 
   it("collapses whitespace across lines", () => {
-    expect(extractHtmlTitle("<title>\n  Spaced\n  Out\n</title>")).toBe("Spaced Out");
+    expect(extractHtmlTitle("<title>\n  Spaced\n  Out\n</title>")).toBe(
+      "Spaced Out",
+    );
   });
 
   it("decodes common entities", () => {
-    expect(extractHtmlTitle("<title>Fish &amp; Chips &lt;3</title>")).toBe("Fish & Chips <3");
+    expect(extractHtmlTitle("<title>Fish &amp; Chips &lt;3</title>")).toBe(
+      "Fish & Chips <3",
+    );
   });
 
   it("returns null when missing or empty", () => {
@@ -50,20 +56,28 @@ describe("extractHtmlTitle", () => {
 
 describe("resolveArtifactTitle", () => {
   it("prefers the explicit override", () => {
-    expect(resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html", "Custom")).toBe("Custom");
+    expect(
+      resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html", "Custom"),
+    ).toBe("Custom");
   });
 
   it("falls back to the title tag", () => {
-    expect(resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html")).toBe("Doc");
+    expect(resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html")).toBe(
+      "Doc",
+    );
   });
 
   it("falls back to the filename without extension", () => {
-    expect(resolveArtifactTitle("<div/>", "/tmp/growth-report.html")).toBe("growth-report");
+    expect(resolveArtifactTitle("<div/>", "/tmp/growth-report.html")).toBe(
+      "growth-report",
+    );
     expect(resolveArtifactTitle("<div/>", "/tmp/page.HTM")).toBe("page");
   });
 
   it("ignores a whitespace-only override", () => {
-    expect(resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html", "  ")).toBe("Doc");
+    expect(
+      resolveArtifactTitle("<title>Doc</title>", "/tmp/page.html", "  "),
+    ).toBe("Doc");
   });
 });
 
@@ -104,11 +118,18 @@ describe("resolveMarkdownTitle", () => {
   });
 
   it("uses the first heading, stripped of inline formatting", () => {
-    expect(resolveMarkdownTitle("intro\n\n## The *Real* `Title`\n\ntext", "/tmp/a.md")).toBe("The Real Title");
+    expect(
+      resolveMarkdownTitle(
+        "intro\n\n## The *Real* `Title`\n\ntext",
+        "/tmp/a.md",
+      ),
+    ).toBe("The Real Title");
   });
 
   it("falls back to the filename without extension", () => {
-    expect(resolveMarkdownTitle("no headings here", "/tmp/q3-notes.md")).toBe("q3-notes");
+    expect(resolveMarkdownTitle("no headings here", "/tmp/q3-notes.md")).toBe(
+      "q3-notes",
+    );
   });
 });
 
@@ -139,46 +160,73 @@ describe("buildAccessPayload", () => {
   });
 
   it("maps set/clear password", () => {
-    expect(buildAccessPayload({ password: "hunter2" }).payload).toEqual({ password: "hunter2" });
-    expect(buildAccessPayload({ password: false }).payload).toEqual({ password: null });
+    expect(buildAccessPayload({ password: "hunter2" }).payload).toEqual({
+      password: "hunter2",
+    });
+    expect(buildAccessPayload({ password: false }).payload).toEqual({
+      password: null,
+    });
   });
 
   it("maps email gate, expiry, and edit mode together", () => {
     expect(
-      buildAccessPayload({ emailGate: true, expiresMs: 60_000, editMode: "link" }).payload,
+      buildAccessPayload({
+        emailGate: true,
+        expiresMs: 60_000,
+        editMode: "link",
+      }).payload,
     ).toEqual({ email_gate: true, expires_in_ms: 60_000, edit_mode: "link" });
   });
 
   it("keeps explicit clears distinct from untouched", () => {
-    expect(buildAccessPayload({ emailGate: false, expiresMs: null }).payload).toEqual({
+    expect(
+      buildAccessPayload({ emailGate: false, expiresMs: null }).payload,
+    ).toEqual({
       email_gate: false,
       expires_in_ms: null,
     });
   });
 
   it("rejects unknown edit modes", () => {
-    expect(buildAccessPayload({ editMode: "everyone" }).error).toContain("everyone");
+    expect(buildAccessPayload({ editMode: "everyone" }).error).toContain(
+      "everyone",
+    );
   });
 
   it("maps the session-link toggle both ways", () => {
-    expect(buildAccessPayload({ session: false }).payload).toEqual({ show_session: false });
-    expect(buildAccessPayload({ session: true }).payload).toEqual({ show_session: true });
+    expect(buildAccessPayload({ session: false }).payload).toEqual({
+      show_session: false,
+    });
+    expect(buildAccessPayload({ session: true }).payload).toEqual({
+      show_session: true,
+    });
   });
 
   it("maps the comments toggle both ways", () => {
-    expect(buildAccessPayload({ comments: false }).payload).toEqual({ comments: false });
-    expect(buildAccessPayload({ comments: true }).payload).toEqual({ comments: true });
+    expect(buildAccessPayload({ comments: false }).payload).toEqual({
+      comments: false,
+    });
+    expect(buildAccessPayload({ comments: true }).payload).toEqual({
+      comments: true,
+    });
   });
 });
 
 describe("describeAccess", () => {
   it("summarizes active gates", () => {
-    const text = describeAccess({ password: "x", email_gate: true, expires_in_ms: 86_400_000, edit_mode: "link" });
+    const text = describeAccess({
+      password: "x",
+      email_gate: true,
+      expires_in_ms: 86_400_000,
+      edit_mode: "link",
+    });
     expect(text).toBe("password · email gate · expires in 1d · edit: link");
   });
 
   it("names clears explicitly", () => {
-    expect(describeAccess({ password: null, expires_in_ms: null })).toBe("password cleared · never expires");
+    expect(describeAccess({ password: null, expires_in_ms: null })).toBe(
+      "password cleared · never expires",
+    );
   });
 
   it("names the session-link toggle", () => {
@@ -204,18 +252,28 @@ describe("bundle path selection", () => {
 
   it("filters and sorts", () => {
     expect(
-      filterBundlePaths(["b.css", ".DS_Store", "a.html", "node_modules/x.js", "app.js.map"]),
+      filterBundlePaths([
+        "b.css",
+        ".DS_Store",
+        "a.html",
+        "node_modules/x.js",
+        "app.js.map",
+      ]),
     ).toEqual(["a.html", "b.css"]);
   });
 });
 
 describe("pickBundleEntry", () => {
   it("prefers index.html even among several html files", () => {
-    expect(pickBundleEntry(["about.html", "index.html", "app.js"])).toEqual({ entry: "index.html" });
+    expect(pickBundleEntry(["about.html", "index.html", "app.js"])).toEqual({
+      entry: "index.html",
+    });
   });
 
   it("accepts exactly one html file", () => {
-    expect(pickBundleEntry(["report.html", "style.css"])).toEqual({ entry: "report.html" });
+    expect(pickBundleEntry(["report.html", "style.css"])).toEqual({
+      entry: "report.html",
+    });
   });
 
   it("errors with no html or an ambiguous set", () => {
@@ -228,7 +286,9 @@ describe("pickBundleEntry", () => {
 
 describe("bundleSizeError", () => {
   it("passes under the cap", () => {
-    expect(bundleSizeError([{ path: "index.html", size: 1000 }], 8 * 1024 * 1024)).toBeNull();
+    expect(
+      bundleSizeError([{ path: "index.html", size: 1000 }], 8 * 1024 * 1024),
+    ).toBeNull();
   });
 
   it("names the biggest files when over the cap", () => {
@@ -269,7 +329,14 @@ describe("gateGlyphs", () => {
 
   it("stacks glyphs for each active gate", () => {
     expect(
-      gateGlyphs(lsRow({ has_password: true, email_gate: true, expires_at: 123, edit_mode: "link" })),
+      gateGlyphs(
+        lsRow({
+          has_password: true,
+          email_gate: true,
+          expires_at: 123,
+          edit_mode: "link",
+        }),
+      ),
     ).toBe("⚿✉◷✎");
   });
 });
@@ -293,11 +360,23 @@ describe("formatArtifactTable", () => {
     // later, and a millisecond tick in between floored 3h to 2h.
     const now = Date.now();
     const lines = formatArtifactTable(
-      [lsRow({ updated_at: now - 3 * 3_600_000 }), lsRow({ slug: "xyz", title: "Dash", kind: "bundle", has_password: true, comments_open: 0, session_short_id: null })],
+      [
+        lsRow({ updated_at: now - 3 * 3_600_000 }),
+        lsRow({
+          slug: "xyz",
+          title: "Dash",
+          kind: "bundle",
+          has_password: true,
+          comments_open: 0,
+          session_short_id: null,
+        }),
+      ],
       now,
     );
     expect(lines).toHaveLength(3);
-    expect(lines[0]).toMatch(/^SLUG\s+TITLE\s+VER\s+KIND\s+VIEWS\s+CMTS\s+GATES\s+SESSION\s+AGE\s+URL$/);
+    expect(lines[0]).toMatch(
+      /^SLUG\s+TITLE\s+VER\s+KIND\s+VIEWS\s+CMTS\s+GATES\s+SESSION\s+AGE\s+URL$/,
+    );
     expect(lines[1]).toContain("abc123");
     expect(lines[1]).toContain("v3");
     expect(lines[1]).toContain("jx7c6zk");
@@ -311,7 +390,10 @@ describe("formatArtifactTable", () => {
   });
 
   it("truncates long titles", () => {
-    const lines = formatArtifactTable([lsRow({ title: "x".repeat(80) })], Date.now());
+    const lines = formatArtifactTable(
+      [lsRow({ title: "x".repeat(80) })],
+      Date.now(),
+    );
     expect(lines[1]).toContain("…");
     expect(lines[1]).not.toContain("x".repeat(40));
   });
@@ -322,9 +404,15 @@ describe("pageSlugFromRef", () => {
   it("accepts a bare slug, an /a/ path and a full page url with a query, fragment or version suffix", () => {
     expect(pageSlugFromRef("Ab12cD34eF56")).toBe("Ab12cD34eF56");
     expect(pageSlugFromRef("/a/Ab12cD34eF56")).toBe("Ab12cD34eF56");
-    expect(pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56")).toBe("Ab12cD34eF56");
-    expect(pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56?v=2#o=secret")).toBe("Ab12cD34eF56");
-    expect(pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56/_v/2/")).toBe("Ab12cD34eF56");
+    expect(pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56")).toBe(
+      "Ab12cD34eF56",
+    );
+    expect(
+      pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56?v=2#o=secret"),
+    ).toBe("Ab12cD34eF56");
+    expect(pageSlugFromRef("https://codecast.sh/a/Ab12cD34eF56/_v/2/")).toBe(
+      "Ab12cD34eF56",
+    );
     expect(pageSlugFromRef("  Ab12cD34eF56  ")).toBe("Ab12cD34eF56");
   });
 

@@ -4,8 +4,8 @@
 // binary built before the module existed has no prefetch instead of crashing
 // at import (see the guarded-native-require rule).
 
-import { Platform } from 'react-native';
-import { requireOptionalNativeModule } from 'expo';
+import { Platform } from "react-native";
+import { requireOptionalNativeModule } from "expo";
 
 type NativeModule = {
   /** Shares the access token with the extension; null removes it. */
@@ -17,4 +17,6 @@ type NativeModule = {
 };
 
 export const pushPrefetchNative: NativeModule | null =
-  Platform.OS === 'ios' ? requireOptionalNativeModule<NativeModule>('CodecastPushPrefetch') : null;
+  Platform.OS === "ios"
+    ? requireOptionalNativeModule<NativeModule>("CodecastPushPrefetch")
+    : null;

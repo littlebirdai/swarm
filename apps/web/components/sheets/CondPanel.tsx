@@ -3,13 +3,37 @@
 // one. Reads only the rule and tab elements, so it costs nothing on a big sheet.
 import { useMemo, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
-import { COND_RULES, COND_RULE_NAMES, condPlaceholder, PALETTE, buildModel, condLabel, condOps, condTakesValue, parseRectA1, rectA1, type CondRule, type PaletteColor } from "./sheetCore";
+import {
+  COND_RULES,
+  COND_RULE_NAMES,
+  condPlaceholder,
+  PALETTE,
+  buildModel,
+  condLabel,
+  condOps,
+  condTakesValue,
+  parseRectA1,
+  rectA1,
+  type CondRule,
+  type PaletteColor,
+} from "./sheetCore";
 import { useLiveElements, type LiveHandle } from "../live/useLiveArtifact";
 import { tint } from "./cellPaint";
 import "./formulaAssist.css";
 
-
-export function CondPanel({ live, tabId, tabName, selection, onClose }: { live: LiveHandle; tabId: string; tabName: string; selection: () => string; onClose: () => void }) {
+export function CondPanel({
+  live,
+  tabId,
+  tabName,
+  selection,
+  onClose,
+}: {
+  live: LiveHandle;
+  tabId: string;
+  tabName: string;
+  selection: () => string;
+  onClose: () => void;
+}) {
   const els = useLiveElements(live.docId, { kinds: ["cf", "tab"] });
   const model = useMemo(() => buildModel(els), [els]);
   const rules = model.conds.filter((c) => c.tab === tabId);
@@ -36,7 +60,17 @@ export function CondPanel({ live, tabId, tabName, selection, onClose }: { live: 
     const rect = parseRectA1(range.trim().toUpperCase());
     if (!rect) return setError("Range like B2:B40");
     try {
-      live.apply(condOps(model, tabId, rect, rule, condTakesValue(rule) ? value.trim() : undefined, color, editing ?? undefined));
+      live.apply(
+        condOps(
+          model,
+          tabId,
+          rect,
+          rule,
+          condTakesValue(rule) ? value.trim() : undefined,
+          color,
+          editing ?? undefined,
+        ),
+      );
       stopEditing();
       setError(null);
     } catch (x) {
@@ -49,18 +83,57 @@ export function CondPanel({ live, tabId, tabName, selection, onClose }: { live: 
         <span>Conditional colors</span>
         <code>{tabName}</code>
         <span className="flex-1" />
-        <button type="button" className="sheet-dv-x" aria-label="Close" onClick={onClose}><X className="w-4 h-4" /></button>
+        <button
+          type="button"
+          className="sheet-dv-x"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
       <div className="sheet-cond-list">
-        {rules.length === 0 && <span className="sheet-fn-empty">No rules on this tab</span>}
+        {rules.length === 0 && (
+          <span className="sheet-fn-empty">No rules on this tab</span>
+        )}
         {rules.map((c) => (
-          <div key={c.key} className={`sheet-cond-row${editing === c.key ? " is-editing" : ""}`} data-sheet-cond-rule role="button" tabIndex={0} onClick={() => edit(c)} onKeyDown={(e) => e.key === "Enter" && edit(c)}>
-            <span className="sheet-cond-swatch" style={{ background: c.rule === "scale" ? `linear-gradient(90deg, ${tint(c.color ?? "green", 6)}, ${tint(c.color ?? "green", 45)})` : tint(c.color ?? (c.rule === "sign" ? "green" : "yellow"), 40) }} />
+          <div
+            key={c.key}
+            className={`sheet-cond-row${editing === c.key ? " is-editing" : ""}`}
+            data-sheet-cond-rule
+            role="button"
+            tabIndex={0}
+            onClick={() => edit(c)}
+            onKeyDown={(e) => e.key === "Enter" && edit(c)}
+          >
+            <span
+              className="sheet-cond-swatch"
+              style={{
+                background:
+                  c.rule === "scale"
+                    ? `linear-gradient(90deg, ${tint(c.color ?? "green", 6)}, ${tint(c.color ?? "green", 45)})`
+                    : tint(
+                        c.color ?? (c.rule === "sign" ? "green" : "yellow"),
+                        40,
+                      ),
+              }}
+            />
             <span className="sheet-cond-text">
               <span>{condLabel(c)}</span>
               <code>{rectA1(c.rect)}</code>
             </span>
-            <button type="button" className="sheet-dv-x" aria-label="Delete rule" onClick={(e) => { e.stopPropagation(); if (editing === c.key) stopEditing(); live.apply([{ k: c.key, del: true }]); }}><Trash2 className="w-3.5 h-3.5" /></button>
+            <button
+              type="button"
+              className="sheet-dv-x"
+              aria-label="Delete rule"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (editing === c.key) stopEditing();
+                live.apply([{ k: c.key, del: true }]);
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         ))}
       </div>
@@ -72,25 +145,80 @@ export function CondPanel({ live, tabId, tabName, selection, onClose }: { live: 
         }}
       >
         <div className="sheet-cond-field">
-          <input value={range} onChange={(e) => setRange(e.target.value)} aria-label="Range" spellCheck={false} placeholder="B2:B40" />
-          <button type="button" className="sheet-picker-clear" onClick={() => setRange(selection())}>Use selection</button>
+          <input
+            value={range}
+            onChange={(e) => setRange(e.target.value)}
+            aria-label="Range"
+            spellCheck={false}
+            placeholder="B2:B40"
+          />
+          <button
+            type="button"
+            className="sheet-picker-clear"
+            onClick={() => setRange(selection())}
+          >
+            Use selection
+          </button>
         </div>
-        <select value={rule} onChange={(e) => setRule(e.target.value as CondRule)} aria-label="Condition">
-          {COND_RULES.map((r) => <option key={r} value={r}>{COND_RULE_NAMES[r]}</option>)}
+        <select
+          value={rule}
+          onChange={(e) => setRule(e.target.value as CondRule)}
+          aria-label="Condition"
+        >
+          {COND_RULES.map((r) => (
+            <option key={r} value={r}>
+              {COND_RULE_NAMES[r]}
+            </option>
+          ))}
         </select>
         {condTakesValue(rule) && (
-          <input value={value} onChange={(e) => setValue(e.target.value)} aria-label="Value" spellCheck={false} placeholder={condPlaceholder(rule)} />
+          <input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            aria-label="Value"
+            spellCheck={false}
+            placeholder={condPlaceholder(rule)}
+          />
         )}
         <div className="sheet-cond-colors" role="radiogroup" aria-label="Color">
           {PALETTE.map((c) => (
-            <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} className={`sheet-dv-swatch${color === c ? " is-on" : ""}`} style={{ background: tint(c, 40) }} onClick={() => setColor(c)} />
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={color === c}
+              aria-label={c}
+              className={`sheet-dv-swatch${color === c ? " is-on" : ""}`}
+              style={{ background: tint(c, 40) }}
+              onClick={() => setColor(c)}
+            />
           ))}
         </div>
-        {error && <span className="sheet-cond-error" role="alert">{error}</span>}
+        {error && (
+          <span className="sheet-cond-error" role="alert">
+            {error}
+          </span>
+        )}
         <div className="sheet-dv-foot">
-          {editing && <button type="button" className="sheet-picker-clear" onClick={stopEditing}>Cancel</button>}
+          {editing && (
+            <button
+              type="button"
+              className="sheet-picker-clear"
+              onClick={stopEditing}
+            >
+              Cancel
+            </button>
+          )}
           <span className="flex-1" />
-          <button type="submit" className="sheet-dv-apply sheet-cond-add">{editing ? "Save rule" : <><Plus className="w-3.5 h-3.5" /> Add rule</>}</button>
+          <button type="submit" className="sheet-dv-apply sheet-cond-add">
+            {editing ? (
+              "Save rule"
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" /> Add rule
+              </>
+            )}
+          </button>
         </div>
       </form>
     </div>

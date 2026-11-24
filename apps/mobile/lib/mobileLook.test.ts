@@ -17,18 +17,36 @@ test("Modern when neither the phone nor the web has chosen", () => {
 
 test("the phone's own choice wins over the web's, either way", () => {
   // Modern in a browser, Classic chosen on this phone: the phone stays Classic.
-  expect(resolveMobileLook({ modern_style: true, mobile_modern_style: false })).toBe("classic");
-  expect(resolveMobileLook({ modern_style: false, mobile_modern_style: true })).toBe("modern");
+  expect(
+    resolveMobileLook({ modern_style: true, mobile_modern_style: false }),
+  ).toBe("classic");
+  expect(
+    resolveMobileLook({ modern_style: false, mobile_modern_style: true }),
+  ).toBe("modern");
   expect(resolveMobileLook({ mobile_modern_style: true })).toBe("modern");
-  expect(mobileLookSource({ modern_style: true, mobile_modern_style: false })).toBe("phone");
+  expect(
+    mobileLookSource({ modern_style: true, mobile_modern_style: false }),
+  ).toBe("phone");
 });
 
 test("a cleared or malformed phone choice means follow the web", () => {
   // "Same as web" writes null.
-  expect(resolveMobileLook({ modern_style: true, mobile_modern_style: null })).toBe("modern");
-  expect(mobileLookSource({ modern_style: true, mobile_modern_style: null })).toBe("web");
+  expect(
+    resolveMobileLook({ modern_style: true, mobile_modern_style: null }),
+  ).toBe("modern");
+  expect(
+    mobileLookSource({ modern_style: true, mobile_modern_style: null }),
+  ).toBe("web");
   // Only a real boolean counts, for either key.
-  expect(resolveMobileLook({ modern_style: "true", mobile_modern_style: "false", visual_style: "minimal" })).toBe("classic");
-  expect(resolveMobileLook({ modern_style: 1, visual_style: "minimal" })).toBe("classic");
+  expect(
+    resolveMobileLook({
+      modern_style: "true",
+      mobile_modern_style: "false",
+      visual_style: "minimal",
+    }),
+  ).toBe("classic");
+  expect(resolveMobileLook({ modern_style: 1, visual_style: "minimal" })).toBe(
+    "classic",
+  );
   expect(resolveMobileLook({ modern_style: 0 })).toBe("modern");
 });

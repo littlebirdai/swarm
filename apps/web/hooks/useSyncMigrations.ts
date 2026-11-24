@@ -8,21 +8,38 @@ import { useSyncCollection } from "./useSyncCollection";
 const api = _api as any;
 
 export function useMigrationCandidates(enabled = true) {
-  const { ready, error, retry } = useSyncCollection("migrationCandidates", api.sessionMigrations.candidates, enabled ? {} : "skip");
+  const { ready, error, retry } = useSyncCollection(
+    "migrationCandidates",
+    api.sessionMigrations.candidates,
+    enabled ? {} : "skip",
+  );
   const candidates = useInboxStore((s) => s.migrationCandidates);
   // Undefined until the first answer or a cached copy, so callers can tell cold from empty.
-  return { candidates: candidates ?? (ready ? [] : undefined), ready, error, retry };
+  return {
+    candidates: candidates ?? (ready ? [] : undefined),
+    ready,
+    error,
+    retry,
+  };
 }
 
 export function useMigrationBatches(enabled = true) {
-  const { ready, error } = useSyncCollection("migrationBatches", api.sessionMigrations.listBatches, enabled ? {} : "skip");
+  const { ready, error } = useSyncCollection(
+    "migrationBatches",
+    api.sessionMigrations.listBatches,
+    enabled ? {} : "skip",
+  );
   const batches = useInboxStore((s) => s.migrationBatches);
   return { batches: batches ?? (ready ? [] : undefined), ready, error };
 }
 
 /** Recent rehearsals of session moves (registry: moveRehearsals), the offload review's evidence from the machine holding each session. */
 export function useMoveRehearsals(enabled = true) {
-  const { ready } = useSyncCollection("moveRehearsals", api.moveRehearsals.listMine, enabled ? {} : "skip");
+  const { ready } = useSyncCollection(
+    "moveRehearsals",
+    api.moveRehearsals.listMine,
+    enabled ? {} : "skip",
+  );
   const rows = useInboxStore((s) => s.moveRehearsals);
   return { rehearsals: rows ?? (ready ? [] : undefined) };
 }

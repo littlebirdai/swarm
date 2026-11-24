@@ -3,10 +3,19 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "https://codecast.sh/" });
-const restoreGlobals = replaceGlobals({ window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "https://codecast.sh/",
+});
+const restoreGlobals = replaceGlobals({
+  window: dom.window,
+  document: dom.window.document,
+  HTMLElement: dom.window.HTMLElement,
+});
 const { keyScopeHasFocus } = await import("../keyOwnership");
-afterAll(() => { restoreGlobals(); closeDomWindow(dom); });
+afterAll(() => {
+  restoreGlobals();
+  closeDomWindow(dom);
+});
 
 const doc = dom.window.document;
 const PointerDown = (dom.window as any).PointerEvent ?? dom.window.MouseEvent;
@@ -24,7 +33,9 @@ test("focus that falls out of the card after a key inside it stays the card's", 
   const root = card();
   const box = doc.getElementById("box")!;
   box.focus();
-  box.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  box.dispatchEvent(
+    new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+  );
   box.remove();
   expect(doc.activeElement).toBe(doc.body);
   expect(keyScopeHasFocus(root)).toBe(true);
@@ -33,15 +44,21 @@ test("focus that falls out of the card after a key inside it stays the card's", 
 
 test("a click elsewhere hands the keys back to the page", () => {
   const root = card();
-  doc.getElementById("copy")!.dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
-  doc.getElementById("outside")!.dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
+  doc
+    .getElementById("copy")!
+    .dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
+  doc
+    .getElementById("outside")!
+    .dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
   expect(keyScopeHasFocus(root)).toBe(false);
   expect(doc.activeElement).toBe(doc.body);
 });
 
 test("focus in another control is never claimed", () => {
   const root = card();
-  doc.getElementById("copy")!.dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
+  doc
+    .getElementById("copy")!
+    .dispatchEvent(new PointerDown("pointerdown", { bubbles: true }));
   const other = doc.createElement("input");
   doc.body.appendChild(other);
   other.focus();

@@ -15,11 +15,23 @@ const modules = {
 
 test("createTeam stores the default-on features", async () => {
   const t = convexTest(schema, modules);
-  const user = await t.run((ctx) => ctx.db.insert("users", { email: "a@x", name: "A" } as any));
+  const user = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "a@x", name: "A" } as any),
+  );
   const { api } = await import("./_generated/api");
-  const teamId = await t.withIdentity({ subject: `${user}|x` } as any).mutation(api.teams.createTeam, { name: "New" } as any);
+  const teamId = await t
+    .withIdentity({ subject: `${user}|x` } as any)
+    .mutation(api.teams.createTeam, { name: "New" } as any);
   const team = await t.run((ctx) => ctx.db.get(teamId));
-  for (const f of TEAM_FEATURES) expect([f.key, teamFeatureEnabled(team, f.key)]).toEqual([f.key, !!f.onByDefault]);
-  expect(["chat", "calls", "org", "line", "ship"].every((k) => teamFeatureEnabled(team, k as any))).toBe(true);
+  for (const f of TEAM_FEATURES)
+    expect([f.key, teamFeatureEnabled(team, f.key)]).toEqual([
+      f.key,
+      !!f.onByDefault,
+    ]);
+  expect(
+    ["chat", "calls", "org", "line", "ship"].every((k) =>
+      teamFeatureEnabled(team, k as any),
+    ),
+  ).toBe(true);
   expect(teamFeatureEnabled(team, "agent_realtime")).toBe(false);
 });

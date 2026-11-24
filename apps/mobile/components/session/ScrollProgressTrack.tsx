@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { Animated, PixelRatio, StyleSheet, View } from 'react-native';
-import { themedStyles, useTheme } from '@/constants/Theme';
-import { progressStep, progressWrite } from '@/lib/scrollProgress';
+import { useCallback, useEffect, useRef } from "react";
+import { Animated, PixelRatio, StyleSheet, View } from "react-native";
+import { themedStyles, useTheme } from "@/constants/Theme";
+import { progressStep, progressWrite } from "@/lib/scrollProgress";
 
 const TRACK_HEIGHT = 48;
 const TRACK_PX = Math.round(TRACK_HEIGHT * PixelRatio.get());
@@ -24,13 +24,21 @@ export function useScrollProgressBar(shown: boolean) {
     stepRef.current = step;
     fill.setValue(step / TRACK_PX);
   }, [shown, fill]);
-  const report = useCallback((progress: number) => {
-    progressRef.current = progress;
-    const write = progressWrite(shownRef.current, progress, TRACK_PX, stepRef.current);
-    if (!write) return;
-    stepRef.current = write.step;
-    fill.setValue(write.value);
-  }, [fill]);
+  const report = useCallback(
+    (progress: number) => {
+      progressRef.current = progress;
+      const write = progressWrite(
+        shownRef.current,
+        progress,
+        TRACK_PX,
+        stepRef.current,
+      );
+      if (!write) return;
+      stepRef.current = write.step;
+      fill.setValue(write.value);
+    },
+    [fill],
+  );
   return { fill, report };
 }
 
@@ -39,29 +47,41 @@ export function ScrollProgressTrack({ fill }: { fill: Animated.Value }) {
   return (
     <View style={styles.wrap}>
       <View style={styles.track}>
-        <Animated.View style={[styles.fill, { height: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+        <Animated.View
+          style={[
+            styles.fill,
+            {
+              height: fill.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
+            },
+          ]}
+        />
       </View>
     </View>
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    right: 8,
-    top: '45%',
-  },
-  track: {
-    width: 3,
-    height: TRACK_HEIGHT,
-    borderRadius: 1.5,
-    backgroundColor: Theme.bgHighlight,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  fill: {
-    width: '100%',
-    borderRadius: 1.5,
-    backgroundColor: Theme.cyan,
-  },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    wrap: {
+      position: "absolute",
+      right: 8,
+      top: "45%",
+    },
+    track: {
+      width: 3,
+      height: TRACK_HEIGHT,
+      borderRadius: 1.5,
+      backgroundColor: Theme.bgHighlight,
+      overflow: "hidden",
+      marginBottom: 6,
+    },
+    fill: {
+      width: "100%",
+      borderRadius: 1.5,
+      backgroundColor: Theme.cyan,
+    },
+  }),
+);

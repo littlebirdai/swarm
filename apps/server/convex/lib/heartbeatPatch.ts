@@ -1,7 +1,14 @@
 // Pure heartbeat rules for managed_sessions rows: no reads, no writes.
-import { ACTIVE_AGENT_STATUSES, HEARTBEAT_REFRESH_MS } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  HEARTBEAT_REFRESH_MS,
+} from "@codecast/shared/contracts";
 
-type StatusStamps = { agent_status?: string; agent_status_updated_at?: number; agent_status_write_at?: number };
+type StatusStamps = {
+  agent_status?: string;
+  agent_status_updated_at?: number;
+  agent_status_write_at?: number;
+};
 
 // Shared by heartbeat + heartbeatBatch: compute one session's heartbeat patch.
 // The heartbeat carries the daemon's current
@@ -35,11 +42,19 @@ export function buildHeartbeatPatch(
 ): Record<string, any> | null {
   const patch: Record<string, any> = {};
   let statusChanged = false;
-  const heartbeatStale = !session.last_heartbeat || now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;
+  const heartbeatStale =
+    !session.last_heartbeat ||
+    now - session.last_heartbeat > HEARTBEAT_REFRESH_MS;
   if (agentStatus) {
     const tsStale = statusWriteIsStale(session, agentStatus, clientTs);
-    const settledReassertion = agentStatus === session.agent_status && !ACTIVE_AGENT_STATUSES.has(agentStatus);
-    if (!tsStale && (clientTs ?? now) > (session.agent_status_write_at ?? 0) && (!settledReassertion || heartbeatStale)) {
+    const settledReassertion =
+      agentStatus === session.agent_status &&
+      !ACTIVE_AGENT_STATUSES.has(agentStatus);
+    if (
+      !tsStale &&
+      (clientTs ?? now) > (session.agent_status_write_at ?? 0) &&
+      (!settledReassertion || heartbeatStale)
+    ) {
       patch.agent_status_write_at = clientTs ?? now;
     }
     // Only write agent_status when it actually changes — re-writing the same
@@ -66,7 +81,12 @@ export function statusWriteIsStale(
   status: string,
   clientTs?: number,
 ): boolean {
-  const previous = session.agent_status_write_at ?? session.agent_status_updated_at;
-  return clientTs !== undefined && previous !== undefined &&
-    (clientTs < previous || (clientTs === previous && status !== session.agent_status));
+  const previous =
+    session.agent_status_write_at ?? session.agent_status_updated_at;
+  return (
+    clientTs !== undefined &&
+    previous !== undefined &&
+    (clientTs < previous ||
+      (clientTs === previous && status !== session.agent_status))
+  );
 }

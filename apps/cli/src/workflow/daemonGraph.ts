@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "../proc.js";
-import { parseWorkflowFile, parseWorkflowSource, resolveFlowSource, type ResolveFlow } from "./parser.js";
+import {
+  parseWorkflowFile,
+  parseWorkflowSource,
+  resolveFlowSource,
+  type ResolveFlow,
+} from "./parser.js";
 import { resolveWorkflowSource } from "./templates.js";
 import type { WorkflowGraph } from "./types.js";
 import { repoLineForRun } from "../repoLine.js";
@@ -27,7 +32,9 @@ import { codecastPath } from "../codecastDir.js";
 // `cast workflow run <file>`. So does a resume of any run pushed from a file
 // here (`resume`): a run that waited at a gate continues on the stations as
 // they are now, when the file still has the station it stands at.
-export function graphForDaemonRun(...args: Parameters<typeof daemonRunGraph>): WorkflowGraph | null {
+export function graphForDaemonRun(
+  ...args: Parameters<typeof daemonRunGraph>
+): WorkflowGraph | null {
   return daemonRunGraph(...args).graph;
 }
 
@@ -37,7 +44,15 @@ export type LibraryVersion = {
   version_id: string;
   /** The flow's slug, by which a variant may extend it (`extends="<slug>"`). */
   slug?: string | null;
-  snapshot: { name: string; label?: string; goal?: string; source: string; nodes: Array<{ id: string; prompt?: string; script?: string }>; file: string; files: Array<{ node: string; prompt?: string; script?: string }> };
+  snapshot: {
+    name: string;
+    label?: string;
+    goal?: string;
+    source: string;
+    nodes: Array<{ id: string; prompt?: string; script?: string }>;
+    file: string;
+    files: Array<{ node: string; prompt?: string; script?: string }>;
+  };
 };
 
 /**
@@ -46,30 +61,82 @@ export type LibraryVersion = {
  * versions, the flow first and its bases after, so a base's current text is
  * what its stations read. Returns the flow's graph file.
  */
-export function materializeLibraryRun(versions: LibraryVersion[], cacheRoot = codecastPath("flows")): string {
+export function materializeLibraryRun(
+  versions: LibraryVersion[],
+  cacheRoot = codecastPath("flows"),
+): string {
   return materializeLibraryFiles(versions, cacheRoot)[0];
 }
 
 /** Each version's graph file, in the order given. */
-function materializeLibraryFiles(versions: LibraryVersion[], cacheRoot = codecastPath("flows")): string[] {
-  const key = `v-${versions.map((v) => v.version_id.replace(/[^\w-]/g, "")).join("-")}`.slice(0, 200);
-  return versions.map((v) => materializePushedFlow({ _id: key, slug: v.snapshot.name, name: v.snapshot.name, source: v.snapshot.source, nodes: v.snapshot.nodes, origin: { file: v.snapshot.file, files: v.snapshot.files } }, cacheRoot));
+function materializeLibraryFiles(
+  versions: LibraryVersion[],
+  cacheRoot = codecastPath("flows"),
+): string[] {
+  const key =
+    `v-${versions.map((v) => v.version_id.replace(/[^\w-]/g, "")).join("-")}`.slice(
+      0,
+      200,
+    );
+  return versions.map((v) =>
+    materializePushedFlow(
+      {
+        _id: key,
+        slug: v.snapshot.name,
+        name: v.snapshot.name,
+        source: v.snapshot.source,
+        nodes: v.snapshot.nodes,
+        origin: { file: v.snapshot.file, files: v.snapshot.files },
+      },
+      cacheRoot,
+    ),
+  );
 }
 
 /** A library run's graph: a base the flow names by slug reads the version the run recorded, written beside the others. */
-export function parseLibraryRun(versions: LibraryVersion[], cacheRoot = codecastPath("flows")): WorkflowGraph {
+export function parseLibraryRun(
+  versions: LibraryVersion[],
+  cacheRoot = codecastPath("flows"),
+): WorkflowGraph {
   const files = materializeLibraryFiles(versions, cacheRoot);
-  const bySlug = new Map(versions.slice(1).flatMap((v, i) => (v.slug ? [[v.slug, files[i + 1]] as const] : [])));
+  const bySlug = new Map(
+    versions
+      .slice(1)
+      .flatMap((v, i) => (v.slug ? [[v.slug, files[i + 1]] as const] : [])),
+  );
   const resolveFlow: ResolveFlow = (slug, dir, read) => {
     const file = bySlug.get(slug.replace(/\.cast$/, ""));
     const src = file ? read(file) : null;
-    return file && src !== null ? { src, dir: path.dirname(file), file } : resolveFlowSource(slug, dir, read);
+    return file && src !== null
+      ? { src, dir: path.dirname(file), file }
+      : resolveFlowSource(slug, dir, read);
   };
   return parseWorkflowFile(files[0], { resolveFlow });
 }
 
-type DaemonRun = { workflow_name?: string | null; goal_override?: string | null; project_path?: string | null; task_short_id?: string | null; fresh_branch?: boolean | null; current_node_id?: string | null };
-type DaemonRow = { name?: string; slug?: string; goal?: string; model_stylesheet?: string; nodes?: any[]; edges?: any[]; stack?: string; source?: string; origin?: { device_id: string; root: string; file: string } | null; library?: { versions: LibraryVersion[] } } | null | undefined;
+type DaemonRun = {
+  workflow_name?: string | null;
+  goal_override?: string | null;
+  project_path?: string | null;
+  task_short_id?: string | null;
+  fresh_branch?: boolean | null;
+  current_node_id?: string | null;
+};
+type DaemonRow =
+  | {
+      name?: string;
+      slug?: string;
+      goal?: string;
+      model_stylesheet?: string;
+      nodes?: any[];
+      edges?: any[];
+      stack?: string;
+      source?: string;
+      origin?: { device_id: string; root: string; file: string } | null;
+      library?: { versions: LibraryVersion[] };
+    }
+  | null
+  | undefined;
 
 /** The graph a daemon run executes, with the graph file on this machine it was read from: null when the stations came from anywhere else. */
 export function daemonRunGraph(
@@ -87,16 +154,32 @@ export function daemonRunGraph(
     if (wf.name) graph.name = wf.name;
     return { graph, file: null };
   }
-  const origin = (run.fresh_branch || resume) && deviceId && wf?.origin?.device_id === deviceId && !foreignOrigin(wf, cwd, deviceId) ? path.join(wf.origin.root, wf.origin.file) : null;
+  const origin =
+    (run.fresh_branch || resume) &&
+    deviceId &&
+    wf?.origin?.device_id === deviceId &&
+    !foreignOrigin(wf, cwd, deviceId)
+      ? path.join(wf.origin.root, wf.origin.file)
+      : null;
   if (origin && fs.existsSync(origin)) {
     const graph = parseWorkflowFile(origin);
     if (run.goal_override) graph.goal = run.goal_override;
-    if (run.fresh_branch || !run.current_node_id || graph.nodes.has(run.current_node_id)) return { graph, file: origin };
+    if (
+      run.fresh_branch ||
+      !run.current_node_id ||
+      graph.nodes.has(run.current_node_id)
+    )
+      return { graph, file: origin };
   }
   return { graph: graphElsewhere(run, wf, cwd, deviceId), file: null };
 }
 
-function graphElsewhere(run: DaemonRun, wf: DaemonRow, cwd: string, deviceId?: string): WorkflowGraph | null {
+function graphElsewhere(
+  run: DaemonRun,
+  wf: DaemonRow,
+  cwd: string,
+  deviceId?: string,
+): WorkflowGraph | null {
   // A task-bound run of a line in a checkout with its own line runs that,
   // ahead of the role's pushed line and the shipped one (line-map.md LX5).
   const repo = repoLineForRun(run, wf, cwd);
@@ -157,7 +240,12 @@ function graphElsewhere(run: DaemonRun, wf: DaemonRow, cwd: string, deviceId?: s
  * nothing. The file's own goal goes out, never one run's. An unchanged graph
  * saves no version (workflows.recordGraphVersion).
  */
-export async function publishDaemonGraph(file: string, wf: DaemonRow, deviceId: string, post: (route: string, body: Record<string, unknown>) => Promise<unknown>): Promise<void> {
+export async function publishDaemonGraph(
+  file: string,
+  wf: DaemonRow,
+  deviceId: string,
+  post: (route: string, body: Record<string, unknown>) => Promise<unknown>,
+): Promise<void> {
   const graph = parseWorkflowFile(file);
   const { graphOrigin } = await import("../lineGraphEdit.js");
   const origin = graphOrigin(file, graph, deviceId);
@@ -170,7 +258,9 @@ export async function publishDaemonGraph(file: string, wf: DaemonRow, deviceId: 
     slug: wf?.slug ?? graph.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
     goal: graph.goal,
     source: fs.readFileSync(file, "utf-8"),
-    nodes, edges, stack,
+    nodes,
+    edges,
+    stack,
     ...(serves ? { serves } : {}),
     model_stylesheet: graph.model_stylesheet,
     origin,
@@ -178,10 +268,17 @@ export async function publishDaemonGraph(file: string, wf: DaemonRow, deviceId: 
 }
 
 /** The graph from a row's DOT source: the file it was pushed from when it is on this machine, else the source itself when it names no file. */
-function sourceGraph(wf: DaemonRow, cwd: string, deviceId?: string): WorkflowGraph | null {
+function sourceGraph(
+  wf: DaemonRow,
+  cwd: string,
+  deviceId?: string,
+): WorkflowGraph | null {
   if (!wf?.source) return null;
   try {
-    const file = deviceId && wf.origin?.device_id === deviceId ? path.join(wf.origin.root, wf.origin.file) : null;
+    const file =
+      deviceId && wf.origin?.device_id === deviceId
+        ? path.join(wf.origin.root, wf.origin.file)
+        : null;
     if (file && fs.existsSync(file)) return parseWorkflowFile(file);
     if (/"@[\w./-]|\bextends\s*=/.test(wf.source)) return null;
     return parseWorkflowSource(wf.source, cwd);
@@ -192,7 +289,8 @@ function sourceGraph(wf: DaemonRow, cwd: string, deviceId?: string): WorkflowGra
 
 /** Whether the row's graph was pushed from a checkout on this machine of another repo than the run's. Unknown (either side not a git checkout here) is not foreign. */
 function foreignOrigin(wf: DaemonRow, cwd: string, deviceId?: string): boolean {
-  if (!deviceId || !wf?.origin || wf.origin.device_id !== deviceId) return false;
+  if (!deviceId || !wf?.origin || wf.origin.device_id !== deviceId)
+    return false;
   const theirs = repoOf(wf.origin.root);
   const ours = repoOf(cwd);
   return !!theirs && !!ours && theirs !== ours;
@@ -201,13 +299,20 @@ function foreignOrigin(wf: DaemonRow, cwd: string, deviceId?: string): boolean {
 /** A checkout's repo, as its shared git directory: every worktree of one repo names the same one. */
 function repoOf(dir: string): string | null {
   if (!fs.existsSync(dir)) return null;
-  const r = spawnSync("git", ["-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const r = spawnSync(
+    "git",
+    ["-C", dir, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+  );
   const common = r.status === 0 ? r.stdout.trim() : "";
   return common ? fs.realpathSync(common) : null;
 }
 
 /** A flow by name as a checkout resolves it: its `.codecast/flows/<name>.cast`, else the shipped template. */
-function ownFlowByName(name: string | null | undefined, cwd: string): WorkflowGraph | null {
+function ownFlowByName(
+  name: string | null | undefined,
+  cwd: string,
+): WorkflowGraph | null {
   if (!name) return null;
   const dir = repoFlowsDir(cwd);
   const file = dir ? path.join(dir, `${name}.cast`) : null;

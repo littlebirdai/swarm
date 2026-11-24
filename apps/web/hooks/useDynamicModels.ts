@@ -40,16 +40,30 @@ export function useDynamicModels(
   const devices = dynamic ? roster : undefined;
 
   return useMemo(() => {
-    const staticFeatured = (cfg?.models ?? []).filter((m) => m.key !== "default");
+    const staticFeatured = (cfg?.models ?? []).filter(
+      (m) => m.key !== "default",
+    );
     const empty = { featured: staticFeatured, all: [] as string[] };
     if (!devices) return { dynamic, ...empty };
-    const rows = (devices as any[]).filter((d) => d.model_inventory?.clients?.[agentKey]?.length);
+    const rows = (devices as any[]).filter(
+      (d) => d.model_inventory?.clients?.[agentKey]?.length,
+    );
     // The session's bound device is the truth for what its launch can use;
     // before routing is known, the union across reporting devices.
-    const bound = ownerDeviceId ? rows.filter((d) => d.device_id === ownerDeviceId) : [];
+    const bound = ownerDeviceId
+      ? rows.filter((d) => d.device_id === ownerDeviceId)
+      : [];
     const source = bound.length > 0 ? bound : rows;
-    const all = [...new Set(source.flatMap((d) => d.model_inventory.clients[agentKey] as string[]))].sort();
+    const all = [
+      ...new Set(
+        source.flatMap((d) => d.model_inventory.clients[agentKey] as string[]),
+      ),
+    ].sort();
     const featured = featuredModelOptions(all);
-    return { dynamic, featured: featured.length > 0 ? featured : staticFeatured, all };
+    return {
+      dynamic,
+      featured: featured.length > 0 ? featured : staticFeatured,
+      all,
+    };
   }, [cfg, dynamic, devices, ownerDeviceId, agentKey]);
 }

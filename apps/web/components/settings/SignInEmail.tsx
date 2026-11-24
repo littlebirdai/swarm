@@ -49,7 +49,9 @@ export function SignInEmail() {
       setCode("");
       setStep("code");
     } catch (err) {
-      setError(humanizeConvexError(err, "Couldn't send a code to that address"));
+      setError(
+        humanizeConvexError(err, "Couldn't send a code to that address"),
+      );
     } finally {
       setBusy("");
     }
@@ -68,7 +70,9 @@ export function SignInEmail() {
       toast.success(`You now sign in as ${result.email}`);
       close();
     } catch (err) {
-      setError(humanizeConvexError(err, "That code didn't work. Send a new one."));
+      setError(
+        humanizeConvexError(err, "That code didn't work. Send a new one."),
+      );
     } finally {
       setBusy("");
     }
@@ -91,7 +95,11 @@ export function SignInEmail() {
         }
       >
         {step === "closed" && (
-          <Button variant="outline" size="sm" onClick={() => setStep("address")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStep("address")}
+          >
             {current ? "Change" : "Add"}
           </Button>
         )}
@@ -118,13 +126,22 @@ export function SignInEmail() {
             autoFocus
             className="h-8 min-w-0 flex-1 text-sm"
           />
-          <Button type="submit" variant="cyan" size="sm" disabled={!address.trim() || busy === "sending"}>
+          <Button
+            type="submit"
+            variant="cyan"
+            size="sm"
+            disabled={!address.trim() || busy === "sending"}
+          >
             {busy === "sending" ? "Sending…" : "Email me a code"}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={close}>
             Cancel
           </Button>
-          {error && <p className="basis-full text-xs text-sol-red" role="alert">{error}</p>}
+          {error && (
+            <p className="basis-full text-xs text-sol-red" role="alert">
+              {error}
+            </p>
+          )}
         </form>
       )}
 
@@ -136,7 +153,10 @@ export function SignInEmail() {
             void confirm();
           }}
         >
-          <label htmlFor="sign-in-email-code" className="min-w-0 flex-1 truncate text-sm text-sol-text">
+          <label
+            htmlFor="sign-in-email-code"
+            className="min-w-0 flex-1 truncate text-sm text-sol-text"
+          >
             Code sent to <span className="font-mono">{sentTo}</span>
           </label>
           <Input
@@ -151,16 +171,31 @@ export function SignInEmail() {
             autoFocus
             className="h-8 w-28 font-mono text-sm tracking-widest"
           />
-          <Button type="submit" variant="cyan" size="sm" disabled={code.length !== CODE_DIGITS || busy === "checking"}>
+          <Button
+            type="submit"
+            variant="cyan"
+            size="sm"
+            disabled={code.length !== CODE_DIGITS || busy === "checking"}
+          >
             {busy === "checking" ? "Checking…" : "Confirm"}
           </Button>
-          <Button type="button" variant="ghost" size="sm" disabled={busy === "sending"} onClick={() => void send(sentTo)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy === "sending"}
+            onClick={() => void send(sentTo)}
+          >
             {busy === "sending" ? "Sending…" : "Send a new code"}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={close}>
             Cancel
           </Button>
-          {error && <p className="basis-full text-xs text-sol-red" role="alert">{error}</p>}
+          {error && (
+            <p className="basis-full text-xs text-sol-red" role="alert">
+              {error}
+            </p>
+          )}
         </form>
       )}
     </>

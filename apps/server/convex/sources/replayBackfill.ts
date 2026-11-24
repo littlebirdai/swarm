@@ -20,7 +20,12 @@
 // another value and does nothing, so a restart never leaves two chains.
 import { TALLY_REBUILD_EVERY_MS } from "../replayTallies";
 import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery, mutation } from "../functions";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+  mutation,
+} from "../functions";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { invalidScope } from "../lib/auth";
@@ -31,9 +36,23 @@ import { replayBackfillValidator } from "../ingestSchema";
 import { sourceViewOf } from "../lib/sourceStats";
 import { VendorCallError } from "./vendorReplay";
 import { TALLY_EVERY_MS } from "./replayRest";
-import { connFor, importFor, posthogRequest, recordingRow, recordingsPath } from "./posthog";
+import {
+  connFor,
+  importFor,
+  posthogRequest,
+  recordingRow,
+  recordingsPath,
+} from "./posthog";
 import { connectionIdForSource, tokenFor } from "../tokenConnectors";
-import { importSentryReplay, nextCursor, replayListIds, replaysListUrl, resolveProjectIds, sentryCall, sentryTarget } from "./sentry";
+import {
+  importSentryReplay,
+  nextCursor,
+  replayListIds,
+  replaysListUrl,
+  resolveProjectIds,
+  sentryCall,
+  sentryTarget,
+} from "./sentry";
 import {
   DEFAULT_REPLAY_BACKFILL_WINDOW,
   REPLAY_BACKFILL_FAILURES_KEPT,
@@ -65,8 +84,17 @@ export const REPLAY_BACKFILL_PAGE = {
   retry_ms: 60_000,
 } as const;
 
-export type VendorFailure = { error: string; status?: number; retry_after_ms?: number; lost?: boolean };
-export type ListPage = { ids: string[]; next: string | null; about?: Record<string, Omit<ReplayImportFailure, "id" | "error">> };
+export type VendorFailure = {
+  error: string;
+  status?: number;
+  retry_after_ms?: number;
+  lost?: boolean;
+};
+export type ListPage = {
+  ids: string[];
+  next: string | null;
+  about?: Record<string, Omit<ReplayImportFailure, "id" | "error">>;
+};
 
 /** What a page needs of a vendor; the Convex wiring below supplies it, a test supplies fakes. */
 export interface BackfillVendor {
@@ -75,7 +103,9 @@ export interface BackfillVendor {
   list(cursor: string | undefined): Promise<ListPage>;
   /** The ids that are already imported recordings of this source. */
   imported(ids: string[]): Promise<Set<string>>;
-  importOne(id: string): Promise<{ ok: true } | ({ ok: false } & VendorFailure)>;
+  importOne(
+    id: string,
+  ): Promise<{ ok: true } | ({ ok: false } & VendorFailure)>;
 }
 
 export type PageOutcome = {
@@ -87,11 +117,23 @@ export type PageOutcome = {
 };
 
 export function failureOf(e: unknown): VendorFailure {
-  if (e instanceof VendorCallError) return { error: e.message, ...(e.status ? { status: e.status } : {}), ...(e.retry_after_ms !== undefined ? { retry_after_ms: e.retry_after_ms } : {}), ...(e.lost ? { lost: true } : {}) };
+  if (e instanceof VendorCallError)
+    return {
+      error: e.message,
+      ...(e.status ? { status: e.status } : {}),
+      ...(e.retry_after_ms !== undefined
+        ? { retry_after_ms: e.retry_after_ms }
+        : {}),
+      ...(e.lost ? { lost: true } : {}),
+    };
   return { error: e instanceof Error ? e.message : String(e) };
 }
 
-const rateWait = (f: VendorFailure) => Math.min(Math.max(f.retry_after_ms ?? REPLAY_BACKFILL_PAGE.rate_wait_ms, 1_000), REPLAY_BACKFILL_PAGE.max_rate_wait_ms);
+const rateWait = (f: VendorFailure) =>
+  Math.min(
+    Math.max(f.retry_after_ms ?? REPLAY_BACKFILL_PAGE.rate_wait_ms, 1_000),
+    REPLAY_BACKFILL_PAGE.max_rate_wait_ms,
+  );
 
 /**
  * One page of the import, pure but for the vendor calls: list at the cursor,
@@ -119,8 +161,14 @@ export async function runBackfillPage(
   const rateLimited = (f: VendorFailure): PageOutcome => {
     const now = clock.now();
     state.rate_limited_since ??= now;
-    if (now - state.rate_limited_since >= REPLAY_BACKFILL_LIMITS.rate_limited_max_ms) {
-      return stop("error", `${vendor.name} has rate limited the import for ${Math.round((now - state.rate_limited_since) / 60_000)} minutes with nothing imported`);
+    if (
+      now - state.rate_limited_since >=
+      REPLAY_BACKFILL_LIMITS.rate_limited_max_ms
+    ) {
+      return stop(
+        "error",
+        `${vendor.name} has rate limited the import for ${Math.round((now - state.rate_limited_since) / 60_000)} minutes with nothing imported`,
+      );
     }
     state.last_error = `${vendor.name} is rate limiting the import; waiting`;
     stamp();
@@ -129,7 +177,8 @@ export async function runBackfillPage(
   const failedAgain = (error: string, retry: number): PageOutcome => {
     state.failures_in_row = (state.failures_in_row ?? 0) + 1;
     state.last_error = error.slice(0, 500);
-    if (state.failures_in_row >= REPLAY_BACKFILL_LIMITS.failures_in_row) return stop("error", error);
+    if (state.failures_in_row >= REPLAY_BACKFILL_LIMITS.failures_in_row)
+      return stop("error", error);
     stamp();
     return { state, next_in_ms: retry };
   };
@@ -149,16 +198,29 @@ export async function runBackfillPage(
   const already = await vendor.imported(page.ids);
   const todo = page.ids.filter((id) => !already.has(id) && !seen.has(id));
   // Set by a worker; typed through a cast so the checks after the await are not narrowed to null.
-  let halt = null as { lost?: string; rate?: VendorFailure; error?: string } | null;
+  let halt = null as {
+    lost?: string;
+    rate?: VendorFailure;
+    error?: string;
+  } | null;
   let importedNow = 0;
   let next = 0;
   const worker = async () => {
-    while (!halt && next < todo.length && clock.now() - startedAt < REPLAY_BACKFILL_PAGE.budget_ms) {
+    while (
+      !halt &&
+      next < todo.length &&
+      clock.now() - startedAt < REPLAY_BACKFILL_PAGE.budget_ms
+    ) {
       const id = todo[next++];
       // An import action that dies (past an action's memory on one huge
       // recording) throws here rather than answering: that recording failed,
       // the page goes on, so one recording can never stop the import.
-      const r = await vendor.importOne(id).catch((e): { ok: false } & VendorFailure => ({ ok: false, error: `the import died: ${e instanceof Error ? e.message : String(e)}` }));
+      const r = await vendor
+        .importOne(id)
+        .catch((e): { ok: false } & VendorFailure => ({
+          ok: false,
+          error: `the import died: ${e instanceof Error ? e.message : String(e)}`,
+        }));
       if (r.ok) {
         seen.add(id);
         state.imported++;
@@ -175,12 +237,30 @@ export async function runBackfillPage(
         state.failed++;
         state.failures_in_row = (state.failures_in_row ?? 0) + 1;
         state.last_error = `${id}: ${r.error}`.slice(0, 500);
-        state.failures = [...(state.failures ?? []), { ...page.about?.[id], id: id.slice(0, 200), error: r.error.slice(0, 300) }].slice(-REPLAY_BACKFILL_FAILURES_KEPT);
-        if (state.failures_in_row >= REPLAY_BACKFILL_LIMITS.failures_in_row) halt ??= { error: r.error };
+        state.failures = [
+          ...(state.failures ?? []),
+          {
+            ...page.about?.[id],
+            id: id.slice(0, 200),
+            error: r.error.slice(0, 300),
+          },
+        ].slice(-REPLAY_BACKFILL_FAILURES_KEPT);
+        if (state.failures_in_row >= REPLAY_BACKFILL_LIMITS.failures_in_row)
+          halt ??= { error: r.error };
       }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(REPLAY_BACKFILL_PAGE.concurrency, Math.max(todo.length, 1)) }, worker));
+  await Promise.all(
+    Array.from(
+      {
+        length: Math.min(
+          REPLAY_BACKFILL_PAGE.concurrency,
+          Math.max(todo.length, 1),
+        ),
+      },
+      worker,
+    ),
+  );
 
   const hold = () => (state.page_seen = [...seen]);
   if (halt?.lost) {
@@ -203,7 +283,9 @@ export async function runBackfillPage(
   }
 
   state.listed += page.ids.length;
-  state.skipped += page.ids.filter((id) => already.has(id) && !seenBefore.has(id)).length;
+  state.skipped += page.ids.filter(
+    (id) => already.has(id) && !seenBefore.has(id),
+  ).length;
   delete state.page_seen;
   delete state.rate_limited_since;
   if (!state.failures_in_row) delete state.last_error;
@@ -222,16 +304,27 @@ export async function runBackfillPage(
 // ── The vendors ──
 
 /** PostHog's list at an offset, pinned to the import's window so later recordings do not shift it. */
-export async function listPostHogPage(conn: Parameters<typeof posthogRequest>[0], state: Pick<ReplayBackfill, "since" | "until">, cursor: string | undefined, fetchImpl?: typeof fetch): Promise<ListPage> {
+export async function listPostHogPage(
+  conn: Parameters<typeof posthogRequest>[0],
+  state: Pick<ReplayBackfill, "since" | "until">,
+  cursor: string | undefined,
+  fetchImpl?: typeof fetch,
+): Promise<ListPage> {
   const offset = Number(cursor ?? 0) || 0;
   const path = recordingsPath({
     limit: REPLAY_BACKFILL_PAGE.list_size,
     offset,
     // "all" asks for as far back as PostHog's longest retention.
-    date_from: state.since !== undefined ? new Date(state.since).toISOString() : "-5y",
+    date_from:
+      state.since !== undefined ? new Date(state.since).toISOString() : "-5y",
     date_to: new Date(state.until).toISOString(),
   });
-  const answer = await posthogRequest(conn, path, { maxBytes: 2 * 1024 * 1024 }, fetchImpl);
+  const answer = await posthogRequest(
+    conn,
+    path,
+    { maxBytes: 2 * 1024 * 1024 },
+    fetchImpl,
+  );
   if (!answer.ok) throw new VendorCallError(answer);
   let body: any;
   try {
@@ -240,36 +333,70 @@ export async function listPostHogPage(conn: Parameters<typeof posthogRequest>[0]
     throw new VendorCallError({ error: "PostHog's answer is not JSON" });
   }
   const results: any[] = Array.isArray(body?.results) ? body.results : [];
-  const ids = results.map((r) => (typeof r?.id === "string" ? r.id : "")).filter((id) => /^[A-Za-z0-9_-]{1,128}$/.test(id));
-  const more = typeof body?.has_next === "boolean" ? body.has_next : results.length >= REPLAY_BACKFILL_PAGE.list_size;
+  const ids = results
+    .map((r) => (typeof r?.id === "string" ? r.id : ""))
+    .filter((id) => /^[A-Za-z0-9_-]{1,128}$/.test(id));
+  const more =
+    typeof body?.has_next === "boolean"
+      ? body.has_next
+      : results.length >= REPLAY_BACKFILL_PAGE.list_size;
   // What the list says of each, kept beside a failure so the popover names the recording as a person knows it.
   const about: NonNullable<ListPage["about"]> = {};
   for (const raw of results) {
     const row = recordingRow(raw);
     if (!row) continue;
     const person = row.email ?? row.distinct_id;
-    about[row.id] = { ...(row.started_at ? { at: row.started_at } : {}), ...(row.duration_ms ? { length_ms: row.duration_ms } : {}), ...(person ? { person: person.slice(0, 200) } : {}), ...(row.url ? { url: row.url.slice(0, 300) } : {}) };
+    about[row.id] = {
+      ...(row.started_at ? { at: row.started_at } : {}),
+      ...(row.duration_ms ? { length_ms: row.duration_ms } : {}),
+      ...(person ? { person: person.slice(0, 200) } : {}),
+      ...(row.url ? { url: row.url.slice(0, 300) } : {}),
+    };
   }
-  return { ids, next: more && results.length ? String(offset + results.length) : null, about };
+  return {
+    ids,
+    next: more && results.length ? String(offset + results.length) : null,
+    about,
+  };
 }
 
-type SourceInputs = { source: Doc<"event_sources">; connection_id: string | null; connection_config?: any };
+type SourceInputs = {
+  source: Doc<"event_sources">;
+  connection_id: string | null;
+  connection_config?: any;
+};
 
-function vendorFor(ctx: any, input: SourceInputs, state: ReplayBackfill): BackfillVendor {
+function vendorFor(
+  ctx: any,
+  input: SourceInputs,
+  state: ReplayBackfill,
+): BackfillVendor {
   const { source } = input;
   const imported = async (ids: string[]) => {
-    const known = await ctx.runQuery(internal.replays.importedReplays, { source_id: source._id, external_ids: ids });
+    const known = await ctx.runQuery(internal.replays.importedReplays, {
+      source_id: source._id,
+      external_ids: ids,
+    });
     return new Set(ids.filter((id) => known[id]?.imported));
   };
-  const importOne = (id: string) => ctx.runAction(internal.sources.replayBackfill.importOne, { source_id: source._id, provider: source.provider, external_id: id });
+  const importOne = (id: string) =>
+    ctx.runAction(internal.sources.replayBackfill.importOne, {
+      source_id: source._id,
+      provider: source.provider,
+      external_id: id,
+    });
   if (source.provider === "posthog") {
     return {
       name: "PostHog",
       imported,
       importOne,
       list: async (cursor) => {
-        const conn = await connFor(ctx, { config: source.config ?? null, connection_id: input.connection_id });
-        if ("error" in conn) throw new VendorCallError({ error: conn.error, lost: true });
+        const conn = await connFor(ctx, {
+          config: source.config ?? null,
+          connection_id: input.connection_id,
+        });
+        if ("error" in conn)
+          throw new VendorCallError({ error: conn.error, lost: true });
         return listPostHogPage(conn, state, cursor);
       },
     };
@@ -280,12 +407,28 @@ function vendorFor(ctx: any, input: SourceInputs, state: ReplayBackfill): Backfi
     importOne,
     list: async (cursor) => {
       const target = sentryTarget(input.connection_config, source.config);
-      if (!target.ok) throw new VendorCallError({ error: target.error, lost: true });
+      if (!target.ok)
+        throw new VendorCallError({ error: target.error, lost: true });
       const cred = await tokenFor(ctx, input.connection_id, "sentry");
-      if (!cred.ok) throw new VendorCallError({ error: cred.error, lost: true });
-      const projects = await resolveProjectIds(fetch, cred.token, target.target);
+      if (!cred.ok)
+        throw new VendorCallError({ error: cred.error, lost: true });
+      const projects = await resolveProjectIds(
+        fetch,
+        cred.token,
+        target.target,
+      );
       if (!projects.ok) throw new VendorCallError(projects);
-      const answer = await sentryCall(fetch, cred.token, replaysListUrl(target.target, projects.ids, state, REPLAY_BACKFILL_PAGE.list_size, cursor));
+      const answer = await sentryCall(
+        fetch,
+        cred.token,
+        replaysListUrl(
+          target.target,
+          projects.ids,
+          state,
+          REPLAY_BACKFILL_PAGE.list_size,
+          cursor,
+        ),
+      );
       if (!answer.ok) throw new VendorCallError(answer);
       return { ids: replayListIds(answer.json), next: nextCursor(answer.link) };
     },
@@ -303,19 +446,36 @@ export const pageInputs = internalQuery({
     const source = await ctx.db.get(args.source_id);
     if (!source) return null;
     const connectionId = await connectionIdForSource(ctx, source);
-    const connection: any = connectionId ? await ctx.db.get(connectionId as any) : null;
-    return { source, connection_id: connectionId ? String(connectionId) : null, connection_config: connection?.config ?? undefined };
+    const connection: any = connectionId
+      ? await ctx.db.get(connectionId as any)
+      : null;
+    return {
+      source,
+      connection_id: connectionId ? String(connectionId) : null,
+      connection_config: connection?.config ?? undefined,
+    };
   },
 });
 
 /** One recording imported through the read path (vendorReplay.importVendorRecording), its failure answered rather than thrown. */
 export const importOne = internalAction({
-  args: { source_id: v.id("event_sources"), provider: v.string(), external_id: v.string() },
-  handler: async (ctx, args): Promise<{ ok: true } | ({ ok: false } & VendorFailure)> => {
+  args: {
+    source_id: v.id("event_sources"),
+    provider: v.string(),
+    external_id: v.string(),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ ok: true } | ({ ok: false } & VendorFailure)> => {
     try {
       if (args.provider === "posthog") {
-        const input = await ctx.runQuery(internal.sources.posthog.sourceForPoll, { source_id: args.source_id });
-        if (!input) return { ok: false, error: "The source was removed", lost: true };
+        const input = await ctx.runQuery(
+          internal.sources.posthog.sourceForPoll,
+          { source_id: args.source_id },
+        );
+        if (!input)
+          return { ok: false, error: "The source was removed", lost: true };
         await importFor(ctx, input, args.external_id);
       } else {
         await importSentryReplay(ctx, args.source_id, args.external_id);
@@ -331,13 +491,33 @@ export const importOne = internalAction({
 export const runPage = internalAction({
   args: { source_id: v.id("event_sources"), run: v.number() },
   handler: async (ctx, args) => {
-    const input: SourceInputs | null = await ctx.runQuery(internal.sources.replayBackfill.pageInputs, { source_id: args.source_id });
+    const input: SourceInputs | null = await ctx.runQuery(
+      internal.sources.replayBackfill.pageInputs,
+      { source_id: args.source_id },
+    );
     const state = input?.source.replay_backfill;
-    if (!input || !state || state.status !== "running" || state.started_at !== args.run) return;
+    if (
+      !input ||
+      !state ||
+      state.status !== "running" ||
+      state.started_at !== args.run
+    )
+      return;
     let outcome: PageOutcome;
     if (input.source.status !== "active") {
-      const why = input.source.status === "paused" ? "The source is paused" : `The source stopped: ${input.source.last_error ?? "error"}`;
-      outcome = { state: { ...state, status: "paused", last_error: why, updated_at: Date.now() }, next_in_ms: null };
+      const why =
+        input.source.status === "paused"
+          ? "The source is paused"
+          : `The source stopped: ${input.source.last_error ?? "error"}`;
+      outcome = {
+        state: {
+          ...state,
+          status: "paused",
+          last_error: why,
+          updated_at: Date.now(),
+        },
+        next_in_ms: null,
+      };
     } else {
       try {
         outcome = await runBackfillPage(vendorFor(ctx, input, state), state);
@@ -346,12 +526,33 @@ export const runPage = internalAction({
         const error = e instanceof Error ? e.message : String(e);
         const failures = (state.failures_in_row ?? 0) + 1;
         const stopped = failures >= REPLAY_BACKFILL_LIMITS.failures_in_row;
-        outcome = { state: { ...state, failures_in_row: failures, last_error: error.slice(0, 500), updated_at: Date.now(), ...(stopped ? { status: "error" as const } : {}) }, next_in_ms: stopped ? null : REPLAY_BACKFILL_PAGE.retry_ms };
+        outcome = {
+          state: {
+            ...state,
+            failures_in_row: failures,
+            last_error: error.slice(0, 500),
+            updated_at: Date.now(),
+            ...(stopped ? { status: "error" as const } : {}),
+          },
+          next_in_ms: stopped ? null : REPLAY_BACKFILL_PAGE.retry_ms,
+        };
       }
     }
-    await ctx.runMutation(internal.sources.replayBackfill.savePage, { source_id: args.source_id, run: args.run, state: outcome.state, next_in_ms: outcome.next_in_ms ?? undefined, lost: outcome.lost });
+    await ctx.runMutation(internal.sources.replayBackfill.savePage, {
+      source_id: args.source_id,
+      run: args.run,
+      state: outcome.state,
+      next_in_ms: outcome.next_in_ms ?? undefined,
+      lost: outcome.lost,
+    });
     // Recordings this page brought in get PostHog's length, active time, browser, OS and country now (sources/replayFacts.ts), not at the next tend: the list's Active filter and its rows read them.
-    if (input?.source.provider === "posthog" && outcome.state.imported > state.imported) await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, { source_id: args.source_id });
+    if (
+      input?.source.provider === "posthog" &&
+      outcome.state.imported > state.imported
+    )
+      await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, {
+        source_id: args.source_id,
+      });
   },
 });
 
@@ -361,26 +562,58 @@ export const runPage = internalAction({
  * counts are kept and nothing more is scheduled.
  */
 export const savePage = internalMutation({
-  args: { source_id: v.id("event_sources"), run: v.number(), state: replayBackfillValidator, next_in_ms: v.optional(v.number()), lost: v.optional(v.string()) },
+  args: {
+    source_id: v.id("event_sources"),
+    run: v.number(),
+    state: replayBackfillValidator,
+    next_in_ms: v.optional(v.number()),
+    lost: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const source = await ctx.db.get(args.source_id);
     const current = source?.replay_backfill;
     if (!source || !current || current.started_at !== args.run) return;
     const stoppedMeanwhile = current.status !== "running";
-    const state: ReplayBackfill = stoppedMeanwhile ? { ...args.state, status: current.status, last_error: current.last_error } : args.state;
+    const state: ReplayBackfill = stoppedMeanwhile
+      ? {
+          ...args.state,
+          status: current.status,
+          last_error: current.last_error,
+        }
+      : args.state;
     await ctx.db.patch(source._id, { replay_backfill: state });
     if (args.lost) await markConnectionLost(ctx, source, args.lost);
-    if (!stoppedMeanwhile && state.status === "running" && args.next_in_ms !== undefined) {
-      await ctx.scheduler.runAfter(args.next_in_ms, internal.sources.replayBackfill.runPage, { source_id: source._id, run: args.run });
+    if (
+      !stoppedMeanwhile &&
+      state.status === "running" &&
+      args.next_in_ms !== undefined
+    ) {
+      await ctx.scheduler.runAfter(
+        args.next_in_ms,
+        internal.sources.replayBackfill.runPage,
+        { source_id: source._id, run: args.run },
+      );
     }
     if (source.provider === "posthog") {
       // New rows get PostHog's length and environment as they land (every 50 imported, and at the end), not at the next tend.
-      const finished = state.status !== "running" && current.status === "running";
-      if (state.imported > current.imported && (finished || Math.floor(state.imported / 50) > Math.floor(current.imported / 50))) {
-        await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, { source_id: source._id });
+      const finished =
+        state.status !== "running" && current.status === "running";
+      if (
+        state.imported > current.imported &&
+        (finished ||
+          Math.floor(state.imported / 50) > Math.floor(current.imported / 50))
+      ) {
+        await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, {
+          source_id: source._id,
+        });
       }
       // The run is over: the rest of every recording it cut short is read next (sources/replayRest.ts sweep).
-      if (finished && state.status === "done") await ctx.scheduler.runAfter(FACTS_FIRST_MS, internal.sources.replayRest.sweep, { source_id: source._id });
+      if (finished && state.status === "done")
+        await ctx.scheduler.runAfter(
+          FACTS_FIRST_MS,
+          internal.sources.replayRest.sweep,
+          { source_id: source._id },
+        );
     }
   },
 });
@@ -390,7 +623,13 @@ const FACTS_FIRST_MS = 60_000;
 
 /** A stopped or dead run picked up from its cursor, as a new run. */
 function resumedState(current: ReplayBackfill, now: number): ReplayBackfill {
-  const state: ReplayBackfill = { ...current, status: "running", failures_in_row: 0, started_at: now, updated_at: now };
+  const state: ReplayBackfill = {
+    ...current,
+    status: "running",
+    failures_in_row: 0,
+    started_at: now,
+    updated_at: now,
+  };
   delete state.last_error;
   delete state.rate_limited_since;
   delete state.finished_at;
@@ -398,9 +637,16 @@ function resumedState(current: ReplayBackfill, now: number): ReplayBackfill {
 }
 
 /** A run's state on the source and its first page scheduled. */
-async function launch(ctx: any, source: Doc<"event_sources">, state: ReplayBackfill): Promise<void> {
+async function launch(
+  ctx: any,
+  source: Doc<"event_sources">,
+  state: ReplayBackfill,
+): Promise<void> {
   await ctx.db.patch(source._id, { replay_backfill: state });
-  await ctx.scheduler.runAfter(0, internal.sources.replayBackfill.runPage, { source_id: source._id, run: state.started_at });
+  await ctx.scheduler.runAfter(0, internal.sources.replayBackfill.runPage, {
+    source_id: source._id,
+    run: state.started_at,
+  });
 }
 
 /**
@@ -409,7 +655,11 @@ async function launch(ctx: any, source: Doc<"event_sources">, state: ReplayBackf
  * `until`, less an overlap for recordings the vendor lists late). Imported
  * recordings are skipped by id, so the overlap costs a list call.
  */
-export const REPLAY_FOLLOW = { after_ms: 30 * 60_000, overlap_ms: 2 * 3600_000, rate_limit_retry_ms: 6 * 3600_000 } as const;
+export const REPLAY_FOLLOW = {
+  after_ms: 30 * 60_000,
+  overlap_ms: 2 * 3600_000,
+  rate_limit_retry_ms: 6 * 3600_000,
+} as const;
 
 /**
  * What the tend cron does with one source's import: continue a run whose page
@@ -418,13 +668,36 @@ export const REPLAY_FOLLOW = { after_ms: 30 * 60_000, overlap_ms: 2 * 3600_000, 
  * stop on the vendor's rate limit is tried again after rate_limit_retry_ms;
  * any other error, and a pause, is a person's or the vendor's word and stays.
  */
-export function tendImport(state: ReplayBackfill | undefined, now: number): ReplayBackfill | null {
+export function tendImport(
+  state: ReplayBackfill | undefined,
+  now: number,
+): ReplayBackfill | null {
   if (!state) return null;
   if (replayBackfillStalled(state, now)) return resumedState(state, now);
-  if (state.status === "error" && state.rate_limited_since !== undefined && now - state.updated_at >= REPLAY_FOLLOW.rate_limit_retry_ms) return resumedState(state, now);
-  if (state.status !== "done" || now - (state.finished_at ?? state.updated_at) < REPLAY_FOLLOW.after_ms) return null;
+  if (
+    state.status === "error" &&
+    state.rate_limited_since !== undefined &&
+    now - state.updated_at >= REPLAY_FOLLOW.rate_limit_retry_ms
+  )
+    return resumedState(state, now);
+  if (
+    state.status !== "done" ||
+    now - (state.finished_at ?? state.updated_at) < REPLAY_FOLLOW.after_ms
+  )
+    return null;
   // A follow-up counts its own recordings: the totals live in the recordings themselves (replays.browse), and a run's counts say what that run did.
-  const next: ReplayBackfill = { ...state, status: "running", since: state.until - REPLAY_FOLLOW.overlap_ms, until: now, started_at: now, updated_at: now, listed: 0, imported: 0, skipped: 0, failed: 0 };
+  const next: ReplayBackfill = {
+    ...state,
+    status: "running",
+    since: state.until - REPLAY_FOLLOW.overlap_ms,
+    until: now,
+    started_at: now,
+    updated_at: now,
+    listed: 0,
+    imported: 0,
+    skipped: 0,
+    failed: 0,
+  };
   delete next.failures;
   delete next.cursor;
   delete next.page_seen;
@@ -442,16 +715,36 @@ export const tend = internalMutation({
     const now = Date.now();
     let tended = 0;
     for (const provider of VENDORS) {
-      const sources = await ctx.db.query("event_sources").withIndex("by_provider_status", (q) => q.eq("provider", provider).eq("status", "active")).take(500);
+      const sources = await ctx.db
+        .query("event_sources")
+        .withIndex("by_provider_status", (q) =>
+          q.eq("provider", provider).eq("status", "active"),
+        )
+        .take(500);
       for (const source of sources) {
         // PostHog's own length, activity and environment for each recording (sources/replayFacts.ts); a quiet source costs no PostHog call.
-        if (provider === "posthog") await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, { source_id: source._id });
+        if (provider === "posthog")
+          await ctx.scheduler.runAfter(0, internal.sources.replayFacts.run, {
+            source_id: source._id,
+          });
         // The rest of every recording an import cut short, one at a time (sources/replayRest.ts sweep); nothing while a chain or this import runs.
-        if (provider === "posthog") await ctx.scheduler.runAfter(0, internal.sources.replayRest.sweep, { source_id: source._id });
+        if (provider === "posthog")
+          await ctx.scheduler.runAfter(0, internal.sources.replayRest.sweep, {
+            source_id: source._id,
+          });
         // How many copies are still cut short, for the Replays tab's import line; recounted hourly.
-        if (provider === "posthog" && now - (source.replay_rest?.at ?? 0) >= TALLY_EVERY_MS) await ctx.scheduler.runAfter(0, internal.sources.replayRest.tally, { source_id: source._id });
+        if (
+          provider === "posthog" &&
+          now - (source.replay_rest?.at ?? 0) >= TALLY_EVERY_MS
+        )
+          await ctx.scheduler.runAfter(0, internal.sources.replayRest.tally, {
+            source_id: source._id,
+          });
         // Each person's recordings, counted whole once a day, for the list's total and People rows (lib/replayTallies.ts); live writes keep them between.
-        if (now - (source.replay_tally_at ?? 0) >= TALLY_REBUILD_EVERY_MS) await ctx.scheduler.runAfter(0, internal.replayTallies.rebuild, { source_id: source._id });
+        if (now - (source.replay_tally_at ?? 0) >= TALLY_REBUILD_EVERY_MS)
+          await ctx.scheduler.runAfter(0, internal.replayTallies.rebuild, {
+            source_id: source._id,
+          });
         const next = tendImport(source.replay_backfill, now);
         if (!next) continue;
         await launch(ctx, source, next);
@@ -463,10 +756,21 @@ export const tend = internalMutation({
 });
 
 /** A vendor source the caller may change, or a refusal that says what to do instead. */
-async function vendorSource(ctx: any, args: ScopeArgs & { source: string }): Promise<Doc<"event_sources">> {
+async function vendorSource(
+  ctx: any,
+  args: ScopeArgs & { source: string },
+): Promise<Doc<"event_sources">> {
   const { userId, workspaceKey } = await scopeOf(ctx, args);
-  const source: Doc<"event_sources"> = await sourceByRef(ctx, userId, workspaceKey, args.source);
-  if (!(VENDORS as readonly string[]).includes(source.provider)) invalidScope(`${source.name} is a ${source.provider} source: only PostHog and Sentry sources have recordings to import`);
+  const source: Doc<"event_sources"> = await sourceByRef(
+    ctx,
+    userId,
+    workspaceKey,
+    args.source,
+  );
+  if (!(VENDORS as readonly string[]).includes(source.provider))
+    invalidScope(
+      `${source.name} is a ${source.provider} source: only PostHog and Sentry sources have recordings to import`,
+    );
   return source;
 }
 
@@ -476,26 +780,61 @@ async function vendorSource(ctx: any, args: ScopeArgs & { source: string }): Pro
  * `restart` is set; a running one is left alone. The source must be active.
  */
 export const start = mutation({
-  args: { ...scopeArgs, source: v.string(), window: v.optional(v.string()), restart: v.optional(v.boolean()) },
+  args: {
+    ...scopeArgs,
+    source: v.string(),
+    window: v.optional(v.string()),
+    restart: v.optional(v.boolean()),
+  },
   handler: async (ctx, args) => {
-    if (args.window !== undefined && !isReplayBackfillWindow(args.window)) invalidScope(`--since takes 7d, 30d, 90d or all, not "${args.window.slice(0, 20)}"`);
+    if (args.window !== undefined && !isReplayBackfillWindow(args.window))
+      invalidScope(
+        `--since takes 7d, 30d, 90d or all, not "${args.window.slice(0, 20)}"`,
+      );
     const source = await vendorSource(ctx, args);
     if (source.status !== "active") {
-      invalidScope(`${source.name} is ${source.status === "paused" ? "paused" : `stopped (${source.last_error ?? "error"})`}: resume it first (cast sources update ${source.name} --status active)`);
+      invalidScope(
+        `${source.name} is ${source.status === "paused" ? "paused" : `stopped (${source.last_error ?? "error"})`}: resume it first (cast sources update ${source.name} --status active)`,
+      );
     }
     const now = Date.now();
     const current = source.replay_backfill;
-    if (current?.status === "running" && !replayBackfillStalled(current, now) && !args.restart) {
+    if (
+      current?.status === "running" &&
+      !replayBackfillStalled(current, now) &&
+      !args.restart
+    ) {
       return { source: await sourceViewOf(ctx, source), started: false };
     }
-    const window = (args.window as ReplayBackfill["window"] | undefined) ?? current?.window ?? DEFAULT_REPLAY_BACKFILL_WINDOW;
-    const resume = !args.restart && replayBackfillResumes(current, now) && window === current!.window;
+    const window =
+      (args.window as ReplayBackfill["window"] | undefined) ??
+      current?.window ??
+      DEFAULT_REPLAY_BACKFILL_WINDOW;
+    const resume =
+      !args.restart &&
+      replayBackfillResumes(current, now) &&
+      window === current!.window;
     const since = replayBackfillSince(window, now);
     const state: ReplayBackfill = resume
       ? resumedState(current!, now)
-      : { status: "running", window, ...(since !== undefined ? { since } : {}), until: now, listed: 0, imported: 0, skipped: 0, failed: 0, started_at: now, updated_at: now };
+      : {
+          status: "running",
+          window,
+          ...(since !== undefined ? { since } : {}),
+          until: now,
+          listed: 0,
+          imported: 0,
+          skipped: 0,
+          failed: 0,
+          started_at: now,
+          updated_at: now,
+        };
     await launch(ctx, source, state);
-    return { source: await sourceViewOf(ctx, (await ctx.db.get(source._id))!), started: true, resumed: resume };
+    return {
+      source: await sourceViewOf(ctx, (await ctx.db.get(source._id))!),
+      started: true,
+      resumed: resume,
+    };
   },
 });
 
@@ -506,7 +845,14 @@ export const stop = mutation({
     const source = await vendorSource(ctx, args);
     const current = source.replay_backfill;
     if (current?.status === "running") {
-      await ctx.db.patch(source._id, { replay_backfill: { ...current, status: "paused", last_error: "Stopped", updated_at: Date.now() } });
+      await ctx.db.patch(source._id, {
+        replay_backfill: {
+          ...current,
+          status: "paused",
+          last_error: "Stopped",
+          updated_at: Date.now(),
+        },
+      });
     }
     return { source: await sourceViewOf(ctx, (await ctx.db.get(source._id))!) };
   },

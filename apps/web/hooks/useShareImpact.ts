@@ -28,14 +28,22 @@ export function useShareImpact(
 ): ShareImpact {
   const key = selectedPaths.join("\n");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stable = useMemo(() => [...selectedPaths].sort().slice(0, MAX_EXACT), [key]);
-  const sinceArg = since === undefined ? undefined : since ?? 0;
+  const stable = useMemo(
+    () => [...selectedPaths].sort().slice(0, MAX_EXACT),
+    [key],
+  );
+  const sinceArg = since === undefined ? undefined : (since ?? 0);
   const { data } = useQueryNoThrow(
     api.users.shareImpactForPaths,
     stable.length > 0 ? { path_prefixes: stable, since: sinceArg } : "skip",
   );
   return useMemo(
-    () => summarizeShareImpact(selectedPaths, data as Record<string, PathShareSummary> | undefined, rows),
+    () =>
+      summarizeShareImpact(
+        selectedPaths,
+        data as Record<string, PathShareSummary> | undefined,
+        rows,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key, data, rows],
   );

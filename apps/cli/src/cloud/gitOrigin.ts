@@ -8,12 +8,20 @@
  */
 
 /** `{ host, repo }` of an ssh or https origin: git@host:o/r.git, ssh://git@host[:port]/o/r, https://host/o/r[.git]. */
-export function parseOrigin(origin: string | undefined): { host: string; repo: string } | undefined {
+export function parseOrigin(
+  origin: string | undefined,
+): { host: string; repo: string } | undefined {
   if (!origin) return undefined;
   const o = origin.trim();
-  let m = /^(?:[A-Za-z0-9._-]+@)?([A-Za-z0-9.-]+):(?!\/\/)([^\s]+?)(?:\.git)?\/?$/.exec(o);
+  let m =
+    /^(?:[A-Za-z0-9._-]+@)?([A-Za-z0-9.-]+):(?!\/\/)([^\s]+?)(?:\.git)?\/?$/.exec(
+      o,
+    );
   if (m) return { host: m[1]!.toLowerCase(), repo: m[2]! };
-  m = /^(?:ssh|git|https?):\/\/(?:[^@/\s]+@)?([A-Za-z0-9.-]+)(?::\d+)?\/([^\s]+?)(?:\.git)?\/?$/.exec(o);
+  m =
+    /^(?:ssh|git|https?):\/\/(?:[^@/\s]+@)?([A-Za-z0-9.-]+)(?::\d+)?\/([^\s]+?)(?:\.git)?\/?$/.exec(
+      o,
+    );
   if (m) return { host: m[1]!.toLowerCase(), repo: m[2]! };
   return undefined;
 }
@@ -40,7 +48,9 @@ export function githubRepo(origin: string | undefined): string | undefined {
   const p = parseOrigin(origin);
   if (!p || !isGitHubHost(p.host)) return undefined;
   const parts = p.repo.split("/").filter(Boolean);
-  return parts.length === 2 && parts.every(isGitHubName) ? parts.join("/") : undefined;
+  return parts.length === 2 && parts.every(isGitHubName)
+    ? parts.join("/")
+    : undefined;
 }
 
 /** Where a deploy key for this origin is added on GitHub; undefined for a non-GitHub origin. */
@@ -90,5 +100,7 @@ export function hostProbeOrigin(
   if (!/^(https?|git|ftps?):\/\//i.test(origin)) return { origin };
   const p = parseOrigin(origin);
   if (p && repo) return { origin: `git@${p.host}:${repo}.git` };
-  return { reason: `origin ${origin} is not ssh — the host's key only works over ssh` };
+  return {
+    reason: `origin ${origin} is not ssh — the host's key only works over ssh`,
+  };
 }

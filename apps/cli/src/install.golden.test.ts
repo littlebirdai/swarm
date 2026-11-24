@@ -102,7 +102,9 @@ const preRewriteDir = path.join(goldenDir, "pre-rewrite");
 const seedPath = path.join(goldenDir, "seed.md");
 
 const UPDATE = process.env.UPDATE_GOLDEN === "1";
-const only = process.env.GOLDEN_SLUGS?.split(",").map((s) => s.trim()).filter(Boolean);
+const only = process.env.GOLDEN_SLUGS?.split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const slugs = SNIPPET_CATALOG.filter((d) => !only || only.includes(d.slug));
 
 /** A slug that writes no CLAUDE.md section goldens this instead of a missing file. */
@@ -136,7 +138,9 @@ const scratchHomes: string[] = [];
 // filed as a handoff on ct-42800 — landing it here alone would leave the copy
 // in that file behind, and that file is owned by another session.
 function scratchHome(): string {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-install-golden-"));
+  const home = fs.mkdtempSync(
+    path.join(os.tmpdir(), "codecast-install-golden-"),
+  );
   scratchHomes.push(home);
   // A fresh update-state stops the CLI reaching for dl.codecast.sh on startup,
   // which would put the network in the middle of a byte comparison.
@@ -175,9 +179,9 @@ function runCli(home: string, args: string[], attempt = ""): string {
   if (proc.status !== 0) {
     throw new Error(
       `cast ${args.join(" ")} exited ${proc.status}${attempt}.\n` +
-      `  cli: ${cliEntry}\n` +
-      `  stdout: ${proc.stdout}\n` +
-      `  stderr: ${proc.stderr}`,
+        `  cli: ${cliEntry}\n` +
+        `  stdout: ${proc.stdout}\n` +
+        `  stderr: ${proc.stderr}`,
     );
   }
   // Run from the repo root, `bun test` scans the whole tree for test files and
@@ -187,7 +191,9 @@ function runCli(home: string, args: string[], attempt = ""): string {
   // install or help run prints nothing, so an empty capture is a harness
   // fault, never a baseline. Run this file from apps/cli.
   if (proc.stdout.length === 0) {
-    throw new Error(`cast ${args.join(" ")} exited 0 with empty stdout${attempt}.\n  stderr: ${proc.stderr}`);
+    throw new Error(
+      `cast ${args.join(" ")} exited 0 with empty stdout${attempt}.\n  stderr: ${proc.stderr}`,
+    );
   }
   return proc.stdout;
 }
@@ -202,7 +208,12 @@ function runCli(home: string, args: string[], attempt = ""): string {
  * itself. Only ~/.claude and ~/.codecast are inspected: bun writes its own
  * cache under a scratch HOME, and that is not part of the install.
  */
-function runInstall(slug: string, seed?: string, runs = 1, extraArgs: string[] = []): InstallRun {
+function runInstall(
+  slug: string,
+  seed?: string,
+  runs = 1,
+  extraArgs: string[] = [],
+): InstallRun {
   const home = scratchHome();
   const claudePath = path.join(home, ".claude", "CLAUDE.md");
   if (seed !== undefined) {
@@ -212,7 +223,11 @@ function runInstall(slug: string, seed?: string, runs = 1, extraArgs: string[] =
 
   let stdout = "";
   for (let i = 0; i < runs; i++) {
-    stdout = runCli(home, ["install", slug, ...extraArgs], ` on run ${i + 1} of ${runs}`);
+    stdout = runCli(
+      home,
+      ["install", slug, ...extraArgs],
+      ` on run ${i + 1} of ${runs}`,
+    );
   }
 
   const rawConfig = JSON.parse(
@@ -314,17 +329,18 @@ function expectGolden(relPath: string, actual: string, slug?: string): void {
   if (!fs.existsSync(file)) {
     throw new Error(
       `no fixture for ${relPath}. Either this slug is new, or the fixture was ` +
-      `deleted. Read __fixtures__/install-golden/BASELINE.md, then record it ` +
-      `with:\n  cd apps/cli && ${recordCommand(slug)}`,
+        `deleted. Read __fixtures__/install-golden/BASELINE.md, then record it ` +
+        `with:\n  cd apps/cli && ${recordCommand(slug)}`,
     );
   }
   const expected = fs.readFileSync(file, "utf8");
   if (actual === expected) return;
   throw new Error(
     `${relPath} no longer matches the recorded output.\n` +
-    firstDivergence(expected, actual) + "\n" +
-    `If the change was intended, read BASELINE.md and re-record with:\n` +
-    `  cd apps/cli && ${recordCommand(slug)}`,
+      firstDivergence(expected, actual) +
+      "\n" +
+      `If the change was intended, read BASELINE.md and re-record with:\n` +
+      `  cd apps/cli && ${recordCommand(slug)}`,
   );
 }
 
@@ -344,8 +360,15 @@ function userLinesOf(text: string): string[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!inOwnedBlock && line.startsWith("## ")) {
-      for (let j = i + 1; j < lines.length && !lines[j].startsWith("## "); j++) {
-        if (lines[j].includes("<!-- /codecast-")) { inOwnedBlock = true; break; }
+      for (
+        let j = i + 1;
+        j < lines.length && !lines[j].startsWith("## ");
+        j++
+      ) {
+        if (lines[j].includes("<!-- /codecast-")) {
+          inOwnedBlock = true;
+          break;
+        }
       }
     }
     if (inOwnedBlock) {
@@ -364,11 +387,15 @@ const seedUserLines = userLinesOf(seed);
  * fixture — a fixture re-recorded from a writer that started eating user prose
  * would simply record the loss.
  */
-function expectUserTextIntact(slug: string, scenario: string, claudeMd: string): void {
+function expectUserTextIntact(
+  slug: string,
+  scenario: string,
+  claudeMd: string,
+): void {
   const lost = seedUserLines.filter((line) => !claudeMd.includes(line));
-  expect(`${slug}/${scenario} dropped user lines: ${JSON.stringify(lost)}`).toBe(
-    `${slug}/${scenario} dropped user lines: []`,
-  );
+  expect(
+    `${slug}/${scenario} dropped user lines: ${JSON.stringify(lost)}`,
+  ).toBe(`${slug}/${scenario} dropped user lines: []`);
 }
 
 const manifest: Record<string, unknown> = {};
@@ -388,7 +415,10 @@ interface ManifestEntry {
 }
 
 function readManifest(file: string): Record<string, ManifestEntry> {
-  return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, ManifestEntry>;
+  return JSON.parse(fs.readFileSync(file, "utf8")) as Record<
+    string,
+    ManifestEntry
+  >;
 }
 
 /**
@@ -400,11 +430,18 @@ function readManifest(file: string): Record<string, ManifestEntry> {
  * code. Neither is answered by re-recording, so both messages say what to
  * change instead.
  */
-function expectKnownBugs(found: string[], filed: string[], subject: string, guidance: string): void {
+function expectKnownBugs(
+  found: string[],
+  filed: string[],
+  subject: string,
+  guidance: string,
+): void {
   const left = found.join(", ") || "none";
   const right = filed.join(", ") || "none";
   if (left === right) return;
-  throw new Error(`${subject}: ${left}\n  filed in this file: ${right}\n${guidance}`);
+  throw new Error(
+    `${subject}: ${left}\n  filed in this file: ${right}\n${guidance}`,
+  );
 }
 
 describe("cast install — golden output per catalog slug", () => {
@@ -441,14 +478,19 @@ describe("cast install — golden output per catalog slug", () => {
       if (settled.claudeMd !== existing.claudeMd) {
         throw new Error(
           `installing ${slug} twice does not settle: the second run changed the ` +
-          `file again, so every upgrade rewrites it.\n` +
-          firstDivergence(existing.claudeMd, settled.claudeMd) + "\n" +
-          `This is a writer bug, not a stale fixture — do not re-record.`,
+            `file again, so every upgrade rewrites it.\n` +
+            firstDivergence(existing.claudeMd, settled.claudeMd) +
+            "\n" +
+            `This is a writer bug, not a stale fixture — do not re-record.`,
         );
       }
 
       expectGolden(path.join("fresh", `${slug}.md`), fresh.claudeMd, slug);
-      expectGolden(path.join("existing", `${slug}.md`), existing.claudeMd, slug);
+      expectGolden(
+        path.join("existing", `${slug}.md`),
+        existing.claudeMd,
+        slug,
+      );
       expectGolden(path.join("stub", `${slug}.md`), stub.claudeMd, slug);
       // Five CLI subprocesses per slug (fresh, seeded, the seeded run twice,
       // and the stub run), each a cold bun start. Generous, because the wall
@@ -472,7 +514,8 @@ describe("cast install — golden output per catalog slug", () => {
       const merged = only ? { ...prior, ...manifest } : manifest;
       // Catalog order, not merge order, so the file reads like the catalog.
       const ordered: Record<string, unknown> = {};
-      for (const d of SNIPPET_CATALOG) if (merged[d.slug]) ordered[d.slug] = merged[d.slug];
+      for (const d of SNIPPET_CATALOG)
+        if (merged[d.slug]) ordered[d.slug] = merged[d.slug];
       fs.writeFileSync(file, JSON.stringify(ordered, null, 2) + "\n");
       return;
     }
@@ -482,8 +525,12 @@ describe("cast install — golden output per catalog slug", () => {
     // pass this test by being absent from both sides of the loop.
     if (!only) {
       const expected = slugs.map((d) => d.slug).join(", ");
-      expect(`ran: ${Object.keys(manifest).join(", ")}`).toBe(`ran: ${expected}`);
-      expect(`recorded: ${Object.keys(recorded).join(", ")}`).toBe(`recorded: ${expected}`);
+      expect(`ran: ${Object.keys(manifest).join(", ")}`).toBe(
+        `ran: ${expected}`,
+      );
+      expect(`recorded: ${Object.keys(recorded).join(", ")}`).toBe(
+        `recorded: ${expected}`,
+      );
     }
     for (const slug of Object.keys(manifest)) {
       expect(`${slug}: ${JSON.stringify(manifest[slug])}`).toBe(
@@ -506,13 +553,17 @@ describe("cast install — golden output per catalog slug", () => {
     const stubbed = maskVersion(
       fs.readFileSync(path.join(home, ".claude", "CLAUDE.md"), "utf8"),
     );
-    expect(stubbed).toBe(fs.readFileSync(path.join(goldenDir, "stub", "browser.md"), "utf8"));
+    expect(stubbed).toBe(
+      fs.readFileSync(path.join(goldenDir, "stub", "browser.md"), "utf8"),
+    );
 
     runCli(home, ["install", "browser", "--full"]);
     const restored = maskVersion(
       fs.readFileSync(path.join(home, ".claude", "CLAUDE.md"), "utf8"),
     );
-    expect(restored).toBe(fs.readFileSync(path.join(goldenDir, "fresh", "browser.md"), "utf8"));
+    expect(restored).toBe(
+      fs.readFileSync(path.join(goldenDir, "fresh", "browser.md"), "utf8"),
+    );
   }, 120_000);
 
   test("cast install -h is unchanged", () => {
@@ -538,8 +589,9 @@ describe("cast install — golden output per catalog slug", () => {
     }
     for (const rel of live) {
       const body = fs.readFileSync(path.join(goldenDir, rel), "utf8");
-      expect(`${rel} contains ${pkgVersion}: ${body.includes(pkgVersion)}`)
-        .toBe(`${rel} contains ${pkgVersion}: false`);
+      expect(
+        `${rel} contains ${pkgVersion}: ${body.includes(pkgVersion)}`,
+      ).toBe(`${rel} contains ${pkgVersion}: false`);
     }
   });
 
@@ -552,14 +604,21 @@ describe("cast install — golden output per catalog slug", () => {
 
     const stale: string[] = [];
     for (const descriptor of SNIPPET_CATALOG) {
-      const oldBody = path.join(preRewriteDir, "fresh", `${descriptor.slug}.md`);
+      const oldBody = path.join(
+        preRewriteDir,
+        "fresh",
+        `${descriptor.slug}.md`,
+      );
       // No pre-rewrite body means the rewrite left this slug's fresh output
       // untouched, or the slug post-dates the baseline. Nothing to compare.
       if (!fs.existsSync(oldBody)) continue;
       const nowBody = path.join(goldenDir, "fresh", `${descriptor.slug}.md`);
-      if (fs.readFileSync(oldBody, "utf8") === fs.readFileSync(nowBody, "utf8")) continue;
-      const wasVersion = before[descriptor.slug]?.config?.[descriptor.versionKey];
-      const nowVersion = after[descriptor.slug]?.config?.[descriptor.versionKey];
+      if (fs.readFileSync(oldBody, "utf8") === fs.readFileSync(nowBody, "utf8"))
+        continue;
+      const wasVersion =
+        before[descriptor.slug]?.config?.[descriptor.versionKey];
+      const nowVersion =
+        after[descriptor.slug]?.config?.[descriptor.versionKey];
       if (wasVersion === nowVersion) stale.push(descriptor.slug);
     }
 
@@ -568,9 +627,9 @@ describe("cast install — golden output per catalog slug", () => {
       BODY_CHANGED_WITHOUT_VERSION_BUMP,
       "bodies changed without a version bump",
       `A slug listed on the left changed its text but kept its version, so no ` +
-      `installed machine will ever receive the new text — bump it in src/update.ts. ` +
-      `A slug that disappeared was fixed: delete it from ` +
-      `BODY_CHANGED_WITHOUT_VERSION_BUMP.`,
+        `installed machine will ever receive the new text — bump it in src/update.ts. ` +
+        `A slug that disappeared was fixed: delete it from ` +
+        `BODY_CHANGED_WITHOUT_VERSION_BUMP.`,
     );
   });
 
@@ -585,8 +644,8 @@ describe("cast install — golden output per catalog slug", () => {
       STDOUT_NAMES_A_FILE_IT_DID_NOT_WRITE,
       "success lines naming a CLAUDE.md the install never wrote",
       `The success line is built from the CLAUDE.md target list regardless of what ` +
-      `the snippet writes (index.ts:9601). Print what the writer touched, then ` +
-      `delete the fixed slug from STDOUT_NAMES_A_FILE_IT_DID_NOT_WRITE.`,
+        `the snippet writes (index.ts:9601). Print what the writer touched, then ` +
+        `delete the fixed slug from STDOUT_NAMES_A_FILE_IT_DID_NOT_WRITE.`,
     );
   });
 });

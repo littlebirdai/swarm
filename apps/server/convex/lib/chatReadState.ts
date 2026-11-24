@@ -27,7 +27,8 @@ export async function upsertRead(
   const existing = await ctx.db
     .query("chat_reads")
     .withIndex("by_user_channel", (q: any) =>
-      q.eq("user_id", userId).eq("channel_id", channelId))
+      q.eq("user_id", userId).eq("channel_id", channelId),
+    )
     .first();
   if (!existing) {
     await ctx.db.insert("chat_reads", {
@@ -52,7 +53,8 @@ export async function upsertRead(
     patch.last_read_at = readAt;
     patch.last_read_message_id = lastMessageId ?? existing.last_read_message_id;
   }
-  if (notifyLevel && notifyLevel !== existing.notify_level) patch.notify_level = notifyLevel;
+  if (notifyLevel && notifyLevel !== existing.notify_level)
+    patch.notify_level = notifyLevel;
   if (!existing.joined_at) patch.joined_at = now;
   if (Object.keys(patch).length === 0) return;
   await patchChat(ctx, existing._id, patch);
@@ -93,7 +95,10 @@ export async function touchThreadReads(
     rootKey: String(opts.root._id),
     teamId: opts.channel.team_id,
     refs: { channel_id: opts.channel._id },
-    participants: [...(await threadParticipants(ctx, opts.root)), ...(opts.extraParticipants ?? [])],
+    participants: [
+      ...(await threadParticipants(ctx, opts.root)),
+      ...(opts.extraParticipants ?? []),
+    ],
     actorId: opts.actorId,
     activityAt: opts.activityAt,
   });
@@ -109,11 +114,18 @@ export async function threadUnreadFor(
   const rows = await ctx.db
     .query("chat_messages")
     .withIndex("by_thread_created", (q: any) =>
-      q.eq("thread_root_id", rootId).gt("created_at", lastReadAt))
+      q.eq("thread_root_id", rootId).gt("created_at", lastReadAt),
+    )
     .take(THREAD_UNREAD_SCAN);
   const counted = rows.filter(
-    (r) => !r.deleted_at && !isSilentAgentRow(r) && !isLiveVoiceRow(r)
-      && r.user_id.toString() !== userId.toString(),
+    (r) =>
+      !r.deleted_at &&
+      !isSilentAgentRow(r) &&
+      !isLiveVoiceRow(r) &&
+      r.user_id.toString() !== userId.toString(),
   ).length;
-  return { unread: Math.min(counted, UNREAD_CAP), unread_capped: counted > UNREAD_CAP };
+  return {
+    unread: Math.min(counted, UNREAD_CAP),
+    unread_capped: counted > UNREAD_CAP,
+  };
 }

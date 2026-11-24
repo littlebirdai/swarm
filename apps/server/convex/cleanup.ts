@@ -49,7 +49,9 @@ export const deleteImportNoticeMessages = internalMutation({
     const PREFIX = "[Codecast import]";
     const candidates = await ctx.db
       .query("messages")
-      .withSearchIndex("search_content_v2", (q) => q.search("content", "Codecast import session truncated"))
+      .withSearchIndex("search_content_v2", (q) =>
+        q.search("content", "Codecast import session truncated"),
+      )
       .take(64);
     const notices = candidates.filter(
       (m) => m.role === "user" && m.content?.trimStart().startsWith(PREFIX),
@@ -61,7 +63,9 @@ export const deleteImportNoticeMessages = internalMutation({
       scanned: candidates.length,
       matched: notices.length,
       deleted: args.dry_run ? 0 : notices.length,
-      conversations: [...new Set(notices.map((m) => m.conversation_id.toString()))],
+      conversations: [
+        ...new Set(notices.map((m) => m.conversation_id.toString())),
+      ],
     };
   },
 });
@@ -101,7 +105,8 @@ export function isGcableEmptyConversation(c: {
   if (c.active_task_id || c.active_plan_id || c.plan_ids?.length) return false;
   if (c.is_subagent || c.parent_conversation_id) return false;
   if (c.forked_from || c.fork_status) return false;
-  if (c.workflow_run_id || c.is_workflow_sub || c.is_workflow_primary) return false;
+  if (c.workflow_run_id || c.is_workflow_sub || c.is_workflow_primary)
+    return false;
   if (c.inbox_pinned_at || c.is_favorite || c.inbox_snoozed_until) return false;
   if (c.share_token) return false;
   if (c.title_is_custom) return false;
@@ -113,7 +118,11 @@ export function isGcableEmptyConversation(c: {
 export function hasLiveDraft(entry: unknown): boolean {
   if (!entry || typeof entry !== "object") return false;
   return Object.values(entry as Record<string, unknown>).some((v) =>
-    typeof v === "string" ? v.trim().length > 0 : Array.isArray(v) ? v.length > 0 : false
+    typeof v === "string"
+      ? v.trim().length > 0
+      : Array.isArray(v)
+        ? v.length > 0
+        : false,
   );
 }
 
@@ -129,19 +138,26 @@ export async function conversationHasNoWork(
   if (!isGcableEmptyConversation(conv)) return false;
   const hasMsg = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .first();
   if (hasMsg) return false;
   const hasPending = await ctx.db
     .query("pending_messages")
-    .withIndex("by_conversation_status", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_status", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .first();
   if (hasPending) return false;
   const cs = await ctx.db
     .query("client_state")
     .withIndex("by_user_id", (q: any) => q.eq("user_id", conv.user_id))
     .first();
-  const drafts = cs?.drafts && typeof cs.drafts === "object" ? (cs.drafts as Record<string, unknown>) : null;
+  const drafts =
+    cs?.drafts && typeof cs.drafts === "object"
+      ? (cs.drafts as Record<string, unknown>)
+      : null;
   if (drafts && hasLiveDraft(drafts[conv._id.toString()])) return false;
   return true;
 }
@@ -156,7 +172,11 @@ export function shouldReapEmpty(
   conv: { inbox_dismissed_at?: number; inbox_stashed_at?: number },
   hasLiveHeartbeat: boolean,
 ): boolean {
-  return !(hasLiveHeartbeat && !conv.inbox_dismissed_at && !conv.inbox_stashed_at);
+  return !(
+    hasLiveHeartbeat &&
+    !conv.inbox_dismissed_at &&
+    !conv.inbox_stashed_at
+  );
 }
 
 // Reap a contentless pre-warm. Two-phase, because the live agent must die BEFORE
@@ -191,7 +211,9 @@ export async function enqueueKillSessionCommand(
 ): Promise<boolean> {
   const pending = await ctx.db
     .query("daemon_commands")
-    .withIndex("by_user_pending", (q: any) => q.eq("user_id", conv.user_id).eq("executed_at", undefined))
+    .withIndex("by_user_pending", (q: any) =>
+      q.eq("user_id", conv.user_id).eq("executed_at", undefined),
+    )
     .collect();
   const alreadyQueued = hasRecentPendingDaemonCommand(pending, {
     conversationId: conv._id.toString(),
@@ -205,7 +227,12 @@ export async function enqueueKillSessionCommand(
     command: "kill_session" as const,
     // session_id rides along (mirrors conversations.killSession) so the daemon
     // can still tear the backend down when its conversation mapping is gone.
-    args: JSON.stringify({ conversation_id: conv._id, session_id: conv.session_id, ...(cause ? { cause } : {}), ...(opts?.keepWorkspace ? { keep_workspace: true } : {}) }),
+    args: JSON.stringify({
+      conversation_id: conv._id,
+      session_id: conv.session_id,
+      ...(cause ? { cause } : {}),
+      ...(opts?.keepWorkspace ? { keep_workspace: true } : {}),
+    }),
     created_at: now,
   });
   return true;
@@ -217,11 +244,17 @@ export async function reapEmptyConversation(
   managed?: any[],
 ): Promise<"kill_enqueued" | "deleted"> {
   const now = Date.now();
-  const sessions = managed ?? await ctx.db
-    .query("managed_sessions")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
-    .collect();
-  const hasLiveAgent = (await heartbeatsFor(ctx, sessions)).some((beat) => beat > now - LIVE_HEARTBEAT_MS);
+  const sessions =
+    managed ??
+    (await ctx.db
+      .query("managed_sessions")
+      .withIndex("by_conversation_id", (q: any) =>
+        q.eq("conversation_id", conv._id),
+      )
+      .collect());
+  const hasLiveAgent = (await heartbeatsFor(ctx, sessions)).some(
+    (beat) => beat > now - LIVE_HEARTBEAT_MS,
+  );
 
   if (hasLiveAgent) {
     await enqueueKillSessionCommand(ctx, conv, now, "gc_empty");
@@ -231,7 +264,9 @@ export async function reapEmptyConversation(
   for (const m of sessions) await ctx.db.delete(m._id);
   const diffs = await ctx.db
     .query("conversation_git_diffs")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .collect();
   for (const d of diffs) await ctx.db.delete(d._id);
   await ctx.db.delete(conv._id);
@@ -297,7 +332,11 @@ type HideTxnState = { spent: number; done: Set<string>; decided: Set<string> };
 const hideTxnStates = new WeakMap<object, HideTxnState>();
 function hideTxnState(ctx: { db: any }): HideTxnState {
   let state = hideTxnStates.get(ctx);
-  if (!state) hideTxnStates.set(ctx, (state = { spent: 0, done: new Set(), decided: new Set() }));
+  if (!state)
+    hideTxnStates.set(
+      ctx,
+      (state = { spent: 0, done: new Set(), decided: new Set() }),
+    );
   return state;
 }
 export function hideBudgetLeft(ctx: { db: any }): number {
@@ -314,7 +353,12 @@ export async function applyHideTransition(
   ctx: { db: any },
   doc: any,
   patch: { inbox_dismissed_at?: any; inbox_stashed_at?: any },
-  opts?: { cascade?: boolean; forceKill?: boolean; close?: boolean; cause?: string },
+  opts?: {
+    cascade?: boolean;
+    forceKill?: boolean;
+    close?: boolean;
+    cause?: string;
+  },
 ): Promise<{
   action: "reap" | "kill" | "none";
   canceledSchedules: number;
@@ -324,15 +368,31 @@ export async function applyHideTransition(
 }> {
   // An explicit kill naming a role's own session is refused (lib/seatKill);
   // a cascade from a parent never reaches a seat, and internal reaps carry no forceKill.
-  if (opts?.forceKill && !opts.close && opts.cascade !== false && patch.inbox_dismissed_at) await refuseSeatKill(ctx, doc);
+  if (
+    opts?.forceKill &&
+    !opts.close &&
+    opts.cascade !== false &&
+    patch.inbox_dismissed_at
+  )
+    await refuseSeatKill(ctx, doc);
   const txn = hideTxnState(ctx);
   const docKey = String(doc?._id);
   if (txn.done.has(docKey)) {
-    return { action: "none", canceledSchedules: 0, canceledMessages: 0, cascaded: 0, teardownEnqueued: false };
+    return {
+      action: "none",
+      canceledSchedules: 0,
+      canceledMessages: 0,
+      cascaded: 0,
+      teardownEnqueued: false,
+    };
   }
   txn.done.add(docKey);
   txn.spent++;
-  const classified = classifyHideTransition(patch, doc, await conversationHasNoWork(ctx, doc));
+  const classified = classifyHideTransition(
+    patch,
+    doc,
+    await conversationHasNoWork(ctx, doc),
+  );
   // Kill is a DESIRED STATE, not an event. classifyHideTransition gates on the
   // FLAG's transition, so a quiet re-assert of an already-set inbox_dismissed_at
   // (the web's optimistic re-patch, a stub-rekey field flush) classifies "none"
@@ -342,7 +402,10 @@ export async function applyHideTransition(
   // teardown, and the worker was unkillable through the supported path. An
   // EXPLICIT kill therefore runs the kill branch whatever the flags already
   // say; teardown is idempotent daemon-side (killing a dead pane no-ops).
-  const action = classified === "none" && opts?.forceKill && patch.inbox_dismissed_at ? "kill" : classified;
+  const action =
+    classified === "none" && opts?.forceKill && patch.inbox_dismissed_at
+      ? "kill"
+      : classified;
   let canceledSchedules = 0;
   let canceledMessages = 0;
   let teardownEnqueued = false;
@@ -352,7 +415,12 @@ export async function applyHideTransition(
     // be in the client's outbox (an image uploading, send-and-stash, a kill
     // from another window), and deleting the row under it loses that message
     // and strands the client's copy of the session (2026-10-01).
-    teardownEnqueued = await enqueueKillSessionCommand(ctx, doc, Date.now(), `${opts?.cause ?? "hide"}:reap`);
+    teardownEnqueued = await enqueueKillSessionCommand(
+      ctx,
+      doc,
+      Date.now(),
+      `${opts?.cause ?? "hide"}:reap`,
+    );
     await subagentEnded(ctx, doc, "killed");
   } else if (action === "kill") {
     // false = an unexecuted kill_session for this conversation is ALREADY on the
@@ -360,7 +428,13 @@ export async function applyHideTransition(
     // holds either way, so callers report which it was instead of piling on a
     // duplicate command. A kill the daemon already executed leaves no pending
     // row, so the re-kill that matters — the resurrection case — always inserts.
-    teardownEnqueued = await enqueueKillSessionCommand(ctx, doc, Date.now(), opts?.cause ?? "hide", { keepWorkspace: opts?.close });
+    teardownEnqueued = await enqueueKillSessionCommand(
+      ctx,
+      doc,
+      Date.now(),
+      opts?.cause ?? "hide",
+      { keepWorkspace: opts?.close },
+    );
     // A persistent anchor never auto-completes on a dismiss/kill — it goes
     // dormant, not retired (only decommissionAnchor clears `persistent`).
     // inbox_killed_at records when the session was FIRST killed: a forced
@@ -382,7 +456,8 @@ export async function applyHideTransition(
       if (!doc?.inbox_killed_at) killPatch.inbox_killed_at = Date.now();
       if (!doc?.persistent) killPatch.status = "completed";
     }
-    if (Object.keys(killPatch).length > 0) await ctx.db.patch(doc._id, killPatch);
+    if (Object.keys(killPatch).length > 0)
+      await ctx.db.patch(doc._id, killPatch);
     // A killed worker frees its fleet slot and keeps its worktree. A closed one
     // only frees its slot: it has not ended, so its lead hears nothing (a
     // settle note would revive the lead the person just closed).
@@ -412,7 +487,11 @@ export async function applyHideTransition(
     //
     // A close is not a retirement either: it keeps both, for every session.
     if (!doc?.persistent && !opts?.close) {
-      canceledSchedules = await cancelTasksBoundToConversation(ctx, doc.user_id, doc._id);
+      canceledSchedules = await cancelTasksBoundToConversation(
+        ctx,
+        doc.user_id,
+        doc._id,
+      );
       canceledMessages = await cancelQueuedMessagesOnKill(ctx, doc._id);
     }
   }
@@ -423,10 +502,23 @@ export async function applyHideTransition(
   // guard inside makes re-asserts cheap and race-safe. The cascade's own
   // per-child transition call opts out to stay single-level.
   let cascaded = 0;
-  if (opts?.cascade !== false && (patch.inbox_dismissed_at || patch.inbox_stashed_at)) {
-    cascaded = await cascadeHideToNestedChildren(ctx, doc, patch, { forceKill: action === "kill" && opts?.forceKill, close: opts?.close, cause: opts?.cause });
+  if (
+    opts?.cascade !== false &&
+    (patch.inbox_dismissed_at || patch.inbox_stashed_at)
+  ) {
+    cascaded = await cascadeHideToNestedChildren(ctx, doc, patch, {
+      forceKill: action === "kill" && opts?.forceKill,
+      close: opts?.close,
+      cause: opts?.cause,
+    });
   }
-  return { action, canceledSchedules, canceledMessages, cascaded, teardownEnqueued };
+  return {
+    action,
+    canceledSchedules,
+    canceledMessages,
+    cascaded,
+    teardownEnqueued,
+  };
 }
 
 // A hide gesture on a session takes its NESTED group with it — the same set
@@ -462,7 +554,9 @@ export async function cascadeHideToNestedChildren(
   patch: { inbox_dismissed_at?: number; inbox_stashed_at?: number },
   opts?: { forceKill?: boolean; close?: boolean; cause?: string },
 ): Promise<number> {
-  const field = patch.inbox_dismissed_at ? ("inbox_dismissed_at" as const) : ("inbox_stashed_at" as const);
+  const field = patch.inbox_dismissed_at
+    ? ("inbox_dismissed_at" as const)
+    : ("inbox_stashed_at" as const);
   const stamp = patch[field];
   if (!stamp) return 0;
   // The same group a close's aside check reads (lib/closeAside nestedGroupOf).
@@ -492,7 +586,9 @@ async function hideNestedChildren(
   childIds: string[],
   opts?: { forceKill?: boolean; close?: boolean; cause?: string },
 ): Promise<void> {
-  const now = ctx.scheduler ? childIds.slice(0, Math.min(CASCADE_BATCH, hideBudgetLeft(ctx))) : childIds;
+  const now = ctx.scheduler
+    ? childIds.slice(0, Math.min(CASCADE_BATCH, hideBudgetLeft(ctx)))
+    : childIds;
   const txn = hideTxnState(ctx);
   for (const id of now) {
     // A child this transaction already decided (torn down, or named by the
@@ -507,12 +603,23 @@ async function hideNestedChildren(
     if (alreadyHidden && !opts?.forceKill) continue;
     const childPatch = { [field]: alreadyHidden ? child[field] : stamp };
     if (!alreadyHidden) await ctx.db.patch(child._id, childPatch);
-    await applyHideTransition(ctx, child, childPatch, { cascade: false, forceKill: opts?.forceKill, close: opts?.close, cause: `cascade<-${opts?.cause ?? "hide"}` });
+    await applyHideTransition(ctx, child, childPatch, {
+      cascade: false,
+      forceKill: opts?.forceKill,
+      close: opts?.close,
+      cause: `cascade<-${opts?.cause ?? "hide"}`,
+    });
   }
   const rest = childIds.slice(now.length);
   if (rest.length) {
     await ctx.scheduler.runAfter(0, internal.cleanup.continueCascadeHide, {
-      lead_id: leadId, field, stamp, child_ids: rest, force_kill: opts?.forceKill, close: opts?.close, cause: opts?.cause,
+      lead_id: leadId,
+      field,
+      stamp,
+      child_ids: rest,
+      force_kill: opts?.forceKill,
+      close: opts?.close,
+      cause: opts?.cause,
     });
   }
 }
@@ -520,18 +627,28 @@ async function hideNestedChildren(
 export const continueCascadeHide = internalMutation({
   args: {
     lead_id: v.id("conversations"),
-    field: v.union(v.literal("inbox_dismissed_at"), v.literal("inbox_stashed_at")),
+    field: v.union(
+      v.literal("inbox_dismissed_at"),
+      v.literal("inbox_stashed_at"),
+    ),
     stamp: v.number(),
     child_ids: v.array(v.string()),
     force_kill: v.optional(v.boolean()),
     close: v.optional(v.boolean()),
     cause: v.optional(v.string()),
   },
-  handler: async (ctx, { lead_id, field, stamp, child_ids, force_kill, close, cause }) => {
+  handler: async (
+    ctx,
+    { lead_id, field, stamp, child_ids, force_kill, close, cause },
+  ) => {
     const lead = await ctx.db.get(lead_id);
     if (!lead || !(lead as any)[field]) return;
     if (cause) noteWriteCause(ctx, cause);
-    await hideNestedChildren(ctx, lead_id, field, stamp, child_ids, { forceKill: force_kill, close, cause });
+    await hideNestedChildren(ctx, lead_id, field, stamp, child_ids, {
+      forceKill: force_kill,
+      close,
+      cause,
+    });
   },
 });
 
@@ -544,13 +661,18 @@ export const gcEmptyConversations = internalMutation({
   handler: async (ctx, args) => {
     noteWriteCause(ctx, "cron:gcEmptyConversations");
     const now = Date.now();
-    const until = Math.min(args.until ?? now - EMPTY_CONVERSATION_GRACE_MS, now - EMPTY_CONVERSATION_GRACE_MS);
+    const until = Math.min(
+      args.until ?? now - EMPTY_CONVERSATION_GRACE_MS,
+      now - EMPTY_CONVERSATION_GRACE_MS,
+    );
     const since = args.since ?? until - EMPTY_GC_BAND_MS;
     const limit = Math.min(args.scan_limit ?? 600, 1000);
 
     const rows = await ctx.db
       .query("conversations")
-      .withIndex("by_creation_time", (q) => q.gte("_creationTime", since).lt("_creationTime", until))
+      .withIndex("by_creation_time", (q) =>
+        q.gte("_creationTime", since).lt("_creationTime", until),
+      )
       .take(limit);
 
     // Per-user client_state drafts, fetched once per user seen in this batch.
@@ -569,7 +691,9 @@ export const gcEmptyConversations = internalMutation({
       if (hasMsg) continue;
       const hasPending = await ctx.db
         .query("pending_messages")
-        .withIndex("by_conversation_status", (q) => q.eq("conversation_id", c._id))
+        .withIndex("by_conversation_status", (q) =>
+          q.eq("conversation_id", c._id),
+        )
         .first();
       if (hasPending) continue;
 
@@ -584,7 +708,9 @@ export const gcEmptyConversations = internalMutation({
       // kill_session that tears the tmux down (deleting the managed row alone would
       // orphan it). Undismissed live empties (a fresh pre-warm, an open terminal)
       // stay protected.
-      const live = (await heartbeatsFor(ctx, managed)).some((beat) => beat > now - LIVE_HEARTBEAT_MS);
+      const live = (await heartbeatsFor(ctx, managed)).some(
+        (beat) => beat > now - LIVE_HEARTBEAT_MS,
+      );
       if (!shouldReapEmpty(c, live)) continue;
 
       const userKey = c.user_id.toString();
@@ -594,7 +720,10 @@ export const gcEmptyConversations = internalMutation({
           .query("client_state")
           .withIndex("by_user_id", (q) => q.eq("user_id", c.user_id))
           .first();
-        drafts = (cs as any)?.drafts && typeof (cs as any).drafts === "object" ? ((cs as any).drafts as Record<string, unknown>) : null;
+        drafts =
+          (cs as any)?.drafts && typeof (cs as any).drafts === "object"
+            ? ((cs as any).drafts as Record<string, unknown>)
+            : null;
         draftsByUser.set(userKey, drafts);
       }
       if (drafts && hasLiveDraft(drafts[c._id.toString()])) continue;
@@ -603,18 +732,23 @@ export const gcEmptyConversations = internalMutation({
       // (deleting now would orphan its tmux). No live agent → delete the
       // conversation + managed rows + the creation-time git-diff blob now.
       const outcome = await reapEmptyConversation(ctx, c, managed);
-      if (outcome === "deleted") deleted++; else killed++;
+      if (outcome === "deleted") deleted++;
+      else killed++;
     }
 
     if (deleted > 0 || killed > 0) {
-      console.log(`gcEmptyConversations: deleted ${deleted}, killed ${killed} of ${rows.length} scanned (window ${new Date(since).toISOString()} → ${new Date(until).toISOString()})`);
+      console.log(
+        `gcEmptyConversations: deleted ${deleted}, killed ${killed} of ${rows.length} scanned (window ${new Date(since).toISOString()} → ${new Date(until).toISOString()})`,
+      );
     }
     return {
       scanned: rows.length,
       deleted,
       killed,
       exhausted: rows.length < limit,
-      last_creation_time: rows.length ? rows[rows.length - 1]._creationTime : null,
+      last_creation_time: rows.length
+        ? rows[rows.length - 1]._creationTime
+        : null,
     };
   },
 });
@@ -650,7 +784,9 @@ export async function deleteConversationBySessionIdCore(
   if (!conv) return { found: false, deleted: 0, done: true };
   const msgs = await ctx.db
     .query("messages")
-    .withIndex("by_conversation_id", (q: any) => q.eq("conversation_id", conv._id))
+    .withIndex("by_conversation_id", (q: any) =>
+      q.eq("conversation_id", conv._id),
+    )
     .take(500);
   for (const m of msgs) await ctx.db.delete(m._id);
   // Drop the conversation only once its messages are drained, so a caller
@@ -697,7 +833,9 @@ export const deleteCursorConversationsWithMessages = mutation({
     for (const conv of convos) {
       const msgs = await ctx.db
         .query("messages")
-        .withIndex("by_conversation_id", (q) => q.eq("conversation_id", conv._id))
+        .withIndex("by_conversation_id", (q) =>
+          q.eq("conversation_id", conv._id),
+        )
         .take(1000);
 
       for (const msg of msgs) {

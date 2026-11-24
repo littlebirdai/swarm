@@ -13,7 +13,8 @@ const { act } = React;
 const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { ThemeContext } = await import("../../ThemeProvider");
-const { TabParamsCtx, parseTabLocation } = await import("../../../lib/tabParams");
+const { TabParamsCtx, parseTabLocation } =
+  await import("../../../lib/tabParams");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const { leavesOf } = await import("../../../store/stageSplit");
 const { stageNavigateLeaf } = await import("../../../lib/stage");
@@ -36,14 +37,25 @@ const activeTab = () => {
 
 test("the ✕ on a plan opened beside a conversation closes the pane in one press", async () => {
   useInboxStore.setState({
-    sessions: { [SESSION]: { _id: SESSION, title: "Slack bot rebuild", message_count: 4, agent_type: "claude_code" } },
-    plans: { pl1: { _id: "pl1", short_id: "pl-1", title: "Verification suite" } },
+    sessions: {
+      [SESSION]: {
+        _id: SESSION,
+        title: "Slack bot rebuild",
+        message_count: 4,
+        agent_type: "claude_code",
+      },
+    },
+    plans: {
+      pl1: { _id: "pl1", short_id: "pl-1", title: "Verification suite" },
+    },
     tabs: [{ id: "t1", path: `/inbox?s=${SESSION}`, title: "", createdAt: 0 }],
     activeTabId: "t1",
   } as any);
   // Open the plan beside the conversation: a two-pane split.
   useInboxStore.getState().stageInsertLeaf("root", "right", PLAN_PATH);
-  const planLeaf = leavesOf(activeTab().layout!).find((l) => l.path === PLAN_PATH)!;
+  const planLeaf = leavesOf(activeTab().layout!).find(
+    (l) => l.path === PLAN_PATH,
+  )!;
   expect(planLeaf).toBeTruthy();
   useInboxStore.getState().stageFocusLeaf(planLeaf.id);
 
@@ -54,31 +66,40 @@ test("the ✕ on a plan opened beside a conversation closes the pane in one pres
     params: { id: "pl-1" },
     isActive: true,
     isVisible: true,
-    navigate: (p: string, m: "push" | "replace") => stageNavigateLeaf(planLeaf.id, p, m),
+    navigate: (p: string, m: "push" | "replace") =>
+      stageNavigateLeaf(planLeaf.id, p, m),
     leafId: planLeaf.id,
   };
   root = createRoot(host);
-  await act(() => root!.render(
-    <ThemeContext.Provider value={styleValue("classic")}>
-      <MemoryRouter initialEntries={[PLAN_PATH]}>
-        <TabParamsCtx.Provider value={ctx}>
-          <PlanPanelTitleRow
-            plan={{ _id: "pl1", short_id: "pl-1", title: "Verification suite" }}
-            status={{ icon: () => null, color: "", label: "Active" } as any}
-            storeShareToken={null}
-            closeHref="/plans"
-          />
-        </TabParamsCtx.Provider>
-      </MemoryRouter>
-    </ThemeContext.Provider>,
-  ));
+  await act(() =>
+    root!.render(
+      <ThemeContext.Provider value={styleValue("classic")}>
+        <MemoryRouter initialEntries={[PLAN_PATH]}>
+          <TabParamsCtx.Provider value={ctx}>
+            <PlanPanelTitleRow
+              plan={{
+                _id: "pl1",
+                short_id: "pl-1",
+                title: "Verification suite",
+              }}
+              status={{ icon: () => null, color: "", label: "Active" } as any}
+              storeShareToken={null}
+              closeHref="/plans"
+            />
+          </TabParamsCtx.Provider>
+        </MemoryRouter>
+      </ThemeContext.Provider>,
+    ),
+  );
 
   const close = host.querySelector<HTMLElement>("[aria-label='Close']");
   expect(close).toBeTruthy();
   await act(async () => close!.click());
 
   const tab = activeTab();
-  const paths = tab.layout ? leavesOf(tab.layout).map((l) => l.path) : [tab.path];
+  const paths = tab.layout
+    ? leavesOf(tab.layout).map((l) => l.path)
+    : [tab.path];
   // Not swapped to the Plans list...
   expect(paths).not.toContain("/plans");
   // ...but closed: only the conversation remains.
@@ -113,21 +134,28 @@ test("a task opened inside a project pane closes back to the project, not the pa
     params: { id: "pj-1", taskId: "ct-1" },
     isActive: true,
     isVisible: true,
-    navigate: (p: string, m: "push" | "replace") => stageNavigateLeaf(leaf.id, p, m),
+    navigate: (p: string, m: "push" | "replace") =>
+      stageNavigateLeaf(leaf.id, p, m),
     leafId: leaf.id,
   };
   root = createRoot(host);
-  await act(() => root!.render(
-    <MemoryRouter initialEntries={[TASK]}>
-      <TabParamsCtx.Provider value={ctx}>
-        <CloseButton closeHref={PROJECT} />
-      </TabParamsCtx.Provider>
-    </MemoryRouter>,
-  ));
-  await act(async () => host.querySelector<HTMLElement>("[aria-label='Close']")!.click());
+  await act(() =>
+    root!.render(
+      <MemoryRouter initialEntries={[TASK]}>
+        <TabParamsCtx.Provider value={ctx}>
+          <CloseButton closeHref={PROJECT} />
+        </TabParamsCtx.Provider>
+      </MemoryRouter>,
+    ),
+  );
+  await act(async () =>
+    host.querySelector<HTMLElement>("[aria-label='Close']")!.click(),
+  );
 
   const tab = activeTab();
-  const paths = tab.layout ? leavesOf(tab.layout).map((l) => l.path) : [tab.path];
+  const paths = tab.layout
+    ? leavesOf(tab.layout).map((l) => l.path)
+    : [tab.path];
   // The pane stays, back on the project beside the conversation.
   expect(paths).toEqual([`/inbox?s=${SESSION}`, PROJECT]);
 });

@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 import { CornerDownRight, Fingerprint, X } from "lucide-react";
-import { useInboxStore, type SessionDecisionItem } from "../../../store/inboxStore";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../../store/inboxStore";
 import { sessionLabel } from "../../../lib/notificationTypes";
 import type { ThreadCardModel } from "../../../lib/threadCards";
 import { AgentIcon } from "../../ConversationList";
@@ -25,9 +28,17 @@ function decisionOf(card: ThreadCardModel): SessionDecisionItem {
 export function QuestionLabel({ card }: { card: ThreadCardModel }) {
   const d = decisionOf(card);
   const agentType = useInboxStore(
-    (s) => ((s.conversations[d.conversation_id] ?? s.sessions[d.conversation_id]) as { agent_type?: string } | undefined)?.agent_type ?? "claude_code",
+    (s) =>
+      (
+        (s.conversations[d.conversation_id] ??
+          s.sessions[d.conversation_id]) as { agent_type?: string } | undefined
+      )?.agent_type ?? "claude_code",
   );
-  const label = useInboxStore((s) => sessionLabel(s.conversations[d.conversation_id] ?? s.sessions[d.conversation_id]));
+  const label = useInboxStore((s) =>
+    sessionLabel(
+      s.conversations[d.conversation_id] ?? s.sessions[d.conversation_id],
+    ),
+  );
   return (
     <>
       <AgentIcon agentType={agentType} className="w-3 h-3" />
@@ -36,13 +47,29 @@ export function QuestionLabel({ card }: { card: ThreadCardModel }) {
   );
 }
 
-export function QuestionExpanded({ card, focusComposer }: { card: ThreadCardModel; present: boolean; seen: boolean; frozenReadAt: number; focusComposer: boolean }) {
+export function QuestionExpanded({
+  card,
+  focusComposer,
+}: {
+  card: ThreadCardModel;
+  present: boolean;
+  seen: boolean;
+  frozenReadAt: number;
+  focusComposer: boolean;
+}) {
   const d = decisionOf(card);
   const [text, setText] = useState("");
   const held = useHeldOption(d);
   const gate = useApproveGate(d);
   const answer = useCallback(
-    (index: number) => gate.answer(index, (presence) => void useInboxStore.getState().answerDecision(d._id, { index, presence })),
+    (index: number) =>
+      gate.answer(
+        index,
+        (presence) =>
+          void useInboxStore
+            .getState()
+            .answerDecision(d._id, { index, presence }),
+      ),
     [d._id, gate],
   );
   const answerText = useCallback(() => {
@@ -62,17 +89,43 @@ export function QuestionExpanded({ card, focusComposer }: { card: ThreadCardMode
           <MarkdownRenderer content={d.context_md} />
         </div>
       )}
-      {d.report_slug && <PublishedPageEmbed slug={d.report_slug} decision={d._id} />}
-      <div className="th-question-options" role="group" aria-label="Answer options">
+      {d.report_slug && (
+        <PublishedPageEmbed slug={d.report_slug} decision={d._id} />
+      )}
+      <div
+        className="th-question-options"
+        role="group"
+        aria-label="Answer options"
+      >
         {d.options.map((o, i) => (
-          <button key={i} type="button" className="th-question-option" onClick={() => answer(i)} disabled={!!held(i)} title={held(i) ?? (gate.gated(i) ? "Confirm with Touch ID" : undefined)}>
+          <button
+            key={i}
+            type="button"
+            className="th-question-option"
+            onClick={() => answer(i)}
+            disabled={!!held(i)}
+            title={
+              held(i) ?? (gate.gated(i) ? "Confirm with Touch ID" : undefined)
+            }
+          >
             <span className="th-question-option-label">
               {o.label}
-              {d.default_option === i && <span className="th-question-default"> · default</span>}
-              {held(i) && <span className="th-question-default"> · {held(i)}</span>}
-              {gate.gated(i) && !held(i) && <Fingerprint aria-label="Asks for Touch ID" className="th-question-default inline w-3 h-3 ml-1 align-[-2px]" />}
+              {d.default_option === i && (
+                <span className="th-question-default"> · default</span>
+              )}
+              {held(i) && (
+                <span className="th-question-default"> · {held(i)}</span>
+              )}
+              {gate.gated(i) && !held(i) && (
+                <Fingerprint
+                  aria-label="Asks for Touch ID"
+                  className="th-question-default inline w-3 h-3 ml-1 align-[-2px]"
+                />
+              )}
             </span>
-            {o.description && <span className="th-question-option-desc">{o.description}</span>}
+            {o.description && (
+              <span className="th-question-option-desc">{o.description}</span>
+            )}
           </button>
         ))}
       </div>
@@ -83,11 +136,21 @@ export function QuestionExpanded({ card, focusComposer }: { card: ThreadCardMode
           placeholder="Answer in your own words…"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") answerText(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") answerText();
+          }}
           // The `r` key's focus request; the mount itself never grabs focus.
-          ref={(el) => { if (el && focusComposer) el.focus(); }}
+          ref={(el) => {
+            if (el && focusComposer) el.focus();
+          }}
         />
-        <button type="button" className="th-question-send" onClick={answerText} disabled={!text.trim()} title="Send answer">
+        <button
+          type="button"
+          className="th-question-send"
+          onClick={answerText}
+          disabled={!text.trim()}
+          title="Send answer"
+        >
           <CornerDownRight className="w-3.5 h-3.5" />
         </button>
         <button type="button" className="th-question-dismiss" onClick={dismiss}>

@@ -1,20 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-import { useMutation } from 'convex/react';
-import { api } from '@codecast/convex/convex/_generated/api';
-import { useRouter } from 'expo-router';
-import { chatPushIsOnScreen } from '@/lib/chatFocus';
-import { useNotificationCatchUp } from '@/hooks/useNotificationCatchUp';
-import { acceptInvite, declineInvite, joinCall } from '@/lib/calls/callManager';
-import { useAuth } from '@/lib/auth';
-import { catchUpConversation } from '@/lib/foregroundResume';
-import { openAppRoute } from '@/lib/links';
-import { mobileNotificationRoute } from '@/lib/linkRoutes';
-import { goToTab } from '@/lib/tabNavigation';
-import { setDevicePushToken } from '@/lib/devicePushToken';
+import { useState, useEffect, useRef } from "react";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+import { useMutation } from "convex/react";
+import { api } from "@codecast/convex/convex/_generated/api";
+import { useRouter } from "expo-router";
+import { chatPushIsOnScreen } from "@/lib/chatFocus";
+import { useNotificationCatchUp } from "@/hooks/useNotificationCatchUp";
+import { acceptInvite, declineInvite, joinCall } from "@/lib/calls/callManager";
+import { useAuth } from "@/lib/auth";
+import { catchUpConversation } from "@/lib/foregroundResume";
+import { openAppRoute } from "@/lib/links";
+import { mobileNotificationRoute } from "@/lib/linkRoutes";
+import { goToTab } from "@/lib/tabNavigation";
+import { setDevicePushToken } from "@/lib/devicePushToken";
 import {
   CALL_PUSH_ACTION_DECLINE,
   CALL_PUSH_ACTION_JOIN,
@@ -24,14 +24,18 @@ import {
   CALL_PUSH_TYPE_RING,
   parseCallRingPush,
   parseRecordingSummaryPush,
-} from '@codecast/shared/contracts';
+} from "@codecast/shared/contracts";
 
 // Dev-only, for simulator e2e harnesses driven over the Hermes inspector: this
 // device's Expo push token, without registering it anywhere (simulators never
 // register one). Never bundled in release.
 if (__DEV__) {
   (globalThis as any).__devExpoPushToken = async () =>
-    (await Notifications.getExpoPushTokenAsync({ projectId: Constants.expoConfig?.extra?.eas?.projectId })).data;
+    (
+      await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      })
+    ).data;
 }
 
 Notifications.setNotificationHandler({
@@ -77,7 +81,8 @@ if (__DEV__) {
 
 export function usePushNotifications() {
   const [pushToken, setPushToken] = useState<string | null>(null);
-  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+  const [notification, setNotification] =
+    useState<Notifications.Notification | null>(null);
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
   const storePushToken = useMutation(api.users.storePushToken);
@@ -97,7 +102,9 @@ export function usePushNotifications() {
   const authedRef = useRef(isAuthenticated);
   authedRef.current = isAuthenticated;
   const pendingHuddle = useRef<Notifications.NotificationResponse | null>(null);
-  const handleRef = useRef<(r: Notifications.NotificationResponse) => void>(() => {});
+  const handleRef = useRef<(r: Notifications.NotificationResponse) => void>(
+    () => {},
+  );
   useEffect(() => {
     if (isAuthenticated && pendingHuddle.current) {
       const r = pendingHuddle.current;
@@ -114,7 +121,7 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!isAuthenticated || !pushToken) return;
     storePushToken({ push_token: pushToken }).catch((error) => {
-      console.error('Failed to store push token:', error);
+      console.error("Failed to store push token:", error);
     });
   }, [isAuthenticated, pushToken]);
 
@@ -125,9 +132,11 @@ export function usePushNotifications() {
         setDevicePushToken(token);
         setPushToken(token);
       })
-      .catch((error) => console.error('Failed to get push token:', error));
+      .catch((error) => console.error("Failed to get push token:", error));
 
-    const handleNotificationResponse = (response: Notifications.NotificationResponse) => {
+    const handleNotificationResponse = (
+      response: Notifications.NotificationResponse,
+    ) => {
       const data = response.notification.request.content.data;
       // A tap is proof of delivery even when the app never saw the arrival —
       // the cold-start path is exactly the case the replay must not repeat.
@@ -145,7 +154,7 @@ export function usePushNotifications() {
           void declineInvite(ringPush.invite_id);
         } else {
           void acceptInvite(ringPush.invite_id, ringPush.room_key);
-          router.push('/call');
+          router.push("/call");
         }
         return;
       }
@@ -155,29 +164,32 @@ export function usePushNotifications() {
         // app when the work finished: the recording was stopped minutes ago
         // and the words arrived since. Open it.
         router.push({
-          pathname: '/recording/[id]',
+          pathname: "/recording/[id]",
           params: { id: recordingPush.recordingId },
         } as never);
         return;
       }
-      if (data.type === CALL_GUEST_WAITING_PUSH_TYPE && typeof data.room_key === 'string') {
+      if (
+        data.type === CALL_GUEST_WAITING_PUSH_TYPE &&
+        typeof data.room_key === "string"
+      ) {
         // Somebody on a guest link is at the door of a room nobody is in:
         // the push exists so its creator walks in and lets them in. Joining
         // is the answer (the door is in the call screen).
         void joinCall(data.room_key);
-        router.push('/call');
+        router.push("/call");
         return;
       }
       if (data.type === CALL_PUSH_TYPE_MISSED) {
         // Ring back from the missed-call notification: land on the Chat tab
         // where the huddle affordances live.
-        goToTab(router, '/(tabs)/chat');
+        goToTab(router, "/(tabs)/chat");
         return;
       }
-      if (data.type === 'aggregate') {
+      if (data.type === "aggregate") {
         // A batched push ("12 notifications") has no single place to open —
         // land on the list that itemizes them.
-        goToTab(router, '/(tabs)/notifications');
+        goToTab(router, "/(tabs)/notifications");
         return;
       }
       if (data.conversationId) {
@@ -188,20 +200,27 @@ export function usePushNotifications() {
         // A thread reply's words live in the thread, so that is where the tap lands.
         const m = data.messageId ? { m: String(data.messageId) } : {};
         router.push({
-          pathname: '/chat/thread/[id]',
-          params: { id: String(data.threadRootId), channel: String(data.channelId), ...m },
+          pathname: "/chat/thread/[id]",
+          params: {
+            id: String(data.threadRootId),
+            channel: String(data.channelId),
+            ...m,
+          },
         } as never);
         return;
       }
       // Every other push opens the same screen its row in the bell list does.
-      const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
-      openAppRoute(router, mobileNotificationRoute({
-        link: str(data.link) ?? str(data.url),
-        entity_type: str(data.entity_type),
-        entity_id: str(data.entity_id),
-        chat_message_id: str(data.messageId),
-        conversation_id: str(data.conversationId),
-      }));
+      const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+      openAppRoute(
+        router,
+        mobileNotificationRoute({
+          link: str(data.link) ?? str(data.url),
+          entity_type: str(data.entity_type),
+          entity_id: str(data.entity_id),
+          chat_message_id: str(data.messageId),
+          conversation_id: str(data.conversationId),
+        }),
+      );
     };
 
     handleRef.current = handleNotificationResponse;
@@ -217,12 +236,16 @@ export function usePushNotifications() {
       })
       .catch(() => {});
 
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-      setNotification(notification);
-      recordRef.current(notification.request.content.data);
-    });
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        setNotification(notification);
+        recordRef.current(notification.request.content.data);
+      });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener(
+        handleNotificationResponse,
+      );
 
     return () => {
       // Subscription.remove() is the whole API now; the old module-level
@@ -247,32 +270,32 @@ async function registerForPushNotificationsAsync() {
   await Notifications.setNotificationCategoryAsync(CALL_PUSH_CATEGORY, [
     {
       identifier: CALL_PUSH_ACTION_JOIN,
-      buttonTitle: 'Join',
+      buttonTitle: "Join",
       options: { opensAppToForeground: true },
     },
     {
       identifier: CALL_PUSH_ACTION_DECLINE,
-      buttonTitle: 'Decline',
+      buttonTitle: "Decline",
       options: { opensAppToForeground: false },
     },
   ]).catch(() => {});
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("default", {
+      name: "default",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
+      lightColor: "#FF231F7C",
     });
     // Chat rides its own channel: the server tags chat pushes with
     // channelId "chat", so people can tune (or silence) chat separately from
     // session alerts in Android's own settings — and a custom sound can bind
     // here once a native build ships the asset.
-    await Notifications.setNotificationChannelAsync('chat', {
-      name: 'Team chat',
+    await Notifications.setNotificationChannelAsync("chat", {
+      name: "Team chat",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 180, 120, 180],
-      lightColor: '#2aa19899',
+      lightColor: "#2aa19899",
     });
   }
 
@@ -281,20 +304,22 @@ async function registerForPushNotificationsAsync() {
   // real hardware.
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
+  if (existingStatus !== "granted") {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
-  if (finalStatus !== 'granted') {
-    console.log('Failed to get push token for push notification!');
+  if (finalStatus !== "granted") {
+    console.log("Failed to get push token for push notification!");
     return;
   }
   if (Device.isDevice) {
-    token = (await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
-    })).data;
+    token = (
+      await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      })
+    ).data;
   } else {
-    console.log('Must use physical device for Push Notifications');
+    console.log("Must use physical device for Push Notifications");
   }
 
   return token;

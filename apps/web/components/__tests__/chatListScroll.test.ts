@@ -3,9 +3,18 @@ import { readFileSync } from "node:fs";
 import { shouldHoldChatLanding } from "../chat/chatLanding";
 
 const css = readFileSync(new URL("../chat/chat.css", import.meta.url), "utf8");
-const list = readFileSync(new URL("../chat/ChatMessageList.tsx", import.meta.url), "utf8");
-const page = readFileSync(new URL("../../app/chat/page.tsx", import.meta.url), "utf8");
-const hook = readFileSync(new URL("../../hooks/useBottomAnchoredList.ts", import.meta.url), "utf8");
+const list = readFileSync(
+  new URL("../chat/ChatMessageList.tsx", import.meta.url),
+  "utf8",
+);
+const page = readFileSync(
+  new URL("../../app/chat/page.tsx", import.meta.url),
+  "utf8",
+);
+const hook = readFileSync(
+  new URL("../../hooks/useBottomAnchoredList.ts", import.meta.url),
+  "utf8",
+);
 
 function rule(selector: string): Record<string, string> {
   const at = css.indexOf(`\n${selector} {`);
@@ -16,7 +25,12 @@ function rule(selector: string): Record<string, string> {
       const colon = declaration.indexOf(":");
       return colon < 0
         ? []
-        : [[declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim()]];
+        : [
+            [
+              declaration.slice(0, colon).trim(),
+              declaration.slice(colon + 1).trim(),
+            ],
+          ];
     }),
   );
 }
@@ -63,8 +77,12 @@ describe("chat list scrolling", () => {
 
   test("a tail target does not center-scroll", () => {
     expect(list).toMatch(/if \(holdTarget\) \{/);
-    expect(list).toMatch(/scrollToIndex\(targetIndexRef\.current, \{ align: "center" \}\)/);
-    expect(list).toMatch(/useLayoutEffect\(\(\) => \{\n {4}if \(!targetMessageId/);
+    expect(list).toMatch(
+      /scrollToIndex\(targetIndexRef\.current, \{ align: "center" \}\)/,
+    );
+    expect(list).toMatch(
+      /useLayoutEffect\(\(\) => \{\n {4}if \(!targetMessageId/,
+    );
   });
 
   test("the list wraps the sizer in the fill", () => {
@@ -73,7 +91,9 @@ describe("chat list scrolling", () => {
   });
 
   test("team chat wraps the shell in a box with a real height", () => {
-    expect(page).toMatch(/standalone \? "ch-community-page" : "h-full min-h-0"/);
+    expect(page).toMatch(
+      /standalone \? "ch-community-page" : "h-full min-h-0"/,
+    );
     expect(page).not.toMatch(/standalone \? "ch-community-page" : undefined/);
   });
 });

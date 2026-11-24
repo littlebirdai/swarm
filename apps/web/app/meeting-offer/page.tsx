@@ -92,9 +92,14 @@ function MeetingOfferRoot() {
     // Browser dev hook: the real trigger needs the desktop shell, so this is
     // the only way to see the faces at /meeting-offer in a browser:
     // __meetingOffer("Zoom") / __meetingOffer("Zoom", "auto").
-    if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-      (window as any).__meetingOffer = (name = "Zoom", decision: "ask" | "auto" = "ask") =>
-        handle({ app: name.toLowerCase(), name, decision, at: Date.now() });
+    if (
+      process.env.NODE_ENV !== "production" &&
+      typeof window !== "undefined"
+    ) {
+      (window as any).__meetingOffer = (
+        name = "Zoom",
+        decision: "ask" | "auto" = "ask",
+      ) => handle({ app: name.toLowerCase(), name, decision, at: Date.now() });
     }
   }, []);
 
@@ -119,7 +124,10 @@ function MeetingOfferRoot() {
     const report = () => {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0)
-        meetingOfferSize({ width: Math.ceil(r.width), height: Math.ceil(r.height) });
+        meetingOfferSize({
+          width: Math.ceil(r.width),
+          height: Math.ceil(r.height),
+        });
     };
     report();
     const ro = new ResizeObserver(report);
@@ -131,7 +139,11 @@ function MeetingOfferRoot() {
   return (
     <div ref={bodyRef} className="w-max">
       {recording ? (
-        <RecordingFace name={offer?.name} expanded={expanded} onToggle={() => setExpanded((e) => !e)} />
+        <RecordingFace
+          name={offer?.name}
+          expanded={expanded}
+          onToggle={() => setExpanded((e) => !e)}
+        />
       ) : (
         offer && (
           <MeetingOfferFace
@@ -170,7 +182,12 @@ function RecordingFace({
 
   const header = (
     <>
-      <button type="button" className="rec-win-expand" title={expanded ? "Shrink" : "Details"} onClick={onToggle}>
+      <button
+        type="button"
+        className="rec-win-expand"
+        title={expanded ? "Shrink" : "Details"}
+        onClick={onToggle}
+      >
         <span className="rec-pill-dot" aria-hidden="true" />
         <span className="rec-win-clock">
           {formatCallTime(status.startedAt ? now - status.startedAt : 0)}

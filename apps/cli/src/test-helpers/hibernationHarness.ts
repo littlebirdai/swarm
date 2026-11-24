@@ -1,24 +1,59 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ACTIVE_AGENT_STATUSES, DECLARED_VERDICT_STATUSES, MID_TURN_AGENT_STATUSES, SETTLE_VERDICT_STATUSES } from "@codecast/shared/contracts";
+import {
+  ACTIVE_AGENT_STATUSES,
+  DECLARED_VERDICT_STATUSES,
+  MID_TURN_AGENT_STATUSES,
+  SETTLE_VERDICT_STATUSES,
+} from "@codecast/shared/contracts";
 import * as policy from "../hibernation.js";
 import { functionBlock } from "./sourceRegion.js";
 import { withTmuxSession } from "../tmuxRoute.js";
 import { releasePromptHold } from "../pendingPromptHold.js";
 
 const names = [
-  "collectHibernationCandidates", "hibernationRefusalReason", "hibernateSessionNow", "runHibernationPass",
-  "attemptHibernation", "previewHibernation", "refuseTarget", "takeTargetRefusal", "hibernationLocalUnchanged",
-  "trackSessionPaneForTests", "sessionParkStateForTests", "setSyncServiceForTests",
-  "wakeStatusAfterPark", "clearHibernationPark", "forgetHibernationPark", "clearSessionTrackingForKill",
-  "subagentParentSessionFromPath", "noteSubagentActivity", "subagentActiveAgoMs", "resetSubagentActivityForTests",
-  "sendAgentStatus", "markTurnStarted", "statusFlipStartsTurn", "statusFlipEndsTurn", "reapOneTerminal", "withTmuxLock", "injectViaTmux",
+  "collectHibernationCandidates",
+  "hibernationRefusalReason",
+  "hibernateSessionNow",
+  "runHibernationPass",
+  "attemptHibernation",
+  "previewHibernation",
+  "refuseTarget",
+  "takeTargetRefusal",
+  "hibernationLocalUnchanged",
+  "trackSessionPaneForTests",
+  "sessionParkStateForTests",
+  "setSyncServiceForTests",
+  "wakeStatusAfterPark",
+  "clearHibernationPark",
+  "forgetHibernationPark",
+  "clearSessionTrackingForKill",
+  "subagentParentSessionFromPath",
+  "noteSubagentActivity",
+  "subagentActiveAgoMs",
+  "resetSubagentActivityForTests",
+  "sendAgentStatus",
+  "markTurnStarted",
+  "statusFlipStartsTurn",
+  "statusFlipEndsTurn",
+  "reapOneTerminal",
+  "withTmuxLock",
+  "injectViaTmux",
   "knownAgentStatus",
 ] as const;
 
-type PublicNames = Extract<typeof names[number], keyof typeof import("../daemon.js")>;
+type PublicNames = Extract<
+  (typeof names)[number],
+  keyof typeof import("../daemon.js")
+>;
 type HarnessApi = Pick<typeof import("../daemon.js"), PublicNames> & {
-  reapOneTerminal(sessionId: string, tmux: string, convId: string | undefined, idleHours: number, opts?: { parkAs?: "idle" | "hibernated" }): Promise<boolean>;
+  reapOneTerminal(
+    sessionId: string,
+    tmux: string,
+    convId: string | undefined,
+    idleHours: number,
+    opts?: { parkAs?: "idle" | "hibernated" },
+  ): Promise<boolean>;
   sendAgentStatus(...args: unknown[]): void;
   state: {
     resumeInFlight: Map<string, Promise<boolean>>;
@@ -32,13 +67,24 @@ type HarnessApi = Pick<typeof import("../daemon.js"), PublicNames> & {
 export function createHibernationHarness() {
   const source = readFileSync(new URL("../daemon.ts", import.meta.url), "utf8");
   const effects: Array<{ kind: string; args: unknown[] }> = [];
-  const record = (kind: string) => (...args: unknown[]) => { effects.push({ kind, args }); };
-  const forbidden = (kind: string) => (...args: unknown[]): never => {
-    record(kind)(...args);
-    throw new Error(`Unexpected IO: ${kind}`);
-  };
+  const record =
+    (kind: string) =>
+    (...args: unknown[]) => {
+      effects.push({ kind, args });
+    };
+  const forbidden =
+    (kind: string) =>
+    (...args: unknown[]): never => {
+      record(kind)(...args);
+      throw new Error(`Unexpected IO: ${kind}`);
+    };
   const deps = {
-    ...policy, path, ACTIVE_AGENT_STATUSES, DECLARED_VERDICT_STATUSES, MID_TURN_AGENT_STATUSES, SETTLE_VERDICT_STATUSES,
+    ...policy,
+    path,
+    ACTIVE_AGENT_STATUSES,
+    DECLARED_VERDICT_STATUSES,
+    MID_TURN_AGENT_STATUSES,
+    SETTLE_VERDICT_STATUSES,
     // The real hold registry: a settle releases the hold a test placed, and is a no-op otherwise.
     releasePromptHold,
     isSupersededAppServerSession: () => false,
@@ -46,32 +92,77 @@ export function createHibernationHarness() {
     serializeSessionStatus: (_id: string, fn: () => Promise<unknown>) => fn(),
     hasTmux: () => true,
     withTmuxSession,
-    log: record("log"), reaperLog: record("log"),
+    log: record("log"),
+    reaperLog: record("log"),
     stopCodexPermissionPoller: record("poller-stop"),
     ensureHeartbeatFlushLoop: forbidden("heartbeat-start"),
-    tmuxExec: forbidden("terminal"), killTmuxSessionAndTree: forbidden("kill"),
-    tmuxPaneCwd: forbidden("cwd"), releaseSessionWorktree: forbidden("gc"),
-    classifyLivePaneFor: forbidden("classify"), detectSessionAgentType: forbidden("agent-type"),
-    injectViaTmuxInner: async (...args: unknown[]) => { record("inject")(...args); },
+    tmuxExec: forbidden("terminal"),
+    killTmuxSessionAndTree: forbidden("kill"),
+    tmuxPaneCwd: forbidden("cwd"),
+    releaseSessionWorktree: forbidden("gc"),
+    classifyLivePaneFor: forbidden("classify"),
+    detectSessionAgentType: forbidden("agent-type"),
+    injectViaTmuxInner: async (...args: unknown[]) => {
+      record("inject")(...args);
+    },
     readConversationCache: () => ({}),
     // No hook status files in this world: the status is what the daemon last sent.
     agentStatusOnDisk: () => undefined,
-    productionHibernationIo: Object.fromEntries([
-      "policy", "tmuxSessions", "awakeIdleMs", "subagentActiveAgoMs", "conversationIds",
-      "askSidecarMtimeMs", "transcriptLastRealMs", "lifecycle", "canReapPidTree", "deliveryActive", "park", "now",
-    ].map((key) => [key, forbidden(`production-${key}`)])),
+    productionHibernationIo: Object.fromEntries(
+      [
+        "policy",
+        "tmuxSessions",
+        "awakeIdleMs",
+        "subagentActiveAgoMs",
+        "conversationIds",
+        "askSidecarMtimeMs",
+        "transcriptLastRealMs",
+        "lifecycle",
+        "canReapPidTree",
+        "deliveryActive",
+        "park",
+        "now",
+      ].map((key) => [key, forbidden(`production-${key}`)]),
+    ),
     summarizeReapSkips: (skips: string[]) => skips.join(","),
   };
   const maps = [
-    "resumeSessionCache", "lastSentAgentStatus", "lastResumeAt", "lastHeartbeatLogged", "subagentActivityByParent",
-    "sessionProcessCache", "resumeInFlight", "resumeInFlightStarted", "lastWorkingStatusSent", "turnStartedAt",
-    "lastAgentStatusSentAt", "turnCompletedAtBySession",
-    "pendingOpenTaskReports", "lastOpenTasksSentJson", "tmuxTargetLocks",
-    "hibernationInFlight", "hibernationEvidenceJobs", "hibernationRefusedAt", "expectedHibernationExits", "pendingHibernationStamps", "hibernationStampCleared", "lastTargetRefusal",
-  ].map((name) => `const ${name} = new Map();`).join("\n");
-  const sets = ["managedHeartbeatSessions", "hibernatedSessions", "restartingSessionIds", "abandonedEvidenceJobs"]
-    .map((name) => `const ${name} = new Set();`).join("\n");
-  const body = names.map((name) => functionBlock(source, name).text.replace(/^export /, "")).join("\n");
+    "resumeSessionCache",
+    "lastSentAgentStatus",
+    "lastResumeAt",
+    "lastHeartbeatLogged",
+    "subagentActivityByParent",
+    "sessionProcessCache",
+    "resumeInFlight",
+    "resumeInFlightStarted",
+    "lastWorkingStatusSent",
+    "turnStartedAt",
+    "lastAgentStatusSentAt",
+    "turnCompletedAtBySession",
+    "pendingOpenTaskReports",
+    "lastOpenTasksSentJson",
+    "tmuxTargetLocks",
+    "hibernationInFlight",
+    "hibernationEvidenceJobs",
+    "hibernationRefusedAt",
+    "expectedHibernationExits",
+    "pendingHibernationStamps",
+    "hibernationStampCleared",
+    "lastTargetRefusal",
+  ]
+    .map((name) => `const ${name} = new Map();`)
+    .join("\n");
+  const sets = [
+    "managedHeartbeatSessions",
+    "hibernatedSessions",
+    "restartingSessionIds",
+    "abandonedEvidenceJobs",
+  ]
+    .map((name) => `const ${name} = new Set();`)
+    .join("\n");
+  const body = names
+    .map((name) => functionBlock(source, name).text.replace(/^export /, ""))
+    .join("\n");
   const code = new Bun.Transpiler({ loader: "ts" }).transformSync(`
     ${maps}
     ${sets}
@@ -86,6 +177,8 @@ export function createHibernationHarness() {
     ${body}
     return { ${names.join(",")}, state: { resumeInFlight, resumeSessionCache, lastSentAgentStatus, managedHeartbeatSessions, tmuxTargetLocks } };
   `);
-  const api = new Function(...Object.keys(deps), code)(...Object.values(deps)) as HarnessApi;
+  const api = new Function(...Object.keys(deps), code)(
+    ...Object.values(deps),
+  ) as HarnessApi;
   return { ...api, effects };
 }

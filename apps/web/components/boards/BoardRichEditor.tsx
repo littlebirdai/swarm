@@ -6,11 +6,24 @@
 // being typed, and each keystroke costs one serialize and one preview write.
 import { useLayoutEffect, useRef } from "react";
 import { editorToMarks, marksToHtml } from "./boardMarks";
-import { applyFormat, formatForKey, LINK_REQUEST, type FormatCommand } from "./boardEditCommands";
+import {
+  applyFormat,
+  formatForKey,
+  LINK_REQUEST,
+  type FormatCommand,
+} from "./boardEditCommands";
 import { claimKeys } from "../../shortcuts/keyOwnership";
 import { useMountEffect } from "../../hooks/useMountEffect";
 
-export function RichEditor({ value, className, style, onInput, onDone, onNext, "data-list": list }: {
+export function RichEditor({
+  value,
+  className,
+  style,
+  onInput,
+  onDone,
+  onNext,
+  "data-list": list,
+}: {
   value: string;
   className: string;
   /** The text holds a list: it reads left-aligned. */
@@ -42,7 +55,13 @@ export function RichEditor({ value, className, style, onInput, onDone, onNext, "
     // "- " or "* " typed at the start of a line becomes a bullet, as in any list editor.
     const sel = document.getSelection();
     const node = sel?.anchorNode;
-    if (node && node.nodeType === 3 && /^[-*][ \u00a0]$/.test((node.textContent ?? "").slice(0, 2)) && sel!.anchorOffset === 2 && isLineStart(ed, node)) {
+    if (
+      node &&
+      node.nodeType === 3 &&
+      /^[-*][ \u00a0]$/.test((node.textContent ?? "").slice(0, 2)) &&
+      sel!.anchorOffset === 2 &&
+      isLineStart(ed, node)
+    ) {
       node.textContent = `• ${(node.textContent ?? "").slice(2)}`;
       const r = document.createRange();
       r.setStart(node, 2);
@@ -61,14 +80,16 @@ export function RichEditor({ value, className, style, onInput, onDone, onNext, "
   };
   // The format keys belong to the text while it is being edited: claimed in the app's first key
   // listener, so Cmd+K links instead of opening the command palette, and Cmd+B never reaches a shortcut.
-  useMountEffect(() => claimKeys((e) => {
-    if (document.activeElement !== ref.current) return false;
-    const f = formatForKey(e);
-    if (!f) return false;
-    e.preventDefault();
-    format(f);
-    return true;
-  }));
+  useMountEffect(() =>
+    claimKeys((e) => {
+      if (document.activeElement !== ref.current) return false;
+      const f = formatForKey(e);
+      if (!f) return false;
+      e.preventDefault();
+      format(f);
+      return true;
+    }),
+  );
   return (
     <div
       ref={ref}
@@ -82,10 +103,24 @@ export function RichEditor({ value, className, style, onInput, onDone, onNext, "
       style={style}
       onInput={emit}
       // The format bar's link field takes focus for a moment; that is not the end of editing.
-      onBlur={(e) => { if (!(e.relatedTarget as HTMLElement | null)?.closest?.("[data-board-editbar]")) onDone(); }}
+      onBlur={(e) => {
+        if (
+          !(e.relatedTarget as HTMLElement | null)?.closest?.(
+            "[data-board-editbar]",
+          )
+        )
+          onDone();
+      }}
       onPointerDown={(e) => e.stopPropagation()}
       // Pasting brings words, not another page's styling.
-      onPaste={(e) => { e.preventDefault(); document.execCommand("insertText", false, e.clipboardData.getData("text/plain")); }}
+      onPaste={(e) => {
+        e.preventDefault();
+        document.execCommand(
+          "insertText",
+          false,
+          e.clipboardData.getData("text/plain"),
+        );
+      }}
       onKeyDown={(e) => {
         e.stopPropagation();
         const f = formatForKey(e);
@@ -104,13 +139,19 @@ export function RichEditor({ value, className, style, onInput, onDone, onNext, "
           const line = lineText();
           if (line.startsWith("• ")) {
             e.preventDefault();
-            if (line.trim() === "•") { applyFormat("list"); return; }
+            if (line.trim() === "•") {
+              applyFormat("list");
+              return;
+            }
             document.execCommand("insertParagraph");
             document.execCommand("insertText", false, "• ");
             return;
           }
         }
-        if (e.key === "Escape" || (e.key === "Enter" && (e.metaKey || e.ctrlKey))) {
+        if (
+          e.key === "Escape" ||
+          (e.key === "Enter" && (e.metaKey || e.ctrlKey))
+        ) {
           e.preventDefault();
           onDone();
         }
@@ -129,7 +170,10 @@ export function RichEditor({ value, className, style, onInput, onDone, onNext, "
 /** Whether a text node starts its line in the editor (first text of a top-level line). */
 function isLineStart(editor: HTMLElement, node: Node): boolean {
   // A line starts after a line break, or at the start of a block (or of the editor).
-  const breaks = (n: Node | null) => !!n && n.nodeType === 1 && ["DIV", "P", "BR"].includes((n as Element).tagName);
+  const breaks = (n: Node | null) =>
+    !!n &&
+    n.nodeType === 1 &&
+    ["DIV", "P", "BR"].includes((n as Element).tagName);
   let n: Node = node;
   for (;;) {
     const prev = n.previousSibling;

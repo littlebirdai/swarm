@@ -37,7 +37,7 @@ export const ENTITY_TYPE = v.union(
   // A metric watch, by its short id (metricAlerts.ts). Direct recipients only.
   v.literal("metric_watch"),
   // A deploy, by its short id (deploys.noticeDroppedWork). Direct recipients only.
-  v.literal("deploy")
+  v.literal("deploy"),
 );
 
 export const NOTIFICATION_TYPE = v.union(
@@ -113,5 +113,5 @@ export const NOTIFICATION_TYPE = v.union(
   // it, or recovered (metricAlerts.ts).
   v.literal("metric_alert"),
   // A role's standing session moved off a quiet host, or could not (roleFailover.ts).
-  v.literal("role_moved")
+  v.literal("role_moved"),
 );

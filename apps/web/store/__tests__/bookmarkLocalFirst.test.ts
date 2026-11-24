@@ -11,10 +11,16 @@ const CONV = "conv_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const MSG = "msg_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 function serverRow(messageId: string) {
-  return { _id: `bk_${messageId}`, conversation_id: CONV, message_id: messageId, created_at: 100 };
+  return {
+    _id: `bk_${messageId}`,
+    conversation_id: CONV,
+    message_id: messageId,
+    created_at: 100,
+  };
 }
 
-const lock = () => (useInboxStore.getState().pending as any)[`bookmarks:${MSG}`];
+const lock = () =>
+  (useInboxStore.getState().pending as any)[`bookmarks:${MSG}`];
 
 describe("bookmark local-first toggle", () => {
   const owner = {};
@@ -22,10 +28,13 @@ describe("bookmark local-first toggle", () => {
   beforeEach(() => {
     refuse = false;
     useInboxStore.setState({ bookmarks: [], pending: {} });
-    useInboxStore.getState()._setDispatch(async () => {
-      if (refuse) throw new Error("Uncaught Error: no");
-      return null;
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async () => {
+        if (refuse) throw new Error("Uncaught Error: no");
+        return null;
+      },
+      { owner },
+    );
   });
   afterEach(() => useInboxStore.getState()._clearDispatch(owner));
 
@@ -84,7 +93,8 @@ describe("bookmark local-first toggle", () => {
     refuse = true;
     useInboxStore.getState().toggleBookmark(CONV, MSG);
     expect(useInboxStore.getState().bookmarks).toHaveLength(1);
-    for (let i = 0; i < 100 && lock(); i++) await new Promise((r) => setTimeout(r, 10));
+    for (let i = 0; i < 100 && lock(); i++)
+      await new Promise((r) => setTimeout(r, 10));
     expect(lock()).toBeUndefined();
     expect(useInboxStore.getState().bookmarks).toHaveLength(0);
   });
@@ -92,6 +102,8 @@ describe("bookmark local-first toggle", () => {
   it("leaves an untouched server list alone when there are no pending toggles", () => {
     const list = [serverRow(MSG)];
     useInboxStore.getState().syncTable("bookmarks", list);
-    expect(useInboxStore.getState().bookmarks.map((b: any) => b.message_id)).toEqual([MSG]);
+    expect(
+      useInboxStore.getState().bookmarks.map((b: any) => b.message_id),
+    ).toEqual([MSG]);
   });
 });

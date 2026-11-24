@@ -16,7 +16,11 @@ import { resolveCallRef } from "./transcripts";
 import { requireTeamAdmin } from "./lib/access";
 import { verifyApiToken } from "./apiTokens";
 
-const appClient = v.union(v.literal("web"), v.literal("desktop"), v.literal("mobile"));
+const appClient = v.union(
+  v.literal("web"),
+  v.literal("desktop"),
+  v.literal("mobile"),
+);
 
 /**
  * A person opened a conversation, or saved a file from one, in an app. Called
@@ -35,9 +39,18 @@ export const noteConversationAccess = mutation({
     const userId = await getAuthUserId(ctx);
     const conv = await ctx.db.get(args.conversation_id);
     if (!conv) return false;
-    if ((await checkConversationAccess(ctx, userId, conv, args.share_token)) === "denied") return false;
+    if (
+      (await checkConversationAccess(ctx, userId, conv, args.share_token)) ===
+      "denied"
+    )
+      return false;
     const actor = userId ? { userId } : { label: "Share link holder" };
-    return recordRowAccess(ctx, "conversations", conv, { actor, action: args.action, client: args.client, detail: args.detail });
+    return recordRowAccess(ctx, "conversations", conv, {
+      actor,
+      action: args.action,
+      client: args.client,
+      detail: args.detail,
+    });
   },
 });
 
@@ -49,17 +62,34 @@ export const noteCallRecordingOpen = mutation({
     if (!userId) return false;
     const t = await resolveCallRef(ctx, userId, args.call);
     if (!t) return false;
-    return recordRowAccess(ctx, "transcripts", t, { actor: { userId }, action: "open", client: args.client, detail: "recording" });
+    return recordRowAccess(ctx, "transcripts", t, {
+      actor: { userId },
+      action: "open",
+      client: args.client,
+      detail: "recording",
+    });
   },
 });
 
 /** The CLI read a conversation (`cast read`, `cast diff`: /cli/read) or exported it (/cli/export). */
 export const recordCliConversation = internalMutation({
-  args: { api_token: v.string(), conversation_id: v.string(), action: v.union(v.literal("open"), v.literal("export")) },
+  args: {
+    api_token: v.string(),
+    conversation_id: v.string(),
+    action: v.union(v.literal("open"), v.literal("export")),
+  },
   handler: async (ctx, args) => {
-    const access = await readableConversation(ctx, args.api_token, args.conversation_id);
+    const access = await readableConversation(
+      ctx,
+      args.api_token,
+      args.conversation_id,
+    );
     if ("error" in access) return false;
-    return recordRowAccess(ctx, "conversations", access.conv, { actor: { userId: access.user._id }, action: args.action, client: "cli" });
+    return recordRowAccess(ctx, "conversations", access.conv, {
+      actor: { userId: access.user._id },
+      action: args.action,
+      client: "cli",
+    });
   },
 });
 
@@ -71,7 +101,12 @@ export const recordCliCallRecording = internalMutation({
     if (!auth) return false;
     const t = await resolveCallRef(ctx, auth.userId, args.call);
     if (!t) return false;
-    return recordRowAccess(ctx, "transcripts", t, { actor: { userId: auth.userId }, action: "download", client: "cli", detail: "recording" });
+    return recordRowAccess(ctx, "transcripts", t, {
+      actor: { userId: auth.userId },
+      action: "download",
+      client: "cli",
+      detail: "recording",
+    });
   },
 });
 
@@ -81,7 +116,11 @@ export const recordCliCallRecording = internalMutation({
  * key reaches it. `actor` is the staff member's git identity and machine.
  */
 export const recordStaffRun = internalMutation({
-  args: { actor: v.string(), fn: v.string(), args_json: v.optional(v.string()) },
+  args: {
+    actor: v.string(),
+    fn: v.string(),
+    args_json: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     let parsed: unknown = {};
     try {
@@ -89,7 +128,11 @@ export const recordStaffRun = internalMutation({
     } catch {
       parsed = args.args_json;
     }
-    return recordStaffRead(ctx, { actor: args.actor, fn: args.fn, args: parsed });
+    return recordStaffRead(ctx, {
+      actor: args.actor,
+      fn: args.fn,
+      args: parsed,
+    });
   },
 });
 
@@ -105,12 +148,20 @@ export const listForTeam = query({
       .withIndex("by_team_at", (q) => q.eq("team_id", args.team_id))
       .order("desc")
       .paginate(args.paginationOpts);
-    const names = new Map<string, { name: string; email: string | null } | null>();
+    const names = new Map<
+      string,
+      { name: string; email: string | null } | null
+    >();
     const who = async (id: Id<"users">) => {
       const key = String(id);
       if (!names.has(key)) {
         const u = await ctx.db.get(id);
-        names.set(key, u ? { name: u.name || u.email || "Unknown", email: u.email ?? null } : null);
+        names.set(
+          key,
+          u
+            ? { name: u.name || u.email || "Unknown", email: u.email ?? null }
+            : null,
+        );
       }
       return names.get(key);
     };

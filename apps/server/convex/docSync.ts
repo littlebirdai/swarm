@@ -1,5 +1,9 @@
 import { mutation, query } from "./functions";
-import { DOC_REWRITTEN_ERROR, docTitleFromContent, serializeDraftRuns } from "@codecast/shared/docs";
+import {
+  DOC_REWRITTEN_ERROR,
+  docTitleFromContent,
+  serializeDraftRuns,
+} from "@codecast/shared/docs";
 import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "./_generated/dataModel";
@@ -28,7 +32,11 @@ async function requireAuth(ctx: any): Promise<Id<"users">> {
 // (which also allow ":<messageId>" suffixes). The OT buffer and presence
 // drafts ARE that entity's content, so every endpoint gates on access to it.
 // Unknown id shapes fail closed.
-async function requireSyncableEntity(ctx: any, userId: Id<"users">, id: string): Promise<void> {
+async function requireSyncableEntity(
+  ctx: any,
+  userId: Id<"users">,
+  id: string,
+): Promise<void> {
   const docId = ctx.db.normalizeId("docs", id);
   if (docId) {
     await requireAccessibleDoc(ctx, userId, docId);
@@ -42,7 +50,8 @@ async function requireSyncableEntity(ctx: any, userId: Id<"users">, id: string):
     // Both namespaces follow the conversation's full access ladder: a
     // share-link redeemer or an assigned session owner co-writes in the collab
     // composer and comments on threads, so their presence belongs there too.
-    if ((await checkConversationAccess(ctx, userId, conversation)) === "denied") notFound();
+    if ((await checkConversationAccess(ctx, userId, conversation)) === "denied")
+      notFound();
     return;
   }
   notFound();
@@ -102,7 +111,10 @@ export const getSnapshot = query({
       .order("desc")
       .first();
     if (!snapshot) return { content: null };
-    return { content: readSnapshotContent(snapshot), version: snapshot.version };
+    return {
+      content: readSnapshotContent(snapshot),
+      version: snapshot.version,
+    };
   },
 });
 
@@ -117,9 +129,13 @@ export function snapshotDocPatch(
   md: string,
   doc: { content?: string | null; title: string },
   now: number,
-): { content: string; title: string; updated_at: number } | { title: string } | null {
+):
+  | { content: string; title: string; updated_at: number }
+  | { title: string }
+  | null {
   const title = docTitleFromContent(md, doc.title);
-  if (md !== (doc.content ?? "").trim()) return { content: md, title, updated_at: now };
+  if (md !== (doc.content ?? "").trim())
+    return { content: md, title, updated_at: now };
   if (title !== doc.title) return { title };
   return null;
 }
@@ -146,7 +162,9 @@ export const submitSnapshot = mutation({
     // as the doc's current text (lib/docBody.ts), so it must never move back.
     const newer = await ctx.db
       .query("doc_snapshots")
-      .withIndex("id_version", (q: any) => q.eq("id", args.id).gt("version", args.version))
+      .withIndex("id_version", (q: any) =>
+        q.eq("id", args.id).gt("version", args.version),
+      )
       .first();
     if (newer) return;
 
@@ -192,7 +210,8 @@ export const submitSnapshot = mutation({
         content_gz: packSnapshotContent(args.content),
       });
     } catch (e: any) {
-      if (e.message?.includes("duplicate") || e.message?.includes("conflict")) return;
+      if (e.message?.includes("duplicate") || e.message?.includes("conflict"))
+        return;
       // Even gzipped, a pathologically huge doc could still exceed the 1 MiB
       // limit. Skip the snapshot rather than throwing — the doc stays syncable
       // via delta replay; only cold-load compaction is lost.
@@ -216,7 +235,8 @@ export const submitSnapshot = mutation({
         // A role's brief or charter saved from the web editor lands here, not
         // in docs.update: run the same after-write hook (brief state mirror,
         // charter wake) so the editor and the CLI agree.
-        if (patch && "content" in patch) await afterRoleDocWrite(ctx, doc, patch.content);
+        if (patch && "content" in patch)
+          await afterRoleDocWrite(ctx, doc, patch.content);
 
         const newMentions = extractPersonMentionIds(parsed);
         if (newMentions.size > 0) {
@@ -231,7 +251,9 @@ export const submitSnapshot = mutation({
               .first();
             if (prevSnapshot) {
               try {
-                oldMentions = extractPersonMentionIds(JSON.parse(readSnapshotContent(prevSnapshot)));
+                oldMentions = extractPersonMentionIds(
+                  JSON.parse(readSnapshotContent(prevSnapshot)),
+                );
               } catch {}
             }
           }
@@ -243,13 +265,16 @@ export const submitSnapshot = mutation({
             for (const mentionedId of added) {
               if (mentionedId === userId.toString()) continue;
               try {
-                await ctx.runMutation(internal.notificationRouter.ensureSubscribed, {
-                  user_id: mentionedId as Id<"users">,
-                  entity_type: "doc",
-                  entity_id: doc._id.toString(),
-                  reason: "mentioned",
-                  via: "human",
-                });
+                await ctx.runMutation(
+                  internal.notificationRouter.ensureSubscribed,
+                  {
+                    user_id: mentionedId as Id<"users">,
+                    entity_type: "doc",
+                    entity_id: doc._id.toString(),
+                    reason: "mentioned",
+                    via: "human",
+                  },
+                );
                 await ctx.runMutation(internal.notificationRouter.emit, {
                   event_type: "mention",
                   actor_user_id: userId,
@@ -273,12 +298,25 @@ function wrapMarks(text: string, marks?: any[]): string {
   let out = text;
   for (const mark of marks) {
     switch (mark.type) {
-      case "bold": case "strong": out = `**${out}**`; break;
-      case "italic": case "em": out = `*${out}*`; break;
-      case "strike": out = `~~${out}~~`; break;
-      case "code": out = `\`${out}\``; break;
+      case "bold":
+      case "strong":
+        out = `**${out}**`;
+        break;
+      case "italic":
+      case "em":
+        out = `*${out}*`;
+        break;
+      case "strike":
+        out = `~~${out}~~`;
+        break;
+      case "code":
+        out = `\`${out}\``;
+        break;
       // A bare URL stays bare, the same rule serializeEntityRef follows.
-      case "link": if (out !== mark.attrs?.href) out = `[${out}](${mark.attrs?.href || ""})`; break;
+      case "link":
+        if (out !== mark.attrs?.href)
+          out = `[${out}](${mark.attrs?.href || ""})`;
+        break;
     }
   }
   return out;
@@ -293,13 +331,21 @@ const MENTION_REF_TYPES = new Set(["task", "plan", "session", "doc"]);
 function mentionToMarkdown(attrs: any): string {
   const label = attrs?.label || attrs?.id || "";
   if (attrs?.type && MENTION_REF_TYPES.has(attrs.type) && attrs?.id) {
-    const ref = attrs.type === "doc" ? `doc:${attrs.id}` : attrs.shortId || attrs.id;
+    const ref =
+      attrs.type === "doc" ? `doc:${attrs.id}` : attrs.shortId || attrs.id;
     return `@[${label} ${ref}]`;
   }
   return `@${label}`;
 }
 
-export function toMarkdown(node: any, ctx: { indent: string; ordered: boolean; itemIndex: number } = { indent: "", ordered: false, itemIndex: 0 }): string {
+export function toMarkdown(
+  node: any,
+  ctx: { indent: string; ordered: boolean; itemIndex: number } = {
+    indent: "",
+    ordered: false,
+    itemIndex: 0,
+  },
+): string {
   if (node.type === "text") return wrapMarks(node.text || "", node.marks);
   if (node.type === "hardBreak") return "\n";
   if (node.type === "horizontalRule") return "\n---\n\n";
@@ -340,42 +386,86 @@ export function toMarkdown(node: any, ctx: { indent: string; ordered: boolean; i
 
   switch (node.type) {
     case "heading":
-      return "#".repeat(node.attrs?.level || 1) + " " + children.trim() + "\n\n";
+      return (
+        "#".repeat(node.attrs?.level || 1) + " " + children.trim() + "\n\n"
+      );
     case "paragraph":
       return children + "\n\n";
     case "bulletList":
-      return node.content.map((li: any, i: number) =>
-        toMarkdown(li, { indent: ctx.indent, ordered: false, itemIndex: i })
-      ).join("") + "\n";
+      return (
+        node.content
+          .map((li: any, i: number) =>
+            toMarkdown(li, {
+              indent: ctx.indent,
+              ordered: false,
+              itemIndex: i,
+            }),
+          )
+          .join("") + "\n"
+      );
     case "orderedList": {
       const start = node.attrs?.start ?? 1;
-      return node.content.map((li: any, i: number) =>
-        toMarkdown(li, { indent: ctx.indent, ordered: true, itemIndex: start + i })
-      ).join("") + "\n";
+      return (
+        node.content
+          .map((li: any, i: number) =>
+            toMarkdown(li, {
+              indent: ctx.indent,
+              ordered: true,
+              itemIndex: start + i,
+            }),
+          )
+          .join("") + "\n"
+      );
     }
     case "taskList":
-      return node.content.map((li: any, i: number) =>
-        toMarkdown(li, { indent: ctx.indent, ordered: false, itemIndex: i })
-      ).join("") + "\n";
+      return (
+        node.content
+          .map((li: any, i: number) =>
+            toMarkdown(li, {
+              indent: ctx.indent,
+              ordered: false,
+              itemIndex: i,
+            }),
+          )
+          .join("") + "\n"
+      );
     case "listItem": {
       const prefix = ctx.ordered ? `${ctx.itemIndex}. ` : "- ";
-      const body = node.content.map((child: any) => {
-        const md = toMarkdown(child, { indent: ctx.indent + "  ", ordered: false, itemIndex: 0 });
-        return md.replace(/\n$/, "");
-      }).join("\n" + ctx.indent + "  ");
+      const body = node.content
+        .map((child: any) => {
+          const md = toMarkdown(child, {
+            indent: ctx.indent + "  ",
+            ordered: false,
+            itemIndex: 0,
+          });
+          return md.replace(/\n$/, "");
+        })
+        .join("\n" + ctx.indent + "  ");
       return ctx.indent + prefix + body.trim() + "\n";
     }
     case "taskItem": {
       const checked = node.attrs?.checked ? "x" : " ";
-      const body = node.content.map((child: any) => {
-        const md = toMarkdown(child, { indent: ctx.indent + "  ", ordered: false, itemIndex: 0 });
-        return md.replace(/\n$/, "");
-      }).join("\n" + ctx.indent + "  ");
+      const body = node.content
+        .map((child: any) => {
+          const md = toMarkdown(child, {
+            indent: ctx.indent + "  ",
+            ordered: false,
+            itemIndex: 0,
+          });
+          return md.replace(/\n$/, "");
+        })
+        .join("\n" + ctx.indent + "  ");
       return ctx.indent + `- [${checked}] ` + body.trim() + "\n";
     }
     case "blockquote": {
       const inner = node.content.map(inline).join("");
-      return inner.trim().split("\n").map((l: string) => "> " + l).join("\n") + "\n\n";
+      return (
+        inner
+          .trim()
+          .split("\n")
+          .map((l: string) => "> " + l)
+          .join("\n") + "\n\n"
+      );
     }
     case "codeBlock": {
       const lang = node.attrs?.language || "";
@@ -384,8 +474,8 @@ export function toMarkdown(node: any, ctx: { indent: string; ordered: boolean; i
     case "table": {
       const rows = (node.content || []).map((row: any) =>
         (row.content || []).map((cell: any) =>
-          (cell.content || []).map(inline).join("").replace(/\n+/g, " ").trim()
-        )
+          (cell.content || []).map(inline).join("").replace(/\n+/g, " ").trim(),
+        ),
       );
       if (rows.length === 0) return "";
       const colCount = Math.max(...rows.map((r: string[]) => r.length));
@@ -407,7 +497,11 @@ export function toMarkdown(node: any, ctx: { indent: string; ordered: boolean; i
 
 function extractPersonMentionIds(node: any): Set<string> {
   const ids = new Set<string>();
-  if (node.type === "mention" && node.attrs?.type === "person" && node.attrs?.id) {
+  if (
+    node.type === "mention" &&
+    node.attrs?.type === "person" &&
+    node.attrs?.id
+  ) {
     ids.add(node.attrs.id);
   }
   if (node.content) {
@@ -465,7 +559,9 @@ async function stepsAfter(
   if (deltas.length === 0) {
     const snapshot = await ctx.db
       .query("doc_snapshots")
-      .withIndex("id_version", (q: any) => q.eq("id", id).gt("version", version))
+      .withIndex("id_version", (q: any) =>
+        q.eq("id", id).gt("version", version),
+      )
       .first();
     return snapshot ? "gap" : { steps, clientIds };
   }
@@ -474,7 +570,10 @@ async function stepsAfter(
   deltas.forEach((delta: any, i: number) => {
     // The first delta can straddle the client's version; skip what it holds.
     const own = i === 0 ? delta.steps.slice(version - start) : delta.steps;
-    for (const step of own) { steps.push(step); clientIds.push(delta.clientId); }
+    for (const step of own) {
+      steps.push(step);
+      clientIds.push(delta.clientId);
+    }
   });
   return { steps, clientIds };
 }
@@ -490,7 +589,8 @@ export const getSteps = query({
     const userId = await requireAuth(ctx);
     await requireSyncableEntity(ctx, userId, args.id);
     const missing = await stepsAfter(ctx, args.id, args.version);
-    const { steps, clientIds } = missing === "gap" ? { steps: [], clientIds: [] } : missing;
+    const { steps, clientIds } =
+      missing === "gap" ? { steps: [], clientIds: [] } : missing;
     return { steps, clientIds, version: args.version + steps.length };
   },
 });
@@ -522,7 +622,11 @@ export const submitSteps = mutation({
       throw new ConvexError(DOC_REWRITTEN_ERROR);
     }
     if (missing.steps.length > 0) {
-      return { status: "needs-rebase" as const, clientIds: missing.clientIds, steps: missing.steps };
+      return {
+        status: "needs-rebase" as const,
+        clientIds: missing.clientIds,
+        steps: missing.steps,
+      };
     }
     await ctx.db.insert("doc_deltas", {
       id: args.id,
@@ -538,15 +642,24 @@ export const submitSteps = mutation({
 // --- Presence ---
 
 const PRESENCE_COLORS = [
-  "#e06c75", "#61afef", "#c678dd", "#98c379", "#e5c07b",
-  "#56b6c2", "#be5046", "#d19a66",
+  "#e06c75",
+  "#61afef",
+  "#c678dd",
+  "#98c379",
+  "#e5c07b",
+  "#56b6c2",
+  "#be5046",
+  "#d19a66",
 ];
 
 const vAnchor = v.object({ message_id: v.string(), offset: v.number() });
 const CLAIM_TTL_MS = 15_000;
 
 // The session a composer presence id names, or null for any other doc id.
-async function composeConversation(ctx: any, docId: string): Promise<any | null> {
+async function composeConversation(
+  ctx: any,
+  docId: string,
+): Promise<any | null> {
   const m = docId.match(/^compose:([^:]+)$/);
   const convId = m ? ctx.db.normalizeId("conversations", m[1]) : null;
   return convId ? await ctx.db.get(convId) : null;
@@ -555,7 +668,9 @@ async function composeConversation(ctx: any, docId: string): Promise<any | null>
 async function myPresenceRow(ctx: any, userId: Id<"users">, docId: string) {
   return await ctx.db
     .query("doc_presence")
-    .withIndex("by_user_doc", (q: any) => q.eq("user_id", userId).eq("doc_id", docId))
+    .withIndex("by_user_doc", (q: any) =>
+      q.eq("user_id", userId).eq("doc_id", docId),
+    )
     .first();
 }
 
@@ -587,27 +702,49 @@ export const updatePresence = mutation({
     const user = await ctx.db.get(userId);
     if (!user) return;
     const existing = await myPresenceRow(ctx, userId, args.doc_id);
-    const draft = args.draft_text === undefined ? undefined : args.draft_text.slice(0, 2000);
-    const anchor = args.anchor ? { message_id: args.anchor.message_id.slice(0, 128), offset: Math.min(1, Math.max(0, args.anchor.offset)) } : undefined;
+    const draft =
+      args.draft_text === undefined
+        ? undefined
+        : args.draft_text.slice(0, 2000);
+    const anchor = args.anchor
+      ? {
+          message_id: args.anchor.message_id.slice(0, 128),
+          offset: Math.min(1, Math.max(0, args.anchor.offset)),
+        }
+      : undefined;
     // Whether this person's words can go into the session themselves, by the
     // same rule a send checks. Decided here so a reader never has to.
     const conversation = await composeConversation(ctx, args.doc_id);
-    const canSend = conversation ? await canSendProductMessage(ctx, userId, conversation) : undefined;
+    const canSend = conversation
+      ? await canSendProductMessage(ctx, userId, conversation)
+      : undefined;
     const now = Date.now();
-    const moved = anchor && (existing?.anchor?.message_id !== anchor.message_id || existing?.anchor?.offset !== anchor.offset);
+    const moved =
+      anchor &&
+      (existing?.anchor?.message_id !== anchor.message_id ||
+        existing?.anchor?.offset !== anchor.offset);
     const fields = {
       cursor_pos: args.cursor_pos,
       anchor_pos: args.anchor_pos,
       draft_text: draft,
       in_draft: args.in_draft,
       anchor,
-      anchor_at: anchor ? (moved ? now : existing?.anchor_at ?? now) : undefined,
+      anchor_at: anchor
+        ? moved
+          ? now
+          : (existing?.anchor_at ?? now)
+        : undefined,
       can_send: canSend,
       ...presenceIdentity(user),
       updated_at: now,
     };
     if (existing) await ctx.db.patch(existing._id, fields);
-    else await ctx.db.insert("doc_presence", { doc_id: args.doc_id, user_id: userId, ...fields });
+    else
+      await ctx.db.insert("doc_presence", {
+        doc_id: args.doc_id,
+        user_id: userId,
+        ...fields,
+      });
   },
 });
 
@@ -621,7 +758,13 @@ export const claimDrafts = mutation({
     doc_id: v.string(),
     // how: "joint" (sent with mine as one turn), "composer" (taken into my
     // draft), "session" (sent on its own in the author's name).
-    claims: v.array(v.object({ user_id: v.id("users"), text: v.string(), how: v.optional(v.string()) })),
+    claims: v.array(
+      v.object({
+        user_id: v.id("users"),
+        text: v.string(),
+        how: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
@@ -630,10 +773,27 @@ export const claimDrafts = mutation({
     if (!user) return;
     const now = Date.now();
     const existing = await myPresenceRow(ctx, userId, args.doc_id);
-    const kept = (existing?.claims ?? []).filter((c: any) => c.at > now - CLAIM_TTL_MS);
-    const claims = [...kept, ...args.claims.slice(0, 8).map((c) => ({ user_id: c.user_id, text: c.text.slice(0, 2000), at: now, how: c.how?.slice(0, 16) }))];
+    const kept = (existing?.claims ?? []).filter(
+      (c: any) => c.at > now - CLAIM_TTL_MS,
+    );
+    const claims = [
+      ...kept,
+      ...args.claims.slice(0, 8).map((c) => ({
+        user_id: c.user_id,
+        text: c.text.slice(0, 2000),
+        at: now,
+        how: c.how?.slice(0, 16),
+      })),
+    ];
     if (existing) await ctx.db.patch(existing._id, { claims, updated_at: now });
-    else await ctx.db.insert("doc_presence", { doc_id: args.doc_id, user_id: userId, ...presenceIdentity(user), claims, updated_at: now });
+    else
+      await ctx.db.insert("doc_presence", {
+        doc_id: args.doc_id,
+        user_id: userId,
+        ...presenceIdentity(user),
+        claims,
+        updated_at: now,
+      });
   },
 });
 
@@ -648,21 +808,32 @@ export const removePresence = mutation({
 
 export const getPresence = query({
   args: { doc_id: v.string() },
-  returns: v.array(v.object({
-    user_id: v.id("users"),
-    user_name: v.string(),
-    user_color: v.string(),
-    user_image: v.optional(v.string()),
-    cursor_pos: v.optional(v.number()),
-    anchor_pos: v.optional(v.number()),
-    draft_text: v.optional(v.string()),
-    can_send: v.optional(v.boolean()),
-    anchor: v.optional(vAnchor),
-    anchor_at: v.optional(v.number()),
-    claims: v.optional(v.array(v.object({ user_id: v.id("users"), text: v.string(), at: v.number(), how: v.optional(v.string()) }))),
-    in_draft: v.optional(v.boolean()),
-    updated_at: v.number(),
-  })),
+  returns: v.array(
+    v.object({
+      user_id: v.id("users"),
+      user_name: v.string(),
+      user_color: v.string(),
+      user_image: v.optional(v.string()),
+      cursor_pos: v.optional(v.number()),
+      anchor_pos: v.optional(v.number()),
+      draft_text: v.optional(v.string()),
+      can_send: v.optional(v.boolean()),
+      anchor: v.optional(vAnchor),
+      anchor_at: v.optional(v.number()),
+      claims: v.optional(
+        v.array(
+          v.object({
+            user_id: v.id("users"),
+            text: v.string(),
+            at: v.number(),
+            how: v.optional(v.string()),
+          }),
+        ),
+      ),
+      in_draft: v.optional(v.boolean()),
+      updated_at: v.number(),
+    }),
+  ),
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     await requireSyncableEntity(ctx, userId, args.doc_id);
@@ -675,7 +846,9 @@ export const getPresence = query({
     return presences
       .filter((p: any) => p.user_id !== userId && p.updated_at > staleThreshold)
       .map((p: any) => {
-        const claims = (p.claims ?? []).filter((c: any) => c.at > now - CLAIM_TTL_MS);
+        const claims = (p.claims ?? []).filter(
+          (c: any) => c.at > now - CLAIM_TTL_MS,
+        );
         return {
           user_id: p.user_id,
           user_name: p.user_name,
@@ -694,4 +867,3 @@ export const getPresence = query({
       });
   },
 });
-

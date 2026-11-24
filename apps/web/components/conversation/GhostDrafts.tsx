@@ -3,7 +3,11 @@
 import { memo } from "react";
 import { useConvexAuth } from "convex/react";
 import { usePresenceRows, type PresenceRow } from "../../hooks/useDocPresence";
-import { composeDocId, isSuggestion, typingRows } from "../../lib/composerPresence";
+import {
+  composeDocId,
+  isSuggestion,
+  typingRows,
+} from "../../lib/composerPresence";
 import { useAcceptSuggestion } from "../../hooks/useJointComposer";
 import { PresenceAvatar } from "../PresenceFacepile";
 import "../chat/chat.css";
@@ -25,32 +29,55 @@ export const GhostDrafts = memo(function GhostDrafts({
   populate?: (text: string, opts?: { append?: boolean }) => void;
 }) {
   const { isAuthenticated } = useConvexAuth();
-  const ghosts = typingRows(usePresenceRows(composeDocId(conversationId), isAuthenticated));
+  const ghosts = typingRows(
+    usePresenceRows(composeDocId(conversationId), isAuthenticated),
+  );
   const accept = useAcceptSuggestion(conversationId, populate ?? (() => {}));
   if (ghosts.length === 0) return null;
   return (
-    <div data-cc-ghost-drafts className="conv-col mx-auto px-4 sm:px-5 md:px-6 pt-1">
+    <div
+      data-cc-ghost-drafts
+      className="conv-col mx-auto px-4 sm:px-5 md:px-6 pt-1"
+    >
       {ghosts.map((row) => (
         <GhostDraft
           key={row.user_id}
           row={row}
-          actions={populate && isSuggestion(row) ? (
-            <>
-              <button type="button" data-sv-accept-suggestion="session" onClick={() => accept(row, "session")} className="inline-flex items-center h-6 px-2.5 rounded-full text-meta font-medium not-italic border border-sol-violet/50 bg-sol-violet/15 text-sol-violet hover:bg-sol-violet/25 transition-colors">
-                Send as {row.user_name.split(/[\s@]/)[0]}
-              </button>
-              <button type="button" data-sv-accept-suggestion="composer" onClick={() => accept(row, "composer")} className="inline-flex items-center h-6 px-2.5 rounded-full text-meta font-medium not-italic border border-sol-border text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt transition-colors">
-                Add to my draft
-              </button>
-            </>
-          ) : undefined}
+          actions={
+            populate && isSuggestion(row) ? (
+              <>
+                <button
+                  type="button"
+                  data-sv-accept-suggestion="session"
+                  onClick={() => accept(row, "session")}
+                  className="inline-flex items-center h-6 px-2.5 rounded-full text-meta font-medium not-italic border border-sol-violet/50 bg-sol-violet/15 text-sol-violet hover:bg-sol-violet/25 transition-colors"
+                >
+                  Send as {row.user_name.split(/[\s@]/)[0]}
+                </button>
+                <button
+                  type="button"
+                  data-sv-accept-suggestion="composer"
+                  onClick={() => accept(row, "composer")}
+                  className="inline-flex items-center h-6 px-2.5 rounded-full text-meta font-medium not-italic border border-sol-border text-sol-text-muted hover:text-sol-text hover:bg-sol-bg-alt transition-colors"
+                >
+                  Add to my draft
+                </button>
+              </>
+            ) : undefined
+          }
         />
       ))}
     </div>
   );
 });
 
-function GhostDraft({ row, actions }: { row: PresenceRow; actions?: React.ReactNode }) {
+function GhostDraft({
+  row,
+  actions,
+}: {
+  row: PresenceRow;
+  actions?: React.ReactNode;
+}) {
   const suggested = row.can_send === false;
   return (
     <div
@@ -59,19 +86,36 @@ function GhostDraft({ row, actions }: { row: PresenceRow; actions?: React.ReactN
     >
       <div className="flex items-center gap-2 mb-1.5">
         <PresenceAvatar person={row} size={24} ring={false} />
-        <span className={`text-xs font-medium ${suggested ? "text-sol-violet/80" : "text-sol-blue/80"}`}>{row.user_name}</span>
+        <span
+          className={`text-xs font-medium ${suggested ? "text-sol-violet/80" : "text-sol-blue/80"}`}
+        >
+          {row.user_name}
+        </span>
         {suggested ? (
-          <span className="text-mark font-medium uppercase tracking-wide px-1.5 py-px rounded border border-sol-violet/40 text-sol-violet">Suggested</span>
+          <span className="text-mark font-medium uppercase tracking-wide px-1.5 py-px rounded border border-sol-violet/40 text-sol-violet">
+            Suggested
+          </span>
         ) : (
           <span className="text-meta text-sol-text-dim">is writing</span>
         )}
-        <span className="ch-typing-dots" aria-hidden="true"><span /><span /><span /></span>
+        <span className="ch-typing-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
       </div>
       <div className="pl-8 text-sm italic text-sol-text-muted whitespace-pre-wrap break-words">
         {row.draft_text}
-        <span aria-hidden="true" className="inline-block w-px h-[1.05em] align-[-0.15em] ml-px bg-sol-text-muted/70 animate-pulse" />
+        <span
+          aria-hidden="true"
+          className="inline-block w-px h-[1.05em] align-[-0.15em] ml-px bg-sol-text-muted/70 animate-pulse"
+        />
       </div>
-      {actions && <div className="pl-8 mt-2.5 flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="pl-8 mt-2.5 flex flex-wrap items-center gap-2">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

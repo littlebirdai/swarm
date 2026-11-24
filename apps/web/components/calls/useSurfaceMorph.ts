@@ -17,6 +17,10 @@ export const MORPH_EASING = "cubic-bezier(0.2, 0.7, 0.3, 1)";
 /** Motion is off, or the browser cannot animate: either way, no morph. */
 export function canMorph(): boolean {
   if (typeof window === "undefined") return false;
-  if (typeof Element === "undefined" || typeof Element.prototype.animate !== "function") return false;
+  if (
+    typeof Element === "undefined" ||
+    typeof Element.prototype.animate !== "function"
+  )
+    return false;
   return !window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 }

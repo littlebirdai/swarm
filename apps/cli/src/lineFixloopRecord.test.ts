@@ -8,7 +8,18 @@ import os from "os";
 import path from "path";
 import { freshMirror, recordRepository } from "./lineFixloopRecord";
 
-const g = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" } }).trim();
+const g = (cwd: string, ...args: string[]) =>
+  execFileSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "t",
+      GIT_AUTHOR_EMAIL: "t@t",
+      GIT_COMMITTER_NAME: "t",
+      GIT_COMMITTER_EMAIL: "t@t",
+    },
+  }).trim();
 
 describe("recordRepository", () => {
   test("records main from the mirror and traces the fix to the change it repaired", async () => {
@@ -17,7 +28,8 @@ describe("recordRepository", () => {
     fs.mkdirSync(origin);
     g(origin, "init", "-q", "-b", "main");
     fs.writeFileSync(path.join(origin, "a.ts"), "one\ntwo\nthree\n");
-    g(origin, "add", "."); g(origin, "commit", "-q", "-m", "feat: three lines");
+    g(origin, "add", ".");
+    g(origin, "commit", "-q", "-m", "feat: three lines");
     const intro = g(origin, "rev-parse", "HEAD");
     fs.writeFileSync(path.join(origin, "a.ts"), "one\nTWO\nthree\n");
     g(origin, "commit", "-qam", "fix: the second line");
@@ -31,13 +43,35 @@ describe("recordRepository", () => {
     const post = async (p: string, body: any) => {
       posts.push({ p, body });
       if (p.endsWith("/cursor")) return { landed_at: null };
-      return { inserted: body.changes.length, linked: body.fixes.reduce((n: number, f: any) => n + f.introduced.length, 0) };
+      return {
+        inserted: body.changes.length,
+        linked: body.fixes.reduce(
+          (n: number, f: any) => n + f.introduced.length,
+          0,
+        ),
+      };
     };
-    const r = await recordRepository({ ...mirror, repository: "t/repo", teamId: "team1", post });
+    const r = await recordRepository({
+      ...mirror,
+      repository: "t/repo",
+      teamId: "team1",
+      post,
+    });
     expect(r).toMatchObject({ changes: 2, inserted: 2, fixes: 1, links: 1 });
     const sent = posts.filter((x) => x.p.endsWith("/record"));
-    expect(sent[0].body.changes.map((c: any) => [c.sha, c.fix_reason ?? null])).toEqual([[fix, "subject_fix"], [intro, null]]);
-    expect(sent[1].body.fixes).toEqual([{ sha: fix, at: expect.any(Number), introduced: [{ sha: intro, lines: 1 }] }]);
+    expect(
+      sent[0].body.changes.map((c: any) => [c.sha, c.fix_reason ?? null]),
+    ).toEqual([
+      [fix, "subject_fix"],
+      [intro, null],
+    ]);
+    expect(sent[1].body.fixes).toEqual([
+      {
+        sha: fix,
+        at: expect.any(Number),
+        introduced: [{ sha: intro, lines: 1 }],
+      },
+    ]);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

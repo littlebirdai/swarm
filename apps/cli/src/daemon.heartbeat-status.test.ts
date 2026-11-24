@@ -46,7 +46,9 @@ describe("heartbeat carries agent_status", () => {
   test("syncService exposes a batched heartbeat that forwards to the batch mutation", () => {
     // Heartbeats are now flushed for the whole fleet in one batched mutation per
     // tick (collapsing the inbox-invalidation storm), not one call per session.
-    expect(syncServiceSource).toMatch(/async\s+heartbeatManagedSessionsBatch\s*\(/);
+    expect(syncServiceSource).toMatch(
+      /async\s+heartbeatManagedSessionsBatch\s*\(/,
+    );
     expect(syncServiceSource).toContain("managedSessions:heartbeatBatch");
   });
 
@@ -56,9 +58,13 @@ describe("heartbeat carries agent_status", () => {
     // stale or fabricated value). Pin that the send path builds its payload that
     // way, and that the tick handler actually invokes it (the send lives in
     // runHeartbeatFlush; flushManagedHeartbeats is the guard shell).
-    const tickIdx = daemonSource.indexOf("async function flushManagedHeartbeats");
+    const tickIdx = daemonSource.indexOf(
+      "async function flushManagedHeartbeats",
+    );
     expect(tickIdx).toBeGreaterThanOrEqual(0);
-    expect(daemonSource.slice(tickIdx, tickIdx + 2000)).toContain("runHeartbeatFlush()");
+    expect(daemonSource.slice(tickIdx, tickIdx + 2000)).toContain(
+      "runHeartbeatFlush()",
+    );
     const idx = daemonSource.indexOf("async function runHeartbeatFlush");
     expect(idx).toBeGreaterThanOrEqual(0);
     const body = daemonSource.slice(idx, idx + 2000);
@@ -83,17 +89,46 @@ describe("heartbeat carries agent_status", () => {
     // change-only agent_status_updated_at rule), or the batched path could
     // reintroduce the latched-status bug. Both go through applyHeartbeat, which
     // builds the patch with buildHeartbeatPatch.
-    const convexDir = path.join(path.dirname(daemonPath), "..", "..", "..", "apps", "server", "convex");
-    const managedSessionsSource = fs.readFileSync(path.join(convexDir, "managedSessions.ts"), "utf8");
-    const patchSource = fs.readFileSync(path.join(convexDir, "lib", "heartbeatPatch.ts"), "utf8");
+    const convexDir = path.join(
+      path.dirname(daemonPath),
+      "..",
+      "..",
+      "..",
+      "apps",
+      "server",
+      "convex",
+    );
+    const managedSessionsSource = fs.readFileSync(
+      path.join(convexDir, "managedSessions.ts"),
+      "utf8",
+    );
+    const patchSource = fs.readFileSync(
+      path.join(convexDir, "lib", "heartbeatPatch.ts"),
+      "utf8",
+    );
     expect(patchSource).toContain("export function buildHeartbeatPatch(");
-    const applyIdx = managedSessionsSource.indexOf("async function applyHeartbeat(");
+    const applyIdx = managedSessionsSource.indexOf(
+      "async function applyHeartbeat(",
+    );
     expect(applyIdx).toBeGreaterThanOrEqual(0);
-    expect(managedSessionsSource.slice(applyIdx, managedSessionsSource.indexOf("\n}", applyIdx))).toContain("buildHeartbeatPatch(");
-    for (const name of ["export const heartbeat = mutation", "export const heartbeatBatch = mutation"]) {
+    expect(
+      managedSessionsSource.slice(
+        applyIdx,
+        managedSessionsSource.indexOf("\n}", applyIdx),
+      ),
+    ).toContain("buildHeartbeatPatch(");
+    for (const name of [
+      "export const heartbeat = mutation",
+      "export const heartbeatBatch = mutation",
+    ]) {
       const idx = managedSessionsSource.indexOf(name);
       expect(idx).toBeGreaterThanOrEqual(0);
-      expect(managedSessionsSource.slice(idx, managedSessionsSource.indexOf("\n});", idx))).toContain("applyHeartbeat(ctx, session,");
+      expect(
+        managedSessionsSource.slice(
+          idx,
+          managedSessionsSource.indexOf("\n});", idx),
+        ),
+      ).toContain("applyHeartbeat(ctx, session,");
     }
   });
 

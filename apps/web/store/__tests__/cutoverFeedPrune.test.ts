@@ -15,24 +15,17 @@ const prev: Record<string, Row> = {
 // forever — negating the deletion convergence the durable view guarantees.
 describe("cutover feed pruning (complete view over an isDelta store table)", () => {
   test("isDelta alone never prunes a server-deleted row — why the prune is mandatory", () => {
-    const { table } = applySyncTable(
-      "comments",
-      [prev.c1],
-      {},
-      prev,
-      { isDelta: true },
-    );
+    const { table } = applySyncTable("comments", [prev.c1], {}, prev, {
+      isDelta: true,
+    });
     expect(Object.keys(table).sort()).toEqual(["c1", "c2", "c3"]);
   });
 
   test("pruneAbsentScope removes in-scope absent rows and spares other scopes", () => {
-    const { table, pending } = applySyncTable(
-      "comments",
-      [prev.c1],
-      {},
-      prev,
-      { isDelta: true, pruneAbsentScope: (row) => row.conversation_id === "convA" },
-    );
+    const { table, pending } = applySyncTable("comments", [prev.c1], {}, prev, {
+      isDelta: true,
+      pruneAbsentScope: (row) => row.conversation_id === "convA",
+    });
     expect(Object.keys(table).sort()).toEqual(["c1", "c3"]);
     // The prune records a durable exclude so IDB hydration cannot resurrect it.
     expect(pending["comments:c2"]).toMatchObject({ type: "exclude" });
@@ -44,7 +37,10 @@ describe("cutover feed pruning (complete view over an isDelta store table)", () 
       [prev.c1],
       { "comments:c2": { type: "include", ts: 1 } },
       prev,
-      { isDelta: true, pruneAbsentScope: (row) => row.conversation_id === "convA" },
+      {
+        isDelta: true,
+        pruneAbsentScope: (row) => row.conversation_id === "convA",
+      },
     );
     expect(Object.keys(table).sort()).toEqual(["c1", "c2", "c3"]);
   });

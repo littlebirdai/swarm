@@ -2,7 +2,10 @@
 // at the token write (this window's own) or the storage event (a sibling's),
 // before React renders anything for the next account, and everything here
 // that must beat that render is synchronous too.
-import { parseAccessIdentity, type AuthPrincipalChange } from "@platform/auth/web";
+import {
+  parseAccessIdentity,
+  type AuthPrincipalChange,
+} from "@platform/auth/web";
 import { authPrincipal } from "../lib/authPrincipal";
 import { readDurableAuthValue } from "../lib/durableAuthStorage";
 import { AUTH_JWT_STORAGE_KEY } from "../lib/localAuth";
@@ -10,7 +13,10 @@ import { purgeLocalCache } from "./idbCache";
 import { clearProtectedInboxMemory, rebootPersistence } from "./inboxStore";
 import { stopSyncReplication } from "./syncReplication";
 
-export function onAuthPrincipalChange({ previous, next }: AuthPrincipalChange): void {
+export function onAuthPrincipalChange({
+  previous,
+  next,
+}: AuthPrincipalChange): void {
   // The old account's channel and lock go first: a follower must not accept
   // one more update, and a host must not answer a snapshot request.
   stopSyncReplication();
@@ -34,13 +40,22 @@ export function onAuthPrincipalChange({ previous, next }: AuthPrincipalChange): 
 async function purgeAfterLeaving(previous: string): Promise<void> {
   if (authPrincipal.current() === null) {
     let durable: string | null = null;
-    try { durable = parseAccessIdentity(await readDurableAuthValue(AUTH_JWT_STORAGE_KEY))?.principalId ?? null; } catch { durable = null; }
+    try {
+      durable =
+        parseAccessIdentity(await readDurableAuthValue(AUTH_JWT_STORAGE_KEY))
+          ?.principalId ?? null;
+    } catch {
+      durable = null;
+    }
     if (durable === previous && authPrincipal.current() === null) return;
   }
   try {
     await purgeLocalCache({ reason: "left-account", detail: { previous } });
   } catch (error) {
-    console.error("[auth] failed to purge the local cache after leaving an account", error);
+    console.error(
+      "[auth] failed to purge the local cache after leaving an account",
+      error,
+    );
   }
 }
 
@@ -49,6 +64,9 @@ let installed: (() => void) | null = null;
 export function installAuthPrincipalBoundary(): () => void {
   if (installed) return installed;
   const unsubscribe = authPrincipal.subscribe(onAuthPrincipalChange);
-  installed = () => { unsubscribe(); installed = null; };
+  installed = () => {
+    unsubscribe();
+    installed = null;
+  };
   return installed;
 }

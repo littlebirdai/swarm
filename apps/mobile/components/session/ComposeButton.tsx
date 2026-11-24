@@ -1,8 +1,8 @@
-import { TouchableOpacity } from 'react-native';
-import Feather from '@expo/vector-icons/Feather';
-import * as Haptics from 'expo-haptics';
-import { useTheme } from '@/constants/Theme';
-import { openCompose } from '@/lib/compose';
+import { TouchableOpacity } from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import * as Haptics from "expo-haptics";
+import { useTheme } from "@/constants/Theme";
+import { openCompose } from "@/lib/compose";
 
 /** The compose pencil a header carries: opens the new session sheet over
  *  whatever screen it sits on. In the app's action color, since it is the
@@ -12,10 +12,17 @@ export function ComposeButton({ size = 19 }: { size?: number }) {
   return (
     <TouchableOpacity
       onPress={() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
+          () => {},
+        );
         openCompose();
       }}
-      style={{ width: 36, height: 32, alignItems: 'center', justifyContent: 'center' }}
+      style={{
+        width: 36,
+        height: 32,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
       activeOpacity={0.6}
       accessibilityRole="button"

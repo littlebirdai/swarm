@@ -12,26 +12,71 @@ let ACCENT: typeof import("../lib/entityCardAccent").ACCENT;
 
 beforeAll(async () => {
   const { JSDOM } = await import("jsdom");
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://local.codecast.sh", pretendToBeVisual: true });
-  for (const key of ["window", "document", "navigator", "HTMLElement", "HTMLButtonElement", "HTMLAnchorElement", "Element", "Node", "Event", "MouseEvent", "KeyboardEvent", "getComputedStyle", "requestAnimationFrame", "cancelAnimationFrame", "localStorage"]) {
+  const dom = new JSDOM(
+    "<!doctype html><html><body><div id='root'></div></body></html>",
+    { url: "https://local.codecast.sh", pretendToBeVisual: true },
+  );
+  for (const key of [
+    "window",
+    "document",
+    "navigator",
+    "HTMLElement",
+    "HTMLButtonElement",
+    "HTMLAnchorElement",
+    "Element",
+    "Node",
+    "Event",
+    "MouseEvent",
+    "KeyboardEvent",
+    "getComputedStyle",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "localStorage",
+  ]) {
     const v = (dom.window as any)[key];
-    if (v !== undefined) Object.defineProperty(globalThis, key, { value: v, configurable: true, writable: true });
+    if (v !== undefined)
+      Object.defineProperty(globalThis, key, {
+        value: v,
+        configurable: true,
+        writable: true,
+      });
   }
-  (globalThis as any).ResizeObserver ??= class { observe() {} disconnect() {} };
+  (globalThis as any).ResizeObserver ??= class {
+    observe() {}
+    disconnect() {}
+  };
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   React = await import("react");
   const h = React.createElement;
-  mock.module("./RoutePane", () => ({ RoutePane: () => h("div", null, "page") }));
-  mock.module("./stage/SessionPane", () => ({ SessionPane: () => h("div", null, "session") }));
+  mock.module("./RoutePane", () => ({
+    RoutePane: () => h("div", null, "page"),
+  }));
+  mock.module("./stage/SessionPane", () => ({
+    SessionPane: () => h("div", null, "session"),
+  }));
   const realShortcuts = { ...(await import("../shortcuts")) };
-  mock.module("../shortcuts", () => ({ ...realShortcuts, hasOpenModal: () => false, isEditableTarget: () => false }));
-  mock.module("../hooks/useOpenLinkedSession", () => ({ useOpenLinkedSession: () => () => {} }));
+  mock.module("../shortcuts", () => ({
+    ...realShortcuts,
+    hasOpenModal: () => false,
+    isEditableTarget: () => false,
+  }));
+  mock.module("../hooks/useOpenLinkedSession", () => ({
+    useOpenLinkedSession: () => () => {},
+  }));
   const realStage = { ...(await import("../lib/stage")) };
-  mock.module("../lib/stage", () => ({ ...realStage, canOpenBeside: () => true }));
+  mock.module("../lib/stage", () => ({
+    ...realStage,
+    canOpenBeside: () => true,
+  }));
   const realOpenIntent = { ...(await import("../lib/openIntent")) };
   mock.module("../lib/openIntent", () => ({ ...realOpenIntent, openIn() {} }));
-  mock.module("next/link", () => ({ default: ({ href, children, ...rest }: any) => h("a", { href, ...rest }, children) }));
-  mock.module("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }) }));
+  mock.module("next/link", () => ({
+    default: ({ href, children, ...rest }: any) =>
+      h("a", { href, ...rest }, children),
+  }));
+  mock.module("next/navigation", () => ({
+    useRouter: () => ({ push() {}, replace() {} }),
+  }));
   ({ createRoot } = await import("react-dom/client"));
   mod = await import("./EntityObjectCard");
   ({ ACCENT } = await import("../lib/entityCardAccent"));
@@ -44,8 +89,12 @@ function mount(ui: React.ReactNode) {
 }
 
 const card = () => document.querySelector<HTMLElement>(".entity-card")!;
-const openLinks = (scope: Element) => scope.querySelectorAll(".object-reveal-open-compact").length;
-const expand = () => React.act(() => card().dispatchEvent(new MouseEvent("click", { bubbles: true })));
+const openLinks = (scope: Element) =>
+  scope.querySelectorAll(".object-reveal-open-compact").length;
+const expand = () =>
+  React.act(() =>
+    card().dispatchEvent(new MouseEvent("click", { bubbles: true })),
+  );
 
 function frame(flat: boolean) {
   const h = React.createElement;
@@ -58,7 +107,9 @@ function frame(flat: boolean) {
     footerId: "jx7cwtb",
     resolved: true,
     served: true,
-    header: flat ? undefined : { icon: h("i"), title: "Read-only incident investigation" },
+    header: flat
+      ? undefined
+      : { icon: h("i"), title: "Read-only incident investigation" },
     flatBody: flat ? () => h("div", null, "body") : undefined,
     snippet: h("div", null, "snippet"),
     detail: h("div", null, "detail"),

@@ -1,5 +1,10 @@
 import { test, expect, describe } from "bun:test";
-import { clearChatFocus, holdChatFocus, isChatContextOnScreen, setChatFocus } from "./chatFocus";
+import {
+  clearChatFocus,
+  holdChatFocus,
+  isChatContextOnScreen,
+  setChatFocus,
+} from "./chatFocus";
 
 // The focus registry: several surfaces can be reading at once (Threads cards),
 // each holds its own entry, and releasing one must never erase another's —

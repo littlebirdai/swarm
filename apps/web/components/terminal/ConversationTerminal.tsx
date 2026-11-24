@@ -61,15 +61,39 @@ const MIN_HEIGHT = 90;
 // flicker the "paused" label on and off.
 const STALE_AFTER_MS = 12_000;
 
-export function ConversationTerminalSplit({ convKey, tmuxSession }: { convKey: string; tmuxSession?: string | null }) {
+export function ConversationTerminalSplit({
+  convKey,
+  tmuxSession,
+}: {
+  convKey: string;
+  tmuxSession?: string | null;
+}) {
   useSyncExternalStore(subscribe, getVersion, getVersion);
   const split = splits.get(convKey);
   if (!split) return null;
-  return <SplitBody convKey={convKey} split={split} tmuxSession={tmuxSession ?? null} />;
+  return (
+    <SplitBody
+      convKey={convKey}
+      split={split}
+      tmuxSession={tmuxSession ?? null}
+    />
+  );
 }
 
-function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: SplitState; tmuxSession: string | null }) {
-  useSyncExternalStore(subscribeTerminals, getTerminalsVersion, getTerminalsVersion);
+function SplitBody({
+  convKey,
+  split,
+  tmuxSession,
+}: {
+  convKey: string;
+  split: SplitState;
+  tmuxSession: string | null;
+}) {
+  useSyncExternalStore(
+    subscribeTerminals,
+    getTerminalsVersion,
+    getTerminalsVersion,
+  );
   const convex = useConvex();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dragHeight, setDragHeight] = useState<number | null>(null);
@@ -133,14 +157,21 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
         // a session you own. No socket can reach it, so watch it through the
         // relay instead; the conversation is what authorizes the agent-box case.
         current.termId = openTerminal({
-          remote: { convex, deviceId: machine.device_id, target, conversationId: convKey },
+          remote: {
+            convex,
+            deviceId: machine.device_id,
+            target,
+            conversationId: convKey,
+          },
           kind: "attach",
           target,
           title: target,
           detached: true,
         });
       } else {
-        setFailure("No local daemon reachable — the agent runs on another machine or cast isn't running here.");
+        setFailure(
+          "No local daemon reachable — the agent runs on another machine or cast isn't running here.",
+        );
         return;
       }
       current.target = target;
@@ -148,7 +179,15 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
     } finally {
       connecting.current = false;
     }
-  }, [convex, convKey, target, machine?.device_id, machine?.via_bot, foreign, machineName]);
+  }, [
+    convex,
+    convKey,
+    target,
+    machine?.device_id,
+    machine?.via_bot,
+    foreign,
+    machineName,
+  ]);
 
   useWatchEffect(() => {
     // Wait for the machine lookup: connecting before it lands would broadcast
@@ -182,7 +221,11 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
   // — a frame that never arrives re-renders nothing on its own.
   const lastFrameAt = inst?.state.lastFrameAt ?? 0;
   const now = useCoarseNow(2000);
-  const stale = isRemote && status === "open" && lastFrameAt > 0 && now - lastFrameAt > STALE_AFTER_MS;
+  const stale =
+    isRemote &&
+    status === "open" &&
+    lastFrameAt > 0 &&
+    now - lastFrameAt > STALE_AFTER_MS;
 
   useWatchEffect(() => {
     if (split.termId && containerRef.current && status === "open") {
@@ -195,8 +238,16 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
     const live = current?.termId ? getInstance(current.termId) : null;
     // A loopback view keeps its seat and its place: ask the daemon again
     // (it may have moved) and resume rather than repaint.
-    if (current?.termId && live && !live.state.remote && !foreign && !machine?.via_bot) {
-      const endpoint = await getTerminalEndpoint(convex, { deviceId: machine?.device_id });
+    if (
+      current?.termId &&
+      live &&
+      !live.state.remote &&
+      !foreign &&
+      !machine?.via_bot
+    ) {
+      const endpoint = await getTerminalEndpoint(convex, {
+        deviceId: machine?.device_id,
+      });
       if (endpoint && reconnectTab(current.termId, endpoint)) return;
     }
     if (current?.termId) {
@@ -214,7 +265,10 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
     let latest = startHeight;
     const onMove = (ev: PointerEvent) => {
       // Top-docked: dragging DOWN grows the split.
-      latest = Math.min(Math.max(startHeight + (ev.clientY - startY), MIN_HEIGHT), maxH);
+      latest = Math.min(
+        Math.max(startHeight + (ev.clientY - startY), MIN_HEIGHT),
+        maxH,
+      );
       setDragHeight(latest);
     };
     const onUp = () => {
@@ -246,10 +300,16 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
       <div className="flex items-center h-[24px] px-2 gap-1.5 flex-shrink-0 bg-sol-bg-alt/30 border-b border-sol-border/20 select-none">
         <span
           className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-            status === "open" && !inst?.state.reconnecting ? "bg-sol-violet" : isConnecting || inst?.state.reconnecting ? "bg-sol-yellow animate-pulse" : "bg-sol-text-dim/40"
+            status === "open" && !inst?.state.reconnecting
+              ? "bg-sol-violet"
+              : isConnecting || inst?.state.reconnecting
+                ? "bg-sol-yellow animate-pulse"
+                : "bg-sol-text-dim/40"
           }`}
         />
-        <span className="text-meta font-mono text-sol-text-muted truncate">{target}</span>
+        <span className="text-meta font-mono text-sol-text-muted truncate">
+          {target}
+        </span>
         {inst && status === "open" && <TerminalSeat tab={inst.state} />}
         {isRemote && (
           <span
@@ -261,12 +321,18 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
           </span>
         )}
         {stale && (
-          <span className="text-meta font-mono text-sol-yellow flex-shrink-0" title="No frames for a while — the machine may be asleep or offline.">
+          <span
+            className="text-meta font-mono text-sol-yellow flex-shrink-0"
+            title="No frames for a while — the machine may be asleep or offline."
+          >
             paused
           </span>
         )}
         <span className="flex-1" />
-        {(status === "exited" || status === "error" || status === "offline" || failure) && (
+        {(status === "exited" ||
+          status === "error" ||
+          status === "offline" ||
+          failure) && (
           <button
             onClick={() => void reconnect()}
             title="Reconnect"
@@ -275,13 +341,20 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
             <RotateCw className="w-3 h-3" />
           </button>
         )}
-        <button onClick={close} title="Close terminal view" className="p-0.5 rounded text-sol-text-dim/50 hover:text-sol-text-muted transition-colors">
+        <button
+          onClick={close}
+          title="Close terminal view"
+          className="p-0.5 rounded text-sol-text-dim/50 hover:text-sol-text-muted transition-colors"
+        >
           <X className="w-3 h-3" />
         </button>
       </div>
 
       <div className="relative flex-1 min-h-0">
-        {failure || status === "offline" || status === "exited" || status === "error" ? (
+        {failure ||
+        status === "offline" ||
+        status === "exited" ||
+        status === "error" ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-meta font-mono text-center px-6">
             <span>
               {failure ? (
@@ -289,12 +362,20 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
               ) : status === "offline" ? (
                 <>
                   <span className="text-sol-yellow">no connection</span>
-                  <span className="text-sol-text-dim"> — the terminal needs the daemon reachable on this machine</span>
+                  <span className="text-sol-text-dim">
+                    {" "}
+                    — the terminal needs the daemon reachable on this machine
+                  </span>
                 </>
               ) : status === "error" ? (
-                <span className="text-sol-red">{inst?.state.statusDetail ?? "could not attach to the tmux session"}</span>
+                <span className="text-sol-red">
+                  {inst?.state.statusDetail ??
+                    "could not attach to the tmux session"}
+                </span>
               ) : (
-                <span className="text-sol-text-dim">{inst?.state.statusDetail ?? "session ended"}</span>
+                <span className="text-sol-text-dim">
+                  {inst?.state.statusDetail ?? "session ended"}
+                </span>
               )}
             </span>
             <button
@@ -321,7 +402,10 @@ function SplitBody({ convKey, split, tmuxSession }: { convKey: string; split: Sp
         />
       </div>
 
-      <SplitResizeHandle onPointerDown={onHandlePointerDown} title="Drag to resize" />
+      <SplitResizeHandle
+        onPointerDown={onHandlePointerDown}
+        title="Drag to resize"
+      />
     </div>
   );
 }

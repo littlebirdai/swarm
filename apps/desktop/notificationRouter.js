@@ -19,7 +19,8 @@
 // chooseLeader and RecentKeys unchanged, plus BannerGate — codecast's own
 // decision about WHETHER a banner goes up at all (see the block below it).
 
-const { createNotificationRouter } = require("@platform/desktop").notificationRouter;
+const { createNotificationRouter } =
+  require("@platform/desktop").notificationRouter;
 const { appForRoute } = require("./appWindows.mjs");
 
 const router = createNotificationRouter({
@@ -112,7 +113,11 @@ function bannerRank(kind) {
 // Why: RecentKeys forgets only on TTL, so a shell that runs for days keeps a
 // key per conversation it ever notified about. The cap bounds it, oldest first.
 class BurstCooldown extends router.RecentKeys {
-  constructor(ttlMs = BANNER_COOLDOWN_MS, now = undefined, maxKeys = BANNER_COOLDOWN_KEYS) {
+  constructor(
+    ttlMs = BANNER_COOLDOWN_MS,
+    now = undefined,
+    maxKeys = BANNER_COOLDOWN_KEYS,
+  ) {
     super(ttlMs, now || (() => Date.now()));
     this.maxKeys = maxKeys;
   }
@@ -139,7 +144,10 @@ class BurstCooldown extends router.RecentKeys {
 // all read it from here.
 function notificationRoute(data) {
   if (!data) return null;
-  return data.route || (data.conversationId ? `/conversation/${data.conversationId}` : null);
+  return (
+    data.route ||
+    (data.conversationId ? `/conversation/${data.conversationId}` : null)
+  );
 }
 
 // True when a window the user is looking at already shows what the banner is
@@ -147,7 +155,9 @@ function notificationRoute(data) {
 // a window sitting on a bare list page — is never "the active view".
 function showsBannerEntity(windows, route) {
   if (!route) return false;
-  return (windows || []).some((w) => w && w.focused && router.sameEntity(w.active, route));
+  return (windows || []).some(
+    (w) => w && w.focused && router.sameEntity(w.active, route),
+  );
 }
 
 class BannerGate {
@@ -176,12 +186,16 @@ class BannerGate {
     const route = notificationRoute(data);
     // A ring is for a person who is not looking, and "the app is in front" does
     // not mean they are. It skips every rule below except the duplicate collapse.
-    if (!force && showsBannerEntity(windows, route)) return { shown: false, reason: "focused-active" };
-    if (!this.recent.claim(router.RecentKeys.keyFor(payload))) return { shown: false, reason: "duplicate" };
+    if (!force && showsBannerEntity(windows, route))
+      return { shown: false, reason: "focused-active" };
+    if (!this.recent.claim(router.RecentKeys.keyFor(payload)))
+      return { shown: false, reason: "duplicate" };
 
     // The burst rules are per conversation. A chat, task or doc banner carries
     // no conversation and is deduped by its row id alone, as it always was.
-    const key = data.conversationId ? `conversation:${data.conversationId}` : null;
+    const key = data.conversationId
+      ? `conversation:${data.conversationId}`
+      : null;
     if (force || !key) return this.#fire(payload, null);
 
     if (bannerRank(data.kind) > 0) {
@@ -209,7 +223,8 @@ class BannerGate {
   }
 
   #fire(payload, key) {
-    if (key && !this.cooldown.claim(key)) return { shown: false, reason: "cooldown" };
+    if (key && !this.cooldown.claim(key))
+      return { shown: false, reason: "cooldown" };
     this.deliverBanner(payload);
     return { shown: true };
   }

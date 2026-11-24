@@ -10,13 +10,19 @@ import { closeDomWindow } from "../../test-helpers/domGlobals";
 // (anyone). A viewer who cannot manage sharing still gets the page link, and
 // none of the controls that would fail for them.
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost/" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  url: "http://localhost/",
+});
 // Radix (popover, focus scope, dismissable layer) reaches for the DOM's
 // element and event classes off the global, so every one jsdom defines is
 // installed rather than the handful the render itself touches.
 const domClasses = Object.fromEntries(
   Object.getOwnPropertyNames(dom.window)
-    .filter((k) => /^(HTML\w*Element|SVG\w*Element|\w*Event|Element|Node|NodeFilter|MutationObserver|DocumentFragment|Text|Range|Selection)$/.test(k))
+    .filter((k) =>
+      /^(HTML\w*Element|SVG\w*Element|\w*Event|Element|Node|NodeFilter|MutationObserver|DocumentFragment|Text|Range|Selection)$/.test(
+        k,
+      ),
+    )
     .map((k) => [k, (dom.window as any)[k]]),
 );
 const restoreGlobals = replaceGlobals({
@@ -28,7 +34,11 @@ const restoreGlobals = replaceGlobals({
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 // Radix positions the panel with floating-ui, which observes the anchor.
-(globalThis as any).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
 (dom.window as any).ResizeObserver = (globalThis as any).ResizeObserver;
 const { createRoot } = await import("react-dom/client");
 const { SharePopover } = await import("../SharePopover");
@@ -43,27 +53,38 @@ let container: HTMLElement | null = null;
 afterEach(async () => {
   if (root) await act(() => root!.unmount());
   container?.remove();
-  root = null; container = null;
+  root = null;
+  container = null;
 });
 
-async function mountOpen(props: Partial<React.ComponentProps<typeof SharePopover>>) {
+async function mountOpen(
+  props: Partial<React.ComponentProps<typeof SharePopover>>,
+) {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
-  await act(() => root!.render(
-    <SharePopover
-      hasShareToken={false}
-      hasTeam
-      teamId="t1"
-      onGenerateShareLink={async () => "https://codecast.sh/conversation/c1?share=tok"}
-      shareUrl={null}
-      pageUrl="https://codecast.sh/conversation/c1"
-      forwardLabel="session"
-      {...props}
-    />,
-  ));
+  await act(() =>
+    root!.render(
+      <SharePopover
+        hasShareToken={false}
+        hasTeam
+        teamId="t1"
+        onGenerateShareLink={async () =>
+          "https://codecast.sh/conversation/c1?share=tok"
+        }
+        shareUrl={null}
+        pageUrl="https://codecast.sh/conversation/c1"
+        forwardLabel="session"
+        {...props}
+      />,
+    ),
+  );
   const trigger = container.querySelector("button")!;
-  await act(async () => { trigger.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await act(async () => {
+    trigger.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
   return document.body.textContent ?? "";
 }
 
@@ -76,26 +97,54 @@ test("the owner gets one link and one control for who can open it", async () => 
   expect(text).toContain("Only people who can already see it");
   expect(text).not.toContain("Public link");
   expect(text).toContain("Hidden");
-  const copy = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Copy link"));
-  expect(copy?.getAttribute("title")).toBe("https://codecast.sh/conversation/c1");
+  const copy = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Copy link"),
+  );
+  expect(copy?.getAttribute("title")).toBe(
+    "https://codecast.sh/conversation/c1",
+  );
 });
 
 test("open to anyone, the one link carries its token and Restricted revokes it", async () => {
   let revoked = 0;
-  const text = await mountOpen({ hasShareToken: true, shareUrl: "https://codecast.sh/conversation/c1?share=tok", onRevokeShareLink: async () => { revoked++; } });
+  const text = await mountOpen({
+    hasShareToken: true,
+    shareUrl: "https://codecast.sh/conversation/c1?share=tok",
+    onRevokeShareLink: async () => {
+      revoked++;
+    },
+  });
   expect(text).toContain("Anyone with the link can view it");
-  const copy = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Copy link"));
-  expect(copy?.getAttribute("title")).toBe("https://codecast.sh/conversation/c1?share=tok");
-  const restricted = Array.from(document.querySelectorAll('[role="radio"]')).find((b) => b.textContent === "Restricted")!;
-  await act(async () => { restricted.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  const copy = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Copy link"),
+  );
+  expect(copy?.getAttribute("title")).toBe(
+    "https://codecast.sh/conversation/c1?share=tok",
+  );
+  const restricted = Array.from(
+    document.querySelectorAll('[role="radio"]'),
+  ).find((b) => b.textContent === "Restricted")!;
+  await act(async () => {
+    restricted.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true }),
+    );
+  });
   expect(revoked).toBe(1);
 });
 
 test("a viewer who cannot manage sharing gets the page link and nothing that would fail", async () => {
-  const text = await mountOpen({ canManage: false, hasShareToken: true, shareUrl: "https://codecast.sh/conversation/c1?share=tok" });
+  const text = await mountOpen({
+    canManage: false,
+    hasShareToken: true,
+    shareUrl: "https://codecast.sh/conversation/c1?share=tok",
+  });
   expect(text).toContain("Copy link");
   expect(text).not.toContain("Link access");
   expect(text).not.toContain("Hidden");
-  const copy = Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.includes("Copy link"));
-  expect(copy?.getAttribute("title")).toBe("https://codecast.sh/conversation/c1");
+  const copy = Array.from(document.querySelectorAll("button")).find((b) =>
+    b.textContent?.includes("Copy link"),
+  );
+  expect(copy?.getAttribute("title")).toBe(
+    "https://codecast.sh/conversation/c1",
+  );
 });

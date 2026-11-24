@@ -6,7 +6,10 @@
 //
 // The server's list lives in convex/notificationRouter.ts; a convex test asserts
 // the schema, the router and the preference map agree. This is the client half.
-import { agentDisplayName, isHostedAgentType } from "@codecast/shared/contracts";
+import {
+  agentDisplayName,
+  isHostedAgentType,
+} from "@codecast/shared/contracts";
 
 export const sessionTypes = new Set([
   "session_idle",
@@ -28,8 +31,10 @@ export const sessionTypes = new Set([
 // and put that logo on a report about a frozen machine. Such a row takes the
 // generic icon. Shared because the bell and the notifications page render the
 // same row twice and drifted the last time each kept its own copy.
-export const showsAgentIcon = (n: { type: string; conversation?: unknown }): boolean =>
-  sessionTypes.has(n.type) && !!n.conversation;
+export const showsAgentIcon = (n: {
+  type: string;
+  conversation?: unknown;
+}): boolean => sessionTypes.has(n.type) && !!n.conversation;
 
 export const socialTypes = new Set([
   "mention",
@@ -189,11 +194,19 @@ export const typeColors: Record<string, string> = {
  *  typed is FROM the session (`actor_session`, notifications.list): it wears
  *  the session's agent mark, never the photo of the human it ran as. */
 export function notificationActor(n: {
-  actor?: { name?: string; github_username?: string; github_avatar_url?: string } | null;
+  actor?: {
+    name?: string;
+    github_username?: string;
+    github_avatar_url?: string;
+  } | null;
   actor_name?: string;
   actor_avatar?: string;
   actor_session?: { id: string; agent_type: string } | null;
-}): { name: string | undefined; avatar: string | undefined; session: { id: string; agent_type: string } | null } {
+}): {
+  name: string | undefined;
+  avatar: string | undefined;
+  session: { id: string; agent_type: string } | null;
+} {
   const session = n.actor_session ?? null;
   return {
     name: n.actor_name || n.actor?.name || n.actor?.github_username,
@@ -225,8 +238,15 @@ const hostedTypeLabels: Record<string, string> = {
 
 /** The small event word on a notification row, for the agent its
  *  conversation runs on. An unlisted type reads as its own name in words. */
-export function notificationTypeLabel(type: string, agentType?: string | null): string {
-  return (isHostedAgentType(agentType) && hostedTypeLabels[type]) || typeLabels[type] || type.replace(/_/g, " ");
+export function notificationTypeLabel(
+  type: string,
+  agentType?: string | null,
+): string {
+  return (
+    (isHostedAgentType(agentType) && hostedTypeLabels[type]) ||
+    typeLabels[type] ||
+    type.replace(/_/g, " ")
+  );
 }
 
 /** Who a session notification is from: the short agent name, and for an
@@ -238,13 +258,20 @@ export function notificationAgentName(agentType: string): string {
 
 /** Display label for the session a notification belongs to: title, else project basename. */
 export function sessionLabel(
-  conversation: { title?: string; project_path?: string; agent_type?: string } | null | undefined,
+  conversation:
+    | { title?: string; project_path?: string; agent_type?: string }
+    | null
+    | undefined,
 ): string | null {
   if (!conversation) return null;
   if (conversation.title) return conversation.title;
   if (conversation.project_path) {
     const parts = conversation.project_path.split("/");
-    return parts[parts.length - 1] || parts[parts.length - 2] || conversation.project_path;
+    return (
+      parts[parts.length - 1] ||
+      parts[parts.length - 2] ||
+      conversation.project_path
+    );
   }
   return null;
 }
@@ -264,26 +291,36 @@ export function notificationRoute(
   chatMessageId?: string,
 ): string | null {
   if (!entityType || !entityId) return null;
-  const simple: Record<string, string> = { task: "/tasks/", doc: "/docs/", plan: "/plans/" };
+  const simple: Record<string, string> = {
+    task: "/tasks/",
+    doc: "/docs/",
+    plan: "/plans/",
+  };
   if (simple[entityType]) return `${simple[entityType]}${entityId}`;
   if (entityType === "chat_channel") {
-    return chatMessageId ? `/chat/${entityId}?m=${chatMessageId}` : `/chat/${entityId}`;
+    return chatMessageId
+      ? `/chat/${entityId}?m=${chatMessageId}`
+      : `/chat/${entityId}`;
   }
   // A device has no page of its own; the roster with its health is the place a
   // reader can act on the alert.
   if (entityType === "device") return "/settings/devices";
   // A machine by daemon device id: its offload review on Resources, ready to move load off.
-  if (entityType === "machine") return `/resources?offload=${encodeURIComponent(entityId)}`;
+  if (entityType === "machine")
+    return `/resources?offload=${encodeURIComponent(entityId)}`;
   // A team: its settings, where join requests wait for an admin.
   if (entityType === "team") return "/settings/team";
   // A passkey: the person's passkey list, where one they did not add is removed.
   if (entityType === "passkey") return "/settings/accounts";
   // A weekly card: its week on /week, ready to share.
-  if (entityType === "weekly_card") return `/week?w=${encodeURIComponent(entityId)}`;
+  if (entityType === "weekly_card")
+    return `/week?w=${encodeURIComponent(entityId)}`;
   // A metric watch by its short id: its page, chart and alert.
-  if (entityType === "metric_watch") return `/ops/metrics/${encodeURIComponent(entityId)}`;
+  if (entityType === "metric_watch")
+    return `/ops/metrics/${encodeURIComponent(entityId)}`;
   // A deploy by its short id: the Deploys page open on it.
-  if (entityType === "deploy") return `/deploys?deploy=${encodeURIComponent(entityId)}`;
+  if (entityType === "deploy")
+    return `/deploys?deploy=${encodeURIComponent(entityId)}`;
   // A role's page opens on its Scope tab, where a person who reports to it
   // reads their goals with what moved and what stalled.
   if (entityType === "org_role") return `/org/${entityId}`;

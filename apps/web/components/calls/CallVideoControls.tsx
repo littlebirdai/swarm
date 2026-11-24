@@ -1,6 +1,19 @@
 import { visibleAnimationLoop } from "../../lib/windowVisibleWork";
-import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Maximize2, Minimize2, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import {
+  Maximize2,
+  Minimize2,
+  Pause,
+  Play,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { formatCallTime } from "@codecast/shared/entities";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { usePressOutside } from "../../hooks/usePressOutside";
@@ -76,7 +89,11 @@ export function CallVideoControls({
   const [menu, setMenu] = useState(false);
   const [full, setFull] = useState(false);
   const [awake, setAwake] = useState(true);
-  const [hover, setHover] = useState<{ x: number; s: number; w: number } | null>(null);
+  const [hover, setHover] = useState<{
+    x: number;
+    s: number;
+    w: number;
+  } | null>(null);
   const [dragging, setDragging] = useState(false);
 
   const fillRef = useRef<HTMLSpanElement>(null);
@@ -94,9 +111,11 @@ export function CallVideoControls({
     const p = d ? Math.min(1, el.currentTime / d) : 0;
     if (fillRef.current) fillRef.current.style.transform = `scaleX(${p})`;
     if (knobRef.current) knobRef.current.style.left = `${p * 100}%`;
-    if (spokenRef.current) spokenRef.current.style.clipPath = `inset(0 ${(1 - p) * 100}% 0 0)`;
+    if (spokenRef.current)
+      spokenRef.current.style.clipPath = `inset(0 ${(1 - p) * 100}% 0 0)`;
     const b = el.buffered;
-    if (bufRef.current && d && b?.length) bufRef.current.style.transform = `scaleX(${Math.min(1, b.end(b.length - 1) / d)})`;
+    if (bufRef.current && d && b?.length)
+      bufRef.current.style.transform = `scaleX(${Math.min(1, b.end(b.length - 1) / d)})`;
   };
 
   // Follow the picture shown: its play state, length and place.
@@ -161,7 +180,10 @@ export function CallVideoControls({
   }, [room]);
 
   useWatchEffect(() => {
-    const read = () => setFull(!!boxRef.current && document.fullscreenElement === boxRef.current);
+    const read = () =>
+      setFull(
+        !!boxRef.current && document.fullscreenElement === boxRef.current,
+      );
     document.addEventListener("fullscreenchange", read);
     return () => document.removeEventListener("fullscreenchange", read);
   }, []);
@@ -220,10 +242,14 @@ export function CallVideoControls({
   const toggleFull = () => {
     const box = boxRef.current;
     if (!box) return;
-    if (document.fullscreenElement) return void document.exitFullscreen().catch(() => {});
-    if (box.requestFullscreen) return void box.requestFullscreen().catch(() => {});
+    if (document.fullscreenElement)
+      return void document.exitFullscreen().catch(() => {});
+    if (box.requestFullscreen)
+      return void box.requestFullscreen().catch(() => {});
     // An iPhone fills the screen with a video element only, in its own player.
-    (el as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null)?.webkitEnterFullscreen?.();
+    (
+      el as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
+    )?.webkitEnterFullscreen?.();
   };
 
   /** The second of the file under a pointer on the track. */
@@ -247,13 +273,21 @@ export function CallVideoControls({
     if (dragging) seekTo(at.s);
   };
   const onTrackUp = (e: React.PointerEvent) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
     setDragging(false);
   };
 
   // Keys, while focus is on the picture itself (a button keeps its own Space).
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.target !== e.currentTarget || e.metaKey || e.ctrlKey || e.altKey || !el) return;
+    if (
+      e.target !== e.currentTarget ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.altKey ||
+      !el
+    )
+      return;
     const step = (s: number) => seekTo(el.currentTime + s);
     const act: Record<string, () => void> = {
       " ": toggle,
@@ -264,8 +298,19 @@ export function CallVideoControls({
       l: () => step(10),
       m: () => setRoom({ muted: !sound.muted }),
       f: toggleFull,
-      "<": () => pickRate(RATES[Math.max(0, RATES.indexOf(rate as (typeof RATES)[number]) - 1)]),
-      ">": () => pickRate(RATES[Math.min(RATES.length - 1, RATES.indexOf(rate as (typeof RATES)[number]) + 1)]),
+      "<": () =>
+        pickRate(
+          RATES[Math.max(0, RATES.indexOf(rate as (typeof RATES)[number]) - 1)],
+        ),
+      ">": () =>
+        pickRate(
+          RATES[
+            Math.min(
+              RATES.length - 1,
+              RATES.indexOf(rate as (typeof RATES)[number]) + 1,
+            )
+          ],
+        ),
     };
     const f = act[e.key];
     if (!f) return;
@@ -288,7 +333,8 @@ export function CallVideoControls({
         width: (Math.min(v.to, fileTo) - Math.max(v.from, fileFrom)) / span,
       }));
   }, [voices, fileFrom, fileTo]);
-  const speakerAt = (ms: number) => placed.find((p) => p.run.from <= ms && ms < p.run.to)?.run ?? null;
+  const speakerAt = (ms: number) =>
+    placed.find((p) => p.run.from <= ms && ms < p.run.to)?.run ?? null;
 
   if (!ready || !el) return null;
   const quiet = sound.muted || sound.volume === 0;
@@ -304,10 +350,20 @@ export function CallVideoControls({
       onKeyDown={onKeyDown}
     >
       {/* The picture itself: a press plays or pauses, a double press fills the screen. */}
-      <div className="absolute inset-0" onClick={toggle} onDoubleClick={toggleFull} aria-hidden="true" />
+      <div
+        className="absolute inset-0"
+        onClick={toggle}
+        onDoubleClick={toggleFull}
+        aria-hidden="true"
+      />
       <div className="call-controls-shade" aria-hidden="true" />
       {!started && (
-        <button type="button" className="call-controls-big" onClick={toggle} aria-label="Play">
+        <button
+          type="button"
+          className="call-controls-big"
+          onClick={toggle}
+          aria-label="Play"
+        >
           <Play className="ml-1 h-7 w-7" fill="currentColor" strokeWidth={0} />
         </button>
       )}
@@ -328,25 +384,41 @@ export function CallVideoControls({
           onPointerCancel={onTrackUp}
           onPointerLeave={() => !dragging && setHover(null)}
         >
-          <span className="call-controls-rail" data-voices={placed.length > 0 || undefined}>
+          <span
+            className="call-controls-rail"
+            data-voices={placed.length > 0 || undefined}
+          >
             <span ref={bufRef} className="call-controls-buf" />
             <span ref={fillRef} className="call-controls-fill" />
             {placed.length > 0 && (
               <>
                 <VoiceLayer placed={placed} className="call-controls-voices" />
-                <VoiceLayer placed={placed} className="call-controls-voices call-controls-spoken" spanRef={spokenRef} />
+                <VoiceLayer
+                  placed={placed}
+                  className="call-controls-voices call-controls-spoken"
+                  spanRef={spokenRef}
+                />
               </>
             )}
           </span>
           <span ref={knobRef} className="call-controls-knob" />
           {hover && (
-            <span className="call-controls-tip" style={{ left: Math.max(26, Math.min(hover.w - 26, hover.x)) }}>
+            <span
+              className="call-controls-tip"
+              style={{ left: Math.max(26, Math.min(hover.w - 26, hover.x)) }}
+            >
               {(() => {
                 const at = toCallMs(hover.s);
                 const who = speakerAt(at);
                 return (
                   <>
-                    {who && <span className={`mr-1.5 font-medium ${speakerColor(who.speaker_id)}`}>{firstName(who.speaker_name)}</span>}
+                    {who && (
+                      <span
+                        className={`mr-1.5 font-medium ${speakerColor(who.speaker_id)}`}
+                      >
+                        {firstName(who.speaker_name)}
+                      </span>
+                    )}
                     {formatCallTime(at)}
                   </>
                 );
@@ -356,16 +428,41 @@ export function CallVideoControls({
         </div>
         <div className="flex items-center gap-0.5">
           <IconButton onClick={toggle} label={playing ? "Pause" : "Play"}>
-            {playing ? <Pause className="h-[15px] w-[15px]" fill="currentColor" strokeWidth={0} /> : <Play className="h-[15px] w-[15px]" fill="currentColor" strokeWidth={0} />}
+            {playing ? (
+              <Pause
+                className="h-[15px] w-[15px]"
+                fill="currentColor"
+                strokeWidth={0}
+              />
+            ) : (
+              <Play
+                className="h-[15px] w-[15px]"
+                fill="currentColor"
+                strokeWidth={0}
+              />
+            )}
           </IconButton>
           {soundBlocked ? (
-            <button type="button" onClick={onUnblockSound} data-on className="call-controls-chip">
+            <button
+              type="button"
+              onClick={onUnblockSound}
+              data-on
+              className="call-controls-chip"
+            >
               <VolumeX className="h-3.5 w-3.5" /> Tap for sound
             </button>
           ) : (
             <span className="call-controls-vol group/vol flex items-center">
-              <IconButton onClick={() => setRoom({ muted: !sound.muted })} label={quiet ? "Unmute" : "Mute"} pressed={quiet}>
-                {quiet ? <VolumeX className="h-[15px] w-[15px]" /> : <Volume2 className="h-[15px] w-[15px]" />}
+              <IconButton
+                onClick={() => setRoom({ muted: !sound.muted })}
+                label={quiet ? "Unmute" : "Mute"}
+                pressed={quiet}
+              >
+                {quiet ? (
+                  <VolumeX className="h-[15px] w-[15px]" />
+                ) : (
+                  <Volume2 className="h-[15px] w-[15px]" />
+                )}
               </IconButton>
               {/* No slider on a touch screen: a phone ignores a page's volume. */}
               <input
@@ -374,7 +471,12 @@ export function CallVideoControls({
                 max={1}
                 step={0.02}
                 value={quiet ? 0 : sound.volume}
-                onChange={(e) => setRoom({ volume: Number(e.currentTarget.value), muted: Number(e.currentTarget.value) === 0 })}
+                onChange={(e) =>
+                  setRoom({
+                    volume: Number(e.currentTarget.value),
+                    muted: Number(e.currentTarget.value) === 0,
+                  })
+                }
                 aria-label="Volume"
                 className="call-controls-range"
                 style={{ ["--v" as string]: quiet ? 0 : sound.volume }}
@@ -383,7 +485,10 @@ export function CallVideoControls({
           )}
           <span className="ml-2 select-none whitespace-nowrap font-mono text-meta tabular-nums text-white/90">
             {formatCallTime(toCallMs(second))}
-            <span className="text-white/45"> / {formatCallTime(toCallMs(duration))}</span>
+            <span className="text-white/45">
+              {" "}
+              / {formatCallTime(toCallMs(duration))}
+            </span>
           </span>
           <span className="flex-1" />
           <div ref={menuRef} className="relative">
@@ -399,7 +504,11 @@ export function CallVideoControls({
               {rateWords(rate)}
             </button>
             {menu && (
-              <div className="call-controls-menu" role="menu" aria-label="Speed">
+              <div
+                className="call-controls-menu"
+                role="menu"
+                aria-label="Speed"
+              >
                 {RATES.map((r) => (
                   <button
                     key={r}
@@ -410,14 +519,23 @@ export function CallVideoControls({
                     className="call-controls-menu-item"
                   >
                     <span>{r === 1 ? "Normal" : rateWords(r)}</span>
-                    {r === rate && <span className="h-1.5 w-1.5 rounded-full bg-sol-violet" />}
+                    {r === rate && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-sol-violet" />
+                    )}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <IconButton onClick={toggleFull} label={full ? "Exit full screen" : "Full screen"}>
-            {full ? <Minimize2 className="h-[15px] w-[15px]" /> : <Maximize2 className="h-[15px] w-[15px]" />}
+          <IconButton
+            onClick={toggleFull}
+            label={full ? "Exit full screen" : "Full screen"}
+          >
+            {full ? (
+              <Minimize2 className="h-[15px] w-[15px]" />
+            ) : (
+              <Maximize2 className="h-[15px] w-[15px]" />
+            )}
           </IconButton>
         </div>
       </div>
@@ -425,9 +543,26 @@ export function CallVideoControls({
   );
 }
 
-function IconButton({ onClick, label, pressed, children }: { onClick: () => void; label: string; pressed?: boolean; children: ReactNode }) {
+function IconButton({
+  onClick,
+  label,
+  pressed,
+  children,
+}: {
+  onClick: () => void;
+  label: string;
+  pressed?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} aria-pressed={pressed} title={label} className="call-controls-ic">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className="call-controls-ic"
+    >
       {children}
     </button>
   );

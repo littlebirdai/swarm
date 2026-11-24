@@ -26,9 +26,14 @@ export function useSyncTeamKitWithArgs(wsArgs: WorkspaceArgs) {
 
   const result = useQueryNoThrow(
     api.teamKit.webListTeamKitItems,
-    wsArgs === "skip" ? "skip" : { ...(cursor !== undefined ? { since: cursor } : {}) },
+    wsArgs === "skip"
+      ? "skip"
+      : { ...(cursor !== undefined ? { since: cursor } : {}) },
   ).data;
-  const data = useMemo(() => (result === undefined ? undefined : { items: result.items ?? [] }), [result]);
+  const data = useMemo(
+    () => (result === undefined ? undefined : { items: result.items ?? [] }),
+    [result],
+  );
 
   useConvexSync(
     data,
@@ -47,7 +52,8 @@ export function useSyncTeamKitWithArgs(wsArgs: WorkspaceArgs) {
 
   useWatchEffect(() => {
     const timer = setInterval(() => {
-      if (lastSeen.current !== undefined && lastSeen.current !== cursor) setCursor(lastSeen.current);
+      if (lastSeen.current !== undefined && lastSeen.current !== cursor)
+        setCursor(lastSeen.current);
     }, CURSOR_REFRESH_MS);
     return () => clearInterval(timer);
   }, [cursor]);

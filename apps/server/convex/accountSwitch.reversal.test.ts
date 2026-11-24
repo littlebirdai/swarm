@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
-import { autoSwitchCheck, continueAllBlocked, requestAccountSwitch } from "./accountSwitch";
+import {
+  autoSwitchCheck,
+  continueAllBlocked,
+  requestAccountSwitch,
+} from "./accountSwitch";
 import { enqueuePendingMessage } from "./pendingMessages";
-import { AUTO_CONTINUE_WINDOW_MS, AUTO_SWITCH_CONTINUE_KEY } from "./ccAccountsShared";
+import {
+  AUTO_CONTINUE_WINDOW_MS,
+  AUTO_SWITCH_CONTINUE_KEY,
+} from "./ccAccountsShared";
 import { makeFakeDb } from "./testDb";
 
 afterEach(() => setSystemTime());
@@ -11,15 +18,34 @@ function fixture() {
   setSystemTime(new Date(now));
   const activation = Date.parse("2026-09-19T15:01:34.705Z");
   const device = {
-    _id: "devices_primary", user_id: "users_owner", device_id: "mac", last_seen: now,
-    cc_auto_switch: true, cc_recovery_ask: false,
+    _id: "devices_primary",
+    user_id: "users_owner",
+    device_id: "mac",
+    last_seen: now,
+    cc_auto_switch: true,
+    cc_recovery_ask: false,
     cc_accounts: {
-      active_email: "claude3@example.com", active_since: activation,
+      active_email: "claude3@example.com",
+      active_since: activation,
       profiles: [
-        { name: "claude3", email: "claude3@example.com", token: { expires_at: now + 86_400_000 },
-          usage: { fetched_at: activation + 2_000, session: { percent: 7, resets_at: now + 3_600_000 } } },
-        { name: "claude2", email: "claude2@example.com", token: { expires_at: now + 86_400_000 },
-          usage: { fetched_at: now - 10_000, session: { percent: 96, resets_at: now + 3_600_000 } } },
+        {
+          name: "claude3",
+          email: "claude3@example.com",
+          token: { expires_at: now + 86_400_000 },
+          usage: {
+            fetched_at: activation + 2_000,
+            session: { percent: 7, resets_at: now + 3_600_000 },
+          },
+        },
+        {
+          name: "claude2",
+          email: "claude2@example.com",
+          token: { expires_at: now + 86_400_000 },
+          usage: {
+            fetched_at: now - 10_000,
+            session: { percent: 96, resets_at: now + 3_600_000 },
+          },
+        },
       ],
     },
     cc_auto_switch_state: {
@@ -28,15 +54,36 @@ function fixture() {
     } as any,
   };
   const conversation = {
-    _id: "conversations_parked", user_id: "users_owner", session_id: "session-parked", owner_device_id: "mac",
-    agent_type: "claude_code", cc_account: "claude3", pending_api_error: true, pending_api_error_kind: "limit",
-    pending_api_error_at: Date.parse("2026-09-19T15:00:38.430Z"), updated_at: now - 240_000,
+    _id: "conversations_parked",
+    user_id: "users_owner",
+    session_id: "session-parked",
+    owner_device_id: "mac",
+    agent_type: "claude_code",
+    cc_account: "claude3",
+    pending_api_error: true,
+    pending_api_error_kind: "limit",
+    pending_api_error_at: Date.parse("2026-09-19T15:00:38.430Z"),
+    updated_at: now - 240_000,
   };
-  const tables: Record<string, any[]> = { devices: [device], conversations: [conversation], daemon_commands: [], pending_messages: [] };
+  const tables: Record<string, any[]> = {
+    devices: [device],
+    conversations: [conversation],
+    daemon_commands: [],
+    pending_messages: [],
+  };
   const db = makeFakeDb(tables);
   const scheduled: number[] = [];
-  const ctx = { db, scheduler: { async runAt(at: number) { scheduled.push(at); }, async runAfter() {} } };
-  const run = () => (autoSwitchCheck as any)._handler(ctx, { user_id: "users_owner" });
+  const ctx = {
+    db,
+    scheduler: {
+      async runAt(at: number) {
+        scheduled.push(at);
+      },
+      async runAfter() {},
+    },
+  };
+  const run = () =>
+    (autoSwitchCheck as any)._handler(ctx, { user_id: "users_owner" });
   return { now, activation, device, conversation, tables, ctx, run, scheduled };
 }
 
@@ -55,34 +102,51 @@ describe("account recovery keeps limit evidence separate from activity", () => {
     expect(f.tables.pending_messages).toHaveLength(1);
   });
 
-  for (const revive of [requestAccountSwitch, continueAllBlocked]) test(`${revive === requestAccountSwitch ? "account revive" : "continue all"} records the manual attempt so automatic recovery waits`, async () => {
-    const f = fixture();
-    f.device.cc_auto_switch_state = { attempts: [] };
-    f.conversation.pending_api_error_at = f.now - 10_000;
-    f.conversation.cc_account = "claude2";
-    const auth = { async getUserIdentity() { return { subject: "users_owner|session" }; } };
-    await (revive as any)._handler({ ...f.ctx, auth }, {});
-    expect(f.tables.daemon_commands).toHaveLength(1);
-    expect(await f.run()).toMatchObject({ acted: "cooldown" });
-    setSystemTime(new Date(f.now + 185_000));
-    f.device.last_seen = Date.now();
-    expect(await f.run()).toMatchObject({ acted: "wait" });
-    expect(f.tables.daemon_commands).toHaveLength(1);
-    expect(f.device.cc_accounts.active_email).toBe("claude3@example.com");
+  for (const revive of [requestAccountSwitch, continueAllBlocked])
+    test(`${revive === requestAccountSwitch ? "account revive" : "continue all"} records the manual attempt so automatic recovery waits`, async () => {
+      const f = fixture();
+      f.device.cc_auto_switch_state = { attempts: [] };
+      f.conversation.pending_api_error_at = f.now - 10_000;
+      f.conversation.cc_account = "claude2";
+      const auth = {
+        async getUserIdentity() {
+          return { subject: "users_owner|session" };
+        },
+      };
+      await (revive as any)._handler({ ...f.ctx, auth }, {});
+      expect(f.tables.daemon_commands).toHaveLength(1);
+      expect(await f.run()).toMatchObject({ acted: "cooldown" });
+      setSystemTime(new Date(f.now + 185_000));
+      f.device.last_seen = Date.now();
+      expect(await f.run()).toMatchObject({ acted: "wait" });
+      expect(f.tables.daemon_commands).toHaveLength(1);
+      expect(f.device.cc_accounts.active_email).toBe("claude3@example.com");
 
-    f.conversation.pending_api_error_at = Date.now();
-    f.device.cc_accounts.profiles[0].usage.session.percent = 100;
-    expect(await f.run()).toMatchObject({ acted: "switch", profile: "claude2" });
-  });
+      f.conversation.pending_api_error_at = Date.now();
+      f.device.cc_accounts.profiles[0].usage.session.percent = 100;
+      expect(await f.run()).toMatchObject({
+        acted: "switch",
+        profile: "claude2",
+      });
+    });
 
   test("a manual account selection holds recovery while the new login is being confirmed", async () => {
     const f = fixture();
     f.device.cc_auto_switch_state = { attempts: [] };
     f.device.cc_accounts.profiles[0].usage.session.percent = 100;
-    const auth = { async getUserIdentity() { return { subject: "users_owner|session" }; } };
-    await (requestAccountSwitch as any)._handler({ ...f.ctx, auth }, {
-      profile: "claude2", device_id: "mac", continue_blocked: false,
-    });
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "users_owner|session" };
+      },
+    };
+    await (requestAccountSwitch as any)._handler(
+      { ...f.ctx, auth },
+      {
+        profile: "claude2",
+        device_id: "mac",
+        continue_blocked: false,
+      },
+    );
     // The fleet has not moved to claude2 yet (awaitsManualTarget): recovery stays put.
     expect(await f.run()).toMatchObject({ acted: "stay" });
     expect(f.tables.daemon_commands).toHaveLength(1);
@@ -93,8 +157,15 @@ describe("account recovery keeps limit evidence separate from activity", () => {
   test("a dry run does not suppress automatic recovery", async () => {
     const f = fixture();
     const before = structuredClone(f.device.cc_auto_switch_state);
-    const auth = { async getUserIdentity() { return { subject: "users_owner|session" }; } };
-    await (requestAccountSwitch as any)._handler({ ...f.ctx, auth }, { profile: "claude2", dry_run: true });
+    const auth = {
+      async getUserIdentity() {
+        return { subject: "users_owner|session" };
+      },
+    };
+    await (requestAccountSwitch as any)._handler(
+      { ...f.ctx, auth },
+      { profile: "claude2", dry_run: true },
+    );
     expect(f.device.cc_auto_switch_state).toEqual(before);
     expect(f.tables.daemon_commands).toHaveLength(0);
   });
@@ -102,9 +173,15 @@ describe("account recovery keeps limit evidence separate from activity", () => {
   test("a paced continue cannot turn an old park into a limit on the new account", async () => {
     const f = fixture();
     setSystemTime(new Date(f.now - 3_725));
-    await enqueuePendingMessage(f.ctx as any, f.conversation as any, "users_owner" as any, {
-      content: "continue", client_id: "first-switch-continue",
-    });
+    await enqueuePendingMessage(
+      f.ctx as any,
+      f.conversation as any,
+      "users_owner" as any,
+      {
+        content: "continue",
+        client_id: "first-switch-continue",
+      },
+    );
     expect(f.conversation.updated_at).toBe(f.now - 3_725);
     expect(f.conversation.pending_api_error_at).toBeLessThan(f.activation);
     setSystemTime(new Date(f.now));
@@ -123,14 +200,28 @@ describe("account recovery keeps limit evidence separate from activity", () => {
 
   test("a new limit after recovery still switches and remembers the exhausted outgoing account", async () => {
     const f = fixture();
-    f.device.cc_auto_switch_state.attempts.push({ profile: AUTO_SWITCH_CONTINUE_KEY, at: f.now - 185_000 });
+    f.device.cc_auto_switch_state.attempts.push({
+      profile: AUTO_SWITCH_CONTINUE_KEY,
+      at: f.now - 185_000,
+    });
     f.conversation.pending_api_error_at = f.now - 1_000;
     f.conversation.updated_at = f.now;
     f.device.cc_accounts.profiles[0].usage.session.percent = 100;
-    expect(await f.run()).toMatchObject({ acted: "switch", profile: "claude2" });
-    expect(f.device.cc_auto_switch_state.attempts).toContainEqual({ profile: "claude3", at: f.now });
-    expect(f.device.cc_auto_switch_state.attempts).toContainEqual({ profile: "claude2", at: f.now });
-    expect(JSON.parse(f.tables.daemon_commands[0].args).profile).toBe("claude2");
+    expect(await f.run()).toMatchObject({
+      acted: "switch",
+      profile: "claude2",
+    });
+    expect(f.device.cc_auto_switch_state.attempts).toContainEqual({
+      profile: "claude3",
+      at: f.now,
+    });
+    expect(f.device.cc_auto_switch_state.attempts).toContainEqual({
+      profile: "claude2",
+      at: f.now,
+    });
+    expect(JSON.parse(f.tables.daemon_commands[0].args).profile).toBe(
+      "claude2",
+    );
   });
 
   test("the Codex pass also uses the original park when later activity changes updated_at", async () => {

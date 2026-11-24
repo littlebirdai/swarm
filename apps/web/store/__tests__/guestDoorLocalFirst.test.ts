@@ -8,9 +8,25 @@ import { removeGuest } from "../../lib/calls/guestDoorActions";
 // getRoomKnocks push computed before the answer landed cannot put it back,
 // a refusal does, and a removed guest leaves the live room's faces.
 const ROOM = "channel:c1";
-const ada = { from_user: "guest:g1", from_name: "Ada", created_at: 10, kind: "guest", guest_id: "g1", can_answer: true };
-const bo = { from_user: "u-bo", from_name: "Bo", created_at: 5, kind: "person", can_answer: true };
-const knocks = () => ((useInboxStore.getState() as any).roomKnocks ?? []).map((k: any) => k.from_user);
+const ada = {
+  from_user: "guest:g1",
+  from_name: "Ada",
+  created_at: 10,
+  kind: "guest",
+  guest_id: "g1",
+  can_answer: true,
+};
+const bo = {
+  from_user: "u-bo",
+  from_name: "Bo",
+  created_at: 5,
+  kind: "person",
+  can_answer: true,
+};
+const knocks = () =>
+  ((useInboxStore.getState() as any).roomKnocks ?? []).map(
+    (k: any) => k.from_user,
+  );
 
 describe("answering a guest, local-first", () => {
   const owner = {};
@@ -22,17 +38,27 @@ describe("answering a guest, local-first", () => {
     calls = [];
     refuse = false;
     drop = false;
-    useInboxStore.setState({ roomKnocks: [], liveRooms: [], pending: {} } as any);
-    useInboxStore.getState()._setDispatch(async (action: string, args: any[]) => {
-      calls.push({ action, args });
-      // An application error reaches the client as "Uncaught Error: ...",
-      // which the outbox reads as a refusal for good.
-      if (refuse) throw new Error("Server Error Uncaught Error: Ada is no longer at the door");
-      // A send that failed on this side (a dropped socket on a weak signal)
-      // says nothing about the server: the answer is still on its way.
-      if (drop) throw new Error("WebSocket closed with code 1006");
-      return null;
-    }, { owner });
+    useInboxStore.setState({
+      roomKnocks: [],
+      liveRooms: [],
+      pending: {},
+    } as any);
+    useInboxStore.getState()._setDispatch(
+      async (action: string, args: any[]) => {
+        calls.push({ action, args });
+        // An application error reaches the client as "Uncaught Error: ...",
+        // which the outbox reads as a refusal for good.
+        if (refuse)
+          throw new Error(
+            "Server Error Uncaught Error: Ada is no longer at the door",
+          );
+        // A send that failed on this side (a dropped socket on a weak signal)
+        // says nothing about the server: the answer is still on its way.
+        if (drop) throw new Error("WebSocket closed with code 1006");
+        return null;
+      },
+      { owner },
+    );
     useInboxStore.getState().syncTable("roomKnocks", [ada, bo]);
   });
 
@@ -53,14 +79,19 @@ describe("answering a guest, local-first", () => {
     expect(knocks()).toEqual(["u-bo"]);
     // The server agrees, and a later knock from the same row shows again.
     useInboxStore.getState().syncTable("roomKnocks", [bo]);
-    useInboxStore.getState().syncTable("roomKnocks", [{ ...ada, created_at: 99 }, bo]);
+    useInboxStore
+      .getState()
+      .syncTable("roomKnocks", [{ ...ada, created_at: 99 }, bo]);
     expect(knocks()).toEqual(["guest:g1", "u-bo"]);
   });
 
   it("puts a refused answer's knock back", async () => {
     refuse = true;
     let err: unknown = null;
-    await useInboxStore.getState().admitGuestKnock("g1", "Ada").catch((e) => (err = e));
+    await useInboxStore
+      .getState()
+      .admitGuestKnock("g1", "Ada")
+      .catch((e) => (err = e));
     expect(String(err)).toContain("no longer at the door");
     useInboxStore.getState().syncTable("roomKnocks", [ada, bo]);
     expect(knocks()).toContain("guest:g1");
@@ -70,20 +101,45 @@ describe("answering a guest, local-first", () => {
     // The room's guests carry the identity the server minted, through the
     // contract's one home for its format; the removal must match it.
     const cy = { identity: guestIdentity("g2"), name: "Cy" };
-    useInboxStore.setState({ liveRooms: [{ room_key: ROOM, guests: [cy, { identity: guestIdentity("g3"), name: "Di" }] }] } as any);
+    useInboxStore.setState({
+      liveRooms: [
+        {
+          room_key: ROOM,
+          guests: [cy, { identity: guestIdentity("g3"), name: "Di" }],
+        },
+      ],
+    } as any);
     void useInboxStore.getState().removeCallGuest(ROOM, "g2", false);
-    expect((useInboxStore.getState() as any).liveRooms[0].guests.map((g: any) => g.name)).toEqual(["Di"]);
+    expect(
+      (useInboxStore.getState() as any).liveRooms[0].guests.map(
+        (g: any) => g.name,
+      ),
+    ).toEqual(["Di"]);
     useInboxStore.getState().restoreCallGuest(ROOM, cy);
-    expect((useInboxStore.getState() as any).liveRooms[0].guests.map((g: any) => g.name)).toEqual(["Di", "Cy"]);
+    expect(
+      (useInboxStore.getState() as any).liveRooms[0].guests.map(
+        (g: any) => g.name,
+      ),
+    ).toEqual(["Di", "Cy"]);
   });
 
   // The phone and the web answer through the same functions
   // (lib/calls/guestDoorActions), so this is both surfaces' rule.
   describe("removeGuest, as both surfaces press it", () => {
     const cy = { identity: guestIdentity("g2"), name: "Cy" };
-    const faces = () => (useInboxStore.getState() as any).liveRooms[0].guests.map((g: any) => g.name);
+    const faces = () =>
+      (useInboxStore.getState() as any).liveRooms[0].guests.map(
+        (g: any) => g.name,
+      );
     beforeEach(() => {
-      useInboxStore.setState({ liveRooms: [{ room_key: ROOM, guests: [cy, { identity: guestIdentity("g3"), name: "Di" }] }] } as any);
+      useInboxStore.setState({
+        liveRooms: [
+          {
+            room_key: ROOM,
+            guests: [cy, { identity: guestIdentity("g3"), name: "Di" }],
+          },
+        ],
+      } as any);
     });
 
     it("says nothing and keeps them out when the send merely failed on this side", async () => {

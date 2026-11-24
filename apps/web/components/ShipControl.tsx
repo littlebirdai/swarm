@@ -9,9 +9,17 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { Rocket, GitBranch, ArrowRight } from "lucide-react";
-import { shipProgress, type ShipPhase, type ShipProgress } from "@codecast/shared/contracts/shipPlan";
+import {
+  shipProgress,
+  type ShipPhase,
+  type ShipProgress,
+} from "@codecast/shared/contracts/shipPlan";
 import { useInboxStore } from "../store/inboxStore";
-import { useShipTarget, type ShipTargetRef, type ShipTargetRow } from "../hooks/useShipTarget";
+import {
+  useShipTarget,
+  type ShipTargetRef,
+  type ShipTargetRow,
+} from "../hooks/useShipTarget";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { KeyCap } from "./KeyboardShortcutsHelp";
 import { useWorkspaceFeature } from "../lib/teamFeatures";
@@ -31,19 +39,43 @@ const LIVE: ReadonlySet<ShipPhase> = new Set(["starting", "working", "checks"]);
 /** Where the latest run stands, read off the store rows its progress lives in. */
 function useRunProgress(row: ShipTargetRow | undefined): ShipProgress | null {
   const convId = row?.run?.conversation_id ?? null;
-  const session = useInboxStore((s) => (convId ? (s as any).sessions?.[convId] ?? null : null));
+  const session = useInboxStore((s) =>
+    convId ? ((s as any).sessions?.[convId] ?? null) : null,
+  );
   const prId = row?.pr_id ?? session?.pr_status?.pr_id ?? null;
-  const pr = useInboxStore((s) => (prId ? (s as any).pullRequests?.[prId] ?? null : null));
+  const pr = useInboxStore((s) =>
+    prId ? ((s as any).pullRequests?.[prId] ?? null) : null,
+  );
   return useMemo(() => {
     const run = row?.run;
     if (!run) return null;
     if (run.procedure === "line_gate" || run.decision_id) {
       const line = row?.line;
       const ship = line?.ship;
-      if (line?.merge) return { phase: "merged", text: `Merged ${line.merge.branch} into ${line.merge.into}`, pr: null };
-      if (!ship || ship.status === "pending") return { phase: "starting", text: "Answered Ship on the card; the flow's ship step is next", pr: null };
-      if (ship.status === "running") return { phase: "working", text: "The flow's ship step is running", pr: null };
-      if (ship.status === "failed" || ship.outcome === "failure") return { phase: "failed", text: `Failed: ${ship.preview ?? line?.fail_reason ?? "the ship station"}`, pr: null };
+      if (line?.merge)
+        return {
+          phase: "merged",
+          text: `Merged ${line.merge.branch} into ${line.merge.into}`,
+          pr: null,
+        };
+      if (!ship || ship.status === "pending")
+        return {
+          phase: "starting",
+          text: "Answered Ship on the card; the flow's ship step is next",
+          pr: null,
+        };
+      if (ship.status === "running")
+        return {
+          phase: "working",
+          text: "The flow's ship step is running",
+          pr: null,
+        };
+      if (ship.status === "failed" || ship.outcome === "failure")
+        return {
+          phase: "failed",
+          text: `Failed: ${ship.preview ?? line?.fail_reason ?? "the ship station"}`,
+          pr: null,
+        };
       return { phase: "done", text: ship.preview ?? "Shipped", pr: null };
     }
     return shipProgress({ session, pr });
@@ -52,11 +84,20 @@ function useRunProgress(row: ShipTargetRow | undefined): ShipProgress | null {
 
 /** Ship is a team feature (teams.features.ship, default off): an off workspace
  *  renders no control and runs no ship query. */
-export function ShipControl(props: { target: ShipTargetRef; size?: "full" | "compact" }) {
+export function ShipControl(props: {
+  target: ShipTargetRef;
+  size?: "full" | "compact";
+}) {
   return useWorkspaceFeature("ship") ? <ShipControlOn {...props} /> : null;
 }
 
-function ShipControlOn({ target, size = "full" }: { target: ShipTargetRef; size?: "full" | "compact" }) {
+function ShipControlOn({
+  target,
+  size = "full",
+}: {
+  target: ShipTargetRef;
+  size?: "full" | "compact";
+}) {
   const row = useShipTarget(target);
   const progress = useRunProgress(row);
   const startShip = useInboxStore((s) => s.startShip);
@@ -65,12 +106,23 @@ function ShipControlOn({ target, size = "full" }: { target: ShipTargetRef; size?
   const live = !!progress && LIVE.has(progress.phase);
   const press = useCallback(() => {
     if (!plan || plan.blocked) return;
-    startShip(target, `ship-${Date.now().toString(36)}`, plan.decisionId ?? undefined);
+    startShip(
+      target,
+      `ship-${Date.now().toString(36)}`,
+      plan.decisionId ?? undefined,
+    );
     setOpen(false);
   }, [plan, startShip, target]);
 
   return (
-    <div className={size === "compact" ? "flex shrink-0 items-center gap-2" : "flex flex-col items-start gap-1"} data-ship-control={target.kind}>
+    <div
+      className={
+        size === "compact"
+          ? "flex shrink-0 items-center gap-2"
+          : "flex flex-col items-start gap-1"
+      }
+      data-ship-control={target.kind}
+    >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -82,7 +134,9 @@ function ShipControlOn({ target, size = "full" }: { target: ShipTargetRef; size?
             className={`inline-flex items-center border bg-sol-green/10 text-sol-green transition-colors hover:bg-sol-green/20 disabled:cursor-default disabled:opacity-60 ${size === "compact" ? "gap-1 rounded-full border-sol-green/30 px-2 py-0.5 text-meta" : "h-7 gap-1.5 rounded border-sol-green/50 px-3 text-sm font-medium"}`}
             title={live ? "Shipping now" : "What Ship will do"}
           >
-            <Rocket className={size === "compact" ? "h-3 w-3" : "h-3.5 w-3.5"} />
+            <Rocket
+              className={size === "compact" ? "h-3 w-3" : "h-3.5 w-3.5"}
+            />
             {live ? "Shipping" : "Ship"}
           </button>
         </PopoverTrigger>
@@ -94,61 +148,128 @@ function ShipControlOn({ target, size = "full" }: { target: ShipTargetRef; size?
           align="start"
           collisionPadding={12}
           className="w-[23rem] border-sol-border bg-sol-bg p-0 text-sol-text"
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); press(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              press();
+            }
+          }}
           data-ship-popover
         >
-          <ShipPlanView row={row} onShip={press} onCancel={() => setOpen(false)} />
+          <ShipPlanView
+            row={row}
+            onShip={press}
+            onCancel={() => setOpen(false)}
+          />
         </PopoverContent>
       </Popover>
-      {progress && <ShipStatusLine progress={progress} run={row?.run ?? null} compact={size === "compact"} />}
+      {progress && (
+        <ShipStatusLine
+          progress={progress}
+          run={row?.run ?? null}
+          compact={size === "compact"}
+        />
+      )}
     </div>
   );
 }
 
-function ShipPlanView({ row, onShip, onCancel }: { row: ShipTargetRow | undefined; onShip: () => void; onCancel: () => void }) {
+function ShipPlanView({
+  row,
+  onShip,
+  onCancel,
+}: {
+  row: ShipTargetRow | undefined;
+  onShip: () => void;
+  onCancel: () => void;
+}) {
   const plan = row?.plan;
-  if (!plan) return <p className="p-4 text-sm text-sol-text-dim">Reading what Ship would do here…</p>;
+  if (!plan)
+    return (
+      <p className="p-4 text-sm text-sol-text-dim">
+        Reading what Ship would do here…
+      </p>
+    );
   return (
     <div className="flex flex-col">
       <div className="border-b border-sol-border px-4 py-3">
-        <div className="text-[13px] font-semibold leading-snug">Ship {plan.label}</div>
+        <div className="text-[13px] font-semibold leading-snug">
+          Ship {plan.label}
+        </div>
         {plan.branch && (
-          <div className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-meta text-sol-text-muted" data-ship-branch>
+          <div
+            className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-meta text-sol-text-muted"
+            data-ship-branch
+          >
             <GitBranch className="h-3 w-3" />
             {plan.branch}
             <ArrowRight className="h-3 w-3 text-sol-text-dim" />
             {plan.base}
-            {plan.newBranch && <span className="text-sol-text-dim">(new branch)</span>}
+            {plan.newBranch && (
+              <span className="text-sol-text-dim">(new branch)</span>
+            )}
           </div>
         )}
       </div>
       {plan.blocked ? (
-        <p className="px-4 py-4 text-[12.5px] leading-snug text-sol-red" data-ship-blocked>{plan.blocked} Nothing to ship.</p>
-      ) : <>
-      <ol className="flex flex-col gap-1.5 px-4 py-3 text-[12.5px] leading-snug" data-ship-steps>
-        {plan.steps.map((step, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="mt-px w-4 shrink-0 text-right font-mono text-meta text-sol-text-dim">{i + 1}</span>
-            <span>{renderCode(step)}</span>
-          </li>
-        ))}
-      </ol>
-      <div
-        className="mx-4 mb-3 rounded border px-2.5 py-2 text-[12px] leading-snug"
-        style={{
-          borderColor: `color-mix(in srgb, ${plan.merge.will ? "var(--sol-magenta)" : "var(--sol-cyan)"} 40%, transparent)`,
-          background: `color-mix(in srgb, ${plan.merge.will ? "var(--sol-magenta)" : "var(--sol-cyan)"} 8%, transparent)`,
-        }}
-        data-ship-merge={plan.merge.will ? "merges" : "no-merge"}
-      >
-        <span className="font-semibold">{plan.merge.will ? (plan.merge.via === "role" ? "Merges." : `Merges (${plan.merge.method}).`) : plan.command ? "Lands through the ship command." : "Does not merge."}</span> {plan.merge.why}
-      </div>
-      </>}
+        <p
+          className="px-4 py-4 text-[12.5px] leading-snug text-sol-red"
+          data-ship-blocked
+        >
+          {plan.blocked} Nothing to ship.
+        </p>
+      ) : (
+        <>
+          <ol
+            className="flex flex-col gap-1.5 px-4 py-3 text-[12.5px] leading-snug"
+            data-ship-steps
+          >
+            {plan.steps.map((step, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="mt-px w-4 shrink-0 text-right font-mono text-meta text-sol-text-dim">
+                  {i + 1}
+                </span>
+                <span>{renderCode(step)}</span>
+              </li>
+            ))}
+          </ol>
+          <div
+            className="mx-4 mb-3 rounded border px-2.5 py-2 text-[12px] leading-snug"
+            style={{
+              borderColor: `color-mix(in srgb, ${plan.merge.will ? "var(--sol-magenta)" : "var(--sol-cyan)"} 40%, transparent)`,
+              background: `color-mix(in srgb, ${plan.merge.will ? "var(--sol-magenta)" : "var(--sol-cyan)"} 8%, transparent)`,
+            }}
+            data-ship-merge={plan.merge.will ? "merges" : "no-merge"}
+          >
+            <span className="font-semibold">
+              {plan.merge.will
+                ? plan.merge.via === "role"
+                  ? "Merges."
+                  : `Merges (${plan.merge.method}).`
+                : plan.command
+                  ? "Lands through the ship command."
+                  : "Does not merge."}
+            </span>{" "}
+            {plan.merge.why}
+          </div>
+        </>
+      )}
       <div className="flex items-center justify-end gap-2 border-t border-sol-border px-4 py-2.5">
-        <button type="button" onClick={onCancel} className="h-7 rounded px-2.5 text-xs text-sol-text-muted hover:bg-sol-bg-alt">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="h-7 rounded px-2.5 text-xs text-sol-text-muted hover:bg-sol-bg-alt"
+        >
           Cancel <KeyCap size="xs">Esc</KeyCap>
         </button>
-        <Button type="button" variant="green" size="xs" onClick={onShip} disabled={!!plan.blocked} data-ship-confirm>
+        <Button
+          type="button"
+          variant="green"
+          size="xs"
+          onClick={onShip}
+          disabled={!!plan.blocked}
+          data-ship-confirm
+        >
           Ship it <KeyCap size="xs">Enter</KeyCap>
         </Button>
       </div>
@@ -156,19 +277,46 @@ function ShipPlanView({ row, onShip, onCancel }: { row: ShipTargetRow | undefine
   );
 }
 
-function ShipStatusLine({ progress, run, compact }: { progress: ShipProgress; run: ShipTargetRow["run"]; compact?: boolean }) {
+function ShipStatusLine({
+  progress,
+  run,
+  compact,
+}: {
+  progress: ShipProgress;
+  run: ShipTargetRow["run"];
+  compact?: boolean;
+}) {
   const tone = PHASE_TONE[progress.phase];
   return (
-    <div className={`flex items-center gap-1.5 text-meta text-sol-text-muted ${compact ? "max-w-[22rem] shrink-0" : "max-w-full"}`} data-ship-phase={progress.phase}>
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${LIVE.has(progress.phase) ? "animate-pulse" : ""}`} style={{ background: tone }} />
-      <span className="min-w-0 truncate" style={{ color: progress.phase === "failed" ? tone : undefined }} title={progress.text}>{progress.text}</span>
+    <div
+      className={`flex items-center gap-1.5 text-meta text-sol-text-muted ${compact ? "max-w-[22rem] shrink-0" : "max-w-full"}`}
+      data-ship-phase={progress.phase}
+    >
+      <span
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${LIVE.has(progress.phase) ? "animate-pulse" : ""}`}
+        style={{ background: tone }}
+      />
+      <span
+        className="min-w-0 truncate"
+        style={{ color: progress.phase === "failed" ? tone : undefined }}
+        title={progress.text}
+      >
+        {progress.text}
+      </span>
       {progress.pr && (
-        <Link href={`/pr/${progress.pr.repository}/${progress.pr.number}`} className="shrink-0 text-sol-blue hover:underline">
+        <Link
+          href={`/pr/${progress.pr.repository}/${progress.pr.number}`}
+          className="shrink-0 text-sol-blue hover:underline"
+        >
           #{progress.pr.number}
         </Link>
       )}
       {run?.conversation_id && (
-        <Link href={`/conversation/${run.conversation_id}`} className="shrink-0 font-mono text-sol-text-dim hover:text-sol-text hover:underline" title="The ship session">
+        <Link
+          href={`/conversation/${run.conversation_id}`}
+          className="shrink-0 font-mono text-sol-text-dim hover:text-sol-text hover:underline"
+          title="The ship session"
+        >
           · {run.short_id ?? run.conversation_id.slice(0, 7)}
         </Link>
       )}
@@ -179,9 +327,13 @@ function ShipStatusLine({ progress, run, compact }: { progress: ShipProgress; ru
 /** `code` spans in a plan step render as code. */
 function renderCode(text: string) {
   return text.split(/(`[^`]+`)/g).map((part, i) =>
-    part.startsWith("`") && part.endsWith("`")
-      ? <code key={i} className="rounded bg-sol-bg-alt px-1 font-mono text-meta">{part.slice(1, -1)}</code>
-      : part,
+    part.startsWith("`") && part.endsWith("`") ? (
+      <code key={i} className="rounded bg-sol-bg-alt px-1 font-mono text-meta">
+        {part.slice(1, -1)}
+      </code>
+    ) : (
+      part
+    ),
   );
 }
 
@@ -189,13 +341,21 @@ function renderCode(text: string) {
  * The task page's review station: Ship once the task is in review, and the
  * run's progress for as long as there is one (it outlives the review).
  */
-export function TaskShipStation({ task }: { task: { _id: string; status?: string } }) {
+export function TaskShipStation({
+  task,
+}: {
+  task: { _id: string; status?: string };
+}) {
   const on = useWorkspaceFeature("ship");
-  const hasRun = useInboxStore((s) => !!(s as any).shipTargets?.[`task:${task._id}`]?.run);
+  const hasRun = useInboxStore(
+    (s) => !!(s as any).shipTargets?.[`task:${task._id}`]?.run,
+  );
   if (!on || (task.status !== "in_review" && !hasRun)) return null;
   return (
     <section className="mb-6 flex flex-col gap-2" data-task-ship>
-      <h3 className="text-xs font-medium uppercase tracking-wide text-sol-text-dim">Ship</h3>
+      <h3 className="text-xs font-medium uppercase tracking-wide text-sol-text-dim">
+        Ship
+      </h3>
       <ShipControl target={{ kind: "task", id: task._id }} />
     </section>
   );

@@ -6,19 +6,19 @@ export function useEventListener<K extends keyof WindowEventMap>(
   event: K,
   handler: (e: WindowEventMap[K]) => void,
   target?: Target,
-  options?: AddEventListenerOptions
+  options?: AddEventListenerOptions,
 ): void;
 export function useEventListener<K extends keyof DocumentEventMap>(
   event: K,
   handler: (e: DocumentEventMap[K]) => void,
   target: Document | null,
-  options?: AddEventListenerOptions
+  options?: AddEventListenerOptions,
 ): void;
 export function useEventListener(
   event: string,
   handler: (e: Event) => void,
   target?: Target,
-  options?: AddEventListenerOptions
+  options?: AddEventListenerOptions,
 ): void {
   const handlerRef = useRef(handler);
   handlerRef.current = handler;

@@ -13,7 +13,18 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
-import { acquireStartLock, isHung, parsePsTime, probeLiveness, readState, strayPids, writeState, type InstanceState, chromeLaunchArgs, chromeLogTail} from "./instance.js";
+import {
+  acquireStartLock,
+  isHung,
+  parsePsTime,
+  probeLiveness,
+  readState,
+  strayPids,
+  writeState,
+  type InstanceState,
+  chromeLaunchArgs,
+  chromeLogTail,
+} from "./instance.js";
 import { authorizesTeardown } from "@codecast/shared/contracts";
 import { browserHome } from "./profile.js";
 
@@ -53,7 +64,11 @@ function fakeState(overrides: Partial<InstanceState> = {}): InstanceState {
 async function fakeCdp(): Promise<number> {
   const srv = http.createServer((_req, res) => {
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ webSocketDebuggerUrl: "ws://127.0.0.1:0/devtools/browser/x" }));
+    res.end(
+      JSON.stringify({
+        webSocketDebuggerUrl: "ws://127.0.0.1:0/devtools/browser/x",
+      }),
+    );
   });
   await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
   cleanups.push(() => srv.close());
@@ -84,7 +99,9 @@ describe("probeLiveness", () => {
     // and that relaunch kills the browser under every other agent; a busy
     // browser must not qualify. Port 1 refuses connections, standing in for a
     // wedged CDP.
-    expect(await probeLiveness(fakeState({ port: 1 }), 600)).toBe("unverifiable");
+    expect(await probeLiveness(fakeState({ port: 1 }), 600)).toBe(
+      "unverifiable",
+    );
   });
 
   // The verdicts above in the terms every caller reads them through, so the
@@ -92,9 +109,15 @@ describe("probeLiveness", () => {
   test("only a browser observed gone authorizes a relaunch", async () => {
     const port = await fakeCdp();
     expect(authorizesTeardown(await probeLiveness(null))).toBe(true);
-    expect(authorizesTeardown(await probeLiveness(fakeState({ pid: 2 ** 22 - 3 })))).toBe(true);
-    expect(authorizesTeardown(await probeLiveness(fakeState({ port })))).toBe(false);
-    expect(authorizesTeardown(await probeLiveness(fakeState({ port: 1 }), 600))).toBe(false);
+    expect(
+      authorizesTeardown(await probeLiveness(fakeState({ pid: 2 ** 22 - 3 }))),
+    ).toBe(true);
+    expect(authorizesTeardown(await probeLiveness(fakeState({ port })))).toBe(
+      false,
+    );
+    expect(
+      authorizesTeardown(await probeLiveness(fakeState({ port: 1 }), 600)),
+    ).toBe(false);
   });
 });
 
@@ -110,7 +133,9 @@ describe("a hung browser", () => {
     // holding the port, never answering, never waking.
     const proc = child(["sleep", "60"]);
     await sleep(200);
-    expect(await probeLiveness(fakeState({ pid: proc.pid }), 1500)).toBe("exited");
+    expect(await probeLiveness(fakeState({ pid: proc.pid }), 1500)).toBe(
+      "exited",
+    );
     await proc.exited;
   });
 
@@ -118,22 +143,40 @@ describe("a hung browser", () => {
     // For a remote browser the pid is `ssh -N`: asleep with no CPU is its normal state.
     const proc = child(["sleep", "60"]);
     await sleep(200);
-    expect(await probeLiveness(fakeState({ pid: proc.pid, remote: { host: "203.0.113.7", user: "ubuntu", sshPid: proc.pid } }), 1500)).toBe("unverifiable");
+    expect(
+      await probeLiveness(
+        fakeState({
+          pid: proc.pid,
+          remote: { host: "203.0.113.7", user: "ubuntu", sshPid: proc.pid },
+        }),
+        1500,
+      ),
+    ).toBe("unverifiable");
     expect(proc.exitCode).toBeNull();
   });
 
   test("a silent browser that is burning CPU is overloaded, not hung, and is left alone", async () => {
     const proc = child(["bun", "-e", "for(;;){}"]);
     await sleep(300);
-    expect(await probeLiveness(fakeState({ pid: proc.pid }), 1500)).toBe("unverifiable");
+    expect(await probeLiveness(fakeState({ pid: proc.pid }), 1500)).toBe(
+      "unverifiable",
+    );
     expect(proc.exitCode).toBeNull();
   });
 
   test("evidence rules", () => {
-    expect(isHung({ cpu: 100, asleep: true }, { cpu: 101, asleep: true })).toBe(true);
-    expect(isHung({ cpu: 100, asleep: true }, { cpu: 105, asleep: true })).toBe(false);
-    expect(isHung({ cpu: 100, asleep: false }, { cpu: 100, asleep: true })).toBe(false);
-    expect(isHung({ cpu: 100, asleep: true }, { cpu: 100, asleep: false })).toBe(false);
+    expect(isHung({ cpu: 100, asleep: true }, { cpu: 101, asleep: true })).toBe(
+      true,
+    );
+    expect(isHung({ cpu: 100, asleep: true }, { cpu: 105, asleep: true })).toBe(
+      false,
+    );
+    expect(
+      isHung({ cpu: 100, asleep: false }, { cpu: 100, asleep: true }),
+    ).toBe(false);
+    expect(
+      isHung({ cpu: 100, asleep: true }, { cpu: 100, asleep: false }),
+    ).toBe(false);
     expect(isHung(null, { cpu: 100, asleep: true })).toBe(false);
   });
 
@@ -167,7 +210,10 @@ describe("acquireStartLock", () => {
     isolatedHome();
     const lockFile = path.join(browserHome(), "start.lock");
     fs.mkdirSync(browserHome(), { recursive: true });
-    fs.writeFileSync(lockFile, JSON.stringify({ pid: 2 ** 22 - 3, at: Date.now() }));
+    fs.writeFileSync(
+      lockFile,
+      JSON.stringify({ pid: 2 ** 22 - 3, at: Date.now() }),
+    );
     const release = await acquireStartLock(2000);
     release();
     expect(fs.existsSync(lockFile)).toBe(false);
@@ -179,7 +225,10 @@ describe("acquireStartLock", () => {
     fs.mkdirSync(browserHome(), { recursive: true });
     // Holder is alive (us) but the stamp is ancient — a crashed-mid-launch
     // leftover must not wedge every future start on the machine.
-    fs.writeFileSync(lockFile, JSON.stringify({ pid: process.pid, at: Date.now() - 10 * 60_000 }));
+    fs.writeFileSync(
+      lockFile,
+      JSON.stringify({ pid: process.pid, at: Date.now() - 10 * 60_000 }),
+    );
     const release = await acquireStartLock(2000);
     release();
   });
@@ -274,7 +323,9 @@ describe("acquireStartLock", () => {
     const release = await acquireStartLock();
     cleanups.push(release);
     const waitedOn: number[] = [];
-    await expect(acquireStartLock(700, (pid) => waitedOn.push(pid))).rejects.toThrow();
+    await expect(
+      acquireStartLock(700, (pid) => waitedOn.push(pid)),
+    ).rejects.toThrow();
     // Announced once, naming the holder — a silent block reads as a hang, and
     // an agent's answer to a hang is to kill and retry.
     expect(waitedOn).toEqual([process.pid]);
@@ -287,12 +338,16 @@ describe("writeState", () => {
     const state = fakeState({
       remote: { host: "10.0.0.5", user: "agent", sshPid: 4242 },
       tabsBySession: { s1: "T1" },
-      viewportByTab: { T1: { width: 390, height: 844, scale: 3, mobile: true } },
+      viewportByTab: {
+        T1: { width: 390, height: 844, scale: 3, mobile: true },
+      },
     });
     writeState(state);
     expect(readState()).toEqual(state);
     // No temp file left behind by the atomic rename.
-    const leftovers = fs.readdirSync(browserHome()).filter((f) => f.includes(".tmp-"));
+    const leftovers = fs
+      .readdirSync(browserHome())
+      .filter((f) => f.includes(".tmp-"));
     expect(leftovers).toEqual([]);
   });
 });
@@ -317,7 +372,9 @@ describe("chromeLaunchArgs", () => {
     process.env.HOME = home;
     try {
       const args = chromeLaunchArgs(base);
-      expect(args.includes("--use-mock-keychain")).toBe(process.platform === "darwin");
+      expect(args.includes("--use-mock-keychain")).toBe(
+        process.platform === "darwin",
+      );
     } finally {
       process.env.HOME = saved;
       fs.rmSync(home, { recursive: true, force: true });
@@ -338,20 +395,30 @@ describe("strayPids", () => {
     // the lookup matches itself: `killStrays` then shoots its own shell and
     // `waitForStraysGone` never reaches zero. macOS hides it (its `sh` execs a
     // lone simple command and is gone); Debian's `sh` stays (ct-49945).
-    expect(strayPids(path.join(os.tmpdir(), "codecast-chrome-nobody-here"))).toEqual([]);
+    expect(
+      strayPids(path.join(os.tmpdir(), "codecast-chrome-nobody-here")),
+    ).toEqual([]);
   });
 });
 
 describe("chromeLogTail", () => {
   test("quotes what Chrome said, without the dbus and font noise of every Linux launch", () => {
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "cast-chrome-log-")), "x.log");
-    fs.writeFileSync(file, [
-      "[1:1:ERROR:dbus/object_proxy.cc] Failed to call method: org.freedesktop.DBus",
-      "Fontconfig error: cannot load default config file",
-      "[1:1:ERROR:ozone_platform_x11.cc] Missing X server or $DISPLAY",
-      "",
-    ].join("\n"));
-    expect(chromeLogTail(file)).toBe("  [1:1:ERROR:ozone_platform_x11.cc] Missing X server or $DISPLAY");
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "cast-chrome-log-")),
+      "x.log",
+    );
+    fs.writeFileSync(
+      file,
+      [
+        "[1:1:ERROR:dbus/object_proxy.cc] Failed to call method: org.freedesktop.DBus",
+        "Fontconfig error: cannot load default config file",
+        "[1:1:ERROR:ozone_platform_x11.cc] Missing X server or $DISPLAY",
+        "",
+      ].join("\n"),
+    );
+    expect(chromeLogTail(file)).toBe(
+      "  [1:1:ERROR:ozone_platform_x11.cc] Missing X server or $DISPLAY",
+    );
     expect(chromeLogTail(`${file}.missing`)).toBe("");
   });
 });

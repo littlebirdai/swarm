@@ -5,7 +5,19 @@ import { useWatchEffect } from "@/hooks/useWatchEffect";
 import { SOL } from "../../blog/blogChrome";
 import { ChromeWindow } from "./ChromeWindow";
 import { CARD, CheckoutPage, type CheckoutPhase } from "./Checkout";
-import { Scaled, AgentCursor, CAST_RED, EYE_ICON, GLOBE_ICON, HUMAN_CYAN, OPEN_TAB_ICON, RowPill, TermShell, useStepClock, useStillMode } from "./kit";
+import {
+  Scaled,
+  AgentCursor,
+  CAST_RED,
+  EYE_ICON,
+  GLOBE_ICON,
+  HUMAN_CYAN,
+  OPEN_TAB_ICON,
+  RowPill,
+  TermShell,
+  useStepClock,
+  useStillMode,
+} from "./kit";
 
 /**
  * The hero: one agent verifies a checkout fix on staging, in the human's own
@@ -43,31 +55,138 @@ const red = (s: string) => <span style={{ color: "#ff6f61" }}>{s}</span>;
 const yel = (s: string) => <span style={{ color: SOL.yellow }}>{s}</span>;
 
 const LINES: Line[] = [
-  { at: 0, node: <>{g("$")} {hi("cast browser do - <<'EOF'")}</> },
+  {
+    at: 0,
+    node: (
+      <>
+        {g("$")} {hi("cast browser do - <<'EOF'")}
+      </>
+    ),
+  },
   { at: 0, node: <>{dim("  ")}open https://staging.acme.dev/checkout</> },
   { at: 0, node: <>{dim("  ")}snapshot -i -s main</> },
-  { at: 0, node: <>{dim("  ")}fill {blue("#e4")} &quot;{CARD}&quot;</> },
-  { at: 0, node: <>{dim("  ")}click {blue("#e7")}</> },
+  {
+    at: 0,
+    node: (
+      <>
+        {dim("  ")}fill {blue("#e4")} &quot;{CARD}&quot;
+      </>
+    ),
+  },
+  {
+    at: 0,
+    node: (
+      <>
+        {dim("  ")}click {blue("#e7")}
+      </>
+    ),
+  },
   { at: 0, node: <>{dim("  ")}wait --text &quot;Order confirmed&quot;</> },
   { at: 0, node: <>{dim("  EOF")}</> },
   { at: 1, node: <>{dim("›")} open https://staging.acme.dev/checkout</> },
-  { at: 2, node: <>{g("✓")} {hi("Checkout · Acme")}</> },
+  {
+    at: 2,
+    node: (
+      <>
+        {g("✓")} {hi("Checkout · Acme")}
+      </>
+    ),
+  },
   { at: 3, node: <>{dim("›")} snapshot -i -s main</> },
-  { at: 3, node: <>{dim("- textbox")} &quot;Email&quot; {blue("[ref=e3]")}</> },
-  { at: 3, node: <>{dim("- textbox")} &quot;Card number&quot; {blue("[ref=e4]")}</> },
-  { at: 3, node: <>{dim("- combobox")} &quot;Shipping&quot; {blue("[ref=e5]")}</> },
-  { at: 3, node: <>{dim("- checkbox")} &quot;Save this card&quot; {blue("[ref=e6]")}</> },
-  { at: 3, node: <>{dim("- button")} &quot;Place order&quot; {blue("[ref=e7]")}</> },
-  { at: 4, node: <>{dim("›")} fill {blue("#e4")} &quot;{CARD}&quot;</> },
-  { at: 5, node: <>{dim("›")} click {blue("#e7")}</> },
+  {
+    at: 3,
+    node: (
+      <>
+        {dim("- textbox")} &quot;Email&quot; {blue("[ref=e3]")}
+      </>
+    ),
+  },
+  {
+    at: 3,
+    node: (
+      <>
+        {dim("- textbox")} &quot;Card number&quot; {blue("[ref=e4]")}
+      </>
+    ),
+  },
+  {
+    at: 3,
+    node: (
+      <>
+        {dim("- combobox")} &quot;Shipping&quot; {blue("[ref=e5]")}
+      </>
+    ),
+  },
+  {
+    at: 3,
+    node: (
+      <>
+        {dim("- checkbox")} &quot;Save this card&quot; {blue("[ref=e6]")}
+      </>
+    ),
+  },
+  {
+    at: 3,
+    node: (
+      <>
+        {dim("- button")} &quot;Place order&quot; {blue("[ref=e7]")}
+      </>
+    ),
+  },
+  {
+    at: 4,
+    node: (
+      <>
+        {dim("›")} fill {blue("#e4")} &quot;{CARD}&quot;
+      </>
+    ),
+  },
+  {
+    at: 5,
+    node: (
+      <>
+        {dim("›")} click {blue("#e7")}
+      </>
+    ),
+  },
   { at: 6, node: <>{dim("›")} wait --text &quot;Order confirmed&quot;</> },
-  { at: 6, node: <>{red("✗")} {hi("\"Order confirmed\" never appeared")}</> },
+  {
+    at: 6,
+    node: (
+      <>
+        {red("✗")} {hi('"Order confirmed" never appeared')}
+      </>
+    ),
+  },
   { at: 6, node: <>{dim("── failure context ────────────────")}</> },
   { at: 6, node: <>console errors (newest first):</> },
-  { at: 6, node: <>{dim("  +6.1s")} {red("ERR")} TypeError: Cannot read properties of undefined (reading &apos;id&apos;)</> },
+  {
+    at: 6,
+    node: (
+      <>
+        {dim("  +6.1s")} {red("ERR")} TypeError: Cannot read properties of
+        undefined (reading &apos;id&apos;)
+      </>
+    ),
+  },
   { at: 6, node: <>failed requests (newest first):</> },
-  { at: 6, node: <>{dim("  ")}{red("500")} POST     812ms https://staging.acme.dev/api/orders</> },
-  { at: 7, node: <>{yel("▣")} {dim("screenshot → inline in the conversation")}</> },
+  {
+    at: 6,
+    node: (
+      <>
+        {dim("  ")}
+        {red("500")} POST 812ms https://staging.acme.dev/api/orders
+      </>
+    ),
+  },
+  {
+    at: 7,
+    node: (
+      <>
+        {yel("▣")} {dim("screenshot → inline in the conversation")}
+      </>
+    ),
+  },
 ];
 
 export function HeroStage() {
@@ -82,7 +201,10 @@ export function HeroStage() {
 
   // Type the card number during the fill step.
   useWatchEffect(() => {
-    if (step !== 4) { setTyped(step > 4 ? CARD.length : 0); return; }
+    if (step !== 4) {
+      setTyped(step > 4 ? CARD.length : 0);
+      return;
+    }
     if (still || typed >= CARD.length) return;
     const t = setTimeout(() => setTyped(typed + 1), 55);
     return () => clearTimeout(t);
@@ -92,11 +214,18 @@ export function HeroStage() {
   useWatchEffect(() => {
     const measure = () => {
       const sheet = sheetRef.current;
-      const target = step === 4 ? cardRef.current : step >= 5 ? buttonRef.current : null;
-      if (!sheet || !target) { setCursor(null); return; }
+      const target =
+        step === 4 ? cardRef.current : step >= 5 ? buttonRef.current : null;
+      if (!sheet || !target) {
+        setCursor(null);
+        return;
+      }
       const a = sheet.getBoundingClientRect();
       const b = target.getBoundingClientRect();
-      setCursor({ x: b.left - a.left + b.width * (step === 4 ? 0.62 : 0.52), y: b.top - a.top + b.height * 0.55 });
+      setCursor({
+        x: b.left - a.left + b.width * (step === 4 ? 0.62 : 0.52),
+        y: b.top - a.top + b.height * 0.55,
+      });
     };
     measure();
     window.addEventListener("resize", measure);
@@ -116,7 +245,12 @@ export function HeroStage() {
             className="h-full"
             humanActive={1}
             showGroup={castTab}
-            castTabs={[{ title: step >= 2 ? "Checkout · Acme" : "staging.acme.dev", loading: step === 1 }]}
+            castTabs={[
+              {
+                title: step >= 2 ? "Checkout · Acme" : "staging.acme.dev",
+                loading: step === 1,
+              },
+            ]}
             url="docs.acme.dev/q4-roadmap"
             compact
           >
@@ -124,19 +258,50 @@ export function HeroStage() {
             {/* The background Cast tab, lifted out of the strip. */}
             {castTab && (
               <div className="bx-pop absolute left-[5%] sm:left-[17%] right-3 top-4 bottom-3 flex flex-col">
-                <div className="flex items-center gap-2 pb-1.5 text-meta font-mono" style={{ color: CAST_RED }}>
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: CAST_RED }} />
-                  <span className="truncate">background tab · Cast group · staging.acme.dev/checkout</span>
+                <div
+                  className="flex items-center gap-2 pb-1.5 text-meta font-mono"
+                  style={{ color: CAST_RED }}
+                >
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: CAST_RED }}
+                  />
+                  <span className="truncate">
+                    background tab · Cast group · staging.acme.dev/checkout
+                  </span>
                 </div>
                 <div
                   ref={sheetRef}
                   className="relative flex-1 min-h-0 rounded-lg overflow-hidden"
-                  style={{ boxShadow: `0 0 0 1.5px ${CAST_RED}, 0 24px 50px -20px rgba(0,43,54,.5)` }}
+                  style={{
+                    boxShadow: `0 0 0 1.5px ${CAST_RED}, 0 24px 50px -20px rgba(0,43,54,.5)`,
+                  }}
                 >
-                  {step === 1 && <span className="bx-load absolute left-0 right-0 top-0 h-[2px] z-10" style={{ backgroundColor: "#1a73e8" }} />}
-                  <CheckoutPage phase={phase} typed={typed} cardRef={cardRef} buttonRef={buttonRef} />
-                  {cursor && <AgentCursor x={`${cursor.x}px`} y={`${cursor.y}px`} pressing={step === 5} />}
-                  {evidence && !still && <span key="shutter" className="bx-shutter absolute inset-0 bg-white z-30" />}
+                  {step === 1 && (
+                    <span
+                      className="bx-load absolute left-0 right-0 top-0 h-[2px] z-10"
+                      style={{ backgroundColor: "#1a73e8" }}
+                    />
+                  )}
+                  <CheckoutPage
+                    phase={phase}
+                    typed={typed}
+                    cardRef={cardRef}
+                    buttonRef={buttonRef}
+                  />
+                  {cursor && (
+                    <AgentCursor
+                      x={`${cursor.x}px`}
+                      y={`${cursor.y}px`}
+                      pressing={step === 5}
+                    />
+                  )}
+                  {evidence && !still && (
+                    <span
+                      key="shutter"
+                      className="bx-shutter absolute inset-0 bg-white z-30"
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -145,11 +310,23 @@ export function HeroStage() {
 
         {/* The agent's terminal. */}
         <div className="relative mt-4 lg:mt-0 lg:absolute lg:right-0 lg:top-[120px] lg:w-[37%] z-[2]">
-          <TermShell label="claude · ~/src/shop" bodyClassName="h-[300px] sm:h-[330px] lg:h-[400px] px-3.5 py-3 flex flex-col justify-end overflow-hidden">
+          <TermShell
+            label="claude · ~/src/shop"
+            bodyClassName="h-[300px] sm:h-[330px] lg:h-[400px] px-3.5 py-3 flex flex-col justify-end overflow-hidden"
+          >
             {LINES.filter((l) => l.at <= step).map((l, i) => (
-              <div key={i} className={`whitespace-pre-wrap break-words ${l.at === step && step > 0 ? "bx-fade" : ""}`}>{l.node}</div>
+              <div
+                key={i}
+                className={`whitespace-pre-wrap break-words ${l.at === step && step > 0 ? "bx-fade" : ""}`}
+              >
+                {l.node}
+              </div>
             ))}
-            {!evidence && <div><span className="bx-caret" style={{ color: SOL.base01 }} /></div>}
+            {!evidence && (
+              <div>
+                <span className="bx-caret" style={{ color: SOL.base01 }} />
+              </div>
+            )}
           </TermShell>
         </div>
 
@@ -171,9 +348,14 @@ export function HeroStage() {
           aria-label={playing ? "Pause" : "Play"}
         >
           {playing && !still ? (
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="5" width="4" height="14" rx="1" />
+              <rect x="14" y="5" width="4" height="14" rx="1" />
+            </svg>
           ) : (
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7z" /></svg>
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7 5l12 7-12 7z" />
+            </svg>
           )}
         </button>
         {CHAPTERS.map((c, i) => {
@@ -184,11 +366,25 @@ export function HeroStage() {
             <button
               key={c.label}
               type="button"
-              onClick={() => { setPlaying(false); setStep(c.step); }}
+              onClick={() => {
+                setPlaying(false);
+                setStep(c.step);
+              }}
               className="rounded-full border px-3 py-1 text-[12px] font-mono transition-colors"
-              style={on
-                ? { backgroundColor: CAST_RED, borderColor: CAST_RED, color: "#fff" }
-                : { borderColor: done ? "rgba(220,50,47,.4)" : "rgba(147,161,161,.5)", color: done ? CAST_RED : SOL.base01 }}
+              style={
+                on
+                  ? {
+                      backgroundColor: CAST_RED,
+                      borderColor: CAST_RED,
+                      color: "#fff",
+                    }
+                  : {
+                      borderColor: done
+                        ? "rgba(220,50,47,.4)"
+                        : "rgba(147,161,161,.5)",
+                      color: done ? CAST_RED : SOL.base01,
+                    }
+              }
             >
               {c.label}
             </button>
@@ -202,17 +398,38 @@ export function HeroStage() {
 /** The human's own front tab: a doc they keep writing in, with their cyan caret. */
 function HumanDoc() {
   return (
-    <div className="absolute inset-0 px-5 sm:px-7 py-6 font-sans" style={{ backgroundColor: "#f8f9fb" }}>
+    <div
+      className="absolute inset-0 px-5 sm:px-7 py-6 font-sans"
+      style={{ backgroundColor: "#f8f9fb" }}
+    >
       <div className="max-w-[420px] rounded-md bg-white px-5 py-5 shadow-[0_1px_3px_rgba(0,0,0,.08)] h-full">
-        <div className="text-[15px] font-semibold text-[#1f1f1f]">Q4 roadmap</div>
+        <div className="text-[15px] font-semibold text-[#1f1f1f]">
+          Q4 roadmap
+        </div>
         <div className="mt-3 space-y-2">
-          {[92, 80, 86, 40].map((w, i) => <div key={i} className="h-[7px] rounded bg-[#e5e8ec]" style={{ width: `${w}%` }} />)}
+          {[92, 80, 86, 40].map((w, i) => (
+            <div
+              key={i}
+              className="h-[7px] rounded bg-[#e5e8ec]"
+              style={{ width: `${w}%` }}
+            />
+          ))}
         </div>
         <div className="mt-4 text-meta text-[#3c4043]">
-          Ship checkout v2<span className="inline-block w-[1.5px] h-3 ml-[1px] align-middle bx-blink-human" style={{ backgroundColor: HUMAN_CYAN }} />
+          Ship checkout v2
+          <span
+            className="inline-block w-[1.5px] h-3 ml-[1px] align-middle bx-blink-human"
+            style={{ backgroundColor: HUMAN_CYAN }}
+          />
         </div>
         <div className="mt-3 space-y-2">
-          {[70, 88, 60].map((w, i) => <div key={i} className="h-[7px] rounded bg-[#eceef1]" style={{ width: `${w}%` }} />)}
+          {[70, 88, 60].map((w, i) => (
+            <div
+              key={i}
+              className="h-[7px] rounded bg-[#eceef1]"
+              style={{ width: `${w}%` }}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -226,18 +443,42 @@ function HumanDoc() {
  */
 function ThreadCard({ live }: { live: boolean }) {
   return (
-    <div className="rounded-xl overflow-hidden font-mono text-left shadow-[0_30px_60px_-28px_rgba(0,43,54,.55)]" style={{ backgroundColor: "#FBF5E2", border: "1px solid #e4ddc8" }}>
-      <div className="flex items-center gap-2 px-3 py-2 text-meta" style={{ borderBottom: "1px solid rgba(147,161,161,.18)" }}>
-        <span className="font-medium truncate" style={{ color: SOL.base03 }}>Verify the order fix on staging</span>
-        <span className="flex items-center gap-1 shrink-0" style={{ color: SOL.green }}>
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: SOL.green }} /> working
+    <div
+      className="rounded-xl overflow-hidden font-mono text-left shadow-[0_30px_60px_-28px_rgba(0,43,54,.55)]"
+      style={{ backgroundColor: "#FBF5E2", border: "1px solid #e4ddc8" }}
+    >
+      <div
+        className="flex items-center gap-2 px-3 py-2 text-meta"
+        style={{ borderBottom: "1px solid rgba(147,161,161,.18)" }}
+      >
+        <span className="font-medium truncate" style={{ color: SOL.base03 }}>
+          Verify the order fix on staging
         </span>
-        <span className="ml-auto text-meta font-medium shrink-0" style={{ color: SOL.blue }}>claude</span>
+        <span
+          className="flex items-center gap-1 shrink-0"
+          style={{ color: SOL.green }}
+        >
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: SOL.green }}
+          />{" "}
+          working
+        </span>
+        <span
+          className="ml-auto text-meta font-medium shrink-0"
+          style={{ color: SOL.blue }}
+        >
+          claude
+        </span>
       </div>
       <div className="px-3 py-2.5 space-y-2">
         <div className="flex flex-wrap items-center gap-1.5 text-meta">
-          <span className="flex items-center gap-1" style={{ color: SOL.blue }}>{GLOBE_ICON} browser do</span>
-          <span className="truncate" style={{ color: SOL.base00 }}>5 steps · stopped at wait</span>
+          <span className="flex items-center gap-1" style={{ color: SOL.blue }}>
+            {GLOBE_ICON} browser do
+          </span>
+          <span className="truncate" style={{ color: SOL.base00 }}>
+            5 steps · stopped at wait
+          </span>
           <span className="ml-auto flex gap-1">
             <RowPill>{OPEN_TAB_ICON} open tab</RowPill>
             <RowPill>{EYE_ICON} watch</RowPill>
@@ -245,13 +486,27 @@ function ThreadCard({ live }: { live: boolean }) {
         </div>
         <div className="grid grid-cols-[minmax(0,150px)_1fr] sm:grid-cols-[180px_1fr] gap-2.5 items-start">
           <Thumb />
-          <div className="text-meta leading-[1.55] min-w-0" style={{ color: SOL.base01 }}>
-            <div><span style={{ color: CAST_RED }}>ERR</span> TypeError: Cannot read properties of undefined (reading &apos;id&apos;)</div>
-            <div className="mt-1"><span style={{ color: CAST_RED }}>500</span> POST /api/orders · 812ms</div>
+          <div
+            className="text-meta leading-[1.55] min-w-0"
+            style={{ color: SOL.base01 }}
+          >
+            <div>
+              <span style={{ color: CAST_RED }}>ERR</span> TypeError: Cannot
+              read properties of undefined (reading &apos;id&apos;)
+            </div>
+            <div className="mt-1">
+              <span style={{ color: CAST_RED }}>500</span> POST /api/orders ·
+              812ms
+            </div>
           </div>
         </div>
-        <p className={`text-meta leading-relaxed font-sans ${live ? "bx-fade" : ""}`} style={{ color: SOL.base02 }}>
-          The order POST returns 500 on staging and the page throws reading the empty response, so the fix never reached this build. Checking the API logs next.
+        <p
+          className={`text-meta leading-relaxed font-sans ${live ? "bx-fade" : ""}`}
+          style={{ color: SOL.base02 }}
+        >
+          The order POST returns 500 on staging and the page throws reading the
+          empty response, so the fix never reached this build. Checking the API
+          logs next.
         </p>
       </div>
     </div>
@@ -260,5 +515,9 @@ function ThreadCard({ live }: { live: boolean }) {
 
 /** The screenshot: the same checkout component at its failed frame, scaled down. */
 function Thumb() {
-  return <Scaled w={720} h={400}><CheckoutPage phase={5} refs={false} thumb /></Scaled>;
+  return (
+    <Scaled w={720} h={400}>
+      <CheckoutPage phase={5} refs={false} thumb />
+    </Scaled>
+  );
 }

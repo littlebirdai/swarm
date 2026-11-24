@@ -31,7 +31,8 @@ export type BrowserPaneOffer = {
 /** Hosts that mean "the machine this process runs on". */
 function isLoopbackHost(host: string): boolean {
   const h = host.toLowerCase();
-  if (h === "localhost" || h === "0.0.0.0" || h === "[::1]" || h === "::1") return true;
+  if (h === "localhost" || h === "0.0.0.0" || h === "[::1]" || h === "::1")
+    return true;
   if (h.endsWith(".localhost")) return true;
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
 }
@@ -42,7 +43,8 @@ function isLoopbackHost(host: string): boolean {
 export function isPrivateHost(host: string): boolean {
   const h = host.toLowerCase();
   if (isLoopbackHost(h)) return true;
-  if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".test")) return true;
+  if (h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".test"))
+    return true;
   if (!h.includes(".")) return true;
   return (
     /^10\./.test(h) ||
@@ -65,7 +67,9 @@ export function normalizePaneUrl(input: string): string | null {
   if (!raw || /\s/.test(raw)) return null;
   const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw)
     ? raw
-    : (isPrivateHost(raw.split("/")[0].split(":")[0]) ? "http://" : "https://") + raw;
+    : (isPrivateHost(raw.split("/")[0].split(":")[0])
+        ? "http://"
+        : "https://") + raw;
   let u: URL;
   try {
     u = new URL(withScheme);

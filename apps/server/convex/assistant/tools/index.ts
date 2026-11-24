@@ -13,19 +13,47 @@
 // The mail, calendar and web tools are @platform/assistant's, written over an
 // injected transport: Whisk through the person's WhiskCall, the web through
 // web.ts's binding. Codecast's own verbs (codecast.ts) are its own.
-import { gateByRisk, type Gate, type MessageRow, type Tool } from "@platform/agent";
-import { CALENDAR_SCOPES, calendarTools, MAIL_SCOPES, mailTools, whiskCalendar, whiskMailbox, type AllowScopes } from "@platform/assistant";
+import {
+  gateByRisk,
+  type Gate,
+  type MessageRow,
+  type Tool,
+} from "@platform/agent";
+import {
+  CALENDAR_SCOPES,
+  calendarTools,
+  MAIL_SCOPES,
+  mailTools,
+  whiskCalendar,
+  whiskMailbox,
+  type AllowScopes,
+} from "@platform/assistant";
 import type { Id } from "../../_generated/dataModel";
 import { whiskAccessFor, type WhiskAccess } from "../../whisk";
 import { whiskConnectOpen, whiskWebUrl, type WhiskCall } from "../../lib/whisk";
-import { CODECAST_SCOPES, codecastTools, PERSON_APPROVED_TOOLS } from "./codecast";
+import {
+  CODECAST_SCOPES,
+  codecastTools,
+  PERSON_APPROVED_TOOLS,
+} from "./codecast";
 import { NO_TEAM_CONTENT_GATE } from "../../lib/vendorGuard";
-import { pageAllowedWithoutAsking, SEARCH_MAX_PER_TURN, searchesBefore, WEB_SCOPES, webTools } from "./web";
+import {
+  pageAllowedWithoutAsking,
+  SEARCH_MAX_PER_TURN,
+  searchesBefore,
+  WEB_SCOPES,
+  webTools,
+} from "./web";
 
 /** How an Always allow narrows for every tool the assistant may be offered
  *  (@platform/assistant rules): the one table the approval card and the
  *  turn's rules both read. A tool missing here is always asked. */
-export const ALLOW_SCOPES: AllowScopes = { ...MAIL_SCOPES, ...CALENDAR_SCOPES, ...WEB_SCOPES, ...CODECAST_SCOPES };
+export const ALLOW_SCOPES: AllowScopes = {
+  ...MAIL_SCOPES,
+  ...CALENDAR_SCOPES,
+  ...WEB_SCOPES,
+  ...CODECAST_SCOPES,
+};
 
 export interface ToolsForOptions {
   /** Overrides for tests: the person's Whisk access (a fake Whisk behind a
@@ -66,11 +94,18 @@ export const MAIL_COMING_NOTE =
 /** The note for what is missing, in the words the assistant can pass on.
  *  `connectOpen` is the same gate every Connect button reads (whisk.ts
  *  connectAvailable), so the note never promises a button the screen hides. */
-export function connectionNote(access: WhiskAccess, connectOpen: boolean = whiskConnectOpen()): string {
+export function connectionNote(
+  access: WhiskAccess,
+  connectOpen: boolean = whiskConnectOpen(),
+): string {
   if (access.state === "not_configured") {
     return "Mail and calendar are not available on this server, so you cannot read or send the person's mail or see their calendar. Do not offer to connect them.";
   }
-  if ((access.state === "not_connected" || access.state === "reconnect") && !connectOpen) return MAIL_COMING_NOTE;
+  if (
+    (access.state === "not_connected" || access.state === "reconnect") &&
+    !connectOpen
+  )
+    return MAIL_COMING_NOTE;
   if (access.state === "not_connected") {
     return "The person has not connected their mail and calendar, so you cannot read or send their mail or see their calendar. If they ask for that, offer to connect them: it takes one step in Settings, under Integrations, and goes through Whisk, their mail app. A Connect button shows under your reply.";
   }
@@ -80,7 +115,9 @@ export function connectionNote(access: WhiskAccess, connectOpen: boolean = whisk
   const can = access.can;
   const missing = [
     ...(!can.read_mail ? ["read their mail"] : []),
-    ...(can.read_mail && !can.modify_mail ? ["draft, archive or label mail"] : []),
+    ...(can.read_mail && !can.modify_mail
+      ? ["draft, archive or label mail"]
+      : []),
     ...(can.read_mail && !can.send_mail ? ["send mail"] : []),
     ...(!can.calendar ? ["see or change their calendar"] : []),
   ];
@@ -93,7 +130,11 @@ export function connectionNote(access: WhiskAccess, connectOpen: boolean = whisk
  *  not write or approve: mail, calendar, the web, and their tasks and docs.
  *  Only the codecast tools in PERSON_APPROVED_TOOLS are left out. */
 export function outsideToolNames(tools: readonly Tool[]): Set<string> {
-  return new Set(tools.filter((t) => t.source && !PERSON_APPROVED_TOOLS.has(t.name)).map((t) => t.name));
+  return new Set(
+    tools
+      .filter((t) => t.source && !PERSON_APPROVED_TOOLS.has(t.name))
+      .map((t) => t.name),
+  );
 }
 
 /**
@@ -105,8 +146,13 @@ export function outsideToolNames(tools: readonly Tool[]): Set<string> {
  * lasting memory, where later turns would read it back as their own
  * preference, without the person seeing it first.
  */
-export function readOutsideContent(rows: readonly MessageRow[], outside: ReadonlySet<string>): boolean {
-  return rows.some((row) => row.tool_calls?.some((call) => outside.has(call.name)));
+export function readOutsideContent(
+  rows: readonly MessageRow[],
+  outside: ReadonlySet<string>,
+): boolean {
+  return rows.some((row) =>
+    row.tool_calls?.some((call) => outside.has(call.name)),
+  );
 }
 
 const ALL_MAIL = { read_mail: true, modify_mail: true, send_mail: true };
@@ -127,7 +173,12 @@ export function allOutsideToolNames(): Set<string> {
   return outsideToolNames([
     ...mailTools(whiskMailbox(NO_WHISK, whiskWebUrl()), ALL_MAIL),
     ...calendarTools(whiskCalendar(NO_WHISK)),
-    ...codecastTools({ runQuery: none, runMutation: none, userId: "" as Id<"users">, conversationId: "" as Id<"conversations"> }),
+    ...codecastTools({
+      runQuery: none,
+      runMutation: none,
+      userId: "" as Id<"users">,
+      conversationId: "" as Id<"conversations">,
+    }),
     // Definitions only: nothing calls through this gate.
     ...webTools({ gate: NO_TEAM_CONTENT_GATE }),
   ]);
@@ -135,38 +186,60 @@ export function allOutsideToolNames(): Set<string> {
 
 /** Every tool the conversation's owner can use in this turn, and what they could still connect. */
 export async function toolsFor(
-  ctx: { runQuery: (ref: any, args: any) => Promise<any>; runMutation: (ref: any, args: any) => Promise<any> },
+  ctx: {
+    runQuery: (ref: any, args: any) => Promise<any>;
+    runMutation: (ref: any, args: any) => Promise<any>;
+  },
   userId: Id<"users">,
   conversationId: Id<"conversations">,
   options: ToolsForOptions = {},
 ): Promise<ToolSet> {
-  const access = options.whisk ?? (await whiskAccessFor(ctx, userId, options.fetch));
+  const access =
+    options.whisk ?? (await whiskAccessFor(ctx, userId, options.fetch));
   const connected = access.state === "connected" ? access : null;
   const mailbox = whiskMailbox(connected?.call ?? NO_WHISK, whiskWebUrl());
   const calendar = whiskCalendar(connected?.call ?? NO_WHISK);
   const tools = [
     ...(connected ? mailTools(mailbox, connected.can) : []),
     ...(connected?.can.calendar ? calendarTools(calendar) : []),
-    ...codecastTools({ runQuery: ctx.runQuery, runMutation: ctx.runMutation, userId, conversationId }),
-    ...webTools({ fetch: options.fetch, gate: { ctx, scope: { conversationId } } }),
+    ...codecastTools({
+      runQuery: ctx.runQuery,
+      runMutation: ctx.runMutation,
+      userId,
+      conversationId,
+    }),
+    ...webTools({
+      fetch: options.fetch,
+      gate: { ctx, scope: { conversationId } },
+    }),
   ];
   // Every outside tool, offered now or not: history read through a
   // connection the person has since narrowed or removed is still in front
   // of the model.
   const outside = allOutsideToolNames();
-  const readOutside = (rows: readonly MessageRow[]) => !!options.outsideEarlier || readOutsideContent(rows, outside);
+  const readOutside = (rows: readonly MessageRow[]) =>
+    !!options.outsideEarlier || readOutsideContent(rows, outside);
   return {
     tools,
     note: connectionNote(access),
     readOutside,
     gate: (rows) => (call) => {
-      if (call.name === "fetch_page" && pageAllowedWithoutAsking(call.input.url, rows)) return "allow";
+      if (
+        call.name === "fetch_page" &&
+        pageAllowedWithoutAsking(call.input.url, rows)
+      )
+        return "allow";
       if (call.name === "remember" && readOutside(rows)) return "ask";
-      if (call.name === "search_web" && searchesBefore(rows, call.id) >= SEARCH_MAX_PER_TURN) {
-        return { verdict: "refuse", reason: `No more than ${SEARCH_MAX_PER_TURN} web searches in one turn` };
+      if (
+        call.name === "search_web" &&
+        searchesBefore(rows, call.id) >= SEARCH_MAX_PER_TURN
+      ) {
+        return {
+          verdict: "refuse",
+          reason: `No more than ${SEARCH_MAX_PER_TURN} web searches in one turn`,
+        };
       }
       return gateByRisk(call);
     },
   };
 }
-

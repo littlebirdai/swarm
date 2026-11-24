@@ -15,10 +15,10 @@
 // "audio" (the huddle needed it), which is what keeps the process alive with
 // the screen locked.
 
-import { AppState, Platform } from 'react-native';
-import { api } from '@codecast/convex/convex/_generated/api';
-import type { Id } from '@codecast/convex/convex/_generated/dataModel';
-import type { ConvexReactClient } from 'convex/react';
+import { AppState, Platform } from "react-native";
+import { api } from "@codecast/convex/convex/_generated/api";
+import type { Id } from "@codecast/convex/convex/_generated/dataModel";
+import type { ConvexReactClient } from "convex/react";
 import {
   CALL_HEARTBEAT_MS,
   MAX_RECORDING_MS,
@@ -27,11 +27,15 @@ import {
   RECORDING_CHANNELS,
   RECORDING_SAMPLE_RATE,
   recRoomKey,
-} from '@codecast/shared/contracts';
-import { startAsrCapture, type AsrCapture } from './asrCapture';
-import { getCallSnapshot } from './calls/callManager';
-import { uploadUriToStorage } from './uploadToStorage';
-import { nativeLoadError, nativeModulePresent, optionalNative } from './optionalNative';
+} from "@codecast/shared/contracts";
+import { startAsrCapture, type AsrCapture } from "./asrCapture";
+import { getCallSnapshot } from "./calls/callManager";
+import { uploadUriToStorage } from "./uploadToStorage";
+import {
+  nativeLoadError,
+  nativeModulePresent,
+  optionalNative,
+} from "./optionalNative";
 
 // expo-audio is a NATIVE dependency, lazily required and probed exactly the
 // way lib/calls/ringtone.ts does it: a JS bundle (OTA or dev server) newer
@@ -40,24 +44,24 @@ import { nativeLoadError, nativeModulePresent, optionalNative } from './optional
 // access, outside any try we could wrap around the import.
 // Only a loaded package is kept: a miss is probed again on the next press, so
 // one failed load does not turn the button into a permanent error.
-let audio: typeof import('expo-audio') | null = null;
+let audio: typeof import("expo-audio") | null = null;
 function getAudio() {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  if (!audio) audio = optionalNative('ExpoAudio', () => require('expo-audio'));
+  if (!audio) audio = optionalNative("ExpoAudio", () => require("expo-audio"));
   return audio;
 }
 
 export type RecorderPhase =
   /** Nothing running. The button says Record. */
-  | 'idle'
+  | "idle"
   /** Asking for the microphone and opening the transcript. */
-  | 'starting'
+  | "starting"
   /** The microphone is live. */
-  | 'recording'
+  | "recording"
   /** Stopped, and the file is on its way to the server. */
-  | 'finishing'
+  | "finishing"
   /** The last attempt did not work, and the message says why. */
-  | 'error';
+  | "error";
 
 export type RecorderSnapshot = {
   phase: RecorderPhase;
@@ -79,13 +83,13 @@ export type RecorderSnapshot = {
 };
 
 const IDLE: RecorderSnapshot = {
-  phase: 'idle',
+  phase: "idle",
   startedAt: null,
   transcriptId: null,
   error: null,
   stoppedAtLimit: false,
   tail: [],
-  partial: '',
+  partial: "",
 };
 
 let snapshot: RecorderSnapshot = IDLE;
@@ -133,7 +137,7 @@ function setLevel(v: number): void {
 
 type Run = {
   recorder: any;
-  transcriptId: Id<'transcripts'>;
+  transcriptId: Id<"transcripts">;
   roomKey: string;
   convex: ConvexReactClient;
   beat: ReturnType<typeof setInterval> | null;
@@ -160,8 +164,13 @@ function teardown(): void {
   setLevel(0);
 }
 
-function beatNow(convex: ConvexReactClient, transcriptId: Id<'transcripts'>): void {
-  void convex.mutation(api.transcripts.beat, { transcript_id: transcriptId }).catch(() => {});
+function beatNow(
+  convex: ConvexReactClient,
+  transcriptId: Id<"transcripts">,
+): void {
+  void convex
+    .mutation(api.transcripts.beat, { transcript_id: transcriptId })
+    .catch(() => {});
 }
 
 /** What the file is. See shared/contracts/recordingAudio for why it is speech
@@ -170,7 +179,7 @@ function beatNow(convex: ConvexReactClient, transcriptId: Id<'transcripts'>): vo
  *  encoding is what buys a meeting room to run long in. */
 function recordingOptions(a: NonNullable<typeof audio>): any {
   const common = {
-    extension: '.m4a',
+    extension: ".m4a",
     sampleRate: RECORDING_SAMPLE_RATE,
     numberOfChannels: RECORDING_CHANNELS,
     bitRate: RECORDING_BIT_RATE,
@@ -179,7 +188,7 @@ function recordingOptions(a: NonNullable<typeof audio>): any {
   // The package flattens these per platform inside its hook, which is not
   // exported; a module singleton cannot use the hook, so it flattens the same
   // way here.
-  return Platform.OS === 'ios'
+  return Platform.OS === "ios"
     ? {
         ...common,
         outputFormat: a.IOSOutputFormat.MPEG4AAC,
@@ -188,7 +197,7 @@ function recordingOptions(a: NonNullable<typeof audio>): any {
         linearPCMIsBigEndian: false,
         linearPCMIsFloat: false,
       }
-    : { ...common, outputFormat: 'mpeg4', audioEncoder: 'aac' };
+    : { ...common, outputFormat: "mpeg4", audioEncoder: "aac" };
 }
 
 /** A huddle owns the audio session while it runs, and expo-audio's mode change
@@ -196,7 +205,7 @@ function recordingOptions(a: NonNullable<typeof audio>): any {
  *  silent during a call (lib/calls/ringtone.ts). */
 function callOwnsAudio(): boolean {
   const p = getCallSnapshot().phase;
-  return p === 'connecting' || p === 'connected';
+  return p === "connecting" || p === "connected";
 }
 
 /**
@@ -209,25 +218,32 @@ function callOwnsAudio(): boolean {
  * last.
  */
 export async function startRecording(convex: ConvexReactClient): Promise<void> {
-  if (snapshot.phase === 'starting' || snapshot.phase === 'recording' || snapshot.phase === 'finishing') {
+  if (
+    snapshot.phase === "starting" ||
+    snapshot.phase === "recording" ||
+    snapshot.phase === "finishing"
+  ) {
     return;
   }
-  set({ ...IDLE, phase: 'starting' });
+  set({ ...IDLE, phase: "starting" });
   const a = getAudio();
   if (!a) {
     set({
-      phase: 'error',
-      error: nativeModulePresent('ExpoAudio')
-        ? `The recorder could not load: ${nativeLoadError('ExpoAudio') ?? 'unknown error'}`
-        : 'Recording needs a newer version of the app.',
+      phase: "error",
+      error: nativeModulePresent("ExpoAudio")
+        ? `The recorder could not load: ${nativeLoadError("ExpoAudio") ?? "unknown error"}`
+        : "Recording needs a newer version of the app.",
     });
     return;
   }
   if (callOwnsAudio()) {
-    set({ phase: 'error', error: 'Leave the huddle first — a call is using the microphone.' });
+    set({
+      phase: "error",
+      error: "Leave the huddle first — a call is using the microphone.",
+    });
     return;
   }
-  let transcriptId: Id<'transcripts'> | null = null;
+  let transcriptId: Id<"transcripts"> | null = null;
   let recorder: any = null;
   const roomKey = recRoomKey(newRecordingId());
   try {
@@ -235,7 +251,11 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
       (await a.getRecordingPermissionsAsync()).granted ||
       (await a.requestRecordingPermissionsAsync()).granted;
     if (!granted) {
-      set({ phase: 'error', error: 'Codecast needs the microphone to record. Turn it on in Settings.' });
+      set({
+        phase: "error",
+        error:
+          "Codecast needs the microphone to record. Turn it on in Settings.",
+      });
       return;
     }
     const started = await convex.mutation(api.transcripts.start, {
@@ -255,7 +275,7 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
       // backgrounds — which is what locking the phone does. The screen
       // tells people they can lock it; this is what makes that true.
       allowsBackgroundRecording: true,
-      interruptionMode: 'mixWithOthers',
+      interruptionMode: "mixWithOthers",
     });
     recorder = new (a.AudioModule as any).AudioRecorder(recordingOptions(a));
     await recorder.prepareToRecordAsync();
@@ -265,13 +285,15 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
     // orphan sweep would eventually close on its own; closing it here keeps
     // an abandoned attempt out of somebody's history in the meantime.
     if (transcriptId) {
-      await convex.mutation(api.transcripts.stop, { transcript_id: transcriptId }).catch(() => {});
+      await convex
+        .mutation(api.transcripts.stop, { transcript_id: transcriptId })
+        .catch(() => {});
     }
     try {
       recorder?.stop?.();
     } catch {}
     await releaseAudioSession();
-    set({ phase: 'error', error: recordingStartMessage(err) });
+    set({ phase: "error", error: recordingStartMessage(err) });
     return;
   }
 
@@ -292,13 +314,13 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
   run = active;
   const startedAt = Date.now();
   set({
-    phase: 'recording',
+    phase: "recording",
     startedAt,
     transcriptId: String(transcriptId),
     error: null,
     stoppedAtLimit: false,
     tail: [],
-    partial: '',
+    partial: "",
   });
 
   // The server lease. A recording has no room and therefore no seat leases, so
@@ -310,7 +332,7 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
     const id = run?.transcriptId;
     if (id) beatNow(convex, id);
   }, CALL_HEARTBEAT_MS);
-  active.appState = AppState.addEventListener('change', () => {
+  active.appState = AppState.addEventListener("change", () => {
     const id = run?.transcriptId;
     if (id) beatNow(convex, id);
   });
@@ -352,13 +374,15 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
         onUtterance: ({ text, t0, t1 }) => {
           if (run?.transcriptId !== liveId) return;
           set({
-            partial: '',
+            partial: "",
             tail: [...snapshot.tail, { text }].slice(-6),
           });
           void convex
             .mutation(api.transcripts.appendSegments, {
               transcript_id: liveId,
-              segments: [{ speaker_id: 'mic', speaker_name: 'Speaker', text, t0, t1 }],
+              segments: [
+                { speaker_id: "mic", speaker_name: "Speaker", text, t0, t1 },
+              ],
             })
             .catch(() => {});
         },
@@ -381,7 +405,7 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
         playsInSilentMode: true,
         shouldPlayInBackground: true,
         allowsBackgroundRecording: true,
-        interruptionMode: 'mixWithOthers',
+        interruptionMode: "mixWithOthers",
       });
     } catch {}
   })().catch(() => {});
@@ -397,8 +421,8 @@ export async function startRecording(convex: ConvexReactClient): Promise<void> {
  */
 export async function stopRecording(): Promise<string | null> {
   const active = run;
-  if (!active || snapshot.phase !== 'recording') return null;
-  set({ phase: 'finishing', partial: '' });
+  if (!active || snapshot.phase !== "recording") return null;
+  set({ phase: "finishing", partial: "" });
   teardown();
   run = null;
 
@@ -421,18 +445,23 @@ export async function stopRecording(): Promise<string | null> {
 
   const id = String(active.transcriptId);
   if (!uri) {
-    set({ phase: 'error', error: 'The recording did not save, so there are no words to read.', transcriptId: id });
+    set({
+      phase: "error",
+      error: "The recording did not save, so there are no words to read.",
+      transcriptId: id,
+    });
     return id;
   }
   // One retry, because on a phone this file IS the recording: without it the
   // server has nothing to read and the meeting comes back empty.
   const storageId =
-    (await uploadUriToStorage(active.convex, uri, 'audio/mp4')) ??
-    (await uploadUriToStorage(active.convex, uri, 'audio/mp4'));
+    (await uploadUriToStorage(active.convex, uri, "audio/mp4")) ??
+    (await uploadUriToStorage(active.convex, uri, "audio/mp4"));
   if (!storageId) {
     set({
-      phase: 'error',
-      error: 'The audio could not be uploaded, so this recording has no words. Check your connection.',
+      phase: "error",
+      error:
+        "The audio could not be uploaded, so this recording has no words. Check your connection.",
       transcriptId: id,
     });
     return id;
@@ -442,7 +471,7 @@ export async function stopRecording(): Promise<string | null> {
   await active.convex
     .mutation(api.transcripts.attachRecording, {
       transcript_id: active.transcriptId,
-      storage_id: storageId as Id<'_storage'>,
+      storage_id: storageId as Id<"_storage">,
     })
     .catch(() => {});
   set({ ...IDLE, transcriptId: id });
@@ -466,7 +495,10 @@ async function releaseAudioSession(): Promise<void> {
  *  parser bounds the shape rather than trusting it (shared/callRoomKeys), so
  *  this only has to be unguessable and well formed. */
 function newRecordingId(): string {
-  const hex = () => Math.floor(Math.random() * 0x100000000).toString(16).padStart(8, '0');
+  const hex = () =>
+    Math.floor(Math.random() * 0x100000000)
+      .toString(16)
+      .padStart(8, "0");
   return `${hex()}-${hex()}-${hex()}-${hex()}`;
 }
 
@@ -476,9 +508,9 @@ function newRecordingId(): string {
 function recordingStartMessage(err: unknown): string {
   const text = String(err);
   if (/Cannot transcribe this room|malformed|Not authenticated/i.test(text)) {
-    return 'The server would not open a recording. It may need updating.';
+    return "The server would not open a recording. It may need updating.";
   }
-  return 'Recording could not start.';
+  return "Recording could not start.";
 }
 
 // Dev-only harness hook, the same convention as __call and __ring: the

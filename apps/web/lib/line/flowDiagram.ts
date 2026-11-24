@@ -4,7 +4,15 @@
 // a loop back) in words under the step they leave; and a run's state on each
 // step. Pure: FlowDiagram draws it, and the Flows view, the `flow` fence and a
 // `cast flow run` card all read a flow through it.
-import { foldFlow, segmentTopOf, SEGMENT_SEP, type FlowEdgeIn, type FlowNodeIn, type FlowStation, type FlowStationKind } from "@codecast/shared/contracts/flowPool";
+import {
+  foldFlow,
+  segmentTopOf,
+  SEGMENT_SEP,
+  type FlowEdgeIn,
+  type FlowNodeIn,
+  type FlowStation,
+  type FlowStationKind,
+} from "@codecast/shared/contracts/flowPool";
 import { edgeWords } from "./lineModel";
 
 export type StepState = "idle" | "done" | "current" | "stopped";
@@ -35,19 +43,36 @@ export type DiagramStep = {
  * (null: inherited from the backbone), what it changed, the paths it runs for, that it has no command and passes,
  * that its command differs by target, that it waits for a deploy and sends none, and how many changes stand on it now. A plain flow draws no marks.
  */
-export type StepMark = { own: "added" | "changed" | null; changed?: string[]; when?: string; passes?: true; varies?: true; waits?: true; here?: number; hereNames?: string[];
+export type StepMark = {
+  own: "added" | "changed" | null;
+  changed?: string[];
+  when?: string;
+  passes?: true;
+  varies?: true;
+  waits?: true;
+  here?: number;
+  hereNames?: string[];
   /** Of `here`, how many stand on the steps inside this frame: an open frame shows them on those steps and counts only the rest. */
   hereInside?: number;
   /** An edit proposed and not live yet, in words ("proposed · <session>"): the step is drawn as a ghost. */
   proposed?: string;
   /** A proposed edit takes this step off the path. */
-  skipped?: true };
+  skipped?: true;
+};
 
 /** `hub`: in a flow run around one step (every stage hands the work back to it, as a one-session flow does), that step:
  *  its stages follow it in the order it names them, and their ways back lead to it. */
-export type FlowDiagramModel = { steps: DiagramStep[]; end: string | null; endId: string | null; hub?: { id: string; label: string } };
+export type FlowDiagramModel = {
+  steps: DiagramStep[];
+  end: string | null;
+  endId: string | null;
+  hub?: { id: string; label: string };
+};
 
-type Graph = { nodes: ReadonlyArray<FlowNodeIn>; edges: ReadonlyArray<FlowEdgeIn> };
+type Graph = {
+  nodes: ReadonlyArray<FlowNodeIn>;
+  edges: ReadonlyArray<FlowEdgeIn>;
+};
 
 const cache = new WeakMap<object, FlowDiagramModel>();
 
@@ -60,7 +85,11 @@ export function flowDiagram(flow: Graph): FlowDiagramModel {
   return model;
 }
 
-function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEdgeIn>, prefix: string): FlowDiagramModel {
+function diagramOf(
+  nodes: ReadonlyArray<FlowNodeIn>,
+  edges: ReadonlyArray<FlowEdgeIn>,
+  prefix: string,
+): FlowDiagramModel {
   const folded = foldFlow(nodes, edges);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const stationById = new Map(folded.stations.map((s) => [s.id, s]));
@@ -71,18 +100,28 @@ function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEd
     if (s.kind !== "parallel") continue;
     for (const n of s.next) {
       branchOf.set(n.toId, s.id);
-      const join = stationById.get(n.toId)?.next.find((x) => stationById.get(x.toId)?.kind === "join");
+      const join = stationById
+        .get(n.toId)
+        ?.next.find((x) => stationById.get(x.toId)?.kind === "join");
       if (join) joinOf.set(s.id, join.toId);
     }
   }
-  const passing = folded.stations.filter((s) => s.main && s.kind !== "join" && !branchOf.has(s.id));
+  const passing = folded.stations.filter(
+    (s) => s.main && s.kind !== "join" && !branchOf.has(s.id),
+  );
   const hub = prefix ? null : hubOf(passing, edges, byId, stationById, joinOf);
   const main = hub ? hub.path : passing;
   const mainIndex = new Map(main.map((s, i) => [s.id, i]));
-  for (const [fan, join] of joinOf) mainIndex.set(join, mainIndex.get(fan) ?? -1);
+  for (const [fan, join] of joinOf)
+    mainIndex.set(join, mainIndex.get(fan) ?? -1);
 
   /** Routes leaving `from` (a station, a segment's steps, a fan-out's join) other than to `next`. */
-  const routesOut = (from: (id: string) => boolean, next: string | undefined, at: number, last: boolean): SideRoute[] => {
+  const routesOut = (
+    from: (id: string) => boolean,
+    next: string | undefined,
+    at: number,
+    last: boolean,
+  ): SideRoute[] => {
     const side: SideRoute[] = [];
     for (const e of edges) {
       if (!from(e.from) || from(e.to)) continue;
@@ -94,12 +133,36 @@ function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEd
       if (target?.type === "exit" || target?.segment_exit) {
         // The end the last step reaches by passing is the flow's end, not a side route.
         if (last && !isStop(target)) continue;
-        side.push({ outcome: target.label, leadsTo: null, tone: isStop(target) ? "stop" : "out", toId: prefix + to });
+        side.push({
+          outcome: target.label,
+          leadsTo: null,
+          tone: isStop(target) ? "stop" : "out",
+          toId: prefix + to,
+        });
       } else if (endsThere(to, edges, byId)) {
         // A step whose only way on is an end (Closed, Dropped) is that end, said by its name.
-        side.push({ outcome: target?.label ?? to, leadsTo: null, tone: /stop|fail/i.test(`${to} ${target?.label ?? ""}`) ? "stop" : "out", toId: prefix + to });
-      } else if (mainIndex.has(to) && mainIndex.get(to)! <= at) side.push({ outcome: words, leadsTo: target?.label ?? to, tone: "back", toId: prefix + to });
-      else side.push({ outcome: words, leadsTo: target?.label ?? to, tone: "out", toId: prefix + to });
+        side.push({
+          outcome: target?.label ?? to,
+          leadsTo: null,
+          tone: /stop|fail/i.test(`${to} ${target?.label ?? ""}`)
+            ? "stop"
+            : "out",
+          toId: prefix + to,
+        });
+      } else if (mainIndex.has(to) && mainIndex.get(to)! <= at)
+        side.push({
+          outcome: words,
+          leadsTo: target?.label ?? to,
+          tone: "back",
+          toId: prefix + to,
+        });
+      else
+        side.push({
+          outcome: words,
+          leadsTo: target?.label ?? to,
+          tone: "out",
+          toId: prefix + to,
+        });
     }
     return dedupe(side);
   };
@@ -108,16 +171,38 @@ function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEd
   // the work goes back, the session fixes it, and the stage runs again. The route to the subject station itself
   // is said once, on that exit, never as a separate way on. A plain station (a script, a fan-in) has no exit to say
   // it on, so its route to the subject station is the way back itself, said by the edge's words.
-  const subjectIds = new Set(nodes.filter((n) => n.backend === "subject").map((n) => n.id));
-  const backExits = new Set(edges.filter((e) => subjectIds.has(e.to) && !!byId.get(e.from)?.segment_exit && takesOwnExit(e)).map((e) => prefix + e.from));
+  const subjectIds = new Set(
+    nodes.filter((n) => n.backend === "subject").map((n) => n.id),
+  );
+  const backExits = new Set(
+    edges
+      .filter(
+        (e) =>
+          subjectIds.has(e.to) &&
+          !!byId.get(e.from)?.segment_exit &&
+          takesOwnExit(e),
+      )
+      .map((e) => prefix + e.from),
+  );
   const toSession = (r: SideRoute, fromSegment: boolean): SideRoute | null =>
-    subjectIds.has(r.toId.slice(prefix.length)) ? (fromSegment ? null : { ...r, tone: "back", leadsTo: SESSION_WORDS })
-    : backExits.has(r.toId) ? { ...r, tone: "back", leadsTo: SESSION_WORDS } : r;
+    subjectIds.has(r.toId.slice(prefix.length))
+      ? fromSegment
+        ? null
+        : { ...r, tone: "back", leadsTo: SESSION_WORDS }
+      : backExits.has(r.toId)
+        ? { ...r, tone: "back", leadsTo: SESSION_WORDS }
+        : r;
   const reroute = (step: DiagramStep): DiagramStep => {
     const inner = step.inner.map(reroute);
     // A segment's frame repeats what one of its steps already says when the parent's end has the same name.
-    const said = new Set(inner.flatMap((i) => i.side.map((r) => `${r.tone}|${r.outcome}`)));
-    const side = step.side.map((r) => toSession(r, step.kind === "segment")).filter((r): r is SideRoute => !!r && !said.has(`${r.tone}|${r.outcome}`));
+    const said = new Set(
+      inner.flatMap((i) => i.side.map((r) => `${r.tone}|${r.outcome}`)),
+    );
+    const side = step.side
+      .map((r) => toSession(r, step.kind === "segment"))
+      .filter(
+        (r): r is SideRoute => !!r && !said.has(`${r.tone}|${r.outcome}`),
+      );
     return { ...step, side, inner };
   };
 
@@ -132,7 +217,13 @@ function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEd
         kind: s.kind,
         inner: s.next.map((n) => {
           const b = stationById.get(n.toId)!;
-          return { id: prefix + b.id, label: b.label, kind: b.kind, inner: [], side: routesOut((id) => id === b.id, join, i, false) };
+          return {
+            id: prefix + b.id,
+            label: b.label,
+            kind: b.kind,
+            inner: [],
+            side: routesOut((id) => id === b.id, join, i, false),
+          };
         }),
         side: join ? routesOut((id) => id === join, next, i, last) : [],
       };
@@ -143,22 +234,55 @@ function diagramOf(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEd
       kind: s.kind,
       inner: s.kind === "segment" ? innerSteps(nodes, edges, s.id, prefix) : [],
       // A hub's stages are drawn after it, so its routes to them are the path, not routes off it.
-      side: routesOut((id) => segmentTopOf(id) === s.id, next, i, last).filter((r) => !(hub && s.id === hub.id && hub.stages.has(r.toId.slice(prefix.length)))),
+      side: routesOut((id) => segmentTopOf(id) === s.id, next, i, last).filter(
+        (r) =>
+          !(
+            hub &&
+            s.id === hub.id &&
+            hub.stages.has(r.toId.slice(prefix.length))
+          ),
+      ),
       ...(s.slot ? { slot: s.slot } : {}),
     };
   });
   const drawn = subjectIds.size ? steps.map(reroute) : steps;
   const lastStep = main[main.length - 1];
-  const leaveFrom = lastStep ? joinOf.get(lastStep.id) ?? lastStep.id : null;
-  const endEdge = leaveFrom ? edges.find((e) => segmentTopOf(e.from) === leaveFrom && byId.get(segmentTopOf(e.to))?.type === "exit" && !isStop(byId.get(segmentTopOf(e.to))!)) : undefined;
+  const leaveFrom = lastStep ? (joinOf.get(lastStep.id) ?? lastStep.id) : null;
+  const endEdge = leaveFrom
+    ? edges.find(
+        (e) =>
+          segmentTopOf(e.from) === leaveFrom &&
+          byId.get(segmentTopOf(e.to))?.type === "exit" &&
+          !isStop(byId.get(segmentTopOf(e.to))!),
+      )
+    : undefined;
   const endId = endEdge ? segmentTopOf(endEdge.to) : null;
-  return { steps: drawn, end: endId ? byId.get(endId)?.label ?? null : null, endId: endId ? prefix + endId : null, ...(hub ? { hub: { id: prefix + hub.id, label: stationById.get(hub.id)?.label ?? hub.id } } : {}) };
+  return {
+    steps: drawn,
+    end: endId ? (byId.get(endId)?.label ?? null) : null,
+    endId: endId ? prefix + endId : null,
+    ...(hub
+      ? {
+          hub: {
+            id: prefix + hub.id,
+            label: stationById.get(hub.id)?.label ?? hub.id,
+          },
+        }
+      : {}),
+  };
 }
 
 /** Whether a node's every way on is an end: it ends the run there (a "Closed" step that only exits). */
-function endsThere(id: string, edges: ReadonlyArray<FlowEdgeIn>, byId: Map<string, FlowNodeIn>): boolean {
+function endsThere(
+  id: string,
+  edges: ReadonlyArray<FlowEdgeIn>,
+  byId: Map<string, FlowNodeIn>,
+): boolean {
   const outs = edges.filter((e) => segmentTopOf(e.from) === id);
-  return outs.length > 0 && outs.every((e) => byId.get(segmentTopOf(e.to))?.type === "exit");
+  return (
+    outs.length > 0 &&
+    outs.every((e) => byId.get(segmentTopOf(e.to))?.type === "exit")
+  );
 }
 
 /** The fewest stages a step must hand work to, each handing it back, for the flow to be drawn around it. */
@@ -169,19 +293,33 @@ const HUB_MIN_STAGES = 3;
  * back (Build → Push → Merge → Build). Its passing path is the path up to that step, then its stages in the order it
  * names them, each with the steps it runs before handing back. Null for a flow with no such step.
  */
-function hubOf(passing: FlowStation[], edges: ReadonlyArray<FlowEdgeIn>, byId: Map<string, FlowNodeIn>, stationById: Map<string, FlowStation>, joinOf: Map<string, string>) {
-  const isEnd = (id: string) => byId.get(id)?.type === "exit" || endsThere(id, edges, byId);
-  const outsOf = (id: string) => edges.filter((e) => segmentTopOf(e.from) === (joinOf.get(id) ?? id)).map((e) => ({ e, to: segmentTopOf(e.to) }));
+function hubOf(
+  passing: FlowStation[],
+  edges: ReadonlyArray<FlowEdgeIn>,
+  byId: Map<string, FlowNodeIn>,
+  stationById: Map<string, FlowStation>,
+  joinOf: Map<string, string>,
+) {
+  const isEnd = (id: string) =>
+    byId.get(id)?.type === "exit" || endsThere(id, edges, byId);
+  const outsOf = (id: string) =>
+    edges
+      .filter((e) => segmentTopOf(e.from) === (joinOf.get(id) ?? id))
+      .map((e) => ({ e, to: segmentTopOf(e.to) }));
   /** Whether work from `from` comes back to `hub` within a few steps, by any way but an end. */
   const returns = (from: string, hub: string) => {
     const seen = new Set([from]);
     let wave = [from];
     for (let d = 0; d < 6 && wave.length; d++) {
       const next: string[] = [];
-      for (const id of wave) for (const { to } of outsOf(id)) {
-        if (to === hub) return true;
-        if (!seen.has(to) && !isEnd(to)) { seen.add(to); next.push(to); }
-      }
+      for (const id of wave)
+        for (const { to } of outsOf(id)) {
+          if (to === hub) return true;
+          if (!seen.has(to) && !isEnd(to)) {
+            seen.add(to);
+            next.push(to);
+          }
+        }
       wave = next;
     }
     return false;
@@ -189,13 +327,28 @@ function hubOf(passing: FlowStation[], edges: ReadonlyArray<FlowEdgeIn>, byId: M
   for (let i = 0; i < passing.length; i++) {
     const h = passing[i];
     // Its stages: where it sends work on an outcome, in the order it names them, each coming back to it.
-    const named = outsOf(h.id).filter(({ e, to }) => /outcome\s*=/.test(e.condition ?? "") && !isEnd(to) && to !== h.id);
-    const stages = [...new Set(named.map((x) => x.to))].filter((to) => stationById.has(to) && returns(to, h.id));
+    const named = outsOf(h.id).filter(
+      ({ e, to }) =>
+        /outcome\s*=/.test(e.condition ?? "") && !isEnd(to) && to !== h.id,
+    );
+    const stages = [...new Set(named.map((x) => x.to))].filter(
+      (to) => stationById.has(to) && returns(to, h.id),
+    );
     if (stages.length < HUB_MIN_STAGES) continue;
     // Its way out: the first step it names after its last stage that only ends the run (Watch, then the flow's end).
-    const order = [...new Set(outsOf(h.id).filter(({ e }) => /outcome\s*=/.test(e.condition ?? "")).map((x) => x.to))];
+    const order = [
+      ...new Set(
+        outsOf(h.id)
+          .filter(({ e }) => /outcome\s*=/.test(e.condition ?? ""))
+          .map((x) => x.to),
+      ),
+    ];
     const after = Math.max(...stages.map((st) => order.indexOf(st)));
-    const out = order.slice(after + 1).find((to) => stationById.has(to) && endsThere(to, edges, byId)) ?? null;
+    const out =
+      order
+        .slice(after + 1)
+        .find((to) => stationById.has(to) && endsThere(to, edges, byId)) ??
+      null;
     const path: FlowStation[] = passing.slice(0, i + 1);
     const taken = new Set([...path.map((x) => x.id), ...stages]);
     for (const st of stages) {
@@ -203,7 +356,14 @@ function hubOf(passing: FlowStation[], edges: ReadonlyArray<FlowEdgeIn>, byId: M
       // The steps a stage runs before it hands back (Push, then Merge): its one way on that comes back too.
       let at = st;
       for (let k = 0; k < 4; k++) {
-        const on = [...new Set(outsOf(at).map((x) => x.to))].filter((to) => to !== h.id && !isEnd(to) && !taken.has(to) && stationById.has(to) && returns(to, h.id));
+        const on = [...new Set(outsOf(at).map((x) => x.to))].filter(
+          (to) =>
+            to !== h.id &&
+            !isEnd(to) &&
+            !taken.has(to) &&
+            stationById.has(to) &&
+            returns(to, h.id),
+        );
         if (on.length !== 1) break;
         taken.add(on[0]);
         path.push(stationById.get(on[0])!);
@@ -216,7 +376,8 @@ function hubOf(passing: FlowStation[], edges: ReadonlyArray<FlowEdgeIn>, byId: M
   return null;
 }
 
-const isStop = (n: FlowNodeIn) => n.segment_exit === "stop" || (n.type === "exit" && !!n.stop);
+const isStop = (n: FlowNodeIn) =>
+  n.segment_exit === "stop" || (n.type === "exit" && !!n.stop);
 
 /** Where a stage's findings go when the flow sends them back: the session the change came from. */
 export const SESSION_WORDS = "this session";
@@ -231,16 +392,33 @@ function takesOwnExit(e: FlowEdgeIn): boolean {
 }
 
 /** A segment's own steps: its nodes with the segment's name taken off, its entry as their start, its exits as ends. */
-function innerSteps(nodes: ReadonlyArray<FlowNodeIn>, edges: ReadonlyArray<FlowEdgeIn>, seg: string, prefix: string): DiagramStep[] {
+function innerSteps(
+  nodes: ReadonlyArray<FlowNodeIn>,
+  edges: ReadonlyArray<FlowEdgeIn>,
+  seg: string,
+  prefix: string,
+): DiagramStep[] {
   const p = `${seg}${SEGMENT_SEP}`;
   const strip = (id: string) => (id === seg ? "start" : id.slice(p.length));
   const inner: FlowNodeIn[] = [{ id: "start", label: "start", type: "start" }];
   for (const n of nodes) {
     if (!n.id.startsWith(p)) continue;
-    inner.push({ ...n, id: strip(n.id), type: n.segment_exit && n.segment === seg ? "exit" : n.type, ...(n.segment_exit === "stop" ? { segment_exit: "stop" } : {}) });
+    inner.push({
+      ...n,
+      id: strip(n.id),
+      type: n.segment_exit && n.segment === seg ? "exit" : n.type,
+      ...(n.segment_exit === "stop" ? { segment_exit: "stop" } : {}),
+    });
   }
-  const innerEdges = edges.filter((e) => (e.from === seg || e.from.startsWith(p)) && e.to.startsWith(p)).map((e) => ({ ...e, from: strip(e.from), to: strip(e.to) }));
-  return diagramOf(inner, innerEdges, p).steps.map((s) => ({ ...s, id: prefix + s.id }));
+  const innerEdges = edges
+    .filter(
+      (e) => (e.from === seg || e.from.startsWith(p)) && e.to.startsWith(p),
+    )
+    .map((e) => ({ ...e, from: strip(e.from), to: strip(e.to) }));
+  return diagramOf(inner, innerEdges, p).steps.map((s) => ({
+    ...s,
+    id: prefix + s.id,
+  }));
 }
 
 function dedupe(routes: SideRoute[]): SideRoute[] {
@@ -253,22 +431,39 @@ function dedupe(routes: SideRoute[]): SideRoute[] {
   });
 }
 
-type RunNodes = { status: string; current_node_id?: string | null; node_statuses?: ReadonlyArray<{ node_id: string; status: string }> | null };
+type RunNodes = {
+  status: string;
+  current_node_id?: string | null;
+  node_statuses?: ReadonlyArray<{ node_id: string; status: string }> | null;
+};
 
 /** Each step's state on a run: done when the run passed through it, current where it stands, stopped where it failed. */
-export function stepStates(model: FlowDiagramModel, run: RunNodes | null | undefined): Map<string, StepState> {
+export function stepStates(
+  model: FlowDiagramModel,
+  run: RunNodes | null | undefined,
+): Map<string, StepState> {
   const out = new Map<string, StepState>();
   if (!run) return out;
   const statuses = run.node_statuses ?? [];
-  const live = run.status === "running" || run.status === "paused" || run.status === "pending";
-  const inGroup = (stepId: string, nodeId: string) => nodeId === stepId || nodeId.startsWith(`${stepId}${SEGMENT_SEP}`);
+  const live =
+    run.status === "running" ||
+    run.status === "paused" ||
+    run.status === "pending";
+  const inGroup = (stepId: string, nodeId: string) =>
+    nodeId === stepId || nodeId.startsWith(`${stepId}${SEGMENT_SEP}`);
   const walk = (steps: DiagramStep[]) => {
     for (const s of steps) {
       const mine = statuses.filter((n) => inGroup(s.id, n.node_id));
       const here = !!run.current_node_id && inGroup(s.id, run.current_node_id);
-      const state: StepState = here && live ? "current"
-        : mine.some((n) => n.status === "failed") || (here && run.status === "failed") ? "stopped"
-        : mine.length || here ? "done" : "idle";
+      const state: StepState =
+        here && live
+          ? "current"
+          : mine.some((n) => n.status === "failed") ||
+              (here && run.status === "failed")
+            ? "stopped"
+            : mine.length || here
+              ? "done"
+              : "idle";
       out.set(s.id, state);
       walk(s.inner);
     }
@@ -278,19 +473,38 @@ export function stepStates(model: FlowDiagramModel, run: RunNodes | null | undef
 }
 
 /** Whether a run went to this node (a route it took, the end it reached). */
-export function runReached(run: RunNodes | null | undefined, nodeId: string | null): boolean {
+export function runReached(
+  run: RunNodes | null | undefined,
+  nodeId: string | null,
+): boolean {
   if (!run || !nodeId) return false;
-  return run.current_node_id === nodeId || !!run.node_statuses?.some((n) => n.node_id === nodeId);
+  return (
+    run.current_node_id === nodeId ||
+    !!run.node_statuses?.some((n) => n.node_id === nodeId)
+  );
 }
 
 /** What each person's step in a flow asks, from its own options: "Ship, revise or drop it". */
 export function flowAsks(flow: Graph): string[] {
-  return flow.nodes.filter((n) => n.type === "human").map((n) => {
-    const options = flow.edges.filter((e) => e.from === n.id && e.label && /^\[\w+\]/.test(e.label)).map((e) => e.label!.replace(/^\[\w+\]\s*/, "").split("::")[0].trim().toLowerCase());
-    if (!options.length) return n.label;
-    const list = options.length > 1 ? `${options.slice(0, -1).join(", ")} or ${options[options.length - 1]}` : options[0];
-    return `${list.replace(/^\w/, (c) => c.toUpperCase())} it`;
-  });
+  return flow.nodes
+    .filter((n) => n.type === "human")
+    .map((n) => {
+      const options = flow.edges
+        .filter((e) => e.from === n.id && e.label && /^\[\w+\]/.test(e.label))
+        .map((e) =>
+          e
+            .label!.replace(/^\[\w+\]\s*/, "")
+            .split("::")[0]
+            .trim()
+            .toLowerCase(),
+        );
+      if (!options.length) return n.label;
+      const list =
+        options.length > 1
+          ? `${options.slice(0, -1).join(", ")} or ${options[options.length - 1]}`
+          : options[0];
+      return `${list.replace(/^\w/, (c) => c.toUpperCase())} it`;
+    });
 }
 
 /** What a route does, in words after its outcome: it stops the run, the flow ends there, or where it goes. */

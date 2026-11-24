@@ -15,12 +15,18 @@ import type { MutationCtx, QueryCtx } from "./functions";
 import type { Doc, Id } from "./_generated/dataModel";
 
 /** The thinking fields a hosted message write carries (the harness's MessageRow names). */
-export type ThinkingFields = { thinking?: string; thinking_signature?: string; thinking_redacted?: boolean };
+export type ThinkingFields = {
+  thinking?: string;
+  thinking_signature?: string;
+  thinking_redacted?: boolean;
+};
 
 type ToolCall = { id: string; name: string; input: string };
 
 /** A hosted message write: thinking fields plus the tool calls as the model wrote them. */
-export type HostedReplayFields = ThinkingFields & { tool_calls?: ReadonlyArray<ToolCall> };
+export type HostedReplayFields = ThinkingFields & {
+  tool_calls?: ReadonlyArray<ToolCall>;
+};
 
 /**
  * The thinking signature to keep with a message's thinking. A signature
@@ -33,7 +39,10 @@ export function signedThinkingFields(
   storedThinking: string | undefined,
 ): { thinking_signature?: string; thinking_redacted?: boolean } {
   if (!msg.thinking_signature || storedThinking !== msg.thinking) return {};
-  return { thinking_signature: msg.thinking_signature, ...(msg.thinking_redacted ? { thinking_redacted: true } : {}) };
+  return {
+    thinking_signature: msg.thinking_signature,
+    ...(msg.thinking_redacted ? { thinking_redacted: true } : {}),
+  };
 }
 
 /** The raw arguments of each call whose stored (redacted) arguments differ, by call id. */
@@ -41,8 +50,12 @@ export function rawToolInputs(
   raw: ReadonlyArray<ToolCall>,
   stored: ReadonlyArray<ToolCall> | undefined,
 ): Array<{ id: string; input: string }> {
-  const storedById = new Map((stored ?? []).map((call) => [call.id, call.input]));
-  return raw.filter((call) => storedById.get(call.id) !== call.input).map((call) => ({ id: call.id, input: call.input }));
+  const storedById = new Map(
+    (stored ?? []).map((call) => [call.id, call.input]),
+  );
+  return raw
+    .filter((call) => storedById.get(call.id) !== call.input)
+    .map((call) => ({ id: call.id, input: call.input }));
 }
 
 type RecordTable = "message_thinking" | "message_tool_inputs";
@@ -57,7 +70,9 @@ function recordFor<T extends RecordTable>(
 ): Promise<Doc<T> | null> {
   return ctx.db
     .query(table as "message_thinking")
-    .withIndex("by_conversation_message", (q) => q.eq("conversation_id", conversationId).eq("message_id", messageId))
+    .withIndex("by_conversation_message", (q) =>
+      q.eq("conversation_id", conversationId).eq("message_id", messageId),
+    )
     .first() as Promise<Doc<T> | null>;
 }
 
@@ -80,8 +95,18 @@ async function syncRecord<T extends RecordTable>(
     return;
   }
   if (!existing) {
-    await ctx.db.insert(table, { conversation_id: conversationId, message_id: messageId, ...fields } as never);
-  } else if (Object.entries(fields).some(([key, value]) => JSON.stringify((existing as Record<string, unknown>)[key]) !== JSON.stringify(value))) {
+    await ctx.db.insert(table, {
+      conversation_id: conversationId,
+      message_id: messageId,
+      ...fields,
+    } as never);
+  } else if (
+    Object.entries(fields).some(
+      ([key, value]) =>
+        JSON.stringify((existing as Record<string, unknown>)[key]) !==
+        JSON.stringify(value),
+    )
+  ) {
     await ctx.db.patch(existing._id, fields as never);
   }
 }
@@ -101,16 +126,38 @@ export async function storeHostedReplay(
   conversationId: Id<"conversations">,
   messageId: Id<"messages">,
   msg: HostedReplayFields,
-  stored: { thinking: string | undefined; tool_calls: ReadonlyArray<ToolCall> | undefined },
+  stored: {
+    thinking: string | undefined;
+    tool_calls: ReadonlyArray<ToolCall> | undefined;
+  },
 ): Promise<void> {
   const signed = signedThinkingFields(msg, stored.thinking);
   const thinking = signed.thinking_signature
-    ? { signature: signed.thinking_signature, redacted: signed.thinking_redacted }
-    : msg.thinking === undefined ? undefined : null;
-  await syncRecord(ctx, "message_thinking", conversationId, messageId, thinking);
+    ? {
+        signature: signed.thinking_signature,
+        redacted: signed.thinking_redacted,
+      }
+    : msg.thinking === undefined
+      ? undefined
+      : null;
+  await syncRecord(
+    ctx,
+    "message_thinking",
+    conversationId,
+    messageId,
+    thinking,
+  );
 
-  const inputs = msg.tool_calls ? rawToolInputs(msg.tool_calls, stored.tool_calls) : undefined;
-  await syncRecord(ctx, "message_tool_inputs", conversationId, messageId, inputs === undefined ? undefined : inputs.length > 0 ? { inputs } : null);
+  const inputs = msg.tool_calls
+    ? rawToolInputs(msg.tool_calls, stored.tool_calls)
+    : undefined;
+  await syncRecord(
+    ctx,
+    "message_tool_inputs",
+    conversationId,
+    messageId,
+    inputs === undefined ? undefined : inputs.length > 0 ? { inputs } : null,
+  );
 }
 
 /**
@@ -123,21 +170,36 @@ export async function storeHostedReplay(
 export async function withHostedReplay<T extends Doc<"messages">>(
   ctx: QueryCtx,
   rows: readonly T[],
-): Promise<Array<T & Pick<ThinkingFields, "thinking_signature" | "thinking_redacted">>> {
+): Promise<
+  Array<T & Pick<ThinkingFields, "thinking_signature" | "thinking_redacted">>
+> {
   return Promise.all(
     rows.map(async (row) => {
       if (row.role !== "assistant") return row;
       const [thinking, toolInputs] = await Promise.all([
         recordFor(ctx, "message_thinking", row.conversation_id, row._id),
-        row.tool_calls?.length ? recordFor(ctx, "message_tool_inputs", row.conversation_id, row._id) : null,
+        row.tool_calls?.length
+          ? recordFor(ctx, "message_tool_inputs", row.conversation_id, row._id)
+          : null,
       ]);
       if (!thinking && !toolInputs) return row;
-      const raw = new Map((toolInputs?.inputs ?? []).map((entry) => [entry.id, entry.input]));
+      const raw = new Map(
+        (toolInputs?.inputs ?? []).map((entry) => [entry.id, entry.input]),
+      );
       return {
         ...row,
-        ...(thinking ? { thinking_signature: thinking.signature, ...(thinking.redacted ? { thinking_redacted: true } : {}) } : {}),
+        ...(thinking
+          ? {
+              thinking_signature: thinking.signature,
+              ...(thinking.redacted ? { thinking_redacted: true } : {}),
+            }
+          : {}),
         ...(raw.size > 0 && row.tool_calls
-          ? { tool_calls: row.tool_calls.map((call) => (raw.has(call.id) ? { ...call, input: raw.get(call.id)! } : call)) }
+          ? {
+              tool_calls: row.tool_calls.map((call) =>
+                raw.has(call.id) ? { ...call, input: raw.get(call.id)! } : call,
+              ),
+            }
           : {}),
       };
     }),

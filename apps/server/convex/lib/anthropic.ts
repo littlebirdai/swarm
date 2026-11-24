@@ -5,7 +5,10 @@
 
 import { priceFor, usageCost } from "@platform/agent/meter";
 import { replyText, type MessagesRequest } from "@platform/assistant/messages";
-import { CHEAP_MODEL, sendsThinkingOff } from "@codecast/shared/contracts/modelOptions";
+import {
+  CHEAP_MODEL,
+  sendsThinkingOff,
+} from "@codecast/shared/contracts/modelOptions";
 import { vendorRefusalFor, type VendorGate } from "./vendorGuard";
 
 // sendsThinkingOff: whether prod posts this model with thinking off; the evals
@@ -55,7 +58,10 @@ function userContent(req: SurfaceRequest) {
     { type: "text" as const, text: req.prompt },
     ...req.images.flatMap((img) => [
       { type: "text" as const, text: `${img.label}:` },
-      { type: "image" as const, source: { type: "url" as const, url: img.url } },
+      {
+        type: "image" as const,
+        source: { type: "url" as const, url: img.url },
+      },
     ]),
   ];
 }
@@ -75,12 +81,26 @@ export function anthropicBody(req: SurfaceRequest) {
     model: req.model,
     max_tokens: req.max_tokens,
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
-    ...(sendsThinkingOff(req.model) ? { thinking: { type: "disabled" as const } } : {}),
+    ...(sendsThinkingOff(req.model)
+      ? { thinking: { type: "disabled" as const } }
+      : {}),
     ...(req.system ? { system: req.system } : {}),
     messages: [{ role: "user" as const, content: userContent(req) }],
     ...(req.tools ? { tools: req.tools } : {}),
     ...(req.output_schema || req.effort
-      ? { output_config: { ...(req.output_schema ? { format: { type: "json_schema" as const, schema: req.output_schema } } : {}), ...(req.effort ? { effort: req.effort } : {}) } }
+      ? {
+          output_config: {
+            ...(req.output_schema
+              ? {
+                  format: {
+                    type: "json_schema" as const,
+                    schema: req.output_schema,
+                  },
+                }
+              : {}),
+            ...(req.effort ? { effort: req.effort } : {}),
+          },
+        }
       : {}),
   };
 }
@@ -95,7 +115,9 @@ export type AnthropicAuth = { gate: VendorGate } | { apiKey: string };
 
 /** The refusal for this call's content, or null when it may go. */
 async function anthropicRefusal(auth: AnthropicAuth): Promise<string | null> {
-  return "gate" in auth ? vendorRefusalFor(auth.gate.ctx, auth.gate.scope, "anthropic") : null;
+  return "gate" in auth
+    ? vendorRefusalFor(auth.gate.ctx, auth.gate.scope, "anthropic")
+    : null;
 }
 
 /**
@@ -104,7 +126,10 @@ async function anthropicRefusal(auth: AnthropicAuth): Promise<string | null> {
  * usage can; null when the key is missing or the content's team may not send
  * to Anthropic.
  */
-export async function postMessages(req: SurfaceRequest, opts: AnthropicAuth & { signal?: AbortSignal }): Promise<Response | null> {
+export async function postMessages(
+  req: SurfaceRequest,
+  opts: AnthropicAuth & { signal?: AbortSignal },
+): Promise<Response | null> {
   const apiKey = "apiKey" in opts ? opts.apiKey : process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
   if (await anthropicRefusal(opts)) return null;
@@ -112,11 +137,19 @@ export async function postMessages(req: SurfaceRequest, opts: AnthropicAuth & { 
 }
 
 /** The fetch itself, for a caller that has already asked the gate. */
-function sendMessages(req: SurfaceRequest, apiKey: string, signal?: AbortSignal): Promise<Response> {
+function sendMessages(
+  req: SurfaceRequest,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<Response> {
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     signal,
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
     body: JSON.stringify(anthropicBody(req)),
   });
 }
@@ -124,42 +157,82 @@ function sendMessages(req: SurfaceRequest, apiKey: string, signal?: AbortSignal)
 /** Forward a Messages call byte for byte under the deployment's key: a cast
  *  machine's model route (castMachineProxy.ts), which streams the raw answer
  *  back to the machine. `path` is the route and query, `/v1/messages…`. */
-export function forwardMessages(path: string, headers: Headers, body: ArrayBuffer): Promise<Response> {
-  return fetch(`https://api.anthropic.com${path}`, { method: "POST", headers, body });
+export function forwardMessages(
+  path: string,
+  headers: Headers,
+  body: ArrayBuffer,
+): Promise<Response> {
+  return fetch(`https://api.anthropic.com${path}`, {
+    method: "POST",
+    headers,
+    body,
+  });
 }
 
 // Message Batches: the same request bodies, run asynchronously at half the
 // price. For passes over many rows where nothing waits on the answer.
 
-const apiHeaders = (apiKey: string) => ({ "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" });
+const apiHeaders = (apiKey: string) => ({
+  "Content-Type": "application/json",
+  "x-api-key": apiKey,
+  "anthropic-version": "2023-06-01",
+});
 
 export interface BatchState {
   id: string;
   processing_status: "in_progress" | "canceling" | "ended";
-  request_counts: { processing: number; succeeded: number; errored: number; canceled: number; expired: number };
+  request_counts: {
+    processing: number;
+    succeeded: number;
+    errored: number;
+    canceled: number;
+    expired: number;
+  };
   results_url: string | null;
 }
 
 /** One batch of requests from one scope, each under its own id. Throws on a refusal, since a caller that submits wants to know why. */
-export async function createBatch(gate: VendorGate, requests: Array<{ custom_id: string; req: SurfaceRequest }>): Promise<BatchState> {
+export async function createBatch(
+  gate: VendorGate,
+  requests: Array<{ custom_id: string; req: SurfaceRequest }>,
+): Promise<BatchState> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
+  if (!apiKey)
+    throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
   const refusal = await anthropicRefusal({ gate });
   if (refusal) throw new Error(refusal);
-  const response = await fetch("https://api.anthropic.com/v1/messages/batches", {
-    method: "POST",
-    headers: apiHeaders(apiKey),
-    body: JSON.stringify({ requests: requests.map((r) => ({ custom_id: r.custom_id, params: anthropicBody(r.req) })) }),
-  });
-  if (!response.ok) throw new Error(`batch create answered ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  const response = await fetch(
+    "https://api.anthropic.com/v1/messages/batches",
+    {
+      method: "POST",
+      headers: apiHeaders(apiKey),
+      body: JSON.stringify({
+        requests: requests.map((r) => ({
+          custom_id: r.custom_id,
+          params: anthropicBody(r.req),
+        })),
+      }),
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      `batch create answered ${response.status}: ${(await response.text()).slice(0, 500)}`,
+    );
   return response.json();
 }
 
 export async function getBatch(id: string): Promise<BatchState> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
-  const response = await fetch(`https://api.anthropic.com/v1/messages/batches/${encodeURIComponent(id)}`, { headers: apiHeaders(apiKey) });
-  if (!response.ok) throw new Error(`batch read answered ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  if (!apiKey)
+    throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
+  const response = await fetch(
+    `https://api.anthropic.com/v1/messages/batches/${encodeURIComponent(id)}`,
+    { headers: apiHeaders(apiKey) },
+  );
+  if (!response.ok)
+    throw new Error(
+      `batch read answered ${response.status}: ${(await response.text()).slice(0, 500)}`,
+    );
   return response.json();
 }
 
@@ -175,19 +248,41 @@ export interface BatchResult {
 /** An ended batch's results, keyed by custom_id (they arrive in any order). */
 export async function batchResults(state: BatchState): Promise<BatchResult[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
+  if (!apiKey)
+    throw new Error("ANTHROPIC_API_KEY is not set on this deployment");
   if (!state.results_url) return [];
-  const response = await fetch(state.results_url, { headers: apiHeaders(apiKey) });
-  if (!response.ok) throw new Error(`batch results answered ${response.status}`);
+  const response = await fetch(state.results_url, {
+    headers: apiHeaders(apiKey),
+  });
+  if (!response.ok)
+    throw new Error(`batch results answered ${response.status}`);
   const out: BatchResult[] = [];
   for (const line of (await response.text()).split("\n")) {
     if (!line.trim()) continue;
     const row = JSON.parse(line);
     const result = row.result ?? {};
     if (result.type === "succeeded") {
-      out.push({ custom_id: row.custom_id, text: replyText(result.message) || null, usage: usageOf(result.message), stop_reason: result.message?.stop_reason ?? null });
+      out.push({
+        custom_id: row.custom_id,
+        text: replyText(result.message) || null,
+        usage: usageOf(result.message),
+        stop_reason: result.message?.stop_reason ?? null,
+      });
     } else {
-      out.push({ custom_id: row.custom_id, text: null, usage: null, stop_reason: null, error: result.type === "errored" ? String(result.error?.error?.message ?? result.error?.message ?? "errored") : String(result.type) });
+      out.push({
+        custom_id: row.custom_id,
+        text: null,
+        usage: null,
+        stop_reason: null,
+        error:
+          result.type === "errored"
+            ? String(
+                result.error?.error?.message ??
+                  result.error?.message ??
+                  "errored",
+              )
+            : String(result.type),
+      });
     }
   }
   return out;
@@ -211,8 +306,13 @@ export async function callModel(args: CallArgs): Promise<ModelReply | null> {
 }
 
 const usageOf = (data: any): ModelUsage | null =>
-  data?.usage && (typeof data.usage.input_tokens === "number" || typeof data.usage.output_tokens === "number")
-    ? { input_tokens: data.usage.input_tokens ?? 0, output_tokens: data.usage.output_tokens ?? 0 }
+  data?.usage &&
+  (typeof data.usage.input_tokens === "number" ||
+    typeof data.usage.output_tokens === "number")
+    ? {
+        input_tokens: data.usage.input_tokens ?? 0,
+        output_tokens: data.usage.output_tokens ?? 0,
+      }
     : null;
 
 /** callModel, keeping the usage of a call that failed when the API reported it, so a caller with a spend cap can bill it. */
@@ -222,7 +322,9 @@ export async function callModelMetered(args: CallArgs): Promise<MeteredCall> {
   const refusal = await anthropicRefusal({ gate: args.gate });
   if (refusal) return { reply: null, usage: null, error: refusal };
   const abort = new AbortController();
-  const timer = args.timeout_ms ? setTimeout(() => abort.abort(), args.timeout_ms) : undefined;
+  const timer = args.timeout_ms
+    ? setTimeout(() => abort.abort(), args.timeout_ms)
+    : undefined;
   try {
     const response = await sendMessages(
       {
@@ -239,27 +341,49 @@ export async function callModelMetered(args: CallArgs): Promise<MeteredCall> {
     );
     if (!response.ok) {
       const body = await response.text();
-      console.error(`${args.label} API error:`, response.status, body.slice(0, 300));
+      console.error(
+        `${args.label} API error:`,
+        response.status,
+        body.slice(0, 300),
+      );
       let usage: ModelUsage | null = null;
       let message = `the model API answered ${response.status}`;
       try {
         const parsed = JSON.parse(body);
         usage = usageOf(parsed);
-        if (typeof parsed?.error?.message === "string") message = `${message}: ${parsed.error.message}`;
+        if (typeof parsed?.error?.message === "string")
+          message = `${message}: ${parsed.error.message}`;
       } catch {}
       return { reply: null, usage, error: message };
     }
     const data = await response.json();
     const text = replyText(data);
     if (!text) {
-      console.error(`${args.label} empty reply:`, data.stop_reason, (data.content ?? []).map((b: any) => b?.type).join(","));
-      return { reply: null, usage: usageOf(data), error: `the model gave no answer (stopped: ${data.stop_reason ?? "unknown"})` };
+      console.error(
+        `${args.label} empty reply:`,
+        data.stop_reason,
+        (data.content ?? []).map((b: any) => b?.type).join(","),
+      );
+      return {
+        reply: null,
+        usage: usageOf(data),
+        error: `the model gave no answer (stopped: ${data.stop_reason ?? "unknown"})`,
+      };
     }
     const usage = usageOf(data) ?? { input_tokens: 0, output_tokens: 0 };
-    return { reply: { text, usage, stop_reason: data.stop_reason ?? null }, usage };
+    return {
+      reply: { text, usage, stop_reason: data.stop_reason ?? null },
+      usage,
+    };
   } catch (error) {
     console.error(`${args.label} failed:`, error);
-    return { reply: null, usage: null, error: abort.signal.aborted ? "the model call timed out" : "the model call failed" };
+    return {
+      reply: null,
+      usage: null,
+      error: abort.signal.aborted
+        ? "the model call timed out"
+        : "the model call failed",
+    };
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -270,8 +394,14 @@ export async function callModelMetered(args: CallArgs): Promise<MeteredCall> {
  * timeout, a dropped connection): its prompt as input tokens, counted at
  * three characters a token, which overstates English text; no output.
  */
-export function estimatedUsage(system: string | undefined, prompt: string): ModelUsage {
-  return { input_tokens: Math.ceil(((system ?? "").length + prompt.length) / 3), output_tokens: 0 };
+export function estimatedUsage(
+  system: string | undefined,
+  prompt: string,
+): ModelUsage {
+  return {
+    input_tokens: Math.ceil(((system ?? "").length + prompt.length) / 3),
+    output_tokens: 0,
+  };
 }
 
 /** Dollars for a usage on the cheap model. */
@@ -285,7 +415,15 @@ export function cheapModelCost(usage: ModelUsage): number {
  * entry, so a cap never undercounts.
  */
 export function modelCost(model: string, usage: ModelUsage): number {
-  return usageCost({ input: usage.input_tokens, output: usage.output_tokens, cacheRead: 0, cacheWrite: 0 }, priceFor(model));
+  return usageCost(
+    {
+      input: usage.input_tokens,
+      output: usage.output_tokens,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    priceFor(model),
+  );
 }
 
 // The JSON value a reply starts with: one implementation, shared with the CLI

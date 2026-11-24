@@ -17,9 +17,16 @@ const watchQuery = spyOn(client, "watchQuery").mockImplementation((() => ({
   journal: () => undefined,
 })) as never);
 
-const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://codecast.sh/inbox" });
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+  pretendToBeVisual: true,
+  url: "https://codecast.sh/inbox",
+});
 // jsdom has no Element.moveBefore; a move that keeps the node is all the pool needs from it.
-(dom.window.Element.prototype as any).moveBefore = function (this: Element, node: Node, child: Node | null) {
+(dom.window.Element.prototype as any).moveBefore = function (
+  this: Element,
+  node: Node,
+  child: Node | null,
+) {
   this.insertBefore(node, child);
 };
 const restoreGlobals = replaceGlobals({
@@ -45,14 +52,22 @@ afterAll(async () => {
 });
 
 function seed(rows: Record<string, unknown>) {
-  useInboxStore.setState({ pageEmbeds: { ...(useInboxStore.getState() as any).pageEmbeds, ...rows } } as any);
+  useInboxStore.setState({
+    pageEmbeds: { ...(useInboxStore.getState() as any).pageEmbeds, ...rows },
+  } as any);
 }
 
 async function mount(slug: string) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  await act(() => root.render(<ConvexProvider client={client}><PublishedPageEmbed slug={slug} /></ConvexProvider>));
+  await act(() =>
+    root.render(
+      <ConvexProvider client={client}>
+        <PublishedPageEmbed slug={slug} />
+      </ConvexProvider>,
+    ),
+  );
   const frame = () => container.querySelector("iframe");
   return {
     frame,
@@ -65,7 +80,15 @@ async function mount(slug: string) {
 
 describe("a page embed's frame outlives the embed", () => {
   test("mounting the same page again moves the same frame back", async () => {
-    seed({ Same12345678: { _id: "Same12345678", slug: "Same12345678", gated: false, title: "A page", version: 2 } });
+    seed({
+      Same12345678: {
+        _id: "Same12345678",
+        slug: "Same12345678",
+        gated: false,
+        title: "A page",
+        version: 2,
+      },
+    });
     const first = await mount("Same12345678");
     const frame = first.frame();
     expect(frame).not.toBeNull();
@@ -80,7 +103,15 @@ describe("a page embed's frame outlives the embed", () => {
   });
 
   test("two embeds of a parked page: one moves the parked frame back, the other gets a frame of its own", async () => {
-    seed({ Twin12345678: { _id: "Twin12345678", slug: "Twin12345678", gated: false, title: "A page", version: 1 } });
+    seed({
+      Twin12345678: {
+        _id: "Twin12345678",
+        slug: "Twin12345678",
+        gated: false,
+        title: "A page",
+        version: 1,
+      },
+    });
     const first = await mount("Twin12345678");
     const parked = first.frame();
     await first.unmount();
@@ -101,12 +132,28 @@ describe("a page embed's frame outlives the embed", () => {
   });
 
   test("a republished page gets a new frame, never the parked older version", async () => {
-    seed({ Vers12345678: { _id: "Vers12345678", slug: "Vers12345678", gated: false, title: "A page", version: 1 } });
+    seed({
+      Vers12345678: {
+        _id: "Vers12345678",
+        slug: "Vers12345678",
+        gated: false,
+        title: "A page",
+        version: 1,
+      },
+    });
     const first = await mount("Vers12345678");
     const old = first.frame();
     await first.unmount();
 
-    seed({ Vers12345678: { _id: "Vers12345678", slug: "Vers12345678", gated: false, title: "A page", version: 2 } });
+    seed({
+      Vers12345678: {
+        _id: "Vers12345678",
+        slug: "Vers12345678",
+        gated: false,
+        title: "A page",
+        version: 2,
+      },
+    });
     const second = await mount("Vers12345678");
     expect(second.frame()).not.toBe(old);
     await second.unmount();
@@ -118,7 +165,19 @@ describe("a page embed's frame outlives the embed", () => {
     const embed = await mount("Gate12345678");
     const tokenless = embed.frame();
     expect(tokenless?.getAttribute("src")).not.toContain("k=");
-    await act(async () => seed({ Gate12345678: { _id: "Gate12345678", slug: "Gate12345678", gated: true, title: "Locked", version: 1, k: "tok", e: null } }));
+    await act(async () =>
+      seed({
+        Gate12345678: {
+          _id: "Gate12345678",
+          slug: "Gate12345678",
+          gated: true,
+          title: "Locked",
+          version: 1,
+          k: "tok",
+          e: null,
+        },
+      }),
+    );
     const tokened = embed.frame();
     expect(tokened?.getAttribute("src")).toContain("&k=tok");
     expect(tokened).not.toBe(tokenless);
@@ -130,10 +189,24 @@ describe("a page embed's frame outlives the embed", () => {
   });
 
   test("a deleted page frames nothing, even with a frame parked for it", async () => {
-    seed({ Gone12345678: { _id: "Gone12345678", slug: "Gone12345678", gated: false, title: "Soon gone", version: 1 } });
+    seed({
+      Gone12345678: {
+        _id: "Gone12345678",
+        slug: "Gone12345678",
+        gated: false,
+        title: "Soon gone",
+        version: 1,
+      },
+    });
     const first = await mount("Gone12345678");
     await first.unmount();
-    seed({ Gone12345678: { _id: "Gone12345678", slug: "Gone12345678", missing: true } });
+    seed({
+      Gone12345678: {
+        _id: "Gone12345678",
+        slug: "Gone12345678",
+        missing: true,
+      },
+    });
     const second = await mount("Gone12345678");
     expect(second.frame()).toBeNull();
     await second.unmount();

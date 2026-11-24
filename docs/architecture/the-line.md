@@ -10,17 +10,17 @@ cite them.
 
 Nine words, each with one meaning and one table behind it.
 
-| Word | Meaning | Table |
-|---|---|---|
-| scope | what a role owns: projects and plans (scopes-and-feed.md F1) | `org_roles.scope` |
-| flow | what a scope's tasks run through: its steps (the workflow), intake, switch and decider; one per owner role; the shipped `line` steps by default (flows.md FL0) | `org_roles.line_workflow_slug`, `workflows` |
-| station | a task status. The team's statuses, in order, are the stations | `tasks.status` / `status_id` |
-| run | one task's passage through a flow | `workflow_runs` |
-| gate | a workflow node where a person decides. A gate IS a decision | `session_decisions` with `workflow_run_id` |
-| hold | a pending blocking decision bound to a task keeps it at its station | `session_decisions.task_id` + `station` |
-| evidence | what a station produced: pages, images, docs, files, a PR, verification text | `artifacts.task_id`, `tasks.*` |
-| stack | a person's ordered set of decisions (decisions-as-documents.md D5) | `decision_stacks` |
-| hand | a session a run or a role starts for bounded work | `conversations.org_role_id` |
+| Word     | Meaning                                                                                                                                                        | Table                                       |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| scope    | what a role owns: projects and plans (scopes-and-feed.md F1)                                                                                                   | `org_roles.scope`                           |
+| flow     | what a scope's tasks run through: its steps (the workflow), intake, switch and decider; one per owner role; the shipped `line` steps by default (flows.md FL0) | `org_roles.line_workflow_slug`, `workflows` |
+| station  | a task status. The team's statuses, in order, are the stations                                                                                                 | `tasks.status` / `status_id`                |
+| run      | one task's passage through a flow                                                                                                                              | `workflow_runs`                             |
+| gate     | a workflow node where a person decides. A gate IS a decision                                                                                                   | `session_decisions` with `workflow_run_id`  |
+| hold     | a pending blocking decision bound to a task keeps it at its station                                                                                            | `session_decisions.task_id` + `station`     |
+| evidence | what a station produced: pages, images, docs, files, a PR, verification text                                                                                   | `artifacts.task_id`, `tasks.*`              |
+| stack    | a person's ordered set of decisions (decisions-as-documents.md D5)                                                                                             | `decision_stacks`                           |
+| hand     | a session a run or a role starts for bounded work                                                                                                              | `conversations.org_role_id`                 |
 
 Nothing else is coined. A chain (agent-definitions.md D5) is a linear workflow
 and its run is a run.
@@ -89,7 +89,7 @@ The key is the bracketed letter, the label follows, the description follows
 2. Calls `askCore` (`sessionDecisions.ts`) with `task` = the bound task's short
    id, `station` = the task's current status, `options` from the choices,
    `context_md` from the prompt, `doc_md`, `category`, `stack`, `blocking:
-   true`, and `workflow_run_id` + `gate_node_id` on the row.
+true`, and `workflow_run_id` + `gate_node_id` on the row.
 3. Stores `gate_decision_id` and `gate_node_id` on the run, sets status
    `paused`, and posts the `__wf: "gate"` message carrying the decision id.
    `gate_prompt` and `gate_choices` stay as a mirror for old readers.
@@ -127,7 +127,7 @@ status change:
 
 - The actor is a session (any conversation: a hand, a role, a plain agent):
   refused. The error names the decision: `Held at in_review by sd-211: answer
-  it first (cast decide answer sd-211 <n>)`.
+it first (cast decide answer sd-211 <n>)`.
 - The actor is a person on the web: allowed. The decision stays open; the
   mutation adds a `note` comment naming the decision it moved past.
 - Server internal patches (a run's node start and end, `pauseAtGate`) are not
@@ -151,7 +151,7 @@ the open decisions by `by_task`.
   document page renders option pages as a comparison row above the option
   list: thumbnail, title, open in a pane, open in full.
 - `tasks.evidence({ task_id })` returns one object the task page and `cast
-  task show` render: pages by station (with thumbnail urls), docs with the
+task show` render: pages by station (with thumbnail urls), docs with the
   task in `task_ids`, images from bound sessions (`conversation_images`),
   `files_changed`, `verification_evidence`, the PR, `review_verdict`.
 - Images from `cast image` have no row and attach through the message that

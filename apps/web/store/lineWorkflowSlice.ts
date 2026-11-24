@@ -14,7 +14,10 @@ export type LineWorkflowSliceActions = {
   removeLineWorkflow: (slug: string) => void;
 };
 
-type LineWorkflowDraft = { workflows: Record<string, any>; currentUser?: { _id: string } | null };
+type LineWorkflowDraft = {
+  workflows: Record<string, any>;
+  currentUser?: { _id: string } | null;
+};
 
 /** The stub id a fork paints under before the server row has an id. */
 export const lineWorkflowStubId = (slug: string) => `wf:${slug}`;
@@ -24,17 +27,28 @@ export const lineWorkflowStubId = (slug: string) => `wf:${slug}`;
  *  ran, drawn on the line map), which no list of the viewer's workflows, slug
  *  lookup or edit may take for theirs. Before the viewer is known, every row
  *  counts, as does a row that names no owner. */
-export function isViewersWorkflow(row: { user_id?: unknown } | null | undefined, viewerId: unknown): boolean {
+export function isViewersWorkflow(
+  row: { user_id?: unknown } | null | undefined,
+  viewerId: unknown,
+): boolean {
   if (!row) return false;
   return !viewerId || !row.user_id || String(row.user_id) === String(viewerId);
 }
 
 const idOfSlug = (draft: LineWorkflowDraft, slug: string) =>
-  Object.keys(draft.workflows ?? {}).find((id) => draft.workflows[id]?.slug === slug && isViewersWorkflow(draft.workflows[id], draft.currentUser?._id));
+  Object.keys(draft.workflows ?? {}).find(
+    (id) =>
+      draft.workflows[id]?.slug === slug &&
+      isViewersWorkflow(draft.workflows[id], draft.currentUser?._id),
+  );
 
 export function createLineWorkflowSlice(): LineWorkflowSliceActions {
   return {
-    saveLineWorkflow: action(function (this: LineWorkflowDraft, wf: LineWorkflow, opts?: { create?: boolean }) {
+    saveLineWorkflow: action(function (
+      this: LineWorkflowDraft,
+      wf: LineWorkflow,
+      opts?: { create?: boolean },
+    ) {
       const id = idOfSlug(this, wf.slug);
       const row = id ? this.workflows[id] : null;
       // A create over a row this window already holds paints nothing; the
@@ -45,17 +59,28 @@ export function createLineWorkflowSlice(): LineWorkflowSliceActions {
         // and holds no lock waiting for its echo.
         if (row.name !== wf.name) row.name = wf.name;
         if (wf.goal !== undefined && row.goal !== wf.goal) row.goal = wf.goal;
-        if (wf.source !== undefined && row.source !== wf.source) row.source = wf.source;
-        if (JSON.stringify(row.edges ?? []) !== JSON.stringify(wf.edges)) row.edges = wf.edges;
+        if (wf.source !== undefined && row.source !== wf.source)
+          row.source = wf.source;
+        if (JSON.stringify(row.edges ?? []) !== JSON.stringify(wf.edges))
+          row.edges = wf.edges;
         row.nodes = wf.nodes;
         return;
       }
       const stub = lineWorkflowStubId(wf.slug);
       const now = Date.now();
-      this.workflows[stub] = { _id: stub, user_id: String(this.currentUser?._id ?? ""), ...wf, created_at: now, updated_at: now };
+      this.workflows[stub] = {
+        _id: stub,
+        user_id: String(this.currentUser?._id ?? ""),
+        ...wf,
+        created_at: now,
+        updated_at: now,
+      };
     }),
 
-    removeLineWorkflow: action(function (this: LineWorkflowDraft, slug: string) {
+    removeLineWorkflow: action(function (
+      this: LineWorkflowDraft,
+      slug: string,
+    ) {
       const id = idOfSlug(this, slug);
       if (id) delete this.workflows[id];
     }),

@@ -3,10 +3,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Users, UserMinus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useInboxStore, type SavedViewRow } from "../store/inboxStore";
-import { chipFilterOf, matchesWorkbench, type WorkbenchSnapshot } from "../store/workbench";
+import {
+  chipFilterOf,
+  matchesWorkbench,
+  type WorkbenchSnapshot,
+} from "../store/workbench";
 import { switchToWorkbench, sortedWorkbenches } from "../lib/workbenchSwitch";
 import { KeyCap } from "./KeyboardShortcutsHelp";
-import { getShortcutsForAction, formatShortcutParts, useKeyBindingsVersion, type ShortcutAction } from "../shortcuts";
+import {
+  getShortcutsForAction,
+  formatShortcutParts,
+  useKeyBindingsVersion,
+  type ShortcutAction,
+} from "../shortcuts";
 
 // Saved layouts (store/workbench.ts): the whole chrome arrangement as a named,
 // one-click switch. Nothing ships by default — every row here is one the user
@@ -48,12 +57,29 @@ export function WorkbenchSection({
   const buckets = useInboxStore((s) => s.buckets);
 
   const liveFilter = useMemo(
-    () => chipFilterOf({ activeBucketFilter, activeProjectFilter, activeProjectPath, chipFilterExclude, buckets }),
-    [activeBucketFilter, activeProjectFilter, activeProjectPath, chipFilterExclude, buckets],
+    () =>
+      chipFilterOf({
+        activeBucketFilter,
+        activeProjectFilter,
+        activeProjectPath,
+        chipFilterExclude,
+        buckets,
+      }),
+    [
+      activeBucketFilter,
+      activeProjectFilter,
+      activeProjectPath,
+      chipFilterExclude,
+      buckets,
+    ],
   );
 
   const saved = useMemo(
-    () => sortedWorkbenches({ savedViews: savedViewRows ?? {}, clientState: { ui: { active_team_id: activeTeamId } } }),
+    () =>
+      sortedWorkbenches({
+        savedViews: savedViewRows ?? {},
+        clientState: { ui: { active_team_id: activeTeamId } },
+      }),
     [savedViewRows, activeTeamId],
   );
 
@@ -62,14 +88,28 @@ export function WorkbenchSection({
   // moment the update affordance matters. Matching is the fallback for an
   // arrangement that happens to equal a workbench you never clicked.
   const activeId = useMemo(() => {
-    if (activeWorkbenchId && saved.some((v) => v._id === activeWorkbenchId)) return activeWorkbenchId;
-    return saved.find((v) => matchesWorkbench(workspace, v.prefs as WorkbenchSnapshot, { zen, filter: liveFilter, buckets }))?._id;
+    if (activeWorkbenchId && saved.some((v) => v._id === activeWorkbenchId))
+      return activeWorkbenchId;
+    return saved.find((v) =>
+      matchesWorkbench(workspace, v.prefs as WorkbenchSnapshot, {
+        zen,
+        filter: liveFilter,
+        buckets,
+      }),
+    )?._id;
   }, [workspace, zen, saved, activeWorkbenchId, liveFilter, buckets]);
 
   // Drifted from the saved shape → the active row offers update without hover.
   const activeIsDirty = useMemo(() => {
     const v = saved.find((r) => r._id === activeId);
-    return !!v && !matchesWorkbench(workspace, v.prefs as WorkbenchSnapshot, { zen, filter: liveFilter, buckets });
+    return (
+      !!v &&
+      !matchesWorkbench(workspace, v.prefs as WorkbenchSnapshot, {
+        zen,
+        filter: liveFilter,
+        buckets,
+      })
+    );
   }, [saved, activeId, workspace, zen, liveFilter, buckets]);
 
   const [naming, setNaming] = useState(false);
@@ -107,14 +147,22 @@ export function WorkbenchSection({
   return (
     <div data-rail-group="layouts" className="mt-4 mb-1">
       <div className="flex items-center px-4 mb-1">
-        <span className="flex-1 text-xs font-medium text-sol-text-dim uppercase tracking-wide">Layouts</span>
+        <span className="flex-1 text-xs font-medium text-sol-text-dim uppercase tracking-wide">
+          Layouts
+        </span>
         {!naming && (
           <button
             onClick={() => setNaming(true)}
             className="p-0.5 opacity-60 hover:opacity-100 text-sol-text-dim hover:text-sol-text transition-all"
             title="Save the current layout"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
             </svg>
           </button>
@@ -132,7 +180,8 @@ export function WorkbenchSection({
         )}
         {saved.map((v, i) => {
           const active = v._id === activeId;
-          const hint = i < 9 ? keyHint(`workbench.${i + 1}` as ShortcutAction) : null;
+          const hint =
+            i < 9 ? keyHint(`workbench.${i + 1}` as ShortcutAction) : null;
           const mine = v.is_mine !== false;
           const showUpdateAlways = active && activeIsDirty && mine;
           return (
@@ -153,7 +202,13 @@ export function WorkbenchSection({
                 <LayoutDashboard className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="truncate text-[13px] min-w-0">{v.name}</span>
                 {v.shared && (
-                  <span title={mine ? "Shared with your team" : `Shared by ${v.owner_name ?? "a teammate"}`}>
+                  <span
+                    title={
+                      mine
+                        ? "Shared with your team"
+                        : `Shared by ${v.owner_name ?? "a teammate"}`
+                    }
+                  >
                     <Users className="w-3 h-3 flex-shrink-0 text-sol-text-dim" />
                   </span>
                 )}
@@ -181,32 +236,64 @@ export function WorkbenchSection({
                   <button
                     onClick={() => {
                       if (!activeTeamId && !v.shared) {
-                        toast.error("Pick a team first", { description: "A shared layout needs a team to share with." });
+                        toast.error("Pick a team first", {
+                          description:
+                            "A shared layout needs a team to share with.",
+                        });
                         return;
                       }
-                      updateSavedView(v._id, { shared: !v.shared, team_id: v.team_id ?? activeTeamId });
-                      toast.success(v.shared ? `"${v.name}" is private again` : `"${v.name}" shared with your team`);
+                      updateSavedView(v._id, {
+                        shared: !v.shared,
+                        team_id: v.team_id ?? activeTeamId,
+                      });
+                      toast.success(
+                        v.shared
+                          ? `"${v.name}" is private again`
+                          : `"${v.name}" shared with your team`,
+                      );
                     }}
                     className="p-1 rounded text-sol-text-dim hover:text-sol-text flex-shrink-0"
-                    title={v.shared ? "Stop sharing with your team" : "Share with your team"}
+                    title={
+                      v.shared
+                        ? "Stop sharing with your team"
+                        : "Share with your team"
+                    }
                   >
-                    {v.shared ? <UserMinus className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                    {v.shared ? (
+                      <UserMinus className="w-3 h-3" />
+                    ) : (
+                      <Users className="w-3 h-3" />
+                    )}
                   </button>
                   <button
                     onClick={() => deleteSavedView(v._id)}
                     className="p-1 rounded text-sol-text-dim hover:text-sol-text flex-shrink-0"
                     title="Remove saved layout"
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </span>
               )}
               {hint && (
-                <span className={`flex items-center gap-0.5 mr-2 flex-shrink-0 ${mine && !showUpdateAlways ? "group-hover/wb:hidden" : ""}`}>
+                <span
+                  className={`flex items-center gap-0.5 mr-2 flex-shrink-0 ${mine && !showUpdateAlways ? "group-hover/wb:hidden" : ""}`}
+                >
                   {hint.map((part, j) => (
-                    <KeyCap key={j} size="xs">{part}</KeyCap>
+                    <KeyCap key={j} size="xs">
+                      {part}
+                    </KeyCap>
                   ))}
                 </span>
               )}
@@ -221,7 +308,10 @@ export function WorkbenchSection({
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitSave();
-                if (e.key === "Escape") { setNaming(false); setName(""); }
+                if (e.key === "Escape") {
+                  setNaming(false);
+                  setName("");
+                }
               }}
               onBlur={commitSave}
               placeholder="Name this layout…"

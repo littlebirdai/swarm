@@ -58,7 +58,10 @@ async function deleteOwned(
 }
 
 /** One budgeted pass over the account. Returns true when rows remain. */
-export async function purgeAccountPass(ctx: MutationCtx, userId: Id<"users">): Promise<boolean> {
+export async function purgeAccountPass(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<boolean> {
   let budget = await deleteOwned(ctx, userId, FIRST, PASS_BUDGET);
   if (budget <= 0) return true;
 
@@ -69,9 +72,13 @@ export async function purgeAccountPass(ctx: MutationCtx, userId: Id<"users">): P
     .take(CONVERSATIONS_PER_PASS);
   for (const conv of conversations) {
     await ctx.db.delete(conv._id);
-    await ctx.scheduler.runAfter(0, internal.sessionDelete.purgeConversationRows, {
-      conversation_id: String(conv._id),
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.sessionDelete.purgeConversationRows,
+      {
+        conversation_id: String(conv._id),
+      },
+    );
   }
   if (conversations.length === CONVERSATIONS_PER_PASS) return true;
 
@@ -94,7 +101,11 @@ export const purgeAccount = internalMutation({
   args: { user_id: v.id("users") },
   handler: async (ctx, args): Promise<void> => {
     if (await purgeAccountPass(ctx, args.user_id)) {
-      await ctx.scheduler.runAfter(0, internal.accountDelete.purgeAccount, args);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.accountDelete.purgeAccount,
+        args,
+      );
     }
   },
 });
@@ -105,7 +116,9 @@ export async function startAccountDeletion(ctx: MutationCtx) {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("Not authenticated");
   if (!(await ctx.db.get(userId))) throw new Error("User not found");
-  await ctx.scheduler.runAfter(0, internal.accountDelete.purgeAccount, { user_id: userId });
+  await ctx.scheduler.runAfter(0, internal.accountDelete.purgeAccount, {
+    user_id: userId,
+  });
   return { completed: true, message: "Account permanently deleted" };
 }
 
@@ -118,7 +131,9 @@ export const adminDeleteAccount = internalMutation({
       .withIndex("email", (q) => q.eq("email", args.email))
       .unique();
     if (!user) throw new Error("User not found");
-    await ctx.scheduler.runAfter(0, internal.accountDelete.purgeAccount, { user_id: user._id });
+    await ctx.scheduler.runAfter(0, internal.accountDelete.purgeAccount, {
+      user_id: user._id,
+    });
     return { user_id: user._id };
   },
 });

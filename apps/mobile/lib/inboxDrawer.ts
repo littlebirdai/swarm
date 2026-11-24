@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from "react";
 
 // Whether the inbox's slide-out panel is open. The panel lives in the tabs
 // layout (so the tab bar slides with the inbox), and the inbox header's menu
@@ -18,7 +18,9 @@ export function setInboxDrawerOpen(next: boolean) {
 
 function subscribe(l: () => void) {
   listeners.add(l);
-  return () => { listeners.delete(l); };
+  return () => {
+    listeners.delete(l);
+  };
 }
 
 export function useInboxDrawerOpen(): boolean {

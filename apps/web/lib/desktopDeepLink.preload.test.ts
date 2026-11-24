@@ -23,9 +23,15 @@ function loadPreload(): LoadedPreload {
   const ipcListeners: Record<string, Array<(e: any, url: string) => void>> = {};
   let exposed: any = null;
   const electronMock = () => ({
-    contextBridge: { exposeInMainWorld: (_name: string, api: any) => { exposed = api; } },
+    contextBridge: {
+      exposeInMainWorld: (_name: string, api: any) => {
+        exposed = api;
+      },
+    },
     ipcRenderer: {
-      on: (ch: string, cb: (e: any, url: string) => void) => { (ipcListeners[ch] ||= []).push(cb); },
+      on: (ch: string, cb: (e: any, url: string) => void) => {
+        (ipcListeners[ch] ||= []).push(cb);
+      },
       invoke: () => Promise.resolve(),
       send: () => {},
     },
@@ -34,7 +40,8 @@ function loadPreload(): LoadedPreload {
   const resolved = require.resolve("../../../apps/desktop/preload.js");
   const preloadRequire = createRequire(resolved);
   runInNewContext(readFileSync(resolved, "utf8"), {
-    require: (id: string) => id === "electron" ? electronMock() : preloadRequire(id),
+    require: (id: string) =>
+      id === "electron" ? electronMock() : preloadRequire(id),
     process: { isMainFrame: true, argv: [], env: {}, versions: {} },
     location: { href: "https://codecast.sh/inbox" },
     URL,
@@ -42,7 +49,8 @@ function loadPreload(): LoadedPreload {
   });
   return {
     exposed,
-    emit: (channel, url) => (ipcListeners[channel] || []).forEach((cb) => cb({}, url)),
+    emit: (channel, url) =>
+      (ipcListeners[channel] || []).forEach((cb) => cb({}, url)),
     listenerCount: (channel) => (ipcListeners[channel] || []).length,
   };
 }
@@ -63,7 +71,10 @@ describe("electron preload deep-link delivery", () => {
 
     const got: string[] = [];
     p.exposed.onDeepLink((u: string) => got.push(u));
-    expect(got).toEqual(["codecast://open/tasks/A", "codecast://open/conversation/B"]);
+    expect(got).toEqual([
+      "codecast://open/tasks/A",
+      "codecast://open/conversation/B",
+    ]);
   });
 
   test("delivers links that arrive AFTER subscribe live", () => {

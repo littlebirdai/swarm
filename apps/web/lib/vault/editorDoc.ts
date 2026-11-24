@@ -19,7 +19,11 @@
 export function detectLineSeparator(content: string): "\n" | "\r\n" {
   let crlf = 0;
   let lf = 0;
-  for (let i = content.indexOf("\n"); i !== -1; i = content.indexOf("\n", i + 1)) {
+  for (
+    let i = content.indexOf("\n");
+    i !== -1;
+    i = content.indexOf("\n", i + 1)
+  ) {
     if (i > 0 && content.charCodeAt(i - 1) === 13) crlf++;
     else lf++;
   }
@@ -39,11 +43,13 @@ export function docChange(oldDoc: string, newDoc: string): DocChange | null {
   if (oldDoc === newDoc) return null;
   const max = Math.min(oldDoc.length, newDoc.length);
   let start = 0;
-  while (start < max && oldDoc.charCodeAt(start) === newDoc.charCodeAt(start)) start++;
+  while (start < max && oldDoc.charCodeAt(start) === newDoc.charCodeAt(start))
+    start++;
   let end = 0;
   while (
     end < max - start &&
-    oldDoc.charCodeAt(oldDoc.length - 1 - end) === newDoc.charCodeAt(newDoc.length - 1 - end)
+    oldDoc.charCodeAt(oldDoc.length - 1 - end) ===
+      newDoc.charCodeAt(newDoc.length - 1 - end)
   ) {
     end++;
   }

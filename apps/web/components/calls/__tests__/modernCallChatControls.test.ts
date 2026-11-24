@@ -43,9 +43,27 @@ const MARKUP = `
   <div class="ch-slack-seg" data-k="ch-slack-seg"><button class="ch-slack-seg-item ch-slack-seg-on" data-k="ch-slack-on">All</button><button class="ch-slack-seg-item" data-k="ch-slack-off">Some</button></div>
 </div>`;
 
-const PROPS = ["height", "width", "min-height", "padding", "border-radius", "font-size", "font-family", "font-weight", "background-color", "background", "border-color", "color", "box-shadow", "gap"] as const;
+const PROPS = [
+  "height",
+  "width",
+  "min-height",
+  "padding",
+  "border-radius",
+  "font-size",
+  "font-family",
+  "font-weight",
+  "background-color",
+  "background",
+  "border-color",
+  "color",
+  "box-shadow",
+  "gap",
+] as const;
 
-const dom = new JSDOM(`<!doctype html><html><head><style>${css}</style></head><body>${MARKUP}</body></html>`, { pretendToBeVisual: true });
+const dom = new JSDOM(
+  `<!doctype html><html><head><style>${css}</style></head><body>${MARKUP}</body></html>`,
+  { pretendToBeVisual: true },
+);
 afterAll(() => dom.window.close());
 const doc = dom.window.document;
 
@@ -53,11 +71,14 @@ function resolved(): Record<string, Record<string, string>> {
   const out: Record<string, Record<string, string>> = {};
   for (const el of doc.querySelectorAll("[data-k]")) {
     const cs = dom.window.getComputedStyle(el);
-    out[el.getAttribute("data-k")!] = Object.fromEntries(PROPS.map((p) => [p, cs.getPropertyValue(p)]));
+    out[el.getAttribute("data-k")!] = Object.fromEntries(
+      PROPS.map((p) => [p, cs.getPropertyValue(p)]),
+    );
   }
   return out;
 }
-const setModern = (on: boolean) => doc.documentElement.classList.toggle("modern-style", on);
+const setModern = (on: boolean) =>
+  doc.documentElement.classList.toggle("modern-style", on);
 
 describe("calls and chat controls in Modern", () => {
   test("Classic resolves every control as it did before the Modern rules", () => {
@@ -69,11 +90,28 @@ describe("calls and chat controls in Modern", () => {
     setModern(true);
     const r = resolved();
     setModern(false);
-    for (const k of ["rt-seg", "rt-btn-violet", "faces-btn", "cc-chip", "cc-menu-item", "ch-tool", "ch-round-btn", "ch-round-chip", "ch-menu-item", "ch-rail-tip", "ch-nm-chip", "ch-search-chip", "ch-slack-seg"]) {
-      expect(`${k} ${r[k]["border-radius"]}`).toBe(`${k} var(--radius-control)`);
+    for (const k of [
+      "rt-seg",
+      "rt-btn-violet",
+      "faces-btn",
+      "cc-chip",
+      "cc-menu-item",
+      "ch-tool",
+      "ch-round-btn",
+      "ch-round-chip",
+      "ch-menu-item",
+      "ch-rail-tip",
+      "ch-nm-chip",
+      "ch-search-chip",
+      "ch-slack-seg",
+    ]) {
+      expect(`${k} ${r[k]["border-radius"]}`).toBe(
+        `${k} var(--radius-control)`,
+      );
     }
     expect(r["cc-menu"]["border-radius"]).toBe("var(--radius-card)");
-    for (const k of ["rt-seg-on", "ch-slack-on"]) expect(`${k} ${r[k]["background-color"]}`).toBe(`${k} var(--sol-card)`);
+    for (const k of ["rt-seg-on", "ch-slack-on"])
+      expect(`${k} ${r[k]["background-color"]}`).toBe(`${k} var(--sol-card)`);
     expect(r["ch-search-chip-on"].color).toBe("var(--sol-class-cyan)");
     expect(r["ch-menu-item"]["min-height"]).toBe("var(--control-sm)");
     expect(r["ch-rail-tip"]["box-shadow"]).toBe("var(--shadow-popover)");
@@ -90,8 +128,12 @@ describe("calls and chat controls in Modern", () => {
       const start = text.indexOf("/* ── Modern");
       if (start < 0) continue;
       const block = text.slice(start).replace(/\/\*[\s\S]*?\*\//g, "");
-      const selectors = [...block.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) => m[2].trim());
-      for (const sel of selectors) for (const part of sel.split(",")) expect(`${f}: ${part.trim()}`).toMatch(/^\S+: \.modern-style /);
+      const selectors = [...block.matchAll(/(^|})\s*([^{}@]+)\{/g)].map((m) =>
+        m[2].trim(),
+      );
+      for (const sel of selectors)
+        for (const part of sel.split(","))
+          expect(`${f}: ${part.trim()}`).toMatch(/^\S+: \.modern-style /);
     }
   });
 });

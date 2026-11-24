@@ -34,19 +34,27 @@ const forkSuiteProject = "/tmp/fork-test-1774762211996";
 
 // How the daemon spells a project dir under ~/.claude/projects: every "/" and
 // "." of the cwd becomes "-".
-const encodeProjectDir = (projectPath: string) => projectPath.replace(/[/.]/g, "-");
+const encodeProjectDir = (projectPath: string) =>
+  projectPath.replace(/[/.]/g, "-");
 // And the lossy way back, where every "-" reads as a "/".
 const decodeProjectDir = (dirName: string) => dirName.replace(/-/g, "/");
 
 describe("test-run sync exclusion", () => {
   test("every marker is recognized in every spelling of the path", () => {
-    for (const project of [scratchProject, harnessProject, shimProject, forkSuiteProject]) {
+    for (const project of [
+      scratchProject,
+      harnessProject,
+      shimProject,
+      forkSuiteProject,
+    ]) {
       // Exact recorded-cwd resolution.
       expect(isTestArtifactPath(project)).toBe(true);
       // The encoded dir name under ~/.claude/projects.
       expect(isTestArtifactPath(encodeProjectDir(project))).toBe(true);
       // And its lossy decode back to a path.
-      expect(isTestArtifactPath(decodeProjectDir(encodeProjectDir(project)))).toBe(true);
+      expect(
+        isTestArtifactPath(decodeProjectDir(encodeProjectDir(project))),
+      ).toBe(true);
     }
     // Real projects are untouched.
     expect(isTestArtifactPath("/Users/ashot/src/codecast")).toBe(false);
@@ -57,7 +65,9 @@ describe("test-run sync exclusion", () => {
   test("a test project is never synced, even under sync_mode:all", () => {
     for (const project of [scratchProject, harnessProject, shimProject]) {
       // sync_mode:"all" (the default) otherwise allows everything through.
-      expect(isProjectAllowedToSync(project, { sync_mode: "all" } as any)).toBe(false);
+      expect(isProjectAllowedToSync(project, { sync_mode: "all" } as any)).toBe(
+        false,
+      );
       // Undefined sync_mode also defaults to "all" — still rejected.
       expect(isProjectAllowedToSync(project, {} as any)).toBe(false);
     }
@@ -79,13 +89,21 @@ describe("test-run sync exclusion", () => {
     const home = process.env.HOME || "";
     for (const project of [scratchProject, harnessProject, shimProject]) {
       const transcript = path.join(
-        home, ".claude", "projects", encodeProjectDir(project), `${uuid}.jsonl`,
+        home,
+        ".claude",
+        "projects",
+        encodeProjectDir(project),
+        `${uuid}.jsonl`,
       );
       expect(isTranscriptFileInSyncScope(transcript)).toBe(false);
     }
   });
 
   test("real projects still sync under sync_mode:all", () => {
-    expect(isProjectAllowedToSync("/Users/ashot/src/codecast", { sync_mode: "all" } as any)).toBe(true);
+    expect(
+      isProjectAllowedToSync("/Users/ashot/src/codecast", {
+        sync_mode: "all",
+      } as any),
+    ).toBe(true);
   });
 });

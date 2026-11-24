@@ -11,14 +11,22 @@ import { ConversationWithPanel } from "../ConversationWithPanel";
 import { EVEN_SPLIT, seamLayout, splitOf, type SeamSide } from "../seamModel";
 import type { PanelLayout } from "../../../../hooks/usePanelLayout";
 
-const render = (layout: PanelLayout, open: boolean, extra: { hide?: SeamSide | null; alone?: boolean } = {}) =>
-  renderToStaticMarkup(h(ConversationWithPanel, {
-    layout,
-    open,
-    hide: extra.hide ?? null,
-    conversation: extra.alone ? null : h("div", { "data-conv": true }, "talk"),
-    panel: h("div", { "data-board": true }, "board"),
-  }));
+const render = (
+  layout: PanelLayout,
+  open: boolean,
+  extra: { hide?: SeamSide | null; alone?: boolean } = {},
+) =>
+  renderToStaticMarkup(
+    h(ConversationWithPanel, {
+      layout,
+      open,
+      hide: extra.hide ?? null,
+      conversation: extra.alone
+        ? null
+        : h("div", { "data-conv": true }, "talk"),
+      panel: h("div", { "data-board": true }, "board"),
+    }),
+  );
 const seams = (html: string) => html.match(/role="separator"/g)?.length ?? 0;
 
 test("each layout wraps the panel its own way and keeps the conversation", () => {
@@ -69,8 +77,20 @@ test("a page showing one side at a time folds the other and hides the seam; no c
 test("the split: a stored value counts only with room on both sides, and a fold gives one side everything", () => {
   expect(splitOf(undefined)).toEqual(EVEN_SPLIT);
   expect(splitOf({ conversation: 0, company: 100 })).toEqual(EVEN_SPLIT);
-  expect(splitOf({ conversation: 64, company: 36 })).toEqual({ conversation: 64, company: 36 });
-  expect(seamLayout(null, { conversation: 64, company: 36 })).toEqual({ "org-left": 64, "org-right": 36 });
-  expect(seamLayout("panel", EVEN_SPLIT)).toEqual({ "org-left": 100, "org-right": 0 });
-  expect(seamLayout("conversation", EVEN_SPLIT)).toEqual({ "org-left": 0, "org-right": 100 });
+  expect(splitOf({ conversation: 64, company: 36 })).toEqual({
+    conversation: 64,
+    company: 36,
+  });
+  expect(seamLayout(null, { conversation: 64, company: 36 })).toEqual({
+    "org-left": 64,
+    "org-right": 36,
+  });
+  expect(seamLayout("panel", EVEN_SPLIT)).toEqual({
+    "org-left": 100,
+    "org-right": 0,
+  });
+  expect(seamLayout("conversation", EVEN_SPLIT)).toEqual({
+    "org-left": 0,
+    "org-right": 100,
+  });
 });

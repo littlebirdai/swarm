@@ -101,7 +101,12 @@ export type TransferResult = {
   /** One line stating what the transfer proved. */
   verification: string;
   /** The extra paths a move to the cloud brought, or why one did not cross. */
-  brought?: Array<{ local: string; remote: string; kind: "repo" | "folder"; error?: string }>;
+  brought?: Array<{
+    local: string;
+    remote: string;
+    kind: "repo" | "folder";
+    error?: string;
+  }>;
 };
 
 export interface RunnerIo {
@@ -113,12 +118,46 @@ export interface RunnerIo {
   loadBatch(): Promise<RunnerBatch | null>;
   begin(migrationId: string): Promise<BeginResult>;
   facts(migrationId: string): Promise<SessionFacts | null>;
-  report(migrationId: string, patch: { status?: "waiting_idle" | "quiescing" | "transferring" | "switching" | "resuming"; stage?: string }): Promise<void>;
-  enqueueQuiesce(migrationId: string, mode: "idle" | "force"): Promise<{ command_id: string | null; target_device_id: string | null }>;
+  report(
+    migrationId: string,
+    patch: {
+      status?:
+        | "waiting_idle"
+        | "quiescing"
+        | "transferring"
+        | "switching"
+        | "resuming";
+      stage?: string;
+    },
+  ): Promise<void>;
+  enqueueQuiesce(
+    migrationId: string,
+    mode: "idle" | "force",
+  ): Promise<{ command_id: string | null; target_device_id: string | null }>;
   commandStatus(commandId: string): Promise<CommandStatus | null>;
-  finish(migrationId: string, args: { project_path: string; git_root?: string; verification?: string; source_path?: string }): Promise<{ ok: true; resume_command_id: string | null } | { ok: false; reason: string }>;
-  confirm(migrationId: string, ok: boolean, detail?: { error?: string; stage?: string }): Promise<void>;
-  fail(migrationId: string, error: string, cancelled?: boolean, restore?: boolean): Promise<void>;
+  finish(
+    migrationId: string,
+    args: {
+      project_path: string;
+      git_root?: string;
+      verification?: string;
+      source_path?: string;
+    },
+  ): Promise<
+    | { ok: true; resume_command_id: string | null }
+    | { ok: false; reason: string }
+  >;
+  confirm(
+    migrationId: string,
+    ok: boolean,
+    detail?: { error?: string; stage?: string },
+  ): Promise<void>;
+  fail(
+    migrationId: string,
+    error: string,
+    cancelled?: boolean,
+    restore?: boolean,
+  ): Promise<void>;
   sendNotice(conversationId: string, text: string): Promise<void>;
   deviceOnline(deviceId: string): Promise<boolean>;
 
@@ -134,13 +173,29 @@ export interface RunnerIo {
   /** Whether the cloud host can take one more session now (cloud/hostHeadroom):
    *  `refuse` when it is out of memory, `small` when it has room but less memory
    *  than the session's repo declares it needs to typecheck and run its dev server. */
-  hostRoom(deviceId: string, facts: Extract<BeginResult, { ok: true }>): Promise<{ refuse?: string; small?: string }>;
+  hostRoom(
+    deviceId: string,
+    facts: Extract<BeginResult, { ok: true }>,
+  ): Promise<{ refuse?: string; small?: string }>;
   /** A dry run of the move on this machine (rehearse.ts), while the session still runs here. */
-  rehearse(facts: Extract<BeginResult, { ok: true }>, bring: string[]): Promise<MoveRehearsal>;
-  transferToCloud(facts: Extract<BeginResult, { ok: true }>, opts: { skipTree: boolean; pushedHead?: string; bring: string[] }): Promise<TransferResult & { localCwd: string; pushedHead?: string }>;
-  transferToLocal(facts: Extract<BeginResult, { ok: true }>): Promise<TransferResult>;
+  rehearse(
+    facts: Extract<BeginResult, { ok: true }>,
+    bring: string[],
+  ): Promise<MoveRehearsal>;
+  transferToCloud(
+    facts: Extract<BeginResult, { ok: true }>,
+    opts: { skipTree: boolean; pushedHead?: string; bring: string[] },
+  ): Promise<TransferResult & { localCwd: string; pushedHead?: string }>;
+  transferToLocal(
+    facts: Extract<BeginResult, { ok: true }>,
+  ): Promise<TransferResult>;
   /** The reorientation notice for the moved agent, from what the transfer proved and what the rehearsal found. */
-  notice(facts: Extract<BeginResult, { ok: true }>, transfer: TransferResult, stoppedOnSource?: Array<{ name: string; via?: string }>, rehearsal?: MoveRehearsal): string | null;
+  notice(
+    facts: Extract<BeginResult, { ok: true }>,
+    transfer: TransferResult,
+    stoppedOnSource?: Array<{ name: string; via?: string }>,
+    rehearsal?: MoveRehearsal,
+  ): string | null;
 }
 
 /** Statuses that mean "a turn is being produced"; the wait is for these to end. */
@@ -167,11 +222,22 @@ export function describeRow(row: RunnerRow): string {
 // server's reaper (STALE_MIGRATION_MS) never mistakes a slow copy for a dead runner.
 export const TRANSFER_REPORT_MS = 60_000;
 
-export async function whileReporting<T>(io: Pick<RunnerIo, "report" | "now">, id: string, stage: string, work: () => Promise<T>, everyMs = TRANSFER_REPORT_MS): Promise<T> {
+export async function whileReporting<T>(
+  io: Pick<RunnerIo, "report" | "now">,
+  id: string,
+  stage: string,
+  work: () => Promise<T>,
+  everyMs = TRANSFER_REPORT_MS,
+): Promise<T> {
   const started = io.now();
   await io.report(id, { status: "transferring", stage });
   const beat = setInterval(() => {
-    void io.report(id, { status: "transferring", stage: `${stage} (${minutes(io.now() - started)} so far)` }).catch(() => {});
+    void io
+      .report(id, {
+        status: "transferring",
+        stage: `${stage} (${minutes(io.now() - started)} so far)`,
+      })
+      .catch(() => {});
   }, everyMs);
   try {
     return await work();
@@ -181,7 +247,11 @@ export async function whileReporting<T>(io: Pick<RunnerIo, "report" | "now">, id
 }
 
 /** Poll a daemon command until it reports or the TTL has surely killed it. */
-export async function awaitCommand(io: Pick<RunnerIo, "commandStatus" | "now" | "sleep">, commandId: string, timeoutMs = COMMAND_TIMEOUT_MS): Promise<CommandStatus | null> {
+export async function awaitCommand(
+  io: Pick<RunnerIo, "commandStatus" | "now" | "sleep">,
+  commandId: string,
+  timeoutMs = COMMAND_TIMEOUT_MS,
+): Promise<CommandStatus | null> {
   const deadline = io.now() + timeoutMs;
   for (;;) {
     const st = await io.commandStatus(commandId);
@@ -191,7 +261,11 @@ export async function awaitCommand(io: Pick<RunnerIo, "commandStatus" | "now" | 
   }
 }
 
-export async function awaitDeviceOnline(io: RunnerIo, deviceId: string, timeoutMs = DEVICE_ONLINE_TIMEOUT_MS): Promise<boolean> {
+export async function awaitDeviceOnline(
+  io: RunnerIo,
+  deviceId: string,
+  timeoutMs = DEVICE_ONLINE_TIMEOUT_MS,
+): Promise<boolean> {
   const deadline = io.now() + timeoutMs;
   for (;;) {
     if (await io.deviceOnline(deviceId)) return true;
@@ -200,20 +274,35 @@ export async function awaitDeviceOnline(io: RunnerIo, deviceId: string, timeoutM
   }
 }
 
-export type RowOutcome = { migration_id: string; outcome: "done" | "failed" | "skipped" | "cancelled"; detail?: string };
+export type RowOutcome = {
+  migration_id: string;
+  outcome: "done" | "failed" | "skipped" | "cancelled";
+  detail?: string;
+};
 
 /**
  * Coordinates tree pushes between rows that share a working tree: the first
  * row to claim a (host, cwd) pushes it; later rows await that and skip it.
  */
 export class SharedTreeLedger {
-  private pushes = new Map<string, Promise<{ pushed: boolean; head?: string }>>();
-  private resolvers = new Map<string, (r: { pushed: boolean; head?: string }) => void>();
+  private pushes = new Map<
+    string,
+    Promise<{ pushed: boolean; head?: string }>
+  >();
+  private resolvers = new Map<
+    string,
+    (r: { pushed: boolean; head?: string }) => void
+  >();
   /** Returns true when THIS caller owns the push for the key. */
   claim(key: string): boolean {
     if (this.pushes.has(key)) return false;
     let resolve!: (r: { pushed: boolean; head?: string }) => void;
-    this.pushes.set(key, new Promise((r) => { resolve = r; }));
+    this.pushes.set(
+      key,
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
     this.resolvers.set(key, resolve);
     return true;
   }
@@ -252,7 +341,9 @@ export async function migrateRow(
   // What the source's quiesce named as started outside the agent's tree; its release stops them.
   let outside: Array<{ name: string; via?: string }> = [];
   const fail = async (error: string): Promise<RowOutcome> => {
-    io.log(`FAILED ${tag}: ${error}${stoppedRunning ? " (restarting it here)" : ""}`);
+    io.log(
+      `FAILED ${tag}: ${error}${stoppedRunning ? " (restarting it here)" : ""}`,
+    );
     await io.fail(id, error, false, stoppedRunning);
     return { migration_id: id, outcome: "failed", detail: error };
   };
@@ -265,10 +356,17 @@ export async function migrateRow(
       const busy = WAIT_FOR_STATUSES.has(status ?? "");
       if (!busy) break;
       if (io.now() >= deadline) {
-        if (batch.interrupt_on_timeout === false) return fail("The session is still busy; it was left running on its original machine. Retry when the turn finishes.");
-        forced = true; break;
+        if (batch.interrupt_on_timeout === false)
+          return fail(
+            "The session is still busy; it was left running on its original machine. Retry when the turn finishes.",
+          );
+        forced = true;
+        break;
       }
-      await io.report(id, { status: "waiting_idle", stage: `waiting for the current turn to finish (${status}; up to ${minutes(deadline - io.now())} more)` });
+      await io.report(id, {
+        status: "waiting_idle",
+        stage: `waiting for the current turn to finish (${status}; up to ${minutes(deadline - io.now())} more)`,
+      });
       await io.sleep(IDLE_POLL_MS);
       const f = await io.facts(id);
       if (!f) return fail("the migration row disappeared");
@@ -279,16 +377,31 @@ export async function migrateRow(
       }
       status = f.agent_status;
     }
-    if (forced) io.log(`${tag}: still ${status} after the idle window — interrupting the turn`);
-    else if (status === "permission_blocked") io.log(`${tag}: stopped at a permission prompt — moving now; the prompt re-asks on the destination`);
+    if (forced)
+      io.log(
+        `${tag}: still ${status} after the idle window — interrupting the turn`,
+      );
+    else if (status === "permission_blocked")
+      io.log(
+        `${tag}: stopped at a permission prompt — moving now; the prompt re-asks on the destination`,
+      );
 
-    const prepareDestination = async (stage: "waiting_idle" | "transferring") => {
-      await io.report(id, { status: stage, stage: `waking ${facts.to_label ?? "the cloud host"}` });
+    const prepareDestination = async (
+      stage: "waiting_idle" | "transferring",
+    ) => {
+      await io.report(id, {
+        status: stage,
+        stage: `waking ${facts.to_label ?? "the cloud host"}`,
+      });
       await io.prepareHost(facts.to_device_id);
       return awaitDeviceOnline(io, facts.to_device_id);
     };
-    const prepareBeforeStop = facts.direction === "to_cloud" && batch.interrupt_on_timeout === false;
-    if (prepareBeforeStop && !(await prepareDestination("waiting_idle"))) return fail(`${facts.to_label ?? "the cloud host"} never came online; the session was left running locally`);
+    const prepareBeforeStop =
+      facts.direction === "to_cloud" && batch.interrupt_on_timeout === false;
+    if (prepareBeforeStop && !(await prepareDestination("waiting_idle")))
+      return fail(
+        `${facts.to_label ?? "the cloud host"} never came online; the session was left running locally`,
+      );
 
     // A session moved to a host with no login resumes on "Login expired", and
     // stopping it here already killed what it ran in the background: refuse first.
@@ -297,14 +410,22 @@ export async function migrateRow(
     let small: string | undefined;
     if (facts.direction === "to_cloud") {
       const gap = await io.hostLoginGap(facts.to_device_id);
-      if (gap) return fail(`${facts.to_label ?? "the cloud host"} has no Claude login (${gap}); the session was left running here`);
+      if (gap)
+        return fail(
+          `${facts.to_label ?? "the cloud host"} has no Claude login (${gap}); the session was left running here`,
+        );
       const castGap = await io.hostCastGap(facts.to_device_id);
       if (castGap) return fail(`${castGap}; the session was left running here`);
       const room = await io.hostRoom(facts.to_device_id, facts);
-      if (room.refuse) return fail(`${facts.to_label ?? "the cloud host"} has no room for another session (${room.refuse}); the session was left running here. Free memory there (stop sessions on it) or move it to a bigger host`);
+      if (room.refuse)
+        return fail(
+          `${facts.to_label ?? "the cloud host"} has no room for another session (${room.refuse}); the session was left running here. Free memory there (stop sessions on it) or move it to a bigger host`,
+        );
       if (room.small) {
         small = room.small;
-        io.log(`${tag}: ${facts.to_label ?? "the cloud host"} is smaller than this repo needs (${small}); moving it anyway`);
+        io.log(
+          `${tag}: ${facts.to_label ?? "the cloud host"} is smaller than this repo needs (${small}); moving it anyway`,
+        );
       }
     }
 
@@ -312,24 +433,38 @@ export async function migrateRow(
     // fail it refuses the move now, and what the host lacks goes in the notice.
     let rehearsal: MoveRehearsal | undefined;
     if (facts.direction === "to_cloud") {
-      await io.report(id, { status: "waiting_idle", stage: "rehearsing the move" });
+      await io.report(id, {
+        status: "waiting_idle",
+        stage: "rehearsing the move",
+      });
       try {
         rehearsal = await io.rehearse(facts, row.bring_paths ?? []);
       } catch (err) {
-        io.log(`${tag}: rehearsal could not run (${err instanceof Error ? err.message : String(err)}); moving without it`);
+        io.log(
+          `${tag}: rehearsal could not run (${err instanceof Error ? err.message : String(err)}); moving without it`,
+        );
       }
-      if (rehearsal?.blockers.length) return fail(`${rehearsal.blockers.join("; ")}; the session was left running here`);
+      if (rehearsal?.blockers.length)
+        return fail(
+          `${rehearsal.blockers.join("; ")}; the session was left running here`,
+        );
     }
 
     // ── 2. quiesce the current owner so the transcript is final ─────────────
     // For a move back, the owner is the cloud host: wake it and wait for its
     // daemon before asking, or the command dies in the queue unclaimed.
     if (facts.direction === "to_local") {
-      if (!facts.owner_device_id) return fail("the session has no owner device to bring it back from");
-      await io.report(id, { status: "quiescing", stage: `waking ${facts.owner_label ?? "the cloud host"}` });
+      if (!facts.owner_device_id)
+        return fail("the session has no owner device to bring it back from");
+      await io.report(id, {
+        status: "quiescing",
+        stage: `waking ${facts.owner_label ?? "the cloud host"}`,
+      });
       await io.prepareHost(facts.owner_device_id);
       if (!(await awaitDeviceOnline(io, facts.owner_device_id))) {
-        return fail(`${facts.owner_label ?? "the cloud host"} never came online`);
+        return fail(
+          `${facts.owner_label ?? "the cloud host"} never came online`,
+        );
       }
     }
     let mode: "idle" | "force" = forced ? "force" : "idle";
@@ -337,20 +472,36 @@ export async function migrateRow(
       const q = await io.enqueueQuiesce(id, mode);
       if (!q.command_id) break; // nobody runs it — nothing to stop
       const st = await awaitCommand(io, q.command_id);
-      if (!st) return fail(`the daemon on ${facts.direction === "to_local" ? (facts.owner_label ?? "the cloud host") : "this machine"} did not pick up the stop command (is it online and up to date?)`);
+      if (!st)
+        return fail(
+          `the daemon on ${facts.direction === "to_local" ? (facts.owner_label ?? "the cloud host") : "this machine"} did not pick up the stop command (is it online and up to date?)`,
+        );
       if (st.error) return fail(`could not stop the session: ${st.error}`);
       let parsed: any = {};
-      try { parsed = st.result ? JSON.parse(st.result) : {}; } catch { /* non-JSON result: treat as done */ }
+      try {
+        parsed = st.result ? JSON.parse(st.result) : {};
+      } catch {
+        /* non-JSON result: treat as done */
+      }
       if (parsed.quiesced === true && parsed.had_pane) stoppedRunning = true;
-      if (parsed.quiesced === true && Array.isArray(parsed.outside)) outside = parsed.outside;
+      if (parsed.quiesced === true && Array.isArray(parsed.outside))
+        outside = parsed.outside;
       if (parsed.quiesced === false) {
         // A turn began between our check and the stop. Keep waiting inside
         // the same window; past it, force.
         if (io.now() >= deadline || attempt >= 60) {
-          if (batch.interrupt_on_timeout === false) return fail("The session started another turn; it was left running on its original machine.");
-          mode = "force"; forced = true; continue;
+          if (batch.interrupt_on_timeout === false)
+            return fail(
+              "The session started another turn; it was left running on its original machine.",
+            );
+          mode = "force";
+          forced = true;
+          continue;
         }
-        await io.report(id, { status: "waiting_idle", stage: `a turn started (${parsed.reason ?? "busy"}); waiting for it to finish` });
+        await io.report(id, {
+          status: "waiting_idle",
+          stage: `a turn started (${parsed.reason ?? "busy"}); waiting for it to finish`,
+        });
         await io.sleep(IDLE_POLL_MS);
         continue;
       }
@@ -368,14 +519,31 @@ export async function migrateRow(
       let owner = ledger.claim(key);
       let pushedHead: string | undefined;
       while (!owner) {
-        await io.report(id, { status: "transferring", stage: "waiting for a sibling session to push the shared worktree" });
+        await io.report(id, {
+          status: "transferring",
+          stage: "waiting for a sibling session to push the shared worktree",
+        });
         const sibling = await ledger.awaitPushed(key);
-        if (sibling.pushed) { pushedHead = sibling.head; break; }
+        if (sibling.pushed) {
+          pushedHead = sibling.head;
+          break;
+        }
         owner = ledger.claim(key);
       }
       try {
-        const t = await whileReporting(io, id, owner ? "pushing worktree + transcript" : "pushing transcript (worktree already there)",
-          () => io.transferToCloud(facts, { skipTree: !owner, pushedHead, bring: row.bring_paths ?? [] }));
+        const t = await whileReporting(
+          io,
+          id,
+          owner
+            ? "pushing worktree + transcript"
+            : "pushing transcript (worktree already there)",
+          () =>
+            io.transferToCloud(facts, {
+              skipTree: !owner,
+              pushedHead,
+              bring: row.bring_paths ?? [],
+            }),
+        );
         transfer = t;
         if (owner) ledger.settle(key, t.pushedHead);
       } catch (err) {
@@ -383,15 +551,26 @@ export async function migrateRow(
         throw err;
       }
     } else {
-      transfer = await whileReporting(io, id, "pulling worktree + transcript from the cloud host", () => io.transferToLocal(facts));
+      transfer = await whileReporting(
+        io,
+        id,
+        "pulling worktree + transcript from the cloud host",
+        () => io.transferToLocal(facts),
+      );
     }
     if (small) {
-      transfer = { ...transfer, verification: `${transfer.verification}. This host is too small for the repo's real work: ${small}. Expect its whole-program typecheck (cast check) and dev server (cast dev) to run out of memory here; run them through a worker on a bigger machine (cast spawn --subagent) or ask for the host to be resized (cast hosts resize)` };
+      transfer = {
+        ...transfer,
+        verification: `${transfer.verification}. This host is too small for the repo's real work: ${small}. Expect its whole-program typecheck (cast check) and dev server (cast dev) to run out of memory here; run them through a worker on a bigger machine (cast spawn --subagent) or ask for the host to be resized (cast hosts resize)`,
+      };
     }
     io.log(`${tag}: ${transfer.verification}`);
 
     // ── 4. flip ─────────────────────────────────────────────────────────────
-    await io.report(id, { status: "switching", stage: `handing the session to ${facts.to_label ?? "the destination"}` });
+    await io.report(id, {
+      status: "switching",
+      stage: `handing the session to ${facts.to_label ?? "the destination"}`,
+    });
     const fin = await io.finish(id, {
       project_path: transfer.destinationPath,
       git_root: transfer.gitRoot,
@@ -404,7 +583,11 @@ export async function migrateRow(
 
     // ── 5. confirm the resume landed ────────────────────────────────────────
     if (fin.resume_command_id) {
-      const st = await awaitCommand(io, fin.resume_command_id, RESUME_CONFIRM_TIMEOUT_MS);
+      const st = await awaitCommand(
+        io,
+        fin.resume_command_id,
+        RESUME_CONFIRM_TIMEOUT_MS,
+      );
       if (!st && batch.interrupt_on_timeout === false) {
         const detail = `Moved to ${facts.to_label ?? "the destination"}, but its daemon has not confirmed the resume. Open the session on that machine before retrying.`;
         await io.confirm(id, false, { error: detail });
@@ -417,16 +600,21 @@ export async function migrateRow(
         return { migration_id: id, outcome: "failed", detail };
       }
       const stage = st
-        ? (forced ? `running on ${facts.to_label ?? "the destination"} (its turn was interrupted to move it)` : `running on ${facts.to_label ?? "the destination"}`)
+        ? forced
+          ? `running on ${facts.to_label ?? "the destination"} (its turn was interrupted to move it)`
+          : `running on ${facts.to_label ?? "the destination"}`
         : `moved to ${facts.to_label ?? "the destination"}; its daemon has not confirmed the resume yet`;
       await io.confirm(id, true, { stage });
     } else {
       if (batch.interrupt_on_timeout === false) {
-        const detail = "The session moved, but no destination resume was queued. Open it on the destination before retrying.";
+        const detail =
+          "The session moved, but no destination resume was queued. Open it on the destination before retrying.";
         await io.confirm(id, false, { error: detail });
         return { migration_id: id, outcome: "failed", detail };
       }
-      await io.confirm(id, true, { stage: `moved to ${facts.to_label ?? "the destination"}` });
+      await io.confirm(id, true, {
+        stage: `moved to ${facts.to_label ?? "the destination"}`,
+      });
     }
     io.log(`done ${tag} → ${transfer.destinationPath}`);
     return { migration_id: id, outcome: "done" };
@@ -440,25 +628,46 @@ export async function migrateRow(
  * at a time, in batch order. Returns the outcomes (the process exit code is
  * the caller's call: a batch with one failed row still moved the rest).
  */
-export async function runBatch(io: RunnerIo, opts: { concurrency?: number } = {}): Promise<RowOutcome[]> {
+export async function runBatch(
+  io: RunnerIo,
+  opts: { concurrency?: number } = {},
+): Promise<RowOutcome[]> {
   const batch = await io.loadBatch();
-  if (!batch) throw new Error("no such batch (or it belongs to another account)");
-  const mine = batch.rows.filter((r) => r.status === "queued").sort((a, b) => a.position - b.position);
-  io.log(`batch ${batch.batch_id}: ${mine.length} queued row(s) for this machine (device ${short(io.deviceId())}), concurrency ${opts.concurrency ?? batch.concurrency}`);
+  if (!batch)
+    throw new Error("no such batch (or it belongs to another account)");
+  const mine = batch.rows
+    .filter((r) => r.status === "queued")
+    .sort((a, b) => a.position - b.position);
+  io.log(
+    `batch ${batch.batch_id}: ${mine.length} queued row(s) for this machine (device ${short(io.deviceId())}), concurrency ${opts.concurrency ?? batch.concurrency}`,
+  );
   if (mine.length === 0) return [];
   const ledger = new SharedTreeLedger();
   const width = Math.max(1, opts.concurrency ?? batch.concurrency ?? 1);
-  const outcomes = await mapLimit(mine, width, async (row): Promise<RowOutcome> => {
-    try {
-      return await migrateRow(io, batch, row, ledger);
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      io.log(`FAILED ${describeRow(row)}: ${detail} (the runner kept going)`);
-      await io.fail(row.migration_id, detail, false, true).catch(() => {});
-      return { migration_id: row.migration_id, outcome: "failed", detail };
-    }
-  });
-  const tally = outcomes.reduce((acc, o) => ({ ...acc, [o.outcome]: (acc[o.outcome] ?? 0) + 1 }), {} as Record<string, number>);
-  io.log(`batch ${batch.batch_id} finished: ${Object.entries(tally).map(([k, n]) => `${n} ${k}`).join(", ") || "nothing to do"}`);
+  const outcomes = await mapLimit(
+    mine,
+    width,
+    async (row): Promise<RowOutcome> => {
+      try {
+        return await migrateRow(io, batch, row, ledger);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        io.log(`FAILED ${describeRow(row)}: ${detail} (the runner kept going)`);
+        await io.fail(row.migration_id, detail, false, true).catch(() => {});
+        return { migration_id: row.migration_id, outcome: "failed", detail };
+      }
+    },
+  );
+  const tally = outcomes.reduce(
+    (acc, o) => ({ ...acc, [o.outcome]: (acc[o.outcome] ?? 0) + 1 }),
+    {} as Record<string, number>,
+  );
+  io.log(
+    `batch ${batch.batch_id} finished: ${
+      Object.entries(tally)
+        .map(([k, n]) => `${n} ${k}`)
+        .join(", ") || "nothing to do"
+    }`,
+  );
   return outcomes;
 }

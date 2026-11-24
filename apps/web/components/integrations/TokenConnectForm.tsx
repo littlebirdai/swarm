@@ -20,7 +20,13 @@ import { QuietButton } from "./parts";
  * type=password (the token is masked by style instead), no name looks like a
  * username, and the managers that read their own opt-out attributes see them.
  */
-const NO_FILL = { autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true", "data-bwignore": "true", "data-form-type": "other" } as const;
+const NO_FILL = {
+  autoComplete: "off",
+  "data-1p-ignore": "true",
+  "data-lpignore": "true",
+  "data-bwignore": "true",
+  "data-form-type": "other",
+} as const;
 const MASKED: CSSProperties = { WebkitTextSecurity: "disc" } as CSSProperties;
 
 const INPUT =
@@ -44,10 +50,17 @@ export function TokenConnectForm({
   const [shown, setShown] = useState(false);
 
   // Where the token is made, from the host the person typed (or its default), and the scopes it needs.
-  const help = descriptor.tokenHelp ? { scopes: descriptor.tokenHelp.scopes, url: tokenCreateUrl(descriptor.tokenHelp.createUrl, fields, values) } : null;
+  const help = descriptor.tokenHelp
+    ? {
+        scopes: descriptor.tokenHelp.scopes,
+        url: tokenCreateUrl(descriptor.tokenHelp.createUrl, fields, values),
+      }
+    : null;
 
   // Defaulted and optional fields may stay empty; the server fills defaults.
-  const missing = fields.some((f) => !f.default && !f.optional && !(values[f.key] ?? "").trim());
+  const missing = fields.some(
+    (f) => !f.default && !f.optional && !(values[f.key] ?? "").trim(),
+  );
   // An app connector needs no secret: codecast signs every request it makes.
   const ready = (!!token.trim() || !!descriptor.tokenOptional) && !missing;
 
@@ -55,7 +68,9 @@ export function TokenConnectForm({
     e.preventDefault();
     if (!ready || busy) return;
     const config = Object.fromEntries(
-      Object.entries(values).map(([k, val]) => [k, val.trim()]).filter(([, val]) => val),
+      Object.entries(values)
+        .map(([k, val]) => [k, val.trim()])
+        .filter(([, val]) => val),
     );
     const stored = await onSubmit(token.trim(), config);
     // A stored token has no reason to stay in page memory; a refused one stays
@@ -64,17 +79,25 @@ export function TokenConnectForm({
   };
 
   return (
-    <form onSubmit={submit} autoComplete="off" className="mt-2 space-y-2 rounded-md bg-sol-bg-highlight/30 px-3 py-2.5">
+    <form
+      onSubmit={submit}
+      autoComplete="off"
+      className="mt-2 space-y-2 rounded-md bg-sol-bg-highlight/30 px-3 py-2.5"
+    >
       <div className="grid gap-2 sm:grid-cols-2">
         {fields.map((f) => (
           <label key={f.key} className="block">
-            <span className="text-mark uppercase tracking-wider text-sol-text-dim">{f.label}</span>
+            <span className="text-mark uppercase tracking-wider text-sol-text-dim">
+              {f.label}
+            </span>
             <input
               type="text"
               name={`cc-${descriptor.id}-setting-${f.key}`}
               value={values[f.key] ?? ""}
               placeholder={f.placeholder ?? f.default}
-              onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, [f.key]: e.target.value }))
+              }
               spellCheck={false}
               {...NO_FILL}
               className={INPUT}
@@ -83,12 +106,27 @@ export function TokenConnectForm({
         ))}
       </div>
       {help && (
-        <div className="flex flex-wrap items-center gap-1.5 text-meta" data-token-help>
-          <a href={help.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sol-link hover:underline">
-            Create {descriptor.tokenLabel?.toLowerCase() ?? "token"} <ExternalLink className="h-3 w-3" aria-hidden />
+        <div
+          className="flex flex-wrap items-center gap-1.5 text-meta"
+          data-token-help
+        >
+          <a
+            href={help.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-sol-link hover:underline"
+          >
+            Create {descriptor.tokenLabel?.toLowerCase() ?? "token"}{" "}
+            <ExternalLink className="h-3 w-3" aria-hidden />
           </a>
           {help.scopes.map((sc) => (
-            <span key={sc} className="rounded bg-sol-bg-alt px-1.5 font-mono text-meta text-sol-text-muted" data-token-scope>{sc}</span>
+            <span
+              key={sc}
+              className="rounded bg-sol-bg-alt px-1.5 font-mono text-meta text-sol-text-muted"
+              data-token-scope
+            >
+              {sc}
+            </span>
           ))}
         </div>
       )}
@@ -106,7 +144,9 @@ export function TokenConnectForm({
             }
           >
             <Lock className="h-3 w-3" aria-hidden />
-            {descriptor.tokenOptional && !token.trim() ? "codecast signs every request" : "encrypted"}
+            {descriptor.tokenOptional && !token.trim()
+              ? "codecast signs every request"
+              : "encrypted"}
           </span>
         </span>
         <span className="relative block">
@@ -131,7 +171,11 @@ export function TokenConnectForm({
             aria-pressed={shown}
             className="absolute right-1 top-1/2 mt-0.5 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-sol-text-dim hover:text-sol-text"
           >
-            {shown ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {shown ? (
+              <EyeOff className="h-3.5 w-3.5" />
+            ) : (
+              <Eye className="h-3.5 w-3.5" />
+            )}
           </button>
         </span>
       </label>
@@ -139,7 +183,11 @@ export function TokenConnectForm({
         <QuietButton type="submit" disabled={!ready} busy={busy}>
           {busy ? "Checking" : "Connect"}
         </QuietButton>
-        <QuietButton onClick={onCancel} disabled={busy} className="border-transparent text-sol-text-muted">
+        <QuietButton
+          onClick={onCancel}
+          disabled={busy}
+          className="border-transparent text-sol-text-muted"
+        >
           Cancel
         </QuietButton>
       </div>

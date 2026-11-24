@@ -1,13 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { unreachableTerminalOf } from "@codecast/shared/contracts/deliveryHold";
-import { findOrcaCli, orcaKeyBytes, orcaPane, orcaPastePayload, parseOrcaJson, type OrcaIo } from "./orca.js";
+import {
+  findOrcaCli,
+  orcaKeyBytes,
+  orcaPane,
+  orcaPastePayload,
+  parseOrcaJson,
+  type OrcaIo,
+} from "./orca.js";
 import { terminalProgramForApp } from "./processEnv.js";
 import { TerminalHoldError } from "./terminalHold.js";
 
 const PANE_KEY = "tab-1:leaf-2";
-const list = (terminals: unknown[]) => JSON.stringify({ id: "x", ok: true, result: { terminals } });
+const list = (terminals: unknown[]) =>
+  JSON.stringify({ id: "x", ok: true, result: { terminals } });
 
-function fakeIo(terminals: unknown[] = [{ handle: "term_live", tabId: "tab-1", leafId: "leaf-2", writable: true }]) {
+function fakeIo(
+  terminals: unknown[] = [
+    { handle: "term_live", tabId: "tab-1", leafId: "leaf-2", writable: true },
+  ],
+) {
   const sent: string[] = [];
   const reads: string[] = [];
   const io: OrcaIo = {
@@ -15,12 +27,22 @@ function fakeIo(terminals: unknown[] = [{ handle: "term_live", tabId: "tab-1", l
     run: async (_cli, args) => {
       if (args[1] === "list") return list(terminals);
       expect(args.slice(2, 4)).toEqual(["--terminal", "term_live"]);
-      if (args[1] === "send") { sent.push(args[args.indexOf("--text") + 1]); return JSON.stringify({ ok: true, result: {} }); }
+      if (args[1] === "send") {
+        sent.push(args[args.indexOf("--text") + 1]);
+        return JSON.stringify({ ok: true, result: {} });
+      }
       if (args[1] === "read") {
         reads.push(args.slice(4).join(" "));
         // Without a cursor Orca answers only what arrived since its own read position.
-        if (!args.includes("--cursor")) return JSON.stringify({ ok: true, result: { terminal: { tail: ["❯ "], latestCursor: "500" } } });
-        return JSON.stringify({ ok: true, result: { terminal: { tail: ["one", "❯ "], latestCursor: "500" } } });
+        if (!args.includes("--cursor"))
+          return JSON.stringify({
+            ok: true,
+            result: { terminal: { tail: ["❯ "], latestCursor: "500" } },
+          });
+        return JSON.stringify({
+          ok: true,
+          result: { terminal: { tail: ["one", "❯ "], latestCursor: "500" } },
+        });
       }
       throw new Error(`unexpected ${args.join(" ")}`);
     },
@@ -32,24 +54,49 @@ describe("orca", () => {
   // `orca terminal send --text` writes bytes as given and never brackets a
   // paste itself (checked against Orca 1.4.159 with a raw-mode byte logger).
   test("wraps message text as a bracketed paste only for a client that takes one", () => {
-    expect(orcaPastePayload("line1\nline2\n", true)).toBe("\x1b[200~line1\nline2\x1b[201~");
+    expect(orcaPastePayload("line1\nline2\n", true)).toBe(
+      "\x1b[200~line1\nline2\x1b[201~",
+    );
     expect(orcaPastePayload("line1\nline2", false)).toBe("line1 line2");
   });
 
   test("sends poll keys as their terminal bytes", () => {
-    expect(["Enter", "Return", "Escape", "Up", "Down", "1", "y"].map(orcaKeyBytes)).toEqual(["\r", "\r", "\x1b", "\x1b[A", "\x1b[B", "1", "y"]);
+    expect(
+      ["Enter", "Return", "Escape", "Up", "Down", "1", "y"].map(orcaKeyBytes),
+    ).toEqual(["\r", "\r", "\x1b", "\x1b[A", "\x1b[B", "1", "y"]);
   });
 
   test("a refused request throws its error code", () => {
-    expect(() => parseOrcaJson(JSON.stringify({ ok: false, error: { code: "terminal_handle_stale" } }))).toThrow("terminal_handle_stale");
+    expect(() =>
+      parseOrcaJson(
+        JSON.stringify({ ok: false, error: { code: "terminal_handle_stale" } }),
+      ),
+    ).toThrow("terminal_handle_stale");
     expect(parseOrcaJson(list([]))).toEqual({ terminals: [] });
   });
 
   test("finds the CLI on PATH, then in the app bundle", () => {
-    const at = (...present: string[]) => (p: string) => present.includes(p);
-    expect(findOrcaCli(at("/opt/bin/orca"), "/usr/bin:/opt/bin", "/Users/a")).toBe("/opt/bin/orca");
-    expect(findOrcaCli(at("/Applications/Orca.app/Contents/Resources/bin/orca"), "/usr/bin", "/Users/a")).toBe("/Applications/Orca.app/Contents/Resources/bin/orca");
-    expect(findOrcaCli(at("/Users/a/Applications/Orca.app/Contents/Resources/bin/orca"), "/usr/bin", "/Users/a")).toBe("/Users/a/Applications/Orca.app/Contents/Resources/bin/orca");
+    const at =
+      (...present: string[]) =>
+      (p: string) =>
+        present.includes(p);
+    expect(
+      findOrcaCli(at("/opt/bin/orca"), "/usr/bin:/opt/bin", "/Users/a"),
+    ).toBe("/opt/bin/orca");
+    expect(
+      findOrcaCli(
+        at("/Applications/Orca.app/Contents/Resources/bin/orca"),
+        "/usr/bin",
+        "/Users/a",
+      ),
+    ).toBe("/Applications/Orca.app/Contents/Resources/bin/orca");
+    expect(
+      findOrcaCli(
+        at("/Users/a/Applications/Orca.app/Contents/Resources/bin/orca"),
+        "/usr/bin",
+        "/Users/a",
+      ),
+    ).toBe("/Users/a/Applications/Orca.app/Contents/Resources/bin/orca");
     expect(findOrcaCli(at(), "/usr/bin", "/Users/a")).toBeNull();
   });
 
@@ -66,7 +113,10 @@ describe("orca", () => {
     await pane.sendKeystrokes("\x1b");
     expect(sent).toEqual(["\x1b[200~hi\x1b[201~", "\r", "\x1b"]);
     expect(await pane.readScreen()).toBe("one\n❯ ");
-    expect(reads).toEqual(["--limit 1 --json", "--cursor 440 --limit 60 --json"]);
+    expect(reads).toEqual([
+      "--limit 1 --json",
+      "--cursor 440 --limit 60 --json",
+    ]);
   });
 
   test("a pane Orca no longer lists is a failure, not a hold", async () => {
@@ -79,17 +129,45 @@ describe("orca", () => {
   test.each([
     ["no pane key", undefined, fakeIo().io],
     ["no CLI", PANE_KEY, { ...fakeIo().io, cli: () => null }],
-    ["Orca not answering", PANE_KEY, { ...fakeIo().io, run: async () => { throw new Error("connect ECONNREFUSED"); } }],
-    ["a read-only terminal", PANE_KEY, fakeIo([{ handle: "term_live", tabId: "tab-1", leafId: "leaf-2", writable: false }]).io],
+    [
+      "Orca not answering",
+      PANE_KEY,
+      {
+        ...fakeIo().io,
+        run: async () => {
+          throw new Error("connect ECONNREFUSED");
+        },
+      },
+    ],
+    [
+      "a read-only terminal",
+      PANE_KEY,
+      fakeIo([
+        {
+          handle: "term_live",
+          tabId: "tab-1",
+          leafId: "leaf-2",
+          writable: false,
+        },
+      ]).io,
+    ],
   ])("%s holds the message with Orca named", async (_case, key, io) => {
-    const err = await orcaPane(key, true, () => {}, io as OrcaIo).catch((e) => e);
+    const err = await orcaPane(key, true, () => {}, io as OrcaIo).catch(
+      (e) => e,
+    );
     expect(err).toBeInstanceOf(TerminalHoldError);
     expect(unreachableTerminalOf(err.holdReason)).toBe("Orca");
   });
 
   // An agent whose environment is unreadable is attributed from the app that owns its tty.
   test("names Orca from its app or helper process", () => {
-    expect(terminalProgramForApp("/Applications/Orca.app/Contents/Frameworks/Orca Helper.app/Contents/MacOS/Orca Helper")).toBe("Orca");
-    expect(terminalProgramForApp("/Applications/Orca.app/Contents/MacOS/Orca")).toBe("Orca");
+    expect(
+      terminalProgramForApp(
+        "/Applications/Orca.app/Contents/Frameworks/Orca Helper.app/Contents/MacOS/Orca Helper",
+      ),
+    ).toBe("Orca");
+    expect(
+      terminalProgramForApp("/Applications/Orca.app/Contents/MacOS/Orca"),
+    ).toBe("Orca");
   });
 });

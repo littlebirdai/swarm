@@ -34,8 +34,25 @@ import { useQueryNoThrow } from "../../../hooks/useQueryNoThrow";
 import { AuthGuard } from "../../../components/AuthGuard";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { toast } from "sonner";
-import { ChevronDown, Copy, History, LayoutGrid, Info, ListChecks, MessagesSquare, PackageOpen, ScrollText, Workflow } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../../../components/ui/dropdown-menu";
+import {
+  ChevronDown,
+  Copy,
+  History,
+  LayoutGrid,
+  Info,
+  ListChecks,
+  MessagesSquare,
+  PackageOpen,
+  ScrollText,
+  Workflow,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
 import { ProjectSession } from "../../../components/projects/ProjectSession";
 import { ProjectOutputs } from "../../../components/projects/ProjectOutputs";
 import { ProjectPinButton } from "../../../components/projects/ProjectPinButton";
@@ -47,7 +64,14 @@ import { useForeignWorkspace } from "../../../hooks/useForeignWorkspace";
 import { useSyncOrgTreeFeeder } from "../../../hooks/useSyncOrgTree";
 import { ProjectLeadChip } from "../../../components/charter/ProjectLeadChip";
 import { ProjectInitiatives } from "../../../components/initiatives/ProjectInitiatives";
-import { IntentHeader, IntentIdChip, ProjectDeadlineChip, ProjectStatusPick, useIntentTab, type IntentTab } from "../../../components/initiatives/IntentHeader";
+import {
+  IntentHeader,
+  IntentIdChip,
+  ProjectDeadlineChip,
+  ProjectStatusPick,
+  useIntentTab,
+  type IntentTab,
+} from "../../../components/initiatives/IntentHeader";
 import { useWorkspaceFeature } from "../../../lib/teamFeatures";
 import { projectStatusOf } from "../../../lib/projectStatus";
 import { projectTaskCounts } from "@codecast/shared/tasks";
@@ -63,7 +87,15 @@ const api = _api as any;
 // happens, and its default session is where you take part in it. Tasks is
 // what is to do, Timeline is what happened, with the next update on top; Flow
 // is how work flows through it. The key stays "sessions" so old links land.
-const PROJECT_TABS = ["sessions", "tasks", "outputs", "timeline", "about", "flow", "expectations"] as const;
+const PROJECT_TABS = [
+  "sessions",
+  "tasks",
+  "outputs",
+  "timeline",
+  "about",
+  "flow",
+  "expectations",
+] as const;
 type ProjectTab = (typeof PROJECT_TABS)[number];
 const PROJECT_ACCENT = "var(--sol-cyan)";
 const TABS: IntentTab<ProjectTab>[] = [
@@ -81,19 +113,29 @@ const TABS: IntentTab<ProjectTab>[] = [
   { key: "expectations", label: "Expectations", icon: ScrollText },
 ];
 /** Tabs the board no longer has, read as the one that holds them now. */
-const OLD_TABS: Record<string, ProjectTab> = { updates: "timeline", overview: "sessions", line: "flow" };
+const OLD_TABS: Record<string, ProjectTab> = {
+  updates: "timeline",
+  overview: "sessions",
+  line: "flow",
+};
 
 // Open-task counts per project, cached on the tasks collection's identity: the
 // views menu's selector runs on every store write, and the store hands back the
 // same collection until a task changes, so the scan runs once per real change.
 const openTaskCountCache = new WeakMap<object, Map<string, number>>();
-function openTaskCount(tasks: Record<string, any> | undefined, projectId: string): number {
+function openTaskCount(
+  tasks: Record<string, any> | undefined,
+  projectId: string,
+): number {
   const rows = tasks ?? {};
   let byProject = openTaskCountCache.get(rows);
   const hit = byProject?.get(projectId);
   if (hit !== undefined) return hit;
   const n = projectTaskCounts(Object.values(rows) as any[], [projectId]);
-  if (!byProject) { byProject = new Map(); openTaskCountCache.set(rows, byProject); }
+  if (!byProject) {
+    byProject = new Map();
+    openTaskCountCache.set(rows, byProject);
+  }
   byProject.set(projectId, n.total - n.done);
   return n.total - n.done;
 }
@@ -102,16 +144,21 @@ function openTaskCount(tasks: Record<string, any> | undefined, projectId: string
  *  project's own tasks stays inside the project (/projects/<id>/<task>), any
  *  other keeps its own page (taskHrefContext). */
 function useProjectTaskPlace(projectRef: string | undefined) {
-  return useCallback((ref: string) => {
-    if (!projectRef) return null;
-    const s = useInboxStore.getState();
-    const task = findEntityInStore(s, "task", ref) as any;
-    if (!task) return null;
-    const projectId = (findEntityInStore(s, "project", projectRef) as any)?._id ?? projectRef;
-    return String(task.project_id ?? "") === String(projectId) ? `/projects/${projectRef}/${ref}` : null;
-  }, [projectRef]);
+  return useCallback(
+    (ref: string) => {
+      if (!projectRef) return null;
+      const s = useInboxStore.getState();
+      const task = findEntityInStore(s, "task", ref) as any;
+      if (!task) return null;
+      const projectId =
+        (findEntityInStore(s, "project", projectRef) as any)?._id ?? projectRef;
+      return String(task.project_id ?? "") === String(projectId)
+        ? `/projects/${projectRef}/${ref}`
+        : null;
+    },
+    [projectRef],
+  );
 }
-
 
 function ProjectDetailContent() {
   const params = useParams();
@@ -133,15 +180,31 @@ function ProjectDetailContent() {
   // at once. The per view query only fills what the store has not cached yet:
   // its snapshot moves when the dispatch lands and the query re-runs, so the
   // store's word wins field by field.
-  const storeProject = useInboxStore((s) => (projectRef ? (s.projects as any)[projectRef] ?? Object.values(s.projects as Record<string, any>).find((p) => p.short_id === projectRef || p.client_key === projectRef) : undefined));
+  const storeProject = useInboxStore((s) =>
+    projectRef
+      ? ((s.projects as any)[projectRef] ??
+        Object.values(s.projects as Record<string, any>).find(
+          (p) => p.short_id === projectRef || p.client_key === projectRef,
+        ))
+      : undefined,
+  );
   const projectId: string = storeProject?._id ?? projectRef;
-  const { data: serverProject } = useQueryNoThrow(api.projects.webGet, isConvexId(projectId) ? { id: projectId } : "skip");
+  const { data: serverProject } = useQueryNoThrow(
+    api.projects.webGet,
+    isConvexId(projectId) ? { id: projectId } : "skip",
+  );
   const project = useMemo(
-    () => (serverProject || storeProject ? { ...(serverProject ?? {}), ...(storeProject ?? {}) } : undefined),
+    () =>
+      serverProject || storeProject
+        ? { ...(serverProject ?? {}), ...(storeProject ?? {}) }
+        : undefined,
     [serverProject, storeProject],
   );
   const address = project?.short_id || projectRef;
-  const { tab: picked, setTab } = useIntentTab(PROJECT_TABS, `/projects/${address}`);
+  const { tab: picked, setTab } = useIntentTab(
+    PROJECT_TABS,
+    `/projects/${address}`,
+  );
   const lineShown = useWorkspaceFeature("line");
   const asked: ProjectTab = OLD_TABS[search.get("tab") ?? ""] ?? picked;
   const tab: ProjectTab = asked === "flow" && !lineShown ? "tasks" : asked;
@@ -153,7 +216,9 @@ function ProjectDetailContent() {
     const short = project?.short_id;
     if (!short || projectRef === short) return;
     const qs = search.toString();
-    router.replace(`/projects/${short}${taskRef ? `/${taskRef}` : ""}${qs ? `?${qs}` : ""}`);
+    router.replace(
+      `/projects/${short}${taskRef ? `/${taskRef}` : ""}${qs ? `?${qs}` : ""}`,
+    );
   }, [project?.short_id, projectRef]);
 
   const updateProject = useInboxStore((s) => s.updateProject);
@@ -171,10 +236,13 @@ function ProjectDetailContent() {
   // The inbox beside the page lists this project's sessions while it is open.
   useProjectInboxScope(project?._id);
 
-  const handleStatusChange = useCallback((status: string) => {
-    updateProject(projectId, { status });
-    toast.success(`Project marked as ${status}`);
-  }, [projectId, updateProject]);
+  const handleStatusChange = useCallback(
+    (status: string) => {
+      updateProject(projectId, { status });
+      toast.success(`Project marked as ${status}`);
+    },
+    [projectId, updateProject],
+  );
 
   if (!project) {
     return (
@@ -187,35 +255,100 @@ function ProjectDetailContent() {
   const body = "flex-1 min-h-0 overflow-y-auto";
   // The facts and the verbs, drawn by whichever header is up: Classic's
   // project board header, or Modern's page header.
-  const chips = (<>
-      <ProjectStatusPick status={project.status} onPick={handleStatusChange} data-project-pick="status" face={tab === "sessions" ? <ProjectStatusIcon status={project.status} /> : undefined} />
-      <ProjectLeadChip projectId={project._id} editable faceOnly={tab === "sessions"} />
+  const chips = (
+    <>
+      <ProjectStatusPick
+        status={project.status}
+        onPick={handleStatusChange}
+        data-project-pick="status"
+        face={
+          tab === "sessions" ? (
+            <ProjectStatusIcon status={project.status} />
+          ) : undefined
+        }
+      />
+      <ProjectLeadChip
+        projectId={project._id}
+        editable
+        faceOnly={tab === "sessions"}
+      />
       {/* The session view keeps to who runs it; the deadline and the
           goals it serves (initiatives-projects-role-page.md I1) show on
           the other views. */}
-      {tab !== "sessions" && <>
-        <ProjectDeadlineChip project={project} now={now} data-project-pick="target" />
-        <ProjectInitiatives projectId={project._id} size="xs" label="Serves" />
-      </>}
-  </>);
-  const share = <ShareControl label="project" path={`/projects/${project.short_id || project._id}`} publicShare={{ kind: "project", id: project._id, token: project.share_token, team: policyTeamOf("projects", project) }} />;
-  const verbs = (<>
+      {tab !== "sessions" && (
+        <>
+          <ProjectDeadlineChip
+            project={project}
+            now={now}
+            data-project-pick="target"
+          />
+          <ProjectInitiatives
+            projectId={project._id}
+            size="xs"
+            label="Serves"
+          />
+        </>
+      )}
+    </>
+  );
+  const share = (
+    <ShareControl
+      label="project"
+      path={`/projects/${project.short_id || project._id}`}
+      publicShare={{
+        kind: "project",
+        id: project._id,
+        token: project.share_token,
+        team: policyTeamOf("projects", project),
+      }}
+    />
+  );
+  const verbs = (
+    <>
       {/* Off the session, the one-press way back to it. */}
       {tab !== "sessions" && (
-        <button type="button" onClick={() => setTab("sessions")} className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt/60 transition-colors" data-project-back-to-session>
+        <button
+          type="button"
+          onClick={() => setTab("sessions")}
+          className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt/60 transition-colors"
+          data-project-back-to-session
+        >
           <MessagesSquare className="w-3 h-3" />
           Session
         </button>
       )}
-      <ProjectViewMenu tabs={tabs} active={tab} onTab={setTab} counts={{ tasks: openTasks }} shortId={project.short_id} />
+      <ProjectViewMenu
+        tabs={tabs}
+        active={tab}
+        onTab={setTab}
+        counts={{ tasks: openTasks }}
+        shortId={project.short_id}
+      />
       <ProjectPinButton projectId={project._id} title={project.title} />
-  </>);
-  const actions = <>{verbs}{share}</>;
-  const glyph = <span className={cn("w-2 h-2 rotate-45 rounded-[2px] flex-shrink-0", projectDotClass(project))} data-project-glyph />;
-
+    </>
+  );
+  const actions = (
+    <>
+      {verbs}
+      {share}
+    </>
+  );
+  const glyph = (
+    <span
+      className={cn(
+        "w-2 h-2 rotate-45 rounded-[2px] flex-shrink-0",
+        projectDotClass(project),
+      )}
+      data-project-glyph
+    />
+  );
 
   return (
-    <div className="h-full flex flex-col" data-project-page={project._id} data-scope-tab-active={tab}>
+    <div
+      className="h-full flex flex-col"
+      data-project-page={project._id}
+      data-scope-tab-active={tab}
+    >
       <PageHeader
         legacy={
           <IntentHeader
@@ -228,7 +361,11 @@ function ProjectDetailContent() {
             titleData={{ "data-project-title": "" }}
             // The session view is the session: the id and the other facts wait
             // on the other views, and the row stays one line at any width.
-            idChip={project.short_id && tab !== "sessions" ? <IntentIdChip id={project.short_id} /> : null}
+            idChip={
+              project.short_id && tab !== "sessions" ? (
+                <IntentIdChip id={project.short_id} />
+              ) : null
+            }
             phone={phone}
             dense={tab === "sessions"}
             chipsBelow={tab !== "sessions"}
@@ -245,27 +382,50 @@ function ProjectDetailContent() {
         // The arrow alone: the crumbs already name the place, its tooltip names where back goes.
         back={taskRef ? false : <BackControl compact divider />}
         // Projects ›, never the project twice while a task inside it is open.
-        crumbs={<PlaceCrumbs crumbs={[{ label: "Projects", href: "/projects" }]} trailing={false} />}
+        crumbs={
+          <PlaceCrumbs
+            crumbs={[{ label: "Projects", href: "/projects" }]}
+            trailing={false}
+          />
+        }
         // On the session the status and lead sit beside the name, one row; the
         // id is in the views menu. The other views add the id, the deadline
         // and the goals it serves on a row of their own.
-        status={tab === "sessions" ? <div className="flex items-center gap-2 text-meta">{chips}</div> : project.short_id ? <IntentIdChip id={project.short_id} /> : null}
+        status={
+          tab === "sessions" ? (
+            <div className="flex items-center gap-2 text-meta">{chips}</div>
+          ) : project.short_id ? (
+            <IntentIdChip id={project.short_id} />
+          ) : null
+        }
         actions={verbs}
         share={share}
       >
-        {tab !== "sessions" && <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta">{chips}</div>}
+        {tab !== "sessions" && (
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-meta">
+            {chips}
+          </div>
+        )}
       </PageHeader>
 
       {/* The Line and Expectations tabs read where the project lives, so they
           show from any workspace, under a note that names that workspace. */}
       {foreign && (tab === "flow" || tab === "expectations") ? (
         <div className={body}>
-          <div className="max-w-[78rem] mx-auto px-4 sm:px-6 pt-5"><ForeignWorkspaceNotice foreign={foreign} what="project" readable /></div>
-          {tab === "flow" ? <ProjectLineTab projectId={project._id} /> : <ExpectationsTab projectId={project._id} />}
+          <div className="max-w-[78rem] mx-auto px-4 sm:px-6 pt-5">
+            <ForeignWorkspaceNotice foreign={foreign} what="project" readable />
+          </div>
+          {tab === "flow" ? (
+            <ProjectLineTab projectId={project._id} />
+          ) : (
+            <ExpectationsTab projectId={project._id} />
+          )}
         </div>
       ) : foreign ? (
         <div className={body}>
-          <div className="max-w-[60rem] mx-auto px-4 sm:px-6 py-5"><ForeignWorkspaceNotice foreign={foreign} what="project" /></div>
+          <div className="max-w-[60rem] mx-auto px-4 sm:px-6 py-5">
+            <ForeignWorkspaceNotice foreign={foreign} what="project" />
+          </div>
         </div>
       ) : tab === "sessions" ? (
         <ProjectSession project={project} onOpenAbout={() => setTab("about")} />
@@ -307,19 +467,40 @@ function ProjectDetailContent() {
 function ProjectStatusIcon({ status }: { status: string | undefined }) {
   const st = projectStatusOf(status);
   const Icon = st.icon;
-  return <span className="inline-flex" title={`${st.label}. Click to change`}><Icon className={cn("w-3.5 h-3.5", st.color)} /></span>;
+  return (
+    <span className="inline-flex" title={`${st.label}. Click to change`}>
+      <Icon className={cn("w-3.5 h-3.5", st.color)} />
+    </span>
+  );
 }
 
 /** The project's views as one menu: the page shows one view at a time, and
  *  the trigger names the one on screen. */
-function ProjectViewMenu({ tabs, active, onTab, counts, shortId }: { tabs: IntentTab<ProjectTab>[]; active: ProjectTab; onTab: (t: ProjectTab) => void; counts?: Partial<Record<ProjectTab, number>>; shortId?: string }) {
+function ProjectViewMenu({
+  tabs,
+  active,
+  onTab,
+  counts,
+  shortId,
+}: {
+  tabs: IntentTab<ProjectTab>[];
+  active: ProjectTab;
+  onTab: (t: ProjectTab) => void;
+  counts?: Partial<Record<ProjectTab, number>>;
+  shortId?: string;
+}) {
   const current = tabs.find((t) => t.key === active) ?? tabs[0];
   // On the session, the trigger is the way to everything else.
   const Icon = active === "sessions" ? LayoutGrid : current.icon;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" title="Tasks, timeline, about and the project's other views" className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt/60 transition-colors" data-project-view={active}>
+        <button
+          type="button"
+          title="Tasks, timeline, about and the project's other views"
+          className="inline-flex items-center gap-1 h-6 px-2 rounded-md text-meta text-sol-text-dim hover:text-sol-text hover:bg-sol-bg-alt/60 transition-colors"
+          data-project-view={active}
+        >
           {Icon && <Icon className="w-3 h-3" />}
           {/* On the session the menu says only that there are other views. */}
           {active !== "sessions" && current.label}
@@ -330,25 +511,41 @@ function ProjectViewMenu({ tabs, active, onTab, counts, shortId }: { tabs: Inten
         {tabs.map((t) => {
           const TIcon = t.icon;
           return (
-            <DropdownMenuItem key={t.key} onSelect={() => onTab(t.key)} className={cn("gap-2 text-xs", t.key === active && "text-sol-cyan")}>
+            <DropdownMenuItem
+              key={t.key}
+              onSelect={() => onTab(t.key)}
+              className={cn(
+                "gap-2 text-xs",
+                t.key === active && "text-sol-cyan",
+              )}
+            >
               {TIcon && <TIcon className="w-3.5 h-3.5" />}
               {t.label}
-              {!!counts?.[t.key] && <span className="ml-auto pl-3 font-mono tabular-nums text-sol-text-dim">{counts[t.key]}</span>}
+              {!!counts?.[t.key] && (
+                <span className="ml-auto pl-3 font-mono tabular-nums text-sol-text-dim">
+                  {counts[t.key]}
+                </span>
+              )}
             </DropdownMenuItem>
           );
         })}
         {/* The id people and agents quote, which the session view's header leaves out. */}
-        {shortId && <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => { void navigator.clipboard?.writeText(shortId); toast.success(`Copied ${shortId}`); }}
-            className="gap-2 text-xs font-mono text-sol-text-dim"
-            title="Copy the project's id"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            {shortId}
-          </DropdownMenuItem>
-        </>}
+        {shortId && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => {
+                void navigator.clipboard?.writeText(shortId);
+                toast.success(`Copied ${shortId}`);
+              }}
+              className="gap-2 text-xs font-mono text-sol-text-dim"
+              title="Copy the project's id"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {shortId}
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -373,7 +570,11 @@ export default function ProjectDetailPage() {
           {taskId ? (
             <ErrorBoundary name="ProjectTaskDetail" level="panel">
               <TaskHrefProvider place={taskPlace}>
-                <TaskDetailContent taskId={taskId} variant="page" closeHref={`/projects/${projectId}`} />
+                <TaskDetailContent
+                  taskId={taskId}
+                  variant="page"
+                  closeHref={`/projects/${projectId}`}
+                />
               </TaskHrefProvider>
             </ErrorBoundary>
           ) : null}

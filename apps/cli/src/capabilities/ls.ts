@@ -30,7 +30,11 @@ export function filterEntries(
     for (const entry of parseEntries(row).items) {
       if (filters.kind && entry.kind !== filters.kind) continue;
       if (filters.scope && (entry.scope ?? "user") !== filters.scope) continue;
-      if (q && !`${entry.name} ${entry.description ?? ""}`.toLowerCase().includes(q)) continue;
+      if (
+        q &&
+        !`${entry.name} ${entry.description ?? ""}`.toLowerCase().includes(q)
+      )
+        continue;
       out.push({ entry, row });
     }
   }
@@ -43,41 +47,61 @@ export function registerCapLs(cap: Command, deps: PublishDeps): void {
     .alias("list")
     .description("List capabilities across your machines")
     .option("-q, --query <text>", "Filter by name or description")
-    .option("--kind <kind>", "skill | command | subagent | plugin | mcp | hook | snippet")
+    .option(
+      "--kind <kind>",
+      "skill | command | subagent | plugin | mcp | hook | snippet",
+    )
     .option("--scope <scope>", "user | project | local")
     .option("--client <client>", "claude | codex | cursor | …")
     .option("--json", "Machine-readable output")
-    .action(async (opts: { query?: string; kind?: string; scope?: string; client?: string; json?: boolean }) => {
-      const rows: DeviceStateRow[] = await apiPost(deps, "/cli/cap/status", {}, { read: true });
-      const hits = filterEntries(rows, {
-        q: opts.query,
-        kind: opts.kind,
-        scope: opts.scope,
-        client: opts.client,
-      });
-      if (opts.json) {
-        // The full parsed shape when unfiltered; the filtered subset otherwise.
-        console.log(
-          JSON.stringify(
-            opts.query || opts.kind || opts.scope || opts.client
-              ? hits.map(({ entry, row }) => ({ device_id: row.device_id, client: row.client, ...entry }))
-              : jsonShape(rows),
-            null,
-            2,
-          ),
+    .action(
+      async (opts: {
+        query?: string;
+        kind?: string;
+        scope?: string;
+        client?: string;
+        json?: boolean;
+      }) => {
+        const rows: DeviceStateRow[] = await apiPost(
+          deps,
+          "/cli/cap/status",
+          {},
+          { read: true },
         );
-        return;
-      }
-      if (hits.length === 0) {
-        console.log(
-          rows.length === 0
-            ? "No machine has reported yet — run `cast cap status` for what to check."
-            : "Nothing matches those filters.",
-        );
-        return;
-      }
-      for (const { entry, row } of hits) {
-        console.log(formatCapabilityRow(entry, row.device_id));
-      }
-    });
+        const hits = filterEntries(rows, {
+          q: opts.query,
+          kind: opts.kind,
+          scope: opts.scope,
+          client: opts.client,
+        });
+        if (opts.json) {
+          // The full parsed shape when unfiltered; the filtered subset otherwise.
+          console.log(
+            JSON.stringify(
+              opts.query || opts.kind || opts.scope || opts.client
+                ? hits.map(({ entry, row }) => ({
+                    device_id: row.device_id,
+                    client: row.client,
+                    ...entry,
+                  }))
+                : jsonShape(rows),
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+        if (hits.length === 0) {
+          console.log(
+            rows.length === 0
+              ? "No machine has reported yet — run `cast cap status` for what to check."
+              : "Nothing matches those filters.",
+          );
+          return;
+        }
+        for (const { entry, row } of hits) {
+          console.log(formatCapabilityRow(entry, row.device_id));
+        }
+      },
+    );
 }

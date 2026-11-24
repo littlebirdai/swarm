@@ -18,24 +18,40 @@ describe("cliFetch", () => {
       return new Response("ok", { status: 200 });
     }) as unknown as typeof fetch;
 
-    const res = await cliFetch("https://x/cli/read", { method: "POST" }, { retries: 2 });
+    const res = await cliFetch(
+      "https://x/cli/read",
+      { method: "POST" },
+      { retries: 2 },
+    );
     expect(res.status).toBe(200);
     expect(calls).toBe(1);
   });
 
   test("a lost write race is sent again even for a create, since nothing was applied; another error is not", async () => {
-    const conflict = JSON.stringify({ error: 'Documents read from or written to the "sync_heads" table changed while this mutation was being run and on every subsequent retry' });
+    const conflict = JSON.stringify({
+      error:
+        'Documents read from or written to the "sync_heads" table changed while this mutation was being run and on every subsequent retry',
+    });
     let calls = 0;
     globalThis.fetch = (async () => {
       calls++;
-      return calls < 3 ? new Response(conflict, { status: 500 }) : new Response("{}", { status: 200 });
+      return calls < 3
+        ? new Response(conflict, { status: 500 })
+        : new Response("{}", { status: 200 });
     }) as unknown as typeof fetch;
     const res = await cliFetch("https://x/cli/spawn", { method: "POST" });
     expect([res.status, calls]).toEqual([200, 3]);
 
     calls = 0;
-    globalThis.fetch = (async () => { calls++; return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 500 }); }) as unknown as typeof fetch;
-    expect((await cliFetch("https://x/cli/spawn", { method: "POST" })).status).toBe(500);
+    globalThis.fetch = (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 500,
+      });
+    }) as unknown as typeof fetch;
+    expect(
+      (await cliFetch("https://x/cli/spawn", { method: "POST" })).status,
+    ).toBe(500);
     expect(calls).toBe(1);
   }, 30_000);
 
@@ -46,7 +62,9 @@ describe("cliFetch", () => {
       throw timeoutError();
     }) as unknown as typeof fetch;
 
-    await expect(cliFetch("https://x/cli/work/create", { method: "POST" })).rejects.toThrow(/timed out/);
+    await expect(
+      cliFetch("https://x/cli/work/create", { method: "POST" }),
+    ).rejects.toThrow(/timed out/);
     expect(calls).toBe(1);
   });
 
@@ -76,7 +94,11 @@ describe("cliFetch", () => {
       return new Response("boom", { status: 503 });
     }) as unknown as typeof fetch;
 
-    const res = await cliFetch("https://x/cli/search", { method: "POST" }, { retries: 1 });
+    const res = await cliFetch(
+      "https://x/cli/search",
+      { method: "POST" },
+      { retries: 1 },
+    );
     expect(res.status).toBe(503);
     expect(calls).toBe(2); // initial + 1 retry, then gives up and returns it
   });
@@ -88,7 +110,11 @@ describe("cliFetch", () => {
       return new Response("nope", { status: 401 });
     }) as unknown as typeof fetch;
 
-    const res = await cliFetch("https://x/cli/work/list", { method: "POST" }, { retries: 3 });
+    const res = await cliFetch(
+      "https://x/cli/work/list",
+      { method: "POST" },
+      { retries: 3 },
+    );
     expect(res.status).toBe(401);
     expect(calls).toBe(1);
   });
@@ -112,7 +138,11 @@ describe("cliFetch", () => {
     }) as unknown as typeof fetch;
 
     await expect(
-      cliFetch("https://x/cli/tree", { method: "POST" }, { retries: 1, timeoutMs: 1234 }),
+      cliFetch(
+        "https://x/cli/tree",
+        { method: "POST" },
+        { retries: 1, timeoutMs: 1234 },
+      ),
     ).rejects.toThrow(/timed out after 1234ms/);
   });
 });
@@ -132,18 +162,34 @@ describe("cliSearchRequest", () => {
 
   test("returns the primary result untouched on success", async () => {
     const bodies = mockSearch(() =>
-      Response.json({ total_matches: 3, conversations: [{ id: "a" }] }));
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "q" });
+      Response.json({ total_matches: 3, conversations: [{ id: "a" }] }),
+    );
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "q",
+    });
     expect(result.total_matches).toBe(3);
     expect(result.content_search_error).toBeUndefined();
     expect(bodies.every((b) => !b.titles_only)).toBe(true);
   });
 
   test("falls back to titles_only when the backend dies on the content search", async () => {
-    mockSearch((body) => body.titles_only
-      ? Response.json({ total_matches: 0, conversations: [{ id: "a", title_match: true }], titles_only: true })
-      : Response.json({ error: "Internal error", details: "request timed out" }, { status: 500 }));
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "green" });
+    mockSearch((body) =>
+      body.titles_only
+        ? Response.json({
+            total_matches: 0,
+            conversations: [{ id: "a", title_match: true }],
+            titles_only: true,
+          })
+        : Response.json(
+            { error: "Internal error", details: "request timed out" },
+            { status: 500 },
+          ),
+    );
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "green",
+    });
     expect(result.titles_only).toBe(true);
     expect(result.conversations).toHaveLength(1);
     expect(result.content_search_error).toBe("request timed out");
@@ -151,39 +197,63 @@ describe("cliSearchRequest", () => {
 
   test("falls back to titles_only on a transport failure", async () => {
     mockSearch((body) => {
-      if (body.titles_only) return Response.json({ conversations: [], titles_only: true });
+      if (body.titles_only)
+        return Response.json({ conversations: [], titles_only: true });
       throw timeoutError();
     });
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "green" });
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "green",
+    });
     expect(result.titles_only).toBe(true);
     expect(result.content_search_error).toMatch(/timed out/);
   });
 
   test("returns the original error when the fallback also fails", async () => {
-    mockSearch(() => Response.json({ error: "Internal error", details: "down" }, { status: 500 }));
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "green" });
+    mockSearch(() =>
+      Response.json(
+        { error: "Internal error", details: "down" },
+        { status: 500 },
+      ),
+    );
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "green",
+    });
     expect(result.error).toBe("Internal error");
     expect(result.titles_only).toBeUndefined();
   });
 
   test("rethrows a transport failure when the fallback also throws", async () => {
-    mockSearch(() => { throw timeoutError(); });
-    await expect(cliSearchRequest("https://x", { api_token: "t", query: "green" }))
-      .rejects.toThrow(/timed out/);
+    mockSearch(() => {
+      throw timeoutError();
+    });
+    await expect(
+      cliSearchRequest("https://x", { api_token: "t", query: "green" }),
+    ).rejects.toThrow(/timed out/);
   });
 
   test("does not fall back on validation/auth errors", async () => {
     const bodies = mockSearch(() =>
-      Response.json({ error: "Unauthorized" }, { status: 401 }));
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "q" });
+      Response.json({ error: "Unauthorized" }, { status: 401 }),
+    );
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "q",
+    });
     expect(result.error).toBe("Unauthorized");
     expect(bodies).toHaveLength(1);
   });
 
   test("does not fall back again when the caller already asked for titles_only", async () => {
     const bodies = mockSearch(() =>
-      Response.json({ error: "Internal error" }, { status: 500 }));
-    const result = await cliSearchRequest("https://x", { api_token: "t", query: "q", titles_only: true });
+      Response.json({ error: "Internal error" }, { status: 500 }),
+    );
+    const result = await cliSearchRequest("https://x", {
+      api_token: "t",
+      query: "q",
+      titles_only: true,
+    });
     expect(result.error).toBe("Internal error");
     expect(bodies.every((b) => b.titles_only)).toBe(true);
   });
@@ -195,9 +265,13 @@ describe("a slow backend", () => {
     expect(WAIT_NOTE_MS).toBeLessThanOrEqual(15_000);
     const writes: string[] = [];
     const realWrite = process.stderr.write.bind(process.stderr);
-    process.stderr.write = ((chunk: string) => (writes.push(String(chunk)), true)) as typeof process.stderr.write;
+    process.stderr.write = ((chunk: string) => (
+      writes.push(String(chunk)),
+      true
+    )) as typeof process.stderr.write;
     try {
-      globalThis.fetch = (async () => new Response("{}")) as unknown as typeof fetch;
+      globalThis.fetch = (async () =>
+        new Response("{}")) as unknown as typeof fetch;
       await cliFetch("https://x/cli/read", { method: "POST" });
       expect(writes.join("")).not.toContain("waiting on the codecast backend");
     } finally {
@@ -213,9 +287,15 @@ describe("nonJsonError", () => {
     expect(m).toContain("not answering (HTTP 502");
     expect(m).toContain("nothing was saved");
     expect(m).toContain("Retry in a minute");
-    expect(nonJsonError("/cli/x", 504, "<html>Gateway Timeout</html>")).toContain("read it back");
-    expect(nonJsonError("/cli/x", 504, "", { read: true })).not.toContain("read it back");
-    expect(nonJsonError("/cli/x", 500, "<html><body>boom</body></html>")).toBe("API error (500): boom. Retry in a minute.");
+    expect(
+      nonJsonError("/cli/x", 504, "<html>Gateway Timeout</html>"),
+    ).toContain("read it back");
+    expect(nonJsonError("/cli/x", 504, "", { read: true })).not.toContain(
+      "read it back",
+    );
+    expect(nonJsonError("/cli/x", 500, "<html><body>boom</body></html>")).toBe(
+      "API error (500): boom. Retry in a minute.",
+    );
     expect(nonJsonError("/cli/x", 404, "<html>")).toContain("no /cli/x route");
   });
 });

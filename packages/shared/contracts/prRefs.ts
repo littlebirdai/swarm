@@ -31,8 +31,14 @@ const REPO_ONLY = new RegExp(`^${NAME}/${NAME}$`);
  * here and one spelling wins. A surface that shows the name may keep whatever
  * case it was handed; the indexed field is always this form.
  */
-export function normalizeRepository<T extends string | undefined | null>(repository: T): T {
-  return (typeof repository === "string" ? repository.trim().toLowerCase() : repository) as T;
+export function normalizeRepository<T extends string | undefined | null>(
+  repository: T,
+): T {
+  return (
+    typeof repository === "string"
+      ? repository.trim().toLowerCase()
+      : repository
+  ) as T;
 }
 
 /**
@@ -40,7 +46,9 @@ export function normalizeRepository<T extends string | undefined | null>(reposit
  * when the value is not one. The spelling every installation lookup, token
  * mint and credential helper accepts.
  */
-export function parseOwnerRepo(value: string | undefined | null): string | null {
+export function parseOwnerRepo(
+  value: string | undefined | null,
+): string | null {
   if (!value) return null;
   const repo = normalizeRepository(value.trim().replace(/\.git$/, ""));
   return /^[a-z0-9._-]+\/[a-z0-9._-]+$/.test(repo) ? repo : null;
@@ -52,7 +60,9 @@ export function repositoryOwner(repository: string): string {
 }
 
 const ref = (repository: string, number?: number): ParsedPrRef =>
-  number == null ? { repository: normalizeRepository(repository) } : { repository: normalizeRepository(repository), number };
+  number == null
+    ? { repository: normalizeRepository(repository) }
+    : { repository: normalizeRepository(repository), number };
 
 /**
  * Read a pull request reference. Returns null when the text names no pull
@@ -64,12 +74,15 @@ export function parsePrRef(raw: string | null | undefined): ParsedPrRef | null {
 
   // A GitHub pull request URL, with any trailing path or fragment:
   // https://github.com/owner/name/pull/12/files#discussion_r1
-  const github = text.match(new RegExp(`github\\.com/(${NAME})/(${NAME})/pulls?/(\\d+)`));
+  const github = text.match(
+    new RegExp(`github\\.com/(${NAME})/(${NAME})/pulls?/(\\d+)`),
+  );
   if (github) return ref(`${github[1]}/${github[2]}`, Number(github[3]));
 
   // A codecast PR page: https://codecast.sh/pr/owner/name/12
   const codecast = text.match(new RegExp(`/pr/(${NAME})/(${NAME})/(\\d+)`));
-  if (codecast) return ref(`${codecast[1]}/${codecast[2]}`, Number(codecast[3]));
+  if (codecast)
+    return ref(`${codecast[1]}/${codecast[2]}`, Number(codecast[3]));
 
   // owner/name#12, and the slash form people also type.
   const pair = text.match(new RegExp(`^(${NAME}/${NAME})(?:#|/)(\\d+)$`));
@@ -91,8 +104,13 @@ export function parsePrRef(raw: string | null | undefined): ParsedPrRef | null {
  * the https remote, and the ssh:// URL. The answer is the canonical spelling,
  * whatever case the remote was cloned with.
  */
-export function extractRepoFromRemoteUrl(remoteUrl: string | null | undefined): string | null {
-  const url = (remoteUrl ?? "").trim().replace(/\/+$/, "").replace(/\.git$/, "");
+export function extractRepoFromRemoteUrl(
+  remoteUrl: string | null | undefined,
+): string | null {
+  const url = (remoteUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\.git$/, "");
   if (!url) return null;
   const match = url.match(new RegExp(`github\\.com[:/](${NAME})/(${NAME})$`));
   return match ? normalizeRepository(`${match[1]}/${match[2]}`) : null;
@@ -104,7 +122,11 @@ export function codecastPrPath(repository: string, number: number): string {
 }
 
 /** The full codecast page URL for a pull request. */
-export function codecastPrUrl(repository: string, number: number, origin = "https://codecast.sh"): string {
+export function codecastPrUrl(
+  repository: string,
+  number: number,
+  origin = "https://codecast.sh",
+): string {
   return `${origin.replace(/\/+$/, "")}${codecastPrPath(repository, number)}`;
 }
 
@@ -124,7 +146,10 @@ export type CheckOutcome = "passed" | "failed" | "pending" | "skipped";
 
 /** A check run reports `status` while it runs and `conclusion` once it ends.
  *  GitHub also reports commit statuses, whose state lands in `status`. */
-export function checkOutcome(check: { status: string; conclusion?: string | null }): CheckOutcome {
+export function checkOutcome(check: {
+  status: string;
+  conclusion?: string | null;
+}): CheckOutcome {
   const conclusion = (check.conclusion ?? "").toLowerCase();
   const status = (check.status ?? "").toLowerCase();
   if (conclusion) {
@@ -159,12 +184,18 @@ export type ShepherdPrState = {
 export function foldShepherdState(pr: ShepherdPrState): string {
   if (pr.state === "merged") return "merged";
   if (pr.state === "closed") return "closed";
-  if (pr.mergeable === false || pr.mergeable_state === "dirty") return "conflicts";
-  if ((pr.behind_by ?? 0) > 0 || pr.mergeable_state === "behind") return "behind";
+  if (pr.mergeable === false || pr.mergeable_state === "dirty")
+    return "conflicts";
+  if ((pr.behind_by ?? 0) > 0 || pr.mergeable_state === "behind")
+    return "behind";
   if (pr.checks_state === "failure") return "ci_red";
   if (pr.review_decision === "changes_requested") return "changes_requested";
   if (pr.checks_state === "pending") return "ci_pending";
-  if (!pr.review_decision || pr.review_decision === "none" || pr.review_decision === "review_required") {
+  if (
+    !pr.review_decision ||
+    pr.review_decision === "none" ||
+    pr.review_decision === "review_required"
+  ) {
     return "review_pending";
   }
   if (pr.review_decision === "approved") return "approved";

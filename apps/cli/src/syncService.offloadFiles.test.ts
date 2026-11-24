@@ -7,7 +7,11 @@ import { MAX_USER_FILE_SIZE } from "@codecast/shared/files";
 import type { SyncFile } from "./userFiles.js";
 
 function makeService(): SyncService {
-  return new SyncService({ convexUrl: "http://localhost:0", userId: "u", authToken: "t" });
+  return new SyncService({
+    convexUrl: "http://localhost:0",
+    userId: "u",
+    authToken: "t",
+  });
 }
 
 // One message carrying these files, in the exact shape offloadFiles takes, so
@@ -27,9 +31,20 @@ describe("SyncService.offloadFiles", () => {
     await writeFile(path, "%PDF-1.4 body");
     const sync = makeService();
     let uploadedType = "";
-    (sync as any).uploadBytes = async (_bytes: Uint8Array, mediaType: string) => { uploadedType = mediaType; return "sid-1"; };
+    (sync as any).uploadBytes = async (
+      _bytes: Uint8Array,
+      mediaType: string,
+    ) => {
+      uploadedType = mediaType;
+      return "sid-1";
+    };
 
-    const messages = batch({ localPath: path, name: "report.pdf", toolUseId: "t1", caption: "sign page 2" });
+    const messages = batch({
+      localPath: path,
+      name: "report.pdf",
+      toolUseId: "t1",
+      caption: "sign page 2",
+    });
     await sync.offloadFiles(messages);
 
     expect(uploadedType).toBe("application/pdf");
@@ -53,13 +68,23 @@ describe("SyncService.offloadFiles", () => {
     await truncate(path, MAX_USER_FILE_SIZE + 1);
     const sync = makeService();
     let uploads = 0;
-    (sync as any).uploadBytes = async () => { uploads++; return "sid"; };
+    (sync as any).uploadBytes = async () => {
+      uploads++;
+      return "sid";
+    };
 
-    const messages = batch({ localPath: path, name: "huge.bin", toolUseId: "t1" });
+    const messages = batch({
+      localPath: path,
+      name: "huge.bin",
+      toolUseId: "t1",
+    });
     await sync.offloadFiles(messages);
 
     expect(uploads).toBe(0);
-    expect(messages[0].files[0]).toMatchObject({ error: "too_large", size: MAX_USER_FILE_SIZE + 1 });
+    expect(messages[0].files[0]).toMatchObject({
+      error: "too_large",
+      size: MAX_USER_FILE_SIZE + 1,
+    });
     expect(messages[0].files[0].storageId).toBeUndefined();
     await rm(dir, { recursive: true, force: true });
   });
@@ -67,9 +92,16 @@ describe("SyncService.offloadFiles", () => {
   it("keeps a file that has gone away", async () => {
     const sync = makeService();
     (sync as any).uploadBytes = async () => "sid";
-    const messages = batch({ localPath: "/nope/gone.docx", name: "gone.docx", toolUseId: "t1" });
+    const messages = batch({
+      localPath: "/nope/gone.docx",
+      name: "gone.docx",
+      toolUseId: "t1",
+    });
     await sync.offloadFiles(messages);
-    expect(messages[0].files[0]).toMatchObject({ error: "missing", mediaType: expect.stringContaining("wordprocessingml") });
+    expect(messages[0].files[0]).toMatchObject({
+      error: "missing",
+      mediaType: expect.stringContaining("wordprocessingml"),
+    });
   });
 
   it("records a failed upload rather than dropping the file", async () => {
@@ -78,7 +110,11 @@ describe("SyncService.offloadFiles", () => {
     await writeFile(path, "hello");
     const sync = makeService();
     (sync as any).uploadBytes = async () => null;
-    const messages = batch({ localPath: path, name: "notes.txt", toolUseId: "t1" });
+    const messages = batch({
+      localPath: path,
+      name: "notes.txt",
+      toolUseId: "t1",
+    });
     await sync.offloadFiles(messages);
     expect(messages[0].files[0]).toMatchObject({ error: "upload_failed" });
     await rm(dir, { recursive: true, force: true });
@@ -90,7 +126,10 @@ describe("SyncService.offloadFiles", () => {
     await writeFile(path, "# plan");
     const sync = makeService();
     let uploads = 0;
-    (sync as any).uploadBytes = async () => { uploads++; return `sid-${uploads}`; };
+    (sync as any).uploadBytes = async () => {
+      uploads++;
+      return `sid-${uploads}`;
+    };
 
     const first = batch({ localPath: path, name: "plan.md", toolUseId: "t1" });
     const second = batch({ localPath: path, name: "plan.md", toolUseId: "t1" });
@@ -105,8 +144,16 @@ describe("SyncService.offloadFiles", () => {
   it("leaves an already-uploaded file alone", async () => {
     const sync = makeService();
     let uploads = 0;
-    (sync as any).uploadBytes = async () => { uploads++; return "sid"; };
-    const messages = batch({ name: "a.pdf", mediaType: "application/pdf", storageId: "sid-old", toolUseId: "t1" });
+    (sync as any).uploadBytes = async () => {
+      uploads++;
+      return "sid";
+    };
+    const messages = batch({
+      name: "a.pdf",
+      mediaType: "application/pdf",
+      storageId: "sid-old",
+      toolUseId: "t1",
+    });
     await sync.offloadFiles(messages);
     expect(uploads).toBe(0);
     expect(messages[0].files[0].storageId).toBe("sid-old");

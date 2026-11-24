@@ -87,7 +87,10 @@ export type TaskDiff = {
  * refines `started` into in_review — that is how Linear teams express the
  * review column, since Linear has no separate state type for it.
  */
-export function linearStatusFor(stateType?: string, stateName?: string): string {
+export function linearStatusFor(
+  stateType?: string,
+  stateName?: string,
+): string {
   switch (stateType) {
     case "triage":
     case "backlog":
@@ -112,7 +115,8 @@ export function linearStatusFor(stateType?: string, stateName?: string): string 
 const LINEAR_PRIORITY_WORDS = ["none", "urgent", "high", "medium", "low"];
 
 export function linearPriorityWord(priority: unknown): string | undefined {
-  if (typeof priority !== "number" || !Number.isInteger(priority)) return undefined;
+  if (typeof priority !== "number" || !Number.isInteger(priority))
+    return undefined;
   return LINEAR_PRIORITY_WORDS[priority];
 }
 
@@ -123,7 +127,11 @@ export function linearPriorityFor(priority: string | undefined): number {
 }
 
 function labelNames(raw: any): string[] {
-  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.nodes) ? raw.nodes : [];
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.nodes)
+      ? raw.nodes
+      : [];
   const names: string[] = [];
   for (const l of list) {
     const name = typeof l === "string" ? l : l?.name;
@@ -152,9 +160,13 @@ export function normalizeLinearIssue(
 ): NormalizedIssue {
   const now = opts.now ?? Date.now();
   const teamKey: string | undefined = data?.team?.key;
-  const number: number | undefined = typeof data?.number === "number" ? data.number : undefined;
+  const number: number | undefined =
+    typeof data?.number === "number" ? data.number : undefined;
   const identifier: string =
-    data?.identifier || (teamKey && number != null ? `${teamKey}-${number}` : String(data?.id ?? ""));
+    data?.identifier ||
+    (teamKey && number != null
+      ? `${teamKey}-${number}`
+      : String(data?.id ?? ""));
   const assignee = data?.assignee;
   return {
     provider: "linear",
@@ -210,15 +222,24 @@ export function normalizeLinearComment(
 /* ---------------- GitHub (S2) ---------------- */
 
 /** GitHub has one closed state and a reason; not_planned is our dropped. */
-export function githubStatusFor(state?: string, stateReason?: string | null): string {
-  if (state === "closed") return stateReason === "not_planned" ? "dropped" : "done";
+export function githubStatusFor(
+  state?: string,
+  stateReason?: string | null,
+): string {
+  if (state === "closed")
+    return stateReason === "not_planned" ? "dropped" : "done";
   return "open";
 }
 
 /** Our category -> the GitHub issue state write. */
-export function githubStateFor(category: string): { state: string; state_reason?: string } {
-  if (category === "done") return { state: "closed", state_reason: "completed" };
-  if (category === "dropped") return { state: "closed", state_reason: "not_planned" };
+export function githubStateFor(category: string): {
+  state: string;
+  state_reason?: string;
+} {
+  if (category === "done")
+    return { state: "closed", state_reason: "completed" };
+  if (category === "dropped")
+    return { state: "closed", state_reason: "not_planned" };
   return { state: "open", state_reason: "reopened" };
 }
 
@@ -245,7 +266,9 @@ export function normalizeGithubIssue(
     assignee_label: assignee?.login,
     labels: labelNames(issue?.labels),
     remote_updated_at: ts(issue?.updated_at, now),
-    remote_created_at: issue?.created_at ? ts(issue.created_at, now) : undefined,
+    remote_created_at: issue?.created_at
+      ? ts(issue.created_at, now)
+      : undefined,
     actor: opts.actor,
     deleted: opts.deleted || undefined,
   };
@@ -273,7 +296,10 @@ export function normalizeGithubComment(
 
 /* ---------------- Conflict policy (S3) ---------------- */
 
-function sameLabelSet(a: string[] | undefined, b: string[] | undefined): boolean {
+function sameLabelSet(
+  a: string[] | undefined,
+  b: string[] | undefined,
+): boolean {
   const left = [...new Set(a ?? [])].sort();
   const right = [...new Set(b ?? [])].sort();
   return left.length === right.length && left.every((v, i) => v === right[i]);
@@ -291,7 +317,11 @@ export type DiffableTask = {
 
 /** Does the provider show anyone on the issue at all? */
 export function issueHasAssignee(issue: NormalizedIssue): boolean {
-  return !!(issue.assignee_email || issue.assignee_login || issue.assignee_label);
+  return !!(
+    issue.assignee_email ||
+    issue.assignee_login ||
+    issue.assignee_label
+  );
 }
 
 /**
@@ -317,20 +347,23 @@ export function diffAgainstTask(
   resolved: { assignee?: string } = {},
 ): TaskDiff {
   const fieldTs = task.external?.field_ts ?? {};
-  const fresh = (field: SyncedTaskField) => issue.remote_updated_at >= (fieldTs[field] ?? 0);
+  const fresh = (field: SyncedTaskField) =>
+    issue.remote_updated_at >= (fieldTs[field] ?? 0);
   const out: TaskDiff = {};
 
-  if (issue.title && issue.title !== task.title && fresh("title")) out.title = issue.title;
+  if (issue.title && issue.title !== task.title && fresh("title"))
+    out.title = issue.title;
 
   if (
-    issue.description !== undefined
-    && issue.description !== (task.description ?? "")
-    && fresh("description")
+    issue.description !== undefined &&
+    issue.description !== (task.description ?? "") &&
+    fresh("description")
   ) {
     out.description = issue.description;
   }
 
-  if (issue.status && issue.status !== task.status && fresh("status")) out.status = issue.status;
+  if (issue.status && issue.status !== task.status && fresh("status"))
+    out.status = issue.status;
 
   if (issue.priority && issue.priority !== task.priority && fresh("priority")) {
     out.priority = issue.priority;
@@ -338,19 +371,24 @@ export function diffAgainstTask(
 
   // Only a mapped provider user moves the assignee. An unmapped one is
   // recorded as external.assignee_label by the caller instead.
-  if (resolved.assignee && resolved.assignee !== task.assignee && fresh("assignee")) {
+  if (
+    resolved.assignee &&
+    resolved.assignee !== task.assignee &&
+    fresh("assignee")
+  ) {
     out.assignee = resolved.assignee;
   } else if (
-    !issueHasAssignee(issue)
-    && task.external?.assignee_label
-    && task.assignee
-    && !task.assignee.startsWith("agent:")
-    && fresh("assignee")
+    !issueHasAssignee(issue) &&
+    task.external?.assignee_label &&
+    task.assignee &&
+    !task.assignee.startsWith("agent:") &&
+    fresh("assignee")
   ) {
     out.assignee = null;
   }
 
-  if (!sameLabelSet(issue.labels, task.labels) && fresh("labels")) out.labels = issue.labels;
+  if (!sameLabelSet(issue.labels, task.labels) && fresh("labels"))
+    out.labels = issue.labels;
 
   return out;
 }
@@ -360,11 +398,17 @@ export function diffAgainstTask(
  * reconcile pull or an import sees only the diff it applied. Empty diff, no
  * kind — a pull that moved nothing is not an event.
  */
-export function kindFromDiff(diff: TaskDiff, created: boolean, status?: string): string | undefined {
+export function kindFromDiff(
+  diff: TaskDiff,
+  created: boolean,
+  status?: string,
+): string | undefined {
   if (created) return "issue_opened";
   if (Object.keys(diff).length === 0) return undefined;
   if (diff.status !== undefined) {
-    return status === "done" || status === "dropped" ? "issue_closed" : "issue_status";
+    return status === "done" || status === "dropped"
+      ? "issue_closed"
+      : "issue_status";
   }
   if (diff.assignee !== undefined) return "issue_assigned";
   if (diff.labels !== undefined) return "issue_labeled";
@@ -391,13 +435,18 @@ export function linearStateFor(
   statusName?: string,
 ): LinearWorkflowState | undefined {
   if (statusName) {
-    const named = states.find((s) => s.name.toLowerCase() === statusName.toLowerCase());
+    const named = states.find(
+      (s) => s.name.toLowerCase() === statusName.toLowerCase(),
+    );
     if (named) return named;
   }
-  const mapped = states.find((s) => linearStatusFor(s.type, s.name) === category);
+  const mapped = states.find(
+    (s) => linearStatusFor(s.type, s.name) === category,
+  );
   if (mapped) return mapped;
   // in_review with no review-named state: any started state still beats nothing.
   if (category === "in_review") return states.find((s) => s.type === "started");
-  if (category === "backlog") return states.find((s) => s.type === "triage" || s.type === "backlog");
+  if (category === "backlog")
+    return states.find((s) => s.type === "triage" || s.type === "backlog");
   return undefined;
 }

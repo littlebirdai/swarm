@@ -11,10 +11,17 @@
 // given a value, its value is what renders. A write that differs (the first
 // render's text, an uncontrolled box's new default) still goes through.
 // Installed once at boot (src/main.tsx), before any box mounts.
-export function holdTextareaTextNodes(win: { HTMLTextAreaElement: typeof HTMLTextAreaElement } = window): void {
-  const proto = win.HTMLTextAreaElement.prototype as HTMLTextAreaElement & { __textNodeHeld?: true };
+export function holdTextareaTextNodes(
+  win: { HTMLTextAreaElement: typeof HTMLTextAreaElement } = window,
+): void {
+  const proto = win.HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+    __textNodeHeld?: true;
+  };
   if (proto.__textNodeHeld) return;
-  const native = Object.getOwnPropertyDescriptor(win.HTMLTextAreaElement.prototype, "defaultValue");
+  const native = Object.getOwnPropertyDescriptor(
+    win.HTMLTextAreaElement.prototype,
+    "defaultValue",
+  );
   if (!native?.get || !native.set) return;
   const nativeSet = native.set;
   Object.defineProperty(proto, "defaultValue", {

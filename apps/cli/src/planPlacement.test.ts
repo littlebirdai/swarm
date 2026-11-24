@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import { goalTreeLines, newProjectGoalLines, unplacedPlanLines } from "./planPlacement";
+import {
+  goalTreeLines,
+  newProjectGoalLines,
+  unplacedPlanLines,
+} from "./planPlacement";
 
 const c = { cyan: "", dim: "", bold: "", yellow: "", reset: "" };
 const projects = [
@@ -8,9 +12,24 @@ const projects = [
   { _id: "p3", title: "Old thing", short_id: "pj-c", status: "done" },
 ];
 const goals = [
-  { short_id: "in-2", title: "Close deals", status: "active", project_ids: ["p1"] },
-  { short_id: "in-3", title: "Shipped goal", status: "completed", project_ids: ["p2"] },
-  { short_id: "in-4", title: "New market", status: "proposed", project_ids: [] },
+  {
+    short_id: "in-2",
+    title: "Close deals",
+    status: "active",
+    project_ids: ["p1"],
+  },
+  {
+    short_id: "in-3",
+    title: "Shipped goal",
+    status: "completed",
+    project_ids: ["p2"],
+  },
+  {
+    short_id: "in-4",
+    title: "New market",
+    status: "proposed",
+    project_ids: [],
+  },
 ];
 
 test("goals list the projects that carry them; live projects no open goal carries follow", () => {

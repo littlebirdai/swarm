@@ -63,7 +63,8 @@ export function parseAddedLines(diff: string): AddedLines {
     if (line.startsWith("+++ ")) {
       const target = line.slice(4).trim();
       // A deleted file's post-image is /dev/null: nothing was added to it.
-      file = target === "/dev/null" ? null : unquotePath(target).replace(/^b\//, "");
+      file =
+        target === "/dev/null" ? null : unquotePath(target).replace(/^b\//, "");
       continue;
     }
     if (!line.startsWith("@@") || file === null) continue;
@@ -99,7 +100,10 @@ export function isAddedLine(line: number, ranges: LineRange[]): boolean {
  * step around. A checker anchors a finding at the construct's first line; when
  * that line is untouched, the construct predates the change.
  */
-export function selectNewFindings(findings: Finding[], added: AddedLines): Finding[] {
+export function selectNewFindings(
+  findings: Finding[],
+  added: AddedLines,
+): Finding[] {
   return findings.filter((finding) => {
     if (finding.file === null) return true;
     const ranges = added.get(finding.file);
@@ -112,10 +116,15 @@ export function selectNewFindings(findings: Finding[], added: AddedLines): Findi
 // ---------------------------------------------------------------------------
 
 export function parseOxlintFindings(stdout: string): Finding[] {
-  return parseOxlintReport(stdout).diagnostics
-    .map(lintLocation)
+  return parseOxlintReport(stdout)
+    .diagnostics.map(lintLocation)
     .filter(({ severity }) => severity === "error")
-    .map(({ file, line, rule, message }) => ({ file, line, code: rule, message }));
+    .map(({ file, line, rule, message }) => ({
+      file,
+      line,
+      code: rule,
+      message,
+    }));
 }
 
 /** tsc `--pretty false` diagnostics, with paths relative to the repo root. */
@@ -139,7 +148,12 @@ export function parseTscFindings(stdout: string, cwd: string): Finding[] {
     // which point at the build rather than at a line.
     const global = /^error (TS\d+): (.*)$/.exec(raw);
     if (global) {
-      findings.push({ file: null, line: 1, code: global[1]!, message: global[2]! });
+      findings.push({
+        file: null,
+        line: 1,
+        code: global[1]!,
+        message: global[2]!,
+      });
     }
   }
   return findings;
@@ -184,7 +198,9 @@ function runOxlint(files: string[]): Finding[] {
   );
   const stdout = result.stdout.toString();
   if ((result.exitCode !== 0 && result.exitCode !== 1) || !stdout.trim()) {
-    throw new Error(`Oxlint failed (exit ${result.exitCode}):\n${result.stderr}`);
+    throw new Error(
+      `Oxlint failed (exit ${result.exitCode}):\n${result.stderr}`,
+    );
   }
   return parseOxlintFindings(stdout);
 }
@@ -194,11 +210,15 @@ function runTsc(pkg: string, project: string): (files: string[]) => Finding[] {
     const cwd = path.join(REPO_ROOT, pkg);
     // tsc has no per-file mode under a project, so it checks the whole package
     // and the line filter does the rest.
-    const result = spawnSync("bunx", ["tsc", "--noEmit", "--pretty", "false", "-p", project], {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 256 * 1024 * 1024,
-    });
+    const result = spawnSync(
+      "bunx",
+      ["tsc", "--noEmit", "--pretty", "false", "-p", project],
+      {
+        cwd,
+        encoding: "utf8",
+        maxBuffer: 256 * 1024 * 1024,
+      },
+    );
     const stdout = result.stdout ?? "";
     if (result.status !== 0 && !stdout.trim()) {
       throw new Error(
@@ -281,14 +301,22 @@ export function resolveDiffBase(
   env: Record<string, string | undefined>,
   refs: RefResolver = LIVE_REFS,
 ): string | null {
-  for (const candidate of [env.BASE_SHA, env.CHANGED_LINES_BASE, "origin/main", "main"]) {
+  for (const candidate of [
+    env.BASE_SHA,
+    env.CHANGED_LINES_BASE,
+    "origin/main",
+    "main",
+  ]) {
     if (!candidate || !refs.exists(candidate)) continue;
     return refs.mergeBase(candidate, "HEAD");
   }
   if (env.BASE_SHA) {
-    throw new Error(`BASE_SHA ${env.BASE_SHA} is not a commit in this checkout.`);
+    throw new Error(
+      `BASE_SHA ${env.BASE_SHA} is not a commit in this checkout.`,
+    );
   }
-  if (env.GITHUB_EVENT_NAME && env.GITHUB_EVENT_NAME !== "pull_request") return null;
+  if (env.GITHUB_EVENT_NAME && env.GITHUB_EVENT_NAME !== "pull_request")
+    return null;
   throw new Error(
     "No diff base: set BASE_SHA to the pull request base, or fetch origin/main locally.",
   );
@@ -300,10 +328,13 @@ export function resolveDiffBase(
  * and a gate that only saw commits would pass on work it never read.
  */
 export function collectAddedLines(base: string): AddedLines {
-  const tracked = parseAddedLines(git(["diff", "--unified=0", "--no-color", "-M", base, "--"]));
+  const tracked = parseAddedLines(
+    git(["diff", "--unified=0", "--no-color", "-M", base, "--"]),
+  );
   const added: AddedLines = new Map();
   for (const [file, ranges] of tracked) {
-    if (SOURCE_FILE.test(file) && existsSync(path.join(REPO_ROOT, file))) added.set(file, ranges);
+    if (SOURCE_FILE.test(file) && existsSync(path.join(REPO_ROOT, file)))
+      added.set(file, ranges);
   }
   // An untracked file has no diff, so every one of its lines is new.
   const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"])
@@ -313,7 +344,9 @@ export function collectAddedLines(base: string): AddedLines {
     if (!SOURCE_FILE.test(file)) continue;
     const absolute = path.join(REPO_ROOT, file);
     if (!existsSync(absolute)) continue;
-    added.set(file, [{ start: 1, end: readFileSync(absolute, "utf8").split(/\r?\n/).length }]);
+    added.set(file, [
+      { start: 1, end: readFileSync(absolute, "utf8").split(/\r?\n/).length },
+    ]);
   }
   return added;
 }
@@ -323,19 +356,28 @@ export function collectAddedLines(base: string): AddedLines {
 // ---------------------------------------------------------------------------
 
 function annotate(value: string): string {
-  return value.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
+  return value
+    .replaceAll("%", "%25")
+    .replaceAll("\r", "%0D")
+    .replaceAll("\n", "%0A");
 }
 
 function report(check: Check, finding: Finding): void {
   const title = annotate(`${check.label} ${finding.code}`);
-  const where = finding.file === null ? "" : `file=${annotate(finding.file)},line=${finding.line},`;
+  const where =
+    finding.file === null
+      ? ""
+      : `file=${annotate(finding.file)},line=${finding.line},`;
   console.error(`::error ${where}title=${title}::${annotate(finding.message)}`);
   console.error(
     `${finding.file ?? check.label}:${finding.line} ${finding.code}: ${finding.message}`,
   );
 }
 
-export function main(ids: string[], env: Record<string, string | undefined>): number {
+export function main(
+  ids: string[],
+  env: Record<string, string | undefined>,
+): number {
   const unknown = ids.filter((id) => !CHECKS.some((check) => check.id === id));
   if (unknown.length > 0) {
     console.error(
@@ -343,11 +385,16 @@ export function main(ids: string[], env: Record<string, string | undefined>): nu
     );
     return 1;
   }
-  const selected = ids.length === 0 ? CHECKS : CHECKS.filter((check) => ids.includes(check.id));
+  const selected =
+    ids.length === 0
+      ? CHECKS
+      : CHECKS.filter((check) => ids.includes(check.id));
 
   const base = resolveDiffBase(env);
   if (base === null) {
-    console.log(`Changed-lines gate: no pull request base on a ${env.GITHUB_EVENT_NAME} event.`);
+    console.log(
+      `Changed-lines gate: no pull request base on a ${env.GITHUB_EVENT_NAME} event.`,
+    );
     return 0;
   }
   const added = collectAddedLines(base);
@@ -357,7 +404,9 @@ export function main(ids: string[], env: Record<string, string | undefined>): nu
 
   let failures = 0;
   for (const check of selected) {
-    const files = [...added.keys()].filter((file) => file.startsWith(check.scope));
+    const files = [...added.keys()].filter((file) =>
+      file.startsWith(check.scope),
+    );
     if (files.length === 0) {
       console.log(`${check.label}: no changed files.`);
       continue;
@@ -371,7 +420,9 @@ export function main(ids: string[], env: Record<string, string | undefined>): nu
   }
 
   if (failures > 0) {
-    console.error(`Changed-lines gate failed with ${failures} finding(s) since ${base.slice(0, 12)}.`);
+    console.error(
+      `Changed-lines gate failed with ${failures} finding(s) since ${base.slice(0, 12)}.`,
+    );
     return 1;
   }
   console.log(`Changed-lines gate passed since ${base.slice(0, 12)}.`);
@@ -379,5 +430,10 @@ export function main(ids: string[], env: Record<string, string | undefined>): nu
 }
 
 if (import.meta.main) {
-  process.exit(main(process.argv.slice(2).filter((arg) => arg !== "--"), process.env));
+  process.exit(
+    main(
+      process.argv.slice(2).filter((arg) => arg !== "--"),
+      process.env,
+    ),
+  );
 }

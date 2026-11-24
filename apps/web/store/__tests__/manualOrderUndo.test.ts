@@ -11,16 +11,33 @@ const B = "b".repeat(32);
 const C = "c".repeat(32);
 
 function row(id: string, title: string): InboxSession {
-  return { _id: id, session_id: `sess-${id}`, title, updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false } as InboxSession;
+  return {
+    _id: id,
+    session_id: `sess-${id}`,
+    title,
+    updated_at: 1,
+    agent_type: "claude_code",
+    message_count: 1,
+    is_idle: true,
+    has_pending: false,
+  } as InboxSession;
 }
-const stamp = () => (useInboxStore.getState().clientState as any).ui?.["inbox_manual_order:ts"] as number;
-const order = () => (useInboxStore.getState().clientState as any).ui?.inbox_manual_order;
+const stamp = () =>
+  (useInboxStore.getState().clientState as any).ui?.[
+    "inbox_manual_order:ts"
+  ] as number;
+const order = () =>
+  (useInboxStore.getState().clientState as any).ui?.inbox_manual_order;
 
 describe("dragging inbox cards is undoable", () => {
   beforeEach(() => {
     _resetUndoStacks();
     useInboxStore.setState({
-      sessions: { [A]: row(A, "Alpha"), [B]: row(B, "Beta"), [C]: row(C, "Gamma") },
+      sessions: {
+        [A]: row(A, "Alpha"),
+        [B]: row(B, "Beta"),
+        [C]: row(C, "Gamma"),
+      },
       conversations: {},
       pending: {},
       clientState: { ui: { inbox_manual_order: { [C]: 10 } } },

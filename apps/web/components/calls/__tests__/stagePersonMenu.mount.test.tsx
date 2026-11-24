@@ -27,11 +27,25 @@ afterAll(() => {
 });
 
 const track = { attach() {}, detach() {}, on() {}, off() {} } as any;
-const tile = (identity: string, name: string, isLocal = false) => ({ key: `${identity}:camera`, identity, name, kind: "camera", track, isLocal }) as any;
+const tile = (identity: string, name: string, isLocal = false) =>
+  ({
+    key: `${identity}:camera`,
+    identity,
+    name,
+    kind: "camera",
+    track,
+    isLocal,
+  }) as any;
 
 test("right click on an agent's face, a teammate's row or a guest's opens their menu; my own tile does not", async () => {
   const opened: string[] = [];
-  const host = { getRoom: () => null, openPersonMenu: (e: any, p: { identity: string }) => (e.preventDefault(), opened.push(p.identity)) };
+  const host = {
+    getRoom: () => null,
+    openPersonMenu: (e: any, p: { identity: string }) => (
+      e.preventDefault(),
+      opened.push(p.identity)
+    ),
+  };
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -39,7 +53,10 @@ test("right click on an agent's face, a teammate's row or a guest's opens their 
     root.render(
       <StageHostProvider value={host}>
         <GridStage
-          roster={[{ user_id: "u-sam", user_name: "Sam Lee" }, { user_id: "guest:g1", user_name: "Ada Lovelace" }]}
+          roster={[
+            { user_id: "u-sam", user_name: "Sam Lee" },
+            { user_id: "guest:g1", user_name: "Ada Lovelace" },
+          ]}
           cameras={[tile("agent:conv1", "Flicker"), tile("u-me", "Me", true)]}
           screens={[]}
           speaking={new Set()}
@@ -47,11 +64,20 @@ test("right click on an agent's face, a teammate's row or a guest's opens their 
       </StageHostProvider>,
     ),
   );
-  const rightClick = (el: Element) => el.dispatchEvent(new dom.window.MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+  const rightClick = (el: Element) =>
+    el.dispatchEvent(
+      new dom.window.MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
   const videos = container.querySelectorAll("video");
   rightClick(videos[0]);
   rightClick(videos[1]);
-  const named = (text: string) => [...container.querySelectorAll("span")].filter((s) => s.textContent?.includes(text)).pop()!;
+  const named = (text: string) =>
+    [...container.querySelectorAll("span")]
+      .filter((s) => s.textContent?.includes(text))
+      .pop()!;
   rightClick(named("Sam"));
   rightClick(named("Ada"));
   expect(opened).toEqual(["agent:conv1", "u-sam", "guest:g1"]);

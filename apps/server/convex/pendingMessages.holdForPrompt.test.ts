@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { getConversationPendingMessage, applyStuckMessages, DEAD_SESSION_REVIVES_PER_PASS, retryMessage, retryPendingMessageForUser, updateMessageStatus } from "./pendingMessages";
+import {
+  getConversationPendingMessage,
+  applyStuckMessages,
+  DEAD_SESSION_REVIVES_PER_PASS,
+  retryMessage,
+  retryPendingMessageForUser,
+  updateMessageStatus,
+} from "./pendingMessages";
 import { updateAgentStatus } from "./managedSessions";
 import { makeFakeDb } from "./testDb";
 
@@ -15,12 +22,39 @@ const CONVERSATION = "conversations_hold" as any;
 function setup(row: Record<string, unknown> = {}) {
   const db = makeFakeDb({
     users: [{ _id: USER }],
-    conversations: [{ _id: CONVERSATION, user_id: USER, owner_device_id: "device", status: "active", has_pending_messages: true }],
-    managed_sessions: [{ _id: "managed", user_id: USER, conversation_id: CONVERSATION, session_id: "session", agent_status: "idle", agent_status_updated_at: 100, last_heartbeat: 100 }],
-    pending_messages: [{
-      _id: "message", conversation_id: CONVERSATION, from_user_id: USER, owner_user_id: USER,
-      content: "<session-message from=\"jxsrc01\">\nhello\n</session-message>", status: "injected", retry_count: 3, created_at: 1, ...row,
-    }],
+    conversations: [
+      {
+        _id: CONVERSATION,
+        user_id: USER,
+        owner_device_id: "device",
+        status: "active",
+        has_pending_messages: true,
+      },
+    ],
+    managed_sessions: [
+      {
+        _id: "managed",
+        user_id: USER,
+        conversation_id: CONVERSATION,
+        session_id: "session",
+        agent_status: "idle",
+        agent_status_updated_at: 100,
+        last_heartbeat: 100,
+      },
+    ],
+    pending_messages: [
+      {
+        _id: "message",
+        conversation_id: CONVERSATION,
+        from_user_id: USER,
+        owner_user_id: USER,
+        content: '<session-message from="jxsrc01">\nhello\n</session-message>',
+        status: "injected",
+        retry_count: 3,
+        created_at: 1,
+        ...row,
+      },
+    ],
   });
   const ctx = {
     db,
@@ -32,34 +66,66 @@ function setup(row: Record<string, unknown> = {}) {
 
 describe("hold for a human prompt", () => {
   test("a daemon's retry timer never moves a row failed as unconfirmed; a person's retry does", async () => {
-    const f = setup({ status: "failed", delivery_disposition_reason: "unconfirmed", paste_verified_at: 50 });
-    expect(await (retryMessage as any)._handler(f.ctx, { message_id: "message", device_id: "device" })).toMatchObject({ skipped: true });
+    const f = setup({
+      status: "failed",
+      delivery_disposition_reason: "unconfirmed",
+      paste_verified_at: 50,
+    });
+    expect(
+      await (retryMessage as any)._handler(f.ctx, {
+        message_id: "message",
+        device_id: "device",
+      }),
+    ).toMatchObject({ skipped: true });
     expect(f.row().status).toBe("failed");
-    expect(await retryPendingMessageForUser(f.ctx, USER, CONVERSATION, { messageId: "message" })).toBe("pending");
+    expect(
+      await retryPendingMessageForUser(f.ctx, USER, CONVERSATION, {
+        messageId: "message",
+      }),
+    ).toBe("pending");
     expect(f.row().delivery_disposition_reason).toBeUndefined();
   });
 
   test("a hold re-pends without spending a retry and stamps the reason", async () => {
     const f = setup({ paste_verified_at: 50 });
-    await (retryMessage as any)._handler(f.ctx, { message_id: "message", device_id: "device", hold_reason: "waiting for a human answer in the terminal" });
+    await (retryMessage as any)._handler(f.ctx, {
+      message_id: "message",
+      device_id: "device",
+      hold_reason: "waiting for a human answer in the terminal",
+    });
     expect(f.row().status).toBe("pending");
     expect(f.row().retry_count).toBe(3);
-    expect(f.row().delivery_disposition_reason).toBe("waiting for a human answer in the terminal");
+    expect(f.row().delivery_disposition_reason).toBe(
+      "waiting for a human answer in the terminal",
+    );
     expect(f.row().paste_verified_at).toBeUndefined();
   });
 
   test("an ordinary retry still spends one and clears a stale hold reason", async () => {
-    const f = setup({ delivery_disposition_reason: "waiting for a human answer in the terminal" });
-    await (retryMessage as any)._handler(f.ctx, { message_id: "message", device_id: "device" });
+    const f = setup({
+      delivery_disposition_reason: "waiting for a human answer in the terminal",
+    });
+    await (retryMessage as any)._handler(f.ctx, {
+      message_id: "message",
+      device_id: "device",
+    });
     expect(f.row().status).toBe("pending");
     expect(f.row().retry_count).toBe(4);
     expect(f.row().delivery_disposition_reason).toBeUndefined();
   });
 
   test("the sender's card can read the hold reason", async () => {
-    const f = setup({ status: "pending", delivery_disposition_reason: "waiting for a human answer in the terminal" });
-    const status = await (getConversationPendingMessage as any)._handler(f.ctx, { conversation_id: CONVERSATION });
-    expect(status?.hold_reason).toBe("waiting for a human answer in the terminal");
+    const f = setup({
+      status: "pending",
+      delivery_disposition_reason: "waiting for a human answer in the terminal",
+    });
+    const status = await (getConversationPendingMessage as any)._handler(
+      f.ctx,
+      { conversation_id: CONVERSATION },
+    );
+    expect(status?.hold_reason).toBe(
+      "waiting for a human answer in the terminal",
+    );
   });
 
   // jx78gaw (2026-10-10): held for days behind a dialog nobody was shown.
@@ -67,31 +133,60 @@ describe("hold for a human prompt", () => {
   // person's Send anyway drops the hold and marks the row to go past the check.
   test("a hold keeps the screen it was decided on, and the card can read it", async () => {
     const f = setup();
-    await (retryMessage as any)._handler(f.ctx, { message_id: "message", device_id: "device", hold_reason: "waiting for a human answer in the terminal", hold_screen: "❯ 1. Yes\n  2. No" });
+    await (retryMessage as any)._handler(f.ctx, {
+      message_id: "message",
+      device_id: "device",
+      hold_reason: "waiting for a human answer in the terminal",
+      hold_screen: "❯ 1. Yes\n  2. No",
+    });
     expect(f.row().delivery_hold_screen).toBe("❯ 1. Yes\n  2. No");
-    const status = await (getConversationPendingMessage as any)._handler(f.ctx, { conversation_id: CONVERSATION });
+    const status = await (getConversationPendingMessage as any)._handler(
+      f.ctx,
+      { conversation_id: CONVERSATION },
+    );
     expect(status?.hold_screen).toBe("❯ 1. Yes\n  2. No");
   });
 
   test("Send anyway clears the hold and marks the row to go past the dialog check", async () => {
-    const f = setup({ status: "pending", delivery_disposition_reason: "waiting for a human answer in the terminal", delivery_hold_screen: "❯ 1. Yes" });
-    expect(await retryPendingMessageForUser(f.ctx, USER, CONVERSATION, { messageId: "message", force: true })).toBe("pending");
+    const f = setup({
+      status: "pending",
+      delivery_disposition_reason: "waiting for a human answer in the terminal",
+      delivery_hold_screen: "❯ 1. Yes",
+    });
+    expect(
+      await retryPendingMessageForUser(f.ctx, USER, CONVERSATION, {
+        messageId: "message",
+        force: true,
+      }),
+    ).toBe("pending");
     expect(f.row().delivery_force).toBe(true);
     expect(f.row().delivery_disposition_reason).toBeUndefined();
     expect(f.row().delivery_hold_screen).toBeUndefined();
   });
 
   test("a dialog hold is dropped once no daemon serves the session, and kept while one does", async () => {
-    const held = { status: "pending", delivery_disposition_reason: "waiting for a human answer in the terminal", delivery_hold_screen: "❯ 1. Yes" };
+    const held = {
+      status: "pending",
+      delivery_disposition_reason: "waiting for a human answer in the terminal",
+      delivery_hold_screen: "❯ 1. Yes",
+    };
     const live = setup(held);
     await (applyStuckMessages as any)._handler(live.ctx, {
-      ids: [live.row()._id], now: 110, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+      ids: [live.row()._id],
+      now: 110,
+      deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS,
+      allowHostedWake: true,
     });
-    expect(live.row().delivery_disposition_reason).toBe("waiting for a human answer in the terminal");
+    expect(live.row().delivery_disposition_reason).toBe(
+      "waiting for a human answer in the terminal",
+    );
 
     const offline = setup(held);
     await (applyStuckMessages as any)._handler(offline.ctx, {
-      ids: [offline.row()._id], now: 100 + 60 * 60_000, deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS, allowHostedWake: true,
+      ids: [offline.row()._id],
+      now: 100 + 60 * 60_000,
+      deadRevivesRemaining: DEAD_SESSION_REVIVES_PER_PASS,
+      allowHostedWake: true,
     });
     expect(offline.row().status).toBe("pending");
     expect(offline.row().delivery_disposition_reason).toBeUndefined();
@@ -102,23 +197,44 @@ describe("hold for a human prompt", () => {
 describe("paste verification and the status ack", () => {
   test("only a verified injected write stamps paste_verified_at", async () => {
     const f = setup({ status: "pending" });
-    await (updateMessageStatus as any)._handler(f.ctx, { message_id: "message", status: "injected", device_id: "device" });
+    await (updateMessageStatus as any)._handler(f.ctx, {
+      message_id: "message",
+      status: "injected",
+      device_id: "device",
+    });
     expect(f.row().status).toBe("injected");
     expect(f.row().paste_verified_at).toBeUndefined();
-    await (updateMessageStatus as any)._handler(f.ctx, { message_id: "message", status: "injected", device_id: "device", paste_verified: true });
+    await (updateMessageStatus as any)._handler(f.ctx, {
+      message_id: "message",
+      status: "injected",
+      device_id: "device",
+      paste_verified: true,
+    });
     expect(typeof f.row().paste_verified_at).toBe("number");
   });
 
   test("an observed working status leaves a pre-paste mark alone and acks a verified paste", async () => {
     const unverified = setup();
-    await (updateAgentStatus as any)._handler(unverified.ctx, { conversation_id: CONVERSATION, agent_status: "working", client_ts: 200 });
+    await (updateAgentStatus as any)._handler(unverified.ctx, {
+      conversation_id: CONVERSATION,
+      agent_status: "working",
+      client_ts: 200,
+    });
     expect(unverified.row().status).toBe("injected");
-    expect(unverified.db._tables.conversations[0].has_pending_messages).toBe(true);
+    expect(unverified.db._tables.conversations[0].has_pending_messages).toBe(
+      true,
+    );
 
     const verified = setup({ paste_verified_at: 150 });
-    await (updateAgentStatus as any)._handler(verified.ctx, { conversation_id: CONVERSATION, agent_status: "working", client_ts: 200 });
+    await (updateAgentStatus as any)._handler(verified.ctx, {
+      conversation_id: CONVERSATION,
+      agent_status: "working",
+      client_ts: 200,
+    });
     expect(verified.row().status).toBe("delivered");
     expect(typeof verified.row().delivered_at).toBe("number");
-    expect(verified.db._tables.conversations[0].has_pending_messages).toBe(false);
+    expect(verified.db._tables.conversations[0].has_pending_messages).toBe(
+      false,
+    );
   });
 });

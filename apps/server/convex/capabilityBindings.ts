@@ -10,8 +10,6 @@
 // team scopes for anything but a real api_token held by the user — otherwise
 // the consent gate is enforced only inside a CLI process the agent controls.
 
-
-
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./functions";
 import { verifyApiToken } from "./apiTokens";
@@ -37,11 +35,22 @@ export async function recordConsent(
   const existing = await db
     .query("capability_consents")
     .withIndex("by_user_device_slug", (q: any) =>
-      q.eq("user_id", userId).eq("device_id", args.device_id).eq("capability_slug", args.capability_slug),
+      q
+        .eq("user_id", userId)
+        .eq("device_id", args.device_id)
+        .eq("capability_slug", args.capability_slug),
     )
     .collect();
-  const match = existing.find((row) => row.manifest_hash === args.manifest_hash && row.purpose === purpose);
-  if (match) return { status: purpose ? ("already_adopted" as const) : ("already_consented" as const) };
+  const match = existing.find(
+    (row) =>
+      row.manifest_hash === args.manifest_hash && row.purpose === purpose,
+  );
+  if (match)
+    return {
+      status: purpose
+        ? ("already_adopted" as const)
+        : ("already_consented" as const),
+    };
 
   await db.insert("capability_consents", {
     user_id: userId,
@@ -85,7 +94,9 @@ async function consentRowsFor(ctx: any, apiToken: string, deviceId: string) {
   if (!auth) throw new Error("Unauthorized");
   return await capDb(ctx.db)
     .query("capability_consents")
-    .withIndex("by_user_device_slug", (q: any) => q.eq("user_id", auth.userId).eq("device_id", deviceId))
+    .withIndex("by_user_device_slug", (q: any) =>
+      q.eq("user_id", auth.userId).eq("device_id", deviceId),
+    )
     .collect();
 }
 
@@ -96,11 +107,13 @@ export const listConsents = query({
   args: { api_token: v.string(), device_id: v.string() },
   handler: async (ctx, args) => {
     const rows = await consentRowsFor(ctx, args.api_token, args.device_id);
-    return rows.filter((row) => !row.purpose).map((row) => ({
-      capability_slug: row.capability_slug,
-      manifest_hash: row.manifest_hash,
-      consented_at: row.consented_at,
-    }));
+    return rows
+      .filter((row) => !row.purpose)
+      .map((row) => ({
+        capability_slug: row.capability_slug,
+        manifest_hash: row.manifest_hash,
+        consented_at: row.consented_at,
+      }));
   },
 });
 
@@ -110,18 +123,19 @@ export const listAdoptions = query({
   args: { api_token: v.string(), device_id: v.string() },
   handler: async (ctx, args) => {
     const rows = await consentRowsFor(ctx, args.api_token, args.device_id);
-    return rows.filter((row) => row.purpose === "adopt").map((row) => ({
-      slug: row.capability_slug,
-      hash: row.manifest_hash,
-      adopted_at: row.consented_at,
-    }));
+    return rows
+      .filter((row) => row.purpose === "adopt")
+      .map((row) => ({
+        slug: row.capability_slug,
+        hash: row.manifest_hash,
+        adopted_at: row.consented_at,
+      }));
   },
 });
 
 /* ==========================================================================
  * Events — the audit line an incident needs (ct-42854)
  * ========================================================================== */
-
 
 /** 90 days of audit is the retention bargain: long enough for any incident
  *  that will actually be investigated, short enough that the table cannot
@@ -154,7 +168,6 @@ export const sweepCapabilityEvents = internalMutation({
 
 import { scopeKeyValidForTeam } from "@codecast/shared/contracts";
 import { requireTeamAdmin } from "./lib/access";
-
 
 /** Bump the user's convergence revision. USER level, deliberately: most
  *  bindings are fleet-wide (user/team/project scope), so naming the affected
@@ -197,13 +210,18 @@ export interface UpsertBindingArgs {
  * effect share it — two writers with their own upsert keys is how a toggle
  * ends up not staying put, which is the bug this whole module exists to stop.
  */
-export async function upsertBinding(ctx: any, userId: string, args: UpsertBindingArgs) {
+export async function upsertBinding(
+  ctx: any,
+  userId: string,
+  args: UpsertBindingArgs,
+) {
   {
     if (!(BIND_SCOPES as readonly string[]).includes(args.scope_kind)) {
       return { status: "rejected" as const, reason: "unknown_scope" };
     }
     if (args.scope_kind === "team") {
-      if (!args.team_id) return { status: "rejected" as const, reason: "team_scope_needs_team" };
+      if (!args.team_id)
+        return { status: "rejected" as const, reason: "team_scope_needs_team" };
       // The same line userCanAdminAnchor draws: not every member may write
       // what lands on every member's machine.
       await requireTeamAdmin(ctx as any, userId as any, args.team_id as any);
@@ -214,7 +232,10 @@ export async function upsertBinding(ctx: any, userId: string, args: UpsertBindin
       }
       // A kit item belongs to one workspace (authored/<owner>/...). A team may
       // turn on only its own items; a personal item has no team scope at all.
-      if (args.capability_slug.startsWith("authored/") && args.capability_slug.split("/")[1] !== String(args.team_id)) {
+      if (
+        args.capability_slug.startsWith("authored/") &&
+        args.capability_slug.split("/")[1] !== String(args.team_id)
+      ) {
         return { status: "rejected" as const, reason: "kit_item_not_in_team" };
       }
     }
@@ -316,10 +337,13 @@ export const bindCapability = mutation({
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");
     const { api_token: _token, ...rest } = args;
-    return await upsertBinding(ctx, auth.userId as unknown as string, rest as UpsertBindingArgs);
+    return await upsertBinding(
+      ctx,
+      auth.userId as unknown as string,
+      rest as UpsertBindingArgs,
+    );
   },
 });
-
 
 /** Remove a binding outright. The verb for "forget this wish existed" —
  *  distinct from enabled:false, which is itself a wish. */
@@ -375,9 +399,14 @@ import { getAuthUserId } from "@convex-dev/auth/server";
  * daemon's reconciler both read through here, so they can never disagree on
  * which wishes exist. `since` trims to rows updated after the watermark.
  */
-export async function listVisibleBindings(ctx: any, userId: string, since?: number) {
+export async function listVisibleBindings(
+  ctx: any,
+  userId: string,
+  since?: number,
+) {
   const db = capDb(ctx.db);
-  const fresh = (q: any) => (since === undefined ? q : q.gt("updated_at", since));
+  const fresh = (q: any) =>
+    since === undefined ? q : q.gt("updated_at", since);
   const mine = await db
     .query("capability_bindings")
     .withIndex("by_user_updated", (q: any) => fresh(q.eq("user_id", userId)))
@@ -393,10 +422,13 @@ export async function listVisibleBindings(ctx: any, userId: string, since?: numb
   for (const m of memberships) {
     const rows = await db
       .query("capability_bindings")
-      .withIndex("by_team_updated", (q: any) => fresh(q.eq("team_id", m.team_id)))
+      .withIndex("by_team_updated", (q: any) =>
+        fresh(q.eq("team_id", m.team_id)),
+      )
       .collect();
     for (const r of rows) {
-      if (r.user_id !== String(userId) && r.scope_kind === "team") teamRows.push(r);
+      if (r.user_id !== String(userId) && r.scope_kind === "team")
+        teamRows.push(r);
     }
   }
 
@@ -423,7 +455,13 @@ export const webListBindings = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { items: [] as any[] };
-    return { items: await listVisibleBindings(ctx, userId as unknown as string, args.since) };
+    return {
+      items: await listVisibleBindings(
+        ctx,
+        userId as unknown as string,
+        args.since,
+      ),
+    };
   },
 });
 
@@ -459,12 +497,16 @@ export const surfacesForSlug = query({
     const db = capDb(ctx.db);
     const rows = await db
       .query("capability_observation")
-      .withIndex("by_user_client_kind_name", (q: any) => q.eq("user_id", auth.userId))
+      .withIndex("by_user_client_kind_name", (q: any) =>
+        q.eq("user_id", auth.userId),
+      )
       .collect();
     // Observations are keyed (kind, name), slugs by source. Match by name
     // suffix: mkt/official/x -> "x", builtin/memory -> "memory".
     const leaf = args.slug.split("/").pop() ?? args.slug;
-    const hit = rows.find((r) => r.name === leaf || r.name.startsWith(`${leaf}@`));
+    const hit = rows.find(
+      (r) => r.name === leaf || r.name.startsWith(`${leaf}@`),
+    );
     return { surfaces: hit?.surfaces ?? [], observed: hit !== undefined };
   },
 });
@@ -472,7 +514,10 @@ export const surfacesForSlug = query({
 /** Set the caller's own reconciler mode. The global system_config value
  *  outranks this — an operator kill wins over any user preference. */
 export const setCapabilitiesMode = mutation({
-  args: { api_token: v.string(), mode: v.union(v.literal("off"), v.literal("dry"), v.literal("on")) },
+  args: {
+    api_token: v.string(),
+    mode: v.union(v.literal("off"), v.literal("dry"), v.literal("on")),
+  },
   handler: async (ctx, args) => {
     const auth = await verifyApiToken(ctx, args.api_token);
     if (!auth) throw new Error("Unauthorized");

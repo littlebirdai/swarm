@@ -1,19 +1,58 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useMutation } from "convex/react";
 import { api as _api } from "@codecast/convex/convex/_generated/api";
-import { Link as LinkIcon, Link2, ArrowUpRight, Check, ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Columns2, MessageSquarePlus } from "lucide-react";
+import {
+  Link as LinkIcon,
+  Link2,
+  ArrowUpRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Columns2,
+  MessageSquarePlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useQueryNoThrow } from "../hooks/useQueryNoThrow";
 import { usePageInfo } from "../hooks/usePageInfo";
 import { hasStoredAuthToken } from "../lib/localAuth";
-import { adoptFrame, claimFrame, frameKey, frameLoaded, hasParkedFrame, makePageFrame, placeFrame, preloadFrame, releaseFrame, type PageHeight } from "../lib/pageFramePool";
+import {
+  adoptFrame,
+  claimFrame,
+  frameKey,
+  frameLoaded,
+  hasParkedFrame,
+  makePageFrame,
+  placeFrame,
+  preloadFrame,
+  releaseFrame,
+  type PageHeight,
+} from "../lib/pageFramePool";
 import { useTheme } from "./ThemeProvider";
 import { linkPreviewStale } from "@codecast/convex/convex/lib/linkPreviewMeta";
-import { PAGE_GATE_MESSAGE, PAGE_HEIGHT_MESSAGE } from "../../../packages/shared/render/pageTheme";
+import {
+  PAGE_GATE_MESSAGE,
+  PAGE_HEIGHT_MESSAGE,
+} from "../../../packages/shared/render/pageTheme";
 import { useEventListener } from "../hooks/useEventListener";
 import { useFrameTheme } from "../hooks/useFrameTheme";
 import { usePageNotes } from "../hooks/usePageNotes";
-import { sessionName, usePageAgent, type PageAgent } from "../hooks/usePageAgent";
+import {
+  sessionName,
+  usePageAgent,
+  type PageAgent,
+} from "../hooks/usePageAgent";
 import { useOpenLinkedSession } from "../hooks/useOpenLinkedSession";
 import { useInboxStore } from "../store/inboxStore";
 import { MessageIdentity } from "../lib/conversationBlockContexts";
@@ -22,13 +61,22 @@ import { useNativeBrowserPane } from "../hooks/useNativeBrowserPane";
 import { copyToClipboard } from "../lib/utils";
 import { isDesktop } from "../lib/desktop";
 import { openBrowserPane } from "../lib/stage";
-import { pageEmbedSrc, pageFrameSrc, pageShareUrl } from "../lib/publishedPageUrls";
+import {
+  pageEmbedSrc,
+  pageFrameSrc,
+  pageShareUrl,
+} from "../lib/publishedPageUrls";
 import { claudeArtifactUrl, entityRoute } from "../lib/entityLinks";
 import { FeatureUpsell } from "./agentFeatures/FeatureUpsell";
 import { ClaudeIcon } from "./BrandIcons";
 import { HeightGrip } from "./HeightGrip";
 import { KeyCap } from "./KeyCap";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import { useWatchEffect } from "../hooks/useWatchEffect";
 
 const api = _api as any;
@@ -53,7 +101,15 @@ const HEADER_ACTION =
   "flex items-center gap-1 text-meta text-sol-text-dim hover:text-sol-blue transition-colors";
 
 /** Copy a page's share URL. */
-function CopyLinkButton({ url, title, className }: { url: string; title: string; className?: string }) {
+function CopyLinkButton({
+  url,
+  title,
+  className,
+}: {
+  url: string;
+  title: string;
+  className?: string;
+}) {
   return (
     <button
       type="button"
@@ -78,14 +134,25 @@ function CopyLinkButton({ url, title, className }: { url: string; title: string;
  *  card header, and a quiet sibling glyph on the inline pill. `native` asks
  *  for the desktop's native view: the pane for a site that refuses to be
  *  framed. */
-function OpenInPaneButton({ url, native, className }: { url: string; native?: boolean; className?: string }) {
+function OpenInPaneButton({
+  url,
+  native,
+  className,
+}: {
+  url: string;
+  native?: boolean;
+  className?: string;
+}) {
   return (
     <button
       type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        openBrowserPane({ kind: "url", url }, native ? { native: true } : undefined);
+        openBrowserPane(
+          { kind: "url", url },
+          native ? { native: true } : undefined,
+        );
       }}
       className={className}
       title="Open beside your work, as a pane"
@@ -98,7 +165,14 @@ function OpenInPaneButton({ url, native, className }: { url: string; native?: bo
 
 /** The block card: header strip (icon, title, verbs, "open"), a body, and the
  *  caption the author wrote under it. */
-export function PageCard({ icon, title, href, actions, caption, children }: {
+export function PageCard({
+  icon,
+  title,
+  href,
+  actions,
+  caption,
+  children,
+}: {
   icon: ReactNode;
   title: string;
   href: string;
@@ -111,7 +185,9 @@ export function PageCard({ icon, title, href, actions, caption, children }: {
       <span className="block overflow-hidden rounded-md border border-sol-border">
         <span className="flex items-center gap-2 border-b border-sol-border bg-sol-bg-alt px-3 py-1.5">
           {icon}
-          <span className="min-w-0 flex-1 truncate text-xs font-medium text-sol-text">{title}</span>
+          <span className="min-w-0 flex-1 truncate text-xs font-medium text-sol-text">
+            {title}
+          </span>
           {actions}
           <a
             href={href}
@@ -126,7 +202,9 @@ export function PageCard({ icon, title, href, actions, caption, children }: {
         {children}
       </span>
       {caption && (
-        <span className="block mt-1 text-meta leading-snug text-sol-text-muted">{caption}</span>
+        <span className="block mt-1 text-meta leading-snug text-sol-text-muted">
+          {caption}
+        </span>
       )}
     </span>
   );
@@ -135,7 +213,14 @@ export function PageCard({ icon, title, href, actions, caption, children }: {
 /** The inline pill. Opens the page in a new tab; `pane` adds the quiet
  *  "open in a pane" glyph that waits for the pointer (and for a keyboard, for
  *  focus) — a second verb always visible would crowd the sentence it sits in. */
-function PagePill({ icon, text, title, href, hoverClass, pane }: {
+function PagePill({
+  icon,
+  text,
+  title,
+  href,
+  hoverClass,
+  pane,
+}: {
   icon: ReactNode;
   text: string;
   title: string;
@@ -171,32 +256,44 @@ function PagePill({ icon, text, title, href, hoverClass, pane }: {
 // Published codecast pages (`cast publish` output)
 // ---------------------------------------------------------------------------
 
-
 /** The page's agent, as a quiet chip: the publishing session's name and its
  *  state, the dot breathing while the agent is on the page. The same state the
  *  page's own bar shows. A link to that session. */
 function PageAgentStatus({ agent }: { agent: PageAgent }) {
   const openLinkedSession = useOpenLinkedSession();
   const tone =
-    agent.chip === "needs_input" ? "text-sol-yellow" :
-    agent.chip === "updating" ? "text-sol-red" :
-    agent.chip === "working" ? "text-sol-blue" : "text-sol-text-dim";
+    agent.chip === "needs_input"
+      ? "text-sol-yellow"
+      : agent.chip === "updating"
+        ? "text-sol-red"
+        : agent.chip === "working"
+          ? "text-sol-blue"
+          : "text-sol-text-dim";
   const busy = agent.chip === "working" || agent.chip === "updating";
   const name = sessionName(agent) ?? agent.session?.short_id ?? "Session";
   const convId = agent.session?.conversation_id ?? null;
   const href = convId ? entityRoute("session", convId) : null;
   const body = (
     <>
-      <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full bg-current ${busy ? "page-embed__agent-dot--busy" : "opacity-70"}`} aria-hidden />
+      <span
+        className={`h-1.5 w-1.5 flex-shrink-0 rounded-full bg-current ${busy ? "page-embed__agent-dot--busy" : "opacity-70"}`}
+        aria-hidden
+      />
       <span className="max-w-[16ch] truncate">{name}</span>
       <span className="opacity-70">{PAGE_AGENT_LABELS[agent.chip]}</span>
     </>
   );
   const className = `page-embed__agent inline-flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap px-1.5 font-mono text-meta ${tone}`;
-  const title = agent.chip === "updating"
-    ? "A comment was sent to the session that made this page; it reloads here when a new version lands."
-    : agent.session?.title || "The session that made this page.";
-  if (!href) return <span className={className} role="status" title={title}>{body}</span>;
+  const title =
+    agent.chip === "updating"
+      ? "A comment was sent to the session that made this page; it reloads here when a new version lands."
+      : agent.session?.title || "The session that made this page.";
+  if (!href)
+    return (
+      <span className={className} role="status" title={title}>
+        {body}
+      </span>
+    );
   return (
     <a
       href={href}
@@ -207,7 +304,15 @@ function PageAgentStatus({ agent }: { agent: PageAgent }) {
         // A session already in the store takes the stage like any session
         // reference; anything else (or a modified click) follows the href.
         const row = convId ? useInboxStore.getState().sessions[convId] : null;
-        if (!row || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        if (
+          !row ||
+          e.button !== 0 ||
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey
+        )
+          return;
         e.preventDefault();
         openLinkedSession(row);
       }}
@@ -236,7 +341,13 @@ const TOOL =
   "focus-visible:ring-1 focus-visible:ring-sol-blue/60";
 
 /** One toolbar verb with its tooltip. */
-function Tool({ label, onClick, pressed, className = "", children }: {
+function Tool({
+  label,
+  onClick,
+  pressed,
+  className = "",
+  children,
+}: {
   label: ReactNode;
   onClick: () => void;
   pressed?: boolean;
@@ -260,7 +371,11 @@ function Tool({ label, onClick, pressed, className = "", children }: {
           {children}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={8} className="flex items-center gap-1.5 border border-sol-border/60 bg-sol-bg-alt px-2 py-1 text-meta text-sol-text shadow-md">
+      <TooltipContent
+        side="bottom"
+        sideOffset={8}
+        className="flex items-center gap-1.5 border border-sol-border/60 bg-sol-bg-alt px-2 py-1 text-meta text-sol-text shadow-md"
+      >
         {label}
       </TooltipContent>
     </Tooltip>
@@ -269,7 +384,10 @@ function Tool({ label, onClick, pressed, className = "", children }: {
 
 /** A page's verbs: comment on it (where the viewer can reply in this thread),
  *  copy its share link, open it beside your work, open it in a tab. */
-export function PublishedPageActions({ slug, notes }: {
+export function PublishedPageActions({
+  slug,
+  notes,
+}: {
   slug: string;
   notes?: ReturnType<typeof usePageNotes>;
 }) {
@@ -283,28 +401,59 @@ export function PublishedPageActions({ slug, notes }: {
     <>
       {notes && (
         <Tool
-          label={notes.pinMode ? <>Stop pinning <KeyCap size="xs">Esc</KeyCap></> : "Pin a note, or select text on the page"}
+          label={
+            notes.pinMode ? (
+              <>
+                Stop pinning <KeyCap size="xs">Esc</KeyCap>
+              </>
+            ) : (
+              "Pin a note, or select text on the page"
+            )
+          }
           onClick={() => notes.setPinMode(!notes.pinMode)}
           pressed={notes.pinMode}
           className={notes.pinMode ? "!bg-sol-yellow/20 !text-sol-yellow" : ""}
         >
           <MessageSquarePlus className="h-3.5 w-3.5" />
-          {notes.count > 0 && <span className="font-mono text-meta tabular-nums text-sol-yellow">{notes.count}</span>}
+          {notes.count > 0 && (
+            <span className="font-mono text-meta tabular-nums text-sol-yellow">
+              {notes.count}
+            </span>
+          )}
         </Tool>
       )}
       {/* The public share URL, not the serving origin the frame uses. */}
       <Tool
         label={copied ? "Copied" : "Copy link"}
-        onClick={() => void copyToClipboard(pageShareUrl(slug)).then(() => setCopied(true), () => toast.error("Couldn't copy link"))}
+        onClick={() =>
+          void copyToClipboard(pageShareUrl(slug)).then(
+            () => setCopied(true),
+            () => toast.error("Couldn't copy link"),
+          )
+        }
       >
-        {copied ? <Check className="h-3.5 w-3.5 text-sol-green" /> : <Link2 className="h-3.5 w-3.5" />}
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-sol-green" />
+        ) : (
+          <Link2 className="h-3.5 w-3.5" />
+        )}
       </Tool>
       {/* The pane frames the SERVING origin, so the page arrives under its own
           sandbox CSP and the share page's chrome does not wrap it twice. */}
-      <Tool label="Open beside your work" onClick={() => openBrowserPane({ kind: "url", url: pageFrameSrc(slug) })}>
+      <Tool
+        label="Open beside your work"
+        onClick={() =>
+          openBrowserPane({ kind: "url", url: pageFrameSrc(slug) })
+        }
+      >
         <Columns2 className="h-3.5 w-3.5" />
       </Tool>
-      <Tool label="Open in a new tab" onClick={() => window.open(pageShareUrl(slug), "_blank", "noopener,noreferrer")}>
+      <Tool
+        label="Open in a new tab"
+        onClick={() =>
+          window.open(pageShareUrl(slug), "_blank", "noopener,noreferrer")
+        }
+      >
         <ArrowUpRight className="h-3.5 w-3.5" />
       </Tool>
     </>
@@ -315,7 +464,25 @@ export function PublishedPageActions({ slug, notes }: {
  *  floating over its top corner, the resize edge under it, the caption
  *  below. Folded (`collapsed`), it is the title row alone. All spans, so it
  *  stays valid wherever markdown puts it. */
-export function FramelessPage({ title, href, actions, status, statusPinned, caption, height, stageRef, loaded, pinning, grip, expand, collapsed, onToggleCollapsed, bare = false, fill = false, children }: {
+export function FramelessPage({
+  title,
+  href,
+  actions,
+  status,
+  statusPinned,
+  caption,
+  height,
+  stageRef,
+  loaded,
+  pinning,
+  grip,
+  expand,
+  collapsed,
+  onToggleCollapsed,
+  bare = false,
+  fill = false,
+  children,
+}: {
   title: string;
   href: string;
   actions: ReactNode;
@@ -360,12 +527,22 @@ export function FramelessPage({ title, href, actions, status, statusPinned, capt
     return (
       <span className="page-embed page-embed--collapsed not-prose mb-5 block">
         <span className="page-embed__fold">
-          <button type="button" onClick={onToggleCollapsed} className={TOOL} aria-label={`Show ${title}`} title="Show the page">
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className={TOOL}
+            aria-label={`Show ${title}`}
+            title="Show the page"
+          >
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
           {titleLink}
         </span>
-        {caption && <span className="mt-1.5 block text-meta leading-snug text-sol-text-muted">{caption}</span>}
+        {caption && (
+          <span className="mt-1.5 block text-meta leading-snug text-sol-text-muted">
+            {caption}
+          </span>
+        )}
       </span>
     );
   }
@@ -378,24 +555,45 @@ export function FramelessPage({ title, href, actions, status, statusPinned, capt
     >
       <span className="relative block">
         <span className="page-embed__edge" aria-hidden />
-        <span ref={stageRef} className="page-embed__stage relative block overflow-hidden rounded-[10px]" style={{ height }}>
+        <span
+          ref={stageRef}
+          className="page-embed__stage relative block overflow-hidden rounded-[10px]"
+          style={{ height }}
+        >
           {children}
-          {!loaded && <span className="page-embed__shimmer" role="status"><span className="page-embed__loading">Loading the page</span></span>}
+          {!loaded && (
+            <span className="page-embed__shimmer" role="status">
+              <span className="page-embed__loading">Loading the page</span>
+            </span>
+          )}
         </span>
-        {!bare && <TooltipProvider delayDuration={350} skipDelayDuration={150}>
-          <span className="page-embed__bar" role="toolbar" aria-label={`${title} actions`}>
-            {titleLink}
+        {!bare && (
+          <TooltipProvider delayDuration={350} skipDelayDuration={150}>
+            <span
+              className="page-embed__bar"
+              role="toolbar"
+              aria-label={`${title} actions`}
+            >
+              {titleLink}
+              {status}
+              <span
+                className="mx-0.5 h-3.5 w-px flex-shrink-0 bg-sol-border/50"
+                aria-hidden
+              />
+              {actions}
+              {onToggleCollapsed && (
+                <Tool label="Collapse" onClick={onToggleCollapsed}>
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Tool>
+              )}
+            </span>
+          </TooltipProvider>
+        )}
+        {statusPinned && status && (
+          <span className="page-embed__status" aria-hidden>
             {status}
-            <span className="mx-0.5 h-3.5 w-px flex-shrink-0 bg-sol-border/50" aria-hidden />
-            {actions}
-            {onToggleCollapsed && (
-              <Tool label="Collapse" onClick={onToggleCollapsed}>
-                <ChevronUp className="h-3.5 w-3.5" />
-              </Tool>
-            )}
           </span>
-        </TooltipProvider>}
-        {statusPinned && status && <span className="page-embed__status" aria-hidden>{status}</span>}
+        )}
         {!bare && grip}
       </span>
       {!bare && expand && (
@@ -405,11 +603,19 @@ export function FramelessPage({ title, href, actions, status, statusPinned, capt
           aria-expanded={expand.expanded}
           className="page-embed__expand mt-1.5 flex items-center gap-1 text-meta text-sol-text-dim transition-colors hover:text-sol-text-muted"
         >
-          {expand.expanded ? <ChevronsDownUp className="h-3 w-3" /> : <ChevronsUpDown className="h-3 w-3" />}
+          {expand.expanded ? (
+            <ChevronsDownUp className="h-3 w-3" />
+          ) : (
+            <ChevronsUpDown className="h-3 w-3" />
+          )}
           {expand.expanded ? "Shrink" : "Expand"}
         </button>
       )}
-      {caption && <span className="mt-1.5 block text-meta leading-snug text-sol-text-muted">{caption}</span>}
+      {caption && (
+        <span className="mt-1.5 block text-meta leading-snug text-sol-text-muted">
+          {caption}
+        </span>
+      )}
     </span>
   );
 }
@@ -427,33 +633,63 @@ const EMBED_MAX_PREFERRED = 2000;
  *  too small to be a real layout (a page whose content is all absolutely
  *  positioned measures its body at a few pixels) is ignored. */
 function useReportedHeight(frameRef: RefObject<HTMLIFrameElement | null>) {
-  const [height, setHeight] = useState<{ content: number | null; preferred: number | null }>({ content: null, preferred: null });
-  const take = useCallback((m: { type?: unknown; height?: unknown; preferred?: unknown } | null) => {
-    if (m?.type !== PAGE_HEIGHT_MESSAGE || typeof m.height !== "number" || !Number.isFinite(m.height)) return;
-    if (m.height < EMBED_MIN_HEIGHT) return;
-    const content = Math.round(m.height);
-    const preferred = typeof m.preferred === "number" && Number.isFinite(m.preferred)
-      ? Math.min(EMBED_MAX_PREFERRED, Math.max(EMBED_MIN_HEIGHT, Math.round(m.preferred)))
-      : null;
-    setHeight((h) => (h.content === content && h.preferred === preferred ? h : { content, preferred }));
-  }, []);
+  const [height, setHeight] = useState<{
+    content: number | null;
+    preferred: number | null;
+  }>({ content: null, preferred: null });
+  const take = useCallback(
+    (m: { type?: unknown; height?: unknown; preferred?: unknown } | null) => {
+      if (
+        m?.type !== PAGE_HEIGHT_MESSAGE ||
+        typeof m.height !== "number" ||
+        !Number.isFinite(m.height)
+      )
+        return;
+      if (m.height < EMBED_MIN_HEIGHT) return;
+      const content = Math.round(m.height);
+      const preferred =
+        typeof m.preferred === "number" && Number.isFinite(m.preferred)
+          ? Math.min(
+              EMBED_MAX_PREFERRED,
+              Math.max(EMBED_MIN_HEIGHT, Math.round(m.preferred)),
+            )
+          : null;
+      setHeight((h) =>
+        h.content === content && h.preferred === preferred
+          ? h
+          : { content, preferred },
+      );
+    },
+    [],
+  );
   useWatchEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
+      if (!frameRef.current || e.source !== frameRef.current.contentWindow)
+        return;
       take(e.data);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [frameRef]);
   // A frame moved back from the pool reports nothing new: replay the last height it reported.
-  const replay = useCallback((h: PageHeight) => take({ type: PAGE_HEIGHT_MESSAGE, ...h }), [take]);
+  const replay = useCallback(
+    (h: PageHeight) => take({ type: PAGE_HEIGHT_MESSAGE, ...h }),
+    [take],
+  );
   return { ...height, replay };
 }
 
 /** The page's iframe. A frame for the same page parked a moment ago (lib/pageFramePool) is moved in still loaded;
  *  otherwise the embed renders its own, which the pool adopts, and either way the frame is parked on unmount for the
  *  next embed of that page. Keyed by `src` by its parent: a new address is a new frame. */
-function PooledFrame({ src, poolKey, title, frameRef, onLoad, onHeight }: {
+function PooledFrame({
+  src,
+  poolKey,
+  title,
+  frameRef,
+  onLoad,
+  onHeight,
+}: {
   src: string;
   /** The page version this address shows (frameKey), null while unconfirmed: what the pool keeps the frame under. */
   poolKey: string | null;
@@ -493,13 +729,17 @@ function PooledFrame({ src, poolKey, title, frameRef, onLoad, onHeight }: {
     } else adoptFrame(frame);
     frame.title = title;
     (frameRef as { current: HTMLIFrameElement | null }).current = frame;
-    const onFrameLoad = () => { frameLoaded(frame); loadRef.current(); };
+    const onFrameLoad = () => {
+      frameLoaded(frame);
+      loadRef.current();
+    };
     frame.addEventListener("load", onFrameLoad);
     if (claimed?.height) onHeight(claimed.height);
     if (claimed?.loaded) loadRef.current();
     return () => {
       frame.removeEventListener("load", onFrameLoad);
-      if (frameRef.current === frame) (frameRef as { current: HTMLIFrameElement | null }).current = null;
+      if (frameRef.current === frame)
+        (frameRef as { current: HTMLIFrameElement | null }).current = null;
       releaseFrame(frame, keyRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -548,10 +788,22 @@ type PublishedPageEmbedProps = {
 
 export function PublishedPageEmbed(props: PublishedPageEmbedProps) {
   const asLink = useContext(PublishedPagesAsLinks);
-  return asLink ? <PublishedPagePill slug={props.slug} href={pageShareUrl(props.slug)} /> : <PublishedPageFrame {...props} />;
+  return asLink ? (
+    <PublishedPagePill slug={props.slug} href={pageShareUrl(props.slug)} />
+  ) : (
+    <PublishedPageFrame {...props} />
+  );
 }
 
-function PublishedPageFrame({ slug, caption, height, decision, whole = false, fill = false, onReady }: PublishedPageEmbedProps) {
+function PublishedPageFrame({
+  slug,
+  caption,
+  height,
+  decision,
+  whole = false,
+  fill = false,
+  onReady,
+}: PublishedPageEmbedProps) {
   // The page's info (title, version, its gates) paints from the store, so a page seen before frames at once. A page
   // never seen starts loading anyway, with no gate tokens, hidden until its info arrives: an open page is then
   // already there, and a gated one reloads with the tokens a signed-in reader may hold. A guest frames at once: a
@@ -573,7 +825,11 @@ function PublishedPageFrame({ slug, caption, height, decision, whole = false, fi
   // the height the page asks for, else EMBED_HEIGHT. Expanding doubles it.
   // Neither runs past the page's own content, so a short page sits snug and
   // has nothing to expand.
-  const { content: reported, preferred, replay: replayHeight } = useReportedHeight(frameRef);
+  const {
+    content: reported,
+    preferred,
+    replay: replayHeight,
+  } = useReportedHeight(frameRef);
   const short = height ?? preferred ?? EMBED_HEIGHT;
   const content = reported ?? Infinity;
   const tall = dragged != null ? dragged > short : expanded;
@@ -582,8 +838,16 @@ function PublishedPageFrame({ slug, caption, height, decision, whole = false, fi
     setExpanded(!tall);
     setDragged(null);
   };
-  const frameHeight = whole && reported && dragged == null ? reported : Math.min(content, dragged ?? (expanded ? short * EMBED_EXPAND_FACTOR : short));
-  const { theme, onLoad: onThemeLoad } = useFrameTheme(frameRef, { blend: true });
+  const frameHeight =
+    whole && reported && dragged == null
+      ? reported
+      : Math.min(
+          content,
+          dragged ?? (expanded ? short * EMBED_EXPAND_FACTOR : short),
+        );
+  const { theme, onLoad: onThemeLoad } = useFrameTheme(frameRef, {
+    blend: true,
+  });
   const notes = usePageNotes(frameRef, slug, meta?.title || "Published page");
   // The page is shown the moment it is there: the frame's own load event, or
   // the page reporting its painted height, whichever comes first. Neither waits
@@ -598,7 +862,9 @@ function PublishedPageFrame({ slug, caption, height, decision, whole = false, fi
     notes?.onLoad();
     setLoadedSrc(srcRef.current);
   }, [onThemeLoad, notes?.onLoad]); // eslint-disable-line react-hooks/exhaustive-deps
-  useWatchEffect(() => { if (reported) setLoadedSrc(srcRef.current); }, [reported]);
+  useWatchEffect(() => {
+    if (reported) setLoadedSrc(srcRef.current);
+  }, [reported]);
   const readyRef = useRef(onReady);
   readyRef.current = onReady;
   // The theme at mount rides the address so the first paint already matches;
@@ -614,38 +880,63 @@ function PublishedPageFrame({ slug, caption, height, decision, whole = false, fi
   const [mountVersion] = useState(version);
   const [baseVersion, setBaseVersion] = useState(version);
   if (!baseVersion && version) setBaseVersion(version);
-  const src = pageEmbedSrc(slug, mountTheme, keys, mountVersion || version > baseVersion ? version : undefined);
+  const src = pageEmbedSrc(
+    slug,
+    mountTheme,
+    keys,
+    mountVersion || version > baseVersion ? version : undefined,
+  );
   srcRef.current = src;
   // A frame started before the page's info arrived shows the moment it loads, unless what loaded was a gate (it says
   // so: PAGE_GATE_MESSAGE): then it waits for the info, which brings the tokens past it or says the reader has none.
   const [gateSrc, setGateSrc] = useState<string | null>(null);
-  useEventListener("message", useCallback((e: MessageEvent) => {
-    if (frameRef.current && e.source === frameRef.current.contentWindow && (e.data as { type?: unknown } | null)?.type === PAGE_GATE_MESSAGE) setGateSrc(srcRef.current);
-  }, []));
+  useEventListener(
+    "message",
+    useCallback((e: MessageEvent) => {
+      if (
+        frameRef.current &&
+        e.source === frameRef.current.contentWindow &&
+        (e.data as { type?: unknown } | null)?.type === PAGE_GATE_MESSAGE
+      )
+        setGateSrc(srcRef.current);
+    }, []),
+  );
   const loaded = loadedSrc === src && (confirmed || gateSrc !== src);
   const agent = usePageAgent(slug, !collapsed && !!meta && !meta.gated);
   // Idle says nothing the reader can use, and inside the publishing session's
   // own thread the thread already shows its state.
   const thread = useContext(MessageIdentity)?.conversationId;
-  const showAgent = !!agent && agent.chip !== "idle" && !(thread && thread === agent.session?.conversation_id);
-  useWatchEffect(() => { if (loaded) readyRef.current?.(); }, [loaded]);
+  const showAgent =
+    !!agent &&
+    agent.chip !== "idle" &&
+    !(thread && thread === agent.session?.conversation_id);
+  useWatchEffect(() => {
+    if (loaded) readyRef.current?.();
+  }, [loaded]);
 
   // Deleted or never existed: a full-height frame of a 404 reads as breakage. A gated page the viewer cannot
   // open here would frame a password form. Both degrade to a compact note carrying the link.
   if (info?.missing || locked) {
     return (
       <ReadyNow onReady={onReady}>
-      <span className="not-prose my-3 flex max-w-md flex-col gap-1 rounded-md border border-dashed border-sol-border bg-sol-bg-alt px-3 py-2 text-xs" data-page-embed-note={locked ? "locked" : "missing"}>
-        <span className="text-sol-text-dim">{locked ? "Protected page: open it to enter its password" : "Published page unavailable"}</span>
-        <a
-          href={pageShareUrl(slug)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="break-all modern:font-mono text-sol-text-dim hover:text-sol-blue"
+        <span
+          className="not-prose my-3 flex max-w-md flex-col gap-1 rounded-md border border-dashed border-sol-border bg-sol-bg-alt px-3 py-2 text-xs"
+          data-page-embed-note={locked ? "locked" : "missing"}
         >
-          {pageShareUrl(slug)}
-        </a>
-      </span>
+          <span className="text-sol-text-dim">
+            {locked
+              ? "Protected page: open it to enter its password"
+              : "Published page unavailable"}
+          </span>
+          <a
+            href={pageShareUrl(slug)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="break-all modern:font-mono text-sol-text-dim hover:text-sol-blue"
+          >
+            {pageShareUrl(slug)}
+          </a>
+        </span>
       </ReadyNow>
     );
   }
@@ -665,41 +956,87 @@ function PublishedPageFrame({ slug, caption, height, decision, whole = false, fi
       bare={whole || fill}
       fill={fill}
       collapsed={fill ? undefined : collapsed}
-      onToggleCollapsed={fill ? undefined : () => {
-        setLoadedSrc(null);
-        setCollapsed((v) => !v);
-      }}
+      onToggleCollapsed={
+        fill
+          ? undefined
+          : () => {
+              setLoadedSrc(null);
+              setCollapsed((v) => !v);
+            }
+      }
       actions={<PublishedPageActions slug={slug} notes={notes} />}
-      expand={canToggle && !(whole && reported) && !fill ? { expanded: tall, onToggle: toggleExpand } : undefined}
+      expand={
+        canToggle && !(whole && reported) && !fill
+          ? { expanded: tall, onToggle: toggleExpand }
+          : undefined
+      }
       grip={
-        <span className="page-embed__grip" onDoubleClick={() => { setDragged(null); setExpanded(false); }} title="Drag to resize, double-click to fit">
-          <HeightGrip target={stageRef} min={EMBED_MIN_HEIGHT} onResized={setDragged} />
+        <span
+          className="page-embed__grip"
+          onDoubleClick={() => {
+            setDragged(null);
+            setExpanded(false);
+          }}
+          title="Drag to resize, double-click to fit"
+        >
+          <HeightGrip
+            target={stageRef}
+            min={EMBED_MIN_HEIGHT}
+            onResized={setDragged}
+          />
         </span>
       }
     >
-      <PooledFrame key={src} src={src} poolKey={confirmed ? frameKey(src, meta?.version) : null} title={title} frameRef={frameRef} onLoad={onLoad} onHeight={replayHeight} />
+      <PooledFrame
+        key={src}
+        src={src}
+        poolKey={confirmed ? frameKey(src, meta?.version) : null}
+        title={title}
+        frameRef={frameRef}
+        onLoad={onLoad}
+        onHeight={replayHeight}
+      />
     </FramelessPage>
   );
 }
 
 /** Loads a page the reader is likely to open next into a parked frame (lib/pageFramePool), so its embed shows it
  *  loaded the moment it mounts. Renders nothing. */
-export function PreloadPublishedPage({ slug, decision }: { slug: string; decision?: string | null }) {
+export function PreloadPublishedPage({
+  slug,
+  decision,
+}: {
+  slug: string;
+  decision?: string | null;
+}) {
   const { info, keys } = usePageInfo(slug, decision);
   const { theme } = useTheme();
-  const version = info && !info.missing && !info.locked ? info.version : undefined;
+  const version =
+    info && !info.missing && !info.locked ? info.version : undefined;
   useWatchEffect(() => {
     if (!version) return;
     const src = pageEmbedSrc(slug, theme, keys, version);
     // Roughly the width a thread or a decision shows a page at; a different one only re-lays it out on arrival.
-    preloadFrame(src, frameKey(src, version), Math.min(900, window.innerWidth * 0.6));
+    preloadFrame(
+      src,
+      frameKey(src, version),
+      Math.min(900, window.innerWidth * 0.6),
+    );
   }, [slug, theme, keys, version]);
   return null;
 }
 
 /** Says a page that will not frame is as ready as it gets, once, on mount. */
-function ReadyNow({ onReady, children }: { onReady?: () => void; children: ReactNode }) {
-  useWatchEffect(() => { onReady?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+function ReadyNow({
+  onReady,
+  children,
+}: {
+  onReady?: () => void;
+  children: ReactNode;
+}) {
+  useWatchEffect(() => {
+    onReady?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return <>{children}</>;
 }
 
@@ -707,7 +1044,11 @@ function ReadyNow({ onReady, children }: { onReady?: () => void; children: React
  *  pill already names an internal object (blue session, cyan plan, green doc,
  *  violet project…), so a page — a link OUT to the web — gets a duotone disc
  *  no entity owns instead of another accent from the same family. */
-export function PageFavicon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+export function PageFavicon({
+  className = "h-3.5 w-3.5",
+}: {
+  className?: string;
+}) {
   return (
     <span
       className={`inline-flex flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sol-cyan/35 to-sol-violet/35 ${className}`}
@@ -722,7 +1063,15 @@ export function PageFavicon({ className = "h-3.5 w-3.5" }: { className?: string 
  * The label is the live page title (or the author's link text when they
  * wrote one).
  */
-export function PublishedPagePill({ slug, href, label }: { slug: string; href: string; label?: string }) {
+export function PublishedPagePill({
+  slug,
+  href,
+  label,
+}: {
+  slug: string;
+  href: string;
+  label?: string;
+}) {
   const { info: meta } = usePageInfo(slug);
   return (
     <PagePill
@@ -772,13 +1121,20 @@ function useCanPaneClaude(): boolean {
  *  The fix is on their side: with the Publish feature on, their agents put
  *  deliverables on codecast pages, which the thread frames live. So the card
  *  offers it (useFeatureOffer decides who sees the offer). */
-const PUBLISH_REASON = "Turn on Publish and your agents put pages like this on codecast, where the thread shows them live.";
+const PUBLISH_REASON =
+  "Turn on Publish and your agents put pages like this on codecast, where the thread shows them live.";
 
 /** Block-level card for a Claude artifact URL standing alone on its line.
  *  claude.ai publishes no per-artifact title (its page metadata is the same
  *  for every artifact), so the author's caption IS the title when they wrote
  *  one, rather than a line repeated under a generic header. */
-export function ClaudeArtifactEmbed({ id, caption }: { id: string; caption?: string }) {
+export function ClaudeArtifactEmbed({
+  id,
+  caption,
+}: {
+  id: string;
+  caption?: string;
+}) {
   const url = claudeArtifactUrl(id);
   const canPane = useCanPaneClaude();
   return (
@@ -788,8 +1144,14 @@ export function ClaudeArtifactEmbed({ id, caption }: { id: string; caption?: str
       href={url}
       actions={
         <>
-          <CopyLinkButton url={url} title="Copy link to Claude artifact" className={HEADER_ACTION} />
-          {canPane && <OpenInPaneButton url={url} native className={HEADER_ACTION} />}
+          <CopyLinkButton
+            url={url}
+            title="Copy link to Claude artifact"
+            className={HEADER_ACTION}
+          />
+          {canPane && (
+            <OpenInPaneButton url={url} native className={HEADER_ACTION} />
+          )}
         </>
       }
     >
@@ -802,13 +1164,17 @@ export function ClaudeArtifactEmbed({ id, caption }: { id: string; caption?: str
       >
         <ClaudeFavicon className="h-9 w-9" />
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs font-medium text-sol-text">Open on claude.ai</span>
+          <span className="text-xs font-medium text-sol-text">
+            Open on claude.ai
+          </span>
           <span className="text-meta leading-snug text-sol-text-dim">
             {canPane
               ? "claude.ai does not let other sites frame an artifact. Open it in its own tab, or as a pane beside this conversation."
               : "claude.ai does not let other sites frame an artifact, so it opens in its own tab."}
           </span>
-          <span className="truncate font-mono text-meta text-sol-text-dim">claude.ai/public/artifacts/{id}</span>
+          <span className="truncate font-mono text-meta text-sol-text-dim">
+            claude.ai/public/artifacts/{id}
+          </span>
         </span>
         <ArrowUpRight className="ml-auto h-3.5 w-3.5 flex-shrink-0 text-sol-text-dim transition-transform group-hover:-translate-y-px group-hover:translate-x-px group-hover:text-sol-orange" />
       </a>
@@ -818,7 +1184,15 @@ export function ClaudeArtifactEmbed({ id, caption }: { id: string; caption?: str
 }
 
 /** Inline pill for a Claude artifact URL inside a sentence. */
-export function ClaudeArtifactPill({ id, href, label }: { id: string; href: string; label?: string }) {
+export function ClaudeArtifactPill({
+  id,
+  href,
+  label,
+}: {
+  id: string;
+  href: string;
+  label?: string;
+}) {
   const url = claudeArtifactUrl(id);
   const canPane = useCanPaneClaude();
   return (
@@ -875,13 +1249,22 @@ function hostLabel(url: string): string {
  *  page's share image, the way chat apps unfurl a link. Until the page has
  *  been read (or when it has no tags) it is the same card carrying the
  *  address, so the message never jumps from a link to a card. */
-export function LinkPreviewCard({ url, caption }: { url: string; caption?: string }) {
+export function LinkPreviewCard({
+  url,
+  caption,
+}: {
+  url: string;
+  caption?: string;
+}) {
   const row = useLinkPreview(url);
   const ok = row?.status === "ok" ? row : null;
   const [iconFailed, setIconFailed] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const host = hostLabel(url);
-  const site = ok?.site_name && ok.site_name.toLowerCase() !== host ? `${host} · ${ok.site_name}` : host;
+  const site =
+    ok?.site_name && ok.site_name.toLowerCase() !== host
+      ? `${host} · ${ok.site_name}`
+      : host;
   const image = ok?.image && !imageFailed ? ok.image : null;
   return (
     <span className="not-prose my-2 block">
@@ -896,7 +1279,12 @@ export function LinkPreviewCard({ url, caption }: { url: string; caption?: strin
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="flex min-w-0 items-center gap-1.5 text-meta text-sol-text-dim">
               {ok?.favicon && !iconFailed ? (
-                <img src={ok.favicon} alt="" className="h-3.5 w-3.5 flex-shrink-0 rounded-sm" onError={() => setIconFailed(true)} />
+                <img
+                  src={ok.favicon}
+                  alt=""
+                  className="h-3.5 w-3.5 flex-shrink-0 rounded-sm"
+                  onError={() => setIconFailed(true)}
+                />
               ) : (
                 <LinkIcon className="h-3 w-3 flex-shrink-0" />
               )}
@@ -904,12 +1292,18 @@ export function LinkPreviewCard({ url, caption }: { url: string; caption?: strin
               <ArrowUpRight className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
             </span>
             {ok?.title ? (
-              <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-sol-blue group-hover:underline">{ok.title}</span>
+              <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-sol-blue group-hover:underline">
+                {ok.title}
+              </span>
             ) : (
-              <span className="truncate font-mono text-meta text-sol-text-muted">{url.replace(/^https?:\/\//, "")}</span>
+              <span className="truncate font-mono text-meta text-sol-text-muted">
+                {url.replace(/^https?:\/\//, "")}
+              </span>
             )}
             {ok?.description && (
-              <span className="line-clamp-2 text-xs leading-snug text-sol-text-muted">{ok.description}</span>
+              <span className="line-clamp-2 text-xs leading-snug text-sol-text-muted">
+                {ok.description}
+              </span>
             )}
           </span>
           {image && (
@@ -928,7 +1322,11 @@ export function LinkPreviewCard({ url, caption }: { url: string; caption?: strin
           className="mt-1 flex-shrink-0 rounded p-1 text-sol-text-dim opacity-0 transition-opacity hover:text-sol-blue focus-visible:opacity-100 group-hover/link:opacity-100 [@media(hover:none)]:opacity-100"
         />
       </span>
-      {caption && <span className="mt-1 block text-meta leading-snug text-sol-text-muted">{caption}</span>}
+      {caption && (
+        <span className="mt-1 block text-meta leading-snug text-sol-text-muted">
+          {caption}
+        </span>
+      )}
     </span>
   );
 }

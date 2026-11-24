@@ -12,7 +12,16 @@ const REAL = "d".repeat(32);
 const BUCKET = "e".repeat(32);
 
 function row(id: string, extra: Record<string, unknown> = {}): InboxSession {
-  return { _id: id, session_id: "sess-d", updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false, ...extra } as InboxSession;
+  return {
+    _id: id,
+    session_id: "sess-d",
+    updated_at: 1,
+    agent_type: "claude_code",
+    message_count: 1,
+    is_idle: true,
+    has_pending: false,
+    ...extra,
+  } as InboxSession;
 }
 
 describe("undo follows a stub row to its server id", () => {
@@ -36,15 +45,23 @@ describe("undo follows a stub row to its server id", () => {
     useInboxStore.getState().assignSessionToBucket(STUB, BUCKET);
     useInboxStore.getState().resolveSessionId(STUB, REAL);
     performUndo();
-    const assignments = Object.values(useInboxStore.getState().bucketAssignments as Record<string, any>);
-    expect(assignments.filter((a) => a.conversation_id === REAL && a.bucket_id === BUCKET)).toEqual([]);
+    const assignments = Object.values(
+      useInboxStore.getState().bucketAssignments as Record<string, any>,
+    );
+    expect(
+      assignments.filter(
+        (a) => a.conversation_id === REAL && a.bucket_id === BUCKET,
+      ),
+    ).toEqual([]);
     expect(getUndoHistory().items[0]!.status).toBe("undone");
   });
 
   test("a rename recorded on the stub undoes after resolveSessionId", () => {
     useInboxStore.getState().renameSession(STUB, "New");
     useInboxStore.getState().resolveSessionId(STUB, REAL);
-    expect(getUndoHistory().items[0]!.objects!.map((o) => o.id)).not.toContain(STUB);
+    expect(getUndoHistory().items[0]!.objects!.map((o) => o.id)).not.toContain(
+      STUB,
+    );
 
     performUndo();
     const s = useInboxStore.getState().sessions[REAL] as any;

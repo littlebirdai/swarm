@@ -19,7 +19,13 @@ function project(over: Partial<VaultInfo> = {}): VaultInfo {
 }
 
 function vault(over: Partial<VaultInfo> = {}): VaultInfo {
-  return { id: "v1", root: "/Users/ada/notes", name: "notes", added_at: 1, ...over };
+  return {
+    id: "v1",
+    root: "/Users/ada/notes",
+    name: "notes",
+    added_at: 1,
+    ...over,
+  };
 }
 
 describe("isProjectVault", () => {
@@ -45,47 +51,81 @@ describe("shortenVaultRoot", () => {
 });
 
 describe("vaultLandingPath", () => {
-  const repo = ["README.md", "src/lib.ts", "docs/setup.md", "docs/index.md", "docs/api/auth.md"];
+  const repo = [
+    "README.md",
+    "src/lib.ts",
+    "docs/setup.md",
+    "docs/index.md",
+    "docs/api/auth.md",
+  ];
 
   test("prefers the home directory over the repo root", () => {
     // The whole point of the rule: a repo root is mostly source directories,
     // so docs/ wins even though a perfectly good README sits at the root.
-    expect(vaultLandingPath(project({ home: "docs" }), repo)).toBe("docs/index.md");
+    expect(vaultLandingPath(project({ home: "docs" }), repo)).toBe(
+      "docs/index.md",
+    );
   });
 
   test("index beats README, README beats the first note alphabetically", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/index.md", "docs/README.md", "docs/a.md"]))
-      .toBe("docs/index.md");
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/README.md", "docs/a.md"]))
-      .toBe("docs/README.md");
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/b.md", "docs/a.md"]))
-      .toBe("docs/a.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), [
+        "docs/index.md",
+        "docs/README.md",
+        "docs/a.md",
+      ]),
+    ).toBe("docs/index.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), [
+        "docs/README.md",
+        "docs/a.md",
+      ]),
+    ).toBe("docs/README.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), ["docs/b.md", "docs/a.md"]),
+    ).toBe("docs/a.md");
   });
 
   test("README matches whatever case the repo wrote it in", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/z.md", "docs/readme.md"]))
-      .toBe("docs/readme.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), [
+        "docs/z.md",
+        "docs/readme.md",
+      ]),
+    ).toBe("docs/readme.md");
   });
 
   test("a note directly in the home directory beats one nested below it", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/api/auth.md", "docs/zzz.md"]))
-      .toBe("docs/zzz.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), [
+        "docs/api/auth.md",
+        "docs/zzz.md",
+      ]),
+    ).toBe("docs/zzz.md");
   });
 
   test("falls back to a nested note when the home directory has none of its own", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs/api/auth.md"])).toBe("docs/api/auth.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), ["docs/api/auth.md"]),
+    ).toBe("docs/api/auth.md");
   });
 
   test("falls back to the root when the home directory turns out to be empty", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["README.md", "src/lib.ts"])).toBe("README.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), ["README.md", "src/lib.ts"]),
+    ).toBe("README.md");
   });
 
   test("a project with no home directory lands on the root README", () => {
-    expect(vaultLandingPath(project(), ["notes.md", "README.md"])).toBe("README.md");
+    expect(vaultLandingPath(project(), ["notes.md", "README.md"])).toBe(
+      "README.md",
+    );
   });
 
   test("never lands anywhere when the project holds no markdown", () => {
-    expect(vaultLandingPath(project({ home: "docs" }), ["src/lib.ts"])).toBeNull();
+    expect(
+      vaultLandingPath(project({ home: "docs" }), ["src/lib.ts"]),
+    ).toBeNull();
   });
 
   test("a registered vault gets no landing note at all", () => {
@@ -96,8 +136,12 @@ describe("vaultLandingPath", () => {
 
   test("does not mistake a sibling directory for the home directory", () => {
     // "docs" must not match "docs-old/": the prefix test is on a path segment.
-    expect(vaultLandingPath(project({ home: "docs" }), ["docs-old/a.md", "README.md"]))
-      .toBe("README.md");
+    expect(
+      vaultLandingPath(project({ home: "docs" }), [
+        "docs-old/a.md",
+        "README.md",
+      ]),
+    ).toBe("README.md");
   });
 });
 
@@ -130,7 +174,10 @@ describe("groupVaultChoices", () => {
 
   test("hides a remote mirror of a vault that is also here locally", () => {
     // Same files, and the local one is writable.
-    const groups = groupVaultChoices([vault({ id: "same" })], [{ id: "same", name: "notes" }]);
+    const groups = groupVaultChoices(
+      [vault({ id: "same" })],
+      [{ id: "same", name: "notes" }],
+    );
     expect(groups.map((g) => g.kind)).toEqual(["vault"]);
   });
 

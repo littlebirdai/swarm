@@ -7,7 +7,12 @@ import { MessageInput } from "../MessageInput";
 import "../chat/chat.css";
 import { KeyCap } from "../KeyboardShortcutsHelp";
 import { useConversationSpeaker } from "../../hooks/useLiveIdentityRow";
-import { presenceDocId, commentAuthorName, withImages, type Comment } from "../../lib/commentThread";
+import {
+  presenceDocId,
+  commentAuthorName,
+  withImages,
+  type Comment,
+} from "../../lib/commentThread";
 
 // Composer for one thread. Reuses the conversation's own MessageInput (mentions,
 // image paste, auto-grow, and a submit path that clears the box synchronously) in
@@ -66,36 +71,58 @@ export function CommentComposer({
 }) {
   const convex = useConvex();
   const agentName = useConversationSpeaker(conversationId, agentType).name;
-  const draftKey = scopeKey ? `comment:${scopeKey}` : `comment:${conversationId}:${messageId ?? "global"}`;
-  const draft = useInboxStore((s) => (s.drafts[draftKey]?.draft_message as string | undefined) ?? "");
+  const draftKey = scopeKey
+    ? `comment:${scopeKey}`
+    : `comment:${conversationId}:${messageId ?? "global"}`;
+  const draft = useInboxStore(
+    (s) => (s.drafts[draftKey]?.draft_message as string | undefined) ?? "",
+  );
 
   const present = useDocPresence({
-    docId: scopeKey ? `comment:${scopeKey}` : presenceDocId(conversationId, messageId),
+    docId: scopeKey
+      ? `comment:${scopeKey}`
+      : presenceDocId(conversationId, messageId),
     draftText: draft,
     enabled: authed && enabled,
     forceBroadcast: draft.trim().length > 0,
   });
   const typing = present.filter((p) => p.draft_text && p.draft_text.trim());
 
-  if (!authed) return <div className="cc-cmt-signedout">Sign in to comment.</div>;
+  if (!authed)
+    return <div className="cc-cmt-signedout">Sign in to comment.</div>;
 
   // Esc backs out (capture phase, before MessageInput sees it): cancel a reply
   // first, otherwise close. Enter posts the comment as usual.
   const onKeyDownCapture = (e: React.KeyboardEvent) => {
     if (e.key !== "Escape") return;
-    if (replyTo && onCancelReply) { e.preventDefault(); e.stopPropagation(); onCancelReply(); }
-    else if (onClose) { e.preventDefault(); e.stopPropagation(); onClose(); }
+    if (replyTo && onCancelReply) {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancelReply();
+    } else if (onClose) {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    }
   };
 
   return (
     <div className="cc-cmt-composer" onKeyDownCapture={onKeyDownCapture}>
       {typing.length > 0 && (
         <div className="cc-cmt-typing">
-          <span className="cc-cmt-typing-dots"><i /><i /><i /></span>
+          <span className="cc-cmt-typing-dots">
+            <i />
+            <i />
+            <i />
+          </span>
           {typing.length === 1 ? (
             <span className="truncate">
-              <b style={{ color: typing[0].user_color }}>{typing[0].user_name}</b>{" "}
-              <span className="cc-cmt-typing-preview">{typing[0].draft_text}</span>
+              <b style={{ color: typing[0].user_color }}>
+                {typing[0].user_name}
+              </b>{" "}
+              <span className="cc-cmt-typing-preview">
+                {typing[0].draft_text}
+              </span>
             </span>
           ) : (
             <span>{typing.map((t) => t.user_name).join(", ")} are typing…</span>
@@ -106,9 +133,15 @@ export function CommentComposer({
       {replyTo && (
         <div className="cc-cmt-replyto">
           <span className="truncate">
-            Replying to <b>{commentAuthorName(replyTo, currentUserId, agentName)}</b>
+            Replying to{" "}
+            <b>{commentAuthorName(replyTo, currentUserId, agentName)}</b>
           </span>
-          <button type="button" className="cc-cmt-replyto-x" onClick={onCancelReply} title="Cancel reply">
+          <button
+            type="button"
+            className="cc-cmt-replyto-x"
+            onClick={onCancelReply}
+            title="Cancel reply"
+          >
             <X className="w-3 h-3" />
           </button>
         </div>
@@ -116,7 +149,11 @@ export function CommentComposer({
 
       {/* The app's one composer frame (chat.css): border, card surface, focus
           ring. A surface may pass its own frame placement. */}
-      <div className={"cc-cmt-mi " + (className ?? "ch-composer ch-composer-flush")}>
+      <div
+        className={
+          "cc-cmt-mi " + (className ?? "ch-composer ch-composer-flush")
+        }
+      >
         <MessageInput
           conversationId={draftKey}
           bareComposer
@@ -125,7 +162,11 @@ export function CommentComposer({
           mentionTeamId={mentionTeamId}
           chatMentionMode={chatMentionMode}
           onGateSend={async (text, images) => {
-            const content = await withImages(text, images, (ids) => (convex ? convex.query(api.images.getImageUrls, { storageIds: ids }) : Promise.resolve({})));
+            const content = await withImages(text, images, (ids) =>
+              convex
+                ? convex.query(api.images.getImageUrls, { storageIds: ids })
+                : Promise.resolve({}),
+            );
             if (!content.trim()) return;
             await onSubmit(content);
             onCancelReply?.();
@@ -135,7 +176,12 @@ export function CommentComposer({
 
       {onClose && (
         <div className="cc-cmt-composer-foot">
-          <button type="button" className="cc-comment-btn" onMouseDown={(e) => e.preventDefault()} onClick={onClose}>
+          <button
+            type="button"
+            className="cc-comment-btn"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={onClose}
+          >
             Cancel <KeyCap size="xs">Esc</KeyCap>
           </button>
         </div>

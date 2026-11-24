@@ -16,24 +16,52 @@ import { useContext } from "react";
 import { useConvex } from "convex/react";
 import { ContextMenu, useContextMenu } from "../ui/context-menu";
 import { Copy } from "lucide-react";
-import { browserPaneMenuItems, copyAddress } from "../../lib/browserPaneMenuItems";
+import {
+  browserPaneMenuItems,
+  copyAddress,
+} from "../../lib/browserPaneMenuItems";
 import { prefetchBrowserFocusEndpoint } from "../../lib/browserFocus";
 import type { BrowserTabRef } from "../castCommand";
-import { BrowserSessionContext, BROWSER_ROW_PILL, useBrowserTabActions, type BrowserTabActionState } from "../../hooks/useBrowserTabActions";
+import {
+  BrowserSessionContext,
+  BROWSER_ROW_PILL,
+  useBrowserTabActions,
+  type BrowserTabActionState,
+} from "../../hooks/useBrowserTabActions";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { useMountEffect } from "../../hooks/useMountEffect";
 
 const OPEN_TAB_ICON = (
-  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  <svg
+    className="w-3 h-3"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+    />
   </svg>
 );
 
 /** The offer / busy / note rendering shared by the row pill and the watch pane. */
-export function BrowserTabActionLabel({ state, idle }: { state: BrowserTabActionState; idle: React.ReactNode }) {
+export function BrowserTabActionLabel({
+  state,
+  idle,
+}: {
+  state: BrowserTabActionState;
+  idle: React.ReactNode;
+}) {
   switch (state.kind) {
     case "busy":
-      return <span className="animate-pulse motion-reduce:animate-none">{state.verb}…</span>;
+      return (
+        <span className="animate-pulse motion-reduce:animate-none">
+          {state.verb}…
+        </span>
+      );
     case "offer":
       return <span>reopen tab</span>;
     case "note":
@@ -67,7 +95,14 @@ export function BrowserTabPill({ tab }: { tab: BrowserTabRef }) {
   const session = useContext(BrowserSessionContext);
   const castTab = tab.kind === "cast" ? tab : null;
   const isCast = !!castTab;
-  const actions = useBrowserTabActions({ tabId: castTab?.tabId ?? null, url: castTab?.url ?? null, gone: castTab?.gone }, session);
+  const actions = useBrowserTabActions(
+    {
+      tabId: castTab?.tabId ?? null,
+      url: castTab?.url ?? null,
+      gone: castTab?.gone,
+    },
+    session,
+  );
   const menu = useContextMenu<string>();
   useWatchEffect(() => {
     if (isCast) prefetchBrowserFocusEndpoint(convex);
@@ -106,7 +141,14 @@ export function BrowserTabPill({ tab }: { tab: BrowserTabRef }) {
         onMouseEnter={actions.check}
         onClick={(e) => {
           e.stopPropagation();
-          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          if (
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            e.button !== 0
+          )
+            return;
           e.preventDefault();
           if (state.kind === "offer") actions.reopen();
           else actions.focus();
@@ -137,7 +179,11 @@ export function BrowserTabPill({ tab }: { tab: BrowserTabRef }) {
           visit to the same address with your own session, which is what you
           want when you are checking the agent's work rather than its steps. */}
       <ContextMenu state={menu}>
-        {(url) => browserPaneMenuItems(url, { paneLabel: "Preview this page in a pane" })}
+        {(url) =>
+          browserPaneMenuItems(url, {
+            paneLabel: "Preview this page in a pane",
+          })
+        }
       </ContextMenu>
     </span>
   );

@@ -51,7 +51,9 @@
   white-space: nowrap;
   opacity: 0;
   transform: translateY(2px);
-  transition: opacity 160ms ease-out, transform 160ms ease-out;
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
 }
 
 .sd-caret[data-typing] .sd-caret-flag {

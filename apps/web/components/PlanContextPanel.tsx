@@ -55,7 +55,9 @@ const PRIORITY_COLOR: Record<string, string> = {
 };
 
 export function PlanContextPanel({ planId }: { planId: Id<"plans"> }) {
-  const queryPlan = useQueryNoThrow(api.plans.webPlanContext, { plan_id: planId }).data;
+  const queryPlan = useQueryNoThrow(api.plans.webPlanContext, {
+    plan_id: planId,
+  }).data;
   const [expanded, setExpanded] = useState(false);
 
   // Local-first first paint: the strip used to pop in a round-trip after the
@@ -80,57 +82,76 @@ export function PlanContextPanel({ planId }: { planId: Id<"plans"> }) {
 
   return (
     <div data-cc-context-panel className="contents">
-      <RailChip data-cc-rail-item="plan" open={expanded} onToggle={() => setExpanded(!expanded)} title={`${plan.title} · ${plan.short_id ?? ""}`}>
+      <RailChip
+        data-cc-rail-item="plan"
+        open={expanded}
+        onToggle={() => setExpanded(!expanded)}
+        title={`${plan.title} · ${plan.short_id ?? ""}`}
+      >
         <Target className="w-3.5 h-3.5 text-sol-cyan flex-shrink-0" />
-        <span className="min-w-0 truncate font-medium text-sol-cyan">{plan.title}</span>
-        <span data-rail-full className="flex-shrink-0"><ShortId id={plan.short_id} className="text-sol-text-dim" /></span>
+        <span className="min-w-0 truncate font-medium text-sol-cyan">
+          {plan.title}
+        </span>
+        <span data-rail-full className="flex-shrink-0">
+          <ShortId id={plan.short_id} className="text-sol-text-dim" />
+        </span>
         <span className="ml-auto" />
-        <RailProgress done={progress.done} total={progress.total} bar="bg-sol-green" />
+        <RailProgress
+          done={progress.done}
+          total={progress.total}
+          bar="bg-sol-green"
+        />
       </RailChip>
 
       {expanded && (
         <RailDetail data-cc-context-panel="">
-        <div className="px-4 py-2 space-y-2">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-medium text-sol-text">{plan.title}</span>
-            <ShortId id={plan.short_id} className="text-sol-text-dim" />
+          <div className="px-4 py-2 space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-medium text-sol-text">{plan.title}</span>
+              <ShortId id={plan.short_id} className="text-sol-text-dim" />
+            </div>
+            {plan.goal && (
+              <p className="text-meta text-sol-text-muted line-clamp-2">
+                {plan.goal}
+              </p>
+            )}
+
+            <div className="space-y-0.5">
+              {plan.tasks.map((task: any) => {
+                const Icon = STATUS_ICON[task.status] || Circle;
+                const color = STATUS_COLOR[task.status] || "text-sol-text-dim";
+                const PIcon = PRIORITY_ICON[task.priority];
+                const pColor = PRIORITY_COLOR[task.priority];
+
+                return (
+                  <Link
+                    key={task._id}
+                    href={`/tasks/${task._id}`}
+                    className="flex items-center gap-2 py-1 px-1.5 rounded text-xs hover:bg-sol-bg-alt/50 transition-colors group"
+                  >
+                    <Icon className={`w-3 h-3 flex-shrink-0 ${color}`} />
+                    <span
+                      className={`truncate ${task.status === "done" ? "line-through text-sol-text-dim" : "text-sol-text-muted group-hover:text-sol-text"}`}
+                    >
+                      {task.title}
+                    </span>
+                    {PIcon && pColor && (
+                      <PIcon
+                        className={`w-3 h-3 ml-auto flex-shrink-0 ${pColor}`}
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <Link
+              href={`/plans/${plan.short_id}`}
+              className="block text-meta text-sol-cyan hover:underline pt-1"
+            >
+              View full plan
+            </Link>
           </div>
-          {plan.goal && (
-            <p className="text-meta text-sol-text-muted line-clamp-2">{plan.goal}</p>
-          )}
-
-          <div className="space-y-0.5">
-            {plan.tasks.map((task: any) => {
-              const Icon = STATUS_ICON[task.status] || Circle;
-              const color = STATUS_COLOR[task.status] || "text-sol-text-dim";
-              const PIcon = PRIORITY_ICON[task.priority];
-              const pColor = PRIORITY_COLOR[task.priority];
-
-              return (
-                <Link
-                  key={task._id}
-                  href={`/tasks/${task._id}`}
-                  className="flex items-center gap-2 py-1 px-1.5 rounded text-xs hover:bg-sol-bg-alt/50 transition-colors group"
-                >
-                  <Icon className={`w-3 h-3 flex-shrink-0 ${color}`} />
-                  <span className={`truncate ${task.status === "done" ? "line-through text-sol-text-dim" : "text-sol-text-muted group-hover:text-sol-text"}`}>
-                    {task.title}
-                  </span>
-                  {PIcon && pColor && (
-                    <PIcon className={`w-3 h-3 ml-auto flex-shrink-0 ${pColor}`} />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-
-          <Link
-            href={`/plans/${plan.short_id}`}
-            className="block text-meta text-sol-cyan hover:underline pt-1"
-          >
-            View full plan
-          </Link>
-        </div>
         </RailDetail>
       )}
     </div>

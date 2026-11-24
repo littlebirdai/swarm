@@ -32,8 +32,14 @@ export function useOutgoingRings(roomKey: string | null): {
         .join("|"),
   ]);
   return useMemo(() => {
-    const rows = (s.myCalls.outgoing as any[]).filter((o) => o.room_key === roomKey);
-    const shape = (o: any): RingRow => ({ user_id: String(o.to_user), user_name: o.to_name, user_image: o.to_image });
+    const rows = (s.myCalls.outgoing as any[]).filter(
+      (o) => o.room_key === roomKey,
+    );
+    const shape = (o: any): RingRow => ({
+      user_id: String(o.to_user),
+      user_name: o.to_name,
+      user_image: o.to_image,
+    });
     const ringing = rows.filter((o) => o.status === "ringing").map(shape);
     // A fresh re-ring outranks the same person's settled rows: "sam ·
     // ringing…" and "no answer from sam" must never share a screen.
@@ -44,7 +50,8 @@ export function useOutgoingRings(roomKey: string | null): {
     const noAnswer = rows
       .filter((o) => o.status === "expired" && !live.has(String(o.to_user)))
       .map(shape);
-    const names = (list: RingRow[]) => list.map((r) => firstName(r.user_name)).join(", ");
+    const names = (list: RingRow[]) =>
+      list.map((r) => firstName(r.user_name)).join(", ");
     return {
       ringing,
       declined,
@@ -67,16 +74,25 @@ export function useRoomDescription(roomKey: string | null) {
   // teamMembers churns on every presence heartbeat and would re-derive the
   // label (and re-render the dock) for nothing.
   const s = useTrackedStore([
-    (st: any) => teamMembersOf(st).map((m: any) => `${m._id}:${m.name ?? m.email ?? ""}`).join("|"),
+    (st: any) =>
+      teamMembersOf(st)
+        .map((m: any) => `${m._id}:${m.name ?? m.email ?? ""}`)
+        .join("|"),
     (st: any) => {
       const id = roomKey ? roomKey.split(":")[1] : "";
       const ch = id ? st.chatChannels?.[id] : undefined;
-      const rail = id ? (st.chatRail ?? []).find((r: any) => String(r.channel_id) === id) : undefined;
-      return ch ? `${ch.kind ?? ""}:${ch.name ?? ""}:${(rail?.member_ids ?? []).join(",")}` : "";
+      const rail = id
+        ? (st.chatRail ?? []).find((r: any) => String(r.channel_id) === id)
+        : undefined;
+      return ch
+        ? `${ch.kind ?? ""}:${ch.name ?? ""}:${(rail?.member_ids ?? []).join(",")}`
+        : "";
     },
     // Guests appear in the live roster and nowhere in the key.
     (st: any) =>
-      ((roomKey && st.callOccupancy?.[roomKey]) || []).map((m: any) => m.user_id).join("|"),
+      ((roomKey && st.callOccupancy?.[roomKey]) || [])
+        .map((m: any) => m.user_id)
+        .join("|"),
     // A session room is named by its conversation's title, which can land
     // after the dock mounts (LLM titles arrive late).
     (st: any) => {
@@ -84,8 +100,12 @@ export function useRoomDescription(roomKey: string | null) {
       const id = roomKey.split(":")[1];
       const conv =
         st.conversations?.[id] ??
-        Object.values(st.conversations ?? {}).find((c: any) => String(c?._id) === id) ??
-        Object.values(st.sessions ?? {}).find((c: any) => String(c?._id) === id);
+        Object.values(st.conversations ?? {}).find(
+          (c: any) => String(c?._id) === id,
+        ) ??
+        Object.values(st.sessions ?? {}).find(
+          (c: any) => String(c?._id) === id,
+        );
       return (conv as any)?.title ?? (conv as any)?.name ?? "";
     },
     (st: any) => st.currentUser?._id,

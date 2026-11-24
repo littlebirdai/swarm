@@ -15,8 +15,20 @@
 
 import type { PublishDeps } from "../castApi.js";
 import { browserSocketUrl, CdpConnection } from "./cdp.js";
-import { engineFitness, engineSession, realSessionKey, runEngine } from "./engine.js";
-import { engineBrowserFor, isPaneMode, isRealMode, listRealTargets, requireRealBridge, resolveRealTarget } from "./bridge/real.js";
+import {
+  engineFitness,
+  engineSession,
+  realSessionKey,
+  runEngine,
+} from "./engine.js";
+import {
+  engineBrowserFor,
+  isPaneMode,
+  isRealMode,
+  listRealTargets,
+  requireRealBridge,
+  resolveRealTarget,
+} from "./bridge/real.js";
 import { bridgeEndpoint } from "./bridge/host.js";
 import { desktopPaneCtx } from "./desktopPane.js";
 import { ownerKey } from "./owner.js";
@@ -39,10 +51,14 @@ export interface SessionTab {
 }
 
 /** The driver `cast browser` registered (cli.ts useEngine): the engine when a usable copy is installed. */
-const enginePath = () => process.env.CAST_BROWSER_LEGACY !== "1" && engineFitness().ok;
+const enginePath = () =>
+  process.env.CAST_BROWSER_LEGACY !== "1" && engineFitness().ok;
 
 /** The browser this session drives, as the engine verbs choose it (cliEngine ctx). */
-async function pageCtx(choice: TargetChoice, deps: PublishDeps): Promise<PageCtx> {
+async function pageCtx(
+  choice: TargetChoice,
+  deps: PublishDeps,
+): Promise<PageCtx> {
   const session = engineSession(deps.detectCurrentSessionId);
   const owner = ownerKey(deps.detectCurrentSessionId);
   if (isPaneMode(choice, owner)) return desktopPaneCtx(owner);
@@ -50,7 +66,10 @@ async function pageCtx(choice: TargetChoice, deps: PublishDeps): Promise<PageCtx
   return engineBrowserFor(realSessionKey(session), await requireRealBridge());
 }
 
-async function engineTab(choice: TargetChoice, deps: PublishDeps): Promise<SessionTab> {
+async function engineTab(
+  choice: TargetChoice,
+  deps: PublishDeps,
+): Promise<SessionTab> {
   return engineTabFor(await pageCtx(choice, deps));
 }
 
@@ -58,7 +77,8 @@ async function engineTab(choice: TargetChoice, deps: PublishDeps): Promise<Sessi
 export async function engineTabFor(ctx: PageCtx): Promise<SessionTab> {
   await ensurePinnedTab(ctx.session);
   const tab = await connectToTab(ctx);
-  if ("error" in tab) throw Object.assign(new Error(tab.error), { hint: tab.hint });
+  if ("error" in tab)
+    throw Object.assign(new Error(tab.error), { hint: tab.hint });
   return {
     session: ctx.session,
     ...tab,
@@ -67,21 +87,40 @@ export async function engineTabFor(ctx: PageCtx): Promise<SessionTab> {
       // secret into another field.
       const refused = refuseShiftedRef(engineRef(ref), ctx);
       if (refused) throw new Error(`${ref} was not used: ${refused}`);
-      const res = runEngine(["focus", engineRef(ref)], { ...ctx, timeoutMs: 20_000 });
-      if (res.status !== 0) throw new Error((res.stderr || res.stdout || `could not focus ${ref}`).trim());
+      const res = runEngine(["focus", engineRef(ref)], {
+        ...ctx,
+        timeoutMs: 20_000,
+      });
+      if (res.status !== 0)
+        throw new Error(
+          (res.stderr || res.stdout || `could not focus ${ref}`).trim(),
+        );
     },
   };
 }
 
-async function builtInTab(choice: TargetChoice, deps: PublishDeps): Promise<SessionTab> {
+async function builtInTab(
+  choice: TargetChoice,
+  deps: PublishDeps,
+): Promise<SessionTab> {
   const owner = ownerKey(deps.detectCurrentSessionId);
-  if (!isRealMode(choice, owner)) throw new Error("without the browser engine, this verb drives the human's Chrome only");
+  if (!isRealMode(choice, owner))
+    throw new Error(
+      "without the browser engine, this verb drives the human's Chrome only",
+    );
   const bridge = await requireRealBridge();
-  const target = resolveRealTarget(await listRealTargets(bridge), undefined, owner);
+  const target = resolveRealTarget(
+    await listRealTargets(bridge),
+    undefined,
+    owner,
+  );
   const browserUrl = await browserSocketUrl(bridgeEndpoint(bridge), 8000);
   const conn = await CdpConnection.connect(browserUrl, 8000);
   try {
-    const { sessionId } = await conn.send<{ sessionId: string }>("Target.attachToTarget", { targetId: target.targetId, flatten: true });
+    const { sessionId } = await conn.send<{ sessionId: string }>(
+      "Target.attachToTarget",
+      { targetId: target.targetId, flatten: true },
+    );
     return {
       session: owner ?? "default",
       conn,
@@ -92,8 +131,13 @@ async function builtInTab(choice: TargetChoice, deps: PublishDeps): Promise<Sess
       focusRef: async (ref) => {
         await conn.send("DOM.getDocument", { depth: 0 }, sessionId);
         // A ref from inside a cross-origin frame focuses there (oopif.ts).
-        await focusRefIn({ conn, sessionId, targetId: target.targetId }, parseInt(ref.replace(/^#?e/i, ""), 10)).catch(() => {
-          throw new Error(`${ref} is gone from the page: take a fresh snapshot`);
+        await focusRefIn(
+          { conn, sessionId, targetId: target.targetId },
+          parseInt(ref.replace(/^#?e/i, ""), 10),
+        ).catch(() => {
+          throw new Error(
+            `${ref} is gone from the page: take a fresh snapshot`,
+          );
         });
       },
     };
@@ -104,6 +148,9 @@ async function builtInTab(choice: TargetChoice, deps: PublishDeps): Promise<Sess
 }
 
 /** Attach to this session's tab, or throw the reason it has none. */
-export function openSessionTab(choice: TargetChoice, deps: PublishDeps): Promise<SessionTab> {
+export function openSessionTab(
+  choice: TargetChoice,
+  deps: PublishDeps,
+): Promise<SessionTab> {
   return enginePath() ? engineTab(choice, deps) : builtInTab(choice, deps);
 }

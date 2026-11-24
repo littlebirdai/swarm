@@ -45,18 +45,29 @@ describe("wasEdited / describeDates", () => {
   const created = now - 10 * DAY;
   test("a write inside the creation minute is not an edit", () => {
     expect(wasEdited({ created_at: created, updated_at: created })).toBe(false);
-    expect(wasEdited({ created_at: created, updated_at: created + 30_000 })).toBe(false);
+    expect(
+      wasEdited({ created_at: created, updated_at: created + 30_000 }),
+    ).toBe(false);
     expect(wasEdited({ created_at: created })).toBe(false);
   });
   test("a later write is", () => {
-    expect(wasEdited({ created_at: created, updated_at: created + 2 * MIN })).toBe(true);
+    expect(
+      wasEdited({ created_at: created, updated_at: created + 2 * MIN }),
+    ).toBe(true);
   });
   test("label shows creation alone until an edit lands", () => {
-    expect(describeDates({ created_at: created, updated_at: created }, now)).toBe("Created Aug 26");
-    expect(describeDates({ created_at: created, updated_at: now - 2 * HOUR }, now)).toBe("Created Aug 26 · Updated 2h ago");
+    expect(
+      describeDates({ created_at: created, updated_at: created }, now),
+    ).toBe("Created Aug 26");
+    expect(
+      describeDates({ created_at: created, updated_at: now - 2 * HOUR }, now),
+    ).toBe("Created Aug 26 · Updated 2h ago");
   });
   test("full form puts each date on its own line", () => {
-    const full = describeDatesFull({ created_at: created, updated_at: now - 2 * HOUR });
+    const full = describeDatesFull({
+      created_at: created,
+      updated_at: now - 2 * HOUR,
+    });
     const lines = full.split("\n");
     expect(lines).toHaveLength(2);
     expect(lines[0]).toMatch(/^Created \w+, August 26, 2026/);
@@ -79,24 +90,41 @@ describe("a target day is a calendar day everywhere", () => {
     expect(targetDayStamp("31/12/2026")).toBeNull();
   });
   test("prints the stored day and turns late by the viewer's own calendar, east and west of UTC", async () => {
-    const { targetDayStamp, formatTargetDay, targetDayPassed, formatShortDate } = await import("./index");
+    const {
+      targetDayStamp,
+      formatTargetDay,
+      targetDayPassed,
+      formatShortDate,
+    } = await import("./index");
     const ts = targetDayStamp("2026-10-30")!;
     const was = process.env.TZ;
     try {
-      for (const zone of ["Europe/Berlin", "Asia/Tokyo", "America/New_York", "Pacific/Honolulu"]) {
+      for (const zone of [
+        "Europe/Berlin",
+        "Asia/Tokyo",
+        "America/New_York",
+        "Pacific/Honolulu",
+      ]) {
         process.env.TZ = zone;
         expect(formatTargetDay(ts, Date.UTC(2026, 9, 1))).toBe("Oct 30");
         expect(formatTargetDay(ts, Date.UTC(2027, 5, 1))).toBe("Oct 30, 2026");
         // Noon on the day itself, where the viewer is: not late. Noon the day after: late.
-        expect(targetDayPassed(ts, new Date(2026, 9, 30, 12).getTime())).toBe(false);
-        expect(targetDayPassed(ts, new Date(2026, 9, 30, 23, 30).getTime())).toBe(false);
-        expect(targetDayPassed(ts, new Date(2026, 9, 31, 0, 30).getTime())).toBe(true);
+        expect(targetDayPassed(ts, new Date(2026, 9, 30, 12).getTime())).toBe(
+          false,
+        );
+        expect(
+          targetDayPassed(ts, new Date(2026, 9, 30, 23, 30).getTime()),
+        ).toBe(false);
+        expect(
+          targetDayPassed(ts, new Date(2026, 9, 31, 0, 30).getTime()),
+        ).toBe(true);
       }
       // The plain formatter names the local day of the stamp, which is why a day needs its own.
       process.env.TZ = "Europe/Berlin";
       expect(formatShortDate(ts, Date.UTC(2026, 9, 1))).toBe("Oct 31");
     } finally {
-      if (was === undefined) delete process.env.TZ; else process.env.TZ = was;
+      if (was === undefined) delete process.env.TZ;
+      else process.env.TZ = was;
     }
   });
 });
@@ -140,17 +168,31 @@ describe("parseClockTime", () => {
   const now = Date.UTC(2026, 9, 16, 22, 0); // 2026-10-16 22:00 UTC
   test("a time of day is its next occurrence, in the named zone", () => {
     expect(parseClockTime("06:00 UTC", now)).toBe(Date.UTC(2026, 9, 17, 6, 0));
-    expect(parseClockTime("23:30 UTC", now)).toBe(Date.UTC(2026, 9, 16, 23, 30));
+    expect(parseClockTime("23:30 UTC", now)).toBe(
+      Date.UTC(2026, 9, 16, 23, 30),
+    );
     expect(parseClockTime("6am", now, "UTC")).toBe(Date.UTC(2026, 9, 17, 6, 0));
-    expect(parseClockTime("6:15pm UTC", now)).toBe(Date.UTC(2026, 9, 17, 18, 15));
+    expect(parseClockTime("6:15pm UTC", now)).toBe(
+      Date.UTC(2026, 9, 17, 18, 15),
+    );
     // 09:00 in New York (EDT, UTC-4) is 13:00 UTC, already past today.
-    expect(parseClockTime("09:00 America/New_York", now)).toBe(Date.UTC(2026, 9, 17, 13, 0));
+    expect(parseClockTime("09:00 America/New_York", now)).toBe(
+      Date.UTC(2026, 9, 17, 13, 0),
+    );
   });
   test("an ISO moment reads its offset, else the zone", () => {
-    expect(parseClockTime("2026-10-17T06:00:00Z", now)).toBe(Date.UTC(2026, 9, 17, 6, 0));
-    expect(parseClockTime("2026-10-17T06:00+02:00", now)).toBe(Date.UTC(2026, 9, 17, 4, 0));
-    expect(parseClockTime("2026-10-17 06:00", now, "UTC")).toBe(Date.UTC(2026, 9, 17, 6, 0));
-    expect(parseClockTime("2026-10-17T06:00 Europe/Paris", now)).toBe(Date.UTC(2026, 9, 17, 4, 0));
+    expect(parseClockTime("2026-10-17T06:00:00Z", now)).toBe(
+      Date.UTC(2026, 9, 17, 6, 0),
+    );
+    expect(parseClockTime("2026-10-17T06:00+02:00", now)).toBe(
+      Date.UTC(2026, 9, 17, 4, 0),
+    );
+    expect(parseClockTime("2026-10-17 06:00", now, "UTC")).toBe(
+      Date.UTC(2026, 9, 17, 6, 0),
+    );
+    expect(parseClockTime("2026-10-17T06:00 Europe/Paris", now)).toBe(
+      Date.UTC(2026, 9, 17, 4, 0),
+    );
   });
   test("refuses what is not a moment", () => {
     expect(parseClockTime("6", now)).toBeNull();

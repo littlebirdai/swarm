@@ -7,7 +7,11 @@
  */
 
 export * from "./types.js";
-export { resolveManifest, mergeManifests, MANIFEST_REL_PATH } from "./resolver.js";
+export {
+  resolveManifest,
+  mergeManifests,
+  MANIFEST_REL_PATH,
+} from "./resolver.js";
 export { detectProject } from "./detect.js";
 export { parseManifest, parseManifestText, ManifestError } from "./manifest.js";
 export {
@@ -74,11 +78,7 @@ export {
 export { LocalBackend } from "./backends/local.js";
 export { defaultRegistry, getBackend } from "./backends/registry.js";
 
-import type {
-  AcquireOptions,
-  ContractResult,
-  Workspace,
-} from "./types.js";
+import type { AcquireOptions, ContractResult, Workspace } from "./types.js";
 
 /**
  * Create or attach to a workspace by name. If the worktree already exists,
@@ -98,12 +98,18 @@ export async function release(_repoRoot: string, _name: string): Promise<void> {
 }
 
 /** Idempotently re-run setup to recover a broken workspace. */
-export async function heal(_repoRoot: string, _name: string): Promise<Workspace> {
+export async function heal(
+  _repoRoot: string,
+  _name: string,
+): Promise<Workspace> {
   throw new Error("workspace.heal not yet implemented");
 }
 
 /** Validate an existing workspace against the contract without mutating it. */
-export async function validate(_repoRoot: string, _name: string): Promise<ContractResult> {
+export async function validate(
+  _repoRoot: string,
+  _name: string,
+): Promise<ContractResult> {
   throw new Error("workspace.validate not yet implemented");
 }
 
@@ -111,4 +117,3 @@ export async function validate(_repoRoot: string, _name: string): Promise<Contra
 export async function list(_repoRoot: string): Promise<Workspace[]> {
   throw new Error("workspace.list not yet implemented");
 }
-

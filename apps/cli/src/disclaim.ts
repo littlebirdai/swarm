@@ -42,7 +42,10 @@ const POSIX_SPAWN_SETEXEC = 0x0040;
  *  via posix_spawnp, not a shell) — both call sites start with `env ...`. */
 export function buildDisclaimShellPrefix(
   castBin: string,
-  opts: { platform?: NodeJS.Platform; env?: Record<string, string | undefined> } = {},
+  opts: {
+    platform?: NodeJS.Platform;
+    env?: Record<string, string | undefined>;
+  } = {},
 ): string {
   const platform = opts.platform ?? process.platform;
   const env = opts.env ?? process.env;
@@ -60,11 +63,17 @@ export function buildDisclaimShellPrefix(
 export function inheritedEnvStrings(): string[] | null {
   try {
     if (process.platform === "linux") {
-      return (require("fs") as typeof import("fs")).readFileSync("/proc/self/environ", "utf8").split("\0").filter(Boolean);
+      return (require("fs") as typeof import("fs"))
+        .readFileSync("/proc/self/environ", "utf8")
+        .split("\0")
+        .filter(Boolean);
     }
     if (process.platform !== "darwin") return null;
-    const { dlopen, FFIType, CString, read } = require("bun:ffi") as typeof import("bun:ffi");
-    const lib = dlopen("libSystem.B.dylib", { _NSGetEnviron: { args: [], returns: FFIType.ptr } });
+    const { dlopen, FFIType, CString, read } =
+      require("bun:ffi") as typeof import("bun:ffi");
+    const lib = dlopen("libSystem.B.dylib", {
+      _NSGetEnviron: { args: [], returns: FFIType.ptr },
+    });
     const envp = read.ptr(lib.symbols._NSGetEnviron()!, 0);
     const out: string[] = [];
     for (let i = 0; ; i++) {
@@ -93,10 +102,23 @@ export function execDisclaimed(argv: string[]): number {
   const open = () =>
     dlopen("libSystem.B.dylib", {
       posix_spawnattr_init: { args: [FFIType.ptr], returns: FFIType.i32 },
-      posix_spawnattr_setflags: { args: [FFIType.ptr, FFIType.i16], returns: FFIType.i32 },
-      responsibility_spawnattrs_setdisclaim: { args: [FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+      posix_spawnattr_setflags: {
+        args: [FFIType.ptr, FFIType.i16],
+        returns: FFIType.i32,
+      },
+      responsibility_spawnattrs_setdisclaim: {
+        args: [FFIType.ptr, FFIType.i32],
+        returns: FFIType.i32,
+      },
       posix_spawnp: {
-        args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr],
+        args: [
+          FFIType.ptr,
+          FFIType.ptr,
+          FFIType.ptr,
+          FFIType.ptr,
+          FFIType.ptr,
+          FFIType.ptr,
+        ],
         returns: FFIType.i32,
       },
     });
@@ -124,8 +146,12 @@ export function execDisclaimed(argv: string[]): number {
   const keep: Buffer[] = [];
   const attr = Buffer.alloc(8); // posix_spawnattr_t is a single pointer on darwin
   if (lib.symbols.posix_spawnattr_init(ptr(attr)) !== 0) return -1;
-  if (lib.symbols.responsibility_spawnattrs_setdisclaim(ptr(attr), 1) !== 0) return -1;
-  if (lib.symbols.posix_spawnattr_setflags(ptr(attr), POSIX_SPAWN_SETEXEC) !== 0) return -1;
+  if (lib.symbols.responsibility_spawnattrs_setdisclaim(ptr(attr), 1) !== 0)
+    return -1;
+  if (
+    lib.symbols.posix_spawnattr_setflags(ptr(attr), POSIX_SPAWN_SETEXEC) !== 0
+  )
+    return -1;
 
   const file = cstr(argv[0]);
   const argvArr = cstrArray(argv, keep);
@@ -144,7 +170,14 @@ export function execDisclaimed(argv: string[]): number {
   }
   // SETEXEC: on success this call never returns — the process image is
   // replaced by argv[0] with the disclaim already applied to our pid.
-  return lib.symbols.posix_spawnp(ptr(pidOut), ptr(file), null, ptr(attr), ptr(argvArr), ptr(envArr));
+  return lib.symbols.posix_spawnp(
+    ptr(pidOut),
+    ptr(file),
+    null,
+    ptr(attr),
+    ptr(argvArr),
+    ptr(envArr),
+  );
 }
 
 /** Entry point for `cast _disclaimed -- <cmd> [args...]`. Execs the command
@@ -162,12 +195,21 @@ export function runDisclaimed(rawArgs: string[]): void {
   const { spawn } = require("child_process") as typeof import("child_process");
   const inherited = inheritedEnvStrings();
   const env = inherited
-    ? Object.fromEntries(inherited.filter((s) => s.indexOf("=") > 0).map((s) => [s.slice(0, s.indexOf("=")), s.slice(s.indexOf("=") + 1)]))
+    ? Object.fromEntries(
+        inherited
+          .filter((s) => s.indexOf("=") > 0)
+          .map((s) => [
+            s.slice(0, s.indexOf("=")),
+            s.slice(s.indexOf("=") + 1),
+          ]),
+      )
     : process.env;
   const child = spawn(argv[0], argv.slice(1), { stdio: "inherit", env });
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
     process.on(sig, () => {
-      try { child.kill(sig); } catch {}
+      try {
+        child.kill(sig);
+      } catch {}
     });
   }
   child.on("error", (err) => {
@@ -176,7 +218,9 @@ export function runDisclaimed(rawArgs: string[]): void {
   });
   child.on("exit", (code, signal) => {
     if (signal) {
-      try { process.kill(process.pid, signal); } catch {}
+      try {
+        process.kill(process.pid, signal);
+      } catch {}
       process.exit(128);
     }
     process.exit(code ?? 0);

@@ -93,7 +93,8 @@ export async function purgeRow(
     if (out !== "done") return out;
   }
   if (budget.left <= 0) return "more";
-  if (node.before && (await node.before(ctx, row, counts)) === "wait") return "wait";
+  if (node.before && (await node.before(ctx, row, counts)) === "wait")
+    return "wait";
   await ctx.db.delete(row._id);
   addCount(counts, node.table);
   budget.left -= node.weight ?? 1;
@@ -101,7 +102,11 @@ export async function purgeRow(
 }
 
 /** A stored file, gone; one already missing is not an error. */
-export async function deleteStored(ctx: any, counts: PurgeCounts, storageId: unknown): Promise<void> {
+export async function deleteStored(
+  ctx: any,
+  counts: PurgeCounts,
+  storageId: unknown,
+): Promise<void> {
   if (!storageId) return;
   await ctx.storage.delete(storageId).catch(() => {});
   addCount(counts, "storage_files");

@@ -17,7 +17,9 @@ export default function FlowsRoute() {
   const search = useSearchParams();
   const on = useWorkspaceFeature("line");
   const to = on ? lineWorkspaceRedirect(search) : null;
-  useWatchEffect(() => { if (to) router.replace(to); }, [router, to]);
+  useWatchEffect(() => {
+    if (to) router.replace(to);
+  }, [router, to]);
   if (to) return null;
   return (
     <AuthGuard>

@@ -40,10 +40,20 @@ type Anchor = { x: number; y: number };
 
 function seatIn(bar: HTMLElement | null, id: string): HTMLElement | null {
   if (!faceBarOnScreen(bar)) return null;
-  const seat = bar!.querySelector<HTMLElement>(`[data-face-id="${CSS.escape(id)}"]`);
-  if (!seat || seat.getClientRects().length === 0 || seat.dataset.stacked || seat.dataset.folded) return null;
+  const seat = bar!.querySelector<HTMLElement>(
+    `[data-face-id="${CSS.escape(id)}"]`,
+  );
+  if (
+    !seat ||
+    seat.getClientRects().length === 0 ||
+    seat.dataset.stacked ||
+    seat.dataset.folded
+  )
+    return null;
   const r = seat.getBoundingClientRect();
-  return r.height === 0 || (r.bottom > 0 && r.top < window.innerHeight) ? seat : null;
+  return r.height === 0 || (r.bottom > 0 && r.top < window.innerHeight)
+    ? seat
+    : null;
 }
 
 function anchorOf(seat: HTMLElement): Anchor {
@@ -57,16 +67,25 @@ function anchorOf(seat: HTMLElement): Anchor {
 function placement(a: Anchor, w: number) {
   const lead = a.x < window.innerWidth / 2 ? a.x - 34 : a.x - w + 34;
   const left = Math.max(8, Math.min(lead, window.innerWidth - w - 8));
-  return { left, top: a.y + 11, notch: Math.max(16, Math.min(a.x - left, w - 16)) };
+  return {
+    left,
+    top: a.y + 11,
+    notch: Math.max(16, Math.min(a.x - left, w - 16)),
+  };
 }
 
 function memberOf(id: string) {
-  return teamMembersOf(useInboxStore.getState()).find((m: any) => String(m?._id) === id);
+  return teamMembersOf(useInboxStore.getState()).find(
+    (m: any) => String(m?._id) === id,
+  );
 }
 
 /** The bubble's anchor, tracked while it is up: the row moves faces by
  *  FLIP when someone is pulled into view, and the window can resize. */
-function useAnchor(barRef: RefObject<HTMLElement | null>, id: string | null): Anchor | null {
+function useAnchor(
+  barRef: RefObject<HTMLElement | null>,
+  id: string | null,
+): Anchor | null {
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   useLayoutEffect(() => {
     if (!id) return setAnchor(null);
@@ -74,7 +93,12 @@ function useAnchor(barRef: RefObject<HTMLElement | null>, id: string | null): An
       const seat = seatIn(barRef.current, id);
       const next = seat ? anchorOf(seat) : null;
       setAnchor((prev) =>
-        prev && next && Math.abs(prev.x - next.x) < 0.5 && Math.abs(prev.y - next.y) < 0.5 ? prev : next,
+        prev &&
+        next &&
+        Math.abs(prev.x - next.x) < 0.5 &&
+        Math.abs(prev.y - next.y) < 0.5
+          ? prev
+          : next,
       );
     };
     return whileWindowVisible(() => {
@@ -90,7 +114,11 @@ function useAnchor(barRef: RefObject<HTMLElement | null>, id: string | null): An
   return anchor;
 }
 
-export function FaceChatLayer({ barRef }: { barRef: RefObject<HTMLElement | null> }) {
+export function FaceChatLayer({
+  barRef,
+}: {
+  barRef: RefObject<HTMLElement | null>;
+}) {
   const st = useFaceChat();
 
   useWatchEffect(
@@ -101,7 +129,9 @@ export function FaceChatLayer({ barRef }: { barRef: RefObject<HTMLElement | null
           if (!faceBarOnScreen(bar)) return false;
           const s: any = useInboxStore.getState();
           if (String(s.currentUser?._id ?? "") === id) return false;
-          return peopleOf(teamMembersOf(s)).some((m: any) => String(m._id) === id);
+          return peopleOf(teamMembersOf(s)).some(
+            (m: any) => String(m._id) === id,
+          );
         },
       }),
     [barRef],
@@ -114,7 +144,9 @@ export function FaceChatLayer({ barRef }: { barRef: RefObject<HTMLElement | null
     const bar = barRef.current;
     if (!bar || !bubbleAuthor) return;
     const onOver = (e: PointerEvent) => {
-      const seat = (e.target as Element | null)?.closest?.("[data-face-id]") as HTMLElement | null;
+      const seat = (e.target as Element | null)?.closest?.(
+        "[data-face-id]",
+      ) as HTMLElement | null;
       if (seat?.dataset.faceId === bubbleAuthor) retractFaceBubble();
     };
     bar.addEventListener("pointerover", onOver);
@@ -124,13 +156,21 @@ export function FaceChatLayer({ barRef }: { barRef: RefObject<HTMLElement | null
   if (typeof document === "undefined") return null;
   return createPortal(
     <>
-      {st.bubble && <Bubble key={st.bubble.key} bubble={st.bubble} barRef={barRef} />}
+      {st.bubble && (
+        <Bubble key={st.bubble.key} bubble={st.bubble} barRef={barRef} />
+      )}
     </>,
     document.body,
   );
 }
 
-function Bubble({ bubble, barRef }: { bubble: FaceBubble; barRef: RefObject<HTMLElement | null> }) {
+function Bubble({
+  bubble,
+  barRef,
+}: {
+  bubble: FaceBubble;
+  barRef: RefObject<HTMLElement | null>;
+}) {
   const anchor = useAnchor(barRef, bubble.authorId);
   const name = memberDisplayName(memberOf(bubble.authorId), "Someone");
 
@@ -159,7 +199,15 @@ function Bubble({ bubble, barRef }: { bubble: FaceBubble; barRef: RefObject<HTML
       data-loud={loud ? "1" : undefined}
       role="status"
       aria-live="polite"
-      style={{ left, top, width: BUBBLE_W, "--fc-notch": `${notch}px`, "--fc-hue": hueFor(name) } as React.CSSProperties}
+      style={
+        {
+          left,
+          top,
+          width: BUBBLE_W,
+          "--fc-notch": `${notch}px`,
+          "--fc-hue": hueFor(name),
+        } as React.CSSProperties
+      }
       onMouseEnter={holdFaceBubble}
       onMouseLeave={releaseFaceBubble}
       onClick={() => {
@@ -169,7 +217,13 @@ function Bubble({ bubble, barRef }: { bubble: FaceBubble; barRef: RefObject<HTML
     >
       <div className="fc-head">
         <b>{name}</b>
-        <span className="fc-where">{whereOf(first.channelId, first.isDm, first.threadRootId ?? first.inThread)}</span>
+        <span className="fc-where">
+          {whereOf(
+            first.channelId,
+            first.isDm,
+            first.threadRootId ?? first.inThread,
+          )}
+        </span>
         <span className="fc-time">
           <span>now</span>
           <span>
@@ -182,8 +236,14 @@ function Bubble({ bubble, barRef }: { bubble: FaceBubble; barRef: RefObject<HTML
           <div className="fc-line" key={a.messageId}>
             <div>
               <Preview text={a.preview} />
-              {a.channelId !== first.channelId && <span className="fc-line-where">{whereOf(a.channelId, a.isDm, a.threadRootId ?? a.inThread)}</span>}
-              {a.count > 1 && <span className="fc-line-where">+{a.count - 1} more</span>}
+              {a.channelId !== first.channelId && (
+                <span className="fc-line-where">
+                  {whereOf(a.channelId, a.isDm, a.threadRootId ?? a.inThread)}
+                </span>
+              )}
+              {a.count > 1 && (
+                <span className="fc-line-where">+{a.count - 1} more</span>
+              )}
             </div>
           </div>
         ))}

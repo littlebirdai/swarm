@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { AgentChainSpec, AgentDefinitionSpec } from "@codecast/shared/contracts";
+import type {
+  AgentChainSpec,
+  AgentDefinitionSpec,
+} from "@codecast/shared/contracts";
 import {
   compileChainWorkflow,
   compileParallelWorkflow,
@@ -12,7 +15,13 @@ import {
 import { parseWorkflowSource, validateWorkflow } from "./parser.js";
 
 const defs: Record<string, AgentDefinitionSpec> = {
-  planner: { name: "planner", description: "", agent: "claude", model: "opus", effort: "high" },
+  planner: {
+    name: "planner",
+    description: "",
+    agent: "claude",
+    model: "opus",
+    effort: "high",
+  },
   coder: { name: "coder", description: "", agent: "codex", isolated: true },
   reviewer: { name: "reviewer", description: "" },
 };
@@ -32,15 +41,47 @@ describe("compileChainWorkflow (the-line.md L7)", () => {
     const g = compileChainWorkflow(chain, defs);
     expect(g.name).toBe("chain-implement");
     expect(g.goal).toBe("Plan, code, review");
-    expect([...g.nodes.keys()]).toEqual(["start", "step-1", "step-2", "step-3", "exit"]);
-    expect(g.nodes.get("start")).toMatchObject({ shape: "Mdiamond", type: "start" });
-    expect(g.nodes.get("exit")).toMatchObject({ shape: "Msquare", type: "exit" });
-    expect(g.nodes.get("step-1")).toEqual({
-      id: "step-1", label: "planner", shape: "box", type: "agent",
-      prompt: "Plan: {task}", definition: "planner", agent: "claude", model: "opus", reasoning_effort: "high",
+    expect([...g.nodes.keys()]).toEqual([
+      "start",
+      "step-1",
+      "step-2",
+      "step-3",
+      "exit",
+    ]);
+    expect(g.nodes.get("start")).toMatchObject({
+      shape: "Mdiamond",
+      type: "start",
     });
-    expect(g.nodes.get("step-2")).toMatchObject({ label: "coder", definition: "coder", agent: "codex", isolated: true, prompt: "Do: {previous}" });
-    expect(g.nodes.get("step-3")).toEqual({ id: "step-3", label: "reviewer", shape: "box", type: "agent", prompt: "Review: {previous}", definition: "reviewer" });
+    expect(g.nodes.get("exit")).toMatchObject({
+      shape: "Msquare",
+      type: "exit",
+    });
+    expect(g.nodes.get("step-1")).toEqual({
+      id: "step-1",
+      label: "planner",
+      shape: "box",
+      type: "agent",
+      prompt: "Plan: {task}",
+      definition: "planner",
+      agent: "claude",
+      model: "opus",
+      reasoning_effort: "high",
+    });
+    expect(g.nodes.get("step-2")).toMatchObject({
+      label: "coder",
+      definition: "coder",
+      agent: "codex",
+      isolated: true,
+      prompt: "Do: {previous}",
+    });
+    expect(g.nodes.get("step-3")).toEqual({
+      id: "step-3",
+      label: "reviewer",
+      shape: "box",
+      type: "agent",
+      prompt: "Review: {previous}",
+      definition: "reviewer",
+    });
     expect(g.edges).toEqual([
       { from: "start", to: "step-1" },
       { from: "step-1", to: "step-2" },
@@ -55,22 +96,48 @@ describe("compileChainWorkflow (the-line.md L7)", () => {
     const parsed = parseWorkflowSource(renderDotSource(g));
     expect(parsed.name).toBe("chain-implement");
     expect([...parsed.nodes.keys()]).toEqual([...g.nodes.keys()]);
-    expect(parsed.nodes.get("step-2")).toMatchObject({ type: "agent", definition: "coder", prompt: "Do: {previous}" });
-    expect(parsed.edges.map((e) => [e.from, e.to])).toEqual(g.edges.map((e) => [e.from, e.to]));
+    expect(parsed.nodes.get("step-2")).toMatchObject({
+      type: "agent",
+      definition: "coder",
+      prompt: "Do: {previous}",
+    });
+    expect(parsed.edges.map((e) => [e.from, e.to])).toEqual(
+      g.edges.map((e) => [e.from, e.to]),
+    );
   });
 
   test("the upsert payload carries the definition attribute and the slug", () => {
-    const payload = workflowUpsertPayload(compileChainWorkflow(chain, defs)) as any;
+    const payload = workflowUpsertPayload(
+      compileChainWorkflow(chain, defs),
+    ) as any;
     expect(payload.slug).toBe("chain-implement");
     // A push always says what the flow's label is; "" says it has none, so the stored one clears.
     expect(payload.label).toBe("");
     expect(payload.name).toBe(compileChainWorkflow(chain, defs).name);
-    expect(payload.nodes.map((n: any) => n.id)).toEqual(["start", "step-1", "step-2", "step-3", "exit"]);
+    expect(payload.nodes.map((n: any) => n.id)).toEqual([
+      "start",
+      "step-1",
+      "step-2",
+      "step-3",
+      "exit",
+    ]);
     expect(payload.nodes[1]).toEqual({
-      id: "step-1", label: "planner", shape: "box", type: "agent",
-      prompt: "Plan: {task}", model: "opus", agent: "claude", reasoning_effort: "high", definition: "planner",
+      id: "step-1",
+      label: "planner",
+      shape: "box",
+      type: "agent",
+      prompt: "Plan: {task}",
+      model: "opus",
+      agent: "claude",
+      reasoning_effort: "high",
+      definition: "planner",
     });
-    expect(payload.nodes[0]).toEqual({ id: "start", label: "Start", shape: "Mdiamond", type: "start" });
+    expect(payload.nodes[0]).toEqual({
+      id: "start",
+      label: "Start",
+      shape: "Mdiamond",
+      type: "start",
+    });
     expect(payload.edges).toHaveLength(4);
     expect(typeof payload.source).toBe("string");
   });
@@ -78,12 +145,34 @@ describe("compileChainWorkflow (the-line.md L7)", () => {
 
 describe("compileParallelWorkflow (the-line.md L7, cast exec -j)", () => {
   test("two inputs become a component fanout, one node each, and a tripleoctagon fanin", () => {
-    const g = compileParallelWorkflow(["write the tests\nmore", "write the docs"]);
+    const g = compileParallelWorkflow([
+      "write the tests\nmore",
+      "write the docs",
+    ]);
     expect(g.name).toBe("exec-parallel");
-    expect([...g.nodes.keys()]).toEqual(["start", "fanout", "input-1", "input-2", "fanin", "exit"]);
-    expect(g.nodes.get("fanout")).toMatchObject({ shape: "component", type: "parallel_fanout" });
-    expect(g.nodes.get("fanin")).toMatchObject({ shape: "tripleoctagon", type: "parallel_fanin" });
-    expect(g.nodes.get("input-1")).toEqual({ id: "input-1", label: "write the tests", shape: "box", type: "agent", prompt: "write the tests\nmore" });
+    expect([...g.nodes.keys()]).toEqual([
+      "start",
+      "fanout",
+      "input-1",
+      "input-2",
+      "fanin",
+      "exit",
+    ]);
+    expect(g.nodes.get("fanout")).toMatchObject({
+      shape: "component",
+      type: "parallel_fanout",
+    });
+    expect(g.nodes.get("fanin")).toMatchObject({
+      shape: "tripleoctagon",
+      type: "parallel_fanin",
+    });
+    expect(g.nodes.get("input-1")).toEqual({
+      id: "input-1",
+      label: "write the tests",
+      shape: "box",
+      type: "agent",
+      prompt: "write the tests\nmore",
+    });
     expect(g.edges).toEqual([
       { from: "start", to: "fanout" },
       { from: "fanout", to: "input-1" },
@@ -98,7 +187,10 @@ describe("compileParallelWorkflow (the-line.md L7, cast exec -j)", () => {
   test("a definition names the workflow and every input node", () => {
     const g = compileParallelWorkflow(["a", "b"], defs.coder);
     expect(g.name).toBe("exec-parallel-coder");
-    expect(g.nodes.get("input-2")).toMatchObject({ definition: "coder", agent: "codex" });
+    expect(g.nodes.get("input-2")).toMatchObject({
+      definition: "coder",
+      agent: "codex",
+    });
   });
 });
 
@@ -106,23 +198,39 @@ describe("resultPreview", () => {
   test("is the trimmed output, both ends kept within 800 chars, and undefined when empty", () => {
     expect(resultPreview("  hi \n")).toBe("hi");
     // A long output keeps both ends: where it started, and the reason it ended on.
-    const long = resultPreview(`started${"x".repeat(1000)}exit 1: the suite failed`)!;
+    const long = resultPreview(
+      `started${"x".repeat(1000)}exit 1: the suite failed`,
+    )!;
     expect(long.length).toBeLessThanOrEqual(800);
     expect(long.startsWith("started")).toBe(true);
     expect(long.endsWith("exit 1: the suite failed")).toBe(true);
     expect(long).toContain("characters cut");
     // A station script's closing JSON result is what its node shows.
-    expect(resultPreview('bun test v1\n(pass) one\n 1 pass\n{"green": true, "why": "repro.sh passes with the change"}\n')).toBe('{"green": true, "why": "repro.sh passes with the change"}');
-    expect(resultPreview('{"dissolved": "no_repro"}\nok Completed ct-1')).toBe('{"dissolved": "no_repro"}\nok Completed ct-1');
+    expect(
+      resultPreview(
+        'bun test v1\n(pass) one\n 1 pass\n{"green": true, "why": "repro.sh passes with the change"}\n',
+      ),
+    ).toBe('{"green": true, "why": "repro.sh passes with the change"}');
+    expect(resultPreview('{"dissolved": "no_repro"}\nok Completed ct-1')).toBe(
+      '{"dissolved": "no_repro"}\nok Completed ct-1',
+    );
     expect(resultPreview('log\n{"green": true}')).toBe('log\n{"green": true}');
     expect(resultPreview("   ")).toBeUndefined();
   });
 
   test("a long JSON object stays JSON, so a later step's $<id>.json.<field> reads from the record", () => {
-    const bind = JSON.stringify({ task: "ct-59334", title: "Profile-pitch emails", attempt_id: "at-42", findings: "sg-1845 ".repeat(200) });
+    const bind = JSON.stringify({
+      task: "ct-59334",
+      title: "Profile-pitch emails",
+      attempt_id: "at-42",
+      findings: "sg-1845 ".repeat(200),
+    });
     const shown = resultPreview(bind)!;
     expect(shown.length).toBeLessThanOrEqual(800);
-    expect(JSON.parse(shown)).toMatchObject({ task: "ct-59334", attempt_id: "at-42" });
+    expect(JSON.parse(shown)).toMatchObject({
+      task: "ct-59334",
+      attempt_id: "at-42",
+    });
     expect(JSON.parse(shown).findings.endsWith("…")).toBe(true);
   });
 });
@@ -140,8 +248,11 @@ describe("unrecordedRun", () => {
 
 describe("agentResultPreview", () => {
   test("keeps what the agent concluded, without the runner's state line or its json report", () => {
-    const out = 'work_state: done\nProved C117 is live: a held card dials at 6:45 AM.\n\n```json\n{"outcome": "proved"}\n```\n';
-    expect(agentResultPreview(out)).toBe("Proved C117 is live: a held card dials at 6:45 AM.");
+    const out =
+      'work_state: done\nProved C117 is live: a held card dials at 6:45 AM.\n\n```json\n{"outcome": "proved"}\n```\n';
+    expect(agentResultPreview(out)).toBe(
+      "Proved C117 is live: a held card dials at 6:45 AM.",
+    );
   });
   test("a builtin agent's reply is kept as is, capped", () => {
     expect(agentResultPreview("Looks right.")).toBe("Looks right.");
@@ -149,6 +260,8 @@ describe("agentResultPreview", () => {
   });
   test("nothing said is no preview", () => {
     expect(agentResultPreview("work_state: done\n")).toBeUndefined();
-    expect(agentResultPreview('work_state: done\n```json\n{"outcome": "x"}\n```')).toBeUndefined();
+    expect(
+      agentResultPreview('work_state: done\n```json\n{"outcome": "x"}\n```'),
+    ).toBeUndefined();
   });
 });

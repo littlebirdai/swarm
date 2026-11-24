@@ -1,13 +1,30 @@
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { createHash } from "node:crypto";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, resolve } from "node:path";
 
-import { canonical } from './adapters/resolver';
-import { FULL_SHA_RE as SHA, git, gitOrThrow, type CommitPlace } from './git';
-import { evalsHome, homePaths, PIN_REF_PREFIX, REPO_ROOT, treeRoot, writeJsonAtomic } from './paths';
-import { sourceHashes } from './state';
-import type { SurfaceMeta } from './surface';
+import { canonical } from "./adapters/resolver";
+import { FULL_SHA_RE as SHA, git, gitOrThrow, type CommitPlace } from "./git";
+import {
+  evalsHome,
+  homePaths,
+  PIN_REF_PREFIX,
+  REPO_ROOT,
+  treeRoot,
+  writeJsonAtomic,
+} from "./paths";
+import { sourceHashes } from "./state";
+import type { SurfaceMeta } from "./surface";
 
 // Which code a run ran. A run records the commit it ran on (run.json
 // gitHead), and a rebase or a history rewrite can leave that commit on no
@@ -16,13 +33,13 @@ import type { SurfaceMeta } from './surface';
 // each head sits now and which main-line commit carries the same change.
 
 /** Where a head sits: on the main line, on another branch only, on no branch, or gone from the repo. */
-export type HeadPlace = 'main' | 'branch' | 'none' | 'missing';
+export type HeadPlace = "main" | "branch" | "none" | "missing";
 
 export interface HeadEntry {
   on: HeadPlace;
   /** The main-line commit that carries this head's change: itself on main, its patch-id twin off it, null when none does. */
   mainSha: string | null;
-  how: 'self' | 'patch-id' | null;
+  how: "self" | "patch-id" | null;
   /** Why mainSha is null, in a sentence. */
   reason?: string;
   /** A main-line commit with this head's author, date and subject but a different patch: amended when it landed. Never used as mainSha. */
@@ -42,7 +59,7 @@ export interface HeadsFile {
 export function readHeads(path = homePaths().heads): HeadsFile | null {
   if (!existsSync(path)) return null;
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as HeadsFile;
+    return JSON.parse(readFileSync(path, "utf8")) as HeadsFile;
   } catch {
     return null;
   }
@@ -50,7 +67,9 @@ export function readHeads(path = homePaths().heads): HeadsFile | null {
 
 /** The main line: local main and origin/main, whichever exist. */
 export function mainLineRefs(root = treeRoot()): string[] {
-  return ['refs/heads/main', 'refs/remotes/origin/main'].filter((ref) => git(root, ['rev-parse', '--verify', '--quiet', ref]).ok);
+  return ["refs/heads/main", "refs/remotes/origin/main"].filter(
+    (ref) => git(root, ["rev-parse", "--verify", "--quiet", ref]).ok,
+  );
 }
 
 /** Whether a commit is on the main line, asked once per process per root and sha. */
@@ -59,37 +78,53 @@ function isOnMain(sha: string, root: string): boolean {
   const key = `${root}\0${sha}`;
   const hit = onMainCache.get(key);
   if (hit !== undefined) return hit;
-  const yes = mainLineRefs(root).some((ref) => git(root, ['merge-base', '--is-ancestor', sha, ref]).ok);
+  const yes = mainLineRefs(root).some(
+    (ref) => git(root, ["merge-base", "--is-ancestor", sha, ref]).ok,
+  );
   onMainCache.set(key, yes);
   return yes;
 }
 
 /** Where a logged commit sits for the pages: itself on the main line, else its main-line twin through heads.json (null when it has none). */
-export function placeByHeads(heads = readHeads(), root = treeRoot()): CommitPlace {
+export function placeByHeads(
+  heads = readHeads(),
+  root = treeRoot(),
+): CommitPlace {
   return (sha) => {
     if (isOnMain(sha, root)) return { onMain: true, mainSha: sha };
     const h = heads?.heads[sha];
     // With no twin, the pages quote heads.json's reason and near (evals-ui.md section 5, unattributable).
-    return { onMain: false, mainSha: h?.mainSha ?? null, ...(h && !h.mainSha && h.reason ? { twinReason: h.reason } : {}), ...(h?.near ? { near: h.near } : {}) };
+    return {
+      onMain: false,
+      mainSha: h?.mainSha ?? null,
+      ...(h && !h.mainSha && h.reason ? { twinReason: h.reason } : {}),
+      ...(h?.near ? { near: h.near } : {}),
+    };
   };
 }
 
 /** The commits among `shas` this repo still holds. One `cat-file --batch-check` for all of them. */
 function present(root: string, shas: string[]): Set<string> {
   if (!shas.length) return new Set();
-  const out = git(root, ['cat-file', '--batch-check=%(objectname) %(objecttype)'], `${shas.join('\n')}\n`).out;
+  const out = git(
+    root,
+    ["cat-file", "--batch-check=%(objectname) %(objecttype)"],
+    `${shas.join("\n")}\n`,
+  ).out;
   return new Set(
     out
-      .split('\n')
-      .map((l) => l.split(' '))
-      .filter(([sha, type]) => sha && type === 'commit')
+      .split("\n")
+      .map((l) => l.split(" "))
+      .filter(([sha, type]) => sha && type === "commit")
       .map(([sha]) => sha!),
   );
 }
 
 /** The pinned heads, read back from the refs. */
 export function pinnedHeads(root = treeRoot()): string[] {
-  return git(root, ['for-each-ref', '--format=%(objectname)', PIN_REF_PREFIX]).out.split('\n').filter((s) => SHA.test(s));
+  return git(root, ["for-each-ref", "--format=%(objectname)", PIN_REF_PREFIX])
+    .out.split("\n")
+    .filter((s) => SHA.test(s));
 }
 
 export interface PinResult {
@@ -109,8 +144,17 @@ export function pinHeads(shas: string[], root = treeRoot()): PinResult {
   const have = present(root, want);
   const already = new Set(pinnedHeads(root));
   const todo = want.filter((s) => have.has(s) && !already.has(s));
-  if (todo.length) gitOrThrow(root, ['update-ref', '--stdin'], todo.map((s) => `update ${PIN_REF_PREFIX}${s} ${s}\n`).join(''));
-  return { pinned: todo, already: want.filter((s) => already.has(s)), missing: want.filter((s) => !have.has(s)) };
+  if (todo.length)
+    gitOrThrow(
+      root,
+      ["update-ref", "--stdin"],
+      todo.map((s) => `update ${PIN_REF_PREFIX}${s} ${s}\n`).join(""),
+    );
+  return {
+    pinned: todo,
+    already: want.filter((s) => already.has(s)),
+    missing: want.filter((s) => !have.has(s)),
+  };
 }
 
 /**
@@ -119,14 +163,22 @@ export function pinHeads(shas: string[], root = treeRoot()): PinResult {
  * from the next `pin --backfill`. Never throws: a run must not fail because a
  * ref or the map could not be written.
  */
-export function pinHead(sha: string, root = treeRoot(), headsPath = homePaths().heads): boolean {
+export function pinHead(
+  sha: string,
+  root = treeRoot(),
+  headsPath = homePaths().heads,
+): boolean {
   try {
     if (pinHeads([sha], root).missing.length) return false;
     if (!readHeads(headsPath)?.heads[sha]) {
       const one = mapHeads([sha], root, null);
       // Read again just before the write, so an entry another process wrote meanwhile survives.
       const now = readHeads(headsPath);
-      writeJsonAtomic(headsPath, { updatedAt: one.updatedAt, mainLine: one.mainLine, heads: { ...now?.heads, [sha]: one.heads[sha]! } } satisfies HeadsFile);
+      writeJsonAtomic(headsPath, {
+        updatedAt: one.updatedAt,
+        mainLine: one.mainLine,
+        heads: { ...now?.heads, [sha]: one.heads[sha]! },
+      } satisfies HeadsFile);
     }
     return true;
   } catch {
@@ -141,11 +193,16 @@ export function recordedHeads(runsDir = homePaths().runs): Map<string, number> {
   for (const name of readdirSync(runsDir)) {
     let head: unknown;
     try {
-      head = (JSON.parse(readFileSync(resolve(runsDir, name, 'run.json'), 'utf8')) as { gitHead?: unknown }).gitHead;
+      head = (
+        JSON.parse(
+          readFileSync(resolve(runsDir, name, "run.json"), "utf8"),
+        ) as { gitHead?: unknown }
+      ).gitHead;
     } catch {
       continue;
     }
-    if (typeof head === 'string' && SHA.test(head)) heads.set(head, (heads.get(head) ?? 0) + 1);
+    if (typeof head === "string" && SHA.test(head))
+      heads.set(head, (heads.get(head) ?? 0) + 1);
   }
   return heads;
 }
@@ -158,16 +215,37 @@ interface CommitFacts {
 }
 
 function commitFacts(root: string, sha: string): CommitFacts {
-  const [parents = '', at = '0', ae = '', subject = ''] = gitOrThrow(root, ['log', '-1', '--format=%P%x00%at%x00%ae%x00%s', sha]).replace(/\n$/, '').split('\0');
-  return { parents: parents.split(' ').filter(Boolean).length, authorTime: Number(at), authorEmail: ae, subject };
+  const [parents = "", at = "0", ae = "", subject = ""] = gitOrThrow(root, [
+    "log",
+    "-1",
+    "--format=%P%x00%at%x00%ae%x00%s",
+    sha,
+  ])
+    .replace(/\n$/, "")
+    .split("\0");
+  return {
+    parents: parents.split(" ").filter(Boolean).length,
+    authorTime: Number(at),
+    authorEmail: ae,
+    subject,
+  };
 }
 
 /** Patch ids by commit, for `git log -p` over `revs` (or for named commits). */
 function patchIds(root: string, logArgs: string[]): Map<string, string> {
-  const patches = gitOrThrow(root, ['log', '-p', '--no-merges', '--no-color', '--format=%H', ...logArgs]);
+  const patches = gitOrThrow(root, [
+    "log",
+    "-p",
+    "--no-merges",
+    "--no-color",
+    "--format=%H",
+    ...logArgs,
+  ]);
   const ids = new Map<string, string>();
-  for (const line of gitOrThrow(root, ['patch-id', '--stable'], patches).split('\n')) {
-    const [pid, sha] = line.split(' ');
+  for (const line of gitOrThrow(root, ["patch-id", "--stable"], patches).split(
+    "\n",
+  )) {
+    const [pid, sha] = line.split(" ");
     if (pid && sha) ids.set(sha, pid);
   }
   return ids;
@@ -175,7 +253,16 @@ function patchIds(root: string, logArgs: string[]): Map<string, string> {
 
 /** Which branch refs contain `sha`, one `for-each-ref --contains` call. */
 function containingRefs(root: string, sha: string): string[] {
-  return git(root, ['for-each-ref', '--contains', sha, '--format=%(refname)', 'refs/heads', 'refs/remotes']).out.split('\n').filter((r) => r && !r.endsWith('/HEAD'));
+  return git(root, [
+    "for-each-ref",
+    "--contains",
+    sha,
+    "--format=%(refname)",
+    "refs/heads",
+    "refs/remotes",
+  ])
+    .out.split("\n")
+    .filter((r) => r && !r.endsWith("/HEAD"));
 }
 
 /**
@@ -187,7 +274,11 @@ function containingRefs(root: string, sha: string): string[] {
  * patch in that window. A squash or an amend changes the patch, so those
  * heads map to null with the reason.
  */
-export function mapHeads(shas: string[], root = treeRoot(), prior: HeadsFile | null = null): HeadsFile {
+export function mapHeads(
+  shas: string[],
+  root = treeRoot(),
+  prior: HeadsFile | null = null,
+): HeadsFile {
   const mainLine = mainLineRefs(root);
   const have = present(root, shas);
   const pinned = new Set(pinnedHeads(root));
@@ -198,60 +289,91 @@ export function mapHeads(shas: string[], root = treeRoot(), prior: HeadsFile | n
     if (!have.has(sha)) {
       const before = prior?.heads[sha];
       heads[sha] = before
-        ? { ...before, on: 'missing', pinned: false }
-        : { on: 'missing', mainSha: null, how: null, reason: 'the commit is gone from this repo: it was collected before it was pinned', pinned: false };
+        ? { ...before, on: "missing", pinned: false }
+        : {
+            on: "missing",
+            mainSha: null,
+            how: null,
+            reason:
+              "the commit is gone from this repo: it was collected before it was pinned",
+            pinned: false,
+          };
       continue;
     }
     const facts = commitFacts(root, sha);
     const refs = containingRefs(root, sha);
-    const on: HeadPlace = refs.some((r) => mainLine.includes(r)) ? 'main' : refs.length ? 'branch' : 'none';
-    const base = { on, subject: facts.subject, authoredAt: new Date(facts.authorTime * 1000).toISOString(), pinned: pinned.has(sha) };
-    if (on === 'main') {
-      heads[sha] = { ...base, mainSha: sha, how: 'self' };
+    const on: HeadPlace = refs.some((r) => mainLine.includes(r))
+      ? "main"
+      : refs.length
+        ? "branch"
+        : "none";
+    const base = {
+      on,
+      subject: facts.subject,
+      authoredAt: new Date(facts.authorTime * 1000).toISOString(),
+      pinned: pinned.has(sha),
+    };
+    if (on === "main") {
+      heads[sha] = { ...base, mainSha: sha, how: "self" };
       continue;
     }
     heads[sha] = { ...base, mainSha: null, how: null };
-    if (!mainLine.length) heads[sha]!.reason = 'this repo has no main or origin/main to map onto';
-    else if (facts.parents > 1) heads[sha]!.reason = 'a merge commit has no single patch to match';
+    if (!mainLine.length)
+      heads[sha]!.reason = "this repo has no main or origin/main to map onto";
+    else if (facts.parents > 1)
+      heads[sha]!.reason = "a merge commit has no single patch to match";
     else off.push({ sha, facts });
   }
-  if (!off.length) return { updatedAt: new Date().toISOString(), mainLine, heads };
+  if (!off.length)
+    return { updatedAt: new Date().toISOString(), mainLine, heads };
 
-  const since = String(Math.min(...off.map((o) => o.facts.authorTime)) - 86_400);
-  const window = gitOrThrow(root, ['log', '--no-merges', '--format=%H%x00%at%x00%ae%x00%s', `--since=${since}`, ...mainLine])
-    .split('\n')
+  const since = String(
+    Math.min(...off.map((o) => o.facts.authorTime)) - 86_400,
+  );
+  const window = gitOrThrow(root, [
+    "log",
+    "--no-merges",
+    "--format=%H%x00%at%x00%ae%x00%s",
+    `--since=${since}`,
+    ...mainLine,
+  ])
+    .split("\n")
     .filter(Boolean)
     .map((l) => {
-      const [sha = '', at = '', ae = '', subject = ''] = l.split('\0');
+      const [sha = "", at = "", ae = "", subject = ""] = l.split("\0");
       return { sha, key: `${at}\0${ae}\0${subject}` };
     });
-  const own = patchIds(root, ['--no-walk', ...off.map((o) => o.sha)]);
+  const own = patchIds(root, ["--no-walk", ...off.map((o) => o.sha)]);
 
   let windowIds: Map<string, string> | null = null;
-  const twinIn = (ids: Map<string, string>, pid: string): string | undefined => window.find((c) => ids.get(c.sha) === pid)?.sha;
+  const twinIn = (ids: Map<string, string>, pid: string): string | undefined =>
+    window.find((c) => ids.get(c.sha) === pid)?.sha;
 
   for (const { sha, facts } of off) {
     const entry = heads[sha]!;
     const pid = own.get(sha);
     if (!pid) {
-      entry.reason = 'the commit changes no file, so no patch identifies it';
+      entry.reason = "the commit changes no file, so no patch identifies it";
       continue;
     }
     const key = `${facts.authorTime}\0${facts.authorEmail}\0${facts.subject}`;
     const alike = window.filter((c) => c.key === key).map((c) => c.sha);
-    let twin = alike.length ? twinIn(patchIds(root, ['--no-walk', ...alike]), pid) : undefined;
+    let twin = alike.length
+      ? twinIn(patchIds(root, ["--no-walk", ...alike]), pid)
+      : undefined;
     if (!twin) {
       windowIds ??= patchIds(root, [`--since=${since}`, ...mainLine]);
       twin = twinIn(windowIds, pid);
     }
     if (twin) {
       entry.mainSha = twin;
-      entry.how = 'patch-id';
+      entry.how = "patch-id";
     } else if (alike.length) {
       entry.near = alike[0];
       entry.reason = `main has ${alike[0]!.slice(0, 9)} with the same author, date and subject but a different patch: amended or squashed when it landed`;
     } else {
-      entry.reason = 'no main-line commit carries the same patch: squashed or amended when it landed, or not landed yet';
+      entry.reason =
+        "no main-line commit carries the same patch: squashed or amended when it landed, or not landed yet";
     }
   }
   return { updatedAt: new Date().toISOString(), mainLine, heads };
@@ -266,7 +388,14 @@ export interface BackfillResult extends PinResult {
  * Pin every recorded head and every head pinned before, then rewrite
  * heads.json from where each sits now. Safe to run any number of times.
  */
-export function backfillPins(opts: { root?: string; runsDir?: string; headsPath?: string; extra?: string[] } = {}): BackfillResult {
+export function backfillPins(
+  opts: {
+    root?: string;
+    runsDir?: string;
+    headsPath?: string;
+    extra?: string[];
+  } = {},
+): BackfillResult {
   const root = opts.root ?? treeRoot();
   const headsPath = opts.headsPath ?? homePaths().heads;
   const runs = recordedHeads(opts.runsDir);
@@ -276,9 +405,14 @@ export function backfillPins(opts: { root?: string; runsDir?: string; headsPath?
 }
 
 /** Rewrite heads.json for every pinned head, keeping what it knew about heads the repo has since lost. */
-export function mapOrphans(root = treeRoot(), headsPath = homePaths().heads): HeadsFile {
+export function mapOrphans(
+  root = treeRoot(),
+  headsPath = homePaths().heads,
+): HeadsFile {
   const prior = readHeads(headsPath);
-  const shas = [...new Set([...pinnedHeads(root), ...Object.keys(prior?.heads ?? {})])].sort();
+  const shas = [
+    ...new Set([...pinnedHeads(root), ...Object.keys(prior?.heads ?? {})]),
+  ].sort();
   const heads = mapHeads(shas, root, prior);
   writeJsonAtomic(headsPath, heads);
   return heads;
@@ -286,7 +420,7 @@ export function mapOrphans(root = treeRoot(), headsPath = homePaths().heads): He
 
 const inside = (child: string, parent: string): boolean => {
   const rel = relative(parent, child);
-  return rel === '' || (!rel.startsWith('..') && !rel.startsWith('/'));
+  return rel === "" || (!rel.startsWith("..") && !rel.startsWith("/"));
 };
 
 const real = (p: string): string => {
@@ -304,11 +438,17 @@ const real = (p: string): string => {
  * (a line or bisect base) is not a checkout and leaves the pointer alone.
  * Best effort: a pointer that cannot be written never fails the command.
  */
-export function writeCheckoutPointer(root = REPO_ROOT, home = evalsHome()): boolean {
+export function writeCheckoutPointer(
+  root = REPO_ROOT,
+  home = evalsHome(),
+): boolean {
   const at = real(root);
   if (inside(at, real(home))) return false;
   try {
-    writeJsonAtomic(homePaths(home).checkout, { root: at, at: new Date().toISOString() });
+    writeJsonAtomic(homePaths(home).checkout, {
+      root: at,
+      at: new Date().toISOString(),
+    });
     return true;
   } catch {
     return false;
@@ -321,12 +461,15 @@ export function writeCheckoutPointer(root = REPO_ROOT, home = evalsHome()): bool
 // disk on its gitHead, and the identity of the freeze it replayed.
 
 /** What every replay reads besides a surface's declared sources: the committed fixtures and freezes. */
-export const REPLAY_INPUTS = ['apps/evals/fixtures', 'apps/evals/freezes'];
+export const REPLAY_INPUTS = ["apps/evals/fixtures", "apps/evals/freezes"];
 
 /** The paths sourceHashDisk and treePatch cover for a surface. */
-export const diskPaths = (meta: Pick<SurfaceMeta, 'sources'>): string[] => [...new Set([...meta.sources, ...REPLAY_INPUTS])];
+export const diskPaths = (meta: Pick<SurfaceMeta, "sources">): string[] => [
+  ...new Set([...meta.sources, ...REPLAY_INPUTS]),
+];
 
-const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex');
+const sha256 = (data: string | Buffer): string =>
+  createHash("sha256").update(data).digest("hex");
 
 /**
  * The tree the disk holds for `paths`: HEAD, with those paths as they sit in
@@ -335,14 +478,32 @@ const sha256 = (data: string | Buffer): string => createHash('sha256').update(da
  * cannot be read, such as a repo with no HEAD: provenance never fails a run.
  */
 export function diskTree(paths: string[], root = treeRoot()): string | null {
-  const env = { GIT_INDEX_FILE: join(tmpdir(), `evals-index-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`) };
+  const env = {
+    GIT_INDEX_FILE: join(
+      tmpdir(),
+      `evals-index-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    ),
+  };
   try {
-    if (!git(root, ['read-tree', 'HEAD'], undefined, env).ok) return null;
+    if (!git(root, ["read-tree", "HEAD"], undefined, env).ok) return null;
     const here = paths.filter((p) => existsSync(resolve(root, p)));
     const gone = paths.filter((p) => !here.includes(p));
-    if (here.length && !git(root, ['add', '-A', '--', ...here], undefined, env).ok) return null;
-    if (gone.length && !git(root, ['rm', '-r', '-q', '--cached', '--ignore-unmatch', '--', ...gone], undefined, env).ok) return null;
-    const tree = git(root, ['write-tree'], undefined, env);
+    if (
+      here.length &&
+      !git(root, ["add", "-A", "--", ...here], undefined, env).ok
+    )
+      return null;
+    if (
+      gone.length &&
+      !git(
+        root,
+        ["rm", "-r", "-q", "--cached", "--ignore-unmatch", "--", ...gone],
+        undefined,
+        env,
+      ).ok
+    )
+      return null;
+    const tree = git(root, ["write-tree"], undefined, env);
     return tree.ok ? tree.out.trim() : null;
   } finally {
     rmSync(env.GIT_INDEX_FILE, { force: true });
@@ -377,15 +538,42 @@ export interface DiskSources {
  * check, read once per check. `git apply` of a surface's patch on its gitHead
  * rebuilds that tree. Null when git cannot say.
  */
-export function diskSources(metas: Array<Pick<SurfaceMeta, 'id' | 'sources'>>, root = treeRoot(), home = evalsHome()): DiskSources | null {
-  const wide = metas.map((m) => ({ ...m, sources: diskPaths(m) })) as SurfaceMeta[];
+export function diskSources(
+  metas: Array<Pick<SurfaceMeta, "id" | "sources">>,
+  root = treeRoot(),
+  home = evalsHome(),
+): DiskSources | null {
+  const wide = metas.map((m) => ({
+    ...m,
+    sources: diskPaths(m),
+  })) as SurfaceMeta[];
   const tree = diskTree([...new Set(wide.flatMap((m) => m.sources))], root);
   if (!tree) return null;
   try {
     const hashes = sourceHashes(wide, root, tree);
-    const atHead = sourceHashes(wide, root, 'HEAD');
+    const atHead = sourceHashes(wide, root, "HEAD");
     const patches = new Map(
-      wide.map((m) => [m.id, hashes.get(m.id) === atHead.get(m.id) ? null : storePatch(gitOrThrow(root, ['diff', '--binary', '--no-color', '--no-ext-diff', 'HEAD', tree, '--', ...m.sources]), home)] as const),
+      wide.map(
+        (m) =>
+          [
+            m.id,
+            hashes.get(m.id) === atHead.get(m.id)
+              ? null
+              : storePatch(
+                  gitOrThrow(root, [
+                    "diff",
+                    "--binary",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "HEAD",
+                    tree,
+                    "--",
+                    ...m.sources,
+                  ]),
+                  home,
+                ),
+          ] as const,
+      ),
     );
     return { hashes, patches };
   } catch {
@@ -395,10 +583,16 @@ export function diskSources(metas: Array<Pick<SurfaceMeta, 'id' | 'sources'>>, r
 
 /** A snapshot's content: a file's bytes, or a served dir's files by relative path. */
 function contentDigest(path: string | null): string {
-  if (!path || !existsSync(path)) return 'missing';
+  if (!path || !existsSync(path)) return "missing";
   if (!statSync(path).isDirectory()) return sha256(readFileSync(path));
-  const files = (readdirSync(path, { recursive: true }) as string[]).filter((rel) => statSync(join(path, rel)).isFile()).sort();
-  return sha256(files.map((rel) => `${rel} ${sha256(readFileSync(join(path, rel)))}`).join('\n'));
+  const files = (readdirSync(path, { recursive: true }) as string[])
+    .filter((rel) => statSync(join(path, rel)).isFile())
+    .sort();
+  return sha256(
+    files
+      .map((rel) => `${rel} ${sha256(readFileSync(join(path, rel)))}`)
+      .join("\n"),
+  );
 }
 
 /**

@@ -77,11 +77,20 @@ describe("line anchors", () => {
 
   it("extends a selection from where it started, in either direction", () => {
     expect(extendLineRange(null, 9)).toEqual({ start: 9, end: 9 });
-    expect(extendLineRange({ start: 9, end: 9 }, 15)).toEqual({ start: 9, end: 15 });
+    expect(extendLineRange({ start: 9, end: 9 }, 15)).toEqual({
+      start: 9,
+      end: 15,
+    });
     // Shift clicking ABOVE the anchor keeps the anchor as one end.
-    expect(extendLineRange({ start: 9, end: 9 }, 4)).toEqual({ start: 4, end: 9 });
+    expect(extendLineRange({ start: 9, end: 9 }, 4)).toEqual({
+      start: 4,
+      end: 9,
+    });
     // Re-extending from an existing range still anchors on its start.
-    expect(extendLineRange({ start: 9, end: 15 }, 12)).toEqual({ start: 9, end: 12 });
+    expect(extendLineRange({ start: 9, end: 15 }, 12)).toEqual({
+      start: 9,
+      end: 12,
+    });
   });
 
   it("knows which lines a selection covers", () => {
@@ -134,7 +143,10 @@ describe("commit message", () => {
       subject: "fix: the thing",
       body: "Why it broke.",
     });
-    expect(splitCommitMessage("one liner")).toEqual({ subject: "one liner", body: "" });
+    expect(splitCommitMessage("one liner")).toEqual({
+      subject: "one liner",
+      body: "",
+    });
     expect(splitCommitMessage(undefined)).toEqual({ subject: "", body: "" });
   });
 
@@ -155,21 +167,23 @@ describe("commit message", () => {
       "Co-Authored-By: Someone <a@b.c>",
       "Codecast-Session: jx7abc",
     ].join("\n");
-    expect(unwrapCommitBody(body)).toBe([
-      "A video lead parked a fleet until the reset while 15 of 16 pooled accounts had headroom.",
-      "",
-      "- first item that wraps",
-      "  onto a second line",
-      "- second item",
-      "",
-      "```",
-      "cast usage",
-      "--all",
-      "```",
-      "",
-      "Co-Authored-By: Someone <a@b.c>",
-      "Codecast-Session: jx7abc",
-    ].join("\n"));
+    expect(unwrapCommitBody(body)).toBe(
+      [
+        "A video lead parked a fleet until the reset while 15 of 16 pooled accounts had headroom.",
+        "",
+        "- first item that wraps",
+        "  onto a second line",
+        "- second item",
+        "",
+        "```",
+        "cast usage",
+        "--all",
+        "```",
+        "",
+        "Co-Authored-By: Someone <a@b.c>",
+        "Codecast-Session: jx7abc",
+      ].join("\n"),
+    );
   });
 });
 
@@ -260,14 +274,18 @@ describe("where the pages live", () => {
 
   it("builds the app form of every repository page", () => {
     expect(repoHomeHref(repo)).toBe("/repo/codecast-sh/codecast");
-    expect(repoTreeHref(repo, "main")).toBe("/repo/codecast-sh/codecast/tree/main");
+    expect(repoTreeHref(repo, "main")).toBe(
+      "/repo/codecast-sh/codecast/tree/main",
+    );
     expect(repoTreeHref(repo, "main", "apps/web")).toBe(
       "/repo/codecast-sh/codecast/tree/main?path=apps%2Fweb",
     );
     expect(repoBlobHref(repo, "main", "apps/web/lib/repoView.ts")).toBe(
       "/repo/codecast-sh/codecast/blob/main?path=apps%2Fweb%2Flib%2FrepoView.ts",
     );
-    expect(repoCommitsHref(repo, "main")).toBe("/repo/codecast-sh/codecast/commits/main");
+    expect(repoCommitsHref(repo, "main")).toBe(
+      "/repo/codecast-sh/codecast/commits/main",
+    );
     expect(repoCompareHref(repo, "main", "topic")).toBe(
       "/repo/codecast-sh/codecast/compare/main...topic",
     );
@@ -278,7 +296,9 @@ describe("where the pages live", () => {
     expect(repoSearchHref(repo, "useRepoFamily")).toBe(
       "/repo/codecast-sh/codecast/search?q=useRepoFamily",
     );
-    expect(commitPageHref(repo, "abc1234")).toBe("/commit/codecast-sh/codecast/abc1234");
+    expect(commitPageHref(repo, "abc1234")).toBe(
+      "/commit/codecast-sh/codecast/abc1234",
+    );
     expect(prPageHref(repo, 12)).toBe("/pr/codecast-sh/codecast/12");
   });
 
@@ -296,9 +316,15 @@ describe("where the pages live", () => {
     expect(repoCompareHref(repo, "main", "topic", "standalone")).toBe(
       "/r/codecast-sh/codecast/compare/main...topic",
     );
-    expect(repoBranchesHref(repo, "standalone")).toBe("/r/codecast-sh/codecast/branches");
-    expect(repoTagsHref(repo, "standalone")).toBe("/r/codecast-sh/codecast/tags");
-    expect(repoPullsHref(repo, "standalone")).toBe("/r/codecast-sh/codecast/pulls");
+    expect(repoBranchesHref(repo, "standalone")).toBe(
+      "/r/codecast-sh/codecast/branches",
+    );
+    expect(repoTagsHref(repo, "standalone")).toBe(
+      "/r/codecast-sh/codecast/tags",
+    );
+    expect(repoPullsHref(repo, "standalone")).toBe(
+      "/r/codecast-sh/codecast/pulls",
+    );
     expect(repoSearchHref(repo, "hooks", "standalone")).toBe(
       "/r/codecast-sh/codecast/search?q=hooks",
     );
@@ -307,25 +333,33 @@ describe("where the pages live", () => {
     expect(commitPageHref(repo, "abc1234", "standalone")).toBe(
       "/r/codecast-sh/codecast/commit/abc1234",
     );
-    expect(prPageHref(repo, 12, "standalone")).toBe("/r/codecast-sh/codecast/pull/12");
+    expect(prPageHref(repo, 12, "standalone")).toBe(
+      "/r/codecast-sh/codecast/pull/12",
+    );
   });
 
   it("carries the file and the author of a commit list in the query", () => {
-    expect(repoCommitsHref(repo, "main", { path: "apps/web/lib/repoView.ts" })).toBe(
+    expect(
+      repoCommitsHref(repo, "main", { path: "apps/web/lib/repoView.ts" }),
+    ).toBe(
       "/repo/codecast-sh/codecast/commits/main?path=apps%2Fweb%2Flib%2FrepoView.ts",
     );
     expect(repoCommitsHref(repo, "main", { author: "ashot" })).toBe(
       "/repo/codecast-sh/codecast/commits/main?author=ashot",
     );
-    expect(repoCommitsHref(repo, "main", { path: "a.ts", author: "ashot" })).toBe(
-      "/repo/codecast-sh/codecast/commits/main?path=a.ts&author=ashot",
-    );
+    expect(
+      repoCommitsHref(repo, "main", { path: "a.ts", author: "ashot" }),
+    ).toBe("/repo/codecast-sh/codecast/commits/main?path=a.ts&author=ashot");
   });
 
   it("keeps the old history spelling pointing at the commit list", () => {
-    expect(repoHistoryHref(repo, "main")).toBe("/repo/codecast-sh/codecast/commits/main");
+    expect(repoHistoryHref(repo, "main")).toBe(
+      "/repo/codecast-sh/codecast/commits/main",
+    );
     // No branch named: HEAD is the honest ref for "whatever this repository is on".
-    expect(repoHistoryHref(repo)).toBe("/repo/codecast-sh/codecast/commits/HEAD");
+    expect(repoHistoryHref(repo)).toBe(
+      "/repo/codecast-sh/codecast/commits/HEAD",
+    );
     expect(repoHistoryHref(repo, "main", "standalone")).toBe(
       "/r/codecast-sh/codecast/commits/main",
     );
@@ -341,11 +375,16 @@ describe("where the pages live", () => {
   });
 
   it("reads a compare range back", () => {
-    expect(parseCompareRange("main...topic")).toEqual({ base: "main", head: "topic" });
-    expect(parseCompareRange(encodeURIComponent("main...release/1.2"))).toEqual({
+    expect(parseCompareRange("main...topic")).toEqual({
       base: "main",
-      head: "release/1.2",
+      head: "topic",
     });
+    expect(parseCompareRange(encodeURIComponent("main...release/1.2"))).toEqual(
+      {
+        base: "main",
+        head: "release/1.2",
+      },
+    );
     expect(parseCompareRange("main")).toBeNull();
     expect(parseCompareRange("...topic")).toBeNull();
     expect(parseCompareRange(undefined)).toBeNull();
@@ -390,11 +429,20 @@ describe("between the two families", () => {
     expect(toAppHref("/r/o/n/commits/main?path=a.ts&author=ashot")).toBe(
       "/repo/o/n/commits/main?path=a.ts&author=ashot",
     );
-    expect(toStandaloneHref("/pr/o/n/12?tab=files")).toBe("/r/o/n/pull/12?tab=files");
+    expect(toStandaloneHref("/pr/o/n/12?tab=files")).toBe(
+      "/r/o/n/pull/12?tab=files",
+    );
   });
 
   it("hands back anything that is not one of those pages", () => {
-    for (const path of ["/repo", "/inbox", "/", "/tasks/ct-1", "/r", "/share/abc"]) {
+    for (const path of [
+      "/repo",
+      "/inbox",
+      "/",
+      "/tasks/ct-1",
+      "/r",
+      "/share/abc",
+    ]) {
       expect(toStandaloneHref(path)).toBe(path);
       expect(toAppHref(path)).toBe(path);
     }
@@ -403,21 +451,69 @@ describe("between the two families", () => {
 
 describe("session blame", () => {
   const git = [
-    { start_line: 1, end_line: 3, sha: "aaaa111", message: "first\nbody", author_name: "Ada", committed_at: 1000 },
-    { start_line: 4, end_line: 6, sha: "bbbb222", message: "second", author_name: "Bob", committed_at: 2000 },
-    { start_line: 7, end_line: 8, sha: "cccc333", message: "third", author_name: "Cy", committed_at: 3000 },
+    {
+      start_line: 1,
+      end_line: 3,
+      sha: "aaaa111",
+      message: "first\nbody",
+      author_name: "Ada",
+      committed_at: 1000,
+    },
+    {
+      start_line: 4,
+      end_line: 6,
+      sha: "bbbb222",
+      message: "second",
+      author_name: "Bob",
+      committed_at: 2000,
+    },
+    {
+      start_line: 7,
+      end_line: 8,
+      sha: "cccc333",
+      message: "third",
+      author_name: "Cy",
+      committed_at: 3000,
+    },
   ];
-  const lines = ["const one = 1;", "const two = 2;", "}", "const four = 4;", "const five = 5;", "const six = 6;", "const seven = 7;", "const eight = 8;"];
-  const s1 = { conversation_id: "c1", title: "Session one", author_name: "Ada Lovelace", via: "hash" as const };
-  const s2 = { conversation_id: "c2", title: "Session two", via: "edit" as const };
+  const lines = [
+    "const one = 1;",
+    "const two = 2;",
+    "}",
+    "const four = 4;",
+    "const five = 5;",
+    "const six = 6;",
+    "const seven = 7;",
+    "const eight = 8;",
+  ];
+  const s1 = {
+    conversation_id: "c1",
+    title: "Session one",
+    author_name: "Ada Lovelace",
+    via: "hash" as const,
+  };
+  const s2 = {
+    conversation_id: "c2",
+    title: "Session two",
+    via: "edit" as const,
+  };
 
   it("folds lines into runs by session, merging across git ranges and splitting unattributed runs on them", () => {
     const ranges = foldSessionBlame(git, lines, {
       by_sha: { aaaa111: s1 },
-      line_matches: [{ ...s2, line: "const four = 4;" }, { ...s2, line: "const five = 5;" }],
+      line_matches: [
+        { ...s2, line: "const four = 4;" },
+        { ...s2, line: "const five = 5;" },
+      ],
     });
     // Line 6 has no match of its own and inherits the commit's dominant writer.
-    expect(ranges.map((r) => [r.start_line, r.end_line, r.session?.conversation_id ?? null])).toEqual([
+    expect(
+      ranges.map((r) => [
+        r.start_line,
+        r.end_line,
+        r.session?.conversation_id ?? null,
+      ]),
+    ).toEqual([
       [1, 3, "c1"],
       [4, 6, "c2"],
       [7, 8, null],
@@ -431,28 +527,56 @@ describe("session blame", () => {
     // Line 3 is `}`: too short to match. Lines 1 and 2 matched session two.
     const ranges = foldSessionBlame(git, lines, {
       by_sha: {},
-      line_matches: [{ ...s2, line: "const one = 1;" }, { ...s2, line: "const two = 2;" }],
+      line_matches: [
+        { ...s2, line: "const one = 1;" },
+        { ...s2, line: "const two = 2;" },
+      ],
     });
-    expect(ranges[0]).toMatchObject({ start_line: 1, end_line: 3, session: { conversation_id: "c2", via: "edit" } });
+    expect(ranges[0]).toMatchObject({
+      start_line: 1,
+      end_line: 3,
+      session: { conversation_id: "c2", via: "edit" },
+    });
     // Lines 4 to 6 had no match at all, so nothing is inferred there.
-    expect(ranges[1]).toMatchObject({ start_line: 4, end_line: 6, session: null });
+    expect(ranges[1]).toMatchObject({
+      start_line: 4,
+      end_line: 6,
+      session: null,
+    });
   });
 
   it("infers from matched lines before falling back to the committing session", () => {
     const ranges = foldSessionBlame(git, lines, {
       by_sha: { aaaa111: s1 },
-      line_matches: [{ ...s2, line: "const one = 1;" }, { ...s2, line: "const two = 2;" }],
+      line_matches: [
+        { ...s2, line: "const one = 1;" },
+        { ...s2, line: "const two = 2;" },
+      ],
     });
-    expect(ranges[0]).toMatchObject({ start_line: 1, end_line: 3, session: { conversation_id: "c2" } });
+    expect(ranges[0]).toMatchObject({
+      start_line: 1,
+      end_line: 3,
+      session: { conversation_id: "c2" },
+    });
   });
 
   it("a commit's trailer outranks the nearby inference, but not a line's own edit", () => {
     const trailed = { ...s1, via: "trailer" as const };
     const ranges = foldSessionBlame(git, lines, {
       by_sha: { aaaa111: trailed },
-      line_matches: [{ ...s2, line: "const one = 1;" }, { ...s2, line: "const two = 2;" }],
+      line_matches: [
+        { ...s2, line: "const one = 1;" },
+        { ...s2, line: "const two = 2;" },
+      ],
     });
-    expect(ranges.map((r) => [r.start_line, r.end_line, r.session?.conversation_id, r.session?.via])).toEqual([
+    expect(
+      ranges.map((r) => [
+        r.start_line,
+        r.end_line,
+        r.session?.conversation_id,
+        r.session?.via,
+      ]),
+    ).toEqual([
       [1, 2, "c2", "edit"],
       [3, 3, "c1", "trailer"],
       [4, 6, undefined, undefined],
@@ -462,26 +586,44 @@ describe("session blame", () => {
   });
 
   it("does not infer when no single session wrote half of a commit's matched lines", () => {
-    const s3 = { conversation_id: "c3", title: "Session three", via: "edit" as const };
-    const wide = [{ start_line: 1, end_line: 8, sha: "dddd444", committed_at: 5 }];
+    const s3 = {
+      conversation_id: "c3",
+      title: "Session three",
+      via: "edit" as const,
+    };
+    const wide = [
+      { start_line: 1, end_line: 8, sha: "dddd444", committed_at: 5 },
+    ];
     const ranges = foldSessionBlame(wide, lines, {
       by_sha: {},
       line_matches: [
-        { ...s1, line: "const one = 1;", via: "edit" }, { ...s2, line: "const two = 2;" }, { ...s3, line: "const four = 4;" },
+        { ...s1, line: "const one = 1;", via: "edit" },
+        { ...s2, line: "const two = 2;" },
+        { ...s3, line: "const four = 4;" },
       ],
     });
     expect(ranges.find((r) => r.start_line === 5)?.session).toBeNull();
   });
 
   it("merges one session's lines across commits into one run", () => {
-    const ranges = foldSessionBlame(git, lines, { by_sha: { aaaa111: s1, bbbb222: { ...s1, via: "commit" } }, line_matches: [] });
-    expect(ranges.map((r) => [r.start_line, r.end_line])).toEqual([[1, 6], [7, 8]]);
+    const ranges = foldSessionBlame(git, lines, {
+      by_sha: { aaaa111: s1, bbbb222: { ...s1, via: "commit" } },
+      line_matches: [],
+    });
+    expect(ranges.map((r) => [r.start_line, r.end_line])).toEqual([
+      [1, 6],
+      [7, 8],
+    ]);
   });
 
   it("answers no sessions when the server has not answered", () => {
     const ranges = foldSessionBlame(git, lines, undefined);
     expect(ranges.every((r) => r.session === null)).toBe(true);
-    expect(ranges.map((r) => r.git?.sha)).toEqual(["aaaa111", "bbbb222", "cccc333"]);
+    expect(ranges.map((r) => r.git?.sha)).toEqual([
+      "aaaa111",
+      "bbbb222",
+      "cccc333",
+    ]);
   });
 
   it("summarizes most lines first and colours in that order", () => {
@@ -493,7 +635,14 @@ describe("session blame", () => {
     expect(summary.total).toBe(8);
     // Lines 4 and 5 inherit session two from line 6, the commit's only matched line.
     expect(summary.attributed).toBe(8);
-    expect(summary.entries.map((e) => [e.session.conversation_id, e.lines, e.ranges, e.first_line])).toEqual([
+    expect(
+      summary.entries.map((e) => [
+        e.session.conversation_id,
+        e.lines,
+        e.ranges,
+        e.first_line,
+      ]),
+    ).toEqual([
       ["c2", 5, 1, 4],
       ["c1", 3, 1, 1],
     ]);
@@ -504,12 +653,23 @@ describe("session blame", () => {
   });
 
   it("links a session at its message when one is known", () => {
-    expect(sessionHref({ ...s1, message_id: "m9" })).toBe("/conversation/c1#msg-m9");
+    expect(sessionHref({ ...s1, message_id: "m9" })).toBe(
+      "/conversation/c1#msg-m9",
+    );
     expect(sessionHref(s1)).toBe("/conversation/c1");
     // On the public page a public session opens on its share page, exact
     // message included, and a private one opens nowhere at all.
-    expect(sessionHref({ ...s1, public: true, share_token: "tok", message_id: "m9" })).toBe("/share/tok#msg-m9");
-    expect(sessionHref({ ...s1, public: false, title: "Ann's session on Sep 20" })).toBeNull();
+    expect(
+      sessionHref({
+        ...s1,
+        public: true,
+        share_token: "tok",
+        message_id: "m9",
+      }),
+    ).toBe("/share/tok#msg-m9");
+    expect(
+      sessionHref({ ...s1, public: false, title: "Ann's session on Sep 20" }),
+    ).toBeNull();
   });
 
   it("cycles blame modes", () => {

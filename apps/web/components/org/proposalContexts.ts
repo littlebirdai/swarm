@@ -5,6 +5,8 @@ import { createContext, useContext } from "react";
  *  `OrgMap.highlightChangeId`. Plain React state, no store scalar. Focus is
  *  not here: it is the store's `orgFocusChangeId`, which the cards read with
  *  the store and mark with `data-focused`. */
-export const OrgHoverContext = createContext<((changeId: string | null) => void) | null>(null);
+export const OrgHoverContext = createContext<
+  ((changeId: string | null) => void) | null
+>(null);
 
 export const useOrgHover = () => useContext(OrgHoverContext);

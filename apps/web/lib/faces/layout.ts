@@ -8,7 +8,10 @@ export type FaceDensity = "bar" | "float";
  *  the bridge a link draws, and the margin around the row. Mirrored in
  *  faceRow.css (`--face`, `--face-gap`, `--link-w`, the float padding); the
  *  layout test holds the two together. */
-export const FACE_ROW_METRICS: Record<FaceDensity, { face: number; gap: number; link: number; pad: number }> = {
+export const FACE_ROW_METRICS: Record<
+  FaceDensity,
+  { face: number; gap: number; link: number; pad: number }
+> = {
   bar: { face: 28, gap: 6, link: 14, pad: 0 },
   float: { face: 64, gap: 10, link: 26, pad: FACES_PADDING },
 };
@@ -23,13 +26,20 @@ export type FloatFaceSize = (typeof FLOAT_FACE_SIZES)[number];
 
 /** The stored size, or the row's own when nothing (or nonsense) is stored. */
 export function floatFaceSizeOf(stored: unknown): FloatFaceSize {
-  return (FLOAT_FACE_SIZES as readonly unknown[]).includes(stored) ? (stored as FloatFaceSize) : FLOAT_FACE_SIZES[0];
+  return (FLOAT_FACE_SIZES as readonly unknown[]).includes(stored)
+    ? (stored as FloatFaceSize)
+    : FLOAT_FACE_SIZES[0];
 }
 
 /** One step bigger or smaller, stopping at either end. */
-export function stepFloatFaceSize(size: FloatFaceSize, dir: 1 | -1): FloatFaceSize {
+export function stepFloatFaceSize(
+  size: FloatFaceSize,
+  dir: 1 | -1,
+): FloatFaceSize {
   const i = FLOAT_FACE_SIZES.indexOf(size) + dir;
-  return FLOAT_FACE_SIZES[Math.max(0, Math.min(FLOAT_FACE_SIZES.length - 1, i))];
+  return FLOAT_FACE_SIZES[
+    Math.max(0, Math.min(FLOAT_FACE_SIZES.length - 1, i))
+  ];
 }
 
 /** The float's faces off the call: half the call's, so the people you are
@@ -51,11 +61,21 @@ export const LINK_PULL = 0.35;
 
 /** How wide the row is: the seats, the gaps, and each bridge less the pull.
  *  A bridge is a flex item of its own, so it brings one more gap with it. */
-export function faceRowWidth(density: FaceDensity, faces: number, links: number, face = FACE_ROW_METRICS[density].face): number {
+export function faceRowWidth(
+  density: FaceDensity,
+  faces: number,
+  links: number,
+  face = FACE_ROW_METRICS[density].face,
+): number {
   const m = FACE_ROW_METRICS[density];
   if (faces === 0) return m.pad * 2;
   const bridges = Math.min(links, Math.max(0, faces - 1));
-  return m.pad * 2 + faces * face + (faces - 1) * m.gap + bridges * (m.gap + m.link - 2 * LINK_PULL * m.gap);
+  return (
+    m.pad * 2 +
+    faces * face +
+    (faces - 1) * m.gap +
+    bridges * (m.gap + m.link - 2 * LINK_PULL * m.gap)
+  );
 }
 
 /** The row's own box: its circles and their margin. Nothing hangs under a
@@ -67,7 +87,10 @@ export function faceRowSize(
   face = FACE_ROW_METRICS[density].face,
 ): { width: number; height: number } {
   const m = FACE_ROW_METRICS[density];
-  return { width: faceRowWidth(density, faces, links, face), height: m.pad * 2 + face };
+  return {
+    width: faceRowWidth(density, faces, links, face),
+    height: m.pad * 2 + face,
+  };
 }
 
 /** In the float, the card band's top edge sits this far under the row's box
@@ -114,7 +137,10 @@ export const FLOAT_BAND_RESERVE = 300;
  *  itself instead of off the screen's edge. */
 export type FloatBandSide = "below" | "above";
 
-export function floatBandSideFor(faceCentreY: number, area: { top: number; height: number }): FloatBandSide {
+export function floatBandSideFor(
+  faceCentreY: number,
+  area: { top: number; height: number },
+): FloatBandSide {
   return faceCentreY > area.top + area.height / 2 ? "above" : "below";
 }
 
@@ -156,7 +182,8 @@ export function floatingRowSize(
   // The band hangs FLOAT_BAND_GAP off the row, and keeps the row's margin
   // beyond it for its shadow: on a transparent window a clipped shadow is a
   // straight edge in mid-air.
-  const room = FLOAT_BAND_GAP + Math.max(FLOAT_BAND_RESERVE, Math.ceil(band)) + m.pad;
+  const room =
+    FLOAT_BAND_GAP + Math.max(FLOAT_BAND_RESERVE, Math.ceil(band)) + m.pad;
   return { width, height: rowHeight + room, pinY: side === "above" ? room : 0 };
 }
 
@@ -165,21 +192,24 @@ export function floatingRowSize(
  *  margins. The window is at least as wide as the band (floatingRowSize), so
  *  the band always fits; the notch keeps clear of the band's round corners.
  *  With no face pointed at, the band sits at the row's left margin. */
-export function floatBandPlacement(anchor: number | null, rowWidth: number): { left: number; notch: number | null } {
+export function floatBandPlacement(
+  anchor: number | null,
+  rowWidth: number,
+): { left: number; notch: number | null } {
   const pad = FACE_ROW_METRICS.float.pad;
   if (anchor == null) return { left: pad, notch: null };
   const max = Math.max(pad, rowWidth - pad - FACE_CARD_WIDTH);
-  const left = Math.round(Math.min(max, Math.max(pad, anchor - FACE_CARD_WIDTH / 2)));
+  const left = Math.round(
+    Math.min(max, Math.max(pad, anchor - FACE_CARD_WIDTH / 2)),
+  );
   const notch = Math.min(FACE_CARD_WIDTH - 18, Math.max(18, anchor - left));
   return { left, notch };
 }
-
 
 /** How many faces the header holds before the rest fold into a count. The
  *  model puts me and the faces I am engaged with at the head, so the slice
  *  never cuts a live conversation. */
 export const BAR_FACES = 6;
-
 
 /** The card's width: five words of activity and three buttons in a row. */
 export const FACE_CARD_WIDTH = 320;

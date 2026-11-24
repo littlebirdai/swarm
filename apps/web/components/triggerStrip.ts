@@ -1,6 +1,10 @@
 // Which triggers the strip above a conversation shows (TriggerContextPanel),
 // pure so the rules are tested without a DOM.
-import { ARMED_STATUSES, compareTriggerRoster, type TaskRow } from "./triggerTasks";
+import {
+  ARMED_STATUSES,
+  compareTriggerRoster,
+  type TaskRow,
+} from "./triggerTasks";
 
 // Pills the collapsed row shows before folding the rest into "+N".
 const MAX_PILLS = 4;
@@ -17,25 +21,40 @@ export function liveTriggersFor(
   sessionId?: string | null,
   agentTaskId?: string | null,
 ): TaskRow[] {
-  const armed = matched.filter((t) => ARMED_STATUSES.has(t.status)).sort(compareTriggerRoster);
+  const armed = matched
+    .filter((t) => ARMED_STATUSES.has(t.status))
+    .sort(compareTriggerRoster);
   if (loopRow) armed.push(loopRow);
   if (armed.length > 0) return armed;
   const runOf = matched
     .filter((t) => isRunOf(t, conversationId, sessionId, agentTaskId))
-    .sort((a, b) => (b.last_run_at ?? b.created_at) - (a.last_run_at ?? a.created_at))[0];
+    .sort(
+      (a, b) =>
+        (b.last_run_at ?? b.created_at) - (a.last_run_at ?? a.created_at),
+    )[0];
   return runOf ? [runOf] : [];
 }
 
 // The pills the collapsed set row draws: all of them up to MAX_PILLS, else
 // the first few and a "+N", and the focused trigger always keeps its pill.
-export function pillsShown(live: TaskRow[], focused: TaskRow | undefined): TaskRow[] {
+export function pillsShown(
+  live: TaskRow[],
+  focused: TaskRow | undefined,
+): TaskRow[] {
   const shown = live.length > MAX_PILLS ? live.slice(0, MAX_PILLS - 1) : live;
-  return focused && !shown.includes(focused) ? [...shown.slice(0, -1), focused] : shown;
+  return focused && !shown.includes(focused)
+    ? [...shown.slice(0, -1), focused]
+    : shown;
 }
 
 // True when the viewed conversation is a spawned RUN of the trigger. An inject
 // trigger's runs land in its own home, which is the trigger's home, not a run.
-export function isRunOf(t: TaskRow, conversationId: string, sessionId?: string | null, agentTaskId?: string | null): boolean {
+export function isRunOf(
+  t: TaskRow,
+  conversationId: string,
+  sessionId?: string | null,
+  agentTaskId?: string | null,
+): boolean {
   return (
     t.originating_conversation_id !== conversationId &&
     ((!!agentTaskId && t._id === agentTaskId) ||

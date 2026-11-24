@@ -18,16 +18,19 @@ const { renderToStaticMarkup } = await import("react-dom/server");
 const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
 const { ThemeContext } = await import("../../ThemeProvider");
-const { TabParamsCtx, parseTabLocation } = await import("../../../lib/tabParams");
+const { TabParamsCtx, parseTabLocation } =
+  await import("../../../lib/tabParams");
 const { useInboxStore } = await import("../../../store/inboxStore");
 const { PageHeader } = await import("../../ui/page-header");
 const { DetailSplitLayout } = await import("../../DetailSplitLayout");
 const { PlanPanelTitleRow } = await import("../../PlanPanelHead");
 const { BreadcrumbBar } = await import("../../BreadcrumbBar");
-const { recordTrail, trailOf, _resetTrailForTests } = await import("../../../lib/navTrail");
+const { recordTrail, trailOf, _resetTrailForTests } =
+  await import("../../../lib/navTrail");
 const { startNavTrail } = await import("../../../lib/navTrailRecorder");
 const { placeSection } = await import("../../../lib/navPlace");
-const { ModernNavView, RegistryNavSection } = await import("../../sidebar/ModernNav");
+const { ModernNavView, RegistryNavSection } =
+  await import("../../sidebar/ModernNav");
 
 const SESSION = "jx70000000000000000000000000000s1";
 const host = document.createElement("div");
@@ -38,8 +41,17 @@ beforeEach(() => {
   dom.window.sessionStorage.clear();
   _resetTrailForTests();
   useInboxStore.setState({
-    sessions: { [SESSION]: { _id: SESSION, title: "Slack bot rebuild", message_count: 4, agent_type: "claude_code" } },
-    projects: { pjconvex1: { _id: "pjconvex1", short_id: "pj-1", title: "Onboarding" } },
+    sessions: {
+      [SESSION]: {
+        _id: SESSION,
+        title: "Slack bot rebuild",
+        message_count: 4,
+        agent_type: "claude_code",
+      },
+    },
+    projects: {
+      pjconvex1: { _id: "pjconvex1", short_id: "pj-1", title: "Onboarding" },
+    },
     tasks: { tk1: { _id: "tk1", short_id: "ct-1", title: "Fix login" } },
     showMySessions: false,
   } as any);
@@ -50,21 +62,38 @@ afterEach(async () => {
 });
 
 /** Mount `node` as the page of app tab t1, which shows `path`. */
-async function mount(path: string, node: React.ReactNode, style: "modern" | "classic" = "modern") {
-  useInboxStore.setState({ tabs: [{ id: "t1", path, title: "", createdAt: 0 }], activeTabId: "t1" } as any);
-  const ctx = { tabId: "t1", ...parseTabLocation(path), params: {}, isActive: true, isVisible: true };
+async function mount(
+  path: string,
+  node: React.ReactNode,
+  style: "modern" | "classic" = "modern",
+) {
+  useInboxStore.setState({
+    tabs: [{ id: "t1", path, title: "", createdAt: 0 }],
+    activeTabId: "t1",
+  } as any);
+  const ctx = {
+    tabId: "t1",
+    ...parseTabLocation(path),
+    params: {},
+    isActive: true,
+    isVisible: true,
+  };
   root = createRoot(host);
-  await act(() => root!.render(
-    <ThemeContext.Provider value={styleValue(style)}>
-      <MemoryRouter initialEntries={[path.split("?")[0]]}>
-        <TabParamsCtx.Provider value={ctx}>{node}</TabParamsCtx.Provider>
-      </MemoryRouter>
-    </ThemeContext.Provider>,
-  ));
+  await act(() =>
+    root!.render(
+      <ThemeContext.Provider value={styleValue(style)}>
+        <MemoryRouter initialEntries={[path.split("?")[0]]}>
+          <TabParamsCtx.Provider value={ctx}>{node}</TabParamsCtx.Provider>
+        </MemoryRouter>
+      </ThemeContext.Provider>,
+    ),
+  );
 }
 
 const back = () => host.querySelector<HTMLButtonElement>("[data-cc-nav-back]");
-const header = (title: string) => <PageHeader legacy={<div data-legacy-head>{title}</div>} title={title} />;
+const header = (title: string) => (
+  <PageHeader legacy={<div data-legacy-head>{title}</div>} title={title} />
+);
 
 describe("the back control names where it goes", () => {
   test("from a list: ← Tasks, and a press takes the tab back to the list", async () => {
@@ -91,7 +120,9 @@ describe("the back control names where it goes", () => {
     recordTrail("t1", "/tasks/ct-1", "push");
     await mount("/tasks/ct-1", header("Fix login"));
     expect(back()?.textContent).toBe("Slack bot rebuild");
-    expect(back()?.getAttribute("data-cc-nav-back-to")).toBe(`/inbox?s=${SESSION}`);
+    expect(back()?.getAttribute("data-cc-nav-back-to")).toBe(
+      `/inbox?s=${SESSION}`,
+    );
   });
 
   test("from a cold link: up to the object's parent", async () => {
@@ -115,17 +146,26 @@ describe("the back control names where it goes", () => {
 describe("where am I", () => {
   test("a nested object reads Section › Parent, each a link, then its own name", async () => {
     await mount("/projects/pj-1/tk1", header("Fix login"));
-    const crumbs = [...host.querySelectorAll("[data-cc-place-crumbs] a")].map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(crumbs).toEqual([["Projects", "/projects"], ["Onboarding", "/projects/pj-1"]]);
+    const crumbs = [...host.querySelectorAll("[data-cc-place-crumbs] a")].map(
+      (a) => [a.textContent, a.getAttribute("href")],
+    );
+    expect(crumbs).toEqual([
+      ["Projects", "/projects"],
+      ["Onboarding", "/projects/pj-1"],
+    ]);
     expect(host.querySelector("h1")?.textContent).toBe("Fix login");
   });
 
   test("a page behind More reads More ›, which opens the rail's More level", async () => {
     await mount("/memory", header("Memory"));
     let opened = 0;
-    const onMore = () => { opened++; };
+    const onMore = () => {
+      opened++;
+    };
     window.addEventListener("codecast:rail-more", onMore);
-    await act(async () => host.querySelector<HTMLButtonElement>("[data-cc-crumb='more']")!.click());
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>("[data-cc-crumb='more']")!.click(),
+    );
     window.removeEventListener("codecast:rail-more", onMore);
     expect(opened).toBe(1);
   });
@@ -142,7 +182,15 @@ describe("where am I", () => {
 });
 
 describe("the rail lights the section an object page belongs to", () => {
-  const ALL = { chat: true, calls: true, changes: true, org: true, line: true, team: true, staff: true } as const;
+  const ALL = {
+    chat: true,
+    calls: true,
+    changes: true,
+    org: true,
+    line: true,
+    team: true,
+    staff: true,
+  } as const;
   const shut = { items: [], expanded: false, onToggle: () => {} };
   const lit = (path: string) => {
     const activeId = placeSection(path);
@@ -150,7 +198,15 @@ describe("the rail lights the section an object page belongs to", () => {
       <MemoryRouter>
         <ModernNavView
           isNarrow={false}
-          live={{ inbox: <RegistryNavSection id="inbox" isActive={activeId === "inbox"} isNarrow={false} /> }}
+          live={{
+            inbox: (
+              <RegistryNavSection
+                id="inbox"
+                isActive={activeId === "inbox"}
+                isNarrow={false}
+              />
+            ),
+          }}
           activeId={activeId}
           gates={ALL}
           tasks={shut}
@@ -158,7 +214,9 @@ describe("the rail lights the section an object page belongs to", () => {
         />
       </MemoryRouter>,
     );
-    return [...html.matchAll(/aria-current="page"[^>]*>(?:<[^>]+>)*([^<]+)</g)].map((m) => m[1]);
+    return [
+      ...html.matchAll(/aria-current="page"[^>]*>(?:<[^>]+>)*([^<]+)</g),
+    ].map((m) => m[1]);
   };
 
   test("a PR lights Code, a run Workflows, a session Inbox, a teammate Org, a trigger Triggers", () => {
@@ -181,11 +239,35 @@ describe("one name everywhere", () => {
       plans: { p1: { _id: "p1", short_id: "pl-1", title: "Launch plan" } },
     } as any);
     const s = useInboxStore.getState() as any;
-    for (const [path, name] of [["/docs/d1", "Onboarding guide"], ["/plans/pl-1", "Launch plan"], ["/plans?plan=pl-1", "Launch plan"], [`/inbox?s=${SESSION}`, "Slack bot rebuild"], ["/tasks/ct-1", "Fix login"]] as const) {
+    for (const [path, name] of [
+      ["/docs/d1", "Onboarding guide"],
+      ["/plans/pl-1", "Launch plan"],
+      ["/plans?plan=pl-1", "Launch plan"],
+      [`/inbox?s=${SESSION}`, "Slack bot rebuild"],
+      ["/tasks/ct-1", "Fix login"],
+    ] as const) {
       expect(placeName(s, path)).toBe(name);
       if (!path.includes("?")) {
-        expect(tabTitle({ id: "x", path, title: "", createdAt: 0 } as any, s.sessions, s.chatChannels ?? {}, [], undefined, undefined, null, s)).toBe(name);
-        expect(resolveVisit(s, { kind: "page", key: `page:${path}`, path, ts: 1 } as any)?.title).toBe(name);
+        expect(
+          tabTitle(
+            { id: "x", path, title: "", createdAt: 0 } as any,
+            s.sessions,
+            s.chatChannels ?? {},
+            [],
+            undefined,
+            undefined,
+            null,
+            s,
+          ),
+        ).toBe(name);
+        expect(
+          resolveVisit(s, {
+            kind: "page",
+            key: `page:${path}`,
+            path,
+            ts: 1,
+          } as any)?.title,
+        ).toBe(name);
       }
     }
   });
@@ -202,36 +284,65 @@ describe("Classic keeps its own", () => {
   });
 
   test("a list's open item covers the list in Classic; Modern lays them side by side when wide", async () => {
-    const page = <DetailSplitLayout list={<div data-list>list</div>} closeHref="/tasks"><div data-detail>detail</div></DetailSplitLayout>;
+    const page = (
+      <DetailSplitLayout list={<div data-list>list</div>} closeHref="/tasks">
+        <div data-detail>detail</div>
+      </DetailSplitLayout>
+    );
     await mount("/tasks/ct-1", page, "classic");
     expect(host.querySelector(".cc-dsplit")).toBeNull();
-    expect(host.querySelector("[data-list]")!.parentElement!.hasAttribute("inert")).toBe(true);
+    expect(
+      host.querySelector("[data-list]")!.parentElement!.hasAttribute("inert"),
+    ).toBe(true);
     await act(() => root!.unmount());
     root = null;
     await mount("/tasks/ct-1", page);
     const split = host.querySelector(".cc-dsplit")!;
     expect(split.getAttribute("data-cc-split")).toBe("open");
     expect(split.querySelector(".cc-dsplit__list [data-list]")).not.toBeNull();
-    expect(split.querySelector(".cc-dsplit__detail [data-detail]")).not.toBeNull();
+    expect(
+      split.querySelector(".cc-dsplit__detail [data-detail]"),
+    ).not.toBeNull();
   });
 
   test("Esc on an open item in Modern goes back along the trail: to the conversation it was opened from", async () => {
     recordTrail("t1", `/inbox?s=${SESSION}`, "push");
     recordTrail("t1", "/tasks/ct-1", "push");
-    const page = <DetailSplitLayout list={<div>list</div>} closeHref="/tasks"><div>detail</div></DetailSplitLayout>;
+    const page = (
+      <DetailSplitLayout list={<div>list</div>} closeHref="/tasks">
+        <div>detail</div>
+      </DetailSplitLayout>
+    );
     await mount("/tasks/ct-1", page);
     await act(async () => {
-      document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      document.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     });
     // The session opens through the inbox, in the tab's own spelling.
     expect(useInboxStore.getState().tabs[0].path).toBe(`/inbox?s=${SESSION}`);
   });
 
   test("Esc on an open item in Classic goes back the way it came too; with no trail, to the list", async () => {
-    const page = <DetailSplitLayout list={<div>list</div>} closeHref="/tasks"><div>detail</div></DetailSplitLayout>;
-    const esc = () => act(async () => {
-      document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
-    });
+    const page = (
+      <DetailSplitLayout list={<div>list</div>} closeHref="/tasks">
+        <div>detail</div>
+      </DetailSplitLayout>
+    );
+    const esc = () =>
+      act(async () => {
+        document.dispatchEvent(
+          new dom.window.KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
     recordTrail("t1", `/inbox?s=${SESSION}`, "push");
     recordTrail("t1", "/tasks/ct-1", "push");
     await mount("/tasks/ct-1", page, "classic");
@@ -249,9 +360,24 @@ describe("Classic keeps its own", () => {
   test("a Classic ✕ drawn as a link points where the close goes, and goes there", async () => {
     recordTrail("t1", "/projects/pj-1", "push");
     recordTrail("t1", "/plans/pl-1", "push");
-    const status = { icon: () => null, color: "text-sol-green", label: "Active" };
-    await mount("/plans/pl-1", <PlanPanelTitleRow plan={{ _id: "p1", short_id: "pl-1", title: "Launch plan" }} status={status as any} storeShareToken={null} closeHref="/plans" />, "classic");
-    const close = host.querySelector<HTMLAnchorElement>("a[aria-label='Close']")!;
+    const status = {
+      icon: () => null,
+      color: "text-sol-green",
+      label: "Active",
+    };
+    await mount(
+      "/plans/pl-1",
+      <PlanPanelTitleRow
+        plan={{ _id: "p1", short_id: "pl-1", title: "Launch plan" }}
+        status={status as any}
+        storeShareToken={null}
+        closeHref="/plans"
+      />,
+      "classic",
+    );
+    const close = host.querySelector<HTMLAnchorElement>(
+      "a[aria-label='Close']",
+    )!;
     expect(close.getAttribute("href")).toBe("/projects/pj-1");
     // No Back control and no crumbs: the same ✕, a better destination.
     expect(back()).toBeNull();
@@ -262,13 +388,24 @@ describe("Classic keeps its own", () => {
   test("the trail records in Classic and Minimal too, so their close has somewhere to go", async () => {
     const html = dom.window.document.documentElement.classList;
     html.remove("modern-style");
-    const tick = () => act(async () => { await Promise.resolve(); });
-    useInboxStore.setState({ tabs: [{ id: "t1", path: "/projects/pj-1", title: "", createdAt: 0 }], activeTabId: "t1" } as any);
+    const tick = () =>
+      act(async () => {
+        await Promise.resolve();
+      });
+    useInboxStore.setState({
+      tabs: [{ id: "t1", path: "/projects/pj-1", title: "", createdAt: 0 }],
+      activeTabId: "t1",
+    } as any);
     const stop = startNavTrail();
     try {
-      useInboxStore.setState({ tabs: [{ id: "t1", path: "/tasks/ct-1", title: "", createdAt: 0 }] } as any);
+      useInboxStore.setState({
+        tabs: [{ id: "t1", path: "/tasks/ct-1", title: "", createdAt: 0 }],
+      } as any);
       await tick();
-      expect(trailOf("t1").map((e) => e.path)).toEqual(["/projects/pj-1", "/tasks/ct-1"]);
+      expect(trailOf("t1").map((e) => e.path)).toEqual([
+        "/projects/pj-1",
+        "/tasks/ct-1",
+      ]);
     } finally {
       stop();
       html.add("modern-style");

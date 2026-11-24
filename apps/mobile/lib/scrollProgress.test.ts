@@ -20,7 +20,10 @@ describe("the transcript's position bar", () => {
     expect(first).toEqual({ step: 72, value: 0.5 });
     // A third of a pixel further: the same pixel, no write.
     expect(progressWrite(true, 0.5 + 1 / 432, 144, first!.step)).toBeNull();
-    expect(progressWrite(true, 0.5 + 1 / 144, 144, first!.step)).toEqual({ step: 73, value: 73 / 144 });
+    expect(progressWrite(true, 0.5 + 1 / 144, 144, first!.step)).toEqual({
+      step: 73,
+      value: 73 / 144,
+    });
   });
 
   test("a fling over a long transcript writes at most once a pixel", () => {
@@ -29,7 +32,10 @@ describe("the transcript's position bar", () => {
     let writes = 0;
     for (let i = 0; i <= 4_000; i++) {
       const w = progressWrite(true, i / 4_000, 144, last);
-      if (w) { writes++; last = w.step; }
+      if (w) {
+        writes++;
+        last = w.step;
+      }
     }
     expect(writes).toBe(145);
   });

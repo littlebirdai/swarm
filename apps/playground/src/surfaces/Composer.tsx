@@ -1,7 +1,13 @@
 // The composer (DESIGN 6.3): one field, three modes (Auto lets Clay decide,
 // Change it forces a build, Just chat forces talk), point and talk, and the
 // sent message shows at once while the server catches up.
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { insertAtTop, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -18,15 +24,46 @@ import { Segmented } from "../ui/Segmented";
 import { useToast } from "../ui/Toast";
 import { load, save } from "../lib/storage";
 import { useBuildsPaused } from "../data/budget";
-import { freshFocus, useAppState, useComposer, useDraft, useStream, type Mode } from "./appState";
+import {
+  freshFocus,
+  useAppState,
+  useComposer,
+  useDraft,
+  useStream,
+  type Mode,
+} from "./appState";
 import { IdeaChips } from "./IdeaChips";
 import s from "./Composer.module.css";
 
 /** `short`: the placeholder beside the folded mode chip, one line on a phone. */
-const MODES: { mode: Mode; label: string; placeholder: string; short: string; hint: string }[] = [
-  { mode: "auto", label: "Auto", placeholder: "Say anything, or ask for a change", short: "Say anything", hint: "Clay decides whether it's a change or just chat" },
-  { mode: "change", label: "Change it", placeholder: "What should change?", short: "What should change?", hint: "Goes live for everyone" },
-  { mode: "chat", label: "Just chat", placeholder: "Say something", short: "Say something", hint: "Clay stays out of it" },
+const MODES: {
+  mode: Mode;
+  label: string;
+  placeholder: string;
+  short: string;
+  hint: string;
+}[] = [
+  {
+    mode: "auto",
+    label: "Auto",
+    placeholder: "Say anything, or ask for a change",
+    short: "Say anything",
+    hint: "Clay decides whether it's a change or just chat",
+  },
+  {
+    mode: "change",
+    label: "Change it",
+    placeholder: "What should change?",
+    short: "What should change?",
+    hint: "Goes live for everyone",
+  },
+  {
+    mode: "chat",
+    label: "Just chat",
+    placeholder: "Say something",
+    short: "Say something",
+    hint: "Clay stays out of it",
+  },
 ];
 
 const TYPING_EVERY_MS = 3_000;
@@ -36,7 +73,13 @@ const MAX_LINES = 6;
 
 /** `compact`: the phone sheet's peek. Below desktop the mode folds into a
  *  chip in the field, and the placeholder carries the hint. */
-export function Composer({ compact = false, onFocus }: { compact?: boolean; onFocus?: () => void }) {
+export function Composer({
+  compact = false,
+  onFocus,
+}: {
+  compact?: boolean;
+  onFocus?: () => void;
+}) {
   const { app, picking, setPicking } = useAppState();
   const folded = !useDesktop();
   const composer = useComposer();
@@ -49,26 +92,34 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
   // until they send something here, Clay's ideas sit above it.
   const sentKey = `clayground.sent.${app.id}.${me.id}`;
   const [sent, setSent] = useState(() => load(sentKey, false));
-  const newcomer = !sent && !stream.messages.some((m) => m.author?.id === me.id);
+  const newcomer =
+    !sent && !stream.messages.some((m) => m.author?.id === me.id);
   const ideas = !compact && newcomer && !text && stream.messages.length > 0;
   const field = useRef<HTMLTextAreaElement>(null);
   const [retryAt, setRetryAt] = useState(0);
   const [now, setNow] = useState(Date.now());
 
-  const send = useMutation(api.messages.send).withOptimisticUpdate((store, args) => {
-    const pending: MessageView = {
-      id: `pending:${crypto.randomUUID()}` as Id<"messages">,
-      created_at: Date.now(),
-      kind: args.mode === "change" ? "request" : "chat",
-      author: me,
-      body: args.body.trim(),
-      element: args.element ?? null,
-      triage_pending: args.mode === "auto",
-      build: null,
-      note: null,
-    };
-    insertAtTop({ paginatedQuery: api.messages.list, argsToMatch: { app_id: args.app_id }, localQueryStore: store, item: pending });
-  });
+  const send = useMutation(api.messages.send).withOptimisticUpdate(
+    (store, args) => {
+      const pending: MessageView = {
+        id: `pending:${crypto.randomUUID()}` as Id<"messages">,
+        created_at: Date.now(),
+        kind: args.mode === "change" ? "request" : "chat",
+        author: me,
+        body: args.body.trim(),
+        element: args.element ?? null,
+        triage_pending: args.mode === "auto",
+        build: null,
+        note: null,
+      };
+      insertAtTop({
+        paginatedQuery: api.messages.list,
+        argsToMatch: { app_id: args.app_id },
+        localQueryStore: store,
+        item: pending,
+      });
+    },
+  );
   const setTyping = useMutation(api.presence.setTyping);
   const lastTyping = useRef(0);
 
@@ -145,7 +196,13 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
       save(sentKey, true);
     }
     try {
-      await send({ ...creds, app_id: app.id, body, mode: composer.mode, ...(element ? { element } : {}) });
+      await send({
+        ...creds,
+        app_id: app.id,
+        body,
+        mode: composer.mode,
+        ...(element ? { element } : {}),
+      });
     } catch (err) {
       const e = errorData(err);
       composer.draft.set(body);
@@ -184,7 +241,12 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
               value: m.mode,
               label: m.label,
               disabled: m.mode === "change" && !!paused,
-              tip: m.mode === "change" && paused ? paused : <Keys keys={[MOD, String(i + 1)]} />,
+              tip:
+                m.mode === "change" && paused ? (
+                  paused
+                ) : (
+                  <Keys keys={[MOD, String(i + 1)]} />
+                ),
               keyshortcuts: `${MOD_ARIA}+${i + 1}`,
             }))}
           />
@@ -197,11 +259,17 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
         </div>
       )}
       {waiting ? (
-        <p className={s.limit} role="status">Slow down a little. Try again in {seconds}s</p>
+        <p className={s.limit} role="status">
+          Slow down a little. Try again in {seconds}s
+        </p>
       ) : refused ? (
-        <p className={s.limit} role="status">{refused}</p>
+        <p className={s.limit} role="status">
+          {refused}
+        </p>
       ) : null}
-      <div className={`${s.field} ${single && !composer.element ? s.single : ""}`}>
+      <div
+        className={`${s.field} ${single && !composer.element ? s.single : ""}`}
+      >
         <button
           className={`${s.pick} ${picking ? s.picking : ""}`}
           onClick={() => setPicking(!picking)}
@@ -211,9 +279,16 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
         >
           <PickIcon />
         </button>
-        {folded && <ModeChip mode={composer.mode} paused={paused} onPick={pick} />}
+        {folded && (
+          <ModeChip mode={composer.mode} paused={paused} onPick={pick} />
+        )}
         <div className={s.text}>
-          {composer.element && <ElementChip element={composer.element} onRemove={() => composer.setElement(null)} />}
+          {composer.element && (
+            <ElementChip
+              element={composer.element}
+              onRemove={() => composer.setElement(null)}
+            />
+          )}
           <textarea
             ref={field}
             rows={1}
@@ -229,20 +304,34 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
             onBlur={() => typing(false)}
           />
           {length >= COUNT_FROM && (
-            <span className={`${s.count} ${tooLong ? s.over : ""}`} aria-live="polite">
+            <span
+              className={`${s.count} ${tooLong ? s.over : ""}`}
+              aria-live="polite"
+            >
               {length}/{MESSAGE_BODY_MAX}
             </span>
           )}
         </div>
-        <button className={`${s.send} ${s[`send_${composer.mode}`]}`} onClick={submit} disabled={!text.trim() || blocked} aria-label="Send">
+        <button
+          className={`${s.send} ${s[`send_${composer.mode}`]}`}
+          onClick={submit}
+          disabled={!text.trim() || blocked}
+          aria-label="Send"
+        >
           <ArrowUpIcon />
         </button>
       </div>
       {!folded && (
         <p className={s.hint}>
-          <span>{composer.mode === "auto" && paused ? "Changes are off for now, so this goes as chat" : current.hint}</span>
+          <span>
+            {composer.mode === "auto" && paused
+              ? "Changes are off for now, so this goes as chat"
+              : current.hint}
+          </span>
           <span className={s.nextMode}>
-            <Keys keys={[MOD, String(MODES.indexOf(next) + 1)]}>{next.label}</Keys>
+            <Keys keys={[MOD, String(MODES.indexOf(next) + 1)]}>
+              {next.label}
+            </Keys>
           </span>
         </p>
       )}
@@ -252,7 +341,15 @@ export function Composer({ compact = false, onFocus }: { compact?: boolean; onFo
 
 /** The mode, folded into the field on narrow screens: a chip that opens the
  *  three modes, each with what it does. */
-function ModeChip({ mode, paused, onPick }: { mode: Mode; paused: string | null; onPick: (m: Mode) => void }) {
+function ModeChip({
+  mode,
+  paused,
+  onPick,
+}: {
+  mode: Mode;
+  paused: string | null;
+  onPick: (m: Mode) => void;
+}) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const current = MODES.find((m) => m.mode === mode)!;
   return (
@@ -268,7 +365,15 @@ function ModeChip({ mode, paused, onPick }: { mode: Mode; paused: string | null;
         <ChevronDownIcon />
       </button>
       {anchor && (
-        <Popover anchor={anchor} place="above" align="start" width={280} onClose={() => setAnchor(null)} label="Mode" role="menu">
+        <Popover
+          anchor={anchor}
+          place="above"
+          align="start"
+          width={280}
+          onClose={() => setAnchor(null)}
+          label="Mode"
+          role="menu"
+        >
           <ul className={s.modeMenu} role="none">
             {MODES.map((m) => {
               const off = m.mode === "change" && !!paused;

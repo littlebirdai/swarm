@@ -27,24 +27,52 @@ export type StagePinRow = {
   pinned_by_agent: string | null;
 };
 
-const pinSig = (r: StagePinRow) => `${r.ref}:${r.at}:${r.title ?? ""}:${r.doc_type ?? ""}:${r.readable}:${r.pinned_by_agent ?? ""}`;
+const pinSig = (r: StagePinRow) =>
+  `${r.ref}:${r.at}:${r.title ?? ""}:${r.doc_type ?? ""}:${r.readable}:${r.pinned_by_agent ?? ""}`;
 const oldestFirst = (a: StagePinRow, b: StagePinRow) => a.at - b.at;
 
 /** Feed the room's pins while `connected`, and read them, oldest first. */
-export function useStagePins(roomKey: string | null, connected: boolean): StagePinRow[] {
-  const dropAbsent = useCallback((row: any) => row?.room_key === roomKey, [roomKey]);
-  useSyncCollection("callStagePins", api.callStage.listPins, roomKey && connected ? { room_key: roomKey } : "skip", { dropAbsent });
-  const where = useCallback((r: StagePinRow) => r.room_key === roomKey, [roomKey]);
-  return useCollectionRows<StagePinRow>("callStagePins", { where, sig: pinSig, sort: oldestFirst });
+export function useStagePins(
+  roomKey: string | null,
+  connected: boolean,
+): StagePinRow[] {
+  const dropAbsent = useCallback(
+    (row: any) => row?.room_key === roomKey,
+    [roomKey],
+  );
+  useSyncCollection(
+    "callStagePins",
+    api.callStage.listPins,
+    roomKey && connected ? { room_key: roomKey } : "skip",
+    { dropAbsent },
+  );
+  const where = useCallback(
+    (r: StagePinRow) => r.room_key === roomKey,
+    [roomKey],
+  );
+  return useCollectionRows<StagePinRow>("callStagePins", {
+    where,
+    sig: pinSig,
+    sort: oldestFirst,
+  });
 }
 
 /** What can hold a call's stage: its screen shares, then its pins newest
  *  first (so a thing just pinned takes the stage unless a share holds it or
  *  the viewer picked a tab), and what a pin's tile does outside itself. In a
  *  call's own window (`panel`) a pin opens in the main window. */
-export function useStageShares(roomKey: string | null, connected: boolean, screenShares: ParticipantTile[], panel: boolean, collapse: () => void) {
+export function useStageShares(
+  roomKey: string | null,
+  connected: boolean,
+  screenShares: ParticipantTile[],
+  panel: boolean,
+  collapse: () => void,
+) {
   const pins = useStagePins(roomKey, connected);
-  const screens = useMemo(() => [...screenShares, ...[...pins].reverse().map(pinShare)], [screenShares, pins]);
+  const screens = useMemo(
+    () => [...screenShares, ...[...pins].reverse().map(pinShare)],
+    [screenShares, pins],
+  );
   const router = useRouter();
   const pinActions = useMemo<StagePinActions | null>(
     () =>

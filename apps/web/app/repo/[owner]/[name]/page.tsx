@@ -14,7 +14,10 @@ import { LoadingSkeleton } from "../../../../components/LoadingSkeleton";
 import { useRepoBranches } from "../../../../hooks/useRepoBrowse";
 import { useTitlebarHead } from "../../../../hooks/useTitlebarHead";
 import { useWatchEffect } from "../../../../hooks/useWatchEffect";
-import { repoCommitsHref, type RepoRouteFamily } from "../../../../lib/repoView";
+import {
+  repoCommitsHref,
+  type RepoRouteFamily,
+} from "../../../../lib/repoView";
 import { serverErrorText } from "../../../../lib/errorCause";
 import "../../../../components/repo/repo.css";
 
@@ -37,18 +40,29 @@ function RepoHomeContent({
   // `?branch=` is how the history page used to name a branch. People have that
   // link written down, so it lands on the same history, now at its own page.
   useWatchEffect(() => {
-    if (branchParam) router.replace(repoCommitsHref(repository, branchParam, { family }));
+    if (branchParam)
+      router.replace(repoCommitsHref(repository, branchParam, { family }));
   }, [branchParam, repository, family]);
 
   return (
-    <div className="repo-page h-full overflow-y-auto" data-main-scroll style={{ ["--repo-accent" as string]: "var(--sol-blue)" }}>
+    <div
+      className="repo-page h-full overflow-y-auto"
+      data-main-scroll
+      style={{ ["--repo-accent" as string]: "var(--sol-blue)" }}
+    >
       <RepoHeader
         headRef={headRef}
         repository={repository}
         tab="code"
         refName={defaultBranch || "HEAD"}
         family={family}
-        middle={<RepoRefPicker repository={repository} refName={defaultBranch || "HEAD"} family={family} />}
+        middle={
+          <RepoRefPicker
+            repository={repository}
+            refName={defaultBranch || "HEAD"}
+            family={family}
+          />
+        }
       />
 
       {branches.error && (
@@ -60,9 +74,12 @@ function RepoHomeContent({
       {!defaultBranch && !branches.error ? (
         <LoadingSkeleton />
       ) : defaultBranch ? (
-        <RepoOverview repository={repository} refName={defaultBranch} family={family} />
+        <RepoOverview
+          repository={repository}
+          refName={defaultBranch}
+          family={family}
+        />
       ) : null}
-
     </div>
   );
 }
@@ -75,7 +92,11 @@ export default function RepoHomePage() {
 
   return (
     <RepoPageShell repository={repository}>
-      <RepoHomeContent repository={repository} family={family} headRef={titlebarRef} />
+      <RepoHomeContent
+        repository={repository}
+        family={family}
+        headRef={titlebarRef}
+      />
     </RepoPageShell>
   );
 }

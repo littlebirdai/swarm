@@ -32,13 +32,18 @@ export function parseEngineRefs(stdout: string): EngineRef[] {
   // position among the namesakes is the only thing that tells them apart, in
   // the printed snapshot and on a stale-ref recovery (ct-49555).
   const ords = ordinalsFor(items);
-  return items.map((it, i) => (ords[i].duplicated ? { ...it, nth: ords[i].nth } : it));
+  return items.map((it, i) =>
+    ords[i].duplicated ? { ...it, nth: ords[i].nth } : it,
+  );
 }
 
 /** The engine's snapshot with `(2nd)`, `(3rd)` … on names that repeat. The ref
  *  and the raw name are untouched, so `find "Delete"` still matches all of
  *  them and the suffix is purely what the agent reads. */
-export function withOrdinals(stdout: string, items = parseEngineRefs(stdout)): string {
+export function withOrdinals(
+  stdout: string,
+  items = parseEngineRefs(stdout),
+): string {
   const labels = new Map<string, string>();
   for (const r of items) {
     const label = refLabel(r);
@@ -66,5 +71,11 @@ export function rankByVisibility<T>(
     const b = boxOf(h);
     if (b && (b.width <= 0 || b.height <= 0)) hidden.add(h);
   }
-  return { ordered: [...hits.filter((h) => !hidden.has(h)), ...hits.filter((h) => hidden.has(h))], hidden };
+  return {
+    ordered: [
+      ...hits.filter((h) => !hidden.has(h)),
+      ...hits.filter((h) => hidden.has(h)),
+    ],
+    hidden,
+  };
 }

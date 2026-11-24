@@ -11,12 +11,17 @@ function isTransientIdbTimeout(e: unknown): boolean {
 }
 
 /** Run the dispatch outbox's put, retrying it past a transient IndexedDB TimeoutError. */
-export function retryOutboxPut(put: () => Promise<unknown>, retriesLeft = OUTBOX_TIMEOUT_RETRIES): Promise<void> {
+export function retryOutboxPut(
+  put: () => Promise<unknown>,
+  retriesLeft = OUTBOX_TIMEOUT_RETRIES,
+): Promise<void> {
   return put().then(
     () => {},
     (e) => {
       if (retriesLeft <= 0 || !isTransientIdbTimeout(e)) throw e;
-      return new Promise<void>((r) => setTimeout(r, OUTBOX_RETRY_DELAY_MS)).then(() => retryOutboxPut(put, retriesLeft - 1));
+      return new Promise<void>((r) =>
+        setTimeout(r, OUTBOX_RETRY_DELAY_MS),
+      ).then(() => retryOutboxPut(put, retriesLeft - 1));
     },
   );
 }

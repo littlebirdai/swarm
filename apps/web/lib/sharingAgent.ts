@@ -35,6 +35,7 @@ export function startSharingAgent(): string {
 export function launchSharingAgent(): void {
   startSharingAgent();
   toast.success("Agent started", {
-    description: "It reads your folders first, then asks you. Nothing changes until you agree.",
+    description:
+      "It reads your folders first, then asks you. Nothing changes until you agree.",
   });
 }

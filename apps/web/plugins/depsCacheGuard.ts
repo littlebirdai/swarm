@@ -89,7 +89,9 @@ export function depsCacheGuardPlugin(): Plugin {
             { timestamp: true },
           );
           server.restart().catch((err) => {
-            server.config.logger.error(`[${PLUGIN_NAME}] restart failed: ${err?.message ?? err}`);
+            server.config.logger.error(
+              `[${PLUGIN_NAME}] restart failed: ${err?.message ?? err}`,
+            );
           });
         },
       });

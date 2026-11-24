@@ -1,17 +1,22 @@
-import { useEffect, useMemo } from 'react';
-import { useTextSize } from '@/hooks/useTextSize';
-import { sizeStyle } from '@/lib/textSize';
-import { StyleSheet, ActivityIndicator, TouchableOpacity, View as RNView } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { useQueryNoThrow } from '@codecast/web/hooks/useQueryNoThrow';
-import { api } from '@codecast/convex/convex/_generated/api';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Theme, Spacing, themedStyles, useTheme } from '@/constants/Theme';
-import { Mono } from '@/constants/fonts';
-import { parseSharePath } from '@codecast/shared/entities';
-import { setShareTokenScope } from '@codecast/web/lib/shareTokenScope';
-import { useAuth } from '@/lib/auth';
+import { useEffect, useMemo } from "react";
+import { useTextSize } from "@/hooks/useTextSize";
+import { sizeStyle } from "@/lib/textSize";
+import {
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  View as RNView,
+} from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useQueryNoThrow } from "@codecast/web/hooks/useQueryNoThrow";
+import { api } from "@codecast/convex/convex/_generated/api";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Theme, Spacing, themedStyles, useTheme } from "@/constants/Theme";
+import { Mono } from "@/constants/fonts";
+import { parseSharePath } from "@codecast/shared/entities";
+import { setShareTokenScope } from "@codecast/web/lib/shareTokenScope";
+import { useAuth } from "@/lib/auth";
 
 /**
  * The in-app half of codecast.sh/share links:
@@ -38,26 +43,33 @@ export default function ShareLinkScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
 
-  const segs = Array.isArray(params.share) ? params.share : params.share ? [params.share] : [];
-  const parsed = useMemo(() => parseSharePath('/share/' + segs.join('/')), [segs.join('/')]);
+  const segs = Array.isArray(params.share)
+    ? params.share
+    : params.share
+      ? [params.share]
+      : [];
+  const parsed = useMemo(
+    () => parseSharePath("/share/" + segs.join("/")),
+    [segs.join("/")],
+  );
   const kind = parsed?.kind;
   const token = parsed?.token;
 
   const conv = useQueryNoThrow(
     api.conversations.getSharedConversationMeta,
-    kind === 'conversation' && token ? { share_token: token } : 'skip',
+    kind === "conversation" && token ? { share_token: token } : "skip",
   ).data as any;
   const msg = useQueryNoThrow(
     api.messages.getSharedMessage,
-    kind === 'message' && token ? { share_token: token } : 'skip',
+    kind === "message" && token ? { share_token: token } : "skip",
   ).data as any;
   const doc = useQueryNoThrow(
     (api as any).docs.getShared,
-    kind === 'doc' && token ? { share_token: token } : 'skip',
+    kind === "doc" && token ? { share_token: token } : "skip",
   ).data as any;
   const plan = useQueryNoThrow(
     (api as any).plans.getShared,
-    kind === 'plan' && token ? { share_token: token } : 'skip',
+    kind === "plan" && token ? { share_token: token } : "skip",
   ).data as any;
 
   // undefined = still resolving, null = dead link, else the destination.
@@ -67,24 +79,29 @@ export default function ShareLinkScreen() {
     | undefined => {
     if (!parsed) return null;
     switch (kind) {
-      case 'conversation': {
+      case "conversation": {
         if (conv === undefined) return undefined;
         const id = (conv as any)?.conversation_id;
         return id ? { path: `/session/${id}`, conversationId: id } : null;
       }
-      case 'message': {
+      case "message": {
         if (msg === undefined) return undefined;
         const cid = msg?.conversation?._id;
         if (!cid) return null;
-        return { path: `/session/${cid}?message=${msg.message._id}`, conversationId: cid };
+        return {
+          path: `/session/${cid}?message=${msg.message._id}`,
+          conversationId: cid,
+        };
       }
-      case 'doc': {
+      case "doc": {
         if (doc === undefined) return undefined;
         return doc?._id ? { path: `/doc/${doc._id}?share=${token}` } : null;
       }
-      case 'plan': {
+      case "plan": {
         if (plan === undefined) return undefined;
-        return plan?.short_id ? { path: `/plan/${plan.short_id}?share=${token}` } : null;
+        return plan?.short_id
+          ? { path: `/plan/${plan.short_id}?share=${token}` }
+          : null;
       }
       default:
         return null;
@@ -95,7 +112,8 @@ export default function ShareLinkScreen() {
     // Signed out, AuthGate is about to bounce this path through login and
     // restore it afterwards — navigating from here too would race it.
     if (!isAuthenticated || !target) return;
-    if (token && target.conversationId) setShareTokenScope(target.conversationId, token);
+    if (token && target.conversationId)
+      setShareTokenScope(target.conversationId, token);
     router.replace(target.path as any);
   }, [isAuthenticated, target?.path]);
 
@@ -103,21 +121,31 @@ export default function ShareLinkScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Shared link',
+          title: "Shared link",
           headerStyle: { backgroundColor: Theme.bgAlt },
           headerTintColor: Theme.text,
-          headerTitleStyle: sizeStyle({ fontSize: 14, fontFamily: Mono.semiBold, color: Theme.textMuted }, textSize),
+          headerTitleStyle: sizeStyle(
+            { fontSize: 14, fontFamily: Mono.semiBold, color: Theme.textMuted },
+            textSize,
+          ),
         }}
       />
       <RNView style={styles.container}>
         {target === null ? (
           <>
-            <FontAwesome name="chain-broken" size={28} color={Theme.textMuted0} />
+            <FontAwesome
+              name="chain-broken"
+              size={28}
+              color={Theme.textMuted0}
+            />
             <RNText style={styles.title}>Invalid link</RNText>
             <RNText style={styles.text}>
               This share link is invalid or was revoked.
             </RNText>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.backBtn}
+            >
               <RNText style={styles.backBtnText}>Go back</RNText>
             </TouchableOpacity>
           </>
@@ -132,24 +160,26 @@ export default function ShareLinkScreen() {
   );
 }
 
-const styles = themedStyles((Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Theme.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-  },
-  title: { fontSize: 16, fontFamily: Mono.semiBold, color: Theme.text },
-  text: { fontSize: 13, color: Theme.textMuted, textAlign: 'center' },
-  backBtn: {
-    marginTop: Spacing.md,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Theme.borderLight,
-  },
-  backBtnText: { fontSize: 13, color: Theme.text },
-}));
+const styles = themedStyles((Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: Theme.bg,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: Spacing.md,
+      padding: Spacing.lg,
+    },
+    title: { fontSize: 16, fontFamily: Mono.semiBold, color: Theme.text },
+    text: { fontSize: 13, color: Theme.textMuted, textAlign: "center" },
+    backBtn: {
+      marginTop: Spacing.md,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: Theme.borderLight,
+    },
+    backBtnText: { fontSize: 13, color: Theme.text },
+  }),
+);

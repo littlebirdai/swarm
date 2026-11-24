@@ -51,7 +51,10 @@ export async function adoptConversationForResume(
 }
 
 /** The line `cast resume` prints for a result, or null when there is nothing to say. */
-export function describeResumeOwnership(result: ResumeOwnershipResult, sessionRef: string): string | null {
+export function describeResumeOwnership(
+  result: ResumeOwnershipResult,
+  sessionRef: string,
+): string | null {
   switch (result.kind) {
     case "already_here":
       return null;
@@ -70,27 +73,38 @@ function errorText(err: unknown): string {
 
 /** Adopt the conversation for a foreground launch about to run in `projectPath`
  *  (or this directory, when that path is not on this machine), and say what happened. */
-export async function adoptForForegroundResume(conversationId: string, projectPath?: string | null): Promise<void> {
-  const cwd = projectPath && fs.existsSync(projectPath) ? projectPath : process.cwd();
+export async function adoptForForegroundResume(
+  conversationId: string,
+  projectPath?: string | null,
+): Promise<void> {
+  const cwd =
+    projectPath && fs.existsSync(projectPath) ? projectPath : process.cwd();
   let result: ResumeOwnershipResult;
   try {
     const { convexClient } = await import("./remote/convexClient.js");
     const { client, token, api } = await convexClient({ timeoutMs: 10_000 });
-    result = await adoptConversationForResume({
-      thisDeviceId: deviceId(),
-      getOwnerDeviceId: async () => {
-        const info = await client.query(api.devices.getConversationOwner, { api_token: token, conversation_id: conversationId });
-        if (!info) throw new Error("conversation not found");
-        return info.owner_device_id ?? null;
+    result = await adoptConversationForResume(
+      {
+        thisDeviceId: deviceId(),
+        getOwnerDeviceId: async () => {
+          const info = await client.query(api.devices.getConversationOwner, {
+            api_token: token,
+            conversation_id: conversationId,
+          });
+          if (!info) throw new Error("conversation not found");
+          return info.owner_device_id ?? null;
+        },
+        moveHere: (path) =>
+          client.mutation(api.devices.moveSessionToDevice, {
+            api_token: token,
+            conversation_id: conversationId,
+            owner_device_id: deviceId(),
+            project_path: path,
+            resume: false,
+          }),
       },
-      moveHere: (path) => client.mutation(api.devices.moveSessionToDevice, {
-        api_token: token,
-        conversation_id: conversationId,
-        owner_device_id: deviceId(),
-        project_path: path,
-        resume: false,
-      }),
-    }, cwd);
+      cwd,
+    );
   } catch (err) {
     result = { kind: "failed", error: errorText(err) };
   }

@@ -12,7 +12,12 @@ import { mock } from "bun:test";
 import { dirname, join } from "node:path";
 
 mock.module("@convex-dev/prosemirror-sync/tiptap", () => ({
-  useTiptapSync: () => ({ isLoading: false, initialContent: null, extension: null, create: async () => {} }),
+  useTiptapSync: () => ({
+    isLoading: false,
+    initialContent: null,
+    extension: null,
+    create: async () => {},
+  }),
 }));
 
 // @pierre/diffs draws in a shadow root after Shiki loads, which never happens
@@ -25,17 +30,31 @@ mock.module("@convex-dev/prosemirror-sync/tiptap", () => ({
 // and most test DOMs install jsdom's HTMLElement but no customElements, so the
 // registration threw mid-test in whichever file it landed (walkie, org). The
 // stand-in draws no shadow root, so the host stays unregistered.
-mock.module(join(dirname(Bun.resolveSync("@pierre/diffs", import.meta.dir)), "components", "web-components.js"), () => ({ DiffsContainerLoaded: true }));
+mock.module(
+  join(
+    dirname(Bun.resolveSync("@pierre/diffs", import.meta.dir)),
+    "components",
+    "web-components.js",
+  ),
+  () => ({ DiffsContainerLoaded: true }),
+);
 const pierreReact = await import("@pierre/diffs/react");
 const { FileDiffStandIn } = await import("./pierreFileDiff");
-mock.module("@pierre/diffs/react", () => ({ ...pierreReact, FileDiff: FileDiffStandIn }));
+mock.module("@pierre/diffs/react", () => ({
+  ...pierreReact,
+  FileDiff: FileDiffStandIn,
+}));
 // With Pierre's drawing stood in, there is nothing to load first: a diff gets
 // its renderer at once instead of the plain-text fallback.
 const diffSetup = await import("../components/diff/pierre");
-const { PierreDiff, diffLanguage } = await import("../components/diff/PierreDiff");
+const { PierreDiff, diffLanguage } =
+  await import("../components/diff/PierreDiff");
 mock.module("../components/diff/pierre", () => ({
   ...diffSetup,
-  useDiffRenderer: (name: string, language?: string) => ({ PierreDiff, lang: diffLanguage(name, language) }),
+  useDiffRenderer: (name: string, language?: string) => ({
+    PierreDiff,
+    lang: diffLanguage(name, language),
+  }),
 }));
 
 // Radix picks its layout effect once, when the shim first evaluates:
@@ -48,7 +67,9 @@ mock.module("../components/diff/pierre", () => ({
 {
   const React = await import("react");
   const store = join(import.meta.dir, "..", "..", "..", "node_modules", ".bun");
-  for (const pkg of new Bun.Glob("@radix-ui+react-use-layout-effect*/node_modules/@radix-ui/react-use-layout-effect/dist/index.{mjs,js}").scanSync({ cwd: store, absolute: true })) {
+  for (const pkg of new Bun.Glob(
+    "@radix-ui+react-use-layout-effect*/node_modules/@radix-ui/react-use-layout-effect/dist/index.{mjs,js}",
+  ).scanSync({ cwd: store, absolute: true })) {
     mock.module(pkg, () => ({ useLayoutEffect: React.useLayoutEffect }));
   }
 }

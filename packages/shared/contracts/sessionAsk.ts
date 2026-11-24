@@ -68,10 +68,15 @@ export function explainAskFailure(message: string, shortId: string): string {
   if (/do not have access|access denied|forbidden/i.test(message)) {
     return `${message}: it is private to its owner, or in a team you are not a member of. \`cast teams\` lists yours; the owner can share it`;
   }
-  if (/asked a lot this hour/i.test(message)) return `${message}. Meanwhile ${read}`;
-  const permanent = /credit balance|billing|answered 40[0-4]\b|invalid.*api.?key|authenticat|permission|not allowed|refus|prompt is too long|BAA|no model key/i;
-  if (permanent.test(message)) return `${message}. Retrying will not help; ${read}`;
-  const transient = /did not answer|gave no answer|timed out|call failed|answered (408|429|5\d\d)\b|overloaded|network|fetch failed/i;
-  if (transient.test(message)) return `${message}. This usually clears: retry in about 30 s, or ${read}`;
+  if (/asked a lot this hour/i.test(message))
+    return `${message}. Meanwhile ${read}`;
+  const permanent =
+    /credit balance|billing|answered 40[0-4]\b|invalid.*api.?key|authenticat|permission|not allowed|refus|prompt is too long|BAA|no model key/i;
+  if (permanent.test(message))
+    return `${message}. Retrying will not help; ${read}`;
+  const transient =
+    /did not answer|gave no answer|timed out|call failed|answered (408|429|5\d\d)\b|overloaded|network|fetch failed/i;
+  if (transient.test(message))
+    return `${message}. This usually clears: retry in about 30 s, or ${read}`;
   return message;
 }

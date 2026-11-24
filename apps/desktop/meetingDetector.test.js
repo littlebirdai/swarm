@@ -47,13 +47,18 @@ test("FaceTime's always-resident XPC services are not FaceTime running", () => {
     null,
   );
   assert.equal(
-    matchProcess("/System/Library/PrivateFrameworks/FaceTimeMessageStore.framework/facetimemessagestored"),
+    matchProcess(
+      "/System/Library/PrivateFrameworks/FaceTimeMessageStore.framework/facetimemessagestored",
+    ),
     null,
   );
 });
 
 test("the FaceTime app itself does count", () => {
-  assert.equal(matchProcess("/System/Applications/FaceTime.app/Contents/MacOS/FaceTime"), "facetime");
+  assert.equal(
+    matchProcess("/System/Applications/FaceTime.app/Contents/MacOS/FaceTime"),
+    "facetime",
+  );
 });
 
 test("Zoom is one app however many processes it spawns", () => {
@@ -61,17 +66,27 @@ test("Zoom is one app however many processes it spawns", () => {
 });
 
 test("Teams matches the current binary and the classic bundle", () => {
-  assert.equal(matchProcess("/Applications/Microsoft Teams.app/Contents/MacOS/MSTeams"), "teams");
   assert.equal(
-    matchProcess("/Applications/Microsoft Teams classic.app/Contents/MacOS/Microsoft Teams"),
+    matchProcess("/Applications/Microsoft Teams.app/Contents/MacOS/MSTeams"),
+    "teams",
+  );
+  assert.equal(
+    matchProcess(
+      "/Applications/Microsoft Teams classic.app/Contents/MacOS/Microsoft Teams",
+    ),
     "teams",
   );
 });
 
 test("Webex matches both the meetings app and the desktop app", () => {
-  assert.equal(matchProcess("/Applications/Webex.app/Contents/MacOS/Webex"), "webex");
   assert.equal(
-    matchProcess("/Applications/Cisco Webex Meetings.app/Contents/MacOS/Cisco Webex Meetings"),
+    matchProcess("/Applications/Webex.app/Contents/MacOS/Webex"),
+    "webex",
+  );
+  assert.equal(
+    matchProcess(
+      "/Applications/Cisco Webex Meetings.app/Contents/MacOS/Cisco Webex Meetings",
+    ),
     "webex",
   );
 });
@@ -79,7 +94,10 @@ test("Webex matches both the meetings app and the desktop app", () => {
 // A helper lives at <App>.app/Contents/Frameworks/<X>.app/Contents/MacOS/<X>,
 // so the bundle rule must not match through the second .app.
 test("a lookalike path outside the app's own MacOS directory does not match", () => {
-  assert.equal(matchProcess("/Applications/zoom.us.app/Contents/Frameworks/libssl.dylib"), null);
+  assert.equal(
+    matchProcess("/Applications/zoom.us.app/Contents/Frameworks/libssl.dylib"),
+    null,
+  );
   assert.equal(matchProcess("/Users/me/Downloads/zoom.us.app.zip"), null);
   assert.equal(matchProcess("/Users/me/notes/teams-meeting-agenda.txt"), null);
 });
@@ -165,7 +183,10 @@ test("a corrupt settings file falls back to the default rather than to off", () 
 });
 
 test("a never-list entry for a retired app is dropped", () => {
-  assert.deepEqual(mergeMeetingDetect({ never: ["zoom", "hangouts", "zoom"] }).never, ["zoom"]);
+  assert.deepEqual(
+    mergeMeetingDetect({ never: ["zoom", "hangouts", "zoom"] }).never,
+    ["zoom"],
+  );
 });
 
 test("off refuses every app, including one never refused by hand", () => {
@@ -234,7 +255,11 @@ test("trace: an idle machine, then Zoom opens, then a second meeting app", () =>
     [{ app: "zoom", decision: "ask" }],
     "Zoom opening asks",
   );
-  assert.deepEqual(tick(state, ps(IDLE, ZOOM), settings), [], "and does not ask again");
+  assert.deepEqual(
+    tick(state, ps(IDLE, ZOOM), settings),
+    [],
+    "and does not ask again",
+  );
   assert.deepEqual(
     tick(state, ps(IDLE, ZOOM, TEAMS), settings),
     [{ app: "teams", decision: "ask" }],

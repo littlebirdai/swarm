@@ -15,7 +15,12 @@
 // final output; a step's prompt with neither placeholder gets the previous
 // output appended, so a chain never silently drops context.
 
-import { AGENT_MODEL_CONFIG, findModelOption, modelAgentKey, type AgentClientId } from "./agentClients";
+import {
+  AGENT_MODEL_CONFIG,
+  findModelOption,
+  modelAgentKey,
+  type AgentClientId,
+} from "./agentClients";
 
 export const AGENT_DEFINITION_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_AGENT_DEFINITION_NAME = 40;
@@ -80,8 +85,10 @@ export const CHAIN_PREVIOUS_PLACEHOLDER = "{previous}";
 
 export function validateAgentDefinitionName(name: string): string | null {
   if (!name) return "name is required";
-  if (name.length > MAX_AGENT_DEFINITION_NAME) return `name is longer than ${MAX_AGENT_DEFINITION_NAME} characters`;
-  if (!AGENT_DEFINITION_NAME_RE.test(name)) return "name must be lowercase letters, digits and single hyphens";
+  if (name.length > MAX_AGENT_DEFINITION_NAME)
+    return `name is longer than ${MAX_AGENT_DEFINITION_NAME} characters`;
+  if (!AGENT_DEFINITION_NAME_RE.test(name))
+    return "name must be lowercase letters, digits and single hyphens";
   return null;
 }
 
@@ -91,34 +98,63 @@ export function validateAgentDefinition(def: AgentDefinitionSpec): string[] {
   const nameProblem = validateAgentDefinitionName(def.name);
   if (nameProblem) problems.push(nameProblem);
   if (!def.description?.trim()) problems.push("description is required");
-  else if (def.description.length > MAX_AGENT_DEFINITION_DESCRIPTION) problems.push(`description is longer than ${MAX_AGENT_DEFINITION_DESCRIPTION} characters`);
-  if (def.agent && !AGENT_MODEL_CONFIG[modelAgentKey(def.agent)]) problems.push(`unknown agent "${def.agent}"`);
-  if (def.model && def.agent && def.model !== "default" && !findModelOption(def.agent, def.model)) {
+  else if (def.description.length > MAX_AGENT_DEFINITION_DESCRIPTION)
+    problems.push(
+      `description is longer than ${MAX_AGENT_DEFINITION_DESCRIPTION} characters`,
+    );
+  if (def.agent && !AGENT_MODEL_CONFIG[modelAgentKey(def.agent)])
+    problems.push(`unknown agent "${def.agent}"`);
+  if (
+    def.model &&
+    def.agent &&
+    def.model !== "default" &&
+    !findModelOption(def.agent, def.model)
+  ) {
     problems.push(`model "${def.model}" is not a ${def.agent} model`);
   }
   if (def.effort && def.agent) {
     const efforts = AGENT_MODEL_CONFIG[modelAgentKey(def.agent)]?.efforts ?? [];
-    if (efforts.length > 0 && !(efforts as readonly string[]).includes(def.effort)) {
-      problems.push(`effort "${def.effort}" is not a ${def.agent} level (${(efforts as readonly string[]).join(", ")})`);
+    if (
+      efforts.length > 0 &&
+      !(efforts as readonly string[]).includes(def.effort)
+    ) {
+      problems.push(
+        `effort "${def.effort}" is not a ${def.agent} level (${(efforts as readonly string[]).join(", ")})`,
+      );
     }
   }
-  if (def.system_prompt && def.system_prompt.length > MAX_AGENT_SYSTEM_PROMPT) problems.push(`system prompt is longer than ${MAX_AGENT_SYSTEM_PROMPT} characters`);
-  if (def.prompt_mode && def.prompt_mode !== "append" && def.prompt_mode !== "replace") problems.push(`prompt_mode must be append or replace`);
-  if (def.mode && def.mode !== "apply" && def.mode !== "propose") problems.push(`mode must be apply or propose`);
+  if (def.system_prompt && def.system_prompt.length > MAX_AGENT_SYSTEM_PROMPT)
+    problems.push(
+      `system prompt is longer than ${MAX_AGENT_SYSTEM_PROMPT} characters`,
+    );
+  if (
+    def.prompt_mode &&
+    def.prompt_mode !== "append" &&
+    def.prompt_mode !== "replace"
+  )
+    problems.push(`prompt_mode must be append or replace`);
+  if (def.mode && def.mode !== "apply" && def.mode !== "propose")
+    problems.push(`mode must be apply or propose`);
   return problems;
 }
 
-export function validateAgentChain(chain: AgentChainSpec, knownDefinitions?: ReadonlySet<string>): string[] {
+export function validateAgentChain(
+  chain: AgentChainSpec,
+  knownDefinitions?: ReadonlySet<string>,
+): string[] {
   const problems: string[] = [];
   const nameProblem = validateAgentDefinitionName(chain.name);
   if (nameProblem) problems.push(nameProblem);
   if (!chain.steps?.length) problems.push("a chain needs at least one step");
-  else if (chain.steps.length > MAX_CHAIN_STEPS) problems.push(`a chain may have at most ${MAX_CHAIN_STEPS} steps`);
+  else if (chain.steps.length > MAX_CHAIN_STEPS)
+    problems.push(`a chain may have at most ${MAX_CHAIN_STEPS} steps`);
   chain.steps?.forEach((step, i) => {
     const stepName = validateAgentDefinitionName(step.agent);
     if (stepName) problems.push(`step ${i + 1}: agent ${stepName}`);
-    else if (knownDefinitions && !knownDefinitions.has(step.agent)) problems.push(`step ${i + 1}: no definition named "${step.agent}"`);
-    if (!step.prompt?.trim()) problems.push(`step ${i + 1}: prompt is required`);
+    else if (knownDefinitions && !knownDefinitions.has(step.agent))
+      problems.push(`step ${i + 1}: no definition named "${step.agent}"`);
+    if (!step.prompt?.trim())
+      problems.push(`step ${i + 1}: prompt is required`);
   });
   return problems;
 }
@@ -137,9 +173,11 @@ export function splitModelEffortSuffix(
   if (!raw) return {};
   const idx = raw.lastIndexOf(":");
   if (idx <= 0) return { model: raw };
-  const efforts = (AGENT_MODEL_CONFIG[modelAgentKey(agent)]?.efforts ?? []) as readonly string[];
+  const efforts = (AGENT_MODEL_CONFIG[modelAgentKey(agent)]?.efforts ??
+    []) as readonly string[];
   const suffix = raw.slice(idx + 1);
-  if (efforts.includes(suffix)) return { model: raw.slice(0, idx), effort: suffix };
+  if (efforts.includes(suffix))
+    return { model: raw.slice(0, idx), effort: suffix };
   return { model: raw };
 }
 
@@ -190,9 +228,12 @@ export function resolveAgentLaunch(
   }
   let effort = overrides.effort;
   if (!effort && def?.effort) {
-    const efforts = (AGENT_MODEL_CONFIG[modelAgentKey(agent)]?.efforts ?? []) as readonly string[];
-    if (efforts.length === 0) dropped.push(`effort ${def.effort} (${agent} has no effort flag)`);
-    else if (!efforts.includes(def.effort)) dropped.push(`effort ${def.effort} (not a ${agent} level)`);
+    const efforts = (AGENT_MODEL_CONFIG[modelAgentKey(agent)]?.efforts ??
+      []) as readonly string[];
+    if (efforts.length === 0)
+      dropped.push(`effort ${def.effort} (${agent} has no effort flag)`);
+    else if (!efforts.includes(def.effort))
+      dropped.push(`effort ${def.effort} (not a ${agent} level)`);
     else effort = def.effort;
   }
   const promptMode: AgentPromptMode = def?.prompt_mode ?? "append";
@@ -202,7 +243,9 @@ export function resolveAgentLaunch(
     model: model === "default" ? undefined : model,
     effort,
     tools: def?.tools?.length ? def.tools : undefined,
-    disallowedTools: def?.disallowed_tools?.length ? def.disallowed_tools : undefined,
+    disallowedTools: def?.disallowed_tools?.length
+      ? def.disallowed_tools
+      : undefined,
     systemPrompt: promptMode === "replace" ? prompt : undefined,
     appendSystemPrompt: promptMode === "append" ? prompt : undefined,
     mode: def?.mode ?? "apply",
@@ -218,7 +261,10 @@ export function resolveAgentLaunch(
 
 /** Fill a step's template. A template with no `{previous}` still receives the
  *  prior output, appended under a heading, so a chain never drops a step. */
-export function renderChainStepPrompt(template: string, input: { task: string; previous?: string }): string {
+export function renderChainStepPrompt(
+  template: string,
+  input: { task: string; previous?: string },
+): string {
   let out = template.split(CHAIN_TASK_PLACEHOLDER).join(input.task);
   if (input.previous !== undefined) {
     if (out.includes(CHAIN_PREVIOUS_PLACEHOLDER)) {

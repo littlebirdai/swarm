@@ -6,13 +6,19 @@
 import { useInboxStore } from "../store/inboxStore";
 import { LRUCache } from "./lruCache";
 
-const titlesByCollection = new WeakMap<object, LRUCache<string, string | null>>();
+const titlesByCollection = new WeakMap<
+  object,
+  LRUCache<string, string | null>
+>();
 
 export function resolveSessionTitle(shortId: string): string | null {
   const s = useInboxStore.getState();
-  for (const coll of [s.sessions, s.conversations] as Record<string, { title?: string }>[]) {
+  for (const coll of [s.sessions, s.conversations] as Record<
+    string,
+    { title?: string }
+  >[]) {
     let titles = titlesByCollection.get(coll);
-    if (!titles) titlesByCollection.set(coll, titles = new LRUCache(512));
+    if (!titles) titlesByCollection.set(coll, (titles = new LRUCache(512)));
     const cached = titles.get(shortId);
     if (cached !== undefined) {
       if (cached !== null) return cached;

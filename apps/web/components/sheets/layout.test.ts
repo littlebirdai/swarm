@@ -12,7 +12,15 @@ describe("AxisLayout", () => {
     expect(a.span(0, 240)).toEqual([1, 10]);
   });
   test("custom sizes and hidden rows", () => {
-    const a = new AxisLayout(10, 100, new Map([[2, 200], [4, 0], [5, 0]]));
+    const a = new AxisLayout(
+      10,
+      100,
+      new Map([
+        [2, 200],
+        [4, 0],
+        [5, 0],
+      ]),
+    );
     expect(a.total).toBe(900);
     expect(a.offset(3)).toBe(300);
     expect(a.offset(4)).toBe(400);

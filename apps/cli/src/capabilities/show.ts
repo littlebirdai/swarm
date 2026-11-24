@@ -16,12 +16,19 @@ export function registerCapShow(cap: Command, deps: PublishDeps): void {
     .description("One capability in detail, on every machine that has it")
     .option("--json", "Machine-readable output")
     .action(async (name: string, opts: { json?: boolean }) => {
-      const rows: DeviceStateRow[] = await apiPost(deps, "/cli/cap/status", {}, { read: true });
+      const rows: DeviceStateRow[] = await apiPost(
+        deps,
+        "/cli/cap/status",
+        {},
+        { read: true },
+      );
       const needle = name.toLowerCase();
       const hits = rows.flatMap((row) =>
         parseEntries(row)
           .items.filter(
-            (e) => e.name.toLowerCase() === needle || e.slug?.toLowerCase() === needle,
+            (e) =>
+              e.name.toLowerCase() === needle ||
+              e.slug?.toLowerCase() === needle,
           )
           .map((entry) => ({ entry, row })),
       );
@@ -29,7 +36,11 @@ export function registerCapShow(cap: Command, deps: PublishDeps): void {
       if (opts.json) {
         console.log(
           JSON.stringify(
-            hits.map(({ entry, row }) => ({ device_id: row.device_id, client: row.client, ...entry })),
+            hits.map(({ entry, row }) => ({
+              device_id: row.device_id,
+              client: row.client,
+              ...entry,
+            })),
             null,
             2,
           ),
@@ -37,17 +48,23 @@ export function registerCapShow(cap: Command, deps: PublishDeps): void {
         return;
       }
       if (hits.length === 0) {
-        console.log(`Nothing named "${name}" on any machine. \`cast cap ls -q ${name}\` searches partial names.`);
+        console.log(
+          `Nothing named "${name}" on any machine. \`cast cap ls -q ${name}\` searches partial names.`,
+        );
         return;
       }
 
       const first = hits[0].entry;
-      console.log(`${first.kind}  ${first.name}${first.slug ? `  (${first.slug})` : ""}`);
+      console.log(
+        `${first.kind}  ${first.name}${first.slug ? `  (${first.slug})` : ""}`,
+      );
       if (first.description) {
         const provenance = first.meta?.marketplace
           ? `marketplace ${first.meta.marketplace}`
           : `${first.kind} ${first.name}`;
-        console.log(fenceUnlessBuiltin(first.description, first.slug ?? "", provenance));
+        console.log(
+          fenceUnlessBuiltin(first.description, first.slug ?? "", provenance),
+        );
       }
       console.log("");
       for (const { entry, row } of hits) {

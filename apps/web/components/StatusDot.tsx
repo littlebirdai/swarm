@@ -26,7 +26,10 @@ export function StatusDot({
           style={{ background: color, animationDuration: pingDuration }}
         />
       )}
-      <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: color, ...dotStyle }} />
+      <span
+        className="relative inline-flex h-2 w-2 rounded-full"
+        style={{ background: color, ...dotStyle }}
+      />
     </span>
   );
 }

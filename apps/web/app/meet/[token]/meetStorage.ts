@@ -46,12 +46,24 @@ function writeJson(key: string, value: unknown, s: Storage | null = store()) {
   } catch {}
 }
 
-export function readCreds(token: string, s: Storage | null = store()): GuestCreds | null {
+export function readCreds(
+  token: string,
+  s: Storage | null = store(),
+): GuestCreds | null {
   const c = readJson<GuestCreds>(CREDS_PREFIX + token, s);
-  return c && typeof c.guest_id === "string" && typeof c.secret === "string" && c.secret.length >= 16 ? c : null;
+  return c &&
+    typeof c.guest_id === "string" &&
+    typeof c.secret === "string" &&
+    c.secret.length >= 16
+    ? c
+    : null;
 }
 
-export function writeCreds(token: string, creds: GuestCreds, s: Storage | null = store()): void {
+export function writeCreds(
+  token: string,
+  creds: GuestCreds,
+  s: Storage | null = store(),
+): void {
   writeJson(CREDS_PREFIX + token, creds, s);
 }
 
@@ -102,6 +114,9 @@ export function readMediaPrefs(s: Storage | null = store()): GuestMediaPrefs {
   };
 }
 
-export function writeMediaPrefs(prefs: GuestMediaPrefs, s: Storage | null = store()): void {
+export function writeMediaPrefs(
+  prefs: GuestMediaPrefs,
+  s: Storage | null = store(),
+): void {
   writeJson(DEVICES_KEY, prefs, s);
 }

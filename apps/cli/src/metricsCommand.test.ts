@@ -1,51 +1,181 @@
 // `cast metrics` (external-data.md X7, X10): the watch body and what each verb posts.
 import { describe, expect, test } from "bun:test";
 import { SCOPE, useCliHarness } from "./externalDataCli.testHarness.js";
-import { formatHistoryLine, formatPointRemoval, formatQueryResult, formatWatchLine, metricAddBody, parsePointTime, type WatchRow } from "./metricsCommand.js";
+import {
+  formatHistoryLine,
+  formatPointRemoval,
+  formatQueryResult,
+  formatWatchLine,
+  metricAddBody,
+  parsePointTime,
+  type WatchRow,
+} from "./metricsCommand.js";
 
 describe("metricAddBody", () => {
   test("needs a source, one query and at most one direction", () => {
-    expect(() => metricAddBody("x", { hogql: "q", above: "1" })).toThrow("--source");
-    expect(() => metricAddBody("x", { source: "ph", above: "1" })).toThrow("--hogql");
-    expect(() => metricAddBody("x", { source: "ph", hogql: "q", insight: "4", above: "1" })).toThrow("exactly one of --hogql");
-    expect(() => metricAddBody("x", { source: "ph", hogql: "q", above: "1", below: "2" })).toThrow("--above");
-    expect(() => metricAddBody("x", { source: "ph", hogql: "q", below: "lots" })).toThrow("not a number");
+    expect(() => metricAddBody("x", { hogql: "q", above: "1" })).toThrow(
+      "--source",
+    );
+    expect(() => metricAddBody("x", { source: "ph", above: "1" })).toThrow(
+      "--hogql",
+    );
+    expect(() =>
+      metricAddBody("x", {
+        source: "ph",
+        hogql: "q",
+        insight: "4",
+        above: "1",
+      }),
+    ).toThrow("exactly one of --hogql");
+    expect(() =>
+      metricAddBody("x", { source: "ph", hogql: "q", above: "1", below: "2" }),
+    ).toThrow("--above");
+    expect(() =>
+      metricAddBody("x", { source: "ph", hogql: "q", below: "lots" }),
+    ).toThrow("not a number");
   });
 
   test("maps to the watch's wire names, with the interval in ms", () => {
-    expect(metricAddBody(" Signups ", { source: "ph", insight: " 42 ", below: "10", every: "30m" })).toEqual({
-      source: "ph", name: "Signups", query_kind: "insight", query: "42", threshold: 10, direction: "below", interval_ms: 1_800_000,
+    expect(
+      metricAddBody(" Signups ", {
+        source: "ph",
+        insight: " 42 ",
+        below: "10",
+        every: "30m",
+      }),
+    ).toEqual({
+      source: "ph",
+      name: "Signups",
+      query_kind: "insight",
+      query: "42",
+      threshold: 10,
+      direction: "below",
+      interval_ms: 1_800_000,
     });
   });
 });
 
 describe("lines", () => {
   const w: WatchRow = {
-    _id: "w", short_id: "mw-2", name: "Signups", query_kind: "hogql", query: "q", threshold: 10, direction: "below",
-    interval_ms: 3_600_000, status: "active", state: "alert", points: [{ at: 0, value: 20 }, { at: 1, value: 5 }], last_value: 5, last_at: 1_000, source_name: "ph",
+    _id: "w",
+    short_id: "mw-2",
+    name: "Signups",
+    query_kind: "hogql",
+    query: "q",
+    threshold: 10,
+    direction: "below",
+    interval_ms: 3_600_000,
+    status: "active",
+    state: "alert",
+    points: [
+      { at: 0, value: 20 },
+      { at: 1, value: 5 },
+    ],
+    last_value: 5,
+    last_at: 1_000,
+    source_name: "ph",
   };
   test("a watch shows its value, its line and its state", () => {
     const line = formatWatchLine(w, 121_000);
-    for (const part of ["mw-2", "Signups", "5", "(alert < 10)", "alert", "ph · 2m ago", "█▂"]) expect(line).toContain(part);
+    for (const part of [
+      "mw-2",
+      "Signups",
+      "5",
+      "(alert < 10)",
+      "alert",
+      "ph · 2m ago",
+      "█▂",
+    ])
+      expect(line).toContain(part);
   });
 
   test("query rows print under their columns, and a cut is said", () => {
-    expect(formatQueryResult({ columns: ["day", "n"], results: [["2026-10-01", 4], ["2026-10-02", null]], rows: 3, truncated: true })).toContain("day\tn\n2026-10-01\t4\n2026-10-02\t\n");
+    expect(
+      formatQueryResult({
+        columns: ["day", "n"],
+        results: [
+          ["2026-10-01", 4],
+          ["2026-10-02", null],
+        ],
+        rows: 3,
+        truncated: true,
+      }),
+    ).toContain("day\tn\n2026-10-01\t4\n2026-10-02\t\n");
   });
 });
 
 describe("cast metrics on the wire", () => {
-  const h = useCliHarness("metrics", async () => (await import("./metricsCommand.js")).registerMetricsCommand);
+  const h = useCliHarness(
+    "metrics",
+    async () => (await import("./metricsCommand.js")).registerMetricsCommand,
+  );
 
   test("add and query carry the scope; show and rm post the ref", async () => {
-    h.answer = (p) => (p === "/cli/metrics/query" ? { columns: ["n"], results: [[1]], rows: 1, truncated: false } : p === "/cli/metrics/remove" ? { removed: "mw-1" } : p === "/cli/metrics/get" ? { watch: { short_id: "mw-1", name: "n", query_kind: "hogql", query: "q", threshold: 1, direction: "above", interval_ms: 7_200_000, status: "active", points: [], last_value: null, last_at: null, source_name: "ph" }, group: null } : { watch: { short_id: "mw-1", name: "n", threshold: 1, direction: "above", points: [], last_value: null, last_at: null, source_name: "ph" } });
-    await h.run("add", "Errors", "--source", "ph", "--hogql", "select count() from events", "--above", "100");
+    h.answer = (p) =>
+      p === "/cli/metrics/query"
+        ? { columns: ["n"], results: [[1]], rows: 1, truncated: false }
+        : p === "/cli/metrics/remove"
+          ? { removed: "mw-1" }
+          : p === "/cli/metrics/get"
+            ? {
+                watch: {
+                  short_id: "mw-1",
+                  name: "n",
+                  query_kind: "hogql",
+                  query: "q",
+                  threshold: 1,
+                  direction: "above",
+                  interval_ms: 7_200_000,
+                  status: "active",
+                  points: [],
+                  last_value: null,
+                  last_at: null,
+                  source_name: "ph",
+                },
+                group: null,
+              }
+            : {
+                watch: {
+                  short_id: "mw-1",
+                  name: "n",
+                  threshold: 1,
+                  direction: "above",
+                  points: [],
+                  last_value: null,
+                  last_at: null,
+                  source_name: "ph",
+                },
+              };
+    await h.run(
+      "add",
+      "Errors",
+      "--source",
+      "ph",
+      "--hogql",
+      "select count() from events",
+      "--above",
+      "100",
+    );
     await h.run("query", "select 1", "--source", "ph");
     await h.run("show", "mw-1");
     await h.run("rm", "mw-1");
     expect(h.calls).toEqual([
-      { path: "/cli/metrics/create", body: { source: "ph", name: "Errors", query_kind: "hogql", query: "select count() from events", threshold: 100, direction: "above", ...SCOPE } },
-      { path: "/cli/metrics/query", body: { source: "ph", query: "select 1", ...SCOPE } },
+      {
+        path: "/cli/metrics/create",
+        body: {
+          source: "ph",
+          name: "Errors",
+          query_kind: "hogql",
+          query: "select count() from events",
+          threshold: 100,
+          direction: "above",
+          ...SCOPE,
+        },
+      },
+      {
+        path: "/cli/metrics/query",
+        body: { source: "ph", query: "select 1", ...SCOPE },
+      },
       { path: "/cli/metrics/get", body: { watch: "mw-1" } },
       { path: "/cli/metrics/remove", body: { watch: "mw-1" } },
     ]);
@@ -54,13 +184,19 @@ describe("cast metrics on the wire", () => {
   });
 
   test("backfill reads one watch, a source's, or every watch, with --days, and names what it skipped", async () => {
-    h.answer = () => ({ scheduled: ["mw-2"], skipped: [{ watch: "mw-1", reason: "old is paused" }] });
+    h.answer = () => ({
+      scheduled: ["mw-2"],
+      skipped: [{ watch: "mw-1", reason: "old is paused" }],
+    });
     await h.run("backfill");
     await h.run("backfill", "mw-2", "--days", "14");
     await h.run("backfill", "--source", "ph");
     expect(h.calls).toEqual([
       { path: "/cli/metrics/backfill", body: { ...SCOPE } },
-      { path: "/cli/metrics/backfill", body: { watch: "mw-2", days: 14, ...SCOPE } },
+      {
+        path: "/cli/metrics/backfill",
+        body: { watch: "mw-2", days: 14, ...SCOPE },
+      },
       { path: "/cli/metrics/backfill", body: { source: "ph", ...SCOPE } },
     ]);
     expect(h.out()).toContain("mw-2");
@@ -82,26 +218,105 @@ describe("cast metrics on the wire", () => {
 describe("formatHistoryLine", () => {
   test("reading, read, and none with the reason", () => {
     expect(formatHistoryLine({})).toBeNull();
-    expect(formatHistoryLine({ history: { at: 0, added: 0, reading: true } })).toMatch(/reading/);
-    expect(formatHistoryLine({ history: { at: 0, added: 31 } }, 60_000)).toMatch(/^history: 31 past values read/);
-    expect(formatHistoryLine({ history: { at: 0, added: 0, note: "The query has no now() to bind" } })).toBe("history: none (The query has no now() to bind)");
+    expect(
+      formatHistoryLine({ history: { at: 0, added: 0, reading: true } }),
+    ).toMatch(/reading/);
+    expect(
+      formatHistoryLine({ history: { at: 0, added: 31 } }, 60_000),
+    ).toMatch(/^history: 31 past values read/);
+    expect(
+      formatHistoryLine({
+        history: { at: 0, added: 0, note: "The query has no now() to bind" },
+      }),
+    ).toBe("history: none (The query has no now() to bind)");
     // A read that stopped partway keeps its count and says why.
-    expect(formatHistoryLine({ history: { at: 0, added: 12, note: "Stopped after 12 past values: PostHog answered 429" } }, 60_000)).toMatch(/^history: 12 past values read .*\(Stopped after 12/);
+    expect(
+      formatHistoryLine(
+        {
+          history: {
+            at: 0,
+            added: 12,
+            note: "Stopped after 12 past values: PostHog answered 429",
+          },
+        },
+        60_000,
+      ),
+    ).toMatch(/^history: 12 past values read .*\(Stopped after 12/);
   });
 });
 
 describe("a reader watch, and a series with no line", () => {
   test("--reader with --args makes a reader query; no --above/--below makes a plain series, for any source", () => {
-    expect(metricAddBody("Dollars per intro", { source: "union", reader: "metrics.read", args: '{"key":"dollars_per_intro"}', unit: "$", every: "1h" })).toEqual({
-      source: "union", name: "Dollars per intro", query_kind: "reader", query: 'metrics.read {"key":"dollars_per_intro"}', unit: "$", interval_ms: 3600_000,
+    expect(
+      metricAddBody("Dollars per intro", {
+        source: "union",
+        reader: "metrics.read",
+        args: '{"key":"dollars_per_intro"}',
+        unit: "$",
+        every: "1h",
+      }),
+    ).toEqual({
+      source: "union",
+      name: "Dollars per intro",
+      query_kind: "reader",
+      query: 'metrics.read {"key":"dollars_per_intro"}',
+      unit: "$",
+      interval_ms: 3600_000,
     });
-    expect(metricAddBody("Bounces", { source: "union", reader: "metrics.read", args: '{"key":"b"}', above: "5" })).toMatchObject({ threshold: 5, direction: "above" });
-    expect(metricAddBody("Weekly actives", { source: "p", hogql: "select 1" })).toEqual({ source: "p", name: "Weekly actives", query_kind: "hogql", query: "select 1" });
-    expect(() => metricAddBody("x", { source: "union", reader: "metrics.read", args: "[1]" })).toThrow("--args is a JSON object");
-    expect(() => metricAddBody("x", { source: "union", hogql: "select 1", args: "{}" , above: "1" })).toThrow("--args goes with --reader");
+    expect(
+      metricAddBody("Bounces", {
+        source: "union",
+        reader: "metrics.read",
+        args: '{"key":"b"}',
+        above: "5",
+      }),
+    ).toMatchObject({ threshold: 5, direction: "above" });
+    expect(
+      metricAddBody("Weekly actives", { source: "p", hogql: "select 1" }),
+    ).toEqual({
+      source: "p",
+      name: "Weekly actives",
+      query_kind: "hogql",
+      query: "select 1",
+    });
+    expect(() =>
+      metricAddBody("x", {
+        source: "union",
+        reader: "metrics.read",
+        args: "[1]",
+      }),
+    ).toThrow("--args is a JSON object");
+    expect(() =>
+      metricAddBody("x", {
+        source: "union",
+        hogql: "select 1",
+        args: "{}",
+        above: "1",
+      }),
+    ).toThrow("--args goes with --reader");
   });
   test("a series prints its value in its unit and says it is a series", () => {
-    const line = formatWatchLine({ _id: "w", short_id: "mw-12", name: "Dollars per intro", query_kind: "reader", query: "metrics.read", direction: "below", unit: "$", interval_ms: 3600_000, status: "active", points: [{ at: 1, value: 410 }, { at: 2, value: 382 }], last_value: 382, last_at: 2, source_name: "union" } as WatchRow, 2);
+    const line = formatWatchLine(
+      {
+        _id: "w",
+        short_id: "mw-12",
+        name: "Dollars per intro",
+        query_kind: "reader",
+        query: "metrics.read",
+        direction: "below",
+        unit: "$",
+        interval_ms: 3600_000,
+        status: "active",
+        points: [
+          { at: 1, value: 410 },
+          { at: 2, value: 382 },
+        ],
+        last_value: 382,
+        last_at: 2,
+        source_name: "union",
+      } as WatchRow,
+      2,
+    );
     expect(line).toContain("$382");
     expect(line).toContain("(series)");
   });
@@ -110,13 +325,31 @@ describe("a reader watch, and a series with no line", () => {
 describe("cast metrics points rm --at", () => {
   test("covers the minute, the second or the instant the time names, in UTC unless it names a zone", () => {
     const at = Date.parse("2026-11-11T12:31:00Z");
-    expect(parsePointTime("2026-11-11T12:31")).toEqual({ from: at, to: at + 59_999 });
-    expect(parsePointTime("2026-11-11T12:31:07Z")).toEqual({ from: at + 7_000, to: at + 7_999 });
-    expect(parsePointTime("2026-11-11T12:31:07.250Z")).toEqual({ from: at + 7_250, to: at + 7_250 });
-    expect(parsePointTime("2026-11-11T13:31+01:00")).toEqual({ from: at, to: at + 59_999 });
-    for (const bad of ["2026-11-11", "yesterday", "2026-11-11T25:00"]) expect("error" in parsePointTime(bad)).toBe(true);
+    expect(parsePointTime("2026-11-11T12:31")).toEqual({
+      from: at,
+      to: at + 59_999,
+    });
+    expect(parsePointTime("2026-11-11T12:31:07Z")).toEqual({
+      from: at + 7_000,
+      to: at + 7_999,
+    });
+    expect(parsePointTime("2026-11-11T12:31:07.250Z")).toEqual({
+      from: at + 7_250,
+      to: at + 7_250,
+    });
+    expect(parsePointTime("2026-11-11T13:31+01:00")).toEqual({
+      from: at,
+      to: at + 59_999,
+    });
+    for (const bad of ["2026-11-11", "yesterday", "2026-11-11T25:00"])
+      expect("error" in parsePointTime(bad)).toBe(true);
   });
   test("says each value it removed", () => {
-    expect(formatPointRemoval({ watch: "mw-16", removed: [{ at: Date.parse("2026-11-11T12:31:07Z"), value: 62.87 }] }).replace(/\x1b\[[0-9;]*m/g, "")).toBe("removed 1 value from mw-16\n  2026-11-11T12:31:07.000Z 62.87");
+    expect(
+      formatPointRemoval({
+        watch: "mw-16",
+        removed: [{ at: Date.parse("2026-11-11T12:31:07Z"), value: 62.87 }],
+      }).replace(/\x1b\[[0-9;]*m/g, ""),
+    ).toBe("removed 1 value from mw-16\n  2026-11-11T12:31:07.000Z 62.87");
   });
 });

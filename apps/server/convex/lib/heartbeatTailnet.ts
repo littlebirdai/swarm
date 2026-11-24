@@ -1,5 +1,8 @@
 import { v } from "convex/values";
-import { normalizePeerTailnet, samePeerTailnet } from "@codecast/shared/contracts/peerTransport";
+import {
+  normalizePeerTailnet,
+  samePeerTailnet,
+} from "@codecast/shared/contracts/peerTransport";
 
 export const tailnetValidator = v.object({
   ip: v.string(),
@@ -23,7 +26,9 @@ function storedTailnet(raw: unknown): StoredTailnet | undefined {
 }
 
 /** A raw beat body's tailnet, shaped to the validator so a malformed report never fails the beat. */
-export function heartbeatTailnetArg(raw: unknown): StoredTailnet | null | undefined {
+export function heartbeatTailnetArg(
+  raw: unknown,
+): StoredTailnet | null | undefined {
   return raw === null ? null : storedTailnet(raw);
 }
 
@@ -32,9 +37,17 @@ export function heartbeatTailnetArg(raw: unknown): StoredTailnet | null | undefi
  * nothing, null clears, and a value equal to the stored one writes nothing,
  * so it never defeats the device write throttle (deviceBeatChanged).
  */
-export function heartbeatTailnetPatch(existing: StoredTailnet | undefined, reported: StoredTailnet | null | undefined): { tailnet?: StoredTailnet | undefined } {
+export function heartbeatTailnetPatch(
+  existing: StoredTailnet | undefined,
+  reported: StoredTailnet | null | undefined,
+): { tailnet?: StoredTailnet | undefined } {
   if (reported === undefined) return {};
   const next = reported === null ? undefined : storedTailnet(reported);
   if (reported !== null && !next) return {};
-  return samePeerTailnet(normalizePeerTailnet(existing), normalizePeerTailnet(next)) ? {} : { tailnet: next };
+  return samePeerTailnet(
+    normalizePeerTailnet(existing),
+    normalizePeerTailnet(next),
+  )
+    ? {}
+    : { tailnet: next };
 }

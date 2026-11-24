@@ -50,7 +50,14 @@ type Via = "human" | "agent";
 // Author labels agents and the server write on task comments (measured on
 // prod: Claude, Mr Bot, mining, unknown; "system" is the server's fallback).
 const AGENT_AUTHORS = new Set([
-  "claude", "codex", "opencode", "gemini", "mr bot", "mining", "unknown", "system",
+  "claude",
+  "codex",
+  "opencode",
+  "gemini",
+  "mr bot",
+  "mining",
+  "unknown",
+  "system",
 ]);
 
 function isAgentAuthor(author: string): boolean {
@@ -66,11 +73,15 @@ function authorMatchesUser(author: string, user: Doc<"users"> | null): boolean {
   const a = author.trim().toLowerCase();
   if (a.length < 3) return false;
   const tokens = new Set<string>();
-  for (const t of String(user.name ?? "").toLowerCase().split(/\s+/)) {
+  for (const t of String(user.name ?? "")
+    .toLowerCase()
+    .split(/\s+/)) {
     if (t.length >= 3) tokens.add(t);
   }
   for (const email of [user.email, ...(user.alternate_emails ?? [])]) {
-    const local = String(email ?? "").toLowerCase().split("@")[0];
+    const local = String(email ?? "")
+      .toLowerCase()
+      .split("@")[0];
     if (local.length >= 3) tokens.add(local);
   }
   const gh = String(user.github_username ?? "").toLowerCase();
@@ -101,8 +112,12 @@ async function classifyVia(
   if (sub.reason === "commenter") {
     const user = await loaders.user(sub.user_id);
     const comments = await loaders.comments(task._id);
-    const human = comments.some((c) =>
-      !c.conversation_id && !isAgentAuthor(c.author) && authorMatchesUser(c.author, user));
+    const human = comments.some(
+      (c) =>
+        !c.conversation_id &&
+        !isAgentAuthor(c.author) &&
+        authorMatchesUser(c.author, user),
+    );
     return human ? "human" : "agent";
   }
   return null;
@@ -142,10 +157,13 @@ export const sweepPage = internalMutation({
       comments: async (taskId) => {
         const key = String(taskId);
         if (!commentsCache.has(key)) {
-          commentsCache.set(key, await ctx.db
-            .query("task_comments")
-            .withIndex("by_task_id", (q: any) => q.eq("task_id", taskId))
-            .collect());
+          commentsCache.set(
+            key,
+            await ctx.db
+              .query("task_comments")
+              .withIndex("by_task_id", (q: any) => q.eq("task_id", taskId))
+              .collect(),
+          );
         }
         return commentsCache.get(key)!;
       },
@@ -175,11 +193,20 @@ export const sweepPage = internalMutation({
           if (!dryRun) await ctx.db.delete(sub._id);
           continue;
         }
-        if (sub.via) { keptStored++; continue; }
+        if (sub.via) {
+          keptStored++;
+          continue;
+        }
         const via = await classifyVia(sub, task, loaders);
-        if (!via) { viaIndependent++; continue; }
+        if (!via) {
+          viaIndependent++;
+          continue;
+        }
         (stamped[sub.reason] ??= { human: 0, agent: 0 })[via]++;
-        await bump(sub.user_id, via === "human" ? "stampedHuman" : "stampedAgent");
+        await bump(
+          sub.user_id,
+          via === "human" ? "stampedHuman" : "stampedAgent",
+        );
         if (!dryRun) await ctx.db.patch(sub._id, { via });
       }
       return {
@@ -203,25 +230,38 @@ export const sweepPage = internalMutation({
       let keptExplicit = 0;
       let cleared = 0;
       for (const task of page.page) {
-        if (!task.assignee || String(task.assignee) !== String(task.user_id)) continue;
+        if (!task.assignee || String(task.assignee) !== String(task.user_id))
+          continue;
         selfAssigned++;
-        if (isHumanTask(task)) { keptHuman++; continue; }
+        if (isHumanTask(task)) {
+          keptHuman++;
+          continue;
+        }
         // An explicit web self-assign records intent as a via:"human" assignee
         // subscription row; the CLI self-claim records none.
         const taskSubs = await ctx.db
           .query("entity_subscriptions")
           .withIndex("by_entity", (q: any) =>
-            q.eq("entity_type", "task").eq("entity_id", String(task._id)))
+            q.eq("entity_type", "task").eq("entity_id", String(task._id)),
+          )
           .collect();
-        const explicit = taskSubs.some((s) =>
-          s.reason === "assignee" &&
-          String(s.user_id) === String(task.user_id) &&
-          s.via === "human");
-        if (explicit) { keptExplicit++; continue; }
+        const explicit = taskSubs.some(
+          (s) =>
+            s.reason === "assignee" &&
+            String(s.user_id) === String(task.user_id) &&
+            s.via === "human",
+        );
+        if (explicit) {
+          keptExplicit++;
+          continue;
+        }
         cleared++;
         await bump(task.user_id, "cleared");
         if (!dryRun) {
-          await patchTask(ctx, task, { assignee: undefined, updated_at: Date.now() });
+          await patchTask(ctx, task, {
+            assignee: undefined,
+            updated_at: Date.now(),
+          });
         }
       }
       return {
@@ -247,13 +287,22 @@ export const sweepPage = internalMutation({
         const raw = await ctx.db
           .query("entity_subscriptions")
           .withIndex("by_entity", (q: any) =>
-            q.eq("entity_type", "task").eq("entity_id", String(task._id)))
+            q.eq("entity_type", "task").eq("entity_id", String(task._id)),
+          )
           .collect();
         // Overlay the via each legacy row earns, so a dry run answers for the
         // post-stamp world without step 1 having written anything. On a live
         // run step 1 already stamped every row and this is a no-op.
-        const subs = await Promise.all(raw.map(async (s) =>
-          s.via ? s : { ...s, via: (await classifyVia(s, task, loaders)) ?? undefined }));
+        const subs = await Promise.all(
+          raw.map(async (s) =>
+            s.via
+              ? s
+              : {
+                  ...s,
+                  via: (await classifyVia(s, task, loaders)) ?? undefined,
+                },
+          ),
+        );
         const ids = await taskThreadParticipants(ctx, task, subs);
         participantsCache.set(key, ids.map(String));
       }
@@ -310,11 +359,14 @@ async function runStep(
   const totals: any = {};
   let cursor: string | undefined;
   for (;;) {
-    const res: any = await ctx.runMutation(internal.threadMembershipSweep.sweepPage, {
-      step,
-      cursor,
-      dryRun,
-    });
+    const res: any = await ctx.runMutation(
+      internal.threadMembershipSweep.sweepPage,
+      {
+        step,
+        cursor,
+        dryRun,
+      },
+    );
     const { cursor: _c, isDone, ...counts } = res;
     mergeCounts(totals, counts);
     if (isDone) break;

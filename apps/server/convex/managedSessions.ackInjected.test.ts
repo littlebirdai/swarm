@@ -7,14 +7,24 @@ import { activeStatusAcksInjected } from "./managedSessions";
 // stale "injected" rows had nothing to revive (2026-09-03).
 describe("activeStatusAcksInjected", () => {
   test("observed processing states ack injected messages", () => {
-    for (const s of ["working", "thinking", "compacting", "permission_blocked"]) {
+    for (const s of [
+      "working",
+      "thinking",
+      "compacting",
+      "permission_blocked",
+    ]) {
       expect(activeStatusAcksInjected(s, undefined)).toBe(true);
       expect(activeStatusAcksInjected(s, false)).toBe(true);
     }
   });
 
   test("a presumed status never acks, whatever it says", () => {
-    for (const s of ["working", "thinking", "compacting", "permission_blocked"]) {
+    for (const s of [
+      "working",
+      "thinking",
+      "compacting",
+      "permission_blocked",
+    ]) {
       expect(activeStatusAcksInjected(s, true)).toBe(false);
     }
   });

@@ -28,27 +28,50 @@ type Props = {
   timeKey?: "created_at" | "updated_at";
 };
 
-export function DocDates({ doc, variant = "compact", className = "", timeKey }: Props) {
+export function DocDates({
+  doc,
+  variant = "compact",
+  className = "",
+  timeKey,
+}: Props) {
   const now = useCoarseNow(30_000);
   const edited = wasEdited(doc);
 
   if (variant === "compact") {
-    const ts = timeKey === "created_at" ? doc.created_at : timeKey === "updated_at" ? (doc.updated_at ?? doc.created_at) : edited ? doc.updated_at! : doc.created_at;
+    const ts =
+      timeKey === "created_at"
+        ? doc.created_at
+        : timeKey === "updated_at"
+          ? (doc.updated_at ?? doc.created_at)
+          : edited
+            ? doc.updated_at!
+            : doc.created_at;
     return (
-      <span className={`tabular-nums whitespace-nowrap ${className}`} title={describeDatesFull(doc)}>
+      <span
+        className={`tabular-nums whitespace-nowrap ${className}`}
+        title={describeDatesFull(doc)}
+      >
         {formatDateSmart(ts, now)}
       </span>
     );
   }
 
   return (
-    <span className={`inline-flex items-center gap-3 whitespace-nowrap ${className}`}>
-      <span className="inline-flex items-center gap-1" title={formatDateFull(doc.created_at)}>
+    <span
+      className={`inline-flex items-center gap-3 whitespace-nowrap ${className}`}
+    >
+      <span
+        className="inline-flex items-center gap-1"
+        title={formatDateFull(doc.created_at)}
+      >
         <Clock className="w-3 h-3" />
         Created {formatDateSmart(doc.created_at, now)}
       </span>
       {edited && (
-        <span className="inline-flex items-center gap-1" title={formatDateFull(doc.updated_at!)}>
+        <span
+          className="inline-flex items-center gap-1"
+          title={formatDateFull(doc.updated_at!)}
+        >
           <PencilLine className="w-3 h-3" />
           Updated {formatDateSmart(doc.updated_at!, now)}
         </span>

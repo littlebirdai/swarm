@@ -38,13 +38,24 @@ test("the ghost shows its one reply and only the Tab cap", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () => {
-    root.render(<ComposerSuggestion conversationId="c1" idle hidden={false} onAccept={(t) => taken.push(t)} />);
+    root.render(
+      <ComposerSuggestion
+        conversationId="c1"
+        idle
+        hidden={false}
+        onAccept={(t) => taken.push(t)}
+      />,
+    );
   });
-  expect(container.querySelector("[data-composer-ghost]")!.textContent).toContain("add the regression test first");
+  expect(
+    container.querySelector("[data-composer-ghost]")!.textContent,
+  ).toContain("add the regression test first");
   const buttons = container.querySelectorAll("button");
   expect(buttons.length).toBe(1);
   expect(buttons[0]!.textContent).toBe("Tab");
-  await act(async () => { (buttons[0] as HTMLButtonElement).click(); });
+  await act(async () => {
+    (buttons[0] as HTMLButtonElement).click();
+  });
   expect(taken).toEqual(["add the regression test first"]);
   await act(async () => root.unmount());
 });

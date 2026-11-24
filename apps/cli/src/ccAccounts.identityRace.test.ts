@@ -23,24 +23,38 @@ describe("profile identity stays attached to the captured credential", () => {
     alpha: { accountUuid: "uuid-alpha", emailAddress: "alpha@example.com" },
     beta: { accountUuid: "uuid-beta", emailAddress: "beta@example.com" },
   };
-  const credential = (name: string, version: number) => JSON.stringify({
-    claudeAiOauth: {
-      accessToken: `${name}-access-${version}`,
-      refreshToken: `${name}-refresh-${version}`,
-      expiresAt: Date.now() + version * 3_600_000,
-    },
-  });
-  const secretPath = (name: string) => path.join(testHome, ".codecast", "cc-accounts", `${name}.json`);
-  const readSnapshot = (name: string) => JSON.parse(fs.readFileSync(secretPath(name), "utf8"));
+  const credential = (name: string, version: number) =>
+    JSON.stringify({
+      claudeAiOauth: {
+        accessToken: `${name}-access-${version}`,
+        refreshToken: `${name}-refresh-${version}`,
+        expiresAt: Date.now() + version * 3_600_000,
+      },
+    });
+  const secretPath = (name: string) =>
+    path.join(testHome, ".codecast", "cc-accounts", `${name}.json`);
+  const readSnapshot = (name: string) =>
+    JSON.parse(fs.readFileSync(secretPath(name), "utf8"));
   const setActive = (name: keyof typeof identities, version: number) => {
-    fs.writeFileSync(path.join(testHome, ".claude", ".credentials.json"), credential(name, version));
-    fs.writeFileSync(path.join(testHome, ".claude.json"), JSON.stringify({ oauthAccount: identities[name] }));
+    fs.writeFileSync(
+      path.join(testHome, ".claude", ".credentials.json"),
+      credential(name, version),
+    );
+    fs.writeFileSync(
+      path.join(testHome, ".claude.json"),
+      JSON.stringify({ oauthAccount: identities[name] }),
+    );
     invalidateAccountsCache();
   };
 
   beforeEach(() => {
     testHome = fs.mkdtempSync(path.join(os.tmpdir(), "cc-identity-race-"));
-    originalEnv = Object.fromEntries(["HOME", "CODECAST_DIR", "CC_ACCOUNTS_FORCE_FILE"].map(key => [key, process.env[key]]));
+    originalEnv = Object.fromEntries(
+      ["HOME", "CODECAST_DIR", "CC_ACCOUNTS_FORCE_FILE"].map((key) => [
+        key,
+        process.env[key],
+      ]),
+    );
     process.env.HOME = testHome;
     process.env.CODECAST_DIR = path.join(testHome, ".codecast");
     process.env.CC_ACCOUNTS_FORCE_FILE = "1";
@@ -60,8 +74,14 @@ describe("profile identity stays attached to the captured credential", () => {
         };
       }
     }
-    fs.writeFileSync(path.join(testHome, ".codecast", "cc-accounts.json"), JSON.stringify({ profiles }));
-    fs.writeFileSync(path.join(testHome, ".codecast", "cc-identity.json"), JSON.stringify({ tokens }));
+    fs.writeFileSync(
+      path.join(testHome, ".codecast", "cc-accounts.json"),
+      JSON.stringify({ profiles }),
+    );
+    fs.writeFileSync(
+      path.join(testHome, ".codecast", "cc-identity.json"),
+      JSON.stringify({ tokens }),
+    );
     setActive("alpha", 2);
   });
 
@@ -77,7 +97,10 @@ describe("profile identity stays attached to the captured credential", () => {
   it("does not reread the active login to label a captured credential", () => {
     const read = fs.readFileSync;
     let switched = false;
-    const spy = spyOn(fs, "readFileSync").mockImplementation(((file: any, ...args: any[]) => {
+    const spy = spyOn(fs, "readFileSync").mockImplementation(((
+      file: any,
+      ...args: any[]
+    ) => {
       const result = (read as any)(file, ...args);
       if (!switched && file === secretPath("beta")) {
         switched = true;
@@ -88,7 +111,9 @@ describe("profile identity stays attached to the captured credential", () => {
     try {
       expect(saveProfile("alpha").email).toBe("alpha@example.com");
       expect(switched).toBe(true);
-      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe("alpha-access-2");
+      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe(
+        "alpha-access-2",
+      );
       expect(readSnapshot("alpha").oauthAccount).toEqual(identities.alpha);
     } finally {
       spy.mockRestore();
@@ -98,7 +123,10 @@ describe("profile identity stays attached to the captured credential", () => {
   it("saves the matched credential when the machine switches during async profile reads", async () => {
     const read = fs.promises.readFile;
     let switched = false;
-    const spy = spyOn(fs.promises, "readFile").mockImplementation((async (file: any, ...args: any[]) => {
+    const spy = spyOn(fs.promises, "readFile").mockImplementation((async (
+      file: any,
+      ...args: any[]
+    ) => {
       const result = await (read as any)(file, ...args);
       if (!switched && file === secretPath("alpha")) {
         switched = true;
@@ -109,12 +137,16 @@ describe("profile identity stays attached to the captured credential", () => {
     try {
       expect(await resnapshotIfActiveFresher()).toBe("alpha");
       expect(switched).toBe(true);
-      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe("alpha-access-2");
+      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe(
+        "alpha-access-2",
+      );
       expect(readProfileIndex().profiles.alpha.email).toBe("alpha@example.com");
-      expect(getAccountsHeartbeatPayload()?.profiles.map(p => p.email)).toEqual([
-        "alpha@example.com", "beta@example.com",
-      ]);
-      expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe("beta-access-1");
+      expect(
+        getAccountsHeartbeatPayload()?.profiles.map((p) => p.email),
+      ).toEqual(["alpha@example.com", "beta@example.com"]);
+      expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe(
+        "beta-access-1",
+      );
     } finally {
       spy.mockRestore();
     }
@@ -129,9 +161,15 @@ describe("profile identity stays attached to the captured credential", () => {
   });
 
   it("uses the verified email when the label has the right UUID but the wrong email", () => {
-    fs.writeFileSync(path.join(testHome, ".claude.json"), JSON.stringify({
-      oauthAccount: { ...identities.alpha, emailAddress: identities.beta.emailAddress },
-    }));
+    fs.writeFileSync(
+      path.join(testHome, ".claude.json"),
+      JSON.stringify({
+        oauthAccount: {
+          ...identities.alpha,
+          emailAddress: identities.beta.emailAddress,
+        },
+      }),
+    );
     expect(saveProfile("alpha").email).toBe("alpha@example.com");
   });
   // 2026-10-04: a fresh login of one account, still labelled as another in
@@ -139,33 +177,69 @@ describe("profile identity stays attached to the captured credential", () => {
   // appeared. That profile's meter then read the wrong account.
   describe("a fresh login nobody has proved yet", () => {
     const identityFetch = (byToken: Record<string, keyof typeof identities>) =>
-      spyOn(globalThis, "fetch").mockImplementation((async (_url: any, init?: any) => {
-        const token = String(init?.headers?.Authorization ?? "").replace("Bearer ", "");
+      spyOn(globalThis, "fetch").mockImplementation((async (
+        _url: any,
+        init?: any,
+      ) => {
+        const token = String(init?.headers?.Authorization ?? "").replace(
+          "Bearer ",
+          "",
+        );
         const who = byToken[token];
         if (!who) return new Response("{}", { status: 401 });
-        return Response.json({ account: { uuid: identities[who].accountUuid, email: identities[who].emailAddress } });
+        return Response.json({
+          account: {
+            uuid: identities[who].accountUuid,
+            email: identities[who].emailAddress,
+          },
+        });
       }) as typeof fetch);
     const freshBetaLabelledAlpha = () => {
-      fs.writeFileSync(path.join(testHome, ".claude", ".credentials.json"), credential("beta", 3));
-      fs.writeFileSync(path.join(testHome, ".claude.json"), JSON.stringify({ oauthAccount: identities.alpha }));
+      fs.writeFileSync(
+        path.join(testHome, ".claude", ".credentials.json"),
+        credential("beta", 3),
+      );
+      fs.writeFileSync(
+        path.join(testHome, ".claude.json"),
+        JSON.stringify({ oauthAccount: identities.alpha }),
+      );
       invalidateAccountsCache();
     };
 
     it("keeps its proof across a refresh we make, so the re-save names its own profile", async () => {
       // The 2026-10-04 path: the daemon refreshed an expired login labelled as
       // another account, then re-saved it; the new token had no proof yet.
-      fs.writeFileSync(path.join(testHome, ".claude", ".credentials.json"), JSON.stringify({
-        claudeAiOauth: { accessToken: "beta-access-2", refreshToken: "beta-refresh-2", expiresAt: Date.now() - 1000 },
-      }));
-      fs.writeFileSync(path.join(testHome, ".claude.json"), JSON.stringify({ oauthAccount: identities.alpha }));
+      fs.writeFileSync(
+        path.join(testHome, ".claude", ".credentials.json"),
+        JSON.stringify({
+          claudeAiOauth: {
+            accessToken: "beta-access-2",
+            refreshToken: "beta-refresh-2",
+            expiresAt: Date.now() - 1000,
+          },
+        }),
+      );
+      fs.writeFileSync(
+        path.join(testHome, ".claude.json"),
+        JSON.stringify({ oauthAccount: identities.alpha }),
+      );
       invalidateAccountsCache();
-      const fetchImpl = (async () => Response.json({
-        access_token: "beta-access-3", refresh_token: "beta-refresh-3", expires_in: 28800,
-      })) as unknown as typeof fetch;
-      expect((await refreshActiveCredential({ fetchImpl })).refreshed).toBe(true);
+      const fetchImpl = (async () =>
+        Response.json({
+          access_token: "beta-access-3",
+          refresh_token: "beta-refresh-3",
+          expires_in: 28800,
+        })) as unknown as typeof fetch;
+      expect((await refreshActiveCredential({ fetchImpl })).refreshed).toBe(
+        true,
+      );
       expect(resnapshotActiveProfile()).toBe("beta");
-      expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe("beta-access-3");
-      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe("alpha-access-1");
+      expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe(
+        "beta-access-3",
+      );
+      expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe(
+        "alpha-access-1",
+      );
     });
 
     it("is proved before the read back names a profile for it", async () => {
@@ -173,8 +247,12 @@ describe("profile identity stays attached to the captured credential", () => {
       const spy = identityFetch({ "beta-access-3": "beta" });
       try {
         expect(await resnapshotIfActiveFresher()).toBe("beta");
-        expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe("beta-access-3");
-        expect(readSnapshot("alpha").credentials.claudeAiOauth.accessToken).toBe("alpha-access-1");
+        expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe(
+          "beta-access-3",
+        );
+        expect(
+          readSnapshot("alpha").credentials.claudeAiOauth.accessToken,
+        ).toBe("alpha-access-1");
       } finally {
         spy.mockRestore();
       }
@@ -188,8 +266,13 @@ describe("profile identity stays attached to the captured credential", () => {
       const spy = identityFetch({ "beta-access-3": "beta" });
       try {
         const rows = await repairProfileIdentities();
-        expect(rows.find(r => r.name === "alpha")).toMatchObject({ repair: "moved", moved_to: "beta" });
-        expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe("beta-access-3");
+        expect(rows.find((r) => r.name === "alpha")).toMatchObject({
+          repair: "moved",
+          moved_to: "beta",
+        });
+        expect(readSnapshot("beta").credentials.claudeAiOauth.accessToken).toBe(
+          "beta-access-3",
+        );
         expect(fs.existsSync(secretPath("alpha"))).toBe(false);
         const index = readProfileIndex().profiles;
         expect(index.alpha.uuid).toBe("uuid-alpha");

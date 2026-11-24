@@ -13,7 +13,8 @@ const root = join(import.meta.dir, "..", "..");
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === ".next" || name === "dist") continue;
+    if (name === "node_modules" || name === ".next" || name === "dist")
+      continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p, out);
     else if (/\.(ts|tsx)$/.test(name) && !p.includes("__tests__")) out.push(p);
@@ -23,8 +24,12 @@ function walk(dir: string, out: string[] = []): string[] {
 
 describe("team setup pieces are defined once", () => {
   test("VISIBILITY_LEVELS has a single definition", () => {
-    const files = ["app", "components", "hooks", "lib"].flatMap((d) => walk(join(root, d)));
-    const defining = files.filter((f) => /\bVISIBILITY_LEVELS\s*=/.test(readFileSync(f, "utf8")));
+    const files = ["app", "components", "hooks", "lib"].flatMap((d) =>
+      walk(join(root, d)),
+    );
+    const defining = files.filter((f) =>
+      /\bVISIBILITY_LEVELS\s*=/.test(readFileSync(f, "utf8")),
+    );
     expect(defining.map((f) => f.slice(root.length + 1))).toEqual([
       "lib/team/visibilityLevels.ts",
     ]);
@@ -47,10 +52,19 @@ describe("team setup pieces are defined once", () => {
   });
 
   test("the join flow composes the shared pieces", () => {
-    const page = readFileSync(join(root, "app", "settings", "team", "join", "page.tsx"), "utf8");
-    expect(page).toContain('from "../../../../components/team/VisibilityPicker"');
-    expect(page).toContain('from "../../../../components/team/WorkspaceSharePicker"');
-    expect(page).toContain('from "../../../../hooks/useTeamWorkspaceSuggestions"');
+    const page = readFileSync(
+      join(root, "app", "settings", "team", "join", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain(
+      'from "../../../../components/team/VisibilityPicker"',
+    );
+    expect(page).toContain(
+      'from "../../../../components/team/WorkspaceSharePicker"',
+    );
+    expect(page).toContain(
+      'from "../../../../hooks/useTeamWorkspaceSuggestions"',
+    );
     expect(page).toContain('from "../../../../lib/team/saveTeamSetup"');
   });
 });

@@ -5,10 +5,12 @@ describe("emoji shortcodes", () => {
   test("rotating_light and the rest of Slack's standard set become glyphs", () => {
     expect(shortcodeToEmoji("rotating_light")).toBe("🚨");
     expect(shortcodeToEmoji(":rotating_light:")).toBe("🚨");
-    expect(replaceShortcodes(":rotating_light: credits gone")).toBe("🚨 credits gone");
-    expect(replaceShortcodes("ship it :rocket: :+1::skin-tone-3: :unknown_thing:")).toBe(
-      "ship it 🚀 👍 :unknown_thing:",
+    expect(replaceShortcodes(":rotating_light: credits gone")).toBe(
+      "🚨 credits gone",
     );
+    expect(
+      replaceShortcodes("ship it :rocket: :+1::skin-tone-3: :unknown_thing:"),
+    ).toBe("ship it 🚀 👍 :unknown_thing:");
   });
 
   test("a time like 10:30: is not an emoji", () => {
@@ -16,7 +18,17 @@ describe("emoji shortcodes", () => {
   });
 
   test("round trips the common reactions", () => {
-    for (const name of ["+1", "heart", "eyes", "white_check_mark", "tada", "rocket", "fire", "joy", "pray"]) {
+    for (const name of [
+      "+1",
+      "heart",
+      "eyes",
+      "white_check_mark",
+      "tada",
+      "rocket",
+      "fire",
+      "joy",
+      "pray",
+    ]) {
       const glyph = shortcodeToEmoji(name)!;
       expect(glyph).toBeTruthy();
       expect(emojiToShortcode(glyph)).toBe(name);

@@ -34,8 +34,8 @@ describe("the real-tmux suites run on a private tmux server", () => {
     expect(
       bunfig,
       `apps/cli/bunfig.toml must preload ${PRELOAD}. Without it the private ` +
-      `tmux server is established by whichever suite imports it first, which is ` +
-      `too late for any daemon.js already loaded.`,
+        `tmux server is established by whichever suite imports it first, which is ` +
+        `too late for any daemon.js already loaded.`,
     ).toContain(PRELOAD);
   });
 
@@ -43,9 +43,9 @@ describe("the real-tmux suites run on a private tmux server", () => {
     expect(
       TMUX_TMPDIR_AT_LOAD,
       `TMUX_TMPDIR was unset when this file loaded, so the preload did not run. ` +
-      `The daemon will address the machine's default tmux server and every ` +
-      `real-tmux suite will fail without saying why. Check that bun test runs ` +
-      `from apps/cli, where bunfig.toml lives.`,
+        `The daemon will address the machine's default tmux server and every ` +
+        `real-tmux suite will fail without saying why. Check that bun test runs ` +
+        `from apps/cli, where bunfig.toml lives.`,
     ).toBeTruthy();
   });
 });

@@ -9,7 +9,6 @@ import {
   isVisible,
   samePane,
   surfaceForPath,
-
   serializeWorkspace,
   hydrateWorkspace,
   setSize,
@@ -74,7 +73,9 @@ describe("sticky dismissal", () => {
 describe("presentation", () => {
   // peek → pin is a presentation change, not a different component or mode.
   it("moves a pane between peek and split without losing it", () => {
-    let ws = showPane(createWorkspace(), "secondary", detail("d1"), { presentation: "overlay" });
+    let ws = showPane(createWorkspace(), "secondary", detail("d1"), {
+      presentation: "overlay",
+    });
     expect(ws.secondary.presentation).toBe("overlay");
     ws = setPresentation(ws, "secondary", "split");
     expect(ws.secondary.presentation).toBe("split");
@@ -82,7 +83,11 @@ describe("presentation", () => {
   });
 
   it("counts a collapsed slot as not visible but still occupied", () => {
-    const ws = setPresentation(showPane(createWorkspace(), "context", sessionList), "context", "collapsed");
+    const ws = setPresentation(
+      showPane(createWorkspace(), "context", sessionList),
+      "context",
+      "collapsed",
+    );
     expect(isVisible(ws, "context")).toBe(false);
     expect(ws.context.pane).toEqual(sessionList);
   });
@@ -152,7 +157,10 @@ describe("slot persistence scopes", () => {
   it("rebuilds a workspace from both scopes", () => {
     let ws = showPane(createWorkspace(), "context", sessionList);
     ws = setSize(showPane(ws, "dock", { kind: "terminal" }), "dock", 320);
-    const back = hydrateWorkspace(serializeWorkspace(ws, "shared"), serializeWorkspace(ws, "device"));
+    const back = hydrateWorkspace(
+      serializeWorkspace(ws, "shared"),
+      serializeWorkspace(ws, "device"),
+    );
     expect(back.context.pane).toEqual(sessionList);
     expect(back.dock.pane).toEqual({ kind: "terminal" });
     expect(back.dock.size).toBe(320);
@@ -161,7 +169,13 @@ describe("slot persistence scopes", () => {
   // A shared arrangement synced from another device must not switch on a
   // terminal here — the device scope is what answers for the dock.
   it("ignores a foreign dock arriving in the shared projection", () => {
-    const foreign = { ...serializeWorkspace(showPane(createWorkspace(), "dock", { kind: "terminal" }), "shared"), dock: { kind: "terminal" as const, presentation: "split" as const } };
+    const foreign = {
+      ...serializeWorkspace(
+        showPane(createWorkspace(), "dock", { kind: "terminal" }),
+        "shared",
+      ),
+      dock: { kind: "terminal" as const, presentation: "split" as const },
+    };
     const back = hydrateWorkspace(foreign, null);
     expect(back.dock.pane).toBeNull();
   });

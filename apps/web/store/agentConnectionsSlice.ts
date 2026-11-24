@@ -20,7 +20,11 @@ export type AgentConnectionsSliceActions = {
 
 export function createAgentConnectionsSlice(): AgentConnectionsSliceActions {
   return {
-    disconnectAgent: action(function (this: any, _kind: McpConnectionRow["kind"], id: string) {
+    disconnectAgent: action(function (
+      this: any,
+      _kind: McpConnectionRow["kind"],
+      id: string,
+    ) {
       delete this.mcpConnections[id];
     }) as AgentConnectionsSliceActions["disconnectAgent"],
   };

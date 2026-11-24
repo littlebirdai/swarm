@@ -39,8 +39,13 @@ describe("codexPaneRegistry", () => {
 
   describe("marks and persistence", () => {
     it("records the account and conversation a pane launched under", async () => {
-      markCodexPaneLive("cc-alpha", { account: "ashot", conversationId: "conv-1" });
-      expect(codexPanes()).toEqual([{ id: "cc-alpha", account: "ashot", conversationId: "conv-1" }]);
+      markCodexPaneLive("cc-alpha", {
+        account: "ashot",
+        conversationId: "conv-1",
+      });
+      expect(codexPanes()).toEqual([
+        { id: "cc-alpha", account: "ashot", conversationId: "conv-1" },
+      ]);
       await flushCodexPaneRegistry();
       expect(JSON.parse(fs.readFileSync(registryFile(), "utf-8"))).toEqual({
         panes: [{ id: "cc-alpha", account: "ashot", conversationId: "conv-1" }],
@@ -48,7 +53,10 @@ describe("codexPaneRegistry", () => {
     });
 
     it("survives a daemon restart: the file is what the next process starts from", async () => {
-      markCodexPaneLive("cc-alpha", { account: "ashot", conversationId: "conv-1" });
+      markCodexPaneLive("cc-alpha", {
+        account: "ashot",
+        conversationId: "conv-1",
+      });
       markCodexPaneLive("cc-beta", { account: "footage" });
       await flushCodexPaneRegistry();
 
@@ -69,7 +77,11 @@ describe("codexPaneRegistry", () => {
       markCodexPaneLive("cc-gamma", { account: "ashot" });
       await flushCodexPaneRegistry();
       const onDisk = JSON.parse(fs.readFileSync(registryFile(), "utf-8"));
-      expect(onDisk.panes.map((p: any) => p.id).sort()).toEqual(["cc-alpha", "cc-beta", "cc-gamma"]);
+      expect(onDisk.panes.map((p: any) => p.id).sort()).toEqual([
+        "cc-alpha",
+        "cc-beta",
+        "cc-gamma",
+      ]);
     });
 
     it("drops a pane when it is killed", async () => {
@@ -77,7 +89,9 @@ describe("codexPaneRegistry", () => {
       markCodexPaneEnded("cc-alpha");
       markCodexPaneEnded("cc-never-existed"); // no-op, no write
       await flushCodexPaneRegistry();
-      expect(JSON.parse(fs.readFileSync(registryFile(), "utf-8"))).toEqual({ panes: [] });
+      expect(JSON.parse(fs.readFileSync(registryFile(), "utf-8"))).toEqual({
+        panes: [],
+      });
     });
 
     it("ignores a corrupt or absent registry file", async () => {
@@ -85,7 +99,10 @@ describe("codexPaneRegistry", () => {
       fs.mkdirSync(path.dirname(registryFile()), { recursive: true });
       fs.writeFileSync(registryFile(), "{ not json");
       expect(await seedCodexPanes()).toEqual([]);
-      fs.writeFileSync(registryFile(), JSON.stringify({ panes: [{ account: "ashot" }, null, { id: "" }] }));
+      fs.writeFileSync(
+        registryFile(),
+        JSON.stringify({ panes: [{ account: "ashot" }, null, { id: "" }] }),
+      );
       expect(await seedCodexPanes()).toEqual([]);
     });
   });
@@ -97,15 +114,24 @@ describe("codexPaneRegistry", () => {
         { id: "cc-alpha", account: "ashot" },
         { id: "cc-foreign", account: "footage" },
       ]);
-      expect(codexPanes().map((p) => p.id).sort()).toEqual(["cc-alpha", "cc-foreign"]);
+      expect(
+        codexPanes()
+          .map((p) => p.id)
+          .sort(),
+      ).toEqual(["cc-alpha", "cc-foreign"]);
     });
 
     it("keeps the conversation link a resumed pane no longer stamps", () => {
       // The resume path stamps the session id, not the conversation id, so a
       // reconcile that took the listing literally would lose the link.
-      markCodexPaneLive("cc-alpha", { account: "ashot", conversationId: "conv-1" });
+      markCodexPaneLive("cc-alpha", {
+        account: "ashot",
+        conversationId: "conv-1",
+      });
       reconcileCodexPanes([{ id: "cc-alpha", account: "ashot" }]);
-      expect(codexPanes()).toEqual([{ id: "cc-alpha", account: "ashot", conversationId: "conv-1" }]);
+      expect(codexPanes()).toEqual([
+        { id: "cc-alpha", account: "ashot", conversationId: "conv-1" },
+      ]);
     });
 
     it("re-attributes a pane from its own stamp", () => {
@@ -124,7 +150,10 @@ describe("codexPaneRegistry", () => {
       markCodexPaneLive("cc-gone", { account: "ashot" });
       await flushCodexPaneRegistry();
       await resetCodexPaneRegistry();
-      fs.writeFileSync(registryFile(), JSON.stringify({ panes: [{ id: "cc-gone", account: "ashot" }] }));
+      fs.writeFileSync(
+        registryFile(),
+        JSON.stringify({ panes: [{ id: "cc-gone", account: "ashot" }] }),
+      );
       await seedCodexPanes();
       reconcileCodexPanes([]); // tmux answered: no such session
       expect(codexPanes()).toEqual([]);
@@ -133,8 +162,14 @@ describe("codexPaneRegistry", () => {
 
   describe("staleCodexPanes", () => {
     beforeEach(() => {
-      markCodexPaneLive("cc-current", { account: "ashot", conversationId: "conv-1" });
-      markCodexPaneLive("cc-old", { account: "footage", conversationId: "conv-2" });
+      markCodexPaneLive("cc-current", {
+        account: "ashot",
+        conversationId: "conv-1",
+      });
+      markCodexPaneLive("cc-old", {
+        account: "footage",
+        conversationId: "conv-2",
+      });
       markCodexPaneLive("cc-unattributed", { conversationId: "conv-3" });
     });
 
@@ -151,7 +186,11 @@ describe("codexPaneRegistry", () => {
     });
 
     it("leaves an unattributed pane alone even after a switch", () => {
-      expect(staleCodexPanes("someone-else").map((p) => p.id).sort()).toEqual(["cc-current", "cc-old"]);
+      expect(
+        staleCodexPanes("someone-else")
+          .map((p) => p.id)
+          .sort(),
+      ).toEqual(["cc-current", "cc-old"]);
     });
   });
 
@@ -178,13 +217,24 @@ describe("codexPaneRegistry", () => {
 
     it("treats an unexpanded placeholder as 'not stamped', never as an account", () => {
       // A tmux too old to expand #{@opt} hands the placeholder back verbatim.
-      const stdout = row("cc-alpha", "codex", "#{@codecast_codex_account}", "conv-1");
-      expect(parseCodexPaneRows(stdout, SEP)).toEqual([{ id: "cc-alpha", conversationId: "conv-1" }]);
+      const stdout = row(
+        "cc-alpha",
+        "codex",
+        "#{@codecast_codex_account}",
+        "conv-1",
+      );
+      expect(parseCodexPaneRows(stdout, SEP)).toEqual([
+        { id: "cc-alpha", conversationId: "conv-1" },
+      ]);
     });
 
     it("skips rows that carry no agent type or too few fields", () => {
-      expect(parseCodexPaneRows(row("cc-alpha", "codex", "ashot"), SEP)).toEqual([]);
-      expect(parseCodexPaneRows(row("cc-alpha", "", "ashot", "conv-1"), SEP)).toEqual([]);
+      expect(
+        parseCodexPaneRows(row("cc-alpha", "codex", "ashot"), SEP),
+      ).toEqual([]);
+      expect(
+        parseCodexPaneRows(row("cc-alpha", "", "ashot", "conv-1"), SEP),
+      ).toEqual([]);
       expect(parseCodexPaneRows("", SEP)).toEqual([]);
     });
 

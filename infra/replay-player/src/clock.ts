@@ -22,7 +22,8 @@ export interface ReplayClock {
   captureEnd: number;
 }
 
-const clamp = (x: number, lo: number, hi: number) => Math.min(Math.max(x, lo), Math.max(lo, hi));
+const clamp = (x: number, lo: number, hi: number) =>
+  Math.min(Math.max(x, lo), Math.max(lo, hi));
 
 export function replayClock(
   manifest: { t0: number; replay: { duration_ms: number | null } },
@@ -32,7 +33,15 @@ export function replayClock(
   const captureEnd = Math.max(0, capture.totalTime + lead);
   const row = manifest.replay.duration_ms;
   const duration = typeof row === "number" && row > 0 ? row : captureEnd;
-  const toOffset = (t: number) => clamp(clamp(t, 0, duration) - lead, 0, capture.totalTime);
+  const toOffset = (t: number) =>
+    clamp(clamp(t, 0, duration) - lead, 0, capture.totalTime);
   const toClock = (offset: number) => clamp(offset + lead, 0, duration);
-  return { duration, lead, toOffset, toClock, endOffset: toOffset(duration), captureEnd };
+  return {
+    duration,
+    lead,
+    toOffset,
+    toClock,
+    endOffset: toOffset(duration),
+    captureEnd,
+  };
 }

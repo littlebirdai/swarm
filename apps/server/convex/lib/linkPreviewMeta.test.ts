@@ -22,7 +22,10 @@ describe("parseLinkPreviewMeta", () => {
   });
 
   test("falls back to twitter tags, then <title> and meta description", () => {
-    const meta = parseLinkPreviewMeta(`<head><title> A\n title </title><meta name="description" content="d"><meta name="twitter:image" content="https://cdn.x/i.png"></head>`, "https://x.com/");
+    const meta = parseLinkPreviewMeta(
+      `<head><title> A\n title </title><meta name="description" content="d"><meta name="twitter:image" content="https://cdn.x/i.png"></head>`,
+      "https://x.com/",
+    );
     expect(meta.title).toBe("A title");
     expect(meta.description).toBe("d");
     expect(meta.image).toBe("https://cdn.x/i.png");
@@ -30,7 +33,12 @@ describe("parseLinkPreviewMeta", () => {
   });
 
   test("an http image is dropped (mixed content on an https app)", () => {
-    expect(parseLinkPreviewMeta(`<head><meta property="og:image" content="http://x.com/i.png"></head>`, "http://x.com/").image).toBeUndefined();
+    expect(
+      parseLinkPreviewMeta(
+        `<head><meta property="og:image" content="http://x.com/i.png"></head>`,
+        "http://x.com/",
+      ).image,
+    ).toBeUndefined();
   });
 });
 
@@ -38,10 +46,26 @@ describe("linkPreviewStale", () => {
   const now = 10 * 24 * 3600_000;
   test("a missing row, an old ok row and a stalled fetch refetch; a fresh or in-flight one does not", () => {
     expect(linkPreviewStale(null, now)).toBe(true);
-    expect(linkPreviewStale({ status: "ok", requested_at: 0, fetched_at: now - 3600_000 }, now)).toBe(false);
-    expect(linkPreviewStale({ status: "ok", requested_at: 0, fetched_at: 0 }, now)).toBe(true);
-    expect(linkPreviewStale({ status: "pending", requested_at: now - 5_000 }, now)).toBe(false);
-    expect(linkPreviewStale({ status: "pending", requested_at: now - 120_000 }, now)).toBe(true);
-    expect(linkPreviewStale({ status: "failed", requested_at: 0, fetched_at: now - 3600_000 }, now)).toBe(false);
+    expect(
+      linkPreviewStale(
+        { status: "ok", requested_at: 0, fetched_at: now - 3600_000 },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      linkPreviewStale({ status: "ok", requested_at: 0, fetched_at: 0 }, now),
+    ).toBe(true);
+    expect(
+      linkPreviewStale({ status: "pending", requested_at: now - 5_000 }, now),
+    ).toBe(false);
+    expect(
+      linkPreviewStale({ status: "pending", requested_at: now - 120_000 }, now),
+    ).toBe(true);
+    expect(
+      linkPreviewStale(
+        { status: "failed", requested_at: 0, fetched_at: now - 3600_000 },
+        now,
+      ),
+    ).toBe(false);
   });
 });

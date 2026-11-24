@@ -26,13 +26,43 @@ export const PEOPLE = {
   maya: { id: "hero-u-maya", name: "Maya Ortiz", handle: "maya" },
 } as const;
 
-type StorySession = { id: string; shortId: string; title: string; agent: ConvexAgentType; project: string };
+type StorySession = {
+  id: string;
+  shortId: string;
+  title: string;
+  agent: ConvexAgentType;
+  project: string;
+};
 
 export const SESSIONS = {
-  lead: { id: "hero-s-lead", shortId: "jx7c4mq", title: "Retry failed webhooks", agent: "claude_code", project: "~/src/billing" },
-  api: { id: "hero-s-api", shortId: "jx7d2wk", title: "Webhook API half", agent: "codex", project: "~/src/billing" },
-  ui: { id: "hero-s-ui", shortId: "jx7f9np", title: "Dashboard retry UI", agent: "cursor", project: "~/src/billing" },
-  fork: { id: "hero-s-fork", shortId: "jx7gk3t", title: "Try fixed backoff", agent: "codex", project: "~/src/billing" },
+  lead: {
+    id: "hero-s-lead",
+    shortId: "jx7c4mq",
+    title: "Retry failed webhooks",
+    agent: "claude_code",
+    project: "~/src/billing",
+  },
+  api: {
+    id: "hero-s-api",
+    shortId: "jx7d2wk",
+    title: "Webhook API half",
+    agent: "codex",
+    project: "~/src/billing",
+  },
+  ui: {
+    id: "hero-s-ui",
+    shortId: "jx7f9np",
+    title: "Dashboard retry UI",
+    agent: "cursor",
+    project: "~/src/billing",
+  },
+  fork: {
+    id: "hero-s-fork",
+    shortId: "jx7gk3t",
+    title: "Try fixed backoff",
+    agent: "codex",
+    project: "~/src/billing",
+  },
 } satisfies Record<string, StorySession>;
 
 export const OBJECTS = {
@@ -40,15 +70,24 @@ export const OBJECTS = {
   plan: { shortId: "pl-312", title: "Webhook reliability" },
   decision: { shortId: "sd-1290", question: "Exponential or fixed backoff?" },
   trigger: { title: "Check CI every 4h" },
-  pr: { repository: "acme/billing", number: 482, title: "Retry failed webhooks with exponential backoff" },
-  page: { slug: "webhook-retries", title: "Webhook retry report", url: "codecast.sh/a/webhook-retries" },
+  pr: {
+    repository: "acme/billing",
+    number: 482,
+    title: "Retry failed webhooks with exponential backoff",
+  },
+  page: {
+    slug: "webhook-retries",
+    title: "Webhook retry report",
+    url: "codecast.sh/a/webhook-retries",
+  },
   blame: { file: "src/billing/retry.ts", line: 42 },
   channel: { name: "eng" },
   hosts: { cloud: "linux-host-1", laptop: "macbook" },
 } as const;
 
 /** What the fork's replay found, the one piece of evidence the decision, the code and the search all cite. */
-export const EVIDENCE = "a fixed 30s retry lost 3 events to a ledger restart, exponential lost none";
+export const EVIDENCE =
+  "a fixed 30s retry lost 3 events to a ledger restart, exponential lost none";
 
 /** The lead's opening prompt, typed in the conversation and quoted elsewhere. */
 export const PROMPT = "retry failed webhooks with backoff";

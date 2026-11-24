@@ -26,7 +26,10 @@ import { ownerKey, OWNER_HARNESS_ENV } from "./owner.js";
 // import below keeps the real module honest about its exports.
 import { resolveTarget, type InstanceState } from "./instance.js";
 
-const baseState = (tabsBySession: Record<string, string>, activeTargetId: string | null = null): InstanceState => ({
+const baseState = (
+  tabsBySession: Record<string, string>,
+  activeTargetId: string | null = null,
+): InstanceState => ({
   pid: 1,
   port: 0,
   userDataDir: "/tmp/none",
@@ -39,13 +42,23 @@ const baseState = (tabsBySession: Record<string, string>, activeTargetId: string
 });
 
 /** Stand in for the CDP HTTP endpoint that resolveTarget lists tabs from. */
-function withTabs<T>(tabs: Array<{ targetId: string; url: string }>, fn: () => Promise<T>): Promise<T> {
+function withTabs<T>(
+  tabs: Array<{ targetId: string; url: string }>,
+  fn: () => Promise<T>,
+): Promise<T> {
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: any) => {
     const url = String(input);
     if (url.includes("/json/list")) {
       return new Response(
-        JSON.stringify(tabs.map((t) => ({ id: t.targetId, type: "page", title: "", url: t.url }))),
+        JSON.stringify(
+          tabs.map((t) => ({
+            id: t.targetId,
+            type: "page",
+            title: "",
+            url: t.url,
+          })),
+        ),
         { status: 200, headers: { "content-type": "application/json" } },
       );
     }
@@ -65,7 +78,9 @@ const TABS = [
 describe("resolveTarget picks the right tab", () => {
   test("uses the tab this session owns, not the newest one", async () => {
     const state = baseState({ "session:me": "AAA", "session:other": "CCC" });
-    const t = await withTabs(TABS, () => resolveTarget(0, state, undefined, "session:me"));
+    const t = await withTabs(TABS, () =>
+      resolveTarget(0, state, undefined, "session:me"),
+    );
     expect(t.targetId).toBe("AAA");
   });
 
@@ -73,21 +88,25 @@ describe("resolveTarget picks the right tab", () => {
     // "Most recent tab" was the old default and is exactly wrong here: CCC is
     // newest precisely because another agent just opened it.
     const state = baseState({ "session:other": "CCC" });
-    const t = await withTabs(TABS, () => resolveTarget(0, state, undefined, "session:me"));
+    const t = await withTabs(TABS, () =>
+      resolveTarget(0, state, undefined, "session:me"),
+    );
     expect(t.targetId).not.toBe("CCC");
   });
 
   test("refuses, with instructions, when every tab is somebody else's", async () => {
-    const state = baseState({ "s1": "AAA", "s2": "BBB", "s3": "CCC" });
-    expect(withTabs(TABS, () => resolveTarget(0, state, undefined, "session:me"))).rejects.toThrow(
-      /belongs to another agent.*--new-tab/s,
-    );
+    const state = baseState({ s1: "AAA", s2: "BBB", s3: "CCC" });
+    expect(
+      withTabs(TABS, () => resolveTarget(0, state, undefined, "session:me")),
+    ).rejects.toThrow(/belongs to another agent.*--new-tab/s);
   });
 
   test("an explicit --tab always wins, even if it is another agent's", async () => {
     // Deliberate cross-agent access stays possible: debugging sometimes needs it.
     const state = baseState({ "session:other": "CCC" });
-    const t = await withTabs(TABS, () => resolveTarget(0, state, "CCC", "session:me"));
+    const t = await withTabs(TABS, () =>
+      resolveTarget(0, state, "CCC", "session:me"),
+    );
     expect(t.targetId).toBe("CCC");
   });
 
@@ -99,21 +118,27 @@ describe("resolveTarget picks the right tab", () => {
 
   test("--tab matches on a url fragment", async () => {
     const state = baseState({});
-    const t = await withTabs(TABS, () => resolveTarget(0, state, "b.test", null));
+    const t = await withTabs(TABS, () =>
+      resolveTarget(0, state, "b.test", null),
+    );
     expect(t.targetId).toBe("BBB");
   });
 
   test("a caller with no session keeps the last-active-tab behaviour", async () => {
     // A human in a plain shell has no session key and one obvious intent.
     const state = baseState({}, "BBB");
-    const t = await withTabs(TABS, () => resolveTarget(0, state, undefined, null));
+    const t = await withTabs(TABS, () =>
+      resolveTarget(0, state, undefined, null),
+    );
     expect(t.targetId).toBe("BBB");
   });
 
   test("says the browser is empty rather than returning nothing", async () => {
-    expect(withTabs([], () => resolveTarget(0, baseState({}), undefined, "session:me"))).rejects.toThrow(
-      /no open tabs/,
-    );
+    expect(
+      withTabs([], () =>
+        resolveTarget(0, baseState({}), undefined, "session:me"),
+      ),
+    ).rejects.toThrow(/no open tabs/);
   });
 });
 
@@ -172,7 +197,11 @@ describe("ownerKey", () => {
   test("survives a session lookup that throws", () => {
     clearEnv();
     process.env.TMUX_PANE = "%1";
-    expect(ownerKey(() => { throw new Error("no transcript"); })).toBe("pane:%1");
+    expect(
+      ownerKey(() => {
+        throw new Error("no transcript");
+      }),
+    ).toBe("pane:%1");
   });
 
   test("returns null when nothing identifies the caller", () => {

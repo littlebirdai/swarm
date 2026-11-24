@@ -1,4 +1,9 @@
-import { buildEntityUrl, CODECAST_BASE_URL, isConvexId, parseEntityUrl } from "../entities";
+import {
+  buildEntityUrl,
+  CODECAST_BASE_URL,
+  isConvexId,
+  parseEntityUrl,
+} from "../entities";
 
 // The pure half of session blame, shared by the CLI (`cast blame`), the
 // server resolver (convex/blame.ts) and the web viewer.
@@ -45,7 +50,10 @@ export interface BlamedLine {
  * distinctive, from a commit recent enough to still have edit rows, deduped
  * by trimmed text with the most permissive deadline kept.
  */
-export function contentLinesToMatch(lines: Iterable<BlamedLine>, nowMs: number): ContentLine[] {
+export function contentLinesToMatch(
+  lines: Iterable<BlamedLine>,
+  nowMs: number,
+): ContentLine[] {
   const byText = new Map<string, ContentLine>();
   for (const line of lines) {
     const trimmed = line.text.trim();
@@ -57,7 +65,11 @@ export function contentLinesToMatch(lines: Iterable<BlamedLine>, nowMs: number):
       deadline = line.authorMs + COMMIT_DEADLINE_SLACK_MS;
     }
     const existing = byText.get(trimmed);
-    if (!existing || (existing.d !== undefined && (deadline === undefined || deadline > existing.d))) {
+    if (
+      !existing ||
+      (existing.d !== undefined &&
+        (deadline === undefined || deadline > existing.d))
+    ) {
       byText.set(trimmed, { t: trimmed, d: deadline });
     }
     if (byText.size >= MAX_CONTENT_LINES) break;
@@ -111,7 +123,12 @@ export function overlapLineSet(texts: Iterable<string>): Set<string> {
 }
 
 export function passesOverlapGate(matched: number, total: number): boolean {
-  return matched >= OVERLAP_FLOOR_LINES || (matched >= OVERLAP_MIN_LINES && total > 0 && matched / total >= OVERLAP_MIN_FRACTION);
+  return (
+    matched >= OVERLAP_FLOOR_LINES ||
+    (matched >= OVERLAP_MIN_LINES &&
+      total > 0 &&
+      matched / total >= OVERLAP_MIN_FRACTION)
+  );
 }
 
 export interface OverlapClaim {
@@ -134,7 +151,11 @@ export function claimByOverlap(
   for (const candidate of candidates) {
     let matched = 0;
     for (const line of commit) if (candidate.lines.has(line)) matched++;
-    if (!best || matched > best.matched || (matched === best.matched && candidate.id < best.id)) {
+    if (
+      !best ||
+      matched > best.matched ||
+      (matched === best.matched && candidate.id < best.id)
+    ) {
       best = { id: candidate.id, matched, total: commit.size };
     }
   }
@@ -152,7 +173,8 @@ export function overlapLinesBySha(
 ): Map<string, string[]> {
   const sets = new Map<string, Set<string>>();
   for (const line of lines) {
-    if (!line.authorMs || nowMs - line.authorMs > CONTENT_MATCH_MAX_AGE_MS) continue;
+    if (!line.authorMs || nowMs - line.authorMs > CONTENT_MATCH_MAX_AGE_MS)
+      continue;
     const text = normalizeOverlapLine(line.text);
     if (text === null) continue;
     let set = sets.get(line.sha);
@@ -176,11 +198,17 @@ export function overlapLinesBySha(
 export const SESSION_TRAILER_KEY = "Codecast-Session";
 
 /** The trailer value for a conversation: its canonical session link. */
-export function sessionTrailerValue(conversationId: string, base: string = CODECAST_BASE_URL): string {
+export function sessionTrailerValue(
+  conversationId: string,
+  base: string = CODECAST_BASE_URL,
+): string {
   return buildEntityUrl("session", conversationId, base)!;
 }
 
-const TRAILER_LINE = new RegExp(`^${SESSION_TRAILER_KEY}\\s*:\\s*(\\S+)\\s*$`, "i");
+const TRAILER_LINE = new RegExp(
+  `^${SESSION_TRAILER_KEY}\\s*:\\s*(\\S+)\\s*$`,
+  "i",
+);
 // Any git trailer line (`Key: value`), and a trailer's folded continuation.
 const ANY_TRAILER_LINE = /^[A-Za-z0-9][A-Za-z0-9-]*\s*:\s*\S/;
 // What follows one commit's message inside a GitHub squash merge: the next
@@ -189,7 +217,10 @@ const SQUASH_BOUNDARY = /^(\* |-{3,}\s*$)/;
 
 function isTrailerBlock(paragraph: string): boolean {
   const lines = paragraph.split("\n");
-  return ANY_TRAILER_LINE.test(lines[0] ?? "") && lines.every((line) => ANY_TRAILER_LINE.test(line) || /^[ \t]+\S/.test(line));
+  return (
+    ANY_TRAILER_LINE.test(lines[0] ?? "") &&
+    lines.every((line) => ANY_TRAILER_LINE.test(line) || /^[ \t]+\S/.test(line))
+  );
 }
 
 /**
@@ -204,7 +235,9 @@ function isTrailerBlock(paragraph: string): boolean {
  * commits) the last one wins: it is the session that wrote the newest work.
  * Anything but a full conversation id is refused.
  */
-export function extractSessionTrailer(message: string | null | undefined): string | null {
+export function extractSessionTrailer(
+  message: string | null | undefined,
+): string | null {
   return splitSessionTrailer(message).session;
 }
 
@@ -214,23 +247,46 @@ export function extractSessionTrailer(message: string | null | undefined): strin
  * them), and the session they name, for a reader that shows the session as a
  * link of its own instead of a raw URL. A message without one comes back as is.
  */
-export function splitSessionTrailer(message: string | null | undefined): { message: string; session: string | null } {
+export function splitSessionTrailer(message: string | null | undefined): {
+  message: string;
+  session: string | null;
+} {
   if (!message) return { message: message ?? "", session: null };
-  const paragraphs = message.replace(/\r\n/g, "\n").trimEnd().split(/\n[ \t]*\n/);
+  const paragraphs = message
+    .replace(/\r\n/g, "\n")
+    .trimEnd()
+    .split(/\n[ \t]*\n/);
   let found: string | null = null;
   const kept = paragraphs.map((paragraph, i) => {
     const last = i === paragraphs.length - 1;
-    if (!last && !(isTrailerBlock(paragraph) && SQUASH_BOUNDARY.test(paragraphs[i + 1] ?? ""))) return paragraph;
-    return paragraph.split("\n").filter((line) => {
-      const value = TRAILER_LINE.exec(line.trim())?.[1];
-      if (!value) return true;
-      const fromUrl = parseEntityUrl(value);
-      const id = fromUrl ? (fromUrl.type === "session" ? fromUrl.id : null) : value;
-      if (!id || !isConvexId(id)) return true;
-      found = id;
-      return false;
-    }).join("\n");
+    if (
+      !last &&
+      !(
+        isTrailerBlock(paragraph) &&
+        SQUASH_BOUNDARY.test(paragraphs[i + 1] ?? "")
+      )
+    )
+      return paragraph;
+    return paragraph
+      .split("\n")
+      .filter((line) => {
+        const value = TRAILER_LINE.exec(line.trim())?.[1];
+        if (!value) return true;
+        const fromUrl = parseEntityUrl(value);
+        const id = fromUrl
+          ? fromUrl.type === "session"
+            ? fromUrl.id
+            : null
+          : value;
+        if (!id || !isConvexId(id)) return true;
+        found = id;
+        return false;
+      })
+      .join("\n");
   });
   if (!found) return { message, session: null };
-  return { message: kept.filter((p) => p.trim() !== "").join("\n\n"), session: found };
+  return {
+    message: kept.filter((p) => p.trim() !== "").join("\n\n"),
+    session: found,
+  };
 }

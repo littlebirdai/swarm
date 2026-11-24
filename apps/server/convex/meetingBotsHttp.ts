@@ -5,9 +5,15 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { verifyRecallRequest } from "./lib/recall";
 
-async function verified(request: Request): Promise<{ ok: true; body: any } | { ok: false; response: Response }> {
+async function verified(
+  request: Request,
+): Promise<{ ok: true; body: any } | { ok: false; response: Response }> {
   const raw = await request.text();
-  const check = await verifyRecallRequest({ secret: process.env.RECALL_VERIFICATION_SECRET, headers: request.headers, body: raw });
+  const check = await verifyRecallRequest({
+    secret: process.env.RECALL_VERIFICATION_SECRET,
+    headers: request.headers,
+    body: raw,
+  });
   if (!check.ok) {
     console.warn(`[meetingBots] refused a Recall request: ${check.reason}`);
     return { ok: false, response: new Response(check.reason, { status: 401 }) };
@@ -24,7 +30,8 @@ export const statusWebhook = httpAction(async (ctx, request) => {
   const v = await verified(request);
   if (!v.ok) return v.response;
   const event = String(v.body?.event ?? "");
-  if (!event.startsWith("bot.")) return new Response("ignored", { status: 200 });
+  if (!event.startsWith("bot."))
+    return new Response("ignored", { status: 200 });
   const data = v.body?.data ?? {};
   const updatedAt = Date.parse(data?.data?.updated_at ?? "");
   await ctx.runMutation(internal.meetingBots.applyStatus, {
@@ -54,11 +61,20 @@ export const realtimeWebhook = httpAction(async (ctx, request) => {
     await ctx.runMutation(internal.meetingBots.applyTranscriptLine, {
       meet_id: meetId,
       bot_id: botId,
-      participant: { id: p.id ?? "unknown", name: p.name ?? null, email: p.email ?? null, is_host: p.is_host ?? null },
+      participant: {
+        id: p.id ?? "unknown",
+        name: p.name ?? null,
+        email: p.email ?? null,
+        is_host: p.is_host ?? null,
+      },
       words: (inner.words ?? []).map((w: any) => ({
         text: typeof w?.text === "string" ? w.text : undefined,
-        start_timestamp: w?.start_timestamp ? { relative: Number(w.start_timestamp.relative) || 0 } : null,
-        end_timestamp: w?.end_timestamp ? { relative: Number(w.end_timestamp.relative) || 0 } : null,
+        start_timestamp: w?.start_timestamp
+          ? { relative: Number(w.start_timestamp.relative) || 0 }
+          : null,
+        end_timestamp: w?.end_timestamp
+          ? { relative: Number(w.end_timestamp.relative) || 0 }
+          : null,
       })),
     });
     return new Response("ok", { status: 200 });
@@ -74,12 +90,19 @@ export const realtimeWebhook = httpAction(async (ctx, request) => {
       await ctx.runMutation(internal.meetingBots.applyChatLine, {
         meet_id: meetId,
         bot_id: botId,
-        participant: { id: p.id ?? "unknown", name: p.name ?? null, email: p.email ?? null },
+        participant: {
+          id: p.id ?? "unknown",
+          name: p.name ?? null,
+          email: p.email ?? null,
+        },
         text,
       });
       return new Response("ok", { status: 200 });
     }
   }
-  await ctx.runMutation(internal.meetingBots.beat, { meet_id: meetId, bot_id: botId });
+  await ctx.runMutation(internal.meetingBots.beat, {
+    meet_id: meetId,
+    bot_id: botId,
+  });
   return new Response("ok", { status: 200 });
 });

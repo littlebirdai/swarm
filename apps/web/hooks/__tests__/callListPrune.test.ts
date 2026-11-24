@@ -6,7 +6,11 @@ import { useInboxStore } from "../../store/inboxStore";
 import { callListPruneScope } from "../useSyncCalls";
 
 const id = (seed: string) => seed.padEnd(32, "0").slice(0, 32);
-const call = (seed: string, started_at: number, extra: Record<string, unknown> = {}) => ({
+const call = (
+  seed: string,
+  started_at: number,
+  extra: Record<string, unknown> = {},
+) => ({
   _id: id(seed),
   room_key: `session:${seed}`,
   status: "ended",
@@ -14,7 +18,9 @@ const call = (seed: string, started_at: number, extra: Record<string, unknown> =
   ...extra,
 });
 const sync = (rows: any[], limit: number) =>
-  useInboxStore.getState().syncTable("callList", rows, callListPruneScope(rows, limit));
+  useInboxStore
+    .getState()
+    .syncTable("callList", rows, callListPruneScope(rows, limit));
 
 describe("callList pruning", () => {
   beforeEach(() => {
@@ -51,7 +57,9 @@ describe("callList pruning", () => {
   });
 
   it("never prunes a row without a server id", () => {
-    useInboxStore.setState({ callList: { stub: { _id: "stub", started_at: 999 } } } as any);
+    useInboxStore.setState({
+      callList: { stub: { _id: "stub", started_at: 999 } },
+    } as any);
     sync([], 100);
     expect(useInboxStore.getState().callList.stub).toBeDefined();
   });

@@ -23,17 +23,21 @@ function sources(dir: string): string[] {
     const path = join(dir, name);
     if (name === "node_modules" || name.startsWith(".")) continue;
     if (statSync(join(root, path)).isDirectory()) out.push(...sources(path));
-    else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(path);
+    else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name))
+      out.push(path);
   }
   return out;
 }
 
-const files = ["app", "components", "lib", "hooks"].flatMap(sources).map((path) => ({ path, text: readFileSync(join(root, path), "utf8") }));
+const files = ["app", "components", "lib", "hooks"]
+  .flatMap(sources)
+  .map((path) => ({ path, text: readFileSync(join(root, path), "utf8") }));
 
 /** A router call of any spelling: router.push(, to.navigate(, router?.replace(. */
 const ROUTER_CALL = /\.\s*(?:push|navigate|replace|dismissTo)\s*\(/;
 /** One handed a tab's address as a string or template, on the same line. */
-const DIRECT_TAB_CALL = /\.\s*(?:push|navigate|replace|dismissTo)\s*\(\s*[`'"]\/\(tabs\)/;
+const DIRECT_TAB_CALL =
+  /\.\s*(?:push|navigate|replace|dismissTo)\s*\(\s*[`'"]\/\(tabs\)/;
 /** A tab's address written as a string anywhere in a file. */
 const TAB_LITERAL = /[`'"]\/\(tabs\)[/?`'"]/;
 /** What mobileRouteForUrl returns can be a tab's address (lib/linkRoutes PAGE_ROUTES). */
@@ -42,7 +46,9 @@ const USES_HELPER = /\b(?:goToTab|openAppRoute)\s*\(/;
 
 describe("going to a tab", () => {
   test("no router call is handed a tab's address", () => {
-    const offenders = files.filter((f) => f.path !== HELPER && DIRECT_TAB_CALL.test(f.text)).map((f) => f.path);
+    const offenders = files
+      .filter((f) => f.path !== HELPER && DIRECT_TAB_CALL.test(f.text))
+      .map((f) => f.path);
     expect(offenders).toEqual([]);
   });
 
@@ -51,15 +57,28 @@ describe("going to a tab", () => {
     // the line of the call, so the file is held to the rule as a whole.
     const offenders = files
       .filter((f) => f.path !== HELPER && !ADDRESS_TABLES.has(f.path))
-      .filter((f) => TAB_LITERAL.test(f.text) && ROUTER_CALL.test(f.text) && !USES_HELPER.test(f.text))
+      .filter(
+        (f) =>
+          TAB_LITERAL.test(f.text) &&
+          ROUTER_CALL.test(f.text) &&
+          !USES_HELPER.test(f.text),
+      )
       .map((f) => f.path);
     expect(offenders).toEqual([]);
   });
 
   test("a file that resolves a link to a route opens it with openAppRoute", () => {
     const offenders = files
-      .filter((f) => !ADDRESS_TABLES.has(f.path) && f.path !== "app/+native-intent.tsx")
-      .filter((f) => RESOLVES_LINKS.test(f.text) && ROUTER_CALL.test(f.text) && !/\bopenAppRoute\s*\(/.test(f.text))
+      .filter(
+        (f) =>
+          !ADDRESS_TABLES.has(f.path) && f.path !== "app/+native-intent.tsx",
+      )
+      .filter(
+        (f) =>
+          RESOLVES_LINKS.test(f.text) &&
+          ROUTER_CALL.test(f.text) &&
+          !/\bopenAppRoute\s*\(/.test(f.text),
+      )
       .map((f) => f.path);
     expect(offenders).toEqual([]);
   });
@@ -73,7 +92,9 @@ describe("going to a tab", () => {
   });
 
   test("the root layout tells the helper where the app is", () => {
-    expect(readFileSync(join(root, "app/_layout.tsx"), "utf8")).toContain("noteRouteSegments(useSegments())");
+    expect(readFileSync(join(root, "app/_layout.tsx"), "utf8")).toContain(
+      "noteRouteSegments(useSegments())",
+    );
   });
 
   test("the guard sees each spelling it bans", () => {
@@ -83,7 +104,8 @@ describe("going to a tab", () => {
       'router.navigate("/(tabs)/inbox")',
       "router.dismissTo('/(tabs)/inbox' as never)",
       "router?.push(\n  '/(tabs)/notifications')",
-    ]) expect(DIRECT_TAB_CALL.test(bad)).toBe(true);
+    ])
+      expect(DIRECT_TAB_CALL.test(bad)).toBe(true);
     expect(DIRECT_TAB_CALL.test("goToTab(router, '/(tabs)/chat')")).toBe(false);
     expect(DIRECT_TAB_CALL.test("router.push('/session/x')")).toBe(false);
     expect(TAB_LITERAL.test("route: '/(tabs)/tasks?segment=plans'")).toBe(true);

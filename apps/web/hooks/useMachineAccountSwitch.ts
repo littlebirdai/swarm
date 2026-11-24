@@ -9,19 +9,33 @@
 
 import { toast } from "sonner";
 import { persistentToast } from "../lib/persistentToast";
-import { machineSwitchPendingCopy, machineSwitchSuccessCopy, type MachineSwitchPhase } from "../lib/machineAccountSwitch";
+import {
+  machineSwitchPendingCopy,
+  machineSwitchSuccessCopy,
+  type MachineSwitchPhase,
+} from "../lib/machineAccountSwitch";
 import { DISPATCH_REFUSED } from "../lib/sessionCommands";
 import { useInboxStore } from "../store/inboxStore";
 import { useWatchEffect } from "./useWatchEffect";
-import { useMachineSwitchState, type MachineSwitchOutcome } from "./useMachineSwitchState";
+import {
+  useMachineSwitchState,
+  type MachineSwitchOutcome,
+} from "./useMachineSwitchState";
 
-export { machineSwitchStatus, type MachineSwitchOutcome } from "./useMachineSwitchState";
+export {
+  machineSwitchStatus,
+  type MachineSwitchOutcome,
+} from "./useMachineSwitchState";
 
 // Each outcome is said once per window, by whichever mounted surface sees it
 // first.
 const announced = new Set<string>();
 
-export function useMachineAccountSwitch(opts: { deviceId?: string; activeEmail?: string; launchProfile?: string }): {
+export function useMachineAccountSwitch(opts: {
+  deviceId?: string;
+  activeEmail?: string;
+  launchProfile?: string;
+}): {
   switchTo: (profile: string, email?: string) => Promise<void>;
   switching: string | null;
   /** The account being switched to, as a person reads it (its email). */
@@ -42,13 +56,17 @@ export function useMachineAccountSwitch(opts: { deviceId?: string; activeEmail?:
       const key = `${row._id}:${resolved.phase}`;
       if (announced.has(key)) return;
       announced.add(key);
-      toast.message(machineSwitchPendingCopy(resolved.phase, label), { id: toastId, ...persistentToast });
+      toast.message(machineSwitchPendingCopy(resolved.phase, label), {
+        id: toastId,
+        ...persistentToast,
+      });
       return;
     }
     if (resolved.phase === "succeeded") {
       // The account moved: latch it on the row, so a later account change
       // never rereads this switch as a failure.
-      if (!row.confirmed_at) useInboxStore.getState().confirmSessionCommand(row._id);
+      if (!row.confirmed_at)
+        useInboxStore.getState().confirmSessionCommand(row._id);
       if (announced.has(`${row._id}:done`)) return;
       announced.add(`${row._id}:done`);
       if (row.confirmed_at) return;
@@ -58,7 +76,8 @@ export function useMachineAccountSwitch(opts: { deviceId?: string; activeEmail?:
     }
     if (resolved.phase === "failed") {
       // Only to someone who watched it pending here, not on every reload.
-      if (announced.has(`${row._id}:done`) || !announced.has(`${row._id}:seen`)) return;
+      if (announced.has(`${row._id}:done`) || !announced.has(`${row._id}:seen`))
+        return;
       announced.add(`${row._id}:done`);
       // A refusal already raised the dispatch-failure toast: just drop the
       // pending one. A daemon's failure or a give-up replaces it with why.
@@ -73,7 +92,11 @@ export function useMachineAccountSwitch(opts: { deviceId?: string; activeEmail?:
       return;
     }
     const res = await state.request(target, email, () =>
-      toast.message(machineSwitchPendingCopy("waiting", email || target), { id: toastId, ...persistentToast }));
+      toast.message(machineSwitchPendingCopy("waiting", email || target), {
+        id: toastId,
+        ...persistentToast,
+      }),
+    );
     if (res === "already") toast.success(`Already on ${email || target}`);
   };
 

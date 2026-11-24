@@ -45,7 +45,11 @@ export const passkeyTables = {
     label: v.optional(v.string()),
     challenge: v.string(),
     rp_id: v.string(),
-    status: v.union(v.literal("pending"), v.literal("granted"), v.literal("used")),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("granted"),
+      v.literal("used"),
+    ),
     grant_hash: v.optional(v.string()),
     authorized_by: v.optional(v.id("passkey_challenges")),
     created_at: v.number(),

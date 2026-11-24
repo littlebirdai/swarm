@@ -16,28 +16,58 @@ const ME = "m".repeat(32);
 const posted: any[] = [];
 const factory = (_name: string) =>
   ({
-    postMessage(data: any) { posted.push(structuredClone(data)); },
+    postMessage(data: any) {
+      posted.push(structuredClone(data));
+    },
     addEventListener() {},
     removeEventListener() {},
     close() {},
   }) as unknown as BroadcastChannel;
 
-const row = () => ({ _id: TEAM, session_id: "s", updated_at: 1, agent_type: "claude_code", message_count: 1, is_idle: true, has_pending: false, user_id: "other" });
+const row = () => ({
+  _id: TEAM,
+  session_id: "s",
+  updated_at: 1,
+  agent_type: "claude_code",
+  message_count: 1,
+  is_idle: true,
+  has_pending: false,
+  user_id: "other",
+});
 const s = () => useInboxStore.getState() as any;
-const excludes = () => Object.entries(s().pending).filter(([k, v]: any) => k.includes(TEAM) && v.type === "exclude").map(([k]) => k);
+const excludes = () =>
+  Object.entries(s().pending)
+    .filter(([k, v]: any) => k.includes(TEAM) && v.type === "exclude")
+    .map(([k]) => k);
 
 function seed(opts: { meta?: boolean } = {}) {
   declareViewNav("gesture");
   useInboxStore.setState({
     sessions: { [TEAM]: row() },
-    conversations: opts.meta === false ? {} : { [TEAM]: { _id: TEAM, is_own: false } },
-    messages: {}, pendingMessages: {}, pagination: {}, pendingSessionCreates: {}, pending: {},
-    currentSessionId: null, viewingDismissedId: null, currentUser: { _id: ME }, clientState: {},
+    conversations:
+      opts.meta === false ? {} : { [TEAM]: { _id: TEAM, is_own: false } },
+    messages: {},
+    pendingMessages: {},
+    pagination: {},
+    pendingSessionCreates: {},
+    pending: {},
+    currentSessionId: null,
+    viewingDismissedId: null,
+    currentUser: { _id: ME },
+    clientState: {},
   } as any);
 }
 
-beforeEach(() => { _resetUndoStacks(); posted.length = 0; setGestureChannelFactory(factory); seed(); });
-afterEach(() => { setGestureChannelFactory(null); s()._setActionTee(null); });
+beforeEach(() => {
+  _resetUndoStacks();
+  posted.length = 0;
+  setGestureChannelFactory(factory);
+  seed();
+});
+afterEach(() => {
+  setGestureChannelFactory(null);
+  s()._setActionTee(null);
+});
 
 test("a sibling that applied the forget gets the row back, and keeps later pushes of it", () => {
   s().stashSession(TEAM);
@@ -51,7 +81,10 @@ test("a sibling that applied the forget gets the row back, and keeps later pushe
   seed();
   for (const m of forward) s().applyGestureBridge(m);
   expect(s().sessions[TEAM]).toBeUndefined();
-  expect(excludes().sort()).toEqual([`conversations:${TEAM}`, `sessions:${TEAM}`]);
+  expect(excludes().sort()).toEqual([
+    `conversations:${TEAM}`,
+    `sessions:${TEAM}`,
+  ]);
   for (const m of undo) s().applyGestureBridge(m);
   expect(s().sessions[TEAM]?._id).toBe(TEAM);
   expect(s().conversations[TEAM]?._id).toBe(TEAM);
@@ -74,7 +107,9 @@ test("a sibling that hid the row again after the undo keeps it hidden", () => {
 
 test("the host lifts its forget's excludes for the follower's undo mut", () => {
   let teed: any[] = [];
-  s()._setActionTee((_n: string, patches: any[], state: any) => { teed.push(...buildMutUpdates(patches, state)); });
+  s()._setActionTee((_n: string, patches: any[], state: any) => {
+    teed.push(...buildMutUpdates(patches, state));
+  });
   s().stashSession(TEAM);
   const forward = posted.slice();
   teed = [];
@@ -102,18 +137,27 @@ test("without a conversations row, the sibling's conversations exclude lifts and
   const undo = posted.slice(forward.length);
   seed({ meta: false });
   for (const m of forward) s().applyGestureBridge(m);
-  expect(excludes().sort()).toEqual([`conversations:${TEAM}`, `sessions:${TEAM}`]);
+  expect(excludes().sort()).toEqual([
+    `conversations:${TEAM}`,
+    `sessions:${TEAM}`,
+  ]);
   for (const m of undo) s().applyGestureBridge(m);
   expect(s().sessions[TEAM]?._id).toBe(TEAM);
   expect(excludes()).toEqual([]);
-  s().syncRecord("conversations", TEAM, { _id: TEAM, is_own: false, title: "meta" });
+  s().syncRecord("conversations", TEAM, {
+    _id: TEAM,
+    is_own: false,
+    title: "meta",
+  });
   expect(s().conversations[TEAM]?.title).toBe("meta");
 });
 
 test("without a conversations row, the host lifts the conversations exclude for the follower's undo mut", () => {
   seed({ meta: false });
   let teed: any[] = [];
-  s()._setActionTee((_n: string, patches: any[], state: any) => { teed.push(...buildMutUpdates(patches, state)); });
+  s()._setActionTee((_n: string, patches: any[], state: any) => {
+    teed.push(...buildMutUpdates(patches, state));
+  });
   s().stashSession(TEAM);
   const forward = posted.slice();
   teed = [];
@@ -125,6 +169,10 @@ test("without a conversations row, the host lifts the conversations exclude for 
   applyUpdatesToStore(undoMut, { optimistic: true });
   expect(s().sessions[TEAM]?._id).toBe(TEAM);
   expect(excludes()).toEqual([]);
-  s().syncRecord("conversations", TEAM, { _id: TEAM, is_own: false, title: "meta" });
+  s().syncRecord("conversations", TEAM, {
+    _id: TEAM,
+    is_own: false,
+    title: "meta",
+  });
   expect(s().conversations[TEAM]?.title).toBe("meta");
 });

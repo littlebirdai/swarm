@@ -2,7 +2,14 @@ import { useRef, useCallback, useState } from "react";
 import { useMutation, useConvex, type ConvexReactClient } from "convex/react";
 import { captureError } from "../lib/analytics";
 import { api } from "@codecast/convex/convex/_generated/api";
-import { useInboxStore, InboxSession, classifySession, claimsViewer, isSub, isConvexId } from "../store/inboxStore";
+import {
+  useInboxStore,
+  InboxSession,
+  classifySession,
+  claimsViewer,
+  isSub,
+  isConvexId,
+} from "../store/inboxStore";
 import { agentStatusAt } from "../lib/liveness";
 import { WORKING_SET_RECENCY_MS } from "@codecast/shared/contracts";
 import { startWarmLoop } from "./inboxWarm";
@@ -13,7 +20,12 @@ import { INBOX_RECOVERY_STALE_MS, useRecoveryPoll } from "./useRecoveryPoll";
 import { useIsSyncHost } from "./useSyncRole";
 import { queryWithSignal } from "../lib/queryWithSignal";
 import { useEnsureDispatch } from "./useEnsureDispatch";
-import { useLiveInboxSessions, applyInboxListPayload, settleDisownClaims, LIST_INBOX_SESSIONS_ARGS } from "./useLiveInboxSessions";
+import {
+  useLiveInboxSessions,
+  applyInboxListPayload,
+  settleDisownClaims,
+  LIST_INBOX_SESSIONS_ARGS,
+} from "./useLiveInboxSessions";
 import { useQueryNoThrow } from "./useQueryNoThrow";
 import { querySplitWhole, useSplitQueryNoThrow } from "./useSplitQuery";
 import { useFeederError } from "./useSyncCollection";
@@ -21,7 +33,12 @@ import { onSyncWake } from "./syncWake";
 import { startLivenessHold } from "./livenessHold";
 import { subscribeCoarseTick } from "./useCoarseNow";
 import { useWatchEffect } from "./useWatchEffect";
-import { cancelReconcileCrawl, crawlResetsFor, runReconcileCrawl, syncMetaKey } from "./reconcileCrawl";
+import {
+  cancelReconcileCrawl,
+  crawlResetsFor,
+  runReconcileCrawl,
+  syncMetaKey,
+} from "./reconcileCrawl";
 import { inboxCrawlWsKey, inboxFloorStamped } from "./syncMetaKeys";
 import { collectGhostSweepCandidates } from "./ghostSweep";
 import { applyEntityIds, emptyIdsByCollection } from "./useSyncChangeFeed";
@@ -44,8 +61,10 @@ const STUB_SWEEP_INTERVAL_MS = 30 * 60 * 1000;
 // Stub-sweep policy (age floors + candidate selection) lives in ./ghostSweep
 // so the selection is unit-testable without this hook's React/Convex imports.
 
-
-export function waitingSoundKey(session: InboxSession, queued: Set<string>): string | null {
+export function waitingSoundKey(
+  session: InboxSession,
+  queued: Set<string>,
+): string | null {
   // A message the user just queued means they already acted; a pinned row
   // lives in its own group and never chimes.
   if (queued.has(session._id) || session.is_pinned) return null;
@@ -59,8 +78,8 @@ export function waitingSoundKey(session: InboxSession, queued: Set<string>): str
   const kind = session.awaiting_input
     ? "awaiting_input"
     : status === "permission_blocked"
-    ? "permission_blocked"
-    : status || (session.is_unresponsive ? "unresponsive" : "idle");
+      ? "permission_blocked"
+      : status || (session.is_unresponsive ? "unresponsive" : "idle");
   return `${session._id}:${session.message_count}:${kind}`;
 }
 
@@ -77,10 +96,17 @@ export function waitingSoundKey(session: InboxSession, queued: Set<string>): str
 // "agent_spawned" reasons. A worktree is NOT a stand-down reason on either
 // side — a human-started worktree/cloud session chimes and pushes.
 function triaged(session: InboxSession): boolean {
-  return !!(session.inbox_dismissed_at || session.inbox_stashed_at || session.inbox_killed_at);
+  return !!(
+    session.inbox_dismissed_at ||
+    session.inbox_stashed_at ||
+    session.inbox_killed_at
+  );
 }
 
-export function currentWaitingKey(session: InboxSession, queued: Set<string>): string | null {
+export function currentWaitingKey(
+  session: InboxSession,
+  queued: Set<string>,
+): string | null {
   if (triaged(session) || isSub(session)) return null;
   return waitingSoundKey(session, queued);
 }
@@ -91,7 +117,9 @@ export function currentWaitingKey(session: InboxSession, queued: Set<string>): s
 export function stillWaiting(key: string): boolean {
   const s = useInboxStore.getState();
   const session = s.sessions[key.split(":")[0]];
-  return !session || currentWaitingKey(session, s.sessionsWithQueuedMessages) === key;
+  return (
+    !session || currentWaitingKey(session, s.sessionsWithQueuedMessages) === key
+  );
 }
 
 /** Whether the request a banner announces, written at `since`, has been
@@ -99,7 +127,10 @@ export function stillWaiting(key: string): boolean {
  *  written after the request (answering sets the agent moving again). A session
  *  whose newer status has not reached the store yet still counts as waiting,
  *  so sync lag never drops a banner for a request that stands. */
-export function requestAnsweredSince(sessionId: string, since: number): boolean {
+export function requestAnsweredSince(
+  sessionId: string,
+  since: number,
+): boolean {
   const s = useInboxStore.getState();
   const session = s.sessions[sessionId];
   // Whether it still waits, not whether it would chime: a pinned, queued or
@@ -159,7 +190,10 @@ export { inboxCrawlWsKey, inboxFloorStamped };
 // land with their hidden stamps, omitted ids are gone and prune. Only rows
 // byIds must return are probed that way (byIdsMustReturn); a foreign row that
 // claims this principal is settled without a prune (settleDisownClaims).
-export function floorProbeIds(cached: Iterable<string>, returned: Iterable<string>): string[] {
+export function floorProbeIds(
+  cached: Iterable<string>,
+  returned: Iterable<string>,
+): string[] {
   const seen = new Set(returned);
   const out: string[] = [];
   for (const id of cached) if (isConvexId(id) && !seen.has(id)) out.push(id);
@@ -189,7 +223,9 @@ export function byIdsMustReturn(
 // The subscription, the recovery probe, the digest comparer's heal and the
 // simulator's host apply through it, so no pass forks the payload shape.
 // Returns the liveness map, or null when the payload held none.
-export function applyMineLivenessPayload(data: any): Record<string, any> | null {
+export function applyMineLivenessPayload(
+  data: any,
+): Record<string, any> | null {
   const liveness = data?.liveness ?? data;
   if (!liveness || typeof liveness !== "object") return null;
   useInboxStore.getState().applyInboxLivenessPayload("mine", data);
@@ -205,14 +241,19 @@ export type InboxFloorFlags = {
   floorStamped: boolean;
   logStamped: boolean;
 };
-export function inboxFloorFlags(s: ReturnType<typeof useInboxStore.getState>, principalId: string | null | undefined): InboxFloorFlags {
+export function inboxFloorFlags(
+  s: ReturnType<typeof useInboxStore.getState>,
+  principalId: string | null | undefined,
+): InboxFloorFlags {
   const wsKey = inboxCrawlWsKey(principalId);
   return {
     wsKey,
     principalId,
     hydrated: s.clientStateInitialized,
     floorStamped: inboxFloorStamped(s, principalId),
-    logStamped: principalId != null && s.syncLogScopeStamps[`user:${principalId}`] !== undefined,
+    logStamped:
+      principalId != null &&
+      s.syncLogScopeStamps[`user:${principalId}`] !== undefined,
   };
 }
 
@@ -234,7 +275,10 @@ export function inboxFloorFlags(s: ReturnType<typeof useInboxStore.getState>, pr
  * its query and the heads capture. Keyed by the principal: account A's floor
  * must not stand in for account B's.
  */
-export function runInboxFloorStep(convex: Pick<ConvexReactClient, "query">, flags: InboxFloorFlags): void {
+export function runInboxFloorStep(
+  convex: Pick<ConvexReactClient, "query">,
+  flags: InboxFloorFlags,
+): void {
   const { wsKey, principalId, hydrated, floorStamped, logStamped } = flags;
   if (!hydrated || wsKey === "skip" || floorStamped || !logStamped) return;
   // ONE stable lower bound for the whole floor: it becomes the paginated
@@ -242,11 +286,15 @@ export function runInboxFloorStep(convex: Pick<ConvexReactClient, "query">, flag
   // page a different query (InvalidCursor).
   const floorSince = Date.now() - SESSIONS_FLOOR_WINDOW_MS;
   const cachedRows = Object.entries(useInboxStore.getState().sessions);
-  const cached = cachedRows.filter(([, row]) => byIdsMustReturn(row, principalId)).map(([id]) => id);
+  const cached = cachedRows
+    .filter(([, row]) => byIdsMustReturn(row, principalId))
+    .map(([id]) => id);
   // Foreign rows that claim this principal: the floor may not return them, and
   // byIds settles the claim without pruning.
   const claimed = principalId
-    ? cachedRows.filter(([, row]) => claimsViewer(row, principalId)).map(([id]) => id)
+    ? cachedRows
+        .filter(([, row]) => claimsViewer(row, principalId))
+        .map(([id]) => id)
     : [];
   runReconcileCrawl({
     namespace: "sessions",
@@ -258,23 +306,39 @@ export function runInboxFloorStep(convex: Pick<ConvexReactClient, "query">, flag
     maxPages: 200,
     since: floorSince,
     fetchPage: async (cursor, since) => {
-      const page: any = await convex.query(api.conversations.listInboxSessionsPaginated, {
-        since,
-        paginationOpts: { numItems: SESSIONS_FLOOR_PAGE_SIZE, cursor },
-      });
-      return { rows: page.page ?? [], isDone: page.isDone, continueCursor: page.continueCursor };
+      const page: any = await convex.query(
+        api.conversations.listInboxSessionsPaginated,
+        {
+          since,
+          paginationOpts: { numItems: SESSIONS_FLOOR_PAGE_SIZE, cursor },
+        },
+      );
+      return {
+        rows: page.page ?? [],
+        isDone: page.isDone,
+        continueCursor: page.continueCursor,
+      };
     },
     // syncTable("sessions") is isDelta/never-prune (SYNC_REGISTRY): additive overlay.
-    onPage: (rows) => useInboxStore.getState().syncTable("sessions", rows as unknown as InboxSession[]),
+    onPage: (rows) =>
+      useInboxStore
+        .getState()
+        .syncTable("sessions", rows as unknown as InboxSession[]),
     onComplete: async (all) => {
-      useInboxStore.getState().syncTable("sessions", all as unknown as InboxSession[]);
+      useInboxStore
+        .getState()
+        .syncTable("sessions", all as unknown as InboxSession[]);
       // The warm-cache probe (floorProbeIds): only a cache that had rows
       // before this floor can hold one the floor did not return. Safe on a
       // resumed (partial) floor too: byIds answers with the truth for every
       // id, so the only cost of a wider probe is reads.
       const returned = all.map((r: any) => String(r._id));
       const stale = floorProbeIds(cached, returned);
-      if (stale.length) await applyEntityIds(convex, { ...emptyIdsByCollection(), sessions: stale });
+      if (stale.length)
+        await applyEntityIds(convex, {
+          ...emptyIdsByCollection(),
+          sessions: stale,
+        });
       const unsettled = floorProbeIds(claimed, returned);
       if (unsettled.length) await settleDisownClaims(convex, unsettled);
     },
@@ -301,10 +365,17 @@ export function useSyncInboxSessions() {
   // whole payload re-sends each time, so a second subscriber doubled the
   // desktop's largest stream (34 MB in 90s per window, 2026-10-08).
   const isSyncHost = useIsSyncHost();
-  const favorites = useQueryNoThrow(api.conversations.listFavoriteSessions, isSyncHost ? { include_liveness: false } : "skip");
+  const favorites = useQueryNoThrow(
+    api.conversations.listFavoriteSessions,
+    isSyncHost ? { include_liveness: false } : "skip",
+  );
   useFeederError("conversations.listFavoriteSessions", favorites.error);
   const favoriteSessions = favorites.data;
-  const liveness = useSplitQueryNoThrow(api.conversations.sessionsLiveness, isSyncHost ? {} : "skip", "liveness");
+  const liveness = useSplitQueryNoThrow(
+    api.conversations.sessionsLiveness,
+    isSyncHost ? {} : "skip",
+    "liveness",
+  );
   useFeederError("conversations.sessionsLiveness", liveness.error);
   const sessionLiveness = liveness.data;
   const clientStateQ = useQueryNoThrow(api.client_state.get, {});
@@ -336,7 +407,6 @@ export function useSyncInboxSessions() {
   // own message cache and have no feeders to drive it.
   useWatchEffect(() => startWarmLoop(convex), [convex]);
 
-
   // The base live session list — syncTable + liveInboxIds — is shared with the
   // standalone palette window via useLiveInboxSessions so both windows feed
   // findReusableBlankSession the SAME truth. Here we layer on the message
@@ -352,11 +422,18 @@ export function useSyncInboxSessions() {
   // Merge favorites into the session cache WITHOUT touching liveInboxIds — these
   // rows back the Favorites view and the sidebar peek; they must not be treated
   // as the live recent set (that would drag old favorites onto the active desk).
-  useConvexSync(favoriteSessions, useCallback((data: any) => {
-    const sessions = data?.sessions ?? data;
-    if (!Array.isArray(sessions)) return;
-    syncTable("sessions", sessions as unknown as InboxSession[]);
-  }, [syncTable]), { coalesceMs: 500 });
+  useConvexSync(
+    favoriteSessions,
+    useCallback(
+      (data: any) => {
+        const sessions = data?.sessions ?? data;
+        if (!Array.isArray(sessions)) return;
+        syncTable("sessions", sessions as unknown as InboxSession[]);
+      },
+      [syncTable],
+    ),
+    { coalesceMs: 500 },
+  );
 
   // Liveness overlay: a small {convId: {facts + projection stamps}} map, plus
   // the projection envelope (sync-convergence C1). The ONLY inbox channel that
@@ -366,72 +443,121 @@ export function useSyncInboxSessions() {
   // sound lives here because "went idle" IS a liveness change — it reads the
   // post-merge store rows (bounded to the payload's ids) so it sees the
   // overlaid values.
-  useConvexSync(sessionLiveness, useCallback((data: any) => {
-    const liveness = applyMineLivenessPayload(data);
-    if (!liveness) return;
-    const store = useInboxStore.getState();
-    const merged = Object.keys(liveness)
-      .map((id) => store.sessions[id])
-      .filter(Boolean) as InboxSession[];
-    const soundState = shouldPlayWaitingSound(
-      merged,
-      store.sessionsWithQueuedMessages,
-      prevWaitingMapRef.current,
-      notifiedWaitingKeysRef.current,
-    );
-    for (const key of soundState.keys) soundIdle(key, () => stillWaiting(key));
-    prevWaitingMapRef.current = soundState.nextWaiting;
-    lastLivenessSyncRef.current = Date.now();
-  }, []), { coalesceMs: 300 });
+  useConvexSync(
+    sessionLiveness,
+    useCallback((data: any) => {
+      const liveness = applyMineLivenessPayload(data);
+      if (!liveness) return;
+      const store = useInboxStore.getState();
+      const merged = Object.keys(liveness)
+        .map((id) => store.sessions[id])
+        .filter(Boolean) as InboxSession[];
+      const soundState = shouldPlayWaitingSound(
+        merged,
+        store.sessionsWithQueuedMessages,
+        prevWaitingMapRef.current,
+        notifiedWaitingKeysRef.current,
+      );
+      for (const key of soundState.keys)
+        soundIdle(key, () => stillWaiting(key));
+      prevWaitingMapRef.current = soundState.nextWaiting;
+      lastLivenessSyncRef.current = Date.now();
+    }, []),
+    { coalesceMs: 300 },
+  );
 
-  useConvexSync(clientState, useCallback((data: any) => {
-    useInboxStore.getState().syncTable("clientState", data);
-    // One-time self-heal: if the server's client_state has accumulated more
-    // drafts than Convex can patch (>~1000), prune dead entries. Otherwise
-    // every subsequent dispatch that touches client_state would fail with
-    // "Object has too many fields".
-    if (!prunedRef.current && data?.drafts && typeof data.drafts === "object") {
-      const draftCount = Object.keys(data.drafts).length;
-      if (draftCount > 800) {
-        prunedRef.current = true;
-        pruneDrafts({}).catch((e) => console.error("[sync] prune drafts failed", e));
-      }
-    }
-  }, [pruneDrafts]));
+  useConvexSync(
+    clientState,
+    useCallback(
+      (data: any) => {
+        useInboxStore.getState().syncTable("clientState", data);
+        // One-time self-heal: if the server's client_state has accumulated more
+        // drafts than Convex can patch (>~1000), prune dead entries. Otherwise
+        // every subsequent dispatch that touches client_state would fail with
+        // "Object has too many fields".
+        if (
+          !prunedRef.current &&
+          data?.drafts &&
+          typeof data.drafts === "object"
+        ) {
+          const draftCount = Object.keys(data.drafts).length;
+          if (draftCount > 800) {
+            prunedRef.current = true;
+            pruneDrafts({}).catch((e) =>
+              console.error("[sync] prune drafts failed", e),
+            );
+          }
+        }
+      },
+      [pruneDrafts],
+    ),
+  );
 
-  useConvexSync(currentUser, useCallback((data: any) => {
-    useInboxStore.getState().syncTable("currentUser", data);
-    lastUserSyncRef.current = Date.now();
-  }, []));
+  useConvexSync(
+    currentUser,
+    useCallback((data: any) => {
+      useInboxStore.getState().syncTable("currentUser", data);
+      lastUserSyncRef.current = Date.now();
+    }, []),
+  );
 
-  useConvexSync(bookmarks, useCallback((data: any) => {
-    useInboxStore.getState().syncTable("bookmarks", data);
-  }, []));
+  useConvexSync(
+    bookmarks,
+    useCallback((data: any) => {
+      useInboxStore.getState().syncTable("bookmarks", data);
+    }, []),
+  );
 
   // Recovery heartbeat: a Convex subscription can silently stall after
   // sleep/wake or WebSocket reconnection, and each one stalls independently.
   // Poll a one-shot query to catch divergence — same pattern as
   // useConversationMessages' watermark loop.
-  useRecoveryPoll(lastSyncRef, useCallback(async (signal: AbortSignal) => {
-    // A follower has no subscription of its own to recover.
-    if (!isSyncHost) return;
-    // `_probe` makes this a novel query token so Convex round-trips instead of
-    // serving the (possibly stalled) cache of the live listInboxSessions
-    // subscription — otherwise the "recovery" just re-reads the staleness.
-    const fresh: any = await querySplitWhole(convex, api.conversations.listInboxSessions, LIST_INBOX_SESSIONS_ARGS, "list", signal);
-    if (signal.aborted || !applyInboxListPayload(fresh, convex)) return;
-    lastSyncRef.current = Date.now();
-  }, [convex, isSyncHost]), INBOX_RECOVERY_STALE_MS);
+  useRecoveryPoll(
+    lastSyncRef,
+    useCallback(
+      async (signal: AbortSignal) => {
+        // A follower has no subscription of its own to recover.
+        if (!isSyncHost) return;
+        // `_probe` makes this a novel query token so Convex round-trips instead of
+        // serving the (possibly stalled) cache of the live listInboxSessions
+        // subscription — otherwise the "recovery" just re-reads the staleness.
+        const fresh: any = await querySplitWhole(
+          convex,
+          api.conversations.listInboxSessions,
+          LIST_INBOX_SESSIONS_ARGS,
+          "list",
+          signal,
+        );
+        if (signal.aborted || !applyInboxListPayload(fresh, convex)) return;
+        lastSyncRef.current = Date.now();
+      },
+      [convex, isSyncHost],
+    ),
+    INBOX_RECOVERY_STALE_MS,
+  );
 
   // Liveness can stall independently of the base list — recover it on the same
   // cadence so a frozen subscription doesn't leave every session reading a stale
   // (or null) agent_status after a sleep/reconnect.
-  useRecoveryPoll(lastLivenessSyncRef, useCallback(async (signal: AbortSignal) => {
-    if (!isSyncHost) return;
-    const fresh: any = await querySplitWhole(convex, api.conversations.sessionsLiveness, {}, "liveness", signal);
-    if (signal.aborted || !applyMineLivenessPayload(fresh)) return;
-    lastLivenessSyncRef.current = Date.now();
-  }, [convex, isSyncHost]), INBOX_RECOVERY_STALE_MS);
+  useRecoveryPoll(
+    lastLivenessSyncRef,
+    useCallback(
+      async (signal: AbortSignal) => {
+        if (!isSyncHost) return;
+        const fresh: any = await querySplitWhole(
+          convex,
+          api.conversations.sessionsLiveness,
+          {},
+          "liveness",
+          signal,
+        );
+        if (signal.aborted || !applyMineLivenessPayload(fresh)) return;
+        lastLivenessSyncRef.current = Date.now();
+      },
+      [convex, isSyncHost],
+    ),
+    INBOX_RECOVERY_STALE_MS,
+  );
 
   // The liveness hold (livenessHold.ts): after a launch from cache, a
   // suspension or a dropped socket, placement reads the facts at the moment
@@ -449,13 +575,21 @@ export function useSyncInboxSessions() {
       hold: (at) => store.getState().holdLiveness(at),
       release: (seq) => store.getState().releaseLiveness(seq),
       probe: async (signal) => {
-        const fresh: any = await querySplitWhole(convex, api.conversations.sessionsLiveness, {}, "liveness", signal);
+        const fresh: any = await querySplitWhole(
+          convex,
+          api.conversations.sessionsLiveness,
+          {},
+          "liveness",
+          signal,
+        );
         if (signal.aborted || !applyMineLivenessPayload(fresh)) return false;
         lastLivenessSyncRef.current = Date.now();
         return true;
       },
       connected: () => convex.connectionState().isWebSocketConnected,
-      hidden: () => typeof document !== "undefined" && document.visibilityState === "hidden",
+      hidden: () =>
+        typeof document !== "undefined" &&
+        document.visibilityState === "hidden",
       onTick: (fn) => subscribeCoarseTick(15_000, fn),
       onConnection: (fn) => convex.subscribeToConnectionState(fn),
       onWake: onSyncWake,
@@ -474,12 +608,24 @@ export function useSyncInboxSessions() {
   // (fn, args) token, so a bare getCurrentUser() probe reads back the exact
   // stale value it's meant to replace. getCurrentUserProbe has no live
   // subscriber, so its token is never cached and this always round-trips.
-  useRecoveryPoll(lastUserSyncRef, useCallback(async (signal: AbortSignal) => {
-    const fresh: any = await queryWithSignal(convex, api.users.getCurrentUserProbe, { _probe: Date.now() }, signal);
-    if (signal.aborted || fresh === undefined) return;
-    useInboxStore.getState().syncTable("currentUser", fresh);
-    lastUserSyncRef.current = Date.now();
-  }, [convex]), 45_000);
+  useRecoveryPoll(
+    lastUserSyncRef,
+    useCallback(
+      async (signal: AbortSignal) => {
+        const fresh: any = await queryWithSignal(
+          convex,
+          api.users.getCurrentUserProbe,
+          { _probe: Date.now() },
+          signal,
+        );
+        if (signal.aborted || fresh === undefined) return;
+        useInboxStore.getState().syncTable("currentUser", fresh);
+        lastUserSyncRef.current = Date.now();
+      },
+      [convex],
+    ),
+    45_000,
+  );
 
   // When the current session becomes dismissed elsewhere and has an
   // implementation session, OFFER the hop — never take it. A server sync must
@@ -490,24 +636,38 @@ export function useSyncInboxSessions() {
     if (!inboxSessions) return;
     const sessionsList = (inboxSessions as any).sessions ?? inboxSessions;
     const activeIds = new Set<string>(
-      sessionsList.filter((s: any) => !s.inbox_dismissed_at).map((s: any) => s._id.toString())
+      sessionsList
+        .filter((s: any) => !s.inbox_dismissed_at)
+        .map((s: any) => s._id.toString()),
     );
     const prev = prevActiveIdsRef.current;
     if (prev) {
       const currentSessionId = useInboxStore.getState().currentSessionId;
       const sessions = useInboxStore.getState().sessions;
-      const currentSession = currentSessionId ? sessions[currentSessionId] : null;
-      if (currentSession && prev.has(currentSession._id) && !activeIds.has(currentSession._id)) {
-        const synced = (sessionsList as any[]).find((s) => s._id.toString() === currentSession._id);
+      const currentSession = currentSessionId
+        ? sessions[currentSessionId]
+        : null;
+      if (
+        currentSession &&
+        prev.has(currentSession._id) &&
+        !activeIds.has(currentSession._id)
+      ) {
+        const synced = (sessionsList as any[]).find(
+          (s) => s._id.toString() === currentSession._id,
+        );
         const implId = synced?.implementation_session?._id;
         if (implId) {
-          toast.info("This session was handed off to an implementation session", {
-            action: {
-              label: "Open",
-              onClick: () => useInboxStore.getState().navigateToSession(implId),
+          toast.info(
+            "This session was handed off to an implementation session",
+            {
+              action: {
+                label: "Open",
+                onClick: () =>
+                  useInboxStore.getState().navigateToSession(implId),
+              },
+              duration: 10_000,
             },
-            duration: 10_000,
-          });
+          );
         }
       }
     }
@@ -523,7 +683,9 @@ export function useSyncInboxSessions() {
   // A failed subscription is not a cold open still loading: the chip must not
   // spin on a server error the cache already covers.
   useWatchEffect(() => {
-    useInboxStore.getState().setLiveLoading("sessions", inboxSessions === undefined && !inboxError);
+    useInboxStore
+      .getState()
+      .setLiveLoading("sessions", inboxSessions === undefined && !inboxError);
   }, [inboxSessions, inboxError]);
 
   // BACKGROUND RECONCILE — backfill every inbox session beyond the live window.
@@ -549,16 +711,36 @@ export function useSyncInboxSessions() {
   // THE COMPLETENESS FLOOR: see runInboxFloorStep for the rules and gates.
   const principalId = currentUser?._id?.toString();
   const sessWsKey = inboxCrawlWsKey(principalId);
-  const floorStamped = useInboxStore((s) => inboxFloorFlags(s, principalId).floorStamped);
-  const logStamped = useInboxStore((s) => inboxFloorFlags(s, principalId).logStamped);
+  const floorStamped = useInboxStore(
+    (s) => inboxFloorFlags(s, principalId).floorStamped,
+  );
+  const logStamped = useInboxStore(
+    (s) => inboxFloorFlags(s, principalId).logStamped,
+  );
   // A resync supersedes a floor in flight even when it had not stamped yet
   // (floorStamped stays false): relaunch on the reset itself.
-  const floorReset = useInboxStore((s) => crawlResetsFor(s, syncMetaKey("sessions", sessWsKey)));
+  const floorReset = useInboxStore((s) =>
+    crawlResetsFor(s, syncMetaKey("sessions", sessWsKey)),
+  );
   // eslint-disable-next-line no-restricted-syntax -- cleanup keyed to the principal; cancels an in-flight floor on wsKey change
   useWatchEffect(() => () => cancelReconcileCrawl("sessions"), [sessWsKey]);
   useWatchEffect(() => {
-    runInboxFloorStep(convex, { wsKey: sessWsKey, principalId, hydrated, floorStamped, logStamped });
-  }, [convex, sessWsKey, principalId, hydrated, floorStamped, logStamped, floorReset]);
+    runInboxFloorStep(convex, {
+      wsKey: sessWsKey,
+      principalId,
+      hydrated,
+      floorStamped,
+      logStamped,
+    });
+  }, [
+    convex,
+    sessWsKey,
+    principalId,
+    hydrated,
+    floorStamped,
+    logStamped,
+    floorReset,
+  ]);
 
   // THE STUB SWEEP — local cruft only. An optimistic create that never landed
   // server-side exists in this cache alone; a stub the user typed into is a
@@ -567,7 +749,10 @@ export function useSyncInboxSessions() {
   // applier prunes the row on authorized absence (useSyncChangeFeed).
   const [sweepNonce, setSweepNonce] = useState(0);
   useMountEffect(() => {
-    const id = setInterval(() => setSweepNonce((n) => n + 1), STUB_SWEEP_INTERVAL_MS);
+    const id = setInterval(
+      () => setSweepNonce((n) => n + 1),
+      STUB_SWEEP_INTERVAL_MS,
+    );
     const offWake = onSyncWake(() => setSweepNonce((n) => n + 1));
     return () => {
       clearInterval(id);
@@ -587,7 +772,10 @@ export function useSyncInboxSessions() {
     // whose create was given up (offline/outage/rate-limit) stops being a
     // permanently stuck ghost. Idempotent server-side, so a stub mid outbox
     // replay just resolves to the same row.
-    for (const stubId of strandedStubs) store.healStrandedStub(stubId).catch((err) => captureError(err, { source: "stub-heal", stubId }));
+    for (const stubId of strandedStubs)
+      store
+        .healStrandedStub(stubId)
+        .catch((err) => captureError(err, { source: "stub-heal", stubId }));
   }, [sweepNonce, hydrated]);
 
   return { activeSessions: inboxSessions };

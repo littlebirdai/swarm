@@ -32,10 +32,19 @@ import {
   type MachineDevice,
   type PresenceRow,
 } from "./presencePolicy";
-import { canAccessConversation, viewingAccessStamp, workspaceGrantsAccess, workspaceKey } from "./lib/access";
+import {
+  canAccessConversation,
+  viewingAccessStamp,
+  workspaceGrantsAccess,
+  workspaceKey,
+} from "./lib/access";
 import type { Id } from "./_generated/dataModel";
 import { PUSH_TYPE_LABELS } from "./lib/pushPrivacy";
-import { DECISION_PUSH_TYPE, liveDecisionPush, settleDecisionWaiting } from "./lib/decisionRing";
+import {
+  DECISION_PUSH_TYPE,
+  liveDecisionPush,
+  settleDecisionWaiting,
+} from "./lib/decisionRing";
 
 // Client heartbeats every ~30s while visible; background browser tabs get
 // throttled to ~1/min, so "fresh" tolerates two missed beats. Sleeping the
@@ -67,7 +76,10 @@ export const MAX_MACHINE_HOLD_MS = 60 * 60_000;
 // the outbox (chat.cancelChatPushes).
 const ADDRESSED_CHAT = new Set(["chat_mention", "chat_dm", "chat_here"]);
 
-export { isDesktopActivePresence, isMachineActivePresence } from "./presencePolicy";
+export {
+  isDesktopActivePresence,
+  isMachineActivePresence,
+} from "./presencePolicy";
 export type { MachineDevice, PresenceRow } from "./presencePolicy";
 
 // The two presence signals, kept separate because they hold pushes DIFFERENTLY.
@@ -94,7 +106,8 @@ export async function readPresence(
   // native banner still land. The daemon runs under launchd, wholly independent
   // of the app — without this check, an opted-in user with Codecast closed would
   // have every push held while no surface anywhere could display it.
-  const clientAlive = !!presence && now - presence.last_seen < PRESENCE_FRESH_MS;
+  const clientAlive =
+    !!presence && now - presence.last_seen < PRESENCE_FRESH_MS;
   let machineActive = false;
   // Opted out: client presence is the whole story, and we skip the devices
   // read entirely. On by default — an absent flag means opted in.
@@ -121,7 +134,8 @@ export function summarizePushBatch(
   for (const r of rows) {
     const key = r.type && PUSH_TYPE_LABELS[r.type] ? r.type : "other";
     // A card push carries every card its session asked in one turn.
-    const n = r.type === DECISION_PUSH_TYPE ? (r.data?.decision_ids?.length || 1) : 1;
+    const n =
+      r.type === DECISION_PUSH_TYPE ? r.data?.decision_ids?.length || 1 : 1;
     counts.set(key, (counts.get(key) ?? 0) + n);
     total += n;
   }
@@ -294,8 +308,14 @@ export const rotatePushEpoch = internalMutation({
       .query("system_config")
       .withIndex("by_key", (q: any) => q.eq("key", PUSH_EPOCH_KEY))
       .first();
-    if (row) await ctx.db.patch(row._id, { value: epoch, updated_at: Date.now() });
-    else await ctx.db.insert("system_config", { key: PUSH_EPOCH_KEY, value: epoch, updated_at: Date.now() });
+    if (row)
+      await ctx.db.patch(row._id, { value: epoch, updated_at: Date.now() });
+    else
+      await ctx.db.insert("system_config", {
+        key: PUSH_EPOCH_KEY,
+        value: epoch,
+        updated_at: Date.now(),
+      });
     return { epoch };
   },
 });
@@ -330,7 +350,10 @@ export async function readMissedSince(
     interruption_level: row.interruption_level,
     created_at: row.created_at,
   }));
-  return { epoch: mine.length > 0 ? mine[mine.length - 1].epoch : null, entries };
+  return {
+    epoch: mine.length > 0 ? mine[mine.length - 1].epoch : null,
+    entries,
+  };
 }
 
 // Queue a mobile push for a user. Call from the same mutation that inserted the
@@ -359,7 +382,10 @@ export async function enqueuePush(
   if (!opts.user.push_token || !opts.user.notifications_enabled) return;
   const now = Date.now();
   const { active } = await readPresence(ctx, opts.user, now);
-  const dueAt = Math.max(now + (active ? HOLD_WHILE_ACTIVE_MS : AWAY_DEBOUNCE_MS), opts.hold_until ?? 0);
+  const dueAt = Math.max(
+    now + (active ? HOLD_WHILE_ACTIVE_MS : AWAY_DEBOUNCE_MS),
+    opts.hold_until ?? 0,
+  );
   await ctx.db.insert("push_outbox", {
     user_id: opts.user._id,
     notification_id: opts.notification_id,
@@ -399,7 +425,8 @@ export async function performPushFlush(ctx: any, userId: any): Promise<void> {
   // whole batch goes together, so walking into the ceiling costs ONE buzz rather
   // than dribbling rows out as each ages past it.
   const capReached =
-    machineActive && due.some((r: any) => now - r.created_at >= MAX_MACHINE_HOLD_MS);
+    machineActive &&
+    due.some((r: any) => now - r.created_at >= MAX_MACHINE_HOLD_MS);
   const holdForMachine = machineActive && !capReached;
 
   const sendable: any[] = [];
@@ -432,12 +459,21 @@ export async function performPushFlush(ctx: any, userId: any): Promise<void> {
       if (!live) {
         await ctx.db.delete(row._id);
         gone.add(row._id);
-        if (row.data?.conversationId) await settleDecisionWaiting(ctx, row.data.conversationId, [userId]);
+        if (row.data?.conversationId)
+          await settleDecisionWaiting(ctx, row.data.conversationId, [userId]);
         continue;
       }
       if (live !== row) {
-        await ctx.db.patch(row._id, { title: live.title, body: live.body, data: live.data });
-        Object.assign(row, { title: live.title, body: live.body, data: live.data });
+        await ctx.db.patch(row._id, {
+          title: live.title,
+          body: live.body,
+          data: live.data,
+        });
+        Object.assign(row, {
+          title: live.title,
+          body: live.body,
+          data: live.data,
+        });
       }
     }
     // Hold this round if either: the user is at the computer with machine-wide
@@ -450,7 +486,8 @@ export async function performPushFlush(ctx: any, userId: any): Promise<void> {
     // 3-minute client hold, then the phone, instead of waiting until they
     // walk away.
     const holdForThis =
-      (holdForMachine && !ADDRESSED_CHAT.has(row.type)) || (!row.deferred && clientActive);
+      (holdForMachine && !ADDRESSED_CHAT.has(row.type)) ||
+      (!row.deferred && clientActive);
     if (holdForThis) {
       await ctx.db.patch(row._id, {
         deferred: true,
@@ -479,9 +516,13 @@ export async function performPushFlush(ctx: any, userId: any): Promise<void> {
       const due = Math.max(row.due_at, nextDue);
       if (row.due_at !== due) await ctx.db.patch(row._id, { due_at: due });
     }
-    await ctx.scheduler.runAfter(HOLD_WHILE_ACTIVE_MS, internal.pushRouter.flush, {
-      user_id: userId,
-    });
+    await ctx.scheduler.runAfter(
+      HOLD_WHILE_ACTIVE_MS,
+      internal.pushRouter.flush,
+      {
+        user_id: userId,
+      },
+    );
   }
   if (sendable.length === 0) return;
 
@@ -492,19 +533,34 @@ export async function performPushFlush(ctx: any, userId: any): Promise<void> {
   // person (a mention, a DM line, @here), the time-sensitive interruption
   // level — a message TO you should raise a Focus-respecting banner, not sit
   // in the summary tray.
-  const CHAT_TYPES = new Set(["chat_mention", "chat_reply", "chat_here", "chat_dm", "chat_added", "chat_post"]);
+  const CHAT_TYPES = new Set([
+    "chat_mention",
+    "chat_reply",
+    "chat_here",
+    "chat_dm",
+    "chat_added",
+    "chat_post",
+  ]);
   // Addressed to this person by construction — a direct mention, or a session
   // of theirs that stopped and is waiting on them. Those ride the
   // time-sensitive interruption level so they break through a Focus mode; an
   // agent that has stopped is the one thing the human cannot afford to miss.
-  const ADDRESSED = new Set(["chat_mention", "chat_dm", "chat_here", "session_idle", "permission_request", DECISION_PUSH_TYPE]);
+  const ADDRESSED = new Set([
+    "chat_mention",
+    "chat_dm",
+    "chat_here",
+    "session_idle",
+    "permission_request",
+    DECISION_PUSH_TYPE,
+  ]);
   const isChat = sendable.some((r: any) => CHAT_TYPES.has(r.type));
   const addressed = sendable.some((r: any) => ADDRESSED.has(r.type));
   // The icon badge is the bell's own number, so the phone and the app agree.
   const unread = await ctx.db
     .query("notifications")
     .withIndex("by_recipient_read", (q: any) =>
-      q.eq("recipient_user_id", userId).eq("read", false))
+      q.eq("recipient_user_id", userId).eq("read", false),
+    )
     .take(100);
   for (const row of sendable) await ctx.db.delete(row._id);
   const channelId = isChat ? "chat" : undefined;
@@ -567,16 +623,27 @@ export const reportPresence = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) return;
     const now = Date.now();
-    const lastInputAt = now - Math.max(0, Math.min(args.idle_ms, 7 * 24 * 3600_000));
+    const lastInputAt =
+      now - Math.max(0, Math.min(args.idle_ms, 7 * 24 * 3600_000));
     const existing = await ctx.db
       .query("user_presence")
       .withIndex("by_user", (q: any) => q.eq("user_id", userId))
       .first();
-    const viewingPatch = await viewingFieldsPatch(ctx, userId, existing, args.viewing_conversation_id, now);
+    const viewingPatch = await viewingFieldsPatch(
+      ctx,
+      userId,
+      existing,
+      args.viewing_conversation_id,
+      now,
+    );
     if (existing) {
       // Write only what a reader can see change (presenceReportPatch): the
       // roster re-runs for every open tab on each write to this row.
-      const patch = presenceReportPatch(existing, { focused: args.focused, lastInputAt }, now);
+      const patch = presenceReportPatch(
+        existing,
+        { focused: args.focused, lastInputAt },
+        now,
+      );
       const viewingChanged = Object.keys(viewingPatch).length > 0;
       if (viewingChanged || Object.keys(patch).length > 0) {
         await ctx.db.patch(existing._id, {
@@ -605,21 +672,41 @@ export const reportPresence = mutation({
 async function viewingFieldsPatch(
   ctx: { db: any },
   userId: Id<"users">,
-  existing: { viewing_conversation_id?: Id<"conversations">; viewing_access?: unknown } | null,
+  existing: {
+    viewing_conversation_id?: Id<"conversations">;
+    viewing_access?: unknown;
+  } | null,
   reported: Id<"conversations"> | undefined,
   now: number,
-): Promise<{ viewing_conversation_id?: Id<"conversations">; viewing_since?: number; viewing_access?: ReturnType<typeof viewingAccessStamp> }> {
+): Promise<{
+  viewing_conversation_id?: Id<"conversations">;
+  viewing_since?: number;
+  viewing_access?: ReturnType<typeof viewingAccessStamp>;
+}> {
   const current = existing?.viewing_conversation_id;
   // A row written before viewing_access existed gets its copy on the next
   // report; the roster shows no viewed id until it has one.
   if (reported === current && (!current || existing?.viewing_access)) return {};
   if (reported) {
     const conversation = await ctx.db.get(reported);
-    if (conversation && (await canAccessConversation(ctx as any, userId, conversation))) {
+    if (
+      conversation &&
+      (await canAccessConversation(ctx as any, userId, conversation))
+    ) {
       const access = viewingAccessStamp(conversation);
-      return reported === current ? { viewing_access: access } : { viewing_conversation_id: reported, viewing_since: now, viewing_access: access };
+      return reported === current
+        ? { viewing_access: access }
+        : {
+            viewing_conversation_id: reported,
+            viewing_since: now,
+            viewing_access: access,
+          };
     }
   }
   if (current === undefined) return {};
-  return { viewing_conversation_id: undefined, viewing_since: undefined, viewing_access: undefined };
+  return {
+    viewing_conversation_id: undefined,
+    viewing_since: undefined,
+    viewing_access: undefined,
+  };
 }

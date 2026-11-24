@@ -21,7 +21,11 @@ import { isConvexId } from "../lib/entityLinks";
 
 /** `agentType` starts the composer on that agent rather than the default
  *  (the empty inbox's "Ask the assistant" start). */
-export type ComposeContext = { projectPath?: string; gitRoot?: string; agentType?: string };
+export type ComposeContext = {
+  projectPath?: string;
+  gitRoot?: string;
+  agentType?: string;
+};
 export type ComposeInstance = {
   id: number;
   mode: "modal" | "dock";
@@ -34,7 +38,11 @@ export type ComposeInstance = {
 export type ComposeSliceState = {
   composes: ComposeInstance[];
   composeNonce: number;
-  openCompose: (initialQuery?: string, context?: ComposeContext, opts?: { dock?: boolean }) => void;
+  openCompose: (
+    initialQuery?: string,
+    context?: ComposeContext,
+    opts?: { dock?: boolean },
+  ) => void;
   /** No id closes the modal. */
   closeCompose: (id?: number) => void;
   bindComposeStub: (id: number, stubId: string) => void;
@@ -56,8 +64,11 @@ export function composeDraftContent(
 ): { text: string; images: DraftImageRow[] } | null {
   if (!id) return null;
   const d = state.drafts[id];
-  const text = typeof d?.draft_message === "string" ? d.draft_message.trim() : "";
-  const images = Array.isArray(d?.draft_image_storage_ids) ? (d.draft_image_storage_ids as DraftImageRow[]) : [];
+  const text =
+    typeof d?.draft_message === "string" ? d.draft_message.trim() : "";
+  const images = Array.isArray(d?.draft_image_storage_ids)
+    ? (d.draft_image_storage_ids as DraftImageRow[])
+    : [];
   return text || images.length > 0 ? { text, images } : null;
 }
 
@@ -73,7 +84,13 @@ export function findKeptComposeDraft(state: {
   const held = new Set(state.composes.map((c) => c.stubId).filter(Boolean));
   let best: { id: string; at: number } | null = null;
   for (const [id, row] of Object.entries(state.sessions)) {
-    if (!row?._hasDraft || isConvexId(id) || held.has(id) || state.pendingSessionCreates[id]) continue;
+    if (
+      !row?._hasDraft ||
+      isConvexId(id) ||
+      held.has(id) ||
+      state.pendingSessionCreates[id]
+    )
+      continue;
     if (!composeDraftContent(state, id)) continue;
     const at = row.updated_at ?? row.started_at ?? 0;
     if (!best || at > best.at) best = { id, at };
@@ -83,14 +100,21 @@ export function findKeptComposeDraft(state: {
 
 export function createComposeSlice(set: any, get: any): ComposeSliceState {
   const patch = (id: number, fields: Partial<ComposeInstance>) =>
-    set({ composes: (get().composes as ComposeInstance[]).map((c) => (c.id === id ? { ...c, ...fields } : c)) });
+    set({
+      composes: (get().composes as ComposeInstance[]).map((c) =>
+        c.id === id ? { ...c, ...fields } : c,
+      ),
+    });
   // A modal making way for another: one holding a draft steps down to the dock,
   // an empty one goes (its unmount abandons the empty stub).
   const displaceModal = (list: ComposeInstance[]): ComposeInstance[] =>
     list.flatMap((c) =>
-      c.mode !== "modal" ? [c]
-        : (flushDraftWrite(c.stubId), composeDraftContent(get(), c.stubId)) ? [{ ...c, mode: "dock" as const, collapsed: true }]
-        : []);
+      c.mode !== "modal"
+        ? [c]
+        : (flushDraftWrite(c.stubId), composeDraftContent(get(), c.stubId))
+          ? [{ ...c, mode: "dock" as const, collapsed: true }]
+          : [],
+    );
   return {
     composes: [],
     composeNonce: 0,
@@ -99,27 +123,52 @@ export function createComposeSlice(set: any, get: any): ComposeSliceState {
       const dock = !!opts?.dock;
       // Two open docks fit beside each other on a laptop; a third opening
       // folds the oldest open one to its title bar.
-      const open = (get().composes as ComposeInstance[]).filter((c) => c.mode === "dock" && !c.collapsed);
+      const open = (get().composes as ComposeInstance[]).filter(
+        (c) => c.mode === "dock" && !c.collapsed,
+      );
       const fold = dock && open.length >= 2 ? open[0].id : null;
       const rest = dock
-        ? (get().composes as ComposeInstance[]).map((c) => (c.id === fold ? { ...c, collapsed: true } : c))
+        ? (get().composes as ComposeInstance[]).map((c) =>
+            c.id === fold ? { ...c, collapsed: true } : c,
+          )
         : displaceModal(get().composes);
-      set({ composeNonce: id, composes: [...rest, { id, mode: dock ? "dock" : "modal", collapsed: false, initialQuery, context }] });
+      set({
+        composeNonce: id,
+        composes: [
+          ...rest,
+          {
+            id,
+            mode: dock ? "dock" : "modal",
+            collapsed: false,
+            initialQuery,
+            context,
+          },
+        ],
+      });
     },
     closeCompose: (id) =>
-      set({ composes: (get().composes as ComposeInstance[]).filter((c) => (id == null ? c.mode !== "modal" : c.id !== id)) }),
+      set({
+        composes: (get().composes as ComposeInstance[]).filter((c) =>
+          id == null ? c.mode !== "modal" : c.id !== id,
+        ),
+      }),
     bindComposeStub: (id, stubId) => patch(id, { stubId }),
     dockCompose: (id) => {
-      const target = (get().composes as ComposeInstance[]).find((c) => (id == null ? c.mode === "modal" : c.id === id));
+      const target = (get().composes as ComposeInstance[]).find((c) =>
+        id == null ? c.mode === "modal" : c.id === id,
+      );
       if (target) patch(target.id, { mode: "dock", collapsed: false });
     },
     expandCompose: (id) =>
       set({
-        composes: displaceModal(get().composes).map((c) => (c.id === id ? { ...c, mode: "modal" as const, collapsed: false } : c)),
+        composes: displaceModal(get().composes).map((c) =>
+          c.id === id ? { ...c, mode: "modal" as const, collapsed: false } : c,
+        ),
       }),
     setComposeCollapsed: (id, collapsed) => patch(id, { collapsed }),
     toggleComposeDock: () => {
-      if ((get().composes as ComposeInstance[]).some((c) => c.mode === "modal")) get().dockCompose();
+      if ((get().composes as ComposeInstance[]).some((c) => c.mode === "modal"))
+        get().dockCompose();
       else get().openCompose(undefined, undefined, { dock: true });
     },
   };

@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { buildClientResourceReport, estimateCollectionBytes, shouldReportClientResources } from "./clientResourceReport";
+import {
+  buildClientResourceReport,
+  estimateCollectionBytes,
+  shouldReportClientResources,
+} from "./clientResourceReport";
 
-const window = { platform: "desktop", syncRole: "host", windowRole: "app" } as const;
+const window = {
+  platform: "desktop",
+  syncRole: "host",
+  windowRole: "app",
+} as const;
 
 describe("client resource report", () => {
   test("reports the largest 15 collections and totals every collection", () => {
@@ -13,9 +21,14 @@ describe("client resource report", () => {
     const report = buildClientResourceReport({ ...window, collections });
     expect(report.store_total_rows).toBe(153);
     expect(Object.keys(report.store_collection_rows)).toHaveLength(15);
-    expect(Object.entries(report.store_collection_rows)[0]).toEqual(["collection16", 17]);
+    expect(Object.entries(report.store_collection_rows)[0]).toEqual([
+      "collection16",
+      17,
+    ]);
     expect(report.store_collection_rows).not.toHaveProperty("collection1");
-    expect(Object.keys(report.store_collection_estimated_bytes)).toHaveLength(15);
+    expect(Object.keys(report.store_collection_estimated_bytes)).toHaveLength(
+      15,
+    );
     expect(report.store_collection_estimated_bytes.collection16).toBe(1600);
   });
 
@@ -50,7 +63,9 @@ describe("client resource report", () => {
   });
 
   test("estimates a collection from three rows of 100 fields each", () => {
-    const row = Object.fromEntries(Array.from({ length: 100 }, (_, i) => [`field${i}`, Array(6).fill("x")]));
+    const row = Object.fromEntries(
+      Array.from({ length: 100 }, (_, i) => [`field${i}`, Array(6).fill("x")]),
+    );
     expect(estimateCollectionBytes([row, row, row], 1000)).toBe(3_692_000);
   });
 
@@ -65,8 +80,12 @@ describe("client resource report", () => {
     expect(shouldReportClientResources("tab", true, "follower")).toBe(false);
     expect(shouldReportClientResources("tab", false, "follower")).toBe(true);
     expect(shouldReportClientResources("people", false, "follower")).toBe(true);
-    expect(shouldReportClientResources("call_panel", false, "follower")).toBe(true);
+    expect(shouldReportClientResources("call_panel", false, "follower")).toBe(
+      true,
+    );
     expect(shouldReportClientResources("auxiliary", false, "host")).toBe(false);
-    expect(shouldReportClientResources("palette", false, "follower")).toBe(false);
+    expect(shouldReportClientResources("palette", false, "follower")).toBe(
+      false,
+    );
   });
 });

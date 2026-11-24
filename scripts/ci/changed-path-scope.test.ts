@@ -75,12 +75,16 @@ describe("touchesPlatform", () => {
 describe("classifyChangedPaths", () => {
   // The jobs one change runs. Each set follows from what the job's files
   // import or read (test-reach.test.ts checks those edges against the tree).
-  const ran = (files: string[]) => GATED_JOBS.filter((job) => flags(files)[jobFlag(job)]).sort();
+  const ran = (files: string[]) =>
+    GATED_JOBS.filter((job) => flags(files)[jobFlag(job)]).sort();
 
   test("a docs-only change runs the cli and shared suites, which read docs/", () => {
     const result = flags(["docs/architecture/sync-host.md", "README.md"]);
     expect(result.docs).toBe(true);
-    expect(ran(["docs/architecture/sync-host.md", "README.md"])).toEqual(["test-cli", "test-shared"]);
+    expect(ran(["docs/architecture/sync-host.md", "README.md"])).toEqual([
+      "test-cli",
+      "test-shared",
+    ]);
     for (const area of AREAS) {
       if (area !== "docs") expect(result[area]).toBe(false);
     }
@@ -98,34 +102,61 @@ describe("classifyChangedPaths", () => {
   // The few web and convex test files that import cli code run in
   // test-always instead.
   test("a cli change runs build, lint, typecheck and the cli tests", () => {
-    expect(ran(["apps/cli/src/daemon.ts"])).toEqual(["build", "lint", "test-cli", "typecheck"]);
+    expect(ran(["apps/cli/src/daemon.ts"])).toEqual([
+      "build",
+      "lint",
+      "test-cli",
+      "typecheck",
+    ]);
   });
 
   // convex source imports web code. The cli test files that read web files
   // run in test-always instead.
   test("a web change runs lint and the web, convex and mobile tests", () => {
-    expect(ran(["apps/web/components/DiffView.tsx"])).toEqual(
-      ["build", "lint", "test-convex", "test-mobile", "test-web", "typecheck"],
-    );
+    expect(ran(["apps/web/components/DiffView.tsx"])).toEqual([
+      "build",
+      "lint",
+      "test-convex",
+      "test-mobile",
+      "test-web",
+      "typecheck",
+    ]);
   });
 
   test("a convex change runs the convex, web, cli and mobile tests", () => {
-    expect(ran(["apps/server/convex/tasks.ts"])).toEqual(
-      ["build", "lint", "test-cli", "test-convex", "test-mobile", "test-web", "typecheck"],
-    );
+    expect(ran(["apps/server/convex/tasks.ts"])).toEqual([
+      "build",
+      "lint",
+      "test-cli",
+      "test-convex",
+      "test-mobile",
+      "test-web",
+      "typecheck",
+    ]);
   });
 
   // The eval home's unit tests are a step of test-cli.
   test("an evals change runs lint, typecheck and the cli tests without forcing every job", () => {
     const scope = classifyChangedPaths(["apps/evals/src/x.ts"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["apps/evals/src/x.ts"])).toEqual(["lint", "test-cli", "typecheck"]);
+    expect(ran(["apps/evals/src/x.ts"])).toEqual([
+      "lint",
+      "test-cli",
+      "typecheck",
+    ]);
   });
 
   test("a shared change runs every job that reads shared", () => {
-    expect(ran(["packages/shared/contracts/inboxProjection.ts"])).toEqual(
-      ["build", "lint", "test-cli", "test-convex", "test-mobile", "test-shared", "test-web", "typecheck"],
-    );
+    expect(ran(["packages/shared/contracts/inboxProjection.ts"])).toEqual([
+      "build",
+      "lint",
+      "test-cli",
+      "test-convex",
+      "test-mobile",
+      "test-shared",
+      "test-web",
+      "typecheck",
+    ]);
   });
 
   // The vendored mirror is a dependency of every package, so a change to it
@@ -135,7 +166,9 @@ describe("classifyChangedPaths", () => {
     const result = flags(["platform/packages/engine/src/store.ts"]);
     expect(result.platform).toBe(true);
     expect(result.shared).toBe(false);
-    expect(ran(["platform/packages/engine/src/store.ts"])).toEqual([...GATED_JOBS].sort());
+    expect(ran(["platform/packages/engine/src/store.ts"])).toEqual(
+      [...GATED_JOBS].sort(),
+    );
   });
 
   test("a workspace manifest re-checks the mirror it declares", () => {
@@ -148,10 +181,16 @@ describe("classifyChangedPaths", () => {
   });
 
   test("changes that cannot touch the mirror leave its job alone", () => {
-    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_platform).toBe(false);
+    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_platform).toBe(
+      false,
+    );
     expect(flags(["apps/cli/src/daemon.ts"]).run_test_platform).toBe(false);
-    expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_platform).toBe(false);
-    expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(false);
+    expect(
+      flags(["packages/shared/contracts/agentClients.ts"]).run_test_platform,
+    ).toBe(false);
+    expect(flags(["docs/architecture/sync-host.md"]).run_test_platform).toBe(
+      false,
+    );
   });
 
   test("a mobile change runs lint and the mobile tests", () => {
@@ -164,18 +203,32 @@ describe("classifyChangedPaths", () => {
   test("an electron change runs the electron tests and everything that loads web", () => {
     const file = "apps/desktop/main.js";
     expect(flags([file]).electron).toBe(true);
-    expect(ran([file])).toEqual(["build", "lint", "test-electron", "test-mobile", "test-web", "typecheck"]);
+    expect(ran([file])).toEqual([
+      "build",
+      "lint",
+      "test-electron",
+      "test-mobile",
+      "test-web",
+      "typecheck",
+    ]);
   });
 
   // Nothing imports the playground; the root build and typecheck cover it.
   test("a playground change runs build, lint and typecheck", () => {
     const scope = classifyChangedPaths(["apps/playground/src/main.tsx"]);
     expect(scope.forcedBy).toEqual([]);
-    expect(ran(["apps/playground/src/main.tsx"])).toEqual(["build", "lint", "typecheck"]);
+    expect(ran(["apps/playground/src/main.tsx"])).toEqual([
+      "build",
+      "lint",
+      "typecheck",
+    ]);
   });
 
   test("an infra change runs lint", () => {
-    const scope = classifyChangedPaths(["infra/convex-host/Caddyfile", "infra/README.md"]);
+    const scope = classifyChangedPaths([
+      "infra/convex-host/Caddyfile",
+      "infra/README.md",
+    ]);
     expect(scope.forcedBy).toEqual([]);
     expect(scope.flags.infra).toBe(true);
     expect(ran(["infra/convex-host/Caddyfile"])).toEqual(["lint"]);
@@ -184,14 +237,24 @@ describe("classifyChangedPaths", () => {
   // The CLI carries the extension to cloud hosts (browser/hostExtension.ts),
   // so an extension change runs the cli tests too.
   test("an extension change runs build and the cli tests", () => {
-    expect(ran(["apps/browser-extension/background.js"])).toEqual(["build", "lint", "test-cli"]);
+    expect(ran(["apps/browser-extension/background.js"])).toEqual([
+      "build",
+      "lint",
+      "test-cli",
+    ]);
   });
 
   test("the electron tests rerun for the vendored @platform/desktop they require", () => {
-    expect(flags(["platform/packages/desktop/src/index.js"]).run_test_electron).toBe(true);
+    expect(
+      flags(["platform/packages/desktop/src/index.js"]).run_test_electron,
+    ).toBe(true);
     expect(flags(["apps/desktop/package.json"]).run_test_electron).toBe(true);
-    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_electron).toBe(false);
-    expect(flags(["packages/shared/contracts/agentClients.ts"]).run_test_electron).toBe(false);
+    expect(flags(["apps/web/components/DiffView.tsx"]).run_test_electron).toBe(
+      false,
+    );
+    expect(
+      flags(["packages/shared/contracts/agentClients.ts"]).run_test_electron,
+    ).toBe(false);
   });
 
   test("an empty diff runs everything", () => {
@@ -222,7 +285,9 @@ describe("classifyChangedPaths", () => {
   });
 
   test("emits one key=value line per flag", () => {
-    const lines = formatScope(classifyChangedPaths(["apps/cli/src/daemon.ts"])).split("\n");
+    const lines = formatScope(
+      classifyChangedPaths(["apps/cli/src/daemon.ts"]),
+    ).split("\n");
     expect(lines).toContain("cli=true");
     expect(lines).toContain("web=false");
     expect(lines).toContain("run_test_cli=true");
@@ -232,11 +297,14 @@ describe("classifyChangedPaths", () => {
 });
 
 test("the classifier runs as a script and prints the flags", async () => {
-  const proc = Bun.spawn(["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname], {
-    stdin: new TextEncoder().encode("apps/mobile/app/index.tsx\n"),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const proc = Bun.spawn(
+    ["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname],
+    {
+      stdin: new TextEncoder().encode("apps/mobile/app/index.tsx\n"),
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
   const stdout = await new Response(proc.stdout).text();
   expect(await proc.exited).toBe(0);
   expect(stdout.split("\n")).toContain("run_test_mobile=true");
@@ -250,11 +318,17 @@ describe("computer test scope", () => {
       "apps/cli/src/computer/__fixtures__/fakeHelper.ts",
       "apps/cli/native/computer-use-macos/Package.swift",
       "apps/cli/scripts/computer-verify.ts",
-    ]) expect(touchesComputer(file)).toBe(true);
+    ])
+      expect(touchesComputer(file)).toBe(true);
   });
 
   test("does not run for unrelated CLI, web or documentation changes", () => {
-    for (const file of ["apps/cli/src/daemon.ts", "apps/web/index.ts", "docs/README.md", ""])
+    for (const file of [
+      "apps/cli/src/daemon.ts",
+      "apps/web/index.ts",
+      "docs/README.md",
+      "",
+    ])
       expect(touchesComputer(file)).toBe(false);
   });
 
@@ -264,15 +338,27 @@ describe("computer test scope", () => {
     expect(computerScope([])).toBe(true);
     expect(computerScope(["", "  "])).toBe(true);
     expect(computerScope(["apps/cli/src/daemon.ts"])).toBe(false);
-    expect(computerScope(["apps/cli/src/daemon.ts", "apps/cli/src/computer/client.ts"])).toBe(true);
+    expect(
+      computerScope([
+        "apps/cli/src/daemon.ts",
+        "apps/cli/src/computer/client.ts",
+      ]),
+    ).toBe(true);
   });
 
   test("the script prints the fail-closed flag on empty input", async () => {
-    const proc = Bun.spawn(["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname, "--computer-only"], {
-      stdin: new TextEncoder().encode("\n"),
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const proc = Bun.spawn(
+      [
+        "bun",
+        new URL("./changed-path-scope.ts", import.meta.url).pathname,
+        "--computer-only",
+      ],
+      {
+        stdin: new TextEncoder().encode("\n"),
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
     const stdout = await new Response(proc.stdout).text();
     expect(await proc.exited).toBe(0);
     expect(stdout.trim()).toBe("run_test_computer=true");
@@ -285,11 +371,17 @@ describe("injection suite scope", () => {
       "apps/cli/src/daemon.ts",
       "apps/cli/src/tmuxPaste.ts",
       "packages/shared/contracts/agentClients.ts",
-    ]) expect(touchesInjection(file)).toBe(true);
+    ])
+      expect(touchesInjection(file)).toBe(true);
   });
 
   test("does not run for other files", () => {
-    for (const file of ["apps/cli/src/daemon.test.ts", "apps/cli/src/index.ts", "docs/README.md", ""])
+    for (const file of [
+      "apps/cli/src/daemon.test.ts",
+      "apps/cli/src/index.ts",
+      "docs/README.md",
+      "",
+    ])
       expect(touchesInjection(file)).toBe(false);
   });
 
@@ -299,22 +391,33 @@ describe("injection suite scope", () => {
     expect(injectionScope([])).toBe(true);
     expect(injectionScope(["", "  "])).toBe(true);
     expect(injectionScope(["apps/cli/src/index.ts"])).toBe(false);
-    expect(injectionScope(["apps/cli/src/index.ts", "apps/cli/src/tmuxPaste.ts"])).toBe(true);
+    expect(
+      injectionScope(["apps/cli/src/index.ts", "apps/cli/src/tmuxPaste.ts"]),
+    ).toBe(true);
   });
 
   test("the script prints the flag", async () => {
     const run = async (input: string) => {
-      const proc = Bun.spawn(["bun", new URL("./changed-path-scope.ts", import.meta.url).pathname, "--injection-only"], {
-        stdin: new TextEncoder().encode(input),
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+      const proc = Bun.spawn(
+        [
+          "bun",
+          new URL("./changed-path-scope.ts", import.meta.url).pathname,
+          "--injection-only",
+        ],
+        {
+          stdin: new TextEncoder().encode(input),
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
       const stdout = await new Response(proc.stdout).text();
       expect(await proc.exited).toBe(0);
       return stdout.trim();
     };
     expect(await run("\n")).toBe("run_test_injection=true");
     expect(await run("apps/web/index.ts\n")).toBe("run_test_injection=false");
-    expect(await run("apps/cli/src/daemon.ts\n")).toBe("run_test_injection=true");
+    expect(await run("apps/cli/src/daemon.ts\n")).toBe(
+      "run_test_injection=true",
+    );
   });
 });

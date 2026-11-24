@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { cutSearchPage, searchMessageMatches } from "./messages";
 import type { Id } from "./_generated/dataModel";
 
-const row = (id: string, timestamp: number, content?: string) => ({ _id: id as Id<"messages">, timestamp, content });
+const row = (id: string, timestamp: number, content?: string) => ({
+  _id: id as Id<"messages">,
+  timestamp,
+  content,
+});
 
 describe("cutSearchPage", () => {
   test("a short page is the last page", () => {
@@ -30,12 +34,26 @@ describe("cutSearchPage", () => {
 
 describe("searchMessageMatches", () => {
   test("counts every term, case-insensitively, and skips rows without content", () => {
-    const rows = [row("a", 1, "Facebook ads; facebook again"), row("b", 2), row("c", 3, "nothing here")];
-    expect(searchMessageMatches(rows, ["facebook"])).toEqual([{ message_id: "a", timestamp: 1, match_count: 2 }]);
+    const rows = [
+      row("a", 1, "Facebook ads; facebook again"),
+      row("b", 2),
+      row("c", 3, "nothing here"),
+    ];
+    expect(searchMessageMatches(rows, ["facebook"])).toEqual([
+      { message_id: "a", timestamp: 1, match_count: 2 },
+    ]);
   });
 
   test("hits inside context tags the transcript hides do not count", () => {
-    const rows = [row("a", 1, "<system-reminder>facebook facebook</system-reminder>\nreal facebook mention")];
-    expect(searchMessageMatches(rows, ["facebook"])).toEqual([{ message_id: "a", timestamp: 1, match_count: 1 }]);
+    const rows = [
+      row(
+        "a",
+        1,
+        "<system-reminder>facebook facebook</system-reminder>\nreal facebook mention",
+      ),
+    ];
+    expect(searchMessageMatches(rows, ["facebook"])).toEqual([
+      { message_id: "a", timestamp: 1, match_count: 1 },
+    ]);
   });
 });

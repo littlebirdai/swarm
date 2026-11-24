@@ -13,7 +13,8 @@ import { useMountEffect } from "../../../hooks/useMountEffect";
 type Kept = { pane: string | null; top: number };
 const saved = new Map<string, Kept>();
 const here = () => `${location.pathname}${location.search}`;
-const paneOf = (el: Element, stage: HTMLElement): string | null => (el === stage ? null : el.classList[0] ?? null);
+const paneOf = (el: Element, stage: HTMLElement): string | null =>
+  el === stage ? null : (el.classList[0] ?? null);
 
 /** Returns the ref for the stage element: a callback, so a stage that mounts after the workspace's first render (behind
  *  its loading state) is still listened to, and attaching costs the workspace no render. */
@@ -30,7 +31,8 @@ function listen(el: HTMLElement): () => void {
   // Scroll does not bubble: a pane's scroll is caught on its way down.
   const onScroll = (e: Event) => {
     const t = e.target;
-    if (t instanceof HTMLElement && (t === el || el.contains(t))) saved.set(here(), { pane: paneOf(t, el), top: t.scrollTop });
+    if (t instanceof HTMLElement && (t === el || el.contains(t)))
+      saved.set(here(), { pane: paneOf(t, el), top: t.scrollTop });
   };
   let timer = 0;
   // Read what the entry kept the moment it pops: the page leaving can still scroll as it unmounts, and that scroll is
@@ -41,13 +43,20 @@ function listen(el: HTMLElement): () => void {
     if (!kept) return;
     let tries = 0;
     const put = () => {
-      const pane = kept.pane ? el.querySelector<HTMLElement>(`.${CSS.escape(kept.pane)}`) : el;
+      const pane = kept.pane
+        ? el.querySelector<HTMLElement>(`.${CSS.escape(kept.pane)}`)
+        : el;
       if (pane) pane.scrollTop = kept.top;
-      if ((!pane || Math.abs(pane.scrollTop - kept.top) > 2) && tries++ < 60) timer = window.setTimeout(put, 50);
+      if ((!pane || Math.abs(pane.scrollTop - kept.top) > 2) && tries++ < 60)
+        timer = window.setTimeout(put, 50);
     };
     timer = window.setTimeout(put, 0);
   };
   el.addEventListener("scroll", onScroll, { passive: true, capture: true });
   window.addEventListener("popstate", onPop);
-  return () => { window.clearTimeout(timer); el.removeEventListener("scroll", onScroll, { capture: true }); window.removeEventListener("popstate", onPop); };
+  return () => {
+    window.clearTimeout(timer);
+    el.removeEventListener("scroll", onScroll, { capture: true });
+    window.removeEventListener("popstate", onPop);
+  };
 }

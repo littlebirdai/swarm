@@ -14,8 +14,10 @@ export function splitMarkdownBlocks(content: string): string[] {
   for (const line of lines) {
     const fence = line.match(/^\s*(`{3,}|~{3,})/);
     if (fence) {
-      if (!inFence) { inFence = true; fenceMark = fence[1][0]; }
-      else if (fence[1][0] === fenceMark) inFence = false;
+      if (!inFence) {
+        inFence = true;
+        fenceMark = fence[1][0];
+      } else if (fence[1][0] === fenceMark) inFence = false;
     }
     if (!inFence && line.trim() === "" && cur.length > 0) {
       blocks.push(cur.join("\n"));

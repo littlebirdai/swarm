@@ -23,7 +23,13 @@ import { useProposalAuthor } from "../../hooks/useProposalAuthor";
 
 const api = _api as any;
 
-export function ProposalAuthorPill({ author, onOpenSession, className, size = "sm", withHandle = true }: {
+export function ProposalAuthorPill({
+  author,
+  onOpenSession,
+  className,
+  size = "sm",
+  withHandle = true,
+}: {
   author: OrgProposalAuthor;
   /** How a session author opens; the pane hands its own (the preview is a
    *  no-op there). Absent = the usual linked session navigation. */
@@ -35,22 +41,50 @@ export function ProposalAuthorPill({ author, onOpenSession, className, size = "s
 }) {
   const view = useProposalAuthor(author);
   const openLinked = useOpenLinkedSession();
-  const open = onOpenSession ?? ((id: string) => openLinked({ _id: id, title: view.kind === "session" ? view.title : undefined, short_id: view.kind === "session" ? view.shortId ?? undefined : undefined, updated_at: Date.now() }));
+  const open =
+    onOpenSession ??
+    ((id: string) =>
+      openLinked({
+        _id: id,
+        title: view.kind === "session" ? view.title : undefined,
+        short_id:
+          view.kind === "session" ? (view.shortId ?? undefined) : undefined,
+        updated_at: Date.now(),
+      }));
   const h = size === "md" ? "h-[24px] text-[12px]" : "h-[20px] text-meta";
-  const base = cn("inline-flex items-center gap-1.5 max-w-full pl-1 pr-1.5 rounded-md border transition-colors", h, className);
+  const base = cn(
+    "inline-flex items-center gap-1.5 max-w-full pl-1 pr-1.5 rounded-md border transition-colors",
+    h,
+    className,
+  );
   if (view.kind === "session") {
     return (
       <button
         type="button"
         onClick={() => open(view.sessionId)}
         className={cn(base, "hover:bg-sol-bg-highlight text-left")}
-        style={{ borderColor: "color-mix(in srgb, var(--sol-cyan) 35%, transparent)", background: "color-mix(in srgb, var(--sol-cyan) 8%, transparent)", color: "var(--sol-text)" }}
+        style={{
+          borderColor: "color-mix(in srgb, var(--sol-cyan) 35%, transparent)",
+          background: "color-mix(in srgb, var(--sol-cyan) 8%, transparent)",
+          color: "var(--sol-text)",
+        }}
         title={`Written by the session ${view.title}${view.shortId ? ` (${view.shortId})` : ""}. Opens the conversation.`}
         data-proposal-author="session"
       >
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--sol-cyan)" }} aria-hidden />
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: "var(--sol-cyan)" }}
+          aria-hidden
+        />
         <span className="truncate font-medium">{view.title}</span>
-        {view.shortId && <span className="shrink-0" style={{ color: "var(--sol-cyan)", fontFamily: "var(--font-mono)" }}>{view.shortId}</span>}
+        {view.shortId && (
+          <span
+            className="shrink-0"
+            style={{ color: "var(--sol-cyan)", fontFamily: "var(--font-mono)" }}
+          >
+            {view.shortId}
+          </span>
+        )}
         <ArrowUpRight className="w-3 h-3 shrink-0 opacity-60" />
       </button>
     );
@@ -58,32 +92,94 @@ export function ProposalAuthorPill({ author, onOpenSession, className, size = "s
   if (view.kind === "role") {
     const inner = (
       <>
-        <RoleFace role={{ _id: view.roleId, handle: view.handle ?? view.name, avatar: view.avatar, name: view.name }} size={size === "md" ? 18 : 15} />
+        <RoleFace
+          role={{
+            _id: view.roleId,
+            handle: view.handle ?? view.name,
+            avatar: view.avatar,
+            name: view.name,
+          }}
+          size={size === "md" ? 18 : 15}
+        />
         <span className="truncate font-medium">{view.name}</span>
-        {withHandle && view.handle && <span className="shrink-0 hidden sm:inline" style={{ color: "var(--sol-violet)", fontFamily: "var(--font-mono)" }}>@{view.handle}</span>}
+        {withHandle && view.handle && (
+          <span
+            className="shrink-0 hidden sm:inline"
+            style={{
+              color: "var(--sol-violet)",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            @{view.handle}
+          </span>
+        )}
       </>
     );
-    const style = { borderColor: "color-mix(in srgb, var(--sol-violet) 35%, transparent)", background: "color-mix(in srgb, var(--sol-violet) 8%, transparent)", color: "var(--sol-text)" };
+    const style = {
+      borderColor: "color-mix(in srgb, var(--sol-violet) 35%, transparent)",
+      background: "color-mix(in srgb, var(--sol-violet) 8%, transparent)",
+      color: "var(--sol-text)",
+    };
     const title = `Written by the role ${view.name}${view.handle ? ` (@${view.handle})` : ""}.${view.href ? " Opens its page." : ""}`;
     // A role that exists has a page, and what it looks after is one hover
     // away (org-roles-run-work.md R3); the card replaces the title tooltip.
-    const roleShortId = view.href ? /\/(or-\d+)$/.exec(view.href)?.[1] : undefined;
+    const roleShortId = view.href
+      ? /\/(or-\d+)$/.exec(view.href)?.[1]
+      : undefined;
     if (view.href && roleShortId) {
       // Inside the Org screen the author opens its sheet; the conversation stays put (D5b).
       return (
-        <RoleHoverCard role={{ short_id: roleShortId, name: view.name, handle: view.handle ?? "", avatar: view.avatar }}>
-          <OrgObjectLink kind="role" objRef={roleShortId} className={cn(base, "hover:bg-sol-bg-highlight")} style={style} data-proposal-author="role">{inner}</OrgObjectLink>
+        <RoleHoverCard
+          role={{
+            short_id: roleShortId,
+            name: view.name,
+            handle: view.handle ?? "",
+            avatar: view.avatar,
+          }}
+        >
+          <OrgObjectLink
+            kind="role"
+            objRef={roleShortId}
+            className={cn(base, "hover:bg-sol-bg-highlight")}
+            style={style}
+            data-proposal-author="role"
+          >
+            {inner}
+          </OrgObjectLink>
         </RoleHoverCard>
       );
     }
     return view.href ? (
-      <Link href={view.href} className={cn(base, "hover:bg-sol-bg-highlight")} style={style} title={title} data-proposal-author="role">{inner}</Link>
+      <Link
+        href={view.href}
+        className={cn(base, "hover:bg-sol-bg-highlight")}
+        style={style}
+        title={title}
+        data-proposal-author="role"
+      >
+        {inner}
+      </Link>
     ) : (
-      <span className={base} style={style} title={title} data-proposal-author="role">{inner}</span>
+      <span
+        className={base}
+        style={style}
+        title={title}
+        data-proposal-author="role"
+      >
+        {inner}
+      </span>
     );
   }
   return (
-    <span className={base} style={{ borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)", color: "var(--sol-text)" }} title={`Written by ${view.name}`} data-proposal-author="user">
+    <span
+      className={base}
+      style={{
+        borderColor: "color-mix(in srgb, var(--sol-border) 40%, transparent)",
+        color: "var(--sol-text)",
+      }}
+      title={`Written by ${view.name}`}
+      data-proposal-author="user"
+    >
       <span className="truncate font-medium">{view.name}</span>
     </span>
   );
@@ -97,7 +193,15 @@ export function ProposalAuthorPill({ author, onOpenSession, className, size = "s
  * draws "proposed by <author pill> · op-N". Nothing renders for any other
  * decision, so the card costs it nothing.
  */
-export function DecisionProposalOrigin({ contextMd, className, size = "sm" }: { contextMd: string | null | undefined; className?: string; size?: "sm" | "md" }) {
+export function DecisionProposalOrigin({
+  contextMd,
+  className,
+  size = "sm",
+}: {
+  contextMd: string | null | undefined;
+  className?: string;
+  size?: "sm" | "md";
+}) {
   const shortId = proposalRefInContext(contextMd);
   // The store first: the org page's feeders may already hold the row. Else
   // one light read that names the author and nothing more (orgProposals.origin);
@@ -105,18 +209,55 @@ export function DecisionProposalOrigin({ contextMd, className, size = "sm" }: { 
   // enrichment through useQueryNoThrow: with no answer the card still links
   // the proposal, and never waits on a name.
   const s = useTrackedStore([
-    (st) => shortId ? Object.values(st.orgProposals as Record<string, OrgProposalListRow>).find((p) => p.short_id === shortId)?.author : undefined,
+    (st) =>
+      shortId
+        ? Object.values(
+            st.orgProposals as Record<string, OrgProposalListRow>,
+          ).find((p) => p.short_id === shortId)?.author
+        : undefined,
   ]);
-  const cached = shortId ? Object.values(s.orgProposals as Record<string, OrgProposalListRow>).find((p) => p.short_id === shortId)?.author : undefined;
-  const { data: origin, error } = useQueryNoThrow(api.orgProposals.origin, shortId && !cached ? { proposal: shortId } : "skip");
+  const cached = shortId
+    ? Object.values(s.orgProposals as Record<string, OrgProposalListRow>).find(
+        (p) => p.short_id === shortId,
+      )?.author
+    : undefined;
+  const { data: origin, error } = useQueryNoThrow(
+    api.orgProposals.origin,
+    shortId && !cached ? { proposal: shortId } : "skip",
+  );
   if (!shortId) return null;
   const author: OrgProposalAuthor | undefined = cached ?? origin?.author;
   const settled = !!author || origin === null || !!error;
   return (
-    <span className={cn("inline-flex items-center gap-1.5 min-w-0 flex-wrap", className)} data-proposal-origin={shortId} data-origin-state={author ? "named" : settled ? "unnamed" : "loading"}>
-      {author && <span style={{ color: "var(--sol-text-dim)" }}>proposed by</span>}
-      {author ? <ProposalAuthorPill author={author} size={size} /> : !settled ? <span className="italic" style={{ color: "var(--sol-text-dim)" }}>looking up {shortId}…</span> : <span style={{ color: "var(--sol-text-dim)" }}>proposal</span>}
-      <Link href={`/org?proposal=${shortId}`} className="inline-flex items-center gap-0.5 hover:underline" style={{ color: "var(--sol-violet)", fontFamily: "var(--font-mono)" }} title="Open the proposal on the org page">{shortId}<ArrowUpRight className="w-3 h-3" /></Link>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 min-w-0 flex-wrap",
+        className,
+      )}
+      data-proposal-origin={shortId}
+      data-origin-state={author ? "named" : settled ? "unnamed" : "loading"}
+    >
+      {author && (
+        <span style={{ color: "var(--sol-text-dim)" }}>proposed by</span>
+      )}
+      {author ? (
+        <ProposalAuthorPill author={author} size={size} />
+      ) : !settled ? (
+        <span className="italic" style={{ color: "var(--sol-text-dim)" }}>
+          looking up {shortId}…
+        </span>
+      ) : (
+        <span style={{ color: "var(--sol-text-dim)" }}>proposal</span>
+      )}
+      <Link
+        href={`/org?proposal=${shortId}`}
+        className="inline-flex items-center gap-0.5 hover:underline"
+        style={{ color: "var(--sol-violet)", fontFamily: "var(--font-mono)" }}
+        title="Open the proposal on the org page"
+      >
+        {shortId}
+        <ArrowUpRight className="w-3 h-3" />
+      </Link>
     </span>
   );
 }

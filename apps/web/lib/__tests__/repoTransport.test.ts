@@ -3,13 +3,22 @@
 // last-commit column both ask for the tree, and two mounts must not be two
 // round trips.
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { publicRepoUrl, readPublic, clearPublicRepoCache } from "../repoTransport";
+import {
+  publicRepoUrl,
+  readPublic,
+  clearPublicRepoCache,
+} from "../repoTransport";
 
 const REPO = "codecast-sh/codecast";
 
 describe("publicRepoUrl", () => {
   test("puts the repository in the path and the rest in the query", () => {
-    const url = publicRepoUrl(REPO, "log", { repository: REPO, ref: "main", path: "src", page: 2 });
+    const url = publicRepoUrl(REPO, "log", {
+      repository: REPO,
+      ref: "main",
+      path: "src",
+      page: 2,
+    });
     const parsed = new URL(url!);
     expect(parsed.pathname).toBe(`/cli/public/repo/${REPO}/log`);
     expect(parsed.searchParams.get("ref")).toBe("main");
@@ -20,7 +29,11 @@ describe("publicRepoUrl", () => {
   });
 
   test("drops what is not set and spells booleans the way the route reads them", () => {
-    const url = publicRepoUrl(REPO, "tree", { ref: "main", recursive: true, path: undefined });
+    const url = publicRepoUrl(REPO, "tree", {
+      ref: "main",
+      recursive: true,
+      path: undefined,
+    });
     expect(new URL(url!).searchParams.get("recursive")).toBe("1");
     expect(new URL(url!).searchParams.get("path")).toBeNull();
   });

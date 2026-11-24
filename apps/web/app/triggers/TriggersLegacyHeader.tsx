@@ -9,7 +9,9 @@ export function TriggersLegacyHeader({ action }: { action: ReactNode }) {
   return (
     <div ref={titlebarRef} className="flex gap-2 items-center mb-5">
       <Zap className="w-4 h-4 text-sol-amber" />
-      <h1 className="text-lg font-semibold text-sol-text whitespace-nowrap">Triggers</h1>
+      <h1 className="text-lg font-semibold text-sol-text whitespace-nowrap">
+        Triggers
+      </h1>
       {action}
     </div>
   );

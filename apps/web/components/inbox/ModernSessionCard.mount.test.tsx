@@ -8,7 +8,10 @@ import { JSDOM } from "jsdom";
 import { replaceGlobals } from "../../test-helpers/globals";
 import { closeDomWindow } from "../../test-helpers/domGlobals";
 
-const dom = new JSDOM("<!doctype html><html class=\"modern-style\"><body></body></html>", { url: "https://app.test/inbox", pretendToBeVisual: true });
+const dom = new JSDOM(
+  '<!doctype html><html class="modern-style"><body></body></html>',
+  { url: "https://app.test/inbox", pretendToBeVisual: true },
+);
 const restoreGlobals = replaceGlobals({
   window: dom.window,
   document: dom.window.document,
@@ -26,20 +29,31 @@ const restoreGlobals = replaceGlobals({
   KeyboardEvent: dom.window.KeyboardEvent,
   DocumentFragment: dom.window.DocumentFragment,
   MutationObserver: dom.window.MutationObserver,
-  requestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0),
+  requestAnimationFrame: (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(0), 0),
   cancelAnimationFrame: (id: number) => clearTimeout(id),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
-(globalThis as any).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
-(globalThis as any).getComputedStyle ??= dom.window.getComputedStyle.bind(dom.window);
-afterAll(() => { closeDomWindow(dom); restoreGlobals(); });
+(globalThis as any).ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+(globalThis as any).getComputedStyle ??= dom.window.getComputedStyle.bind(
+  dom.window,
+);
+afterAll(() => {
+  closeDomWindow(dom);
+  restoreGlobals();
+});
 
 const React = await import("react");
 const { act, Profiler } = React;
 const { createRoot } = await import("react-dom/client");
 const { ConvexProvider } = await import("convex/react");
 const { MemoryRouter } = await import("react-router");
-const { offlineConvexClient } = await import("../../test-helpers/offlineConvex");
+const { offlineConvexClient } =
+  await import("../../test-helpers/offlineConvex");
 const { ThemeContext } = await import("../ThemeProvider");
 const { useInboxStore } = await import("../../store/inboxStore");
 const { SessionCard } = await import("./SessionCard");
@@ -66,10 +80,18 @@ const row = {
   idle_summary: "Made the retry idempotent",
 } as any;
 
-useInboxStore.setState({ currentUser: { _id: "me", name: "Me" }, clientStateInitialized: true } as any);
+useInboxStore.setState({
+  currentUser: { _id: "me", name: "Me" },
+  clientStateInitialized: true,
+} as any);
 useInboxStore.getState().syncTable("sessions", [row]);
 
-const MODERN = { theme: "light", toggleTheme: () => {}, visualStyle: "modern", setVisualStyle: () => {} } as any;
+const MODERN = {
+  theme: "light",
+  toggleTheme: () => {},
+  visualStyle: "modern",
+  setVisualStyle: () => {},
+} as any;
 const convex = offlineConvexClient("https://example.convex.cloud");
 const calls: string[] = [];
 let commits = 0;
@@ -81,16 +103,25 @@ const card = (props: Record<string, unknown> = {}) => (
   <ThemeContext.Provider value={MODERN}>
     <MemoryRouter>
       <ConvexProvider client={convex}>
-        <Profiler id="card" onRender={() => { commits++; }}>
+        <Profiler
+          id="card"
+          onRender={() => {
+            commits++;
+          }}
+        >
           <SessionCard
             session={row}
             isActive={false}
             globalIndex={0}
             sectionStatus="blocked"
-            onSelect={(s, e) => calls.push(`select ${s._id} ${e ? "click" : "key"}`)}
+            onSelect={(s, e) =>
+              calls.push(`select ${s._id} ${e ? "click" : "key"}`)
+            }
             onClose={(id) => calls.push(`close ${id}`)}
             onPin={(id) => calls.push(`pin ${id}`)}
-            onCardContextMenu={(_e, s, foreign) => calls.push(`menu ${s._id} ${foreign}`)}
+            onCardContextMenu={(_e, s, foreign) =>
+              calls.push(`menu ${s._id} ${foreign}`)
+            }
             sessionLabel={null}
             isFavorite={false}
             {...props}
@@ -100,22 +131,37 @@ const card = (props: Record<string, unknown> = {}) => (
     </MemoryRouter>
   </ThemeContext.Provider>
 );
-await act(async () => { root.render(card()); });
+await act(async () => {
+  root.render(card());
+});
 
-const press = (el: Element | null) => act(async () => { el!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+const press = (el: Element | null) =>
+  act(async () => {
+    el!.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
 
 describe("the Modern card, mounted", () => {
   test("draws one card with the state's word for its section", () => {
     expect(host.querySelectorAll("[data-session-id]")).toHaveLength(1);
-    expect(host.querySelector("[data-session-id]")!.getAttribute("data-mc-status")).toBe("needs_you");
-    expect(host.querySelector("[data-status-word]")!.textContent).toBe("Needs you");
-    expect(host.querySelector("[data-sv-title]")!.textContent).toBe("Fix the auth race");
+    expect(
+      host.querySelector("[data-session-id]")!.getAttribute("data-mc-status"),
+    ).toBe("needs_you");
+    expect(host.querySelector("[data-status-word]")!.textContent).toBe(
+      "Needs you",
+    );
+    expect(host.querySelector("[data-sv-title]")!.textContent).toBe(
+      "Fix the auth race",
+    );
   });
 
   test("its three actions sit in one row, Close last, and each reaches its handler", async () => {
     const tools = host.querySelector("[data-mc-tools]")!;
     const buttons = [...tools.querySelectorAll("button")];
-    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(["Pin", "Label session", "Close"]);
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Pin",
+      "Label session",
+      "Close",
+    ]);
     // One row: every action is a direct child of the toolbar, which lays
     // them out side by side (flex, no wrap, no column).
     expect(buttons.every((b) => b.parentElement === tools)).toBe(true);
@@ -126,7 +172,11 @@ describe("the Modern card, mounted", () => {
     expect(tools.className).toContain("group-focus-within:opacity-100");
     let opened = false;
     const openPalette = useInboxStore.getState().openPalette;
-    useInboxStore.setState({ openPalette: (() => { opened = true; }) as any });
+    useInboxStore.setState({
+      openPalette: (() => {
+        opened = true;
+      }) as any,
+    });
     calls.length = 0;
     for (const b of buttons) await press(b);
     useInboxStore.setState({ openPalette });
@@ -138,27 +188,67 @@ describe("the Modern card, mounted", () => {
     calls.length = 0;
     const body = host.querySelector("[data-session-id] > [role=button]")!;
     await press(body);
-    await act(async () => { body.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
-    await act(async () => { host.querySelector("[data-session-id]")!.dispatchEvent(new dom.window.MouseEvent("contextmenu", { bubbles: true })); });
-    expect(calls).toEqual([`select ${ID} click`, `select ${ID} key`, `menu ${ID} false`]);
+    await act(async () => {
+      body.dispatchEvent(
+        new dom.window.KeyboardEvent("keydown", {
+          key: "Enter",
+          bubbles: true,
+        }),
+      );
+    });
+    await act(async () => {
+      host
+        .querySelector("[data-session-id]")!
+        .dispatchEvent(
+          new dom.window.MouseEvent("contextmenu", { bubbles: true }),
+        );
+    });
+    expect(calls).toEqual([
+      `select ${ID} click`,
+      `select ${ID} key`,
+      `menu ${ID} false`,
+    ]);
   });
 
   test("unread draws the edge bar; read does not", async () => {
     expect(host.querySelector("[data-mc-unread-bar]")).toBeNull();
-    await act(async () => { root.render(card({ isUnread: true })); });
+    await act(async () => {
+      root.render(card({ isUnread: true }));
+    });
     expect(host.querySelector("[data-mc-unread-bar]")).not.toBeNull();
-    expect(host.querySelector("[data-session-id]")!.getAttribute("data-mc-unread")).toBe("true");
-    await act(async () => { root.render(card()); });
+    expect(
+      host.querySelector("[data-session-id]")!.getAttribute("data-mc-unread"),
+    ).toBe("true");
+    await act(async () => {
+      root.render(card());
+    });
   });
 
   test("a heartbeat on its session commits nothing and changes nothing in the DOM", async () => {
     let mutations = 0;
-    const mo = new dom.window.MutationObserver((records) => { mutations += records.length; });
-    mo.observe(host, { subtree: true, childList: true, attributes: true, characterData: true });
+    const mo = new dom.window.MutationObserver((records) => {
+      mutations += records.length;
+    });
+    mo.observe(host, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
     commits = 0;
     await act(async () => {
       const current = useInboxStore.getState().sessions[ID] as any;
-      useInboxStore.getState().syncTable("sessions", [{ ...current, last_heartbeat: Date.now(), updated_at: current.updated_at }] as any, { isDelta: true } as any);
+      useInboxStore.getState().syncTable(
+        "sessions",
+        [
+          {
+            ...current,
+            last_heartbeat: Date.now(),
+            updated_at: current.updated_at,
+          },
+        ] as any,
+        { isDelta: true } as any,
+      );
     });
     mutations += mo.takeRecords().length;
     mo.disconnect();
@@ -167,13 +257,31 @@ describe("the Modern card, mounted", () => {
   });
 
   test("a set-aside card offers Restore and Kill in the same row", async () => {
-    await act(async () => { root.render(card({ variant: "stashed", onRestore: (id: string) => calls.push(`restore ${id}`), onKill: (id: string) => calls.push(`kill-aside ${id}`), onClose: undefined, onPin: undefined })); });
+    await act(async () => {
+      root.render(
+        card({
+          variant: "stashed",
+          onRestore: (id: string) => calls.push(`restore ${id}`),
+          onKill: (id: string) => calls.push(`kill-aside ${id}`),
+          onClose: undefined,
+          onPin: undefined,
+        }),
+      );
+    });
     const tools = host.querySelector("[data-mc-tools]")!;
-    expect([...tools.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Restore", "Kill"]);
-    expect(host.querySelector("[data-status-word]")!.textContent).toBe("Stashed");
+    expect(
+      [...tools.querySelectorAll("button")].map((b) =>
+        b.getAttribute("aria-label"),
+      ),
+    ).toEqual(["Restore", "Kill"]);
+    expect(host.querySelector("[data-status-word]")!.textContent).toBe(
+      "Stashed",
+    );
     calls.length = 0;
     for (const b of tools.querySelectorAll("button")) await press(b);
     expect(calls).toEqual([`restore ${ID}`, `kill-aside ${ID}`]);
-    await act(async () => { root.unmount(); });
+    await act(async () => {
+      root.unmount();
+    });
   });
 });

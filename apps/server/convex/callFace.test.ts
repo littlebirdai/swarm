@@ -2,9 +2,28 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { mirrorAgentTurn } from "./callChat";
 import { syncAgentFeeds } from "./transcripts";
-import { ask, brief, dispatchFace, ensureFaces, FACE_HOST_AGENT, FACE_IDS, STYLIZED_FACES, FACE_TOPIC, faceForAvatar, handleFaceRequest, join, leave, removeAgent, said, tell } from "./callFace";
+import {
+  ask,
+  brief,
+  dispatchFace,
+  ensureFaces,
+  FACE_HOST_AGENT,
+  FACE_IDS,
+  STYLIZED_FACES,
+  FACE_TOPIC,
+  faceForAvatar,
+  handleFaceRequest,
+  join,
+  leave,
+  removeAgent,
+  said,
+  tell,
+} from "./callFace";
 import { makeFakeDb } from "./testDb";
-import { huddleVoiceAskHeader, ownRoomChunkHeader } from "@codecast/shared/contracts";
+import {
+  huddleVoiceAskHeader,
+  ownRoomChunkHeader,
+} from "@codecast/shared/contracts";
 
 // An agent fed live into a huddle gets a face in the room when its team has
 // agent_faces on, and a live model behind it with agent_realtime too: the
@@ -29,7 +48,11 @@ function ctxWith(tables: Record<string, any[]>) {
 const faceCalls = (ctx: { _scheduled: { name: string; args: any }[] }) =>
   ctx._scheduled.filter((s) => s.name.startsWith("callFace:"));
 
-const team = (faces = true, realtime = true) => ({ _id: "team1", name: "Team", features: { agent_faces: faces, agent_realtime: realtime } });
+const team = (faces = true, realtime = true) => ({
+  _id: "team1",
+  name: "Team",
+  features: { agent_faces: faces, agent_realtime: realtime },
+});
 const transcript = (over: Record<string, unknown> = {}) => ({
   _id: "t1",
   room_key: "session:conv1",
@@ -37,13 +60,36 @@ const transcript = (over: Record<string, unknown> = {}) => ({
   started_by: "ua",
   status: "live",
   started_at: 1_000,
-  routes: [{ kind: "session", target: "conv1", mode: "live", sent_seq: 0, added_by: "ua" }],
+  routes: [
+    {
+      kind: "session",
+      target: "conv1",
+      mode: "live",
+      sent_seq: 0,
+      added_by: "ua",
+    },
+  ],
   last_seq: 0,
   ...over,
 });
-const conversation = { _id: "conv1", short_id: "conv1", title: "Fix the auth race", agent_type: "claude_code", user_id: "ua", character_avatar: "fox", character_name: "Ember" };
+const conversation = {
+  _id: "conv1",
+  short_id: "conv1",
+  title: "Fix the auth race",
+  agent_type: "claude_code",
+  user_id: "ua",
+  character_avatar: "fox",
+  character_name: "Ember",
+};
 const feed = (over: Record<string, unknown> = {}) => ({
-  _id: "f1", conversation_id: "conv1", transcript_id: "t1", room_key: "session:conv1", team_id: "team1", added_by: "ua", last_mirrored_message_id: "m1", ...over,
+  _id: "f1",
+  conversation_id: "conv1",
+  transcript_id: "t1",
+  room_key: "session:conv1",
+  team_id: "team1",
+  added_by: "ua",
+  last_mirrored_message_id: "m1",
+  ...over,
 });
 
 const ENV = {
@@ -80,8 +126,18 @@ const LK = "https://lk.example/twirp/livekit.";
 
 describe("the flags", () => {
   test("faces off, or unset, a feed joins nothing and its replies go to chat only, real-time on or not", async () => {
-    for (const teams of [[team(false)], [team(false, false)], [{ _id: "team1", name: "Team" }]]) {
-      const ctx = ctxWith({ teams, transcripts: [transcript()], conversations: [conversation], call_agent_feeds: [], messages: [] });
+    for (const teams of [
+      [team(false)],
+      [team(false, false)],
+      [{ _id: "team1", name: "Team" }],
+    ]) {
+      const ctx = ctxWith({
+        teams,
+        transcripts: [transcript()],
+        conversations: [conversation],
+        call_agent_feeds: [],
+        messages: [],
+      });
       await syncAgentFeeds(ctx, transcript() as any);
       expect(ctx.db._tables.call_agent_feeds).toHaveLength(1);
       expect(faceCalls(ctx)).toEqual([]);
@@ -90,46 +146,106 @@ describe("the flags", () => {
 
   test("faces on, a feed row inserted sends the face in, real-time only when that is on too", async () => {
     for (const realtime of [false, true]) {
-      const ctx = ctxWith({ teams: [team(true, realtime)], transcripts: [transcript()], conversations: [conversation], call_agent_feeds: [], messages: [] });
+      const ctx = ctxWith({
+        teams: [team(true, realtime)],
+        transcripts: [transcript()],
+        conversations: [conversation],
+        call_agent_feeds: [],
+        messages: [],
+      });
       await syncAgentFeeds(ctx, transcript() as any);
       const row = ctx.db._tables.call_agent_feeds[0];
-      expect(faceCalls(ctx)).toEqual([{ name: "callFace:join", args: { feed_id: row._id, realtime } }]);
+      expect(faceCalls(ctx)).toEqual([
+        { name: "callFace:join", args: { feed_id: row._id, realtime } },
+      ]);
     }
   });
 
   test("on, but the worker unconfigured, nothing joins", async () => {
     delete process.env.FACE_WORKER_SECRET;
-    const ctx = ctxWith({ transcripts: [transcript()], conversations: [conversation], call_agent_feeds: [], messages: [] });
+    const ctx = ctxWith({
+      transcripts: [transcript()],
+      conversations: [conversation],
+      call_agent_feeds: [],
+      messages: [],
+    });
     await syncAgentFeeds(ctx, transcript() as any);
     expect(faceCalls(ctx)).toEqual([]);
   });
 
   test("without real-time on, the worker's requests reach nothing", async () => {
     for (const teams of [[team(false)], [team(true, false)]]) {
-      const ctx = ctxWith({ teams, call_agent_feeds: [feed()], transcripts: [transcript()], conversations: [conversation], messages: [] });
-      expect(await call(brief, ctx, { conversation_id: "conv1", room_key: "session:conv1" })).toBeNull();
-      expect(await call(ask, ctx, { conversation_id: "conv1", room_key: "session:conv1", text: "look" })).toBe(false);
+      const ctx = ctxWith({
+        teams,
+        call_agent_feeds: [feed()],
+        transcripts: [transcript()],
+        conversations: [conversation],
+        messages: [],
+      });
+      expect(
+        await call(brief, ctx, {
+          conversation_id: "conv1",
+          room_key: "session:conv1",
+        }),
+      ).toBeNull();
+      expect(
+        await call(ask, ctx, {
+          conversation_id: "conv1",
+          room_key: "session:conv1",
+          text: "look",
+        }),
+      ).toBe(false);
     }
   });
 });
 
 describe("an agent added without its video avatar", () => {
-  const noFace = () => transcript({ routes: [{ kind: "session", target: "conv1", mode: "live", sent_seq: 0, added_by: "ua", face: false }] });
+  const noFace = () =>
+    transcript({
+      routes: [
+        {
+          kind: "session",
+          target: "conv1",
+          mode: "live",
+          sent_seq: 0,
+          added_by: "ua",
+          face: false,
+        },
+      ],
+    });
 
   test("joins the room as a session only: no face, no voice, no worker requests", async () => {
-    const ctx = ctxWith({ transcripts: [noFace()], conversations: [conversation], call_agent_feeds: [], messages: [] });
+    const ctx = ctxWith({
+      transcripts: [noFace()],
+      conversations: [conversation],
+      call_agent_feeds: [],
+      messages: [],
+    });
     await syncAgentFeeds(ctx, noFace() as any);
     expect(ctx.db._tables.call_agent_feeds).toHaveLength(1);
     expect(ctx.db._tables.call_agent_feeds[0].face).toBe(false);
     expect(faceCalls(ctx)).toEqual([]);
-    expect(await call(brief, ctx, { conversation_id: "conv1", room_key: "session:conv1" })).toBeNull();
+    expect(
+      await call(brief, ctx, {
+        conversation_id: "conv1",
+        room_key: "session:conv1",
+      }),
+    ).toBeNull();
   });
 
   test("its replies stay in the chat and are never told", async () => {
     const ctx = ctxWith({
       call_agent_feeds: [feed({ face: false })],
       transcripts: [noFace()],
-      messages: [{ _id: "m2", conversation_id: "conv1", role: "assistant", content: "Found it.", timestamp: 2 }],
+      messages: [
+        {
+          _id: "m2",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Found it.",
+          timestamp: 2,
+        },
+      ],
       call_chat_messages: [],
     });
     await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
@@ -138,14 +254,26 @@ describe("an agent added without its video avatar", () => {
   });
 
   test("turning the avatar off mid-call takes the face out and keeps the agent; on again seats it", async () => {
-    const ctx = ctxWith({ transcripts: [noFace()], conversations: [conversation], call_agent_feeds: [feed()], messages: [] });
+    const ctx = ctxWith({
+      transcripts: [noFace()],
+      conversations: [conversation],
+      call_agent_feeds: [feed()],
+      messages: [],
+    });
     await syncAgentFeeds(ctx, noFace() as any);
     expect(ctx.db._tables.call_agent_feeds).toHaveLength(1);
-    expect(faceCalls(ctx)).toEqual([{ name: "callFace:leave", args: { room_key: "session:conv1", conversation_id: "conv1" } }]);
+    expect(faceCalls(ctx)).toEqual([
+      {
+        name: "callFace:leave",
+        args: { room_key: "session:conv1", conversation_id: "conv1" },
+      },
+    ]);
     ctx._scheduled.length = 0;
     await syncAgentFeeds(ctx, transcript() as any);
     expect(ctx.db._tables.call_agent_feeds[0].face).toBeUndefined();
-    expect(faceCalls(ctx)).toEqual([{ name: "callFace:join", args: { feed_id: "f1", realtime: true } }]);
+    expect(faceCalls(ctx)).toEqual([
+      { name: "callFace:join", args: { feed_id: "f1", realtime: true } },
+    ]);
   });
 });
 
@@ -153,18 +281,53 @@ describe("an agent added without its video avatar", () => {
 // result that prints the worker's id.
 function workerStart(id: string, at: number) {
   return [
-    { _id: `launch-${id}`, conversation_id: "conv1", role: "assistant", content: "", tool_calls: [{ id: `t-${id}`, name: "Agent", input: "{}" }], timestamp: at },
-    { _id: `started-${id}`, conversation_id: "conv1", role: "user", tool_results: [{ tool_use_id: `t-${id}`, content: `Async agent launched. agentId: ${id}` }], timestamp: at + 0.5 },
+    {
+      _id: `launch-${id}`,
+      conversation_id: "conv1",
+      role: "assistant",
+      content: "",
+      tool_calls: [{ id: `t-${id}`, name: "Agent", input: "{}" }],
+      timestamp: at,
+    },
+    {
+      _id: `started-${id}`,
+      conversation_id: "conv1",
+      role: "user",
+      tool_results: [
+        {
+          tool_use_id: `t-${id}`,
+          content: `Async agent launched. agentId: ${id}`,
+        },
+      ],
+      timestamp: at + 0.5,
+    },
   ];
 }
-const askRow = (at: number) => ({ _id: `ask-${at}`, conversation_id: "conv1", role: "user", content: `${huddleVoiceAskHeader("Ember", "Ada")}\n\nWhat changed?`, timestamp: at });
-const taskNotification = (id: string) => `<task-notification>\n<task-id>${id}</task-id>\n<status>completed</status>\n</task-notification>`;
+const askRow = (at: number) => ({
+  _id: `ask-${at}`,
+  conversation_id: "conv1",
+  role: "user",
+  content: `${huddleVoiceAskHeader("Ember", "Ada")}\n\nWhat changed?`,
+  timestamp: at,
+});
+const taskNotification = (id: string) =>
+  `<task-notification>\n<task-id>${id}</task-id>\n<status>completed</status>\n</task-notification>`;
 
 describe("a voice's lifetime is its feed row", () => {
   test("a feed removed or ended takes the voice out of the room", async () => {
-    const ctx = ctxWith({ transcripts: [], conversations: [conversation], call_agent_feeds: [feed()], messages: [] });
+    const ctx = ctxWith({
+      transcripts: [],
+      conversations: [conversation],
+      call_agent_feeds: [feed()],
+      messages: [],
+    });
     await syncAgentFeeds(ctx, transcript({ status: "ended" }) as any);
-    expect(faceCalls(ctx)).toEqual([{ name: "callFace:leave", args: { room_key: "session:conv1", conversation_id: "conv1" } }]);
+    expect(faceCalls(ctx)).toEqual([
+      {
+        name: "callFace:leave",
+        args: { room_key: "session:conv1", conversation_id: "conv1" },
+      },
+    ]);
   });
 
   test("a mirrored reply is told as plain words; a passed turn tells nothing", async () => {
@@ -172,23 +335,54 @@ describe("a voice's lifetime is its feed row", () => {
       call_agent_feeds: [feed({ addressed_at: Date.now() })],
       transcripts: [transcript()],
       messages: [
-        { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
+        {
+          _id: "m1",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "earlier",
+          timestamp: 1,
+        },
         askRow(1.5),
-        { _id: "m2", conversation_id: "conv1", role: "assistant", content: "The **fix** is in `auth.ts`:\n```ts\nconst x = 1;\n```\nShip it.", timestamp: 2 },
+        {
+          _id: "m2",
+          conversation_id: "conv1",
+          role: "assistant",
+          content:
+            "The **fix** is in `auth.ts`:\n```ts\nconst x = 1;\n```\nShip it.",
+          timestamp: 2,
+        },
       ],
       call_chat_messages: [],
     });
     await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
     expect(faceCalls(ctx)).toEqual([
-      { name: "callFace:tell", args: { room_key: "session:conv1", conversation_id: "conv1", text: "The fix is in auth.ts: Ship it." } },
+      {
+        name: "callFace:tell",
+        args: {
+          room_key: "session:conv1",
+          conversation_id: "conv1",
+          text: "The fix is in auth.ts: Ship it.",
+        },
+      },
     ]);
     const passed = ctxWith({
       call_agent_feeds: [feed({ addressed_at: Date.now() })],
       transcripts: [transcript()],
-      messages: [{ _id: "m2", conversation_id: "conv1", role: "assistant", content: "[pass]", timestamp: 2 }],
+      messages: [
+        {
+          _id: "m2",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "[pass]",
+          timestamp: 2,
+        },
+      ],
       call_chat_messages: [],
     });
-    await call(mirrorAgentTurn, passed, { conversation_id: "conv1", attempt: 0 });
+    await call(mirrorAgentTurn, passed, {
+      conversation_id: "conv1",
+      attempt: 0,
+    });
     expect(faceCalls(passed)).toEqual([]);
     // A pass spends nothing: the reply that answers the ask is still to come.
     expect(passed.db._tables.call_agent_feeds[0].addressed_at).toBeNumber();
@@ -197,13 +391,35 @@ describe("a voice's lifetime is its feed row", () => {
   // cl-158:548: the voice told the room "the session just finished" when
   // nobody had asked. What the session offers unasked is for the chat.
   test("a reply nobody asked for stays in the chat and is never said", async () => {
-    const reply = { _id: "m2", conversation_id: "conv1", role: "assistant", content: "The doc is built and in the chat.", timestamp: 2 };
-    const unasked = ctxWith({ call_agent_feeds: [feed()], transcripts: [transcript()], messages: [reply], call_chat_messages: [] });
-    await call(mirrorAgentTurn, unasked, { conversation_id: "conv1", attempt: 0 });
+    const reply = {
+      _id: "m2",
+      conversation_id: "conv1",
+      role: "assistant",
+      content: "The doc is built and in the chat.",
+      timestamp: 2,
+    };
+    const unasked = ctxWith({
+      call_agent_feeds: [feed()],
+      transcripts: [transcript()],
+      messages: [reply],
+      call_chat_messages: [],
+    });
+    await call(mirrorAgentTurn, unasked, {
+      conversation_id: "conv1",
+      attempt: 0,
+    });
     expect(unasked.db._tables.call_chat_messages).toHaveLength(1);
     expect(faceCalls(unasked)).toEqual([]);
-    const stale = ctxWith({ call_agent_feeds: [feed({ addressed_at: Date.now() - 11 * 60_000 })], transcripts: [transcript()], messages: [reply], call_chat_messages: [] });
-    await call(mirrorAgentTurn, stale, { conversation_id: "conv1", attempt: 0 });
+    const stale = ctxWith({
+      call_agent_feeds: [feed({ addressed_at: Date.now() - 11 * 60_000 })],
+      transcripts: [transcript()],
+      messages: [reply],
+      call_chat_messages: [],
+    });
+    await call(mirrorAgentTurn, stale, {
+      conversation_id: "conv1",
+      attempt: 0,
+    });
     expect(faceCalls(stale)).toEqual([]);
   });
 
@@ -214,20 +430,53 @@ describe("a voice's lifetime is its feed row", () => {
       call_agent_feeds: [feed({ addressed_at: Date.now() })],
       transcripts: [transcript()],
       messages: [
-        { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
-        { _id: "u1", conversation_id: "conv1", role: "user", content: `${huddleVoiceAskHeader("Ember", "Ada")}\n\nWhy does refresh race?`, timestamp: 2 },
+        {
+          _id: "m1",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "earlier",
+          timestamp: 1,
+        },
+        {
+          _id: "u1",
+          conversation_id: "conv1",
+          role: "user",
+          content: `${huddleVoiceAskHeader("Ember", "Ada")}\n\nWhy does refresh race?`,
+          timestamp: 2,
+        },
         ...workerStart("a6d86171", 3),
-        { _id: "m2", conversation_id: "conv1", role: "assistant", content: "Looking into it; a page is coming.", timestamp: 4 },
+        {
+          _id: "m2",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Looking into it; a page is coming.",
+          timestamp: 4,
+        },
       ],
       call_chat_messages: [],
     });
     await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
     ctx.db._tables.messages.push(
-      { _id: "u2", conversation_id: "conv1", role: "user", content: taskNotification("a6d86171"), timestamp: 5 },
-      { _id: "m3", conversation_id: "conv1", role: "assistant", content: "Refresh races on the token write.", timestamp: 6 },
+      {
+        _id: "u2",
+        conversation_id: "conv1",
+        role: "user",
+        content: taskNotification("a6d86171"),
+        timestamp: 5,
+      },
+      {
+        _id: "m3",
+        conversation_id: "conv1",
+        role: "assistant",
+        content: "Refresh races on the token write.",
+        timestamp: 6,
+      },
     );
     await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
-    expect(faceCalls(ctx).map((c) => c.args.text)).toEqual(["Looking into it; a page is coming.", "Refresh races on the token write."]);
+    expect(faceCalls(ctx).map((c) => c.args.text)).toEqual([
+      "Looking into it; a page is coming.",
+      "Refresh races on the token write.",
+    ]);
   });
 
   // The session starts pages on room talk nobody addressed to it. Someone
@@ -237,23 +486,59 @@ describe("a voice's lifetime is its feed row", () => {
     const roomTalk = `${ownRoomChunkHeader({ name: "Ember", lane: "context", held: false, full: true })}\n\nAda: how does refresh even work?`;
     const reports = [
       { id: "a6d86171", text: taskNotification("a6d86171") },
-      { id: "jx7a838", text: `<scheduled-task title="Worker jx7a838 finished">\n<worker-report id="jx7a838" title="Refresh page" why="done" since="1">Page published</worker-report>\n</scheduled-task>` },
+      {
+        id: "jx7a838",
+        text: `<scheduled-task title="Worker jx7a838 finished">\n<worker-report id="jx7a838" title="Refresh page" why="done" since="1">Page published</worker-report>\n</scheduled-task>`,
+      },
     ];
     for (const { id, text } of reports) {
       const ctx = ctxWith({
         call_agent_feeds: [feed({ addressed_at: Date.now() })],
         transcripts: [transcript()],
         messages: [
-          { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
-          { _id: "u1", conversation_id: "conv1", role: "user", content: roomTalk, timestamp: 2 },
+          {
+            _id: "m1",
+            conversation_id: "conv1",
+            role: "assistant",
+            content: "earlier",
+            timestamp: 1,
+          },
+          {
+            _id: "u1",
+            conversation_id: "conv1",
+            role: "user",
+            content: roomTalk,
+            timestamp: 2,
+          },
           ...workerStart(id, 3),
-          { _id: "m2", conversation_id: "conv1", role: "assistant", content: "Building a page on how refresh works.", timestamp: 4 },
-          { _id: "u2", conversation_id: "conv1", role: "user", content: text, timestamp: 5 },
-          { _id: "m3", conversation_id: "conv1", role: "assistant", content: "Refresh page is up.", timestamp: 6 },
+          {
+            _id: "m2",
+            conversation_id: "conv1",
+            role: "assistant",
+            content: "Building a page on how refresh works.",
+            timestamp: 4,
+          },
+          {
+            _id: "u2",
+            conversation_id: "conv1",
+            role: "user",
+            content: text,
+            timestamp: 5,
+          },
+          {
+            _id: "m3",
+            conversation_id: "conv1",
+            role: "assistant",
+            content: "Refresh page is up.",
+            timestamp: 6,
+          },
         ],
         call_chat_messages: [],
       });
-      await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
+      await call(mirrorAgentTurn, ctx, {
+        conversation_id: "conv1",
+        attempt: 0,
+      });
       expect(ctx.db._tables.call_chat_messages).toHaveLength(2);
       expect(faceCalls(ctx)).toEqual([]);
     }
@@ -274,20 +559,53 @@ describe("a voice's lifetime is its feed row", () => {
           call_agent_feeds: [feed({ addressed_at: Date.now() })],
           transcripts: [transcript()],
           messages: [
-            { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
-            { _id: "u1", conversation_id: "conv1", role: "user", content, timestamp: 2 },
+            {
+              _id: "m1",
+              conversation_id: "conv1",
+              role: "assistant",
+              content: "earlier",
+              timestamp: 1,
+            },
+            {
+              _id: "u1",
+              conversation_id: "conv1",
+              role: "user",
+              content,
+              timestamp: 2,
+            },
             ...(viaWorker
               ? [
                   ...workerStart("a6d86171", 3),
-                  { _id: "m2", conversation_id: "conv1", role: "assistant", content: "Started a check.", timestamp: 4 },
-                  { _id: "u2", conversation_id: "conv1", role: "user", content: taskNotification("a6d86171"), timestamp: 5 },
+                  {
+                    _id: "m2",
+                    conversation_id: "conv1",
+                    role: "assistant",
+                    content: "Started a check.",
+                    timestamp: 4,
+                  },
+                  {
+                    _id: "u2",
+                    conversation_id: "conv1",
+                    role: "user",
+                    content: taskNotification("a6d86171"),
+                    timestamp: 5,
+                  },
                 ]
               : []),
-            { _id: "m3", conversation_id: "conv1", role: "assistant", content: "CI is green.", timestamp: 6 },
+            {
+              _id: "m3",
+              conversation_id: "conv1",
+              role: "assistant",
+              content: "CI is green.",
+              timestamp: 6,
+            },
           ],
           call_chat_messages: [],
         });
-        await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
+        await call(mirrorAgentTurn, ctx, {
+          conversation_id: "conv1",
+          attempt: 0,
+        });
         expect(ctx.db._tables.call_chat_messages.length).toBeGreaterThan(0);
         expect(faceCalls(ctx)).toEqual([]);
       }
@@ -302,15 +620,59 @@ describe("a voice's lifetime is its feed row", () => {
       call_agent_feeds: [feed({ addressed_at: Date.now() })],
       transcripts: [transcript()],
       messages: [
-        { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
-        { _id: "u1", conversation_id: "conv1", role: "user", content: roomTalk, timestamp: 2 },
+        {
+          _id: "m1",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "earlier",
+          timestamp: 1,
+        },
+        {
+          _id: "u1",
+          conversation_id: "conv1",
+          role: "user",
+          content: roomTalk,
+          timestamp: 2,
+        },
         ...workerStart("a6d86171", 3),
-        { _id: "m2", conversation_id: "conv1", role: "assistant", content: "Building a page.", timestamp: 4 },
+        {
+          _id: "m2",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Building a page.",
+          timestamp: 4,
+        },
         askRow(5),
-        { _id: "check", conversation_id: "conv1", role: "user", tool_results: [{ tool_use_id: "t-check", content: "a6d86171 is still running" }], timestamp: 6 },
-        { _id: "m3", conversation_id: "conv1", role: "assistant", content: "Still building.", timestamp: 7 },
-        { _id: "u3", conversation_id: "conv1", role: "user", content: taskNotification("a6d86171"), timestamp: 8 },
-        { _id: "m4", conversation_id: "conv1", role: "assistant", content: "Refresh page is up.", timestamp: 9 },
+        {
+          _id: "check",
+          conversation_id: "conv1",
+          role: "user",
+          tool_results: [
+            { tool_use_id: "t-check", content: "a6d86171 is still running" },
+          ],
+          timestamp: 6,
+        },
+        {
+          _id: "m3",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Still building.",
+          timestamp: 7,
+        },
+        {
+          _id: "u3",
+          conversation_id: "conv1",
+          role: "user",
+          content: taskNotification("a6d86171"),
+          timestamp: 8,
+        },
+        {
+          _id: "m4",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Refresh page is up.",
+          timestamp: 9,
+        },
       ],
       call_chat_messages: [],
     });
@@ -319,19 +681,41 @@ describe("a voice's lifetime is its feed row", () => {
   });
 
   test("while an ask is open, a reply to room talk nobody addressed to it stays in the chat", async () => {
-    const roomTalk = (full: boolean) => `${ownRoomChunkHeader({ name: "Ember", lane: "context", held: false, full })}\n\nAda: the build is red`;
+    const roomTalk = (full: boolean) =>
+      `${ownRoomChunkHeader({ name: "Ember", lane: "context", held: false, full })}\n\nAda: the build is red`;
     for (const full of [true, false]) {
       const ctx = ctxWith({
         call_agent_feeds: [feed({ addressed_at: Date.now() })],
         transcripts: [transcript()],
         messages: [
-          { _id: "m1", conversation_id: "conv1", role: "assistant", content: "earlier", timestamp: 1 },
-          { _id: "u1", conversation_id: "conv1", role: "user", content: roomTalk(full), timestamp: 2 },
-          { _id: "m2", conversation_id: "conv1", role: "assistant", content: "CI is red on main since the auth change.", timestamp: 3 },
+          {
+            _id: "m1",
+            conversation_id: "conv1",
+            role: "assistant",
+            content: "earlier",
+            timestamp: 1,
+          },
+          {
+            _id: "u1",
+            conversation_id: "conv1",
+            role: "user",
+            content: roomTalk(full),
+            timestamp: 2,
+          },
+          {
+            _id: "m2",
+            conversation_id: "conv1",
+            role: "assistant",
+            content: "CI is red on main since the auth change.",
+            timestamp: 3,
+          },
         ],
         call_chat_messages: [],
       });
-      await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
+      await call(mirrorAgentTurn, ctx, {
+        conversation_id: "conv1",
+        attempt: 0,
+      });
       expect(ctx.db._tables.call_chat_messages).toHaveLength(1);
       expect(faceCalls(ctx)).toEqual([]);
     }
@@ -343,26 +727,52 @@ test("a page link is shown in the chat and never read aloud", async () => {
     call_agent_feeds: [feed({ addressed_at: Date.now() })],
     transcripts: [transcript()],
     // The ask sits before the first mirror's window: the turn's prompt is read back.
-    messages: [askRow(1), { _id: "m2", conversation_id: "conv1", role: "assistant", content: "Here is the funnel by week:\n\nhttps://codecast.sh/a/funnel-weekly\n\nSignups dipped in week 3.", timestamp: 2 }],
+    messages: [
+      askRow(1),
+      {
+        _id: "m2",
+        conversation_id: "conv1",
+        role: "assistant",
+        content:
+          "Here is the funnel by week:\n\nhttps://codecast.sh/a/funnel-weekly\n\nSignups dipped in week 3.",
+        timestamp: 2,
+      },
+    ],
     call_chat_messages: [],
   });
   await call(mirrorAgentTurn, ctx, { conversation_id: "conv1", attempt: 0 });
-  expect(ctx.db._tables.call_chat_messages[0].text).toContain("https://codecast.sh/a/funnel-weekly");
-  expect(faceCalls(ctx)[0].args.text).toBe("Here is the funnel by week: Signups dipped in week 3.");
+  expect(ctx.db._tables.call_chat_messages[0].text).toContain(
+    "https://codecast.sh/a/funnel-weekly",
+  );
+  expect(faceCalls(ctx)[0].args.text).toBe(
+    "Here is the funnel by week: Signups dipped in week 3.",
+  );
 });
 
 describe("what the worker reads and writes", () => {
-  const live = () => ctxWith({
-    call_agent_feeds: [feed()],
-    transcripts: [transcript()],
-    conversations: [conversation],
-    messages: [{ _id: "m1", conversation_id: "conv1", role: "assistant", content: "Found the race in **refresh**.", timestamp: 1 }],
-    transcript_segments: [],
-    pending_messages: [],
-  });
+  const live = () =>
+    ctxWith({
+      call_agent_feeds: [feed()],
+      transcripts: [transcript()],
+      conversations: [conversation],
+      messages: [
+        {
+          _id: "m1",
+          conversation_id: "conv1",
+          role: "assistant",
+          content: "Found the race in **refresh**.",
+          timestamp: 1,
+        },
+      ],
+      transcript_segments: [],
+      pending_messages: [],
+    });
 
   test("the brief names the agent, its session and what it last said", async () => {
-    const out = await call(brief, live(), { conversation_id: "conv1", room_key: "session:conv1" });
+    const out = await call(brief, live(), {
+      conversation_id: "conv1",
+      room_key: "session:conv1",
+    });
     expect(out.name).toBe("Ember");
     expect(out.spoken_names).toContain("Ember");
     expect(out.instructions).toContain("Fix the auth race");
@@ -370,15 +780,39 @@ describe("what the worker reads and writes", () => {
   });
 
   test("a brief for another room, or a feed that ended, is refused", async () => {
-    expect(await call(brief, live(), { conversation_id: "conv1", room_key: "session:other" })).toBeNull();
-    const ended = ctxWith({ call_agent_feeds: [feed()], transcripts: [transcript({ status: "ended" })], conversations: [conversation], messages: [] });
-    expect(await call(brief, ended, { conversation_id: "conv1", room_key: "session:conv1" })).toBeNull();
+    expect(
+      await call(brief, live(), {
+        conversation_id: "conv1",
+        room_key: "session:other",
+      }),
+    ).toBeNull();
+    const ended = ctxWith({
+      call_agent_feeds: [feed()],
+      transcripts: [transcript({ status: "ended" })],
+      conversations: [conversation],
+      messages: [],
+    });
+    expect(
+      await call(brief, ended, {
+        conversation_id: "conv1",
+        room_key: "session:conv1",
+      }),
+    ).toBeNull();
   });
 
   test("an ask reaches the session as the feed's adder, with who asked", async () => {
     const ctx = live();
-    expect(await call(ask, ctx, { conversation_id: "conv1", room_key: "session:conv1", text: "Why does refresh race?", speaker: "Ada" })).toBe(true);
-    const [sent] = ctx._scheduled.filter((s) => s.name === "transcripts:deliverToSession");
+    expect(
+      await call(ask, ctx, {
+        conversation_id: "conv1",
+        room_key: "session:conv1",
+        text: "Why does refresh race?",
+        speaker: "Ada",
+      }),
+    ).toBe(true);
+    const [sent] = ctx._scheduled.filter(
+      (s) => s.name === "transcripts:deliverToSession",
+    );
     expect(sent.args.as_user).toBe("ua");
     expect(sent.args.to).toBe("conv1");
     expect(sent.args.body).toContain("from Ada");
@@ -389,18 +823,38 @@ describe("what the worker reads and writes", () => {
 
   test("what the voice said lands in the transcript under its own name", async () => {
     const ctx = live();
-    expect(await call(said, ctx, { conversation_id: "conv1", room_key: "session:conv1", text: "Ember is on it." })).toBe(true);
-    expect(ctx.db._tables.transcript_segments[0]).toMatchObject({ speaker_id: "agent:conv1", speaker_name: "Ember (voice)", text: "Ember is on it." });
+    expect(
+      await call(said, ctx, {
+        conversation_id: "conv1",
+        room_key: "session:conv1",
+        text: "Ember is on it.",
+      }),
+    ).toBe(true);
+    expect(ctx.db._tables.transcript_segments[0]).toMatchObject({
+      speaker_id: "agent:conv1",
+      speaker_name: "Ember (voice)",
+      text: "Ember is on it.",
+    });
   });
 
   test("the endpoint wants the worker's secret", async () => {
-    const hctx = { runQuery: async () => ({ name: "Ember" }), runMutation: async () => true };
-    const req = (auth: string) => new Request("https://site/calls/face", {
-      method: "POST",
-      headers: { authorization: auth },
-      body: JSON.stringify({ op: "brief", conversation_id: "conv1", room_key: "session:conv1" }),
-    });
-    expect((await handleFaceRequest(hctx, req("Bearer nope"))).status).toBe(401);
+    const hctx = {
+      runQuery: async () => ({ name: "Ember" }),
+      runMutation: async () => true,
+    };
+    const req = (auth: string) =>
+      new Request("https://site/calls/face", {
+        method: "POST",
+        headers: { authorization: auth },
+        body: JSON.stringify({
+          op: "brief",
+          conversation_id: "conv1",
+          room_key: "session:conv1",
+        }),
+      });
+    expect((await handleFaceRequest(hctx, req("Bearer nope"))).status).toBe(
+      401,
+    );
     const ok = await handleFaceRequest(hctx, req("Bearer s3cret"));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ name: "Ember" });
@@ -410,76 +864,163 @@ describe("what the worker reads and writes", () => {
 describe("the wire", () => {
   test("join dispatches the worker, told whose face, which one, and the mode", async () => {
     const sent = recordFetch();
-    const actx = { runQuery: async () => ({ room_key: "session:conv1", conversation_id: "conv1", name: "Ember", avatar: "fox" }) };
+    const actx = {
+      runQuery: async () => ({
+        room_key: "session:conv1",
+        conversation_id: "conv1",
+        name: "Ember",
+        avatar: "fox",
+      }),
+    };
     await call(join, actx, { feed_id: "f1", realtime: true });
-    expect(sent.map((x) => x.url)).toEqual([`${LK}AgentDispatchService/ListDispatch`, `${LK}AgentDispatchService/CreateDispatch`]);
+    expect(sent.map((x) => x.url)).toEqual([
+      `${LK}AgentDispatchService/ListDispatch`,
+      `${LK}AgentDispatchService/CreateDispatch`,
+    ]);
     expect(sent[1].body).toEqual({
       room: "session:conv1",
       agentName: FACE_HOST_AGENT,
-      metadata: JSON.stringify({ conversation_id: "conv1", name: "Ember", ...faceForAvatar("fox"), realtime: true }),
+      metadata: JSON.stringify({
+        conversation_id: "conv1",
+        name: "Ember",
+        ...faceForAvatar("fox"),
+        realtime: true,
+      }),
     });
   });
 
-  const cfg = { secret: "s", lkUrl: "wss://lk.example", lkKey: "lkkey", lkSecret: ENV.LIVEKIT_API_SECRET };
-  const faceFeed = { room_key: "session:conv1", conversation_id: "conv1", name: "Ember", avatar: "fox" };
+  const cfg = {
+    secret: "s",
+    lkUrl: "wss://lk.example",
+    lkKey: "lkkey",
+    lkSecret: ENV.LIVEKIT_API_SECRET,
+  };
+  const faceFeed = {
+    room_key: "session:conv1",
+    conversation_id: "conv1",
+    name: "Ember",
+    avatar: "fox",
+  };
   const listing = (status: string | null, conversation = "conv1") => ({
-    agent_dispatches: [{ id: "AD_1", agent_name: FACE_HOST_AGENT, metadata: JSON.stringify({ conversation_id: conversation }), state: { jobs: status === null ? [] : [{ state: status ? { status } : {} }] } }],
+    agent_dispatches: [
+      {
+        id: "AD_1",
+        agent_name: FACE_HOST_AGENT,
+        metadata: JSON.stringify({ conversation_id: conversation }),
+        state: {
+          jobs: status === null ? [] : [{ state: status ? { status } : {} }],
+        },
+      },
+    ],
   });
 
   test("a face already on its way or in the room is not sent twice", async () => {
     for (const status of [null, "", "JS_PENDING", "JS_RUNNING"]) {
-      const sent = recordFetch((url) => (url.endsWith("ListDispatch") ? listing(status) : {}));
+      const sent = recordFetch((url) =>
+        url.endsWith("ListDispatch") ? listing(status) : {},
+      );
       expect(await dispatchFace(cfg, faceFeed, false)).toBe(false);
-      expect(sent.map((x) => x.url)).toEqual([`${LK}AgentDispatchService/ListDispatch`]);
+      expect(sent.map((x) => x.url)).toEqual([
+        `${LK}AgentDispatchService/ListDispatch`,
+      ]);
     }
   });
 
   test("a finished dispatch is cleared and a new one goes; another agent's is left alone", async () => {
-    const sent = recordFetch((url) => (url.endsWith("ListDispatch") ? listing("JS_FAILED") : {}));
+    const sent = recordFetch((url) =>
+      url.endsWith("ListDispatch") ? listing("JS_FAILED") : {},
+    );
     expect(await dispatchFace(cfg, faceFeed, false)).toBe(true);
-    expect(sent.map((x) => x.url.slice(LK.length))).toEqual(["AgentDispatchService/ListDispatch", "AgentDispatchService/DeleteDispatch", "AgentDispatchService/CreateDispatch"]);
+    expect(sent.map((x) => x.url.slice(LK.length))).toEqual([
+      "AgentDispatchService/ListDispatch",
+      "AgentDispatchService/DeleteDispatch",
+      "AgentDispatchService/CreateDispatch",
+    ]);
     expect(sent[1].body).toEqual({ dispatchId: "AD_1", room: "session:conv1" });
-    const other = recordFetch((url) => (url.endsWith("ListDispatch") ? listing("JS_RUNNING", "conv2") : {}));
+    const other = recordFetch((url) =>
+      url.endsWith("ListDispatch") ? listing("JS_RUNNING", "conv2") : {},
+    );
     expect(await dispatchFace(cfg, faceFeed, false)).toBe(true);
-    expect(other.map((x) => x.url.slice(LK.length))).toEqual(["AgentDispatchService/ListDispatch", "AgentDispatchService/CreateDispatch"]);
+    expect(other.map((x) => x.url.slice(LK.length))).toEqual([
+      "AgentDispatchService/ListDispatch",
+      "AgentDispatchService/CreateDispatch",
+    ]);
   });
 
   test("tell puts the reply on the voice's topic", async () => {
     const sent = recordFetch();
-    await call(tell, {}, { room_key: "session:conv1", conversation_id: "conv1", text: "Ship it." });
-    expect(sent[0].url).toBe("https://lk.example/twirp/livekit.RoomService/SendData");
-    expect(sent[0].body).toMatchObject({ room: "session:conv1", topic: FACE_TOPIC });
-    expect(JSON.parse(atob(sent[0].body.data))).toEqual({ conversation_id: "conv1", kind: "reply", text: "Ship it." });
+    await call(
+      tell,
+      {},
+      { room_key: "session:conv1", conversation_id: "conv1", text: "Ship it." },
+    );
+    expect(sent[0].url).toBe(
+      "https://lk.example/twirp/livekit.RoomService/SendData",
+    );
+    expect(sent[0].body).toMatchObject({
+      room: "session:conv1",
+      topic: FACE_TOPIC,
+    });
+    expect(JSON.parse(atob(sent[0].body.data))).toEqual({
+      conversation_id: "conv1",
+      kind: "reply",
+      text: "Ship it.",
+    });
   });
 
   test("a leave from the last call does not take the next call's face", async () => {
     const sent = recordFetch();
-    await call(leave, { runQuery: async () => true }, { room_key: "session:conv1", conversation_id: "conv1" });
+    await call(
+      leave,
+      { runQuery: async () => true },
+      { room_key: "session:conv1", conversation_id: "conv1" },
+    );
     expect(sent).toEqual([]);
   });
 
   test("leave tells the worker to go, puts the face out, and clears its dispatch", async () => {
-    const sent = recordFetch((url) => (url.endsWith("ListDispatch") ? listing("JS_RUNNING") : {}));
-    await call(leave, { runQuery: async () => false }, { room_key: "session:conv1", conversation_id: "conv1" });
+    const sent = recordFetch((url) =>
+      url.endsWith("ListDispatch") ? listing("JS_RUNNING") : {},
+    );
+    await call(
+      leave,
+      { runQuery: async () => false },
+      { room_key: "session:conv1", conversation_id: "conv1" },
+    );
     expect(sent.map((x) => x.url.slice(LK.length))).toEqual([
       "RoomService/SendData",
       "RoomService/RemoveParticipant",
       "AgentDispatchService/ListDispatch",
       "AgentDispatchService/DeleteDispatch",
     ]);
-    expect(JSON.parse(atob(sent[0].body.data))).toEqual({ conversation_id: "conv1", kind: "leave" });
-    expect(sent[1].body).toEqual({ room: "session:conv1", identity: "agent:conv1" });
+    expect(JSON.parse(atob(sent[0].body.data))).toEqual({
+      conversation_id: "conv1",
+      kind: "leave",
+    });
+    expect(sent[1].body).toEqual({
+      room: "session:conv1",
+      identity: "agent:conv1",
+    });
   });
 
   test("ensureFaces takes out an agent no longer fed and seats the one that is, in one request", async () => {
     const two = {
       agent_dispatches: [
-        { id: "AD_gone", agent_name: FACE_HOST_AGENT, metadata: JSON.stringify({ conversation_id: "conv2" }), state: { jobs: [{ state: { status: "JS_RUNNING" } }] } },
+        {
+          id: "AD_gone",
+          agent_name: FACE_HOST_AGENT,
+          metadata: JSON.stringify({ conversation_id: "conv2" }),
+          state: { jobs: [{ state: { status: "JS_RUNNING" } }] },
+        },
       ],
     };
-    const sent = recordFetch((url) => (url.endsWith("ListDispatch") ? two : {}));
+    const sent = recordFetch((url) =>
+      url.endsWith("ListDispatch") ? two : {},
+    );
     const actx = { runQuery: async () => [{ ...faceFeed, realtime: true }] };
-    expect(await call(ensureFaces, actx, { room_key: "session:conv1" })).toBe(1);
+    expect(await call(ensureFaces, actx, { room_key: "session:conv1" })).toBe(
+      1,
+    );
     expect(sent.map((x) => x.url.slice(LK.length))).toEqual([
       "AgentDispatchService/ListDispatch",
       "RoomService/SendData",
@@ -487,13 +1028,22 @@ describe("the wire", () => {
       "AgentDispatchService/DeleteDispatch",
       "AgentDispatchService/CreateDispatch",
     ]);
-    expect(JSON.parse(atob(sent[1].body.data))).toEqual({ conversation_id: "conv2", kind: "leave" });
+    expect(JSON.parse(atob(sent[1].body.data))).toEqual({
+      conversation_id: "conv2",
+      kind: "leave",
+    });
     expect(sent[2].body.identity).toBe("agent:conv2");
   });
 
   test("ensureFaces from someone who may not act on the room touches nothing", async () => {
     const sent = recordFetch();
-    expect(await call(ensureFaces, { runQuery: async () => null }, { room_key: "session:conv1" })).toBe(0);
+    expect(
+      await call(
+        ensureFaces,
+        { runQuery: async () => null },
+        { room_key: "session:conv1" },
+      ),
+    ).toBe(0);
     expect(sent).toEqual([]);
   });
 
@@ -501,12 +1051,33 @@ describe("the wire", () => {
     const sent = recordFetch(() => ({}));
     const ran: { name: string; args: any }[] = [];
     const actx = {
-      auth: { getUserIdentity: async () => ({ subject: "ub|s1", tokenIdentifier: "t" }) },
-      runMutation: async (ref: unknown, args: any) => void ran.push({ name: getFunctionName(ref as any), args }),
+      auth: {
+        getUserIdentity: async () => ({
+          subject: "ub|s1",
+          tokenIdentifier: "t",
+        }),
+      },
+      runMutation: async (ref: unknown, args: any) =>
+        void ran.push({ name: getFunctionName(ref as any), args }),
     };
-    await call(removeAgent, actx, { room_key: "session:conv1", conversation_id: "conv1" });
-    expect(ran).toEqual([{ name: "transcripts:removeAgentFromRoom", args: { user_id: "ub", room_key: "session:conv1", conversation_id: "conv1" } }]);
-    expect(sent.map((x) => x.url.slice(LK.length)).slice(0, 2)).toEqual(["RoomService/SendData", "RoomService/RemoveParticipant"]);
+    await call(removeAgent, actx, {
+      room_key: "session:conv1",
+      conversation_id: "conv1",
+    });
+    expect(ran).toEqual([
+      {
+        name: "transcripts:removeAgentFromRoom",
+        args: {
+          user_id: "ub",
+          room_key: "session:conv1",
+          conversation_id: "conv1",
+        },
+      },
+    ]);
+    expect(sent.map((x) => x.url.slice(LK.length)).slice(0, 2)).toEqual([
+      "RoomService/SendData",
+      "RoomService/RemoveParticipant",
+    ]);
   });
 });
 

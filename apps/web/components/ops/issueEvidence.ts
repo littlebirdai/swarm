@@ -23,7 +23,10 @@ export type ActivityItem = {
   n?: number;
 };
 
-const TRANSITION_WORDS: Record<string, { what: string; tone: ActivityItem["tone"] }> = {
+const TRANSITION_WORDS: Record<
+  string,
+  { what: string; tone: ActivityItem["tone"] }
+> = {
   new: { what: "first seen", tone: "bad" },
   regressed: { what: "regressed", tone: "bad" },
   spike: { what: "spiked", tone: "bad" },
@@ -44,34 +47,129 @@ const TRANSITION_WORDS: Record<string, { what: string; tone: ActivityItem["tone"
  * the latest resolve names who or what did it.
  */
 export function issueActivity(
-  g: Pick<OpsGroup, "_id" | "short_id" | "first_seen" | "first_release" | "resolved_at" | "resolved_in" | "fix_conversation_id" | "fix_started_at"> &
-    Partial<Pick<OpsGroup, "kind" | "resolved_via" | "resolved_by" | "external" | "last_transition" | "last_transition_at">>,
+  g: Pick<
+    OpsGroup,
+    | "_id"
+    | "short_id"
+    | "first_seen"
+    | "first_release"
+    | "resolved_at"
+    | "resolved_in"
+    | "fix_conversation_id"
+    | "fix_started_at"
+  > &
+    Partial<
+      Pick<
+        OpsGroup,
+        | "kind"
+        | "resolved_via"
+        | "resolved_by"
+        | "external"
+        | "last_transition"
+        | "last_transition_at"
+      >
+    >,
   events: OpsEvent[],
   task: (FixTask & { short_id?: string }) | null,
 ): ActivityItem[] {
   const out: ActivityItem[] = [];
   for (const e of events) {
     if (e.group_id !== g._id && e.data?.group_short_id !== g.short_id) continue;
-    const t = e.data?.transition ?? (e.kind === "error_new" ? "new" : e.kind === "error_regressed" ? "regressed" : e.kind);
-    const w = TRANSITION_WORDS[t] ?? { what: t.replace(/_/g, " "), tone: "quiet" as const };
-    out.push({ at: e.created_at, what: w.what, tone: w.tone, release: e.data?.release });
+    const t =
+      e.data?.transition ??
+      (e.kind === "error_new"
+        ? "new"
+        : e.kind === "error_regressed"
+          ? "regressed"
+          : e.kind);
+    const w = TRANSITION_WORDS[t] ?? {
+      what: t.replace(/_/g, " "),
+      tone: "quiet" as const,
+    };
+    out.push({
+      at: e.created_at,
+      what: w.what,
+      tone: w.tone,
+      release: e.data?.release,
+    });
   }
-  const near = (at: number, what: string) => out.some((i) => i.what === what && Math.abs(i.at - at) < 5 * 60_000);
-  if (!out.some((i) => i.what === "first seen")) out.push({ at: g.first_seen, what: "first seen", tone: "bad", release: g.first_release });
-  if (g.resolved_at !== undefined && !near(g.resolved_at, "resolved") && !near(g.resolved_at, "check recovered") && !near(g.resolved_at, "back within its line")) {
-    out.push({ at: g.resolved_at, what: "resolved", tone: "good", release: g.resolved_in });
+  const near = (at: number, what: string) =>
+    out.some((i) => i.what === what && Math.abs(i.at - at) < 5 * 60_000);
+  if (!out.some((i) => i.what === "first seen"))
+    out.push({
+      at: g.first_seen,
+      what: "first seen",
+      tone: "bad",
+      release: g.first_release,
+    });
+  if (
+    g.resolved_at !== undefined &&
+    !near(g.resolved_at, "resolved") &&
+    !near(g.resolved_at, "check recovered") &&
+    !near(g.resolved_at, "back within its line")
+  ) {
+    out.push({
+      at: g.resolved_at,
+      what: "resolved",
+      tone: "good",
+      release: g.resolved_in,
+    });
   }
-  if (g.fix_conversation_id && g.fix_started_at) out.push({ at: g.fix_started_at, what: "fix session started", tone: "fix", session: g.fix_conversation_id });
-  if (task?.landed) out.push({ at: task.landed.at, what: "fix landed", tone: "fix", sha: task.landed.sha, task: task.short_id });
-  else if (task?.cause?.dissolved) out.push({ at: task.cause.dissolved.at, what: "problem dissolved", tone: "quiet", task: task.short_id });
-  else if (task?.closed_at && (task.status === "done" || task.status === "dropped")) out.push({ at: task.closed_at, what: task.status === "done" ? "problem closed" : "problem dropped", tone: task.status === "done" ? "fix" : "quiet", task: task.short_id });
+  if (g.fix_conversation_id && g.fix_started_at)
+    out.push({
+      at: g.fix_started_at,
+      what: "fix session started",
+      tone: "fix",
+      session: g.fix_conversation_id,
+    });
+  if (task?.landed)
+    out.push({
+      at: task.landed.at,
+      what: "fix landed",
+      tone: "fix",
+      sha: task.landed.sha,
+      task: task.short_id,
+    });
+  else if (task?.cause?.dissolved)
+    out.push({
+      at: task.cause.dissolved.at,
+      what: "problem dissolved",
+      tone: "quiet",
+      task: task.short_id,
+    });
+  else if (
+    task?.closed_at &&
+    (task.status === "done" || task.status === "dropped")
+  )
+    out.push({
+      at: task.closed_at,
+      what: task.status === "done" ? "problem closed" : "problem dropped",
+      tone: task.status === "done" ? "fix" : "quiet",
+      task: task.short_id,
+    });
   out.sort((a, b) => b.at - a.at);
   // The resolve the group's stamps describe names its resolver; an older vendor resolve names the vendor.
-  const latest = g.resolved_at !== undefined ? out.find((i) => i.what === "resolved" && Math.abs(i.at - g.resolved_at!) < 5 * 60_000) : undefined;
+  const latest =
+    g.resolved_at !== undefined
+      ? out.find(
+          (i) =>
+            i.what === "resolved" &&
+            Math.abs(i.at - g.resolved_at!) < 5 * 60_000,
+        )
+      : undefined;
   if (latest) latest.resolver = resolverOf(g, events);
-  for (const i of out) if (i.what === "resolved" && !i.resolver && g.external) i.resolver = { via: "vendor" };
+  for (const i of out)
+    if (i.what === "resolved" && !i.resolver && g.external)
+      i.resolver = { via: "vendor" };
   const folded: ActivityItem[] = [];
-  const same = (a: ActivityItem, b: ActivityItem) => a.what === b.what && a.release === b.release && a.sha === b.sha && a.task === b.task && a.session === b.session && !a.resolver && !b.resolver;
+  const same = (a: ActivityItem, b: ActivityItem) =>
+    a.what === b.what &&
+    a.release === b.release &&
+    a.sha === b.sha &&
+    a.task === b.task &&
+    a.session === b.session &&
+    !a.resolver &&
+    !b.resolver;
   for (const i of out) {
     const prev = folded[folded.length - 1];
     if (prev && same(prev, i)) prev.n = (prev.n ?? 1) + 1;
@@ -82,7 +180,15 @@ export function issueActivity(
 
 // ── What broke it: CI runs and the suspect commit ──
 
-export type CiRunRow = { at: number; sha: string | null; ok: boolean; conclusion: string; url?: string; run_id?: string; branch?: string };
+export type CiRunRow = {
+  at: number;
+  sha: string | null;
+  ok: boolean;
+  conclusion: string;
+  url?: string;
+  run_id?: string;
+  branch?: string;
+};
 
 const PASSING_CONCLUSIONS = new Set(["success"]);
 
@@ -91,13 +197,19 @@ const PASSING_CONCLUSIONS = new Set(["success"]);
  * ended. A CI run's sample carries the sha, branch and run in its context
  * and the conclusion as the message's word before "at" (ingest.recordCiRun).
  */
-export function ciRuns(samples: Pick<OpsSample, "at" | "message" | "url" | "context_json">[]): CiRunRow[] {
+export function ciRuns(
+  samples: Pick<OpsSample, "at" | "message" | "url" | "context_json">[],
+): CiRunRow[] {
   const out: CiRunRow[] = [];
   for (const s of samples) {
     const ctx = parseTags(s.context_json);
     const m = /\s(\w+)(?: at [0-9a-f]{7,40})?$/.exec(s.message ?? "");
     // Only a run: its context names the commit or run, or its message ends "at <sha>". A check's own words are not a conclusion.
-    if (!(ctx && (ctx.sha || ctx.run_id)) && !/ at [0-9a-f]{7,40}$/.test(s.message ?? "")) continue;
+    if (
+      !(ctx && (ctx.sha || ctx.run_id)) &&
+      !/ at [0-9a-f]{7,40}$/.test(s.message ?? "")
+    )
+      continue;
     const conclusion = m?.[1] ?? "unknown";
     const sha = typeof ctx?.sha === "string" ? ctx.sha.toLowerCase() : null;
     out.push({
@@ -129,23 +241,48 @@ export type GreenMark = { at: number; sha: string | null; url?: string };
  * `firstFail` is null: an older sample is never offered in its place.
  * Null when the newest run passed.
  */
-export function ciBreak(runs: CiRunRow[], opts: { failingSince?: number | null; lastOk?: { at: number; sha?: string | null; branch?: string | null } | null } = {}): { firstFail: CiRunRow | null; lastPass: GreenMark | null; branch: string | null } | null {
+export function ciBreak(
+  runs: CiRunRow[],
+  opts: {
+    failingSince?: number | null;
+    lastOk?: { at: number; sha?: string | null; branch?: string | null } | null;
+  } = {},
+): {
+  firstFail: CiRunRow | null;
+  lastPass: GreenMark | null;
+  branch: string | null;
+} | null {
   if (!runs.length || runs[0].ok) return null;
   const branch = runs[0].branch ?? null;
   const own = runs.filter((r) => (r.branch ?? null) === branch);
-  const okOnBranch = opts.lastOk && (!opts.lastOk.branch || !branch || opts.lastOk.branch === branch) ? opts.lastOk : null;
-  const recorded: GreenMark | null = okOnBranch ? { at: okOnBranch.at, sha: okOnBranch.sha ?? null } : null;
+  const okOnBranch =
+    opts.lastOk &&
+    (!opts.lastOk.branch || !branch || opts.lastOk.branch === branch)
+      ? opts.lastOk
+      : null;
+  const recorded: GreenMark | null = okOnBranch
+    ? { at: okOnBranch.at, sha: okOnBranch.sha ?? null }
+    : null;
   let firstFail: CiRunRow | null = null;
   for (const r of own) {
-    if (r.ok) return { firstFail, lastPass: { at: r.at, sha: r.sha, url: r.url }, branch };
+    if (r.ok)
+      return {
+        firstFail,
+        lastPass: { at: r.at, sha: r.sha, url: r.url },
+        branch,
+      };
     firstFail = r;
   }
   const since = opts.failingSince;
-  const flip = since != null ? own.find((r) => !r.ok && Math.abs(r.at - since) < 60_000) : undefined;
+  const flip =
+    since != null
+      ? own.find((r) => !r.ok && Math.abs(r.at - since) < 60_000)
+      : undefined;
   if (flip) return { firstFail: flip, lastPass: recorded, branch };
   if (recorded && own.some((r) => r.at <= recorded.at)) {
     const after = own.filter((r) => !r.ok && r.at > recorded.at);
-    if (after.length) return { firstFail: after[after.length - 1], lastPass: recorded, branch };
+    if (after.length)
+      return { firstFail: after[after.length - 1], lastPass: recorded, branch };
   }
   return { firstFail: null, lastPass: recorded, branch };
 }
@@ -160,32 +297,55 @@ const HEX = /^[0-9a-f]{7,40}$/i;
  * release, never as the commit that broke it. Null when releases are not
  * commits.
  */
-export function suspectSha(g: Pick<OpsGroup, "first_release"> & Partial<Pick<OpsGroup, "regressed_in" | "regressed_at" | "resolved_at" | "status">>): { sha: string; why: "regressed" | "first" } | null {
-  const back = g.status === "open" && g.regressed_at !== undefined && g.regressed_at >= (g.resolved_at ?? 0) ? g.regressed_in : undefined;
-  if (back && HEX.test(back.trim())) return { sha: back.trim().toLowerCase(), why: "regressed" };
-  if (g.first_release && HEX.test(g.first_release.trim())) return { sha: g.first_release.trim().toLowerCase(), why: "first" };
+export function suspectSha(
+  g: Pick<OpsGroup, "first_release"> &
+    Partial<
+      Pick<OpsGroup, "regressed_in" | "regressed_at" | "resolved_at" | "status">
+    >,
+): { sha: string; why: "regressed" | "first" } | null {
+  const back =
+    g.status === "open" &&
+    g.regressed_at !== undefined &&
+    g.regressed_at >= (g.resolved_at ?? 0)
+      ? g.regressed_in
+      : undefined;
+  if (back && HEX.test(back.trim()))
+    return { sha: back.trim().toLowerCase(), why: "regressed" };
+  if (g.first_release && HEX.test(g.first_release.trim()))
+    return { sha: g.first_release.trim().toLowerCase(), why: "first" };
   return null;
 }
 
-export type MessagePart = { t: "text"; v: string } | { t: "task"; v: string } | { t: "pr"; n: number };
+export type MessagePart =
+  | { t: "text"; v: string }
+  | { t: "task"; v: string }
+  | { t: "pr"; n: number };
 
 /** A commit message's first line, its task ids (ct-123) and pull request numbers (#45) split out to render as live references. */
 const SQUASH_PR = /\s*\(#(\d+)\)\s*$/;
 
 /** The pull request a squash merge's subject ends with ("… (#123)"), which its commit card names on a line of its own. */
 export function squashPr(message: string | undefined): number | null {
-  const m = String(message ?? "").split("\n")[0].match(SQUASH_PR);
+  const m = String(message ?? "")
+    .split("\n")[0]
+    .match(SQUASH_PR);
   return m ? Number(m[1]) : null;
 }
 
 export function commitMessageParts(message: string | undefined): MessagePart[] {
   // A squash merge's trailing "(#123)" is its pull request, which the card names beside the subject (squashPr): dropped, never a pill inside the subject's own parentheses.
-  const line = String(message ?? "").split("\n")[0].replace(SQUASH_PR, "");
+  const line = String(message ?? "")
+    .split("\n")[0]
+    .replace(SQUASH_PR, "");
   const out: MessagePart[] = [];
   let at = 0;
   for (const m of line.matchAll(/\b(ct-\d+)\b|#(\d+)\b/gi)) {
     if (m.index! > at) out.push({ t: "text", v: line.slice(at, m.index) });
-    out.push(m[1] ? { t: "task", v: m[1].toLowerCase() } : { t: "pr", n: Number(m[2]) });
+    out.push(
+      m[1]
+        ? { t: "task", v: m[1].toLowerCase() }
+        : { t: "pr", n: Number(m[2]) },
+    );
     at = m.index! + m[0].length;
   }
   if (at < line.length) out.push({ t: "text", v: line.slice(at) });
@@ -221,7 +381,9 @@ export function readingRows(
   samples: Pick<OpsSample, "_id" | "at" | "message" | "url" | "context_json">[],
   line?: { threshold?: number; direction?: "above" | "below" } | null,
 ): ReadingRow[] {
-  const runs = new Map(ciRuns(samples).map((r) => [`${r.at}|${r.url ?? ""}`, r]));
+  const runs = new Map(
+    ciRuns(samples).map((r) => [`${r.at}|${r.url ?? ""}`, r]),
+  );
   return [...samples]
     .sort((a, b) => b.at - a.at)
     .map((s) => {
@@ -229,19 +391,44 @@ export function readingRows(
       if (g.kind === "metric") {
         const m = METRIC_VALUE.exec(s.message ?? "");
         const value = m ? Number(m[1].replace(/,/g, "")) : null;
-        const failing = value === null || line?.threshold === undefined ? null : line.direction === "below" ? value < line.threshold : value > line.threshold;
-        return { id: s._id, at: s.at, text: s.message ?? "", value: Number.isFinite(value) ? value : null, failing };
+        const failing =
+          value === null || line?.threshold === undefined
+            ? null
+            : line.direction === "below"
+              ? value < line.threshold
+              : value > line.threshold;
+        return {
+          id: s._id,
+          at: s.at,
+          text: s.message ?? "",
+          value: Number.isFinite(value) ? value : null,
+          failing,
+        };
       }
-      return { id: s._id, at: s.at, text: s.message ?? "", value: null, failing: run ? !run.ok : true, ...(run ? { run } : {}) };
+      return {
+        id: s._id,
+        at: s.at,
+        text: s.message ?? "",
+        value: null,
+        failing: run ? !run.ok : true,
+        ...(run ? { run } : {}),
+      };
     });
 }
 
 /** Readings whose words repeat back to back fold into one row with a count, the newest of them kept. */
-export function foldReadings(rows: ReadingRow[]): (ReadingRow & { n: number; oldest: number })[] {
+export function foldReadings(
+  rows: ReadingRow[],
+): (ReadingRow & { n: number; oldest: number })[] {
   const out: (ReadingRow & { n: number; oldest: number })[] = [];
   for (const r of rows) {
     const prev = out[out.length - 1];
-    const same = prev && !r.run && !prev.run && prev.failing === r.failing && (r.value !== null ? r.value === prev.value : r.text === prev.text);
+    const same =
+      prev &&
+      !r.run &&
+      !prev.run &&
+      prev.failing === r.failing &&
+      (r.value !== null ? r.value === prev.value : r.text === prev.text);
     if (same) {
       prev.n++;
       prev.oldest = r.at;
@@ -252,7 +439,12 @@ export function foldReadings(rows: ReadingRow[]): (ReadingRow & { n: number; old
 
 // ── What drives a metric alert: the error groups behind it ──
 
-export type Contributor = { group: OpsGroup; n: number; share: number; exact: boolean };
+export type Contributor = {
+  group: OpsGroup;
+  n: number;
+  share: number;
+  exact: boolean;
+};
 
 /**
  * The error groups that fired inside a metric alert's window, ranked by
@@ -271,24 +463,53 @@ export function lastDayStart(now: number): number {
   return Math.floor(now / HOUR) * HOUR - 23 * HOUR;
 }
 
-export function metricContributors(alert: Pick<OpsGroup, "_id" | "source_id">, groups: OpsGroup[], since: number, now: number, max = 6): { rows: Contributor[]; total: number; others: Contributor[] } {
+export function metricContributors(
+  alert: Pick<OpsGroup, "_id" | "source_id">,
+  groups: OpsGroup[],
+  since: number,
+  now: number,
+  max = 6,
+): { rows: Contributor[]; total: number; others: Contributor[] } {
   const fired = (g: OpsGroup) => {
-    if (g._id === alert._id || (g.kind !== "error" && g.kind !== "log") || g.last_seen <= since || g.status === "ignored" || g.status === "muted") return null;
+    if (
+      g._id === alert._id ||
+      (g.kind !== "error" && g.kind !== "log") ||
+      g.last_seen <= since ||
+      g.status === "ignored" ||
+      g.status === "muted"
+    )
+      return null;
     const c = occurrencesSince(g, since, now);
     return c.n ? { group: g, n: c.n, exact: c.exact } : null;
   };
-  const all = groups.map(fired).filter((x): x is { group: OpsGroup; n: number; exact: boolean } => x !== null);
-  const rank = (a: { n: number; group: OpsGroup }, b: { n: number; group: OpsGroup }) => b.n - a.n || b.group.last_seen - a.group.last_seen;
+  const all = groups
+    .map(fired)
+    .filter(
+      (x): x is { group: OpsGroup; n: number; exact: boolean } => x !== null,
+    );
+  const rank = (
+    a: { n: number; group: OpsGroup },
+    b: { n: number; group: OpsGroup },
+  ) => b.n - a.n || b.group.last_seen - a.group.last_seen;
   const own = all.filter((x) => x.group.source_id === alert.source_id);
   const total = own.reduce((a, x) => a + x.n, 0);
-  const rows = own.sort(rank).slice(0, max).map((x) => ({ ...x, share: total ? x.n / total : 0 }));
-  const others = all.filter((x) => x.group.source_id !== alert.source_id).sort(rank).slice(0, max).map((x) => ({ ...x, share: 0 }));
+  const rows = own
+    .sort(rank)
+    .slice(0, max)
+    .map((x) => ({ ...x, share: total ? x.n / total : 0 }));
+  const others = all
+    .filter((x) => x.group.source_id !== alert.source_id)
+    .sort(rank)
+    .slice(0, max)
+    .map((x) => ({ ...x, share: 0 }));
   return { rows, total, others };
 }
 
 /** An exception's type and message as one string: what a breakdown groups by, and what leaving one out compares. */
-const EXCEPTION_KEY = "concat(coalesce(JSONExtractString(properties.$exception_types, 1), properties.$exception_type, 'Error'), ': ', coalesce(JSONExtractString(properties.$exception_values, 1), properties.$exception_message, ''))";
-const COUNT_WHERE = /^(\s*select\s+count\s*\(\s*\*?\s*\)\s+from\s+events\s+where\s+)([\s\S]+?)(\s*;?\s*)$/i;
+const EXCEPTION_KEY =
+  "concat(coalesce(JSONExtractString(properties.$exception_types, 1), properties.$exception_type, 'Error'), ': ', coalesce(JSONExtractString(properties.$exception_values, 1), properties.$exception_message, ''))";
+const COUNT_WHERE =
+  /^(\s*select\s+count\s*\(\s*\*?\s*\)\s+from\s+events\s+where\s+)([\s\S]+?)(\s*;?\s*)$/i;
 
 /**
  * A HogQL count watch with one of its breakdown's parts left out (known
@@ -311,43 +532,96 @@ export function hogqlExclude(query: string, key: string): string | null {
  * count over events, which has no honest split.
  */
 export function hogqlBreakdown(query: string, limit = 8): string | null {
-  const m = /^\s*select\s+count\s*\(\s*\*?\s*\)\s+from\s+events\s+where\s+([\s\S]+?)\s*;?\s*$/i.exec(query);
-  if (!m || /\b(group\s+by|order\s+by|limit|union|join|having)\b/i.test(m[1])) return null;
+  const m =
+    /^\s*select\s+count\s*\(\s*\*?\s*\)\s+from\s+events\s+where\s+([\s\S]+?)\s*;?\s*$/i.exec(
+      query,
+    );
+  if (!m || /\b(group\s+by|order\s+by|limit|union|join|having)\b/i.test(m[1]))
+    return null;
   const key = /\$exception\b/.test(m[1]) ? EXCEPTION_KEY : "event";
   return `select ${key} as k, count() as n from events where ${m[1]} group by k order by n desc limit ${limit}`;
 }
 
 /** One part of a metric's value: what it counted, how many, its share, and the codecast issue that names it when one does. */
-export type BreakdownRow = { key: string; n: number; share: number; group: OpsGroup | null };
+export type BreakdownRow = {
+  key: string;
+  n: number;
+  share: number;
+  group: OpsGroup | null;
+};
 
 /**
  * A breakdown's rows (`[key, n]` pairs, as HogQL answers) with each share
  * taken of their sum, and each matched to the open or resolved error issue
  * whose title carries its message, when one does.
  */
-export function breakdownRows(results: unknown, groups: OpsGroup[]): BreakdownRow[] {
-  const pairs = (Array.isArray(results) ? results : []).flatMap((r) => (Array.isArray(r) && typeof r[0] === "string" && Number.isFinite(Number(r[1])) ? [[r[0], Number(r[1])] as const] : []));
+export function breakdownRows(
+  results: unknown,
+  groups: OpsGroup[],
+): BreakdownRow[] {
+  const pairs = (Array.isArray(results) ? results : []).flatMap((r) =>
+    Array.isArray(r) &&
+    typeof r[0] === "string" &&
+    Number.isFinite(Number(r[1]))
+      ? [[r[0], Number(r[1])] as const]
+      : [],
+  );
   const total = pairs.reduce((a, [, n]) => a + n, 0);
   const errors = groups.filter((g) => g.kind === "error" || g.kind === "log");
   const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
   return pairs.map(([key, n]) => {
     const message = norm(key.replace(/^[^:]{1,60}:\s*/, ""));
-    const group = message.length >= 8 ? errors.find((g) => norm(g.title).includes(message) || (norm(g.title).length >= 12 && message.includes(norm(g.title)))) ?? null : null;
+    const group =
+      message.length >= 8
+        ? (errors.find(
+            (g) =>
+              norm(g.title).includes(message) ||
+              (norm(g.title).length >= 12 && message.includes(norm(g.title))),
+          ) ?? null)
+        : null;
     return { key, n, share: total ? n / total : 0, group };
   });
 }
 
 /** A metric alert's failure for a fix prompt: its latest reading and the biggest parts of what it counted. */
-export function metricFailure(reading: string | undefined, parts: Pick<BreakdownRow, "key" | "n" | "share">[]): string | undefined {
-  const lines = [reading?.trim(), ...parts.slice(0, 3).map((p) => `${Math.round(p.share * 100)}% (${p.n}) ${p.key}`)].filter(Boolean);
+export function metricFailure(
+  reading: string | undefined,
+  parts: Pick<BreakdownRow, "key" | "n" | "share">[],
+): string | undefined {
+  const lines = [
+    reading?.trim(),
+    ...parts
+      .slice(0, 3)
+      .map((p) => `${Math.round(p.share * 100)}% (${p.n}) ${p.key}`),
+  ].filter(Boolean);
   return lines.length ? lines.join("\n") : undefined;
 }
 
 // ── An app check's readings as numbers ──
 
 /** A number in a reading's words: an optional currency sign, the figure, and a unit glued to it (%, /day, /h). */
-const READING_NUMBER = /(\$|€|£)?(-?\d[\d,]*(?:\.\d+)?)(%|\/day|\/h|\/hr|\/min|\/s)?/g;
-const STOP_WORDS = new Set(["at", "of", "in", "on", "the", "a", "an", "to", "by", "is", "and", "or", "for", "with", "past", "over", "under", "about"]);
+const READING_NUMBER =
+  /(\$|€|£)?(-?\d[\d,]*(?:\.\d+)?)(%|\/day|\/h|\/hr|\/min|\/s)?/g;
+const STOP_WORDS = new Set([
+  "at",
+  "of",
+  "in",
+  "on",
+  "the",
+  "a",
+  "an",
+  "to",
+  "by",
+  "is",
+  "and",
+  "or",
+  "for",
+  "with",
+  "past",
+  "over",
+  "under",
+  "about",
+]);
 
 export type ReadingColumn = { label: string; pre: string; post: string };
 export type ReadingTemplate = {
@@ -366,8 +640,10 @@ export type ReadingTemplate = {
 /** A figure the check's own words mark as not counting toward its verdict. */
 const INFORMATIONAL = /^[^,;]*\b(informational|info only|for info)\b/i;
 /** A fixed figure named as the level a figure is held to. */
-const LEVEL_AFTER = /^\s*(level|threshold|limit|line|floor|minimum|maximum|target)\b/i;
-const LEVEL_BEFORE = /(below|under|above|threshold|limit|minimum|maximum|target|floor|[<>≤≥])\s*$/i;
+const LEVEL_AFTER =
+  /^\s*(level|threshold|limit|line|floor|minimum|maximum|target)\b/i;
+const LEVEL_BEFORE =
+  /(below|under|above|threshold|limit|minimum|maximum|target|floor|[<>≤≥])\s*$/i;
 
 /**
  * An app check's readings, when they are one sentence whose figures change
@@ -379,30 +655,63 @@ const LEVEL_BEFORE = /(below|under|above|threshold|limit|minimum|maximum|target|
  * informational ones are left out. Null when the readings do not share one
  * shape, or nothing in them is a field or moves.
  */
-export function readingTemplate(rows: Pick<ReadingRow, "id" | "text">[]): ReadingTemplate | null {
+export function readingTemplate(
+  rows: Pick<ReadingRow, "id" | "text">[],
+): ReadingTemplate | null {
   const parse = (t: string) => {
-    const nums: { pre: string; n: number; post: string; before: string; after: string }[] = [];
-    const skeleton = t.replace(READING_NUMBER, (m, pre: string | undefined, num: string, post: string | undefined, off: number) => {
-      nums.push({ pre: pre ?? "", n: Number(num.replace(/,/g, "")), post: post ?? "", before: t.slice(0, off), after: t.slice(off + m.length) });
-      return "#";
-    });
+    const nums: {
+      pre: string;
+      n: number;
+      post: string;
+      before: string;
+      after: string;
+    }[] = [];
+    const skeleton = t.replace(
+      READING_NUMBER,
+      (
+        m,
+        pre: string | undefined,
+        num: string,
+        post: string | undefined,
+        off: number,
+      ) => {
+        nums.push({
+          pre: pre ?? "",
+          n: Number(num.replace(/,/g, "")),
+          post: post ?? "",
+          before: t.slice(0, off),
+          after: t.slice(off + m.length),
+        });
+        return "#";
+      },
+    );
     return { skeleton, nums };
   };
   const withText = rows.filter((r) => r.text);
   if (withText.length < 2) return null;
   const head = parse(withText[0].text);
   if (!head.nums.length) return null;
-  const same = withText.map((r) => ({ r, p: parse(r.text) })).filter((x) => x.p.skeleton === head.skeleton);
+  const same = withText
+    .map((r) => ({ r, p: parse(r.text) }))
+    .filter((x) => x.p.skeleton === head.skeleton);
   if (same.length < 2) return null;
-  const moving = head.nums.map((_, i) => same.some((x) => x.p.nums[i].n !== head.nums[i].n));
+  const moving = head.nums.map((_, i) =>
+    same.some((x) => x.p.nums[i].n !== head.nums[i].n),
+  );
   const info = head.nums.map((x) => INFORMATIONAL.test(x.after));
   // A field list judged by some of its fields: those are the columns, moving or not.
-  const fields = info.some(Boolean) ? head.nums.flatMap((_, i) => (info[i] ? [] : [i])) : [];
+  const fields = info.some(Boolean)
+    ? head.nums.flatMap((_, i) => (info[i] ? [] : [i]))
+    : [];
   const idx = fields.length ? fields : moving.flatMap((m, i) => (m ? [i] : []));
   if (!idx.length) return null;
   const label = (x: (typeof head.nums)[number], i: number) => {
-    const phrase = /^\s+([A-Za-z][A-Za-z-]{1,20}(?:\s+[A-Za-z][A-Za-z-]{1,20}){0,2})(?=\s*(?:[,;(.:]|$))/.exec(x.after)?.[1];
-    if (phrase && !STOP_WORDS.has(phrase.split(/\s+/)[0].toLowerCase())) return phrase.toLowerCase();
+    const phrase =
+      /^\s+([A-Za-z][A-Za-z-]{1,20}(?:\s+[A-Za-z][A-Za-z-]{1,20}){0,2})(?=\s*(?:[,;(.:]|$))/.exec(
+        x.after,
+      )?.[1];
+    if (phrase && !STOP_WORDS.has(phrase.split(/\s+/)[0].toLowerCase()))
+      return phrase.toLowerCase();
     const next = /^\s+([A-Za-z][A-Za-z-]{1,20})/.exec(x.after)?.[1];
     if (next && !STOP_WORDS.has(next.toLowerCase())) return next.toLowerCase();
     if (x.post.startsWith("/")) return `per ${x.post.slice(1)}`;
@@ -410,13 +719,39 @@ export function readingTemplate(rows: Pick<ReadingRow, "id" | "text">[]): Readin
     if (prev && !STOP_WORDS.has(prev.toLowerCase())) return prev.toLowerCase();
     return `#${i + 1}`;
   };
-  const cols = idx.map((i, k) => ({ label: label(head.nums[i], k), pre: head.nums[i].pre, post: head.nums[i].post.startsWith("/") || head.nums[i].post === "%" ? head.nums[i].post : "" }));
-  const values = new Map(same.map((x) => [x.r.id, idx.map((i) => x.p.nums[i].n)]));
+  const cols = idx.map((i, k) => ({
+    label: label(head.nums[i], k),
+    pre: head.nums[i].pre,
+    post:
+      head.nums[i].post.startsWith("/") || head.nums[i].post === "%"
+        ? head.nums[i].post
+        : "",
+  }));
+  const values = new Map(
+    same.map((x) => [x.r.id, idx.map((i) => x.p.nums[i].n)]),
+  );
   const first = head.nums[idx[0]];
   // Only a figure the words name as a level is a line; a field that holds still (1 stale) is not one.
-  const level = head.nums.find((x, i) => !moving[i] && !idx.includes(i) && x.pre === first.pre && x.post === first.post && x.n !== 0 && (LEVEL_AFTER.test(x.after) || LEVEL_BEFORE.test(x.before)));
-  const charted = Math.max(0, idx.findIndex((i) => moving[i]));
-  return { text: withText[0].text, cols, values, line: level ? level.n : null, charted };
+  const level = head.nums.find(
+    (x, i) =>
+      !moving[i] &&
+      !idx.includes(i) &&
+      x.pre === first.pre &&
+      x.post === first.post &&
+      x.n !== 0 &&
+      (LEVEL_AFTER.test(x.after) || LEVEL_BEFORE.test(x.before)),
+  );
+  const charted = Math.max(
+    0,
+    idx.findIndex((i) => moving[i]),
+  );
+  return {
+    text: withText[0].text,
+    cols,
+    values,
+    line: level ? level.n : null,
+    charted,
+  };
 }
 
 /**
@@ -428,7 +763,8 @@ export function projectZero(all: { at: number; v: number }[]): number | null {
   // Only the stretch since the figure last rose (a top-up starts a new run).
   const sorted = [...all].sort((a, b) => a.at - b.at);
   let from = 0;
-  for (let i = 1; i < sorted.length; i++) if (sorted[i].v > sorted[i - 1].v) from = i;
+  for (let i = 1; i < sorted.length; i++)
+    if (sorted[i].v > sorted[i - 1].v) from = i;
   const points = sorted.slice(from);
   if (points.length < 2) return null;
   const n = points.length;
@@ -455,15 +791,24 @@ const RUNWAY_LABEL = /^days?\b/;
  * runway (2.2 days) says so itself: its newest reading plus that, the same
  * date its newest row reads. Else the fall of the readings projects it.
  */
-export function trendZero(template: Pick<ReadingTemplate, "cols" | "values">, rows: Pick<ReadingRow, "id" | "at">[], at: number): number | null {
-  const held = rows.filter((r) => template.values.get(r.id)).sort((a, b) => a.at - b.at);
+export function trendZero(
+  template: Pick<ReadingTemplate, "cols" | "values">,
+  rows: Pick<ReadingRow, "id" | "at">[],
+  at: number,
+): number | null {
+  const held = rows
+    .filter((r) => template.values.get(r.id))
+    .sort((a, b) => a.at - b.at);
   if (!held.length) return null;
   const newest = held[held.length - 1];
   const runway = template.cols.findIndex((c) => RUNWAY_LABEL.test(c.label));
   if (runway >= 0 && runway !== at) {
     const v = template.values.get(newest.id)!;
     const days = v[runway];
-    if (Number.isFinite(days) && days >= 0 && v[at] > 0) return newest.at + days * DAY;
+    if (Number.isFinite(days) && days >= 0 && v[at] > 0)
+      return newest.at + days * DAY;
   }
-  return projectZero(held.map((r) => ({ at: r.at, v: template.values.get(r.id)![at] })));
+  return projectZero(
+    held.map((r) => ({ at: r.at, v: template.values.get(r.id)![at] })),
+  );
 }

@@ -11,27 +11,76 @@
 // tile is the fallback for a row not yet seated.
 
 import { AvatarImg } from "../../lib/avatarCache";
-import { agentName, anchorScopeLabel, type AnchorRow } from "../../hooks/useSyncAnchors";
+import {
+  agentName,
+  anchorScopeLabel,
+  type AnchorRow,
+} from "../../hooks/useSyncAnchors";
 import { RoleFace } from "../org/RoleFace";
 import { useIdentityPrefs } from "../../hooks/useIdentityPrefs";
-import { HEAD_OF_PEOPLE_HANDLE, HEAD_OF_PEOPLE_NAME } from "../org/orgStaffingTypes";
+import {
+  HEAD_OF_PEOPLE_HANDLE,
+  HEAD_OF_PEOPLE_NAME,
+} from "../org/orgStaffingTypes";
 
 /** The standing agent mark. Custom (not lucide's boat anchor): a head over a
  *  keel — a standing member, not a nautical object. */
 /** The root role's face before a workspace has one (org-staffing.md S22):
  *  the head of people's default face, the same one its page shows once hired,
  *  so nothing on the way in looks like a different thing from what arrives. */
-export function HeadOfPeopleFace({ className, size = 16, bare }: { className?: string; size?: number; bare?: boolean }) {
-  return <RoleFace role={{ handle: HEAD_OF_PEOPLE_HANDLE, avatar: null, name: HEAD_OF_PEOPLE_NAME }} size={size} className={className} bare={bare} />;
+export function HeadOfPeopleFace({
+  className,
+  size = 16,
+  bare,
+}: {
+  className?: string;
+  size?: number;
+  bare?: boolean;
+}) {
+  return (
+    <RoleFace
+      role={{
+        handle: HEAD_OF_PEOPLE_HANDLE,
+        avatar: null,
+        name: HEAD_OF_PEOPLE_NAME,
+      }}
+      size={size}
+      className={className}
+      bare={bare}
+    />
+  );
 }
 
-type Identity = Pick<AnchorRow, "bot_name" | "bot_avatar" | "scope_type" | "team_name"> & Partial<Pick<AnchorRow, "role" | "name">>;
+type Identity = Pick<
+  AnchorRow,
+  "bot_name" | "bot_avatar" | "scope_type" | "team_name"
+> &
+  Partial<Pick<AnchorRow, "role" | "name">>;
 
 /** The role's face when the row is a seat; else the avatar, else the glyph on
  *  a tinted tile. Same shape at every size. */
-export function AnchorAvatar({ anchor, size = 28, className = "", bare }: { anchor: Identity | null | undefined; size?: number; className?: string; /** RoleFace bare: the glyph alone, for a nav rail. */ bare?: boolean }) {
+export function AnchorAvatar({
+  anchor,
+  size = 28,
+  className = "",
+  bare,
+}: {
+  anchor: Identity | null | undefined;
+  size?: number;
+  className?: string;
+  /** RoleFace bare: the glyph alone, for a nav rail. */ bare?: boolean;
+}) {
   const name = agentName(anchor, useIdentityPrefs());
-  if (anchor?.role) return <RoleFace role={anchor.role} size={size} className={`shrink-0 ${className}`} title={name} bare={bare} />;
+  if (anchor?.role)
+    return (
+      <RoleFace
+        role={anchor.role}
+        size={size}
+        className={`shrink-0 ${className}`}
+        title={name}
+        bare={bare}
+      />
+    );
   const style = { width: size, height: size };
   const radius = size >= 32 ? "rounded-lg" : "rounded-md";
   return (
@@ -40,7 +89,13 @@ export function AnchorAvatar({ anchor, size = 28, className = "", bare }: { anch
       alt={name}
       className={`${radius} object-cover ${className}`}
       style={style}
-      fallback={<HeadOfPeopleFace size={size} className={`shrink-0 ${className}`} bare={bare} />}
+      fallback={
+        <HeadOfPeopleFace
+          size={size}
+          className={`shrink-0 ${className}`}
+          bare={bare}
+        />
+      }
     />
   );
 }
@@ -48,7 +103,11 @@ export function AnchorAvatar({ anchor, size = 28, className = "", bare }: { anch
 /** "Personal" or the team's name — the pill that answers "which workspace's
  *  agent am I talking to". Team scope carries a small people mark so the two
  *  kinds read differently even before the words do. */
-export function AnchorScopePill({ anchor, quiet = false, className = "" }: {
+export function AnchorScopePill({
+  anchor,
+  quiet = false,
+  className = "",
+}: {
   anchor: Identity | null | undefined;
   /** Plain dim text with the glyph, for a row's meta line where a pill would be one box too many. */
   quiet?: boolean;
@@ -62,21 +121,49 @@ export function AnchorScopePill({ anchor, quiet = false, className = "" }: {
         quiet
           ? "text-sol-text-dim"
           : team
-          ? "bg-sol-blue/12 text-sol-blue border border-sol-blue/25"
-          : "bg-sol-violet/12 text-sol-violet border border-sol-violet/25"
+            ? "bg-sol-blue/12 text-sol-blue border border-sol-blue/25"
+            : "bg-sol-violet/12 text-sol-violet border border-sol-violet/25"
       } ${quiet ? "" : "rounded-full px-1.5 py-[1px] font-medium tracking-wide uppercase"} ${className}`}
-      title={team ? `The agent of ${anchor.team_name ?? "this team"}'s workspace` : "The agent of your personal workspace, private to you"}
+      title={
+        team
+          ? `The agent of ${anchor.team_name ?? "this team"}'s workspace`
+          : "The agent of your personal workspace, private to you"
+      }
     >
       {team ? (
-        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        <svg
+          className="w-2.5 h-2.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
       ) : (
-        <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        <svg
+          className="w-2.5 h-2.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+          />
         </svg>
       )}
-      <span className="normal-case tracking-normal">{anchorScopeLabel(anchor)}</span>
+      <span className="normal-case tracking-normal">
+        {anchorScopeLabel(anchor)}
+      </span>
     </span>
   );
 }

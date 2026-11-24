@@ -1,19 +1,34 @@
 import { describe, expect, test } from "bun:test";
-import { opensATab, tabFooterLines, TAB_AFFECTING_VERBS, TAB_CLEANUP_NOTE } from "./tabFooter.js";
+import {
+  opensATab,
+  tabFooterLines,
+  TAB_AFFECTING_VERBS,
+  TAB_CLEANUP_NOTE,
+} from "./tabFooter.js";
 
 const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 
 describe("tabFooterLines", () => {
   test("prints the active tab's URL then its 8-char target id", () => {
     const lines = tabFooterLines([
-      { targetId: "AAAAAAAA11111111222222223333333", url: "https://a.example", active: false },
-      { targetId: "4F2F46289BE9FEF4C1DD358BF3A9E7F2", url: "https://example.com/?x=1", active: true },
+      {
+        targetId: "AAAAAAAA11111111222222223333333",
+        url: "https://a.example",
+        active: false,
+      },
+      {
+        targetId: "4F2F46289BE9FEF4C1DD358BF3A9E7F2",
+        url: "https://example.com/?x=1",
+        active: true,
+      },
     ]).map(strip);
     expect(lines).toEqual(["  https://example.com/?x=1", "  tab 4F2F4628"]);
   });
 
   test("falls back to the first tab when none is marked active", () => {
-    const lines = tabFooterLines([{ targetId: "4F2F46289BE9FEF4C1DD358BF3A9E7F2", url: "about:blank" }]).map(strip);
+    const lines = tabFooterLines([
+      { targetId: "4F2F46289BE9FEF4C1DD358BF3A9E7F2", url: "about:blank" },
+    ]).map(strip);
     expect(lines).toEqual(["  tab 4F2F4628"]);
   });
 
@@ -30,7 +45,9 @@ describe("tabFooterLines", () => {
 
   test("cleanup reminder closes tabs you opened unless the human still needs them", () => {
     expect(TAB_CLEANUP_NOTE).toContain("unless the human still needs them");
-    expect(TAB_CLEANUP_NOTE).toContain("always close this tab and any others you opened");
+    expect(TAB_CLEANUP_NOTE).toContain(
+      "always close this tab and any others you opened",
+    );
     expect(TAB_CLEANUP_NOTE).toContain("cast browser stop");
     expect(TAB_CLEANUP_NOTE).toContain("Never close the human's tabs");
     expect(TAB_CLEANUP_NOTE).not.toContain("When finished:");
@@ -39,7 +56,9 @@ describe("tabFooterLines", () => {
   test("the cleanup reminder belongs to the verb that opened a tab, not every verb", () => {
     expect(opensATab("open", ["https://a.example"], true)).toBe(true);
     expect(opensATab("open", ["https://a.example"], false)).toBe(false);
-    expect(opensATab("open", ["https://a.example", "--new-tab"], false)).toBe(true);
+    expect(opensATab("open", ["https://a.example", "--new-tab"], false)).toBe(
+      true,
+    );
     expect(opensATab("tab", ["new", "https://a.example"], false)).toBe(true);
     expect(opensATab("tab", ["list"], false)).toBe(false);
     expect(opensATab("click", ["#e1"], false)).toBe(false);

@@ -70,7 +70,11 @@ export interface ResolveResult {
 }
 
 const defaultExists = (p: string): boolean => {
-  try { return fs.existsSync(p) && fs.statSync(p).isDirectory(); } catch { return false; }
+  try {
+    return fs.existsSync(p) && fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
 };
 
 // Resolves a (possibly foreign) project path to a path that exists on this
@@ -83,7 +87,7 @@ const defaultExists = (p: string): boolean => {
 // found. Callers MUST NOT silently fall back to $HOME — refuse the operation
 // and surface a clear error so the user can clone the repo locally.
 export async function resolveLocalProjectPath(
-  input: ResolveInput
+  input: ResolveInput,
 ): Promise<ResolveResult | null> {
   const exists = input.exists ?? defaultExists;
   const projectPath = input.projectPath?.trim() || null;
@@ -92,7 +96,11 @@ export async function resolveLocalProjectPath(
 
   // 1. Recorded path is valid here — use as-is. Same machine / same checkout.
   if (projectPath && exists(projectPath)) {
-    return { path: projectPath, remapped: false, reason: "recorded path exists locally" };
+    return {
+      path: projectPath,
+      remapped: false,
+      reason: "recorded path exists locally",
+    };
   }
 
   // 2. Need a remote URL to look up alternative checkouts.
@@ -101,9 +109,10 @@ export async function resolveLocalProjectPath(
   }
 
   // 3. The subpath inside the repo (e.g. "" or "/packages/foo") is preserved.
-  const subpath = projectPath && gitRoot && projectPath.startsWith(gitRoot)
-    ? projectPath.slice(gitRoot.length)
-    : "";
+  const subpath =
+    projectPath && gitRoot && projectPath.startsWith(gitRoot)
+      ? projectPath.slice(gitRoot.length)
+      : "";
 
   const candidates = await input.findCandidates(gitRemoteUrl);
   for (const candidate of candidates) {
@@ -168,8 +177,19 @@ export interface LocalRepoInput {
 // absent locally we fall back to the repo root (the agent can cd from there),
 // matching resolveLocalProjectPath.
 const GENERIC_PATH_SEGMENTS = new Set([
-  "work", "src", "code", "repos", "projects", "dev", "developer",
-  "users", "home", "tmp", "documents", "desktop", "downloads",
+  "work",
+  "src",
+  "code",
+  "repos",
+  "projects",
+  "dev",
+  "developer",
+  "users",
+  "home",
+  "tmp",
+  "documents",
+  "desktop",
+  "downloads",
 ]);
 
 export function resolveLocalRepoPath(input: LocalRepoInput): string | null {
@@ -186,19 +206,34 @@ export function resolveLocalRepoPath(input: LocalRepoInput): string | null {
   // (which always exists), so every dead worktree resumed in ~/.claude — the
   // wrong directory, and the project then mislabels as the home dir. Only
   // reached because remotePath itself is already gone (checked above).
-  const worktreeParent = remotePath.match(/^(.*?)\/\.(?:claude|codecast|conductor)(?:\/|$)/)?.[1];
-  if (worktreeParent && worktreeParent !== input.home && exists(worktreeParent)) {
+  const worktreeParent = remotePath.match(
+    /^(.*?)\/\.(?:claude|codecast|conductor)(?:\/|$)/,
+  )?.[1];
+  if (
+    worktreeParent &&
+    worktreeParent !== input.home &&
+    exists(worktreeParent)
+  ) {
     return worktreeParent;
   }
 
-  const maps = [input.userMap, input.learnedMap].filter(Boolean) as Record<string, string>[];
+  const maps = [input.userMap, input.learnedMap].filter(Boolean) as Record<
+    string,
+    string
+  >[];
   // A full-path mapping is the most specific signal — honor it before walking.
   for (const map of maps) {
     const mapped = map[remotePath];
     if (mapped && exists(mapped)) return mapped;
   }
 
-  const conventionDirs = input.conventionDirs ?? ["src", "projects", "code", "repos", ""];
+  const conventionDirs = input.conventionDirs ?? [
+    "src",
+    "projects",
+    "code",
+    "repos",
+    "",
+  ];
   const home = input.home;
 
   const resolveBase = (name: string): string | null => {
@@ -236,8 +271,15 @@ export function resolveLocalRepoPath(input: LocalRepoInput): string | null {
 // used to stamp the viewer's open repo alongside a task-derived path) can
 // exist locally, and resolveLocalRepoPath returns an existing input verbatim —
 // so a mismatched root would win instantly and swallow the real project path.
-export function conventionSeed(rawPath: string, recordedRoot?: string | null): string {
-  if (recordedRoot && (rawPath === recordedRoot || rawPath.startsWith(recordedRoot.replace(/\/+$/, "") + "/"))) {
+export function conventionSeed(
+  rawPath: string,
+  recordedRoot?: string | null,
+): string {
+  if (
+    recordedRoot &&
+    (rawPath === recordedRoot ||
+      rawPath.startsWith(recordedRoot.replace(/\/+$/, "") + "/"))
+  ) {
     return recordedRoot;
   }
   return rawPath;
@@ -292,13 +334,19 @@ export function isResumableCwd(p: string | null | undefined): p is string {
   return path.resolve(trimmed) !== path.parse(trimmed).root;
 }
 
-export async function resolveResumeCwd(input: ResumeCwdInput): Promise<string | null> {
+export async function resolveResumeCwd(
+  input: ResumeCwdInput,
+): Promise<string | null> {
   const exists = input.exists ?? defaultExists;
 
-  const override = isResumableCwd(input.cwdOverride) ? input.cwdOverride.trim() : null;
+  const override = isResumableCwd(input.cwdOverride)
+    ? input.cwdOverride.trim()
+    : null;
   if (override && exists(override)) return override;
 
-  const recorded = isResumableCwd(input.recordedCwd) ? input.recordedCwd.trim() : null;
+  const recorded = isResumableCwd(input.recordedCwd)
+    ? input.recordedCwd.trim()
+    : null;
   if (recorded) {
     if (exists(recorded)) return recorded;
     // Same placement as start_session: resolve the repo root by convention,
@@ -320,7 +368,8 @@ export async function resolveResumeCwd(input: ResumeCwdInput): Promise<string | 
   }
 
   const home = input.home?.trim();
-  if (recorded && home && isHomeDirectoryPath(recorded) && exists(home)) return home;
+  if (recorded && home && isHomeDirectoryPath(recorded) && exists(home))
+    return home;
 
   return null;
 }
@@ -398,10 +447,13 @@ export type TranscriptChoice =
 // never traded for reduced write load.
 export function chooseSessionTranscript(
   incoming: TranscriptCandidate,
-  canonical: TranscriptCandidate | undefined
+  canonical: TranscriptCandidate | undefined,
 ): TranscriptChoice {
   if (!canonical || canonical.filePath === incoming.filePath) {
-    return { action: "sync", reason: "no prior transcript for this session UUID" };
+    return {
+      action: "sync",
+      reason: "no prior transcript for this session UUID",
+    };
   }
   if (incoming.projectExists && !canonical.projectExists) {
     return {
@@ -419,6 +471,7 @@ export function chooseSessionTranscript(
   }
   return {
     action: "sync",
-    reason: "two transcripts for the same UUID but neither is a clear stale artifact — sync both, server dedups",
+    reason:
+      "two transcripts for the same UUID but neither is a clear stale artifact — sync both, server dedups",
   };
 }

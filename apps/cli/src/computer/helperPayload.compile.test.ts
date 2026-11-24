@@ -24,7 +24,8 @@ import { createHash } from "node:crypto";
 // the two cannot drift silently: a wrong path here leaves the payload empty and
 // the first test fails.
 const PAYLOAD = path.join(import.meta.dir, "helper.tar");
-const sha256 = (file: string) => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+const sha256 = (file: string) =>
+  createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
 /** Each test runs a real `bun build --compile`, which is 15-20 s here — far
  *  over bun's 5 s default, so the timeout has to be stated. */
@@ -55,7 +56,11 @@ function compileAndAsk(): string {
       `console.log(tar ? createHash("sha256").update(tar).digest("hex") : "none");\n`,
   );
   const out = path.join(stage, "ask");
-  const build = spawnSync(process.execPath, ["build", entry, "--compile", "--outfile", out], { encoding: "utf8", timeout: 300_000 });
+  const build = spawnSync(
+    process.execPath,
+    ["build", entry, "--compile", "--outfile", out],
+    { encoding: "utf8", timeout: 300_000 },
+  );
   expect(build.stderr + build.stdout).not.toContain("error:");
   expect(build.status).toBe(0);
   const answer = spawnSync(out, [], { encoding: "utf8", timeout: 120_000 });
@@ -63,23 +68,47 @@ function compileAndAsk(): string {
   return answer.stdout.trim();
 }
 
-test("a compiled binary reports the sha256 of the payload it was built with", () => {
-  // Real tar bytes rather than filler: the payload is always a tar of the app
-  // bundle, and a tar is what the marker check in the release script looks for.
-  const bundle = path.join(stage, "codecast computer.app", "Contents", "MacOS");
-  fs.mkdirSync(bundle, { recursive: true });
-  fs.writeFileSync(path.join(bundle, "codecast-computer"), "not a real helper, but real tar bytes");
-  const tar = path.join(stage, "payload.tar");
-  expect(spawnSync("/usr/bin/tar", ["-cf", tar, "-C", stage, "codecast computer.app"]).status).toBe(0);
-  fs.copyFileSync(tar, PAYLOAD);
+test(
+  "a compiled binary reports the sha256 of the payload it was built with",
+  () => {
+    // Real tar bytes rather than filler: the payload is always a tar of the app
+    // bundle, and a tar is what the marker check in the release script looks for.
+    const bundle = path.join(
+      stage,
+      "codecast computer.app",
+      "Contents",
+      "MacOS",
+    );
+    fs.mkdirSync(bundle, { recursive: true });
+    fs.writeFileSync(
+      path.join(bundle, "codecast-computer"),
+      "not a real helper, but real tar bytes",
+    );
+    const tar = path.join(stage, "payload.tar");
+    expect(
+      spawnSync("/usr/bin/tar", [
+        "-cf",
+        tar,
+        "-C",
+        stage,
+        "codecast computer.app",
+      ]).status,
+    ).toBe(0);
+    fs.copyFileSync(tar, PAYLOAD);
 
-  expect(compileAndAsk()).toBe(sha256(tar));
-}, COMPILE_TIMEOUT);
+    expect(compileAndAsk()).toBe(sha256(tar));
+  },
+  COMPILE_TIMEOUT,
+);
 
-test("a compiled binary with an empty payload reports no helper", () => {
-  // The non-macOS case: build-with-native.ts leaves the file empty, and every
-  // caller must read that as "the feature is not in this build" rather than as
-  // a zero-byte helper.
-  fs.writeFileSync(PAYLOAD, "");
-  expect(compileAndAsk()).toBe("none");
-}, COMPILE_TIMEOUT);
+test(
+  "a compiled binary with an empty payload reports no helper",
+  () => {
+    // The non-macOS case: build-with-native.ts leaves the file empty, and every
+    // caller must read that as "the feature is not in this build" rather than as
+    // a zero-byte helper.
+    fs.writeFileSync(PAYLOAD, "");
+    expect(compileAndAsk()).toBe("none");
+  },
+  COMPILE_TIMEOUT,
+);

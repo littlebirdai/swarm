@@ -18,7 +18,11 @@ import {
   resolveWorkbenchFilter,
   type WorkbenchFilter,
 } from "../workbench";
-import { useInboxStore, type BucketItem, type InboxSession } from "../inboxStore";
+import {
+  useInboxStore,
+  type BucketItem,
+  type InboxSession,
+} from "../inboxStore";
 import { _resetViewNavForTests, declareViewNav } from "../viewNav";
 import { switchToWorkbench } from "../../lib/workbenchSwitch";
 
@@ -41,13 +45,25 @@ function workedIn(): WorkspaceState {
 describe("capture", () => {
   it("records every slot's occupant, presentation and size", () => {
     const snap = captureWorkbench(workedIn(), { zen: false, path: "/tasks" });
-    expect(snap.slots.nav).toEqual({ pane: "empty", presentation: "collapsed", size: undefined });
-    expect(snap.slots.context).toEqual({ pane: "sessionList", presentation: "split", size: 31 });
+    expect(snap.slots.nav).toEqual({
+      pane: "empty",
+      presentation: "collapsed",
+      size: undefined,
+    });
+    expect(snap.slots.context).toEqual({
+      pane: "sessionList",
+      presentation: "split",
+      size: 31,
+    });
     // A conversation is a subject: the snapshot records THAT something subject-
     // shaped sat there, never which one.
     expect(snap.slots.secondary!.pane).toBe("subject");
     expect(snap.slots.secondary!.size).toBe(44);
-    expect(snap.slots.dock).toEqual({ pane: "terminal", presentation: "split", size: 260 });
+    expect(snap.slots.dock).toEqual({
+      pane: "terminal",
+      presentation: "split",
+      size: 260,
+    });
     expect(snap.path).toBe("/tasks");
   });
 
@@ -102,7 +118,9 @@ describe("apply", () => {
     let ws = createWorkspace();
     ws = showPane(ws, "context", comments("old"));
     const snap = captureWorkbench(ws);
-    const applied = applyWorkbench(createWorkspace(), snap, { conversationId: "new" });
+    const applied = applyWorkbench(createWorkspace(), snap, {
+      conversationId: "new",
+    });
     expect(applied.context.pane).toEqual(comments("new"));
     // No conversation on screen → nothing to show, slot stays empty.
     const nowhere = applyWorkbench(createWorkspace(), snap, {});
@@ -111,7 +129,9 @@ describe("apply", () => {
 
   it("never opens a terminal on a device that cannot host one", () => {
     const snap = captureWorkbench(workedIn());
-    const ws = applyWorkbench(createWorkspace(), snap, { allowTerminal: false });
+    const ws = applyWorkbench(createWorkspace(), snap, {
+      allowTerminal: false,
+    });
     expect(ws.dock.pane).toBeNull();
   });
 
@@ -177,7 +197,14 @@ describe("matching (the active highlight)", () => {
 
   it("capture names every slot — switching must be total", () => {
     const snap = captureWorkbench(createWorkspace());
-    for (const id of ["nav", "list", "primary", "secondary", "context", "dock"] as const) {
+    for (const id of [
+      "nav",
+      "list",
+      "primary",
+      "secondary",
+      "context",
+      "dock",
+    ] as const) {
       expect(snap.slots[id]).toBeDefined();
     }
   });
@@ -188,7 +215,9 @@ describe("matching (the active highlight)", () => {
 // label is a different activity from triaging everything.
 
 const bucketMap = (entries: Record<string, string>) =>
-  Object.fromEntries(Object.entries(entries).map(([id, name]) => [id, { name }]));
+  Object.fromEntries(
+    Object.entries(entries).map(([id, name]) => [id, { name }]),
+  );
 
 describe("capturing the chip", () => {
   it("records the live bucket by id AND name — a shared layout resolves either way", () => {
@@ -197,12 +226,19 @@ describe("capturing the chip", () => {
       chipFilterExclude: true,
       buckets: bucketMap({ b1: "triage" }),
     });
-    expect(filter).toEqual({ bucket: { id: "b1", name: "triage" }, exclude: true });
-    expect(captureWorkbench(createWorkspace(), { filter }).filter).toEqual(filter);
+    expect(filter).toEqual({
+      bucket: { id: "b1", name: "triage" },
+      exclude: true,
+    });
+    expect(captureWorkbench(createWorkspace(), { filter }).filter).toEqual(
+      filter,
+    );
   });
 
   it("records a project chip with its path, and nothing at all when no chip is up", () => {
-    expect(chipFilterOf({ activeProjectFilter: "web", activeProjectPath: "/x/web" })).toEqual({
+    expect(
+      chipFilterOf({ activeProjectFilter: "web", activeProjectPath: "/x/web" }),
+    ).toEqual({
       project: { name: "web", path: "/x/web" },
       exclude: false,
     });
@@ -215,8 +251,16 @@ describe("resolving a snapshot's chip against the applier's own labels", () => {
   const buckets = bucketMap({ mine: "triage" });
 
   it("uses the id when this user has that label", () => {
-    const f: WorkbenchFilter = { bucket: { id: "mine", name: "triage" }, exclude: true };
-    expect(resolveWorkbenchFilter(f, buckets)).toEqual({ bucket: "mine", project: null, projectPath: null, exclude: true });
+    const f: WorkbenchFilter = {
+      bucket: { id: "mine", name: "triage" },
+      exclude: true,
+    };
+    expect(resolveWorkbenchFilter(f, buckets)).toEqual({
+      bucket: "mine",
+      project: null,
+      projectPath: null,
+      exclude: true,
+    });
   });
 
   it("falls back to the name when the id belongs to whoever shared the layout", () => {
@@ -225,49 +269,100 @@ describe("resolving a snapshot's chip against the applier's own labels", () => {
   });
 
   it("drops a label neither key resolves — filtering by one you don't have would empty the panel", () => {
-    const f: WorkbenchFilter = { bucket: { id: "theirs", name: "shipping" }, exclude: true };
-    expect(resolveWorkbenchFilter(f, buckets)).toEqual({ bucket: null, project: null, projectPath: null, exclude: false });
+    const f: WorkbenchFilter = {
+      bucket: { id: "theirs", name: "shipping" },
+      exclude: true,
+    };
+    expect(resolveWorkbenchFilter(f, buckets)).toEqual({
+      bucket: null,
+      project: null,
+      projectPath: null,
+      exclude: false,
+    });
   });
 
   it("no filter is no filter, exclude included", () => {
-    expect(resolveWorkbenchFilter(undefined, buckets)).toEqual({ bucket: null, project: null, projectPath: null, exclude: false });
+    expect(resolveWorkbenchFilter(undefined, buckets)).toEqual({
+      bucket: null,
+      project: null,
+      projectPath: null,
+      exclude: false,
+    });
   });
 });
 
 describe("matching the chip (the active highlight)", () => {
   const buckets = bucketMap({ mine: "triage" });
-  const snap = captureWorkbench(createWorkspace(), { filter: { bucket: { id: "mine", name: "triage" }, exclude: false } });
+  const snap = captureWorkbench(createWorkspace(), {
+    filter: { bucket: { id: "mine", name: "triage" }, exclude: false },
+  });
   const noFilter = captureWorkbench(createWorkspace());
 
   it("a snapshot with no filter matches only while no chip is live", () => {
-    expect(matchesWorkbench(createWorkspace(), noFilter, { buckets })).toBe(true);
+    expect(matchesWorkbench(createWorkspace(), noFilter, { buckets })).toBe(
+      true,
+    );
     const live = chipFilterOf({ activeBucketFilter: "mine", buckets });
-    expect(matchesWorkbench(createWorkspace(), noFilter, { buckets, filter: live })).toBe(false);
+    expect(
+      matchesWorkbench(createWorkspace(), noFilter, { buckets, filter: live }),
+    ).toBe(false);
   });
 
   it("the same label through a teammate's id still matches — resolution runs on both sides", () => {
-    const shared = captureWorkbench(createWorkspace(), { filter: { bucket: { id: "theirs", name: "triage" } } });
+    const shared = captureWorkbench(createWorkspace(), {
+      filter: { bucket: { id: "theirs", name: "triage" } },
+    });
     const live = chipFilterOf({ activeBucketFilter: "mine", buckets });
-    expect(matchesWorkbench(createWorkspace(), shared, { buckets, filter: live })).toBe(true);
+    expect(
+      matchesWorkbench(createWorkspace(), shared, { buckets, filter: live }),
+    ).toBe(true);
   });
 
   it("a different label, a project instead, or a flip to exclude is all drift", () => {
-    const live = (f: Parameters<typeof chipFilterOf>[0]) => chipFilterOf({ ...f, buckets });
-    expect(matchesWorkbench(createWorkspace(), snap, { buckets, filter: live({ activeBucketFilter: "mine" }) })).toBe(true);
-    expect(matchesWorkbench(createWorkspace(), snap, { buckets, filter: live({ activeBucketFilter: "other" }) })).toBe(false);
-    expect(matchesWorkbench(createWorkspace(), snap, { buckets, filter: live({ activeProjectFilter: "web" }) })).toBe(false);
-    expect(matchesWorkbench(createWorkspace(), snap, { buckets, filter: live({ activeBucketFilter: "mine", chipFilterExclude: true }) })).toBe(false);
+    const live = (f: Parameters<typeof chipFilterOf>[0]) =>
+      chipFilterOf({ ...f, buckets });
+    expect(
+      matchesWorkbench(createWorkspace(), snap, {
+        buckets,
+        filter: live({ activeBucketFilter: "mine" }),
+      }),
+    ).toBe(true);
+    expect(
+      matchesWorkbench(createWorkspace(), snap, {
+        buckets,
+        filter: live({ activeBucketFilter: "other" }),
+      }),
+    ).toBe(false);
+    expect(
+      matchesWorkbench(createWorkspace(), snap, {
+        buckets,
+        filter: live({ activeProjectFilter: "web" }),
+      }),
+    ).toBe(false);
+    expect(
+      matchesWorkbench(createWorkspace(), snap, {
+        buckets,
+        filter: live({ activeBucketFilter: "mine", chipFilterExclude: true }),
+      }),
+    ).toBe(false);
   });
 
   it("an identical arrangement still drifts when the chip is gone", () => {
     // Panes and zen match exactly; only the chip differs, and that is enough.
-    expect(matchesWorkbench(applyWorkbench(createWorkspace(), snap), snap, { buckets })).toBe(false);
+    expect(
+      matchesWorkbench(applyWorkbench(createWorkspace(), snap), snap, {
+        buckets,
+      }),
+    ).toBe(false);
   });
 });
 
 // -- Applying the chip (store action) ----------------------------------------
 
-const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession => ({
+const session = (
+  id: string,
+  extra: Partial<InboxSession> = {},
+): InboxSession => ({
   _id: id,
   session_id: `session-${id}`,
   // Fresh activity: membership is the shared working-set selection
@@ -289,9 +384,15 @@ const session = (id: string, extra: Partial<InboxSession> = {}): InboxSession =>
 const S1 = "jx7s1".padEnd(32, "0");
 const S2 = "jx7s2".padEnd(32, "0");
 
-const bucket = (id: string, name: string): BucketItem => ({ _id: id, name, created_at: 1, updated_at: 1 });
+const bucket = (id: string, name: string): BucketItem => ({
+  _id: id,
+  name,
+  created_at: 1,
+  updated_at: 1,
+});
 
-const withFilter = (filter?: WorkbenchFilter) => captureWorkbench(createWorkspace(), { path: "/inbox", filter });
+const withFilter = (filter?: WorkbenchFilter) =>
+  captureWorkbench(createWorkspace(), { path: "/inbox", filter });
 
 // The store is a singleton shared across every test FILE in the run, and the
 // chip fields feed computeVisualOrder — leaving one set here made unrelated
@@ -319,8 +420,18 @@ describe("applying a workbench's chip filter", () => {
     useInboxStore.setState({
       ...useInboxStore.getInitialState(),
       sessions: { [S1]: session(S1), [S2]: session(S2) },
-      buckets: { mine: bucket("mine", "triage"), empty: bucket("empty", "shipping") },
-      bucketAssignments: { r1: { _id: "r1", conversation_id: S2, bucket_id: "mine", updated_at: 1 } },
+      buckets: {
+        mine: bucket("mine", "triage"),
+        empty: bucket("empty", "shipping"),
+      },
+      bucketAssignments: {
+        r1: {
+          _id: "r1",
+          conversation_id: S2,
+          bucket_id: "mine",
+          updated_at: 1,
+        },
+      },
       pending: {},
       pendingMessages: {},
       pendingSessionCreates: {},
@@ -342,25 +453,35 @@ describe("applying a workbench's chip filter", () => {
   afterEach(resetChipStore);
 
   it("sets the bucket chip by id", () => {
-    useInboxStore.getState().applyWorkbench(withFilter({ bucket: { id: "mine", name: "triage" }, exclude: true }));
+    useInboxStore
+      .getState()
+      .applyWorkbench(
+        withFilter({ bucket: { id: "mine", name: "triage" }, exclude: true }),
+      );
     const s = useInboxStore.getState();
     expect(s.activeBucketFilter).toBe("mine");
     expect(s.chipFilterExclude).toBe(true);
   });
 
   it("resolves a shared layout's label by name", () => {
-    useInboxStore.getState().applyWorkbench(withFilter({ bucket: { id: "theirs", name: "triage" } }));
+    useInboxStore
+      .getState()
+      .applyWorkbench(withFilter({ bucket: { id: "theirs", name: "triage" } }));
     expect(useInboxStore.getState().activeBucketFilter).toBe("mine");
   });
 
   it("drops a label this user does not have, leaving the panel unfiltered", () => {
-    useInboxStore.getState().applyWorkbench(withFilter({ bucket: { id: "theirs", name: "nope" } }));
+    useInboxStore
+      .getState()
+      .applyWorkbench(withFilter({ bucket: { id: "theirs", name: "nope" } }));
     expect(useInboxStore.getState().activeBucketFilter).toBeNull();
   });
 
   it("sets a project chip, clearing the bucket — the chip row is ONE filter", () => {
     useInboxStore.setState({ activeBucketFilter: "mine" } as any);
-    useInboxStore.getState().applyWorkbench(withFilter({ project: { name: "web", path: "/x/web" } }));
+    useInboxStore
+      .getState()
+      .applyWorkbench(withFilter({ project: { name: "web", path: "/x/web" } }));
     const s = useInboxStore.getState();
     expect(s.activeBucketFilter).toBeNull();
     expect(s.activeProjectFilter).toBe("web");
@@ -368,7 +489,10 @@ describe("applying a workbench's chip filter", () => {
   });
 
   it("a layout saved with no chip clears the live one — a layout is the whole view", () => {
-    useInboxStore.setState({ activeBucketFilter: "mine", chipFilterExclude: true } as any);
+    useInboxStore.setState({
+      activeBucketFilter: "mine",
+      chipFilterExclude: true,
+    } as any);
     useInboxStore.getState().applyWorkbench(withFilter());
     const s = useInboxStore.getState();
     expect(s.activeBucketFilter).toBeNull();
@@ -381,8 +505,18 @@ describe("focus eviction after the chip changes", () => {
     useInboxStore.setState({
       ...useInboxStore.getInitialState(),
       sessions: { [S1]: session(S1), [S2]: session(S2) },
-      buckets: { mine: bucket("mine", "triage"), empty: bucket("empty", "shipping") },
-      bucketAssignments: { r1: { _id: "r1", conversation_id: S2, bucket_id: "mine", updated_at: 1 } },
+      buckets: {
+        mine: bucket("mine", "triage"),
+        empty: bucket("empty", "shipping"),
+      },
+      bucketAssignments: {
+        r1: {
+          _id: "r1",
+          conversation_id: S2,
+          bucket_id: "mine",
+          updated_at: 1,
+        },
+      },
       pending: {},
       pendingMessages: {},
       pendingSessionCreates: {},
@@ -427,7 +561,13 @@ describe("focus eviction after the chip changes", () => {
 
   it("clears the selection when the filter empties the list", () => {
     focus({ currentSessionId: S1 });
-    useInboxStore.getState().applyWorkbench(withFilter({ bucket: { id: "empty", name: "shipping" } }), undefined, "/inbox");
+    useInboxStore
+      .getState()
+      .applyWorkbench(
+        withFilter({ bucket: { id: "empty", name: "shipping" } }),
+        undefined,
+        "/inbox",
+      );
     expect(useInboxStore.getState().currentSessionId).toBeNull();
   });
 
@@ -460,7 +600,11 @@ describe("focus eviction after the chip changes", () => {
   // size, so it evicts the same way; the surface comes from the active tab (what
   // usePathname reports in the shell), so no caller threads a pathname through.
   describe("clicking a chip evicts too", () => {
-    const onTab = (path: string) => useInboxStore.setState({ tabs: [{ id: "t", title: "", path, createdAt: 0 }], activeTabId: "t" } as any);
+    const onTab = (path: string) =>
+      useInboxStore.setState({
+        tabs: [{ id: "t", title: "", path, createdAt: 0 }],
+        activeTabId: "t",
+      } as any);
 
     it("an include chip on the inbox tab moves the selection to the top", () => {
       onTab(`/inbox?s=${S1}`);
@@ -520,26 +664,42 @@ describe("the sidebar's pinned sections", () => {
   afterEach(resetChipStore);
 
   it("are captured with the rest of the chrome", () => {
-    const snap = captureWorkbench(workedIn(), { navSections: { tasks: true, docs: false } });
+    const snap = captureWorkbench(workedIn(), {
+      navSections: { tasks: true, docs: false },
+    });
     expect(snap.navSections).toEqual({ tasks: true, docs: false });
   });
 
   it("nothing pinned is no field at all — an empty bag never reaches a snapshot", () => {
-    expect(captureWorkbench(workedIn(), { navSections: {} }).navSections).toBeUndefined();
+    expect(
+      captureWorkbench(workedIn(), { navSections: {} }).navSections,
+    ).toBeUndefined();
     expect(captureWorkbench(workedIn()).navSections).toBeUndefined();
   });
 
   it("restore wholesale when the layout is applied", () => {
-    useInboxStore.setState({ clientState: { ui: { nav_sections: { chat: true } } } } as any);
+    useInboxStore.setState({
+      clientState: { ui: { nav_sections: { chat: true } } },
+    } as any);
     useInboxStore.getState().applyWorkbench(
-      captureWorkbench(createWorkspace(), { path: "/inbox", navSections: { tasks: true, docs: false } }),
+      captureWorkbench(createWorkspace(), {
+        path: "/inbox",
+        navSections: { tasks: true, docs: false },
+      }),
     );
-    expect(useInboxStore.getState().clientState.ui?.nav_sections).toEqual({ tasks: true, docs: false });
+    expect(useInboxStore.getState().clientState.ui?.nav_sections).toEqual({
+      tasks: true,
+      docs: false,
+    });
   });
 
   it("a layout saved with no pins clears the live ones — a layout is the whole view", () => {
-    useInboxStore.setState({ clientState: { ui: { nav_sections: { tasks: true } } } } as any);
-    useInboxStore.getState().applyWorkbench(captureWorkbench(createWorkspace(), { path: "/inbox" }));
+    useInboxStore.setState({
+      clientState: { ui: { nav_sections: { tasks: true } } },
+    } as any);
+    useInboxStore
+      .getState()
+      .applyWorkbench(captureWorkbench(createWorkspace(), { path: "/inbox" }));
     expect(useInboxStore.getState().clientState.ui?.nav_sections).toEqual({});
   });
 

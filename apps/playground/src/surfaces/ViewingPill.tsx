@@ -15,14 +15,19 @@ const NUDGE_MS = 1400;
 export function useAlsoViewing(n: number | null) {
   const here = useHereState();
   const { me } = useIdentity();
-  return n === null ? [] : here.entries.filter((e) => e.viewing_version === n && e.visitor.id !== me.id).map((e) => e.visitor);
+  return n === null
+    ? []
+    : here.entries
+        .filter((e) => e.viewing_version === n && e.visitor.id !== me.id)
+        .map((e) => e.visitor);
 }
 
 /** "You're viewing v3, nobody else is", or with whoever is there too. */
 export function viewingText(n: number, others: { name: string }[]): string {
   if (others.length === 0) return `You're viewing v${n}, nobody else is`;
   if (others.length === 1) return `You and ${others[0].name} are viewing v${n}`;
-  if (others.length === 2) return `You, ${others[0].name} and ${others[1].name} are viewing v${n}`;
+  if (others.length === 2)
+    return `You, ${others[0].name} and ${others[1].name} are viewing v${n}`;
   return `You and ${others.length} others are viewing v${n}`;
 }
 
@@ -30,7 +35,8 @@ export function viewingText(n: number, others: { name: string }[]): string {
 function whoSees(others: { name: string }[]): string {
   if (others.length === 0) return "Only you see this";
   if (others.length === 1) return `${others[0].name} is here too`;
-  if (others.length === 2) return `${others[0].name} and ${others[1].name} are here too`;
+  if (others.length === 2)
+    return `${others[0].name} and ${others[1].name} are here too`;
   return `${others.length} others are here too`;
 }
 
@@ -41,23 +47,47 @@ function whoSees(others: { name: string }[]): string {
  *  timeline) or "capsule" (floating just above it). `compact`: a phone's
  *  width, which keeps only Back to live. `nudge`: when the app last tried
  *  to write, which the look-only line answers. */
-export function ViewingPill({ number, place, compact, nudge, onBack }: { number: number; place: "bar" | "capsule"; compact: boolean; nudge: number; onBack: () => void }) {
+export function ViewingPill({
+  number,
+  place,
+  compact,
+  nudge,
+  onBack,
+}: {
+  number: number;
+  place: "bar" | "capsule";
+  compact: boolean;
+  nudge: number;
+  onBack: () => void;
+}) {
   const { app, versionByNumber, restore, startFork } = useAppState();
   const others = useAlsoViewing(number);
   const entry = versionByNumber.get(number);
   const [restoring, setRestoring] = useState(false);
   const nudged = useNudged(nudge);
-  const { describedBy, tip } = useTip(makeLiveSays(number, app.live_version, versionByNumber));
+  const { describedBy, tip } = useTip(
+    makeLiveSays(number, app.live_version, versionByNumber),
+  );
   return (
     <div className={`${s.pill} ${s[place]}`}>
-      {others.length > 0 && <span className={s.faces}><FaceStack people={others} max={3} size={16} /></span>}
+      {others.length > 0 && (
+        <span className={s.faces}>
+          <FaceStack people={others} max={3} size={16} />
+        </span>
+      )}
       <span className={s.text} role="status">
         <span className={s.what}>
           <b className={s.v}>v{number}</b>
-          {entry && <span className={s.summary}>{versionSummary(entry, versionByNumber)}</span>}
+          {entry && (
+            <span className={s.summary}>
+              {versionSummary(entry, versionByNumber)}
+            </span>
+          )}
         </span>
         <span className={`${s.look} ${nudged ? s.nudged : ""}`}>
-          {compact ? whoSees(others) : `${whoSees(others)}. Make it live or fork it to use it.`}
+          {compact
+            ? whoSees(others)
+            : `${whoSees(others)}. Make it live or fork it to use it.`}
         </span>
       </span>
       {!compact && (
@@ -76,10 +106,15 @@ export function ViewingPill({ number, place, compact, nudge, onBack }: { number:
             Make v{number} live
             {tip}
           </Button>
-          <Button className={s.ghost} onClick={() => startFork(number)}><ForkIcon />Fork from here</Button>
+          <Button className={s.ghost} onClick={() => startFork(number)}>
+            <ForkIcon />
+            Fork from here
+          </Button>
         </span>
       )}
-      <button className={s.back} onClick={onBack}>Back to live</button>
+      <button className={s.back} onClick={onBack}>
+        Back to live
+      </button>
     </div>
   );
 }
@@ -101,8 +136,15 @@ export function PickBanner({ onCancel }: { onCancel: () => void }) {
   return (
     <div className={s.banner}>
       Click anything in the app
-      <button className={s.cancel} onClick={onCancel} aria-label="Stop pointing" aria-keyshortcuts="Escape">
-        <Keys keys={["Esc"]} hidden>to cancel</Keys>
+      <button
+        className={s.cancel}
+        onClick={onCancel}
+        aria-label="Stop pointing"
+        aria-keyshortcuts="Escape"
+      >
+        <Keys keys={["Esc"]} hidden>
+          to cancel
+        </Keys>
       </button>
     </div>
   );

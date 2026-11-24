@@ -10,8 +10,18 @@
 //   open the thing                    → every item and outcome carries its link
 import type { Conversation } from "../../lib/conversationRow";
 import type { ExternalEventRecord } from "../../lib/externalEventRecord";
-import { prPath, shepherdStyle, type ExternalEventAccent } from "../../lib/externalEvents";
-import { PR_STATE_OF_KIND, SESSION_COMMIT_KINDS, SESSION_PUSH_KIND, prThreadKey as prKey, type PrStateWord } from "../../lib/externalEventOutcomes";
+import {
+  prPath,
+  shepherdStyle,
+  type ExternalEventAccent,
+} from "../../lib/externalEvents";
+import {
+  PR_STATE_OF_KIND,
+  SESSION_COMMIT_KINDS,
+  SESSION_PUSH_KIND,
+  prThreadKey as prKey,
+  type PrStateWord,
+} from "../../lib/externalEventOutcomes";
 import type { SessionStatus } from "../../lib/sessionStatus";
 import { extractWorkspace, formatDate } from "../feed/activityFeedFormat";
 
@@ -31,7 +41,13 @@ export type ActivityPr = {
   at: number;
 };
 
-export type ActivityTask = { id: string; shortId: string; title: string; done: boolean; at: number };
+export type ActivityTask = {
+  id: string;
+  shortId: string;
+  title: string;
+  done: boolean;
+  at: number;
+};
 
 export type ActivityDecision = {
   id: string;
@@ -43,9 +59,19 @@ export type ActivityDecision = {
   at: number;
 };
 
-export type ActivityOutcomes = { prs: ActivityPr[]; commits: number; tasks: ActivityTask[]; decisions: ActivityDecision[] };
+export type ActivityOutcomes = {
+  prs: ActivityPr[];
+  commits: number;
+  tasks: ActivityTask[];
+  decisions: ActivityDecision[];
+};
 
-export const NO_OUTCOMES: ActivityOutcomes = { prs: [], commits: 0, tasks: [], decisions: [] };
+export const NO_OUTCOMES: ActivityOutcomes = {
+  prs: [],
+  commits: 0,
+  tasks: [],
+  decisions: [],
+};
 
 export type ActivityItem = {
   id: string;
@@ -71,7 +97,10 @@ export type ActivityItem = {
 
 // ── outcomes ────────────────────────────────────────────────────────────────
 
-const PR_STATE_LOOK: Record<PrStateWord, { label: string; accent: ExternalEventAccent }> = {
+const PR_STATE_LOOK: Record<
+  PrStateWord,
+  { label: string; accent: ExternalEventAccent }
+> = {
   open: { label: "open", accent: "green" },
   merged: { label: "merged", accent: "violet" },
   closed: { label: "closed", accent: "muted" },
@@ -93,10 +122,22 @@ export type PrThread = ActivityPr & {
 
 /** The chip's fields of a thread, without the bookkeeping. */
 export function plainPr(pr: ActivityPr): ActivityPr {
-  return { key: pr.key, repository: pr.repository, number: pr.number, title: pr.title, label: pr.label, accent: pr.accent, merged: pr.merged, href: pr.href, at: pr.at };
+  return {
+    key: pr.key,
+    repository: pr.repository,
+    number: pr.number,
+    title: pr.title,
+    label: pr.label,
+    accent: pr.accent,
+    merged: pr.merged,
+    href: pr.href,
+    at: pr.at,
+  };
 }
 
-export function prThreads(events: readonly ExternalEventRecord[]): Map<string, PrThread> {
+export function prThreads(
+  events: readonly ExternalEventRecord[],
+): Map<string, PrThread> {
   const out = new Map<string, PrThread & { stateEventAt: number }>();
   for (const e of events) {
     if (e.pr_number === undefined || !e.repository) continue;
@@ -131,8 +172,15 @@ export function prThreads(events: readonly ExternalEventRecord[]): Map<string, P
       t.accent = PR_STATE_LOOK[state].accent;
       t.merged = state === "merged";
       if (e.title) t.title = e.title;
-      const who = e.actor_user_id || (e.actor_login ? `gh:${e.actor_login}` : "");
-      t.actor = who ? { id: who, name: e.actor_login ?? "", image: e.actor_avatar_url ?? null } : t.actor;
+      const who =
+        e.actor_user_id || (e.actor_login ? `gh:${e.actor_login}` : "");
+      t.actor = who
+        ? {
+            id: who,
+            name: e.actor_login ?? "",
+            image: e.actor_avatar_url ?? null,
+          }
+        : t.actor;
     }
   }
   return out;
@@ -140,7 +188,13 @@ export function prThreads(events: readonly ExternalEventRecord[]): Map<string, P
 
 /** A PR from the session's own row (the shepherd's live state), which outranks
  *  what the events last said. */
-export function prFromStatus(pr: { repository: string; number: number; title?: string; state: string; at: number }): ActivityPr {
+export function prFromStatus(pr: {
+  repository: string;
+  number: number;
+  title?: string;
+  state: string;
+  at: number;
+}): ActivityPr {
   const look = shepherdStyle(pr.state);
   return {
     key: prKey(pr.repository, pr.number),
@@ -185,10 +239,28 @@ export function indexOutcomes(src: {
   decisions: readonly DecisionRowLike[];
   viewerId: string | null;
 }): Map<string, ActivityOutcomes> {
-  const out = new Map<string, { prs: Map<string, ActivityPr>; shas: Set<string>; pushed: number; tasks: ActivityTask[]; decisions: ActivityDecision[] }>();
+  const out = new Map<
+    string,
+    {
+      prs: Map<string, ActivityPr>;
+      shas: Set<string>;
+      pushed: number;
+      tasks: ActivityTask[];
+      decisions: ActivityDecision[];
+    }
+  >();
   const slot = (id: string) => {
     let s = out.get(id);
-    if (!s) { s = { prs: new Map(), shas: new Set(), pushed: 0, tasks: [], decisions: [] }; out.set(id, s); }
+    if (!s) {
+      s = {
+        prs: new Map(),
+        shas: new Set(),
+        pushed: 0,
+        tasks: [],
+        decisions: [],
+      };
+      out.set(id, s);
+    }
     return s;
   };
   for (const pr of src.prs.values()) {
@@ -210,20 +282,34 @@ export function indexOutcomes(src: {
     if (t.created_from_conversation) ids.add(t.created_from_conversation);
     if (ids.size === 0) continue;
     const done = t.status === "done";
-    const task: ActivityTask = { id: t._id, shortId: t.short_id, title: t.title ?? "", done, at: (done ? t.closed_at : undefined) ?? t.updated_at ?? 0 };
+    const task: ActivityTask = {
+      id: t._id,
+      shortId: t.short_id,
+      title: t.title ?? "",
+      done,
+      at: (done ? t.closed_at : undefined) ?? t.updated_at ?? 0,
+    };
     for (const id of ids) slot(id).tasks.push(task);
   }
   for (const d of src.decisions) {
-    if (!d.conversation_id || (d.status !== "pending" && d.status !== "answered")) continue;
+    if (
+      !d.conversation_id ||
+      (d.status !== "pending" && d.status !== "answered")
+    )
+      continue;
     const pending = d.status === "pending";
-    const askedOfViewer = pending && !!src.viewerId && (!d.asked_user_ids || d.asked_user_ids.some((u) => String(u) === src.viewerId));
+    const askedOfViewer =
+      pending &&
+      !!src.viewerId &&
+      (!d.asked_user_ids ||
+        d.asked_user_ids.some((u) => String(u) === src.viewerId));
     slot(d.conversation_id).decisions.push({
       id: d._id,
       shortId: d.short_id ?? null,
       question: d.question ?? "",
       pending,
       askedOfViewer,
-      at: (pending ? d.created_at : d.resolved_at ?? d.created_at) ?? 0,
+      at: (pending ? d.created_at : (d.resolved_at ?? d.created_at)) ?? 0,
     });
   }
   const result = new Map<string, ActivityOutcomes>();
@@ -231,8 +317,12 @@ export function indexOutcomes(src: {
     result.set(id, {
       prs: [...s.prs.values()].sort(byOutcomeWeight),
       commits: Math.max(s.shas.size, s.pushed),
-      tasks: s.tasks.sort((a, b) => Number(b.done) - Number(a.done) || b.at - a.at),
-      decisions: s.decisions.sort((a, b) => Number(b.pending) - Number(a.pending) || b.at - a.at),
+      tasks: s.tasks.sort(
+        (a, b) => Number(b.done) - Number(a.done) || b.at - a.at,
+      ),
+      decisions: s.decisions.sort(
+        (a, b) => Number(b.pending) - Number(a.pending) || b.at - a.at,
+      ),
     });
   }
   return result;
@@ -245,20 +335,32 @@ function byOutcomeWeight(a: ActivityPr, b: ActivityPr): number {
 }
 
 /** A session's outcomes with its own row's live PR state laid over the events'. */
-export function withLivePr(outcomes: ActivityOutcomes | undefined, live: ActivityPr | null): ActivityOutcomes {
+export function withLivePr(
+  outcomes: ActivityOutcomes | undefined,
+  live: ActivityPr | null,
+): ActivityOutcomes {
   const base = outcomes ?? NO_OUTCOMES;
   if (!live) return base;
-  const prs = [live, ...base.prs.filter((p) => p.key !== live.key)].sort(byOutcomeWeight);
+  const prs = [live, ...base.prs.filter((p) => p.key !== live.key)].sort(
+    byOutcomeWeight,
+  );
   return { ...base, prs };
 }
 
 /** The PRs no listed session touched: the team's work outside the feed. */
-export function loosePrs(prs: Map<string, PrThread>, listedIds: ReadonlySet<string>): PrThread[] {
+export function loosePrs(
+  prs: Map<string, PrThread>,
+  listedIds: ReadonlySet<string>,
+): PrThread[] {
   const out: PrThread[] = [];
   for (const pr of prs.values()) {
     if (!pr.actor) continue;
     let listed = false;
-    for (const id of pr.convIds) if (listedIds.has(id)) { listed = true; break; }
+    for (const id of pr.convIds)
+      if (listedIds.has(id)) {
+        listed = true;
+        break;
+      }
     if (!listed) out.push(pr);
   }
   return out.sort((a, b) => b.stateAt - a.stateAt);
@@ -269,7 +371,9 @@ export function loosePrs(prs: Map<string, PrThread>, listedIds: ReadonlySet<stri
 /** The row's branch: listConversations and the inbox mapping both carry it,
  *  though the shared Conversation type does not name it. */
 export function branchOf(conv: Conversation): string | null {
-  return (conv as Conversation & { git_branch?: string | null }).git_branch ?? null;
+  return (
+    (conv as Conversation & { git_branch?: string | null }).git_branch ?? null
+  );
 }
 
 export function outcomesSig(o: ActivityOutcomes): string {
@@ -277,7 +381,9 @@ export function outcomesSig(o: ActivityOutcomes): string {
     o.prs.map((p) => `${p.key}:${p.label}`).join(","),
     o.commits,
     o.tasks.map((t) => `${t.shortId}:${t.done ? 1 : 0}`).join(","),
-    o.decisions.map((d) => `${d.id}:${d.pending ? 1 : 0}${d.askedOfViewer ? 1 : 0}`).join(","),
+    o.decisions
+      .map((d) => `${d.id}:${d.pending ? 1 : 0}${d.askedOfViewer ? 1 : 0}`)
+      .join(","),
   ].join("|");
 }
 
@@ -292,12 +398,29 @@ export function makeItem(input: {
   hiddenFromTeam: boolean;
 }): ActivityItem {
   const { conv, status, outcomes } = input;
-  const needs = status === "needs_you" || status === "error" || outcomes.decisions.some((d) => d.pending);
-  const project = extractWorkspace(conv.project_path) ?? extractWorkspace(conv.git_root) ?? null;
+  const needs =
+    status === "needs_you" ||
+    status === "error" ||
+    outcomes.decisions.some((d) => d.pending);
+  const project =
+    extractWorkspace(conv.project_path) ??
+    extractWorkspace(conv.git_root) ??
+    null;
   const at = conv.updated_at || conv.started_at || 0;
   const sig = [
-    status, input.title, input.line, input.reason ?? "", at, input.actor.id, input.actor.name, input.actor.image ?? "",
-    project ?? "", input.hiddenFromTeam ? 1 : 0, conv.message_count ?? 0, conv.subtitle ?? "", branchOf(conv) ?? "",
+    status,
+    input.title,
+    input.line,
+    input.reason ?? "",
+    at,
+    input.actor.id,
+    input.actor.name,
+    input.actor.image ?? "",
+    project ?? "",
+    input.hiddenFromTeam ? 1 : 0,
+    conv.message_count ?? 0,
+    conv.subtitle ?? "",
+    branchOf(conv) ?? "",
     outcomesSig(outcomes),
   ].join("\u0001");
   return {
@@ -320,7 +443,10 @@ export function makeItem(input: {
 
 /** Hand back last pass's item wherever nothing it draws changed, so a memoized
  *  row skips the render. Returns the next cache alongside the items. */
-export function keepStableItems(prev: ReadonlyMap<string, ActivityItem>, next: ActivityItem[]): { items: ActivityItem[]; cache: Map<string, ActivityItem> } {
+export function keepStableItems(
+  prev: ReadonlyMap<string, ActivityItem>,
+  next: ActivityItem[],
+): { items: ActivityItem[]; cache: Map<string, ActivityItem> } {
   const cache = new Map<string, ActivityItem>();
   const items = next.map((item) => {
     const old = prev.get(item.id);
@@ -333,22 +459,46 @@ export function keepStableItems(prev: ReadonlyMap<string, ActivityItem>, next: A
 
 // ── filters ─────────────────────────────────────────────────────────────────
 
-export type ActivityFilter = { people: readonly string[]; project: string | null; needs: boolean };
+export type ActivityFilter = {
+  people: readonly string[];
+  project: string | null;
+  needs: boolean;
+};
 
-export function filterItems(items: readonly ActivityItem[], f: ActivityFilter): ActivityItem[] {
-  if (f.people.length === 0 && !f.project && !f.needs) return items as ActivityItem[];
+export function filterItems(
+  items: readonly ActivityItem[],
+  f: ActivityFilter,
+): ActivityItem[] {
+  if (f.people.length === 0 && !f.project && !f.needs)
+    return items as ActivityItem[];
   const people = new Set(f.people);
-  return items.filter((i) => (people.size === 0 || people.has(i.actor.id)) && (!f.project || i.project === f.project) && (!f.needs || i.needs));
+  return items.filter(
+    (i) =>
+      (people.size === 0 || people.has(i.actor.id)) &&
+      (!f.project || i.project === f.project) &&
+      (!f.needs || i.needs),
+  );
 }
 
-export function filterLoose(prs: readonly PrThread[], f: ActivityFilter): PrThread[] {
+export function filterLoose(
+  prs: readonly PrThread[],
+  f: ActivityFilter,
+): PrThread[] {
   if (f.needs) return [];
   if (f.people.length === 0 && !f.project) return prs as PrThread[];
   const people = new Set(f.people);
-  return prs.filter((p) => (people.size === 0 || (!!p.actor && people.has(p.actor.id))) && (!f.project || p.repoName === f.project));
+  return prs.filter(
+    (p) =>
+      (people.size === 0 || (!!p.actor && people.has(p.actor.id))) &&
+      (!f.project || p.repoName === f.project),
+  );
 }
 
-export type PersonFacet = { actor: ActivityActor; sessions: number; live: number };
+export type PersonFacet = {
+  actor: ActivityActor;
+  sessions: number;
+  live: number;
+};
 
 /** The faces the header offers: everyone in the loaded feed, the ones working
  *  now first, then by how much they did. */
@@ -356,17 +506,30 @@ export function peopleFacets(items: readonly ActivityItem[]): PersonFacet[] {
   const map = new Map<string, PersonFacet>();
   for (const i of items) {
     let f = map.get(i.actor.id);
-    if (!f) { f = { actor: i.actor, sessions: 0, live: 0 }; map.set(i.actor.id, f); }
+    if (!f) {
+      f = { actor: i.actor, sessions: 0, live: 0 };
+      map.set(i.actor.id, f);
+    }
     f.sessions += 1;
     if (isLive(i.status)) f.live += 1;
   }
-  return [...map.values()].sort((a, b) => b.live - a.live || b.sessions - a.sessions || a.actor.name.localeCompare(b.actor.name));
+  return [...map.values()].sort(
+    (a, b) =>
+      b.live - a.live ||
+      b.sessions - a.sessions ||
+      a.actor.name.localeCompare(b.actor.name),
+  );
 }
 
-export function projectFacets(items: readonly ActivityItem[]): Array<{ name: string; sessions: number }> {
+export function projectFacets(
+  items: readonly ActivityItem[],
+): Array<{ name: string; sessions: number }> {
   const map = new Map<string, number>();
-  for (const i of items) if (i.project) map.set(i.project, (map.get(i.project) ?? 0) + 1);
-  return [...map.entries()].map(([name, sessions]) => ({ name, sessions })).sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name));
+  for (const i of items)
+    if (i.project) map.set(i.project, (map.get(i.project) ?? 0) + 1);
+  return [...map.entries()]
+    .map(([name, sessions]) => ({ name, sessions }))
+    .sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name));
 }
 
 // ── the four answers ────────────────────────────────────────────────────────
@@ -381,23 +544,48 @@ export function nowStrip(items: readonly ActivityItem[]): NowPerson[] {
   for (const i of items) {
     if (!isLive(i.status)) continue;
     let p = map.get(i.actor.id);
-    if (!p) { p = { actor: i.actor, items: [] }; map.set(i.actor.id, p); }
+    if (!p) {
+      p = { actor: i.actor, items: [] };
+      map.set(i.actor.id, p);
+    }
     p.items.push(i);
   }
   for (const p of map.values()) p.items.sort((a, b) => b.at - a.at);
-  return [...map.values()].sort((a, b) => b.items.length - a.items.length || a.actor.name.localeCompare(b.actor.name));
+  return [...map.values()].sort(
+    (a, b) =>
+      b.items.length - a.items.length ||
+      a.actor.name.localeCompare(b.actor.name),
+  );
 }
 
-const NEEDS_RANK: Partial<Record<SessionStatus, number>> = { error: 0, needs_you: 1 };
+const NEEDS_RANK: Partial<Record<SessionStatus, number>> = {
+  error: 0,
+  needs_you: 1,
+};
 
 /** What waits on someone: failures first, then asks, newest first inside each. */
 export function needsList(items: readonly ActivityItem[]): ActivityItem[] {
-  return items.filter((i) => i.needs).sort((a, b) => (NEEDS_RANK[a.status] ?? 2) - (NEEDS_RANK[b.status] ?? 2) || b.at - a.at);
+  return items
+    .filter((i) => i.needs)
+    .sort(
+      (a, b) =>
+        (NEEDS_RANK[a.status] ?? 2) - (NEEDS_RANK[b.status] ?? 2) ||
+        b.at - a.at,
+    );
 }
 
-export type ActivitySummary = { sessions: number; people: number; prsMerged: number; tasksDone: number; since: number | null };
+export type ActivitySummary = {
+  sessions: number;
+  people: number;
+  prsMerged: number;
+  tasksDone: number;
+  since: number | null;
+};
 
-export function summarize(items: readonly ActivityItem[], loose: readonly PrThread[]): ActivitySummary {
+export function summarize(
+  items: readonly ActivityItem[],
+  loose: readonly PrThread[],
+): ActivitySummary {
   const people = new Set<string>();
   const merged = new Set<string>();
   const done = new Set<string>();
@@ -409,7 +597,13 @@ export function summarize(items: readonly ActivityItem[], loose: readonly PrThre
     if (i.at && (since === null || i.at < since)) since = i.at;
   }
   for (const p of loose) if (p.merged) merged.add(p.key);
-  return { sessions: items.length, people: people.size, prsMerged: merged.size, tasksDone: done.size, since };
+  return {
+    sessions: items.length,
+    people: people.size,
+    prsMerged: merged.size,
+    tasksDone: done.size,
+    since,
+  };
 }
 
 // ── grouping ────────────────────────────────────────────────────────────────
@@ -431,7 +625,13 @@ export type ActivityGroup = {
   at: number;
 };
 
-export type ActivityDay = { date: string; label: string; groups: ActivityGroup[]; sessions: number; people: number };
+export type ActivityDay = {
+  date: string;
+  label: string;
+  groups: ActivityGroup[];
+  sessions: number;
+  people: number;
+};
 
 export function dayKeyOf(ts: number, timeZone: string): string {
   return new Date(ts).toLocaleDateString("en-CA", { timeZone });
@@ -443,35 +643,81 @@ export const OTHER_PROJECT = "Other";
  *  most recently active first; inside a group its sessions newest first. A PR
  *  no listed session touched files under the person who moved it (or its
  *  repository) on the day it moved. */
-export function groupActivity(items: readonly ActivityItem[], loose: readonly PrThread[], by: ActivityGroupBy, timeZone: string): ActivityDay[] {
-  type Acc = { group: ActivityGroup; prs: Map<string, ActivityPr>; tasks: Map<string, ActivityTask>; decisions: Map<string, ActivityDecision> };
+export function groupActivity(
+  items: readonly ActivityItem[],
+  loose: readonly PrThread[],
+  by: ActivityGroupBy,
+  timeZone: string,
+): ActivityDay[] {
+  type Acc = {
+    group: ActivityGroup;
+    prs: Map<string, ActivityPr>;
+    tasks: Map<string, ActivityTask>;
+    decisions: Map<string, ActivityDecision>;
+  };
   const days = new Map<string, Map<string, Acc>>();
   const groupOf = (date: string, key: string, init: () => ActivityGroup) => {
     let groups = days.get(date);
-    if (!groups) { groups = new Map(); days.set(date, groups); }
+    if (!groups) {
+      groups = new Map();
+      days.set(date, groups);
+    }
     let acc = groups.get(key);
-    if (!acc) { acc = { group: init(), prs: new Map(), tasks: new Map(), decisions: new Map() }; groups.set(key, acc); }
+    if (!acc) {
+      acc = {
+        group: init(),
+        prs: new Map(),
+        tasks: new Map(),
+        decisions: new Map(),
+      };
+      groups.set(key, acc);
+    }
     return acc;
   };
-  const personGroup = (actor: ActivityActor): ActivityGroup => ({ key: `p:${actor.id}`, label: actor.name, actor, project: null, items: [], prs: [], tasksDone: [], decisionsAnswered: [], at: 0 });
-  const projectGroup = (project: string | null): ActivityGroup => ({ key: `r:${project ?? ""}`, label: project ?? OTHER_PROJECT, actor: null, project, items: [], prs: [], tasksDone: [], decisionsAnswered: [], at: 0 });
+  const personGroup = (actor: ActivityActor): ActivityGroup => ({
+    key: `p:${actor.id}`,
+    label: actor.name,
+    actor,
+    project: null,
+    items: [],
+    prs: [],
+    tasksDone: [],
+    decisionsAnswered: [],
+    at: 0,
+  });
+  const projectGroup = (project: string | null): ActivityGroup => ({
+    key: `r:${project ?? ""}`,
+    label: project ?? OTHER_PROJECT,
+    actor: null,
+    project,
+    items: [],
+    prs: [],
+    tasksDone: [],
+    decisionsAnswered: [],
+    at: 0,
+  });
 
   for (const item of items) {
     const date = dayKeyOf(item.at || Date.now(), timeZone);
-    const acc = by === "person"
-      ? groupOf(date, `p:${item.actor.id}`, () => personGroup(item.actor))
-      : groupOf(date, `r:${item.project ?? ""}`, () => projectGroup(item.project));
+    const acc =
+      by === "person"
+        ? groupOf(date, `p:${item.actor.id}`, () => personGroup(item.actor))
+        : groupOf(date, `r:${item.project ?? ""}`, () =>
+            projectGroup(item.project),
+          );
     acc.group.items.push(item);
     if (item.at > acc.group.at) acc.group.at = item.at;
     for (const p of item.outcomes.prs) acc.prs.set(p.key, p);
     for (const t of item.outcomes.tasks) if (t.done) acc.tasks.set(t.id, t);
-    for (const d of item.outcomes.decisions) if (!d.pending) acc.decisions.set(d.id, d);
+    for (const d of item.outcomes.decisions)
+      if (!d.pending) acc.decisions.set(d.id, d);
   }
   for (const pr of loose) {
     const date = dayKeyOf(pr.stateAt || pr.at, timeZone);
-    const acc = by === "person"
-      ? groupOf(date, `p:${pr.actor!.id}`, () => personGroup(pr.actor!))
-      : groupOf(date, `r:${pr.repoName}`, () => projectGroup(pr.repoName));
+    const acc =
+      by === "person"
+        ? groupOf(date, `p:${pr.actor!.id}`, () => personGroup(pr.actor!))
+        : groupOf(date, `r:${pr.repoName}`, () => projectGroup(pr.repoName));
     if (!acc.prs.has(pr.key)) acc.prs.set(pr.key, plainPr(pr));
     if (pr.stateAt > acc.group.at) acc.group.at = pr.stateAt;
   }
@@ -479,17 +725,31 @@ export function groupActivity(items: readonly ActivityItem[], loose: readonly Pr
   return [...days.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .map(([date, groups]) => {
-      const list = [...groups.values()].map(({ group, prs, tasks, decisions }) => ({
-        ...group,
-        items: group.items.sort((a, b) => b.at - a.at),
-        prs: [...prs.values()].sort(byOutcomeWeight),
-        tasksDone: [...tasks.values()].sort((a, b) => b.at - a.at),
-        decisionsAnswered: [...decisions.values()].sort((a, b) => b.at - a.at),
-      }));
+      const list = [...groups.values()].map(
+        ({ group, prs, tasks, decisions }) => ({
+          ...group,
+          items: group.items.sort((a, b) => b.at - a.at),
+          prs: [...prs.values()].sort(byOutcomeWeight),
+          tasksDone: [...tasks.values()].sort((a, b) => b.at - a.at),
+          decisionsAnswered: [...decisions.values()].sort(
+            (a, b) => b.at - a.at,
+          ),
+        }),
+      );
       list.sort((a, b) => b.at - a.at);
       const people = new Set<string>();
       let sessions = 0;
-      for (const g of list) for (const i of g.items) { sessions += 1; people.add(i.actor.id); }
-      return { date, label: formatDate(date), groups: list, sessions, people: people.size };
+      for (const g of list)
+        for (const i of g.items) {
+          sessions += 1;
+          people.add(i.actor.id);
+        }
+      return {
+        date,
+        label: formatDate(date),
+        groups: list,
+        sessions,
+        people: people.size,
+      };
     });
 }

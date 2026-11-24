@@ -5,7 +5,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { startPoolMaintainer } from "./maintainer.js";
 import { readPoolState } from "./state.js";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
 
 let repoRoot: string;
 let home: IsolatedCodecastDir;
@@ -17,16 +20,22 @@ beforeEach(() => {
   home = isolateCodecastDir();
   repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ws-pool-maint-"));
   execSync("git init -q -b main", { cwd: repoRoot });
-  execSync("git config user.email t@t.t && git config user.name t", { cwd: repoRoot });
+  execSync("git config user.email t@t.t && git config user.name t", {
+    cwd: repoRoot,
+  });
   fs.writeFileSync(path.join(repoRoot, "README.md"), "test\n");
   execSync("git add . && git commit -q -m init", { cwd: repoRoot });
 });
 
 afterEach(async () => {
   for (const h of handles.splice(0)) {
-    try { await h.stop(); } catch {}
+    try {
+      await h.stop();
+    } catch {}
   }
-  try { execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" }); } catch {}
+  try {
+    execSync("git worktree prune", { cwd: repoRoot, stdio: "ignore" });
+  } catch {}
   fs.rmSync(repoRoot, { recursive: true, force: true });
   home.restore();
 });
@@ -47,14 +56,21 @@ describe("startPoolMaintainer", () => {
   }, 25000);
 
   test("tickNow() triggers a maintenance pass synchronously to completion", async () => {
-    const h = startPoolMaintainer({ repoRoot, size: 1, periodMs: 60000, watch: false });
+    const h = startPoolMaintainer({
+      repoRoot,
+      size: 1,
+      periodMs: 60000,
+      watch: false,
+    });
     handles.push(h);
     // tickNow returns when maintainPool completes (initial pass).
     await h.tickNow();
     const state = readPoolState(repoRoot)!;
     expect(state.size).toBe(1);
     // Slot was at least scheduled into warming.
-    expect(state.slots[0]!.state === "warming" || state.slots[0]!.state === "ready").toBe(true);
+    expect(
+      state.slots[0]!.state === "warming" || state.slots[0]!.state === "ready",
+    ).toBe(true);
   }, 15000);
 
   test("stop() is idempotent", async () => {
@@ -73,7 +89,9 @@ describe("startPoolMaintainer", () => {
       repoRoot,
       size: 1,
       periodMs: 60000,
-      log: (m) => { ticks.push(m); },
+      log: (m) => {
+        ticks.push(m);
+      },
     });
     handles.push(h);
     // Wait for first ready slot.

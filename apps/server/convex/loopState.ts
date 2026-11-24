@@ -46,7 +46,8 @@ export function batchHasLoopEvent(msgs: LoopMsg[]): boolean {
   return msgs.some(
     (m) =>
       (m.role === "system" && m.subtype === "scheduled_task_fire") ||
-      (m.role === "assistant" && m.tool_calls?.some((tc) => tc.name === "ScheduleWakeup")),
+      (m.role === "assistant" &&
+        m.tool_calls?.some((tc) => tc.name === "ScheduleWakeup")),
   );
 }
 
@@ -56,7 +57,13 @@ const MIN_DELAY_S = 60;
 const MAX_DELAY_S = 3600;
 
 type LoopEvent =
-  | { kind: "arm"; ts: number; delayMs: number; reason?: string; prompt?: string }
+  | {
+      kind: "arm";
+      ts: number;
+      delayMs: number;
+      reason?: string;
+      prompt?: string;
+    }
   | { kind: "fire"; ts: number }
   | { kind: "stop"; ts: number };
 
@@ -71,7 +78,12 @@ function eventsFrom(msgs: LoopMsg[], now: number): LoopEvent[] {
     if (m.role !== "assistant" || !m.tool_calls) continue;
     for (const tc of m.tool_calls) {
       if (tc.name !== "ScheduleWakeup") continue;
-      let input: { stop?: boolean; delaySeconds?: number; reason?: string; prompt?: string } = {};
+      let input: {
+        stop?: boolean;
+        delaySeconds?: number;
+        reason?: string;
+        prompt?: string;
+      } = {};
       try {
         input = JSON.parse(tc.input || "{}");
       } catch {
@@ -79,14 +91,26 @@ function eventsFrom(msgs: LoopMsg[], now: number): LoopEvent[] {
       }
       if (input.stop === true) {
         events.push({ kind: "stop", ts });
-      } else if (typeof input.delaySeconds === "number" && isFinite(input.delaySeconds)) {
-        const delayS = Math.min(MAX_DELAY_S, Math.max(MIN_DELAY_S, input.delaySeconds));
+      } else if (
+        typeof input.delaySeconds === "number" &&
+        isFinite(input.delaySeconds)
+      ) {
+        const delayS = Math.min(
+          MAX_DELAY_S,
+          Math.max(MIN_DELAY_S, input.delaySeconds),
+        );
         events.push({
           kind: "arm",
           ts,
           delayMs: delayS * 1000,
-          reason: typeof input.reason === "string" ? input.reason.slice(0, 500) : undefined,
-          prompt: typeof input.prompt === "string" ? input.prompt.slice(0, 4000) : undefined,
+          reason:
+            typeof input.reason === "string"
+              ? input.reason.slice(0, 500)
+              : undefined,
+          prompt:
+            typeof input.prompt === "string"
+              ? input.prompt.slice(0, 4000)
+              : undefined,
         });
       }
     }

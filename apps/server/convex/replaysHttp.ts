@@ -22,17 +22,40 @@
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { r2FreshGetUrl, r2Presign, replayChunkKey, replayDomChunkKey, replayStyleKey, replaysBucketFromEnv, safeReplayPathSegment } from "./lib/r2";
+import {
+  r2FreshGetUrl,
+  r2Presign,
+  replayChunkKey,
+  replayDomChunkKey,
+  replayStyleKey,
+  replaysBucketFromEnv,
+  safeReplayPathSegment,
+} from "./lib/r2";
 import { openReplayCap, replayCapKey } from "./lib/replayCap";
 import { signPlayerManifest } from "./lib/replayChunks";
-import { REPLAY_DOM_LIMITS, REPLAY_FRAME_ADMIT_PATH, REPLAY_FRAME_LIMITS, REPLAY_PLAYER_MANIFEST_PATH, REPLAY_STYLE_LIMITS, type ReplayChunkKind } from "@codecast/shared/contracts/replayPlayer";
+import {
+  REPLAY_DOM_LIMITS,
+  REPLAY_FRAME_ADMIT_PATH,
+  REPLAY_FRAME_LIMITS,
+  REPLAY_PLAYER_MANIFEST_PATH,
+  REPLAY_STYLE_LIMITS,
+  type ReplayChunkKind,
+} from "@codecast/shared/contracts/replayPlayer";
 import { keyRateLimited } from "./lib/httpRateLimit";
 import { sha256Hex } from "./lib/hash";
-import { admitIngestKey, ingestCorsHeaders, ingestJson, ingestRoute } from "./ingestHttp";
+import {
+  admitIngestKey,
+  ingestCorsHeaders,
+  ingestJson,
+  ingestRoute,
+} from "./ingestHttp";
 import { REPLAY_LIMITS } from "@codecast/shared/contracts/replay";
 
 /** The path the SDK posts to, on either prefix the proxy forwards. */
-export const REPLAY_SIGN_PREFIXES = ["/cli/ingest/replay-sign/", "/api/ingest/replay-sign/"] as const;
+export const REPLAY_SIGN_PREFIXES = [
+  "/cli/ingest/replay-sign/",
+  "/api/ingest/replay-sign/",
+] as const;
 
 /** Sign requests a source may make per minute: a 60 chunk recording and its retries, several at once. */
 const SIGN_PER_MINUTE = 600;
@@ -72,22 +95,59 @@ export type ReplaySignBody =
 export function validateReplaySign(body: unknown): ReplaySignBody | string {
   if (!body || typeof body !== "object") return "body must be a JSON object";
   const b = body as Record<string, unknown>;
-  if (b.kind !== undefined && b.kind !== "events" && b.kind !== "dom" && b.kind !== "style") return `kind must be "events", "dom" or "style"`;
-  if (typeof b.replay_id !== "string" || !b.replay_id.trim() || b.replay_id.length > 200) return "replay_id must be a string of 1 to 200 characters";
-  if (typeof b.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(b.sha256)) return "sha256 must be 64 lowercase hex characters (of the gzipped chunk)";
-  if (typeof b.size !== "number" || !Number.isInteger(b.size) || b.size <= 0) return "size must be the chunk's byte length";
+  if (
+    b.kind !== undefined &&
+    b.kind !== "events" &&
+    b.kind !== "dom" &&
+    b.kind !== "style"
+  )
+    return `kind must be "events", "dom" or "style"`;
+  if (
+    typeof b.replay_id !== "string" ||
+    !b.replay_id.trim() ||
+    b.replay_id.length > 200
+  )
+    return "replay_id must be a string of 1 to 200 characters";
+  if (typeof b.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(b.sha256))
+    return "sha256 must be 64 lowercase hex characters (of the gzipped chunk)";
+  if (typeof b.size !== "number" || !Number.isInteger(b.size) || b.size <= 0)
+    return "size must be the chunk's byte length";
   if (b.kind === "style") {
-    if (typeof b.href !== "string" || !b.href || b.href.length > REPLAY_STYLE_LIMITS.href_max_chars) return `href must be a string of 1 to ${REPLAY_STYLE_LIMITS.href_max_chars} characters`;
-    if (b.size > REPLAY_STYLE_LIMITS.max_bytes) return `a stylesheet is at most ${REPLAY_STYLE_LIMITS.max_bytes} bytes`;
-    return { replay_id: b.replay_id.trim(), sha256: b.sha256, size: b.size, kind: "style", href: b.href };
+    if (
+      typeof b.href !== "string" ||
+      !b.href ||
+      b.href.length > REPLAY_STYLE_LIMITS.href_max_chars
+    )
+      return `href must be a string of 1 to ${REPLAY_STYLE_LIMITS.href_max_chars} characters`;
+    if (b.size > REPLAY_STYLE_LIMITS.max_bytes)
+      return `a stylesheet is at most ${REPLAY_STYLE_LIMITS.max_bytes} bytes`;
+    return {
+      replay_id: b.replay_id.trim(),
+      sha256: b.sha256,
+      size: b.size,
+      kind: "style",
+      href: b.href,
+    };
   }
   const kind: ReplayChunkKind = b.kind === "dom" ? "dom" : "events";
   const limits = kind === "dom" ? REPLAY_DOM_LIMITS : REPLAY_LIMITS;
-  if (typeof b.seq !== "number" || !Number.isInteger(b.seq) || b.seq < 0 || b.seq >= limits.max_chunks_per_replay) {
+  if (
+    typeof b.seq !== "number" ||
+    !Number.isInteger(b.seq) ||
+    b.seq < 0 ||
+    b.seq >= limits.max_chunks_per_replay
+  ) {
     return `seq must be an integer from 0 to ${limits.max_chunks_per_replay - 1}`;
   }
-  if (b.size > limits.chunk_max_bytes) return `a ${kind === "dom" ? "DOM " : ""}chunk is at most ${limits.chunk_max_bytes} bytes`;
-  return { replay_id: b.replay_id.trim(), seq: b.seq, sha256: b.sha256, size: b.size, kind };
+  if (b.size > limits.chunk_max_bytes)
+    return `a ${kind === "dom" ? "DOM " : ""}chunk is at most ${limits.chunk_max_bytes} bytes`;
+  return {
+    replay_id: b.replay_id.trim(),
+    seq: b.seq,
+    sha256: b.sha256,
+    size: b.size,
+    kind,
+  };
 }
 
 /** The UTC day a stylesheet is stored under (replayStyleKey). */
@@ -104,9 +164,17 @@ const utcDay = (now: number) => new Date(now).toISOString().slice(0, 10);
  * upload URL signs the declared size as the PUT's content-length, so the
  * bucket refuses a body of any other size.
  */
-export async function handleReplaySign(ctx: any, request: Request, key: string): Promise<Response> {
+export async function handleReplaySign(
+  ctx: any,
+  request: Request,
+  key: string,
+): Promise<Response> {
   return await ingestRoute(request, async () => {
-    const admitted = await admitIngestKey(ctx, request, key, { prefix: "replay-sign", max: SIGN_PER_MINUTE, window_ms: 60_000 });
+    const admitted = await admitIngestKey(ctx, request, key, {
+      prefix: "replay-sign",
+      max: SIGN_PER_MINUTE,
+      window_ms: 60_000,
+    });
     if (admitted instanceof Response) return admitted;
     const { source, cors } = admitted;
 
@@ -120,36 +188,139 @@ export async function handleReplaySign(ctx: any, request: Request, key: string):
     if (typeof sign === "string") return ingestJson(400, { error: sign }, cors);
 
     const bucket = replaysBucketFromEnv();
-    if (!bucket) return ingestJson(503, { error: "replay storage is not configured" }, cors);
+    if (!bucket)
+      return ingestJson(
+        503,
+        { error: "replay storage is not configured" },
+        cors,
+      );
     if (sign.kind === "style") {
       // One copy per source, day and content: a sheet some recording stored
       // today answers `exists`, and this recording names it all the same.
-      const styleKey = replayStyleKey({ sourceId: String(source._id), day: utcDay(Date.now()), sha256: sign.sha256 });
-      const named = await ctx.runMutation(internal.replays.recordStyle, { source_id: source._id, replay_external_id: sign.replay_id, href: sign.href, key: styleKey });
+      const styleKey = replayStyleKey({
+        sourceId: String(source._id),
+        day: utcDay(Date.now()),
+        sha256: sign.sha256,
+      });
+      const named = await ctx.runMutation(internal.replays.recordStyle, {
+        source_id: source._id,
+        replay_external_id: sign.replay_id,
+        href: sign.href,
+        key: styleKey,
+      });
       if (!named.ok) return ingestJson(400, { error: named.reason }, cors);
-      const there = await fetch(await r2Presign(bucket, "HEAD", styleKey, REPLAY_LIMITS.signed_url_ttl_s), { method: "HEAD" }).catch(() => null);
-      if (there?.ok) return ingestJson(200, { key: styleKey, upload_url: null, exists: true }, cors);
-      const putUrl = await r2Presign(bucket, "PUT", styleKey, REPLAY_LIMITS.signed_url_ttl_s, undefined, undefined, { "content-length": String(sign.size) });
-      return ingestJson(200, { key: styleKey, upload_url: putUrl, exists: false, expires_in: REPLAY_LIMITS.signed_url_ttl_s }, cors);
+      const there = await fetch(
+        await r2Presign(
+          bucket,
+          "HEAD",
+          styleKey,
+          REPLAY_LIMITS.signed_url_ttl_s,
+        ),
+        { method: "HEAD" },
+      ).catch(() => null);
+      if (there?.ok)
+        return ingestJson(
+          200,
+          { key: styleKey, upload_url: null, exists: true },
+          cors,
+        );
+      const putUrl = await r2Presign(
+        bucket,
+        "PUT",
+        styleKey,
+        REPLAY_LIMITS.signed_url_ttl_s,
+        undefined,
+        undefined,
+        { "content-length": String(sign.size) },
+      );
+      return ingestJson(
+        200,
+        {
+          key: styleKey,
+          upload_url: putUrl,
+          exists: false,
+          expires_in: REPLAY_LIMITS.signed_url_ttl_s,
+        },
+        cors,
+      );
     }
-    const keyParts = { sourceId: String(source._id), replay: safeReplayPathSegment(sign.replay_id), seq: sign.seq, sha256: sign.sha256 };
-    const objectKey = sign.kind === "dom" ? replayDomChunkKey(keyParts) : replayChunkKey(keyParts);
-    const record = (replace_unlanded?: string) => ctx.runMutation(internal.replays.recordChunk, { source_id: source._id, replay_external_id: sign.replay_id, seq: sign.seq, key: objectKey, kind: sign.kind, ...(replace_unlanded ? { replace_unlanded } : {}) });
+    const keyParts = {
+      sourceId: String(source._id),
+      replay: safeReplayPathSegment(sign.replay_id),
+      seq: sign.seq,
+      sha256: sign.sha256,
+    };
+    const objectKey =
+      sign.kind === "dom"
+        ? replayDomChunkKey(keyParts)
+        : replayChunkKey(keyParts);
+    const record = (replace_unlanded?: string) =>
+      ctx.runMutation(internal.replays.recordChunk, {
+        source_id: source._id,
+        replay_external_id: sign.replay_id,
+        seq: sign.seq,
+        key: objectKey,
+        kind: sign.kind,
+        ...(replace_unlanded ? { replace_unlanded } : {}),
+      });
     let recorded = await record();
     if (!recorded.ok) return ingestJson(400, { error: recorded.reason }, cors);
     // Append-only: a sequence whose chunk has landed keeps it; one whose upload never landed may be re-signed.
     if (recorded.held) {
       const held = recorded.held;
-      const landed = await fetch(await r2Presign(bucket, "HEAD", held, REPLAY_LIMITS.signed_url_ttl_s), { method: "HEAD" }).catch(() => null);
-      if (landed?.ok) return ingestJson(200, { key: held, upload_url: null, exists: true }, cors);
+      const landed = await fetch(
+        await r2Presign(bucket, "HEAD", held, REPLAY_LIMITS.signed_url_ttl_s),
+        { method: "HEAD" },
+      ).catch(() => null);
+      if (landed?.ok)
+        return ingestJson(
+          200,
+          { key: held, upload_url: null, exists: true },
+          cors,
+        );
       recorded = await record(held);
-      if (!recorded.ok || recorded.held) return ingestJson(503, { error: "chunk changed while signing; try again" }, cors);
+      if (!recorded.ok || recorded.held)
+        return ingestJson(
+          503,
+          { error: "chunk changed while signing; try again" },
+          cors,
+        );
     }
 
-    const head = await fetch(await r2Presign(bucket, "HEAD", objectKey, REPLAY_LIMITS.signed_url_ttl_s), { method: "HEAD" }).catch(() => null);
-    if (head?.ok) return ingestJson(200, { key: objectKey, upload_url: null, exists: true }, cors);
-    const uploadUrl = await r2Presign(bucket, "PUT", objectKey, REPLAY_LIMITS.signed_url_ttl_s, undefined, undefined, { "content-length": String(sign.size) });
-    return ingestJson(200, { key: objectKey, upload_url: uploadUrl, exists: false, expires_in: REPLAY_LIMITS.signed_url_ttl_s }, cors);
+    const head = await fetch(
+      await r2Presign(
+        bucket,
+        "HEAD",
+        objectKey,
+        REPLAY_LIMITS.signed_url_ttl_s,
+      ),
+      { method: "HEAD" },
+    ).catch(() => null);
+    if (head?.ok)
+      return ingestJson(
+        200,
+        { key: objectKey, upload_url: null, exists: true },
+        cors,
+      );
+    const uploadUrl = await r2Presign(
+      bucket,
+      "PUT",
+      objectKey,
+      REPLAY_LIMITS.signed_url_ttl_s,
+      undefined,
+      undefined,
+      { "content-length": String(sign.size) },
+    );
+    return ingestJson(
+      200,
+      {
+        key: objectKey,
+        upload_url: uploadUrl,
+        exists: false,
+        expires_in: REPLAY_LIMITS.signed_url_ttl_s,
+      },
+      cors,
+    );
   });
 }
 
@@ -177,23 +348,50 @@ const CHUNK_CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
-export const replayChunkPreflight = httpAction(async () => new Response(null, { status: 204, headers: CHUNK_CORS }));
+export const replayChunkPreflight = httpAction(
+  async () => new Response(null, { status: 204, headers: CHUNK_CORS }),
+);
 
 export const replayChunk = httpAction(async (ctx, request) => {
   const u = new URL(request.url);
   const replay = u.searchParams.get("replay") ?? "";
   const seq = Number(u.searchParams.get("seq"));
-  const notFound = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store", ...CHUNK_CORS } });
+  const notFound = () =>
+    new Response("Not found", {
+      status: 404,
+      headers: { "Cache-Control": "no-store", ...CHUNK_CORS },
+    });
   if (!replay || !Number.isInteger(seq) || seq < 0) return notFound();
   const apiToken = request.headers.get("X-Api-Token") ?? undefined;
-  const userId = apiToken ? undefined : await getAuthUserId(ctx).catch(() => null);
-  if (!apiToken && !userId) return new Response("Unauthorized", { status: 401, headers: { "Cache-Control": "no-store", ...CHUNK_CORS } });
-  const kind = u.searchParams.get("kind") === "dom" ? ("dom" as const) : undefined;
-  const key: string | null = await ctx.runQuery(internal.replays.chunkObject, { user_id: userId ?? undefined, api_token: apiToken, replay, seq, ...(kind ? { kind } : {}) });
+  const userId = apiToken
+    ? undefined
+    : await getAuthUserId(ctx).catch(() => null);
+  if (!apiToken && !userId)
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "Cache-Control": "no-store", ...CHUNK_CORS },
+    });
+  const kind =
+    u.searchParams.get("kind") === "dom" ? ("dom" as const) : undefined;
+  const key: string | null = await ctx.runQuery(internal.replays.chunkObject, {
+    user_id: userId ?? undefined,
+    api_token: apiToken,
+    replay,
+    seq,
+    ...(kind ? { kind } : {}),
+  });
   const bucket = replaysBucketFromEnv();
   if (!key || !bucket) return notFound();
   const { url } = await r2FreshGetUrl(bucket, key);
-  return new Response(null, { status: 302, headers: { Location: url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", ...CHUNK_CORS } });
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url,
+      "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+      ...CHUNK_CORS,
+    },
+  });
 });
 
 /** The path the player page exchanges its capability at (GET ?cap=), and the worker's frame admission (POST). */
@@ -207,7 +405,9 @@ const PLAYER_CORS = {
   "Access-Control-Max-Age": "86400",
 };
 
-export const replayPlayerManifestPreflight = httpAction(async () => new Response(null, { status: 204, headers: PLAYER_CORS }));
+export const replayPlayerManifestPreflight = httpAction(
+  async () => new Response(null, { status: 204, headers: PLAYER_CORS }),
+);
 
 /**
  * GET /cli/replays/player?cap=<cap> -> ReplayPlayerManifest. A forged,
@@ -215,16 +415,40 @@ export const replayPlayerManifestPreflight = httpAction(async () => new Response
  * the same 404.
  */
 export const replayPlayerManifest = httpAction(async (ctx, request) => {
-  const headers = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", ...PLAYER_CORS };
-  const missing = () => new Response(JSON.stringify({ error: "This replay link has expired or does not exist." }), { status: 404, headers: { "Content-Type": "application/json", ...headers } });
+  const headers = {
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer",
+    ...PLAYER_CORS,
+  };
+  const missing = () =>
+    new Response(
+      JSON.stringify({
+        error: "This replay link has expired or does not exist.",
+      }),
+      {
+        status: 404,
+        headers: { "Content-Type": "application/json", ...headers },
+      },
+    );
   const now = Date.now();
-  const cap = await openReplayCap(await replayCapKey(), new URL(request.url).searchParams.get("cap"), now);
+  const cap = await openReplayCap(
+    await replayCapKey(),
+    new URL(request.url).searchParams.get("cap"),
+    now,
+  );
   const bucket = replaysBucketFromEnv();
   if (!cap || !bucket) return missing();
-  const row = await ctx.runQuery(internal.replays.playerManifestRow, { replay_id: cap.r, user_id: cap.u, ...(cap.t !== undefined ? { t_ms: cap.t } : {}) });
+  const row = await ctx.runQuery(internal.replays.playerManifestRow, {
+    replay_id: cap.r,
+    user_id: cap.u,
+    ...(cap.t !== undefined ? { t_ms: cap.t } : {}),
+  });
   if (!row) return missing();
   const manifest = await signPlayerManifest(row, cap.exp, bucket, now);
-  return new Response(JSON.stringify(manifest), { status: 200, headers: { "Content-Type": "application/json", ...headers } });
+  return new Response(JSON.stringify(manifest), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...headers },
+  });
 });
 
 /**
@@ -239,22 +463,53 @@ export const replayPlayerManifest = httpAction(async (ctx, request) => {
  * manifest does.
  */
 export const replayFrameAdmit = httpAction(async (ctx, request) => {
-  const headers = { "Cache-Control": "no-store", "Content-Type": "application/json" };
-  const missing = () => new Response(JSON.stringify({ error: "This replay link has expired or does not exist." }), { status: 404, headers });
+  const headers = {
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json",
+  };
+  const missing = () =>
+    new Response(
+      JSON.stringify({
+        error: "This replay link has expired or does not exist.",
+      }),
+      { status: 404, headers },
+    );
   let capText: unknown;
   try {
     capText = ((await request.json()) as { cap?: unknown })?.cap;
   } catch {
     return missing();
   }
-  const cap = await openReplayCap(await replayCapKey(), typeof capText === "string" ? capText : null, Date.now());
+  const cap = await openReplayCap(
+    await replayCapKey(),
+    typeof capText === "string" ? capText : null,
+    Date.now(),
+  );
   if (!cap) return missing();
-  const row = await ctx.runQuery(internal.replays.playerManifestRow, { replay_id: cap.r, user_id: cap.u });
+  const row = await ctx.runQuery(internal.replays.playerManifestRow, {
+    replay_id: cap.r,
+    user_id: cap.u,
+  });
   if (!row) return missing();
   const w = REPLAY_FRAME_LIMITS.budget_window_ms;
   const limited =
-    (await keyRateLimited(ctx, `replay-frame-cap:${await sha256Hex(capText as string)}`, REPLAY_FRAME_LIMITS.requests_per_cap, w, true)) ??
-    (await keyRateLimited(ctx, `replay-frame-person:${cap.u}`, REPLAY_FRAME_LIMITS.requests_per_person, w, true));
+    (await keyRateLimited(
+      ctx,
+      `replay-frame-cap:${await sha256Hex(capText as string)}`,
+      REPLAY_FRAME_LIMITS.requests_per_cap,
+      w,
+      true,
+    )) ??
+    (await keyRateLimited(
+      ctx,
+      `replay-frame-person:${cap.u}`,
+      REPLAY_FRAME_LIMITS.requests_per_person,
+      w,
+      true,
+    ));
   if (limited) return limited;
-  return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  return new Response(null, {
+    status: 204,
+    headers: { "Cache-Control": "no-store" },
+  });
 });

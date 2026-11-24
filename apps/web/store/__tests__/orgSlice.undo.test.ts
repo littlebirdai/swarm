@@ -5,29 +5,67 @@
 // Run: bun test store/__tests__/orgSlice.undo.test.ts
 import { describe, expect, it } from "bun:test";
 import { create as mutate } from "mutative";
-import { applyOrgUndoIntent, createOrgSlice, dropRejectedOrgIntent, pruneOrgIntents, ORG_INTENT_TTL_MS, type OrgIntent, type OrgSliceData } from "../orgSlice";
+import {
+  applyOrgUndoIntent,
+  createOrgSlice,
+  dropRejectedOrgIntent,
+  pruneOrgIntents,
+  ORG_INTENT_TTL_MS,
+  type OrgIntent,
+  type OrgSliceData,
+} from "../orgSlice";
 import { ORG_FIXTURE } from "../../components/org/orgFixture";
 import { orgLogFixture } from "../../components/org/history/orgLogFixture";
 
 const NOW = Date.UTC(2026, 8, 20, 18);
-const log = () => Object.fromEntries(orgLogFixture(NOW).entries.map((e) => [e._id, e]));
-const data = (): OrgSliceData => ({ orgTree: JSON.parse(JSON.stringify(ORG_FIXTURE)), orgTreeServer: null, orgIntents: [], orgHealth: null, orgProposals: {}, orgProposalChanges: {}, orgLog: log(), orgLogRows: {}, orgFocusChangeId: null, orgIntentNotice: null });
+const log = () =>
+  Object.fromEntries(orgLogFixture(NOW).entries.map((e) => [e._id, e]));
+const data = (): OrgSliceData => ({
+  orgTree: JSON.parse(JSON.stringify(ORG_FIXTURE)),
+  orgTreeServer: null,
+  orgIntents: [],
+  orgHealth: null,
+  orgProposals: {},
+  orgProposalChanges: {},
+  orgLog: log(),
+  orgLogRows: {},
+  orgFocusChangeId: null,
+  orgIntentNotice: null,
+});
 const me = ORG_FIXTURE.people.find((p) => p.is_me)!;
 
-function run(st: OrgSliceData, name: keyof ReturnType<typeof createOrgSlice>, ...args: any[]): OrgSliceData {
+function run(
+  st: OrgSliceData,
+  name: keyof ReturnType<typeof createOrgSlice>,
+  ...args: any[]
+): OrgSliceData {
   const slice = createOrgSlice();
-  return mutate(st, (draft) => { (slice[name] as any).call(draft, ...args); });
+  return mutate(st, (draft) => {
+    (slice[name] as any).call(draft, ...args);
+  });
 }
 type Undo = Extract<OrgIntent, { kind: "undoChange" }>;
 
 describe("undo on the org record", () => {
   it("marks the entry, and the later entries that go with it, at once under the person's name", () => {
-    const st = run(data(), "undoOrgChange", "b-budget", { with: ["b-move"], line: "Growth may use more" });
-    expect(st.orgLog["b-budget"].undone_by).toMatchObject({ batch: "", user_id: me.user_id, name: me.name });
+    const st = run(data(), "undoOrgChange", "b-budget", {
+      with: ["b-move"],
+      line: "Growth may use more",
+    });
+    expect(st.orgLog["b-budget"].undone_by).toMatchObject({
+      batch: "",
+      user_id: me.user_id,
+      name: me.name,
+    });
     expect(st.orgLog["b-move"].undone_by?.batch).toBe("");
     expect(st.orgLog["b-ask"].undone_by).toBeUndefined();
     const intent = st.orgIntents[0] as Undo;
-    expect([intent.kind, intent.batch, intent.with, intent.redo]).toEqual(["undoChange", "b-budget", ["b-move"], false]);
+    expect([intent.kind, intent.batch, intent.with, intent.redo]).toEqual([
+      "undoChange",
+      "b-budget",
+      ["b-move"],
+      false,
+    ]);
     // Pressing it again while the first is in flight adds nothing.
     expect(run(st, "undoOrgChange", "b-budget").orgIntents).toHaveLength(1);
   });
@@ -37,22 +75,52 @@ describe("undo on the org record", () => {
     const stale = log();
     applyOrgUndoIntent(stale, st.orgIntents[0] as Undo);
     expect(stale["b-budget"].undone_by?.batch).toBe("");
-    const echoed = mutate(st, (d) => { d.orgLog["b-budget"].undone_by = { batch: "b-undo-budget", user_id: me.user_id, name: me.name, at: NOW }; pruneOrgIntents(d); });
+    const echoed = mutate(st, (d) => {
+      d.orgLog["b-budget"].undone_by = {
+        batch: "b-undo-budget",
+        user_id: me.user_id,
+        name: me.name,
+        at: NOW,
+      };
+      pruneOrgIntents(d);
+    });
     expect(echoed.orgIntents).toEqual([]);
     expect(echoed.orgLog["b-budget"].undone_by?.batch).toBe("b-undo-budget");
   });
 
   it("settles on a page that holds no tree", () => {
-    const st = mutate(run(data(), "undoOrgChange", "b-budget"), (d) => { d.orgTree = null; d.orgLog["b-budget"].undone_by = { batch: "b-x", user_id: "u", name: "n", at: NOW }; pruneOrgIntents(d); });
+    const st = mutate(run(data(), "undoOrgChange", "b-budget"), (d) => {
+      d.orgTree = null;
+      d.orgLog["b-budget"].undone_by = {
+        batch: "b-x",
+        user_id: "u",
+        name: "n",
+        at: NOW,
+      };
+      pruneOrgIntents(d);
+    });
     expect(st.orgIntents).toEqual([]);
   });
 
   it("a refusal puts the record back and tells the person in one line", () => {
-    let st = run(data(), "undoOrgChange", "b-budget", { with: ["b-move"], line: "Growth may use more" });
+    let st = run(data(), "undoOrgChange", "b-budget", {
+      with: ["b-move"],
+      line: "Growth may use more",
+    });
     const reverted: string[] = [];
-    const notices = dropRejectedOrgIntent({ orgIntents: st.orgIntents, dropOrgIntent: () => {}, revertOrgIntent: (id) => reverted.push(id) }, "undoOrgChange", ["b-budget", { with: ["b-move"] }]);
+    const notices = dropRejectedOrgIntent(
+      {
+        orgIntents: st.orgIntents,
+        dropOrgIntent: () => {},
+        revertOrgIntent: (id) => reverted.push(id),
+      },
+      "undoOrgChange",
+      ["b-budget", { with: ["b-move"] }],
+    );
     expect(reverted).toEqual([st.orgIntents[0].id]);
-    expect(notices).toEqual(['Taking back "Growth may use more" was refused; the record is as it was.']);
+    expect(notices).toEqual([
+      'Taking back "Growth may use more" was refused; the record is as it was.',
+    ]);
     st = run(st, "revertOrgIntent", reverted[0]);
     expect(st.orgLog["b-budget"].undone_by).toBeUndefined();
     expect(st.orgLog["b-move"].undone_by).toBeUndefined();
@@ -61,25 +129,47 @@ describe("undo on the org record", () => {
 
   it("an undo nobody echoed ages out, goes back, and leaves a notice; a stamp the server wrote is never taken off", () => {
     const pressed = run(data(), "undoOrgChange", "b-budget", { line: "L" });
-    const aged = mutate(pressed, (d) => { pruneOrgIntents(d, Date.now() + ORG_INTENT_TTL_MS + 1); });
+    const aged = mutate(pressed, (d) => {
+      pruneOrgIntents(d, Date.now() + ORG_INTENT_TTL_MS + 1);
+    });
     expect(aged.orgLog["b-budget"].undone_by).toBeUndefined();
     expect(aged.orgIntentNotice?.text).toMatch(/did not reach the server/);
-    const stamped = mutate(pressed, (d) => { d.orgLog["b-budget"].undone_by!.batch = "b-real"; });
-    expect(run(stamped, "revertOrgIntent", stamped.orgIntents[0].id).orgLog["b-budget"].undone_by?.batch).toBe("b-real");
+    const stamped = mutate(pressed, (d) => {
+      d.orgLog["b-budget"].undone_by!.batch = "b-real";
+    });
+    expect(
+      run(stamped, "revertOrgIntent", stamped.orgIntents[0].id).orgLog[
+        "b-budget"
+      ].undone_by?.batch,
+    ).toBe("b-real");
   });
 
   it("an unrelated push cannot acknowledge a redo before its server batch arrives", () => {
     const was = data().orgLog["b-hire"].undone_by!;
     const pressed = run(data(), "redoOrgChange", "b-hire");
-    const pending = mutate(pressed, (d) => { pruneOrgIntents(d); });
+    const pending = mutate(pressed, (d) => {
+      pruneOrgIntents(d);
+    });
     expect(pending.orgIntents).toHaveLength(1);
-    expect(run(pending, "revertOrgIntent", pending.orgIntents[0].id).orgLog["b-hire"].undone_by).toEqual(was);
+    expect(
+      run(pending, "revertOrgIntent", pending.orgIntents[0].id).orgLog["b-hire"]
+        .undone_by,
+    ).toEqual(was);
     const stale = log();
     applyOrgUndoIntent(stale, pending.orgIntents[0] as Undo);
-    const replayed = mutate(pending, (d) => { d.orgLog = stale; pruneOrgIntents(d); });
+    const replayed = mutate(pending, (d) => {
+      d.orgLog = stale;
+      pruneOrgIntents(d);
+    });
     expect(replayed.orgIntents).toHaveLength(1);
     const echoed = mutate(replayed, (d) => {
-      d.orgLog["b-redo-hire"] = { ...d.orgLog["b-hire"], _id: "b-redo-hire", batch: "b-redo-hire", gesture: "redo", undoes: was.batch };
+      d.orgLog["b-redo-hire"] = {
+        ...d.orgLog["b-hire"],
+        _id: "b-redo-hire",
+        batch: "b-redo-hire",
+        gesture: "redo",
+        undoes: was.batch,
+      };
       pruneOrgIntents(d);
     });
     expect(echoed.orgIntents).toEqual([]);
@@ -90,10 +180,18 @@ describe("undo on the org record", () => {
     const was = data().orgLog["b-hire"].undone_by!;
     const pressed = run(data(), "redoOrgChange", "b-hire");
     const expiredAt = Date.now() + ORG_INTENT_TTL_MS + 1;
-    const expired = mutate(pressed, (d) => { pruneOrgIntents(d, expiredAt); });
+    const expired = mutate(pressed, (d) => {
+      pruneOrgIntents(d, expiredAt);
+    });
     expect(expired.orgLog["b-hire"].undone_by).toEqual(was);
     const echoed = mutate(pressed, (d) => {
-      d.orgLog["b-redo-hire"] = { ...d.orgLog["b-hire"], _id: "b-redo-hire", batch: "b-redo-hire", gesture: "redo", undoes: was.batch };
+      d.orgLog["b-redo-hire"] = {
+        ...d.orgLog["b-hire"],
+        _id: "b-redo-hire",
+        batch: "b-redo-hire",
+        gesture: "redo",
+        undoes: was.batch,
+      };
       pruneOrgIntents(d, expiredAt);
     });
     expect(echoed.orgIntents).toEqual([]);
@@ -104,12 +202,21 @@ describe("undo on the org record", () => {
   it("a previous redo or a missing entry cannot acknowledge the current gesture", () => {
     const pressed = run(data(), "redoOrgChange", "b-hire");
     const unrelated = mutate(pressed, (d) => {
-      d.orgLog["b-old-redo"] = { ...d.orgLog["b-hire"], _id: "b-old-redo", batch: "b-old-redo", gesture: "redo", undoes: "b-older-undo" };
+      d.orgLog["b-old-redo"] = {
+        ...d.orgLog["b-hire"],
+        _id: "b-old-redo",
+        batch: "b-old-redo",
+        gesture: "redo",
+        undoes: "b-older-undo",
+      };
       pruneOrgIntents(d);
     });
     expect(unrelated.orgIntents).toHaveLength(1);
     for (const gesture of [pressed, run(data(), "undoOrgChange", "b-budget")]) {
-      const missing = mutate(gesture, (d) => { d.orgLog = {}; pruneOrgIntents(d); });
+      const missing = mutate(gesture, (d) => {
+        d.orgLog = {};
+        pruneOrgIntents(d);
+      });
       expect(missing.orgIntents).toHaveLength(1);
     }
   });
@@ -120,8 +227,18 @@ describe("undo on the org record", () => {
     expect(st.orgLog["b-hire"].undone_by).toBeUndefined();
     // Redo of an entry that stands does nothing.
     expect(run(data(), "redoOrgChange", "b-budget").orgIntents).toEqual([]);
-    const notices = dropRejectedOrgIntent({ orgIntents: st.orgIntents, dropOrgIntent: () => {}, revertOrgIntent: () => {} }, "redoOrgChange", ["b-hire"]);
-    expect(notices).toEqual(['Applying "Add @platform" again was refused; the record is as it was.']);
+    const notices = dropRejectedOrgIntent(
+      {
+        orgIntents: st.orgIntents,
+        dropOrgIntent: () => {},
+        revertOrgIntent: () => {},
+      },
+      "redoOrgChange",
+      ["b-hire"],
+    );
+    expect(notices).toEqual([
+      'Applying "Add @platform" again was refused; the record is as it was.',
+    ]);
     st = run(st, "revertOrgIntent", st.orgIntents[0].id);
     expect(st.orgLog["b-hire"].undone_by).toEqual(was);
   });

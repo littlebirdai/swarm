@@ -12,7 +12,10 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { resolveConversationRef } from "./conversations";
 import { checkConversationAccess } from "./privacy";
-import { SESSION_MESSAGE_RE, stripInjectionNoise } from "@codecast/shared/contracts";
+import {
+  SESSION_MESSAGE_RE,
+  stripInjectionNoise,
+} from "@codecast/shared/contracts";
 
 // Pulls the sender short_id and the human body out of the wire wrapper,
 // tolerating the injection noise the daemon can prepend (the shared
@@ -31,7 +34,7 @@ function removeTrailingFramingNewline(body: string): string {
 }
 
 export function parseSessionThreadMessage(
-  raw: string | null | undefined
+  raw: string | null | undefined,
 ): { from: string; body: string } | null {
   if (!raw) return null;
   const cleaned = stripInjectionNoise(raw);
@@ -92,7 +95,8 @@ export const listSessionThreads = query({
       // Keep only true session→session traffic; web-compose / task dispatch land in
       // the same queue but lack the wrapper.
       if (typeof r.content !== "string") continue;
-      if (!stripInjectionNoise(r.content).startsWith("<session-message")) continue;
+      if (!stripInjectionNoise(r.content).startsWith("<session-message"))
+        continue;
       rows.push(r);
     }
 
@@ -105,7 +109,8 @@ export const listSessionThreads = query({
     const directIds = new Set<string>();
     for (const r of recent) {
       directIds.add(r.conversation_id.toString());
-      if (r.from_conversation_id) directIds.add(r.from_conversation_id.toString());
+      if (r.from_conversation_id)
+        directIds.add(r.from_conversation_id.toString());
     }
 
     const convCache = new Map<string, any>();
@@ -116,13 +121,16 @@ export const listSessionThreads = query({
         } catch {
           convCache.set(id, null);
         }
-      })
+      }),
     );
 
     // short_id → conversation, preferring a candidate owned by the message sender
     // (short_id is only a 7-char prefix and can collide across users).
     const shortIdCache = new Map<string, any>();
-    async function resolveShort(short: string, preferUser: string): Promise<any> {
+    async function resolveShort(
+      short: string,
+      preferUser: string,
+    ): Promise<any> {
       if (!short || short === "unknown") return null;
       const cacheKey = `${short}|${preferUser}`;
       if (shortIdCache.has(cacheKey)) return shortIdCache.get(cacheKey);
@@ -131,7 +139,7 @@ export const listSessionThreads = query({
         .withIndex("by_short_id", (q: any) => q.eq("short_id", short))
         .take(16);
       const owned = candidates.find(
-        (c: any) => c.user_id?.toString() === preferUser
+        (c: any) => c.user_id?.toString() === preferUser,
       );
       const picked = owned ?? candidates[0] ?? null;
       shortIdCache.set(cacheKey, picked);
@@ -184,7 +192,8 @@ export const listSessionThreads = query({
     for (const r of recent) {
       const parsed = parseSessionThreadMessage(r.content);
       const toConv = convCache.get(r.conversation_id.toString());
-      const toId = addNode(toConv) ?? addGhost(r.conversation_id.toString().slice(0, 7));
+      const toId =
+        addNode(toConv) ?? addGhost(r.conversation_id.toString().slice(0, 7));
 
       const fromUserId = r.from_user_id?.toString() ?? "";
       let fromId: string | null = null;
@@ -304,11 +313,15 @@ export function pickSendingMessage(
       if (toolCallHaystack(message).includes(needle)) return message;
     }
     for (const message of outward) {
-      if (normalizeForMatch(message.content ?? "").includes(needle)) return message;
+      if (normalizeForMatch(message.content ?? "").includes(needle))
+        return message;
     }
   }
   const nearest = before[0];
-  return nearest && deliveredAt - nearest.timestamp <= SENDING_FALLBACK_MAX_GAP_MS ? nearest : null;
+  return nearest &&
+    deliveredAt - nearest.timestamp <= SENDING_FALLBACK_MAX_GAP_MS
+    ? nearest
+    : null;
 }
 
 export const findSendingMessage = query({
@@ -323,7 +336,8 @@ export const findSendingMessage = query({
     if (!me) return null;
     const sender = await resolveConversationRef(ctx, args.sender, me);
     if (!sender) return null;
-    if ((await checkConversationAccess(ctx, me, sender)) === "denied") return null;
+    if ((await checkConversationAccess(ctx, me, sender)) === "denied")
+      return null;
     // Assistant turns only: an agent sends, so the tool call lives there, and
     // the reader is landing on a turn either way. A busy lead's window holds
     // hundreds of large tool-result rows, and reading them would make the click
@@ -335,10 +349,15 @@ export const findSendingMessage = query({
           .eq("conversation_id", sender._id)
           .eq("role", "assistant")
           .gte("timestamp", args.delivered_at - SENDING_WINDOW_BEFORE_MS)
-          .lte("timestamp", args.delivered_at + SENDING_WINDOW_AFTER_MS))
+          .lte("timestamp", args.delivered_at + SENDING_WINDOW_AFTER_MS),
+      )
       .order("desc")
       .take(SENDING_SCAN_LIMIT);
-    const hit = pickSendingMessage(rows as any, args.delivered_at, args.excerpt ?? "");
+    const hit = pickSendingMessage(
+      rows as any,
+      args.delivered_at,
+      args.excerpt ?? "",
+    );
     // The conversation comes back either way: a card that could not name the
     // turn still opens the right session.
     return {

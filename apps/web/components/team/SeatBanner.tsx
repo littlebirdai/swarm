@@ -13,7 +13,9 @@ import { useSeatUpgrade } from "../../hooks/useSeatUpgrade";
 
 export function SeatBanner() {
   const key = useActiveWorkspaceKey();
-  const teamId = key?.startsWith("team:") ? (key.slice(5) as Id<"teams">) : null;
+  const teamId = key?.startsWith("team:")
+    ? (key.slice(5) as Id<"teams">)
+    : null;
   return teamId ? <TeamSeatBanner key={teamId} teamId={teamId} /> : null;
 }
 
@@ -22,27 +24,51 @@ function TeamSeatBanner({ teamId }: { teamId: Id<"teams"> }) {
   return state?.needs_pro ? <NeedsPro teamId={teamId} state={state} /> : null;
 }
 
-function NeedsPro({ teamId, state }: { teamId: Id<"teams">; state: EnforcedSeatState }) {
+function NeedsPro({
+  teamId,
+  state,
+}: {
+  teamId: Id<"teams">;
+  state: EnforcedSeatState;
+}) {
   const upgrade = useSeatUpgrade(teamId, state);
   return (
-    <div data-cc-banner data-seat-banner className="border-b border-sol-orange/30 bg-sol-orange/10">
+    <div
+      data-cc-banner
+      data-seat-banner
+      className="border-b border-sol-orange/30 bg-sol-orange/10"
+    >
       <div className="flex items-center justify-between gap-3 px-3 py-1.5 sm:px-4">
         <span className="flex min-w-0 items-center gap-2.5 text-sm">
           <Users className="h-4 w-4 flex-shrink-0 text-sol-orange" />
-          <span className="truncate font-medium text-sol-text">{state.team_name}</span>
+          <span className="truncate font-medium text-sol-text">
+            {state.team_name}
+          </span>
           <span className="whitespace-nowrap tabular-nums text-sol-orange">
             {state.members} members · Starter covers {state.free_capacity}
           </span>
         </span>
         {state.is_admin ? (
-          <Button size="xs" onClick={upgrade.open} disabled={upgrade.stripe.busy} className="tf-primary flex-shrink-0" data-seat-upgrade>
+          <Button
+            size="xs"
+            onClick={upgrade.open}
+            disabled={upgrade.stripe.busy}
+            className="tf-primary flex-shrink-0"
+            data-seat-upgrade
+          >
             {state.lapsed ? "Renew Pro" : "Upgrade to Pro"}
           </Button>
         ) : (
-          <span className="flex-shrink-0 text-sm text-sol-text-dim">Admin can upgrade</span>
+          <span className="flex-shrink-0 text-sm text-sol-text-dim">
+            Admin can upgrade
+          </span>
         )}
       </div>
-      {upgrade.stripe.error && <p aria-live="polite" className="px-4 pb-1.5 text-sm text-sol-red">{upgrade.stripe.error}</p>}
+      {upgrade.stripe.error && (
+        <p aria-live="polite" className="px-4 pb-1.5 text-sm text-sol-red">
+          {upgrade.stripe.error}
+        </p>
+      )}
       {upgrade.review}
     </div>
   );

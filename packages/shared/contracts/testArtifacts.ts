@@ -33,5 +33,5 @@ const TEST_PATH_MARKERS = [
 export function isTestArtifactPath(candidatePath: string): boolean {
   if (!candidatePath) return false;
   const normalized = candidatePath.replace(/[/.]/g, "-");
-  return TEST_PATH_MARKERS.some(marker => normalized.includes(marker));
+  return TEST_PATH_MARKERS.some((marker) => normalized.includes(marker));
 }

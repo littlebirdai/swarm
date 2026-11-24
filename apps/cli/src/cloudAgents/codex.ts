@@ -22,18 +22,64 @@
  * The core (watcher.ts, sessions.ts) does the rest, under
  * ~/.codecast/codex-cloud/<task id>/, synced as a codex session.
  */
-import { CLOUD_AGENT_BRANCH_SEPARATOR, CLOUD_AGENT_PROVIDERS, cloudAgentRootId, peggedWindow, planTypeLabel } from "@codecast/shared/contracts";
+import {
+  CLOUD_AGENT_BRANCH_SEPARATOR,
+  CLOUD_AGENT_PROVIDERS,
+  cloudAgentRootId,
+  peggedWindow,
+  planTypeLabel,
+} from "@codecast/shared/contracts";
 import { readActiveCodexAuth } from "../codexAccounts.js";
-import { codexAccessExpired, codexCliSignedOut, decodeCodexAuth } from "../codexAuthDecode.js";
-import { codexBackendHeadersFromAuth, codexBackendRequest, parseBackendUsageResponse, requestCodexBackendUsage } from "../codexBackendUsage.js";
+import {
+  codexAccessExpired,
+  codexCliSignedOut,
+  decodeCodexAuth,
+} from "../codexAuthDecode.js";
+import {
+  codexBackendHeadersFromAuth,
+  codexBackendRequest,
+  parseBackendUsageResponse,
+  requestCodexBackendUsage,
+} from "../codexBackendUsage.js";
 import { threadItemToMessage, type ThreadItem } from "../codexAppServer.js";
 import type { ParsedMessage } from "../parser.js";
 import { splitPatches } from "../repoMirror.js";
 import { CloudApiError, cloudApiVerdict, cloudRequestName } from "./http.js";
-import { arrayOf, bool, checkEach, maybe, num, object, oneOf, optional, recordOf, str, unknownValue, type Infer, type Shape } from "./shape.js";
+import {
+  arrayOf,
+  bool,
+  checkEach,
+  maybe,
+  num,
+  object,
+  oneOf,
+  optional,
+  recordOf,
+  str,
+  unknownValue,
+  type Infer,
+  type Shape,
+} from "./shape.js";
 import { secondsToMs } from "./poll.js";
-import { isRunningTurnStatus, MirrorTranscript, turnError } from "./transcript.js";
-import { CloudAgentBusyError, CloudAgentSetupError, type CloudAgentAdapter, type CloudAgentApplyPlan, type CloudAgentCreated, type CloudAgentGit, type CloudAgentHandle, type CloudAgentListItem, type CloudAgentLogin, type CloudAgentDeviceCode, type CloudAgentLoginCommand, type CloudAgentMirror } from "./types.js";
+import {
+  isRunningTurnStatus,
+  MirrorTranscript,
+  turnError,
+} from "./transcript.js";
+import {
+  CloudAgentBusyError,
+  CloudAgentSetupError,
+  type CloudAgentAdapter,
+  type CloudAgentApplyPlan,
+  type CloudAgentCreated,
+  type CloudAgentGit,
+  type CloudAgentHandle,
+  type CloudAgentListItem,
+  type CloudAgentLogin,
+  type CloudAgentDeviceCode,
+  type CloudAgentLoginCommand,
+  type CloudAgentMirror,
+} from "./types.js";
 import type { CloudAgentSession } from "./sessions.js";
 
 const CODEX = CLOUD_AGENT_PROVIDERS.codex;
@@ -51,14 +97,32 @@ const PLACEHOLDER_TITLE = "New task";
 // absent. The types below are inferred from the shapes, so each field is
 // declared once. Fields codecast only reads when present are optional here.
 
-const WHAM_CONTENT_PART = object({ content_type: optional(str), text: optional(str), path: optional(str), line_range_start: maybe(num), line_range_end: maybe(num) });
+const WHAM_CONTENT_PART = object({
+  content_type: optional(str),
+  text: optional(str),
+  path: optional(str),
+  line_range_start: maybe(num),
+  line_range_end: maybe(num),
+});
 type WhamContentPart = Infer<typeof WHAM_CONTENT_PART>;
-const WHAM_OUTPUT_ITEM = object({ type: str, content: optional(arrayOf(WHAM_CONTENT_PART)), pr_title: optional(str), pr_message: optional(str), output_diff: maybe(object({ diff: optional(str) })) });
+const WHAM_OUTPUT_ITEM = object({
+  type: str,
+  content: optional(arrayOf(WHAM_CONTENT_PART)),
+  pr_title: optional(str),
+  pr_message: optional(str),
+  output_diff: maybe(object({ diff: optional(str) })),
+});
 const WHAM_WORKLOG_MESSAGE = object({
   id: optional(str),
   author: optional(object({ role: optional(str), name: maybe(str) })),
   create_time: maybe(num),
-  content: optional(object({ content_type: optional(str), parts: optional(arrayOf(unknownValue)), text: optional(str) })),
+  content: optional(
+    object({
+      content_type: optional(str),
+      parts: optional(arrayOf(unknownValue)),
+      text: optional(str),
+    }),
+  ),
   recipient: maybe(str),
   /** Set on the assistant's final answer. */
   end_turn: maybe(bool),
@@ -66,20 +130,51 @@ const WHAM_WORKLOG_MESSAGE = object({
 });
 type WhamWorklogMessage = Infer<typeof WHAM_WORKLOG_MESSAGE>;
 /** An app-server notification: only a completed item's id, type and server are read here; threadItemToMessage reads the item as local Codex's. */
-const WHAM_THREAD_EVENT = object({ method: str, params: optional(object({ item: maybe(object({ id: maybe(str), type: str, server: optional(str) })), completedAtMs: maybe(num) })) });
-const WHAM_PULL_REQUEST = object({ url: maybe(str), number: maybe(num), title: maybe(str), head: maybe(str), state: maybe(str), head_repo_full_name: maybe(str) });
+const WHAM_THREAD_EVENT = object({
+  method: str,
+  params: optional(
+    object({
+      item: maybe(object({ id: maybe(str), type: str, server: optional(str) })),
+      completedAtMs: maybe(num),
+    }),
+  ),
+});
+const WHAM_PULL_REQUEST = object({
+  url: maybe(str),
+  number: maybe(num),
+  title: maybe(str),
+  head: maybe(str),
+  state: maybe(str),
+  head_repo_full_name: maybe(str),
+});
 type WhamPullRequest = Infer<typeof WHAM_PULL_REQUEST>;
-const WHAM_TASK_PULL_REQUESTS = maybe(arrayOf(object({ assistant_turn_id: maybe(str), pull_request: maybe(WHAM_PULL_REQUEST) })));
+const WHAM_TASK_PULL_REQUESTS = maybe(
+  arrayOf(
+    object({
+      assistant_turn_id: maybe(str),
+      pull_request: maybe(WHAM_PULL_REQUEST),
+    }),
+  ),
+);
 
 const WHAM_TURN = object({
   id: str,
   type: oneOf("user", "assistant"),
   created_at: num,
   previous_turn_id: maybe(str),
-  input_items: optional(arrayOf(object({ type: optional(str), content: optional(arrayOf(WHAM_CONTENT_PART)) }))),
+  input_items: optional(
+    arrayOf(
+      object({
+        type: optional(str),
+        content: optional(arrayOf(WHAM_CONTENT_PART)),
+      }),
+    ),
+  ),
   output_items: optional(arrayOf(WHAM_OUTPUT_ITEM)),
   worklog: maybe(object({ messages: optional(arrayOf(WHAM_WORKLOG_MESSAGE)) })),
-  thread_events: maybe(object({ events: optional(arrayOf(WHAM_THREAD_EVENT)) })),
+  thread_events: maybe(
+    object({ events: optional(arrayOf(WHAM_THREAD_EVENT)) }),
+  ),
   turn_status: maybe(str),
   latest_event: maybe(object({ text: maybe(str) })),
   attempt_placement: maybe(num),
@@ -90,11 +185,20 @@ const WHAM_TURN = object({
   pull_request_status: maybe(str),
   pull_request_data: maybe(WHAM_PULL_REQUEST),
   /** Carries the environment's env vars and secrets in plain text: only repo_map's repository names are ever read. */
-  environment: maybe(object({ repo_map: optional(recordOf(object({ repository_full_name: optional(str) }))) })),
+  environment: maybe(
+    object({
+      repo_map: optional(
+        recordOf(object({ repository_full_name: optional(str) })),
+      ),
+    }),
+  ),
 });
 export type WhamTurn = Infer<typeof WHAM_TURN>;
 
-const WHAM_TURNS = object({ current_turn_id: maybe(str), turn_mapping: recordOf(object({ turn: WHAM_TURN })) });
+const WHAM_TURNS = object({
+  current_turn_id: maybe(str),
+  turn_mapping: recordOf(object({ turn: WHAM_TURN })),
+});
 export type WhamTurns = Infer<typeof WHAM_TURNS>;
 
 /** A task as the list shows it (and GET /tasks/{id}, which has no updated_at). */
@@ -104,11 +208,19 @@ const WHAM_TASK_FIELDS = {
   /** False while the title is still the placeholder ("New task"). */
   has_generated_title: maybe(bool),
   created_at: maybe(num),
-  task_status_display: maybe(object({
-    latest_turn_status_display: maybe(object({ turn_id: optional(str), turn_status: maybe(str), intent: maybe(str) })),
-    branch_name: maybe(str),
-    initial_intent: maybe(str),
-  })),
+  task_status_display: maybe(
+    object({
+      latest_turn_status_display: maybe(
+        object({
+          turn_id: optional(str),
+          turn_status: maybe(str),
+          intent: maybe(str),
+        }),
+      ),
+      branch_name: maybe(str),
+      initial_intent: maybe(str),
+    }),
+  ),
   /** In GET /tasks/{id}. */
   external_pull_requests: WHAM_TASK_PULL_REQUESTS,
   /** In the list. */
@@ -124,19 +236,44 @@ export type WhamTask = Infer<typeof WHAM_TASK>;
 /** Each request's answer, as codecast reads it. */
 const WHAM = {
   /** Each item is then checked on its own (checkEach): one task of a kind nobody has seen yet is read by id, not a broken list. */
-  list: object({ items: arrayOf(object({ id: str, updated_at: unknownValue })), cursor: maybe(str) }),
+  list: object({
+    items: arrayOf(object({ id: str, updated_at: unknownValue })),
+    cursor: maybe(str),
+  }),
   task: object({ task: WHAM_TASK }),
   turns: WHAM_TURNS,
   turn: object({ turn: WHAM_TURN }),
   created: object({ task: object({ id: str }) }),
   /** Only the fields keptEnvironment keeps (never env_vars or secrets). */
-  environments: arrayOf(object({ id: str, label: maybe(str), machine_id: maybe(str), is_pinned: maybe(bool), repo_map: maybe(recordOf(object({ repository_full_name: optional(str), default_branch: maybe(str) }))) })),
+  environments: arrayOf(
+    object({
+      id: str,
+      label: maybe(str),
+      machine_id: maybe(str),
+      is_pinned: maybe(bool),
+      repo_map: maybe(
+        recordOf(
+          object({
+            repository_full_name: optional(str),
+            default_branch: maybe(str),
+          }),
+        ),
+      ),
+    }),
+  ),
   /** Cancel, archive, open a pull request: codecast reads nothing back. */
   none: unknownValue,
 };
 
 /** An environment as codecast keeps it: never its env vars or secrets. */
-export interface WhamEnvironment { id: string; label?: string; machineId?: string; pinned?: boolean; defaultBranch?: string; repos: string[] }
+export interface WhamEnvironment {
+  id: string;
+  label?: string;
+  machineId?: string;
+  pinned?: boolean;
+  defaultBranch?: string;
+  repos: string[];
+}
 
 // ── API client ───────────────────────────────────────────────────────────────
 
@@ -144,26 +281,46 @@ export interface WhamEnvironment { id: string; label?: string; machineId?: strin
 const CODEX_IDS = /\/(task_[^/]+|[^/]*~[^/]+)/g;
 
 export class CodexCloudApi {
-  constructor(private readonly headers: Record<string, string>, private readonly fetchImpl: typeof fetch = fetch) {}
+  constructor(
+    private readonly headers: Record<string, string>,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
 
   /**
    * One call, its answer checked against the shape codecast reads
    * (CloudShapeError when it differs). Errors come as {detail},
    * {detail: {type, message}} or {error: {message, type}}.
    */
-  request<T>(method: string, p: string, shape: Shape<T>, body?: unknown): Promise<T> {
-    return codexBackendRequest<T>(this.headers, method, p, { body, fetchImpl: this.fetchImpl, answer: { shape, name: cloudRequestName(method, p, CODEX_IDS) } });
+  request<T>(
+    method: string,
+    p: string,
+    shape: Shape<T>,
+    body?: unknown,
+  ): Promise<T> {
+    return codexBackendRequest<T>(this.headers, method, p, {
+      body,
+      fetchImpl: this.fetchImpl,
+      answer: { shape, name: cloudRequestName(method, p, CODEX_IDS) },
+    });
   }
 
   listTasks(limit = 20, cursor?: string) {
-    const q = new URLSearchParams({ limit: String(limit), task_filter: "current", ...(cursor ? { cursor } : {}) });
+    const q = new URLSearchParams({
+      limit: String(limit),
+      task_filter: "current",
+      ...(cursor ? { cursor } : {}),
+    });
     return this.request("GET", `/tasks/list?${q}`, WHAM.list);
   }
   task(id: string) {
     return this.request("GET", `/tasks/${encodeURIComponent(id)}`, WHAM.task);
   }
   turns(id: string): Promise<WhamTurns> {
-    return this.request("GET", `/tasks/${encodeURIComponent(id)}/turns`, WHAM.turns);
+    return this.request(
+      "GET",
+      `/tasks/${encodeURIComponent(id)}/turns`,
+      WHAM.turns,
+    );
   }
   createTask(body: Record<string, unknown>) {
     return this.request("POST", "/tasks", WHAM.created, body);
@@ -174,49 +331,84 @@ export class CodexCloudApi {
   }
   /** One turn, with its pull request's status. */
   turn(id: string, turnId: string) {
-    return this.request("GET", `/tasks/${encodeURIComponent(id)}/turns/${encodeURIComponent(turnId)}`, WHAM.turn);
+    return this.request(
+      "GET",
+      `/tasks/${encodeURIComponent(id)}/turns/${encodeURIComponent(turnId)}`,
+      WHAM.turn,
+    );
   }
   cancel(id: string): Promise<unknown> {
-    return this.request("POST", `/tasks/${encodeURIComponent(id)}/cancel`, WHAM.none, {});
+    return this.request(
+      "POST",
+      `/tasks/${encodeURIComponent(id)}/cancel`,
+      WHAM.none,
+      {},
+    );
   }
   /** Archive the task (hidden from the current list), or bring it back. */
   archive(id: string, archived: boolean): Promise<unknown> {
-    return this.request("POST", `/tasks/${encodeURIComponent(id)}/${archived ? "archive" : "recover"}`, WHAM.none, {});
+    return this.request(
+      "POST",
+      `/tasks/${encodeURIComponent(id)}/${archived ? "archive" : "recover"}`,
+      WHAM.none,
+      {},
+    );
   }
   /** Open a draft pull request from an assistant turn's changes; the turn reports it once made. */
   createPullRequest(id: string, turnId: string): Promise<unknown> {
-    return this.request("POST", `/tasks/${encodeURIComponent(id)}/turns/${encodeURIComponent(turnId)}/pr`, WHAM.none, { mode: "draft", add_codex_tag: false });
+    return this.request(
+      "POST",
+      `/tasks/${encodeURIComponent(id)}/turns/${encodeURIComponent(turnId)}/pr`,
+      WHAM.none,
+      { mode: "draft", add_codex_tag: false },
+    );
   }
   /** The login's usage reading (the same request and parser as the usage meters): its email, and the parsed plan and windows (null when it names no plan). */
-  async usage(now = Date.now()): Promise<{ email?: string; reading: ReturnType<typeof parseBackendUsageResponse> }> {
+  async usage(now = Date.now()): Promise<{
+    email?: string;
+    reading: ReturnType<typeof parseBackendUsageResponse>;
+  }> {
     const body = await requestCodexBackendUsage(this.headers, this.fetchImpl);
     const email = typeof body?.email === "string" ? body.email : undefined;
-    return { ...(email ? { email } : {}), reading: parseBackendUsageResponse(body, now) };
+    return {
+      ...(email ? { email } : {}),
+      reading: parseBackendUsageResponse(body, now),
+    };
   }
   /** The environments set up for a GitHub repository, stripped to what codecast keeps. */
   environmentsForRepo(owner: string, name: string): Promise<WhamEnvironment[]> {
-    return this.environmentList(`/environments/by-repo/github/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`);
+    return this.environmentList(
+      `/environments/by-repo/github/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+    );
   }
   /** Every environment on the account, stripped to what codecast keeps. */
   environments(): Promise<WhamEnvironment[]> {
     return this.environmentList("/environments");
   }
   private async environmentList(p: string): Promise<WhamEnvironment[]> {
-    return (await this.request("GET", p, WHAM.environments)).map(keptEnvironment);
+    return (await this.request("GET", p, WHAM.environments)).map(
+      keptEnvironment,
+    );
   }
 }
 
 /** An environment payload carries the account's env vars and secrets in plain text: only these fields are ever read. */
-function keptEnvironment(raw: Infer<typeof WHAM.environments>[number]): WhamEnvironment {
+function keptEnvironment(
+  raw: Infer<typeof WHAM.environments>[number],
+): WhamEnvironment {
   const repos = Object.values(raw.repo_map ?? {});
-  const branch = repos.find((r) => typeof r.default_branch === "string")?.default_branch;
+  const branch = repos.find(
+    (r) => typeof r.default_branch === "string",
+  )?.default_branch;
   return {
     id: raw.id,
     ...(raw.label ? { label: raw.label } : {}),
     ...(raw.machine_id ? { machineId: raw.machine_id } : {}),
     ...(raw.is_pinned === true ? { pinned: true } : {}),
     ...(branch ? { defaultBranch: branch } : {}),
-    repos: repos.map((r) => r.repository_full_name).filter((n): n is string => typeof n === "string"),
+    repos: repos
+      .map((r) => r.repository_full_name)
+      .filter((n): n is string => typeof n === "string"),
   };
 }
 
@@ -225,16 +417,33 @@ function keptEnvironment(raw: Infer<typeof WHAM.environments>[number]): WhamEnvi
  * up for the repository (by-repo), else any whose repositories name it; a
  * pinned one first.
  */
-export async function pickEnvironment(api: CodexCloudApi, owner: string, name: string): Promise<WhamEnvironment | undefined> {
-  const pinnedFirst = (envs: WhamEnvironment[]) => envs.find((e) => e.pinned) ?? envs[0];
+export async function pickEnvironment(
+  api: CodexCloudApi,
+  owner: string,
+  name: string,
+): Promise<WhamEnvironment | undefined> {
+  const pinnedFirst = (envs: WhamEnvironment[]) =>
+    envs.find((e) => e.pinned) ?? envs[0];
   const repo = `${owner}/${name}`.toLowerCase();
-  return pinnedFirst(await api.environmentsForRepo(owner, name))
-    ?? pinnedFirst((await api.environments()).filter((e) => e.repos.some((r) => r.toLowerCase() === repo)));
+  return (
+    pinnedFirst(await api.environmentsForRepo(owner, name)) ??
+    pinnedFirst(
+      (await api.environments()).filter((e) =>
+        e.repos.some((r) => r.toLowerCase() === repo),
+      ),
+    )
+  );
 }
 
 /** A prompt as the API takes it. */
 function inputItems(text: string) {
-  return [{ type: "message", role: "user", content: [{ content_type: "text", text }] }];
+  return [
+    {
+      type: "message",
+      role: "user",
+      content: [{ content_type: "text", text }],
+    },
+  ];
 }
 
 // ── Turns ────────────────────────────────────────────────────────────────────
@@ -263,37 +472,65 @@ export interface CodexTaskLine {
 
 /** Every turn of a task, in no order. */
 function allTurns(turns: WhamTurns): WhamTurn[] {
-  return Object.values(turns.turn_mapping ?? {}).map((n) => n.turn).filter((t): t is WhamTurn => !!t?.id);
+  return Object.values(turns.turn_mapping ?? {})
+    .map((n) => n.turn)
+    .filter((t): t is WhamTurn => !!t?.id);
 }
 
-export function codexTaskLines(taskId: string, turns: WhamTurns): CodexTaskLine[] {
+export function codexTaskLines(
+  taskId: string,
+  turns: WhamTurns,
+): CodexTaskLine[] {
   const all = allTurns(turns);
   const byId = new Map(all.map((t) => [t.id, t]));
-  const byCreated = (a: WhamTurn, b: WhamTurn) => (a.created_at ?? 0) - (b.created_at ?? 0);
+  const byCreated = (a: WhamTurn, b: WhamTurn) =>
+    (a.created_at ?? 0) - (b.created_at ?? 0);
   // Attempts in their order (attemptsAfter); several follow-ups sent from one turn, the newest.
   const next = (id: string) => {
     const attempts = attemptsAfter(all, id);
-    return attempts.length ? attempts : all.filter((t) => t.previous_turn_id === id).sort((a, b) => byCreated(b, a));
+    return attempts.length
+      ? attempts
+      : all
+          .filter((t) => t.previous_turn_id === id)
+          .sort((a, b) => byCreated(b, a));
   };
   const descend = (path: WhamTurn[]) => {
     const seen = new Set(path.map((t) => t.id));
-    for (let t = next(path.at(-1)!.id).find((c) => !seen.has(c.id)); t; t = next(t.id).find((c) => !seen.has(c.id))) {
+    for (
+      let t = next(path.at(-1)!.id).find((c) => !seen.has(c.id));
+      t;
+      t = next(t.id).find((c) => !seen.has(c.id))
+    ) {
       seen.add(t.id);
       path.push(t);
     }
     return path;
   };
-  const root = all.filter((t) => !t.previous_turn_id || !byId.has(t.previous_turn_id)).sort(byCreated)[0];
-  const lines: CodexTaskLine[] = [{ id: taskId, turns: root ? descend([root]) : [] }];
+  const root = all
+    .filter((t) => !t.previous_turn_id || !byId.has(t.previous_turn_id))
+    .sort(byCreated)[0];
+  const lines: CodexTaskLine[] = [
+    { id: taskId, turns: root ? descend([root]) : [] },
+  ];
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
-    for (let i = line.ownFrom === undefined ? 0 : line.ownFrom + 1; i < line.turns.length; i++) {
+    for (
+      let i = line.ownFrom === undefined ? 0 : line.ownFrom + 1;
+      i < line.turns.length;
+      i++
+    ) {
       const turn = line.turns[i];
       if (turn.type !== "assistant" || !turn.previous_turn_id) continue;
       for (const attempt of next(turn.previous_turn_id)) {
         if (attempt.id === turn.id || attempt.type !== "assistant") continue;
         const prompt = line.turns[i - 1];
-        lines.push({ id: attempt.id, turns: descend([...line.turns.slice(0, i), attempt]), parent: line.id, ...(prompt ? { forkAt: turnKey(prompt.id) } : {}), ownFrom: i });
+        lines.push({
+          id: attempt.id,
+          turns: descend([...line.turns.slice(0, i), attempt]),
+          parent: line.id,
+          ...(prompt ? { forkAt: turnKey(prompt.id) } : {}),
+          ownFrom: i,
+        });
       }
     }
   }
@@ -303,17 +540,27 @@ export function codexTaskLines(taskId: string, turns: WhamTurns): CodexTaskLine[
 /** A line's turns (the task's own line when `lineId` is the task's id or omitted); empty when the task has no such line. */
 export function taskTurnChain(turns: WhamTurns, lineId?: string): WhamTurn[] {
   const lines = codexTaskLines(lineId ? cloudAgentRootId(lineId) : "", turns);
-  return (lineId && lineId.includes(CLOUD_AGENT_BRANCH_SEPARATOR) ? lines.find((l) => l.id === lineId) : lines[0])?.turns ?? [];
+  return (
+    (lineId && lineId.includes(CLOUD_AGENT_BRANCH_SEPARATOR)
+      ? lines.find((l) => l.id === lineId)
+      : lines[0]
+    )?.turns ?? []
+  );
 }
 
 /** The order of a prompt's attempts: by placement, and on older tasks (no placement) by when each started. */
 function attemptOrder(a: WhamTurn, b: WhamTurn): number {
-  return (a.attempt_placement ?? 0) - (b.attempt_placement ?? 0) || (a.created_at ?? 0) - (b.created_at ?? 0);
+  return (
+    (a.attempt_placement ?? 0) - (b.attempt_placement ?? 0) ||
+    (a.created_at ?? 0) - (b.created_at ?? 0)
+  );
 }
 
 /** The assistant turns answering one prompt, in attempt order. */
 function attemptsAfter(all: WhamTurn[], promptId: string): WhamTurn[] {
-  return all.filter((t) => t.type === "assistant" && t.previous_turn_id === promptId).sort(attemptOrder);
+  return all
+    .filter((t) => t.type === "assistant" && t.previous_turn_id === promptId)
+    .sort(attemptOrder);
 }
 
 /** A best-of-N turn's attempts at its prompt, in order: attempt n is index n - 1. A turn with no siblings has just itself. */
@@ -328,14 +575,22 @@ function attemptNumber(turns: WhamTurns, turn: WhamTurn): number {
 }
 
 function contentText(parts: WhamContentPart[] | undefined): string {
-  return (parts ?? []).map((p) => {
-    if (p.content_type === "text" || p.content_type === undefined) return p.text ?? "";
-    if (p.content_type === "repo_file_citation" && p.path) return ` \`${fileRef(p.path, p.line_range_start, p.line_range_end)}\``;
-    return "";
-  }).join("");
+  return (parts ?? [])
+    .map((p) => {
+      if (p.content_type === "text" || p.content_type === undefined)
+        return p.text ?? "";
+      if (p.content_type === "repo_file_citation" && p.path)
+        return ` \`${fileRef(p.path, p.line_range_start, p.line_range_end)}\``;
+      return "";
+    })
+    .join("");
 }
 
-function fileRef(file: string, start?: number | string | null, end?: number | string | null): string {
+function fileRef(
+  file: string,
+  start?: number | string | null,
+  end?: number | string | null,
+): string {
   if (start === null || start === undefined || start === "") return file;
   return `${file}:${start}${end !== null && end !== undefined && end !== "" && String(end) !== String(start) ? `-${end}` : ""}`;
 }
@@ -348,7 +603,18 @@ function fileRef(file: string, start?: number | string | null, end?: number | st
  */
 export function codexCitations(text: string): string {
   return text
-    .replace(/【F:([^†】]+)†L(\d+)(?:-L(\d+))?】/g, (_m, file: string, a: string, b: string | undefined, at: number, all: string) => `${at > 0 && !/\s/.test(all[at - 1]) ? " " : ""}\`${fileRef(file, a, b)}\``)
+    .replace(
+      /【F:([^†】]+)†L(\d+)(?:-L(\d+))?】/g,
+      (
+        _m,
+        file: string,
+        a: string,
+        b: string | undefined,
+        at: number,
+        all: string,
+      ) =>
+        `${at > 0 && !/\s/.test(all[at - 1]) ? " " : ""}\`${fileRef(file, a, b)}\``,
+    )
     .replace(/【[^】]*】/g, "");
 }
 
@@ -360,7 +626,10 @@ export function codexCitations(text: string): string {
 const PR_RECORDING_TOOL = "make_pr";
 
 /** An app-server item and when it happened: every turn's log becomes these, and each renders through threadItemToMessage. */
-interface DatedItem { item: ThreadItem; at: number }
+interface DatedItem {
+  item: ThreadItem;
+  at: number;
+}
 
 /** The turn's app-server items, dated by when each completed; the prompt is the user turn's. */
 function threadEventItems(turn: WhamTurn): DatedItem[] {
@@ -368,7 +637,8 @@ function threadEventItems(turn: WhamTurn): DatedItem[] {
   for (const e of turn.thread_events?.events ?? []) {
     const item = e.method === "item/completed" ? e.params?.item : undefined;
     if (!item?.id || item.type === "userMessage") continue;
-    if (item.type === "mcpToolCall" && item.server === PR_RECORDING_TOOL) continue;
+    if (item.type === "mcpToolCall" && item.server === PR_RECORDING_TOOL)
+      continue;
     out.push({ item: item as ThreadItem, at: e.params?.completedAtMs ?? 0 });
   }
   return out;
@@ -379,49 +649,118 @@ function threadEventItems(turn: WhamTurn): DatedItem[] {
  * the next commands run in (its reply is empty), and recording the pull
  * request's title and body (the turn's pull request row shows both).
  */
-const LEGACY_SILENT_TOOLS: ReadonlySet<string> = new Set(["container.new_session", `container.${PR_RECORDING_TOOL}`]);
+const LEGACY_SILENT_TOOLS: ReadonlySet<string> = new Set([
+  "container.new_session",
+  `container.${PR_RECORDING_TOOL}`,
+]);
 
 /** A worklog tool call as the item Codex records it as now: a shell command, else a tool named by its recipient. */
-function legacyToolItem(m: WhamWorklogMessage, id: string): { item: ThreadItem; chars?: string } {
+function legacyToolItem(
+  m: WhamWorklogMessage,
+  id: string,
+): { item: ThreadItem; chars?: string } {
   const code = m.content?.text ?? "";
   let args: Record<string, unknown>;
   try {
     const parsed = JSON.parse(code);
-    args = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : { input: parsed };
+    args =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : { input: parsed };
   } catch {
     args = { input: code };
   }
   const recipient = m.recipient ?? "tool";
-  const command = (text: string, cwd?: string): ThreadItem => ({ type: "commandExecution", id, command: text, ...(cwd ? { cwd } : {}), status: "completed", aggregatedOutput: "" });
+  const command = (text: string, cwd?: string): ThreadItem => ({
+    type: "commandExecution",
+    id,
+    command: text,
+    ...(cwd ? { cwd } : {}),
+    status: "completed",
+    aggregatedOutput: "",
+  });
   if (recipient === "container.feed_chars") {
     const chars = typeof args.chars === "string" ? args.chars : "";
     // Keys typed into the terminal read the way a terminal echoes them: Ctrl-C is ^C.
-    return { item: command(chars.replace(/\n$/, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, (c) => c === "\x7f" ? "^?" : `^${String.fromCharCode(c.charCodeAt(0) + 64)}`)), chars };
+    return {
+      item: command(
+        chars
+          .replace(/\n$/, "")
+          .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, (c) =>
+            c === "\x7f"
+              ? "^?"
+              : `^${String.fromCharCode(c.charCodeAt(0) + 64)}`,
+          ),
+      ),
+      chars,
+    };
   }
   if (recipient === "container.exec") {
-    const cmd = Array.isArray(args.cmd) ? args.cmd.map(String) : typeof args.cmd === "string" ? [args.cmd] : [];
-    return { item: command(cmd.length === 3 && /^(ba|z)?sh$/.test(cmd[0]) && cmd[1] === "-lc" ? cmd[2] : cmd.join(" "), typeof args.workdir === "string" ? args.workdir : undefined) };
+    const cmd = Array.isArray(args.cmd)
+      ? args.cmd.map(String)
+      : typeof args.cmd === "string"
+        ? [args.cmd]
+        : [];
+    return {
+      item: command(
+        cmd.length === 3 && /^(ba|z)?sh$/.test(cmd[0]) && cmd[1] === "-lc"
+          ? cmd[2]
+          : cmd.join(" "),
+        typeof args.workdir === "string" ? args.workdir : undefined,
+      ),
+    };
   }
-  return { item: { type: "dynamicToolCall", id, tool: recipient, arguments: args, status: "completed" } };
+  return {
+    item: {
+      type: "dynamicToolCall",
+      id,
+      tool: recipient,
+      arguments: args,
+      status: "completed",
+    },
+  };
 }
 
 /** A worklog tool reply's text: a terminal's lines (as many as survive a cut-off reply), else as sent. */
 function legacyToolOutput(m: WhamWorklogMessage): string {
-  const raw = m.content?.content_type === "execution_output" ? m.content.text ?? "" : (m.content?.parts ?? []).map((p) => typeof p === "string" ? p : "").join("\n");
+  const raw =
+    m.content?.content_type === "execution_output"
+      ? (m.content.text ?? "")
+      : (m.content?.parts ?? [])
+          .map((p) => (typeof p === "string" ? p : ""))
+          .join("\n");
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed?.output)) return parsed.output.map(String).join("\n");
+    if (Array.isArray(parsed?.output))
+      return parsed.output.map(String).join("\n");
     return raw;
   } catch {}
-  const lines = /^\{"type": ?"terminal_output".*?"output": ?\[(.*)$/s.exec(raw)?.[1];
+  const lines = /^\{"type": ?"terminal_output".*?"output": ?\[(.*)$/s.exec(
+    raw,
+  )?.[1];
   if (lines === undefined) return raw;
-  return [...lines.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((q) => { try { return JSON.parse(`"${q[1]}"`) as string; } catch { return q[1]; } }).join("\n");
+  return [...lines.matchAll(/"((?:[^"\\]|\\.)*)"/g)]
+    .map((q) => {
+      try {
+        return JSON.parse(`"${q[1]}"`) as string;
+      } catch {
+        return q[1];
+      }
+    })
+    .join("\n");
 }
 
 /** Add a tool's reply to its item: a command's output grows, any other tool's is its answer. */
 function addToolOutput(item: ThreadItem, text: string): void {
-  if (item.type === "commandExecution") item.aggregatedOutput = item.aggregatedOutput ? `${item.aggregatedOutput}\n${text}` : text;
-  else if (item.type === "dynamicToolCall") item.contentItems = [...(item.contentItems ?? []), { type: "inputText", text }];
+  if (item.type === "commandExecution")
+    item.aggregatedOutput = item.aggregatedOutput
+      ? `${item.aggregatedOutput}\n${text}`
+      : text;
+  else if (item.type === "dynamicToolCall")
+    item.contentItems = [
+      ...(item.contentItems ?? []),
+      { type: "inputText", text },
+    ];
 }
 
 /**
@@ -431,7 +770,9 @@ function addToolOutput(item: ThreadItem, text: string): void {
  * shell read with no input (feed_chars with no chars, waiting on output) adds
  * its output to the command before it.
  */
-export function legacyWorklogItems(messages: WhamWorklogMessage[]): DatedItem[] {
+export function legacyWorklogItems(
+  messages: WhamWorklogMessage[],
+): DatedItem[] {
   const out: DatedItem[] = [];
   // A silent call's reply is swallowed (null), never added to the command before it.
   const openCalls = new Map<string, ThreadItem | null>();
@@ -444,17 +785,31 @@ export function legacyWorklogItems(messages: WhamWorklogMessage[]): DatedItem[] 
     const id = m.id ?? `worklog-${i}`;
     const ct = m.content?.content_type;
     if (role === "assistant" && ct === "text") {
-      const text = (m.content?.parts ?? []).filter((p): p is string => typeof p === "string").join("\n").trim();
+      const text = (m.content?.parts ?? [])
+        .filter((p): p is string => typeof p === "string")
+        .join("\n")
+        .trim();
       if (!text) return;
       const reasoning = m.metadata?.reasoning_status === "is_reasoning";
-      out.push({ item: reasoning ? { type: "reasoning", id, content: [text], summary: [] } : { type: "agentMessage", id, text }, at });
+      out.push({
+        item: reasoning
+          ? { type: "reasoning", id, content: [text], summary: [] }
+          : { type: "agentMessage", id, text },
+        at,
+      });
       return;
     }
     if (role === "assistant" && m.recipient && m.recipient !== "all") {
-      if (LEGACY_SILENT_TOOLS.has(m.recipient)) { openCalls.set(m.recipient, null); return; }
+      if (LEGACY_SILENT_TOOLS.has(m.recipient)) {
+        openCalls.set(m.recipient, null);
+        return;
+      }
       const { item, chars } = legacyToolItem(m, id);
       const isRead = m.recipient === "container.feed_chars" && !chars?.trim();
-      if (isRead && lastCommand) { openCalls.set(m.recipient, lastCommand); return; }
+      if (isRead && lastCommand) {
+        openCalls.set(m.recipient, lastCommand);
+        return;
+      }
       out.push({ item, at });
       openCalls.set(m.recipient, item);
       if (item.type === "commandExecution") lastCommand = item;
@@ -462,8 +817,13 @@ export function legacyWorklogItems(messages: WhamWorklogMessage[]): DatedItem[] 
     }
     if (role === "tool" || ct === "execution_output") {
       const name = m.author?.name ?? "";
-      if (openCalls.get(name) === null) { openCalls.delete(name); return; }
-      const item = openCalls.get(name) ?? [...openCalls.values()].filter((c): c is ThreadItem => !!c).at(-1);
+      if (openCalls.get(name) === null) {
+        openCalls.delete(name);
+        return;
+      }
+      const item =
+        openCalls.get(name) ??
+        [...openCalls.values()].filter((c): c is ThreadItem => !!c).at(-1);
       if (!item) return;
       addToolOutput(item, legacyToolOutput(m));
       openCalls.delete(name);
@@ -473,10 +833,23 @@ export function legacyWorklogItems(messages: WhamWorklogMessage[]): DatedItem[] 
 }
 
 /** A diff as the fileChange row every Codex diff renders as (threadItemToMessage). */
-function diffMessage(id: string, diff: string, at: number): ParsedMessage | null {
+function diffMessage(
+  id: string,
+  diff: string,
+  at: number,
+): ParsedMessage | null {
   const patches = splitPatches(diff);
   if (!patches.size) return null;
-  const item: ThreadItem = { type: "fileChange", id, status: "completed", changes: [...patches].map(([file, patch]) => ({ path: file, kind: "update", diff: patch })) };
+  const item: ThreadItem = {
+    type: "fileChange",
+    id,
+    status: "completed",
+    changes: [...patches].map(([file, patch]) => ({
+      path: file,
+      kind: "update",
+      diff: patch,
+    })),
+  };
   return threadItemToMessage(item, at);
 }
 
@@ -488,8 +861,14 @@ function taskPullRequests(task: WhamTask | undefined): TaskPullRequests {
 }
 
 /** A turn's pull request: the one it opened, else the task's for that turn. */
-function turnPullRequest(turn: WhamTurn, pullRequests: TaskPullRequests): WhamPullRequest | undefined {
-  return turn.pull_request_data?.url ? turn.pull_request_data : pullRequests?.find((p) => p.assistant_turn_id === turn.id)?.pull_request ?? undefined;
+function turnPullRequest(
+  turn: WhamTurn,
+  pullRequests: TaskPullRequests,
+): WhamPullRequest | undefined {
+  return turn.pull_request_data?.url
+    ? turn.pull_request_data
+    : (pullRequests?.find((p) => p.assistant_turn_id === turn.id)
+        ?.pull_request ?? undefined);
 }
 
 /**
@@ -520,13 +899,21 @@ export interface CodexCloudTranscriptInput {
  * created_at, an item's completedAtMs, a worklog message's create_time), so a
  * re-render never moves or duplicates a row.
  */
-export function buildCodexCloudTranscript(input: CodexCloudTranscriptInput): string {
-  const tx = new MirrorTranscript(input.createdAt, { linkify: codexCitations, notice: input.notice });
+export function buildCodexCloudTranscript(
+  input: CodexCloudTranscriptInput,
+): string {
+  const tx = new MirrorTranscript(input.createdAt, {
+    linkify: codexCitations,
+    notice: input.notice,
+  });
   for (const turn of taskTurnChain(input.turns, input.lineId ?? input.taskId)) {
     const key = turnKey(turn.id);
     tx.advanceTo(secondsToMs(turn.created_at));
     if (turn.type === "user") {
-      tx.turn(key, contentText(turn.input_items?.flatMap((i) => i.content ?? [])));
+      tx.turn(
+        key,
+        contentText(turn.input_items?.flatMap((i) => i.content ?? [])),
+      );
       continue;
     }
     tx.turn(undefined, undefined);
@@ -534,7 +921,9 @@ export function buildCodexCloudTranscript(input: CodexCloudTranscriptInput): str
     if (attempts) tx.note(`${key}:attempts`, attempts);
     const events = threadEventItems(turn);
     const worklog = turn.worklog?.messages ?? [];
-    for (const { item, at } of events.length ? events : legacyWorklogItems(worklog)) {
+    for (const { item, at } of events.length
+      ? events
+      : legacyWorklogItems(worklog)) {
       const m = threadItemToMessage(item, at);
       if (m) tx.message({ ...m, uuid: `${key}:${m.uuid}` });
     }
@@ -543,7 +932,12 @@ export function buildCodexCloudTranscript(input: CodexCloudTranscriptInput): str
     // output items, which carry the same text without them.
     const answered = events.length
       ? events.some(({ item }) => item.type === "agentMessage" && !!item.text)
-      : worklog.some((m) => m.end_turn === true && m.author?.role === "assistant" && m.content?.content_type === "text");
+      : worklog.some(
+          (m) =>
+            m.end_turn === true &&
+            m.author?.role === "assistant" &&
+            m.content?.content_type === "text",
+        );
 
     const outputs = turn.output_items ?? [];
     const answer = outputs.find((o) => o.type === "message");
@@ -556,18 +950,32 @@ export function buildCodexCloudTranscript(input: CodexCloudTranscriptInput): str
     if (pr?.pr_title || diff) {
       const opened = turnPullRequest(turn, input.pullRequests);
       const title = pr?.pr_title ? `**${pr.pr_title}**` : "**Changes**";
-      const link = opened?.url ? ` · [pull request #${opened.number ?? ""}](${opened.url})` : "";
-      tx.assistant(`${key}:pr`, `${title}${link}${pr?.pr_message ? `\n\n${pr.pr_message}` : ""}`);
+      const link = opened?.url
+        ? ` · [pull request #${opened.number ?? ""}](${opened.url})`
+        : "";
+      tx.assistant(
+        `${key}:pr`,
+        `${title}${link}${pr?.pr_message ? `\n\n${pr.pr_message}` : ""}`,
+      );
       const change = diff ? diffMessage(`${key}:diff`, diff, tx.clock) : null;
       if (change) tx.message(change);
     }
 
     if (isRunningTurnStatus(turn.turn_status)) {
       const text = turn.latest_event?.text?.trim();
-      if (text) tx.note(`${key}:progress`, text, secondsToMs(turn.created_at) ?? tx.clock);
+      if (text)
+        tx.note(
+          `${key}:progress`,
+          text,
+          secondsToMs(turn.created_at) ?? tx.clock,
+        );
       continue;
     }
-    tx.endTurn(key, { status: turn.turn_status, label: CODEX.label, reason: turnError(turn.error) });
+    tx.endTurn(key, {
+      status: turn.turn_status,
+      label: CODEX.label,
+      reason: turnError(turn.error),
+    });
   }
   return tx.toString();
 }
@@ -575,9 +983,12 @@ export function buildCodexCloudTranscript(input: CodexCloudTranscriptInput): str
 /** The GitHub repository a task works on, from its environment (names only). */
 export function taskRepo(chain: WhamTurn[]): string | undefined {
   for (const t of [...chain].reverse()) {
-    const name = Object.values(t.environment?.repo_map ?? {}).map((r) => r?.repository_full_name).find((n): n is string => typeof n === "string" && n.includes("/"));
+    const name = Object.values(t.environment?.repo_map ?? {})
+      .map((r) => r?.repository_full_name)
+      .find((n): n is string => typeof n === "string" && n.includes("/"));
     if (name) return name;
-    if (t.pull_request_data?.head_repo_full_name) return t.pull_request_data.head_repo_full_name;
+    if (t.pull_request_data?.head_repo_full_name)
+      return t.pull_request_data.head_repo_full_name;
   }
   return undefined;
 }
@@ -589,18 +1000,33 @@ export function taskRepo(chain: WhamTurn[]): string | undefined {
  * never another attempt's pull request (the attempts note links that one): a
  * chain that pushed nothing has no branch of its own.
  */
-export function taskGit(taskId: string, task: WhamTask | undefined, chain: WhamTurn[], repo: string | undefined): CloudAgentGit | null {
+export function taskGit(
+  taskId: string,
+  task: WhamTask | undefined,
+  chain: WhamTurn[],
+  repo: string | undefined,
+): CloudAgentGit | null {
   const prs = taskPullRequests(task);
-  const pr = [...chain].reverse().map((t) => turnPullRequest(t, prs)).find((p) => p?.url);
+  const pr = [...chain]
+    .reverse()
+    .map((t) => turnPullRequest(t, prs))
+    .find((p) => p?.url);
   const current = [...chain].reverse().find((t) => t.type === "assistant");
   const branch = pr?.head ?? current?.branch_name ?? undefined;
   if (!branch && !pr?.url) return null;
-  return { agentId: taskId, ...(repo ? { repoUrl: `https://github.com/${repo}` } : {}), ...(branch ? { branch } : {}), ...(pr?.url ? { prUrl: pr.url } : {}) };
+  return {
+    agentId: taskId,
+    ...(repo ? { repoUrl: `https://github.com/${repo}` } : {}),
+    ...(branch ? { branch } : {}),
+    ...(pr?.url ? { prUrl: pr.url } : {}),
+  };
 }
 
 /** Whether any of these turns is an assistant turn still running. */
 function anyRunning(turns: WhamTurn[]): boolean {
-  return turns.some((t) => t.type === "assistant" && isRunningTurnStatus(t.turn_status));
+  return turns.some(
+    (t) => t.type === "assistant" && isRunningTurnStatus(t.turn_status),
+  );
 }
 
 /** Whether any turn of the task is still running. */
@@ -610,7 +1036,9 @@ function taskRunning(turns: WhamTurns): boolean {
 
 /** An output item's diff of one kind: "follow_up_diff" (that turn's own changes) or "pr" (the line's changes so far, verified live). */
 function outputDiff(turn: WhamTurn, type: "follow_up_diff" | "pr"): string {
-  return turn.output_items?.find((o) => o.type === type)?.output_diff?.diff || "";
+  return (
+    turn.output_items?.find((o) => o.type === type)?.output_diff?.diff || ""
+  );
 }
 
 /** The diff an assistant turn itself made (the transcript's row for that turn); "" when it changed no code. */
@@ -625,7 +1053,9 @@ function lineDiff(turn: WhamTurn): string {
 
 /** The last turn of a chain that changed code. */
 function lastChanges(chain: WhamTurn[]): WhamTurn | undefined {
-  return [...chain].reverse().find((t) => t.type === "assistant" && !!turnDiff(t));
+  return [...chain]
+    .reverse()
+    .find((t) => t.type === "assistant" && !!turnDiff(t));
 }
 
 function taskVersion(task: WhamTask): string {
@@ -639,7 +1069,9 @@ export interface CodexCloudAdapterOptions {
   /** ~/.codex/auth.json (or CODECAST_CODEX_HOME's), or null when there is none. Read only, never written. */
   readAuth?: () => string | null;
   /** Run the machine's own `codex login` (a utility tmux pane). */
-  runLogin?: (command: CloudAgentLoginCommand) => Promise<CloudAgentDeviceCode | void>;
+  runLogin?: (
+    command: CloudAgentLoginCommand,
+  ) => Promise<CloudAgentDeviceCode | void>;
   fetchImpl?: typeof fetch;
   now?: () => number;
   /** Waits between reads of a pull request Codex is still opening (tests). */
@@ -653,7 +1085,8 @@ export interface CodexCloudAdapterOptions {
 export type CodexKnown = WhamTask | { task?: WhamTask; turns: WhamTurns };
 
 /** Why Create PR and Apply wait: a running turn's changes are not there yet. */
-const STILL_RUNNING = "the task is still running: its changes come when the turn ends";
+const STILL_RUNNING =
+  "the task is still running: its changes come when the turn ends";
 
 /** How long Create PR waits for Codex to open the pull request (it passes through "creating" for a few seconds). */
 const PR_WAIT_MS = 60_000;
@@ -661,11 +1094,20 @@ const PR_POLL_MS = 3_000;
 
 /** A task's own title, or nothing while it is still the placeholder. */
 export function codexTaskTitle(task: WhamTask | undefined): string | undefined {
-  if (!task?.title || task.has_generated_title === false || task.title === PLACEHOLDER_TITLE) return undefined;
+  if (
+    !task?.title ||
+    task.has_generated_title === false ||
+    task.title === PLACEHOLDER_TITLE
+  )
+    return undefined;
   return task.title;
 }
 
-export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, CodexKnown, Record<string, never>> {
+export class CodexCloudAdapter implements CloudAgentAdapter<
+  CodexCloudApi,
+  CodexKnown,
+  Record<string, never>
+> {
   readonly spec = CODEX;
   readonly mirrorFormat = MIRROR_FORMAT;
   readonly pollMs = POLL_MS;
@@ -690,9 +1132,18 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
   client(): CodexCloudApi | CloudAgentSetupError {
     const raw = this.readAuth();
     const summary = decodeCodexAuth(raw);
-    const headers = raw && summary.usable ? codexBackendHeadersFromAuth(raw) : null;
-    if (!headers) return CloudAgentSetupError.credentialsMissing(this, summary.api_key ? API_KEY_LOGIN : undefined);
-    if (codexAccessExpired(summary, this.now())) return CloudAgentSetupError.credentialsExpired(this, summary.access_expires_at!);
+    const headers =
+      raw && summary.usable ? codexBackendHeadersFromAuth(raw) : null;
+    if (!headers)
+      return CloudAgentSetupError.credentialsMissing(
+        this,
+        summary.api_key ? API_KEY_LOGIN : undefined,
+      );
+    if (codexAccessExpired(summary, this.now()))
+      return CloudAgentSetupError.credentialsExpired(
+        this,
+        summary.access_expires_at!,
+      );
     return new CodexCloudApi(headers, this.fetchImpl);
   }
 
@@ -700,23 +1151,40 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
     return {};
   }
 
-  async listAgents(api: CodexCloudApi, cursor?: string): Promise<{ items: CloudAgentListItem<WhamTask>[]; nextCursor?: string }> {
+  async listAgents(
+    api: CodexCloudApi,
+    cursor?: string,
+  ): Promise<{ items: CloudAgentListItem<WhamTask>[]; nextCursor?: string }> {
     const data = await api.listTasks(20, cursor);
     const items = data.items;
     return {
-      items: checkEach(WHAM_LISTED_TASK, items, cloudRequestName("GET", "/tasks/list")).map((checked, i) => checked.ok ? {
-        id: checked.value.id,
-        updatedAtMs: secondsToMs(checked.value.updated_at) ?? 0,
-        version: taskVersion(checked.value),
-        active: isRunningTurnStatus(checked.value.task_status_display?.latest_turn_status_display?.turn_status),
-        agent: checked.value,
-      } : {
-        // Read by id every pass (no version settles it), where a read that still breaks waits on its own backoff.
-        id: items[i].id,
-        updatedAtMs: (typeof items[i].updated_at === "number" ? secondsToMs(items[i].updated_at as number) : undefined) ?? this.now(),
-        version: "",
-        active: false,
-      }),
+      items: checkEach(
+        WHAM_LISTED_TASK,
+        items,
+        cloudRequestName("GET", "/tasks/list"),
+      ).map((checked, i) =>
+        checked.ok
+          ? {
+              id: checked.value.id,
+              updatedAtMs: secondsToMs(checked.value.updated_at) ?? 0,
+              version: taskVersion(checked.value),
+              active: isRunningTurnStatus(
+                checked.value.task_status_display?.latest_turn_status_display
+                  ?.turn_status,
+              ),
+              agent: checked.value,
+            }
+          : {
+              // Read by id every pass (no version settles it), where a read that still breaks waits on its own backoff.
+              id: items[i].id,
+              updatedAtMs:
+                (typeof items[i].updated_at === "number"
+                  ? secondsToMs(items[i].updated_at as number)
+                  : undefined) ?? this.now(),
+              version: "",
+              active: false,
+            },
+      ),
       nextCursor: items.length && data.cursor ? data.cursor : undefined,
     };
   }
@@ -727,25 +1195,48 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * forking at its prompt; every line of a task carries the task's version,
    * so a change anywhere in the task mirrors each again.
    */
-  async mirror(api: CodexCloudApi, handle: CloudAgentHandle<Record<string, never>>, known: CodexKnown | undefined): Promise<CloudAgentMirror | null> {
+  async mirror(
+    api: CodexCloudApi,
+    handle: CloudAgentHandle<Record<string, never>>,
+    known: CodexKnown | undefined,
+  ): Promise<CloudAgentMirror | null> {
     const lineId = handle.agentId;
     const taskId = cloudAgentRootId(lineId);
     const read = known && "turns" in known ? known : undefined;
-    const knownTask = read ? read.task : known as WhamTask | undefined;
-    const [turns, task] = await Promise.all([read?.turns ?? api.turns(taskId), knownTask ? Promise.resolve(knownTask) : api.task(taskId).then((r) => r.task)]);
+    const knownTask = read ? read.task : (known as WhamTask | undefined);
+    const [turns, task] = await Promise.all([
+      read?.turns ?? api.turns(taskId),
+      knownTask
+        ? Promise.resolve(knownTask)
+        : api.task(taskId).then((r) => r.task),
+    ]);
     const lines = codexTaskLines(taskId, turns);
     const line = lines.find((l) => l.id === lineId);
     if (!line) return null;
     const chain = line.turns;
-    const createdAt = secondsToMs(task?.created_at) ?? secondsToMs(chain[0]?.created_at) ?? 0;
+    const createdAt =
+      secondsToMs(task?.created_at) ?? secondsToMs(chain[0]?.created_at) ?? 0;
     const pullRequests = taskPullRequests(task);
     const repo = taskRepo(chain);
-    const version = task ? taskVersion(task) : `${turns.current_turn_id ?? ""}|${chain.at(-1)?.turn_status ?? ""}`;
+    const version = task
+      ? taskVersion(task)
+      : `${turns.current_turn_id ?? ""}|${chain.at(-1)?.turn_status ?? ""}`;
     const title = codexTaskTitle(task);
-    const branchOf = line.ownFrom !== undefined ? chain[line.ownFrom] : undefined;
+    const branchOf =
+      line.ownFrom !== undefined ? chain[line.ownFrom] : undefined;
     return {
-      transcript: buildCodexCloudTranscript({ taskId, lineId, turns, createdAt, notice: await handle.notice(), pullRequests }),
-      title: branchOf && title ? `Attempt ${attemptNumber(turns, branchOf)}: ${title}` : title,
+      transcript: buildCodexCloudTranscript({
+        taskId,
+        lineId,
+        turns,
+        createdAt,
+        notice: await handle.notice(),
+        pullRequests,
+      }),
+      title:
+        branchOf && title
+          ? `Attempt ${attemptNumber(turns, branchOf)}: ${title}`
+          : title,
       placeholderTitles: [PLACEHOLDER_TITLE],
       url: CODEX.agentUrl(taskId),
       createdAtMs: createdAt,
@@ -755,13 +1246,15 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
       running: taskRunning(turns),
       git: taskGit(lineId, task, chain, repo),
       ...(task ? { archived: task.archived === true } : {}),
-      children: lines.filter((l) => l.parent === lineId).map((l) => ({
-        agentId: l.id,
-        description: `attempt ${attemptNumber(turns, l.turns[l.ownFrom!])}`,
-        ...(l.forkAt ? { forkAt: l.forkAt } : {}),
-        version,
-        known: { task, turns },
-      })),
+      children: lines
+        .filter((l) => l.parent === lineId)
+        .map((l) => ({
+          agentId: l.id,
+          description: `attempt ${attemptNumber(turns, l.turns[l.ownFrom!])}`,
+          ...(l.forkAt ? { forkAt: l.forkAt } : {}),
+          version,
+          known: { task, turns },
+        })),
     };
   }
 
@@ -770,21 +1263,48 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * branch the session starts from, in ask or code mode, with as many
    * attempts as the launch asked for.
    */
-  async create(api: CodexCloudApi, session: CloudAgentSession, content: string): Promise<CloudAgentCreated> {
+  async create(
+    api: CodexCloudApi,
+    session: CloudAgentSession,
+    content: string,
+  ): Promise<CloudAgentCreated> {
     const { repo } = session;
-    if (!repo) throw CloudAgentSetupError.repoUnreachable(this, session, "this session's folder has no GitHub remote", `${CODEX.label} works on GitHub repositories: start the session in a checkout of one`);
+    if (!repo)
+      throw CloudAgentSetupError.repoUnreachable(
+        this,
+        session,
+        "this session's folder has no GitHub remote",
+        `${CODEX.label} works on GitHub repositories: start the session in a checkout of one`,
+      );
     const env = await pickEnvironment(api, repo.owner, repo.name);
-    if (!env) throw CloudAgentSetupError.repoUnreachable(this, session, "it has no Codex environment", `Create one at ${CODEX.repoAccessUrl}`);
-    const attempts = Math.min(Math.max(session.attempts ?? 1, 1), CODEX.launchOptions.maxAttempts);
+    if (!env)
+      throw CloudAgentSetupError.repoUnreachable(
+        this,
+        session,
+        "it has no Codex environment",
+        `Create one at ${CODEX.repoAccessUrl}`,
+      );
+    const attempts = Math.min(
+      Math.max(session.attempts ?? 1, 1),
+      CODEX.launchOptions.maxAttempts,
+    );
     // An answer codecast can't read is never retried into a second task (CloudAgentSessions.deliver).
     const created = await api.createTask({
-      new_task: { environment_id: env.id, branch: session.startingRef ?? env.defaultBranch ?? "main", run_environment_in_qa_mode: !!session.ask },
+      new_task: {
+        environment_id: env.id,
+        branch: session.startingRef ?? env.defaultBranch ?? "main",
+        run_environment_in_qa_mode: !!session.ask,
+      },
       input_items: inputItems(content),
       ...(attempts > 1 ? { metadata: { best_of_n: attempts } } : {}),
     });
     const agentId = created.task.id;
     // Pinning one on chatgpt.com is how a repository with several environments picks (pickEnvironment).
-    return { agentId, url: CODEX.agentUrl(agentId), notice: `Runs in the Codex environment ${env.label ? `"${env.label}"` : env.id}.` };
+    return {
+      agentId,
+      url: CODEX.agentUrl(agentId),
+      notice: `Runs in the Codex environment ${env.label ? `"${env.label}"` : env.id}.`,
+    };
   }
 
   /**
@@ -793,14 +1313,31 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * of its turns runs. The mode comes from the task itself, so a task that
    * cannot be read fails the delivery rather than guess code mode for a question.
    */
-  async followUp(api: CodexCloudApi, agentId: string, content: string): Promise<void> {
+  async followUp(
+    api: CodexCloudApi,
+    agentId: string,
+    content: string,
+  ): Promise<void> {
     const taskId = cloudAgentRootId(agentId);
-    const [turns, task] = await Promise.all([api.turns(taskId), api.task(taskId).then((r) => r.task)]);
+    const [turns, task] = await Promise.all([
+      api.turns(taskId),
+      api.task(taskId).then((r) => r.task),
+    ]);
     const last = taskTurnChain(turns, agentId).at(-1);
-    if (!last || last.type !== "assistant" || taskRunning(turns)) throw new CloudAgentBusyError(CODEX.label);
+    if (!last || last.type !== "assistant" || taskRunning(turns))
+      throw new CloudAgentBusyError(CODEX.label);
     const status = task?.task_status_display;
-    const ask = (status?.latest_turn_status_display?.intent ?? status?.initial_intent) === "qa";
-    await api.followUp({ follow_up: { task_id: taskId, turn_id: last.id, run_environment_in_qa_mode: ask }, input_items: inputItems(content) });
+    const ask =
+      (status?.latest_turn_status_display?.intent ?? status?.initial_intent) ===
+      "qa";
+    await api.followUp({
+      follow_up: {
+        task_id: taskId,
+        turn_id: last.id,
+        run_environment_in_qa_mode: ask,
+      },
+      input_items: inputItems(content),
+    });
   }
 
   /**
@@ -816,10 +1353,16 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
     if (!anyRunning(own)) return null;
     await api.cancel(taskId);
     const ownIds = new Set(own.map((t) => t.id));
-    return anyRunning(allTurns(turns).filter((t) => !ownIds.has(t.id))) ? "the running turn, and the task's other attempts with it" : "the running turn";
+    return anyRunning(allTurns(turns).filter((t) => !ownIds.has(t.id)))
+      ? "the running turn, and the task's other attempts with it"
+      : "the running turn";
   }
 
-  async archive(api: CodexCloudApi, agentId: string, archived: boolean): Promise<void> {
+  async archive(
+    api: CodexCloudApi,
+    agentId: string,
+    archived: boolean,
+  ): Promise<void> {
     await api.archive(cloudAgentRootId(agentId), archived);
   }
 
@@ -832,24 +1375,41 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * finds it) gets that one back: a new POST for a later turn would open a
    * second pull request rather than update the first.
    */
-  async createPullRequest(api: CodexCloudApi, agentId: string): Promise<{ url?: string }> {
+  async createPullRequest(
+    api: CodexCloudApi,
+    agentId: string,
+  ): Promise<{ url?: string }> {
     const taskId = cloudAgentRootId(agentId);
-    const [turns, task] = await Promise.all([api.turns(taskId), api.task(taskId).then((r) => r.task)]);
+    const [turns, task] = await Promise.all([
+      api.turns(taskId),
+      api.task(taskId).then((r) => r.task),
+    ]);
     const opened = (t: WhamTurn | undefined) => {
       const url = t && turnPullRequest(t, taskPullRequests(task))?.url;
       return url ? { url } : null;
     };
-    const existing = [...taskTurnChain(turns, agentId)].reverse().map(opened).find(Boolean);
+    const existing = [...taskTurnChain(turns, agentId)]
+      .reverse()
+      .map(opened)
+      .find(Boolean);
     if (existing) return existing;
     const turn = await this.changesTurn(api, agentId, turns);
     await api.createPullRequest(taskId, turn.id);
-    const sleep = this.opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    const sleep =
+      this.opts.sleep ??
+      ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
     for (let waited = 0; waited < PR_WAIT_MS; waited += PR_POLL_MS) {
       await sleep(PR_POLL_MS);
       const now = (await api.turn(taskId, turn.id)).turn;
       const pr = opened(now);
       if (pr) return pr;
-      if (now?.pull_request_status && !["creating", "not_created"].includes(now.pull_request_status)) throw new Error(`Codex could not open the pull request (${now.pull_request_status})`);
+      if (
+        now?.pull_request_status &&
+        !["creating", "not_created"].includes(now.pull_request_status)
+      )
+        throw new Error(
+          `Codex could not open the pull request (${now.pull_request_status})`,
+        );
     }
     return {};
   }
@@ -861,21 +1421,36 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * the core without running the Codex CLI on this machine's login (which may
    * refresh it).
    */
-  async applyPlan(api: CodexCloudApi, agentId: string): Promise<CloudAgentApplyPlan> {
+  async applyPlan(
+    api: CodexCloudApi,
+    agentId: string,
+  ): Promise<CloudAgentApplyPlan> {
     const turns = await api.turns(cloudAgentRootId(agentId));
     const turn = await this.changesTurn(api, agentId, turns);
     const repo = taskRepo(taskTurnChain(turns, agentId));
     if (!repo) throw new Error("the task names no GitHub repository");
-    const what = attemptsAt(turns, turn).length > 1 ? `attempt ${attemptNumber(turns, turn)}'s changes` : "the task's changes";
+    const what =
+      attemptsAt(turns, turn).length > 1
+        ? `attempt ${attemptNumber(turns, turn)}'s changes`
+        : "the task's changes";
     return { repo, diff: lineDiff(turn), what };
   }
 
   /** The line's last turn that changed code, settled; what Create PR and Apply act on. */
-  private async changesTurn(api: CodexCloudApi, agentId: string, read?: WhamTurns): Promise<WhamTurn> {
-    const turns = read ?? await api.turns(cloudAgentRootId(agentId));
+  private async changesTurn(
+    api: CodexCloudApi,
+    agentId: string,
+    read?: WhamTurns,
+  ): Promise<WhamTurn> {
+    const turns = read ?? (await api.turns(cloudAgentRootId(agentId)));
     const chain = taskTurnChain(turns, agentId);
     const turn = lastChanges(chain);
-    if (!turn) throw new Error(anyRunning(chain) ? STILL_RUNNING : "this branch changed no code (an ask task answers without changes)");
+    if (!turn)
+      throw new Error(
+        anyRunning(chain)
+          ? STILL_RUNNING
+          : "this branch changed no code (an ask task answers without changes)",
+      );
     if (isRunningTurnStatus(turn.turn_status)) throw new Error(STILL_RUNNING);
     return turn;
   }
@@ -888,13 +1463,39 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * repository Codex's GitHub app cannot see answers a 400
    * environment_repo_access_failed.
    */
-  setupErrorOf(err: unknown, session?: CloudAgentSession): CloudAgentSetupError | null {
-    if (err instanceof CloudApiError && err.fromApi && err.code === "environment_repo_access_failed") {
-      return CloudAgentSetupError.repoUnreachable(this, session, "Codex's GitHub app has no access to it", `Give it access at ${CODEX.repoAccessUrl}`);
+  setupErrorOf(
+    err: unknown,
+    session?: CloudAgentSession,
+  ): CloudAgentSetupError | null {
+    if (
+      err instanceof CloudApiError &&
+      err.fromApi &&
+      err.code === "environment_repo_access_failed"
+    ) {
+      return CloudAgentSetupError.repoUnreachable(
+        this,
+        session,
+        "Codex's GitHub app has no access to it",
+        `Give it access at ${CODEX.repoAccessUrl}`,
+      );
     }
-    if (!(err instanceof CloudApiError) || err.status !== 403 || cloudApiVerdict(err) !== "refused") return null;
-    if (err.code === "repo_not_accessible") return CloudAgentSetupError.repoUnreachable(this, session, err.message, `Connect it to an environment at ${CODEX.repoAccessUrl}`);
-    return CloudAgentSetupError.accessDenied(this, workspaceDisabled(err.message));
+    if (
+      !(err instanceof CloudApiError) ||
+      err.status !== 403 ||
+      cloudApiVerdict(err) !== "refused"
+    )
+      return null;
+    if (err.code === "repo_not_accessible")
+      return CloudAgentSetupError.repoUnreachable(
+        this,
+        session,
+        err.message,
+        `Connect it to an environment at ${CODEX.repoAccessUrl}`,
+      );
+    return CloudAgentSetupError.accessDenied(
+      this,
+      workspaceDisabled(err.message),
+    );
   }
 
   /**
@@ -903,29 +1504,48 @@ export class CodexCloudAdapter implements CloudAgentAdapter<CodexCloudApi, Codex
    * as the meters name it, and when it resets. Null when no window is full:
    * Codex rate limited the requests themselves.
    */
-  async usageLimit(api: CodexCloudApi): Promise<{ detail: string; waitMs?: number; resetsAt?: number } | null> {
+  async usageLimit(
+    api: CodexCloudApi,
+  ): Promise<{ detail: string; waitMs?: number; resetsAt?: number } | null> {
     const now = this.now();
     const { reading } = await api.usage(now);
     const pegged = peggedWindow(reading, now);
     if (!pegged) return null;
     const detail = `the ${pegged.label} window of your ${chatgptPlanName(reading?.plan_type)} is used up`;
-    return { detail, ...(pegged.resets_at ? { resetsAt: pegged.resets_at, waitMs: pegged.resets_at - now } : {}) };
+    return {
+      detail,
+      ...(pegged.resets_at
+        ? { resetsAt: pegged.resets_at, waitMs: pegged.resets_at - now }
+        : {}),
+    };
   }
 
   /** The account and plan Codex names; listing a task proves the workspace runs Codex Cloud at all (a 403 when it does not). */
-  private async whoami(api: CodexCloudApi): Promise<{ account?: string; plan?: string }> {
-    const [usage] = await Promise.all([api.usage().catch(() => undefined), api.listTasks(1)]);
+  private async whoami(
+    api: CodexCloudApi,
+  ): Promise<{ account?: string; plan?: string }> {
+    const [usage] = await Promise.all([
+      api.usage().catch(() => undefined),
+      api.listTasks(1),
+    ]);
     const summary = decodeCodexAuth(this.readAuth());
     const plan = usage?.reading?.plan_type ?? summary.plan;
-    return { account: usage?.email ?? summary.email, ...(plan ? { plan: planTypeLabel(plan) } : {}) };
+    return {
+      account: usage?.email ?? summary.email,
+      ...(plan ? { plan: planTypeLabel(plan) } : {}),
+    };
   }
 
-  private async startLogin(deviceCode: boolean): Promise<CloudAgentDeviceCode | void> {
-    if (!this.opts.runLogin) throw new Error("this codecast cannot run codex login");
+  private async startLogin(
+    deviceCode: boolean,
+  ): Promise<CloudAgentDeviceCode | void> {
+    if (!this.opts.runLogin)
+      throw new Error("this codecast cannot run codex login");
     return await this.opts.runLogin({
       ...CODEX.login,
       deviceCode,
-      missing: "The Codex CLI isn't installed on this computer. Install it (npm i -g @openai/codex), then sign in.",
+      missing:
+        "The Codex CLI isn't installed on this computer. Install it (npm i -g @openai/codex), then sign in.",
     });
   }
 }

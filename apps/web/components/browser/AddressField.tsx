@@ -24,7 +24,12 @@ import {
 } from "react";
 import { Globe, Lock } from "lucide-react";
 import { addressParts, pageAddress } from "../../lib/browserPane";
-import { browserPaneRecents, inlineCompletion, suggestAddresses, type AddressSuggestion } from "../../lib/browserPaneRecents";
+import {
+  browserPaneRecents,
+  inlineCompletion,
+  suggestAddresses,
+  type AddressSuggestion,
+} from "../../lib/browserPaneRecents";
 import { useSqueezeToFit } from "../../hooks/useSqueezeToFit";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
 import { KeyCap, ShortcutTooltip } from "../KeyboardShortcutsHelp";
@@ -63,14 +68,29 @@ export function AddressField({
   }, [url]);
 
   const suggestions = useMemo(
-    () => (typed ? suggestAddresses(typed, recents.filter((r) => r !== url)) : []),
+    () =>
+      typed
+        ? suggestAddresses(
+            typed,
+            recents.filter((r) => r !== url),
+          )
+        : [],
     [typed, recents, url],
   );
   const picked: AddressSuggestion | undefined = suggestions[highlight];
   // The mark says where Enter goes: the page on screen until someone types,
   // then the page the field now names, or nothing yet.
-  const target = typed === null && !picked ? url : (picked ?? (completion ? suggestions[0] : undefined))?.url ?? "";
-  const value = picked ? picked.label : typed !== null ? typed + completion : editing ? url : pageAddress(url);
+  const target =
+    typed === null && !picked
+      ? url
+      : ((picked ?? (completion ? suggestions[0] : undefined))?.url ?? "");
+  const value = picked
+    ? picked.label
+    : typed !== null
+      ? typed + completion
+      : editing
+        ? url
+        : pageAddress(url);
 
   // Selection is set after the render that put the text there: replacing an
   // input's value drops its selection. On focus that is the whole URL; while
@@ -79,7 +99,8 @@ export function AddressField({
     const el = inputRef.current;
     if (!el || !editing) return;
     if (typed === null && !picked) el.select();
-    else if (completion && !picked) el.setSelectionRange(typed!.length, value.length);
+    else if (completion && !picked)
+      el.setSelectionRange(typed!.length, value.length);
   }, [editing, typed, completion, picked, value, inputRef]);
 
   useSqueezeToFit(rowRef, 1, value);
@@ -91,7 +112,11 @@ export function AddressField({
   }, []);
 
   const submit = useCallback(() => {
-    const target = picked?.url ?? suggestions.find((s) => s.label.toLowerCase() === value.toLowerCase())?.url ?? value;
+    const target =
+      picked?.url ??
+      suggestions.find((s) => s.label.toLowerCase() === value.toLowerCase())
+        ?.url ??
+      value;
     if (!onNavigate(target)) {
       setRejected((n) => n + 1);
       return;
@@ -133,7 +158,9 @@ export function AddressField({
           aria-expanded={listOpen}
           aria-autocomplete="both"
           aria-controls={listOpen ? listId : undefined}
-          aria-activedescendant={listOpen && activeRow >= 0 ? `${listId}-${activeRow}` : undefined}
+          aria-activedescendant={
+            listOpen && activeRow >= 0 ? `${listId}-${activeRow}` : undefined
+          }
           // The floor is the whole address (1ch per character in a mono face),
           // so an address that does not fit overflows the row and the squeeze
           // folds the badge. At level 1 it drops back to 88px: the address
@@ -142,13 +169,25 @@ export function AddressField({
           className="ab-input"
           onChange={(e) => {
             const next = e.target.value;
-            const deleting = (e.nativeEvent as InputEvent).inputType?.startsWith("delete");
+            const deleting = (
+              e.nativeEvent as InputEvent
+            ).inputType?.startsWith("delete");
             setRejected(0);
             setHighlight(-1);
             setTyped(next);
             // Completing while someone deletes would put back what they just
             // took away; only a key that adds text earns a completion.
-            setCompletion(deleting ? "" : inlineCompletion(next, suggestAddresses(next, recents.filter((r) => r !== url))[0]));
+            setCompletion(
+              deleting
+                ? ""
+                : inlineCompletion(
+                    next,
+                    suggestAddresses(
+                      next,
+                      recents.filter((r) => r !== url),
+                    )[0],
+                  ),
+            );
           }}
           onFocus={() => {
             setEditing(true);
@@ -177,12 +216,30 @@ export function AddressField({
               // Steps from the row Enter would take now, so the first Down
               // moves past the completed row rather than onto it again.
               const n = suggestions.length;
-              setHighlight(e.key === "ArrowDown" ? (activeRow + 1 >= n ? -1 : activeRow + 1) : activeRow <= 0 ? (activeRow === 0 ? -1 : n - 1) : activeRow - 1);
-            } else if (completion && !picked && (e.key === "Backspace" || e.key === "Delete")) {
+              setHighlight(
+                e.key === "ArrowDown"
+                  ? activeRow + 1 >= n
+                    ? -1
+                    : activeRow + 1
+                  : activeRow <= 0
+                    ? activeRow === 0
+                      ? -1
+                      : n - 1
+                    : activeRow - 1,
+              );
+            } else if (
+              completion &&
+              !picked &&
+              (e.key === "Backspace" || e.key === "Delete")
+            ) {
               // The filled-in tail goes first, the way every browser does it.
               e.preventDefault();
               setCompletion("");
-            } else if (completion && !picked && (e.key === "Tab" || e.key === "ArrowRight" || e.key === "End")) {
+            } else if (
+              completion &&
+              !picked &&
+              (e.key === "Tab" || e.key === "ArrowRight" || e.key === "End")
+            ) {
               if (e.key === "Tab") e.preventDefault();
               setTyped(typed! + completion);
               setCompletion("");
@@ -227,10 +284,19 @@ export function AddressField({
 }
 
 /** Host at full strength, the rest of the address dimmed. */
-function AddressText({ url, as = "field" }: { url: string; as?: "field" | "row" }) {
+function AddressText({
+  url,
+  as = "field",
+}: {
+  url: string;
+  as?: "field" | "row";
+}) {
   const { host, rest } = addressParts(url);
   return (
-    <span className={as === "field" ? "ab-shown" : "ab-row-text"} aria-hidden={as === "field" || undefined}>
+    <span
+      className={as === "field" ? "ab-shown" : "ab-row-text"}
+      aria-hidden={as === "field" || undefined}
+    >
       <span className="ab-host">{host}</span>
       {rest && <span className="ab-rest">{rest}</span>}
     </span>
@@ -246,9 +312,16 @@ function SiteMark({ url, quiet }: { url: string; quiet?: boolean }) {
   const icon = useMemo(() => faviconUrl(url), [url]);
   const [loaded, setLoaded] = useState<string | null>(null);
   const secure = url.startsWith("https://");
-  const glyph: ReactNode = secure ? <Lock className="w-3 h-3" /> : <Globe className="w-3 h-3" />;
+  const glyph: ReactNode = secure ? (
+    <Lock className="w-3 h-3" />
+  ) : (
+    <Globe className="w-3 h-3" />
+  );
   const mark = (
-    <span className="ab-mark" data-loaded={(!!icon && loaded === icon) || undefined}>
+    <span
+      className="ab-mark"
+      data-loaded={(!!icon && loaded === icon) || undefined}
+    >
       <span className="ab-glyph">{glyph}</span>
       {icon && (
         <img
@@ -267,7 +340,11 @@ function SiteMark({ url, quiet }: { url: string; quiet?: boolean }) {
     </span>
   );
   if (quiet || !url) return mark;
-  return <ShortcutTooltip label={secure ? "Served over https" : "Served over http"}>{mark}</ShortcutTooltip>;
+  return (
+    <ShortcutTooltip label={secure ? "Served over https" : "Served over http"}>
+      {mark}
+    </ShortcutTooltip>
+  );
 }
 
 function faviconUrl(url: string): string | null {
@@ -276,7 +353,12 @@ function faviconUrl(url: string): string | null {
     if (u.protocol !== "http:" && u.protocol !== "https:") return null;
     // An http icon under an https app is blocked as mixed content anyway;
     // asking only adds a console warning.
-    if (u.protocol === "http:" && typeof window !== "undefined" && window.location.protocol === "https:") return null;
+    if (
+      u.protocol === "http:" &&
+      typeof window !== "undefined" &&
+      window.location.protocol === "https:"
+    )
+      return null;
     return `${u.origin}/favicon.ico`;
   } catch {
     return null;

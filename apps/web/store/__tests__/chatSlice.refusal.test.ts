@@ -15,7 +15,12 @@ describe("chat store slice: a send the server refuses", () => {
     calls = [];
     _resetChatRailMemo();
     useInboxStore.setState({
-      chatChannels: {}, chatMessages: {}, chatReactions: {}, chatReads: {}, chatRail: [], pending: {},
+      chatChannels: {},
+      chatMessages: {},
+      chatReactions: {},
+      chatReads: {},
+      chatRail: [],
+      pending: {},
       currentUser: { _id: ME },
     } as any);
   });
@@ -28,27 +33,47 @@ describe("chat store slice: a send the server refuses", () => {
   // over): the refusal came back as a rejected promise nobody held, and the
   // window drew the raw Convex error and its stack as a crash toast.
   it("settles a refused retry and a refused edit instead of leaving the rejection unhandled", async () => {
-    const refusal = () => Object.assign(
-      new Error('[CONVEX M(dispatch:dispatch)] Server Error\nUncaught ConvexError: {"code":"INVALID","message":"Message is longer than 8000 characters","retryable":false}'),
-      { data: { code: "INVALID", message: "Message is longer than 8000 characters", retryable: false } },
-    );
+    const refusal = () =>
+      Object.assign(
+        new Error(
+          '[CONVEX M(dispatch:dispatch)] Server Error\nUncaught ConvexError: {"code":"INVALID","message":"Message is longer than 8000 characters","retryable":false}',
+        ),
+        {
+          data: {
+            code: "INVALID",
+            message: "Message is longer than 8000 characters",
+            retryable: false,
+          },
+        },
+      );
     useInboxStore.getState()._clearDispatch(owner);
-    useInboxStore.getState()._setDispatch(async (action, args) => {
-      calls.push({ action, args });
-      throw refusal();
-    }, { owner });
+    useInboxStore.getState()._setDispatch(
+      async (action, args) => {
+        calls.push({ action, args });
+        throw refusal();
+      },
+      { owner },
+    );
     const unhandled: unknown[] = [];
-    const onUnhandled = (e: unknown) => { unhandled.push(e); };
+    const onUnhandled = (e: unknown) => {
+      unhandled.push(e);
+    };
     process.on("unhandledRejection", onUnhandled);
     try {
-      const clientId = useInboxStore.getState().sendChatMessage(CHANNEL, "x".repeat(8001));
+      const clientId = useInboxStore
+        .getState()
+        .sendChatMessage(CHANNEL, "x".repeat(8001));
       useInboxStore.getState().retryChatSend(clientId);
       useInboxStore.getState().editChatMessage(clientId, "y".repeat(8002));
       await new Promise((r) => setTimeout(r, 20));
-      expect(calls.filter((c) => c.action === "dispatchChatSend")).toHaveLength(3);
+      expect(calls.filter((c) => c.action === "dispatchChatSend")).toHaveLength(
+        3,
+      );
       expect(unhandled).toEqual([]);
       // What was typed is still the row's content, for an edit or a discard.
-      expect(useInboxStore.getState().chatMessages[clientId].content).toBe("y".repeat(8002));
+      expect(useInboxStore.getState().chatMessages[clientId].content).toBe(
+        "y".repeat(8002),
+      );
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }

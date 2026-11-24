@@ -12,10 +12,18 @@ export const list = internalQuery({
   handler: async (ctx, args) => {
     const rows = await ctx.db
       .query("conversation_events")
-      .withIndex("by_conversation_ts", (q) => q.eq("conversation_id", args.conversation_id))
+      .withIndex("by_conversation_ts", (q) =>
+        q.eq("conversation_id", args.conversation_id),
+      )
       .order("desc")
       .take(args.limit ?? 100);
-    return rows.reverse().map((r) => ({ at: new Date(r.ts).toISOString(), kind: r.kind, changes: r.changes, cause: r.cause, stack: r.stack }));
+    return rows.reverse().map((r) => ({
+      at: new Date(r.ts).toISOString(),
+      kind: r.kind,
+      changes: r.changes,
+      cause: r.cause,
+      stack: r.stack,
+    }));
   },
 });
 
@@ -27,7 +35,12 @@ export const prune = internalMutation({
       .withIndex("by_ts", (q) => q.lt("ts", Date.now() - RETENTION_MS))
       .take(PRUNE_BATCH);
     for (const row of old) await ctx.db.delete(row._id);
-    if (old.length === PRUNE_BATCH) await ctx.scheduler.runAfter(1000, (internal as any).conversationEvents.prune, {});
+    if (old.length === PRUNE_BATCH)
+      await ctx.scheduler.runAfter(
+        1000,
+        (internal as any).conversationEvents.prune,
+        {},
+      );
     return old.length;
   },
 });

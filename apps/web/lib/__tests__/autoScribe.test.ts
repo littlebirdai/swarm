@@ -24,10 +24,28 @@ describe("decideAutoScribe", () => {
   test("a record a Record press made, with nobody scribing it, is taken under the same roster rule", () => {
     // The presser is seated (on a phone, which never scribes): their seat is
     // no reason to hold, since they hold no scribe seat.
-    expect(decideAutoScribe({ ...base, rosterIds: ["me", "presser"], live: { startedBy: null } })).toBe("start");
-    expect(decideAutoScribe({ ...base, rosterIds: ["me"], live: { startedBy: null } })).toBe("hold");
+    expect(
+      decideAutoScribe({
+        ...base,
+        rosterIds: ["me", "presser"],
+        live: { startedBy: null },
+      }),
+    ).toBe("start");
+    expect(
+      decideAutoScribe({
+        ...base,
+        rosterIds: ["me"],
+        live: { startedBy: null },
+      }),
+    ).toBe("hold");
     // A window already scribing never reads an unclaimed record as adopted away.
-    expect(decideAutoScribe({ ...base, scribeActive: true, live: { startedBy: null } })).toBe("hold");
+    expect(
+      decideAutoScribe({
+        ...base,
+        scribeActive: true,
+        live: { startedBy: null },
+      }),
+    ).toBe("hold");
   });
 
   test("a walkie's background seat never scribes", () => {
@@ -69,12 +87,23 @@ describe("decideAutoScribe", () => {
   });
 
   test("a session's own room transcribes with one person in it", () => {
-    expect(decideAutoScribe({ ...base, roomKey: "session:conv1", rosterIds: ["me"] })).toBe("start");
+    expect(
+      decideAutoScribe({
+        ...base,
+        roomKey: "session:conv1",
+        rosterIds: ["me"],
+      }),
+    ).toBe("start");
   });
 
   test("a session's own room still honors the opt-out", () => {
     expect(
-      decideAutoScribe({ ...base, roomKey: "session:conv1", rosterIds: ["me"], transcribeOff: true }),
+      decideAutoScribe({
+        ...base,
+        roomKey: "session:conv1",
+        rosterIds: ["me"],
+        transcribeOff: true,
+      }),
     ).toBe("hold");
   });
 
@@ -83,27 +112,54 @@ describe("decideAutoScribe", () => {
   });
 
   test("a recording is not a room", () => {
-    expect(decideAutoScribe({ ...base, roomKey: "rec:0123456789ab" })).toBe("hold");
+    expect(decideAutoScribe({ ...base, roomKey: "rec:0123456789ab" })).toBe(
+      "hold",
+    );
   });
 
   test("somebody seated is already scribing: hold", () => {
-    expect(decideAutoScribe({ ...base, live: { startedBy: "them" } })).toBe("hold");
+    expect(decideAutoScribe({ ...base, live: { startedBy: "them" } })).toBe(
+      "hold",
+    );
   });
 
   test("the scribe left their seat: adopt the orphaned run", () => {
-    expect(decideAutoScribe({ ...base, live: { startedBy: "gone" } })).toBe("start");
+    expect(decideAutoScribe({ ...base, live: { startedBy: "gone" } })).toBe(
+      "start",
+    );
   });
 
   test("my own run after a reload resumes", () => {
-    expect(decideAutoScribe({ ...base, live: { startedBy: "me" } })).toBe("start");
+    expect(decideAutoScribe({ ...base, live: { startedBy: "me" } })).toBe(
+      "start",
+    );
   });
 
   test("a run I hold that was adopted by someone else is yielded", () => {
-    expect(decideAutoScribe({ ...base, scribeActive: true, live: { startedBy: "them" } })).toBe("yield");
-    expect(decideAutoScribe({ ...base, scribeActive: true, live: { startedBy: "me" } })).toBe("hold");
+    expect(
+      decideAutoScribe({
+        ...base,
+        scribeActive: true,
+        live: { startedBy: "them" },
+      }),
+    ).toBe("yield");
+    expect(
+      decideAutoScribe({
+        ...base,
+        scribeActive: true,
+        live: { startedBy: "me" },
+      }),
+    ).toBe("hold");
   });
 
   test("the opt-out does not yank a run a person started by hand", () => {
-    expect(decideAutoScribe({ ...base, scribeActive: true, transcribeOff: true, live: { startedBy: "me" } })).toBe("hold");
+    expect(
+      decideAutoScribe({
+        ...base,
+        scribeActive: true,
+        transcribeOff: true,
+        live: { startedBy: "me" },
+      }),
+    ).toBe("hold");
   });
 });

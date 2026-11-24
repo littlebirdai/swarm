@@ -19,12 +19,20 @@ type Sentinel = { release: () => Promise<void>; released: boolean };
 
 export function useScreenWakeLock(active: boolean): void {
   useWatchEffect(() => {
-    const wakeLock = typeof navigator === "undefined" ? undefined : (navigator as any).wakeLock;
+    const wakeLock =
+      typeof navigator === "undefined"
+        ? undefined
+        : (navigator as any).wakeLock;
     if (!active || !wakeLock?.request) return;
     let lock: Sentinel | null = null;
     let over = false;
     const hold = async () => {
-      if (over || document.visibilityState !== "visible" || (lock && !lock.released)) return;
+      if (
+        over ||
+        document.visibilityState !== "visible" ||
+        (lock && !lock.released)
+      )
+        return;
       try {
         const next: Sentinel = await wakeLock.request("screen");
         // Left the call while the browser was answering.

@@ -25,7 +25,10 @@ export function writeFdSync(fd: number, data: string | Uint8Array): void {
     try {
       off += fs.writeSync(fd, buf, off, buf.length - off);
     } catch (e: any) {
-      if (e?.code === "EPIPE") { closed.add(fd); return; }
+      if (e?.code === "EPIPE") {
+        closed.add(fd);
+        return;
+      }
       if (e?.code !== "EAGAIN") throw e;
       Atomics.wait(pause, 0, 0, 2);
     }
@@ -36,7 +39,9 @@ let installed = false;
 
 /** Route console.* and process.std{out,err}.write through writeFdSync for
  *  each of fd 1 and fd 2 that is not a tty. Idempotent. */
-export function installSyncStdio(isTty: (fd: number) => boolean = tty.isatty): void {
+export function installSyncStdio(
+  isTty: (fd: number) => boolean = tty.isatty,
+): void {
   if (installed) return;
   installed = true;
   for (const [fd, stream, methods] of [
@@ -44,12 +49,23 @@ export function installSyncStdio(isTty: (fd: number) => boolean = tty.isatty): v
     [2, process.stderr, ["warn", "error"]],
   ] as const) {
     if (isTty(fd)) continue;
-    const line = (...args: unknown[]) => writeFdSync(fd, format(...args) + "\n");
+    const line = (...args: unknown[]) =>
+      writeFdSync(fd, format(...args) + "\n");
     for (const m of methods) (console as any)[m] = line;
-    (stream as any).write = (chunk: string | Uint8Array, enc?: unknown, cb?: unknown) => {
+    (stream as any).write = (
+      chunk: string | Uint8Array,
+      enc?: unknown,
+      cb?: unknown,
+    ) => {
       const done = typeof enc === "function" ? enc : cb;
-      writeFdSync(fd, typeof chunk === "string" && typeof enc === "string" ? Buffer.from(chunk, enc as BufferEncoding) : chunk);
-      if (typeof done === "function") queueMicrotask(() => (done as () => void)());
+      writeFdSync(
+        fd,
+        typeof chunk === "string" && typeof enc === "string"
+          ? Buffer.from(chunk, enc as BufferEncoding)
+          : chunk,
+      );
+      if (typeof done === "function")
+        queueMicrotask(() => (done as () => void)());
       return true;
     };
   }

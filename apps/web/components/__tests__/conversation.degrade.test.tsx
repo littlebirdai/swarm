@@ -16,7 +16,14 @@
 //               refused
 // Run: cd apps/web && bun test --isolate components/__tests__/conversation.degrade.test.tsx
 import { expect, test } from "bun:test";
-import { describeFailures, fixtureId, installDom, installMissingBackend, seedCachedSession, seedViewer } from "../../test-helpers/missingBackend";
+import {
+  describeFailures,
+  fixtureId,
+  installDom,
+  installMissingBackend,
+  seedCachedSession,
+  seedViewer,
+} from "../../test-helpers/missingBackend";
 
 const CACHED = fixtureId("convcached");
 const UNKNOWN = fixtureId("convunknown");
@@ -25,15 +32,22 @@ const { mountPage } = installDom(`https://app.test/conversation/${CACHED}`);
 const backend = await installMissingBackend();
 await seedViewer();
 
-const { default: ConversationRoute } = await import("../../app/conversation/[id]/page");
+const { default: ConversationRoute } =
+  await import("../../app/conversation/[id]/page");
 const { default: InboxPage } = await import("../../app/inbox/page");
 
 await seedCachedSession(CACHED, "Rename the store slice", [
   { role: "user", content: "Rename the store slice to sessions" },
-  { role: "assistant", content: "Renamed it in four files and the tests pass." },
+  {
+    role: "assistant",
+    content: "Renamed it in four files and the tests pass.",
+  },
 ]);
 
-const routes = { "conversation/:id": <ConversationRoute />, inbox: <InboxPage /> };
+const routes = {
+  "conversation/:id": <ConversationRoute />,
+  inbox: <InboxPage />,
+};
 
 // The unknown id goes first: opening the cached one moves the inbox onto
 // it, and that selection is store state a later mount would inherit.
@@ -46,8 +60,12 @@ test("a conversation the cache never held says the server did not answer, not th
     expect(text).not.toContain("It was deleted");
     // The note keeps a way out: the inbox's own note goes back to the inbox,
     // the bare route's note asks again.
-    const actions = [...page.container.querySelectorAll("button")].map((b) => b.textContent);
-    expect(actions.some((a) => a === "Back to inbox" || a === "Try again")).toBe(true);
+    const actions = [...page.container.querySelectorAll("button")].map(
+      (b) => b.textContent,
+    );
+    expect(
+      actions.some((a) => a === "Back to inbox" || a === "Try again"),
+    ).toBe(true);
   } finally {
     await page.unmount();
   }

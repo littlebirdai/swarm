@@ -23,7 +23,8 @@ export function useAckAssignment() {
   return useCallback(
     (conversationId: string) => {
       useInboxStore.getState().clearAssignedPing(conversationId);
-      if (isConvexId(conversationId)) ackAssignment({ session_id: conversationId }).catch(() => {});
+      if (isConvexId(conversationId))
+        ackAssignment({ session_id: conversationId }).catch(() => {});
     },
     [ackAssignment],
   );

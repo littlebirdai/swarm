@@ -180,7 +180,9 @@ export const TRIGGER_EVENT_LABELS: Record<string, string> = {
  * pull request number narrow, so the CLI scopes them to the checkout it runs
  * in when the caller does not say otherwise.
  */
-export const PR_TRIGGER_EVENTS = TRIGGER_EVENT_NAMES.filter((name) => name.startsWith("pr_"));
+export const PR_TRIGGER_EVENTS = TRIGGER_EVENT_NAMES.filter((name) =>
+  name.startsWith("pr_"),
+);
 
 export function isPrTriggerEvent(name: string | undefined): boolean {
   return !!name && PR_TRIGGER_EVENTS.includes(name);
@@ -233,20 +235,32 @@ export function isPageTriggerEvent(name: string | undefined): boolean {
  * words it was armed with. Falls back to the raw pair for a filter nothing
  * here names, which is what an old trigger armed on a raw webhook looks like.
  */
-export function triggerEventShorthand(filter: TriggerEventFilter | undefined): string | undefined {
+export function triggerEventShorthand(
+  filter: TriggerEventFilter | undefined,
+): string | undefined {
   if (!filter) return undefined;
   for (const [name, def] of Object.entries(TRIGGER_EVENT_SHORTHANDS)) {
-    if (def.event_type === filter.event_type && (def.action ?? undefined) === (filter.action ?? undefined)) {
+    if (
+      def.event_type === filter.event_type &&
+      (def.action ?? undefined) === (filter.action ?? undefined)
+    ) {
       return name;
     }
   }
-  return filter.action ? `${filter.event_type}:${filter.action}` : filter.event_type;
+  return filter.action
+    ? `${filter.event_type}:${filter.action}`
+    : filter.event_type;
 }
 
 /** The label for a stored filter or a bare name, never blank. */
-export function triggerEventLabel(nameOrFilter: string | TriggerEventFilter | undefined): string {
+export function triggerEventLabel(
+  nameOrFilter: string | TriggerEventFilter | undefined,
+): string {
   if (!nameOrFilter) return "event";
-  const name = typeof nameOrFilter === "string" ? nameOrFilter : triggerEventShorthand(nameOrFilter);
+  const name =
+    typeof nameOrFilter === "string"
+      ? nameOrFilter
+      : triggerEventShorthand(nameOrFilter);
   if (!name) return "event";
   return TRIGGER_EVENT_LABELS[name] ?? name.replace(/_/g, " ");
 }
@@ -271,8 +285,10 @@ export function describeEventScope(filter: TriggerScopeFilter): string {
   if (isIngestTriggerEvent(filter.event_type)) {
     return `on ${name} from ${filter.source ? `source ${filter.source}` : "every source you can see"}`;
   }
-  if (isCallTriggerEvent(filter.event_type)) return `on ${name} for every call you can read`;
-  if (isChatTriggerEvent(filter.event_type)) return `on ${name} in ${filter.channel_name ? `#${filter.channel_name}` : "one channel"}`;
+  if (isCallTriggerEvent(filter.event_type))
+    return `on ${name} for every call you can read`;
+  if (isChatTriggerEvent(filter.event_type))
+    return `on ${name} in ${filter.channel_name ? `#${filter.channel_name}` : "one channel"}`;
   if (isPageTriggerEvent(filter.event_type)) {
     const page = filter.page_slug ? `page ${filter.page_slug}` : "one page";
     return `on ${name} in ${page}${filter.collections?.length ? ` (${filter.collections.join(", ")})` : ""}`;
@@ -290,19 +306,33 @@ export function describeEventScope(filter: TriggerScopeFilter): string {
  * number for a pull request event). A form that offers only the event must not widen a trigger armed
  * from the CLI with --source or --repo when it saves.
  */
-export function eventFilterForSave(eventName: string, prior: TriggerScopeFilter | undefined): TriggerScopeFilter | undefined {
+export function eventFilterForSave(
+  eventName: string,
+  prior: TriggerScopeFilter | undefined,
+): TriggerScopeFilter | undefined {
   const base = TRIGGER_EVENT_SHORTHANDS[eventName];
   if (!base) return undefined;
   const out: TriggerScopeFilter = { ...base };
-  if (prior && isIngestTriggerEvent(eventName) && prior.source) out.source = prior.source;
-  if (prior && isChatTriggerEvent(eventName) && prior.channel_id) out.channel_id = prior.channel_id;
+  if (prior && isIngestTriggerEvent(eventName) && prior.source)
+    out.source = prior.source;
+  if (prior && isChatTriggerEvent(eventName) && prior.channel_id)
+    out.channel_id = prior.channel_id;
   if (prior && isPageTriggerEvent(eventName) && prior.page_id) {
     out.page_id = prior.page_id;
     if (prior.collections?.length) out.collections = prior.collections;
   }
   // --repo narrows every repository event (push, issue_*, pr_*); --pr only pull requests.
-  if (prior && !isIngestTriggerEvent(eventName) && !isCallTriggerEvent(eventName) && !isChatTriggerEvent(eventName) && !isPageTriggerEvent(eventName) && prior.repository) out.repository = prior.repository;
-  if (prior && isPrTriggerEvent(eventName) && prior.pr_number !== undefined) out.pr_number = prior.pr_number;
+  if (
+    prior &&
+    !isIngestTriggerEvent(eventName) &&
+    !isCallTriggerEvent(eventName) &&
+    !isChatTriggerEvent(eventName) &&
+    !isPageTriggerEvent(eventName) &&
+    prior.repository
+  )
+    out.repository = prior.repository;
+  if (prior && isPrTriggerEvent(eventName) && prior.pr_number !== undefined)
+    out.pr_number = prior.pr_number;
   return out;
 }
 
@@ -319,10 +349,15 @@ export function projectChannelRefusal(
   project: { workspace?: string | null },
   channel: { kind?: string; team_id?: unknown },
 ): string | null {
-  if (channel.kind === "community") return "A project cannot watch a community room";
-  const team = project.workspace?.startsWith("team:") ? project.workspace.slice(5) : null;
+  if (channel.kind === "community")
+    return "A project cannot watch a community room";
+  const team = project.workspace?.startsWith("team:")
+    ? project.workspace.slice(5)
+    : null;
   if (!team) return null;
-  if (String(channel.team_id) !== team) return "A team project watches only its own team's channels";
-  if (channel.kind === "private" || channel.kind === "dm") return "A team project cannot watch a private channel: its main session is readable by the whole team";
+  if (String(channel.team_id) !== team)
+    return "A team project watches only its own team's channels";
+  if (channel.kind === "private" || channel.kind === "dm")
+    return "A team project cannot watch a private channel: its main session is readable by the whole team";
   return null;
 }

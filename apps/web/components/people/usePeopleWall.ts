@@ -6,12 +6,20 @@
 // usePeopleRoster next door.
 import { useMemo } from "react";
 import { memberPresenceVisual } from "../presence/memberPresence";
-import { WALL_FACE_PX, buildWall, type Wall, type WallTier } from "./peopleWallLayout";
+import {
+  WALL_FACE_PX,
+  buildWall,
+  type Wall,
+  type WallTier,
+} from "./peopleWallLayout";
 import type { PeopleRosterData } from "./usePeopleRoster";
 
 /** The wall, laid out from roster data — one memo shared by the wall and the
  *  strip so the two can never sort or size a team differently. */
-export function useWall(data: PeopleRosterData, sizes: Record<WallTier, number> = WALL_FACE_PX): Wall<any> {
+export function useWall(
+  data: PeopleRosterData,
+  sizes: Record<WallTier, number> = WALL_FACE_PX,
+): Wall<any> {
   const { members, fleets } = data;
   return useMemo(
     () =>

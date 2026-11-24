@@ -6,15 +6,32 @@
 // over the same values. With nothing drafted the strip is the alerts the
 // monitor announced, the count the page's stats and transitions give.
 import { useState } from "react";
-import { monitorProblem, type MonitorDirection } from "@codecast/shared/contracts/metricMonitor";
+import {
+  monitorProblem,
+  type MonitorDirection,
+} from "@codecast/shared/contracts/metricMonitor";
 import { useInboxStore } from "../../store/inboxStore";
 import { backtest, type Backtest } from "./alertBacktest";
 import { EVAL_READS, parseThreshold } from "./metricEditing";
-import { durationShort, spanLabel, stampLabel, type Pt, type Win } from "./metricModel";
+import {
+  durationShort,
+  spanLabel,
+  stampLabel,
+  type Pt,
+  type Win,
+} from "./metricModel";
 import type { OpsWatch } from "./opsTypes";
 import "./alertRule.css";
 
-export function AlertRule({ watch, announced, history, win, within, now, onDraft }: {
+export function AlertRule({
+  watch,
+  announced,
+  history,
+  win,
+  within,
+  now,
+  onDraft,
+}: {
   watch: OpsWatch;
   /** The episodes the monitor announced (useWatchEpisodes); `to` null while one runs. */
   announced: readonly { from: number; to: number | null }[];
@@ -34,10 +51,12 @@ export function AlertRule({ watch, announced, history, win, within, now, onDraft
 
   const savedReads = watch.eval_reads ?? 1;
   const d = dir ?? watch.direction;
-  const lineShown = lineText ?? (watch.threshold === undefined ? "" : String(watch.threshold));
+  const lineShown =
+    lineText ?? (watch.threshold === undefined ? "" : String(watch.threshold));
   const line = parseThreshold(lineShown);
   const r = reads ?? savedReads;
-  const warnShown = warnText ?? (watch.warn === undefined ? "" : String(watch.warn));
+  const warnShown =
+    warnText ?? (watch.warn === undefined ? "" : String(watch.warn));
   const warn = parseThreshold(warnShown);
 
   const changed = {
@@ -47,42 +66,93 @@ export function AlertRule({ watch, announced, history, win, within, now, onDraft
     warn: warn !== null && (warn ?? null) !== (watch.warn ?? null),
   };
   const dirty = Object.values(changed).some(Boolean);
-  const problem = line === null ? "The line is not a number"
-    : warn === null ? "The warning level is not a number"
-    : typeof line === "number" ? monitorProblem({ threshold: line, direction: d, eval_reads: r, warn: warn ?? undefined }) : null;
+  const problem =
+    line === null
+      ? "The line is not a number"
+      : warn === null
+        ? "The warning level is not a number"
+        : typeof line === "number"
+          ? monitorProblem({
+              threshold: line,
+              direction: d,
+              eval_reads: r,
+              warn: warn ?? undefined,
+            })
+          : null;
 
   const typeLine = (t: string) => {
     setLineText(t);
     const v = parseThreshold(t);
     onDraft(v === null ? undefined : v);
   };
-  const discard = () => { setDir(null); setLineText(null); setReads(null); setWarnText(null); onDraft(undefined); };
+  const discard = () => {
+    setDir(null);
+    setLineText(null);
+    setReads(null);
+    setWarnText(null);
+    onDraft(undefined);
+  };
   const save = () => {
     if (!dirty || problem) return;
     update(watch._id, {
       ...(changed.direction ? { direction: d } : {}),
       ...(changed.threshold ? { threshold: line ?? null } : {}),
       ...(changed.eval_reads ? { eval_reads: r } : {}),
-      ...(changed.warn || (line === undefined && watch.warn !== undefined) ? { warn: line === undefined ? null : warn ?? null } : {}),
+      ...(changed.warn || (line === undefined && watch.warn !== undefined)
+        ? { warn: line === undefined ? null : (warn ?? null) }
+        : {}),
     });
     discard();
   };
   const keys = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") { e.preventDefault(); save(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      save();
+    }
     if (e.key === "Escape") discard();
   };
 
-  const draft = typeof line !== "number" ? null
-    : dirty ? backtest(history, { threshold: line, direction: d, eval_reads: r }, now)
-    : asTest(announced, win, now);
+  const draft =
+    typeof line !== "number"
+      ? null
+      : dirty
+        ? backtest(
+            history,
+            { threshold: line, direction: d, eval_reads: r },
+            now,
+          )
+        : asTest(announced, win, now);
   // The saved rule replayed over the same values as the draft, so the two counts compare like for like.
-  const saved = dirty && watch.threshold !== undefined ? backtest(history, { threshold: watch.threshold, direction: watch.direction, eval_reads: savedReads }, now) : null;
+  const saved =
+    dirty && watch.threshold !== undefined
+      ? backtest(
+          history,
+          {
+            threshold: watch.threshold,
+            direction: watch.direction,
+            eval_reads: savedReads,
+          },
+          now,
+        )
+      : null;
 
   return (
-    <section className="mxr" aria-label="Alert rule" data-alert-rule data-dirty={dirty ? "" : undefined}>
+    <section
+      className="mxr"
+      aria-label="Alert rule"
+      data-alert-rule
+      data-dirty={dirty ? "" : undefined}
+    >
       <p className="mxr-say">
         Alert when it goes{" "}
-        <select className="mxr-f" value={d} aria-label="Alerting side" onChange={(e) => setDir(e.target.value as MonitorDirection)} onKeyDown={keys} data-watch-direction>
+        <select
+          className="mxr-f"
+          value={d}
+          aria-label="Alerting side"
+          onChange={(e) => setDir(e.target.value as MonitorDirection)}
+          onKeyDown={keys}
+          data-watch-direction
+        >
           <option value="above">above</option>
           <option value="below">below</option>
         </select>{" "}
@@ -101,11 +171,28 @@ export function AlertRule({ watch, announced, history, win, within, now, onDraft
         {watch.unit && <span className="mxr-unit">{watch.unit}</span>}
         {typeof line === "number" && (
           <>
-            {" "}for{" "}
-            <select className="mxr-f" value={r} aria-label="Reads in a row" onChange={(e) => setReads(Number(e.target.value))} onKeyDown={keys} data-watch-eval>
-              {EVAL_READS.map((n) => <option key={n} value={n}>{n === 1 ? "1 read" : `${n} reads in a row`}</option>)}
+            {" "}
+            for{" "}
+            <select
+              className="mxr-f"
+              value={r}
+              aria-label="Reads in a row"
+              onChange={(e) => setReads(Number(e.target.value))}
+              onKeyDown={keys}
+              data-watch-eval
+            >
+              {EVAL_READS.map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? "1 read" : `${n} reads in a row`}
+                </option>
+              ))}
             </select>
-            {r > 1 && <span className="mxr-dim"> ({spanLabel(r * watch.interval_ms)})</span>}
+            {r > 1 && (
+              <span className="mxr-dim">
+                {" "}
+                ({spanLabel(r * watch.interval_ms)})
+              </span>
+            )}
             , warn at{" "}
             <input
               className="mxr-f mxr-num"
@@ -126,10 +213,27 @@ export function AlertRule({ watch, announced, history, win, within, now, onDraft
 
       {dirty && (
         <div className="mxr-foot" data-watch-draft>
-          {problem ? <span className="mxr-problem">{problem}</span> : line === undefined ? <span className="mxr-dim">No line: the watch keeps reading, and never alerts</span> : null}
+          {problem ? (
+            <span className="mxr-problem">{problem}</span>
+          ) : line === undefined ? (
+            <span className="mxr-dim">
+              No line: the watch keeps reading, and never alerts
+            </span>
+          ) : null}
           <span className="flex-1" />
-          <button type="button" className="ops-btn" onClick={discard}>Discard</button>
-          <button type="button" className="ops-btn" data-tone="primary" disabled={!!problem} onClick={save} data-watch-draft-save>Save</button>
+          <button type="button" className="ops-btn" onClick={discard}>
+            Discard
+          </button>
+          <button
+            type="button"
+            className="ops-btn"
+            data-tone="primary"
+            disabled={!!problem}
+            onClick={save}
+            data-watch-draft-save
+          >
+            Save
+          </button>
         </div>
       )}
     </section>
@@ -137,35 +241,73 @@ export function AlertRule({ watch, announced, history, win, within, now, onDraft
 }
 
 /** The announced episodes in the window, as a replay would give them. */
-function asTest(eps: readonly { from: number; to: number | null }[], win: Win, now: number): Backtest {
-  const alerts = eps.filter((e) => (e.to ?? now) >= win.from && e.from <= win.to).map((e) => ({ from: e.from, to: e.to ?? now, open: e.to === null }));
-  return { alerts, total: alerts.reduce((s, a) => s + Math.min(a.to, win.to) - Math.max(a.from, win.from), 0) };
+function asTest(
+  eps: readonly { from: number; to: number | null }[],
+  win: Win,
+  now: number,
+): Backtest {
+  const alerts = eps
+    .filter((e) => (e.to ?? now) >= win.from && e.from <= win.to)
+    .map((e) => ({ from: e.from, to: e.to ?? now, open: e.to === null }));
+  return {
+    alerts,
+    total: alerts.reduce(
+      (s, a) => s + Math.min(a.to, win.to) - Math.max(a.from, win.from),
+      0,
+    ),
+  };
 }
 
 /** The replayed alerts as marks across the chart's window, their count and time past the line, and the saved rule's beside a draft's. */
-function Replay({ test, saved, win, within }: { test: Backtest; saved: Backtest | null; win: Win; within: string }) {
+function Replay({
+  test,
+  saved,
+  win,
+  within,
+}: {
+  test: Backtest;
+  saved: Backtest | null;
+  win: Win;
+  within: string;
+}) {
   const span = Math.max(1, win.to - win.from);
   const n = test.alerts.length;
   return (
     <div className="mxr-test" data-backtest={n}>
-      <div className="mxr-strip" role="img" aria-label={`${n} alerts ${within}`}>
-        {test.alerts.filter((a) => a.to >= win.from && a.from <= win.to).map((a) => {
-          const from = Math.max(a.from, win.from);
-          return (
-            <i
-              key={a.from}
-              data-open={a.open ? "" : undefined}
-              style={{ left: `${((from - win.from) / span) * 100}%`, width: `${((Math.min(a.to, win.to) - from) / span) * 100}%` }}
-              title={`${stampLabel(a.from)}, ${durationShort(a.to - a.from)}${a.open ? ", still running" : ""}`}
-            />
-          );
-        })}
+      <div
+        className="mxr-strip"
+        role="img"
+        aria-label={`${n} alerts ${within}`}
+      >
+        {test.alerts
+          .filter((a) => a.to >= win.from && a.from <= win.to)
+          .map((a) => {
+            const from = Math.max(a.from, win.from);
+            return (
+              <i
+                key={a.from}
+                data-open={a.open ? "" : undefined}
+                style={{
+                  left: `${((from - win.from) / span) * 100}%`,
+                  width: `${((Math.min(a.to, win.to) - from) / span) * 100}%`,
+                }}
+                title={`${stampLabel(a.from)}, ${durationShort(a.to - a.from)}${a.open ? ", still running" : ""}`}
+              />
+            );
+          })}
       </div>
       <span className="mxr-count">
         <b>{n || "No"}</b> {n === 1 ? "alert" : "alerts"} {within}
-        {test.total > 0 && <>, <b>{durationShort(test.total)}</b> past the line</>}
+        {test.total > 0 && (
+          <>
+            , <b>{durationShort(test.total)}</b> past the line
+          </>
+        )}
         {saved && (saved.alerts.length !== n || saved.total !== test.total) && (
-          <span className="mxr-was" data-backtest-saved={saved.alerts.length}>saved rule: {saved.alerts.length}{saved.total > 0 ? `, ${durationShort(saved.total)}` : ""}</span>
+          <span className="mxr-was" data-backtest-saved={saved.alerts.length}>
+            saved rule: {saved.alerts.length}
+            {saved.total > 0 ? `, ${durationShort(saved.total)}` : ""}
+          </span>
         )}
       </span>
     </div>

@@ -14,11 +14,20 @@
 
 import { isCloudAgentCredentialCard } from "./cloudAgents";
 
-export type ApiErrorBannerKind = "auth" | "limit" | "throttle" | "error" | "connection" | "fatal" | "safety" | "context";
+export type ApiErrorBannerKind =
+  | "auth"
+  | "limit"
+  | "throttle"
+  | "error"
+  | "connection"
+  | "fatal"
+  | "safety"
+  | "context";
 
 export const SAFETY_BANNER_PREFIX = "Safety stop:";
 export const CODEX_SAFETY_ERROR_CODE = "misalignment_policy_violation";
-export const SAFETY_BLOCK_HINT = "OpenAI stopped this conversation for safety review. Review the recent actions and intended scope. Automatic retries and account switching cannot resolve this block.";
+export const SAFETY_BLOCK_HINT =
+  "OpenAI stopped this conversation for safety review. Review the recent actions and intended scope. Automatic retries and account switching cannot resolve this block.";
 
 export interface CodexTurnError {
   message?: string;
@@ -28,7 +37,8 @@ export interface CodexTurnError {
 }
 
 // The prose codex shows when a turn is blocked for safety and carries no code.
-const CODEX_SAFETY_MESSAGE = "This request was blocked by our safety systems. Reason: Potentially unintended activity.";
+const CODEX_SAFETY_MESSAGE =
+  "This request was blocked by our safety systems. Reason: Potentially unintended activity.";
 
 // Codex reports a failed turn with a STRUCTURED code — `codex_error_info`, the
 // CodexErrorInfo enum in the codex binary (usage_limit_exceeded,
@@ -69,7 +79,10 @@ const CODEX_ERROR_KIND: Readonly<Record<string, ApiErrorBannerKind>> = {
 // codex spells the enum snake_case on the wire; some transports carry the Rust
 // variant name instead. One normalization so the map has one key per code.
 function normalizeCodexErrorCode(raw: string): string {
-  return raw.trim().replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  return raw
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .toLowerCase();
 }
 
 function carriedCodexErrorCode(error: CodexTurnError) {
@@ -80,7 +93,9 @@ function carriedCodexErrorCode(error: CodexTurnError) {
  *  a shape that is not a code). More than one code now means kind "safety", so
  *  a caller that NAMES the stop has to read the code that actually fired
  *  rather than assume the one safety code there used to be. */
-export function codexErrorCode(error: CodexTurnError | null | undefined): string | null {
+export function codexErrorCode(
+  error: CodexTurnError | null | undefined,
+): string | null {
   const raw = error ? carriedCodexErrorCode(error) : undefined;
   return typeof raw === "string" ? normalizeCodexErrorCode(raw) : null;
 }
@@ -88,7 +103,9 @@ export function codexErrorCode(error: CodexTurnError | null | undefined): string
 /** The banner kind a codex turn error means, or null when codex reported
  *  something we have no cure for (the caller then falls back to the marked
  *  client-error banner, which classifies off the provider text). */
-export function codexErrorKind(error: CodexTurnError | null | undefined): ApiErrorBannerKind | null {
+export function codexErrorKind(
+  error: CodexTurnError | null | undefined,
+): ApiErrorBannerKind | null {
   if (!error) return null;
   const raw = carriedCodexErrorCode(error);
   // A carried code is the whole answer. Never fall back to prose when codex
@@ -97,14 +114,31 @@ export function codexErrorKind(error: CodexTurnError | null | undefined): ApiErr
   return error.message?.trim() === CODEX_SAFETY_MESSAGE ? "safety" : null;
 }
 
-export function isCodexSafetyError(error: CodexTurnError | null | undefined): boolean {
+export function isCodexSafetyError(
+  error: CodexTurnError | null | undefined,
+): boolean {
   return codexErrorKind(error) === "safety";
 }
 
-export function withSafetyBlock<T extends { session_error?: string | null; pending_api_error?: boolean | null; pending_api_error_kind?: string | null }>(session: T): T {
-  if (!isCodexSafetyError({ message: session.session_error ?? undefined })) return session;
-  if (session.pending_api_error === true && session.pending_api_error_kind === "safety") return session;
-  return { ...session, pending_api_error: true, pending_api_error_kind: "safety" };
+export function withSafetyBlock<
+  T extends {
+    session_error?: string | null;
+    pending_api_error?: boolean | null;
+    pending_api_error_kind?: string | null;
+  },
+>(session: T): T {
+  if (!isCodexSafetyError({ message: session.session_error ?? undefined }))
+    return session;
+  if (
+    session.pending_api_error === true &&
+    session.pending_api_error_kind === "safety"
+  )
+    return session;
+  return {
+    ...session,
+    pending_api_error: true,
+    pending_api_error_kind: "safety",
+  };
 }
 
 // The kinds that park a session — it won't heal itself, so the row earns the
@@ -127,12 +161,20 @@ export const BLOCKED_BANNER_KINDS: ReadonlySet<string> = new Set([
 // into the session. They keep the badge and the card — a person has to act —
 // but every fleet action (continue-all, the switch loop, the worker dismiss)
 // leaves them out, so the button counts name only what a click can fix.
-export const UNREVIVABLE_BANNER_KINDS: ReadonlySet<string> = new Set(["safety", "context"]);
+export const UNREVIVABLE_BANNER_KINDS: ReadonlySet<string> = new Set([
+  "safety",
+  "context",
+]);
 
 // The blocked subset a plain "continue" un-parks (auth needs /login or an
 // account switch — continuing a signed-out session just re-fails). Default
 // selection for continueAllBlocked and the web's continue-all button.
-export const CONTINUE_BANNER_KINDS: readonly string[] = ["limit", "throttle", "connection", "fatal"];
+export const CONTINUE_BANNER_KINDS: readonly string[] = [
+  "limit",
+  "throttle",
+  "connection",
+  "fatal",
+];
 
 // Which park kinds each agent's recovery chain can actually act on. One rule
 // rather than a per-agent branch: a row counts as blocked only when something
@@ -156,7 +198,9 @@ const BLOCKED_KINDS_BY_AGENT: Readonly<Record<string, ReadonlySet<string>>> = {
 };
 const NO_BLOCKED_KINDS: ReadonlySet<string> = new Set();
 
-export function blockedKindsForAgent(agentType: string | null | undefined): ReadonlySet<string> {
+export function blockedKindsForAgent(
+  agentType: string | null | undefined,
+): ReadonlySet<string> {
   return BLOCKED_KINDS_BY_AGENT[agentType ?? ""] ?? NO_BLOCKED_KINDS;
 }
 
@@ -190,7 +234,9 @@ const TRANSIENT_RATE_LIMIT_RE = /would exceed your account['’]s rate limit/i;
 // carried it, and not one carried the transient wording without it. Read as a
 // burst, a spent Fable window was retried on the same account forever and the
 // switch loop never moved the session (2026-09-23).
-const QUOTA_API_ERRORS: ReadonlySet<string> = new Set(["model_requires_usage_credits"]);
+const QUOTA_API_ERRORS: ReadonlySet<string> = new Set([
+  "model_requires_usage_credits",
+]);
 
 /** Is this API-error banner entry a burst throttle rather than a quota park?
  * Judged from the JSONL entry's own fields, never the rendered words. */
@@ -208,7 +254,10 @@ export function isTransientRateLimit429(
 /** The marked banner the parser stores for a burst throttle. One line, under
  * the prose cap, keeps the CLI's own words as the tail so the card can still
  * say what the pane showed. */
-export function throttleBannerContent(shownAs: string | null | undefined, shownBy = "Claude Code"): string {
+export function throttleBannerContent(
+  shownAs: string | null | undefined,
+  shownBy = "Claude Code",
+): string {
   const shown = (shownAs ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
   return `${THROTTLE_BANNER_PREFIX} the request burst exceeded the account's per-minute rate limit · retried automatically${shown ? ` · ${shownBy} showed: ${shown}` : ""}`;
 }
@@ -237,22 +286,30 @@ export function limitBannerContent(shownAs: string | null | undefined): string {
 // recovery loop: on 2026-09-30 ten sessions on a spent account sat for hours
 // while the machine had accounts with headroom.
 // Builds where typing also cancels the wait say "esc or type to cancel".
-const CLAUDE_AUTO_CONTINUE_RE = /^(?:[⏺●]\s*)?(?:usage limit reached(?: again)?\s*·\s*)?continuing automatically\b[^\n]*·\s*esc (?:or type )?to cancel\b/i;
+const CLAUDE_AUTO_CONTINUE_RE =
+  /^(?:[⏺●]\s*)?(?:usage limit reached(?: again)?\s*·\s*)?continuing automatically\b[^\n]*·\s*esc (?:or type )?to cancel\b/i;
 
 /** Is this line Claude Code's armed automatic continue (the system line or
  *  the pane footer)? Its "esc to cancel" belongs to the wait, not to a
  *  dialog: Escape cancels the continue. */
-export function isClaudeAutoContinueLine(line: string | null | undefined): boolean {
+export function isClaudeAutoContinueLine(
+  line: string | null | undefined,
+): boolean {
   return !!line && CLAUDE_AUTO_CONTINUE_RE.test(line.trim());
 }
 
 /** The canonical limit banner for Claude Code's auto-continue system line, or
  *  null for any other line. Only the "Usage limit reached" form records a park;
  *  the bare footer is pane-only. */
-export function claudeAutoContinueBanner(text: string | null | undefined): string | null {
+export function claudeAutoContinueBanner(
+  text: string | null | undefined,
+): string | null {
   const line = (text ?? "").trim();
-  if (!/^usage limit reached/i.test(line) || !isClaudeAutoContinueLine(line)) return null;
-  return limitBannerContent(line.replace(/\s*·\s*esc (?:or type )?to cancel\b.*$/i, ""));
+  if (!/^usage limit reached/i.test(line) || !isClaudeAutoContinueLine(line))
+    return null;
+  return limitBannerContent(
+    line.replace(/\s*·\s*esc (?:or type )?to cancel\b.*$/i, ""),
+  );
 }
 
 // The context-overflow park. Claude Code writes it when a request is rejected
@@ -274,7 +331,9 @@ export const CONTEXT_BANNER_PREFIX = "Prompt is too long";
 const CONTEXT_BANNER_RE = /^prompt is too long\b/i;
 const COMPACTION_FAILED_RE = /automatic compaction failed:\s*([^\n]+)$/i;
 
-export function contextBannerContent(shownAs: string | null | undefined): string {
+export function contextBannerContent(
+  shownAs: string | null | undefined,
+): string {
   const shown = (shownAs ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
   return shown ? `${CONTEXT_BANNER_PREFIX} · ${shown}` : CONTEXT_BANNER_PREFIX;
 }
@@ -319,7 +378,9 @@ export const MODEL_SWITCH_LIMIT_RE =
 /** Is this the CLI's short model-quota banner (a spent model window, not a
  *  per-minute burst)? Judged from the shown words alone — the entry's own
  *  errorDetails reads identically for both. */
-export function isModelSwitchLimitBanner(content: string | null | undefined): boolean {
+export function isModelSwitchLimitBanner(
+  content: string | null | undefined,
+): boolean {
   return !!content && MODEL_SWITCH_LIMIT_RE.test(content.trim());
 }
 
@@ -356,7 +417,12 @@ const EXCEEDED_LIMIT_BODY_RE = /"type"\s*:\s*"exceeded_limit"/;
 
 function isExceededLimit429(trimmed: string): boolean {
   const m = trimmed.match(STATUSFUL_BANNER_RE);
-  return !!m && Number(m[1]) === 429 && !trimmed.includes("\n") && EXCEEDED_LIMIT_BODY_RE.test(trimmed);
+  return (
+    !!m &&
+    Number(m[1]) === 429 &&
+    !trimmed.includes("\n") &&
+    EXCEEDED_LIMIT_BODY_RE.test(trimmed)
+  );
 }
 
 // Non-Claude clients surface a failed turn differently — not as a "Login expired"
@@ -408,22 +474,33 @@ const CODEX_PLAN_WINDOW_BODY_RE =
 // a fleet switch revived nothing: 39 Union line sessions sat on the 403 for
 // three hours after the fleet had moved to a working account (2026-11-13).
 // Without it, the rules below read what the interactive CLI shows.
-const SDK_AUTH_LEAD_RE = /^failed to authenticate[.:]\s*(?=api error\b|oauth\b)/i;
+const SDK_AUTH_LEAD_RE =
+  /^failed to authenticate[.:]\s*(?=api error\b|oauth\b)/i;
 
 export function classifyApiErrorBanner(
   content: string | null | undefined,
 ): ApiErrorBannerKind | null {
   if (!content) return null;
   const trimmed = content.trim().replace(SDK_AUTH_LEAD_RE, "");
-  if (trimmed.startsWith(SAFETY_BANNER_PREFIX) || isCodexSafetyError({ message: trimmed })) return "safety";
-  if (/^api error:?\s*\(?403\b/i.test(trimmed) && /"code"\s*:\s*"misalignment_policy_violation"/.test(trimmed)) return "safety";
+  if (
+    trimmed.startsWith(SAFETY_BANNER_PREFIX) ||
+    isCodexSafetyError({ message: trimmed })
+  )
+    return "safety";
+  if (
+    /^api error:?\s*\(?403\b/i.test(trimmed) &&
+    /"code"\s*:\s*"misalignment_policy_violation"/.test(trimmed)
+  )
+    return "safety";
   // Marked client-error messages (opencode/pi) — gate on the exact marker, then
   // split auth vs generic by the provider text. Length-uncapped: provider errors
   // can be long, and the marker already guarantees it's a real error, not prose.
   if (trimmed.startsWith(CLIENT_ERROR_BANNER_PREFIX)) {
     const body = trimmed.slice(CLIENT_ERROR_BANNER_PREFIX.length);
     if (CODEX_PLAN_WINDOW_BODY_RE.test(body)) return "limit";
-    return CLIENT_AUTH_ERROR_RE.test(body) || isCloudAgentCredentialCard(body) ? "auth" : "error";
+    return CLIENT_AUTH_ERROR_RE.test(body) || isCloudAgentCredentialCard(body)
+      ? "auth"
+      : "error";
   }
   if (THROTTLE_BANNER_RE.test(trimmed) && !trimmed.includes("\n")) {
     // A marked throttle quoting the short model-quota form is the quota park
@@ -437,10 +514,15 @@ export function classifyApiErrorBanner(
   if (CONTEXT_BANNER_RE.test(trimmed) && !trimmed.includes("\n")) {
     const failed = trimmed.match(COMPACTION_FAILED_RE);
     const underlying = failed ? classifyApiErrorBanner(failed[1]) : null;
-    return underlying && underlying !== "context" && BLOCKED_BANNER_KINDS.has(underlying) ? underlying : "context";
+    return underlying &&
+      underlying !== "context" &&
+      BLOCKED_BANNER_KINDS.has(underlying)
+      ? underlying
+      : "context";
   }
   if (AUTH_BANNER_RE.test(trimmed)) return "auth";
-  if (LIMIT_BANNER_RE.test(trimmed) || isModelSwitchLimitBanner(trimmed)) return "limit";
+  if (LIMIT_BANNER_RE.test(trimmed) || isModelSwitchLimitBanner(trimmed))
+    return "limit";
   const statusMatch = trimmed.match(STATUSFUL_BANNER_RE);
   if (statusMatch) {
     const status = Number(statusMatch[1]);
@@ -472,7 +554,7 @@ const USAGE_DIALOG_OPTION_RE =
   /(?:wait (?:for|until) (?:the )?limit(?:\s+to)?\s+reset|limit (?:will )?reset|wait here,? then continue automatically|usage credits|monthly spend limit|spend limit|upgrade to (?:max|pro|team)|switch to (?:the )?(?:max|pro|team) plan|switch (?:to )?(?:a (?:different|another) )?model|\/usage-credits|\/upgrade)/i;
 
 export function isUsageLimitDialog(
-  optionLabels: readonly string[] | null | undefined
+  optionLabels: readonly string[] | null | undefined,
 ): boolean {
   if (!optionLabels || optionLabels.length === 0) return false;
   let hits = 0;
@@ -490,7 +572,10 @@ export function isUsageLimitDialog(
 // server echo REPLACE it rather than double it — the optimistic prune matches
 // on client_id alone. Minute-bucketed: a double-click can't double-queue, a
 // deliberate retry a minute later still can.
-export function blockedContinueClientId(conversationId: string, at: number): string {
+export function blockedContinueClientId(
+  conversationId: string,
+  at: number,
+): string {
   return `continue-blocked-${conversationId}-${Math.floor(at / 60_000)}`;
 }
 
@@ -500,14 +585,21 @@ export function blockedContinueClientId(conversationId: string, at: number): str
 // revive to the machine's recovery mode. A turn claim's resume (cli
 // turnClaims.ts) adds which claim and attempt it is: another attempt inside
 // the same minute is a new continue, not a retry of one that already landed.
-export function reviveClientId(conversationId: string, at: number, attempt?: string): string {
+export function reviveClientId(
+  conversationId: string,
+  at: number,
+  attempt?: string,
+): string {
   return `revive-${conversationId}-${Math.floor(at / 60_000)}${attempt ? `-${attempt}` : ""}`;
 }
 
 // The client_id of the continue queued when a move to another machine stopped
 // a turn partway (convex devices.ts queueMoveContinue). Minute-bucketed: a
 // retried move cannot double-queue.
-export function moveContinueClientId(conversationId: string, at: number): string {
+export function moveContinueClientId(
+  conversationId: string,
+  at: number,
+): string {
   return `move-continue-${conversationId}-${Math.floor(at / 60_000)}`;
 }
 
@@ -522,9 +614,12 @@ export function isReviveClientId(clientId: string | null | undefined): boolean {
 // process died mid-work (revive-*, cli midWorkRevive.ts), and the continue
 // after a move stopped a turn (move-continue-*). A revive the person clicked in
 // the web (acct-revive-*) is theirs and reads as their own message.
-const RECOVERY_CONTINUE_ID_RE = /^(?:auto-switch-continue-|acct-switch-|continue-blocked-|revive-|move-continue-)/;
+const RECOVERY_CONTINUE_ID_RE =
+  /^(?:auto-switch-continue-|acct-switch-|continue-blocked-|revive-|move-continue-)/;
 
-export function isRecoveryContinueClientId(clientId: string | null | undefined): boolean {
+export function isRecoveryContinueClientId(
+  clientId: string | null | undefined,
+): boolean {
   return !!clientId && RECOVERY_CONTINUE_ID_RE.test(clientId);
 }
 
@@ -547,7 +642,10 @@ export function isNoResponseStub(content: string | null | undefined): boolean {
 // read as a turn, it cleared the park and recovery never saw the session
 // (2026-10-04). A command that does prompt the model is followed by the
 // model's reply, and that reply is the turn.
-const LOCAL_COMMAND_RE = /^<(?:command-name|command-message|local-command-stdout|local-command-stderr|local-command-caveat)>/;
-export function isLocalCommandLine(content: string | null | undefined): boolean {
+const LOCAL_COMMAND_RE =
+  /^<(?:command-name|command-message|local-command-stdout|local-command-stderr|local-command-caveat)>/;
+export function isLocalCommandLine(
+  content: string | null | undefined,
+): boolean {
   return LOCAL_COMMAND_RE.test((content ?? "").trimStart());
 }

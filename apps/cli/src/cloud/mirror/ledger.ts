@@ -18,7 +18,9 @@ export type MirrorLedger = Map<string, string>;
 /** Paths one build touched. Shared between the phases of a build and, within a tick, between hosts. */
 export class TouchLedger {
   readonly paths = new Set<string>();
-  note(abs: string): void { this.paths.add(abs); }
+  note(abs: string): void {
+    this.paths.add(abs);
+  }
 }
 
 const STAT_CONCURRENCY = 64;
@@ -31,26 +33,42 @@ export function statSignature(stat: fs.Stats | null | undefined): string {
 
 async function lstatOrNull(abs: string): Promise<fs.Stats | null> {
   return fs.promises.lstat(abs).catch((err: NodeJS.ErrnoException) => {
-    if (["ENOENT", "ENOTDIR", "ELOOP", "EACCES", "EPERM"].includes(err.code ?? "")) return null;
+    if (
+      ["ENOENT", "ENOTDIR", "ELOOP", "EACCES", "EPERM"].includes(err.code ?? "")
+    )
+      return null;
     throw err;
   });
 }
 
 // Every path through fn, STAT_CONCURRENCY at a time; a false from fn stops the
 // pool and makes the whole walk false.
-async function eachPath<T>(paths: Iterable<T>, fn: (item: T) => Promise<boolean | void>): Promise<boolean> {
-  const results = await mapLimit([...paths], STAT_CONCURRENCY, fn, { until: (r) => r === false });
+async function eachPath<T>(
+  paths: Iterable<T>,
+  fn: (item: T) => Promise<boolean | void>,
+): Promise<boolean> {
+  const results = await mapLimit([...paths], STAT_CONCURRENCY, fn, {
+    until: (r) => r === false,
+  });
   return !results.includes(false);
 }
 
 /** The current signature of every path. */
-export async function signLedger(paths: Iterable<string>): Promise<MirrorLedger> {
+export async function signLedger(
+  paths: Iterable<string>,
+): Promise<MirrorLedger> {
   const ledger: MirrorLedger = new Map();
-  await eachPath(paths, async (abs) => { ledger.set(abs, statSignature(await lstatOrNull(abs))); });
+  await eachPath(paths, async (abs) => {
+    ledger.set(abs, statSignature(await lstatOrNull(abs)));
+  });
   return ledger;
 }
 
 /** True when every path still has the signature the ledger recorded. Stops at the first difference. */
 export async function ledgerUnchanged(ledger: MirrorLedger): Promise<boolean> {
-  return eachPath(ledger, async ([abs, signature]) => statSignature(await lstatOrNull(abs)) === signature);
+  return eachPath(
+    ledger,
+    async ([abs, signature]) =>
+      statSignature(await lstatOrNull(abs)) === signature,
+  );
 }

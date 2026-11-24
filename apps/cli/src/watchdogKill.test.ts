@@ -55,7 +55,11 @@ function pass(opts: {
   marker?: { pid: number; detected_at: number; self_recovered: boolean } | null;
   logAgeMs?: number | null;
 }) {
-  const wedged = daemonTickStale(opts.now - opts.tick, opts.gapMs, opts.logAgeMs ?? null);
+  const wedged = daemonTickStale(
+    opts.now - opts.tick,
+    opts.gapMs,
+    opts.logAgeMs ?? null,
+  );
   return watchdogKillVerdict({
     wedged,
     pid: PID,
@@ -74,14 +78,24 @@ describe("watchdogKillVerdict: two consecutive wedged passes, marker as evidence
     expect(first.stamp).toEqual({ pid: PID, tick: STALE_TICK, at: T0 });
 
     // The daemon resumed and re-stamped its heartbeat 20s before the next pass.
-    const second = pass({ now: T0 + PASS, tick: T0 + PASS - 20_000, gapMs: PASS, armed: first.stamp });
+    const second = pass({
+      now: T0 + PASS,
+      tick: T0 + PASS - 20_000,
+      gapMs: PASS,
+      armed: first.stamp,
+    });
     expect(second.action).toBe("spare");
   });
 
   test("two consecutive wedged passes with the tick unmoved kill, naming the rule", () => {
     const first = pass({ now: T0, tick: STALE_TICK, gapMs: PASS, armed: null });
     if (first.action !== "arm") throw new Error("first pass must arm");
-    const second = pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: first.stamp });
+    const second = pass({
+      now: T0 + PASS,
+      tick: STALE_TICK,
+      gapMs: PASS,
+      armed: first.stamp,
+    });
     expect(second.action).toBe("kill");
     if (second.action !== "kill") throw new Error("unreachable");
     expect(second.rule).toBe(WATCHDOG_KILL_RULE_TWO_PASSES);
@@ -93,14 +107,31 @@ describe("watchdogKillVerdict: two consecutive wedged passes, marker as evidence
     if (first.action !== "arm") throw new Error("first pass must arm");
     // The machine slept 15 min; the watchdog's own gap says so.
     const nap = 15 * 60 * 1000;
-    const wake = pass({ now: T0 + nap, tick: STALE_TICK, gapMs: nap, armed: first.stamp });
+    const wake = pass({
+      now: T0 + nap,
+      tick: STALE_TICK,
+      gapMs: nap,
+      armed: first.stamp,
+    });
     expect(wake.action).toBe("spare");
     // The compiled pass clears the arm on spare, so the next awake pass starts over.
-    const afterWake = pass({ now: T0 + nap + PASS, tick: STALE_TICK, gapMs: PASS, armed: null });
+    const afterWake = pass({
+      now: T0 + nap + PASS,
+      tick: STALE_TICK,
+      gapMs: PASS,
+      armed: null,
+    });
     expect(afterWake.action).toBe("arm");
     // Only the pass after THAT may kill.
     if (afterWake.action !== "arm") throw new Error("unreachable");
-    expect(pass({ now: T0 + nap + 2 * PASS, tick: STALE_TICK, gapMs: PASS, armed: afterWake.stamp }).action).toBe("kill");
+    expect(
+      pass({
+        now: T0 + nap + 2 * PASS,
+        tick: STALE_TICK,
+        gapMs: PASS,
+        armed: afterWake.stamp,
+      }).action,
+    ).toBe("kill");
   });
 
   test("a marker that says the loop resumed after the first wedged pass prevents the kill and restarts the count", () => {
@@ -109,7 +140,13 @@ describe("watchdogKillVerdict: two consecutive wedged passes, marker as evidence
     // The probe saw the silence end 10s after the arming pass and, 5s later,
     // rewrote the marker as recovered: JS ran, so the loop was not wedged.
     const marker = { pid: PID, detected_at: T0 + 10_000, self_recovered: true };
-    const second = pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: first.stamp, marker });
+    const second = pass({
+      now: T0 + PASS,
+      tick: STALE_TICK,
+      gapMs: PASS,
+      armed: first.stamp,
+      marker,
+    });
     expect(second.action).toBe("arm");
     if (second.action !== "arm") throw new Error("unreachable");
     expect(second.reason).toContain("resumed on its own");
@@ -119,36 +156,109 @@ describe("watchdogKillVerdict: two consecutive wedged passes, marker as evidence
   test("a recovered marker from BEFORE the arm is no evidence about this stall", () => {
     const first = pass({ now: T0, tick: STALE_TICK, gapMs: PASS, armed: null });
     if (first.action !== "arm") throw new Error("first pass must arm");
-    const old = { pid: PID, detected_at: T0 - 60 * 60 * 1000, self_recovered: true };
-    expect(pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: first.stamp, marker: old }).action).toBe("kill");
+    const old = {
+      pid: PID,
+      detected_at: T0 - 60 * 60 * 1000,
+      self_recovered: true,
+    };
+    expect(
+      pass({
+        now: T0 + PASS,
+        tick: STALE_TICK,
+        gapMs: PASS,
+        armed: first.stamp,
+        marker: old,
+      }).action,
+    ).toBe("kill");
   });
 
   test("an unresolved marker (self_recovered false) does not spare: the stall never cleared", () => {
     const first = pass({ now: T0, tick: STALE_TICK, gapMs: PASS, armed: null });
     if (first.action !== "arm") throw new Error("first pass must arm");
-    const unresolved = { pid: PID, detected_at: T0 + 10_000, self_recovered: false };
-    expect(pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: first.stamp, marker: unresolved }).action).toBe("kill");
+    const unresolved = {
+      pid: PID,
+      detected_at: T0 + 10_000,
+      self_recovered: false,
+    };
+    expect(
+      pass({
+        now: T0 + PASS,
+        tick: STALE_TICK,
+        gapMs: PASS,
+        armed: first.stamp,
+        marker: unresolved,
+      }).action,
+    ).toBe("kill");
   });
 
   test("markerRecoveredSince: the recovery rewrite lands HANG_SELF_RECOVERED_AFTER_MS after detected_at", () => {
     const armedAt = T0;
-    expect(markerRecoveredSince({ pid: PID, detected_at: armedAt - HANG_SELF_RECOVERED_AFTER_MS, self_recovered: true }, PID, armedAt)).toBe(true);
-    expect(markerRecoveredSince({ pid: PID, detected_at: armedAt - HANG_SELF_RECOVERED_AFTER_MS - 1, self_recovered: true }, PID, armedAt)).toBe(false);
-    expect(markerRecoveredSince({ pid: PID + 1, detected_at: armedAt, self_recovered: true }, PID, armedAt)).toBe(false);
+    expect(
+      markerRecoveredSince(
+        {
+          pid: PID,
+          detected_at: armedAt - HANG_SELF_RECOVERED_AFTER_MS,
+          self_recovered: true,
+        },
+        PID,
+        armedAt,
+      ),
+    ).toBe(true);
+    expect(
+      markerRecoveredSince(
+        {
+          pid: PID,
+          detected_at: armedAt - HANG_SELF_RECOVERED_AFTER_MS - 1,
+          self_recovered: true,
+        },
+        PID,
+        armedAt,
+      ),
+    ).toBe(false);
+    expect(
+      markerRecoveredSince(
+        { pid: PID + 1, detected_at: armedAt, self_recovered: true },
+        PID,
+        armedAt,
+      ),
+    ).toBe(false);
     expect(markerRecoveredSince(null, PID, armedAt)).toBe(false);
   });
 
   test("an arm for another pid, or one older than the TTL, is not consecutive", () => {
     const foreign = { pid: PID + 1, tick: STALE_TICK, at: T0 };
-    expect(pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: foreign }).action).toBe("arm");
-    const stale = { pid: PID, tick: STALE_TICK, at: T0 - WATCHDOG_WEDGED_ARM_TTL_MS - 1 };
-    expect(pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: stale }).action).toBe("arm");
+    expect(
+      pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: foreign })
+        .action,
+    ).toBe("arm");
+    const stale = {
+      pid: PID,
+      tick: STALE_TICK,
+      at: T0 - WATCHDOG_WEDGED_ARM_TTL_MS - 1,
+    };
+    expect(
+      pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: stale })
+        .action,
+    ).toBe("arm");
     const fromTheFuture = { pid: PID, tick: STALE_TICK, at: T0 + PASS + 1 };
-    expect(pass({ now: T0 + PASS, tick: STALE_TICK, gapMs: PASS, armed: fromTheFuture }).action).toBe("arm");
+    expect(
+      pass({
+        now: T0 + PASS,
+        tick: STALE_TICK,
+        gapMs: PASS,
+        armed: fromTheFuture,
+      }).action,
+    ).toBe("arm");
   });
 
   test("a busy daemon (fresh daemon.log) is spared on every pass and never accumulates arms", () => {
-    const first = pass({ now: T0, tick: STALE_TICK, gapMs: PASS, armed: null, logAgeMs: 5_000 });
+    const first = pass({
+      now: T0,
+      tick: STALE_TICK,
+      gapMs: PASS,
+      armed: null,
+      logAgeMs: 5_000,
+    });
     expect(first.action).toBe("spare");
   });
 });
@@ -168,9 +278,15 @@ describe("the wedged pass stamp and the kill marker on disk", () => {
   });
 
   test("the stamp round-trips inside CODECAST_DIR and clears", () => {
-    expect(wedgedPassStampPath()).toBe(path.join(dir, WATCHDOG_WEDGED_STAMP_FILENAME));
+    expect(wedgedPassStampPath()).toBe(
+      path.join(dir, WATCHDOG_WEDGED_STAMP_FILENAME),
+    );
     writeWedgedPassStamp({ pid: PID, tick: STALE_TICK, at: T0 });
-    expect(readWedgedPassStamp()).toEqual({ pid: PID, tick: STALE_TICK, at: T0 });
+    expect(readWedgedPassStamp()).toEqual({
+      pid: PID,
+      tick: STALE_TICK,
+      at: T0,
+    });
     clearWedgedPassStamp();
     expect(readWedgedPassStamp()).toBeNull();
   });
@@ -182,25 +298,55 @@ describe("the wedged pass stamp and the kill marker on disk", () => {
   });
 
   test("the kill marker keeps the daemon's sampled stacks for the same stall and names the rule", () => {
-    writeHangMarker({ detected_at: T0 - 30_000, pid: PID, unresponsive_ms: 50_000, hot_stacks: "autoResumeSessionInner 94%", self_recovered: false });
-    const written = writeWatchdogKillMarker({ pid: PID, unresponsiveMs: 200_000, rule: WATCHDOG_KILL_RULE_TWO_PASSES, now: T0 });
+    writeHangMarker({
+      detected_at: T0 - 30_000,
+      pid: PID,
+      unresponsive_ms: 50_000,
+      hot_stacks: "autoResumeSessionInner 94%",
+      self_recovered: false,
+    });
+    const written = writeWatchdogKillMarker({
+      pid: PID,
+      unresponsiveMs: 200_000,
+      rule: WATCHDOG_KILL_RULE_TWO_PASSES,
+      now: T0,
+    });
     const onDisk = peekHangMarker();
     expect(onDisk).toEqual(written);
     expect(onDisk?.hot_stacks).toBe("autoResumeSessionInner 94%");
     expect(onDisk?.self_recovered).toBe(false);
     expect(onDisk?.watchdog_rule).toBe(WATCHDOG_KILL_RULE_TWO_PASSES);
-    expect(describeHangMarker(onDisk!, T0)).toContain("the watchdog killed it (two consecutive wedged passes");
+    expect(describeHangMarker(onDisk!, T0)).toContain(
+      "the watchdog killed it (two consecutive wedged passes",
+    );
   });
 
   test("a prior marker from another pid or a recovered stall is replaced, not inherited", () => {
-    writeHangMarker({ detected_at: T0 - 30_000, pid: PID + 1, unresponsive_ms: 50_000, hot_stacks: "other daemon", self_recovered: true });
-    const written = writeWatchdogKillMarker({ pid: PID, unresponsiveMs: 200_000, rule: WATCHDOG_KILL_RULE_TWO_PASSES, now: T0 });
+    writeHangMarker({
+      detected_at: T0 - 30_000,
+      pid: PID + 1,
+      unresponsive_ms: 50_000,
+      hot_stacks: "other daemon",
+      self_recovered: true,
+    });
+    const written = writeWatchdogKillMarker({
+      pid: PID,
+      unresponsiveMs: 200_000,
+      rule: WATCHDOG_KILL_RULE_TWO_PASSES,
+      now: T0,
+    });
     expect(written.hot_stacks).toBe("");
     expect(fs.existsSync(hangMarkerPath())).toBe(true);
   });
 
   test("a marker with no watchdog_rule still reads as the daemon dying on its own", () => {
-    writeHangMarker({ detected_at: T0, pid: PID, unresponsive_ms: 50_000, hot_stacks: "", self_recovered: false });
+    writeHangMarker({
+      detected_at: T0,
+      pid: PID,
+      unresponsive_ms: 50_000,
+      hot_stacks: "",
+      self_recovered: false,
+    });
     const onDisk = peekHangMarker()!;
     expect("watchdog_rule" in onDisk).toBe(false);
     expect(describeHangMarker(onDisk, T0)).toContain("the daemon died in it");
@@ -223,20 +369,36 @@ describe("dev shell watchdog: the two pass rule in sh", () => {
   beforeEach(() => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), "codecast-watchdog-sh-"));
     fs.mkdirSync(path.join(home, ".codecast"), { recursive: true });
-    fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
-    fs.writeFileSync(path.join(home, "Library", "LaunchAgents", "sh.codecast.daemon.plist"), "<plist/>");
+    fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(home, "Library", "LaunchAgents", "sh.codecast.daemon.plist"),
+      "<plist/>",
+    );
     bin = path.join(home, "bin");
     fs.mkdirSync(bin);
     kicks = path.join(home, "kicks.log");
-    fs.writeFileSync(path.join(bin, "launchctl"), `#!/bin/sh
+    fs.writeFileSync(
+      path.join(bin, "launchctl"),
+      `#!/bin/sh
 printf '%s\\n' "$*" >> "${kicks}"
 case "$1" in print) printf 'state = running\\n';; esac
 exit 0
-`, { mode: 0o755 });
-    fs.writeFileSync(path.join(bin, "date"), `#!/bin/sh
+`,
+      { mode: 0o755 },
+    );
+    fs.writeFileSync(
+      path.join(bin, "date"),
+      `#!/bin/sh
 case "$1" in +%s) printf '%s\\n' "$FAKE_NOW_S";; *) printf '2026-01-01 00:00:00\\n';; esac
-`, { mode: 0o755 });
-    const full = buildWatchdogShellScript({ isBinary: false, watchdogCommand: "unused" });
+`,
+      { mode: 0o755 },
+    );
+    const full = buildWatchdogShellScript({
+      isBinary: false,
+      watchdogCommand: "unused",
+    });
     const loopAt = full.indexOf("while :; do");
     if (loopAt < 0) throw new Error("script has no resident loop");
     script = path.join(home, "watchdog.sh");
@@ -255,23 +417,40 @@ case "$1" in +%s) printf '%s\\n' "$FAKE_NOW_S";; *) printf '2026-01-01 00:00:00\
    * as old as the tick (so the busy grace cannot excuse it), and the watchdog's
    * previous heartbeat so LOOP_GAP is what the case needs. */
   function seed(opts: { tick: number; prevBeat: number }) {
-    fs.writeFileSync(path.join(cdir(), "daemon.state"), JSON.stringify({ lastHeartbeatTick: opts.tick }));
+    fs.writeFileSync(
+      path.join(cdir(), "daemon.state"),
+      JSON.stringify({ lastHeartbeatTick: opts.tick }),
+    );
     const log = path.join(cdir(), "daemon.log");
     fs.writeFileSync(log, "");
     fs.utimesSync(log, opts.tick / 1000, opts.tick / 1000);
-    fs.writeFileSync(path.join(cdir(), "watchdog.heartbeat"), String(opts.prevBeat));
+    fs.writeFileSync(
+      path.join(cdir(), "watchdog.heartbeat"),
+      String(opts.prevBeat),
+    );
   }
 
   function run(): string {
     fs.writeFileSync(path.join(cdir(), "watchdog-shell.log"), "");
     execFileSync("sh", [script], {
-      env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH ?? "/usr/bin:/bin"}`, FAKE_NOW_S: nowS() },
+      env: {
+        ...process.env,
+        HOME: home,
+        PATH: `${bin}:${process.env.PATH ?? "/usr/bin:/bin"}`,
+        FAKE_NOW_S: nowS(),
+      },
       stdio: ["ignore", "ignore", "inherit"],
     });
     return fs.readFileSync(path.join(cdir(), "watchdog-shell.log"), "utf-8");
   }
 
-  const kickCount = () => (fs.existsSync(kicks) ? fs.readFileSync(kicks, "utf-8").split("\n").filter((l) => l.startsWith("kickstart")).length : 0);
+  const kickCount = () =>
+    fs.existsSync(kicks)
+      ? fs
+          .readFileSync(kicks, "utf-8")
+          .split("\n")
+          .filter((l) => l.startsWith("kickstart")).length
+      : 0;
   const armed = () => readWedgedPassStamp(cdir());
 
   test("one wedged pass arms and does not kickstart; a fresh tick next pass clears the arm", () => {
@@ -320,7 +499,16 @@ case "$1" in +%s) printf '%s\\n' "$FAKE_NOW_S";; *) printf '2026-01-01 00:00:00\
   test("a marker that says the loop resumed after the arm prevents the kickstart", () => {
     seed({ tick: STALE_TICK, prevBeat: T0 - PASS });
     run();
-    writeHangMarker({ detected_at: T0 + 10_000, pid: PID, unresponsive_ms: 50_000, hot_stacks: "", self_recovered: true }, cdir());
+    writeHangMarker(
+      {
+        detected_at: T0 + 10_000,
+        pid: PID,
+        unresponsive_ms: 50_000,
+        hot_stacks: "",
+        self_recovered: true,
+      },
+      cdir(),
+    );
     clock = T0 + PASS;
     seed({ tick: STALE_TICK, prevBeat: T0 });
     const log2 = run();

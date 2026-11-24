@@ -9,7 +9,8 @@ function cmpVersions(a, b) {
   const pa = String(a).split(".").map(Number);
   const pb = String(b).split(".").map(Number);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const na = pa[i] || 0, nb = pb[i] || 0;
+    const na = pa[i] || 0,
+      nb = pb[i] || 0;
     if (na > nb) return 1;
     if (na < nb) return -1;
   }
@@ -35,22 +36,37 @@ function parseFeed(text) {
     }
   }
   if (zip && (!ZIP_NAME.test(zip) || zip.includes(".."))) zip = undefined;
-  return { version: version && VERSION.test(version) ? version : undefined, zip, sha512 };
+  return {
+    version: version && VERSION.test(version) ? version : undefined,
+    zip,
+    sha512,
+  };
 }
 
 // CFBundleShortVersionString from an XML Info.plist, or null.
 function plistVersion(xml) {
-  const v = String(xml).match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1]?.trim();
+  const v = String(xml)
+    .match(
+      /<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/,
+    )?.[1]
+    ?.trim();
   return v && VERSION.test(v) ? v : null;
 }
 
 // Why an extracted bundle may not replace the running app, or null. A forced
 // check may reinstall the running version, never an older one.
-function bundleRefusal({ feedVersion, bundleVersion, runningVersion, force = false }) {
+function bundleRefusal({
+  feedVersion,
+  bundleVersion,
+  runningVersion,
+  force = false,
+}) {
   if (!bundleVersion) return "bundle has no readable version";
-  if (cmpVersions(bundleVersion, feedVersion) !== 0) return `bundle is ${bundleVersion}, feed announced ${feedVersion}`;
+  if (cmpVersions(bundleVersion, feedVersion) !== 0)
+    return `bundle is ${bundleVersion}, feed announced ${feedVersion}`;
   const vsRunning = cmpVersions(bundleVersion, runningVersion);
-  if (vsRunning < 0 || (vsRunning === 0 && !force)) return `bundle ${bundleVersion} is not newer than running ${runningVersion}`;
+  if (vsRunning < 0 || (vsRunning === 0 && !force))
+    return `bundle ${bundleVersion} is not newer than running ${runningVersion}`;
   return null;
 }
 

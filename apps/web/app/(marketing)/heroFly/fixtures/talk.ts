@@ -19,7 +19,12 @@ import { MIN, PEOPLE, SESSIONS } from "./story";
 const DOC_ID = "hero_retry_schema";
 const DOC_REF = `doc:${DOC_ID}`;
 
-const session = (s: (typeof SESSIONS)[keyof typeof SESSIONS], status: string, messages: number, model: string) => ({
+const session = (
+  s: (typeof SESSIONS)[keyof typeof SESSIONS],
+  status: string,
+  messages: number,
+  model: string,
+) => ({
   _id: s.id,
   short_id: s.shortId,
   title: s.title,
@@ -34,9 +39,18 @@ const session = (s: (typeof SESSIONS)[keyof typeof SESSIONS], status: string, me
 
 // A doc pill resolves by its bare id with the type given, so the fixture is keyed by the id, not the `doc:` reference.
 export const entities: Record<string, EntityFixture> = {
-  [SESSIONS.api.shortId]: { type: "session", entity: session(SESSIONS.api, "active", 38, WORKERS.api.model) },
-  [SESSIONS.ui.shortId]: { type: "session", entity: session(SESSIONS.ui, "active", 27, WORKERS.ui.model) },
-  [SESSIONS.fork.shortId]: { type: "session", entity: session(SESSIONS.fork, "active", 6, WORKERS.api.model) },
+  [SESSIONS.api.shortId]: {
+    type: "session",
+    entity: session(SESSIONS.api, "active", 38, WORKERS.api.model),
+  },
+  [SESSIONS.ui.shortId]: {
+    type: "session",
+    entity: session(SESSIONS.ui, "active", 27, WORKERS.ui.model),
+  },
+  [SESSIONS.fork.shortId]: {
+    type: "session",
+    entity: session(SESSIONS.fork, "active", 6, WORKERS.api.model),
+  },
   [DOC_ID]: {
     type: "doc",
     entity: {
@@ -55,13 +69,27 @@ export const entities: Record<string, EntityFixture> = {
 export const MESSAGE = `API is on \`/v2/hooks/retry\`, schema in @[Retry API schema ${DOC_REF}]`;
 export const REPLY = "Retry states are in, staging green.";
 
-const sendTool = (id: string, to: string, body: string): ToolCall => ({ id, name: "Bash", input: JSON.stringify({ command: `cast send ${to} '${body}'` }) });
+const sendTool = (id: string, to: string, body: string): ToolCall => ({
+  id,
+  name: "Bash",
+  input: JSON.stringify({ command: `cast send ${to} '${body}'` }),
+});
 
 /** pairA runs this; pairB runs the reply. Stable objects: the cast parser caches by tool. */
 export const SEND = sendTool("hero-tool-send", SESSIONS.ui.shortId, MESSAGE);
-export const SEND_RESULT: ToolResult = { tool_use_id: SEND.id, content: `Sent to ${SESSIONS.ui.shortId}` };
-export const REPLY_SEND = sendTool("hero-tool-reply", SESSIONS.api.shortId, REPLY);
-export const REPLY_RESULT: ToolResult = { tool_use_id: REPLY_SEND.id, content: `Sent to ${SESSIONS.api.shortId}` };
+export const SEND_RESULT: ToolResult = {
+  tool_use_id: SEND.id,
+  content: `Sent to ${SESSIONS.ui.shortId}`,
+};
+export const REPLY_SEND = sendTool(
+  "hero-tool-reply",
+  SESSIONS.api.shortId,
+  REPLY,
+);
+export const REPLY_RESULT: ToolResult = {
+  tool_use_id: REPLY_SEND.id,
+  content: `Sent to ${SESSIONS.api.shortId}`,
+};
 
 /** Your steer on the API worker, the turn the fork leaves the line at: the fork takes it, the worker keeps exponential. */
 export const FORK_PROMPT = "Replay the failures with fixed 30s backoff too.";
@@ -82,8 +110,15 @@ export const FORK_CHILDREN: ForkChild[] = [
 ];
 
 /** The fork's first answer, in its own window. */
-export const FORK_ANSWER = "Replaying the last 24h of failed deliveries on staging with a fixed 30s retry, beside the exponential line.";
-export const FORK_REPLAY = { id: "hero-tool-fork-replay", name: "Bash", input: JSON.stringify({ command: "bun run replay --since 24h --backoff fixed:30s" }) } satisfies ToolCall;
+export const FORK_ANSWER =
+  "Replaying the last 24h of failed deliveries on staging with a fixed 30s retry, beside the exponential line.";
+export const FORK_REPLAY = {
+  id: "hero-tool-fork-replay",
+  name: "Bash",
+  input: JSON.stringify({
+    command: "bun run replay --since 24h --backoff fixed:30s",
+  }),
+} satisfies ToolCall;
 
 /** The fork as the inbox lists it, carried from the worker's turn to its own window. */
 export function forkRow(now: number): InboxSession {

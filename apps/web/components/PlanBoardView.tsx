@@ -5,23 +5,54 @@ import { useInboxStore } from "../store/inboxStore";
 import { closeTaskWithGuard } from "../lib/taskActions";
 import { TaskStatusBadge, getExecStatusConfig } from "./TaskStatusBadge";
 import { toast } from "sonner";
-import {
-  Circle,
-  CircleDot,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import { Circle, CircleDot, CheckCircle2, XCircle } from "lucide-react";
 import { taskPriorityBadge } from "../lib/taskPriority";
 
 const BOARD_COLUMNS = [
-  { status: "open", label: "Open", icon: Circle, color: "text-sol-blue", border: "border-sol-blue/30" },
-  { status: "in_progress", label: "In Progress", icon: CircleDot, color: "text-sol-yellow", border: "border-sol-yellow/30" },
-  { status: "in_review", label: "Verify", icon: CircleDot, color: "text-sol-violet", border: "border-sol-violet/30" },
-  { status: "done", label: "Done", icon: CheckCircle2, color: "text-sol-green", border: "border-sol-green/30" },
-  { status: "dropped", label: "Dropped", icon: XCircle, color: "text-sol-text-dim", border: "border-sol-text-dim/30" },
+  {
+    status: "open",
+    label: "Open",
+    icon: Circle,
+    color: "text-sol-blue",
+    border: "border-sol-blue/30",
+  },
+  {
+    status: "in_progress",
+    label: "In Progress",
+    icon: CircleDot,
+    color: "text-sol-yellow",
+    border: "border-sol-yellow/30",
+  },
+  {
+    status: "in_review",
+    label: "Verify",
+    icon: CircleDot,
+    color: "text-sol-violet",
+    border: "border-sol-violet/30",
+  },
+  {
+    status: "done",
+    label: "Done",
+    icon: CheckCircle2,
+    color: "text-sol-green",
+    border: "border-sol-green/30",
+  },
+  {
+    status: "dropped",
+    label: "Dropped",
+    icon: XCircle,
+    color: "text-sol-text-dim",
+    border: "border-sol-text-dim/30",
+  },
 ] as const;
 
-export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortId: string }) {
+export function PlanBoardView({
+  tasks,
+  planShortId,
+}: {
+  tasks: any[];
+  planShortId: string;
+}) {
   const updateTask = useInboxStore((s) => s.updateTask);
   const router = useRouter();
   const [dragging, setDragging] = useState<string | null>(null);
@@ -38,30 +69,36 @@ export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortI
     setDragOver(null);
   }, []);
 
-  const onDrop = useCallback((e: DragEvent, targetStatus: string) => {
-    e.preventDefault();
-    setDragOver(null);
-    const shortId = e.dataTransfer.getData("text/plain");
-    if (!shortId) return;
+  const onDrop = useCallback(
+    (e: DragEvent, targetStatus: string) => {
+      e.preventDefault();
+      setDragOver(null);
+      const shortId = e.dataTransfer.getData("text/plain");
+      if (!shortId) return;
 
-    const task = tasks.find(t => t.short_id === shortId);
-    if (!task || task.status === targetStatus) {
-      setDragging(null);
-      return;
-    }
+      const task = tasks.find((t) => t.short_id === shortId);
+      if (!task || task.status === targetStatus) {
+        setDragging(null);
+        return;
+      }
 
-    // Plan cards are the parents (subtasks are excluded from the board), so a
-    // drag to Done is the guarded case — route it through the close gateway.
-    if (targetStatus === "done" || targetStatus === "dropped") {
-      if (!closeTaskWithGuard(shortId, targetStatus as "done" | "dropped").needsConfirm) {
+      // Plan cards are the parents (subtasks are excluded from the board), so a
+      // drag to Done is the guarded case — route it through the close gateway.
+      if (targetStatus === "done" || targetStatus === "dropped") {
+        if (
+          !closeTaskWithGuard(shortId, targetStatus as "done" | "dropped")
+            .needsConfirm
+        ) {
+          toast.success(`${shortId} → ${targetStatus.replace("_", " ")}`);
+        }
+      } else {
+        updateTask(shortId, { status: targetStatus });
         toast.success(`${shortId} → ${targetStatus.replace("_", " ")}`);
       }
-    } else {
-      updateTask(shortId, { status: targetStatus });
-      toast.success(`${shortId} → ${targetStatus.replace("_", " ")}`);
-    }
-    setDragging(null);
-  }, [tasks, updateTask]);
+      setDragging(null);
+    },
+    [tasks, updateTask],
+  );
 
   const onDragOver = useCallback((e: DragEvent, status: string) => {
     e.preventDefault();
@@ -75,16 +112,16 @@ export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortI
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 min-h-[300px]">
-      {BOARD_COLUMNS.map(col => {
+      {BOARD_COLUMNS.map((col) => {
         const ColIcon = col.icon;
-        const columnTasks = tasks.filter(t => t.status === col.status);
+        const columnTasks = tasks.filter((t) => t.status === col.status);
         const isOver = dragOver === col.status;
 
         return (
           <div
             key={col.status}
-            onDrop={e => onDrop(e, col.status)}
-            onDragOver={e => onDragOver(e, col.status)}
+            onDrop={(e) => onDrop(e, col.status)}
+            onDragOver={(e) => onDragOver(e, col.status)}
             onDragLeave={onDragLeave}
             className={`flex flex-col rounded-lg border transition-colors ${
               isOver
@@ -94,17 +131,21 @@ export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortI
           >
             <div className="flex items-center gap-1.5 px-3 py-2.5 border-b border-sol-border/10">
               <ColIcon className={`w-3.5 h-3.5 ${col.color}`} />
-              <span className={`text-xs font-medium ${col.color}`}>{col.label}</span>
+              <span className={`text-xs font-medium ${col.color}`}>
+                {col.label}
+              </span>
               <span className="text-meta text-sol-text-dim/50 ml-auto tabular-nums">
                 {columnTasks.length}
               </span>
             </div>
 
             <div className="flex-1 p-2 space-y-1.5 overflow-y-auto">
-              {columnTasks.map(task => {
+              {columnTasks.map((task) => {
                 const pc = taskPriorityBadge(task.priority);
                 const PriorityIcon = pc?.icon;
-                const hasExec = task.execution_status && !!getExecStatusConfig(task.execution_status);
+                const hasExec =
+                  task.execution_status &&
+                  !!getExecStatusConfig(task.execution_status);
                 const isDragging = dragging === task.short_id;
 
                 return (
@@ -114,21 +155,26 @@ export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortI
                     role="button"
                     tabIndex={0}
                     aria-label={`Open task ${task.short_id}: ${task.title}`}
-                    onDragStart={e => onDragStart(e, task.short_id)}
+                    onDragStart={(e) => onDragStart(e, task.short_id)}
                     onDragEnd={onDragEnd}
                     onClick={() => router.push(`/tasks/${task._id}`)}
-                    onKeyDown={e => {
+                    onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         router.push(`/tasks/${task._id}`);
                       }
                     }}
                     className={`rounded-md border border-sol-border/20 bg-sol-bg px-2.5 py-2 cursor-grab active:cursor-grabbing transition-opacity focus:outline-none focus-visible:ring-1 focus-visible:ring-sol-blue/60 ${
-                      isDragging ? "opacity-30" : "opacity-100 hover:border-sol-border/40"
+                      isDragging
+                        ? "opacity-30"
+                        : "opacity-100 hover:border-sol-border/40"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 mb-1">
-                      <ShortId id={task.short_id} className="text-meta text-sol-text-dim" />
+                      <ShortId
+                        id={task.short_id}
+                        className="text-meta text-sol-text-dim"
+                      />
                       {PriorityIcon && pc && (
                         <PriorityIcon className={`w-3 h-3 ${pc.color}`} />
                       )}
@@ -138,7 +184,10 @@ export function PlanBoardView({ tasks, planShortId }: { tasks: any[]; planShortI
                     </div>
                     {hasExec && (
                       <div className="mt-1.5">
-                        <TaskStatusBadge status={task.execution_status} type="execution" />
+                        <TaskStatusBadge
+                          status={task.execution_status}
+                          type="execution"
+                        />
                       </div>
                     )}
                     {task.execution_status === "needs_context" && (

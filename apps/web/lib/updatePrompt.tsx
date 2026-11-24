@@ -1,6 +1,10 @@
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
-import { createUpdatePrompt, type ServedVersion, type UpdatePromptKind } from "@platform/update-prompt";
+import {
+  createUpdatePrompt,
+  type ServedVersion,
+  type UpdatePromptKind,
+} from "@platform/update-prompt";
 import { RisingCard } from "../components/RisingCard";
 
 // What a running window shows when the service worker reports a new deploy.
@@ -23,7 +27,11 @@ import { RisingCard } from "../components/RisingCard";
 
 const TOAST_ID = "update-prompt";
 
-function showCard(kind: UpdatePromptKind, served: ServedVersion, close: () => void) {
+function showCard(
+  kind: UpdatePromptKind,
+  served: ServedVersion,
+  close: () => void,
+) {
   toast.custom(
     (id) => (
       <RisingCard
@@ -32,7 +40,11 @@ function showCard(kind: UpdatePromptKind, served: ServedVersion, close: () => vo
             <RefreshCw size={20} strokeWidth={2.2} />
           </span>
         }
-        title={kind === "release" ? "A new version is ready" : "Codecast has moved on"}
+        title={
+          kind === "release"
+            ? "A new version is ready"
+            : "Codecast has moved on"
+        }
         lines={[
           kind === "release" && served.promptMessage
             ? served.promptMessage
@@ -41,7 +53,10 @@ function showCard(kind: UpdatePromptKind, served: ServedVersion, close: () => vo
         primaryLabel="Reload"
         onPrimary={() => window.location.reload()}
         laterLabel="Later"
-        onLater={() => { close(); toast.dismiss(id); }}
+        onLater={() => {
+          close();
+          toast.dismiss(id);
+        }}
         accent="var(--sol-cyan)"
         data-update-prompt={kind}
       />
@@ -61,5 +76,7 @@ export const noteUpdateWaiting = prompt.noteUpdateWaiting;
 
 // Dev console hook (the meeting offer's convention): __showUpdatePrompt("release", "Fixes the crash on deleted sessions.")
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined")
-  (window as any).__showUpdatePrompt = (kind: UpdatePromptKind = "release", message = "") =>
-    prompt.show(kind, { promptGeneration: 0, promptMessage: message });
+  (window as any).__showUpdatePrompt = (
+    kind: UpdatePromptKind = "release",
+    message = "",
+  ) => prompt.show(kind, { promptGeneration: 0, promptMessage: message });

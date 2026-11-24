@@ -1,5 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { agentAncestor, descendantRows, findOtherDaemonPids, findStaleTmuxServers, isAgentCommand, isDaemonCommand, liveTmuxServerPid, parseProcessTable, processGroupTree, snapshotProcessTableAsync, staleTmuxServerKillPlan, tmuxServerRows } from "./processTable.js";
+import {
+  agentAncestor,
+  descendantRows,
+  findOtherDaemonPids,
+  findStaleTmuxServers,
+  isAgentCommand,
+  isDaemonCommand,
+  liveTmuxServerPid,
+  parseProcessTable,
+  processGroupTree,
+  snapshotProcessTableAsync,
+  staleTmuxServerKillPlan,
+  tmuxServerRows,
+} from "./processTable.js";
 import { hasTmux } from "./tmux.js";
 
 const table = parseProcessTable(`
@@ -20,13 +33,21 @@ const table = parseProcessTable(`
 
 describe("processTable", () => {
   test("parseProcessTable folds a multi-line command back onto its row", () => {
-    const procs = parseProcessTable("  10  1 /sbin/launchd\n 41719 53695 /bin/bash -c eval 'cd /a\nnpm run dev' < /dev/null\n 42 10 tail -f x\n");
+    const procs = parseProcessTable(
+      "  10  1 /sbin/launchd\n 41719 53695 /bin/bash -c eval 'cd /a\nnpm run dev' < /dev/null\n 42 10 tail -f x\n",
+    );
     expect(procs.map((p) => p.pid)).toEqual([10, 41719, 42]);
-    expect(procs[1].command).toBe("/bin/bash -c eval 'cd /a\nnpm run dev' < /dev/null");
+    expect(procs[1].command).toBe(
+      "/bin/bash -c eval 'cd /a\nnpm run dev' < /dev/null",
+    );
   });
 
   test("descendantRows walks the whole subtree, root excluded", () => {
-    expect(descendantRows(table, 90449).map((p) => p.pid).sort()).toEqual([92000, 92001, 92002, 92003, 92004].sort());
+    expect(
+      descendantRows(table, 90449)
+        .map((p) => p.pid)
+        .sort(),
+    ).toEqual([92000, 92001, 92002, 92003, 92004].sort());
     expect(descendantRows(table, 92003)).toEqual([]);
   });
 
@@ -34,14 +55,24 @@ describe("processTable", () => {
     // 100 is the group; 103 left it with setsid, 104 is 103's child; 105 sits in 100 under init; 200 is
     // unrelated; 50 is the caller, whose own group 50 holds 106, a child of 101 that joined it.
     const at = "Tue Aug 25 05:04:18 2026";
-    const procs = parseProcessTable([
-      "    50     1    50 501 ?? " + at + " runner", "   100    50   100 501 ?? " + at + " bash -c check",
-      "   101   100   100 501 ?? " + at + " bash", "   102   101   100 501 ?? " + at + " sleep 600",
-      "   103   101   103 501 ?? " + at + " perl", "   104   103   103 501 ?? " + at + " sleep 600",
-      "   105     1   100 501 ?? " + at + " sleep 600", "   106   101    50 501 ?? " + at + " sleep 600",
-      "   200     1   200 501 ?? " + at + " other",
-    ].join("\n"));
-    expect(processGroupTree(procs, 100, 50).map((p) => p.pid).sort()).toEqual([100, 101, 102, 103, 104, 105, 106]);
+    const procs = parseProcessTable(
+      [
+        "    50     1    50 501 ?? " + at + " runner",
+        "   100    50   100 501 ?? " + at + " bash -c check",
+        "   101   100   100 501 ?? " + at + " bash",
+        "   102   101   100 501 ?? " + at + " sleep 600",
+        "   103   101   103 501 ?? " + at + " perl",
+        "   104   103   103 501 ?? " + at + " sleep 600",
+        "   105     1   100 501 ?? " + at + " sleep 600",
+        "   106   101    50 501 ?? " + at + " sleep 600",
+        "   200     1   200 501 ?? " + at + " other",
+      ].join("\n"),
+    );
+    expect(
+      processGroupTree(procs, 100, 50)
+        .map((p) => p.pid)
+        .sort(),
+    ).toEqual([100, 101, 102, 103, 104, 105, 106]);
     expect(processGroupTree(procs, 50, 50)).toEqual([]);
   });
 
@@ -52,7 +83,11 @@ describe("processTable", () => {
 
   test("isAgentCommand: registry binaries and claude's versioned binaries, not interpreters", () => {
     expect(isAgentCommand("claude --resume abc")).toBe(true);
-    expect(isAgentCommand("/Users/x/.local/share/claude/versions/2.1.237 --agent-id r")).toBe(true);
+    expect(
+      isAgentCommand(
+        "/Users/x/.local/share/claude/versions/2.1.237 --agent-id r",
+      ),
+    ).toBe(true);
     expect(isAgentCommand("/opt/homebrew/bin/codex resume 123")).toBe(true);
     expect(isAgentCommand("node /Users/x/.bin/tsc --noEmit")).toBe(false);
     expect(isAgentCommand("-bash")).toBe(false);
@@ -61,13 +96,23 @@ describe("processTable", () => {
   test("findStaleTmuxServers: every default-socket server except the live one, with tree counts", () => {
     const stale = findStaleTmuxServers(table, 45451);
     expect(stale).toHaveLength(1);
-    expect(stale[0]).toMatchObject({ pid: 90449, command: table.find((p) => p.pid === 90449)!.command, agents: 2 });
-    expect(stale[0].tree.map((p) => p.pid).sort((a, b) => a - b)).toEqual([92000, 92001, 92002, 92003, 92004]);
-    expect(findStaleTmuxServers(table, 90449).map((s) => s.pid)).toEqual([45451]);
+    expect(stale[0]).toMatchObject({
+      pid: 90449,
+      command: table.find((p) => p.pid === 90449)!.command,
+      agents: 2,
+    });
+    expect(stale[0].tree.map((p) => p.pid).sort((a, b) => a - b)).toEqual([
+      92000, 92001, 92002, 92003, 92004,
+    ]);
+    expect(findStaleTmuxServers(table, 90449).map((s) => s.pid)).toEqual([
+      45451,
+    ]);
   });
 
   test("findStaleTmuxServers: tmux unreachable reports every server", () => {
-    expect(findStaleTmuxServers(table, null).map((s) => s.pid)).toEqual([45451, 90449]);
+    expect(findStaleTmuxServers(table, null).map((s) => s.pid)).toEqual([
+      45451, 90449,
+    ]);
   });
 });
 
@@ -84,20 +129,29 @@ const ownedTable = parseProcessTable(`
 describe("process owners", () => {
   test("parseProcessTable reads the owner column when ps carries it", () => {
     expect(ownedTable.map((p) => [p.pid, p.ppid, p.uid])).toEqual([
-      [45451, 1, 501], [90449, 1, 501], [91500, 1, 502], [91501, 91500, 502],
+      [45451, 1, 501],
+      [90449, 1, 501],
+      [91500, 1, 502],
+      [91501, 91500, 502],
     ]);
     expect(ownedTable[3].command).toBe("claude --resume zzz");
   });
 
   test("parseProcessTable still reads a table with no owner column", () => {
     expect(table.find((p) => p.pid === 45451)!.uid).toBeUndefined();
-    expect(table.find((p) => p.pid === 91001)!.command).toBe("claude --resume abc --model opus");
+    expect(table.find((p) => p.pid === 91001)!.command).toBe(
+      "claude --resume abc --model opus",
+    );
   });
 
   test("tmuxServerRows: an owner filters the list; no owner reports every server", () => {
-    expect(tmuxServerRows(ownedTable, 501).map((p) => p.pid)).toEqual([45451, 90449]);
+    expect(tmuxServerRows(ownedTable, 501).map((p) => p.pid)).toEqual([
+      45451, 90449,
+    ]);
     expect(tmuxServerRows(ownedTable, 502).map((p) => p.pid)).toEqual([91500]);
-    expect(tmuxServerRows(ownedTable).map((p) => p.pid)).toEqual([45451, 90449, 91500]);
+    expect(tmuxServerRows(ownedTable).map((p) => p.pid)).toEqual([
+      45451, 90449, 91500,
+    ]);
   });
 
   test("a row with no owner is never a kill candidate for an owned sweep", () => {
@@ -124,7 +178,10 @@ describe("staleTmuxServerKillPlan", () => {
   // then has no root it can trust, so "holds nothing" is indistinguishable from
   // "holds this daemon" and the sweep must spare the server.
   test("a server the table reports twice is spared, not killed", () => {
-    const doubled = [...ownedTable, { ...ownedTable[1], command: "tmux new-session -d -s recycled" }];
+    const doubled = [
+      ...ownedTable,
+      { ...ownedTable[1], command: "tmux new-session -d -s recycled" },
+    ];
     const plan = staleTmuxServerKillPlan(doubled, 45451, 501);
     expect(plan.kill).toEqual([]);
     expect(plan.selfHosted.map((s) => s.pid)).toEqual([90449, 90449]);
@@ -165,10 +222,14 @@ describe("staleTmuxServerKillPlan", () => {
   test("another user's stale server is not in the plan", () => {
     // 91500 is a server on the default socket, is not the live one, and holds
     // an agent — everything the detector looks for except the owner.
-    expect(staleTmuxServerKillPlan(ownedTable, 45451, 501).kill.map((s) => s.pid)).not.toContain(91500);
+    expect(
+      staleTmuxServerKillPlan(ownedTable, 45451, 501).kill.map((s) => s.pid),
+    ).not.toContain(91500);
     // Theirs alone under their own uid (it out-holds the live server, so it is restored).
     const theirs = staleTmuxServerKillPlan(ownedTable, 45451, 502);
-    expect([...theirs.kill, ...theirs.restore].map((s) => s.pid)).toEqual([91500]);
+    expect([...theirs.kill, ...theirs.restore].map((s) => s.pid)).toEqual([
+      91500,
+    ]);
   });
 });
 
@@ -211,20 +272,39 @@ const bunRunScriptTable = parseProcessTable(`
 describe("agentAncestor", () => {
   // pid -> [ppid, comm (clipped the way macOS clips it), args]
   const rows: Record<number, [number, string, string]> = {
-    50: [40, "/bin/bash", "/bin/bash -c cast vault save-signin x --from-chrome"],
+    50: [
+      40,
+      "/bin/bash",
+      "/bin/bash -c cast vault save-signin x --from-chrome",
+    ],
     40: [30, "/Users/x/.co", "/Users/x/.codecast/bin/claude --session-id abc"],
     30: [1, "tmux", "tmux new-session -d"],
     60: [55, "/bin/zsh", "-zsh"],
-    55: [1, "Terminal", "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal"],
+    55: [
+      1,
+      "Terminal",
+      "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal",
+    ],
     70: [65, "cast", "cast vault save-signin x --from-chrome"],
     65: [40, "bun", "bun /Users/x/src/codecast/apps/cli/src/daemon.ts"],
     80: [75, "/bin/sh", "/bin/sh -c x"],
-    75: [1, "2.1.237", "/Users/x/.local/share/claude/versions/2.1.237 --resume abc"],
+    75: [
+      1,
+      "2.1.237",
+      "/Users/x/.local/share/claude/versions/2.1.237 --resume abc",
+    ],
   };
-  const rowOf = (pid: number) => (rows[pid] ? { ppid: rows[pid][0], comm: rows[pid][1], args: rows[pid][2] } : null);
+  const rowOf = (pid: number) =>
+    rows[pid]
+      ? { ppid: rows[pid][0], comm: rows[pid][1], args: rows[pid][2] }
+      : null;
 
   test("finds the agent above a shell, by argv when comm is clipped", () => {
-    expect(agentAncestor(50, rowOf)).toEqual({ pid: 40, bin: "claude", args: "/Users/x/.codecast/bin/claude --session-id abc" });
+    expect(agentAncestor(50, rowOf)).toEqual({
+      pid: 40,
+      bin: "claude",
+      args: "/Users/x/.codecast/bin/claude --session-id abc",
+    });
     expect(agentAncestor(80, rowOf)?.bin).toBe("claude");
   });
 
@@ -244,7 +324,9 @@ describe("isDaemonCommand", () => {
   });
 
   test("rejects the launcher, the watchdog, a worker and look-alikes", () => {
-    for (const pid of [70001, 70002, 70003, 70004, 70005, 70006, 70007, 70008]) {
+    for (const pid of [
+      70001, 70002, 70003, 70004, 70005, 70006, 70007, 70008,
+    ]) {
       const row = daemonTable.find((p) => p.pid === pid)!;
       expect(isDaemonCommand(row.command)).toBe(false);
     }
@@ -274,7 +356,9 @@ describe("isDaemonCommand", () => {
   });
 
   test("findOtherDaemonPids skips this process", () => {
-    expect(findOtherDaemonPids(daemonTable, 59966)).toEqual([59965, 59967, 59968]);
+    expect(findOtherDaemonPids(daemonTable, 59966)).toEqual([
+      59965, 59967, 59968,
+    ]);
   });
 });
 
@@ -287,19 +371,28 @@ describe.skipIf(!hasTmux())("liveTmuxServerPid", () => {
     if (pid === null) return; // no server running on this machine right now
     expect(pid).toBeGreaterThan(0);
     const procs = await snapshotProcessTableAsync({ timeout: 30_000 });
-    expect(findStaleTmuxServers(procs, pid).map((s) => s.pid)).not.toContain(pid);
+    expect(findStaleTmuxServers(procs, pid).map((s) => s.pid)).not.toContain(
+      pid,
+    );
   }, 60_000);
 });
 
 test("stale server plan refuses missing or invalid current UID", () => {
   for (const uid of [undefined, NaN, -1]) {
-    expect(staleTmuxServerKillPlan(ownedTable, 45451, uid)).toEqual({ kill: [], restore: [], selfHosted: [], refused: "owner-unknown" });
+    expect(staleTmuxServerKillPlan(ownedTable, 45451, uid)).toEqual({
+      kill: [],
+      restore: [],
+      selfHosted: [],
+      refused: "owner-unknown",
+    });
   }
 });
 
 test("stale server plan preserves its own whole hosting tree", () => {
-  const procs = parseProcessTable("100 1 501 tmux new-session\n200 1 501 tmux new-session\n201 200 501 bash\n202 201 501 bun doctor");
+  const procs = parseProcessTable(
+    "100 1 501 tmux new-session\n200 1 501 tmux new-session\n201 200 501 bash\n202 201 501 bun doctor",
+  );
   const plan = staleTmuxServerKillPlan(procs, 100, 501, 202);
   expect(plan.kill).toEqual([]);
-  expect(plan.selfHosted.map(s => s.pid)).toEqual([200]);
+  expect(plan.selfHosted.map((s) => s.pid)).toEqual([200]);
 });

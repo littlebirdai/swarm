@@ -6,25 +6,43 @@ import type { Id } from "../_generated/dataModel";
  * only these (agentTasks.matchTaskTriggers), and a producer asks the same
  * question before it schedules one.
  */
-export function armedTriggers(ctx: { db: any }, status: "scheduled" | "running", eventType: string) {
+export function armedTriggers(
+  ctx: { db: any },
+  status: "scheduled" | "running",
+  eventType: string,
+) {
   return ctx.db
     .query("agent_tasks")
-    .withIndex("by_status_event_type", (q: any) => q.eq("status", status).eq("event_filter.event_type", eventType));
+    .withIndex("by_status_event_type", (q: any) =>
+      q.eq("status", status).eq("event_filter.event_type", eventType),
+    );
 }
 
 /** The standing triggers watching one chat channel, in one status. A chat
  *  line reads only these, so a channel nobody watches costs one empty range. */
-export function channelTriggers(ctx: { db: any }, status: "scheduled" | "running", channelId: string) {
+export function channelTriggers(
+  ctx: { db: any },
+  status: "scheduled" | "running",
+  channelId: string,
+) {
   return ctx.db
     .query("agent_tasks")
-    .withIndex("by_channel_status", (q: any) => q.eq("event_filter.channel_id", channelId).eq("status", status));
+    .withIndex("by_channel_status", (q: any) =>
+      q.eq("event_filter.channel_id", channelId).eq("status", status),
+    );
 }
 
 /** The standing triggers watching one published page, in one status. */
-export function pageTriggers(ctx: { db: any }, status: "scheduled" | "running", pageId: string) {
+export function pageTriggers(
+  ctx: { db: any },
+  status: "scheduled" | "running",
+  pageId: string,
+) {
   return ctx.db
     .query("agent_tasks")
-    .withIndex("by_page_status", (q: any) => q.eq("event_filter.page_id", pageId).eq("status", status));
+    .withIndex("by_page_status", (q: any) =>
+      q.eq("event_filter.page_id", pageId).eq("status", status),
+    );
 }
 
 export type TriggerMatchArgs = {
@@ -59,7 +77,10 @@ export type TriggerMatchArgs = {
  * by its page the same way, so a busy poll nobody watches schedules nothing.
  */
 export async function scheduleTriggerMatch(
-  ctx: { db: any; scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> } },
+  ctx: {
+    db: any;
+    scheduler: { runAfter: (ms: number, fn: any, args: any) => Promise<any> };
+  },
   args: TriggerMatchArgs,
 ): Promise<void> {
   const range = (status: "scheduled" | "running") =>

@@ -10,5 +10,9 @@ const GuideById = lazy(() => import("./GuideById"));
 export function GuideLayer() {
   const id = useInboxStore((s) => s.tour?.id ?? null);
   if (!id || tourById(id)?.kind !== "guide") return null;
-  return <Suspense fallback={null}><GuideById id={id} /></Suspense>;
+  return (
+    <Suspense fallback={null}>
+      <GuideById id={id} />
+    </Suspense>
+  );
 }

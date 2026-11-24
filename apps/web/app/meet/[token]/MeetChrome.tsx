@@ -1,6 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { AudioLines, Camera, Mic, Volume2 } from "lucide-react";
-import { guestNoticeLines, noticeNews, type GuestNotice } from "@codecast/shared/contracts";
+import {
+  guestNoticeLines,
+  noticeNews,
+  type GuestNotice,
+} from "@codecast/shared/contracts";
 import type { DeviceChoice } from "../../../lib/calls/guestRoom";
 import { LogoMark } from "../../../components/Logo";
 import { buttonVariants } from "../../../components/ui/button";
@@ -13,15 +17,30 @@ import { buttonVariants } from "../../../components/ui/button";
  *  the app's Button in its cyan face, so an outsider's first look at
  *  codecast presses the way the app does. Padding is the caller's, by where
  *  it sits, so no size is applied here. */
-export const GUEST_PRIMARY = buttonVariants({ variant: "cyan", size: null, className: "rounded-xl font-semibold" });
+export const GUEST_PRIMARY = buttonVariants({
+  variant: "cyan",
+  size: null,
+  className: "rounded-xl font-semibold",
+});
 
-export function MeetShell({ children, bar }: { children: ReactNode; bar?: ReactNode }) {
+export function MeetShell({
+  children,
+  bar,
+}: {
+  children: ReactNode;
+  bar?: ReactNode;
+}) {
   // `dark` here, not on <html>: the page is always the call's dark room,
   // whatever theme the visitor's system asks the rest of the site for.
   return (
     <main className="meet dark flex min-h-dvh flex-col">
       <header className="flex h-14 shrink-0 items-center gap-3 px-4 sm:px-6">
-        <a className="meet-mark" href="https://codecast.sh" target="_blank" rel="noreferrer">
+        <a
+          className="meet-mark"
+          href="https://codecast.sh"
+          target="_blank"
+          rel="noreferrer"
+        >
           <LogoMark size={16} monochrome />
           codecast
         </a>
@@ -31,7 +50,6 @@ export function MeetShell({ children, bar }: { children: ReactNode; bar?: ReactN
     </main>
   );
 }
-
 
 /**
  * The notice a guest gets before joining and keeps while inside: is what they
@@ -65,19 +83,30 @@ export function CallNotice({
    *  started while they waited is not just one more line in a list. */
   since?: GuestNotice | null;
 }) {
-  const notice: GuestNotice = { recording, transcribed, video_public: recording && videoPublic, words_public: transcribed && wordsPublic };
+  const notice: GuestNotice = {
+    recording,
+    transcribed,
+    video_public: recording && videoPublic,
+    words_public: transcribed && wordsPublic,
+  };
   const lines = guestNoticeLines(notice, "short");
   const long = compact ? null : guestNoticeLines(notice, "long");
-  const [open, setOpen] = useState<Partial<Record<"rec" | "words", boolean>>>({});
+  const [open, setOpen] = useState<Partial<Record<"rec" | "words", boolean>>>(
+    {},
+  );
   const news = noticeNews(since, notice);
   // A recording or a transcript they were told of that went to the public
   // link since is news of its own, and worded as that rather than as a
   // fresh start.
-  const nowPublic = { rec: !!since?.recording && news.rec, words: !!since?.transcribed && news.words };
+  const nowPublic = {
+    rec: !!since?.recording && news.rec,
+    words: !!since?.transcribed && news.words,
+  };
   if (lines.length === 0) {
     return (
       <p className="text-meta leading-relaxed text-sol-text-muted">
-        This call is not being transcribed or recorded right now. If that changes while you are in it, you will see it here.
+        This call is not being transcribed or recorded right now. If that
+        changes while you are in it, you will see it here.
       </p>
     );
   }
@@ -90,7 +119,9 @@ export function CallNotice({
           <div
             key={l.key}
             className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 ${
-              rec ? "border-sol-red/25 bg-sol-red/[0.07]" : "border-sol-cyan/20 bg-sol-cyan/[0.06]"
+              rec
+                ? "border-sol-red/25 bg-sol-red/[0.07]"
+                : "border-sol-cyan/20 bg-sol-cyan/[0.06]"
             } ${fresh ? "animate-in fade-in slide-in-from-top-1 duration-300 motion-reduce:animate-none" : ""}`}
           >
             <span className="mt-[3px] flex h-3.5 w-3.5 shrink-0 items-center justify-center">
@@ -102,21 +133,35 @@ export function CallNotice({
             </span>
             <span className="text-meta leading-relaxed text-sol-text-secondary">
               {fresh && (
-                <span className={`mr-1.5 font-medium ${rec ? "text-sol-red" : "text-sol-cyan"}`}>
-                  {nowPublic[l.key] ? "Now shared by public link." : rec ? "Started while you waited." : "Turned on while you waited."}
+                <span
+                  className={`mr-1.5 font-medium ${rec ? "text-sol-red" : "text-sol-cyan"}`}
+                >
+                  {nowPublic[l.key]
+                    ? "Now shared by public link."
+                    : rec
+                      ? "Started while you waited."
+                      : "Turned on while you waited."}
                 </span>
               )}
-              {long && open[l.key] ? long.find((x) => x.key === l.key)!.text : l.text}
+              {long && open[l.key]
+                ? long.find((x) => x.key === l.key)!.text
+                : l.text}
               {long && (
                 <button
                   type="button"
                   onClick={() => setOpen((o) => ({ ...o, [l.key]: !o[l.key] }))}
                   aria-expanded={!!open[l.key]}
                   className={`ml-1.5 inline-flex items-center gap-0.5 whitespace-nowrap rounded underline decoration-dotted underline-offset-2 transition-colors ${
-                    rec ? "text-sol-red/80 hover:text-sol-red" : "text-sol-cyan/80 hover:text-sol-cyan"
+                    rec
+                      ? "text-sol-red/80 hover:text-sol-red"
+                      : "text-sol-cyan/80 hover:text-sol-cyan"
                   }`}
                 >
-                  {open[l.key] ? "Less" : rec ? "What happens to the video" : "Who reads it"}
+                  {open[l.key]
+                    ? "Less"
+                    : rec
+                      ? "What happens to the video"
+                      : "Who reads it"}
                 </button>
               )}
             </span>
@@ -146,17 +191,24 @@ export function NoticePills({
   onExplain?: () => void;
 }) {
   if (!transcribed) return null;
-  const notice = { recording: false, transcribed: true, words_public: wordsPublic };
+  const notice = {
+    recording: false,
+    transcribed: true,
+    words_public: wordsPublic,
+  };
   const label = guestNoticeLines(notice, "label")[0].text;
   const title = guestNoticeLines(notice, "short")[0].text;
   const body = (
     <>
       <AudioLines className="h-3 w-3 shrink-0" />
       <span className="max-sm:hidden">{label}</span>
-      <span className="text-meta sm:hidden">{guestNoticeLines({ ...notice, words_public: false }, "label")[0].text}</span>
+      <span className="text-meta sm:hidden">
+        {guestNoticeLines({ ...notice, words_public: false }, "label")[0].text}
+      </span>
     </>
   );
-  const pill = "flex shrink-0 items-center gap-1.5 rounded-full bg-sol-cyan/10 px-2 py-0.5 font-mono text-meta text-sol-cyan max-sm:gap-1 max-sm:px-1.5";
+  const pill =
+    "flex shrink-0 items-center gap-1.5 rounded-full bg-sol-cyan/10 px-2 py-0.5 font-mono text-meta text-sol-cyan max-sm:gap-1 max-sm:px-1.5";
   if (!onExplain) {
     return (
       <span className={pill} title={title}>
@@ -165,7 +217,13 @@ export function NoticePills({
     );
   }
   return (
-    <button type="button" onClick={onExplain} className={`${pill} transition-colors hover:bg-sol-cyan/20`} title={title} aria-label={title}>
+    <button
+      type="button"
+      onClick={onExplain}
+      className={`${pill} transition-colors hover:bg-sol-cyan/20`}
+      title={title}
+      aria-label={title}
+    >
       {body}
     </button>
   );
@@ -206,10 +264,22 @@ export function DeviceSelect({
 }) {
   const meta = DEVICE_META[kind];
   const Icon = meta.icon;
-  const value = (kind === "mic" ? choice.micId : kind === "camera" ? choice.cameraId : choice.speakerId) ?? devices[0]?.deviceId ?? "";
+  const value =
+    (kind === "mic"
+      ? choice.micId
+      : kind === "camera"
+        ? choice.cameraId
+        : choice.speakerId) ??
+    devices[0]?.deviceId ??
+    "";
   return (
-    <label className={`relative flex min-w-0 flex-1 items-center gap-2 text-sol-text-muted ${compact ? "max-sm:flex-none" : ""}`}>
-      <Icon className="pointer-events-none absolute left-2.5 h-3.5 w-3.5" aria-hidden />
+    <label
+      className={`relative flex min-w-0 flex-1 items-center gap-2 text-sol-text-muted ${compact ? "max-sm:flex-none" : ""}`}
+    >
+      <Icon
+        className="pointer-events-none absolute left-2.5 h-3.5 w-3.5"
+        aria-hidden
+      />
       <select
         aria-label={meta.label}
         value={value}
@@ -218,7 +288,9 @@ export function DeviceSelect({
         className={`meet-select w-full min-w-0 truncate rounded-lg ${compact ? "max-sm:w-[60px] max-sm:text-transparent" : ""} py-1.5 pl-8 font-mono text-meta text-sol-text-secondary outline-none ring-1 ring-white/[0.08] transition-colors hover:ring-white/15 focus-visible:ring-sol-cyan/60 disabled:opacity-50`}
       >
         {devices.length === 0 ? (
-          <option value="">{asking ? "Waiting for permission" : meta.empty}</option>
+          <option value="">
+            {asking ? "Waiting for permission" : meta.empty}
+          </option>
         ) : (
           devices.map((d, i) => (
             <option key={d.deviceId || i} value={d.deviceId}>

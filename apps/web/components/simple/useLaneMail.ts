@@ -7,7 +7,10 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
 import { api } from "@codecast/convex/convex/_generated/api";
-import type { WhiskConnectionView, WhiskReturnPath } from "@codecast/convex/convex/whisk";
+import type {
+  WhiskConnectionView,
+  WhiskReturnPath,
+} from "@codecast/convex/convex/whisk";
 import { useSettingsData } from "../../hooks/useSyncSettings";
 import { useConnectGesture } from "../../lib/integrations";
 import { useWatchEffect } from "../../hooks/useWatchEffect";
@@ -76,7 +79,19 @@ function useWhiskActions(returnTo: WhiskReturnPath) {
     busy,
     error,
     connect: () =>
-      attempt(() => openMinted(() => getConnectUrl({ return_to: returnTo, origin: window.location.origin }), "Couldn't start connecting your mail", { sameTab: true }), "Couldn't reach Whisk"),
+      attempt(
+        () =>
+          openMinted(
+            () =>
+              getConnectUrl({
+                return_to: returnTo,
+                origin: window.location.origin,
+              }),
+            "Couldn't start connecting your mail",
+            { sameTab: true },
+          ),
+        "Couldn't reach Whisk",
+      ),
     disconnect: () =>
       attempt(async () => {
         settle(await disconnectWhisk({}), "Couldn't disconnect your mail");

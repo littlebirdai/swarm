@@ -8,5 +8,12 @@ import type { HeroChapter } from "./contract";
 
 export const chapter: HeroChapter = {
   id: "automation",
-  parts: [{ key: "main", region: "auto.main", order: 0, Component: AutomationSurface }],
+  parts: [
+    {
+      key: "main",
+      region: "auto.main",
+      order: 0,
+      Component: AutomationSurface,
+    },
+  ],
 };

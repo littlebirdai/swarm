@@ -1,10 +1,41 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, TouchableOpacity, View as RNView, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withDecay, withSpring, withTiming, type SharedValue } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Text as RNText } from '@/components/Themed';
-import { GestureHandlerRootView, NativePressable, gestureHandler } from '@/lib/gestureHandler';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  View as RNView,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import Animated, {
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDecay,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { Text as RNText } from "@/components/Themed";
+import {
+  GestureHandlerRootView,
+  NativePressable,
+  gestureHandler,
+} from "@/lib/gestureHandler";
 
 // Full-screen image gallery: a horizontal pager of zoomable pages, a header
 // (rotate, counter, close) and a filmstrip. All gestures run as worklets on
@@ -29,7 +60,7 @@ const THUMB_GAP = 6;
 type Size = { width: number; height: number };
 
 function clamp(v: number, lo: number, hi: number) {
-  'worklet';
+  "worklet";
   return Math.min(hi, Math.max(lo, v));
 }
 
@@ -37,7 +68,7 @@ function clamp(v: number, lo: number, hi: number) {
 // whatever overflows the page. The image is drawn `contain`-fitted, so the
 // fitted size (not the page size) is what scales.
 function bounds(scale: number, fit: Size, page: Size) {
-  'worklet';
+  "worklet";
   return {
     x: Math.max(0, (fit.width * scale - page.width) / 2),
     y: Math.max(0, (fit.height * scale - page.height) / 2),
@@ -50,7 +81,15 @@ function fitted(natural: Size | null, page: Size): Size {
   return { width: natural.width * r, height: natural.height * r };
 }
 
-function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome, onClose }: {
+function ZoomablePage({
+  uri,
+  page,
+  active,
+  dismiss,
+  onZoomChange,
+  onToggleChrome,
+  onClose,
+}: {
   uri: string | undefined;
   page: Size;
   active: boolean;
@@ -68,10 +107,13 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
   const ty = useSharedValue(0);
   const start = useSharedValue({ scale: 1, tx: 0, ty: 0, fx: 0, fy: 0 });
 
-  const reportZoom = useCallback((z: boolean) => {
-    setZoomed(z);
-    onZoomChange(z);
-  }, [onZoomChange]);
+  const reportZoom = useCallback(
+    (z: boolean) => {
+      setZoomed(z);
+      onZoomChange(z);
+    },
+    [onZoomChange],
+  );
 
   // A page scrolled away from resets, so coming back shows the whole image.
   useEffect(() => {
@@ -89,71 +131,109 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
 
     // Settle scale into [1, MAX] and the offset into its bounds.
     const settle = (s: number, x: number, y: number) => {
-      'worklet';
+      "worklet";
       const target = clamp(s, 1, MAX_SCALE);
       const ratio = target / s;
       const b = bounds(target, fit, page);
       scale.value = withSpring(target, SPRING);
-      tx.value = withSpring(target === 1 ? 0 : clamp(x * ratio, -b.x, b.x), SPRING);
-      ty.value = withSpring(target === 1 ? 0 : clamp(y * ratio, -b.y, b.y), SPRING);
+      tx.value = withSpring(
+        target === 1 ? 0 : clamp(x * ratio, -b.x, b.x),
+        SPRING,
+      );
+      ty.value = withSpring(
+        target === 1 ? 0 : clamp(y * ratio, -b.y, b.y),
+        SPRING,
+      );
       runOnJS(reportZoom)(target > 1.01);
     };
 
     const pinch = G.Pinch()
       .onStart((e: any) => {
-        'worklet';
-        start.value = { scale: scale.value, tx: tx.value, ty: ty.value, fx: e.focalX - half.w, fy: e.focalY - half.h };
+        "worklet";
+        start.value = {
+          scale: scale.value,
+          tx: tx.value,
+          ty: ty.value,
+          fx: e.focalX - half.w,
+          fy: e.focalY - half.h,
+        };
       })
       .onUpdate((e: any) => {
-        'worklet';
+        "worklet";
         const s0 = start.value;
         // Soft limits while pinching; settle() springs back to the hard ones.
         const s = clamp(s0.scale * e.scale, 0.6, MAX_SCALE * 1.4);
         const k = s / s0.scale;
         // Keep the content under the fingers under the fingers, and let the
         // focal point's own movement pan.
-        tx.value = (e.focalX - half.w) - (s0.fx - s0.tx) * k;
-        ty.value = (e.focalY - half.h) - (s0.fy - s0.ty) * k;
+        tx.value = e.focalX - half.w - (s0.fx - s0.tx) * k;
+        ty.value = e.focalY - half.h - (s0.fy - s0.ty) * k;
         scale.value = s;
       })
       .onEnd(() => {
-        'worklet';
+        "worklet";
         settle(scale.value, tx.value, ty.value);
       });
 
     const pan = G.Pan()
       .maxPointers(1)
       .onStart(() => {
-        'worklet';
+        "worklet";
         start.value = { ...start.value, tx: tx.value, ty: ty.value };
       })
       .onUpdate((e: any) => {
-        'worklet';
+        "worklet";
         if (scale.value > 1.01) {
           const b = bounds(scale.value, fit, page);
           // Rubber-band past the edges at a third of the finger's travel.
           const rx = start.value.tx + e.translationX;
           const ry = start.value.ty + e.translationY;
-          tx.value = rx > b.x ? b.x + (rx - b.x) / 3 : rx < -b.x ? -b.x + (rx + b.x) / 3 : rx;
-          ty.value = ry > b.y ? b.y + (ry - b.y) / 3 : ry < -b.y ? -b.y + (ry + b.y) / 3 : ry;
+          tx.value =
+            rx > b.x
+              ? b.x + (rx - b.x) / 3
+              : rx < -b.x
+                ? -b.x + (rx + b.x) / 3
+                : rx;
+          ty.value =
+            ry > b.y
+              ? b.y + (ry - b.y) / 3
+              : ry < -b.y
+                ? -b.y + (ry + b.y) / 3
+                : ry;
         } else {
           tx.value = e.translationX * 0.6;
           ty.value = e.translationY;
-          dismiss.value = Math.min(1, Math.abs(e.translationY) / (page.height / 2));
+          dismiss.value = Math.min(
+            1,
+            Math.abs(e.translationY) / (page.height / 2),
+          );
         }
       })
       .onEnd((e: any) => {
-        'worklet';
+        "worklet";
         if (scale.value > 1.01) {
           const b = bounds(scale.value, fit, page);
-          tx.value = withDecay({ velocity: e.velocityX, clamp: [-b.x, b.x], rubberBandEffect: true });
-          ty.value = withDecay({ velocity: e.velocityY, clamp: [-b.y, b.y], rubberBandEffect: true });
+          tx.value = withDecay({
+            velocity: e.velocityX,
+            clamp: [-b.x, b.x],
+            rubberBandEffect: true,
+          });
+          ty.value = withDecay({
+            velocity: e.velocityY,
+            clamp: [-b.y, b.y],
+            rubberBandEffect: true,
+          });
           return;
         }
-        if (Math.abs(e.translationY) > DISMISS_DISTANCE || Math.abs(e.velocityY) > DISMISS_VELOCITY) {
+        if (
+          Math.abs(e.translationY) > DISMISS_DISTANCE ||
+          Math.abs(e.velocityY) > DISMISS_VELOCITY
+        ) {
           const dir = (e.translationY || e.velocityY) < 0 ? -1 : 1;
           ty.value = withTiming(dir * page.height, { duration: 180 });
-          dismiss.value = withTiming(1, { duration: 180 }, () => runOnJS(onClose)());
+          dismiss.value = withTiming(1, { duration: 180 }, () =>
+            runOnJS(onClose)(),
+          );
           return;
         }
         tx.value = withSpring(0, SPRING);
@@ -169,7 +249,7 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
       .maxDelay(250)
       .maxDistance(TAP_SLOP)
       .onEnd((e: any) => {
-        'worklet';
+        "worklet";
         if (scale.value > 1.01) {
           settle(1, 0, 0);
         } else {
@@ -182,15 +262,34 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
     const singleTap = G.Tap()
       .maxDistance(TAP_SLOP)
       .onEnd(() => {
-        'worklet';
+        "worklet";
         runOnJS(onToggleChrome)();
       });
 
-    return G.Simultaneous(G.Simultaneous(pinch, pan), G.Exclusive(doubleTap, singleTap));
-  }, [fit, page, zoomed, dismiss, scale, tx, ty, start, reportZoom, onToggleChrome, onClose]);
+    return G.Simultaneous(
+      G.Simultaneous(pinch, pan),
+      G.Exclusive(doubleTap, singleTap),
+    );
+  }, [
+    fit,
+    page,
+    zoomed,
+    dismiss,
+    scale,
+    tx,
+    ty,
+    start,
+    reportZoom,
+    onToggleChrome,
+    onClose,
+  ]);
 
   const imageStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
+    transform: [
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { scale: scale.value },
+    ],
   }));
 
   const body = (
@@ -203,7 +302,8 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
             resizeMode="contain"
             onLoad={(e) => {
               const s = e.nativeEvent.source;
-              if (s?.width && s?.height) setNatural({ width: s.width, height: s.height });
+              if (s?.width && s?.height)
+                setNatural({ width: s.width, height: s.height });
             }}
           />
         </Animated.View>
@@ -213,32 +313,83 @@ function ZoomablePage({ uri, page, active, dismiss, onZoomChange, onToggleChrome
     </RNView>
   );
   if (!gesture) return body;
-  return <gestureHandler.GestureDetector gesture={gesture}>{body}</gestureHandler.GestureDetector>;
+  return (
+    <gestureHandler.GestureDetector gesture={gesture}>
+      {body}
+    </gestureHandler.GestureDetector>
+  );
 }
 
 // A page resolves its own source, so items may carry async storage URLs.
-function GalleryPage<T>({ item, useSrc, ...rest }: { item: T; useSrc: (item: T) => string | undefined } & Omit<Parameters<typeof ZoomablePage>[0], 'uri'>) {
+function GalleryPage<T>({
+  item,
+  useSrc,
+  ...rest
+}: { item: T; useSrc: (item: T) => string | undefined } & Omit<
+  Parameters<typeof ZoomablePage>[0],
+  "uri"
+>) {
   return <ZoomablePage uri={useSrc(item)} {...rest} />;
 }
 
-function Thumb<T>({ item, useSrc, active, onPress }: { item: T; useSrc: (item: T) => string | undefined; active: boolean; onPress: () => void }) {
+function Thumb<T>({
+  item,
+  useSrc,
+  active,
+  onPress,
+}: {
+  item: T;
+  useSrc: (item: T) => string | undefined;
+  active: boolean;
+  onPress: () => void;
+}) {
   const src = useSrc(item);
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.thumb, active && styles.thumbActive]}>
-      {src ? <Image source={{ uri: src }} style={styles.thumbImage} resizeMode="cover" /> : null}
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={[styles.thumb, active && styles.thumbActive]}
+    >
+      {src ? (
+        <Image
+          source={{ uri: src }}
+          style={styles.thumbImage}
+          resizeMode="cover"
+        />
+      ) : null}
     </TouchableOpacity>
   );
 }
 
-function HeaderButton({ icon, color = '#fff', onPress }: { icon: ComponentProps<typeof FontAwesome>['name']; color?: string; onPress: () => void }) {
+function HeaderButton({
+  icon,
+  color = "#fff",
+  onPress,
+}: {
+  icon: ComponentProps<typeof FontAwesome>["name"];
+  color?: string;
+  onPress: () => void;
+}) {
   return (
-    <NativePressable onPress={onPress} activeOpacity={0.6} hitSlop={10} style={styles.headerButton}>
+    <NativePressable
+      onPress={onPress}
+      activeOpacity={0.6}
+      hitSlop={10}
+      style={styles.headerButton}
+    >
       <FontAwesome name={icon} size={17} color={color} />
     </NativePressable>
   );
 }
 
-export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose, accent = '#fff' }: {
+export function ImageGallery<T>({
+  items,
+  useSrc,
+  initialIndex,
+  visible,
+  onClose,
+  accent = "#fff",
+}: {
   items: T[];
   // Called as a hook, once per rendered page and thumb; pass a stable function.
   useSrc: (item: T) => string | undefined;
@@ -260,7 +411,10 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
 
   // Rotate turns the pager 90° for wide images while the phone stays portrait.
   const page = useMemo<Size>(
-    () => (landscape ? { width: window.height, height: window.width } : { width: window.width, height: window.height }),
+    () =>
+      landscape
+        ? { width: window.height, height: window.width }
+        : { width: window.width, height: window.height },
     [landscape, window.width, window.height],
   );
 
@@ -277,13 +431,21 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
   useEffect(() => {
     if (!visible || items.length < 2) return;
     const step = THUMB + THUMB_GAP;
-    strip.current?.scrollToOffset({ offset: Math.max(0, index * step - window.width / 2 + step / 2), animated: true });
+    strip.current?.scrollToOffset({
+      offset: Math.max(0, index * step - window.width / 2 + step / 2),
+      animated: true,
+    });
   }, [visible, index, items.length, window.width]);
 
-  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / page.width);
-    setIndex((prev) => (prev === i ? prev : Math.max(0, Math.min(items.length - 1, i))));
-  }, [page.width, items.length]);
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const i = Math.round(e.nativeEvent.contentOffset.x / page.width);
+      setIndex((prev) =>
+        prev === i ? prev : Math.max(0, Math.min(items.length - 1, i)),
+      );
+    },
+    [page.width, items.length],
+  );
 
   const toggleChrome = useCallback(() => {
     setChrome((c) => {
@@ -293,18 +455,40 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
   }, [chromeShown]);
   const close = useCallback(() => onClose(), [onClose]);
 
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: interpolate(dismiss.value, [0, 1], [1, 0.2]) }));
-  const chromeStyle = useAnimatedStyle(() => ({ opacity: chromeShown.value * interpolate(dismiss.value, [0, 0.25], [1, 0], 'clamp') }));
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(dismiss.value, [0, 1], [1, 0.2]),
+  }));
+  const chromeStyle = useAnimatedStyle(() => ({
+    opacity:
+      chromeShown.value *
+      interpolate(dismiss.value, [0, 0.25], [1, 0], "clamp"),
+  }));
 
   if (!visible) return null;
   const many = items.length > 1;
 
   return (
-    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose} supportedOrientations={['portrait', 'portrait-upside-down', 'landscape-left', 'landscape-right']}>
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onClose}
+      supportedOrientations={[
+        "portrait",
+        "portrait-upside-down",
+        "landscape-left",
+        "landscape-right",
+      ]}
+    >
       <GestureHandlerRootView style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]} />
+        <Animated.View
+          style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}
+        />
         <RNView style={styles.center}>
-          <RNView style={[page, landscape && { transform: [{ rotate: '90deg' }] }]}>
+          <RNView
+            style={[page, landscape && { transform: [{ rotate: "90deg" }] }]}
+          >
             <FlatList
               // Remount on a size change so paging offsets match the new width.
               key={`${page.width}x${page.height}`}
@@ -316,7 +500,11 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
               showsHorizontalScrollIndicator={false}
               keyExtractor={(_, i) => String(i)}
               initialScrollIndex={index}
-              getItemLayout={(_, i) => ({ length: page.width, offset: page.width * i, index: i })}
+              getItemLayout={(_, i) => ({
+                length: page.width,
+                offset: page.width * i,
+                index: i,
+              })}
               onScroll={onScroll}
               scrollEventThrottle={32}
               windowSize={3}
@@ -338,14 +526,28 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
           </RNView>
         </RNView>
 
-        <Animated.View pointerEvents={chrome ? 'box-none' : 'none'} style={[StyleSheet.absoluteFill, chromeStyle]}>
+        <Animated.View
+          pointerEvents={chrome ? "box-none" : "none"}
+          style={[StyleSheet.absoluteFill, chromeStyle]}
+        >
           <RNView style={[styles.header, { paddingTop: insets.top + 6 }]}>
-            <HeaderButton icon="rotate-right" color={landscape ? accent : '#fff'} onPress={() => { setLandscape((l) => !l); setZoomed(false); }} />
-            <RNText style={styles.counter}>{many ? `${index + 1} / ${items.length}` : ''}</RNText>
+            <HeaderButton
+              icon="rotate-right"
+              color={landscape ? accent : "#fff"}
+              onPress={() => {
+                setLandscape((l) => !l);
+                setZoomed(false);
+              }}
+            />
+            <RNText style={styles.counter}>
+              {many ? `${index + 1} / ${items.length}` : ""}
+            </RNText>
             <HeaderButton icon="close" onPress={onClose} />
           </RNView>
           {many && (
-            <RNView style={[styles.strip, { paddingBottom: insets.bottom + 10 }]}>
+            <RNView
+              style={[styles.strip, { paddingBottom: insets.bottom + 10 }]}
+            >
               <FlatList
                 ref={strip}
                 data={items}
@@ -353,7 +555,11 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
                 showsHorizontalScrollIndicator={false}
                 keyExtractor={(_, i) => String(i)}
                 contentContainerStyle={styles.stripContent}
-                getItemLayout={(_, i) => ({ length: THUMB + THUMB_GAP, offset: (THUMB + THUMB_GAP) * i, index: i })}
+                getItemLayout={(_, i) => ({
+                  length: THUMB + THUMB_GAP,
+                  offset: (THUMB + THUMB_GAP) * i,
+                  index: i,
+                })}
                 renderItem={({ item, index: i }) => (
                   <Thumb
                     item={item}
@@ -362,7 +568,10 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
                     onPress={() => {
                       setIndex(i);
                       setZoomed(false);
-                      pager.current?.scrollToIndex({ index: i, animated: false });
+                      pager.current?.scrollToIndex({
+                        index: i,
+                        animated: false,
+                      });
                     }}
                   />
                 )}
@@ -377,58 +586,63 @@ export function ImageGallery<T>({ items, useSrc, initialIndex, visible, onClose,
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  backdrop: { backgroundColor: '#000' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  page: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  backdrop: { backgroundColor: "#000" },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  page: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingBottom: 10,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
   },
   counter: {
-    color: 'rgba(255,255,255,0.85)',
+    color: "rgba(255,255,255,0.85)",
     fontSize: 14,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
   },
   strip: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     paddingTop: 10,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: "rgba(0,0,0,0.35)",
   },
   stripContent: {
     paddingHorizontal: 12,
     gap: THUMB_GAP,
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   thumb: {
     width: THUMB,
     height: THUMB,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
     opacity: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   thumbActive: {
     opacity: 1,
-    borderColor: '#fff',
+    borderColor: "#fff",
   },
-  thumbImage: { width: '100%', height: '100%' },
+  thumbImage: { width: "100%", height: "100%" },
 });

@@ -5,7 +5,10 @@
 // and rides the same dispatch a single row's press does.
 
 import { approvesPersonsAct } from "@codecast/shared/contracts/commandRun";
-import { useInboxStore, type SessionDecisionItem } from "../../store/inboxStore";
+import {
+  useInboxStore,
+  type SessionDecisionItem,
+} from "../../store/inboxStore";
 import { isOpen, type DecisionOwner } from "./decisionRows";
 
 type Rows = ReadonlyArray<SessionDecisionItem>;
@@ -33,10 +36,19 @@ export function unassignDecisions(rows: Rows): number {
  */
 export function sharedAnswers(rows: Rows): string[] {
   const targets = open(rows);
-  if (targets.length === 0 || targets.some((d) => d.kind && d.kind !== "single")) return [];
-  const pickable = (d: SessionDecisionItem) => new Set(d.options.filter((_, i) => !approvesPersonsAct(d, i)).map((o) => o.label));
+  if (
+    targets.length === 0 ||
+    targets.some((d) => d.kind && d.kind !== "single")
+  )
+    return [];
+  const pickable = (d: SessionDecisionItem) =>
+    new Set(
+      d.options.filter((_, i) => !approvesPersonsAct(d, i)).map((o) => o.label),
+    );
   const [first, ...rest] = targets.map(pickable);
-  return targets[0].options.map((o) => o.label).filter((l) => first.has(l) && rest.every((s) => s.has(l)));
+  return targets[0].options
+    .map((o) => o.label)
+    .filter((l) => first.has(l) && rest.every((s) => s.has(l)));
 }
 
 export function answerDecisions(rows: Rows, label: string): number {
@@ -59,7 +71,11 @@ export function dismissDecisions(rows: Rows): number {
 }
 
 /** Pass with a note: each moves to the new owner's queue, the note with it. */
-export function passDecisions(rows: Rows, to: DecisionOwner, note: string): number {
+export function passDecisions(
+  rows: Rows,
+  to: DecisionOwner,
+  note: string,
+): number {
   const { passDecision } = useInboxStore.getState();
   const targets = open(rows);
   for (const d of targets) passDecision(d._id, to, note);

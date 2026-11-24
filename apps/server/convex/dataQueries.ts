@@ -15,11 +15,21 @@
 
 import { v, ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { action, internalAction, internalMutation, internalQuery, query } from "./functions";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+  query,
+} from "./functions";
 import type { ActionCtx } from "./functions";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { PAGE_DATA_LIMITS, capResult, parseRefresh } from "@codecast/shared/contracts/pageData";
+import {
+  PAGE_DATA_LIMITS,
+  capResult,
+  parseRefresh,
+} from "@codecast/shared/contracts/pageData";
 import { dashboard, type ArtifactElement } from "@codecast/shared/artifacts";
 import { PAGE_READERS, queryText, type ReaderScope } from "./lib/pageReaders";
 import { runReader, normalizeRow, dueAt } from "./pageData";
@@ -29,7 +39,19 @@ import { readLiveElements } from "./liveArtifacts";
 import { emitNotification } from "./notificationRouter";
 
 type DataResult = dashboard.DataResult;
-const { queryKey, DATA_SOURCES, isDataSource, checkBlock, evaluateKpi, evaluateChart, evaluateTable, orderedBlocks, compareRerun, formatValue, parseFlags } = dashboard;
+const {
+  queryKey,
+  DATA_SOURCES,
+  isDataSource,
+  checkBlock,
+  evaluateKpi,
+  evaluateChart,
+  evaluateTable,
+  orderedBlocks,
+  compareRerun,
+  formatValue,
+  parseFlags,
+} = dashboard;
 
 /** Dashboards read at least this often by default; a block may ask for slower (refresh "1h"). */
 const DEFAULT_REFRESH_MS = 5 * 60_000;
@@ -38,11 +60,20 @@ const FORGET_AFTER_MS = 24 * 60 * 60_000;
 const WANT_STAMP_MS = 30 * 60_000;
 const MAX_QUERIES = 64;
 
-const vQuery = v.object({ source: v.string(), args: v.optional(v.any()), refresh: v.optional(v.string()) });
+const vQuery = v.object({
+  source: v.string(),
+  args: v.optional(v.any()),
+  refresh: v.optional(v.string()),
+});
 
-export async function dashboardDoc(ctx: any, userId: Id<"users">, docId: Id<"docs">): Promise<Doc<"docs">> {
+export async function dashboardDoc(
+  ctx: any,
+  userId: Id<"users">,
+  docId: Id<"docs">,
+): Promise<Doc<"docs">> {
   const doc = await requireAccessibleDoc(ctx, userId, docId);
-  if (doc.doc_type !== "dashboard") throw new ConvexError(`${doc.title} is not a dashboard`);
+  if (doc.doc_type !== "dashboard")
+    throw new ConvexError(`${doc.title} is not a dashboard`);
   return doc;
 }
 
@@ -51,19 +82,58 @@ function workspaceOf(doc: Doc<"docs">): string {
 }
 
 /** A query checked against its reader: the normalized args and audit text, or the reader's complaint. */
-async function validated(ctx: any, scope: ReaderScope, q: dashboard.DataQuery): Promise<{ args_json: string; query_text: string; refresh_ms: number; error?: string }> {
+async function validated(
+  ctx: any,
+  scope: ReaderScope,
+  q: dashboard.DataQuery,
+): Promise<{
+  args_json: string;
+  query_text: string;
+  refresh_ms: number;
+  error?: string;
+}> {
   const refresh = q.refresh ? parseRefresh(q.refresh) : DEFAULT_REFRESH_MS;
   const refresh_ms = typeof refresh === "number" ? refresh : DEFAULT_REFRESH_MS;
   const raw = JSON.stringify(q.args ?? {});
-  if (!isDataSource(q.source)) return { args_json: raw, query_text: `unknown source ${q.source}`, refresh_ms, error: `unknown source "${q.source}"` };
+  if (!isDataSource(q.source))
+    return {
+      args_json: raw,
+      query_text: `unknown source ${q.source}`,
+      refresh_ms,
+      error: `unknown source "${q.source}"`,
+    };
   const def = PAGE_READERS[q.source as keyof typeof PAGE_READERS];
-  if (raw.length > PAGE_DATA_LIMITS.args_bytes) return { args_json: raw, query_text: q.source, refresh_ms, error: "the query's args are too long" };
+  if (raw.length > PAGE_DATA_LIMITS.args_bytes)
+    return {
+      args_json: raw,
+      query_text: q.source,
+      refresh_ms,
+      error: "the query's args are too long",
+    };
   const checked = def.validate((q.args ?? {}) as Record<string, unknown>);
-  if ("error" in checked) return { args_json: raw, query_text: q.source, refresh_ms, error: checked.error };
+  if ("error" in checked)
+    return {
+      args_json: raw,
+      query_text: q.source,
+      refresh_ms,
+      error: checked.error,
+    };
   const problem = def.check ? await def.check(ctx, scope, checked.args) : null;
   const query_text = queryText(scope, checked.text);
-  if (problem) return { args_json: JSON.stringify(checked.args), query_text, refresh_ms, error: problem };
-  if (typeof refresh !== "number") return { args_json: JSON.stringify(checked.args), query_text, refresh_ms, error: refresh.error };
+  if (problem)
+    return {
+      args_json: JSON.stringify(checked.args),
+      query_text,
+      refresh_ms,
+      error: problem,
+    };
+  if (typeof refresh !== "number")
+    return {
+      args_json: JSON.stringify(checked.args),
+      query_text,
+      refresh_ms,
+      error: refresh.error,
+    };
   return { args_json: JSON.stringify(checked.args), query_text, refresh_ms };
 }
 
@@ -72,16 +142,30 @@ async function validated(ctx: any, scope: ReaderScope, q: dashboard.DataQuery): 
  * each one past its interval. New queries run as `userId`. Returns the keys
  * it leased.
  */
-export async function wantCore(ctx: any, userId: Id<"users">, doc: Doc<"docs">, queries: dashboard.DataQuery[], now: number): Promise<string[]> {
+export async function wantCore(
+  ctx: any,
+  userId: Id<"users">,
+  doc: Doc<"docs">,
+  queries: dashboard.DataQuery[],
+  now: number,
+): Promise<string[]> {
   const workspace = workspaceOf(doc);
-  const rows: Doc<"data_queries">[] = await ctx.db.query("data_queries").withIndex("by_doc_qkey", (q: any) => q.eq("doc_id", doc._id)).collect();
+  const rows: Doc<"data_queries">[] = await ctx.db
+    .query("data_queries")
+    .withIndex("by_doc_qkey", (q: any) => q.eq("doc_id", doc._id))
+    .collect();
   // The saved dashboard's schedule and KPI alerts, mirrored onto its rows so the cron and the alert check need not open it.
-  const plan = watchPlan((await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[]);
+  const plan = watchPlan(
+    (await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[],
+  );
   const byKey = new Map(rows.map((r) => [r.qkey, r]));
   // Blocks that share a query share its reads; the shortest interval any of them asks for wins.
   const wanted = new Map<string, dashboard.DataQuery>();
   const cadence = new Map<string, number>();
-  if (queries.length > MAX_QUERIES) throw new ConvexError(`A dashboard reads at most ${MAX_QUERIES} distinct queries; this one binds ${queries.length}`);
+  if (queries.length > MAX_QUERIES)
+    throw new ConvexError(
+      `A dashboard reads at most ${MAX_QUERIES} distinct queries; this one binds ${queries.length}`,
+    );
   for (const q of queries) {
     const k = queryKey(q);
     wanted.set(k, q);
@@ -95,33 +179,77 @@ export async function wantCore(ctx: any, userId: Id<"users">, doc: Doc<"docs">, 
     const due = !row || dueAt(row) <= now;
     // A new query, one whose doc moved workspace, or one its reader refused that is due a second look: check it against the reader.
     if (!row || row.workspace !== workspace || (row.invalid && due)) {
-      const owner = row && row.workspace === workspace ? row.owner_user_id : userId;
+      const owner =
+        row && row.workspace === workspace ? row.owner_user_id : userId;
       const checked = await validated(ctx, { owner, workspace }, q);
       const fields = {
-        doc_id: doc._id, qkey, source: q.source, args_json: checked.args_json, query_text: checked.query_text,
-        owner_user_id: owner, workspace, refresh_ms: cadence.get(qkey) ?? checked.refresh_ms, wanted_at: now,
+        doc_id: doc._id,
+        qkey,
+        source: q.source,
+        args_json: checked.args_json,
+        query_text: checked.query_text,
+        owner_user_id: owner,
+        workspace,
+        refresh_ms: cadence.get(qkey) ?? checked.refresh_ms,
+        wanted_at: now,
         ...watchFields(plan, qkey, row, now),
-        ...(checked.error ? { error: checked.error, attempted_at: now, invalid: true } : {}),
+        ...(checked.error
+          ? { error: checked.error, attempted_at: now, invalid: true }
+          : {}),
       };
-      const id: Id<"data_queries"> = row ? (await ctx.db.replace(row._id, { ...fields, created_at: row.created_at }), row._id) : await ctx.db.insert("data_queries", { ...fields, created_at: now });
+      const id: Id<"data_queries"> = row
+        ? (await ctx.db.replace(row._id, {
+            ...fields,
+            created_at: row.created_at,
+          }),
+          row._id)
+        : await ctx.db.insert("data_queries", { ...fields, created_at: now });
       row = (await ctx.db.get(id))!;
       if (checked.error) continue;
-    } else if (now - row.wanted_at > WANT_STAMP_MS || row.refresh_ms !== cadence.get(qkey) || watchChanged(plan, qkey, row)) {
-      await ctx.db.patch(row._id, { wanted_at: now, refresh_ms: cadence.get(qkey)!, ...watchFields(plan, qkey, row, now) });
+    } else if (
+      now - row.wanted_at > WANT_STAMP_MS ||
+      row.refresh_ms !== cadence.get(qkey) ||
+      watchChanged(plan, qkey, row)
+    ) {
+      await ctx.db.patch(row._id, {
+        wanted_at: now,
+        refresh_ms: cadence.get(qkey)!,
+        ...watchFields(plan, qkey, row, now),
+      });
       row = (await ctx.db.get(row._id))!;
     }
-    if (!row || row.invalid || dueAt(row) > now || (row.lease_until && row.lease_until > now)) continue;
-    await ctx.db.patch(row._id, { lease_until: now + PAGE_DATA_LIMITS.lease_ms });
-    await ctx.scheduler.runAfter(0, internal.dataQueries.refresh, { id: row._id });
+    if (
+      !row ||
+      row.invalid ||
+      dueAt(row) > now ||
+      (row.lease_until && row.lease_until > now)
+    )
+      continue;
+    await ctx.db.patch(row._id, {
+      lease_until: now + PAGE_DATA_LIMITS.lease_ms,
+    });
+    await ctx.scheduler.runAfter(0, internal.dataQueries.refresh, {
+      id: row._id,
+    });
     leased.push(qkey);
   }
-  for (const r of rows) if (!wanted.has(r.qkey) && !plan.qkeys.has(r.qkey) && now - r.wanted_at > FORGET_AFTER_MS) await ctx.db.delete(r._id);
+  for (const r of rows)
+    if (
+      !wanted.has(r.qkey) &&
+      !plan.qkeys.has(r.qkey) &&
+      now - r.wanted_at > FORGET_AFTER_MS
+    )
+      await ctx.db.delete(r._id);
   return leased;
 }
 
 // ── schedules and alerts ──
 
-type WatchPlan = { scheduled_ms?: number; alertKeys: Map<string, string[]>; qkeys: Set<string> };
+type WatchPlan = {
+  scheduled_ms?: number;
+  alertKeys: Map<string, string[]>;
+  qkeys: Set<string>;
+};
 
 /** What a saved dashboard asks of the server while closed: its schedule, and which KPIs on which queries carry alerts. */
 function watchPlan(elements: ArtifactElement[]): WatchPlan {
@@ -130,29 +258,57 @@ function watchPlan(elements: ArtifactElement[]): WatchPlan {
   const blocks = dashboard.orderedBlocks(elements);
   const alertKeys = new Map<string, string[]>();
   for (const b of blocks) {
-    const q = b.kind === "kpi" && dashboard.readAlert(b) ? dashboard.blockQuery(b) : null;
+    const q =
+      b.kind === "kpi" && dashboard.readAlert(b)
+        ? dashboard.blockQuery(b)
+        : null;
     if (!q) continue;
     const k = queryKey(q);
     alertKeys.set(k, [...(alertKeys.get(k) ?? []), b.key]);
   }
-  return { ...(schedule ? { scheduled_ms: dashboard.SCHEDULES[schedule] } : {}), alertKeys, qkeys: new Set(dashboard.dashboardQueries(blocks).keys()) };
+  return {
+    ...(schedule ? { scheduled_ms: dashboard.SCHEDULES[schedule] } : {}),
+    alertKeys,
+    qkeys: new Set(dashboard.dashboardQueries(blocks).keys()),
+  };
 }
 
-function watchFields(plan: WatchPlan, qkey: string, row: Doc<"data_queries"> | undefined, now: number) {
+function watchFields(
+  plan: WatchPlan,
+  qkey: string,
+  row: Doc<"data_queries"> | undefined,
+  now: number,
+) {
   const keys = plan.alertKeys.get(qkey);
   const scheduled = plan.scheduled_ms;
   return {
     scheduled_ms: scheduled,
     // A new or changed schedule starts counting from now; an unchanged one keeps its place.
-    next_scheduled_at: scheduled ? (row?.scheduled_ms === scheduled && row.next_scheduled_at ? row.next_scheduled_at : now + scheduled) : undefined,
+    next_scheduled_at: scheduled
+      ? row?.scheduled_ms === scheduled && row.next_scheduled_at
+        ? row.next_scheduled_at
+        : now + scheduled
+      : undefined,
     alert_keys: keys,
-    alert_state: keys && row?.alert_state ? Object.fromEntries(Object.entries(row.alert_state).filter(([k]) => keys.includes(k))) : undefined,
+    alert_state:
+      keys && row?.alert_state
+        ? Object.fromEntries(
+            Object.entries(row.alert_state).filter(([k]) => keys.includes(k)),
+          )
+        : undefined,
   };
 }
 
-function watchChanged(plan: WatchPlan, qkey: string, row: Doc<"data_queries">): boolean {
+function watchChanged(
+  plan: WatchPlan,
+  qkey: string,
+  row: Doc<"data_queries">,
+): boolean {
   const keys = plan.alertKeys.get(qkey) ?? [];
-  return row.scheduled_ms !== plan.scheduled_ms || (row.alert_keys ?? []).join(",") !== keys.join(",");
+  return (
+    row.scheduled_ms !== plan.scheduled_ms ||
+    (row.alert_keys ?? []).join(",") !== keys.join(",")
+  );
 }
 
 const SCHEDULE_BATCH = 25;
@@ -166,14 +322,30 @@ export const runSchedules = internalMutation({
   args: {},
   handler: async (ctx): Promise<{ ran: number }> => {
     const now = Date.now();
-    const due = await ctx.db.query("data_queries").withIndex("by_next_scheduled", (q) => q.gte("next_scheduled_at", 1).lte("next_scheduled_at", now)).take(SCHEDULE_BATCH);
+    const due = await ctx.db
+      .query("data_queries")
+      .withIndex("by_next_scheduled", (q) =>
+        q.gte("next_scheduled_at", 1).lte("next_scheduled_at", now),
+      )
+      .take(SCHEDULE_BATCH);
     const plans = new Map<string, WatchPlan | null>();
     let ran = 0;
     for (const row of due) {
       const docKey = String(row.doc_id);
       if (!plans.has(docKey)) {
         const doc = await ctx.db.get(row.doc_id);
-        plans.set(docKey, doc && !doc.archived_at ? watchPlan((await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[]) : null);
+        plans.set(
+          docKey,
+          doc && !doc.archived_at
+            ? watchPlan(
+                (await readLiveElements(
+                  ctx,
+                  doc._id,
+                  "main",
+                )) as ArtifactElement[],
+              )
+            : null,
+        );
       }
       const plan = plans.get(docKey)!;
       if (!plan || !plan.qkeys.has(row.qkey)) {
@@ -182,10 +354,16 @@ export const runSchedules = internalMutation({
       }
       await ctx.db.patch(row._id, watchFields(plan, row.qkey, row, now));
       if (!plan.scheduled_ms) continue;
-      await ctx.db.patch(row._id, { next_scheduled_at: now + plan.scheduled_ms });
+      await ctx.db.patch(row._id, {
+        next_scheduled_at: now + plan.scheduled_ms,
+      });
       if (row.invalid || (row.lease_until && row.lease_until > now)) continue;
-      await ctx.db.patch(row._id, { lease_until: now + PAGE_DATA_LIMITS.lease_ms });
-      await ctx.scheduler.runAfter(0, internal.dataQueries.refresh, { id: row._id });
+      await ctx.db.patch(row._id, {
+        lease_until: now + PAGE_DATA_LIMITS.lease_ms,
+      });
+      await ctx.scheduler.runAfter(0, internal.dataQueries.refresh, {
+        id: row._id,
+      });
       ran++;
     }
     return { ran };
@@ -197,7 +375,11 @@ async function checkAlerts(ctx: any, row: Doc<"data_queries">): Promise<void> {
   if (!row.alert_keys?.length) return;
   const doc: Doc<"docs"> | null = await ctx.db.get(row.doc_id);
   if (!doc || doc.archived_at) return;
-  const elements = (await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[];
+  const elements = (await readLiveElements(
+    ctx,
+    doc._id,
+    "main",
+  )) as ArtifactElement[];
   const result = toResult(row, Date.now());
   const states: Record<string, string> = { ...(row.alert_state ?? {}) };
   for (const key of row.alert_keys) {
@@ -211,7 +393,10 @@ async function checkAlerts(ctx: any, row: Doc<"data_queries">): Promise<void> {
     if (s.state === before) continue;
     const alert = dashboard.readAlert(block)!;
     const setter = alert.by ? ctx.db.normalizeId("users", alert.by) : null;
-    const to: Id<"users"> = setter && (await workspaceGrantsAccess(ctx, setter, workspaceOf(doc))) ? setter : doc.user_id;
+    const to: Id<"users"> =
+      setter && (await workspaceGrantsAccess(ctx, setter, workspaceOf(doc)))
+        ? setter
+        : doc.user_id;
     await emitNotification(ctx, {
       event_type: "metric_alert",
       entity_type: "doc",
@@ -226,8 +411,14 @@ async function checkAlerts(ctx: any, row: Doc<"data_queries">): Promise<void> {
   await ctx.db.patch(row._id, { alert_state: states });
 }
 
-function toResult(row: Doc<"data_queries">, now: number): DataResult & { _id: Id<"data_queries">; doc_id: Id<"docs"> } {
-  let table: { columns: string[]; rows: unknown[][] } = { columns: [], rows: [] };
+function toResult(
+  row: Doc<"data_queries">,
+  now: number,
+): DataResult & { _id: Id<"data_queries">; doc_id: Id<"docs"> } {
+  let table: { columns: string[]; rows: unknown[][] } = {
+    columns: [],
+    rows: [],
+  };
   if (row.result_json) {
     try {
       table = JSON.parse(row.result_json);
@@ -272,7 +463,13 @@ export const results = query({
     // A share link sees only what the saved dashboard binds: never a draft's queries or ones a removed block left behind.
     let allowed: Set<string> | null = null;
     if (args.share_token && doc.share_token === args.share_token) {
-      allowed = new Set(dashboard.dashboardQueries((await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[]).keys());
+      allowed = new Set(
+        dashboard
+          .dashboardQueries(
+            (await readLiveElements(ctx, doc._id, "main")) as ArtifactElement[],
+          )
+          .keys(),
+      );
     } else {
       const userId = await getAuthUserId(ctx);
       if (!userId) return null;
@@ -283,10 +480,17 @@ export const results = query({
       }
     }
     const workspace = workspaceOf(doc);
-    const rows = await ctx.db.query("data_queries").withIndex("by_doc_qkey", (q) => q.eq("doc_id", args.doc_id)).collect();
+    const rows = await ctx.db
+      .query("data_queries")
+      .withIndex("by_doc_qkey", (q) => q.eq("doc_id", args.doc_id))
+      .collect();
     const now = Date.now();
     // Rows read under another workspace (the doc moved) are not this audience's to see; the next want re-reads them here.
-    return rows.filter((r) => r.workspace === workspace && (!allowed || allowed.has(r.qkey))).map((r) => toResult(r, now));
+    return rows
+      .filter(
+        (r) => r.workspace === workspace && (!allowed || allowed.has(r.qkey)),
+      )
+      .map((r) => toResult(r, now));
   },
 });
 
@@ -303,23 +507,63 @@ export const refreshInput = internalQuery({
 });
 
 /** Run one row's reader as its owner and store the answer (or the error, keeping the last good rows). Returns what this run read. */
-async function runAndStore(ctx: ActionCtx, row: Doc<"data_queries">): Promise<{ columns: string[]; rows: unknown[][]; truncated: boolean; at: number } | { error: string; at: number }> {
+async function runAndStore(
+  ctx: ActionCtx,
+  row: Doc<"data_queries">,
+): Promise<
+  | { columns: string[]; rows: unknown[][]; truncated: boolean; at: number }
+  | { error: string; at: number }
+> {
   const started = Date.now();
-  const stamp = { id: row._id, args_json: row.args_json, workspace: row.workspace, owner_user_id: row.owner_user_id, started };
+  const stamp = {
+    id: row._id,
+    args_json: row.args_json,
+    workspace: row.workspace,
+    owner_user_id: row.owner_user_id,
+    started,
+  };
   if (row.invalid) {
     // A query its reader refused never runs, scheduled or by hand; `want` re-checks it on its interval.
     return { error: row.error ?? "the source refused this query", at: started };
   }
   try {
-    const table = await runReader(ctx, { reader: row.source, args_json: row.args_json, owner_user_id: row.owner_user_id, workspace: row.workspace }, started);
+    const table = await runReader(
+      ctx,
+      {
+        reader: row.source,
+        args_json: row.args_json,
+        owner_user_id: row.owner_user_id,
+        workspace: row.workspace,
+      },
+      started,
+    );
     const capped = capResult(table.columns, table.rows.map(normalizeRow));
     const at = Date.now();
-    await ctx.runMutation(internal.dataQueries.storeResult, { ...stamp, result_json: JSON.stringify({ columns: capped.columns, rows: capped.rows }), truncated: capped.truncated, at });
-    return { columns: capped.columns, rows: capped.rows, truncated: capped.truncated, at };
+    await ctx.runMutation(internal.dataQueries.storeResult, {
+      ...stamp,
+      result_json: JSON.stringify({
+        columns: capped.columns,
+        rows: capped.rows,
+      }),
+      truncated: capped.truncated,
+      at,
+    });
+    return {
+      columns: capped.columns,
+      rows: capped.rows,
+      truncated: capped.truncated,
+      at,
+    };
   } catch (e) {
-    const error = (e instanceof Error ? e.message : String(e)).replace(/^Uncaught (Convex)?Error: /, "").slice(0, 500);
+    const error = (e instanceof Error ? e.message : String(e))
+      .replace(/^Uncaught (Convex)?Error: /, "")
+      .slice(0, 500);
     const at = Date.now();
-    await ctx.runMutation(internal.dataQueries.storeResult, { ...stamp, error, at });
+    await ctx.runMutation(internal.dataQueries.storeResult, {
+      ...stamp,
+      error,
+      at,
+    });
     return { error, at };
   }
 }
@@ -327,7 +571,8 @@ async function runAndStore(ctx: ActionCtx, row: Doc<"data_queries">): Promise<{ 
 export const refresh = internalAction({
   args: { id: v.id("data_queries") },
   handler: async (ctx, args): Promise<void> => {
-    const input: { row: Doc<"data_queries">; alive: boolean } | null = await ctx.runQuery(internal.dataQueries.refreshInput, { id: args.id });
+    const input: { row: Doc<"data_queries">; alive: boolean } | null =
+      await ctx.runQuery(internal.dataQueries.refreshInput, { id: args.id });
     if (!input) return;
     if (!input.alive) {
       await ctx.runMutation(internal.dataQueries.drop, { id: args.id });
@@ -353,14 +598,33 @@ export const storeResult = internalMutation({
   },
   handler: async (ctx, args): Promise<boolean> => {
     const row = await ctx.db.get(args.id);
-    if (!row || row.args_json !== args.args_json || row.workspace !== args.workspace || row.owner_user_id !== args.owner_user_id) return false;
+    if (
+      !row ||
+      row.args_json !== args.args_json ||
+      row.workspace !== args.workspace ||
+      row.owner_user_id !== args.owner_user_id
+    )
+      return false;
     // Runs are ordered by when they started: whichever finishes last, the latest-started one's outcome stands.
     if ((row.run_started ?? 0) > args.started) return false;
     if (args.result_json !== undefined) {
-      await ctx.db.patch(args.id, { result_json: args.result_json, truncated: args.truncated, refreshed_at: args.at, attempted_at: args.at, error: undefined, lease_until: undefined, run_started: args.started });
+      await ctx.db.patch(args.id, {
+        result_json: args.result_json,
+        truncated: args.truncated,
+        refreshed_at: args.at,
+        attempted_at: args.at,
+        error: undefined,
+        lease_until: undefined,
+        run_started: args.started,
+      });
       await checkAlerts(ctx, (await ctx.db.get(args.id))!);
     } else {
-      await ctx.db.patch(args.id, { error: args.error, attempted_at: args.at, lease_until: undefined, run_started: args.started });
+      await ctx.db.patch(args.id, {
+        error: args.error,
+        attempted_at: args.at,
+        lease_until: undefined,
+        run_started: args.started,
+      });
     }
     return true;
   },
@@ -377,7 +641,12 @@ export const rowForUser = internalQuery({
   args: { user_id: v.id("users"), doc_id: v.id("docs"), qkey: v.string() },
   handler: async (ctx, args): Promise<Doc<"data_queries"> | null> => {
     const doc = await dashboardDoc(ctx, args.user_id, args.doc_id);
-    const row = await ctx.db.query("data_queries").withIndex("by_doc_qkey", (q) => q.eq("doc_id", args.doc_id).eq("qkey", args.qkey)).first();
+    const row = await ctx.db
+      .query("data_queries")
+      .withIndex("by_doc_qkey", (q) =>
+        q.eq("doc_id", args.doc_id).eq("qkey", args.qkey),
+      )
+      .first();
     // A row read under the doc's old workspace isn't this audience's: it re-reads under the new one through `want`.
     return row && row.workspace === workspaceOf(doc) ? row : null;
   },
@@ -385,7 +654,8 @@ export const rowForUser = internalQuery({
 
 export const rowById = internalQuery({
   args: { id: v.id("data_queries") },
-  handler: async (ctx, args): Promise<Doc<"data_queries"> | null> => await ctx.db.get(args.id),
+  handler: async (ctx, args): Promise<Doc<"data_queries"> | null> =>
+    await ctx.db.get(args.id),
 });
 
 export const authedUser = internalQuery({
@@ -401,47 +671,149 @@ export const authedUser = internalQuery({
 export const rerun = action({
   args: { doc_id: v.id("docs"), qkey: v.string() },
   handler: async (ctx, args): Promise<DataResult & { ran_ms: number }> => {
-    const userId: Id<"users"> | null = await ctx.runQuery(internal.dataQueries.authedUser, {});
+    const userId: Id<"users"> | null = await ctx.runQuery(
+      internal.dataQueries.authedUser,
+      {},
+    );
     if (!userId) throw new ConvexError("Not authenticated");
     return await rerunAs(ctx, userId, args.doc_id, args.qkey);
   },
 });
 
-async function rerunAs(ctx: ActionCtx, userId: Id<"users">, docId: Id<"docs">, qkey: string): Promise<DataResult & { ran_ms: number }> {
-  const row: Doc<"data_queries"> | null = await ctx.runQuery(internal.dataQueries.rowForUser, { user_id: userId, doc_id: docId, qkey });
+async function rerunAs(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  docId: Id<"docs">,
+  qkey: string,
+): Promise<DataResult & { ran_ms: number }> {
+  const row: Doc<"data_queries"> | null = await ctx.runQuery(
+    internal.dataQueries.rowForUser,
+    { user_id: userId, doc_id: docId, qkey },
+  );
   if (!row) throw new ConvexError("This query isn't on the dashboard any more");
   const started = Date.now();
   // The answer handed back is this run's own read, whatever another run stores meanwhile.
   const out = await runAndStore(ctx, row);
   const { _id, doc_id, ...base } = toResult(row, started);
   const ran_ms = Date.now() - started;
-  if ("error" in out) return { ...base, columns: [], rows: [], refreshed_at: 0, error: out.error, refreshing: false, ran_ms };
-  return { ...base, columns: out.columns, rows: out.rows, truncated: out.truncated || undefined, refreshed_at: out.at, error: undefined, refreshing: false, ran_ms };
+  if ("error" in out)
+    return {
+      ...base,
+      columns: [],
+      rows: [],
+      refreshed_at: 0,
+      error: out.error,
+      refreshing: false,
+      ran_ms,
+    };
+  return {
+    ...base,
+    columns: out.columns,
+    rows: out.rows,
+    truncated: out.truncated || undefined,
+    refreshed_at: out.at,
+    error: undefined,
+    refreshing: false,
+    ran_ms,
+  };
 }
 
 // ── the data sources panel ──
 
-export type SourceRow = { _id: string; doc_id: string; group: string; source: string; label: string; detail: string; args?: Record<string, unknown>; columns?: string };
+export type SourceRow = {
+  _id: string;
+  doc_id: string;
+  group: string;
+  source: string;
+  label: string;
+  detail: string;
+  args?: Record<string, unknown>;
+  columns?: string;
+};
 
 async function sourcesFor(ctx: any, doc: Doc<"docs">): Promise<SourceRow[]> {
   const workspace = workspaceOf(doc);
-  const out: SourceRow[] = DATA_SOURCES.filter((s) => s.group === "codecast").map((s) => ({
-    _id: `${doc._id}:${s.id}`, doc_id: doc._id, group: "codecast", source: s.id, label: s.label, detail: s.args, columns: s.columns,
+  const out: SourceRow[] = DATA_SOURCES.filter(
+    (s) => s.group === "codecast",
+  ).map((s) => ({
+    _id: `${doc._id}:${s.id}`,
+    doc_id: doc._id,
+    group: "codecast",
+    source: s.id,
+    label: s.label,
+    detail: s.args,
+    columns: s.columns,
   }));
-  const watches: Doc<"metric_watches">[] = await ctx.db.query("metric_watches").withIndex("by_workspace", (q: any) => q.eq("workspace", workspace)).take(200);
+  const watches: Doc<"metric_watches">[] = await ctx.db
+    .query("metric_watches")
+    .withIndex("by_workspace", (q: any) => q.eq("workspace", workspace))
+    .take(200);
   for (const w of watches) {
-    out.push({ _id: `${doc._id}:metric:${w.short_id}`, doc_id: doc._id, group: "metrics", source: "metric", label: w.name, detail: w.short_id, args: { watch: w.short_id }, columns: "at, value" });
+    out.push({
+      _id: `${doc._id}:metric:${w.short_id}`,
+      doc_id: doc._id,
+      group: "metrics",
+      source: "metric",
+      label: w.name,
+      detail: w.short_id,
+      args: { watch: w.short_id },
+      columns: "at, value",
+    });
   }
-  const sources: Doc<"event_sources">[] = await ctx.db.query("event_sources").withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace)).take(200);
+  const sources: Doc<"event_sources">[] = await ctx.db
+    .query("event_sources")
+    .withIndex("by_workspace_name", (q: any) => q.eq("workspace", workspace))
+    .take(200);
   for (const s of sources) {
     const provider = String(s.provider);
-    if (provider === "posthog") out.push({ _id: `${doc._id}:hogql:${s.name}`, doc_id: doc._id, group: "connectors", source: "hogql", label: s.name, detail: "PostHog · HogQL", args: { source: s.name, query: "" } });
-    else if (provider === "app") out.push({ _id: `${doc._id}:connector:${s.name}`, doc_id: doc._id, group: "connectors", source: "connector", label: s.name, detail: "Connector readers", args: { source: s.name, reader: "" } });
-    out.push({ _id: `${doc._id}:events:${s.name}`, doc_id: doc._id, group: "product", source: "events", label: `${s.name} events`, detail: provider, args: { days: 30, source: s.name }, columns: "day, events" });
+    if (provider === "posthog")
+      out.push({
+        _id: `${doc._id}:hogql:${s.name}`,
+        doc_id: doc._id,
+        group: "connectors",
+        source: "hogql",
+        label: s.name,
+        detail: "PostHog · HogQL",
+        args: { source: s.name, query: "" },
+      });
+    else if (provider === "app")
+      out.push({
+        _id: `${doc._id}:connector:${s.name}`,
+        doc_id: doc._id,
+        group: "connectors",
+        source: "connector",
+        label: s.name,
+        detail: "Connector readers",
+        args: { source: s.name, reader: "" },
+      });
+    out.push({
+      _id: `${doc._id}:events:${s.name}`,
+      doc_id: doc._id,
+      group: "product",
+      source: "events",
+      label: `${s.name} events`,
+      detail: provider,
+      args: { days: 30, source: s.name },
+      columns: "day, events",
+    });
   }
-  const sheets: Doc<"docs">[] = (await ctx.db.query("docs").withIndex("by_workspace", (q: any) => q.eq("workspace", workspace)).order("desc").take(500)).filter((d: Doc<"docs">) => d.doc_type === "sheet" && !d.archived_at);
+  const sheets: Doc<"docs">[] = (
+    await ctx.db
+      .query("docs")
+      .withIndex("by_workspace", (q: any) => q.eq("workspace", workspace))
+      .order("desc")
+      .take(500)
+  ).filter((d: Doc<"docs">) => d.doc_type === "sheet" && !d.archived_at);
   for (const s of sheets.slice(0, 50)) {
-    out.push({ _id: `${doc._id}:sheet:${s._id}`, doc_id: doc._id, group: "sheets", source: "sheet", label: s.title || "Untitled sheet", detail: "Sheet", args: { doc: s._id, range: "A1:F50" } });
+    out.push({
+      _id: `${doc._id}:sheet:${s._id}`,
+      doc_id: doc._id,
+      group: "sheets",
+      source: "sheet",
+      label: s.title || "Untitled sheet",
+      detail: "Sheet",
+      args: { doc: s._id, range: "A1:F50" },
+    });
   }
   return out;
 }
@@ -463,53 +835,147 @@ export const sources = query({
  */
 export const preview = action({
   args: { doc_id: v.id("docs"), query: vQuery },
-  handler: async (ctx, args): Promise<{ columns: string[]; rows: unknown[][]; total: number; query_text: string; error?: string }> => {
-    const userId: Id<"users"> | null = await ctx.runQuery(internal.dataQueries.authedUser, {});
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    columns: string[];
+    rows: unknown[][];
+    total: number;
+    query_text: string;
+    error?: string;
+  }> => {
+    const userId: Id<"users"> | null = await ctx.runQuery(
+      internal.dataQueries.authedUser,
+      {},
+    );
     if (!userId) throw new ConvexError("Not authenticated");
-    return await previewAs(ctx, userId, args.doc_id, args.query as dashboard.DataQuery);
+    return await previewAs(
+      ctx,
+      userId,
+      args.doc_id,
+      args.query as dashboard.DataQuery,
+    );
   },
 });
 
 export const checkQuery = internalQuery({
   args: { user_id: v.id("users"), doc_id: v.id("docs"), query: vQuery },
-  handler: async (ctx, args): Promise<{ workspace: string; args_json: string; query_text: string; error?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    workspace: string;
+    args_json: string;
+    query_text: string;
+    error?: string;
+  }> => {
     const doc = await dashboardDoc(ctx, args.user_id, args.doc_id);
     const workspace = workspaceOf(doc);
-    const checked = await validated(ctx, { owner: args.user_id, workspace }, args.query as dashboard.DataQuery);
-    return { workspace, args_json: checked.args_json, query_text: checked.query_text, ...(checked.error ? { error: checked.error } : {}) };
+    const checked = await validated(
+      ctx,
+      { owner: args.user_id, workspace },
+      args.query as dashboard.DataQuery,
+    );
+    return {
+      workspace,
+      args_json: checked.args_json,
+      query_text: checked.query_text,
+      ...(checked.error ? { error: checked.error } : {}),
+    };
   },
 });
 
-async function previewAs(ctx: ActionCtx, userId: Id<"users">, docId: Id<"docs">, q: dashboard.DataQuery): Promise<{ columns: string[]; rows: unknown[][]; total: number; query_text: string; error?: string }> {
-  const checked: { workspace: string; args_json: string; query_text: string; error?: string } = await ctx.runQuery(internal.dataQueries.checkQuery, { user_id: userId, doc_id: docId, query: q });
-  if (checked.error) return { columns: [], rows: [], total: 0, query_text: checked.query_text, error: checked.error };
+async function previewAs(
+  ctx: ActionCtx,
+  userId: Id<"users">,
+  docId: Id<"docs">,
+  q: dashboard.DataQuery,
+): Promise<{
+  columns: string[];
+  rows: unknown[][];
+  total: number;
+  query_text: string;
+  error?: string;
+}> {
+  const checked: {
+    workspace: string;
+    args_json: string;
+    query_text: string;
+    error?: string;
+  } = await ctx.runQuery(internal.dataQueries.checkQuery, {
+    user_id: userId,
+    doc_id: docId,
+    query: q,
+  });
+  if (checked.error)
+    return {
+      columns: [],
+      rows: [],
+      total: 0,
+      query_text: checked.query_text,
+      error: checked.error,
+    };
   try {
-    const table = await runReader(ctx, { reader: q.source, args_json: checked.args_json, owner_user_id: userId, workspace: checked.workspace });
-    return { columns: table.columns, rows: table.rows.slice(0, 200).map(normalizeRow), total: table.rows.length, query_text: checked.query_text };
+    const table = await runReader(ctx, {
+      reader: q.source,
+      args_json: checked.args_json,
+      owner_user_id: userId,
+      workspace: checked.workspace,
+    });
+    return {
+      columns: table.columns,
+      rows: table.rows.slice(0, 200).map(normalizeRow),
+      total: table.rows.length,
+      query_text: checked.query_text,
+    };
   } catch (e) {
-    return { columns: [], rows: [], total: 0, query_text: checked.query_text, error: (e instanceof Error ? e.message : String(e)).replace(/^Uncaught (Convex)?Error: /, "") };
+    return {
+      columns: [],
+      rows: [],
+      total: 0,
+      query_text: checked.query_text,
+      error: (e instanceof Error ? e.message : String(e)).replace(
+        /^Uncaught (Convex)?Error: /,
+        "",
+      ),
+    };
   }
 }
 
 // ── CLI remote verbs: cast data sources | query | check ──
 
-const vRemote = { user_id: v.id("users"), actor: v.string(), actor_name: v.string(), doc_id: v.optional(v.id("docs")), args: v.array(v.string()), stdin: v.optional(v.string()) };
+const vRemote = {
+  user_id: v.id("users"),
+  actor: v.string(),
+  actor_name: v.string(),
+  doc_id: v.optional(v.id("docs")),
+  args: v.array(v.string()),
+  stdin: v.optional(v.string()),
+};
 
 export const sourcesForUser = internalQuery({
   args: { user_id: v.id("users"), doc_id: v.id("docs") },
-  handler: async (ctx, args): Promise<SourceRow[]> => sourcesFor(ctx, await dashboardDoc(ctx, args.user_id, args.doc_id)),
+  handler: async (ctx, args): Promise<SourceRow[]> =>
+    sourcesFor(ctx, await dashboardDoc(ctx, args.user_id, args.doc_id)),
 });
 
 export const cliSources = internalAction({
   args: vRemote,
   handler: async (ctx, args): Promise<{ text: string; json: unknown }> => {
-    const rows: SourceRow[] = await ctx.runQuery(internal.dataQueries.sourcesForUser, { user_id: args.user_id, doc_id: args.doc_id! });
+    const rows: SourceRow[] = await ctx.runQuery(
+      internal.dataQueries.sourcesForUser,
+      { user_id: args.user_id, doc_id: args.doc_id! },
+    );
     const lines: string[] = [];
     let group = "";
     for (const r of rows) {
-      if (r.group !== group) lines.push(`${lines.length ? "\n" : ""}${(group = r.group)}`);
+      if (r.group !== group)
+        lines.push(`${lines.length ? "\n" : ""}${(group = r.group)}`);
       const args = r.args ? ` --args '${JSON.stringify(r.args)}'` : "";
-      lines.push(`  ${r.source.padEnd(12)} ${r.label}${r.detail ? ` (${r.detail})` : ""}${args}${r.columns ? `  → ${r.columns}` : ""}`);
+      lines.push(
+        `  ${r.source.padEnd(12)} ${r.label}${r.detail ? ` (${r.detail})` : ""}${args}${r.columns ? `  → ${r.columns}` : ""}`,
+      );
     }
     lines.push("", "Run one: cast data query <doc> <source> --args '<json>'");
     return { text: lines.join("\n"), json: rows };
@@ -517,10 +983,31 @@ export const cliSources = internalAction({
 });
 
 function table(columns: string[], rows: unknown[][], max = 30): string {
-  const shown = rows.slice(0, max).map((r) => r.map((c) => (c === null || c === undefined ? "" : typeof c === "number" ? formatValue(c) : String(c))));
-  const widths = columns.map((c, i) => Math.min(40, Math.max(c.length, ...shown.map((r) => (r[i] ?? "").length))));
-  const line = (cells: string[]) => cells.map((c, i) => (c ?? "").slice(0, 40).padEnd(widths[i])).join("  ").trimEnd();
-  return [line(columns), line(widths.map((w) => "-".repeat(w))), ...shown.map(line), ...(rows.length > max ? [`… ${rows.length - max} more rows`] : [])].join("\n");
+  const shown = rows
+    .slice(0, max)
+    .map((r) =>
+      r.map((c) =>
+        c === null || c === undefined
+          ? ""
+          : typeof c === "number"
+            ? formatValue(c)
+            : String(c),
+      ),
+    );
+  const widths = columns.map((c, i) =>
+    Math.min(40, Math.max(c.length, ...shown.map((r) => (r[i] ?? "").length))),
+  );
+  const line = (cells: string[]) =>
+    cells
+      .map((c, i) => (c ?? "").slice(0, 40).padEnd(widths[i]))
+      .join("  ")
+      .trimEnd();
+  return [
+    line(columns),
+    line(widths.map((w) => "-".repeat(w))),
+    ...shown.map(line),
+    ...(rows.length > max ? [`… ${rows.length - max} more rows`] : []),
+  ].join("\n");
 }
 
 export const cliQuery = internalAction({
@@ -528,34 +1015,71 @@ export const cliQuery = internalAction({
   handler: async (ctx, args): Promise<{ text: string; json: unknown }> => {
     const f = parseFlags(args.args);
     const source = f.pos[0];
-    if (!source || !isDataSource(source)) throw new ConvexError(`usage: cast data query <doc> <source> --args '<json>'  (sources: ${DATA_SOURCES.map((s) => s.id).join(", ")})`);
+    if (!source || !isDataSource(source))
+      throw new ConvexError(
+        `usage: cast data query <doc> <source> --args '<json>'  (sources: ${DATA_SOURCES.map((s) => s.id).join(", ")})`,
+      );
     let qargs: Record<string, unknown> = {};
     if (typeof f.flags.args === "string") {
       try {
         qargs = JSON.parse(f.flags.args);
       } catch {
-        throw new ConvexError(`--args must be a JSON object, like '{"days":30}'`);
+        throw new ConvexError(
+          `--args must be a JSON object, like '{"days":30}'`,
+        );
       }
     }
-    const out = await previewAs(ctx, args.user_id, args.doc_id!, { source, args: qargs as any });
-    if (out.error) return { text: `${out.query_text}\nerror: ${out.error}`, json: out };
-    return { text: [out.query_text, `${out.total} rows · columns: ${out.columns.join(", ")}`, "", table(out.columns, out.rows)].join("\n"), json: out };
+    const out = await previewAs(ctx, args.user_id, args.doc_id!, {
+      source,
+      args: qargs as any,
+    });
+    if (out.error)
+      return { text: `${out.query_text}\nerror: ${out.error}`, json: out };
+    return {
+      text: [
+        out.query_text,
+        `${out.total} rows · columns: ${out.columns.join(", ")}`,
+        "",
+        table(out.columns, out.rows),
+      ].join("\n"),
+      json: out,
+    };
   },
 });
 
 export const blocksForUser = internalQuery({
   args: { user_id: v.id("users"), doc_id: v.id("docs") },
-  handler: async (ctx, args): Promise<{ title: string; elements: ArtifactElement[] }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ title: string; elements: ArtifactElement[] }> => {
     const doc = await dashboardDoc(ctx, args.user_id, args.doc_id);
-    return { title: doc.title, elements: (await readLiveElements(ctx, args.doc_id, "merged")) as ArtifactElement[] };
+    return {
+      title: doc.title,
+      elements: (await readLiveElements(
+        ctx,
+        args.doc_id,
+        "merged",
+      )) as ArtifactElement[],
+    };
   },
 });
 
 export const wantAs = internalMutation({
-  args: { user_id: v.id("users"), doc_id: v.id("docs"), queries: v.array(vQuery) },
+  args: {
+    user_id: v.id("users"),
+    doc_id: v.id("docs"),
+    queries: v.array(vQuery),
+  },
   handler: async (ctx, args): Promise<string[]> => {
     const doc = await dashboardDoc(ctx, args.user_id, args.doc_id);
-    return await wantCore(ctx, args.user_id, doc, args.queries as dashboard.DataQuery[], Date.now());
+    return await wantCore(
+      ctx,
+      args.user_id,
+      doc,
+      args.queries as dashboard.DataQuery[],
+      Date.now(),
+    );
   },
 });
 
@@ -564,7 +1088,10 @@ export const resultsForUser = internalQuery({
   handler: async (ctx, args): Promise<DataResult[]> => {
     await dashboardDoc(ctx, args.user_id, args.doc_id);
     const now = Date.now();
-    const rows = await ctx.db.query("data_queries").withIndex("by_doc_qkey", (q) => q.eq("doc_id", args.doc_id)).collect();
+    const rows = await ctx.db
+      .query("data_queries")
+      .withIndex("by_doc_qkey", (q) => q.eq("doc_id", args.doc_id))
+      .collect();
     return rows.map((r) => {
       const { _id, doc_id, ...rest } = toResult(r, now);
       return rest;
@@ -573,75 +1100,171 @@ export const resultsForUser = internalQuery({
 });
 
 /** What a chart says at a glance, for an agent that can't see it: the largest categories or series and their totals. */
-function chartLeaders(ev: Extract<dashboard.ChartEval, { state: "ok" }>): string {
-  const fmt = (n: number) => formatValue(n, ev.format === "number" ? "compact" : ev.format);
+function chartLeaders(
+  ev: Extract<dashboard.ChartEval, { state: "ok" }>,
+): string {
+  const fmt = (n: number) =>
+    formatValue(n, ev.format === "number" ? "compact" : ev.format);
   // Categories (a ranking): the largest. A line over time: where each series ends (a running total's last point, not a sum of sums). Bars over time: each series' total.
-  if (ev.type === "hbar" || (ev.series.length === 1 && ev.type !== "line" && ev.type !== "area")) {
-    const top = ev.x.map((x, i): [string, number] => [x, ev.series[0].values[i] ?? 0]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (
+    ev.type === "hbar" ||
+    (ev.series.length === 1 && ev.type !== "line" && ev.type !== "area")
+  ) {
+    const top = ev.x
+      .map((x, i): [string, number] => [x, ev.series[0].values[i] ?? 0])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
     return `top: ${top.map(([n, v]) => `${n} ${fmt(v)}`).join(", ")}`;
   }
   if (ev.type === "line" || ev.type === "area") {
-    return `latest (${ev.x[ev.x.length - 1]}): ${ev.series.slice(0, 5).map((s) => `${s.name} ${fmt([...s.values].reverse().find((v) => v !== null) ?? 0)}`).join(", ")}`;
+    return `latest (${ev.x[ev.x.length - 1]}): ${ev.series
+      .slice(0, 5)
+      .map(
+        (s) =>
+          `${s.name} ${fmt([...s.values].reverse().find((v) => v !== null) ?? 0)}`,
+      )
+      .join(", ")}`;
   }
-  const totals = ev.series.map((s): [string, number] => [s.name, s.values.reduce<number>((a, v) => a + (v ?? 0), 0)]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const totals = ev.series
+    .map((s): [string, number] => [
+      s.name,
+      s.values.reduce<number>((a, v) => a + (v ?? 0), 0),
+    ])
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
   return `totals: ${totals.map(([n, v]) => `${n} ${fmt(v)}`).join(", ")}`;
 }
 
-const MARK: Record<string, string> = { verified: "✓", refreshing: "…", loading: "…", stale: "!", partial: "!", broken: "✗", typed: "?" };
+const MARK: Record<string, string> = {
+  verified: "✓",
+  refreshing: "…",
+  loading: "…",
+  stale: "!",
+  partial: "!",
+  broken: "✗",
+  typed: "?",
+};
 
 /**
  * Every block's value and check, as the page shows them. Runs any query that
  * has no answer yet (or every one, with --rerun) first and waits for it, so
  * an agent can verify the dashboard before handing it back.
  */
-async function judgeBlock(ctx: any, userId: Id<"users">, docId: Id<"docs">, raw: string): Promise<{ text: string; json: unknown; failed: boolean }> {
+async function judgeBlock(
+  ctx: any,
+  userId: Id<"users">,
+  docId: Id<"docs">,
+  raw: string,
+): Promise<{ text: string; json: unknown; failed: boolean }> {
   let block: ArtifactElement;
   try {
     block = JSON.parse(raw);
   } catch {
-    return { text: "the alert's block isn't valid JSON", json: null, failed: true };
+    return {
+      text: "the alert's block isn't valid JSON",
+      json: null,
+      failed: true,
+    };
   }
   const q = dashboard.blockQuery(block);
-  if (!q) return { text: "a KPI needs a source before it can alert", json: null, failed: true };
+  if (!q)
+    return {
+      text: "a KPI needs a source before it can alert",
+      json: null,
+      failed: true,
+    };
   const qkey = queryKey(q);
-  await ctx.runMutation(internal.dataQueries.wantAs, { user_id: userId, doc_id: docId, queries: [q] });
-  let results: DataResult[] = await ctx.runQuery(internal.dataQueries.resultsForUser, { user_id: userId, doc_id: docId });
+  await ctx.runMutation(internal.dataQueries.wantAs, {
+    user_id: userId,
+    doc_id: docId,
+    queries: [q],
+  });
+  let results: DataResult[] = await ctx.runQuery(
+    internal.dataQueries.resultsForUser,
+    { user_id: userId, doc_id: docId },
+  );
   let r = results.find((x) => x.qkey === qkey);
   if (!r || (!r.refreshed_at && !r.error)) {
     await rerunAs(ctx, userId, docId, qkey).catch(() => null);
-    results = await ctx.runQuery(internal.dataQueries.resultsForUser, { user_id: userId, doc_id: docId });
+    results = await ctx.runQuery(internal.dataQueries.resultsForUser, {
+      user_id: userId,
+      doc_id: docId,
+    });
     r = results.find((x) => x.qkey === qkey);
   }
   const name = String(block.title || block.key || "This block");
   // A source this dashboard can't read (a team's pull requests on a personal dashboard) would save a block that is broken for every viewer.
-  if (r?.error && !r.refreshed_at) return { text: `${name} can't read here: ${r.error}`, json: null, failed: true };
-  if (!dashboard.readAlert(block)) return { text: `${name} reads`, json: null, failed: false };
+  if (r?.error && !r.refreshed_at)
+    return {
+      text: `${name} can't read here: ${r.error}`,
+      json: null,
+      failed: true,
+    };
+  if (!dashboard.readAlert(block))
+    return { text: `${name} reads`, json: null, failed: false };
   const s = dashboard.alertState(block, r);
   // An alert needs a value to stand against; without one, nobody can say whether the line is already crossed.
-  if (!s) return { text: `${name} has no value yet to judge an alert line against; add the alert once it reads`, json: null, failed: true };
-  if (s.state === "ok") return { text: `${name} is ${s.display}, inside the line`, json: s, failed: false };
-  return { text: `${name} is ${s.display}, already ${s.state} that line: it would notify at the next read. Pick a line it hasn't crossed.`, json: s, failed: true };
+  if (!s)
+    return {
+      text: `${name} has no value yet to judge an alert line against; add the alert once it reads`,
+      json: null,
+      failed: true,
+    };
+  if (s.state === "ok")
+    return {
+      text: `${name} is ${s.display}, inside the line`,
+      json: s,
+      failed: false,
+    };
+  return {
+    text: `${name} is ${s.display}, already ${s.state} that line: it would notify at the next read. Pick a line it hasn't crossed.`,
+    json: s,
+    failed: true,
+  };
 }
 
 export const cliCheck = internalAction({
   args: vRemote,
-  handler: async (ctx, args): Promise<{ text: string; json: unknown; failed: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ text: string; json: unknown; failed: boolean }> => {
     const f = parseFlags(args.args, ["rerun"]);
     const docId = args.doc_id!;
     // `--judge-block <json>`: a block not yet saved, judged before the CLI writes it: its source must read in this dashboard's workspace,
     // and an alert line must not be one the value already crosses. Run before the write, so reading the data can't fire the alert.
-    if (typeof f.flags["judge-block"] === "string") return await judgeBlock(ctx, args.user_id, docId, f.flags["judge-block"]);
-    const { title, elements }: { title: string; elements: ArtifactElement[] } = await ctx.runQuery(internal.dataQueries.blocksForUser, { user_id: args.user_id, doc_id: docId });
+    if (typeof f.flags["judge-block"] === "string")
+      return await judgeBlock(ctx, args.user_id, docId, f.flags["judge-block"]);
+    const { title, elements }: { title: string; elements: ArtifactElement[] } =
+      await ctx.runQuery(internal.dataQueries.blocksForUser, {
+        user_id: args.user_id,
+        doc_id: docId,
+      });
     const blocks = orderedBlocks(elements);
     const queries = dashboard.dashboardQueries(blocks);
-    const leased: string[] = await ctx.runMutation(internal.dataQueries.wantAs, { user_id: args.user_id, doc_id: docId, queries: [...queries.values()] });
-    let results: DataResult[] = await ctx.runQuery(internal.dataQueries.resultsForUser, { user_id: args.user_id, doc_id: docId });
+    const leased: string[] = await ctx.runMutation(
+      internal.dataQueries.wantAs,
+      { user_id: args.user_id, doc_id: docId, queries: [...queries.values()] },
+    );
+    let results: DataResult[] = await ctx.runQuery(
+      internal.dataQueries.resultsForUser,
+      { user_id: args.user_id, doc_id: docId },
+    );
     // An agent's check gives a settled verdict: anything due (or missing) is read now and waited for, not left "refreshing".
     for (const [qkey] of queries) {
       const r = results.find((x) => x.qkey === qkey);
-      if (f.flags.rerun || leased.includes(qkey) || !r || (!r.refreshed_at && !r.error)) await rerunAs(ctx, args.user_id, docId, qkey).catch(() => null);
+      if (
+        f.flags.rerun ||
+        leased.includes(qkey) ||
+        !r ||
+        (!r.refreshed_at && !r.error)
+      )
+        await rerunAs(ctx, args.user_id, docId, qkey).catch(() => null);
     }
-    results = await ctx.runQuery(internal.dataQueries.resultsForUser, { user_id: args.user_id, doc_id: docId });
+    results = await ctx.runQuery(internal.dataQueries.resultsForUser, {
+      user_id: args.user_id,
+      doc_id: docId,
+    });
     const byKey = new Map(results.map((r) => [r.qkey, r]));
     const now = Date.now();
     const resultOf = (b: Record<string, unknown>) => {
@@ -656,27 +1279,79 @@ export const cliCheck = internalAction({
       let value = "";
       if (b.kind === "kpi") {
         const ev = evaluateKpi(b as any, result);
-        value = ev.state === "ok" ? `${ev.display}${ev.delta ? ` (${ev.delta.display}, ${ev.delta.caption})` : ""}  · ${ev.how}` : ev.state === "unbound" ? ev.display : ev.state === "problem" ? ev.problem : "";
+        value =
+          ev.state === "ok"
+            ? `${ev.display}${ev.delta ? ` (${ev.delta.display}, ${ev.delta.caption})` : ""}  · ${ev.how}`
+            : ev.state === "unbound"
+              ? ev.display
+              : ev.state === "problem"
+                ? ev.problem
+                : "";
       } else if (b.kind === "chart") {
         const ev = evaluateChart(b as any, result);
-        value = ev.state === "ok" ? `${ev.series.length} series × ${ev.x.length} points · ${chartLeaders(ev)} · ${ev.how}` : ev.state === "problem" ? ev.problem : "";
+        value =
+          ev.state === "ok"
+            ? `${ev.series.length} series × ${ev.x.length} points · ${chartLeaders(ev)} · ${ev.how}`
+            : ev.state === "problem"
+              ? ev.problem
+              : "";
       } else if (b.kind === "table") {
         const ev = evaluateTable(b as any, result);
-        value = ev.state === "ok" ? ev.how : ev.state === "problem" ? ev.problem : "";
+        value =
+          ev.state === "ok" ? ev.how : ev.state === "problem" ? ev.problem : "";
       } else if (b.kind === "text") {
         // The sentence as readers see it, live values filled in, so an agent checks the words, not the template.
         value = dashboard.renderText(String(b.text ?? ""), kpi).slice(0, 160);
       }
-      return { key: b.key, kind: b.kind, title: b.title ?? null, value, check: check ?? null };
+      return {
+        key: b.key,
+        kind: b.kind,
+        title: b.title ?? null,
+        value,
+        check: check ?? null,
+      };
     });
-    const lines = out.map((o) => `${o.check ? MARK[o.check.state] ?? " " : " "} ${o.key} ${o.kind}${o.title ? ` "${o.title}"` : ""}  ${o.value}${o.check && o.check.state !== "verified" ? `  [${o.check.label}${o.check.detail ? `: ${o.check.detail}` : ""}]` : ""}`);
-    const counts = out.reduce<Record<string, number>>((acc, o) => (o.check ? ((acc[o.check.state] = (acc[o.check.state] ?? 0) + 1), acc) : acc), {});
-    const summary = Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(", ") || "no checked blocks";
+    const lines = out.map(
+      (o) =>
+        `${o.check ? (MARK[o.check.state] ?? " ") : " "} ${o.key} ${o.kind}${o.title ? ` "${o.title}"` : ""}  ${o.value}${o.check && o.check.state !== "verified" ? `  [${o.check.label}${o.check.detail ? `: ${o.check.detail}` : ""}]` : ""}`,
+    );
+    const counts = out.reduce<Record<string, number>>(
+      (acc, o) =>
+        o.check
+          ? ((acc[o.check.state] = (acc[o.check.state] ?? 0) + 1), acc)
+          : acc,
+      {},
+    );
+    const summary =
+      Object.entries(counts)
+        .map(([k, n]) => `${n} ${k}`)
+        .join(", ") || "no checked blocks";
     // Story words are claims too: a headline or story line that contradicts its KPI is as wrong as a broken number.
-    const story = dashboard.storyProblems(els.get(dashboard.LAYOUT_KEY), blocks, kpi);
-    const storyLines = story.map((p) => `${p.kind === "contradicts" ? MARK.broken : MARK.typed} ${p.key} ${p.field}  [${p.kind === "contradicts" ? "Contradicts the data" : "Typed claim"}: ${p.detail}]`);
+    const story = dashboard.storyProblems(
+      els.get(dashboard.LAYOUT_KEY),
+      blocks,
+      kpi,
+    );
+    const storyLines = story.map(
+      (p) =>
+        `${p.kind === "contradicts" ? MARK.broken : MARK.typed} ${p.key} ${p.field}  [${p.kind === "contradicts" ? "Contradicts the data" : "Typed claim"}: ${p.detail}]`,
+    );
     // A broken block or a story claim the data contradicts fails the check, so a script or a flow step can gate on it.
-    const failed = (counts.broken ?? 0) > 0 || story.some((p) => p.kind === "contradicts");
-    return { failed, text: [`${title}: ${summary}${story.length ? `; ${story.length} story ${story.length === 1 ? "claim" : "claims"} to fix` : ""}`, ...lines, ...storyLines].join("\n"), json: { title, blocks: out, story, results: results.map((r) => ({ ...r, rows: r.rows.length })) } };
+    const failed =
+      (counts.broken ?? 0) > 0 || story.some((p) => p.kind === "contradicts");
+    return {
+      failed,
+      text: [
+        `${title}: ${summary}${story.length ? `; ${story.length} story ${story.length === 1 ? "claim" : "claims"} to fix` : ""}`,
+        ...lines,
+        ...storyLines,
+      ].join("\n"),
+      json: {
+        title,
+        blocks: out,
+        story,
+        results: results.map((r) => ({ ...r, rows: r.rows.length })),
+      },
+    };
   },
 });

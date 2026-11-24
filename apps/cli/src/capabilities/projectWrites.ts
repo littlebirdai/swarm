@@ -25,17 +25,34 @@ export const DEFAULT_PROJECT_WRITES: ProjectWritesSetting = "ignored_only";
 
 export type ProjectWriteVerdict =
   | { ok: true; overridden?: boolean }
-  | { ok: false; reason: "project_writes_off" | "tracked" | "not_ignored"; detail: string };
+  | {
+      ok: false;
+      reason: "project_writes_off" | "tracked" | "not_ignored";
+      detail: string;
+    };
 
 /** The device setting from a config bag, defaulted; an unknown value reads as
  *  the default rather than as permission. */
-export function projectWritesSetting(config: object | null | undefined): ProjectWritesSetting {
-  const raw = (config as { capabilities?: { project_writes?: unknown } } | null | undefined)?.capabilities?.project_writes;
-  return (PROJECT_WRITES_SETTINGS as readonly unknown[]).includes(raw) ? (raw as ProjectWritesSetting) : DEFAULT_PROJECT_WRITES;
+export function projectWritesSetting(
+  config: object | null | undefined,
+): ProjectWritesSetting {
+  const raw = (
+    config as { capabilities?: { project_writes?: unknown } } | null | undefined
+  )?.capabilities?.project_writes;
+  return (PROJECT_WRITES_SETTINGS as readonly unknown[]).includes(raw)
+    ? (raw as ProjectWritesSetting)
+    : DEFAULT_PROJECT_WRITES;
 }
 
-function git(cwd: string, args: string[]): { status: number | null; stdout: string } {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+function git(
+  cwd: string,
+  args: string[],
+): { status: number | null; stdout: string } {
+  const r = spawnSync("git", args, {
+    cwd,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
   return { status: r.status, stdout: String(r.stdout ?? "") };
 }
 
@@ -53,11 +70,19 @@ function existingDir(p: string): string {
 
 export function checkProjectWrite(
   file: string,
-  opts: { setting?: ProjectWritesSetting; overrideTracked?: boolean; log?: (line: string) => void } = {},
+  opts: {
+    setting?: ProjectWritesSetting;
+    overrideTracked?: boolean;
+    log?: (line: string) => void;
+  } = {},
 ): ProjectWriteVerdict {
   const setting = opts.setting ?? DEFAULT_PROJECT_WRITES;
   if (setting === "off") {
-    return { ok: false, reason: "project_writes_off", detail: `project writes are off on this device; ${file} was not written` };
+    return {
+      ok: false,
+      reason: "project_writes_off",
+      detail: `project writes are off on this device; ${file} was not written`,
+    };
   }
 
   const cwd = existingDir(path.dirname(file));
@@ -65,11 +90,16 @@ export function checkProjectWrite(
   // Outside any repository there is no commit to leak into.
   if (top.status !== 0) return { ok: true };
   const root = top.stdout.trim();
-  const rel = path.relative(fs.realpathSync(root), path.join(fs.realpathSync(cwd), path.relative(cwd, file)));
+  const rel = path.relative(
+    fs.realpathSync(root),
+    path.join(fs.realpathSync(cwd), path.relative(cwd, file)),
+  );
 
   if (git(root, ["ls-files", "--error-unmatch", "--", rel]).status === 0) {
     if (opts.overrideTracked) {
-      opts.log?.(`[capabilities] writing tracked ${rel} in ${root}: the change will show in git status and ship with the next commit`);
+      opts.log?.(
+        `[capabilities] writing tracked ${rel} in ${root}: the change will show in git status and ship with the next commit`,
+      );
       return { ok: true, overridden: true };
     }
     return {
@@ -79,7 +109,8 @@ export function checkProjectWrite(
     };
   }
 
-  if (git(root, ["check-ignore", "-q", "--", rel]).status === 0) return { ok: true };
+  if (git(root, ["check-ignore", "-q", "--", rel]).status === 0)
+    return { ok: true };
   if (setting === "all") return { ok: true };
   return {
     ok: false,

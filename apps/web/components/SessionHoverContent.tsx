@@ -1,15 +1,18 @@
 import { ArrowUpRight, FolderOpen, MessageSquare } from "lucide-react";
 import { ShortId } from "./ShortId";
-import {
-  AuthorAvatar,
-  SessionSummaryBlock,
-} from "./entityDisplay";
+import { AuthorAvatar, SessionSummaryBlock } from "./entityDisplay";
 import { abbrevModel, relativeTime } from "../lib/entityDisplay";
 import { SessionLastTurns } from "./SessionLastTurns";
 
 /** `identity={false}` drops the title header: the caller (SessionHoverCard)
  *  already painted the face, the name and the title above this body. */
-export function SessionHoverContent({ session, identity = true }: { session: any; identity?: boolean }) {
+export function SessionHoverContent({
+  session,
+  identity = true,
+}: {
+  session: any;
+  identity?: boolean;
+}) {
   const isActive = session.status === "active";
   const model = abbrevModel(session.model);
   const projectName = session.project_path?.split("/").pop() ?? null;
@@ -23,55 +26,84 @@ export function SessionHoverContent({ session, identity = true }: { session: any
 
   return (
     <div className="space-y-2">
-      {identity && <div className="flex items-start gap-2">
-        <div className="relative flex-shrink-0 mt-0.5">
-          {isForeign ? (
-            <AuthorAvatar name={session.author_name} avatar={session.author_avatar} size={16} />
-          ) : (
-            <MessageSquare className="w-3.5 h-3.5 text-sol-blue" />
-          )}
-          {isActive && (
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-sol-green border border-sol-bg" />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-sol-text leading-snug">
-            {session.title || session.short_id}
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`text-meta font-medium ${isActive ? "text-sol-green" : "text-gray-400"}`}>
-              {isActive ? "Active" : session.status || "Stopped"}
-            </span>
-            {session.agent_type && (
-              <>
-                <span className="text-gray-600">·</span>
-                <span className="text-meta text-gray-400">{session.agent_type}</span>
-              </>
+      {identity && (
+        <div className="flex items-start gap-2">
+          <div className="relative flex-shrink-0 mt-0.5">
+            {isForeign ? (
+              <AuthorAvatar
+                name={session.author_name}
+                avatar={session.author_avatar}
+                size={16}
+              />
+            ) : (
+              <MessageSquare className="w-3.5 h-3.5 text-sol-blue" />
             )}
-            {isForeign && session.author_name && (
-              <>
-                <span className="text-gray-600">·</span>
-                <span className="text-meta text-sol-text-muted truncate">{session.author_name}</span>
-              </>
+            {isActive && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-sol-green border border-sol-bg" />
             )}
           </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-sol-text leading-snug">
+              {session.title || session.short_id}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className={`text-meta font-medium ${isActive ? "text-sol-green" : "text-gray-400"}`}
+              >
+                {isActive ? "Active" : session.status || "Stopped"}
+              </span>
+              {session.agent_type && (
+                <>
+                  <span className="text-gray-600">·</span>
+                  <span className="text-meta text-gray-400">
+                    {session.agent_type}
+                  </span>
+                </>
+              )}
+              {isForeign && session.author_name && (
+                <>
+                  <span className="text-gray-600">·</span>
+                  <span className="text-meta text-sol-text-muted truncate">
+                    {session.author_name}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-      </div>}
+      )}
 
-      <SessionSummaryBlock session={session} preview={false} className={identity ? "pl-[22px]" : ""} />
+      <SessionSummaryBlock
+        session={session}
+        preview={false}
+        className={identity ? "pl-[22px]" : ""}
+      />
 
-      {session._id && <SessionLastTurns conversationId={String(session._id)} className={identity ? "pl-[22px]" : ""} />}
+      {session._id && (
+        <SessionLastTurns
+          conversationId={String(session._id)}
+          className={identity ? "pl-[22px]" : ""}
+        />
+      )}
 
       {metaParts.length > 0 && (
-        <div className={`flex items-center gap-2 ${identity ? "pl-[22px]" : ""} text-meta text-gray-500 font-mono`}>
-          {metaParts.map((part, index) => <span key={index}>{part}</span>)}
+        <div
+          className={`flex items-center gap-2 ${identity ? "pl-[22px]" : ""} text-meta text-gray-500 font-mono`}
+        >
+          {metaParts.map((part, index) => (
+            <span key={index}>{part}</span>
+          ))}
         </div>
       )}
 
       {projectName && (
-        <div className={`flex items-center gap-1.5 ${identity ? "pl-[22px]" : ""}`}>
+        <div
+          className={`flex items-center gap-1.5 ${identity ? "pl-[22px]" : ""}`}
+        >
           <FolderOpen className="w-2.5 h-2.5 text-gray-500 flex-shrink-0" />
-          <span className="text-meta text-gray-400 font-mono truncate">{projectName}</span>
+          <span className="text-meta text-gray-400 font-mono truncate">
+            {projectName}
+          </span>
         </div>
       )}
 

@@ -39,10 +39,23 @@ afterAll(() => {
   restoreGlobals();
 });
 
-const paragraphs = (content: string) => <>{content.split("\n\n").map((p, i) => <p key={i}>{p}</p>)}</>;
+const paragraphs = (content: string) => (
+  <>
+    {content.split("\n\n").map((p, i) => (
+      <p key={i}>{p}</p>
+    ))}
+  </>
+);
 
 test("a quote card reads moved, then outdated, as its block moves and goes", async () => {
-  const item = { id: "q1", messageId: "doc:d1", blockIndex: 1, quote: "Old writes stop after the sweep is clean.", body: "why wait?", createdAt: 1 };
+  const item = {
+    id: "q1",
+    messageId: "doc:d1",
+    blockIndex: 1,
+    quote: "Old writes stop after the sweep is clean.",
+    body: "why wait?",
+    createdAt: 1,
+  };
   useInboxStore.setState({ reviewComments: { "doc:d1": [item] } });
 
   const host = document.createElement("div");
@@ -50,17 +63,35 @@ test("a quote card reads moved, then outdated, as its block moves and goes", asy
   document.body.appendChild(host);
   const root = createRoot(host);
   const render = (content: string) =>
-    act(() => root.render(<MessageReview conversationId="doc:d1" messageId="doc:d1" content={content} renderBlock={paragraphs} />));
-  const state = () => host.querySelector("[data-review-comment='q1'] [data-anchor-state]")?.getAttribute("data-anchor-state") ?? null;
+    act(() =>
+      root.render(
+        <MessageReview
+          conversationId="doc:d1"
+          messageId="doc:d1"
+          content={content}
+          renderBlock={paragraphs}
+        />,
+      ),
+    );
+  const state = () =>
+    host
+      .querySelector("[data-review-comment='q1'] [data-anchor-state]")
+      ?.getAttribute("data-anchor-state") ?? null;
 
   try {
-    await render("# Plan\n\nOld writes stop after the sweep is clean.\n\nThen we retire the table.");
+    await render(
+      "# Plan\n\nOld writes stop after the sweep is clean.\n\nThen we retire the table.",
+    );
     expect(state()).toBeNull();
 
-    await render("# Plan\n\nA new caveat paragraph.\n\nOld writes stop after the sweep is clean.\n\nThen we retire the table.");
+    await render(
+      "# Plan\n\nA new caveat paragraph.\n\nOld writes stop after the sweep is clean.\n\nThen we retire the table.",
+    );
     expect(state()).toBe("moved");
 
-    await render("# Plan\n\nA new caveat paragraph.\n\nThen we retire the table.");
+    await render(
+      "# Plan\n\nA new caveat paragraph.\n\nThen we retire the table.",
+    );
     expect(state()).toBe("outdated");
 
     expect(useInboxStore.getState().reviewComments["doc:d1"]).toEqual([item]);

@@ -55,19 +55,27 @@ function roomsSig(rooms: LiveRoom[]): string {
 
 /** The rows, with "my room" supplied by the platform: web passes the face
  *  row's engaged room, the phone its call plane's. */
-export function useLiveRoomRows(myRoom: string | null | undefined): LiveRoomRow[] {
+export function useLiveRoomRows(
+  myRoom: string | null | undefined,
+): LiveRoomRow[] {
   const s = useTrackedStore([
     (st: any) => roomsSig(st.liveRooms ?? []),
     (st: any) =>
       Object.values(st.callRooms ?? {})
         .filter((r: any) => r.locked || r.recording)
-        .map((r: any) => `${r._id}:${r.locked ? "L" : ""}${r.recording ? "R" : ""}`)
+        .map(
+          (r: any) =>
+            `${r._id}:${r.locked ? "L" : ""}${r.recording ? "R" : ""}`,
+        )
         .sort()
         .join("|"),
     // Label inputs. Teammate names (a rename renames the huddle), the channel
     // a channel room is named after, and my own identity — all cheap
     // signatures, none of them the churny collection.
-    (st: any) => teamMembersOf(st).map((m: any) => `${m._id}:${m.name ?? m.email ?? ""}`).join("|"),
+    (st: any) =>
+      teamMembersOf(st)
+        .map((m: any) => `${m._id}:${m.name ?? m.email ?? ""}`)
+        .join("|"),
     // The anchor each live room is named after, and only those: a channel
     // rename or a late-arriving session title must rename the row, while the
     // rest of the store's channels and conversations wake nobody.
@@ -82,7 +90,10 @@ export function useLiveRoomRows(myRoom: string | null | undefined): LiveRoomRow[
         })
         .join("|"),
     (st: any) => st.currentUser?._id,
-    (st: any) => Object.keys(st.callKnocked ?? {}).sort().join("|"),
+    (st: any) =>
+      Object.keys(st.callKnocked ?? {})
+        .sort()
+        .join("|"),
   ]);
   const knocked: Record<string, number> = s.callKnocked ?? {};
   // A knock expires on its own after the server's TTL; that is a clock
@@ -114,5 +125,14 @@ export function useLiveRoomRows(myRoom: string | null | undefined): LiveRoomRow[
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s.liveRooms, s.callRooms, teamMembersOf(s), s.chatChannels, s.currentUser?._id, myRoom, knocked, now]);
+  }, [
+    s.liveRooms,
+    s.callRooms,
+    teamMembersOf(s),
+    s.chatChannels,
+    s.currentUser?._id,
+    myRoom,
+    knocked,
+    now,
+  ]);
 }

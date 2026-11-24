@@ -19,7 +19,11 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Track } from "livekit-client";
-import { getScribeStatus, startScribe, stopScribe } from "../calls/transcription";
+import {
+  getScribeStatus,
+  startScribe,
+  stopScribe,
+} from "../calls/transcription";
 
 /** Counts what a leak would leave behind: contexts made, and contexts closed. */
 class FakeAudioContext {
@@ -57,7 +61,8 @@ const originals: Record<string, any> = {};
 
 beforeEach(() => {
   FakeAudioContext.made = [];
-  for (const name of ["AudioContext", "MediaStream"]) originals[name] = (globalThis as any)[name];
+  for (const name of ["AudioContext", "MediaStream"])
+    originals[name] = (globalThis as any)[name];
   (globalThis as any).AudioContext = FakeAudioContext;
   (globalThis as any).MediaStream = class {
     constructor(public tracks: unknown[]) {}
@@ -66,7 +71,8 @@ beforeEach(() => {
 
 afterEach(async () => {
   await stopScribe();
-  for (const [name, value] of Object.entries(originals)) (globalThis as any)[name] = value;
+  for (const [name, value] of Object.entries(originals))
+    (globalThis as any)[name] = value;
 });
 
 /** A room with one microphone in it: the least that makes the scribe open a pipe. */
@@ -105,7 +111,11 @@ async function settle() {
 
 describe("the scribe hands back what it opened", () => {
   test("a pipe whose mint is refused gives its microphone back, rather than being forgotten with it", async () => {
-    await startScribe({ convex: refusingConvex(), room: fakeRoom("sid-1"), roomKey: "room:1" });
+    await startScribe({
+      convex: refusingConvex(),
+      room: fakeRoom("sid-1"),
+      roomKey: "room:1",
+    });
     // The pipe opened and started capturing before the mint could refuse it.
     expect(FakeAudioContext.made.length).toBe(1);
 
@@ -125,7 +135,11 @@ describe("the scribe hands back what it opened", () => {
     // scribe re-attaches, and the pipe fails again. Ten times over a long call.
     for (let i = 0; i < 10; i++) {
       await stopScribe();
-      await startScribe({ convex, room: fakeRoom(`sid-${i}`), roomKey: "room:1" });
+      await startScribe({
+        convex,
+        room: fakeRoom(`sid-${i}`),
+        roomKey: "room:1",
+      });
       await settle();
     }
     expect(FakeAudioContext.made.length).toBeGreaterThan(10);
@@ -157,10 +171,19 @@ describe("the scribe hands back what it opened", () => {
 describe("an observer opens no pipe", () => {
   test("the server's observer verdict leaves the scribe idle and the microphone alone", async () => {
     const convex = {
-      mutation: async () => ({ transcript_id: "tr-1", existing: true, role: "observer" }),
+      mutation: async () => ({
+        transcript_id: "tr-1",
+        existing: true,
+        role: "observer",
+      }),
       action: async () => ({ error: "must not be called" }),
     } as any;
-    const started = await startScribe({ convex, room: fakeRoom("sid-1"), roomKey: "room:1", auto: true });
+    const started = await startScribe({
+      convex,
+      room: fakeRoom("sid-1"),
+      roomKey: "room:1",
+      auto: true,
+    });
     expect(started).toBe(false);
     expect(getScribeStatus().active).toBe(false);
     expect(FakeAudioContext.made.length).toBe(0);
@@ -168,19 +191,41 @@ describe("an observer opens no pipe", () => {
 
   test("the room's opt-out answers an auto start the same way", async () => {
     const convex = {
-      mutation: async () => ({ transcript_id: null, existing: false, role: "off" }),
+      mutation: async () => ({
+        transcript_id: null,
+        existing: false,
+        role: "off",
+      }),
       action: async () => ({ error: "must not be called" }),
     } as any;
-    expect(await startScribe({ convex, room: fakeRoom("sid-1"), roomKey: "room:1", auto: true })).toBe(false);
+    expect(
+      await startScribe({
+        convex,
+        room: fakeRoom("sid-1"),
+        roomKey: "room:1",
+        auto: true,
+      }),
+    ).toBe(false);
     expect(FakeAudioContext.made.length).toBe(0);
   });
 
   test("a scribe verdict arms the run", async () => {
     const convex = {
-      mutation: async () => ({ transcript_id: "tr-1", existing: false, role: "scribe" }),
+      mutation: async () => ({
+        transcript_id: "tr-1",
+        existing: false,
+        role: "scribe",
+      }),
       action: () => new Promise(() => {}),
     } as any;
-    expect(await startScribe({ convex, room: fakeRoom("sid-1"), roomKey: "room:1", auto: true })).toBe(true);
+    expect(
+      await startScribe({
+        convex,
+        room: fakeRoom("sid-1"),
+        roomKey: "room:1",
+        auto: true,
+      }),
+    ).toBe(true);
     expect(getScribeStatus().active).toBe(true);
     expect(getScribeStatus().trackCount).toBe(1);
   });

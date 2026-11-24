@@ -27,16 +27,16 @@ import { readFileSync, rmSync, writeFileSync } from "node:fs";
 // Rows top to bottom, five bits each, high bit on the left. Lowercase is
 // drawn as uppercase.
 const GLYPHS = {
-  "0": [0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e],
-  "1": [0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e],
-  "2": [0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f],
-  "3": [0x1f, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0e],
-  "4": [0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02],
-  "5": [0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e],
-  "6": [0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e],
-  "7": [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
-  "8": [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
-  "9": [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c],
+  0: [0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e],
+  1: [0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e],
+  2: [0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f],
+  3: [0x1f, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0e],
+  4: [0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02],
+  5: [0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e],
+  6: [0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e],
+  7: [0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08],
+  8: [0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e],
+  9: [0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c],
   A: [0x0e, 0x11, 0x11, 0x11, 0x1f, 0x11, 0x11],
   B: [0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e],
   C: [0x0e, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0e],
@@ -77,7 +77,10 @@ const UNKNOWN = [0x1f, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1f];
 const rgba = (hex) => {
   const n = parseInt(hex.replace("#", ""), 16);
   // Little endian: the Uint32 view writes R first.
-  return ((0xff << 24) | ((n & 0xff) << 16) | (n & 0xff00) | ((n >> 16) & 0xff)) >>> 0;
+  return (
+    ((0xff << 24) | ((n & 0xff) << 16) | (n & 0xff00) | ((n >> 16) & 0xff)) >>>
+    0
+  );
 };
 const WHITE = rgba("#ffffff");
 const BLACK = rgba("#000000");
@@ -99,7 +102,8 @@ export class Canvas {
     const y0 = Math.max(0, Math.floor(y));
     const y1 = Math.min(this.height, Math.floor(y + h));
     if (x1 <= x0) return;
-    for (let row = y0; row < y1; row++) this.px.fill(color, row * this.width + x0, row * this.width + x1);
+    for (let row = y0; row < y1; row++)
+      this.px.fill(color, row * this.width + x0, row * this.width + x1);
   }
 
   static textWidth(str, scale) {
@@ -112,7 +116,8 @@ export class Canvas {
       const rows = GLYPHS[ch] ?? UNKNOWN;
       for (let r = 0; r < 7; r++) {
         for (let c = 0; c < 5; c++) {
-          if (rows[r] & (0x10 >> c)) this.rect(cx + c * scale, y + r * scale, scale, scale, color);
+          if (rows[r] & (0x10 >> c))
+            this.rect(cx + c * scale, y + r * scale, scale, scale, color);
         }
       }
       cx += 6 * scale;
@@ -144,16 +149,29 @@ function checksum(payload) {
 }
 
 const toBits = (value, count) =>
-  Array.from({ length: count }, (_, i) => Math.floor(value / 2 ** (count - 1 - i)) % 2);
+  Array.from(
+    { length: count },
+    (_, i) => Math.floor(value / 2 ** (count - 1 - i)) % 2,
+  );
 const fromBits = (bits) => bits.reduce((acc, b) => acc * 2 + b, 0);
 
 export function encodeStrip({ source, capturedAtMs, frame }) {
-  const payload = [source === "camera" ? 1 : 0, ...toBits(capturedAtMs, MS_BITS), ...toBits(frame % 2 ** FRAME_BITS, FRAME_BITS)];
+  const payload = [
+    source === "camera" ? 1 : 0,
+    ...toBits(capturedAtMs, MS_BITS),
+    ...toBits(frame % 2 ** FRAME_BITS, FRAME_BITS),
+  ];
   return [1, ...payload, ...toBits(checksum(payload), 8), 1, 0];
 }
 
 export function parseStripBits(bits) {
-  if (bits.length !== STRIP_CELLS || bits[0] !== 1 || bits[71] !== 1 || bits[72] !== 0) return null;
+  if (
+    bits.length !== STRIP_CELLS ||
+    bits[0] !== 1 ||
+    bits[71] !== 1 ||
+    bits[72] !== 0
+  )
+    return null;
   const payload = bits.slice(1, 63);
   if (fromBits(bits.slice(63, 71)) !== checksum(payload)) return null;
   return {
@@ -189,7 +207,11 @@ export function drawStrip(canvas, fields) {
 export function grayOf(rgbaBytes, width, height) {
   const g = new Uint8Array(width * height);
   for (let i = 0; i < g.length; i++) {
-    g[i] = (rgbaBytes[i * 4] * 299 + rgbaBytes[i * 4 + 1] * 587 + rgbaBytes[i * 4 + 2] * 114) / 1000;
+    g[i] =
+      (rgbaBytes[i * 4] * 299 +
+        rgbaBytes[i * 4 + 1] * 587 +
+        rgbaBytes[i * 4 + 2] * 114) /
+      1000;
   }
   return g;
 }
@@ -200,11 +222,31 @@ export function writePng(path, rgbaBytes, width, height) {
   const raw = `${path}.rgba`;
   writeFileSync(raw, rgbaBytes);
   try {
-    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", `${width}x${height}`, "-i", raw, path], {
-      stdio: ["ignore", "ignore", "pipe"],
-    });
+    execFileSync(
+      "ffmpeg",
+      [
+        "-v",
+        "error",
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgba",
+        "-s",
+        `${width}x${height}`,
+        "-i",
+        raw,
+        path,
+      ],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+      },
+    );
   } catch (err) {
-    if (err.code === "ENOENT") throw new Error("ffmpeg is not installed. Install it with: brew install ffmpeg");
+    if (err.code === "ENOENT")
+      throw new Error(
+        "ffmpeg is not installed. Install it with: brew install ffmpeg",
+      );
     throw err;
   } finally {
     rmSync(raw, { force: true });
@@ -219,10 +261,17 @@ export function readPng(path) {
   const width = head.readUInt32BE(16);
   const height = head.readUInt32BE(20);
   try {
-    const data = execFileSync("ffmpeg", ["-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "rgba", "-"], { maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "pipe"] });
+    const data = execFileSync(
+      "ffmpeg",
+      ["-v", "error", "-i", path, "-f", "rawvideo", "-pix_fmt", "rgba", "-"],
+      { maxBuffer: 1 << 30, stdio: ["ignore", "pipe", "pipe"] },
+    );
     return { width, height, data };
   } catch (err) {
-    if (err.code === "ENOENT") throw new Error("ffmpeg is not installed. Install it with: brew install ffmpeg");
+    if (err.code === "ENOENT")
+      throw new Error(
+        "ffmpeg is not installed. Install it with: brew install ffmpeg",
+      );
     throw err;
   }
 }
@@ -257,12 +306,26 @@ export function decodeStrips(gray, width, height) {
       const seq = runs.slice(i, i + STRIP_CELLS);
       const widths = seq.map((r) => r.len).sort((a, b) => a - b);
       const median = widths[STRIP_CELLS >> 1];
-      if (median < 2 || widths[0] < median * 0.5 || widths[STRIP_CELLS - 1] > median * 1.6) continue;
+      if (
+        median < 2 ||
+        widths[0] < median * 0.5 ||
+        widths[STRIP_CELLS - 1] > median * 1.6
+      )
+        continue;
       if (!seq.every((r, k) => r.on === (k % 2 === 0))) continue;
       const before = runs[i - 1];
       const after = runs[i + STRIP_CELLS];
-      if ((before && before.len < median) || (after && (after.on || after.len < median))) continue;
-      hits.push({ y, x: seq[0].start, centers: seq.map((r) => r.start + r.len / 2), cell: median });
+      if (
+        (before && before.len < median) ||
+        (after && (after.on || after.len < median))
+      )
+        continue;
+      hits.push({
+        y,
+        x: seq[0].start,
+        centers: seq.map((r) => r.start + r.len / 2),
+        cell: median,
+      });
       i += STRIP_CELLS - 1;
     }
   }
@@ -272,7 +335,9 @@ export function decodeStrips(gray, width, height) {
   // band height below the timing band's bottom.
   const bands = [];
   for (const h of hits) {
-    const band = bands.find((b) => b.lastY === h.y - 1 && Math.abs(b.x - h.x) <= 2);
+    const band = bands.find(
+      (b) => b.lastY === h.y - 1 && Math.abs(b.x - h.x) <= 2,
+    );
     if (band) {
       band.lastY = h.y;
       band.rows++;
@@ -298,7 +363,9 @@ export function decodeStrips(gray, width, height) {
   for (const b of bands) {
     const dataY = b.lastY + b.rows;
     if (dataY >= height) continue;
-    const parsed = parseStripBits(b.centers.map((cx) => (sample(cx, dataY) >= 128 ? 1 : 0)));
+    const parsed = parseStripBits(
+      b.centers.map((cx) => (sample(cx, dataY) >= 128 ? 1 : 0)),
+    );
     if (parsed) out.push({ ...parsed, x: b.x, y: b.firstY, cellPx: b.cell });
   }
   return out;
@@ -327,17 +394,25 @@ const clock = (d, utc) => {
   const s = utc ? d.getUTCSeconds() : d.getSeconds();
   return `${pad(h)}:${pad(m)}:${pad(s)}.${Math.floor(d.getMilliseconds() / 100)}`;
 };
-const elapsed = (ms) => `T+${pad(Math.floor(ms / 60000))}:${pad(Math.floor(ms / 1000) % 60)}.${Math.floor(ms / 100) % 10}`;
+const elapsed = (ms) =>
+  `T+${pad(Math.floor(ms / 60000))}:${pad(Math.floor(ms / 1000) % 60)}.${Math.floor(ms / 100) % 10}`;
 
 export function sceneAt(nowMs) {
   const index = Math.floor(nowMs / SCENE_MS);
-  return { index, ...SCENES[index % SCENES.length], second: Math.floor((nowMs % SCENE_MS) / 1000) };
+  return {
+    index,
+    ...SCENES[index % SCENES.length],
+    second: Math.floor((nowMs % SCENE_MS) / 1000),
+  };
 }
 
 // Lays items out top to bottom between two edges with even gaps, so a slide
 // reads the same at 1080p and at 360p. Each item is { h, draw(y) }.
 function stack(top, bottom, items) {
-  const gap = Math.max(0, (bottom - top - items.reduce((s, it) => s + it.h, 0)) / (items.length + 1));
+  const gap = Math.max(
+    0,
+    (bottom - top - items.reduce((s, it) => s + it.h, 0)) / (items.length + 1),
+  );
   let y = top + gap;
   for (const it of items) {
     it.draw(Math.round(y));
@@ -346,7 +421,8 @@ function stack(top, bottom, items) {
 }
 
 // The largest scale at which a line fits the given width.
-const fitScale = (str, width, max) => Math.max(1, Math.min(max, Math.floor((width + max) / (str.length * 6 || 1))));
+const fitScale = (str, width, max) =>
+  Math.max(1, Math.min(max, Math.floor((width + max) / (str.length * 6 || 1))));
 
 // The screen share: a full colored slide whose scene is wall clock aligned
 // (every share started anywhere cuts at the same instants), with the time in
@@ -363,10 +439,22 @@ export function paintScreen(canvas, { nowMs, frame, startedAtMs, label }) {
   // Header: who is sharing on the left, the scene on the right.
   const sceneLabel = `SCENE ${scene.index % 1000} ${scene.name}`;
   const head = Math.max(1, Math.round(unit * 0.6));
-  canvas.text(sceneLabel, W - margin - Canvas.textWidth(sceneLabel, head), margin, head, INK);
+  canvas.text(
+    sceneLabel,
+    W - margin - Canvas.textWidth(sceneLabel, head),
+    margin,
+    head,
+    INK,
+  );
   const leftRoom = W - margin * 3 - Canvas.textWidth(sceneLabel, head);
   const who = `SCREEN SHARE - ${label}`;
-  canvas.text(who.slice(0, Math.max(0, Math.floor((leftRoom + head) / (6 * head)))), margin, margin, head, INK);
+  canvas.text(
+    who.slice(0, Math.max(0, Math.floor((leftRoom + head) / (6 * head)))),
+    margin,
+    margin,
+    head,
+    INK,
+  );
 
   const usable = W - margin * 2;
   const clockText = clock(d, false);
@@ -385,7 +473,8 @@ export function paintScreen(canvas, { nowMs, frame, startedAtMs, label }) {
   const meter = (y) => {
     for (let i = 0; i < boxes; i++) {
       const x = meterX + i * (boxW + gap);
-      if (i <= scene.second) canvas.rect(x, y, boxW, boxH, i === scene.second ? WHITE : DIM);
+      if (i <= scene.second)
+        canvas.rect(x, y, boxW, boxH, i === scene.second ? WHITE : DIM);
       else {
         canvas.rect(x, y, boxW, unit, DIM);
         canvas.rect(x, y + boxH - unit, boxW, unit, DIM);
@@ -396,11 +485,24 @@ export function paintScreen(canvas, { nowMs, frame, startedAtMs, label }) {
   };
 
   const top = margin + head * 7;
-  const bottom = drawStrip(canvas, { source: "screen", capturedAtMs: nowMs, frame });
+  const bottom = drawStrip(canvas, {
+    source: "screen",
+    capturedAtMs: nowMs,
+    frame,
+  });
   stack(top, bottom, [
-    { h: big * 7, draw: (y) => canvas.textCentered(clockText, W / 2, y, big, WHITE) },
-    { h: small * 7, draw: (y) => canvas.textCentered(utcText, W / 2, y, small, DIM) },
-    { h: mid * 7, draw: (y) => canvas.textCentered(frameText, W / 2, y, mid, INK) },
+    {
+      h: big * 7,
+      draw: (y) => canvas.textCentered(clockText, W / 2, y, big, WHITE),
+    },
+    {
+      h: small * 7,
+      draw: (y) => canvas.textCentered(utcText, W / 2, y, small, DIM),
+    },
+    {
+      h: mid * 7,
+      draw: (y) => canvas.textCentered(frameText, W / 2, y, mid, INK),
+    },
     { h: boxH, draw: meter },
   ]);
 }
@@ -427,9 +529,17 @@ export function paintCamera(canvas, { nowMs, frame, name, colorHex }) {
   const nameText = name.toUpperCase();
   const clockText = `${clock(new Date(nowMs), false)}  #${pad(frame, 5)}`;
   const nameScale = fitScale(nameText, usable, unit * 2);
-  const clockScale = fitScale(clockText, usable, Math.max(1, Math.round(unit * 1.4)));
+  const clockScale = fitScale(
+    clockText,
+    usable,
+    Math.max(1, Math.round(unit * 1.4)),
+  );
 
-  const bottom = drawStrip(canvas, { source: "camera", capturedAtMs: nowMs, frame });
+  const bottom = drawStrip(canvas, {
+    source: "camera",
+    capturedAtMs: nowMs,
+    frame,
+  });
   stack(0, bottom, [
     {
       h: orbit * 2 + dot,
@@ -440,11 +550,23 @@ export function paintCamera(canvas, { nowMs, frame, name, colorHex }) {
         const s = Math.max(1, Math.floor(disc / (initials.length * 6 + 4)));
         canvas.textCentered(initials, cx, cy - (s * 7) / 2, s, WHITE);
         const angle = ((nowMs % 2000) / 2000) * Math.PI * 2;
-        canvas.rect(cx + Math.cos(angle) * orbit - dot / 2, cy + Math.sin(angle) * orbit - dot / 2, dot, dot, WHITE);
+        canvas.rect(
+          cx + Math.cos(angle) * orbit - dot / 2,
+          cy + Math.sin(angle) * orbit - dot / 2,
+          dot,
+          dot,
+          WHITE,
+        );
       },
     },
-    { h: nameScale * 7, draw: (y) => canvas.textCentered(nameText, W / 2, y, nameScale, INK) },
-    { h: clockScale * 7, draw: (y) => canvas.textCentered(clockText, W / 2, y, clockScale, DIM) },
+    {
+      h: nameScale * 7,
+      draw: (y) => canvas.textCentered(nameText, W / 2, y, nameScale, INK),
+    },
+    {
+      h: clockScale * 7,
+      draw: (y) => canvas.textCentered(clockText, W / 2, y, clockScale, DIM),
+    },
   ]);
 }
 

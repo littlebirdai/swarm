@@ -6,13 +6,13 @@ Read `revision-contract.md` first, then `product.md` and the completed section 0
 
 Counts use whitespace-separated words, including headings and tables. The completion note is excluded.
 
-| File | Words |
-|---|---:|
+| File                          | Words |
+| ----------------------------- | ----: |
 | `/tmp/agent-org/final/s01.md` | 1,461 |
 | `/tmp/agent-org/final/s02.md` | 2,003 |
 | `/tmp/agent-org/final/s07.md` | 2,484 |
 | `/tmp/agent-org/final/s09.md` | 2,008 |
-| Total | 7,956 |
+| Total                         | 7,956 |
 
 ## Meaningful revisions
 

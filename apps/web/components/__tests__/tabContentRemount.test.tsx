@@ -33,10 +33,6 @@ afterAll(() => {
   restoreGlobals();
 });
 
-
-
-
-
 // -- Minimal store: just what TabContent reads --
 
 type Tab = { id: string; path: string; title: string };
@@ -51,7 +47,10 @@ const state: {
     { id: "tab_b", path: "/tasks", title: "Tasks" },
   ],
   activeTabId: "tab_a",
-  switchTab: (id) => { state.activeTabId = id; notify(); },
+  switchTab: (id) => {
+    state.activeTabId = id;
+    notify();
+  },
   updateTab: (id, patch) => {
     updateTabCalls.push({ id, patch });
     state.tabs = state.tabs.map((t) => (t.id === id ? { ...t, ...patch } : t));
@@ -61,7 +60,10 @@ const state: {
 const updateTabCalls: Array<{ id: string; patch: Partial<Tab> }> = [];
 let version = 0;
 const listeners = new Set<() => void>();
-function notify() { version++; for (const l of listeners) l(); }
+function notify() {
+  version++;
+  for (const l of listeners) l();
+}
 
 // The tab fields are driven by this file; everything else stays the real state,
 // because the substitution answers every file that runs after this one too (see
@@ -72,7 +74,10 @@ const readState = mockInboxStore(() => state, {
   useTrackedStore: (_deps: unknown[]) => {
     const React = require("react");
     React.useSyncExternalStore(
-      (cb: () => void) => { listeners.add(cb); return () => listeners.delete(cb); },
+      (cb: () => void) => {
+        listeners.add(cb);
+        return () => listeners.delete(cb);
+      },
       () => version,
     );
     return readState();
@@ -91,8 +96,12 @@ mock.module("../../hooks/useConversationMessages", () => ({
   useConversationMessages: () => {},
 }));
 // The two routes this test renders; every other lazyPage loader stays cold.
-mock.module("@/app/inbox/page", () => ({ default: () => <div data-page="inbox" /> }));
-mock.module("@/app/tasks/page", () => ({ default: () => <div data-page="tasks" /> }));
+mock.module("@/app/inbox/page", () => ({
+  default: () => <div data-page="inbox" />,
+}));
+mock.module("@/app/tasks/page", () => ({
+  default: () => <div data-page="tasks" />,
+}));
 
 const { TabContent } = await import("../TabContent");
 const { MemoryRouter } = await import("react-router");
@@ -112,10 +121,12 @@ const { createRoot } = await import("react-dom/client");
 const act: <T>(cb: () => T | Promise<T>) => Promise<T> = (React as any).act;
 
 function panes(): Array<{ id: string; display: string }> {
-  return [...document.querySelectorAll<HTMLElement>("[data-tab-id]")].map((el) => ({
-    id: el.getAttribute("data-tab-id")!,
-    display: el.style.display,
-  }));
+  return [...document.querySelectorAll<HTMLElement>("[data-tab-id]")].map(
+    (el) => ({
+      id: el.getAttribute("data-tab-id")!,
+      display: el.style.display,
+    }),
+  );
 }
 
 describe("TabContent survives its own remount", () => {
@@ -133,14 +144,18 @@ describe("TabContent survives its own remount", () => {
     root = createRoot(container);
     await act(async () => root.render(shell()));
     // Lazy pages resolve a microtask later.
-    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
   });
 
   test("visited tabs keep hidden panes across a switch", async () => {
     expect(panes()).toEqual([{ id: "tab_a", display: "block" }]);
 
     await act(async () => state.switchTab("tab_b"));
-    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
 
     expect(panes()).toEqual([
       { id: "tab_a", display: "none" },
@@ -156,7 +171,9 @@ describe("TabContent survives its own remount", () => {
     await act(async () => root.unmount());
     root = createRoot(container);
     await act(async () => root.render(shell()));
-    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
 
     // Both visited tabs come back (the active one visible, the other warm and
     // hidden) — before the fix only the active pane survived.

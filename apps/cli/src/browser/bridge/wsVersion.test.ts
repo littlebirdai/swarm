@@ -8,7 +8,10 @@ import { createRequire } from "node:module";
 
 const MIN = [8, 21, 0] as const;
 
-function atLeast(version: string, min: readonly [number, number, number]): boolean {
+function atLeast(
+  version: string,
+  min: readonly [number, number, number],
+): boolean {
   const parts = version.split(".").map((n) => parseInt(n, 10) || 0);
   for (let i = 0; i < 3; i++) {
     if ((parts[i] ?? 0) > min[i]) return true;
@@ -24,7 +27,11 @@ describe("ws resolution", () => {
     const { version } = require("ws/package.json") as { version: string };
     expect(atLeast(version, MIN), `${resolved} is ws ${version}`).toBe(true);
     // The declared dependency is what the lock resolves; the two must agree.
-    const declared = (require("../../../package.json") as { dependencies: Record<string, string> }).dependencies.ws;
+    const declared = (
+      require("../../../package.json") as {
+        dependencies: Record<string, string>;
+      }
+    ).dependencies.ws;
     expect(declared).toBe(version);
   });
 });

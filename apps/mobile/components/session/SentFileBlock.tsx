@@ -6,13 +6,19 @@
 // lands in the in-app browser, where iOS previews PDFs and images and offers
 // its own share sheet for saving.
 
-import { View as RNView, TouchableOpacity, Image } from 'react-native';
-import { Text as RNText } from '@/components/Themed';
-import { useStorageImageUrl } from '@codecast/web/hooks/useStorageImageUrl';
-import Feather from '@expo/vector-icons/Feather';
-import { fileKind, formatFileSize, fileTypeLabel, type FileKind, type SentFileData } from '@codecast/shared/files';
-import { Theme } from '@/constants/Theme';
-import { openLink } from '@/lib/links';
+import { View as RNView, TouchableOpacity, Image } from "react-native";
+import { Text as RNText } from "@/components/Themed";
+import { useStorageImageUrl } from "@codecast/web/hooks/useStorageImageUrl";
+import Feather from "@expo/vector-icons/Feather";
+import {
+  fileKind,
+  formatFileSize,
+  fileTypeLabel,
+  type FileKind,
+  type SentFileData,
+} from "@codecast/shared/files";
+import { Theme } from "@/constants/Theme";
+import { openLink } from "@/lib/links";
 
 export type { SentFileData };
 
@@ -29,10 +35,10 @@ const KIND_COLOR: Record<FileKind, string> = {
 };
 
 const ERROR_TEXT: Record<string, string> = {
-  too_large: 'too large to attach',
-  missing: 'the file was gone when this synced',
-  upload_failed: 'the upload did not go through',
-  unreadable: 'the file could not be read',
+  too_large: "too large to attach",
+  missing: "the file was gone when this synced",
+  upload_failed: "the upload did not go through",
+  unreadable: "the file could not be read",
 };
 
 function FileCard({ file }: { file: SentFileData }) {
@@ -42,7 +48,9 @@ function FileCard({ file }: { file: SentFileData }) {
   const kind = fileKind(file.media_type, file.name);
   const color = KIND_COLOR[kind];
   const label = fileTypeLabel(file.name, file.media_type);
-  const meta = [label, file.size ? formatFileSize(file.size) : ''].filter(Boolean).join(' · ');
+  const meta = [label, file.size ? formatFileSize(file.size) : ""]
+    .filter(Boolean)
+    .join(" · ");
   const undelivered = !!file.error;
 
   return (
@@ -51,64 +59,83 @@ function FileCard({ file }: { file: SentFileData }) {
       disabled={!url}
       onPress={() => url && openLink(url)}
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 10,
         paddingVertical: 8,
         paddingHorizontal: 10,
         marginVertical: 3,
         borderRadius: 10,
         borderWidth: 0.5,
-        borderColor: Theme.border + '60',
+        borderColor: Theme.border + "60",
         backgroundColor: Theme.card,
       }}
     >
-      {kind === 'image' && url ? (
-        <Image source={{ uri: url }} style={{ width: 40, height: 40, borderRadius: 6 }} />
+      {kind === "image" && url ? (
+        <Image
+          source={{ uri: url }}
+          style={{ width: 40, height: 40, borderRadius: 6 }}
+        />
       ) : (
         <RNView
           style={{
             width: 40,
             height: 40,
             borderRadius: 6,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: color + '18',
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: color + "18",
             borderWidth: 0.5,
-            borderColor: color + '40',
+            borderColor: color + "40",
           }}
         >
-          <RNText style={{ fontSize: 9, fontWeight: '700', color }}>{label.slice(0, 4)}</RNText>
+          <RNText style={{ fontSize: 9, fontWeight: "700", color }}>
+            {label.slice(0, 4)}
+          </RNText>
         </RNView>
       )}
 
       <RNView style={{ flex: 1, minWidth: 0 }}>
-        <RNText style={{ fontSize: 13, fontWeight: '600', color: Theme.text }} numberOfLines={1}>
+        <RNText
+          style={{ fontSize: 13, fontWeight: "600", color: Theme.text }}
+          numberOfLines={1}
+        >
           {file.name}
         </RNText>
-        <RNText style={{ fontSize: 11, color: Theme.textDim }} numberOfLines={1}>
-          {undelivered ? `${meta} — ${ERROR_TEXT[file.error ?? ''] ?? 'not attached'}` : meta}
+        <RNText
+          style={{ fontSize: 11, color: Theme.textDim }}
+          numberOfLines={1}
+        >
+          {undelivered
+            ? `${meta} — ${ERROR_TEXT[file.error ?? ""] ?? "not attached"}`
+            : meta}
         </RNText>
       </RNView>
 
-      {!!url && <Feather name="external-link" size={14} color={Theme.textMuted} />}
+      {!!url && (
+        <Feather name="external-link" size={14} color={Theme.textMuted} />
+      )}
     </TouchableOpacity>
   );
 }
 
 export function SentFileBlock({ files }: { files: SentFileData[] }) {
   if (files.length === 0) return null;
-  const caption = files.find(f => f.caption)?.caption;
+  const caption = files.find((f) => f.caption)?.caption;
   return (
     <RNView style={{ paddingVertical: 2 }}>
-      <RNView style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <RNView style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
         <Feather name="download" size={10} color={Theme.textDim} />
         <RNText style={{ fontSize: 11, color: Theme.textDim }}>
-          {files.length === 1 ? 'Sent you a file' : `Sent you ${files.length} files`}
+          {files.length === 1
+            ? "Sent you a file"
+            : `Sent you ${files.length} files`}
         </RNText>
       </RNView>
       {!!caption && (
-        <RNText style={{ fontSize: 13, color: Theme.textMuted, marginTop: 2 }}>{caption}</RNText>
+        <RNText style={{ fontSize: 13, color: Theme.textMuted, marginTop: 2 }}>
+          {caption}
+        </RNText>
       )}
       {files.map((file, i) => (
         <FileCard key={`${file.storage_id ?? file.name}-${i}`} file={file} />

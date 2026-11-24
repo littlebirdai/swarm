@@ -14,13 +14,25 @@ import {
 const NOW = Date.parse("2026-09-07T12:00:00Z");
 
 function fixture(name: string): any {
-  return JSON.parse(fs.readFileSync(path.join(__dirname, "__fixtures__", "codex", name), "utf-8"));
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, "__fixtures__", "codex", name),
+      "utf-8",
+    ),
+  );
 }
 
 /** A Response stand-in: bun's fetch types want the whole surface, and these
  *  tests only ever read ok/status/headers/json. */
-function response(opts: { status?: number; body?: any; headers?: Record<string, string> }): Response {
-  return new Response(opts.body === undefined ? null : JSON.stringify(opts.body), { status: opts.status ?? 200, headers: opts.headers ?? {} });
+function response(opts: {
+  status?: number;
+  body?: any;
+  headers?: Record<string, string>;
+}): Response {
+  return new Response(
+    opts.body === undefined ? null : JSON.stringify(opts.body),
+    { status: opts.status ?? 200, headers: opts.headers ?? {} },
+  );
 }
 
 describe("codexBackendAuthHeaders", () => {
@@ -32,7 +44,10 @@ describe("codexBackendAuthHeaders", () => {
   afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
 
   function writeAuth(tokens: any) {
-    fs.writeFileSync(path.join(home, "auth.json"), JSON.stringify({ auth_mode: "chatgpt", tokens }));
+    fs.writeFileSync(
+      path.join(home, "auth.json"),
+      JSON.stringify({ auth_mode: "chatgpt", tokens }),
+    );
   }
 
   it("sends the request Codex itself sends, account id included", () => {
@@ -48,7 +63,9 @@ describe("codexBackendAuthHeaders", () => {
 
   it("omits the account header when auth.json names no account", () => {
     writeAuth({ access_token: "at-1" });
-    expect(codexBackendAuthHeaders(home)!["ChatGPT-Account-Id"]).toBeUndefined();
+    expect(
+      codexBackendAuthHeaders(home)!["ChatGPT-Account-Id"],
+    ).toBeUndefined();
   });
 
   it("returns null for a missing, unparseable, or token-less home", () => {
@@ -64,11 +81,17 @@ describe("codexBackendAuthHeaders", () => {
     const dormant = fs.mkdtempSync(path.join(os.tmpdir(), "codex-dormant-"));
     fs.writeFileSync(
       path.join(dormant, "auth.json"),
-      JSON.stringify({ tokens: { access_token: "dormant", account_id: "acct-dormant" } }),
+      JSON.stringify({
+        tokens: { access_token: "dormant", account_id: "acct-dormant" },
+      }),
     );
     try {
-      expect(codexBackendAuthHeaders(dormant)!.Authorization).toBe("Bearer dormant");
-      expect(codexBackendAuthHeaders(dormant)!["ChatGPT-Account-Id"]).toBe("acct-dormant");
+      expect(codexBackendAuthHeaders(dormant)!.Authorization).toBe(
+        "Bearer dormant",
+      );
+      expect(codexBackendAuthHeaders(dormant)!["ChatGPT-Account-Id"]).toBe(
+        "acct-dormant",
+      );
     } finally {
       fs.rmSync(dormant, { recursive: true, force: true });
     }
@@ -77,11 +100,20 @@ describe("codexBackendAuthHeaders", () => {
 
 describe("parseBackendUsageResponse", () => {
   it("classifies the recorded pro response by window duration", () => {
-    const snap = parseBackendUsageResponse(fixture("wham-usage-pro.json"), NOW)!;
+    const snap = parseBackendUsageResponse(
+      fixture("wham-usage-pro.json"),
+      NOW,
+    )!;
     expect(snap.plan_type).toBe("pro");
     // 18000s = 300 min → the session bar; 604800s = 10080 min → the weekly one.
-    expect(snap.session).toEqual({ percent: 37.5, resets_at: 1786011679 * 1000 });
-    expect(snap.weekly).toEqual({ percent: 61.2, resets_at: 1786443679 * 1000 });
+    expect(snap.session).toEqual({
+      percent: 37.5,
+      resets_at: 1786011679 * 1000,
+    });
+    expect(snap.weekly).toEqual({
+      percent: 61.2,
+      resets_at: 1786443679 * 1000,
+    });
     expect(snap.reset_credits).toEqual({ available: 2 });
     expect(snap.fetched_at).toBe(NOW);
   });
@@ -91,7 +123,10 @@ describe("parseBackendUsageResponse", () => {
   // WEEKLY bucket as the primary window and nothing as the secondary, so
   // reading position first would paint a week's usage into the five-hour bar.
   it("routes a weekly-length primary window to the weekly bar, leaving session blank", () => {
-    const snap = parseBackendUsageResponse(fixture("wham-usage-weekly-only.json"), NOW)!;
+    const snap = parseBackendUsageResponse(
+      fixture("wham-usage-weekly-only.json"),
+      NOW,
+    )!;
     expect(snap.plan_type).toBe("pro");
     expect(snap.weekly).toEqual({ percent: 3, resets_at: 1789396452 * 1000 });
     expect(snap.session).toBeUndefined();
@@ -120,7 +155,10 @@ describe("parseBackendUsageResponse", () => {
         plan_type: "pro",
         rate_limit: {
           primary_window: { used_percent: 5, limit_window_seconds: 299 * 60 },
-          secondary_window: { used_percent: 50, limit_window_seconds: 10081 * 60 },
+          secondary_window: {
+            used_percent: 50,
+            limit_window_seconds: 10081 * 60,
+          },
         },
       },
       NOW,
@@ -130,14 +168,23 @@ describe("parseBackendUsageResponse", () => {
   });
 
   it("refuses a body with no plan type — a redirect is not a reading", () => {
-    expect(parseBackendUsageResponse({ rate_limit: { primary_window: { used_percent: 9 } } }, NOW)).toBeNull();
+    expect(
+      parseBackendUsageResponse(
+        { rate_limit: { primary_window: { used_percent: 9 } } },
+        NOW,
+      ),
+    ).toBeNull();
     expect(parseBackendUsageResponse(null, NOW)).toBeNull();
     expect(parseBackendUsageResponse("<html>", NOW)).toBeNull();
   });
 
   it("drops a zero credit balance rather than showing an empty offer", () => {
     const snap = parseBackendUsageResponse(
-      { plan_type: "pro", rate_limit: {}, rate_limit_reset_credits: { available_count: 0 } },
+      {
+        plan_type: "pro",
+        rate_limit: {},
+        rate_limit_reset_credits: { available_count: 0 },
+      },
       NOW,
     )!;
     expect(snap.reset_credits).toBeUndefined();
@@ -151,7 +198,9 @@ describe("fetchCodexBackendUsage", () => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), "codex-backend-fetch-"));
     fs.writeFileSync(
       path.join(home, "auth.json"),
-      JSON.stringify({ tokens: { access_token: "at-1", account_id: "acct-1" } }),
+      JSON.stringify({
+        tokens: { access_token: "at-1", account_id: "acct-1" },
+      }),
     );
   });
   afterEach(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -191,7 +240,8 @@ describe("fetchCodexBackendUsage", () => {
   it("throws a typed refusal, carrying the wait a 429 named", async () => {
     const err = await fetchCodexBackendUsage(home, {
       now: NOW,
-      fetchImpl: (async () => response({ status: 429, headers: { "retry-after": "120" } })) as any,
+      fetchImpl: (async () =>
+        response({ status: 429, headers: { "retry-after": "120" } })) as any,
     }).catch((e) => e);
     expect(err).toBeInstanceOf(CloudApiError);
     expect(err.status).toBe(429);
@@ -201,7 +251,8 @@ describe("fetchCodexBackendUsage", () => {
   it("reads no wait from a non-429 refusal", async () => {
     const err = await fetchCodexBackendUsage(home, {
       now: NOW,
-      fetchImpl: (async () => response({ status: 500, headers: { "retry-after": "120" } })) as any,
+      fetchImpl: (async () =>
+        response({ status: 500, headers: { "retry-after": "120" } })) as any,
     }).catch((e) => e);
     expect(err.status).toBe(500);
     expect(err.retryAfterMs).toBeUndefined();
@@ -228,7 +279,11 @@ describe("mergeCodexUsage", () => {
   });
 
   it("treats a 0% window with no reset time as a hole, not a reading", () => {
-    const placeholder = { fetched_at: NOW, session: { percent: 0 }, weekly: { percent: 0 } };
+    const placeholder = {
+      fetched_at: NOW,
+      session: { percent: 0 },
+      weekly: { percent: 0 },
+    };
     const merged = mergeCodexUsage(placeholder, backend)!;
     expect(merged.session).toEqual({ percent: 37 });
     expect(merged.weekly).toEqual({ percent: 99 });

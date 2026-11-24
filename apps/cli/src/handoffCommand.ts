@@ -31,8 +31,14 @@ export type HandoffMode = "document" | "spawn";
 
 /** The old document when none of the spawn flags is given; `-o` alone stays a document. */
 export function handoffMode(f: HandoffFlags): HandoffMode {
-  const spawnish = f.to !== undefined || f.model !== undefined || f.effort !== undefined ||
-    f.account !== undefined || f.device !== undefined || f.message !== undefined || !!f.dryRun;
+  const spawnish =
+    f.to !== undefined ||
+    f.model !== undefined ||
+    f.effort !== undefined ||
+    f.account !== undefined ||
+    f.device !== undefined ||
+    f.message !== undefined ||
+    !!f.dryRun;
   return spawnish ? "spawn" : "document";
 }
 
@@ -44,14 +50,18 @@ export const SAME_AGENT = "same";
  * Anything else must be a known client; an unknown name fails loudly rather
  * than silently becoming Claude the way the permissive display parser would.
  */
-export function resolveHandoffAgent(to: string | undefined): ConvexAgentType | undefined {
+export function resolveHandoffAgent(
+  to: string | undefined,
+): ConvexAgentType | undefined {
   const raw = (to ?? "").trim().toLowerCase();
   if (!raw || raw === SAME_AGENT) return undefined;
   try {
     return toConvexAgentType(parseExecutionAgentClientId(raw));
   } catch (err) {
     if (err instanceof InvalidExecutionAgentTypeError) {
-      const known = [SAME_AGENT, ...Object.keys(LOCAL_AGENT_CLIENTS)].join(", ");
+      const known = [SAME_AGENT, ...Object.keys(LOCAL_AGENT_CLIENTS)].join(
+        ", ",
+      );
       throw new Error(`Unknown agent "${to}". One of: ${known}`);
     }
     throw err;
@@ -59,7 +69,10 @@ export function resolveHandoffAgent(to: string | undefined): ConvexAgentType | u
 }
 
 /** The /cli/handoff body (api_token is added by cliPost). */
-export function buildHandoffRequest(f: HandoffFlags, sourceRef: string): Record<string, unknown> {
+export function buildHandoffRequest(
+  f: HandoffFlags,
+  sourceRef: string,
+): Record<string, unknown> {
   const body: Record<string, unknown> = { conversation_id: sourceRef };
   const agent = resolveHandoffAgent(f.to);
   if (agent) body.agent_type = agent;
@@ -74,20 +87,48 @@ export function buildHandoffRequest(f: HandoffFlags, sourceRef: string): Record<
 }
 
 export interface HandoffStartResult {
-  source: { conversation_id: string; short_id: string; title: string | null; agent_type: string | null; model: string | null; message_count: number; project_path: string | null };
+  source: {
+    conversation_id: string;
+    short_id: string;
+    title: string | null;
+    agent_type: string | null;
+    model: string | null;
+    message_count: number;
+    project_path: string | null;
+  };
   prompt: string;
   brief: string;
   brief_source: "model" | "fallback";
-  session: { conversation_id: string; short_id: string; agent_type: string; model: string | null; effort: string | null; project_path: string | null } | null;
+  session: {
+    conversation_id: string;
+    short_id: string;
+    agent_type: string;
+    model: string | null;
+    effort: string | null;
+    project_path: string | null;
+  } | null;
 }
 
-type Colors = { green: string; cyan: string; dim: string; bold: string; yellow: string; reset: string };
+type Colors = {
+  green: string;
+  cyan: string;
+  dim: string;
+  bold: string;
+  yellow: string;
+  reset: string;
+};
 
 /** The roster, in the shape `cast spawn` prints, plus the one instruction the source agent needs. */
-export function formatHandoffRoster(r: HandoffStartResult, c: Colors, home: string = process.env.HOME || "~"): string {
+export function formatHandoffRoster(
+  r: HandoffStartResult,
+  c: Colors,
+  home: string = process.env.HOME || "~",
+): string {
   const s = r.session;
   if (!s) return r.prompt;
-  const dir = (s.project_path ?? r.source.project_path ?? "").replace(home, "~") || "the source's directory";
+  const dir =
+    (s.project_path ?? r.source.project_path ?? "").replace(home, "~") ||
+    "the source's directory";
   const lines = [
     `${c.green}✓${c.reset} handed off ${c.cyan}${r.source.short_id}${c.reset} → ${c.cyan}${s.short_id}${c.reset} on ${c.bold}${describeAgentRun(s.agent_type, s.model)}${c.reset} in ${c.dim}${dir}${c.reset} — in your inbox`,
     `  ${c.dim}brief: ${r.brief_source === "model" ? "model-written" : "fallback (no model brief; assembled from the pinned state and last message)"}${c.reset}`,

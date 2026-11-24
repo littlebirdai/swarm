@@ -19,8 +19,15 @@ import { openTaskStart } from "./backgroundTaskStart.js";
 // replays prior-run history verbatim (original sessionId preserved per line),
 // and those runs' tasks died with their process — counting them would latch a
 // phantom "waiting".
-export function scanOpenBackgroundTasks(content: string, currentSessionId?: string): Set<string> {
-  return scanOpenBackgroundTasksInto(new Set<string>(), content, currentSessionId);
+export function scanOpenBackgroundTasks(
+  content: string,
+  currentSessionId?: string,
+): Set<string> {
+  return scanOpenBackgroundTasksInto(
+    new Set<string>(),
+    content,
+    currentSessionId,
+  );
 }
 
 // When each open task was armed (ms), keyed by task id — the restart fence's
@@ -57,7 +64,11 @@ export type OpenTaskInfo = OpenTaskReport & { openedAt?: number };
 // (a result always follows its call closely) so the start result can be joined
 // to the description/command the agent gave. Bounded: a call whose result was
 // lost (an interrupted turn) must not leak forever.
-export type PendingTaskCall = { name: string; description?: string; command?: string };
+export type PendingTaskCall = {
+  name: string;
+  description?: string;
+  command?: string;
+};
 const PENDING_TASK_CALLS_MAX = 200;
 const TASK_ARMING_TOOLS = new Set(["Bash", "Monitor", "Workflow", "Agent"]);
 
@@ -86,7 +97,8 @@ export function scanOpenBackgroundTasksInto(
     } catch {
       continue; // partial/corrupt line (mid-write tail) -> skip
     }
-    if (currentSessionId && d.sessionId && d.sessionId !== currentSessionId) continue;
+    if (currentSessionId && d.sessionId && d.sessionId !== currentSessionId)
+      continue;
     const lineAt = d.timestamp ? Date.parse(d.timestamp) : NaN;
     // A notification that arrives while the agent is mid-turn is recorded as a
     // queue-operation (top-level content) and an attachment (prompt), never as
@@ -94,7 +106,8 @@ export function scanOpenBackgroundTasksInto(
     // for delivery; an enqueue alone is left open (the wake hasn't happened
     // yet, so the session is still the harness's move).
     if (d.type === "queue-operation") {
-      if (d.operation === "remove" && typeof d.content === "string") closeNotifiedTasks(d.content, open);
+      if (d.operation === "remove" && typeof d.content === "string")
+        closeNotifiedTasks(d.content, open);
       continue;
     }
     if (d.type === "attachment") {
@@ -108,8 +121,14 @@ export function scanOpenBackgroundTasksInto(
       // it forgets once the process is gone. So the watchdog, which only sees
       // dead processes, revived a dormant session on every exit for ten days
       // over a Monitor that had died on Oct 22 (jx71nrj).
-      else if (d.attachment?.hookName === "SessionStart:startup" || d.attachment?.hookName === "SessionStart:resume") {
-        for (const id of open) { openedAt?.delete(id); info?.delete(id); }
+      else if (
+        d.attachment?.hookName === "SessionStart:startup" ||
+        d.attachment?.hookName === "SessionStart:resume"
+      ) {
+        for (const id of open) {
+          openedAt?.delete(id);
+          info?.delete(id);
+        }
         open.clear();
       }
       continue;
@@ -123,39 +142,74 @@ export function scanOpenBackgroundTasksInto(
     }
     for (const b of blocks) {
       if (!b || typeof b !== "object") continue;
-      const block = b as { type?: string; id?: string; name?: string; input?: unknown; content?: unknown; text?: string; tool_use_id?: string };
+      const block = b as {
+        type?: string;
+        id?: string;
+        name?: string;
+        input?: unknown;
+        content?: unknown;
+        text?: string;
+        tool_use_id?: string;
+      };
       if (block.type === "text" && block.text) {
         closeNotifiedTasks(block.text, open);
       } else if (block.type === "tool_result") {
-        const text = typeof block.content === "string"
-          ? block.content
-          : Array.isArray(block.content)
-            ? block.content.map((c) => (c && typeof c === "object" ? String((c as { text?: unknown }).text ?? "") : "")).join(" ")
-            : "";
+        const text =
+          typeof block.content === "string"
+            ? block.content
+            : Array.isArray(block.content)
+              ? block.content
+                  .map((c) =>
+                    c && typeof c === "object"
+                      ? String((c as { text?: unknown }).text ?? "")
+                      : "",
+                  )
+                  .join(" ")
+              : "";
         const started = openTaskStart(text);
-        const call = block.tool_use_id && pendingCalls ? pendingCalls.get(block.tool_use_id) : undefined;
+        const call =
+          block.tool_use_id && pendingCalls
+            ? pendingCalls.get(block.tool_use_id)
+            : undefined;
         if (block.tool_use_id) pendingCalls?.delete(block.tool_use_id);
         if (started) {
           open.add(started.id);
-          if (openedAt && Number.isFinite(lineAt)) openedAt.set(started.id, lineAt);
+          if (openedAt && Number.isFinite(lineAt))
+            openedAt.set(started.id, lineAt);
           info?.set(started.id, {
             id: started.id,
             kind: started.kind,
             ...(call?.description ? { description: call.description } : {}),
             ...(call?.command ? { command: call.command } : {}),
-            ...(Number.isFinite(lineAt) ? { started_at: lineAt, openedAt: lineAt } : {}),
+            ...(Number.isFinite(lineAt)
+              ? { started_at: lineAt, openedAt: lineAt }
+              : {}),
             ...(block.tool_use_id ? { tool_use_id: block.tool_use_id } : {}),
           });
         }
       } else if (block.type === "tool_use" && block.name === "TaskStop") {
-        const taskId = (block.input as { task_id?: unknown } | undefined)?.task_id;
+        const taskId = (block.input as { task_id?: unknown } | undefined)
+          ?.task_id;
         if (typeof taskId === "string") open.delete(taskId);
-      } else if (block.type === "tool_use" && block.id && block.name && TASK_ARMING_TOOLS.has(block.name) && pendingCalls) {
-        const input = (block.input ?? {}) as { description?: unknown; command?: unknown };
+      } else if (
+        block.type === "tool_use" &&
+        block.id &&
+        block.name &&
+        TASK_ARMING_TOOLS.has(block.name) &&
+        pendingCalls
+      ) {
+        const input = (block.input ?? {}) as {
+          description?: unknown;
+          command?: unknown;
+        };
         pendingCalls.set(block.id, {
           name: block.name,
-          ...(typeof input.description === "string" ? { description: input.description } : {}),
-          ...(typeof input.command === "string" ? { command: input.command } : {}),
+          ...(typeof input.description === "string"
+            ? { description: input.description }
+            : {}),
+          ...(typeof input.command === "string"
+            ? { command: input.command }
+            : {}),
         });
         if (pendingCalls.size > PENDING_TASK_CALLS_MAX) {
           const oldest = pendingCalls.keys().next().value;
@@ -174,5 +228,6 @@ export function scanOpenBackgroundTasksInto(
 function closeNotifiedTasks(text: string, open: Set<string>): void {
   if (!text.includes("<task-notification>")) return;
   if (!/<status>[^<]+<\/status>/.test(text)) return;
-  for (const m of text.matchAll(/<task-id>([^<]+)<\/task-id>/g)) open.delete(m[1]);
+  for (const m of text.matchAll(/<task-id>([^<]+)<\/task-id>/g))
+    open.delete(m[1]);
 }

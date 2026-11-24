@@ -2,7 +2,10 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { isolateCodecastDir, type IsolatedCodecastDir } from "../../test-helpers/codecastDir.js";
+import {
+  isolateCodecastDir,
+  type IsolatedCodecastDir,
+} from "../../test-helpers/codecastDir.js";
 import {
   POOL_BURST_WINDOW_MS,
   POOL_MAX_SLOTS,
@@ -68,7 +71,10 @@ describe("recordWorkspaceCreate — the file the maintainer watches", () => {
 
   test("drops stamps that fell out of the burst window", async () => {
     await recordWorkspaceCreate(repoRoot, 1_000);
-    const kept = await recordWorkspaceCreate(repoRoot, 1_000 + POOL_BURST_WINDOW_MS + 1);
+    const kept = await recordWorkspaceCreate(
+      repoRoot,
+      1_000 + POOL_BURST_WINDOW_MS + 1,
+    );
     expect(kept).toEqual([1_000 + POOL_BURST_WINDOW_MS + 1]);
   });
 

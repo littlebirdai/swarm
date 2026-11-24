@@ -11,14 +11,28 @@ import { useQueryNoThrow } from "./useQueryNoThrow";
 const api = _api as any;
 
 export function useSyncDevices(enabled = true): { ready: boolean } {
-  const { data } = useQueryNoThrow(api.devices.listDevices, enabled ? {} : "skip");
+  const { data } = useQueryNoThrow(
+    api.devices.listDevices,
+    enabled ? {} : "skip",
+  );
   const setMachineRoster = useInboxStore((s) => s.setMachineRoster);
-  useConvexSync(data, useCallback((rows: any) => { if (Array.isArray(rows)) setMachineRoster(rows); }, [setMachineRoster]));
+  useConvexSync(
+    data,
+    useCallback(
+      (rows: any) => {
+        if (Array.isArray(rows)) setMachineRoster(rows);
+      },
+      [setMachineRoster],
+    ),
+  );
   return { ready: data !== undefined };
 }
 
 /** The roster for the path-seeding gate: only once a live push has landed
  *  this page load; empty (permissive) before. */
-export function liveMachineRoster(s: { machineRoster: any[]; machineRosterLive: boolean }): any[] {
+export function liveMachineRoster(s: {
+  machineRoster: any[];
+  machineRosterLive: boolean;
+}): any[] {
   return s.machineRosterLive ? s.machineRoster : [];
 }

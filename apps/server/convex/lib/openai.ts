@@ -13,8 +13,18 @@ export function openaiRefusal(gate: VendorGate): Promise<string | null> {
  * deployment's key as the bearer. Null when the key is missing or the gate's
  * team may not send to OpenAI; the caller decides what a missing answer means.
  */
-export async function openaiFetch(gate: VendorGate, path: `/${string}`, init: RequestInit = {}): Promise<Response | null> {
+export async function openaiFetch(
+  gate: VendorGate,
+  path: `/${string}`,
+  init: RequestInit = {},
+): Promise<Response | null> {
   const key = process.env.OPENAI_API_KEY;
   if (!key || (await openaiRefusal(gate))) return null;
-  return fetch(`https://api.openai.com${path}`, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${key}` } });
+  return fetch(`https://api.openai.com${path}`, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${key}`,
+    },
+  });
 }

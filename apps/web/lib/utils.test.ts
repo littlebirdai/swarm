@@ -52,7 +52,9 @@ describe("matchesProjectQuery", () => {
   });
 
   test("query with slash falls back to full-path substring", () => {
-    expect(matches("/Users/ashot/src/codecast")).toEqual(["/Users/ashot/src/codecast"]);
+    expect(matches("/Users/ashot/src/codecast")).toEqual([
+      "/Users/ashot/src/codecast",
+    ]);
     expect(matches("ashot/src")).toEqual(paths);
   });
 });
@@ -61,15 +63,21 @@ describe("resolveCustomPath", () => {
   const base = "/Users/ashot/src";
 
   test("home-relative and absolute paths resolve without a base", () => {
-    expect(resolveCustomPath("~/experiments/foo", HOME)).toBe("/Users/ashot/experiments/foo");
+    expect(resolveCustomPath("~/experiments/foo", HOME)).toBe(
+      "/Users/ashot/experiments/foo",
+    );
     expect(resolveCustomPath("~", HOME)).toBe("/Users/ashot");
     expect(resolveCustomPath("/tmp/scratch", HOME)).toBe("/tmp/scratch");
   });
 
   test("a bare name resolves against the base (sibling folder)", () => {
     // The gap this fixes: "weekend-hack" used to dead-end at "no match".
-    expect(resolveCustomPath("weekend-hack", HOME, base)).toBe("/Users/ashot/src/weekend-hack");
-    expect(resolveCustomPath("experiments/foo", HOME, base)).toBe("/Users/ashot/src/experiments/foo");
+    expect(resolveCustomPath("weekend-hack", HOME, base)).toBe(
+      "/Users/ashot/src/weekend-hack",
+    );
+    expect(resolveCustomPath("experiments/foo", HOME, base)).toBe(
+      "/Users/ashot/src/experiments/foo",
+    );
   });
 
   test("a bare name without a base stays unresolved (daemon can't cd to it)", () => {
@@ -93,17 +101,29 @@ describe("resolveCustomPath", () => {
 
 describe("inferProjectBase", () => {
   test("prefers the parent of the current project (siblings)", () => {
-    expect(inferProjectBase("/Users/ashot/src/codecast", ["/Users/ashot/family"], HOME)).toBe("/Users/ashot/src");
+    expect(
+      inferProjectBase(
+        "/Users/ashot/src/codecast",
+        ["/Users/ashot/family"],
+        HOME,
+      ),
+    ).toBe("/Users/ashot/src");
   });
 
   test("with no current project, uses the common parent of recents", () => {
     expect(
-      inferProjectBase(undefined, ["/Users/ashot/src/codecast", "/Users/ashot/src/union-mobile"], HOME),
+      inferProjectBase(
+        undefined,
+        ["/Users/ashot/src/codecast", "/Users/ashot/src/union-mobile"],
+        HOME,
+      ),
     ).toBe("/Users/ashot/src");
   });
 
   test("falls back to home when recents don't cluster", () => {
-    expect(inferProjectBase(undefined, ["/Users/ashot/a", "/Users/ashot/b"], HOME)).toBe("/Users/ashot");
+    expect(
+      inferProjectBase(undefined, ["/Users/ashot/a", "/Users/ashot/b"], HOME),
+    ).toBe("/Users/ashot");
     expect(inferProjectBase(undefined, [], HOME)).toBe(HOME);
   });
 });
@@ -117,7 +137,9 @@ describe("parentDir / commonParentDir / isExplicitPath", () => {
 
   test("commonParentDir returns undefined when only root is shared", () => {
     expect(commonParentDir(["/Users/ashot/src/x", "/opt/y"])).toBeUndefined();
-    expect(commonParentDir(["/Users/ashot/src/x", "/Users/ashot/src/y"])).toBe("/Users/ashot/src");
+    expect(commonParentDir(["/Users/ashot/src/x", "/Users/ashot/src/y"])).toBe(
+      "/Users/ashot/src",
+    );
   });
 
   test("isExplicitPath distinguishes typed paths from bare names", () => {
@@ -135,12 +157,23 @@ describe("buildProjectPathOptions", () => {
     "/Users/ashot/src/footage-app",
   ];
   const base = "/Users/ashot/src";
-  const build = (query: string, extra?: { currentPath?: string; defaultLimit?: number }) =>
-    buildProjectPathOptions({ query, recentPaths: recents, home: HOME, base, ...extra });
+  const build = (
+    query: string,
+    extra?: { currentPath?: string; defaultLimit?: number },
+  ) =>
+    buildProjectPathOptions({
+      query,
+      recentPaths: recents,
+      home: HOME,
+      base,
+      ...extra,
+    });
 
   test("no query lists the first N recents, no custom row", () => {
     expect(build("")).toEqual(recents.map((path) => ({ path })));
-    expect(build("", { defaultLimit: 2 })).toEqual(recents.slice(0, 2).map((path) => ({ path })));
+    expect(build("", { defaultLimit: 2 })).toEqual(
+      recents.slice(0, 2).map((path) => ({ path })),
+    );
   });
 
   test("a bare name filters recents by project name", () => {
@@ -166,16 +199,25 @@ describe("buildProjectPathOptions", () => {
   });
 
   test("an explicit path that IS a recent doesn't duplicate it as custom", () => {
-    expect(build("~/src/codecast")).toEqual([{ path: "/Users/ashot/src/codecast" }]);
+    expect(build("~/src/codecast")).toEqual([
+      { path: "/Users/ashot/src/codecast" },
+    ]);
   });
 
   test("the current path is never offered as a custom row", () => {
-    expect(build("~/elsewhere", { currentPath: "/Users/ashot/elsewhere" })).toEqual([]);
+    expect(
+      build("~/elsewhere", { currentPath: "/Users/ashot/elsewhere" }),
+    ).toEqual([]);
   });
 
   test("an unresolvable query (no home for ~/…) just filters", () => {
     expect(
-      buildProjectPathOptions({ query: "~/nope", recentPaths: recents, home: undefined, base: undefined }),
+      buildProjectPathOptions({
+        query: "~/nope",
+        recentPaths: recents,
+        home: undefined,
+        base: undefined,
+      }),
     ).toEqual([]);
   });
 });
@@ -183,23 +225,55 @@ describe("buildProjectPathOptions", () => {
 describe("splitDirQuery", () => {
   const base = "/Users/ashot/src";
   test("a bare name lists the base and matches the name", () => {
-    expect(splitDirQuery("co", HOME, base)).toEqual({ dir: base, prefix: "co", hidden: false });
+    expect(splitDirQuery("co", HOME, base)).toEqual({
+      dir: base,
+      prefix: "co",
+      hidden: false,
+    });
   });
   test("an explicit path lists its parent", () => {
-    expect(splitDirQuery("~/src/co", HOME, base)).toEqual({ dir: "/Users/ashot/src", prefix: "co", hidden: false });
-    expect(splitDirQuery("/tmp/x", HOME, base)).toEqual({ dir: "/tmp", prefix: "x", hidden: false });
+    expect(splitDirQuery("~/src/co", HOME, base)).toEqual({
+      dir: "/Users/ashot/src",
+      prefix: "co",
+      hidden: false,
+    });
+    expect(splitDirQuery("/tmp/x", HOME, base)).toEqual({
+      dir: "/tmp",
+      prefix: "x",
+      hidden: false,
+    });
   });
   test("a trailing slash browses INTO the directory", () => {
-    expect(splitDirQuery("~/src/", HOME, base)).toEqual({ dir: "/Users/ashot/src", prefix: "", hidden: false });
-    expect(splitDirQuery("~/", HOME, base)).toEqual({ dir: HOME, prefix: "", hidden: false });
+    expect(splitDirQuery("~/src/", HOME, base)).toEqual({
+      dir: "/Users/ashot/src",
+      prefix: "",
+      hidden: false,
+    });
+    expect(splitDirQuery("~/", HOME, base)).toEqual({
+      dir: HOME,
+      prefix: "",
+      hidden: false,
+    });
   });
   test("dot prefixes ask for hidden folders", () => {
     expect(splitDirQuery("~/.con", HOME, base)?.hidden).toBe(true);
   });
   test("with no home yet, a ~ directory is passed through for the daemon to expand", () => {
-    expect(splitDirQuery("~/src/co", undefined, undefined)).toEqual({ dir: "~/src", prefix: "co", hidden: false });
-    expect(splitDirQuery("~/src/", undefined, undefined)).toEqual({ dir: "~/src", prefix: "", hidden: false });
-    expect(splitDirQuery("~/x", undefined, undefined)).toEqual({ dir: "~", prefix: "x", hidden: false });
+    expect(splitDirQuery("~/src/co", undefined, undefined)).toEqual({
+      dir: "~/src",
+      prefix: "co",
+      hidden: false,
+    });
+    expect(splitDirQuery("~/src/", undefined, undefined)).toEqual({
+      dir: "~/src",
+      prefix: "",
+      hidden: false,
+    });
+    expect(splitDirQuery("~/x", undefined, undefined)).toEqual({
+      dir: "~",
+      prefix: "x",
+      hidden: false,
+    });
   });
   test("nothing listable → undefined", () => {
     expect(splitDirQuery("", HOME, base)).toBeUndefined();
@@ -221,8 +295,18 @@ describe("buildProjectPathOptions with a disk listing", () => {
       { name: "claude-code", path: "/Users/ashot/src/claude-code", repo: true },
     ],
   };
-  const build = (query: string, extra?: Partial<Parameters<typeof buildProjectPathOptions>[0]>) =>
-    buildProjectPathOptions({ query, recentPaths: recents, home: HOME, base, listing, ...extra });
+  const build = (
+    query: string,
+    extra?: Partial<Parameters<typeof buildProjectPathOptions>[0]>,
+  ) =>
+    buildProjectPathOptions({
+      query,
+      recentPaths: recents,
+      home: HOME,
+      base,
+      listing,
+      ...extra,
+    });
 
   test("disk folders follow matching recents: prefix matches, then repos, no duplicates", () => {
     expect(build("co")).toEqual([
@@ -240,12 +324,18 @@ describe("buildProjectPathOptions with a disk listing", () => {
   });
 
   test("a folder the listing proves absent is offered as create", () => {
-    expect(build("weekend-hack")).toEqual([{ path: "/Users/ashot/src/weekend-hack", custom: true, create: true }]);
-    expect(build("~/src/weekend-hack")).toEqual([{ path: "/Users/ashot/src/weekend-hack", custom: true, create: true }]);
+    expect(build("weekend-hack")).toEqual([
+      { path: "/Users/ashot/src/weekend-hack", custom: true, create: true },
+    ]);
+    expect(build("~/src/weekend-hack")).toEqual([
+      { path: "/Users/ashot/src/weekend-hack", custom: true, create: true },
+    ]);
   });
 
   test("an explicit path that exists on disk is the disk row, not a custom row", () => {
-    expect(build("~/src/notes")).toEqual([{ path: "/Users/ashot/src/notes", disk: true, repo: false }]);
+    expect(build("~/src/notes")).toEqual([
+      { path: "/Users/ashot/src/notes", disk: true, repo: false },
+    ]);
   });
 
   test("a listing for another directory is ignored (stale keystroke)", () => {
@@ -253,11 +343,22 @@ describe("buildProjectPathOptions with a disk listing", () => {
   });
 
   test("under a directory that doesn't exist, the row is create", () => {
-    const missing = { home: HOME, path: "/Users/ashot/new", exists: false, dirs: [] };
-    expect(build("~/new/thing", { listing: missing })).toEqual([{ path: "/Users/ashot/new/thing", custom: true, create: true }]);
+    const missing = {
+      home: HOME,
+      path: "/Users/ashot/new",
+      exists: false,
+      dirs: [],
+    };
+    expect(build("~/new/thing", { listing: missing })).toEqual([
+      { path: "/Users/ashot/new/thing", custom: true, create: true },
+    ]);
   });
 
   test("the current folder is never re-offered from disk", () => {
-    expect(build("~/src/", { currentPath: "/Users/ashot/src/notes" }).some((o) => o.path.endsWith("/notes"))).toBe(false);
+    expect(
+      build("~/src/", { currentPath: "/Users/ashot/src/notes" }).some((o) =>
+        o.path.endsWith("/notes"),
+      ),
+    ).toBe(false);
   });
 });

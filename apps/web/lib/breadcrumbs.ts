@@ -25,7 +25,9 @@ export type CrumbSpec = {
   id?: string;
 };
 
-type Named = { title?: string; name?: string; short_id?: string; color?: string } | undefined;
+type Named =
+  | { title?: string; name?: string; short_id?: string; color?: string }
+  | undefined;
 
 export type BreadcrumbLookups = {
   project?: (id: string) => Named;
@@ -106,7 +108,10 @@ function entityCrumb(
  * returning it keeps this function's job "describe the location", and leaves the
  * display rule to the display.
  */
-export function buildBreadcrumbs(pathname: string, lookups: BreadcrumbLookups = {}): CrumbSpec[] {
+export function buildBreadcrumbs(
+  pathname: string,
+  lookups: BreadcrumbLookups = {},
+): CrumbSpec[] {
   const parts = (pathname || "").split("/").filter(Boolean);
   if (parts.length === 0) return [];
 
@@ -120,7 +125,9 @@ export function buildBreadcrumbs(pathname: string, lookups: BreadcrumbLookups = 
     return [{ label: SECTION_LABELS.feed, kind: "section" }];
   }
 
-  const crumbs: CrumbSpec[] = [{ label: sectionLabel, href: `/${head}`, kind: "section" }];
+  const crumbs: CrumbSpec[] = [
+    { label: sectionLabel, href: `/${head}`, kind: "section" },
+  ];
 
   const push = (
     id: string,

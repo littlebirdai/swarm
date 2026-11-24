@@ -35,7 +35,14 @@ function onScreen(selector: string): Element[] {
   return [...matches]
     .filter((el) => {
       const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+      return (
+        r.width > 0 &&
+        r.height > 0 &&
+        r.bottom > 0 &&
+        r.right > 0 &&
+        r.top < innerHeight &&
+        r.left < innerWidth
+      );
     })
     .slice(0, MOST);
 }

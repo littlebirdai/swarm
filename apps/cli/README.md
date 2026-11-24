@@ -20,6 +20,7 @@ cast start    # start the sync daemon
 ## Commands
 
 ### Search & Browse
+
 ```bash
 cast search "auth"                # team-wide search
 cast search "bug" -g -s 7d        # global, last 7 days
@@ -29,6 +30,7 @@ cast read <id> --ask "<question>"  # answer from one session, with line citation
 ```
 
 ### Live Sessions
+
 ```bash
 cast sessions                     # work-state snapshot (needs input / working / idle)
 cast sessions -w                  # stream state changes live
@@ -43,6 +45,7 @@ cast accounts                     # save/switch/remove Claude Code account profi
 ```
 
 ### Analysis
+
 ```bash
 cast diff <id>                    # files changed, commits, tools used
 cast diff --today                 # aggregate today's work
@@ -54,6 +57,7 @@ cast similar --file src/auth.ts   # sessions that touched a file
 ```
 
 ### Tasks, Plans & Triggers
+
 ```bash
 cast task create "Fix bug" -p high
 cast plan create "Overhaul" -g "goal"
@@ -64,6 +68,7 @@ cast trigger add "Audit deps" --every 1d --spawn   # fresh session per run
 ```
 
 ### Handoff & Tracking
+
 ```bash
 cast handoff                      # generate context transfer doc
 cast handoff --to codex           # continue this session's work in a new session on another agent (or --model opus); links both, pins this one done
@@ -73,6 +78,7 @@ cast learn add "name" --description "pattern"
 ```
 
 ### Common Options
+
 - `-g` - global (all projects)
 - `--mine` / `-m <name>` - scope to yourself / a team member
 - `--label <name>` - sessions filed under a label

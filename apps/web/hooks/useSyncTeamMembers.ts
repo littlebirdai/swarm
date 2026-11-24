@@ -13,15 +13,22 @@ import { useSyncCollection } from "./useSyncCollection";
  *  One hook for the web header and the phone's sync bridge. Each row is
  *  stamped with the team it answers for, so teamMembersOf (lib/activeTeam)
  *  can refuse a roster held over from another team. */
-export function useSyncTeamMembers(teamId: Id<"teams"> | string | undefined | null): { error: Error | undefined } {
+export function useSyncTeamMembers(
+  teamId: Id<"teams"> | string | undefined | null,
+): { error: Error | undefined } {
   const team = teamId ? String(teamId) : "";
-  const opts = useMemo(() => ({ select: (rows: unknown) => stampRoster(rows, team) }), [team]);
+  const opts = useMemo(
+    () => ({ select: (rows: unknown) => stampRoster(rows, team) }),
+    [team],
+  );
   const { error } = useSyncCollection(
     "teamMembers",
     api.teams.getTeamMembers,
     // isConvexId: a just-created team holds an optimistic stub id until the
     // server echoes, and a stub is not an Id<"teams">.
-    teamId && isConvexId(String(teamId)) ? { team_id: teamId as Id<"teams"> } : "skip",
+    teamId && isConvexId(String(teamId))
+      ? { team_id: teamId as Id<"teams"> }
+      : "skip",
     opts,
   );
   return { error };

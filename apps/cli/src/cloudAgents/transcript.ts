@@ -23,10 +23,19 @@
 import * as fs from "fs";
 import * as path from "path";
 import { CLIENT_ERROR_BANNER_PREFIX } from "@codecast/shared/contracts";
-import type { ImageBlock, ParsedMessage, ToolCall, ToolResult } from "../parser.js";
+import type {
+  ImageBlock,
+  ParsedMessage,
+  ToolCall,
+  ToolResult,
+} from "../parser.js";
 import { cloudApiErrorOf } from "./apiError.js";
 
-export interface MirrorToolUse { id: string; name: string; input: Record<string, unknown> }
+export interface MirrorToolUse {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
 
 export interface MirrorTranscriptOptions {
   /** Rewrites text before it is stored (e.g. a vendor's bare agent links). */
@@ -41,14 +50,20 @@ export function mirrorNoteText(text: string): string {
 }
 
 /** The statuses of a turn that still runs, across providers (Codex Cloud: pending; the Agents API: queued). */
-const RUNNING_TURN_STATUSES: ReadonlySet<string> = new Set(["pending", "queued", "in_progress"]);
+const RUNNING_TURN_STATUSES: ReadonlySet<string> = new Set([
+  "pending",
+  "queued",
+  "in_progress",
+]);
 
 /**
  * Whether a provider's turn still runs. Any other status has ended it, and
  * endTurn says how: one codecast does not know reads as ended in the
  * provider's own word rather than as running forever.
  */
-export function isRunningTurnStatus(status: string | null | undefined): boolean {
+export function isRunningTurnStatus(
+  status: string | null | undefined,
+): boolean {
   return typeof status === "string" && RUNNING_TURN_STATUSES.has(status);
 }
 
@@ -58,7 +73,10 @@ export function isRunningTurnStatus(status: string | null | undefined): boolean 
  * its message else its code. `fallback` when it says nothing.
  */
 export function turnError(err: unknown, fallback?: string): string {
-  const said = typeof err === "string" ? err : (({ message, code }) => message || code)(cloudApiErrorOf(0, err, ""));
+  const said =
+    typeof err === "string"
+      ? err
+      : (({ message, code }) => message || code)(cloudApiErrorOf(0, err, ""));
   return said || fallback || "no reason given";
 }
 
@@ -105,12 +123,22 @@ export class MirrorTranscript {
 
   /** A prompt; the first one takes the notice under it. */
   user(id: string | undefined, text: string): void {
-    this.push({ role: "user", id, timestamp: this.clock, message: { content: [this.text(text)] } });
+    this.push({
+      role: "user",
+      id,
+      timestamp: this.clock,
+      message: { content: [this.text(text)] },
+    });
     this.placeNotice();
   }
 
   assistant(id: string | undefined, text: string, at = this.clock): void {
-    this.push({ role: "assistant", id, timestamp: at, message: { content: [this.text(text)] } });
+    this.push({
+      role: "assistant",
+      id,
+      timestamp: at,
+      message: { content: [this.text(text)] },
+    });
   }
 
   /** A line codecast adds about the agent (what it started from, how a turn ended), set off from what the agent said. */
@@ -128,12 +156,19 @@ export class MirrorTranscript {
 
   /** A failure banner the session shows as a stopped turn. */
   error(id: string, text: string, at?: number): void {
-    this.assistant(id, `${CLIENT_ERROR_BANNER_PREFIX} ${text}`, at || this.clock);
+    this.assistant(
+      id,
+      `${CLIENT_ERROR_BANNER_PREFIX} ${text}`,
+      at || this.clock,
+    );
   }
 
   /** Streamed assistant text: consecutive pieces join one record, id'd and dated by the first. */
   appendText(eventId: string | undefined, text: string): void {
-    if (!this.pendingId) { this.pendingId = eventId; this.pendingAt = this.clock; }
+    if (!this.pendingId) {
+      this.pendingId = eventId;
+      this.pendingAt = this.clock;
+    }
     this.pending += text;
   }
 
@@ -143,23 +178,41 @@ export class MirrorTranscript {
   }
 
   private flush(extra: unknown[] = [], id?: string): void {
-    const content = [...(this.pending.trim() ? [this.text(this.pending.trim())] : []), ...extra];
-    const recordId = id ?? (this.pendingId ? `seg-${this.pendingId}` : undefined);
+    const content = [
+      ...(this.pending.trim() ? [this.text(this.pending.trim())] : []),
+      ...extra,
+    ];
+    const recordId =
+      id ?? (this.pendingId ? `seg-${this.pendingId}` : undefined);
     const at = this.pendingId ? this.pendingAt : this.clock;
     this.pending = "";
     this.pendingId = undefined;
-    if (content.length) this.push({ role: "assistant", id: recordId, timestamp: at, message: { content } });
+    if (content.length)
+      this.push({
+        role: "assistant",
+        id: recordId,
+        timestamp: at,
+        message: { content },
+      });
   }
 
   /** A tool call: its row once (with any text before it), however many times it is seen. */
   toolUse(use: MirrorToolUse): void {
-    if (this.opened.has(use.id)) { this.flush(); return; }
+    if (this.opened.has(use.id)) {
+      this.flush();
+      return;
+    }
     this.opened.add(use.id);
     this.flush([{ type: "tool_use", ...use }], `use-${use.id}`);
   }
 
   toolResult(toolUseId: string, content: string, isError: boolean): void {
-    this.push({ role: "user", id: `result-${toolUseId}`, timestamp: this.clock, message: { content: [toolResultBlock(toolUseId, content, isError)] } });
+    this.push({
+      role: "user",
+      id: `result-${toolUseId}`,
+      timestamp: this.clock,
+      message: { content: [toolResultBlock(toolUseId, content, isError)] },
+    });
   }
 
   /**
@@ -175,8 +228,15 @@ export class MirrorTranscript {
     this.flush();
     this.advanceTo(m.timestamp);
     const content: unknown[] = m.content ? [this.text(m.content)] : [];
-    for (const c of m.toolCalls ?? []) content.push({ type: "tool_use", id: c.id, name: c.name, input: c.input });
-    for (const r of m.toolResults ?? []) content.push(toolResultBlock(r.toolUseId, r.content, !!r.isError));
+    for (const c of m.toolCalls ?? [])
+      content.push({
+        type: "tool_use",
+        id: c.id,
+        name: c.name,
+        input: c.input,
+      });
+    for (const r of m.toolResults ?? [])
+      content.push(toolResultBlock(r.toolUseId, r.content, !!r.isError));
     this.push({
       role: m.role,
       id: m.uuid,
@@ -197,14 +257,35 @@ export class MirrorTranscript {
    * so, rather than stopping on its last working note. Records are id'd by
    * the turn's `key`, so a re-render keeps them.
    */
-  endTurn(key: string, end: { status: string | null | undefined; label: string; reason?: string; at?: number; answered?: boolean }): void {
+  endTurn(
+    key: string,
+    end: {
+      status: string | null | undefined;
+      label: string;
+      reason?: string;
+      at?: number;
+      answered?: boolean;
+    },
+  ): void {
     const { status, label } = end;
     // Never before the turn's last row: a provider dates the end in its own (whole second) clock.
     const at = Math.max(end.at ?? this.clock, this.clock);
-    if (status === "failed") this.error(`${key}:error`, `${label} turn failed: ${end.reason || "no reason given"}`, at);
-    else if (status === "cancelled") this.note(`${key}:cancelled`, "Cancelled.", at);
-    else if (status === "completed" && end.answered === false) this.note(`${key}:unanswered`, `${label} finished this turn without an answer.`, at);
-    else if (status && status !== "completed") this.note(`${key}:ended`, `${label} ended this turn as ${status}.`, at);
+    if (status === "failed")
+      this.error(
+        `${key}:error`,
+        `${label} turn failed: ${end.reason || "no reason given"}`,
+        at,
+      );
+    else if (status === "cancelled")
+      this.note(`${key}:cancelled`, "Cancelled.", at);
+    else if (status === "completed" && end.answered === false)
+      this.note(
+        `${key}:unanswered`,
+        `${label} finished this turn without an answer.`,
+        at,
+      );
+    else if (status && status !== "completed")
+      this.note(`${key}:ended`, `${label} ended this turn as ${status}.`, at);
     this.turnEnded();
   }
 
@@ -218,21 +299,31 @@ export class MirrorTranscript {
 }
 
 function toolResultBlock(toolUseId: string, content: string, isError: boolean) {
-  return { type: "tool_result", tool_use_id: toolUseId, content, ...(isError ? { is_error: true } : {}) };
+  return {
+    type: "tool_result",
+    tool_use_id: toolUseId,
+    content,
+    ...(isError ? { is_error: true } : {}),
+  };
 }
 
-type MirrorExtras = Pick<ParsedMessage, "thinking" | "images" | "subtype" | "model">;
+type MirrorExtras = Pick<
+  ParsedMessage,
+  "thinking" | "images" | "subtype" | "model"
+>;
 
 /** A record's thinking, images, subtype and model, when it carries them (only `message` writes them). */
 function mirrorExtras(entry: Record<string, unknown>): MirrorExtras {
   const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
   const images = Array.isArray(entry.images)
-    ? (entry.images as Array<Record<string, unknown>>).filter((i) => i && typeof i.mediaType === "string").map((i): ImageBlock => ({
-      mediaType: i.mediaType as string,
-      ...(str(i.data) ? { data: i.data as string } : {}),
-      ...(str(i.localPath) ? { localPath: i.localPath as string } : {}),
-      ...(str(i.toolUseId) ? { toolUseId: i.toolUseId as string } : {}),
-    }))
+    ? (entry.images as Array<Record<string, unknown>>)
+        .filter((i) => i && typeof i.mediaType === "string")
+        .map((i): ImageBlock => ({
+          mediaType: i.mediaType as string,
+          ...(str(i.data) ? { data: i.data as string } : {}),
+          ...(str(i.localPath) ? { localPath: i.localPath as string } : {}),
+          ...(str(i.toolUseId) ? { toolUseId: i.toolUseId as string } : {}),
+        }))
     : [];
   const out: MirrorExtras = {};
   if (str(entry.thinking)) out.thinking = entry.thinking as string;
@@ -243,7 +334,11 @@ function mirrorExtras(entry: Record<string, unknown>): MirrorExtras {
 }
 
 /** What a reader makes of a record's joined text. `whole`: the text stands for the entire record (kept as is, its tool blocks dropped). */
-export interface MirrorTextRewrite { text: string; clock?: number; whole?: boolean }
+export interface MirrorTextRewrite {
+  text: string;
+  clock?: number;
+  whole?: boolean;
+}
 
 export interface MirrorReadOptions {
   /** Message uuids are `<sessionId>:<record id>` (or the record's ordinal when it names none). */
@@ -270,7 +365,10 @@ export interface MirrorReadOptions {
  * history it shares with its parent is the same messages (and its fork point
  * one of the parent's).
  */
-export function mirrorMessageUuid(sessionId: string, recordId: string | number): string {
+export function mirrorMessageUuid(
+  sessionId: string,
+  recordId: string | number,
+): string {
   return `${sessionId}:${recordId}`;
 }
 
@@ -280,7 +378,10 @@ export function mirrorMessageUuid(sessionId: string, recordId: string | number):
  * record that fills in later never shifts the ones after it). A record's
  * clock is its own `timestamp`, else the one before it.
  */
-export function parseMirrorTranscript(content: string, opts: MirrorReadOptions = {}): ParsedMessage[] {
+export function parseMirrorTranscript(
+  content: string,
+  opts: MirrorReadOptions = {},
+): ParsedMessage[] {
   const messages: ParsedMessage[] = [];
   // A stable clock when a record precedes any dated one, so a rewrite never
   // changes a message's signature.
@@ -288,8 +389,18 @@ export function parseMirrorTranscript(content: string, opts: MirrorReadOptions =
   let record = -1;
   for (const line of content.split("\n")) {
     if (!line.trim()) continue;
-    let entry: { role?: string; type?: string; id?: unknown; timestamp?: unknown; message?: { content?: unknown } } & Record<string, unknown>;
-    try { entry = JSON.parse(line); } catch { continue; }
+    let entry: {
+      role?: string;
+      type?: string;
+      id?: unknown;
+      timestamp?: unknown;
+      message?: { content?: unknown };
+    } & Record<string, unknown>;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
     const role = entry.role;
     // turn_ended closes the turn on its last reply: the stamp changes that
     // message's signature, so the rewrite that only appends the marker still
@@ -299,35 +410,93 @@ export function parseMirrorTranscript(content: string, opts: MirrorReadOptions =
       if (last) last.stopReason = "end_turn";
       continue;
     }
-    if (role !== "user" && role !== "assistant" && (role !== "system" || opts.plain)) continue;
+    if (
+      role !== "user" &&
+      role !== "assistant" &&
+      (role !== "system" || opts.plain)
+    )
+      continue;
     record++;
-    if (typeof entry.timestamp === "number" && Number.isFinite(entry.timestamp)) clock = entry.timestamp;
-    const blocks = Array.isArray(entry.message?.content) ? entry.message!.content as Array<Record<string, unknown>> : [];
+    if (typeof entry.timestamp === "number" && Number.isFinite(entry.timestamp))
+      clock = entry.timestamp;
+    const blocks = Array.isArray(entry.message?.content)
+      ? (entry.message!.content as Array<Record<string, unknown>>)
+      : [];
     const text: string[] = [];
     const toolCalls: ToolCall[] = [];
     const toolResults: ToolResult[] = [];
     for (const block of blocks) {
-      if (block.type === "text" && typeof block.text === "string") text.push(block.text);
+      if (block.type === "text" && typeof block.text === "string")
+        text.push(block.text);
       else if (block.type === "tool_use" && typeof block.name === "string") {
-        const input = block.input && typeof block.input === "object" ? block.input as Record<string, unknown> : {};
-        toolCalls.push({ id: typeof block.id === "string" ? block.id : `${opts.toolIdPrefix ?? "mirror"}-${messages.length}-${toolCalls.length}`, name: block.name, input });
-      } else if (block.type === "tool_result" && typeof block.tool_use_id === "string") {
-        toolResults.push({ toolUseId: block.tool_use_id, content: typeof block.content === "string" ? block.content : JSON.stringify(block.content ?? ""), ...(block.is_error === true ? { isError: true } : {}) });
+        const input =
+          block.input && typeof block.input === "object"
+            ? (block.input as Record<string, unknown>)
+            : {};
+        toolCalls.push({
+          id:
+            typeof block.id === "string"
+              ? block.id
+              : `${opts.toolIdPrefix ?? "mirror"}-${messages.length}-${toolCalls.length}`,
+          name: block.name,
+          input,
+        });
+      } else if (
+        block.type === "tool_result" &&
+        typeof block.tool_use_id === "string"
+      ) {
+        toolResults.push({
+          toolUseId: block.tool_use_id,
+          content:
+            typeof block.content === "string"
+              ? block.content
+              : JSON.stringify(block.content ?? ""),
+          ...(block.is_error === true ? { isError: true } : {}),
+        });
       }
     }
-    const uuid = opts.sessionId ? { uuid: mirrorMessageUuid(opts.sessionId, typeof entry.id === "string" && entry.id ? entry.id : record) } : {};
+    const uuid = opts.sessionId
+      ? {
+          uuid: mirrorMessageUuid(
+            opts.sessionId,
+            typeof entry.id === "string" && entry.id ? entry.id : record,
+          ),
+        }
+      : {};
     // Control bytes a terminal paste left in the text (\v, \x01).
     const raw = text.join("\n\n").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
-    const rewritten = (role !== "system" && opts.rewrite?.(role, raw)) || { text: raw };
+    const rewritten = (role !== "system" && opts.rewrite?.(role, raw)) || {
+      text: raw,
+    };
     if (rewritten.clock !== undefined) clock = rewritten.clock;
     if (rewritten.whole) {
-      messages.push({ ...uuid, role, content: rewritten.text, timestamp: clock });
+      messages.push({
+        ...uuid,
+        role,
+        content: rewritten.text,
+        timestamp: clock,
+      });
       continue;
     }
     const body = rewritten.text.trim();
     const extras: MirrorExtras = opts.plain ? {} : mirrorExtras(entry);
-    if (!body && toolCalls.length === 0 && toolResults.length === 0 && !extras.thinking && !extras.images) continue;
-    messages.push({ ...uuid, role, content: body, timestamp: clock, ...(toolCalls.length ? { toolCalls } : {}), ...(toolResults.length ? { toolResults } : {}), ...extras });
+    if (
+      !body &&
+      toolCalls.length === 0 &&
+      toolResults.length === 0 &&
+      !extras.thinking &&
+      !extras.images
+    )
+      continue;
+    messages.push({
+      ...uuid,
+      role,
+      content: body,
+      timestamp: clock,
+      ...(toolCalls.length ? { toolCalls } : {}),
+      ...(toolResults.length ? { toolResults } : {}),
+      ...extras,
+    });
   }
   return messages;
 }
@@ -336,13 +505,19 @@ export function parseMirrorTranscript(content: string, opts: MirrorReadOptions =
  * Whether a mirror's last turn has settled: `turn_ended` after the last
  * record closes it, a record after the last marker means it is still going.
  */
-export function classifyMirrorTranscriptTail(content: string): "idle" | "active" | "unknown" {
+export function classifyMirrorTranscriptTail(
+  content: string,
+): "idle" | "active" | "unknown" {
   const lines = content.split("\n");
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line) continue;
     let d: { type?: string; role?: string };
-    try { d = JSON.parse(line); } catch { continue; }
+    try {
+      d = JSON.parse(line);
+    } catch {
+      continue;
+    }
     if (d.type === "turn_ended") return "idle";
     if (d.role === "user" || d.role === "assistant") return "active";
   }
@@ -356,7 +531,16 @@ export function classifyMirrorTranscriptTail(content: string): "idle" | "active"
  * parent: a forked worker nests under it, a branch (`forkAt`) is a fork of
  * it at that record. cursor-agent's own chat meta.json has the same shape.
  */
-export interface MirrorMeta { dir: string; cwd?: string; title?: string; parentAgentId?: string; description?: string; forkAt?: string; formerTitles?: string[]; archived?: boolean }
+export interface MirrorMeta {
+  dir: string;
+  cwd?: string;
+  title?: string;
+  parentAgentId?: string;
+  description?: string;
+  forkAt?: string;
+  formerTitles?: string[];
+  archived?: boolean;
+}
 
 /** How many of a provider's earlier titles meta.json keeps: a title that changes more often than it syncs is still recognized as the provider's. */
 const FORMER_TITLES = 5;
@@ -366,22 +550,76 @@ const FORMER_TITLES = 5;
  * titles when the provider renamed the agent. `placeholders`: the provider's
  * titles for an agent it has not named yet, always among the earlier ones.
  */
-export function mirrorMetaJson(meta: { cwd: string; title?: string; url?: string; createdAtMs?: number; parentAgentId?: string; description?: string; forkAt?: string; archived?: boolean }, prior?: MirrorMeta | null, placeholders: string[] = []): string {
-  const renamed = [...(prior?.title && prior.title !== meta.title ? [prior.title] : []), ...(prior?.formerTitles ?? [])].filter((t) => !placeholders.includes(t)).slice(0, FORMER_TITLES);
-  const former = [...new Set([...placeholders, ...renamed])].filter((t) => t !== meta.title);
-  return JSON.stringify({ cwd: meta.cwd, title: meta.title, ...(former.length ? { formerTitles: former } : {}), url: meta.url, createdAtMs: meta.createdAtMs || undefined, cloud: true, ...(meta.archived !== undefined ? { archived: meta.archived } : {}), ...(meta.parentAgentId ? { parentAgentId: meta.parentAgentId, description: meta.description, ...(meta.forkAt ? { forkAt: meta.forkAt } : {}) } : {}) });
+export function mirrorMetaJson(
+  meta: {
+    cwd: string;
+    title?: string;
+    url?: string;
+    createdAtMs?: number;
+    parentAgentId?: string;
+    description?: string;
+    forkAt?: string;
+    archived?: boolean;
+  },
+  prior?: MirrorMeta | null,
+  placeholders: string[] = [],
+): string {
+  const renamed = [
+    ...(prior?.title && prior.title !== meta.title ? [prior.title] : []),
+    ...(prior?.formerTitles ?? []),
+  ]
+    .filter((t) => !placeholders.includes(t))
+    .slice(0, FORMER_TITLES);
+  const former = [...new Set([...placeholders, ...renamed])].filter(
+    (t) => t !== meta.title,
+  );
+  return JSON.stringify({
+    cwd: meta.cwd,
+    title: meta.title,
+    ...(former.length ? { formerTitles: former } : {}),
+    url: meta.url,
+    createdAtMs: meta.createdAtMs || undefined,
+    cloud: true,
+    ...(meta.archived !== undefined ? { archived: meta.archived } : {}),
+    ...(meta.parentAgentId
+      ? {
+          parentAgentId: meta.parentAgentId,
+          description: meta.description,
+          ...(meta.forkAt ? { forkAt: meta.forkAt } : {}),
+        }
+      : {}),
+  });
 }
 
 /** The meta.json in a directory, or null when there is none. */
 export async function readMetaJson(dir: string): Promise<MirrorMeta | null> {
   let raw: string;
-  try { raw = await fs.promises.readFile(path.join(dir, "meta.json"), "utf8"); } catch { return null; }
+  try {
+    raw = await fs.promises.readFile(path.join(dir, "meta.json"), "utf8");
+  } catch {
+    return null;
+  }
   try {
     const meta = JSON.parse(raw) as Record<string, unknown>;
     const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
-    const formerTitles = Array.isArray(meta.formerTitles) ? meta.formerTitles.filter((t): t is string => !!str(t)) : [];
-    return { dir, cwd: str(meta.cwd), title: str(meta.title), parentAgentId: str(meta.parentAgentId), description: str(meta.description), ...(str(meta.forkAt) ? { forkAt: str(meta.forkAt) } : {}), ...(formerTitles.length ? { formerTitles } : {}), ...(typeof meta.archived === "boolean" ? { archived: meta.archived } : {}) };
-  } catch { return { dir }; }
+    const formerTitles = Array.isArray(meta.formerTitles)
+      ? meta.formerTitles.filter((t): t is string => !!str(t))
+      : [];
+    return {
+      dir,
+      cwd: str(meta.cwd),
+      title: str(meta.title),
+      parentAgentId: str(meta.parentAgentId),
+      description: str(meta.description),
+      ...(str(meta.forkAt) ? { forkAt: str(meta.forkAt) } : {}),
+      ...(formerTitles.length ? { formerTitles } : {}),
+      ...(typeof meta.archived === "boolean"
+        ? { archived: meta.archived }
+        : {}),
+    };
+  } catch {
+    return { dir };
+  }
 }
 
 /**
@@ -390,7 +628,10 @@ export async function readMetaJson(dir: string): Promise<MirrorMeta | null> {
  * it. Every line of one agent then names the history they share with the
  * same message ids, and a branch of a branch forks at one of its parent's.
  */
-export async function mirrorHistoryId(meta: MirrorMeta, ownId: string): Promise<string> {
+export async function mirrorHistoryId(
+  meta: MirrorMeta,
+  ownId: string,
+): Promise<string> {
   let id = ownId;
   let at: MirrorMeta | null = meta;
   for (let hops = 0; at?.forkAt && at.parentAgentId && hops < 16; hops++) {
@@ -408,10 +649,19 @@ export async function mirrorHistoryId(meta: MirrorMeta, ownId: string): Promise<
  * rendering drops (another attempt's, a note that moved) stays in the
  * conversation for good. Read only for the same conversation.
  */
-export function readMirrorSynced(transcriptPath: string, conversationId: string): string[] {
+export function readMirrorSynced(
+  transcriptPath: string,
+  conversationId: string,
+): string[] {
   try {
-    const saved = JSON.parse(fs.readFileSync(path.join(path.dirname(transcriptPath), "synced.json"), "utf8")) as { conversationId?: unknown; uuids?: unknown };
-    if (saved.conversationId !== conversationId || !Array.isArray(saved.uuids)) return [];
+    const saved = JSON.parse(
+      fs.readFileSync(
+        path.join(path.dirname(transcriptPath), "synced.json"),
+        "utf8",
+      ),
+    ) as { conversationId?: unknown; uuids?: unknown };
+    if (saved.conversationId !== conversationId || !Array.isArray(saved.uuids))
+      return [];
     return saved.uuids.filter((u): u is string => typeof u === "string");
   } catch {
     return [];
@@ -425,8 +675,14 @@ export function readMirrorSynced(transcriptPath: string, conversationId: string)
  * orphan, retracted like a branch switch's; one it still holds is offered
  * again (its signature unknown), which the server takes as a no-op.
  */
-export function withMirrorSynced(seeded: Map<string, string> | null, transcriptPath: string, conversationId: string | undefined): Map<string, string> | null {
-  const prior = conversationId ? readMirrorSynced(transcriptPath, conversationId) : [];
+export function withMirrorSynced(
+  seeded: Map<string, string> | null,
+  transcriptPath: string,
+  conversationId: string | undefined,
+): Map<string, string> | null {
+  const prior = conversationId
+    ? readMirrorSynced(transcriptPath, conversationId)
+    : [];
   if (!prior.length) return seeded;
   const synced = new Map(seeded ?? []);
   for (const uuid of prior) if (!synced.has(uuid)) synced.set(uuid, "");
@@ -434,10 +690,16 @@ export function withMirrorSynced(seeded: Map<string, string> | null, transcriptP
 }
 
 /** Saves what readMirrorSynced reads back; a set already saved as it is is not written again. */
-export function writeMirrorSynced(transcriptPath: string, conversationId: string, uuids: Iterable<string>): void {
+export function writeMirrorSynced(
+  transcriptPath: string,
+  conversationId: string,
+  uuids: Iterable<string>,
+): void {
   const file = path.join(path.dirname(transcriptPath), "synced.json");
   const body = JSON.stringify({ conversationId, uuids: [...uuids] });
-  try { if (fs.readFileSync(file, "utf8") === body) return; } catch {}
+  try {
+    if (fs.readFileSync(file, "utf8") === body) return;
+  } catch {}
   const tmp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, body, { mode: 0o600 });
   fs.renameSync(tmp, file);

@@ -7,21 +7,33 @@
 (function () {
   var loaded = false;
   addEventListener("message", function (ev) {
-    if (loaded || ev.source !== parent || !ev.data || ev.data.type !== "load") return;
+    if (loaded || ev.source !== parent || !ev.data || ev.data.type !== "load")
+      return;
     loaded = true;
     var msg = ev.data;
-    var fetchList = (msg.mod.manifest.permissions && msg.mod.manifest.permissions.fetch) || [];
+    var fetchList =
+      (msg.mod.manifest.permissions && msg.mod.manifest.permissions.fetch) ||
+      [];
     // A theme's backdrop draws and reaches nothing, whatever the manifest may fetch.
-    var connect = msg.backdrop ? "'none'" : fetchList === "*" ? "https: wss:" : fetchList.join(" ") || "'none'";
+    var connect = msg.backdrop
+      ? "'none'"
+      : fetchList === "*"
+        ? "https: wss:"
+        : fetchList.join(" ") || "'none'";
     var meta = document.createElement("meta");
     meta.httpEquiv = "Content-Security-Policy";
-    meta.content = "default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data:; connect-src " + connect;
+    meta.content =
+      "default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data:; connect-src " +
+      connect;
     document.head.appendChild(meta);
     window.__modLoad = msg;
     try {
       (0, Function)(msg.code)();
     } catch (err) {
-      parent.postMessage({ type: "load-failed", error: String((err && err.stack) || err) }, "*");
+      parent.postMessage(
+        { type: "load-failed", error: String((err && err.stack) || err) },
+        "*",
+      );
     }
   });
   parent.postMessage({ type: "booted" }, "*");

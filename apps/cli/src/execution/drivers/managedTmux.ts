@@ -89,11 +89,17 @@ export interface ManagedTmuxIo {
 
 export interface ManagedTmuxRuntimeDriverOptions {
   io: ManagedTmuxIo;
-  buildLaunch(target: ExecutionTargetSpec, configuration: RuntimeConfiguration): ManagedTmuxLaunch;
+  buildLaunch(
+    target: ExecutionTargetSpec,
+    configuration: RuntimeConfiguration,
+  ): ManagedTmuxLaunch;
   supportedAgents?: readonly AgentClientId[];
   /** Must return the same runtime id whenever the same operation is recovered. */
   runtimeIdForOperation?: (request: RuntimeStartRequest) => string;
-  sessionNameFactory?: (request: RuntimeStartRequest, runtimeId: string) => string;
+  sessionNameFactory?: (
+    request: RuntimeStartRequest,
+    runtimeId: string,
+  ) => string;
   capabilities?: readonly RuntimeCapability[];
 }
 
@@ -101,9 +107,16 @@ function defaultRuntimeId(request: RuntimeStartRequest): string {
   return `tmux-${request.operationId}`;
 }
 
-function defaultSessionName(request: RuntimeStartRequest, _runtimeId: string): string {
-  const conversation = request.target.conversationId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-12) || "conversation";
-  const operation = request.operationId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-24) || "operation";
+function defaultSessionName(
+  request: RuntimeStartRequest,
+  _runtimeId: string,
+): string {
+  const conversation =
+    request.target.conversationId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-12) ||
+    "conversation";
+  const operation =
+    request.operationId.replace(/[^a-zA-Z0-9_-]/g, "").slice(-24) ||
+    "operation";
   return `cc-f1-${request.target.requestedAgent}-${conversation}-e${request.target.epoch}-${operation}`;
 }
 
@@ -166,20 +179,42 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
 
   private readonly io: ManagedTmuxIo;
   private readonly buildLaunch: ManagedTmuxRuntimeDriverOptions["buildLaunch"];
-  private readonly runtimeIdForOperation: (request: RuntimeStartRequest) => string;
-  private readonly sessionNameFactory: NonNullable<ManagedTmuxRuntimeDriverOptions["sessionNameFactory"]>;
+  private readonly runtimeIdForOperation: (
+    request: RuntimeStartRequest,
+  ) => string;
+  private readonly sessionNameFactory: NonNullable<
+    ManagedTmuxRuntimeDriverOptions["sessionNameFactory"]
+  >;
 
   constructor(options: ManagedTmuxRuntimeDriverOptions) {
     this.io = options.io;
     this.buildLaunch = options.buildLaunch;
-    this.supportedAgents = new Set(options.supportedAgents ?? ["claude", "codex", "cursor", "gemini", "opencode", "pi", "grok", "muse", "antigravity"]);
-    this.runtimeIdForOperation = options.runtimeIdForOperation ?? defaultRuntimeId;
+    this.supportedAgents = new Set(
+      options.supportedAgents ?? [
+        "claude",
+        "codex",
+        "cursor",
+        "gemini",
+        "opencode",
+        "pi",
+        "grok",
+        "muse",
+        "antigravity",
+      ],
+    );
+    this.runtimeIdForOperation =
+      options.runtimeIdForOperation ?? defaultRuntimeId;
     this.sessionNameFactory = options.sessionNameFactory ?? defaultSessionName;
-    this.capabilities = options.capabilities ?? [...FENCED_RUNTIME_CAPABILITIES];
+    this.capabilities = options.capabilities ?? [
+      ...FENCED_RUNTIME_CAPABILITIES,
+    ];
   }
 
   async start(request: RuntimeStartRequest): Promise<RuntimeStartResult> {
-    if (!this.supportedAgents.has(request.target.requestedAgent) || request.target.transport !== "tmux") {
+    if (
+      !this.supportedAgents.has(request.target.requestedAgent) ||
+      request.target.transport !== "tmux"
+    ) {
       return {
         state: "failed-before-effect",
         failure: {
@@ -196,8 +231,14 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
       launch = this.buildLaunch(request.target, request.configuration);
       runtimeId = this.runtimeIdForOperation(request);
       tmuxSession = this.sessionNameFactory(request, runtimeId);
-      if (!launch.command || !runtimeId || !/^[a-zA-Z0-9_.:-]+$/.test(tmuxSession)) {
-        throw new Error("launch command, runtime id, and safe tmux session name are required");
+      if (
+        !launch.command ||
+        !runtimeId ||
+        !/^[a-zA-Z0-9_.:-]+$/.test(tmuxSession)
+      ) {
+        throw new Error(
+          "launch command, runtime id, and safe tmux session name are required",
+        );
       }
     } catch (error) {
       return {
@@ -208,11 +249,13 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
 
     const tags = buildFencedTmuxTags(request, runtimeId);
     try {
-      await this.io.createSession({ tmuxSession, cwd: request.target.projectPath });
-      for (const [key, name] of Object.entries(FENCED_TMUX_TAG_NAMES) as Array<[
-        keyof FencedTmuxTags,
-        string,
-      ]>) {
+      await this.io.createSession({
+        tmuxSession,
+        cwd: request.target.projectPath,
+      });
+      for (const [key, name] of Object.entries(FENCED_TMUX_TAG_NAMES) as Array<
+        [keyof FencedTmuxTags, string]
+      >) {
         await this.io.setSessionOption({ tmuxSession, name, value: tags[key] });
       }
       await this.io.launchLiteral({ tmuxSession, command: launch.command });
@@ -239,11 +282,15 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
   async adopt(request: RuntimeAdoptionRequest): Promise<RuntimeAdoptionResult> {
     let candidates: readonly ManagedTmuxCandidate[];
     try {
-      const expectedRuntimeId = request.knownHandle?.runtimeId ?? this.runtimeIdForOperation(request);
+      const expectedRuntimeId =
+        request.knownHandle?.runtimeId ?? this.runtimeIdForOperation(request);
       candidates = await this.io.listCandidates({
         conversationId: request.target.conversationId,
         operationId: request.operationId,
-        expectedTmuxSession: this.sessionNameFactory(request, expectedRuntimeId),
+        expectedTmuxSession: this.sessionNameFactory(
+          request,
+          expectedRuntimeId,
+        ),
       });
     } catch (error) {
       return {
@@ -252,11 +299,17 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
       };
     }
     const live = candidates.filter((candidate) => candidate.alive);
-    const exact = live.filter((candidate) => exactFencedTmuxCandidateMatch(candidate, request));
+    const exact = live.filter((candidate) =>
+      exactFencedTmuxCandidateMatch(candidate, request),
+    );
     if (exact.length === 1) {
       return {
         state: "adopted",
-        handle: candidateHandle(exact[0], request.target.requestedAgent, this.capabilities),
+        handle: candidateHandle(
+          exact[0],
+          request.target.requestedAgent,
+          this.capabilities,
+        ),
       };
     }
     if (exact.length > 1) {
@@ -264,7 +317,8 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
         state: "conflict",
         failure: {
           code: "DUPLICATE_EXACT_TMUX_RUNTIMES",
-          message: "More than one live tmux runtime has the exact same execution fence",
+          message:
+            "More than one live tmux runtime has the exact same execution fence",
         },
         conflictingHandles: exact.map((candidate) => candidate.tmuxTarget),
       };
@@ -274,7 +328,8 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
         state: "conflict",
         failure: {
           code: "TMUX_TAG_MISMATCH",
-          message: "Live tmux runtime candidates exist, but none has the exact execution fence",
+          message:
+            "Live tmux runtime candidates exist, but none has the exact execution fence",
         },
         conflictingHandles: live.map((candidate) => candidate.tmuxTarget),
       };
@@ -282,9 +337,14 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
     return { state: "missing" };
   }
 
-  async deliver(request: RuntimeDeliveryRequest): Promise<DriverDeliveryResult> {
+  async deliver(
+    request: RuntimeDeliveryRequest,
+  ): Promise<DriverDeliveryResult> {
     assertRuntimeDeliveryFence(request);
-    if (request.binding.transport !== "tmux" || !this.supportedAgents.has(request.binding.actualAgent)) {
+    if (
+      request.binding.transport !== "tmux" ||
+      !this.supportedAgents.has(request.binding.actualAgent)
+    ) {
       return {
         state: "failed-before-effect",
         failure: {
@@ -313,7 +373,13 @@ export class ManagedTmuxRuntimeDriver implements RuntimeDriver {
     return this.io.stopSession(tmuxSessionFromHandle(binding.handle));
   }
 
-  quarantine(binding: Parameters<RuntimeDriver["quarantine"]>[0], reason: string): Promise<void> {
-    return this.io.quarantineSession(tmuxSessionFromHandle(binding.handle), reason);
+  quarantine(
+    binding: Parameters<RuntimeDriver["quarantine"]>[0],
+    reason: string,
+  ): Promise<void> {
+    return this.io.quarantineSession(
+      tmuxSessionFromHandle(binding.handle),
+      reason,
+    );
   }
 }

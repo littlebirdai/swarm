@@ -30,7 +30,8 @@ describe("simple view count badges", () => {
   test("every count pill in the sidebar renders through NavCount", () => {
     // A hand-rolled pill (the count sizing on a raw span) has no marker, so
     // simple view would leave it in place and full-size.
-    const rawPills = sidebar.match(/<span[^>]*min-w-\[(?:16|20)px\][^>]*rounded-full/g) ?? [];
+    const rawPills =
+      sidebar.match(/<span[^>]*min-w-\[(?:16|20)px\][^>]*rounded-full/g) ?? [];
     const insideNavCount = rawPills.filter((m) => m.includes("data-sv-count"));
     expect(rawPills.length).toBe(insideNavCount.length);
   });

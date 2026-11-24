@@ -49,19 +49,31 @@ describe("confineToOwningDevice", () => {
 
 describe("sessionLivenessVerdict", () => {
   test("a heartbeat is contact", () => {
-    expect(sessionLivenessVerdict({ is_live: true, agent_status: "working" })).toBe("live");
+    expect(
+      sessionLivenessVerdict({ is_live: true, agent_status: "working" }),
+    ).toBe("live");
   });
 
   test("a retired row was torn down, which we watched", () => {
-    expect(sessionLivenessVerdict({ is_live: false, is_killed: true, agent_status: "working" })).toBe("exited");
+    expect(
+      sessionLivenessVerdict({
+        is_live: false,
+        is_killed: true,
+        agent_status: "working",
+      }),
+    ).toBe("exited");
   });
 
   test("mid-work with no heartbeat behind it is unverifiable", () => {
-    expect(sessionLivenessVerdict({ is_live: false, agent_status: "working" })).toBe("unverifiable");
+    expect(
+      sessionLivenessVerdict({ is_live: false, agent_status: "working" }),
+    ).toBe("unverifiable");
   });
 
   test("a settled status is the agent's own report that it stopped", () => {
-    expect(sessionLivenessVerdict({ is_live: false, agent_status: "idle" })).toBe("exited");
+    expect(
+      sessionLivenessVerdict({ is_live: false, agent_status: "idle" }),
+    ).toBe("exited");
     expect(sessionLivenessVerdict({ is_live: false })).toBe("exited");
   });
 });

@@ -26,7 +26,19 @@ import { entities as remote } from "./remote";
 type Entities = Record<string, EntityFixture>;
 
 const BY_CHAPTER: Record<ChapterId, Entities> = {
-  inbox, conversation, fanout, phone, talk, decide, work, automation, team, integrations, publish, memory, remote,
+  inbox,
+  conversation,
+  fanout,
+  phone,
+  talk,
+  decide,
+  work,
+  automation,
+  team,
+  integrations,
+  publish,
+  memory,
+  remote,
 };
 
 /** Each chapter's entities, in film order. */
@@ -34,7 +46,11 @@ const ORDERED = SCENES.map((s) => BY_CHAPTER[s.id]);
 
 /** Stage i: chapters up to i win, latest first; ids none of them define come from the earliest later chapter. */
 export const ENTITY_STAGES: Entities[] = SCENES.map((_, i) =>
-  Object.assign({}, ...ORDERED.slice(i + 1).reverse(), ...ORDERED.slice(0, i + 1)),
+  Object.assign(
+    {},
+    ...ORDERED.slice(i + 1).reverse(),
+    ...ORDERED.slice(0, i + 1),
+  ),
 );
 
 /** The stage in force at film time t: the last chapter that has started. */

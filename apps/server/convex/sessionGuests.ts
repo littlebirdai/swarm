@@ -17,7 +17,10 @@ import { v } from "convex/values";
 import { mutation, query } from "./functions";
 import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { guestDisplayName, normalizeGuestName } from "@codecast/shared/contracts";
+import {
+  guestDisplayName,
+  normalizeGuestName,
+} from "@codecast/shared/contracts";
 import { emitNotification } from "./notificationRouter";
 import { sha256Hex } from "./lib/hash";
 import { newSlug } from "./lib/slug";
@@ -39,10 +42,15 @@ const guestArgs = {
 };
 
 /** The conversation, when this share token opens it and its owner takes suggestions. */
-async function openConversation(ctx: Ctx, conversationId: string, shareToken: string): Promise<Doc<"conversations"> | null> {
+async function openConversation(
+  ctx: Ctx,
+  conversationId: string,
+  shareToken: string,
+): Promise<Doc<"conversations"> | null> {
   const id = ctx.db.normalizeId("conversations", conversationId);
   const conversation = id ? await ctx.db.get(id) : null;
-  if (!conversation?.share_token || conversation.share_token !== shareToken) return null;
+  if (!conversation?.share_token || conversation.share_token !== shareToken)
+    return null;
   return conversation.guest_suggestions ? conversation : null;
 }
 
@@ -54,10 +62,17 @@ async function provenGuest(
 ): Promise<Doc<"session_guests"> | null> {
   const id = ctx.db.normalizeId("session_guests", args.guest_id);
   const guest = id ? await ctx.db.get(id) : null;
-  if (!guest || String(guest.conversation_id) !== String(conversation._id)) return null;
-  if (typeof args.secret !== "string" || args.secret.length < 16 || args.secret.length > 128) return null;
+  if (!guest || String(guest.conversation_id) !== String(conversation._id))
+    return null;
+  if (
+    typeof args.secret !== "string" ||
+    args.secret.length < 16 ||
+    args.secret.length > 128
+  )
+    return null;
   if ((await sha256Hex(args.secret)) !== guest.secret_hash) return null;
-  if ((await sha256Hex(args.share_token)) !== guest.share_token_hash) return null;
+  if ((await sha256Hex(args.share_token)) !== guest.share_token_hash)
+    return null;
   return guest;
 }
 
@@ -71,11 +86,20 @@ export const guestState = query({
     secret: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const conversation = await openConversation(ctx, args.conversation_id, args.share_token);
+    const conversation = await openConversation(
+      ctx,
+      args.conversation_id,
+      args.share_token,
+    );
     if (!conversation) return { open: false as const };
-    const guest = args.guest_id && args.secret
-      ? await provenGuest(ctx, conversation, { guest_id: args.guest_id, secret: args.secret, share_token: args.share_token })
-      : null;
+    const guest =
+      args.guest_id && args.secret
+        ? await provenGuest(ctx, conversation, {
+            guest_id: args.guest_id,
+            secret: args.secret,
+            share_token: args.share_token,
+          })
+        : null;
     if (!guest) return { open: true as const, guest: null, suggestions: [] };
     const rows = await ctx.db
       .query("guest_suggestions")
@@ -87,7 +111,12 @@ export const guestState = query({
       guest: { name: guest.name },
       suggestions: rows
         .filter((r: any) => r.status !== "withdrawn")
-        .map((r: any) => ({ _id: r._id, body: r.sent_body ?? r.body, status: r.status, created_at: r.created_at }))
+        .map((r: any) => ({
+          _id: r._id,
+          body: r.sent_body ?? r.body,
+          status: r.status,
+          created_at: r.created_at,
+        }))
         .reverse(),
     };
   },
@@ -95,18 +124,33 @@ export const guestState = query({
 
 /** A viewer of the link gives a name and becomes a guest of this session. */
 export const joinAsGuest = mutation({
-  args: { conversation_id: v.string(), share_token: v.string(), name: v.string() },
+  args: {
+    conversation_id: v.string(),
+    share_token: v.string(),
+    name: v.string(),
+  },
   handler: async (ctx, args) => {
-    const conversation = await openConversation(ctx, args.conversation_id, args.share_token);
+    const conversation = await openConversation(
+      ctx,
+      args.conversation_id,
+      args.share_token,
+    );
     if (!conversation) throw new Error("This session isn't taking suggestions");
     const name = normalizeGuestName(args.name);
     if (!name) throw new Error("Enter your name");
     const now = Date.now();
     const recent = await ctx.db
       .query("session_guests")
-      .withIndex("by_conversation_created", (q: any) => q.eq("conversation_id", conversation._id).gt("created_at", now - 60_000))
+      .withIndex("by_conversation_created", (q: any) =>
+        q
+          .eq("conversation_id", conversation._id)
+          .gt("created_at", now - 60_000),
+      )
       .take(GUESTS_PER_MINUTE);
-    if (recent.length >= GUESTS_PER_MINUTE) throw new Error("Too many people are joining right now. Try again in a minute.");
+    if (recent.length >= GUESTS_PER_MINUTE)
+      throw new Error(
+        "Too many people are joining right now. Try again in a minute.",
+      );
     const secret = newSlug(GUEST_SECRET_LENGTH);
     const guestId = await ctx.db.insert("session_guests", {
       conversation_id: conversation._id,
@@ -123,13 +167,19 @@ export const joinAsGuest = mutation({
 export const suggest = mutation({
   args: { ...guestArgs, body: v.string() },
   handler: async (ctx, args) => {
-    const conversation = await openConversation(ctx, args.conversation_id, args.share_token);
+    const conversation = await openConversation(
+      ctx,
+      args.conversation_id,
+      args.share_token,
+    );
     if (!conversation) throw new Error("This session isn't taking suggestions");
     const guest = await provenGuest(ctx, conversation, args);
-    if (!guest) throw new Error("Your guest pass expired. Enter your name again.");
+    if (!guest)
+      throw new Error("Your guest pass expired. Enter your name again.");
     const body = args.body.trim();
     if (!body) throw new Error("Write a message first");
-    if (body.length > GUEST_SUGGESTION_MAX_CHARS) throw new Error(`Keep it under ${GUEST_SUGGESTION_MAX_CHARS} characters`);
+    if (body.length > GUEST_SUGGESTION_MAX_CHARS)
+      throw new Error(`Keep it under ${GUEST_SUGGESTION_MAX_CHARS} characters`);
     const mine = await ctx.db
       .query("guest_suggestions")
       .withIndex("by_guest", (q: any) => q.eq("guest_id", guest._id))
@@ -137,9 +187,12 @@ export const suggest = mutation({
       .take(GUEST_HISTORY);
     const waiting = mine.filter((r: any) => r.status === "pending").length;
     if (waiting >= GUEST_PENDING_MAX) {
-      throw new Error(`You have ${GUEST_PENDING_MAX} suggestions waiting. Wait for the owner to get to them.`);
+      throw new Error(
+        `You have ${GUEST_PENDING_MAX} suggestions waiting. Wait for the owner to get to them.`,
+      );
     }
-    const owner = (conversation.owner_user_id ?? conversation.user_id) as Id<"users">;
+    const owner = (conversation.owner_user_id ??
+      conversation.user_id) as Id<"users">;
     const id = await ctx.db.insert("guest_suggestions", {
       conversation_id: conversation._id,
       guest_id: guest._id,
@@ -173,13 +226,28 @@ export const suggest = mutation({
 export const withdraw = mutation({
   args: { ...guestArgs, suggestion_id: v.string() },
   handler: async (ctx, args) => {
-    const conversation = await openConversation(ctx, args.conversation_id, args.share_token);
-    const guest = conversation ? await provenGuest(ctx, conversation, args) : null;
-    if (!guest) throw new Error("Your guest pass expired. Enter your name again.");
+    const conversation = await openConversation(
+      ctx,
+      args.conversation_id,
+      args.share_token,
+    );
+    const guest = conversation
+      ? await provenGuest(ctx, conversation, args)
+      : null;
+    if (!guest)
+      throw new Error("Your guest pass expired. Enter your name again.");
     const id = ctx.db.normalizeId("guest_suggestions", args.suggestion_id);
     const row = id ? await ctx.db.get(id) : null;
-    if (!row || String(row.guest_id) !== String(guest._id) || row.status !== "pending") return { status: row?.status ?? "gone" };
-    await ctx.db.patch(row._id, { status: "withdrawn", decided_at: Date.now() });
+    if (
+      !row ||
+      String(row.guest_id) !== String(guest._id) ||
+      row.status !== "pending"
+    )
+      return { status: row?.status ?? "gone" };
+    await ctx.db.patch(row._id, {
+      status: "withdrawn",
+      decided_at: Date.now(),
+    });
     return { status: "withdrawn" };
   },
 });

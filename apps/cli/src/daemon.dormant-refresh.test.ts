@@ -2,14 +2,35 @@ import { describe, expect, spyOn, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DORMANT_CLAIM_TTL_MS, HEARTBEAT_ALIVE_MS, STATUS_TRUST_TTL_MS, deriveLiveAt, placeProjectableRow, type ProjectableInboxRow } from "@codecast/shared/contracts";
-import { acquireSessionProcessOwnership, findSessionFile, paneReconcileTarget, primeSessionFileIndexAtBoot, reconciledStatusWithTasks, resetSessionFileIndexForTests, resolveTurnEndStatus } from "./daemon.js";
-import { closeDaemonWorkers, configureDaemonWorkers } from "./workers/bridge.js";
+import {
+  DORMANT_CLAIM_TTL_MS,
+  HEARTBEAT_ALIVE_MS,
+  STATUS_TRUST_TTL_MS,
+  deriveLiveAt,
+  placeProjectableRow,
+  type ProjectableInboxRow,
+} from "@codecast/shared/contracts";
+import {
+  acquireSessionProcessOwnership,
+  findSessionFile,
+  paneReconcileTarget,
+  primeSessionFileIndexAtBoot,
+  reconciledStatusWithTasks,
+  resetSessionFileIndexForTests,
+  resolveTurnEndStatus,
+} from "./daemon.js";
+import {
+  closeDaemonWorkers,
+  configureDaemonWorkers,
+} from "./workers/bridge.js";
 import { writeThreadStatePulse } from "./threadStateStamp.js";
 
 const START = 1_800_000_000_000;
 const task = { id: "bjmsej5ia", kind: "background" as const };
-const dormant = (openTasksAt: number, lastHeartbeat: number | null = openTasksAt): ProjectableInboxRow => ({
+const dormant = (
+  openTasksAt: number,
+  lastHeartbeat: number | null = openTasksAt,
+): ProjectableInboxRow => ({
   _id: "dormant-background-wait",
   updated_at: START,
   message_count: 275,
@@ -31,11 +52,21 @@ describe("dormant background task refresh", () => {
     const file = path.join(project, `${id}.jsonl`);
     let release!: () => void;
     let reached!: () => void;
-    const held = new Promise<void>(resolve => { release = resolve; });
-    const entered = new Promise<void>(resolve => { reached = resolve; });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
     const original = fs.promises.readdir;
-    const read = spyOn(fs.promises, "readdir").mockImplementation((async (dir: unknown, ...args: unknown[]) => {
-      if (String(dir) === path.join(home, ".codex", "sessions")) { reached(); await held; }
+    const read = spyOn(fs.promises, "readdir").mockImplementation((async (
+      dir: unknown,
+      ...args: unknown[]
+    ) => {
+      if (String(dir) === path.join(home, ".codex", "sessions")) {
+        reached();
+        await held;
+      }
       return (original as any)(dir, ...args);
     }) as any);
     let warm: Promise<void> | undefined;
@@ -43,7 +74,15 @@ describe("dormant background task refresh", () => {
       process.env.HOME = home;
       process.env.CODECAST_DIR = path.join(home, ".codecast");
       fs.mkdirSync(project, { recursive: true });
-      fs.writeFileSync(file, JSON.stringify({ type: "user", sessionId: id, timestamp: new Date(Date.now() - 60_000).toISOString(), message: { role: "user", content: "Wait for the machine" } }) + "\n");
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          type: "user",
+          sessionId: id,
+          timestamp: new Date(Date.now() - 60_000).toISOString(),
+          message: { role: "user", content: "Wait for the machine" },
+        }) + "\n",
+      );
       writeThreadStatePulse(id, "dormant");
       resetSessionFileIndexForTests();
       warm = primeSessionFileIndexAtBoot();
@@ -73,15 +112,55 @@ describe("dormant background task refresh", () => {
       process.env.HOME = home;
       process.env.CODECAST_DIR = path.join(home, ".codecast");
       fs.mkdirSync(project, { recursive: true });
-      fs.writeFileSync(file, [
-        { type: "user", sessionId: id, timestamp: new Date(Date.now() - 60_000).toISOString(), message: { role: "user", content: "Wait for the machine" } },
-        { type: "user", sessionId: id, message: { role: "user", content: [{ type: "tool_result", tool_use_id: "wait", content: "Command running in background with ID: live-wait. Output is being written to: /tmp/live-wait.output" }] } },
-        { type: "assistant", sessionId: id, message: { role: "assistant", content: "The background job wakes me." } },
-      ].map(row => JSON.stringify(row)).join("\n") + "\n");
+      fs.writeFileSync(
+        file,
+        [
+          {
+            type: "user",
+            sessionId: id,
+            timestamp: new Date(Date.now() - 60_000).toISOString(),
+            message: { role: "user", content: "Wait for the machine" },
+          },
+          {
+            type: "user",
+            sessionId: id,
+            message: {
+              role: "user",
+              content: [
+                {
+                  type: "tool_result",
+                  tool_use_id: "wait",
+                  content:
+                    "Command running in background with ID: live-wait. Output is being written to: /tmp/live-wait.output",
+                },
+              ],
+            },
+          },
+          {
+            type: "assistant",
+            sessionId: id,
+            message: {
+              role: "assistant",
+              content: "The background job wakes me.",
+            },
+          },
+        ]
+          .map((row) => JSON.stringify(row))
+          .join("\n") + "\n",
+      );
       fs.symlinkSync("missing.jsonl", path.join(project, "unrelated.jsonl"));
       writeThreadStatePulse(id, "dormant");
       resetSessionFileIndexForTests();
-      await configureDaemonWorkers(true, {}, { invocation: { command: process.execPath, args: [path.resolve(import.meta.dir, "main.ts"), "_worker", "scan"] } });
+      await configureDaemonWorkers(
+        true,
+        {},
+        {
+          invocation: {
+            command: process.execPath,
+            args: [path.resolve(import.meta.dir, "main.ts"), "_worker", "scan"],
+          },
+        },
+      );
       await primeSessionFileIndexAtBoot();
       expect(findSessionFile(id, { staleOk: true })?.path).toBe(file);
       expect(resolveTurnEndStatus(id)).toBe("dormant");
@@ -104,9 +183,13 @@ describe("dormant background task refresh", () => {
     const end = START + DORMANT_CLAIM_TTL_MS + 60 * 60_000;
     for (let now = START; now <= end; now += 90_000) {
       expect(paneReconcileTarget("idle", "dormant")).toBe("idle");
-      expect(reconciledStatusWithTasks("dormant", "idle", true, "dormant")).toBeNull();
+      expect(
+        reconciledStatusWithTasks("dormant", "idle", true, "dormant"),
+      ).toBeNull();
       // The report is never re-sent: the heartbeat alone keeps it standing.
-      expect(placeProjectableRow(dormant(START, now - 30_000), false, now)).toEqual({ bucket: "dormant", work_state: "dormant" });
+      expect(
+        placeProjectableRow(dormant(START, now - 30_000), false, now),
+      ).toEqual({ bucket: "dormant", work_state: "dormant" });
     }
   });
 
@@ -122,21 +205,39 @@ describe("dormant background task refresh", () => {
     };
     const live = deriveLiveAt(row, now);
     expect(live.agent_status).toBe("waiting");
-    expect(placeProjectableRow({ ...row, ...live }, false, now).work_state).toBe("dormant");
+    expect(
+      placeProjectableRow({ ...row, ...live }, false, now).work_state,
+    ).toBe("dormant");
   });
 
   test("completed work and lost daemon reports still expire", () => {
     const now = START + DORMANT_CLAIM_TTL_MS;
-    expect(placeProjectableRow({ ...dormant(now), open_tasks: [] }, false, now).work_state).toBe("needs_input");
-    expect(placeProjectableRow(dormant(now, now - HEARTBEAT_ALIVE_MS), false, now).work_state).toBe("needs_input");
+    expect(
+      placeProjectableRow({ ...dormant(now), open_tasks: [] }, false, now)
+        .work_state,
+    ).toBe("needs_input");
+    expect(
+      placeProjectableRow(dormant(now, now - HEARTBEAT_ALIVE_MS), false, now)
+        .work_state,
+    ).toBe("needs_input");
   });
 
   test("fresh wait evidence cannot conceal a question, error, or wake", () => {
     const now = START + DORMANT_CLAIM_TTL_MS;
-    for (const block of [{ awaiting_input: true }, { pending_api_error: true }, { agent_status: "permission_blocked" }, { thread_state_status: "blocked", agent_status: "idle" }]) {
-      expect(placeProjectableRow({ ...dormant(now), ...block }, true, now).work_state).toBe("needs_input");
+    for (const block of [
+      { awaiting_input: true },
+      { pending_api_error: true },
+      { agent_status: "permission_blocked" },
+      { thread_state_status: "blocked", agent_status: "idle" },
+    ]) {
+      expect(
+        placeProjectableRow({ ...dormant(now), ...block }, true, now)
+          .work_state,
+      ).toBe("needs_input");
     }
     expect(paneReconcileTarget("busy", "dormant")).toBe("working");
-    expect(reconciledStatusWithTasks("dormant", "active", true)).toBe("working");
+    expect(reconciledStatusWithTasks("dormant", "active", true)).toBe(
+      "working",
+    );
   });
 });

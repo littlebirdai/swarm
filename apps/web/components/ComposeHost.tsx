@@ -19,17 +19,27 @@ export function ComposeHost() {
   // ComposeView's guarded close (draft keep/discard confirm) — the backdrop
   // routes clicks through it. Null until the modal mounts.
   const closeGuardRef = useRef<(() => void) | null>(null);
-  const { containerRef, beforeReorder } = useFlipAnimation({ scale: true, durationMs: 240 });
+  const { containerRef, beforeReorder } = useFlipAnimation({
+    scale: true,
+    durationMs: 240,
+  });
   // Store subscribers run inside set(), before React commits: the frames still
   // sit where they were, which is the "first" measurement a FLIP needs. This
   // covers every way the layout changes (buttons, the shortcut, a send).
-  useMountEffect(() => useInboxStore.subscribe((st, prev) => { if (st.composes !== prev.composes) beforeReorder(); }));
+  useMountEffect(() =>
+    useInboxStore.subscribe((st, prev) => {
+      if (st.composes !== prev.composes) beforeReorder();
+    }),
+  );
 
   if (composes.length === 0) return null;
   const hasModal = composes.some((c) => c.mode === "modal");
   const ComposeView = composeViewComponent();
   return (
-    <div ref={containerRef} className="fixed inset-x-0 bottom-0 z-[200] flex flex-row-reverse items-end gap-3 px-4 pointer-events-none">
+    <div
+      ref={containerRef}
+      className="fixed inset-x-0 bottom-0 z-[200] flex flex-row-reverse items-end gap-3 px-4 pointer-events-none"
+    >
       {hasModal && (
         <div
           className="fixed inset-0 z-10 bg-sol-bg/95 pointer-events-auto animate-in fade-in-0 duration-150"
@@ -40,9 +50,11 @@ export function ComposeHost() {
         <div
           key={c.id}
           data-flip-key={c.id}
-          className={c.mode === "modal"
-            ? "fixed inset-x-0 top-[12vh] z-20 mx-auto w-fit pointer-events-auto"
-            : "min-w-0 pointer-events-auto"}
+          className={
+            c.mode === "modal"
+              ? "fixed inset-x-0 top-[12vh] z-20 mx-auto w-fit pointer-events-auto"
+              : "min-w-0 pointer-events-auto"
+          }
         >
           <Suspense fallback={null}>
             <ComposeView
